@@ -51,16 +51,11 @@ export default async function PainelOrganizadora() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Painel da organizadora</h1>
-        <form action="/api/auth/logout" method="post">
-          <button className="botao-secundario" type="submit">Sair</button>
-        </form>
-      </div>
+      <h1 className="text-2xl font-bold">Visão geral</h1>
 
       {!rifaAtiva ? (
         <p className="cartao text-slate-600">
-          Nenhuma rifa cadastrada ainda. Crie a primeira pela API <code>POST /api/organizadora/rifas</code>.
+          Nenhuma rifa cadastrada ainda. Crie a primeira na aba <strong>Rifas</strong>.
         </p>
       ) : (
         <>

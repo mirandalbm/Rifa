@@ -2,6 +2,7 @@ import crypto from "crypto";
 import { Prisma, StatusCompra, StatusNumero, StatusPagamento } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { multiplicar, percentualDe } from "@/lib/dinheiro";
+import { enviarEmail, montarEmailConfirmacao } from "@/lib/email";
 
 export class ErroDeNegocio extends Error {}
 
@@ -152,20 +153,23 @@ export async function criarCompra(params: {
 /// Confirma o pagamento de uma compra: números viram PAGO e, havendo afiliado,
 /// a comissão é registrada. Idempotente — reprocessar o mesmo webhook não
 /// duplica comissão nem reescreve a data de pagamento.
+/// Retorna true apenas quando esta chamada foi a que transicionou a compra para
+/// paga — assim o e-mail de confirmação sai uma vez só, mesmo que o webhook e a
+/// consulta da tela cheguem juntos.
 export async function confirmarPagamento(params: {
   compraId: string;
   idExterno?: string | null;
   dadosProvedor?: Prisma.InputJsonValue;
-}): Promise<void> {
+}): Promise<boolean> {
   const { compraId, idExterno, dadosProvedor } = params;
 
-  await prisma.$transaction(async (tx) => {
+  return prisma.$transaction(async (tx) => {
     const compra = await tx.compra.findUnique({
       where: { id: compraId },
       include: { afiliado: true },
     });
     if (!compra) throw new ErroDeNegocio("Compra não encontrada");
-    if (compra.status === StatusCompra.PAGA) return;
+    if (compra.status === StatusCompra.PAGA) return false;
 
     await tx.compra.update({
       where: { id: compraId },
@@ -197,7 +201,48 @@ export async function confirmarPagamento(params: {
         },
       });
     }
+
+    return true;
   });
+}
+
+/// Avisa o comprador por e-mail. Chamado depois da transação de confirmação e
+/// sempre tolerante a falha: e-mail que não sai não invalida pagamento recebido.
+export async function notificarCompraPaga(compraId: string): Promise<void> {
+  try {
+    const compra = await prisma.compra.findUnique({
+      where: { id: compraId },
+      include: {
+        comprador: true,
+        numeros: { select: { numero: true }, orderBy: { numero: "asc" } },
+        rifa: {
+          select: {
+            titulo: true,
+            premio: true,
+            quantidadeNumeros: true,
+            dataSorteio: true,
+            organizacao: { select: { nome: true } },
+          },
+        },
+      },
+    });
+    if (!compra) return;
+
+    const { assunto, html } = montarEmailConfirmacao({
+      nome: compra.comprador.nome,
+      rifa: compra.rifa.titulo,
+      premio: compra.rifa.premio,
+      codigo: compra.codigo,
+      numeros: compra.numeros.map((n) => formatarNumero(n.numero, compra.rifa.quantidadeNumeros)),
+      valorTotal: compra.valorTotal.toFixed(2),
+      dataSorteio: compra.rifa.dataSorteio,
+      organizacao: compra.rifa.organizacao.nome,
+    });
+
+    await enviarEmail({ para: compra.comprador.email, assunto, html });
+  } catch (erro) {
+    console.error("Falha ao notificar compra paga", compraId, erro);
+  }
 }
 
 export async function registrarAuditoria(params: {

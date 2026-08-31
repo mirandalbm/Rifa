@@ -8,6 +8,13 @@ Plataforma de rifa para organização sem fins lucrativos, com três portais sep
 | **Afiliado** (`/afiliado`) | Vendedor/divulgador | Link de indicação, acompanhamento de vendas e comissões |
 | **Organizadora** (`/organizadora`) | A ONG | Rifas, arrecadação, compras, comissões a repassar, publicação do resultado |
 
+O painel da organizadora tem quatro abas: **visão geral** (arrecadação e últimas compras),
+**rifas** (criar, abrir/encerrar venda, exportar CSV), **afiliados** (cadastrar e registrar
+repasse de comissão) e **resultado** (apuração pela Loteria Federal).
+
+Dois perfis acessam esse painel: `ORGANIZADORA` faz tudo; `OPERADOR` apenas consulta e exporta,
+sem criar rifa, cadastrar afiliado, registrar repasse ou publicar resultado.
+
 ## Como o dinheiro circula
 
 O pagamento sempre entra pela plataforma, direto para a conta da organização. O afiliado
@@ -56,6 +63,19 @@ são rejeitadas com 401 — sem isso, qualquer pessoa poderia forjar uma confirm
 Além do webhook, a tela de pagamento também consulta o status direto no provedor a cada poucos
 segundos, então uma notificação atrasada não deixa o comprador esperando.
 
+## E-mail de confirmação
+
+Quando um pagamento é confirmado, o comprador recebe um e-mail com seus números e o código da
+compra, enviado via [Resend](https://resend.com). É **opcional**: sem `RESEND_API_KEY` e
+`EMAIL_REMETENTE`, o sistema funciona normalmente e apenas registra no log que não enviou —
+falha de e-mail nunca invalida um pagamento já recebido.
+
+## Exportação de relatório
+
+Na aba **Rifas**, o botão "Exportar CSV" baixa a planilha completa de uma rifa: compras,
+compradores, números, valores, data de pagamento, afiliado responsável e comissão. O arquivo sai
+com BOM e separador `;`, então abre direto no Excel em português com acentuação correta.
+
 ## Decisões que sustentam a operação
 
 1. **Dinheiro nunca é float** — todos os valores são `Decimal(10,2)` no banco e `Prisma.Decimal`
@@ -67,8 +87,11 @@ segundos, então uma notificação atrasada não deixa o comprador esperando.
    automaticamente, sem depender de cron.
 4. **Confirmação é idempotente** — reprocessar o mesmo webhook não duplica comissão nem
    reescreve a data de pagamento.
-5. **Auditoria** — login, criação de rifa, publicação de resultado, pagamento de comissão e
-   webhooks ficam registrados em `LogAuditoria`.
+5. **Auditoria** — login, criação de rifa, publicação de resultado, pagamento de comissão,
+   exportação de relatório e webhooks ficam registrados em `LogAuditoria`.
+6. **CSV não vira fórmula** — campos exportados que começam com `=`, `+`, `-` ou `@` são
+   neutralizados, para que um nome cadastrado como `=HYPERLINK(...)` não seja executado ao abrir
+   a planilha.
 
 ## Conformidade
 

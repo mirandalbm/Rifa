@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { StatusCompra } from "@prisma/client";
 import { consultarPagamento } from "@/lib/mercadopago";
-import { confirmarPagamento, formatarNumero } from "@/lib/rifa";
+import { confirmarPagamento, formatarNumero, notificarCompraPaga } from "@/lib/rifa";
 
 /// Consulta o estado da compra. O front-end chama isto em intervalos enquanto o
 /// comprador está na tela do PIX; se o webhook ainda não chegou, confere direto
@@ -26,11 +26,12 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     try {
       const { status, bruto } = await consultarPagamento(compra.pagamento.idExterno);
       if (status === "approved") {
-        await confirmarPagamento({
+        const confirmadaAgora = await confirmarPagamento({
           compraId: compra.id,
           idExterno: compra.pagamento.idExterno,
           dadosProvedor: bruto as object,
         });
+        if (confirmadaAgora) await notificarCompraPaga(compra.id);
         compra.status = StatusCompra.PAGA;
       }
     } catch {

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { StatusPagamento } from "@prisma/client";
 import { assinaturaWebhookValida, consultarPagamento } from "@/lib/mercadopago";
-import { confirmarPagamento, registrarAuditoria } from "@/lib/rifa";
+import { confirmarPagamento, notificarCompraPaga, registrarAuditoria } from "@/lib/rifa";
 
 export async function POST(req: NextRequest) {
   const corpo = await req.json().catch(() => null);
@@ -32,7 +32,12 @@ export async function POST(req: NextRequest) {
   const { status, bruto } = await consultarPagamento(dataId);
 
   if (status === "approved") {
-    await confirmarPagamento({ compraId: pagamento.compraId, idExterno: dataId, dadosProvedor: bruto as object });
+    const confirmadaAgora = await confirmarPagamento({
+      compraId: pagamento.compraId,
+      idExterno: dataId,
+      dadosProvedor: bruto as object,
+    });
+    if (confirmadaAgora) await notificarCompraPaga(pagamento.compraId);
   } else if (status === "rejected" || status === "cancelled") {
     await prisma.pagamento.update({
       where: { id: pagamento.id },

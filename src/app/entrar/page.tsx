@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 
 export default function PaginaEntrar() {
   const router = useRouter();
-  const [email, setEmail] = useState("");
+  const [identificador, setIdentificador] = useState("");
   const [senha, setSenha] = useState("");
   const [erro, setErro] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
@@ -18,7 +18,7 @@ export default function PaginaEntrar() {
     const resposta = await fetch("/api/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, senha }),
+      body: JSON.stringify({ identificador, senha }),
     });
 
     const dados = await resposta.json();
@@ -39,14 +39,14 @@ export default function PaginaEntrar() {
       <p className="text-sm text-slate-600">Acesso para afiliados e para a organizadora.</p>
 
       <div>
-        <label className="rotulo" htmlFor="email">E-mail</label>
+        <label className="rotulo" htmlFor="identificador">Usuário ou e-mail</label>
         <input
-          id="email"
-          type="email"
+          id="identificador"
+          autoComplete="username"
           className="campo"
           required
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          value={identificador}
+          onChange={(e) => setIdentificador(e.target.value)}
         />
       </div>
 

@@ -71,6 +71,8 @@ model Usuario {
   id            String        @id @default(cuid())
   organizacaoId String
   nome          String
+  /// Nome de usuário curto para login, alternativa ao e-mail.
+  usuario       String?       @unique
   email         String        @unique
   senhaHash     String
   perfil        PerfilUsuario
@@ -157,6 +159,21 @@ model Numero {
   @@index([compraId])
 }
 
+model ContaApostador {
+  id        String   @id @default(cuid())
+  usuario   String   @unique
+  email     String   @unique
+  nome      String
+  telefone  String
+  cpf       String?
+  senhaHash String
+  ativo     Boolean  @default(true)
+  criadoEm  DateTime @default(now())
+  ultimoLogin DateTime?
+
+  compras Compra[]
+}
+
 model Comprador {
   id       String   @id @default(cuid())
   nome     String
@@ -176,6 +193,9 @@ model Compra {
   codigo       String       @unique
   rifaId       String
   compradorId  String
+  /// Preenchido quando a compra foi feita por alguém logado; nulo em compra
+  /// de visitante, que continua funcionando sem cadastro.
+  contaId      String?
   afiliadoId   String?
   quantidade   Int
   valorTotal   Decimal      @db.Decimal(10, 2)
@@ -186,14 +206,16 @@ model Compra {
   pagaEm       DateTime?
 
   rifa      Rifa       @relation(fields: [rifaId], references: [id])
-  comprador Comprador  @relation(fields: [compradorId], references: [id])
-  afiliado  Afiliado?  @relation(fields: [afiliadoId], references: [id])
+  comprador Comprador       @relation(fields: [compradorId], references: [id])
+  conta     ContaApostador? @relation(fields: [contaId], references: [id])
+  afiliado  Afiliado?       @relation(fields: [afiliadoId], references: [id])
   numeros   Numero[]
   pagamento Pagamento?
   comissao  Comissao?
 
   @@index([rifaId, status])
   @@index([compradorId])
+  @@index([contaId, criadaEm])
   @@index([afiliadoId, status])
 }
 

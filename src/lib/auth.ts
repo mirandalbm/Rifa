@@ -71,6 +71,63 @@ export async function encerrarSessao(): Promise<void> {
   armazem.delete(COOKIE);
 }
 
+// ── Sessão do apostador ────────────────────────────────────────────────
+// Cookie separado do da equipe, de propósito: assim nenhuma sessão de
+// comprador pode ser confundida com acesso ao painel, mesmo que um dia
+// alguém esqueça de checar o perfil.
+
+const COOKIE_APOSTADOR = "rifa_apostador";
+
+export type SessaoApostador = {
+  contaId: string;
+  nome: string;
+  usuario: string;
+};
+
+export async function criarSessaoApostador(sessao: SessaoApostador): Promise<void> {
+  // O comprador volta para conferir números dias depois; sessão curta como a
+  // da equipe o faria logar de novo a cada visita.
+  const dias = 30;
+  const token = await new SignJWT({ ...sessao })
+    .setProtectedHeader({ alg: "HS256" })
+    .setIssuedAt()
+    .setExpirationTime(`${dias}d`)
+    .sign(segredo());
+
+  const armazem = await cookies();
+  armazem.set(COOKIE_APOSTADOR, token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: dias * 24 * 3600,
+  });
+}
+
+export async function lerSessaoApostador(): Promise<SessaoApostador | null> {
+  const armazem = await cookies();
+  const token = armazem.get(COOKIE_APOSTADOR)?.value;
+  if (!token) return null;
+
+  try {
+    const { payload } = await jwtVerify(token, segredo());
+    // Um token da equipe não pode valer como apostador: ele não carrega contaId.
+    if (!payload.contaId) return null;
+    return {
+      contaId: String(payload.contaId),
+      nome: String(payload.nome),
+      usuario: String(payload.usuario),
+    };
+  } catch {
+    return null;
+  }
+}
+
+export async function encerrarSessaoApostador(): Promise<void> {
+  const armazem = await cookies();
+  armazem.delete(COOKIE_APOSTADOR);
+}
+
 /// Exige uma sessão com um dos perfis informados. Retorna null quando não
 /// autorizado — cada rota decide se responde 401 ou redireciona.
 export async function exigirPerfil(...perfis: PerfilUsuario[]): Promise<Sessao | null> {

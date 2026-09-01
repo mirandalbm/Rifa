@@ -224,6 +224,8 @@ export async function criarCompra(params: {
   /// Quantidade a sortear entre os disponíveis. Alternativa a `numeros`.
   quantidade?: number;
   comprador: DadosComprador;
+  /// Conta do apostador logado. Compra de visitante continua sem conta.
+  contaId?: string | null;
   codigoAfiliado?: string | null;
 }): Promise<{
   compraId: string;
@@ -232,7 +234,7 @@ export async function criarCompra(params: {
   expiraEm: Date;
   numeros: number[];
 }> {
-  const { rifaId, numeros, quantidade, comprador, codigoAfiliado } = params;
+  const { rifaId, numeros, quantidade, comprador, contaId, codigoAfiliado } = params;
 
   if (Boolean(numeros) === Boolean(quantidade)) {
     throw new ErroDeNegocio("Informe os números escolhidos ou a quantidade a sortear");
@@ -289,6 +291,7 @@ export async function criarCompra(params: {
         codigo: gerarCodigoCompra(),
         rifaId,
         compradorId: compradorRegistro.id,
+        contaId: contaId ?? null,
         afiliadoId: afiliado?.id ?? null,
         quantidade: numerosDaCompra.length,
         valorTotal,

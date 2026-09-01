@@ -36,9 +36,39 @@ export const esquemaNovaCompra = z
     path: ["numeros"],
   });
 
+/// O campo aceita nome de usuário ou e-mail — quem entra no painel digita o
+/// que for mais curto. Sem tamanho mínimo na senha: validar política de senha
+/// no login só serviria para revelar qual é a política a quem tenta adivinhar.
 export const esquemaLogin = z.object({
-  email: z.string().trim().email("E-mail inválido"),
-  senha: z.string().min(8, "Senha deve ter ao menos 8 caracteres"),
+  identificador: z.string().trim().min(1, "Informe usuário ou e-mail").max(160),
+  senha: z.string().min(1, "Informe a senha").max(200),
+});
+
+const nomeDeUsuario = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .min(3, "Usuário deve ter ao menos 3 caracteres")
+  .max(32)
+  .regex(/^[a-z0-9._-]+$/, "Use apenas letras, números, ponto, hífen ou sublinhado");
+
+export const esquemaCadastroApostador = z.object({
+  usuario: nomeDeUsuario,
+  nome: z.string().trim().min(3, "Informe o nome completo").max(120),
+  email: z.string().trim().toLowerCase().email("E-mail inválido").max(160),
+  telefone: z
+    .string()
+    .trim()
+    .transform(apenasDigitos)
+    .refine((v) => v.length >= 10 && v.length <= 11, "Telefone deve ter DDD + número"),
+  cpf: z
+    .string()
+    .trim()
+    .transform((valor) => apenasDigitos(valor) || null)
+    .refine((v) => v === null || v.length === 11, "CPF deve ter 11 dígitos")
+    .optional()
+    .nullable(),
+  senha: z.string().min(6, "Senha deve ter ao menos 6 caracteres").max(200),
 });
 
 export const esquemaConsultaNumeros = z.object({

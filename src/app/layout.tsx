@@ -17,6 +17,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               Rifa Solidária
             </Link>
             <nav className="flex gap-4 text-sm">
+              <Link href="/minha-conta" className="text-slate-600 hover:text-marca-700">
+                Minha conta
+              </Link>
               <Link href="/meus-numeros" className="text-slate-600 hover:text-marca-700">
                 Meus números
               </Link>

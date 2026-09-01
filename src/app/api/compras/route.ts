@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { ErroDeNegocio, criarCompra } from "@/lib/rifa";
 import { criarCobrancaPix } from "@/lib/mercadopago";
 import { esquemaNovaCompra } from "@/lib/validacoes";
+import { lerSessaoApostador } from "@/lib/auth";
 import { decimal } from "@/lib/dinheiro";
 import crypto from "crypto";
 
@@ -19,9 +20,20 @@ export async function POST(req: NextRequest) {
 
   const { rifaId, numeros, quantidade, comprador, codigoAfiliado } = analise.data;
 
+  // A conta vem da sessão, nunca do corpo do pedido: senão qualquer um poderia
+  // lançar compras na conta de outra pessoa.
+  const sessao = await lerSessaoApostador();
+
   let compra;
   try {
-    compra = await criarCompra({ rifaId, numeros, quantidade, comprador, codigoAfiliado });
+    compra = await criarCompra({
+      rifaId,
+      numeros,
+      quantidade,
+      comprador,
+      contaId: sessao?.contaId ?? null,
+      codigoAfiliado,
+    });
   } catch (erro) {
     if (erro instanceof ErroDeNegocio) {
       return NextResponse.json({ erro: erro.message }, { status: 409 });

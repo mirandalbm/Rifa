@@ -27,6 +27,22 @@ export default async function PaginaResultadoOrganizadora() {
     take: 10,
   });
 
+  // Quem ganhou precisa ficar visível para sempre, não só no instante da
+  // publicação: é a informação que a organizadora vai consultar depois para
+  // entregar o prêmio. `compraVencedora` guarda o id, sem relação declarada.
+  const idsVencedores = publicados.map((r) => r.compraVencedora).filter((id): id is string => Boolean(id));
+  const comprasVencedoras = idsVencedores.length
+    ? await prisma.compra.findMany({
+        where: { id: { in: idsVencedores } },
+        select: {
+          id: true,
+          codigo: true,
+          comprador: { select: { nome: true, email: true, telefone: true } },
+        },
+      })
+    : [];
+  const vencedorPorCompra = new Map(comprasVencedoras.map((c) => [c.id, c]));
+
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">Publicar resultado</h1>
@@ -47,21 +63,41 @@ export default async function PaginaResultadoOrganizadora() {
               <tr className="border-b border-slate-200 text-left text-slate-500">
                 <th className="pb-2">Rifa</th>
                 <th className="pb-2">Número</th>
+                <th className="pb-2">Ganhador</th>
                 <th className="pb-2">Concurso</th>
                 <th className="pb-2">Publicado em</th>
               </tr>
             </thead>
             <tbody>
-              {publicados.map((resultado) => (
-                <tr key={resultado.id} className="border-b border-slate-100">
-                  <td className="py-2">{resultado.rifa.titulo}</td>
-                  <td className="py-2 font-mono font-semibold">
-                    {formatarNumero(resultado.numeroSorteado, resultado.rifa.quantidadeNumeros)}
-                  </td>
-                  <td className="py-2">{resultado.concurso}</td>
-                  <td className="py-2">{resultado.publicadoEm.toLocaleDateString("pt-BR")}</td>
-                </tr>
-              ))}
+              {publicados.map((resultado) => {
+                const vencedor = resultado.compraVencedora
+                  ? vencedorPorCompra.get(resultado.compraVencedora)
+                  : null;
+
+                return (
+                  <tr key={resultado.id} className="border-b border-slate-100">
+                    <td className="py-2">{resultado.rifa.titulo}</td>
+                    <td className="py-2 font-mono font-semibold">
+                      {formatarNumero(resultado.numeroSorteado, resultado.rifa.quantidadeNumeros)}
+                    </td>
+                    <td className="py-2">
+                      {vencedor ? (
+                        <>
+                          {vencedor.comprador.nome}
+                          <span className="block text-xs text-slate-400">
+                            {vencedor.comprador.telefone} · compra{" "}
+                            <span className="font-mono">{vencedor.codigo}</span>
+                          </span>
+                        </>
+                      ) : (
+                        <span className="text-amber-700">número não vendido</span>
+                      )}
+                    </td>
+                    <td className="py-2">{resultado.concurso}</td>
+                    <td className="py-2">{resultado.publicadoEm.toLocaleDateString("pt-BR")}</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </section>

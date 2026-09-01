@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 
 type Rifa = {
   id: string;
@@ -16,7 +15,6 @@ type Publicado = {
 };
 
 export default function FormResultado({ rifas }: { rifas: Rifa[] }) {
-  const router = useRouter();
   const [rifaId, setRifaId] = useState(rifas[0]?.id ?? "");
   const [primeiroPremio, setPrimeiroPremio] = useState("");
   const [enviando, setEnviando] = useState(false);
@@ -66,8 +64,11 @@ export default function FormResultado({ rifas }: { rifas: Rifa[] }) {
       return;
     }
 
+    // Sem router.refresh() aqui de propósito: a rifa recém-apurada sai da lista
+    // de "aguardando resultado", o componente seria desmontado e a confirmação
+    // — que mostra quem ganhou — sumiria da tela no mesmo instante.
+    // A tabela de resultados publicados já traz o ganhador na próxima navegação.
     setPublicado(corpo);
-    router.refresh();
   }
 
   if (publicado) {

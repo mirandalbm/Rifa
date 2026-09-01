@@ -20,6 +20,7 @@ type Rifa = {
   /// Falso em rifa grande: a grade não é enviada nem desenhada, e a compra
   /// passa a ser por quantidade, com o servidor sorteando os números.
   modoGrade: boolean;
+  midias: { banner: string | null; imagens: string[]; video: string | null };
 };
 
 const brl = (valor: number) =>
@@ -39,6 +40,7 @@ export default function ComprarNumeros() {
   const [form, setForm] = useState({ nome: "", email: "", telefone: "", cpf: "" });
   // Quantidade pedida quando não há grade para clicar.
   const [quantidade, setQuantidade] = useState(1);
+  const [imagemAmpliada, setImagemAmpliada] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/rifas/ativa")
@@ -123,7 +125,17 @@ export default function ComprarNumeros() {
 
   return (
     <div className="space-y-6">
-      <section className="cartao">
+      <section className="cartao overflow-hidden p-0">
+        {rifa.midias.banner && (
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img
+            src={`/api/midia/${rifa.midias.banner}`}
+            alt={`Capa da ${rifa.titulo}`}
+            className="h-44 w-full object-cover sm:h-60"
+          />
+        )}
+
+        <div className="p-5">
         <h1 className="text-2xl font-bold text-marca-700">{rifa.titulo}</h1>
         {rifa.descricao && <p className="mt-2 text-slate-600">{rifa.descricao}</p>}
 
@@ -163,7 +175,60 @@ export default function ComprarNumeros() {
             Você chegou pela indicação <strong>{codigoAfiliado}</strong>.
           </p>
         )}
+        </div>
       </section>
+
+      {(rifa.midias.imagens.length > 0 || rifa.midias.video) && (
+        <section className="cartao">
+          <h2 className="mb-3 text-lg font-semibold">Conheça o prêmio</h2>
+
+          {rifa.midias.video && (
+            <video
+              src={`/api/midia/${rifa.midias.video}`}
+              controls
+              preload="metadata"
+              className="mb-3 w-full rounded-lg bg-black"
+            />
+          )}
+
+          {rifa.midias.imagens.length > 0 && (
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {rifa.midias.imagens.map((imagemId, indice) => (
+                <button
+                  key={imagemId}
+                  type="button"
+                  onClick={() => setImagemAmpliada(imagemId)}
+                  className="overflow-hidden rounded-lg"
+                  aria-label={`Ampliar foto ${indice + 1} do prêmio`}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={`/api/midia/${imagemId}`}
+                    alt={`Foto ${indice + 1} do prêmio`}
+                    className="h-28 w-full object-cover transition hover:scale-105"
+                  />
+                </button>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+
+      {imagemAmpliada && (
+        <div
+          role="dialog"
+          aria-label="Foto ampliada do prêmio"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+          onClick={() => setImagemAmpliada(null)}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={`/api/midia/${imagemAmpliada}`}
+            alt="Foto do prêmio ampliada"
+            className="max-h-full max-w-full rounded-lg object-contain"
+          />
+        </div>
+      )}
 
       <section className="cartao">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">

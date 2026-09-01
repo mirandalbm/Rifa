@@ -76,6 +76,34 @@ Na aba **Rifas**, o botão "Exportar CSV" baixa a planilha completa de uma rifa:
 compradores, números, valores, data de pagamento, afiliado responsável e comissão. O arquivo sai
 com BOM e separador `;`, então abre direto no Excel em português com acentuação correta.
 
+## Fotos e vídeo do prêmio
+
+Cada rifa aceita **1 banner de capa, até 5 imagens e 1 vídeo**, enviados em
+**Rifas → Fotos e vídeo**. O comprador vê a capa no topo e a galeria logo abaixo, com o vídeo e
+as fotos ampliáveis ao toque.
+
+| | Formatos | Tamanho máximo |
+|---|---|---|
+| Banner e imagens | JPG, PNG, WEBP | 5 MB cada |
+| Vídeo | MP4, WEBM | 50 MB |
+
+Banner e vídeo são únicos: enviar outro substitui o anterior, e o arquivo antigo só sai do disco
+depois que o banco confirma a troca.
+
+Arquivo enviado por terceiro é conteúdo hostil até prova em contrário, então:
+
+- **O formato é decidido pelo conteúdo, não pelo que o navegador declara.** A assinatura dos
+  primeiros bytes é conferida; um executável renomeado para `.jpg` é recusado.
+- **SVG não é aceito**, mesmo sendo imagem: é XML, aceita `<script>` e executaria no domínio da
+  rifa.
+- **O nome do arquivo enviado é descartado.** A chave em disco é um UUID gerado pelo servidor —
+  é por nomes de arquivo que entraria `../` e travessia de diretório.
+- Na entrega, o `Content-Type` vem da assinatura conferida no upload, com `nosniff` para o
+  navegador não adivinhar outro tipo e executar o conteúdo.
+
+Os arquivos ficam em `MIDIA_DIR` (padrão `./midia`). **Em produção aponte para um volume
+persistente** — o disco de um container é apagado a cada deploy, e as fotos sumiriam.
+
 ## Tamanho da rifa
 
 A quantidade de números é definida pela organizadora ao criar cada rifa, de **10 a 10.000.000**.

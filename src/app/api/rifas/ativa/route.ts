@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { StatusNumero } from "@prisma/client";
+import { StatusNumero, TipoMidia } from "@prisma/client";
 import { LIMITE_GRADE_VISUAL, liberarReservasExpiradas } from "@/lib/rifa";
 
 export const dynamic = "force-dynamic";
@@ -20,6 +20,12 @@ export async function GET() {
   // registros a cada visita. As contagens saem do índice; a lista detalhada só
   // é montada quando a grade cabe na tela.
   const modoGrade = rifa.quantidadeNumeros <= LIMITE_GRADE_VISUAL;
+
+  const midias = await prisma.midiaRifa.findMany({
+    where: { rifaId: rifa.id },
+    select: { id: true, tipo: true },
+    orderBy: { ordem: "asc" },
+  });
 
   const vendidos = await prisma.numero.count({
     where: { rifaId: rifa.id, status: StatusNumero.PAGO },
@@ -65,6 +71,11 @@ export async function GET() {
       vendidos,
       disponiveis,
       modoGrade,
+      midias: {
+        banner: midias.find((m) => m.tipo === TipoMidia.BANNER)?.id ?? null,
+        imagens: midias.filter((m) => m.tipo === TipoMidia.IMAGEM).map((m) => m.id),
+        video: midias.find((m) => m.tipo === TipoMidia.VIDEO)?.id ?? null,
+      },
     },
     // Indisponível cobre pago e reservado: para quem está comprando, a diferença
     // não importa — só importa se pode clicar. Vazio fora do modo grade.

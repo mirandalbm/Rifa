@@ -136,6 +136,7 @@ model Rifa {
   numeros     Numero[]
   compras     Compra[]
   resultado   Resultado?
+  midias      MidiaRifa[]
 
   @@index([organizacaoId, status])
 }
@@ -264,4 +265,29 @@ model LogAuditoria {
 
   @@index([usuarioId, criadoEm])
   @@index([entidade, entidadeId])
+}
+
+enum TipoMidia {
+  BANNER
+  IMAGEM
+  VIDEO
+}
+
+/// Fotos e vídeo do item sorteado. O arquivo em si fica em disco; aqui só os
+/// metadados. `chave` é gerada pelo servidor — nome enviado pelo usuário nunca
+/// vira caminho de arquivo.
+model MidiaRifa {
+  id        String    @id @default(cuid())
+  rifaId    String
+  tipo      TipoMidia
+  chave     String    @unique
+  mimeType  String
+  tamanho   Int
+  /// Ordem de exibição na galeria; o banner e o vídeo ignoram.
+  ordem     Int       @default(0)
+  criadaEm  DateTime  @default(now())
+
+  rifa Rifa @relation(fields: [rifaId], references: [id], onDelete: Cascade)
+
+  @@index([rifaId, tipo])
 }

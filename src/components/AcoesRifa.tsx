@@ -112,6 +112,13 @@ export default function AcoesRifa({ id, status, jaSorteada, gerandoNumeros = fal
       )}
 
       <a
+        href={`/organizadora/rifas/${id}/midia`}
+        className="rounded-md border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-700"
+      >
+        Fotos e vídeo
+      </a>
+
+      <a
         href={`/api/organizadora/relatorio?rifaId=${id}`}
         className="rounded-md border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-700"
       >

@@ -15,7 +15,11 @@ services:
       POSTGRES_PASSWORD: rifa
       POSTGRES_DB: rifa
     ports:
-      - "5432:5432"
+      # 5433 no computador, não 5432: quem já tem PostgreSQL instalado tem a
+      # 5432 ocupada, e aí o container não sobe enquanto a aplicação conecta
+      # sem perceber no banco antigo — que não conhece o usuário "rifa" e
+      # responde "authentication failed", erro que não parece ser de porta.
+      - "5433:5432"
     volumes:
       - dados-do-banco:/var/lib/postgresql/data
     healthcheck:
@@ -25,4 +29,8 @@ services:
       retries: 10
 
 volumes:
+  # Atenção ao trocar POSTGRES_USER/PASSWORD depois do primeiro `up`: o Postgres
+  # só aplica essas variáveis ao criar o volume. Com o volume já existente ele
+  # mantém as credenciais antigas e a autenticação falha. Nesse caso:
+  # `docker compose down -v` e suba de novo.
   dados-do-banco:

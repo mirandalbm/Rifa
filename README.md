@@ -72,7 +72,7 @@ instalado, pule o passo 2 e ajuste a `DATABASE_URL`).
 # 1. dependências
 npm install
 
-# 2. banco (sobe um PostgreSQL em container, com os dados num volume)
+# 2. banco (sobe um PostgreSQL em container, na porta 5433)
 docker compose up -d
 
 # 3. configuração
@@ -83,18 +83,24 @@ node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
 # 4. tabelas
 npx prisma migrate deploy
 
-# 5. primeiro acesso — a senha é sua, não existe padrão
-SEED_SENHA_ORGANIZADORA="escolha-uma-senha-forte" npm run db:seed
+# 5. contas de acesso
+npm run db:seed
 
 # 6. subir
 npm run dev
 ```
 
-O seed **não cria senha padrão** — ele exige `SEED_SENHA_ORGANIZADORA`, para o sistema nunca
-subir com credencial conhecida.
+Abra **http://localhost:3001**. O seed cria duas contas para você testar:
 
-Abra **http://localhost:3001**. Para entrar no painel, use **contato@exemplo.org** com a senha
-que você definiu no passo 5 (o e-mail muda com `SEED_ONG_EMAIL`).
+| Acesso | Usuário | Senha | Onde |
+|---|---|---|---|
+| Painel da organização | `admin` | `123456` | `/entrar` |
+| Comprador | `apostador` | `123456` | `/apostador` |
+
+Essas senhas simples existem **só fora de produção**. Com `NODE_ENV=production` o seed se recusa
+a criá-las e exige `SEED_SENHA_ORGANIZADORA` com ao menos 8 caracteres — `admin/123456` é a
+primeira dupla que qualquer varredura automática testa, e o painel dá acesso aos dados pessoais
+dos compradores, ao repasse de comissões e à publicação do resultado.
 
 O seed cria a rifa em **rascunho**: entre em *Rifas* e clique em **Abrir venda** para ela aparecer
 na página pública.
@@ -110,6 +116,23 @@ fotos e vídeo, escolher números, publicar resultado, exportar CSV.
 | E-mail de confirmação | `RESEND_API_KEY`, `EMAIL_REMETENTE` | Tudo funciona, só não sai e-mail (fica registrado no log) |
 
 Para parar o banco: `docker compose down` (os dados ficam) ou `docker compose down -v` (apaga tudo).
+
+### Se der "Authentication failed" no banco
+
+O container usa a porta **5433**, não a 5432, justamente para não disputar com um PostgreSQL já
+instalado na máquina. Se aparecer `Authentication failed ... credentials for 'rifa' are not
+valid`, quase sempre é um destes dois casos:
+
+1. **A `DATABASE_URL` do seu `.env` ainda aponta para a 5432.** Aí a aplicação conecta no
+   PostgreSQL que já existia na sua máquina, que não conhece o usuário `rifa`. Confira que a
+   linha está com `@localhost:5433`.
+2. **O volume do container foi criado antes, com outra senha.** O Postgres só aplica
+   `POSTGRES_USER`/`POSTGRES_PASSWORD` na primeira criação do volume; depois disso ele mantém as
+   credenciais antigas. Resolve com `docker compose down -v && docker compose up -d` (apaga os
+   dados locais e recria).
+
+Para confirmar que o container está de pé: `docker compose ps` deve listar `rifa-banco` como
+`running`, e `docker compose logs banco` mostra o Postgres pronto.
 
 ## Várias rifas ao mesmo tempo
 

@@ -79,15 +79,27 @@ com BOM e separador `;`, então abre direto no Excel em português com acentuaç
 ## Testes
 
 ```bash
-npm test        # runner nativo do Node, sem framework extra
+npm test              # unidade — não precisa de banco
+npm run test:integracao   # precisa de DATABASE_URL apontando para um Postgres de teste
 npm run typecheck
 ```
 
-Cobrem a lógica que não pode errar em dinheiro de doação: aritmética monetária
-(`dinheiro.ts`), derivação do número vencedor a partir da Loteria Federal (`rifa.ts`) e
-escape do CSV (`csv.ts`). São testes de unidade — não tocam banco. Os fluxos que dependem
-de PostgreSQL e do Mercado Pago (reserva de número, expiração, webhook) **ainda precisam ser
-validados contra um ambiente real**.
+**Unidade** cobre a lógica que não pode errar em dinheiro de doação: aritmética monetária
+(`dinheiro.ts`), derivação do número vencedor a partir da Loteria Federal (`rifa.ts`) e escape
+do CSV (`csv.ts`).
+
+**Integração** roda contra PostgreSQL real e cobre o que só aparece com banco de verdade:
+
+- duas compras simultâneas do mesmo número — exatamente uma vence
+- lote parcialmente ocupado não deixa rastro (nem compra órfã, nem número preso)
+- reserva expirada volta à venda, e compra **paga** nunca expira
+- webhook reprocessado não duplica comissão nem reescreve a data do pagamento
+
+> O banco usado no teste de integração é apagado e recriado à vontade — nunca aponte
+> `DATABASE_URL` para produção ao rodá-lo.
+
+Ainda **não** testado contra ambiente real: a chamada ao Mercado Pago (geração do PIX e
+recebimento do webhook), que depende de credencial de sandbox.
 
 ## Decisões que sustentam a operação
 

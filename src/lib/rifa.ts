@@ -181,7 +181,11 @@ export async function confirmarPagamento(params: {
       data: { status: StatusNumero.PAGO, reservadoAte: null },
     });
 
-    await tx.pagamento.update({
+    // updateMany, não update: a compra pode não ter registro de pagamento —
+    // o PIX falhou ao ser gerado, ou a organizadora recebeu o valor por fora e
+    // está confirmando à mão. Dinheiro que entrou precisa ser reconhecido de
+    // qualquer forma; `update` lançaria e desfaria a confirmação inteira.
+    await tx.pagamento.updateMany({
       where: { compraId },
       data: {
         status: StatusPagamento.APROVADO,

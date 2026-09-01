@@ -26,7 +26,9 @@ type Rifa = {
 const brl = (valor: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(valor);
 
-export default function ComprarNumeros({ rifaId }: { rifaId: string }) {
+type Conta = { nome: string; email: string; telefone: string; cpf: string | null } | null;
+
+export default function ComprarNumeros({ rifaId, conta }: { rifaId: string; conta?: Conta }) {
   const router = useRouter();
   const parametros = useSearchParams();
   const codigoAfiliado = parametros.get("ref");
@@ -37,7 +39,12 @@ export default function ComprarNumeros({ rifaId }: { rifaId: string }) {
   const [carregando, setCarregando] = useState(true);
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
-  const [form, setForm] = useState({ nome: "", email: "", telefone: "", cpf: "" });
+  const [form, setForm] = useState({
+    nome: conta?.nome ?? "",
+    email: conta?.email ?? "",
+    telefone: conta?.telefone ?? "",
+    cpf: conta?.cpf ?? "",
+  });
   // Quantidade pedida quando não há grade para clicar.
   const [quantidade, setQuantidade] = useState(1);
   const [imagemAmpliada, setImagemAmpliada] = useState<string | null>(null);
@@ -323,6 +330,18 @@ export default function ComprarNumeros({ rifaId }: { rifaId: string }) {
 
       <form onSubmit={finalizar} className="cartao space-y-4">
         <h2 className="text-lg font-semibold">Seus dados</h2>
+
+        {conta ? (
+          <p className="rounded-lg bg-marca-50 px-3 py-2 text-sm text-marca-700">
+            Comprando como <strong>{conta.nome}</strong> — esta compra vai aparecer em{" "}
+            <a href="/minha-conta" className="underline">Minha conta</a>.
+          </p>
+        ) : (
+          <p className="text-sm text-slate-500">
+            Comprando como visitante. <a href="/apostador" className="text-marca-600 underline">Entre ou crie uma conta</a>{" "}
+            para reunir todas as suas compras num lugar só.
+          </p>
+        )}
 
         <div className="grid gap-4 sm:grid-cols-2">
           <div>

@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { StatusNumero } from "@prisma/client";
 import { exigirPerfil } from "@/lib/auth";
 import { esquemaPublicarResultado } from "@/lib/validacoes";
-import { numeroVencedorPelaFederal, registrarAuditoria } from "@/lib/rifa";
+import { ErroDeNegocio, numeroVencedorPelaFederal, registrarAuditoria } from "@/lib/rifa";
 
 /// Publicação do resultado. O número vencedor não é escolhido pela organizadora:
 /// ele é derivado do 1º prêmio da Loteria Federal, que qualquer participante
@@ -30,7 +30,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ erro: "Esta rifa já teve o resultado publicado" }, { status: 409 });
   }
 
-  const numeroSorteado = numeroVencedorPelaFederal(dados.primeiroPremio, rifa.quantidadeNumeros);
+  // O 1º prêmio sempre entra primeiro; os demais só são exigidos em rifas
+  // grandes, e a própria função recusa a apuração se faltarem.
+  const premios = [dados.primeiroPremio, ...(dados.premiosFederal ?? [])];
+
+  let numeroSorteado: number;
+  try {
+    numeroSorteado = numeroVencedorPelaFederal(premios, rifa.quantidadeNumeros);
+  } catch (erro) {
+    if (erro instanceof ErroDeNegocio) {
+      return NextResponse.json({ erro: erro.message }, { status: 400 });
+    }
+    throw erro;
+  }
 
   const vencedor = await prisma.numero.findFirst({
     where: { rifaId: rifa.id, numero: numeroSorteado, status: StatusNumero.PAGO },
@@ -43,7 +55,7 @@ export async function POST(req: NextRequest) {
         rifaId: rifa.id,
         numeroSorteado,
         concurso: dados.concurso,
-        premiosFederal: dados.premiosFederal ?? [dados.primeiroPremio],
+        premiosFederal: premios,
         dataApuracao: dados.dataApuracao,
         compraVencedora: vencedor?.compraId ?? null,
         publicadoPorId: sessao.usuarioId,

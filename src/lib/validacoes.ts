@@ -53,7 +53,12 @@ export const esquemaPublicarResultado = z.object({
     .trim()
     .transform(apenasDigitos)
     .refine((v) => v.length >= 4, "O 1º prêmio da Federal tem 5 dígitos"),
-  premiosFederal: z.array(z.string()).optional(),
+  /// Prêmios adicionais (2º, 3º…), necessários em rifas acima de 100 mil
+  /// números, onde 5 dígitos não cobrem toda a faixa.
+  premiosFederal: z
+    .array(z.string().trim().transform(apenasDigitos).refine((v) => v.length >= 4, "Prêmio inválido"))
+    .max(5)
+    .optional(),
   dataApuracao: z.coerce.date(),
   observacao: z.string().trim().max(500).optional().nullable(),
 });

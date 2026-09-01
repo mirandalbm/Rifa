@@ -95,6 +95,22 @@ Medições reais (PostgreSQL 16, container de desenvolvimento):
 | 1.000.000 | 25 s | — | — |
 | 10.000.000 | 5,4 min | 16 ms | 137 ms |
 
+### Quantos prêmios da Federal a apuração exige
+
+Cada prêmio da Loteria Federal tem 5 dígitos, então **um prêmio sozinho só cobre rifas de até
+100 mil números**. Acima disso, o sistema combina prêmios: o 1º forma as casas finais, o 2º as
+cinco seguintes, e assim por diante.
+
+| Tamanho da rifa | Prêmios necessários |
+|---|---|
+| até 100.000 | 1 (só o 1º prêmio) |
+| 100.001 a 10.000.000 | 2 (1º e 2º prêmios) |
+
+A tela de apuração pede exatamente os campos necessários, e o servidor **recusa publicar** com
+prêmios de menos. Isso é deliberado: numa rifa de 10 milhões apurada só pelo 1º prêmio, o maior
+número sorteável seria 99.999 — 99% dos compradores teriam chance zero, e nada na tela
+denunciaria a injustiça.
+
 Três decisões vêm daí:
 
 1. **`generate_series` no Postgres, não `Array.from` no Node.** Montar 10 milhões de objetos em

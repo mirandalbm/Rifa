@@ -14,26 +14,46 @@ type Publicado = {
   vencedor: { nome?: string; codigoCompra?: string } | null;
 };
 
+/// Cada prêmio da Federal tem 5 dígitos; rifas maiores que 100 mil precisam de
+/// mais de um para que todo número tenha chance de sair.
+const DIGITOS_POR_PREMIO = 5;
+const ORDINAIS = ["1º", "2º", "3º", "4º", "5º"];
+
+function premiosNecessarios(quantidadeNumeros: number) {
+  return Math.ceil(String(quantidadeNumeros - 1).length / DIGITOS_POR_PREMIO);
+}
+
 export default function FormResultado({ rifas }: { rifas: Rifa[] }) {
   const [rifaId, setRifaId] = useState(rifas[0]?.id ?? "");
-  const [primeiroPremio, setPrimeiroPremio] = useState("");
+  const [premios, setPremios] = useState<string[]>([""]);
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [publicado, setPublicado] = useState<Publicado | null>(null);
 
   const rifa = rifas.find((r) => r.id === rifaId);
+  const quantosPremios = rifa ? premiosNecessarios(rifa.quantidadeNumeros) : 1;
 
   // Prévia local do número vencedor, calculada da mesma forma que o servidor.
   // Serve para conferência antes de confirmar — quem decide é o servidor.
   const previa = useMemo(() => {
     if (!rifa) return null;
-    const digitos = primeiroPremio.replace(/\D/g, "");
-    if (digitos.length === 0) return null;
+
+    const informados = premios
+      .slice(0, quantosPremios)
+      .map((premio) => premio.replace(/\D/g, ""));
+
+    if (informados.length < quantosPremios || informados.some((p) => p.length === 0)) return null;
 
     const casas = String(rifa.quantidadeNumeros - 1).length;
-    const sufixo = digitos.slice(-casas).padStart(casas, "0");
-    return String(Number(sufixo) % rifa.quantidadeNumeros).padStart(casas, "0");
-  }, [primeiroPremio, rifa]);
+    const combinado = informados
+      .map((premio) => premio.slice(-DIGITOS_POR_PREMIO).padStart(DIGITOS_POR_PREMIO, "0"))
+      .reverse()
+      .join("");
+
+    const sufixo = combinado.slice(-casas).padStart(casas, "0");
+    const numero = BigInt(sufixo) % BigInt(rifa.quantidadeNumeros);
+    return String(numero).padStart(casas, "0");
+  }, [premios, quantosPremios, rifa]);
 
   async function publicar(evento: React.FormEvent<HTMLFormElement>) {
     evento.preventDefault();
@@ -49,11 +69,18 @@ export default function FormResultado({ rifas }: { rifas: Rifa[] }) {
     setErro(null);
 
     const dados = Object.fromEntries(new FormData(evento.currentTarget));
+    const informados = premios.slice(0, quantosPremios);
 
     const resposta = await fetch("/api/organizadora/resultado", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...dados, observacao: dados.observacao || null }),
+      body: JSON.stringify({
+        ...dados,
+        primeiroPremio: informados[0],
+        // Só o 2º em diante; o 1º vai no campo próprio.
+        premiosFederal: informados.slice(1),
+        observacao: dados.observacao || null,
+      }),
     });
 
     const corpo = await resposta.json();
@@ -103,8 +130,19 @@ export default function FormResultado({ rifas }: { rifas: Rifa[] }) {
       <div>
         <h2 className="text-lg font-semibold">Apurar pelo resultado da Loteria Federal</h2>
         <p className="text-sm text-slate-600">
-          Informe o 1º prêmio do concurso. O número vencedor é derivado dele — você não escolhe o
-          número, e por isso qualquer participante pode conferir a apuração no site da Caixa.
+          {quantosPremios === 1 ? (
+            <>
+              Informe o 1º prêmio do concurso. O número vencedor é derivado dele — você não escolhe
+              o número, e por isso qualquer participante pode conferir a apuração no site da Caixa.
+            </>
+          ) : (
+            <>
+              Esta rifa tem {rifa?.quantidadeNumeros.toLocaleString("pt-BR")} números, e cada prêmio
+              da Federal tem só 5 dígitos. Por isso são necessários{" "}
+              <strong>{quantosPremios} prêmios</strong>: o 1º forma as casas finais e os seguintes
+              as casas mais altas. Com um prêmio só, os números altos nunca poderiam ser sorteados.
+            </>
+          )}
         </p>
       </div>
 
@@ -132,18 +170,28 @@ export default function FormResultado({ rifas }: { rifas: Rifa[] }) {
           <input id="concurso" name="concurso" className="campo" required placeholder="Ex.: 5920" />
         </div>
 
-        <div>
-          <label className="rotulo" htmlFor="primeiroPremio">1º prêmio</label>
-          <input
-            id="primeiroPremio"
-            name="primeiroPremio"
-            className="campo font-mono"
-            required
-            placeholder="Ex.: 47382"
-            value={primeiroPremio}
-            onChange={(e) => setPrimeiroPremio(e.target.value)}
-          />
-        </div>
+        {Array.from({ length: quantosPremios }, (_, indice) => (
+          <div key={indice}>
+            <label className="rotulo" htmlFor={`premio-${indice}`}>
+              {ORDINAIS[indice] ?? `${indice + 1}º`} prêmio
+            </label>
+            <input
+              id={`premio-${indice}`}
+              className="campo font-mono"
+              required
+              inputMode="numeric"
+              placeholder="Ex.: 47382"
+              value={premios[indice] ?? ""}
+              onChange={(e) =>
+                setPremios((atual) => {
+                  const proximo = [...atual];
+                  proximo[indice] = e.target.value;
+                  return proximo;
+                })
+              }
+            />
+          </div>
+        ))}
 
         <div>
           <label className="rotulo" htmlFor="dataApuracao">Data da apuração</label>

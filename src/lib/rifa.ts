@@ -25,20 +25,55 @@ export function gerarCodigoCompra(): string {
   return `RF${codigo}`;
 }
 
-/// Deriva o número vencedor do 1º prêmio da Loteria Federal, tomando os últimos
+/// Cada prêmio da Loteria Federal tem 5 dígitos, então um prêmio sozinho só
+/// alcança rifas de até 100 mil números. Acima disso é preciso combinar mais
+/// prêmios — senão a maior parte dos números jamais poderia ser sorteada.
+const DIGITOS_POR_PREMIO = 5;
+
+export function premiosNecessarios(quantidadeNumeros: number): number {
+  return Math.ceil(digitosDaRifa(quantidadeNumeros) / DIGITOS_POR_PREMIO);
+}
+
+/// Deriva o número vencedor dos prêmios da Loteria Federal, tomando os últimos
 /// dígitos conforme o tamanho da rifa. É o método auditável: qualquer pessoa
 /// confere o resultado no site da Caixa.
-export function numeroVencedorPelaFederal(primeiroPremio: string, quantidadeNumeros: number): number {
-  const digitos = primeiroPremio.replace(/\D/g, "");
-  if (digitos.length === 0) throw new ErroDeNegocio("Prêmio da Loteria Federal inválido");
+///
+/// Os prêmios entram do menos significativo para o mais significativo: o 1º
+/// prêmio ocupa as 5 casas finais, o 2º as 5 seguintes, e assim por diante.
+/// Uma rifa de 10 milhões precisa de 7 casas, logo de 2 prêmios.
+export function numeroVencedorPelaFederal(
+  premios: string | string[],
+  quantidadeNumeros: number,
+): number {
+  const lista = (Array.isArray(premios) ? premios : [premios])
+    .map((premio) => premio.replace(/\D/g, ""))
+    .filter((premio) => premio.length > 0);
+
+  if (lista.length === 0) throw new ErroDeNegocio("Prêmio da Loteria Federal inválido");
 
   const casas = digitosDaRifa(quantidadeNumeros);
-  const sufixo = digitos.slice(-casas).padStart(casas, "0");
-  const numero = Number(sufixo);
+  const necessarios = premiosNecessarios(quantidadeNumeros);
 
+  // Recusar é melhor que sortear errado: com prêmios de menos, os números altos
+  // ficariam impossíveis de sair e a rifa seria injusta sem ninguém perceber.
+  if (lista.length < necessarios) {
+    throw new ErroDeNegocio(
+      `Uma rifa de ${quantidadeNumeros.toLocaleString("pt-BR")} números precisa de ${necessarios} prêmios da Loteria Federal para que todo número possa ser sorteado; foram informados ${lista.length}.`,
+    );
+  }
+
+  const combinado = lista
+    .slice(0, necessarios)
+    .map((premio) => premio.slice(-DIGITOS_POR_PREMIO).padStart(DIGITOS_POR_PREMIO, "0"))
+    .reverse()
+    .join("");
+
+  const sufixo = combinado.slice(-casas).padStart(casas, "0");
+
+  // BigInt porque 25 dígitos (5 prêmios) passam do inteiro seguro do JavaScript.
   // Rifas cujo tamanho não é potência de 10 (ex.: 500 números) podem gerar um
   // sufixo fora da faixa; o excedente volta ao início pelo resto da divisão.
-  return numero % quantidadeNumeros;
+  return Number(BigInt(sufixo) % BigInt(quantidadeNumeros));
 }
 
 /// Libera reservas vencidas para que os números voltem a ficar disponíveis.

@@ -117,6 +117,17 @@ fotos e vídeo, escolher números, publicar resultado, exportar CSV.
 
 Para parar o banco: `docker compose down` (os dados ficam) ou `docker compose down -v` (apaga tudo).
 
+### Quando algo não sobe
+
+```bash
+npm run doctor
+```
+
+Confere, em ordem: se o `.env` existe, para onde a `DATABASE_URL` aponta, se há algo escutando
+naquela porta, se as credenciais funcionam e se as tabelas e o seed já foram criados. Cada falha
+vem com o comando que resolve — é bem mais direto que o erro do Prisma, que não diz nem em que
+porta tentou conectar.
+
 ### Se der "Authentication failed" no banco
 
 O container usa a porta **5433**, não a 5432, justamente para não disputar com um PostgreSQL já

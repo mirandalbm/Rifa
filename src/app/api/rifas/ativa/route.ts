@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { StatusNumero } from "@prisma/client";
-import { liberarReservasExpiradas } from "@/lib/rifa";
+import { LIMITE_GRADE_VISUAL, liberarReservasExpiradas } from "@/lib/rifa";
 
 export const dynamic = "force-dynamic";
 
@@ -16,13 +16,38 @@ export async function GET() {
 
   await liberarReservasExpiradas(rifa.id);
 
-  const numeros = await prisma.numero.findMany({
-    where: { rifaId: rifa.id },
-    select: { numero: true, status: true },
-    orderBy: { numero: "asc" },
+  // Numa rifa grande, carregar linha por linha significaria trazer milhões de
+  // registros a cada visita. As contagens saem do índice; a lista detalhada só
+  // é montada quando a grade cabe na tela.
+  const modoGrade = rifa.quantidadeNumeros <= LIMITE_GRADE_VISUAL;
+
+  const vendidos = await prisma.numero.count({
+    where: { rifaId: rifa.id, status: StatusNumero.PAGO },
   });
 
-  const vendidos = numeros.filter((n) => n.status === StatusNumero.PAGO).length;
+  const indisponiveis = modoGrade
+    ? (
+        await prisma.numero.findMany({
+          where: { rifaId: rifa.id, status: { not: StatusNumero.DISPONIVEL } },
+          select: { numero: true },
+          orderBy: { numero: "asc" },
+        })
+      ).map((n) => n.numero)
+    : [];
+
+  // Contar DISPONIVEL varreria quase a tabela toda (9,9 milhões de linhas numa
+  // rifa nova: ~780ms por visita). Os ocupados são poucos, então conta-se esses
+  // e o resto sai por subtração — instantâneo pelo índice (rifaId, status).
+  const ocupados = modoGrade
+    ? indisponiveis.length
+    : await prisma.numero.count({
+        where: {
+          rifaId: rifa.id,
+          status: { in: [StatusNumero.PAGO, StatusNumero.RESERVADO] },
+        },
+      });
+
+  const disponiveis = rifa.quantidadeNumeros - ocupados;
 
   return NextResponse.json({
     rifa: {
@@ -38,9 +63,11 @@ export async function GET() {
       autorizacaoNumero: rifa.autorizacaoNumero,
       regulamentoUrl: rifa.regulamentoUrl,
       vendidos,
+      disponiveis,
+      modoGrade,
     },
     // Indisponível cobre pago e reservado: para quem está comprando, a diferença
-    // não importa — só importa se pode clicar.
-    indisponiveis: numeros.filter((n) => n.status !== StatusNumero.DISPONIVEL).map((n) => n.numero),
+    // não importa — só importa se pode clicar. Vazio fora do modo grade.
+    indisponiveis,
   });
 }

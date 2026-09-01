@@ -8,6 +8,8 @@ export default function FormRifa() {
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [criada, setCriada] = useState(false);
+  const [gerandoEmSegundoPlano, setGerandoEmSegundoPlano] = useState(false);
+  const [quantidadeNumeros, setQuantidadeNumeros] = useState(1000);
 
   async function criar(evento: React.FormEvent<HTMLFormElement>) {
     evento.preventDefault();
@@ -37,7 +39,9 @@ export default function FormRifa() {
     }
 
     setCriada(true);
+    setGerandoEmSegundoPlano(Boolean(corpo.gerandoEmSegundoPlano));
     (evento.target as HTMLFormElement).reset();
+    setQuantidadeNumeros(1000);
     router.refresh();
   }
 
@@ -87,11 +91,24 @@ export default function FormRifa() {
             name="quantidadeNumeros"
             type="number"
             min="10"
-            max="100000"
-            defaultValue={1000}
+            max="10000000"
+            value={quantidadeNumeros}
+            onChange={(e) => setQuantidadeNumeros(Number(e.target.value))}
             className="campo"
             required
           />
+          <p className="mt-1 text-xs text-slate-500">
+            De 10 a 10.000.000.{" "}
+            {quantidadeNumeros > 2000
+              ? "Acima de 2.000 o comprador não escolhe número na grade: ele informa a quantidade e o sistema sorteia entre os disponíveis."
+              : "Até 2.000 o comprador escolhe os números um a um, na grade."}
+          </p>
+          {quantidadeNumeros > 100_000 && (
+            <p className="mt-1 text-xs text-amber-700">
+              Acima de 100 mil, os números são gerados em segundo plano — pode levar alguns
+              minutos, e a venda só abre quando terminar. 10 milhões levam cerca de 5 minutos.
+            </p>
+          )}
         </div>
 
         <div>
@@ -139,7 +156,9 @@ export default function FormRifa() {
       {erro && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{erro}</p>}
       {criada && (
         <p className="rounded-lg bg-marca-50 px-3 py-2 text-sm text-marca-700">
-          Rifa criada em rascunho. Abra a venda pela lista acima quando estiver pronta.
+          {gerandoEmSegundoPlano
+            ? "Rifa criada. Os números estão sendo gerados em segundo plano — acompanhe o progresso na lista acima; a venda só pode ser aberta quando chegar a 100%."
+            : "Rifa criada em rascunho. Abra a venda pela lista acima quando estiver pronta."}
         </p>
       )}
 

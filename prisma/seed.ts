@@ -41,6 +41,7 @@ async function main() {
       quantidadeNumeros,
       dataSorteio: new Date(Date.now() + 30 * 24 * 3600 * 1000),
       status: "RASCUNHO",
+      numerosGerados: quantidadeNumeros,
       numeros: {
         createMany: { data: Array.from({ length: quantidadeNumeros }, (_, numero) => ({ numero })) },
       },

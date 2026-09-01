@@ -49,7 +49,14 @@ export default async function PaginaRifas() {
                 {rifas.map((rifa) => (
                   <tr key={rifa.id} className="border-b border-slate-100">
                     <td className="py-2 font-medium">{rifa.titulo}</td>
-                    <td className="py-2">{rifa.quantidadeNumeros}</td>
+                    <td className="py-2">
+                      {rifa.quantidadeNumeros.toLocaleString("pt-BR")}
+                      {rifa.numerosGerados < rifa.quantidadeNumeros && (
+                        <span className="block text-xs text-amber-700">
+                          gerando… {Math.floor((rifa.numerosGerados / rifa.quantidadeNumeros) * 100)}%
+                        </span>
+                      )}
+                    </td>
                     <td className="py-2">{formatarBRL(rifa.precoPorNumero)}</td>
                     <td className="py-2">{rifa.dataSorteio.toLocaleDateString("pt-BR")}</td>
                     <td className="py-2">{rifa._count.compras}</td>
@@ -64,6 +71,7 @@ export default async function PaginaRifas() {
                           id={rifa.id}
                           status={rifa.status}
                           jaSorteada={Boolean(rifa.resultado)}
+                          gerandoNumeros={rifa.numerosGerados < rifa.quantidadeNumeros}
                         />
                       </td>
                     )}

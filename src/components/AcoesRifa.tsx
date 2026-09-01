@@ -7,11 +7,28 @@ type Props = {
   id: string;
   status: string;
   jaSorteada: boolean;
+  gerandoNumeros?: boolean;
 };
 
-export default function AcoesRifa({ id, status, jaSorteada }: Props) {
+export default function AcoesRifa({ id, status, jaSorteada, gerandoNumeros = false }: Props) {
   const router = useRouter();
   const [ocupado, setOcupado] = useState(false);
+
+  async function retomarGeracao() {
+    setOcupado(true);
+    const resposta = await fetch("/api/organizadora/rifas", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    });
+    setOcupado(false);
+
+    if (!resposta.ok) {
+      window.alert("Não foi possível retomar a geração.");
+      return;
+    }
+    router.refresh();
+  }
 
   async function mudarStatus(novo: string, confirmacao?: string) {
     if (confirmacao && !window.confirm(confirmacao)) return;
@@ -35,6 +52,32 @@ export default function AcoesRifa({ id, status, jaSorteada }: Props) {
 
   if (jaSorteada || status === "SORTEADA") {
     return <span className="text-xs text-slate-400">sorteada</span>;
+  }
+
+  // Enquanto os números não existem todos, abrir a venda é proibido pelo
+  // servidor — então a tela oferece retomar a geração em vez de um botão que
+  // só resultaria em erro.
+  if (gerandoNumeros) {
+    return (
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-xs text-amber-700">gerando números</span>
+        <button
+          type="button"
+          disabled={ocupado}
+          onClick={retomarGeracao}
+          className="rounded-md border border-amber-300 px-2.5 py-1 text-xs font-medium text-amber-800 disabled:opacity-50"
+        >
+          {ocupado ? "Retomando…" : "Retomar"}
+        </button>
+        <button
+          type="button"
+          onClick={() => router.refresh()}
+          className="rounded-md border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-700"
+        >
+          Atualizar
+        </button>
+      </div>
+    );
   }
 
   return (

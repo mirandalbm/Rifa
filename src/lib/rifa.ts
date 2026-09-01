@@ -67,6 +67,112 @@ export async function liberarReservasExpiradas(rifaId: string): Promise<void> {
   });
 }
 
+/// Acima deste tamanho a grade de números não é mais enviada ao navegador nem
+/// desenhada: 10 milhões de botões travam qualquer aparelho. A compra passa a
+/// ser por quantidade, com o servidor sorteando os disponíveis.
+export const LIMITE_GRADE_VISUAL = 2000;
+
+/// Bloco de geração. Meio milhão por vez leva ~12s no Postgres e mantém cada
+/// transação curta o bastante para não segurar conexão por minutos.
+const BLOCO_GERACAO = 500_000;
+
+/// Materializa os números que faltam, em blocos, retomando de onde parou.
+/// Seguro para chamar de novo: `ON CONFLICT DO NOTHING` no par (rifaId, numero)
+/// torna a repetição inofensiva se o servidor cair no meio.
+export async function gerarNumerosPendentes(rifaId: string): Promise<number> {
+  const rifa = await prisma.rifa.findUnique({
+    where: { id: rifaId },
+    select: { quantidadeNumeros: true, numerosGerados: true },
+  });
+  if (!rifa) throw new ErroDeNegocio("Rifa não encontrada");
+
+  let gerados = rifa.numerosGerados;
+
+  while (gerados < rifa.quantidadeNumeros) {
+    const fim = Math.min(gerados + BLOCO_GERACAO, rifa.quantidadeNumeros);
+
+    await prisma.$executeRaw`
+      INSERT INTO "Numero" (id, "rifaId", numero, status)
+      SELECT gen_random_uuid()::text, ${rifaId}, serie, 'DISPONIVEL'::"StatusNumero"
+      FROM generate_series(${gerados}, ${fim - 1}) AS serie
+      ON CONFLICT ("rifaId", numero) DO NOTHING
+    `;
+
+    gerados = fim;
+    await prisma.rifa.update({ where: { id: rifaId }, data: { numerosGerados: gerados } });
+  }
+
+  return gerados;
+}
+
+/// Sorteia números livres sem varrer a tabela inteira. Em rifa grande e pouco
+/// vendida, tentar candidatos aleatórios acerta quase sempre de primeira; só
+/// quando sobra pouco número livre é que vale varrer pelo índice.
+async function escolherNumerosDisponiveis(
+  tx: Prisma.TransactionClient,
+  rifaId: string,
+  quantidadeNumeros: number,
+  quantidade: number,
+): Promise<number[]> {
+  const escolhidos = new Set<number>();
+
+  for (let tentativa = 0; tentativa < 3 && escolhidos.size < quantidade; tentativa++) {
+    const faltam = quantidade - escolhidos.size;
+
+    const candidatos = new Set<number>();
+    const teto = Math.min(faltam * 5, quantidadeNumeros);
+    while (candidatos.size < teto) candidatos.add(crypto.randomInt(quantidadeNumeros));
+
+    const livres = await tx.numero.findMany({
+      where: {
+        rifaId,
+        numero: { in: [...candidatos].filter((n) => !escolhidos.has(n)) },
+        status: StatusNumero.DISPONIVEL,
+      },
+      select: { numero: true },
+      take: faltam,
+    });
+
+    livres.forEach((livre) => escolhidos.add(livre.numero));
+  }
+
+  // Rifa quase esgotada: a amostragem aleatória erra demais, então varre a
+  // partir de um ponto qualquer — dando a volta ao chegar no fim.
+  if (escolhidos.size < quantidade) {
+    const inicio = crypto.randomInt(quantidadeNumeros);
+
+    for (const faixa of [{ gte: inicio }, { lt: inicio }]) {
+      if (escolhidos.size >= quantidade) break;
+
+      const livres = await tx.numero.findMany({
+        where: {
+          rifaId,
+          status: StatusNumero.DISPONIVEL,
+          // notIn é essencial: sem ele a varredura devolveria números que a
+          // amostragem já achou, o `take` se esgotaria com repetidos e a compra
+          // seria recusada por "faltam números" com estoque de sobra.
+          numero: { ...faixa, notIn: [...escolhidos] },
+        },
+        select: { numero: true },
+        orderBy: { numero: "asc" },
+        take: quantidade - escolhidos.size,
+      });
+
+      livres.forEach((livre) => escolhidos.add(livre.numero));
+    }
+  }
+
+  if (escolhidos.size < quantidade) {
+    throw new ErroDeNegocio(
+      escolhidos.size === 0
+        ? "Não há mais números disponíveis nesta rifa"
+        : `Restam apenas ${escolhidos.size} números disponíveis nesta rifa`,
+    );
+  }
+
+  return [...escolhidos].slice(0, quantidade).sort((a, b) => a - b);
+}
+
 type DadosComprador = {
   nome: string;
   email: string;
@@ -78,26 +184,44 @@ type DadosComprador = {
 /// ou todos os números ficam reservados para esta compra, ou nada acontece.
 export async function criarCompra(params: {
   rifaId: string;
-  numeros: number[];
+  /// Números escolhidos a dedo. Alternativa a `quantidade`.
+  numeros?: number[];
+  /// Quantidade a sortear entre os disponíveis. Alternativa a `numeros`.
+  quantidade?: number;
   comprador: DadosComprador;
   codigoAfiliado?: string | null;
-}): Promise<{ compraId: string; codigo: string; valorTotal: Prisma.Decimal; expiraEm: Date }> {
-  const { rifaId, numeros, comprador, codigoAfiliado } = params;
+}): Promise<{
+  compraId: string;
+  codigo: string;
+  valorTotal: Prisma.Decimal;
+  expiraEm: Date;
+  numeros: number[];
+}> {
+  const { rifaId, numeros, quantidade, comprador, codigoAfiliado } = params;
+
+  if (Boolean(numeros) === Boolean(quantidade)) {
+    throw new ErroDeNegocio("Informe os números escolhidos ou a quantidade a sortear");
+  }
 
   await liberarReservasExpiradas(rifaId);
 
   const rifa = await prisma.rifa.findUnique({ where: { id: rifaId } });
   if (!rifa) throw new ErroDeNegocio("Rifa não encontrada");
   if (rifa.status !== "ABERTA") throw new ErroDeNegocio("Esta rifa não está aberta para vendas");
-  if (numeros.length === 0) throw new ErroDeNegocio("Selecione ao menos um número");
-  if (numeros.length > rifa.limiteNumerosPorCompra) {
+
+  const quantosNumeros = numeros?.length ?? quantidade ?? 0;
+  if (quantosNumeros === 0) throw new ErroDeNegocio("Selecione ao menos um número");
+  if (quantosNumeros > rifa.limiteNumerosPorCompra) {
     throw new ErroDeNegocio(`Máximo de ${rifa.limiteNumerosPorCompra} números por compra`);
   }
-  if (new Set(numeros).size !== numeros.length) {
-    throw new ErroDeNegocio("Há números repetidos na seleção");
-  }
-  if (numeros.some((n) => !Number.isInteger(n) || n < 0 || n >= rifa.quantidadeNumeros)) {
-    throw new ErroDeNegocio("Número fora da faixa desta rifa");
+
+  if (numeros) {
+    if (new Set(numeros).size !== numeros.length) {
+      throw new ErroDeNegocio("Há números repetidos na seleção");
+    }
+    if (numeros.some((n) => !Number.isInteger(n) || n < 0 || n >= rifa.quantidadeNumeros)) {
+      throw new ErroDeNegocio("Número fora da faixa desta rifa");
+    }
   }
 
   const afiliado = codigoAfiliado
@@ -106,10 +230,16 @@ export async function criarCompra(params: {
       })
     : null;
 
-  const valorTotal = multiplicar(rifa.precoPorNumero, numeros.length);
+  const valorTotal = multiplicar(rifa.precoPorNumero, quantosNumeros);
   const expiraEm = new Date(Date.now() + rifa.minutosParaPagar * 60_000);
 
   return prisma.$transaction(async (tx) => {
+    // O sorteio acontece dentro da transação: entre escolher e reservar não há
+    // brecha para outra compra levar o mesmo número.
+    const numerosDaCompra =
+      numeros ??
+      (await escolherNumerosDisponiveis(tx, rifaId, rifa.quantidadeNumeros, quantosNumeros));
+
     const compradorRegistro = await tx.comprador.create({
       data: {
         nome: comprador.nome,
@@ -125,7 +255,7 @@ export async function criarCompra(params: {
         rifaId,
         compradorId: compradorRegistro.id,
         afiliadoId: afiliado?.id ?? null,
-        quantidade: numeros.length,
+        quantidade: numerosDaCompra.length,
         valorTotal,
         expiraEm,
       },
@@ -136,17 +266,23 @@ export async function criarCompra(params: {
     // reservado sem compra. Se a contagem não bater, alguém levou um número no
     // meio do caminho e a transação inteira é desfeita.
     const reserva = await tx.numero.updateMany({
-      where: { rifaId, numero: { in: numeros }, status: StatusNumero.DISPONIVEL },
+      where: { rifaId, numero: { in: numerosDaCompra }, status: StatusNumero.DISPONIVEL },
       data: { status: StatusNumero.RESERVADO, reservadoAte: expiraEm, compraId: compra.id },
     });
 
-    if (reserva.count !== numeros.length) {
+    if (reserva.count !== numerosDaCompra.length) {
       throw new ErroDeNegocio(
         "Um ou mais números escolhidos acabaram de ser reservados por outra pessoa. Atualize a página e escolha novamente.",
       );
     }
 
-    return { compraId: compra.id, codigo: compra.codigo, valorTotal, expiraEm };
+    return {
+      compraId: compra.id,
+      codigo: compra.codigo,
+      valorTotal,
+      expiraEm,
+      numeros: numerosDaCompra,
+    };
   });
 }
 

@@ -16,6 +16,10 @@ type Rifa = {
   autorizacaoNumero: string | null;
   regulamentoUrl: string | null;
   vendidos: number;
+  disponiveis: number;
+  /// Falso em rifa grande: a grade não é enviada nem desenhada, e a compra
+  /// passa a ser por quantidade, com o servidor sorteando os números.
+  modoGrade: boolean;
 };
 
 const brl = (valor: number) =>
@@ -33,6 +37,8 @@ export default function ComprarNumeros() {
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [form, setForm] = useState({ nome: "", email: "", telefone: "", cpf: "" });
+  // Quantidade pedida quando não há grade para clicar.
+  const [quantidade, setQuantidade] = useState(1);
 
   useEffect(() => {
     fetch("/api/rifas/ativa")
@@ -49,9 +55,13 @@ export default function ComprarNumeros() {
     [rifa],
   );
 
+  // Quantos números a compra terá: os clicados na grade, ou os pedidos por
+  // quantidade quando a rifa é grande demais para desenhar.
+  const quantosNumeros = rifa?.modoGrade === false ? quantidade : selecionados.length;
+
   const total = useMemo(
-    () => (rifa ? Number(rifa.precoPorNumero) * selecionados.length : 0),
-    [rifa, selecionados],
+    () => (rifa ? Number(rifa.precoPorNumero) * quantosNumeros : 0),
+    [rifa, quantosNumeros],
   );
 
   function alternar(numero: number) {
@@ -69,8 +79,8 @@ export default function ComprarNumeros() {
 
   async function finalizar(evento: React.FormEvent) {
     evento.preventDefault();
-    if (!rifa || selecionados.length === 0) {
-      setErro("Escolha ao menos um número.");
+    if (!rifa || quantosNumeros === 0) {
+      setErro(rifa?.modoGrade === false ? "Informe quantos números quer." : "Escolha ao menos um número.");
       return;
     }
 
@@ -82,7 +92,8 @@ export default function ComprarNumeros() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         rifaId: rifa.id,
-        numeros: selecionados,
+        // Um ou outro, nunca os dois: o servidor recusa se vierem juntos.
+        ...(rifa.modoGrade ? { numeros: selecionados } : { quantidade }),
         comprador: { ...form, cpf: form.cpf || null },
         codigoAfiliado,
       }),
@@ -155,36 +166,91 @@ export default function ComprarNumeros() {
       </section>
 
       <section className="cartao">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Escolha seus números</h2>
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-lg font-semibold">
+            {rifa.modoGrade ? "Escolha seus números" : "Quantos números você quer?"}
+          </h2>
           <span className="text-sm text-slate-500">
-            {rifa.vendidos} de {rifa.quantidadeNumeros} vendidos
+            {rifa.vendidos.toLocaleString("pt-BR")} de {rifa.quantidadeNumeros.toLocaleString("pt-BR")} vendidos
           </span>
         </div>
 
-        <div className="grid max-h-96 grid-cols-5 gap-2 overflow-y-auto sm:grid-cols-10">
-          {Array.from({ length: rifa.quantidadeNumeros }, (_, numero) => {
-            const ocupado = indisponiveis.has(numero);
-            const escolhido = selecionados.includes(numero);
-            return (
-              <button
-                key={numero}
-                type="button"
-                onClick={() => alternar(numero)}
-                disabled={ocupado}
-                className={`rounded-md py-2 text-sm font-medium transition ${
-                  ocupado
-                    ? "cursor-not-allowed bg-slate-100 text-slate-300 line-through"
-                    : escolhido
-                      ? "bg-marca-600 text-white"
-                      : "bg-slate-100 text-slate-700 hover:bg-marca-100"
-                }`}
-              >
-                {String(numero).padStart(digitos, "0")}
-              </button>
-            );
-          })}
-        </div>
+        {rifa.modoGrade ? (
+          <div className="grid max-h-96 grid-cols-5 gap-2 overflow-y-auto sm:grid-cols-10">
+            {Array.from({ length: rifa.quantidadeNumeros }, (_, numero) => {
+              const ocupado = indisponiveis.has(numero);
+              const escolhido = selecionados.includes(numero);
+              return (
+                <button
+                  key={numero}
+                  type="button"
+                  onClick={() => alternar(numero)}
+                  disabled={ocupado}
+                  className={`rounded-md py-2 text-sm font-medium transition ${
+                    ocupado
+                      ? "cursor-not-allowed bg-slate-100 text-slate-300 line-through"
+                      : escolhido
+                        ? "bg-marca-600 text-white"
+                        : "bg-slate-100 text-slate-700 hover:bg-marca-100"
+                  }`}
+                >
+                  {String(numero).padStart(digitos, "0")}
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <p className="text-sm text-slate-600">
+              Esta rifa tem {rifa.quantidadeNumeros.toLocaleString("pt-BR")} números — grande
+              demais para escolher um a um. Diga quantos você quer e o sistema sorteia entre os
+              disponíveis, na hora do pagamento.
+            </p>
+
+            <div className="flex flex-wrap gap-2">
+              {[1, 5, 10, 20, 50]
+                .filter((atalho) => atalho <= rifa.limiteNumerosPorCompra)
+                .map((atalho) => (
+                  <button
+                    key={atalho}
+                    type="button"
+                    onClick={() => setQuantidade(atalho)}
+                    className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
+                      quantidade === atalho
+                        ? "bg-marca-600 text-white"
+                        : "bg-slate-100 text-slate-700 hover:bg-marca-100"
+                    }`}
+                  >
+                    {atalho} número{atalho === 1 ? "" : "s"}
+                  </button>
+                ))}
+            </div>
+
+            <div className="max-w-xs">
+              <label className="rotulo" htmlFor="quantidade">
+                Ou informe a quantidade
+              </label>
+              <input
+                id="quantidade"
+                type="number"
+                min={1}
+                max={Math.min(rifa.limiteNumerosPorCompra, rifa.disponiveis)}
+                className="campo"
+                value={quantidade}
+                onChange={(e) => {
+                  const valor = Number(e.target.value);
+                  const teto = Math.min(rifa.limiteNumerosPorCompra, rifa.disponiveis);
+                  setErro(null);
+                  setQuantidade(Number.isFinite(valor) ? Math.min(Math.max(valor, 1), teto) : 1);
+                }}
+              />
+              <p className="mt-1 text-xs text-slate-500">
+                Máximo de {rifa.limiteNumerosPorCompra} por compra ·{" "}
+                {rifa.disponiveis.toLocaleString("pt-BR")} disponíveis
+              </p>
+            </div>
+          </div>
+        )}
       </section>
 
       <form onSubmit={finalizar} className="cartao space-y-4">
@@ -239,12 +305,13 @@ export default function ComprarNumeros() {
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-4">
           <div>
             <p className="text-sm text-slate-500">
-              {selecionados.length} número{selecionados.length === 1 ? "" : "s"} selecionado
-              {selecionados.length === 1 ? "" : "s"}
+              {quantosNumeros} número{quantosNumeros === 1 ? "" : "s"}{" "}
+              {rifa.modoGrade ? "selecionado" : "a sortear"}
+              {quantosNumeros === 1 || rifa.modoGrade === false ? "" : "s"}
             </p>
             <p className="text-xl font-bold text-marca-700">{brl(total)}</p>
           </div>
-          <button type="submit" className="botao" disabled={enviando || selecionados.length === 0}>
+          <button type="submit" className="botao" disabled={enviando || quantosNumeros === 0}>
             {enviando ? "Gerando PIX…" : "Pagar com PIX"}
           </button>
         </div>

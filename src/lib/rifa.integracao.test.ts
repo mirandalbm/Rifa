@@ -174,6 +174,74 @@ describe("criarCompra — reserva de números", () => {
   });
 });
 
+describe("criarCompra — sorteio automático (rifa grande, sem grade)", () => {
+  test("sorteia a quantidade pedida entre os disponíveis", async () => {
+    const { compraId, numeros: sorteados } = await criarCompra({ rifaId, quantidade: 5, comprador });
+
+    assert.equal(sorteados.length, 5);
+    assert.equal(new Set(sorteados).size, 5, "não pode sortear o mesmo número duas vezes");
+
+    const reservados = await prisma.numero.findMany({
+      where: { compraId },
+      select: { numero: true, status: true },
+    });
+    assert.equal(reservados.length, 5);
+    assert.ok(reservados.every((n) => n.status === StatusNumero.RESERVADO));
+    assert.deepEqual(
+      reservados.map((n) => n.numero).sort((a, b) => a - b),
+      [...sorteados].sort((a, b) => a - b),
+    );
+  });
+
+  test("nunca sorteia número já vendido", async () => {
+    // Deixa só 3 livres numa rifa de 50 e pede exatamente 3.
+    const livres = [11, 22, 33];
+    await prisma.numero.updateMany({
+      where: { rifaId, numero: { notIn: livres } },
+      data: { status: StatusNumero.PAGO },
+    });
+
+    const { numeros: sorteados } = await criarCompra({ rifaId, quantidade: 3, comprador });
+    assert.deepEqual([...sorteados].sort((a, b) => a - b), livres);
+  });
+
+  test("recusa quando não há números suficientes", async () => {
+    await prisma.numero.updateMany({ where: { rifaId }, data: { status: StatusNumero.PAGO } });
+
+    await assert.rejects(
+      () => criarCompra({ rifaId, quantidade: 2, comprador }),
+      /não há mais números|Restam apenas/i,
+    );
+  });
+
+  test("compras simultâneas por quantidade não repetem número", async () => {
+    const resultados = await Promise.allSettled(
+      Array.from({ length: 5 }, () => criarCompra({ rifaId, quantidade: 8, comprador })),
+    );
+
+    const numerosVendidos = resultados
+      .filter((r): r is PromiseFulfilledResult<Awaited<ReturnType<typeof criarCompra>>> => r.status === "fulfilled")
+      .flatMap((r) => r.value.numeros);
+
+    assert.equal(
+      new Set(numerosVendidos).size,
+      numerosVendidos.length,
+      "duas compras receberam o mesmo número",
+    );
+  });
+
+  test("respeita o limite por compra também no sorteio", async () => {
+    await assert.rejects(() => criarCompra({ rifaId, quantidade: 21, comprador }), /Máximo de 20/);
+  });
+
+  test("recusa pedir números e quantidade ao mesmo tempo", async () => {
+    await assert.rejects(
+      () => criarCompra({ rifaId, numeros: [1], quantidade: 1, comprador }),
+      /ou a quantidade/,
+    );
+  });
+});
+
 describe("liberarReservasExpiradas", () => {
   test("devolve à venda os números de uma reserva vencida", async () => {
     const { compraId } = await criarCompra({ rifaId, numeros: [40, 41], comprador });

@@ -117,6 +117,10 @@ model Rifa {
   premio                 String
   precoPorNumero         Decimal    @db.Decimal(10, 2)
   quantidadeNumeros      Int
+  /// Quantos números já foram materializados. Uma rifa de milhões leva minutos
+  /// para gerar, então isso acontece em blocos, fora da requisição — e este
+  /// contador permite retomar de onde parou e barrar a venda antes do fim.
+  numerosGerados         Int        @default(0)
   limiteNumerosPorCompra Int        @default(20)
   minutosParaPagar       Int        @default(30)
   status                 StatusRifa @default(RASCUNHO)

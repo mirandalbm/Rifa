@@ -17,11 +17,11 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const { rifaId, numeros, comprador, codigoAfiliado } = analise.data;
+  const { rifaId, numeros, quantidade, comprador, codigoAfiliado } = analise.data;
 
   let compra;
   try {
-    compra = await criarCompra({ rifaId, numeros, comprador, codigoAfiliado });
+    compra = await criarCompra({ rifaId, numeros, quantidade, comprador, codigoAfiliado });
   } catch (erro) {
     if (erro instanceof ErroDeNegocio) {
       return NextResponse.json({ erro: erro.message }, { status: 409 });

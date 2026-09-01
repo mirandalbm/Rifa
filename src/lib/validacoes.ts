@@ -20,12 +20,21 @@ export const esquemaComprador = z.object({
     .nullable(),
 });
 
-export const esquemaNovaCompra = z.object({
-  rifaId: z.string().min(1),
-  numeros: z.array(z.number().int().nonnegative()).min(1, "Selecione ao menos um número").max(100),
-  comprador: esquemaComprador,
-  codigoAfiliado: z.string().trim().min(1).max(32).optional().nullable(),
-});
+/// A compra chega de duas formas: com os números escolhidos a dedo (rifa
+/// pequena, onde a grade cabe na tela) ou só com a quantidade, deixando o
+/// servidor sortear os disponíveis (rifa grande, onde não há grade).
+export const esquemaNovaCompra = z
+  .object({
+    rifaId: z.string().min(1),
+    numeros: z.array(z.number().int().nonnegative()).min(1).max(100).optional(),
+    quantidade: z.coerce.number().int().min(1).max(100).optional(),
+    comprador: esquemaComprador,
+    codigoAfiliado: z.string().trim().min(1).max(32).optional().nullable(),
+  })
+  .refine((dados) => Boolean(dados.numeros) !== Boolean(dados.quantidade), {
+    message: "Escolha os números ou informe a quantidade — não os dois",
+    path: ["numeros"],
+  });
 
 export const esquemaLogin = z.object({
   email: z.string().trim().email("E-mail inválido"),
@@ -63,7 +72,7 @@ export const esquemaNovaRifa = z.object({
   descricao: z.string().trim().max(2000).optional().nullable(),
   premio: z.string().trim().min(3).max(280),
   precoPorNumero: z.coerce.number().positive(),
-  quantidadeNumeros: z.coerce.number().int().min(10).max(100000),
+  quantidadeNumeros: z.coerce.number().int().min(10).max(10_000_000),
   limiteNumerosPorCompra: z.coerce.number().int().min(1).max(100).default(20),
   minutosParaPagar: z.coerce.number().int().min(5).max(1440).default(30),
   dataSorteio: z.coerce.date(),

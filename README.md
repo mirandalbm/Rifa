@@ -76,6 +76,39 @@ Na aba **Rifas**, o botão "Exportar CSV" baixa a planilha completa de uma rifa:
 compradores, números, valores, data de pagamento, afiliado responsável e comissão. O arquivo sai
 com BOM e separador `;`, então abre direto no Excel em português com acentuação correta.
 
+## Tamanho da rifa
+
+A quantidade de números é definida pela organizadora ao criar cada rifa, de **10 a 10.000.000**.
+O tamanho muda o comportamento do sistema em dois pontos:
+
+| Tamanho | Como o comprador escolhe | Como os números são criados |
+|---|---|---|
+| até 2.000 | grade clicável, escolhe um a um | na hora |
+| 2.001 a 100.000 | informa a quantidade, o sistema sorteia | na hora |
+| acima de 100.000 | informa a quantidade, o sistema sorteia | em segundo plano, em blocos |
+
+Medições reais (PostgreSQL 16, container de desenvolvimento):
+
+| Números | Criar | Sortear 20 na compra | Home pública |
+|---|---|---|---|
+| 100.000 | 1,9 s | — | — |
+| 1.000.000 | 25 s | — | — |
+| 10.000.000 | 5,4 min | 16 ms | 137 ms |
+
+Três decisões vêm daí:
+
+1. **`generate_series` no Postgres, não `Array.from` no Node.** Montar 10 milhões de objetos em
+   memória derrubaria o processo; assim o heap fica em 8 MB independentemente do tamanho.
+2. **Rifa grande gera fora da requisição.** 5,4 minutos excede o limite de qualquer proxy, então
+   a resposta sai na hora e a geração segue em blocos de 500 mil, com progresso em
+   `Rifa.numerosGerados`. A venda **não abre** enquanto não terminar — abrir antes venderia uma
+   rifa cujos números finais não existem, mas que ainda assim concorreriam no sorteio. Se o
+   servidor cair no meio, o botão "Retomar" continua de onde parou (o insert usa
+   `ON CONFLICT DO NOTHING`, então repetir é inofensivo).
+3. **Contagem por subtração.** Contar números disponíveis diretamente varre quase a tabela
+   inteira (746 ms por visita numa rifa de 10 milhões). Contam-se os ocupados, que são poucos,
+   e o resto sai por subtração: 4 ms.
+
 ## Testes
 
 ```bash

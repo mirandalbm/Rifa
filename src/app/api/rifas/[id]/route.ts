@@ -5,14 +5,15 @@ import { LIMITE_GRADE_VISUAL, liberarReservasExpiradas } from "@/lib/rifa";
 
 export const dynamic = "force-dynamic";
 
-/// Rifa aberta no momento, com a situação de cada número para montar a grade.
-export async function GET() {
-  const rifa = await prisma.rifa.findFirst({
-    where: { status: "ABERTA" },
-    orderBy: { criadaEm: "desc" },
-  });
+/// Uma rifa específica, com a situação de cada número para montar a grade.
+export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
 
-  if (!rifa) return NextResponse.json({ rifa: null });
+  // Só rifas abertas: uma em rascunho ainda não deve ser comprável por quem
+  // descobrir o link, e uma encerrada não aceita mais compra.
+  const rifa = await prisma.rifa.findFirst({ where: { id, status: "ABERTA" } });
+
+  if (!rifa) return NextResponse.json({ rifa: null }, { status: 404 });
 
   await liberarReservasExpiradas(rifa.id);
 

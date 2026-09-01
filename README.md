@@ -76,6 +76,19 @@ Na aba **Rifas**, o botão "Exportar CSV" baixa a planilha completa de uma rifa:
 compradores, números, valores, data de pagamento, afiliado responsável e comissão. O arquivo sai
 com BOM e separador `;`, então abre direto no Excel em português com acentuação correta.
 
+## Várias rifas ao mesmo tempo
+
+O sistema roda quantas rifas você quiser, simultâneas e independentes — cada uma com seu
+tamanho, preço, prêmio, mídia e situação própria.
+
+- **Nenhuma aberta** → a home avisa que não há rifa no momento.
+- **Uma aberta** → a home leva direto para ela; ninguém vê uma lista de um item só.
+- **Duas ou mais** → a home vira a vitrine, com capa, preço e barra de progresso de cada rifa.
+
+Cada rifa tem endereço próprio (`/rifa/{id}`), que pode ser divulgado separadamente. O código de
+indicação do afiliado (`?ref=`) sobrevive à vitrine: entra pela home e segue até a rifa escolhida,
+então **um mesmo link de afiliado funciona para qualquer rifa** que o comprador escolher.
+
 ## Fotos e vídeo do prêmio
 
 Cada rifa aceita **1 banner de capa, até 5 imagens e 1 vídeo**, enviados em

@@ -26,7 +26,7 @@ type Rifa = {
 const brl = (valor: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(valor);
 
-export default function ComprarNumeros() {
+export default function ComprarNumeros({ rifaId }: { rifaId: string }) {
   const router = useRouter();
   const parametros = useSearchParams();
   const codigoAfiliado = parametros.get("ref");
@@ -43,14 +43,15 @@ export default function ComprarNumeros() {
   const [imagemAmpliada, setImagemAmpliada] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch("/api/rifas/ativa")
+    fetch(`/api/rifas/${rifaId}`)
       .then((r) => r.json())
       .then((dados) => {
         setRifa(dados.rifa);
         setIndisponiveis(new Set<number>(dados.indisponiveis ?? []));
       })
+      .catch(() => setRifa(null))
       .finally(() => setCarregando(false));
-  }, []);
+  }, [rifaId]);
 
   const digitos = useMemo(
     () => (rifa ? String(rifa.quantidadeNumeros - 1).length : 3),
@@ -117,8 +118,10 @@ export default function ComprarNumeros() {
   if (!rifa) {
     return (
       <div className="cartao text-center">
-        <h1 className="text-xl font-semibold">Nenhuma rifa aberta no momento</h1>
-        <p className="mt-2 text-slate-600">Volte em breve — logo teremos uma nova rifa disponível.</p>
+        <h1 className="text-xl font-semibold">Rifa não disponível</h1>
+        <p className="mt-2 text-slate-600">
+          Esta rifa não está aberta para vendas. Veja as rifas disponíveis na página inicial.
+        </p>
       </div>
     );
   }

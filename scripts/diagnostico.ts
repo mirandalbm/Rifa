@@ -150,6 +150,25 @@ async function main() {
     return;
   }
 
+  // 6. O cliente do Prisma corresponde ao schema atual?
+  //
+  // `npm install` não regera o cliente quando nenhuma dependência mudou, então
+  // quem atualiza o código fica com o cliente do schema anterior. O erro que
+  // isso produz ("Unknown argument `usuario`") não sugere a causa, e o banco
+  // parece saudável — por isso a checagem é explícita aqui.
+  try {
+    await prisma.usuario.findFirst({ where: { usuario: "__conferencia__" } });
+    await prisma.contaApostador.count();
+    ok("cliente do Prisma atualizado");
+  } catch {
+    falha("o cliente do Prisma está desatualizado em relação ao schema");
+    dica("Rode: npx prisma generate");
+    dica("Acontece quando o código é atualizado e nenhuma dependência muda.");
+    process.exitCode = 1;
+    await prisma.$disconnect();
+    return;
+  }
+
   await prisma.$disconnect();
   console.log("\nTudo pronto. Suba com: npm run dev\n");
 }

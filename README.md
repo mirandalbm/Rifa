@@ -124,9 +124,22 @@ npm run doctor
 ```
 
 Confere, em ordem: se o `.env` existe, para onde a `DATABASE_URL` aponta, se há algo escutando
-naquela porta, se as credenciais funcionam e se as tabelas e o seed já foram criados. Cada falha
-vem com o comando que resolve — é bem mais direto que o erro do Prisma, que não diz nem em que
-porta tentou conectar.
+naquela porta, se as credenciais funcionam, se as tabelas e o seed já foram criados, e se o
+cliente do Prisma corresponde ao schema atual. Cada falha vem com o comando que resolve — é bem
+mais direto que o erro do Prisma, que não diz nem em que porta tentou conectar.
+
+### Se der "Unknown argument" em algum campo
+
+O cliente do Prisma é gerado a partir do schema e fica em `node_modules`. Ao atualizar o código,
+`npm install` só regenera se alguma dependência tiver mudado — então um schema novo pode conviver
+com um cliente antigo, e o erro resultante não sugere isso em nada. Resolve com:
+
+```bash
+npx prisma generate
+```
+
+O `postinstall` do projeto já roda isso a cada `npm install`, mas a checagem está no `doctor`
+para o caso de o cliente ficar defasado por outro caminho.
 
 ### Se der "Authentication failed" no banco
 

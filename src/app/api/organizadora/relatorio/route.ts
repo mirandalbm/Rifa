@@ -2,15 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { exigirPerfil } from "@/lib/auth";
 import { formatarNumero, registrarAuditoria } from "@/lib/rifa";
-
-/// Escapa um campo para CSV. O prefixo em campos que começam com =, +, - ou @
-/// evita que uma planilha interprete o conteúdo como fórmula (CSV injection):
-/// um comprador poderia cadastrar o nome como "=HYPERLINK(...)".
-function campoCsv(valor: string | number | null | undefined): string {
-  const texto = String(valor ?? "");
-  const seguro = /^[=+\-@\t\r]/.test(texto) ? `'${texto}` : texto;
-  return `"${seguro.replace(/"/g, '""')}"`;
-}
+import { montarCsv } from "@/lib/csv";
 
 export async function GET(req: NextRequest) {
   const sessao = await exigirPerfil("ORGANIZADORA", "OPERADOR");
@@ -55,9 +47,8 @@ export async function GET(req: NextRequest) {
     "comissao_situacao",
   ];
 
-  const linhas = compras.map((compra) =>
-    [
-      compra.codigo,
+  const linhas = compras.map((compra) => [
+    compra.codigo,
       compra.status,
       compra.comprador.nome,
       compra.comprador.email,
@@ -73,10 +64,7 @@ export async function GET(req: NextRequest) {
       compra.afiliado?.usuario.nome ?? "",
       compra.comissao?.valor.toFixed(2).replace(".", ",") ?? "",
       compra.comissao?.status ?? "",
-    ]
-      .map(campoCsv)
-      .join(";"),
-  );
+  ]);
 
   await registrarAuditoria({
     usuarioId: sessao.usuarioId,
@@ -86,8 +74,7 @@ export async function GET(req: NextRequest) {
     dados: { compras: compras.length },
   });
 
-  // BOM + separador ";" para o Excel em português abrir acentuação e colunas certas.
-  const csv = `﻿${cabecalho.join(";")}\n${linhas.join("\n")}`;
+  const csv = montarCsv(cabecalho, linhas);
   const arquivo = `rifa-${rifa.titulo.normalize("NFD").replace(/[^\w]+/g, "-").toLowerCase()}.csv`;
 
   return new NextResponse(csv, {

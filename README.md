@@ -76,6 +76,19 @@ Na aba **Rifas**, o botão "Exportar CSV" baixa a planilha completa de uma rifa:
 compradores, números, valores, data de pagamento, afiliado responsável e comissão. O arquivo sai
 com BOM e separador `;`, então abre direto no Excel em português com acentuação correta.
 
+## Testes
+
+```bash
+npm test        # runner nativo do Node, sem framework extra
+npm run typecheck
+```
+
+Cobrem a lógica que não pode errar em dinheiro de doação: aritmética monetária
+(`dinheiro.ts`), derivação do número vencedor a partir da Loteria Federal (`rifa.ts`) e
+escape do CSV (`csv.ts`). São testes de unidade — não tocam banco. Os fluxos que dependem
+de PostgreSQL e do Mercado Pago (reserva de número, expiração, webhook) **ainda precisam ser
+validados contra um ambiente real**.
+
 ## Decisões que sustentam a operação
 
 1. **Dinheiro nunca é float** — todos os valores são `Decimal(10,2)` no banco e `Prisma.Decimal`

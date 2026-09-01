@@ -1,0 +1,28 @@
+# Banco para desenvolvimento na sua máquina.
+#   docker compose up -d      inicia
+#   docker compose down       para (os dados continuam)
+#   docker compose down -v    para e APAGA os dados
+#
+# Não use este arquivo em produção: a senha está no código, de propósito, para
+# que rodar localmente não exija configuração nenhuma.
+services:
+  banco:
+    image: postgres:16-alpine
+    container_name: rifa-banco
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: rifa
+      POSTGRES_PASSWORD: rifa
+      POSTGRES_DB: rifa
+    ports:
+      - "5432:5432"
+    volumes:
+      - dados-do-banco:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rifa"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  dados-do-banco:

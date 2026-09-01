@@ -76,6 +76,51 @@ Na aba **Rifas**, o botão "Exportar CSV" baixa a planilha completa de uma rifa:
 compradores, números, valores, data de pagamento, afiliado responsável e comissão. O arquivo sai
 com BOM e separador `;`, então abre direto no Excel em português com acentuação correta.
 
+## Rodar na sua máquina
+
+Precisa de **Node.js 20 ou mais novo** e **Docker** (só para o banco; se você já tem PostgreSQL
+instalado, pule o passo 2 e ajuste a `DATABASE_URL`).
+
+```bash
+# 1. dependências
+npm install
+
+# 2. banco (sobe um PostgreSQL em container, com os dados num volume)
+docker compose up -d
+
+# 3. configuração
+cp .env.example .env
+# gere um segredo e cole em JWT_SECRET no .env:
+node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
+
+# 4. tabelas
+npx prisma migrate deploy
+
+# 5. primeiro acesso — a senha é sua, não existe padrão
+SEED_SENHA_ORGANIZADORA="escolha-uma-senha-forte" npm run db:seed
+
+# 6. subir
+npm run dev
+```
+
+Abra **http://localhost:3000**. Para entrar no painel, use **contato@exemplo.org** com a senha
+que você definiu no passo 5 (o e-mail muda com `SEED_ONG_EMAIL`).
+
+O seed cria a rifa em **rascunho**: entre em *Rifas* e clique em **Abrir venda** para ela aparecer
+na página pública.
+
+**O que funciona sem configurar mais nada:** criar rifas, abrir venda, cadastrar afiliados, subir
+fotos e vídeo, escolher números, publicar resultado, exportar CSV.
+
+**O que precisa de credencial externa:**
+
+| Recurso | Variável | Sem ela |
+|---|---|---|
+| Cobrança PIX | `MERCADOPAGO_ACCESS_TOKEN` | A compra chega até o fim e falha ao gerar o PIX, com mensagem clara; os números voltam ao estoque na hora |
+| E-mail de confirmação | `RESEND_API_KEY`, `EMAIL_REMETENTE` | Tudo funciona, só não sai e-mail (fica registrado no log) |
+
+Para parar o banco: `docker compose down` (os dados ficam) ou `docker compose down -v` (apaga tudo).
+
 ## Várias rifas ao mesmo tempo
 
 O sistema roda quantas rifas você quiser, simultâneas e independentes — cada uma com seu

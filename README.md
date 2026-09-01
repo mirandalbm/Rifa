@@ -31,23 +31,10 @@ o número.
 
 ## Stack
 
-- **Next.js 14** (App Router) — front-end e API no mesmo projeto
+- **Next.js 16** (App Router) — front-end e API no mesmo projeto
 - **PostgreSQL + Prisma** — persistência
 - **Mercado Pago** — cobrança PIX com webhook assinado
 - **Tailwind CSS** — interface
-
-## Configuração
-
-```bash
-npm install
-cp .env.example .env      # preencha DATABASE_URL, JWT_SECRET e as chaves do Mercado Pago
-npx prisma migrate dev --name init
-SEED_SENHA_ORGANIZADORA="sua-senha-forte" npm run db:seed
-npm run dev
-```
-
-O seed **não cria senha padrão** — ele exige `SEED_SENHA_ORGANIZADORA`, para o sistema nunca subir
-com credencial conhecida.
 
 ## Webhook do Mercado Pago
 
@@ -103,7 +90,10 @@ SEED_SENHA_ORGANIZADORA="escolha-uma-senha-forte" npm run db:seed
 npm run dev
 ```
 
-Abra **http://localhost:3000**. Para entrar no painel, use **contato@exemplo.org** com a senha
+O seed **não cria senha padrão** — ele exige `SEED_SENHA_ORGANIZADORA`, para o sistema nunca
+subir com credencial conhecida.
+
+Abra **http://localhost:3001**. Para entrar no painel, use **contato@exemplo.org** com a senha
 que você definiu no passo 5 (o e-mail muda com `SEED_ONG_EMAIL`).
 
 O seed cria a rifa em **rascunho**: entre em *Rifas* e clique em **Abrir venda** para ela aparecer

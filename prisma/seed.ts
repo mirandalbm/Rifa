@@ -12,10 +12,23 @@ async function main() {
     );
   }
 
+  // Rodar o seed de novo é um engano comum na instalação. Sem esta checagem, o
+  // segundo `npm run db:seed` estoura com um erro de chave única do Prisma —
+  // assustador e sem indicar o que fazer.
+  const email = process.env.SEED_ONG_EMAIL ?? "contato@exemplo.org";
+  const jaExiste = await prisma.usuario.findUnique({ where: { email } });
+
+  if (jaExiste) {
+    console.log(`O sistema já foi inicializado: o usuário ${email} existe.`);
+    console.log("O seed só roda uma vez. Entre com a senha definida na primeira execução.");
+    console.log("Para recomeçar do zero, apague o banco (docker compose down -v) e repita a instalação.");
+    return;
+  }
+
   const organizacao = await prisma.organizacao.create({
     data: {
       nome: process.env.SEED_ONG_NOME ?? "Organização Beneficente",
-      email: process.env.SEED_ONG_EMAIL ?? "contato@exemplo.org",
+      email,
     },
   });
 
@@ -23,7 +36,7 @@ async function main() {
     data: {
       organizacaoId: organizacao.id,
       nome: "Administração",
-      email: process.env.SEED_ONG_EMAIL ?? "contato@exemplo.org",
+      email,
       senhaHash: await bcrypt.hash(senhaOrganizadora, 12),
       perfil: "ORGANIZADORA",
     },

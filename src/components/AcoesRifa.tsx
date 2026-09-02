@@ -13,6 +13,7 @@ type Props = {
 export default function AcoesRifa({ id, status, jaSorteada, gerandoNumeros = false }: Props) {
   const router = useRouter();
   const [ocupado, setOcupado] = useState(false);
+  const [aviso, setAviso] = useState<string | null>(null);
 
   async function retomarGeracao() {
     setOcupado(true);
@@ -31,7 +32,13 @@ export default function AcoesRifa({ id, status, jaSorteada, gerandoNumeros = fal
   }
 
   async function mudarStatus(novo: string, confirmacao?: string) {
-    if (confirmacao && !window.confirm(confirmacao)) return;
+    // Cancelar no aviso não fazia nada visível: a rifa continuava em rascunho
+    // e quem cancelou sem querer não tinha como saber que nada aconteceu.
+    if (confirmacao && !window.confirm(confirmacao)) {
+      setAviso("Nada mudou — a rifa continua como estava.");
+      return;
+    }
+    setAviso(null);
 
     setOcupado(true);
     const resposta = await fetch("/api/organizadora/rifas", {
@@ -81,7 +88,9 @@ export default function AcoesRifa({ id, status, jaSorteada, gerandoNumeros = fal
   }
 
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="flex flex-wrap items-center gap-2">
+      {aviso && <span className="w-full text-xs text-amber-700">{aviso}</span>}
+
       {status !== "ABERTA" && (
         <button
           type="button"

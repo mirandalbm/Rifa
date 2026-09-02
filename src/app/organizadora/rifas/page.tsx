@@ -21,10 +21,20 @@ export default async function PaginaRifas() {
   });
 
   const podeCriar = sessao.perfil === "ORGANIZADORA";
+  const rascunhos = rifas.filter((rifa) => rifa.status === "RASCUNHO").length;
 
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">Rifas</h1>
+
+      {rascunhos > 0 && (
+        <p className="rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          {rascunhos === 1
+            ? "Você tem 1 rifa em rascunho — ela não aparece no site."
+            : `Você tem ${rascunhos} rifas em rascunho — elas não aparecem no site.`}{" "}
+          Clique em <strong>Abrir venda</strong> na linha da rifa para publicá-la.
+        </p>
+      )}
 
       <section className="cartao">
         <h2 className="mb-3 text-lg font-semibold">Rifas cadastradas</h2>
@@ -61,9 +71,25 @@ export default async function PaginaRifas() {
                     <td className="py-2">{rifa.dataSorteio.toLocaleDateString("pt-BR")}</td>
                     <td className="py-2">{rifa._count.compras}</td>
                     <td className="py-2">
-                      <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium">
+                      <span
+                        className={`rounded-full px-2.5 py-1 text-xs font-medium ${
+                          rifa.status === "ABERTA"
+                            ? "bg-marca-50 text-marca-700"
+                            : rifa.status === "RASCUNHO"
+                              ? "bg-amber-50 text-amber-800"
+                              : "bg-slate-100 text-slate-600"
+                        }`}
+                      >
                         {rifa.status}
                       </span>
+                      {/* Criar a rifa não a coloca à venda. Sem este aviso, a
+                          página pública diz "nenhuma rifa aberta" e nada na
+                          tela explica por quê. */}
+                      {rifa.status === "RASCUNHO" && (
+                        <span className="block text-xs text-amber-700">
+                          não aparece no site
+                        </span>
+                      )}
                     </td>
                     {podeCriar && (
                       <td className="py-2">

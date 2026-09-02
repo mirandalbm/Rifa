@@ -1,0 +1,137 @@
+import { cookies } from "next/headers";
+import { SignJWT, jwtVerify } from "jose";
+import bcrypt from "bcryptjs";
+import type { PerfilUsuario } from "@prisma/client";
+
+const COOKIE = "rifa_sessao";
+
+export type Sessao = {
+  usuarioId: string;
+  organizacaoId: string;
+  perfil: PerfilUsuario;
+  nome: string;
+};
+
+function segredo(): Uint8Array {
+  const valor = process.env.JWT_SECRET;
+  if (!valor) throw new Error("JWT_SECRET não configurado");
+  return new TextEncoder().encode(valor);
+}
+
+function duracaoHoras(): number {
+  return Number(process.env.SESSAO_DURACAO_HORAS ?? 8);
+}
+
+export async function hashSenha(senha: string): Promise<string> {
+  return bcrypt.hash(senha, 12);
+}
+
+export async function conferirSenha(senha: string, hash: string): Promise<boolean> {
+  return bcrypt.compare(senha, hash);
+}
+
+export async function criarSessao(sessao: Sessao): Promise<void> {
+  const horas = duracaoHoras();
+  const token = await new SignJWT({ ...sessao })
+    .setProtectedHeader({ alg: "HS256" })
+    .setIssuedAt()
+    .setExpirationTime(`${horas}h`)
+    .sign(segredo());
+
+  const armazem = await cookies();
+  armazem.set(COOKIE, token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: horas * 3600,
+  });
+}
+
+export async function lerSessao(): Promise<Sessao | null> {
+  const armazem = await cookies();
+  const token = armazem.get(COOKIE)?.value;
+  if (!token) return null;
+
+  try {
+    const { payload } = await jwtVerify(token, segredo());
+    return {
+      usuarioId: String(payload.usuarioId),
+      organizacaoId: String(payload.organizacaoId),
+      perfil: payload.perfil as PerfilUsuario,
+      nome: String(payload.nome),
+    };
+  } catch {
+    return null;
+  }
+}
+
+export async function encerrarSessao(): Promise<void> {
+  const armazem = await cookies();
+  armazem.delete(COOKIE);
+}
+
+// ── Sessão do apostador ────────────────────────────────────────────────
+// Cookie separado do da equipe, de propósito: assim nenhuma sessão de
+// comprador pode ser confundida com acesso ao painel, mesmo que um dia
+// alguém esqueça de checar o perfil.
+
+const COOKIE_APOSTADOR = "rifa_apostador";
+
+export type SessaoApostador = {
+  contaId: string;
+  nome: string;
+  usuario: string;
+};
+
+export async function criarSessaoApostador(sessao: SessaoApostador): Promise<void> {
+  // O comprador volta para conferir números dias depois; sessão curta como a
+  // da equipe o faria logar de novo a cada visita.
+  const dias = 30;
+  const token = await new SignJWT({ ...sessao })
+    .setProtectedHeader({ alg: "HS256" })
+    .setIssuedAt()
+    .setExpirationTime(`${dias}d`)
+    .sign(segredo());
+
+  const armazem = await cookies();
+  armazem.set(COOKIE_APOSTADOR, token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: dias * 24 * 3600,
+  });
+}
+
+export async function lerSessaoApostador(): Promise<SessaoApostador | null> {
+  const armazem = await cookies();
+  const token = armazem.get(COOKIE_APOSTADOR)?.value;
+  if (!token) return null;
+
+  try {
+    const { payload } = await jwtVerify(token, segredo());
+    // Um token da equipe não pode valer como apostador: ele não carrega contaId.
+    if (!payload.contaId) return null;
+    return {
+      contaId: String(payload.contaId),
+      nome: String(payload.nome),
+      usuario: String(payload.usuario),
+    };
+  } catch {
+    return null;
+  }
+}
+
+export async function encerrarSessaoApostador(): Promise<void> {
+  const armazem = await cookies();
+  armazem.delete(COOKIE_APOSTADOR);
+}
+
+/// Exige uma sessão com um dos perfis informados. Retorna null quando não
+/// autorizado — cada rota decide se responde 401 ou redireciona.
+export async function exigirPerfil(...perfis: PerfilUsuario[]): Promise<Sessao | null> {
+  const sessao = await lerSessao();
+  if (!sessao) return null;
+  return perfis.includes(sessao.perfil) ? sessao : null;
+}

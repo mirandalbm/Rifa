@@ -1,0 +1,315 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum StatusRifa {
+  RASCUNHO
+  ABERTA
+  ENCERRADA
+  SORTEADA
+  CANCELADA
+}
+
+enum StatusNumero {
+  DISPONIVEL
+  RESERVADO
+  PAGO
+}
+
+enum StatusCompra {
+  AGUARDANDO_PAGAMENTO
+  PAGA
+  EXPIRADA
+  CANCELADA
+}
+
+enum StatusPagamento {
+  PENDENTE
+  APROVADO
+  RECUSADO
+  ESTORNADO
+  EXPIRADO
+}
+
+enum PerfilUsuario {
+  ORGANIZADORA
+  OPERADOR
+  AFILIADO
+}
+
+enum StatusComissao {
+  PENDENTE
+  APROVADA
+  PAGA
+  CANCELADA
+}
+
+/// Entidade organizadora (a ONG). Multi-tenant desde o início para o caso de
+/// mais de uma rifa/entidade usarem a mesma instalação.
+model Organizacao {
+  id            String   @id @default(cuid())
+  nome          String
+  cnpj          String?  @unique
+  email         String
+  telefone      String?
+  chavePix      String?
+  criadaEm      DateTime @default(now())
+  atualizadaEm  DateTime @updatedAt
+
+  usuarios  Usuario[]
+  rifas     Rifa[]
+  afiliados Afiliado[]
+}
+
+/// Usuários com acesso a painel: organizadora, operadores e afiliados.
+model Usuario {
+  id            String        @id @default(cuid())
+  organizacaoId String
+  nome          String
+  /// Nome de usuário curto para login, alternativa ao e-mail.
+  usuario       String?       @unique
+  email         String        @unique
+  senhaHash     String
+  perfil        PerfilUsuario
+  ativo         Boolean       @default(true)
+  criadoEm      DateTime      @default(now())
+  atualizadoEm  DateTime      @updatedAt
+  ultimoLogin   DateTime?
+
+  organizacao Organizacao @relation(fields: [organizacaoId], references: [id])
+  afiliado    Afiliado?
+  logs        LogAuditoria[]
+
+  @@index([organizacaoId, perfil])
+}
+
+/// Vendedor/afiliado: divulga a rifa por link de indicação e recebe comissão
+/// sobre as vendas confirmadas. Nunca recebe dinheiro do comprador diretamente —
+/// o pagamento vai sempre para a conta da organização.
+model Afiliado {
+  id                  String   @id @default(cuid())
+  organizacaoId       String
+  usuarioId           String   @unique
+  codigo              String   @unique
+  telefone            String?
+  chavePixRecebimento String?
+  percentualComissao  Decimal  @db.Decimal(5, 2)
+  ativo               Boolean  @default(true)
+  criadoEm            DateTime @default(now())
+  atualizadoEm        DateTime @updatedAt
+
+  organizacao Organizacao @relation(fields: [organizacaoId], references: [id])
+  usuario     Usuario     @relation(fields: [usuarioId], references: [id])
+  compras     Compra[]
+  comissoes   Comissao[]
+
+  @@index([organizacaoId, ativo])
+}
+
+model Rifa {
+  id                     String     @id @default(cuid())
+  organizacaoId          String
+  titulo                 String
+  descricao              String?
+  premio                 String
+  precoPorNumero         Decimal    @db.Decimal(10, 2)
+  quantidadeNumeros      Int
+  /// Quantos números já foram materializados. Uma rifa de milhões leva minutos
+  /// para gerar, então isso acontece em blocos, fora da requisição — e este
+  /// contador permite retomar de onde parou e barrar a venda antes do fim.
+  numerosGerados         Int        @default(0)
+  limiteNumerosPorCompra Int        @default(20)
+  minutosParaPagar       Int        @default(30)
+  status                 StatusRifa @default(RASCUNHO)
+  dataSorteio            DateTime
+  /// Concurso da Loteria Federal usado como fonte do sorteio (auditável).
+  concursoLoteriaFederal String?
+  regulamentoUrl         String?
+  autorizacaoNumero      String?
+  criadaEm               DateTime   @default(now())
+  atualizadaEm           DateTime   @updatedAt
+
+  organizacao Organizacao @relation(fields: [organizacaoId], references: [id])
+  numeros     Numero[]
+  compras     Compra[]
+  resultado   Resultado?
+  midias      MidiaRifa[]
+
+  @@index([organizacaoId, status])
+}
+
+model Numero {
+  id           String       @id @default(cuid())
+  rifaId       String
+  numero       Int
+  status       StatusNumero @default(DISPONIVEL)
+  compraId     String?
+  reservadoAte DateTime?
+
+  rifa   Rifa    @relation(fields: [rifaId], references: [id], onDelete: Cascade)
+  compra Compra? @relation(fields: [compraId], references: [id], onDelete: SetNull)
+
+  @@unique([rifaId, numero])
+  @@index([rifaId, status])
+  @@index([compraId])
+}
+
+model ContaApostador {
+  id        String   @id @default(cuid())
+  usuario   String   @unique
+  email     String   @unique
+  nome      String
+  telefone  String
+  cpf       String?
+  senhaHash String
+  ativo     Boolean  @default(true)
+  criadoEm  DateTime @default(now())
+  ultimoLogin DateTime?
+
+  compras Compra[]
+}
+
+model Comprador {
+  id       String   @id @default(cuid())
+  nome     String
+  email    String
+  telefone String
+  cpf      String?
+  criadoEm DateTime @default(now())
+
+  compras Compra[]
+
+  @@index([cpf])
+  @@index([telefone])
+}
+
+model Compra {
+  id           String       @id @default(cuid())
+  codigo       String       @unique
+  rifaId       String
+  compradorId  String
+  /// Preenchido quando a compra foi feita por alguém logado; nulo em compra
+  /// de visitante, que continua funcionando sem cadastro.
+  contaId      String?
+  afiliadoId   String?
+  quantidade   Int
+  valorTotal   Decimal      @db.Decimal(10, 2)
+  status       StatusCompra @default(AGUARDANDO_PAGAMENTO)
+  expiraEm     DateTime
+  criadaEm     DateTime     @default(now())
+  atualizadaEm DateTime     @updatedAt
+  pagaEm       DateTime?
+
+  rifa      Rifa       @relation(fields: [rifaId], references: [id])
+  comprador Comprador       @relation(fields: [compradorId], references: [id])
+  conta     ContaApostador? @relation(fields: [contaId], references: [id])
+  afiliado  Afiliado?       @relation(fields: [afiliadoId], references: [id])
+  numeros   Numero[]
+  pagamento Pagamento?
+  comissao  Comissao?
+
+  @@index([rifaId, status])
+  @@index([compradorId])
+  @@index([contaId, criadaEm])
+  @@index([afiliadoId, status])
+}
+
+model Pagamento {
+  id                String          @id @default(cuid())
+  compraId          String          @unique
+  provedor          String          @default("mercadopago")
+  idExterno         String?         @unique
+  chaveIdempotencia String          @unique
+  valor             Decimal         @db.Decimal(10, 2)
+  status            StatusPagamento @default(PENDENTE)
+  pixCopiaECola     String?
+  pixQrCodeBase64   String?
+  expiraEm          DateTime?
+  criadoEm          DateTime        @default(now())
+  atualizadoEm      DateTime        @updatedAt
+  confirmadoEm      DateTime?
+  dadosProvedor     Json?
+
+  compra Compra @relation(fields: [compraId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+}
+
+model Comissao {
+  id         String         @id @default(cuid())
+  afiliadoId String
+  compraId   String         @unique
+  percentual Decimal        @db.Decimal(5, 2)
+  valor      Decimal        @db.Decimal(10, 2)
+  status     StatusComissao @default(PENDENTE)
+  criadaEm   DateTime       @default(now())
+  pagaEm     DateTime?
+  observacao String?
+
+  afiliado Afiliado @relation(fields: [afiliadoId], references: [id])
+  compra   Compra   @relation(fields: [compraId], references: [id], onDelete: Cascade)
+
+  @@index([afiliadoId, status])
+}
+
+model Resultado {
+  id              String   @id @default(cuid())
+  rifaId          String   @unique
+  numeroSorteado  Int
+  concurso        String
+  /// Prêmios da Loteria Federal que originaram o número, para conferência pública.
+  premiosFederal  Json?
+  dataApuracao    DateTime
+  compraVencedora String?
+  publicadoPorId  String?
+  publicadoEm     DateTime @default(now())
+  observacao      String?
+
+  rifa Rifa @relation(fields: [rifaId], references: [id], onDelete: Cascade)
+}
+
+model LogAuditoria {
+  id         String   @id @default(cuid())
+  usuarioId  String?
+  acao       String
+  entidade   String?
+  entidadeId String?
+  dados      Json?
+  ip         String?
+  criadoEm   DateTime @default(now())
+
+  usuario Usuario? @relation(fields: [usuarioId], references: [id])
+
+  @@index([usuarioId, criadoEm])
+  @@index([entidade, entidadeId])
+}
+
+enum TipoMidia {
+  BANNER
+  IMAGEM
+  VIDEO
+}
+
+/// Fotos e vídeo do item sorteado. O arquivo em si fica em disco; aqui só os
+/// metadados. `chave` é gerada pelo servidor — nome enviado pelo usuário nunca
+/// vira caminho de arquivo.
+model MidiaRifa {
+  id        String    @id @default(cuid())
+  rifaId    String
+  tipo      TipoMidia
+  chave     String    @unique
+  mimeType  String
+  tamanho   Int
+  /// Ordem de exibição na galeria; o banner e o vídeo ignoram.
+  ordem     Int       @default(0)
+  criadaEm  DateTime  @default(now())
+
+  rifa Rifa @relation(fields: [rifaId], references: [id], onDelete: Cascade)
+
+  @@index([rifaId, tipo])
+}

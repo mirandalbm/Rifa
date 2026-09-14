@@ -4,6 +4,7 @@ import { eq, and, desc, sql } from "drizzle-orm";
 import { db } from "../db";
 import {
   campaigns,
+  organizations,
   campaignMedia,
   campaignStats,
   quotaPackages,
@@ -473,6 +474,30 @@ publicRouter.post("/afiliados/cadastro", async (req, res, next) => {
       return res.status(409).json({ message: "Já existe uma conta com este e-mail." });
     }
 
+    // Afiliado divulga a rifa de alguém, então nasce com dono. Com um
+    // promotor só no ar — o caso comum — não há o que perguntar; com vários,
+    // a escolha é obrigatória, senão o cadastro cairia na organização errada.
+    const ativas = await db
+      .select({ id: organizations.id, slug: organizations.slug })
+      .from(organizations)
+      .where(eq(organizations.active, true));
+
+    const pedida = String(req.body?.organizacao ?? "").trim();
+    const organizacao = pedida
+      ? ativas.find((o) => o.slug === pedida)
+      : ativas.length === 1
+        ? ativas[0]
+        : undefined;
+
+    if (!organizacao) {
+      return res.status(400).json({
+        message: pedida
+          ? "Organização não encontrada."
+          : "Escolha para qual organização você quer divulgar.",
+        organizacoes: ativas.map((o) => o.slug),
+      });
+    }
+
     const code = await freeAffiliateCode(name);
 
     await db.transaction(async (tx) => {
@@ -480,6 +505,7 @@ publicRouter.post("/afiliados/cadastro", async (req, res, next) => {
         .insert(users)
         .values({
           role: "affiliate",
+          organizationId: organizacao.id,
           name,
           email,
           phone,

@@ -40,6 +40,11 @@ arquitetura.
     vale para o código do pedido: quem decide é o índice único. Se você achar
     um `SELECT` para ver se "está livre" seguido de um `INSERT`, é uma corrida
     esperando 500 simultâneos.
+12. **Organização nula é a plataforma; qualquer outra é recorte.** Toda
+    consulta do painel passa por `orgOf(req)`. Rota que busca por id usa
+    `assertCampaignInScope()` ou `assertAffiliateInScope()` — nunca `select`
+    solto. `npm run isolation` prova; rota nova que não apareça lá é rota que
+    ninguém provou.
 
 ## Onde mexer
 
@@ -62,6 +67,7 @@ arquitetura.
 | ponte com a maquininha | `client/src/lib/pos.ts`, `android/`, `docs/MAQUININHAS.md` |
 | teste de carga | `scripts/load-test.ts` |
 | limites de antifraude | `shared/antifraude.ts` (regras) e `server/services/antifraude.ts` |
+| isolamento entre organizadores | `server/services/orgs.ts` e `scripts/isolation-test.ts` |
 | exportações | `shared/exports.ts` (formato) e `server/services/exports.ts` (consultas) |
 
 ## Convenções
@@ -81,10 +87,13 @@ arquitetura.
 - Fila (BullMQ): os três relógios rodam com `setInterval` no processo,
   protegidos por trava de aplicação do Postgres — com várias réplicas só uma
   executa. Serve bem; a fila entra quando houver trabalho pesado de verdade.
-- Da Fase 4 falta só o multi-organizador. O teste de carga existe
-  (`npm run load`) e a campanha de 1M já foi vendida inteira sob concorrência
-  sem duplicar cota; o antifraude está no ar (`/admin/antifraude`) e as
-  exportações também (`/admin/exportacoes`).
+- A Fase 4 fechou: carga (`npm run load`), antifraude (`/admin/antifraude`),
+  exportações (`/admin/exportacoes`) e multi-organizador
+  (`/admin/organizacoes`, provado por `npm run isolation`).
+- Vitrine por domínio próprio: hoje a loja é uma só e mostra a rifa de todos
+  os promotores, com a administradora aparecendo no bilhete e na página da
+  rifa. White label de domínio é trabalho de implantação (DNS e certificado),
+  não de código deste repositório.
 - A integração da Stone no invólucro Android: `android/app/src/ton/` tem a
   estrutura e dois pontos de encaixe marcados, sem nomes de classe
   preenchidos. A do PagBank está escrita.
@@ -220,3 +229,35 @@ conta da densidade antes.
 - **Formato é pt-BR ou não serve:** separador `;`, vírgula decimal, sem `R$`,
   sem separador de milhar (senão a célula vira texto e a soma dá zero) e BOM
   no começo, senão o Excel abre em Latin-1 e come os acentos.
+
+## Multi-organizador — o que não pode afrouxar
+
+Cada organização é um **promotor** de rifa. A separação existe porque a Lei
+5.768/71 autoriza o promotor, não a plataforma: é o nome dele que sai no
+bilhete como administradora e é dele que a autorização SPA/MF é exigida.
+
+A convenção que governa tudo: **`organizationId` nulo é a plataforma.** O
+administrador geral entra com nulo e enxerga todas; o organizador entra com a
+dele e não alcança mais nada. Papel diz qual porta abre; organização diz o que
+tem atrás.
+
+- **O modo de falhar aqui é silencioso.** Rota que esquece de *barrar* dá 403,
+  e alguém reclama. Rota que esquece de *filtrar* responde 200 e entrega
+  pedido, telefone e caixa do vizinho. Por isso o teste de isolamento confere
+  o **conteúdo** das listas, não só o código de resposta.
+- **404, não 403, para o dado do vizinho.** "Existe, mas não é sua" já entrega
+  que o id é válido — dá para varrer a plataforma contando rifa alheia. 403
+  fica só para rota que é da plataforma e todo mundo sabe que existe.
+- **Rota com id de filho confere o pai.** `/media/:id` e `/prized/:id` não
+  trazem a campanha no caminho; sem buscar o dono antes, o id do vizinho
+  apaga o banner dele. E a conferência vem **antes** do `DELETE`, senão a
+  linha já sumiu quando a checagem roda.
+- **Campanha não muda de dono por `PATCH`.** Seria transferir venda, cota e
+  comissão de uma administradora para outra com um campo de formulário.
+- **Organizador sem organização é recusado na entrada.** Recorte nulo abre
+  tudo — deixar passar o transformaria em administrador geral por omissão.
+- **O cambista só vende rifa da organização dele.** A tela já filtra, mas a
+  tela é cortesia: quem barra é `/api/seller/sales`.
+- **São as mesmas telas.** Organizador e administrador geral usam o mesmo
+  painel; o que muda é o recorte. Tela nova para organizador é sinal de que o
+  recorte foi feito no lugar errado.

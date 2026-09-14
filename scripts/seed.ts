@@ -8,6 +8,7 @@
 import "dotenv/config";
 import { db } from "../server/db";
 import {
+  organizations,
   users,
   affiliates,
   campaigns,
@@ -56,6 +57,21 @@ async function main() {
   const adminEmail = process.env.SEED_ADMIN_EMAIL ?? "admin@rifa.br";
   const adminPassword = process.env.SEED_ADMIN_PASSWORD ?? "admin123";
 
+  // A organização promotora vem antes de todo o resto: campanha, afiliado e
+  // cambista nascem com dono, e é o nome dela que sai no bilhete.
+  const [organizacao] = await db
+    .insert(organizations)
+    .values({
+      slug: "rifas-sao-jose",
+      name: "Rifas São José",
+      cnpj: "12.345.678/0001-90",
+      contato: "(11) 3333-4444",
+      cidade: "São Paulo/SP",
+      observacao: "Bilhete válido mediante pagamento confirmado.",
+    })
+    .onConflictDoUpdate({ target: organizations.slug, set: { active: true } })
+    .returning();
+
   const [admin] = await db
     .insert(users)
     .values({
@@ -67,10 +83,24 @@ async function main() {
     .onConflictDoNothing()
     .returning();
 
+  // Um acesso de organizador: entra nas mesmas telas do painel, recortado
+  // nesta organização. É o que demonstra o multi-organizador de verdade.
+  await db
+    .insert(users)
+    .values({
+      role: "organizer",
+      organizationId: organizacao.id,
+      name: "Marina Alves",
+      email: "marina@rifassaojose.br",
+      passwordHash: await hashPassword("organizador123"),
+    })
+    .onConflictDoNothing();
+
   const [affUser] = await db
     .insert(users)
     .values({
       role: "affiliate",
+      organizationId: organizacao.id,
       name: "João Ribeiro",
       email: "joao@rifa.br",
       phone: "11977776666",
@@ -97,6 +127,7 @@ async function main() {
     .insert(users)
     .values({
       role: "cambista",
+      organizationId: organizacao.id,
       name: "Sérgio Camargo",
       email: "sergio@rifa.br",
       phone: "11911112222",
@@ -163,6 +194,7 @@ async function main() {
     const [campaign] = await db
       .insert(campaigns)
       .values({
+        organizationId: organizacao.id,
         slug: spec.slug,
         title: spec.title,
         prizeTitle: spec.prizeTitle,

@@ -28,6 +28,7 @@ import {
 import { AdminCambistas } from "@/pages/adminCambistas";
 import { AdminAntifraude } from "@/pages/adminAntifraude";
 import { AdminExportacoes } from "@/pages/adminExportacoes";
+import { AdminOrganizacoes } from "@/pages/adminOrganizacoes";
 import {
   AdminPainel,
   AdminCampanhas,
@@ -121,38 +122,43 @@ export default function App() {
 
           {/* Administrador geral */}
           <Route path="/admin">
-            <Guarded requires="admin">
+            <Guarded requires="organizer">
               <AdminPainel />
             </Guarded>
           </Route>
           <Route path="/admin/campanhas">
-            <Guarded requires="admin">
+            <Guarded requires="organizer">
               <AdminCampanhas />
             </Guarded>
           </Route>
           <Route path="/admin/pedidos">
-            <Guarded requires="admin">
+            <Guarded requires="organizer">
               <AdminPedidos />
             </Guarded>
           </Route>
           <Route path="/admin/afiliados">
-            <Guarded requires="admin">
+            <Guarded requires="organizer">
               <AdminAfiliados />
             </Guarded>
           </Route>
           <Route path="/admin/cambistas">
-            <Guarded requires="admin">
+            <Guarded requires="organizer">
               <AdminCambistas />
             </Guarded>
           </Route>
           <Route path="/admin/financeiro">
-            <Guarded requires="admin">
+            <Guarded requires="organizer">
               <AdminFinanceiro />
             </Guarded>
           </Route>
           <Route path="/admin/sorteios">
-            <Guarded requires="admin">
+            <Guarded requires="organizer">
               <AdminSorteios />
+            </Guarded>
+          </Route>
+          <Route path="/admin/organizacoes">
+            <Guarded requires="admin">
+              <AdminOrganizacoes />
             </Guarded>
           </Route>
           <Route path="/admin/antifraude">
@@ -161,12 +167,12 @@ export default function App() {
             </Guarded>
           </Route>
           <Route path="/admin/exportacoes">
-            <Guarded requires="admin">
+            <Guarded requires="organizer">
               <AdminExportacoes />
             </Guarded>
           </Route>
           <Route path="/admin/configuracoes">
-            <Guarded requires="admin">
+            <Guarded requires="organizer">
               <AdminConfiguracoes />
             </Guarded>
           </Route>

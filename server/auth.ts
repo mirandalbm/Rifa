@@ -52,11 +52,17 @@ declare module "express-session" {
 
 export interface SessionUser {
   id: string;
-  role: "admin" | "affiliate" | "cambista";
+  role: "admin" | "organizer" | "affiliate" | "cambista";
   name: string;
   email: string;
   /** Cadastro em `affiliates` — serve tanto para divulgador quanto cambista. */
   affiliateId?: string;
+  /**
+   * Organização da sessão. **Nulo é a plataforma** — o administrador geral,
+   * que enxerga todas. É este campo, e não o papel, que decide o recorte de
+   * cada consulta do painel.
+   */
+  organizationId?: string | null;
 }
 
 declare global {
@@ -137,7 +143,16 @@ export function setupAuth(app: Express) {
           role: user.role,
           name: user.name,
           email: user.email,
+          organizationId: user.organizationId ?? null,
         };
+
+        // Organizador sem organização viraria administrador geral por
+        // omissão — o recorte nulo abre tudo. Recusa na porta.
+        if (user.role === "organizer" && !user.organizationId) {
+          return done(null, false, {
+            message: "Seu acesso não está ligado a nenhuma organização.",
+          });
+        }
 
         if (user.role === "affiliate" || user.role === "cambista") {
           const quem = user.role === "cambista" ? "cambista" : "afiliado";
@@ -176,7 +191,11 @@ export function setupAuth(app: Express) {
         role: user.role,
         name: user.name,
         email: user.email,
+        organizationId: user.organizationId ?? null,
       };
+      // Mesma recusa da entrada: a organização pode ter sido desligada com a
+      // sessão dele já aberta.
+      if (user.role === "organizer" && !user.organizationId) return done(null, false);
       if (user.role === "affiliate" || user.role === "cambista") {
         const [aff] = await db
           .select()

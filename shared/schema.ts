@@ -21,7 +21,12 @@ import { z } from "zod";
  * Enums
  * ------------------------------------------------------------------ */
 
-export const userRole = pgEnum("user_role", ["admin", "affiliate", "cambista"]);
+export const userRole = pgEnum("user_role", [
+  "admin",
+  "organizer",
+  "affiliate",
+  "cambista",
+]);
 export const campaignStatus = pgEnum("campaign_status", [
   "draft",
   "published",
@@ -89,11 +94,50 @@ export const sessions = pgTable(
  * ------------------------------------------------------------------ */
 
 /** Quem faz login com senha: administrador geral e afiliados. */
+/**
+ * Organização — o promotor da rifa.
+ *
+ * Existe porque a Lei 5.768/71 autoriza **o promotor**, não a plataforma: a
+ * autorização SPA/MF é de quem promove, e cada campanha carrega a sua
+ * (invariante 9). Com mais de um promotor no ar, o que o bilhete chama de
+ * "administradora" deixa de ser configuração global e passa a ser desta
+ * tabela.
+ *
+ * A raiz de todo o isolamento é o `organization_id` da campanha: pedido,
+ * cota, comissão, sorteio e acerto penduram numa campanha ou num afiliado, e
+ * os dois têm dono.
+ */
+export const organizations = pgTable(
+  "organizations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    slug: text("slug").notNull(),
+    /** Nome que aparece no bilhete, como administradora da rifa. */
+    name: text("name").notNull(),
+    cnpj: text("cnpj"),
+    contato: text("contato"),
+    cidade: text("cidade"),
+    /** Texto curto do regulamento impresso no rodapé do bilhete. */
+    observacao: text("observacao"),
+    active: boolean("active").notNull().default(true),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("uq_organizations_slug").on(t.slug)],
+);
+
 export const users = pgTable(
   "users",
   {
     id: uuid("id").primaryKey().defaultRandom(),
     role: userRole("role").notNull(),
+    /**
+     * A organização deste usuário. **Nulo é a plataforma**: o administrador
+     * geral, que enxerga todas. Organizador sem organização não existe — é
+     * recusado na entrada, senão viraria um admin geral por omissão.
+     */
+    organizationId: uuid("organization_id").references(() => organizations.id, {
+      onDelete: "restrict",
+    }),
     name: text("name").notNull(),
     email: text("email").notNull(),
     phone: text("phone"),
@@ -149,8 +193,13 @@ export const campaigns = pgTable(
   "campaigns",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    /** Nulo hoje. Existe para não doer se o produto virar multi-organizador. */
-    organizationId: uuid("organization_id"),
+    /**
+     * Dono da campanha. É daqui que sai TODO o isolamento entre organizadores:
+     * pedido, cota, comissão e sorteio chegam por aqui.
+     */
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "restrict" }),
     slug: text("slug").notNull(),
     title: text("title").notNull(),
     description: text("description"),
@@ -177,6 +226,8 @@ export const campaigns = pgTable(
   (t) => [
     uniqueIndex("uq_campaigns_slug").on(t.slug),
     index("idx_campaigns_status").on(t.status, t.sortWeight),
+    // Todo painel de organizador filtra por aqui.
+    index("idx_campaigns_org").on(t.organizationId),
   ],
 );
 

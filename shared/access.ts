@@ -10,20 +10,33 @@
  * toda rota protegida passa por requireRole() em server/auth.ts.
  */
 
-export type Role = "guest" | "buyer" | "affiliate" | "cambista" | "admin";
+export type Role =
+  | "guest"
+  | "buyer"
+  | "affiliate"
+  | "cambista"
+  | "organizer"
+  | "admin";
 
 /**
  * Cada papel alcança a própria área e o que é público. O administrador NÃO
  * herda a área do afiliado: aquele painel mostra o saldo de um afiliado
  * específico, e administrador não tem saldo. O que o admin precisa saber
  * sobre afiliados ele vê em /admin/afiliados.
+ *
+ * O administrador geral **herda** o organizador, e aqui o motivo é outro: as
+ * telas são as mesmas: campanha, pedido, financeiro, sorteio. O que muda não
+ * é a tela, é o recorte — o organizador vê a organização dele, o
+ * administrador geral vê todas, porque a organização dele é nula. Papel diz
+ * qual porta abre; organização diz o que tem atrás.
  */
 const INHERITS: Record<Role, Role[]> = {
   guest: ["guest"],
   buyer: ["guest", "buyer"],
   affiliate: ["guest", "affiliate"],
   cambista: ["guest", "cambista"],
-  admin: ["guest", "admin"],
+  organizer: ["guest", "organizer"],
+  admin: ["guest", "organizer", "admin"],
 };
 
 export function roleSatisfies(actual: Role, required: Role): boolean {
@@ -49,6 +62,7 @@ export type SectionKey =
   | "adminCambistas"
   | "adminFinanceiro"
   | "adminSorteios"
+  | "adminOrganizacoes"
   | "adminAntifraude"
   | "adminExportacoes"
   | "adminConfiguracoes";
@@ -81,17 +95,22 @@ export const SECTIONS: Section[] = [
   { key: "cambistaVendas", path: "/cambista/vendas", label: "Minhas vendas", requires: "cambista", nav: true },
   { key: "cambistaAcerto", path: "/cambista/acerto", label: "Meu acerto", requires: "cambista", nav: true },
 
-  // Administrador geral — login + 2FA, tudo auditado.
-  { key: "adminPainel", path: "/admin", label: "Painel", requires: "admin", nav: true },
-  { key: "adminCampanhas", path: "/admin/campanhas", label: "Campanhas", requires: "admin", nav: true },
-  { key: "adminPedidos", path: "/admin/pedidos", label: "Pedidos", requires: "admin", nav: true },
-  { key: "adminAfiliados", path: "/admin/afiliados", label: "Afiliados", requires: "admin", nav: true },
-  { key: "adminCambistas", path: "/admin/cambistas", label: "Cambistas", requires: "admin", nav: true },
-  { key: "adminFinanceiro", path: "/admin/financeiro", label: "Financeiro", requires: "admin", nav: true },
-  { key: "adminSorteios", path: "/admin/sorteios", label: "Sorteios", requires: "admin", nav: true },
+  // Organizador — as telas da própria rifa. O administrador geral usa estas
+  // mesmas telas, só que sem recorte de organização.
+  { key: "adminPainel", path: "/admin", label: "Painel", requires: "organizer", nav: true },
+  { key: "adminCampanhas", path: "/admin/campanhas", label: "Campanhas", requires: "organizer", nav: true },
+  { key: "adminPedidos", path: "/admin/pedidos", label: "Pedidos", requires: "organizer", nav: true },
+  { key: "adminAfiliados", path: "/admin/afiliados", label: "Afiliados", requires: "organizer", nav: true },
+  { key: "adminCambistas", path: "/admin/cambistas", label: "Cambistas", requires: "organizer", nav: true },
+  { key: "adminFinanceiro", path: "/admin/financeiro", label: "Financeiro", requires: "organizer", nav: true },
+  { key: "adminSorteios", path: "/admin/sorteios", label: "Sorteios", requires: "organizer", nav: true },
+  { key: "adminExportacoes", path: "/admin/exportacoes", label: "Exportações", requires: "organizer", nav: true },
+  { key: "adminConfiguracoes", path: "/admin/configuracoes", label: "Configurações", requires: "organizer", nav: true },
+
+  // Só da plataforma. Antifraude e meio de pagamento valem para todo mundo
+  // que vende aqui; a lista de organizações é a própria carteira de clientes.
+  { key: "adminOrganizacoes", path: "/admin/organizacoes", label: "Organizações", requires: "admin", nav: true },
   { key: "adminAntifraude", path: "/admin/antifraude", label: "Antifraude", requires: "admin", nav: true },
-  { key: "adminExportacoes", path: "/admin/exportacoes", label: "Exportações", requires: "admin", nav: true },
-  { key: "adminConfiguracoes", path: "/admin/configuracoes", label: "Configurações", requires: "admin", nav: true },
 ];
 
 export function sectionsFor(role: Role): Section[] {
@@ -105,7 +124,7 @@ export function canAccess(role: Role, key: SectionKey): boolean {
 
 /** Para onde cada papel vai depois de entrar. */
 export function homeFor(role: Role): string {
-  if (role === "admin") return "/admin";
+  if (role === "admin" || role === "organizer") return "/admin";
   if (role === "affiliate") return "/afiliado";
   if (role === "cambista") return "/cambista";
   return "/";
@@ -119,5 +138,8 @@ export const API_SCOPES: { prefix: string; requires: Role }[] = [
   { prefix: "/api/public", requires: "guest" },
   { prefix: "/api/affiliate", requires: "affiliate" },
   { prefix: "/api/seller", requires: "cambista" },
-  { prefix: "/api/admin", requires: "admin" },
+  // O router inteiro abre para organizador; dentro dele, as rotas que são da
+  // plataforma passam por requirePlatformAdmin(). A matriz diz quem entra no
+  // prédio; o escopo da organização diz em que sala.
+  { prefix: "/api/admin", requires: "organizer" },
 ];

@@ -18,7 +18,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use("/api/public", publicRouter);
   app.use("/api/affiliate", requireRole("affiliate"), requireAffiliateAccount, affiliateRouter);
   app.use("/api/seller", requireRole("cambista"), requireAffiliateAccount, sellerRouter);
-  app.use("/api/admin", requireRole("admin"), adminRouter);
+  app.use("/api/admin", requireRole("organizer"), adminRouter);
   app.use("/api/dev", devRouter);
 
   app.use("/api", (_req, res) => {

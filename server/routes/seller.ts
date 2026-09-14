@@ -41,7 +41,16 @@ sellerRouter.get("/overview", async (req, res, next) => {
         commissionPctDefault: campaigns.commissionPctDefault,
       })
       .from(campaigns)
-      .where(eq(campaigns.status, "published"));
+      // O cambista só vende rifa da organização dele. Sem este filtro ele
+      // venderia cota de outro promotor, e o acerto cairia no caixa errado.
+      .where(
+        and(
+          eq(campaigns.status, "published"),
+          req.user?.organizationId
+            ? eq(campaigns.organizationId, req.user.organizationId)
+            : sql`TRUE`,
+        ),
+      );
 
     const [hoje] = await db
       .select({
@@ -78,6 +87,19 @@ sellerRouter.post("/sales", async (req, res, next) => {
   try {
     const id = affiliateId(req);
     const input = createOrderSchema.parse(req.body);
+
+    // A tela só oferece as rifas da organização dele, mas a tela é cortesia:
+    // quem barra é aqui.
+    const [alvo] = await db
+      .select({ organizationId: campaigns.organizationId })
+      .from(campaigns)
+      .where(eq(campaigns.id, input.campaignId));
+    if (
+      !alvo ||
+      (req.user?.organizationId && alvo.organizationId !== req.user.organizationId)
+    ) {
+      return res.status(404).json({ message: "Campanha não encontrada." });
+    }
     const result = await createSellerSale(input, id, identify(req));
 
     res.status(201).json({

@@ -7,6 +7,7 @@ import { db } from "../db";
 import {
   campaigns,
   campaignStats,
+  campaignMedia,
   quotaPackages,
   quotaAlloc,
   prizedQuotas,
@@ -17,6 +18,7 @@ import {
   commissions,
   coupons,
   payouts,
+  settlements,
   draws,
   auditLog,
   insertCampaignSchema,
@@ -64,6 +66,19 @@ import {
 } from "../services/settings";
 import { generateSecret, verifyTotp, otpauthUrl } from "../services/totp";
 import { buildExport, ExportError, toCsvLine } from "../services/exports";
+import {
+  orgOf,
+  isPlatform,
+  requirePlatformAdmin,
+  assertCampaignInScope,
+  assertAffiliateInScope,
+  organizationForNewCampaign,
+  organizerInfoOf,
+  listOrganizations,
+  createOrganization,
+  updateOrganization,
+  OrgScopeError,
+} from "../services/orgs";
 import { EXPORTS, exportInfo, exportFilename, CSV_BOM } from "@shared/exports";
 
 export const adminRouter = Router();
@@ -86,22 +101,45 @@ async function audit(
   });
 }
 
+/**
+ * Recorte por organização para consulta que já junta `campaigns`.
+ *
+ * Existe para a linha do filtro ser curta o bastante para ninguém ter
+ * preguiça de escrever: filtro esquecido aqui não dá erro, entrega dado.
+ */
+function escopoDaCampanha(req: Request) {
+  const org = orgOf(req);
+  return org ? eq(campaigns.organizationId, org) : sql`TRUE`;
+}
+
 /* ---------------- painel ---------------- */
 
-adminRouter.get("/overview", async (_req, res, next) => {
+adminRouter.get("/overview", async (req, res, next) => {
   try {
+    // Todo número deste painel é dinheiro de alguém. O recorte entra em TODAS
+    // as consultas: uma esquecida aqui soma o faturamento do vizinho no
+    // painel de quem não vendeu aquilo.
+    const org = orgOf(req);
+    const daCampanha = org ? sql`AND c.organization_id = ${org}::uuid` : sql``;
+
     const [totals] = await db
       .select({
         revenueCents: sql<number>`coalesce(sum(${campaignStats.revenueCents}), 0)::int`,
         soldCount: sql<number>`coalesce(sum(${campaignStats.soldCount}), 0)::int`,
         reservedCount: sql<number>`coalesce(sum(${campaignStats.reservedCount}), 0)::int`,
       })
-      .from(campaignStats);
+      .from(campaignStats)
+      .innerJoin(campaigns, eq(campaigns.id, campaignStats.campaignId))
+      .where(org ? eq(campaigns.organizationId, org) : sql`TRUE`);
 
     const [published] = await db
       .select({ n: sql<number>`count(*)::int`, quotas: sql<number>`coalesce(sum(${campaigns.totalQuotas}),0)::int` })
       .from(campaigns)
-      .where(eq(campaigns.status, "published"));
+      .where(
+        org
+          ? and(eq(campaigns.status, "published"), eq(campaigns.organizationId, org))
+          : eq(campaigns.status, "published"),
+      );
 
     const [toPay] = await db
       .select({
@@ -109,13 +147,23 @@ adminRouter.get("/overview", async (_req, res, next) => {
         affiliates: sql<number>`count(distinct ${commissions.affiliateId})::int`,
       })
       .from(commissions)
-      .where(sql`${commissions.status} in ('pending','available')`);
+      .innerJoin(campaigns, eq(campaigns.id, commissions.campaignId))
+      .where(
+        org
+          ? and(
+              sql`${commissions.status} in ('pending','available')`,
+              eq(campaigns.organizationId, org),
+            )
+          : sql`${commissions.status} in ('pending','available')`,
+      );
 
     const daily = await db.execute(sql`
-      SELECT date_trunc('day', paid_at) AS day,
-             coalesce(sum(amount_cents), 0)::int AS cents
-      FROM orders
-      WHERE status = 'paid' AND paid_at > now() - interval '14 days'
+      SELECT date_trunc('day', o.paid_at) AS day,
+             coalesce(sum(o.amount_cents), 0)::int AS cents
+      FROM orders o
+      JOIN campaigns c ON c.id = o.campaign_id
+      WHERE o.status = 'paid' AND o.paid_at > now() - interval '14 days'
+        ${daCampanha}
       GROUP BY 1 ORDER BY 1
     `);
 
@@ -124,6 +172,8 @@ adminRouter.get("/overview", async (_req, res, next) => {
       FROM affiliates a
       JOIN users u ON u.id = a.user_id
       LEFT JOIN orders o ON o.affiliate_id = a.id AND o.status = 'paid'
+      LEFT JOIN campaigns c ON c.id = o.campaign_id
+      WHERE ${org ? sql`u.organization_id = ${org}::uuid` : sql`TRUE`}
       GROUP BY a.code, u.name
       ORDER BY cents DESC
       LIMIT 5
@@ -147,12 +197,14 @@ adminRouter.get("/overview", async (_req, res, next) => {
 
 /* ---------------- campanhas ---------------- */
 
-adminRouter.get("/campaigns", async (_req, res, next) => {
+adminRouter.get("/campaigns", async (req, res, next) => {
   try {
+    const org = orgOf(req);
     const rows = await db
       .select({ campaign: campaigns, stats: campaignStats })
       .from(campaigns)
       .leftJoin(campaignStats, eq(campaignStats.campaignId, campaigns.id))
+      .where(org ? eq(campaigns.organizationId, org) : sql`TRUE`)
       .orderBy(desc(campaigns.createdAt));
     res.json(rows);
   } catch (err) {
@@ -165,9 +217,17 @@ adminRouter.post("/campaigns", async (req, res, next) => {
     const input = insertCampaignSchema.parse(req.body);
     assertQuotaRange(input.totalQuotas);
 
+    // Organizador cria na própria; o administrador geral precisa dizer em
+    // qual, senão a campanha nasceria sem administradora — e é a
+    // administradora que a Lei 5.768/71 autoriza.
+    const organizationId = organizationForNewCampaign(
+      req,
+      req.body?.organizationId ? String(req.body.organizationId) : undefined,
+    );
+
     const [created] = await db
       .insert(campaigns)
-      .values({ ...input, status: "draft" })
+      .values({ ...input, organizationId, status: "draft" })
       .returning();
 
     await audit(req, "campaign.create", "campaign", created.id, input);
@@ -182,13 +242,12 @@ adminRouter.post("/campaigns", async (req, res, next) => {
 
 adminRouter.patch("/campaigns/:id", async (req, res, next) => {
   try {
-    const [campaign] = await db
-      .select()
-      .from(campaigns)
-      .where(eq(campaigns.id, req.params.id));
-    if (!campaign) return res.status(404).json({ message: "Campanha não encontrada." });
+    const campaign = await assertCampaignInScope(req, req.params.id);
 
     const changes = insertCampaignSchema.partial().parse(req.body);
+    // A campanha não muda de dono por PATCH: seria transferir venda, cota e
+    // comissão de uma administradora para outra com um campo de formulário.
+    delete (changes as { organizationId?: unknown }).organizationId;
     assertEditable(campaign, changes);
     if (changes.totalQuotas) assertQuotaRange(changes.totalQuotas);
 
@@ -210,6 +269,7 @@ adminRouter.patch("/campaigns/:id", async (req, res, next) => {
 
 adminRouter.get("/campaigns/:id/blockers", async (req, res, next) => {
   try {
+    await assertCampaignInScope(req, req.params.id);
     res.json({ blockers: await publishBlockers(req.params.id) });
   } catch (err) {
     next(err);
@@ -218,6 +278,7 @@ adminRouter.get("/campaigns/:id/blockers", async (req, res, next) => {
 
 adminRouter.post("/campaigns/:id/publish", async (req, res, next) => {
   try {
+    await assertCampaignInScope(req, req.params.id);
     const published = await publishCampaign(req.params.id);
     await audit(req, "campaign.publish", "campaign", published.id, {
       totalQuotas: published.totalQuotas,
@@ -234,6 +295,7 @@ adminRouter.post("/campaigns/:id/publish", async (req, res, next) => {
 
 adminRouter.put("/campaigns/:id/packages", async (req, res, next) => {
   try {
+    await assertCampaignInScope(req, req.params.id);
     const list = (req.body?.packages ?? []) as {
       quantity: number;
       discountPct: number;
@@ -265,6 +327,7 @@ adminRouter.put("/campaigns/:id/packages", async (req, res, next) => {
 
 adminRouter.get("/campaigns/:id/media", async (req, res, next) => {
   try {
+    await assertCampaignInScope(req, req.params.id);
     res.json(await listMedia(req.params.id));
   } catch (err) {
     next(err);
@@ -274,6 +337,7 @@ adminRouter.get("/campaigns/:id/media", async (req, res, next) => {
 /** Passo 1: URL assinada. O arquivo não passa pela nossa API. */
 adminRouter.post("/campaigns/:id/media/upload-url", async (req, res, next) => {
   try {
+    await assertCampaignInScope(req, req.params.id);
     const ticket = await requestUpload({
       campaignId: req.params.id,
       role: req.body?.role,
@@ -324,6 +388,7 @@ adminRouter.put(
  */
 adminRouter.post("/campaigns/:id/media", async (req, res, next) => {
   try {
+    await assertCampaignInScope(req, req.params.id);
     const created = await ingestUpload({
       campaignId: req.params.id,
       role: req.body?.role,
@@ -347,6 +412,15 @@ adminRouter.post("/campaigns/:id/media", async (req, res, next) => {
 
 adminRouter.delete("/media/:mediaId", async (req, res, next) => {
   try {
+    // O caminho não traz a campanha, então o dono é conferido pelo pai: sem
+    // isto, o id da mídia do vizinho apagaria o banner dele.
+    const [midia] = await db
+      .select({ campaignId: campaignMedia.campaignId })
+      .from(campaignMedia)
+      .where(eq(campaignMedia.id, req.params.mediaId));
+    if (!midia) return res.status(404).json({ message: "Mídia não encontrada." });
+    await assertCampaignInScope(req, midia.campaignId);
+
     const removed = await removeMedia(req.params.mediaId);
     if (!removed) return res.status(404).json({ message: "Mídia não encontrada." });
     await audit(req, "media.remove", "campaign", removed.campaignId, { id: removed.id });
@@ -360,6 +434,7 @@ adminRouter.delete("/media/:mediaId", async (req, res, next) => {
 
 adminRouter.get("/campaigns/:id/prized", async (req, res, next) => {
   try {
+    await assertCampaignInScope(req, req.params.id);
     const rows = await db
       .select()
       .from(prizedQuotas)
@@ -377,11 +452,7 @@ adminRouter.get("/campaigns/:id/prized", async (req, res, next) => {
  */
 adminRouter.post("/campaigns/:id/prized", async (req, res, next) => {
   try {
-    const [campaign] = await db
-      .select()
-      .from(campaigns)
-      .where(eq(campaigns.id, req.params.id));
-    if (!campaign) return res.status(404).json({ message: "Campanha não encontrada." });
+    const campaign = await assertCampaignInScope(req, req.params.id);
 
     const prizeLabel = String(req.body?.prizeLabel ?? "").trim();
     const quantity = Number(req.body?.quantity ?? 1);
@@ -430,6 +501,15 @@ adminRouter.post("/campaigns/:id/prized", async (req, res, next) => {
 
 adminRouter.delete("/prized/:prizedId", async (req, res, next) => {
   try {
+    // Confere o dono ANTES de apagar: aqui a rota apaga e só depois decide se
+    // devolve, então um id de outra organização já teria sumido do banco.
+    const [alvo] = await db
+      .select({ campaignId: prizedQuotas.campaignId })
+      .from(prizedQuotas)
+      .where(eq(prizedQuotas.id, req.params.prizedId));
+    if (!alvo) return res.status(404).json({ message: "Cota premiada não encontrada." });
+    await assertCampaignInScope(req, alvo.campaignId);
+
     const [removed] = await db
       .delete(prizedQuotas)
       .where(eq(prizedQuotas.id, req.params.prizedId))
@@ -461,7 +541,12 @@ adminRouter.get("/orders", async (req, res, next) => {
       .from(orders)
       .innerJoin(buyers, eq(buyers.id, orders.buyerId))
       .innerJoin(campaigns, eq(campaigns.id, orders.campaignId))
-      .where(status ? sql`${orders.status} = ${status}` : sql`true`)
+      .where(
+        and(
+          status ? sql`${orders.status} = ${status}` : sql`true`,
+          escopoDaCampanha(req),
+        ),
+      )
       .orderBy(desc(orders.createdAt))
       .limit(200);
     res.json(rows);
@@ -472,8 +557,9 @@ adminRouter.get("/orders", async (req, res, next) => {
 
 /* ---------------- afiliados ---------------- */
 
-adminRouter.get("/affiliates", async (_req, res, next) => {
+adminRouter.get("/affiliates", async (req, res, next) => {
   try {
+    const org = orgOf(req);
     const rows = await db
       .select({
         affiliate: affiliates,
@@ -485,6 +571,8 @@ adminRouter.get("/affiliates", async (_req, res, next) => {
       })
       .from(affiliates)
       .innerJoin(users, eq(users.id, affiliates.userId))
+      // O afiliado pertence à organização pelo usuário dele.
+      .where(org ? eq(users.organizationId, org) : sql`TRUE`)
       .orderBy(desc(affiliates.createdAt));
     res.json(rows);
   } catch (err) {
@@ -499,11 +587,18 @@ adminRouter.post("/affiliates", async (req, res, next) => {
       return res.status(400).json({ message: "Nome, e-mail, senha e código são obrigatórios." });
     }
 
+    // Mesma regra da campanha: o afiliado nasce com dono.
+    const organizationId = organizationForNewCampaign(
+      req,
+      req.body?.organizationId ? String(req.body.organizationId) : undefined,
+    );
+
     const created = await db.transaction(async (tx) => {
       const [user] = await tx
         .insert(users)
         .values({
           role: "affiliate",
+          organizationId,
           name: String(name),
           email: String(email).toLowerCase().trim(),
           passwordHash: await hashPassword(String(password)),
@@ -533,6 +628,8 @@ adminRouter.post("/affiliates", async (req, res, next) => {
 
 adminRouter.patch("/affiliates/:id", async (req, res, next) => {
   try {
+    await assertAffiliateInScope(req, req.params.id);
+
     const changes: Record<string, unknown> = {};
     if (req.body?.status) changes.status = req.body.status;
     if (req.body?.commissionPct !== undefined) {
@@ -555,8 +652,9 @@ adminRouter.patch("/affiliates/:id", async (req, res, next) => {
 
 /* ---------------- cupons ---------------- */
 
-adminRouter.get("/coupons", async (_req, res, next) => {
+adminRouter.get("/coupons", async (req, res, next) => {
   try {
+    const org = orgOf(req);
     const rows = await db
       .select({
         coupon: coupons,
@@ -565,7 +663,15 @@ adminRouter.get("/coupons", async (_req, res, next) => {
       })
       .from(coupons)
       .leftJoin(affiliates, eq(affiliates.id, coupons.affiliateId))
+      .leftJoin(users, eq(users.id, affiliates.userId))
       .leftJoin(campaigns, eq(campaigns.id, coupons.campaignId))
+      // Cupom solto (sem campanha e sem afiliado) vale na plataforma inteira
+      // e por isso não aparece para o organizador: ele não pode mexer nele.
+      .where(
+        org
+          ? sql`(${campaigns.organizationId} = ${org}::uuid OR ${users.organizationId} = ${org}::uuid)`
+          : sql`TRUE`,
+      )
       .orderBy(desc(coupons.id));
     res.json(rows);
   } catch (err) {
@@ -593,6 +699,18 @@ adminRouter.post("/coupons", async (req, res, next) => {
     const [existing] = await db.select().from(coupons).where(eq(coupons.code, code));
     if (existing) return res.status(409).json({ message: "Este código já existe." });
 
+    // Cupom de organizador tem que morder algo dele. Sem campanha e sem
+    // afiliado o cupom vale em toda a plataforma — isso é da plataforma.
+    if (req.body?.campaignId) {
+      await assertCampaignInScope(req, String(req.body.campaignId));
+    }
+    if (req.body?.affiliateId) {
+      await assertAffiliateInScope(req, String(req.body.affiliateId));
+    }
+    if (!req.body?.campaignId && !req.body?.affiliateId) {
+      requirePlatformAdmin(req);
+    }
+
     const [created] = await db
       .insert(coupons)
       .values({
@@ -614,6 +732,13 @@ adminRouter.post("/coupons", async (req, res, next) => {
 
 adminRouter.delete("/coupons/:id", async (req, res, next) => {
   try {
+    // Confere o dono antes de apagar, pelo mesmo motivo da cota premiada.
+    const [alvo] = await db.select().from(coupons).where(eq(coupons.id, req.params.id));
+    if (!alvo) return res.status(404).json({ message: "Cupom não encontrado." });
+    if (alvo.campaignId) await assertCampaignInScope(req, alvo.campaignId);
+    else if (alvo.affiliateId) await assertAffiliateInScope(req, alvo.affiliateId);
+    else requirePlatformAdmin(req);
+
     const [removed] = await db.delete(coupons).where(eq(coupons.id, req.params.id)).returning();
     if (!removed) return res.status(404).json({ message: "Cupom não encontrado." });
     await audit(req, "coupon.remove", "coupon", removed.id, { code: removed.code });
@@ -637,11 +762,17 @@ adminRouter.post("/sellers", async (req, res, next) => {
       return res.status(400).json({ message: "Nome, e-mail, senha e código são obrigatórios." });
     }
 
+    const organizationId = organizationForNewCampaign(
+      req,
+      req.body?.organizationId ? String(req.body.organizationId) : undefined,
+    );
+
     const created = await db.transaction(async (tx) => {
       const [user] = await tx
         .insert(users)
         .values({
           role: "cambista",
+          organizationId,
           name: String(name),
           email: String(email).toLowerCase().trim(),
           phone: phone ? String(phone) : null,
@@ -672,11 +803,12 @@ adminRouter.post("/sellers", async (req, res, next) => {
 });
 
 /** Quanto cada cambista deve hoje. */
-adminRouter.get("/settlements", async (_req, res, next) => {
+adminRouter.get("/settlements", async (req, res, next) => {
   try {
+    const org = orgOf(req);
     res.json({
-      emAberto: await openBalancesBySeller(),
-      historico: await listSettlements(),
+      emAberto: await openBalancesBySeller(org),
+      historico: await listSettlements(undefined, org),
     });
   } catch (err) {
     next(err);
@@ -685,6 +817,7 @@ adminRouter.get("/settlements", async (_req, res, next) => {
 
 adminRouter.post("/settlements/:sellerId/close", async (req, res, next) => {
   try {
+    await assertAffiliateInScope(req, req.params.sellerId);
     const created = await closeSettlement(
       req.params.sellerId,
       req.body?.notes ? String(req.body.notes) : undefined,
@@ -704,6 +837,13 @@ adminRouter.post("/settlements/:sellerId/close", async (req, res, next) => {
 
 adminRouter.post("/settlements/:id/paid", async (req, res, next) => {
   try {
+    const [acerto] = await db
+      .select({ sellerId: settlements.sellerId })
+      .from(settlements)
+      .where(eq(settlements.id, req.params.id));
+    if (!acerto) return res.status(404).json({ message: "Acerto não encontrado." });
+    await assertAffiliateInScope(req, acerto.sellerId);
+
     const updated = await markSettlementPaid(req.params.id);
     if (!updated) return res.status(404).json({ message: "Acerto não encontrado." });
     await audit(req, "settlement.paid", "settlement", updated.id);
@@ -715,9 +855,13 @@ adminRouter.post("/settlements/:id/paid", async (req, res, next) => {
 
 /* ---------------- administradora da rifa ---------------- */
 
-adminRouter.get("/organizer", async (_req, res, next) => {
+adminRouter.get("/organizer", async (req, res, next) => {
   try {
-    res.json(await getOrganizer());
+    // O que o bilhete chama de "administradora" é a organização da sessão.
+    // Para o administrador geral, que não tem uma, continua valendo a
+    // configuração antiga da plataforma.
+    const org = orgOf(req);
+    res.json(org ? await organizerInfoOf(org) : await getOrganizer());
   } catch (err) {
     next(err);
   }
@@ -725,6 +869,23 @@ adminRouter.get("/organizer", async (_req, res, next) => {
 
 adminRouter.put("/organizer", async (req, res, next) => {
   try {
+    const org = orgOf(req);
+
+    // Para o organizador, "administradora" é a organização dele — mesma tela,
+    // outro destino. Para o administrador geral, segue a configuração da
+    // plataforma, que é o que vale para quem ainda não tem organização.
+    if (org) {
+      const alterada = await updateOrganization(org, {
+        name: req.body?.nome,
+        cnpj: req.body?.cnpj,
+        contato: req.body?.contato,
+        cidade: req.body?.cidade,
+        observacao: req.body?.observacao,
+      });
+      await audit(req, "organizer.update", "organization", alterada.id, req.body);
+      return res.json(await organizerInfoOf(org));
+    }
+
     const saved = await setOrganizer(req.body ?? {});
     await audit(req, "organizer.update", "settings", "organizador", saved);
     res.json(saved);
@@ -797,13 +958,10 @@ adminRouter.get("/exportacoes/:key", async (req, res, next) => {
       if (!UUID.test(campaignId)) {
         return res.status(400).json({ message: "Campanha inválida." });
       }
-      [campanha] = await db
-        .select({ slug: campaigns.slug })
-        .from(campaigns)
-        .where(eq(campaigns.id, campaignId));
-      if (!campanha) {
-        return res.status(404).json({ message: "Campanha não encontrada." });
-      }
+      // Confere o dono aqui: o relatório de cotas não junta `campaigns`, e
+      // sem esta linha o id de uma campanha alheia sairia com os números e
+      // os telefones de quem comprou nela.
+      campanha = await assertCampaignInScope(req, campaignId);
     }
 
     const de = lerData(req.query.de);
@@ -814,12 +972,18 @@ adminRouter.get("/exportacoes/:key", async (req, res, next) => {
       return res.status(400).json({ message: "A data inicial é depois da final." });
     }
 
-    const relatorio = buildExport(info.key, { campaignId, de, ate });
+    const relatorio = buildExport(info.key, {
+      campaignId,
+      organizationId: orgOf(req),
+      de,
+      ate,
+    });
 
     // O registro do acesso vem ANTES do arquivo: exportação que leva dado
     // pessoal precisa deixar rastro mesmo que o download seja interrompido.
     await audit(req, "exportacao", "export", info.key, {
       campanha: campanha?.slug ?? null,
+      organizacao: orgOf(req),
       de: de?.toISOString() ?? null,
       ate: ate?.toISOString() ?? null,
       dadoPessoal: info.dadoPessoal,
@@ -857,10 +1021,130 @@ adminRouter.get("/exportacoes/:key", async (req, res, next) => {
   }
 });
 
+/* ---------------- organizações (só da plataforma) ---------------- */
+
+/**
+ * A lista de organizações é a carteira de clientes da plataforma — por isso
+ * é só do administrador geral. O organizador não precisa saber quem mais
+ * vende aqui, e saber já seria informação comercial de terceiro.
+ */
+adminRouter.get("/organizacoes", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    const orgs = await listOrganizations();
+
+    // Quantas campanhas e quanta gente em cada uma: é o que dá para decidir
+    // sem entrar no painel de ninguém.
+    const contagem = await db.execute(sql`
+      SELECT o.id,
+             count(DISTINCT c.id)::int AS campanhas,
+             count(DISTINCT u.id)::int AS pessoas
+        FROM organizations o
+        LEFT JOIN campaigns c ON c.organization_id = o.id
+        LEFT JOIN users u ON u.organization_id = o.id
+       GROUP BY o.id
+    `);
+    const porId = new Map(
+      (contagem.rows as { id: string; campanhas: number; pessoas: number }[]).map(
+        (r) => [r.id, r],
+      ),
+    );
+
+    res.json(
+      orgs.map((o) => ({
+        ...o,
+        campanhas: porId.get(o.id)?.campanhas ?? 0,
+        pessoas: porId.get(o.id)?.pessoas ?? 0,
+      })),
+    );
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.post("/organizacoes", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    const criada = await createOrganization({
+      name: String(req.body?.name ?? ""),
+      cnpj: req.body?.cnpj ? String(req.body.cnpj) : undefined,
+      contato: req.body?.contato ? String(req.body.contato) : undefined,
+      cidade: req.body?.cidade ? String(req.body.cidade) : undefined,
+      observacao: req.body?.observacao ? String(req.body.observacao) : undefined,
+    });
+    await audit(req, "organizacao.create", "organization", criada.id, {
+      name: criada.name,
+    });
+    res.status(201).json(criada);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * Editar a organização.
+ *
+ * O organizador edita a **dele** — é isto que o bilhete imprime como
+ * administradora da rifa. Ligar e desligar é da plataforma: organização
+ * desligada é cliente suspenso, não decisão de quem foi suspenso.
+ */
+adminRouter.patch("/organizacoes/:id", async (req, res, next) => {
+  try {
+    const org = orgOf(req);
+    if (org && org !== req.params.id) {
+      return res.status(404).json({ message: "Organização não encontrada." });
+    }
+    if (req.body?.active !== undefined) requirePlatformAdmin(req);
+
+    const alterada = await updateOrganization(req.params.id, {
+      name: req.body?.name,
+      cnpj: req.body?.cnpj,
+      contato: req.body?.contato,
+      cidade: req.body?.cidade,
+      observacao: req.body?.observacao,
+      active: req.body?.active,
+    });
+    await audit(req, "organizacao.update", "organization", alterada.id, req.body);
+    res.json(alterada);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** Cria o acesso de organizador dentro de uma organização. */
+adminRouter.post("/organizacoes/:id/acessos", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    const { name, email, password } = req.body ?? {};
+    if (!name || !email || !password) {
+      return res.status(400).json({ message: "Nome, e-mail e senha são obrigatórios." });
+    }
+
+    const [criado] = await db
+      .insert(users)
+      .values({
+        role: "organizer",
+        organizationId: req.params.id,
+        name: String(name),
+        email: String(email).toLowerCase().trim(),
+        passwordHash: await hashPassword(String(password)),
+      })
+      .returning({ id: users.id, email: users.email, name: users.name });
+
+    await audit(req, "organizacao.acesso", "organization", req.params.id, {
+      email: criado.email,
+    });
+    res.status(201).json(criado);
+  } catch (err) {
+    next(err);
+  }
+});
+
 /* ---------------- antifraude ---------------- */
 
-adminRouter.get("/antifraude", async (_req, res, next) => {
+adminRouter.get("/antifraude", async (req, res, next) => {
   try {
+    requirePlatformAdmin(req);
     res.json({
       limits: await getLimits(),
       resumo: await fraudSummary(),
@@ -874,6 +1158,7 @@ adminRouter.get("/antifraude", async (_req, res, next) => {
 
 adminRouter.put("/antifraude/limites", async (req, res, next) => {
   try {
+    requirePlatformAdmin(req);
     const saved = await setLimits(req.body ?? {});
     await audit(req, "antifraude.limites", "settings", "antifraude", saved);
     res.json(saved);
@@ -892,6 +1177,7 @@ adminRouter.put("/antifraude/limites", async (req, res, next) => {
  */
 adminRouter.post("/antifraude/bloqueios", async (req, res, next) => {
   try {
+    requirePlatformAdmin(req);
     const kind = String(req.body?.kind) as "phone" | "device" | "ip";
     if (!["phone", "device", "ip"].includes(kind)) {
       return res.status(400).json({ message: "Tipo de bloqueio inválido." });
@@ -918,6 +1204,7 @@ adminRouter.post("/antifraude/bloqueios", async (req, res, next) => {
 
 adminRouter.delete("/antifraude/bloqueios/:id", async (req, res, next) => {
   try {
+    requirePlatformAdmin(req);
     const removed = await unblock(req.params.id);
     if (!removed) return res.status(404).json({ message: "Bloqueio não encontrado." });
     await audit(req, "antifraude.desbloqueio", "fraud_block", removed.id);
@@ -944,6 +1231,7 @@ adminRouter.get("/payment-methods", async (_req, res, next) => {
  */
 adminRouter.put("/payment-methods", async (req, res, next) => {
   try {
+    requirePlatformAdmin(req);
     const saved = await setPaymentMethods(req.body ?? {});
     await audit(req, "payment_methods.update", "settings", "meios_pagamento", saved);
     res.json(saved);
@@ -957,8 +1245,9 @@ adminRouter.put("/payment-methods", async (req, res, next) => {
 
 /* ---------------- financeiro ---------------- */
 
-adminRouter.get("/finance", async (_req, res, next) => {
+adminRouter.get("/finance", async (req, res, next) => {
   try {
+    const org = orgOf(req);
     const pending = await db
       .select({
         affiliateId: commissions.affiliateId,
@@ -971,15 +1260,28 @@ adminRouter.get("/finance", async (_req, res, next) => {
       .from(commissions)
       .innerJoin(affiliates, eq(affiliates.id, commissions.affiliateId))
       .innerJoin(users, eq(users.id, affiliates.userId))
+      .where(org ? eq(users.organizationId, org) : sql`TRUE`)
       .groupBy(commissions.affiliateId, affiliates.code, users.name, affiliates.pixKey);
 
+    // O saque é do afiliado, e o afiliado tem organização: sem o recorte, o
+    // organizador veria (e pagaria) pedido de saque que não é dele.
     const requested = await db
-      .select()
+      .select({ payout: payouts })
       .from(payouts)
-      .where(eq(payouts.status, "requested"))
+      .innerJoin(affiliates, eq(affiliates.id, payouts.affiliateId))
+      .innerJoin(users, eq(users.id, affiliates.userId))
+      .where(
+        and(
+          eq(payouts.status, "requested"),
+          org ? eq(users.organizationId, org) : sql`TRUE`,
+        ),
+      )
       .orderBy(desc(payouts.requestedAt));
 
-    res.json({ perAffiliate: pending, payoutsRequested: requested });
+    res.json({
+      perAffiliate: pending,
+      payoutsRequested: requested.map((r) => r.payout),
+    });
   } catch (err) {
     next(err);
   }
@@ -988,10 +1290,22 @@ adminRouter.get("/finance", async (_req, res, next) => {
 /** Libera as comissões cuja carência já venceu. Roda sob demanda e no job. */
 adminRouter.post("/finance/release", async (req, res, next) => {
   try {
+    const org = orgOf(req);
     const released = await db
       .update(commissions)
       .set({ status: "available" })
-      .where(and(eq(commissions.status, "pending"), sql`${commissions.availableAt} <= now()`))
+      .where(
+        and(
+          eq(commissions.status, "pending"),
+          sql`${commissions.availableAt} <= now()`,
+          // Liberar comissão é liberar dinheiro. O organizador libera a dele.
+          org
+            ? sql`${commissions.campaignId} IN (
+                SELECT id FROM campaigns WHERE organization_id = ${org}::uuid
+              )`
+            : sql`TRUE`,
+        ),
+      )
       .returning({ id: commissions.id });
 
     await audit(req, "commission.release", "commission", undefined, { count: released.length });
@@ -1003,6 +1317,13 @@ adminRouter.post("/finance/release", async (req, res, next) => {
 
 adminRouter.post("/payouts/:id/paid", async (req, res, next) => {
   try {
+    const [saque] = await db
+      .select({ affiliateId: payouts.affiliateId })
+      .from(payouts)
+      .where(eq(payouts.id, req.params.id));
+    if (!saque) return res.status(404).json({ message: "Saque não encontrado." });
+    await assertAffiliateInScope(req, saque.affiliateId);
+
     const [updated] = await db
       .update(payouts)
       .set({
@@ -1024,6 +1345,7 @@ adminRouter.post("/payouts/:id/paid", async (req, res, next) => {
 
 adminRouter.get("/campaigns/:id/draw", async (req, res, next) => {
   try {
+    await assertCampaignInScope(req, req.params.id);
     const [draw] = await db.select().from(draws).where(eq(draws.campaignId, req.params.id));
     if (!draw) return res.status(404).json({ message: "Campanha ainda não publicada." });
     // A semente só sai depois de executado o sorteio.
@@ -1040,6 +1362,7 @@ adminRouter.get("/campaigns/:id/draw", async (req, res, next) => {
  */
 adminRouter.post("/campaigns/:id/draw", async (req, res, next) => {
   try {
+    await assertCampaignInScope(req, req.params.id);
     const federalPrizes = (req.body?.federalPrizes ?? []) as string[];
     const federalContest = Number(req.body?.federalContest);
     if (federalPrizes.length !== 5 || !Number.isInteger(federalContest)) {
@@ -1201,8 +1524,11 @@ adminRouter.post("/2fa/disable", async (req, res, next) => {
   }
 });
 
-adminRouter.get("/audit", async (_req, res, next) => {
+adminRouter.get("/audit", async (req, res, next) => {
   try {
+    // A trilha guarda ação de todo mundo, inclusive de outras organizações.
+    // Recortar por organização daria falsa completude; melhor não entregar.
+    requirePlatformAdmin(req);
     res.json(
       await db.select().from(auditLog).orderBy(desc(auditLog.createdAt)).limit(200),
     );

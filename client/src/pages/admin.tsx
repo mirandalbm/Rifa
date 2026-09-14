@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { PanelShell } from "@/components/AppShell";
 import { Card, Kpi, Money, Pill, Button, Empty, Progress } from "@/components/bits";
 import { apiRequest } from "@/lib/queryClient";
+import { useSession } from "@/lib/session";
 import { MediaManager } from "@/components/MediaManager";
 import { CampaignExtras } from "@/components/CampaignExtras";
 import { formatBRL, groupNumber, formatQuota } from "@shared/format";
@@ -134,6 +135,16 @@ const PRESETS = [1_000, 10_000, 100_000, 1_000_000];
 export function AdminCampanhas() {
   const qc = useQueryClient();
   const { data } = useQuery<CampaignRow[]>({ queryKey: ["/api/admin/campaigns"] });
+  const { data: sessao } = useSession();
+
+  // O organizador cria na organização dele e nem vê o campo. O administrador
+  // geral não tem organização, então precisa dizer quem promove a rifa — é a
+  // promotora que a Lei 5.768/71 autoriza, não a plataforma.
+  const daPlataforma = sessao?.role === "admin";
+  const { data: organizacoes } = useQuery<{ id: string; name: string }[]>({
+    queryKey: ["/api/admin/organizacoes"],
+    enabled: daPlataforma,
+  });
   const [open, setOpen] = useState(false);
   const [mediaFor, setMediaFor] = useState<string | null>(null);
   const [form, setForm] = useState({
@@ -143,6 +154,7 @@ export function AdminCampanhas() {
     totalQuotas: 1000,
     priceCents: 490,
     commissionPctDefault: 10,
+    organizationId: "",
   });
   const [error, setError] = useState<string | null>(null);
 
@@ -179,6 +191,31 @@ export function AdminCampanhas() {
       {open ? (
         <Card title="Nova campanha" right={<Pill status="draft" />}>
           <div className="space-y-4 p-4">
+            {daPlataforma ? (
+              <div>
+                <label htmlFor="promotora" className="label-xs">
+                  Organização promotora
+                </label>
+                <select
+                  id="promotora"
+                  value={form.organizationId}
+                  onChange={(e) => setForm({ ...form, organizationId: e.target.value })}
+                  className="mt-1 w-full rounded-md border border-line-2 px-3 py-2 text-sm"
+                >
+                  <option value="">escolha…</option>
+                  {organizacoes?.map((o) => (
+                    <option key={o.id} value={o.id}>
+                      {o.name}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-1 text-[11px] text-muted">
+                  É o nome que sai no bilhete como administradora da rifa, e é
+                  dela que a autorização SPA/MF é exigida.
+                </p>
+              </div>
+            ) : null}
+
             <div className="grid gap-3 sm:grid-cols-2">
               <div>
                 <label htmlFor="titulo" className="label-xs">Título</label>

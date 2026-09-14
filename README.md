@@ -44,6 +44,7 @@ Em desenvolvimento o provedor de pagamento é falso: a tela do pedido mostra
 | `npm run db:push` | aplica o schema |
 | `npm run db:seed` | popula dados de exemplo |
 | `npm run load` | teste de carga com compradores simultâneos |
+| `npm run isolation` | prova de isolamento entre organizações |
 
 ## Variáveis de ambiente
 
@@ -302,6 +303,56 @@ Três coisas que importam mais que o formato:
 
 Todo download fica registrado em `audit_log` com quem baixou, quando, qual
 recorte e se o arquivo levava dado pessoal.
+
+### O multi-organizador
+
+```
+/admin/organizacoes
+```
+
+Cada organização é um **promotor** de rifa, e a separação existe por um motivo
+jurídico antes de técnico: a Lei 5.768/71 autoriza o promotor, não a
+plataforma. É o nome dele que sai no bilhete como administradora e é dele que
+a autorização SPA/MF é exigida — por isso a autorização sempre foi campo da
+campanha, nunca da plataforma.
+
+**São as mesmas telas.** Organizador e administrador geral usam o mesmo
+painel: campanhas, pedidos, afiliados, cambistas, financeiro, sorteios,
+exportações. O que muda não é a tela, é o recorte. A convenção que governa
+tudo é uma linha: **`organizationId` nulo é a plataforma** — o administrador
+geral entra com nulo e enxerga todas; o organizador entra com a dele e não
+alcança mais nada. Papel diz qual porta abre; organização diz o que tem atrás.
+
+Antifraude, meios de pagamento e trilha de auditoria ficam com a plataforma:
+valem para todo mundo que vende aqui, e a trilha guarda ação de todas as
+organizações — recortá-la daria falsa completude.
+
+#### O modo de falhar aqui é silencioso
+
+Rota que esquece de **barrar** devolve 403 e alguém reclama. Rota que esquece
+de **filtrar** devolve 200 e entrega pedido, telefone e caixa do vizinho, sem
+que ninguém perceba. Por isso o teste de isolamento não confere só o código de
+resposta — confere o **conteúdo** das listas:
+
+```bash
+npm run isolation
+```
+
+Ele cria duas organizações com rifa e venda, entra como o organizador de uma e
+tenta alcançar tudo da outra: por id (espera 404 — para quem não é dono,
+aquilo não existe), nas rotas da plataforma (espera 403) e, principalmente, no
+que as listas dele realmente trazem. Depois limpa o que criou. Rota nova de
+`/api/admin` que não apareça ali é rota que ninguém provou.
+
+Duas decisões que valem registrar:
+
+- **404, não 403, para o dado do vizinho.** Responder "existe, mas não é sua"
+  já confirma que o id é válido, e com isso dá para varrer a plataforma
+  contando rifa alheia.
+- **Rota com id de filho confere o pai, antes de escrever.** `/media/:id` e
+  `/prized/:id` não trazem a campanha no caminho; sem buscar o dono primeiro,
+  o id do vizinho apagaria o banner dele — e a checagem depois do `DELETE`
+  chegaria tarde.
 
 ### As maquininhas
 

@@ -34,6 +34,12 @@ export class ExportError extends Error {
 
 export interface ExportScope {
   campaignId: string | null;
+  /**
+   * Recorte por organização. **Nulo é a plataforma** — mesma convenção de
+   * `services/orgs.ts`. Sem isto, um relatório sem campanha escolhida
+   * entregaria a carteira de clientes inteira de todo mundo num CSV.
+   */
+  organizationId: string | null;
   /** Recorte de data pelo momento do pedido. Ausente = tudo. */
   de: Date | null;
   ate: Date | null;
@@ -57,6 +63,13 @@ async function rows<T>(query: SQL): Promise<T[]> {
  * Volta como fragmento para entrar no meio do WHERE de cada relatório: o
  * organizador exporta "o mês passado", não a vida inteira da plataforma.
  */
+/** Recorte de organização sobre uma coluna que aponta para `campaigns`. */
+function daOrganizacao(coluna: SQL, escopo: ExportScope): SQL {
+  return escopo.organizationId
+    ? sql`AND ${coluna} = ${escopo.organizationId}::uuid`
+    : sql``;
+}
+
 function janela(coluna: SQL, escopo: ExportScope): SQL {
   const partes: SQL[] = [];
   if (escopo.de) partes.push(sql`AND ${coluna} >= ${escopo.de}`);
@@ -156,6 +169,7 @@ function pedidos(escopo: ExportScope): ExportStream {
             LEFT JOIN coupons cp ON cp.id = o.coupon_id
            WHERE TRUE
              ${escopo.campaignId ? sql`AND o.campaign_id = ${escopo.campaignId}::uuid` : sql``}
+             ${daOrganizacao(sql`c.organization_id`, escopo)}
              ${janela(sql`o.created_at`, escopo)}
              ${depois}
            ORDER BY o.created_at, o.id
@@ -327,9 +341,19 @@ function compradores(escopo: ExportScope): ExportStream {
                WHERE o.buyer_id = b.id
                  AND o.status = 'paid'
                  ${escopo.campaignId ? sql`AND o.campaign_id = ${escopo.campaignId}::uuid` : sql``}
+                 ${
+                   escopo.organizationId
+                     ? sql`AND o.campaign_id IN (
+                         SELECT id FROM campaigns
+                          WHERE organization_id = ${escopo.organizationId}::uuid)`
+                     : sql``
+                 }
                  ${janela(sql`o.created_at`, escopo)}
             ) p ON TRUE
-           WHERE TRUE ${depois}
+           -- Comprador sem nenhuma compra desta organização não é cliente
+           -- dela: entregá-lo seria vazar a base de quem vende ao lado.
+           WHERE ${escopo.organizationId ? sql`coalesce(p.pedidos, 0) > 0` : sql`TRUE`}
+             ${depois}
            ORDER BY b.created_at, b.id
            LIMIT ${PAGINA}
         `);
@@ -415,6 +439,7 @@ function comissoes(escopo: ExportScope): ExportStream {
             LEFT JOIN payouts pay ON pay.id = k.payout_id
            WHERE TRUE
              ${escopo.campaignId ? sql`AND k.campaign_id = ${escopo.campaignId}::uuid` : sql``}
+             ${daOrganizacao(sql`c.organization_id`, escopo)}
              ${janela(sql`k.created_at`, escopo)}
              ${depois}
            ORDER BY k.created_at, k.id
@@ -495,6 +520,7 @@ function acertos(escopo: ExportScope): ExportStream {
             JOIN affiliates a ON a.id = s.seller_id
             JOIN users u ON u.id = a.user_id
            WHERE TRUE
+             ${daOrganizacao(sql`u.organization_id`, escopo)}
              ${janela(sql`s.created_at`, escopo)}
              ${depois}
            ORDER BY s.created_at, s.id
@@ -580,6 +606,7 @@ function sorteio(escopo: ExportScope): ExportStream {
           LEFT JOIN orders o ON o.id = d.winner_order_id
           LEFT JOIN buyers b ON b.id = o.buyer_id
          WHERE c.id = ${campaignId}::uuid
+           ${daOrganizacao(sql`c.organization_id`, escopo)}
          -- ASC, nao DESC: o compromisso que vale e o PRIMEIRO, cujo hash foi
          -- publicado antes da primeira venda. Se um dia existir uma segunda
          -- linha, mostrar a mais nova seria exibir um hash que ninguem viu.

@@ -1,0 +1,269 @@
+/**
+ * Teste de isolamento entre organizações.
+ *
+ * O multi-organizador tem um modo de falhar que não dá erro: a rota que
+ * esquece o recorte responde 200 e entrega pedido, telefone e caixa do
+ * vizinho. Ninguém reclama, porque parece que funcionou.
+ *
+ * Este script cria duas organizações com uma rifa e uma venda cada, entra
+ * como o organizador de uma e tenta alcançar tudo da outra — por id, e também
+ * olhando o CONTEÚDO das listas, que é onde o vazamento é silencioso.
+ *
+ *   npm run isolation
+ *
+ * Rode depois de mexer em qualquer rota de /api/admin. Rota nova que não
+ * apareça aqui é rota que ninguém provou.
+ */
+import "dotenv/config";
+import { sql, eq } from "drizzle-orm";
+import { db, pool } from "../server/db";
+import { organizations, campaigns, users, buyers, orders, campaignStats } from "../shared/schema";
+import { hashPassword } from "../server/auth";
+
+const URL = process.argv.includes("--url")
+  ? process.argv[process.argv.indexOf("--url") + 1]
+  : "http://127.0.0.1:5055";
+
+interface Lado {
+  slug: string;
+  nome: string;
+  email: string;
+  senha: string;
+  orgId: string;
+  campaignId: string;
+  orderCode: number;
+  cookie: string;
+}
+
+let falhas = 0;
+
+function checa(nome: string, ok: boolean, detalhe = "") {
+  console.log(`    ${ok ? "✓" : "✗"} ${nome}${detalhe ? ` (${detalhe})` : ""}`);
+  if (!ok) falhas++;
+}
+
+async function entrar(email: string, senha: string): Promise<string> {
+  const res = await fetch(`${URL}/api/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password: senha }),
+  });
+  if (!res.ok) throw new Error(`Entrada recusada para ${email}: ${res.status}`);
+  const cookie = res.headers.getSetCookie?.().join("; ") ?? "";
+  if (!cookie) throw new Error("O servidor não devolveu sessão.");
+  return cookie;
+}
+
+async function pedir(cookie: string, caminho: string, init: RequestInit = {}) {
+  return fetch(`${URL}${caminho}`, {
+    ...init,
+    headers: { Cookie: cookie, "Content-Type": "application/json", ...(init.headers ?? {}) },
+  });
+}
+
+/** Monta uma organização completa: acesso, rifa e uma venda paga. */
+async function montarLado(marca: string, indice: number): Promise<Lado> {
+  const slug = `iso-${marca}`;
+  const email = `iso-${marca}@rifa.teste`;
+  const senha = `isolamento${indice}!`;
+
+  const [org] = await db
+    .insert(organizations)
+    .values({ slug, name: `Organização ${marca}`, cidade: "Teste/TE" })
+    .onConflictDoUpdate({ target: organizations.slug, set: { active: true } })
+    .returning();
+
+  await db
+    .insert(users)
+    .values({
+      role: "organizer",
+      organizationId: org.id,
+      name: `Organizador ${marca}`,
+      email,
+      passwordHash: await hashPassword(senha),
+    })
+    .onConflictDoUpdate({
+      target: users.email,
+      set: { organizationId: org.id, passwordHash: await hashPassword(senha), active: true },
+    });
+
+  const [campanha] = await db
+    .insert(campaigns)
+    .values({
+      organizationId: org.id,
+      slug: `${slug}-rifa`,
+      title: `Rifa ${marca}`,
+      prizeTitle: `Prêmio ${marca}`,
+      totalQuotas: 1000,
+      priceCents: 500,
+    })
+    .onConflictDoUpdate({ target: campaigns.slug, set: { organizationId: org.id } })
+    .returning();
+
+  await db
+    .insert(campaignStats)
+    .values({ campaignId: campanha.id, soldCount: 10 * indice, revenueCents: 5000 * indice })
+    .onConflictDoUpdate({
+      target: campaignStats.campaignId,
+      set: { soldCount: 10 * indice, revenueCents: 5000 * indice },
+    });
+
+  const [comprador] = await db
+    .insert(buyers)
+    .values({ name: `Cliente ${marca}`, phone: `1196000000${indice}` })
+    .onConflictDoUpdate({ target: buyers.phone, set: { name: `Cliente ${marca}` } })
+    .returning();
+
+  const orderCode = 92_000_000 + indice;
+  await db
+    .insert(orders)
+    .values({
+      code: orderCode,
+      campaignId: campanha.id,
+      buyerId: comprador.id,
+      quantity: 10,
+      amountCents: 5000 * indice,
+      status: "paid",
+      paidAt: new Date(),
+      expiresAt: new Date(Date.now() + 86_400_000),
+    })
+    .onConflictDoNothing();
+
+  return {
+    slug,
+    nome: marca,
+    email,
+    senha,
+    orgId: org.id,
+    campaignId: campanha.id,
+    orderCode,
+    cookie: await entrar(email, senha),
+  };
+}
+
+/** Cada uma destas devolve 404: para quem não é dono, aquilo não existe. */
+async function alcancaOVizinho(eu: Lado, vizinho: Lado) {
+  const c = vizinho.campaignId;
+  const tentativas: [string, string, RequestInit][] = [
+    ["PATCH campanha", `/api/admin/campaigns/${c}`, { method: "PATCH", body: '{"title":"invadida"}' }],
+    ["GET impedimentos", `/api/admin/campaigns/${c}/blockers`, {}],
+    ["POST publicar", `/api/admin/campaigns/${c}/publish`, { method: "POST" }],
+    ["PUT pacotes", `/api/admin/campaigns/${c}/packages`, { method: "PUT", body: '{"packages":[]}' }],
+    ["GET mídia", `/api/admin/campaigns/${c}/media`, {}],
+    ["GET cotas premiadas", `/api/admin/campaigns/${c}/prized`, {}],
+    ["GET sorteio", `/api/admin/campaigns/${c}/draw`, {}],
+    ["GET exportar cotas", `/api/admin/exportacoes/cotas?campanha=${c}`, {}],
+    ["GET exportar sorteio", `/api/admin/exportacoes/sorteio?campanha=${c}`, {}],
+    ["PATCH organização", `/api/admin/organizacoes/${vizinho.orgId}`, { method: "PATCH", body: '{"name":"tomada"}' }],
+  ];
+
+  for (const [nome, caminho, init] of tentativas) {
+    const res = await pedir(eu.cookie, caminho, init);
+    checa(nome, res.status === 404, `HTTP ${res.status}`);
+  }
+}
+
+/** Estas existem, mas não são do organizador: 403. */
+async function rotasDaPlataforma(eu: Lado) {
+  const tentativas: [string, string, RequestInit][] = [
+    ["GET organizações", "/api/admin/organizacoes", {}],
+    ["GET antifraude", "/api/admin/antifraude", {}],
+    ["PUT meios de pagamento", "/api/admin/payment-methods", { method: "PUT", body: "{}" }],
+    ["GET auditoria", "/api/admin/audit", {}],
+  ];
+  for (const [nome, caminho, init] of tentativas) {
+    const res = await pedir(eu.cookie, caminho, init);
+    checa(nome, res.status === 403, `HTTP ${res.status}`);
+  }
+}
+
+/** O vazamento silencioso: 200 com o dado do vizinho dentro. */
+async function conteudoDasListas(eu: Lado, vizinho: Lado) {
+  const campanhas = await (await pedir(eu.cookie, "/api/admin/campaigns")).json();
+  const slugs = (campanhas as { campaign: { slug: string } }[]).map((r) => r.campaign.slug);
+  checa(
+    "a lista de campanhas não traz a do vizinho",
+    !slugs.includes(`${vizinho.slug}-rifa`),
+    slugs.join(", ") || "vazia",
+  );
+
+  const pedidos = await (await pedir(eu.cookie, "/api/admin/orders")).json();
+  const codigos = (pedidos as { order: { code: number } }[]).map((r) => r.order.code);
+  checa(
+    "a lista de pedidos não traz o do vizinho",
+    !codigos.includes(vizinho.orderCode),
+    `${codigos.length} pedido(s)`,
+  );
+
+  const painel = await (await pedir(eu.cookie, "/api/admin/overview")).json();
+  const meu = 5000 * (eu.nome === "norte" ? 1 : 2);
+  checa(
+    "o faturamento do painel é só o meu",
+    (painel as { revenueCents: number }).revenueCents === meu,
+    `${(painel as { revenueCents: number }).revenueCents} centavos`,
+  );
+
+  const csv = await (await pedir(eu.cookie, "/api/admin/exportacoes/compradores")).text();
+  checa(
+    "a exportação de compradores não traz o cliente do vizinho",
+    !csv.includes(`Cliente ${vizinho.nome}`),
+    `${csv.split("\n").length - 2} linha(s)`,
+  );
+
+  const administradora = await (await pedir(eu.cookie, "/api/admin/organizer")).json();
+  checa(
+    "a administradora é a organização da sessão",
+    (administradora as { nome: string }).nome === `Organização ${eu.nome}`,
+    (administradora as { nome: string }).nome,
+  );
+}
+
+async function limpar(lados: Lado[]) {
+  for (const l of lados) {
+    await db.delete(orders).where(eq(orders.campaignId, l.campaignId));
+    await db.delete(campaignStats).where(eq(campaignStats.campaignId, l.campaignId));
+    await db.delete(campaigns).where(eq(campaigns.id, l.campaignId));
+    await db.delete(users).where(eq(users.email, l.email));
+    await db.delete(organizations).where(eq(organizations.id, l.orgId));
+  }
+  await db.execute(sql`DELETE FROM buyers WHERE phone IN ('11960000001','11960000002')`);
+}
+
+async function main() {
+  console.log("\n=== teste de isolamento entre organizações ===\n");
+
+  const norte = await montarLado("norte", 1);
+  const sul = await montarLado("sul", 2);
+  console.log(`  duas organizações no ar: ${norte.slug} e ${sul.slug}\n`);
+
+  try {
+    console.log("  o organizador do norte alcançando o sul (espera 404):");
+    await alcancaOVizinho(norte, sul);
+
+    console.log("\n  rotas da plataforma (espera 403):");
+    await rotasDaPlataforma(norte);
+
+    console.log("\n  o que as listas dele realmente trazem:");
+    await conteudoDasListas(norte, sul);
+
+    console.log("\n  e o mesmo pelo outro lado:");
+    await conteudoDasListas(sul, norte);
+  } finally {
+    await limpar([norte, sul]);
+  }
+
+  console.log(
+    falhas === 0
+      ? "\n  todos os cruzamentos passaram\n"
+      : `\n  ${falhas} cruzamento(s) falharam\n`,
+  );
+
+  await pool.end();
+  process.exit(falhas === 0 ? 0 : 1);
+}
+
+main().catch(async (err) => {
+  console.error(err);
+  await pool.end().catch(() => {});
+  process.exit(1);
+});

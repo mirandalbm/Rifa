@@ -105,7 +105,20 @@ export async function markSettlementPaid(settlementId: string) {
   return updated ?? null;
 }
 
-export async function listSettlements(sellerId?: string) {
+/**
+ * `organizationId` nulo é a plataforma — vê o acerto de todo cambista. É a
+ * mesma convenção de `services/orgs.ts`; repetida aqui porque este serviço é
+ * chamado de fora da rota e não enxerga a requisição.
+ */
+export async function listSettlements(
+  sellerId?: string,
+  organizationId?: string | null,
+) {
+  const filtros = [
+    sellerId ? eq(settlements.sellerId, sellerId) : undefined,
+    organizationId ? eq(users.organizationId, organizationId) : undefined,
+  ].filter(Boolean);
+
   const base = db
     .select({
       settlement: settlements,
@@ -117,11 +130,11 @@ export async function listSettlements(sellerId?: string) {
     .innerJoin(users, eq(users.id, affiliates.userId))
     .orderBy(desc(settlements.createdAt));
 
-  return sellerId ? base.where(eq(settlements.sellerId, sellerId)) : base;
+  return filtros.length ? base.where(and(...filtros)) : base;
 }
 
 /** Quanto cada cambista deve hoje — a tela de cobrança do administrador. */
-export async function openBalancesBySeller() {
+export async function openBalancesBySeller(organizationId?: string | null) {
   const rows = await db
     .select({
       sellerId: orders.sellerId,
@@ -135,7 +148,13 @@ export async function openBalancesBySeller() {
     .innerJoin(affiliates, eq(affiliates.id, orders.sellerId))
     .innerJoin(users, eq(users.id, affiliates.userId))
     .leftJoin(commissions, eq(commissions.orderId, orders.id))
-    .where(and(eq(orders.status, "paid"), isNull(orders.settlementId)))
+    .where(
+      and(
+        eq(orders.status, "paid"),
+        isNull(orders.settlementId),
+        organizationId ? eq(users.organizationId, organizationId) : undefined,
+      ),
+    )
     .groupBy(orders.sellerId, affiliates.code, users.name);
 
   return rows.map((r) => ({

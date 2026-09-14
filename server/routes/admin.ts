@@ -1,4 +1,5 @@
 import express, { Router, type Request } from "express";
+import { randomInt } from "node:crypto";
 import QRCode from "qrcode";
 import { eq, and, sql, desc } from "drizzle-orm";
 import { db } from "../db";
@@ -7,6 +8,7 @@ import {
   campaignStats,
   quotaPackages,
   quotaAlloc,
+  prizedQuotas,
   orders,
   buyers,
   affiliates,
@@ -35,6 +37,9 @@ import {
 } from "../services/media";
 import { storage, LocalDiskStorage } from "../services/storage";
 import { hashPassword, verifyPassword } from "../auth";
+import { notify } from "../notifications";
+import { publicUrl } from "../services/urls";
+import { formatQuota } from "@shared/format";
 import { generateSecret, verifyTotp, otpauthUrl } from "../services/totp";
 
 export const adminRouter = Router();
@@ -321,6 +326,97 @@ adminRouter.delete("/media/:mediaId", async (req, res, next) => {
     const removed = await removeMedia(req.params.mediaId);
     if (!removed) return res.status(404).json({ message: "Mídia não encontrada." });
     await audit(req, "media.remove", "campaign", removed.campaignId, { id: removed.id });
+    res.json({ removed: removed.id });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/* ---------------- cotas premiadas ---------------- */
+
+adminRouter.get("/campaigns/:id/prized", async (req, res, next) => {
+  try {
+    const rows = await db
+      .select()
+      .from(prizedQuotas)
+      .where(eq(prizedQuotas.campaignId, req.params.id))
+      .orderBy(prizedQuotas.number);
+    res.json(rows);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * Sorteia N cotas premiadas. Os números saem por CSPRNG e ficam escondidos
+ * do público — quem soubesse qual é compraria só aquele.
+ */
+adminRouter.post("/campaigns/:id/prized", async (req, res, next) => {
+  try {
+    const [campaign] = await db
+      .select()
+      .from(campaigns)
+      .where(eq(campaigns.id, req.params.id));
+    if (!campaign) return res.status(404).json({ message: "Campanha não encontrada." });
+
+    const prizeLabel = String(req.body?.prizeLabel ?? "").trim();
+    const quantity = Number(req.body?.quantity ?? 1);
+
+    if (prizeLabel.length < 2) {
+      return res.status(400).json({ message: "Descreva o prêmio da cota." });
+    }
+    if (!Number.isInteger(quantity) || quantity < 1 || quantity > 500) {
+      return res.status(400).json({ message: "Sorteie de 1 a 500 cotas premiadas." });
+    }
+
+    const existing = await db
+      .select({ number: prizedQuotas.number })
+      .from(prizedQuotas)
+      .where(eq(prizedQuotas.campaignId, campaign.id));
+    const taken = new Set(existing.map((e) => e.number));
+
+    if (taken.size + quantity > campaign.totalQuotas) {
+      return res.status(409).json({ message: "Mais cotas premiadas do que cotas na rifa." });
+    }
+
+    const picked: number[] = [];
+    // Teto de voltas: campanha pequena e muito premiada colide bastante.
+    for (let spin = 0; spin < quantity * 200 && picked.length < quantity; spin++) {
+      const n = randomInt(1, campaign.totalQuotas + 1);
+      if (taken.has(n)) continue;
+      taken.add(n);
+      picked.push(n);
+    }
+
+    const created = await db
+      .insert(prizedQuotas)
+      .values(picked.map((number) => ({ campaignId: campaign.id, number, prizeLabel })))
+      .onConflictDoNothing()
+      .returning();
+
+    await audit(req, "prized.create", "campaign", campaign.id, {
+      prizeLabel,
+      quantity: created.length,
+    });
+    res.status(201).json({ created: created.length, prizeLabel });
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.delete("/prized/:prizedId", async (req, res, next) => {
+  try {
+    const [removed] = await db
+      .delete(prizedQuotas)
+      .where(eq(prizedQuotas.id, req.params.prizedId))
+      .returning();
+    if (!removed) return res.status(404).json({ message: "Cota premiada não encontrada." });
+    if (removed.claimedByOrderId) {
+      // Já foi ganha: recriar seria tirar prêmio de quem levou.
+      await db.insert(prizedQuotas).values(removed);
+      return res.status(409).json({ message: "Esta cota premiada já foi ganha." });
+    }
+    await audit(req, "prized.remove", "campaign", removed.campaignId, { id: removed.id });
     res.json({ removed: removed.id });
   } catch (err) {
     next(err);
@@ -639,6 +735,27 @@ adminRouter.post("/campaigns/:id/draw", async (req, res, next) => {
       resultNumber,
       federalContest,
     });
+
+    // O ganhador é avisado na hora; os demais veem o resultado na página.
+    if (winner?.status === "paid") {
+      const [row] = await db
+        .select({ phone: buyers.phone })
+        .from(orders)
+        .innerJoin(buyers, eq(buyers.id, orders.buyerId))
+        .where(eq(orders.id, winner.orderId));
+      if (row?.phone) {
+        await notify({
+          to: row.phone,
+          template: "sorteio_realizado",
+          params: {
+            rifa: campaign.title,
+            numero: formatQuota(resultNumber, campaign.totalQuotas),
+            link: publicUrl(`/r/${campaign.slug}`),
+          },
+          dedupeKey: `draw:${draw.id}:ganhador`,
+        });
+      }
+    }
 
     res.json({
       ...updated,

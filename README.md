@@ -59,7 +59,12 @@ Em desenvolvimento o provedor de pagamento é falso: a tela do pedido mostra
 | `R2_SECRET_ACCESS_KEY` | com R2 | — |
 | `R2_PUBLIC_URL` | com R2 | — |
 | `UPLOAD_DIR` | não | `uploads` (só no disco local) |
-| `PUBLIC_BASE_URL` | não | inferida do host da requisição (usada nos links de afiliado) |
+| `PUBLIC_BASE_URL` | não | `http://localhost:5000` (usada nos links que saem em mensagem) |
+| `NOTIFICATION_PROVIDER` | não | `console` (`whatsapp` quando houver token) |
+| `WHATSAPP_TOKEN` | com WhatsApp | — |
+| `WHATSAPP_PHONE_ID` | com WhatsApp | — |
+| `WHATSAPP_LANGUAGE` | não | `pt_BR` |
+| `REMINDER_MINUTES_BEFORE` | não | `5` (lembrete antes de a reserva cair) |
 | `PORT` | não | `5000` |
 
 ## Como está organizado
@@ -128,6 +133,32 @@ A conta do administrador move dinheiro e publica campanha, então tem TOTP
 depois que o aplicativo do administrador prova que gera o código certo —
 gravar antes trancaria a conta de quem desistiu no meio. Desligar exige senha
 **e** código: sessão roubada não desarma o segundo fator sozinha.
+
+### As mensagens
+
+Seis modelos em `server/notifications/templates.ts`: código de acesso,
+pagamento confirmado, cota premiada, reserva expirando, venda para o afiliado
+e sorteio realizado. Cada um declara o texto em português **e** a ordem dos
+parâmetros que o modelo aprovado do WhatsApp espera — juntos, para ninguém
+mudar o texto e esquecer a ordem lá fora.
+
+Todo envio passa por uma chave de deduplicação única no banco. É ela que
+impede o mesmo lembrete de sair duas vezes, inclusive com duas réplicas
+acordando no mesmo minuto. E falha de envio nunca derruba o fluxo: se o
+WhatsApp estiver fora, o pagamento já entrou e as cotas já são do comprador —
+a falha fica registrada e a vida segue.
+
+Sem `WHATSAPP_TOKEN`, o provedor é o console: a mensagem aparece no terminal
+e o código de acesso volta na resposta, para o fluxo rodar sem conta no
+WhatsApp Business.
+
+### As cotas premiadas
+
+O administrador sorteia N cotas para um prêmio e os números ficam **secretos**:
+a página pública mostra o prêmio e quantos ainda estão em jogo, nunca qual é o
+número — quem soubesse compraria só aquele. A revelação acontece no pagamento,
+e o prêmio que já saiu continua na lista marcado como "já saiu", que é prova
+de que as cotas premiadas são reais.
 
 ### O sorteio
 

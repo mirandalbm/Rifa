@@ -11,14 +11,17 @@ import {
   clickEvents,
   buyers,
   users,
+  orders,
+  prizedQuotas,
   createOrderSchema,
 } from "@shared/schema";
-import { normalizePhone } from "@shared/format";
+import { normalizePhone, hidePhone } from "@shared/format";
 import { listPublicCampaigns, campaignBySlug } from "../services/campaigns";
 import { createOrder, orderByCode, ordersByPhone, OrderError } from "../services/orders";
 import { blockBitmap, isTaken, BLOCK_SIZE, NumbersTakenError, NoQuotasAvailableError } from "../services/quotas";
 import { issueOtp, checkOtp, hashPassword } from "../auth";
 import { withUrls } from "../services/media";
+import { notify, notificationProvider } from "../notifications";
 
 export const publicRouter = Router();
 
@@ -245,6 +248,7 @@ publicRouter.get("/orders/:code", async (req, res, next) => {
       expiresAt: found.order.expiresAt,
       paidAt: found.order.paidAt,
       numbers: found.numbers,
+      prizes: found.prizes,
       pix: { qr: found.order.pixQr, copyPaste: found.order.pixCopyPaste },
       campaign: {
         title: found.campaign.title,
@@ -267,10 +271,21 @@ publicRouter.post("/my-quotas/request-code", async (req, res, next) => {
 
     const code = await issueOtp(req, phone);
 
-    // Em produção sai por WhatsApp; em desenvolvimento volta na resposta
-    // para o fluxo rodar sem integração.
-    const devEcho = process.env.NODE_ENV !== "production" ? { devCode: code } : {};
-    res.json({ sent: true, ...devEcho });
+    await notify({
+      to: phone,
+      template: "codigo_acesso",
+      params: { codigo: code },
+      // Um código novo a cada pedido: a chave leva o instante.
+      dedupeKey: `otp:${phone}:${Date.now()}`,
+    });
+
+    // Sem WhatsApp configurado, o código volta na resposta para o fluxo
+    // rodar em desenvolvimento. Com provedor real, nunca.
+    const echo =
+      notificationProvider().name === "console" && process.env.NODE_ENV !== "production"
+        ? { devCode: code }
+        : {};
+    res.json({ sent: true, ...echo });
   } catch (err) {
     next(err);
   }
@@ -306,6 +321,83 @@ publicRouter.get("/my-quotas", async (req, res, next) => {
     next(err);
   }
 });
+
+/* ---------------- conversão: prêmios, ranking, prova social ---------------- */
+
+/**
+ * Cotas premiadas: mostramos os prêmios e quantos ainda estão em jogo, mas
+ * NUNCA quais números são. Revelar o número transformaria a brincadeira em
+ * escolha a dedo.
+ */
+publicRouter.get("/campaigns/:slug/premios", async (req, res, next) => {
+  try {
+    const found = await campaignBySlug(req.params.slug);
+    if (!found) return res.status(404).json({ message: "Rifa não encontrada." });
+
+    const rows = await db
+      .select()
+      .from(prizedQuotas)
+      .where(eq(prizedQuotas.campaignId, found.campaign.id));
+
+    const porPremio = new Map<string, { total: number; restantes: number }>();
+    for (const row of rows) {
+      const atual = porPremio.get(row.prizeLabel) ?? { total: 0, restantes: 0 };
+      atual.total += 1;
+      if (!row.claimedByOrderId) atual.restantes += 1;
+      porPremio.set(row.prizeLabel, atual);
+    }
+
+    res.json({
+      total: rows.length,
+      restantes: rows.filter((r) => !r.claimedByOrderId).length,
+      premios: [...porPremio.entries()].map(([label, contagem]) => ({
+        label,
+        ...contagem,
+      })),
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** Últimas compras — prova social com o telefone escondido. */
+publicRouter.get("/campaigns/:slug/ultimas-compras", async (req, res, next) => {
+  try {
+    const found = await campaignBySlug(req.params.slug);
+    if (!found) return res.status(404).json({ message: "Rifa não encontrada." });
+
+    const rows = await db
+      .select({
+        name: buyers.name,
+        phone: buyers.phone,
+        quantity: orders.quantity,
+        paidAt: orders.paidAt,
+      })
+      .from(orders)
+      .innerJoin(buyers, eq(buyers.id, orders.buyerId))
+      .where(and(eq(orders.campaignId, found.campaign.id), eq(orders.status, "paid")))
+      .orderBy(desc(orders.paidAt))
+      .limit(8);
+
+    res.json(
+      rows.map((r) => ({
+        nome: firstNameAndInitial(r.name),
+        telefone: hidePhone(r.phone),
+        quantidade: r.quantity,
+        quando: r.paidAt,
+      })),
+    );
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** "Marina S." — reconhecível para quem é, anônimo para os outros. */
+function firstNameAndInitial(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 1) return parts[0];
+  return `${parts[0]} ${parts[parts.length - 1][0].toUpperCase()}.`;
+}
 
 /* ---------------- cadastro de afiliado ---------------- */
 
@@ -395,7 +487,14 @@ publicRouter.get("/campaigns/:slug/ranking", async (req, res, next) => {
       LIMIT 10
     `);
 
-    res.json(rows.rows);
+    // Ranking é tela pública: nome reduzido e telefone escondido.
+    res.json(
+      (rows.rows as { name: string; phone: string; quotas: number }[]).map((r) => ({
+        nome: firstNameAndInitial(r.name),
+        telefone: hidePhone(r.phone),
+        quotas: r.quotas,
+      })),
+    );
   } catch (err) {
     next(err);
   }

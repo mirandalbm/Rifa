@@ -412,6 +412,30 @@ export const draws = pgTable("draws", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+/**
+ * Mensagens enviadas. A chave de deduplicação é o que impede o mesmo
+ * lembrete de sair duas vezes — inclusive com duas réplicas acordando no
+ * mesmo minuto.
+ */
+export const notifications = pgTable(
+  "notifications",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    to: text("to").notNull(),
+    template: text("template").notNull(),
+    params: jsonb("params").$type<Record<string, string>>(),
+    status: text("status").notNull().default("sent"),
+    error: text("error"),
+    /** Ex.: "order:<id>:reserva_expirando" */
+    dedupeKey: text("dedupe_key").notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("uq_notifications_dedupe").on(t.dedupeKey),
+    index("idx_notifications_created").on(t.createdAt),
+  ],
+);
+
 /** Idempotência do webhook do provedor de pagamento. */
 export const webhookEvents = pgTable(
   "webhook_events",

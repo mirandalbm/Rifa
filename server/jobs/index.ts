@@ -1,6 +1,8 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, sql, gt, lt } from "drizzle-orm";
 import { db } from "../db";
-import { commissions } from "@shared/schema";
+import { commissions, orders, buyers, campaigns } from "@shared/schema";
+import { notify } from "../notifications";
+import { publicUrl } from "../services/urls";
 import { releaseExpired } from "../services/quotas";
 import { log } from "../vite";
 import { pool } from "../db";
@@ -27,6 +29,59 @@ async function withLock(key: number, fn: () => Promise<void>) {
 
 const LOCK_EXPIRACAO = 811_001;
 const LOCK_COMISSAO = 811_002;
+const LOCK_LEMBRETE = 811_003;
+
+/** Quantos minutos antes de a reserva cair o lembrete é enviado. */
+const LEMBRETE_MINUTOS = Number(process.env.REMINDER_MINUTES_BEFORE ?? 5);
+
+/**
+ * Carrinho abandonado: quem reservou e não pagou recebe um empurrão antes
+ * de perder os números. A chave de deduplicação garante um lembrete por
+ * pedido, não um por minuto.
+ */
+async function lembrarReservasVencendo() {
+  const now = new Date();
+  const limite = new Date(now.getTime() + LEMBRETE_MINUTOS * 60_000);
+
+  const pendentes = await db
+    .select({
+      order: orders,
+      buyer: buyers,
+      campaignTitle: campaigns.title,
+    })
+    .from(orders)
+    .innerJoin(buyers, eq(buyers.id, orders.buyerId))
+    .innerJoin(campaigns, eq(campaigns.id, orders.campaignId))
+    .where(
+      and(
+        eq(orders.status, "pending"),
+        gt(orders.expiresAt, now),
+        lt(orders.expiresAt, limite),
+      ),
+    )
+    .limit(200);
+
+  let enviados = 0;
+  for (const row of pendentes) {
+    const restam = Math.max(
+      1,
+      Math.round((row.order.expiresAt!.getTime() - now.getTime()) / 60_000),
+    );
+    const ok = await notify({
+      to: row.buyer.phone,
+      template: "reserva_expirando",
+      params: {
+        nome: row.buyer.name.split(" ")[0],
+        rifa: row.campaignTitle,
+        minutos: String(restam),
+        link: publicUrl(`/pedido/${row.order.code}`),
+      },
+      dedupeKey: `order:${row.order.id}:reserva_expirando`,
+    });
+    if (ok) enviados++;
+  }
+  return enviados;
+}
 
 /**
  * Dois relógios. A expiração de reserva é o que devolve número ao estoque —
@@ -44,6 +99,17 @@ export function startJobs() {
       });
     } catch (err) {
       console.error("[jobs] expiração de reservas:", err);
+    }
+  }, expiryMs).unref();
+
+  setInterval(async () => {
+    try {
+      await withLock(LOCK_LEMBRETE, async () => {
+        const enviados = await lembrarReservasVencendo();
+        if (enviados > 0) log(`${enviados} lembrete(s) de reserva enviados`, "jobs");
+      });
+    } catch (err) {
+      console.error("[jobs] lembrete de reserva:", err);
     }
   }, expiryMs).unref();
 

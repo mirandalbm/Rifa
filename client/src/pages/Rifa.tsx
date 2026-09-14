@@ -83,6 +83,20 @@ export default function Rifa() {
     }
   }, [slug]);
 
+  const { data: premios } = useQuery<{
+    total: number;
+    restantes: number;
+    premios: { label: string; total: number; restantes: number }[];
+  }>({ queryKey: [`/api/public/campaigns/${slug}/premios`] });
+
+  const { data: ranking } = useQuery<{ nome: string; telefone: string; quotas: number }[]>({
+    queryKey: [`/api/public/campaigns/${slug}/ranking`],
+  });
+
+  const { data: ultimas } = useQuery<
+    { nome: string; telefone: string; quantidade: number; quando: string }[]
+  >({ queryKey: [`/api/public/campaigns/${slug}/ultimas-compras`] });
+
   const { data: blockData } = useQuery<BlockData>({
     queryKey: [`/api/public/campaigns/${slug}/blocks/${block}`],
     enabled: showMap,
@@ -264,6 +278,44 @@ export default function Rifa() {
           </button>
         ))}
       </div>
+
+      {/* Cotas premiadas: mostramos o prêmio e quantos restam, nunca o número. */}
+      {premios && premios.total > 0 ? (
+        <div className="mt-4 rounded-lg border border-yellow bg-yellow-soft p-3">
+          <div className="flex items-baseline justify-between">
+            <h2 className="font-display text-sm font-bold text-yellow-deep">
+              Cotas premiadas
+            </h2>
+            <span className="tnum text-xs text-yellow-deep">
+              {premios.restantes} de {premios.total} em jogo
+            </span>
+          </div>
+          <ul className="mt-2 flex flex-wrap gap-1.5">
+            {premios.premios.map((p) => (
+              <li
+                key={p.label}
+                className={`rounded-md px-2 py-1 text-xs ${
+                  p.restantes === 0
+                    ? "bg-mist-2 text-muted line-through"
+                    : "bg-white text-ink-2"
+                }`}
+              >
+                {p.label}
+                {p.restantes === 0 ? (
+                  // Prêmio que já saiu continua na lista: é prova de que
+                  // as cotas premiadas são reais.
+                  <span className="ml-1 no-underline">já saiu</span>
+                ) : p.total > 1 ? (
+                  <span className="tnum ml-1 text-muted">×{p.restantes}</span>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+          <p className="mt-2 text-[11px] text-yellow-deep">
+            Os números premiados são secretos e aparecem na hora que você paga.
+          </p>
+        </div>
+      ) : null}
 
       {/* Busca direta: quem sabe o número pula o mapa inteiro. */}
       <div className="mt-4 flex gap-2">
@@ -448,6 +500,43 @@ export default function Rifa() {
             </Button>
           </div>
         </div>
+      ) : null}
+
+      {ultimas && ultimas.length > 0 ? (
+        <Card title="Últimas compras">
+          <ul className="divide-y divide-line">
+            {ultimas.map((u, i) => (
+              <li key={i} className="flex items-center gap-2 px-4 py-2 text-sm">
+                <span className="flex-1">{u.nome}</span>
+                <span className="tnum text-xs text-muted">{u.telefone}</span>
+                <span className="tnum text-xs text-green-deep">
+                  {u.quantidade} cota{u.quantidade > 1 ? "s" : ""}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      ) : null}
+
+      {ranking && ranking.length > 0 ? (
+        <Card title="Quem mais comprou">
+          <ul className="divide-y divide-line">
+            {ranking.map((r, i) => (
+              <li key={i} className="flex items-center gap-3 px-4 py-2 text-sm">
+                <span
+                  className={`tnum flex h-5 w-5 items-center justify-center rounded text-[10px] ${
+                    i === 0 ? "bg-yellow text-[#3B2A00]" : "bg-mist-2 text-muted"
+                  }`}
+                >
+                  {i + 1}
+                </span>
+                <span className="flex-1">{r.nome}</span>
+                <span className="tnum text-xs text-muted">{r.telefone}</span>
+                <span className="tnum text-sm">{r.quotas}</span>
+              </li>
+            ))}
+          </ul>
+        </Card>
       ) : null}
 
       <footer className="mt-8 space-y-1 border-t border-line pt-4 text-[11px] text-muted">

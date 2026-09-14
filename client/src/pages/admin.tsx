@@ -4,6 +4,7 @@ import { PanelShell } from "@/components/AppShell";
 import { Card, Kpi, Money, Pill, Button, Empty, Progress } from "@/components/bits";
 import { apiRequest } from "@/lib/queryClient";
 import { MediaManager } from "@/components/MediaManager";
+import { CampaignExtras } from "@/components/CampaignExtras";
 import { formatBRL, groupNumber, formatQuota } from "@shared/format";
 import { MAX_QUOTAS, MIN_QUOTAS } from "@shared/schema";
 
@@ -284,8 +285,14 @@ export function AdminCampanhas() {
       ) : null}
 
       {mediaFor ? (
-        <div className="mt-3">
+        <div className="mt-3 space-y-3">
           <MediaManager campaignId={mediaFor} />
+          <CampaignExtras
+            campaignId={mediaFor}
+            totalQuotas={
+              data?.find((c) => c.campaign.id === mediaFor)?.campaign.totalQuotas ?? 1000
+            }
+          />
         </div>
       ) : null}
 
@@ -337,7 +344,7 @@ export function AdminCampanhas() {
                             setMediaFor(mediaFor === campaign.id ? null : campaign.id)
                           }
                         >
-                          Mídia
+                          Ajustar
                         </Button>
                         {campaign.status === "draft" ? (
                           <Button

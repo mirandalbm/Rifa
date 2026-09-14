@@ -15,6 +15,7 @@ interface OrderView {
   expiresAt: string | null;
   paidAt: string | null;
   numbers: number[];
+  prizes: { number: number; label: string }[];
   pix: { qr: string | null; copyPaste: string | null };
   campaign: { title: string; slug: string; totalQuotas: number };
   buyer: { name: string };
@@ -73,6 +74,29 @@ export default function Pedido() {
         <div className="mt-3 rounded-md bg-green-soft px-3 py-3 text-center text-sm text-green-deep">
           <p className="font-display text-base font-bold">Pagamento confirmado!</p>
           <p className="mt-1">Seus números estão garantidos. Boa sorte.</p>
+        </div>
+      ) : null}
+
+      {/* Cota premiada: a revelação é o momento da compra. */}
+      {order.status === "paid" && order.prizes.length > 0 ? (
+        <div className="mt-3 rounded-md border-2 border-yellow bg-yellow-soft px-3 py-4 text-center">
+          <p className="font-display text-lg font-extrabold text-yellow-deep">
+            Você tirou cota premiada!
+          </p>
+          <ul className="mt-2 space-y-1">
+            {order.prizes.map((p) => (
+              <li key={p.number} className="text-sm text-ink-2">
+                Cota{" "}
+                <span className="tnum font-medium">
+                  {formatQuota(p.number, order.campaign.totalQuotas)}
+                </span>{" "}
+                — <b>{p.label}</b>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-2 text-[11px] text-yellow-deep">
+            Vamos falar com você no WhatsApp para combinar a entrega.
+          </p>
         </div>
       ) : null}
 

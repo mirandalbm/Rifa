@@ -42,6 +42,8 @@ arquitetura.
 | sorteio | `server/services/draw.ts` |
 | segundo fator | `server/services/totp.ts` |
 | variantes de imagem | `server/services/images.ts` |
+| mensagens e modelos | `server/notifications/` |
+| cotas premiadas | `server/routes/admin.ts` (sorteio) e `services/orders.ts` (revelação) |
 | cadastro/cupom/kit do afiliado | `server/routes/public.ts`, `server/routes/affiliate.ts` |
 
 ## Convenções
@@ -55,16 +57,23 @@ arquitetura.
 
 ## O que ainda não existe
 
-- Notificação por WhatsApp (o código de acesso volta na resposta em
-  desenvolvimento). É item da Fase 3.
 - Pôster extraído do vídeo e transcode: hoje servimos o arquivo original. A
   medição e os limites já existem; falta o processamento. Cloudflare Stream
   resolve os dois de fábrica.
-- Cotas premiadas e ranking: o servidor já revela a cota premiada no pagamento
-  e já responde o ranking, mas nenhuma tela mostra. Fase 3.
-- Fila (BullMQ): os dois relógios rodam com `setInterval` no processo, agora
+- Fila (BullMQ): os três relógios rodam com `setInterval` no processo,
   protegidos por trava de aplicação do Postgres — com várias réplicas só uma
   executa. Serve bem; a fila entra quando houver trabalho pesado de verdade.
+- Fase 4 inteira: teste de carga com 1M de cotas, antifraude, exportações,
+  multi-organizador.
+
+## Mensagens — o que não pode afrouxar
+
+- Todo envio precisa de `dedupeKey`. Sem ela, o job de lembrete manda a mesma
+  mensagem a cada minuto.
+- Falha de envio **nunca** propaga para o fluxo de pagamento: a venda já
+  aconteceu. Registre e siga.
+- O número da cota premiada não sai em endpoint público. Só na revelação, para
+  quem comprou.
 
 ## Mídia — o que não pode afrouxar
 

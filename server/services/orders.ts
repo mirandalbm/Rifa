@@ -22,6 +22,7 @@ import {
 } from "@shared/schema";
 import { priceOrder, commissionCents, commissionAvailableAt } from "@shared/pricing";
 import { normalizePhone } from "@shared/format";
+import { users } from "@shared/schema";
 import {
   intArray,
   reserveRandom,
@@ -32,6 +33,9 @@ import {
   enterEndgame,
 } from "./quotas";
 import { paymentProvider } from "../payments";
+import { notify } from "../notifications";
+import { publicUrl } from "./urls";
+import { formatBRL, formatQuota } from "@shared/format";
 
 /** Dias entre o pagamento e a liberação da comissão do afiliado. */
 export const REFUND_WINDOW_DAYS = Number(process.env.REFUND_WINDOW_DAYS ?? 7);
@@ -361,11 +365,97 @@ export async function markOrderPaid(chargeId: string) {
     return { order: fresh, alreadyPaid: true, prizes: [] as string[] };
   }
 
+  // Avisos saem depois da transação: mensagem que falha não pode desfazer
+  // um pagamento que já entrou.
+  await announcePayment({
+    orderId: order.id,
+    campaignTitle: campaign?.title ?? "",
+    campaignTotal: campaign?.totalQuotas ?? 0,
+    numbers: result.numbers,
+    prizes: result.prizes,
+  });
+
   return {
     order: result.order,
     alreadyPaid: false,
     prizes: result.prizes.map((p) => `${p.number} — ${p.label}`),
   };
+}
+
+/** Confirmação para o comprador, prêmio revelado e aviso ao afiliado. */
+async function announcePayment(params: {
+  orderId: string;
+  campaignTitle: string;
+  campaignTotal: number;
+  numbers: number[];
+  prizes: { number: number; label: string }[];
+}) {
+  const [row] = await db
+    .select({ order: orders, buyer: buyers })
+    .from(orders)
+    .innerJoin(buyers, eq(buyers.id, orders.buyerId))
+    .where(eq(orders.id, params.orderId));
+  if (!row) return;
+
+  const shown = params.numbers
+    .slice(0, 10)
+    .map((n) => formatQuota(n, params.campaignTotal))
+    .join(", ");
+  const numeros =
+    params.numbers.length > 10 ? `${shown} e mais ${params.numbers.length - 10}` : shown;
+
+  await notify({
+    to: row.buyer.phone,
+    template: "pagamento_confirmado",
+    params: {
+      nome: row.buyer.name.split(" ")[0],
+      rifa: params.campaignTitle,
+      quantidade: String(params.numbers.length),
+      numeros,
+      link: publicUrl(`/pedido/${row.order.code}`),
+    },
+    dedupeKey: `order:${row.order.id}:pagamento_confirmado`,
+  });
+
+  for (const prize of params.prizes) {
+    await notify({
+      to: row.buyer.phone,
+      template: "cota_premiada",
+      params: {
+        nome: row.buyer.name.split(" ")[0],
+        premio: prize.label,
+        numero: formatQuota(prize.number, params.campaignTotal),
+      },
+      dedupeKey: `order:${row.order.id}:premio:${prize.number}`,
+    });
+  }
+
+  if (row.order.affiliateId) {
+    const [aff] = await db
+      .select({ phone: users.phone, name: users.name })
+      .from(affiliates)
+      .innerJoin(users, eq(users.id, affiliates.userId))
+      .where(eq(affiliates.id, row.order.affiliateId));
+
+    const [commission] = await db
+      .select()
+      .from(commissions)
+      .where(eq(commissions.orderId, row.order.id));
+
+    if (aff?.phone && commission) {
+      await notify({
+        to: aff.phone,
+        template: "venda_afiliado",
+        params: {
+          nome: aff.name.split(" ")[0],
+          valor: formatBRL(row.order.amountCents),
+          comissao: formatBRL(commission.amountCents),
+          rifa: params.campaignTitle,
+        },
+        dedupeKey: `order:${row.order.id}:venda_afiliado`,
+      });
+    }
+  }
 }
 
 export async function orderByCode(code: number) {
@@ -383,7 +473,12 @@ export async function orderByCode(code: number) {
     .where(eq(quotaAlloc.orderId, row.order.id))
     .orderBy(quotaAlloc.number);
 
-  return { ...row, numbers: numbers.map((n) => n.number) };
+  const prizes = await db
+    .select({ number: prizedQuotas.number, label: prizedQuotas.prizeLabel })
+    .from(prizedQuotas)
+    .where(eq(prizedQuotas.claimedByOrderId, row.order.id));
+
+  return { ...row, numbers: numbers.map((n) => n.number), prizes };
 }
 
 /** "Minhas cotas": tudo que um telefone comprou, sem senha. */

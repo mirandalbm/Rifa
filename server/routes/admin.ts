@@ -1,9 +1,8 @@
-import { Router, type Request } from "express";
+import express, { Router, type Request } from "express";
 import { eq, and, sql, desc } from "drizzle-orm";
 import { db } from "../db";
 import {
   campaigns,
-  campaignMedia,
   campaignStats,
   quotaPackages,
   quotaAlloc,
@@ -16,8 +15,6 @@ import {
   draws,
   auditLog,
   insertCampaignSchema,
-  MAX_PHOTOS,
-  MAX_VIDEO_SECONDS,
 } from "@shared/schema";
 import {
   publishCampaign,
@@ -27,6 +24,14 @@ import {
   CampaignRuleError,
 } from "../services/campaigns";
 import { drawNumber } from "../services/draw";
+import {
+  requestUpload,
+  ingestUpload,
+  removeMedia,
+  listMedia,
+  MediaRuleError,
+} from "../services/media";
+import { storage, LocalDiskStorage } from "../services/storage";
 import { hashPassword } from "../auth";
 
 export const adminRouter = Router();
@@ -228,91 +233,89 @@ adminRouter.put("/campaigns/:id/packages", async (req, res, next) => {
 
 adminRouter.get("/campaigns/:id/media", async (req, res, next) => {
   try {
-    res.json(
-      await db
-        .select()
-        .from(campaignMedia)
-        .where(eq(campaignMedia.campaignId, req.params.id))
-        .orderBy(campaignMedia.role, campaignMedia.position),
-    );
+    res.json(await listMedia(req.params.id));
   } catch (err) {
     next(err);
   }
 });
 
+/** Passo 1: URL assinada. O arquivo não passa pela nossa API. */
+adminRouter.post("/campaigns/:id/media/upload-url", async (req, res, next) => {
+  try {
+    const ticket = await requestUpload({
+      campaignId: req.params.id,
+      role: req.body?.role,
+      filename: String(req.body?.filename ?? "arquivo"),
+      mime: String(req.body?.mime ?? ""),
+      bytes: Number(req.body?.bytes ?? 0),
+    });
+    res.json(ticket);
+  } catch (err) {
+    if (err instanceof MediaRuleError) {
+      return res.status(err.status).json({ message: err.message });
+    }
+    next(err);
+  }
+});
+
 /**
- * Registra a mídia já enviada ao storage. Os limites são validados aqui,
- * no servidor — a duração do vídeo vem da medição da ingestão, nunca do
- * que o navegador informou.
+ * Recepção do upload em desenvolvimento, quando o armazenamento é o disco
+ * local. Em produção o R2 recebe direto e esta rota não é usada.
+ */
+adminRouter.put(
+  "/media/raw",
+  express.raw({ type: "*/*", limit: "300mb" }),
+  async (req, res, next) => {
+    try {
+      const store = storage();
+      if (!(store instanceof LocalDiskStorage)) {
+        return res.status(404).json({ message: "Envie direto para o armazenamento." });
+      }
+      const key = String(req.query.key ?? "");
+      const exp = Number(req.query.exp ?? 0);
+      const sig = String(req.query.sig ?? "");
+      if (!store.verify(key, exp, sig)) {
+        return res.status(403).json({ message: "Link de envio inválido ou expirado." });
+      }
+      await store.write(key, req.body as Buffer);
+      res.json({ stored: key, bytes: (req.body as Buffer).length });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+/**
+ * Passo 2: confirma o envio. É AQUI que o arquivo é medido — dimensões da
+ * imagem e duração do vídeo saem do próprio arquivo, nunca do que o
+ * navegador informou.
  */
 adminRouter.post("/campaigns/:id/media", async (req, res, next) => {
   try {
-    const campaignId = req.params.id;
-    const role = String(req.body?.role) as "banner" | "photo" | "video";
-    if (!["banner", "photo", "video"].includes(role)) {
-      return res.status(400).json({ message: "Tipo de mídia inválido." });
-    }
-
-    const existing = await db
-      .select()
-      .from(campaignMedia)
-      .where(eq(campaignMedia.campaignId, campaignId));
-
-    if (role === "banner" && existing.some((m) => m.role === "banner")) {
-      return res.status(409).json({ message: "Esta rifa já tem um banner. Substitua o atual." });
-    }
-    if (role === "photo" && existing.filter((m) => m.role === "photo").length >= MAX_PHOTOS) {
-      return res.status(409).json({ message: `São no máximo ${MAX_PHOTOS} fotos do prêmio.` });
-    }
-    if (role === "video") {
-      if (existing.some((m) => m.role === "video")) {
-        return res.status(409).json({ message: "Esta rifa já tem um vídeo." });
-      }
-      const duration = Number(req.body?.durationS);
-      if (!Number.isFinite(duration) || duration <= 0) {
-        return res.status(400).json({ message: "Duração do vídeo não medida." });
-      }
-      if (duration > MAX_VIDEO_SECONDS) {
-        return res.status(422).json({
-          message: `O vídeo tem ${Math.round(duration)}s — o limite é ${MAX_VIDEO_SECONDS}s.`,
-        });
-      }
-    }
-    if (role === "photo" && !String(req.body?.altText ?? "").trim()) {
-      return res.status(400).json({ message: "Descreva a foto no texto alternativo." });
-    }
-
-    const [created] = await db
-      .insert(campaignMedia)
-      .values({
-        campaignId,
-        role,
-        position: Number(req.body?.position ?? existing.filter((m) => m.role === role).length),
-        storageKey: String(req.body?.storageKey),
-        mime: String(req.body?.mime),
-        width: req.body?.width ? Number(req.body.width) : null,
-        height: req.body?.height ? Number(req.body.height) : null,
-        durationS: req.body?.durationS ? Math.round(Number(req.body.durationS)) : null,
-        posterKey: req.body?.posterKey ? String(req.body.posterKey) : null,
-        altText: req.body?.altText ? String(req.body.altText) : null,
-        bytes: req.body?.bytes ? Number(req.body.bytes) : null,
-        status: "ready",
-      })
-      .returning();
-
-    await audit(req, "media.add", "campaign", campaignId, { role, id: created.id });
+    const created = await ingestUpload({
+      campaignId: req.params.id,
+      role: req.body?.role,
+      storageKey: String(req.body?.storageKey ?? ""),
+      altText: req.body?.altText ? String(req.body.altText) : undefined,
+      mime: String(req.body?.mime ?? ""),
+    });
+    await audit(req, "media.add", "campaign", req.params.id, {
+      role: created.role,
+      durationS: created.durationS,
+      width: created.width,
+    });
     res.status(201).json(created);
   } catch (err) {
+    if (err instanceof MediaRuleError) {
+      return res.status(err.status).json({ message: err.message });
+    }
     next(err);
   }
 });
 
 adminRouter.delete("/media/:mediaId", async (req, res, next) => {
   try {
-    const [removed] = await db
-      .delete(campaignMedia)
-      .where(eq(campaignMedia.id, req.params.mediaId))
-      .returning();
+    const removed = await removeMedia(req.params.mediaId);
     if (!removed) return res.status(404).json({ message: "Mídia não encontrada." });
     await audit(req, "media.remove", "campaign", removed.campaignId, { id: removed.id });
     res.json({ removed: removed.id });

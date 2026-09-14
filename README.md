@@ -48,8 +48,16 @@ Em desenvolvimento o provedor de pagamento é falso: a tela do pedido mostra
 |---|---|---|
 | `DATABASE_URL` | sim | — |
 | `SESSION_SECRET` | em produção | valor de desenvolvimento |
-| `PAYMENT_PROVIDER` | não | `dev` |
+| `PAYMENT_PROVIDER` | não | `dev` (use `mercadopago` em produção) |
+| `MP_ACCESS_TOKEN` | com Mercado Pago | — |
+| `MP_WEBHOOK_SECRET` | com Mercado Pago | — |
 | `REFUND_WINDOW_DAYS` | não | `7` |
+| `R2_BUCKET` | em produção | sem ela, o armazenamento é o disco local |
+| `R2_ACCOUNT_ID` | com R2 | — |
+| `R2_ACCESS_KEY_ID` | com R2 | — |
+| `R2_SECRET_ACCESS_KEY` | com R2 | — |
+| `R2_PUBLIC_URL` | com R2 | — |
+| `UPLOAD_DIR` | não | `uploads` (só no disco local) |
 | `PORT` | não | `5000` |
 
 ## Como está organizado
@@ -77,6 +85,23 @@ A reserva é `INSERT … ON CONFLICT DO NOTHING` sobre a chave primária
 `(campaign_id, number)` — sem trava de linha, e a escrita é a própria
 verificação. Acima de 85% vendido, a alocação passa a sair de `free_pool`
 com `SKIP LOCKED`. Detalhes em `docs/PLANO-RIFA.md` §4.1.
+
+### A mídia
+
+Cada campanha tem 1 banner, até 5 fotos e no máximo 1 vídeo de **60 segundos**.
+O envio tem dois passos: o painel pede uma URL assinada e o arquivo vai direto
+para o armazenamento (R2 em produção, disco local em desenvolvimento); depois a
+confirmação **mede o arquivo já armazenado**.
+
+Medir é o ponto: a duração do vídeo sai do cabeçalho `mvhd` do próprio
+container MP4/MOV, lido por Range — alguns kilobytes, não os 300 MB — e as
+dimensões da imagem saem do cabeçalho PNG/JPEG/WebP. O que o navegador informa
+não é usado em lugar nenhum: seria trivial de forjar, e o limite de 60 s é uma
+promessa feita ao comprador na tela. Arquivo recusado é apagado do
+armazenamento na mesma hora.
+
+WebM não é aceito de propósito: sem saber medir a duração, não dá para
+prometer o limite.
 
 ### O sorteio
 

@@ -216,7 +216,7 @@ export function AfiliadoSaques() {
   const request = useMutation({
     mutationFn: () => apiRequest("POST", "/api/affiliate/payouts"),
     onSuccess: () => qc.invalidateQueries(),
-    onError: (err: Error) => setError(err.message.replace(/^\d+:\s*/, "")),
+    onError: (err: Error) => setError(err.message),
   });
 
   return (

@@ -1,5 +1,6 @@
 import type { PaymentProvider } from "./provider";
 import { DevPaymentProvider } from "./dev";
+import { MercadoPagoProvider } from "./mercadopago";
 
 let cached: PaymentProvider | null = null;
 
@@ -15,6 +16,9 @@ export function paymentProvider(): PaymentProvider {
   switch (configured) {
     case "dev":
       cached = new DevPaymentProvider();
+      break;
+    case "mercadopago":
+      cached = new MercadoPagoProvider();
       break;
     default:
       throw new Error(

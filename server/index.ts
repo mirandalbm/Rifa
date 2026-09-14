@@ -1,4 +1,5 @@
 import express, { type Request, Response, NextFunction } from "express";
+import path from "node:path";
 import { ZodError } from "zod";
 import { registerRoutes } from "./routes";
 import { webhookRouter } from "./routes/webhooks";
@@ -10,6 +11,15 @@ const app = express();
 
 // O webhook precisa do corpo cru para validar assinatura: vem antes do JSON.
 app.use("/api/webhooks", express.raw({ type: "*/*" }), webhookRouter);
+
+// Mídia enviada em desenvolvimento (em produção o R2 serve direto).
+app.use(
+  "/uploads",
+  express.static(path.resolve(process.cwd(), process.env.UPLOAD_DIR ?? "uploads"), {
+    maxAge: "1h",
+    index: false,
+  }),
+);
 
 app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: false }));

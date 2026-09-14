@@ -97,7 +97,7 @@ export default function Rifa() {
       return (await res.json()) as { code: number };
     },
     onSuccess: (order) => navigate(`/pedido/${order.code}`),
-    onError: (err: Error) => setError(err.message.replace(/^\d+:\s*/, "")),
+    onError: (err: Error) => setError(err.message),
   });
 
   if (!data) {

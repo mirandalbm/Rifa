@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { PanelShell } from "@/components/AppShell";
 import { Card, Kpi, Money, Pill, Button, Empty, Progress } from "@/components/bits";
 import { apiRequest } from "@/lib/queryClient";
+import { MediaManager } from "@/components/MediaManager";
 import { formatBRL, groupNumber, formatQuota } from "@shared/format";
 import { MAX_QUOTAS, MIN_QUOTAS } from "@shared/schema";
 
@@ -128,6 +129,7 @@ export function AdminCampanhas() {
   const qc = useQueryClient();
   const { data } = useQuery<CampaignRow[]>({ queryKey: ["/api/admin/campaigns"] });
   const [open, setOpen] = useState(false);
+  const [mediaFor, setMediaFor] = useState<string | null>(null);
   const [form, setForm] = useState({
     title: "",
     slug: "",
@@ -144,13 +146,13 @@ export function AdminCampanhas() {
       setOpen(false);
       qc.invalidateQueries({ queryKey: ["/api/admin/campaigns"] });
     },
-    onError: (err: Error) => setError(err.message.replace(/^\d+:\s*/, "")),
+    onError: (err: Error) => setError(err.message),
   });
 
   const publish = useMutation({
     mutationFn: (id: string) => apiRequest("POST", `/api/admin/campaigns/${id}/publish`),
     onSuccess: () => qc.invalidateQueries(),
-    onError: (err: Error) => setError(err.message.replace(/^\d+:\s*/, "")),
+    onError: (err: Error) => setError(err.message),
   });
 
   const digits = String(form.totalQuotas).length;
@@ -281,6 +283,12 @@ export function AdminCampanhas() {
         </Card>
       ) : null}
 
+      {mediaFor ? (
+        <div className="mt-3">
+          <MediaManager campaignId={mediaFor} />
+        </div>
+      ) : null}
+
       <div className="mt-3">
         <Card>
           <div className="overflow-x-auto">
@@ -321,15 +329,25 @@ export function AdminCampanhas() {
                       <Pill status={campaign.status} />
                     </td>
                     <td className="px-3 py-2">
-                      {campaign.status === "draft" ? (
+                      <span className="flex gap-1">
                         <Button
                           variant="ghost"
                           className="px-2 py-1 text-xs"
-                          onClick={() => publish.mutate(campaign.id)}
+                          onClick={() =>
+                            setMediaFor(mediaFor === campaign.id ? null : campaign.id)
+                          }
                         >
-                          Publicar
+                          Mídia
                         </Button>
-                      ) : null}
+                        {campaign.status === "draft" ? (
+                          <Button
+                            className="px-2 py-1 text-xs"
+                            onClick={() => publish.mutate(campaign.id)}
+                          >
+                            Publicar
+                          </Button>
+                        ) : null}
+                      </span>
                     </td>
                   </tr>
                 ))}
@@ -407,7 +425,7 @@ export function AdminAfiliados() {
       setForm({ name: "", email: "", password: "", code: "" });
       qc.invalidateQueries({ queryKey: ["/api/admin/affiliates"] });
     },
-    onError: (err: Error) => setError(err.message.replace(/^\d+:\s*/, "")),
+    onError: (err: Error) => setError(err.message),
   });
 
   const update = useMutation({
@@ -588,7 +606,7 @@ export function AdminSorteios() {
       setResult(r);
       qc.invalidateQueries();
     },
-    onError: (err: Error) => setError(err.message.replace(/^\d+:\s*/, "")),
+    onError: (err: Error) => setError(err.message),
   });
 
   const live = data?.filter((c) => c.campaign.status === "published") ?? [];

@@ -1,10 +1,28 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
-async function throwIfResNotOk(res: Response) {
-  if (!res.ok) {
-    const text = (await res.text()) || res.statusText;
-    throw new Error(`${res.status}: ${text}`);
+export class ApiError extends Error {
+  constructor(message: string, readonly status: number) {
+    super(message);
+    this.name = "ApiError";
   }
+}
+
+/**
+ * O servidor responde erro como { message }. Extrair aqui é o que faz a
+ * mensagem chegar legível na tela — sem isso o usuário lê JSON cru.
+ */
+async function throwIfResNotOk(res: Response) {
+  if (res.ok) return;
+
+  const text = (await res.text()) || res.statusText;
+  let message = text;
+  try {
+    const parsed = JSON.parse(text) as { message?: string };
+    if (parsed?.message) message = parsed.message;
+  } catch {
+    // resposta não-JSON: fica o texto mesmo
+  }
+  throw new ApiError(message, res.status);
 }
 
 export async function apiRequest(

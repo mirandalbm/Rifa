@@ -31,7 +31,7 @@ export default function MinhasCotas() {
       setStep("code");
       setError(null);
     },
-    onError: (err: Error) => setError(err.message.replace(/^\d+:\s*/, "")),
+    onError: (err: Error) => setError(err.message),
   });
 
   const verify = useMutation({
@@ -44,7 +44,7 @@ export default function MinhasCotas() {
       setStep("done");
       setError(null);
     },
-    onError: (err: Error) => setError(err.message.replace(/^\d+:\s*/, "")),
+    onError: (err: Error) => setError(err.message),
   });
 
   return (

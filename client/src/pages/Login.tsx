@@ -27,7 +27,7 @@ export default function Login() {
           setError(null);
           login.mutate(form, {
             onSuccess: (session) => navigate(session.home),
-            onError: (err: Error) => setError(err.message.replace(/^\d+:\s*/, "")),
+            onError: (err: Error) => setError(err.message),
           });
         }}
       >

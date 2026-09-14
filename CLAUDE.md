@@ -53,7 +53,18 @@ arquitetura.
 ## O que ainda não existe
 
 - 2FA do administrador (o campo `totpSecret` existe, a verificação não).
-- Upload real de mídia: a rota registra a mídia já enviada e valida os limites;
-  falta a URL assinada do R2 e o worker de transcode/ffprobe.
-- Provedor de pagamento real (só o `dev`).
-- Notificação por WhatsApp (o código OTP volta na resposta em desenvolvimento).
+- Notificação por WhatsApp (o código de acesso volta na resposta em
+  desenvolvimento).
+- Variantes responsivas de imagem (AVIF/WebP em 400/800/1600) e pôster extraído
+  do vídeo: hoje servimos o arquivo original. A medição e os limites já existem;
+  falta o processamento.
+- Fila (BullMQ): os dois relógios rodam com `setInterval` no processo. Serve até
+  a primeira réplica; com duas, o job de expiração roda duas vezes.
+
+## Mídia — o que não pode afrouxar
+
+A duração do vídeo e as dimensões da imagem são medidas em
+`server/services/probe.ts`, lendo o arquivo já armazenado. **Nunca** aceite o
+valor vindo do cliente: o limite de 60 s é promessa de tela e forjar um campo
+JSON é trivial. Se for aceitar um container novo (WebM, por exemplo), implemente
+a medição junto — sem medir, não entra na lista de mimes.

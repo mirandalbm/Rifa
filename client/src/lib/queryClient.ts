@@ -1,5 +1,23 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
+/**
+ * Identificador do aparelho: um número aleatório guardado no próprio
+ * navegador. Não identifica a pessoa — serve para o antifraude perceber
+ * que cinquenta compras vieram do mesmo celular.
+ */
+function deviceId(): string {
+  try {
+    const guardado = localStorage.getItem("rifa.device");
+    if (guardado) return guardado;
+    const novo = crypto.randomUUID();
+    localStorage.setItem("rifa.device", novo);
+    return novo;
+  } catch {
+    // Navegador anônimo ou armazenamento bloqueado: segue sem identificador.
+    return "";
+  }
+}
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -37,9 +55,14 @@ export async function apiRequest(
   url: string,
   data?: unknown | undefined,
 ): Promise<Response> {
+  const headers: Record<string, string> = {};
+  if (data) headers["Content-Type"] = "application/json";
+  const aparelho = deviceId();
+  if (aparelho) headers["x-device-id"] = aparelho;
+
   const res = await fetch(url, {
     method,
-    headers: data ? { "Content-Type": "application/json" } : {},
+    headers,
     body: data ? JSON.stringify(data) : undefined,
     credentials: "include",
   });

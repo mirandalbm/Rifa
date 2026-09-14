@@ -14,6 +14,7 @@ import { NumbersTakenError, NoQuotasAvailableError } from "../services/quotas";
 import { openBalance, listSettlements } from "../services/settlements";
 import { buildTicket } from "../services/ticket";
 import { getPaymentMethods } from "../services/settings";
+import { identify } from "../services/antifraude";
 import { enabledPhysical } from "@shared/payments";
 
 export const sellerRouter = Router();
@@ -77,7 +78,7 @@ sellerRouter.post("/sales", async (req, res, next) => {
   try {
     const id = affiliateId(req);
     const input = createOrderSchema.parse(req.body);
-    const result = await createSellerSale(input, id);
+    const result = await createSellerSale(input, id, identify(req));
 
     res.status(201).json({
       code: result.order.code,

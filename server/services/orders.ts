@@ -35,10 +35,12 @@ import {
 } from "./quotas";
 import { paymentProvider } from "../payments";
 import { getPaymentMethods } from "./settings";
+import { guardOrder, type RequestIdentity } from "./antifraude";
 import { enabledPhysical, labelFor } from "@shared/payments";
 import { notify } from "../notifications";
 import { publicUrl } from "./urls";
 import { formatBRL, formatQuota } from "@shared/format";
+import { isUniqueViolation } from "../pgError";
 
 /** Dias entre o pagamento e a liberação da comissão do afiliado. */
 export const REFUND_WINDOW_DAYS = Number(process.env.REFUND_WINDOW_DAYS ?? 7);
@@ -50,19 +52,45 @@ export class OrderError extends Error {
   }
 }
 
-async function nextOrderCode(): Promise<number> {
-  // Código curto que o comprador lê no WhatsApp. Colisão é rara e o índice
-  // único é quem decide; tentamos algumas vezes antes de desistir.
-  for (let i = 0; i < 10; i++) {
-    const candidate = randomInt(10_000, 1_000_000);
-    const [existing] = await db
-      .select({ code: orders.code })
-      .from(orders)
-      .where(eq(orders.code, candidate));
-    if (!existing) return candidate;
-  }
-  throw new OrderError("Não foi possível gerar o número do pedido.", 500);
+/**
+ * Código do pedido: o número que o comprador lê no WhatsApp e digita para
+ * acompanhar a compra.
+ *
+ * Duas decisões moram aqui.
+ *
+ * **É sorteado, não sequencial.** A consulta do pedido é pública e devolve o
+ * nome de quem comprou; com código sequencial, qualquer um enumeraria a
+ * carteira de clientes da rifa — e ainda leria o volume de vendas do dia pela
+ * diferença entre dois códigos.
+ *
+ * **Quem decide a colisão é o índice único, não uma consulta anterior.** A
+ * versão antiga fazia `SELECT` e depois `INSERT`, o mesmo erro que a
+ * invariante 1 proíbe para cota. O teste de carga achou o buraco na primeira
+ * rodada: dois pedidos simultâneos sortearam o mesmo número entre a consulta
+ * e a gravação, e um comprador levou erro 500.
+ *
+ * A faixa é de oito dígitos porque a de seis (990 mil) era um teto de
+ * verdade: a plataforma roda várias rifas de até 1.000.000 de cotas, e o
+ * número de *pedidos* ao longo da vida dela passa folgado de um milhão. Com
+ * a faixa antiga, a rifa simplesmente pararia de emitir pedido. Oito dígitos
+ * dão 90 milhões de códigos: com 1 milhão de pedidos gravados, a chance de
+ * um sorteio colidir é de 1%, e a de esgotar as repetições abaixo de
+ * 1 em 10^20.
+ */
+const ORDER_CODE_MIN = 10_000_000;
+const ORDER_CODE_MAX = 100_000_000;
+
+function randomOrderCode(): number {
+  return randomInt(ORDER_CODE_MIN, ORDER_CODE_MAX);
 }
+
+/** Colisão no código do pedido — não confundir com colisão de cota. */
+function isOrderCodeConflict(err: unknown): boolean {
+  return isUniqueViolation(err, "uq_orders_code");
+}
+
+/** Quantas vezes sorteamos de novo antes de desistir. */
+const ORDER_CODE_RETRIES = 10;
 
 async function upsertBuyer(input: CreateOrderInput["buyer"]) {
   const phone = normalizePhone(input.phone);
@@ -143,6 +171,15 @@ export interface CreateOrderContext {
   sessionAffiliateCode?: string;
   /** Venda física: o cambista é o vendedor e também quem recebe comissão. */
   sellerId?: string;
+  /** IP e aparelho já em hash, para o antifraude. */
+  identity?: RequestIdentity;
+}
+
+export class FraudBlockedError extends OrderError {
+  constructor(message: string, readonly rule?: string) {
+    super(message, 429);
+    this.name = "FraudBlockedError";
+  }
 }
 
 export async function createOrder(
@@ -201,6 +238,21 @@ export async function createOrder(
     );
   }
 
+  // O antifraude entra antes de qualquer linha ser escrita: pedido recusado
+  // não pode nem criar o comprador.
+  const identity = ctx.identity ?? { ipHash: null, deviceHash: null };
+  const veredito = await guardOrder({
+    phone: input.buyer.phone,
+    identity,
+    campaignId: campaign.id,
+    quantity,
+    bySeller: Boolean(ctx.sellerId),
+    affiliateCode: input.affiliateCode ?? ctx.sessionAffiliateCode,
+  });
+  if (!veredito.allowed) {
+    throw new FraudBlockedError(veredito.reason ?? "Compra recusada.", veredito.rule);
+  }
+
   const buyer = await upsertBuyer(input.buyer);
 
   // Na venda física não há clique nem cookie: quem vendeu é quem leva.
@@ -224,56 +276,75 @@ export async function createOrder(
     couponPct: attribution.couponPct,
   });
 
-  const code = await nextOrderCode();
   const expiresAt = new Date(Date.now() + campaign.reservationTtlMin * 60_000);
 
-  const { order, numbers } = await db.transaction(async (tx) => {
-    const [created] = await tx
-      .insert(orders)
-      .values({
-        code,
-        campaignId: campaign.id,
-        buyerId: buyer.id,
-        quantity,
-        amountCents: price.totalCents,
-        discountCents: price.packageDiscountCents + price.couponDiscountCents,
-        status: "pending",
-        affiliateId: attribution.affiliateId,
-        sellerId: ctx.sellerId ?? null,
-        method: ctx.sellerId ? "dinheiro" : "pix_online",
-        couponId: attribution.couponId,
-        expiresAt,
-      })
-      .returning();
-
-    const reserved = wantsSpecific
-      ? await reserveSpecific(tx, {
+  // A transação inteira é a unidade de repetição: se o código colidir, o
+  // banco desfaz também a reserva de cota, e a próxima volta sorteia outro.
+  // Pedido sem cota seria fantasma; cota sem pedido, cota perdida.
+  const criarPedido = (code: number) =>
+    db.transaction(async (tx) => {
+      const [created] = await tx
+        .insert(orders)
+        .values({
+          code,
           campaignId: campaign.id,
-          totalQuotas: campaign.totalQuotas,
-          numbers: input.numbers!,
-          orderId: created.id,
-          reservedUntil: expiresAt,
+          buyerId: buyer.id,
+          quantity,
+          amountCents: price.totalCents,
+          discountCents: price.packageDiscountCents + price.couponDiscountCents,
+          status: "pending",
+          affiliateId: attribution.affiliateId,
+          sellerId: ctx.sellerId ?? null,
+          method: ctx.sellerId ? "dinheiro" : "pix_online",
+          deviceHash: identity.deviceHash,
+          ipHash: identity.ipHash,
+          couponId: attribution.couponId,
+          expiresAt,
         })
-      : await reserveRandom(tx, {
-          campaignId: campaign.id,
-          totalQuotas: campaign.totalQuotas,
-          count: quantity,
-          orderId: created.id,
-          reservedUntil: expiresAt,
-          endgame: stats.endgame,
-        });
+        .returning();
 
-    await bumpReserved(tx, campaign.id, reserved.numbers.length);
+      const reserved = wantsSpecific
+        ? await reserveSpecific(tx, {
+            campaignId: campaign.id,
+            totalQuotas: campaign.totalQuotas,
+            numbers: input.numbers!,
+            orderId: created.id,
+            reservedUntil: expiresAt,
+          })
+        : await reserveRandom(tx, {
+            campaignId: campaign.id,
+            totalQuotas: campaign.totalQuotas,
+            count: quantity,
+            orderId: created.id,
+            reservedUntil: expiresAt,
+            endgame: stats.endgame,
+          });
 
-    if (attribution.couponId) {
-      await tx
-        .update(coupons)
-        .set({ uses: sql`${coupons.uses} + 1` })
-        .where(eq(coupons.id, attribution.couponId));
+      await bumpReserved(tx, campaign.id, reserved.numbers.length);
+
+      if (attribution.couponId) {
+        await tx
+          .update(coupons)
+          .set({ uses: sql`${coupons.uses} + 1` })
+          .where(eq(coupons.id, attribution.couponId));
+      }
+
+      return { order: created, numbers: reserved.numbers };
+    });
+
+  let criado: Awaited<ReturnType<typeof criarPedido>> | undefined;
+  for (let tentativa = 0; tentativa < ORDER_CODE_RETRIES; tentativa++) {
+    try {
+      criado = await criarPedido(randomOrderCode());
+      break;
+    } catch (err) {
+      if (!isOrderCodeConflict(err)) throw err;
     }
-
-    return { order: created, numbers: reserved.numbers };
-  });
+  }
+  if (!criado) {
+    throw new OrderError("Não foi possível gerar o número do pedido.", 500);
+  }
+  const { order, numbers } = criado;
 
   // Venda física não passa por provedor: o dinheiro entra na mão do cambista.
   if (ctx.sellerId) {
@@ -440,9 +511,9 @@ export type MetodoFisico = "dinheiro" | "cartao_maquininha" | "pix_maquininha";
 export async function createSellerSale(
   input: CreateOrderInput,
   sellerId: string,
+  identity?: RequestIdentity,
 ) {
-  const result = await createOrder(input, { sellerId });
-  return result;
+  return createOrder(input, { sellerId, identity });
 }
 
 /** O cambista recolheu: o pedido vira pago sem passar por provedor. */

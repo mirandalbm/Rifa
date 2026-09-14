@@ -3,6 +3,7 @@ import { db } from "../db";
 import { commissions, orders, buyers, campaigns } from "@shared/schema";
 import { notify } from "../notifications";
 import { publicUrl } from "../services/urls";
+import { purgeRateEvents } from "../services/antifraude";
 import { releaseExpired } from "../services/quotas";
 import { log } from "../vite";
 import { pool } from "../db";
@@ -30,6 +31,7 @@ async function withLock(key: number, fn: () => Promise<void>) {
 const LOCK_EXPIRACAO = 811_001;
 const LOCK_COMISSAO = 811_002;
 const LOCK_LEMBRETE = 811_003;
+const LOCK_LIMPEZA = 811_004;
 
 /** Quantos minutos antes de a reserva cair o lembrete é enviado. */
 const LEMBRETE_MINUTOS = Number(process.env.REMINDER_MINUTES_BEFORE ?? 5);
@@ -112,6 +114,17 @@ export function startJobs() {
       console.error("[jobs] lembrete de reserva:", err);
     }
   }, expiryMs).unref();
+
+  setInterval(async () => {
+    try {
+      await withLock(LOCK_LIMPEZA, async () => {
+        const apagados = await purgeRateEvents();
+        if (apagados > 0) log(`${apagados} registro(s) de ritmo limpos`, "jobs");
+      });
+    } catch (err) {
+      console.error("[jobs] limpeza do antifraude:", err);
+    }
+  }, releaseMs).unref();
 
   setInterval(async () => {
     try {

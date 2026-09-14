@@ -1,6 +1,7 @@
 import { Router } from "express";
 import passport from "passport";
 import { currentRole, type SessionUser } from "../auth";
+import { guardLogin, identify } from "../services/antifraude";
 import { sectionsFor, homeFor } from "@shared/access";
 
 export const authRouter = Router();
@@ -18,7 +19,13 @@ authRouter.get("/me", (req, res) => {
 });
 
 /** Uma porta de entrada só: o papel no banco decide onde a pessoa cai. */
-authRouter.post("/login", (req, res, next) => {
+authRouter.post("/login", async (req, res, next) => {
+  // Força bruta é barrada antes de a senha ser sequer comparada.
+  const veredito = await guardLogin(String(req.body?.email ?? ""), identify(req));
+  if (!veredito.allowed) {
+    return res.status(429).json({ message: veredito.reason, code: veredito.rule });
+  }
+
   passport.authenticate(
     "local",
     (

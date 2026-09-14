@@ -33,6 +33,13 @@ arquitetura.
 9. **A autorização SPA/MF é da campanha.** Sem `authorizationCode` a campanha
    não publica. A plataforma não é homologada em bloco — a Lei 5.768/71
    autoriza o promotor.
+10. **O antifraude corre antes de qualquer gravação.** `guardOrder()` em
+    `services/antifraude.ts` roda antes do primeiro `INSERT` do pedido. Guarda
+    que roda depois já deixou o estrago no banco.
+11. **Consultar e depois gravar é sempre bug.** Vale para cota (invariante 1) e
+    vale para o código do pedido: quem decide é o índice único. Se você achar
+    um `SELECT` para ver se "está livre" seguido de um `INSERT`, é uma corrida
+    esperando 500 simultâneos.
 
 ## Onde mexer
 
@@ -54,6 +61,7 @@ arquitetura.
 | bilhete | `server/services/ticketFormat.ts` (puro) e `ticket.ts` (dados) |
 | ponte com a maquininha | `client/src/lib/pos.ts`, `android/`, `docs/MAQUININHAS.md` |
 | teste de carga | `scripts/load-test.ts` |
+| limites de antifraude | `shared/antifraude.ts` (regras) e `server/services/antifraude.ts` |
 
 ## Convenções
 
@@ -72,9 +80,9 @@ arquitetura.
 - Fila (BullMQ): os três relógios rodam com `setInterval` no processo,
   protegidos por trava de aplicação do Postgres — com várias réplicas só uma
   executa. Serve bem; a fila entra quando houver trabalho pesado de verdade.
-- Da Fase 4: antifraude, exportações e multi-organizador. O teste de carga
-  existe (`npm run load`) e a campanha de 1M já foi vendida inteira sob
-  concorrência sem duplicar cota.
+- Da Fase 4: exportações e multi-organizador. O teste de carga existe
+  (`npm run load`) e a campanha de 1M já foi vendida inteira sob concorrência
+  sem duplicar cota; o antifraude está no ar, com painel em `/admin/antifraude`.
 - A integração da Stone no invólucro Android: `android/app/src/ton/` tem a
   estrutura e dois pontos de encaixe marcados, sem nomes de classe
   preenchidos. A do PagBank está escrita.
@@ -143,3 +151,42 @@ A duração do vídeo e as dimensões da imagem são medidas em
 valor vindo do cliente: o limite de 60 s é promessa de tela e forjar um campo
 JSON é trivial. Se for aceitar um container novo (WebM, por exemplo), implemente
 a medição junto — sem medir, não entra na lista de mimes.
+
+## Antifraude — o que não pode afrouxar
+
+O ataque que dói numa rifa **não é o de pagamento: é bloqueio de estoque.** Um
+script reserva milhares de cotas, não paga, deixa expirar e repete. A rifa
+parece vendida, ninguém consegue comprar e o organizador não entende por quê.
+Por isso o limite mais apertado é o de reserva em aberto
+(`openOrdersPerPhone`), não o de volume de compra.
+
+- **`guardOrder()` antes do `INSERT`.** Vale para a compra pelo site e para a
+  venda do cambista. Recusa devolve 429 com motivo em português — o comprador
+  legítimo precisa entender por que foi barrado.
+- **O cambista é isento dos limites de comprador, nunca do bloqueio manual.**
+  A venda dele é presencial e tem dono: ele responde por ela no acerto. Mas
+  telefone que o administrador bloqueou não compra nem na maquininha.
+- **Dado pessoal não vira chave crua.** IP e identificador de aparelho entram
+  em hash SHA-256; telefone aparece mascarado no registro de recusa. Um
+  vazamento da tabela de fraude não pode virar lista de telefones.
+- **Contar mesmo quando recusa.** `hit()` grava o evento antes de decidir:
+  senão a janela zera a cada tentativa barrada e quem insiste nunca estoura.
+- **O limite por IP é folgado de propósito** (60 em 10 min). Operadora de
+  celular põe um bairro inteiro atrás do mesmo IP — apertar aqui derruba
+  comprador de verdade. Quem mede é a bancada, e ela afrouxa **só** este
+  limite enquanto roda, devolvendo a configuração de antes no fim.
+- **`rate_events` é lixo com data.** O relógio limpa o que passou de 2 horas
+  (`purgeRateEvents`, trava de aplicação 811004). Sem isso a tabela só cresce.
+
+## Código do pedido — o que não pode afrouxar
+
+É sorteado, nunca sequencial: a consulta do pedido é pública e devolve o nome
+de quem comprou. Código sequencial deixaria qualquer um enumerar a carteira de
+clientes da rifa e ler o volume de vendas do dia pela diferença entre dois
+códigos.
+
+A faixa é de **oito dígitos** (`ORDER_CODE_MIN`/`MAX` em `services/orders.ts`).
+A de seis era um teto de verdade: a plataforma roda várias rifas de até 1M de
+cotas e passa de um milhão de *pedidos* ao longo da vida — com 990 mil códigos,
+a rifa simplesmente pararia de emitir pedido. Se um dia encurtar isso, faça a
+conta da densidade antes.

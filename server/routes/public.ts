@@ -24,6 +24,7 @@ import { withUrls } from "../services/media";
 import { notify, notificationProvider } from "../notifications";
 import { buildTicket, escPosTicket, markTicketPrinted } from "../services/ticket";
 import { getPaymentMethods } from "../services/settings";
+import { identify, guardOtp } from "../services/antifraude";
 import { paymentSummary } from "@shared/payments";
 
 export const publicRouter = Router();
@@ -213,6 +214,7 @@ publicRouter.post("/orders", async (req, res, next) => {
     const input = createOrderSchema.parse(req.body);
     const result = await createOrder(input, {
       sessionAffiliateCode: req.session.affiliateCode,
+      identity: identify(req),
     });
 
     res.status(201).json({
@@ -272,6 +274,11 @@ publicRouter.post("/my-quotas/request-code", async (req, res, next) => {
   try {
     const phone = normalizePhone(String(req.body?.phone ?? ""));
     if (phone.length < 10) return res.status(400).json({ message: "Telefone inválido." });
+
+    const veredito = await guardOtp(phone, identify(req));
+    if (!veredito.allowed) {
+      return res.status(429).json({ message: veredito.reason });
+    }
 
     const code = await issueOtp(req, phone);
 

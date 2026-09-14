@@ -12,8 +12,9 @@
 import "dotenv/config";
 import { sql, eq } from "drizzle-orm";
 import { db, pool } from "../server/db";
-import { campaigns, campaignStats, quotaAlloc, orders } from "../shared/schema";
+import { campaigns, campaignStats, quotaAlloc, orders, appSettings } from "../shared/schema";
 import { enterEndgame, ENDGAME_THRESHOLD } from "../server/services/quotas";
+import { DEFAULT_LIMITS } from "../shared/antifraude";
 
 interface Opcoes {
   url: string;
@@ -110,7 +111,12 @@ async function comprar(
   try {
     const criar = await fetch(`${opcoes.url}/api/public/orders`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        // Cada comprador simulado é um celular diferente, como na rua.
+        // Sem isto o teste mediria o limite de aparelho, não o motor.
+        "x-device-id": `carga-${indice}`,
+      },
       body: JSON.stringify({
         campaignId,
         quantity: opcoes.quotas,
@@ -153,6 +159,49 @@ async function comprar(
       motivo: (erro as Error).message,
     };
   }
+}
+
+/**
+ * O teste sai todo do mesmo IP, e o antifraude — com razão — recusa isso.
+ *
+ * A bancada mede o motor de alocação, não o antifraude (esse tem prova
+ * própria em tests/antifraude.test.ts e no painel). Então afrouxamos **só** o
+ * limite por IP enquanto o teste roda e devolvemos a configuração de antes,
+ * inclusive se o teste estourar no meio. Nada mais é tocado: o limite de
+ * reserva em aberto, que é o que de fato protege o estoque, continua valendo.
+ */
+const CHAVE_LIMITES = "antifraude";
+
+async function afrouxarIp(buyers: number) {
+  const [antes] = await db
+    .select()
+    .from(appSettings)
+    .where(eq(appSettings.key, CHAVE_LIMITES));
+
+  const base = (antes?.value as Record<string, unknown> | undefined) ?? DEFAULT_LIMITS;
+  const folga = Math.min(5_000, Math.max(100, buyers * 3));
+
+  await db
+    .insert(appSettings)
+    .values({ key: CHAVE_LIMITES, value: { ...base, ordersPerIp: folga } })
+    .onConflictDoUpdate({
+      target: appSettings.key,
+      set: { value: { ...base, ordersPerIp: folga }, updatedAt: new Date() },
+    });
+
+  console.log(`  antifraude: limite por IP em ${folga} durante a bancada`);
+
+  return async function restaurar() {
+    if (antes) {
+      await db
+        .update(appSettings)
+        .set({ value: antes.value, updatedAt: new Date() })
+        .where(eq(appSettings.key, CHAVE_LIMITES));
+    } else {
+      // Não existia linha: o app estava nos padrões. Voltar a não existir.
+      await db.delete(appSettings).where(eq(appSettings.key, CHAVE_LIMITES));
+    }
+  };
 }
 
 function percentil(valores: number[], p: number): number {
@@ -257,12 +306,20 @@ async function main() {
     console.log(`${((Date.now() - inicio) / 1000).toFixed(1)}s`);
   }
 
+  const restaurarAntifraude = await afrouxarIp(opcoes.buyers);
+
   console.log("\n  disparando…");
   const inicio = Date.now();
-  const resultados = await Promise.all(
-    Array.from({ length: opcoes.buyers }, (_, i) => comprar(opcoes, campanha.id, i)),
-  );
-  const duracao = Date.now() - inicio;
+  let resultados: Resultado[];
+  let duracao: number;
+  try {
+    resultados = await Promise.all(
+      Array.from({ length: opcoes.buyers }, (_, i) => comprar(opcoes, campanha.id, i)),
+    );
+    duracao = Date.now() - inicio;
+  } finally {
+    await restaurarAntifraude();
+  }
 
   const sucessos = resultados.filter((r) => r.ok);
   const semCota = resultados.filter((r) => !r.ok && r.status === 409);

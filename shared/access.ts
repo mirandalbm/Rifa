@@ -49,6 +49,7 @@ export type SectionKey =
   | "adminCambistas"
   | "adminFinanceiro"
   | "adminSorteios"
+  | "adminAntifraude"
   | "adminConfiguracoes";
 
 export interface Section {
@@ -87,6 +88,7 @@ export const SECTIONS: Section[] = [
   { key: "adminCambistas", path: "/admin/cambistas", label: "Cambistas", requires: "admin", nav: true },
   { key: "adminFinanceiro", path: "/admin/financeiro", label: "Financeiro", requires: "admin", nav: true },
   { key: "adminSorteios", path: "/admin/sorteios", label: "Sorteios", requires: "admin", nav: true },
+  { key: "adminAntifraude", path: "/admin/antifraude", label: "Antifraude", requires: "admin", nav: true },
   { key: "adminConfiguracoes", path: "/admin/configuracoes", label: "Configurações", requires: "admin", nav: true },
 ];
 

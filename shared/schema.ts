@@ -319,6 +319,9 @@ export const orders = pgTable(
     posAuthCode: text("pos_auth_code"),
     posTerminal: text("pos_terminal"),
     ticketPrintedAt: timestamp("ticket_printed_at"),
+    /** Hash do identificador do aparelho — liga compras do mesmo celular. */
+    deviceHash: text("device_hash"),
+    ipHash: text("ip_hash"),
     settlementId: uuid("settlement_id"),
     couponId: uuid("coupon_id"),
     pspProvider: text("psp_provider"),
@@ -440,6 +443,49 @@ export const draws = pgTable("draws", {
   executedAt: timestamp("executed_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
+
+/** Tentativas registradas para contar janela — a base do limite por tempo. */
+export const rateEvents = pgTable(
+  "rate_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /** Ex.: "order:phone:11988887777" — já vem com hash quando é dado pessoal. */
+    bucket: text("bucket").notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [index("idx_rate_bucket").on(t.bucket, t.createdAt)],
+);
+
+/** O que o antifraude barrou — a tela de quem precisa entender o que houve. */
+export const fraudEvents = pgTable(
+  "fraud_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    rule: text("rule").notNull(),
+    reason: text("reason").notNull(),
+    /** Telefone mascarado, hash de IP/aparelho — nunca o dado cru. */
+    subject: text("subject"),
+    campaignId: uuid("campaign_id"),
+    detail: jsonb("detail"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [index("idx_fraud_created").on(t.createdAt)],
+);
+
+/** Bloqueio manual do administrador. */
+export const fraudBlocks = pgTable(
+  "fraud_blocks",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    kind: text("kind").notNull(),
+    /** Telefone em dígitos, ou hash de IP/aparelho. */
+    value: text("value").notNull(),
+    reason: text("reason"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    expiresAt: timestamp("expires_at"),
+  },
+  (t) => [uniqueIndex("uq_fraud_block").on(t.kind, t.value)],
+);
 
 /**
  * Ajustes gerais em chave/valor. Hoje guarda os dados da administradora
@@ -629,4 +675,6 @@ export type Commission = typeof commissions.$inferSelect;
 export type Payout = typeof payouts.$inferSelect;
 export type Draw = typeof draws.$inferSelect;
 export type Settlement = typeof settlements.$inferSelect;
+export type FraudEvent = typeof fraudEvents.$inferSelect;
+export type FraudBlock = typeof fraudBlocks.$inferSelect;
 export type CreateOrderInput = z.infer<typeof createOrderSchema>;

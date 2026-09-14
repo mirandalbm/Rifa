@@ -39,7 +39,16 @@ import { storage, LocalDiskStorage } from "../services/storage";
 import { hashPassword, verifyPassword } from "../auth";
 import { notify } from "../notifications";
 import { publicUrl } from "../services/urls";
-import { formatQuota } from "@shared/format";
+import { formatQuota, normalizePhone } from "@shared/format";
+import {
+  getLimits,
+  setLimits,
+  listEvents,
+  listBlocks,
+  fraudSummary,
+  block,
+  unblock,
+} from "../services/antifraude";
 import {
   openBalancesBySeller,
   closeSettlement,
@@ -720,6 +729,76 @@ adminRouter.put("/organizer", async (req, res, next) => {
     if (err instanceof Error && err.message.includes("administradora")) {
       return res.status(400).json({ message: err.message });
     }
+    next(err);
+  }
+});
+
+/* ---------------- antifraude ---------------- */
+
+adminRouter.get("/antifraude", async (_req, res, next) => {
+  try {
+    res.json({
+      limits: await getLimits(),
+      resumo: await fraudSummary(),
+      eventos: await listEvents(80),
+      bloqueios: await listBlocks(),
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.put("/antifraude/limites", async (req, res, next) => {
+  try {
+    const saved = await setLimits(req.body ?? {});
+    await audit(req, "antifraude.limites", "settings", "antifraude", saved);
+    res.json(saved);
+  } catch (err) {
+    if (err instanceof Error && /mínimo|máximo/.test(err.message)) {
+      return res.status(400).json({ message: err.message });
+    }
+    next(err);
+  }
+});
+
+/**
+ * Bloqueio manual. Telefone entra em dígitos; IP e aparelho entram já em
+ * hash — o administrador copia o hash da lista de eventos, e assim o dado
+ * cru nunca precisa transitar.
+ */
+adminRouter.post("/antifraude/bloqueios", async (req, res, next) => {
+  try {
+    const kind = String(req.body?.kind) as "phone" | "device" | "ip";
+    if (!["phone", "device", "ip"].includes(kind)) {
+      return res.status(400).json({ message: "Tipo de bloqueio inválido." });
+    }
+    const bruto = String(req.body?.value ?? "").trim();
+    if (bruto.length < 4) {
+      return res.status(400).json({ message: "Informe o valor a bloquear." });
+    }
+
+    const value = kind === "phone" ? normalizePhone(bruto) : bruto;
+    const created = await block({
+      kind,
+      value,
+      reason: req.body?.reason ? String(req.body.reason) : undefined,
+      expiresAt: req.body?.expiresAt ? new Date(req.body.expiresAt) : null,
+    });
+
+    await audit(req, "antifraude.bloqueio", "fraud_block", created.id, { kind });
+    res.status(201).json(created);
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.delete("/antifraude/bloqueios/:id", async (req, res, next) => {
+  try {
+    const removed = await unblock(req.params.id);
+    if (!removed) return res.status(404).json({ message: "Bloqueio não encontrado." });
+    await audit(req, "antifraude.desbloqueio", "fraud_block", removed.id);
+    res.json({ removed: removed.id });
+  } catch (err) {
     next(err);
   }
 });

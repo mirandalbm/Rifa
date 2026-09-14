@@ -224,6 +224,52 @@ disputando o fim: **1.000.000 de 1.000.000 vendidas, zero duplicadas**, 200
 compras atendidas e 300 recusadas com "sem cota" — exatamente o número que
 cabia.
 
+A bancada sai toda do mesmo IP, e o antifraude — com razão — recusa isso. Ela
+afrouxa **só** o limite por IP enquanto roda e devolve a configuração de antes
+no fim, mesmo se estourar no meio. O limite de reserva em aberto, que é o que
+de fato protege o estoque, continua valendo.
+
+Três bugs de verdade saíram daqui, nenhum deles visível em teste de unidade:
+a escolha manual no mapa envenenava o pool de endgame; a compra rápida
+desistia na primeira colisão em vez de sortear de novo; e o código do pedido
+era conferido com um `SELECT` antes do `INSERT` — dois compradores simultâneos
+sortearam o mesmo número entre uma coisa e outra, e um levou erro 500.
+
+### O antifraude
+
+```
+/admin/antifraude
+```
+
+O ataque que dói numa rifa não é o de pagamento: é **bloqueio de estoque.** Um
+script reserva milhares de cotas, não paga, deixa expirar e repete. A rifa
+parece vendida, ninguém consegue comprar e o organizador não entende por quê.
+
+Por isso o limite mais apertado não é o de volume de compra, e sim o de
+**reserva em aberto**: dois pedidos aguardando pagamento por telefone, 500
+cotas seguradas ao mesmo tempo. Acima disso, o pedido é recusado com 429 e o
+motivo em português — quem está comprando de verdade precisa entender o que
+aconteceu.
+
+Em volta dele, janela deslizante em Postgres para ritmo de compra (por
+telefone, por aparelho e por IP), força bruta de senha, pedido de código de
+acesso, autoindicação de afiliado por aparelho e bloqueio manual do
+administrador por telefone, aparelho ou IP.
+
+Três decisões que valem registrar:
+
+- **O cambista é isento dos limites de comprador, nunca do bloqueio manual.**
+  A venda dele é presencial e tem dono — ele responde por ela no acerto. Mas
+  telefone bloqueado não compra nem na maquininha.
+- **O limite por IP é folgado** (60 em 10 min). Operadora de celular põe um
+  bairro inteiro atrás do mesmo IP; apertar aqui derruba comprador de verdade.
+- **Dado pessoal não vira chave crua.** IP e aparelho entram em hash SHA-256 e
+  o telefone aparece mascarado no registro. Um vazamento da tabela de fraude
+  não pode virar lista de telefones.
+
+A tela mostra o que foi barrado e por quê. Sem isso, limite apertado demais
+vira venda perdida que ninguém enxerga.
+
 ### As maquininhas
 
 O app roda igual no navegador e dentro de uma maquininha Android (PagBank

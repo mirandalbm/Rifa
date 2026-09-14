@@ -1,0 +1,744 @@
+<title>Rifa em Três Painéis</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Instrument+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap">
+
+<style>
+:root{
+  --ground:#F2F5F4;
+  --surface:#FFFFFF;
+  --surface-2:#E9EFED;
+  --ink:#0C1F27;
+  --ink-2:#33505A;
+  --muted:#5C737B;
+  --line:#D7E2E0;
+  --line-strong:#B9CBC8;
+  --accent:#0B7E73;
+  --accent-bright:#11A896;
+  --accent-soft:#DCEFEB;
+  --on-accent:#FFFFFF;
+  --gold:#B87708;
+  --gold-soft:#F7EBD2;
+  --red:#B23A31;
+  --red-soft:#F7E2DF;
+  --shadow:0 1px 2px rgba(12,31,39,.06),0 8px 24px -12px rgba(12,31,39,.18);
+
+  --f-display:"Bricolage Grotesque","Helvetica Neue",Arial,sans-serif;
+  --f-body:"Instrument Sans","Helvetica Neue",Arial,sans-serif;
+  --f-mono:"DM Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
+
+  --max:74rem;
+  --text:42rem;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --ground:#071519;
+    --surface:#0E2429;
+    --surface-2:#132E34;
+    --ink:#E4EFED;
+    --ink-2:#BBD0CE;
+    --muted:#8CA5AB;
+    --line:#1C3A40;
+    --line-strong:#2A4E55;
+    --accent:#2ED4BE;
+    --accent-bright:#4FE3CF;
+    --accent-soft:#0F3A38;
+    --on-accent:#06181A;
+    --gold:#F0B63A;
+    --gold-soft:#3A2E12;
+    --red:#F08A7E;
+    --red-soft:#3A1E1B;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 28px -14px rgba(0,0,0,.7);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#071519;
+  --surface:#0E2429;
+  --surface-2:#132E34;
+  --ink:#E4EFED;
+  --ink-2:#BBD0CE;
+  --muted:#8CA5AB;
+  --line:#1C3A40;
+  --line-strong:#2A4E55;
+  --accent:#2ED4BE;
+  --accent-bright:#4FE3CF;
+  --accent-soft:#0F3A38;
+    --on-accent:#06181A;
+  --gold:#F0B63A;
+  --gold-soft:#3A2E12;
+  --red:#F08A7E;
+  --red-soft:#3A1E1B;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 28px -14px rgba(0,0,0,.7);
+}
+
+*{box-sizing:border-box}
+body{
+  background:var(--ground);
+  color:var(--ink);
+  font-family:var(--f-body);
+  font-size:16px;
+  line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:var(--max);margin:0 auto;padding-inline:20px;padding-block:0}
+
+/* ---------- typography ---------- */
+h1,h2,h3,h4{font-family:var(--f-display);text-wrap:balance;margin:0;line-height:1.08;letter-spacing:-.02em}
+h1{font-size:clamp(2.6rem,7vw,4.6rem);font-weight:800;letter-spacing:-.035em}
+h2{font-size:clamp(1.6rem,3.4vw,2.3rem);font-weight:700}
+h3{font-size:1.12rem;font-weight:700;letter-spacing:-.01em;line-height:1.25}
+h4{font-size:.95rem;font-weight:700}
+p{margin:0}
+.lede{font-size:clamp(1.05rem,2vw,1.28rem);line-height:1.5;color:var(--ink-2);max-width:var(--text)}
+.body{color:var(--ink-2);max-width:var(--text)}
+.eyebrow{
+  font-family:var(--f-mono);font-size:.72rem;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--accent);font-weight:500;
+}
+.num{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+a{color:var(--accent);text-underline-offset:3px}
+a:focus-visible,button:focus-visible{outline:2px solid var(--accent-bright);outline-offset:3px;border-radius:4px}
+
+/* ---------- structure ---------- */
+section{padding-block:clamp(2.75rem,6vw,4.5rem)}
+.sechead{display:flex;flex-direction:column;gap:.6rem;margin-bottom:2rem}
+.sechead .eyebrow{display:flex;align-items:center;gap:.6rem}
+.sechead .eyebrow::after{content:"";flex:1;height:1px;background:var(--line);min-width:24px}
+.perf{
+  height:2px;width:100%;
+  background-image:repeating-linear-gradient(to right,var(--line-strong) 0 6px,transparent 6px 14px);
+}
+
+/* ---------- hero ---------- */
+.hero{padding-block:clamp(2.5rem,6vw,4rem) clamp(2rem,4vw,3rem)}
+.hero-grid{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr);gap:clamp(1.5rem,4vw,3rem);align-items:end}
+@media (max-width:860px){.hero-grid{grid-template-columns:1fr;align-items:start}}
+.hero h1 .tick{color:var(--accent)}
+.meta{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:1.6rem}
+.chip{
+  font-family:var(--f-mono);font-size:.78rem;padding:.32rem .7rem;border:1px solid var(--line-strong);
+  border-radius:999px;color:var(--ink-2);background:var(--surface);
+}
+.chip b{color:var(--ink);font-weight:500}
+
+/* ---------- cota grid mockup ---------- */
+.ticket{
+  background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:1.1rem;box-shadow:var(--shadow);
+}
+.ticket-top{display:flex;justify-content:space-between;align-items:baseline;gap:1rem;margin-bottom:.85rem}
+.ticket-top .t{font-family:var(--f-display);font-weight:700;font-size:.95rem}
+.ticket-top .r{font-family:var(--f-mono);font-size:.78rem;color:var(--muted)}
+.cotas{display:grid;grid-template-columns:repeat(8,1fr);gap:5px}
+.cota{
+  font-family:var(--f-mono);font-variant-numeric:tabular-nums;font-size:.72rem;
+  display:flex;align-items:center;justify-content:center;
+  aspect-ratio:1;border-radius:6px;border:1px solid var(--line);color:var(--ink-2);background:var(--surface);
+}
+.cota.res{border-style:dashed;border-color:var(--gold);color:var(--gold);background:var(--gold-soft)}
+.cota.pag{background:var(--accent);border-color:var(--accent);color:var(--on-accent);font-weight:500}
+.cota.prem{background:var(--gold);border-color:var(--gold);color:#2A1D04;font-weight:500;position:relative}
+.legend{display:flex;flex-wrap:wrap;gap:.9rem;margin-top:.9rem;font-size:.75rem;color:var(--muted);font-family:var(--f-mono)}
+.legend i{width:11px;height:11px;border-radius:3px;display:inline-block;vertical-align:-1px;margin-right:.35rem;border:1px solid var(--line-strong)}
+.legend .l1 i{background:var(--surface)}
+.legend .l2 i{background:var(--gold-soft);border-color:var(--gold);border-style:dashed}
+.legend .l3 i{background:var(--accent);border-color:var(--accent)}
+.legend .l4 i{background:var(--gold);border-color:var(--gold)}
+.ticket-foot{
+  display:flex;justify-content:space-between;align-items:center;gap:1rem;margin-top:1rem;padding-top:.85rem;
+  border-top:2px dashed var(--line-strong);font-family:var(--f-mono);font-size:.8rem;color:var(--muted)
+}
+.ticket-foot b{color:var(--ink);font-weight:500;font-size:.95rem}
+
+/* ---------- generic cards ---------- */
+.grid-3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1rem}
+.grid-2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}
+@media (max-width:900px){.grid-3{grid-template-columns:1fr}.grid-2{grid-template-columns:1fr}}
+.panel{
+  background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:1.35rem;
+  display:flex;flex-direction:column;gap:.85rem;
+}
+.panel .role{font-family:var(--f-mono);font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.panel .who{font-size:.9rem;color:var(--muted);margin-top:-.5rem}
+.panel ul{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:.5rem}
+.panel li{position:relative;padding-left:1.1rem;font-size:.92rem;color:var(--ink-2);line-height:1.45}
+.panel li::before{content:"";position:absolute;left:0;top:.55em;width:5px;height:5px;border-radius:1px;background:var(--accent)}
+.panel .auth{
+  margin-top:auto;padding-top:.85rem;border-top:1px solid var(--line);
+  font-family:var(--f-mono);font-size:.75rem;color:var(--muted)
+}
+
+/* ---------- tables ---------- */
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:14px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;min-width:540px;font-size:.9rem}
+th,td{text-align:left;padding:.72rem .9rem;border-bottom:1px solid var(--line);vertical-align:top}
+thead th{
+  font-family:var(--f-mono);font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--muted);font-weight:500;background:var(--surface-2);border-bottom:1px solid var(--line-strong)
+}
+tbody tr:last-child td{border-bottom:none}
+td.k{font-weight:600;color:var(--ink);white-space:nowrap}
+td.alt{color:var(--muted)}
+.tag{
+  font-family:var(--f-mono);font-size:.68rem;padding:.15rem .45rem;border-radius:4px;white-space:nowrap;
+  background:var(--accent-soft);color:var(--accent);border:1px solid transparent
+}
+.tag.v1{background:var(--gold-soft);color:var(--gold)}
+.tag.v2{background:var(--surface-2);color:var(--muted)}
+
+/* ---------- benchmark chips ---------- */
+.sources{display:flex;flex-wrap:wrap;gap:.4rem;margin-bottom:1.5rem}
+.src{
+  font-family:var(--f-mono);font-size:.74rem;color:var(--ink-2);background:var(--surface);
+  border:1px solid var(--line);border-radius:6px;padding:.28rem .55rem
+}
+
+/* ---------- flow ---------- */
+.flow{display:flex;flex-direction:column;gap:0}
+.step{display:grid;grid-template-columns:3.2rem 1fr;gap:1rem;padding-block:1rem;border-bottom:1px solid var(--line)}
+.step:last-child{border-bottom:none}
+.step .s{
+  font-family:var(--f-mono);font-size:.78rem;color:var(--accent);border:1px solid var(--line-strong);
+  border-radius:6px;height:2rem;display:flex;align-items:center;justify-content:center;background:var(--surface)
+}
+.step h4{margin-bottom:.2rem}
+.step p{font-size:.9rem;color:var(--ink-2)}
+.step code{font-family:var(--f-mono);font-size:.82rem;background:var(--surface-2);padding:.1rem .3rem;border-radius:4px;color:var(--ink)}
+
+/* ---------- rules ---------- */
+.rules{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+@media (max-width:760px){.rules{grid-template-columns:1fr}}
+.rule{background:var(--surface);padding:1.15rem;display:flex;flex-direction:column;gap:.4rem}
+.rule .t{font-family:var(--f-display);font-weight:700;font-size:1rem}
+.rule p{font-size:.88rem;color:var(--ink-2)}
+.rule .why{font-family:var(--f-mono);font-size:.73rem;color:var(--muted)}
+
+/* ---------- roadmap ---------- */
+.phases{display:flex;flex-direction:column;gap:.75rem}
+.phase{
+  display:grid;grid-template-columns:7rem 1fr 8.5rem;gap:1.2rem;align-items:start;
+  background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:1.1rem 1.25rem
+}
+@media (max-width:820px){.phase{grid-template-columns:1fr;gap:.55rem}}
+.phase .ph{font-family:var(--f-mono);font-size:.78rem;color:var(--accent)}
+.phase .dur{font-family:var(--f-mono);font-size:.78rem;color:var(--muted);text-align:right}
+@media (max-width:820px){.phase .dur{text-align:left}}
+.phase h4{margin-bottom:.25rem}
+.phase p{font-size:.89rem;color:var(--ink-2)}
+.phase .dod{margin-top:.5rem;font-size:.83rem;color:var(--muted);border-left:2px solid var(--accent);padding-left:.7rem}
+
+/* ---------- design system ---------- */
+.swatches{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:.6rem}
+@media (max-width:760px){.swatches{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.sw{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--surface)}
+.sw .box{height:56px}
+.sw .lab{padding:.45rem .55rem;font-family:var(--f-mono);font-size:.68rem;line-height:1.35;color:var(--muted)}
+.sw .lab b{display:block;color:var(--ink);font-weight:500}
+.typescale{display:flex;flex-direction:column;gap:.9rem;margin-top:1.2rem}
+.ts{display:grid;grid-template-columns:8.5rem 1fr;gap:1rem;align-items:baseline;border-bottom:1px solid var(--line);padding-bottom:.8rem}
+@media (max-width:660px){.ts{grid-template-columns:1fr;gap:.2rem}}
+.ts .n{font-family:var(--f-mono);font-size:.72rem;color:var(--muted)}
+.ts .d1{font-family:var(--f-display);font-weight:800;font-size:2.2rem;letter-spacing:-.03em;line-height:1.05}
+.ts .d2{font-family:var(--f-display);font-weight:700;font-size:1.3rem}
+.ts .b1{font-family:var(--f-body);font-size:1rem;color:var(--ink-2)}
+.ts .m1{font-family:var(--f-mono);font-size:1.6rem;font-variant-numeric:tabular-nums}
+
+/* ---------- callout ---------- */
+.callout{
+  border:1px solid var(--line-strong);border-left:3px solid var(--gold);background:var(--surface);
+  border-radius:0 12px 12px 0;padding:1.1rem 1.25rem;display:flex;flex-direction:column;gap:.45rem;margin-top:1.25rem
+}
+.callout .t{font-family:var(--f-display);font-weight:700;font-size:1rem}
+.callout p{font-size:.9rem;color:var(--ink-2)}
+
+/* ---------- footer ---------- */
+footer{padding-block:2.5rem 3.5rem;color:var(--muted);font-size:.83rem}
+footer p{max-width:var(--text)}
+footer .fl{font-family:var(--f-mono);font-size:.73rem;margin-top:.9rem;line-height:1.9}
+</style>
+
+<div class="wrap">
+
+  <header class="hero">
+    <div class="hero-grid">
+      <div>
+        <p class="eyebrow">Plano de construção · setembro 2026</p>
+        <h1>Rifa em três<br>painéis<span class="tick">.</span></h1>
+        <p class="lede" style="margin-top:1.1rem">
+          Uma plataforma de rifas onde o comprador paga por Pix em segundos, o afiliado vê cada
+          venda que gerou, e o administrador conduz a campanha do primeiro número ao sorteio —
+          com dinheiro conferido e auditoria de ponta a ponta.
+        </p>
+        <div class="meta">
+          <span class="chip"><b>3</b> superfícies</span>
+          <span class="chip"><b>4</b> fases · <b>10</b> semanas</span>
+          <span class="chip"><b>9</b> plataformas analisadas</span>
+          <span class="chip">React + Express + Postgres</span>
+        </div>
+      </div>
+
+      <div class="ticket" aria-label="Exemplo da grade de cotas">
+        <div class="ticket-top">
+          <span class="t">iPhone 17 Pro · 1.000 cotas</span>
+          <span class="r">bloco 001–040</span>
+        </div>
+        <div class="cotas">
+          <span class="cota pag">001</span><span class="cota pag">002</span><span class="cota">003</span>
+          <span class="cota pag">004</span><span class="cota res">005</span><span class="cota">006</span>
+          <span class="cota pag">007</span><span class="cota">008</span>
+          <span class="cota">009</span><span class="cota pag">010</span><span class="cota prem">011</span>
+          <span class="cota">012</span><span class="cota pag">013</span><span class="cota res">014</span>
+          <span class="cota">015</span><span class="cota pag">016</span>
+          <span class="cota pag">017</span><span class="cota">018</span><span class="cota">019</span>
+          <span class="cota pag">020</span><span class="cota">021</span><span class="cota pag">022</span>
+          <span class="cota res">023</span><span class="cota">024</span>
+          <span class="cota">025</span><span class="cota pag">026</span><span class="cota">027</span>
+          <span class="cota pag">028</span><span class="cota prem">029</span><span class="cota">030</span>
+          <span class="cota pag">031</span><span class="cota">032</span>
+          <span class="cota pag">033</span><span class="cota">034</span><span class="cota res">035</span>
+          <span class="cota">036</span><span class="cota pag">037</span><span class="cota">038</span>
+          <span class="cota">039</span><span class="cota pag">040</span>
+        </div>
+        <div class="legend">
+          <span class="l1"><i></i>livre</span>
+          <span class="l2"><i></i>reservada</span>
+          <span class="l3"><i></i>paga</span>
+          <span class="l4"><i></i>premiada</span>
+        </div>
+        <div class="ticket-foot">
+          <span>cota <b>R$ 4,90</b></span>
+          <span>reserva expira em <b class="num">14:52</b></span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="perf" role="presentation"></div>
+
+  <!-- ============ BENCHMARK ============ -->
+  <section>
+    <div class="sechead">
+      <p class="eyebrow">Benchmark</p>
+      <h2>O que o mercado brasileiro já resolveu</h2>
+      <p class="body">
+        Nove plataformas em operação e dois scripts vendidos como produto. O padrão é claro:
+        quem vende bem tem Pix automático, reserva com prazo e afiliado nativo. Quem vende mal
+        pede comprovante no WhatsApp.
+      </p>
+    </div>
+
+    <div class="sources">
+      <span class="src">Rifei</span><span class="src">123Rifas</span><span class="src">Plataforma Rifa</span>
+      <span class="src">Premium Sorte</span><span class="src">NC Brasil</span><span class="src">Riffas</span>
+      <span class="src">RifaOn</span><span class="src">Rifa4.me</span><span class="src">Sistema de Rifas Online</span>
+      <span class="src">Script Rifa 10.0</span>
+    </div>
+
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr><th>Padrão recorrente</th><th>Como aparece lá fora</th><th>Nossa decisão</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="k">Pix automático</td><td class="alt">Webhook do provedor libera a cota sem conferência humana, em menos de 10 s</td><td><span class="tag">MVP</span></td></tr>
+          <tr><td class="k">Reserva com prazo</td><td class="alt">De 10 minutos a 3 dias; vencida, o número volta ao estoque</td><td><span class="tag">MVP</span></td></tr>
+          <tr><td class="k">Compra rápida</td><td class="alt">Botões +5 / +10 / +50 com desconto progressivo e números aleatórios</td><td><span class="tag">MVP</span></td></tr>
+          <tr><td class="k">Sorteio pela Loteria Federal</td><td class="alt">Número da cota amarrado aos dígitos do 1º prêmio do concurso</td><td><span class="tag">MVP</span></td></tr>
+          <tr><td class="k">Consulta sem senha</td><td class="alt">Comprador acha as cotas pelo telefone ou CPF</td><td><span class="tag">MVP</span></td></tr>
+          <tr><td class="k">Afiliados nativos</td><td class="alt">Link único, cupom, painel de vendas, comissão configurável, saque em Pix</td><td><span class="tag v1">Fase 2</span></td></tr>
+          <tr><td class="k">Cotas premiadas</td><td class="alt">Números com prêmio instantâneo revelado na compra</td><td><span class="tag v1">Fase 3</span></td></tr>
+          <tr><td class="k">Ranking de compradores</td><td class="alt">Placar público que premia quem compra mais</td><td><span class="tag v1">Fase 3</span></td></tr>
+          <tr><td class="k">Aviso no WhatsApp</td><td class="alt">Pagamento confirmado, reserva vencendo, resultado do sorteio</td><td><span class="tag v1">Fase 3</span></td></tr>
+          <tr><td class="k">Campanhas de 1M+ cotas</td><td class="alt">Grades gigantes, geralmente lentas e paginadas na força bruta</td><td><span class="tag v2">Fase 4</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout">
+      <span class="t">Onde a nossa se separa das outras</span>
+      <p>
+        Atribuição de afiliado à prova de perda (primeiro clique persistido e reconferido no webhook),
+        extrato financeiro que fecha com o extrato do banco, e uma tela de compra que não parece
+        um script de 2018. Nenhuma das nove faz as três coisas bem.
+      </p>
+    </div>
+  </section>
+
+  <div class="perf" role="presentation"></div>
+
+  <!-- ============ TRÊS PAINÉIS ============ -->
+  <section>
+    <div class="sechead">
+      <p class="eyebrow">Produto</p>
+      <h2>As três superfícies</h2>
+      <p class="body">
+        Três públicos, três níveis de acesso, um mesmo banco de dados. Cada painel resolve uma
+        pergunta só: <em>quais números são meus</em>, <em>quanto eu já ganhei</em>,
+        <em>como está a campanha</em>.
+      </p>
+    </div>
+
+    <div class="grid-3">
+      <article class="panel">
+        <p class="role">Superfície 01</p>
+        <h3>Comprador</h3>
+        <p class="who">Público, sem cadastro. Chega pelo WhatsApp, compra pelo celular.</p>
+        <ul>
+          <li>Página da campanha com prêmio, preço da cota, progresso e prazo</li>
+          <li>Compra rápida por quantidade ou escolha manual na grade</li>
+          <li>Checkout de um passo: nome, WhatsApp, aceite — e o QR Code Pix</li>
+          <li>Cronômetro de reserva sempre visível</li>
+          <li>Confirmação automática e revelação da cota premiada</li>
+          <li>“Minhas cotas” pelo telefone, com código de acesso</li>
+          <li>Ranking, regulamento e comprovante do sorteio</li>
+        </ul>
+        <p class="auth">acesso: nenhum · identidade por telefone + OTP</p>
+      </article>
+
+      <article class="panel">
+        <p class="role">Superfície 02</p>
+        <h3>Afiliado</h3>
+        <p class="who">Divulgador aprovado pelo organizador. Vive do link e da comissão.</p>
+        <ul>
+          <li>Link único <span class="num">/r/campanha?ref=CODIGO</span> e cupom com desconto</li>
+          <li>Cliques, conversões, receita gerada e taxa de conversão</li>
+          <li>Extrato por pedido: pendente, liberada, paga, estornada</li>
+          <li>Saque em Pix com histórico e comprovante</li>
+          <li>Kit de divulgação: artes, textos prontos e QR do link</li>
+          <li>Regras à vista: percentual, janela de atribuição, carência</li>
+        </ul>
+        <p class="auth">acesso: login próprio · aprovação do admin</p>
+      </article>
+
+      <article class="panel">
+        <p class="role">Superfície 03</p>
+        <h3>Administrador</h3>
+        <p class="who">Dono da rifa. Publica, acompanha, paga e sorteia.</p>
+        <ul>
+          <li>Painel de receita, cotas vendidas, ticket médio e funil</li>
+          <li>Campanhas: prêmio, mídia, lotes, pacotes, TTL, regulamento</li>
+          <li>Pedidos: busca, estorno, liberação manual, reenvio</li>
+          <li>Afiliados: aprovar, definir comissão, aprovar saques</li>
+          <li>Financeiro: conciliação com o provedor e exportação</li>
+          <li>Sorteio: resultado da Federal ou sorteio auditável</li>
+          <li>Trilha de auditoria de toda ação administrativa</li>
+        </ul>
+        <p class="auth">acesso: login + 2FA · registro de auditoria</p>
+      </article>
+    </div>
+  </section>
+
+  <div class="perf" role="presentation"></div>
+
+  <!-- ============ STACK ============ -->
+  <section>
+    <div class="sechead">
+      <p class="eyebrow">Ferramentas</p>
+      <h2>Compilado de stack</h2>
+      <p class="body">
+        O repositório já traz React 18, Vite, Express, Drizzle, Postgres na Neon, TanStack Query e
+        shadcn/ui — de um projeto anterior. Mantemos a base e trocamos o domínio; o que falta é
+        fila, provedor de pagamento e mensageria.
+      </p>
+    </div>
+
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr><th>Camada</th><th>Escolha</th><th>Alternativa</th><th>Por quê</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="k">Front-end</td><td>React 18 + Vite + TypeScript</td><td class="alt">Next.js 15</td><td class="alt">Já instalado; a rota pública ganha SEO por pré-render</td></tr>
+          <tr><td class="k">UI</td><td>Tailwind + shadcn/ui (Radix)</td><td class="alt">MUI</td><td class="alt">Controle total do visual, acessível por padrão</td></tr>
+          <tr><td class="k">Estado</td><td>TanStack Query v5</td><td class="alt">SWR</td><td class="alt">Revalidação do grid de cotas quase em tempo real</td></tr>
+          <tr><td class="k">Back-end</td><td>Express + TypeScript</td><td class="alt">Fastify, NestJS</td><td class="alt">Já no projeto; trocar só se virar gargalo</td></tr>
+          <tr><td class="k">Banco</td><td>PostgreSQL (Neon)</td><td class="alt">Supabase</td><td class="alt"><span class="num">FOR UPDATE SKIP LOCKED</span> resolve a corrida por cota</td></tr>
+          <tr><td class="k">ORM</td><td>Drizzle</td><td class="alt">Prisma</td><td class="alt">SQL explícito onde o lock importa</td></tr>
+          <tr><td class="k">Fila</td><td>Redis (Upstash) + BullMQ</td><td class="alt">pg-boss</td><td class="alt">Expiração de reserva, webhooks, notificações</td></tr>
+          <tr><td class="k">Pagamento</td><td>Mercado Pago (Pix + cartão)</td><td class="alt">Asaas, Efí, Pagar.me</td><td class="alt">Webhook confiável; Asaas entra se o split virar requisito</td></tr>
+          <tr><td class="k">Comissão</td><td>Ledger interno + repasse Pix em lote</td><td class="alt">Split nativo do provedor</td><td class="alt">Comissão só é devida depois da janela de estorno</td></tr>
+          <tr><td class="k">Login</td><td>Sessão em Postgres + OTP por WhatsApp</td><td class="alt">Clerk, Auth0</td><td class="alt">Comprador não deve precisar de senha</td></tr>
+          <tr><td class="k">Mensagens</td><td>WhatsApp Cloud API + Resend</td><td class="alt">Twilio, SendGrid</td><td class="alt">É onde esse público realmente lê</td></tr>
+          <tr><td class="k">Mídia</td><td>Cloudflare R2</td><td class="alt">S3</td><td class="alt">Sem custo de saída para as fotos do prêmio</td></tr>
+          <tr><td class="k">Monitoramento</td><td>Sentry + pino</td><td class="alt">Datadog</td><td class="alt">Todo erro precisa ser rastreável pelo número do pedido</td></tr>
+          <tr><td class="k">Analytics</td><td>PostHog</td><td class="alt">GA4</td><td class="alt">Funil de checkout e atribuição no mesmo lugar</td></tr>
+          <tr><td class="k">Testes</td><td>Vitest + Playwright</td><td class="alt">Cypress</td><td class="alt">O E2E do checkout é o teste que paga a conta</td></tr>
+          <tr><td class="k">Deploy</td><td>Fly.io ou Railway + Neon + R2</td><td class="alt">Vercel serverless</td><td class="alt">O worker de fila precisa de processo longo</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <div class="perf" role="presentation"></div>
+
+  <!-- ============ FLUXO ============ -->
+  <section>
+    <div class="sechead">
+      <p class="eyebrow">Fluxo crítico</p>
+      <h2>Do clique no link ao Pix compensado</h2>
+      <p class="body">
+        Seis etapas. A atribuição do afiliado é decidida na criação do pedido e reconferida no
+        webhook — é ali que as plataformas concorrentes perdem venda de afiliado.
+      </p>
+    </div>
+
+    <div class="flow">
+      <div class="step">
+        <span class="s">01</span>
+        <div>
+          <h4>Clique no link do afiliado</h4>
+          <p>Registra o clique, grava cookie first-party <code>aff</code> por 30 dias e uma cópia no localStorage. Modelo de primeiro clique; cupom digitado no checkout sobrepõe.</p>
+        </div>
+      </div>
+      <div class="step">
+        <span class="s">02</span>
+        <div>
+          <h4>Reserva das cotas</h4>
+          <p>Uma transação: <code>SELECT … FOR UPDATE SKIP LOCKED</code> marca os números como reservados com prazo. Índice único por <code>(campanha, número)</code> é a última defesa. Nada de reserva em memória.</p>
+        </div>
+      </div>
+      <div class="step">
+        <span class="s">03</span>
+        <div>
+          <h4>Cobrança Pix</h4>
+          <p>O servidor calcula o valor — o front nunca envia preço. QR Code e copia-e-cola voltam para a tela com o cronômetro.</p>
+        </div>
+      </div>
+      <div class="step">
+        <span class="s">04</span>
+        <div>
+          <h4>Webhook do provedor</h4>
+          <p>Assinatura validada, <code>external_id</code> único garante idempotência. Pedido vira pago, cotas viram pagas, cota premiada é revelada, comissão nasce como pendente com data de liberação.</p>
+        </div>
+      </div>
+      <div class="step">
+        <span class="s">05</span>
+        <div>
+          <h4>Expiração automática</h4>
+          <p>A cada minuto, reservas vencidas voltam ao estoque e o pedido vira expirado. O comprador seguinte vê o número livre em tempo real.</p>
+        </div>
+      </div>
+      <div class="step">
+        <span class="s">06</span>
+        <div>
+          <h4>Liberação e saque</h4>
+          <p>Passada a janela de estorno e o sorteio, a comissão fica disponível e entra no lote de repasse Pix. Estorno reverte a comissão; se já paga, vira débito no saldo.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="perf" role="presentation"></div>
+
+  <!-- ============ REGRAS ============ -->
+  <section>
+    <div class="sechead">
+      <p class="eyebrow">Não negociável</p>
+      <h2>Sete regras de engenharia</h2>
+    </div>
+
+    <div class="rules">
+      <div class="rule">
+        <span class="t">Cota é vendida uma vez só</span>
+        <p>Reserva sempre dentro de transação com lock de linha e índice único no par campanha/número.</p>
+        <p class="why">falha aqui = dois donos do mesmo número</p>
+      </div>
+      <div class="rule">
+        <span class="t">Webhook é idempotente</span>
+        <p>Evento gravado por identificador externo único; reprocessar não faz nada. Assinatura sempre validada — o redirect do navegador não vale como prova de pagamento.</p>
+        <p class="why">falha aqui = cota liberada sem dinheiro</p>
+      </div>
+      <div class="rule">
+        <span class="t">Dinheiro é inteiro, em centavos</span>
+        <p>Nenhum valor em ponto flutuante. Todo total é recalculado no servidor a partir da campanha.</p>
+        <p class="why">falha aqui = centavo que não fecha no extrato</p>
+      </div>
+      <div class="rule">
+        <span class="t">Sorteio é auditável</span>
+        <p>Modo Federal guarda o comprovante do concurso. Modo próprio publica o hash da semente antes da venda e a semente depois, com resultado derivado por HMAC.</p>
+        <p class="why">falha aqui = a rifa perde a confiança do público</p>
+      </div>
+      <div class="rule">
+        <span class="t">Comissão tem carência</span>
+        <p>Liberada só após a janela de estorno e o sorteio. Autoindicação bloqueada por telefone, CPF e dispositivo.</p>
+        <p class="why">falha aqui = comissão paga sobre venda estornada</p>
+      </div>
+      <div class="rule">
+        <span class="t">Dado pessoal é mínimo</span>
+        <p>Telefone e CPF apenas quando necessários; IP e user-agent guardados como hash; retenção definida; exclusão a pedido.</p>
+        <p class="why">LGPD, art. 6º — necessidade</p>
+      </div>
+      <div class="rule" style="grid-column:1/-1">
+        <span class="t">A autorização é da campanha, não do software</span>
+        <p>
+          Rifa com venda de bilhetes só é permitida sob a Lei 5.768/71 (Decreto 70.951/72), com
+          autorização prévia da Secretaria de Prêmios e Apostas do Ministério da Fazenda — a SPA,
+          sucessora da SECAP. A autorização é emitida para o promotor e a campanha; nenhuma
+          plataforma é homologada em bloco. Por isso o sistema exige o certificado por campanha,
+          armazena o documento e o exibe na página pública — e bloqueia a publicação sem ele.
+        </p>
+        <p class="why">decisão de produto: o organizador assume, a plataforma comprova</p>
+      </div>
+    </div>
+  </section>
+
+  <div class="perf" role="presentation"></div>
+
+  <!-- ============ DESIGN ============ -->
+  <section>
+    <div class="sechead">
+      <p class="eyebrow">Design</p>
+      <h2>O número é o herói</h2>
+      <p class="body">
+        A rifa inteira é uma grade de números. O sistema visual nasce daí: monoespaçada e tabular
+        para tudo que é cota, valor ou prazo; estado legível por forma <em>e</em> cor, nunca só por
+        cor; e um único acento — o verde do Pix — reservado para o que é dinheiro.
+      </p>
+    </div>
+
+    <div class="swatches">
+      <div class="sw"><div class="box" style="background:#0B7E73"></div><div class="lab"><b>Verde Pix</b>#0B7E73<br>ação, pago</div></div>
+      <div class="sw"><div class="box" style="background:#B87708"></div><div class="lab"><b>Âmbar</b>#B87708<br>reservado, premiada</div></div>
+      <div class="sw"><div class="box" style="background:#0C1F27"></div><div class="lab"><b>Petróleo</b>#0C1F27<br>texto</div></div>
+      <div class="sw"><div class="box" style="background:#5C737B"></div><div class="lab"><b>Ardósia</b>#5C737B<br>secundário</div></div>
+      <div class="sw"><div class="box" style="background:#F2F5F4;border-bottom:1px solid var(--line)"></div><div class="lab"><b>Névoa</b>#F2F5F4<br>fundo claro</div></div>
+      <div class="sw"><div class="box" style="background:#B23A31"></div><div class="lab"><b>Telha</b>#B23A31<br>expirado, erro</div></div>
+    </div>
+
+    <div class="typescale">
+      <div class="ts"><span class="n">Display · Bricolage 800</span><span class="d1">iPhone 17 Pro Max</span></div>
+      <div class="ts"><span class="n">Título · Bricolage 700</span><span class="d2">Escolha seus números</span></div>
+      <div class="ts"><span class="n">Texto · Instrument Sans</span><span class="b1">Sua reserva fica de pé por 15 minutos. Pagou, o número é seu.</span></div>
+      <div class="ts"><span class="n">Dados · DM Mono</span><span class="m1">R$ 4,90 · 04.317 · 14:52</span></div>
+    </div>
+
+    <div class="grid-2" style="margin-top:1.5rem">
+      <div class="panel">
+        <h3>Regras da interface</h3>
+        <ul>
+          <li>Celular primeiro de verdade: a venda acontece dentro do WhatsApp</li>
+          <li>Um botão principal por tela; total sempre fixo no rodapé</li>
+          <li>Cronômetro nunca sai de vista durante o pagamento</li>
+          <li>Grade virtualizada em blocos de mil, com busca direta por número</li>
+          <li>Tema claro e escuro desenhados como dois sistemas completos</li>
+          <li>Estado por forma além de cor: tracejado para reservada, preenchido para paga</li>
+        </ul>
+      </div>
+      <div class="panel">
+        <h3>O que evitamos</h3>
+        <ul>
+          <li>Contador falso de urgência e “restam 2 unidades” inventado</li>
+          <li>Cadastro obrigatório antes de ver o preço</li>
+          <li>Comprovante enviado por WhatsApp para liberação manual</li>
+          <li>Grade de mil números renderizada de uma vez no celular</li>
+          <li>Cor sozinha comunicando estado de cota</li>
+          <li>Regras de comissão escondidas do afiliado</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <div class="perf" role="presentation"></div>
+
+  <!-- ============ ROADMAP ============ -->
+  <section>
+    <div class="sechead">
+      <p class="eyebrow">Execução</p>
+      <h2>Quatro fases, dez semanas</h2>
+      <p class="body">
+        Cada fase termina em algo que pode ir ao ar. A ordem não é negociável: sem dinheiro entrando
+        corretamente na Fase 1, comissão de afiliado na Fase 2 é conta errada multiplicada.
+      </p>
+    </div>
+
+    <div class="phases">
+      <article class="phase">
+        <span class="ph">Fase 0</span>
+        <div>
+          <h4>Fundação</h4>
+          <p>Limpeza do esqueleto herdado, design system em tokens, schema Drizzle inicial, login do admin, CI com typecheck e testes, ambientes de staging e produção.</p>
+          <p class="dod">Pronto quando: `main` sobe sozinha para staging a cada merge.</p>
+        </div>
+        <span class="dur">1 semana</span>
+      </article>
+
+      <article class="phase">
+        <span class="ph">Fase 1</span>
+        <div>
+          <h4>MVP vendável</h4>
+          <p>CRUD de campanha, página pública, compra rápida e manual, reserva com prazo, Pix automático com webhook, “minhas cotas” por telefone, sorteio pela Federal, painel básico de receita.</p>
+          <p class="dod">Pronto quando: uma campanha real vai da primeira venda ao sorteio sem ninguém tocar no banco.</p>
+        </div>
+        <span class="dur">3 semanas</span>
+      </article>
+
+      <article class="phase">
+        <span class="ph">Fase 2</span>
+        <div>
+          <h4>Afiliados</h4>
+          <p>Cadastro e aprovação, link e cupom, rastreio de clique e atribuição, painel do afiliado, ledger de comissões, saque em Pix, relatório por afiliado no admin.</p>
+          <p class="dod">Pronto quando: uma venda por link é creditada, liberada e paga — e o extrato fecha com o banco.</p>
+        </div>
+        <span class="dur">2 semanas</span>
+      </article>
+
+      <article class="phase">
+        <span class="ph">Fase 3</span>
+        <div>
+          <h4>Conversão</h4>
+          <p>Cotas premiadas, ranking de compradores, pacotes com desconto, avisos no WhatsApp, recuperação de carrinho abandonado, prova social das últimas compras.</p>
+          <p class="dod">Pronto quando: a taxa de reserva paga sobe de forma medível no PostHog.</p>
+        </div>
+        <span class="dur">2 semanas</span>
+      </article>
+
+      <article class="phase">
+        <span class="ph">Fase 4</span>
+        <div>
+          <h4>Escala e operação</h4>
+          <p>Campanhas de um milhão de cotas, workers e filas, antifraude, trilha de auditoria, exportações, observabilidade e — se o negócio pedir — multi-organizador com marca própria.</p>
+          <p class="dod">Pronto quando: uma campanha de 1M de cotas abre em menos de 2 s no celular.</p>
+        </div>
+        <span class="dur">2 semanas</span>
+      </article>
+    </div>
+  </section>
+
+  <div class="perf" role="presentation"></div>
+
+  <!-- ============ RISCOS ============ -->
+  <section>
+    <div class="sechead">
+      <p class="eyebrow">Antes de começar</p>
+      <h2>Riscos e decisões em aberto</h2>
+    </div>
+
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Ponto</th><th>Impacto</th><th>Encaminhamento</th></tr></thead>
+        <tbody>
+          <tr><td class="k">Multi-organizador ou rifa própria?</td><td class="alt">Alto — molda o schema inteiro</td><td>Pergunta aberta ao cliente, antes da Fase 0</td></tr>
+          <tr><td class="k">Provedor: Mercado Pago ou Asaas</td><td class="alt">Alto — define split e prazos</td><td>Decidir antes da Fase 1; a abstração isola a troca</td></tr>
+          <tr><td class="k">Autorização SPA/MF da campanha</td><td class="alt">Alto — jurídico do organizador</td><td>Campo obrigatório por campanha + orientação no onboarding</td></tr>
+          <tr><td class="k">Grade de 1M de cotas no celular</td><td class="alt">Médio — desempenho</td><td>Cotas virtuais por intervalo, sem uma linha por número</td></tr>
+          <tr><td class="k">Autoindicação de afiliado</td><td class="alt">Médio — custo direto</td><td>Bloqueio por dispositivo e telefone; revisão manual acima do limite</td></tr>
+          <tr><td class="k">Aprovação do WhatsApp Cloud API</td><td class="alt">Médio — prazo externo</td><td>Iniciar cadastro na Fase 1; e-mail como plano B</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <div class="perf" role="presentation"></div>
+
+  <footer>
+    <p>
+      Plano técnico completo — schema, contratos de API e regras de atribuição — em
+      <span class="num">docs/PLANO-RIFA.md</span> no repositório.
+    </p>
+    <p class="fl">
+      Levantamento de mercado: Rifei · 123Rifas · Plataforma Rifa · Premium Sorte · NC Brasil ·
+      Riffas · RifaOn · Rifa4.me · Sistema de Rifas Online<br>
+      Base legal: Lei 5.768/71 · Decreto 70.951/72 · SPA/Ministério da Fazenda
+    </p>
+  </footer>
+
+</div>

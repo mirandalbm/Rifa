@@ -295,6 +295,60 @@ export async function confirmPaid(
 }
 
 /**
+ * Devolve ao estoque as cotas de um pedido **pago** — o caminho do estorno.
+ *
+ * É o inverso exato de `confirmPaid()`: apaga a linha (é a ausência dela que
+ * torna o número disponível), desconta o que aquela venda somou em
+ * `campaign_stats` e, se a campanha já estiver em endgame, devolve o número
+ * ao pool. Sem essa última parte o número sumiria do estoque: livre em
+ * `quota_alloc`, invisível para quem aloca pelo pool — é a invariante 3 ao
+ * contrário.
+ *
+ * Devolve os números liberados, para quem chamou registrar o que saiu.
+ */
+export async function releasePaidQuotas(
+  tx: Tx,
+  params: { campaignId: string; orderId: string; amountCents: number },
+): Promise<number[]> {
+  const { campaignId, orderId, amountCents } = params;
+
+  const soltas = await tx
+    .delete(quotaAlloc)
+    .where(and(eq(quotaAlloc.orderId, orderId), eq(quotaAlloc.status, "paid")))
+    .returning({ number: quotaAlloc.number });
+
+  if (soltas.length === 0) return [];
+
+  const numbers = soltas.map((r) => r.number);
+
+  await tx
+    .update(campaignStats)
+    .set({
+      // `greatest(0, …)` porque contador negativo é pior que contador
+      // impreciso: a barra de progresso quebra e ninguém entende por quê.
+      soldCount: sql`greatest(0, ${campaignStats.soldCount} - ${numbers.length})`,
+      revenueCents: sql`greatest(0, ${campaignStats.revenueCents} - ${amountCents})`,
+      updatedAt: new Date(),
+    })
+    .where(eq(campaignStats.campaignId, campaignId));
+
+  const [stats] = await tx
+    .select()
+    .from(campaignStats)
+    .where(eq(campaignStats.campaignId, campaignId));
+
+  if (stats?.endgame) {
+    await tx.execute(sql`
+      INSERT INTO free_pool (campaign_id, number)
+      SELECT ${campaignId}::uuid, n FROM unnest(${intArray(numbers)}::int[]) AS n
+      ON CONFLICT DO NOTHING
+    `);
+  }
+
+  return numbers;
+}
+
+/**
  * Devolve ao estoque as reservas vencidas. Apagar a linha é o que torna o
  * número disponível de novo — não existe status "available".
  */

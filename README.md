@@ -45,6 +45,7 @@ Em desenvolvimento o provedor de pagamento é falso: a tela do pedido mostra
 | `npm run db:seed` | popula dados de exemplo |
 | `npm run load` | teste de carga com compradores simultâneos |
 | `npm run isolation` | prova de isolamento entre organizações |
+| `npm run refund` | prova dos cinco efeitos do estorno |
 
 ## Variáveis de ambiente
 
@@ -397,6 +398,41 @@ sempre referente ao **mês anterior**, e é idempotente pela chave
 
 Tudo isso vira um razão único em `/admin/cobranca` — a plataforma vê a carteira
 de clientes, e o organizador vê a conta dele, com a origem de cada lançamento.
+
+### O estorno
+
+Estornar é desfazer cinco coisas ao mesmo tempo, e o modo de errar é sempre o
+mesmo: desfazer quatro e esquecer a quinta. O que sobra não dá erro — vira
+comissão paga por uma venda que voltou, ou número que some do estoque.
+
+`refundOrder()` faz tudo na mesma transação: devolve as cotas, corrige o
+contador e a receita, reverte a comissão, cancela a taxa da plataforma e solta
+a cota premiada que aquele pedido tinha reclamado. É idempotente: só age sobre
+pedido `paid`.
+
+Duas regras valem registrar:
+
+- **A cota só volta ao estoque se a rifa ainda não foi sorteada.** Depois do
+  sorteio o quadro está congelado — quem conferir o resultado precisa
+  encontrar exatamente o que existia quando o número saiu. Nesse caso o
+  estorno vira só dinheiro, e o comprador recebe uma mensagem diferente:
+  dizer que as cotas voltaram seria mentira.
+- **Em endgame o número volta para o `free_pool`.** Sem isso ele ficaria livre
+  em `quota_alloc` e invisível para quem aloca pelo pool: sumiria do estoque
+  sem ninguém perceber.
+
+O estorno entra pelo webhook do provedor e também pela mão
+(`POST /api/admin/orders/:code/estornar`), porque nem todo estorno vem do Pix
+— venda em dinheiro do cambista, cobrança contestada por fora, erro de
+operação. O botão **não devolve dinheiro**: quem devolve é o Pix ou o caixa, e
+a rota só acerta o que o sistema registrou.
+
+```bash
+npm run refund
+```
+
+Prova os quatro cenários contra o banco de verdade: venda comum, rifa em
+endgame, cota premiada e rifa já sorteada.
 
 ### As maquininhas
 

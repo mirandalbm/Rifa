@@ -54,3 +54,40 @@ describe("telefone", () => {
     expect(withCountryCode("5511988887777")).toBe("5511988887777");
   });
 });
+
+describe("mensagens de estorno", () => {
+  it("a rifa aberta diz que as cotas voltaram ao estoque", () => {
+    const texto = TEMPLATES.estorno_confirmado.text({
+      nome: "Ana",
+      rifa: "Fiat Mobi",
+      valor: "R$ 50,00",
+      quantidade: "5",
+    });
+    expect(texto).toContain("voltaram para o estoque");
+    expect(texto).toContain("5");
+  });
+
+  it("depois do sorteio NÃO diz que voltaram — porque não voltaram", () => {
+    // A cota fica congelada depois do sorteio. Reaproveitar a outra mensagem
+    // mandaria "As 0 cota(s) voltaram para o estoque", e o comprador iria
+    // procurar números que continuam no registro da rifa.
+    const texto = TEMPLATES.estorno_pos_sorteio.text({
+      nome: "Ana",
+      rifa: "Fiat Mobi",
+      valor: "R$ 50,00",
+    });
+    expect(texto).not.toContain("voltaram para o estoque");
+    expect(texto).toContain("sorteio já aconteceu");
+  });
+
+  it("os dois modelos declaram a ordem de parâmetros que usam", () => {
+    for (const nome of ["estorno_confirmado", "estorno_pos_sorteio"] as const) {
+      const spec = TEMPLATES[nome];
+      const params = Object.fromEntries(spec.order.map((k) => [k, `<${k}>`]));
+      const texto = spec.text(params);
+      // Modelo aprovado no WhatsApp posiciona por ordem: parâmetro declarado
+      // que não aparece no texto é posição trocada esperando para acontecer.
+      for (const chave of spec.order) expect(texto).toContain(`<${chave}>`);
+    }
+  });
+});

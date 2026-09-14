@@ -13,7 +13,9 @@ export type TemplateName =
   | "cota_premiada"
   | "reserva_expirando"
   | "venda_afiliado"
-  | "sorteio_realizado";
+  | "sorteio_realizado"
+  | "estorno_confirmado"
+  | "estorno_pos_sorteio";
 
 export interface TemplateSpec {
   /** Nome do modelo aprovado na conta do WhatsApp Business. */
@@ -58,6 +60,28 @@ export const TEMPLATES: Record<TemplateName, TemplateSpec> = {
     order: ["nome", "valor", "comissao", "rifa"],
     text: (p) =>
       `${p.nome}, você fez uma venda de ${p.valor} na rifa ${p.rifa}. Sua comissão é ${p.comissao}.`,
+  },
+
+  estorno_confirmado: {
+    whatsappName: "estorno_confirmado",
+    order: ["nome", "rifa", "valor", "quantidade"],
+    // O comprador precisa saber que perdeu os números, não só que recebeu o
+    // dinheiro: senão fica esperando o sorteio de uma cota que não é mais
+    // dele.
+    text: (p) =>
+      `${p.nome}, seu pagamento de ${p.valor} na rifa ${p.rifa} foi estornado. As ${p.quantidade} cota(s) voltaram para o estoque e não concorrem mais.`,
+  },
+
+  /**
+   * Depois do sorteio a cota não volta ao estoque, então a mensagem não pode
+   * dizer que voltou. Modelo separado porque o texto muda de sentido — e no
+   * WhatsApp cada modelo é aprovado por fora, um de cada vez.
+   */
+  estorno_pos_sorteio: {
+    whatsappName: "estorno_pos_sorteio",
+    order: ["nome", "rifa", "valor"],
+    text: (p) =>
+      `${p.nome}, seu pagamento de ${p.valor} na rifa ${p.rifa} foi estornado. Como o sorteio já aconteceu, seus números seguem no registro da rifa.`,
   },
 
   sorteio_realizado: {

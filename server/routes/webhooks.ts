@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import { db } from "../db";
 import { webhookEvents } from "@shared/schema";
 import { paymentProvider } from "../payments";
-import { markOrderPaid } from "../services/orders";
+import { markOrderPaid, refundByChargeId } from "../services/orders";
 
 export const webhookRouter = Router();
 
@@ -44,6 +44,24 @@ webhookRouter.post("/:provider", async (req, res) => {
     if (event.event === "paid") {
       await markOrderPaid(event.chargeId);
     }
+
+    // Estorno desfaz tudo que o pagamento criou: cota de volta ao estoque,
+    // comissão revertida, taxa da plataforma cancelada. Antes disto o evento
+    // era gravado e ignorado — a venda sumia do caixa mas a comissão era
+    // liberada normalmente pelo relógio, que só olha a carência.
+    if (event.event === "refunded") {
+      const r = await refundByChargeId(event.chargeId);
+      if (r && r.comissaoJaPagaCents > 0) {
+        // Comissão já sacada não volta sozinha. Fica no log porque é dinheiro
+        // que saiu e alguém precisa cobrar de volta.
+        console.warn(
+          `[webhook] estorno do pedido ${r.order.code}: ${r.comissaoJaPagaCents} centavos de comissão já tinham sido pagos`,
+        );
+      }
+    }
+
+    // `expired` não faz nada aqui de propósito: quem devolve reserva vencida
+    // é o relógio (`releaseExpired`), que pega também quem nunca gerou Pix.
 
     await db
       .update(webhookEvents)

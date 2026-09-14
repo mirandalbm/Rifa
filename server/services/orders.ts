@@ -19,6 +19,8 @@ import {
   coupons,
   commissions,
   prizedQuotas,
+  draws,
+  platformCharges,
   type CreateOrderInput,
 } from "@shared/schema";
 import {
@@ -38,6 +40,7 @@ import {
   confirmPaid,
   shouldEnterEndgame,
   enterEndgame,
+  releasePaidQuotas,
 } from "./quotas";
 import { paymentProvider } from "../payments";
 import { getPaymentMethods } from "./settings";
@@ -742,4 +745,175 @@ export async function ordersByPhone(phone: string) {
     .where(eq(buyers.phone, digits))
     .groupBy(orders.id, campaigns.title, campaigns.slug, campaigns.totalQuotas)
     .orderBy(desc(orders.createdAt));
+}
+
+/* ------------------------------------------------------------------ *
+ * Estorno
+ * ------------------------------------------------------------------ */
+
+export interface RefundResult {
+  order: typeof orders.$inferSelect;
+  /** Números devolvidos ao estoque. Vazio quando a rifa já foi sorteada. */
+  liberadas: number[];
+  /** Comissões revertidas. */
+  comissoes: number;
+  /**
+   * Comissão que **já tinha sido paga** ao afiliado quando o estorno chegou.
+   * Revertida na conta, mas o dinheiro já saiu: vira cobrança a fazer, e por
+   * isso volta daqui em vez de sumir calada.
+   */
+  comissaoJaPagaCents: number;
+  /** Taxa da plataforma cancelada. */
+  taxaCanceladaCents: number;
+  /** Cotas premiadas que voltaram a valer. */
+  premiadasLiberadas: number;
+}
+
+/**
+ * Estorna um pedido pago.
+ *
+ * Desfaz tudo que o pagamento criou, na mesma transação e na ordem inversa:
+ * devolve as cotas ao estoque, reverte a comissão, cancela a taxa da
+ * plataforma e solta a cota premiada que aquele pedido tinha reclamado.
+ *
+ * **A cota só volta ao estoque se a rifa ainda não foi sorteada.** Depois do
+ * sorteio o número está congelado: quem conferir o resultado precisa
+ * encontrar exatamente o quadro que existia quando o número saiu, e devolver
+ * uma cota mudaria esse quadro. Nesse caso o estorno vira só dinheiro — o
+ * pedido fica `refunded`, as contas são desfeitas, e a cota permanece onde
+ * estava.
+ *
+ * Idempotente: só age sobre pedido `paid`, e o `UPDATE` condicional garante
+ * que duas chamadas simultâneas não dupliquem nada.
+ */
+export async function refundOrder(orderId: string): Promise<RefundResult | null> {
+  const [order] = await db.select().from(orders).where(eq(orders.id, orderId));
+  if (!order) throw new OrderError("Pedido não encontrado.", 404);
+  if (order.status !== "paid") {
+    // Já estornado, ou nunca pago: nada a desfazer.
+    return null;
+  }
+
+  const [campaign] = await db
+    .select()
+    .from(campaigns)
+    .where(eq(campaigns.id, order.campaignId));
+
+  // O sorteio congela o quadro. Basta ter sido executado uma vez.
+  const [draw] = await db
+    .select({ executedAt: draws.executedAt })
+    .from(draws)
+    .where(eq(draws.campaignId, order.campaignId));
+  const jaSorteada = Boolean(draw?.executedAt);
+
+  return db.transaction(async (tx) => {
+    const [atualizado] = await tx
+      .update(orders)
+      .set({ status: "refunded" })
+      .where(and(eq(orders.id, order.id), eq(orders.status, "paid")))
+      .returning();
+
+    // Outra chamada ganhou a corrida.
+    if (!atualizado) return null;
+
+    const liberadas = jaSorteada
+      ? []
+      : await releasePaidQuotas(tx, {
+          campaignId: order.campaignId,
+          orderId: order.id,
+          amountCents: order.amountCents,
+        });
+
+    // A cota premiada que este pedido reclamou volta a valer — o prêmio não
+    // foi pago por quem estornou.
+    const premiadas = jaSorteada
+      ? []
+      : await tx
+          .update(prizedQuotas)
+          .set({ claimedByOrderId: null, claimedAt: null })
+          .where(eq(prizedQuotas.claimedByOrderId, order.id))
+          .returning({ id: prizedQuotas.id });
+
+    const revertidas = await tx
+      .update(commissions)
+      .set({ status: "reversed" })
+      .where(
+        and(eq(commissions.orderId, order.id), sql`${commissions.status} <> 'reversed'`),
+      )
+      .returning({ amountCents: commissions.amountCents, status: commissions.status });
+
+    // O que já tinha virado saque pago não volta sozinho: a carência existe
+    // para isso não acontecer, mas estorno tardio acontece.
+    const jaPaga = revertidas
+      .filter((c) => c.status === "paid")
+      .reduce((soma, c) => soma + c.amountCents, 0);
+
+    const taxas = await tx
+      .update(platformCharges)
+      .set({ status: "cancelada" })
+      .where(
+        and(
+          eq(platformCharges.orderId, order.id),
+          sql`${platformCharges.status} <> 'cancelada'`,
+        ),
+      )
+      .returning({ amountCents: platformCharges.amountCents });
+
+    return {
+      order: atualizado,
+      liberadas,
+      comissoes: revertidas.length,
+      comissaoJaPagaCents: jaPaga,
+      taxaCanceladaCents: taxas.reduce((soma, t) => soma + t.amountCents, 0),
+      premiadasLiberadas: premiadas.length,
+    };
+  }).then(async (r) => {
+    if (r) await anunciarEstorno(r.order, campaign?.title ?? "", r.liberadas.length);
+    return r;
+  });
+}
+
+/**
+ * Avisa o comprador do estorno.
+ *
+ * Fora da transação e com falha engolida, pela mesma regra do pagamento:
+ * mensagem que não sai não pode desfazer o estorno que já aconteceu no banco.
+ */
+async function anunciarEstorno(
+  order: typeof orders.$inferSelect,
+  campanha: string,
+  liberadas: number,
+) {
+  try {
+    const [comprador] = await db.select().from(buyers).where(eq(buyers.id, order.buyerId));
+    if (!comprador?.phone) return;
+
+    const nome = comprador.name.split(" ")[0] ?? comprador.name;
+    const valor = formatBRL(order.amountCents);
+
+    // Nada liberado significa rifa já sorteada: dizer que as cotas voltaram
+    // seria mentira, e o comprador iria procurar números que continuam lá.
+    await notify({
+      to: comprador.phone,
+      ...(liberadas === 0
+        ? {
+            template: "estorno_pos_sorteio" as const,
+            params: { nome, rifa: campanha, valor },
+          }
+        : {
+            template: "estorno_confirmado" as const,
+            params: { nome, rifa: campanha, valor, quantidade: String(liberadas) },
+          }),
+      dedupeKey: `estorno:${order.id}`,
+    });
+  } catch (err) {
+    console.error("[estorno] aviso não enviado:", err);
+  }
+}
+
+/** Estorno vindo do provedor, achado pela cobrança. */
+export async function refundByChargeId(chargeId: string) {
+  const [order] = await db.select().from(orders).where(eq(orders.pspChargeId, chargeId));
+  if (!order) throw new OrderError("Pedido não encontrado para esta cobrança.", 404);
+  return refundOrder(order.id);
 }

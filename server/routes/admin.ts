@@ -66,6 +66,7 @@ import {
 } from "../services/settings";
 import { generateSecret, verifyTotp, otpauthUrl } from "../services/totp";
 import { buildExport, ExportError, toCsvLine } from "../services/exports";
+import { refundOrder } from "../services/orders";
 import {
   planOfOrganization,
   setBillingPlan,
@@ -1144,6 +1145,58 @@ adminRouter.post("/organizacoes/:id/acessos", async (req, res, next) => {
       email: criado.email,
     });
     res.status(201).json(criado);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/* ---------------- estorno ---------------- */
+
+/**
+ * Estorna um pedido pago, na mão.
+ *
+ * Existe porque nem todo estorno vem do provedor: venda em dinheiro do
+ * cambista, cobrança contestada por fora, erro de operação. O efeito é o
+ * mesmo do webhook — cota de volta, comissão revertida, taxa cancelada.
+ *
+ * **Não devolve dinheiro.** Quem devolve é o Pix ou o caixa; isto acerta o
+ * que o sistema registrou. Misturar as duas coisas faria o botão parecer que
+ * paga, e ninguém confere depois.
+ */
+adminRouter.post("/orders/:code/estornar", async (req, res, next) => {
+  try {
+    const [pedido] = await db
+      .select({ id: orders.id, campaignId: orders.campaignId })
+      .from(orders)
+      .where(eq(orders.code, Number(req.params.code)));
+    if (!pedido) return res.status(404).json({ message: "Pedido não encontrado." });
+
+    await assertCampaignInScope(req, pedido.campaignId);
+
+    const r = await refundOrder(pedido.id);
+    if (!r) {
+      return res
+        .status(409)
+        .json({ message: "Este pedido não está pago — não há o que estornar." });
+    }
+
+    await audit(req, "order.refund", "order", pedido.id, {
+      liberadas: r.liberadas.length,
+      comissoes: r.comissoes,
+      comissaoJaPagaCents: r.comissaoJaPagaCents,
+      taxaCanceladaCents: r.taxaCanceladaCents,
+    });
+
+    res.json({
+      estornado: r.order.code,
+      cotasLiberadas: r.liberadas.length,
+      comissoesRevertidas: r.comissoes,
+      comissaoJaPagaCents: r.comissaoJaPagaCents,
+      taxaCanceladaCents: r.taxaCanceladaCents,
+      premiadasLiberadas: r.premiadasLiberadas,
+      // A cota não volta depois do sorteio: o quadro do sorteio é congelado.
+      cotasCongeladas: r.liberadas.length === 0,
+    });
   } catch (err) {
     next(err);
   }

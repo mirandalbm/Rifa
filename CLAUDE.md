@@ -50,7 +50,11 @@ arquitetura.
     `validateBillingPlan()` zera o campo do outro ao trocar: percentual
     guardado num plano de mensalidade é bomba de relógio. Cobrar os dois
     juntos seria um terceiro modo, não um campo ligado junto.
-14. **Organização nula é a plataforma; qualquer outra é recorte.** Toda
+14. **Estorno desfaz tudo, ou não desfaz nada.** `refundOrder()` devolve cota,
+    contador, comissão, taxa da plataforma e cota premiada na mesma
+    transação. Desfazer quatro das cinco não dá erro — vira comissão paga a
+    quem não vendeu, ou número que some do estoque. `npm run refund` prova.
+15. **Organização nula é a plataforma; qualquer outra é recorte.** Toda
     consulta do painel passa por `orgOf(req)`. Rota que busca por id usa
     `assertCampaignInScope()` ou `assertAffiliateInScope()` — nunca `select`
     solto. `npm run isolation` prova; rota nova que não apareça lá é rota que
@@ -79,6 +83,7 @@ arquitetura.
 | limites de antifraude | `shared/antifraude.ts` (regras) e `server/services/antifraude.ts` |
 | isolamento entre organizadores | `server/services/orgs.ts` e `scripts/isolation-test.ts` |
 | rateio da venda | `shared/pricing.ts` (`splitOrder`) |
+| estorno | `server/services/orders.ts` (`refundOrder`) e `scripts/refund-test.ts` |
 | contrato de cobrança da plataforma | `shared/billing.ts` e `server/services/billing.ts` |
 | exportações | `shared/exports.ts` (formato) e `server/services/exports.ts` (consultas) |
 
@@ -307,3 +312,30 @@ promotor. **A ordem é sempre esta, e a plataforma sai primeiro.**
 - **O organizador vê a própria conta.** Cobrar sem mostrar de onde veio cada
   lançamento é indefensável — e é a primeira coisa que o cliente pede quando
   desconfia da fatura.
+
+## Estorno — o que não pode afrouxar
+
+Estornar é desfazer cinco coisas ao mesmo tempo, e o modo de errar é sempre o
+mesmo: desfazer quatro e esquecer a quinta. O que sobra não dá erro — vira
+comissão paga por venda que voltou, ou número que some do estoque.
+
+- **Tudo na mesma transação**: cota, `campaign_stats`, comissão
+  (`reversed`), taxa da plataforma (`cancelada`) e a cota premiada que aquele
+  pedido tinha reclamado.
+- **A cota só volta se a rifa ainda não foi sorteada.** Depois do sorteio o
+  quadro está congelado: quem conferir o resultado precisa encontrar
+  exatamente o que existia quando o número saiu. Aí o estorno vira só
+  dinheiro, e a mensagem ao comprador muda junto (`estorno_pos_sorteio`) —
+  dizer que as cotas voltaram seria mentira.
+- **Em endgame o número volta para o `free_pool`.** É a invariante 3 ao
+  contrário: sem isso ele fica livre em `quota_alloc` e invisível para quem
+  aloca pelo pool — some do estoque sem ninguém perceber.
+- **Idempotente**: só age sobre pedido `paid`, e o `UPDATE` condicional
+  impede que duas chamadas simultâneas dupliquem qualquer coisa.
+- **Comissão já sacada não volta sozinha.** A carência existe para isso não
+  acontecer, mas estorno tardio acontece: quando pega uma comissão `paid`, o
+  valor volta em `comissaoJaPagaCents` e vai para o log. Engolir calado seria
+  esconder dinheiro que saiu.
+- **O botão do administrador não devolve dinheiro.** Quem devolve é o Pix ou
+  o caixa; a rota só acerta o que o sistema registrou. Misturar as duas
+  coisas faria o botão parecer que paga, e ninguém confere depois.

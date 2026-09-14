@@ -40,6 +40,13 @@ import { hashPassword, verifyPassword } from "../auth";
 import { notify } from "../notifications";
 import { publicUrl } from "../services/urls";
 import { formatQuota } from "@shared/format";
+import {
+  openBalancesBySeller,
+  closeSettlement,
+  markSettlementPaid,
+  listSettlements,
+} from "../services/settlements";
+import { getOrganizer, setOrganizer } from "../services/settings";
 import { generateSecret, verifyTotp, otpauthUrl } from "../services/totp";
 
 export const adminRouter = Router();
@@ -595,6 +602,119 @@ adminRouter.delete("/coupons/:id", async (req, res, next) => {
     await audit(req, "coupon.remove", "coupon", removed.id, { code: removed.code });
     res.json({ removed: removed.id });
   } catch (err) {
+    next(err);
+  }
+});
+
+/* ---------------- cambistas e acertos ---------------- */
+
+/**
+ * Cadastra um cambista. É o mesmo cadastro do afiliado, com `kind` diferente:
+ * a comissão funciona igual, o que muda é a direção do caixa — o cambista
+ * está com o dinheiro na mão e presta contas no acerto.
+ */
+adminRouter.post("/sellers", async (req, res, next) => {
+  try {
+    const { name, email, password, code, commissionPct, phone } = req.body ?? {};
+    if (!name || !email || !password || !code) {
+      return res.status(400).json({ message: "Nome, e-mail, senha e código são obrigatórios." });
+    }
+
+    const created = await db.transaction(async (tx) => {
+      const [user] = await tx
+        .insert(users)
+        .values({
+          role: "cambista",
+          name: String(name),
+          email: String(email).toLowerCase().trim(),
+          phone: phone ? String(phone) : null,
+          passwordHash: await hashPassword(String(password)),
+        })
+        .returning();
+
+      const [seller] = await tx
+        .insert(affiliates)
+        .values({
+          userId: user.id,
+          code: String(code).toUpperCase().trim(),
+          kind: "cambista",
+          commissionPct: commissionPct ? Number(commissionPct) : null,
+          status: "active",
+          approvedAt: new Date(),
+        })
+        .returning();
+
+      return seller;
+    });
+
+    await audit(req, "seller.create", "affiliate", created.id, { code: created.code });
+    res.status(201).json(created);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** Quanto cada cambista deve hoje. */
+adminRouter.get("/settlements", async (_req, res, next) => {
+  try {
+    res.json({
+      emAberto: await openBalancesBySeller(),
+      historico: await listSettlements(),
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.post("/settlements/:sellerId/close", async (req, res, next) => {
+  try {
+    const created = await closeSettlement(
+      req.params.sellerId,
+      req.body?.notes ? String(req.body.notes) : undefined,
+    );
+    if (!created) {
+      return res.status(400).json({ message: "Este cambista não tem venda em aberto." });
+    }
+    await audit(req, "settlement.close", "settlement", created.id, {
+      netCents: created.netCents,
+      orderCount: created.orderCount,
+    });
+    res.status(201).json(created);
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.post("/settlements/:id/paid", async (req, res, next) => {
+  try {
+    const updated = await markSettlementPaid(req.params.id);
+    if (!updated) return res.status(404).json({ message: "Acerto não encontrado." });
+    await audit(req, "settlement.paid", "settlement", updated.id);
+    res.json(updated);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/* ---------------- administradora da rifa ---------------- */
+
+adminRouter.get("/organizer", async (_req, res, next) => {
+  try {
+    res.json(await getOrganizer());
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.put("/organizer", async (req, res, next) => {
+  try {
+    const saved = await setOrganizer(req.body ?? {});
+    await audit(req, "organizer.update", "settings", "organizador", saved);
+    res.json(saved);
+  } catch (err) {
+    if (err instanceof Error && err.message.includes("administradora")) {
+      return res.status(400).json({ message: err.message });
+    }
     next(err);
   }
 });

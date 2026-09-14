@@ -21,7 +21,7 @@ import { z } from "zod";
  * Enums
  * ------------------------------------------------------------------ */
 
-export const userRole = pgEnum("user_role", ["admin", "affiliate"]);
+export const userRole = pgEnum("user_role", ["admin", "affiliate", "cambista"]);
 export const campaignStatus = pgEnum("campaign_status", [
   "draft",
   "published",
@@ -48,6 +48,26 @@ export const affiliateStatus = pgEnum("affiliate_status", [
   "pending",
   "active",
   "blocked",
+]);
+
+/**
+ * Divulgador online ganha comissão e RECEBE da casa; cambista vende na mão,
+ * fica com o dinheiro e PAGA a casa no acerto. A comissão é a mesma
+ * máquina; o que muda é a direção do caixa.
+ */
+export const affiliateKind = pgEnum("affiliate_kind", ["online", "cambista"]);
+
+/** Como o dinheiro entrou numa venda física. */
+export const paymentMethod = pgEnum("payment_method", [
+  "pix_online",
+  "dinheiro",
+  "cartao_maquininha",
+  "pix_maquininha",
+]);
+
+export const settlementStatus = pgEnum("settlement_status", [
+  "aberto",
+  "pago",
 ]);
 
 /* ------------------------------------------------------------------ *
@@ -107,6 +127,7 @@ export const affiliates = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     code: text("code").notNull(),
+    kind: affiliateKind("kind").notNull().default("online"),
     pixKey: text("pix_key"),
     /** Sobrepõe campaigns.commissionPctDefault quando preenchido. */
     commissionPct: integer("commission_pct"),
@@ -291,6 +312,14 @@ export const orders = pgTable(
     discountCents: integer("discount_cents").notNull().default(0),
     status: orderStatus("status").notNull().default("pending"),
     affiliateId: uuid("affiliate_id").references(() => affiliates.id),
+    /** Preenchido quando a venda foi na mão de um cambista. */
+    sellerId: uuid("seller_id").references(() => affiliates.id),
+    method: paymentMethod("method").notNull().default("pix_online"),
+    /** NSU/autorização devolvido pela maquininha, quando houver. */
+    posAuthCode: text("pos_auth_code"),
+    posTerminal: text("pos_terminal"),
+    ticketPrintedAt: timestamp("ticket_printed_at"),
+    settlementId: uuid("settlement_id"),
     couponId: uuid("coupon_id"),
     pspProvider: text("psp_provider"),
     pspChargeId: text("psp_charge_id"),
@@ -411,6 +440,49 @@ export const draws = pgTable("draws", {
   executedAt: timestamp("executed_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
+
+/**
+ * Ajustes gerais em chave/valor. Hoje guarda os dados da administradora
+ * da rifa, que precisam sair impressos em todo bilhete.
+ */
+export const appSettings = pgTable("app_settings", {
+  key: text("key").primaryKey(),
+  value: jsonb("value").notNull(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export interface OrganizerInfo {
+  /** Nome que aparece no bilhete. */
+  nome: string;
+  cnpj?: string;
+  contato?: string;
+  cidade?: string;
+  /** Texto curto do regulamento impresso no rodapé. */
+  observacao?: string;
+}
+
+/**
+ * Acerto do cambista: o que ele recolheu, menos a comissão dele, é o que
+ * ele deve à casa. Fechar o acerto carimba os pedidos incluídos.
+ */
+export const settlements = pgTable(
+  "settlements",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    sellerId: uuid("seller_id")
+      .notNull()
+      .references(() => affiliates.id, { onDelete: "cascade" }),
+    grossCents: integer("gross_cents").notNull(),
+    commissionCents: integer("commission_cents").notNull(),
+    netCents: integer("net_cents").notNull(),
+    orderCount: integer("order_count").notNull(),
+    status: settlementStatus("status").notNull().default("aberto"),
+    notes: text("notes"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    settledAt: timestamp("settled_at"),
+  },
+  (t) => [index("idx_settlements_seller").on(t.sellerId, t.status)],
+);
 
 /**
  * Mensagens enviadas. A chave de deduplicação é o que impede o mesmo
@@ -556,4 +628,5 @@ export type Affiliate = typeof affiliates.$inferSelect;
 export type Commission = typeof commissions.$inferSelect;
 export type Payout = typeof payouts.$inferSelect;
 export type Draw = typeof draws.$inferSelect;
+export type Settlement = typeof settlements.$inferSelect;
 export type CreateOrderInput = z.infer<typeof createOrderSchema>;

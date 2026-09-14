@@ -13,12 +13,19 @@ import Pedido from "@/pages/Pedido";
 import MinhasCotas from "@/pages/MinhasCotas";
 import Login from "@/pages/Login";
 import CadastroAfiliado from "@/pages/CadastroAfiliado";
+import Bilhete from "@/pages/Bilhete";
+import {
+  CambistaVenda,
+  CambistaVendas,
+  CambistaAcerto,
+} from "@/pages/cambista";
 import {
   AfiliadoPainel,
   AfiliadoLinks,
   AfiliadoComissoes,
   AfiliadoSaques,
 } from "@/pages/afiliado";
+import { AdminCambistas } from "@/pages/adminCambistas";
 import {
   AdminPainel,
   AdminCampanhas,
@@ -69,6 +76,7 @@ export default function App() {
           <Route path="/minhas-cotas" component={MinhasCotas} />
           <Route path="/entrar" component={Login} />
           <Route path="/seja-afiliado" component={CadastroAfiliado} />
+          <Route path="/bilhete/:code" component={Bilhete} />
 
           {/* Afiliado */}
           <Route path="/afiliado">
@@ -92,6 +100,23 @@ export default function App() {
             </Guarded>
           </Route>
 
+          {/* Cambista — venda física */}
+          <Route path="/cambista">
+            <Guarded requires="cambista">
+              <CambistaVenda />
+            </Guarded>
+          </Route>
+          <Route path="/cambista/vendas">
+            <Guarded requires="cambista">
+              <CambistaVendas />
+            </Guarded>
+          </Route>
+          <Route path="/cambista/acerto">
+            <Guarded requires="cambista">
+              <CambistaAcerto />
+            </Guarded>
+          </Route>
+
           {/* Administrador geral */}
           <Route path="/admin">
             <Guarded requires="admin">
@@ -111,6 +136,11 @@ export default function App() {
           <Route path="/admin/afiliados">
             <Guarded requires="admin">
               <AdminAfiliados />
+            </Guarded>
+          </Route>
+          <Route path="/admin/cambistas">
+            <Guarded requires="admin">
+              <AdminCambistas />
             </Guarded>
           </Route>
           <Route path="/admin/financeiro">

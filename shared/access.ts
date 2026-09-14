@@ -10,7 +10,7 @@
  * toda rota protegida passa por requireRole() em server/auth.ts.
  */
 
-export type Role = "guest" | "buyer" | "affiliate" | "admin";
+export type Role = "guest" | "buyer" | "affiliate" | "cambista" | "admin";
 
 /**
  * Cada papel alcança a própria área e o que é público. O administrador NÃO
@@ -22,6 +22,7 @@ const INHERITS: Record<Role, Role[]> = {
   guest: ["guest"],
   buyer: ["guest", "buyer"],
   affiliate: ["guest", "affiliate"],
+  cambista: ["guest", "cambista"],
   admin: ["guest", "admin"],
 };
 
@@ -38,10 +39,14 @@ export type SectionKey =
   | "afiliadoLinks"
   | "afiliadoComissoes"
   | "afiliadoSaques"
+  | "cambistaVenda"
+  | "cambistaVendas"
+  | "cambistaAcerto"
   | "adminPainel"
   | "adminCampanhas"
   | "adminPedidos"
   | "adminAfiliados"
+  | "adminCambistas"
   | "adminFinanceiro"
   | "adminSorteios"
   | "adminConfiguracoes";
@@ -69,11 +74,17 @@ export const SECTIONS: Section[] = [
   { key: "afiliadoComissoes", path: "/afiliado/comissoes", label: "Comissões", requires: "affiliate", nav: true },
   { key: "afiliadoSaques", path: "/afiliado/saques", label: "Saques", requires: "affiliate", nav: true },
 
+  // Cambista — vende na mão, imprime o bilhete e acerta com a casa.
+  { key: "cambistaVenda", path: "/cambista", label: "Nova venda", requires: "cambista", nav: true },
+  { key: "cambistaVendas", path: "/cambista/vendas", label: "Minhas vendas", requires: "cambista", nav: true },
+  { key: "cambistaAcerto", path: "/cambista/acerto", label: "Meu acerto", requires: "cambista", nav: true },
+
   // Administrador geral — login + 2FA, tudo auditado.
   { key: "adminPainel", path: "/admin", label: "Painel", requires: "admin", nav: true },
   { key: "adminCampanhas", path: "/admin/campanhas", label: "Campanhas", requires: "admin", nav: true },
   { key: "adminPedidos", path: "/admin/pedidos", label: "Pedidos", requires: "admin", nav: true },
   { key: "adminAfiliados", path: "/admin/afiliados", label: "Afiliados", requires: "admin", nav: true },
+  { key: "adminCambistas", path: "/admin/cambistas", label: "Cambistas", requires: "admin", nav: true },
   { key: "adminFinanceiro", path: "/admin/financeiro", label: "Financeiro", requires: "admin", nav: true },
   { key: "adminSorteios", path: "/admin/sorteios", label: "Sorteios", requires: "admin", nav: true },
   { key: "adminConfiguracoes", path: "/admin/configuracoes", label: "Configurações", requires: "admin", nav: true },
@@ -92,6 +103,7 @@ export function canAccess(role: Role, key: SectionKey): boolean {
 export function homeFor(role: Role): string {
   if (role === "admin") return "/admin";
   if (role === "affiliate") return "/afiliado";
+  if (role === "cambista") return "/cambista";
   return "/";
 }
 
@@ -102,5 +114,6 @@ export function homeFor(role: Role): string {
 export const API_SCOPES: { prefix: string; requires: Role }[] = [
   { prefix: "/api/public", requires: "guest" },
   { prefix: "/api/affiliate", requires: "affiliate" },
+  { prefix: "/api/seller", requires: "cambista" },
   { prefix: "/api/admin", requires: "admin" },
 ];

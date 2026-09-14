@@ -45,6 +45,9 @@ arquitetura.
 | mensagens e modelos | `server/notifications/` |
 | cotas premiadas | `server/routes/admin.ts` (sorteio) e `services/orders.ts` (revelação) |
 | cadastro/cupom/kit do afiliado | `server/routes/public.ts`, `server/routes/affiliate.ts` |
+| venda física e acerto | `server/routes/seller.ts`, `server/services/settlements.ts` |
+| bilhete | `server/services/ticketFormat.ts` (puro) e `ticket.ts` (dados) |
+| ponte com a maquininha | `client/src/lib/pos.ts` e `docs/MAQUININHAS.md` |
 
 ## Convenções
 
@@ -65,6 +68,29 @@ arquitetura.
   executa. Serve bem; a fila entra quando houver trabalho pesado de verdade.
 - Fase 4 inteira: teste de carga com 1M de cotas, antifraude, exportações,
   multi-organizador.
+- O invólucro Android das maquininhas: o app já fala com `window.RifaPOS`,
+  mas o APK que injeta essa ponte é projeto Android nativo e depende do SDK
+  da adquirente. Ver `docs/MAQUININHAS.md`.
+
+## Venda física — o que não pode afrouxar
+
+- **Reservar antes de cobrar.** Nunca inverter: cartão aprovado com a cota já
+  vendida é dinheiro debitado sem nada para entregar. Cobrança recusada chama
+  `/cancel`, que devolve as cotas na hora.
+- A venda do cambista usa o **mesmo** caminho de reserva das vendas online
+  (`INSERT … ON CONFLICT`). Não existe atalho para venda física.
+- Fechar acerto **carimba** os pedidos (`orders.settlement_id`). Sem o carimbo,
+  a mesma venda entra em dois acertos.
+- O cambista deve à casa; o afiliado recebe dela. Direções opostas, mesma
+  máquina de comissão.
+
+## Bilhete — o que não pode afrouxar
+
+- A formatação vive em `ticketFormat.ts`, sem banco, porque é o que os testes
+  exercitam: 32 colunas, total alinhado à direita, sem acento e sem espaço
+  não-quebrável.
+- Se mudar o layout, rode `tests/ticket.test.ts`: linha larga demais estoura
+  na bobina e só se descobre na hora de imprimir.
 
 ## Mensagens — o que não pode afrouxar
 

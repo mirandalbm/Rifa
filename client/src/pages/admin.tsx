@@ -386,7 +386,7 @@ export function AdminPedidos() {
           <table className="w-full min-w-[620px] text-sm">
             <thead>
               <tr className="bg-mist">
-                {["Pedido", "Rifa", "Comprador", "Cotas", "Valor", "Status"].map((h) => (
+                {["Pedido", "Rifa", "Comprador", "Cotas", "Valor", "Status", ""].map((h) => (
                   <th key={h} className="label-xs px-3 py-2 text-left">{h}</th>
                 ))}
               </tr>
@@ -400,6 +400,16 @@ export function AdminPedidos() {
                   <td className="tnum px-3 py-2">{row.order.quantity}</td>
                   <td className="px-3 py-2"><Money cents={row.order.amountCents} /></td>
                   <td className="px-3 py-2"><Pill status={row.order.status} /></td>
+                  <td className="px-3 py-2">
+                    <a
+                      href={`/bilhete/${row.order.code}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-xs text-green-deep underline"
+                    >
+                      bilhete
+                    </a>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -1009,6 +1019,71 @@ function TwoFactorCard() {
   );
 }
 
+/** Dados que saem impressos em todo bilhete. */
+function OrganizerCard() {
+  const qc = useQueryClient();
+  const { data } = useQuery<{
+    nome: string;
+    cnpj?: string;
+    contato?: string;
+    cidade?: string;
+    observacao?: string;
+  }>({ queryKey: ["/api/admin/organizer"] });
+
+  const [form, setForm] = useState<Record<string, string>>({});
+  const [erro, setErro] = useState<string | null>(null);
+  const valor = (campo: string) => form[campo] ?? (data as never)?.[campo] ?? "";
+
+  const salvar = useMutation({
+    mutationFn: () =>
+      apiRequest("PUT", "/api/admin/organizer", {
+        nome: valor("nome"),
+        cnpj: valor("cnpj"),
+        contato: valor("contato"),
+        cidade: valor("cidade"),
+        observacao: valor("observacao"),
+      }),
+    onSuccess: () => {
+      setErro(null);
+      qc.invalidateQueries({ queryKey: ["/api/admin/organizer"] });
+    },
+    onError: (err: Error) => setErro(err.message),
+  });
+
+  return (
+    <Card title="Administradora da rifa">
+      <div className="space-y-3 p-4">
+        <p className="text-xs text-muted">
+          Estes dados saem impressos em todo bilhete, junto da autorização da campanha.
+        </p>
+        {(
+          [
+            ["nome", "Nome"],
+            ["cnpj", "CNPJ"],
+            ["cidade", "Cidade"],
+            ["contato", "Contato"],
+            ["observacao", "Observação do rodapé"],
+          ] as const
+        ).map(([campo, rotulo]) => (
+          <div key={campo}>
+            <label htmlFor={`org-${campo}`} className="label-xs">{rotulo}</label>
+            <input
+              id={`org-${campo}`}
+              value={valor(campo)}
+              onChange={(e) => setForm({ ...form, [campo]: e.target.value })}
+              className="mt-1 w-full rounded-md border border-line-2 px-3 py-2 text-sm"
+            />
+          </div>
+        ))}
+        {erro ? (
+          <p className="rounded-md bg-red-soft px-3 py-2 text-sm text-red">{erro}</p>
+        ) : null}
+        <Button onClick={() => salvar.mutate()}>Salvar</Button>
+      </div>
+    </Card>
+  );
+}
+
 export function AdminConfiguracoes() {
   const { data } = useQuery<
     { id: string; action: string; entity: string; createdAt: string; actorRole: string }[]
@@ -1016,7 +1091,8 @@ export function AdminConfiguracoes() {
 
   return (
     <PanelShell title="Configurações">
-      <div className="mb-3">
+      <div className="mb-3 grid gap-3 lg:grid-cols-2">
+        <OrganizerCard />
         <TwoFactorCard />
       </div>
       <Card title="Trilha de auditoria" right={<span className="label-xs">últimas 200 ações</span>}>

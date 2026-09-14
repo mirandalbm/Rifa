@@ -5,6 +5,7 @@ import { PublicShell } from "@/components/AppShell";
 import { Button, Card, Money, Pill } from "@/components/bits";
 import { formatQuota } from "@shared/format";
 import { apiRequest } from "@/lib/queryClient";
+import { printTicket } from "@/lib/pos";
 
 interface OrderView {
   code: number;
@@ -179,6 +180,14 @@ export default function Pedido() {
           </div>
         </div>
       </Card>
+
+      {order.status === "paid" ? (
+        <div className="mt-3">
+          <Button className="w-full" onClick={() => printTicket(order.code)}>
+            Imprimir bilhete
+          </Button>
+        </div>
+      ) : null}
 
       <Card title={`Seus números (${order.numbers.length})`}>
         <div className="flex flex-wrap gap-1 p-4">

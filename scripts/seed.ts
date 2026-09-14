@@ -93,6 +93,32 @@ async function main() {
       .onConflictDoNothing();
   }
 
+  const [cambistaUser] = await db
+    .insert(users)
+    .values({
+      role: "cambista",
+      name: "Sérgio Camargo",
+      email: "sergio@rifa.br",
+      phone: "11911112222",
+      passwordHash: await hashPassword("cambista123"),
+    })
+    .onConflictDoNothing()
+    .returning();
+
+  if (cambistaUser) {
+    await db
+      .insert(affiliates)
+      .values({
+        userId: cambistaUser.id,
+        code: "SERGIO",
+        kind: "cambista",
+        commissionPct: 15,
+        status: "active",
+        approvedAt: new Date(),
+      })
+      .onConflictDoNothing();
+  }
+
   const specs = [
     {
       slug: "iphone-17-pro-max",
@@ -207,6 +233,7 @@ async function main() {
 
   console.log(`\nadmin: ${adminEmail} / ${adminPassword}`);
   console.log("afiliado: joao@rifa.br / joao123 (código JOAO7)");
+  console.log("cambista: sergio@rifa.br / cambista123 (código SERGIO)");
   process.exit(0);
 }
 

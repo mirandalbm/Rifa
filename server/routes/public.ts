@@ -22,6 +22,7 @@ import { blockBitmap, isTaken, BLOCK_SIZE, NumbersTakenError, NoQuotasAvailableE
 import { issueOtp, checkOtp, hashPassword } from "../auth";
 import { withUrls } from "../services/media";
 import { notify, notificationProvider } from "../notifications";
+import { buildTicket, escPosTicket, markTicketPrinted } from "../services/ticket";
 
 export const publicRouter = Router();
 
@@ -317,6 +318,42 @@ publicRouter.get("/my-quotas", async (req, res, next) => {
     const phone = req.session.buyer?.phone;
     if (!phone) return res.status(401).json({ message: "Confirme seu telefone." });
     res.json({ orders: await ordersByPhone(phone) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/* ---------------- bilhete ---------------- */
+
+/**
+ * Dados do bilhete. Público pelo código do pedido, que é justamente o
+ * número impresso no comprovante de quem comprou.
+ */
+publicRouter.get("/tickets/:code", async (req, res, next) => {
+  try {
+    const ticket = await buildTicket(Number(req.params.code));
+    if (!ticket) return res.status(404).json({ message: "Bilhete não encontrado." });
+    res.json(ticket);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** Texto pronto para a impressora térmica da maquininha. */
+publicRouter.get("/tickets/:code/escpos", async (req, res, next) => {
+  try {
+    const ticket = await buildTicket(Number(req.params.code));
+    if (!ticket) return res.status(404).json({ message: "Bilhete não encontrado." });
+    res.type("text/plain; charset=utf-8").send(escPosTicket(ticket));
+  } catch (err) {
+    next(err);
+  }
+});
+
+publicRouter.post("/tickets/:code/printed", async (req, res, next) => {
+  try {
+    await markTicketPrinted(Number(req.params.code));
+    res.json({ ok: true });
   } catch (err) {
     next(err);
   }

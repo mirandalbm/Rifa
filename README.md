@@ -28,6 +28,7 @@ O seed imprime as credenciais no fim:
 | `joao@rifa.br` / `joao123` (código `JOAO7`) | `/afiliado` | link, cliques, comissões, saques |
 | ninguém | `/` | vitrine, rifa, checkout Pix, minhas cotas |
 | qualquer pessoa | `/seja-afiliado` | cadastro de afiliado, que entra na fila de aprovação |
+| cambista (criado pelo admin) | `/cambista` | vender na mão, imprimir bilhete e ver o próprio acerto |
 
 Em desenvolvimento o provedor de pagamento é falso: a tela do pedido mostra
 **simular pagamento**, que dispara a mesma rotina do webhook real.
@@ -159,6 +160,46 @@ a página pública mostra o prêmio e quantos ainda estão em jogo, nunca qual �
 número — quem soubesse compraria só aquele. A revelação acontece no pagamento,
 e o prêmio que já saiu continua na lista marcado como "já saiu", que é prova
 de que as cotas premiadas são reais.
+
+### O bilhete
+
+Todo pedido tem bilhete em `/bilhete/:code`, com o apostador (nome, telefone,
+CPF), a rifa e o prêmio, a data e o método do sorteio, os números escolhidos,
+a forma de pagamento e a administradora da rifa — nome, CNPJ, cidade e
+contato, configurados em Configurações. Sai também a autorização SPA/MF da
+campanha e o hash da semente do sorteio.
+
+A folha é de 58 mm, o tamanho da bobina das maquininhas, e a mesma página
+imprime bem em A4. Para a impressora térmica do terminal existe
+`GET /api/public/tickets/:code/escpos`, que devolve o texto já em 32 colunas,
+sem acento e sem espaço não-quebrável — duas coisas que a bobina imprime
+como lixo.
+
+### O cambista
+
+Venda física, no mesmo app, com acesso próprio: escolhe a rifa, informa o
+apostador, reserva as cotas, cobra e imprime o bilhete.
+
+A ordem importa e não se inverte: **reserva antes de cobrar**. Cartão
+aprovado e número já vendido seria o pior desfecho — dinheiro debitado e
+nada para entregar. Se a cobrança falhar, um toque devolve as cotas na hora.
+
+O dinheiro fica com quem vendeu, então o cambista não recebe: ele **deve**.
+O acerto é a conta do que recolheu menos a comissão dele, e fechar o acerto
+carimba as vendas incluídas para nenhuma entrar duas vezes. É o oposto do
+afiliado online, que recebe da casa.
+
+### As maquininhas
+
+O app roda igual no navegador e dentro de uma maquininha Android (PagBank
+Smart POS, Stone/Ton, Cielo LIO). Quando o invólucro Android injeta
+`window.RifaPOS`, a mesma tela passa a cobrar no cartão pelo SDK da
+adquirente e a imprimir na bobina do aparelho. Sem a ponte, nada quebra: o
+pagamento é registrado como dinheiro ou Pix e o bilhete sai pela impressão
+do navegador.
+
+O contrato da ponte, os modelos de terminal e o que falta para publicar nas
+lojas das adquirentes estão em [`docs/MAQUININHAS.md`](docs/MAQUININHAS.md).
 
 ### O sorteio
 

@@ -11,6 +11,7 @@ import {
   campaigns,
   campaignStats,
   quotaPackages,
+  settlements,
   quotaAlloc,
   orders,
   buyers,
@@ -138,6 +139,8 @@ async function resolveAttribution(params: {
 
 export interface CreateOrderContext {
   sessionAffiliateCode?: string;
+  /** Venda física: o cambista é o vendedor e também quem recebe comissão. */
+  sellerId?: string;
 }
 
 export async function createOrder(
@@ -181,11 +184,15 @@ export async function createOrder(
   }
 
   const buyer = await upsertBuyer(input.buyer);
-  const attribution = await resolveAttribution({
-    couponCode: input.couponCode,
-    sessionAffiliateCode: input.affiliateCode ?? ctx.sessionAffiliateCode,
-    buyerPhone: buyer.phone,
-  });
+
+  // Na venda física não há clique nem cookie: quem vendeu é quem leva.
+  const attribution = ctx.sellerId
+    ? { affiliateId: ctx.sellerId, couponId: null as string | null, couponPct: 0 }
+    : await resolveAttribution({
+        couponCode: input.couponCode,
+        sessionAffiliateCode: input.affiliateCode ?? ctx.sessionAffiliateCode,
+        buyerPhone: buyer.phone,
+      });
 
   const packages = await db
     .select()
@@ -214,6 +221,8 @@ export async function createOrder(
         discountCents: price.packageDiscountCents + price.couponDiscountCents,
         status: "pending",
         affiliateId: attribution.affiliateId,
+        sellerId: ctx.sellerId ?? null,
+        method: ctx.sellerId ? "dinheiro" : "pix_online",
         couponId: attribution.couponId,
         expiresAt,
       })
@@ -248,6 +257,14 @@ export async function createOrder(
     return { order: created, numbers: reserved.numbers };
   });
 
+  // Venda física não passa por provedor: o dinheiro entra na mão do cambista.
+  if (ctx.sellerId) {
+    if (shouldEnterEndgame(stats, campaign.totalQuotas)) {
+      await enterEndgame(campaign.id, campaign.totalQuotas);
+    }
+    return { order, numbers, price };
+  }
+
   // Fora da transação: chamada externa não pode segurar linhas do banco.
   const provider = paymentProvider();
   const charge = await provider.createPixCharge({
@@ -280,18 +297,12 @@ export async function createOrder(
  * Confirma o pagamento. Idempotente: chamar duas vezes não duplica comissão
  * nem conta a venda de novo.
  */
-export async function markOrderPaid(chargeId: string) {
-  const [order] = await db
-    .select()
-    .from(orders)
-    .where(eq(orders.pspChargeId, chargeId));
-
-  if (!order) throw new OrderError("Pedido não encontrado para esta cobrança.", 404);
-  if (order.status === "paid") return { order, alreadyPaid: true, prizes: [] as string[] };
-  if (order.status !== "pending") {
-    throw new OrderError(`Pedido ${order.code} está ${order.status}.`, 409);
-  }
-
+/**
+ * Núcleo do "virou pago": move cotas, conta receita, revela cota premiada e
+ * cria a comissão. Usado pelo webhook do Pix e pela confirmação do cambista —
+ * duas portas, uma regra só.
+ */
+async function settleOrderAsPaid(order: typeof orders.$inferSelect) {
   const [campaign] = await db
     .select()
     .from(campaigns)
@@ -315,7 +326,6 @@ export async function markOrderPaid(chargeId: string) {
       amountCents: order.amountCents,
     });
 
-    // Cotas premiadas: revela o que o comprador levou junto.
     const prizes = numbers.length
       ? await tx
           .update(prizedQuotas)
@@ -360,13 +370,8 @@ export async function markOrderPaid(chargeId: string) {
     return { order: updated, numbers, prizes };
   });
 
-  if (!result) {
-    const [fresh] = await db.select().from(orders).where(eq(orders.id, order.id));
-    return { order: fresh, alreadyPaid: true, prizes: [] as string[] };
-  }
+  if (!result) return null;
 
-  // Avisos saem depois da transação: mensagem que falha não pode desfazer
-  // um pagamento que já entrou.
   await announcePayment({
     orderId: order.id,
     campaignTitle: campaign?.title ?? "",
@@ -375,11 +380,126 @@ export async function markOrderPaid(chargeId: string) {
     prizes: result.prizes,
   });
 
+  return result;
+}
+
+export async function markOrderPaid(chargeId: string) {
+  const [order] = await db
+    .select()
+    .from(orders)
+    .where(eq(orders.pspChargeId, chargeId));
+
+  if (!order) throw new OrderError("Pedido não encontrado para esta cobrança.", 404);
+  if (order.status === "paid") return { order, alreadyPaid: true, prizes: [] as string[] };
+  if (order.status !== "pending") {
+    throw new OrderError(`Pedido ${order.code} está ${order.status}.`, 409);
+  }
+
+  const result = await settleOrderAsPaid(order);
+
+  if (!result) {
+    const [fresh] = await db.select().from(orders).where(eq(orders.id, order.id));
+    return { order: fresh, alreadyPaid: true, prizes: [] as string[] };
+  }
+
   return {
     order: result.order,
     alreadyPaid: false,
     prizes: result.prizes.map((p) => `${p.number} — ${p.label}`),
   };
+}
+
+/* ------------------------------------------------------------------ *
+ * Venda física do cambista
+ * ------------------------------------------------------------------ */
+
+export type MetodoFisico = "dinheiro" | "cartao_maquininha" | "pix_maquininha";
+
+/**
+ * Reserva as cotas ANTES de cobrar. Cobrar o cartão e só depois tentar
+ * reservar é como se perde a cota com o dinheiro já debitado.
+ */
+export async function createSellerSale(
+  input: CreateOrderInput,
+  sellerId: string,
+) {
+  const result = await createOrder(input, { sellerId });
+  return result;
+}
+
+/** O cambista recolheu: o pedido vira pago sem passar por provedor. */
+export async function confirmSellerSale(params: {
+  code: number;
+  sellerId: string;
+  method: MetodoFisico;
+  posAuthCode?: string;
+  posTerminal?: string;
+}) {
+  const [order] = await db.select().from(orders).where(eq(orders.code, params.code));
+  if (!order) throw new OrderError("Venda não encontrada.", 404);
+  if (order.sellerId !== params.sellerId) {
+    throw new OrderError("Esta venda é de outro cambista.", 403);
+  }
+  if (order.status === "paid") {
+    return { order, alreadyPaid: true, prizes: [] as string[] };
+  }
+  if (order.status !== "pending") {
+    throw new OrderError(`Esta venda está ${order.status}.`, 409);
+  }
+
+  await db
+    .update(orders)
+    .set({
+      method: params.method,
+      posAuthCode: params.posAuthCode ?? null,
+      posTerminal: params.posTerminal ?? null,
+    })
+    .where(eq(orders.id, order.id));
+
+  const atualizado = { ...order, method: params.method };
+  const result = await settleOrderAsPaid(atualizado);
+
+  if (!result) {
+    const [fresh] = await db.select().from(orders).where(eq(orders.id, order.id));
+    return { order: fresh, alreadyPaid: true, prizes: [] as string[] };
+  }
+
+  return {
+    order: result.order,
+    alreadyPaid: false,
+    prizes: result.prizes.map((p) => `${p.number} — ${p.label}`),
+  };
+}
+
+/** Cartão recusado ou cliente desistiu: devolve as cotas na hora. */
+export async function cancelSellerSale(params: { code: number; sellerId: string }) {
+  const [order] = await db.select().from(orders).where(eq(orders.code, params.code));
+  if (!order) throw new OrderError("Venda não encontrada.", 404);
+  if (order.sellerId !== params.sellerId) {
+    throw new OrderError("Esta venda é de outro cambista.", 403);
+  }
+  if (order.status !== "pending") {
+    throw new OrderError("Só dá para cancelar venda ainda não paga.", 409);
+  }
+
+  await db.transaction(async (tx) => {
+    const devolvidas = await tx
+      .delete(quotaAlloc)
+      .where(eq(quotaAlloc.orderId, order.id))
+      .returning({ number: quotaAlloc.number });
+
+    await tx
+      .update(campaignStats)
+      .set({
+        reservedCount: sql`greatest(0, ${campaignStats.reservedCount} - ${devolvidas.length})`,
+        updatedAt: new Date(),
+      })
+      .where(eq(campaignStats.campaignId, order.campaignId));
+
+    await tx.update(orders).set({ status: "expired" }).where(eq(orders.id, order.id));
+  });
+
+  return { canceled: order.code };
 }
 
 /** Confirmação para o comprador, prêmio revelado e aviso ao afiliado. */

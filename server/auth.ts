@@ -52,9 +52,10 @@ declare module "express-session" {
 
 export interface SessionUser {
   id: string;
-  role: "admin" | "affiliate";
+  role: "admin" | "affiliate" | "cambista";
   name: string;
   email: string;
+  /** Cadastro em `affiliates` — serve tanto para divulgador quanto cambista. */
   affiliateId?: string;
 }
 
@@ -138,7 +139,8 @@ export function setupAuth(app: Express) {
           email: user.email,
         };
 
-        if (user.role === "affiliate") {
+        if (user.role === "affiliate" || user.role === "cambista") {
+          const quem = user.role === "cambista" ? "cambista" : "afiliado";
           const [aff] = await db
             .select()
             .from(affiliates)
@@ -147,8 +149,8 @@ export function setupAuth(app: Express) {
             return done(null, false, {
               message:
                 aff?.status === "blocked"
-                  ? "Seu acesso de afiliado está bloqueado."
-                  : "Seu cadastro de afiliado ainda não foi aprovado.",
+                  ? `Seu acesso de ${quem} está bloqueado.`
+                  : `Seu cadastro de ${quem} ainda não foi aprovado.`,
             });
           }
           sessionUser.affiliateId = aff.id;
@@ -175,7 +177,7 @@ export function setupAuth(app: Express) {
         name: user.name,
         email: user.email,
       };
-      if (user.role === "affiliate") {
+      if (user.role === "affiliate" || user.role === "cambista") {
         const [aff] = await db
           .select()
           .from(affiliates)
@@ -218,6 +220,9 @@ export function requireRole(required: Role) {
     next();
   };
 }
+
+/** Mesma exigência do afiliado, para as rotas do cambista. */
+export const requireSellerAccount = requireAffiliateAccount;
 
 /**
  * Exige um cadastro de afiliado de verdade, não só o papel. Protege as

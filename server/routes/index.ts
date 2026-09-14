@@ -4,6 +4,7 @@ import { requireRole, requireAffiliateAccount } from "../auth";
 import { authRouter } from "./auth";
 import { publicRouter } from "./public";
 import { affiliateRouter } from "./affiliate";
+import { sellerRouter } from "./seller";
 import { adminRouter } from "./admin";
 import { devRouter } from "./dev";
 
@@ -16,6 +17,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use("/api/auth", authRouter);
   app.use("/api/public", publicRouter);
   app.use("/api/affiliate", requireRole("affiliate"), requireAffiliateAccount, affiliateRouter);
+  app.use("/api/seller", requireRole("cambista"), requireAffiliateAccount, sellerRouter);
   app.use("/api/admin", requireRole("admin"), adminRouter);
   app.use("/api/dev", devRouter);
 

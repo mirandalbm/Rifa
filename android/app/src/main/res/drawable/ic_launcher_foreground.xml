@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Um bilhete com o furo da picotagem: o mesmo motivo do app web. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M30,38h48a4,4 0,0 1,4 4v8a6,6 0,0 0,0 12v8a4,4 0,0 1,-4 4h-48a4,4 0,0 1,-4 -4v-8a6,6 0,0 0,0 -12v-8a4,4 0,0 1,4 -4z" />
+    <path
+        android:fillColor="#00873E"
+        android:pathData="M38,48h14v4h-14z M38,56h22v4h-22z M38,64h18v4h-18z" />
+</vector>

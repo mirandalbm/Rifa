@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Rifa</string>
+    <string name="sem_conexao">Sem conexão. Verifique a internet do aparelho e tente de novo.</string>
+    <string name="tentar_novamente">Tentar novamente</string>
+</resources>

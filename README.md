@@ -213,8 +213,10 @@ adquirente e a imprimir na bobina do aparelho. Sem a ponte, nada quebra: o
 pagamento é registrado como dinheiro ou Pix e o bilhete sai pela impressão
 do navegador.
 
-O contrato da ponte, os modelos de terminal e o que falta para publicar nas
-lojas das adquirentes estão em [`docs/MAQUININHAS.md`](docs/MAQUININHAS.md).
+O invólucro Android está em [`android/`](android/README.md), com um sabor de
+build por adquirente — o `generico` compila sem SDK nenhuma e serve para
+testar o conjunto antes de ter credencial. Os modelos de terminal e o caminho
+de publicação estão em [`docs/MAQUININHAS.md`](docs/MAQUININHAS.md).
 
 ### O sorteio
 

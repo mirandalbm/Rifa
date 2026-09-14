@@ -48,7 +48,7 @@ arquitetura.
 | venda física e acerto | `server/routes/seller.ts`, `server/services/settlements.ts` |
 | meios de pagamento aceitos | `shared/payments.ts` (regras) e `services/settings.ts` |
 | bilhete | `server/services/ticketFormat.ts` (puro) e `ticket.ts` (dados) |
-| ponte com a maquininha | `client/src/lib/pos.ts` e `docs/MAQUININHAS.md` |
+| ponte com a maquininha | `client/src/lib/pos.ts`, `android/`, `docs/MAQUININHAS.md` |
 
 ## Convenções
 
@@ -69,9 +69,25 @@ arquitetura.
   executa. Serve bem; a fila entra quando houver trabalho pesado de verdade.
 - Fase 4 inteira: teste de carga com 1M de cotas, antifraude, exportações,
   multi-organizador.
-- O invólucro Android das maquininhas: o app já fala com `window.RifaPOS`,
-  mas o APK que injeta essa ponte é projeto Android nativo e depende do SDK
-  da adquirente. Ver `docs/MAQUININHAS.md`.
+- A integração da Stone no invólucro Android: `android/app/src/ton/` tem a
+  estrutura e dois pontos de encaixe marcados, sem nomes de classe
+  preenchidos. A do PagBank está escrita.
+- O APK nunca foi compilado: este repositório não tem Android SDK. O sabor
+  `generico` foi escrito para compilar sem dependência de adquirente, mas
+  isso ainda precisa ser confirmado numa máquina com o SDK.
+
+## A ponte com a maquininha — o que não pode afrouxar
+
+- O contrato vive em dois arquivos que precisam andar juntos:
+  `client/src/lib/pos.ts` (web) e `android/app/src/main/assets/rifa-pos-shim.js`
+  (invólucro). `tests/posShim.test.ts` carrega o shim real e exercita os dois
+  contra um lado nativo de mentira — mudou um lado só, o teste quebra.
+- Toda chamada à ponte tem prazo. Promise pendurada deixa o cambista olhando
+  um botão morto com o apostador na frente.
+- Recusa de cartão é **resultado** (`{ ok: false, message }`), não exceção: o
+  cambista precisa ler o motivo e decidir na hora.
+- Nenhuma regra de negócio entra no projeto Android. Se aparecer preço ou cota
+  em Kotlin, está no lugar errado.
 
 ## Meios de pagamento — o que não pode afrouxar
 

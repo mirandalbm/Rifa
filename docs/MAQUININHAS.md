@@ -87,13 +87,34 @@ A reserva vem **antes** da cobrança de propósito. Cobrar primeiro e descobrir
 depois que o número acabou de ser vendido é o pior desfecho possível: dinheiro
 debitado e nada para entregar.
 
+## O invólucro já existe
+
+O projeto Android está em [`android/`](../android/README.md), com um sabor de
+build por adquirente:
+
+- **`generico`** — compila sem SDK nenhuma e roda em celular comum ou
+  emulador. A ponte existe e responde que não há maquininha, então a tela do
+  cambista segue vendendo em dinheiro e Pix. Serve para testar o invólucro
+  inteiro antes de ter credencial.
+- **`pagbank`** — `TerminalPlugPag.kt` escrito com as chamadas da SDK pública,
+  incluindo o desenho do bilhete em bitmap de 384 px, porque a impressão livre
+  do PlugPag imprime imagem e não texto.
+- **`ton`** — estrutura pronta com dois pontos de encaixe marcados, sem nomes
+  de classe preenchidos: a API da Stone muda entre versões, e método plausível
+  que compila e falha no balcão é pior do que método ausente que falha ao
+  compilar.
+
+```bash
+cd android
+./gradlew assembleGenericoDebug -Prifa.appUrl=http://10.0.2.2:5000
+```
+
 ## O que falta para publicar
 
 1. Cadastro de desenvolvedor na adquirente (PagBank Smart POS, Stone DevCenter
    ou Cielo LIO) — é onde saem as credenciais de homologação.
-2. O invólucro Android: uma Activity com WebView, a `@JavascriptInterface`
-   acima e a dependência do SDK. É um projeto pequeno, mas é Android nativo —
-   não dá para gerar daqui sem o SDK da adquirente em mãos.
+2. Acrescentar a dependência da SDK em `android/app/build.gradle.kts` (o bloco
+   já está lá, comentado) e montar o sabor correspondente.
 3. Homologação e publicação na loja do terminal.
 
 Enquanto isso não acontece, o cambista já pode operar hoje: cobra no aparelho

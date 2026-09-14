@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- O verde do sistema: mesma cor do botão principal do app web. -->
+    <color name="verde_rifa">#00873E</color>
+</resources>

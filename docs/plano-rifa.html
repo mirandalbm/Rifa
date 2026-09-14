@@ -105,7 +105,7 @@ section{padding-block:clamp(2.75rem,6vw,4.5rem)}
 .screen-cap .who.adm{background:var(--ink);color:var(--white)}
 .screen-cap .d{font-size:.88rem;color:var(--muted)}
 
-.phones{display:flex;gap:1.5rem;flex-wrap:wrap;justify-content:center}
+.phones{display:flex;gap:1.5rem;flex-wrap:wrap;justify-content:center;align-items:flex-start}
 .phone{width:300px;max-width:100%;border:9px solid var(--ink);border-radius:34px;background:var(--white);box-shadow:var(--shadow-lg);overflow:hidden;flex:0 0 auto}
 .phone .notch{height:22px;background:var(--ink);border-radius:0 0 12px 12px;width:110px;margin:0 auto}
 .pscreen{padding:0 0 0;font-size:12px;line-height:1.45}
@@ -212,6 +212,37 @@ section{padding-block:clamp(2.75rem,6vw,4.5rem)}
 .rank .vl{font-family:var(--f-mono);font-variant-numeric:tabular-nums;color:var(--ink-2)}
 .chartwrap{padding:.7rem .75rem .5rem}
 .chartwrap svg{width:100%;height:auto;display:block}
+
+/* ---------------- vitrine e mídia ---------------- */
+.vlist{display:flex;flex-direction:column;gap:.6rem;padding:.75rem}
+.vcard{border:1px solid var(--line);border-radius:11px;overflow:hidden;background:var(--white)}
+.vbanner{height:74px;position:relative;display:flex;align-items:flex-end;padding:.45rem .55rem;color:var(--white)}
+.vbanner .bt{font-family:var(--f-display);font-weight:800;font-size:13px;line-height:1.05;letter-spacing:-.02em;text-shadow:0 1px 6px rgba(0,0,0,.35)}
+.vbadge{position:absolute;top:.4rem;right:.45rem;font-family:var(--f-mono);font-size:8.5px;padding:.12rem .35rem;border-radius:4px;background:var(--yellow);color:#3B2A00}
+.vbadge.g{background:var(--white);color:var(--green-deep)}
+.vmeta{padding:.5rem .55rem .55rem;display:flex;flex-direction:column;gap:.35rem}
+.vmeta .l{display:flex;justify-content:space-between;align-items:baseline;font-size:10.5px;color:var(--muted);font-family:var(--f-mono)}
+.vmeta .l b{color:var(--green-deep);font-size:12px;font-weight:500}
+
+.videocard{position:relative;border-radius:10px;overflow:hidden;background:linear-gradient(145deg,#0B1F14,#0d3a22);height:112px;display:flex;align-items:center;justify-content:center}
+.videocard .play{width:38px;height:38px;border-radius:50%;background:var(--white);display:flex;align-items:center;justify-content:center;color:var(--green-deep);font-size:13px;padding-left:3px;box-shadow:0 2px 10px rgba(0,0,0,.3)}
+.videocard .dur{position:absolute;right:.4rem;bottom:.4rem;font-family:var(--f-mono);font-size:9px;background:rgba(11,31,20,.8);color:var(--white);padding:.1rem .3rem;border-radius:4px}
+.videocard .cap{position:absolute;left:.45rem;bottom:.4rem;font-family:var(--f-mono);font-size:9px;color:rgba(255,255,255,.85)}
+.thumbs{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;margin-top:5px}
+.thumbs .th{aspect-ratio:1.35;border-radius:6px;border:1px solid var(--line-2);display:flex;align-items:center;justify-content:center;font-family:var(--f-mono);font-size:8.5px;color:var(--muted)}
+.thumbs .th.on{border:2px solid var(--green)}
+
+.slots{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.slot{aspect-ratio:1;border-radius:8px;border:1px solid var(--line-2);display:flex;align-items:center;justify-content:center;font-family:var(--f-mono);font-size:9px;color:var(--muted);text-align:center;padding:.2rem}
+.slot.filled{border-color:transparent;color:var(--white)}
+.slot.empty{border-style:dashed;color:var(--green-deep);font-size:15px}
+.bannerslot{height:64px;border-radius:9px;display:flex;align-items:flex-end;padding:.4rem .5rem;color:var(--white);font-family:var(--f-mono);font-size:9.5px}
+.filecheck{display:flex;align-items:center;gap:.45rem;border:1px solid var(--line);border-radius:8px;padding:.45rem .55rem;font-size:11px;background:var(--white)}
+.filecheck .nm{font-family:var(--f-mono);font-size:10.5px;color:var(--ink);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.filecheck.bad{background:var(--red-soft);border-color:transparent}
+.filecheck.bad .nm{color:var(--red)}
+.medspec{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1rem;margin-top:1.25rem}
+@media (max-width:900px){.medspec{grid-template-columns:1fr}}
 
 /* ---------------- escala: 1M ---------------- */
 .searchfield{display:flex;align-items:center;gap:.45rem;border:1px solid var(--line-2);border-radius:9px;padding:.45rem .6rem;font-size:11.5px;color:var(--muted);background:var(--white)}
@@ -341,6 +372,7 @@ footer .fl{font-family:var(--f-mono);font-size:.73rem;margin-top:.9rem;line-heig
         </p>
         <div class="meta">
           <span class="chip g"><b>3</b> superfícies</span>
+          <span class="chip y">multi-rifas</span>
           <span class="chip"><b>1.000.000</b> de cotas por campanha</span>
           <span class="chip y"><b>4</b> fases · 10 semanas</span>
           <span class="chip"><b>9</b> plataformas analisadas</span>
@@ -392,8 +424,8 @@ footer .fl{font-family:var(--f-mono);font-size:.73rem;margin-top:.9rem;line-heig
       <p class="eyebrow">Design · telas</p>
       <h2>Como cada painel se parece</h2>
       <p class="body">
-        Quatro telas em alta fidelidade, na paleta branco · verde · amarelo. Tudo aqui é HTML e CSS
-        reais — cada componente vira um componente de verdade na Fase 0.
+        Telas em alta fidelidade, na paleta branco · verde · amarelo. Tudo aqui é HTML e CSS reais —
+        cada componente vira um componente de verdade na Fase 0.
       </p>
     </div>
 
@@ -403,11 +435,62 @@ footer .fl{font-family:var(--f-mono);font-size:.73rem;margin-top:.9rem;line-heig
       <div>
         <div class="screen-cap">
           <span class="who">Comprador</span>
-          <h3>Página da campanha e pagamento Pix</h3>
-          <span class="d">— a venda inteira acontece nestas duas telas, dentro do celular</span>
+          <h3>Vitrine, rifa e pagamento</h3>
+          <span class="d">— três telas, tudo dentro do celular</span>
         </div>
 
         <div class="phones">
+          <!-- tela 0: vitrine multi-rifas -->
+          <div class="phone">
+            <div class="notch"></div>
+            <div class="pscreen app">
+              <div class="appbar">
+                <span class="logo">rifa<span>.</span>br</span>
+                <span class="pill neutral">minhas cotas</span>
+              </div>
+
+              <div style="padding:.7rem .75rem .2rem">
+                <h4 style="font-size:15px">3 rifas no ar</h4>
+                <p style="font-size:10.5px;color:var(--muted);margin-top:.15rem">Escolha uma e garanta seus números.</p>
+              </div>
+
+              <div class="vlist">
+                <div class="vcard">
+                  <div class="vbanner" style="background:linear-gradient(145deg,#0B1F14,#0d3a22 60%,#00873E)">
+                    <span class="vbadge g">68% vendida</span>
+                    <span class="bt">iPhone 17 Pro Max<br>256 GB · Titânio</span>
+                  </div>
+                  <div class="vmeta">
+                    <div class="l"><span>cota <b>R$ 4,90</b></span><span>sorteio 28/09</span></div>
+                    <div class="bar"><span style="width:68%"></span></div>
+                  </div>
+                </div>
+
+                <div class="vcard">
+                  <div class="vbanner" style="background:linear-gradient(145deg,#123D24,#1d6b3c 55%,#12B45C)">
+                    <span class="vbadge g">41% vendida</span>
+                    <span class="bt">Fiat Mobi 2026<br>0 km, emplacado</span>
+                  </div>
+                  <div class="vmeta">
+                    <div class="l"><span>cota <b>R$ 9,90</b></span><span>sorteio 05/10</span></div>
+                    <div class="bar"><span style="width:41%"></span></div>
+                  </div>
+                </div>
+
+                <div class="vcard">
+                  <div class="vbanner" style="background:linear-gradient(145deg,#6B4B00,#B58100 55%,#FFC700)">
+                    <span class="vbadge">reta final</span>
+                    <span class="bt">PIX de R$ 10.000<br>na sua conta</span>
+                  </div>
+                  <div class="vmeta">
+                    <div class="l"><span>cota <b>R$ 1,20</b></span><span>sorteio 21/09</span></div>
+                    <div class="bar y"><span style="width:89%"></span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <!-- tela 1 -->
           <div class="phone">
             <div class="notch"></div>
@@ -421,6 +504,18 @@ footer .fl{font-family:var(--f-mono);font-size:.73rem;margin-top:.9rem;line-heig
                 <p class="k">Sorteio 28 · set · Loteria Federal</p>
                 <p class="p">iPhone 17 Pro Max<br>256 GB · Titânio</p>
                 <p class="s">+ R$ 5.000 no Pix para o segundo colocado</p>
+              </div>
+
+              <div style="padding:.6rem .85rem 0">
+                <div class="videocard">
+                  <span class="play">▶</span>
+                  <span class="cap">vídeo do prêmio</span>
+                  <span class="dur">0:48</span>
+                </div>
+                <div class="thumbs">
+                  <span class="th on">1</span><span class="th">2</span><span class="th">3</span>
+                  <span class="th">4</span><span class="th">5</span>
+                </div>
               </div>
 
               <div class="pbody">
@@ -498,6 +593,75 @@ footer .fl{font-family:var(--f-mono);font-size:.73rem;margin-top:.9rem;line-heig
                 <span class="mbtn ghost sm">já paguei</span>
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ---- mídia da campanha ---- -->
+      <div>
+        <div class="screen-cap">
+          <span class="who adm">Administrador</span>
+          <h3>Mídia da campanha</h3>
+          <span class="d">— banner, 5 fotos e um vídeo de até 60 segundos</span>
+        </div>
+
+        <div class="grid-2">
+          <div class="card">
+            <header><h4>Mídia · iPhone 17 Pro Max</h4><span class="pill wait">1 pendência</span></header>
+            <div class="app" style="padding:.9rem;display:flex;flex-direction:column;gap:.85rem">
+              <div class="field">
+                <span class="mlabel">Banner · obrigatório · 1600 × 900</span>
+                <div class="bannerslot" style="background:linear-gradient(145deg,#0B1F14,#0d3a22 60%,#00873E)">banner-iphone.webp · 1600×900 · 184 KB</div>
+              </div>
+
+              <div class="field">
+                <span class="mlabel">Fotos do prêmio · 4 de 5</span>
+                <div class="slots">
+                  <span class="slot filled" style="background:linear-gradient(140deg,#123D24,#1d6b3c)">01</span>
+                  <span class="slot filled" style="background:linear-gradient(140deg,#0d3a22,#00873E)">02</span>
+                  <span class="slot filled" style="background:linear-gradient(140deg,#1d6b3c,#12B45C)">03</span>
+                  <span class="slot filled" style="background:linear-gradient(140deg,#0B1F14,#123D24)">04</span>
+                  <span class="slot empty">+</span>
+                </div>
+                <span class="hint">Texto alternativo obrigatório em cada foto — acessibilidade e busca.</span>
+              </div>
+
+              <div class="field">
+                <span class="mlabel">Vídeo do prêmio · máximo 60 s</span>
+                <div class="filecheck">
+                  <span class="pill ok" style="padding-right:.35rem"></span>
+                  <span class="nm">premio-iphone.mp4</span>
+                  <span class="mlabel">0:48 · 720p</span>
+                </div>
+                <div class="filecheck bad">
+                  <span class="pill bad" style="padding-right:.35rem"></span>
+                  <span class="nm">tour-completo.mov</span>
+                  <span class="mlabel" style="color:var(--red)">1:22 · recusado</span>
+                </div>
+                <span class="hint">A duração é medida no servidor com ffprobe. O que o navegador informa não vale.</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel tint" style="gap:1rem">
+            <h3>Limites de mídia</h3>
+            <div class="tablewrap" style="border-color:var(--line)">
+              <table class="doc" style="min-width:0">
+                <thead><tr><th>Peça</th><th>Qtd.</th><th>Limites</th></tr></thead>
+                <tbody>
+                  <tr><td class="k">Banner</td><td class="num">1</td><td class="alt">16:9, mín. 1200 px, 8 MB</td></tr>
+                  <tr><td class="k">Fotos</td><td class="num">1–5</td><td class="alt">mín. 1080 px, 8 MB cada</td></tr>
+                  <tr><td class="k">Vídeo</td><td class="num">0–1</td><td class="alt">máx. <b>60 s</b>, 300 MB</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <ul style="margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:.5rem">
+              <li style="position:relative;padding-left:1.1rem;font-size:.9rem;color:var(--ink-2)"><span style="position:absolute;left:0;top:.55em;width:5px;height:5px;background:var(--green);border-radius:1px"></span>O vídeo <b>nunca</b> toca sozinho: carrega o pôster, monta o player só no toque.</li>
+              <li style="position:relative;padding-left:1.1rem;font-size:.9rem;color:var(--ink-2)"><span style="position:absolute;left:0;top:.55em;width:5px;height:5px;background:var(--green);border-radius:1px"></span>Upload direto para o R2 por URL assinada — o arquivo não passa pela API.</li>
+              <li style="position:relative;padding-left:1.1rem;font-size:.9rem;color:var(--ink-2)"><span style="position:absolute;left:0;top:.55em;width:5px;height:5px;background:var(--green);border-radius:1px"></span>Imagem vira AVIF e WebP em 400/800/1600, com blur de 20 px enquanto carrega.</li>
+              <li style="position:relative;padding-left:1.1rem;font-size:.9rem;color:var(--ink-2)"><span style="position:absolute;left:0;top:.55em;width:5px;height:5px;background:var(--yellow);border-radius:1px"></span>Publicação bloqueada sem banner e sem ao menos 1 foto. O vídeo é opcional.</li>
+              <li style="position:relative;padding-left:1.1rem;font-size:.9rem;color:var(--ink-2)"><span style="position:absolute;left:0;top:.55em;width:5px;height:5px;background:var(--yellow);border-radius:1px"></span>Orçamento de 400 KB de imagem antes da interação — quem chega pelo WhatsApp está no 4G.</li>
+            </ul>
           </div>
         </div>
       </div>
@@ -1114,7 +1278,8 @@ footer .fl{font-family:var(--f-mono);font-size:.73rem;margin-top:.9rem;line-heig
         <h3>Comprador</h3>
         <p class="who">Público, sem cadastro. Chega pelo WhatsApp, compra pelo celular.</p>
         <ul>
-          <li>Página da campanha com prêmio, preço da cota, progresso e prazo</li>
+          <li><b>Vitrine multi-rifas</b>: todas as campanhas no ar, cada card com seu banner</li>
+          <li>Tela inicial da rifa: banner, vídeo de até 60 s e galeria de 5 fotos do prêmio</li>
           <li>Compra rápida por quantidade ou escolha manual na grade</li>
           <li>Checkout de um passo: nome, WhatsApp, aceite — e o QR Code Pix</li>
           <li>Cronômetro de reserva sempre visível</li>
@@ -1146,7 +1311,9 @@ footer .fl{font-family:var(--f-mono);font-size:.73rem;margin-top:.9rem;line-heig
         <p class="who">Dono da rifa. Publica, acompanha, paga e sorteia.</p>
         <ul>
           <li>Painel de receita, cotas vendidas, ticket médio e funil</li>
-          <li>Campanhas: prêmio, mídia, <b>total de cotas até 1M</b>, pacotes, TTL, regulamento</li>
+          <li>Campanhas: <b>várias no ar ao mesmo tempo</b>, com destaque e ordenação da vitrine</li>
+          <li>Mídia: banner, 5 fotos e vídeo de 60 s, com duração medida no servidor</li>
+          <li>Prêmio, <b>total de cotas até 1M</b>, pacotes, TTL, regulamento</li>
           <li>O total trava na publicação — mudar depois alteraria a chance de quem já comprou</li>
           <li>Pedidos: busca, estorno, liberação manual, reenvio</li>
           <li>Afiliados: aprovar, definir comissão, aprovar saques</li>
@@ -1188,7 +1355,8 @@ footer .fl{font-family:var(--f-mono);font-size:.73rem;margin-top:.9rem;line-heig
           <tr><td class="k">Comissão</td><td>Ledger interno + repasse Pix em lote</td><td class="alt">Split nativo do provedor</td><td class="alt">Comissão só é devida depois da janela de estorno</td></tr>
           <tr><td class="k">Login</td><td>Sessão em Postgres + OTP por WhatsApp</td><td class="alt">Clerk, Auth0</td><td class="alt">Comprador não deve precisar de senha</td></tr>
           <tr><td class="k">Mensagens</td><td>WhatsApp Cloud API + Resend</td><td class="alt">Twilio, SendGrid</td><td class="alt">É onde esse público realmente lê</td></tr>
-          <tr><td class="k">Mídia</td><td>Cloudflare R2</td><td class="alt">S3</td><td class="alt">Sem custo de saída para as fotos do prêmio</td></tr>
+          <tr><td class="k">Mídia · imagem</td><td>Cloudflare R2 + variantes AVIF/WebP</td><td class="alt">S3 + Imgproxy</td><td class="alt">Sem custo de saída para banner e fotos do prêmio</td></tr>
+          <tr><td class="k">Mídia · vídeo</td><td>Cloudflare Stream</td><td class="alt">Mux, ffmpeg próprio</td><td class="alt">Um vídeo de 60 s por campanha não paga um pipeline próprio</td></tr>
           <tr><td class="k">Monitoramento</td><td>Sentry + pino</td><td class="alt">Datadog</td><td class="alt">Todo erro precisa ser rastreável pelo número do pedido</td></tr>
           <tr><td class="k">Analytics</td><td>PostHog</td><td class="alt">GA4</td><td class="alt">Funil de checkout e atribuição no mesmo lugar</td></tr>
           <tr><td class="k">Testes</td><td>Vitest + Playwright</td><td class="alt">Cypress</td><td class="alt">O E2E do checkout é o teste que paga a conta</td></tr>
@@ -1321,7 +1489,7 @@ footer .fl{font-family:var(--f-mono);font-size:.73rem;margin-top:.9rem;line-heig
         <span class="ph">Fase 1</span>
         <div>
           <h4>MVP vendável</h4>
-          <p>CRUD de campanha com o total de cotas até 1M travado na publicação, arquitetura esparsa desde o primeiro commit, página pública com compra rápida, busca por número e navegador de blocos, reserva com prazo, Pix automático com webhook, “minhas cotas” por telefone, sorteio auditável, painel de receita.</p>
+          <p>CRUD de campanha com o total de cotas até 1M travado na publicação, arquitetura esparsa desde o primeiro commit, vitrine multi-rifas, pipeline de mídia (banner, 5 fotos, vídeo de 60 s), página da rifa com compra rápida, busca por número e navegador de blocos, reserva com prazo, Pix automático com webhook, “minhas cotas” por telefone, sorteio auditável, painel de receita.</p>
           <p class="dod">Pronto quando: uma campanha de 1.000.000 de cotas vai da primeira venda ao sorteio sem ninguém tocar no banco, dentro do orçamento de desempenho.</p>
         </div>
         <span class="dur">3 semanas</span>
@@ -1372,7 +1540,9 @@ footer .fl{font-family:var(--f-mono);font-size:.73rem;margin-top:.9rem;line-heig
       <table class="doc">
         <thead><tr><th>Ponto</th><th>Impacto</th><th>Encaminhamento</th></tr></thead>
         <tbody>
-          <tr><td class="k">Multi-organizador ou rifa própria?</td><td class="alt">Alto — molda o schema inteiro</td><td>Pergunta aberta ao cliente, antes da Fase 0</td></tr>
+          <tr><td class="k" style="text-decoration:line-through;color:var(--muted)">Multi-rifas</td><td><span class="pill ok">decidido</span></td><td>Várias campanhas simultâneas sob um administrador geral, desde a Fase 1</td></tr>
+          <tr><td class="k">Multi-<b>organizador</b> (cada cliente com sua conta)</td><td class="alt">Médio — não é o mesmo que multi-rifas</td><td><span class="num">organization_id</span> nulo no schema desde já; ativar só se virar SaaS</td></tr>
+          <tr><td class="k">Peso da mídia na tela inicial</td><td class="alt">Médio — conversão no 4G</td><td>Pôster em vez de vídeo, AVIF responsivo, orçamento de 400 KB</td></tr>
           <tr><td class="k">Provedor: Mercado Pago ou Asaas</td><td class="alt">Alto — define split e prazos</td><td>Decidir antes da Fase 1; a abstração isola a troca</td></tr>
           <tr><td class="k">Autorização SPA/MF da campanha</td><td class="alt">Alto — jurídico do organizador</td><td>Campo obrigatório por campanha + orientação no onboarding</td></tr>
           <tr><td class="k" style="text-decoration:line-through;color:var(--muted)">Grade de 1M de cotas no celular</td><td><span class="pill ok">decidido</span></td><td>Armazenamento esparso + bitmap por bloco + busca direta, já na Fase 1</td></tr>

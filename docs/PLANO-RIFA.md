@@ -5,6 +5,8 @@
 > pagamento Pix automático, atribuição de vendas por link de afiliado e sorteio auditável.
 > **Escala definida: até 1.000.000 de cotas por campanha, com o total fixado pelo administrador
 > na criação e imutável depois da publicação.**
+> **Sistema multi-rifas: várias campanhas no ar ao mesmo tempo, sob um administrador geral,
+> cada uma com banner, 5 fotos do prêmio e um vídeo de até 60 segundos.**
 
 ---
 
@@ -38,7 +40,11 @@ extrato financeiro auditável por campanha, e uma experiência de compra que nã
 ## 2. As três superfícies
 
 ### 2.1 Comprador (público, sem login obrigatório)
-- Vitrine de campanhas ativas + página da campanha (galeria, prêmio, preço da cota, progresso, prazo).
+- **Vitrine multi-rifas:** todas as campanhas no ar em uma tela, cada card com o banner da rifa,
+  preço da cota, progresso e prazo. Ordenação por destaque, por encerramento próximo e por progresso.
+- **Tela inicial da rifa:** banner, **vídeo de até 60 s do prêmio** (pôster primeiro, toque para tocar,
+  nunca com som automático) e **galeria de 5 fotos** do que está sendo rifado, antes de qualquer
+  outra informação. É a propaganda da campanha e é o que decide a venda.
 - Seleção de cotas: **compra rápida** (quantidade + números aleatórios) e **escolha manual** em grade paginada.
 - Checkout enxuto: nome, telefone (WhatsApp), CPF opcional, aceite dos termos → QR Code Pix + copia-e-cola.
 - Cronômetro de reserva visível, com liberação automática ao expirar.
@@ -60,6 +66,8 @@ extrato financeiro auditável por campanha, e uma experiência de compra que nã
 - CRUD de campanhas: prêmio, mídia, **total de cotas (100 a 1.000.000)**, preço, pacotes, cotas
   premiadas, TTL de reserva, data do sorteio, regulamento, status
   (rascunho → publicada → encerrada → sorteada).
+- **Mídia da campanha:** upload do banner, de até 5 fotos e de 1 vídeo de no máximo 60 segundos,
+  com reordenação, texto alternativo por foto e verificação de duração no servidor (§4.2).
 - **O total de cotas é escolhido antes de publicar e trava na publicação.** Enquanto a campanha é
   rascunho, o campo é livre; publicada, fica somente leitura — mudar o total depois altera a chance
   de quem já comprou, o que quebra o regulamento e a confiança.
@@ -92,7 +100,8 @@ Aproveitamos a base e substituímos o domínio.
 | Split de comissão | **Ledger interno + repasse Pix em lote** | Split nativo do PSP | Comissão só é devida após janela de estorno; split na hora trava o dinheiro cedo |
 | Autenticação | **Sessão Postgres (admin/afiliado) + OTP por WhatsApp (comprador)** | Clerk/Auth0 | Comprador não deve precisar de senha |
 | Notificação | **WhatsApp Cloud API + Resend (e-mail)** | Twilio, SendGrid | WhatsApp é o canal real desse público |
-| Mídia | **Cloudflare R2 + imagens responsivas** | S3 | Custo de egress zero |
+| Mídia (imagem) | **Cloudflare R2 + variantes responsivas AVIF/WebP** | S3 + Imgproxy | Custo de egress zero |
+| Mídia (vídeo) | **Cloudflare Stream** (transcode, HLS, pôster) | Mux, ffmpeg próprio em worker | Vídeo de 60 s por campanha não justifica manter pipeline próprio |
 | Observabilidade | **Sentry + logs estruturados (pino)** | Datadog | Erro de pagamento precisa ser rastreável por pedido |
 | Analytics | **PostHog** (funil + eventos de afiliado) | GA4 | Funil de checkout e atribuição no mesmo lugar |
 | Antifraude | **Rate limit por IP/telefone + limite de cotas por pedido + device fingerprint** | Serviço externo | Suficiente para o risco do MVP |
@@ -105,9 +114,13 @@ Aproveitamos a base e substituímos o domínio.
 
 ```
 users            id, role(admin|affiliate|buyer), name, email, phone, password_hash?, status, created_at
-campaigns        id, slug, title, description, prize, media[], total_quotas, price_cents,
+campaigns        id, organization_id?, slug, title, description, prize, total_quotas, price_cents,
+                 featured, sort_weight,
                  min_per_order, max_per_order, reservation_ttl_min, draw_type(federal|own),
                  draw_at, status, commission_pct_default, published_at
+campaign_media   id, campaign_id, role(banner|photo|video), position, storage_key, mime,
+                 width, height, duration_s?, poster_key?, alt_text, bytes, status, created_at
+                 -- 1 banner, até 5 photos, até 1 video (<= 60 s). Ver §4.2
 quota_packages   id, campaign_id, quantity, discount_pct, highlight
 quota_alloc      campaign_id, number, status(reserved|paid), order_id, reserved_until?
                  -- PK (campaign_id, number). Só existe linha para cota TOMADA. Ver §4.1
@@ -200,6 +213,44 @@ lista de números. Um bloco cheio e um bloco vazio custam o mesmo: 125 bytes.
 
 ---
 
+## 4.2 Mídia da campanha — banner, 5 fotos e vídeo de 60 s
+
+A tela inicial de cada rifa é uma peça de propaganda. Três formatos, com limites duros validados no
+servidor — nunca no navegador.
+
+| Papel | Quantidade | Formato aceito | Limites | Onde aparece |
+|---|---|---|---|---|
+| **Banner** | 1, obrigatório | JPG, PNG, WebP | 1600×900 (16:9) recomendado, mín. 1200 px de largura, 8 MB | Card da vitrine e topo da página da rifa |
+| **Fotos do prêmio** | até 5, mín. 1 | JPG, PNG, WebP | mín. 1080 px no lado maior, 8 MB cada | Galeria logo abaixo do vídeo |
+| **Vídeo do prêmio** | até 1, opcional | MP4, MOV, WebM | **máx. 60 s**, 300 MB, 16:9 ou 9:16 | Bloco de propaganda, acima da galeria |
+
+### Pipeline de upload
+
+```
+1. Admin escolhe o arquivo → POST /admin/media/sign
+   → o servidor devolve URL pré-assinada do R2 (o arquivo nunca passa pela nossa API)
+2. Upload direto para o R2 → POST /admin/media/commit
+3. Worker processa:
+   imagem → variantes responsivas (400/800/1600 em AVIF + WebP) + LQIP de 20 px para o blur
+   vídeo  → ffprobe mede a duração; > 60 s é REJEITADO com a duração medida na mensagem
+          → transcode 720p H.264 + HLS + poster extraído do segundo 1
+4. status vira `ready`; só então a mídia aparece na campanha
+```
+
+### Regras que protegem a venda
+
+- **O vídeo nunca toca sozinho.** Carrega o pôster (uma imagem), e o `<video>` só é montado no toque.
+  Autoplay com som espanta comprador e estoura a franquia de dados de quem chegou pelo WhatsApp.
+- **Nenhuma mídia bloqueia o preço.** Banner e vídeo ocupam o topo, mas o preço da cota, o progresso
+  e o botão de compra entram no primeiro quadro da tela, sem rolagem.
+- **A duração é medida no servidor.** `ffprobe` na ingestão; o que o navegador diz não vale.
+- **Texto alternativo obrigatório em cada foto** — acessibilidade e SEO da página da rifa.
+- **Publicação bloqueada** sem banner e sem pelo menos 1 foto. O vídeo é opcional.
+- **Orçamento de peso:** a tela inicial da rifa carrega no máximo 400 KB de imagem antes da
+  interação; o vídeo só baixa depois do toque.
+
+---
+
 ## 5. Fluxo de compra e atribuição do afiliado
 
 ```
@@ -283,7 +334,8 @@ CI (typecheck + lint + testes), ambientes.
 
 ### Fase 1 — MVP vendável (3 semanas)
 Campanha (CRUD admin, total de até 1M travado na publicação) · **arquitetura esparsa de cotas
-(§4.1) desde o primeiro commit** · página pública com compra rápida, busca por número e navegador
+(§4.1) desde o primeiro commit** · **vitrine multi-rifas** · **pipeline de mídia: banner, 5 fotos e
+vídeo de 60 s (§4.2)** · página da rifa com compra rápida, busca por número e navegador
 de blocos · reserva com TTL · Pix automático + webhook · "minhas cotas" por telefone ·
 sorteio auditável (semente + Federal) · dashboard básico.
 **Critério de pronto:** uma campanha real de 1.000.000 de cotas vendida do início ao sorteio, sem
@@ -313,7 +365,9 @@ multi-organizador (white label) se o negócio pedir.
 | Regularização da campanha (SPA/MF) | Alto — jurídico | Campo obrigatório por campanha + orientação ao organizador |
 | ~~Grid de 1M cotas no navegador~~ | **Decidido** | Armazenamento esparso + bitmap por bloco + busca direta (§4.1), desde a Fase 1 |
 | Sorteio acima de 100.000 cotas | Alto — a Federal só dá 5 dígitos | Semente comprometida + HMAC sobre os 5 prêmios (§6.5); validar o texto com o jurídico |
-| Multi-organizador (SaaS) ou rifa própria | Alto — molda o schema | **Pergunta aberta ao cliente** |
+| ~~Multi-rifas~~ | **Decidido** | Várias campanhas simultâneas sob um administrador geral, desde a Fase 1 |
+| Multi-**organizador** (cada cliente com sua conta) | Médio — não é o mesmo que multi-rifas | `organization_id` nulo no schema desde já; ativar só se o negócio virar SaaS |
+| Peso da mídia na tela inicial | Médio — conversão no 4G | Pôster em vez de vídeo, AVIF responsivo, orçamento de 400 KB (§4.2) |
 | Fraude de autoindicação em afiliados | Médio — custo direto | Bloqueio por device/telefone + revisão manual acima de X |
 | Aprovação do WhatsApp Cloud API | Médio — prazo | Iniciar cadastro na Fase 1, e-mail como fallback |
 

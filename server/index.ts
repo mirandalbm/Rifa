@@ -1,3 +1,9 @@
+// PRIMEIRO de tudo, antes de qualquer import que leia `process.env`:
+// `server/db.ts` exige DATABASE_URL no momento em que o módulo carrega, e os
+// imports do ES rodam antes de qualquer linha deste arquivo. Carregar o .env
+// depois daqui já seria tarde. Os scripts de `scripts/` fazem o mesmo.
+import "dotenv/config";
+
 import express, { type Request, Response, NextFunction } from "express";
 import path from "node:path";
 import { ZodError } from "zod";

@@ -10,6 +10,7 @@
  *   npm run load -- --buyers 500 --quotas 5 --prefill 0.9
  */
 import "dotenv/config";
+import { baseUrl } from "./base-url";
 import { sql, eq } from "drizzle-orm";
 import { db, pool } from "../server/db";
 import { campaigns, campaignStats, quotaAlloc, orders, appSettings } from "../shared/schema";
@@ -31,7 +32,7 @@ function lerOpcoes(): Opcoes {
     return i >= 0 && args[i + 1] ? args[i + 1] : padrao;
   };
   return {
-    url: valor("url", "http://127.0.0.1:5055"),
+    url: valor("url", baseUrl([])),
     slug: valor("slug", "pix-de-1-milhao"),
     buyers: Number(valor("buyers", "500")),
     quotas: Number(valor("quotas", "5")),

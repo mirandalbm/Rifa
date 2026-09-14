@@ -15,14 +15,13 @@
  * apareça aqui é rota que ninguém provou.
  */
 import "dotenv/config";
+import { baseUrl } from "./base-url";
 import { sql, eq } from "drizzle-orm";
 import { db, pool } from "../server/db";
 import { organizations, campaigns, users, buyers, orders, campaignStats } from "../shared/schema";
 import { hashPassword } from "../server/auth";
 
-const URL = process.argv.includes("--url")
-  ? process.argv[process.argv.indexOf("--url") + 1]
-  : "http://127.0.0.1:5055";
+const URL = baseUrl();
 
 interface Lado {
   slug: string;

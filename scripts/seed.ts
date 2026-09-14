@@ -266,6 +266,7 @@ async function main() {
   console.log(`\nadmin: ${adminEmail} / ${adminPassword}`);
   console.log("afiliado: joao@rifa.br / joao123 (código JOAO7)");
   console.log("cambista: sergio@rifa.br / cambista123 (código SERGIO)");
+  console.log("organizador: marina@rifassaojose.br / organizador123");
   process.exit(0);
 }
 

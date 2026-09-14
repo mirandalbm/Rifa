@@ -7,17 +7,32 @@ e o que separa uma da outra é o papel na sessão.
 - Plano de produto e arquitetura: [`docs/PLANO-RIFA.md`](docs/PLANO-RIFA.md)
 - Apresentação visual do plano: [`docs/plano-rifa.html`](docs/plano-rifa.html)
 
-## Como rodar
+## Como rodar na sua máquina
+
+Precisa de **Node 20+** e **Docker** (só para o Postgres — se você já tem um
+banco, pule o `docker compose` e aponte a `DATABASE_URL` para ele).
 
 ```bash
+git clone https://github.com/mirandalbm/Rifa.git && cd Rifa
 npm install
 
-# Postgres local (ou aponte para o Neon)
-export DATABASE_URL="postgres://postgres@127.0.0.1:5432/rifa"
+cp .env.example .env      # já vem apontando para o banco do compose
+docker compose up -d      # Postgres na porta 5433
 
-npm run db:push     # cria o schema
-npm run db:seed     # admin, afiliado e 3 campanhas de exemplo
-npm run dev         # http://localhost:5000
+npm run db:push           # cria o schema
+npm run db:seed           # organização, acessos e 3 campanhas de exemplo
+npm run dev               # http://localhost:5000
+```
+
+Em desenvolvimento nada precisa de credencial: sem chave do Mercado Pago o
+pagamento é simulado por um botão na tela do pedido — que dispara **a mesma
+rotina do webhook real** —, sem R2 os arquivos vão para `./uploads`, e sem
+token do WhatsApp o código de acesso aparece no terminal do servidor.
+
+Para começar do zero de novo:
+
+```bash
+docker compose down -v && docker compose up -d && npm run db:push && npm run db:seed
 ```
 
 O seed imprime as credenciais no fim:
@@ -28,10 +43,8 @@ O seed imprime as credenciais no fim:
 | `joao@rifa.br` / `joao123` (código `JOAO7`) | `/afiliado` | link, cliques, comissões, saques |
 | ninguém | `/` | vitrine, rifa, checkout Pix, minhas cotas |
 | qualquer pessoa | `/seja-afiliado` | cadastro de afiliado, que entra na fila de aprovação |
-| cambista (criado pelo admin) | `/cambista` | vender na mão, imprimir bilhete e ver o próprio acerto |
-
-Em desenvolvimento o provedor de pagamento é falso: a tela do pedido mostra
-**simular pagamento**, que dispara a mesma rotina do webhook real.
+| `sergio@rifa.br` / `cambista123` (código `SERGIO`) | `/cambista` | vender na mão, imprimir bilhete e ver o próprio acerto |
+| `marina@rifassaojose.br` / `organizador123` | `/admin` | as mesmas telas do admin, recortadas na organização dela |
 
 ## Comandos
 

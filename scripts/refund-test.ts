@@ -11,6 +11,7 @@
  * Rode depois de mexer em `refundOrder`, no webhook ou no motor de cotas.
  */
 import "dotenv/config";
+import { baseUrl } from "./base-url";
 import { eq, sql } from "drizzle-orm";
 import { db, pool } from "../server/db";
 import {
@@ -28,9 +29,7 @@ import {
 } from "../shared/schema";
 import { refundOrder } from "../server/services/orders";
 
-const URL = process.argv.includes("--url")
-  ? process.argv[process.argv.indexOf("--url") + 1]
-  : "http://127.0.0.1:5055";
+const URL = baseUrl();
 
 let falhas = 0;
 function checa(nome: string, ok: boolean, detalhe = "") {

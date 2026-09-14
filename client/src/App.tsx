@@ -27,6 +27,7 @@ import {
 } from "@/pages/afiliado";
 import { AdminCambistas } from "@/pages/adminCambistas";
 import { AdminAntifraude } from "@/pages/adminAntifraude";
+import { AdminExportacoes } from "@/pages/adminExportacoes";
 import {
   AdminPainel,
   AdminCampanhas,
@@ -157,6 +158,11 @@ export default function App() {
           <Route path="/admin/antifraude">
             <Guarded requires="admin">
               <AdminAntifraude />
+            </Guarded>
+          </Route>
+          <Route path="/admin/exportacoes">
+            <Guarded requires="admin">
+              <AdminExportacoes />
             </Guarded>
           </Route>
           <Route path="/admin/configuracoes">

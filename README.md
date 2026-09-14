@@ -270,6 +270,39 @@ Três decisões que valem registrar:
 A tela mostra o que foi barrado e por quê. Sem isso, limite apertado demais
 vira venda perdida que ninguém enxerga.
 
+### As exportações
+
+```
+/admin/exportacoes
+```
+
+Seis relatórios em CSV: pedidos, cotas vendidas, compradores, comissões,
+acertos de cambista e a prestação de contas do sorteio. Com recorte por
+campanha e por data — o dia final entra inteiro.
+
+O arquivo abre direto no Excel brasileiro: separador ponto e vírgula, vírgula
+decimal, sem `R$` e sem separador de milhar (com eles a célula vira texto e a
+soma da coluna devolve zero), e BOM no começo, senão o acento vira caractere
+estranho.
+
+Três coisas que importam mais que o formato:
+
+- **A planilha executa o que você escreve nela.** Um comprador que se cadastre
+  como `=cmd|'/c calc'!A1` põe uma fórmula dentro do relatório do organizador,
+  que dispara quando ele abre o próprio arquivo. Toda célula passa por
+  `neutralizarFormula()`. O cuidado fino é o `-`: `-14,70` é dinheiro e precisa
+  continuar somando, então só é neutralizado quando o resto não é número.
+- **Nada é montado inteiro na memória.** Cada relatório é um gerador com
+  paginação de chave, e a rota respeita a contrapressão do socket. Medido: meio
+  milhão de linhas, 31 MB de arquivo, memória do processo parada em 60 MB do
+  começo ao fim.
+- **A semente do sorteio só sai depois do sorteio.** Antes dele o relatório
+  traz o hash — o compromisso público — e diz por que a semente não está ali.
+  Quem a tivesse antes calcularia o número e compraria a cota.
+
+Todo download fica registrado em `audit_log` com quem baixou, quando, qual
+recorte e se o arquivo levava dado pessoal.
+
 ### As maquininhas
 
 O app roda igual no navegador e dentro de uma maquininha Android (PagBank

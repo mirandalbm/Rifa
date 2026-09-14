@@ -1,4 +1,5 @@
 import express, { Router, type Request } from "express";
+import { once } from "node:events";
 import { randomInt } from "node:crypto";
 import QRCode from "qrcode";
 import { eq, and, sql, desc } from "drizzle-orm";
@@ -62,6 +63,8 @@ import {
   setPaymentMethods,
 } from "../services/settings";
 import { generateSecret, verifyTotp, otpauthUrl } from "../services/totp";
+import { buildExport, ExportError, toCsvLine } from "../services/exports";
+import { EXPORTS, exportInfo, exportFilename, CSV_BOM } from "@shared/exports";
 
 export const adminRouter = Router();
 
@@ -728,6 +731,127 @@ adminRouter.put("/organizer", async (req, res, next) => {
   } catch (err) {
     if (err instanceof Error && err.message.includes("administradora")) {
       return res.status(400).json({ message: err.message });
+    }
+    next(err);
+  }
+});
+
+/* ---------------- exportações ---------------- */
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Data do formulário (aaaa-mm-dd) ou nada. Texto torto vira `null`.
+ *
+ * Montada como data **local**, não com `new Date("2026-09-14")` — esse
+ * construtor lê a string como UTC, e num servidor em UTC-3 a meia-noite viraria
+ * 21h do dia anterior. O relatório passaria a começar no dia errado.
+ */
+function lerData(valor: unknown, fimDoDia = false): Date | null {
+  const texto = String(valor ?? "");
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(texto);
+  if (!m) return null;
+
+  const [, ano, mes, dia] = m;
+  const d = new Date(Number(ano), Number(mes) - 1, Number(dia));
+  if (Number.isNaN(d.getTime())) return null;
+
+  // O filtro do serviço é `< ate`. Quem escolhe "até 14/09" quer o dia 14
+  // inteiro, então o fim é a meia-noite do dia seguinte.
+  if (fimDoDia) d.setDate(d.getDate() + 1);
+
+  return d;
+}
+
+adminRouter.get("/exportacoes", (_req, res) => {
+  res.json({ relatorios: EXPORTS });
+});
+
+/**
+ * O download.
+ *
+ * Escreve direto no socket, página por página, respeitando a contrapressão:
+ * `res.write()` devolvendo `false` significa que o buffer do sistema encheu e
+ * continuar escrevendo acumularia tudo na memória do processo — exatamente o
+ * que o gerador paginado existe para evitar.
+ *
+ * O cabeçalho sai antes da primeira consulta pesada, então erro depois disso
+ * não vira JSON: a resposta já começou. Por isso a validação toda acontece
+ * antes, e uma falha no meio derruba a conexão de propósito — arquivo cortado
+ * que parece inteiro é pior que download que falhou.
+ */
+adminRouter.get("/exportacoes/:key", async (req, res, next) => {
+  try {
+    const info = exportInfo(req.params.key);
+    if (!info) return res.status(404).json({ message: "Relatório desconhecido." });
+
+    const campaignId = req.query.campanha ? String(req.query.campanha) : null;
+    if (info.campanhaObrigatoria && !campaignId) {
+      return res.status(400).json({
+        message: `O relatório "${info.label}" precisa de uma campanha.`,
+      });
+    }
+
+    let campanha: { slug: string } | undefined;
+    if (campaignId) {
+      if (!UUID.test(campaignId)) {
+        return res.status(400).json({ message: "Campanha inválida." });
+      }
+      [campanha] = await db
+        .select({ slug: campaigns.slug })
+        .from(campaigns)
+        .where(eq(campaigns.id, campaignId));
+      if (!campanha) {
+        return res.status(404).json({ message: "Campanha não encontrada." });
+      }
+    }
+
+    const de = lerData(req.query.de);
+    const ate = lerData(req.query.ate, true);
+    if (req.query.de && !de) return res.status(400).json({ message: "Data inicial inválida." });
+    if (req.query.ate && !ate) return res.status(400).json({ message: "Data final inválida." });
+    if (de && ate && de > ate) {
+      return res.status(400).json({ message: "A data inicial é depois da final." });
+    }
+
+    const relatorio = buildExport(info.key, { campaignId, de, ate });
+
+    // O registro do acesso vem ANTES do arquivo: exportação que leva dado
+    // pessoal precisa deixar rastro mesmo que o download seja interrompido.
+    await audit(req, "exportacao", "export", info.key, {
+      campanha: campanha?.slug ?? null,
+      de: de?.toISOString() ?? null,
+      ate: ate?.toISOString() ?? null,
+      dadoPessoal: info.dadoPessoal,
+    });
+
+    const nome = exportFilename(info.key, campanha?.slug ?? null);
+
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="${nome}"`);
+    // Relatório é retrato do instante: guardar em cache entrega número velho.
+    res.setHeader("Cache-Control", "no-store");
+
+    res.write(CSV_BOM + toCsvLine(relatorio.header));
+
+    for await (const linha of relatorio.linhas) {
+      if (!res.write(toCsvLine(linha))) {
+        // Buffer cheio: espera o socket drenar antes de pedir a próxima
+        // página. Sem isto, 500 mil linhas entram na memória do processo.
+        await once(res, "drain");
+      }
+    }
+
+    res.end();
+  } catch (err) {
+    if (res.headersSent) {
+      // A resposta já começou: não dá para virar JSON. Derruba a conexão,
+      // que é como o navegador entende "este arquivo não está inteiro".
+      res.destroy(err as Error);
+      return;
+    }
+    if (err instanceof ExportError) {
+      return res.status(err.status).json({ message: err.message });
     }
     next(err);
   }

@@ -62,6 +62,7 @@ arquitetura.
 | ponte com a maquininha | `client/src/lib/pos.ts`, `android/`, `docs/MAQUININHAS.md` |
 | teste de carga | `scripts/load-test.ts` |
 | limites de antifraude | `shared/antifraude.ts` (regras) e `server/services/antifraude.ts` |
+| exportações | `shared/exports.ts` (formato) e `server/services/exports.ts` (consultas) |
 
 ## Convenções
 
@@ -80,9 +81,10 @@ arquitetura.
 - Fila (BullMQ): os três relógios rodam com `setInterval` no processo,
   protegidos por trava de aplicação do Postgres — com várias réplicas só uma
   executa. Serve bem; a fila entra quando houver trabalho pesado de verdade.
-- Da Fase 4: exportações e multi-organizador. O teste de carga existe
+- Da Fase 4 falta só o multi-organizador. O teste de carga existe
   (`npm run load`) e a campanha de 1M já foi vendida inteira sob concorrência
-  sem duplicar cota; o antifraude está no ar, com painel em `/admin/antifraude`.
+  sem duplicar cota; o antifraude está no ar (`/admin/antifraude`) e as
+  exportações também (`/admin/exportacoes`).
 - A integração da Stone no invólucro Android: `android/app/src/ton/` tem a
   estrutura e dois pontos de encaixe marcados, sem nomes de classe
   preenchidos. A do PagBank está escrita.
@@ -190,3 +192,31 @@ A de seis era um teto de verdade: a plataforma roda várias rifas de até 1M de
 cotas e passa de um milhão de *pedidos* ao longo da vida — com 990 mil códigos,
 a rifa simplesmente pararia de emitir pedido. Se um dia encurtar isso, faça a
 conta da densidade antes.
+
+## Exportações — o que não pode afrouxar
+
+- **A planilha executa o que você escreve nela.** Célula que começa com `=`,
+  `+`, `@` — ou `-` que não é número — o Excel trata como fórmula, e o nome do
+  comprador vem de formulário público. `neutralizarFormula()` em
+  `shared/exports.ts` põe apóstrofo à esquerda. Coluna nova que carregue texto
+  de usuário passa por `csvCell()`, sem exceção.
+- **O `-` de dinheiro negativo continua número.** Neutralizar todo `-`
+  quebraria a soma da coluna de estorno, que é justamente o que a
+  contabilidade confere. Tem teste para os dois lados.
+- **Nada é montado inteiro na memória.** Cada relatório é gerador com
+  paginação de chave (keyset) e a rota respeita a contrapressão do socket.
+  Meio milhão de linhas saiu com a memória do processo parada em 60 MB. Se
+  aparecer `OFFSET` ou um array acumulando linhas aqui, é regressão.
+- **`JOIN` de relatório é `LEFT`.** `quota_alloc.order_id` não tem chave
+  estrangeira; com `INNER`, cota cujo pedido sumisse desapareceria calada do
+  arquivo. Relatório de conferência que omite linha em silêncio é pior que
+  relatório que falha.
+- **A semente do sorteio não sai antes do sorteio.** Quem a tiver calcula o
+  número e compra a cota. Antes, só o hash — o compromisso público. Vale
+  inclusive para o administrador: arquivo baixado sai do controle do sistema.
+- **Todo download entra em `audit_log`, antes de o arquivo começar.** Quem
+  baixou, quando, qual recorte e se levava dado pessoal. Registrar depois
+  perderia o download interrompido.
+- **Formato é pt-BR ou não serve:** separador `;`, vírgula decimal, sem `R$`,
+  sem separador de milhar (senão a célula vira texto e a soma dá zero) e BOM
+  no começo, senão o Excel abre em Latin-1 e come os acentos.

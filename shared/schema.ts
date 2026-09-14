@@ -1,32 +1,59 @@
-import { sql } from 'drizzle-orm';
 import {
-  index,
-  jsonb,
   pgTable,
-  timestamp,
-  varchar,
-  text,
-  integer,
-  boolean,
-  decimal,
   pgEnum,
+  uuid,
+  text,
+  varchar,
+  integer,
+  bigint,
+  boolean,
+  timestamp,
+  jsonb,
+  index,
+  uniqueIndex,
+  primaryKey,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-// Dashboard Statistics Types
-export interface DashboardStats {
-  totalVideos: number;
-  videosToday: number;
-  totalViews: number;
-  totalSubscribers: number;
-  successRate: number;
-  activeJobs: number;
-}
+/* ------------------------------------------------------------------ *
+ * Enums
+ * ------------------------------------------------------------------ */
 
-// Session storage table.
-// (IMPORTANT) This table is mandatory for Replit Auth, don't drop it.
+export const userRole = pgEnum("user_role", ["admin", "affiliate"]);
+export const campaignStatus = pgEnum("campaign_status", [
+  "draft",
+  "published",
+  "closed",
+  "drawn",
+]);
+export const mediaRole = pgEnum("media_role", ["banner", "photo", "video"]);
+export const mediaStatus = pgEnum("media_status", ["processing", "ready", "rejected"]);
+export const allocStatus = pgEnum("alloc_status", ["reserved", "paid"]);
+export const orderStatus = pgEnum("order_status", [
+  "pending",
+  "paid",
+  "expired",
+  "refunded",
+]);
+export const commissionStatus = pgEnum("commission_status", [
+  "pending",
+  "available",
+  "paid",
+  "reversed",
+]);
+export const payoutStatus = pgEnum("payout_status", ["requested", "paid", "failed"]);
+export const affiliateStatus = pgEnum("affiliate_status", [
+  "pending",
+  "active",
+  "blocked",
+]);
+
+/* ------------------------------------------------------------------ *
+ * Sessão (connect-pg-simple) — admin e afiliado
+ * ------------------------------------------------------------------ */
+
 export const sessions = pgTable(
   "sessions",
   {
@@ -34,348 +61,469 @@ export const sessions = pgTable(
     sess: jsonb("sess").notNull(),
     expire: timestamp("expire").notNull(),
   },
-  (table) => [index("IDX_session_expire").on(table.expire)],
+  (t) => [index("idx_sessions_expire").on(t.expire)],
 );
 
-// User storage table.
-// (IMPORTANT) This table is mandatory for Replit Auth, don't drop it.
-export const users = pgTable("users", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  email: varchar("email").unique(),
-  firstName: varchar("first_name"),
-  lastName: varchar("last_name"),
-  profileImageUrl: varchar("profile_image_url"),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+/* ------------------------------------------------------------------ *
+ * Pessoas
+ * ------------------------------------------------------------------ */
+
+/** Quem faz login com senha: administrador geral e afiliados. */
+export const users = pgTable(
+  "users",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    role: userRole("role").notNull(),
+    name: text("name").notNull(),
+    email: text("email").notNull(),
+    phone: text("phone"),
+    passwordHash: text("password_hash").notNull(),
+    totpSecret: text("totp_secret"),
+    active: boolean("active").notNull().default(true),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("uq_users_email").on(t.email)],
+);
+
+/** Comprador: identidade leve, sem senha. Achado por telefone. */
+export const buyers = pgTable(
+  "buyers",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: text("name").notNull(),
+    phone: text("phone").notNull(),
+    cpf: text("cpf"),
+    email: text("email"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("uq_buyers_phone").on(t.phone)],
+);
+
+export const affiliates = pgTable(
+  "affiliates",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    code: text("code").notNull(),
+    pixKey: text("pix_key"),
+    /** Sobrepõe campaigns.commissionPctDefault quando preenchido. */
+    commissionPct: integer("commission_pct"),
+    status: affiliateStatus("status").notNull().default("pending"),
+    approvedAt: timestamp("approved_at"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("uq_affiliates_code").on(t.code),
+    uniqueIndex("uq_affiliates_user").on(t.userId),
+  ],
+);
+
+/* ------------------------------------------------------------------ *
+ * Campanhas (multi-rifas)
+ * ------------------------------------------------------------------ */
+
+export const campaigns = pgTable(
+  "campaigns",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /** Nulo hoje. Existe para não doer se o produto virar multi-organizador. */
+    organizationId: uuid("organization_id"),
+    slug: text("slug").notNull(),
+    title: text("title").notNull(),
+    description: text("description"),
+    prizeTitle: text("prize_title").notNull(),
+    /** 100 a 1.000.000. Travado na publicação — ver services/campaigns.ts */
+    totalQuotas: integer("total_quotas").notNull(),
+    priceCents: integer("price_cents").notNull(),
+    minPerOrder: integer("min_per_order").notNull().default(1),
+    maxPerOrder: integer("max_per_order").notNull().default(1000),
+    reservationTtlMin: integer("reservation_ttl_min").notNull().default(15),
+    drawAt: timestamp("draw_at"),
+    /** Compromisso público do sorteio: hash publicado antes da 1ª venda. */
+    drawSeedHash: text("draw_seed_hash"),
+    /** Certificado SPA/MF da campanha — exigido para publicar. */
+    authorizationCode: text("authorization_code"),
+    authorizationFileKey: text("authorization_file_key"),
+    status: campaignStatus("status").notNull().default("draft"),
+    commissionPctDefault: integer("commission_pct_default").notNull().default(10),
+    featured: boolean("featured").notNull().default(false),
+    sortWeight: integer("sort_weight").notNull().default(0),
+    publishedAt: timestamp("published_at"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("uq_campaigns_slug").on(t.slug),
+    index("idx_campaigns_status").on(t.status, t.sortWeight),
+  ],
+);
+
+export const campaignMedia = pgTable(
+  "campaign_media",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    campaignId: uuid("campaign_id")
+      .notNull()
+      .references(() => campaigns.id, { onDelete: "cascade" }),
+    role: mediaRole("role").notNull(),
+    position: integer("position").notNull().default(0),
+    storageKey: text("storage_key").notNull(),
+    mime: text("mime").notNull(),
+    width: integer("width"),
+    height: integer("height"),
+    /** Medida no servidor com ffprobe. Vídeo acima de 60 s é recusado. */
+    durationS: integer("duration_s"),
+    posterKey: text("poster_key"),
+    altText: text("alt_text"),
+    bytes: bigint("bytes", { mode: "number" }),
+    status: mediaStatus("status").notNull().default("processing"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [index("idx_media_campaign").on(t.campaignId, t.role, t.position)],
+);
+
+export const quotaPackages = pgTable(
+  "quota_packages",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    campaignId: uuid("campaign_id")
+      .notNull()
+      .references(() => campaigns.id, { onDelete: "cascade" }),
+    quantity: integer("quantity").notNull(),
+    discountPct: integer("discount_pct").notNull().default(0),
+    highlight: boolean("highlight").notNull().default(false),
+  },
+  (t) => [index("idx_packages_campaign").on(t.campaignId, t.quantity)],
+);
+
+export const prizedQuotas = pgTable(
+  "prized_quotas",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    campaignId: uuid("campaign_id")
+      .notNull()
+      .references(() => campaigns.id, { onDelete: "cascade" }),
+    number: integer("number").notNull(),
+    prizeLabel: text("prize_label").notNull(),
+    claimedByOrderId: uuid("claimed_by_order_id"),
+    claimedAt: timestamp("claimed_at"),
+  },
+  (t) => [uniqueIndex("uq_prized_campaign_number").on(t.campaignId, t.number)],
+);
+
+/* ------------------------------------------------------------------ *
+ * Cotas — armazenamento esparso (ver docs/PLANO-RIFA.md §4.1)
+ *
+ * Só existe linha para cota TOMADA. Disponível é a ausência de linha:
+ * publicar uma campanha de 1.000.000 não cria nenhuma linha aqui.
+ * ------------------------------------------------------------------ */
+
+export const quotaAlloc = pgTable(
+  "quota_alloc",
+  {
+    campaignId: uuid("campaign_id")
+      .notNull()
+      .references(() => campaigns.id, { onDelete: "cascade" }),
+    number: integer("number").notNull(),
+    status: allocStatus("status").notNull(),
+    orderId: uuid("order_id").notNull(),
+    reservedUntil: timestamp("reserved_until"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    // A exclusividade da cota é esta chave. Nada mais.
+    primaryKey({ columns: [t.campaignId, t.number] }),
+    index("idx_alloc_order").on(t.orderId),
+    index("idx_alloc_expiry").on(t.reservedUntil),
+  ],
+);
+
+/** Contadores incrementais: a barra de progresso nunca faz COUNT(*) em 1M. */
+export const campaignStats = pgTable("campaign_stats", {
+  campaignId: uuid("campaign_id")
+    .primaryKey()
+    .references(() => campaigns.id, { onDelete: "cascade" }),
+  soldCount: integer("sold_count").notNull().default(0),
+  reservedCount: integer("reserved_count").notNull().default(0),
+  revenueCents: bigint("revenue_cents", { mode: "number" }).notNull().default(0),
+  /** Acima de 85% vendido a amostragem aleatória colide demais: usa free_pool. */
+  endgame: boolean("endgame").notNull().default(false),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
-// Enums
-export const newsStatusEnum = pgEnum('news_status', ['discovered', 'processed', 'approved', 'rejected']);
-export const videoStatusEnum = pgEnum('video_status', ['pending', 'generating', 'processing', 'ready', 'approved', 'published', 'failed']);
-export const jobStatusEnum = pgEnum('job_status', ['pending', 'processing', 'completed', 'failed', 'paused']);
-export const languageEnum = pgEnum('language', ['en-US', 'pt-BR', 'es-ES', 'es-MX', 'de-DE', 'fr-FR', 'hi-IN', 'ja-JP', 'zh-CN', 'ko-KR', 'ru-RU']);
-export const apiConfigStatusEnum = pgEnum('api_config_status', ['active', 'inactive', 'error']);
-export const schedulingStrategyEnum = pgEnum('scheduling_strategy', ['trending', 'viral_score', 'time_based', 'ai_optimized']);
-export const approvalStatusEnum = pgEnum('approval_status', ['pending', 'auto_approved', 'manual_review', 'rejected', 'published']);
-export const errorSeverityEnum = pgEnum('error_severity', ['low', 'medium', 'high', 'critical']);
-export const resourceTypeEnum = pgEnum('resource_type', ['cpu', 'memory', 'api_calls', 'storage', 'bandwidth']);
+/** Materializado só no endgame, com os números que sobraram. */
+export const freePool = pgTable(
+  "free_pool",
+  {
+    campaignId: uuid("campaign_id")
+      .notNull()
+      .references(() => campaigns.id, { onDelete: "cascade" }),
+    number: integer("number").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.campaignId, t.number] })],
+);
 
-// News articles table
-export const newsArticles = pgTable("news_articles", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  title: text("title").notNull(),
-  content: text("content").notNull(),
-  url: varchar("url").notNull(),
-  source: varchar("source").notNull(),
-  imageUrl: varchar("image_url"),
-  category: varchar("category"),
-  viralScore: integer("viral_score").notNull(),
-  status: newsStatusEnum("status").default('discovered'),
-  publishedAt: timestamp("published_at"),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+/* ------------------------------------------------------------------ *
+ * Pedidos e pagamento
+ * ------------------------------------------------------------------ */
+
+export const orders = pgTable(
+  "orders",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /** Número curto que o comprador lê no WhatsApp. */
+    code: integer("code").notNull(),
+    campaignId: uuid("campaign_id")
+      .notNull()
+      .references(() => campaigns.id, { onDelete: "cascade" }),
+    buyerId: uuid("buyer_id")
+      .notNull()
+      .references(() => buyers.id),
+    quantity: integer("quantity").notNull(),
+    amountCents: integer("amount_cents").notNull(),
+    discountCents: integer("discount_cents").notNull().default(0),
+    status: orderStatus("status").notNull().default("pending"),
+    affiliateId: uuid("affiliate_id").references(() => affiliates.id),
+    couponId: uuid("coupon_id"),
+    pspProvider: text("psp_provider"),
+    pspChargeId: text("psp_charge_id"),
+    pixQr: text("pix_qr"),
+    pixCopyPaste: text("pix_copy_paste"),
+    expiresAt: timestamp("expires_at"),
+    paidAt: timestamp("paid_at"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("uq_orders_code").on(t.code),
+    index("idx_orders_campaign_status").on(t.campaignId, t.status),
+    index("idx_orders_buyer").on(t.buyerId),
+    index("idx_orders_affiliate").on(t.affiliateId),
+    index("idx_orders_expiry").on(t.status, t.expiresAt),
+  ],
+);
+
+export const coupons = pgTable(
+  "coupons",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    campaignId: uuid("campaign_id").references(() => campaigns.id, {
+      onDelete: "cascade",
+    }),
+    affiliateId: uuid("affiliate_id").references(() => affiliates.id, {
+      onDelete: "cascade",
+    }),
+    code: text("code").notNull(),
+    discountPct: integer("discount_pct").notNull(),
+    maxUses: integer("max_uses"),
+    uses: integer("uses").notNull().default(0),
+    expiresAt: timestamp("expires_at"),
+  },
+  (t) => [uniqueIndex("uq_coupons_code").on(t.code)],
+);
+
+/* ------------------------------------------------------------------ *
+ * Afiliados: rastreio, comissão, saque
+ * ------------------------------------------------------------------ */
+
+export const clickEvents = pgTable(
+  "click_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    affiliateId: uuid("affiliate_id")
+      .notNull()
+      .references(() => affiliates.id, { onDelete: "cascade" }),
+    campaignId: uuid("campaign_id").references(() => campaigns.id, {
+      onDelete: "cascade",
+    }),
+    /** IP e user-agent guardados como hash — LGPD, minimização. */
+    ipHash: text("ip_hash"),
+    uaHash: text("ua_hash"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [index("idx_clicks_affiliate").on(t.affiliateId, t.createdAt)],
+);
+
+export const commissions = pgTable(
+  "commissions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    affiliateId: uuid("affiliate_id")
+      .notNull()
+      .references(() => affiliates.id, { onDelete: "cascade" }),
+    orderId: uuid("order_id")
+      .notNull()
+      .references(() => orders.id, { onDelete: "cascade" }),
+    campaignId: uuid("campaign_id")
+      .notNull()
+      .references(() => campaigns.id, { onDelete: "cascade" }),
+    amountCents: integer("amount_cents").notNull(),
+    pct: integer("pct").notNull(),
+    status: commissionStatus("status").notNull().default("pending"),
+    /** Liberação só depois da janela de estorno. */
+    availableAt: timestamp("available_at").notNull(),
+    payoutId: uuid("payout_id"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("uq_commission_order").on(t.orderId),
+    index("idx_commissions_affiliate").on(t.affiliateId, t.status),
+  ],
+);
+
+export const payouts = pgTable("payouts", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  affiliateId: uuid("affiliate_id")
+    .notNull()
+    .references(() => affiliates.id, { onDelete: "cascade" }),
+  amountCents: integer("amount_cents").notNull(),
+  pixKey: text("pix_key").notNull(),
+  status: payoutStatus("status").notNull().default("requested"),
+  receiptUrl: text("receipt_url"),
+  requestedAt: timestamp("requested_at").notNull().defaultNow(),
+  processedAt: timestamp("processed_at"),
 });
 
-// Video content table
-export const videos = pgTable("videos", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  newsArticleId: varchar("news_article_id").references(() => newsArticles.id),
-  title: text("title").notNull(),
-  script: text("script").notNull(),
-  language: languageEnum("language").notNull(),
-  avatarTemplate: varchar("avatar_template").notNull(),
-  status: videoStatusEnum("status").default('pending'),
-  progress: integer("progress").default(0), // Progress percentage (0-100)
-  videoUrl: varchar("video_url"),
-  videoPath: varchar("video_path"),
-  audioPath: varchar("audio_path"),
-  thumbnailUrl: varchar("thumbnail_url"),
-  duration: integer("duration"), // in seconds
-  youtubeVideoId: varchar("youtube_video_id"),
-  views: integer("views").default(0),
-  likes: integer("likes").default(0),
-  comments: integer("comments").default(0),
-  metadata: jsonb("metadata"), // Additional metadata for auto-approval, processing info, etc.
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+/* ------------------------------------------------------------------ *
+ * Sorteio, webhooks, auditoria
+ * ------------------------------------------------------------------ */
+
+export const draws = pgTable("draws", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  campaignId: uuid("campaign_id")
+    .notNull()
+    .references(() => campaigns.id, { onDelete: "cascade" }),
+  /** Concurso da Loteria Federal usado como entropia pública. */
+  federalContest: integer("federal_contest"),
+  /** Os 5 prêmios do concurso, na ordem. */
+  federalPrizes: jsonb("federal_prizes").$type<string[]>(),
+  seed: text("seed").notNull(),
+  seedHash: text("seed_hash").notNull(),
+  resultNumber: integer("result_number"),
+  winnerOrderId: uuid("winner_order_id").references(() => orders.id),
+  evidenceUrl: text("evidence_url"),
+  executedAt: timestamp("executed_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
-// YouTube channels table
-export const youtubeChannels = pgTable("youtube_channels", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  channelId: varchar("channel_id").notNull().unique(),
-  name: varchar("name").notNull(),
-  language: languageEnum("language").notNull(),
-  subscriberCount: integer("subscriber_count").default(0),
-  totalViews: integer("total_views").default(0),
-  isActive: boolean("is_active").default(true),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-});
+/** Idempotência do webhook do provedor de pagamento. */
+export const webhookEvents = pgTable(
+  "webhook_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    provider: text("provider").notNull(),
+    externalId: text("external_id").notNull(),
+    payload: jsonb("payload"),
+    processedAt: timestamp("processed_at"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("uq_webhook_external").on(t.provider, t.externalId)],
+);
 
-// Processing jobs table
-export const processingJobs = pgTable("processing_jobs", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  type: varchar("type").notNull(), // 'news_fetch', 'script_generation', 'video_render', 'publish'
-  status: jobStatusEnum("status").default('pending'),
-  progress: integer("progress").default(0), // 0-100
-  data: jsonb("data"), // job-specific data
-  error: text("error"),
-  startedAt: timestamp("started_at"),
-  completedAt: timestamp("completed_at"),
-  createdAt: timestamp("created_at").defaultNow(),
-});
+export const auditLog = pgTable(
+  "audit_log",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    actorId: uuid("actor_id"),
+    actorRole: text("actor_role"),
+    action: text("action").notNull(),
+    entity: text("entity").notNull(),
+    entityId: text("entity_id"),
+    diff: jsonb("diff"),
+    ip: text("ip"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [index("idx_audit_entity").on(t.entity, t.entityId, t.createdAt)],
+);
 
-// System metrics table
-export const systemMetrics = pgTable("system_metrics", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  metricName: varchar("metric_name").notNull(),
-  value: text("value").notNull(), // Changed from decimal to text to handle both numeric and JSON data
-  timestamp: timestamp("timestamp").defaultNow(),
-});
+/* ------------------------------------------------------------------ *
+ * Relações
+ * ------------------------------------------------------------------ */
 
-// API status table
-export const apiStatus = pgTable("api_status", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  serviceName: varchar("service_name").notNull().unique(),
-  status: varchar("status").notNull(), // 'operational', 'degraded', 'down'
-  responseTime: integer("response_time"), // in ms
-  lastChecked: timestamp("last_checked").defaultNow(),
-});
-
-// API configurations table
-export const apiConfigurations = pgTable("api_configurations", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: varchar("user_id").references(() => users.id).notNull(),
-  serviceId: varchar("service_id").notNull(), // openai, elevenlabs, heygen, etc.
-  serviceName: varchar("service_name").notNull(),
-  isActive: boolean("is_active").default(false),
-  encryptedConfig: text("encrypted_config"), // JSON encrypted
-  status: apiConfigStatusEnum("status").default('inactive'),
-  lastTested: timestamp("last_tested"),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-}, (table) => [
-  index("idx_api_config_user_service").on(table.userId, table.serviceId),
-]);
-
-// Trending topics and viral scoring table
-export const trendingTopics = pgTable("trending_topics", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  keyword: varchar("keyword").notNull(),
-  category: varchar("category").notNull(),
-  trendScore: integer("trend_score").notNull(), // 0-100
-  viralPotential: integer("viral_potential").notNull(), // 0-100
-  mentions: integer("mentions").default(0),
-  engagement: integer("engagement").default(0),
-  region: varchar("region").default('global'),
-  language: languageEnum("language").default('en-US'),
-  isActive: boolean("is_active").default(true),
-  detectedAt: timestamp("detected_at").defaultNow(),
-  peakTime: timestamp("peak_time"),
-  expiresAt: timestamp("expires_at"),
-  metadata: jsonb("metadata"), // Additional trend data
-}, (table) => [
-  index("idx_trending_keyword").on(table.keyword),
-  index("idx_trending_score").on(table.trendScore),
-  index("idx_trending_active").on(table.isActive),
-]);
-
-// Intelligent scheduling rules table
-export const schedulingRules = pgTable("scheduling_rules", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  name: varchar("name").notNull(),
-  strategy: schedulingStrategyEnum("strategy").notNull(),
-  isActive: boolean("is_active").default(true),
-  priority: integer("priority").default(50), // 0-100
-  conditions: jsonb("conditions").notNull(), // Complex scheduling conditions
-  targetAudience: jsonb("target_audience"), // Demographics, timezone, etc.
-  language: languageEnum("language").default('en-US'),
-  minViralScore: integer("min_viral_score").default(70),
-  maxDailyVideos: integer("max_daily_videos").default(10),
-  timeSlots: jsonb("time_slots"), // Optimal publishing times
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-}, (table) => [
-  index("idx_scheduling_strategy").on(table.strategy),
-  index("idx_scheduling_active").on(table.isActive),
-]);
-
-// Auto-approval workflow table
-export const approvalWorkflows = pgTable("approval_workflows", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  contentId: varchar("content_id").notNull(), // References video or news
-  contentType: varchar("content_type").notNull(), // 'video', 'news', 'script'
-  status: approvalStatusEnum("status").default('pending'),
-  autoApprovalScore: integer("auto_approval_score").default(0), // AI-generated score 0-100
-  qualityMetrics: jsonb("quality_metrics"), // Content quality analysis
-  complianceChecks: jsonb("compliance_checks"), // Copyright, guidelines, etc.
-  humanReviewRequired: boolean("human_review_required").default(false),
-  reviewerNotes: text("reviewer_notes"),
-  approvedBy: varchar("approved_by"), // 'ai' or user_id
-  approvedAt: timestamp("approved_at"),
-  rejectionReason: text("rejection_reason"),
-  metadata: jsonb("metadata"),
-  createdAt: timestamp("created_at").defaultNow(),
-}, (table) => [
-  index("idx_approval_content").on(table.contentId, table.contentType),
-  index("idx_approval_status").on(table.status),
-  index("idx_approval_score").on(table.autoApprovalScore),
-]);
-
-// Advanced error tracking table
-export const errorLogs = pgTable("error_logs", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  jobId: varchar("job_id").references(() => processingJobs.id),
-  errorCode: varchar("error_code").notNull(),
-  severity: errorSeverityEnum("severity").notNull(),
-  message: text("message").notNull(),
-  stackTrace: text("stack_trace"),
-  context: jsonb("context"), // Request data, environment info
-  serviceName: varchar("service_name").notNull(),
-  endpoint: varchar("endpoint"),
-  retryCount: integer("retry_count").default(0),
-  maxRetries: integer("max_retries").default(3),
-  nextRetryAt: timestamp("next_retry_at"),
-  resolved: boolean("resolved").default(false),
-  resolvedAt: timestamp("resolved_at"),
-  resolutionNotes: text("resolution_notes"),
-  occuredAt: timestamp("occured_at").defaultNow(),
-}, (table) => [
-  index("idx_error_job").on(table.jobId),
-  index("idx_error_severity").on(table.severity),
-  index("idx_error_service").on(table.serviceName),
-  index("idx_error_unresolved").on(table.resolved),
-]);
-
-// Resource usage and performance metrics table
-export const resourceMetrics = pgTable("resource_metrics", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  resourceType: resourceTypeEnum("resource_type").notNull(),
-  serviceName: varchar("service_name").notNull(),
-  usage: decimal("usage").notNull(), // Current usage value
-  limit: decimal("limit"), // Resource limit
-  utilization: decimal("utilization").notNull(), // Percentage 0-100
-  cost: decimal("cost"), // Associated cost
-  region: varchar("region").default('global'),
-  metadata: jsonb("metadata"), // Additional metrics data
-  timestamp: timestamp("timestamp").defaultNow(),
-}, (table) => [
-  index("idx_resource_type_service").on(table.resourceType, table.serviceName),
-  index("idx_resource_timestamp").on(table.timestamp),
-  index("idx_resource_utilization").on(table.utilization),
-]);
-
-// Performance alerts table
-export const performanceAlerts = pgTable("performance_alerts", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  alertType: varchar("alert_type").notNull(), // 'resource_limit', 'error_threshold', 'performance_degradation'
-  severity: errorSeverityEnum("severity").notNull(),
-  title: varchar("title").notNull(),
-  description: text("description").notNull(),
-  serviceName: varchar("service_name").notNull(),
-  threshold: decimal("threshold"), // Alert threshold value
-  currentValue: decimal("current_value"), // Current metric value
-  isActive: boolean("is_active").default(true),
-  acknowledged: boolean("acknowledged").default(false),
-  acknowledgedBy: varchar("acknowledged_by"),
-  acknowledgedAt: timestamp("acknowledged_at"),
-  resolvedAt: timestamp("resolved_at"),
-  notificationsSent: integer("notifications_sent").default(0),
-  metadata: jsonb("metadata"),
-  triggeredAt: timestamp("triggered_at").defaultNow(),
-}, (table) => [
-  index("idx_alert_type_severity").on(table.alertType, table.severity),
-  index("idx_alert_active").on(table.isActive),
-  index("idx_alert_service").on(table.serviceName),
-]);
-
-// Batch processing queue table
-export const batchQueues = pgTable("batch_queues", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  batchType: varchar("batch_type").notNull(), // 'video_generation', 'publishing', 'analysis'
-  status: jobStatusEnum("status").default('pending'),
-  priority: integer("priority").default(50), // 0-100
-  totalJobs: integer("total_jobs").notNull(),
-  completedJobs: integer("completed_jobs").default(0),
-  failedJobs: integer("failed_jobs").default(0),
-  progress: integer("progress").default(0), // 0-100
-  estimatedDuration: integer("estimated_duration"), // seconds
-  resourceRequirements: jsonb("resource_requirements"),
-  configuration: jsonb("configuration"), // Batch-specific config
-  results: jsonb("results"), // Batch execution results
-  startedAt: timestamp("started_at"),
-  completedAt: timestamp("completed_at"),
-  createdAt: timestamp("created_at").defaultNow(),
-}, (table) => [
-  index("idx_batch_type_status").on(table.batchType, table.status),
-  index("idx_batch_priority").on(table.priority),
-]);
-
-// Relations
-export const newsArticlesRelations = relations(newsArticles, ({ many }) => ({
-  videos: many(videos),
-}));
-
-export const videosRelations = relations(videos, ({ one }) => ({
-  newsArticle: one(newsArticles, {
-    fields: [videos.newsArticleId],
-    references: [newsArticles.id],
+export const campaignsRelations = relations(campaigns, ({ many, one }) => ({
+  media: many(campaignMedia),
+  packages: many(quotaPackages),
+  orders: many(orders),
+  stats: one(campaignStats, {
+    fields: [campaigns.id],
+    references: [campaignStats.campaignId],
   }),
 }));
 
-export const processingJobsRelations = relations(processingJobs, ({ many }) => ({
-  errorLogs: many(errorLogs),
-}));
-
-export const errorLogsRelations = relations(errorLogs, ({ one }) => ({
-  job: one(processingJobs, {
-    fields: [errorLogs.jobId],
-    references: [processingJobs.id],
+export const campaignMediaRelations = relations(campaignMedia, ({ one }) => ({
+  campaign: one(campaigns, {
+    fields: [campaignMedia.campaignId],
+    references: [campaigns.id],
   }),
 }));
 
-// Export types
-export type UpsertUser = typeof users.$inferInsert;
+export const ordersRelations = relations(orders, ({ one }) => ({
+  campaign: one(campaigns, {
+    fields: [orders.campaignId],
+    references: [campaigns.id],
+  }),
+  buyer: one(buyers, { fields: [orders.buyerId], references: [buyers.id] }),
+  affiliate: one(affiliates, {
+    fields: [orders.affiliateId],
+    references: [affiliates.id],
+  }),
+}));
+
+export const affiliatesRelations = relations(affiliates, ({ one, many }) => ({
+  user: one(users, { fields: [affiliates.userId], references: [users.id] }),
+  commissions: many(commissions),
+}));
+
+/* ------------------------------------------------------------------ *
+ * Validação
+ * ------------------------------------------------------------------ */
+
+export const MIN_QUOTAS = 100;
+export const MAX_QUOTAS = 1_000_000;
+export const MAX_VIDEO_SECONDS = 60;
+export const MAX_PHOTOS = 5;
+
+export const insertCampaignSchema = createInsertSchema(campaigns, {
+  slug: z
+    .string()
+    .min(3)
+    .max(80)
+    .regex(/^[a-z0-9-]+$/, "Use apenas letras minúsculas, números e hífen."),
+  title: z.string().min(3).max(120),
+  prizeTitle: z.string().min(3).max(160),
+  totalQuotas: z
+    .number()
+    .int()
+    .min(MIN_QUOTAS, `O mínimo é ${MIN_QUOTAS} cotas.`)
+    .max(MAX_QUOTAS, "O máximo é 1.000.000 de cotas."),
+  priceCents: z.number().int().min(1),
+  commissionPctDefault: z.number().int().min(0).max(50),
+}).omit({ id: true, createdAt: true, publishedAt: true, status: true });
+
+export const createOrderSchema = z.object({
+  campaignId: z.string().uuid(),
+  /** Compra rápida: só a quantidade. Escolha manual: a lista de números. */
+  quantity: z.number().int().min(1).max(10_000).optional(),
+  numbers: z.array(z.number().int().positive()).max(10_000).optional(),
+  buyer: z.object({
+    name: z.string().min(2).max(120),
+    phone: z.string().min(10).max(20),
+    cpf: z.string().optional(),
+    email: z.string().email().optional(),
+  }),
+  couponCode: z.string().max(40).optional(),
+  affiliateCode: z.string().max(40).optional(),
+});
+
 export type User = typeof users.$inferSelect;
-export type NewsArticle = typeof newsArticles.$inferSelect;
-export type InsertNewsArticle = typeof newsArticles.$inferInsert;
-export type Video = typeof videos.$inferSelect;
-export type InsertVideo = typeof videos.$inferInsert;
-export type YoutubeChannel = typeof youtubeChannels.$inferSelect;
-export type InsertYoutubeChannel = typeof youtubeChannels.$inferInsert;
-export type ProcessingJob = typeof processingJobs.$inferSelect;
-export type InsertProcessingJob = typeof processingJobs.$inferInsert;
-export type SystemMetric = typeof systemMetrics.$inferSelect;
-export type InsertSystemMetric = typeof systemMetrics.$inferInsert;
-export type ApiStatus = typeof apiStatus.$inferSelect;
-export type InsertApiStatus = typeof apiStatus.$inferInsert;
-export type ApiConfiguration = typeof apiConfigurations.$inferSelect;
-export type InsertApiConfiguration = typeof apiConfigurations.$inferInsert;
-export type TrendingTopic = typeof trendingTopics.$inferSelect;
-export type InsertTrendingTopic = typeof trendingTopics.$inferInsert;
-export type SchedulingRule = typeof schedulingRules.$inferSelect;
-export type InsertSchedulingRule = typeof schedulingRules.$inferInsert;
-export type ApprovalWorkflow = typeof approvalWorkflows.$inferSelect;
-export type InsertApprovalWorkflow = typeof approvalWorkflows.$inferInsert;
-export type ErrorLog = typeof errorLogs.$inferSelect;
-export type InsertErrorLog = typeof errorLogs.$inferInsert;
-export type ResourceMetric = typeof resourceMetrics.$inferSelect;
-export type InsertResourceMetric = typeof resourceMetrics.$inferInsert;
-export type PerformanceAlert = typeof performanceAlerts.$inferSelect;
-export type InsertPerformanceAlert = typeof performanceAlerts.$inferInsert;
-export type BatchQueue = typeof batchQueues.$inferSelect;
-export type InsertBatchQueue = typeof batchQueues.$inferInsert;
-
-// Insert schemas
-export const insertNewsArticleSchema = createInsertSchema(newsArticles);
-export const insertVideoSchema = createInsertSchema(videos);
-export const insertProcessingJobSchema = createInsertSchema(processingJobs);
-export const insertApiConfigurationSchema = createInsertSchema(apiConfigurations);
-export const insertTrendingTopicSchema = createInsertSchema(trendingTopics);
-export const insertSchedulingRuleSchema = createInsertSchema(schedulingRules);
-export const insertApprovalWorkflowSchema = createInsertSchema(approvalWorkflows);
-export const insertErrorLogSchema = createInsertSchema(errorLogs);
-export const insertResourceMetricSchema = createInsertSchema(resourceMetrics);
-export const insertPerformanceAlertSchema = createInsertSchema(performanceAlerts);
-export const insertBatchQueueSchema = createInsertSchema(batchQueues);
+export type Campaign = typeof campaigns.$inferSelect;
+export type CampaignMedia = typeof campaignMedia.$inferSelect;
+export type CampaignStats = typeof campaignStats.$inferSelect;
+export type QuotaPackage = typeof quotaPackages.$inferSelect;
+export type Order = typeof orders.$inferSelect;
+export type Buyer = typeof buyers.$inferSelect;
+export type Affiliate = typeof affiliates.$inferSelect;
+export type Commission = typeof commissions.$inferSelect;
+export type Payout = typeof payouts.$inferSelect;
+export type Draw = typeof draws.$inferSelect;
+export type CreateOrderInput = z.infer<typeof createOrderSchema>;

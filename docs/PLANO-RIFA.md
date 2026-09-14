@@ -229,12 +229,34 @@ observabilidade · multi-organizador (white label) se o negócio pedir.
 
 ## 10. Design
 
-Identidade, tokens de cor, escala tipográfica, componentes e os três painéis estão especificados na
-apresentação visual do plano (artefato publicado). Princípios:
+Identidade, tokens, componentes e os mockups das quatro telas estão na apresentação visual do
+plano (artefato publicado). Resumo do sistema:
 
-- **O número é o herói.** Cota em fonte monoespaçada, tabular, grande. Tudo gira em torno da grade.
-- **Estado legível em um relance.** Disponível / reservada / paga / premiada se distinguem por forma
-  e cor, nunca só por cor.
-- **Checkout sem susto.** Cronômetro sempre visível, valor total fixo no rodapé, um botão por tela.
-- **Tema claro e escuro** desenhados como sistemas completos, via tokens.
+**Paleta — branco, verde e amarelo.** Fundo branco em toda a plataforma, sem exceção de tela.
+
+| Token | Hex | Papel |
+|---|---|---|
+| `--white` | `#FFFFFF` | fundo de tudo |
+| `--mist` | `#F4F8F4` | superfície secundária, cabeçalho de tabela |
+| `--green` | `#00873E` | ação primária, cota paga, comissão liberada |
+| `--green-bright` | `#12B45C` | gráficos e hover |
+| `--green-soft` | `#E6F5EC` | destaque de KPI, selo de sucesso |
+| `--yellow` | `#FFC700` | reserva em curso, cota premiada, reta final |
+| `--yellow-soft` | `#FFF6D6` | avisos e contadores |
+| `--ink` | `#0B1F14` | texto |
+| `--muted` | `#6B8475` | texto secundário |
+| `--red` | `#B3372A` | expirado, estornado, erro |
+
+Verde significa dinheiro que entrou. Amarelo significa espera ou prêmio. Vermelho significa erro.
+Nenhuma das três cores decora nada — cor sem significado é ruído.
+
+**Tipografia.** Bricolage Grotesque (display, 700/800) · Instrument Sans (texto) ·
+DM Mono com algarismo tabular (cota, valor, prazo, percentual).
+
+**Princípios.**
+
+- **O número é o herói.** Cota em monoespaçada, grande e tabular. Tudo gira em torno da grade.
+- **Estado legível em um relance, nunca só por cor.** Contorno = livre; contorno grosso = escolhida;
+  tracejado = reservada; preenchido = paga; amarelo sólido = premiada. Sempre com rótulo em texto.
+- **Checkout sem susto.** Cronômetro sempre visível, total fixo no rodapé, um botão verde por tela.
 - **Mobile primeiro de verdade** — a venda acontece no celular, dentro do WhatsApp.

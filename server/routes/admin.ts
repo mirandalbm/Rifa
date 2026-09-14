@@ -67,6 +67,15 @@ import {
 import { generateSecret, verifyTotp, otpauthUrl } from "../services/totp";
 import { buildExport, ExportError, toCsvLine } from "../services/exports";
 import {
+  planOfOrganization,
+  setBillingPlan,
+  carteiraDaPlataforma,
+  extratoDa,
+  darBaixa,
+  lancarMensalidades,
+} from "../services/billing";
+import { BILLING_LABEL } from "@shared/billing";
+import {
   orgOf,
   isPlatform,
   requirePlatformAdmin,
@@ -1135,6 +1144,93 @@ adminRouter.post("/organizacoes/:id/acessos", async (req, res, next) => {
       email: criado.email,
     });
     res.status(201).json(criado);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/* ---------------- cobrança da plataforma ---------------- */
+
+/**
+ * A carteira: quanto cada organização deve, e em que contrato está.
+ */
+adminRouter.get("/cobranca", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    res.json({
+      rotulos: BILLING_LABEL,
+      carteira: await carteiraDaPlataforma(),
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** Troca o contrato de uma organização: mensalidade OU comissão. */
+adminRouter.put("/cobranca/:id/plano", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    const plano = await setBillingPlan(req.params.id, req.body ?? {});
+    await audit(req, "cobranca.plano", "organization", req.params.id, plano);
+    res.json(plano);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** Dá baixa no que está em aberto. */
+adminRouter.post("/cobranca/:id/baixa", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    const quantas = await darBaixa(req.params.id);
+    await audit(req, "cobranca.baixa", "organization", req.params.id, { quantas });
+    res.json({ baixadas: quantas });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** Força o lançamento da mensalidade sem esperar o relógio. */
+adminRouter.post("/cobranca/mensalidades", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    const lancadas = await lancarMensalidades();
+    await audit(req, "cobranca.mensalidades", "settings", "cobranca", { lancadas });
+    res.json({ lancadas });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * O extrato de uma organização.
+ *
+ * O organizador vê o **dele**: o que deve à plataforma faz parte do caixa
+ * dele, e esconder isso seria cobrar sem mostrar a conta.
+ */
+adminRouter.get("/cobranca/extrato", async (req, res, next) => {
+  try {
+    const org = orgOf(req);
+    const pedida = req.query.organizacao ? String(req.query.organizacao) : null;
+
+    // O parâmetro é conferido ANTES de cair no padrão. A versão anterior
+    // ignorava a organização pedida e devolvia a própria — não vazava nada,
+    // mas responder 200 a um pedido pelo extrato do vizinho faz parecer que
+    // a leitura funcionou. Foi o `npm run isolation` que pegou isto.
+    if (org && pedida && pedida !== org) {
+      return res.status(404).json({ message: "Organização não encontrada." });
+    }
+
+    const alvo = org ?? pedida;
+    if (!alvo) {
+      return res.status(400).json({ message: "Escolha a organização." });
+    }
+
+    res.json({
+      plano: await planOfOrganization(alvo),
+      rotulos: BILLING_LABEL,
+      ...(await extratoDa(alvo)),
+    });
   } catch (err) {
     next(err);
   }

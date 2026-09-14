@@ -354,6 +354,50 @@ Duas decisões que valem registrar:
   o id do vizinho apagaria o banner dele — e a checagem depois do `DELETE`
   chegaria tarde.
 
+### O rateio e a cobrança da plataforma
+
+Uma venda tem três bolsos, e a ordem entre eles é a regra que não se negocia:
+**a plataforma sai primeiro**, e a comissão do afiliado ou do cambista incide
+sobre o que sobrou — nunca sobre o bruto.
+
+```
+pago pelo comprador          R$ 445,50
+ taxa da plataforma (5%)    −R$  22,27
+ comissão do afiliado (12%) −R$  50,78   ← 12% de R$ 423,23, não de R$ 445,50
+ fica com o promotor          R$ 372,45
+```
+
+Inverter a ordem faria a plataforma cobrar sobre dinheiro que já era de outro.
+A diferença parece pequena — aqui, R$ 2,68 no mesmo pedido — e é exatamente o
+tipo de erro que só aparece no fechamento do mês.
+
+As duas fatias arredondam **para baixo** e o centavo que sobra fica com o
+promotor: é a única direção em que a soma nunca passa do que o comprador pagou.
+A garantia é de igualdade, não de aproximação, e tem teste varrendo de 0 a
+R$ 20,00 em seis combinações de percentual.
+
+#### Mensalidade ou comissão
+
+O contrato é por organização, e são dois, nunca os dois juntos:
+
+| | Como cobra | Por venda |
+|---|---|---|
+| **mensalidade** | valor fixo por mês | nada |
+| **comissão** | nada fixo | percentual sobre cada venda paga |
+| **sem cobrança** | — | — |
+
+Quem paga mensalidade tem taxa **zero** no rateio, então o afiliado volta a
+receber sobre o valor cheio. Trocar de modo zera o campo do outro — percentual
+esquecido num plano de mensalidade é bomba de relógio.
+
+O padrão de toda organização é **sem cobrança**: ninguém acorda devendo por
+causa de uma decisão tomada depois. A mensalidade é lançada pelo relógio,
+sempre referente ao **mês anterior**, e é idempotente pela chave
+`(organização, competência)`.
+
+Tudo isso vira um razão único em `/admin/cobranca` — a plataforma vê a carteira
+de clientes, e o organizador vê a conta dele, com a origem de cada lançamento.
+
 ### As maquininhas
 
 O app roda igual no navegador e dentro de uma maquininha Android (PagBank

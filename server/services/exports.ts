@@ -669,6 +669,88 @@ function sorteio(escopo: ExportScope): ExportStream {
 }
 
 /* ------------------------------------------------------------------ *
+ * Cobrança da plataforma
+ * ------------------------------------------------------------------ */
+
+interface LinhaCobranca {
+  created_at: string;
+  id: string;
+  organizacao: string;
+  kind: string;
+  competencia: string | null;
+  code: number | null;
+  campanha: string | null;
+  amount_cents: number;
+  pct: number | null;
+  status: string;
+  paid_at: string | null;
+}
+
+function cobranca(escopo: ExportScope): ExportStream {
+  return {
+    header: [
+      "Data",
+      "Organização",
+      "Tipo",
+      "Competência",
+      "Pedido",
+      "Rifa",
+      "Percentual",
+      "Valor",
+      "Situação",
+      "Pago em",
+    ],
+    linhas: (async function* () {
+      let cursor: { createdAt: string; id: string } | null = null;
+
+      for (;;) {
+        const depois: SQL = cursor
+          ? sql`AND (pc.created_at, pc.id) > (${cursor.createdAt}::timestamp, ${cursor.id}::uuid)`
+          : sql``;
+
+        const page = await rows<LinhaCobranca>(sql`
+          SELECT pc.created_at, pc.id, pc.kind::text, pc.competencia,
+                 pc.amount_cents, pc.pct, pc.status::text, pc.paid_at,
+                 g.name AS organizacao,
+                 o.code, c.title AS campanha
+            FROM platform_charges pc
+            JOIN organizations g ON g.id = pc.organization_id
+            LEFT JOIN orders o ON o.id = pc.order_id
+            LEFT JOIN campaigns c ON c.id = o.campaign_id
+           WHERE TRUE
+             ${daOrganizacao(sql`pc.organization_id`, escopo)}
+             ${janela(sql`pc.created_at`, escopo)}
+             ${depois}
+           ORDER BY pc.created_at, pc.id
+           LIMIT ${PAGINA}
+        `);
+
+        if (page.length === 0) return;
+
+        for (const l of page) {
+          yield [
+            csvDate(l.created_at),
+            l.organizacao,
+            l.kind === "mensalidade" ? "mensalidade" : "taxa sobre venda",
+            l.competencia,
+            l.code,
+            l.campanha,
+            l.pct !== null ? `${l.pct}%` : null,
+            csvMoney(l.amount_cents),
+            l.status,
+            csvDate(l.paid_at),
+          ];
+        }
+
+        if (page.length < PAGINA) return;
+        const ultimo = page[page.length - 1];
+        cursor = { createdAt: ultimo.created_at, id: ultimo.id };
+      }
+    })(),
+  };
+}
+
+/* ------------------------------------------------------------------ *
  * Despacho
  * ------------------------------------------------------------------ */
 
@@ -678,6 +760,7 @@ const RELATORIOS: Record<ExportKey, (escopo: ExportScope) => ExportStream> = {
   compradores,
   comissoes,
   acertos,
+  cobranca,
   sorteio,
 };
 

@@ -125,7 +125,8 @@ export type ExportKey =
   | "compradores"
   | "comissoes"
   | "acertos"
-  | "sorteio";
+  | "sorteio"
+  | "cobranca";
 
 export interface ExportInfo {
   key: ExportKey;
@@ -176,6 +177,13 @@ export const EXPORTS: ExportInfo[] = [
     key: "acertos",
     label: "Acertos de cambista",
     hint: "O que cada cambista recolheu, o que fica com ele e o que deve à casa.",
+    campanhaObrigatoria: false,
+    dadoPessoal: false,
+  },
+  {
+    key: "cobranca",
+    label: "Cobrança da plataforma",
+    hint: "O que a organização deve à plataforma: taxa por venda e mensalidade, com a origem de cada lançamento.",
     campanhaObrigatoria: false,
     dadoPessoal: false,
   },

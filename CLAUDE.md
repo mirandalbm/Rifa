@@ -40,7 +40,17 @@ arquitetura.
     vale para o código do pedido: quem decide é o índice único. Se você achar
     um `SELECT` para ver se "está livre" seguido de um `INSERT`, é uma corrida
     esperando 500 simultâneos.
-12. **Organização nula é a plataforma; qualquer outra é recorte.** Toda
+12. **No rateio, a plataforma sai antes.** `splitOrder()` em
+    `shared/pricing.ts`: a taxa incide sobre o pago, e a comissão do afiliado
+    ou do cambista incide sobre o que **sobrou** dela. As duas fatias
+    arredondam para baixo e o centavo fica com o promotor, para que
+    `plataforma + comissão + promotor === pago` seja igualdade exata, nunca
+    aproximação.
+13. **Mensalidade e comissão nunca convivem.** São dois contratos, e
+    `validateBillingPlan()` zera o campo do outro ao trocar: percentual
+    guardado num plano de mensalidade é bomba de relógio. Cobrar os dois
+    juntos seria um terceiro modo, não um campo ligado junto.
+14. **Organização nula é a plataforma; qualquer outra é recorte.** Toda
     consulta do painel passa por `orgOf(req)`. Rota que busca por id usa
     `assertCampaignInScope()` ou `assertAffiliateInScope()` — nunca `select`
     solto. `npm run isolation` prova; rota nova que não apareça lá é rota que
@@ -68,6 +78,8 @@ arquitetura.
 | teste de carga | `scripts/load-test.ts` |
 | limites de antifraude | `shared/antifraude.ts` (regras) e `server/services/antifraude.ts` |
 | isolamento entre organizadores | `server/services/orgs.ts` e `scripts/isolation-test.ts` |
+| rateio da venda | `shared/pricing.ts` (`splitOrder`) |
+| contrato de cobrança da plataforma | `shared/billing.ts` e `server/services/billing.ts` |
 | exportações | `shared/exports.ts` (formato) e `server/services/exports.ts` (consultas) |
 
 ## Convenções
@@ -261,3 +273,37 @@ tem atrás.
 - **São as mesmas telas.** Organizador e administrador geral usam o mesmo
   painel; o que muda é o recorte. Tela nova para organizador é sinal de que o
   recorte foi feito no lugar errado.
+
+## Rateio e cobrança — o que não pode afrouxar
+
+Três bolsos numa venda: plataforma, divulgador (afiliado ou cambista) e
+promotor. **A ordem é sempre esta, e a plataforma sai primeiro.**
+
+- **A comissão incide sobre o que sobrou da taxa, não sobre o bruto.** Inverter
+  faria a plataforma cobrar sobre dinheiro que já era de outro, e as duas
+  contas cresceriam uma em cima da outra. Numa venda de R$ 100 com taxa de 5%
+  e comissão de 10%, a diferença são 50 centavos — que viram muito em volume.
+- **A soma é igualdade, não aproximação.** As duas fatias arredondam para
+  baixo e o centavo que sobra fica com o promotor. Arredondar para cima em
+  qualquer uma faria o sistema distribuir dinheiro que não existe. Há teste
+  varrendo de 0 a R$ 20,00 em seis combinações de percentual.
+- **A base é o que o comprador pagou**, já com pacote e cupom descontados —
+  nunca o preço de tabela.
+- **Mensalidade zera a taxa por venda.** É assim que o contrato de mensalidade
+  não cobra duas vezes: `platformPctFor()` devolve 0 e o afiliado volta a
+  receber sobre o valor cheio.
+- **O padrão é `gratis`.** Organização que existia antes desta decisão não
+  acorda devendo. Quem cobra é quem escolheu cobrar.
+- **A taxa é lançada dentro da transação que confirma o pagamento**, junto com
+  a comissão. Fora dela, sobreviveria a um rollback e cobraria por uma venda
+  que não aconteceu.
+- **Os dois índices únicos de `platform_charges` são a defesa contra cobrar
+  duas vezes**, e cada um pega um jeito diferente de dobrar: `uq_charge_order`
+  contra o webhook chamado de novo, `uq_charge_competencia` contra o relógio
+  rodando em várias réplicas.
+- **A mensalidade cobra o mês anterior**, nunca o corrente: lançar no dia 1º
+  para o mês que começa é cobrança antecipada, e quem cancelar no dia 3 estaria
+  devendo por 28 dias que não usou.
+- **O organizador vê a própria conta.** Cobrar sem mostrar de onde veio cada
+  lançamento é indefensável — e é a primeira coisa que o cliente pede quando
+  desconfia da fatura.

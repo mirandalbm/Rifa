@@ -155,6 +155,7 @@ async function alcancaOVizinho(eu: Lado, vizinho: Lado) {
     ["GET exportar cotas", `/api/admin/exportacoes/cotas?campanha=${c}`, {}],
     ["GET exportar sorteio", `/api/admin/exportacoes/sorteio?campanha=${c}`, {}],
     ["PATCH organização", `/api/admin/organizacoes/${vizinho.orgId}`, { method: "PATCH", body: '{"name":"tomada"}' }],
+    ["GET extrato de cobrança do vizinho", `/api/admin/cobranca/extrato?organizacao=${vizinho.orgId}`, {}],
   ];
 
   for (const [nome, caminho, init] of tentativas) {
@@ -170,6 +171,10 @@ async function rotasDaPlataforma(eu: Lado) {
     ["GET antifraude", "/api/admin/antifraude", {}],
     ["PUT meios de pagamento", "/api/admin/payment-methods", { method: "PUT", body: "{}" }],
     ["GET auditoria", "/api/admin/audit", {}],
+    ["GET carteira de cobrança", "/api/admin/cobranca", {}],
+    ["PUT contrato de cobrança", `/api/admin/cobranca/${eu.orgId}/plano`, { method: "PUT", body: '{"mode":"gratis"}' }],
+    ["POST dar baixa", `/api/admin/cobranca/${eu.orgId}/baixa`, { method: "POST" }],
+    ["POST lançar mensalidades", "/api/admin/cobranca/mensalidades", { method: "POST" }],
   ];
   for (const [nome, caminho, init] of tentativas) {
     const res = await pedir(eu.cookie, caminho, init);
@@ -208,6 +213,13 @@ async function conteudoDasListas(eu: Lado, vizinho: Lado) {
     "a exportação de compradores não traz o cliente do vizinho",
     !csv.includes(`Cliente ${vizinho.nome}`),
     `${csv.split("\n").length - 2} linha(s)`,
+  );
+
+  const extrato = await (await pedir(eu.cookie, "/api/admin/cobranca/extrato")).json();
+  checa(
+    "o extrato de cobrança é o da própria organização",
+    (extrato as { plano?: { mode: string } }).plano !== undefined,
+    (extrato as { plano?: { mode: string } }).plano?.mode ?? "sem plano",
   );
 
   const administradora = await (await pedir(eu.cookie, "/api/admin/organizer")).json();

@@ -62,6 +62,7 @@ export type SectionKey =
   | "adminCambistas"
   | "adminFinanceiro"
   | "adminSorteios"
+  | "adminCobranca"
   | "adminOrganizacoes"
   | "adminAntifraude"
   | "adminExportacoes"
@@ -105,6 +106,9 @@ export const SECTIONS: Section[] = [
   { key: "adminFinanceiro", path: "/admin/financeiro", label: "Financeiro", requires: "organizer", nav: true },
   { key: "adminSorteios", path: "/admin/sorteios", label: "Sorteios", requires: "organizer", nav: true },
   { key: "adminExportacoes", path: "/admin/exportacoes", label: "Exportações", requires: "organizer", nav: true },
+  // Mesma tela, dois lados: a plataforma vê a carteira de clientes; o
+  // organizador vê a conta dele. Cobrar sem mostrar a conta seria indefensável.
+  { key: "adminCobranca", path: "/admin/cobranca", label: "Cobrança", requires: "organizer", nav: true },
   { key: "adminConfiguracoes", path: "/admin/configuracoes", label: "Configurações", requires: "organizer", nav: true },
 
   // Só da plataforma. Antifraude e meio de pagamento valem para todo mundo

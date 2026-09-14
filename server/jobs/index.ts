@@ -4,6 +4,7 @@ import { commissions, orders, buyers, campaigns } from "@shared/schema";
 import { notify } from "../notifications";
 import { publicUrl } from "../services/urls";
 import { purgeRateEvents } from "../services/antifraude";
+import { lancarMensalidades } from "../services/billing";
 import { releaseExpired } from "../services/quotas";
 import { log } from "../vite";
 import { pool } from "../db";
@@ -32,6 +33,7 @@ const LOCK_EXPIRACAO = 811_001;
 const LOCK_COMISSAO = 811_002;
 const LOCK_LEMBRETE = 811_003;
 const LOCK_LIMPEZA = 811_004;
+const LOCK_MENSALIDADE = 811_005;
 
 /** Quantos minutos antes de a reserva cair o lembrete é enviado. */
 const LEMBRETE_MINUTOS = Number(process.env.REMINDER_MINUTES_BEFORE ?? 5);
@@ -140,6 +142,21 @@ export function startJobs() {
       });
     } catch (err) {
       console.error("[jobs] liberação de comissões:", err);
+    }
+  }, releaseMs).unref();
+
+  // Mensalidade: lança a competência do mês anterior para quem está nesse
+  // contrato. É idempotente pelo índice (organização, competência), então
+  // rodar junto com os outros relógios não cobra duas vezes — e não precisa
+  // de um agendador de mês, que seria mais uma peça para dar errado.
+  setInterval(async () => {
+    try {
+      await withLock(LOCK_MENSALIDADE, async () => {
+        const lancadas = await lancarMensalidades();
+        if (lancadas > 0) log(`${lancadas} mensalidade(s) lançadas`, "jobs");
+      });
+    } catch (err) {
+      console.error("[jobs] mensalidades:", err);
     }
   }, releaseMs).unref();
 }

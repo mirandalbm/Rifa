@@ -21,6 +21,18 @@ import { z } from "zod";
  * Enums
  * ------------------------------------------------------------------ */
 
+export const billingMode = pgEnum("billing_mode", [
+  "gratis",
+  "mensalidade",
+  "comissao",
+]);
+export const chargeKind = pgEnum("charge_kind", ["venda", "mensalidade"]);
+export const chargeStatus = pgEnum("charge_status", [
+  "aberta",
+  "paga",
+  "cancelada",
+]);
+
 export const userRole = pgEnum("user_role", [
   "admin",
   "organizer",
@@ -119,6 +131,16 @@ export const organizations = pgTable(
     cidade: text("cidade"),
     /** Texto curto do regulamento impresso no rodapé do bilhete. */
     observacao: text("observacao"),
+    /**
+     * O contrato com a plataforma: mensalidade OU comissão, nunca os dois.
+     * Nasce `gratis` — organização que existia antes desta decisão não pode
+     * acordar devendo. Ver `shared/billing.ts`.
+     */
+    billingMode: billingMode("billing_mode").notNull().default("gratis"),
+    /** Percentual sobre a venda. Só vale no modo `comissao`. */
+    platformFeePct: integer("platform_fee_pct").notNull().default(0),
+    /** Valor do mês em centavos. Só vale no modo `mensalidade`. */
+    monthlyCents: integer("monthly_cents").notNull().default(0),
     active: boolean("active").notNull().default(true),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
@@ -617,6 +639,44 @@ export const webhookEvents = pgTable(
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (t) => [uniqueIndex("uq_webhook_external").on(t.provider, t.externalId)],
+);
+
+/**
+ * O que cada organização deve à plataforma.
+ *
+ * Um razão só para os dois contratos, porque a pergunta que o administrador
+ * faz é a mesma nos dois casos: quanto este cliente me deve? Cada linha diz
+ * de onde veio — `venda` traz o pedido, `mensalidade` traz a competência.
+ *
+ * Os dois índices únicos são o que impede cobrança dobrada, e cada um pega um
+ * jeito diferente de dobrar: o do pedido impede que o webhook chamado duas
+ * vezes lance a taxa de novo; o da competência impede que o relógio, rodando
+ * a cada minuto em quantas réplicas for, lance o mesmo mês outra vez.
+ */
+export const platformCharges = pgTable(
+  "platform_charges",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    kind: chargeKind("kind").notNull(),
+    /** Preenchido em `venda`. */
+    orderId: uuid("order_id"),
+    /** Preenchido em `mensalidade`, no formato `aaaa-mm`. */
+    competencia: text("competencia"),
+    amountCents: integer("amount_cents").notNull(),
+    /** O percentual ou o valor combinado no dia — o contrato pode mudar. */
+    pct: integer("pct"),
+    status: chargeStatus("status").notNull().default("aberta"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    paidAt: timestamp("paid_at"),
+  },
+  (t) => [
+    uniqueIndex("uq_charge_order").on(t.orderId),
+    uniqueIndex("uq_charge_competencia").on(t.organizationId, t.competencia),
+    index("idx_charges_org").on(t.organizationId, t.status),
+  ],
 );
 
 export const auditLog = pgTable(

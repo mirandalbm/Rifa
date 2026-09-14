@@ -21,7 +21,13 @@ import {
   prizedQuotas,
   type CreateOrderInput,
 } from "@shared/schema";
-import { priceOrder, commissionCents, commissionAvailableAt } from "@shared/pricing";
+import {
+  priceOrder,
+  commissionAvailableAt,
+  splitOrder,
+} from "@shared/pricing";
+import { platformPctFor, FREE_PLAN } from "@shared/billing";
+import { lancarTaxaDaVenda, planOfOrganization } from "./billing";
 import { normalizePhone } from "@shared/format";
 import { users } from "@shared/schema";
 import {
@@ -397,6 +403,12 @@ async function settleOrderAsPaid(order: typeof orders.$inferSelect) {
     .from(campaigns)
     .where(eq(campaigns.id, order.campaignId));
 
+  // O contrato da organização é lido antes da transação: a consulta não
+  // muda nada e mantém o BEGIN curto.
+  const plano = campaign
+    ? await planOfOrganization(campaign.organizationId)
+    : FREE_PLAN;
+
   const paidAt = new Date();
 
   const result = await db.transaction(async (tx) => {
@@ -429,31 +441,46 @@ async function settleOrderAsPaid(order: typeof orders.$inferSelect) {
           .returning({ label: prizedQuotas.prizeLabel, number: prizedQuotas.number })
       : [];
 
-    if (order.affiliateId) {
-      const [aff] = await tx
-        .select()
-        .from(affiliates)
-        .where(eq(affiliates.id, order.affiliateId));
-      const pct = aff?.commissionPct ?? campaign?.commissionPctDefault ?? 0;
+    // O rateio da venda, na ordem que não se negocia: a plataforma sai
+    // antes, e a comissão incide sobre o que sobrou. Ver `splitOrder()`.
+    const [aff] = order.affiliateId
+      ? await tx.select().from(affiliates).where(eq(affiliates.id, order.affiliateId))
+      : [undefined];
 
-      if (pct > 0) {
-        await tx
-          .insert(commissions)
-          .values({
-            affiliateId: order.affiliateId,
-            orderId: order.id,
-            campaignId: order.campaignId,
-            amountCents: commissionCents(order.amountCents, pct),
-            pct,
-            status: "pending",
-            availableAt: commissionAvailableAt(
-              paidAt,
-              REFUND_WINDOW_DAYS,
-              campaign?.drawAt,
-            ),
-          })
-          .onConflictDoNothing();
-      }
+    const rateio = splitOrder({
+      paidCents: order.amountCents,
+      platformPct: platformPctFor(plano),
+      commissionPct: order.affiliateId
+        ? (aff?.commissionPct ?? campaign?.commissionPctDefault ?? 0)
+        : 0,
+    });
+
+    if (rateio.platformFeeCents > 0 && campaign) {
+      await lancarTaxaDaVenda(tx, {
+        organizationId: campaign.organizationId,
+        orderId: order.id,
+        amountCents: rateio.platformFeeCents,
+        pct: rateio.platformPct,
+      });
+    }
+
+    if (order.affiliateId && rateio.commissionCents > 0) {
+      await tx
+        .insert(commissions)
+        .values({
+          affiliateId: order.affiliateId,
+          orderId: order.id,
+          campaignId: order.campaignId,
+          amountCents: rateio.commissionCents,
+          pct: rateio.commissionPct,
+          status: "pending",
+          availableAt: commissionAvailableAt(
+            paidAt,
+            REFUND_WINDOW_DAYS,
+            campaign?.drawAt,
+          ),
+        })
+        .onConflictDoNothing();
     }
 
     return { order: updated, numbers, prizes };

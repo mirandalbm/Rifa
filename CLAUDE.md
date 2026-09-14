@@ -46,6 +46,7 @@ arquitetura.
 | cotas premiadas | `server/routes/admin.ts` (sorteio) e `services/orders.ts` (revelação) |
 | cadastro/cupom/kit do afiliado | `server/routes/public.ts`, `server/routes/affiliate.ts` |
 | venda física e acerto | `server/routes/seller.ts`, `server/services/settlements.ts` |
+| meios de pagamento aceitos | `shared/payments.ts` (regras) e `services/settings.ts` |
 | bilhete | `server/services/ticketFormat.ts` (puro) e `ticket.ts` (dados) |
 | ponte com a maquininha | `client/src/lib/pos.ts` e `docs/MAQUININHAS.md` |
 
@@ -71,6 +72,18 @@ arquitetura.
 - O invólucro Android das maquininhas: o app já fala com `window.RifaPOS`,
   mas o APK que injeta essa ponte é projeto Android nativo e depende do SDK
   da adquirente. Ver `docs/MAQUININHAS.md`.
+
+## Meios de pagamento — o que não pode afrouxar
+
+- As regras moram em `shared/payments.ts`, puras, porque quem valida é o
+  servidor e quem exibe o botão é o cliente. Duas cópias viram duas regras
+  diferentes na primeira mudança.
+- A checagem é **no servidor**: esconder o botão é cortesia. `createOrder`
+  barra a venda online sem Pix e `confirmSellerSale` barra o meio desligado.
+- Pelo menos um meio precisa sobrar ligado. Nenhum ligado é uma rifa que não
+  vende — e a tela não denunciaria isso.
+- `validatePaymentMethods` só aceita as chaves conhecidas: isto vem do corpo
+  da requisição e espalhar o objeto cru guardaria qualquer coisa.
 
 ## Venda física — o que não pode afrouxar
 

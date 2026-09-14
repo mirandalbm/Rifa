@@ -161,6 +161,21 @@ número — quem soubesse compraria só aquele. A revelação acontece no pagame
 e o prêmio que já saiu continua na lista marcado como "já saiu", que é prova
 de que as cotas premiadas são reais.
 
+### Os meios de pagamento
+
+Quem decide o que o app aceita é o administrador, em Configurações: Pix na
+loja online, dinheiro com o cambista, cartão na maquininha e Pix na
+maquininha, cada um com liga-desliga próprio.
+
+A escolha vale para o app inteiro e é checada **no servidor**, não só na
+tela: com o Pix online desligado a página da rifa para de vender sozinha e
+passa a orientar o comprador a procurar um cambista; com um meio físico
+desligado, o botão some da tela do cambista e a confirmação com aquele meio
+é recusada.
+
+A única regra rígida é que sobre pelo menos um meio ligado — desligar todos
+deixaria a rifa de pé sem nada poder entrar.
+
 ### O bilhete
 
 Todo pedido tem bilhete em `/bilhete/:code`, com o apostador (nome, telefone,

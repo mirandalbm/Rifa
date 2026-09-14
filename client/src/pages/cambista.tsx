@@ -8,6 +8,8 @@ import { pos, inPos, printTicket } from "@/lib/pos";
 
 interface Overview {
   seller: { code: string; commissionPct: number | null };
+  /** Só os meios que a administração deixou ligados. */
+  meios: ("dinheiro" | "cartao_maquininha" | "pix_maquininha")[];
   campanhas: {
     id: string;
     slug: string;
@@ -292,32 +294,32 @@ export function CambistaVenda() {
 
             <div className="space-y-2">
               <span className="label-xs">Como o apostador pagou</span>
-              <Button
-                className="w-full"
-                disabled={cobrando}
-                onClick={() => confirmar("dinheiro")}
-              >
-                Dinheiro
-              </Button>
-              <Button
-                variant="ghost"
-                className="w-full"
-                disabled={cobrando}
-                onClick={() => confirmar("cartao_maquininha")}
-              >
-                {inPos() ? "Cobrar no cartão (maquininha)" : "Cartão — cobrado à parte"}
-              </Button>
-              <Button
-                variant="ghost"
-                className="w-full"
-                disabled={cobrando}
-                onClick={() => confirmar("pix_maquininha")}
-              >
-                Pix
-              </Button>
+              {(data?.meios ?? []).map((meio, i) => (
+                <Button
+                  key={meio}
+                  variant={i === 0 ? "primary" : "ghost"}
+                  className="w-full"
+                  disabled={cobrando}
+                  onClick={() => confirmar(meio)}
+                >
+                  {meio === "dinheiro"
+                    ? "Dinheiro"
+                    : meio === "pix_maquininha"
+                      ? "Pix"
+                      : inPos()
+                        ? "Cobrar no cartão (maquininha)"
+                        : "Cartão — cobrado à parte"}
+                </Button>
+              ))}
+              {(data?.meios ?? []).length === 0 ? (
+                <p className="rounded-md bg-red-soft px-3 py-2 text-xs text-red">
+                  A administração desligou todos os meios de venda na mão. Fale com ela
+                  antes de cobrar.
+                </p>
+              ) : null}
             </div>
 
-            {!inPos() ? (
+            {!inPos() && (data?.meios ?? []).includes("cartao_maquininha") ? (
               <p className="rounded-md bg-yellow-soft px-3 py-2 text-[11px] text-yellow-deep">
                 Este aparelho não tem maquininha integrada. Cobre no aparelho da
                 adquirente e confirme aqui — a venda fica registrada igual.

@@ -34,6 +34,8 @@ import {
   enterEndgame,
 } from "./quotas";
 import { paymentProvider } from "../payments";
+import { getPaymentMethods } from "./settings";
+import { enabledPhysical, labelFor } from "@shared/payments";
 import { notify } from "../notifications";
 import { publicUrl } from "./urls";
 import { formatBRL, formatQuota } from "@shared/format";
@@ -155,6 +157,22 @@ export async function createOrder(
   if (!campaign) throw new OrderError("Campanha não encontrada.", 404);
   if (campaign.status !== "published") {
     throw new OrderError("Esta rifa não está aberta para compra.", 409);
+  }
+
+  // O administrador decide os meios aceitos; a checagem é aqui, não na tela.
+  const meios = await getPaymentMethods();
+  if (ctx.sellerId) {
+    if (enabledPhysical(meios).length === 0) {
+      throw new OrderError(
+        "A venda na mão está desligada pela administração.",
+        409,
+      );
+    }
+  } else if (!meios.pix_online) {
+    throw new OrderError(
+      "Esta rifa está vendendo apenas com os cambistas no momento.",
+      409,
+    );
   }
 
   const wantsSpecific = Boolean(input.numbers?.length);
@@ -445,6 +463,14 @@ export async function confirmSellerSale(params: {
   }
   if (order.status !== "pending") {
     throw new OrderError(`Esta venda está ${order.status}.`, 409);
+  }
+
+  const meios = await getPaymentMethods();
+  if (!meios[params.method]) {
+    throw new OrderError(
+      `${labelFor(params.method)} está desligado pela administração.`,
+      409,
+    );
   }
 
   await db

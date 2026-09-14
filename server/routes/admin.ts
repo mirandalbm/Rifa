@@ -46,7 +46,12 @@ import {
   markSettlementPaid,
   listSettlements,
 } from "../services/settlements";
-import { getOrganizer, setOrganizer } from "../services/settings";
+import {
+  getOrganizer,
+  setOrganizer,
+  getPaymentMethods,
+  setPaymentMethods,
+} from "../services/settings";
 import { generateSecret, verifyTotp, otpauthUrl } from "../services/totp";
 
 export const adminRouter = Router();
@@ -713,6 +718,34 @@ adminRouter.put("/organizer", async (req, res, next) => {
     res.json(saved);
   } catch (err) {
     if (err instanceof Error && err.message.includes("administradora")) {
+      return res.status(400).json({ message: err.message });
+    }
+    next(err);
+  }
+});
+
+/* ---------------- meios de pagamento ---------------- */
+
+adminRouter.get("/payment-methods", async (_req, res, next) => {
+  try {
+    res.json(await getPaymentMethods());
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * Liga e desliga os meios de pagamento do app inteiro. Desligar o Pix online
+ * deixa a rifa vendendo só pela mão do cambista — é uma escolha válida, e é
+ * por isso que a regra exige apenas que sobre um meio ligado.
+ */
+adminRouter.put("/payment-methods", async (req, res, next) => {
+  try {
+    const saved = await setPaymentMethods(req.body ?? {});
+    await audit(req, "payment_methods.update", "settings", "meios_pagamento", saved);
+    res.json(saved);
+  } catch (err) {
+    if (err instanceof Error && err.message.includes("ao menos um")) {
       return res.status(400).json({ message: err.message });
     }
     next(err);

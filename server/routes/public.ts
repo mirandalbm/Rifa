@@ -23,6 +23,8 @@ import { issueOtp, checkOtp, hashPassword } from "../auth";
 import { withUrls } from "../services/media";
 import { notify, notificationProvider } from "../notifications";
 import { buildTicket, escPosTicket, markTicketPrinted } from "../services/ticket";
+import { getPaymentMethods } from "../services/settings";
+import { paymentSummary } from "@shared/payments";
 
 export const publicRouter = Router();
 
@@ -116,6 +118,7 @@ publicRouter.get("/campaigns/:slug", async (req, res, next) => {
       }),
       packages,
       blockSize: BLOCK_SIZE,
+      pagamento: paymentSummary(await getPaymentMethods()),
     });
   } catch (err) {
     next(err);

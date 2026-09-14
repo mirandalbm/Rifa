@@ -13,6 +13,8 @@ import {
 import { NumbersTakenError, NoQuotasAvailableError } from "../services/quotas";
 import { openBalance, listSettlements } from "../services/settlements";
 import { buildTicket } from "../services/ticket";
+import { getPaymentMethods } from "../services/settings";
+import { enabledPhysical } from "@shared/payments";
 
 export const sellerRouter = Router();
 
@@ -57,6 +59,7 @@ sellerRouter.get("/overview", async (req, res, next) => {
 
     res.json({
       seller: { code: seller.code, commissionPct: seller.commissionPct },
+      meios: enabledPhysical(await getPaymentMethods()),
       campanhas: live.map((c) => ({
         ...c,
         pct: seller.commissionPct ?? c.commissionPctDefault,

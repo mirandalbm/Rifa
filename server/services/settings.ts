@@ -2,8 +2,14 @@
 import { eq } from "drizzle-orm";
 import { db } from "../db";
 import { appSettings, type OrganizerInfo } from "@shared/schema";
+import {
+  DEFAULT_PAYMENT_METHODS,
+  validatePaymentMethods,
+  type PaymentMethodSettings,
+} from "@shared/payments";
 
 const ORGANIZER_KEY = "organizador";
+const PAYMENTS_KEY = "meios_pagamento";
 
 const PADRAO: OrganizerInfo = {
   nome: "Administradora da rifa",
@@ -35,6 +41,42 @@ export async function setOrganizer(info: OrganizerInfo): Promise<OrganizerInfo> 
   await db
     .insert(appSettings)
     .values({ key: ORGANIZER_KEY, value })
+    .onConflictDoUpdate({
+      target: appSettings.key,
+      set: { value, updatedAt: new Date() },
+    });
+
+  return value;
+}
+
+/* ------------------------------------------------------------------ *
+ * Meios de pagamento
+ * ------------------------------------------------------------------ */
+
+export async function getPaymentMethods(): Promise<PaymentMethodSettings> {
+  const [row] = await db
+    .select()
+    .from(appSettings)
+    .where(eq(appSettings.key, PAYMENTS_KEY));
+  if (!row) return DEFAULT_PAYMENT_METHODS;
+
+  // Passa pela validação na leitura também: configuração antiga no banco
+  // pode ter chave que não existe mais.
+  try {
+    return validatePaymentMethods(row.value as Partial<PaymentMethodSettings>);
+  } catch {
+    return DEFAULT_PAYMENT_METHODS;
+  }
+}
+
+export async function setPaymentMethods(
+  candidate: Partial<PaymentMethodSettings>,
+): Promise<PaymentMethodSettings> {
+  const value = validatePaymentMethods(candidate);
+
+  await db
+    .insert(appSettings)
+    .values({ key: PAYMENTS_KEY, value })
     .onConflictDoUpdate({
       target: appSettings.key,
       set: { value, updatedAt: new Date() },

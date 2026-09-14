@@ -7,6 +7,11 @@ import { MediaManager } from "@/components/MediaManager";
 import { CampaignExtras } from "@/components/CampaignExtras";
 import { formatBRL, groupNumber, formatQuota } from "@shared/format";
 import { MAX_QUOTAS, MIN_QUOTAS } from "@shared/schema";
+import {
+  PAYMENT_METHODS,
+  type PaymentMethodKey,
+  type PaymentMethodSettings,
+} from "@shared/payments";
 
 /* ------------------------------- painel ------------------------------- */
 
@@ -1019,6 +1024,94 @@ function TwoFactorCard() {
   );
 }
 
+/** Liga e desliga os meios de pagamento do app inteiro. */
+function PaymentMethodsCard() {
+  const qc = useQueryClient();
+  const { data } = useQuery<PaymentMethodSettings>({
+    queryKey: ["/api/admin/payment-methods"],
+  });
+  const [erro, setErro] = useState<string | null>(null);
+
+  const salvar = useMutation({
+    mutationFn: (proximo: PaymentMethodSettings) =>
+      apiRequest("PUT", "/api/admin/payment-methods", proximo),
+    onSuccess: () => {
+      setErro(null);
+      qc.invalidateQueries();
+    },
+    onError: (err: Error) => setErro(err.message),
+  });
+
+  function alternar(key: PaymentMethodKey) {
+    if (!data) return;
+    setErro(null);
+    salvar.mutate({ ...data, [key]: !data[key] });
+  }
+
+  const ligados = data ? PAYMENT_METHODS.filter((m) => data[m.key]).length : 0;
+
+  return (
+    <Card
+      title="Meios de pagamento"
+      right={<Pill status={ligados > 0 ? "paid" : "expired"}>{`${ligados} ligado(s)`}</Pill>}
+    >
+      <div className="space-y-3 p-4">
+        <p className="text-xs text-muted">
+          Vale para o app inteiro: a loja online e a tela do cambista só oferecem o que
+          estiver ligado aqui.
+        </p>
+
+        {(["online", "fisico"] as const).map((scope) => (
+          <div key={scope} className="space-y-2">
+            <span className="label-xs">
+              {scope === "online" ? "Loja online" : "Venda na mão (cambista)"}
+            </span>
+            {PAYMENT_METHODS.filter((m) => m.scope === scope).map((m) => {
+              const ligado = data?.[m.key] ?? false;
+              return (
+                <label
+                  key={m.key}
+                  htmlFor={`meio-${m.key}`}
+                  className={`flex cursor-pointer items-start gap-3 rounded-md border px-3 py-2 ${
+                    ligado ? "border-green bg-green-soft" : "border-line-2 bg-white"
+                  }`}
+                >
+                  <input
+                    id={`meio-${m.key}`}
+                    type="checkbox"
+                    checked={ligado}
+                    disabled={!data || salvar.isPending}
+                    onChange={() => alternar(m.key)}
+                    className="mt-1"
+                  />
+                  <span className="flex-1">
+                    <span className="block text-sm font-medium">{m.label}</span>
+                    <span className="block text-[11px] text-muted">{m.hint}</span>
+                  </span>
+                  <Pill status={ligado ? "paid" : "draft"}>
+                    {ligado ? "aceito" : "desligado"}
+                  </Pill>
+                </label>
+              );
+            })}
+          </div>
+        ))}
+
+        {data && !data.pix_online ? (
+          <p className="rounded-md bg-yellow-soft px-3 py-2 text-[11px] text-yellow-deep">
+            Com o Pix online desligado, a página da rifa deixa de vender sozinha e passa
+            a orientar o comprador a procurar um cambista.
+          </p>
+        ) : null}
+
+        {erro ? (
+          <p className="rounded-md bg-red-soft px-3 py-2 text-sm text-red">{erro}</p>
+        ) : null}
+      </div>
+    </Card>
+  );
+}
+
 /** Dados que saem impressos em todo bilhete. */
 function OrganizerCard() {
   const qc = useQueryClient();
@@ -1092,7 +1185,10 @@ export function AdminConfiguracoes() {
   return (
     <PanelShell title="Configurações">
       <div className="mb-3 grid gap-3 lg:grid-cols-2">
+        <PaymentMethodsCard />
         <OrganizerCard />
+      </div>
+      <div className="mb-3">
         <TwoFactorCard />
       </div>
       <Card title="Trilha de auditoria" right={<span className="label-xs">últimas 200 ações</span>}>

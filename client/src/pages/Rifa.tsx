@@ -37,6 +37,7 @@ interface CampaignDetail {
   }[];
   packages: { quantity: number; discountPct: number; highlight: boolean }[];
   blockSize: number;
+  pagamento: { online: boolean; fisico: string[]; somenteFisico: boolean };
 }
 
 interface BlockData {
@@ -243,8 +244,24 @@ export default function Rifa() {
         <Progress value={sold} total={campaign.totalQuotas} tone={pct >= 85 ? "yellow" : "green"} />
       </div>
 
+      {/* Sem Pix online, a página não promete o que não entrega. */}
+      {data.pagamento && !data.pagamento.online ? (
+        <div className="mt-4 rounded-lg border border-yellow bg-yellow-soft p-3">
+          <h2 className="font-display text-sm font-bold text-yellow-deep">
+            Esta rifa está vendendo só presencialmente
+          </h2>
+          <p className="mt-1 text-xs text-yellow-deep">
+            Procure um de nossos cambistas para garantir seus números. O pagamento pela
+            loja online está desligado no momento.
+          </p>
+        </div>
+      ) : null}
+
       {/* Compra rápida — o caminho de 95% das vendas. */}
-      <div className="mt-5 grid grid-cols-4 gap-2">
+      <div
+        className="mt-5 grid grid-cols-4 gap-2"
+        hidden={data.pagamento ? !data.pagamento.online : false}
+      >
         {(packages.length > 0
           ? packages
           : [
@@ -420,7 +437,7 @@ export default function Rifa() {
       ) : null}
 
       {/* Checkout */}
-      {count > 0 ? (
+      {count > 0 && (data.pagamento?.online ?? true) ? (
         <Card title="Seus dados">
           <div className="space-y-3 p-4">
             {picked.length > 0 ? (
@@ -481,7 +498,7 @@ export default function Rifa() {
       ) : null}
 
       {/* Barra fixa: o total nunca sai da tela. */}
-      {count > 0 && price ? (
+      {count > 0 && price && (data.pagamento?.online ?? true) ? (
         <div className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-mist px-4 py-3">
           <div className="mx-auto flex max-w-3xl items-center justify-between gap-3">
             <span className="tnum text-base">

@@ -89,7 +89,11 @@ export default function Bilhete() {
         .bilhete .rotulo { font-size: 7.5pt; text-transform: uppercase; letter-spacing: .08em; }
         .bilhete .numeros { display: flex; flex-wrap: wrap; gap: 1mm; margin-top: 1mm; }
         .bilhete .numero { border: 1px solid #000; padding: 0.5mm 1mm; font-size: 9pt; }
-        .bilhete .mini { font-size: 7pt; word-break: break-all; }
+        /* anywhere, e nao break-all: o hash da semente e uma palavra de 32
+           caracteres sem espaco e PRECISA quebrar para caber nos 58 mm, mas
+           break-all aplicava isso ao texto corrido tambem, e o rodape saia
+           com "pagamento co / nfirmado". */
+        .bilhete .mini { font-size: 7pt; overflow-wrap: anywhere; }
       `}</style>
 
       <div className="nao-imprime" style={{ textAlign: "center", padding: "12px" }}>

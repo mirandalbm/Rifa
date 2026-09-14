@@ -3,6 +3,8 @@
 > Documento de arquitetura e roadmap. Versão 1 — setembro/2026.
 > Escopo: plataforma de rifas online com três superfícies (comprador, afiliado, administrador),
 > pagamento Pix automático, atribuição de vendas por link de afiliado e sorteio auditável.
+> **Escala definida: até 1.000.000 de cotas por campanha, com o total fixado pelo administrador
+> na criação e imutável depois da publicação.**
 
 ---
 
@@ -17,7 +19,7 @@ Padrões que se repetem em praticamente todas elas:
 |---|---|---|
 | **Pix automático com liberação em segundos** | Reserva → cobrança Pix → webhook do PSP → cota liberada sem conferência manual de comprovante | Obrigatório no MVP |
 | **Reserva com expiração** | Cota reservada por 10–30 min (algumas por dias); sem pagamento, volta ao estoque | Obrigatório, TTL configurável por campanha |
-| **Escala de cotas** | De 100 até 1.000.000+ cotas por campanha | Suporte a 10M via estratégia de cotas virtuais |
+| **Escala de cotas** | De 100 até 1.000.000+ cotas por campanha | **Até 1.000.000, definido pelo admin na criação — arquitetura esparsa desde a Fase 1** |
 | **Cotas premiadas** | Números com prêmio instantâneo, revelados na compra | v1 |
 | **Ranking de maiores compradores** | Painel público que premia quem compra mais | v1 |
 | **Pacotes / "compra rápida"** | Botões +5 / +10 / +50 / +100 com desconto progressivo | MVP |
@@ -55,8 +57,12 @@ extrato financeiro auditável por campanha, e uma experiência de compra que nã
 
 ### 2.3 Administrador geral (login + 2FA)
 - Dashboard: receita, cotas vendidas, ticket médio, conversão do funil, vendas por canal/afiliado, série temporal.
-- CRUD de campanhas: prêmio, mídia, total de cotas, preço, pacotes, cotas premiadas, TTL de reserva,
-  data do sorteio, regulamento, status (rascunho → publicada → encerrada → sorteada).
+- CRUD de campanhas: prêmio, mídia, **total de cotas (100 a 1.000.000)**, preço, pacotes, cotas
+  premiadas, TTL de reserva, data do sorteio, regulamento, status
+  (rascunho → publicada → encerrada → sorteada).
+- **O total de cotas é escolhido antes de publicar e trava na publicação.** Enquanto a campanha é
+  rascunho, o campo é livre; publicada, fica somente leitura — mudar o total depois altera a chance
+  de quem já comprou, o que quebra o regulamento e a confiança.
 - Pedidos: busca, detalhe, estorno, liberação manual, reenvio de confirmação.
 - Afiliados: aprovar/bloquear, definir comissão (global e por campanha), aprovar saques, ver ranking.
 - Financeiro: conciliação com o PSP, comissões a pagar, exportação CSV/XLSX.
@@ -103,8 +109,11 @@ campaigns        id, slug, title, description, prize, media[], total_quotas, pri
                  min_per_order, max_per_order, reservation_ttl_min, draw_type(federal|own),
                  draw_at, status, commission_pct_default, published_at
 quota_packages   id, campaign_id, quantity, discount_pct, highlight
-quotas           id, campaign_id, number, status(available|reserved|paid), order_id?, reserved_until?
-                 -- índice único (campaign_id, number); materializado por lotes ou virtual em campanhas >100k
+quota_alloc      campaign_id, number, status(reserved|paid), order_id, reserved_until?
+                 -- PK (campaign_id, number). Só existe linha para cota TOMADA. Ver §4.1
+campaign_stats   campaign_id, sold_count, reserved_count, revenue_cents, updated_at
+                 -- contador incremental; nunca COUNT(*) em 1M de linhas
+free_pool        campaign_id, number   -- materializado só no endgame (>85% vendido). Ver §4.1
 prized_quotas    id, campaign_id, number, prize_label, claimed_by_order_id?, claimed_at?
 orders           id, campaign_id, buyer_id, quantity, amount_cents, discount_cents,
                  status(pending|paid|expired|refunded), affiliate_id?, coupon_id?,
@@ -122,9 +131,72 @@ webhook_events   id, provider, external_id UNIQUE, payload, processed_at   -- id
 audit_log        id, actor_id, action, entity, entity_id, diff, ip, created_at
 ```
 
-**Campanhas grandes (>100 mil cotas):** não materializar linha por cota. Guardar apenas as cotas
-vendidas/reservadas e derivar disponibilidade por intervalo (`int4range` + exclusão), com o grid do
-front paginado em blocos de 1.000.
+---
+
+## 4.1 Cotas em escala — até 1.000.000 por campanha
+
+O total é escolhido pelo administrador na criação (100 a 1.000.000) e trava ao publicar. Isso permite
+uma decisão arquitetural que vale para o menor e o maior caso ao mesmo tempo.
+
+### Nunca materializar 1M de linhas na criação
+
+Uma linha por número significaria 1.000.000 de inserts para publicar uma campanha — dezenas de
+segundos de espera, índice inchado e custo pago antes da primeira venda. Em vez disso:
+
+> **Só existe linha para cota tomada.** Disponível é a ausência de linha.
+> Uma campanha de 1M nasce com zero linhas e cresce conforme vende.
+
+O total é só um número em `campaigns.total_quotas`; a numeração vai de `1` a `total_quotas`, exibida
+com zero à esquerda no comprimento do total (1.000.000 -> `0000001`, 10.000 -> `0001`).
+
+### Alocação sem trava de linha
+
+A reserva deixa de ser `SELECT ... FOR UPDATE` e passa a ser **insert com conflito**, que é lock-free
+e escala melhor sob concorrência:
+
+```sql
+INSERT INTO quota_alloc (campaign_id, number, order_id, status, reserved_until)
+SELECT $1, n, $2, 'reserved', now() + $3
+FROM unnest($4::int[]) AS n
+ON CONFLICT (campaign_id, number) DO NOTHING
+RETURNING number;
+```
+
+- **Compra rápida (95% das vendas):** o servidor sorteia N candidatos com CSPRNG, tenta inserir o
+  lote, conta o que entrou e repete só a diferença. Nenhuma trava, nenhuma varredura.
+- **Escolha manual:** o mesmo insert com a lista escolhida; o que conflitar volta como
+  "esses números acabaram de ser levados", e o comprador escolhe de novo.
+- **Endgame (>85% vendido):** a amostragem aleatória começa a colidir demais. Ao cruzar o limiar,
+  um job materializa `free_pool` com os números restantes (no máximo 150 mil linhas) e a alocação
+  passa a ser `DELETE ... WHERE number IN (SELECT ... FOR UPDATE SKIP LOCKED LIMIT n) RETURNING`.
+  A expiração de reserva devolve o número ao pool.
+
+### Contagem sem COUNT(*)
+
+`campaign_stats` guarda vendidas, reservadas e arrecadação, atualizado na mesma transação da
+alocação e do webhook. A barra de progresso e o painel leem uma linha, nunca agregam 1M.
+
+### O mapa de números no navegador
+
+Nunca renderizar 1M de células. A tela do comprador tem três caminhos, nessa ordem de destaque:
+
+1. **Compra rápida** — quantidade + números aleatórios. É o caminho padrão e o mais usado.
+2. **Busca direta** — o comprador digita `847.219` e vê só aquele número e a vizinhança.
+3. **Navegador de blocos** — 1.000 blocos de 1.000 números, com uma faixa de ocupação mostrando
+   onde ainda há espaço. Só o bloco aberto é renderizado (1.000 células virtualizadas).
+
+A API devolve a ocupação de um bloco como **bitmap** (1.000 bits = 125 bytes em base64), não como
+lista de números. Um bloco cheio e um bloco vazio custam o mesmo: 125 bytes.
+
+### Orçamento de desempenho (vira teste na Fase 1)
+
+| Operação | Alvo | Como |
+|---|---|---|
+| Publicar campanha de 1M | < 300 ms | nenhuma linha de cota criada |
+| Abrir a página no celular | < 2 s | stats + 1 bitmap de bloco |
+| Carregar um bloco | < 100 ms | `WHERE number BETWEEN a AND b` na PK |
+| Reservar 50 cotas aleatórias | < 150 ms | 1 a 2 inserts em lote |
+| Reservar no endgame | < 200 ms | pop do `free_pool` com SKIP LOCKED |
 
 ---
 
@@ -134,15 +206,17 @@ front paginado em blocos de 1.000.
 1. Clique no link  /r/campanha?ref=JOAO7
    → grava click_event, seta cookie first-party `aff` (30 dias, SameSite=Lax) + localStorage de backup
 2. Seleção de cotas → POST /orders
-   → transação: SELECT ... FOR UPDATE SKIP LOCKED nas cotas → status=reserved, reserved_until=now+TTL
+   → INSERT ... ON CONFLICT DO NOTHING em quota_alloc (ver §4.1); o que não entrou é re-sorteado
+   → campaign_stats.reserved_count += inseridos, na mesma transação
    → order.affiliate_id resolvido na criação (cookie → cupom → último clique da sessão)
 3. Cobrança Pix criada no PSP → QR + copia-e-cola devolvidos ao cliente
 4. Webhook do PSP (idempotente por external_id)
-   → order.paid, quotas.paid, cota premiada revelada
+   → order.paid, quota_alloc.status = paid, cota premiada revelada
    → commission criada em `pending`, available_at = paid_at + janela de estorno (ex.: 7 dias)
    → notificação WhatsApp ao comprador e ao afiliado
 5. Job de expiração (a cada minuto)
-   → reservas vencidas voltam a `available`, ordem vira `expired`
+   → DELETE das linhas reservadas vencidas (o número volta a existir por ausência),
+     devolução ao free_pool se a campanha estiver em endgame, ordem vira `expired`
 6. Estorno → commission vira `reversed`; se já paga, vira débito no saldo do afiliado
 ```
 
@@ -156,14 +230,27 @@ front paginado em blocos de 1.000.
 
 ## 6. Regras críticas de engenharia
 
-1. **Concorrência de cotas** — toda reserva acontece em transação única com `FOR UPDATE SKIP LOCKED`;
-   índice único `(campaign_id, number)` é a última linha de defesa. Nunca reservar em memória.
+1. **Concorrência de cotas** — a chave primária `(campaign_id, number)` é quem garante a exclusividade:
+   reserva é `INSERT ... ON CONFLICT DO NOTHING`, e o que não entrou simplesmente não é do comprador.
+   No endgame, pop do `free_pool` com `FOR UPDATE SKIP LOCKED`. Nunca reservar em memória, nunca
+   checar disponibilidade em uma query separada da escrita.
 2. **Idempotência de webhook** — `webhook_events.external_id` único; reprocessamento é no-op.
    Validar assinatura do PSP; nunca confiar em redirect de sucesso do browser.
 3. **Dinheiro em centavos, inteiro** — nada de float. Totais recalculados no servidor, sempre.
 4. **Estado do pedido é do servidor** — o front nunca envia preço; envia campanha + quantidade/números.
-5. **Sorteio auditável** — no modo próprio, publicar `seed_hash` antes de vender e `seed` depois,
-   com resultado derivado por HMAC; no modo federal, guardar o comprovante oficial do concurso.
+5. **Sorteio auditável em qualquer escala** — o 1º prêmio da Loteria Federal tem 5 dígitos, o que
+   endereça no máximo 100.000 cotas. Para campanhas maiores — e 1.000.000 é o nosso teto — o
+   mapeamento direto não existe. A regra única, que serve de 100 a 1.000.000:
+
+   ```
+   seed_hash publicado ANTES da primeira venda
+   numero = 1 + (HMAC_SHA256(seed || os 5 premios do concurso federal) mod total_quotas)
+            com rejeicao de amostra para eliminar vies de modulo
+   ```
+
+   O resultado federal é a entropia pública (ninguém controla), a semente é o compromisso prévio
+   (nós não escolhemos depois), e qualquer pessoa refaz a conta. Guardar seed, seed_hash, concurso,
+   os 5 prêmios e o comprovante oficial.
 6. **LGPD** — telefone e CPF minimizados, IP e user-agent guardados como hash, política de retenção,
    consentimento explícito no checkout, exportação e exclusão a pedido.
 7. **Conformidade** — a autorização (Lei 5.768/71, regulamentada pelo Decreto 70.951/72) é da
@@ -195,9 +282,12 @@ Limpar o esqueleto herdado, definir design system, schema Drizzle inicial, auten
 CI (typecheck + lint + testes), ambientes.
 
 ### Fase 1 — MVP vendável (3 semanas)
-Campanha (CRUD admin) · página pública · compra rápida e manual · reserva com TTL ·
-Pix automático + webhook · "minhas cotas" por telefone · sorteio Loteria Federal · dashboard básico.
-**Critério de pronto:** uma campanha real vendida do início ao sorteio, sem intervenção manual.
+Campanha (CRUD admin, total de até 1M travado na publicação) · **arquitetura esparsa de cotas
+(§4.1) desde o primeiro commit** · página pública com compra rápida, busca por número e navegador
+de blocos · reserva com TTL · Pix automático + webhook · "minhas cotas" por telefone ·
+sorteio auditável (semente + Federal) · dashboard básico.
+**Critério de pronto:** uma campanha real de 1.000.000 de cotas vendida do início ao sorteio, sem
+intervenção manual e dentro do orçamento de desempenho da §4.1.
 
 ### Fase 2 — Afiliados (2 semanas)
 Cadastro e aprovação · link e cupom · rastreio de clique e atribuição · painel do afiliado ·
@@ -208,9 +298,10 @@ ledger de comissões · saques Pix · relatórios por afiliado no admin.
 Cotas premiadas · ranking de compradores · pacotes com desconto · notificações WhatsApp ·
 recuperação de carrinho abandonado · prova social (últimas compras).
 
-### Fase 4 — Escala e operação (2 semanas)
-Campanhas de 1M+ cotas · filas e workers · antifraude · trilha de auditoria · exportações ·
-observabilidade · multi-organizador (white label) se o negócio pedir.
+### Fase 4 — Operação e carga (2 semanas)
+Endgame pool sob carga real · filas e workers · antifraude · trilha de auditoria · exportações ·
+observabilidade · teste de carga de 1M de cotas com 500 compradores simultâneos ·
+multi-organizador (white label) se o negócio pedir.
 
 ---
 
@@ -220,7 +311,8 @@ observabilidade · multi-organizador (white label) se o negócio pedir.
 |---|---|---|
 | Escolha do PSP (Mercado Pago × Asaas) | Alto — define split e prazos | Decidir antes da Fase 1; abstração isola |
 | Regularização da campanha (SPA/MF) | Alto — jurídico | Campo obrigatório por campanha + orientação ao organizador |
-| Grid de 1M cotas no navegador | Médio — performance | Virtualização + paginação por blocos; decidir na Fase 4 |
+| ~~Grid de 1M cotas no navegador~~ | **Decidido** | Armazenamento esparso + bitmap por bloco + busca direta (§4.1), desde a Fase 1 |
+| Sorteio acima de 100.000 cotas | Alto — a Federal só dá 5 dígitos | Semente comprometida + HMAC sobre os 5 prêmios (§6.5); validar o texto com o jurídico |
 | Multi-organizador (SaaS) ou rifa própria | Alto — molda o schema | **Pergunta aberta ao cliente** |
 | Fraude de autoindicação em afiliados | Médio — custo direto | Bloqueio por device/telefone + revisão manual acima de X |
 | Aprovação do WhatsApp Cloud API | Médio — prazo | Iniciar cadastro na Fase 1, e-mail como fallback |

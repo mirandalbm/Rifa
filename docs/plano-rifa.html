@@ -213,6 +213,36 @@ section{padding-block:clamp(2.75rem,6vw,4.5rem)}
 .chartwrap{padding:.7rem .75rem .5rem}
 .chartwrap svg{width:100%;height:auto;display:block}
 
+/* ---------------- escala: 1M ---------------- */
+.searchfield{display:flex;align-items:center;gap:.45rem;border:1px solid var(--line-2);border-radius:9px;padding:.45rem .6rem;font-size:11.5px;color:var(--muted);background:var(--white)}
+.searchfield b{color:var(--ink);font-family:var(--f-mono);font-weight:500}
+.heat{display:flex;gap:1.5px;height:26px;border-radius:5px;overflow:hidden;margin-top:.35rem}
+.heat span{flex:1;display:block}
+.heat span.cur{outline:2px solid var(--ink);outline-offset:-2px;border-radius:2px}
+.heatkey{display:flex;align-items:center;gap:.35rem;margin-top:.3rem;font-family:var(--f-mono);font-size:9px;color:var(--muted)}
+.heatkey i{width:14px;height:8px;display:block;border-radius:2px}
+.blocknav{display:flex;align-items:center;justify-content:space-between;gap:.4rem;margin-top:.7rem}
+.blocknav .bn{font-family:var(--f-mono);font-size:11px;color:var(--ink)}
+.blocknav .arrows{display:flex;gap:4px}
+.blocknav .arrows span{width:22px;height:22px;border:1px solid var(--line-2);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--ink-2)}
+.field{display:flex;flex-direction:column;gap:.3rem}
+.field .inp{border:1.5px solid var(--green);border-radius:9px;padding:.5rem .65rem;font-family:var(--f-mono);font-size:17px;color:var(--ink);background:var(--white);display:flex;justify-content:space-between;align-items:baseline}
+.field .inp small{font-size:10px;color:var(--muted);font-family:var(--f-body)}
+.field .hint{font-size:10.5px;color:var(--muted)}
+.presets{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}
+.presets span{border:1px solid var(--line-2);border-radius:7px;padding:.32rem 0;text-align:center;font-family:var(--f-mono);font-size:10.5px;color:var(--ink-2)}
+.presets span.on{background:var(--green);border-color:var(--green);color:var(--white)}
+.warnbox{display:flex;gap:.5rem;align-items:flex-start;background:var(--yellow-soft);border-radius:9px;padding:.55rem .65rem;font-size:11px;color:var(--yellow-deep)}
+.warnbox b{color:#6B4B00}
+.mech{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1rem;margin-top:1.5rem}
+@media (max-width:900px){.mech{grid-template-columns:1fr}}
+.mechcard{border:1px solid var(--line);border-radius:14px;padding:1.15rem;background:var(--white);display:flex;flex-direction:column;gap:.5rem}
+.mechcard .n{font-family:var(--f-mono);font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;color:var(--green-deep)}
+.mechcard p{font-size:.88rem;color:var(--ink-2)}
+.mechcard code{font-family:var(--f-mono);font-size:.78rem;background:var(--mist-2);padding:.12rem .32rem;border-radius:4px;color:var(--ink);display:inline-block}
+.scale-two{display:grid;grid-template-columns:minmax(0,300px) minmax(0,1fr);gap:1.5rem;align-items:start}
+@media (max-width:820px){.scale-two{grid-template-columns:1fr;justify-items:center}}
+
 /* ---------------- UI kit ---------------- */
 .kit{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1rem}
 @media (max-width:900px){.kit{grid-template-columns:1fr}}
@@ -311,6 +341,7 @@ footer .fl{font-family:var(--f-mono);font-size:.73rem;margin-top:.9rem;line-heig
         </p>
         <div class="meta">
           <span class="chip g"><b>3</b> superfícies</span>
+          <span class="chip"><b>1.000.000</b> de cotas por campanha</span>
           <span class="chip y"><b>4</b> fases · 10 semanas</span>
           <span class="chip"><b>9</b> plataformas analisadas</span>
           <span class="chip">React + Express + Postgres</span>
@@ -725,6 +756,184 @@ footer .fl{font-family:var(--f-mono);font-size:.73rem;margin-top:.9rem;line-heig
 
   <div class="perf" role="presentation"></div>
 
+  <!-- ==================== ESCALA 1M ==================== -->
+  <section>
+    <div class="sechead">
+      <p class="eyebrow">Escala</p>
+      <h2>Um milhão de números</h2>
+      <p class="body">
+        O administrador escolhe o total de cotas ao criar a campanha — de 100 a 1.000.000 — e o número
+        trava na publicação. Esse teto não é um detalhe de tela: ele decide o modelo de dados inteiro,
+        e por isso entra na Fase 1, não na Fase 4.
+      </p>
+    </div>
+
+    <div class="scale-two">
+      <!-- mapa de 1M no celular -->
+      <div>
+        <div class="screen-cap" style="margin-bottom:.75rem">
+          <span class="who">Comprador</span>
+          <span class="d">mapa de 1.000.000</span>
+        </div>
+        <div class="phone" style="width:300px">
+          <div class="notch"></div>
+          <div class="pscreen app">
+            <div class="appbar">
+              <span class="logo">rifa<span>.</span>br</span>
+              <span class="mlabel">0847219 livre</span>
+            </div>
+
+            <div class="pbody">
+              <div class="mrow" style="margin-bottom:.5rem">
+                <span class="mlabel">1 000 000 de cotas · R$ 1,20</span>
+                <span class="mlabel" style="color:var(--green-deep)">31%</span>
+              </div>
+              <div class="bar"><span style="width:31%"></span></div>
+
+              <div style="margin-top:.75rem">
+                <span class="mbtn" style="width:100%">Compra rápida · 50 números</span>
+              </div>
+
+              <div class="searchfield" style="margin-top:.5rem">
+                <span>🔍 ir para o número</span><b>847.219</b>
+              </div>
+
+              <div style="margin-top:.85rem">
+                <span class="mlabel">ocupação · 1 000 blocos de 1 000</span>
+                <div class="heat" aria-label="Faixa de ocupação: cada segmento é um trecho de 25 mil números, do mais vazio ao mais cheio">
+                  <span style="background:#E6F5EC"></span><span style="background:#CDEBD9"></span>
+                  <span style="background:#A7DCBC"></span><span style="background:#CDEBD9"></span>
+                  <span style="background:#7ACB9C"></span><span style="background:#E6F5EC"></span>
+                  <span style="background:#A7DCBC"></span><span style="background:#4FBA7D"></span>
+                  <span style="background:#7ACB9C"></span><span style="background:#CDEBD9"></span>
+                  <span style="background:#00873E"></span><span style="background:#4FBA7D"></span>
+                  <span style="background:#A7DCBC"></span><span style="background:#7ACB9C"></span>
+                  <span style="background:#CDEBD9" class="cur"></span><span style="background:#A7DCBC"></span>
+                  <span style="background:#E6F5EC"></span><span style="background:#7ACB9C"></span>
+                  <span style="background:#CDEBD9"></span><span style="background:#E6F5EC"></span>
+                </div>
+                <div class="heatkey">
+                  <span>vazio</span>
+                  <i style="background:#E6F5EC"></i><i style="background:#A7DCBC"></i><i style="background:#4FBA7D"></i><i style="background:#00873E"></i>
+                  <span>cheio</span>
+                  <span style="margin-left:auto">■ bloco aberto</span>
+                </div>
+              </div>
+
+              <div class="blocknav">
+                <span class="bn">bloco 848 · 847 001–848 000</span>
+                <span class="arrows"><span>‹</span><span>›</span></span>
+              </div>
+
+              <div class="minigrid" style="margin-top:.4rem">
+                <span class="cota">211</span><span class="cota pag">212</span><span class="cota">213</span>
+                <span class="cota res">214</span><span class="cota">215</span><span class="cota pag">216</span>
+                <span class="cota">217</span><span class="cota">218</span><span class="cota sel">219</span>
+                <span class="cota">220</span><span class="cota pag">221</span><span class="cota">222</span>
+              </div>
+              <p style="font-size:9.5px;color:var(--muted);margin-top:.35rem;font-family:var(--f-mono)">
+                847 <b style="font-weight:400">211</b> … 847 222 · rolando dentro do bloco
+              </p>
+            </div>
+
+            <div class="stickybar">
+              <span class="tot"><small>1 cota</small>R$ 1,20</span>
+              <span class="mbtn" style="flex:1">Pagar com Pix</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- admin define o total -->
+      <div>
+        <div class="screen-cap" style="margin-bottom:.75rem">
+          <span class="who adm">Administrador</span>
+          <span class="d">nova campanha · antes de publicar</span>
+        </div>
+
+        <div class="card" style="max-width:30rem">
+          <header><h4>Nova campanha</h4><span class="pill neutral">rascunho</span></header>
+          <div class="app" style="padding:1rem;display:flex;flex-direction:column;gap:.85rem">
+            <div class="field">
+              <span class="mlabel">Total de cotas</span>
+              <div class="inp"><span>1 000 000</span><small>máximo permitido</small></div>
+              <div class="presets">
+                <span>1 mil</span><span>10 mil</span><span>100 mil</span><span class="on">1 milhão</span>
+              </div>
+              <span class="hint">Numeração de <b class="num">0000001</b> a <b class="num">1000000</b> — 7 dígitos, com zero à esquerda.</span>
+            </div>
+
+            <div class="field">
+              <span class="mlabel">Preço da cota</span>
+              <div class="inp" style="border-color:var(--line-2)"><span>R$ 1,20</span><small>arrecadação potencial R$ 1.200.000,00</small></div>
+            </div>
+
+            <div class="warnbox">
+              <span>⚠️</span>
+              <span><b>O total trava ao publicar.</b> Depois da primeira venda, mudar a quantidade
+              alteraria a chance de quem já comprou — o campo fica somente leitura e a alteração
+              é registrada como impossível na auditoria.</span>
+            </div>
+
+            <div class="mrow">
+              <span class="mbtn ghost sm">Salvar rascunho</span>
+              <span class="mbtn sm">Publicar campanha</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="callout" style="margin-top:1.25rem;max-width:30rem">
+          <span class="t">O sorteio de 1M não cabe na Loteria Federal</span>
+          <p>
+            O 1º prêmio da Federal tem 5 dígitos — endereça no máximo 100.000 cotas. Para 1.000.000
+            o mapeamento direto não existe. A regra que serve de 100 a 1.000.000 é uma só:
+            publicamos o <span class="num">hash</span> de uma semente antes da primeira venda e,
+            no dia, o número sai de
+            <span class="num">HMAC(semente ‖ os 5 prêmios do concurso) mod total</span>.
+            A Federal continua sendo a entropia pública que ninguém controla, e qualquer pessoa
+            refaz a conta.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="mech">
+      <div class="mechcard">
+        <span class="n">Armazenamento</span>
+        <h3>Nenhuma linha até vender</h3>
+        <p>
+          Criar 1.000.000 de linhas para publicar uma campanha custaria dezenas de segundos e um
+          índice inchado antes da primeira venda. Em vez disso: <b>só existe linha para cota tomada</b> —
+          disponível é a ausência de linha. A campanha nasce com zero linhas.
+        </p>
+        <p><code>publicar 1M &lt; 300 ms</code></p>
+      </div>
+      <div class="mechcard">
+        <span class="n">Reserva</span>
+        <h3>Insert com conflito, sem trava</h3>
+        <p>
+          A chave primária <code>(campanha, número)</code> é quem garante exclusividade. A compra
+          rápida sorteia os candidatos, tenta o insert em lote com
+          <code>ON CONFLICT DO NOTHING</code> e re-sorteia só o que colidiu. Acima de 85% vendido,
+          um pool dos números restantes assume, com <code>SKIP LOCKED</code>.
+        </p>
+        <p><code>reservar 50 cotas &lt; 150 ms</code></p>
+      </div>
+      <div class="mechcard">
+        <span class="n">Tela</span>
+        <h3>Bitmap por bloco</h3>
+        <p>
+          Ninguém renderiza 1M de células. São 1.000 blocos de 1.000, e a ocupação de cada bloco
+          viaja como bitmap: 1.000 bits, <b>125 bytes</b>. Bloco cheio e bloco vazio custam o mesmo.
+          Quem sabe o número que quer usa a busca direta e pula o mapa inteiro.
+        </p>
+        <p><code>abrir um bloco &lt; 100 ms</code></p>
+      </div>
+    </div>
+  </section>
+
+  <div class="perf" role="presentation"></div>
+
   <!-- ==================== SISTEMA VISUAL ==================== -->
   <section>
     <div class="sechead">
@@ -870,7 +1079,7 @@ footer .fl{font-family:var(--f-mono);font-size:.73rem;margin-top:.9rem;line-heig
           <tr><td class="k">Cotas premiadas</td><td class="alt">Números com prêmio instantâneo revelado na compra</td><td><span class="tag v1">Fase 3</span></td></tr>
           <tr><td class="k">Ranking de compradores</td><td class="alt">Placar público que premia quem compra mais</td><td><span class="tag v1">Fase 3</span></td></tr>
           <tr><td class="k">Aviso no WhatsApp</td><td class="alt">Pagamento confirmado, reserva vencendo, resultado do sorteio</td><td><span class="tag v1">Fase 3</span></td></tr>
-          <tr><td class="k">Campanhas de 1M+ cotas</td><td class="alt">Grades gigantes, geralmente lentas e paginadas na força bruta</td><td><span class="tag v2">Fase 4</span></td></tr>
+          <tr><td class="k">Campanhas de até 1M cotas</td><td class="alt">Grades gigantes, geralmente lentas e paginadas na força bruta</td><td><span class="tag">MVP</span></td></tr>
         </tbody>
       </table>
     </div>
@@ -937,7 +1146,8 @@ footer .fl{font-family:var(--f-mono);font-size:.73rem;margin-top:.9rem;line-heig
         <p class="who">Dono da rifa. Publica, acompanha, paga e sorteia.</p>
         <ul>
           <li>Painel de receita, cotas vendidas, ticket médio e funil</li>
-          <li>Campanhas: prêmio, mídia, lotes, pacotes, TTL, regulamento</li>
+          <li>Campanhas: prêmio, mídia, <b>total de cotas até 1M</b>, pacotes, TTL, regulamento</li>
+          <li>O total trava na publicação — mudar depois alteraria a chance de quem já comprou</li>
           <li>Pedidos: busca, estorno, liberação manual, reenvio</li>
           <li>Afiliados: aprovar, definir comissão, aprovar saques</li>
           <li>Financeiro: conciliação com o provedor e exportação</li>
@@ -1041,7 +1251,7 @@ footer .fl{font-family:var(--f-mono);font-size:.73rem;margin-top:.9rem;line-heig
     <div class="rules">
       <div class="rule">
         <span class="t">Cota é vendida uma vez só</span>
-        <p>Reserva sempre dentro de transação com lock de linha e índice único no par campanha/número.</p>
+        <p>A chave primária <span class="num">(campanha, número)</span> decide: reserva é insert com <span class="num">ON CONFLICT DO NOTHING</span>, e o que não entrou não é do comprador. Nunca checar disponibilidade em uma query separada da escrita.</p>
         <p class="why">falha aqui = dois donos do mesmo número</p>
       </div>
       <div class="rule">
@@ -1055,8 +1265,8 @@ footer .fl{font-family:var(--f-mono);font-size:.73rem;margin-top:.9rem;line-heig
         <p class="why">falha aqui = centavo que não fecha no extrato</p>
       </div>
       <div class="rule">
-        <span class="t">Sorteio é auditável</span>
-        <p>Modo Federal guarda o comprovante do concurso. Modo próprio publica o hash da semente antes da venda e a semente depois, com resultado derivado por HMAC.</p>
+        <span class="t">Sorteio auditável em qualquer escala</span>
+        <p>Uma regra só, de 100 a 1.000.000 de cotas: hash da semente publicado antes da primeira venda, semente revelada depois, número derivado por HMAC sobre os 5 prêmios do concurso federal, com rejeição de amostra contra viés de módulo.</p>
         <p class="why">falha aqui = a rifa perde a confiança do público</p>
       </div>
       <div class="rule">
@@ -1111,8 +1321,8 @@ footer .fl{font-family:var(--f-mono);font-size:.73rem;margin-top:.9rem;line-heig
         <span class="ph">Fase 1</span>
         <div>
           <h4>MVP vendável</h4>
-          <p>CRUD de campanha, página pública, compra rápida e manual, reserva com prazo, Pix automático com webhook, “minhas cotas” por telefone, sorteio pela Federal, painel básico de receita.</p>
-          <p class="dod">Pronto quando: uma campanha real vai da primeira venda ao sorteio sem ninguém tocar no banco.</p>
+          <p>CRUD de campanha com o total de cotas até 1M travado na publicação, arquitetura esparsa desde o primeiro commit, página pública com compra rápida, busca por número e navegador de blocos, reserva com prazo, Pix automático com webhook, “minhas cotas” por telefone, sorteio auditável, painel de receita.</p>
+          <p class="dod">Pronto quando: uma campanha de 1.000.000 de cotas vai da primeira venda ao sorteio sem ninguém tocar no banco, dentro do orçamento de desempenho.</p>
         </div>
         <span class="dur">3 semanas</span>
       </article>
@@ -1140,9 +1350,9 @@ footer .fl{font-family:var(--f-mono);font-size:.73rem;margin-top:.9rem;line-heig
       <article class="phase">
         <span class="ph">Fase 4</span>
         <div>
-          <h4>Escala e operação</h4>
-          <p>Campanhas de um milhão de cotas, workers e filas, antifraude, trilha de auditoria, exportações, observabilidade e — se o negócio pedir — multi-organizador com marca própria.</p>
-          <p class="dod">Pronto quando: uma campanha de 1M de cotas abre em menos de 2 s no celular.</p>
+          <h4>Operação e carga</h4>
+          <p>Pool de endgame sob carga real, workers e filas, antifraude, trilha de auditoria, exportações, observabilidade e — se o negócio pedir — multi-organizador com marca própria.</p>
+          <p class="dod">Pronto quando: 500 compradores simultâneos disputam os últimos 10% de uma campanha de 1M sem cota duplicada nem fila travada.</p>
         </div>
         <span class="dur">2 semanas</span>
       </article>
@@ -1165,7 +1375,8 @@ footer .fl{font-family:var(--f-mono);font-size:.73rem;margin-top:.9rem;line-heig
           <tr><td class="k">Multi-organizador ou rifa própria?</td><td class="alt">Alto — molda o schema inteiro</td><td>Pergunta aberta ao cliente, antes da Fase 0</td></tr>
           <tr><td class="k">Provedor: Mercado Pago ou Asaas</td><td class="alt">Alto — define split e prazos</td><td>Decidir antes da Fase 1; a abstração isola a troca</td></tr>
           <tr><td class="k">Autorização SPA/MF da campanha</td><td class="alt">Alto — jurídico do organizador</td><td>Campo obrigatório por campanha + orientação no onboarding</td></tr>
-          <tr><td class="k">Grade de 1M de cotas no celular</td><td class="alt">Médio — desempenho</td><td>Cotas virtuais por intervalo, sem uma linha por número</td></tr>
+          <tr><td class="k" style="text-decoration:line-through;color:var(--muted)">Grade de 1M de cotas no celular</td><td><span class="pill ok">decidido</span></td><td>Armazenamento esparso + bitmap por bloco + busca direta, já na Fase 1</td></tr>
+          <tr><td class="k">Sorteio acima de 100 000 cotas</td><td class="alt">Alto — a Federal só dá 5 dígitos</td><td>Semente comprometida + HMAC sobre os 5 prêmios; validar o texto com o jurídico</td></tr>
           <tr><td class="k">Autoindicação de afiliado</td><td class="alt">Médio — custo direto</td><td>Bloqueio por dispositivo e telefone; revisão manual acima do limite</td></tr>
           <tr><td class="k">Aprovação do WhatsApp Cloud API</td><td class="alt">Médio — prazo externo</td><td>Iniciar cadastro na Fase 1; e-mail como plano B</td></tr>
         </tbody>

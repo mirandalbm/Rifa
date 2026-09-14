@@ -43,6 +43,7 @@ Em desenvolvimento o provedor de pagamento é falso: a tela do pedido mostra
 | `npm run build` | build de produção |
 | `npm run db:push` | aplica o schema |
 | `npm run db:seed` | popula dados de exemplo |
+| `npm run load` | teste de carga com compradores simultâneos |
 
 ## Variáveis de ambiente
 
@@ -203,6 +204,25 @@ O dinheiro fica com quem vendeu, então o cambista não recebe: ele **deve**.
 O acerto é a conta do que recolheu menos a comissão dele, e fechar o acerto
 carimba as vendas incluídas para nenhuma entrar duas vezes. É o oposto do
 afiliado online, que recebe da casa.
+
+### O teste de carga
+
+```bash
+npm run load -- --buyers 500 --quotas 5 --prefill 0.95
+```
+
+Dispara compradores simultâneos contra o servidor e confere o banco depois.
+O caso que interessa não é a rifa vazia — sobra número, ninguém colide. É a
+**reta final**: `--prefill` enche a campanha até a porcentagem indicada,
+materializa o pool de endgame e põe todo mundo brigando pelo que sobrou.
+
+No fim ele checa seis invariantes, entre elas a que mais importa: nenhuma cota
+vendida duas vezes, e o pool sem oferecer cota já tomada.
+
+Resultado numa campanha de 1.000.000 com 500 compradores simultâneos
+disputando o fim: **1.000.000 de 1.000.000 vendidas, zero duplicadas**, 200
+compras atendidas e 300 recusadas com "sem cota" — exatamente o número que
+cabia.
 
 ### As maquininhas
 

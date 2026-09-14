@@ -15,18 +15,22 @@ arquitetura.
 2. **Nunca materializar cota.** Campanha de 1M nasce com zero linhas em
    `quota_alloc`. Se você se pegar escrevendo `generate_series` fora do
    `enterEndgame`, pare.
-3. **Nunca `COUNT(*)` para progresso.** Use `campaign_stats`, atualizado na
+3. **Pool de endgame não pode oferecer cota tomada.** Todo caminho que toma
+   uma cota — inclusive escolha manual no mapa — precisa apagá-la de
+   `free_pool`. Foi assim que a compra rápida passou a falhar com a rifa cheia
+   de número livre. `npm run load` checa isso.
+4. **Nunca `COUNT(*)` para progresso.** Use `campaign_stats`, atualizado na
    mesma transação da alocação.
-4. **Dinheiro é inteiro, em centavos.** O front nunca envia preço: envia
+5. **Dinheiro é inteiro, em centavos.** O front nunca envia preço: envia
    campanha e quantidade. O total é recalculado em `services/orders.ts`.
-5. **Webhook é idempotente.** Chave `(provider, external_id)` em
+6. **Webhook é idempotente.** Chave `(provider, external_id)` em
    `webhook_events`. Assinatura validada no provedor; o redirect do navegador
    não vale como prova de pagamento.
-6. **O total de cotas trava ao publicar.** `assertEditable()` em
+7. **O total de cotas trava ao publicar.** `assertEditable()` em
    `services/campaigns.ts`. Mudar depois alteraria a chance de quem já comprou.
-7. **Comissão tem carência.** Nasce `pending`, vira `available` só depois da
+8. **Comissão tem carência.** Nasce `pending`, vira `available` só depois da
    janela de estorno e do sorteio. Autoindicação é bloqueada por telefone.
-8. **A autorização SPA/MF é da campanha.** Sem `authorizationCode` a campanha
+9. **A autorização SPA/MF é da campanha.** Sem `authorizationCode` a campanha
    não publica. A plataforma não é homologada em bloco — a Lei 5.768/71
    autoriza o promotor.
 
@@ -49,6 +53,7 @@ arquitetura.
 | meios de pagamento aceitos | `shared/payments.ts` (regras) e `services/settings.ts` |
 | bilhete | `server/services/ticketFormat.ts` (puro) e `ticket.ts` (dados) |
 | ponte com a maquininha | `client/src/lib/pos.ts`, `android/`, `docs/MAQUININHAS.md` |
+| teste de carga | `scripts/load-test.ts` |
 
 ## Convenções
 
@@ -67,8 +72,9 @@ arquitetura.
 - Fila (BullMQ): os três relógios rodam com `setInterval` no processo,
   protegidos por trava de aplicação do Postgres — com várias réplicas só uma
   executa. Serve bem; a fila entra quando houver trabalho pesado de verdade.
-- Fase 4 inteira: teste de carga com 1M de cotas, antifraude, exportações,
-  multi-organizador.
+- Da Fase 4: antifraude, exportações e multi-organizador. O teste de carga
+  existe (`npm run load`) e a campanha de 1M já foi vendida inteira sob
+  concorrência sem duplicar cota.
 - A integração da Stone no invólucro Android: `android/app/src/ton/` tem a
   estrutura e dois pontos de encaixe marcados, sem nomes de classe
   preenchidos. A do PagBank está escrita.

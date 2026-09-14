@@ -100,22 +100,38 @@ async function allocateFromPool(
   orderId: string,
   reservedUntil: Date,
 ): Promise<number[]> {
-  const popped = await tx.execute(sql`
-    DELETE FROM free_pool
-    WHERE ctid IN (
-      SELECT ctid FROM free_pool
-      WHERE campaign_id = ${campaignId}::uuid
-      LIMIT ${count}
-      FOR UPDATE SKIP LOCKED
-    )
-    RETURNING number
-  `);
+  const allocated: number[] = [];
 
-  const numbers = (popped.rows as { number: number }[]).map((r) => Number(r.number));
-  if (numbers.length === 0) return [];
+  /**
+   * O pool pode conter número que já saiu por outro caminho — escolha manual
+   * no mapa, correção manual no banco, uma migração. Uma entrada velha não
+   * pode derrubar a compra inteira: o que colidir é descartado do pool (já
+   * está vendido mesmo) e a rodada seguinte pega outro.
+   */
+  for (let round = 0; round < MAX_SAMPLING_ROUNDS && allocated.length < count; round++) {
+    const faltam = count - allocated.length;
 
-  // O pool é a fonte, mas a PK continua sendo a autoridade.
-  return insertNumbers(tx, campaignId, numbers, orderId, reservedUntil);
+    const popped = await tx.execute(sql`
+      DELETE FROM free_pool
+      WHERE ctid IN (
+        SELECT ctid FROM free_pool
+        WHERE campaign_id = ${campaignId}::uuid
+        LIMIT ${faltam}
+        FOR UPDATE SKIP LOCKED
+      )
+      RETURNING number
+    `);
+
+    const numbers = (popped.rows as { number: number }[]).map((r) => Number(r.number));
+    // Pool vazio de verdade: acabaram as cotas.
+    if (numbers.length === 0) break;
+
+    // O pool é a fonte, mas a PK continua sendo a autoridade.
+    const won = await insertNumbers(tx, campaignId, numbers, orderId, reservedUntil);
+    allocated.push(...won.slice(0, faltam));
+  }
+
+  return allocated;
 }
 
 /* ------------------------------------------------------------------ *
@@ -213,6 +229,17 @@ export async function reserveSpecific(
   }
 
   const won = await insertNumbers(tx, campaignId, unique, orderId, reservedUntil);
+
+  // Número escolhido no mapa também sai do pool. Sem isto, na reta final o
+  // pool passa a oferecer cota já vendida e a compra rápida começa a falhar
+  // com a rifa ainda cheia de número livre.
+  if (won.length > 0) {
+    await tx.execute(sql`
+      DELETE FROM free_pool
+      WHERE campaign_id = ${campaignId}::uuid
+        AND number = ANY(${intArray(won)}::int[])
+    `);
+  }
 
   if (won.length !== unique.length) {
     const wonSet = new Set(won);

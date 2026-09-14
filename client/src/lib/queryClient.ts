@@ -1,10 +1,53 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
-async function throwIfResNotOk(res: Response) {
-  if (!res.ok) {
-    const text = (await res.text()) || res.statusText;
-    throw new Error(`${res.status}: ${text}`);
+/**
+ * Identificador do aparelho: um número aleatório guardado no próprio
+ * navegador. Não identifica a pessoa — serve para o antifraude perceber
+ * que cinquenta compras vieram do mesmo celular.
+ */
+function deviceId(): string {
+  try {
+    const guardado = localStorage.getItem("rifa.device");
+    if (guardado) return guardado;
+    const novo = crypto.randomUUID();
+    localStorage.setItem("rifa.device", novo);
+    return novo;
+  } catch {
+    // Navegador anônimo ou armazenamento bloqueado: segue sem identificador.
+    return "";
   }
+}
+
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+    /** Motivo legível por código, quando o servidor manda um (ex.: totp_required). */
+    readonly code?: string,
+  ) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
+/**
+ * O servidor responde erro como { message }. Extrair aqui é o que faz a
+ * mensagem chegar legível na tela — sem isso o usuário lê JSON cru.
+ */
+async function throwIfResNotOk(res: Response) {
+  if (res.ok) return;
+
+  const text = (await res.text()) || res.statusText;
+  let message = text;
+  let code: string | undefined;
+  try {
+    const parsed = JSON.parse(text) as { message?: string; code?: string };
+    if (parsed?.message) message = parsed.message;
+    code = parsed?.code;
+  } catch {
+    // resposta não-JSON: fica o texto mesmo
+  }
+  throw new ApiError(message, res.status, code);
 }
 
 export async function apiRequest(
@@ -12,9 +55,14 @@ export async function apiRequest(
   url: string,
   data?: unknown | undefined,
 ): Promise<Response> {
+  const headers: Record<string, string> = {};
+  if (data) headers["Content-Type"] = "application/json";
+  const aparelho = deviceId();
+  if (aparelho) headers["x-device-id"] = aparelho;
+
   const res = await fetch(url, {
     method,
-    headers: data ? { "Content-Type": "application/json" } : {},
+    headers,
     body: data ? JSON.stringify(data) : undefined,
     credentials: "include",
   });

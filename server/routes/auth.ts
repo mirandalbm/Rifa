@@ -21,10 +21,18 @@ authRouter.get("/me", (req, res) => {
 authRouter.post("/login", (req, res, next) => {
   passport.authenticate(
     "local",
-    (err: Error | null, user: SessionUser | false, info?: { message?: string }) => {
+    (
+      err: Error | null,
+      user: SessionUser | false,
+      info?: { message?: string; code?: string },
+    ) => {
       if (err) return next(err);
       if (!user) {
-        return res.status(401).json({ message: info?.message ?? "Não foi possível entrar." });
+        return res.status(401).json({
+          message: info?.message ?? "Não foi possível entrar.",
+          // A tela usa isto para pedir o código em vez de repetir a senha.
+          code: info?.code,
+        });
       }
       req.logIn(user, (loginErr) => {
         if (loginErr) return next(loginErr);

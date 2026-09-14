@@ -40,6 +40,9 @@ arquitetura.
 | trocar o provedor de pagamento | `server/payments/` — implemente `PaymentProvider` |
 | regras de publicação e mídia | `server/services/campaigns.ts`, `server/routes/admin.ts` |
 | sorteio | `server/services/draw.ts` |
+| segundo fator | `server/services/totp.ts` |
+| variantes de imagem | `server/services/images.ts` |
+| cadastro/cupom/kit do afiliado | `server/routes/public.ts`, `server/routes/affiliate.ts` |
 
 ## Convenções
 
@@ -52,14 +55,16 @@ arquitetura.
 
 ## O que ainda não existe
 
-- 2FA do administrador (o campo `totpSecret` existe, a verificação não).
 - Notificação por WhatsApp (o código de acesso volta na resposta em
-  desenvolvimento).
-- Variantes responsivas de imagem (AVIF/WebP em 400/800/1600) e pôster extraído
-  do vídeo: hoje servimos o arquivo original. A medição e os limites já existem;
-  falta o processamento.
-- Fila (BullMQ): os dois relógios rodam com `setInterval` no processo. Serve até
-  a primeira réplica; com duas, o job de expiração roda duas vezes.
+  desenvolvimento). É item da Fase 3.
+- Pôster extraído do vídeo e transcode: hoje servimos o arquivo original. A
+  medição e os limites já existem; falta o processamento. Cloudflare Stream
+  resolve os dois de fábrica.
+- Cotas premiadas e ranking: o servidor já revela a cota premiada no pagamento
+  e já responde o ranking, mas nenhuma tela mostra. Fase 3.
+- Fila (BullMQ): os dois relógios rodam com `setInterval` no processo, agora
+  protegidos por trava de aplicação do Postgres — com várias réplicas só uma
+  executa. Serve bem; a fila entra quando houver trabalho pesado de verdade.
 
 ## Mídia — o que não pode afrouxar
 

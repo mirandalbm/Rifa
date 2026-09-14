@@ -9,6 +9,7 @@ import { eq } from "drizzle-orm";
 import { db } from "./db";
 import { users, affiliates } from "@shared/schema";
 import { type Role, roleSatisfies } from "@shared/access";
+import { verifyTotp } from "./services/totp";
 
 const scryptAsync = promisify(scrypt);
 
@@ -41,6 +42,8 @@ declare module "express-session" {
     buyer?: { id: string; phone: string; name: string };
     /** Código de acesso pendente: guardado na sessão, nunca no banco. */
     otp?: { phone: string; codeHash: string; expiresAt: number; attempts: number };
+    /** Segredo do 2FA ainda não confirmado: só vira definitivo após o código. */
+    pendingTotpSecret?: string;
     /** Afiliado que trouxe a visita — primeiro clique, 30 dias. */
     affiliateCode?: string;
     affiliateSince?: number;
@@ -97,7 +100,9 @@ export function setupAuth(app: Express) {
   app.use(passport.session());
 
   passport.use(
-    new LocalStrategy({ usernameField: "email" }, async (email, password, done) => {
+    new LocalStrategy(
+      { usernameField: "email", passReqToCallback: true },
+      async (req, email, password, done) => {
       try {
         const [user] = await db
           .select()
@@ -107,6 +112,23 @@ export function setupAuth(app: Express) {
         // Mesma resposta para e-mail inexistente e senha errada.
         if (!user || !user.active || !(await verifyPassword(password, user.passwordHash))) {
           return done(null, false, { message: "E-mail ou senha incorretos." });
+        }
+
+        // Segundo fator: a senha certa sozinha não entra.
+        if (user.totpSecret) {
+          const token = String((req.body as { token?: string })?.token ?? "");
+          if (!token) {
+            return done(null, false, {
+              message: "Digite o código do aplicativo autenticador.",
+              code: "totp_required",
+            } as never);
+          }
+          if (!verifyTotp(user.totpSecret, token)) {
+            return done(null, false, {
+              message: "Código do autenticador incorreto ou expirado.",
+              code: "totp_invalid",
+            } as never);
+          }
         }
 
         const sessionUser: SessionUser = {
@@ -136,7 +158,8 @@ export function setupAuth(app: Express) {
       } catch (err) {
         return done(err as Error);
       }
-    }),
+      },
+    ),
   );
 
   passport.serializeUser((user, done) => done(null, user.id));

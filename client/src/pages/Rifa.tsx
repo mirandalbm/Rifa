@@ -6,6 +6,7 @@ import { Money, Progress, Button, Card } from "@/components/bits";
 import { apiRequest } from "@/lib/queryClient";
 import { formatQuota, groupNumber, percent, formatBRL } from "@shared/format";
 import { priceOrder } from "@shared/pricing";
+import { ResponsiveImage } from "@/components/ResponsiveImage";
 
 interface CampaignDetail {
   campaign: {
@@ -27,6 +28,9 @@ interface CampaignDetail {
   media: {
     role: "banner" | "photo" | "video";
     url: string;
+    srcSetAvif: string | null;
+    srcSetWebp: string | null;
+    lqip: string | null;
     poster: string | null;
     durationS: number | null;
     altText: string | null;
@@ -195,11 +199,12 @@ export default function Rifa() {
       {photos.length > 0 ? (
         <div className="mt-2 grid grid-cols-5 gap-1">
           {photos.map((p, i) => (
-            <img
+            <ResponsiveImage
               key={i}
-              src={p.url}
+              media={p}
               alt={p.altText ?? `Foto ${i + 1} do prêmio`}
-              loading="lazy"
+              // Cinco miniaturas lado a lado: cada uma vale ~20% da largura.
+              sizes="(max-width: 640px) 20vw, 130px"
               className="aspect-[4/3] w-full rounded-md border border-line object-cover"
             />
           ))}

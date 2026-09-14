@@ -27,6 +27,8 @@ export interface Storage {
   presignUpload(params: { key: string; contentType: string }): Promise<UploadTicket>;
   size(key: string): Promise<number>;
   reader(key: string): RangeReader;
+  readAll(key: string): Promise<Buffer>;
+  write(key: string, body: Buffer, contentType: string): Promise<void>;
   remove(key: string): Promise<void>;
   publicUrl(key: string): string;
 }
@@ -82,6 +84,10 @@ export class LocalDiskStorage implements Storage {
     const file = this.pathFor(key);
     await fs.mkdir(path.dirname(file), { recursive: true });
     await fs.writeFile(file, body);
+  }
+
+  async readAll(key: string) {
+    return fs.readFile(this.pathFor(key));
   }
 
   async size(key: string) {
@@ -172,6 +178,28 @@ export class R2Storage implements Storage {
       }
       return Buffer.concat(chunks);
     };
+  }
+
+  async readAll(key: string) {
+    const res = await this.client.send(
+      new GetObjectCommand({ Bucket: this.bucket, Key: key }),
+    );
+    const chunks: Buffer[] = [];
+    for await (const chunk of res.Body as AsyncIterable<Uint8Array>) {
+      chunks.push(Buffer.from(chunk));
+    }
+    return Buffer.concat(chunks);
+  }
+
+  async write(key: string, body: Buffer, contentType: string) {
+    await this.client.send(
+      new PutObjectCommand({
+        Bucket: this.bucket,
+        Key: key,
+        Body: body,
+        ContentType: contentType,
+      }),
+    );
   }
 
   async remove(key: string) {

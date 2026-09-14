@@ -1,7 +1,12 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
 export class ApiError extends Error {
-  constructor(message: string, readonly status: number) {
+  constructor(
+    message: string,
+    readonly status: number,
+    /** Motivo legível por código, quando o servidor manda um (ex.: totp_required). */
+    readonly code?: string,
+  ) {
     super(message);
     this.name = "ApiError";
   }
@@ -16,13 +21,15 @@ async function throwIfResNotOk(res: Response) {
 
   const text = (await res.text()) || res.statusText;
   let message = text;
+  let code: string | undefined;
   try {
-    const parsed = JSON.parse(text) as { message?: string };
+    const parsed = JSON.parse(text) as { message?: string; code?: string };
     if (parsed?.message) message = parsed.message;
+    code = parsed?.code;
   } catch {
     // resposta não-JSON: fica o texto mesmo
   }
-  throw new ApiError(message, res.status);
+  throw new ApiError(message, res.status, code);
 }
 
 export async function apiRequest(

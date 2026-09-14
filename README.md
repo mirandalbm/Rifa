@@ -24,9 +24,10 @@ O seed imprime as credenciais no fim:
 
 | Acesso | Entra em | Vê |
 |---|---|---|
-| `admin@rifa.br` / `admin123` | `/admin` | campanhas, pedidos, afiliados, financeiro, sorteios, auditoria |
+| `admin@rifa.br` / `admin123` | `/admin` | campanhas, pedidos, afiliados, cupons, financeiro, sorteios, auditoria |
 | `joao@rifa.br` / `joao123` (código `JOAO7`) | `/afiliado` | link, cliques, comissões, saques |
 | ninguém | `/` | vitrine, rifa, checkout Pix, minhas cotas |
+| qualquer pessoa | `/seja-afiliado` | cadastro de afiliado, que entra na fila de aprovação |
 
 Em desenvolvimento o provedor de pagamento é falso: a tela do pedido mostra
 **simular pagamento**, que dispara a mesma rotina do webhook real.
@@ -58,6 +59,7 @@ Em desenvolvimento o provedor de pagamento é falso: a tela do pedido mostra
 | `R2_SECRET_ACCESS_KEY` | com R2 | — |
 | `R2_PUBLIC_URL` | com R2 | — |
 | `UPLOAD_DIR` | não | `uploads` (só no disco local) |
+| `PUBLIC_BASE_URL` | não | inferida do host da requisição (usada nos links de afiliado) |
 | `PORT` | não | `5000` |
 
 ## Como está organizado
@@ -93,6 +95,11 @@ O envio tem dois passos: o painel pede uma URL assinada e o arquivo vai direto
 para o armazenamento (R2 em produção, disco local em desenvolvimento); depois a
 confirmação **mede o arquivo já armazenado**.
 
+Depois de aprovada, a imagem vira **variantes responsivas** — AVIF e WebP em
+400/800/1600 px — mais uma miniatura de 20 px embutida no HTML, que aparece
+borrada enquanto a foto real carrega. Nada é ampliado: gerar 1600 a partir de
+uma foto de 1200 só pesa.
+
 Medir é o ponto: a duração do vídeo sai do cabeçalho `mvhd` do próprio
 container MP4/MOV, lido por Range — alguns kilobytes, não os 300 MB — e as
 dimensões da imagem saem do cabeçalho PNG/JPEG/WebP. O que o navegador informa
@@ -102,6 +109,25 @@ armazenamento na mesma hora.
 
 WebM não é aceito de propósito: sem saber medir a duração, não dá para
 prometer o limite.
+
+### O afiliado
+
+Cadastro aberto em `/seja-afiliado`; ninguém divulga antes do administrador
+aprovar. Cada afiliado recebe link, QR pronto para story e três textos que só
+precisa copiar — sem isso cada um inventa a própria mensagem, e a pior delas
+vira a cara da campanha.
+
+O cupom faz duas coisas ao mesmo tempo: dá desconto ao comprador e credita a
+venda ao afiliado **mesmo que a pessoa não tenha entrado pelo link**. No
+checkout ele sobrepõe o cookie de primeiro clique.
+
+### O segundo fator
+
+A conta do administrador move dinheiro e publica campanha, então tem TOTP
+(RFC 6238) implementado com o crypto do próprio Node. O segredo só é gravado
+depois que o aplicativo do administrador prova que gera o código certo —
+gravar antes trancaria a conta de quem desistiu no meio. Desligar exige senha
+**e** código: sessão roubada não desarma o segundo fator sozinha.
 
 ### O sorteio
 

@@ -10,13 +10,15 @@ import {
   affiliates,
   clickEvents,
   buyers,
+  users,
   createOrderSchema,
 } from "@shared/schema";
 import { normalizePhone } from "@shared/format";
 import { listPublicCampaigns, campaignBySlug } from "../services/campaigns";
 import { createOrder, orderByCode, ordersByPhone, OrderError } from "../services/orders";
 import { blockBitmap, isTaken, BLOCK_SIZE, NumbersTakenError, NoQuotasAvailableError } from "../services/quotas";
-import { issueOtp, checkOtp } from "../auth";
+import { issueOtp, checkOtp, hashPassword } from "../auth";
+import { withUrls } from "../services/media";
 
 export const publicRouter = Router();
 
@@ -35,7 +37,7 @@ publicRouter.get("/campaigns", async (_req, res, next) => {
       .select()
       .from(campaignMedia)
       .where(and(eq(campaignMedia.role, "banner"), eq(campaignMedia.status, "ready")));
-    const bannerBy = new Map(banners.map((b) => [b.campaignId, b]));
+    const bannerBy = new Map(banners.map((b) => [b.campaignId, withUrls(b)]));
 
     res.json(
       rows.map(({ campaign, stats }) => ({
@@ -48,7 +50,9 @@ publicRouter.get("/campaigns", async (_req, res, next) => {
         drawAt: campaign.drawAt,
         featured: campaign.featured,
         soldCount: stats?.soldCount ?? 0,
-        banner: bannerBy.get(campaign.id)?.storageKey ?? null,
+        banner: bannerBy.get(campaign.id)?.url ?? null,
+        bannerSrcSet: bannerBy.get(campaign.id)?.srcSetWebp ?? null,
+        bannerLqip: bannerBy.get(campaign.id)?.lqip ?? null,
       })),
     );
   } catch (err) {
@@ -92,14 +96,20 @@ publicRouter.get("/campaigns/:slug", async (req, res, next) => {
         soldCount: found.stats?.soldCount ?? 0,
         reservedCount: found.stats?.reservedCount ?? 0,
       },
-      media: found.media.map((m) => ({
-        role: m.role,
-        position: m.position,
-        url: m.storageKey,
-        poster: m.posterKey,
-        durationS: m.durationS,
-        altText: m.altText,
-      })),
+      media: found.media.map((m) => {
+        const withUrl = withUrls(m);
+        return {
+          role: m.role,
+          position: m.position,
+          url: withUrl.url,
+          srcSetAvif: withUrl.srcSetAvif,
+          srcSetWebp: withUrl.srcSetWebp,
+          lqip: m.lqip,
+          poster: m.posterKey,
+          durationS: m.durationS,
+          altText: m.altText,
+        };
+      }),
       packages,
       blockSize: BLOCK_SIZE,
     });
@@ -296,6 +306,77 @@ publicRouter.get("/my-quotas", async (req, res, next) => {
     next(err);
   }
 });
+
+/* ---------------- cadastro de afiliado ---------------- */
+
+/**
+ * Qualquer pessoa se cadastra; ninguém divulga antes de ser aprovado pelo
+ * administrador. O login de um cadastro pendente já responde explicando.
+ */
+publicRouter.post("/afiliados/cadastro", async (req, res, next) => {
+  try {
+    const name = String(req.body?.name ?? "").trim();
+    const email = String(req.body?.email ?? "").toLowerCase().trim();
+    const phone = normalizePhone(String(req.body?.phone ?? ""));
+    const password = String(req.body?.password ?? "");
+
+    if (name.length < 3) return res.status(400).json({ message: "Informe seu nome completo." });
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+      return res.status(400).json({ message: "E-mail inválido." });
+    }
+    if (phone.length < 10) return res.status(400).json({ message: "WhatsApp inválido." });
+    if (password.length < 8) {
+      return res.status(400).json({ message: "A senha precisa de ao menos 8 caracteres." });
+    }
+
+    const [existing] = await db.select().from(users).where(eq(users.email, email));
+    if (existing) {
+      return res.status(409).json({ message: "Já existe uma conta com este e-mail." });
+    }
+
+    const code = await freeAffiliateCode(name);
+
+    await db.transaction(async (tx) => {
+      const [user] = await tx
+        .insert(users)
+        .values({
+          role: "affiliate",
+          name,
+          email,
+          phone,
+          passwordHash: await hashPassword(password),
+        })
+        .returning();
+
+      await tx.insert(affiliates).values({ userId: user.id, code, status: "pending" });
+    });
+
+    res.status(201).json({
+      code,
+      message: "Cadastro enviado. Você recebe um aviso quando for aprovado.",
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** Código a partir do primeiro nome, com sufixo quando já existir. */
+async function freeAffiliateCode(name: string): Promise<string> {
+  const base =
+    name
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, "")
+      .slice(0, 8) || "AFILIADO";
+
+  for (let i = 0; i < 50; i++) {
+    const candidate = i === 0 ? base : `${base}${i + 1}`;
+    const [taken] = await db.select().from(affiliates).where(eq(affiliates.code, candidate));
+    if (!taken) return candidate;
+  }
+  return `AF${Date.now().toString(36).toUpperCase().slice(-6)}`;
+}
 
 /* ---------------- ranking público ---------------- */
 

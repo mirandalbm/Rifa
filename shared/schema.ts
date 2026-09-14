@@ -175,6 +175,12 @@ export const campaignMedia = pgTable(
     /** Medida no servidor com ffprobe. Vídeo acima de 60 s é recusado. */
     durationS: integer("duration_s"),
     posterKey: text("poster_key"),
+    /** Variantes responsivas geradas na ingestão (AVIF/WebP em 400/800/1600). */
+    variants: jsonb("variants").$type<
+      { width: number; format: "avif" | "webp"; key: string; bytes: number }[]
+    >(),
+    /** Miniatura de 20 px embutida, exibida borrada enquanto a foto carrega. */
+    lqip: text("lqip"),
     altText: text("alt_text"),
     bytes: bigint("bytes", { mode: "number" }),
     status: mediaStatus("status").notNull().default("processing"),

@@ -12,6 +12,7 @@ import Rifa from "@/pages/Rifa";
 import Pedido from "@/pages/Pedido";
 import MinhasCotas from "@/pages/MinhasCotas";
 import Login from "@/pages/Login";
+import CadastroAfiliado from "@/pages/CadastroAfiliado";
 import {
   AfiliadoPainel,
   AfiliadoLinks,
@@ -67,6 +68,7 @@ export default function App() {
           <Route path="/pedido/:code" component={Pedido} />
           <Route path="/minhas-cotas" component={MinhasCotas} />
           <Route path="/entrar" component={Login} />
+          <Route path="/seja-afiliado" component={CadastroAfiliado} />
 
           {/* Afiliado */}
           <Route path="/afiliado">

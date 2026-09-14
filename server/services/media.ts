@@ -11,6 +11,7 @@ import { db } from "../db";
 import { campaignMedia, MAX_PHOTOS, MAX_VIDEO_SECONDS } from "@shared/schema";
 import { storage, mediaKey, type UploadTicket } from "./storage";
 import { probeImage, probeVideoDuration, UnreadableMediaError } from "./probe";
+import { processImage, srcSet, removeVariants, type ImageVariant } from "./images";
 
 export type MediaRole = "banner" | "photo" | "video";
 
@@ -163,6 +164,8 @@ async function ingest(params: {
   let width: number | null = null;
   let height: number | null = null;
   let durationS: number | null = null;
+  let variants: ImageVariant[] | null = null;
+  let lqip: string | null = null;
 
   try {
     if (params.role === "video") {
@@ -184,6 +187,12 @@ async function ingest(params: {
           `A imagem tem ${width}px de largura — o mínimo para ${rule.label} é ${rule.minWidth}px.`,
         );
       }
+
+      // Só depois de aprovada a imagem vira variantes: processar antes seria
+      // gastar CPU e bucket com arquivo que vai ser recusado.
+      const processed = await processImage(await store.readAll(params.storageKey), params.storageKey);
+      variants = processed.variants;
+      lqip = processed.lqip;
     }
   } catch (err) {
     if (err instanceof MediaRuleError) throw err;
@@ -206,13 +215,15 @@ async function ingest(params: {
       width,
       height,
       durationS,
+      variants,
+      lqip,
       altText: params.altText?.trim() || null,
       bytes: size,
       status: "ready",
     })
     .returning();
 
-  return { ...created, url: store.publicUrl(created.storageKey) };
+  return withUrls(created);
 }
 
 export async function removeMedia(mediaId: string) {
@@ -224,17 +235,31 @@ export async function removeMedia(mediaId: string) {
 
   // Mídia fora da campanha não tem por que continuar custando armazenamento.
   await storage().remove(removed.storageKey).catch(() => {});
+  await removeVariants(removed.variants);
   return removed;
 }
 
 export async function listMedia(campaignId: string) {
-  const store = storage();
   const rows = await db
     .select()
     .from(campaignMedia)
     .where(eq(campaignMedia.campaignId, campaignId))
     .orderBy(campaignMedia.role, campaignMedia.position);
-  return rows.map((m) => ({ ...m, url: store.publicUrl(m.storageKey) }));
+  return rows.map(withUrls);
+}
+
+type MediaRow = typeof campaignMedia.$inferSelect;
+
+/** Endereços prontos para o `<img>`: original, srcset por formato e o blur. */
+export function withUrls(m: MediaRow) {
+  const store = storage();
+  const url = (key: string) => store.publicUrl(key);
+  return {
+    ...m,
+    url: url(m.storageKey),
+    srcSetAvif: srcSet(m.variants, "avif", url),
+    srcSetWebp: srcSet(m.variants, "webp", url),
+  };
 }
 
 function formatDuration(seconds: number): string {

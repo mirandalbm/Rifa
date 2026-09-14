@@ -1,4 +1,5 @@
 import express, { Router, type Request } from "express";
+import QRCode from "qrcode";
 import { eq, and, sql, desc } from "drizzle-orm";
 import { db } from "../db";
 import {
@@ -11,6 +12,7 @@ import {
   affiliates,
   users,
   commissions,
+  coupons,
   payouts,
   draws,
   auditLog,
@@ -32,7 +34,8 @@ import {
   MediaRuleError,
 } from "../services/media";
 import { storage, LocalDiskStorage } from "../services/storage";
-import { hashPassword } from "../auth";
+import { hashPassword, verifyPassword } from "../auth";
+import { generateSecret, verifyTotp, otpauthUrl } from "../services/totp";
 
 export const adminRouter = Router();
 
@@ -430,6 +433,76 @@ adminRouter.patch("/affiliates/:id", async (req, res, next) => {
   }
 });
 
+/* ---------------- cupons ---------------- */
+
+adminRouter.get("/coupons", async (_req, res, next) => {
+  try {
+    const rows = await db
+      .select({
+        coupon: coupons,
+        affiliateCode: affiliates.code,
+        campaignTitle: campaigns.title,
+      })
+      .from(coupons)
+      .leftJoin(affiliates, eq(affiliates.id, coupons.affiliateId))
+      .leftJoin(campaigns, eq(campaigns.id, coupons.campaignId))
+      .orderBy(desc(coupons.id));
+    res.json(rows);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * Cupom do afiliado: dá desconto ao comprador e, no checkout, sobrepõe o
+ * cookie de primeiro clique — é como o afiliado ganha a venda de quem chegou
+ * por outro caminho e digitou o código dele.
+ */
+adminRouter.post("/coupons", async (req, res, next) => {
+  try {
+    const code = String(req.body?.code ?? "").toUpperCase().trim();
+    const discountPct = Number(req.body?.discountPct);
+
+    if (!/^[A-Z0-9]{3,20}$/.test(code)) {
+      return res.status(400).json({ message: "Use de 3 a 20 letras ou números." });
+    }
+    if (!Number.isInteger(discountPct) || discountPct < 1 || discountPct > 50) {
+      return res.status(400).json({ message: "O desconto precisa ficar entre 1% e 50%." });
+    }
+
+    const [existing] = await db.select().from(coupons).where(eq(coupons.code, code));
+    if (existing) return res.status(409).json({ message: "Este código já existe." });
+
+    const [created] = await db
+      .insert(coupons)
+      .values({
+        code,
+        discountPct,
+        affiliateId: req.body?.affiliateId || null,
+        campaignId: req.body?.campaignId || null,
+        maxUses: req.body?.maxUses ? Number(req.body.maxUses) : null,
+        expiresAt: req.body?.expiresAt ? new Date(req.body.expiresAt) : null,
+      })
+      .returning();
+
+    await audit(req, "coupon.create", "coupon", created.id, { code, discountPct });
+    res.status(201).json(created);
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.delete("/coupons/:id", async (req, res, next) => {
+  try {
+    const [removed] = await db.delete(coupons).where(eq(coupons.id, req.params.id)).returning();
+    if (!removed) return res.status(404).json({ message: "Cupom não encontrado." });
+    await audit(req, "coupon.remove", "coupon", removed.id, { code: removed.code });
+    res.json({ removed: removed.id });
+  } catch (err) {
+    next(err);
+  }
+});
+
 /* ---------------- financeiro ---------------- */
 
 adminRouter.get("/finance", async (_req, res, next) => {
@@ -573,6 +646,83 @@ adminRouter.post("/campaigns/:id/draw", async (req, res, next) => {
       seed: draw.seed,
       soldToWinner: Boolean(winner?.status === "paid"),
     });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/* ---------------- segundo fator ---------------- */
+
+adminRouter.get("/2fa", async (req, res, next) => {
+  try {
+    const [user] = await db.select().from(users).where(eq(users.id, req.user!.id));
+    res.json({ enabled: Boolean(user.totpSecret) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * Gera um segredo e devolve a URL do QR. O segredo só é gravado depois que o
+ * administrador prova que o aplicativo dele já está gerando o código certo —
+ * gravar antes tranca a conta de quem desistiu no meio.
+ */
+adminRouter.post("/2fa/setup", async (req, res, next) => {
+  try {
+    const [user] = await db.select().from(users).where(eq(users.id, req.user!.id));
+    if (user.totpSecret) {
+      return res.status(409).json({ message: "O segundo fator já está ativo." });
+    }
+    const secret = generateSecret();
+    req.session.pendingTotpSecret = secret;
+    const otpauth = otpauthUrl({ secret, account: user.email });
+    res.json({
+      secret,
+      otpauth,
+      // Ler 32 caracteres à mão é onde as pessoas erram: o QR resolve.
+      qr: await QRCode.toDataURL(otpauth, { margin: 1, width: 240 }),
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.post("/2fa/enable", async (req, res, next) => {
+  try {
+    const secret = req.session.pendingTotpSecret;
+    if (!secret) {
+      return res.status(409).json({ message: "Comece de novo: gere o QR Code." });
+    }
+    if (!verifyTotp(secret, String(req.body?.code ?? ""))) {
+      return res.status(401).json({ message: "Código incorreto. Confira o aplicativo." });
+    }
+
+    await db.update(users).set({ totpSecret: secret }).where(eq(users.id, req.user!.id));
+    delete req.session.pendingTotpSecret;
+    await audit(req, "admin.2fa.enable", "user", req.user!.id);
+    res.json({ enabled: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** Desligar exige senha E código: quem roubou a sessão não desarma sozinho. */
+adminRouter.post("/2fa/disable", async (req, res, next) => {
+  try {
+    const [user] = await db.select().from(users).where(eq(users.id, req.user!.id));
+    if (!user.totpSecret) return res.json({ enabled: false });
+
+    const password = String(req.body?.password ?? "");
+    if (!(await verifyPassword(password, user.passwordHash))) {
+      return res.status(401).json({ message: "Senha incorreta." });
+    }
+    if (!verifyTotp(user.totpSecret, String(req.body?.code ?? ""))) {
+      return res.status(401).json({ message: "Código incorreto." });
+    }
+
+    await db.update(users).set({ totpSecret: null }).where(eq(users.id, req.user!.id));
+    await audit(req, "admin.2fa.disable", "user", req.user!.id);
+    res.json({ enabled: false });
   } catch (err) {
     next(err);
   }

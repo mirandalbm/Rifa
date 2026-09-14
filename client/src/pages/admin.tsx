@@ -434,8 +434,52 @@ export function AdminAfiliados() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/admin/affiliates"] }),
   });
 
+  const pending = data?.filter((r) => r.affiliate.status === "pending") ?? [];
+
   return (
     <PanelShell title="Afiliados">
+      {pending.length > 0 ? (
+        <div className="mb-3">
+          <Card
+            title="Aguardando aprovação"
+            right={<Pill status="pending">{`${pending.length} na fila`}</Pill>}
+          >
+            <ul className="divide-y divide-line">
+              {pending.map((row) => (
+                <li
+                  key={row.affiliate.id}
+                  className="flex flex-wrap items-center gap-3 px-4 py-3 text-sm"
+                >
+                  <span className="flex-1">
+                    {row.user.name} · <span className="tnum text-muted">{row.user.email}</span>
+                  </span>
+                  <span className="tnum text-xs text-muted">
+                    código {row.affiliate.code}
+                  </span>
+                  <Button
+                    className="px-3 py-1 text-xs"
+                    onClick={() => update.mutate({ id: row.affiliate.id, status: "active" })}
+                  >
+                    Aprovar
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    className="px-3 py-1 text-xs"
+                    onClick={() => update.mutate({ id: row.affiliate.id, status: "blocked" })}
+                  >
+                    Recusar
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          </Card>
+        </div>
+      ) : null}
+
+      <div className="mb-3">
+        <CouponsCard affiliates={data ?? []} />
+      </div>
+
       <div className="grid gap-3 lg:grid-cols-[1fr_1.6fr]">
         <Card title="Novo afiliado">
           <div className="space-y-3 p-4">
@@ -502,6 +546,129 @@ export function AdminAfiliados() {
         </Card>
       </div>
     </PanelShell>
+  );
+}
+
+/** Cupom do afiliado: desconto para o comprador, atribuição para o afiliado. */
+function CouponsCard({
+  affiliates,
+}: {
+  affiliates: { affiliate: { id: string; code: string }; user: { name: string } }[];
+}) {
+  const qc = useQueryClient();
+  const { data } = useQuery<
+    {
+      coupon: {
+        id: string;
+        code: string;
+        discountPct: number;
+        uses: number;
+        maxUses: number | null;
+      };
+      affiliateCode: string | null;
+    }[]
+  >({ queryKey: ["/api/admin/coupons"] });
+
+  const [form, setForm] = useState({ code: "", discountPct: 10, affiliateId: "" });
+  const [error, setError] = useState<string | null>(null);
+
+  const create = useMutation({
+    mutationFn: () =>
+      apiRequest("POST", "/api/admin/coupons", {
+        ...form,
+        affiliateId: form.affiliateId || null,
+      }),
+    onSuccess: () => {
+      setForm({ code: "", discountPct: 10, affiliateId: "" });
+      setError(null);
+      qc.invalidateQueries({ queryKey: ["/api/admin/coupons"] });
+    },
+    onError: (err: Error) => setError(err.message),
+  });
+
+  const remove = useMutation({
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/admin/coupons/${id}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/admin/coupons"] }),
+  });
+
+  return (
+    <Card title="Cupons">
+      <div className="space-y-3 p-4">
+        <div className="flex flex-wrap items-end gap-2">
+          <div>
+            <label htmlFor="coupon-code" className="label-xs">Código</label>
+            <input
+              id="coupon-code"
+              value={form.code}
+              onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })}
+              className="tnum mt-1 w-32 rounded-md border border-line-2 px-3 py-2 text-sm"
+            />
+          </div>
+          <div>
+            <label htmlFor="coupon-pct" className="label-xs">Desconto %</label>
+            <input
+              id="coupon-pct"
+              type="number"
+              min={1}
+              max={50}
+              value={form.discountPct}
+              onChange={(e) => setForm({ ...form, discountPct: Number(e.target.value) })}
+              className="tnum mt-1 w-24 rounded-md border border-line-2 px-3 py-2 text-sm"
+            />
+          </div>
+          <div>
+            <label htmlFor="coupon-aff" className="label-xs">Afiliado</label>
+            <select
+              id="coupon-aff"
+              value={form.affiliateId}
+              onChange={(e) => setForm({ ...form, affiliateId: e.target.value })}
+              className="mt-1 rounded-md border border-line-2 px-3 py-2 text-sm"
+            >
+              <option value="">sem afiliado</option>
+              {affiliates.map((a) => (
+                <option key={a.affiliate.id} value={a.affiliate.id}>
+                  {a.user.name} ({a.affiliate.code})
+                </option>
+              ))}
+            </select>
+          </div>
+          <Button onClick={() => create.mutate()} disabled={form.code.length < 3}>
+            Criar cupom
+          </Button>
+        </div>
+
+        {error ? (
+          <p className="rounded-md bg-red-soft px-3 py-2 text-sm text-red">{error}</p>
+        ) : null}
+
+        {data?.length === 0 ? (
+          <Empty>Nenhum cupom criado.</Empty>
+        ) : (
+          <ul className="divide-y divide-line">
+            {data?.map((row) => (
+              <li key={row.coupon.id} className="flex items-center gap-3 py-2 text-sm">
+                <span className="tnum font-medium">{row.coupon.code}</span>
+                <span className="text-muted">−{row.coupon.discountPct}%</span>
+                <span className="flex-1 text-xs text-muted">
+                  {row.affiliateCode ? `afiliado ${row.affiliateCode}` : "sem afiliado"} ·{" "}
+                  <span className="tnum">
+                    {row.coupon.uses}
+                    {row.coupon.maxUses ? `/${row.coupon.maxUses}` : ""} uso(s)
+                  </span>
+                </span>
+                <Button
+                  variant="ghost"
+                  className="px-2 py-1 text-xs"
+                  onClick={() => remove.mutate(row.coupon.id)}
+                >
+                  remover
+                </Button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </Card>
   );
 }
 
@@ -698,6 +865,143 @@ export function AdminSorteios() {
 
 /* --------------------------- configurações --------------------------- */
 
+/** Segundo fator: gera o segredo, confirma com um código e só então grava. */
+function TwoFactorCard() {
+  const qc = useQueryClient();
+  const { data } = useQuery<{ enabled: boolean }>({ queryKey: ["/api/admin/2fa"] });
+  const [setup, setSetup] = useState<{ secret: string; otpauth: string; qr: string } | null>(null);
+  const [code, setCode] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  const start = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/admin/2fa/setup");
+      return (await res.json()) as { secret: string; otpauth: string; qr: string };
+    },
+    onSuccess: setSetup,
+    onError: (err: Error) => setError(err.message),
+  });
+
+  const enable = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/admin/2fa/enable", { code }),
+    onSuccess: () => {
+      setSetup(null);
+      setCode("");
+      setError(null);
+      qc.invalidateQueries({ queryKey: ["/api/admin/2fa"] });
+    },
+    onError: (err: Error) => setError(err.message),
+  });
+
+  const disable = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/admin/2fa/disable", { code, password }),
+    onSuccess: () => {
+      setCode("");
+      setPassword("");
+      setError(null);
+      qc.invalidateQueries({ queryKey: ["/api/admin/2fa"] });
+    },
+    onError: (err: Error) => setError(err.message),
+  });
+
+  return (
+    <Card
+      title="Segundo fator"
+      right={<Pill status={data?.enabled ? "paid" : "pending"}>
+        {data?.enabled ? "ativo" : "desligado"}
+      </Pill>}
+    >
+      <div className="space-y-3 p-4">
+        {error ? (
+          <p className="rounded-md bg-red-soft px-3 py-2 text-sm text-red">{error}</p>
+        ) : null}
+
+        {!data?.enabled && !setup ? (
+          <>
+            <p className="text-sm text-ink-2">
+              A conta do administrador move dinheiro e publica campanha. Com o segundo fator,
+              a senha sozinha deixa de ser suficiente para entrar.
+            </p>
+            <Button onClick={() => start.mutate()}>Ativar segundo fator</Button>
+          </>
+        ) : null}
+
+        {setup ? (
+          <>
+            <p className="text-sm text-ink-2">
+              Cadastre no aplicativo autenticador e confirme com o código que aparecer.
+            </p>
+            <div className="flex flex-wrap items-start gap-4 rounded-md bg-mist p-3">
+              <img
+                src={setup.qr}
+                alt="QR Code para cadastrar no aplicativo autenticador"
+                className="h-36 w-36 rounded-md border border-line bg-white"
+              />
+              <div className="min-w-[12rem] flex-1">
+                <p className="label-xs">Ou digite esta chave</p>
+                <p className="tnum mt-1 break-all text-sm">
+                  {setup.secret.replace(/(.{4})/g, "$1 ").trim()}
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <input
+                id="totp-confirm"
+                aria-label="Código do autenticador"
+                value={code}
+                inputMode="numeric"
+                maxLength={6}
+                onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
+                className="tnum w-32 rounded-md border border-line-2 px-3 py-2 tracking-[0.2em]"
+              />
+              <Button onClick={() => enable.mutate()} disabled={code.length !== 6}>
+                Confirmar
+              </Button>
+            </div>
+          </>
+        ) : null}
+
+        {data?.enabled ? (
+          <>
+            <p className="text-sm text-ink-2">
+              Para desligar, confirme com a senha e um código — sessão roubada não desarma
+              o segundo fator sozinha.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <input
+                id="totp-password"
+                type="password"
+                aria-label="Senha"
+                placeholder="senha"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-40 rounded-md border border-line-2 px-3 py-2 text-sm"
+              />
+              <input
+                id="totp-disable"
+                aria-label="Código do autenticador"
+                value={code}
+                inputMode="numeric"
+                maxLength={6}
+                onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
+                className="tnum w-32 rounded-md border border-line-2 px-3 py-2 tracking-[0.2em]"
+              />
+              <Button
+                variant="ghost"
+                onClick={() => disable.mutate()}
+                disabled={code.length !== 6 || password.length < 4}
+              >
+                Desligar
+              </Button>
+            </div>
+          </>
+        ) : null}
+      </div>
+    </Card>
+  );
+}
+
 export function AdminConfiguracoes() {
   const { data } = useQuery<
     { id: string; action: string; entity: string; createdAt: string; actorRole: string }[]
@@ -705,6 +1009,9 @@ export function AdminConfiguracoes() {
 
   return (
     <PanelShell title="Configurações">
+      <div className="mb-3">
+        <TwoFactorCard />
+      </div>
       <Card title="Trilha de auditoria" right={<span className="label-xs">últimas 200 ações</span>}>
         <ul className="divide-y divide-line">
           {data?.map((a) => (

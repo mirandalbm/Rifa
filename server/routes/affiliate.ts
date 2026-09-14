@@ -9,8 +9,11 @@ import {
   campaigns,
   buyers,
   clickEvents,
+  coupons,
 } from "@shared/schema";
+import QRCode from "qrcode";
 import { affiliateId } from "../auth";
+import { formatBRL } from "@shared/format";
 
 export const affiliateRouter = Router();
 
@@ -112,7 +115,11 @@ affiliateRouter.get("/commissions", async (req, res, next) => {
   }
 });
 
-/** Links por campanha, prontos para copiar. */
+/**
+ * Kit de divulgação: link, QR pronto para o story e textos que o afiliado
+ * só precisa copiar. Sem isso, cada um inventa a própria mensagem — e a pior
+ * delas vira a cara da campanha.
+ */
 affiliateRouter.get("/links", async (req, res, next) => {
   try {
     const id = affiliateId(req);
@@ -120,24 +127,75 @@ affiliateRouter.get("/links", async (req, res, next) => {
 
     const live = await db
       .select({
+        id: campaigns.id,
         slug: campaigns.slug,
         title: campaigns.title,
+        prizeTitle: campaigns.prizeTitle,
+        priceCents: campaigns.priceCents,
+        drawAt: campaigns.drawAt,
         commissionPctDefault: campaigns.commissionPctDefault,
       })
       .from(campaigns)
       .where(eq(campaigns.status, "published"));
 
-    res.json(
-      live.map((c) => ({
-        ...c,
-        pct: aff.commissionPct ?? c.commissionPctDefault,
-        path: `/r/${c.slug}?ref=${aff.code}`,
-      })),
+    const myCoupons = await db
+      .select()
+      .from(coupons)
+      .where(eq(coupons.affiliateId, id));
+
+    const base = publicBaseUrl(req);
+
+    const result = await Promise.all(
+      live.map(async (c) => {
+        const url = `${base}/r/${c.slug}?ref=${aff.code}`;
+        const coupon = myCoupons.find((k) => !k.campaignId || k.campaignId === c.id);
+        const price = formatBRL(c.priceCents);
+        const draw = c.drawAt
+          ? new Date(c.drawAt).toLocaleDateString("pt-BR")
+          : "em breve";
+
+        return {
+          slug: c.slug,
+          title: c.title,
+          pct: aff.commissionPct ?? c.commissionPctDefault,
+          url,
+          qr: await QRCode.toDataURL(url, { margin: 1, width: 320 }),
+          coupon: coupon
+            ? { code: coupon.code, discountPct: coupon.discountPct }
+            : null,
+          texts: [
+            `🎟️ ${c.prizeTitle} está sendo rifado! Cota a partir de ${price}. Sorteio ${draw} pela Loteria Federal. Garanta o seu: ${url}`,
+            `Tô participando da rifa do ${c.prizeTitle} 👀 cota ${price} e o pagamento é na hora pelo Pix. Entra comigo: ${url}`,
+            coupon
+              ? `Use o cupom ${coupon.code} e ganhe ${coupon.discountPct}% de desconto na rifa do ${c.prizeTitle}: ${url}`
+              : `Últimas cotas da rifa do ${c.prizeTitle}! Sorteio ${draw}. ${url}`,
+          ],
+        };
+      }),
     );
+
+    res.json(result);
   } catch (err) {
     next(err);
   }
 });
+
+/** Cupons do afiliado — criados pelo administrador, exibidos aqui. */
+affiliateRouter.get("/coupons", async (req, res, next) => {
+  try {
+    const id = affiliateId(req);
+    res.json(await db.select().from(coupons).where(eq(coupons.affiliateId, id)));
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** O link precisa levar ao domínio pelo qual a pessoa está acessando. */
+function publicBaseUrl(req: { protocol: string; get(name: string): string | undefined }): string {
+  if (process.env.PUBLIC_BASE_URL) return process.env.PUBLIC_BASE_URL.replace(/\/+$/, "");
+  const host = req.get("host") ?? "localhost";
+  return `${req.protocol}://${host}`;
+}
 
 affiliateRouter.patch("/pix-key", async (req, res, next) => {
   try {

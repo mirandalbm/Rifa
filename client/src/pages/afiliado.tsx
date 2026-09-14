@@ -101,43 +101,96 @@ export function AfiliadoPainel() {
   );
 }
 
+interface LinkKit {
+  slug: string;
+  title: string;
+  pct: number;
+  url: string;
+  qr: string;
+  coupon: { code: string; discountPct: number } | null;
+  texts: string[];
+}
+
 export function AfiliadoLinks() {
-  const { data } = useQuery<
-    { slug: string; title: string; pct: number; path: string }[]
-  >({ queryKey: ["/api/affiliate/links"] });
+  const { data } = useQuery<LinkKit[]>({ queryKey: ["/api/affiliate/links"] });
   const [copied, setCopied] = useState<string | null>(null);
+
+  async function copy(id: string, text: string) {
+    await navigator.clipboard.writeText(text);
+    setCopied(id);
+    setTimeout(() => setCopied(null), 2000);
+  }
 
   return (
     <PanelShell title="Meus links">
       <div className="space-y-3">
         {data?.length === 0 ? <Empty>Nenhuma rifa no ar agora.</Empty> : null}
-        {data?.map((l) => {
-          const url = `${window.location.origin}${l.path}`;
-          return (
-            <Card key={l.slug}>
-              <div className="space-y-2 p-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-display text-sm font-bold">{l.title}</h3>
-                  <span className="label-xs">comissão de {l.pct}%</span>
-                </div>
-                <div className="flex items-center gap-2 rounded-md border-2 border-dashed border-green bg-green-soft px-3 py-2">
-                  <span className="tnum flex-1 truncate text-xs text-green-deep">{url}</span>
-                  <Button
-                    variant="ghost"
-                    className="px-3 py-1 text-xs"
-                    onClick={async () => {
-                      await navigator.clipboard.writeText(url);
-                      setCopied(l.slug);
-                      setTimeout(() => setCopied(null), 2000);
-                    }}
+        {data?.map((l) => (
+          <Card key={l.slug}>
+            <div className="space-y-3 p-4">
+              <div className="flex items-center justify-between">
+                <h3 className="font-display text-sm font-bold">{l.title}</h3>
+                <span className="label-xs">comissão de {l.pct}%</span>
+              </div>
+
+              <div className="flex items-center gap-2 rounded-md border-2 border-dashed border-green bg-green-soft px-3 py-2">
+                <span className="tnum flex-1 truncate text-xs text-green-deep">{l.url}</span>
+                <Button
+                  variant="ghost"
+                  className="px-3 py-1 text-xs"
+                  onClick={() => copy(l.slug, l.url)}
+                >
+                  {copied === l.slug ? "copiado" : "copiar"}
+                </Button>
+              </div>
+
+              {l.coupon ? (
+                <p className="rounded-md bg-yellow-soft px-3 py-2 text-xs text-yellow-deep">
+                  Seu cupom <b className="tnum">{l.coupon.code}</b> dá{" "}
+                  {l.coupon.discountPct}% de desconto ao comprador — e credita a venda a você
+                  mesmo que a pessoa não tenha entrado pelo seu link.
+                </p>
+              ) : null}
+
+              <div className="grid gap-3 sm:grid-cols-[132px_1fr]">
+                <div className="space-y-1">
+                  <span className="label-xs">QR do seu link</span>
+                  <img
+                    src={l.qr}
+                    alt={`QR Code do link de afiliado para ${l.title}`}
+                    className="w-32 rounded-md border border-line"
+                  />
+                  <a
+                    href={l.qr}
+                    download={`qr-${l.slug}.png`}
+                    className="block text-center text-[11px] text-green-deep underline"
                   >
-                    {copied === l.slug ? "copiado" : "copiar"}
-                  </Button>
+                    baixar
+                  </a>
+                </div>
+
+                <div className="space-y-1">
+                  <span className="label-xs">Textos prontos</span>
+                  {l.texts.map((t, i) => (
+                    <div
+                      key={i}
+                      className="flex items-start gap-2 rounded-md border border-line px-2 py-1.5"
+                    >
+                      <p className="flex-1 text-[11px] leading-snug text-ink-2">{t}</p>
+                      <Button
+                        variant="ghost"
+                        className="px-2 py-0.5 text-[10px]"
+                        onClick={() => copy(`${l.slug}-${i}`, t)}
+                      >
+                        {copied === `${l.slug}-${i}` ? "ok" : "copiar"}
+                      </Button>
+                    </div>
+                  ))}
                 </div>
               </div>
-            </Card>
-          );
-        })}
+            </div>
+          </Card>
+        ))}
       </div>
     </PanelShell>
   );

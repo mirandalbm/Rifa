@@ -46,6 +46,16 @@ Para começar do zero de novo:
 docker compose down -v --remove-orphans && docker compose up -d && npm run db:push && npm run db:seed
 ```
 
+#### No Windows
+
+- Rode os comandos **um de cada vez**. O `&&` não existe no PowerShell 5.1, e
+  colar um bloco inteiro faz as linhas seguintes caírem dentro de qualquer
+  comando que abra um menu.
+- O Docker Desktop precisa estar **aberto**, não só instalado.
+- Se o `npm install` avisar sobre a versão do Node, use uma **par** (20, 22 ou
+  24). As ímpares não são LTS e o `sharp` costuma não ter binário pronto para
+  elas.
+
 O seed imprime as credenciais no fim:
 
 | Acesso | Entra em | Vê |

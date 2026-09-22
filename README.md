@@ -9,8 +9,13 @@ e o que separa uma da outra é o papel na sessão.
 
 ## Como rodar na sua máquina
 
-Precisa de **Node 20+** e **Docker** (só para o Postgres — se você já tem um
-banco, pule o `docker compose` e aponte a `DATABASE_URL` para ele).
+Precisa de **Node 20, 22 ou 24** e **Docker** (só para o Postgres — se você já
+tem um banco, pule o `docker compose` e aponte a `DATABASE_URL` para ele).
+
+Use uma versão **par**: elas são LTS. O `sharp`, que gera as variantes de
+imagem, depende de binário compilado, e em Node ímpar recém-lançado o binário
+pronto costuma não existir ainda — aí o `npm install` tenta compilar na hora e
+quebra. Testado no Node 22.
 
 ```bash
 git clone https://github.com/mirandalbm/Rifa.git && cd Rifa

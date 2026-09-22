@@ -65,7 +65,15 @@ app.use((req, res, next) => {
   startJobs();
 
   const port = parseInt(process.env.PORT ?? "5000", 10);
-  server.listen({ port, host: "0.0.0.0", reusePort: true }, () => {
-    log(`rifa.br no ar em :${port}`);
-  });
+
+  /**
+   * `reusePort` (SO_REUSEPORT) deixa várias réplicas dividirem a mesma porta
+   * no mesmo host. Existe no Linux; **no Windows não existe**, e o Node não
+   * ignora a opção: recusa com `ENOTSUP` e o servidor nem sobe. Por isso é
+   * condicional, e não fixo.
+   */
+  server.listen(
+    { port, host: "0.0.0.0", reusePort: process.platform === "linux" },
+    () => log(`rifa.br no ar em :${port}`),
+  );
 })();

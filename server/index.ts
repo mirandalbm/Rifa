@@ -67,13 +67,21 @@ app.use((req, res, next) => {
   const port = parseInt(process.env.PORT ?? "5000", 10);
 
   /**
-   * `reusePort` (SO_REUSEPORT) deixa várias réplicas dividirem a mesma porta
-   * no mesmo host. Existe no Linux; **no Windows não existe**, e o Node não
-   * ignora a opção: recusa com `ENOTSUP` e o servidor nem sobe. Por isso é
-   * condicional, e não fixo.
+   * Duas escolhas aqui, as duas aprendidas apanhando fora do Linux.
+   *
+   * **Sem `host`.** Parece descuido, mas é o contrário: assim o Node escolhe
+   * a família de endereços conforme a máquina — `::` em pilha dupla onde há
+   * IPv6, `0.0.0.0` onde não há. Fixar `0.0.0.0` prende em IPv4, e no Windows
+   * `localhost` resolve para `::1` primeiro: a página respondia
+   * ERR_EMPTY_RESPONSE com o servidor no ar. Fixar `::` seria pior ainda —
+   * quebra em contêiner sem IPv6, com EAFNOSUPPORT.
+   *
+   * **`reusePort` só no Linux.** SO_REUSEPORT deixa réplicas dividirem a
+   * porta no mesmo host; no Windows não existe, e o Node recusa com ENOTSUP
+   * em vez de ignorar — o servidor nem subia.
    */
   server.listen(
-    { port, host: "0.0.0.0", reusePort: process.platform === "linux" },
+    { port, reusePort: process.platform === "linux" },
     () => log(`rifa.br no ar em :${port}`),
   );
 })();

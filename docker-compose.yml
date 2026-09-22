@@ -16,8 +16,10 @@ services:
       POSTGRES_PASSWORD: rifa
       POSTGRES_DB: rifa
     ports:
-      # 5433 e não 5432: quem já tem um Postgres instalado não perde a porta.
-      - "5433:5432"
+      # 5433 e nao 5432: quem ja tem um Postgres instalado nao perde a porta.
+      # Se a 5433 tambem estiver ocupada, mude DB_PORT no .env em vez de
+      # editar este arquivo -- a DATABASE_URL de la usa a mesma variavel.
+      - "${DB_PORT:-5433}:5432"
     volumes:
       - rifa-db:/var/lib/postgresql/data
     healthcheck:

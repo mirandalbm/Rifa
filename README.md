@@ -22,7 +22,7 @@ git clone https://github.com/mirandalbm/Rifa.git && cd Rifa
 npm install
 
 cp .env.example .env      # já vem apontando para o banco do compose
-docker compose up -d      # Postgres na porta 5433
+docker compose up -d      # Postgres na porta 5433 (mude DB_PORT no .env se estiver ocupada)
 
 npm run db:push           # cria o schema
 npm run db:seed           # organização, acessos e 3 campanhas de exemplo
@@ -34,10 +34,16 @@ pagamento é simulado por um botão na tela do pedido — que dispara **a mesma
 rotina do webhook real** —, sem R2 os arquivos vão para `./uploads`, e sem
 token do WhatsApp o código de acesso aparece no terminal do servidor.
 
+Se o `docker compose` reclamar que **a porta já está alocada**, ou é um
+contêiner órfão de uma tentativa anterior (`docker compose down
+--remove-orphans` resolve), ou é outra coisa na 5433 — nesse caso mude
+`DB_PORT` e a porta da `DATABASE_URL` no `.env`, que o compose lê a mesma
+variável.
+
 Para começar do zero de novo:
 
 ```bash
-docker compose down -v && docker compose up -d && npm run db:push && npm run db:seed
+docker compose down -v --remove-orphans && docker compose up -d && npm run db:push && npm run db:seed
 ```
 
 O seed imprime as credenciais no fim:

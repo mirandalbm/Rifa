@@ -586,7 +586,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
       
       const serviceName = serviceNames[serviceId] || serviceId;
-      const encryptedConfig = cryptoService.simpleEncrypt(JSON.stringify(fields));
+
+      // Merge into the saved fields so that saving/toggling without retyping keys keeps them
+      let existingFields: Record<string, string> = {};
+      const existing = await storage.getApiConfiguration(userId, serviceId);
+      if (existing?.encryptedConfig) {
+        try {
+          existingFields = JSON.parse(cryptoService.simpleDecrypt(existing.encryptedConfig));
+        } catch (error) {
+          console.warn(`Could not read saved ${serviceId} configuration, replacing it`);
+        }
+      }
+      const newFields = Object.fromEntries(
+        Object.entries((fields || {}) as Record<string, unknown>).filter(([, value]) => typeof value === 'string' && value !== '' && value !== '***hidden***')
+      );
+      const encryptedConfig = cryptoService.simpleEncrypt(JSON.stringify({ ...existingFields, ...newFields }));
       
       await storage.upsertApiConfiguration(userId, serviceId, {
         serviceName,

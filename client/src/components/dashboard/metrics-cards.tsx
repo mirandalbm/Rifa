@@ -1,16 +1,10 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Video, Radio, Eye, Users } from "lucide-react";
+import type { DashboardStats } from "@shared/schema";
 
 interface MetricsCardsProps {
-  stats?: {
-    totalVideos: number;
-    videosToday: number;
-    totalViews: number;
-    totalSubscribers: number;
-    activeChannels: number;
-    successRate: number;
-  };
+  stats?: DashboardStats;
   isLoading: boolean;
 }
 

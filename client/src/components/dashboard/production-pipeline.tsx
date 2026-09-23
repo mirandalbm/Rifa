@@ -40,12 +40,12 @@ export default function ProductionPipeline() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: jobs, isLoading: jobsLoading } = useQuery({
+  const { data: jobs, isLoading: jobsLoading } = useQuery<ProcessingJob[]>({
     queryKey: ["/api/dashboard/jobs"],
     refetchInterval: 5000, // Refresh every 5 seconds
   });
 
-  const { data: pendingVideos, isLoading: videosLoading } = useQuery({
+  const { data: pendingVideos, isLoading: videosLoading } = useQuery<PendingVideo[]>({
     queryKey: ["/api/videos", { status: "ready" }],
     refetchInterval: 10000, // Refresh every 10 seconds
   });

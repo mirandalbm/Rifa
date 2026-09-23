@@ -23,7 +23,6 @@ import {
   Settings,
   Play,
   Pause,
-  Stop,
   SkipForward,
   RotateCcw,
   CheckCircle,
@@ -78,7 +77,6 @@ import {
   Compass,
   History,
   Timer,
-  Stopwatch,
   AlarmClock,
   Bell,
   BellOff,
@@ -102,7 +100,6 @@ import {
   Smartphone,
   Tablet,
   Laptop,
-  Desktop,
   HardDriveIcon,
   Cpu,
   MemoryStick,
@@ -227,7 +224,7 @@ interface BackupHistory {
     tested: boolean;
     testedAt?: string;
     testResult?: 'success' | 'failed' | 'partial';
-    recoverability: number; // 0-100%
+    recoverability?: number; // 0-100%, known once tested
   };
 }
 
@@ -2089,33 +2086,33 @@ export default function BackupRecovery() {
 
                       {key === 'storage' && (
                         <div className="space-y-2">
-                          <div className="text-xs">Total: {formatSize(component.totalSpace)}</div>
-                          <div className="text-xs">Usado: {formatSize(component.usedSpace)}</div>
-                          <div className="text-xs">Livre: {formatSize(component.freeSpace)}</div>
+                          <div className="text-xs">Total: {formatSize(mockSystemHealth.components.storage.totalSpace)}</div>
+                          <div className="text-xs">Usado: {formatSize(mockSystemHealth.components.storage.usedSpace)}</div>
+                          <div className="text-xs">Livre: {formatSize(mockSystemHealth.components.storage.freeSpace)}</div>
                         </div>
                       )}
 
                       {key === 'network' && (
                         <div className="space-y-2">
-                          <div className="text-xs">Bandwidth: {component.bandwidth} Mbps</div>
-                          <div className="text-xs">Latência: {component.latency} ms</div>
-                          <div className="text-xs">Conectado: {component.connectivity ? 'Sim' : 'Não'}</div>
+                          <div className="text-xs">Bandwidth: {mockSystemHealth.components.network.bandwidth} Mbps</div>
+                          <div className="text-xs">Latência: {mockSystemHealth.components.network.latency} ms</div>
+                          <div className="text-xs">Conectado: {mockSystemHealth.components.network.connectivity ? 'Sim' : 'Não'}</div>
                         </div>
                       )}
 
                       {key === 'database' && (
                         <div className="space-y-2">
-                          <div className="text-xs">Conexões: {component.connections}</div>
-                          <div className="text-xs">Performance: {component.performance}%</div>
-                          <div className="text-xs">Replicação: {component.replication ? 'Ativa' : 'Inativa'}</div>
+                          <div className="text-xs">Conexões: {mockSystemHealth.components.database.connections}</div>
+                          <div className="text-xs">Performance: {mockSystemHealth.components.database.performance}%</div>
+                          <div className="text-xs">Replicação: {mockSystemHealth.components.database.replication ? 'Ativa' : 'Inativa'}</div>
                         </div>
                       )}
 
                       {key === 'application' && (
                         <div className="space-y-2">
-                          <div className="text-xs">Uptime: {component.uptime}%</div>
-                          <div className="text-xs">Memória: {component.memoryUsage}%</div>
-                          <div className="text-xs">CPU: {component.cpuUsage}%</div>
+                          <div className="text-xs">Uptime: {mockSystemHealth.components.application.uptime}%</div>
+                          <div className="text-xs">Memória: {mockSystemHealth.components.application.memoryUsage}%</div>
+                          <div className="text-xs">CPU: {mockSystemHealth.components.application.cpuUsage}%</div>
                         </div>
                       )}
 

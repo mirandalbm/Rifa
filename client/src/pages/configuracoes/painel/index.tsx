@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -110,14 +110,16 @@ export default function Painel() {
 
   const { toast } = useToast();
 
-  const { data: currentSettings, isLoading } = useQuery({
+  const { data: currentSettings, isLoading } = useQuery<PanelSettings>({
     queryKey: ['/api/settings/panel'],
-    onSuccess: (data) => {
-      if (data) {
-        setSettings(data);
-      }
-    },
   });
+
+  // React Query v5 removed `onSuccess` from useQuery; sync loaded settings into the form here
+  useEffect(() => {
+    if (currentSettings) {
+      setSettings(currentSettings);
+    }
+  }, [currentSettings]);
 
   const saveSettingsMutation = useMutation({
     mutationFn: async (newSettings: PanelSettings) => {

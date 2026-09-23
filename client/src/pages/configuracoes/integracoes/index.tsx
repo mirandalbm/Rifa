@@ -74,22 +74,20 @@ export default function Integracoes() {
   const [showPasswords, setShowPasswords] = useState<Record<string, boolean>>({});
   const { toast } = useToast();
 
-  const { data: configs, isLoading } = useQuery({
+  const { data: configs, isLoading } = useQuery<ApiConfig[]>({
     queryKey: ['/api/settings/apis'],
   });
 
-  const { data: apiStatuses } = useQuery({
+  const { data: apiStatuses } = useQuery<{ serviceName: string; status: string }[]>({
     queryKey: ['/api/dashboard/api-status'],
     refetchInterval: 30000, // Refresh every 30 seconds
   });
 
   const saveConfigMutation = useMutation({
-    mutationFn: async ({ serviceId, config }: { serviceId: string; config: ServiceCredentials & { isActive: boolean } }) => {
-      const response = await apiRequest('POST', '/api/settings/apis', {
-        serviceId,
-        serviceName: serviceDescriptions[serviceId as keyof typeof serviceDescriptions] || serviceId,
-        credentials: config,
-        isActive: config.isActive
+    mutationFn: async ({ serviceId, credentials, isActive }: { serviceId: string; credentials: ServiceCredentials; isActive: boolean }) => {
+      const response = await apiRequest('PUT', `/api/settings/apis/${serviceId}`, {
+        fields: credentials,
+        isActive
       });
       return response.json();
     },
@@ -145,7 +143,8 @@ export default function Integracoes() {
     const serviceCredentials = credentials[serviceId] || {};
     saveConfigMutation.mutate({
       serviceId,
-      config: { ...serviceCredentials, isActive }
+      credentials: serviceCredentials,
+      isActive
     });
   };
 
@@ -155,10 +154,8 @@ export default function Integracoes() {
     
     saveConfigMutation.mutate({
       serviceId,
-      config: { 
-        ...serviceCredentials, 
-        isActive: currentConfig?.isActive || false 
-      }
+      credentials: serviceCredentials,
+      isActive: currentConfig?.isActive || false
     });
   };
 

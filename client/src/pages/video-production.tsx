@@ -101,7 +101,12 @@ export default function VideoProduction() {
     refetchInterval: 5000, // Refresh every 5 seconds
   });
 
-  const { data: productionStats } = useQuery({
+  const { data: productionStats } = useQuery<{
+    totalVideos: number;
+    todayVideos: number;
+    processingVideos: number;
+    successRate: number;
+  }>({
     queryKey: ["/api/videos/stats"],
     enabled: isAuthenticated,
     refetchInterval: 30000,

@@ -18,7 +18,7 @@ interface RecentVideo {
 }
 
 export default function RecentVideos() {
-  const { data: videos, isLoading } = useQuery({
+  const { data: videos, isLoading } = useQuery<RecentVideo[]>({
     queryKey: ["/api/videos", { status: "published" }],
     refetchInterval: 30000, // Refresh every 30 seconds
   });

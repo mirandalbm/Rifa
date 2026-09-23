@@ -6,6 +6,7 @@ import Sidebar from "@/components/layout/sidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts';
 import { TrendingUp, Eye, Users, Globe } from "lucide-react";
+import type { DashboardStats, YoutubeChannel } from "@shared/schema";
 
 const mockLanguageData = [
   { language: 'English', views: 24500, percentage: 35 },
@@ -45,12 +46,12 @@ export default function Analytics() {
     }
   }, [isAuthenticated, isLoading, toast]);
 
-  const { data: stats, isLoading: statsLoading } = useQuery({
+  const { data: stats, isLoading: statsLoading } = useQuery<DashboardStats>({
     queryKey: ["/api/dashboard/stats"],
     enabled: isAuthenticated,
   });
 
-  const { data: channels } = useQuery({
+  const { data: channels } = useQuery<YoutubeChannel[]>({
     queryKey: ["/api/channels"],
     enabled: isAuthenticated,
   });

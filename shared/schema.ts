@@ -21,8 +21,8 @@ export interface DashboardStats {
   videosToday: number;
   totalViews: number;
   totalSubscribers: number;
+  activeChannels: number;
   successRate: number;
-  activeJobs: number;
 }
 
 // Session storage table.

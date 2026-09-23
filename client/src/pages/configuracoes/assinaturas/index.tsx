@@ -152,7 +152,7 @@ export default function Assinaturas() {
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
   const { toast } = useToast();
 
-  const { data: subscription = mockSubscription, isLoading } = useQuery({
+  const { data: subscription = mockSubscription, isLoading } = useQuery<Subscription>({
     queryKey: ['/api/subscription'],
   });
 

@@ -42,6 +42,7 @@ import {
   type PerformanceAlert,
   type InsertPerformanceAlert,
   type BatchQueue,
+  type DashboardStats,
   type InsertBatchQueue,
 } from "@shared/schema";
 import { db } from "./db";
@@ -115,14 +116,7 @@ export interface IStorage {
   updateApiConfigStatus(userId: string, serviceId: string, status: 'active' | 'inactive' | 'error'): Promise<void>;
 
   // Dashboard data
-  getDashboardStats(): Promise<{
-    totalVideos: number;
-    videosToday: number;
-    totalViews: number;
-    totalSubscribers: number;
-    activeChannels: number;
-    successRate: number;
-  }>;
+  getDashboardStats(): Promise<DashboardStats>;
 
   // Advanced automation operations
   // Trending Topics
@@ -374,14 +368,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Dashboard data
-  async getDashboardStats(): Promise<{
-    totalVideos: number;
-    videosToday: number;
-    totalViews: number;
-    totalSubscribers: number;
-    activeChannels: number;
-    successRate: number;
-  }> {
+  async getDashboardStats(): Promise<DashboardStats> {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 

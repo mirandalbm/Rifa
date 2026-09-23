@@ -142,16 +142,16 @@ export default function Saldos() {
   const [newCreditAmount, setNewCreditAmount] = useState('');
   const { toast } = useToast();
 
-  const { data: balances = mockBalances, isLoading: balancesLoading } = useQuery({
+  const { data: balances = mockBalances, isLoading: balancesLoading } = useQuery<ApiBalance[]>({
     queryKey: ['/api/billing/balances'],
     refetchInterval: 300000, // Refresh every 5 minutes
   });
 
-  const { data: transactions = mockTransactions } = useQuery({
+  const { data: transactions = mockTransactions } = useQuery<Transaction[]>({
     queryKey: ['/api/billing/transactions'],
   });
 
-  const { data: costSummary = mockCostSummary } = useQuery({
+  const { data: costSummary = mockCostSummary } = useQuery<CostSummary>({
     queryKey: ['/api/billing/summary'],
   });
 

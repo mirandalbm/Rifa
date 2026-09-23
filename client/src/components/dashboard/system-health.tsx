@@ -46,7 +46,7 @@ const mockAlerts = [
 ];
 
 export default function SystemHealth() {
-  const { data: apiStatuses, isLoading: statusLoading } = useQuery({
+  const { data: apiStatuses, isLoading: statusLoading } = useQuery<ApiStatus[]>({
     queryKey: ["/api/dashboard/api-status"],
     refetchInterval: 60000, // Refresh every minute
   });

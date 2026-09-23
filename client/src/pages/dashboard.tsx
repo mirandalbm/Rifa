@@ -5,6 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import Sidebar from "@/components/layout/sidebar";
 import MetricsCards from "@/components/dashboard/metrics-cards";
+import type { DashboardStats } from "@shared/schema";
 import ProductionPipeline from "@/components/dashboard/production-pipeline";
 import RecentVideos from "@/components/dashboard/recent-videos";
 import SystemHealth from "@/components/dashboard/system-health";
@@ -30,7 +31,7 @@ export default function Dashboard() {
     }
   }, [isAuthenticated, isLoading, toast]);
 
-  const { data: stats, isLoading: statsLoading } = useQuery({
+  const { data: stats, isLoading: statsLoading } = useQuery<DashboardStats>({
     queryKey: ["/api/dashboard/stats"],
     enabled: isAuthenticated,
     refetchInterval: 30000, // Refresh every 30 seconds

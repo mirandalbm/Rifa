@@ -25,8 +25,7 @@ export interface DashboardStats {
   successRate: number;
 }
 
-// Session storage table.
-// (IMPORTANT) This table is mandatory for Replit Auth, don't drop it.
+// Session storage table (express-session / connect-pg-simple).
 export const sessions = pgTable(
   "sessions",
   {
@@ -37,17 +36,43 @@ export const sessions = pgTable(
   (table) => [index("IDX_session_expire").on(table.expire)],
 );
 
-// User storage table.
-// (IMPORTANT) This table is mandatory for Replit Auth, don't drop it.
+// User storage table. A user signs in with email + password, Google, or phone (SMS code).
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   email: varchar("email").unique(),
+  emailVerified: boolean("email_verified").default(false).notNull(),
+  passwordHash: varchar("password_hash"),
+  googleId: varchar("google_id").unique(),
+  phone: varchar("phone").unique(), // E.164, only set after SMS verification
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
+  lastLoginAt: timestamp("last_login_at"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
+
+// Single-use tokens sent by email (verification and password reset). Only the hash is stored.
+export const authTokens = pgTable("auth_tokens", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  type: varchar("type").notNull(), // 'verify_email' | 'reset_password'
+  tokenHash: varchar("token_hash").notNull().unique(),
+  expiresAt: timestamp("expires_at").notNull(),
+  usedAt: timestamp("used_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// One-time SMS login codes. Only the hash is stored.
+export const phoneCodes = pgTable("phone_codes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  phone: varchar("phone").notNull(),
+  codeHash: varchar("code_hash").notNull(),
+  attempts: integer("attempts").default(0).notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  usedAt: timestamp("used_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [index("IDX_phone_codes_phone").on(table.phone)]);
 
 // Enums
 export const newsStatusEnum = pgEnum('news_status', ['discovered', 'processed', 'approved', 'rejected']);
@@ -338,6 +363,10 @@ export const errorLogsRelations = relations(errorLogs, ({ one }) => ({
 // Export types
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
+// User as sent to the browser (no credential fields)
+export type PublicUser = Omit<User, "passwordHash">;
+export type AuthToken = typeof authTokens.$inferSelect;
+export type PhoneCode = typeof phoneCodes.$inferSelect;
 export type NewsArticle = typeof newsArticles.$inferSelect;
 export type InsertNewsArticle = typeof newsArticles.$inferInsert;
 export type Video = typeof videos.$inferSelect;

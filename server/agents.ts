@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { z } from 'zod';
 import { createInsertSchema } from 'drizzle-zod';
 import { DarkNewsMCPServer } from './mcp-server';
-import { isAuthenticated } from './replitAuth';
+import { isAuthenticated } from './auth';
 import { AIProviderService } from './services/aiProviderService';
 
 // Agent schemas
@@ -443,8 +443,8 @@ Please try again in a moment or contact support if the issue persists.`;
           return await this.getFileContext('package.json');
         case 'schema':
           return await this.getFileContext('shared/schema.ts');
-        case 'replit-md':
-          return await this.getFileContext('replit.md');
+        case 'readme':
+          return await this.getFileContext('README.md');
         case 'web-search':
           return await this.getWebSearchContext();
         case 'current-url':
@@ -467,9 +467,9 @@ Please try again in a moment or contact support if the issue persists.`;
         .map(dir => `- ${dir.name}/`)
         .join('\n');
       
-      return `Workspace Overview:\n- Frontend: React + TypeScript + Vite + Tailwind CSS\n- Backend: Express + TypeScript + Drizzle ORM\n- Database: PostgreSQL (Neon)\n- Authentication: Replit Auth\n- UI Components: shadcn/ui + Radix UI\n- Key Features: DarkNews Autopilot System for automated video creation\n\nProject Structure:\n${structure}`;
+      return `Workspace Overview:\n- Frontend: React + TypeScript + Vite + Tailwind CSS\n- Backend: Express + TypeScript + Drizzle ORM\n- Database: PostgreSQL (Neon)\n- Authentication: email + password, Google and phone (SMS) with express-session\n- UI Components: shadcn/ui + Radix UI\n- Key Features: DarkNews Autopilot System for automated video creation\n\nProject Structure:\n${structure}`;
     } catch (error) {
-      return `Workspace Overview (fallback):\n- Frontend: React + TypeScript + Vite + Tailwind CSS\n- Backend: Express + TypeScript + Drizzle ORM\n- Database: PostgreSQL (Neon)\n- Authentication: Replit Auth\n- UI Components: shadcn/ui + Radix UI\n- Key Features: DarkNews Autopilot System for automated video creation`;
+      return `Workspace Overview (fallback):\n- Frontend: React + TypeScript + Vite + Tailwind CSS\n- Backend: Express + TypeScript + Drizzle ORM\n- Database: PostgreSQL (Neon)\n- Authentication: email + password, Google and phone (SMS) with express-session\n- UI Components: shadcn/ui + Radix UI\n- Key Features: DarkNews Autopilot System for automated video creation`;
     }
   }
 
@@ -820,7 +820,7 @@ export const setupAgentRoutes = (app: any, mcpServer: DarkNewsMCPServer, aiProvi
     try {
       const { id: agentId, tool } = req.params;
       const params = req.body;
-      const userId = (req.user as any).claims.sub;
+      const userId = req.user!.id;
 
       const result = await agentManager.executeAgentTool(agentId, tool, params, userId);
       

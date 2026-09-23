@@ -166,7 +166,7 @@ export class AIProviderService {
       headers: {
         'Authorization': `Bearer ${config.apiKey}`,
         'Content-Type': 'application/json',
-        'HTTP-Referer': 'https://darknews-autopilot.replit.app',
+        'HTTP-Referer': process.env.APP_URL || 'http://localhost:5000',
         'X-Title': 'DarkNews Autopilot Cline AI'
       },
       body: JSON.stringify({

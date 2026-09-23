@@ -291,7 +291,7 @@ export function AdvancedChat({ compact = false }: { compact?: boolean }) {
     { id: "shared", name: "Shared Types", icon: "📁", description: "Tipos compartilhados" },
     { id: "package-json", name: "package.json", icon: "📄", description: "Dependências do projeto" },
     { id: "schema", name: "Database Schema", icon: "📄", description: "Schema do banco" },
-    { id: "replit-md", name: "Project Doc", icon: "📖", description: "Documentação" },
+    { id: "readme", name: "Project Doc", icon: "📖", description: "Documentação" },
     { id: "web-search", name: "Web Search", icon: "🌐", description: "Resultados de pesquisa web" },
     { id: "current-url", name: "Current URL", icon: "🌐", description: "Conteúdo da URL atual" }
   ];

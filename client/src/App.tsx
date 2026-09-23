@@ -7,6 +7,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
 import { ThemeProvider } from "@/components/ui/theme-provider";
 import Landing from "@/pages/landing";
+import Login from "@/pages/login";
+import ResetPassword from "@/pages/reset-password";
 import ProfessionalDashboard from "@/pages/professional-dashboard";
 import NewsManagement from "@/pages/news-management";
 import VideoProduction from "@/pages/video-production";
@@ -67,10 +69,12 @@ function Router() {
       {!isAuthenticated ? (
         <>
           <Route path="/" component={Landing} />
+          <Route path="/login" component={Login} />
+          <Route path="/reset-password" component={ResetPassword} />
           <Route>
             {() => {
-              // Redirect unauthenticated users to landing page
-              window.location.href = '/';
+              // Unauthenticated users go to the login page
+              window.location.href = '/login';
               return null;
             }}
           </Route>
@@ -78,6 +82,8 @@ function Router() {
       ) : (
         <>
           <Route path="/" component={ProfessionalDashboard} />
+          <Route path="/login">{() => { window.location.href = '/'; return null; }}</Route>
+          <Route path="/reset-password" component={ResetPassword} />
           <Route path="/professional" component={ProfessionalDashboard} />
           <Route path="/dashboard" component={ProfessionalDashboard} />
           <Route path="/news" component={NewsManagement} />

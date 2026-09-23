@@ -436,7 +436,7 @@ export class DarkNewsMCPServer {
   // GitHub Tool Handlers
   private async handleGitHubListRepos(args: any) {
     // Implementation for GitHub API calls
-    const response = await fetch(`${process.env.REPLIT_URL || 'http://localhost:5000'}/api/github/repos`, {
+    const response = await fetch(`${process.env.APP_URL || 'http://localhost:5000'}/api/github/repos`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(args)
@@ -454,7 +454,7 @@ export class DarkNewsMCPServer {
   }
 
   private async handleGitHubCreateRepo(args: any) {
-    const response = await fetch(`${process.env.REPLIT_URL || 'http://localhost:5000'}/api/github/repos/create`, {
+    const response = await fetch(`${process.env.APP_URL || 'http://localhost:5000'}/api/github/repos/create`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(args)
@@ -472,7 +472,7 @@ export class DarkNewsMCPServer {
   }
 
   private async handleGitHubGetFile(args: any) {
-    const response = await fetch(`${process.env.REPLIT_URL || 'http://localhost:5000'}/api/github/files/get`, {
+    const response = await fetch(`${process.env.APP_URL || 'http://localhost:5000'}/api/github/files/get`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(args)
@@ -490,7 +490,7 @@ export class DarkNewsMCPServer {
   }
 
   private async handleGitHubCreateFile(args: any) {
-    const response = await fetch(`${process.env.REPLIT_URL || 'http://localhost:5000'}/api/github/files/create`, {
+    const response = await fetch(`${process.env.APP_URL || 'http://localhost:5000'}/api/github/files/create`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(args)
@@ -509,7 +509,7 @@ export class DarkNewsMCPServer {
 
   // Database Tool Handlers
   private async handleDbQuery(args: any) {
-    const response = await fetch(`${process.env.REPLIT_URL || 'http://localhost:5000'}/api/cline/database/query`, {
+    const response = await fetch(`${process.env.APP_URL || 'http://localhost:5000'}/api/cline/database/query`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(args)
@@ -527,7 +527,7 @@ export class DarkNewsMCPServer {
   }
 
   private async handleDbGetSchema(args: any) {
-    const response = await fetch(`${process.env.REPLIT_URL || 'http://localhost:5000'}/api/cline/database/schema`, {
+    const response = await fetch(`${process.env.APP_URL || 'http://localhost:5000'}/api/cline/database/schema`, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' }
     });
@@ -544,7 +544,7 @@ export class DarkNewsMCPServer {
   }
 
   private async handleDbBackup(args: any) {
-    const response = await fetch(`${process.env.REPLIT_URL || 'http://localhost:5000'}/api/cline/database/backup`, {
+    const response = await fetch(`${process.env.APP_URL || 'http://localhost:5000'}/api/cline/database/backup`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(args)
@@ -563,7 +563,7 @@ export class DarkNewsMCPServer {
 
   // Slack Tool Handlers
   private async handleSlackSendMessage(args: any) {
-    const response = await fetch(`${process.env.REPLIT_URL || 'http://localhost:5000'}/api/slack/message`, {
+    const response = await fetch(`${process.env.APP_URL || 'http://localhost:5000'}/api/slack/message`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(args)
@@ -581,7 +581,7 @@ export class DarkNewsMCPServer {
   }
 
   private async handleSlackListChannels(args: any) {
-    const response = await fetch(`${process.env.REPLIT_URL || 'http://localhost:5000'}/api/slack/channels`, {
+    const response = await fetch(`${process.env.APP_URL || 'http://localhost:5000'}/api/slack/channels`, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' }
     });
@@ -598,7 +598,7 @@ export class DarkNewsMCPServer {
   }
 
   private async handleSlackGetMessages(args: any) {
-    const response = await fetch(`${process.env.REPLIT_URL || 'http://localhost:5000'}/api/slack/messages`, {
+    const response = await fetch(`${process.env.APP_URL || 'http://localhost:5000'}/api/slack/messages`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(args)
@@ -617,7 +617,7 @@ export class DarkNewsMCPServer {
 
   // News Tool Handlers
   private async handleNewsGetHeadlines(args: any) {
-    const response = await fetch(`${process.env.REPLIT_URL || 'http://localhost:5000'}/api/news/headlines`, {
+    const response = await fetch(`${process.env.APP_URL || 'http://localhost:5000'}/api/news/headlines`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(args)
@@ -635,7 +635,7 @@ export class DarkNewsMCPServer {
   }
 
   private async handleNewsSearch(args: any) {
-    const response = await fetch(`${process.env.REPLIT_URL || 'http://localhost:5000'}/api/news/search`, {
+    const response = await fetch(`${process.env.APP_URL || 'http://localhost:5000'}/api/news/search`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(args)
@@ -653,7 +653,7 @@ export class DarkNewsMCPServer {
   }
 
   private async handleNewsGetSources(args: any) {
-    const response = await fetch(`${process.env.REPLIT_URL || 'http://localhost:5000'}/api/news/sources`, {
+    const response = await fetch(`${process.env.APP_URL || 'http://localhost:5000'}/api/news/sources`, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' }
     });
@@ -671,7 +671,7 @@ export class DarkNewsMCPServer {
 
   // YouTube Tool Handlers
   private async handleYouTubeListChannels(args: any) {
-    const response = await fetch(`${process.env.REPLIT_URL || 'http://localhost:5000'}/api/youtube/list/channels`, {
+    const response = await fetch(`${process.env.APP_URL || 'http://localhost:5000'}/api/youtube/list/channels`, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' }
     });
@@ -688,7 +688,7 @@ export class DarkNewsMCPServer {
   }
 
   private async handleYouTubeUploadVideo(args: any) {
-    const response = await fetch(`${process.env.REPLIT_URL || 'http://localhost:5000'}/api/youtube/upload`, {
+    const response = await fetch(`${process.env.APP_URL || 'http://localhost:5000'}/api/youtube/upload`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(args)
@@ -706,7 +706,7 @@ export class DarkNewsMCPServer {
   }
 
   private async handleYouTubeGetVideoStats(args: any) {
-    const response = await fetch(`${process.env.REPLIT_URL || 'http://localhost:5000'}/api/youtube/stats`, {
+    const response = await fetch(`${process.env.APP_URL || 'http://localhost:5000'}/api/youtube/stats`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(args)
@@ -724,7 +724,7 @@ export class DarkNewsMCPServer {
   }
 
   private async handleYouTubeSearchVideos(args: any) {
-    const response = await fetch(`${process.env.REPLIT_URL || 'http://localhost:5000'}/api/youtube/search`, {
+    const response = await fetch(`${process.env.APP_URL || 'http://localhost:5000'}/api/youtube/search`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(args)
@@ -743,7 +743,7 @@ export class DarkNewsMCPServer {
 
   // System Tool Handlers
   private async handleSystemHealthCheck(args: any) {
-    const response = await fetch(`${process.env.REPLIT_URL || 'http://localhost:5000'}/api/system/health`, {
+    const response = await fetch(`${process.env.APP_URL || 'http://localhost:5000'}/api/system/health`, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' }
     });
@@ -760,7 +760,7 @@ export class DarkNewsMCPServer {
   }
 
   private async handleSystemGetMetrics(args: any) {
-    const response = await fetch(`${process.env.REPLIT_URL || 'http://localhost:5000'}/api/system/metrics`, {
+    const response = await fetch(`${process.env.APP_URL || 'http://localhost:5000'}/api/system/metrics`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(args)

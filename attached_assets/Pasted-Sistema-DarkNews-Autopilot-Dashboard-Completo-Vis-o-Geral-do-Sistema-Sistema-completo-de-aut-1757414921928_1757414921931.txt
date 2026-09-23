@@ -427,9 +427,9 @@ sqlalchemy==2.0.20
 apscheduler==3.10.1
 ```
 
-Configuração do Replit
+Configuração do ambiente
 
-1. Variáveis de Ambiente: Configure no Secrets do Replit:
+1. Variáveis de Ambiente: Configure no arquivo .env (veja .env.example):
    · ELEVENLABS_API_KEY
    · SYNTHESIA_API_KEY
    · YOUTUBE_API_KEY

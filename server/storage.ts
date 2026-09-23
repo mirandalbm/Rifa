@@ -1,5 +1,7 @@
 import {
   users,
+  authTokens,
+  phoneCodes,
   newsArticles,
   videos,
   youtubeChannels,
@@ -15,6 +17,8 @@ import {
   performanceAlerts,
   batchQueues,
   type User,
+  type AuthToken,
+  type PhoneCode,
   type UpsertUser,
   type NewsArticle,
   type InsertNewsArticle,
@@ -46,12 +50,25 @@ import {
   type InsertBatchQueue,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, sql, count, gte, lt, isNull } from "drizzle-orm";
+import { eq, desc, and, sql, count, gte, gt, lt, isNull } from "drizzle-orm";
 
 export interface IStorage {
-  // User operations (mandatory for Replit Auth)
+  // User operations
   getUser(id: string): Promise<User | undefined>;
-  upsertUser(user: UpsertUser): Promise<User>;
+  getUserByEmail(email: string): Promise<User | undefined>;
+  getUserByPhone(phone: string): Promise<User | undefined>;
+  getUserByGoogleId(googleId: string): Promise<User | undefined>;
+  createUser(user: UpsertUser): Promise<User>;
+  updateUser(id: string, updates: Partial<UpsertUser>): Promise<User>;
+
+  // Auth tokens (email verification / password reset) and SMS codes
+  createAuthToken(token: { userId: string; type: string; tokenHash: string; expiresAt: Date }): Promise<void>;
+  consumeAuthToken(type: string, tokenHash: string): Promise<AuthToken | undefined>;
+  createPhoneCode(code: { phone: string; codeHash: string; expiresAt: Date }): Promise<void>;
+  getActivePhoneCode(phone: string): Promise<PhoneCode | undefined>;
+  countPhoneCodesSince(phone: string, since: Date): Promise<number>;
+  incrementPhoneCodeAttempts(id: string): Promise<void>;
+  markPhoneCodeUsed(id: string): Promise<void>;
 
   // News operations
   createNewsArticle(article: InsertNewsArticle): Promise<NewsArticle>;
@@ -169,25 +186,93 @@ export interface IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
-  // User operations (mandatory for Replit Auth)
+  // User operations
   async getUser(id: string): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));
     return user;
   }
 
-  async upsertUser(userData: UpsertUser): Promise<User> {
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(sql`lower(${users.email}) = ${email.toLowerCase()}`);
+    return user;
+  }
+
+  async getUserByPhone(phone: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.phone, phone));
+    return user;
+  }
+
+  async getUserByGoogleId(googleId: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.googleId, googleId));
+    return user;
+  }
+
+  async createUser(userData: UpsertUser): Promise<User> {
+    const [user] = await db.insert(users).values(userData).returning();
+    return user;
+  }
+
+  async updateUser(id: string, updates: Partial<UpsertUser>): Promise<User> {
     const [user] = await db
-      .insert(users)
-      .values(userData)
-      .onConflictDoUpdate({
-        target: users.id,
-        set: {
-          ...userData,
-          updatedAt: new Date(),
-        },
-      })
+      .update(users)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(users.id, id))
       .returning();
     return user;
+  }
+
+  // Auth tokens
+  async createAuthToken(token: { userId: string; type: string; tokenHash: string; expiresAt: Date }): Promise<void> {
+    await db.insert(authTokens).values(token);
+  }
+
+  // Atomically marks an unused, unexpired token as used and returns it
+  async consumeAuthToken(type: string, tokenHash: string): Promise<AuthToken | undefined> {
+    const [token] = await db
+      .update(authTokens)
+      .set({ usedAt: new Date() })
+      .where(and(
+        eq(authTokens.type, type),
+        eq(authTokens.tokenHash, tokenHash),
+        isNull(authTokens.usedAt),
+        gt(authTokens.expiresAt, new Date())
+      ))
+      .returning();
+    return token;
+  }
+
+  // SMS login codes
+  async createPhoneCode(code: { phone: string; codeHash: string; expiresAt: Date }): Promise<void> {
+    await db.insert(phoneCodes).values(code);
+  }
+
+  async getActivePhoneCode(phone: string): Promise<PhoneCode | undefined> {
+    const [code] = await db
+      .select()
+      .from(phoneCodes)
+      .where(and(eq(phoneCodes.phone, phone), isNull(phoneCodes.usedAt), gt(phoneCodes.expiresAt, new Date())))
+      .orderBy(desc(phoneCodes.createdAt))
+      .limit(1);
+    return code;
+  }
+
+  async countPhoneCodesSince(phone: string, since: Date): Promise<number> {
+    const [result] = await db
+      .select({ count: count() })
+      .from(phoneCodes)
+      .where(and(eq(phoneCodes.phone, phone), gte(phoneCodes.createdAt, since)));
+    return result?.count ?? 0;
+  }
+
+  async incrementPhoneCodeAttempts(id: string): Promise<void> {
+    await db
+      .update(phoneCodes)
+      .set({ attempts: sql`${phoneCodes.attempts} + 1` })
+      .where(eq(phoneCodes.id, id));
+  }
+
+  async markPhoneCodeUsed(id: string): Promise<void> {
+    await db.update(phoneCodes).set({ usedAt: new Date() }).where(eq(phoneCodes.id, id));
   }
 
   // News operations

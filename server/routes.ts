@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import pathModule from "path";
 import { promises as fsPromises } from "fs";
 import { storage } from "./storage";
-import { setupAuth, isAuthenticated, isAdmin } from "./replitAuth";
+import { setupAuth, isAuthenticated, isAdmin } from "./auth";
 import { newsService } from "./services/newsService";
 import { videoService } from "./services/videoService";
 import { youtubeService } from "./services/youtubeService";
@@ -69,18 +69,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   } catch (error) {
     console.error("❌ Failed to start dynamic resource manager:", error);
   }
-
-  // Auth routes
-  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      res.json(user);
-    } catch (error) {
-      console.error("Error fetching user:", error);
-      res.status(500).json({ message: "Failed to fetch user" });
-    }
-  });
 
   // Dashboard routes
   app.get('/api/dashboard/stats', isAuthenticated, async (req, res) => {
@@ -152,7 +140,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // 🧪 TEST: Complete video pipeline test
   app.post('/api/test/video-pipeline', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       console.log("🧪 TESTING COMPLETE VIDEO PIPELINE...");
       
       // Create test news article
@@ -191,7 +179,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/videos/:id/multilingual', isAuthenticated, async (req: any, res) => {
     try {
       const { id } = req.params;
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       
       console.log(`🌐 Generating multilingual versions for video: ${id}`);
       await videoService.generateMultiLanguageVersions(id, userId);
@@ -214,7 +202,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/youtube/publish/:videoId', isAuthenticated, async (req: any, res) => {
     try {
       const { videoId } = req.params;
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       
       console.log(`📺 Publishing video ${videoId} to YouTube channels...`);
       const results = await youtubeService.publishVideoToMultipleChannels(videoId, userId);
@@ -237,7 +225,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { videoId } = req.params;
       const { publishTime } = req.body;
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       
       if (!publishTime) {
         return res.status(400).json({ message: "publishTime is required" });
@@ -264,7 +252,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { newsId } = req.params;
       const { publishTime } = req.body;
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       
       if (!publishTime) {
         return res.status(400).json({ message: "publishTime is required" });
@@ -290,7 +278,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/youtube/channels', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       
       // Return DarkNews channel mapping
       const darkNewsChannels = [
@@ -518,7 +506,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // API Settings endpoints
   app.get('/api/settings/apis', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const configs = await storage.getAllApiConfigurations(userId);
       
       // Return configurations without sensitive data
@@ -567,7 +555,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put('/api/settings/apis/:serviceId', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const { serviceId } = req.params;
       const { isActive, fields } = req.body;
       
@@ -618,7 +606,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/settings/test/:serviceId', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const { serviceId } = req.params;
       
       const config = await storage.getApiConfiguration(userId, serviceId);
@@ -687,7 +675,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Video generation endpoints
   app.post('/api/videos/generate', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const { newsArticleId, language = 'en' } = req.body;
       
       if (!newsArticleId) {
@@ -750,7 +738,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/videos/generate-batch', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const { newsArticleIds, language = 'en' } = req.body;
       
       if (!newsArticleIds || !Array.isArray(newsArticleIds)) {
@@ -799,7 +787,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/videos/:videoId/publish', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const { videoId } = req.params;
       const { channelId } = req.body;
       
@@ -887,7 +875,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/youtube/auth-url', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       
       // Get or create YouTube client
       const client = await youtubeService.getClient(userId);
@@ -915,7 +903,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Automation pipeline endpoints
   app.post('/api/automation/start', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       
       // Start full automation cycle
       await automationService.runFullAutomationCycle(userId);
@@ -932,7 +920,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/automation/status', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       
       const status = await automationService.getAutomationStatus(userId);
       
@@ -945,7 +933,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/automation/news/fetch', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const { category = 'general' } = req.body;
       
       // Manual news fetch trigger
@@ -982,7 +970,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Analytics endpoints
   app.get('/api/analytics/dashboard', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const { timeframe = '30d' } = req.query;
       
       const dashboard = await analyticsService.getDashboard(userId, timeframe);
@@ -996,7 +984,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/analytics/realtime', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       
       const metrics = await analyticsService.getRealtimeMetrics(userId);
       
@@ -1009,7 +997,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/analytics/report', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const { type = 'monthly' } = req.query;
       
       const report = await analyticsService.generateReport(userId, type as 'weekly' | 'monthly' | 'quarterly');
@@ -1114,7 +1102,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/github/repos', isAuthenticated, async (req: any, res) => {
     try {
       const { type = 'all', sort = 'updated', per_page = 30 } = req.body;
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       
       // Use GitHub integration if available, otherwise return mock data
       const mockRepos = [
@@ -1141,7 +1129,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/github/repos/create', isAuthenticated, async (req: any, res) => {
     try {
       const { name, description, private: isPrivate, auto_init } = req.body;
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       
       if (!name) {
         return res.status(400).json({ message: "Repository name is required" });
@@ -1817,7 +1805,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
     
     // Block sensitive directories
-    const blockedDirs = ['node_modules', '.replit', 'dist', 'build', '.npm', '.cache'];
+    const blockedDirs = ['node_modules', 'dist', 'build', '.npm', '.cache'];
     if (pathSegments.some((segment: string) => blockedDirs.includes(segment))) {
       throw new Error('Access denied: System directory not allowed');
     }

@@ -77,11 +77,11 @@ const contextOptions: ContextOption[] = [
     description: "Schema do banco de dados"
   },
   {
-    id: "replit-md",
+    id: "readme",
     name: "Project Documentation",
     type: "doc",
     icon: Book,
-    path: "replit.md",
+    path: "README.md",
     description: "Documentação do projeto"
   },
   {

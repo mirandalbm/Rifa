@@ -46,7 +46,7 @@ import {
   type InsertBatchQueue,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, sql, count } from "drizzle-orm";
+import { eq, desc, and, sql, count, gte, lt, isNull } from "drizzle-orm";
 
 export interface IStorage {
   // User operations (mandatory for Replit Auth)
@@ -63,6 +63,8 @@ export interface IStorage {
   createVideo(video: InsertVideo): Promise<Video>;
   getVideos(limit?: number): Promise<Video[]>;
   getVideosByStatus(status: string): Promise<Video[]>;
+  getVideoByArticleAndLanguage(articleId: string, language: string): Promise<Video | undefined>;
+  getVideosByLanguageAndDate(language: string, date: string): Promise<Video[]>;
   updateVideoStatus(id: string, status: string): Promise<void>;
   updateVideoYoutubeId(id: string, youtubeId: string): Promise<void>;
   getVideoStats(): Promise<{
@@ -252,6 +254,31 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(videos)
       .where(eq(videos.status, status as any))
+      .orderBy(desc(videos.createdAt));
+  }
+
+  async getVideoByArticleAndLanguage(articleId: string, language: string): Promise<Video | undefined> {
+    const [video] = await db
+      .select()
+      .from(videos)
+      .where(and(eq(videos.newsArticleId, articleId), eq(videos.language, language as any)))
+      .limit(1);
+    return video;
+  }
+
+  // `date` is any string accepted by `new Date()` (e.g. `new Date().toDateString()`)
+  async getVideosByLanguageAndDate(language: string, date: string): Promise<Video[]> {
+    const start = new Date(date);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
+    return await db
+      .select()
+      .from(videos)
+      .where(and(
+        eq(videos.language, language as any),
+        gte(videos.createdAt, start),
+        lt(videos.createdAt, end)
+      ))
       .orderBy(desc(videos.createdAt));
   }
 
@@ -574,8 +601,7 @@ export class DatabaseStorage implements IStorage {
 
   async updateErrorRetryCount(id: string, count: number, nextRetryAt?: Date): Promise<void> {
     const updateData: any = { 
-      retryCount: count,
-      updatedAt: new Date()
+      retryCount: count
     };
     
     if (nextRetryAt) {
@@ -594,8 +620,7 @@ export class DatabaseStorage implements IStorage {
       .set({ 
         resolved: true,
         resolvedAt: new Date(),
-        resolutionNotes: notes || null,
-        updatedAt: new Date()
+        resolutionNotes: notes || null
       })
       .where(eq(errorLogs.id, id));
   }
@@ -605,7 +630,7 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(errorLogs)
       .where(eq(errorLogs.resolved, false))
-      .orderBy(desc(errorLogs.createdAt));
+      .orderBy(desc(errorLogs.occuredAt));
   }
 
   // Resource Metrics
@@ -651,9 +676,9 @@ export class DatabaseStorage implements IStorage {
       .from(performanceAlerts)
       .where(and(
         eq(performanceAlerts.acknowledged, false),
-        eq(performanceAlerts.resolved, false)
+        isNull(performanceAlerts.resolvedAt)
       ))
-      .orderBy(desc(performanceAlerts.createdAt));
+      .orderBy(desc(performanceAlerts.triggeredAt));
   }
 
   async acknowledgeAlert(id: string, acknowledgedBy: string): Promise<void> {
@@ -662,8 +687,7 @@ export class DatabaseStorage implements IStorage {
       .set({ 
         acknowledged: true,
         acknowledgedBy,
-        acknowledgedAt: new Date(),
-        updatedAt: new Date()
+        acknowledgedAt: new Date()
       })
       .where(eq(performanceAlerts.id, id));
   }
@@ -672,9 +696,8 @@ export class DatabaseStorage implements IStorage {
     await db
       .update(performanceAlerts)
       .set({ 
-        resolved: true,
-        resolvedAt: new Date(),
-        updatedAt: new Date()
+        isActive: false,
+        resolvedAt: new Date()
       })
       .where(eq(performanceAlerts.id, id));
   }
@@ -700,8 +723,7 @@ export class DatabaseStorage implements IStorage {
       .update(batchQueues)
       .set({ 
         completedJobs,
-        failedJobs,
-        updatedAt: new Date()
+        failedJobs
       })
       .where(eq(batchQueues.id, id));
   }
@@ -712,8 +734,7 @@ export class DatabaseStorage implements IStorage {
       .set({ 
         status: 'completed' as any,
         results,
-        completedAt: new Date(),
-        updatedAt: new Date()
+        completedAt: new Date()
       })
       .where(eq(batchQueues.id, id));
   }

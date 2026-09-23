@@ -101,3 +101,9 @@ Custom-built worker system handling:
 - **Tailwind CSS**: Utility-first CSS framework with custom dark theme configuration
 - **Lucide React**: Icon library optimized for the dark news aesthetic
 - **date-fns**: Date manipulation and formatting utilities for content timestamps
+## Security Configuration
+
+Set these secrets before deploying:
+- **ALLOWED_EMAILS**: comma-separated emails allowed to use the dashboard. If empty, any Replit account that signs in gets access (a warning is logged at startup).
+- **ADMIN_EMAILS**: comma-separated emails allowed to use the developer tools under `/api/cline/*` (file editor, terminal, raw SQL, browser, git). Falls back to `ALLOWED_EMAILS`; if both are empty, those tools are disabled. The AI chat (`/api/cline/chat`) is not restricted.
+- **API_ENCRYPTION_KEY**: long random secret used to encrypt stored API credentials (AES-256-GCM). Values saved by older versions are still readable, as long as the key stays the same.

@@ -115,12 +115,12 @@ class PerformanceAlertsService {
     ]);
 
     // Filter error logs to last 24h manually
-    const errorLogs = allErrorLogs.filter(log => log.createdAt > past24h);
+    const errorLogs = allErrorLogs.filter(log => log.occuredAt && log.occuredAt > past24h);
 
     const queueSize = activeJobs.filter(job => job.status === 'pending').length;
     const processingJobs = activeJobs.filter(job => job.status === 'processing').length;
     const failedJobsLast24h = activeJobs.filter(job => 
-      job.status === 'failed' && job.createdAt > past24h
+      job.status === 'failed' && job.createdAt && job.createdAt > past24h
     ).length;
     
     const totalRequests = errorLogs.length + activeJobs.length;
@@ -134,12 +134,13 @@ class PerformanceAlertsService {
     
     // Calculate average response time from recent jobs
     const recentJobs = activeJobs.filter(job => 
-      job.updatedAt && (now.getTime() - job.updatedAt.getTime()) < 10 * 60 * 1000
+      job.completedAt && (now.getTime() - job.completedAt.getTime()) < 10 * 60 * 1000
     );
     const averageResponseTime = recentJobs.length > 0 
       ? recentJobs.reduce((sum, job) => {
-          const duration = job.updatedAt 
-            ? job.updatedAt.getTime() - job.createdAt.getTime()
+          const startedAt = job.startedAt || job.createdAt;
+          const duration = job.completedAt && startedAt
+            ? job.completedAt.getTime() - startedAt.getTime()
             : 0;
           return sum + duration;
         }, 0) / recentJobs.length

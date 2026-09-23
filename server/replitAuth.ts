@@ -12,6 +12,32 @@ if (!process.env.REPLIT_DOMAINS) {
   throw new Error("Environment variable REPLIT_DOMAINS not provided");
 }
 
+function parseEmailList(value: string | undefined): string[] {
+  return (value || "")
+    .split(",")
+    .map((email) => email.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+// Comma-separated emails allowed to use the dashboard. When empty, any Replit account can sign in.
+const ALLOWED_EMAILS = parseEmailList(process.env.ALLOWED_EMAILS);
+// Comma-separated emails allowed to use developer tools (terminal, file editor, raw SQL).
+// Falls back to ALLOWED_EMAILS; when both are empty the developer tools are disabled.
+const ADMIN_EMAILS = parseEmailList(process.env.ADMIN_EMAILS);
+const EFFECTIVE_ADMIN_EMAILS = ADMIN_EMAILS.length > 0 ? ADMIN_EMAILS : ALLOWED_EMAILS;
+
+if (ALLOWED_EMAILS.length === 0) {
+  console.warn(
+    "⚠️ ALLOWED_EMAILS is not set - any Replit account that signs in can control this dashboard. " +
+    "Set ALLOWED_EMAILS to a comma-separated list of permitted emails."
+  );
+}
+
+function getUserEmail(user: any): string | undefined {
+  const email = user?.claims?.email;
+  return typeof email === "string" ? email.toLowerCase() : undefined;
+}
+
 const getOidcConfig = memoize(
   async () => {
     return await client.discovery(
@@ -134,6 +160,13 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
     return res.status(401).json({ message: "Unauthorized" });
   }
 
+  if (ALLOWED_EMAILS.length > 0) {
+    const email = getUserEmail(user);
+    if (!email || !ALLOWED_EMAILS.includes(email)) {
+      return res.status(403).json({ message: "Access denied: this account is not allowed to use the dashboard" });
+    }
+  }
+
   const now = Math.floor(Date.now() / 1000);
   if (now <= user.expires_at) {
     return next();
@@ -154,4 +187,24 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
     res.status(401).json({ message: "Unauthorized" });
     return;
   }
+};
+
+// Guards developer tools that can read/modify the server (files, terminal, raw SQL).
+export const isAdmin: RequestHandler = (req, res, next) => {
+  isAuthenticated(req, res, (err?: any) => {
+    if (err) return next(err);
+
+    if (EFFECTIVE_ADMIN_EMAILS.length === 0) {
+      return res.status(403).json({
+        message: "Developer tools are disabled. Set ADMIN_EMAILS (or ALLOWED_EMAILS) to enable them for your account.",
+      });
+    }
+
+    const email = getUserEmail(req.user);
+    if (!email || !EFFECTIVE_ADMIN_EMAILS.includes(email)) {
+      return res.status(403).json({ message: "Access denied: administrator only" });
+    }
+
+    next();
+  });
 };

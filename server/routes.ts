@@ -1,7 +1,9 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
+import pathModule from "path";
+import { promises as fsPromises } from "fs";
 import { storage } from "./storage";
-import { setupAuth, isAuthenticated } from "./replitAuth";
+import { setupAuth, isAuthenticated, isAdmin } from "./replitAuth";
 import { newsService } from "./services/newsService";
 import { videoService } from "./services/videoService";
 import { youtubeService } from "./services/youtubeService";
@@ -21,6 +23,13 @@ import { startVideoProcessor } from "./workers/videoProcessor";
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
   await setupAuth(app);
+
+  // Developer tools (file editor, terminal, SQL, browser, git) can read and change the server,
+  // so they are restricted to administrators. The AI chat stays available to all dashboard users.
+  app.use('/api/cline', (req, res, next) => {
+    if (req.path === '/chat') return next();
+    return isAdmin(req, res, next);
+  });
 
   // Start background workers
   startNewsProcessor();
@@ -1748,8 +1757,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // File Management System Routes - Cline Integration
   // Security helper function to validate file paths
   const validatePath = async (inputPath: string): Promise<string> => {
-    const pathModule = require('path');
-    const fs = require('fs').promises;
+    const fs = fsPromises;
     const projectRoot = process.cwd();
     
     // Normalize and resolve the path
@@ -1766,7 +1774,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
     
     // Ensure path is within project root
-    if (!realPath.startsWith(projectRoot)) {
+    if (realPath !== projectRoot && !realPath.startsWith(projectRoot + pathModule.sep)) {
       throw new Error('Access denied: Path outside project directory');
     }
     
@@ -2436,6 +2444,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       if (!safeOperations.some(op => trimmedQuery.startsWith(op))) {
         return res.status(403).json({ message: 'Only read operations are allowed' });
+      }
+
+      // Block stacked statements such as "SELECT 1; DROP TABLE users"
+      if (query.trim().replace(/;\s*$/, '').includes(';')) {
+        return res.status(403).json({ message: 'Only a single statement is allowed' });
       }
 
       const { db } = await import('./db');

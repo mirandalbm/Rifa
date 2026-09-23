@@ -321,8 +321,8 @@ class IntelligentSchedulingService {
         title: 'Autonomous Scheduling Failed',
         description: `Critical error in autonomous scheduling: ${error instanceof Error ? error.message : String(error)}`,
         serviceName: 'IntelligentScheduling',
-        threshold: 0,
-        currentValue: 1,
+        threshold: '0',
+        currentValue: '1',
         metadata: { error: String(error) }
       });
     }
@@ -361,11 +361,8 @@ class IntelligentSchedulingService {
         Articles: ${JSON.stringify(titlesAndContent.slice(0, 20))}
       `;
 
-      const response = await openaiService.generateCompletion(
-        trendAnalysisPrompt,
-        'system', // Use system message for analysis
-        'default' // Default user ID for system operations
-      );
+      // No user id: system analysis runs on the global OpenAI client
+      const response = await openaiService.generateCompletion(trendAnalysisPrompt);
 
       if (response) {
         try {

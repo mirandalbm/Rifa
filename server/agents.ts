@@ -530,7 +530,7 @@ Please try again in a moment or contact support if the issue persists.`;
   }
 
   // Execute agent tools with real functionality
-  async executeAgentTool(agentId: string, tool: string, params: any): Promise<any> {
+  async executeAgentTool(agentId: string, tool: string, params: any, userId: string): Promise<any> {
     const agent = this.getAgent(agentId);
     if (!agent) {
       throw new Error(`Agent ${agentId} not found`);
@@ -542,7 +542,7 @@ Please try again in a moment or contact support if the issue persists.`;
 
     // DarkNews Autopilot Pro specialized tools
     if (agentId === 'darknews-autopilot') {
-      return await this.executeDarkNewsTools(tool, params);
+      return await this.executeDarkNewsTools(tool, params, userId);
     }
 
     // Standard tools for other agents
@@ -550,16 +550,16 @@ Please try again in a moment or contact support if the issue persists.`;
   }
 
   // DarkNews Autopilot Pro specialized tool execution
-  private async executeDarkNewsTools(tool: string, params: any): Promise<any> {
+  private async executeDarkNewsTools(tool: string, params: any, userId: string): Promise<any> {
     switch (tool) {
       case 'content_creation':
-        return await this.executeContentCreation(params);
+        return await this.executeContentCreation(params, userId);
       
       case 'video_production':
-        return await this.executeVideoProduction(params);
+        return await this.executeVideoProduction(params, userId);
       
       case 'multilang_processing':
-        return await this.executeMultilangProcessing(params);
+        return await this.executeMultilangProcessing(params, userId);
       
       case 'mcp_integration':
         // MCP integration placeholder - implement when needed
@@ -571,38 +571,41 @@ Please try again in a moment or contact support if the issue persists.`;
   }
 
   // Content creation pipeline for dark mystery news
-  private async executeContentCreation(params: any): Promise<any> {
+  private async executeContentCreation(params: any, userId: string): Promise<any> {
     try {
       // Import service instances (exported as singletons)
       const { newsService } = await import('./services/newsService');
       const { openaiService } = await import('./services/openaiService');
+      const language = this.toLocale(params.language);
       
-      // 1. Fetch latest dark/mystery news  
-      const newsResult = await newsService.fetchNews();
+      // 1. Fetch latest dark/mystery news (already ranked by viral score)
+      const articles = await newsService.fetchNews();
 
-      if (!newsResult.success || !newsResult.articles?.length) {
+      if (!articles.length) {
         return { success: false, error: 'No suitable news found for dark content' };
       }
 
       // 2. Select best article for dark content
-      const selectedArticle = newsResult.articles[0];
+      const selectedArticle = articles[0];
 
-      // 3. Generate dark mystery script
-      const scriptResult = await openaiService.generateScript(
+      // 3. Generate dark mystery script and its metadata
+      const script = await openaiService.generateScript(
         selectedArticle.title || 'Breaking News', 
-        selectedArticle.content || selectedArticle.description || 'News content'
+        selectedArticle.content || 'News content',
+        userId
       );
+      const metadata = await openaiService.generateVideoMetadata(script, language, userId);
 
       return {
         success: true,
         result: {
           article: selectedArticle,
-          script: scriptResult.script,
+          script,
           metadata: {
-            title: scriptResult.script.title,
-            description: scriptResult.script.description,
-            tags: scriptResult.script.tags || ['dark', 'mystery', 'news'],
-            language: params.language || 'en',
+            title: metadata.title,
+            description: metadata.description,
+            tags: metadata.tags?.length ? metadata.tags : ['dark', 'mystery', 'news'],
+            language,
             created_at: new Date().toISOString()
           }
         }
@@ -614,45 +617,34 @@ Please try again in a moment or contact support if the issue persists.`;
   }
 
   // Video production pipeline with AI avatar and voice
-  private async executeVideoProduction(params: any): Promise<any> {
+  private async executeVideoProduction(params: any, userId: string): Promise<any> {
     try {
       const { heygenService } = await import('./services/heygenService');
       const { elevenlabsService } = await import('./services/elevenlabsService');
       
-      if (!params.script) {
+      const scriptText: string | undefined = params.script?.content || params.script;
+      if (!scriptText || typeof scriptText !== 'string') {
         return { success: false, error: 'Script content required for video production' };
       }
+      const language = this.toLocale(params.language);
 
       // 1. Generate voice narration first
-      const voiceResult = await elevenlabsService.generateSpeech({
-        text: params.script.content || params.script,
-        voice_id: this.getLanguageVoice(params.language || 'en'),
-        model_id: 'eleven_multilingual_v2',
-        stability: 0.5,
-        similarity_boost: 0.8
-      });
+      const audioBuffer = await elevenlabsService.generateSpeechForDarkNews(userId, scriptText, language);
 
-      if (!voiceResult.success) {
-        return { success: false, error: `Voice generation failed: ${voiceResult.error}` };
-      }
-
-      // 2. Create AI avatar video with HeyGen
-      const videoResult = await heygenService.createVideo({
-        script: params.script.content || params.script,
-        avatar_id: params.avatar_id || 'dark_news_presenter_v2',
-        voice_url: voiceResult.audio_url,
-        background: 'dark_news_studio',
-        language: params.language || 'en'
+      // 2. Create AI avatar video with HeyGen, lip-synced to the narration
+      const videoId = await heygenService.createVideoWithAudio(userId, scriptText, audioBuffer, {
+        avatarStyle: params.avatar_style,
+        language
       });
 
       return {
         success: true,
         result: {
-          video_id: videoResult.video_id,
-          audio_url: voiceResult.audio_url,
+          video_id: videoId,
+          audio_bytes: audioBuffer.length,
           status: 'processing',
-          estimated_completion: videoResult.estimated_completion || '5-10 minutes',
-          language: params.language || 'en'
+          estimated_completion: '5-10 minutes',
+          language
         }
       };
     } catch (error: any) {
@@ -661,42 +653,46 @@ Please try again in a moment or contact support if the issue persists.`;
     }
   }
 
-  // Multi-language processing and cultural adaptation
-  private async executeMultilangProcessing(params: any): Promise<any> {
+  // Multi-language processing: translation, metadata and narration per language
+  private async executeMultilangProcessing(params: any, userId: string): Promise<any> {
     try {
       const { openaiService } = await import('./services/openaiService');
       const { elevenlabsService } = await import('./services/elevenlabsService');
       
-      const languages = params.languages || ['pt', 'en', 'es', 'de'];
+      const scriptText: string | undefined = params.script?.content || params.script;
+      if (!scriptText || typeof scriptText !== 'string') {
+        return { success: false, error: 'Script content required for multi-language processing' };
+      }
+
+      const languages: string[] = (params.languages || ['pt', 'en', 'es', 'de']).map((lang: string) => this.toLocale(lang));
       const results = [];
 
       for (const lang of languages) {
         try {
-          // 1. Adapt script for target language and culture
-          const adaptationResult = await openaiService.adaptScriptForLanguage({
-            originalScript: params.script,
-            targetLanguage: lang,
-            culturalAdaptation: true,
-            darkMysteryTone: true
-          });
+          // 1. Translate/adapt script for target language
+          const translatedScript = await openaiService.translateScript(scriptText, lang, userId);
+          const metadata = await openaiService.generateVideoMetadata(translatedScript, lang, userId);
 
           // 2. Generate voice in target language
-          const voiceResult = await elevenlabsService.generateSpeech({
-            text: adaptationResult.content,
-            voice_id: this.getLanguageVoice(lang),
-            model_id: 'eleven_multilingual_v2'
-          });
+          let audioBytes: number | null = null;
+          let voiceError: string | undefined;
+          try {
+            const audioBuffer = await elevenlabsService.generateSpeechForDarkNews(userId, translatedScript, lang);
+            audioBytes = audioBuffer.length;
+          } catch (error: any) {
+            voiceError = error.message;
+          }
 
           results.push({
             language: lang,
-            script: adaptationResult,
-            audio_url: voiceResult.audio_url || null,
-            voice_success: voiceResult.success,
+            script: translatedScript,
+            audio_bytes: audioBytes,
+            voice_success: audioBytes !== null,
+            voice_error: voiceError,
             metadata: {
-              title: adaptationResult.title,
-              description: adaptationResult.description,
-              tags: adaptationResult.tags || ['dark', 'mystery', 'news'],
-              cultural_notes: adaptationResult.cultural_notes
+              title: metadata.title,
+              description: metadata.description,
+              tags: metadata.tags?.length ? metadata.tags : ['dark', 'mystery', 'news']
             }
           });
         } catch (langError: any) {
@@ -713,7 +709,7 @@ Please try again in a moment or contact support if the issue persists.`;
         success: true,
         result: {
           languages_processed: languages.length,
-          successful_languages: results.filter(r => !r.error).length,
+          successful_languages: results.filter(r => !('error' in r)).length,
           variants: results,
           processing_time: Date.now()
         }
@@ -724,19 +720,22 @@ Please try again in a moment or contact support if the issue persists.`;
     }
   }
 
-  // Get appropriate voice ID for each language
-  private getLanguageVoice(language: string): string {
-    const voiceMap: Record<string, string> = {
-      'pt': 'pNInz6obpgDQGcFmaJgB', // Portuguese voice
-      'en': '21m00Tcm4TlvDq8ikWAM', // English voice  
-      'es': 'VR6AewLTigWG4xSOukaG', // Spanish voice
-      'de': 'rCrCqHAJz8bPovNFnq5G', // German voice
-      'fr': 'TxGEqnHWrfWFTfGW9XjX', // French voice
-      'it': 'AZnzlk1XvdvUeBnXmlld', // Italian voice
-      'ja': 'XrExE9yKIg1WjnnlVkGX', // Japanese voice
-      'ko': 'ZQe5CqHNLWdVhgHlZ7wC'  // Korean voice
+  // Services expect locale codes (e.g. 'pt-BR'); agents may receive short codes (e.g. 'pt')
+  private toLocale(language?: string): string {
+    const localeMap: Record<string, string> = {
+      'en': 'en-US',
+      'pt': 'pt-BR',
+      'es': 'es-ES',
+      'de': 'de-DE',
+      'fr': 'fr-FR',
+      'hi': 'hi-IN',
+      'ja': 'ja-JP',
+      'zh': 'zh-CN',
+      'ko': 'ko-KR',
+      'ru': 'ru-RU'
     };
-    return voiceMap[language] || voiceMap['en'];
+    if (!language) return 'en-US';
+    return localeMap[language] || language;
   }
 
   // Standard tool execution for other agents
@@ -821,8 +820,9 @@ export const setupAgentRoutes = (app: any, mcpServer: DarkNewsMCPServer, aiProvi
     try {
       const { id: agentId, tool } = req.params;
       const params = req.body;
+      const userId = (req.user as any).claims.sub;
 
-      const result = await agentManager.executeAgentTool(agentId, tool, params);
+      const result = await agentManager.executeAgentTool(agentId, tool, params, userId);
       
       res.json(result);
     } catch (error: any) {

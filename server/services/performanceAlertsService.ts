@@ -243,8 +243,8 @@ class PerformanceAlertsService {
         title: alertData.title,
         description: alertData.description,
         serviceName: 'PerformanceMonitor',
-        threshold: alertData.threshold,
-        currentValue: alertData.metricValue,
+        threshold: String(alertData.threshold),
+        currentValue: String(alertData.metricValue),
         metadata: {
           windowMinutes: alertData.windowMinutes,
           alertKey,
@@ -290,12 +290,13 @@ class PerformanceAlertsService {
   private async sendSlackNotification(alertData: any, config: any): Promise<void> {
     if (!config.webhook) return;
 
-    const color = {
+    const severityColors: Record<string, string> = {
       'low': '#36a64f',
       'medium': '#ff9500', 
       'high': '#ff6b00',
       'critical': '#ff0000'
-    }[alertData.severity] || '#ff0000';
+    };
+    const color = severityColors[alertData.severity] || '#ff0000';
 
     const slackMessage = {
       attachments: [{

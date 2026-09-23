@@ -81,7 +81,7 @@ class VideoProcessor {
         throw new Error("Job data not found");
       }
 
-      const { newsArticleId, userId, language = 'en' } = job.data as any;
+      const { newsArticleId, userId, language = 'en-US' } = job.data as any;
       
       if (!newsArticleId || !userId) {
         throw new Error('Missing required job data: newsArticleId or userId');
@@ -185,9 +185,9 @@ class VideoProcessor {
           newsArticleId,
           title: `Dark News: ${script.substring(0, 50)}...`,
           script,
-          language: jobData.language || 'en',
+          language: jobData.language || 'en-US',
           avatarTemplate: 'dark_anchor',
-          status: 'pending_approval',
+          status: 'ready', // awaiting approval (listed for approval in the dashboard)
           duration: 60, // Estimate - would get from actual video metadata
           thumbnailUrl: videoStatus.thumbnail_url,
           videoUrl: videoStatus.video_url,

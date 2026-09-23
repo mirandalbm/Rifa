@@ -23,24 +23,7 @@ class NewsService {
 
   async fetchNews(): Promise<InsertNewsArticle[]> {
     try {
-      const allNews: InsertNewsArticle[] = [];
-
-      for (const source of this.sources) {
-        try {
-          const news = await this.fetchFromSource(source);
-          allNews.push(...news);
-        } catch (error) {
-          console.error(`Error fetching from ${source.name}:`, error);
-          await storage.updateApiStatus({
-            serviceName: source.name,
-            status: 'down',
-            lastChecked: new Date(),
-          });
-        }
-      }
-
-      // Filter and rank news based on dark/mystery criteria
-      const filteredNews = await this.filterAndRankNews(allNews);
+      const filteredNews = await this.fetchLatestArticles();
       
       // Store top 10 news items
       const topNews = filteredNews.slice(0, 10);
@@ -53,6 +36,28 @@ class NewsService {
       console.error("Error in fetchNews:", error);
       throw error;
     }
+  }
+
+  // Fetches from every configured source and ranks the results, without storing them.
+  async fetchLatestArticles(): Promise<InsertNewsArticle[]> {
+    const allNews: InsertNewsArticle[] = [];
+
+    for (const source of this.sources) {
+      try {
+        const news = await this.fetchFromSource(source);
+        allNews.push(...news);
+      } catch (error) {
+        console.error(`Error fetching from ${source.name}:`, error);
+        await storage.updateApiStatus({
+          serviceName: source.name,
+          status: 'down',
+          lastChecked: new Date(),
+        });
+      }
+    }
+
+    // Filter and rank news based on dark/mystery criteria
+    return this.filterAndRankNews(allNews);
   }
 
   private async fetchFromSource(source: NewsSource): Promise<InsertNewsArticle[]> {

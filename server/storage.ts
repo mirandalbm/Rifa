@@ -33,7 +33,6 @@ import {
   type TrendingTopic,
   type InsertTrendingTopic,
   type SchedulingRule,
-  type InsertSchedulingRule,
   type ApprovalWorkflow,
   type InsertApprovalWorkflow,
   type ErrorLog,
@@ -133,16 +132,7 @@ export interface IStorage {
   getActiveTrendingTopics(language?: string): Promise<TrendingTopic[]>;
 
   // Scheduling Rules
-  createSchedulingRule(rule: InsertSchedulingRule): Promise<SchedulingRule>;
-  getSchedulingRules(): Promise<SchedulingRule[]>;
   getActiveSchedulingRules(strategy?: string): Promise<SchedulingRule[]>;
-  updateSchedulingRule(id: string, updates: Partial<InsertSchedulingRule>): Promise<void>;
-
-  // Approval Workflows
-  createApprovalWorkflow(workflow: InsertApprovalWorkflow): Promise<ApprovalWorkflow>;
-  getApprovalWorkflows(status?: string): Promise<ApprovalWorkflow[]>;
-  updateApprovalWorkflow(id: string, updates: Partial<InsertApprovalWorkflow>): Promise<void>;
-  getWorkflowByContent(contentId: string, contentType: string): Promise<ApprovalWorkflow | null>;
 
   // Error Tracking
   createErrorLog(error: InsertErrorLog): Promise<ErrorLog>;
@@ -583,7 +573,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getErrorLogs(severity?: string, resolved?: boolean): Promise<ErrorLog[]> {
-    let query = db.select().from(errorLogs);
+    let query = db.select().from(errorLogs).$dynamic();
     
     if (severity || resolved !== undefined) {
       const conditions = [];
@@ -641,7 +631,7 @@ export class DatabaseStorage implements IStorage {
   async getResourceMetrics(resourceType?: string, hours = 24): Promise<ResourceMetric[]> {
     const since = new Date(Date.now() - hours * 60 * 60 * 1000);
     
-    let query = db.select().from(resourceMetrics);
+    let query = db.select().from(resourceMetrics).$dynamic();
     
     if (resourceType) {
       query = query.where(and(
@@ -709,7 +699,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getBatchQueues(status?: string): Promise<BatchQueue[]> {
-    let query = db.select().from(batchQueues);
+    let query = db.select().from(batchQueues).$dynamic();
     
     if (status) {
       query = query.where(eq(batchQueues.status, status as any));
@@ -808,12 +798,12 @@ export class DatabaseStorage implements IStorage {
   // Active Trending Topics
   async getActiveTrendingTopics(language?: string): Promise<TrendingTopic[]> {
     const now = new Date();
-    let query = db.select().from(trendingTopics);
+    let query = db.select().from(trendingTopics).$dynamic();
     
     if (language) {
       query = query.where(and(
         sql`${trendingTopics.expiresAt} > ${now}`,
-        eq(trendingTopics.language, language)
+        eq(trendingTopics.language, language as any)
       ));
     } else {
       query = query.where(sql`${trendingTopics.expiresAt} > ${now}`);
@@ -824,7 +814,7 @@ export class DatabaseStorage implements IStorage {
 
   // Scheduling Rules
   async getActiveSchedulingRules(strategy?: string): Promise<SchedulingRule[]> {
-    let query = db.select().from(schedulingRules);
+    let query = db.select().from(schedulingRules).$dynamic();
     
     if (strategy) {
       query = query.where(and(

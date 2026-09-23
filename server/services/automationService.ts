@@ -59,16 +59,7 @@ class AutomationService {
       console.log(`Fetching news for user ${userId}`);
 
       // Get fresh news from multiple sources
-      const newsResults = await Promise.allSettled([
-        newsService.fetchTopHeadlines(),
-        newsService.fetchBreakingNews(),
-        newsService.fetchCategoryNews('general'),
-        newsService.fetchCategoryNews('technology'),
-      ]);
-
-      const allArticles = newsResults
-        .filter(result => result.status === 'fulfilled')
-        .flatMap(result => (result as PromiseFulfilledResult<any>).value || []);
+      const allArticles = await newsService.fetchLatestArticles();
 
       if (allArticles.length === 0) {
         console.log('No news articles found');
@@ -83,13 +74,13 @@ class AutomationService {
         try {
           await storage.createNewsArticle({
             title: article.title,
-            content: article.content || article.description,
-            source: article.source?.name || 'Unknown',
+            content: article.content || '',
+            source: article.source || 'Unknown',
             url: article.url,
-            publishedAt: new Date(article.publishedAt),
-            imageUrl: article.urlToImage,
+            publishedAt: article.publishedAt ? new Date(article.publishedAt) : null,
             status: 'discovered',
-            viralScore: article.viralScore || 0.5,
+            // AI score is 0.0-1.0; the column stores an integer 0-100
+            viralScore: Math.round((article.viralScore ?? 0.5) * 100),
             category: this.categorizeArticle(article)
           });
         } catch (error) {

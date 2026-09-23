@@ -106,8 +106,8 @@ class AutonomousSchedulerService {
         title: 'Autonomous Scheduler Failed to Start',
         description: `Critical failure starting autonomous scheduler: ${error instanceof Error ? error.message : String(error)}`,
         serviceName: 'AutonomousScheduler',
-        threshold: 1,
-        currentValue: 0,
+        threshold: '1',
+        currentValue: '0',
         metadata: { error: String(error) }
       });
       
@@ -211,6 +211,7 @@ class AutonomousSchedulerService {
       // Check for stuck jobs (older than 2 hours)
       const stuckJobs = activeJobs.filter(job => 
         job.status === 'processing' && 
+        job.createdAt &&
         new Date().getTime() - job.createdAt.getTime() > 2 * 60 * 60 * 1000
       );
 
@@ -223,8 +224,8 @@ class AutonomousSchedulerService {
           title: 'Stuck Jobs Detected',
           description: `Found ${stuckJobs.length} jobs stuck in processing state for over 2 hours`,
           serviceName: 'AutonomousScheduler',
-          threshold: 0,
-          currentValue: stuckJobs.length,
+          threshold: '0',
+          currentValue: String(stuckJobs.length),
           metadata: { stuckJobIds: stuckJobs.map(j => j.id) }
         });
       }
@@ -239,8 +240,8 @@ class AutonomousSchedulerService {
           title: 'Job Queue Overload',
           description: `Active jobs (${this.metrics.activeJobs}) exceed maximum limit (${this.config.maxConcurrentJobs})`,
           serviceName: 'AutonomousScheduler',
-          threshold: this.config.maxConcurrentJobs,
-          currentValue: this.metrics.activeJobs,
+          threshold: String(this.config.maxConcurrentJobs),
+          currentValue: String(this.metrics.activeJobs),
           metadata: { activeJobsCount: this.metrics.activeJobs }
         });
       }
@@ -260,8 +261,8 @@ class AutonomousSchedulerService {
         title: 'System Health Check Failed',
         description: `Health monitoring failed: ${error instanceof Error ? error.message : String(error)}`,
         serviceName: 'AutonomousScheduler',
-        threshold: 1,
-        currentValue: 0,
+        threshold: '1',
+        currentValue: '0',
         metadata: { error: String(error) }
       });
     }
@@ -282,8 +283,8 @@ class AutonomousSchedulerService {
           title: 'API Configuration Failures',
           description: `${failedApis.length} APIs are in failed state: ${failedApis.map(a => a.serviceName).join(', ')}`,
           serviceName: 'AutonomousScheduler',
-          threshold: 0,
-          currentValue: failedApis.length,
+          threshold: '0',
+          currentValue: String(failedApis.length),
           metadata: { failedApis: failedApis.map(a => a.serviceName) }
         });
       }
@@ -353,8 +354,8 @@ class AutonomousSchedulerService {
           title: 'Autonomous Operation Failed',
           description: `Critical autonomous operation '${operationType}' failed: ${error instanceof Error ? error.message : String(error)}`,
           serviceName: 'AutonomousScheduler',
-          threshold: 1,
-          currentValue: 0,
+          threshold: '1',
+          currentValue: '0',
           metadata: { operationType, error: String(error) }
         });
       }

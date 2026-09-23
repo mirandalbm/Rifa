@@ -330,7 +330,7 @@ class EnhancedNewsProcessor {
 
   private arrayOverlap(arr1: string[], arr2: string[]): number {
     const intersection = arr1.filter(item => arr2.includes(item));
-    const union = [...new Set([...arr1, ...arr2])];
+    const union = Array.from(new Set([...arr1, ...arr2]));
     return intersection.length / union.length;
   }
 

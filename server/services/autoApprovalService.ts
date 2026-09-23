@@ -262,11 +262,8 @@ class AutoApprovalService {
         Content: "${content.substring(0, 1500)}"
       `;
 
-      const response = await openaiService.generateCompletion(
-        factCheckPrompt,
-        'system',
-        'auto_approval_system'
-      );
+      // No user id: system analysis runs on the global OpenAI client
+      const response = await openaiService.generateCompletion(factCheckPrompt);
 
       if (response) {
         try {

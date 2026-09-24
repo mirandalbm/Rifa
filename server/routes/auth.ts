@@ -1,0 +1,62 @@
+import { Router } from "express";
+import passport from "passport";
+import { currentRole, type SessionUser } from "../auth";
+import { guardLogin, identify } from "../services/antifraude";
+import { sectionsFor, homeFor } from "@shared/access";
+
+export const authRouter = Router();
+
+/** Quem sou eu e o que eu alcanço — o cliente monta o menu com isto. */
+authRouter.get("/me", (req, res) => {
+  const role = currentRole(req);
+  res.json({
+    role,
+    user: req.user ? { name: req.user.name, email: req.user.email } : null,
+    buyer: req.session.buyer?.phone ? { phone: req.session.buyer.phone } : null,
+    sections: sectionsFor(role),
+    home: homeFor(role),
+  });
+});
+
+/** Uma porta de entrada só: o papel no banco decide onde a pessoa cai. */
+authRouter.post("/login", async (req, res, next) => {
+  // Força bruta é barrada antes de a senha ser sequer comparada.
+  const veredito = await guardLogin(String(req.body?.email ?? ""), identify(req));
+  if (!veredito.allowed) {
+    return res.status(429).json({ message: veredito.reason, code: veredito.rule });
+  }
+
+  passport.authenticate(
+    "local",
+    (
+      err: Error | null,
+      user: SessionUser | false,
+      info?: { message?: string; code?: string },
+    ) => {
+      if (err) return next(err);
+      if (!user) {
+        return res.status(401).json({
+          message: info?.message ?? "Não foi possível entrar.",
+          // A tela usa isto para pedir o código em vez de repetir a senha.
+          code: info?.code,
+        });
+      }
+      req.logIn(user, (loginErr) => {
+        if (loginErr) return next(loginErr);
+        res.json({
+          role: user.role,
+          user: { name: user.name, email: user.email },
+          sections: sectionsFor(user.role),
+          home: homeFor(user.role),
+        });
+      });
+    },
+  )(req, res, next);
+});
+
+authRouter.post("/logout", (req, res, next) => {
+  req.logout((err) => {
+    if (err) return next(err);
+    req.session.destroy(() => res.json({ ok: true }));
+  });
+});

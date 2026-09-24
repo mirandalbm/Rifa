@@ -1,0 +1,32 @@
+# Postgres para rodar o projeto na sua máquina, sem instalar nada além do
+# Docker. É só o banco: o app roda com `npm run dev`, direto no seu Node,
+# para você ver o recarregamento na hora em que salva o arquivo.
+#
+#   docker compose up -d
+#
+# O volume guarda os dados entre reinícios. Para começar do zero:
+#
+#   docker compose down -v && docker compose up -d
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: rifa-db
+    environment:
+      POSTGRES_USER: rifa
+      POSTGRES_PASSWORD: rifa
+      POSTGRES_DB: rifa
+    ports:
+      # 5433 e nao 5432: quem ja tem um Postgres instalado nao perde a porta.
+      # Se a 5433 tambem estiver ocupada, mude DB_PORT no .env em vez de
+      # editar este arquivo -- a DATABASE_URL de la usa a mesma variavel.
+      - "${DB_PORT:-5433}:5432"
+    volumes:
+      - rifa-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rifa -d rifa"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  rifa-db:

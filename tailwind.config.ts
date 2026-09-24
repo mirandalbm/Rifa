@@ -5,114 +5,34 @@ export default {
   content: ["./client/index.html", "./client/src/**/*.{js,jsx,ts,tsx}"],
   theme: {
     extend: {
-      borderRadius: {
-        lg: "var(--radius)",
-        md: "calc(var(--radius) - 2px)",
-        sm: "calc(var(--radius) - 4px)",
-      },
       colors: {
-        background: "var(--background)",
-        foreground: "var(--foreground)",
-        card: {
-          DEFAULT: "var(--card)",
-          foreground: "var(--card-foreground)",
+        white: "var(--white)",
+        mist: { DEFAULT: "var(--mist)", 2: "var(--mist-2)" },
+        ink: { DEFAULT: "var(--ink)", 2: "var(--ink-2)" },
+        muted: "var(--muted)",
+        line: { DEFAULT: "var(--line)", 2: "var(--line-2)" },
+        green: {
+          DEFAULT: "var(--green)",
+          deep: "var(--green-deep)",
+          bright: "var(--green-bright)",
+          soft: "var(--green-soft)",
         },
-        popover: {
-          DEFAULT: "var(--popover)",
-          foreground: "var(--popover-foreground)",
+        yellow: {
+          DEFAULT: "var(--yellow)",
+          deep: "var(--yellow-deep)",
+          soft: "var(--yellow-soft)",
         },
-        primary: {
-          DEFAULT: "var(--primary)",
-          foreground: "var(--primary-foreground)",
-        },
-        secondary: {
-          DEFAULT: "var(--secondary)",
-          foreground: "var(--secondary-foreground)",
-        },
-        muted: {
-          DEFAULT: "var(--muted)",
-          foreground: "var(--muted-foreground)",
-        },
-        accent: {
-          DEFAULT: "var(--accent)",
-          foreground: "var(--accent-foreground)",
-        },
-        destructive: {
-          DEFAULT: "var(--destructive)",
-          foreground: "var(--destructive-foreground)",
-        },
-        border: "var(--border)",
-        input: "var(--input)",
-        ring: "var(--ring)",
-        chart: {
-          "1": "var(--chart-1)",
-          "2": "var(--chart-2)",
-          "3": "var(--chart-3)",
-          "4": "var(--chart-4)",
-          "5": "var(--chart-5)",
-        },
-        sidebar: {
-          DEFAULT: "var(--sidebar)",
-          foreground: "var(--sidebar-foreground)",
-          primary: "var(--sidebar-primary)",
-          "primary-foreground": "var(--sidebar-primary-foreground)",
-          accent: "var(--sidebar-accent)",
-          "accent-foreground": "var(--sidebar-accent-foreground)",
-          border: "var(--sidebar-border)",
-          ring: "var(--sidebar-ring)",
-        },
+        red: { DEFAULT: "var(--red)", soft: "var(--red-soft)" },
+        "on-green": "var(--on-green)",
       },
       fontFamily: {
-        sans: ["var(--font-sans)"],
-        serif: ["var(--font-serif)"],
-        mono: ["var(--font-mono)"],
+        display: ['"Bricolage Grotesque"', "ui-sans-serif", "system-ui", "sans-serif"],
+        sans: ['"Instrument Sans"', "ui-sans-serif", "system-ui", "sans-serif"],
+        mono: ['"DM Mono"', "ui-monospace", "monospace"],
       },
-      keyframes: {
-        "accordion-down": {
-          from: {
-            height: "0",
-          },
-          to: {
-            height: "var(--radix-accordion-content-height)",
-          },
-        },
-        "accordion-up": {
-          from: {
-            height: "var(--radix-accordion-content-height)",
-          },
-          to: {
-            height: "0",
-          },
-        },
-        fadeIn: {
-          from: { 
-            opacity: "0", 
-            transform: "translateY(10px)" 
-          },
-          to: { 
-            opacity: "1", 
-            transform: "translateY(0)" 
-          },
-        },
-        pulse: {
-          "0%, 100%": {
-            opacity: "1",
-          },
-          "50%": {
-            opacity: "0.5",
-          },
-        },
-        spin: {
-          from: { transform: "rotate(0deg)" },
-          to: { transform: "rotate(360deg)" },
-        },
-      },
-      animation: {
-        "accordion-down": "accordion-down 0.2s ease-out",
-        "accordion-up": "accordion-up 0.2s ease-out",
-        "fade-in": "fadeIn 0.5s ease-in-out",
-        "pulse": "pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite",
-        "spin": "spin 1s linear infinite",
+      borderRadius: { xl: "14px", lg: "11px", md: "9px", sm: "7px" },
+      boxShadow: {
+        card: "0 1px 2px rgba(11,31,20,.05), 0 12px 28px -18px rgba(11,31,20,.25)",
       },
     },
   },

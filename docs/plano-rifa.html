@@ -1,0 +1,1596 @@
+<title>Rifa em Três Painéis</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Instrument+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap">
+
+<style>
+/* ============================================================
+   Paleta: branco · verde · amarelo — tema claro único e explícito
+   ============================================================ */
+:root{
+  --white:#FFFFFF;
+  --mist:#F4F8F4;
+  --mist-2:#EAF2EB;
+  --ink:#0B1F14;
+  --ink-2:#3C5647;
+  --muted:#6B8475;
+  --line:#E1EBE3;
+  --line-2:#C6DACC;
+
+  --green:#00873E;
+  --green-deep:#046B34;
+  --green-bright:#12B45C;
+  --green-soft:#E6F5EC;
+
+  --yellow:#FFC700;
+  --yellow-deep:#9A6C00;
+  --yellow-soft:#FFF6D6;
+
+  --red:#B3372A;
+  --red-soft:#FBE9E6;
+
+  --shadow-sm:0 1px 2px rgba(11,31,20,.06);
+  --shadow:0 2px 4px rgba(11,31,20,.05),0 12px 28px -14px rgba(11,31,20,.22);
+  --shadow-lg:0 4px 8px rgba(11,31,20,.06),0 28px 60px -26px rgba(11,31,20,.35);
+
+  --f-display:"Bricolage Grotesque","Helvetica Neue",Arial,sans-serif;
+  --f-body:"Instrument Sans","Helvetica Neue",Arial,sans-serif;
+  --f-mono:"DM Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
+
+  --max:76rem;
+  --text:42rem;
+}
+
+*{box-sizing:border-box}
+body{background:var(--white);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.6;-webkit-font-smoothing:antialiased}
+.wrap{max-width:var(--max);margin:0 auto;padding-inline:20px}
+
+h1,h2,h3,h4{font-family:var(--f-display);text-wrap:balance;margin:0;line-height:1.08;letter-spacing:-.02em;color:var(--ink)}
+h1{font-size:clamp(2.5rem,6.8vw,4.4rem);font-weight:800;letter-spacing:-.035em}
+h2{font-size:clamp(1.6rem,3.4vw,2.25rem);font-weight:700}
+h3{font-size:1.1rem;font-weight:700;line-height:1.25}
+h4{font-size:.95rem;font-weight:700}
+p{margin:0}
+.lede{font-size:clamp(1.05rem,2vw,1.26rem);line-height:1.5;color:var(--ink-2);max-width:var(--text)}
+.body{color:var(--ink-2);max-width:var(--text)}
+.eyebrow{font-family:var(--f-mono);font-size:.72rem;letter-spacing:.16em;text-transform:uppercase;color:var(--green-deep);font-weight:500}
+.num{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+a{color:var(--green-deep);text-underline-offset:3px}
+a:focus-visible{outline:2px solid var(--green-bright);outline-offset:3px;border-radius:4px}
+
+section{padding-block:clamp(2.75rem,6vw,4.5rem)}
+.sechead{display:flex;flex-direction:column;gap:.6rem;margin-bottom:2rem}
+.sechead .eyebrow{display:flex;align-items:center;gap:.6rem}
+.sechead .eyebrow::after{content:"";flex:1;height:1px;background:var(--line);min-width:24px}
+.perf{height:3px;width:100%;background-image:repeating-linear-gradient(to right,var(--line-2) 0 7px,transparent 7px 15px)}
+
+/* ---------------- hero ---------------- */
+.hero{padding-block:clamp(2.5rem,6vw,3.75rem) clamp(1.75rem,4vw,2.75rem)}
+.hero-grid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);gap:clamp(1.5rem,4vw,3rem);align-items:center}
+@media (max-width:880px){.hero-grid{grid-template-columns:1fr}}
+.hero h1 em{font-style:normal;color:var(--green);position:relative;white-space:nowrap}
+.hero h1 em::after{content:"";position:absolute;left:0;right:0;bottom:.06em;height:.22em;background:var(--yellow);z-index:-1;border-radius:2px}
+.hero h1{position:relative;z-index:0}
+.meta{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:1.5rem}
+.chip{font-family:var(--f-mono);font-size:.76rem;padding:.32rem .7rem;border:1px solid var(--line-2);border-radius:999px;color:var(--ink-2);background:var(--white)}
+.chip b{color:var(--ink);font-weight:500}
+.chip.g{background:var(--green-soft);border-color:transparent;color:var(--green-deep)}
+.chip.y{background:var(--yellow-soft);border-color:transparent;color:var(--yellow-deep)}
+
+/* ---------------- cartela ---------------- */
+.ticket{background:var(--white);border:1px solid var(--line);border-radius:16px;padding:1.15rem;box-shadow:var(--shadow)}
+.ticket-top{display:flex;justify-content:space-between;align-items:baseline;gap:1rem;margin-bottom:.85rem}
+.ticket-top .t{font-family:var(--f-display);font-weight:700;font-size:.95rem}
+.ticket-top .r{font-family:var(--f-mono);font-size:.76rem;color:var(--muted)}
+.cotas{display:grid;grid-template-columns:repeat(8,1fr);gap:5px}
+.cota{font-family:var(--f-mono);font-variant-numeric:tabular-nums;font-size:.72rem;display:flex;align-items:center;justify-content:center;aspect-ratio:1;border-radius:7px;border:1px solid var(--line-2);color:var(--ink-2);background:var(--white)}
+.cota.sel{border:2px solid var(--green);color:var(--green-deep);background:var(--green-soft);font-weight:500}
+.cota.res{border-style:dashed;border-color:var(--yellow-deep);color:var(--yellow-deep);background:var(--yellow-soft)}
+.cota.pag{background:var(--green);border-color:var(--green);color:var(--white);font-weight:500}
+.cota.prem{background:var(--yellow);border-color:var(--yellow);color:#3B2A00;font-weight:500}
+.legend{display:flex;flex-wrap:wrap;gap:.85rem;margin-top:.9rem;font-size:.74rem;color:var(--muted);font-family:var(--f-mono)}
+.legend i{width:11px;height:11px;border-radius:3px;display:inline-block;vertical-align:-1px;margin-right:.35rem;border:1px solid var(--line-2)}
+.legend .l1 i{background:var(--white)}
+.legend .l2 i{background:var(--yellow-soft);border-color:var(--yellow-deep);border-style:dashed}
+.legend .l3 i{background:var(--green);border-color:var(--green)}
+.legend .l4 i{background:var(--yellow);border-color:var(--yellow)}
+.ticket-foot{display:flex;justify-content:space-between;align-items:center;gap:1rem;margin-top:1rem;padding-top:.85rem;border-top:2px dashed var(--line-2);font-family:var(--f-mono);font-size:.78rem;color:var(--muted)}
+.ticket-foot b{color:var(--ink);font-weight:500;font-size:.95rem}
+
+/* ---------------- mockups: molduras ---------------- */
+.screens{display:flex;flex-direction:column;gap:2.5rem}
+.screen-cap{display:flex;flex-wrap:wrap;align-items:baseline;gap:.6rem;margin-bottom:1rem}
+.screen-cap .who{font-family:var(--f-mono);font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;color:var(--white);background:var(--green);padding:.18rem .5rem;border-radius:4px}
+.screen-cap .who.aff{background:var(--yellow);color:#3B2A00}
+.screen-cap .who.adm{background:var(--ink);color:var(--white)}
+.screen-cap .d{font-size:.88rem;color:var(--muted)}
+
+.phones{display:flex;gap:1.5rem;flex-wrap:wrap;justify-content:center;align-items:flex-start}
+.phone{width:300px;max-width:100%;border:9px solid var(--ink);border-radius:34px;background:var(--white);box-shadow:var(--shadow-lg);overflow:hidden;flex:0 0 auto}
+.phone .notch{height:22px;background:var(--ink);border-radius:0 0 12px 12px;width:110px;margin:0 auto}
+.pscreen{padding:0 0 0;font-size:12px;line-height:1.45}
+
+.browser{border:1px solid var(--line-2);border-radius:14px;overflow:hidden;box-shadow:var(--shadow-lg);background:var(--white)}
+.bbar{display:flex;align-items:center;gap:.5rem;padding:.55rem .8rem;background:var(--mist);border-bottom:1px solid var(--line)}
+.bdots{display:flex;gap:5px}
+.bdots i{width:9px;height:9px;border-radius:50%;background:var(--line-2);display:block}
+.burl{font-family:var(--f-mono);font-size:.7rem;color:var(--muted);background:var(--white);border:1px solid var(--line);border-radius:6px;padding:.15rem .55rem;flex:1;max-width:22rem}
+.bscroll{overflow-x:auto}
+.bscroll>.app{min-width:720px}
+
+/* ---------------- mockup: peças comuns ---------------- */
+.app{font-size:12.5px;line-height:1.45;color:var(--ink)}
+.mrow{display:flex;align-items:center;justify-content:space-between;gap:.6rem}
+.mlabel{font-family:var(--f-mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.mbtn{display:inline-flex;align-items:center;justify-content:center;gap:.35rem;background:var(--green);color:var(--white);font-weight:600;font-size:12.5px;border-radius:9px;padding:.6rem .9rem;text-align:center}
+.mbtn.y{background:var(--yellow);color:#3B2A00}
+.mbtn.ghost{background:var(--white);color:var(--green-deep);border:1.5px solid var(--green);font-weight:600}
+.mbtn.sm{padding:.35rem .6rem;font-size:11px;border-radius:7px}
+.pill{font-family:var(--f-mono);font-size:10px;padding:.16rem .45rem;border-radius:999px;white-space:nowrap;display:inline-flex;align-items:center;gap:.25rem}
+.pill::before{content:"";width:5px;height:5px;border-radius:50%;background:currentColor}
+.pill.ok{background:var(--green-soft);color:var(--green-deep)}
+.pill.wait{background:var(--yellow-soft);color:var(--yellow-deep)}
+.pill.bad{background:var(--red-soft);color:var(--red)}
+.pill.neutral{background:var(--mist-2);color:var(--muted)}
+.bar{height:7px;border-radius:999px;background:var(--mist-2);overflow:hidden}
+.bar>span{display:block;height:100%;background:var(--green);border-radius:999px}
+.bar.y>span{background:var(--yellow)}
+
+/* ---------------- mockup 1: campanha ---------------- */
+.appbar{display:flex;align-items:center;justify-content:space-between;padding:.7rem .85rem;border-bottom:1px solid var(--line)}
+.logo{font-family:var(--f-display);font-weight:800;font-size:14px;letter-spacing:-.02em}
+.logo span{color:var(--green)}
+.poster{background:linear-gradient(150deg,#0B1F14 0%,#0d3a22 55%,#00873E 100%);color:var(--white);padding:1.1rem .9rem 1rem;position:relative;overflow:hidden}
+.poster::after{content:"";position:absolute;right:-40px;top:-40px;width:150px;height:150px;border-radius:50%;background:rgba(255,199,0,.18)}
+.poster .k{font-family:var(--f-mono);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--yellow)}
+.poster .p{font-family:var(--f-display);font-weight:800;font-size:21px;line-height:1.05;letter-spacing:-.02em;margin-top:.3rem}
+.poster .s{font-size:11.5px;color:rgba(255,255,255,.82);margin-top:.35rem}
+.pbody{padding:.85rem}
+.priceline{display:flex;align-items:baseline;gap:.4rem;margin-bottom:.7rem}
+.priceline b{font-family:var(--f-mono);font-size:20px;font-weight:500;color:var(--green-deep)}
+.priceline span{font-size:11px;color:var(--muted)}
+.packs{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:.7rem 0}
+.pack{border:1px solid var(--line-2);border-radius:9px;padding:.45rem .2rem;text-align:center;background:var(--white)}
+.pack b{display:block;font-family:var(--f-mono);font-size:13px;color:var(--ink)}
+.pack small{font-size:9px;color:var(--muted)}
+.pack.hot{border-color:var(--yellow);background:var(--yellow-soft)}
+.pack.hot small{color:var(--yellow-deep)}
+.minigrid{display:grid;grid-template-columns:repeat(6,1fr);gap:4px;margin-top:.5rem}
+.minigrid .cota{font-size:9.5px;border-radius:5px}
+.stickybar{border-top:1px solid var(--line);background:var(--mist);padding:.65rem .85rem;display:flex;align-items:center;justify-content:space-between;gap:.6rem}
+.stickybar .tot{font-family:var(--f-mono);font-size:15px;color:var(--ink)}
+.stickybar .tot small{display:block;font-size:9.5px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase}
+
+/* ---------------- mockup 2: checkout ---------------- */
+.timer{display:flex;align-items:center;justify-content:center;gap:.4rem;background:var(--yellow-soft);color:var(--yellow-deep);font-family:var(--f-mono);font-size:11.5px;padding:.45rem;border-bottom:1px solid var(--line)}
+.qrbox{display:flex;flex-direction:column;align-items:center;gap:.6rem;padding:1rem .85rem .4rem}
+#qr{width:150px;height:150px;background:var(--white);border:1px solid var(--line);border-radius:10px;padding:8px}
+.copyfield{display:flex;align-items:center;gap:.4rem;border:1px solid var(--line-2);border-radius:9px;padding:.4rem .5rem;font-family:var(--f-mono);font-size:10px;color:var(--muted);width:100%}
+.copyfield span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+.steps{padding:.3rem .85rem .85rem;display:flex;flex-direction:column;gap:.45rem}
+.stepline{display:flex;gap:.5rem;align-items:flex-start;font-size:11.5px;color:var(--ink-2)}
+.stepline i{flex:0 0 auto;width:15px;height:15px;border-radius:50%;background:var(--green-soft);color:var(--green-deep);font-family:var(--f-mono);font-size:9px;display:flex;align-items:center;justify-content:center;font-style:normal;margin-top:1px}
+.orderbox{margin:0 .85rem .85rem;border:1px solid var(--line);border-radius:10px;padding:.6rem .7rem;background:var(--mist);display:flex;flex-direction:column;gap:.35rem;font-size:11.5px}
+.orderbox .l{display:flex;justify-content:space-between;color:var(--ink-2)}
+.orderbox .l b{font-family:var(--f-mono);font-weight:500;color:var(--ink)}
+.orderbox .l.disc b{color:var(--green-deep)}
+
+/* ---------------- mockup 3 e 4: painéis ---------------- */
+.shell{display:grid;grid-template-columns:180px 1fr}
+.side{background:var(--mist);border-right:1px solid var(--line);padding:.9rem .7rem;display:flex;flex-direction:column;gap:.15rem}
+.side .logo{padding:.2rem .45rem .8rem}
+.side a,.side .it{display:flex;align-items:center;gap:.45rem;padding:.42rem .5rem;border-radius:7px;color:var(--ink-2);font-size:12px;text-decoration:none}
+.side .it.on{background:var(--green);color:var(--white);font-weight:600}
+.side .it i{width:6px;height:6px;border-radius:2px;background:currentColor;opacity:.55}
+.side .foot{margin-top:auto;padding:.5rem;font-family:var(--f-mono);font-size:9.5px;color:var(--muted)}
+.main{padding:1rem 1.1rem 1.2rem;display:flex;flex-direction:column;gap:.9rem;background:var(--white)}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:.6rem}
+.kpi{border:1px solid var(--line);border-radius:11px;padding:.65rem .75rem;background:var(--white)}
+.kpi .v{font-family:var(--f-mono);font-variant-numeric:tabular-nums;font-size:20px;color:var(--ink);line-height:1.15;margin-top:.15rem}
+.kpi .d{font-size:10px;color:var(--green-deep);margin-top:.15rem}
+.kpi .d.flat{color:var(--muted)}
+.kpi.hl{background:var(--green-soft);border-color:transparent}
+.kpi.hl .v{color:var(--green-deep)}
+.card{border:1px solid var(--line);border-radius:11px;background:var(--white);overflow:hidden}
+.card>header{padding:.6rem .75rem;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:.5rem}
+.card>header h4{font-size:12.5px}
+.mtable{width:100%;border-collapse:collapse;font-size:11.5px}
+.mtable th{font-family:var(--f-mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:500;text-align:left;padding:.45rem .75rem;background:var(--mist);border-bottom:1px solid var(--line)}
+.mtable td{padding:.5rem .75rem;border-bottom:1px solid var(--line);color:var(--ink-2);vertical-align:middle}
+.mtable tr:last-child td{border-bottom:none}
+.mtable td.n{font-family:var(--f-mono);font-variant-numeric:tabular-nums;color:var(--ink)}
+.mtable td.name{color:var(--ink);font-weight:500}
+.two{display:grid;grid-template-columns:1.45fr 1fr;gap:.8rem}
+.linkbox{display:flex;align-items:center;gap:.5rem;border:1.5px dashed var(--green);background:var(--green-soft);border-radius:10px;padding:.55rem .65rem}
+.linkbox .u{font-family:var(--f-mono);font-size:11px;color:var(--green-deep);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rank{display:flex;flex-direction:column}
+.rank .r{display:flex;align-items:center;gap:.55rem;padding:.45rem .75rem;border-bottom:1px solid var(--line);font-size:11.5px}
+.rank .r:last-child{border-bottom:none}
+.rank .pos{font-family:var(--f-mono);font-size:10px;width:18px;height:18px;border-radius:5px;background:var(--mist-2);color:var(--muted);display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+.rank .r:first-child .pos{background:var(--yellow);color:#3B2A00}
+.rank .nm{flex:1;color:var(--ink)}
+.rank .vl{font-family:var(--f-mono);font-variant-numeric:tabular-nums;color:var(--ink-2)}
+.chartwrap{padding:.7rem .75rem .5rem}
+.chartwrap svg{width:100%;height:auto;display:block}
+
+/* ---------------- vitrine e mídia ---------------- */
+.vlist{display:flex;flex-direction:column;gap:.6rem;padding:.75rem}
+.vcard{border:1px solid var(--line);border-radius:11px;overflow:hidden;background:var(--white)}
+.vbanner{height:74px;position:relative;display:flex;align-items:flex-end;padding:.45rem .55rem;color:var(--white)}
+.vbanner .bt{font-family:var(--f-display);font-weight:800;font-size:13px;line-height:1.05;letter-spacing:-.02em;text-shadow:0 1px 6px rgba(0,0,0,.35)}
+.vbadge{position:absolute;top:.4rem;right:.45rem;font-family:var(--f-mono);font-size:8.5px;padding:.12rem .35rem;border-radius:4px;background:var(--yellow);color:#3B2A00}
+.vbadge.g{background:var(--white);color:var(--green-deep)}
+.vmeta{padding:.5rem .55rem .55rem;display:flex;flex-direction:column;gap:.35rem}
+.vmeta .l{display:flex;justify-content:space-between;align-items:baseline;font-size:10.5px;color:var(--muted);font-family:var(--f-mono)}
+.vmeta .l b{color:var(--green-deep);font-size:12px;font-weight:500}
+
+.videocard{position:relative;border-radius:10px;overflow:hidden;background:linear-gradient(145deg,#0B1F14,#0d3a22);height:112px;display:flex;align-items:center;justify-content:center}
+.videocard .play{width:38px;height:38px;border-radius:50%;background:var(--white);display:flex;align-items:center;justify-content:center;color:var(--green-deep);font-size:13px;padding-left:3px;box-shadow:0 2px 10px rgba(0,0,0,.3)}
+.videocard .dur{position:absolute;right:.4rem;bottom:.4rem;font-family:var(--f-mono);font-size:9px;background:rgba(11,31,20,.8);color:var(--white);padding:.1rem .3rem;border-radius:4px}
+.videocard .cap{position:absolute;left:.45rem;bottom:.4rem;font-family:var(--f-mono);font-size:9px;color:rgba(255,255,255,.85)}
+.thumbs{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;margin-top:5px}
+.thumbs .th{aspect-ratio:1.35;border-radius:6px;border:1px solid var(--line-2);display:flex;align-items:center;justify-content:center;font-family:var(--f-mono);font-size:8.5px;color:var(--muted)}
+.thumbs .th.on{border:2px solid var(--green)}
+
+.slots{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.slot{aspect-ratio:1;border-radius:8px;border:1px solid var(--line-2);display:flex;align-items:center;justify-content:center;font-family:var(--f-mono);font-size:9px;color:var(--muted);text-align:center;padding:.2rem}
+.slot.filled{border-color:transparent;color:var(--white)}
+.slot.empty{border-style:dashed;color:var(--green-deep);font-size:15px}
+.bannerslot{height:64px;border-radius:9px;display:flex;align-items:flex-end;padding:.4rem .5rem;color:var(--white);font-family:var(--f-mono);font-size:9.5px}
+.filecheck{display:flex;align-items:center;gap:.45rem;border:1px solid var(--line);border-radius:8px;padding:.45rem .55rem;font-size:11px;background:var(--white)}
+.filecheck .nm{font-family:var(--f-mono);font-size:10.5px;color:var(--ink);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.filecheck.bad{background:var(--red-soft);border-color:transparent}
+.filecheck.bad .nm{color:var(--red)}
+.medspec{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1rem;margin-top:1.25rem}
+@media (max-width:900px){.medspec{grid-template-columns:1fr}}
+
+/* ---------------- escala: 1M ---------------- */
+.searchfield{display:flex;align-items:center;gap:.45rem;border:1px solid var(--line-2);border-radius:9px;padding:.45rem .6rem;font-size:11.5px;color:var(--muted);background:var(--white)}
+.searchfield b{color:var(--ink);font-family:var(--f-mono);font-weight:500}
+.heat{display:flex;gap:1.5px;height:26px;border-radius:5px;overflow:hidden;margin-top:.35rem}
+.heat span{flex:1;display:block}
+.heat span.cur{outline:2px solid var(--ink);outline-offset:-2px;border-radius:2px}
+.heatkey{display:flex;align-items:center;gap:.35rem;margin-top:.3rem;font-family:var(--f-mono);font-size:9px;color:var(--muted)}
+.heatkey i{width:14px;height:8px;display:block;border-radius:2px}
+.blocknav{display:flex;align-items:center;justify-content:space-between;gap:.4rem;margin-top:.7rem}
+.blocknav .bn{font-family:var(--f-mono);font-size:11px;color:var(--ink)}
+.blocknav .arrows{display:flex;gap:4px}
+.blocknav .arrows span{width:22px;height:22px;border:1px solid var(--line-2);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--ink-2)}
+.field{display:flex;flex-direction:column;gap:.3rem}
+.field .inp{border:1.5px solid var(--green);border-radius:9px;padding:.5rem .65rem;font-family:var(--f-mono);font-size:17px;color:var(--ink);background:var(--white);display:flex;justify-content:space-between;align-items:baseline}
+.field .inp small{font-size:10px;color:var(--muted);font-family:var(--f-body)}
+.field .hint{font-size:10.5px;color:var(--muted)}
+.presets{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}
+.presets span{border:1px solid var(--line-2);border-radius:7px;padding:.32rem 0;text-align:center;font-family:var(--f-mono);font-size:10.5px;color:var(--ink-2)}
+.presets span.on{background:var(--green);border-color:var(--green);color:var(--white)}
+.warnbox{display:flex;gap:.5rem;align-items:flex-start;background:var(--yellow-soft);border-radius:9px;padding:.55rem .65rem;font-size:11px;color:var(--yellow-deep)}
+.warnbox b{color:#6B4B00}
+.mech{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1rem;margin-top:1.5rem}
+@media (max-width:900px){.mech{grid-template-columns:1fr}}
+.mechcard{border:1px solid var(--line);border-radius:14px;padding:1.15rem;background:var(--white);display:flex;flex-direction:column;gap:.5rem}
+.mechcard .n{font-family:var(--f-mono);font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;color:var(--green-deep)}
+.mechcard p{font-size:.88rem;color:var(--ink-2)}
+.mechcard code{font-family:var(--f-mono);font-size:.78rem;background:var(--mist-2);padding:.12rem .32rem;border-radius:4px;color:var(--ink);display:inline-block}
+.scale-two{display:grid;grid-template-columns:minmax(0,300px) minmax(0,1fr);gap:1.5rem;align-items:start}
+@media (max-width:820px){.scale-two{grid-template-columns:1fr;justify-items:center}}
+
+/* ---------------- UI kit ---------------- */
+.kit{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1rem}
+@media (max-width:900px){.kit{grid-template-columns:1fr}}
+.kitcard{border:1px solid var(--line);border-radius:14px;padding:1.1rem;background:var(--white);display:flex;flex-direction:column;gap:.85rem}
+.kitcard h4{font-size:.9rem}
+.kitrow{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center}
+.swatches{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:.6rem}
+@media (max-width:760px){.swatches{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.sw{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--white)}
+.sw .box{height:56px}
+.sw .lab{padding:.45rem .55rem;font-family:var(--f-mono);font-size:.68rem;line-height:1.35;color:var(--muted)}
+.sw .lab b{display:block;color:var(--ink);font-weight:500}
+.typescale{display:flex;flex-direction:column;gap:.9rem;margin-top:1.2rem}
+.ts{display:grid;grid-template-columns:8.5rem 1fr;gap:1rem;align-items:baseline;border-bottom:1px solid var(--line);padding-bottom:.8rem}
+@media (max-width:660px){.ts{grid-template-columns:1fr;gap:.2rem}}
+.ts .n{font-family:var(--f-mono);font-size:.72rem;color:var(--muted)}
+.ts .d1{font-family:var(--f-display);font-weight:800;font-size:2.2rem;letter-spacing:-.03em;line-height:1.05}
+.ts .d2{font-family:var(--f-display);font-weight:700;font-size:1.3rem}
+.ts .b1{font-family:var(--f-body);font-size:1rem;color:var(--ink-2)}
+.ts .m1{font-family:var(--f-mono);font-size:1.6rem;font-variant-numeric:tabular-nums}
+
+/* ---------------- conteúdo do plano ---------------- */
+.grid-3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1rem}
+.grid-2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}
+@media (max-width:900px){.grid-3,.grid-2{grid-template-columns:1fr}}
+.panel{background:var(--white);border:1px solid var(--line);border-radius:14px;padding:1.35rem;display:flex;flex-direction:column;gap:.85rem}
+.panel.tint{background:var(--mist);border-color:transparent}
+.panel .role{font-family:var(--f-mono);font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.panel .who{font-size:.9rem;color:var(--muted);margin-top:-.5rem}
+.panel ul{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:.5rem}
+.panel li{position:relative;padding-left:1.1rem;font-size:.92rem;color:var(--ink-2);line-height:1.45}
+.panel li::before{content:"";position:absolute;left:0;top:.55em;width:5px;height:5px;border-radius:1px;background:var(--green)}
+.panel.y li::before{background:var(--yellow)}
+.panel .auth{margin-top:auto;padding-top:.85rem;border-top:1px solid var(--line);font-family:var(--f-mono);font-size:.75rem;color:var(--muted)}
+
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:14px;background:var(--white)}
+table.doc{border-collapse:collapse;width:100%;min-width:540px;font-size:.9rem}
+table.doc th,table.doc td{text-align:left;padding:.72rem .9rem;border-bottom:1px solid var(--line);vertical-align:top}
+table.doc thead th{font-family:var(--f-mono);font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:500;background:var(--mist);border-bottom:1px solid var(--line-2)}
+table.doc tbody tr:last-child td{border-bottom:none}
+table.doc td.k{font-weight:600;color:var(--ink);white-space:nowrap}
+table.doc td.alt{color:var(--muted)}
+.tag{font-family:var(--f-mono);font-size:.68rem;padding:.15rem .45rem;border-radius:4px;white-space:nowrap;background:var(--green-soft);color:var(--green-deep)}
+.tag.v1{background:var(--yellow-soft);color:var(--yellow-deep)}
+.tag.v2{background:var(--mist-2);color:var(--muted)}
+
+.sources{display:flex;flex-wrap:wrap;gap:.4rem;margin-bottom:1.5rem}
+.src{font-family:var(--f-mono);font-size:.74rem;color:var(--ink-2);background:var(--white);border:1px solid var(--line-2);border-radius:6px;padding:.28rem .55rem}
+
+.flow{display:flex;flex-direction:column}
+.step{display:grid;grid-template-columns:3.2rem 1fr;gap:1rem;padding-block:1rem;border-bottom:1px solid var(--line)}
+.step:last-child{border-bottom:none}
+.step .s{font-family:var(--f-mono);font-size:.78rem;color:var(--green-deep);border:1px solid var(--line-2);border-radius:6px;height:2rem;display:flex;align-items:center;justify-content:center;background:var(--white)}
+.step h4{margin-bottom:.2rem}
+.step p{font-size:.9rem;color:var(--ink-2)}
+.step code{font-family:var(--f-mono);font-size:.82rem;background:var(--mist-2);padding:.1rem .3rem;border-radius:4px;color:var(--ink)}
+
+.rules{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+@media (max-width:760px){.rules{grid-template-columns:1fr}}
+.rule{background:var(--white);padding:1.15rem;display:flex;flex-direction:column;gap:.4rem}
+.rule .t{font-family:var(--f-display);font-weight:700;font-size:1rem}
+.rule p{font-size:.88rem;color:var(--ink-2)}
+.rule .why{font-family:var(--f-mono);font-size:.73rem;color:var(--muted)}
+
+.phases{display:flex;flex-direction:column;gap:.75rem}
+.phase{display:grid;grid-template-columns:7rem 1fr 8.5rem;gap:1.2rem;align-items:start;background:var(--white);border:1px solid var(--line);border-radius:12px;padding:1.1rem 1.25rem}
+@media (max-width:820px){.phase{grid-template-columns:1fr;gap:.55rem}.phase .dur{text-align:left}}
+.phase .ph{font-family:var(--f-mono);font-size:.78rem;color:var(--green-deep)}
+.phase .dur{font-family:var(--f-mono);font-size:.78rem;color:var(--muted);text-align:right}
+.phase h4{margin-bottom:.25rem}
+.phase p{font-size:.89rem;color:var(--ink-2)}
+.phase .dod{margin-top:.5rem;font-size:.83rem;color:var(--muted);border-left:2px solid var(--yellow);padding-left:.7rem}
+
+.callout{border:1px solid var(--line-2);border-left:4px solid var(--yellow);background:var(--white);border-radius:0 12px 12px 0;padding:1.1rem 1.25rem;display:flex;flex-direction:column;gap:.45rem;margin-top:1.25rem}
+.callout .t{font-family:var(--f-display);font-weight:700;font-size:1rem}
+.callout p{font-size:.9rem;color:var(--ink-2)}
+
+footer{padding-block:2.5rem 3.5rem;color:var(--muted);font-size:.83rem;border-top:1px solid var(--line)}
+footer p{max-width:var(--text)}
+footer .fl{font-family:var(--f-mono);font-size:.73rem;margin-top:.9rem;line-height:1.9}
+
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+<div class="wrap">
+
+  <header class="hero">
+    <div class="hero-grid">
+      <div>
+        <p class="eyebrow">Plano de construção · setembro 2026</p>
+        <h1>Rifa em <em>três painéis</em>.</h1>
+        <p class="lede" style="margin-top:1.1rem">
+          Uma plataforma onde o comprador paga por Pix em segundos, o afiliado vê cada venda que
+          gerou, e o administrador conduz a campanha do primeiro número ao sorteio — com dinheiro
+          conferido e auditoria de ponta a ponta.
+        </p>
+        <div class="meta">
+          <span class="chip g"><b>3</b> superfícies</span>
+          <span class="chip y">multi-rifas</span>
+          <span class="chip"><b>1.000.000</b> de cotas por campanha</span>
+          <span class="chip y"><b>4</b> fases · 10 semanas</span>
+          <span class="chip"><b>9</b> plataformas analisadas</span>
+          <span class="chip">React + Express + Postgres</span>
+        </div>
+      </div>
+
+      <div class="ticket" aria-label="Exemplo da grade de cotas">
+        <div class="ticket-top">
+          <span class="t">iPhone 17 Pro · 1.000 cotas</span>
+          <span class="r">bloco 001–040</span>
+        </div>
+        <div class="cotas">
+          <span class="cota pag">001</span><span class="cota pag">002</span><span class="cota">003</span>
+          <span class="cota pag">004</span><span class="cota res">005</span><span class="cota">006</span>
+          <span class="cota pag">007</span><span class="cota">008</span>
+          <span class="cota">009</span><span class="cota pag">010</span><span class="cota prem">011</span>
+          <span class="cota">012</span><span class="cota pag">013</span><span class="cota res">014</span>
+          <span class="cota">015</span><span class="cota pag">016</span>
+          <span class="cota pag">017</span><span class="cota sel">018</span><span class="cota sel">019</span>
+          <span class="cota pag">020</span><span class="cota">021</span><span class="cota pag">022</span>
+          <span class="cota res">023</span><span class="cota">024</span>
+          <span class="cota">025</span><span class="cota pag">026</span><span class="cota">027</span>
+          <span class="cota pag">028</span><span class="cota prem">029</span><span class="cota">030</span>
+          <span class="cota pag">031</span><span class="cota">032</span>
+          <span class="cota pag">033</span><span class="cota">034</span><span class="cota res">035</span>
+          <span class="cota">036</span><span class="cota pag">037</span><span class="cota">038</span>
+          <span class="cota">039</span><span class="cota pag">040</span>
+        </div>
+        <div class="legend">
+          <span class="l1"><i></i>livre</span>
+          <span class="l2"><i></i>reservada</span>
+          <span class="l3"><i></i>paga</span>
+          <span class="l4"><i></i>premiada</span>
+        </div>
+        <div class="ticket-foot">
+          <span>cota <b>R$ 4,90</b></span>
+          <span>reserva expira em <b class="num">14:52</b></span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="perf" role="presentation"></div>
+
+  <!-- ==================== TELAS ==================== -->
+  <section>
+    <div class="sechead">
+      <p class="eyebrow">Design · telas</p>
+      <h2>Como cada painel se parece</h2>
+      <p class="body">
+        Telas em alta fidelidade, na paleta branco · verde · amarelo. Tudo aqui é HTML e CSS reais —
+        cada componente vira um componente de verdade na Fase 0.
+      </p>
+    </div>
+
+    <div class="screens">
+
+      <!-- ---- 1 e 2: comprador ---- -->
+      <div>
+        <div class="screen-cap">
+          <span class="who">Comprador</span>
+          <h3>Vitrine, rifa e pagamento</h3>
+          <span class="d">— três telas, tudo dentro do celular</span>
+        </div>
+
+        <div class="phones">
+          <!-- tela 0: vitrine multi-rifas -->
+          <div class="phone">
+            <div class="notch"></div>
+            <div class="pscreen app">
+              <div class="appbar">
+                <span class="logo">rifa<span>.</span>br</span>
+                <span class="pill neutral">minhas cotas</span>
+              </div>
+
+              <div style="padding:.7rem .75rem .2rem">
+                <h4 style="font-size:15px">3 rifas no ar</h4>
+                <p style="font-size:10.5px;color:var(--muted);margin-top:.15rem">Escolha uma e garanta seus números.</p>
+              </div>
+
+              <div class="vlist">
+                <div class="vcard">
+                  <div class="vbanner" style="background:linear-gradient(145deg,#0B1F14,#0d3a22 60%,#00873E)">
+                    <span class="vbadge g">68% vendida</span>
+                    <span class="bt">iPhone 17 Pro Max<br>256 GB · Titânio</span>
+                  </div>
+                  <div class="vmeta">
+                    <div class="l"><span>cota <b>R$ 4,90</b></span><span>sorteio 28/09</span></div>
+                    <div class="bar"><span style="width:68%"></span></div>
+                  </div>
+                </div>
+
+                <div class="vcard">
+                  <div class="vbanner" style="background:linear-gradient(145deg,#123D24,#1d6b3c 55%,#12B45C)">
+                    <span class="vbadge g">41% vendida</span>
+                    <span class="bt">Fiat Mobi 2026<br>0 km, emplacado</span>
+                  </div>
+                  <div class="vmeta">
+                    <div class="l"><span>cota <b>R$ 9,90</b></span><span>sorteio 05/10</span></div>
+                    <div class="bar"><span style="width:41%"></span></div>
+                  </div>
+                </div>
+
+                <div class="vcard">
+                  <div class="vbanner" style="background:linear-gradient(145deg,#6B4B00,#B58100 55%,#FFC700)">
+                    <span class="vbadge">reta final</span>
+                    <span class="bt">PIX de R$ 10.000<br>na sua conta</span>
+                  </div>
+                  <div class="vmeta">
+                    <div class="l"><span>cota <b>R$ 1,20</b></span><span>sorteio 21/09</span></div>
+                    <div class="bar y"><span style="width:89%"></span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- tela 1 -->
+          <div class="phone">
+            <div class="notch"></div>
+            <div class="pscreen app">
+              <div class="appbar">
+                <span class="logo">rifa<span>.</span>br</span>
+                <span class="pill neutral">minhas cotas</span>
+              </div>
+
+              <div class="poster">
+                <p class="k">Sorteio 28 · set · Loteria Federal</p>
+                <p class="p">iPhone 17 Pro Max<br>256 GB · Titânio</p>
+                <p class="s">+ R$ 5.000 no Pix para o segundo colocado</p>
+              </div>
+
+              <div style="padding:.6rem .85rem 0">
+                <div class="videocard">
+                  <span class="play">▶</span>
+                  <span class="cap">vídeo do prêmio</span>
+                  <span class="dur">0:48</span>
+                </div>
+                <div class="thumbs">
+                  <span class="th on">1</span><span class="th">2</span><span class="th">3</span>
+                  <span class="th">4</span><span class="th">5</span>
+                </div>
+              </div>
+
+              <div class="pbody">
+                <div class="priceline">
+                  <b>R$ 4,90</b><span>por cota · mínimo 3</span>
+                </div>
+
+                <div class="mrow" style="margin-bottom:.3rem">
+                  <span class="mlabel">683 de 1.000 vendidas</span>
+                  <span class="mlabel" style="color:var(--green-deep)">68%</span>
+                </div>
+                <div class="bar"><span style="width:68%"></span></div>
+
+                <div class="packs">
+                  <div class="pack"><b>+5</b><small>R$ 24,50</small></div>
+                  <div class="pack hot"><b>+10</b><small>−5%</small></div>
+                  <div class="pack"><b>+25</b><small>−8%</small></div>
+                  <div class="pack"><b>+50</b><small>−12%</small></div>
+                </div>
+
+                <div class="mrow">
+                  <span class="mlabel">escolher no mapa</span>
+                  <span class="mlabel">bloco 001–018</span>
+                </div>
+                <div class="minigrid">
+                  <span class="cota pag">001</span><span class="cota">002</span><span class="cota pag">003</span>
+                  <span class="cota res">004</span><span class="cota">005</span><span class="cota pag">006</span>
+                  <span class="cota">007</span><span class="cota prem">008</span><span class="cota pag">009</span>
+                  <span class="cota sel">010</span><span class="cota sel">011</span><span class="cota">012</span>
+                  <span class="cota pag">013</span><span class="cota">014</span><span class="cota res">015</span>
+                  <span class="cota sel">016</span><span class="cota pag">017</span><span class="cota">018</span>
+                </div>
+              </div>
+
+              <div class="stickybar">
+                <span class="tot"><small>3 cotas</small>R$ 14,70</span>
+                <span class="mbtn" style="flex:1">Pagar com Pix</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- tela 2 -->
+          <div class="phone">
+            <div class="notch"></div>
+            <div class="pscreen app">
+              <div class="appbar">
+                <span class="logo">rifa<span>.</span>br</span>
+                <span class="mlabel">pedido #48 219</span>
+              </div>
+
+              <div class="timer">⏱ reserva garantida por <b class="num" style="font-weight:500">14:52</b></div>
+
+              <div class="qrbox">
+                <svg id="qr" viewBox="0 0 25 25" role="img" aria-label="Código QR do Pix (exemplo)"></svg>
+                <div class="copyfield">
+                  <span>00020126580014br.gov.bcb.pix0136f7a2…5204000053039865802BR</span>
+                  <span class="mbtn sm ghost">copiar</span>
+                </div>
+              </div>
+
+              <div class="steps">
+                <div class="stepline"><i>1</i><span>Abra o app do banco e escolha <b>Pix Copia e Cola</b>.</span></div>
+                <div class="stepline"><i>2</i><span>Cole o código e confirme os <b>R$ 14,70</b>.</span></div>
+                <div class="stepline"><i>3</i><span>A confirmação chega no seu WhatsApp em segundos.</span></div>
+              </div>
+
+              <div class="orderbox">
+                <div class="l"><span>Cotas 010, 011, 016</span><b>R$ 14,70</b></div>
+                <div class="l disc"><span>Cupom JOAO7</span><b>− R$ 1,47</b></div>
+                <div class="l"><span>Total</span><b>R$ 13,23</b></div>
+              </div>
+
+              <div class="stickybar">
+                <span class="pill wait">aguardando pagamento</span>
+                <span class="mbtn ghost sm">já paguei</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ---- mídia da campanha ---- -->
+      <div>
+        <div class="screen-cap">
+          <span class="who adm">Administrador</span>
+          <h3>Mídia da campanha</h3>
+          <span class="d">— banner, 5 fotos e um vídeo de até 60 segundos</span>
+        </div>
+
+        <div class="grid-2">
+          <div class="card">
+            <header><h4>Mídia · iPhone 17 Pro Max</h4><span class="pill wait">1 pendência</span></header>
+            <div class="app" style="padding:.9rem;display:flex;flex-direction:column;gap:.85rem">
+              <div class="field">
+                <span class="mlabel">Banner · obrigatório · 1600 × 900</span>
+                <div class="bannerslot" style="background:linear-gradient(145deg,#0B1F14,#0d3a22 60%,#00873E)">banner-iphone.webp · 1600×900 · 184 KB</div>
+              </div>
+
+              <div class="field">
+                <span class="mlabel">Fotos do prêmio · 4 de 5</span>
+                <div class="slots">
+                  <span class="slot filled" style="background:linear-gradient(140deg,#123D24,#1d6b3c)">01</span>
+                  <span class="slot filled" style="background:linear-gradient(140deg,#0d3a22,#00873E)">02</span>
+                  <span class="slot filled" style="background:linear-gradient(140deg,#1d6b3c,#12B45C)">03</span>
+                  <span class="slot filled" style="background:linear-gradient(140deg,#0B1F14,#123D24)">04</span>
+                  <span class="slot empty">+</span>
+                </div>
+                <span class="hint">Texto alternativo obrigatório em cada foto — acessibilidade e busca.</span>
+              </div>
+
+              <div class="field">
+                <span class="mlabel">Vídeo do prêmio · máximo 60 s</span>
+                <div class="filecheck">
+                  <span class="pill ok" style="padding-right:.35rem"></span>
+                  <span class="nm">premio-iphone.mp4</span>
+                  <span class="mlabel">0:48 · 720p</span>
+                </div>
+                <div class="filecheck bad">
+                  <span class="pill bad" style="padding-right:.35rem"></span>
+                  <span class="nm">tour-completo.mov</span>
+                  <span class="mlabel" style="color:var(--red)">1:22 · recusado</span>
+                </div>
+                <span class="hint">A duração é medida no servidor com ffprobe. O que o navegador informa não vale.</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel tint" style="gap:1rem">
+            <h3>Limites de mídia</h3>
+            <div class="tablewrap" style="border-color:var(--line)">
+              <table class="doc" style="min-width:0">
+                <thead><tr><th>Peça</th><th>Qtd.</th><th>Limites</th></tr></thead>
+                <tbody>
+                  <tr><td class="k">Banner</td><td class="num">1</td><td class="alt">16:9, mín. 1200 px, 8 MB</td></tr>
+                  <tr><td class="k">Fotos</td><td class="num">1–5</td><td class="alt">mín. 1080 px, 8 MB cada</td></tr>
+                  <tr><td class="k">Vídeo</td><td class="num">0–1</td><td class="alt">máx. <b>60 s</b>, 300 MB</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <ul style="margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:.5rem">
+              <li style="position:relative;padding-left:1.1rem;font-size:.9rem;color:var(--ink-2)"><span style="position:absolute;left:0;top:.55em;width:5px;height:5px;background:var(--green);border-radius:1px"></span>O vídeo <b>nunca</b> toca sozinho: carrega o pôster, monta o player só no toque.</li>
+              <li style="position:relative;padding-left:1.1rem;font-size:.9rem;color:var(--ink-2)"><span style="position:absolute;left:0;top:.55em;width:5px;height:5px;background:var(--green);border-radius:1px"></span>Upload direto para o R2 por URL assinada — o arquivo não passa pela API.</li>
+              <li style="position:relative;padding-left:1.1rem;font-size:.9rem;color:var(--ink-2)"><span style="position:absolute;left:0;top:.55em;width:5px;height:5px;background:var(--green);border-radius:1px"></span>Imagem vira AVIF e WebP em 400/800/1600, com blur de 20 px enquanto carrega.</li>
+              <li style="position:relative;padding-left:1.1rem;font-size:.9rem;color:var(--ink-2)"><span style="position:absolute;left:0;top:.55em;width:5px;height:5px;background:var(--yellow);border-radius:1px"></span>Publicação bloqueada sem banner e sem ao menos 1 foto. O vídeo é opcional.</li>
+              <li style="position:relative;padding-left:1.1rem;font-size:.9rem;color:var(--ink-2)"><span style="position:absolute;left:0;top:.55em;width:5px;height:5px;background:var(--yellow);border-radius:1px"></span>Orçamento de 400 KB de imagem antes da interação — quem chega pelo WhatsApp está no 4G.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- ---- 3: afiliado ---- -->
+      <div>
+        <div class="screen-cap">
+          <span class="who aff">Afiliado</span>
+          <h3>Painel de vendas e comissões</h3>
+          <span class="d">— link, resultado e dinheiro na mesma tela</span>
+        </div>
+
+        <div class="browser">
+          <div class="bbar">
+            <span class="bdots"><i></i><i></i><i></i></span>
+            <span class="burl">rifa.br/afiliado/painel</span>
+          </div>
+          <div class="bscroll">
+            <div class="app shell">
+              <aside class="side">
+                <span class="logo">rifa<span>.</span>br</span>
+                <span class="it on"><i></i>Visão geral</span>
+                <span class="it"><i></i>Meus links</span>
+                <span class="it"><i></i>Comissões</span>
+                <span class="it"><i></i>Saques</span>
+                <span class="it"><i></i>Material</span>
+                <span class="foot">João Ribeiro<br>código JOAO7</span>
+              </aside>
+
+              <div class="main">
+                <div class="mrow">
+                  <div>
+                    <span class="mlabel">Campanha</span>
+                    <h4 style="font-size:14px;margin-top:.15rem">iPhone 17 Pro Max · comissão de 12%</h4>
+                  </div>
+                  <span class="pill ok">afiliado ativo</span>
+                </div>
+
+                <div class="linkbox">
+                  <span class="u">https://rifa.br/r/iphone-17-pro?ref=JOAO7</span>
+                  <span class="mbtn sm">copiar link</span>
+                  <span class="mbtn sm ghost">baixar artes</span>
+                </div>
+
+                <div class="kpis">
+                  <div class="kpi"><span class="mlabel">Cliques</span><div class="v">1 284</div><div class="d">+18% vs. semana passada</div></div>
+                  <div class="kpi"><span class="mlabel">Vendas</span><div class="v">97</div><div class="d">conversão de 7,6%</div></div>
+                  <div class="kpi"><span class="mlabel">Receita gerada</span><div class="v">R$ 3 842</div><div class="d flat">ticket médio R$ 39,60</div></div>
+                  <div class="kpi hl"><span class="mlabel">Comissão</span><div class="v">R$ 461</div><div class="d">R$ 288 já liberados</div></div>
+                </div>
+
+                <div class="two">
+                  <div class="card">
+                    <header>
+                      <h4>Vendas por dia</h4>
+                      <span class="mlabel">últimos 14 dias</span>
+                    </header>
+                    <div class="chartwrap">
+                      <svg viewBox="0 0 420 132" role="img" aria-label="Vendas diárias do afiliado nos últimos 14 dias, de 2 a 14 vendas por dia, com pico de 14 no dia 12">
+                        <!-- grade -->
+                        <line x1="30" y1="10" x2="410" y2="10" stroke="#E1EBE3" stroke-width="1"></line>
+                        <line x1="30" y1="45" x2="410" y2="45" stroke="#E1EBE3" stroke-width="1"></line>
+                        <line x1="30" y1="80" x2="410" y2="80" stroke="#E1EBE3" stroke-width="1"></line>
+                        <text x="24" y="14" text-anchor="end" font-family="DM Mono, monospace" font-size="9" fill="#6B8475">15</text>
+                        <text x="24" y="49" text-anchor="end" font-family="DM Mono, monospace" font-size="9" fill="#6B8475">10</text>
+                        <text x="24" y="84" text-anchor="end" font-family="DM Mono, monospace" font-size="9" fill="#6B8475">5</text>
+                        <line x1="30" y1="115" x2="410" y2="115" stroke="#C6DACC" stroke-width="1"></line>
+                        <g fill="#00873E">
+                          <rect x="36"  y="87"  width="18" height="28" rx="4"><title>dia 1 · 4 vendas</title></rect>
+                          <rect x="62"  y="73"  width="18" height="42" rx="4"><title>dia 2 · 6 vendas</title></rect>
+                          <rect x="88"  y="94"  width="18" height="21" rx="4"><title>dia 3 · 3 vendas</title></rect>
+                          <rect x="114" y="66"  width="18" height="49" rx="4"><title>dia 4 · 7 vendas</title></rect>
+                          <rect x="140" y="59"  width="18" height="56" rx="4"><title>dia 5 · 8 vendas</title></rect>
+                          <rect x="166" y="101" width="18" height="14" rx="4"><title>dia 6 · 2 vendas</title></rect>
+                          <rect x="192" y="80"  width="18" height="35" rx="4"><title>dia 7 · 5 vendas</title></rect>
+                          <rect x="218" y="52"  width="18" height="63" rx="4"><title>dia 8 · 9 vendas</title></rect>
+                          <rect x="244" y="45"  width="18" height="70" rx="4"><title>dia 9 · 10 vendas</title></rect>
+                          <rect x="270" y="66"  width="18" height="49" rx="4"><title>dia 10 · 7 vendas</title></rect>
+                          <rect x="296" y="38"  width="18" height="77" rx="4"><title>dia 11 · 11 vendas</title></rect>
+                          <rect x="322" y="17"  width="18" height="98" rx="4" fill="#FFC700"><title>dia 12 · 14 vendas — pico</title></rect>
+                          <rect x="348" y="31"  width="18" height="84" rx="4"><title>dia 13 · 12 vendas</title></rect>
+                          <rect x="374" y="45"  width="18" height="70" rx="4"><title>dia 14 · 10 vendas</title></rect>
+                        </g>
+                        <text x="331" y="12" text-anchor="middle" font-family="DM Mono, monospace" font-size="9" fill="#0B1F14">14</text>
+                        <text x="36"  y="127" font-family="DM Mono, monospace" font-size="9" fill="#6B8475">01/09</text>
+                        <text x="392" y="127" text-anchor="end" font-family="DM Mono, monospace" font-size="9" fill="#6B8475">14/09</text>
+                      </svg>
+                    </div>
+                  </div>
+
+                  <div class="card">
+                    <header><h4>Saldo</h4><span class="pill ok">Pix cadastrado</span></header>
+                    <div style="padding:.75rem">
+                      <span class="mlabel">Disponível para saque</span>
+                      <div style="font-family:var(--f-mono);font-size:24px;color:var(--green-deep);margin:.2rem 0 .1rem">R$ 288,40</div>
+                      <p style="font-size:11px;color:var(--muted);margin-bottom:.65rem">
+                        R$ 172,60 ficam pendentes até 21/09 — carência de 7 dias contra estorno.
+                      </p>
+                      <span class="mbtn" style="width:100%">Sacar via Pix</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="card">
+                  <header><h4>Comissões recentes</h4><span class="mlabel">12% por venda paga</span></header>
+                  <table class="mtable">
+                    <thead>
+                      <tr><th>Pedido</th><th>Comprador</th><th>Cotas</th><th>Venda</th><th>Comissão</th><th>Status</th></tr>
+                    </thead>
+                    <tbody>
+                      <tr><td class="n">#48 219</td><td class="name">Marina S.</td><td class="n">3</td><td class="n">R$ 13,23</td><td class="n">R$ 1,59</td><td><span class="pill wait">pendente</span></td></tr>
+                      <tr><td class="n">#48 204</td><td class="name">Carlos A.</td><td class="n">50</td><td class="n">R$ 215,60</td><td class="n">R$ 25,87</td><td><span class="pill ok">liberada</span></td></tr>
+                      <tr><td class="n">#48 188</td><td class="name">Juliana P.</td><td class="n">10</td><td class="n">R$ 46,55</td><td class="n">R$ 5,59</td><td><span class="pill ok">liberada</span></td></tr>
+                      <tr><td class="n">#48 173</td><td class="name">Rodrigo M.</td><td class="n">25</td><td class="n">R$ 112,70</td><td class="n">R$ 13,52</td><td><span class="pill bad">estornada</span></td></tr>
+                      <tr><td class="n">#48 150</td><td class="name">Ana L.</td><td class="n">5</td><td class="n">R$ 24,50</td><td class="n">R$ 2,94</td><td><span class="pill neutral">paga 07/09</span></td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ---- 4: admin ---- -->
+      <div>
+        <div class="screen-cap">
+          <span class="who adm">Administrador</span>
+          <h3>Visão geral da operação</h3>
+          <span class="d">— campanhas, dinheiro e afiliados em uma tela só</span>
+        </div>
+
+        <div class="browser">
+          <div class="bbar">
+            <span class="bdots"><i></i><i></i><i></i></span>
+            <span class="burl">rifa.br/admin</span>
+          </div>
+          <div class="bscroll">
+            <div class="app shell">
+              <aside class="side">
+                <span class="logo">rifa<span>.</span>br</span>
+                <span class="it on"><i></i>Painel</span>
+                <span class="it"><i></i>Campanhas</span>
+                <span class="it"><i></i>Pedidos</span>
+                <span class="it"><i></i>Afiliados</span>
+                <span class="it"><i></i>Financeiro</span>
+                <span class="it"><i></i>Sorteios</span>
+                <span class="it"><i></i>Configurações</span>
+                <span class="foot">Admin · 2FA ativo<br>auditoria ligada</span>
+              </aside>
+
+              <div class="main">
+                <div class="mrow">
+                  <div>
+                    <span class="mlabel">Hoje · 14 de setembro</span>
+                    <h4 style="font-size:14px;margin-top:.15rem">3 campanhas no ar · 1 sorteio em 14 dias</h4>
+                  </div>
+                  <span class="mbtn sm">Nova campanha</span>
+                </div>
+
+                <div class="kpis">
+                  <div class="kpi hl"><span class="mlabel">Receita paga</span><div class="v">R$ 48 730</div><div class="d">+R$ 3 190 nas últimas 24 h</div></div>
+                  <div class="kpi"><span class="mlabel">Cotas vendidas</span><div class="v">9 941</div><div class="d">de 15 000 publicadas</div></div>
+                  <div class="kpi"><span class="mlabel">Reservas abertas</span><div class="v">137</div><div class="d flat">expiram em até 15 min</div></div>
+                  <div class="kpi"><span class="mlabel">Comissão a pagar</span><div class="v">R$ 4 218</div><div class="d flat">23 afiliados</div></div>
+                </div>
+
+                <div class="two">
+                  <div class="card">
+                    <header>
+                      <h4>Receita paga por dia</h4>
+                      <span class="mlabel">R$ · últimos 14 dias</span>
+                    </header>
+                    <div class="chartwrap">
+                      <svg viewBox="0 0 420 140" role="img" aria-label="Receita diária paga nos últimos 14 dias, de R$ 1.100 a R$ 5.400, com pico de R$ 5.400 no dia 12 de setembro">
+                        <line x1="42" y1="12" x2="410" y2="12" stroke="#E1EBE3" stroke-width="1"></line>
+                        <line x1="42" y1="47" x2="410" y2="47" stroke="#E1EBE3" stroke-width="1"></line>
+                        <line x1="42" y1="82" x2="410" y2="82" stroke="#E1EBE3" stroke-width="1"></line>
+                        <text x="36" y="16" text-anchor="end" font-family="DM Mono, monospace" font-size="9" fill="#6B8475">6 000</text>
+                        <text x="36" y="51" text-anchor="end" font-family="DM Mono, monospace" font-size="9" fill="#6B8475">4 000</text>
+                        <text x="36" y="86" text-anchor="end" font-family="DM Mono, monospace" font-size="9" fill="#6B8475">2 000</text>
+                        <line x1="42" y1="117" x2="410" y2="117" stroke="#C6DACC" stroke-width="1"></line>
+                        <g fill="#00873E">
+                          <rect x="48"  y="98"  width="17" height="19" rx="4"><title>01/09 · R$ 1.100</title></rect>
+                          <rect x="74"  y="89"  width="17" height="28" rx="4"><title>02/09 · R$ 1.600</title></rect>
+                          <rect x="100" y="82"  width="17" height="35" rx="4"><title>03/09 · R$ 2.000</title></rect>
+                          <rect x="126" y="70"  width="17" height="47" rx="4"><title>04/09 · R$ 2.700</title></rect>
+                          <rect x="152" y="75"  width="17" height="42" rx="4"><title>05/09 · R$ 2.400</title></rect>
+                          <rect x="178" y="94"  width="17" height="23" rx="4"><title>06/09 · R$ 1.300</title></rect>
+                          <rect x="204" y="61"  width="17" height="56" rx="4"><title>07/09 · R$ 3.200</title></rect>
+                          <rect x="230" y="54"  width="17" height="63" rx="4"><title>08/09 · R$ 3.600</title></rect>
+                          <rect x="256" y="47"  width="17" height="70" rx="4"><title>09/09 · R$ 4.000</title></rect>
+                          <rect x="282" y="66"  width="17" height="51" rx="4"><title>10/09 · R$ 2.900</title></rect>
+                          <rect x="308" y="40"  width="17" height="77" rx="4"><title>11/09 · R$ 4.400</title></rect>
+                          <rect x="334" y="22"  width="17" height="95" rx="4" fill="#FFC700"><title>12/09 · R$ 5.400 — pico após disparo dos afiliados</title></rect>
+                          <rect x="360" y="33"  width="17" height="84" rx="4"><title>13/09 · R$ 4.800</title></rect>
+                          <rect x="386" y="45"  width="17" height="72" rx="4"><title>14/09 · R$ 4.100</title></rect>
+                        </g>
+                        <text x="342" y="17" text-anchor="middle" font-family="DM Mono, monospace" font-size="9" fill="#0B1F14">5 400</text>
+                        <text x="48"  y="131" font-family="DM Mono, monospace" font-size="9" fill="#6B8475">01/09</text>
+                        <text x="403" y="131" text-anchor="end" font-family="DM Mono, monospace" font-size="9" fill="#6B8475">14/09</text>
+                      </svg>
+                    </div>
+                  </div>
+
+                  <div class="card">
+                    <header><h4>Top afiliados</h4><span class="mlabel">no mês</span></header>
+                    <div class="rank">
+                      <div class="r"><span class="pos">1</span><span class="nm">João Ribeiro · JOAO7</span><span class="vl">R$ 3 842</span></div>
+                      <div class="r"><span class="pos">2</span><span class="nm">Bia Torres · BIAT</span><span class="vl">R$ 2 915</span></div>
+                      <div class="r"><span class="pos">3</span><span class="nm">Léo Prado · LEO10</span><span class="vl">R$ 2 104</span></div>
+                      <div class="r"><span class="pos">4</span><span class="nm">Sara Lima · SARA</span><span class="vl">R$ 1 466</span></div>
+                      <div class="r"><span class="pos">5</span><span class="nm">Digo Alves · DIGO</span><span class="vl">R$ 987</span></div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="card">
+                  <header><h4>Campanhas</h4><span class="mlabel">3 no ar · 1 rascunho</span></header>
+                  <table class="mtable">
+                    <thead>
+                      <tr><th>Campanha</th><th>Cota</th><th>Progresso</th><th>Arrecadado</th><th>Sorteio</th><th>Status</th></tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td class="name">iPhone 17 Pro Max</td><td class="n">R$ 4,90</td>
+                        <td style="min-width:110px"><div class="bar"><span style="width:68%"></span></div><span class="mlabel">683/1 000</span></td>
+                        <td class="n">R$ 3 347</td><td class="n">28/09</td><td><span class="pill ok">no ar</span></td>
+                      </tr>
+                      <tr>
+                        <td class="name">Fiat Mobi 2026 0 km</td><td class="n">R$ 9,90</td>
+                        <td><div class="bar"><span style="width:41%"></span></div><span class="mlabel">4 100/10 000</span></td>
+                        <td class="n">R$ 40 590</td><td class="n">05/10</td><td><span class="pill ok">no ar</span></td>
+                      </tr>
+                      <tr>
+                        <td class="name">PIX de R$ 10.000</td><td class="n">R$ 1,20</td>
+                        <td><div class="bar y"><span style="width:89%"></span></div><span class="mlabel">3 560/4 000</span></td>
+                        <td class="n">R$ 4 272</td><td class="n">21/09</td><td><span class="pill wait">reta final</span></td>
+                      </tr>
+                      <tr>
+                        <td class="name">Moto Honda Pop</td><td class="n">R$ 2,50</td>
+                        <td><div class="bar"><span style="width:0%"></span></div><span class="mlabel">falta o certificado SPA/MF</span></td>
+                        <td class="n">—</td><td class="n">—</td><td><span class="pill neutral">rascunho</span></td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <div class="perf" role="presentation"></div>
+
+  <!-- ==================== ESCALA 1M ==================== -->
+  <section>
+    <div class="sechead">
+      <p class="eyebrow">Escala</p>
+      <h2>Um milhão de números</h2>
+      <p class="body">
+        O administrador escolhe o total de cotas ao criar a campanha — de 100 a 1.000.000 — e o número
+        trava na publicação. Esse teto não é um detalhe de tela: ele decide o modelo de dados inteiro,
+        e por isso entra na Fase 1, não na Fase 4.
+      </p>
+    </div>
+
+    <div class="scale-two">
+      <!-- mapa de 1M no celular -->
+      <div>
+        <div class="screen-cap" style="margin-bottom:.75rem">
+          <span class="who">Comprador</span>
+          <span class="d">mapa de 1.000.000</span>
+        </div>
+        <div class="phone" style="width:300px">
+          <div class="notch"></div>
+          <div class="pscreen app">
+            <div class="appbar">
+              <span class="logo">rifa<span>.</span>br</span>
+              <span class="mlabel">0847219 livre</span>
+            </div>
+
+            <div class="pbody">
+              <div class="mrow" style="margin-bottom:.5rem">
+                <span class="mlabel">1 000 000 de cotas · R$ 1,20</span>
+                <span class="mlabel" style="color:var(--green-deep)">31%</span>
+              </div>
+              <div class="bar"><span style="width:31%"></span></div>
+
+              <div style="margin-top:.75rem">
+                <span class="mbtn" style="width:100%">Compra rápida · 50 números</span>
+              </div>
+
+              <div class="searchfield" style="margin-top:.5rem">
+                <span>🔍 ir para o número</span><b>847.219</b>
+              </div>
+
+              <div style="margin-top:.85rem">
+                <span class="mlabel">ocupação · 1 000 blocos de 1 000</span>
+                <div class="heat" aria-label="Faixa de ocupação: cada segmento é um trecho de 25 mil números, do mais vazio ao mais cheio">
+                  <span style="background:#E6F5EC"></span><span style="background:#CDEBD9"></span>
+                  <span style="background:#A7DCBC"></span><span style="background:#CDEBD9"></span>
+                  <span style="background:#7ACB9C"></span><span style="background:#E6F5EC"></span>
+                  <span style="background:#A7DCBC"></span><span style="background:#4FBA7D"></span>
+                  <span style="background:#7ACB9C"></span><span style="background:#CDEBD9"></span>
+                  <span style="background:#00873E"></span><span style="background:#4FBA7D"></span>
+                  <span style="background:#A7DCBC"></span><span style="background:#7ACB9C"></span>
+                  <span style="background:#CDEBD9" class="cur"></span><span style="background:#A7DCBC"></span>
+                  <span style="background:#E6F5EC"></span><span style="background:#7ACB9C"></span>
+                  <span style="background:#CDEBD9"></span><span style="background:#E6F5EC"></span>
+                </div>
+                <div class="heatkey">
+                  <span>vazio</span>
+                  <i style="background:#E6F5EC"></i><i style="background:#A7DCBC"></i><i style="background:#4FBA7D"></i><i style="background:#00873E"></i>
+                  <span>cheio</span>
+                  <span style="margin-left:auto">■ bloco aberto</span>
+                </div>
+              </div>
+
+              <div class="blocknav">
+                <span class="bn">bloco 848 · 847 001–848 000</span>
+                <span class="arrows"><span>‹</span><span>›</span></span>
+              </div>
+
+              <div class="minigrid" style="margin-top:.4rem">
+                <span class="cota">211</span><span class="cota pag">212</span><span class="cota">213</span>
+                <span class="cota res">214</span><span class="cota">215</span><span class="cota pag">216</span>
+                <span class="cota">217</span><span class="cota">218</span><span class="cota sel">219</span>
+                <span class="cota">220</span><span class="cota pag">221</span><span class="cota">222</span>
+              </div>
+              <p style="font-size:9.5px;color:var(--muted);margin-top:.35rem;font-family:var(--f-mono)">
+                847 <b style="font-weight:400">211</b> … 847 222 · rolando dentro do bloco
+              </p>
+            </div>
+
+            <div class="stickybar">
+              <span class="tot"><small>1 cota</small>R$ 1,20</span>
+              <span class="mbtn" style="flex:1">Pagar com Pix</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- admin define o total -->
+      <div>
+        <div class="screen-cap" style="margin-bottom:.75rem">
+          <span class="who adm">Administrador</span>
+          <span class="d">nova campanha · antes de publicar</span>
+        </div>
+
+        <div class="card" style="max-width:30rem">
+          <header><h4>Nova campanha</h4><span class="pill neutral">rascunho</span></header>
+          <div class="app" style="padding:1rem;display:flex;flex-direction:column;gap:.85rem">
+            <div class="field">
+              <span class="mlabel">Total de cotas</span>
+              <div class="inp"><span>1 000 000</span><small>máximo permitido</small></div>
+              <div class="presets">
+                <span>1 mil</span><span>10 mil</span><span>100 mil</span><span class="on">1 milhão</span>
+              </div>
+              <span class="hint">Numeração de <b class="num">0000001</b> a <b class="num">1000000</b> — 7 dígitos, com zero à esquerda.</span>
+            </div>
+
+            <div class="field">
+              <span class="mlabel">Preço da cota</span>
+              <div class="inp" style="border-color:var(--line-2)"><span>R$ 1,20</span><small>arrecadação potencial R$ 1.200.000,00</small></div>
+            </div>
+
+            <div class="warnbox">
+              <span>⚠️</span>
+              <span><b>O total trava ao publicar.</b> Depois da primeira venda, mudar a quantidade
+              alteraria a chance de quem já comprou — o campo fica somente leitura e a alteração
+              é registrada como impossível na auditoria.</span>
+            </div>
+
+            <div class="mrow">
+              <span class="mbtn ghost sm">Salvar rascunho</span>
+              <span class="mbtn sm">Publicar campanha</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="callout" style="margin-top:1.25rem;max-width:30rem">
+          <span class="t">O sorteio de 1M não cabe na Loteria Federal</span>
+          <p>
+            O 1º prêmio da Federal tem 5 dígitos — endereça no máximo 100.000 cotas. Para 1.000.000
+            o mapeamento direto não existe. A regra que serve de 100 a 1.000.000 é uma só:
+            publicamos o <span class="num">hash</span> de uma semente antes da primeira venda e,
+            no dia, o número sai de
+            <span class="num">HMAC(semente ‖ os 5 prêmios do concurso) mod total</span>.
+            A Federal continua sendo a entropia pública que ninguém controla, e qualquer pessoa
+            refaz a conta.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="mech">
+      <div class="mechcard">
+        <span class="n">Armazenamento</span>
+        <h3>Nenhuma linha até vender</h3>
+        <p>
+          Criar 1.000.000 de linhas para publicar uma campanha custaria dezenas de segundos e um
+          índice inchado antes da primeira venda. Em vez disso: <b>só existe linha para cota tomada</b> —
+          disponível é a ausência de linha. A campanha nasce com zero linhas.
+        </p>
+        <p><code>publicar 1M &lt; 300 ms</code></p>
+      </div>
+      <div class="mechcard">
+        <span class="n">Reserva</span>
+        <h3>Insert com conflito, sem trava</h3>
+        <p>
+          A chave primária <code>(campanha, número)</code> é quem garante exclusividade. A compra
+          rápida sorteia os candidatos, tenta o insert em lote com
+          <code>ON CONFLICT DO NOTHING</code> e re-sorteia só o que colidiu. Acima de 85% vendido,
+          um pool dos números restantes assume, com <code>SKIP LOCKED</code>.
+        </p>
+        <p><code>reservar 50 cotas &lt; 150 ms</code></p>
+      </div>
+      <div class="mechcard">
+        <span class="n">Tela</span>
+        <h3>Bitmap por bloco</h3>
+        <p>
+          Ninguém renderiza 1M de células. São 1.000 blocos de 1.000, e a ocupação de cada bloco
+          viaja como bitmap: 1.000 bits, <b>125 bytes</b>. Bloco cheio e bloco vazio custam o mesmo.
+          Quem sabe o número que quer usa a busca direta e pula o mapa inteiro.
+        </p>
+        <p><code>abrir um bloco &lt; 100 ms</code></p>
+      </div>
+    </div>
+  </section>
+
+  <div class="perf" role="presentation"></div>
+
+  <!-- ==================== SISTEMA VISUAL ==================== -->
+  <section>
+    <div class="sechead">
+      <p class="eyebrow">Design · sistema</p>
+      <h2>Branco, verde e amarelo</h2>
+      <p class="body">
+        Fundo branco em toda a plataforma. O verde é a cor do dinheiro que entrou — botão principal,
+        cota paga, comissão liberada. O amarelo é a cor da espera e do prêmio — reserva correndo,
+        cota premiada, reta final. Vermelho só para o que deu errado. Nenhuma das três aparece
+        decorando nada.
+      </p>
+    </div>
+
+    <div class="swatches">
+      <div class="sw"><div class="box" style="background:#00873E"></div><div class="lab"><b>Verde</b>#00873E<br>ação, pago</div></div>
+      <div class="sw"><div class="box" style="background:#12B45C"></div><div class="lab"><b>Verde claro</b>#12B45C<br>gráficos, hover</div></div>
+      <div class="sw"><div class="box" style="background:#FFC700"></div><div class="lab"><b>Amarelo</b>#FFC700<br>reserva, prêmio</div></div>
+      <div class="sw"><div class="box" style="background:#FFF6D6;border-bottom:1px solid var(--line)"></div><div class="lab"><b>Amarelo claro</b>#FFF6D6<br>avisos</div></div>
+      <div class="sw"><div class="box" style="background:#FFFFFF;border-bottom:1px solid var(--line-2)"></div><div class="lab"><b>Branco</b>#FFFFFF<br>fundo de tudo</div></div>
+      <div class="sw"><div class="box" style="background:#0B1F14"></div><div class="lab"><b>Verde-preto</b>#0B1F14<br>texto</div></div>
+    </div>
+
+    <div class="typescale">
+      <div class="ts"><span class="n">Display · Bricolage 800</span><span class="d1">iPhone 17 Pro Max</span></div>
+      <div class="ts"><span class="n">Título · Bricolage 700</span><span class="d2">Escolha seus números</span></div>
+      <div class="ts"><span class="n">Texto · Instrument Sans</span><span class="b1">Sua reserva fica de pé por 15 minutos. Pagou, o número é seu.</span></div>
+      <div class="ts"><span class="n">Dados · DM Mono</span><span class="m1">R$ 4,90 · 04.317 · 14:52</span></div>
+    </div>
+
+    <div class="kit" style="margin-top:1.5rem">
+      <div class="kitcard">
+        <h4>Botões</h4>
+        <div class="kitrow">
+          <span class="mbtn">Pagar com Pix</span>
+          <span class="mbtn y">Ver prêmio</span>
+        </div>
+        <div class="kitrow">
+          <span class="mbtn ghost">Copiar link</span>
+          <span class="mbtn sm">Nova campanha</span>
+          <span class="mbtn sm ghost">Exportar</span>
+        </div>
+        <p style="font-size:.82rem;color:var(--muted)">
+          Um botão verde por tela. O amarelo é secundário e nunca aparece ao lado do verde em
+          tamanho igual.
+        </p>
+      </div>
+
+      <div class="kitcard">
+        <h4>Estados</h4>
+        <div class="kitrow">
+          <span class="pill ok">pago</span>
+          <span class="pill wait">reservado</span>
+          <span class="pill bad">expirado</span>
+          <span class="pill neutral">rascunho</span>
+        </div>
+        <div class="kitrow" style="gap:6px">
+          <span class="cota">042</span>
+          <span class="cota sel">043</span>
+          <span class="cota res">044</span>
+          <span class="cota pag">045</span>
+          <span class="cota prem">046</span>
+        </div>
+        <p style="font-size:.82rem;color:var(--muted)">
+          Cada estado tem forma própria: contorno para livre, contorno grosso para escolhida,
+          tracejado para reservada, preenchido para paga. Cor sozinha nunca conta a história.
+        </p>
+      </div>
+
+      <div class="kitcard">
+        <h4>Progresso e dados</h4>
+        <div>
+          <div class="mrow" style="margin-bottom:.3rem"><span class="mlabel">683 de 1 000</span><span class="mlabel" style="color:var(--green-deep)">68%</span></div>
+          <div class="bar"><span style="width:68%"></span></div>
+        </div>
+        <div>
+          <div class="mrow" style="margin-bottom:.3rem"><span class="mlabel">reta final</span><span class="mlabel" style="color:var(--yellow-deep)">89%</span></div>
+          <div class="bar y"><span style="width:89%"></span></div>
+        </div>
+        <p style="font-size:.82rem;color:var(--muted)">
+          Todo número — cota, real, prazo, percentual — em DM Mono com algarismo tabular, para que
+          as colunas fiquem alinhadas e o valor não dance ao atualizar.
+        </p>
+      </div>
+    </div>
+
+    <div class="grid-2" style="margin-top:1.25rem">
+      <div class="panel tint">
+        <h3>Regras da interface</h3>
+        <ul>
+          <li>Celular primeiro de verdade: a venda acontece dentro do WhatsApp</li>
+          <li>Um botão principal por tela; total sempre fixo no rodapé</li>
+          <li>Cronômetro nunca sai de vista durante o pagamento</li>
+          <li>Grade virtualizada em blocos de mil, com busca direta por número</li>
+          <li>Fundo branco em toda a plataforma, sem exceção de tela</li>
+          <li>Estado por forma além de cor, sempre com rótulo em texto</li>
+        </ul>
+      </div>
+      <div class="panel tint y">
+        <h3>O que evitamos</h3>
+        <ul>
+          <li>Contador falso de urgência e “restam 2 unidades” inventado</li>
+          <li>Cadastro obrigatório antes de ver o preço</li>
+          <li>Comprovante enviado por WhatsApp para liberação manual</li>
+          <li>Grade de mil números renderizada de uma vez no celular</li>
+          <li>Verde e amarelo usados como enfeite, sem significar estado</li>
+          <li>Regras de comissão escondidas do afiliado</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <div class="perf" role="presentation"></div>
+
+  <!-- ==================== BENCHMARK ==================== -->
+  <section>
+    <div class="sechead">
+      <p class="eyebrow">Benchmark</p>
+      <h2>O que o mercado brasileiro já resolveu</h2>
+      <p class="body">
+        Nove plataformas em operação e dois scripts vendidos como produto. O padrão é claro:
+        quem vende bem tem Pix automático, reserva com prazo e afiliado nativo. Quem vende mal
+        pede comprovante no WhatsApp.
+      </p>
+    </div>
+
+    <div class="sources">
+      <span class="src">Rifei</span><span class="src">123Rifas</span><span class="src">Plataforma Rifa</span>
+      <span class="src">Premium Sorte</span><span class="src">NC Brasil</span><span class="src">Riffas</span>
+      <span class="src">RifaOn</span><span class="src">Rifa4.me</span><span class="src">Sistema de Rifas Online</span>
+      <span class="src">Script Rifa 10.0</span>
+    </div>
+
+    <div class="tablewrap">
+      <table class="doc">
+        <thead><tr><th>Padrão recorrente</th><th>Como aparece lá fora</th><th>Nossa decisão</th></tr></thead>
+        <tbody>
+          <tr><td class="k">Pix automático</td><td class="alt">Webhook do provedor libera a cota sem conferência humana, em menos de 10 s</td><td><span class="tag">MVP</span></td></tr>
+          <tr><td class="k">Reserva com prazo</td><td class="alt">De 10 minutos a 3 dias; vencida, o número volta ao estoque</td><td><span class="tag">MVP</span></td></tr>
+          <tr><td class="k">Compra rápida</td><td class="alt">Botões +5 / +10 / +50 com desconto progressivo e números aleatórios</td><td><span class="tag">MVP</span></td></tr>
+          <tr><td class="k">Sorteio pela Loteria Federal</td><td class="alt">Número da cota amarrado aos dígitos do 1º prêmio do concurso</td><td><span class="tag">MVP</span></td></tr>
+          <tr><td class="k">Consulta sem senha</td><td class="alt">Comprador acha as cotas pelo telefone ou CPF</td><td><span class="tag">MVP</span></td></tr>
+          <tr><td class="k">Afiliados nativos</td><td class="alt">Link único, cupom, painel de vendas, comissão configurável, saque em Pix</td><td><span class="tag v1">Fase 2</span></td></tr>
+          <tr><td class="k">Cotas premiadas</td><td class="alt">Números com prêmio instantâneo revelado na compra</td><td><span class="tag v1">Fase 3</span></td></tr>
+          <tr><td class="k">Ranking de compradores</td><td class="alt">Placar público que premia quem compra mais</td><td><span class="tag v1">Fase 3</span></td></tr>
+          <tr><td class="k">Aviso no WhatsApp</td><td class="alt">Pagamento confirmado, reserva vencendo, resultado do sorteio</td><td><span class="tag v1">Fase 3</span></td></tr>
+          <tr><td class="k">Campanhas de até 1M cotas</td><td class="alt">Grades gigantes, geralmente lentas e paginadas na força bruta</td><td><span class="tag">MVP</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout">
+      <span class="t">Onde a nossa se separa das outras</span>
+      <p>
+        Atribuição de afiliado à prova de perda (primeiro clique persistido e reconferido no webhook),
+        extrato financeiro que fecha com o extrato do banco, e uma tela de compra que não parece
+        um script de 2018. Nenhuma das nove faz as três coisas bem.
+      </p>
+    </div>
+  </section>
+
+  <div class="perf" role="presentation"></div>
+
+  <!-- ==================== TRÊS SUPERFÍCIES ==================== -->
+  <section>
+    <div class="sechead">
+      <p class="eyebrow">Produto</p>
+      <h2>As três superfícies</h2>
+      <p class="body">
+        Três públicos, três níveis de acesso, um mesmo banco de dados. Cada painel resolve uma
+        pergunta só: <em>quais números são meus</em>, <em>quanto eu já ganhei</em>,
+        <em>como está a campanha</em>.
+      </p>
+    </div>
+
+    <div class="grid-3">
+      <article class="panel">
+        <p class="role">Superfície 01</p>
+        <h3>Comprador</h3>
+        <p class="who">Público, sem cadastro. Chega pelo WhatsApp, compra pelo celular.</p>
+        <ul>
+          <li><b>Vitrine multi-rifas</b>: todas as campanhas no ar, cada card com seu banner</li>
+          <li>Tela inicial da rifa: banner, vídeo de até 60 s e galeria de 5 fotos do prêmio</li>
+          <li>Compra rápida por quantidade ou escolha manual na grade</li>
+          <li>Checkout de um passo: nome, WhatsApp, aceite — e o QR Code Pix</li>
+          <li>Cronômetro de reserva sempre visível</li>
+          <li>Confirmação automática e revelação da cota premiada</li>
+          <li>“Minhas cotas” pelo telefone, com código de acesso</li>
+          <li>Ranking, regulamento e comprovante do sorteio</li>
+        </ul>
+        <p class="auth">acesso: nenhum · identidade por telefone + OTP</p>
+      </article>
+
+      <article class="panel y">
+        <p class="role">Superfície 02</p>
+        <h3>Afiliado</h3>
+        <p class="who">Divulgador aprovado pelo organizador. Vive do link e da comissão.</p>
+        <ul>
+          <li>Link único <span class="num">/r/campanha?ref=CODIGO</span> e cupom com desconto</li>
+          <li>Cliques, conversões, receita gerada e taxa de conversão</li>
+          <li>Extrato por pedido: pendente, liberada, paga, estornada</li>
+          <li>Saque em Pix com histórico e comprovante</li>
+          <li>Kit de divulgação: artes, textos prontos e QR do link</li>
+          <li>Regras à vista: percentual, janela de atribuição, carência</li>
+        </ul>
+        <p class="auth">acesso: login próprio · aprovação do admin</p>
+      </article>
+
+      <article class="panel">
+        <p class="role">Superfície 03</p>
+        <h3>Administrador</h3>
+        <p class="who">Dono da rifa. Publica, acompanha, paga e sorteia.</p>
+        <ul>
+          <li>Painel de receita, cotas vendidas, ticket médio e funil</li>
+          <li>Campanhas: <b>várias no ar ao mesmo tempo</b>, com destaque e ordenação da vitrine</li>
+          <li>Mídia: banner, 5 fotos e vídeo de 60 s, com duração medida no servidor</li>
+          <li>Prêmio, <b>total de cotas até 1M</b>, pacotes, TTL, regulamento</li>
+          <li>O total trava na publicação — mudar depois alteraria a chance de quem já comprou</li>
+          <li>Pedidos: busca, estorno, liberação manual, reenvio</li>
+          <li>Afiliados: aprovar, definir comissão, aprovar saques</li>
+          <li>Financeiro: conciliação com o provedor e exportação</li>
+          <li>Sorteio: resultado da Federal ou sorteio auditável</li>
+          <li>Trilha de auditoria de toda ação administrativa</li>
+        </ul>
+        <p class="auth">acesso: login + 2FA · registro de auditoria</p>
+      </article>
+    </div>
+  </section>
+
+  <div class="perf" role="presentation"></div>
+
+  <!-- ==================== STACK ==================== -->
+  <section>
+    <div class="sechead">
+      <p class="eyebrow">Ferramentas</p>
+      <h2>Compilado de stack</h2>
+      <p class="body">
+        O repositório já traz React 18, Vite, Express, Drizzle, Postgres na Neon, TanStack Query e
+        shadcn/ui — de um projeto anterior. Mantemos a base e trocamos o domínio; o que falta é
+        fila, provedor de pagamento e mensageria.
+      </p>
+    </div>
+
+    <div class="tablewrap">
+      <table class="doc">
+        <thead><tr><th>Camada</th><th>Escolha</th><th>Alternativa</th><th>Por quê</th></tr></thead>
+        <tbody>
+          <tr><td class="k">Front-end</td><td>React 18 + Vite + TypeScript</td><td class="alt">Next.js 15</td><td class="alt">Já instalado; a rota pública ganha SEO por pré-render</td></tr>
+          <tr><td class="k">UI</td><td>Tailwind + shadcn/ui (Radix)</td><td class="alt">MUI</td><td class="alt">Controle total do visual, acessível por padrão</td></tr>
+          <tr><td class="k">Estado</td><td>TanStack Query v5</td><td class="alt">SWR</td><td class="alt">Revalidação do grid de cotas quase em tempo real</td></tr>
+          <tr><td class="k">Back-end</td><td>Express + TypeScript</td><td class="alt">Fastify, NestJS</td><td class="alt">Já no projeto; trocar só se virar gargalo</td></tr>
+          <tr><td class="k">Banco</td><td>PostgreSQL (Neon)</td><td class="alt">Supabase</td><td class="alt"><span class="num">FOR UPDATE SKIP LOCKED</span> resolve a corrida por cota</td></tr>
+          <tr><td class="k">ORM</td><td>Drizzle</td><td class="alt">Prisma</td><td class="alt">SQL explícito onde o lock importa</td></tr>
+          <tr><td class="k">Fila</td><td>Redis (Upstash) + BullMQ</td><td class="alt">pg-boss</td><td class="alt">Expiração de reserva, webhooks, notificações</td></tr>
+          <tr><td class="k">Pagamento</td><td>Mercado Pago (Pix + cartão)</td><td class="alt">Asaas, Efí, Pagar.me</td><td class="alt">Webhook confiável; Asaas entra se o split virar requisito</td></tr>
+          <tr><td class="k">Comissão</td><td>Ledger interno + repasse Pix em lote</td><td class="alt">Split nativo do provedor</td><td class="alt">Comissão só é devida depois da janela de estorno</td></tr>
+          <tr><td class="k">Login</td><td>Sessão em Postgres + OTP por WhatsApp</td><td class="alt">Clerk, Auth0</td><td class="alt">Comprador não deve precisar de senha</td></tr>
+          <tr><td class="k">Mensagens</td><td>WhatsApp Cloud API + Resend</td><td class="alt">Twilio, SendGrid</td><td class="alt">É onde esse público realmente lê</td></tr>
+          <tr><td class="k">Mídia · imagem</td><td>Cloudflare R2 + variantes AVIF/WebP</td><td class="alt">S3 + Imgproxy</td><td class="alt">Sem custo de saída para banner e fotos do prêmio</td></tr>
+          <tr><td class="k">Mídia · vídeo</td><td>Cloudflare Stream</td><td class="alt">Mux, ffmpeg próprio</td><td class="alt">Um vídeo de 60 s por campanha não paga um pipeline próprio</td></tr>
+          <tr><td class="k">Monitoramento</td><td>Sentry + pino</td><td class="alt">Datadog</td><td class="alt">Todo erro precisa ser rastreável pelo número do pedido</td></tr>
+          <tr><td class="k">Analytics</td><td>PostHog</td><td class="alt">GA4</td><td class="alt">Funil de checkout e atribuição no mesmo lugar</td></tr>
+          <tr><td class="k">Testes</td><td>Vitest + Playwright</td><td class="alt">Cypress</td><td class="alt">O E2E do checkout é o teste que paga a conta</td></tr>
+          <tr><td class="k">Deploy</td><td>Fly.io ou Railway + Neon + R2</td><td class="alt">Vercel serverless</td><td class="alt">O worker de fila precisa de processo longo</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <div class="perf" role="presentation"></div>
+
+  <!-- ==================== FLUXO ==================== -->
+  <section>
+    <div class="sechead">
+      <p class="eyebrow">Fluxo crítico</p>
+      <h2>Do clique no link ao Pix compensado</h2>
+      <p class="body">
+        Seis etapas. A atribuição do afiliado é decidida na criação do pedido e reconferida no
+        webhook — é ali que as plataformas concorrentes perdem venda de afiliado.
+      </p>
+    </div>
+
+    <div class="flow">
+      <div class="step"><span class="s">01</span><div>
+        <h4>Clique no link do afiliado</h4>
+        <p>Registra o clique, grava cookie first-party <code>aff</code> por 30 dias e uma cópia no localStorage. Modelo de primeiro clique; cupom digitado no checkout sobrepõe.</p>
+      </div></div>
+      <div class="step"><span class="s">02</span><div>
+        <h4>Reserva das cotas</h4>
+        <p>Uma transação: <code>SELECT … FOR UPDATE SKIP LOCKED</code> marca os números como reservados com prazo. Índice único por <code>(campanha, número)</code> é a última defesa. Nada de reserva em memória.</p>
+      </div></div>
+      <div class="step"><span class="s">03</span><div>
+        <h4>Cobrança Pix</h4>
+        <p>O servidor calcula o valor — o front nunca envia preço. QR Code e copia-e-cola voltam para a tela com o cronômetro.</p>
+      </div></div>
+      <div class="step"><span class="s">04</span><div>
+        <h4>Webhook do provedor</h4>
+        <p>Assinatura validada, <code>external_id</code> único garante idempotência. Pedido vira pago, cotas viram pagas, cota premiada é revelada, comissão nasce como pendente com data de liberação.</p>
+      </div></div>
+      <div class="step"><span class="s">05</span><div>
+        <h4>Expiração automática</h4>
+        <p>A cada minuto, reservas vencidas voltam ao estoque e o pedido vira expirado. O comprador seguinte vê o número livre em tempo real.</p>
+      </div></div>
+      <div class="step"><span class="s">06</span><div>
+        <h4>Liberação e saque</h4>
+        <p>Passada a janela de estorno e o sorteio, a comissão fica disponível e entra no lote de repasse Pix. Estorno reverte a comissão; se já paga, vira débito no saldo.</p>
+      </div></div>
+    </div>
+  </section>
+
+  <div class="perf" role="presentation"></div>
+
+  <!-- ==================== REGRAS ==================== -->
+  <section>
+    <div class="sechead">
+      <p class="eyebrow">Não negociável</p>
+      <h2>Sete regras de engenharia</h2>
+    </div>
+
+    <div class="rules">
+      <div class="rule">
+        <span class="t">Cota é vendida uma vez só</span>
+        <p>A chave primária <span class="num">(campanha, número)</span> decide: reserva é insert com <span class="num">ON CONFLICT DO NOTHING</span>, e o que não entrou não é do comprador. Nunca checar disponibilidade em uma query separada da escrita.</p>
+        <p class="why">falha aqui = dois donos do mesmo número</p>
+      </div>
+      <div class="rule">
+        <span class="t">Webhook é idempotente</span>
+        <p>Evento gravado por identificador externo único; reprocessar não faz nada. Assinatura sempre validada — o redirect do navegador não vale como prova de pagamento.</p>
+        <p class="why">falha aqui = cota liberada sem dinheiro</p>
+      </div>
+      <div class="rule">
+        <span class="t">Dinheiro é inteiro, em centavos</span>
+        <p>Nenhum valor em ponto flutuante. Todo total é recalculado no servidor a partir da campanha.</p>
+        <p class="why">falha aqui = centavo que não fecha no extrato</p>
+      </div>
+      <div class="rule">
+        <span class="t">Sorteio auditável em qualquer escala</span>
+        <p>Uma regra só, de 100 a 1.000.000 de cotas: hash da semente publicado antes da primeira venda, semente revelada depois, número derivado por HMAC sobre os 5 prêmios do concurso federal, com rejeição de amostra contra viés de módulo.</p>
+        <p class="why">falha aqui = a rifa perde a confiança do público</p>
+      </div>
+      <div class="rule">
+        <span class="t">Comissão tem carência</span>
+        <p>Liberada só após a janela de estorno e o sorteio. Autoindicação bloqueada por telefone, CPF e dispositivo.</p>
+        <p class="why">falha aqui = comissão paga sobre venda estornada</p>
+      </div>
+      <div class="rule">
+        <span class="t">Dado pessoal é mínimo</span>
+        <p>Telefone e CPF apenas quando necessários; IP e user-agent guardados como hash; retenção definida; exclusão a pedido.</p>
+        <p class="why">LGPD, art. 6º — necessidade</p>
+      </div>
+      <div class="rule" style="grid-column:1/-1">
+        <span class="t">A autorização é da campanha, não do software</span>
+        <p>
+          Rifa com venda de bilhetes só é permitida sob a Lei 5.768/71 (Decreto 70.951/72), com
+          autorização prévia da Secretaria de Prêmios e Apostas do Ministério da Fazenda — a SPA,
+          sucessora da SECAP. A autorização é emitida para o promotor e a campanha; nenhuma
+          plataforma é homologada em bloco. Por isso o sistema exige o certificado por campanha,
+          armazena o documento e o exibe na página pública — e bloqueia a publicação sem ele.
+        </p>
+        <p class="why">decisão de produto: o organizador assume, a plataforma comprova</p>
+      </div>
+    </div>
+  </section>
+
+  <div class="perf" role="presentation"></div>
+
+  <!-- ==================== ROADMAP ==================== -->
+  <section>
+    <div class="sechead">
+      <p class="eyebrow">Execução</p>
+      <h2>Quatro fases, dez semanas</h2>
+      <p class="body">
+        Cada fase termina em algo que pode ir ao ar. A ordem não é negociável: sem dinheiro entrando
+        corretamente na Fase 1, comissão de afiliado na Fase 2 é conta errada multiplicada.
+      </p>
+    </div>
+
+    <div class="phases">
+      <article class="phase">
+        <span class="ph">Fase 0</span>
+        <div>
+          <h4>Fundação</h4>
+          <p>Limpeza do esqueleto herdado, design system em tokens (esta paleta), schema Drizzle inicial, login do admin, CI com typecheck e testes, ambientes de staging e produção.</p>
+          <p class="dod">Pronto quando: <span class="num">main</span> sobe sozinha para staging a cada merge.</p>
+        </div>
+        <span class="dur">1 semana</span>
+      </article>
+
+      <article class="phase">
+        <span class="ph">Fase 1</span>
+        <div>
+          <h4>MVP vendável</h4>
+          <p>CRUD de campanha com o total de cotas até 1M travado na publicação, arquitetura esparsa desde o primeiro commit, vitrine multi-rifas, pipeline de mídia (banner, 5 fotos, vídeo de 60 s), página da rifa com compra rápida, busca por número e navegador de blocos, reserva com prazo, Pix automático com webhook, “minhas cotas” por telefone, sorteio auditável, painel de receita.</p>
+          <p class="dod">Pronto quando: uma campanha de 1.000.000 de cotas vai da primeira venda ao sorteio sem ninguém tocar no banco, dentro do orçamento de desempenho.</p>
+        </div>
+        <span class="dur">3 semanas</span>
+      </article>
+
+      <article class="phase">
+        <span class="ph">Fase 2</span>
+        <div>
+          <h4>Afiliados</h4>
+          <p>Cadastro e aprovação, link e cupom, rastreio de clique e atribuição, painel do afiliado, ledger de comissões, saque em Pix, relatório por afiliado no admin.</p>
+          <p class="dod">Pronto quando: uma venda por link é creditada, liberada e paga — e o extrato fecha com o banco.</p>
+        </div>
+        <span class="dur">2 semanas</span>
+      </article>
+
+      <article class="phase">
+        <span class="ph">Fase 3</span>
+        <div>
+          <h4>Conversão</h4>
+          <p>Cotas premiadas, ranking de compradores, pacotes com desconto, avisos no WhatsApp, recuperação de carrinho abandonado, prova social das últimas compras.</p>
+          <p class="dod">Pronto quando: a taxa de reserva paga sobe de forma medível no PostHog.</p>
+        </div>
+        <span class="dur">2 semanas</span>
+      </article>
+
+      <article class="phase">
+        <span class="ph">Fase 4</span>
+        <div>
+          <h4>Operação e carga</h4>
+          <p>Pool de endgame sob carga real, workers e filas, antifraude, trilha de auditoria, exportações, observabilidade e — se o negócio pedir — multi-organizador com marca própria.</p>
+          <p class="dod">Pronto quando: 500 compradores simultâneos disputam os últimos 10% de uma campanha de 1M sem cota duplicada nem fila travada.</p>
+        </div>
+        <span class="dur">2 semanas</span>
+      </article>
+    </div>
+  </section>
+
+  <div class="perf" role="presentation"></div>
+
+  <!-- ==================== RISCOS ==================== -->
+  <section>
+    <div class="sechead">
+      <p class="eyebrow">Antes de começar</p>
+      <h2>Riscos e decisões em aberto</h2>
+    </div>
+
+    <div class="tablewrap">
+      <table class="doc">
+        <thead><tr><th>Ponto</th><th>Impacto</th><th>Encaminhamento</th></tr></thead>
+        <tbody>
+          <tr><td class="k" style="text-decoration:line-through;color:var(--muted)">Multi-rifas</td><td><span class="pill ok">decidido</span></td><td>Várias campanhas simultâneas sob um administrador geral, desde a Fase 1</td></tr>
+          <tr><td class="k">Multi-<b>organizador</b> (cada cliente com sua conta)</td><td class="alt">Médio — não é o mesmo que multi-rifas</td><td><span class="num">organization_id</span> nulo no schema desde já; ativar só se virar SaaS</td></tr>
+          <tr><td class="k">Peso da mídia na tela inicial</td><td class="alt">Médio — conversão no 4G</td><td>Pôster em vez de vídeo, AVIF responsivo, orçamento de 400 KB</td></tr>
+          <tr><td class="k">Provedor: Mercado Pago ou Asaas</td><td class="alt">Alto — define split e prazos</td><td>Decidir antes da Fase 1; a abstração isola a troca</td></tr>
+          <tr><td class="k">Autorização SPA/MF da campanha</td><td class="alt">Alto — jurídico do organizador</td><td>Campo obrigatório por campanha + orientação no onboarding</td></tr>
+          <tr><td class="k" style="text-decoration:line-through;color:var(--muted)">Grade de 1M de cotas no celular</td><td><span class="pill ok">decidido</span></td><td>Armazenamento esparso + bitmap por bloco + busca direta, já na Fase 1</td></tr>
+          <tr><td class="k">Sorteio acima de 100 000 cotas</td><td class="alt">Alto — a Federal só dá 5 dígitos</td><td>Semente comprometida + HMAC sobre os 5 prêmios; validar o texto com o jurídico</td></tr>
+          <tr><td class="k">Autoindicação de afiliado</td><td class="alt">Médio — custo direto</td><td>Bloqueio por dispositivo e telefone; revisão manual acima do limite</td></tr>
+          <tr><td class="k">Aprovação do WhatsApp Cloud API</td><td class="alt">Médio — prazo externo</td><td>Iniciar cadastro na Fase 1; e-mail como plano B</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer>
+    <p>
+      Plano técnico completo — schema, contratos de API e regras de atribuição — em
+      <span class="num">docs/PLANO-RIFA.md</span> no repositório. Números das telas são exemplos
+      de demonstração, não dados reais de operação.
+    </p>
+    <p class="fl">
+      Levantamento de mercado: Rifei · 123Rifas · Plataforma Rifa · Premium Sorte · NC Brasil ·
+      Riffas · RifaOn · Rifa4.me · Sistema de Rifas Online<br>
+      Base legal: Lei 5.768/71 · Decreto 70.951/72 · SPA/Ministério da Fazenda
+    </p>
+  </footer>
+
+</div>
+
+<script>
+// QR ilustrativo: padrão determinístico com os três marcadores de posição de um QR real.
+(function(){
+  var svg=document.getElementById('qr'); if(!svg) return;
+  var N=25, seed=20260914, cells=[];
+  function rnd(){ seed=(seed*1103515245+12345)&0x7fffffff; return seed/0x7fffffff; }
+  function inFinder(x,y){
+    var f=[[0,0],[N-7,0],[0,N-7]];
+    for(var i=0;i<f.length;i++){
+      var fx=f[i][0], fy=f[i][1];
+      if(x>=fx-1&&x<=fx+7&&y>=fy-1&&y<=fy+7) return true;
+    }
+    return false;
+  }
+  for(var y=0;y<N;y++) for(var x=0;x<N;x++){
+    if(inFinder(x,y)) continue;
+    if(rnd()>0.53) cells.push('<rect x="'+x+'" y="'+y+'" width="1" height="1"></rect>');
+  }
+  var finders=[[0,0],[N-7,0],[0,N-7]].map(function(p){
+    return '<rect x="'+p[0]+'" y="'+p[1]+'" width="7" height="7" fill="none" stroke="#0B1F14" stroke-width="1"></rect>'
+         + '<rect x="'+(p[0]+2)+'" y="'+(p[1]+2)+'" width="3" height="3"></rect>';
+  }).join('');
+  svg.innerHTML='<g fill="#0B1F14" shape-rendering="crispEdges">'+cells.join('')+finders+'</g>';
+})();
+</script>

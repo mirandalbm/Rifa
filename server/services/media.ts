@@ -102,7 +102,7 @@ export async function requestUpload(params: {
   }
 
   return storage().presignUpload({
-    key: mediaKey(params.campaignId, params.role, params.filename),
+    key: mediaKey(params.campaignId, params.role, params.mime),
     contentType: params.mime,
   });
 }

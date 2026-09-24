@@ -47,7 +47,7 @@ type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
  */
 export function intArray(numbers: number[]): string {
   for (const n of numbers) {
-    if (!Number.isInteger(n)) throw new Error(`Número de cota inválido: ${n}`);
+    if (!Number.isInteger(n)) throw Object.assign(new Error(`Número de cota inválido: ${n}`), { status: 400 });
   }
   return `{${numbers.join(",")}}`;
 }
@@ -225,7 +225,7 @@ export async function reserveSpecific(
   const unique = [...new Set(numbers)];
   const outOfRange = unique.filter((n) => n < 1 || n > totalQuotas);
   if (outOfRange.length > 0) {
-    throw new Error(`Número fora da faixa desta campanha: ${outOfRange[0]}.`);
+    throw Object.assign(new Error(`Número fora da faixa desta campanha: ${outOfRange[0]}.`), { status: 400 });
   }
 
   const won = await insertNumbers(tx, campaignId, unique, orderId, reservedUntil);

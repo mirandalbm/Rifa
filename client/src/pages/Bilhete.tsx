@@ -42,7 +42,7 @@ interface Ticket {
  */
 export default function Bilhete() {
   const { code } = useParams<{ code: string }>();
-  const { data: t } = useQuery<Ticket>({
+  const { data: t, error } = useQuery<Ticket>({
     queryKey: [`/api/public/tickets/${code}`],
   });
 
@@ -54,6 +54,12 @@ export default function Bilhete() {
       return () => clearTimeout(id);
     }
   }, [t]);
+
+  // Sem isto, bilhete inexistente ou consulta barrada ficava em "Carregando"
+  // para sempre — o erro vem do servidor já em português.
+  if (error) {
+    return <p style={{ padding: 24, fontFamily: "monospace" }}>{error.message}</p>;
+  }
 
   if (!t) {
     return <p style={{ padding: 24, fontFamily: "monospace" }}>Carregando bilhete…</p>;

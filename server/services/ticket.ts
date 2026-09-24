@@ -9,7 +9,7 @@
 import { eq } from "drizzle-orm";
 import { db } from "../db";
 import { orders, buyers, campaigns, quotaAlloc, affiliates, users, draws } from "@shared/schema";
-import { formatQuota, maskPhone } from "@shared/format";
+import { formatQuota, hidePhone, hideCpf } from "@shared/format";
 import { organizerInfoOf } from "./orgs";
 import { METODO_LABEL, SITUACAO_LABEL, type TicketData } from "./ticketFormat";
 
@@ -55,8 +55,10 @@ export async function buildTicket(code: number): Promise<TicketData | null> {
     administradora: await organizerInfoOf(row.campaign.organizationId),
     apostador: {
       nome: row.buyer.name,
-      telefone: maskPhone(row.buyer.phone),
-      cpf: row.buyer.cpf,
+      // O bilhete é público pelo código do pedido: telefone e CPF saem
+      // escondidos, como no ranking. Quem precisa do dado inteiro é o painel.
+      telefone: hidePhone(row.buyer.phone),
+      cpf: row.buyer.cpf ? hideCpf(row.buyer.cpf) : null,
     },
     rifa: {
       titulo: row.campaign.title,

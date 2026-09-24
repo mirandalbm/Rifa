@@ -110,18 +110,23 @@ async function record(bucket: string) {
 }
 
 /**
- * Conta e registra numa tacada. Registrar mesmo quando bloqueia é de
+ * Registra e conta numa tacada. Registrar mesmo quando bloqueia é de
  * propósito: quem insiste continua contando, e a janela não zera por
  * tentativa recusada.
+ *
+ * **Grava antes de contar.** Contar e depois gravar é a mesma corrida da
+ * invariante 11: mil tentativas simultâneas contavam todas abaixo do limite e
+ * passavam juntas. Gravando primeiro, cada requisição enxerga pelo menos a
+ * própria linha e todas as confirmadas antes dela — no máximo `limit` passam.
  */
 async function hit(
   bucket: string,
   minutes: number,
   limit: number,
 ): Promise<{ excedeu: boolean; atual: number }> {
-  const atual = await countInWindow(bucket, minutes);
   await record(bucket);
-  return { excedeu: atual >= limit, atual: atual + 1 };
+  const atual = await countInWindow(bucket, minutes);
+  return { excedeu: atual > limit, atual };
 }
 
 /* ------------------------------------------------------------------ *
@@ -407,6 +412,60 @@ export async function guardOtp(
 
   // Marcar o IP também: trocar de telefone não deve zerar a conta.
   if (identity.ipHash) await record(`otp:ip:${identity.ipHash}`);
+
+  return { allowed: true };
+}
+
+/**
+ * Consulta pública por código de pedido (pedido e bilhete). O código é
+ * sorteado em oito dígitos justamente para não ser enumerável, mas sem teto
+ * um script varre a faixa e colhe nome de comprador. Só conta **erro**:
+ * quem acompanha o próprio pedido acerta sempre, e a tela de pagamento
+ * consulta o status a cada poucos segundos — contar acerto derrubaria ela.
+ */
+const LOOKUP_MISSES_PER_IP = 30;
+
+export async function lookupBlocked(identity: RequestIdentity): Promise<boolean> {
+  if (!identity.ipHash) return false;
+  if (await isBlocked("ip", identity.ipHash)) return true;
+  return (await countInWindow(`lookup:miss:${identity.ipHash}`, WINDOWS.orders)) >= LOOKUP_MISSES_PER_IP;
+}
+
+export async function recordLookupMiss(identity: RequestIdentity): Promise<void> {
+  if (identity.ipHash) await record(`lookup:miss:${identity.ipHash}`);
+}
+
+/**
+ * Tentativas de conferir o código de acesso. O contador de tentativas na
+ * sessão sozinho não segura: ele mora numa sessão que o atacante escolhe e
+ * não é atômico — disparos simultâneos liam todos "0 tentativas". Aqui a
+ * janela é por telefone, valendo para todas as sessões juntas.
+ */
+export async function guardOtpVerify(
+  phone: string,
+  identity: RequestIdentity,
+): Promise<FraudCheckResult> {
+  const limits = await getLimits();
+  const digitos = normalizePhone(phone);
+
+  if (identity.ipHash && (await isBlocked("ip", identity.ipHash))) {
+    return { allowed: false, reason: "Acesso bloqueado.", rule: "bloqueio" };
+  }
+
+  const tentativa = await hit(`otp:verify:${digitos}`, WINDOWS.otp, limits.loginAttempts);
+  if (tentativa.excedeu) {
+    await flag({
+      rule: "forca_bruta",
+      reason: "Tentativas demais de código de acesso para o mesmo telefone.",
+      subject: hidePhone(digitos),
+      detail: { tentativas: tentativa.atual, limite: limits.loginAttempts },
+    });
+    return {
+      allowed: false,
+      reason: "Muitas tentativas. Peça um código novo daqui a alguns minutos.",
+      rule: "forca_bruta",
+    };
+  }
 
   return { allowed: true };
 }

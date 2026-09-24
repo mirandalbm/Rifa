@@ -39,8 +39,20 @@ function isAbsolute(key: string): boolean {
 }
 
 /** Chave opaca: nada do nome original do arquivo vaza para a URL. */
-export function mediaKey(campaignId: string, role: string, filename: string): string {
-  const ext = path.extname(filename).toLowerCase().slice(0, 8).replace(/[^.a-z0-9]/g, "");
+const EXT_BY_MIME: Record<string, string> = {
+  "image/jpeg": ".jpg",
+  "image/png": ".png",
+  "image/webp": ".webp",
+  "video/mp4": ".mp4",
+  "video/quicktime": ".mov",
+};
+
+/**
+ * A extensão sai do tipo já validado, nunca do nome enviado: com o nome,
+ * `banner.html` virava uma página servida pelo próprio domínio.
+ */
+export function mediaKey(campaignId: string, role: string, mime: string): string {
+  const ext = EXT_BY_MIME[mime] ?? "";
   return `campanhas/${campaignId}/${role}-${randomUUID()}${ext}`;
 }
 

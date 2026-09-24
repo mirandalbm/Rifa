@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { formatQuota, quotaDigits, normalizePhone, hidePhone, percent } from "../shared/format";
+import { formatQuota, quotaDigits, normalizePhone, hidePhone, hideCpf, percent } from "../shared/format";
 
 describe("número da cota", () => {
   it("usa o comprimento do total da campanha", () => {
@@ -18,6 +18,17 @@ describe("telefone", () => {
 
   it("esconde o miolo em tela pública", () => {
     expect(hidePhone("11988887777")).toBe("(11) ••••-7777");
+  });
+});
+
+describe("CPF", () => {
+  it("esconde as pontas em tela pública", () => {
+    expect(hideCpf("123.456.789-09")).toBe("***.456.789-**");
+    expect(hideCpf("12345678909")).toBe("***.456.789-**");
+  });
+
+  it("não devolve nada reconhecível quando o CPF está incompleto", () => {
+    expect(hideCpf("1234")).toBe("•••");
   });
 });
 

@@ -44,9 +44,9 @@ export function drawNumber(params: {
   const { seed, federalPrizes, totalQuotas } = params;
 
   if (federalPrizes.length !== 5) {
-    throw new Error("São necessários os 5 prêmios do concurso federal.");
+    throw Object.assign(new Error("São necessários os 5 prêmios do concurso federal."), { status: 400 });
   }
-  if (totalQuotas < 1) throw new Error("Total de cotas inválido.");
+  if (totalQuotas < 1) throw Object.assign(new Error("Total de cotas inválido."), { status: 400 });
 
   const publicEntropy = federalPrizes.map((p) => p.trim()).join("-");
   const total = BigInt(totalQuotas);

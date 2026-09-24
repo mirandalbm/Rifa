@@ -14,6 +14,18 @@ import { startJobs } from "./jobs";
 import { setupVite, serveStatic, log } from "./vite";
 
 const app = express();
+app.disable("x-powered-by");
+
+// Cabeçalhos de defesa baratos: o navegador não adivinha tipo de arquivo
+// (upload servido como página), a loja não abre dentro de iframe alheio
+// (clickjacking no botão de pagar) e o código do pedido na URL não vaza
+// no Referer para sites externos.
+app.use((_req, res, next) => {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  next();
+});
 
 // O webhook precisa do corpo cru para validar assinatura: vem antes do JSON.
 app.use("/api/webhooks", express.raw({ type: "*/*" }), webhookRouter);
@@ -52,8 +64,13 @@ app.use((req, res, next) => {
       });
     }
     const status = err.status ?? err.statusCode ?? 500;
-    if (status >= 500) console.error(err);
-    res.status(status).json({ message: err.message ?? "Erro interno." });
+    if (status >= 500) {
+      // Erro inesperado: o detalhe (SQL, caminho de arquivo, pilha) vai para o
+      // log, nunca para o navegador. Erro de regra (4xx) já vem em português.
+      console.error(err);
+      return res.status(status).json({ message: "Erro interno. Tente novamente." });
+    }
+    res.status(status).json({ message: err.message ?? "Erro na requisição." });
   });
 
   if (app.get("env") === "development") {

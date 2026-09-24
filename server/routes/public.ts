@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, type Request, type Response } from "express";
 import { createHash } from "node:crypto";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { db } from "../db";
@@ -25,7 +25,7 @@ import { withUrls } from "../services/media";
 import { notify, notificationProvider } from "../notifications";
 import { buildTicket, escPosTicket, markTicketPrinted } from "../services/ticket";
 import { getPaymentMethods } from "../services/settings";
-import { identify, guardOtp } from "../services/antifraude";
+import { identify, guardOtp, guardOtpVerify, lookupBlocked, recordLookupMiss } from "../services/antifraude";
 import { paymentSummary } from "@shared/payments";
 
 export const publicRouter = Router();
@@ -240,11 +240,24 @@ publicRouter.post("/orders", async (req, res, next) => {
   }
 });
 
+/** Barra quem está varrendo códigos de pedido; ver `lookupBlocked`. */
+async function lookupGuard(req: Request, res: Response): Promise<boolean> {
+  if (await lookupBlocked(identify(req))) {
+    res.status(429).json({ message: "Muitas consultas a pedidos que não existem. Espere alguns minutos." });
+    return false;
+  }
+  return true;
+}
+
 /** A tela de pagamento pergunta por aqui até o webhook chegar. */
 publicRouter.get("/orders/:code", async (req, res, next) => {
   try {
+    if (!(await lookupGuard(req, res))) return;
     const found = await orderByCode(Number(req.params.code));
-    if (!found) return res.status(404).json({ message: "Pedido não encontrado." });
+    if (!found) {
+      await recordLookupMiss(identify(req));
+      return res.status(404).json({ message: "Pedido não encontrado." });
+    }
 
     res.json({
       code: found.order.code,
@@ -309,11 +322,26 @@ publicRouter.post("/my-quotas/verify", async (req, res, next) => {
     const phone = req.session.otp?.phone;
     if (!phone) return res.status(400).json({ message: "Peça um código novo." });
 
+    const veredito = await guardOtpVerify(phone, identify(req));
+    if (!veredito.allowed) {
+      return res.status(429).json({ message: veredito.reason });
+    }
+
     if (!(await checkOtp(req, code))) {
       return res.status(401).json({ message: "Código incorreto ou expirado." });
     }
 
     const [buyer] = await db.select().from(buyers).where(eq(buyers.phone, phone));
+
+    // Sessão nova ao entrar, como o passport já faz no painel: um id de
+    // sessão plantado antes do login não pode virar a sessão do comprador.
+    // A indicação do afiliado sobrevive — é dela que sai a comissão.
+    const { affiliateCode, affiliateSince } = req.session;
+    await new Promise<void>((resolve, reject) =>
+      req.session.regenerate((err) => (err ? reject(err) : resolve())),
+    );
+    req.session.affiliateCode = affiliateCode;
+    req.session.affiliateSince = affiliateSince;
     req.session.buyer = buyer
       ? { id: buyer.id, phone: buyer.phone, name: buyer.name }
       : { id: "", phone, name: "" };
@@ -342,8 +370,12 @@ publicRouter.get("/my-quotas", async (req, res, next) => {
  */
 publicRouter.get("/tickets/:code", async (req, res, next) => {
   try {
+    if (!(await lookupGuard(req, res))) return;
     const ticket = await buildTicket(Number(req.params.code));
-    if (!ticket) return res.status(404).json({ message: "Bilhete não encontrado." });
+    if (!ticket) {
+      await recordLookupMiss(identify(req));
+      return res.status(404).json({ message: "Bilhete não encontrado." });
+    }
     res.json(ticket);
   } catch (err) {
     next(err);
@@ -353,8 +385,12 @@ publicRouter.get("/tickets/:code", async (req, res, next) => {
 /** Texto pronto para a impressora térmica da maquininha. */
 publicRouter.get("/tickets/:code/escpos", async (req, res, next) => {
   try {
+    if (!(await lookupGuard(req, res))) return;
     const ticket = await buildTicket(Number(req.params.code));
-    if (!ticket) return res.status(404).json({ message: "Bilhete não encontrado." });
+    if (!ticket) {
+      await recordLookupMiss(identify(req));
+      return res.status(404).json({ message: "Bilhete não encontrado." });
+    }
     res.type("text/plain; charset=utf-8").send(escPosTicket(ticket));
   } catch (err) {
     next(err);

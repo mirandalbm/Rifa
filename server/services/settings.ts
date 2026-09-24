@@ -28,7 +28,7 @@ export async function getOrganizer(): Promise<OrganizerInfo> {
 export async function setOrganizer(info: OrganizerInfo): Promise<OrganizerInfo> {
   const nome = info.nome?.trim();
   if (!nome || nome.length < 2) {
-    throw new Error("Informe o nome da administradora da rifa.");
+    throw Object.assign(new Error("Informe o nome da administradora da rifa."), { status: 400 });
   }
   const value: OrganizerInfo = {
     nome,

@@ -181,6 +181,9 @@ async function rotasDaPlataforma(eu: Lado) {
     ["POST lançar mensalidades", "/api/admin/cobranca/mensalidades", { method: "POST" }],
     ["POST arquivar organização", `/api/admin/organizacoes/${eu.orgId}/arquivar`, { method: "POST", body: "{}" }],
     ["POST restaurar organização", `/api/admin/organizacoes/${eu.orgId}/restaurar`, { method: "POST" }],
+    ["GET WhatsApp", "/api/admin/whatsapp", {}],
+    ["POST criar modelos do WhatsApp", "/api/admin/whatsapp/modelos", { method: "POST" }],
+    ["POST teste do WhatsApp", "/api/admin/whatsapp/teste", { method: "POST", body: '{"telefone":"11999999999"}' }],
   ];
   for (const [nome, caminho, init] of tentativas) {
     const res = await pedir(eu.cookie, caminho, init);

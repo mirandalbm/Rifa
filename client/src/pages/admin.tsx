@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { TrocarSenha } from "@/components/TrocarSenha";
+import { WhatsAppCard } from "@/components/WhatsAppCard";
 import { PanelShell } from "@/components/AppShell";
 import { Card, Kpi, Money, Pill, Button, Empty, Progress } from "@/components/bits";
 import { apiRequest } from "@/lib/queryClient";
@@ -1216,6 +1217,8 @@ function OrganizerCard() {
 }
 
 export function AdminConfiguracoes() {
+  const { data: session } = useSession();
+  const plataforma = session?.role === "admin";
   const { data } = useQuery<
     { id: string; action: string; entity: string; createdAt: string; actorRole: string }[]
   >({ queryKey: ["/api/admin/audit"] });
@@ -1230,6 +1233,11 @@ export function AdminConfiguracoes() {
         <TwoFactorCard />
         <TrocarSenha />
       </div>
+      {plataforma ? (
+        <div className="mb-3">
+          <WhatsAppCard />
+        </div>
+      ) : null}
       <Card title="Trilha de auditoria" right={<span className="label-xs">últimas 200 ações</span>}>
         <ul className="divide-y divide-line">
           {data?.map((a) => (

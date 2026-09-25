@@ -1,5 +1,6 @@
 import type { NotificationProvider, OutboundMessage } from "./provider";
-import { TEMPLATES, orderedParams } from "./templates";
+import { TEMPLATES } from "./templates";
+import { GRAPH_VERSION, IDIOMA_PADRAO, componentesDeEnvio } from "./metaTemplates";
 
 /**
  * WhatsApp Cloud API.
@@ -12,14 +13,13 @@ export class WhatsAppProvider implements NotificationProvider {
   readonly name = "whatsapp";
   private token = required("WHATSAPP_TOKEN");
   private phoneId = required("WHATSAPP_PHONE_ID");
-  private language = process.env.WHATSAPP_LANGUAGE ?? "pt_BR";
+  private language = process.env.WHATSAPP_LANGUAGE ?? IDIOMA_PADRAO;
 
   async send(message: OutboundMessage): Promise<void> {
     const spec = TEMPLATES[message.template];
-    const values = orderedParams(message.template, message.params);
 
     const res = await fetch(
-      `https://graph.facebook.com/v21.0/${this.phoneId}/messages`,
+      `https://graph.facebook.com/${GRAPH_VERSION}/${this.phoneId}/messages`,
       {
         method: "POST",
         headers: {
@@ -33,12 +33,7 @@ export class WhatsAppProvider implements NotificationProvider {
           template: {
             name: spec.whatsappName,
             language: { code: this.language },
-            components: [
-              {
-                type: "body",
-                parameters: values.map((text) => ({ type: "text", text })),
-              },
-            ],
+            components: componentesDeEnvio(message.template, message.params),
           },
         }),
       },

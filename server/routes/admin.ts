@@ -93,6 +93,7 @@ import {
   OrgScopeError,
 } from "../services/orgs";
 import { isUniqueViolation } from "../pgError";
+import { estadoWhatsApp, criarModelosFaltantes, enviarTeste } from "../services/whatsappSetup";
 import { senhaInvalida } from "@shared/senha";
 import { EXPORTS, exportInfo, exportFilename, CSV_BOM } from "@shared/exports";
 
@@ -1221,6 +1222,46 @@ adminRouter.post("/organizacoes/:id/restaurar", async (req, res, next) => {
       name: restaurada.name,
     });
     res.json(restaurada);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/* ---------------- WhatsApp ---------------- */
+
+/**
+ * A conta do WhatsApp é da plataforma: um número manda a mensagem de todas as
+ * rifas. Por isso é só do administrador geral.
+ */
+adminRouter.get("/whatsapp", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    res.json(await estadoWhatsApp());
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.post("/whatsapp/modelos", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    const resultado = await criarModelosFaltantes();
+    await audit(req, "whatsapp.modelos.criar", "whatsapp", undefined, resultado);
+    res.json(resultado);
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.post("/whatsapp/teste", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    const telefone = String(req.body?.telefone ?? "");
+    await enviarTeste(telefone);
+    await audit(req, "whatsapp.teste", "whatsapp", undefined, {
+      telefone: telefone.replace(/\d(?=\d{4})/g, "•"),
+    });
+    res.json({ ok: true });
   } catch (err) {
     next(err);
   }

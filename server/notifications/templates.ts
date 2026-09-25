@@ -20,76 +20,109 @@ export type TemplateName =
 export interface TemplateSpec {
   /** Nome do modelo aprovado na conta do WhatsApp Business. */
   whatsappName: string;
+  /**
+   * Categoria na Meta. Código de acesso é AUTHENTICATION — a Meta fixa o
+   * texto e exige o botão de copiar; o resto é UTILITY: é sobre a compra, o
+   * pagamento ou o resultado de quem recebe, sem nada promocional.
+   */
+  categoria: "UTILITY" | "AUTHENTICATION";
   /** Ordem dos parâmetros no corpo do modelo aprovado. */
   order: string[];
+  /**
+   * O corpo como é submetido à Meta: `{{1}}`, `{{2}}`… na ordem de `order`.
+   * O texto local sai daqui também, para os dois nunca se afastarem. No de
+   * autenticação a Meta escreve o próprio texto; este é só o do registro.
+   */
+  corpo: string;
+  /** Valores de exemplo que a Meta exige na submissão, na ordem de `order`. */
+  exemplo: string[];
   /** Texto legível, usado no console em desenvolvimento e no registro. */
   text(params: Record<string, string>): string;
 }
 
+type Definicao = Omit<TemplateSpec, "text" | "whatsappName">;
+
+/** O texto local é o corpo da Meta com os parâmetros no lugar. */
+function modelo(nome: string, d: Definicao): TemplateSpec {
+  return {
+    ...d,
+    whatsappName: nome,
+    text: (p) =>
+      d.corpo.replace(/\{\{(\d+)\}\}/g, (_, n: string) => p[d.order[Number(n) - 1]] ?? ""),
+  };
+}
+
 export const TEMPLATES: Record<TemplateName, TemplateSpec> = {
-  codigo_acesso: {
-    whatsappName: "codigo_acesso",
+  codigo_acesso: modelo("codigo_acesso", {
+    categoria: "AUTHENTICATION",
     order: ["codigo"],
-    text: (p) =>
-      `Seu código de acesso é ${p.codigo}. Ele vale por 10 minutos e serve para ver suas cotas.`,
-  },
+    corpo: "Seu código de acesso é {{1}}. Ele vale por 10 minutos e serve para ver suas cotas.",
+    exemplo: ["482193"],
+  }),
 
-  pagamento_confirmado: {
-    whatsappName: "pagamento_confirmado",
+  pagamento_confirmado: modelo("pagamento_confirmado", {
+    categoria: "UTILITY",
     order: ["nome", "rifa", "quantidade", "numeros", "link"],
-    text: (p) =>
-      `${p.nome}, pagamento confirmado! Você tem ${p.quantidade} cota(s) na rifa ${p.rifa}: ${p.numeros}. Acompanhe em ${p.link}`,
-  },
+    corpo:
+      "Olá, {{1}}! Pagamento confirmado na rifa {{2}}. Suas {{3}} cota(s) são: {{4}}. Acompanhe o sorteio em {{5}} e boa sorte!",
+    exemplo: ["Maria", "iPhone 17 Pro", "3", "000123, 004567, 089012", "https://rifa.br/pedido/48291734"],
+  }),
 
-  cota_premiada: {
-    whatsappName: "cota_premiada",
+  cota_premiada: modelo("cota_premiada", {
+    categoria: "UTILITY",
     order: ["nome", "premio", "numero"],
-    text: (p) =>
-      `${p.nome}, você tirou uma cota premiada! A cota ${p.numero} vale ${p.premio}. Vamos entrar em contato para a entrega.`,
-  },
+    corpo:
+      "Parabéns, {{1}}! Você ganhou {{2}} com a cota premiada {{3}}. Nossa equipe vai entrar em contato para combinar a entrega.",
+    exemplo: ["Maria", "R$ 100,00 no Pix", "004567"],
+  }),
 
-  reserva_expirando: {
-    whatsappName: "reserva_expirando",
+  reserva_expirando: modelo("reserva_expirando", {
+    categoria: "UTILITY",
     order: ["nome", "rifa", "minutos", "link"],
-    text: (p) =>
-      `${p.nome}, seus números da rifa ${p.rifa} estão reservados por mais ${p.minutos} minutos. Pague o Pix para garantir: ${p.link}`,
-  },
+    corpo:
+      "Olá, {{1}}. Seus números da rifa {{2}} estão reservados por mais {{3}} minutos. Para garantir, pague o Pix em {{4}} antes do prazo.",
+    exemplo: ["Maria", "iPhone 17 Pro", "5", "https://rifa.br/pedido/48291734"],
+  }),
 
-  venda_afiliado: {
-    whatsappName: "venda_afiliado",
+  venda_afiliado: modelo("venda_afiliado", {
+    categoria: "UTILITY",
     order: ["nome", "valor", "comissao", "rifa"],
-    text: (p) =>
-      `${p.nome}, você fez uma venda de ${p.valor} na rifa ${p.rifa}. Sua comissão é ${p.comissao}.`,
-  },
+    corpo:
+      "Olá, {{1}}! Você fez uma venda de {{2}} e ganhou {{3}} de comissão na rifa {{4}}. O valor fica disponível depois do sorteio.",
+    exemplo: ["João", "R$ 49,00", "R$ 4,90", "iPhone 17 Pro"],
+  }),
 
-  estorno_confirmado: {
-    whatsappName: "estorno_confirmado",
+  estorno_confirmado: modelo("estorno_confirmado", {
+    categoria: "UTILITY",
     order: ["nome", "rifa", "valor", "quantidade"],
     // O comprador precisa saber que perdeu os números, não só que recebeu o
     // dinheiro: senão fica esperando o sorteio de uma cota que não é mais
     // dele.
-    text: (p) =>
-      `${p.nome}, seu pagamento de ${p.valor} na rifa ${p.rifa} foi estornado. As ${p.quantidade} cota(s) voltaram para o estoque e não concorrem mais.`,
-  },
+    corpo:
+      "Olá, {{1}}. Seu pagamento na rifa {{2}}, no valor de {{3}}, foi estornado. As {{4}} cota(s) voltaram para o estoque e não concorrem mais.",
+    exemplo: ["Maria", "iPhone 17 Pro", "R$ 14,70", "3"],
+  }),
 
   /**
    * Depois do sorteio a cota não volta ao estoque, então a mensagem não pode
    * dizer que voltou. Modelo separado porque o texto muda de sentido — e no
    * WhatsApp cada modelo é aprovado por fora, um de cada vez.
    */
-  estorno_pos_sorteio: {
-    whatsappName: "estorno_pos_sorteio",
+  estorno_pos_sorteio: modelo("estorno_pos_sorteio", {
+    categoria: "UTILITY",
     order: ["nome", "rifa", "valor"],
-    text: (p) =>
-      `${p.nome}, seu pagamento de ${p.valor} na rifa ${p.rifa} foi estornado. Como o sorteio já aconteceu, seus números seguem no registro da rifa.`,
-  },
+    corpo:
+      "Olá, {{1}}. Seu pagamento na rifa {{2}}, no valor de {{3}}, foi estornado. Como o sorteio já aconteceu, seus números seguem no registro da rifa.",
+    exemplo: ["Maria", "iPhone 17 Pro", "R$ 14,70"],
+  }),
 
-  sorteio_realizado: {
-    whatsappName: "sorteio_realizado",
+  sorteio_realizado: modelo("sorteio_realizado", {
+    categoria: "UTILITY",
     order: ["rifa", "numero", "link"],
-    text: (p) =>
-      `O sorteio da rifa ${p.rifa} saiu! Número sorteado: ${p.numero}. Confira em ${p.link}`,
-  },
+    corpo:
+      "O sorteio da rifa {{1}} foi realizado! O número sorteado é {{2}}. Confira o resultado completo em {{3}} e obrigado por participar.",
+    exemplo: ["iPhone 17 Pro", "004567", "https://rifa.br/r/iphone-17-pro"],
+  }),
 };
 
 /** Parâmetros na ordem do modelo aprovado — faltando um, a API recusa. */

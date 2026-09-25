@@ -17,14 +17,24 @@ export function PublicShell({ children }: { children: ReactNode }) {
             <Link href="/minhas-cotas" className="text-ink-2 hover:text-green-deep">
               Minhas cotas
             </Link>
-            {session?.role === "admin" || session?.role === "affiliate" ? (
+            {/* Quem tem conta — administrador, organizador, afiliado ou
+                cambista — vai para o próprio painel; os demais veem a porta de
+                entrada. O comprador não precisa dela: entra por "Minhas cotas". */}
+            {session?.user ? (
               <Link
                 href={session.home}
-                className="rounded-md bg-green-soft px-2 py-1 text-xs font-medium text-green-deep"
+                className="rounded-md bg-green-soft px-3 py-1.5 text-xs font-semibold text-green-deep"
               >
                 Meu painel
               </Link>
-            ) : null}
+            ) : (
+              <Link
+                href="/entrar"
+                className="rounded-md border-2 border-green px-3 py-1 text-xs font-semibold text-green-deep hover:bg-green-soft"
+              >
+                Entrar
+              </Link>
+            )}
           </nav>
         </div>
       </header>

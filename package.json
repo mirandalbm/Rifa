@@ -15,6 +15,7 @@
     "test:watch": "vitest",
     "db:push": "drizzle-kit push",
     "db:seed": "tsx scripts/seed.ts",
+    "admin:create": "tsx scripts/create-admin.ts",
     "load": "tsx scripts/load-test.ts",
     "isolation": "tsx scripts/isolation-test.ts",
     "refund": "tsx scripts/refund-test.ts"

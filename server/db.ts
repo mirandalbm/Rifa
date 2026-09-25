@@ -1,6 +1,7 @@
 import pg from "pg";
 import { drizzle } from "drizzle-orm/node-postgres";
 import * as schema from "@shared/schema";
+import { sslConfigFor } from "./dbSsl";
 
 if (!process.env.DATABASE_URL) {
   throw new Error(
@@ -10,15 +11,13 @@ if (!process.env.DATABASE_URL) {
 
 /**
  * Driver TCP padrão: serve tanto o Postgres local do desenvolvimento quanto
- * o Neon em produção. O servidor é um processo longo (Fly/Railway), então
+ * o Neon ou o Railway em produção (o TLS de cada um sai de `sslConfigFor`).
+ * O servidor é um processo longo (Fly/Railway), então
  * pool de conexões é o que queremos — não o driver serverless.
  */
 export const pool = new pg.Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.DATABASE_URL.includes("localhost") ||
-  process.env.DATABASE_URL.includes("127.0.0.1")
-    ? false
-    : { rejectUnauthorized: true },
+  ssl: sslConfigFor(process.env.DATABASE_URL),
   max: Number(process.env.PG_POOL_MAX ?? 10),
 });
 

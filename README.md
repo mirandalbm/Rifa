@@ -77,6 +77,7 @@ O seed imprime as credenciais no fim:
 | `npm run build` | build de produção |
 | `npm run db:push` | aplica o schema |
 | `npm run db:seed` | popula dados de exemplo |
+| `npm run admin:create` | cria o administrador geral em produção (sem dados de exemplo) |
 | `npm run load` | teste de carga com compradores simultâneos |
 | `npm run isolation` | prova de isolamento entre organizações |
 | `npm run refund` | prova dos cinco efeitos do estorno |
@@ -104,6 +105,52 @@ O seed imprime as credenciais no fim:
 | `WHATSAPP_LANGUAGE` | não | `pt_BR` |
 | `REMINDER_MINUTES_BEFORE` | não | `5` (lembrete antes de a reserva cair) |
 | `PORT` | não | `5000` |
+
+## Publicar no Railway
+
+O repositório já traz o `railway.json`: o Railway compila (`npm run build`),
+aplica o schema no banco antes de cada versão entrar no ar (`npm run db:push`),
+cria o administrador geral se ele estiver configurado (veja o passo 5), sobe o
+servidor (`npm start`) e só troca a versão antiga pela nova depois que
+`/api/public/campaigns` responder. O Node é o 22 (`.node-version`).
+
+1. Em [railway.com](https://railway.com), **New Project → Deploy from GitHub
+   repo** e escolha este repositório.
+2. No mesmo projeto, **New → Database → PostgreSQL**.
+3. No serviço da rifa, aba **Variables**:
+
+   | Variável | Valor |
+   |---|---|
+   | `DATABASE_URL` | `${{Postgres.DATABASE_URL}}` (referência ao banco do passo 2) |
+   | `SESSION_SECRET` | um valor longo e aleatório (veja o comando no `.env.example`) |
+   | `PUBLIC_BASE_URL` | o endereço público, ex.: `https://rifa.exemplo.com.br` |
+   | `PAYMENT_PROVIDER` | `mercadopago` |
+   | `MP_ACCESS_TOKEN`, `MP_WEBHOOK_SECRET` | do painel do Mercado Pago |
+   | `R2_ACCOUNT_ID`, `R2_BUCKET`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_PUBLIC_URL` | do Cloudflare R2 |
+   | `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_ID` | da API do WhatsApp (Meta) |
+
+   `NODE_ENV=production` já vem do `npm start`. Não defina `PORT`: o Railway
+   define sozinho.
+4. Aba **Settings → Networking → Generate Domain** (ou **Custom Domain**, com o
+   seu domínio). O HTTPS é automático.
+5. **Administrador geral:** acrescente `ADMIN_EMAIL` e `ADMIN_PASSWORD` (12
+   caracteres ou mais) às variáveis e publique. O próprio deploy cria o
+   administrador, sem nenhum dado de exemplo. Depois que ele existir,
+   **apague `ADMIN_PASSWORD` das variáveis**: o deploy seguinte vê que o
+   e-mail já existe e não mexe em nada. Entre pelo site e ative o segundo
+   fator no primeiro acesso.
+6. No Mercado Pago, aponte o webhook para
+   `https://SEU-DOMINIO/api/webhooks/mercadopago`.
+
+**Sem Mercado Pago, R2 e WhatsApp a rifa sobe, mas não vende:** em produção o
+pagamento simulado e o disco local se recusam a funcionar, e sem WhatsApp o
+código de acesso do comprador só aparece no log. Os três são pré-requisito
+para abrir a primeira rifa ao público.
+
+O banco do Railway na rede privada (`*.railway.internal`) não usa TLS, e o
+servidor reconhece isso sozinho. Para outro Postgres, o TLS com certificado
+verificado é o padrão; `?sslmode=no-verify` na `DATABASE_URL` aceita
+certificado autoassinado e `?sslmode=disable` desliga o TLS.
 
 ## Como está organizado
 

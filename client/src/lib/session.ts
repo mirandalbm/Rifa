@@ -25,7 +25,12 @@ export function useSession() {
 export function useLogin() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (creds: { email: string; password: string; token?: string }) => {
+    mutationFn: async (creds: {
+      email: string;
+      password: string;
+      token?: string;
+      lembrar?: boolean;
+    }) => {
       const res = await apiRequest("POST", "/api/auth/login", creds);
       return (await res.json()) as SessionInfo;
     },

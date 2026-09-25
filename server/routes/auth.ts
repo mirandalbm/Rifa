@@ -10,6 +10,8 @@ import { sectionsFor, homeFor } from "@shared/access";
 
 export const authRouter = Router();
 
+const LEMBRAR_MS = 30 * 24 * 60 * 60 * 1000;
+
 /** Quem sou eu e o que eu alcanço — o cliente monta o menu com isto. */
 authRouter.get("/me", (req, res) => {
   const role = currentRole(req);
@@ -47,6 +49,15 @@ authRouter.post("/login", async (req, res, next) => {
       }
       req.logIn(user, (loginErr) => {
         if (loginErr) return next(loginErr);
+        // "Lembrar de mim": a sessão dura 30 dias neste aparelho (renovando a
+        // cada uso). Sem marcar, o cookie morre quando o navegador fecha —
+        // é o certo em computador compartilhado. A senha nunca é guardada
+        // por nós: quem a guarda, se a pessoa quiser, é o cofre de senhas do
+        // navegador ou do celular.
+        // `null` é o jeito do express-session de dizer "cookie de sessão";
+        // o tipo dele só não admite.
+        (req.session.cookie as { maxAge: number | null }).maxAge =
+          req.body?.lembrar === true ? LEMBRAR_MS : null;
         res.json({
           role: user.role,
           user: { name: user.name, email: user.email },

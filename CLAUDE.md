@@ -86,6 +86,8 @@ arquitetura.
 | estorno | `server/services/orders.ts` (`refundOrder`) e `scripts/refund-test.ts` |
 | contrato de cobrança da plataforma | `shared/billing.ts` e `server/services/billing.ts` |
 | exportações | `shared/exports.ts` (formato) e `server/services/exports.ts` (consultas) |
+| usuários, senha e arquivamento | `server/routes/admin.ts` (`/usuarios`, `/organizacoes/:id/arquivar`), `shared/senha.ts` |
+| app instalável (PWA) | `client/public/sw.js`, `client/public/manifest.webmanifest`, `client/src/lib/pwa.ts` |
 
 ## Convenções
 
@@ -278,6 +280,29 @@ tem atrás.
 - **São as mesmas telas.** Organizador e administrador geral usam o mesmo
   painel; o que muda é o recorte. Tela nova para organizador é sinal de que o
   recorte foi feito no lugar errado.
+
+## Arquivar e usuários — o que não pode afrouxar
+
+- **Arquivar não apaga.** `archived_at` tira a organização da lista padrão e
+  fecha a porta de todos dela; venda, cota, comissão e cobrança seguem nos
+  relatórios. `DELETE` de organização não existe, de propósito.
+- **Arquivar pede senha E código do autenticador.** Sem segundo fator ligado,
+  não arquiva — não há caminho alternativo.
+- **Rifa no ar ou esperando sorteio barra o arquivamento**, no mesmo `UPDATE`
+  que arquiva. A publicação trava a linha da organização (`FOR SHARE`) e recusa
+  promotora arquivada.
+- **Suspensa fecha a porta do organizador; arquivada fecha a de todos.** É
+  conferido na entrada e em toda requisição (`barreiraDaOrganizacao()`).
+- **A lista de usuários nunca devolve hash de senha nem segredo do
+  autenticador** — só se o segundo fator está ligado.
+
+## App instalável — o que não pode afrouxar
+
+- **`/api/` e `/uploads/` nunca passam pelo cache do service worker.** Cota e
+  pedido são estado vivo: servir a versão guardada é mostrar número vendido
+  como livre. Sem rede, a API falha e a tela diz isso.
+- Mudou a casca (`sw.js`)? Troque `VERSAO` lá dentro, senão o celular segue
+  com a antiga.
 
 ## Rateio e cobrança — o que não pode afrouxar
 

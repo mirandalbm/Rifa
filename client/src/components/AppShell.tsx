@@ -74,13 +74,18 @@ export function PanelShell({
         </nav>
         <div className="mt-6 px-2 text-[11px] text-muted">
           <p className="font-mono">{session?.user?.name}</p>
-          <button
-            type="button"
-            onClick={() => logout.mutate()}
-            className="mt-1 text-green-deep underline"
-          >
-            sair
-          </button>
+          <div className="mt-1 flex gap-3">
+            <Link href="/conta/senha" className="text-green-deep underline">
+              trocar senha
+            </Link>
+            <button
+              type="button"
+              onClick={() => logout.mutate()}
+              className="text-green-deep underline"
+            >
+              sair
+            </button>
+          </div>
         </div>
       </aside>
 

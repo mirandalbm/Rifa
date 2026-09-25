@@ -21,6 +21,7 @@ import {
   settlements,
   draws,
   auditLog,
+  organizations,
   insertCampaignSchema,
 } from "@shared/schema";
 import {
@@ -87,8 +88,13 @@ import {
   listOrganizations,
   createOrganization,
   updateOrganization,
+  archiveOrganization,
+  restoreOrganization,
   OrgScopeError,
 } from "../services/orgs";
+import { isUniqueViolation } from "../pgError";
+import { estadoWhatsApp, criarModelosFaltantes, enviarTeste } from "../services/whatsappSetup";
+import { senhaInvalida } from "@shared/senha";
 import { EXPORTS, exportInfo, exportFilename, CSV_BOM } from "@shared/exports";
 
 export const adminRouter = Router();
@@ -1041,7 +1047,10 @@ adminRouter.get("/exportacoes/:key", async (req, res, next) => {
 adminRouter.get("/organizacoes", async (req, res, next) => {
   try {
     requirePlatformAdmin(req);
-    const orgs = await listOrganizations();
+    const situacao = String(req.query.situacao ?? "ativas");
+    const orgs = await listOrganizations(
+      situacao === "arquivadas" || situacao === "todas" ? situacao : "ativas",
+    );
 
     // Quantas campanhas e quanta gente em cada uma: é o que dá para decidir
     // sem entrar no painel de ninguém.
@@ -1129,22 +1138,241 @@ adminRouter.post("/organizacoes/:id/acessos", async (req, res, next) => {
     if (!name || !email || !password) {
       return res.status(400).json({ message: "Nome, e-mail e senha são obrigatórios." });
     }
+    const invalida = senhaInvalida(String(password), "organizer");
+    if (invalida) return res.status(400).json({ message: invalida });
 
-    const [criado] = await db
-      .insert(users)
-      .values({
-        role: "organizer",
-        organizationId: req.params.id,
-        name: String(name),
-        email: String(email).toLowerCase().trim(),
-        passwordHash: await hashPassword(String(password)),
-      })
-      .returning({ id: users.id, email: users.email, name: users.name });
+    const [org] = await db
+      .select({ archivedAt: organizations.archivedAt })
+      .from(organizations)
+      .where(eq(organizations.id, req.params.id));
+    if (!org) return res.status(404).json({ message: "Organização não encontrada." });
+    if (org.archivedAt) {
+      return res
+        .status(409)
+        .json({ message: "Organização arquivada: restaure antes de criar acesso." });
+    }
+
+    let criado: { id: string; email: string; name: string };
+    try {
+      [criado] = await db
+        .insert(users)
+        .values({
+          role: "organizer",
+          organizationId: req.params.id,
+          name: String(name).trim(),
+          email: String(email).toLowerCase().trim(),
+          passwordHash: await hashPassword(String(password)),
+        })
+        .returning({ id: users.id, email: users.email, name: users.name });
+    } catch (err) {
+      // Quem decide se o e-mail está livre é o índice, não uma consulta antes.
+      if (isUniqueViolation(err, "uq_users_email")) {
+        return res.status(409).json({ message: "Já existe um acesso com este e-mail." });
+      }
+      throw err;
+    }
 
     await audit(req, "organizacao.acesso", "organization", req.params.id, {
       email: criado.email,
     });
     res.status(201).json(criado);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * Arquivar exige senha E código do autenticador, como desligar o segundo
+ * fator: a sessão aberta sozinha não tira um cliente da carteira. Quem não
+ * ligou o segundo fator é mandado ligar — não há caminho sem ele.
+ */
+adminRouter.post("/organizacoes/:id/arquivar", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    const [eu] = await db.select().from(users).where(eq(users.id, req.user!.id));
+    if (!eu.totpSecret) {
+      return res.status(409).json({
+        message: "Ative o segundo fator (em Configurações) para poder arquivar organizações.",
+        code: "totp_required",
+      });
+    }
+    if (!(await verifyPassword(String(req.body?.password ?? ""), eu.passwordHash))) {
+      return res.status(401).json({ message: "Senha incorreta." });
+    }
+    if (!verifyTotp(eu.totpSecret, String(req.body?.code ?? ""))) {
+      return res.status(401).json({ message: "Código do autenticador incorreto." });
+    }
+
+    const arquivada = await archiveOrganization(req.params.id);
+    await audit(req, "organizacao.arquivar", "organization", arquivada.id, {
+      name: arquivada.name,
+    });
+    res.json(arquivada);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** Volta para a carteira suspensa. Reativar é outra decisão, outro clique. */
+adminRouter.post("/organizacoes/:id/restaurar", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    const restaurada = await restoreOrganization(req.params.id);
+    await audit(req, "organizacao.restaurar", "organization", restaurada.id, {
+      name: restaurada.name,
+    });
+    res.json(restaurada);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/* ---------------- WhatsApp ---------------- */
+
+/**
+ * A conta do WhatsApp é da plataforma: um número manda a mensagem de todas as
+ * rifas. Por isso é só do administrador geral.
+ */
+adminRouter.get("/whatsapp", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    res.json(await estadoWhatsApp());
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.post("/whatsapp/modelos", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    const resultado = await criarModelosFaltantes();
+    await audit(req, "whatsapp.modelos.criar", "whatsapp", undefined, resultado);
+    res.json(resultado);
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.post("/whatsapp/teste", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    const telefone = String(req.body?.telefone ?? "");
+    await enviarTeste(telefone);
+    await audit(req, "whatsapp.teste", "whatsapp", undefined, {
+      telefone: telefone.replace(/\d(?=\d{4})/g, "•"),
+    });
+    res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/* ---------------- usuários ---------------- */
+
+/**
+ * Todo mundo que entra no painel: organizador, afiliado, cambista — e, para
+ * a plataforma, os administradores gerais também.
+ *
+ * O recorte é o de sempre: o organizador vê as pessoas da organização dele;
+ * a plataforma vê todas e pode filtrar por uma. Hash de senha e segredo do
+ * autenticador **nunca** saem daqui: a tela mostra só se o segundo fator
+ * está ligado.
+ */
+adminRouter.get("/usuarios", async (req, res, next) => {
+  try {
+    const org = orgOf(req);
+    // O filtro vem da barra de endereço: o que não for "plataforma" nem um
+    // id válido é ignorado, em vez de virar erro de conversão no Postgres.
+    const bruta = !org && req.query.organizacao ? String(req.query.organizacao) : null;
+    const pedida =
+      bruta === "plataforma" || (bruta && /^[0-9a-f-]{36}$/i.test(bruta)) ? bruta : null;
+    const papel = req.query.papel ? String(req.query.papel) : null;
+    const busca = req.query.q ? `%${String(req.query.q).trim().toLowerCase()}%` : null;
+
+    const rows = await db.execute(sql`
+      SELECT u.id, u.name, u.email, u.phone, u.role, u.active,
+             (u.totp_secret IS NOT NULL) AS "doisFatores",
+             u.created_at AS "createdAt",
+             u.organization_id AS "organizationId",
+             o.name AS "organizacao",
+             (o.archived_at IS NOT NULL) AS "organizacaoArquivada",
+             a.code AS "codigo", a.kind AS "tipo", a.status AS "cadastro",
+             a.pix_key AS "pix", a.commission_pct AS "comissaoPct"
+        FROM users u
+        LEFT JOIN organizations o ON o.id = u.organization_id
+        LEFT JOIN affiliates a ON a.user_id = u.id
+       WHERE TRUE
+         ${org ? sql`AND u.organization_id = ${org}::uuid` : sql``}
+         ${pedida === "plataforma" ? sql`AND u.organization_id IS NULL` : sql``}
+         ${pedida && pedida !== "plataforma" ? sql`AND u.organization_id = ${pedida}::uuid` : sql``}
+         ${papel ? sql`AND u.role::text = ${papel}` : sql``}
+         ${busca ? sql`AND (lower(u.name) LIKE ${busca} OR lower(u.email) LIKE ${busca} OR coalesce(u.phone, '') LIKE ${busca})` : sql``}
+       ORDER BY u.created_at DESC
+       LIMIT 500
+    `);
+    res.json(rows.rows);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * Confere que o usuário está no recorte de quem pede. Mesma regra de
+ * campanha: fora do recorte, não existe (404). E administrador geral só é
+ * alcançado pela plataforma.
+ */
+async function assertUserInScope(req: Request, userId: string) {
+  const [alvo] = await db.select().from(users).where(eq(users.id, userId));
+  const org = orgOf(req);
+  if (!alvo || (org && alvo.organizationId !== org)) {
+    throw new OrgScopeError("Usuário não encontrado.");
+  }
+  return alvo;
+}
+
+/**
+ * Definir uma senha nova para alguém — o conserto de quando a pessoa esqueceu
+ * ou quando o navegador preencheu a senha errada no cadastro. Quem define
+ * vê a senha, então a pessoa deve trocá-la ao entrar.
+ */
+adminRouter.post("/usuarios/:id/senha", async (req, res, next) => {
+  try {
+    const alvo = await assertUserInScope(req, req.params.id);
+    if (alvo.id === req.user!.id) {
+      return res
+        .status(400)
+        .json({ message: "Para a sua própria senha, use \"Trocar minha senha\"." });
+    }
+    const senha = String(req.body?.password ?? "");
+    const invalida = senhaInvalida(senha, alvo.role);
+    if (invalida) return res.status(400).json({ message: invalida });
+
+    await db
+      .update(users)
+      .set({ passwordHash: await hashPassword(senha) })
+      .where(eq(users.id, alvo.id));
+    await audit(req, "usuario.senha.redefinida", "user", alvo.id, { email: alvo.email });
+    res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** Ligar e desligar o acesso. Desligar não apaga: venda e comissão ficam. */
+adminRouter.patch("/usuarios/:id", async (req, res, next) => {
+  try {
+    const alvo = await assertUserInScope(req, req.params.id);
+    if (typeof req.body?.active !== "boolean") {
+      return res.status(400).json({ message: "Informe se o acesso fica ativo." });
+    }
+    if (alvo.id === req.user!.id) {
+      return res.status(400).json({ message: "Você não pode desligar o próprio acesso." });
+    }
+    await db.update(users).set({ active: req.body.active }).where(eq(users.id, alvo.id));
+    await audit(req, req.body.active ? "usuario.ativar" : "usuario.desativar", "user", alvo.id, {
+      email: alvo.email,
+    });
+    res.json({ ok: true });
   } catch (err) {
     next(err);
   }

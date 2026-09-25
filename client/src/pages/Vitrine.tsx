@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { PublicShell } from "@/components/AppShell";
 import { Money, Progress, Empty } from "@/components/bits";
 import { groupNumber, percent } from "@shared/format";
+import { InstalarApp } from "@/components/InstalarApp";
 
 interface CampaignCard {
   id: string;
@@ -97,6 +98,7 @@ export default function Vitrine() {
           );
         })}
       </div>
+      <InstalarApp />
     </PublicShell>
   );
 }

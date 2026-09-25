@@ -29,6 +29,7 @@ interface Lado {
   email: string;
   senha: string;
   orgId: string;
+  userId: string;
   campaignId: string;
   orderCode: number;
   cookie: string;
@@ -69,10 +70,10 @@ async function montarLado(marca: string, indice: number): Promise<Lado> {
   const [org] = await db
     .insert(organizations)
     .values({ slug, name: `Organização ${marca}`, cidade: "Teste/TE" })
-    .onConflictDoUpdate({ target: organizations.slug, set: { active: true } })
+    .onConflictDoUpdate({ target: organizations.slug, set: { active: true, archivedAt: null } })
     .returning();
 
-  await db
+  const [usuario] = await db
     .insert(users)
     .values({
       role: "organizer",
@@ -84,7 +85,8 @@ async function montarLado(marca: string, indice: number): Promise<Lado> {
     .onConflictDoUpdate({
       target: users.email,
       set: { organizationId: org.id, passwordHash: await hashPassword(senha), active: true },
-    });
+    })
+    .returning({ id: users.id });
 
   const [campanha] = await db
     .insert(campaigns)
@@ -134,6 +136,7 @@ async function montarLado(marca: string, indice: number): Promise<Lado> {
     email,
     senha,
     orgId: org.id,
+    userId: usuario.id,
     campaignId: campanha.id,
     orderCode,
     cookie: await entrar(email, senha),
@@ -155,6 +158,8 @@ async function alcancaOVizinho(eu: Lado, vizinho: Lado) {
     ["GET exportar sorteio", `/api/admin/exportacoes/sorteio?campanha=${c}`, {}],
     ["PATCH organização", `/api/admin/organizacoes/${vizinho.orgId}`, { method: "PATCH", body: '{"name":"tomada"}' }],
     ["GET extrato de cobrança do vizinho", `/api/admin/cobranca/extrato?organizacao=${vizinho.orgId}`, {}],
+    ["POST redefinir senha do vizinho", `/api/admin/usuarios/${vizinho.userId}/senha`, { method: "POST", body: '{"password":"tomada-da-conta"}' }],
+    ["PATCH desligar o vizinho", `/api/admin/usuarios/${vizinho.userId}`, { method: "PATCH", body: '{"active":false}' }],
   ];
 
   for (const [nome, caminho, init] of tentativas) {
@@ -174,6 +179,11 @@ async function rotasDaPlataforma(eu: Lado) {
     ["PUT contrato de cobrança", `/api/admin/cobranca/${eu.orgId}/plano`, { method: "PUT", body: '{"mode":"gratis"}' }],
     ["POST dar baixa", `/api/admin/cobranca/${eu.orgId}/baixa`, { method: "POST" }],
     ["POST lançar mensalidades", "/api/admin/cobranca/mensalidades", { method: "POST" }],
+    ["POST arquivar organização", `/api/admin/organizacoes/${eu.orgId}/arquivar`, { method: "POST", body: "{}" }],
+    ["POST restaurar organização", `/api/admin/organizacoes/${eu.orgId}/restaurar`, { method: "POST" }],
+    ["GET WhatsApp", "/api/admin/whatsapp", {}],
+    ["POST criar modelos do WhatsApp", "/api/admin/whatsapp/modelos", { method: "POST" }],
+    ["POST teste do WhatsApp", "/api/admin/whatsapp/teste", { method: "POST", body: '{"telefone":"11999999999"}' }],
   ];
   for (const [nome, caminho, init] of tentativas) {
     const res = await pedir(eu.cookie, caminho, init);
@@ -219,6 +229,23 @@ async function conteudoDasListas(eu: Lado, vizinho: Lado) {
     "o extrato de cobrança é o da própria organização",
     (extrato as { plano?: { mode: string } }).plano !== undefined,
     (extrato as { plano?: { mode: string } }).plano?.mode ?? "sem plano",
+  );
+
+  const pessoas = (await (await pedir(eu.cookie, "/api/admin/usuarios")).json()) as {
+    email: string;
+  }[];
+  checa(
+    "a lista de usuários não traz o organizador do vizinho",
+    !pessoas.some((p) => p.email === vizinho.email) && pessoas.some((p) => p.email === eu.email),
+    `${pessoas.length} pessoa(s)`,
+  );
+  const pedindoOVizinho = (await (
+    await pedir(eu.cookie, `/api/admin/usuarios?organizacao=${vizinho.orgId}`)
+  ).json()) as { email: string }[];
+  checa(
+    "pedir a organização do vizinho no filtro não abre o recorte",
+    !pedindoOVizinho.some((p) => p.email === vizinho.email),
+    `${pedindoOVizinho.length} pessoa(s)`,
   );
 
   const administradora = await (await pedir(eu.cookie, "/api/admin/organizer")).json();

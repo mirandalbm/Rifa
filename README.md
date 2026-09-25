@@ -102,17 +102,29 @@ O seed imprime as credenciais no fim:
 | `NOTIFICATION_PROVIDER` | não | `console` (`whatsapp` quando houver token) |
 | `WHATSAPP_TOKEN` | com WhatsApp | — |
 | `WHATSAPP_PHONE_ID` | com WhatsApp | — |
+| `WHATSAPP_WABA_ID` | com WhatsApp | — (ID da conta do WhatsApp Business: o painel lista e cria os modelos) |
 | `WHATSAPP_LANGUAGE` | não | `pt_BR` |
 | `REMINDER_MINUTES_BEFORE` | não | `5` (lembrete antes de a reserva cair) |
 | `PORT` | não | `5000` |
 
 ## Publicar no Railway
 
-O repositório já traz o `railway.json`: o Railway compila (`npm run build`),
-aplica o schema no banco antes de cada versão entrar no ar (`npm run db:push`),
-cria o administrador geral se ele estiver configurado (veja o passo 5), sobe o
-servidor (`npm start`) e só troca a versão antiga pela nova depois que
-`/api/public/campaigns` responder. O Node é o 22 (`.node-version`).
+O Railway descontinuou o arquivo de configuração (`railway.json`) e passou a
+ignorá-lo; por isso a configuração do deploy mora nas **Settings do serviço**.
+Ajuste uma vez, em **Settings → Deploy**:
+
+| Campo | Valor |
+|---|---|
+| Pre-Deploy Command | `npm run db:push && npm run admin:create -- --if-configured` |
+| Healthcheck Path | `/api/public/campaigns` (tempo limite 120 s) |
+| Restart Policy | On Failure, 5 tentativas |
+
+Com isso o Railway compila (`npm run build`), aplica o schema no banco antes de
+cada versão entrar no ar, cria o administrador geral se ele estiver configurado
+(veja o passo 5), sobe o servidor (`npm start`) e só troca a versão antiga pela
+nova depois que `/api/public/campaigns` responder. O Node é o 22
+(`.node-version`). Sem o Pre-Deploy Command o servidor sobe sem tabelas e o log
+enche de `relation "quota_alloc" does not exist`.
 
 1. Em [railway.com](https://railway.com), **New Project → Deploy from GitHub
    repo** e escolha este repositório.
@@ -127,7 +139,7 @@ servidor (`npm start`) e só troca a versão antiga pela nova depois que
    | `PAYMENT_PROVIDER` | `mercadopago` |
    | `MP_ACCESS_TOKEN`, `MP_WEBHOOK_SECRET` | do painel do Mercado Pago |
    | `R2_ACCOUNT_ID`, `R2_BUCKET`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_PUBLIC_URL` | do Cloudflare R2 |
-   | `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_ID` | da API do WhatsApp (Meta) |
+   | `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_ID`, `WHATSAPP_WABA_ID` | da API do WhatsApp (Meta) |
 
    `NODE_ENV=production` já vem do `npm start`. Não defina `PORT`: o Railway
    define sozinho.
@@ -232,6 +244,12 @@ impede o mesmo lembrete de sair duas vezes, inclusive com duas réplicas
 acordando no mesmo minuto. E falha de envio nunca derruba o fluxo: se o
 WhatsApp estiver fora, o pagamento já entrou e as cotas já são do comprador —
 a falha fica registrada e a vida segue.
+
+Os modelos não precisam ser criados à mão no WhatsApp Manager: em
+**Configurações → WhatsApp**, o administrador geral vê cada modelo e se a Meta
+já aprovou, cria os que faltam (com o nome, o texto e a ordem de parâmetros que
+o código espera) e manda uma mensagem de teste. O token temporário do painel da
+Meta vence em 24 horas; em produção use o de um usuário do sistema.
 
 Sem `WHATSAPP_TOKEN`, o provedor é o console: a mensagem aparece no terminal
 e o código de acesso volta na resposta, para o fluxo rodar sem conta no

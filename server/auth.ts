@@ -7,7 +7,7 @@ import { randomBytes, scrypt, timingSafeEqual, randomInt } from "node:crypto";
 import { promisify } from "node:util";
 import { eq } from "drizzle-orm";
 import { db } from "./db";
-import { users, affiliates } from "@shared/schema";
+import { users, affiliates, organizations } from "@shared/schema";
 import { type Role, roleSatisfies } from "@shared/access";
 import { verifyTotp } from "./services/totp";
 
@@ -72,6 +72,30 @@ declare global {
 }
 
 const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+
+/**
+ * A porta da organização. Suspensa, o organizador para de entrar — as rifas
+ * dela seguem no ar e o cambista segue vendendo. Arquivada, ninguém de lá
+ * entra: a organização saiu da plataforma. Devolve o motivo, ou `null` se
+ * pode entrar.
+ */
+async function barreiraDaOrganizacao(user: {
+  role: SessionUser["role"];
+  organizationId: string | null;
+}): Promise<string | null> {
+  if (!user.organizationId) return null;
+  const [org] = await db
+    .select({ active: organizations.active, archivedAt: organizations.archivedAt })
+    .from(organizations)
+    .where(eq(organizations.id, user.organizationId));
+  if (!org || org.archivedAt) {
+    return "Esta organização foi arquivada. Fale com a administração da plataforma.";
+  }
+  if (!org.active && user.role === "organizer") {
+    return "Sua organização está suspensa. Fale com a administração da plataforma.";
+  }
+  return null;
+}
 
 export function setupAuth(app: Express) {
   const PgStore = connectPg(session);
@@ -153,6 +177,8 @@ export function setupAuth(app: Express) {
             message: "Seu acesso não está ligado a nenhuma organização.",
           });
         }
+        const barrada = await barreiraDaOrganizacao(user);
+        if (barrada) return done(null, false, { message: barrada });
 
         if (user.role === "affiliate" || user.role === "cambista") {
           const quem = user.role === "cambista" ? "cambista" : "afiliado";
@@ -196,6 +222,7 @@ export function setupAuth(app: Express) {
       // Mesma recusa da entrada: a organização pode ter sido desligada com a
       // sessão dele já aberta.
       if (user.role === "organizer" && !user.organizationId) return done(null, false);
+      if (await barreiraDaOrganizacao(user)) return done(null, false);
       if (user.role === "affiliate" || user.role === "cambista") {
         const [aff] = await db
           .select()

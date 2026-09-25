@@ -142,6 +142,13 @@ export const organizations = pgTable(
     /** Valor do mês em centavos. Só vale no modo `mensalidade`. */
     monthlyCents: integer("monthly_cents").notNull().default(0),
     active: boolean("active").notNull().default(true),
+    /**
+     * Arquivada: saiu da carteira ativa, mas **não sai do banco**. Venda,
+     * cota, comissão e cobrança dela continuam nos relatórios — apagar a
+     * linha levaria junto o histórico que a contabilidade confere. A tela de
+     * organizações esconde por padrão e mostra no filtro "arquivadas".
+     */
+    archivedAt: timestamp("archived_at"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (t) => [uniqueIndex("uq_organizations_slug").on(t.slug)],

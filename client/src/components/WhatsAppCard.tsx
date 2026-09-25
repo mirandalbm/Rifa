@@ -47,6 +47,7 @@ export function WhatsAppCard() {
     queryKey: ["/api/admin/whatsapp"],
   });
   const [telefone, setTelefone] = useState("");
+  const [modeloTeste, setModeloTeste] = useState("");
   const [aviso, setAviso] = useState<string | null>(null);
   const [falha, setFalha] = useState<string | null>(null);
 
@@ -71,7 +72,11 @@ export function WhatsAppCard() {
   });
 
   const testar = useMutation({
-    mutationFn: () => apiRequest("POST", "/api/admin/whatsapp/teste", { telefone }),
+    mutationFn: () =>
+      apiRequest("POST", "/api/admin/whatsapp/teste", {
+        telefone,
+        modelo: modeloTeste || aprovados[0]?.nome,
+      }),
     onSuccess: () => {
       setFalha(null);
       setAviso("Mensagem de teste enviada. Confira o WhatsApp do telefone informado.");
@@ -81,6 +86,12 @@ export function WhatsAppCard() {
       setFalha(e.message);
     },
   });
+
+  // Só dá para testar com modelo aprovado; o código de acesso vem primeiro
+  // quando estiver entre eles.
+  const aprovados = data?.configurado
+    ? data.modelos.filter((m) => m.status === "APPROVED")
+    : [];
 
   const faltaCriar =
     data?.configurado && data.modelos.some((m) => m.status === "NAO_CRIADO");
@@ -173,6 +184,25 @@ export function WhatsAppCard() {
                 testar.mutate();
               }}
             >
+              <div className="min-w-[10rem]">
+                <label htmlFor="wa-modelo" className="label-xs">
+                  Modelo
+                </label>
+                <select
+                  id="wa-modelo"
+                  value={modeloTeste || aprovados[0]?.nome || ""}
+                  onChange={(e) => setModeloTeste(e.target.value)}
+                  disabled={aprovados.length === 0}
+                  className="tnum mt-1 block w-full rounded-md border border-line-2 bg-white px-3 py-2 text-sm"
+                >
+                  {aprovados.length === 0 ? <option value="">nenhum aprovado ainda</option> : null}
+                  {aprovados.map((m) => (
+                    <option key={m.nome} value={m.nome}>
+                      {m.nome}
+                    </option>
+                  ))}
+                </select>
+              </div>
               <div className="min-w-[12rem] flex-1">
                 <label htmlFor="wa-teste" className="label-xs">
                   Mandar teste para (com DDD)
@@ -190,11 +220,22 @@ export function WhatsAppCard() {
               <Button
                 type="submit"
                 variant="ghost"
-                disabled={telefone.replace(/\D/g, "").length < 10 || testar.isPending}
+                disabled={
+                  aprovados.length === 0 ||
+                  telefone.replace(/\D/g, "").length < 10 ||
+                  testar.isPending
+                }
               >
                 Enviar teste
               </Button>
             </form>
+            {data.modelos.some((m) => m.categoria === "AUTHENTICATION" && m.status !== "APPROVED") ? (
+              <p className="rounded-md bg-yellow-soft px-3 py-2 text-xs text-yellow-deep">
+                O código de acesso (usado pelo comprador para entrar em "Minhas cotas") é da
+                categoria autenticação, que a Meta só libera para empresa verificada. Enquanto
+                isso, o comprador não recebe o código.
+              </p>
+            ) : null}
             <p className="text-xs text-muted">
               Com número de teste da Meta, só chegam mensagens para os telefones cadastrados na
               lista de destinatários do app (página de teste da API do WhatsApp).

@@ -88,4 +88,16 @@ describe("preparar o WhatsApp pelo painel", () => {
     expect(envio.body.template.name).toBe("codigo_acesso");
     expect(envio.body.template.components).toHaveLength(2);
   });
+
+  it("o teste pode usar outro modelo aprovado, com os valores de exemplo", async () => {
+    const { enviarTeste } = await import("../server/services/whatsappSetup");
+    resposta = () => ({ status: 200, json: { messages: [{ id: "wamid" }] } });
+    await enviarTeste("41987848893", "sorteio_realizado");
+    const envio = pedidos[0];
+    expect(envio.body.template.name).toBe("sorteio_realizado");
+    expect(envio.body.template.components).toHaveLength(1);
+    const valores = envio.body.template.components[0].parameters.map((p: { text: string }) => p.text);
+    expect(valores).toEqual(["iPhone 17 Pro", "004567", "https://rifa.br/r/iphone-17-pro"]);
+    await expect(enviarTeste("41987848893", "nao_existe")).rejects.toThrow(/desconhecido/);
+  });
 });

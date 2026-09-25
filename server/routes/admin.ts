@@ -1257,8 +1257,10 @@ adminRouter.post("/whatsapp/teste", async (req, res, next) => {
   try {
     requirePlatformAdmin(req);
     const telefone = String(req.body?.telefone ?? "");
-    await enviarTeste(telefone);
+    const modelo = req.body?.modelo ? String(req.body.modelo) : undefined;
+    await enviarTeste(telefone, modelo);
     await audit(req, "whatsapp.teste", "whatsapp", undefined, {
+      modelo: modelo ?? "codigo_acesso",
       telefone: telefone.replace(/\d(?=\d{4})/g, "•"),
     });
     res.json({ ok: true });

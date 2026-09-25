@@ -151,20 +151,25 @@ export async function criarModelosFaltantes() {
 }
 
 /**
- * Manda um código de acesso de verdade para o telefone informado — o mesmo
- * modelo que o comprador recebe ao entrar em "Minhas cotas". O código é
- * aleatório e não serve para nada: é só para ver a mensagem chegar.
+ * Manda uma mensagem de verdade para o telefone informado, com o modelo
+ * escolhido e os valores de exemplo dele — é só para ver a mensagem chegar.
+ * O padrão é o código de acesso (código aleatório, que não serve para nada),
+ * mas qualquer modelo aprovado serve: o de autenticação é o que mais demora a
+ * sair, porque a Meta pede a empresa verificada.
  */
-export async function enviarTeste(telefone: string) {
+export async function enviarTeste(telefone: string, modelo: string = "codigo_acesso") {
   if (!config()) throw new WhatsAppSetupError("Configure o WhatsApp no Railway antes de testar.");
   const digitos = telefone.replace(/\D/g, "");
   if (digitos.length < 10) throw new WhatsAppSetupError("Informe o telefone com DDD.");
+  if (!(modelo in TEMPLATES)) throw new WhatsAppSetupError("Modelo desconhecido.");
+  const nome = modelo as TemplateName;
+  const spec = TEMPLATES[nome];
+  const params =
+    nome === "codigo_acesso"
+      ? { codigo: String(randomInt(0, 1_000_000)).padStart(6, "0") }
+      : Object.fromEntries(spec.order.map((k, i) => [k, spec.exemplo[i]]));
   try {
-    await new WhatsAppProvider().send({
-      to: digitos,
-      template: "codigo_acesso",
-      params: { codigo: String(randomInt(0, 1_000_000)).padStart(6, "0") },
-    });
+    await new WhatsAppProvider().send({ to: digitos, template: nome, params });
   } catch (err) {
     throw new WhatsAppSetupError((err as Error).message, 502);
   }

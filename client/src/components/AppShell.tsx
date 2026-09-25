@@ -1,5 +1,33 @@
 import { Link, useLocation } from "wouter";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
+import {
+  Banknote,
+  Building2,
+  Circle,
+  Download,
+  HandCoins,
+  KeyRound,
+  Landmark,
+  LayoutDashboard,
+  Link2,
+  ListOrdered,
+  LogOut,
+  Megaphone,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Percent,
+  Receipt,
+  Settings,
+  ShieldAlert,
+  ShoppingCart,
+  Store,
+  Ticket,
+  Trophy,
+  Users,
+  Wallet,
+  type LucideIcon,
+} from "lucide-react";
+import type { SectionKey } from "@shared/access";
 import { useSession, useLogout } from "@/lib/session";
 
 /** Cabeçalho público: vitrine, rifa, pedido, minhas cotas. */
@@ -43,7 +71,59 @@ export function PublicShell({ children }: { children: ReactNode }) {
   );
 }
 
-/** Casca dos painéis. O menu vem da sessão — não há lista fixa no cliente. */
+/** Ícone de cada seção do menu. A lista de seções vem da sessão; o desenho, daqui. */
+const ICONE: Partial<Record<SectionKey, LucideIcon>> = {
+  afiliadoPainel: LayoutDashboard,
+  afiliadoLinks: Link2,
+  afiliadoComissoes: Percent,
+  afiliadoSaques: Banknote,
+  cambistaVenda: ShoppingCart,
+  cambistaVendas: ListOrdered,
+  cambistaAcerto: HandCoins,
+  adminPainel: LayoutDashboard,
+  adminCampanhas: Ticket,
+  adminPedidos: Receipt,
+  adminAfiliados: Megaphone,
+  adminCambistas: Store,
+  adminUsuarios: Users,
+  adminFinanceiro: Wallet,
+  adminSorteios: Trophy,
+  adminExportacoes: Download,
+  adminCobranca: Landmark,
+  adminConfiguracoes: Settings,
+  adminOrganizacoes: Building2,
+  adminAntifraude: ShieldAlert,
+};
+
+const CHAVE_MENU = "rifa.menu.aberto";
+
+function telaLarga(): boolean {
+  return typeof window !== "undefined" && window.matchMedia?.("(min-width: 768px)").matches;
+}
+
+/**
+ * Aberto ou recolhido. No computador, lembra a última escolha. No celular
+ * começa sempre recolhido: aberto, o menu cobre a tela, e abrir cada página
+ * com a tela coberta seria pior que não ter menu.
+ */
+function menuInicial(): boolean {
+  if (!telaLarga()) return false;
+  try {
+    const guardado = localStorage.getItem(CHAVE_MENU);
+    return guardado === null ? true : guardado === "1";
+  } catch {
+    return true;
+  }
+}
+
+/**
+ * Casca dos painéis. O menu vem da sessão — não há lista fixa no cliente.
+ *
+ * O menu fica sempre na lateral esquerda, em qualquer tela. Recolhido, mostra
+ * só os ícones (o nome aparece ao segurar/passar o mouse e é lido pelo leitor
+ * de tela); aberto, ícone e nome. No celular, aberto passa por cima do
+ * conteúdo e fecha ao escolher uma página.
+ */
 export function PanelShell({
   children,
   title,
@@ -54,56 +134,131 @@ export function PanelShell({
   const { data: session } = useSession();
   const [location] = useLocation();
   const logout = useLogout();
+  const [aberto, setAberto] = useState(menuInicial);
+
+  const alternar = () => {
+    const novo = !aberto;
+    setAberto(novo);
+    if (telaLarga()) {
+      try {
+        localStorage.setItem(CHAVE_MENU, novo ? "1" : "0");
+      } catch {
+        // armazenamento bloqueado: vale só nesta visita
+      }
+    }
+  };
+  const aoNavegar = () => {
+    if (!telaLarga()) setAberto(false);
+  };
+
+  const item = (ativo: boolean) =>
+    `flex items-center gap-3 rounded-md px-2.5 py-2 text-sm ${
+      ativo ? "bg-green font-semibold text-on-green" : "text-ink-2 hover:bg-mist-2"
+    } ${aberto ? "" : "justify-center"}`;
 
   return (
-    <div className="min-h-screen bg-white md:grid md:grid-cols-[220px_1fr]">
-      <aside className="border-b border-line bg-mist p-3 md:border-b-0 md:border-r">
-        <Link
-          href="/"
-          className="block px-2 pb-4 pt-1 font-display text-lg font-extrabold tracking-tight"
-        >
-          rifa<span className="text-green">.</span>br
-        </Link>
-        <nav className="flex flex-wrap gap-1 md:flex-col">
+    <div className="min-h-screen bg-white">
+      {aberto ? (
+        <button
+          type="button"
+          aria-label="Fechar menu"
+          onClick={() => setAberto(false)}
+          className="fixed inset-0 z-30 bg-black/30 md:hidden"
+        />
+      ) : null}
+
+      <aside
+        className={`fixed inset-y-0 left-0 z-40 flex flex-col border-r border-line bg-mist transition-[width] duration-200 ${
+          aberto ? "w-[220px]" : "w-14"
+        }`}
+        style={{ paddingTop: "env(safe-area-inset-top)", paddingBottom: "env(safe-area-inset-bottom)" }}
+        aria-label="Menu do painel"
+      >
+        <div className={`flex items-center gap-2 px-2 pb-2 pt-3 ${aberto ? "justify-between" : "flex-col"}`}>
+          <Link
+            href="/"
+            title="Ir para as rifas"
+            className="px-1 font-display text-lg font-extrabold tracking-tight"
+          >
+            {aberto ? (
+              <>
+                rifa<span className="text-green">.</span>br
+              </>
+            ) : (
+              <>
+                r<span className="text-green">.</span>
+              </>
+            )}
+          </Link>
+          <button
+            type="button"
+            onClick={alternar}
+            aria-expanded={aberto}
+            aria-label={aberto ? "Recolher menu" : "Abrir menu"}
+            title={aberto ? "Recolher menu" : "Abrir menu"}
+            className="rounded-md p-1.5 text-ink-2 hover:bg-mist-2"
+          >
+            {aberto ? <PanelLeftClose size={18} /> : <PanelLeftOpen size={18} />}
+          </button>
+        </div>
+
+        <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-2 py-1">
           {session?.sections.map((s) => {
-            const active = location === s.path;
+            const Icone = ICONE[s.key] ?? Circle;
+            const ativo = location === s.path;
             return (
               <Link
                 key={s.key}
                 href={s.path}
-                className={
-                  active
-                    ? "rounded-md bg-green px-3 py-2 text-sm font-semibold text-on-green"
-                    : "rounded-md px-3 py-2 text-sm text-ink-2 hover:bg-mist-2"
-                }
+                onClick={aoNavegar}
+                title={aberto ? undefined : s.label}
+                aria-label={s.label}
+                aria-current={ativo ? "page" : undefined}
+                className={item(ativo)}
               >
-                {s.label}
+                <Icone size={18} className="shrink-0" aria-hidden />
+                {aberto ? <span className="truncate">{s.label}</span> : null}
               </Link>
             );
           })}
         </nav>
-        <div className="mt-6 px-2 text-[11px] text-muted">
-          <p className="font-mono">{session?.user?.name}</p>
-          <div className="mt-1 flex gap-3">
-            <Link href="/conta/senha" className="text-green-deep underline">
-              trocar senha
-            </Link>
-            <button
-              type="button"
-              onClick={() => logout.mutate()}
-              className="text-green-deep underline"
-            >
-              sair
-            </button>
-          </div>
+
+        <div className="border-t border-line px-2 py-2">
+          {aberto ? (
+            <p className="truncate px-2.5 pb-1 font-mono text-[11px] text-muted">
+              {session?.user?.name}
+            </p>
+          ) : null}
+          <Link
+            href="/conta/senha"
+            onClick={aoNavegar}
+            title={aberto ? undefined : "Trocar senha"}
+            aria-label="Trocar senha"
+            className={item(location === "/conta/senha")}
+          >
+            <KeyRound size={18} className="shrink-0" aria-hidden />
+            {aberto ? <span>Trocar senha</span> : null}
+          </Link>
+          <button
+            type="button"
+            onClick={() => logout.mutate()}
+            title={aberto ? undefined : "Sair"}
+            aria-label="Sair"
+            className={`${item(false)} w-full`}
+          >
+            <LogOut size={18} className="shrink-0" aria-hidden />
+            {aberto ? <span>Sair</span> : null}
+          </button>
         </div>
       </aside>
 
-      <div className="min-w-0">
-        <header className="border-b border-line px-5 py-4">
+      {/* O conteúdo abre espaço para o menu: recolhido em qualquer tela; aberto
+          só no computador — no celular o menu aberto passa por cima. */}
+      <div className={`min-w-0 pl-14 ${aberto ? "md:pl-[220px]" : ""}`}>
+        <header className="border-b border-line px-4 py-4 md:px-5">
           <h1 className="font-display text-xl font-bold">{title}</h1>
         </header>
-        <main className="px-5 py-5">{children}</main>
+        <main className="px-4 py-5 md:px-5">{children}</main>
       </div>
     </div>
   );

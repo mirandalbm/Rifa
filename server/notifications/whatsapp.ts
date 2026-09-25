@@ -1,6 +1,6 @@
 import type { NotificationProvider, OutboundMessage } from "./provider";
 import { TEMPLATES } from "./templates";
-import { GRAPH_VERSION, IDIOMA_PADRAO, componentesDeEnvio } from "./metaTemplates";
+import { GRAPH_VERSION, IDIOMA_PADRAO, componentesDeEnvio, explicarErroMeta } from "./metaTemplates";
 
 /**
  * WhatsApp Cloud API.
@@ -40,7 +40,10 @@ export class WhatsAppProvider implements NotificationProvider {
     );
 
     if (!res.ok) {
-      throw new Error(`WhatsApp recusou (${res.status}): ${await res.text()}`);
+      const corpo = await res.text();
+      // A mensagem explicada vai para a tela; o corpo cru, para o log.
+      console.error(`[whatsapp] recusa ${res.status}: ${corpo}`);
+      throw new Error(explicarErroMeta(res.status, corpo));
     }
   }
 }

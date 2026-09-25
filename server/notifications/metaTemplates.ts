@@ -91,3 +91,34 @@ export function problemasDeFormato(nome: TemplateName): string[] {
   }
   return erros;
 }
+
+/**
+ * A recusa da Meta traduzida para o que fazer. O corpo cru continua indo
+ * junto (para o log), mas quem lê a tela precisa saber o próximo passo, não
+ * decifrar `(#132001) Template name does not exist in the translation`.
+ */
+export function explicarErroMeta(status: number, corpo: string): string {
+  let erro: { code?: number; message?: string; error_data?: { details?: string } } = {};
+  try {
+    erro = (JSON.parse(corpo) as { error?: typeof erro }).error ?? {};
+  } catch {
+    // corpo não-JSON: fica só o texto cru
+  }
+  const detalhe = erro.error_data?.details ?? erro.message ?? corpo;
+
+  switch (erro.code) {
+    case 132001:
+      return `O modelo ainda não existe ou não foi aprovado na Meta (${detalhe}). Em Configurações → WhatsApp, crie os modelos e espere aparecer "aprovado" antes de testar.`;
+    case 131030:
+      return "Este telefone não está na lista de destinatários do número de teste. Cadastre-o na página de teste da API do WhatsApp, no painel de desenvolvedor da Meta.";
+    case 190:
+      return "O token do WhatsApp venceu ou é inválido. Gere um token permanente (usuário do sistema) e troque WHATSAPP_TOKEN no Railway.";
+    case 132000:
+    case 132012:
+      return `A Meta recusou os parâmetros da mensagem (${detalhe}). O modelo aprovado na Meta não bate com o do sistema.`;
+    case 131026:
+      return "Este número não tem WhatsApp ou não pode receber mensagens.";
+    default:
+      return `WhatsApp recusou (${status}): ${detalhe}`;
+  }
+}

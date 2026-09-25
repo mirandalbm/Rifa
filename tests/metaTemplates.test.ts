@@ -58,3 +58,24 @@ describe("modelos do WhatsApp no formato da Meta", () => {
     expect(outro).toHaveLength(1);
   });
 });
+
+describe("recusa da Meta explicada", async () => {
+  const { explicarErroMeta } = await import("../server/notifications/metaTemplates");
+  const corpo = (code: number, details?: string) =>
+    JSON.stringify({ error: { code, message: "x", error_data: details ? { details } : undefined } });
+
+  it("modelo inexistente manda criar e esperar a aprovação", () => {
+    const m = explicarErroMeta(404, corpo(132001, "template name (codigo_acesso) does not exist in pt_BR"));
+    expect(m).toContain("codigo_acesso");
+    expect(m).toContain("aprovado");
+  });
+
+  it("telefone fora da lista do número de teste", () => {
+    expect(explicarErroMeta(400, corpo(131030))).toContain("lista de destinatários");
+  });
+
+  it("erro desconhecido mantém o detalhe", () => {
+    expect(explicarErroMeta(500, corpo(999, "algo novo"))).toContain("algo novo");
+    expect(explicarErroMeta(502, "não é json")).toContain("não é json");
+  });
+});

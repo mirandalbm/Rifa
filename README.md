@@ -108,11 +108,22 @@ O seed imprime as credenciais no fim:
 
 ## Publicar no Railway
 
-O repositório já traz o `railway.json`: o Railway compila (`npm run build`),
-aplica o schema no banco antes de cada versão entrar no ar (`npm run db:push`),
-cria o administrador geral se ele estiver configurado (veja o passo 5), sobe o
-servidor (`npm start`) e só troca a versão antiga pela nova depois que
-`/api/public/campaigns` responder. O Node é o 22 (`.node-version`).
+O Railway descontinuou o arquivo de configuração (`railway.json`) e passou a
+ignorá-lo; por isso a configuração do deploy mora nas **Settings do serviço**.
+Ajuste uma vez, em **Settings → Deploy**:
+
+| Campo | Valor |
+|---|---|
+| Pre-Deploy Command | `npm run db:push && npm run admin:create -- --if-configured` |
+| Healthcheck Path | `/api/public/campaigns` (tempo limite 120 s) |
+| Restart Policy | On Failure, 5 tentativas |
+
+Com isso o Railway compila (`npm run build`), aplica o schema no banco antes de
+cada versão entrar no ar, cria o administrador geral se ele estiver configurado
+(veja o passo 5), sobe o servidor (`npm start`) e só troca a versão antiga pela
+nova depois que `/api/public/campaigns` responder. O Node é o 22
+(`.node-version`). Sem o Pre-Deploy Command o servidor sobe sem tabelas e o log
+enche de `relation "quota_alloc" does not exist`.
 
 1. Em [railway.com](https://railway.com), **New Project → Deploy from GitHub
    repo** e escolha este repositório.

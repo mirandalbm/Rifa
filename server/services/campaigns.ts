@@ -123,6 +123,18 @@ export async function publishCampaign(campaignId: string): Promise<Campaign> {
     }
     assertQuotaRange(campaign.totalQuotas);
 
+    // Promotora arquivada não põe rifa no ar. O FOR SHARE segura a linha da
+    // organização até o fim da transação: um arquivamento simultâneo espera
+    // esta publicação terminar, e uma publicação simultânea espera ele.
+    const org = await tx.execute(sql`
+      SELECT archived_at FROM organizations
+       WHERE id = ${campaign.organizationId}::uuid
+       FOR SHARE
+    `);
+    if ((org.rows[0] as { archived_at: Date | null } | undefined)?.archived_at) {
+      throw new CampaignRuleError("A organização desta rifa está arquivada.");
+    }
+
     const { seed, seedHash } = commitSeed();
 
     // A semente fica guardada no draw; a campanha publica só o hash.

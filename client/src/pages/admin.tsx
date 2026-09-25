@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { TrocarSenha } from "@/components/TrocarSenha";
 import { PanelShell } from "@/components/AppShell";
 import { Card, Kpi, Money, Pill, Button, Empty, Progress } from "@/components/bits";
 import { apiRequest } from "@/lib/queryClient";
@@ -1225,8 +1226,9 @@ export function AdminConfiguracoes() {
         <PaymentMethodsCard />
         <OrganizerCard />
       </div>
-      <div className="mb-3">
+      <div className="mb-3 grid gap-3 lg:grid-cols-2">
         <TwoFactorCard />
+        <TrocarSenha />
       </div>
       <Card title="Trilha de auditoria" right={<span className="label-xs">últimas 200 ações</span>}>
         <ul className="divide-y divide-line">

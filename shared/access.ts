@@ -60,6 +60,7 @@ export type SectionKey =
   | "adminPedidos"
   | "adminAfiliados"
   | "adminCambistas"
+  | "adminUsuarios"
   | "adminFinanceiro"
   | "adminSorteios"
   | "adminCobranca"
@@ -103,6 +104,9 @@ export const SECTIONS: Section[] = [
   { key: "adminPedidos", path: "/admin/pedidos", label: "Pedidos", requires: "organizer", nav: true },
   { key: "adminAfiliados", path: "/admin/afiliados", label: "Afiliados", requires: "organizer", nav: true },
   { key: "adminCambistas", path: "/admin/cambistas", label: "Cambistas", requires: "organizer", nav: true },
+  // Todo mundo que entra no painel, com os dados de cada um. O organizador vê
+  // as pessoas da organização dele; a plataforma vê todas.
+  { key: "adminUsuarios", path: "/admin/usuarios", label: "Usuários", requires: "organizer", nav: true },
   { key: "adminFinanceiro", path: "/admin/financeiro", label: "Financeiro", requires: "organizer", nav: true },
   { key: "adminSorteios", path: "/admin/sorteios", label: "Sorteios", requires: "organizer", nav: true },
   { key: "adminExportacoes", path: "/admin/exportacoes", label: "Exportações", requires: "organizer", nav: true },

@@ -12,7 +12,7 @@
  * `assertCampaignInScope()` e `campaignScope()`, que já vêm com a decisão
  * tomada. Rota nova que precise de dado de campanha passa por um dos dois.
  */
-import { eq, sql, type SQL } from "drizzle-orm";
+import { and, eq, sql, isNull, isNotNull, type SQL } from "drizzle-orm";
 import type { Request } from "express";
 import { db } from "../db";
 import { campaigns, organizations, affiliates, users } from "@shared/schema";
@@ -181,8 +181,20 @@ export function slugify(texto: string): string {
     .slice(0, 60);
 }
 
-export async function listOrganizations() {
-  return db.select().from(organizations).orderBy(organizations.name);
+/**
+ * A carteira de clientes. Arquivada some da lista padrão, mas continua no
+ * banco — e nos relatórios —, e aparece no filtro `arquivadas`.
+ */
+export type SituacaoOrg = "ativas" | "arquivadas" | "todas";
+
+export async function listOrganizations(situacao: SituacaoOrg = "ativas") {
+  const filtro =
+    situacao === "todas"
+      ? undefined
+      : situacao === "arquivadas"
+        ? isNotNull(organizations.archivedAt)
+        : isNull(organizations.archivedAt);
+  return db.select().from(organizations).where(filtro).orderBy(organizations.name);
 }
 
 export async function createOrganization(input: {
@@ -252,12 +264,81 @@ export async function updateOrganization(
     throw new OrgScopeError("Nada para alterar.", 400);
   }
 
+  // Reativar uma arquivada pelo botão de suspender a traria de volta pela
+  // metade: ativa, mas fora da lista. Quem traz de volta é "restaurar".
   const [alterada] = await db
     .update(organizations)
     .set(patch)
-    .where(eq(organizations.id, id))
+    .where(
+      patch.active === true
+        ? and(eq(organizations.id, id), isNull(organizations.archivedAt))
+        : eq(organizations.id, id),
+    )
     .returning();
 
-  if (!alterada) throw new OrgScopeError("Organização não encontrada.");
+  if (!alterada) {
+    if (patch.active === true && (await organizacaoArquivada(id))) {
+      throw new OrgScopeError("Organização arquivada: restaure antes de reativar.", 409);
+    }
+    throw new OrgScopeError("Organização não encontrada.");
+  }
   return alterada;
+}
+
+async function organizacaoArquivada(id: string): Promise<boolean> {
+  const [org] = await db
+    .select({ archivedAt: organizations.archivedAt })
+    .from(organizations)
+    .where(eq(organizations.id, id));
+  return Boolean(org?.archivedAt);
+}
+
+/**
+ * Arquiva: tira da carteira ativa e fecha a porta de quem é dela, sem apagar
+ * nada. Venda, cota, comissão e cobrança continuam onde estavam — é o
+ * histórico que a contabilidade e o comprador conferem.
+ *
+ * Rifa no ar (ou encerrada esperando sorteio) barra o arquivamento: há quem
+ * pagou e espera o resultado, e arquivar a promotora no meio disso deixaria
+ * o comprador sem ninguém do outro lado. A checagem e a gravação são o mesmo
+ * `UPDATE` — consultar antes e gravar depois deixaria uma rifa ser publicada
+ * no intervalo.
+ */
+export async function archiveOrganization(id: string) {
+  const resultado = await db.execute(sql`
+    UPDATE organizations
+       SET archived_at = now(), active = false
+     WHERE id = ${id}::uuid
+       AND archived_at IS NULL
+       AND NOT EXISTS (
+             SELECT 1 FROM campaigns
+              WHERE organization_id = ${id}::uuid
+                AND status IN ('published', 'closed'))
+    RETURNING id, name
+  `);
+  const arquivada = resultado.rows[0] as { id: string; name: string } | undefined;
+  if (arquivada) return arquivada;
+
+  // Não gravou: agora sim vale perguntar por quê, só para explicar.
+  const [org] = await db
+    .select({ archivedAt: organizations.archivedAt })
+    .from(organizations)
+    .where(eq(organizations.id, id));
+  if (!org) throw new OrgScopeError("Organização não encontrada.");
+  if (org.archivedAt) throw new OrgScopeError("Esta organização já está arquivada.", 409);
+  throw new OrgScopeError(
+    "Esta organização tem rifa no ar ou esperando sorteio. Sorteie ou encerre antes de arquivar.",
+    409,
+  );
+}
+
+/** Volta para a carteira, suspensa: reativar é uma segunda decisão. */
+export async function restoreOrganization(id: string) {
+  const [restaurada] = await db
+    .update(organizations)
+    .set({ archivedAt: null })
+    .where(and(eq(organizations.id, id), isNotNull(organizations.archivedAt)))
+    .returning({ id: organizations.id, name: organizations.name });
+  if (!restaurada) throw new OrgScopeError("Organização arquivada não encontrada.");
+  return restaurada;
 }

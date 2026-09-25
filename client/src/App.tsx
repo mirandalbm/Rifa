@@ -29,6 +29,9 @@ import { AdminCambistas } from "@/pages/adminCambistas";
 import { AdminAntifraude } from "@/pages/adminAntifraude";
 import { AdminExportacoes } from "@/pages/adminExportacoes";
 import { AdminOrganizacoes } from "@/pages/adminOrganizacoes";
+import { AdminUsuarios } from "@/pages/adminUsuarios";
+import { PanelShell } from "@/components/AppShell";
+import { TrocarSenha } from "@/components/TrocarSenha";
 import { AdminCobranca } from "@/pages/adminCobranca";
 import {
   AdminPainel,
@@ -54,6 +57,20 @@ function Guarded({ requires, children }: { requires: Role; children: ReactNode }
   if (!session || !roleSatisfies(session.role, requires)) {
     return <Redirect to="/entrar" />;
   }
+  return <>{children}</>;
+}
+
+/**
+ * Área de quem tem conta no painel, seja qual for o papel: administrador,
+ * organizador, afiliado ou cambista. O comprador não tem senha — entra pelo
+ * código no WhatsApp.
+ */
+function GuardedConta({ children }: { children: ReactNode }) {
+  const { data: session, isLoading } = useSession();
+  if (isLoading) {
+    return <p className="py-24 text-center text-sm text-muted">Carregando…</p>;
+  }
+  if (!session?.user) return <Redirect to="/entrar" />;
   return <>{children}</>;
 }
 
@@ -161,6 +178,20 @@ export default function App() {
             <Guarded requires="organizer">
               <AdminCobranca />
             </Guarded>
+          </Route>
+          <Route path="/admin/usuarios">
+            <Guarded requires="organizer">
+              <AdminUsuarios />
+            </Guarded>
+          </Route>
+          <Route path="/conta/senha">
+            <GuardedConta>
+              <PanelShell title="Minha senha">
+                <div className="max-w-md">
+                  <TrocarSenha />
+                </div>
+              </PanelShell>
+            </GuardedConta>
           </Route>
           <Route path="/admin/organizacoes">
             <Guarded requires="admin">

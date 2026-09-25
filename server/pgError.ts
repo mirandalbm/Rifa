@@ -17,6 +17,11 @@ export const UNIQUE_VIOLATION = "23505";
  * sorteando outro código.
  */
 export function isUniqueViolation(err: unknown, constraint: string): boolean {
+  // O Drizzle embrulha o erro do driver (`DrizzleQueryError`) e guarda o
+  // original em `cause`. Sem desembrulhar, o conflito vira erro 500.
+  const causa = (err as { cause?: unknown })?.cause;
+  if (causa && causa !== err && isUniqueViolation(causa, constraint)) return true;
+
   const e = err as { code?: string; constraint?: string; message?: string };
   if (e?.code !== UNIQUE_VIOLATION) return false;
   // O driver nem sempre preenche `constraint` (depende de onde o erro

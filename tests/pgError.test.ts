@@ -60,3 +60,16 @@ describe("leitura de erro do Postgres", () => {
     expect(UNIQUE_VIOLATION).toBe("23505");
   });
 });
+
+describe("erro embrulhado pelo Drizzle", () => {
+  it("reconhece o conflito guardado em `cause`", () => {
+    const embrulhado = Object.assign(new Error("Failed query: insert into \"users\" ..."), {
+      cause: Object.assign(
+        new Error('duplicate key value violates unique constraint "uq_users_email"'),
+        { code: "23505", constraint: "uq_users_email" },
+      ),
+    });
+    expect(isUniqueViolation(embrulhado, "uq_users_email")).toBe(true);
+    expect(isUniqueViolation(embrulhado, "uq_orders_code")).toBe(false);
+  });
+});

@@ -5,7 +5,8 @@
  * escolhidos). O total é sempre recalculado aqui, em centavos inteiros.
  */
 import { randomInt } from "node:crypto";
-import { and, eq, sql, desc } from "drizzle-orm";
+import { and, eq, sql, desc, or, lte } from "drizzle-orm";
+import type { Titularidade } from "@shared/contaComprador";
 import { db } from "../db";
 import {
   campaigns,
@@ -112,6 +113,9 @@ async function upsertBuyer(input: CreateOrderInput["buyer"]) {
   if (phone.length < 10) throw new OrderError("Telefone inválido.");
 
   const [existing] = await db.select().from(buyers).where(eq(buyers.phone, phone));
+  // Conta com senha tem dono: compra sem entrar, com o telefone dela, não
+  // renomeia nem troca o CPF de ninguém.
+  if (existing?.passwordHash) return existing;
   if (existing) {
     // O CPF entra quando faltava (o Asaas passou a pedir), mas não troca o
     // que já estava gravado: o CPF do comprador não muda de pedido para pedido.
@@ -191,6 +195,12 @@ export interface CreateOrderContext {
   sellerId?: string;
   /** IP e aparelho já em hash, para o antifraude. */
   identity?: RequestIdentity;
+  /**
+   * Compra feita dentro da conta do apostador: nome, telefone e CPF vêm da
+   * conta (o formulário não troca), e o pedido é da conta mesmo sem o
+   * telefone confirmado (`orders.via_conta`).
+   */
+  contaId?: string;
 }
 
 export class FraudBlockedError extends OrderError {
@@ -210,6 +220,22 @@ export async function createOrder(
     .where(eq(campaigns.id, input.campaignId));
 
   if (!campaign) throw new OrderError("Campanha não encontrada.", 404);
+
+  // Dentro da conta, quem compra é a conta: o formulário não escolhe outro
+  // telefone para jogar a compra no nome de alguém.
+  if (ctx.contaId && !ctx.sellerId) {
+    const [conta] = await db.select().from(buyers).where(eq(buyers.id, ctx.contaId));
+    if (!conta || conta.excluidoEm) throw new OrderError("Entre de novo na sua conta.", 401);
+    input = {
+      ...input,
+      buyer: {
+        ...input.buyer,
+        name: conta.name,
+        phone: conta.phone,
+        cpf: conta.cpf ?? input.buyer.cpf,
+      },
+    };
+  }
   if (campaign.status !== "published") {
     throw new OrderError("Esta rifa não está aberta para compra.", 409);
   }
@@ -282,6 +308,17 @@ export async function createOrder(
   }
 
   const buyer = await upsertBuyer(input.buyer);
+  // Compra sem entrar, no telefone de uma conta, com o CPF da conta: é do
+  // dono (o CPF é a mesma prova do cadastro). Sem CPF, fica para o telefone
+  // provado decidir.
+  const compraProvadaPeloCpf = Boolean(
+    !ctx.contaId &&
+      !ctx.sellerId &&
+      buyer.passwordHash &&
+      buyer.cpf &&
+      input.buyer.cpf &&
+      input.buyer.cpf.replace(/\D/g, "") === buyer.cpf.replace(/\D/g, ""),
+  );
 
   // Na venda física não há clique nem cookie: quem vendeu é quem leva.
   const attribution = ctx.sellerId
@@ -324,6 +361,7 @@ export async function createOrder(
           affiliateId: attribution.affiliateId,
           sellerId: ctx.sellerId ?? null,
           method: ctx.sellerId ? "dinheiro" : "pix_online",
+          viaConta: Boolean(ctx.contaId && !ctx.sellerId) || compraProvadaPeloCpf,
           deviceHash: identity.deviceHash,
           ipHash: identity.ipHash,
           couponId: attribution.couponId,
@@ -819,7 +857,14 @@ export async function orderByCode(code: number) {
 }
 
 /** "Minhas cotas": tudo que um telefone comprou, sem senha. */
-export async function ordersByPhone(phone: string) {
+/**
+ * As compras do telefone que a sessão pode ver — a regra é
+ * `pedidoVisivel()` em `shared/contaComprador.ts`, aqui em SQL.
+ */
+export async function ordersByPhone(
+  phone: string,
+  t: Titularidade = { telefoneConfirmado: true, comprasVinculadasEm: null },
+) {
   const digits = normalizePhone(phone);
   return db
     .select({
@@ -829,16 +874,40 @@ export async function ordersByPhone(phone: string) {
         slug: campaigns.slug,
         totalQuotas: campaigns.totalQuotas,
         status: campaigns.status,
+        drawAt: campaigns.drawAt,
+        prizeTitle: campaigns.prizeTitle,
       },
+      // "Minhas compras" agrupa por rifa com o perfil do organizador.
+      organizador: { nome: organizations.name, slug: organizations.slug },
       numbers: sql<number[]>`coalesce(array_agg(${quotaAlloc.number} ORDER BY ${quotaAlloc.number})
         FILTER (WHERE ${quotaAlloc.number} IS NOT NULL), '{}')`,
     })
     .from(orders)
     .innerJoin(buyers, eq(buyers.id, orders.buyerId))
     .innerJoin(campaigns, eq(campaigns.id, orders.campaignId))
+    .leftJoin(organizations, eq(organizations.id, campaigns.organizationId))
     .leftJoin(quotaAlloc, eq(quotaAlloc.orderId, orders.id))
-    .where(eq(buyers.phone, digits))
-    .groupBy(orders.id, campaigns.title, campaigns.slug, campaigns.totalQuotas, campaigns.status)
+    .where(
+      t.telefoneConfirmado
+        ? eq(buyers.phone, digits)
+        : and(
+            eq(buyers.phone, digits),
+            t.comprasVinculadasEm
+              ? or(eq(orders.viaConta, true), lte(orders.createdAt, t.comprasVinculadasEm))
+              : eq(orders.viaConta, true),
+          ),
+    )
+    .groupBy(
+      orders.id,
+      campaigns.title,
+      campaigns.slug,
+      campaigns.totalQuotas,
+      campaigns.status,
+      campaigns.drawAt,
+      campaigns.prizeTitle,
+      organizations.name,
+      organizations.slug,
+    )
     .orderBy(desc(orders.createdAt));
 }
 

@@ -4,6 +4,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { PublicShell } from "@/components/AppShell";
 import { Money, Progress, Button, Card } from "@/components/bits";
 import { apiRequest } from "@/lib/queryClient";
+import { useSession } from "@/lib/session";
 import {
   formatQuota,
   groupNumber,
@@ -11,6 +12,7 @@ import {
   formatBRL,
   cpfValido,
   maskCpf,
+  maskPhone,
 } from "@shared/format";
 import { priceOrder } from "@shared/pricing";
 import { ResponsiveImage } from "@/components/ResponsiveImage";
@@ -87,8 +89,15 @@ export default function Rifa() {
   const { data: checkout } = useQuery<{ exigeCpf: boolean }>({
     queryKey: ["/api/public/checkout"],
   });
-  const exigeCpf = checkout?.exigeCpf ?? false;
+  // Dentro da conta, nome, WhatsApp e CPF vêm dela — o servidor usa os da
+  // conta de qualquer jeito; a tela só não pede o que não vai usar.
+  const { data: sessao } = useSession();
+  const naConta = Boolean(sessao?.buyer?.conta);
+  const exigeCpf = (checkout?.exigeCpf ?? false) && !naConta;
   const cpfOk = !exigeCpf || cpfValido(buyer.cpf);
+  const comprador = naConta
+    ? { name: sessao!.buyer!.name || "Conta", phone: sessao!.buyer!.phone }
+    : { name: buyer.name, phone: buyer.phone };
 
   // Primeiro clique de afiliado: registra e guarda por 30 dias na sessão.
   useEffect(() => {
@@ -125,8 +134,8 @@ export default function Rifa() {
         quantity: picked.length > 0 ? undefined : quantity,
         numbers: picked.length > 0 ? picked : undefined,
         buyer: {
-          name: buyer.name,
-          phone: buyer.phone,
+          name: comprador.name,
+          phone: comprador.phone,
           ...(exigeCpf ? { cpf: buyer.cpf.replace(/\D/g, "") } : {}),
         },
         couponCode: buyer.coupon || undefined,
@@ -469,29 +478,38 @@ export default function Rifa() {
               </p>
             ) : null}
 
-            <div>
-              <label htmlFor="nome" className="label-xs">
-                Nome
-              </label>
-              <input
-                id="nome"
-                value={buyer.name}
-                onChange={(e) => setBuyer({ ...buyer, name: e.target.value })}
-                className="mt-1 w-full rounded-md border border-line-2 px-3 py-2 text-sm"
-              />
-            </div>
-            <div>
-              <label htmlFor="whatsapp" className="label-xs">
-                WhatsApp
-              </label>
-              <input
-                id="whatsapp"
-                value={buyer.phone}
-                inputMode="tel"
-                onChange={(e) => setBuyer({ ...buyer, phone: e.target.value })}
-                className="tnum mt-1 w-full rounded-md border border-line-2 px-3 py-2 text-sm"
-              />
-            </div>
+            {naConta ? (
+              <p className="rounded-md bg-green-soft px-3 py-2 text-sm text-green-deep">
+                Comprando como <strong>{comprador.name}</strong> ·{" "}
+                <span className="tnum">{maskPhone(comprador.phone)}</span>
+              </p>
+            ) : (
+              <>
+                <div>
+                  <label htmlFor="nome" className="label-xs">
+                    Nome
+                  </label>
+                  <input
+                    id="nome"
+                    value={buyer.name}
+                    onChange={(e) => setBuyer({ ...buyer, name: e.target.value })}
+                    className="mt-1 w-full rounded-md border border-line-2 px-3 py-2 text-sm"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="whatsapp" className="label-xs">
+                    WhatsApp
+                  </label>
+                  <input
+                    id="whatsapp"
+                    value={buyer.phone}
+                    inputMode="tel"
+                    onChange={(e) => setBuyer({ ...buyer, phone: e.target.value })}
+                    className="tnum mt-1 w-full rounded-md border border-line-2 px-3 py-2 text-sm"
+                  />
+                </div>
+              </>
+            )}
             {exigeCpf ? (
               <div>
                 <label htmlFor="cpf" className="label-xs">
@@ -549,7 +567,10 @@ export default function Rifa() {
             <Button
               className="flex-1"
               disabled={
-                createOrder.isPending || buyer.name.length < 2 || buyer.phone.length < 10 || !cpfOk
+                createOrder.isPending ||
+                comprador.name.length < 2 ||
+                comprador.phone.length < 10 ||
+                !cpfOk
               }
               onClick={() => {
                 setError(null);

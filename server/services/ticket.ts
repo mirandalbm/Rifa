@@ -11,6 +11,7 @@ import { db } from "../db";
 import { orders, buyers, campaigns, quotaAlloc, affiliates, users, draws } from "@shared/schema";
 import { formatQuota, hidePhone, hideCpf } from "@shared/format";
 import { organizerInfoOf } from "./orgs";
+import { garantirCodigoCliente } from "./chamados";
 import { METODO_LABEL, SITUACAO_LABEL, type TicketData } from "./ticketFormat";
 
 export type { TicketData } from "./ticketFormat";
@@ -59,6 +60,7 @@ export async function buildTicket(code: number): Promise<TicketData | null> {
       // escondidos, como no ranking. Quem precisa do dado inteiro é o painel.
       telefone: hidePhone(row.buyer.phone),
       cpf: row.buyer.cpf ? hideCpf(row.buyer.cpf) : null,
+      id: await garantirCodigoCliente(row.buyer.id),
     },
     rifa: {
       titulo: row.campaign.title,

@@ -39,7 +39,13 @@ export async function verifyPassword(plain: string, stored: string): Promise<boo
 declare module "express-session" {
   interface SessionData {
     /** Identidade leve do comprador, criada depois do código por WhatsApp. */
-    buyer?: { id: string; phone: string; name: string };
+    buyer?: {
+      id: string;
+      phone: string;
+      name: string;
+      /** Telefone provado pelo código do WhatsApp (nesta sessão ou antes). */
+      confirmado?: boolean;
+    };
     /** Código de acesso pendente: guardado na sessão, nunca no banco. */
     otp?: { phone: string; codeHash: string; expiresAt: number; attempts: number };
     /** Segredo do 2FA ainda não confirmado: só vira definitivo após o código. */

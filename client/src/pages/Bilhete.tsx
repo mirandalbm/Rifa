@@ -13,7 +13,7 @@ interface Ticket {
     cidade?: string;
     observacao?: string;
   };
-  apostador: { nome: string; telefone: string; cpf: string | null };
+  apostador: { nome: string; telefone: string; cpf: string | null; id?: string | null };
   rifa: {
     titulo: string;
     premio: string;
@@ -152,6 +152,7 @@ export default function Bilhete() {
         <div className="regua" />
         <p className="rotulo">Apostador</p>
         <p>{t.apostador.nome}</p>
+        {t.apostador.id ? <p className="tnum">ID {t.apostador.id}</p> : null}
         <p>{t.apostador.telefone}</p>
         {t.apostador.cpf ? <p>CPF {t.apostador.cpf}</p> : null}
 

@@ -223,11 +223,35 @@ export const buyers = pgTable(
      * Nasce na primeira vez que o comprador entra em "Minhas cotas".
      */
     codigo: text("codigo"),
+    /**
+     * Conta com senha (entrar por telefone, CPF ou e-mail). Nulo: comprador
+     * que só compra e entra pelo código do WhatsApp — o jeito antigo.
+     */
+    passwordHash: text("password_hash"),
+    contaCriadaEm: timestamp("conta_criada_em"),
+    /**
+     * Telefone provado pelo código do WhatsApp. Sem isso a conta só enxerga o
+     * que comprou dentro dela (`orders.via_conta`) — senão quem criasse conta
+     * com o número de outro veria as compras dele.
+     */
+    telefoneConfirmadoEm: timestamp("telefone_confirmado_em"),
+    /**
+     * Compras feitas antes da conta, pelo telefone, que passaram a ser da
+     * conta porque o CPF delas bateu com o do cadastro. Vale para o que
+     * existia até este instante — compra futura sem entrar não herda.
+     */
+    comprasVinculadasEm: timestamp("compras_vinculadas_em"),
+    /** Exclusão pela LGPD: os dados pessoais saem, as compras ficam. */
+    excluidoEm: timestamp("excluido_em"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (t) => [
     uniqueIndex("uq_buyers_phone").on(t.phone),
     uniqueIndex("uq_buyers_codigo").on(t.codigo),
+    // CPF e e-mail entram como forma de login só entre contas: comprador sem
+    // conta pode repetir (a mesma pessoa com dois telefones, digitação antiga).
+    uniqueIndex("uq_buyers_conta_cpf").on(t.cpf).where(sql`password_hash is not null`),
+    uniqueIndex("uq_buyers_conta_email").on(t.email).where(sql`password_hash is not null`),
   ],
 );
 
@@ -443,6 +467,8 @@ export const orders = pgTable(
     ipHash: text("ip_hash"),
     settlementId: uuid("settlement_id"),
     couponId: uuid("coupon_id"),
+    /** Feito dentro da conta do apostador: é da conta mesmo sem telefone confirmado. */
+    viaConta: boolean("via_conta").notNull().default(false),
     pspProvider: text("psp_provider"),
     pspChargeId: text("psp_charge_id"),
     pixQr: text("pix_qr"),

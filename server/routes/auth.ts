@@ -18,7 +18,14 @@ authRouter.get("/me", (req, res) => {
   res.json({
     role,
     user: req.user ? { name: req.user.name, email: req.user.email } : null,
-    buyer: req.session.buyer?.phone ? { phone: req.session.buyer.phone } : null,
+    buyer: req.session.buyer?.phone
+      ? {
+          phone: req.session.buyer.phone,
+          name: req.session.buyer.name,
+          conta: Boolean(req.session.buyer.id),
+          confirmado: req.session.buyer.confirmado === true,
+        }
+      : null,
     sections: sectionsFor(role),
     home: homeFor(role),
   });

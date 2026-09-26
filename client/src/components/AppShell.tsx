@@ -1,6 +1,7 @@
 import { Link, useLocation } from "wouter";
 import { useState, type ReactNode } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 import {
   Banknote,
   Building2,
@@ -32,6 +33,80 @@ import {
 import type { SectionKey } from "@shared/access";
 import { useSession, useLogout } from "@/lib/session";
 
+/**
+ * Menu do apostador com conta: o círculo com a inicial abre as compras, os
+ * reembolsos, a conta e o sair.
+ */
+function MenuDoApostador({ nome }: { nome: string }) {
+  const [aberto, setAberto] = useState(false);
+  const [, navigate] = useLocation();
+  const qc = useQueryClient();
+  const ir = (href: string) => {
+    setAberto(false);
+    navigate(href);
+  };
+  const itens: [string, string][] = [
+    ["Minhas compras", "/minhas-compras"],
+    ["Reembolsos", "/minhas-compras?aba=reembolsos"],
+    ["Minha conta", "/minhas-compras?aba=conta"],
+  ];
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        aria-haspopup="menu"
+        aria-expanded={aberto}
+        aria-label="Menu da conta"
+        onClick={() => setAberto(!aberto)}
+        className="flex items-center gap-2 rounded-full border border-line py-0.5 pl-0.5 pr-3 text-xs font-semibold text-ink-2 hover:bg-mist"
+      >
+        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-green text-on-green">
+          {nome.trim().charAt(0).toUpperCase() || "?"}
+        </span>
+        <span className="max-w-[90px] truncate">{nome.split(" ")[0]}</span>
+      </button>
+      {aberto ? (
+        <>
+          <button
+            type="button"
+            aria-label="Fechar menu"
+            className="fixed inset-0 z-30 cursor-default"
+            onClick={() => setAberto(false)}
+          />
+          <div
+            role="menu"
+            className="absolute right-0 z-40 mt-2 w-48 overflow-hidden rounded-lg border border-line bg-white py-1 shadow-lg"
+          >
+            {itens.map(([rotulo, href]) => (
+              <button
+                key={href}
+                type="button"
+                role="menuitem"
+                onClick={() => ir(href)}
+                className="block w-full px-4 py-2 text-left text-sm hover:bg-mist"
+              >
+                {rotulo}
+              </button>
+            ))}
+            <button
+              type="button"
+              role="menuitem"
+              onClick={async () => {
+                await apiRequest("POST", "/api/public/conta/sair");
+                qc.invalidateQueries();
+                ir("/");
+              }}
+              className="block w-full border-t border-line px-4 py-2 text-left text-sm text-red hover:bg-mist"
+            >
+              Sair
+            </button>
+          </div>
+        </>
+      ) : null}
+    </div>
+  );
+}
+
 /** Cabeçalho público: vitrine, rifa, pedido, minhas cotas. */
 export function PublicShell({ children }: { children: ReactNode }) {
   const { data: session } = useSession();
@@ -44,12 +119,13 @@ export function PublicShell({ children }: { children: ReactNode }) {
             rifa<span className="text-green">.</span>br
           </Link>
           <nav className="flex items-center gap-3 text-sm">
-            <Link href="/minhas-cotas" className="text-ink-2 hover:text-green-deep">
-              Minhas cotas
-            </Link>
-            {/* Quem tem conta — administrador, organizador, afiliado ou
-                cambista — vai para o próprio painel; os demais veem a porta de
-                entrada. O comprador não precisa dela: entra por "Minhas cotas". */}
+            {session?.buyer?.conta ? null : (
+              <Link href="/minhas-cotas" className="text-ink-2 hover:text-green-deep">
+                Minhas cotas
+              </Link>
+            )}
+            {/* Quem é do painel vai para o painel; o apostador com conta vai
+                para as cotas dele; os demais veem entrar e cadastrar. */}
             {session?.user ? (
               <Link
                 href={session.home}
@@ -57,13 +133,23 @@ export function PublicShell({ children }: { children: ReactNode }) {
               >
                 Meu painel
               </Link>
+            ) : session?.buyer?.conta ? (
+              <MenuDoApostador nome={session.buyer.name} />
             ) : (
-              <Link
-                href="/entrar"
-                className="rounded-md border-2 border-green px-3 py-1 text-xs font-semibold text-green-deep hover:bg-green-soft"
-              >
-                Entrar
-              </Link>
+              <>
+                <Link
+                  href="/entrar"
+                  className="rounded-md border-2 border-green px-3 py-1 text-xs font-semibold text-green-deep hover:bg-green-soft"
+                >
+                  Entrar
+                </Link>
+                <Link
+                  href="/criar-conta"
+                  className="rounded-md border-2 border-green bg-green px-3 py-1 text-xs font-semibold text-on-green hover:brightness-95"
+                >
+                  Cadastrar
+                </Link>
+              </>
             )}
           </nav>
         </div>

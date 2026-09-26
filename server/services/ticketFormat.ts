@@ -17,6 +17,8 @@ export interface TicketData {
     nome: string;
     telefone: string;
     cpf: string | null;
+    /** ID do cliente (C-XXXXXXXX): é por ele que o atendimento o encontra. */
+    id?: string | null;
   };
   rifa: {
     titulo: string;
@@ -133,6 +135,7 @@ export function escPosTicket(t: TicketData): string {
 
   partes.push("APOSTADOR");
   partes.push(...quebrar(t.apostador.nome));
+  if (t.apostador.id) partes.push(`ID ${t.apostador.id}`);
   partes.push(t.apostador.telefone);
   if (t.apostador.cpf) partes.push(`CPF ${t.apostador.cpf}`);
   partes.push(linha());

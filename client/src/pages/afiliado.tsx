@@ -230,17 +230,36 @@ export function AfiliadoComissoes() {
       quantity: number;
       buyerName: string;
       campaignTitle: string;
+      organizacao: string;
     }[]
   >({ queryKey: ["/api/affiliate/commissions"] });
+  // Extrato por origem: a organização que paga, a rifa e o pedido.
+  const [origem, setOrigem] = useState("");
+  const organizacoes = [...new Set((data ?? []).map((c) => c.organizacao))].sort();
+  const linhas = (data ?? []).filter((c) => !origem || c.organizacao === origem);
+  const total = linhas.reduce((s, c) => s + c.amountCents, 0);
 
   return (
     <PanelShell title="Comissões">
+      {organizacoes.length > 1 ? (
+        <div className="mb-3 flex flex-wrap items-center gap-2 text-sm">
+          <select value={origem} onChange={(e) => setOrigem(e.target.value)} aria-label="Organização" className="rounded-md border border-line-2 px-2 py-1.5">
+            <option value="">Todas as organizações</option>
+            {organizacoes.map((o) => (
+              <option key={o} value={o}>
+                {o}
+              </option>
+            ))}
+          </select>
+          <span className="tnum text-muted">{formatBRL(total)} em {linhas.length} venda(s)</span>
+        </div>
+      ) : null}
       <Card>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[560px] text-sm">
+          <table className="w-full min-w-[680px] text-sm">
             <thead>
               <tr className="bg-mist">
-                {["Pedido", "Comprador", "Cotas", "Venda", "Comissão", "Status"].map((h) => (
+                {["Pedido", "Organização · rifa", "Comprador", "Cotas", "Venda", "Comissão", "Status"].map((h) => (
                   <th key={h} className="label-xs px-3 py-2 text-left">
                     {h}
                   </th>
@@ -248,9 +267,13 @@ export function AfiliadoComissoes() {
               </tr>
             </thead>
             <tbody>
-              {data?.map((c) => (
+              {linhas.map((c) => (
                 <tr key={c.id} className="border-t border-line">
                   <td className="tnum px-3 py-2">#{c.orderCode}</td>
+                  <td className="px-3 py-2">
+                    <span className="block">{c.organizacao}</span>
+                    <span className="text-xs text-muted">{c.campaignTitle}</span>
+                  </td>
                   <td className="px-3 py-2">{c.buyerName}</td>
                   <td className="tnum px-3 py-2">{c.quantity}</td>
                   <td className="px-3 py-2">
@@ -277,7 +300,7 @@ export function AfiliadoSaques() {
   const qc = useQueryClient();
   const { data: overview } = useQuery<Overview>({ queryKey: ["/api/affiliate/overview"] });
   const { data: payouts } = useQuery<
-    { id: string; amountCents: number; status: string; requestedAt: string }[]
+    { id: string; amountCents: number; status: string; requestedAt: string; recibo: string | null; organizacao: string | null }[]
   >({ queryKey: ["/api/affiliate/payouts"] });
 
   const [pixKey, setPixKey] = useState("");
@@ -328,8 +351,8 @@ export function AfiliadoSaques() {
             <ul className="divide-y divide-line">
               {saldo.map((o) => (
                 <li key={o.organizacaoId} className="flex flex-wrap items-center gap-3 py-2 text-sm">
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate font-semibold">{o.organizacao}</span>
+                  <span className="min-w-0 flex-1 basis-full sm:basis-auto">
+                    <span className="block font-semibold">{o.organizacao}</span>
                     <span className="tnum text-xs text-muted">aguardando {formatBRL(o.pendenteCents)}</span>
                   </span>
                   <span className="tnum text-green-deep">{formatBRL(o.disponivelCents)}</span>
@@ -360,12 +383,18 @@ export function AfiliadoSaques() {
           ) : (
             <ul className="divide-y divide-line">
               {payouts?.map((p) => (
-                <li key={p.id} className="flex items-center justify-between px-4 py-3 text-sm">
-                  <span className="tnum text-muted">
-                    {new Date(p.requestedAt).toLocaleDateString("pt-BR")}
+                <li key={p.id} className="flex flex-wrap items-center gap-3 px-4 py-3 text-sm">
+                  <span className="min-w-0 flex-1">
+                    <span className="tnum block text-muted">{new Date(p.requestedAt).toLocaleDateString("pt-BR")}</span>
+                    {p.organizacao ? <span className="block truncate text-xs text-muted">{p.organizacao}</span> : null}
                   </span>
                   <Money cents={p.amountCents} />
                   <Pill status={p.status === "requested" ? "pending" : p.status} />
+                  {p.recibo ? (
+                    <a href={`/api/affiliate/recibos/${p.recibo}/pdf`} className="text-xs text-green-deep underline">
+                      recibo
+                    </a>
+                  ) : null}
                 </li>
               ))}
             </ul>

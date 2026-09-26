@@ -1335,3 +1335,74 @@ export const pedidosColaborador = pgTable(
       .where(sql`status = 'pendente'`),
   ],
 );
+
+/**
+ * Cadastro fiscal do afiliado. Os dados (nome completo, CPF, RG, nascimento,
+ * endereço, conta) ficam **cifrados** (`dados`, AES-256-GCM, chave fora do
+ * banco — `server/services/cofre.ts`). Em claro, só o status e a impressão
+ * do CPF (HMAC), que barra o mesmo CPF em duas contas sem guardar o CPF.
+ */
+export const afiliadoFiscal = pgTable(
+  "afiliado_fiscal",
+  {
+    affiliateId: uuid("affiliate_id")
+      .primaryKey()
+      .references(() => affiliates.id, { onDelete: "cascade" }),
+    /** incompleto | em_analise | aprovado | recusado (`STATUS_FISCAL`). */
+    status: text("status").notNull().default("incompleto"),
+    dados: bytea("dados"),
+    iv: bytea("iv"),
+    tag: bytea("tag"),
+    chaveVersao: text("chave_versao"),
+    cpfImpressao: text("cpf_impressao"),
+    motivo: text("motivo"),
+    enviadoEm: timestamp("enviado_em"),
+    decididoEm: timestamp("decidido_em"),
+    decididoPor: uuid("decidido_por"),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("uq_fiscal_cpf").on(t.cpfImpressao).where(sql`cpf_impressao is not null`)],
+);
+
+/** Documentos do cadastro fiscal, cifrados como os dados. Um por tipo. */
+export const afiliadoDocumentos = pgTable(
+  "afiliado_documentos",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    affiliateId: uuid("affiliate_id")
+      .notNull()
+      .references(() => affiliates.id, { onDelete: "cascade" }),
+    tipo: text("tipo").notNull(),
+    mime: text("mime").notNull(),
+    tamanho: integer("tamanho").notNull(),
+    dados: bytea("dados").notNull(),
+    iv: bytea("iv").notNull(),
+    tag: bytea("tag").notNull(),
+    chaveVersao: text("chave_versao").notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("uq_documento_afiliado_tipo").on(t.affiliateId, t.tipo)],
+);
+
+/**
+ * Recibo de cada saque pago: o retrato do pagamento (quem pagou, quem
+ * recebeu, quanto e de onde veio), o hash do texto canônico e a assinatura
+ * da plataforma. Emitido na mesma transação que dá baixa no saque, e nunca
+ * editado — o PDF é gerado dele a cada download.
+ */
+export const recibos = pgTable("recibos", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  codigo: text("codigo").notNull().unique(),
+  payoutId: uuid("payout_id")
+    .notNull()
+    .unique()
+    .references(() => payouts.id),
+  organizationId: uuid("organization_id").references(() => organizations.id),
+  affiliateId: uuid("affiliate_id")
+    .notNull()
+    .references(() => affiliates.id),
+  snapshot: jsonb("snapshot").notNull(),
+  hash: text("hash").notNull(),
+  assinatura: text("assinatura").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});

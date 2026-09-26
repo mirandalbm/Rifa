@@ -231,7 +231,7 @@ arquivos grandes demais para o banco.
 
 ---
 
-## 9. Afiliado de todas as organizações **[decidido — feito: avulso, termo, aceite, colaborador; falta a guarda pela plataforma, cadastro fiscal e recibo (etapa 12)]**
+## 9. Afiliado de todas as organizações **[decidido — feito: avulso, termo, aceite, colaborador, cadastro fiscal, recibo e extrato; falta a guarda pela plataforma (etapa 12, espera o contador)]**
 
 - **Afiliado avulso**: cadastro sem organização; escolhe as rifas que quer
   divulgar e adere a quantas organizações quiser.
@@ -292,7 +292,8 @@ arquivos grandes demais para o banco.
 | ✓ | Vitrine: banners, stories, estados, feed | 5 | 5 |
 | ✓ | Painel de resultados do organizador | 10 | — |
 | ✓ | Afiliado multi-organização, termo, colaborador | 9 | — |
-| 12 | Guarda da comissão, cadastro fiscal e recibo | 9 | contador |
+| ✓ | Cadastro fiscal, recibo assinado e extrato por origem | 9 | — |
+| 12 | Guarda da comissão pela plataforma | 9 | contador |
 | 13 | Indicação, bônus e gamificação | 8 | 5, advogado |
 | 14 | Disputa de reembolso no administrador geral | 2 | 2 |
 | 15 | Rifas patrocinadas por clique | 5 | Pix da plataforma |

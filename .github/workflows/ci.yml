@@ -95,6 +95,7 @@ jobs:
       - run: npm run vitrine
       - run: npm run resultados
       - run: npm run afiliados
+      - run: npm run fiscal
       - run: npm run load
 
       - name: Log do servidor

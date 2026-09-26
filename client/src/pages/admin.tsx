@@ -923,6 +923,9 @@ export function AdminFinanceiro() {
     mutationFn: (id: string) => apiRequest("POST", `/api/admin/payouts/${id}/paid`),
     onSuccess: () => qc.invalidateQueries(),
   });
+  const { data: pagos = [] } = useQuery<
+    { id: string; amountCents: number; processedAt: string | null; codigoAfiliado: string; recibo: string | null }[]
+  >({ queryKey: ["/api/admin/saques-pagos"] });
 
   return (
     <PanelShell title="Financeiro">
@@ -970,6 +973,35 @@ export function AdminFinanceiro() {
             ))}
           </ul>
           {data?.payoutsRequested.length === 0 ? <Empty>Nenhum saque pendente.</Empty> : null}
+        </Card>
+
+        <Card title="Saques pagos">
+          <ul className="divide-y divide-line">
+            {pagos.map((p) => (
+              <li key={p.id} className="flex items-center gap-3 px-4 py-3 text-sm">
+                <span className="min-w-0 flex-1">
+                  <span className="tnum">{p.codigoAfiliado}</span>
+                  <span className="tnum block text-xs text-muted">
+                    {p.processedAt ? new Date(p.processedAt).toLocaleDateString("pt-BR") : ""}
+                  </span>
+                </span>
+                <Money cents={p.amountCents} />
+                {p.recibo ? (
+                  <a
+                    href={`/api/admin/recibos/${p.recibo}/pdf`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="tnum text-xs underline"
+                  >
+                    recibo {p.recibo}
+                  </a>
+                ) : (
+                  <span className="text-xs text-muted">sem recibo</span>
+                )}
+              </li>
+            ))}
+          </ul>
+          {pagos.length === 0 ? <Empty>Nenhum saque pago ainda.</Empty> : null}
         </Card>
       </div>
     </PanelShell>

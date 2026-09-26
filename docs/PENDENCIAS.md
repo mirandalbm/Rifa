@@ -192,8 +192,18 @@ Na ordem de entrega do plano:
 - [ ] **[você]** Cada organização publicar o termo de adesão de afiliado
   (Afiliados → Termo) e o advogado revisar o texto-base (`montarTermo()` em
   `shared/afiliados.ts`).
-- [ ] **[código]** Guarda da comissão pela plataforma, cadastro fiscal e
-  recibo.
+- [x] Cadastro fiscal do afiliado (Meus dados): nome, CPF, RG, nascimento,
+  endereço, conta e três documentos, cifrados (AES-256-GCM) e conferidos só
+  pela plataforma (Cadastros fiscais), com cada leitura na auditoria.
+  Exigência para sacar é uma chave em Configurações, desligada por padrão.
+- [x] Recibo assinado a cada saque pago (PDF com QR) e conferência pública
+  em `/recibo/<código>`; extrato de comissão por organização.
+- [ ] **[você]** Criar `COFRE_CHAVE` no Railway (32 bytes em base64:
+  `openssl rand -base64 32`) **antes** de ligar o cadastro fiscal. Sem ela,
+  em produção, o cadastro fiscal e o recibo recusam. Guardar uma cópia fora
+  do Railway: perder a chave é perder os documentos.
+- [ ] **[código]** Guarda da comissão pela plataforma (split para a carteira
+  da plataforma, pagamento depois do sorteio) — espera o contador.
 - [ ] **[código]** Indicação, bônus e gamificação.
 - [ ] **[código]** Disputa de reembolso no administrador geral.
 - [ ] **[código]** Rifas patrocinadas por clique.

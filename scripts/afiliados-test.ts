@@ -77,6 +77,7 @@ async function limpar() {
       await db.execute(sql`delete from draws where campaign_id in ${lista}`);
       await db.delete(orders).where(inArray(orders.campaignId, cs));
     }
+    await db.execute(sql`delete from recibos where organization_id in ${sql.raw(`('${ids.join("','")}')`)}`);
     await db.execute(sql`delete from payouts where organization_id in ${sql.raw(`('${ids.join("','")}')`)}`);
     await db.execute(sql`delete from coupons where organization_id in ${sql.raw(`('${ids.join("','")}')`)}`);
     await db.execute(sql`delete from termo_aceites where termo_id in (select id from organizacao_termos where organization_id in ${sql.raw(`('${ids.join("','")}')`)})`);

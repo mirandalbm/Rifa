@@ -334,6 +334,10 @@ async function rotasDaPlataforma(eu: Lado) {
     ["DELETE banner da vitrine", "/api/admin/banners/00000000-0000-0000-0000-000000000000", { method: "DELETE" }],
     ["POST criar modelos do WhatsApp", "/api/admin/whatsapp/modelos", { method: "POST" }],
     ["POST teste do WhatsApp", "/api/admin/whatsapp/teste", { method: "POST", body: '{"telefone":"11999999999"}' }],
+    ["GET cadastros fiscais", "/api/admin/fiscal", {}],
+    ["GET cadastro fiscal", "/api/admin/fiscal/00000000-0000-0000-0000-000000000000", {}],
+    ["GET documento fiscal", "/api/admin/fiscal/00000000-0000-0000-0000-000000000000/documentos/identidade_frente", {}],
+    ["POST decidir cadastro fiscal", "/api/admin/fiscal/00000000-0000-0000-0000-000000000000/decidir", { method: "POST", body: '{"status":"aprovado"}' }],
   ];
   for (const [nome, caminho, init] of tentativas) {
     const res = await pedir(eu.cookie, caminho, init);

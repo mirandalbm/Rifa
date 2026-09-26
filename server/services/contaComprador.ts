@@ -23,6 +23,8 @@ import { senhaInvalida } from "@shared/senha";
 import { hashPassword, verifyPassword } from "../auth";
 import { isUniqueViolation } from "../pgError";
 import { guardLogin, hit, identify } from "./antifraude";
+import { consultarCep } from "./cep";
+import { soDigitosCep } from "@shared/endereco";
 
 export class ContaError extends Error {
   constructor(
@@ -95,6 +97,10 @@ export async function criarConta(req: Request, entrada: CadastroComprador & { le
   const cpf = entrada.cpf.replace(/\D/g, "");
   const email = entrada.email?.trim().toLowerCase() || null;
   const nome = entrada.nome.trim();
+  // O CEP diz cidade e estado. Serviço de CEP fora do ar não barra o
+  // cadastro: guarda o CEP e o relógio completa depois. CEP que não existe,
+  // sim — é erro de digitação, e a vitrine ordenaria pelo lugar errado.
+  const regiao = await regiaoDoCep(entrada.cep);
   const passwordHash = await hashPassword(entrada.senha);
   // Quem já provou o telefone nesta sessão (código do WhatsApp) cria a conta
   // já confirmada.
@@ -127,6 +133,7 @@ export async function criarConta(req: Request, entrada: CadastroComprador & { le
           name: nome,
           cpf,
           email,
+          ...regiao,
           passwordHash,
           contaCriadaEm: new Date(),
           ...(cpfProvou ? { comprasVinculadasEm: new Date() } : {}),
@@ -143,6 +150,7 @@ export async function criarConta(req: Request, entrada: CadastroComprador & { le
           phone,
           cpf,
           email,
+          ...regiao,
           passwordHash,
           contaCriadaEm: new Date(),
           telefoneConfirmadoEm: confirmadoAgora ? new Date() : null,
@@ -251,7 +259,61 @@ export async function dadosDaConta(buyerId: string) {
     temSenha: Boolean(c.passwordHash),
     telefoneConfirmado: Boolean(c.telefoneConfirmadoEm),
     perfilPublico: c.perfilPublico,
+    cep: c.cep,
+    cidade: c.cidade,
+    uf: c.uf,
   };
+}
+
+/**
+ * CEP → { cep, cidade, uf }. Fora do ar, só o CEP (o relógio completa com
+ * `completarRegioesPendentes`). Inexistente ou malformado, erro.
+ */
+async function regiaoDoCep(entrada: string) {
+  const r = await consultarCep(entrada);
+  if (r === "invalido") throw new ContaError("Informe o CEP (8 números).");
+  if (r === "nao_encontrado") throw new ContaError("CEP não encontrado. Confira os números.");
+  const cep = soDigitosCep(entrada);
+  if (r === "indisponivel") return { cep, cidade: null, uf: null };
+  return { cep, cidade: r.cidade, uf: r.uf };
+}
+
+/** Trocar o CEP da conta (mudou de cidade). */
+export async function trocarCep(req: Request, cep: string) {
+  const sessao = compradorDaSessao(req);
+  const regiao = await regiaoDoCep(cep);
+  const [c] = await db
+    .update(buyers)
+    .set(regiao)
+    .where(and(eq(buyers.id, sessao.id), isNull(buyers.excluidoEm)))
+    .returning({ cep: buyers.cep, cidade: buyers.cidade, uf: buyers.uf });
+  if (!c) throw new ContaError("Conta não encontrada.", 404);
+  return c;
+}
+
+/**
+ * Contas criadas com o serviço de CEP fora do ar: completa cidade e UF.
+ * Lote pequeno, e só onde a UF está vazia.
+ */
+export async function completarRegioesPendentes(lote = 50): Promise<number> {
+  const pendentes = await db
+    .select({ id: buyers.id, cep: buyers.cep })
+    .from(buyers)
+    .where(and(isNotNull(buyers.cep), isNull(buyers.uf), isNull(buyers.excluidoEm)))
+    .limit(lote);
+  let n = 0;
+  for (const p of pendentes) {
+    const r = await consultarCep(p.cep!);
+    if (r === "indisponivel") break; // tenta na próxima rodada
+    if (typeof r === "string") continue; // CEP antigo que não existe mais: fica sem região
+    const feito = await db
+      .update(buyers)
+      .set({ cidade: r.cidade, uf: r.uf })
+      .where(and(eq(buyers.id, p.id), isNull(buyers.uf)))
+      .returning({ id: buyers.id });
+    n += feito.length;
+  }
+  return n;
 }
 
 /**
@@ -341,6 +403,9 @@ export async function excluirConta(req: Request, senha: string) {
         phone: `removido:${c.id}`,
         cpf: null,
         email: null,
+        cep: null,
+        cidade: null,
+        uf: null,
         passwordHash: null,
         telefoneConfirmadoEm: null,
         excluidoEm: new Date(),

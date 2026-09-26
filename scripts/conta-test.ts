@@ -46,6 +46,8 @@ const tem = (j: { orders?: { order: { code: number } }[] }, code: number) =>
 const CPF_DONO = "52998224725";
 const CPF_NOVO = "11144477735";
 const SENHA = "senha-de-teste-1";
+/** CEP de verdade (Av. Paulista): o cadastro recusa CEP que não existe. */
+const CEP = "01310-100";
 
 const criados = new Set<string>();
 let rifaId = "";
@@ -113,11 +115,13 @@ async function main() {
   try {
     // ---- cadastro ----
     const a = new Cliente();
-    let r = await a.req("POST", "/api/public/conta", { nome: "Ana Nova", telefone: TEL_NOVO, cpf: "111.111.111-11", senha: SENHA });
+    let r = await a.req("POST", "/api/public/conta", { cep: CEP, nome: "Ana Nova", telefone: TEL_NOVO, cpf: "111.111.111-11", senha: SENHA });
     checa("CPF inválido: recusa", r.status === 400, r.json?.message);
-    r = await a.req("POST", "/api/public/conta", { nome: "Ana Nova", telefone: TEL_NOVO, cpf: CPF_NOVO, senha: "12345678" });
+    r = await a.req("POST", "/api/public/conta", { cep: CEP, nome: "Ana Nova", telefone: TEL_NOVO, cpf: CPF_NOVO, senha: "12345678" });
     checa("senha conhecida: recusa", r.status === 400, r.json?.message);
-    r = await a.req("POST", "/api/public/conta", {
+    r = await a.req("POST", "/api/public/conta", { cep: "0131", nome: "Ana Nova", telefone: TEL_NOVO, cpf: CPF_NOVO, senha: SENHA });
+    checa("sem CEP válido: recusa", r.status === 400 && /CEP/.test(r.json?.message ?? ""), r.json?.message);
+    r = await a.req("POST", "/api/public/conta", { cep: CEP,
       nome: "Ana Nova",
       telefone: TEL_NOVO,
       cpf: CPF_NOVO,
@@ -127,13 +131,22 @@ async function main() {
     checa("cria conta nova", r.status === 201, r.json?.message ?? "");
     checa("nasce com o telefone não confirmado", r.json?.telefoneConfirmado === false);
     checa("e-mail guardado em minúsculas", r.json?.email === "ana@exemplo.com", r.json?.email);
+    // Com o serviço de CEP no ar vem cidade e UF; fora do ar, só o CEP (o
+    // relógio completa depois). As duas situações acontecem: CI tem rede, a
+    // bancada local pode não ter.
+    checa("o CEP fica na conta", r.json?.cep === "01310100", String(r.json?.cep));
+    checa("com cidade quando o serviço de CEP responde",
+      r.json?.uf === null || (r.json?.uf === "SP" && r.json?.cidade === "São Paulo"),
+      `${r.json?.cidade}/${r.json?.uf}`);
+    r = await a.req("PUT", "/api/public/conta/cep", { cep: "123" });
+    checa("trocar para CEP malformado: recusa", r.status === 400, r.json?.message);
 
     const b = new Cliente();
-    r = await b.req("POST", "/api/public/conta", { nome: "Outra", telefone: TEL_NOVO, cpf: "123.456.789-09", senha: SENHA });
+    r = await b.req("POST", "/api/public/conta", { cep: CEP, nome: "Outra", telefone: TEL_NOVO, cpf: "123.456.789-09", senha: SENHA });
     checa("mesmo telefone: recusa", r.status === 409, r.json?.message);
-    r = await b.req("POST", "/api/public/conta", { nome: "Outra", telefone: "11966660003", cpf: CPF_NOVO, senha: SENHA });
+    r = await b.req("POST", "/api/public/conta", { cep: CEP, nome: "Outra", telefone: "11966660003", cpf: CPF_NOVO, senha: SENHA });
     checa("mesmo CPF em outra conta: recusa", r.status === 409, r.json?.message);
-    r = await b.req("POST", "/api/public/conta", {
+    r = await b.req("POST", "/api/public/conta", { cep: CEP,
       nome: "Outra",
       telefone: "11966660003",
       cpf: "123.456.789-09",
@@ -178,9 +191,9 @@ async function main() {
     });
     await db.insert(orders).values([antiga(94_000_002, "pix_online"), antiga(94_000_003, "dinheiro")]);
     const cc = new Cliente();
-    r = await cc.req("POST", "/api/public/conta", { nome: "Impostor", telefone: TEL_CPF, cpf: "123.456.789-09", senha: SENHA });
+    r = await cc.req("POST", "/api/public/conta", { cep: CEP, nome: "Impostor", telefone: TEL_CPF, cpf: "123.456.789-09", senha: SENHA });
     checa("telefone de quem já comprou, com outro CPF: recusa", r.status === 409, r.json?.message);
-    r = await cc.req("POST", "/api/public/conta", { nome: "Cliente Antigo", telefone: TEL_CPF, cpf: CPF_DONO, senha: SENHA });
+    r = await cc.req("POST", "/api/public/conta", { cep: CEP, nome: "Cliente Antigo", telefone: TEL_CPF, cpf: CPF_DONO, senha: SENHA });
     checa("com o CPF das compras, a conta é criada", r.status === 201, r.json?.message ?? "");
     let minhas = await cc.req("GET", "/api/public/my-quotas");
     checa(
@@ -211,7 +224,7 @@ async function main() {
 
     // ---- o golpe: conta com o telefone de outra pessoa, sem CPF gravado ----
     const golpe = new Cliente();
-    r = await golpe.req("POST", "/api/public/conta", { nome: "Golpista", telefone: TEL_DONO, cpf: "123.456.789-09", senha: SENHA });
+    r = await golpe.req("POST", "/api/public/conta", { cep: CEP, nome: "Golpista", telefone: TEL_DONO, cpf: "123.456.789-09", senha: SENHA });
     checa("sem CPF nas compras, a conta é criada…", r.status === 201, r.json?.message ?? "");
     minhas = await golpe.req("GET", "/api/public/my-quotas");
     checa(
@@ -296,7 +309,7 @@ async function main() {
     checa("a sessão acabou", (await ana.req("GET", "/api/public/conta")).status === 401);
     r = await new Cliente().req("POST", "/api/public/conta/entrar", { identificador: "ana@exemplo.com", senha: SENHA });
     checa("não entra mais", r.status === 401);
-    r = await new Cliente().req("POST", "/api/public/conta", { nome: "Ana de Novo", telefone: TEL_NOVO, cpf: CPF_NOVO, senha: SENHA });
+    r = await new Cliente().req("POST", "/api/public/conta", { cep: CEP, nome: "Ana de Novo", telefone: TEL_NOVO, cpf: CPF_NOVO, senha: SENHA });
     checa("o mesmo telefone e CPF podem criar conta nova", r.status === 201, r.json?.message ?? "");
   } finally {
     await limpar();

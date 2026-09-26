@@ -3,7 +3,10 @@ import { NOME_TEMA, proximoTema, useTema, type Tema } from "@/lib/tema";
 
 const ICONE: Record<Tema, LucideIcon> = { automatico: Monitor, claro: Sun, escuro: Moon };
 
-/** As três opções lado a lado — para rodapé e configurações. */
+/**
+ * As três opções lado a lado, no rodapé: só os ícones; a escolhida mostra o
+ * nome. O leitor de tela ouve o nome de todas (`aria-label`).
+ */
 export function TemaEscolha({ className = "" }: { className?: string }) {
   const [tema, escolher] = useTema();
   return (
@@ -17,13 +20,15 @@ export function TemaEscolha({ className = "" }: { className?: string }) {
             type="button"
             role="radio"
             aria-checked={ativo}
+            aria-label={NOME_TEMA[t]}
+            title={NOME_TEMA[t]}
             onClick={() => escolher(t)}
             className={`flex items-center gap-1 rounded px-2 py-1 text-xs ${
               ativo ? "bg-mist-2 font-semibold text-ink" : "text-muted hover:text-ink"
             }`}
           >
-            <Icone size={13} aria-hidden />
-            {NOME_TEMA[t]}
+            <Icone size={15} aria-hidden />
+            {ativo ? <span aria-hidden>{NOME_TEMA[t]}</span> : null}
           </button>
         );
       })}

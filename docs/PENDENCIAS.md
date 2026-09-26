@@ -114,6 +114,9 @@ Na ordem de entrega do plano:
   rifa: a vitrine põe primeiro as rifas da cidade e do estado de quem olha,
   sem esconder nenhuma. Organização com "Cidade/UF" antigo já ordena pelo
   estado; o endereço completo é pedido em Configurações.
+- [x] A vitrine ordena pela região do apostador sem ele escolher: o CEP é
+  pedido no cadastro (e trocado em Minha conta → Minha região); o seletor de
+  estado fica no topo da vitrine para quem quiser ver outro estado.
 - [ ] **[você]** Cada organização conferir o endereço em Configurações →
   Endereço da organização (aparece "falta cadastrar" enquanto não tiver).
 - [x] Tema claro e escuro: segue o celular por padrão; a pessoa troca no
@@ -128,13 +131,19 @@ Na ordem de entrega do plano:
   sorteadas) e grade com carrossel. A rifa abre dentro do perfil e tem
   seguir/sino. A vitrine mostra os perfis seguidos no topo.
 - [ ] **[código]** Ainda do perfil, depende de outras etapas: anel de story
-  (vitrine), item "Bônus" do menu (gamificação), o sino mandar aviso
-  (notificações), foto do ganhador como capa depois do sorteio (painel de
+  (vitrine), item "Bônus" do menu (gamificação), foto do ganhador como capa depois do sorteio (painel de
   resultados), pedido de colaborador dentro do app e "seguidores da mesma
   rifa".
 - [ ] **[você]** Cada organização pôr foto e bio em Configurações → Perfil
   público.
-- [ ] **[código]** Notificações no celular.
+- [x] Notificações no celular (Web Push): rifa nova de quem a pessoa segue
+  (sino ligado), sorteio chegando (24 h e 1 h antes), resultado e resposta
+  de reembolso. A permissão é pedida ao seguir/ligar o sino ou em Minha
+  conta → Avisos neste aparelho. No iPhone, só com o app instalado.
+- [ ] **[você]** Testar num celular de verdade depois do deploy: instalar o
+  app, seguir um organizador e publicar uma rifa de teste. (Opcional:
+  `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY`/`VAPID_SUBJECT` no Railway; sem
+  elas, as chaves são criadas sozinhas e guardadas no banco.)
 - [ ] **[código]** Central de ajuda, regulamento e transmissão do sorteio.
 - [ ] **[código]** Construtor de templates e white label do organizador.
 - [ ] **[código]** Vitrine: banners, stories, estados, feed.

@@ -6,6 +6,8 @@ import { Button, Card, Money, Pill, Empty } from "@/components/bits";
 import { Conversa, type Mensagem } from "@/components/Conversa";
 import { apiRequest, ApiError } from "@/lib/queryClient";
 import { lerImagem } from "@/lib/anexo";
+import { estadoPush, ligarPush, desligarPush, type EstadoPush } from "@/lib/push";
+import { cepValido, cidadeUf, maskCep } from "@shared/endereco";
 import { formatQuota, maskPhone, maskCpf, cpfValido, formatBRL } from "@shared/format";
 import { calcularReembolso, NOME_TIPO_REEMBOLSO } from "@shared/reembolso";
 import {
@@ -590,6 +592,9 @@ interface DadosConta {
   telefoneConfirmado: boolean;
   sessaoConfirmada: boolean;
   perfilPublico: boolean;
+  cep: string | null;
+  cidade: string | null;
+  uf: string | null;
 }
 
 /** Dados da conta, senha, sair e exclusão (LGPD). */
@@ -667,6 +672,10 @@ function MinhaConta({ aoSair }: { aoSair: () => void }) {
           </div>
         </dl>
       </Card>
+
+      <MinhaRegiaoCard dados={data} />
+
+      <AvisosNoAparelho />
 
       <Card title="Privacidade">
         <label className="flex items-start gap-3 p-4 text-sm">
@@ -898,5 +907,105 @@ function ComprasPorRifa({
         );
       })}
     </div>
+  );
+}
+
+const TEXTO_PUSH: Record<EstadoPush, string> = {
+  sem_suporte: "Este navegador não recebe notificações. O WhatsApp continua avisando pagamento e bilhete.",
+  instalar:
+    "No iPhone, os avisos só chegam com o app instalado: toque em Compartilhar e em \"Adicionar à Tela de Início\", e abra por lá.",
+  bloqueado:
+    "As notificações estão bloqueadas neste aparelho. Libere nas configurações do navegador para o site e volte aqui.",
+  desligado: "Rifa nova de quem você segue, sorteio chegando, resultado e resposta de reembolso.",
+  ligado: "Você recebe: rifa nova de quem você segue (com o sino ligado), sorteio chegando, resultado e resposta de reembolso.",
+};
+
+/** Notificações deste aparelho: ligar, desligar e o porquê quando não dá. */
+function AvisosNoAparelho() {
+  const [estado, setEstado] = useState<EstadoPush | null>(null);
+  const [ocupado, setOcupado] = useState(false);
+  useEffect(() => {
+    void estadoPush().then(setEstado);
+  }, []);
+  if (!estado) return null;
+  const pode = estado === "ligado" || estado === "desligado";
+  return (
+    <Card
+      title="Avisos neste aparelho"
+      right={<Pill status={estado === "ligado" ? "active" : "pending"}>{estado === "ligado" ? "ligados" : "desligados"}</Pill>}
+    >
+      <div className="space-y-3 p-4 text-sm">
+        <p className="text-muted">{TEXTO_PUSH[estado]}</p>
+        {pode ? (
+          <Button
+            variant={estado === "ligado" ? "ghost" : "primary"}
+            disabled={ocupado}
+            onClick={async () => {
+              setOcupado(true);
+              try {
+                setEstado(estado === "ligado" ? await desligarPush() : await ligarPush());
+              } finally {
+                setOcupado(false);
+              }
+            }}
+          >
+            {estado === "ligado" ? "Desligar avisos" : "Ligar avisos"}
+          </Button>
+        ) : null}
+      </div>
+    </Card>
+  );
+}
+
+/** O CEP da conta decide quais rifas aparecem primeiro na vitrine. */
+function MinhaRegiaoCard({ dados }: { dados: DadosConta }) {
+  const qc = useQueryClient();
+  const [cep, setCep] = useState(dados.cep ? maskCep(dados.cep) : "");
+  const [msg, setMsg] = useState<{ ok: boolean; texto: string } | null>(null);
+  const salvar = useMutation({
+    mutationFn: async () => (await apiRequest("PUT", "/api/public/conta/cep", { cep })).json(),
+    onSuccess: (r: { cidade: string | null; uf: string | null }) => {
+      setMsg({ ok: true, texto: r.uf ? `Pronto: ${cidadeUf(r.cidade, r.uf)}.` : "CEP salvo. A cidade aparece em instantes." });
+      qc.invalidateQueries({ queryKey: ["/api/public/conta"] });
+      qc.invalidateQueries({ queryKey: ["/api/public/campaigns"] });
+    },
+    onError: (e: Error) => setMsg({ ok: false, texto: e.message }),
+  });
+  return (
+    <Card title="Minha região">
+      <form
+        className="space-y-2 p-4 text-sm"
+        onSubmit={(e) => {
+          e.preventDefault();
+          setMsg(null);
+          salvar.mutate();
+        }}
+      >
+        <p className="text-muted">
+          {dados.uf
+            ? `As rifas de ${cidadeUf(dados.cidade, dados.uf)} aparecem primeiro na vitrine.`
+            : "Informe seu CEP para ver primeiro as rifas perto de você."}
+        </p>
+        <div className="flex items-end gap-2">
+          <div>
+            <label htmlFor="conta-cep" className="label-xs block">
+              CEP
+            </label>
+            <input
+              id="conta-cep"
+              inputMode="numeric"
+              autoComplete="postal-code"
+              value={cep}
+              onChange={(e) => setCep(maskCep(e.target.value))}
+              className="tnum mt-1 w-32 rounded-md border border-line-2 px-3 py-2 text-sm"
+            />
+          </div>
+          <Button type="submit" variant="ghost" disabled={!cepValido(cep) || salvar.isPending}>
+            Salvar
+          </Button>
+        </div>
+        {msg ? <p className={`text-xs ${msg.ok ? "text-green-deep" : "text-red"}`}>{msg.texto}</p> : null}
+      </form>
+    </Card>
   );
 }

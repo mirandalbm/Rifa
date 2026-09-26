@@ -21,6 +21,7 @@ import { normalizePhone, hidePhone } from "@shared/format";
 import { listPublicCampaigns, campaignBySlug, certificadoDa } from "../services/campaigns";
 import { ufValida, ordenarPorProximidade, cidadeUf, distancia } from "@shared/endereco";
 import { consultarCep } from "../services/cep";
+import { chavesVapid, inscrever, cancelarInscricao } from "../services/push";
 import {
   perfilPublico,
   fotoDoPerfil,
@@ -64,6 +65,7 @@ import {
   excluirConta,
   trocarSenha,
   definirPerfilPublico,
+  trocarCep,
 } from "../services/contaComprador";
 
 export const publicRouter = Router();
@@ -236,6 +238,37 @@ publicRouter.get("/seguindo", async (req, res, next) => {
   try {
     const id = req.session.buyer?.id;
     res.json(id ? await perfisSeguidos(id) : []);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/* ---------------- notificações no celular ---------------- */
+
+/** A chave pública VAPID: o navegador precisa dela para se inscrever. */
+publicRouter.get("/push/chave", async (_req, res, next) => {
+  try {
+    res.json({ chave: (await chavesVapid()).publica });
+  } catch (err) {
+    next(err);
+  }
+});
+
+publicRouter.post("/push/inscricoes", async (req, res, next) => {
+  try {
+    const id = req.session.buyer?.id;
+    if (!id) return res.status(401).json({ message: "Entre na sua conta para receber avisos." });
+    res.status(201).json(await inscrever(id, req.body));
+  } catch (err) {
+    next(err);
+  }
+});
+
+publicRouter.delete("/push/inscricoes", async (req, res, next) => {
+  try {
+    const id = req.session.buyer?.id;
+    if (!id) return res.status(401).json({ message: "Entre na sua conta." });
+    res.json(await cancelarInscricao(id, req.body?.endpoint));
   } catch (err) {
     next(err);
   }
@@ -641,6 +674,7 @@ publicRouter.post("/conta", async (req, res, next) => {
       nome: String(req.body?.nome ?? ""),
       telefone: String(req.body?.telefone ?? ""),
       cpf: String(req.body?.cpf ?? ""),
+      cep: String(req.body?.cep ?? ""),
       email: req.body?.email ? String(req.body.email) : undefined,
       senha: String(req.body?.senha ?? ""),
       lembrar: req.body?.lembrar === true,
@@ -683,6 +717,14 @@ publicRouter.put("/conta/senha", async (req, res, next) => {
   try {
     await trocarSenha(req, String(req.body?.atual ?? ""), String(req.body?.nova ?? ""));
     res.json({ ok: true });
+  } catch (err) {
+    erroDeConta(err, res, next);
+  }
+});
+
+publicRouter.put("/conta/cep", async (req, res, next) => {
+  try {
+    res.json(await trocarCep(req, String(req.body?.cep ?? "")));
   } catch (err) {
     erroDeConta(err, res, next);
   }

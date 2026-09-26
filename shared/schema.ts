@@ -269,6 +269,13 @@ export const buyers = pgTable(
      * participar de rifa é dado pessoal (LGPD), só aparece quem liga.
      */
     perfilPublico: boolean("perfil_publico").notNull().default(false),
+    /**
+     * CEP do cadastro, e a cidade/UF que ele dá: é o que põe na frente as
+     * rifas perto da pessoa, sem ela precisar escolher. Só ordena a vitrine.
+     */
+    cep: text("cep"),
+    cidade: text("cidade"),
+    uf: text("uf"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (t) => [
@@ -901,6 +908,42 @@ export const seguidores = pgTable(
     primaryKey({ columns: [t.organizationId, t.buyerId] }),
     index("idx_seguidores_buyer").on(t.buyerId),
   ],
+);
+
+/**
+ * Aparelhos que aceitaram notificação (Web Push). O `endpoint` é único: o
+ * mesmo aparelho entrando com outra conta passa a ser da outra conta.
+ */
+export const pushInscricoes = pgTable(
+  "push_inscricoes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    buyerId: uuid("buyer_id")
+      .notNull()
+      .references(() => buyers.id, { onDelete: "cascade" }),
+    endpoint: text("endpoint").notNull(),
+    p256dh: text("p256dh").notNull(),
+    auth: text("auth").notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    ultimoEnvioEm: timestamp("ultimo_envio_em"),
+  },
+  (t) => [uniqueIndex("uq_push_endpoint").on(t.endpoint), index("idx_push_buyer").on(t.buyerId)],
+);
+
+/**
+ * O que já foi avisado a quem. A chave é o par (comprador, chave do aviso):
+ * o relógio rodando de novo, ou em duas réplicas, não repete notificação.
+ */
+export const pushEnvios = pgTable(
+  "push_envios",
+  {
+    buyerId: uuid("buyer_id")
+      .notNull()
+      .references(() => buyers.id, { onDelete: "cascade" }),
+    chave: text("chave").notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.buyerId, t.chave] })],
 );
 
 export const campaignCertificados = pgTable("campaign_certificados", {

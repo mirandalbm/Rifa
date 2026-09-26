@@ -18,6 +18,7 @@ import {
   type Campaign,
 } from "@shared/schema";
 import { commitSeed } from "./draw";
+import { validarRegulamentoExtra } from "@shared/regulamento";
 import {
   CERTIFICADO_MAX_BYTES,
   problemaNosDadosLegais,
@@ -257,6 +258,7 @@ export async function salvarDadosLegais(
     authorizationCode?: string | null;
     drawAt?: string | null;
     certificado?: { dataUrl: string; nome?: string } | null;
+    regulamentoExtra?: unknown;
   },
 ): Promise<Campaign> {
   if (campaign.status !== "draft") {
@@ -271,6 +273,15 @@ export async function salvarDadosLegais(
     entrada.drawAt === undefined ? undefined : entrada.drawAt ? new Date(entrada.drawAt) : null;
   const problema = problemaNosDadosLegais({ authorizationCode: codigo, drawAt }, new Date());
   if (problema) throw new CampaignRuleError(problema);
+
+  let regulamentoExtra: string | null | undefined;
+  if (entrada.regulamentoExtra !== undefined) {
+    try {
+      regulamentoExtra = validarRegulamentoExtra(entrada.regulamentoExtra);
+    } catch (e) {
+      throw new CampaignRuleError((e as Error).message);
+    }
+  }
 
   const arquivo = entrada.certificado ? await processarCertificado(entrada.certificado.dataUrl) : null;
   const nome = (entrada.certificado?.nome ?? "certificado").replace(/[^\w.\- ]+/g, "_").slice(0, 120);
@@ -288,6 +299,7 @@ export async function salvarDadosLegais(
     const mudancas: Partial<Campaign> = {};
     if (codigo !== undefined) mudancas.authorizationCode = codigo;
     if (drawAt !== undefined) mudancas.drawAt = drawAt;
+    if (regulamentoExtra !== undefined) mudancas.regulamentoExtra = regulamentoExtra;
     if (arquivo) mudancas.authorizationFileKey = CERTIFICADO_NO_BANCO;
     if (Object.keys(mudancas).length === 0) throw new CampaignRuleError("Nada para salvar.");
 

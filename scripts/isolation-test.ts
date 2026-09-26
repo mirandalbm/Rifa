@@ -248,6 +248,7 @@ async function alcancaOVizinho(eu: Lado, vizinho: Lado) {
     ["PATCH desligar o vizinho", `/api/admin/usuarios/${vizinho.userId}`, { method: "PATCH", body: '{"active":false}' }],
     // Corpo válido de propósito: um 400 de validação esconderia a falta do recorte.
     ["PUT endereço do vizinho", `/api/admin/organizacoes/${vizinho.orgId}/endereco`, { method: "PUT", body: ENDERECO_VALIDO }],
+    ["PUT transmissão do vizinho", `/api/admin/campaigns/${c}/transmissao`, { method: "PUT", body: '{"url":"https://youtube.com/live/invadido"}' }],
     ["PUT perfil público do vizinho", `/api/admin/organizacoes/${vizinho.orgId}/perfil`, { method: "PUT", body: '{"bio":"perfil invadido"}' }],
   ];
 

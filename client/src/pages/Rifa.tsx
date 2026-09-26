@@ -18,6 +18,7 @@ import { priceOrder } from "@shared/pricing";
 import { regraDoReembolso } from "@shared/reembolso";
 import { ResponsiveImage } from "@/components/ResponsiveImage";
 import { SeguirBotoes, FotoDoPerfil } from "@/components/Seguir";
+import { SorteioCard } from "@/components/SorteioCard";
 
 interface CampaignDetail {
   campaign: {
@@ -75,6 +76,7 @@ function useTakenSet(block: BlockData | undefined) {
 
 export default function Rifa() {
   const { slug, org } = useParams<{ slug: string; org?: string }>();
+  const base = org ? `/o/${org}/r/${slug}` : `/r/${slug}`;
   const [, navigate] = useLocation();
   const [quantity, setQuantity] = useState(0);
   const [picked, setPicked] = useState<number[]>([]);
@@ -578,6 +580,13 @@ export default function Rifa() {
             {checkout?.reembolso?.aceita ? (
               <p className="text-[11px] text-muted">{regraDoReembolso(checkout.reembolso.taxaPct)}</p>
             ) : null}
+            <p className="text-[11px] text-muted">
+              Ao comprar, você aceita o{" "}
+              <Link href={`${base}/regulamento`} className="underline">
+                regulamento da rifa
+              </Link>
+              .
+            </p>
           </div>
         </Card>
       ) : null}
@@ -646,7 +655,18 @@ export default function Rifa() {
         </Card>
       ) : null}
 
+      <SorteioCard slug={slug} />
+
       <footer className="mt-8 space-y-1 border-t border-line pt-4 text-[11px] text-muted">
+        <p>
+          <Link href={`${base}/regulamento`} className="underline">
+            Regulamento
+          </Link>
+          {" · "}
+          <Link href="/ajuda" className="underline">
+            Ajuda
+          </Link>
+        </p>
         {campaign.authorizationCode ? (
           <p>
             Autorização SPA/MF: <span className="tnum">{campaign.authorizationCode}</span>

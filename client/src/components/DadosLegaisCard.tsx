@@ -7,6 +7,8 @@ import {
   CERTIFICADO_MIMES,
   problemaNosDadosLegais,
 } from "@shared/campanhaLegal";
+import { REGULAMENTO_EXTRA_MAX } from "@shared/regulamento";
+import { transmissaoValida } from "@shared/sorteio";
 
 interface Campanha {
   id: string;
@@ -14,6 +16,9 @@ interface Campanha {
   drawAt: string | null;
   authorizationCode: string | null;
   authorizationFileKey?: string | null;
+  regulamentoExtra?: string | null;
+  transmissaoUrl?: string | null;
+  slug?: string;
 }
 
 /** ISO → valor do `<input type="datetime-local">`, no fuso de quem está vendo. */
@@ -52,14 +57,16 @@ export function DadosLegaisCard({ campanha }: { campanha: Campanha }) {
   const [codigo, setCodigo] = useState(campanha.authorizationCode ?? "");
   const [data, setData] = useState(paraCampoLocal(campanha.drawAt));
   const [arquivo, setArquivo] = useState<{ dataUrl: string; nome: string } | null>(null);
+  const [extra, setExtra] = useState(campanha.regulamentoExtra ?? "");
   const [msg, setMsg] = useState<{ ok: boolean; texto: string } | null>(null);
 
   useEffect(() => {
     setCodigo(campanha.authorizationCode ?? "");
     setData(paraCampoLocal(campanha.drawAt));
     setArquivo(null);
+    setExtra(campanha.regulamentoExtra ?? "");
     setMsg(null);
-  }, [campanha.id, campanha.authorizationCode, campanha.drawAt]);
+  }, [campanha.id, campanha.authorizationCode, campanha.drawAt, campanha.regulamentoExtra]);
 
   const { data: pendencias } = useQuery<{ blockers: string[] }>({
     queryKey: [`/api/admin/campaigns/${campanha.id}/blockers`],
@@ -78,6 +85,7 @@ export function DadosLegaisCard({ campanha }: { campanha: Campanha }) {
         authorizationCode: codigo,
         drawAt: drawAt ? drawAt.toISOString() : null,
         certificado: arquivo,
+        regulamentoExtra: extra,
       }),
     onSuccess: () => {
       setArquivo(null);
@@ -176,6 +184,37 @@ export function DadosLegaisCard({ campanha }: { campanha: Campanha }) {
           </div>
         </div>
 
+        <div>
+          <label htmlFor={`reg-${campanha.id}`} className="label-xs">
+            Regulamento: disposições da promotora (opcional)
+          </label>
+          <textarea
+            id={`reg-${campanha.id}`}
+            value={extra}
+            rows={4}
+            disabled={!rascunho}
+            maxLength={REGULAMENTO_EXTRA_MAX}
+            placeholder="Ex.: forma de entrega do prêmio, retirada no endereço da promotora, divulgação do ganhador…"
+            onChange={(e) => {
+              setMsg(null);
+              setExtra(e.target.value);
+            }}
+            className="mt-1 w-full rounded-md border border-line-2 px-3 py-2 disabled:bg-mist"
+          />
+          <p className="text-[11px] text-muted">
+            O resto do regulamento (promotora, autorização, prêmios, numeração, sorteio, entrega e
+            reembolso) é montado sozinho dos dados da rifa.
+            {campanha.slug ? (
+              <>
+                {" "}
+                <a href={`/r/${campanha.slug}/regulamento`} target="_blank" rel="noreferrer" className="text-green-deep underline">
+                  ver regulamento
+                </a>
+              </>
+            ) : null}
+          </p>
+        </div>
+
         {rascunho ? (
           <div className="flex flex-wrap items-center gap-3">
             <Button onClick={() => salvar.mutate()} disabled={salvar.isPending || Boolean(problema)}>
@@ -206,6 +245,52 @@ export function DadosLegaisCard({ campanha }: { campanha: Campanha }) {
             )}
           </div>
         ) : null}
+      </div>
+    </Card>
+  );
+}
+
+/**
+ * Link da live ou do vídeo do sorteio. Muda a qualquer hora — o link da live
+ * só existe perto do sorteio, e o vídeo, depois. Aparece na página da rifa.
+ */
+export function TransmissaoCard({ campanha }: { campanha: Campanha }) {
+  const qc = useQueryClient();
+  const [url, setUrl] = useState(campanha.transmissaoUrl ?? "");
+  const [msg, setMsg] = useState<{ ok: boolean; texto: string } | null>(null);
+  useEffect(() => setUrl(campanha.transmissaoUrl ?? ""), [campanha.id, campanha.transmissaoUrl]);
+  const invalido = url.trim() !== "" && !transmissaoValida(url.trim());
+  const salvar = useMutation({
+    mutationFn: () => apiRequest("PUT", `/api/admin/campaigns/${campanha.id}/transmissao`, { url: url.trim() }),
+    onSuccess: () => {
+      setMsg({ ok: true, texto: url.trim() ? "Link salvo: aparece na página da rifa." : "Link retirado." });
+      qc.invalidateQueries({ queryKey: ["/api/admin/campaigns"] });
+    },
+    onError: (e: Error) => setMsg({ ok: false, texto: e.message }),
+  });
+  return (
+    <Card title="Transmissão do sorteio">
+      <div className="space-y-2 p-4 text-sm">
+        <label htmlFor={`live-${campanha.id}`} className="label-xs">
+          Link da live ou do vídeo (YouTube, Instagram, Facebook…)
+        </label>
+        <div className="flex flex-wrap gap-2">
+          <input
+            id={`live-${campanha.id}`}
+            value={url}
+            onChange={(e) => {
+              setMsg(null);
+              setUrl(e.target.value);
+            }}
+            placeholder="https://"
+            className="min-w-0 flex-1 rounded-md border border-line-2 px-3 py-2"
+          />
+          <Button onClick={() => salvar.mutate()} disabled={invalido || salvar.isPending}>
+            Salvar link
+          </Button>
+        </div>
+        {invalido ? <p className="text-xs text-red">Use o endereço https da live ou do vídeo.</p> : null}
+        {msg ? <p className={`text-xs ${msg.ok ? "text-green-deep" : "text-red"}`}>{msg.texto}</p> : null}
       </div>
     </Card>
   );

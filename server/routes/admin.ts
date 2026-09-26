@@ -102,6 +102,7 @@ import {
 } from "../services/orgs";
 import { isUniqueViolation } from "../pgError";
 import { salvarPerfil } from "../services/perfil";
+import { transmissaoValida } from "@shared/sorteio";
 import { avisarRifaNova, avisarResultado, emSegundoPlano } from "../services/push";
 import {
   anexoPara,
@@ -328,6 +329,7 @@ adminRouter.put("/campaigns/:id/legal", async (req, res, next) => {
         req.body?.authorizationCode === undefined ? undefined : String(req.body.authorizationCode ?? ""),
       drawAt: req.body?.drawAt === undefined ? undefined : req.body.drawAt ? String(req.body.drawAt) : null,
       certificado: cert?.dataUrl ? { dataUrl: String(cert.dataUrl), nome: cert.nome ? String(cert.nome) : undefined } : null,
+      regulamentoExtra: req.body?.regulamentoExtra,
     });
     await audit(req, "campaign.legal", "campaign", campaign.id, {
       authorizationCode: atualizada.authorizationCode,
@@ -338,9 +340,34 @@ adminRouter.put("/campaigns/:id/legal", async (req, res, next) => {
       authorizationCode: atualizada.authorizationCode,
       drawAt: atualizada.drawAt,
       temCertificado: Boolean(atualizada.authorizationFileKey),
+      regulamentoExtra: atualizada.regulamentoExtra,
     });
   } catch (err) {
     if (err instanceof CampaignRuleError) return res.status(422).json({ message: err.message });
+    next(err);
+  }
+});
+
+/**
+ * Link da transmissão do sorteio. Ao contrário da autorização, muda depois
+ * de publicar — o link da live só existe perto do sorteio, e o vídeo, depois.
+ * Vazio apaga. Mesmo recorte de toda rota de campanha (vizinho: 404).
+ */
+adminRouter.put("/campaigns/:id/transmissao", async (req, res, next) => {
+  try {
+    const campaign = await assertCampaignInScope(req, req.params.id);
+    const bruto = String(req.body?.url ?? "").trim();
+    if (bruto && !transmissaoValida(bruto)) {
+      return res.status(400).json({ message: "Link inválido: use o endereço https da live ou do vídeo." });
+    }
+    const [atualizada] = await db
+      .update(campaigns)
+      .set({ transmissaoUrl: bruto || null })
+      .where(eq(campaigns.id, campaign.id))
+      .returning({ transmissaoUrl: campaigns.transmissaoUrl });
+    await audit(req, "campaign.transmissao", "campaign", campaign.id, atualizada);
+    res.json(atualizada);
+  } catch (err) {
     next(err);
   }
 });

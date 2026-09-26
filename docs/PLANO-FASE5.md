@@ -205,7 +205,7 @@ arquivos grandes demais para o banco.
 
 ---
 
-## 7. Transparência
+## 7. Transparência **[feito]**
 
 - **Central de ajuda** **[decidido]**: perguntas frequentes da plataforma e
   **regulamento de cada rifa**, visível antes da compra (inclui a regra de
@@ -287,7 +287,7 @@ arquivos grandes demais para o banco.
 | ✓ | Tema claro e escuro | 3.1 | — |
 | ✓ | Perfil do organizador: topo, seguir, sino, bio, destaques, grade, menu, rifa dentro do perfil | 4 | 3 |
 | ✓ | Notificações no celular (sino) | 6 | 5 |
-| 7 | Central de ajuda, regulamento e transmissão do sorteio | 7 | — |
+| ✓ | Central de ajuda, regulamento e transmissão do sorteio | 7 | — |
 | 8 | Construtor de templates e white label do organizador | 3.2 | 4 |
 | 9 | Vitrine: banners, stories, estados, feed | 5 | 5, R2 |
 | 10 | Painel de resultados do organizador | 10 | — |

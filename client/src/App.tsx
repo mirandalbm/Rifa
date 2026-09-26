@@ -10,6 +10,8 @@ import { roleSatisfies, type Role } from "@shared/access";
 import Vitrine from "@/pages/Vitrine";
 import Rifa from "@/pages/Rifa";
 import Perfil from "@/pages/Perfil";
+import Regulamento from "@/pages/Regulamento";
+import Ajuda from "@/pages/Ajuda";
 import Pedido from "@/pages/Pedido";
 import MinhasCotas from "@/pages/MinhasCotas";
 import Login from "@/pages/Login";
@@ -95,6 +97,9 @@ export default function App() {
         <Switch>
           {/* Público */}
           <Route path="/" component={Vitrine} />
+          <Route path="/r/:slug/regulamento" component={Regulamento} />
+          <Route path="/o/:org/r/:slug/regulamento" component={Regulamento} />
+          <Route path="/ajuda" component={Ajuda} />
           <Route path="/r/:slug" component={Rifa} />
           <Route path="/o/:org/r/:slug" component={Rifa} />
           <Route path="/o/:org" component={Perfil} />

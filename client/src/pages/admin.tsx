@@ -11,7 +11,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useSession } from "@/lib/session";
 import { MediaManager } from "@/components/MediaManager";
 import { CampaignExtras } from "@/components/CampaignExtras";
-import { DadosLegaisCard } from "@/components/DadosLegaisCard";
+import { DadosLegaisCard, TransmissaoCard } from "@/components/DadosLegaisCard";
 import { EnderecoForm, type EnderecoParcial } from "@/components/EnderecoForm";
 import { PerfilPublicoForm } from "@/components/PerfilPublicoForm";
 import type { Endereco } from "@shared/endereco";
@@ -352,7 +352,12 @@ export function AdminCampanhas() {
         <div className="mt-3 space-y-3">
           {(() => {
             const c = data?.find((r) => r.campaign.id === mediaFor)?.campaign;
-            return c ? <DadosLegaisCard campanha={c} /> : null;
+            return c ? (
+              <>
+                <DadosLegaisCard campanha={c} />
+                <TransmissaoCard campanha={c} />
+              </>
+            ) : null;
           })()}
           <MediaManager campaignId={mediaFor} />
           <CampaignExtras

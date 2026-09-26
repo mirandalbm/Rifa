@@ -262,7 +262,13 @@ publicRouter.post("/track-click", async (req, res, next) => {
 publicRouter.get("/checkout", async (_req, res, next) => {
   try {
     const provider = await activePaymentProvider();
-    res.json({ exigeCpf: EXIGE_CPF[provider.name as ProvedorPix] ?? false });
+    const plataforma = await getPlataforma();
+    res.json({
+      exigeCpf: EXIGE_CPF[provider.name as ProvedorPix] ?? false,
+      // A regra de reembolso aparece antes da compra (CDC): quem compra
+      // precisa saber a taxa antes de pagar.
+      reembolso: { aceita: plataforma.estornoManual, taxaPct: plataforma.taxaReembolsoPct },
+    });
   } catch (err) {
     next(err);
   }
@@ -440,6 +446,7 @@ publicRouter.get("/my-quotas", async (req, res, next) => {
       phone,
       cliente: buyerId ? await garantirCodigoCliente(buyerId) : null,
       reembolso: (await getPlataforma()).estornoManual,
+      taxaReembolsoPct: (await getPlataforma()).taxaReembolsoPct,
     });
   } catch (err) {
     next(err);

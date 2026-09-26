@@ -8,6 +8,8 @@
  * Provedor do Pix
  * ------------------------------------------------------------------ */
 
+import { TAXA_REEMBOLSO_MAX_PCT, TAXA_REEMBOLSO_PADRAO_PCT } from "./reembolso";
+
 export const PROVEDORES_PIX = ["mercadopago", "asaas"] as const;
 export type ProvedorPix = (typeof PROVEDORES_PIX)[number];
 
@@ -50,11 +52,17 @@ export interface ConfigPlataforma {
    * devolvido pelo banco) é registrado mesmo desligado: o dinheiro já saiu.
    */
   estornoManual: boolean;
+  /**
+   * Taxa administrativa retida no reembolso fora do arrependimento (depois de
+   * 7 dias, ou compra presencial), de 0 a 10% — ver `shared/reembolso.ts`.
+   */
+  taxaReembolsoPct: number;
 }
 
 export const CONFIG_PADRAO: ConfigPlataforma = {
   provedorPix: null,
   estornoManual: false,
+  taxaReembolsoPct: TAXA_REEMBOLSO_PADRAO_PCT,
 };
 
 /** Só as chaves conhecidas: isto vem do corpo da requisição. */
@@ -63,9 +71,18 @@ export function validarConfigPlataforma(entrada: Partial<ConfigPlataforma>): Con
   if (provedor !== null && !PROVEDORES_PIX.includes(provedor)) {
     throw Object.assign(new Error("Provedor de Pix desconhecido."), { status: 400 });
   }
+  const taxa =
+    entrada.taxaReembolsoPct === undefined ? TAXA_REEMBOLSO_PADRAO_PCT : Number(entrada.taxaReembolsoPct);
+  if (!Number.isInteger(taxa) || taxa < 0 || taxa > TAXA_REEMBOLSO_MAX_PCT) {
+    throw Object.assign(
+      new Error(`A taxa de reembolso vai de 0 a ${TAXA_REEMBOLSO_MAX_PCT}% (limite do Código de Defesa do Consumidor).`),
+      { status: 400 },
+    );
+  }
   return {
     provedorPix: provedor,
     estornoManual: entrada.estornoManual === true,
+    taxaReembolsoPct: taxa,
   };
 }
 

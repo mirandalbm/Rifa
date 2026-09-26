@@ -176,4 +176,13 @@ describe("Asaas — conversa com a API (fetch de mentira)", () => {
       "POST /payments/pay_4/refund",
     ]);
   });
+
+  it("reembolso com taxa devolve só o valor calculado; sem valor, o inteiro", async () => {
+    responder = () => ({ status: 200, json: {} });
+    const asaas = new AsaasProvider();
+    await asaas.refund("pay_5", 1350);
+    await asaas.refund("pay_6");
+    expect(pedidos[0].body).toEqual({ value: 13.5 });
+    expect(pedidos[1].body).toBeUndefined();
+  });
 });

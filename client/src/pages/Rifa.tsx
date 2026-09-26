@@ -15,6 +15,7 @@ import {
   maskPhone,
 } from "@shared/format";
 import { priceOrder } from "@shared/pricing";
+import { regraDoReembolso } from "@shared/reembolso";
 import { ResponsiveImage } from "@/components/ResponsiveImage";
 
 interface CampaignDetail {
@@ -86,7 +87,10 @@ export default function Rifa() {
     queryKey: [`/api/public/campaigns/${slug}`],
   });
   // O provedor do Pix em uso decide se o CPF é pedido (o Asaas exige).
-  const { data: checkout } = useQuery<{ exigeCpf: boolean }>({
+  const { data: checkout } = useQuery<{
+    exigeCpf: boolean;
+    reembolso?: { aceita: boolean; taxaPct: number };
+  }>({
     queryKey: ["/api/public/checkout"],
   });
   // Dentro da conta, nome, WhatsApp e CPF vêm dela — o servidor usa os da
@@ -552,6 +556,9 @@ export default function Rifa() {
             <p className="text-[11px] text-muted">
               A reserva vale por {campaign.reservationTtlMin} minutos. Pagou, o número é seu.
             </p>
+            {checkout?.reembolso?.aceita ? (
+              <p className="text-[11px] text-muted">{regraDoReembolso(checkout.reembolso.taxaPct)}</p>
+            ) : null}
           </div>
         </Card>
       ) : null}

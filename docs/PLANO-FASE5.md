@@ -76,7 +76,7 @@ Como fica no sistema:
 
 ---
 
-## 2. Reembolso pela lei do consumidor **[decidido — substitui os 70/30]**
+## 2. Reembolso pela lei do consumidor **[decidido — feito]**
 
 | Quando o pedido é feito | Devolução | Taxa |
 |---|---|---|
@@ -282,7 +282,7 @@ arquivos grandes demais para o banco.
 | ✓ | Dados legais da campanha | 0 | — |
 | 1 | Conta do apostador (senha) e exclusão LGPD | 1.1, 1.2 | — |
 | 1b | De quem é o cliente: dados só da venda do cambista no painel do organizador; ganhador liberado no sorteio | 1.3 | 1 |
-| 2 | Reembolso pela lei do consumidor (7 dias, 10%, corte de 2 h) | 2 | — |
+| ✓ | Reembolso pela lei do consumidor (7 dias, 10%, corte de 2 h) | 2 | — |
 | 3 | Endereço do organizador e estado da rifa | 1.4 | — |
 | 4 | Tema claro e escuro | 3.1 | — |
 | 5 | Perfil do organizador: topo, seguir, sino, bio, destaques, grade, menu, rifa dentro do perfil | 4 | 3 |

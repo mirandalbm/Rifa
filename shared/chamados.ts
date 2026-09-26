@@ -10,6 +10,7 @@
  * Pix de outra pessoa.
  */
 import { cpfValido, normalizePhone } from "./format";
+import { fechadoPeloSorteio } from "./reembolso";
 
 export type StatusChamado = "aberto" | "aprovado" | "recusado" | "estornado";
 
@@ -65,11 +66,17 @@ export function bloqueioDoReembolso(p: {
   estornoLigado: boolean;
   statusPedido: string;
   statusRifa: string;
+  /** Data do sorteio: os pedidos fecham 2 horas antes (`shared/reembolso.ts`). */
+  sorteioEm?: Date | null;
+  agora?: Date;
 }): string | null {
   if (!p.estornoLigado) return "Esta plataforma não está aceitando pedidos de reembolso.";
   if (p.statusPedido !== "paid") return "Só pedido pago pode ter reembolso.";
   // Depois do sorteio, quem perdeu pediria o dinheiro de volta.
   if (p.statusRifa === "drawn") return "O sorteio desta rifa já aconteceu: não há reembolso.";
+  if (fechadoPeloSorteio(p.sorteioEm, p.agora ?? new Date())) {
+    return "Os pedidos de reembolso fecham 2 horas antes do sorteio.";
+  }
   return null;
 }
 

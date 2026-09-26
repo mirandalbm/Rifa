@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { tipoDoIdentificador, problemaNoCadastro, pedidoVisivel } from "@shared/contaComprador";
+import {
+  tipoDoIdentificador,
+  problemaNoCadastro,
+  pedidoVisivel,
+  podePedirReembolso,
+} from "@shared/contaComprador";
 
 const ok = { nome: "Maria da Silva", telefone: "(11) 98888-7777", cpf: "529.982.247-25", senha: "segredo-forte-1" };
 
@@ -33,12 +38,34 @@ describe("cadastro do apostador", () => {
   });
 });
 
-describe("o que a conta enxerga", () => {
+describe("o que a conta enxerga e o que pode reembolsar", () => {
+  const antes = new Date("2026-09-01T12:00:00Z");
+  const vinculo = new Date("2026-09-10T12:00:00Z");
+  const depois = new Date("2026-09-20T12:00:00Z");
+  const nada = { telefoneConfirmado: false, comprasVinculadasEm: null };
+  const peloCpf = { telefoneConfirmado: false, comprasVinculadasEm: vinculo };
+  const peloTelefone = { telefoneConfirmado: true, comprasVinculadasEm: null };
+
   it("compra feita dentro da conta aparece sempre", () => {
-    expect(pedidoVisivel({ viaConta: true }, false)).toBe(true);
+    expect(pedidoVisivel({ viaConta: true, createdAt: depois }, nada)).toBe(true);
   });
-  it("compra só pelo telefone exige o telefone confirmado", () => {
-    expect(pedidoVisivel({ viaConta: false }, false)).toBe(false);
-    expect(pedidoVisivel({ viaConta: false }, true)).toBe(true);
+
+  it("compra antiga aparece quando o CPF dela bateu no cadastro", () => {
+    expect(pedidoVisivel({ viaConta: false, createdAt: antes }, peloCpf)).toBe(true);
+    expect(pedidoVisivel({ viaConta: false, createdAt: antes }, nada)).toBe(false);
+  });
+
+  it("o vínculo pelo CPF não alcança compra feita sem entrar depois dele", () => {
+    expect(pedidoVisivel({ viaConta: false, createdAt: depois }, peloCpf)).toBe(false);
+  });
+
+  it("telefone provado mostra tudo do telefone", () => {
+    expect(pedidoVisivel({ viaConta: false, createdAt: depois }, peloTelefone)).toBe(true);
+  });
+
+  it("reembolso pelo vínculo do CPF só de Pix online (o dinheiro volta para quem pagou)", () => {
+    expect(podePedirReembolso({ viaConta: false, createdAt: antes, method: "pix_online" }, peloCpf)).toBe(true);
+    expect(podePedirReembolso({ viaConta: false, createdAt: antes, method: "dinheiro" }, peloCpf)).toBe(false);
+    expect(podePedirReembolso({ viaConta: false, createdAt: antes, method: "dinheiro" }, peloTelefone)).toBe(true);
   });
 });

@@ -47,6 +47,7 @@ import {
   entrarComoComprador,
   entrarNaConta,
   encerrarOutrasSessoes,
+  titularidadeDaSessao,
   excluirConta,
   trocarSenha,
 } from "../services/contaComprador";
@@ -423,10 +424,19 @@ publicRouter.get("/my-quotas", async (req, res, next) => {
     const phone = req.session.buyer?.phone;
     if (!phone) return res.status(401).json({ message: "Confirme seu telefone." });
     const buyerId = req.session.buyer?.id;
-    const confirmado = req.session.buyer?.confirmado === true;
+    const t = await titularidadeDaSessao(req);
+    const visiveis = await ordersByPhone(phone, t);
+    // Sobrou compra antiga que a conta ainda não provou ser dela? Só aí a
+    // tela oferece o código do WhatsApp — o caso raro de compra sem CPF.
+    const [todas] = buyerId
+      ? await db
+          .select({ n: sql<number>`count(*)::int` })
+          .from(orders)
+          .where(eq(orders.buyerId, buyerId))
+      : [{ n: visiveis.length }];
     res.json({
-      orders: await ordersByPhone(phone, confirmado),
-      telefoneConfirmado: confirmado,
+      orders: visiveis,
+      comprasAntigasOcultas: (todas?.n ?? 0) > visiveis.length,
       phone,
       cliente: buyerId ? await garantirCodigoCliente(buyerId) : null,
       reembolso: (await getPlataforma()).estornoManual,

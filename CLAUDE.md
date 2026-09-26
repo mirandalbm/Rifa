@@ -453,17 +453,24 @@ botão, é **chamado** — com dono, prova, conversa e protocolo.
 O golpe que esta parte existe para barrar: alguém cria conta com o telefone
 de outra pessoa e passa a ver — e pedir reembolso — das compras dela.
 
-- **Telefone só se prova pelo código do WhatsApp** (`telefone_confirmado_em`).
-  Senha prova que a pessoa sabe a senha, não que é dona do número.
-- **Sem telefone confirmado, a conta só enxerga o que comprou dentro dela**
-  (`orders.via_conta`, `pedidoVisivel()`). Vale para "Minhas cotas" e para o
-  chamado de reembolso — as duas portas passam pela mesma regra.
+- **Senha prova a senha, não o número.** O que liga à conta uma compra feita
+  fora dela é: o **CPF** gravado nela bater com o do cadastro
+  (`compras_vinculadas_em`, só para o que já existia) ou o **telefone provado**
+  pelo código do WhatsApp (`telefone_confirmado_em`). Compra feita dentro da
+  conta (`orders.via_conta`) é dela sempre. A regra é `pedidoVisivel()`, e
+  "Minhas compras" e o chamado passam por ela.
+- **Ver não é reembolsar.** Ligada só pelo CPF, a compra antiga pode pedir
+  reembolso se foi Pix online (o dinheiro volta para quem pagou); venda de
+  cambista, que devolve à mão, exige o telefone provado
+  (`podePedirReembolso()`).
+- **Compra sem entrar no telefone de uma conta** só é da conta se vier com o
+  CPF dela; sem CPF, fica para o telefone provado decidir.
 - **Dentro da conta, quem compra é a conta.** `createOrder` com `contaId` usa
   nome, telefone e CPF da conta; o formulário não joga a compra no telefone
   de outro. E compra sem entrar com o telefone de uma conta **não renomeia**
   ninguém (`upsertBuyer` não mexe em conta com senha).
 - **Comprador antigo virando conta**: o CPF das compras já gravado tem de
-  bater. A troca é um `UPDATE` condicional (`password_hash IS NULL`): dois
+  bater (e aí as compras antigas vêm junto). A troca é um `UPDATE` condicional (`password_hash IS NULL`): dois
   cadastros ao mesmo tempo, só um vira dono.
 - **CPF e e-mail são únicos só entre contas** (índices parciais): comprador
   sem conta pode repetir, e a mesma pessoa com dois telefones não trava.

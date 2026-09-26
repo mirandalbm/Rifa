@@ -40,7 +40,7 @@ import {
   type PedidoDeReembolso,
 } from "@shared/chamados";
 import { cpfValido, formatBRL, hideCpf, hidePhone } from "@shared/format";
-import { pedidoVisivel } from "@shared/contaComprador";
+import { podePedirReembolso } from "@shared/contaComprador";
 import { notify } from "../notifications";
 import { publicUrl } from "./urls";
 import { isUniqueViolation } from "../pgError";
@@ -151,13 +151,22 @@ export async function abrirChamado(
       campaignStatus: campaigns.status,
       organizationId: campaigns.organizationId,
       cpf: buyers.cpf,
+      telefoneConfirmadoEm: buyers.telefoneConfirmadoEm,
+      comprasVinculadasEm: buyers.comprasVinculadasEm,
     })
     .from(orders)
     .innerJoin(campaigns, eq(campaigns.id, orders.campaignId))
     .innerJoin(buyers, eq(buyers.id, orders.buyerId))
     .where(and(eq(orders.code, entrada.orderCode), eq(orders.buyerId, comprador.id)));
-  // Conta sem telefone confirmado só pede reembolso do que comprou nela.
-  if (!linha || !pedidoVisivel(linha.order, comprador.confirmado)) {
+  // Compra feita fora da conta só vira reembolso com a titularidade provada
+  // (`podePedirReembolso`): ver não basta, dinheiro sai.
+  if (
+    !linha ||
+    !podePedirReembolso(linha.order, {
+      telefoneConfirmado: comprador.confirmado || Boolean(linha.telefoneConfirmadoEm),
+      comprasVinculadasEm: linha.comprasVinculadasEm,
+    })
+  ) {
     throw new ChamadoError("Pedido não encontrado na sua conta.", 404);
   }
 

@@ -235,6 +235,12 @@ export const buyers = pgTable(
      * com o número de outro veria as compras dele.
      */
     telefoneConfirmadoEm: timestamp("telefone_confirmado_em"),
+    /**
+     * Compras feitas antes da conta, pelo telefone, que passaram a ser da
+     * conta porque o CPF delas bateu com o do cadastro. Vale para o que
+     * existia até este instante — compra futura sem entrar não herda.
+     */
+    comprasVinculadasEm: timestamp("compras_vinculadas_em"),
     /** Exclusão pela LGPD: os dados pessoais saem, as compras ficam. */
     excluidoEm: timestamp("excluido_em"),
     createdAt: timestamp("created_at").notNull().defaultNow(),

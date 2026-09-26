@@ -97,6 +97,7 @@ export default function App() {
           <Route path="/r/:slug" component={Rifa} />
           <Route path="/pedido/:code" component={Pedido} />
           <Route path="/minhas-cotas" component={MinhasCotas} />
+          <Route path="/minhas-compras" component={MinhasCotas} />
           <Route path="/entrar" component={Login} />
           <Route path="/criar-conta" component={CriarConta} />
           <Route path="/seja-afiliado" component={CadastroAfiliado} />

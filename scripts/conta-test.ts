@@ -2,7 +2,8 @@
  * Prova da conta do apostador, de ponta a ponta, pela API de verdade.
  *
  * O cenário que importa é o do golpe: alguém cria conta com o telefone de
- * outra pessoa. Sem confirmar o telefone, a conta não pode ver nem pedir
+ * outra pessoa. O CPF das compras antigas é a prova; sem CPF gravado, só o
+ * código do WhatsApp. Sem confirmar o telefone, a conta não pode ver nem pedir
  * reembolso das compras que o dono fez sem entrar.
  *
  *   npm run conta      (com `npm run dev` no ar, seed aplicado e sem WhatsApp configurado)
@@ -37,6 +38,11 @@ class Cliente {
 
 const TEL_DONO = "11966660001";
 const TEL_NOVO = "11966660002";
+const TEL_CPF = "11966660004";
+const PNG =
+  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+const tem = (j: { orders?: { order: { code: number } }[] }, code: number) =>
+  Boolean(j?.orders?.some((o) => o.order.code === code));
 const CPF_DONO = "52998224725";
 const CPF_NOVO = "11144477735";
 const SENHA = "senha-de-teste-1";
@@ -47,7 +53,7 @@ let rifaId = "";
 async function limpar() {
   await db.execute(sql`delete from rate_events where bucket like 'cadastro:%' or bucket like 'login:comprador:%'`);
   const rows = await db.execute(
-    sql`select id from buyers where phone in (${TEL_DONO}, ${TEL_NOVO}, '11966660003', '11900001234')`,
+    sql`select id from buyers where phone in (${TEL_DONO}, ${TEL_NOVO}, ${TEL_CPF}, '11966660003', '11900001234')`,
   );
   for (const r of rows.rows as { id: string }[]) criados.add(r.id);
   for (const id of criados) {
@@ -83,10 +89,11 @@ async function main() {
   rifaId = rifa.id;
   await db.insert(campaignStats).values({ campaignId: rifa.id });
 
-  // O dono comprou sem conta, só com o telefone: uma compra paga dele.
+  // O dono comprou sem conta, só com o telefone e sem CPF (o Mercado Pago não
+  // pede): o caso em que nada no cadastro prova de quem é a compra.
   const [dono] = await db
     .insert(buyers)
-    .values({ name: "Dono Verdadeiro", phone: TEL_DONO, cpf: CPF_DONO })
+    .values({ name: "Dono Verdadeiro", phone: TEL_DONO })
     .returning();
   criados.add(dono.id);
   const [compraDoDono] = await db
@@ -152,24 +159,72 @@ async function main() {
     r = await new Cliente().req("POST", "/api/public/conta/entrar", { identificador: "11900009999", senha: "errada-123" });
     checa("senha errada e conta inexistente dão a mesma mensagem", r.status === 401 && r.json?.message === errada, errada);
 
-    // ---- o golpe: conta com o telefone de outra pessoa ----
+    // ---- compras antigas com CPF: o CPF prova ----
+    const [comCpf] = await db
+      .insert(buyers)
+      .values({ name: "Cliente Antigo", phone: TEL_CPF, cpf: CPF_DONO })
+      .returning();
+    criados.add(comCpf.id);
+    const antiga = (code: number, method: "pix_online" | "dinheiro") => ({
+      code,
+      campaignId: rifa.id,
+      buyerId: comCpf.id,
+      quantity: 1,
+      amountCents: rifa.priceCents,
+      status: "paid" as const,
+      method,
+      paidAt: new Date(),
+      expiresAt: new Date(Date.now() + 86_400_000),
+    });
+    await db.insert(orders).values([antiga(94_000_002, "pix_online"), antiga(94_000_003, "dinheiro")]);
+    const cc = new Cliente();
+    r = await cc.req("POST", "/api/public/conta", { nome: "Impostor", telefone: TEL_CPF, cpf: "123.456.789-09", senha: SENHA });
+    checa("telefone de quem já comprou, com outro CPF: recusa", r.status === 409, r.json?.message);
+    r = await cc.req("POST", "/api/public/conta", { nome: "Cliente Antigo", telefone: TEL_CPF, cpf: CPF_DONO, senha: SENHA });
+    checa("com o CPF das compras, a conta é criada", r.status === 201, r.json?.message ?? "");
+    let minhas = await cc.req("GET", "/api/public/my-quotas");
+    checa(
+      "e as compras antigas vêm junto, sem pedir telefone",
+      tem(minhas.json, 94_000_002) && tem(minhas.json, 94_000_003) && minhas.json.comprasAntigasOcultas === false,
+    );
+    r = await cc.req("POST", "/api/public/chamados", {
+      orderCode: 94_000_003,
+      motivo: "Quero o dinheiro de volta agora",
+      cpf: CPF_DONO,
+      anexo: PNG,
+    });
+    checa("mas venda em dinheiro (devolução à mão) não vira reembolso só pelo CPF", r.status === 404, `HTTP ${r.status}`);
+    r = await new Cliente().req("POST", "/api/public/orders", {
+      campaignId: rifa.id,
+      quantity: 1,
+      buyer: { name: "Cliente Antigo", phone: TEL_CPF, cpf: CPF_DONO },
+    });
+    const [comCpfDepois] = await db.select().from(orders).where(eq(orders.code, r.json?.code ?? 0));
+    checa("compra sem entrar, com o CPF da conta, é da conta", comCpfDepois?.viaConta === true, `HTTP ${r.status}`);
+    r = await new Cliente().req("POST", "/api/public/orders", {
+      campaignId: rifa.id,
+      quantity: 1,
+      buyer: { name: "Alguém", phone: TEL_CPF },
+    });
+    minhas = await cc.req("GET", "/api/public/my-quotas");
+    checa("sem o CPF, fica fora da conta", r.status === 201 && !tem(minhas.json, r.json.code));
+
+    // ---- o golpe: conta com o telefone de outra pessoa, sem CPF gravado ----
     const golpe = new Cliente();
     r = await golpe.req("POST", "/api/public/conta", { nome: "Golpista", telefone: TEL_DONO, cpf: "123.456.789-09", senha: SENHA });
-    checa("telefone de quem já comprou, com outro CPF: recusa", r.status === 409, r.json?.message);
-    r = await golpe.req("POST", "/api/public/conta", { nome: "Golpista", telefone: TEL_DONO, cpf: CPF_DONO, senha: SENHA });
-    checa("com o CPF certo, a conta é criada…", r.status === 201, r.json?.message ?? "");
-    let minhas = await golpe.req("GET", "/api/public/my-quotas");
+    checa("sem CPF nas compras, a conta é criada…", r.status === 201, r.json?.message ?? "");
+    minhas = await golpe.req("GET", "/api/public/my-quotas");
     checa(
       "…mas não enxerga a compra feita sem conta",
-      minhas.status === 200 && !minhas.json.orders.some((o: { order: { code: number } }) => o.order.code === compraDoDono.code),
+      minhas.status === 200 && !tem(minhas.json, compraDoDono.code),
       `${minhas.json?.orders?.length} pedido(s)`,
     );
-    checa("e a tela sabe que falta confirmar", minhas.json?.telefoneConfirmado === false);
+    checa("e a tela oferece o código do WhatsApp", minhas.json?.comprasAntigasOcultas === true);
     r = await golpe.req("POST", "/api/public/chamados", {
       orderCode: compraDoDono.code,
       motivo: "Quero o dinheiro de volta agora",
-      cpf: CPF_DONO,
-      anexo: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+      cpf: "123.456.789-09",
+      anexo: PNG,
     });
     checa("nem pede reembolso dela", r.status === 404, `HTTP ${r.status}`);
 
@@ -185,10 +240,7 @@ async function main() {
     const [depois] = await db.select().from(buyers).where(eq(buyers.id, dono.id));
     checa("o formulário não renomeia a conta", depois.name === "Golpista", depois.name);
     minhas = await golpe.req("GET", "/api/public/my-quotas");
-    checa(
-      "e aparece em Minhas cotas",
-      minhas.json.orders.some((o: { order: { code: number } }) => o.order.code === feita.code),
-    );
+    checa("e aparece em Minhas compras", tem(minhas.json, feita.code));
 
     // Compra sem entrar, com o telefone da conta, não renomeia ninguém.
     const anonimo = new Cliente();

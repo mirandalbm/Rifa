@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "wouter";
+import { Link, useSearch } from "wouter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { PublicShell } from "@/components/AppShell";
 import { Button, Card, Money, Pill, Empty } from "@/components/bits";
@@ -15,8 +15,16 @@ import {
 } from "@shared/chamados";
 
 interface OrderRow {
-  order: { code: number; status: string; quantity: number; amountCents: number };
-  campaign: { title: string; slug: string; totalQuotas: number; status: string };
+  order: { code: number; status: string; quantity: number; amountCents: number; createdAt: string };
+  campaign: {
+    title: string;
+    slug: string;
+    totalQuotas: number;
+    status: string;
+    drawAt?: string | null;
+    prizeTitle?: string;
+  };
+  organizador?: { nome: string | null; slug: string | null };
   numbers: number[];
 }
 
@@ -25,8 +33,12 @@ interface Conta {
   phone: string;
   cliente: string | null;
   reembolso: boolean;
-  /** Falso: conta que entrou pela senha sem provar o telefone — só vê o que comprou nela. */
-  telefoneConfirmado?: boolean;
+  /**
+   * Sobrou compra antiga, feita só pelo telefone e sem CPF gravado, que a
+   * conta ainda não provou ser dela. É o único caso em que a tela oferece o
+   * código do WhatsApp.
+   */
+  comprasAntigasOcultas?: boolean;
 }
 
 interface ChamadoResumo {
@@ -55,10 +67,9 @@ export default function MinhasCotas() {
 
   return (
     <PublicShell>
-      <h1 className="font-display text-2xl font-extrabold">Minhas cotas</h1>
+      <h1 className="font-display text-2xl font-extrabold">Minhas compras</h1>
       <p className="mt-1 text-sm text-muted">
-        Tudo o que você comprou, em qualquer rifa. Entre com a sua conta ou com o código do
-        WhatsApp.
+        Suas cotas em cada rifa, com a segunda via do bilhete.
       </p>
       {restaurando ? null : conta ? (
         <Painel conta={conta} aoMudar={setConta} />
@@ -173,7 +184,15 @@ function Entrar({
 
 function Painel({ conta, aoMudar }: { conta: Conta; aoMudar: (c: Conta | null) => void }) {
   const qc = useQueryClient();
-  const [aba, setAba] = useState<"cotas" | "chamados" | "conta">("cotas");
+  // O menu do apostador abre direto numa aba (?aba=reembolsos, ?aba=conta) —
+  // e troca de aba mesmo já estando nesta página.
+  const busca = useSearch();
+  const abaDaUrl = (): "cotas" | "chamados" | "conta" => {
+    const q = new URLSearchParams(busca).get("aba");
+    return q === "conta" ? "conta" : q === "reembolsos" ? "chamados" : "cotas";
+  };
+  const [aba, setAba] = useState(abaDaUrl);
+  useEffect(() => setAba(abaDaUrl()), [busca]);
   const [pedindo, setPedindo] = useState<OrderRow | null>(null);
   const [chamadoAberto, setChamadoAberto] = useState<string | null>(null);
 
@@ -225,12 +244,12 @@ function Painel({ conta, aoMudar }: { conta: Conta; aoMudar: (c: Conta | null) =
         ))}
       </div>
 
-      {conta.telefoneConfirmado === false ? (
+      {conta.comprasAntigasOcultas ? (
         <div className="mt-3 rounded-md border border-yellow bg-yellow-soft px-3 py-2 text-sm text-yellow-deep">
-          <p className="font-semibold">Confirme seu telefone</p>
+          <p className="font-semibold">Há compras antigas deste telefone para trazer</p>
           <p className="text-xs">
-            Aqui aparecem só as compras feitas dentro da conta. Compras feitas antes, só com o
-            WhatsApp, aparecem depois que você confirmar o número pelo código.
+            Foram feitas antes da conta e sem CPF, então não dá para provar que são suas pelo
+            cadastro. Confirme o número pelo código do WhatsApp e elas aparecem aqui.
           </p>
           <div className="mt-2">
             <Entrar aoEntrar={aoMudar} telefoneFixo={conta.phone} rotulo="Confirmar telefone" />
@@ -242,58 +261,30 @@ function Painel({ conta, aoMudar }: { conta: Conta; aoMudar: (c: Conta | null) =
         <MinhaConta aoSair={() => aoMudar(null)} />
       ) : aba === "cotas" ? (
         <>
-          {conta.orders.length === 0 ? <Empty>Nenhuma compra ainda.</Empty> : null}
-          <div className="mt-3 space-y-3">
-            {conta.orders.map((row) => {
-              const podePedir =
+          {conta.orders.length === 0 ? (
+            <Empty>
+              Nenhuma compra ainda.{" "}
+              <Link href="/" className="text-green-deep underline">
+                ver as rifas
+              </Link>
+            </Empty>
+          ) : null}
+          <ComprasPorRifa
+            orders={conta.orders}
+            podePedir={(row) =>
+              Boolean(
                 conta.cliente &&
-                !emAndamento.has(row.order.code) &&
-                !bloqueioDoReembolso({
-                  estornoLigado: conta.reembolso,
-                  statusPedido: row.order.status,
-                  statusRifa: row.campaign.status,
-                });
-              return (
-                <Card key={row.order.code}>
-                  <div className="space-y-2 p-4">
-                    <div className="flex items-center justify-between">
-                      <Link href={`/r/${row.campaign.slug}`} className="font-display text-sm font-bold">
-                        {row.campaign.title}
-                      </Link>
-                      <Pill status={row.order.status} />
-                    </div>
-                    <div className="flex justify-between text-xs text-muted">
-                      <span className="tnum">pedido #{row.order.code}</span>
-                      <Money cents={row.order.amountCents} />
-                    </div>
-                    <div className="flex flex-wrap gap-1">
-                      {row.numbers.map((n) => (
-                        <span
-                          key={n}
-                          className={`tnum rounded px-1.5 py-[2px] text-[11px] ${
-                            row.order.status === "paid" ? "bg-green text-on-green" : "bg-mist-2 text-muted"
-                          }`}
-                        >
-                          {formatQuota(n, row.campaign.totalQuotas)}
-                        </span>
-                      ))}
-                    </div>
-                    {emAndamento.has(row.order.code) ? (
-                      <p className="text-xs text-yellow-deep">Pedido de reembolso em andamento.</p>
-                    ) : podePedir ? (
-                      <button
-                        type="button"
-                        onClick={() => setPedindo(row)}
-                        className="text-xs text-muted underline"
-                      >
-                        Pedir reembolso
-                      </button>
-                    ) : null}
-                  </div>
-                </Card>
-              );
-            })}
-          </div>
+                  !emAndamento.has(row.order.code) &&
+                  !bloqueioDoReembolso({
+                    estornoLigado: conta.reembolso,
+                    statusPedido: row.order.status,
+                    statusRifa: row.campaign.status,
+                  }),
+              )
+            }
+            emAndamento={emAndamento}
+            pedir={setPedindo}
+          />
         </>
       ) : chamadoAberto ? (
         <ChamadoDoComprador id={chamadoAberto} voltar={() => setChamadoAberto(null)} />
@@ -711,6 +702,124 @@ function MinhaConta({ aoSair }: { aoSair: () => void }) {
           )}
         </div>
       </Card>
+    </div>
+  );
+}
+
+/** A inicial do organizador no círculo — a foto de perfil entra com o perfil (Fase 5). */
+function AvatarOrganizador({ nome }: { nome: string }) {
+  return (
+    <span
+      aria-hidden
+      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-green text-sm font-bold text-on-green ring-2 ring-green-soft ring-offset-2"
+    >
+      {nome.trim().charAt(0).toUpperCase() || "?"}
+    </span>
+  );
+}
+
+/**
+ * As compras agrupadas por rifa: o organizador no topo, o prêmio e a data do
+ * sorteio, todos os números pagos juntos, e cada pedido com a segunda via do
+ * bilhete.
+ */
+function ComprasPorRifa({
+  orders,
+  podePedir,
+  emAndamento,
+  pedir,
+}: {
+  orders: OrderRow[];
+  podePedir: (row: OrderRow) => boolean;
+  emAndamento: Set<number>;
+  pedir: (row: OrderRow) => void;
+}) {
+  const grupos = new Map<string, OrderRow[]>();
+  for (const o of orders) {
+    const g = grupos.get(o.campaign.slug) ?? [];
+    g.push(o);
+    grupos.set(o.campaign.slug, g);
+  }
+
+  return (
+    <div className="mt-3 space-y-4">
+      {[...grupos.values()].map((pedidos) => {
+        const c = pedidos[0].campaign;
+        const org = pedidos[0].organizador?.nome ?? "Organizador";
+        const pagos = pedidos
+          .filter((p) => p.order.status === "paid")
+          .flatMap((p) => p.numbers)
+          .sort((a, b) => a - b);
+        return (
+          <Card key={c.slug}>
+            <div className="flex items-center gap-3 border-b border-line px-4 py-3">
+              <AvatarOrganizador nome={org} />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-bold">{org}</p>
+                <Link href={`/r/${c.slug}`} className="block truncate text-xs text-muted underline">
+                  {c.title}
+                </Link>
+              </div>
+              <Pill status={c.status} />
+            </div>
+            <div className="space-y-3 p-4">
+              <div className="flex flex-wrap justify-between gap-2 text-xs text-muted">
+                <span>{c.prizeTitle}</span>
+                <span className="tnum">
+                  sorteio {c.drawAt ? new Date(c.drawAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) : "a definir"}
+                </span>
+              </div>
+
+              <div>
+                <p className="label-xs">
+                  Suas cotas pagas · <span className="tnum">{pagos.length}</span>
+                </p>
+                {pagos.length ? (
+                  <div className="mt-1 flex flex-wrap gap-1">
+                    {pagos.map((n) => (
+                      <span key={n} className="tnum rounded bg-green px-1.5 py-[2px] text-[11px] text-on-green">
+                        {formatQuota(n, c.totalQuotas)}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="mt-1 text-xs text-muted">Nenhuma cota paga nesta rifa ainda.</p>
+                )}
+              </div>
+
+              <ul className="divide-y divide-line rounded-md border border-line">
+                {pedidos.map((row) => (
+                  <li key={row.order.code} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2 text-xs">
+                    <span className="tnum font-semibold">#{row.order.code}</span>
+                    <Pill status={row.order.status} />
+                    <span className="tnum text-muted">
+                      {row.order.quantity} cota(s) · <Money cents={row.order.amountCents} />
+                    </span>
+                    <span className="ml-auto flex gap-3">
+                      {row.order.status === "paid" ? (
+                        <Link href={`/bilhete/${row.order.code}`} className="text-green-deep underline">
+                          2ª via do bilhete
+                        </Link>
+                      ) : row.order.status === "pending" ? (
+                        <Link href={`/pedido/${row.order.code}`} className="text-yellow-deep underline">
+                          pagar
+                        </Link>
+                      ) : null}
+                      {emAndamento.has(row.order.code) ? (
+                        <span className="text-yellow-deep">reembolso em andamento</span>
+                      ) : podePedir(row) ? (
+                        <button type="button" onClick={() => pedir(row)} className="text-muted underline">
+                          pedir reembolso
+                        </button>
+                      ) : null}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </Card>
+        );
+      })}
     </div>
   );
 }

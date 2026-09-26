@@ -94,8 +94,10 @@ senha); **[código]** é trabalho no repositório.
 Na ordem de entrega do plano:
 
 - [x] Conta do apostador: criar conta e entrar com telefone, CPF ou e-mail
-  + senha; "Cadastrar" no topo; exclusão de conta pela LGPD. Compras antigas
-  só aparecem depois de confirmar o telefone pelo código do WhatsApp.
+  + senha; "Cadastrar" no topo; depois de entrar, a casa é a vitrine e o menu
+  tem Minhas compras (por rifa, com o organizador e a 2ª via do bilhete),
+  Reembolsos e Minha conta; exclusão pela LGPD. Compras antigas com o mesmo
+  CPF vêm junto; o ID do cliente sai no bilhete.
 - [ ] **[código]** De quem é o cliente: no painel do organizador, dados
   completos só de quem comprou com cambista; ganhador liberado no sorteio.
 - [ ] **[código]** Reembolso pela lei do consumidor: 100% até 7 dias da

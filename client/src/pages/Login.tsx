@@ -254,7 +254,8 @@ function ApostadorForm() {
     onSuccess: async () => {
       if (lembrar) await oferecerSalvarSenha(identificador.trim(), senha);
       qc.invalidateQueries();
-      navigate("/minhas-cotas");
+      // A casa do apostador é a vitrine; as compras ficam no menu dele.
+      navigate("/");
     },
     onError: (e: Error) => setErro(e.message),
   });

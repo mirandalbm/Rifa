@@ -14,6 +14,7 @@ import { buyers, chamados, notifications } from "@shared/schema";
 import { cpfValido, normalizePhone } from "@shared/format";
 import {
   NOME_EXCLUIDO,
+  type Titularidade,
   problemaNoCadastro,
   tipoDoIdentificador,
   type CadastroComprador,
@@ -116,6 +117,9 @@ export async function criarConta(req: Request, entrada: CadastroComprador & { le
       if (existente.cpf && existente.cpf.replace(/\D/g, "") !== cpf) {
         throw new ContaError("O CPF não confere com as compras feitas por este telefone.", 409);
       }
+      // O CPF gravado nas compras bateu: elas vêm para a conta. Sem CPF
+      // gravado não há o que conferir — só o código do WhatsApp as libera.
+      const cpfProvou = Boolean(existente.cpf);
       // Condicional: dois cadastros ao mesmo tempo, só um vira dono.
       [conta] = await db
         .update(buyers)
@@ -125,6 +129,7 @@ export async function criarConta(req: Request, entrada: CadastroComprador & { le
           email,
           passwordHash,
           contaCriadaEm: new Date(),
+          ...(cpfProvou ? { comprasVinculadasEm: new Date() } : {}),
           ...(confirmadoAgora ? { telefoneConfirmadoEm: new Date() } : {}),
         })
         .where(and(eq(buyers.id, existente.id), isNull(buyers.passwordHash)))
@@ -209,6 +214,24 @@ export async function entrarNaConta(
 /* ------------------------------------------------------------------ *
  * Dados, senha e exclusão
  * ------------------------------------------------------------------ */
+
+/**
+ * O que esta sessão pode enxergar do telefone. O código do WhatsApp nesta
+ * sessão vale como telefone provado mesmo sem cadastro por trás.
+ */
+export async function titularidadeDaSessao(req: Request): Promise<Titularidade> {
+  const b = req.session.buyer;
+  if (!b) return { telefoneConfirmado: false, comprasVinculadasEm: null };
+  if (!b.id) return { telefoneConfirmado: b.confirmado === true, comprasVinculadasEm: null };
+  const [c] = await db
+    .select({ tel: buyers.telefoneConfirmadoEm, vinc: buyers.comprasVinculadasEm })
+    .from(buyers)
+    .where(eq(buyers.id, b.id));
+  return {
+    telefoneConfirmado: b.confirmado === true || Boolean(c?.tel),
+    comprasVinculadasEm: c?.vinc ?? null,
+  };
+}
 
 export function compradorDaSessao(req: Request) {
   const b = req.session.buyer;

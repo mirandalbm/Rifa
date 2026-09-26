@@ -7,8 +7,10 @@
  * que prova e o que não prova:
  *
  * - compra feita **dentro da conta** é da conta, sempre;
- * - compra feita pelo telefone, sem entrar (o jeito antigo), só aparece
- *   depois que o telefone é confirmado pelo código do WhatsApp.
+ * - compra feita antes, só pelo telefone, vem junto quando o CPF dela bate
+ *   com o do cadastro (o CPF é a prova — o telefone sozinho não é);
+ * - o que sobrar (compra antiga sem CPF gravado) só aparece depois que o
+ *   telefone é confirmado pelo código do WhatsApp.
  */
 import { cpfValido, normalizePhone } from "./format";
 import { senhaInvalida } from "./senha";
@@ -46,12 +48,40 @@ export function problemaNoCadastro(c: CadastroComprador): string | null {
   return senhaInvalida(c.senha ?? "", "buyer");
 }
 
+/** O que a conta já provou sobre as compras feitas fora dela. */
+export interface Titularidade {
+  /** Telefone provado pelo código do WhatsApp: tudo do telefone é da conta. */
+  telefoneConfirmado: boolean;
+  /** CPF das compras antigas bateu no cadastro: o que existia até aqui é da conta. */
+  comprasVinculadasEm: Date | null;
+}
+
 /**
- * O pedido aparece para esta sessão? Compra feita dentro da conta, sempre;
- * compra pelo telefone, só com o telefone confirmado.
+ * O pedido aparece na conta? Feito dentro dela, sempre. Feito pelo telefone,
+ * sem entrar: se o telefone foi provado, ou se o pedido já existia quando o
+ * CPF das compras bateu no cadastro.
  */
-export function pedidoVisivel(p: { viaConta: boolean }, telefoneConfirmado: boolean): boolean {
-  return p.viaConta || telefoneConfirmado;
+export function pedidoVisivel(
+  p: { viaConta: boolean; createdAt: Date },
+  t: Titularidade,
+): boolean {
+  if (p.viaConta || t.telefoneConfirmado) return true;
+  return Boolean(t.comprasVinculadasEm && p.createdAt <= t.comprasVinculadasEm);
+}
+
+/**
+ * Reembolso é mais exigente que ver: dinheiro sai. Compra feita pelo
+ * telefone e ligada só pelo CPF pode pedir reembolso quando foi paga por Pix
+ * online — o dinheiro volta para a conta que pagou, não para quem pede. Venda
+ * de cambista devolve à mão (chave Pix informada), então exige o telefone
+ * provado.
+ */
+export function podePedirReembolso(
+  p: { viaConta: boolean; createdAt: Date; method: string },
+  t: Titularidade,
+): boolean {
+  if (p.viaConta || t.telefoneConfirmado) return true;
+  return pedidoVisivel(p, t) && p.method === "pix_online";
 }
 
 /** Como o titular aparece depois de excluir a conta (LGPD). */

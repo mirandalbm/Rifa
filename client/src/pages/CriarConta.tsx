@@ -36,7 +36,7 @@ export default function CriarConta() {
       }),
     onSuccess: () => {
       qc.invalidateQueries();
-      navigate("/minhas-cotas");
+      navigate("/");
     },
     onError: (e: Error) => setErro(e.message),
   });

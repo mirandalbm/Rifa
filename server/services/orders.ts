@@ -5,7 +5,8 @@
  * escolhidos). O total é sempre recalculado aqui, em centavos inteiros.
  */
 import { randomInt } from "node:crypto";
-import { and, eq, sql, desc } from "drizzle-orm";
+import { and, eq, sql, desc, or, lte } from "drizzle-orm";
+import type { Titularidade } from "@shared/contaComprador";
 import { db } from "../db";
 import {
   campaigns,
@@ -307,6 +308,17 @@ export async function createOrder(
   }
 
   const buyer = await upsertBuyer(input.buyer);
+  // Compra sem entrar, no telefone de uma conta, com o CPF da conta: é do
+  // dono (o CPF é a mesma prova do cadastro). Sem CPF, fica para o telefone
+  // provado decidir.
+  const compraProvadaPeloCpf = Boolean(
+    !ctx.contaId &&
+      !ctx.sellerId &&
+      buyer.passwordHash &&
+      buyer.cpf &&
+      input.buyer.cpf &&
+      input.buyer.cpf.replace(/\D/g, "") === buyer.cpf.replace(/\D/g, ""),
+  );
 
   // Na venda física não há clique nem cookie: quem vendeu é quem leva.
   const attribution = ctx.sellerId
@@ -349,7 +361,7 @@ export async function createOrder(
           affiliateId: attribution.affiliateId,
           sellerId: ctx.sellerId ?? null,
           method: ctx.sellerId ? "dinheiro" : "pix_online",
-          viaConta: Boolean(ctx.contaId && !ctx.sellerId),
+          viaConta: Boolean(ctx.contaId && !ctx.sellerId) || compraProvadaPeloCpf,
           deviceHash: identity.deviceHash,
           ipHash: identity.ipHash,
           couponId: attribution.couponId,
@@ -846,11 +858,13 @@ export async function orderByCode(code: number) {
 
 /** "Minhas cotas": tudo que um telefone comprou, sem senha. */
 /**
- * As compras do telefone. `telefoneConfirmado` falso (conta que entrou pela
- * senha sem ter provado o telefone) mostra só o que foi comprado dentro da
- * conta — ver `shared/contaComprador.ts`.
+ * As compras do telefone que a sessão pode ver — a regra é
+ * `pedidoVisivel()` em `shared/contaComprador.ts`, aqui em SQL.
  */
-export async function ordersByPhone(phone: string, telefoneConfirmado = true) {
+export async function ordersByPhone(
+  phone: string,
+  t: Titularidade = { telefoneConfirmado: true, comprasVinculadasEm: null },
+) {
   const digits = normalizePhone(phone);
   return db
     .select({
@@ -860,20 +874,40 @@ export async function ordersByPhone(phone: string, telefoneConfirmado = true) {
         slug: campaigns.slug,
         totalQuotas: campaigns.totalQuotas,
         status: campaigns.status,
+        drawAt: campaigns.drawAt,
+        prizeTitle: campaigns.prizeTitle,
       },
+      // "Minhas compras" agrupa por rifa com o perfil do organizador.
+      organizador: { nome: organizations.name, slug: organizations.slug },
       numbers: sql<number[]>`coalesce(array_agg(${quotaAlloc.number} ORDER BY ${quotaAlloc.number})
         FILTER (WHERE ${quotaAlloc.number} IS NOT NULL), '{}')`,
     })
     .from(orders)
     .innerJoin(buyers, eq(buyers.id, orders.buyerId))
     .innerJoin(campaigns, eq(campaigns.id, orders.campaignId))
+    .leftJoin(organizations, eq(organizations.id, campaigns.organizationId))
     .leftJoin(quotaAlloc, eq(quotaAlloc.orderId, orders.id))
     .where(
-      telefoneConfirmado
+      t.telefoneConfirmado
         ? eq(buyers.phone, digits)
-        : and(eq(buyers.phone, digits), eq(orders.viaConta, true)),
+        : and(
+            eq(buyers.phone, digits),
+            t.comprasVinculadasEm
+              ? or(eq(orders.viaConta, true), lte(orders.createdAt, t.comprasVinculadasEm))
+              : eq(orders.viaConta, true),
+          ),
     )
-    .groupBy(orders.id, campaigns.title, campaigns.slug, campaigns.totalQuotas, campaigns.status)
+    .groupBy(
+      orders.id,
+      campaigns.title,
+      campaigns.slug,
+      campaigns.totalQuotas,
+      campaigns.status,
+      campaigns.drawAt,
+      campaigns.prizeTitle,
+      organizations.name,
+      organizations.slug,
+    )
     .orderBy(desc(orders.createdAt));
 }
 

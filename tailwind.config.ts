@@ -24,6 +24,9 @@ export default {
         },
         red: { DEFAULT: "var(--red)", soft: "var(--red-soft)" },
         "on-green": "var(--on-green)",
+        "on-yellow": "var(--on-yellow)",
+        /** Branco que não muda com o tema: texto sobre foto e banner escuro. */
+        branco: "#ffffff",
       },
       fontFamily: {
         display: ['"Bricolage Grotesque"', "ui-sans-serif", "system-ui", "sans-serif"],

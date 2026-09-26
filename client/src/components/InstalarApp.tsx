@@ -80,7 +80,7 @@ export function InstalarApp() {
                 setAjuda(true);
               }
             }}
-            className="shrink-0 rounded-md bg-green px-4 py-2 text-sm font-semibold text-on-green hover:bg-green-deep"
+            className="shrink-0 rounded-md bg-green px-4 py-2 text-sm font-semibold text-on-green hover:brightness-95"
           >
             Instalar
           </button>

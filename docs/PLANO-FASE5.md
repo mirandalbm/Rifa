@@ -101,7 +101,7 @@ Como fica no sistema:
 
 ## 3. Aparência: tema claro e escuro, e o construtor de templates
 
-### 3.1 Tema claro e escuro **[decidido]**
+### 3.1 Tema claro e escuro **[decidido — feito]**
 - As duas opções em todo o sistema; segue o celular por padrão e o usuário
   pode trocar.
 - As cores viram variáveis: claro e escuro têm o mesmo significado (verde =
@@ -284,7 +284,7 @@ arquivos grandes demais para o banco.
 | 1b | De quem é o cliente: dados só da venda do cambista no painel do organizador; ganhador liberado no sorteio | 1.3 | 1 |
 | ✓ | Reembolso pela lei do consumidor (7 dias, 10%, corte de 2 h) | 2 | — |
 | ✓ | Endereço do organizador e estado da rifa | 1.4 | — |
-| 4 | Tema claro e escuro | 3.1 | — |
+| ✓ | Tema claro e escuro | 3.1 | — |
 | 5 | Perfil do organizador: topo, seguir, sino, bio, destaques, grade, menu, rifa dentro do perfil | 4 | 3 |
 | 6 | Notificações no celular (sino) | 6 | 5 |
 | 7 | Central de ajuda, regulamento e transmissão do sorteio | 7 | — |

@@ -182,7 +182,7 @@ export default function Rifa() {
     <PublicShell>
       {/* Banner, vídeo e fotos: a propaganda vem antes de tudo. */}
       <div
-        className="relative -mx-4 flex min-h-[150px] flex-col justify-end overflow-hidden p-4 text-white"
+        className="relative -mx-4 flex min-h-[150px] flex-col justify-end overflow-hidden p-4 text-branco"
         style={{
           background: banner
             ? `center/cover url(${banner.url})`
@@ -613,7 +613,7 @@ export default function Rifa() {
               <li key={i} className="flex items-center gap-3 px-4 py-2 text-sm">
                 <span
                   className={`tnum flex h-5 w-5 items-center justify-center rounded text-[10px] ${
-                    i === 0 ? "bg-yellow text-[#3B2A00]" : "bg-mist-2 text-muted"
+                    i === 0 ? "bg-yellow text-on-yellow" : "bg-mist-2 text-muted"
                   }`}
                 >
                   {i + 1}

@@ -138,8 +138,8 @@ export function Button({
   variant?: "primary" | "ghost" | "yellow";
 }) {
   const styles = {
-    primary: "bg-green text-on-green hover:bg-green-deep",
-    yellow: "bg-yellow text-[#3B2A00] hover:brightness-95",
+    primary: "bg-green text-on-green hover:brightness-95",
+    yellow: "bg-yellow text-on-yellow hover:brightness-95",
     ghost: "border-2 border-green bg-white text-green-deep hover:bg-green-soft",
   }[variant];
 

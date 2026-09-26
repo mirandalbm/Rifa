@@ -80,12 +80,12 @@ export default function Vitrine() {
                 />
                 <span
                   className={`absolute right-2 top-2 z-10 rounded px-2 py-[2px] font-mono text-[10px] ${
-                    finalStretch ? "bg-yellow text-[#3B2A00]" : "bg-white text-green-deep"
+                    finalStretch ? "bg-yellow text-on-yellow" : "bg-white text-green-deep"
                   }`}
                 >
                   {finalStretch ? "reta final" : `${pct}% vendida`}
                 </span>
-                <span className="relative font-display text-base font-extrabold leading-tight text-white">
+                <span className="relative font-display text-base font-extrabold leading-tight text-branco">
                   {c.prizeTitle}
                 </span>
               </div>

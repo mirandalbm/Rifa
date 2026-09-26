@@ -5,7 +5,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>rifa.br</title>
     <meta name="description" content="Rifas online com pagamento por Pix e sorteio auditável." />
-    <meta name="theme-color" content="#00873E" />
+    <meta name="theme-color" content="#ffffff" />
+    <script>
+      // Aplica o tema guardado antes do primeiro desenho (ver lib/tema.ts),
+      // senão a tela piscaria clara antes de ficar escura.
+      (function () {
+        try {
+          var t = localStorage.getItem("rifa.tema");
+          if (t === "claro" || t === "escuro") document.documentElement.setAttribute("data-tema", t);
+          var escuro = t === "escuro" || (t !== "claro" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+          document.querySelector('meta[name="theme-color"]').setAttribute("content", escuro ? "#0e1712" : "#ffffff");
+        } catch (e) {}
+      })();
+    </script>
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />

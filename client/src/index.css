@@ -30,10 +30,95 @@
 
     --red: #b3372a;
     --red-soft: #fbe9e6;
+
+    /* Texto sobre o amarelo: o amarelo é o mesmo nos dois temas. */
+    --on-yellow: #3b2a00;
+
+    color-scheme: light;
+  }
+
+  /*
+   * Tema escuro. Mesmos nomes, mesmo significado, outros tons: "white" passa
+   * a ser a superfície escura e "ink" o texto claro. Os "-deep" são as cores
+   * usadas como TEXTO sobre a superfície, por isso clareiam; os "-soft" são
+   * fundos de aviso, por isso escurecem.
+   *
+   * Duas entradas com os mesmos valores: o celular pedindo escuro (sem
+   * escolha contrária guardada) e a escolha explícita. Mudou um valor aqui,
+   * mude no outro bloco — e no `COR_DA_BARRA` de `lib/tema.ts` se for o fundo.
+   */
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-tema="claro"]) {
+      --white: #0e1712;
+      --mist: #142019;
+      --mist-2: #1b2a21;
+      --ink: #e6efe9;
+      --ink-2: #b8cabe;
+      --muted: #8ba395;
+      --line: #22332a;
+      --line-2: #30473a;
+
+      --green: #16924e;
+      --green-deep: #5dd394;
+      --green-bright: #3ddc84;
+      --green-soft: #12301f;
+      --on-green: #ffffff;
+
+      --yellow: #f5c518;
+      --yellow-deep: #f2cc5b;
+      --yellow-soft: #2d2610;
+
+      --red: #f08577;
+      --red-soft: #3a1b17;
+
+      --on-yellow: #3b2a00;
+
+      color-scheme: dark;
+    }
+  }
+
+  :root[data-tema="escuro"] {
+    --white: #0e1712;
+    --mist: #142019;
+    --mist-2: #1b2a21;
+    --ink: #e6efe9;
+    --ink-2: #b8cabe;
+    --muted: #8ba395;
+    --line: #22332a;
+    --line-2: #30473a;
+
+    --green: #16924e;
+    --green-deep: #5dd394;
+    --green-bright: #3ddc84;
+    --green-soft: #12301f;
+    --on-green: #ffffff;
+
+    --yellow: #f5c518;
+    --yellow-deep: #f2cc5b;
+    --yellow-soft: #2d2610;
+
+    --red: #f08577;
+    --red-soft: #3a1b17;
+
+    --on-yellow: #3b2a00;
+
+    color-scheme: dark;
   }
 
   * {
     @apply border-line;
+  }
+
+  /* Campo sem fundo declarado herdaria o cinza do navegador no escuro. */
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  select,
+  textarea {
+    background-color: var(--white);
+    color: var(--ink);
+  }
+  ::placeholder {
+    color: var(--muted);
+    opacity: 1;
   }
 
   body {

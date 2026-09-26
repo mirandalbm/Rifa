@@ -88,6 +88,7 @@ jobs:
       - run: npm run refund
       - run: npm run chamados
       - run: npm run conta
+      - run: npm run perfil
       - run: npm run load
 
       - name: Log do servidor

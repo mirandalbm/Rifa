@@ -589,6 +589,7 @@ interface DadosConta {
   temSenha: boolean;
   telefoneConfirmado: boolean;
   sessaoConfirmada: boolean;
+  perfilPublico: boolean;
 }
 
 /** Dados da conta, senha, sair e exclusão (LGPD). */
@@ -616,6 +617,11 @@ function MinhaConta({ aoSair }: { aoSair: () => void }) {
       setMsg({ ok: true, texto: "Senha salva." });
       qc.invalidateQueries({ queryKey: ["/api/public/conta"] });
     },
+    onError: (e: Error) => setMsg({ ok: false, texto: e.message }),
+  });
+  const publico = useMutation({
+    mutationFn: (valor: boolean) => apiRequest("PUT", "/api/public/conta/perfil-publico", { publico: valor }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/public/conta"] }),
     onError: (e: Error) => setMsg({ ok: false, texto: e.message }),
   });
   const excluir = useMutation({
@@ -660,6 +666,24 @@ function MinhaConta({ aoSair }: { aoSair: () => void }) {
             <dd>{data.email ?? "—"}</dd>
           </div>
         </dl>
+      </Card>
+
+      <Card title="Privacidade">
+        <label className="flex items-start gap-3 p-4 text-sm">
+          <input
+            type="checkbox"
+            checked={data.perfilPublico}
+            disabled={publico.isPending}
+            onChange={(e) => publico.mutate(e.target.checked)}
+            className="mt-1"
+          />
+          <span>
+            Aparecer em "seguido por…" nos perfis que eu sigo
+            <span className="block text-xs text-muted">
+              Só o primeiro nome. Desligado, você conta como seguidor, mas ninguém vê quem é.
+            </span>
+          </span>
+        </label>
       </Card>
 
       {msg ? (

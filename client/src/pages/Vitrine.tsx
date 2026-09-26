@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { MapPin } from "lucide-react";
 import { UFS, maskCep, soDigitosCep, cepValido, cidadeUf, ufValida } from "@shared/endereco";
 import { lerRegiao, gravarRegiao, type MinhaRegiao } from "@/lib/regiao";
+import { FotoDoPerfil } from "@/components/Seguir";
 import { PublicShell } from "@/components/AppShell";
 import { Money, Progress, Empty } from "@/components/bits";
 import { groupNumber, percent } from "@shared/format";
@@ -46,6 +47,7 @@ export default function Vitrine() {
         </h1>
         <p className="mt-1 text-sm text-muted">Escolha uma e garanta seus números.</p>
       </div>
+      <PerfisSeguidos />
       <RegiaoBar regiao={regiao} escolher={escolher} />
 
       {!isLoading && (data?.length ?? 0) === 0 ? (
@@ -59,7 +61,7 @@ export default function Vitrine() {
           return (
             <Link
               key={c.id}
-              href={`/r/${c.slug}`}
+              href={c.organizacao ? `/o/${c.organizacao.slug}/r/${c.slug}` : `/r/${c.slug}`}
               className="overflow-hidden rounded-xl border border-line bg-white transition hover:shadow-card"
             >
               <div
@@ -245,5 +247,32 @@ function RegiaoBar({
           : msg ?? "Todas as rifas continuam aparecendo; só muda a ordem. Fica guardado neste aparelho."}
       </p>
     </div>
+  );
+}
+
+/**
+ * Os perfis que a pessoa segue, em bolinhas, no topo — como os stories do
+ * Instagram. Sem sessão ou sem ninguém seguido, não ocupa espaço.
+ */
+function PerfisSeguidos() {
+  const { data } = useQuery<{ slug: string; nome: string; foto: string | null }[]>({
+    queryKey: ["/api/public/seguindo"],
+  });
+  if (!data?.length) return null;
+  return (
+    <nav aria-label="Perfis que você segue" className="-mx-4 mt-3 overflow-x-auto px-4">
+      <ul className="flex gap-3">
+        {data.map((o) => (
+          <li key={o.slug} className="w-16 shrink-0 text-center">
+            <Link href={`/o/${o.slug}`} className="block">
+              <span className="mx-auto block w-fit rounded-full border-2 border-line-2 p-[2px]">
+                <FotoDoPerfil nome={o.nome} foto={o.foto} tamanho={52} />
+              </span>
+              <span className="mt-1 block truncate text-[11px] text-ink-2">{o.nome}</span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </nav>
   );
 }

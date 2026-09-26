@@ -13,6 +13,7 @@ import { MediaManager } from "@/components/MediaManager";
 import { CampaignExtras } from "@/components/CampaignExtras";
 import { DadosLegaisCard } from "@/components/DadosLegaisCard";
 import { EnderecoForm, type EnderecoParcial } from "@/components/EnderecoForm";
+import { PerfilPublicoForm } from "@/components/PerfilPublicoForm";
 import type { Endereco } from "@shared/endereco";
 import { formatBRL, groupNumber, formatQuota, maskPhone } from "@shared/format";
 import { MAX_QUOTAS, MIN_QUOTAS } from "@shared/schema";
@@ -1290,6 +1291,33 @@ function EnderecoDaOrganizacaoCard() {
   );
 }
 
+/** Foto e bio do perfil público — o que o apostador vê em /o/:slug. */
+function PerfilPublicoCard() {
+  const qc = useQueryClient();
+  const { data } = useQuery<{
+    organizacaoId?: string;
+    slug?: string;
+    nome: string;
+    bio?: string | null;
+    foto?: string | null;
+  }>({ queryKey: ["/api/admin/organizer"] });
+  if (!data?.organizacaoId || !data.slug) return null;
+  return (
+    <Card title="Perfil público">
+      <div className="p-4">
+        <PerfilPublicoForm
+          organizacaoId={data.organizacaoId}
+          slug={data.slug}
+          nome={data.nome}
+          bio={data.bio ?? null}
+          foto={data.foto ?? null}
+          onSalvo={() => qc.invalidateQueries({ queryKey: ["/api/admin/organizer"] })}
+        />
+      </div>
+    </Card>
+  );
+}
+
 export function AdminConfiguracoes() {
   const { data: session } = useSession();
   const plataforma = session?.role === "admin";
@@ -1303,6 +1331,7 @@ export function AdminConfiguracoes() {
         <PaymentMethodsCard />
         <OrganizerCard />
         <EnderecoDaOrganizacaoCard />
+        <PerfilPublicoCard />
       </div>
       <div className="mb-3 grid gap-3 lg:grid-cols-2">
         <TwoFactorCard />

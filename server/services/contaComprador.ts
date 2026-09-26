@@ -250,7 +250,23 @@ export async function dadosDaConta(buyerId: string) {
     codigo: c.codigo,
     temSenha: Boolean(c.passwordHash),
     telefoneConfirmado: Boolean(c.telefoneConfirmadoEm),
+    perfilPublico: c.perfilPublico,
   };
+}
+
+/**
+ * Aparecer em "seguido por…" nos perfis que a pessoa segue. Nasce desligado
+ * e só a própria pessoa liga (LGPD).
+ */
+export async function definirPerfilPublico(req: Request, publico: boolean) {
+  const sessao = compradorDaSessao(req);
+  const [c] = await db
+    .update(buyers)
+    .set({ perfilPublico: publico })
+    .where(and(eq(buyers.id, sessao.id), isNull(buyers.excluidoEm)))
+    .returning({ perfilPublico: buyers.perfilPublico });
+  if (!c) throw new ContaError("Conta não encontrada.", 404);
+  return c;
 }
 
 /**

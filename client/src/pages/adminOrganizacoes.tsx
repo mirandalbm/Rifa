@@ -8,6 +8,7 @@ import { Card, Button, Pill, Empty } from "@/components/bits";
 import { apiRequest } from "@/lib/queryClient";
 import { MIN_SENHA, senhaInvalida } from "@shared/senha";
 import { EnderecoForm } from "@/components/EnderecoForm";
+import { PerfilPublicoForm } from "@/components/PerfilPublicoForm";
 import { cidadeUf, ufValida, type Endereco } from "@shared/endereco";
 import {
   LIBERACAO_COMISSAO,
@@ -29,6 +30,8 @@ interface Organizacao {
   numero: string | null;
   complemento: string | null;
   bairro: string | null;
+  bio: string | null;
+  foto: string | null;
   observacao: string | null;
   billingMode: string;
   active: boolean;
@@ -515,6 +518,19 @@ function LinhaOrganizacao({
                 <EnderecoForm
                   organizacaoId={o.id}
                   atual={o}
+                  onSalvo={recarregarLista}
+                />
+              </div>
+            )}
+            {o.archivedAt ? null : (
+              <div className="mt-4 border-t border-line pt-3">
+                <p className="label-xs mb-2">Perfil público</p>
+                <PerfilPublicoForm
+                  organizacaoId={o.id}
+                  slug={o.slug}
+                  nome={o.name}
+                  bio={o.bio}
+                  foto={o.foto}
                   onSalvo={recarregarLista}
                 />
               </div>

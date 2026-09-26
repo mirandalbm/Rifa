@@ -238,6 +238,11 @@ export default function Login() {
   );
 }
 
+/** Só caminho deste site: "//outro.site" ou "https://…" viram a vitrine. */
+function voltaSegura(volta: string | null): string {
+  return volta && volta.startsWith("/") && !volta.startsWith("//") ? volta : "/";
+}
+
 /** Apostador: telefone, CPF ou e-mail + senha. */
 function ApostadorForm() {
   const [, navigate] = useLocation();
@@ -254,8 +259,9 @@ function ApostadorForm() {
     onSuccess: async () => {
       if (lembrar) await oferecerSalvarSenha(identificador.trim(), senha);
       qc.invalidateQueries();
-      // A casa do apostador é a vitrine; as compras ficam no menu dele.
-      navigate("/");
+      // A casa do apostador é a vitrine; as compras ficam no menu dele. Quem
+      // veio de um "Seguir" volta para o perfil.
+      navigate(voltaSegura(new URLSearchParams(window.location.search).get("volta")));
     },
     onError: (e: Error) => setErro(e.message),
   });

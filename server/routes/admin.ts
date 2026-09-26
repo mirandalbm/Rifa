@@ -103,6 +103,9 @@ import {
 } from "../services/orgs";
 import { isUniqueViolation } from "../pgError";
 import { destaqueDa, salvarPerfil, urlDaCapa, urlDaFoto } from "../services/perfil";
+import { resultados as resultadosDoPainel } from "../services/resultados";
+import { salvarFotoDoGanhador } from "../services/ganhador";
+import { validarPeriodo } from "@shared/resultados";
 import {
   alterarBanner,
   apagarBanner,
@@ -2501,6 +2504,46 @@ adminRouter.delete("/stories/:id", async (req, res, next) => {
     await apagarStory(req.params.id);
     await audit(req, "story.apagar", "story", req.params.id);
     res.status(204).end();
+  } catch (err) {
+    next(err);
+  }
+});
+
+/* ---------------- resultados ---------------- */
+
+/**
+ * Painel de resultados. O organizador vê a própria organização (o
+ * `?organizacao=` dele é ignorado — o recorte é da sessão); o administrador
+ * geral vê a plataforma toda ou escolhe uma organização.
+ */
+adminRouter.get("/resultados", async (req, res, next) => {
+  try {
+    const daSessao = orgOf(req);
+    const escolhida =
+      !daSessao && typeof req.query.organizacao === "string" && /^[0-9a-f-]{36}$/i.test(req.query.organizacao)
+        ? req.query.organizacao
+        : null;
+    res.json(await resultadosDoPainel(daSessao ?? escolhida, validarPeriodo(req.query.dias)));
+  } catch (err) {
+    next(err);
+  }
+});
+
+/* ---------------- foto do ganhador ---------------- */
+
+/**
+ * Foto do ganhador, depois do sorteio (`null` tira). Recorte da campanha
+ * antes de tudo: a do vizinho é 404. Corpo grande (base64): está na lista
+ * de 8 MB do `server/index.ts`.
+ */
+adminRouter.put("/campaigns/:id/foto-ganhador", async (req, res, next) => {
+  try {
+    await assertCampaignInScope(req, req.params.id);
+    await salvarFotoDoGanhador(req.params.id, req.body?.foto);
+    await audit(req, "campanha.foto_ganhador", "campaign", req.params.id, {
+      foto: req.body?.foto === null ? "removida" : "trocada",
+    });
+    res.json({ ok: true });
   } catch (err) {
     next(err);
   }

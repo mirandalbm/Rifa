@@ -960,7 +960,108 @@ export function AdminSorteios() {
           ) : null}
         </div>
       </Card>
+
+      <FotoDoGanhadorCard sorteadas={data?.filter((c) => c.campaign.status === "drawn") ?? []} />
     </PanelShell>
+  );
+}
+
+/**
+ * Depois do sorteio: a foto do ganhador com o prêmio vira a capa da rifa nos
+ * destaques do perfil e aparece no resultado. Só com autorização dele.
+ */
+function FotoDoGanhadorCard({ sorteadas }: { sorteadas: CampaignRow[] }) {
+  const qc = useQueryClient();
+  const [campanha, setCampanha] = useState("");
+  const [foto, setFoto] = useState<string | null>(null);
+  const [msg, setMsg] = useState<{ ok: boolean; texto: string } | null>(null);
+  const escolhida = sorteadas.find((c) => c.campaign.id === campanha);
+  const { data: sorteio } = useQuery<{ fotoGanhador?: string | null }>({
+    queryKey: [`/api/public/campaigns/${escolhida?.campaign.slug}/sorteio`],
+    enabled: Boolean(escolhida),
+  });
+  const salvar = useMutation({
+    mutationFn: (valor: string | null) => apiRequest("PUT", `/api/admin/campaigns/${campanha}/foto-ganhador`, { foto: valor }),
+    onSuccess: (_r, valor) => {
+      setFoto(null);
+      setMsg({ ok: true, texto: valor ? "Foto publicada. Já é a capa da rifa no perfil." : "Foto retirada." });
+      qc.invalidateQueries({ queryKey: [`/api/public/campaigns/${escolhida?.campaign.slug}/sorteio`] });
+    },
+    onError: (e: Error) => setMsg({ ok: false, texto: e.message }),
+  });
+  if (sorteadas.length === 0) return null;
+  const mostrada = foto ?? sorteio?.fotoGanhador ?? null;
+
+  return (
+    <div className="mt-3">
+      <Card title="Foto do ganhador">
+        <div className="space-y-3 p-4 text-sm">
+          <p className="text-muted">
+            Vira a capa da rifa nos destaques do perfil e aparece no resultado. Publique só com a autorização
+            do ganhador para usar a imagem dele.
+          </p>
+          <select
+            value={campanha}
+            aria-label="Rifa sorteada"
+            onChange={(e) => {
+              setCampanha(e.target.value);
+              setFoto(null);
+              setMsg(null);
+            }}
+            className="w-full rounded-md border border-line-2 px-3 py-2"
+          >
+            <option value="">Escolha a rifa sorteada</option>
+            {sorteadas.map((c) => (
+              <option key={c.campaign.id} value={c.campaign.id}>
+                {c.campaign.prizeTitle}
+              </option>
+            ))}
+          </select>
+          {campanha ? (
+            <div className="flex items-start gap-3">
+              <div className="aspect-[4/5] w-28 shrink-0 overflow-hidden rounded-md border border-line bg-mist-2">
+                {mostrada ? <img src={mostrada} alt="" className="h-full w-full object-cover" /> : null}
+              </div>
+              <div className="space-y-2">
+                <label className="inline-block cursor-pointer rounded-md border border-line-2 px-3 py-1.5 text-xs font-semibold hover:bg-mist">
+                  {mostrada ? "Trocar foto" : "Escolher foto"}
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    className="sr-only"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      setMsg(null);
+                      if (!f) return;
+                      if (f.size > 5 * 1024 * 1024) return setMsg({ ok: false, texto: "A foto passa de 5 MB." });
+                      const r = new FileReader();
+                      r.onload = () => setFoto(String(r.result));
+                      r.readAsDataURL(f);
+                    }}
+                  />
+                </label>
+                <div className="flex gap-2">
+                  <Button disabled={!foto || salvar.isPending} onClick={() => salvar.mutate(foto)}>
+                    Publicar foto
+                  </Button>
+                  {sorteio?.fotoGanhador && !foto ? (
+                    <button type="button" onClick={() => salvar.mutate(null)} className="text-xs text-red underline">
+                      tirar foto
+                    </button>
+                  ) : null}
+                </div>
+                <p className="text-[11px] text-muted">
+                  Em pé (4 por 5, recortada em <span className="tnum">1080 × 1350</span>). JPG, PNG ou WebP até 5 MB.
+                </p>
+              </div>
+            </div>
+          ) : null}
+          {msg ? (
+            <p className={`rounded-md px-3 py-2 ${msg.ok ? "bg-green-soft text-green-deep" : "bg-red-soft text-red"}`}>{msg.texto}</p>
+          ) : null}
+        </div>
+      </Card>
+    </div>
   );
 }
 

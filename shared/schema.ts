@@ -517,6 +517,12 @@ export const orders = pgTable(
     couponId: uuid("coupon_id"),
     /** Feito dentro da conta do apostador: é da conta mesmo sem telefone confirmado. */
     viaConta: boolean("via_conta").notNull().default(false),
+    /**
+     * De onde a pessoa chegou à rifa (vitrine, perfil, story, banner,
+     * estado, anúncio). Vem do navegador: é só estatística do painel de
+     * resultados (`shared/resultados.ts`), nunca decide dinheiro.
+     */
+    origem: text("origem"),
     pspProvider: text("psp_provider"),
     pspChargeId: text("psp_charge_id"),
     pixQr: text("pix_qr"),
@@ -1133,6 +1139,8 @@ export const createOrderSchema = z.object({
   }),
   couponCode: z.string().max(40).optional(),
   affiliateCode: z.string().max(40).optional(),
+  /** Estatística (`validarOrigem`); valor desconhecido é descartado. */
+  origem: z.string().max(20).optional(),
 });
 
 export type User = typeof users.$inferSelect;
@@ -1194,3 +1202,18 @@ export const stories = pgTable(
   },
   (t) => [index("ix_stories_org_expira").on(t.organizationId, t.expiraEm)],
 );
+
+/**
+ * Foto do ganhador, depois do sorteio: vira a capa da rifa no perfil
+ * (destaques) e aparece no resultado. Só entra com a rifa sorteada, e a
+ * autorização de uso da imagem é do organizador com o ganhador. No banco,
+ * reprocessada (1080×1350, 4:5, WebP, sem metadados).
+ */
+export const campaignGanhadorFotos = pgTable("campaign_ganhador_fotos", {
+  campaignId: uuid("campaign_id")
+    .primaryKey()
+    .references(() => campaigns.id, { onDelete: "cascade" }),
+  mime: text("mime").notNull(),
+  bytes: bytea("bytes").notNull(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});

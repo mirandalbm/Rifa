@@ -53,6 +53,7 @@ app.use(
     "/api/admin/banners",
     "/api/admin/banners/:id",
     "/api/admin/stories",
+    "/api/admin/campaigns/:id/foto-ganhador",
   ],
   express.json({ limit: "8mb" }),
 );

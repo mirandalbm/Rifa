@@ -130,8 +130,7 @@ Na ordem de entrega do plano:
   "seguido por" só de quem liga o perfil público, destaques (rifas
   sorteadas) e grade com carrossel. A rifa abre dentro do perfil e tem
   seguir/sino. A vitrine mostra os perfis seguidos no topo.
-- [ ] **[código]** Ainda do perfil, depende de outras etapas: item "Bônus" do menu (gamificação), foto do ganhador como capa depois do sorteio (painel de
-  resultados), pedido de colaborador dentro do app e "seguidores da mesma
+- [ ] **[código]** Ainda do perfil, depende de outras etapas: item "Bônus" do menu (gamificação), pedido de colaborador dentro do app e "seguidores da mesma
   rifa".
 - [ ] **[você]** Cada organização pôr foto e bio em Configurações → Perfil
   público.
@@ -176,7 +175,14 @@ Na ordem de entrega do plano:
   junto com as rifas patrocinadas).
 - [ ] **[você]** Subir os banners da plataforma (Aparência → Banners da
   vitrine) e orientar as organizações a postarem stories.
-- [ ] **[código]** Painel de resultados do organizador.
+- [x] Painel de resultados do organizador (painel → Resultados): receita,
+  pedidos, ticket médio, cotas, seguidores novos e estornos do período (7,
+  30 ou 90 dias); receita por dia; vendas por canal (cambista, afiliado e,
+  no site, vitrine, perfil, story, banner, página do estado ou anúncio);
+  rifas que mais vendem. A plataforma escolhe a organização.
+- [x] Foto do ganhador como capa depois do sorteio (painel → Sorteios).
+- [ ] **[código]** Retorno das rifas patrocinadas no painel de resultados
+  (entra junto com as patrocinadas, etapa 15).
 - [ ] **[código]** Afiliado multi-organização, termo por rifa, colaborador.
 - [ ] **[código]** Guarda da comissão pela plataforma, cadastro fiscal e
   recibo.

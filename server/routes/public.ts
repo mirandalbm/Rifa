@@ -1,3 +1,4 @@
+import { fotoDoGanhador, urlDaFotoDoGanhador } from "../services/ganhador";
 import {
   bannersNoAr,
   estadosNoAr,
@@ -567,6 +568,7 @@ publicRouter.get("/campaigns/:slug/sorteio", async (req, res, next) => {
     const c = found.campaign;
     const [d] = await db.select().from(draws).where(eq(draws.campaignId, c.id));
     const feito = Boolean(d?.executedAt && d.resultNumber !== null);
+    const foto = feito ? await fotoDoGanhador(c.id) : null;
     res.json({
       drawAt: c.drawAt,
       seedHash: c.drawSeedHash,
@@ -583,9 +585,24 @@ publicRouter.get("/campaigns/:slug/sorteio", async (req, res, next) => {
             seed: d!.seed,
             executedAt: d!.executedAt,
             evidenceUrl: d!.evidenceUrl,
+            fotoGanhador: urlDaFotoDoGanhador(c.slug, foto?.updatedAt),
           }
         : {}),
     });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** Foto do ganhador: só de rifa sorteada. */
+publicRouter.get("/campaigns/:slug/foto-ganhador", async (req, res, next) => {
+  try {
+    const found = await campaignBySlug(req.params.slug);
+    if (!found || found.campaign.status !== "drawn") return res.status(404).json({ message: "Sem foto." });
+    const f = await fotoDoGanhador(found.campaign.id);
+    if (!f) return res.status(404).json({ message: "Sem foto." });
+    res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+    res.type(f.mime).send(f.bytes);
   } catch (err) {
     next(err);
   }

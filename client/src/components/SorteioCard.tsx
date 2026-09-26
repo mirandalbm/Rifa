@@ -17,6 +17,7 @@ interface Sorteio {
   seed?: string;
   executedAt?: string;
   evidenceUrl?: string | null;
+  fotoGanhador?: string | null;
 }
 
 /**
@@ -76,6 +77,14 @@ export function SorteioCard({ slug }: { slug: string }) {
   return (
     <Card title="Resultado do sorteio">
       <div className="space-y-3 p-4 text-sm">
+        {data.fotoGanhador ? (
+          <figure className="mx-auto max-w-xs overflow-hidden rounded-xl border border-line">
+            <img src={data.fotoGanhador} alt="Foto do ganhador com o prêmio" className="aspect-[4/5] w-full object-cover" />
+            <figcaption className="bg-yellow-soft px-3 py-1.5 text-center text-xs font-semibold text-yellow-deep">
+              Ganhador
+            </figcaption>
+          </figure>
+        ) : null}
         <div className="text-center">
           <p className="label-xs">número sorteado</p>
           <p className="tnum font-display text-4xl font-extrabold text-yellow-deep">{data.numero}</p>

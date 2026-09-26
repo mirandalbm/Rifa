@@ -32,7 +32,7 @@ export default function EstadoPage() {
           {isLoading ? <p className="py-2 text-sm text-muted">Carregando rifas…</p> : null}
           {!isLoading && (data?.length ?? 0) === 0 ? <Empty>Nenhuma rifa no ar neste estado agora.</Empty> : null}
           <div className="mt-3 grid gap-4 sm:grid-cols-2">
-            {data?.map((c) => <CartaoDoFeed key={c.id} rifa={c} />)}
+            {data?.map((c) => <CartaoDoFeed key={c.id} rifa={c} origem="estado" />)}
           </div>
         </>
       )}

@@ -7,6 +7,7 @@ import { Money, Progress, Empty } from "@/components/bits";
 import { SeguirBotoes, FotoDoPerfil } from "@/components/Seguir";
 import { DestaqueOrg, LinksDoPerfil } from "@/components/DestaqueOrg";
 import { FotoComStory, VisualizadorDeStories } from "@/components/Stories";
+import { marcarOrigem } from "@/lib/origem";
 import { groupNumber, percent } from "@shared/format";
 import {
   contador,
@@ -236,7 +237,7 @@ export default function PerfilPage() {
           <ul className="flex gap-4">
             {p.destaques.map((d) => (
               <li key={d.slug} className="w-[72px] shrink-0 text-center">
-                <Link href={`/o/${p.slug}/r/${d.slug}`} className="block">
+                <Link href={`/o/${p.slug}/r/${d.slug}`} onClick={() => marcarOrigem("perfil")} className="block">
                   <span className="mx-auto block h-16 w-16 overflow-hidden rounded-full border-2 border-marca p-[2px]">
                     {d.capa ? (
                       <img src={d.capa} alt="" className="h-full w-full rounded-full object-cover" />
@@ -440,7 +441,7 @@ function CartaoDaRifa({ org, rifa }: { org: string; rifa: RifaDoPerfil }) {
                 {m.role === "video" ? (
                   <video src={m.url} controls playsInline preload="none" className="h-full w-full object-cover" />
                 ) : (
-                  <Link href={href}>
+                  <Link href={href} onClick={() => marcarOrigem("perfil")}>
                     <img
                       src={m.url}
                       srcSet={m.srcSet ?? undefined}
@@ -472,7 +473,7 @@ function CartaoDaRifa({ org, rifa }: { org: string; rifa: RifaDoPerfil }) {
           ) : null}
         </div>
       ) : null}
-      <Link href={href} className="block space-y-2 p-3">
+      <Link href={href} onClick={() => marcarOrigem("perfil")} className="block space-y-2 p-3">
         <div className="flex items-baseline justify-between gap-2">
           <h3 className="font-display text-base font-extrabold leading-tight">{rifa.prizeTitle}</h3>
           <Money cents={rifa.priceCents} className="shrink-0 text-sm text-green-deep" />

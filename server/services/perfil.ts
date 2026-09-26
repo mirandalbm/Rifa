@@ -12,6 +12,7 @@ import { db } from "../db";
 import {
   buyers,
   campaignMedia,
+  campaignGanhadorFotos,
   campaignStats,
   campaigns,
   draws,
@@ -32,6 +33,7 @@ import {
 } from "@shared/perfil";
 import { cidadeUf } from "@shared/endereco";
 import { withUrls } from "./media";
+import { urlDaFotoDoGanhador } from "./ganhador";
 
 export class PerfilError extends Error {
   constructor(message: string, readonly status = 400) {
@@ -136,6 +138,14 @@ export async function perfilPublico(slug: string, buyerId?: string | null) {
         .where(inArray(draws.campaignId, sorteadas.map((r) => r.campaign.id)))
     : [];
   const sorteadaEm = new Map(sorteios.map((d) => [d.campaignId, d.executedAt]));
+  // Depois do sorteio, a capa do destaque é a foto do ganhador, se houver.
+  const fotosDoGanhador = sorteadas.length
+    ? await db
+        .select({ campaignId: campaignGanhadorFotos.campaignId, em: campaignGanhadorFotos.updatedAt })
+        .from(campaignGanhadorFotos)
+        .where(inArray(campaignGanhadorFotos.campaignId, sorteadas.map((r) => r.campaign.id)))
+    : [];
+  const ganhadorEm = new Map(fotosDoGanhador.map((f) => [f.campaignId, f.em]));
 
   const midias = await midiasDas(rifas.map((r) => r.campaign.id));
 
@@ -219,7 +229,11 @@ export async function perfilPublico(slug: string, buyerId?: string | null) {
       slug: r.campaign.slug,
       prizeTitle: r.campaign.prizeTitle,
       sorteadaEm: sorteadaEm.get(r.campaign.id) ?? r.campaign.drawAt,
-      capa: midias.get(r.campaign.id)?.find((m) => m.role !== "video")?.url ?? null,
+      capa:
+        urlDaFotoDoGanhador(r.campaign.slug, ganhadorEm.get(r.campaign.id)) ??
+        midias.get(r.campaign.id)?.find((m) => m.role !== "video")?.url ??
+        null,
+      comGanhador: ganhadorEm.has(r.campaign.id),
     })),
     rifas: noAr.map(cartao),
   };

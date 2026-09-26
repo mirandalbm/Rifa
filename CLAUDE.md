@@ -543,8 +543,12 @@ pedido, cotas e valor, e o cliente só pelo ID (`Cliente C-XXXXXXXX`).
 - **O CEP é atalho, não porteiro.** `consultarCep()` tem prazo de 3 s e toda
   falha vira resposta (`indisponivel`, `nao_encontrado`); a tela deixa
   digitar à mão.
-- **A região de quem compra fica no aparelho** (`client/src/lib/regiao.ts`),
-  não na conta: é conveniência, e sumir não estraga nada.
+- **A região de quem compra vem do CEP do cadastro** (`buyers.cep`, `cidade`,
+  `uf`; o CEP é obrigatório ao criar conta). O seletor de estado da vitrine
+  vale mais e fica no aparelho (`client/src/lib/regiao.ts`); sem conta, só
+  ele. CEP inexistente é recusado; serviço de CEP fora do ar **não** barra o
+  cadastro — guarda o CEP e o relógio completa cidade e UF
+  (`completarRegioesPendentes`, trava 811009).
 - **Cadastro antigo "Cidade/UF"** é separado uma vez pelo relógio
   (`separarCidadesAntigas`, trava 811007), só onde a UF está vazia.
 

@@ -7,6 +7,7 @@ import { purgeRateEvents } from "../services/antifraude";
 import { preencherCodigosDeCliente } from "../services/codigoCliente";
 import { separarCidadesAntigas } from "../services/orgs";
 import { avisarSorteiosChegando } from "../services/push";
+import { completarRegioesPendentes } from "../services/contaComprador";
 import { lancarMensalidades } from "../services/billing";
 import { releaseExpired } from "../services/quotas";
 import { paymentProviderByName } from "../payments";
@@ -41,6 +42,7 @@ const LOCK_MENSALIDADE = 811_005;
 const LOCK_CODIGOS = 811_006;
 const LOCK_CIDADES = 811_007;
 const LOCK_PUSH_SORTEIO = 811_008;
+const LOCK_REGIOES = 811_009;
 
 /** Quantos minutos antes de a reserva cair o lembrete é enviado. */
 const LEMBRETE_MINUTOS = Number(process.env.REMINDER_MINUTES_BEFORE ?? 5);
@@ -154,6 +156,18 @@ export function startJobs() {
       });
     } catch (err) {
       console.error("[jobs] IDs de cliente:", err);
+    }
+  }, releaseMs).unref();
+
+  // Contas criadas com o serviço de CEP fora do ar: completa cidade e UF.
+  setInterval(async () => {
+    try {
+      await withLock(LOCK_REGIOES, async () => {
+        const n = await completarRegioesPendentes();
+        if (n > 0) log(`${n} conta(s) com cidade completada pelo CEP`, "jobs");
+      });
+    } catch (err) {
+      console.error("[jobs] região pelo CEP:", err);
     }
   }, releaseMs).unref();
 

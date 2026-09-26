@@ -7,6 +7,7 @@ import { Conversa, type Mensagem } from "@/components/Conversa";
 import { apiRequest, ApiError } from "@/lib/queryClient";
 import { lerImagem } from "@/lib/anexo";
 import { estadoPush, ligarPush, desligarPush, type EstadoPush } from "@/lib/push";
+import { cepValido, cidadeUf, maskCep } from "@shared/endereco";
 import { formatQuota, maskPhone, maskCpf, cpfValido, formatBRL } from "@shared/format";
 import { calcularReembolso, NOME_TIPO_REEMBOLSO } from "@shared/reembolso";
 import {
@@ -591,6 +592,9 @@ interface DadosConta {
   telefoneConfirmado: boolean;
   sessaoConfirmada: boolean;
   perfilPublico: boolean;
+  cep: string | null;
+  cidade: string | null;
+  uf: string | null;
 }
 
 /** Dados da conta, senha, sair e exclusão (LGPD). */
@@ -668,6 +672,8 @@ function MinhaConta({ aoSair }: { aoSair: () => void }) {
           </div>
         </dl>
       </Card>
+
+      <MinhaRegiaoCard dados={data} />
 
       <AvisosNoAparelho />
 
@@ -947,6 +953,59 @@ function AvisosNoAparelho() {
           </Button>
         ) : null}
       </div>
+    </Card>
+  );
+}
+
+/** O CEP da conta decide quais rifas aparecem primeiro na vitrine. */
+function MinhaRegiaoCard({ dados }: { dados: DadosConta }) {
+  const qc = useQueryClient();
+  const [cep, setCep] = useState(dados.cep ? maskCep(dados.cep) : "");
+  const [msg, setMsg] = useState<{ ok: boolean; texto: string } | null>(null);
+  const salvar = useMutation({
+    mutationFn: async () => (await apiRequest("PUT", "/api/public/conta/cep", { cep })).json(),
+    onSuccess: (r: { cidade: string | null; uf: string | null }) => {
+      setMsg({ ok: true, texto: r.uf ? `Pronto: ${cidadeUf(r.cidade, r.uf)}.` : "CEP salvo. A cidade aparece em instantes." });
+      qc.invalidateQueries({ queryKey: ["/api/public/conta"] });
+      qc.invalidateQueries({ queryKey: ["/api/public/campaigns"] });
+    },
+    onError: (e: Error) => setMsg({ ok: false, texto: e.message }),
+  });
+  return (
+    <Card title="Minha região">
+      <form
+        className="space-y-2 p-4 text-sm"
+        onSubmit={(e) => {
+          e.preventDefault();
+          setMsg(null);
+          salvar.mutate();
+        }}
+      >
+        <p className="text-muted">
+          {dados.uf
+            ? `As rifas de ${cidadeUf(dados.cidade, dados.uf)} aparecem primeiro na vitrine.`
+            : "Informe seu CEP para ver primeiro as rifas perto de você."}
+        </p>
+        <div className="flex items-end gap-2">
+          <div>
+            <label htmlFor="conta-cep" className="label-xs block">
+              CEP
+            </label>
+            <input
+              id="conta-cep"
+              inputMode="numeric"
+              autoComplete="postal-code"
+              value={cep}
+              onChange={(e) => setCep(maskCep(e.target.value))}
+              className="tnum mt-1 w-32 rounded-md border border-line-2 px-3 py-2 text-sm"
+            />
+          </div>
+          <Button type="submit" variant="ghost" disabled={!cepValido(cep) || salvar.isPending}>
+            Salvar
+          </Button>
+        </div>
+        {msg ? <p className={`text-xs ${msg.ok ? "text-green-deep" : "text-red"}`}>{msg.texto}</p> : null}
+      </form>
     </Card>
   );
 }

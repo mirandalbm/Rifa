@@ -5,6 +5,7 @@ import { Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/bits";
 import { apiRequest } from "@/lib/queryClient";
 import { cpfValido, maskCpf } from "@shared/format";
+import { cepValido, maskCep, soDigitosCep } from "@shared/endereco";
 import { problemaNoCadastro } from "@shared/contaComprador";
 
 /**
@@ -16,7 +17,22 @@ import { problemaNoCadastro } from "@shared/contaComprador";
 export default function CriarConta() {
   const [, navigate] = useLocation();
   const qc = useQueryClient();
-  const [f, setF] = useState({ nome: "", telefone: "", cpf: "", email: "", senha: "", repetir: "" });
+  const [f, setF] = useState({ nome: "", telefone: "", cpf: "", cep: "", email: "", senha: "", repetir: "" });
+  // A cidade que o CEP dá, mostrada embaixo do campo: a pessoa confere na hora.
+  const [lugar, setLugar] = useState<string | null>(null);
+
+  async function conferirCep(cep: string) {
+    setLugar(null);
+    const d = soDigitosCep(cep);
+    if (!cepValido(d)) return;
+    try {
+      const r = await fetch(`/api/public/cep/${d}`);
+      const j = await r.json().catch(() => ({}));
+      setLugar(r.ok ? `${j.cidade}/${j.uf}` : r.status === 404 ? "CEP não encontrado." : null);
+    } catch {
+      /* sem conexão para conferir: o servidor confere no cadastro */
+    }
+  }
   const [verSenha, setVerSenha] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
@@ -30,6 +46,7 @@ export default function CriarConta() {
         nome: f.nome,
         telefone: f.telefone,
         cpf: f.cpf,
+        cep: f.cep,
         email: f.email || undefined,
         senha: f.senha,
         lembrar: true,
@@ -55,7 +72,10 @@ export default function CriarConta() {
         value={f[id]}
         onChange={(e) => {
           setErro(null);
-          setF({ ...f, [id]: id === "cpf" ? maskCpf(e.target.value) : e.target.value });
+          const valor =
+            id === "cpf" ? maskCpf(e.target.value) : id === "cep" ? maskCep(e.target.value) : e.target.value;
+          setF({ ...f, [id]: valor });
+          if (id === "cep") void conferirCep(valor);
         }}
         className="mt-1 w-full rounded-md border border-line-2 px-3 py-2 text-sm"
         {...extra}
@@ -87,6 +107,10 @@ export default function CriarConta() {
         {f.cpf.replace(/\D/g, "").length === 11 && !cpfValido(f.cpf) ? (
           <p className="-mt-2 text-xs text-red">CPF inválido.</p>
         ) : null}
+        {campo("cep", "CEP", { inputMode: "numeric", autoComplete: "postal-code", className: "tnum mt-1 w-full rounded-md border border-line-2 px-3 py-2 text-sm" })}
+        <p className="-mt-2 text-xs text-muted">
+          {lugar ?? "Para mostrar primeiro as rifas perto de você."}
+        </p>
         {campo("email", "E-mail (opcional)", { type: "email", inputMode: "email", autoComplete: "email" })}
 
         <div>

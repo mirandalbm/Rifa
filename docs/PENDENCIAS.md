@@ -114,6 +114,9 @@ Na ordem de entrega do plano:
   rifa: a vitrine põe primeiro as rifas da cidade e do estado de quem olha,
   sem esconder nenhuma. Organização com "Cidade/UF" antigo já ordena pelo
   estado; o endereço completo é pedido em Configurações.
+- [x] A vitrine ordena pela região do apostador sem ele escolher: o CEP é
+  pedido no cadastro (e trocado em Minha conta → Minha região); o seletor de
+  estado fica no topo da vitrine para quem quiser ver outro estado.
 - [ ] **[você]** Cada organização conferir o endereço em Configurações →
   Endereço da organização (aparece "falta cadastrar" enquanto não tiver).
 - [x] Tema claro e escuro: segue o celular por padrão; a pessoa troca no

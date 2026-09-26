@@ -2,8 +2,9 @@ import { useState } from "react";
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { MapPin } from "lucide-react";
-import { UFS, maskCep, soDigitosCep, cepValido, cidadeUf, ufValida } from "@shared/endereco";
-import { lerRegiao, gravarRegiao, type MinhaRegiao } from "@/lib/regiao";
+import { UFS, ufValida } from "@shared/endereco";
+import { lerRegiao, gravarRegiao, regiaoEfetiva, type EscolhaDeRegiao } from "@/lib/regiao";
+import { useSession } from "@/lib/session";
 import { FotoDoPerfil } from "@/components/Seguir";
 import { PublicShell } from "@/components/AppShell";
 import { Money, Progress, Empty } from "@/components/bits";
@@ -30,25 +31,53 @@ const PERTO = ["na sua cidade", "no seu estado"] as const;
 
 /** Vitrine multi-rifas: todas as campanhas no ar, banner na frente. */
 export default function Vitrine() {
-  const [regiao, setRegiao] = useState<MinhaRegiao | null>(() => lerRegiao());
+  const { data: sessao } = useSession();
+  const naConta = Boolean(sessao?.buyer?.conta);
+  // Com conta, a região vem do CEP do cadastro — sem ninguém precisar
+  // escolher. O seletor de estado muda só neste aparelho.
+  const { data: conta } = useQuery<{ uf: string | null; cidade: string | null }>({
+    queryKey: ["/api/public/conta"],
+    enabled: naConta,
+  });
+  const [escolha, setEscolha] = useState<EscolhaDeRegiao>(() => lerRegiao());
+  const regiao = regiaoEfetiva(escolha, conta);
   const { data, isLoading } = useQuery<CampaignCard[]>({
     queryKey: ["/api/public/campaigns", regiao ? { uf: regiao.uf, cidade: regiao.cidade ?? undefined } : undefined],
   });
-  const escolher = (r: MinhaRegiao | null) => {
+  const escolher = (r: EscolhaDeRegiao) => {
     gravarRegiao(r);
-    setRegiao(r);
+    setEscolha(r);
   };
 
   return (
     <PublicShell>
-      <div className="pb-2">
-        <h1 className="font-display text-2xl font-extrabold">
-          {isLoading ? "Carregando rifas…" : `${data?.length ?? 0} rifa(s) no ar`}
-        </h1>
-        <p className="mt-1 text-sm text-muted">Escolha uma e garanta seus números.</p>
+      <div className="flex items-center gap-2 pb-1">
+        <MapPin size={16} aria-hidden className="shrink-0 text-muted" />
+        <label htmlFor="vitrine-uf" className="text-sm text-ink-2">
+          Rifas perto de
+        </label>
+        <select
+          id="vitrine-uf"
+          value={escolha === "todos" ? "" : (regiao?.uf ?? "")}
+          onChange={(e) => {
+            const uf = e.target.value;
+            if (!uf) return escolher("todos");
+            // Voltar ao estado da conta devolve também a cidade dela.
+            if (conta?.uf === uf) return escolher(null);
+            if (ufValida(uf)) escolher({ uf, cidade: null });
+          }}
+          className="min-w-0 flex-1 rounded-md border border-line-2 bg-white px-2 py-1.5 text-sm font-semibold sm:flex-none"
+        >
+          <option value="">Todo o Brasil</option>
+          {Object.entries(UFS).map(([sigla, nome]) => (
+            <option key={sigla} value={sigla}>
+              {nome}
+            </option>
+          ))}
+        </select>
       </div>
+      {isLoading ? <p className="py-2 text-sm text-muted">Carregando rifas…</p> : null}
       <PerfisSeguidos />
-      <RegiaoBar regiao={regiao} escolher={escolher} />
 
       {!isLoading && (data?.length ?? 0) === 0 ? (
         <Empty>Nenhuma rifa publicada ainda.</Empty>
@@ -65,7 +94,7 @@ export default function Vitrine() {
               className="overflow-hidden rounded-xl border border-line bg-white transition hover:shadow-card"
             >
               <div
-                className="relative flex h-28 items-end overflow-hidden p-3"
+                className="relative flex aspect-[16/9] items-end overflow-hidden p-4"
                 style={{
                   background: c.banner
                     ? `center/cover url(${c.banner})`
@@ -87,7 +116,7 @@ export default function Vitrine() {
                 >
                   {finalStretch ? "reta final" : `${pct}% vendida`}
                 </span>
-                <span className="relative font-display text-base font-extrabold leading-tight text-branco">
+                <span className="relative font-display text-xl font-extrabold leading-tight text-branco">
                   {c.prizeTitle}
                 </span>
               </div>
@@ -135,122 +164,6 @@ export default function Vitrine() {
 }
 
 /**
- * "Perto de você": o CEP diz cidade e estado; sem CEP, basta o estado. Só
- * muda a ordem — toda rifa continua na lista.
- */
-function RegiaoBar({
-  regiao,
-  escolher,
-}: {
-  regiao: MinhaRegiao | null;
-  escolher: (r: MinhaRegiao | null) => void;
-}) {
-  const [editando, setEditando] = useState(false);
-  const [cep, setCep] = useState("");
-  const [msg, setMsg] = useState<string | null>(null);
-  const [buscando, setBuscando] = useState(false);
-
-  async function porCep(valor: string) {
-    const d = soDigitosCep(valor);
-    if (d.length !== 8 || !cepValido(d)) return;
-    setBuscando(true);
-    setMsg(null);
-    try {
-      const r = await fetch(`/api/public/cep/${d}`);
-      const corpo = await r.json().catch(() => ({}));
-      if (!r.ok || !ufValida(corpo.uf)) {
-        setMsg(corpo.message ?? "Não achamos este CEP. Escolha o estado.");
-        return;
-      }
-      escolher({ uf: corpo.uf, cidade: corpo.cidade ?? null });
-      setEditando(false);
-      setCep("");
-    } catch {
-      setMsg("Sem conexão para consultar o CEP. Escolha o estado.");
-    } finally {
-      setBuscando(false);
-    }
-  }
-
-  if (regiao && !editando) {
-    return (
-      <p className="mt-2 flex flex-wrap items-center gap-x-2 text-xs text-muted">
-        <MapPin size={13} aria-hidden />
-        Primeiro as rifas perto de{" "}
-        <strong className="text-ink">{cidadeUf(regiao.cidade, regiao.uf)}</strong>
-        <button type="button" onClick={() => setEditando(true)} className="text-green-deep underline">
-          trocar
-        </button>
-        <button type="button" onClick={() => escolher(null)} className="underline">
-          ver na ordem de sempre
-        </button>
-      </p>
-    );
-  }
-
-  return (
-    <div className="mt-3 rounded-lg border border-line bg-mist p-3">
-      <p className="flex items-center gap-1 text-xs font-medium">
-        <MapPin size={13} aria-hidden /> Ver primeiro as rifas perto de você
-      </p>
-      <div className="mt-2 flex flex-wrap items-end gap-2">
-        <div>
-          <label htmlFor="vitrine-cep" className="label-xs block">
-            Seu CEP
-          </label>
-          <input
-            id="vitrine-cep"
-            inputMode="numeric"
-            autoComplete="postal-code"
-            value={cep}
-            onChange={(e) => {
-              const v = maskCep(e.target.value);
-              setCep(v);
-              void porCep(v);
-            }}
-            placeholder="00000-000"
-            className="tnum mt-1 w-32 rounded-md border border-line-2 bg-white px-3 py-2 text-sm"
-          />
-        </div>
-        <span className="pb-2 text-xs text-muted">ou</span>
-        <div>
-          <label htmlFor="vitrine-uf" className="label-xs block">
-            Estado
-          </label>
-          <select
-            id="vitrine-uf"
-            value={regiao?.uf ?? ""}
-            onChange={(e) => {
-              if (!ufValida(e.target.value)) return;
-              escolher({ uf: e.target.value, cidade: null });
-              setEditando(false);
-            }}
-            className="mt-1 rounded-md border border-line-2 bg-white px-2 py-2 text-sm"
-          >
-            <option value="">escolha</option>
-            {Object.entries(UFS).map(([sigla, nome]) => (
-              <option key={sigla} value={sigla}>
-                {nome}
-              </option>
-            ))}
-          </select>
-        </div>
-        {editando ? (
-          <button type="button" onClick={() => setEditando(false)} className="pb-2 text-xs underline">
-            cancelar
-          </button>
-        ) : null}
-      </div>
-      <p className="mt-2 text-[11px] text-muted">
-        {buscando
-          ? "Consultando CEP…"
-          : msg ?? "Todas as rifas continuam aparecendo; só muda a ordem. Fica guardado neste aparelho."}
-      </p>
-    </div>
-  );
-}
-
-/**
  * Os perfis que a pessoa segue, em bolinhas, no topo — como os stories do
  * Instagram. Sem sessão ou sem ninguém seguido, não ocupa espaço.
  */
@@ -263,12 +176,12 @@ function PerfisSeguidos() {
     <nav aria-label="Perfis que você segue" className="-mx-4 mt-3 overflow-x-auto px-4">
       <ul className="flex gap-3">
         {data.map((o) => (
-          <li key={o.slug} className="w-16 shrink-0 text-center">
+          <li key={o.slug} className="w-20 shrink-0 text-center">
             <Link href={`/o/${o.slug}`} className="block">
               <span className="mx-auto block w-fit rounded-full border-2 border-line-2 p-[2px]">
-                <FotoDoPerfil nome={o.nome} foto={o.foto} tamanho={52} />
+                <FotoDoPerfil nome={o.nome} foto={o.foto} tamanho={66} />
               </span>
-              <span className="mt-1 block truncate text-[11px] text-ink-2">{o.nome}</span>
+              <span className="mt-1 block truncate text-xs text-ink-2">{o.nome}</span>
             </Link>
           </li>
         ))}

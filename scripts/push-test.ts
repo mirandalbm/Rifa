@@ -139,7 +139,7 @@ async function main() {
   const [ana, bruno, carla] = [new Cliente(), new Cliente(), new Cliente()];
   const ids: string[] = [];
   for (const [c, p] of [[ana, PESSOAS[0]], [bruno, PESSOAS[1]], [carla, PESSOAS[2]]] as const) {
-    const cr = await c.req("POST", "/api/public/conta", { ...p, senha: "senha-push-1", lembrar: true });
+    const cr = await c.req("POST", "/api/public/conta", { ...p, cep: "01310-100", senha: "senha-push-1", lembrar: true });
     if (cr.status >= 300) throw new Error(`conta: HTTP ${cr.status} ${cr.json?.message}`);
     const [b] = await db.select({ id: buyers.id }).from(buyers).where(eq(buyers.phone, p.telefone));
     ids.push(b.id);

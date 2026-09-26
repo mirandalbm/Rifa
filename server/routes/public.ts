@@ -65,6 +65,7 @@ import {
   excluirConta,
   trocarSenha,
   definirPerfilPublico,
+  trocarCep,
 } from "../services/contaComprador";
 
 export const publicRouter = Router();
@@ -673,6 +674,7 @@ publicRouter.post("/conta", async (req, res, next) => {
       nome: String(req.body?.nome ?? ""),
       telefone: String(req.body?.telefone ?? ""),
       cpf: String(req.body?.cpf ?? ""),
+      cep: String(req.body?.cep ?? ""),
       email: req.body?.email ? String(req.body.email) : undefined,
       senha: String(req.body?.senha ?? ""),
       lembrar: req.body?.lembrar === true,
@@ -715,6 +717,14 @@ publicRouter.put("/conta/senha", async (req, res, next) => {
   try {
     await trocarSenha(req, String(req.body?.atual ?? ""), String(req.body?.nova ?? ""));
     res.json({ ok: true });
+  } catch (err) {
+    erroDeConta(err, res, next);
+  }
+});
+
+publicRouter.put("/conta/cep", async (req, res, next) => {
+  try {
+    res.json(await trocarCep(req, String(req.body?.cep ?? "")));
   } catch (err) {
     erroDeConta(err, res, next);
   }

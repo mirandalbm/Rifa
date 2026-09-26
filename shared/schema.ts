@@ -269,6 +269,13 @@ export const buyers = pgTable(
      * participar de rifa é dado pessoal (LGPD), só aparece quem liga.
      */
     perfilPublico: boolean("perfil_publico").notNull().default(false),
+    /**
+     * CEP do cadastro, e a cidade/UF que ele dá: é o que põe na frente as
+     * rifas perto da pessoa, sem ela precisar escolher. Só ordena a vitrine.
+     */
+    cep: text("cep"),
+    cidade: text("cidade"),
+    uf: text("uf"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (t) => [

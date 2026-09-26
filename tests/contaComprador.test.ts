@@ -6,7 +6,13 @@ import {
   podePedirReembolso,
 } from "@shared/contaComprador";
 
-const ok = { nome: "Maria da Silva", telefone: "(11) 98888-7777", cpf: "529.982.247-25", senha: "segredo-forte-1" };
+const ok = {
+  nome: "Maria da Silva",
+  telefone: "(11) 98888-7777",
+  cpf: "529.982.247-25",
+  cep: "01310-100",
+  senha: "segredo-forte-1",
+};
 
 describe("identificador de login", () => {
   it("e-mail, telefone e CPF", () => {
@@ -30,6 +36,7 @@ describe("cadastro do apostador", () => {
     expect(problemaNoCadastro({ ...ok, nome: "Ma" })).toMatch(/nome/);
     expect(problemaNoCadastro({ ...ok, telefone: "98888-7777" })).toMatch(/DDD/);
     expect(problemaNoCadastro({ ...ok, cpf: "111.111.111-11" })).toMatch(/CPF/);
+    expect(problemaNoCadastro({ ...ok, cep: "0131" })).toMatch(/CEP/);
   });
   it("recusa e-mail malformado e senha fraca", () => {
     expect(problemaNoCadastro({ ...ok, email: "maria@" })).toMatch(/E-mail/);

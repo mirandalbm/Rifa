@@ -13,6 +13,7 @@
  *   telefone é confirmado pelo código do WhatsApp.
  */
 import { cpfValido, normalizePhone } from "./format";
+import { cepValido } from "./endereco";
 import { senhaInvalida } from "./senha";
 
 export type TipoIdentificador = "email" | "digitos";
@@ -33,6 +34,8 @@ export interface CadastroComprador {
   nome: string;
   telefone: string;
   cpf: string;
+  /** Diz a cidade e o estado: a vitrine põe primeiro as rifas perto. */
+  cep: string;
   email?: string;
   senha: string;
 }
@@ -43,6 +46,7 @@ export function problemaNoCadastro(c: CadastroComprador): string | null {
   const tel = normalizePhone(c.telefone ?? "");
   if (tel.length < 10 || tel.length > 11) return "Informe o WhatsApp com DDD.";
   if (!cpfValido(c.cpf ?? "")) return "Informe um CPF válido.";
+  if (!cepValido(c.cep ?? "")) return "Informe o CEP (8 números).";
   const email = (c.email ?? "").trim();
   if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return "E-mail inválido.";
   return senhaInvalida(c.senha ?? "", "buyer");

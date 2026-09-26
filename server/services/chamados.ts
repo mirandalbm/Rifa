@@ -40,6 +40,7 @@ import {
   type PedidoDeReembolso,
 } from "@shared/chamados";
 import { cpfValido, formatBRL, hideCpf, hidePhone } from "@shared/format";
+import { pedidoVisivel } from "@shared/contaComprador";
 import { notify } from "../notifications";
 import { publicUrl } from "./urls";
 import { isUniqueViolation } from "../pgError";
@@ -122,15 +123,17 @@ export async function processarAnexo(dataUrl: string): Promise<Buffer> {
 export interface CompradorLogado {
   id: string;
   phone: string;
+  /** Telefone provado pelo WhatsApp; sem isso, só os pedidos feitos na conta. */
+  confirmado: boolean;
 }
 
 /** A sessão do comprador precisa ter um cadastro de verdade por trás. */
 export function exigirComprador(req: Request): CompradorLogado {
   const b = req.session.buyer;
   if (!b?.id) {
-    throw new ChamadoError("Entre em Minhas cotas com o seu WhatsApp para continuar.", 401);
+    throw new ChamadoError("Entre na sua conta em Minhas cotas para continuar.", 401);
   }
-  return { id: b.id, phone: b.phone };
+  return { id: b.id, phone: b.phone, confirmado: b.confirmado === true };
 }
 
 export async function abrirChamado(
@@ -153,7 +156,10 @@ export async function abrirChamado(
     .innerJoin(campaigns, eq(campaigns.id, orders.campaignId))
     .innerJoin(buyers, eq(buyers.id, orders.buyerId))
     .where(and(eq(orders.code, entrada.orderCode), eq(orders.buyerId, comprador.id)));
-  if (!linha) throw new ChamadoError("Pedido não encontrado na sua conta.", 404);
+  // Conta sem telefone confirmado só pede reembolso do que comprou nela.
+  if (!linha || !pedidoVisivel(linha.order, comprador.confirmado)) {
+    throw new ChamadoError("Pedido não encontrado na sua conta.", 404);
+  }
 
   const bloqueio = bloqueioDoReembolso({
     estornoLigado: (await getPlataforma()).estornoManual,

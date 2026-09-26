@@ -2,8 +2,9 @@ import { useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/bits";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLogin } from "@/lib/session";
-import { ApiError } from "@/lib/queryClient";
+import { ApiError, apiRequest } from "@/lib/queryClient";
 
 const CHAVE_EMAIL = "rifa.login.email";
 
@@ -38,10 +39,10 @@ async function oferecerSalvarSenha(email: string, senha: string) {
 }
 
 /**
- * Uma porta de entrada só. O papel gravado no banco decide onde a pessoa
- * cai — afiliado no painel de afiliado, administrador no painel geral.
+ * Painel: o papel gravado no banco decide onde a pessoa cai — afiliado no
+ * painel de afiliado, administrador no painel geral.
  */
-export default function Login() {
+function PainelForm() {
   const [, navigate] = useLocation();
   const [form, setForm] = useState({ email: emailLembrado(), password: "", token: "" });
   // Marcado por padrão: o caso comum é o celular da própria pessoa.
@@ -53,16 +54,13 @@ export default function Login() {
   const login = useLogin();
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-sm flex-col justify-center px-5">
-      <h1 className="font-display text-2xl font-extrabold">
-        rifa<span className="text-green">.</span>br
-      </h1>
-      <p className="mt-1 text-sm text-muted">
+    <>
+      <p className="mt-4 text-sm text-muted">
         Acesso de administrador, organizador, afiliado e cambista.
       </p>
 
       <form
-        className="mt-6 space-y-3"
+        className="mt-4 space-y-3"
         onSubmit={(e) => {
           e.preventDefault();
           setError(null);
@@ -178,6 +176,177 @@ export default function Login() {
           </Link>
         </p>
       </form>
+    </>
+  );
+}
+
+const CHAVE_ABA = "rifa.login.aba";
+
+function abaLembrada(): "apostador" | "painel" {
+  try {
+    return localStorage.getItem(CHAVE_ABA) === "painel" ? "painel" : "apostador";
+  } catch {
+    return "apostador";
+  }
+}
+
+/**
+ * A porta de entrada. Duas abas porque são duas contas diferentes: o
+ * apostador joga em qualquer rifa; o painel é de quem trabalha nelas.
+ */
+export default function Login() {
+  const [aba, setAba] = useState(abaLembrada);
+  const escolher = (a: "apostador" | "painel") => {
+    setAba(a);
+    try {
+      localStorage.setItem(CHAVE_ABA, a);
+    } catch {
+      // sem armazenamento: vale só agora
+    }
+  };
+
+  return (
+    <div className="mx-auto flex min-h-screen max-w-sm flex-col justify-center px-5 py-8">
+      <Link href="/" className="font-display text-2xl font-extrabold">
+        rifa<span className="text-green">.</span>br
+      </Link>
+
+      <div className="mt-5 grid grid-cols-2 gap-1 rounded-lg bg-mist-2 p-1" role="tablist">
+        {(
+          [
+            ["apostador", "Sou apostador"],
+            ["painel", "Painel"],
+          ] as const
+        ).map(([v, rotulo]) => (
+          <button
+            key={v}
+            type="button"
+            role="tab"
+            aria-selected={aba === v}
+            onClick={() => escolher(v)}
+            className={`rounded-md px-3 py-2 text-sm font-semibold ${
+              aba === v ? "bg-white text-ink shadow-sm" : "text-muted"
+            }`}
+          >
+            {rotulo}
+          </button>
+        ))}
+      </div>
+
+      {aba === "apostador" ? <ApostadorForm /> : <PainelForm />}
     </div>
+  );
+}
+
+/** Apostador: telefone, CPF ou e-mail + senha. */
+function ApostadorForm() {
+  const [, navigate] = useLocation();
+  const qc = useQueryClient();
+  const [identificador, setIdentificador] = useState("");
+  const [senha, setSenha] = useState("");
+  const [lembrar, setLembrar] = useState(true);
+  const [verSenha, setVerSenha] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+
+  const entrar = useMutation({
+    mutationFn: () =>
+      apiRequest("POST", "/api/public/conta/entrar", { identificador, senha, lembrar }),
+    onSuccess: async () => {
+      if (lembrar) await oferecerSalvarSenha(identificador.trim(), senha);
+      qc.invalidateQueries();
+      navigate("/minhas-cotas");
+    },
+    onError: (e: Error) => setErro(e.message),
+  });
+
+  return (
+    <>
+      <p className="mt-4 text-sm text-muted">
+        Entre para jogar em qualquer rifa e acompanhar suas cotas.
+      </p>
+      <form
+        className="mt-4 space-y-3"
+        onSubmit={(e) => {
+          e.preventDefault();
+          setErro(null);
+          entrar.mutate();
+        }}
+      >
+        <div>
+          <label htmlFor="identificador" className="label-xs">
+            WhatsApp, CPF ou e-mail
+          </label>
+          <input
+            id="identificador"
+            name="username"
+            autoComplete="username"
+            value={identificador}
+            onChange={(e) => setIdentificador(e.target.value)}
+            className="mt-1 w-full rounded-md border border-line-2 px-3 py-2 text-sm"
+          />
+        </div>
+        <div>
+          <label htmlFor="senha-apostador" className="label-xs">
+            Senha
+          </label>
+          <div className="relative mt-1">
+            <input
+              id="senha-apostador"
+              name="password"
+              type={verSenha ? "text" : "password"}
+              autoComplete="current-password"
+              value={senha}
+              onChange={(e) => setSenha(e.target.value)}
+              className="w-full rounded-md border border-line-2 px-3 py-2 pr-10 text-sm"
+            />
+            <button
+              type="button"
+              onClick={() => setVerSenha(!verSenha)}
+              aria-label={verSenha ? "Esconder senha" : "Mostrar senha"}
+              className="absolute inset-y-0 right-0 flex items-center px-3 text-muted hover:text-ink"
+            >
+              {verSenha ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
+          </div>
+        </div>
+        <label className="flex items-center gap-2 text-sm text-ink-2">
+          <input
+            type="checkbox"
+            checked={lembrar}
+            onChange={(e) => setLembrar(e.target.checked)}
+            className="h-4 w-4 accent-[var(--green)]"
+          />
+          Lembrar de mim neste aparelho
+        </label>
+
+        {erro ? <p className="rounded-md bg-red-soft px-3 py-2 text-sm text-red">{erro}</p> : null}
+
+        <Button type="submit" className="w-full" disabled={entrar.isPending || !identificador || !senha}>
+          {entrar.isPending ? "Entrando…" : "Entrar"}
+        </Button>
+
+        <Link
+          href="/criar-conta"
+          className="block w-full rounded-md border-2 border-green px-3 py-2 text-center text-sm font-semibold text-green-deep hover:bg-green-soft"
+        >
+          Criar conta
+        </Link>
+
+        <div className="space-y-1 pt-2 text-center text-xs text-muted">
+          <p>
+            Esqueceu a senha ou comprou sem conta?{" "}
+            <Link href="/minhas-cotas" className="text-green-deep underline">
+              entre com o código do WhatsApp
+            </Link>
+          </p>
+          <p>
+            Quer ganhar divulgando rifas?{" "}
+            <Link href="/seja-afiliado" className="text-green-deep underline">
+              seja afiliado
+            </Link>
+          </p>
+        </div>
+      </form>
+    </>
   );
 }

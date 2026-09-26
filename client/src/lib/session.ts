@@ -5,7 +5,8 @@ import { apiRequest } from "./queryClient";
 export interface SessionInfo {
   role: Role;
   user: { name: string; email: string } | null;
-  buyer: { phone: string } | null;
+  /** Apostador na sessão: `conta` = entrou numa conta; `confirmado` = telefone provado. */
+  buyer: { phone: string; name: string; conta: boolean; confirmado: boolean } | null;
   sections: Section[];
   home: string;
 }

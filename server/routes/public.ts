@@ -39,6 +39,17 @@ import {
   garantirCodigoCliente,
   mensagemDoComprador,
 } from "../services/chamados";
+import {
+  ContaError,
+  criarConta,
+  compradorDaSessao,
+  dadosDaConta,
+  entrarComoComprador,
+  entrarNaConta,
+  encerrarOutrasSessoes,
+  excluirConta,
+  trocarSenha,
+} from "../services/contaComprador";
 
 export const publicRouter = Router();
 
@@ -262,6 +273,8 @@ publicRouter.post("/orders", async (req, res, next) => {
     const result = await createOrder(input, {
       sessionAffiliateCode: req.session.affiliateCode,
       identity: identify(req),
+      // Dentro da conta, a compra é da conta (ver `CreateOrderContext.contaId`).
+      contaId: req.session.buyer?.id || undefined,
     });
 
     res.status(201).json({
@@ -379,18 +392,20 @@ publicRouter.post("/my-quotas/verify", async (req, res, next) => {
 
     const [buyer] = await db.select().from(buyers).where(eq(buyers.phone, phone));
 
-    // Sessão nova ao entrar, como o passport já faz no painel: um id de
-    // sessão plantado antes do login não pode virar a sessão do comprador.
-    // A indicação do afiliado sobrevive — é dela que sai a comissão.
-    const { affiliateCode, affiliateSince } = req.session;
-    await new Promise<void>((resolve, reject) =>
-      req.session.regenerate((err) => (err ? reject(err) : resolve())),
+    // O código provou o telefone: a conta (se houver) passa a enxergar também
+    // as compras feitas sem entrar. Sessão nova ao entrar — ver
+    // `entrarComoComprador`.
+    await entrarComoComprador(
+      req,
+      buyer ? { id: buyer.id, phone: buyer.phone, name: buyer.name } : { id: "", phone, name: "" },
+      true,
     );
-    req.session.affiliateCode = affiliateCode;
-    req.session.affiliateSince = affiliateSince;
-    req.session.buyer = buyer
-      ? { id: buyer.id, phone: buyer.phone, name: buyer.name }
-      : { id: "", phone, name: "" };
+    // Primeira prova do telefone numa conta que ninguém tinha provado: quem
+    // entrou antes pela senha pode não ser o dono — sai.
+    if (buyer && !buyer.telefoneConfirmadoEm) {
+      await db.update(buyers).set({ telefoneConfirmadoEm: new Date() }).where(eq(buyers.id, buyer.id));
+      if (buyer.passwordHash) await encerrarOutrasSessoes(buyer.id, req.sessionID);
+    }
 
     res.json({
       orders: await ordersByPhone(phone),
@@ -408,14 +423,87 @@ publicRouter.get("/my-quotas", async (req, res, next) => {
     const phone = req.session.buyer?.phone;
     if (!phone) return res.status(401).json({ message: "Confirme seu telefone." });
     const buyerId = req.session.buyer?.id;
+    const confirmado = req.session.buyer?.confirmado === true;
     res.json({
-      orders: await ordersByPhone(phone),
+      orders: await ordersByPhone(phone, confirmado),
+      telefoneConfirmado: confirmado,
       phone,
       cliente: buyerId ? await garantirCodigoCliente(buyerId) : null,
       reembolso: (await getPlataforma()).estornoManual,
     });
   } catch (err) {
     next(err);
+  }
+});
+
+/* ---------------- conta do apostador ---------------- */
+
+// Erro de conta vira status + mensagem; o resto segue para o tratador geral.
+function erroDeConta(err: unknown, res: import("express").Response, next: import("express").NextFunction) {
+  if (err instanceof ContaError) return res.status(err.status).json({ message: err.message });
+  next(err);
+}
+
+publicRouter.post("/conta", async (req, res, next) => {
+  try {
+    const conta = await criarConta(req, {
+      nome: String(req.body?.nome ?? ""),
+      telefone: String(req.body?.telefone ?? ""),
+      cpf: String(req.body?.cpf ?? ""),
+      email: req.body?.email ? String(req.body.email) : undefined,
+      senha: String(req.body?.senha ?? ""),
+      lembrar: req.body?.lembrar === true,
+    });
+    res.status(201).json(await dadosDaConta(conta.id));
+  } catch (err) {
+    erroDeConta(err, res, next);
+  }
+});
+
+publicRouter.post("/conta/entrar", async (req, res, next) => {
+  try {
+    const conta = await entrarNaConta(
+      req,
+      String(req.body?.identificador ?? ""),
+      String(req.body?.senha ?? ""),
+      req.body?.lembrar === true,
+    );
+    res.json(await dadosDaConta(conta.id));
+  } catch (err) {
+    erroDeConta(err, res, next);
+  }
+});
+
+publicRouter.post("/conta/sair", (req, res) => {
+  req.session.buyer = undefined;
+  res.json({ ok: true });
+});
+
+publicRouter.get("/conta", async (req, res, next) => {
+  try {
+    const sessao = compradorDaSessao(req);
+    res.json({ ...(await dadosDaConta(sessao.id)), sessaoConfirmada: sessao.confirmado === true });
+  } catch (err) {
+    erroDeConta(err, res, next);
+  }
+});
+
+publicRouter.put("/conta/senha", async (req, res, next) => {
+  try {
+    await trocarSenha(req, String(req.body?.atual ?? ""), String(req.body?.nova ?? ""));
+    res.json({ ok: true });
+  } catch (err) {
+    erroDeConta(err, res, next);
+  }
+});
+
+/** Exclusão pela LGPD: dados pessoais saem, compras e recibos ficam. */
+publicRouter.post("/conta/excluir", async (req, res, next) => {
+  try {
+    await excluirConta(req, String(req.body?.senha ?? ""));
+    res.json({ ok: true });
+  } catch (err) {
+    erroDeConta(err, res, next);
   }
 });
 

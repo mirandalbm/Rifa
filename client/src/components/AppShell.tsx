@@ -47,9 +47,8 @@ export function PublicShell({ children }: { children: ReactNode }) {
             <Link href="/minhas-cotas" className="text-ink-2 hover:text-green-deep">
               Minhas cotas
             </Link>
-            {/* Quem tem conta — administrador, organizador, afiliado ou
-                cambista — vai para o próprio painel; os demais veem a porta de
-                entrada. O comprador não precisa dela: entra por "Minhas cotas". */}
+            {/* Quem é do painel vai para o painel; o apostador com conta vai
+                para as cotas dele; os demais veem entrar e cadastrar. */}
             {session?.user ? (
               <Link
                 href={session.home}
@@ -57,13 +56,28 @@ export function PublicShell({ children }: { children: ReactNode }) {
               >
                 Meu painel
               </Link>
-            ) : (
+            ) : session?.buyer?.conta ? (
               <Link
-                href="/entrar"
-                className="rounded-md border-2 border-green px-3 py-1 text-xs font-semibold text-green-deep hover:bg-green-soft"
+                href="/minhas-cotas"
+                className="rounded-md bg-green-soft px-3 py-1.5 text-xs font-semibold text-green-deep"
               >
-                Entrar
+                Minha conta
               </Link>
+            ) : (
+              <>
+                <Link
+                  href="/entrar"
+                  className="rounded-md border-2 border-green px-3 py-1 text-xs font-semibold text-green-deep hover:bg-green-soft"
+                >
+                  Entrar
+                </Link>
+                <Link
+                  href="/criar-conta"
+                  className="rounded-md border-2 border-green bg-green px-3 py-1 text-xs font-semibold text-on-green hover:brightness-95"
+                >
+                  Cadastrar
+                </Link>
+              </>
             )}
           </nav>
         </div>

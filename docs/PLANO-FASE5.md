@@ -31,6 +31,8 @@ Legenda: **[decidido]** respondido; **[aberto]** falta resposta;
 - "Criar conta" na tela Entrar e no topo da vitrine; a mesma conta joga em
   todas as rifas de todos os organizadores.
 - Tira "Minhas cotas" e o reembolso da dependência do código do WhatsApp.
+- **Feito:** conta com telefone confirmado só pelo código do WhatsApp; sem
+  confirmar, a conta enxerga apenas o que comprou dentro dela.
 - **[você]** Google: cliente OAuth no Google Cloud.
 
 ### 1.2 Exclusão de conta e dos dados (LGPD) **[decidido]**
@@ -39,7 +41,35 @@ Legenda: **[decidido]** respondido; **[aberto]** falta resposta;
 - Compras, bilhetes, recibos e o que o fisco ou a SPA/MF exigem ficam
   guardados pelo prazo legal, sem ligação com o perfil apagado.
 
-### 1.3 Endereço do organizador e estado da rifa
+### 1.3 De quem é o cliente **[decidido]**
+
+Dois tipos de apostador, com donos diferentes:
+
+- **Cliente da plataforma** — quem se cadastra sozinho: direto no app, pelo
+  link de um afiliado ou por qualquer caminho voluntário. Os dados pessoais
+  (nome completo, telefone, CPF, e-mail) são da plataforma e **não aparecem
+  no controle do organizador**: nas listas ele vê o pedido, as cotas e o
+  valor, com o cliente identificado só pelo ID (`C-XXXXXXXX`).
+- **Cliente do cambista** — quem compra na mão de um cambista, sem conta no
+  app. Para jogar e poder receber o prêmio, ele é **cadastrado pelo
+  cambista** (nome, telefone e CPF obrigatórios). Esse cliente é da
+  organização do cambista e **é o único que aparece com os dados completos
+  no controle do organizador** (pedidos, exportação de compradores,
+  atendimento, ranking).
+
+Como fica no sistema:
+- A visibilidade vale **por venda**: venda feita por cambista mostra o
+  cliente ao organizador; venda online mostra só o ID. A mesma pessoa pode
+  ter as duas — o organizador enxerga só o lado que é dele.
+- **Ganhador cliente da plataforma**: o promotor responde pela entrega do
+  prêmio (Lei 5.768/71), então os dados do ganhador são liberados ao
+  organizador **no momento do sorteio**, só para aquela cota premiada, com
+  registro em auditoria.
+- Reembolso de cliente da plataforma: o atendimento continua na organização,
+  mas com o cliente identificado pelo ID (como já é hoje).
+- O administrador geral vê tudo, como hoje.
+
+### 1.4 Endereço do organizador e estado da rifa
 - CEP, rua, número, bairro, cidade e UF (o CEP preenche o resto).
 - Toda rifa é nacional; a localização só **ordena** (cidade → estado →
   resto) e alimenta o carrossel de estados.
@@ -251,8 +281,9 @@ arquivos grandes demais para o banco.
 |---|---|---|---|
 | ✓ | Dados legais da campanha | 0 | — |
 | 1 | Conta do apostador (senha) e exclusão LGPD | 1.1, 1.2 | — |
+| 1b | De quem é o cliente: dados só da venda do cambista no painel do organizador; ganhador liberado no sorteio | 1.3 | 1 |
 | 2 | Reembolso pela lei do consumidor (7 dias, 10%, corte de 2 h) | 2 | — |
-| 3 | Endereço do organizador e estado da rifa | 1.3 | — |
+| 3 | Endereço do organizador e estado da rifa | 1.4 | — |
 | 4 | Tema claro e escuro | 3.1 | — |
 | 5 | Perfil do organizador: topo, seguir, sino, bio, destaques, grade, menu, rifa dentro do perfil | 4 | 3 |
 | 6 | Notificações no celular (sino) | 6 | 5 |

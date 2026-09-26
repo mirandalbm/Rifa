@@ -112,6 +112,9 @@ async function upsertBuyer(input: CreateOrderInput["buyer"]) {
   if (phone.length < 10) throw new OrderError("Telefone inválido.");
 
   const [existing] = await db.select().from(buyers).where(eq(buyers.phone, phone));
+  // Conta com senha tem dono: compra sem entrar, com o telefone dela, não
+  // renomeia nem troca o CPF de ninguém.
+  if (existing?.passwordHash) return existing;
   if (existing) {
     // O CPF entra quando faltava (o Asaas passou a pedir), mas não troca o
     // que já estava gravado: o CPF do comprador não muda de pedido para pedido.
@@ -191,6 +194,12 @@ export interface CreateOrderContext {
   sellerId?: string;
   /** IP e aparelho já em hash, para o antifraude. */
   identity?: RequestIdentity;
+  /**
+   * Compra feita dentro da conta do apostador: nome, telefone e CPF vêm da
+   * conta (o formulário não troca), e o pedido é da conta mesmo sem o
+   * telefone confirmado (`orders.via_conta`).
+   */
+  contaId?: string;
 }
 
 export class FraudBlockedError extends OrderError {
@@ -210,6 +219,22 @@ export async function createOrder(
     .where(eq(campaigns.id, input.campaignId));
 
   if (!campaign) throw new OrderError("Campanha não encontrada.", 404);
+
+  // Dentro da conta, quem compra é a conta: o formulário não escolhe outro
+  // telefone para jogar a compra no nome de alguém.
+  if (ctx.contaId && !ctx.sellerId) {
+    const [conta] = await db.select().from(buyers).where(eq(buyers.id, ctx.contaId));
+    if (!conta || conta.excluidoEm) throw new OrderError("Entre de novo na sua conta.", 401);
+    input = {
+      ...input,
+      buyer: {
+        ...input.buyer,
+        name: conta.name,
+        phone: conta.phone,
+        cpf: conta.cpf ?? input.buyer.cpf,
+      },
+    };
+  }
   if (campaign.status !== "published") {
     throw new OrderError("Esta rifa não está aberta para compra.", 409);
   }
@@ -324,6 +349,7 @@ export async function createOrder(
           affiliateId: attribution.affiliateId,
           sellerId: ctx.sellerId ?? null,
           method: ctx.sellerId ? "dinheiro" : "pix_online",
+          viaConta: Boolean(ctx.contaId && !ctx.sellerId),
           deviceHash: identity.deviceHash,
           ipHash: identity.ipHash,
           couponId: attribution.couponId,
@@ -819,7 +845,12 @@ export async function orderByCode(code: number) {
 }
 
 /** "Minhas cotas": tudo que um telefone comprou, sem senha. */
-export async function ordersByPhone(phone: string) {
+/**
+ * As compras do telefone. `telefoneConfirmado` falso (conta que entrou pela
+ * senha sem ter provado o telefone) mostra só o que foi comprado dentro da
+ * conta — ver `shared/contaComprador.ts`.
+ */
+export async function ordersByPhone(phone: string, telefoneConfirmado = true) {
   const digits = normalizePhone(phone);
   return db
     .select({
@@ -837,7 +868,11 @@ export async function ordersByPhone(phone: string) {
     .innerJoin(buyers, eq(buyers.id, orders.buyerId))
     .innerJoin(campaigns, eq(campaigns.id, orders.campaignId))
     .leftJoin(quotaAlloc, eq(quotaAlloc.orderId, orders.id))
-    .where(eq(buyers.phone, digits))
+    .where(
+      telefoneConfirmado
+        ? eq(buyers.phone, digits)
+        : and(eq(buyers.phone, digits), eq(orders.viaConta, true)),
+    )
     .groupBy(orders.id, campaigns.title, campaigns.slug, campaigns.totalQuotas, campaigns.status)
     .orderBy(desc(orders.createdAt));
 }

@@ -12,6 +12,7 @@ import Rifa from "@/pages/Rifa";
 import Pedido from "@/pages/Pedido";
 import MinhasCotas from "@/pages/MinhasCotas";
 import Login from "@/pages/Login";
+import CriarConta from "@/pages/CriarConta";
 import CadastroAfiliado from "@/pages/CadastroAfiliado";
 import Bilhete from "@/pages/Bilhete";
 import {
@@ -97,6 +98,7 @@ export default function App() {
           <Route path="/pedido/:code" component={Pedido} />
           <Route path="/minhas-cotas" component={MinhasCotas} />
           <Route path="/entrar" component={Login} />
+          <Route path="/criar-conta" component={CriarConta} />
           <Route path="/seja-afiliado" component={CadastroAfiliado} />
           <Route path="/bilhete/:code" component={Bilhete} />
 

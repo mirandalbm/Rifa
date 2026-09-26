@@ -98,6 +98,7 @@ arquitetura.
 | usuários, senha e arquivamento | `server/routes/admin.ts` (`/usuarios`, `/organizacoes/:id/arquivar`), `shared/senha.ts` |
 | o que falta para vender em produção | `docs/PENDENCIAS.md` — **atualize no mesmo PR** que fechar um item |
 | plano da próxima fase (vitrine, contas, afiliados, marketing) | `docs/PLANO-FASE5.md` |
+| conta do apostador (senha, confirmação, exclusão) | `shared/contaComprador.ts`, `server/services/contaComprador.ts`, `scripts/conta-test.ts` |
 | autorização SPA/MF e data do sorteio | `shared/campanhaLegal.ts`, `salvarDadosLegais()` em `server/services/campaigns.ts`, `client/src/components/DadosLegaisCard.tsx` |
 | app instalável (PWA) | `client/public/sw.js`, `client/public/manifest.webmanifest`, `client/src/lib/pwa.ts` |
 
@@ -412,8 +413,9 @@ Reembolso é a porta preferida de quem quer fraudar: comprar, perder e pedir o
 dinheiro de volta, ou pedir por um pedido que não é seu. Por isso ele não é
 botão, é **chamado** — com dono, prova, conversa e protocolo.
 
-- **Só o comprador logado pede.** A sessão do código pelo WhatsApp decide de
-  quem é o pedido; o número digitado não vale nada. Pedido de outro comprador
+- **Só o comprador logado pede.** A sessão (código do WhatsApp ou conta com
+  senha) decide de quem é o pedido; o número digitado não vale nada. Conta
+  sem telefone confirmado só pede reembolso do que comprou dentro dela. Pedido de outro comprador
   é 404 (`abrirChamado`), e o mesmo vale para ler chamado e print.
 - **Três identidades, conferidas juntas**: telefone (sessão), CPF e o ID do
   cliente (`buyers.codigo`, `C-XXXXXXXX`, sorteado e sem caractere ambíguo).
@@ -445,3 +447,34 @@ botão, é **chamado** — com dono, prova, conversa e protocolo.
   desfaz o chamado; o contador no menu (`/chamados/pendentes`) é o aviso que
   não depende da Meta.
 - `npm run chamados` prova tudo isso contra a API de verdade.
+
+## Conta do apostador — o que não pode afrouxar
+
+O golpe que esta parte existe para barrar: alguém cria conta com o telefone
+de outra pessoa e passa a ver — e pedir reembolso — das compras dela.
+
+- **Telefone só se prova pelo código do WhatsApp** (`telefone_confirmado_em`).
+  Senha prova que a pessoa sabe a senha, não que é dona do número.
+- **Sem telefone confirmado, a conta só enxerga o que comprou dentro dela**
+  (`orders.via_conta`, `pedidoVisivel()`). Vale para "Minhas cotas" e para o
+  chamado de reembolso — as duas portas passam pela mesma regra.
+- **Dentro da conta, quem compra é a conta.** `createOrder` com `contaId` usa
+  nome, telefone e CPF da conta; o formulário não joga a compra no telefone
+  de outro. E compra sem entrar com o telefone de uma conta **não renomeia**
+  ninguém (`upsertBuyer` não mexe em conta com senha).
+- **Comprador antigo virando conta**: o CPF das compras já gravado tem de
+  bater. A troca é um `UPDATE` condicional (`password_hash IS NULL`): dois
+  cadastros ao mesmo tempo, só um vira dono.
+- **CPF e e-mail são únicos só entre contas** (índices parciais): comprador
+  sem conta pode repetir, e a mesma pessoa com dois telefones não trava.
+- **Mesma mensagem para conta inexistente e senha errada**, e o limite de
+  tentativas (`guardLogin`) usa a chave em hash — CPF e telefone não entram
+  crus no registro de fraude.
+- **Troca de senha, primeira prova do telefone e exclusão derrubam as outras
+  sessões** da conta (`encerrarOutrasSessoes`). É assim que o dono de verdade
+  expulsa quem criou a conta com o número dele.
+- **Excluir é anonimizar** (LGPD): nome, telefone, CPF, e-mail e senha saem;
+  o telefone vira `removido:<id>`; as mensagens enviadas perdem o número.
+  Compras, bilhetes e recibos ficam, pelo prazo legal. Com reembolso em
+  andamento, não exclui.
+- `npm run conta` prova tudo isso contra a API de verdade, inclusive o golpe.

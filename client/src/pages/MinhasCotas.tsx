@@ -25,6 +25,8 @@ interface Conta {
   phone: string;
   cliente: string | null;
   reembolso: boolean;
+  /** Falso: conta que entrou pela senha sem provar o telefone — só vê o que comprou nela. */
+  telefoneConfirmado?: boolean;
 }
 
 interface ChamadoResumo {
@@ -55,15 +57,41 @@ export default function MinhasCotas() {
     <PublicShell>
       <h1 className="font-display text-2xl font-extrabold">Minhas cotas</h1>
       <p className="mt-1 text-sm text-muted">
-        Sem senha: confirme seu telefone e veja tudo o que você comprou.
+        Tudo o que você comprou, em qualquer rifa. Entre com a sua conta ou com o código do
+        WhatsApp.
       </p>
-      {restaurando ? null : conta ? <Painel conta={conta} /> : <Entrar aoEntrar={setConta} />}
+      {restaurando ? null : conta ? (
+        <Painel conta={conta} aoMudar={setConta} />
+      ) : (
+        <>
+          <Entrar aoEntrar={setConta} />
+          <p className="mt-3 text-center text-sm text-muted">
+            Tem conta?{" "}
+            <Link href="/entrar" className="text-green-deep underline">
+              entre com a senha
+            </Link>{" "}
+            ·{" "}
+            <Link href="/criar-conta" className="text-green-deep underline">
+              criar conta
+            </Link>
+          </p>
+        </>
+      )}
     </PublicShell>
   );
 }
 
-function Entrar({ aoEntrar }: { aoEntrar: (c: Conta) => void }) {
-  const [phone, setPhone] = useState("");
+function Entrar({
+  aoEntrar,
+  telefoneFixo,
+  rotulo = "Confirmar",
+}: {
+  aoEntrar: (c: Conta) => void;
+  /** Confirmação do telefone da própria conta: o número não se escolhe. */
+  telefoneFixo?: string;
+  rotulo?: string;
+}) {
+  const [phone, setPhone] = useState(telefoneFixo ?? "");
   const [code, setCode] = useState("");
   const [step, setStep] = useState<"phone" | "code">("phone");
   const [devCode, setDevCode] = useState<string | null>(null);
@@ -102,7 +130,7 @@ function Entrar({ aoEntrar }: { aoEntrar: (c: Conta) => void }) {
             id="telefone"
             value={phone}
             inputMode="tel"
-            disabled={step === "code"}
+            disabled={step === "code" || Boolean(telefoneFixo)}
             onChange={(e) => setPhone(e.target.value)}
             className="tnum mt-1 w-full rounded-md border border-line-2 px-3 py-2 text-sm disabled:bg-mist"
           />
@@ -136,16 +164,16 @@ function Entrar({ aoEntrar }: { aoEntrar: (c: Conta) => void }) {
           disabled={request.isPending || verify.isPending}
           onClick={() => (step === "phone" ? request.mutate() : verify.mutate())}
         >
-          {step === "phone" ? "Receber código" : "Confirmar"}
+          {step === "phone" ? "Receber código" : rotulo}
         </Button>
       </div>
     </Card>
   );
 }
 
-function Painel({ conta }: { conta: Conta }) {
+function Painel({ conta, aoMudar }: { conta: Conta; aoMudar: (c: Conta | null) => void }) {
   const qc = useQueryClient();
-  const [aba, setAba] = useState<"cotas" | "chamados">("cotas");
+  const [aba, setAba] = useState<"cotas" | "chamados" | "conta">("cotas");
   const [pedindo, setPedindo] = useState<OrderRow | null>(null);
   const [chamadoAberto, setChamadoAberto] = useState<string | null>(null);
 
@@ -174,6 +202,7 @@ function Painel({ conta }: { conta: Conta }) {
           [
             ["cotas", "Minhas compras"],
             ["chamados", `Reembolsos${chamados.length ? ` (${chamados.length})` : ""}`],
+            ["conta", "Minha conta"],
           ] as const
         ).map(([v, rotulo]) => (
           <button
@@ -196,9 +225,24 @@ function Painel({ conta }: { conta: Conta }) {
         ))}
       </div>
 
-      {aba === "cotas" ? (
+      {conta.telefoneConfirmado === false ? (
+        <div className="mt-3 rounded-md border border-yellow bg-yellow-soft px-3 py-2 text-sm text-yellow-deep">
+          <p className="font-semibold">Confirme seu telefone</p>
+          <p className="text-xs">
+            Aqui aparecem só as compras feitas dentro da conta. Compras feitas antes, só com o
+            WhatsApp, aparecem depois que você confirmar o número pelo código.
+          </p>
+          <div className="mt-2">
+            <Entrar aoEntrar={aoMudar} telefoneFixo={conta.phone} rotulo="Confirmar telefone" />
+          </div>
+        </div>
+      ) : null}
+
+      {aba === "conta" ? (
+        <MinhaConta aoSair={() => aoMudar(null)} />
+      ) : aba === "cotas" ? (
         <>
-          {conta.orders.length === 0 ? <Empty>Nenhuma compra neste telefone.</Empty> : null}
+          {conta.orders.length === 0 ? <Empty>Nenhuma compra ainda.</Empty> : null}
           <div className="mt-3 space-y-3">
             {conta.orders.map((row) => {
               const podePedir =
@@ -487,6 +531,185 @@ function ChamadoDoComprador({ id, voltar }: { id: string; voltar: () => void }) 
           enviando={enviar.isPending}
           enviar={(m) => enviar.mutateAsync(m)}
         />
+      </Card>
+    </div>
+  );
+}
+
+interface DadosConta {
+  nome: string;
+  telefone: string;
+  cpf: string | null;
+  email: string | null;
+  codigo: string | null;
+  temSenha: boolean;
+  telefoneConfirmado: boolean;
+  sessaoConfirmada: boolean;
+}
+
+/** Dados da conta, senha, sair e exclusão (LGPD). */
+function MinhaConta({ aoSair }: { aoSair: () => void }) {
+  const qc = useQueryClient();
+  const { data } = useQuery<DadosConta>({ queryKey: ["/api/public/conta"] });
+  const [atual, setAtual] = useState("");
+  const [nova, setNova] = useState("");
+  const [senhaExcluir, setSenhaExcluir] = useState("");
+  const [confirmaExcluir, setConfirmaExcluir] = useState(false);
+  const [msg, setMsg] = useState<{ ok: boolean; texto: string } | null>(null);
+
+  const sair = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/public/conta/sair"),
+    onSuccess: () => {
+      qc.invalidateQueries();
+      aoSair();
+    },
+  });
+  const trocar = useMutation({
+    mutationFn: () => apiRequest("PUT", "/api/public/conta/senha", { atual, nova }),
+    onSuccess: () => {
+      setAtual("");
+      setNova("");
+      setMsg({ ok: true, texto: "Senha salva." });
+      qc.invalidateQueries({ queryKey: ["/api/public/conta"] });
+    },
+    onError: (e: Error) => setMsg({ ok: false, texto: e.message }),
+  });
+  const excluir = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/public/conta/excluir", { senha: senhaExcluir }),
+    onSuccess: () => {
+      qc.invalidateQueries();
+      aoSair();
+    },
+    onError: (e: Error) => setMsg({ ok: false, texto: e.message }),
+  });
+
+  if (!data) return <Empty>Carregando…</Empty>;
+  const pedeAtual = data.temSenha && !data.sessaoConfirmada;
+
+  return (
+    <div className="mt-3 space-y-3">
+      <Card title="Meus dados">
+        <dl className="grid gap-3 p-4 text-sm sm:grid-cols-2">
+          <div>
+            <dt className="label-xs">Nome</dt>
+            <dd>{data.nome}</dd>
+          </div>
+          <div>
+            <dt className="label-xs">ID de cliente</dt>
+            <dd className="tnum">{data.codigo ?? "—"}</dd>
+          </div>
+          <div>
+            <dt className="label-xs">WhatsApp</dt>
+            <dd className="tnum">
+              {maskPhone(data.telefone)}{" "}
+              <Pill status={data.telefoneConfirmado ? "paid" : "pending"}>
+                {data.telefoneConfirmado ? "confirmado" : "não confirmado"}
+              </Pill>
+            </dd>
+          </div>
+          <div>
+            <dt className="label-xs">CPF</dt>
+            <dd className="tnum">{data.cpf ? maskCpf(data.cpf) : "—"}</dd>
+          </div>
+          <div>
+            <dt className="label-xs">E-mail</dt>
+            <dd>{data.email ?? "—"}</dd>
+          </div>
+        </dl>
+      </Card>
+
+      {msg ? (
+        <p className={`rounded-md px-3 py-2 text-sm ${msg.ok ? "bg-green-soft text-green-deep" : "bg-red-soft text-red"}`}>
+          {msg.texto}
+        </p>
+      ) : null}
+
+      <Card title={data.temSenha ? "Trocar senha" : "Criar senha"}>
+        <form
+          className="space-y-2 p-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            setMsg(null);
+            trocar.mutate();
+          }}
+        >
+          {pedeAtual ? (
+            <div>
+              <label htmlFor="senha-atual" className="label-xs">
+                Senha atual
+              </label>
+              <input
+                id="senha-atual"
+                type="password"
+                autoComplete="current-password"
+                value={atual}
+                onChange={(e) => setAtual(e.target.value)}
+                className="mt-1 w-full rounded-md border border-line-2 px-3 py-2 text-sm"
+              />
+            </div>
+          ) : null}
+          <div>
+            <label htmlFor="senha-nova" className="label-xs">
+              Nova senha (mínimo 8 caracteres)
+            </label>
+            <input
+              id="senha-nova"
+              type="password"
+              autoComplete="new-password"
+              value={nova}
+              onChange={(e) => setNova(e.target.value)}
+              className="mt-1 w-full rounded-md border border-line-2 px-3 py-2 text-sm"
+            />
+          </div>
+          <Button type="submit" disabled={trocar.isPending || nova.length < 8 || (pedeAtual && !atual)}>
+            Salvar senha
+          </Button>
+        </form>
+      </Card>
+
+      <Button variant="ghost" className="w-full" onClick={() => sair.mutate()}>
+        Sair da conta
+      </Button>
+
+      <Card title="Excluir conta">
+        <div className="space-y-2 p-4 text-sm">
+          <p className="text-xs text-muted">
+            Seus dados pessoais (nome, WhatsApp, CPF, e-mail e senha) são apagados. As compras,
+            bilhetes e recibos continuam guardados pelo prazo que a lei exige, sem ligação com você.
+            Cotas de rifas que ainda não foram sorteadas continuam valendo, mas você não conseguirá
+            mais acessá-las por aqui.
+          </p>
+          {confirmaExcluir ? (
+            <>
+              {!data.sessaoConfirmada ? (
+                <input
+                  type="password"
+                  aria-label="Senha para confirmar"
+                  placeholder="sua senha, para confirmar"
+                  value={senhaExcluir}
+                  onChange={(e) => setSenhaExcluir(e.target.value)}
+                  className="w-full rounded-md border border-line-2 px-3 py-2 text-sm"
+                />
+              ) : null}
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => excluir.mutate()}
+                  disabled={excluir.isPending || (!data.sessaoConfirmada && !senhaExcluir)}
+                  className="bg-red hover:brightness-95"
+                >
+                  Excluir definitivamente
+                </Button>
+                <Button variant="ghost" onClick={() => setConfirmaExcluir(false)}>
+                  Cancelar
+                </Button>
+              </div>
+            </>
+          ) : (
+            <button type="button" onClick={() => setConfirmaExcluir(true)} className="text-xs text-red underline">
+              Quero excluir minha conta
+            </button>
+          )}
+        </div>
       </Card>
     </div>
   );

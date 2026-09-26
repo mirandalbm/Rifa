@@ -2,7 +2,7 @@ import { Router } from "express";
 import { eq } from "drizzle-orm";
 import { db } from "../db";
 import { webhookEvents } from "@shared/schema";
-import { paymentProvider } from "../payments";
+import { paymentProviderByName, PROVEDORES_CONHECIDOS } from "../payments";
 import { markOrderPaid, refundByChargeId } from "../services/orders";
 
 export const webhookRouter = Router();
@@ -19,10 +19,12 @@ webhookRouter.post("/:provider", async (req, res) => {
   const raw = Buffer.isBuffer(req.body) ? req.body.toString("utf8") : String(req.body ?? "");
 
   try {
-    const provider = paymentProvider();
-    if (provider.name !== providerName) {
+    // Pelo nome do caminho, não pelo provedor em uso: trocar de provedor no
+    // painel não pode deixar sem confirmação o Pix emitido pelo outro.
+    if (!(PROVEDORES_CONHECIDOS as readonly string[]).includes(providerName)) {
       return res.status(404).json({ message: "Provedor desconhecido." });
     }
+    const provider = paymentProviderByName(providerName);
 
     const event = await provider.verifyWebhook(req.headers as Record<string, unknown>, raw);
 
@@ -41,7 +43,9 @@ webhookRouter.post("/:provider", async (req, res) => {
       return res.json({ ok: true, duplicate: true });
     }
 
-    if (event.event === "paid") {
+    if (event.event === "ignored" || !event.chargeId) {
+      // Nada a fazer; o evento fica gravado para não ser reprocessado.
+    } else if (event.event === "paid") {
       await markOrderPaid(event.chargeId);
     }
 
@@ -49,7 +53,7 @@ webhookRouter.post("/:provider", async (req, res) => {
     // comissão revertida, taxa da plataforma cancelada. Antes disto o evento
     // era gravado e ignorado — a venda sumia do caixa mas a comissão era
     // liberada normalmente pelo relógio, que só olha a carência.
-    if (event.event === "refunded") {
+    if (event.event === "refunded" && event.chargeId) {
       const r = await refundByChargeId(event.chargeId);
       if (r && r.comissaoJaPagaCents > 0) {
         // Comissão já sacada não volta sozinha. Fica no log porque é dinheiro

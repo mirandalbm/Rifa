@@ -31,7 +31,13 @@ import {
 import { platformPctFor, FREE_PLAN } from "@shared/billing";
 import { lancarTaxaDaVenda, planOfOrganization } from "./billing";
 import { normalizePhone } from "@shared/format";
-import { users } from "@shared/schema";
+import { users, organizations } from "@shared/schema";
+import {
+  EXIGE_CPF,
+  comissaoInicial,
+  percentualDoPromotor,
+  type ProvedorPix,
+} from "@shared/plataforma";
 import {
   intArray,
   reserveRandom,
@@ -42,13 +48,13 @@ import {
   enterEndgame,
   releasePaidQuotas,
 } from "./quotas";
-import { paymentProvider } from "../payments";
+import { activePaymentProvider } from "../payments";
 import { getPaymentMethods } from "./settings";
 import { guardOrder, type RequestIdentity } from "./antifraude";
 import { enabledPhysical, labelFor } from "@shared/payments";
 import { notify } from "../notifications";
 import { publicUrl } from "./urls";
-import { formatBRL, formatQuota } from "@shared/format";
+import { formatBRL, formatQuota, cpfValido } from "@shared/format";
 import { isUniqueViolation } from "../pgError";
 
 /** Dias entre o pagamento e a liberação da comissão do afiliado. */
@@ -107,10 +113,13 @@ async function upsertBuyer(input: CreateOrderInput["buyer"]) {
 
   const [existing] = await db.select().from(buyers).where(eq(buyers.phone, phone));
   if (existing) {
-    if (existing.name !== input.name) {
-      await db.update(buyers).set({ name: input.name }).where(eq(buyers.id, existing.id));
+    // O CPF entra quando faltava (o Asaas passou a pedir), mas não troca o
+    // que já estava gravado: o CPF do comprador não muda de pedido para pedido.
+    const cpf = existing.cpf ?? input.cpf ?? null;
+    if (existing.name !== input.name || cpf !== existing.cpf) {
+      await db.update(buyers).set({ name: input.name, cpf }).where(eq(buyers.id, existing.id));
     }
-    return { ...existing, name: input.name };
+    return { ...existing, name: input.name, cpf };
   }
 
   const [created] = await db
@@ -247,6 +256,16 @@ export async function createOrder(
     );
   }
 
+  // O provedor em uso decide se o CPF é obrigatório (o Asaas só cobra
+  // cliente com CPF). Conferido antes de reservar: descobrir na hora do Pix
+  // deixaria cotas presas numa reserva que nunca vai ser paga.
+  const provider = ctx.sellerId ? null : await activePaymentProvider();
+  if (provider && EXIGE_CPF[provider.name as ProvedorPix]) {
+    if (!cpfValido(input.buyer.cpf ?? "")) {
+      throw new OrderError("Informe um CPF válido de quem está comprando: ele é exigido para gerar o Pix.", 400);
+    }
+  }
+
   // O antifraude entra antes de qualquer linha ser escrita: pedido recusado
   // não pode nem criar o comprador.
   const identity = ctx.identity ?? { ipHash: null, deviceHash: null };
@@ -364,14 +383,33 @@ export async function createOrder(
   }
 
   // Fora da transação: chamada externa não pode segurar linhas do banco.
-  const provider = paymentProvider();
-  const charge = await provider.createPixCharge({
+  // Se o provedor recusar (CPF rejeitado, fora do ar), as cotas voltam na
+  // hora em vez de ficarem presas até a reserva vencer.
+  let charge: Awaited<ReturnType<NonNullable<typeof provider>["createPixCharge"]>>;
+  try {
+    charge = await provider!.createPixCharge({
     orderCode: order.code,
     amountCents: order.amountCents,
     description: `${campaign.title} — ${quantity} cota(s)`,
-    payer: { name: buyer.name, phone: buyer.phone, cpf: buyer.cpf ?? undefined },
+    payer: {
+      name: buyer.name,
+      phone: buyer.phone,
+      cpf: buyer.cpf ?? input.buyer.cpf ?? undefined,
+    },
     expiresAt,
-  });
+    split: await splitDaOrganizacao(campaign.organizationId),
+    });
+  } catch (err) {
+    await devolverReserva(order.id).catch((e) =>
+      console.error(`[pedidos] não devolveu a reserva do pedido ${order.code}:`, e),
+    );
+    // O detalhe do provedor vai para o log; o comprador lê o que fazer.
+    console.error(`[pedidos] Pix do pedido ${order.code} recusado:`, (err as Error).message);
+    if ((err as { status?: number }).status === 400) {
+      throw new OrderError((err as Error).message, 400);
+    }
+    throw new OrderError("Não foi possível gerar o Pix agora. Tente de novo em instantes.", 502);
+  }
 
   const [withCharge] = await db
     .update(orders)
@@ -389,6 +427,21 @@ export async function createOrder(
   }
 
   return { order: withCharge, numbers, price };
+}
+
+/**
+ * O split do Asaas: com carteira cadastrada, a parte do promotor (tudo menos
+ * a taxa da plataforma, em percentual sobre o líquido) cai direto na conta da
+ * organização. Sem carteira, nada é dividido na origem.
+ */
+async function splitDaOrganizacao(organizationId: string) {
+  const [org] = await db
+    .select({ walletId: organizations.asaasWalletId })
+    .from(organizations)
+    .where(eq(organizations.id, organizationId));
+  if (!org?.walletId) return undefined;
+  const plano = await planOfOrganization(organizationId);
+  return [{ walletId: org.walletId, percentual: percentualDoPromotor(platformPctFor(plano)) }];
 }
 
 /**
@@ -411,6 +464,13 @@ async function settleOrderAsPaid(order: typeof orders.$inferSelect) {
   const plano = campaign
     ? await planOfOrganization(campaign.organizationId)
     : FREE_PLAN;
+  const [org] = campaign
+    ? await db
+        .select({ liberacao: organizations.liberacaoComissao })
+        .from(organizations)
+        .where(eq(organizations.id, campaign.organizationId))
+    : [];
+  const liberacao = org?.liberacao ?? "apos_sorteio";
 
   const paidAt = new Date();
 
@@ -476,11 +536,12 @@ async function settleOrderAsPaid(order: typeof orders.$inferSelect) {
           campaignId: order.campaignId,
           amountCents: rateio.commissionCents,
           pct: rateio.commissionPct,
-          status: "pending",
-          availableAt: commissionAvailableAt(
+          // Depois do sorteio (padrão, com carência) ou na hora — escolha da
+          // organização. Ver `comissaoInicial()`.
+          ...comissaoInicial(
+            liberacao,
             paidAt,
-            REFUND_WINDOW_DAYS,
-            campaign?.drawAt,
+            commissionAvailableAt(paidAt, REFUND_WINDOW_DAYS, campaign?.drawAt),
           ),
         })
         .onConflictDoNothing();
@@ -609,24 +670,53 @@ export async function cancelSellerSale(params: { code: number; sellerId: string 
     throw new OrderError("Só dá para cancelar venda ainda não paga.", 409);
   }
 
-  await db.transaction(async (tx) => {
+  await devolverReserva(order.id);
+  return { canceled: order.code };
+}
+
+/**
+ * Devolve na hora as cotas de um pedido que não vai ser pago: venda física
+ * cancelada ou Pix que o provedor recusou gerar. Sem isto, os números ficariam
+ * presos até a reserva vencer.
+ *
+ * O pedido é marcado primeiro, num `UPDATE` condicional: se o pagamento
+ * chegou no meio, nada é devolvido. E em endgame o número volta para o
+ * `free_pool` — é a invariante 3 ao contrário; sem isso ele some do estoque.
+ */
+export async function devolverReserva(orderId: string): Promise<number> {
+  return db.transaction(async (tx) => {
+    const [pedido] = await tx
+      .update(orders)
+      .set({ status: "expired" })
+      .where(and(eq(orders.id, orderId), eq(orders.status, "pending")))
+      .returning({ campaignId: orders.campaignId });
+    if (!pedido) return 0;
+
     const devolvidas = await tx
       .delete(quotaAlloc)
-      .where(eq(quotaAlloc.orderId, order.id))
+      .where(and(eq(quotaAlloc.orderId, orderId), eq(quotaAlloc.status, "reserved")))
       .returning({ number: quotaAlloc.number });
+    if (devolvidas.length === 0) return 0;
 
-    await tx
+    const [stats] = await tx
       .update(campaignStats)
       .set({
         reservedCount: sql`greatest(0, ${campaignStats.reservedCount} - ${devolvidas.length})`,
         updatedAt: new Date(),
       })
-      .where(eq(campaignStats.campaignId, order.campaignId));
+      .where(eq(campaignStats.campaignId, pedido.campaignId))
+      .returning({ endgame: campaignStats.endgame });
 
-    await tx.update(orders).set({ status: "expired" }).where(eq(orders.id, order.id));
+    if (stats?.endgame) {
+      await tx.execute(sql`
+        INSERT INTO free_pool (campaign_id, number)
+        SELECT ${pedido.campaignId}::uuid, n
+          FROM unnest(${intArray(devolvidas.map((d) => d.number))}::int[]) AS n
+        ON CONFLICT DO NOTHING
+      `);
+    }
+    return devolvidas.length;
   });
-
-  return { canceled: order.code };
 }
 
 /** Confirmação para o comprador, prêmio revelado e aviso ao afiliado. */

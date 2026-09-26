@@ -4,7 +4,14 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { PublicShell } from "@/components/AppShell";
 import { Money, Progress, Button, Card } from "@/components/bits";
 import { apiRequest } from "@/lib/queryClient";
-import { formatQuota, groupNumber, percent, formatBRL } from "@shared/format";
+import {
+  formatQuota,
+  groupNumber,
+  percent,
+  formatBRL,
+  cpfValido,
+  maskCpf,
+} from "@shared/format";
 import { priceOrder } from "@shared/pricing";
 import { ResponsiveImage } from "@/components/ResponsiveImage";
 
@@ -69,12 +76,18 @@ export default function Rifa() {
   const [search, setSearch] = useState("");
   const [showMap, setShowMap] = useState(false);
   const [playVideo, setPlayVideo] = useState(false);
-  const [buyer, setBuyer] = useState({ name: "", phone: "", coupon: "" });
+  const [buyer, setBuyer] = useState({ name: "", phone: "", coupon: "", cpf: "" });
   const [error, setError] = useState<string | null>(null);
 
   const { data } = useQuery<CampaignDetail>({
     queryKey: [`/api/public/campaigns/${slug}`],
   });
+  // O provedor do Pix em uso decide se o CPF é pedido (o Asaas exige).
+  const { data: checkout } = useQuery<{ exigeCpf: boolean }>({
+    queryKey: ["/api/public/checkout"],
+  });
+  const exigeCpf = checkout?.exigeCpf ?? false;
+  const cpfOk = !exigeCpf || cpfValido(buyer.cpf);
 
   // Primeiro clique de afiliado: registra e guarda por 30 dias na sessão.
   useEffect(() => {
@@ -110,7 +123,11 @@ export default function Rifa() {
         campaignId: data!.campaign.id,
         quantity: picked.length > 0 ? undefined : quantity,
         numbers: picked.length > 0 ? picked : undefined,
-        buyer: { name: buyer.name, phone: buyer.phone },
+        buyer: {
+          name: buyer.name,
+          phone: buyer.phone,
+          ...(exigeCpf ? { cpf: buyer.cpf.replace(/\D/g, "") } : {}),
+        },
         couponCode: buyer.coupon || undefined,
       });
       return (await res.json()) as { code: number };
@@ -474,6 +491,29 @@ export default function Rifa() {
                 className="tnum mt-1 w-full rounded-md border border-line-2 px-3 py-2 text-sm"
               />
             </div>
+            {exigeCpf ? (
+              <div>
+                <label htmlFor="cpf" className="label-xs">
+                  CPF
+                </label>
+                <input
+                  id="cpf"
+                  value={buyer.cpf}
+                  inputMode="numeric"
+                  autoComplete="off"
+                  placeholder="000.000.000-00"
+                  onChange={(e) => setBuyer({ ...buyer, cpf: maskCpf(e.target.value) })}
+                  className="tnum mt-1 w-full rounded-md border border-line-2 px-3 py-2 text-sm"
+                />
+                {buyer.cpf.replace(/\D/g, "").length === 11 && !cpfOk ? (
+                  <p className="mt-1 text-[11px] text-red">CPF inválido. Confira os números.</p>
+                ) : (
+                  <p className="mt-1 text-[11px] text-muted">
+                    Exigido pelo banco para gerar o Pix. Não aparece para ninguém.
+                  </p>
+                )}
+              </div>
+            ) : null}
             <div>
               <label htmlFor="cupom" className="label-xs">
                 Cupom (opcional)
@@ -507,7 +547,9 @@ export default function Rifa() {
             </span>
             <Button
               className="flex-1"
-              disabled={createOrder.isPending || buyer.name.length < 2 || buyer.phone.length < 10}
+              disabled={
+                createOrder.isPending || buyer.name.length < 2 || buyer.phone.length < 10 || !cpfOk
+              }
               onClick={() => {
                 setError(null);
                 createOrder.mutate();

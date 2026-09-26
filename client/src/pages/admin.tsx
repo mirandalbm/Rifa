@@ -2,6 +2,8 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { TrocarSenha } from "@/components/TrocarSenha";
 import { WhatsAppCard } from "@/components/WhatsAppCard";
+import { PagamentosCard } from "@/components/PagamentosCard";
+import { ComissaoCard } from "@/components/ComissaoCard";
 import { PanelShell } from "@/components/AppShell";
 import { Card, Kpi, Money, Pill, Button, Empty, Progress } from "@/components/bits";
 import { apiRequest } from "@/lib/queryClient";
@@ -434,9 +436,49 @@ export function AdminPedidos() {
       campaign: { title: string };
     }[]
   >({ queryKey: ["/api/admin/orders"] });
+  const qc = useQueryClient();
+  // O botão só aparece quando a plataforma ligou o estorno pelo painel.
+  const { data: estorno } = useQuery<{ ligado: boolean }>({
+    queryKey: ["/api/admin/estorno"],
+  });
+  const [aviso, setAviso] = useState<{ ok: boolean; texto: string } | null>(null);
+
+  const estornar = useMutation({
+    mutationFn: async (code: number) =>
+      (await (await apiRequest("POST", `/api/admin/orders/${code}/estornar`)).json()) as {
+        estornado: number;
+        cotasLiberadas: number;
+        cotasCongeladas: boolean;
+        comissaoJaPagaCents: number;
+      },
+    onSuccess: (r) => {
+      const partes = [
+        `Pedido #${r.estornado} estornado no sistema.`,
+        r.cotasCongeladas
+          ? "O sorteio já aconteceu: as cotas ficam no registro da rifa."
+          : `${r.cotasLiberadas} cota(s) voltaram ao estoque.`,
+        r.comissaoJaPagaCents > 0
+          ? `Atenção: ${formatBRL(r.comissaoJaPagaCents)} de comissão já tinham sido pagos.`
+          : "",
+        "Devolva o dinheiro ao comprador pelo Pix ou no caixa.",
+      ];
+      setAviso({ ok: true, texto: partes.filter(Boolean).join(" ") });
+      qc.invalidateQueries({ queryKey: ["/api/admin/orders"] });
+    },
+    onError: (e: Error) => setAviso({ ok: false, texto: e.message }),
+  });
 
   return (
     <PanelShell title="Pedidos">
+      {aviso ? (
+        <p
+          className={`mb-3 rounded-md px-3 py-2 text-sm ${
+            aviso.ok ? "bg-green-soft text-green-deep" : "bg-red-soft text-red"
+          }`}
+        >
+          {aviso.texto}
+        </p>
+      ) : null}
       <Card>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[620px] text-sm">
@@ -465,6 +507,24 @@ export function AdminPedidos() {
                     >
                       bilhete
                     </a>
+                    {estorno?.ligado && row.order.status === "paid" ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (
+                            window.confirm(
+                              `Estornar o pedido #${row.order.code}? As cotas, a comissão e a taxa são desfeitas no sistema. O dinheiro não é devolvido por este botão.`,
+                            )
+                          ) {
+                            estornar.mutate(row.order.code);
+                          }
+                        }}
+                        disabled={estornar.isPending}
+                        className="ml-3 text-xs text-red underline"
+                      >
+                        estornar
+                      </button>
+                    ) : null}
                   </td>
                 </tr>
               ))}
@@ -1246,10 +1306,15 @@ export function AdminConfiguracoes() {
         <TrocarSenha />
       </div>
       {plataforma ? (
-        <div className="mb-3">
+        <div className="mb-3 grid gap-3 lg:grid-cols-2">
+          <PagamentosCard />
           <WhatsAppCard />
         </div>
-      ) : null}
+      ) : (
+        <div className="mb-3">
+          <ComissaoCard />
+        </div>
+      )}
       <Card title="Trilha de auditoria" right={<span className="label-xs">últimas 200 ações</span>}>
         <ul className="divide-y divide-line">
           {data?.map((a) => (

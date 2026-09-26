@@ -64,6 +64,8 @@ import {
   setOrganizer,
   getPaymentMethods,
   setPaymentMethods,
+  getPlataforma,
+  setPlataforma,
 } from "../services/settings";
 import { generateSecret, verifyTotp, otpauthUrl } from "../services/totp";
 import { buildExport, ExportError, toCsvLine } from "../services/exports";
@@ -93,6 +95,12 @@ import {
   OrgScopeError,
 } from "../services/orgs";
 import { isUniqueViolation } from "../pgError";
+import {
+  PROVEDORES_PIX,
+  NOME_PROVEDOR,
+  CREDENCIAIS_PROVEDOR,
+  EXIGE_CPF,
+} from "@shared/plataforma";
 import { estadoWhatsApp, criarModelosFaltantes, enviarTeste } from "../services/whatsappSetup";
 import { senhaInvalida } from "@shared/senha";
 import { EXPORTS, exportInfo, exportFilename, CSV_BOM } from "@shared/exports";
@@ -1114,6 +1122,10 @@ adminRouter.patch("/organizacoes/:id", async (req, res, next) => {
       return res.status(404).json({ message: "Organização não encontrada." });
     }
     if (req.body?.active !== undefined) requirePlatformAdmin(req);
+    // A carteira decide para onde vai o dinheiro das vendas: só a plataforma
+    // cadastra. Organizador trocando a própria carteira seria o caminho mais
+    // curto de uma sessão roubada até o caixa.
+    if (req.body?.asaasWalletId !== undefined) requirePlatformAdmin(req);
 
     const alterada = await updateOrganization(req.params.id, {
       name: req.body?.name,
@@ -1122,6 +1134,8 @@ adminRouter.patch("/organizacoes/:id", async (req, res, next) => {
       cidade: req.body?.cidade,
       observacao: req.body?.observacao,
       active: req.body?.active,
+      asaasWalletId: req.body?.asaasWalletId,
+      liberacaoComissao: req.body?.liberacaoComissao,
     });
     await audit(req, "organizacao.update", "organization", alterada.id, req.body);
     res.json(alterada);
@@ -1222,6 +1236,95 @@ adminRouter.post("/organizacoes/:id/restaurar", async (req, res, next) => {
       name: restaurada.name,
     });
     res.json(restaurada);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/* ---------------- pagamentos e estorno ---------------- */
+
+/**
+ * Provedor do Pix e estorno pelo painel: decisões da plataforma, valem para
+ * todas as organizações.
+ */
+adminRouter.get("/plataforma", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    const config = await getPlataforma();
+    const base = publicUrl("");
+    res.json({
+      ...config,
+      // O que está gerando Pix agora: a escolha do painel ou, sem ela, a
+      // variável do servidor.
+      provedorEmUso: config.provedorPix ?? process.env.PAYMENT_PROVIDER ?? "dev",
+      provedores: PROVEDORES_PIX.map((p) => ({
+        id: p,
+        nome: NOME_PROVEDOR[p],
+        faltando: CREDENCIAIS_PROVEDOR[p].filter((v) => !process.env[v]),
+        exigeCpf: EXIGE_CPF[p],
+        webhook: `${base.replace(/\/$/, "")}/api/webhooks/${p}`,
+      })),
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.put("/plataforma", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    const salva = await setPlataforma({
+      provedorPix: req.body?.provedorPix ?? null,
+      estornoManual: req.body?.estornoManual === true,
+    });
+    await audit(req, "plataforma.update", "settings", "plataforma", salva);
+    res.json(salva);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** A tela de pedidos mostra o botão de estorno só quando está ligado. */
+adminRouter.get("/estorno", async (_req, res, next) => {
+  try {
+    res.json({ ligado: (await getPlataforma()).estornoManual });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** A escolha do organizador: comissão na hora ou depois do sorteio. */
+adminRouter.get("/comissao", async (req, res, next) => {
+  try {
+    const org = orgOf(req);
+    if (!org) {
+      return res.json({ liberacaoComissao: null, porOrganizacao: true });
+    }
+    const [linha] = await db
+      .select({ liberacaoComissao: organizations.liberacaoComissao })
+      .from(organizations)
+      .where(eq(organizations.id, org));
+    res.json({ liberacaoComissao: linha?.liberacaoComissao ?? "apos_sorteio", porOrganizacao: false });
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.put("/comissao", async (req, res, next) => {
+  try {
+    const org = orgOf(req);
+    if (!org) {
+      return res
+        .status(400)
+        .json({ message: "Escolha por organização, na tela de Organizações." });
+    }
+    const alterada = await updateOrganization(org, {
+      liberacaoComissao: String(req.body?.liberacaoComissao ?? ""),
+    });
+    await audit(req, "organizacao.comissao", "organization", org, {
+      liberacaoComissao: alterada.liberacaoComissao,
+    });
+    res.json({ liberacaoComissao: alterada.liberacaoComissao });
   } catch (err) {
     next(err);
   }
@@ -1395,6 +1498,13 @@ adminRouter.patch("/usuarios/:id", async (req, res, next) => {
  */
 adminRouter.post("/orders/:code/estornar", async (req, res, next) => {
   try {
+    // Numa rifa a compra é participação e não se desfaz: o estorno pelo
+    // painel só existe quando a plataforma liga, para caso excepcional.
+    if (!(await getPlataforma()).estornoManual) {
+      return res.status(403).json({
+        message: "O estorno está desligado nas configurações da plataforma.",
+      });
+    }
     const [pedido] = await db
       .select({ id: orders.id, campaignId: orders.campaignId })
       .from(orders)

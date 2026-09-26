@@ -27,6 +27,8 @@ import { buildTicket, escPosTicket, markTicketPrinted } from "../services/ticket
 import { getPaymentMethods } from "../services/settings";
 import { identify, guardOtp, guardOtpVerify, lookupBlocked, recordLookupMiss } from "../services/antifraude";
 import { paymentSummary } from "@shared/payments";
+import { activePaymentProvider } from "../payments";
+import { EXIGE_CPF, type ProvedorPix } from "@shared/plataforma";
 
 export const publicRouter = Router();
 
@@ -209,6 +211,19 @@ publicRouter.post("/track-click", async (req, res, next) => {
 });
 
 /* ---------------- pedido ---------------- */
+
+/**
+ * O que a tela de compra precisa saber antes de montar o formulário. Hoje, só
+ * se o CPF é obrigatório — depende do provedor do Pix em uso.
+ */
+publicRouter.get("/checkout", async (_req, res, next) => {
+  try {
+    const provider = await activePaymentProvider();
+    res.json({ exigeCpf: EXIGE_CPF[provider.name as ProvedorPix] ?? false });
+  } catch (err) {
+    next(err);
+  }
+});
 
 publicRouter.post("/orders", async (req, res, next) => {
   try {

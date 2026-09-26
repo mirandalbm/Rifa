@@ -352,7 +352,14 @@ export async function releasePaidQuotas(
  * Devolve ao estoque as reservas vencidas. Apagar a linha é o que torna o
  * número disponível de novo — não existe status "available".
  */
-export async function releaseExpired(now = new Date()): Promise<number> {
+export interface Expiradas {
+  /** Cotas devolvidas ao estoque. */
+  liberadas: number;
+  /** Cobranças dos pedidos que expiraram, para cancelar no provedor. */
+  cobrancas: { provider: string; chargeId: string }[];
+}
+
+export async function releaseExpired(now = new Date()): Promise<Expiradas> {
   return db.transaction(async (tx) => {
     const expired = await tx
       .delete(quotaAlloc)
@@ -363,7 +370,7 @@ export async function releaseExpired(now = new Date()): Promise<number> {
         orderId: quotaAlloc.orderId,
       });
 
-    if (expired.length === 0) return 0;
+    if (expired.length === 0) return { liberadas: 0, cobrancas: [] };
 
     const byCampaign = new Map<string, number[]>();
     for (const row of expired) {
@@ -396,12 +403,18 @@ export async function releaseExpired(now = new Date()): Promise<number> {
     }
 
     const orderIds = [...new Set(expired.map((e) => e.orderId))];
-    await tx
+    const vencidos = await tx
       .update(orders)
       .set({ status: "expired" })
-      .where(and(inArray(orders.id, orderIds), eq(orders.status, "pending")));
+      .where(and(inArray(orders.id, orderIds), eq(orders.status, "pending")))
+      .returning({ provider: orders.pspProvider, chargeId: orders.pspChargeId });
 
-    return expired.length;
+    return {
+      liberadas: expired.length,
+      cobrancas: vencidos.flatMap((v) =>
+        v.provider && v.chargeId ? [{ provider: v.provider, chargeId: v.chargeId }] : [],
+      ),
+    };
   });
 }
 

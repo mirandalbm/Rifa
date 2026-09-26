@@ -119,6 +119,9 @@ export const sessions = pgTable(
  * cota, comissão, sorteio e acerto penduram numa campanha ou num afiliado, e
  * os dois têm dono.
  */
+/** Quando a comissão do divulgador fica disponível. Ver `shared/plataforma.ts`. */
+export const commissionRelease = pgEnum("commission_release", ["apos_sorteio", "imediata"]);
+
 export const organizations = pgTable(
   "organizations",
   {
@@ -149,6 +152,17 @@ export const organizations = pgTable(
      * organizações esconde por padrão e mostra no filtro "arquivadas".
      */
     archivedAt: timestamp("archived_at"),
+    /**
+     * Carteira da organização no Asaas. Com ela, a parte do promotor cai
+     * direto na conta dele no momento do pagamento (split); sem ela, tudo
+     * entra na conta da plataforma, como no Mercado Pago.
+     */
+    asaasWalletId: text("asaas_wallet_id"),
+    /**
+     * Comissão do divulgador: depois do sorteio (padrão, com carência) ou na
+     * hora do pagamento. Escolha da organização.
+     */
+    liberacaoComissao: commissionRelease("liberacao_comissao").notNull().default("apos_sorteio"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (t) => [uniqueIndex("uq_organizations_slug").on(t.slug)],

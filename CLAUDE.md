@@ -28,8 +28,12 @@ arquitetura.
    não vale como prova de pagamento.
 7. **O total de cotas trava ao publicar.** `assertEditable()` em
    `services/campaigns.ts`. Mudar depois alteraria a chance de quem já comprou.
-8. **Comissão tem carência.** Nasce `pending`, vira `available` só depois da
-   janela de estorno e do sorteio. Autoindicação é bloqueada por telefone.
+8. **Comissão tem carência — salvo quando a organização escolhe o contrário.**
+   O padrão (`apos_sorteio`) nasce `pending` e vira `available` só depois da
+   janela de estorno e do sorteio. A organização pode escolher `imediata`
+   (`organizations.liberacao_comissao`, via `comissaoInicial()`); aí o risco
+   de estorno depois do saque é dela, e aparece em `comissaoJaPagaCents`.
+   Autoindicação é bloqueada por telefone em qualquer modo.
 9. **A autorização SPA/MF é da campanha.** Sem `authorizationCode` a campanha
    não publica. A plataforma não é homologada em bloco — a Lei 5.768/71
    autoriza o promotor.
@@ -67,7 +71,7 @@ arquitetura.
 | mudar quem acessa o quê | `shared/access.ts` (cliente e servidor leem daqui) |
 | mexer em reserva/alocação | `server/services/quotas.ts` |
 | mexer no fluxo do pedido | `server/services/orders.ts` |
-| trocar o provedor de pagamento | `server/payments/` — implemente `PaymentProvider` |
+| trocar o provedor de pagamento | `server/payments/` — implemente `PaymentProvider`; a escolha é do painel (`shared/plataforma.ts`) |
 | regras de publicação e mídia | `server/services/campaigns.ts`, `server/routes/admin.ts` |
 | sorteio | `server/services/draw.ts` |
 | segundo fator | `server/services/totp.ts` |
@@ -304,6 +308,30 @@ tem atrás.
   como livre. Sem rede, a API falha e a tela diz isso.
 - Mudou a casca (`sw.js`)? Troque `VERSAO` lá dentro, senão o celular segue
   com a antiga.
+
+## Provedor do Pix e estorno — o que não pode afrouxar
+
+- **Duas funções, dois papéis.** `activePaymentProvider()` escolhe quem gera
+  o Pix das vendas novas (escolha do painel, ou `PAYMENT_PROVIDER`);
+  `paymentProviderByName()` atende webhook e estorno pelo nome gravado no
+  pedido. Usar o provedor "em uso" no webhook deixaria órfão o Pix emitido
+  antes da troca.
+- **Asaas: o status vem da API, não do corpo** — igual ao Mercado Pago. O
+  token do cabeçalho `asaas-access-token` só prova a origem.
+- **Split em percentual sobre o líquido**, nunca valor fixo: o Asaas desconta
+  a tarifa antes de dividir, e um fixo igual ao "bruto menos a taxa"
+  estouraria o líquido. A comissão **não** vai no split.
+- **CPF é conferido antes de reservar.** Descobrir no Pix deixaria cotas
+  presas. E se o provedor recusar a cobrança, `devolverReserva()` devolve os
+  números na hora — inclusive para o `free_pool` em endgame.
+- **O QR do Asaas vale até o fim do dia.** Reserva vencida cancela a cobrança
+  (`cancelCharge`, no relógio de expiração); senão o comprador pagaria uma
+  reserva já devolvida.
+- **Estorno pelo painel nasce desligado** (`estornoManual`). Desligado barra
+  só o botão: estorno avisado pelo provedor (contestação, Pix devolvido) é
+  registrado sempre — o dinheiro já saiu.
+- **Carteira do Asaas só a plataforma cadastra.** Trocar a carteira é trocar
+  para onde vai o dinheiro das vendas.
 
 ## Rateio e cobrança — o que não pode afrouxar
 

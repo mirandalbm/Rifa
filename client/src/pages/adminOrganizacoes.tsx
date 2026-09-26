@@ -5,6 +5,12 @@ import { PanelShell } from "@/components/AppShell";
 import { Card, Button, Pill, Empty } from "@/components/bits";
 import { apiRequest } from "@/lib/queryClient";
 import { MIN_SENHA, senhaInvalida } from "@shared/senha";
+import {
+  LIBERACAO_COMISSAO,
+  NOME_LIBERACAO,
+  carteiraAsaasValida,
+  type LiberacaoComissao,
+} from "@shared/plataforma";
 
 interface Organizacao {
   id: string;
@@ -18,6 +24,8 @@ interface Organizacao {
   active: boolean;
   archivedAt: string | null;
   createdAt: string;
+  asaasWalletId: string | null;
+  liberacaoComissao: LiberacaoComissao;
   campanhas: number;
   pessoas: number;
 }
@@ -443,7 +451,7 @@ function LinhaOrganizacao({
           )}
         </td>
         <td className="px-4 py-3 text-right">
-          <div className="flex justify-end gap-2 whitespace-nowrap">{acoes}</div>
+          <div className="flex flex-wrap justify-end gap-2">{acoes}</div>
         </td>
       </tr>
       {aberta ? (
@@ -472,6 +480,7 @@ function LinhaOrganizacao({
             >
               ver as pessoas desta organização
             </Link>
+            {o.archivedAt ? null : <PagamentoDaOrganizacao o={o} />}
           </td>
         </tr>
       ) : null}
@@ -484,6 +493,86 @@ function Dado({ rotulo, valor, tnum = false }: { rotulo: string; valor: string |
     <div>
       <dt className="label-xs">{rotulo}</dt>
       <dd className={tnum ? "tnum" : ""}>{valor || <span className="text-muted">—</span>}</dd>
+    </div>
+  );
+}
+
+/**
+ * Para onde vai o dinheiro da organização e quando a comissão dela libera.
+ * A carteira só a plataforma cadastra (a rota confere); a liberação o próprio
+ * organizador também escolhe, em Configurações.
+ */
+function PagamentoDaOrganizacao({ o }: { o: Organizacao }) {
+  const qc = useQueryClient();
+  const [carteira, setCarteira] = useState(o.asaasWalletId ?? "");
+  const [liberacao, setLiberacao] = useState<LiberacaoComissao>(o.liberacaoComissao);
+  const [msg, setMsg] = useState<{ ok: boolean; texto: string } | null>(null);
+
+  const carteiraOk = carteira.trim() === "" || carteiraAsaasValida(carteira);
+  const salvar = useMutation({
+    mutationFn: () =>
+      apiRequest("PATCH", `/api/admin/organizacoes/${o.id}`, {
+        asaasWalletId: carteira.trim() || null,
+        liberacaoComissao: liberacao,
+      }),
+    onSuccess: () => {
+      setMsg({ ok: true, texto: "Salvo. Vale para as próximas vendas." });
+      qc.invalidateQueries({ queryKey: ["/api/admin/organizacoes"] });
+    },
+    onError: (e: Error) => setMsg({ ok: false, texto: e.message }),
+  });
+
+  return (
+    <div className="mt-4 grid gap-3 border-t border-line pt-3 sm:grid-cols-2">
+      <div>
+        <label htmlFor={`carteira-${o.id}`} className="label-xs">
+          Carteira Asaas (walletId)
+        </label>
+        <input
+          id={`carteira-${o.id}`}
+          value={carteira}
+          onChange={(e) => {
+            setMsg(null);
+            setCarteira(e.target.value);
+          }}
+          placeholder="00000000-0000-0000-0000-000000000000"
+          autoComplete="off"
+          className="tnum mt-1 w-full rounded-md border border-line-2 bg-white px-3 py-2 text-sm"
+        />
+        <p className={`mt-1 text-[11px] ${carteiraOk ? "text-muted" : "text-red"}`}>
+          {carteiraOk
+            ? "Com a carteira, a parte do promotor cai direto na conta dele quando o Asaas estiver em uso. Vazio: tudo entra na conta da plataforma."
+            : "Formato inválido: o walletId tem 36 caracteres, com hífens."}
+        </p>
+      </div>
+      <div>
+        <label htmlFor={`liberacao-${o.id}`} className="label-xs">
+          Comissão dos divulgadores
+        </label>
+        <select
+          id={`liberacao-${o.id}`}
+          value={liberacao}
+          onChange={(e) => {
+            setMsg(null);
+            setLiberacao(e.target.value as LiberacaoComissao);
+          }}
+          className="mt-1 block w-full rounded-md border border-line-2 bg-white px-3 py-2 text-sm"
+        >
+          {LIBERACAO_COMISSAO.map((m) => (
+            <option key={m} value={m}>
+              {NOME_LIBERACAO[m]}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div className="flex items-center gap-3 sm:col-span-2">
+        <Button onClick={() => salvar.mutate()} disabled={!carteiraOk || salvar.isPending}>
+          Salvar pagamento
+        </Button>
+        {msg ? (
+          <span className={`text-xs ${msg.ok ? "text-green-deep" : "text-red"}`}>{msg.texto}</span>
+        ) : null}
+      </div>
     </div>
   );
 }

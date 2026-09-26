@@ -159,6 +159,7 @@ async function alcancaOVizinho(eu: Lado, vizinho: Lado) {
     ["PATCH organização", `/api/admin/organizacoes/${vizinho.orgId}`, { method: "PATCH", body: '{"name":"tomada"}' }],
     ["GET extrato de cobrança do vizinho", `/api/admin/cobranca/extrato?organizacao=${vizinho.orgId}`, {}],
     ["POST redefinir senha do vizinho", `/api/admin/usuarios/${vizinho.userId}/senha`, { method: "POST", body: '{"password":"tomada-da-conta"}' }],
+    ["PATCH comissão do vizinho", `/api/admin/organizacoes/${vizinho.orgId}`, { method: "PATCH", body: '{"liberacaoComissao":"imediata"}' }],
     ["PATCH desligar o vizinho", `/api/admin/usuarios/${vizinho.userId}`, { method: "PATCH", body: '{"active":false}' }],
   ];
 
@@ -181,6 +182,9 @@ async function rotasDaPlataforma(eu: Lado) {
     ["POST lançar mensalidades", "/api/admin/cobranca/mensalidades", { method: "POST" }],
     ["POST arquivar organização", `/api/admin/organizacoes/${eu.orgId}/arquivar`, { method: "POST", body: "{}" }],
     ["POST restaurar organização", `/api/admin/organizacoes/${eu.orgId}/restaurar`, { method: "POST" }],
+    ["GET pagamentos da plataforma", "/api/admin/plataforma", {}],
+    ["PUT pagamentos da plataforma", "/api/admin/plataforma", { method: "PUT", body: '{"estornoManual":true}' }],
+    ["PATCH a própria carteira Asaas", `/api/admin/organizacoes/${eu.orgId}`, { method: "PATCH", body: '{"asaasWalletId":"7bafd95a-e783-4a62-9be1-23999af742c6"}' }],
     ["GET WhatsApp", "/api/admin/whatsapp", {}],
     ["POST criar modelos do WhatsApp", "/api/admin/whatsapp/modelos", { method: "POST" }],
     ["POST teste do WhatsApp", "/api/admin/whatsapp/teste", { method: "POST", body: '{"telefone":"11999999999"}' }],

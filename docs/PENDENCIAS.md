@@ -3,7 +3,7 @@
 Lista viva do que falta para a rifa vender em produção. Atualizada a cada
 etapa — quem fechar um item marca aqui no mesmo PR.
 
-Última atualização: 26/09/2026.
+Última atualização: 26/09/2026 (Asaas, comissão e estorno).
 
 Legenda: **[você]** depende do responsável pela conta (cadastro, documento,
 senha); **[código]** é trabalho no repositório.
@@ -29,8 +29,19 @@ senha); **[código]** é trabalho no repositório.
 
 ## 2. Para a rifa vender
 
-- [ ] **[você]** Mercado Pago: conta de vendedor e credenciais de produção
-  (sem isso, não há Pix).
+- [ ] **[você]** Pagamento: escolher **Mercado Pago** ou **Asaas** (os dois
+  estão prontos no sistema; a escolha é em Configurações → Pagamentos e
+  estorno). Antes de decidir, confirmar por escrito com o provedor que ele
+  aceita **promoção comercial com autorização SPA/MF**.
+  - Mercado Pago: `MP_ACCESS_TOKEN` e `MP_WEBHOOK_SECRET` no Railway.
+  - Asaas: `ASAAS_API_KEY` e `ASAAS_WEBHOOK_TOKEN` no Railway; cadastrar o
+    webhook `/api/webhooks/asaas` no painel do Asaas; cadastrar a carteira
+    (walletId) de cada organização em Organizações para o split.
+- [x] Asaas integrado ao lado do Mercado Pago: split para a carteira do
+  promotor, CPF no checkout, cancelamento da cobrança de reserva vencida.
+- [x] Comissão: cada organização escolhe "depois do sorteio" ou "na hora".
+- [x] Estorno pelo painel: opção que o administrador geral liga (nasce
+  desligada) e botão "estornar" em Pedidos.
 - [ ] **[você]** Cloudflare R2: criar o bucket e gerar as chaves (sem isso,
   não sobe banner nem foto de rifa).
 - [ ] **[você]** Domínio próprio apontado para o Railway.
@@ -67,6 +78,10 @@ senha); **[código]** é trabalho no repositório.
 - [ ] **[código]** Pôster e transcode dos vídeos das rifas (Cloudflare Stream
   resolve os dois).
 - [ ] **[código]** Revisão completa das telas, com prints, para ajustes de uso.
+- [ ] **[código]** Cobrança com Asaas: nas vendas com split, a taxa da
+  plataforma já fica retida na origem, mas a tela de Cobrança ainda a lista
+  como devida pela organização. Até marcar essas taxas como "recebidas no
+  split", **não cobre de novo** a taxa de organização com carteira Asaas.
 
 ## Feito
 

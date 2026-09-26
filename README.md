@@ -88,9 +88,12 @@ O seed imprime as credenciais no fim:
 |---|---|---|
 | `DATABASE_URL` | sim | — |
 | `SESSION_SECRET` | em produção | valor de desenvolvimento |
-| `PAYMENT_PROVIDER` | não | `dev` (use `mercadopago` em produção) |
+| `PAYMENT_PROVIDER` | não | `dev` (em produção, `mercadopago` ou `asaas`; o painel pode escolher por cima) |
 | `MP_ACCESS_TOKEN` | com Mercado Pago | — |
 | `MP_WEBHOOK_SECRET` | com Mercado Pago | — |
+| `ASAAS_API_KEY` | com Asaas | — (chave da conta da plataforma) |
+| `ASAAS_WEBHOOK_TOKEN` | com Asaas | — (o mesmo token cadastrado no webhook do Asaas) |
+| `ASAAS_SANDBOX` | não | `1` para usar o ambiente de testes do Asaas |
 | `REFUND_WINDOW_DAYS` | não | `7` |
 | `R2_BUCKET` | em produção | sem ela, o armazenamento é o disco local |
 | `R2_ACCOUNT_ID` | com R2 | — |
@@ -138,6 +141,7 @@ enche de `relation "quota_alloc" does not exist`.
    | `PUBLIC_BASE_URL` | o endereço público, ex.: `https://rifa.exemplo.com.br` |
    | `PAYMENT_PROVIDER` | `mercadopago` |
    | `MP_ACCESS_TOKEN`, `MP_WEBHOOK_SECRET` | do painel do Mercado Pago |
+   | `ASAAS_API_KEY`, `ASAAS_WEBHOOK_TOKEN` | do painel do Asaas, se for usar o Asaas |
    | `R2_ACCOUNT_ID`, `R2_BUCKET`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_PUBLIC_URL` | do Cloudflare R2 |
    | `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_ID`, `WHATSAPP_WABA_ID` | da API do WhatsApp (Meta) |
 
@@ -254,6 +258,33 @@ Meta vence em 24 horas; em produção use o de um usuário do sistema.
 Sem `WHATSAPP_TOKEN`, o provedor é o console: a mensagem aparece no terminal
 e o código de acesso volta na resposta, para o fluxo rodar sem conta no
 WhatsApp Business.
+
+### Mercado Pago ou Asaas
+
+Os dois ficam instalados; o administrador geral escolhe em **Configurações →
+Pagamentos e estorno** quem gera o Pix das vendas novas (o painel só deixa
+escolher quem tem credencial no Railway). O Pix já emitido continua sendo
+confirmado pelo provedor que o criou — cada um tem o próprio webhook:
+`/api/webhooks/mercadopago` e `/api/webhooks/asaas`.
+
+- **Mercado Pago:** tudo entra na conta da plataforma; o rateio fica no
+  controle do painel.
+- **Asaas:** com a carteira (walletId) da organização cadastrada em
+  **Organizações**, a parte do promotor cai direto na conta dele no momento
+  do pagamento (split, em percentual sobre o líquido). O Asaas exige CPF, e o
+  checkout passa a pedir. A comissão do divulgador não vai no split: segue
+  pelo saldo do painel.
+
+### Comissão e estorno
+
+- **Comissão:** cada organização escolhe (em Configurações, ou o
+  administrador geral em Organizações) se a comissão fica disponível
+  **depois do sorteio** (padrão, com carência) ou **na hora do pagamento**.
+- **Estorno pelo painel:** desligado por padrão — numa rifa, compra é
+  participação. O administrador geral pode ligar para caso excepcional; aí
+  aparece o botão "estornar" em Pedidos. O botão desfaz cotas, comissão e
+  taxa no sistema; a devolução do dinheiro é feita no Pix ou no caixa.
+  Estorno avisado pelo próprio provedor é registrado mesmo desligado.
 
 ### As cotas premiadas
 

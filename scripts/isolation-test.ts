@@ -246,12 +246,48 @@ async function alcancaOVizinho(eu: Lado, vizinho: Lado) {
     ["POST estornar pelo chamado do vizinho", `/api/admin/chamados/${vizinho.chamadoId}/estornar`, { method: "POST" }],
     ["PATCH prazo de reembolso do vizinho", `/api/admin/organizacoes/${vizinho.orgId}`, { method: "PATCH", body: '{"prazoEstornoDias":30}' }],
     ["PATCH desligar o vizinho", `/api/admin/usuarios/${vizinho.userId}`, { method: "PATCH", body: '{"active":false}' }],
+    // Corpo válido de propósito: um 400 de validação esconderia a falta do recorte.
+    ["PUT endereço do vizinho", `/api/admin/organizacoes/${vizinho.orgId}/endereco`, { method: "PUT", body: ENDERECO_VALIDO }],
   ];
 
   for (const [nome, caminho, init] of tentativas) {
     const res = await pedir(eu.cookie, caminho, init);
     checa(nome, res.status === 404, `HTTP ${res.status}`);
   }
+}
+
+const ENDERECO_VALIDO = JSON.stringify({
+  cep: "69005-010",
+  logradouro: "Rua Invadida",
+  numero: "1",
+  bairro: "Centro",
+  cidade: "Manaus",
+  uf: "AM",
+});
+
+/**
+ * O endereço ordena a vitrine: o organizador grava o dele, e o do vizinho
+ * não muda — nem com a rota certa e o id errado.
+ */
+async function enderecoProprio(eu: Lado, vizinho: Lado) {
+  const antes = await db
+    .select({ cidade: organizations.cidade })
+    .from(organizations)
+    .where(eq(organizations.id, vizinho.orgId));
+  const res = await pedir(eu.cookie, `/api/admin/organizacoes/${eu.orgId}/endereco`, {
+    method: "PUT",
+    body: JSON.stringify({ ...JSON.parse(ENDERECO_VALIDO), cidade: "Belém", uf: "PA", cep: "66010-000" }),
+  });
+  checa("grava o próprio endereço", res.status === 200, `HTTP ${res.status}`);
+  const depois = await db
+    .select({ cidade: organizations.cidade })
+    .from(organizations)
+    .where(eq(organizations.id, vizinho.orgId));
+  checa(
+    "o endereço do vizinho ficou como estava",
+    antes[0]?.cidade === depois[0]?.cidade && depois[0]?.cidade !== "Manaus",
+    String(depois[0]?.cidade),
+  );
 }
 
 /** Estas existem, mas não são do organizador: 403. */
@@ -462,6 +498,9 @@ async function main() {
   try {
     console.log("  o organizador do norte alcançando o sul (espera 404):");
     await alcancaOVizinho(norte, sul);
+
+    console.log("\n  endereço da organização:");
+    await enderecoProprio(norte, sul);
 
     console.log("\n  rotas da plataforma (espera 403):");
     await rotasDaPlataforma(norte);

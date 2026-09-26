@@ -12,6 +12,8 @@ import { useSession } from "@/lib/session";
 import { MediaManager } from "@/components/MediaManager";
 import { CampaignExtras } from "@/components/CampaignExtras";
 import { DadosLegaisCard } from "@/components/DadosLegaisCard";
+import { EnderecoForm, type EnderecoParcial } from "@/components/EnderecoForm";
+import type { Endereco } from "@shared/endereco";
 import { formatBRL, groupNumber, formatQuota, maskPhone } from "@shared/format";
 import { MAX_QUOTAS, MIN_QUOTAS } from "@shared/schema";
 import {
@@ -1191,7 +1193,11 @@ function OrganizerCard() {
     contato?: string;
     cidade?: string;
     observacao?: string;
+    /** Só para quem entra por uma organização: o endereço é dela. */
+    organizacaoId?: string;
+    endereco?: Endereco | null;
   }>({ queryKey: ["/api/admin/organizer"] });
+  const daOrganizacao = Boolean(data?.organizacaoId);
 
   const [form, setForm] = useState<Record<string, string>>({});
   const [erro, setErro] = useState<string | null>(null);
@@ -1203,7 +1209,8 @@ function OrganizerCard() {
         nome: valor("nome"),
         cnpj: valor("cnpj"),
         contato: valor("contato"),
-        cidade: valor("cidade"),
+        // Na organização, a cidade vem do endereço (card ao lado).
+        cidade: daOrganizacao ? undefined : valor("cidade"),
         observacao: valor("observacao"),
       }),
     onSuccess: () => {
@@ -1227,7 +1234,9 @@ function OrganizerCard() {
             ["contato", "Contato"],
             ["observacao", "Observação do rodapé"],
           ] as const
-        ).map(([campo, rotulo]) => (
+        )
+          .filter(([campo]) => !(daOrganizacao && campo === "cidade"))
+          .map(([campo, rotulo]) => (
           <div key={campo}>
             <label htmlFor={`org-${campo}`} className="label-xs">{rotulo}</label>
             <input
@@ -1247,6 +1256,40 @@ function OrganizerCard() {
   );
 }
 
+/**
+ * Endereço da organização: a cidade sai no bilhete, e cidade e estado põem
+ * as rifas dela na frente de quem está perto.
+ */
+function EnderecoDaOrganizacaoCard() {
+  const qc = useQueryClient();
+  const { data } = useQuery<{
+    organizacaoId?: string;
+    endereco?: Endereco | null;
+    enderecoParcial?: EnderecoParcial;
+  }>({
+    queryKey: ["/api/admin/organizer"],
+  });
+  if (!data?.organizacaoId) return null;
+  return (
+    <Card
+      title="Endereço da organização"
+      right={data.endereco ? null : <Pill status="pending">falta cadastrar</Pill>}
+    >
+      <div className="space-y-3 p-4">
+        <p className="text-xs text-muted">
+          A cidade sai no bilhete. Na vitrine, suas rifas aparecem primeiro para quem está na sua
+          cidade, depois no seu estado — e continuam aparecendo para o Brasil inteiro.
+        </p>
+        <EnderecoForm
+          organizacaoId={data.organizacaoId}
+          atual={data.endereco ?? data.enderecoParcial}
+          onSalvo={() => qc.invalidateQueries({ queryKey: ["/api/admin/organizer"] })}
+        />
+      </div>
+    </Card>
+  );
+}
+
 export function AdminConfiguracoes() {
   const { data: session } = useSession();
   const plataforma = session?.role === "admin";
@@ -1259,6 +1302,7 @@ export function AdminConfiguracoes() {
       <div className="mb-3 grid gap-3 lg:grid-cols-2">
         <PaymentMethodsCard />
         <OrganizerCard />
+        <EnderecoDaOrganizacaoCard />
       </div>
       <div className="mb-3 grid gap-3 lg:grid-cols-2">
         <TwoFactorCard />

@@ -7,6 +7,8 @@ import { PanelShell } from "@/components/AppShell";
 import { Card, Button, Pill, Empty } from "@/components/bits";
 import { apiRequest } from "@/lib/queryClient";
 import { MIN_SENHA, senhaInvalida } from "@shared/senha";
+import { EnderecoForm } from "@/components/EnderecoForm";
+import { cidadeUf, ufValida, type Endereco } from "@shared/endereco";
 import {
   LIBERACAO_COMISSAO,
   NOME_LIBERACAO,
@@ -21,6 +23,12 @@ interface Organizacao {
   cnpj: string | null;
   contato: string | null;
   cidade: string | null;
+  uf: string | null;
+  cep: string | null;
+  logradouro: string | null;
+  numero: string | null;
+  complemento: string | null;
+  bairro: string | null;
   observacao: string | null;
   billingMode: string;
   active: boolean;
@@ -36,7 +44,21 @@ interface Organizacao {
 
 type Situacao = "ativas" | "arquivadas";
 
-const VAZIA = { name: "", cnpj: "", contato: "", cidade: "", observacao: "" };
+const VAZIA = { name: "", cnpj: "", contato: "", observacao: "" };
+
+/** O endereço inteiro, ou `null` enquanto a organização não cadastrou. */
+function enderecoDe(o: Organizacao): Endereco | null {
+  if (!o.cep || !ufValida(o.uf) || !o.cidade || !o.logradouro) return null;
+  return {
+    cep: o.cep,
+    logradouro: o.logradouro,
+    numero: o.numero ?? "",
+    complemento: o.complemento,
+    bairro: o.bairro ?? "",
+    cidade: o.cidade,
+    uf: o.uf,
+  };
+}
 const ACESSO_VAZIO = { name: "", email: "", password: "" };
 
 const COBRANCA: Record<string, string> = {
@@ -378,7 +400,6 @@ export function AdminOrganizacoes() {
                   [
                     ["name", "Nome (sai no bilhete)"],
                     ["cnpj", "CNPJ"],
-                    ["cidade", "Cidade/UF"],
                     ["contato", "Contato"],
                   ] as const
                 ).map(([campo, rotulo]) => (
@@ -421,6 +442,8 @@ function LinhaOrganizacao({
   alternarAberta: () => void;
   acoes: React.ReactNode;
 }) {
+  const qc = useQueryClient();
+  const recarregarLista = () => qc.invalidateQueries({ queryKey: ["/api/admin/organizacoes"] });
   return (
     <>
       <tr className="border-b border-line align-top last:border-0">
@@ -435,7 +458,7 @@ function LinhaOrganizacao({
           </button>
           <span className="block font-mono text-[11px] text-muted">
             {o.slug}
-            {o.cidade ? ` · ${o.cidade}` : ""}
+            {o.cidade ? ` · ${cidadeUf(o.cidade, o.uf)}` : ""}
           </span>
         </td>
         <td className="tnum px-4 py-3">{o.campanhas}</td>
@@ -464,7 +487,7 @@ function LinhaOrganizacao({
             <dl className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-3">
               <Dado rotulo="CNPJ" valor={o.cnpj} tnum />
               <Dado rotulo="Contato" valor={o.contato} />
-              <Dado rotulo="Cidade/UF" valor={o.cidade} />
+              <Dado rotulo="Cidade/UF" valor={cidadeUf(o.cidade, o.uf)} />
               <Dado rotulo="Cobrança" valor={COBRANCA[o.billingMode] ?? o.billingMode} />
               <Dado rotulo="Criada em" valor={new Date(o.createdAt).toLocaleDateString("pt-BR")} tnum />
               {o.archivedAt ? (
@@ -484,6 +507,18 @@ function LinhaOrganizacao({
             >
               ver as pessoas desta organização
             </Link>
+            {o.archivedAt ? null : (
+              <div className="mt-4 border-t border-line pt-3">
+                <p className="label-xs mb-2">
+                  Endereço {enderecoDe(o) ? null : <Pill status="pending">falta cadastrar</Pill>}
+                </p>
+                <EnderecoForm
+                  organizacaoId={o.id}
+                  atual={o}
+                  onSalvo={recarregarLista}
+                />
+              </div>
+            )}
             {o.archivedAt ? null : <PagamentoDaOrganizacao o={o} />}
           </td>
         </tr>

@@ -5,6 +5,7 @@ import { notify } from "../notifications";
 import { publicUrl } from "../services/urls";
 import { purgeRateEvents } from "../services/antifraude";
 import { preencherCodigosDeCliente } from "../services/codigoCliente";
+import { separarCidadesAntigas } from "../services/orgs";
 import { lancarMensalidades } from "../services/billing";
 import { releaseExpired } from "../services/quotas";
 import { paymentProviderByName } from "../payments";
@@ -37,6 +38,7 @@ const LOCK_LEMBRETE = 811_003;
 const LOCK_LIMPEZA = 811_004;
 const LOCK_MENSALIDADE = 811_005;
 const LOCK_CODIGOS = 811_006;
+const LOCK_CIDADES = 811_007;
 
 /** Quantos minutos antes de a reserva cair o lembrete é enviado. */
 const LEMBRETE_MINUTOS = Number(process.env.REMINDER_MINUTES_BEFORE ?? 5);
@@ -152,6 +154,19 @@ export function startJobs() {
       console.error("[jobs] IDs de cliente:", err);
     }
   }, releaseMs).unref();
+
+  // Cadastro antigo com "Cidade/UF" num campo só: separa uma vez, para a
+  // vitrine ordenar por estado sem esperar o organizador preencher tudo.
+  setTimeout(async () => {
+    try {
+      await withLock(LOCK_CIDADES, async () => {
+        const n = await separarCidadesAntigas();
+        if (n > 0) log(`${n} organização(ões) com cidade e UF separadas`, "jobs");
+      });
+    } catch (err) {
+      console.error("[jobs] cidades antigas:", err);
+    }
+  }, 5_000).unref();
 
   setInterval(async () => {
     try {

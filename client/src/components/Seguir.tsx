@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Bell, BellOff } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useSession } from "@/lib/session";
+import { oferecerPushSePreciso } from "@/lib/push";
 
 interface EstadoSeguir {
   seguindo: boolean;
@@ -29,15 +30,23 @@ export function SeguirBotoes({ slug, compacto = false }: { slug: string; compact
     qc.invalidateQueries({ queryKey: ["/api/public/seguindo"] });
   };
 
+  // Seguir e ligar o sino são o toque que justifica pedir permissão de
+  // notificação — nunca ao abrir a página.
   const alternar = useMutation({
     mutationFn: async () =>
       (await apiRequest(data?.seguindo ? "DELETE" : "POST", `/api/public/o/${slug}/seguir`)).json(),
-    onSuccess: aplicar,
+    onSuccess: (novo: EstadoSeguir) => {
+      aplicar(novo);
+      if (novo.seguindo && novo.sino) void oferecerPushSePreciso();
+    },
   });
   const sino = useMutation({
     mutationFn: async () =>
       (await apiRequest("PUT", `/api/public/o/${slug}/sino`, { ligado: !data?.sino })).json(),
-    onSuccess: aplicar,
+    onSuccess: (novo: EstadoSeguir) => {
+      aplicar(novo);
+      if (novo.sino) void oferecerPushSePreciso();
+    },
   });
 
   const seguindo = data?.seguindo ?? false;

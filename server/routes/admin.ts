@@ -102,6 +102,7 @@ import {
 } from "../services/orgs";
 import { isUniqueViolation } from "../pgError";
 import { salvarPerfil } from "../services/perfil";
+import { avisarRifaNova, avisarResultado, emSegundoPlano } from "../services/push";
 import {
   anexoPara,
   chamadosAbertos,
@@ -374,6 +375,9 @@ adminRouter.post("/campaigns/:id/publish", async (req, res, next) => {
       totalQuotas: published.totalQuotas,
       seedHash: published.drawSeedHash,
     });
+    // Quem segue a organização com o sino ligado fica sabendo. Fora da
+    // resposta: a tela não espera os envios, e falha de push não desfaz nada.
+    emSegundoPlano(avisarRifaNova(published.id), "rifa nova");
     res.json(published);
   } catch (err) {
     if (err instanceof CampaignRuleError) {
@@ -2151,6 +2155,8 @@ adminRouter.post("/campaigns/:id/draw", async (req, res, next) => {
         });
       }
     }
+
+    emSegundoPlano(avisarResultado(campaign.id), "resultado");
 
     res.json({
       ...updated,

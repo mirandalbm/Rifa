@@ -6,6 +6,7 @@ import { publicUrl } from "../services/urls";
 import { purgeRateEvents } from "../services/antifraude";
 import { preencherCodigosDeCliente } from "../services/codigoCliente";
 import { separarCidadesAntigas } from "../services/orgs";
+import { avisarSorteiosChegando } from "../services/push";
 import { lancarMensalidades } from "../services/billing";
 import { releaseExpired } from "../services/quotas";
 import { paymentProviderByName } from "../payments";
@@ -39,6 +40,7 @@ const LOCK_LIMPEZA = 811_004;
 const LOCK_MENSALIDADE = 811_005;
 const LOCK_CODIGOS = 811_006;
 const LOCK_CIDADES = 811_007;
+const LOCK_PUSH_SORTEIO = 811_008;
 
 /** Quantos minutos antes de a reserva cair o lembrete é enviado. */
 const LEMBRETE_MINUTOS = Number(process.env.REMINDER_MINUTES_BEFORE ?? 5);
@@ -154,6 +156,19 @@ export function startJobs() {
       console.error("[jobs] IDs de cliente:", err);
     }
   }, releaseMs).unref();
+
+  // Sorteio chegando: 24 h e 1 h antes, uma vez por pessoa (a chave do
+  // aviso leva a janela). A trava garante uma réplica só.
+  setInterval(async () => {
+    try {
+      await withLock(LOCK_PUSH_SORTEIO, async () => {
+        const n = await avisarSorteiosChegando();
+        if (n > 0) log(`${n} aviso(s) de sorteio chegando`, "jobs");
+      });
+    } catch (err) {
+      console.error("[jobs] aviso de sorteio:", err);
+    }
+  }, expiryMs).unref();
 
   // Cadastro antigo com "Cidade/UF" num campo só: separa uma vez, para a
   // vitrine ordenar por estado sem esperar o organizador preencher tudo.

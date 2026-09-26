@@ -6,6 +6,7 @@ import { Button, Card, Money, Pill, Empty } from "@/components/bits";
 import { Conversa, type Mensagem } from "@/components/Conversa";
 import { apiRequest, ApiError } from "@/lib/queryClient";
 import { lerImagem } from "@/lib/anexo";
+import { estadoPush, ligarPush, desligarPush, type EstadoPush } from "@/lib/push";
 import { formatQuota, maskPhone, maskCpf, cpfValido, formatBRL } from "@shared/format";
 import { calcularReembolso, NOME_TIPO_REEMBOLSO } from "@shared/reembolso";
 import {
@@ -668,6 +669,8 @@ function MinhaConta({ aoSair }: { aoSair: () => void }) {
         </dl>
       </Card>
 
+      <AvisosNoAparelho />
+
       <Card title="Privacidade">
         <label className="flex items-start gap-3 p-4 text-sm">
           <input
@@ -898,5 +901,52 @@ function ComprasPorRifa({
         );
       })}
     </div>
+  );
+}
+
+const TEXTO_PUSH: Record<EstadoPush, string> = {
+  sem_suporte: "Este navegador não recebe notificações. O WhatsApp continua avisando pagamento e bilhete.",
+  instalar:
+    "No iPhone, os avisos só chegam com o app instalado: toque em Compartilhar e em \"Adicionar à Tela de Início\", e abra por lá.",
+  bloqueado:
+    "As notificações estão bloqueadas neste aparelho. Libere nas configurações do navegador para o site e volte aqui.",
+  desligado: "Rifa nova de quem você segue, sorteio chegando, resultado e resposta de reembolso.",
+  ligado: "Você recebe: rifa nova de quem você segue (com o sino ligado), sorteio chegando, resultado e resposta de reembolso.",
+};
+
+/** Notificações deste aparelho: ligar, desligar e o porquê quando não dá. */
+function AvisosNoAparelho() {
+  const [estado, setEstado] = useState<EstadoPush | null>(null);
+  const [ocupado, setOcupado] = useState(false);
+  useEffect(() => {
+    void estadoPush().then(setEstado);
+  }, []);
+  if (!estado) return null;
+  const pode = estado === "ligado" || estado === "desligado";
+  return (
+    <Card
+      title="Avisos neste aparelho"
+      right={<Pill status={estado === "ligado" ? "active" : "pending"}>{estado === "ligado" ? "ligados" : "desligados"}</Pill>}
+    >
+      <div className="space-y-3 p-4 text-sm">
+        <p className="text-muted">{TEXTO_PUSH[estado]}</p>
+        {pode ? (
+          <Button
+            variant={estado === "ligado" ? "ghost" : "primary"}
+            disabled={ocupado}
+            onClick={async () => {
+              setOcupado(true);
+              try {
+                setEstado(estado === "ligado" ? await desligarPush() : await ligarPush());
+              } finally {
+                setOcupado(false);
+              }
+            }}
+          >
+            {estado === "ligado" ? "Desligar avisos" : "Ligar avisos"}
+          </Button>
+        ) : null}
+      </div>
+    </Card>
   );
 }

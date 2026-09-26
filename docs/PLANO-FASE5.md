@@ -196,7 +196,7 @@ arquivos grandes demais para o banco.
 
 ---
 
-## 6. Notificações no celular **[decidido]**
+## 6. Notificações no celular **[decidido — feito]**
 
 - Notificação do app instalado (PWA): rifa nova de quem o apostador segue,
   sorteio chegando, resultado, reembolso respondido.
@@ -286,7 +286,7 @@ arquivos grandes demais para o banco.
 | ✓ | Endereço do organizador e estado da rifa | 1.4 | — |
 | ✓ | Tema claro e escuro | 3.1 | — |
 | ✓ | Perfil do organizador: topo, seguir, sino, bio, destaques, grade, menu, rifa dentro do perfil | 4 | 3 |
-| 6 | Notificações no celular (sino) | 6 | 5 |
+| ✓ | Notificações no celular (sino) | 6 | 5 |
 | 7 | Central de ajuda, regulamento e transmissão do sorteio | 7 | — |
 | 8 | Construtor de templates e white label do organizador | 3.2 | 4 |
 | 9 | Vitrine: banners, stories, estados, feed | 5 | 5, R2 |

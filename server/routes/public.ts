@@ -21,6 +21,7 @@ import { normalizePhone, hidePhone } from "@shared/format";
 import { listPublicCampaigns, campaignBySlug, certificadoDa } from "../services/campaigns";
 import { ufValida, ordenarPorProximidade, cidadeUf, distancia } from "@shared/endereco";
 import { consultarCep } from "../services/cep";
+import { chavesVapid, inscrever, cancelarInscricao } from "../services/push";
 import {
   perfilPublico,
   fotoDoPerfil,
@@ -236,6 +237,37 @@ publicRouter.get("/seguindo", async (req, res, next) => {
   try {
     const id = req.session.buyer?.id;
     res.json(id ? await perfisSeguidos(id) : []);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/* ---------------- notificações no celular ---------------- */
+
+/** A chave pública VAPID: o navegador precisa dela para se inscrever. */
+publicRouter.get("/push/chave", async (_req, res, next) => {
+  try {
+    res.json({ chave: (await chavesVapid()).publica });
+  } catch (err) {
+    next(err);
+  }
+});
+
+publicRouter.post("/push/inscricoes", async (req, res, next) => {
+  try {
+    const id = req.session.buyer?.id;
+    if (!id) return res.status(401).json({ message: "Entre na sua conta para receber avisos." });
+    res.status(201).json(await inscrever(id, req.body));
+  } catch (err) {
+    next(err);
+  }
+});
+
+publicRouter.delete("/push/inscricoes", async (req, res, next) => {
+  try {
+    const id = req.session.buyer?.id;
+    if (!id) return res.status(401).json({ message: "Entre na sua conta." });
+    res.json(await cancelarInscricao(id, req.body?.endpoint));
   } catch (err) {
     next(err);
   }

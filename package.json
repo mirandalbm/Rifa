@@ -21,7 +21,8 @@
     "refund": "tsx scripts/refund-test.ts",
     "chamados": "tsx scripts/chamados-test.ts",
     "conta": "tsx scripts/conta-test.ts",
-    "perfil": "tsx scripts/perfil-test.ts"
+    "perfil": "tsx scripts/perfil-test.ts",
+    "push": "tsx scripts/push-test.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1131.0",
@@ -80,6 +81,7 @@
     "tailwind-merge": "^2.6.0",
     "tailwindcss-animate": "^1.0.7",
     "vaul": "^1.1.2",
+    "web-push": "^3.6.7",
     "wouter": "^3.3.5",
     "zod": "^3.24.2"
   },
@@ -95,6 +97,7 @@
     "@types/qrcode": "^1.5.6",
     "@types/react": "^18.3.11",
     "@types/react-dom": "^18.3.1",
+    "@types/web-push": "^3.6.4",
     "@vitejs/plugin-react": "^4.7.0",
     "autoprefixer": "^10.4.20",
     "cross-env": "^10.1.0",

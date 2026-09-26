@@ -103,6 +103,7 @@ arquitetura.
 | autorização SPA/MF e data do sorteio | `shared/campanhaLegal.ts`, `salvarDadosLegais()` em `server/services/campaigns.ts`, `client/src/components/DadosLegaisCard.tsx` |
 | endereço do organizador e ordem da vitrine por região | `shared/endereco.ts` (regra), `salvarEndereco()` em `server/services/orgs.ts`, `server/services/cep.ts`, `client/src/components/EnderecoForm.tsx` |
 | perfil do organizador, seguir e sino | `shared/perfil.ts` (regras), `server/services/perfil.ts`, `client/src/pages/Perfil.tsx`, `client/src/components/Seguir.tsx`, `scripts/perfil-test.ts` |
+| notificações no celular (Web Push) | `shared/push.ts` (regras), `server/services/push.ts`, `client/public/sw.js`, `client/src/lib/push.ts`, `scripts/push-test.ts` |
 | tema claro e escuro | `client/src/index.css` (variáveis), `client/src/lib/tema.ts`, `client/src/components/TemaToggle.tsx`, `tests/tema.test.ts` |
 | app instalável (PWA) | `client/public/sw.js`, `client/public/manifest.webmanifest`, `client/src/lib/pwa.ts` |
 
@@ -590,3 +591,27 @@ pedido, cotas e valor, e o cliente só pelo ID (`Cliente C-XXXXXXXX`).
 - **Organização arquivada: o perfil some (404).** Mesma regra do resto.
 - `PUT /organizacoes/:id/perfil` tem o recorte do endereço (o do vizinho é
   404) e está no `npm run isolation`.
+
+## Notificações no celular — o que não pode afrouxar
+
+- **O servidor só faz POST em serviço de push conhecido** (`endpointPermitido`:
+  FCM, Mozilla, Apple, Windows; só HTTPS, porta 443). O `endpoint` vem do
+  aparelho — aceitar qualquer um deixaria usar o servidor contra rede
+  interna. Localhost só em desenvolvimento, que é como o teste roda.
+- **Todo aviso tem chave por pessoa** (`push_envios`, `ON CONFLICT DO
+  NOTHING`) — a mesma regra do `dedupeKey` do WhatsApp. O relógio do
+  "sorteio chegando" roda a cada minuto e em várias réplicas sem repetir.
+- **Só a janela mais apertada** (`janelaDoSorteio`): rifa a 30 min do
+  sorteio recebe "em menos de 1 hora", nunca os dois avisos juntos.
+- **Push nunca derruba o fluxo.** Publicar, sortear e responder chamado
+  chamam `emSegundoPlano()`: a resposta não espera, e falha só vai ao log.
+  Aparelho que responde 404/410 é apagado.
+- **Quem recebe o quê**: rifa nova → quem segue com sino; sorteio chegando e
+  resultado → quem segue com sino **e** quem comprou; reembolso → só o dono
+  do chamado. WhatsApp segue sendo o canal do que é transação.
+- **Permissão só depois de um toque** (seguir, ligar o sino, "Ligar avisos"
+  em Minha conta). Pedir ao abrir o site vira "bloquear" para sempre.
+- **As chaves VAPID nunca se regeneram sozinhas**: vêm do ambiente ou são
+  criadas uma vez em `app_settings`. Trocar invalida todas as inscrições.
+- Mudou `sw.js`? Troque `VERSAO` — senão o celular segue com a casca velha.
+- `npm run push` prova tudo isso, descriptografando o que chega.

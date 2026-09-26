@@ -51,6 +51,7 @@ import { hit } from "./antifraude";
 import { refundOrder } from "./orders";
 import { orgOf } from "./orgs";
 import { paymentProviderByName } from "../payments";
+import { avisarReembolso, emSegundoPlano } from "./push";
 
 export class ChamadoError extends Error {
   constructor(message: string, readonly status = 400) {
@@ -608,6 +609,7 @@ export async function concluirChamado(
         ? `Reembolso aprovado. Protocolo ${feito.protocolo}. ${resposta}`
         : `Reembolso recusado. ${resposta}`,
   });
+  emSegundoPlano(avisarReembolso(feito.id), "reembolso respondido");
   return feito;
 }
 

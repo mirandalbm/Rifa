@@ -15,7 +15,10 @@ export default function CadastroAfiliado() {
 
   const signup = useMutation({
     mutationFn: async () => {
-      const res = await apiRequest("POST", "/api/public/afiliados/cadastro", form);
+      // Vindo do "Seja um afiliado" de um perfil, o cadastro já vai para
+      // aquela organização.
+      const organizacao = new URLSearchParams(window.location.search).get("organizacao") ?? undefined;
+      const res = await apiRequest("POST", "/api/public/afiliados/cadastro", { ...form, organizacao });
       return (await res.json()) as { code: string };
     },
     onSuccess: setDone,

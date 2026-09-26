@@ -190,6 +190,16 @@ export const organizations = pgTable(
     prazoEstornoDias: integer("prazo_estorno_dias").notNull().default(7),
     /** WhatsApp que recebe o aviso de chamado novo. Nulo: os organizadores. */
     avisoTelefone: text("aviso_telefone"),
+    /**
+     * Perfil público (`/o/:slug`). A bio é o texto do organizador; a parte da
+     * rifa atual é montada sozinha (`bioAutomatica()` em `shared/perfil.ts`).
+     */
+    bio: text("bio"),
+    /**
+     * Seguidores, contados na mesma transação que segue ou deixa de seguir —
+     * a mesma regra de `campaign_stats`: nada de `COUNT(*)` na página.
+     */
+    seguidoresCount: integer("seguidores_count").notNull().default(0),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (t) => [uniqueIndex("uq_organizations_slug").on(t.slug)],
@@ -254,6 +264,11 @@ export const buyers = pgTable(
     comprasVinculadasEm: timestamp("compras_vinculadas_em"),
     /** Exclusão pela LGPD: os dados pessoais saem, as compras ficam. */
     excluidoEm: timestamp("excluido_em"),
+    /**
+     * Aparecer em "seguido por…" nos perfis. Nasce desligado: seguir e
+     * participar de rifa é dado pessoal (LGPD), só aparece quem liga.
+     */
+    perfilPublico: boolean("perfil_publico").notNull().default(false),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (t) => [
@@ -853,6 +868,41 @@ export const chamados = pgTable(
  * de mídia estar configurado. Tabela à parte para `select()` de campanha
  * nunca arrastar o arquivo junto.
  */
+/**
+ * Foto do perfil da organização. Fica no banco, como o certificado: é pequena
+ * (reprocessada em 400 px, WebP) e não pode depender do R2 estar configurado.
+ */
+export const organizacaoFotos = pgTable("organizacao_fotos", {
+  organizationId: uuid("organization_id")
+    .primaryKey()
+    .references(() => organizations.id, { onDelete: "cascade" }),
+  mime: text("mime").notNull(),
+  bytes: bytea("bytes").notNull(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+/**
+ * Quem segue quem. A chave é o par: seguir duas vezes é `ON CONFLICT DO
+ * NOTHING`, nunca um `SELECT` antes. `sino` liga junto com o seguir.
+ */
+export const seguidores = pgTable(
+  "seguidores",
+  {
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    buyerId: uuid("buyer_id")
+      .notNull()
+      .references(() => buyers.id, { onDelete: "cascade" }),
+    sino: boolean("sino").notNull().default(true),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.organizationId, t.buyerId] }),
+    index("idx_seguidores_buyer").on(t.buyerId),
+  ],
+);
+
 export const campaignCertificados = pgTable("campaign_certificados", {
   campaignId: uuid("campaign_id")
     .primaryKey()

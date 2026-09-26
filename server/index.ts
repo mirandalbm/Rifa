@@ -43,7 +43,12 @@ app.use(
 // O chamado leva o print do bilhete (até 5 MB em base64). Só estas rotas
 // aceitam corpo maior; o resto segue no limite de 1 MB.
 app.use(
-  ["/api/public/chamados", "/api/admin/chamados", "/api/admin/campaigns/:id/legal"],
+  [
+    "/api/public/chamados",
+    "/api/admin/chamados",
+    "/api/admin/campaigns/:id/legal",
+    "/api/admin/organizacoes/:id/perfil",
+  ],
   express.json({ limit: "8mb" }),
 );
 app.use(express.json({ limit: "1mb" }));

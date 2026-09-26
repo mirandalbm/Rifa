@@ -119,9 +119,21 @@ Na ordem de entrega do plano:
 - [x] Tema claro e escuro: segue o celular por padrão; a pessoa troca no
   rodapé da loja, no menu da conta ou no menu do painel. O bilhete continua
   branco (é papel).
-- [ ] **[código]** Perfil do organizador no formato do Instagram (seguir,
-  sino, bio automática, destaques, grade em carrossel, menu, rifa dentro do
-  perfil).
+- [x] Perfil do organizador no formato do Instagram (`/o/:slug`): foto, nome,
+  rifas realizadas, seguidores, compartilhar (WhatsApp, Telegram, Facebook;
+  Instagram e TikTok copiam o link), seguir com sino, menu ⋮ (seja afiliado,
+  seja colaborador pelo WhatsApp da organização, sobre, copiar URL,
+  compartilhar, QR code), bio do organizador + bio automática da rifa no ar,
+  "seguido por" só de quem liga o perfil público, destaques (rifas
+  sorteadas) e grade com carrossel. A rifa abre dentro do perfil e tem
+  seguir/sino. A vitrine mostra os perfis seguidos no topo.
+- [ ] **[código]** Ainda do perfil, depende de outras etapas: anel de story
+  (vitrine), item "Bônus" do menu (gamificação), o sino mandar aviso
+  (notificações), foto do ganhador como capa depois do sorteio (painel de
+  resultados), pedido de colaborador dentro do app e "seguidores da mesma
+  rifa".
+- [ ] **[você]** Cada organização pôr foto e bio em Configurações → Perfil
+  público.
 - [ ] **[código]** Notificações no celular.
 - [ ] **[código]** Central de ajuda, regulamento e transmissão do sorteio.
 - [ ] **[código]** Construtor de templates e white label do organizador.

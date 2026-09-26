@@ -14,12 +14,23 @@ import {
   users,
   orders,
   prizedQuotas,
+  organizacaoFotos,
   createOrderSchema,
 } from "@shared/schema";
 import { normalizePhone, hidePhone } from "@shared/format";
 import { listPublicCampaigns, campaignBySlug, certificadoDa } from "../services/campaigns";
 import { ufValida, ordenarPorProximidade, cidadeUf, distancia } from "@shared/endereco";
 import { consultarCep } from "../services/cep";
+import {
+  perfilPublico,
+  fotoDoPerfil,
+  seguir,
+  deixarDeSeguir,
+  ligarSino,
+  perfisSeguidos,
+} from "../services/perfil";
+import QRCode from "qrcode";
+import { publicUrl } from "../services/urls";
 import { createOrder, orderByCode, ordersByPhone, OrderError } from "../services/orders";
 import { blockBitmap, isTaken, BLOCK_SIZE, NumbersTakenError, NoQuotasAvailableError } from "../services/quotas";
 import { issueOtp, checkOtp, hashPassword } from "../auth";
@@ -52,6 +63,7 @@ import {
   titularidadeDaSessao,
   excluirConta,
   trocarSenha,
+  definirPerfilPublico,
 } from "../services/contaComprador";
 
 export const publicRouter = Router();
@@ -114,6 +126,116 @@ publicRouter.get("/campaigns", async (req, res, next) => {
         perto: uf ? distancia({ uf: organizacao?.uf, cidade: organizacao?.cidade }, { uf, cidade }) : null,
       })),
     );
+  } catch (err) {
+    next(err);
+  }
+});
+
+/* ---------------- perfil do organizador ---------------- */
+
+async function organizacaoDaRifa(orgId: string) {
+  const [o] = await db
+    .select({ slug: organizations.slug, nome: organizations.name, foto: organizacaoFotos.updatedAt })
+    .from(organizations)
+    .leftJoin(organizacaoFotos, eq(organizacaoFotos.organizationId, organizations.id))
+    .where(eq(organizations.id, orgId));
+  if (!o) return null;
+  return {
+    slug: o.slug,
+    nome: o.nome,
+    foto: o.foto ? `/api/public/o/${o.slug}/foto?v=${o.foto.getTime()}` : null,
+  };
+}
+
+/** Seguir pede um comprador de verdade por trás da sessão. */
+function quemSegue(req: Request, res: Response): string | null {
+  const id = req.session.buyer?.id;
+  if (!id) {
+    res.status(401).json({ message: "Entre na sua conta para seguir." });
+    return null;
+  }
+  return id;
+}
+
+publicRouter.get("/o/:slug", async (req, res, next) => {
+  try {
+    res.json(await perfilPublico(req.params.slug, req.session.buyer?.id));
+  } catch (err) {
+    next(err);
+  }
+});
+
+publicRouter.get("/o/:slug/foto", async (req, res, next) => {
+  try {
+    const f = await fotoDoPerfil(req.params.slug);
+    if (!f) return res.status(404).json({ message: "Sem foto." });
+    // O endereço leva a data da foto (?v=): trocar a foto troca o endereço.
+    res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+    res.type(f.mime).send(f.bytes);
+  } catch (err) {
+    next(err);
+  }
+});
+
+publicRouter.get("/o/:slug/qr.svg", async (req, res, next) => {
+  try {
+    const perfil = await perfilPublico(req.params.slug);
+    const svg = await QRCode.toString(publicUrl(`/o/${perfil.slug}`), {
+      type: "svg",
+      margin: 1,
+      width: 320,
+    });
+    res.setHeader("Cache-Control", "public, max-age=86400");
+    res.type("image/svg+xml").send(svg);
+  } catch (err) {
+    next(err);
+  }
+});
+
+publicRouter.get("/o/:slug/seguir", async (req, res, next) => {
+  try {
+    const perfil = await perfilPublico(req.params.slug, req.session.buyer?.id);
+    res.json({ seguindo: perfil.seguindo, sino: perfil.sino, seguidores: perfil.seguidores });
+  } catch (err) {
+    next(err);
+  }
+});
+
+publicRouter.post("/o/:slug/seguir", async (req, res, next) => {
+  try {
+    const buyerId = quemSegue(req, res);
+    if (!buyerId) return;
+    res.json(await seguir(req.params.slug, buyerId));
+  } catch (err) {
+    next(err);
+  }
+});
+
+publicRouter.delete("/o/:slug/seguir", async (req, res, next) => {
+  try {
+    const buyerId = quemSegue(req, res);
+    if (!buyerId) return;
+    res.json(await deixarDeSeguir(req.params.slug, buyerId));
+  } catch (err) {
+    next(err);
+  }
+});
+
+publicRouter.put("/o/:slug/sino", async (req, res, next) => {
+  try {
+    const buyerId = quemSegue(req, res);
+    if (!buyerId) return;
+    res.json(await ligarSino(req.params.slug, buyerId, req.body?.ligado === true));
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** Os perfis que o comprador segue (vitrine). Sem sessão, lista vazia. */
+publicRouter.get("/seguindo", async (req, res, next) => {
+  try {
+    const id = req.session.buyer?.id;
+    res.json(id ? await perfisSeguidos(id) : []);
   } catch (err) {
     next(err);
   }
@@ -216,6 +338,8 @@ publicRouter.get("/campaigns/:slug", async (req, res, next) => {
       packages,
       blockSize: BLOCK_SIZE,
       pagamento: paymentSummary(await getPaymentMethods()),
+      // A rifa abre dentro do perfil: a tela mostra de quem ela é, com seguir.
+      organizacao: await organizacaoDaRifa(found.campaign.organizationId),
     });
   } catch (err) {
     next(err);
@@ -559,6 +683,14 @@ publicRouter.put("/conta/senha", async (req, res, next) => {
   try {
     await trocarSenha(req, String(req.body?.atual ?? ""), String(req.body?.nova ?? ""));
     res.json({ ok: true });
+  } catch (err) {
+    erroDeConta(err, res, next);
+  }
+});
+
+publicRouter.put("/conta/perfil-publico", async (req, res, next) => {
+  try {
+    res.json(await definirPerfilPublico(req, req.body?.publico === true));
   } catch (err) {
     erroDeConta(err, res, next);
   }

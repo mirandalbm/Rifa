@@ -22,6 +22,7 @@ import {
   draws,
   auditLog,
   organizations,
+  organizacaoFotos,
   insertCampaignSchema,
 } from "@shared/schema";
 import {
@@ -100,6 +101,7 @@ import {
   OrgScopeError,
 } from "../services/orgs";
 import { isUniqueViolation } from "../pgError";
+import { salvarPerfil } from "../services/perfil";
 import {
   anexoPara,
   chamadosAbertos,
@@ -959,9 +961,16 @@ adminRouter.get("/organizer", async (req, res, next) => {
     const org = orgOf(req);
     if (!org) return res.json(await getOrganizer());
     const [linha] = await db.select().from(organizations).where(eq(organizations.id, org));
+    const [foto] = await db
+      .select({ updatedAt: organizacaoFotos.updatedAt })
+      .from(organizacaoFotos)
+      .where(eq(organizacaoFotos.organizationId, org));
     res.json({
       ...(await organizerInfoOf(org)),
       organizacaoId: org,
+      slug: linha?.slug,
+      bio: linha?.bio ?? null,
+      foto: foto && linha ? `/api/public/o/${linha.slug}/foto?v=${foto.updatedAt.getTime()}` : null,
       endereco: linha ? enderecoDa(linha) : null,
       // O que já existe, para o formulário não começar do zero quando o
       // cadastro antigo trouxe só cidade e UF.
@@ -1167,11 +1176,17 @@ adminRouter.get("/organizacoes", async (req, res, next) => {
       ),
     );
 
+    const fotos = await db
+      .select({ id: organizacaoFotos.organizationId, em: organizacaoFotos.updatedAt })
+      .from(organizacaoFotos);
+    const fotoDe = new Map(fotos.map((f) => [f.id, f.em]));
+
     res.json(
       orgs.map((o) => ({
         ...o,
         campanhas: porId.get(o.id)?.campanhas ?? 0,
         pessoas: porId.get(o.id)?.pessoas ?? 0,
+        foto: fotoDe.has(o.id) ? `/api/public/o/${o.slug}/foto?v=${fotoDe.get(o.id)!.getTime()}` : null,
       })),
     );
   } catch (err) {
@@ -1253,6 +1268,31 @@ adminRouter.put("/organizacoes/:id/endereco", async (req, res, next) => {
     next(err);
   }
 });
+
+/**
+ * Foto e bio do perfil público. Mesmo recorte do endereço: o organizador
+ * edita o dele; o do vizinho é 404. O corpo pode ser grande (foto em base64):
+ * a rota está na lista de 8 MB do `server/index.ts`.
+ */
+adminRouter.put(
+  "/organizacoes/:id/perfil",
+  async (req, res, next) => {
+    try {
+      const org = orgOf(req);
+      if (org && org !== req.params.id) {
+        return res.status(404).json({ message: "Organização não encontrada." });
+      }
+      await salvarPerfil(req.params.id, { bio: req.body?.bio, foto: req.body?.foto });
+      await audit(req, "organizacao.perfil", "organization", req.params.id, {
+        bio: req.body?.bio !== undefined,
+        foto: req.body?.foto === null ? "removida" : req.body?.foto ? "trocada" : "igual",
+      });
+      res.json({ ok: true });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
 
 /** Cria o acesso de organizador dentro de uma organização. */
 adminRouter.post("/organizacoes/:id/acessos", async (req, res, next) => {

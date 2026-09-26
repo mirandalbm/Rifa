@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useParams, useLocation } from "wouter";
+import { Link, useParams, useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { PublicShell } from "@/components/AppShell";
 import { Money, Progress, Button, Card } from "@/components/bits";
@@ -17,6 +17,7 @@ import {
 import { priceOrder } from "@shared/pricing";
 import { regraDoReembolso } from "@shared/reembolso";
 import { ResponsiveImage } from "@/components/ResponsiveImage";
+import { SeguirBotoes, FotoDoPerfil } from "@/components/Seguir";
 
 interface CampaignDetail {
   campaign: {
@@ -49,6 +50,7 @@ interface CampaignDetail {
   packages: { quantity: number; discountPct: number; highlight: boolean }[];
   blockSize: number;
   pagamento: { online: boolean; fisico: string[]; somenteFisico: boolean };
+  organizacao: { slug: string; nome: string; foto: string | null } | null;
 }
 
 interface BlockData {
@@ -72,7 +74,7 @@ function useTakenSet(block: BlockData | undefined) {
 }
 
 export default function Rifa() {
-  const { slug } = useParams<{ slug: string }>();
+  const { slug, org } = useParams<{ slug: string; org?: string }>();
   const [, navigate] = useLocation();
   const [quantity, setQuantity] = useState(0);
   const [picked, setPicked] = useState<number[]>([]);
@@ -98,6 +100,14 @@ export default function Rifa() {
   const { data: sessao } = useSession();
   const naConta = Boolean(sessao?.buyer?.conta);
   const exigeCpf = (checkout?.exigeCpf ?? false) && !naConta;
+
+  // A rifa abre dentro do perfil de quem a promove. Endereço com a
+  // organização errada leva para a certa — nunca mostra a rifa "dentro" de
+  // outro organizador.
+  useEffect(() => {
+    const dona = data?.organizacao?.slug;
+    if (org && dona && org !== dona) navigate(`/o/${dona}/r/${slug}`, { replace: true });
+  }, [org, slug, data?.organizacao?.slug, navigate]);
   const cpfOk = !exigeCpf || cpfValido(buyer.cpf);
   const comprador = naConta
     ? { name: sessao!.buyer!.name || "Conta", phone: sessao!.buyer!.phone }
@@ -180,6 +190,15 @@ export default function Rifa() {
 
   return (
     <PublicShell>
+      {data?.organizacao ? (
+        <div className="-mt-1 mb-3 flex items-center gap-2">
+          <Link href={`/o/${data.organizacao.slug}`} className="flex min-w-0 flex-1 items-center gap-2">
+            <FotoDoPerfil nome={data.organizacao.nome} foto={data.organizacao.foto} tamanho={32} />
+            <span className="truncate text-sm font-semibold">{data.organizacao.nome}</span>
+          </Link>
+          <SeguirBotoes slug={data.organizacao.slug} compacto />
+        </div>
+      ) : null}
       {/* Banner, vídeo e fotos: a propaganda vem antes de tudo. */}
       <div
         className="relative -mx-4 flex min-h-[150px] flex-col justify-end overflow-hidden p-4 text-branco"

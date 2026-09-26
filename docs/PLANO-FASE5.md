@@ -127,7 +127,7 @@ sistema já sabe desenhar bem nas duas telas e nos dois temas.
 
 ---
 
-## 4. Perfil do organizador no formato do Instagram **[decidido]**
+## 4. Perfil do organizador no formato do Instagram **[decidido — feito, exceto o que depende de outras etapas: ver PENDENCIAS]**
 
 Cada organizador tem uma página de perfil, e **cada rifa abre dentro do
 perfil** (`/o/organizador/r/rifa`) — é isso que faz a plataforma funcionar
@@ -285,7 +285,7 @@ arquivos grandes demais para o banco.
 | ✓ | Reembolso pela lei do consumidor (7 dias, 10%, corte de 2 h) | 2 | — |
 | ✓ | Endereço do organizador e estado da rifa | 1.4 | — |
 | ✓ | Tema claro e escuro | 3.1 | — |
-| 5 | Perfil do organizador: topo, seguir, sino, bio, destaques, grade, menu, rifa dentro do perfil | 4 | 3 |
+| ✓ | Perfil do organizador: topo, seguir, sino, bio, destaques, grade, menu, rifa dentro do perfil | 4 | 3 |
 | 6 | Notificações no celular (sino) | 6 | 5 |
 | 7 | Central de ajuda, regulamento e transmissão do sorteio | 7 | — |
 | 8 | Construtor de templates e white label do organizador | 3.2 | 4 |

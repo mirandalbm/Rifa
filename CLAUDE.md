@@ -102,6 +102,7 @@ arquitetura.
 | de quem é o cliente (o que o organizador vê) | `shared/titularidade.ts` (regra) e `server/services/titularidade.ts` (SQL) |
 | autorização SPA/MF e data do sorteio | `shared/campanhaLegal.ts`, `salvarDadosLegais()` em `server/services/campaigns.ts`, `client/src/components/DadosLegaisCard.tsx` |
 | endereço do organizador e ordem da vitrine por região | `shared/endereco.ts` (regra), `salvarEndereco()` em `server/services/orgs.ts`, `server/services/cep.ts`, `client/src/components/EnderecoForm.tsx` |
+| perfil do organizador, seguir e sino | `shared/perfil.ts` (regras), `server/services/perfil.ts`, `client/src/pages/Perfil.tsx`, `client/src/components/Seguir.tsx`, `scripts/perfil-test.ts` |
 | tema claro e escuro | `client/src/index.css` (variáveis), `client/src/lib/tema.ts`, `client/src/components/TemaToggle.tsx`, `tests/tema.test.ts` |
 | app instalável (PWA) | `client/public/sw.js`, `client/public/manifest.webmanifest`, `client/src/lib/pwa.ts` |
 
@@ -565,3 +566,27 @@ pedido, cotas e valor, e o cliente só pelo ID (`Cliente C-XXXXXXXX`).
   teste confere as duas coisas.
 - **A escolha fica no aparelho**, como a região: padrão automático, e
   perder a escolha só devolve o automático.
+
+## Perfil do organizador — o que não pode afrouxar
+
+- **A rifa abre dentro do perfil** (`/o/:org/r/:rifa`). O endereço com a
+  organização errada é corrigido para a dona da rifa — nunca mostra a rifa
+  de um promotor "dentro" do perfil de outro. `/r/:rifa` segue valendo.
+- **Seguir é a chave (organização, comprador)**: `INSERT … ON CONFLICT DO
+  NOTHING`, e `seguidores_count` só anda quando a linha entrou, na mesma
+  transação. Cinco toques simultâneos = um seguidor (`npm run perfil` prova).
+  Sem `COUNT(*)` na página.
+- **"Seguido por" é só de quem ligou o perfil público** (`buyers.perfil_publico`,
+  nasce desligado — LGPD), e só o primeiro nome. A regra é `seguidoPor()`;
+  o perfil nunca devolve telefone de seguidor.
+- **O sino só existe para quem segue** (409 sem seguir). Seguir liga o sino.
+  O aviso em si é a etapa das notificações.
+- **A bio automática é montada, não guardada** (`bioAutomatica()`): segue a
+  rifa no ar com o sorteio mais próximo, então muda sozinha quando outra é
+  publicada.
+- **A foto fica no banco** (`organizacao_fotos`), reprocessada em 400 px
+  WebP — não depende do R2 e o arquivo enviado nunca é servido como veio.
+  O endereço leva a data (`?v=`), por isso pode ter cache eterno.
+- **Organização arquivada: o perfil some (404).** Mesma regra do resto.
+- `PUT /organizacoes/:id/perfil` tem o recorte do endereço (o do vizinho é
+  404) e está no `npm run isolation`.

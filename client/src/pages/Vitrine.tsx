@@ -1,5 +1,9 @@
+import { useState } from "react";
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
+import { MapPin } from "lucide-react";
+import { UFS, maskCep, soDigitosCep, cepValido, cidadeUf, ufValida } from "@shared/endereco";
+import { lerRegiao, gravarRegiao, type MinhaRegiao } from "@/lib/regiao";
 import { PublicShell } from "@/components/AppShell";
 import { Money, Progress, Empty } from "@/components/bits";
 import { groupNumber, percent } from "@shared/format";
@@ -16,13 +20,23 @@ interface CampaignCard {
   featured: boolean;
   soldCount: number;
   banner: string | null;
+  organizacao: { nome: string; slug: string; local: string | null; uf: string | null } | null;
+  /** 0 = na cidade de quem olha, 1 = no estado, 2 = o resto; nulo sem região. */
+  perto: 0 | 1 | 2 | null;
 }
+
+const PERTO = ["na sua cidade", "no seu estado"] as const;
 
 /** Vitrine multi-rifas: todas as campanhas no ar, banner na frente. */
 export default function Vitrine() {
+  const [regiao, setRegiao] = useState<MinhaRegiao | null>(() => lerRegiao());
   const { data, isLoading } = useQuery<CampaignCard[]>({
-    queryKey: ["/api/public/campaigns"],
+    queryKey: ["/api/public/campaigns", regiao ? { uf: regiao.uf, cidade: regiao.cidade ?? undefined } : undefined],
   });
+  const escolher = (r: MinhaRegiao | null) => {
+    gravarRegiao(r);
+    setRegiao(r);
+  };
 
   return (
     <PublicShell>
@@ -32,6 +46,7 @@ export default function Vitrine() {
         </h1>
         <p className="mt-1 text-sm text-muted">Escolha uma e garanta seus números.</p>
       </div>
+      <RegiaoBar regiao={regiao} escolher={escolher} />
 
       {!isLoading && (data?.length ?? 0) === 0 ? (
         <Empty>Nenhuma rifa publicada ainda.</Empty>
@@ -93,6 +108,20 @@ export default function Vitrine() {
                 <p className="label-xs">
                   {groupNumber(c.soldCount)} de {groupNumber(c.totalQuotas)} cotas
                 </p>
+                {c.organizacao ? (
+                  <p className="flex items-center gap-1 truncate text-[11px] text-muted">
+                    <MapPin size={11} aria-hidden className="shrink-0" />
+                    <span className="truncate">
+                      {c.organizacao.nome}
+                      {c.organizacao.local ? ` · ${c.organizacao.local}` : ""}
+                    </span>
+                    {c.perto === 0 || c.perto === 1 ? (
+                      <span className="ml-auto shrink-0 rounded-full bg-mist-2 px-2 py-[1px] font-mono text-[10px] text-ink">
+                        {PERTO[c.perto]}
+                      </span>
+                    ) : null}
+                  </p>
+                ) : null}
               </div>
             </Link>
           );
@@ -100,5 +129,121 @@ export default function Vitrine() {
       </div>
       <InstalarApp />
     </PublicShell>
+  );
+}
+
+/**
+ * "Perto de você": o CEP diz cidade e estado; sem CEP, basta o estado. Só
+ * muda a ordem — toda rifa continua na lista.
+ */
+function RegiaoBar({
+  regiao,
+  escolher,
+}: {
+  regiao: MinhaRegiao | null;
+  escolher: (r: MinhaRegiao | null) => void;
+}) {
+  const [editando, setEditando] = useState(false);
+  const [cep, setCep] = useState("");
+  const [msg, setMsg] = useState<string | null>(null);
+  const [buscando, setBuscando] = useState(false);
+
+  async function porCep(valor: string) {
+    const d = soDigitosCep(valor);
+    if (d.length !== 8 || !cepValido(d)) return;
+    setBuscando(true);
+    setMsg(null);
+    try {
+      const r = await fetch(`/api/public/cep/${d}`);
+      const corpo = await r.json().catch(() => ({}));
+      if (!r.ok || !ufValida(corpo.uf)) {
+        setMsg(corpo.message ?? "Não achamos este CEP. Escolha o estado.");
+        return;
+      }
+      escolher({ uf: corpo.uf, cidade: corpo.cidade ?? null });
+      setEditando(false);
+      setCep("");
+    } catch {
+      setMsg("Sem conexão para consultar o CEP. Escolha o estado.");
+    } finally {
+      setBuscando(false);
+    }
+  }
+
+  if (regiao && !editando) {
+    return (
+      <p className="mt-2 flex flex-wrap items-center gap-x-2 text-xs text-muted">
+        <MapPin size={13} aria-hidden />
+        Primeiro as rifas perto de{" "}
+        <strong className="text-ink">{cidadeUf(regiao.cidade, regiao.uf)}</strong>
+        <button type="button" onClick={() => setEditando(true)} className="text-green-deep underline">
+          trocar
+        </button>
+        <button type="button" onClick={() => escolher(null)} className="underline">
+          ver na ordem de sempre
+        </button>
+      </p>
+    );
+  }
+
+  return (
+    <div className="mt-3 rounded-lg border border-line bg-mist p-3">
+      <p className="flex items-center gap-1 text-xs font-medium">
+        <MapPin size={13} aria-hidden /> Ver primeiro as rifas perto de você
+      </p>
+      <div className="mt-2 flex flex-wrap items-end gap-2">
+        <div>
+          <label htmlFor="vitrine-cep" className="label-xs block">
+            Seu CEP
+          </label>
+          <input
+            id="vitrine-cep"
+            inputMode="numeric"
+            autoComplete="postal-code"
+            value={cep}
+            onChange={(e) => {
+              const v = maskCep(e.target.value);
+              setCep(v);
+              void porCep(v);
+            }}
+            placeholder="00000-000"
+            className="tnum mt-1 w-32 rounded-md border border-line-2 bg-white px-3 py-2 text-sm"
+          />
+        </div>
+        <span className="pb-2 text-xs text-muted">ou</span>
+        <div>
+          <label htmlFor="vitrine-uf" className="label-xs block">
+            Estado
+          </label>
+          <select
+            id="vitrine-uf"
+            value={regiao?.uf ?? ""}
+            onChange={(e) => {
+              if (!ufValida(e.target.value)) return;
+              escolher({ uf: e.target.value, cidade: null });
+              setEditando(false);
+            }}
+            className="mt-1 rounded-md border border-line-2 bg-white px-2 py-2 text-sm"
+          >
+            <option value="">escolha</option>
+            {Object.entries(UFS).map(([sigla, nome]) => (
+              <option key={sigla} value={sigla}>
+                {nome}
+              </option>
+            ))}
+          </select>
+        </div>
+        {editando ? (
+          <button type="button" onClick={() => setEditando(false)} className="pb-2 text-xs underline">
+            cancelar
+          </button>
+        ) : null}
+      </div>
+      <p className="mt-2 text-[11px] text-muted">
+        {buscando
+          ? "Consultando CEP…"
+          : msg ?? "Todas as rifas continuam aparecendo; só muda a ordem. Fica guardado neste aparelho."}
+      </p>
+    </div>
   );
 }

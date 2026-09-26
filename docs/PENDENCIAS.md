@@ -110,7 +110,12 @@ Na ordem de entrega do plano:
 - [ ] **[você]** Asaas com split: a devolução parcial sai da conta da
   plataforma, não da do promotor. Confirmar com o Asaas como estornar o
   split antes de ligar reembolso com o Asaas.
-- [ ] **[código]** Endereço completo do organizador e estado da rifa.
+- [x] Endereço completo do organizador (CEP preenche o resto) e estado da
+  rifa: a vitrine põe primeiro as rifas da cidade e do estado de quem olha,
+  sem esconder nenhuma. Organização com "Cidade/UF" antigo já ordena pelo
+  estado; o endereço completo é pedido em Configurações.
+- [ ] **[você]** Cada organização conferir o endereço em Configurações →
+  Endereço da organização (aparece "falta cadastrar" enquanto não tiver).
 - [ ] **[código]** Tema claro e escuro.
 - [ ] **[código]** Perfil do organizador no formato do Instagram (seguir,
   sino, bio automática, destaques, grade em carrossel, menu, rifa dentro do

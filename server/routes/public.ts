@@ -18,6 +18,8 @@ import {
 } from "@shared/schema";
 import { normalizePhone, hidePhone } from "@shared/format";
 import { listPublicCampaigns, campaignBySlug, certificadoDa } from "../services/campaigns";
+import { ufValida, ordenarPorProximidade, cidadeUf, distancia } from "@shared/endereco";
+import { consultarCep } from "../services/cep";
 import { createOrder, orderByCode, ordersByPhone, OrderError } from "../services/orders";
 import { blockBitmap, isTaken, BLOCK_SIZE, NumbersTakenError, NoQuotasAvailableError } from "../services/quotas";
 import { issueOtp, checkOtp, hashPassword } from "../auth";
@@ -62,9 +64,25 @@ function hash(value: string) {
 
 /* ---------------- vitrine multi-rifas ---------------- */
 
-publicRouter.get("/campaigns", async (_req, res, next) => {
+/**
+ * A vitrine inteira, na ordem de sempre (destaque, peso, mais nova) — ou,
+ * com `?uf=` (e `?cidade=`), com a cidade e o estado de quem olha primeiro.
+ * Ordena, nunca filtra: toda rifa é nacional.
+ */
+publicRouter.get("/campaigns", async (req, res, next) => {
   try {
-    const rows = await listPublicCampaigns();
+    const uf = typeof req.query.uf === "string" && ufValida(req.query.uf.toUpperCase())
+      ? req.query.uf.toUpperCase()
+      : null;
+    const cidade = typeof req.query.cidade === "string" ? req.query.cidade.slice(0, 120) : null;
+    const rows = ordenarPorProximidade(
+      (await listPublicCampaigns()).map((r) => ({
+        ...r,
+        uf: r.organizacao?.uf ?? null,
+        cidade: r.organizacao?.cidade ?? null,
+      })),
+      { uf, cidade },
+    );
     const banners = await db
       .select()
       .from(campaignMedia)
@@ -72,7 +90,7 @@ publicRouter.get("/campaigns", async (_req, res, next) => {
     const bannerBy = new Map(banners.map((b) => [b.campaignId, withUrls(b)]));
 
     res.json(
-      rows.map(({ campaign, stats }) => ({
+      rows.map(({ campaign, stats, organizacao }) => ({
         id: campaign.id,
         slug: campaign.slug,
         title: campaign.title,
@@ -85,8 +103,40 @@ publicRouter.get("/campaigns", async (_req, res, next) => {
         banner: bannerBy.get(campaign.id)?.url ?? null,
         bannerSrcSet: bannerBy.get(campaign.id)?.srcSetWebp ?? null,
         bannerLqip: bannerBy.get(campaign.id)?.lqip ?? null,
+        organizacao: organizacao
+          ? {
+              nome: organizacao.nome,
+              slug: organizacao.slug,
+              local: cidadeUf(organizacao.cidade, organizacao.uf),
+              uf: organizacao.uf,
+            }
+          : null,
+        perto: uf ? distancia({ uf: organizacao?.uf, cidade: organizacao?.cidade }, { uf, cidade }) : null,
       })),
     );
+  } catch (err) {
+    next(err);
+  }
+});
+
+/* ---------------- CEP ---------------- */
+
+/**
+ * CEP → rua, bairro, cidade e UF. Serve ao cadastro do organizador e ao
+ * "perto de você" da vitrine. É conveniência: fora do ar, a pessoa digita.
+ */
+publicRouter.get("/cep/:cep", async (req, res, next) => {
+  try {
+    const r = await consultarCep(req.params.cep);
+    if (r === "invalido") return res.status(400).json({ message: "CEP inválido: são 8 números." });
+    if (r === "nao_encontrado") return res.status(404).json({ message: "CEP não encontrado." });
+    if (r === "indisponivel") {
+      return res
+        .status(503)
+        .json({ message: "Consulta de CEP fora do ar. Preencha o endereço à mão." });
+    }
+    res.setHeader("Cache-Control", "public, max-age=86400");
+    res.json(r);
   } catch (err) {
     next(err);
   }

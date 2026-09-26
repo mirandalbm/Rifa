@@ -139,7 +139,18 @@ export const organizations = pgTable(
     name: text("name").notNull(),
     cnpj: text("cnpj"),
     contato: text("contato"),
+    /**
+     * Endereço da promotora. A cidade sai no bilhete; cidade e UF ordenam a
+     * vitrine (cidade → estado → resto). Toda rifa é nacional: localização
+     * ordena, nunca esconde. Validação em `shared/endereco.ts`.
+     */
     cidade: text("cidade"),
+    uf: text("uf"),
+    cep: text("cep"),
+    logradouro: text("logradouro"),
+    numero: text("numero"),
+    complemento: text("complemento"),
+    bairro: text("bairro"),
     /** Texto curto do regulamento impresso no rodapé do bilhete. */
     observacao: text("observacao"),
     /**

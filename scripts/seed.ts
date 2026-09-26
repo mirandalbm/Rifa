@@ -67,7 +67,12 @@ async function main() {
       name: "Rifas São José",
       cnpj: "12.345.678/0001-90",
       contato: "(11) 3333-4444",
-      cidade: "São Paulo/SP",
+      cep: "01310100",
+      logradouro: "Avenida Paulista",
+      numero: "1000",
+      bairro: "Bela Vista",
+      cidade: "São Paulo",
+      uf: "SP",
       observacao: "Bilhete válido mediante pagamento confirmado.",
     })
     .onConflictDoUpdate({ target: organizations.slug, set: { active: true } })

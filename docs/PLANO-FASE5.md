@@ -69,7 +69,7 @@ Como fica no sistema:
   mas com o cliente identificado pelo ID (como já é hoje).
 - O administrador geral vê tudo, como hoje.
 
-### 1.4 Endereço do organizador e estado da rifa
+### 1.4 Endereço do organizador e estado da rifa **[feito]**
 - CEP, rua, número, bairro, cidade e UF (o CEP preenche o resto).
 - Toda rifa é nacional; a localização só **ordena** (cidade → estado →
   resto) e alimenta o carrossel de estados.
@@ -283,7 +283,7 @@ arquivos grandes demais para o banco.
 | 1 | Conta do apostador (senha) e exclusão LGPD | 1.1, 1.2 | — |
 | 1b | De quem é o cliente: dados só da venda do cambista no painel do organizador; ganhador liberado no sorteio | 1.3 | 1 |
 | ✓ | Reembolso pela lei do consumidor (7 dias, 10%, corte de 2 h) | 2 | — |
-| 3 | Endereço do organizador e estado da rifa | 1.4 | — |
+| ✓ | Endereço do organizador e estado da rifa | 1.4 | — |
 | 4 | Tema claro e escuro | 3.1 | — |
 | 5 | Perfil do organizador: topo, seguir, sino, bio, destaques, grade, menu, rifa dentro do perfil | 4 | 3 |
 | 6 | Notificações no celular (sino) | 6 | 5 |

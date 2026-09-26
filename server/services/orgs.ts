@@ -20,6 +20,7 @@ import type { OrganizerInfo } from "@shared/schema";
 import { LIBERACAO_COMISSAO, carteiraAsaasValida } from "@shared/plataforma";
 import { PRAZO_ESTORNO_MIN, PRAZO_ESTORNO_MAX, telefoneDeAvisoValido } from "@shared/chamados";
 import { normalizePhone } from "@shared/format";
+import { validarEndereco, cidadeUf, ufValida, separarCidadeUf, type Endereco } from "@shared/endereco";
 
 export class OrgScopeError extends Error {
   constructor(message: string, readonly status = 404) {
@@ -165,9 +166,68 @@ export async function organizerInfoOf(
     nome: org.name,
     cnpj: org.cnpj ?? undefined,
     contato: org.contato ?? undefined,
-    cidade: org.cidade ?? undefined,
+    cidade: cidadeUf(org.cidade, org.uf) ?? undefined,
     observacao: org.observacao ?? undefined,
   };
+}
+
+/** O endereço completo, ou `null` enquanto a organização não cadastrou. */
+export function enderecoDa(org: typeof organizations.$inferSelect): Endereco | null {
+  if (!org.cep || !ufValida(org.uf) || !org.cidade || !org.logradouro) return null;
+  return {
+    cep: org.cep,
+    logradouro: org.logradouro,
+    numero: org.numero ?? "",
+    complemento: org.complemento,
+    bairro: org.bairro ?? "",
+    cidade: org.cidade,
+    uf: org.uf,
+  };
+}
+
+/**
+ * Organização do cadastro antigo ("São Paulo/SP" num campo só) ganha cidade
+ * e UF separadas, para a vitrine já ordenar por ela. O `UPDATE` só pega quem
+ * ainda está sem UF: endereço gravado depois nunca é sobrescrito. O que não
+ * dá para ler fica como está, esperando o endereço completo.
+ */
+export async function separarCidadesAntigas(): Promise<number> {
+  const antigas = await db
+    .select({ id: organizations.id, cidade: organizations.cidade })
+    .from(organizations)
+    .where(and(isNull(organizations.uf), isNotNull(organizations.cidade)));
+  let n = 0;
+  for (const o of antigas) {
+    const lido = separarCidadeUf(o.cidade);
+    if (!lido) continue;
+    const r = await db
+      .update(organizations)
+      .set(lido)
+      .where(and(eq(organizations.id, o.id), isNull(organizations.uf)))
+      .returning({ id: organizations.id });
+    n += r.length;
+  }
+  return n;
+}
+
+/**
+ * Grava o endereço inteiro de uma vez: meio endereço (UF sem cidade, cidade
+ * de um cadastro e UF de outro) ordenaria a vitrine errado sem ninguém ver.
+ */
+export async function salvarEndereco(id: string, input: unknown): Promise<Endereco> {
+  let e: Endereco;
+  try {
+    e = validarEndereco((input ?? {}) as Record<string, unknown>);
+  } catch (err) {
+    throw new OrgScopeError((err as Error).message, 400);
+  }
+  const [alterada] = await db
+    .update(organizations)
+    .set(e)
+    .where(eq(organizations.id, id))
+    .returning();
+  if (!alterada) throw new OrgScopeError("Organização não encontrada.");
+  return e;
 }
 
 /* ------------------------------------------------------------------ *
@@ -204,7 +264,6 @@ export async function createOrganization(input: {
   name: string;
   cnpj?: string;
   contato?: string;
-  cidade?: string;
   observacao?: string;
 }) {
   const name = input.name?.trim();
@@ -230,7 +289,6 @@ export async function createOrganization(input: {
       slug,
       cnpj: input.cnpj?.trim() || null,
       contato: input.contato?.trim() || null,
-      cidade: input.cidade?.trim() || null,
       observacao: input.observacao?.trim() || null,
     })
     .returning();
@@ -244,7 +302,6 @@ export async function updateOrganization(
     name: string;
     cnpj: string;
     contato: string;
-    cidade: string;
     observacao: string;
     active: boolean;
     asaasWalletId: string | null;
@@ -298,7 +355,9 @@ export async function updateOrganization(
   }
   // O slug não muda junto com o nome: ele já foi impresso em bilhete e pode
   // estar em link. Renomear a administradora não pode quebrar endereço.
-  for (const campo of ["cnpj", "contato", "cidade", "observacao"] as const) {
+  // A cidade entra só com o endereço inteiro (`salvarEndereco`): solta, ela
+  // ficaria sem a UF e a vitrine não saberia onde a rifa está.
+  for (const campo of ["cnpj", "contato", "observacao"] as const) {
     if (input[campo] !== undefined) patch[campo] = input[campo]?.trim() || null;
   }
   if (input.active !== undefined) patch.active = input.active;

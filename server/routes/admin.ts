@@ -90,6 +90,8 @@ import {
   assertAffiliateInScope,
   organizationForNewCampaign,
   organizerInfoOf,
+  enderecoDa,
+  salvarEndereco,
   listOrganizations,
   createOrganization,
   updateOrganization,
@@ -955,7 +957,26 @@ adminRouter.get("/organizer", async (req, res, next) => {
     // Para o administrador geral, que não tem uma, continua valendo a
     // configuração antiga da plataforma.
     const org = orgOf(req);
-    res.json(org ? await organizerInfoOf(org) : await getOrganizer());
+    if (!org) return res.json(await getOrganizer());
+    const [linha] = await db.select().from(organizations).where(eq(organizations.id, org));
+    res.json({
+      ...(await organizerInfoOf(org)),
+      organizacaoId: org,
+      endereco: linha ? enderecoDa(linha) : null,
+      // O que já existe, para o formulário não começar do zero quando o
+      // cadastro antigo trouxe só cidade e UF.
+      enderecoParcial: linha
+        ? {
+            cep: linha.cep,
+            logradouro: linha.logradouro,
+            numero: linha.numero,
+            complemento: linha.complemento,
+            bairro: linha.bairro,
+            cidade: linha.cidade,
+            uf: linha.uf,
+          }
+        : null,
+    });
   } catch (err) {
     next(err);
   }
@@ -973,7 +994,6 @@ adminRouter.put("/organizer", async (req, res, next) => {
         name: req.body?.nome,
         cnpj: req.body?.cnpj,
         contato: req.body?.contato,
-        cidade: req.body?.cidade,
         observacao: req.body?.observacao,
       });
       await audit(req, "organizer.update", "organization", alterada.id, req.body);
@@ -1166,7 +1186,6 @@ adminRouter.post("/organizacoes", async (req, res, next) => {
       name: String(req.body?.name ?? ""),
       cnpj: req.body?.cnpj ? String(req.body.cnpj) : undefined,
       contato: req.body?.contato ? String(req.body.contato) : undefined,
-      cidade: req.body?.cidade ? String(req.body.cidade) : undefined,
       observacao: req.body?.observacao ? String(req.body.observacao) : undefined,
     });
     await audit(req, "organizacao.create", "organization", criada.id, {
@@ -1201,7 +1220,6 @@ adminRouter.patch("/organizacoes/:id", async (req, res, next) => {
       name: req.body?.name,
       cnpj: req.body?.cnpj,
       contato: req.body?.contato,
-      cidade: req.body?.cidade,
       observacao: req.body?.observacao,
       active: req.body?.active,
       asaasWalletId: req.body?.asaasWalletId,
@@ -1213,6 +1231,24 @@ adminRouter.patch("/organizacoes/:id", async (req, res, next) => {
     });
     await audit(req, "organizacao.update", "organization", alterada.id, req.body);
     res.json(alterada);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * Endereço da organização, inteiro de uma vez. O organizador grava o da
+ * dele; o do vizinho é 404, como toda rota com id de organização.
+ */
+adminRouter.put("/organizacoes/:id/endereco", async (req, res, next) => {
+  try {
+    const org = orgOf(req);
+    if (org && org !== req.params.id) {
+      return res.status(404).json({ message: "Organização não encontrada." });
+    }
+    const endereco = await salvarEndereco(req.params.id, req.body);
+    await audit(req, "organizacao.endereco", "organization", req.params.id, endereco);
+    res.json(endereco);
   } catch (err) {
     next(err);
   }

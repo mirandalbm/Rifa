@@ -101,6 +101,7 @@ arquitetura.
 | conta do apostador (senha, confirmação, exclusão) | `shared/contaComprador.ts`, `server/services/contaComprador.ts`, `scripts/conta-test.ts` |
 | de quem é o cliente (o que o organizador vê) | `shared/titularidade.ts` (regra) e `server/services/titularidade.ts` (SQL) |
 | autorização SPA/MF e data do sorteio | `shared/campanhaLegal.ts`, `salvarDadosLegais()` em `server/services/campaigns.ts`, `client/src/components/DadosLegaisCard.tsx` |
+| endereço do organizador e ordem da vitrine por região | `shared/endereco.ts` (regra), `salvarEndereco()` em `server/services/orgs.ts`, `server/services/cep.ts`, `client/src/components/EnderecoForm.tsx` |
 | app instalável (PWA) | `client/public/sw.js`, `client/public/manifest.webmanifest`, `client/src/lib/pwa.ts` |
 
 ## Convenções
@@ -524,3 +525,22 @@ pedido, cotas e valor, e o cliente só pelo ID (`Cliente C-XXXXXXXX`).
   (`preencherCodigosDeCliente`, trava 811006).
 - `npm run isolation` prova: pedido online sem nome e sem telefone, venda do
   cambista completa, exportações, e o ganhador liberado.
+
+## Endereço e região — o que não pode afrouxar
+
+- **Localização ordena, nunca esconde.** Toda rifa é nacional:
+  `ordenarPorProximidade()` põe a cidade de quem olha primeiro, depois o
+  estado, depois o resto — estável, mantendo destaque e peso dentro de cada
+  faixa. Filtro por região seria rifa que some para quem mora longe.
+- **O estado da rifa é o da promotora** (`organizations.uf`). Não há campo de
+  UF por campanha.
+- **Endereço entra inteiro** (`PUT /organizacoes/:id/endereco`,
+  `validarEndereco()`): cidade de um cadastro com UF de outro ordenaria a
+  vitrine errado sem ninguém ver. Por isso `cidade` saiu do `PATCH` genérico.
+- **O CEP é atalho, não porteiro.** `consultarCep()` tem prazo de 3 s e toda
+  falha vira resposta (`indisponivel`, `nao_encontrado`); a tela deixa
+  digitar à mão.
+- **A região de quem compra fica no aparelho** (`client/src/lib/regiao.ts`),
+  não na conta: é conveniência, e sumir não estraga nada.
+- **Cadastro antigo "Cidade/UF"** é separado uma vez pelo relógio
+  (`separarCidadesAntigas`, trava 811007), só onde a UF está vazia.

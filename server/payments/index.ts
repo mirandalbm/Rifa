@@ -1,32 +1,51 @@
 import type { PaymentProvider } from "./provider";
 import { DevPaymentProvider } from "./dev";
 import { MercadoPagoProvider } from "./mercadopago";
-
-let cached: PaymentProvider | null = null;
+import { AsaasProvider } from "./asaas";
+import { getPlataforma } from "../services/settings";
 
 /**
- * Escolhe o provedor por ambiente. Mercado Pago e Asaas entram aqui quando
- * as credenciais existirem; até lá, o provedor de desenvolvimento mantém o
- * fluxo de ponta a ponta funcionando.
+ * Dois papéis diferentes, e é por isso que há duas funções:
+ *
+ * - `activePaymentProvider()` escolhe quem gera o Pix das **vendas novas** —
+ *   a escolha do administrador geral no painel, ou a variável
+ *   `PAYMENT_PROVIDER` quando ele ainda não escolheu.
+ * - `paymentProviderByName()` atende o **webhook e o estorno** pelo nome
+ *   gravado no pedido. Trocar de provedor não pode deixar órfão o Pix que já
+ *   foi emitido pelo outro: ele ainda vai ser pago, e a confirmação chega
+ *   pelo provedor que o criou.
  */
-export function paymentProvider(): PaymentProvider {
-  if (cached) return cached;
+const cache = new Map<string, PaymentProvider>();
 
-  const configured = process.env.PAYMENT_PROVIDER ?? "dev";
-  switch (configured) {
+export const PROVEDORES_CONHECIDOS = ["dev", "mercadopago", "asaas"] as const;
+
+export function paymentProviderByName(nome: string): PaymentProvider {
+  const existente = cache.get(nome);
+  if (existente) return existente;
+
+  let provider: PaymentProvider;
+  switch (nome) {
     case "dev":
-      cached = new DevPaymentProvider();
+      provider = new DevPaymentProvider();
       break;
     case "mercadopago":
-      cached = new MercadoPagoProvider();
+      provider = new MercadoPagoProvider();
+      break;
+    case "asaas":
+      provider = new AsaasProvider();
       break;
     default:
-      throw new Error(
-        `Provedor de pagamento "${configured}" ainda não implementado. ` +
-          "Implemente server/payments/<provedor>.ts seguindo PaymentProvider.",
-      );
+      throw Object.assign(new Error(`Provedor de pagamento "${nome}" desconhecido.`), {
+        status: 404,
+      });
   }
-  return cached;
+  cache.set(nome, provider);
+  return provider;
+}
+
+export async function activePaymentProvider(): Promise<PaymentProvider> {
+  const { provedorPix } = await getPlataforma();
+  return paymentProviderByName(provedorPix ?? process.env.PAYMENT_PROVIDER ?? "dev");
 }
 
 export type { PaymentProvider, PixCharge, WebhookResult } from "./provider";

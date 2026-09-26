@@ -17,6 +17,8 @@ import type { Request } from "express";
 import { db } from "../db";
 import { campaigns, organizations, affiliates, users } from "@shared/schema";
 import type { OrganizerInfo } from "@shared/schema";
+import { LIBERACAO_COMISSAO, carteiraAsaasValida } from "@shared/plataforma";
+import { PRAZO_ESTORNO_MIN, PRAZO_ESTORNO_MAX } from "@shared/chamados";
 
 export class OrgScopeError extends Error {
   constructor(message: string, readonly status = 404) {
@@ -244,9 +246,40 @@ export async function updateOrganization(
     cidade: string;
     observacao: string;
     active: boolean;
+    asaasWalletId: string | null;
+    liberacaoComissao: string;
+    prazoEstornoDias: number;
   }>,
 ) {
   const patch: Record<string, unknown> = {};
+
+  if (input.prazoEstornoDias !== undefined) {
+    const d = input.prazoEstornoDias;
+    if (!Number.isInteger(d) || d < PRAZO_ESTORNO_MIN || d > PRAZO_ESTORNO_MAX) {
+      throw new OrgScopeError(
+        `O prazo de devolução vai de ${PRAZO_ESTORNO_MIN} a ${PRAZO_ESTORNO_MAX} dias.`,
+        400,
+      );
+    }
+    patch.prazoEstornoDias = d;
+  }
+
+  if (input.liberacaoComissao !== undefined) {
+    if (!(LIBERACAO_COMISSAO as readonly string[]).includes(input.liberacaoComissao)) {
+      throw new OrgScopeError("Escolha quando a comissão fica disponível.", 400);
+    }
+    patch.liberacaoComissao = input.liberacaoComissao;
+  }
+  if (input.asaasWalletId !== undefined) {
+    const carteira = input.asaasWalletId?.trim() || null;
+    if (carteira && !carteiraAsaasValida(carteira)) {
+      throw new OrgScopeError(
+        "Carteira do Asaas inválida: é o walletId da conta (formato 00000000-0000-0000-0000-000000000000).",
+        400,
+      );
+    }
+    patch.asaasWalletId = carteira;
+  }
 
   if (input.name !== undefined) {
     const name = input.name.trim();

@@ -2,6 +2,9 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { TrocarSenha } from "@/components/TrocarSenha";
 import { WhatsAppCard } from "@/components/WhatsAppCard";
+import { PagamentosCard } from "@/components/PagamentosCard";
+import { ComissaoCard } from "@/components/ComissaoCard";
+import { ReembolsoCard } from "@/components/ReembolsoCard";
 import { PanelShell } from "@/components/AppShell";
 import { Card, Kpi, Money, Pill, Button, Empty, Progress } from "@/components/bits";
 import { apiRequest } from "@/lib/queryClient";
@@ -163,6 +166,7 @@ export function AdminCampanhas() {
   const create = useMutation({
     mutationFn: () => apiRequest("POST", "/api/admin/campaigns", form),
     onSuccess: () => {
+      setError(null);
       setOpen(false);
       qc.invalidateQueries({ queryKey: ["/api/admin/campaigns"] });
     },
@@ -321,7 +325,18 @@ export function AdminCampanhas() {
               </span>
             </div>
 
-            <Button onClick={() => create.mutate()} disabled={create.isPending}>
+            {daPlataforma && !form.organizationId ? (
+              <p className="text-xs text-muted">
+                Escolha a organização promotora no topo do formulário para criar a campanha.
+              </p>
+            ) : null}
+            <Button
+              onClick={() => {
+                setError(null);
+                create.mutate();
+              }}
+              disabled={create.isPending || (daPlataforma && !form.organizationId)}
+            >
               Criar rascunho
             </Button>
           </div>
@@ -422,9 +437,12 @@ export function AdminPedidos() {
       campaign: { title: string };
     }[]
   >({ queryKey: ["/api/admin/orders"] });
-
   return (
     <PanelShell title="Pedidos">
+      <p className="mb-3 text-xs text-muted">
+        Reembolso não se faz por aqui: o comprador pede em "Minhas cotas", com o print do
+        bilhete, e a organização decide em Atendimento.
+      </p>
       <Card>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[620px] text-sm">
@@ -453,6 +471,7 @@ export function AdminPedidos() {
                     >
                       bilhete
                     </a>
+
                   </td>
                 </tr>
               ))}
@@ -1234,10 +1253,16 @@ export function AdminConfiguracoes() {
         <TrocarSenha />
       </div>
       {plataforma ? (
-        <div className="mb-3">
+        <div className="mb-3 grid gap-3 lg:grid-cols-2">
+          <PagamentosCard />
           <WhatsAppCard />
         </div>
-      ) : null}
+      ) : (
+        <div className="mb-3 grid gap-3 lg:grid-cols-2">
+          <ComissaoCard />
+          <ReembolsoCard />
+        </div>
+      )}
       <Card title="Trilha de auditoria" right={<span className="label-xs">últimas 200 ações</span>}>
         <ul className="divide-y divide-line">
           {data?.map((a) => (

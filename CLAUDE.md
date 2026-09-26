@@ -28,8 +28,12 @@ arquitetura.
    não vale como prova de pagamento.
 7. **O total de cotas trava ao publicar.** `assertEditable()` em
    `services/campaigns.ts`. Mudar depois alteraria a chance de quem já comprou.
-8. **Comissão tem carência.** Nasce `pending`, vira `available` só depois da
-   janela de estorno e do sorteio. Autoindicação é bloqueada por telefone.
+8. **Comissão tem carência — salvo quando a organização escolhe o contrário.**
+   O padrão (`apos_sorteio`) nasce `pending` e vira `available` só depois da
+   janela de estorno e do sorteio. A organização pode escolher `imediata`
+   (`organizations.liberacao_comissao`, via `comissaoInicial()`); aí o risco
+   de estorno depois do saque é dela, e aparece em `comissaoJaPagaCents`.
+   Autoindicação é bloqueada por telefone em qualquer modo.
 9. **A autorização SPA/MF é da campanha.** Sem `authorizationCode` a campanha
    não publica. A plataforma não é homologada em bloco — a Lei 5.768/71
    autoriza o promotor.
@@ -67,7 +71,7 @@ arquitetura.
 | mudar quem acessa o quê | `shared/access.ts` (cliente e servidor leem daqui) |
 | mexer em reserva/alocação | `server/services/quotas.ts` |
 | mexer no fluxo do pedido | `server/services/orders.ts` |
-| trocar o provedor de pagamento | `server/payments/` — implemente `PaymentProvider` |
+| trocar o provedor de pagamento | `server/payments/` — implemente `PaymentProvider`; a escolha é do painel (`shared/plataforma.ts`) |
 | regras de publicação e mídia | `server/services/campaigns.ts`, `server/routes/admin.ts` |
 | sorteio | `server/services/draw.ts` |
 | segundo fator | `server/services/totp.ts` |
@@ -84,9 +88,11 @@ arquitetura.
 | isolamento entre organizadores | `server/services/orgs.ts` e `scripts/isolation-test.ts` |
 | rateio da venda | `shared/pricing.ts` (`splitOrder`) |
 | estorno | `server/services/orders.ts` (`refundOrder`) e `scripts/refund-test.ts` |
+| pedido de reembolso (chamado) | `shared/chamados.ts`, `server/services/chamados.ts`, `client/src/pages/adminAtendimento.tsx`, `scripts/chamados-test.ts` |
 | contrato de cobrança da plataforma | `shared/billing.ts` e `server/services/billing.ts` |
 | exportações | `shared/exports.ts` (formato) e `server/services/exports.ts` (consultas) |
 | usuários, senha e arquivamento | `server/routes/admin.ts` (`/usuarios`, `/organizacoes/:id/arquivar`), `shared/senha.ts` |
+| o que falta para vender em produção | `docs/PENDENCIAS.md` — **atualize no mesmo PR** que fechar um item |
 | app instalável (PWA) | `client/public/sw.js`, `client/public/manifest.webmanifest`, `client/src/lib/pwa.ts` |
 
 ## Convenções
@@ -304,6 +310,31 @@ tem atrás.
 - Mudou a casca (`sw.js`)? Troque `VERSAO` lá dentro, senão o celular segue
   com a antiga.
 
+## Provedor do Pix e estorno — o que não pode afrouxar
+
+- **Duas funções, dois papéis.** `activePaymentProvider()` escolhe quem gera
+  o Pix das vendas novas (escolha do painel, ou `PAYMENT_PROVIDER`);
+  `paymentProviderByName()` atende webhook e estorno pelo nome gravado no
+  pedido. Usar o provedor "em uso" no webhook deixaria órfão o Pix emitido
+  antes da troca.
+- **Asaas: o status vem da API, não do corpo** — igual ao Mercado Pago. O
+  token do cabeçalho `asaas-access-token` só prova a origem.
+- **Split em percentual sobre o líquido**, nunca valor fixo: o Asaas desconta
+  a tarifa antes de dividir, e um fixo igual ao "bruto menos a taxa"
+  estouraria o líquido. A comissão **não** vai no split.
+- **CPF é conferido antes de reservar.** Descobrir no Pix deixaria cotas
+  presas. E se o provedor recusar a cobrança, `devolverReserva()` devolve os
+  números na hora — inclusive para o `free_pool` em endgame.
+- **O QR do Asaas vale até o fim do dia.** Reserva vencida cancela a cobrança
+  (`cancelCharge`, no relógio de expiração); senão o comprador pagaria uma
+  reserva já devolvida.
+- **Reembolso nasce desligado** (`estornoManual`, "Aceitar pedidos de
+  reembolso"). Desligado, o comprador não abre chamado e a organização não
+  devolve; estorno avisado pelo provedor (contestação, Pix devolvido) é
+  registrado sempre — o dinheiro já saiu.
+- **Carteira do Asaas só a plataforma cadastra.** Trocar a carteira é trocar
+  para onde vai o dinheiro das vendas.
+
 ## Rateio e cobrança — o que não pode afrouxar
 
 Três bolsos numa venda: plataforma, divulgador (afiliado ou cambista) e
@@ -361,6 +392,42 @@ comissão paga por venda que voltou, ou número que some do estoque.
   acontecer, mas estorno tardio acontece: quando pega uma comissão `paid`, o
   valor volta em `comissaoJaPagaCents` e vai para o log. Engolir calado seria
   esconder dinheiro que saiu.
-- **O botão do administrador não devolve dinheiro.** Quem devolve é o Pix ou
-  o caixa; a rota só acerta o que o sistema registrou. Misturar as duas
-  coisas faria o botão parecer que paga, e ninguém confere depois.
+- **Não existe botão solto de estorno.** O único caminho manual é o chamado
+  aprovado (seção abaixo). Com Pix, a devolução vai pelo provedor, para a
+  mesma conta que pagou, **antes** de `refundOrder`; se o provedor recusa, o
+  chamado volta a aprovado e nada é desfeito. Venda do cambista não tem
+  provedor: o sistema registra e o dinheiro volta pelo caixa
+  (`formaDevolucao = manual`).
+
+## Reembolso por chamado — o que não pode afrouxar
+
+Reembolso é a porta preferida de quem quer fraudar: comprar, perder e pedir o
+dinheiro de volta, ou pedir por um pedido que não é seu. Por isso ele não é
+botão, é **chamado** — com dono, prova, conversa e protocolo.
+
+- **Só o comprador logado pede.** A sessão do código pelo WhatsApp decide de
+  quem é o pedido; o número digitado não vale nada. Pedido de outro comprador
+  é 404 (`abrirChamado`), e o mesmo vale para ler chamado e print.
+- **Três identidades, conferidas juntas**: telefone (sessão), CPF e o ID do
+  cliente (`buyers.codigo`, `C-XXXXXXXX`, sorteado e sem caractere ambíguo).
+  O CPF, na primeira vez, fica no cadastro; dali em diante tem de bater.
+  O ID é o que o atendimento usa para falar da pessoa sem expor telefone.
+- **Depois do sorteio, nunca.** `bloqueioDoReembolso()` em
+  `shared/chamados.ts`, a mesma regra que esconde o botão e que o servidor
+  aplica. Quem perdeu pediria o dinheiro de volta.
+- **Um chamado em andamento por pedido** — quem decide é o índice único
+  parcial `uq_chamados_pedido_andamento`, não um `SELECT` antes.
+- **Limite do dia conta a tentativa, e conta o CPF errado.** Erro de
+  preenchimento (print faltando) sai **antes** do `hit()`, senão quem erra o
+  formulário fica 24 h sem pedir; o CPF é conferido **depois**, senão dá para
+  chutar CPF sem limite.
+- **O print é reprocessado** (`processarAnexo`: sharp → JPEG, sem metadados
+  de localização) e fica no banco, servido só pelas duas rotas que conferem o
+  dono, com `no-store`. Imagem do bilhete nunca vai para URL pública.
+- **Concluir é um `UPDATE` condicional** (`aberto` → `aprovado`/`recusado`).
+  O prazo de devolução sai de `organizations.prazoEstornoDias` (1 a 30),
+  calculado na conclusão, e vai na mensagem com o protocolo — é compromisso.
+- **Estornar toma o chamado** (`aprovado` → `estornado`) antes de chamar o
+  provedor: dois cliques simultâneos dão um estorno e um 409.
+- **O comprador nunca vê o nome de quem atendeu** — só "Atendimento".
+- `npm run chamados` prova tudo isso contra a API de verdade.

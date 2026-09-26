@@ -81,6 +81,7 @@ O seed imprime as credenciais no fim:
 | `npm run load` | teste de carga com compradores simultâneos |
 | `npm run isolation` | prova de isolamento entre organizações |
 | `npm run refund` | prova dos cinco efeitos do estorno |
+| `npm run chamados` | prova do reembolso por chamado (com `npm run dev` no ar) |
 
 ## Variáveis de ambiente
 
@@ -88,9 +89,12 @@ O seed imprime as credenciais no fim:
 |---|---|---|
 | `DATABASE_URL` | sim | — |
 | `SESSION_SECRET` | em produção | valor de desenvolvimento |
-| `PAYMENT_PROVIDER` | não | `dev` (use `mercadopago` em produção) |
+| `PAYMENT_PROVIDER` | não | `dev` (em produção, `mercadopago` ou `asaas`; o painel pode escolher por cima) |
 | `MP_ACCESS_TOKEN` | com Mercado Pago | — |
 | `MP_WEBHOOK_SECRET` | com Mercado Pago | — |
+| `ASAAS_API_KEY` | com Asaas | — (chave da conta da plataforma) |
+| `ASAAS_WEBHOOK_TOKEN` | com Asaas | — (o mesmo token cadastrado no webhook do Asaas) |
+| `ASAAS_SANDBOX` | não | `1` para usar o ambiente de testes do Asaas |
 | `REFUND_WINDOW_DAYS` | não | `7` |
 | `R2_BUCKET` | em produção | sem ela, o armazenamento é o disco local |
 | `R2_ACCOUNT_ID` | com R2 | — |
@@ -138,6 +142,7 @@ enche de `relation "quota_alloc" does not exist`.
    | `PUBLIC_BASE_URL` | o endereço público, ex.: `https://rifa.exemplo.com.br` |
    | `PAYMENT_PROVIDER` | `mercadopago` |
    | `MP_ACCESS_TOKEN`, `MP_WEBHOOK_SECRET` | do painel do Mercado Pago |
+   | `ASAAS_API_KEY`, `ASAAS_WEBHOOK_TOKEN` | do painel do Asaas, se for usar o Asaas |
    | `R2_ACCOUNT_ID`, `R2_BUCKET`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_PUBLIC_URL` | do Cloudflare R2 |
    | `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_ID`, `WHATSAPP_WABA_ID` | da API do WhatsApp (Meta) |
 
@@ -254,6 +259,40 @@ Meta vence em 24 horas; em produção use o de um usuário do sistema.
 Sem `WHATSAPP_TOKEN`, o provedor é o console: a mensagem aparece no terminal
 e o código de acesso volta na resposta, para o fluxo rodar sem conta no
 WhatsApp Business.
+
+### Mercado Pago ou Asaas
+
+Os dois ficam instalados; o administrador geral escolhe em **Configurações →
+Pagamentos e estorno** quem gera o Pix das vendas novas (o painel só deixa
+escolher quem tem credencial no Railway). O Pix já emitido continua sendo
+confirmado pelo provedor que o criou — cada um tem o próprio webhook:
+`/api/webhooks/mercadopago` e `/api/webhooks/asaas`.
+
+- **Mercado Pago:** tudo entra na conta da plataforma; o rateio fica no
+  controle do painel.
+- **Asaas:** com a carteira (walletId) da organização cadastrada em
+  **Organizações**, a parte do promotor cai direto na conta dele no momento
+  do pagamento (split, em percentual sobre o líquido). O Asaas exige CPF, e o
+  checkout passa a pedir. A comissão do divulgador não vai no split: segue
+  pelo saldo do painel.
+
+### Comissão e estorno
+
+- **Comissão:** cada organização escolhe (em Configurações, ou o
+  administrador geral em Organizações) se a comissão fica disponível
+  **depois do sorteio** (padrão, com carência) ou **na hora do pagamento**.
+- **Reembolso por chamado:** desligado por padrão — numa rifa, compra é
+  participação. O administrador geral liga em Configurações → "Aceitar
+  pedidos de reembolso". Aí o comprador, **logado** em "Minhas cotas", pede o
+  reembolso de um pedido pago de rifa ainda não sorteada, com motivo, CPF e o
+  print do bilhete. A organização conversa com ele em **Atendimento**, aprova
+  ou recusa; aprovado, o protocolo (`RB-AAAAMMDD-NNNNNN`) e o prazo de
+  devolução da organização (1 a 30 dias, em Configurações) saem sozinhos.
+  "Fazer a devolução" devolve pelo provedor do Pix (mesma conta que pagou) e
+  desfaz cotas, comissão e taxa; venda do cambista é devolvida no caixa.
+  Estorno avisado pelo próprio provedor é registrado mesmo desligado.
+- **ID do cliente:** todo comprador tem um código `C-XXXXXXXX`, mostrado em
+  "Minhas cotas" e no atendimento, além do telefone e do CPF.
 
 ### As cotas premiadas
 
@@ -520,11 +559,9 @@ Duas regras valem registrar:
   em `quota_alloc` e invisível para quem aloca pelo pool: sumiria do estoque
   sem ninguém perceber.
 
-O estorno entra pelo webhook do provedor e também pela mão
-(`POST /api/admin/orders/:code/estornar`), porque nem todo estorno vem do Pix
-— venda em dinheiro do cambista, cobrança contestada por fora, erro de
-operação. O botão **não devolve dinheiro**: quem devolve é o Pix ou o caixa, e
-a rota só acerta o que o sistema registrou.
+O estorno entra pelo webhook do provedor e pelo chamado de reembolso aprovado
+(`POST /api/admin/chamados/:id/estornar`). Não há outro caminho manual: sem
+pedido do comprador logado, conversa e protocolo, não se devolve.
 
 ```bash
 npm run refund

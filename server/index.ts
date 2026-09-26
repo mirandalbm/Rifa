@@ -7,6 +7,7 @@ import "dotenv/config";
 import express, { type Request, Response, NextFunction } from "express";
 import path from "node:path";
 import { ZodError } from "zod";
+import { mensagemDeValidacao } from "@shared/zodPt";
 import { registerRoutes } from "./routes";
 import { webhookRouter } from "./routes/webhooks";
 import { setupAuth } from "./auth";
@@ -39,6 +40,9 @@ app.use(
   }),
 );
 
+// O chamado leva o print do bilhete (até 5 MB em base64). Só estas rotas
+// aceitam corpo maior; o resto segue no limite de 1 MB.
+app.use(["/api/public/chamados", "/api/admin/chamados"], express.json({ limit: "8mb" }));
 app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: false }));
 
@@ -59,7 +63,7 @@ app.use((req, res, next) => {
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     if (err instanceof ZodError) {
       return res.status(400).json({
-        message: "Dados inválidos.",
+        message: mensagemDeValidacao(err.issues),
         issues: err.issues.map((i) => ({ path: i.path.join("."), message: i.message })),
       });
     }

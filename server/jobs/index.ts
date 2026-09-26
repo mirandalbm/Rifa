@@ -6,6 +6,7 @@ import { publicUrl } from "../services/urls";
 import { purgeRateEvents } from "../services/antifraude";
 import { lancarMensalidades } from "../services/billing";
 import { releaseExpired } from "../services/quotas";
+import { paymentProviderByName } from "../payments";
 import { log } from "../vite";
 import { pool } from "../db";
 
@@ -88,6 +89,24 @@ async function lembrarReservasVencendo() {
 }
 
 /**
+ * Cobrança de reserva vencida precisa deixar de valer no provedor: o Pix do
+ * Asaas vale até o fim do dia, e pagar uma reserva já devolvida ao estoque
+ * seria dinheiro sem cota. Melhor esforço — falha aqui não trava o relógio;
+ * se o pagamento ainda assim chegar, o webhook recusa o pedido expirado e o
+ * caso aparece no log para devolução.
+ */
+async function cancelarCobrancas(cobrancas: { provider: string; chargeId: string }[]) {
+  for (const c of cobrancas) {
+    try {
+      const provider = paymentProviderByName(c.provider);
+      await provider.cancelCharge?.(c.chargeId);
+    } catch (err) {
+      console.error(`[jobs] não cancelou a cobrança ${c.chargeId} (${c.provider}):`, (err as Error).message);
+    }
+  }
+}
+
+/**
  * Dois relógios. A expiração de reserva é o que devolve número ao estoque —
  * sem ela, cota reservada e não paga some da rifa.
  */
@@ -98,8 +117,9 @@ export function startJobs() {
   setInterval(async () => {
     try {
       await withLock(LOCK_EXPIRACAO, async () => {
-        const released = await releaseExpired();
-        if (released > 0) log(`${released} cota(s) voltaram ao estoque`, "jobs");
+        const { liberadas, cobrancas } = await releaseExpired();
+        if (liberadas > 0) log(`${liberadas} cota(s) voltaram ao estoque`, "jobs");
+        await cancelarCobrancas(cobrancas);
       });
     } catch (err) {
       console.error("[jobs] expiração de reservas:", err);

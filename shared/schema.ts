@@ -13,7 +13,15 @@ import {
   uniqueIndex,
   primaryKey,
 } from "drizzle-orm/pg-core";
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
+import { customType } from "drizzle-orm/pg-core";
+
+/** Bytes crus (o anexo do chamado). O driver `pg` entrega `Buffer`. */
+const bytea = customType<{ data: Buffer; driverData: Buffer }>({
+  dataType() {
+    return "bytea";
+  },
+});
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -119,6 +127,9 @@ export const sessions = pgTable(
  * cota, comissão, sorteio e acerto penduram numa campanha ou num afiliado, e
  * os dois têm dono.
  */
+/** Quando a comissão do divulgador fica disponível. Ver `shared/plataforma.ts`. */
+export const commissionRelease = pgEnum("commission_release", ["apos_sorteio", "imediata"]);
+
 export const organizations = pgTable(
   "organizations",
   {
@@ -149,6 +160,23 @@ export const organizations = pgTable(
      * organizações esconde por padrão e mostra no filtro "arquivadas".
      */
     archivedAt: timestamp("archived_at"),
+    /**
+     * Carteira da organização no Asaas. Com ela, a parte do promotor cai
+     * direto na conta dele no momento do pagamento (split); sem ela, tudo
+     * entra na conta da plataforma, como no Mercado Pago.
+     */
+    asaasWalletId: text("asaas_wallet_id"),
+    /**
+     * Comissão do divulgador: depois do sorteio (padrão, com carência) ou na
+     * hora do pagamento. Escolha da organização.
+     */
+    liberacaoComissao: commissionRelease("liberacao_comissao").notNull().default("apos_sorteio"),
+    /**
+     * Dias que a organização se compromete a levar para devolver o dinheiro
+     * depois de aprovar um pedido de reembolso. O prazo de cada chamado é
+     * calculado sozinho na aprovação.
+     */
+    prazoEstornoDias: integer("prazo_estorno_dias").notNull().default(7),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (t) => [uniqueIndex("uq_organizations_slug").on(t.slug)],
@@ -187,9 +215,18 @@ export const buyers = pgTable(
     phone: text("phone").notNull(),
     cpf: text("cpf"),
     email: text("email"),
+    /**
+     * ID do cliente, visível para ele e para o atendimento (ex.: C-7F3K9Q2M).
+     * Sorteado, nunca sequencial; quem garante que não repete é o índice.
+     * Nasce na primeira vez que o comprador entra em "Minhas cotas".
+     */
+    codigo: text("codigo"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
-  (t) => [uniqueIndex("uq_buyers_phone").on(t.phone)],
+  (t) => [
+    uniqueIndex("uq_buyers_phone").on(t.phone),
+    uniqueIndex("uq_buyers_codigo").on(t.codigo),
+  ],
 );
 
 export const affiliates = pgTable(
@@ -703,6 +740,95 @@ export const auditLog = pgTable(
 );
 
 /* ------------------------------------------------------------------ *
+ * Atendimento: chamados de reembolso com conversa
+ * ------------------------------------------------------------------ */
+
+export const chamadoStatus = pgEnum("chamado_status", [
+  "aberto",
+  "aprovado",
+  "recusado",
+  "estornado",
+]);
+
+/**
+ * Pedido de reembolso. Só o comprador logado abre, só para pedido pago dele,
+ * e só um chamado em andamento por pedido — quem garante é o índice parcial,
+ * não uma consulta antes.
+ */
+export const chamados = pgTable(
+  "chamados",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /** Número que o comprador e o atendimento usam para falar do caso. */
+    protocolo: text("protocolo").notNull(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "restrict" }),
+    orderId: uuid("order_id")
+      .notNull()
+      .references(() => orders.id, { onDelete: "restrict" }),
+    buyerId: uuid("buyer_id")
+      .notNull()
+      .references(() => buyers.id, { onDelete: "restrict" }),
+    status: chamadoStatus("status").notNull().default("aberto"),
+    motivo: text("motivo").notNull(),
+    /** Chave Pix para devolução quando o provedor não devolve sozinho. */
+    pixChave: text("pix_chave"),
+    /** Prazo para devolver, calculado na aprovação com o prazo da organização. */
+    prazoEstornoAte: timestamp("prazo_estorno_ate"),
+    concluidoEm: timestamp("concluido_em"),
+    concluidoPor: uuid("concluido_por"),
+    /** Resposta final da organização (aprovação ou motivo da recusa). */
+    decisao: text("decisao"),
+    estornadoEm: timestamp("estornado_em"),
+    /** Como o dinheiro voltou: pelo provedor, na conta que pagou, ou à mão. */
+    formaDevolucao: text("forma_devolucao"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("uq_chamados_protocolo").on(t.protocolo),
+    uniqueIndex("uq_chamados_pedido_andamento")
+      .on(t.orderId)
+      .where(sql`status in ('aberto', 'aprovado')`),
+    index("idx_chamados_org").on(t.organizationId, t.status, t.createdAt),
+  ],
+);
+
+/**
+ * Anexo (o print do bilhete). Guardado no próprio banco, já reprocessado:
+ * a imagem é decodificada e regravada em JPEG, o que descarta metadado
+ * (localização da foto) e qualquer coisa que não seja imagem de verdade.
+ */
+export const chamadoAnexos = pgTable("chamado_anexos", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  chamadoId: uuid("chamado_id")
+    .notNull()
+    .references(() => chamados.id, { onDelete: "cascade" }),
+  mime: text("mime").notNull(),
+  bytes: bytea("bytes").notNull(),
+  tamanho: integer("tamanho").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const chamadoMensagens = pgTable(
+  "chamado_mensagens",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    chamadoId: uuid("chamado_id")
+      .notNull()
+      .references(() => chamados.id, { onDelete: "cascade" }),
+    /** Quem escreveu: o comprador ou a organização (qualquer pessoa do painel). */
+    autor: text("autor").notNull(),
+    /** Pessoa do painel que respondeu; nulo quando é o comprador. */
+    userId: uuid("user_id"),
+    texto: text("texto").notNull(),
+    anexoId: uuid("anexo_id"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [index("idx_chamado_mensagens").on(t.chamadoId, t.createdAt)],
+);
+
+/* ------------------------------------------------------------------ *
  * Relações
  * ------------------------------------------------------------------ */
 
@@ -764,7 +890,19 @@ export const insertCampaignSchema = createInsertSchema(campaigns, {
     .max(MAX_QUOTAS, "O máximo é 1.000.000 de cotas."),
   priceCents: z.number().int().min(1),
   commissionPctDefault: z.number().int().min(0).max(50),
-}).omit({ id: true, createdAt: true, publishedAt: true, status: true });
+})
+  // A organização não vem do formulário: o organizador cria na dele e o
+  // administrador geral escolhe à parte (`organizationForNewCampaign`).
+  // Pedi-la aqui barrava todo organizador com "Invalid uuid". O hash da
+  // semente é do sistema: nasce na publicação.
+  .omit({
+    id: true,
+    createdAt: true,
+    publishedAt: true,
+    status: true,
+    organizationId: true,
+    drawSeedHash: true,
+  });
 
 export const createOrderSchema = z.object({
   campaignId: z.string().uuid(),

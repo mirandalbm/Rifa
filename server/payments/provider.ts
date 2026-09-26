@@ -30,8 +30,16 @@ export interface PaymentProvider {
     description: string;
     payer: { name: string; phone: string; cpf?: string };
     expiresAt: Date;
+    /**
+     * Divisão na origem (Asaas): parte do líquido que vai direto para outra
+     * carteira. Provedor sem split ignora — o dinheiro entra todo na conta da
+     * plataforma e o rateio fica só no livro.
+     */
+    split?: { walletId: string; percentual: number }[];
   }): Promise<PixCharge>;
   /** Valida assinatura e traduz o corpo. Nunca confiar no redirect do browser. */
   verifyWebhook(headers: Record<string, unknown>, rawBody: string): Promise<WebhookResult>;
   refund?(chargeId: string): Promise<void>;
+  /** Cancela a cobrança de uma reserva que expirou (QR que vale o dia todo). */
+  cancelCharge?(chargeId: string): Promise<void>;
 }

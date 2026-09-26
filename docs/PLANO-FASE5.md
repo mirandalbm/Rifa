@@ -1,152 +1,269 @@
-# Plano da Fase 5 — vitrine, contas, afiliados e marketing
+# Plano da Fase 5 — marketplace social de rifas
 
-Plano por prioridade, com as decisões já tomadas pelo responsável (26/09/2026).
-Cada etapa sai num PR próprio; `docs/PENDENCIAS.md` marca o que fechou.
+A plataforma vira um **marketplace social white label**:
 
-Legenda: **[decidido]** respondido pelo responsável; **[aberto]** falta
-resposta; **[você]** depende de cadastro, documento ou conta externa.
+- **marketplace** — todos os organizadores dentro da mesma plataforma, e o
+  apostador joga em qualquer rifa de qualquer um;
+- **social** — perfil de organizador no formato do Instagram, seguir,
+  stories, destaques, compartilhar;
+- **white label** — cada organizador personaliza o próprio perfil, e o
+  administrador geral personaliza a plataforma inteira sem mexer em código.
+
+Decisões do responsável até 26/09/2026. Cada etapa sai num PR próprio;
+`docs/PENDENCIAS.md` marca o que fechou.
+
+Legenda: **[decidido]** respondido; **[aberto]** falta resposta;
+**[você]** depende de conta, documento ou profissional externo.
 
 ---
 
-## P0 — Dados legais da campanha (bloqueia publicar)
+## 0. Feito
 
-O servidor exige autorização SPA/MF e data do sorteio para publicar, mas o
-painel não tinha onde preencher: nenhuma rifa publicava pelo painel.
+- **Dados legais da campanha** — número e arquivo do certificado SPA/MF e
+  data do sorteio, travados ao publicar (PR #16).
 
-- Número do certificado de autorização, arquivo do certificado (PDF, JPG ou
-  PNG) e data e hora do sorteio, em "Ajustar" da campanha.
-- O arquivo fica no banco (não depende do R2) e é público só depois de
-  publicada — é o documento que o apostador tem direito de conferir.
-- Autorização e data **travam ao publicar**, como o total de cotas.
-  Adiamento autorizado vira fluxo próprio do administrador geral, depois.
+---
 
-## P1 — Contas e localização
+## 1. Contas e dados do apostador
 
-### P1a. Conta do apostador **[decidido]**
+### 1.1 Conta do apostador **[decidido]**
 - Entrar com **telefone, CPF ou e-mail + senha**, ou **Google**.
-- "Criar conta" e "Quero ser afiliado" na tela Entrar e no topo da vitrine.
-- A conta vale para todas as rifas de todas as organizações.
-- Tira "Minhas cotas" e o reembolso da dependência do código do WhatsApp
-  (que espera a verificação da Meta). O código segue como opção.
-- **[você]** Google: criar o cliente OAuth no Google Cloud e passar o ID.
+- "Criar conta" na tela Entrar e no topo da vitrine; a mesma conta joga em
+  todas as rifas de todos os organizadores.
+- Tira "Minhas cotas" e o reembolso da dependência do código do WhatsApp.
+- **[você]** Google: cliente OAuth no Google Cloud.
 
-### P1b. Endereço do organizador e estado da rifa
-- Organização com CEP, rua, número, bairro, cidade e UF (CEP preenche o
-  resto). A rifa herda a UF da promotora.
+### 1.2 Exclusão de conta e dos dados (LGPD) **[decidido]**
+- O apostador pede a exclusão pelo app; os dados pessoais são apagados ou
+  anonimizados.
+- Compras, bilhetes, recibos e o que o fisco ou a SPA/MF exigem ficam
+  guardados pelo prazo legal, sem ligação com o perfil apagado.
+
+### 1.3 Endereço do organizador e estado da rifa
+- CEP, rua, número, bairro, cidade e UF (o CEP preenche o resto).
 - Toda rifa é nacional; a localização só **ordena** (cidade → estado →
-  resto do país). É também o que alimenta o carrossel de estados (P2).
+  resto) e alimenta o carrossel de estados.
 
-## P2 — Vitrine nova **[decidido]**
+---
 
-Ordem da tela inicial, de cima para baixo:
+## 2. Reembolso pela lei do consumidor **[decidido — substitui os 70/30]**
 
-1. **Banners da plataforma** — carrossel com até 5 avisos e marketing. O
-   administrador geral define o tempo de cada um (ou um tempo igual para
-   todos). Organizador pode **pagar** para a rifa dele ficar mais tempo
-   nesse topo.
-2. **Estados** — carrossel de círculos (como os stories do Instagram) com a
-   bandeira de cada estado que tem rifa no ar. Toque leva a `/estado/UF`.
-3. **Rifas patrocinadas** — carrossel de 5 banners de rifa, **comprados por
-   clique** no painel do organizador; o preço do clique é do administrador
-   geral. O saldo de cliques é pago antes (Pix) e o banner sai do ar quando
-   acaba. Clique conta uma vez por visitante em 24 h, e robô não conta.
-4. **Rifas** — em cartão no formato de publicação do Instagram (retrato
-   4:5, 1080×1350), com foto e nome do organizador no topo do cartão.
+| Quando o pedido é feito | Devolução | Taxa |
+|---|---|---|
+| Compra online, até **7 dias** da compra e antes do sorteio (direito de arrependimento, art. 49 do CDC) | **100%** | nenhuma |
+| Depois de 7 dias, ou compra presencial (cambista), e antes do sorteio | **no mínimo 90%** | até **10%**, taxa administrativa da plataforma (art. 51 do CDC) |
+| Depois do sorteio | nenhuma | — |
 
-Perfil do organizador:
-- Foto, capa, cidade, rifas no ar e encerradas, botão **Seguir**.
-- **Stories**: imagem ou vídeo curto que some em 24 h, na roda do topo do
-  perfil e numa faixa da vitrine para quem segue.
+- **Corte técnico: 2 horas antes do sorteio.** Depois disso o pedido não
+  abre — o quadro de números precisa estar fechado para o sorteio.
+- Em qualquer reembolso aprovado, a **comissão do afiliado daquela venda é
+  cancelada** e as cotas voltam ao estoque (o que `refundOrder` já faz).
+- A taxa é configurável pelo administrador geral entre 0% e 10%, aparece no
+  regulamento e **antes da compra**.
+- A decisão final em disputa passa a ser do **administrador geral** (painel
+  de disputa), não só da organização.
+- **[você]** Advogado: confirmar a regra, em especial o caso de quem compra a
+  menos de 7 dias do sorteio (o direito de arrependimento esbarra no corte de
+  2 horas). O modelo desta plataforma é promoção comercial autorizada pela
+  SPA/MF (Lei 5.768/71), não título de capitalização (SUSEP).
 
-Sugestões para entrar junto (baratas agora, caras depois):
-- Quem segue recebe aviso de **rifa nova** do organizador (WhatsApp ou
-  notificação do app).
-- Botão **compartilhar** no cartão (WhatsApp), já com o link de afiliado
-  de quem compartilha, se for afiliado.
-- Selo **"Autorizada SPA/MF"** no cartão, com o número — é o que separa a
-  rifa legal da clandestina aos olhos de quem compra.
+---
 
-Visual: inspirado no layout enviado (carrosséis, círculos, cartões), com a
-identidade da própria plataforma — nada de imagem ou marca de terceiros.
-**[aberto]** fundo escuro como o exemplo, ou manter o branco atual?
+## 3. Aparência: tema claro e escuro, e o construtor de templates
 
-**[você]** Cloudflare R2 precisa estar configurado: banner, foto de perfil,
-capa e story são arquivos grandes demais para o banco.
+### 3.1 Tema claro e escuro **[decidido]**
+- As duas opções em todo o sistema; segue o celular por padrão e o usuário
+  pode trocar.
+- As cores viram variáveis: claro e escuro têm o mesmo significado (verde =
+  dinheiro que entrou, amarelo = espera e prêmio, vermelho = erro).
 
-## P3 — Afiliado de todas as organizações **[decidido]**
+### 3.2 Construtor de templates no painel do administrador geral **[decidido]**
+Mudar a plataforma quando quiser, sem código:
+- **Identidade**: logotipo, nome, cores de destaque (claro e escuro), fonte
+  (de uma lista), arredondamento dos cantos.
+- **Tela inicial em blocos**: banners, estados, stories, rifas patrocinadas,
+  feed de rifas, destaques, texto livre, central de ajuda. Cada bloco pode
+  ser ligado, desligado, reordenado e configurado (título, quantidade,
+  tempo do carrossel).
+- **Textos**: rodapé, aviso de jogo responsável, regulamento padrão.
+- **Pré-visualização** no celular e no computador antes de publicar.
+- **Versões**: cada publicação guarda a anterior; voltar é um clique.
+- O mesmo mecanismo, com menos opções, é o **white label do organizador**
+  (logo, capa, cor de destaque, bio, links).
+
+O que fica de fora de propósito: HTML e script livres (risco de invasão e
+de quebrar o celular). Tudo o que o construtor monta passa por blocos que o
+sistema já sabe desenhar bem nas duas telas e nos dois temas.
+
+---
+
+## 4. Perfil do organizador no formato do Instagram **[decidido]**
+
+Cada organizador tem uma página de perfil, e **cada rifa abre dentro do
+perfil** (`/o/organizador/r/rifa`) — é isso que faz a plataforma funcionar
+como marketplace.
+
+Topo:
+1. **Nome da empresa em negrito** no topo.
+2. **Foto de perfil com anel de story** — story novo acende o anel.
+3. Botão **Seguindo** à esquerda do **sino**; seguir liga o sino
+   automaticamente (alerta de rifa nova, sorteio chegando, resultado).
+4. **⋮ (três pontos)** à direita do sino, com:
+   - Seja um afiliado
+   - Bônus (metas cumpridas e recompensas — ver seção 8)
+   - Seja um colaborador (pedir para ser cambista deste organizador)
+   - Sobre essa conta (CNPJ, cidade, desde quando, rifas realizadas,
+     autorizações)
+   - Copiar URL do perfil
+   - Compartilhar esse perfil
+   - QR code
+   - Deixar de seguir fica no próprio botão "Seguindo".
+
+Contadores:
+5. **Rifas realizadas** (no lugar de "posts").
+6. **Seguidores**, com contador.
+7. No lugar de "seguindo": botão **Compartilhar** para WhatsApp, Telegram,
+   Facebook, Instagram e TikTok — compartilhar conta para o **bônus**
+   (seção 8).
+
+Bio:
+8. **Bio automática com a rifa atual**: prêmio, data e hora do sorteio,
+   local ou transmissão, autorização SPA/MF, preço da cota — atualizada
+   sozinha quando uma rifa é publicada. O organizador escreve o resto.
+9. **"Seguido por fulano e outras N pessoas"** e seguidores da mesma rifa,
+   em micro perfis. **Só aparece quem liga o perfil público** — participar de
+   rifa é dado pessoal, então o padrão é privado (LGPD).
+
+Destaques e grade:
+10. **Destaques = rifas passadas**, automaticamente, com só a data embaixo.
+11. **Grade de rifas, uma por linha** (maior e mais visível que a grade de 3
+    do Instagram), cada uma em **carrossel**: capa (foto do ganhador depois
+    do sorteio; antes, a foto do prêmio), até 5 fotos e 1 vídeo.
+
+Tela inicial do apostador:
+- **Stories dos perfis que ele segue** no topo, como no Instagram.
+- **Seguir** e **sino** funcionam também de dentro da página da rifa.
+
+---
+
+## 5. Vitrine (tela inicial) **[decidido]**
+
+Ordem padrão (reordenável pelo construtor, seção 3.2):
+
+1. **Banners da plataforma** — até 5, avisos e marketing, tempo por banner
+   ou igual para todos. Organizador pode **pagar** por mais tempo no topo.
+2. **Stories** dos perfis seguidos.
+3. **Estados** — círculos com a bandeira de cada estado com rifa no ar;
+   toque leva a `/estado/UF`.
+4. **Rifas patrocinadas** — 5 banners comprados **por clique** no painel do
+   organizador; preço do clique definido pelo administrador geral; saldo
+   pago antes; clique conta uma vez por visitante em 24 h; robô não conta.
+5. **Feed de rifas** em formato de publicação (retrato 4:5), com o perfil do
+   organizador no topo de cada cartão e o selo **"Autorizada SPA/MF"**.
+
+**[você]** Cloudflare R2: banners, fotos de perfil, capas e stories são
+arquivos grandes demais para o banco.
+
+---
+
+## 6. Notificações no celular **[decidido]**
+
+- Notificação do app instalado (PWA): rifa nova de quem o apostador segue,
+  sorteio chegando, resultado, reembolso respondido.
+- O sino do perfil liga e desliga por organizador; o WhatsApp continua para
+  o que é transação (pagamento, bilhete, reembolso).
+
+---
+
+## 7. Transparência
+
+- **Central de ajuda** **[decidido]**: perguntas frequentes da plataforma e
+  **regulamento de cada rifa**, visível antes da compra (inclui a regra de
+  reembolso da seção 2).
+- **Transmissão do sorteio** **[decidido]**: link da live ou do vídeo na
+  página da rifa e no destaque, com o número sorteado e a conferência da
+  semente publicada.
+
+---
+
+## 8. Crescimento: indicação, bônus e gamificação **[decidido]**
+
+- **Indicação de apostador**: quem traz outro apostador ganha bônus (cotas
+  grátis ou desconto na próxima compra) — diferente do afiliado, que ganha
+  dinheiro.
+- **Compartilhar perfil conta ponto** (seção 4, item 7), com limite contra
+  abuso: conta o compartilhamento que gera visita de alguém novo.
+- **Metas** definidas pela plataforma ou pelo organizador (comprar em 3
+  rifas, indicar 5 amigos…) liberam o bônus; o menu "Bônus" do perfil mostra
+  o progresso.
+- **[você]** Advogado: cota grátis numa promoção autorizada precisa estar
+  prevista no regulamento aprovado pela SPA/MF.
+
+---
+
+## 9. Afiliado de todas as organizações **[decidido]**
 
 - **Afiliado avulso**: cadastro sem organização; escolhe as rifas que quer
-  divulgar e pode aderir a quantas organizações quiser.
-- **Termo de adesão**: cada organização escreve regras e ganhos. Antes de
-  divulgar, o afiliado vê o termo (percentual, quando recebe, quem paga,
-  regras) e aceita. O aceite fica registrado com cópia do texto, data,
-  versão, IP e aparelho.
-- **O termo não muda com rifa em andamento.** Ele é fotografado na
-  publicação de cada rifa, como o total de cotas: vale até o sorteio. A
-  organização edita o termo a qualquer hora, mas a versão nova vale para as
-  rifas que publicar depois. Quando uma versão nova entra em vigor, o
-  afiliado vê o termo novo; se não aceitar, o vínculo é desfeito
-  automaticamente (sem perder o que já ganhou).
-- **O dinheiro da comissão fica na conta da plataforma**, não do
-  organizador: no split do Pix, a parte do promotor vai para ele e a
-  comissão fica retida com a plataforma, que paga depois do resultado. O
-  organizador não alcança esse valor.
-- **Ganhos sempre depois do resultado do sorteio.** A comissão aparece a
-  cada venda, mas só é sacável depois que o resultado sai. A opção "na hora
-  do pagamento" deixa de existir.
+  divulgar e adere a quantas organizações quiser.
+- **Termo de adesão** por organização, com percentual, quando recebe, quem
+  paga e regras; o aceite fica registrado com cópia do texto, data, versão,
+  IP e aparelho.
+- **O termo não muda com rifa em andamento**: é fotografado na publicação de
+  cada rifa e vale até o sorteio. Versão nova vale para as rifas publicadas
+  depois; o afiliado precisa aceitá-la, ou o vínculo é desfeito (sem perder
+  o que já ganhou).
+- **Comissão guardada pela plataforma**, não pelo organizador, e paga
+  **sempre depois do resultado do sorteio**. A opção "na hora do pagamento"
+  deixa de existir.
 - **Cadastro fiscal do afiliado na plataforma**: RG, CPF, comprovante de
-  residência e conta bancária, com cópia dos documentos guardada pela
-  plataforma (criptografada, acesso auditado, nunca visível ao organizador).
-- **Recibo assinado a cada pagamento**: declaração com os dados do afiliado,
-  valor, origem (organização, rifa, pedidos) e aceite eletrônico, gerada em
-  PDF e guardada. É o respaldo da plataforma perante o fisco.
-- **Extrato por origem**: cada comissão com organização, rifa e pedido;
-  totais por organização e por situação (aguardando sorteio, disponível,
-  paga).
-- **[você]** Contador: retenção de IR/INSS no pagamento a pessoa física
-  (RPA), nota fiscal de MEI/PJ, e o enquadramento de a plataforma guardar
-  dinheiro de terceiros até o sorteio.
+  residência e conta bancária, com cópia dos documentos (criptografada,
+  acesso auditado, nunca visível ao organizador).
+- **Recibo assinado a cada pagamento**, em PDF, com dados, valor e origem.
+- **Extrato por origem**: organização, rifa e pedido de cada comissão.
+- **"Seja um colaborador"**: o mesmo fluxo para quem quer ser cambista de um
+  organizador — pedido, aprovação do organizador, termo.
+- **[você]** Contador: RPA/nota do afiliado e a plataforma guardar dinheiro
+  de terceiros até o sorteio.
 
-## P4 — Reembolso: prazo, disputa e taxa
+---
 
-- **Reembolso só até 2 horas antes do sorteio.** Depois disso o botão some e
-  o servidor recusa. **[decidido]**
-- **Disputa no administrador geral**: quem decide se o reembolso é devido
-  passa a ser o painel do administrador geral, não mais a organização
-  sozinha. **[decidido]**
-- **[aberto]** A regra dos 70/30 precisa ser confirmada. A leitura
-  proposta: num reembolso aprovado, o comprador recebe 70% do valor pago, a
-  plataforma retém 30% como taxa administrativa, e a comissão do afiliado
-  daquela venda é cancelada.
-- **[você]** Advogado: reter parte do valor num reembolso pode ser
-  questionado pelo Código de Defesa do Consumidor; a taxa precisa estar no
-  regulamento da rifa e aparecer antes da compra.
+## 10. Painel de resultados do organizador **[decidido]**
 
-## P5 — Marketing e tráfego pago
+- Vendas por dia, por canal (site, afiliado, cambista, anúncio, perfil),
+  ticket médio, rifas que mais vendem, seguidores ganhos, retorno das rifas
+  patrocinadas.
 
-- Pixels por organização e da plataforma: Meta, Google Ads/GA4, TikTok.
-- A compra conta pelo servidor, na confirmação do pagamento (não pelo
-  navegador), para o anúncio não contar Pix que não foi pago.
-- Links com UTM e relatório "vendas por origem".
-- Aviso de cookies (LGPD): pixel só carrega depois do aceite.
-- **[você]** Meta e Google restringem anúncio de sorteio: confirmar que a
-  conta de anúncios pode rodar esse tipo de campanha antes de investir.
+---
+
+## 11. Marketing e tráfego pago
+
+- Pixels por organização e da plataforma (Meta, Google Ads/GA4, TikTok);
+  compra contada pelo servidor na confirmação do pagamento; UTM; relatório
+  de vendas por origem; aviso de cookies (LGPD).
+- **[você]** Confirmar com Meta e Google que a conta de anúncios pode rodar
+  anúncio de sorteio.
 
 ---
 
 ## Ordem de entrega
 
-| # | Etapa | Depende de |
-|---|---|---|
-| 1 | P0 dados legais da campanha | — |
-| 2 | P1a conta do apostador (senha) | — |
-| 3 | P1b endereço e estado | — |
-| 4 | P4 prazo de 2 h antes do sorteio | — |
-| 5 | P2 vitrine: estados, cartões, perfil, seguir | P1b |
-| 6 | P2 banners da plataforma e stories | R2 |
-| 7 | P2 patrocínio por clique | Pix da plataforma |
-| 8 | P3 afiliado multi-organização e termo | — |
-| 9 | P3 custódia, cadastro fiscal e recibo | contador |
-| 10 | P4 disputa e taxa 70/30 | resposta [aberto] |
-| 11 | P1a login com Google | cliente OAuth |
-| 12 | P5 marketing | conta de anúncios |
+| # | Etapa | Seção | Depende de |
+|---|---|---|---|
+| ✓ | Dados legais da campanha | 0 | — |
+| 1 | Conta do apostador (senha) e exclusão LGPD | 1.1, 1.2 | — |
+| 2 | Reembolso pela lei do consumidor (7 dias, 10%, corte de 2 h) | 2 | — |
+| 3 | Endereço do organizador e estado da rifa | 1.3 | — |
+| 4 | Tema claro e escuro | 3.1 | — |
+| 5 | Perfil do organizador: topo, seguir, sino, bio, destaques, grade, menu, rifa dentro do perfil | 4 | 3 |
+| 6 | Notificações no celular (sino) | 6 | 5 |
+| 7 | Central de ajuda, regulamento e transmissão do sorteio | 7 | — |
+| 8 | Construtor de templates e white label do organizador | 3.2 | 4 |
+| 9 | Vitrine: banners, stories, estados, feed | 5 | 5, R2 |
+| 10 | Painel de resultados do organizador | 10 | — |
+| 11 | Afiliado multi-organização, termo, colaborador | 9 | — |
+| 12 | Guarda da comissão, cadastro fiscal e recibo | 9 | contador |
+| 13 | Indicação, bônus e gamificação | 8 | 5, advogado |
+| 14 | Disputa de reembolso no administrador geral | 2 | 2 |
+| 15 | Rifas patrocinadas por clique | 5 | Pix da plataforma |
+| 16 | Marketing e tráfego pago | 11 | conta de anúncios |
+| 17 | Login com Google | 1.1 | cliente OAuth |

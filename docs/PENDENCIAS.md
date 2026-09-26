@@ -91,24 +91,36 @@ senha); **[código]** é trabalho no repositório.
 
 ## 5. Fase 5 (plano em `docs/PLANO-FASE5.md`)
 
-- [ ] **[código]** P1a conta do apostador: telefone, CPF ou e-mail + senha;
-  login com Google.
-- [ ] **[código]** P1b endereço completo do organizador e estado da rifa.
-- [ ] **[código]** P4 reembolso só até 2 horas antes do sorteio.
-- [ ] **[código]** P2 vitrine: banners da plataforma, estados em círculo,
-  rifas patrocinadas por clique, cartões no formato do Instagram, perfil do
-  organizador com seguir e stories.
-- [ ] **[código]** P3 afiliado de todas as organizações: termo de adesão
-  por rifa, comissão guardada pela plataforma e paga depois do resultado,
-  cadastro fiscal com documentos, recibo assinado, extrato por origem.
-- [ ] **[código]** P4 disputa de reembolso no administrador geral e taxa
-  administrativa.
-- [ ] **[código]** P5 pixels, UTM e relatório de vendas por origem.
-- [ ] **[você]** Responder: regra dos 70/30 no reembolso; fundo escuro ou
-  branco na vitrine.
-- [ ] **[você]** Contador e advogado: guarda da comissão pela plataforma,
-  RPA/nota dos afiliados, taxa retida em reembolso.
-- [ ] **[você]** Cliente OAuth do Google (login com Google).
+Na ordem de entrega do plano:
+
+- [ ] **[código]** Conta do apostador (telefone, CPF ou e-mail + senha) e
+  exclusão de conta pela LGPD.
+- [ ] **[código]** Reembolso pela lei do consumidor: 100% até 7 dias da
+  compra online, até 10% de taxa depois, nada depois do sorteio, corte 2 h
+  antes.
+- [ ] **[código]** Endereço completo do organizador e estado da rifa.
+- [ ] **[código]** Tema claro e escuro.
+- [ ] **[código]** Perfil do organizador no formato do Instagram (seguir,
+  sino, bio automática, destaques, grade em carrossel, menu, rifa dentro do
+  perfil).
+- [ ] **[código]** Notificações no celular.
+- [ ] **[código]** Central de ajuda, regulamento e transmissão do sorteio.
+- [ ] **[código]** Construtor de templates e white label do organizador.
+- [ ] **[código]** Vitrine: banners, stories, estados, feed.
+- [ ] **[código]** Painel de resultados do organizador.
+- [ ] **[código]** Afiliado multi-organização, termo por rifa, colaborador.
+- [ ] **[código]** Guarda da comissão pela plataforma, cadastro fiscal e
+  recibo.
+- [ ] **[código]** Indicação, bônus e gamificação.
+- [ ] **[código]** Disputa de reembolso no administrador geral.
+- [ ] **[código]** Rifas patrocinadas por clique.
+- [ ] **[código]** Marketing e tráfego pago.
+- [ ] **[código]** Login com Google.
+- [ ] **[você]** Advogado: regra de reembolso (arrependimento × corte de
+  2 h), cota grátis de bônus no regulamento.
+- [ ] **[você]** Contador: guarda da comissão pela plataforma e RPA/nota
+  dos afiliados.
+- [ ] **[você]** Cliente OAuth do Google.
 
 ## 6. Código, para depois
 

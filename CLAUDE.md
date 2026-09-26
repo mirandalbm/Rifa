@@ -108,7 +108,8 @@ arquitetura.
   `tnum` — DM Mono com algarismo tabular.
 - Estado nunca é comunicado só por cor: use `<Pill>`, que traz rótulo em texto.
 - Paleta: branco de fundo; verde = dinheiro que entrou; amarelo = espera e
-  prêmio; vermelho = erro. Cor sem significado é ruído.
+  prêmio; vermelho = erro. Cor sem significado é ruído. O tema escuro (plano
+  da Fase 5) troca os tons, nunca o significado.
 
 ## O que ainda não existe
 

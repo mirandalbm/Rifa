@@ -196,6 +196,8 @@ async function alcancaOVizinho(eu: Lado, vizinho: Lado) {
     ["GET extrato de cobrança do vizinho", `/api/admin/cobranca/extrato?organizacao=${vizinho.orgId}`, {}],
     ["POST redefinir senha do vizinho", `/api/admin/usuarios/${vizinho.userId}/senha`, { method: "POST", body: '{"password":"tomada-da-conta"}' }],
     ["PATCH comissão do vizinho", `/api/admin/organizacoes/${vizinho.orgId}`, { method: "PATCH", body: '{"liberacaoComissao":"imediata"}' }],
+    ["PUT dados legais do vizinho", `/api/admin/campaigns/${c}/legal`, { method: "PUT", body: '{"authorizationCode":"invadido-123"}' }],
+    ["GET certificado do vizinho", `/api/admin/campaigns/${c}/certificado`, {}],
     ["GET chamado do vizinho", `/api/admin/chamados/${vizinho.chamadoId}`, {}],
     ["GET print do chamado do vizinho", `/api/admin/chamados/anexos/${vizinho.anexoId}`, {}],
     ["POST responder no chamado do vizinho", `/api/admin/chamados/${vizinho.chamadoId}/mensagens`, { method: "POST", body: '{"texto":"invadido"}' }],
@@ -307,6 +309,24 @@ async function conteudoDasListas(eu: Lado, vizinho: Lado) {
     total: number;
   };
   checa("o contador do atendimento é só o meu", pendentes.total === 1, `${pendentes.total}`);
+
+  // Os dados legais da própria campanha passam (e travam o que é dela).
+  const pdf = "data:application/pdf;base64," + Buffer.from("%PDF-1.4\n% certificado de teste\n").toString("base64");
+  const legal = await pedir(eu.cookie, `/api/admin/campaigns/${eu.campaignId}/legal`, {
+    method: "PUT",
+    body: JSON.stringify({
+      authorizationCode: `SPA-${eu.nome}-2026`,
+      drawAt: new Date(Date.now() + 7 * 86_400_000).toISOString(),
+      certificado: { dataUrl: pdf, nome: "certificado.pdf" },
+    }),
+  });
+  checa("os dados legais da própria campanha são aceitos", legal.status === 200, `HTTP ${legal.status}`);
+  const cert = await pedir(eu.cookie, `/api/admin/campaigns/${eu.campaignId}/certificado`);
+  checa(
+    "e o certificado volta como PDF",
+    cert.status === 200 && (cert.headers.get("content-type") ?? "").includes("pdf"),
+    `HTTP ${cert.status}`,
+  );
 
   const administradora = await (await pedir(eu.cookie, "/api/admin/organizer")).json();
   checa(

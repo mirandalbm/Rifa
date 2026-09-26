@@ -34,8 +34,12 @@ arquitetura.
    (`organizations.liberacao_comissao`, via `comissaoInicial()`); aí o risco
    de estorno depois do saque é dela, e aparece em `comissaoJaPagaCents`.
    Autoindicação é bloqueada por telefone em qualquer modo.
-9. **A autorização SPA/MF é da campanha.** Sem `authorizationCode` a campanha
-   não publica. A plataforma não é homologada em bloco — a Lei 5.768/71
+9. **A autorização SPA/MF é da campanha.** Sem `authorizationCode`, arquivo do
+   certificado e `drawAt` a campanha não publica. Os três entram só por
+   `PUT /campaigns/:id/legal` (`salvarDadosLegais()`), que confere o arquivo
+   pelo conteúdo, e **travam ao publicar** como o total de cotas. O arquivo
+   fica em `campaign_certificados` (banco, não R2) e só é público depois de
+   publicada. A plataforma não é homologada em bloco — a Lei 5.768/71
    autoriza o promotor.
 10. **O antifraude corre antes de qualquer gravação.** `guardOrder()` em
     `services/antifraude.ts` roda antes do primeiro `INSERT` do pedido. Guarda
@@ -93,6 +97,8 @@ arquitetura.
 | exportações | `shared/exports.ts` (formato) e `server/services/exports.ts` (consultas) |
 | usuários, senha e arquivamento | `server/routes/admin.ts` (`/usuarios`, `/organizacoes/:id/arquivar`), `shared/senha.ts` |
 | o que falta para vender em produção | `docs/PENDENCIAS.md` — **atualize no mesmo PR** que fechar um item |
+| plano da próxima fase (vitrine, contas, afiliados, marketing) | `docs/PLANO-FASE5.md` |
+| autorização SPA/MF e data do sorteio | `shared/campanhaLegal.ts`, `salvarDadosLegais()` em `server/services/campaigns.ts`, `client/src/components/DadosLegaisCard.tsx` |
 | app instalável (PWA) | `client/public/sw.js`, `client/public/manifest.webmanifest`, `client/src/lib/pwa.ts` |
 
 ## Convenções
@@ -102,7 +108,8 @@ arquitetura.
   `tnum` — DM Mono com algarismo tabular.
 - Estado nunca é comunicado só por cor: use `<Pill>`, que traz rótulo em texto.
 - Paleta: branco de fundo; verde = dinheiro que entrou; amarelo = espera e
-  prêmio; vermelho = erro. Cor sem significado é ruído.
+  prêmio; vermelho = erro. Cor sem significado é ruído. O tema escuro (plano
+  da Fase 5) troca os tons, nunca o significado.
 
 ## O que ainda não existe
 

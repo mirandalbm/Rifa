@@ -801,6 +801,23 @@ export const chamados = pgTable(
  * a imagem é decodificada e regravada em JPEG, o que descarta metadado
  * (localização da foto) e qualquer coisa que não seja imagem de verdade.
  */
+/**
+ * Arquivo do certificado de autorização da SPA/MF, um por campanha. Fica no
+ * banco — é pequeno, é documento legal e não pode depender do armazenamento
+ * de mídia estar configurado. Tabela à parte para `select()` de campanha
+ * nunca arrastar o arquivo junto.
+ */
+export const campaignCertificados = pgTable("campaign_certificados", {
+  campaignId: uuid("campaign_id")
+    .primaryKey()
+    .references(() => campaigns.id, { onDelete: "cascade" }),
+  mime: text("mime").notNull(),
+  nome: text("nome").notNull(),
+  bytes: bytea("bytes").notNull(),
+  tamanho: integer("tamanho").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 export const chamadoAnexos = pgTable("chamado_anexos", {
   id: uuid("id").primaryKey().defaultRandom(),
   chamadoId: uuid("chamado_id")
@@ -896,7 +913,9 @@ export const insertCampaignSchema = createInsertSchema(campaigns, {
   // A organização não vem do formulário: o organizador cria na dele e o
   // administrador geral escolhe à parte (`organizationForNewCampaign`).
   // Pedi-la aqui barrava todo organizador com "Invalid uuid". O hash da
-  // semente é do sistema: nasce na publicação.
+  // semente é do sistema: nasce na publicação. Autorização e data do sorteio
+  // têm rota própria (`/campaigns/:id/legal`), que confere o arquivo: pelo
+  // formulário genérico daria para marcar o certificado sem enviá-lo.
   .omit({
     id: true,
     createdAt: true,
@@ -904,6 +923,9 @@ export const insertCampaignSchema = createInsertSchema(campaigns, {
     status: true,
     organizationId: true,
     drawSeedHash: true,
+    authorizationCode: true,
+    authorizationFileKey: true,
+    drawAt: true,
   });
 
 export const createOrderSchema = z.object({

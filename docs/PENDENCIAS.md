@@ -3,7 +3,7 @@
 Lista viva do que falta para a rifa vender em produção. Atualizada a cada
 etapa — quem fechar um item marca aqui no mesmo PR.
 
-Última atualização: 26/09/2026 (aviso de chamado novo).
+Última atualização: 26/09/2026 (dados legais da campanha; plano da Fase 5).
 
 Legenda: **[você]** depende do responsável pela conta (cadastro, documento,
 senha); **[código]** é trabalho no repositório.
@@ -62,8 +62,11 @@ senha); **[código]** é trabalho no repositório.
 - [ ] **[você]** Cloudflare R2: criar o bucket e gerar as chaves (sem isso,
   não sobe banner nem foto de rifa).
 - [ ] **[você]** Domínio próprio apontado para o Railway.
-- [ ] **[você]** Código de autorização SPA/MF de cada rifa (sem ele a rifa
-  não publica).
+- [x] Campos de autorização SPA/MF (número e arquivo do certificado) e data
+  do sorteio no cadastro da campanha (Campanhas → Ajustar → "Dados legais
+  da rifa"), com a lista do que falta para publicar. Travam ao publicar.
+- [ ] **[você]** Certificado de autorização SPA/MF de cada rifa (número e
+  arquivo) — sem ele a rifa não publica.
 - [x] Criar campanha: o formulário barrava todo organizador com "Dados
   inválidos" (a validação exigia a organização vinda da tela). Corrigido, e
   os erros de validação agora dizem o campo e o que fazer.
@@ -86,7 +89,40 @@ senha); **[código]** é trabalho no repositório.
   `claude/rename-jogo-do-bicho-glo23j` (esta já copiada para o repositório do
   jogo do bicho).
 
-## 5. Código, para depois
+## 5. Fase 5 (plano em `docs/PLANO-FASE5.md`)
+
+Na ordem de entrega do plano:
+
+- [ ] **[código]** Conta do apostador (telefone, CPF ou e-mail + senha) e
+  exclusão de conta pela LGPD.
+- [ ] **[código]** Reembolso pela lei do consumidor: 100% até 7 dias da
+  compra online, até 10% de taxa depois, nada depois do sorteio, corte 2 h
+  antes.
+- [ ] **[código]** Endereço completo do organizador e estado da rifa.
+- [ ] **[código]** Tema claro e escuro.
+- [ ] **[código]** Perfil do organizador no formato do Instagram (seguir,
+  sino, bio automática, destaques, grade em carrossel, menu, rifa dentro do
+  perfil).
+- [ ] **[código]** Notificações no celular.
+- [ ] **[código]** Central de ajuda, regulamento e transmissão do sorteio.
+- [ ] **[código]** Construtor de templates e white label do organizador.
+- [ ] **[código]** Vitrine: banners, stories, estados, feed.
+- [ ] **[código]** Painel de resultados do organizador.
+- [ ] **[código]** Afiliado multi-organização, termo por rifa, colaborador.
+- [ ] **[código]** Guarda da comissão pela plataforma, cadastro fiscal e
+  recibo.
+- [ ] **[código]** Indicação, bônus e gamificação.
+- [ ] **[código]** Disputa de reembolso no administrador geral.
+- [ ] **[código]** Rifas patrocinadas por clique.
+- [ ] **[código]** Marketing e tráfego pago.
+- [ ] **[código]** Login com Google.
+- [ ] **[você]** Advogado: regra de reembolso (arrependimento × corte de
+  2 h), cota grátis de bônus no regulamento.
+- [ ] **[você]** Contador: guarda da comissão pela plataforma e RPA/nota
+  dos afiliados.
+- [ ] **[você]** Cliente OAuth do Google.
+
+## 6. Código, para depois
 
 - [ ] **[código]** Maquininha Stone no invólucro Android: faltam os nomes de
   classe do SDK da Stone (a do PagBank está pronta).

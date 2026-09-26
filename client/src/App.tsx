@@ -8,6 +8,7 @@ import { useSession } from "@/lib/session";
 import { roleSatisfies, type Role } from "@shared/access";
 
 import Vitrine from "@/pages/Vitrine";
+import EstadoPage from "@/pages/Estado";
 import Rifa from "@/pages/Rifa";
 import Perfil from "@/pages/Perfil";
 import { AplicarTemplate } from "@/lib/template";
@@ -37,6 +38,7 @@ import { AdminExportacoes } from "@/pages/adminExportacoes";
 import { AdminOrganizacoes } from "@/pages/adminOrganizacoes";
 import { AdminUsuarios } from "@/pages/adminUsuarios";
 import { AdminAtendimento } from "@/pages/adminAtendimento";
+import { AdminStories } from "@/pages/adminStories";
 import { PanelShell } from "@/components/AppShell";
 import { TrocarSenha } from "@/components/TrocarSenha";
 import { AdminCobranca } from "@/pages/adminCobranca";
@@ -103,6 +105,7 @@ export default function App() {
           <Route path="/r/:slug/regulamento" component={Regulamento} />
           <Route path="/o/:org/r/:slug/regulamento" component={Regulamento} />
           <Route path="/ajuda" component={Ajuda} />
+          <Route path="/estado/:uf" component={EstadoPage} />
           <Route path="/r/:slug" component={Rifa} />
           <Route path="/o/:org/r/:slug" component={Rifa} />
           <Route path="/o/:org" component={Perfil} />
@@ -167,6 +170,11 @@ export default function App() {
           <Route path="/admin/pedidos">
             <Guarded requires="organizer">
               <AdminPedidos />
+            </Guarded>
+          </Route>
+          <Route path="/admin/stories">
+            <Guarded requires="organizer">
+              <AdminStories />
             </Guarded>
           </Route>
           <Route path="/admin/atendimento">

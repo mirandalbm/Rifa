@@ -50,6 +50,9 @@ app.use(
     "/api/admin/chamados",
     "/api/admin/campaigns/:id/legal",
     "/api/admin/template/logo",
+    "/api/admin/banners",
+    "/api/admin/banners/:id",
+    "/api/admin/stories",
   ],
   express.json({ limit: "8mb" }),
 );

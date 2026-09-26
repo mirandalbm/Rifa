@@ -10,6 +10,7 @@ import {
   campaignCertificados,
   campaignMedia,
   campaignStats,
+  organizacaoFotos,
   organizations,
   MIN_QUOTAS,
   MAX_QUOTAS,
@@ -188,11 +189,14 @@ export async function listPublicCampaigns() {
         slug: organizations.slug,
         cidade: organizations.cidade,
         uf: organizations.uf,
+        // O feed mostra o perfil no topo de cada cartão.
+        fotoEm: organizacaoFotos.updatedAt,
       },
     })
     .from(campaigns)
     .leftJoin(campaignStats, eq(campaignStats.campaignId, campaigns.id))
     .leftJoin(organizations, eq(organizations.id, campaigns.organizationId))
+    .leftJoin(organizacaoFotos, eq(organizacaoFotos.organizationId, campaigns.organizationId))
     .where(eq(campaigns.status, "published"))
     .orderBy(
       sql`${campaigns.featured} DESC, ${campaigns.sortWeight} DESC, ${campaigns.publishedAt} DESC`,

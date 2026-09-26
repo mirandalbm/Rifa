@@ -8,6 +8,7 @@ import { preencherCodigosDeCliente } from "../services/codigoCliente";
 import { separarCidadesAntigas } from "../services/orgs";
 import { avisarSorteiosChegando } from "../services/push";
 import { completarRegioesPendentes } from "../services/contaComprador";
+import { apagarStoriesVencidos } from "../services/vitrine";
 import { lancarMensalidades } from "../services/billing";
 import { releaseExpired } from "../services/quotas";
 import { paymentProviderByName } from "../payments";
@@ -38,6 +39,7 @@ const LOCK_EXPIRACAO = 811_001;
 const LOCK_COMISSAO = 811_002;
 const LOCK_LEMBRETE = 811_003;
 const LOCK_LIMPEZA = 811_004;
+const LOCK_STORIES = 811_010;
 const LOCK_MENSALIDADE = 811_005;
 const LOCK_CODIGOS = 811_006;
 const LOCK_CIDADES = 811_007;
@@ -196,6 +198,18 @@ export function startJobs() {
       console.error("[jobs] cidades antigas:", err);
     }
   }, 5_000).unref();
+
+  // Stories vencidos (24 h): a rota já não serve, e o relógio tira do banco.
+  setInterval(async () => {
+    try {
+      await withLock(LOCK_STORIES, async () => {
+        const n = await apagarStoriesVencidos();
+        if (n > 0) log(`${n} story(ies) vencido(s) apagado(s)`, "jobs");
+      });
+    } catch (err) {
+      console.error("[jobs] stories vencidos:", err);
+    }
+  }, releaseMs).unref();
 
   setInterval(async () => {
     try {

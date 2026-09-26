@@ -29,6 +29,7 @@ import {
   prizedQuotas,
   chamados,
   chamadoAnexos,
+  stories,
 } from "../shared/schema";
 import { hashPassword } from "../server/auth";
 
@@ -223,6 +224,11 @@ async function montarLado(marca: string, indice: number): Promise<Lado> {
 /** Cada uma destas devolve 404: para quem não é dono, aquilo não existe. */
 async function alcancaOVizinho(eu: Lado, vizinho: Lado) {
   const c = vizinho.campaignId;
+  // Um story do vizinho no ar: apagar pelo id dele tem de dar 404.
+  const [storyDoVizinho] = await db
+    .insert(stories)
+    .values({ organizationId: vizinho.orgId, mime: "image/webp", bytes: Buffer.from([0]), expiraEm: new Date(Date.now() + 3_600_000) })
+    .returning({ id: stories.id });
   const tentativas: [string, string, RequestInit][] = [
     ["PATCH campanha", `/api/admin/campaigns/${c}`, { method: "PATCH", body: '{"title":"invadida"}' }],
     ["GET impedimentos", `/api/admin/campaigns/${c}/blockers`, {}],
@@ -250,12 +256,17 @@ async function alcancaOVizinho(eu: Lado, vizinho: Lado) {
     ["PUT endereço do vizinho", `/api/admin/organizacoes/${vizinho.orgId}/endereco`, { method: "PUT", body: ENDERECO_VALIDO }],
     ["PUT transmissão do vizinho", `/api/admin/campaigns/${c}/transmissao`, { method: "PUT", body: '{"url":"https://youtube.com/live/invadido"}' }],
     ["PUT perfil público do vizinho", `/api/admin/organizacoes/${vizinho.orgId}/perfil`, { method: "PUT", body: '{"bio":"perfil invadido"}' }],
+    ["DELETE story do vizinho", `/api/admin/stories/${storyDoVizinho.id}`, { method: "DELETE" }],
   ];
 
   for (const [nome, caminho, init] of tentativas) {
     const res = await pedir(eu.cookie, caminho, init);
     checa(nome, res.status === 404, `HTTP ${res.status}`);
   }
+  const [aindaLa] = await db.select({ id: stories.id }).from(stories).where(eq(stories.id, storyDoVizinho.id));
+  checa("o story do vizinho continua no ar", Boolean(aindaLa));
+  const meus = (await (await pedir(eu.cookie, "/api/admin/stories")).json()) as { id: string }[];
+  checa("a lista de stories não traz o do vizinho", !meus.some((x) => x.id === storyDoVizinho.id));
 }
 
 const ENDERECO_VALIDO = JSON.stringify({
@@ -315,6 +326,11 @@ async function rotasDaPlataforma(eu: Lado) {
     ["PUT logo da plataforma", "/api/admin/template/logo", { method: "PUT", body: "{}" }],
     ["POST publicar template", "/api/admin/template/publicar", { method: "POST" }],
     ["POST restaurar versão do template", "/api/admin/template/versoes/00000000-0000-0000-0000-000000000000/restaurar", { method: "POST" }],
+    ["GET banners da vitrine", "/api/admin/banners", {}],
+    ["POST banner da vitrine", "/api/admin/banners", { method: "POST", body: "{}" }],
+    ["PUT ordem dos banners", "/api/admin/banners/ordem", { method: "PUT", body: '{"ids":[]}' }],
+    ["PATCH banner da vitrine", "/api/admin/banners/00000000-0000-0000-0000-000000000000", { method: "PATCH", body: "{}" }],
+    ["DELETE banner da vitrine", "/api/admin/banners/00000000-0000-0000-0000-000000000000", { method: "DELETE" }],
     ["POST criar modelos do WhatsApp", "/api/admin/whatsapp/modelos", { method: "POST" }],
     ["POST teste do WhatsApp", "/api/admin/whatsapp/teste", { method: "POST", body: '{"telefone":"11999999999"}' }],
   ];

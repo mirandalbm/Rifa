@@ -6,6 +6,7 @@ import { PublicShell } from "@/components/AppShell";
 import { Money, Progress, Empty } from "@/components/bits";
 import { SeguirBotoes, FotoDoPerfil } from "@/components/Seguir";
 import { DestaqueOrg, LinksDoPerfil } from "@/components/DestaqueOrg";
+import { FotoComStory, VisualizadorDeStories } from "@/components/Stories";
 import { groupNumber, percent } from "@shared/format";
 import {
   contador,
@@ -43,6 +44,7 @@ interface Perfil {
   nome: string;
   foto: string | null;
   capa: string | null;
+  ultimoStory: string | null;
   destaque: CorDeDestaque | null;
   links: LinkDoPerfil[];
   local: string | null;
@@ -72,6 +74,7 @@ export default function PerfilPage() {
   const [menu, setMenu] = useState(false);
   const [painel, setPainel] = useState<"sobre" | "qr" | "compartilhar" | null>(null);
   const [copiado, setCopiado] = useState(false);
+  const [stories, setStories] = useState(false);
 
   if (isLoading) {
     return (
@@ -125,7 +128,14 @@ export default function PerfilPage() {
       <h1 className={`font-display text-xl font-extrabold ${p.capa ? "sr-only" : ""}`}>{p.nome}</h1>
       <div className={`flex gap-4 ${p.capa ? "items-end" : "mt-3 items-center"}`}>
         <span className={p.capa ? "-mt-10 rounded-full bg-white p-1" : ""}>
-          <FotoDoPerfil nome={p.nome} foto={p.foto} tamanho={84} />
+          <FotoComStory
+            slug={p.slug}
+            nome={p.nome}
+            foto={p.foto}
+            ultimoStory={p.ultimoStory}
+            tamanho={84}
+            onAbrir={() => setStories(true)}
+          />
         </span>
         <dl className="grid flex-1 grid-cols-3 text-center">
           <Contador rotulo="rifas realizadas" valor={contador(p.rifasRealizadas)} />
@@ -326,6 +336,7 @@ export default function PerfilPage() {
           </p>
         </Folha>
       ) : null}
+      {stories ? <VisualizadorDeStories slug={p.slug} onFechar={() => setStories(false)} /> : null}
       </DestaqueOrg>
     </PublicShell>
   );

@@ -104,6 +104,17 @@ import {
 import { isUniqueViolation } from "../pgError";
 import { destaqueDa, salvarPerfil, urlDaCapa, urlDaFoto } from "../services/perfil";
 import {
+  alterarBanner,
+  apagarBanner,
+  apagarStory,
+  criarBanner,
+  donoDoStory,
+  listarBanners,
+  ordenarBanners,
+  postarStory,
+  storiesDaOrganizacao,
+} from "../services/vitrine";
+import {
   publicar,
   rascunho as rascunhoDoTemplate,
   restaurar,
@@ -2384,6 +2395,112 @@ adminRouter.get("/audit", async (req, res, next) => {
     res.json(
       await db.select().from(auditLog).orderBy(desc(auditLog.createdAt)).limit(200),
     );
+  } catch (err) {
+    next(err);
+  }
+});
+
+/* ---------------- vitrine: banners da plataforma ---------------- */
+
+/**
+ * Banners do topo da vitrine. Só o administrador geral — organizador recebe
+ * 403 (rota da plataforma). O corpo leva a imagem em base64: as rotas estão
+ * na lista de 8 MB do `server/index.ts`.
+ */
+adminRouter.get("/banners", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    res.json(await listarBanners());
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.post("/banners", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    const novo = await criarBanner(req.body ?? {});
+    await audit(req, "banner.criar", "banner", novo.id, { titulo: novo.titulo, link: novo.link });
+    res.status(201).json(novo);
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.put("/banners/ordem", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    const lista = await ordenarBanners(req.body?.ids);
+    await audit(req, "banner.ordem", "banner", undefined, { ids: req.body?.ids });
+    res.json(lista);
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.patch("/banners/:id", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    const feito = await alterarBanner(req.params.id, req.body ?? {});
+    const { imagem, ...resto } = req.body ?? {};
+    await audit(req, "banner.alterar", "banner", req.params.id, { ...resto, imagem: imagem ? "trocada" : undefined });
+    res.json(feito);
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.delete("/banners/:id", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    await apagarBanner(req.params.id);
+    await audit(req, "banner.apagar", "banner", req.params.id);
+    res.status(204).end();
+  } catch (err) {
+    next(err);
+  }
+});
+
+/* ---------------- vitrine: stories ---------------- */
+
+/**
+ * Stories da organização. Recorte de sempre: o organizador vê e posta os
+ * dele; o administrador geral vê todos e, para postar, diz de qual
+ * organização. Apagar confere o dono **antes** do `DELETE` — o do vizinho é
+ * 404.
+ */
+adminRouter.get("/stories", async (req, res, next) => {
+  try {
+    res.json(await storiesDaOrganizacao(orgOf(req)));
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.post("/stories", async (req, res, next) => {
+  try {
+    const org = orgOf(req) ?? (typeof req.body?.organizacaoId === "string" ? req.body.organizacaoId : null);
+    if (!org) return res.status(400).json({ message: "Diga de qual organização é o story." });
+    const novo = await postarStory(org, {
+      imagem: req.body?.imagem,
+      legenda: req.body?.legenda,
+      campaignId: req.body?.campaignId,
+    });
+    await audit(req, "story.postar", "story", novo.id, { organizacao: org, rifa: req.body?.campaignId ?? null });
+    res.status(201).json(novo);
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.delete("/stories/:id", async (req, res, next) => {
+  try {
+    const dono = await donoDoStory(req.params.id);
+    const org = orgOf(req);
+    if (!dono || (org && dono !== org)) return res.status(404).json({ message: "Story não encontrado." });
+    await apagarStory(req.params.id);
+    await audit(req, "story.apagar", "story", req.params.id);
+    res.status(204).end();
   } catch (err) {
     next(err);
   }

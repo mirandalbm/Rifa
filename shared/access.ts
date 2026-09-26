@@ -62,6 +62,7 @@ export type SectionKey =
   | "adminCambistas"
   | "adminUsuarios"
   | "adminAtendimento"
+  | "adminStories"
   | "adminFinanceiro"
   | "adminSorteios"
   | "adminCobranca"
@@ -106,6 +107,8 @@ export const SECTIONS: Section[] = [
   { key: "adminPedidos", path: "/admin/pedidos", label: "Pedidos", requires: "organizer", nav: true },
   // Chamados de reembolso, com conversa: cada organização atende os dela.
   { key: "adminAtendimento", path: "/admin/atendimento", label: "Atendimento", requires: "organizer", nav: true },
+  // Stories de 24 h, para quem segue. Cada organização posta os dela.
+  { key: "adminStories", path: "/admin/stories", label: "Stories", requires: "organizer", nav: true },
   { key: "adminAfiliados", path: "/admin/afiliados", label: "Afiliados", requires: "organizer", nav: true },
   { key: "adminCambistas", path: "/admin/cambistas", label: "Cambistas", requires: "organizer", nav: true },
   // Todo mundo que entra no painel, com os dados de cada um. O organizador vê

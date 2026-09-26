@@ -106,6 +106,7 @@ arquitetura.
 | white label do organizador (capa, cor de destaque, links) | `validarDestaque()`/`validarLinks()` em `shared/perfil.ts`, `salvarPerfil()` em `server/services/perfil.ts`, `client/src/components/DestaqueOrg.tsx`, `client/src/components/PerfilPublicoForm.tsx` |
 | notificações no celular (Web Push) | `shared/push.ts` (regras), `server/services/push.ts`, `client/public/sw.js`, `client/src/lib/push.ts`, `scripts/push-test.ts` |
 | regulamento, central de ajuda, transmissão e conferência do sorteio | `shared/regulamento.ts`, `shared/ajuda.ts`, `shared/sorteio.ts`, `client/src/components/SorteioCard.tsx`, `scripts/transparencia-test.ts` |
+| vitrine: banners, stories, estados e feed | `shared/vitrine.ts` (regras), `server/services/vitrine.ts`, `client/src/components/BannersVitrine.tsx`, `Stories.tsx`, `EstadosVitrine.tsx`, `CartaoDoFeed.tsx`, `client/src/pages/adminStories.tsx`, `scripts/vitrine-test.ts` |
 | aparência da plataforma (construtor de templates) | `shared/template.ts` (regras), `server/services/template.ts`, `client/src/lib/template.ts`, `client/src/pages/adminAparencia.tsx`, `scripts/aparencia-test.ts` |
 | tema claro e escuro | `client/src/index.css` (variáveis), `client/src/lib/tema.ts`, `client/src/components/TemaToggle.tsx`, `tests/tema.test.ts` |
 | app instalável (PWA) | `client/public/sw.js`, `client/public/manifest.webmanifest`, `client/src/lib/pwa.ts` |
@@ -687,3 +688,37 @@ pedido, cotas e valor, e o cliente só pelo ID (`Cliente C-XXXXXXXX`).
   continua sem poder emoldurar a loja.
 - **A logo fica no banco** (`plataforma_arquivos`), reprocessada em WebP.
 - `npm run aparencia` prova tudo isso e devolve o estado de antes no fim.
+
+## Vitrine — o que não pode afrouxar
+
+- **Banners são da plataforma** (403 para organizador, no `npm run
+  isolation`): até 5 (`BANNERS_MAX`), com título obrigatório — é o texto
+  alternativo da imagem. O link é caminho do site (`/r/…`) ou `https:`,
+  nunca `//outro-site` nem `javascript:` (`validarLinkDoBanner`). A janela de
+  datas e o "ligado" decidem o que está no ar (`bannerNoAr`), e entram na
+  hora, sem publicar o template.
+- **Limite é conferido com trava**, não com `SELECT` solto: contar e
+  inserir ficam na mesma transação com `pg_advisory_xact_lock` (banners e
+  stories por organização). Dois pedidos ao mesmo tempo não passam do teto —
+  `npm run vitrine` prova.
+- **Story vive 24 h** (`expira_em`). Vencido some da rota **na hora** (lista
+  e imagem conferem a data), e o relógio tira do banco (`apagarStoriesVencidos`,
+  trava 811010). Organização arquivada: a imagem também some.
+- **Story leva só para rifa da própria organização**, e já pública. Apagar
+  confere o dono **antes** do `DELETE` — o do vizinho é 404.
+- **O "visto" do story fica no aparelho** (`client/src/lib/stories.ts`),
+  como a região e o tema: perder só acende o anel de novo. O anel aceso é
+  mais grosso e diz "(novo)" no rótulo — nunca só cor.
+- **Estados ordenam, a página do estado filtra.** Os círculos põem o estado
+  de quem olha primeiro (`estadosComRifa`); `/estado/UF` é escolha explícita
+  da pessoa, por isso ali filtrar vale (`?estado=`). A vitrine segue só
+  ordenando.
+- **Feed em formato de publicação** (4:5), com o perfil da promotora no
+  topo e o selo "Autorizada SPA/MF" com o número — a rifa no ar sempre tem.
+- **Imagem nunca é servida como veio**: banner 1200×600 e story 1080×1920,
+  WebP, sem metadados, no banco (até o R2 entrar).
+- **Subconsulta com tabela de fora escreve o nome da tabela**
+  (`"organizations"."id"`): o drizzle deixa a coluna sem prefixo dentro do
+  template `sql`, e `id` vira o da tabela de dentro. E `timestamp` lido por SQL cru
+  volta como texto sem fuso — é UTC, converta (`ultimoStorySql`).
+

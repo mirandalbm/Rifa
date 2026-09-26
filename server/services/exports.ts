@@ -21,6 +21,7 @@ import {
   type ExportKey,
 } from "@shared/exports";
 import { maskPhone } from "@shared/format";
+import { clienteVisivelSql, nomeNoPainelSql, dadoNoPainelSql } from "./titularidade";
 
 /** Linhas por ida ao banco. Grande o bastante para render, pequeno para caber. */
 const PAGINA = 1_000;
@@ -157,7 +158,10 @@ function pedidos(escopo: ExportScope): ExportStream {
         const page = await rows<LinhaPedido>(sql`
           SELECT o.code, o.created_at, o.id, o.paid_at,
                  c.title AS campanha,
-                 b.name AS comprador, b.phone AS telefone, b.cpf, b.email,
+                 ${nomeNoPainelSql(clienteVisivelSql(escopo.organizationId))} AS comprador,
+                 ${dadoNoPainelSql(clienteVisivelSql(escopo.organizationId), "b.phone")} AS telefone,
+                 ${dadoNoPainelSql(clienteVisivelSql(escopo.organizationId), "b.cpf")} AS cpf,
+                 ${dadoNoPainelSql(clienteVisivelSql(escopo.organizationId), "b.email")} AS email,
                  o.quantity, o.amount_cents, o.discount_cents,
                  o.status::text, o.method::text, o.pos_auth_code,
                  af.code AS afiliado, cb.code AS cambista, cp.code AS cupom
@@ -243,7 +247,10 @@ function cotas(escopo: ExportScope): ExportStream {
       for (;;) {
         const page = await rows<LinhaCota>(sql`
           SELECT a.number, a.status::text, a.created_at,
-                 o.code, b.name AS comprador, b.phone AS telefone,
+                 o.code,
+                 CASE WHEN o.id IS NULL THEN NULL
+                      ELSE ${nomeNoPainelSql(clienteVisivelSql(escopo.organizationId))} END AS comprador,
+                 ${dadoNoPainelSql(clienteVisivelSql(escopo.organizationId), "b.phone")} AS telefone,
                  pq.prize_label AS premio
             FROM quota_alloc a
             -- LEFT, nao INNER: quota_alloc.order_id nao tem chave
@@ -340,6 +347,10 @@ function compradores(escopo: ExportScope): ExportStream {
                 FROM orders o
                WHERE o.buyer_id = b.id
                  AND o.status = 'paid'
+                 -- Carteira de clientes do organizador = clientes dos
+                 -- cambistas dele (e ganhadores). Cliente da plataforma não
+                 -- entra: é da plataforma (shared/titularidade.ts).
+                 AND ${clienteVisivelSql(escopo.organizationId)}
                  ${escopo.campaignId ? sql`AND o.campaign_id = ${escopo.campaignId}::uuid` : sql``}
                  ${
                    escopo.organizationId
@@ -350,8 +361,9 @@ function compradores(escopo: ExportScope): ExportStream {
                  }
                  ${janela(sql`o.created_at`, escopo)}
             ) p ON TRUE
-           -- Comprador sem nenhuma compra desta organização não é cliente
-           -- dela: entregá-lo seria vazar a base de quem vende ao lado.
+           -- Comprador sem nenhuma compra desta organização (feita por
+           -- cambista dela) não é cliente dela: entregá-lo seria vazar a base
+           -- de quem vende ao lado — ou a da plataforma.
            WHERE ${escopo.organizationId ? sql`coalesce(p.pedidos, 0) > 0` : sql`TRUE`}
              ${depois}
            ORDER BY b.created_at, b.id

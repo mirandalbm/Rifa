@@ -3,7 +3,7 @@
 Lista viva do que falta para a rifa vender em produção. Atualizada a cada
 etapa — quem fechar um item marca aqui no mesmo PR.
 
-Última atualização: 26/09/2026 (conta do apostador).
+Última atualização: 26/09/2026 (de quem é o cliente).
 
 Legenda: **[você]** depende do responsável pela conta (cadastro, documento,
 senha); **[código]** é trabalho no repositório.
@@ -98,8 +98,10 @@ Na ordem de entrega do plano:
   tem Minhas compras (por rifa, com o organizador e a 2ª via do bilhete),
   Reembolsos e Minha conta; exclusão pela LGPD. Compras antigas com o mesmo
   CPF vêm junto; o ID do cliente sai no bilhete.
-- [ ] **[código]** De quem é o cliente: no painel do organizador, dados
-  completos só de quem comprou com cambista; ganhador liberado no sorteio.
+- [x] De quem é o cliente: no painel do organizador (pedidos, exportações,
+  atendimento), dados completos só de quem comprou com cambista e do
+  ganhador; cliente da plataforma aparece pelo ID. Afiliado vê só o primeiro
+  nome. Todo comprador ganha ID desde a primeira compra.
 - [ ] **[código]** Reembolso pela lei do consumidor: 100% até 7 dias da
   compra online, até 10% de taxa depois, nada depois do sorteio, corte 2 h
   antes.

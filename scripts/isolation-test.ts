@@ -23,8 +23,10 @@ import {
   campaigns,
   users,
   buyers,
+  affiliates,
   orders,
   campaignStats,
+  prizedQuotas,
   chamados,
   chamadoAnexos,
 } from "../shared/schema";
@@ -142,6 +144,45 @@ async function montarLado(marca: string, indice: number): Promise<Lado> {
     })
     .onConflictDoNothing();
   const [pedido] = await db.select({ id: orders.id }).from(orders).where(eq(orders.code, orderCode));
+
+  // Uma venda de cambista: o freguês dele é cliente da organização e aparece
+  // completo no painel; o comprador online acima é da plataforma.
+  const [cambistaUser] = await db
+    .insert(users)
+    .values({
+      role: "cambista",
+      organizationId: org.id,
+      name: `Cambista ${marca}`,
+      email: `iso-cambista-${marca}@rifa.teste`,
+      passwordHash: await hashPassword(senha),
+    })
+    .onConflictDoUpdate({ target: users.email, set: { organizationId: org.id } })
+    .returning({ id: users.id });
+  const [cambista] = await db
+    .insert(affiliates)
+    .values({ userId: cambistaUser.id, code: `ISOCB${indice}`, kind: "cambista", status: "active" })
+    .onConflictDoUpdate({ target: affiliates.code, set: { userId: cambistaUser.id } })
+    .returning({ id: affiliates.id });
+  const [fregues] = await db
+    .insert(buyers)
+    .values({ name: `Freguês ${marca}`, phone: `1196100000${indice}` })
+    .onConflictDoUpdate({ target: buyers.phone, set: { name: `Freguês ${marca}` } })
+    .returning();
+  await db
+    .insert(orders)
+    .values({
+      code: 92_100_000 + indice,
+      campaignId: campanha.id,
+      buyerId: fregues.id,
+      sellerId: cambista.id,
+      method: "dinheiro",
+      quantity: 2,
+      amountCents: 1000,
+      status: "paid",
+      paidAt: new Date(),
+      expiresAt: new Date(Date.now() + 86_400_000),
+    })
+    .onConflictDoNothing();
 
   // Um pedido de reembolso por lado, com o print: é o dado mais sensível da
   // organização (CPF, chave Pix, foto do bilhete).
@@ -328,6 +369,61 @@ async function conteudoDasListas(eu: Lado, vizinho: Lado) {
     `HTTP ${cert.status}`,
   );
 
+  // De quem é o cliente: o da plataforma aparece só pelo ID; o do cambista,
+  // completo — na lista de pedidos e nas exportações.
+  const meusPedidos = (await (await pedir(eu.cookie, "/api/admin/orders")).json()) as {
+    order: { code: number };
+    buyer: { name: string; phone: string | null };
+  }[];
+  const online = meusPedidos.find((r) => r.order.code === eu.orderCode);
+  const doCambista = meusPedidos.find((r) => r.order.code === 92_100_000 + (eu.nome === "norte" ? 1 : 2));
+  checa(
+    "pedido online: cliente da plataforma só pelo ID",
+    Boolean(online && online.buyer.name !== `Cliente ${eu.nome}` && online.buyer.phone === null),
+    online?.buyer.name ?? "sem linha",
+  );
+  checa(
+    "venda do cambista: cliente completo",
+    doCambista?.buyer.name === `Freguês ${eu.nome}` && Boolean(doCambista?.buyer.phone),
+    doCambista?.buyer.name ?? "sem linha",
+  );
+  const csvPedidos = await (await pedir(eu.cookie, "/api/admin/exportacoes/pedidos")).text();
+  checa(
+    "exportação de pedidos não traz o nome do cliente da plataforma",
+    !csvPedidos.includes(`Cliente ${eu.nome}`) && csvPedidos.includes(`Freguês ${eu.nome}`),
+  );
+  const csvClientes = await (await pedir(eu.cookie, "/api/admin/exportacoes/compradores")).text();
+  checa(
+    "carteira de clientes do organizador = só os do cambista",
+    !csvClientes.includes(`Cliente ${eu.nome}`) && csvClientes.includes(`Freguês ${eu.nome}`),
+    `${csvClientes.split("\n").length - 2} linha(s)`,
+  );
+
+  // Ganhador: o promotor entrega o prêmio, então o cliente da plataforma que
+  // ganhou aparece completo para ele.
+  const [pedidoOnline] = await db.select().from(orders).where(eq(orders.code, eu.orderCode));
+  const [premio] = await db
+    .insert(prizedQuotas)
+    .values({
+      campaignId: eu.campaignId,
+      number: 999,
+      prizeLabel: "teste de ganhador",
+      claimedByOrderId: pedidoOnline.id,
+      claimedAt: new Date(),
+    })
+    .returning();
+  const comGanhador = (await (await pedir(eu.cookie, "/api/admin/orders")).json()) as {
+    order: { code: number };
+    buyer: { name: string; phone: string | null };
+  }[];
+  const ganhou = comGanhador.find((r) => r.order.code === eu.orderCode);
+  checa(
+    "ganhador da plataforma aparece completo para o promotor",
+    ganhou?.buyer.name === `Cliente ${eu.nome}` && Boolean(ganhou?.buyer.phone),
+    ganhou?.buyer.name ?? "sem linha",
+  );
+  await db.delete(prizedQuotas).where(eq(prizedQuotas.id, premio.id));
+
   const administradora = await (await pedir(eu.cookie, "/api/admin/organizer")).json();
   checa(
     "a administradora é a organização da sessão",
@@ -343,9 +439,17 @@ async function limpar(lados: Lado[]) {
     await db.delete(campaignStats).where(eq(campaignStats.campaignId, l.campaignId));
     await db.delete(campaigns).where(eq(campaigns.id, l.campaignId));
     await db.delete(users).where(eq(users.email, l.email));
+    // Só o cambista deste lado: o do vizinho ainda tem venda no banco.
+    const emailCambista = `iso-cambista-${l.nome}@rifa.teste`;
+    await db.execute(
+      sql`DELETE FROM affiliates WHERE user_id IN (SELECT id FROM users WHERE email = ${emailCambista})`,
+    );
+    await db.delete(users).where(eq(users.email, emailCambista));
     await db.delete(organizations).where(eq(organizations.id, l.orgId));
   }
-  await db.execute(sql`DELETE FROM buyers WHERE phone IN ('11960000001','11960000002')`);
+  await db.execute(
+    sql`DELETE FROM buyers WHERE phone IN ('11960000001','11960000002','11961000001','11961000002')`,
+  );
 }
 
 async function main() {

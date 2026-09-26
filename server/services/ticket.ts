@@ -11,7 +11,7 @@ import { db } from "../db";
 import { orders, buyers, campaigns, quotaAlloc, affiliates, users, draws } from "@shared/schema";
 import { formatQuota, hidePhone, hideCpf } from "@shared/format";
 import { organizerInfoOf } from "./orgs";
-import { garantirCodigoCliente } from "./chamados";
+import { garantirCodigoCliente } from "./codigoCliente";
 import { METODO_LABEL, SITUACAO_LABEL, type TicketData } from "./ticketFormat";
 
 export type { TicketData } from "./ticketFormat";

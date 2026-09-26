@@ -98,7 +98,10 @@ affiliateRouter.get("/commissions", async (req, res, next) => {
         orderCode: orders.code,
         orderAmountCents: orders.amountCents,
         quantity: orders.quantity,
-        buyerName: buyers.name,
+        // Quem comprou pelo link é cliente da plataforma: o afiliado vê só o
+        // primeiro nome. A venda do cambista é dele — nome inteiro.
+        buyerName: sql<string>`CASE WHEN ${orders.sellerId} IS NOT NULL THEN ${buyers.name}
+                                    ELSE split_part(${buyers.name}, ' ', 1) END`,
         campaignTitle: campaigns.title,
       })
       .from(commissions)

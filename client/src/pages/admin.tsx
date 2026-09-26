@@ -12,7 +12,7 @@ import { useSession } from "@/lib/session";
 import { MediaManager } from "@/components/MediaManager";
 import { CampaignExtras } from "@/components/CampaignExtras";
 import { DadosLegaisCard } from "@/components/DadosLegaisCard";
-import { formatBRL, groupNumber, formatQuota } from "@shared/format";
+import { formatBRL, groupNumber, formatQuota, maskPhone } from "@shared/format";
 import { MAX_QUOTAS, MIN_QUOTAS } from "@shared/schema";
 import {
   PAYMENT_METHODS,
@@ -439,7 +439,7 @@ export function AdminPedidos() {
   const { data } = useQuery<
     {
       order: { code: number; status: string; quantity: number; amountCents: number; createdAt: string };
-      buyer: { name: string; phone: string };
+      buyer: { name: string; phone: string | null; codigo: string | null; completo: boolean };
       campaign: { title: string };
     }[]
   >({ queryKey: ["/api/admin/orders"] });
@@ -464,7 +464,13 @@ export function AdminPedidos() {
                 <tr key={row.order.code} className="border-t border-line">
                   <td className="tnum px-3 py-2">#{row.order.code}</td>
                   <td className="px-3 py-2">{row.campaign.title}</td>
-                  <td className="px-3 py-2">{row.buyer.name}</td>
+                  <td className="px-3 py-2">
+                    {row.buyer.name}
+                    {/* Cliente da plataforma: só o ID. Do cambista: completo. */}
+                    {row.buyer.completo && row.buyer.phone ? (
+                      <span className="tnum block text-[11px] text-muted">{maskPhone(row.buyer.phone)}</span>
+                    ) : null}
+                  </td>
                   <td className="tnum px-3 py-2">{row.order.quantity}</td>
                   <td className="px-3 py-2"><Money cents={row.order.amountCents} /></td>
                   <td className="px-3 py-2"><Pill status={row.order.status} /></td>

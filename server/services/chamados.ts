@@ -33,7 +33,6 @@ import {
   CHAMADOS_POR_DIA,
   bloqueioDoReembolso,
   destinatariosDoAviso,
-  gerarCodigoCliente,
   gerarProtocolo,
   prazoDoEstorno,
   problemaNoPedido,
@@ -41,6 +40,8 @@ import {
 } from "@shared/chamados";
 import { cpfValido, formatBRL, hideCpf, hidePhone } from "@shared/format";
 import { podePedirReembolso } from "@shared/contaComprador";
+import { clienteNoPainel } from "@shared/titularidade";
+import { clienteVisivelSql, nomeNoPainelSql } from "./titularidade";
 import { notify } from "../notifications";
 import { publicUrl } from "./urls";
 import { isUniqueViolation } from "../pgError";
@@ -63,31 +64,10 @@ const sortear = (max: number) => randomInt(0, max);
  * ID do cliente
  * ------------------------------------------------------------------ */
 
-/**
- * Dá ao comprador o ID de cliente, se ainda não tem. O `UPDATE … WHERE codigo
- * IS NULL` não sobrescreve quem já tem; colisão de sorteio é resolvida pelo
- * índice único, tentando outro código.
- */
-export async function garantirCodigoCliente(buyerId: string): Promise<string | null> {
-  for (let tentativa = 0; tentativa < 5; tentativa++) {
-    try {
-      const [novo] = await db
-        .update(buyers)
-        .set({ codigo: gerarCodigoCliente(sortear) })
-        .where(and(eq(buyers.id, buyerId), sql`${buyers.codigo} IS NULL`))
-        .returning({ codigo: buyers.codigo });
-      if (novo?.codigo) return novo.codigo;
-      const [atual] = await db
-        .select({ codigo: buyers.codigo })
-        .from(buyers)
-        .where(eq(buyers.id, buyerId));
-      return atual?.codigo ?? null;
-    } catch (err) {
-      if (!isUniqueViolation(err, "uq_buyers_codigo")) throw err;
-    }
-  }
-  throw new ChamadoError("Não foi possível gerar o ID do cliente. Tente de novo.", 500);
-}
+// O ID do cliente mora em `codigoCliente.ts`; reexportado aqui porque as
+// rotas do comprador já o importam deste serviço.
+import { garantirCodigoCliente } from "./codigoCliente";
+export { garantirCodigoCliente };
 
 /* ------------------------------------------------------------------ *
  * Anexo
@@ -461,7 +441,8 @@ export async function listarChamados(req: Request, status?: string) {
       valorCents: orders.amountCents,
       rifa: campaigns.title,
       cliente: buyers.codigo,
-      nome: buyers.name,
+      // Cliente da plataforma aparece só pelo ID (shared/titularidade.ts).
+      nome: sql<string>`${nomeNoPainelSql(clienteVisivelSql(org, "orders"), "buyers")}`,
       prazoEstornoAte: chamados.prazoEstornoAte,
       createdAt: chamados.createdAt,
       organizacao: organizations.name,
@@ -498,11 +479,28 @@ export async function detalheDoChamado(req: Request, id: string) {
     .innerJoin(buyers, eq(buyers.id, orders.buyerId))
     .where(eq(orders.id, c.orderId));
   // Outros chamados do mesmo cliente: pedido falso costuma vir de quem já
-  // pediu antes.
+  // pediu antes. Só os desta organização — o histórico do cliente com o
+  // vizinho não é da conta dela.
+  const org = orgOf(req);
   const historico = await db
     .select({ protocolo: chamados.protocolo, status: chamados.status })
     .from(chamados)
-    .where(and(eq(chamados.buyerId, c.buyerId), sql`${chamados.id} <> ${c.id}`));
+    .where(
+      and(
+        eq(chamados.buyerId, c.buyerId),
+        sql`${chamados.id} <> ${c.id}`,
+        org ? eq(chamados.organizationId, org) : undefined,
+      ),
+    );
+  const cliente = clienteNoPainel(
+    {
+      nome: ctx.cliente.name,
+      telefone: hidePhone(ctx.cliente.phone),
+      cpf: ctx.cliente.cpf ? hideCpf(ctx.cliente.cpf) : null,
+      codigo: ctx.cliente.codigo,
+    },
+    { daPlataforma: !org, vendaDeCambista: Boolean(ctx.pedido.sellerId), ganhador: false },
+  );
   return {
     chamado: c,
     pedido: {
@@ -516,10 +514,7 @@ export async function detalheDoChamado(req: Request, id: string) {
       rifaStatus: ctx.rifaStatus,
     },
     cliente: {
-      codigo: ctx.cliente.codigo,
-      nome: ctx.cliente.name,
-      telefone: hidePhone(ctx.cliente.phone),
-      cpf: ctx.cliente.cpf ? hideCpf(ctx.cliente.cpf) : null,
+      ...cliente,
       cpfConfirmado: Boolean(ctx.cliente.cpf && cpfValido(ctx.cliente.cpf)),
     },
     historico,

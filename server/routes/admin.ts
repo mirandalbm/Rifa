@@ -33,6 +33,7 @@ import {
   salvarDadosLegais,
   certificadoDa,
 } from "../services/campaigns";
+import { clienteVisivelSql, nomeNoPainelSql, dadoNoPainelSql } from "../services/titularidade";
 import { drawNumber } from "../services/draw";
 import {
   requestUpload,
@@ -617,10 +618,18 @@ adminRouter.delete("/prized/:prizedId", async (req, res, next) => {
 adminRouter.get("/orders", async (req, res, next) => {
   try {
     const status = req.query.status ? String(req.query.status) : null;
+    // Cliente da plataforma aparece só pelo ID; o do cambista, e o ganhador,
+    // com nome e telefone (`shared/titularidade.ts`).
+    const visivel = clienteVisivelSql(orgOf(req), "orders");
     const rows = await db
       .select({
         order: orders,
-        buyer: { name: buyers.name, phone: buyers.phone },
+        buyer: {
+          name: sql<string>`${nomeNoPainelSql(visivel, "buyers")}`,
+          phone: sql<string | null>`${dadoNoPainelSql(visivel, "buyers.phone")}`,
+          codigo: buyers.codigo,
+          completo: sql<boolean>`${visivel}`,
+        },
         campaign: { title: campaigns.title, totalQuotas: campaigns.totalQuotas },
       })
       .from(orders)

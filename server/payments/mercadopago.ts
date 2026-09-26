@@ -9,7 +9,7 @@
  * 2. A assinatura em `x-signature` é conferida contra o segredo do webhook,
  *    em comparação de tempo constante.
  */
-import { createHmac, timingSafeEqual, randomUUID } from "node:crypto";
+import { createHmac, timingSafeEqual } from "node:crypto";
 import type { PaymentProvider, PixCharge, WebhookResult } from "./provider";
 
 const API = "https://api.mercadopago.com";
@@ -211,13 +211,19 @@ export class MercadoPagoProvider implements PaymentProvider {
     };
   }
 
-  async refund(chargeId: string): Promise<void> {
+  async refund(chargeId: string, amountCents?: number): Promise<void> {
     const res = await fetch(`${API}/v1/payments/${chargeId}/refunds`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${this.token}`,
-        "X-Idempotency-Key": randomUUID(),
+        // Chave fixa por cobrança e valor: repetir a chamada (rede caiu no
+        // meio) não devolve duas vezes.
+        "X-Idempotency-Key": `estorno-${chargeId}-${amountCents ?? "total"}`,
+        ...(amountCents !== undefined ? { "Content-Type": "application/json" } : {}),
       },
+      ...(amountCents !== undefined
+        ? { body: JSON.stringify({ amount: Math.round(amountCents) / 100 }) }
+        : {}),
     });
     if (!res.ok) {
       throw new Error(`Estorno recusado (${res.status}): ${await res.text()}`);

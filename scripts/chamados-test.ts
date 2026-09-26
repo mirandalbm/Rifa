@@ -123,7 +123,7 @@ async function main() {
     .insert(buyers)
     .values({ name: "João E2E", phone: "11977770002" })
     .returning();
-  const mk = async (code: number, campaignId: string, buyerId: string) => {
+  const mk = async (code: number, campaignId: string, buyerId: string, pagoHaDias = 0) => {
     const [o] = await db
       .insert(orders)
       .values({
@@ -133,7 +133,7 @@ async function main() {
         quantity: 3,
         amountCents: 1500,
         status: "paid",
-        paidAt: new Date(),
+        paidAt: new Date(Date.now() - pagoHaDias * 86_400_000),
         expiresAt: new Date(Date.now() + 86_400_000),
       })
       .returning();
@@ -148,7 +148,8 @@ async function main() {
       orderId: meu.id,
     })),
   );
-  const doOutro = await mk(93000002, camp.id, outro.id);
+  // João pagou há 10 dias: passou o arrependimento, reembolso com taxa.
+  const doOutro = await mk(93000002, camp.id, outro.id, 10);
   const sorteado = await mk(93000003, camp2.id, eu.id);
 
   const print =
@@ -238,6 +239,12 @@ async function main() {
     );
     const chamadoId = r.json.id;
     checa("protocolo no formato", /^RB-\d{8}-\d{6}$/.test(r.json.protocolo));
+    const [gravado] = await db.select().from(chamados).where(eq(chamados.id, chamadoId));
+    checa(
+      "compra online de hoje: arrependimento, devolve 100%",
+      gravado.tipoReembolso === "arrependimento" && gravado.devolverCents === 1500 && gravado.taxaCents === 0,
+      `${gravado.tipoReembolso} ${gravado.devolverCents}/${gravado.taxaCents}`,
+    );
 
     r = await c.req("POST", "/api/public/chamados", pedido);
     checa(
@@ -309,6 +316,12 @@ async function main() {
       String(cpfJ.cpf),
     );
     const cjId = r.json?.id;
+    const [doJoao] = await db.select().from(chamados).where(eq(chamados.id, cjId));
+    checa(
+      "compra de 10 dias atrás: taxa de 10%, devolve 90%",
+      doJoao.tipoReembolso === "com_taxa" && doJoao.taxaCents === 150 && doJoao.devolverCents === 1350,
+      `${doJoao.tipoReembolso} ${doJoao.devolverCents}/${doJoao.taxaCents}`,
+    );
 
     // A organização
     const o = new Cliente();
@@ -502,6 +515,20 @@ async function main() {
     checa(
       "filtro por situação",
       lista.json.length === 1 && lista.json[0].id === chamadoId,
+    );
+
+    // A menos de 2 horas do sorteio, o pedido não abre mais.
+    const ultimo = await mk(93000004, camp.id, eu.id);
+    await db
+      .update(campaigns)
+      .set({ drawAt: new Date(Date.now() + 60 * 60 * 1000) })
+      .where(eq(campaigns.id, camp.id));
+    await db.execute(sql`delete from rate_events where bucket like 'chamado:%'`);
+    r = await c.req("POST", "/api/public/chamados", { ...pedido, orderCode: ultimo.code });
+    checa(
+      "a 1 hora do sorteio: pedido de reembolso fechado",
+      r.status === 409 && /2 horas antes/.test(r.json?.message ?? ""),
+      r.json?.message,
     );
   } finally {
     await db.execute(

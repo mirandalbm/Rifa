@@ -811,6 +811,15 @@ export const chamados = pgTable(
     estornadoEm: timestamp("estornado_em"),
     /** Como o dinheiro voltou: pelo provedor, na conta que pagou, ou à mão. */
     formaDevolucao: text("forma_devolucao"),
+    /**
+     * Quanto volta, calculado quando o comprador pede (é a data do pedido que
+     * decide os 7 dias do arrependimento) — ver `shared/reembolso.ts`. Nulo
+     * nos chamados anteriores a esta regra: devolução integral.
+     */
+    tipoReembolso: text("tipo_reembolso"),
+    taxaPct: integer("taxa_pct"),
+    taxaCents: integer("taxa_cents"),
+    devolverCents: integer("devolver_cents"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (t) => [

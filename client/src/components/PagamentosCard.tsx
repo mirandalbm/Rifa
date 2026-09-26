@@ -14,6 +14,7 @@ interface Provedor {
 interface Plataforma {
   provedorPix: Provedor["id"] | null;
   estornoManual: boolean;
+  taxaReembolsoPct: number;
   provedorEmUso: string;
   provedores: Provedor[];
 }
@@ -30,6 +31,7 @@ export function PagamentosCard() {
   const { data } = useQuery<Plataforma>({ queryKey: ["/api/admin/plataforma"] });
   const [provedor, setProvedor] = useState<string>("");
   const [estorno, setEstorno] = useState(false);
+  const [taxa, setTaxa] = useState("10");
   const [erro, setErro] = useState<string | null>(null);
   const [ok, setOk] = useState(false);
 
@@ -37,6 +39,7 @@ export function PagamentosCard() {
     if (!data) return;
     setProvedor(data.provedorPix ?? "");
     setEstorno(data.estornoManual);
+    setTaxa(String(data.taxaReembolsoPct ?? 10));
   }, [data]);
 
   const salvar = useMutation({
@@ -44,6 +47,7 @@ export function PagamentosCard() {
       apiRequest("PUT", "/api/admin/plataforma", {
         provedorPix: provedor || null,
         estornoManual: estorno,
+        taxaReembolsoPct: Number(taxa),
       }),
     onSuccess: () => {
       setErro(null);
@@ -144,6 +148,30 @@ export function PagamentosCard() {
               </span>
             </span>
           </label>
+        </div>
+
+        <div className="border-t border-line pt-3">
+          <label htmlFor="taxa-reembolso" className="label-xs">
+            Taxa administrativa do reembolso (0 a 10%)
+          </label>
+          <div className="mt-1 flex items-center gap-2">
+            <input
+              id="taxa-reembolso"
+              type="number"
+              min={0}
+              max={10}
+              value={taxa}
+              onChange={(e) => setTaxa(e.target.value)}
+              className="tnum w-20 rounded-md border border-line-2 px-3 py-2 text-sm"
+            />
+            <span className="text-sm">%</span>
+          </div>
+          <p className="mt-1 text-xs text-muted">
+            Compra online cancelada em até 7 dias devolve 100% (direito de arrependimento, art. 49
+            do CDC). Depois disso, ou em compra com cambista, a plataforma retém esta taxa — no
+            máximo 10%, o limite aceito pela Justiça. Os pedidos fecham 2 horas antes do sorteio.
+            A regra aparece para o comprador antes da compra.
+          </p>
         </div>
 
         <Button onClick={() => salvar.mutate()} disabled={salvar.isPending}>

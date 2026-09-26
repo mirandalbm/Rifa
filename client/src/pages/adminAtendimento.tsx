@@ -6,6 +6,7 @@ import { Conversa, type Mensagem } from "@/components/Conversa";
 import { apiRequest } from "@/lib/queryClient";
 import { formatBRL } from "@shared/format";
 import { NOME_STATUS_CHAMADO, PILL_CHAMADO, type StatusChamado } from "@shared/chamados";
+import { NOME_TIPO_REEMBOLSO, type TipoReembolso } from "@shared/reembolso";
 
 interface Linha {
   id: string;
@@ -31,6 +32,10 @@ interface Detalhe {
     decisao: string | null;
     prazoEstornoAte: string | null;
     formaDevolucao: string | null;
+    tipoReembolso: TipoReembolso | null;
+    taxaPct: number | null;
+    taxaCents: number | null;
+    devolverCents: number | null;
   };
   pedido: {
     code: number;
@@ -284,6 +289,23 @@ function DetalheChamado({ id, aoMudar }: { id: string; aoMudar: () => void }) {
               {pedido.rifaStatus === "drawn" ? <span className="text-red"> · já sorteada</span> : null}
             </dd>
           </div>
+          {chamado.devolverCents !== null ? (
+            <div>
+              <dt className="label-xs">A devolver</dt>
+              <dd>
+                <Money cents={chamado.devolverCents} />
+                <span className="block text-xs text-muted">
+                  {chamado.tipoReembolso ? NOME_TIPO_REEMBOLSO[chamado.tipoReembolso] : ""}
+                  {chamado.taxaCents ? (
+                    <span className="tnum">
+                      {" "}
+                      · taxa {chamado.taxaPct}%: {formatBRL(chamado.taxaCents)}
+                    </span>
+                  ) : null}
+                </span>
+              </dd>
+            </div>
+          ) : null}
           {chamado.pixChave ? (
             <div>
               <dt className="label-xs">Chave Pix informada</dt>
@@ -348,7 +370,9 @@ function DetalheChamado({ id, aoMudar }: { id: string; aoMudar: () => void }) {
             onClick={() => {
               if (
                 window.confirm(
-                  `Devolver o pedido #${pedido.code} (${formatBRL(pedido.valorCents)})? Cotas, comissão e taxa são desfeitas.`,
+                  `Devolver ${formatBRL(chamado.devolverCents ?? pedido.valorCents)} do pedido #${pedido.code}` +
+                    (chamado.taxaCents ? ` (taxa retida: ${formatBRL(chamado.taxaCents)})` : "") +
+                    `? Cotas, comissão e taxa da venda são desfeitas.`,
                 )
               ) {
                 estornar.mutate();

@@ -1350,6 +1350,11 @@ adminRouter.put("/plataforma", async (req, res, next) => {
     const salva = await setPlataforma({
       provedorPix: req.body?.provedorPix ?? null,
       estornoManual: req.body?.estornoManual === true,
+      // Sem o campo, vale o que já estava — não volta ao padrão por omissão.
+      taxaReembolsoPct:
+        req.body?.taxaReembolsoPct !== undefined
+          ? Number(req.body.taxaReembolsoPct)
+          : (await getPlataforma()).taxaReembolsoPct,
     });
     await audit(req, "plataforma.update", "settings", "plataforma", salva);
     res.json(salva);
@@ -1462,16 +1467,20 @@ adminRouter.post("/chamados/:id/concluir", async (req, res, next) => {
 
 adminRouter.post("/chamados/:id/estornar", async (req, res, next) => {
   try {
-    const { chamado, refund } = await executarEstorno(req, req.params.id);
+    const { chamado, refund, devolverCents, taxaCents } = await executarEstorno(req, req.params.id);
     await audit(req, "chamado.estornado", "chamado", chamado.id, {
       protocolo: chamado.protocolo,
       forma: chamado.formaDevolucao,
+      devolverCents,
+      taxaCents,
       liberadas: refund?.liberadas.length ?? 0,
       comissaoJaPagaCents: refund?.comissaoJaPagaCents ?? 0,
     });
     res.json({
       protocolo: chamado.protocolo,
       forma: chamado.formaDevolucao,
+      devolverCents,
+      taxaCents,
       cotasLiberadas: refund?.liberadas.length ?? 0,
       cotasCongeladas: refund ? refund.liberadas.length === 0 : false,
       comissaoJaPagaCents: refund?.comissaoJaPagaCents ?? 0,

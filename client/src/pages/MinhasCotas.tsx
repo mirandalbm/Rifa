@@ -6,7 +6,8 @@ import { Button, Card, Money, Pill, Empty } from "@/components/bits";
 import { Conversa, type Mensagem } from "@/components/Conversa";
 import { apiRequest, ApiError } from "@/lib/queryClient";
 import { lerImagem } from "@/lib/anexo";
-import { formatQuota, maskPhone, maskCpf, cpfValido } from "@shared/format";
+import { formatQuota, maskPhone, maskCpf, cpfValido, formatBRL } from "@shared/format";
+import { calcularReembolso, NOME_TIPO_REEMBOLSO } from "@shared/reembolso";
 import {
   NOME_STATUS_CHAMADO,
   PILL_CHAMADO,
@@ -15,7 +16,16 @@ import {
 } from "@shared/chamados";
 
 interface OrderRow {
-  order: { code: number; status: string; quantity: number; amountCents: number; createdAt: string };
+  order: {
+    code: number;
+    status: string;
+    quantity: number;
+    amountCents: number;
+    createdAt: string;
+    paidAt?: string | null;
+    method?: string;
+    sellerId?: string | null;
+  };
   campaign: {
     title: string;
     slug: string;
@@ -33,6 +43,8 @@ interface Conta {
   phone: string;
   cliente: string | null;
   reembolso: boolean;
+  /** Taxa administrativa do reembolso fora dos 7 dias (shared/reembolso.ts). */
+  taxaReembolsoPct?: number;
   /**
    * Sobrou compra antiga, feita só pelo telefone e sem CPF gravado, que a
    * conta ainda não provou ser dela. É o único caso em que a tela oferece o
@@ -279,6 +291,7 @@ function Painel({ conta, aoMudar }: { conta: Conta; aoMudar: (c: Conta | null) =
                     estornoLigado: conta.reembolso,
                     statusPedido: row.order.status,
                     statusRifa: row.campaign.status,
+                    sorteioEm: row.campaign.drawAt ? new Date(row.campaign.drawAt) : null,
                   }),
               )
             }
@@ -321,6 +334,7 @@ function Painel({ conta, aoMudar }: { conta: Conta; aoMudar: (c: Conta | null) =
       {pedindo ? (
         <PedirReembolso
           row={pedindo}
+          taxaPct={conta.taxaReembolsoPct ?? 10}
           fechar={() => setPedindo(null)}
           aoAbrir={(id) => {
             setPedindo(null);
@@ -336,10 +350,12 @@ function Painel({ conta, aoMudar }: { conta: Conta; aoMudar: (c: Conta | null) =
 
 function PedirReembolso({
   row,
+  taxaPct,
   fechar,
   aoAbrir,
 }: {
   row: OrderRow;
+  taxaPct: number;
   fechar: () => void;
   aoAbrir: (id: string) => void;
 }) {
@@ -381,9 +397,34 @@ function PedirReembolso({
           {row.campaign.title} · pedido <span className="tnum">#{row.order.code}</span> ·{" "}
           <Money cents={row.order.amountCents} />
         </p>
+        {(() => {
+          // O mesmo cálculo que o servidor grava ao receber o pedido.
+          const c = calcularReembolso({
+            pagoCents: row.order.amountCents,
+            vendaOnline: !row.order.sellerId && (row.order.method ?? "pix_online") === "pix_online",
+            compradoEm: new Date(row.order.paidAt ?? row.order.createdAt),
+            pedidoEm: new Date(),
+            taxaPct,
+          });
+          return (
+            <div className="mt-2 rounded-md border border-line bg-mist px-3 py-2 text-sm">
+              <p>
+                Você recebe <strong className="tnum">{formatBRL(c.devolverCents)}</strong>
+                {c.taxaCents > 0 ? (
+                  <>
+                    {" "}
+                    (taxa administrativa de <span className="tnum">{c.taxaPct}%</span>:{" "}
+                    <span className="tnum">{formatBRL(c.taxaCents)}</span>)
+                  </>
+                ) : null}
+              </p>
+              <p className="text-xs text-muted">{NOME_TIPO_REEMBOLSO[c.tipo]}</p>
+            </div>
+          );
+        })()}
         <p className="mt-2 rounded-md bg-yellow-soft px-3 py-2 text-xs text-yellow-deep">
           A organização da rifa analisa cada pedido. Aprovado, você recebe o protocolo e o prazo de
-          devolução aqui. O valor volta para a mesma conta que pagou.
+          devolução aqui. Com Pix, o valor volta para a mesma conta que pagou.
         </p>
 
         <form
@@ -481,6 +522,9 @@ function ChamadoDoComprador({ id, voltar }: { id: string; voltar: () => void }) 
     rifa: string;
     decisao: string | null;
     prazoEstornoAte: string | null;
+    devolverCents: number | null;
+    taxaCents: number | null;
+    taxaPct: number | null;
     mensagens: Mensagem[];
   }>({ queryKey: chave, refetchInterval: 20_000 });
 
@@ -504,6 +548,15 @@ function ChamadoDoComprador({ id, voltar }: { id: string; voltar: () => void }) 
       >
         <p className="border-b border-line px-4 py-2 text-xs text-muted">
           {data.rifa} · pedido <span className="tnum">#{data.pedido}</span>
+          {data.devolverCents !== null ? (
+            <>
+              {" "}
+              · a devolver <strong className="tnum">{formatBRL(data.devolverCents)}</strong>
+              {data.taxaCents ? (
+                <span className="tnum"> (taxa {data.taxaPct}%: {formatBRL(data.taxaCents)})</span>
+              ) : null}
+            </>
+          ) : null}
           {data.status === "aprovado" && data.prazoEstornoAte ? (
             <>
               {" "}

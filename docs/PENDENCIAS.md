@@ -102,9 +102,14 @@ Na ordem de entrega do plano:
   atendimento), dados completos só de quem comprou com cambista e do
   ganhador; cliente da plataforma aparece pelo ID. Afiliado vê só o primeiro
   nome. Todo comprador ganha ID desde a primeira compra.
-- [ ] **[código]** Reembolso pela lei do consumidor: 100% até 7 dias da
-  compra online, até 10% de taxa depois, nada depois do sorteio, corte 2 h
-  antes.
+- [x] Reembolso pela lei do consumidor: 100% até 7 dias da compra online,
+  taxa da plataforma (0 a 10%, padrão 10%, Configurações → Pagamentos e
+  estorno) depois disso ou na venda do cambista, pedidos fecham 2 h antes do
+  sorteio. A regra aparece antes da compra; o valor fica gravado no chamado
+  e a devolução parcial sai pelo provedor.
+- [ ] **[você]** Asaas com split: a devolução parcial sai da conta da
+  plataforma, não da do promotor. Confirmar com o Asaas como estornar o
+  split antes de ligar reembolso com o Asaas.
 - [ ] **[código]** Endereço completo do organizador e estado da rifa.
 - [ ] **[código]** Tema claro e escuro.
 - [ ] **[código]** Perfil do organizador no formato do Instagram (seguir,

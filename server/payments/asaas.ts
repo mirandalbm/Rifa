@@ -200,8 +200,11 @@ export class AsaasProvider implements PaymentProvider {
     };
   }
 
-  async refund(chargeId: string): Promise<void> {
-    await this.api(`/payments/${chargeId}/refund`, { method: "POST" });
+  async refund(chargeId: string, amountCents?: number): Promise<void> {
+    await this.api(`/payments/${chargeId}/refund`, {
+      method: "POST",
+      ...(amountCents !== undefined ? { body: JSON.stringify({ value: reais(amountCents) }) } : {}),
+    });
   }
 
   /** Cobrança de reserva que expirou: some do Asaas, e o QR para de valer. */

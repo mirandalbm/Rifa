@@ -424,7 +424,20 @@ botão, é **chamado** — com dono, prova, conversa e protocolo.
   O ID é o que o atendimento usa para falar da pessoa sem expor telefone.
 - **Depois do sorteio, nunca.** `bloqueioDoReembolso()` em
   `shared/chamados.ts`, a mesma regra que esconde o botão e que o servidor
-  aplica. Quem perdeu pediria o dinheiro de volta.
+  aplica. Quem perdeu pediria o dinheiro de volta. E os pedidos **fecham 2
+  horas antes** (`fechadoPeloSorteio()` em `shared/reembolso.ts`): o quadro
+  precisa estar parado quando o número sair.
+- **Quanto volta é decidido na abertura, não na devolução.**
+  `calcularReembolso()` em `shared/reembolso.ts`: compra online (Pix, sem
+  cambista) com pedido até 7 dias do pagamento devolve 100% (art. 49 do
+  CDC); depois disso, ou venda do cambista, retém a taxa da plataforma
+  (`taxaReembolsoPct`, 0 a 10%, padrão 10%, arredondada para baixo). O valor
+  fica gravado no chamado (`tipoReembolso`, `taxaCents`, `devolverCents`):
+  mudar a taxa no painel não muda o que já foi prometido. A regra aparece
+  **antes da compra** (`regraDoReembolso()`, na tela da rifa).
+- **Devolução parcial é pelo provedor, com o valor explícito.**
+  `refund(chargeId, amountCents)`; sem valor é devolução total. A chave de
+  idempotência do Mercado Pago leva o valor, para a repetição não dobrar.
 - **Um chamado em andamento por pedido** — quem decide é o índice único
   parcial `uq_chamados_pedido_andamento`, não um `SELECT` antes.
 - **Limite do dia conta a tentativa, e conta o CPF errado.** Erro de

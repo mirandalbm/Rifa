@@ -1,10 +1,11 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import { createHmac } from "node:crypto";
 import {
   parseSignatureHeader,
   signatureManifest,
   verifySignature,
   translateStatus,
+  MercadoPagoProvider,
 } from "../server/payments/mercadopago";
 
 const SECRET = "segredo-do-webhook";
@@ -73,5 +74,34 @@ describe("tradução do status", () => {
     expect(translateStatus("rejected")).toBe("expired");
     expect(translateStatus("refunded")).toBe("refunded");
     expect(translateStatus("charged_back")).toBe("refunded");
+  });
+});
+
+describe("estorno pelo Mercado Pago", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    delete process.env.MP_ACCESS_TOKEN;
+  });
+
+  it("parcial manda o valor em reais; a chave de idempotência não muda na repetição", async () => {
+    process.env.MP_ACCESS_TOKEN = "token-teste";
+    process.env.MP_WEBHOOK_SECRET ??= "segredo-teste";
+    const pedidos: { url: string; headers: Record<string, string>; body?: unknown }[] = [];
+    vi.stubGlobal("fetch", async (url: string, init: RequestInit = {}) => {
+      pedidos.push({
+        url,
+        headers: init.headers as Record<string, string>,
+        body: init.body ? JSON.parse(String(init.body)) : undefined,
+      });
+      return new Response("{}", { status: 201 });
+    });
+    const mp = new MercadoPagoProvider();
+    await mp.refund("555", 1350);
+    await mp.refund("555", 1350);
+    await mp.refund("556");
+    expect(pedidos[0].url).toContain("/v1/payments/555/refunds");
+    expect(pedidos[0].body).toEqual({ amount: 13.5 });
+    expect(pedidos[0].headers["X-Idempotency-Key"]).toBe(pedidos[1].headers["X-Idempotency-Key"]);
+    expect(pedidos[2].body).toBeUndefined();
   });
 });

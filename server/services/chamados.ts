@@ -40,6 +40,7 @@ import {
 } from "@shared/chamados";
 import { cpfValido, formatBRL, hideCpf, hidePhone } from "@shared/format";
 import { podePedirReembolso } from "@shared/contaComprador";
+import { calcularReembolso } from "@shared/reembolso";
 import { clienteNoPainel } from "@shared/titularidade";
 import { clienteVisivelSql, nomeNoPainelSql } from "./titularidade";
 import { notify } from "../notifications";
@@ -129,6 +130,7 @@ export async function abrirChamado(
     .select({
       order: orders,
       campaignStatus: campaigns.status,
+      sorteioEm: campaigns.drawAt,
       organizationId: campaigns.organizationId,
       cpf: buyers.cpf,
       telefoneConfirmadoEm: buyers.telefoneConfirmadoEm,
@@ -150,12 +152,26 @@ export async function abrirChamado(
     throw new ChamadoError("Pedido não encontrado na sua conta.", 404);
   }
 
+  const plataforma = await getPlataforma();
+  const agora = new Date();
   const bloqueio = bloqueioDoReembolso({
-    estornoLigado: (await getPlataforma()).estornoManual,
+    estornoLigado: plataforma.estornoManual,
     statusPedido: linha.order.status,
     statusRifa: linha.campaignStatus,
+    sorteioEm: linha.sorteioEm,
+    agora,
   });
   if (bloqueio) throw new ChamadoError(bloqueio, 409);
+
+  // Quanto volta é decidido agora: é a data do pedido que conta os 7 dias do
+  // arrependimento (shared/reembolso.ts). Fica gravado no chamado.
+  const calculo = calcularReembolso({
+    pagoCents: linha.order.amountCents,
+    vendaOnline: !linha.order.sellerId && linha.order.method === "pix_online",
+    compradoEm: linha.order.paidAt ?? linha.order.createdAt,
+    pedidoEm: agora,
+    taxaPct: plataforma.taxaReembolsoPct,
+  });
 
   // Erro de preenchimento (print faltando, arquivo que não é imagem) não
   // gasta a cota do dia: senão quem erra o formulário duas vezes fica 24 h
@@ -190,6 +206,10 @@ export async function abrirChamado(
             buyerId: comprador.id,
             motivo: entrada.motivo.trim(),
             pixChave: entrada.pixChave?.trim() || null,
+            tipoReembolso: calculo.tipo,
+            taxaPct: calculo.taxaPct,
+            taxaCents: calculo.taxaCents,
+            devolverCents: calculo.devolverCents,
           })
           .returning();
         const [anexo] = await tx
@@ -344,6 +364,10 @@ export async function chamadoDoComprador(buyerId: string, id: string) {
     rifa: c.rifa,
     decisao: c.chamado.decisao,
     prazoEstornoAte: c.chamado.prazoEstornoAte,
+    tipoReembolso: c.chamado.tipoReembolso,
+    taxaPct: c.chamado.taxaPct,
+    taxaCents: c.chamado.taxaCents,
+    devolverCents: c.chamado.devolverCents,
     mensagens,
   };
 }
@@ -615,12 +639,18 @@ export async function executarEstorno(req: Request, id: string) {
     );
   }
 
+  // O valor gravado quando o comprador pediu (shared/reembolso.ts). Chamado
+  // anterior à regra não tem valor: devolução integral.
+  const pago = pedido?.amountCents ?? 0;
+  const devolver = c.devolverCents ?? pago;
+  const taxa = c.taxaCents ?? 0;
+
   let forma = "manual";
   try {
     if (pedido?.pspProvider && pedido.pspChargeId) {
       const provider = paymentProviderByName(pedido.pspProvider);
       if (provider.refund) {
-        await provider.refund(pedido.pspChargeId);
+        await provider.refund(pedido.pspChargeId, devolver < pago ? devolver : undefined);
         forma = pedido.pspProvider;
       }
     }
@@ -639,11 +669,12 @@ export async function executarEstorno(req: Request, id: string) {
     autor: "organizacao",
     userId: req.user!.id,
     texto:
-      forma === "manual"
-        ? `Reembolso registrado (protocolo ${tomado.protocolo}). A devolução do valor é feita pela organização${c.pixChave ? " na chave Pix informada" : ""}.`
-        : `Reembolso feito (protocolo ${tomado.protocolo}). O valor volta para a mesma conta que pagou o Pix.`,
+      (forma === "manual"
+        ? `Reembolso registrado (protocolo ${tomado.protocolo}): ${formatBRL(devolver)} devolvidos pela organização${c.pixChave ? " na chave Pix informada" : ""}.`
+        : `Reembolso feito (protocolo ${tomado.protocolo}): ${formatBRL(devolver)} voltam para a mesma conta que pagou o Pix.`) +
+      (taxa > 0 ? ` Taxa administrativa retida: ${formatBRL(taxa)} (${c.taxaPct}%).` : ""),
   });
-  return { chamado: { ...tomado, formaDevolucao: forma }, refund: r };
+  return { chamado: { ...tomado, formaDevolucao: forma }, refund: r, devolverCents: devolver, taxaCents: taxa };
 }
 
 /** Quantos chamados abertos, para o número no menu. */

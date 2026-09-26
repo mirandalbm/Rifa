@@ -25,7 +25,7 @@ export function Conversa({
   enviando,
 }: {
   mensagens: Mensagem[];
-  meuLado: "comprador" | "organizacao";
+  meuLado: "comprador" | "organizacao" | "plataforma";
   anexoBase: string;
   podeEscrever: boolean;
   enviar: (m: { texto: string; anexo?: string }) => Promise<unknown>;
@@ -45,7 +45,11 @@ export function Conversa({
             <li key={m.id} className={`flex ${meu ? "justify-end" : "justify-start"}`}>
               <div
                 className={`max-w-[85%] rounded-lg px-3 py-2 text-sm ${
-                  meu ? "bg-green-soft text-ink" : "border border-line bg-white text-ink"
+                  meu
+                    ? "bg-green-soft text-ink"
+                    : m.autor === "plataforma"
+                      ? "border border-dashed border-line-2 bg-mist text-ink"
+                      : "border border-line bg-white text-ink"
                 }`}
               >
                 <p className="text-[11px] font-semibold text-muted">

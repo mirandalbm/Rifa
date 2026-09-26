@@ -205,7 +205,12 @@ Na ordem de entrega do plano:
 - [ ] **[código]** Guarda da comissão pela plataforma (split para a carteira
   da plataforma, pagamento depois do sorteio) — espera o contador.
 - [ ] **[código]** Indicação, bônus e gamificação.
-- [ ] **[código]** Disputa de reembolso no administrador geral.
+- [x] Disputa de reembolso no administrador geral: o comprador leva à
+  plataforma o chamado recusado (até 7 dias) ou sem resposta da organização
+  (depois de 3 dias), antes do corte de 2 horas do sorteio. A plataforma
+  decide (procedente: vira aprovado com o prazo da organização; improcedente:
+  mantém a recusa), e a decisão encerra. Pedido premiado não tem disputa
+  procedente.
 - [ ] **[código]** Rifas patrocinadas por clique.
 - [ ] **[código]** Marketing e tráfego pago.
 - [ ] **[código]** Login com Google.

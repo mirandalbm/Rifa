@@ -11,10 +11,15 @@ import { cepValido, cidadeUf, maskCep } from "@shared/endereco";
 import { formatQuota, maskPhone, maskCpf, cpfValido, formatBRL } from "@shared/format";
 import { calcularReembolso, NOME_TIPO_REEMBOLSO } from "@shared/reembolso";
 import {
+  DISPUTA_PRAZO_DIAS,
   NOME_STATUS_CHAMADO,
+  NOME_STATUS_DISPUTA,
   PILL_CHAMADO,
+  PILL_DISPUTA,
   bloqueioDoReembolso,
+  problemaNaDisputa,
   type StatusChamado,
+  type StatusDisputa,
 } from "@shared/chamados";
 
 interface OrderRow {
@@ -59,6 +64,7 @@ interface ChamadoResumo {
   id: string;
   protocolo: string;
   status: StatusChamado;
+  disputa: StatusDisputa | null;
   pedido: number;
   rifa: string;
   prazoEstornoAte: string | null;
@@ -317,7 +323,11 @@ function Painel({ conta, aoMudar }: { conta: Conta; aoMudar: (c: Conta | null) =
                     >
                       <div className="flex items-center justify-between gap-2">
                         <span className="tnum text-sm font-semibold">{c.protocolo}</span>
-                        <Pill status={PILL_CHAMADO[c.status]}>{NOME_STATUS_CHAMADO[c.status]}</Pill>
+                        {c.disputa ? (
+                          <Pill status={PILL_DISPUTA[c.disputa]}>{NOME_STATUS_DISPUTA[c.disputa]}</Pill>
+                        ) : (
+                          <Pill status={PILL_CHAMADO[c.status]}>{NOME_STATUS_CHAMADO[c.status]}</Pill>
+                        )}
                       </div>
                       <p className="text-xs text-muted">
                         {c.rifa} · pedido <span className="tnum">#{c.pedido}</span>
@@ -527,6 +537,11 @@ function ChamadoDoComprador({ id, voltar }: { id: string; voltar: () => void }) 
     devolverCents: number | null;
     taxaCents: number | null;
     taxaPct: number | null;
+    disputa: StatusDisputa | null;
+    disputaDecisao: string | null;
+    podeDisputar: boolean;
+    disputaBloqueio: string | null;
+    disputaLiberadaEm: string | null;
     mensagens: Mensagem[];
   }>({ queryKey: chave, refetchInterval: 20_000 });
 
@@ -537,7 +552,7 @@ function ChamadoDoComprador({ id, voltar }: { id: string; voltar: () => void }) 
   });
 
   if (!data) return <Empty>Carregando…</Empty>;
-  const emAndamento = data.status === "aberto" || data.status === "aprovado";
+  const emAndamento = data.status === "aberto" || data.status === "aprovado" || data.disputa === "aberta";
 
   return (
     <div className="mt-3">
@@ -546,7 +561,13 @@ function ChamadoDoComprador({ id, voltar }: { id: string; voltar: () => void }) 
       </button>
       <Card
         title={`Protocolo ${data.protocolo}`}
-        right={<Pill status={PILL_CHAMADO[data.status]}>{NOME_STATUS_CHAMADO[data.status]}</Pill>}
+        right={
+          data.disputa ? (
+            <Pill status={PILL_DISPUTA[data.disputa]}>{NOME_STATUS_DISPUTA[data.disputa]}</Pill>
+          ) : (
+            <Pill status={PILL_CHAMADO[data.status]}>{NOME_STATUS_CHAMADO[data.status]}</Pill>
+          )
+        }
       >
         <p className="border-b border-line px-4 py-2 text-xs text-muted">
           {data.rifa} · pedido <span className="tnum">#{data.pedido}</span>
@@ -577,6 +598,121 @@ function ChamadoDoComprador({ id, voltar }: { id: string; voltar: () => void }) 
           enviando={enviar.isPending}
           enviar={(m) => enviar.mutateAsync(m)}
         />
+      </Card>
+      <Disputa id={id} dados={data} aoAbrir={() => qc.invalidateQueries({ queryKey: chave })} />
+    </div>
+  );
+}
+
+/**
+ * Levar o caso à plataforma: depois da recusa (até 7 dias) ou quando a
+ * organização não responde. A régua é a do servidor (`bloqueioDaDisputa`);
+ * aqui só se mostra o botão e o motivo de não poder.
+ */
+function Disputa({
+  id,
+  dados,
+  aoAbrir,
+}: {
+  id: string;
+  dados: {
+    status: StatusChamado;
+    disputa: StatusDisputa | null;
+    disputaDecisao: string | null;
+    podeDisputar: boolean;
+    disputaBloqueio: string | null;
+    disputaLiberadaEm: string | null;
+  };
+  aoAbrir: () => void;
+}) {
+  const [aberto, setAberto] = useState(false);
+  const [motivo, setMotivo] = useState("");
+  const [erro, setErro] = useState<string | null>(null);
+  const abrir = useMutation({
+    mutationFn: () => apiRequest("POST", `/api/public/chamados/${id}/disputa`, { motivo }),
+    onSuccess: () => {
+      setAberto(false);
+      aoAbrir();
+    },
+    onError: (e: Error) => setErro(e.message),
+  });
+
+  if (dados.disputa === "aberta") {
+    return (
+      <p className="mt-3 rounded-md bg-yellow-soft px-3 py-2 text-sm text-yellow-deep">
+        O caso está com a plataforma. A decisão dela é final e chega aqui e no seu celular.
+      </p>
+    );
+  }
+  if (dados.disputa) {
+    return (
+      <div className="mt-3 rounded-md border border-line bg-white px-3 py-2 text-sm">
+        <p className="font-semibold">Decisão da plataforma: {dados.disputa === "procedente" ? "a seu favor" : "recusa mantida"}</p>
+        {dados.disputaDecisao ? <p className="mt-1 text-muted">{dados.disputaDecisao}</p> : null}
+      </div>
+    );
+  }
+  if (!dados.podeDisputar) {
+    // Aberto e ainda no prazo da organização: diz quando poderá recorrer.
+    if (dados.status === "aberto" && dados.disputaLiberadaEm && new Date(dados.disputaLiberadaEm) > new Date()) {
+      return (
+        <p className="mt-3 text-xs text-muted">
+          Sem resposta até <span className="tnum">{new Date(dados.disputaLiberadaEm).toLocaleDateString("pt-BR")}</span>, você
+          poderá levar o caso à plataforma.
+        </p>
+      );
+    }
+    return dados.status === "recusado" && dados.disputaBloqueio ? (
+      <p className="mt-3 text-xs text-muted">{dados.disputaBloqueio}</p>
+    ) : null;
+  }
+
+  const problema = problemaNaDisputa(motivo);
+  return (
+    <div className="mt-3">
+      <Card title="Não concorda?">
+        <div className="space-y-2 p-4 text-sm">
+          <p className="text-muted">
+            {dados.status === "recusado"
+              ? `Você pode levar a recusa à plataforma em até ${DISPUTA_PRAZO_DIAS} dias. A decisão dela é final.`
+              : "A organização não respondeu no prazo. Você pode levar o caso à plataforma, que decide no lugar dela."}
+          </p>
+          {aberto ? (
+            <form
+              className="space-y-2"
+              onSubmit={(e) => {
+                e.preventDefault();
+                setErro(null);
+                abrir.mutate();
+              }}
+            >
+              <label className="block">
+                <span className="label-xs">Por que você discorda</span>
+                <textarea
+                  value={motivo}
+                  onChange={(e) => setMotivo(e.target.value)}
+                  rows={4}
+                  maxLength={1000}
+                  className="mt-1 w-full rounded-md border border-line-2 px-3 py-2 text-sm"
+                />
+              </label>
+              {erro ? <p className="text-xs text-red">{erro}</p> : null}
+              <div className="flex gap-2">
+                <Button type="submit" disabled={Boolean(problema) || abrir.isPending}>
+                  {abrir.isPending ? "Enviando…" : "Enviar à plataforma"}
+                </Button>
+                <Button type="button" variant="ghost" onClick={() => setAberto(false)}>
+                  Cancelar
+                </Button>
+              </div>
+              {problema && motivo ? <p className="text-xs text-muted">{problema}</p> : null}
+            </form>
+          ) : (
+            <Button variant="ghost" onClick={() => setAberto(true)}>
+              Levar à plataforma
+            </Button>
+          )}
+        </div>
       </Card>
     </div>
   );

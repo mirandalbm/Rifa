@@ -891,14 +891,30 @@ export const chamados = pgTable(
     taxaPct: integer("taxa_pct"),
     taxaCents: integer("taxa_cents"),
     devolverCents: integer("devolver_cents"),
+    /**
+     * Disputa com a plataforma (`shared/chamados.ts`): nula, `aberta`,
+     * `procedente` ou `improcedente`. Uma por chamado; a decisão é do
+     * administrador geral e encerra.
+     */
+    disputa: text("disputa"),
+    disputaMotivo: text("disputa_motivo"),
+    disputaAbertaEm: timestamp("disputa_aberta_em"),
+    disputaDecisao: text("disputa_decisao"),
+    disputaDecididaEm: timestamp("disputa_decidida_em"),
+    disputaDecididaPor: uuid("disputa_decidida_por"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (t) => [
     uniqueIndex("uq_chamados_protocolo").on(t.protocolo),
-    uniqueIndex("uq_chamados_pedido_andamento")
+    // Em andamento também é o recusado em disputa: senão um chamado novo
+    // para o mesmo pedido correria em paralelo com a decisão da plataforma.
+    // (Nome novo de propósito: o `db:push` não troca o filtro de um índice
+    // existente, mas apaga o antigo e cria este.)
+    uniqueIndex("uq_chamados_pedido_em_andamento")
       .on(t.orderId)
-      .where(sql`status in ('aberto', 'aprovado')`),
+      .where(sql`status in ('aberto', 'aprovado') or disputa = 'aberta'`),
     index("idx_chamados_org").on(t.organizationId, t.status, t.createdAt),
+    index("idx_chamados_disputa").on(t.disputa, t.disputaAbertaEm),
   ],
 );
 

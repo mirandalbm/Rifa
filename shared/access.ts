@@ -67,6 +67,7 @@ export type SectionKey =
   | "adminCobranca"
   | "adminOrganizacoes"
   | "adminAntifraude"
+  | "adminAparencia"
   | "adminExportacoes"
   | "adminConfiguracoes";
 
@@ -122,6 +123,7 @@ export const SECTIONS: Section[] = [
   // que vende aqui; a lista de organizações é a própria carteira de clientes.
   { key: "adminOrganizacoes", path: "/admin/organizacoes", label: "Organizações", requires: "admin", nav: true },
   { key: "adminAntifraude", path: "/admin/antifraude", label: "Antifraude", requires: "admin", nav: true },
+  { key: "adminAparencia", path: "/admin/aparencia", label: "Aparência", requires: "admin", nav: true },
 ];
 
 export function sectionsFor(role: Role): Section[] {

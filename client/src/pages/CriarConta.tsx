@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Marca } from "@/components/Marca";
 import { Link, useLocation } from "wouter";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Eye, EyeOff } from "lucide-react";
@@ -85,8 +86,8 @@ export default function CriarConta() {
 
   return (
     <div className="mx-auto flex min-h-screen max-w-sm flex-col justify-center px-5 py-8">
-      <Link href="/" className="font-display text-2xl font-extrabold">
-        rifa<span className="text-green">.</span>br
+      <Link href="/" className="text-2xl">
+        <Marca />
       </Link>
       <h1 className="mt-4 font-display text-xl font-bold">Criar conta</h1>
       <p className="mt-1 text-sm text-muted">

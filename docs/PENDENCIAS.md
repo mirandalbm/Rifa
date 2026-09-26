@@ -153,7 +153,15 @@ Na ordem de entrega do plano:
   (`shared/regulamento.ts`): prazo de entrega (30 dias), prescrição do
   prêmio (180 dias) e o que acontece quando o número sorteado não foi
   vendido — hoje o texto remete ao que a autorização de cada rifa diz.
-- [ ] **[código]** Construtor de templates e white label do organizador.
+- [x] Construtor de templates da plataforma (Painel → Aparência): nome,
+  logo, cor de marca nos dois temas (com conferência de contraste), fonte,
+  cantos, tela inicial em blocos (ligar, ordenar, título, bloco de texto),
+  rodapé e aviso de jogo responsável; pré-visualização no celular e no
+  computador; publicar e voltar a qualquer versão.
+- [ ] **[código]** White label do organizador (capa, cor de destaque e links
+  no perfil) — próxima entrega desta mesma etapa.
+- [ ] **[código]** O nome e o ícone do app instalado (manifest) ainda são
+  fixos ("rifa.br"): o template muda o site, não o ícone já instalado.
 - [ ] **[código]** Vitrine: banners, stories, estados, feed.
 - [ ] **[código]** Painel de resultados do organizador.
 - [ ] **[código]** Afiliado multi-organização, termo por rifa, colaborador.

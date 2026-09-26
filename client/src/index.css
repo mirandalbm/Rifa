@@ -34,6 +34,13 @@
     /* Texto sobre o amarelo: o amarelo é o mesmo nos dois temas. */
     --on-yellow: #3b2a00;
 
+    /*
+     * Cor de marca, vinda do template (lib/template.ts põe --marca-claro e
+     * --marca-escuro na raiz). É marca, não significado: dinheiro, espera e
+     * erro não mudam com o template.
+     */
+    --marca: var(--marca-claro, #00873e);
+
     color-scheme: light;
   }
 
@@ -73,6 +80,8 @@
 
       --on-yellow: #3b2a00;
 
+      --marca: var(--marca-escuro, #5dd394);
+
       color-scheme: dark;
     }
   }
@@ -102,6 +111,8 @@
 
     --on-yellow: #3b2a00;
 
+    --marca: var(--marca-escuro, #5dd394);
+
     color-scheme: dark;
   }
 
@@ -124,7 +135,7 @@
   body {
     background: var(--white);
     color: var(--ink);
-    font-family: "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
+    font-family: var(--fonte, "Instrument Sans"), ui-sans-serif, system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
   }
 

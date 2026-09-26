@@ -953,6 +953,28 @@ export const pushEnvios = pgTable(
   (t) => [primaryKey({ columns: [t.buyerId, t.chave] })],
 );
 
+/**
+ * Cada publicação do template da plataforma é uma linha nova — nada é
+ * sobrescrito. A que vale é a mais recente; "voltar" publica de novo o
+ * conteúdo de uma antiga, e o histórico continua linear.
+ */
+export const templateVersoes = pgTable("template_versoes", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  conteudo: jsonb("conteudo").notNull(),
+  publicadoPor: uuid("publicado_por").references(() => users.id, { onDelete: "set null" }),
+  /** De qual versão veio, quando é uma restauração. */
+  restauradaDe: uuid("restaurada_de"),
+  publicadoEm: timestamp("publicado_em").notNull().defaultNow(),
+});
+
+/** Arquivos da marca da plataforma (a logo): no banco, pequenos e reprocessados. */
+export const plataformaArquivos = pgTable("plataforma_arquivos", {
+  chave: text("chave").primaryKey(),
+  mime: text("mime").notNull(),
+  bytes: bytea("bytes").notNull(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
 export const campaignCertificados = pgTable("campaign_certificados", {
   campaignId: uuid("campaign_id")
     .primaryKey()

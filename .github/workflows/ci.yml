@@ -91,6 +91,7 @@ jobs:
       - run: npm run perfil
       - run: npm run push
       - run: npm run transparencia
+      - run: npm run aparencia
       - run: npm run load
 
       - name: Log do servidor

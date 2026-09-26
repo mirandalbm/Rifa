@@ -25,6 +25,7 @@ import { montarRegulamento } from "@shared/regulamento";
 import { enderecoDa } from "../services/orgs";
 import { consultarCep } from "../services/cep";
 import { chavesVapid, inscrever, cancelarInscricao } from "../services/push";
+import { templatePublicado, logo as logoDaMarca } from "../services/template";
 import {
   perfilPublico,
   fotoDoPerfil,
@@ -241,6 +242,29 @@ publicRouter.get("/seguindo", async (req, res, next) => {
   try {
     const id = req.session.buyer?.id;
     res.json(id ? await perfisSeguidos(id) : []);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/* ---------------- aparência ---------------- */
+
+/** O template publicado: identidade, blocos da vitrine e textos do rodapé. */
+publicRouter.get("/template", async (_req, res, next) => {
+  try {
+    res.setHeader("Cache-Control", "public, max-age=30");
+    res.json(await templatePublicado());
+  } catch (err) {
+    next(err);
+  }
+});
+
+publicRouter.get("/marca/logo", async (_req, res, next) => {
+  try {
+    const f = await logoDaMarca();
+    if (!f) return res.status(404).json({ message: "Sem logo." });
+    res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+    res.type(f.mime).send(f.bytes);
   } catch (err) {
     next(err);
   }

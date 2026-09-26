@@ -309,6 +309,12 @@ async function rotasDaPlataforma(eu: Lado) {
     ["PUT pagamentos da plataforma", "/api/admin/plataforma", { method: "PUT", body: '{"estornoManual":true}' }],
     ["PATCH a própria carteira Asaas", `/api/admin/organizacoes/${eu.orgId}`, { method: "PATCH", body: '{"asaasWalletId":"7bafd95a-e783-4a62-9be1-23999af742c6"}' }],
     ["GET WhatsApp", "/api/admin/whatsapp", {}],
+    ["GET aparência", "/api/admin/template", {}],
+    ["GET pré-visualização do template", "/api/admin/template/previa", {}],
+    ["PUT rascunho do template", "/api/admin/template/rascunho", { method: "PUT", body: "{}" }],
+    ["PUT logo da plataforma", "/api/admin/template/logo", { method: "PUT", body: "{}" }],
+    ["POST publicar template", "/api/admin/template/publicar", { method: "POST" }],
+    ["POST restaurar versão do template", "/api/admin/template/versoes/00000000-0000-0000-0000-000000000000/restaurar", { method: "POST" }],
     ["POST criar modelos do WhatsApp", "/api/admin/whatsapp/modelos", { method: "POST" }],
     ["POST teste do WhatsApp", "/api/admin/whatsapp/teste", { method: "POST", body: '{"telefone":"11999999999"}' }],
   ];

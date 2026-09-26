@@ -5,6 +5,7 @@ import { MapPin } from "lucide-react";
 import { UFS, ufValida } from "@shared/endereco";
 import { lerRegiao, gravarRegiao, regiaoEfetiva, type EscolhaDeRegiao } from "@/lib/regiao";
 import { useSession } from "@/lib/session";
+import { useTemplate } from "@/lib/template";
 import { FotoDoPerfil } from "@/components/Seguir";
 import { PublicShell } from "@/components/AppShell";
 import { Money, Progress, Empty } from "@/components/bits";
@@ -31,6 +32,7 @@ const PERTO = ["na sua cidade", "no seu estado"] as const;
 
 /** Vitrine multi-rifas: todas as campanhas no ar, banner na frente. */
 export default function Vitrine() {
+  const template = useTemplate();
   const { data: sessao } = useSession();
   const naConta = Boolean(sessao?.buyer?.conta);
   // Com conta, a região vem do CEP do cadastro — sem ninguém precisar
@@ -49,8 +51,8 @@ export default function Vitrine() {
     setEscolha(r);
   };
 
-  return (
-    <PublicShell>
+  // Cada bloco da tela inicial vem do template (ordem, ligado, título).
+  const blocoRegiao = (
       <div className="flex items-center gap-2 pb-1">
         <MapPin size={16} aria-hidden className="shrink-0 text-muted" />
         <label htmlFor="vitrine-uf" className="text-sm text-ink-2">
@@ -76,15 +78,10 @@ export default function Vitrine() {
           ))}
         </select>
       </div>
-      {isLoading ? <p className="py-2 text-sm text-muted">Carregando rifas…</p> : null}
-      <PerfisSeguidos />
-
-      {!isLoading && (data?.length ?? 0) === 0 ? (
-        <Empty>Nenhuma rifa publicada ainda.</Empty>
-      ) : null}
-
+  );
+  const gradeDeRifas = (lista: CampaignCard[] | undefined) => (
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
-        {data?.map((c) => {
+        {lista?.map((c) => {
           const pct = percent(c.soldCount, c.totalQuotas);
           const finalStretch = pct >= 85;
           return (
@@ -158,6 +155,44 @@ export default function Vitrine() {
           );
         })}
       </div>
+  );
+
+  return (
+    <PublicShell>
+      {template.blocos
+        .filter((b) => b.ligado)
+        .map((b) => {
+          switch (b.tipo) {
+            case "regiao":
+              return <div key={b.id}>{blocoRegiao}</div>;
+            case "seguidos":
+              return <PerfisSeguidos key={b.id} />;
+            case "rifas":
+              return (
+                <section key={b.id} aria-label={b.titulo || "Rifas no ar"}>
+                  {b.titulo ? <h2 className="mt-4 font-display text-lg font-bold">{b.titulo}</h2> : null}
+                  {isLoading ? <p className="py-2 text-sm text-muted">Carregando rifas…</p> : null}
+                  {!isLoading && (data?.length ?? 0) === 0 ? <Empty>Nenhuma rifa publicada ainda.</Empty> : null}
+                  {gradeDeRifas(b.quantidade ? data?.slice(0, b.quantidade) : data)}
+                </section>
+              );
+            case "texto":
+              return (
+                <section key={b.id} className="mt-4 rounded-xl border border-line bg-mist p-4 text-sm">
+                  {b.titulo ? <h2 className="font-display text-base font-bold">{b.titulo}</h2> : null}
+                  <p className="mt-1 whitespace-pre-line text-ink-2">{b.corpo}</p>
+                </section>
+              );
+            case "ajuda":
+              return (
+                <Link key={b.id} href="/ajuda" className="mt-4 block rounded-xl border border-line px-4 py-3 text-sm font-semibold text-marca hover:bg-mist">
+                  {b.titulo || "Central de ajuda"} →
+                </Link>
+              );
+            default:
+              return null;
+          }
+        })}
       <InstalarApp />
     </PublicShell>
   );

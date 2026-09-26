@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useInstalacao } from "@/lib/pwa";
+import { useTemplate } from "@/lib/template";
 
 const CHAVE = "rifa.instalar.fechado";
 
@@ -25,6 +26,7 @@ function fechadoAntes(): boolean {
  * limpar os dados do navegador.
  */
 export function InstalarApp() {
+  const nomeDaMarca = useTemplate().identidade.nome;
   const { instalado, podePedir, ios, instalar } = useInstalacao();
   const [fechado, setFechado] = useState(fechadoAntes);
   const [ajuda, setAjuda] = useState(false);
@@ -58,7 +60,7 @@ export function InstalarApp() {
             className="h-10 w-10 shrink-0 rounded-lg"
           />
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold">Baixe o app rifa.br</p>
+            <p className="text-sm font-semibold">Baixe o app {nomeDaMarca}</p>
             {ajuda ? (
               <p className="text-xs text-ink-2">
                 {ios

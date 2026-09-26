@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { eq, and, sql, desc } from "drizzle-orm";
+import { eq, and, sql, desc, inArray } from "drizzle-orm";
 import { db } from "../db";
 import {
   affiliates,
@@ -10,7 +10,11 @@ import {
   buyers,
   clickEvents,
   coupons,
+  organizations,
+  afiliadoVinculos,
 } from "@shared/schema";
+import { aderir, comissaoNaRifa, organizacoesDoAfiliado, sair } from "../services/afiliados";
+import { identify } from "../services/antifraude";
 import QRCode from "qrcode";
 import { affiliateId } from "../auth";
 import { formatBRL } from "@shared/format";
@@ -128,7 +132,9 @@ affiliateRouter.get("/links", async (req, res, next) => {
     const id = affiliateId(req);
     const [aff] = await db.select().from(affiliates).where(eq(affiliates.id, id));
 
-    const live = await db
+    // Só as rifas das organizações com que o afiliado tem vínculo aprovado
+    // (ou a "de casa", do cadastro antigo) — as outras não pagariam comissão.
+    const todas = await db
       .select({
         id: campaigns.id,
         slug: campaigns.slug,
@@ -137,9 +143,27 @@ affiliateRouter.get("/links", async (req, res, next) => {
         priceCents: campaigns.priceCents,
         drawAt: campaigns.drawAt,
         commissionPctDefault: campaigns.commissionPctDefault,
+        organizationId: campaigns.organizationId,
+        termoId: campaigns.termoId,
+        organizacao: organizations.name,
       })
       .from(campaigns)
+      .innerJoin(organizations, eq(organizations.id, campaigns.organizationId))
       .where(eq(campaigns.status, "published"));
+    const comComissao = await Promise.all(todas.map(async (c) => ({ c, r: await comissaoNaRifa(db, id, c) })));
+    const vinculados = new Set(
+      (
+        await db
+          .select({ org: afiliadoVinculos.organizationId })
+          .from(afiliadoVinculos)
+          .where(and(eq(afiliadoVinculos.affiliateId, id), eq(afiliadoVinculos.status, "aprovado")))
+      ).map((v) => v.org),
+    );
+    // Aparece a rifa que paga, e a da organização aprovada que só espera o
+    // aceite da versão nova do termo (com o aviso).
+    const live = comComissao
+      .filter(({ c, r }) => r.recebe || vinculados.has(c.organizationId))
+      .map(({ c, r }) => ({ ...c, pct: r.pct, termoPendente: !r.recebe }));
 
     const myCoupons = await db
       .select()
@@ -151,7 +175,9 @@ affiliateRouter.get("/links", async (req, res, next) => {
     const result = await Promise.all(
       live.map(async (c) => {
         const url = `${base}/r/${c.slug}?ref=${aff.code}`;
-        const coupon = myCoupons.find((k) => !k.campaignId || k.campaignId === c.id);
+        const coupon = myCoupons.find(
+          (k) => (!k.campaignId || k.campaignId === c.id) && (!k.organizationId || k.organizationId === c.organizationId),
+        );
         const price = formatBRL(c.priceCents);
         const draw = c.drawAt
           ? new Date(c.drawAt).toLocaleDateString("pt-BR")
@@ -160,7 +186,9 @@ affiliateRouter.get("/links", async (req, res, next) => {
         return {
           slug: c.slug,
           title: c.title,
-          pct: aff.commissionPct ?? c.commissionPctDefault,
+          organizacao: c.organizacao,
+          termoPendente: c.termoPendente,
+          pct: c.pct,
           url,
           qr: await QRCode.toDataURL(url, { margin: 1, width: 320 }),
           coupon: coupon
@@ -213,7 +241,32 @@ affiliateRouter.patch("/pix-key", async (req, res, next) => {
   }
 });
 
-/** Saque: só o que já passou da carência entra no lote. */
+/** Saldo liberado por organização: cada uma paga o que é dela. */
+affiliateRouter.get("/saldo", async (req, res, next) => {
+  try {
+    const id = affiliateId(req);
+    const linhas = await db
+      .select({
+        organizacaoId: organizations.id,
+        organizacao: organizations.name,
+        disponivelCents: sql<number>`coalesce(sum(${commissions.amountCents}) filter (where ${commissions.status} = 'available'), 0)::int`,
+        pendenteCents: sql<number>`coalesce(sum(${commissions.amountCents}) filter (where ${commissions.status} = 'pending'), 0)::int`,
+      })
+      .from(commissions)
+      .innerJoin(campaigns, eq(campaigns.id, commissions.campaignId))
+      .innerJoin(organizations, eq(organizations.id, campaigns.organizationId))
+      .where(eq(commissions.affiliateId, id))
+      .groupBy(organizations.id, organizations.name);
+    res.json(linhas);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * Saque: só o que já passou da carência, e de **uma** organização — é ela
+ * quem paga. Com saldo em uma só, ela é escolhida sozinha.
+ */
 affiliateRouter.post("/payouts", async (req, res, next) => {
   try {
     const id = affiliateId(req);
@@ -223,28 +276,38 @@ affiliateRouter.post("/payouts", async (req, res, next) => {
     }
 
     const payout = await db.transaction(async (tx) => {
-      const available = await tx
-        .select({ id: commissions.id, amountCents: commissions.amountCents })
+      const disponivelPorOrg = await tx
+        .select({ org: campaigns.organizationId, id: commissions.id, amountCents: commissions.amountCents })
         .from(commissions)
-        .where(
-          and(eq(commissions.affiliateId, id), eq(commissions.status, "available")),
-        );
+        .innerJoin(campaigns, eq(campaigns.id, commissions.campaignId))
+        .where(and(eq(commissions.affiliateId, id), eq(commissions.status, "available")))
+        .for("update", { of: commissions });
 
-      const totalCents = available.reduce((sum, c) => sum + c.amountCents, 0);
+      const orgs = [...new Set(disponivelPorOrg.map((d) => d.org))];
+      const pedida = typeof req.body?.organizacaoId === "string" ? req.body.organizacaoId : orgs.length === 1 ? orgs[0] : null;
+      if (!pedida) {
+        if (orgs.length > 1) throw Object.assign(new Error("Escolha de qual organização é o saque."), { status: 400 });
+        return null;
+      }
+      const lote = disponivelPorOrg.filter((d) => d.org === pedida);
+      const totalCents = lote.reduce((sum, c) => sum + c.amountCents, 0);
       if (totalCents <= 0) {
         return null;
       }
 
       const [created] = await tx
         .insert(payouts)
-        .values({ affiliateId: id, amountCents: totalCents, pixKey: aff.pixKey! })
+        .values({ affiliateId: id, organizationId: pedida, amountCents: totalCents, pixKey: aff.pixKey! })
         .returning();
 
       await tx
         .update(commissions)
         .set({ status: "paid", payoutId: created.id })
         .where(
-          and(eq(commissions.affiliateId, id), eq(commissions.status, "available")),
+          and(
+            eq(commissions.status, "available"),
+            inArray(commissions.id, lote.map((c) => c.id)),
+          ),
         );
 
       return created;
@@ -269,6 +332,41 @@ affiliateRouter.get("/payouts", async (req, res, next) => {
         .where(eq(payouts.affiliateId, id))
         .orderBy(desc(payouts.requestedAt)),
     );
+  } catch (err) {
+    next(err);
+  }
+});
+
+/* ---------------- organizações (vínculos e termo) ---------------- */
+
+/** As organizações ativas, com o termo em vigor e o vínculo do afiliado. */
+affiliateRouter.get("/organizacoes", async (req, res, next) => {
+  try {
+    res.json(await organizacoesDoAfiliado(affiliateId(req)));
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * Aderir (ou aceitar a versão nova do termo). O aceite guarda a cópia do
+ * texto, a versão, IP e aparelho em hash — é a prova do combinado.
+ */
+affiliateRouter.post("/organizacoes/:slug/aderir", async (req, res, next) => {
+  try {
+    res.json(
+      await aderir(affiliateId(req), req.params.slug, { versao: req.body?.versao, identidade: identify(req) }),
+    );
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** Sair: desfaz o vínculo, sem perder o que já ganhou. */
+affiliateRouter.delete("/organizacoes/:slug", async (req, res, next) => {
+  try {
+    await sair(affiliateId(req), req.params.slug);
+    res.json({ ok: true });
   } catch (err) {
     next(err);
   }

@@ -1,25 +1,35 @@
 import { useState } from "react";
 import { Link } from "wouter";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Button, Card } from "@/components/bits";
 import { apiRequest } from "@/lib/queryClient";
 
 /**
- * Cadastro aberto: qualquer pessoa se inscreve, mas ninguém divulga antes
- * de o administrador aprovar.
+ * Cadastro aberto de afiliado avulso: a conta entra na hora e adere a
+ * quantas organizações quiser. Vindo do "Seja um afiliado" de um perfil
+ * (`?organizacao=`), o pedido de adesão já vai junto, com o aceite do termo
+ * dela — que aparece aqui para ler antes.
  */
 export default function CadastroAfiliado() {
   const [form, setForm] = useState({ name: "", email: "", phone: "", password: "" });
   const [error, setError] = useState<string | null>(null);
-  const [done, setDone] = useState<{ code: string } | null>(null);
+  const [done, setDone] = useState<{ code: string; message: string } | null>(null);
+  const [aceito, setAceito] = useState(false);
+  const organizacao = new URLSearchParams(window.location.search).get("organizacao") ?? undefined;
+  const { data: termo } = useQuery<{ organizacao: string; termo: { versao: number; comissaoPct: number; texto: string } | null }>({
+    queryKey: [`/api/public/o/${organizacao}/termo-afiliado`],
+    enabled: Boolean(organizacao),
+  });
+  const precisaAceitar = Boolean(termo?.termo);
 
   const signup = useMutation({
     mutationFn: async () => {
-      // Vindo do "Seja um afiliado" de um perfil, o cadastro já vai para
-      // aquela organização.
-      const organizacao = new URLSearchParams(window.location.search).get("organizacao") ?? undefined;
-      const res = await apiRequest("POST", "/api/public/afiliados/cadastro", { ...form, organizacao });
-      return (await res.json()) as { code: string };
+      const res = await apiRequest("POST", "/api/public/afiliados/cadastro", {
+        ...form,
+        organizacao,
+        termoVersao: termo?.termo?.versao,
+      });
+      return (await res.json()) as { code: string; message: string };
     },
     onSuccess: setDone,
     onError: (err: Error) => setError(err.message),
@@ -28,15 +38,12 @@ export default function CadastroAfiliado() {
   if (done) {
     return (
       <div className="mx-auto flex min-h-screen max-w-sm flex-col justify-center px-5">
-        <Card title="Cadastro enviado">
+        <Card title="Cadastro feito">
           <div className="space-y-3 p-4 text-sm">
             <p className="text-ink-2">
               Seu código de afiliado será <span className="tnum font-medium">{done.code}</span>.
             </p>
-            <p className="text-muted">
-              O administrador precisa aprovar antes de você começar a divulgar. Assim que
-              liberar, é só entrar com o seu e-mail e senha.
-            </p>
+            <p className="text-muted">{done.message}</p>
             <Link href="/entrar" className="inline-block text-green-deep underline">
               ir para a entrada
             </Link>
@@ -86,11 +93,27 @@ export default function CadastroAfiliado() {
           </div>
         ))}
 
+        {termo?.termo ? (
+          <div className="space-y-2 rounded-md border border-line p-3 text-sm">
+            <p className="font-semibold">
+              Termo de adesão de {termo.organizacao}{" "}
+              <span className="tnum font-normal text-muted">· versão {termo.termo.versao} · {termo.termo.comissaoPct}%</span>
+            </p>
+            <pre className="max-h-48 overflow-y-auto whitespace-pre-wrap rounded bg-mist p-2 font-sans text-xs text-ink-2">
+              {termo.termo.texto}
+            </pre>
+            <label className="flex items-start gap-2 text-xs">
+              <input type="checkbox" checked={aceito} onChange={(e) => setAceito(e.target.checked)} className="mt-0.5" />
+              Li e aceito o termo de adesão de {termo.organizacao}.
+            </label>
+          </div>
+        ) : null}
+
         {error ? (
           <p className="rounded-md bg-red-soft px-3 py-2 text-sm text-red">{error}</p>
         ) : null}
 
-        <Button type="submit" className="w-full" disabled={signup.isPending}>
+        <Button type="submit" className="w-full" disabled={signup.isPending || (precisaAceitar && !aceito)}>
           {signup.isPending ? "Enviando…" : "Quero ser afiliado"}
         </Button>
 

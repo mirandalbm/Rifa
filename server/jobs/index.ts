@@ -9,6 +9,7 @@ import { separarCidadesAntigas } from "../services/orgs";
 import { avisarSorteiosChegando } from "../services/push";
 import { completarRegioesPendentes } from "../services/contaComprador";
 import { apagarStoriesVencidos } from "../services/vitrine";
+import { migrarAfiliadosAntigos } from "../services/afiliados";
 import { lancarMensalidades } from "../services/billing";
 import { releaseExpired } from "../services/quotas";
 import { paymentProviderByName } from "../payments";
@@ -40,6 +41,7 @@ const LOCK_COMISSAO = 811_002;
 const LOCK_LEMBRETE = 811_003;
 const LOCK_LIMPEZA = 811_004;
 const LOCK_STORIES = 811_010;
+const LOCK_AFILIADOS = 811_011;
 const LOCK_MENSALIDADE = 811_005;
 const LOCK_CODIGOS = 811_006;
 const LOCK_CIDADES = 811_007;
@@ -198,6 +200,21 @@ export function startJobs() {
       console.error("[jobs] cidades antigas:", err);
     }
   }, 5_000).unref();
+
+  // Afiliado de antes dos vínculos (organização no usuário): cria o vínculo,
+  // e a organização dos cupons e saques antigos. Idempotente.
+  const migrarAfiliados = async () => {
+    try {
+      await withLock(LOCK_AFILIADOS, async () => {
+        const n = await migrarAfiliadosAntigos();
+        if (n > 0) log(`${n} afiliado(s) antigo(s) com vínculo criado`, "jobs");
+      });
+    } catch (err) {
+      console.error("[jobs] vínculos de afiliados antigos:", err);
+    }
+  };
+  setTimeout(migrarAfiliados, 3_000).unref();
+  setInterval(migrarAfiliados, releaseMs).unref();
 
   // Stories vencidos (24 h): a rota já não serve, e o relógio tira do banco.
   setInterval(async () => {

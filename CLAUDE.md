@@ -83,6 +83,7 @@ arquitetura.
 | mensagens e modelos | `server/notifications/` |
 | cotas premiadas | `server/routes/admin.ts` (sorteio) e `services/orders.ts` (revelação) |
 | cadastro/cupom/kit do afiliado | `server/routes/public.ts`, `server/routes/affiliate.ts` |
+| afiliado de todas as organizações (vínculo, termo, aceite, colaborador) | `shared/afiliados.ts` (regras), `server/services/afiliados.ts` (`comissaoNaRifa`), `client/src/pages/afiliado.tsx` (`AfiliadoOrganizacoes`), `scripts/afiliados-test.ts` |
 | venda física e acerto | `server/routes/seller.ts`, `server/services/settlements.ts` |
 | meios de pagamento aceitos | `shared/payments.ts` (regras) e `services/settings.ts` |
 | bilhete | `server/services/ticketFormat.ts` (puro) e `ticket.ts` (dados) |
@@ -747,4 +748,44 @@ pedido, cotas e valor, e o cliente só pelo ID (`Cliente C-XXXXXXXX`).
   campanha (o do vizinho é 404), reprocessada em 1080×1350 WebP no banco.
   Vira a capa do destaque no perfil e aparece no resultado. A autorização de
   uso da imagem é do organizador com o ganhador — a tela avisa.
+
+## Afiliado de todas as organizações — o que não pode afrouxar
+
+- **O afiliado é avulso**: a conta não tem organização
+  (`users.organization_id` nulo) e entra na hora. O que cada organização
+  aprova é o **vínculo** com ela (`afiliado_vinculos`, chave única do par —
+  aderir de novo é `ON CONFLICT`). O cambista continua preso à organização
+  pelo usuário: é colaborador dela, não avulso.
+- **Sem vínculo aprovado, o link não dá comissão.** `comissaoNaRifa()`
+  confere afiliado ativo, vínculo aprovado com a **dona da rifa** e, se a
+  rifa foi publicada com termo, o aceite **daquela versão**. Sem isso a
+  venda segue, sem afiliado. (Antes, o link de um afiliado da A dava
+  comissão na rifa da B.) O afiliado antigo, com a organização no usuário,
+  conta como vínculo aprovado com ela, e o relógio cria o vínculo dele
+  (`migrarAfiliadosAntigos`, trava 811011).
+- **O termo é fotografado na publicação** (`campaigns.termo_id`, com a
+  mesma trava da publicação do termo — 811201 por organização): a rifa
+  segue a versão com que foi publicada até o sorteio. Publicar termo nunca
+  edita a versão anterior; o percentual das vendas da rifa sai do termo
+  dela (`pctDaComissao`). Sem termo, vale o de antes (vínculo, cadastro,
+  padrão da rifa).
+- **O aceite é prova**: guarda a cópia do texto, a versão, IP e aparelho em
+  hash. Aceitar olhando uma versão que já mudou é 409 — lê de novo.
+- **Cupom é da organização** (`coupons.organization_id`): não vale na rifa
+  de outra, e só a dona apaga. Conferir pelo afiliado deixaria uma
+  organização mexer no cupom da outra, porque o afiliado é das duas.
+- **Saque é por organização** (`payouts.organization_id`): cada uma vê e
+  paga só a comissão das rifas dela, e o painel Financeiro filtra pela
+  organização da rifa — nunca pela do usuário do afiliado. Até a plataforma
+  guardar a comissão (etapa 12), é assim que ninguém paga o que não deve.
+- **A organização decide o vínculo, nunca a conta.** `PATCH
+  /affiliates/:id` do organizador muda o vínculo com ele; a conta (ativo,
+  bloqueado) é da plataforma. Sair desfaz o vínculo sem apagar o que já foi
+  ganho.
+- **"Seja um colaborador" pede conta** (o pedido leva nome e WhatsApp dela
+  para a organização responder) e tem um pedido em aberto por organização
+  (índice parcial). Atender preenche o cadastro de cambista; a senha e o
+  código continuam sendo criados pela organização.
+- `npm run afiliados` prova tudo isso contra a API de verdade, inclusive o
+  recorte entre duas organizações.
 

@@ -28,6 +28,7 @@ import {
 import {
   AfiliadoPainel,
   AfiliadoLinks,
+  AfiliadoOrganizacoes,
   AfiliadoComissoes,
   AfiliadoSaques,
 } from "@/pages/afiliado";
@@ -127,6 +128,11 @@ export default function App() {
           <Route path="/afiliado/links">
             <Guarded requires="affiliate">
               <AfiliadoLinks />
+            </Guarded>
+          </Route>
+          <Route path="/afiliado/organizacoes">
+            <Guarded requires="affiliate">
+              <AfiliadoOrganizacoes />
             </Guarded>
           </Route>
           <Route path="/afiliado/comissoes">

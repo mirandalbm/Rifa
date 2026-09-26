@@ -1,9 +1,11 @@
 import { useState, type ReactNode } from "react";
-import { Link, useParams } from "wouter";
-import { useQuery } from "@tanstack/react-query";
+import { Link, useLocation, useParams } from "wouter";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { MoreVertical, Share2, MapPin, X, Copy, Check } from "lucide-react";
 import { PublicShell } from "@/components/AppShell";
-import { Money, Progress, Empty } from "@/components/bits";
+import { Money, Progress, Empty, Button } from "@/components/bits";
+import { apiRequest } from "@/lib/queryClient";
+import { useSession } from "@/lib/session";
 import { SeguirBotoes, FotoDoPerfil } from "@/components/Seguir";
 import { DestaqueOrg, LinksDoPerfil } from "@/components/DestaqueOrg";
 import { FotoComStory, VisualizadorDeStories } from "@/components/Stories";
@@ -12,7 +14,6 @@ import { groupNumber, percent } from "@shared/format";
 import {
   contador,
   linkDeCompartilhar,
-  whatsappDoContato,
   NOME_REDE,
   type CorDeDestaque,
   type LinkDoPerfil,
@@ -73,7 +74,7 @@ export default function PerfilPage() {
   const { org } = useParams<{ org: string }>();
   const { data: p, isLoading, error } = useQuery<Perfil>({ queryKey: [`/api/public/o/${org}`] });
   const [menu, setMenu] = useState(false);
-  const [painel, setPainel] = useState<"sobre" | "qr" | "compartilhar" | null>(null);
+  const [painel, setPainel] = useState<"sobre" | "qr" | "compartilhar" | "colaborador" | null>(null);
   const [copiado, setCopiado] = useState(false);
   const [stories, setStories] = useState(false);
 
@@ -114,7 +115,6 @@ export default function PerfilPage() {
     }
     setPainel("compartilhar");
   };
-  const whatsappDaOrg = whatsappDoContato(p.contato);
 
   return (
     <PublicShell>
@@ -188,16 +188,7 @@ export default function PerfilPage() {
                 className="absolute right-0 z-40 mt-2 w-56 overflow-hidden rounded-lg border border-line bg-white py-1 text-sm shadow-lg"
               >
                 <ItemMenu href={`/seja-afiliado?organizacao=${p.slug}`}>Seja um afiliado</ItemMenu>
-                {whatsappDaOrg ? (
-                  <ItemMenu
-                    href={`https://wa.me/${whatsappDaOrg}?text=${encodeURIComponent(
-                      `Olá! Quero ser colaborador (cambista) de ${p.nome}.`,
-                    )}`}
-                    externo
-                  >
-                    Seja um colaborador
-                  </ItemMenu>
-                ) : null}
+                <ItemMenu onClick={() => (setMenu(false), setPainel("colaborador"))}>Seja um colaborador</ItemMenu>
                 <ItemMenu onClick={() => (setMenu(false), setPainel("sobre"))}>Sobre essa conta</ItemMenu>
                 <ItemMenu onClick={() => (setMenu(false), void copiar())}>
                   {copiado ? "Endereço copiado" : "Copiar URL do perfil"}
@@ -280,6 +271,12 @@ export default function PerfilPage() {
               tnum
             />
           </dl>
+        </Folha>
+      ) : null}
+
+      {painel === "colaborador" ? (
+        <Folha titulo={`Vender para ${p.nome}`} fechar={() => setPainel(null)}>
+          <PedidoDeColaborador slug={p.slug} nome={p.nome} />
         </Folha>
       ) : null}
 
@@ -493,5 +490,61 @@ function CartaoDaRifa({ org, rifa }: { org: string; rifa: RifaDoPerfil }) {
         </p>
       </Link>
     </article>
+  );
+}
+
+/**
+ * "Seja um colaborador": o pedido vai para a organização com o nome e o
+ * WhatsApp da conta de quem pede (por isso precisa entrar). Um pedido em
+ * aberto por organização.
+ */
+function PedidoDeColaborador({ slug, nome }: { slug: string; nome: string }) {
+  const [local, navigate] = useLocation();
+  const { data: sessao } = useSession();
+  const [cidade, setCidade] = useState("");
+  const [mensagem, setMensagem] = useState("");
+  const [msg, setMsg] = useState<{ ok: boolean; texto: string } | null>(null);
+  const pedir = useMutation({
+    mutationFn: async () => (await apiRequest("POST", `/api/public/o/${slug}/colaborador`, { cidade, mensagem })).json(),
+    onSuccess: (r: { message: string }) => setMsg({ ok: true, texto: r.message }),
+    onError: (e: Error) => setMsg({ ok: false, texto: e.message }),
+  });
+  if (!sessao?.buyer) {
+    return (
+      <div className="space-y-3 text-sm">
+        <p className="text-ink-2">
+          Cambista vende as cotas de {nome} na rua, com a maquininha, e ganha comissão. Entre na sua conta para
+          mandar o pedido — a organização responde pelo seu WhatsApp.
+        </p>
+        <Button onClick={() => navigate(`/entrar?volta=${encodeURIComponent(local)}`)}>Entrar para pedir</Button>
+      </div>
+    );
+  }
+  if (msg?.ok) return <p className="rounded-md bg-green-soft px-3 py-2 text-sm text-green-deep">{msg.texto}</p>;
+  return (
+    <form
+      className="space-y-3 text-sm"
+      onSubmit={(e) => {
+        e.preventDefault();
+        setMsg(null);
+        pedir.mutate();
+      }}
+    >
+      <p className="text-ink-2">
+        O pedido vai com o seu nome e WhatsApp da conta. {nome} fala com você para combinar.
+      </p>
+      <div>
+        <label htmlFor="colab-cidade" className="label-xs">Cidade onde você vende</label>
+        <input id="colab-cidade" value={cidade} maxLength={80} onChange={(e) => setCidade(e.target.value)} className="mt-1 w-full rounded-md border border-line-2 px-3 py-2" />
+      </div>
+      <div>
+        <label htmlFor="colab-msg" className="label-xs">Conte um pouco (opcional)</label>
+        <textarea id="colab-msg" rows={3} maxLength={500} value={mensagem} onChange={(e) => setMensagem(e.target.value)} className="mt-1 w-full rounded-md border border-line-2 px-3 py-2" />
+      </div>
+      {msg ? <p className="rounded-md bg-red-soft px-3 py-2 text-red">{msg.texto}</p> : null}
+      <Button type="submit" disabled={cidade.trim().length < 2 || pedir.isPending}>
+        {pedir.isPending ? "Enviando…" : "Quero ser colaborador"}
+      </Button>
+    </form>
   );
 }

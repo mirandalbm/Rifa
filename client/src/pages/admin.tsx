@@ -507,15 +507,29 @@ export function AdminPedidos() {
 
 /* ----------------------------- afiliados ----------------------------- */
 
+const PILL_DO_VINCULO: Record<string, string> = {
+  pendente: "pending",
+  aprovado: "active",
+  recusado: "blocked",
+  desfeito: "expired",
+};
+
 export function AdminAfiliados() {
   const qc = useQueryClient();
+  const { data: sessao } = useSession();
+  const daOrganizacao = sessao?.role !== "admin";
   const { data } = useQuery<
     {
       affiliate: { id: string; code: string; status: string; commissionPct: number | null; pixKey: string | null };
       user: { name: string; email: string };
       salesCents: number;
+      /** Só para a organização: o vínculo do afiliado com ela. */
+      vinculo?: { id: string; status: string; commissionPct: number | null; aceiteVersao: number | null; termoVersaoAtual: number | null };
     }[]
   >({ queryKey: ["/api/admin/affiliates"] });
+  // O que a organização decide é o vínculo; a plataforma, a conta.
+  const statusDe = (r: NonNullable<typeof data>[number]) =>
+    r.vinculo ? r.vinculo.status : r.affiliate.status === "active" ? "aprovado" : r.affiliate.status === "blocked" ? "recusado" : "pendente";
 
   const [form, setForm] = useState({ name: "", email: "", password: "", code: "" });
   const [error, setError] = useState<string | null>(null);
@@ -535,14 +549,19 @@ export function AdminAfiliados() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/admin/affiliates"] }),
   });
 
-  const pending = data?.filter((r) => r.affiliate.status === "pending") ?? [];
+  const pending = data?.filter((r) => statusDe(r) === "pendente") ?? [];
 
   return (
     <PanelShell title="Afiliados">
+      {daOrganizacao ? (
+        <div className="mb-3">
+          <TermoAfiliadoCard />
+        </div>
+      ) : null}
       {pending.length > 0 ? (
         <div className="mb-3">
           <Card
-            title="Aguardando aprovação"
+            title="Pedidos de adesão"
             right={<Pill status="pending">{`${pending.length} na fila`}</Pill>}
           >
             <ul className="divide-y divide-line">
@@ -619,34 +638,140 @@ export function AdminAfiliados() {
           </div>
         </Card>
 
-        <Card title="Cadastrados">
+        <Card title={daOrganizacao ? "Afiliados desta organização" : "Afiliados da plataforma"}>
           <ul className="divide-y divide-line">
-            {data?.map((row) => (
-              <li key={row.affiliate.id} className="flex items-center gap-3 px-4 py-3 text-sm">
-                <span className="flex-1">
-                  {row.user.name} · <span className="tnum text-muted">{row.affiliate.code}</span>
-                </span>
-                <Money cents={row.salesCents} className="text-muted" />
-                <Pill status={row.affiliate.status} />
-                <Button
-                  variant="ghost"
-                  className="px-2 py-1 text-xs"
-                  onClick={() =>
-                    update.mutate({
-                      id: row.affiliate.id,
-                      status: row.affiliate.status === "active" ? "blocked" : "active",
-                    })
-                  }
-                >
-                  {row.affiliate.status === "active" ? "bloquear" : "ativar"}
-                </Button>
-              </li>
-            ))}
+            {data?.map((row) => {
+              const st = statusDe(row);
+              const semAceite =
+                row.vinculo?.termoVersaoAtual && (row.vinculo.aceiteVersao ?? 0) < row.vinculo.termoVersaoAtual;
+              return (
+                <li key={row.affiliate.id} className="flex flex-wrap items-center gap-3 px-4 py-3 text-sm">
+                  <span className="min-w-0 flex-1">
+                    {row.user.name} · <span className="tnum text-muted">{row.affiliate.code}</span>
+                    {semAceite ? (
+                      <span className="block text-[11px] text-yellow-deep">
+                        ainda não aceitou a versão {row.vinculo!.termoVersaoAtual} do termo
+                      </span>
+                    ) : null}
+                  </span>
+                  <Money cents={row.salesCents} className="text-muted" />
+                  <Pill status={PILL_DO_VINCULO[st]}>{{ pendente: "pendente", aprovado: "aprovado", recusado: "recusado", desfeito: "saiu" }[st]}</Pill>
+                  {st !== "desfeito" ? (
+                    <Button
+                      variant="ghost"
+                      className="px-2 py-1 text-xs"
+                      onClick={() =>
+                        update.mutate({ id: row.affiliate.id, status: st === "aprovado" ? "blocked" : "active" })
+                      }
+                    >
+                      {st === "aprovado" ? (daOrganizacao ? "desligar" : "bloquear") : daOrganizacao ? "aprovar" : "ativar"}
+                    </Button>
+                  ) : null}
+                </li>
+              );
+            })}
           </ul>
           {data?.length === 0 ? <Empty>Nenhum afiliado cadastrado.</Empty> : null}
         </Card>
       </div>
     </PanelShell>
+  );
+}
+
+/**
+ * Termo de adesão de afiliado da organização: percentual e regras dela. O
+ * resto (quem paga, quando, estorno, autoindicação) o sistema escreve. Cada
+ * publicação é uma versão nova: rifa já no ar segue com a versão com que foi
+ * publicada, e o afiliado precisa aceitar a nova para as próximas.
+ */
+function TermoAfiliadoCard() {
+  const qc = useQueryClient();
+  const { data } = useQuery<{ termo: { versao: number; comissaoPct: number; textoExtra: string; texto: string; createdAt: string } | null }>({
+    queryKey: ["/api/admin/termo-afiliado"],
+  });
+  const atual = data?.termo ?? null;
+  const [pct, setPct] = useState<number | null>(null);
+  const [extra, setExtra] = useState<string | null>(null);
+  const [msg, setMsg] = useState<{ ok: boolean; texto: string } | null>(null);
+  const [ver, setVer] = useState(false);
+  const valorPct = pct ?? atual?.comissaoPct ?? 10;
+  const valorExtra = extra ?? atual?.textoExtra ?? "";
+  const publicar = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/admin/termo-afiliado", { comissaoPct: valorPct, textoExtra: valorExtra }),
+    onSuccess: () => {
+      setMsg({ ok: true, texto: "Versão publicada. Vale para as rifas publicadas daqui em diante." });
+      setPct(null);
+      setExtra(null);
+      qc.invalidateQueries({ queryKey: ["/api/admin/termo-afiliado"] });
+      qc.invalidateQueries({ queryKey: ["/api/admin/affiliates"] });
+    },
+    onError: (e: Error) => setMsg({ ok: false, texto: e.message }),
+  });
+  const mudou = !atual || valorPct !== atual.comissaoPct || valorExtra.trim() !== atual.textoExtra;
+
+  return (
+    <Card
+      title="Termo de adesão de afiliado"
+      right={
+        atual ? (
+          <span className="tnum text-xs text-muted">
+            versão {atual.versao} · {new Date(atual.createdAt).toLocaleDateString("pt-BR")}
+          </span>
+        ) : (
+          <Pill status="pending">sem termo</Pill>
+        )
+      }
+    >
+      <div className="space-y-3 p-4 text-sm">
+        <p className="text-muted">
+          O afiliado lê e aceita antes de divulgar suas rifas. Quem paga, quando, estorno e autoindicação o sistema
+          escreve; aqui entram o percentual e as regras da organização.
+        </p>
+        <label className="flex items-center gap-2">
+          <span className="label-xs">Comissão</span>
+          <input
+            type="number"
+            min={0}
+            max={50}
+            value={valorPct}
+            onChange={(e) => {
+              setMsg(null);
+              setPct(Number(e.target.value));
+            }}
+            className="tnum w-20 rounded-md border border-line-2 px-2 py-1.5"
+          />
+          <span className="tnum text-muted">% sobre o pago, depois da taxa da plataforma</span>
+        </label>
+        <div>
+          <label htmlFor="termo-extra" className="label-xs">Regras da organização (opcional)</label>
+          <textarea
+            id="termo-extra"
+            rows={4}
+            maxLength={3000}
+            value={valorExtra}
+            onChange={(e) => {
+              setMsg(null);
+              setExtra(e.target.value);
+            }}
+            className="mt-1 w-full rounded-md border border-line-2 px-3 py-2"
+          />
+        </div>
+        {atual ? (
+          <button type="button" onClick={() => setVer(!ver)} className="block text-xs text-ink-2 underline">
+            {ver ? "Esconder" : "Ver"} o termo em vigor
+          </button>
+        ) : null}
+        {ver && atual ? (
+          <pre className="max-h-64 overflow-y-auto whitespace-pre-wrap rounded bg-mist p-3 font-sans text-xs text-ink-2">{atual.texto}</pre>
+        ) : null}
+        {msg ? (
+          <p className={`rounded-md px-3 py-2 ${msg.ok ? "bg-green-soft text-green-deep" : "bg-red-soft text-red"}`}>{msg.texto}</p>
+        ) : null}
+        <Button disabled={!mudou || publicar.isPending} onClick={() => publicar.mutate()}>
+          {atual ? `Publicar versão ${atual.versao + 1}` : "Publicar o termo"}
+        </Button>
+      </div>
+    </Card>
   );
 }
 

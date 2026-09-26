@@ -18,6 +18,7 @@ import {
   MAX_VIDEO_SECONDS,
   type Campaign,
 } from "@shared/schema";
+import { termoAtual } from "./afiliados";
 import { commitSeed } from "./draw";
 import { validarRegulamentoExtra } from "@shared/regulamento";
 import {
@@ -167,9 +168,15 @@ export async function publishCampaign(campaignId: string): Promise<Campaign> {
       .values({ campaignId })
       .onConflictDoNothing();
 
+    // O termo de afiliado em vigor fica fotografado na rifa e vale até o
+    // sorteio. A mesma trava da publicação do termo: uma versão nova saindo
+    // agora espera esta publicação (ou esta espera ela) — nunca meio a meio.
+    await tx.execute(sql`select pg_advisory_xact_lock(811201, hashtext(${campaign.organizationId}))`);
+    const termo = await termoAtual(campaign.organizationId, tx);
+
     const [updated] = await tx
       .update(campaigns)
-      .set({ status: "published", publishedAt: new Date(), drawSeedHash: seedHash })
+      .set({ status: "published", publishedAt: new Date(), drawSeedHash: seedHash, termoId: termo?.id ?? null })
       .where(eq(campaigns.id, campaignId))
       .returning();
 

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { PanelShell } from "@/components/AppShell";
 import { Card, Kpi, Money, Pill, Button, Empty } from "@/components/bits";
@@ -109,6 +110,8 @@ interface LinkKit {
   qr: string;
   coupon: { code: string; discountPct: number } | null;
   texts: string[];
+  organizacao: string;
+  termoPendente: boolean;
 }
 
 export function AfiliadoLinks() {
@@ -124,14 +127,33 @@ export function AfiliadoLinks() {
   return (
     <PanelShell title="Meus links">
       <div className="space-y-3">
-        {data?.length === 0 ? <Empty>Nenhuma rifa no ar agora.</Empty> : null}
+        {data?.length === 0 ? (
+          <Empty>
+            Nenhuma rifa para divulgar. Entre em{" "}
+            <Link href="/afiliado/organizacoes" className="text-green-deep underline">
+              Organizações
+            </Link>{" "}
+            e peça adesão às que você quer divulgar.
+          </Empty>
+        ) : null}
         {data?.map((l) => (
           <Card key={l.slug}>
             <div className="space-y-3 p-4">
-              <div className="flex items-center justify-between">
-                <h3 className="font-display text-sm font-bold">{l.title}</h3>
-                <span className="label-xs">comissão de {l.pct}%</span>
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="font-display text-sm font-bold">
+                  {l.title} <span className="font-sans text-xs font-normal text-muted">· {l.organizacao}</span>
+                </h3>
+                <span className="label-xs shrink-0">comissão de {l.pct}%</span>
               </div>
+              {l.termoPendente ? (
+                <p className="rounded-md bg-yellow-soft px-3 py-2 text-xs text-yellow-deep">
+                  Esta rifa saiu com uma versão nova do termo de {l.organizacao}. Aceite em{" "}
+                  <Link href="/afiliado/organizacoes" className="underline">
+                    Organizações
+                  </Link>{" "}
+                  para receber comissão por ela.
+                </p>
+              ) : null}
 
               <div className="flex items-center gap-2 rounded-md border-2 border-dashed border-green bg-green-soft px-3 py-2">
                 <span className="tnum flex-1 truncate text-xs text-green-deep">{l.url}</span>
@@ -266,8 +288,12 @@ export function AfiliadoSaques() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/affiliate/overview"] }),
   });
 
+  const { data: saldo = [] } = useQuery<
+    { organizacaoId: string; organizacao: string; disponivelCents: number; pendenteCents: number }[]
+  >({ queryKey: ["/api/affiliate/saldo"] });
+
   const request = useMutation({
-    mutationFn: () => apiRequest("POST", "/api/affiliate/payouts"),
+    mutationFn: (organizacaoId: string) => apiRequest("POST", "/api/affiliate/payouts", { organizacaoId }),
     onSuccess: () => qc.invalidateQueries(),
     onError: (err: Error) => setError(err.message),
   });
@@ -295,23 +321,34 @@ export function AfiliadoSaques() {
 
         <Card title="Sacar">
           <div className="space-y-3 p-4">
-            <p className="label-xs">Disponível</p>
-            <p className="tnum text-2xl text-green-deep">
-              {formatBRL(overview?.commission.availableCents ?? 0)}
+            <p className="text-xs text-muted">
+              Cada organização paga a comissão das rifas dela: o saque é pedido a uma de cada vez.
             </p>
+            {saldo.length === 0 ? <p className="text-sm text-muted">Nenhuma comissão ainda.</p> : null}
+            <ul className="divide-y divide-line">
+              {saldo.map((o) => (
+                <li key={o.organizacaoId} className="flex flex-wrap items-center gap-3 py-2 text-sm">
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-semibold">{o.organizacao}</span>
+                    <span className="tnum text-xs text-muted">aguardando {formatBRL(o.pendenteCents)}</span>
+                  </span>
+                  <span className="tnum text-green-deep">{formatBRL(o.disponivelCents)}</span>
+                  <Button
+                    className="px-3 py-1 text-xs"
+                    disabled={request.isPending || o.disponivelCents <= 0}
+                    onClick={() => {
+                      setError(null);
+                      request.mutate(o.organizacaoId);
+                    }}
+                  >
+                    Sacar via Pix
+                  </Button>
+                </li>
+              ))}
+            </ul>
             {error ? (
               <p className="rounded-md bg-red-soft px-3 py-2 text-sm text-red">{error}</p>
             ) : null}
-            <Button
-              className="w-full"
-              disabled={request.isPending || (overview?.commission.availableCents ?? 0) <= 0}
-              onClick={() => {
-                setError(null);
-                request.mutate();
-              }}
-            >
-              Solicitar saque via Pix
-            </Button>
           </div>
         </Card>
       </div>
@@ -334,6 +371,143 @@ export function AfiliadoSaques() {
             </ul>
           )}
         </Card>
+      </div>
+    </PanelShell>
+  );
+}
+
+interface OrganizacaoParaAfiliado {
+  slug: string;
+  nome: string;
+  local: string | null;
+  vinculo: { status: "pendente" | "aprovado" | "recusado" | "desfeito"; commissionPct: number | null } | null;
+  termo: { versao: number; comissaoPct: number; texto: string } | null;
+  aceitouVersaoAtual: boolean;
+}
+
+const PILL_DO_VINCULO: Record<string, string> = {
+  pendente: "pending",
+  aprovado: "active",
+  recusado: "blocked",
+  desfeito: "expired",
+};
+
+/**
+ * As organizações da plataforma: o afiliado pede adesão (lendo e aceitando o
+ * termo de cada uma), acompanha a aprovação, aceita versão nova do termo e
+ * sai quando quiser — sem perder o que já ganhou.
+ */
+export function AfiliadoOrganizacoes() {
+  const qc = useQueryClient();
+  const { data = [] } = useQuery<OrganizacaoParaAfiliado[]>({ queryKey: ["/api/affiliate/organizacoes"] });
+  const [lendo, setLendo] = useState<string | null>(null);
+  const [erro, setErro] = useState<string | null>(null);
+  const recarregar = () => {
+    qc.invalidateQueries({ queryKey: ["/api/affiliate/organizacoes"] });
+    qc.invalidateQueries({ queryKey: ["/api/affiliate/links"] });
+  };
+  const aderir = useMutation({
+    mutationFn: (o: OrganizacaoParaAfiliado) =>
+      apiRequest("POST", `/api/affiliate/organizacoes/${o.slug}/aderir`, { versao: o.termo?.versao }),
+    onSuccess: () => {
+      setLendo(null);
+      recarregar();
+    },
+    onError: (e: Error) => {
+      setErro(e.message);
+      recarregar();
+    },
+  });
+  const sair = useMutation({
+    mutationFn: (slug: string) => apiRequest("DELETE", `/api/affiliate/organizacoes/${slug}`),
+    onSuccess: recarregar,
+    onError: (e: Error) => setErro(e.message),
+  });
+
+  return (
+    <PanelShell title="Organizações">
+      <p className="mb-3 text-sm text-muted">
+        Você pode divulgar as rifas de quantas organizações quiser. Cada uma aprova a sua adesão e tem o próprio
+        termo — é ele que diz quanto e quando você recebe.
+      </p>
+      {erro ? <p className="mb-3 rounded-md bg-red-soft px-3 py-2 text-sm text-red">{erro}</p> : null}
+      <div className="space-y-3">
+        {data.map((o) => {
+          const ativo = o.vinculo && (o.vinculo.status === "aprovado" || o.vinculo.status === "pendente");
+          const precisaAceitar = Boolean(ativo && o.termo && !o.aceitouVersaoAtual);
+          return (
+            <Card key={o.slug}>
+              <div className="space-y-2 p-4 text-sm">
+                <div>
+                  <span className="block font-display font-bold">{o.nome}</span>
+                  {o.local ? <span className="text-xs text-muted">{o.local}</span> : null}
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  {o.termo ? (
+                    <span className="tnum text-xs text-muted">
+                      {o.termo.comissaoPct}% · termo v{o.termo.versao}
+                    </span>
+                  ) : null}
+                  {o.vinculo ? (
+                    <Pill status={PILL_DO_VINCULO[o.vinculo.status]}>
+                      {{ pendente: "aguardando", aprovado: "aprovado", recusado: "recusado", desfeito: "saiu" }[o.vinculo.status]}
+                    </Pill>
+                  ) : null}
+                </div>
+
+                {precisaAceitar ? (
+                  <p className="rounded-md bg-yellow-soft px-3 py-2 text-xs text-yellow-deep">
+                    Há uma versão nova do termo (v{o.termo!.versao}). Leia e aceite para receber pelas rifas
+                    publicadas a partir dela; as que já estavam no ar seguem com a versão antiga.
+                  </p>
+                ) : null}
+
+                {lendo === o.slug && o.termo ? (
+                  <div className="space-y-2">
+                    <pre className="max-h-64 overflow-y-auto whitespace-pre-wrap rounded bg-mist p-3 font-sans text-xs text-ink-2">
+                      {o.termo.texto}
+                    </pre>
+                    <div className="flex gap-2">
+                      <Button className="px-3 py-1 text-xs" disabled={aderir.isPending} onClick={() => aderir.mutate(o)}>
+                        Li e aceito o termo
+                      </Button>
+                      <Button variant="ghost" className="px-3 py-1 text-xs" onClick={() => setLendo(null)}>
+                        Voltar
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {!ativo || precisaAceitar ? (
+                      <Button
+                        className="px-3 py-1 text-xs"
+                        disabled={aderir.isPending}
+                        onClick={() => {
+                          setErro(null);
+                          if (o.termo) setLendo(o.slug);
+                          else aderir.mutate(o);
+                        }}
+                      >
+                        {precisaAceitar ? "Ler e aceitar a versão nova" : o.termo ? "Ler o termo e aderir" : "Pedir adesão"}
+                      </Button>
+                    ) : null}
+                    {ativo ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (window.confirm(`Sair de ${o.nome}? O que você já ganhou continua seu.`)) sair.mutate(o.slug);
+                        }}
+                        className="text-xs text-red underline"
+                      >
+                        sair desta organização
+                      </button>
+                    ) : null}
+                  </div>
+                )}
+              </div>
+            </Card>
+          );
+        })}
       </div>
     </PanelShell>
   );

@@ -31,6 +31,7 @@ import {
   Wallet,
   type LucideIcon,
   HelpCircle,
+  CircleDashed,
 } from "lucide-react";
 import type { SectionKey } from "@shared/access";
 import { useSession, useLogout } from "@/lib/session";
@@ -188,6 +189,7 @@ const ICONE: Partial<Record<SectionKey, LucideIcon>> = {
   adminCampanhas: Ticket,
   adminPedidos: Receipt,
   adminAtendimento: MessagesSquare,
+  adminStories: CircleDashed,
   adminAfiliados: Megaphone,
   adminCambistas: Store,
   adminUsuarios: Users,

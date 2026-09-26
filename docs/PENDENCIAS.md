@@ -130,8 +130,7 @@ Na ordem de entrega do plano:
   "seguido por" só de quem liga o perfil público, destaques (rifas
   sorteadas) e grade com carrossel. A rifa abre dentro do perfil e tem
   seguir/sino. A vitrine mostra os perfis seguidos no topo.
-- [ ] **[código]** Ainda do perfil, depende de outras etapas: anel de story
-  (vitrine), item "Bônus" do menu (gamificação), foto do ganhador como capa depois do sorteio (painel de
+- [ ] **[código]** Ainda do perfil, depende de outras etapas: item "Bônus" do menu (gamificação), foto do ganhador como capa depois do sorteio (painel de
   resultados), pedido de colaborador dentro do app e "seguidores da mesma
   rifa".
 - [ ] **[você]** Cada organização pôr foto e bio em Configurações → Perfil
@@ -166,7 +165,17 @@ Na ordem de entrega do plano:
   links (Instagram, WhatsApp, site) no perfil público.
 - [ ] **[código]** O nome e o ícone do app instalado (manifest) ainda são
   fixos ("rifa.br"): o template muda o site, não o ícone já instalado.
-- [ ] **[código]** Vitrine: banners, stories, estados, feed.
+- [x] Vitrine: banners da plataforma (até 5, janela de datas, tempo por
+  banner, em Aparência), stories do organizador (24 h, até 10 no ar, painel
+  → Stories, anel aceso na vitrine e no perfil), estados com rifa no ar
+  (círculos e `/estado/UF`) e feed em formato de publicação (4:5, perfil no
+  topo, selo "Autorizada SPA/MF").
+- [ ] **[código]** Vitrine, o que ficou para depois: bandeira de cada
+  estado nos círculos (hoje a sigla), story em vídeo, e o organizador
+  **pagar** por mais tempo de banner no topo (depende do Pix da plataforma,
+  junto com as rifas patrocinadas).
+- [ ] **[você]** Subir os banners da plataforma (Aparência → Banners da
+  vitrine) e orientar as organizações a postarem stories.
 - [ ] **[código]** Painel de resultados do organizador.
 - [ ] **[código]** Afiliado multi-organização, termo por rifa, colaborador.
 - [ ] **[código]** Guarda da comissão pela plataforma, cadastro fiscal e

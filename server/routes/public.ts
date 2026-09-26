@@ -1,3 +1,10 @@
+import {
+  bannersNoAr,
+  estadosNoAr,
+  imagemDoBanner,
+  imagemDoStory,
+  storiesDoPerfil,
+} from "../services/vitrine";
 import { Router, type Request, type Response } from "express";
 import { createHash } from "node:crypto";
 import { eq, and, desc, sql } from "drizzle-orm";
@@ -96,8 +103,17 @@ publicRouter.get("/campaigns", async (req, res, next) => {
       ? req.query.uf.toUpperCase()
       : null;
     const cidade = typeof req.query.cidade === "string" ? req.query.cidade.slice(0, 120) : null;
+    // `/estado/UF`: aqui a pessoa escolheu ver um estado só — é filtro de
+    // propósito. A vitrine em si ordena por região, nunca esconde.
+    const estado =
+      typeof req.query.estado === "string" && ufValida(req.query.estado.toUpperCase())
+        ? req.query.estado.toUpperCase()
+        : null;
+    const todas = await listPublicCampaigns();
     const rows = ordenarPorProximidade(
-      (await listPublicCampaigns()).map((r) => ({
+      todas
+        .filter((r) => !estado || r.organizacao?.uf === estado)
+        .map((r) => ({
         ...r,
         uf: r.organizacao?.uf ?? null,
         cidade: r.organizacao?.cidade ?? null,
@@ -130,11 +146,66 @@ publicRouter.get("/campaigns", async (req, res, next) => {
               slug: organizacao.slug,
               local: cidadeUf(organizacao.cidade, organizacao.uf),
               uf: organizacao.uf,
+              foto: organizacao.slug ? urlDaFoto(organizacao.slug, organizacao.fotoEm) : null,
             }
           : null,
+        // Selo "Autorizada SPA/MF": rifa no ar sempre tem (não publica sem).
+        autorizacao: campaign.authorizationCode,
         perto: uf ? distancia({ uf: organizacao?.uf, cidade: organizacao?.cidade }, { uf, cidade }) : null,
       })),
     );
+  } catch (err) {
+    next(err);
+  }
+});
+
+/* ---------------- vitrine: banners, stories e estados ---------------- */
+
+publicRouter.get("/banners", async (_req, res, next) => {
+  try {
+    res.json(await bannersNoAr());
+  } catch (err) {
+    next(err);
+  }
+});
+
+publicRouter.get("/banners/:id/imagem", async (req, res, next) => {
+  try {
+    const b = await imagemDoBanner(req.params.id);
+    if (!b) return res.status(404).json({ message: "Banner não encontrado." });
+    // O endereço leva a data (?v=): trocar a imagem troca o endereço.
+    res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+    res.type(b.mime).send(b.bytes);
+  } catch (err) {
+    next(err);
+  }
+});
+
+publicRouter.get("/estados", async (req, res, next) => {
+  try {
+    const uf = typeof req.query.uf === "string" ? req.query.uf.toUpperCase() : null;
+    res.json(await estadosNoAr(ufValida(uf) ? uf : null));
+  } catch (err) {
+    next(err);
+  }
+});
+
+publicRouter.get("/o/:slug/stories", async (req, res, next) => {
+  try {
+    res.setHeader("Cache-Control", "no-store");
+    res.json(await storiesDoPerfil(req.params.slug));
+  } catch (err) {
+    next(err);
+  }
+});
+
+publicRouter.get("/stories/:id/imagem", async (req, res, next) => {
+  try {
+    // Só enquanto o story está no ar: vencido some, como no Instagram.
+    const s = await imagemDoStory(req.params.id);
+    if (!s) return res.status(404).json({ message: "Story não encontrado." });
+    res.setHeader("Cache-Control", "public, max-age=3600");
+    res.type(s.mime).send(s.bytes);
   } catch (err) {
     next(err);
   }

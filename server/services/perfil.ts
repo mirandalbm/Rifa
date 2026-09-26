@@ -19,6 +19,7 @@ import {
   organizacaoFotos,
   organizations,
   seguidores,
+  stories,
 } from "@shared/schema";
 import {
   bioAutomatica,
@@ -89,6 +90,18 @@ async function midiasDas(ids: string[]) {
   return porRifa;
 }
 
+/**
+ * O story mais novo no ar da organização (nulo sem story) — acende o anel
+ * da foto. Subconsulta por linha: a lista de seguidos é curta.
+ */
+// A referência à organização vai com o nome da tabela escrito: dentro da
+// subconsulta o drizzle a deixaria sem prefixo, e "id" viraria o do story.
+const ultimoStorySql = sql<Date | null>`(
+  select max(s.created_at) from ${stories} s
+   where s.organization_id = "organizations"."id" and s.expira_em > now()
+)`.mapWith((v) => (v instanceof Date ? v : v ? new Date(`${String(v).replace(" ", "T")}Z`) : null));
+// (Coluna `timestamp` sem fuso guarda UTC; em SQL cru o driver devolve texto.)
+
 export async function perfilPublico(slug: string, buyerId?: string | null) {
   const org = await organizacaoPublica(slug);
 
@@ -156,6 +169,10 @@ export async function perfilPublico(slug: string, buyerId?: string | null) {
     .select({ updatedAt: organizacaoCapas.updatedAt })
     .from(organizacaoCapas)
     .where(eq(organizacaoCapas.organizationId, org.id));
+  const [ultimo] = await db
+    .select({ em: ultimoStorySql })
+    .from(organizations)
+    .where(eq(organizations.id, org.id));
 
   const cartao = (r: (typeof rifas)[number]) => ({
     id: r.campaign.id,
@@ -181,6 +198,7 @@ export async function perfilPublico(slug: string, buyerId?: string | null) {
     nome: org.name,
     foto: urlDaFoto(org.slug, foto?.updatedAt),
     capa: urlDaCapa(org.slug, capa?.updatedAt),
+    ultimoStory: ultimo?.em ?? null,
     destaque: destaqueDa(org),
     links: org.links ?? [],
     local: cidadeUf(org.cidade, org.uf),
@@ -277,6 +295,7 @@ export async function perfisSeguidos(buyerId: string) {
       slug: organizations.slug,
       nome: organizations.name,
       foto: organizacaoFotos.updatedAt,
+      ultimoStory: ultimoStorySql,
     })
     .from(seguidores)
     .innerJoin(organizations, eq(organizations.id, seguidores.organizationId))
@@ -287,6 +306,7 @@ export async function perfisSeguidos(buyerId: string) {
     slug: l.slug,
     nome: l.nome,
     foto: urlDaFoto(l.slug, l.foto),
+    ultimoStory: l.ultimoStory,
   }));
 }
 

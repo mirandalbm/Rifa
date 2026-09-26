@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowDown, ArrowUp, Monitor, Smartphone, Trash2 } from "lucide-react";
 import { PanelShell } from "@/components/AppShell";
 import { Button, Card, Pill } from "@/components/bits";
+import { BannersCard } from "@/components/BannersCard";
 import { apiRequest } from "@/lib/queryClient";
 import {
   CONTRASTE_MIN,
@@ -10,6 +11,8 @@ import {
   FUNDO,
   RAIOS,
   TIPOS_DE_BLOCO,
+  BLOCO_REPETE,
+  type TipoDeBloco,
   contraste,
   corValida,
   validarTemplate,
@@ -226,6 +229,8 @@ export function AdminAparencia() {
             </div>
           </Card>
 
+          <BannersCard />
+
           <Card title="Tela inicial (blocos)">
             <ul className="divide-y divide-line">
               {t.blocos.map((b, i) => (
@@ -295,7 +300,7 @@ export function AdminAparencia() {
                 </li>
               ))}
             </ul>
-            <div className="border-t border-line px-4 py-3">
+            <div className="flex flex-wrap gap-2 border-t border-line px-4 py-3">
               <Button
                 variant="ghost"
                 disabled={t.blocos.length >= 12}
@@ -308,6 +313,20 @@ export function AdminAparencia() {
               >
                 + Bloco de texto
               </Button>
+              {/* Bloco que ainda não está na lista (template publicado antes
+                  de ele existir, por exemplo): entra no fim, ligado. */}
+              {(Object.keys(TIPOS_DE_BLOCO) as TipoDeBloco[])
+                .filter((tipo) => !BLOCO_REPETE[tipo] && !t.blocos.some((b) => b.tipo === tipo))
+                .map((tipo) => (
+                  <Button
+                    key={tipo}
+                    variant="ghost"
+                    disabled={t.blocos.length >= 12}
+                    onClick={() => mudar({ ...t, blocos: [...t.blocos, { id: tipo, tipo, ligado: true }] })}
+                  >
+                    + {TIPOS_DE_BLOCO[tipo]}
+                  </Button>
+                ))}
             </div>
           </Card>
 

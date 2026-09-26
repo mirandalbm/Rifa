@@ -1150,3 +1150,47 @@ export type Settlement = typeof settlements.$inferSelect;
 export type FraudEvent = typeof fraudEvents.$inferSelect;
 export type FraudBlock = typeof fraudBlocks.$inferSelect;
 export type CreateOrderInput = z.infer<typeof createOrderSchema>;
+
+/**
+ * Banners da plataforma, no topo da vitrine (até 5, `BANNERS_MAX`). Só o
+ * administrador geral mexe. A imagem fica no banco, reprocessada em
+ * 1200×600 WebP, como a logo — não depende do R2.
+ */
+export const plataformaBanners = pgTable("plataforma_banners", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  titulo: text("titulo").notNull(),
+  /** Caminho do site ou endereço https (`validarLinkDoBanner`). */
+  link: text("link"),
+  segundos: integer("segundos").notNull().default(6),
+  posicao: integer("posicao").notNull().default(0),
+  ativo: boolean("ativo").notNull().default(true),
+  inicio: timestamp("inicio"),
+  fim: timestamp("fim"),
+  mime: text("mime").notNull(),
+  bytes: bytea("bytes").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+/**
+ * Stories do organizador: uma imagem 9:16 que some em 24 h (`expira_em`).
+ * Aparece para quem segue, no topo da vitrine, e acende o anel da foto no
+ * perfil. O relógio apaga os vencidos — a tabela não cresce.
+ */
+export const stories = pgTable(
+  "stories",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    legenda: text("legenda"),
+    /** Rifa da própria organização para onde o story leva (opcional). */
+    campaignId: uuid("campaign_id").references(() => campaigns.id, { onDelete: "set null" }),
+    mime: text("mime").notNull(),
+    bytes: bytea("bytes").notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    expiraEm: timestamp("expira_em").notNull(),
+  },
+  (t) => [index("ix_stories_org_expira").on(t.organizationId, t.expiraEm)],
+);

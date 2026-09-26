@@ -25,12 +25,16 @@ export const RAIOS = { reto: 2, suave: 9, redondo: 16 } as const;
 export type Raio = keyof typeof RAIOS;
 
 export const TIPOS_DE_BLOCO = {
-  seguidos: "Perfis que a pessoa segue",
+  banners: "Banners da plataforma",
+  seguidos: "Stories dos perfis seguidos",
+  estados: "Estados com rifa no ar",
   regiao: "Seletor de estado",
-  rifas: "Rifas no ar",
+  rifas: "Rifas no ar (feed)",
   texto: "Texto livre",
   ajuda: "Atalho para a central de ajuda",
 } as const;
+/** Só o bloco de texto pode repetir; os outros entram uma vez. */
+export const BLOCO_REPETE: Partial<Record<keyof typeof TIPOS_DE_BLOCO, true>> = { texto: true };
 export type TipoDeBloco = keyof typeof TIPOS_DE_BLOCO;
 
 export interface Bloco {
@@ -71,8 +75,10 @@ export const TEMPLATE_PADRAO: Template = {
     raio: "suave",
   },
   blocos: [
-    { id: "regiao", tipo: "regiao", ligado: true },
+    { id: "banners", tipo: "banners", ligado: true },
     { id: "seguidos", tipo: "seguidos", ligado: true },
+    { id: "estados", tipo: "estados", ligado: true },
+    { id: "regiao", tipo: "regiao", ligado: true },
     { id: "rifas", tipo: "rifas", ligado: true, quantidade: 0 },
     { id: "ajuda", tipo: "ajuda", ligado: false, titulo: "Dúvidas? Veja a central de ajuda" },
   ],
@@ -151,11 +157,16 @@ export function validarTemplate(entrada: unknown): Template {
   if (!Array.isArray(e.blocos) || e.blocos.length === 0) throw new TemplateInvalido("A tela inicial precisa de blocos.");
   if (e.blocos.length > 12) throw new TemplateInvalido("No máximo 12 blocos na tela inicial.");
   const ids = new Set<string>();
+  const tipos = new Set<string>();
   const blocos: Bloco[] = e.blocos.map((b: any, i: number) => {
     if (!b || !(b.tipo in TIPOS_DE_BLOCO)) throw new TemplateInvalido(`Bloco ${i + 1}: tipo desconhecido.`);
     const bid = typeof b.id === "string" && /^[a-z0-9-]{1,40}$/.test(b.id) ? b.id : "";
     if (!bid || ids.has(bid)) throw new TemplateInvalido(`Bloco ${i + 1}: identificador inválido ou repetido.`);
     ids.add(bid);
+    if (!BLOCO_REPETE[b.tipo as TipoDeBloco]) {
+      if (tipos.has(b.tipo)) throw new TemplateInvalido(`O bloco "${TIPOS_DE_BLOCO[b.tipo as TipoDeBloco]}" só entra uma vez.`);
+      tipos.add(b.tipo);
+    }
     const bloco: Bloco = { id: bid, tipo: b.tipo, ligado: b.ligado !== false };
     const titulo = texto(b.titulo, 80, `Título do bloco ${i + 1}`);
     if (titulo) bloco.titulo = titulo;

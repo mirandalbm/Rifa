@@ -176,7 +176,7 @@ Tela inicial do apostador:
 
 ---
 
-## 5. Vitrine (tela inicial) **[decidido]**
+## 5. Vitrine (tela inicial) **[decidido — feito, exceto patrocinadas (etapa 15), bandeiras e banner pago: ver PENDENCIAS]**
 
 Ordem padrão (reordenável pelo construtor, seção 3.2):
 
@@ -288,8 +288,8 @@ arquivos grandes demais para o banco.
 | ✓ | Perfil do organizador: topo, seguir, sino, bio, destaques, grade, menu, rifa dentro do perfil | 4 | 3 |
 | ✓ | Notificações no celular (sino) | 6 | 5 |
 | ✓ | Central de ajuda, regulamento e transmissão do sorteio | 7 | — |
-| 8 | Construtor de templates e white label do organizador | 3.2 | 4 |
-| 9 | Vitrine: banners, stories, estados, feed | 5 | 5, R2 |
+| ✓ | Construtor de templates e white label do organizador | 3.2 | 4 |
+| ✓ | Vitrine: banners, stories, estados, feed | 5 | 5 |
 | 10 | Painel de resultados do organizador | 10 | — |
 | 11 | Afiliado multi-organização, termo, colaborador | 9 | — |
 | 12 | Guarda da comissão, cadastro fiscal e recibo | 9 | contador |

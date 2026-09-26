@@ -1,0 +1,82 @@
+# Pendências
+
+Lista viva do que falta para a rifa vender em produção. Atualizada a cada
+etapa — quem fechar um item marca aqui no mesmo PR.
+
+Última atualização: 26/09/2026.
+
+Legenda: **[você]** depende do responsável pela conta (cadastro, documento,
+senha); **[código]** é trabalho no repositório.
+
+## 1. WhatsApp
+
+- [ ] **[você]** Verificar a empresa **Sorte Nacional** na Meta (Central de
+  Segurança). É o que libera o modelo `codigo_acesso` — sem ele o comprador
+  não recebe o código para entrar em "Minhas cotas". Pede CNPJ, endereço,
+  site/domínio e documento da empresa.
+  https://business.facebook.com/latest/settings/security_center/?business_id=4025268954442633
+- [ ] **[você]** Completar o perfil da empresa e aceitar os termos de
+  desenvolvedor na Meta.
+- [ ] **[você]** Cadastrar o número de WhatsApp de verdade da Sorte Nacional
+  (o de teste só manda para até 5 telefones cadastrados).
+- [ ] **[você]** Confirmar que o token no Railway é permanente (usuário do
+  sistema, validade "Nunca").
+- [ ] **[você]** Mandar um teste com um modelo aprovado (Configurações →
+  WhatsApp → Enviar teste).
+- [x] Integração no código, modelos criados pelo painel, token e IDs no
+  Railway. 7 de 8 modelos aceitos pela Meta; falta só o `codigo_acesso`
+  (depende da verificação acima).
+
+## 2. Para a rifa vender
+
+- [ ] **[você]** Mercado Pago: conta de vendedor e credenciais de produção
+  (sem isso, não há Pix).
+- [ ] **[você]** Cloudflare R2: criar o bucket e gerar as chaves (sem isso,
+  não sobe banner nem foto de rifa).
+- [ ] **[você]** Domínio próprio apontado para o Railway.
+- [ ] **[você]** Código de autorização SPA/MF de cada rifa (sem ele a rifa
+  não publica).
+- [x] Criar campanha: o formulário barrava todo organizador com "Dados
+  inválidos" (a validação exigia a organização vinda da tela). Corrigido, e
+  os erros de validação agora dizem o campo e o que fazer.
+
+## 3. Segurança e acessos (no painel)
+
+- [ ] **[você]** Ativar o segundo fator (Configurações). Também é exigido
+  para arquivar organização.
+- [ ] **[você]** Trocar a senha do administrador (passou pela conversa) e
+  apagar a variável `ADMIN_PASSWORD` no Railway.
+- [ ] **[você]** Redefinir a senha do organizador (Usuários → senha).
+- [ ] **[você]** Apagar na Meta o token temporário antigo (também passou pela
+  conversa).
+
+## 4. Limpeza no GitHub
+
+- [ ] **[você]** Apagar as branches antigas (o assistente não tem permissão):
+  `claude/youthful-gates-c7xzgz`, `fix/duplicate-routes`,
+  `feature-media-library-page`, `claude/zen-davinci-rw3i6v`,
+  `claude/rename-jogo-do-bicho-glo23j` (esta já copiada para o repositório do
+  jogo do bicho).
+
+## 5. Código, para depois
+
+- [ ] **[código]** Maquininha Stone no invólucro Android: faltam os nomes de
+  classe do SDK da Stone (a do PagBank está pronta).
+- [ ] **[código]** Compilar o APK das maquininhas — precisa de máquina com o
+  Android SDK.
+- [ ] **[código]** Pôster e transcode dos vídeos das rifas (Cloudflare Stream
+  resolve os dois).
+- [ ] **[código]** Revisão completa das telas, com prints, para ajustes de uso.
+
+## Feito
+
+- [x] Publicação no Railway: banco, variáveis, preparo do banco a cada
+  versão, verificação de saúde e reinício automático.
+- [x] Administrador geral criado.
+- [x] Tela de Usuários, arquivar organização com senha + autenticador,
+  trocar senha.
+- [x] App instalável (PWA) com a faixa "Baixe o app" na tela inicial.
+- [x] Botão "Entrar" na tela inicial.
+- [x] Menu lateral recolhível (ícones / ícones + nomes).
+- [x] Login com "Lembrar de mim", salvar senha no aparelho e ver a senha.
+- [x] Testes automáticos do GitHub funcionando (cobrança da conta resolvida).

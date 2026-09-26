@@ -764,7 +764,19 @@ export const insertCampaignSchema = createInsertSchema(campaigns, {
     .max(MAX_QUOTAS, "O máximo é 1.000.000 de cotas."),
   priceCents: z.number().int().min(1),
   commissionPctDefault: z.number().int().min(0).max(50),
-}).omit({ id: true, createdAt: true, publishedAt: true, status: true });
+})
+  // A organização não vem do formulário: o organizador cria na dele e o
+  // administrador geral escolhe à parte (`organizationForNewCampaign`).
+  // Pedi-la aqui barrava todo organizador com "Invalid uuid". O hash da
+  // semente é do sistema: nasce na publicação.
+  .omit({
+    id: true,
+    createdAt: true,
+    publishedAt: true,
+    status: true,
+    organizationId: true,
+    drawSeedHash: true,
+  });
 
 export const createOrderSchema = z.object({
   campaignId: z.string().uuid(),

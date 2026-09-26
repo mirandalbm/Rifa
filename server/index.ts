@@ -7,6 +7,7 @@ import "dotenv/config";
 import express, { type Request, Response, NextFunction } from "express";
 import path from "node:path";
 import { ZodError } from "zod";
+import { mensagemDeValidacao } from "@shared/zodPt";
 import { registerRoutes } from "./routes";
 import { webhookRouter } from "./routes/webhooks";
 import { setupAuth } from "./auth";
@@ -59,7 +60,7 @@ app.use((req, res, next) => {
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     if (err instanceof ZodError) {
       return res.status(400).json({
-        message: "Dados inválidos.",
+        message: mensagemDeValidacao(err.issues),
         issues: err.issues.map((i) => ({ path: i.path.join("."), message: i.message })),
       });
     }

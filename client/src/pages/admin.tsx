@@ -163,6 +163,7 @@ export function AdminCampanhas() {
   const create = useMutation({
     mutationFn: () => apiRequest("POST", "/api/admin/campaigns", form),
     onSuccess: () => {
+      setError(null);
       setOpen(false);
       qc.invalidateQueries({ queryKey: ["/api/admin/campaigns"] });
     },
@@ -321,7 +322,18 @@ export function AdminCampanhas() {
               </span>
             </div>
 
-            <Button onClick={() => create.mutate()} disabled={create.isPending}>
+            {daPlataforma && !form.organizationId ? (
+              <p className="text-xs text-muted">
+                Escolha a organização promotora no topo do formulário para criar a campanha.
+              </p>
+            ) : null}
+            <Button
+              onClick={() => {
+                setError(null);
+                create.mutate();
+              }}
+              disabled={create.isPending || (daPlataforma && !form.organizationId)}
+            >
               Criar rascunho
             </Button>
           </div>

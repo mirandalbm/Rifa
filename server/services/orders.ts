@@ -7,6 +7,7 @@
 import { randomInt } from "node:crypto";
 import { and, eq, sql, desc, or, lte } from "drizzle-orm";
 import type { Titularidade } from "@shared/contaComprador";
+import { garantirCodigoCliente } from "./codigoCliente";
 import { db } from "../db";
 import {
   campaigns,
@@ -308,6 +309,9 @@ export async function createOrder(
   }
 
   const buyer = await upsertBuyer(input.buyer);
+  // Todo comprador tem ID desde a primeira compra: é ele que sai no bilhete
+  // e que o organizador vê no lugar dos dados de cliente da plataforma.
+  if (!buyer.codigo) buyer.codigo = await garantirCodigoCliente(buyer.id);
   // Compra sem entrar, no telefone de uma conta, com o CPF da conta: é do
   // dono (o CPF é a mesma prova do cadastro). Sem CPF, fica para o telefone
   // provado decidir.

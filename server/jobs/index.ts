@@ -4,6 +4,7 @@ import { commissions, orders, buyers, campaigns } from "@shared/schema";
 import { notify } from "../notifications";
 import { publicUrl } from "../services/urls";
 import { purgeRateEvents } from "../services/antifraude";
+import { preencherCodigosDeCliente } from "../services/codigoCliente";
 import { lancarMensalidades } from "../services/billing";
 import { releaseExpired } from "../services/quotas";
 import { paymentProviderByName } from "../payments";
@@ -35,6 +36,7 @@ const LOCK_COMISSAO = 811_002;
 const LOCK_LEMBRETE = 811_003;
 const LOCK_LIMPEZA = 811_004;
 const LOCK_MENSALIDADE = 811_005;
+const LOCK_CODIGOS = 811_006;
 
 /** Quantos minutos antes de a reserva cair o lembrete é enviado. */
 const LEMBRETE_MINUTOS = Number(process.env.REMINDER_MINUTES_BEFORE ?? 5);
@@ -136,6 +138,20 @@ export function startJobs() {
       console.error("[jobs] lembrete de reserva:", err);
     }
   }, expiryMs).unref();
+
+  // ID do cliente de quem comprou antes de o ID existir: o painel do
+  // organizador mostra cliente da plataforma só por ele. Lotes pequenos até
+  // zerar; depois cada rodada não encontra ninguém.
+  setInterval(async () => {
+    try {
+      await withLock(LOCK_CODIGOS, async () => {
+        const n = await preencherCodigosDeCliente();
+        if (n > 0) log(`${n} ID(s) de cliente gerados`, "jobs");
+      });
+    } catch (err) {
+      console.error("[jobs] IDs de cliente:", err);
+    }
+  }, releaseMs).unref();
 
   setInterval(async () => {
     try {

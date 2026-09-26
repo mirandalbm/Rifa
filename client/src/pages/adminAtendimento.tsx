@@ -45,9 +45,11 @@ interface Detalhe {
   cliente: {
     codigo: string | null;
     nome: string;
-    telefone: string;
+    telefone: string | null;
     cpf: string | null;
     cpfConfirmado: boolean;
+    /** Falso: cliente da plataforma — o organizador o vê só pelo ID. */
+    completo: boolean;
   };
   historico: { protocolo: string; status: StatusChamado }[];
   mensagens: Mensagem[];
@@ -248,7 +250,15 @@ function DetalheChamado({ id, aoMudar }: { id: string; aoMudar: () => void }) {
           <div>
             <dt className="label-xs">WhatsApp / CPF</dt>
             <dd className="tnum">
-              {cliente.telefone} · {cliente.cpf ?? "sem CPF"}
+              {cliente.completo ? (
+                <>
+                  {cliente.telefone} · {cliente.cpf ?? "sem CPF"}
+                </>
+              ) : (
+                <span className="font-sans text-xs text-muted">
+                  cliente da plataforma — os dados ficam com ela; converse por aqui
+                </span>
+              )}
             </dd>
           </div>
           <div>

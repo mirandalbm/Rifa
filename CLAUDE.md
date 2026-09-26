@@ -99,6 +99,7 @@ arquitetura.
 | o que falta para vender em produção | `docs/PENDENCIAS.md` — **atualize no mesmo PR** que fechar um item |
 | plano da próxima fase (vitrine, contas, afiliados, marketing) | `docs/PLANO-FASE5.md` |
 | conta do apostador (senha, confirmação, exclusão) | `shared/contaComprador.ts`, `server/services/contaComprador.ts`, `scripts/conta-test.ts` |
+| de quem é o cliente (o que o organizador vê) | `shared/titularidade.ts` (regra) e `server/services/titularidade.ts` (SQL) |
 | autorização SPA/MF e data do sorteio | `shared/campanhaLegal.ts`, `salvarDadosLegais()` em `server/services/campaigns.ts`, `client/src/components/DadosLegaisCard.tsx` |
 | app instalável (PWA) | `client/public/sw.js`, `client/public/manifest.webmanifest`, `client/src/lib/pwa.ts` |
 
@@ -485,3 +486,28 @@ de outra pessoa e passa a ver — e pedir reembolso — das compras dela.
   Compras, bilhetes e recibos ficam, pelo prazo legal. Com reembolso em
   andamento, não exclui.
 - `npm run conta` prova tudo isso contra a API de verdade, inclusive o golpe.
+
+## De quem é o cliente — o que não pode afrouxar
+
+Dois donos. **Cliente do cambista** (comprou na mão dele) é da organização e
+aparece completo no painel dela. **Cliente da plataforma** (se cadastrou
+sozinho, direto ou pelo link de afiliado) é da plataforma: o organizador vê
+pedido, cotas e valor, e o cliente só pelo ID (`Cliente C-XXXXXXXX`).
+
+- **A regra é por venda, não por pessoa** (`orders.seller_id`). A mesma pessoa
+  pode ter comprado dos dois jeitos; o organizador enxerga só o lado dele.
+- **Ganhador aparece completo** (sorteio ou cota premiada): o promotor
+  responde pela entrega do prêmio (Lei 5.768/71).
+- **Organização nula vê tudo** — mesma convenção de `orgOf()`.
+- **A regra mora em dois lugares que andam juntos**: `clienteNoPainel()` para
+  o que é montado pedido a pedido e `clienteVisivelSql()` para listas e
+  exportações. Tela ou relatório novo com dado de comprador passa por um dos
+  dois. Carteira de clientes (`exportacoes/compradores`) do organizador = só
+  os fregueses dos cambistas dele.
+- **O afiliado vê só o primeiro nome** de quem comprou pelo link dele; o
+  cambista vê o próprio freguês inteiro.
+- **Todo comprador tem ID desde a primeira compra** (`garantirCodigoCliente`
+  no `createOrder`); quem comprou antes ganha pelo relógio
+  (`preencherCodigosDeCliente`, trava 811006).
+- `npm run isolation` prova: pedido online sem nome e sem telefone, venda do
+  cambista completa, exportações, e o ganhador liberado.

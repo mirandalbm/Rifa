@@ -41,7 +41,7 @@ Legenda: **[decidido]** respondido; **[aberto]** falta resposta;
 - Compras, bilhetes, recibos e o que o fisco ou a SPA/MF exigem ficam
   guardados pelo prazo legal, sem ligação com o perfil apagado.
 
-### 1.3 De quem é o cliente **[decidido]**
+### 1.3 De quem é o cliente **[decidido — feito]**
 
 Dois tipos de apostador, com donos diferentes:
 

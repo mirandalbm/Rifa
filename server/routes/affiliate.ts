@@ -255,8 +255,10 @@ affiliateRouter.get("/saldo", async (req, res, next) => {
     const id = affiliateId(req);
     const linhas = await db
       .select({
-        organizacaoId: organizations.id,
-        organizacao: organizations.name,
+        // Comissão guardada pela plataforma é um saldo só, pago por ela
+        // (`organizacaoId` "plataforma"); o resto, por organização.
+        organizacaoId: sql<string>`case when ${commissions.guardada} then 'plataforma' else ${organizations.id}::text end`,
+        organizacao: sql<string>`case when ${commissions.guardada} then 'Plataforma' else ${organizations.name} end`,
         disponivelCents: sql<number>`coalesce(sum(${commissions.amountCents}) filter (where ${commissions.status} = 'available'), 0)::int`,
         pendenteCents: sql<number>`coalesce(sum(${commissions.amountCents}) filter (where ${commissions.status} = 'pending'), 0)::int`,
       })
@@ -264,7 +266,7 @@ affiliateRouter.get("/saldo", async (req, res, next) => {
       .innerJoin(campaigns, eq(campaigns.id, commissions.campaignId))
       .innerJoin(organizations, eq(organizations.id, campaigns.organizationId))
       .where(eq(commissions.affiliateId, id))
-      .groupBy(organizations.id, organizations.name);
+      .groupBy(sql`1`, sql`2`);
     res.json(linhas);
   } catch (err) {
     next(err);
@@ -290,7 +292,13 @@ affiliateRouter.post("/payouts", async (req, res, next) => {
 
     const payout = await db.transaction(async (tx) => {
       const disponivelPorOrg = await tx
-        .select({ org: campaigns.organizationId, id: commissions.id, amountCents: commissions.amountCents })
+        .select({
+          // Quem paga: a plataforma, se a comissão é guardada por ela; senão,
+          // a organização da rifa.
+          org: sql<string>`case when ${commissions.guardada} then 'plataforma' else ${campaigns.organizationId}::text end`,
+          id: commissions.id,
+          amountCents: commissions.amountCents,
+        })
         .from(commissions)
         .innerJoin(campaigns, eq(campaigns.id, commissions.campaignId))
         .where(and(eq(commissions.affiliateId, id), eq(commissions.status, "available")))
@@ -310,7 +318,8 @@ affiliateRouter.post("/payouts", async (req, res, next) => {
 
       const [created] = await tx
         .insert(payouts)
-        .values({ affiliateId: id, organizationId: pedida, amountCents: totalCents, pixKey: aff.pixKey! })
+        // Saque da plataforma não tem organização: só o administrador geral o vê e paga.
+        .values({ affiliateId: id, organizationId: pedida === "plataforma" ? null : pedida, amountCents: totalCents, pixKey: aff.pixKey! })
         .returning();
 
       await tx

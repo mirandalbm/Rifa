@@ -64,6 +64,16 @@ export interface ConfigPlataforma {
    * mundo trava no dia seguinte.
    */
   exigirCadastroFiscal: boolean;
+  /**
+   * Guarda da comissão pela plataforma (etapa 12). **Desligada por padrão**:
+   * liga-se quando o contador confirmar o modelo (a plataforma segurando
+   * dinheiro de terceiro até o sorteio). Ligada, a venda online com afiliado
+   * nasce marcada (`orders.comissao_guardada`): o split do Asaas tira a
+   * comissão da parte do promotor, a comissão só libera depois do sorteio e
+   * quem paga o saque é a plataforma. Desligar não mexe no que já foi
+   * marcado — cada venda segue o contrato com que nasceu.
+   */
+  guardaComissao: boolean;
 }
 
 export const CONFIG_PADRAO: ConfigPlataforma = {
@@ -71,6 +81,7 @@ export const CONFIG_PADRAO: ConfigPlataforma = {
   estornoManual: false,
   taxaReembolsoPct: TAXA_REEMBOLSO_PADRAO_PCT,
   exigirCadastroFiscal: false,
+  guardaComissao: false,
 };
 
 /** Só as chaves conhecidas: isto vem do corpo da requisição. */
@@ -92,6 +103,7 @@ export function validarConfigPlataforma(entrada: Partial<ConfigPlataforma>): Con
     estornoManual: entrada.estornoManual === true,
     taxaReembolsoPct: taxa,
     exigirCadastroFiscal: entrada.exigirCadastroFiscal === true,
+    guardaComissao: entrada.guardaComissao === true,
   };
 }
 
@@ -120,8 +132,10 @@ export function comissaoInicial(
   modo: LiberacaoComissao,
   paidAt: Date,
   carenciaAte: Date,
+  /** Comissão guardada pela plataforma: sempre depois do sorteio. */
+  guardada = false,
 ): { status: "pending" | "available"; availableAt: Date } {
-  return modo === "imediata"
+  return modo === "imediata" && !guardada
     ? { status: "available", availableAt: paidAt }
     : { status: "pending", availableAt: carenciaAte };
 }
@@ -142,10 +156,15 @@ export function comissaoInicial(
  * conforme a organização escolher) e é paga pelo saldo do painel. Mandá-la
  * junto com o pagamento tornaria o estorno impossível de desfazer.
  */
-export function percentualDoPromotor(platformPct: number): number {
-  const pct = Math.min(100, Math.max(0, 100 - platformPct));
-  // O Asaas aceita até 4 casas; inteiro basta para taxa em % inteiro.
-  return Math.round(pct * 10_000) / 10_000;
+export function percentualDoPromotor(platformPct: number, comissaoGuardadaPct = 0): number {
+  const semTaxa = Math.min(100, Math.max(0, 100 - platformPct));
+  // Com a guarda da plataforma, a comissão incide sobre o que sobrou da taxa
+  // (a mesma ordem de `splitOrder()`) e fica na conta da plataforma.
+  const c = Math.min(100, Math.max(0, comissaoGuardadaPct));
+  const pct = (semTaxa * (100 - c)) / 100;
+  // O Asaas aceita até 4 casas. Para baixo: o split nunca manda ao promotor
+  // mais do que a parte dele — a fração que sobra fica com a plataforma.
+  return Math.floor(pct * 10_000 + 1e-9) / 10_000;
 }
 
 /** Carteira do Asaas: é um UUID. */

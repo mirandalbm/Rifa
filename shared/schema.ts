@@ -525,6 +525,12 @@ export const orders = pgTable(
     /** Feito dentro da conta do apostador: é da conta mesmo sem telefone confirmado. */
     viaConta: boolean("via_conta").notNull().default(false),
     /**
+     * A comissão desta venda fica com a plataforma até o sorteio (etapa 12,
+     * `guardaComissao`). Decidido na criação do pedido, junto com o split do
+     * Pix — desligar a chave depois não muda o contrato desta venda.
+     */
+    comissaoGuardada: boolean("comissao_guardada").notNull().default(false),
+    /**
      * De onde a pessoa chegou à rifa (vitrine, perfil, story, banner,
      * estado, anúncio). Vem do navegador: é só estatística do painel de
      * resultados (`shared/resultados.ts`), nunca decide dinheiro.
@@ -612,6 +618,8 @@ export const commissions = pgTable(
     /** Liberação só depois da janela de estorno. */
     availableAt: timestamp("available_at").notNull(),
     payoutId: uuid("payout_id"),
+    /** Guardada pela plataforma (copiado do pedido): quem paga o saque é ela. */
+    guardada: boolean("guardada").notNull().default(false),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (t) => [

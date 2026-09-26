@@ -28,7 +28,7 @@ describe("configuração da plataforma", () => {
 
   it("não guarda chave que não existe", () => {
     const c = validarConfigPlataforma({ estornoManual: true, extra: 1 } as never);
-    expect(Object.keys(c).sort()).toEqual(["estornoManual", "exigirCadastroFiscal", "provedorPix", "taxaReembolsoPct"]);
+    expect(Object.keys(c).sort()).toEqual(["estornoManual", "exigirCadastroFiscal", "guardaComissao", "provedorPix", "taxaReembolsoPct"]);
   });
 });
 
@@ -85,5 +85,28 @@ describe("CPF", () => {
     expect(maskCpf("5299822")).toBe("529.982.2");
     expect(maskCpf("52998224725")).toBe("529.982.247-25");
     expect(maskCpf("529.982.247-2599")).toBe("529.982.247-25");
+  });
+});
+
+describe("guarda da comissão pela plataforma", () => {
+  it("o split tira a comissão da parte do promotor, sobre o que sobrou da taxa", () => {
+    expect(percentualDoPromotor(0, 10)).toBe(90);
+    expect(percentualDoPromotor(5, 10)).toBe(85.5);
+    expect(percentualDoPromotor(5, 0)).toBe(95);
+    expect(percentualDoPromotor(3, 7)).toBe(90.21);
+  });
+  it("arredonda para baixo: o promotor nunca recebe mais que a parte dele", () => {
+    expect(percentualDoPromotor(1, 33)).toBe(66.33);
+    expect(percentualDoPromotor(2.5, 12.345)).toBeLessThanOrEqual((97.5 * (100 - 12.345)) / 100);
+  });
+  it("comissão guardada nunca nasce disponível, mesmo com liberação imediata", () => {
+    const pago = new Date("2026-01-01T00:00:00Z");
+    const carencia = new Date("2026-02-01T00:00:00Z");
+    expect(comissaoInicial("imediata", pago, carencia, true)).toEqual({ status: "pending", availableAt: carencia });
+    expect(comissaoInicial("imediata", pago, carencia, false).status).toBe("available");
+  });
+  it("nasce desligada", () => {
+    expect(validarConfigPlataforma({}).guardaComissao).toBe(false);
+    expect(validarConfigPlataforma({ guardaComissao: true }).guardaComissao).toBe(true);
   });
 });

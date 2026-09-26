@@ -54,7 +54,7 @@ import {
   releasePaidQuotas,
 } from "./quotas";
 import { activePaymentProvider } from "../payments";
-import { getPaymentMethods } from "./settings";
+import { getPaymentMethods, getPlataforma } from "./settings";
 import { guardOrder, type RequestIdentity } from "./antifraude";
 import { enabledPhysical, labelFor } from "@shared/payments";
 import { notify } from "../notifications";
@@ -199,11 +199,12 @@ async function resolveAttribution(params: {
   // O afiliado só leva a venda da rifa de uma organização com que tem
   // vínculo aprovado — e, se a rifa foi publicada com termo, tendo aceitado
   // aquela versão. Sem isso a venda segue, sem afiliado.
-  if (affiliateId && !(await comissaoNaRifa(db, affiliateId, campaign)).recebe) {
+  const naRifa = affiliateId ? await comissaoNaRifa(db, affiliateId, campaign) : null;
+  if (affiliateId && !naRifa?.recebe) {
     affiliateId = null;
   }
 
-  return { affiliateId, couponId, couponPct };
+  return { affiliateId, couponId, couponPct, comissaoPct: affiliateId ? (naRifa?.pct ?? 0) : 0 };
 }
 
 export interface CreateOrderContext {
@@ -342,7 +343,7 @@ export async function createOrder(
 
   // Na venda física não há clique nem cookie: quem vendeu é quem leva.
   const attribution = ctx.sellerId
-    ? { affiliateId: ctx.sellerId, couponId: null as string | null, couponPct: 0 }
+    ? { affiliateId: ctx.sellerId, couponId: null as string | null, couponPct: 0, comissaoPct: 0 }
     : await resolveAttribution({
         couponCode: input.couponCode,
         sessionAffiliateCode: input.affiliateCode ?? ctx.sessionAffiliateCode,
@@ -363,6 +364,12 @@ export async function createOrder(
   });
 
   const expiresAt = new Date(Date.now() + campaign.reservationTtlMin * 60_000);
+
+  // Guarda da comissão (etapa 12): só venda online com afiliado. O cambista
+  // acerta com a casa em mãos; não há dinheiro dele passando pela plataforma.
+  const comissaoGuardada = Boolean(
+    !ctx.sellerId && attribution.affiliateId && (await getPlataforma()).guardaComissao,
+  );
 
   // A transação inteira é a unidade de repetição: se o código colidir, o
   // banco desfaz também a reserva de cota, e a próxima volta sorteia outro.
@@ -388,6 +395,7 @@ export async function createOrder(
           deviceHash: identity.deviceHash,
           ipHash: identity.ipHash,
           couponId: attribution.couponId,
+          comissaoGuardada,
           expiresAt,
         })
         .returning();
@@ -458,7 +466,7 @@ export async function createOrder(
       cpf: buyer.cpf ?? input.buyer.cpf ?? undefined,
     },
     expiresAt,
-    split: await splitDaOrganizacao(campaign.organizationId),
+    split: await splitDaOrganizacao(campaign.organizationId, comissaoGuardada ? attribution.comissaoPct : 0),
     });
   } catch (err) {
     await devolverReserva(order.id).catch((e) =>
@@ -495,14 +503,16 @@ export async function createOrder(
  * a taxa da plataforma, em percentual sobre o líquido) cai direto na conta da
  * organização. Sem carteira, nada é dividido na origem.
  */
-async function splitDaOrganizacao(organizationId: string) {
+async function splitDaOrganizacao(organizationId: string, comissaoGuardadaPct = 0) {
   const [org] = await db
     .select({ walletId: organizations.asaasWalletId })
     .from(organizations)
     .where(eq(organizations.id, organizationId));
   if (!org?.walletId) return undefined;
   const plano = await planOfOrganization(organizationId);
-  return [{ walletId: org.walletId, percentual: percentualDoPromotor(platformPctFor(plano)) }];
+  // Com a guarda, a comissão fica na conta da plataforma: sai da parte do
+  // promotor, sobre o que sobrou da taxa (`percentualDoPromotor`).
+  return [{ walletId: org.walletId, percentual: percentualDoPromotor(platformPctFor(plano), comissaoGuardadaPct) }];
 }
 
 /**
@@ -596,12 +606,15 @@ async function settleOrderAsPaid(order: typeof orders.$inferSelect) {
           campaignId: order.campaignId,
           amountCents: rateio.commissionCents,
           pct: rateio.commissionPct,
+          guardada: order.comissaoGuardada,
           // Depois do sorteio (padrão, com carência) ou na hora — escolha da
-          // organização. Ver `comissaoInicial()`.
+          // organização; guardada pela plataforma, sempre depois do sorteio.
+          // Ver `comissaoInicial()`.
           ...comissaoInicial(
             liberacao,
             paidAt,
             commissionAvailableAt(paidAt, REFUND_WINDOW_DAYS, campaign?.drawAt),
+            order.comissaoGuardada,
           ),
         })
         .onConflictDoNothing();

@@ -22,6 +22,7 @@ import {
   draws,
   auditLog,
   organizations,
+  organizacaoCapas,
   organizacaoFotos,
   insertCampaignSchema,
 } from "@shared/schema";
@@ -101,7 +102,7 @@ import {
   OrgScopeError,
 } from "../services/orgs";
 import { isUniqueViolation } from "../pgError";
-import { salvarPerfil } from "../services/perfil";
+import { destaqueDa, salvarPerfil, urlDaCapa, urlDaFoto } from "../services/perfil";
 import {
   publicar,
   rascunho as rascunhoDoTemplate,
@@ -1005,12 +1006,19 @@ adminRouter.get("/organizer", async (req, res, next) => {
       .select({ updatedAt: organizacaoFotos.updatedAt })
       .from(organizacaoFotos)
       .where(eq(organizacaoFotos.organizationId, org));
+    const [capa] = await db
+      .select({ updatedAt: organizacaoCapas.updatedAt })
+      .from(organizacaoCapas)
+      .where(eq(organizacaoCapas.organizationId, org));
     res.json({
       ...(await organizerInfoOf(org)),
       organizacaoId: org,
       slug: linha?.slug,
       bio: linha?.bio ?? null,
-      foto: foto && linha ? `/api/public/o/${linha.slug}/foto?v=${foto.updatedAt.getTime()}` : null,
+      foto: linha ? urlDaFoto(linha.slug, foto?.updatedAt) : null,
+      capa: linha ? urlDaCapa(linha.slug, capa?.updatedAt) : null,
+      destaque: linha ? destaqueDa(linha) : null,
+      links: linha?.links ?? [],
       endereco: linha ? enderecoDa(linha) : null,
       // O que já existe, para o formulário não começar do zero quando o
       // cadastro antigo trouxe só cidade e UF.
@@ -1220,13 +1228,19 @@ adminRouter.get("/organizacoes", async (req, res, next) => {
       .select({ id: organizacaoFotos.organizationId, em: organizacaoFotos.updatedAt })
       .from(organizacaoFotos);
     const fotoDe = new Map(fotos.map((f) => [f.id, f.em]));
+    const capas = await db
+      .select({ id: organizacaoCapas.organizationId, em: organizacaoCapas.updatedAt })
+      .from(organizacaoCapas);
+    const capaDe = new Map(capas.map((c) => [c.id, c.em]));
 
     res.json(
       orgs.map((o) => ({
         ...o,
         campanhas: porId.get(o.id)?.campanhas ?? 0,
         pessoas: porId.get(o.id)?.pessoas ?? 0,
-        foto: fotoDe.has(o.id) ? `/api/public/o/${o.slug}/foto?v=${fotoDe.get(o.id)!.getTime()}` : null,
+        foto: urlDaFoto(o.slug, fotoDe.get(o.id)),
+        capa: urlDaCapa(o.slug, capaDe.get(o.id)),
+        destaque: destaqueDa(o),
       })),
     );
   } catch (err) {
@@ -1310,7 +1324,8 @@ adminRouter.put("/organizacoes/:id/endereco", async (req, res, next) => {
 });
 
 /**
- * Foto e bio do perfil público. Mesmo recorte do endereço: o organizador
+ * Foto, capa, bio, cor de destaque e links do perfil público (o white label
+ * do organizador). Mesmo recorte do endereço: o organizador
  * edita o dele; o do vizinho é 404. O corpo pode ser grande (foto em base64):
  * a rota está na lista de 8 MB do `server/index.ts`.
  */
@@ -1322,10 +1337,21 @@ adminRouter.put(
       if (org && org !== req.params.id) {
         return res.status(404).json({ message: "Organização não encontrada." });
       }
-      await salvarPerfil(req.params.id, { bio: req.body?.bio, foto: req.body?.foto });
+      const b = req.body ?? {};
+      await salvarPerfil(req.params.id, {
+        bio: b.bio,
+        foto: b.foto,
+        capa: b.capa,
+        destaque: b.destaque,
+        links: b.links,
+      });
+      const imagem = (v: unknown) => (v === null ? "removida" : v ? "trocada" : "igual");
       await audit(req, "organizacao.perfil", "organization", req.params.id, {
-        bio: req.body?.bio !== undefined,
-        foto: req.body?.foto === null ? "removida" : req.body?.foto ? "trocada" : "igual",
+        bio: b.bio !== undefined,
+        foto: imagem(b.foto),
+        capa: imagem(b.capa),
+        destaque: b.destaque !== undefined ? b.destaque : "igual",
+        links: Array.isArray(b.links) ? b.links.length : "igual",
       });
       res.json({ ok: true });
     } catch (err) {

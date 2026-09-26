@@ -49,11 +49,12 @@ app.use(
     "/api/public/chamados",
     "/api/admin/chamados",
     "/api/admin/campaigns/:id/legal",
-    "/api/admin/organizacoes/:id/perfil",
     "/api/admin/template/logo",
   ],
   express.json({ limit: "8mb" }),
 );
+// O perfil pode levar foto e capa juntas (até 5 MB cada, em base64).
+app.use("/api/admin/organizacoes/:id/perfil", express.json({ limit: "16mb" }));
 app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: false }));
 

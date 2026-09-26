@@ -158,8 +158,12 @@ Na ordem de entrega do plano:
   cantos, tela inicial em blocos (ligar, ordenar, título, bloco de texto),
   rodapé e aviso de jogo responsável; pré-visualização no celular e no
   computador; publicar e voltar a qualquer versão.
-- [ ] **[código]** White label do organizador (capa, cor de destaque e links
-  no perfil) — próxima entrega desta mesma etapa.
+- [x] White label do organizador (Configurações → Perfil público): capa,
+  cor de destaque nos dois temas (com conferência de contraste) e até 5
+  links na bio (só https), além da foto e da bio que já existiam. A cor vale
+  no perfil e na faixa da promotora dentro da rifa.
+- [ ] **[você]** Cada organização subir capa, escolher a cor e cadastrar os
+  links (Instagram, WhatsApp, site) no perfil público.
 - [ ] **[código]** O nome e o ícone do app instalado (manifest) ainda são
   fixos ("rifa.br"): o template muda o site, não o ícone já instalado.
 - [ ] **[código]** Vitrine: banners, stories, estados, feed.

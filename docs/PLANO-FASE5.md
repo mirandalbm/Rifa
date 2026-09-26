@@ -107,7 +107,7 @@ Como fica no sistema:
 - As cores viram variáveis: claro e escuro têm o mesmo significado (verde =
   dinheiro que entrou, amarelo = espera e prêmio, vermelho = erro).
 
-### 3.2 Construtor de templates no painel do administrador geral **[decidido — construtor feito; white label do organizador a seguir]**
+### 3.2 Construtor de templates no painel do administrador geral **[decidido — feito: construtor da plataforma e white label do organizador]**
 Mudar a plataforma quando quiser, sem código:
 - **Identidade**: logotipo, nome, cores de destaque (claro e escuro), fonte
   (de uma lista), arredondamento dos cantos.

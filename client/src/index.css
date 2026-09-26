@@ -116,6 +116,23 @@
     color-scheme: dark;
   }
 
+  /*
+   * Destaque do organizador (white label do perfil). Troca só a cor de
+   * marca, e só dentro do perfil e da faixa da promotora na rifa: o resto
+   * da plataforma, e o significado das cores, ficam como estão.
+   */
+  .destaque-org {
+    --marca: var(--destaque-claro);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-tema="claro"]) .destaque-org {
+      --marca: var(--destaque-escuro);
+    }
+  }
+  :root[data-tema="escuro"] .destaque-org {
+    --marca: var(--destaque-escuro);
+  }
+
   * {
     @apply border-line;
   }

@@ -15,11 +15,20 @@ import {
   campaignStats,
   campaigns,
   draws,
+  organizacaoCapas,
   organizacaoFotos,
   organizations,
   seguidores,
 } from "@shared/schema";
-import { bioAutomatica, seguidoPor, validarBio } from "@shared/perfil";
+import {
+  bioAutomatica,
+  seguidoPor,
+  validarBio,
+  validarDestaque,
+  validarLinks,
+  type CorDeDestaque,
+  type LinkDoPerfil,
+} from "@shared/perfil";
 import { cidadeUf } from "@shared/endereco";
 import { withUrls } from "./media";
 
@@ -31,6 +40,18 @@ export class PerfilError extends Error {
 }
 
 const FOTO_MAX_BYTES = 5 * 1024 * 1024;
+
+/** A cor de destaque gravada, ou `null` (a da plataforma). */
+export function destaqueDa(org: { destaqueClaro: string | null; destaqueEscuro: string | null }): CorDeDestaque | null {
+  return org.destaqueClaro && org.destaqueEscuro
+    ? { claro: org.destaqueClaro, escuro: org.destaqueEscuro }
+    : null;
+}
+
+export const urlDaFoto = (slug: string, em: Date | null | undefined) =>
+  em ? `/api/public/o/${slug}/foto?v=${em.getTime()}` : null;
+export const urlDaCapa = (slug: string, em: Date | null | undefined) =>
+  em ? `/api/public/o/${slug}/capa?v=${em.getTime()}` : null;
 const FOTOS_NO_CARROSSEL = 5;
 
 /** A organização visível pelo endereço. Arquivada "não existe". */
@@ -131,6 +152,10 @@ export async function perfilPublico(slug: string, buyerId?: string | null) {
     .select({ updatedAt: organizacaoFotos.updatedAt })
     .from(organizacaoFotos)
     .where(eq(organizacaoFotos.organizationId, org.id));
+  const [capa] = await db
+    .select({ updatedAt: organizacaoCapas.updatedAt })
+    .from(organizacaoCapas)
+    .where(eq(organizacaoCapas.organizationId, org.id));
 
   const cartao = (r: (typeof rifas)[number]) => ({
     id: r.campaign.id,
@@ -154,7 +179,10 @@ export async function perfilPublico(slug: string, buyerId?: string | null) {
   return {
     slug: org.slug,
     nome: org.name,
-    foto: foto ? `/api/public/o/${org.slug}/foto?v=${foto.updatedAt.getTime()}` : null,
+    foto: urlDaFoto(org.slug, foto?.updatedAt),
+    capa: urlDaCapa(org.slug, capa?.updatedAt),
+    destaque: destaqueDa(org),
+    links: org.links ?? [],
     local: cidadeUf(org.cidade, org.uf),
     desde: org.createdAt,
     cnpj: org.cnpj,
@@ -258,7 +286,7 @@ export async function perfisSeguidos(buyerId: string) {
   return linhas.map((l) => ({
     slug: l.slug,
     nome: l.nome,
-    foto: l.foto ? `/api/public/o/${l.slug}/foto?v=${l.foto.getTime()}` : null,
+    foto: urlDaFoto(l.slug, l.foto),
   }));
 }
 
@@ -275,15 +303,46 @@ export async function fotoDoPerfil(slug: string) {
   return f ?? null;
 }
 
+export async function capaDoPerfil(slug: string) {
+  const org = await organizacaoPublica(slug);
+  const [c] = await db
+    .select()
+    .from(organizacaoCapas)
+    .where(eq(organizacaoCapas.organizationId, org.id));
+  return c ?? null;
+}
+
+function lerDataUrl(dataUrl: string, oQue: string): Buffer {
+  const m = /^data:(image\/[a-z0-9.+-]+);base64,([A-Za-z0-9+/=]+)$/i.exec(dataUrl);
+  if (!m) throw new PerfilError("Envie uma imagem (JPG, PNG ou WebP).");
+  const bruto = Buffer.from(m[2], "base64");
+  if (bruto.length > FOTO_MAX_BYTES) throw new PerfilError(`A ${oQue} passa de 5 MB.`);
+  return bruto;
+}
+
+/**
+ * A capa é reprocessada em 1500×500 (3:1, a proporção do topo do perfil),
+ * WebP, sem metadados de localização.
+ */
+async function processarCapa(dataUrl: string): Promise<Buffer> {
+  const bruto = lerDataUrl(dataUrl, "capa");
+  try {
+    return await sharp(bruto, { limitInputPixels: 40_000_000 })
+      .rotate()
+      .resize(1500, 500, { fit: "cover", position: "attention" })
+      .webp({ quality: 80 })
+      .toBuffer();
+  } catch {
+    throw new PerfilError("Não consegui ler essa imagem. Envie a capa em JPG ou PNG.");
+  }
+}
+
 /**
  * A foto é reprocessada (quadrada, 400 px, WebP, sem metadados): o arquivo
  * enviado nunca é servido como veio. `null` apaga a foto.
  */
 async function processarFoto(dataUrl: string): Promise<Buffer> {
-  const m = /^data:(image\/[a-z0-9.+-]+);base64,([A-Za-z0-9+/=]+)$/i.exec(dataUrl);
-  if (!m) throw new PerfilError("Envie uma imagem (JPG, PNG ou WebP).");
-  const bruto = Buffer.from(m[2], "base64");
-  if (bruto.length > FOTO_MAX_BYTES) throw new PerfilError("A foto passa de 5 MB.");
+  const bruto = lerDataUrl(dataUrl, "foto");
   try {
     return await sharp(bruto, { limitInputPixels: 40_000_000 })
       .rotate()
@@ -295,23 +354,39 @@ async function processarFoto(dataUrl: string): Promise<Buffer> {
   }
 }
 
-export async function salvarPerfil(
-  orgId: string,
-  entrada: { bio?: unknown; foto?: string | null },
-) {
-  if (entrada.bio === undefined && entrada.foto === undefined) {
-    throw new PerfilError("Nada para salvar.");
-  }
-  let bio: string | null | undefined;
-  if (entrada.bio !== undefined) {
+export interface EntradaDoPerfil {
+  bio?: unknown;
+  foto?: string | null;
+  capa?: string | null;
+  destaque?: unknown;
+  links?: unknown;
+}
+
+/**
+ * Foto, capa, bio, cor de destaque e links. Só o que veio no corpo muda;
+ * tudo é conferido antes de abrir a transação — imagem que não abre ou cor
+ * sem contraste não deixa nada pela metade.
+ */
+export async function salvarPerfil(orgId: string, entrada: EntradaDoPerfil) {
+  const campos = ["bio", "foto", "capa", "destaque", "links"] as const;
+  if (campos.every((c) => entrada[c] === undefined)) throw new PerfilError("Nada para salvar.");
+
+  const regra = <T>(f: () => T): T => {
     try {
-      bio = validarBio(entrada.bio);
+      return f();
     } catch (e) {
       throw new PerfilError((e as Error).message);
     }
-  }
+  };
+  const bio = entrada.bio !== undefined ? regra(() => validarBio(entrada.bio)) : undefined;
+  const destaque =
+    entrada.destaque !== undefined ? regra(() => validarDestaque(entrada.destaque)) : undefined;
+  const links: LinkDoPerfil[] | undefined =
+    entrada.links !== undefined ? regra(() => validarLinks(entrada.links)) : undefined;
   const foto =
     typeof entrada.foto === "string" ? await processarFoto(entrada.foto) : entrada.foto;
+  const capa =
+    typeof entrada.capa === "string" ? await processarCapa(entrada.capa) : entrada.capa;
 
   await db.transaction(async (tx) => {
     const [org] = await tx
@@ -320,9 +395,17 @@ export async function salvarPerfil(
       .where(eq(organizations.id, orgId));
     if (!org) throw new PerfilError("Organização não encontrada.", 404);
 
-    if (bio !== undefined) {
-      await tx.update(organizations).set({ bio }).where(eq(organizations.id, orgId));
+    const mudar: Partial<typeof organizations.$inferInsert> = {};
+    if (bio !== undefined) mudar.bio = bio;
+    if (destaque !== undefined) {
+      mudar.destaqueClaro = destaque?.claro ?? null;
+      mudar.destaqueEscuro = destaque?.escuro ?? null;
     }
+    if (links !== undefined) mudar.links = links;
+    if (Object.keys(mudar).length) {
+      await tx.update(organizations).set(mudar).where(eq(organizations.id, orgId));
+    }
+
     if (foto === null) {
       await tx.delete(organizacaoFotos).where(eq(organizacaoFotos.organizationId, orgId));
     } else if (foto) {
@@ -332,6 +415,17 @@ export async function salvarPerfil(
         .onConflictDoUpdate({
           target: organizacaoFotos.organizationId,
           set: { bytes: foto, mime: "image/webp", updatedAt: new Date() },
+        });
+    }
+    if (capa === null) {
+      await tx.delete(organizacaoCapas).where(eq(organizacaoCapas.organizationId, orgId));
+    } else if (capa) {
+      await tx
+        .insert(organizacaoCapas)
+        .values({ organizationId: orgId, mime: "image/webp", bytes: capa })
+        .onConflictDoUpdate({
+          target: organizacaoCapas.organizationId,
+          set: { bytes: capa, mime: "image/webp", updatedAt: new Date() },
         });
     }
   });

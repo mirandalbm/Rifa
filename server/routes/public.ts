@@ -28,6 +28,9 @@ import { chavesVapid, inscrever, cancelarInscricao } from "../services/push";
 import { templatePublicado, logo as logoDaMarca } from "../services/template";
 import {
   perfilPublico,
+  capaDoPerfil,
+  destaqueDa,
+  urlDaFoto,
   fotoDoPerfil,
   seguir,
   deixarDeSeguir,
@@ -141,7 +144,13 @@ publicRouter.get("/campaigns", async (req, res, next) => {
 
 async function organizacaoDaRifa(orgId: string) {
   const [o] = await db
-    .select({ slug: organizations.slug, nome: organizations.name, foto: organizacaoFotos.updatedAt })
+    .select({
+      slug: organizations.slug,
+      nome: organizations.name,
+      foto: organizacaoFotos.updatedAt,
+      destaqueClaro: organizations.destaqueClaro,
+      destaqueEscuro: organizations.destaqueEscuro,
+    })
     .from(organizations)
     .leftJoin(organizacaoFotos, eq(organizacaoFotos.organizationId, organizations.id))
     .where(eq(organizations.id, orgId));
@@ -149,7 +158,9 @@ async function organizacaoDaRifa(orgId: string) {
   return {
     slug: o.slug,
     nome: o.nome,
-    foto: o.foto ? `/api/public/o/${o.slug}/foto?v=${o.foto.getTime()}` : null,
+    foto: urlDaFoto(o.slug, o.foto),
+    // A rifa abre dentro do perfil: leva a cor de destaque da promotora.
+    destaque: destaqueDa(o),
   };
 }
 
@@ -178,6 +189,17 @@ publicRouter.get("/o/:slug/foto", async (req, res, next) => {
     // O endereço leva a data da foto (?v=): trocar a foto troca o endereço.
     res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
     res.type(f.mime).send(f.bytes);
+  } catch (err) {
+    next(err);
+  }
+});
+
+publicRouter.get("/o/:slug/capa", async (req, res, next) => {
+  try {
+    const c = await capaDoPerfil(req.params.slug);
+    if (!c) return res.status(404).json({ message: "Sem capa." });
+    res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+    res.type(c.mime).send(c.bytes);
   } catch (err) {
     next(err);
   }

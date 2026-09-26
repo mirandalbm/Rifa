@@ -144,7 +144,15 @@ Na ordem de entrega do plano:
   app, seguir um organizador e publicar uma rifa de teste. (Opcional:
   `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY`/`VAPID_SUBJECT` no Railway; sem
   elas, as chaves são criadas sozinhas e guardadas no banco.)
-- [ ] **[código]** Central de ajuda, regulamento e transmissão do sorteio.
+- [x] Central de ajuda (`/ajuda`, com busca), regulamento de cada rifa
+  (montado dos dados dela + disposições da promotora, visível antes da
+  compra) e transmissão do sorteio (link da live/vídeo na página da rifa).
+  Depois do sorteio a página mostra o número, a Federal e a semente, e o
+  botão "Conferir o sorteio" refaz a conta no aparelho de quem olha.
+- [ ] **[você]** Advogado revisar o regulamento-modelo
+  (`shared/regulamento.ts`): prazo de entrega (30 dias), prescrição do
+  prêmio (180 dias) e o que acontece quando o número sorteado não foi
+  vendido — hoje o texto remete ao que a autorização de cada rifa diz.
 - [ ] **[código]** Construtor de templates e white label do organizador.
 - [ ] **[código]** Vitrine: banners, stories, estados, feed.
 - [ ] **[código]** Painel de resultados do organizador.

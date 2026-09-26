@@ -104,6 +104,7 @@ arquitetura.
 | endereço do organizador e ordem da vitrine por região | `shared/endereco.ts` (regra), `salvarEndereco()` em `server/services/orgs.ts`, `server/services/cep.ts`, `client/src/components/EnderecoForm.tsx` |
 | perfil do organizador, seguir e sino | `shared/perfil.ts` (regras), `server/services/perfil.ts`, `client/src/pages/Perfil.tsx`, `client/src/components/Seguir.tsx`, `scripts/perfil-test.ts` |
 | notificações no celular (Web Push) | `shared/push.ts` (regras), `server/services/push.ts`, `client/public/sw.js`, `client/src/lib/push.ts`, `scripts/push-test.ts` |
+| regulamento, central de ajuda, transmissão e conferência do sorteio | `shared/regulamento.ts`, `shared/ajuda.ts`, `shared/sorteio.ts`, `client/src/components/SorteioCard.tsx`, `scripts/transparencia-test.ts` |
 | tema claro e escuro | `client/src/index.css` (variáveis), `client/src/lib/tema.ts`, `client/src/components/TemaToggle.tsx`, `tests/tema.test.ts` |
 | app instalável (PWA) | `client/public/sw.js`, `client/public/manifest.webmanifest`, `client/src/lib/pwa.ts` |
 
@@ -619,3 +620,25 @@ pedido, cotas e valor, e o cliente só pelo ID (`Cliente C-XXXXXXXX`).
   criadas uma vez em `app_settings`. Trocar invalida todas as inscrições.
 - Mudou `sw.js`? Troque `VERSAO` — senão o celular segue com a casca velha.
 - `npm run push` prova tudo isso, descriptografando o que chega.
+
+## Transparência — o que não pode afrouxar
+
+- **O regulamento é montado dos dados da rifa** (`montarRegulamento()`):
+  promotora, autorização, prêmio, cotas premiadas (só a descrição — o
+  número nunca), numeração, preço, apuração, entrega e reembolso saem da
+  mesma fonte do bilhete e da tela de compra. O organizador só acrescenta
+  as disposições dele (`regulamentoExtra`), que entram por
+  `PUT /campaigns/:id/legal` e **travam ao publicar** como a autorização.
+  Rascunho não tem regulamento público (404).
+- **A semente não sai antes do sorteio** — nem na página da rifa, nem no
+  regulamento, nem em `/sorteio`. Antes, só o hash. `npm run transparencia`
+  procura a semente em todas as respostas.
+- **A conferência roda no aparelho de quem olha** (`conferirSorteio()`, com
+  WebCrypto): a mesma conta de `drawNumber()`. Mudou uma, mude a outra —
+  `tests/sorteio.test.ts` compara as duas em 300 casos.
+- **Transmissão muda a qualquer hora** (`PUT /campaigns/:id/transmissao`),
+  só https (`transmissaoValida`), fora do `PATCH` genérico. Recorte de
+  campanha: o do vizinho é 404 (`npm run isolation`).
+- **A ajuda responde com a regra em vigor** (`perguntasDaAjuda()` recebe a
+  taxa de reembolso configurada): pergunta nova vai para `shared/ajuda.ts`,
+  com `id` único.

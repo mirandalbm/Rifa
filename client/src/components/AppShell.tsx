@@ -50,6 +50,7 @@ function MenuDoApostador({ nome }: { nome: string }) {
     ["Minhas compras", "/minhas-compras"],
     ["Reembolsos", "/minhas-compras?aba=reembolsos"],
     ["Minha conta", "/minhas-compras?aba=conta"],
+    ["Ajuda", "/ajuda"],
   ];
   return (
     <div className="relative">
@@ -158,7 +159,12 @@ export function PublicShell({ children }: { children: ReactNode }) {
       </header>
       <main className="mx-auto max-w-3xl px-4 pb-8 pt-4">{children}</main>
       <footer className="mx-auto flex max-w-3xl items-center justify-between gap-3 border-t border-line px-4 pb-28 pt-4 text-xs text-muted">
-        <span>rifa.br</span>
+        <span className="flex items-center gap-3">
+          <span>rifa.br</span>
+          <Link href="/ajuda" className="underline hover:text-ink">
+            Ajuda
+          </Link>
+        </span>
         <TemaEscolha />
       </footer>
     </div>

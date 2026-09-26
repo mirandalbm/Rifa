@@ -15,11 +15,14 @@ import {
   orders,
   prizedQuotas,
   organizacaoFotos,
+  draws,
   createOrderSchema,
 } from "@shared/schema";
-import { normalizePhone, hidePhone } from "@shared/format";
+import { normalizePhone, hidePhone, formatQuota } from "@shared/format";
 import { listPublicCampaigns, campaignBySlug, certificadoDa } from "../services/campaigns";
-import { ufValida, ordenarPorProximidade, cidadeUf, distancia } from "@shared/endereco";
+import { ufValida, ordenarPorProximidade, cidadeUf, distancia, enderecoEmUmaLinha } from "@shared/endereco";
+import { montarRegulamento } from "@shared/regulamento";
+import { enderecoDa } from "../services/orgs";
 import { consultarCep } from "../services/cep";
 import { chavesVapid, inscrever, cancelarInscricao } from "../services/push";
 import {
@@ -348,6 +351,7 @@ publicRouter.get("/campaigns/:slug", async (req, res, next) => {
         drawSeedHash: found.campaign.drawSeedHash,
         authorizationCode: found.campaign.authorizationCode,
         temCertificado: Boolean(found.campaign.authorizationFileKey),
+        transmissaoUrl: found.campaign.transmissaoUrl,
         status: found.campaign.status,
       },
       stats: {
@@ -373,6 +377,97 @@ publicRouter.get("/campaigns/:slug", async (req, res, next) => {
       pagamento: paymentSummary(await getPaymentMethods()),
       // A rifa abre dentro do perfil: a tela mostra de quem ela é, com seguir.
       organizacao: await organizacaoDaRifa(found.campaign.organizationId),
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * Regulamento da rifa, montado dos dados dela (`montarRegulamento()`), mais o
+ * texto da promotora. Público assim que a rifa vai ao ar — é o que o
+ * apostador lê antes de comprar.
+ */
+publicRouter.get("/campaigns/:slug/regulamento", async (req, res, next) => {
+  try {
+    const found = await campaignBySlug(req.params.slug);
+    if (!found || found.campaign.status === "draft") {
+      return res.status(404).json({ message: "Rifa não encontrada." });
+    }
+    const c = found.campaign;
+    const [org] = await db.select().from(organizations).where(eq(organizations.id, c.organizationId));
+    const premiadas = await db
+      .select({ label: prizedQuotas.prizeLabel })
+      .from(prizedQuotas)
+      .where(eq(prizedQuotas.campaignId, c.id));
+    const plataforma = await getPlataforma();
+    const endereco = org ? enderecoDa(org) : null;
+    res.json({
+      rifa: { slug: c.slug, title: c.title, prizeTitle: c.prizeTitle },
+      organizacao: org ? { slug: org.slug, nome: org.name } : null,
+      secoes: montarRegulamento({
+        rifa: {
+          title: c.title,
+          prizeTitle: c.prizeTitle,
+          totalQuotas: c.totalQuotas,
+          priceCents: c.priceCents,
+          minPerOrder: c.minPerOrder,
+          maxPerOrder: c.maxPerOrder,
+          reservationTtlMin: c.reservationTtlMin,
+          drawAt: c.drawAt,
+          authorizationCode: c.authorizationCode,
+          drawSeedHash: c.drawSeedHash,
+          regulamentoExtra: c.regulamentoExtra,
+        },
+        promotora: {
+          nome: org?.name ?? "—",
+          cnpj: org?.cnpj ?? null,
+          endereco: endereco ? enderecoEmUmaLinha(endereco) : cidadeUf(org?.cidade, org?.uf),
+          contato: org?.contato ?? null,
+        },
+        cotasPremiadas: premiadas.map((p) => p.label),
+        taxaReembolsoPct: plataforma.taxaReembolsoPct,
+        aceitaReembolso: plataforma.estornoManual,
+      }),
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * O sorteio, para conferir. Antes: só o hash da semente e a transmissão.
+ * Depois: os 5 prêmios da Federal, a semente e o número — qualquer pessoa
+ * refaz a conta (`conferirSorteio()` roda no navegador). Nome de ganhador
+ * não sai aqui.
+ */
+publicRouter.get("/campaigns/:slug/sorteio", async (req, res, next) => {
+  try {
+    const found = await campaignBySlug(req.params.slug);
+    if (!found || found.campaign.status === "draft") {
+      return res.status(404).json({ message: "Rifa não encontrada." });
+    }
+    const c = found.campaign;
+    const [d] = await db.select().from(draws).where(eq(draws.campaignId, c.id));
+    const feito = Boolean(d?.executedAt && d.resultNumber !== null);
+    res.json({
+      drawAt: c.drawAt,
+      seedHash: c.drawSeedHash,
+      totalQuotas: c.totalQuotas,
+      transmissaoUrl: c.transmissaoUrl,
+      realizado: feito,
+      ...(feito
+        ? {
+            resultNumber: d!.resultNumber,
+            numero: formatQuota(d!.resultNumber!, c.totalQuotas),
+            federalContest: d!.federalContest,
+            federalPrizes: d!.federalPrizes,
+            // A semente só sai depois: antes, quem a tivesse calcularia o número.
+            seed: d!.seed,
+            executedAt: d!.executedAt,
+            evidenceUrl: d!.evidenceUrl,
+          }
+        : {}),
     });
   } catch (err) {
     next(err);

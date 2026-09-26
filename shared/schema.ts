@@ -340,6 +340,13 @@ export const campaigns = pgTable(
     drawSeedHash: text("draw_seed_hash"),
     /** Certificado SPA/MF da campanha — exigido para publicar. */
     authorizationCode: text("authorization_code"),
+    /**
+     * Disposições da promotora no regulamento (o resto é montado dos dados
+     * da rifa: `montarRegulamento()`). Trava ao publicar, com a autorização.
+     */
+    regulamentoExtra: text("regulamento_extra"),
+    /** Link da live ou do vídeo do sorteio. Muda a qualquer hora (só https). */
+    transmissaoUrl: text("transmissao_url"),
     authorizationFileKey: text("authorization_file_key"),
     status: campaignStatus("status").notNull().default("draft"),
     commissionPctDefault: integer("commission_pct_default").notNull().default(10),
@@ -1065,6 +1072,8 @@ export const insertCampaignSchema = createInsertSchema(campaigns, {
     authorizationCode: true,
     authorizationFileKey: true,
     drawAt: true,
+    regulamentoExtra: true,
+    transmissaoUrl: true,
   });
 
 export const createOrderSchema = z.object({

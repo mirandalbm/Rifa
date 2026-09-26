@@ -8,6 +8,7 @@
 import "dotenv/config";
 import { db } from "../server/db";
 import {
+  campaignCertificados,
   organizations,
   users,
   affiliates,
@@ -18,7 +19,7 @@ import {
   prizedQuotas,
 } from "../shared/schema";
 import { hashPassword } from "../server/auth";
-import { publishCampaign } from "../server/services/campaigns";
+import { publishCampaign, CERTIFICADO_NO_BANCO } from "../server/services/campaigns";
 
 /**
  * Placeholder de imagem em SVG, embutido como data URI. O seed não tem
@@ -206,6 +207,7 @@ async function main() {
         reservationTtlMin: 15,
         drawAt: new Date(Date.now() + (14 + i * 7) * 86_400_000),
         authorizationCode: `SPA-MF-EXEMPLO-${1000 + i}`,
+        authorizationFileKey: CERTIFICADO_NO_BANCO,
         commissionPctDefault: 10,
         featured: i === 0,
         sortWeight: 10 - i,
@@ -258,6 +260,21 @@ async function main() {
       { campaignId: campaign.id, number: 11, prizeLabel: "R$ 100 no Pix" },
       { campaignId: campaign.id, number: 29, prizeLabel: "R$ 50 no Pix" },
     ]);
+
+    // Publicar exige o arquivo do certificado: o de exemplo diz que é exemplo.
+    const pdf = Buffer.from(
+      `%PDF-1.4\n% Certificado de EXEMPLO criado pelo seed - nao vale como autorizacao.\n%%EOF\n`,
+    );
+    await db
+      .insert(campaignCertificados)
+      .values({
+        campaignId: campaign.id,
+        mime: "application/pdf",
+        nome: "certificado-exemplo.pdf",
+        bytes: pdf,
+        tamanho: pdf.length,
+      })
+      .onConflictDoNothing();
 
     await publishCampaign(campaign.id);
     console.log(`publicada: ${spec.slug} (${spec.totalQuotas.toLocaleString("pt-BR")} cotas)`);

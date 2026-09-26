@@ -69,6 +69,7 @@ import {
   exigirComprador,
   garantirCodigoCliente,
   mensagemDoComprador,
+  abrirDisputa,
 } from "../services/chamados";
 import {
   ContaError,
@@ -1078,6 +1079,17 @@ publicRouter.post("/chamados/:id/mensagens", async (req, res, next) => {
       anexo: req.body?.anexo ? String(req.body.anexo) : undefined,
     });
     res.status(201).json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** Leva o chamado à plataforma (recusado, ou sem resposta da organização). */
+publicRouter.post("/chamados/:id/disputa", async (req, res, next) => {
+  try {
+    const c = exigirComprador(req);
+    const feito = await abrirDisputa(c, req.params.id, String(req.body?.motivo ?? ""));
+    res.status(201).json({ disputa: feito.disputa, protocolo: feito.protocolo });
   } catch (err) {
     next(err);
   }

@@ -94,6 +94,7 @@ arquitetura.
 | rateio da venda | `shared/pricing.ts` (`splitOrder`) |
 | estorno | `server/services/orders.ts` (`refundOrder`) e `scripts/refund-test.ts` |
 | pedido de reembolso (chamado) | `shared/chamados.ts`, `server/services/chamados.ts`, `client/src/pages/adminAtendimento.tsx`, `scripts/chamados-test.ts` |
+| disputa de reembolso (palavra final da plataforma) | `bloqueioDaDisputa()` em `shared/chamados.ts`, `abrirDisputa()`/`decidirDisputa()` em `server/services/chamados.ts`, `scripts/disputa-test.ts` |
 | contrato de cobrança da plataforma | `shared/billing.ts` e `server/services/billing.ts` |
 | exportações | `shared/exports.ts` (formato) e `server/services/exports.ts` (consultas) |
 | usuários, senha e arquivamento | `server/routes/admin.ts` (`/usuarios`, `/organizacoes/:id/arquivar`), `shared/senha.ts` |
@@ -450,7 +451,7 @@ botão, é **chamado** — com dono, prova, conversa e protocolo.
   `refund(chargeId, amountCents)`; sem valor é devolução total. A chave de
   idempotência do Mercado Pago leva o valor, para a repetição não dobrar.
 - **Um chamado em andamento por pedido** — quem decide é o índice único
-  parcial `uq_chamados_pedido_andamento`, não um `SELECT` antes.
+  parcial `uq_chamados_pedido_em_andamento`, não um `SELECT` antes.
 - **Limite do dia conta a tentativa, e conta o CPF errado.** Erro de
   preenchimento (print faltando) sai **antes** do `hit()`, senão quem erra o
   formulário fica 24 h sem pedir; o CPF é conferido **depois**, senão dá para
@@ -472,6 +473,39 @@ botão, é **chamado** — com dono, prova, conversa e protocolo.
   desfaz o chamado; o contador no menu (`/chamados/pendentes`) é o aviso que
   não depende da Meta.
 - `npm run chamados` prova tudo isso contra a API de verdade.
+
+## Disputa de reembolso — o que não pode afrouxar
+
+A organização decide o reembolso com o dinheiro dela: é juiz em causa
+própria. A disputa leva o caso ao administrador geral, que dá a palavra
+final.
+
+- **Quando cabe** (`bloqueioDaDisputa()` em `shared/chamados.ts`, a mesma
+  régua na tela e no servidor): chamado recusado, até 7 dias da recusa, ou
+  aberto sem resposta depois de 3 dias. Aprovado ou devolvido não tem o que
+  contestar.
+- **Fecha 2 horas antes do sorteio**, como o pedido: senão quem teve a recusa
+  esperaria o resultado e só contestaria se perdesse. E pedido premiado
+  (sorteio ou cota premiada) não pode ter disputa procedente — prêmio e
+  dinheiro de volta juntos, nunca.
+- **Uma por chamado**, pelo `UPDATE` condicional (`disputa IS NULL`, e o
+  status que a régua conferiu). O recusado em disputa conta como em
+  andamento no índice único parcial (`uq_chamados_pedido_em_andamento`):
+  não abre outro chamado do mesmo pedido enquanto a plataforma decide.
+- **Com a disputa aberta, a organização não decide** (`concluirChamado`
+  exige `disputa IS NULL`) — mas a conversa segue dos dois lados, para ela
+  argumentar.
+- **Só a plataforma decide** (403 para organizador, no `npm run
+  isolation`), com explicação, e `disputa = 'aberta'` no `UPDATE`: dois
+  cliques, uma decisão. Procedente vira aprovado com o prazo da organização
+  contado da decisão, e a devolução segue o caminho de sempre
+  (`executarEstorno`, que a plataforma também alcança). Improcedente mantém
+  a recusa e encerra.
+- **Quem decidiu aparece como "Plataforma"** para o comprador e para a
+  organização; a pessoa fica na auditoria (`chamado.disputa.*`).
+- O índice ganhou nome novo quando o filtro mudou: `db:push` não troca o
+  filtro de um índice existente, mas apaga o antigo e cria o novo.
+- `npm run disputa` prova tudo isso contra a API de verdade.
 
 ## Conta do apostador — o que não pode afrouxar
 

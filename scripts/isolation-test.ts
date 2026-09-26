@@ -334,6 +334,7 @@ async function rotasDaPlataforma(eu: Lado) {
     ["DELETE banner da vitrine", "/api/admin/banners/00000000-0000-0000-0000-000000000000", { method: "DELETE" }],
     ["POST criar modelos do WhatsApp", "/api/admin/whatsapp/modelos", { method: "POST" }],
     ["POST teste do WhatsApp", "/api/admin/whatsapp/teste", { method: "POST", body: '{"telefone":"11999999999"}' }],
+    ["POST decidir disputa de reembolso", "/api/admin/chamados/00000000-0000-0000-0000-000000000000/disputa/decidir", { method: "POST", body: '{"resultado":"procedente","decisao":"xxxxxxxxxxxx"}' }],
     ["GET cadastros fiscais", "/api/admin/fiscal", {}],
     ["GET cadastro fiscal", "/api/admin/fiscal/00000000-0000-0000-0000-000000000000", {}],
     ["GET documento fiscal", "/api/admin/fiscal/00000000-0000-0000-0000-000000000000/documentos/identidade_frente", {}],

@@ -149,6 +149,8 @@ import {
   executarEstorno,
   listarChamados,
   respostaDaOrganizacao,
+  decidirDisputa,
+  disputasAbertas,
 } from "../services/chamados";
 import {
   PROVEDORES_PIX,
@@ -1636,7 +1638,8 @@ adminRouter.get("/chamados", async (req, res, next) => {
 /** O número ao lado de "Atendimento" no menu: chamados esperando alguém. */
 adminRouter.get("/chamados/pendentes", async (req, res, next) => {
   try {
-    res.json({ total: await chamadosAbertos(req) });
+    // A plataforma também vê quantas disputas esperam a palavra final dela.
+    res.json({ total: await chamadosAbertos(req), disputas: orgOf(req) ? 0 : await disputasAbertas() });
   } catch (err) {
     next(err);
   }
@@ -1680,6 +1683,25 @@ adminRouter.post("/chamados/:id/concluir", async (req, res, next) => {
     });
     await audit(req, `chamado.${feito.status}`, "chamado", feito.id, {
       protocolo: feito.protocolo,
+      prazoEstornoAte: feito.prazoEstornoAte,
+    });
+    res.json(feito);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** Palavra final da plataforma na disputa. Organização: 403 (a rota é da plataforma). */
+adminRouter.post("/chamados/:id/disputa/decidir", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    const feito = await decidirDisputa(req, req.params.id, {
+      resultado: req.body?.resultado,
+      decisao: String(req.body?.decisao ?? ""),
+    });
+    await audit(req, `chamado.disputa.${feito.disputa}`, "chamado", feito.id, {
+      protocolo: feito.protocolo,
+      status: feito.status,
       prazoEstornoAte: feito.prazoEstornoAte,
     });
     res.json(feito);

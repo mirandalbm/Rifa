@@ -132,6 +132,17 @@ export function mensagemResultado(r: { premio: string; orgSlug: string; slug: st
   };
 }
 
+export function mensagemDisputa(r: { procedente: boolean; protocolo: string }): MensagemPush {
+  return {
+    title: r.procedente ? "Reembolso aprovado pela plataforma" : "Disputa respondida",
+    body: r.procedente
+      ? `Protocolo ${r.protocolo}. A plataforma deu razão a você; veja o prazo da devolução.`
+      : `Protocolo ${r.protocolo}. Veja a decisão da plataforma.`,
+    url: "/minhas-compras?aba=reembolsos",
+    tag: `reembolso:${r.protocolo}`,
+  };
+}
+
 export function mensagemReembolso(r: { aprovado: boolean; protocolo: string }): MensagemPush {
   return {
     title: r.aprovado ? "Reembolso aprovado" : "Reembolso respondido",

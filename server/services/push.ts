@@ -38,6 +38,7 @@ import {
   janelaDoSorteio,
   chavesValidas,
   endpointPermitido,
+  mensagemDisputa,
   mensagemReembolso,
   mensagemResultado,
   mensagemRifaNova,
@@ -316,6 +317,18 @@ export async function avisarSorteiosChegando(agora = new Date()) {
 }
 
 /** Reembolso respondido: só o dono do chamado. */
+/** Resultado da disputa, só para o dono do chamado. Chave própria: o status pode repetir. */
+export async function avisarDisputa(chamadoId: string) {
+  const [c] = await db.select().from(chamados).where(eq(chamados.id, chamadoId));
+  if (!c || (c.disputa !== "procedente" && c.disputa !== "improcedente")) return 0;
+  return avisar(
+    [c.buyerId],
+    "reembolso",
+    `${c.id}:disputa`,
+    mensagemDisputa({ procedente: c.disputa === "procedente", protocolo: c.protocolo }),
+  );
+}
+
 export async function avisarReembolso(chamadoId: string) {
   const [c] = await db.select().from(chamados).where(eq(chamados.id, chamadoId));
   if (!c || (c.status !== "aprovado" && c.status !== "recusado")) return 0;

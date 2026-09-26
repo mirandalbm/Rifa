@@ -5,7 +5,7 @@
  * imagem e dinheiro. Três cuidados que valem para tudo abaixo:
  *
  * 1. **Quem decide é o índice.** Um chamado em andamento por pedido
- *    (`uq_chamados_pedido_andamento`) e protocolo que não repete
+ *    (`uq_chamados_pedido_em_andamento`) e protocolo que não repete
  *    (`uq_chamados_protocolo`) — nenhuma consulta "já existe?" antes.
  * 2. **Recorte por organização** em toda leitura do painel, e 404 (não 403)
  *    para chamado de outra organização ou de outro comprador.
@@ -15,7 +15,7 @@
  */
 import { randomInt } from "node:crypto";
 import sharp from "sharp";
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { Request } from "express";
 import { db } from "../db";
 import {
@@ -31,8 +31,11 @@ import {
 import {
   ANEXO_MAX_BYTES,
   CHAMADOS_POR_DIA,
+  bloqueioDaDisputa,
   bloqueioDoReembolso,
   destinatariosDoAviso,
+  disputaLiberadaEm,
+  problemaNaDisputa,
   gerarProtocolo,
   prazoDoEstorno,
   problemaNoPedido,
@@ -51,7 +54,7 @@ import { hit } from "./antifraude";
 import { refundOrder } from "./orders";
 import { orgOf } from "./orgs";
 import { paymentProviderByName } from "../payments";
-import { avisarReembolso, emSegundoPlano } from "./push";
+import { avisarDisputa, avisarReembolso, emSegundoPlano } from "./push";
 
 export class ChamadoError extends Error {
   constructor(message: string, readonly status = 400) {
@@ -240,7 +243,7 @@ export async function abrirChamado(
       });
       return chamado;
     } catch (err) {
-      if (isUniqueViolation(err, "uq_chamados_pedido_andamento")) {
+      if (isUniqueViolation(err, "uq_chamados_pedido_em_andamento")) {
         throw new ChamadoError("Já existe um pedido de reembolso em andamento para esta compra.", 409);
       }
       if (!isUniqueViolation(err, "uq_chamados_protocolo")) throw err;
@@ -318,6 +321,7 @@ export async function chamadosDoComprador(buyerId: string) {
       pedido: orders.code,
       rifa: campaigns.title,
       prazoEstornoAte: chamados.prazoEstornoAte,
+      disputa: chamados.disputa,
       createdAt: chamados.createdAt,
     })
     .from(chamados)
@@ -356,7 +360,17 @@ export async function chamadoDoComprador(buyerId: string, id: string) {
     .innerJoin(campaigns, eq(campaigns.id, orders.campaignId))
     .where(and(eq(chamados.id, id), eq(chamados.buyerId, buyerId)));
   if (!c) throw new ChamadoError("Chamado não encontrado.", 404);
-  const mensagens = (await mensagensDo(id)).map((m) => ({ ...m, nome: m.autor === "comprador" ? "Você" : "Atendimento" }));
+  const mensagens = (await mensagensDo(id)).map((m) => ({ ...m, nome: NOME_PARA_O_COMPRADOR[m.autor] ?? "Atendimento" }));
+  const rifa = await rifaDoChamado(c.chamado.orderId);
+  const bloqueio = bloqueioDaDisputa({
+    estornoLigado: (await getPlataforma()).estornoManual,
+    status: c.chamado.status,
+    disputa: c.chamado.disputa,
+    abertoEm: c.chamado.createdAt,
+    concluidoEm: c.chamado.concluidoEm,
+    statusRifa: rifa.status,
+    sorteioEm: rifa.drawAt,
+  });
   return {
     id: c.chamado.id,
     protocolo: c.chamado.protocolo,
@@ -369,13 +383,40 @@ export async function chamadoDoComprador(buyerId: string, id: string) {
     taxaPct: c.chamado.taxaPct,
     taxaCents: c.chamado.taxaCents,
     devolverCents: c.chamado.devolverCents,
+    disputa: c.chamado.disputa,
+    disputaDecisao: c.chamado.disputaDecisao,
+    // A tela mostra o botão com a mesma régua que o servidor aplica.
+    podeDisputar: bloqueio === null,
+    disputaBloqueio: c.chamado.disputa ? null : bloqueio,
+    disputaLiberadaEm: c.chamado.status === "aberto" ? disputaLiberadaEm(c.chamado.createdAt) : null,
     mensagens,
   };
 }
 
+/** Quem escreveu, como o comprador lê: nunca o nome de quem atendeu. */
+const NOME_PARA_O_COMPRADOR: Record<string, string> = {
+  comprador: "Você",
+  organizacao: "Atendimento",
+  plataforma: "Plataforma",
+};
+
+async function rifaDoChamado(orderId: string) {
+  const [r] = await db
+    .select({ status: campaigns.status, drawAt: campaigns.drawAt })
+    .from(orders)
+    .innerJoin(campaigns, eq(campaigns.id, orders.campaignId))
+    .where(eq(orders.id, orderId));
+  return r ?? { status: "drawn", drawAt: null };
+}
+
+/** Chamado encerrado para conversa: recusado ou devolvido, sem disputa aberta. */
+function encerrado(c: { status: string; disputa: string | null }) {
+  return (c.status === "recusado" || c.status === "estornado") && c.disputa !== "aberta";
+}
+
 async function novaMensagem(p: {
   chamadoId: string;
-  autor: "comprador" | "organizacao";
+  autor: "comprador" | "organizacao" | "plataforma";
   userId?: string;
   texto: string;
   anexo?: string;
@@ -414,11 +455,11 @@ export async function mensagemDoComprador(
   entrada: { texto: string; anexo?: string },
 ) {
   const [c] = await db
-    .select({ status: chamados.status })
+    .select({ status: chamados.status, disputa: chamados.disputa })
     .from(chamados)
     .where(and(eq(chamados.id, id), eq(chamados.buyerId, comprador.id)));
   if (!c) throw new ChamadoError("Chamado não encontrado.", 404);
-  if (c.status === "recusado" || c.status === "estornado") {
+  if (encerrado(c)) {
     throw new ChamadoError("Este chamado já foi encerrado.", 409);
   }
   const limite = await hit(`chamado-msg:${comprador.id}`, 60, 30);
@@ -453,9 +494,11 @@ export async function listarChamados(req: Request, status?: string) {
   const org = orgOf(req);
   const filtros = [
     org ? eq(chamados.organizationId, org) : undefined,
-    status && ["aberto", "aprovado", "recusado", "estornado"].includes(status)
-      ? eq(chamados.status, status as "aberto")
-      : undefined,
+    status === "disputa"
+      ? eq(chamados.disputa, "aberta")
+      : status && ["aberto", "aprovado", "recusado", "estornado"].includes(status)
+        ? eq(chamados.status, status as "aberto")
+        : undefined,
   ].filter(Boolean);
   return db
     .select({
@@ -469,6 +512,7 @@ export async function listarChamados(req: Request, status?: string) {
       // Cliente da plataforma aparece só pelo ID (shared/titularidade.ts).
       nome: sql<string>`${nomeNoPainelSql(clienteVisivelSql(org, "orders"), "buyers")}`,
       prazoEstornoAte: chamados.prazoEstornoAte,
+      disputa: chamados.disputa,
       createdAt: chamados.createdAt,
       organizacao: organizations.name,
     })
@@ -497,6 +541,7 @@ export async function detalheDoChamado(req: Request, id: string) {
       pedido: orders,
       rifa: campaigns.title,
       rifaStatus: campaigns.status,
+      drawAt: campaigns.drawAt,
       cliente: buyers,
     })
     .from(orders)
@@ -543,7 +588,9 @@ export async function detalheDoChamado(req: Request, id: string) {
       cpfConfirmado: Boolean(ctx.cliente.cpf && cpfValido(ctx.cliente.cpf)),
     },
     historico,
-    mensagens: await mensagensDo(c.id),
+    // Para a organização, quem decide a disputa é "Plataforma", não uma pessoa.
+    mensagens: (await mensagensDo(c.id)).map((m) => (org && m.autor === "plataforma" ? { ...m, nome: "Plataforma" } : m)),
+    sorteioEm: ctx.drawAt,
   };
 }
 
@@ -553,12 +600,13 @@ export async function respostaDaOrganizacao(
   entrada: { texto: string; anexo?: string },
 ) {
   const c = await chamadoNoRecorte(req, id);
-  if (c.status === "recusado" || c.status === "estornado") {
+  if (encerrado(c)) {
     throw new ChamadoError("Este chamado já foi encerrado.", 409);
   }
   return novaMensagem({
     chamadoId: c.id,
-    autor: "organizacao",
+    // A plataforma escrevendo num chamado em disputa fala como plataforma.
+    autor: !orgOf(req) && c.disputa === "aberta" ? "plataforma" : "organizacao",
     userId: req.user!.id,
     texto: entrada.texto,
     anexo: entrada.anexo,
@@ -596,9 +644,15 @@ export async function concluirChamado(
       concluidoPor: req.user!.id,
       prazoEstornoAte: entrada.decisao === "aprovado" ? prazoDoEstorno(agora, org?.dias ?? 7) : null,
     })
-    .where(and(eq(chamados.id, c.id), eq(chamados.status, "aberto")))
+    // Em disputa, quem decide é a plataforma (`decidirDisputa`).
+    .where(and(eq(chamados.id, c.id), eq(chamados.status, "aberto"), isNull(chamados.disputa)))
     .returning();
-  if (!feito) throw new ChamadoError("Este chamado já foi decidido.", 409);
+  if (!feito) {
+    throw new ChamadoError(
+      c.disputa ? "Este chamado está em disputa: a decisão é da plataforma." : "Este chamado já foi decidido.",
+      409,
+    );
+  }
 
   await novaMensagem({
     chamadoId: c.id,
@@ -690,5 +744,148 @@ export async function chamadosAbertos(req: Request): Promise<number> {
         ? and(eq(chamados.organizationId, org), inArray(chamados.status, ["aberto", "aprovado"]))
         : inArray(chamados.status, ["aberto", "aprovado"]),
     );
+  return r?.n ?? 0;
+}
+
+/* ------------------------------------------------------------------ *
+ * Disputa com a plataforma
+ * ------------------------------------------------------------------ */
+
+/**
+ * O comprador leva o chamado à plataforma: recusado (até 7 dias depois) ou
+ * sem resposta da organização (depois de 3 dias). O `UPDATE` condicional
+ * (`disputa IS NULL`) faz dela uma por chamado, e o índice único parcial
+ * impede que corra junto com outro chamado do mesmo pedido.
+ */
+export async function abrirDisputa(comprador: CompradorLogado, id: string, motivo: string) {
+  const [c] = await db
+    .select()
+    .from(chamados)
+    .where(and(eq(chamados.id, id), eq(chamados.buyerId, comprador.id)));
+  if (!c) throw new ChamadoError("Chamado não encontrado.", 404);
+  const problema = problemaNaDisputa(motivo);
+  if (problema) throw new ChamadoError(problema);
+  const rifa = await rifaDoChamado(c.orderId);
+  const bloqueio = bloqueioDaDisputa({
+    estornoLigado: (await getPlataforma()).estornoManual,
+    status: c.status,
+    disputa: c.disputa,
+    abertoEm: c.createdAt,
+    concluidoEm: c.concluidoEm,
+    statusRifa: rifa.status,
+    sorteioEm: rifa.drawAt,
+  });
+  if (bloqueio) throw new ChamadoError(bloqueio, 409);
+
+  const texto = motivo.trim();
+  let feito;
+  try {
+    [feito] = await db
+      .update(chamados)
+      .set({ disputa: "aberta", disputaMotivo: texto, disputaAbertaEm: new Date() })
+      .where(
+        and(
+          eq(chamados.id, c.id),
+          isNull(chamados.disputa),
+          // A organização pode ter decidido no meio do caminho: só vale o
+          // estado que a régua conferiu.
+          eq(chamados.status, c.status),
+        ),
+      )
+      .returning();
+  } catch (err) {
+    if (isUniqueViolation(err, "uq_chamados_pedido_em_andamento")) {
+      throw new ChamadoError("Já existe outro pedido de reembolso em andamento para esta compra.", 409);
+    }
+    throw err;
+  }
+  if (!feito) throw new ChamadoError("Este chamado mudou enquanto você escrevia. Abra de novo.", 409);
+  await novaMensagem({ chamadoId: c.id, autor: "comprador", texto: `Levei o caso à plataforma: ${texto}` });
+  return feito;
+}
+
+/** O pedido foi premiado (sorteio ou cota premiada)? Então não há devolução. */
+async function pedidoPremiado(orderId: string) {
+  const r = await db.execute(sql`
+    select exists (select 1 from draws where winner_order_id = ${orderId}::uuid)
+        or exists (select 1 from prized_quotas where claimed_by_order_id = ${orderId}::uuid) as premiado`);
+  return Boolean((r.rows[0] as { premiado: boolean }).premiado);
+}
+
+/**
+ * A palavra final, do administrador geral. Procedente: o chamado vira
+ * aprovado, com o prazo de devolução da organização contado de agora, e o
+ * estorno segue o caminho de sempre (`executarEstorno`). Improcedente: fica
+ * recusado. Condicional em `disputa = 'aberta'`: dois cliques, uma decisão.
+ */
+export async function decidirDisputa(
+  req: Request,
+  id: string,
+  entrada: { resultado: "procedente" | "improcedente"; decisao: string },
+) {
+  if (orgOf(req)) throw new ChamadoError("A disputa é decidida pela plataforma.", 403);
+  const c = await chamadoNoRecorte(req, id);
+  if (entrada.resultado !== "procedente" && entrada.resultado !== "improcedente") {
+    throw new ChamadoError("Escolha procedente ou improcedente.");
+  }
+  const decisao = entrada.decisao?.trim() ?? "";
+  if (decisao.length < 10) throw new ChamadoError("Explique a decisão: ela vai para o comprador e para a organização.");
+  if (decisao.length > 2000) throw new ChamadoError("A decisão pode ter no máximo 2000 caracteres.");
+  if (c.disputa !== "aberta") throw new ChamadoError("Este chamado não está em disputa.", 409);
+  // Quem ganhou o prêmio não recebe também o dinheiro de volta.
+  if (entrada.resultado === "procedente" && (await pedidoPremiado(c.orderId))) {
+    throw new ChamadoError("Este pedido foi premiado: a disputa não pode ser procedente.", 409);
+  }
+
+  const [org] = await db
+    .select({ dias: organizations.prazoEstornoDias })
+    .from(organizations)
+    .where(eq(organizations.id, c.organizationId));
+  const agora = new Date();
+  const procedente = entrada.resultado === "procedente";
+
+  let feito;
+  try {
+    [feito] = await db
+      .update(chamados)
+      .set({
+        disputa: entrada.resultado,
+        disputaDecisao: decisao,
+        disputaDecididaEm: agora,
+        disputaDecididaPor: req.user!.id,
+        status: procedente ? "aprovado" : "recusado",
+        decisao: procedente ? decisao : sql`coalesce(${chamados.decisao}, ${decisao})`,
+        concluidoEm: procedente ? agora : sql`coalesce(${chamados.concluidoEm}, ${agora})`,
+        concluidoPor: procedente ? req.user!.id : sql`coalesce(${chamados.concluidoPor}, ${req.user!.id}::uuid)`,
+        prazoEstornoAte: procedente ? prazoDoEstorno(agora, org?.dias ?? 7) : null,
+      })
+      .where(and(eq(chamados.id, c.id), eq(chamados.disputa, "aberta")))
+      .returning();
+  } catch (err) {
+    if (isUniqueViolation(err, "uq_chamados_pedido_em_andamento")) {
+      throw new ChamadoError("Há outro pedido de reembolso em andamento para esta compra.", 409);
+    }
+    throw err;
+  }
+  if (!feito) throw new ChamadoError("Esta disputa já foi decidida.", 409);
+
+  await novaMensagem({
+    chamadoId: c.id,
+    autor: "plataforma",
+    userId: req.user!.id,
+    texto: procedente
+      ? `A plataforma deu razão ao comprador: reembolso aprovado (protocolo ${feito.protocolo}). ${decisao}`
+      : `A plataforma manteve a recusa. ${decisao}`,
+  });
+  emSegundoPlano(avisarDisputa(feito.id), "disputa decidida");
+  return feito;
+}
+
+/** Disputas esperando a plataforma, para o número no menu. */
+export async function disputasAbertas(): Promise<number> {
+  const [r] = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(chamados)
+    .where(eq(chamados.disputa, "aberta"));
   return r?.n ?? 0;
 }

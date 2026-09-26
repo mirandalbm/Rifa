@@ -91,7 +91,7 @@ Como fica no sistema:
 - A taxa é configurável pelo administrador geral entre 0% e 10%, aparece no
   regulamento e **antes da compra**.
 - A decisão final em disputa passa a ser do **administrador geral** (painel
-  de disputa), não só da organização.
+  de disputa), não só da organização. **[feito — etapa 14]**
 - **[você]** Advogado: confirmar a regra, em especial o caso de quem compra a
   menos de 7 dias do sorteio (o direito de arrependimento esbarra no corte de
   2 horas). O modelo desta plataforma é promoção comercial autorizada pela
@@ -295,7 +295,7 @@ arquivos grandes demais para o banco.
 | ✓ | Cadastro fiscal, recibo assinado e extrato por origem | 9 | — |
 | 12 | Guarda da comissão pela plataforma | 9 | contador |
 | 13 | Indicação, bônus e gamificação | 8 | 5, advogado |
-| 14 | Disputa de reembolso no administrador geral | 2 | 2 |
+| ✓ | Disputa de reembolso no administrador geral | 2 | — |
 | 15 | Rifas patrocinadas por clique | 5 | Pix da plataforma |
 | 16 | Marketing e tráfego pago | 11 | conta de anúncios |
 | 17 | Login com Google | 1.1 | cliente OAuth |

@@ -129,3 +129,80 @@ export function destinatariosDoAviso(
   }
   return [...vistos];
 }
+
+/* ------------------------------------------------------------------ *
+ * Disputa: quando a organização recusa, ou não responde
+ * ------------------------------------------------------------------ */
+
+/**
+ * A disputa leva o chamado ao administrador geral, que dá a palavra final.
+ * Existe porque a organização é juiz em causa própria: o dinheiro que ela
+ * devolve é dela. Uma disputa por chamado, e a decisão da plataforma encerra.
+ */
+export type StatusDisputa = "aberta" | "procedente" | "improcedente";
+
+export const NOME_STATUS_DISPUTA: Record<StatusDisputa, string> = {
+  aberta: "em disputa com a plataforma",
+  procedente: "disputa procedente",
+  improcedente: "disputa improcedente",
+};
+
+export const PILL_DISPUTA: Record<StatusDisputa, string> = {
+  aberta: "pending",
+  procedente: "paid",
+  improcedente: "expired",
+};
+
+/** Prazo para contestar a recusa, contado da resposta da organização. */
+export const DISPUTA_PRAZO_DIAS = 7;
+/** Prazo da organização para responder antes de o comprador poder recorrer. */
+export const RESPOSTA_PRAZO_DIAS = 3;
+
+const DIA = 86_400_000;
+
+/** Quando o chamado sem resposta pode ir à plataforma. */
+export function disputaLiberadaEm(abertoEm: Date): Date {
+  return new Date(abertoEm.getTime() + RESPOSTA_PRAZO_DIAS * DIA);
+}
+
+/**
+ * Motivo pelo qual o comprador NÃO pode levar o chamado à plataforma, ou
+ * `null` se pode. Mesma régua do pedido de reembolso para o sorteio: a
+ * disputa fecha 2 horas antes, senão quem teve o pedido recusado esperaria o
+ * resultado e só contestaria se perdesse.
+ */
+export function bloqueioDaDisputa(p: {
+  estornoLigado: boolean;
+  status: StatusChamado;
+  disputa: string | null;
+  abertoEm: Date;
+  concluidoEm: Date | null;
+  statusRifa: string;
+  sorteioEm?: Date | null;
+  agora?: Date;
+}): string | null {
+  const agora = p.agora ?? new Date();
+  if (!p.estornoLigado) return "Esta plataforma não está aceitando pedidos de reembolso.";
+  if (p.disputa) return "Este chamado já foi levado à plataforma.";
+  if (p.status === "aprovado" || p.status === "estornado") return "O reembolso foi aprovado: não há o que contestar.";
+  if (p.statusRifa === "drawn") return "O sorteio desta rifa já aconteceu: não há disputa.";
+  if (fechadoPeloSorteio(p.sorteioEm, agora)) return "A disputa fecha 2 horas antes do sorteio.";
+  if (p.status === "recusado") {
+    const ate = new Date((p.concluidoEm ?? p.abertoEm).getTime() + DISPUTA_PRAZO_DIAS * DIA);
+    if (agora > ate) return `O prazo para contestar a recusa (${DISPUTA_PRAZO_DIAS} dias) passou.`;
+    return null;
+  }
+  // Aberto: a organização tem o prazo dela para responder primeiro.
+  if (agora < disputaLiberadaEm(p.abertoEm)) {
+    return `A organização tem ${RESPOSTA_PRAZO_DIAS} dias para responder. Sem resposta até lá, você pode levar o caso à plataforma.`;
+  }
+  return null;
+}
+
+/** Confere o motivo da disputa. Devolve o problema, ou `null`. */
+export function problemaNaDisputa(motivo: string): string | null {
+  const m = motivo?.trim() ?? "";
+  if (m.length < 20) return "Explique por que discorda, com pelo menos 20 caracteres.";
+  if (m.length > 1000) return "A explicação pode ter no máximo 1000 caracteres.";
+  return null;
+}

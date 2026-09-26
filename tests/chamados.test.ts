@@ -8,6 +8,11 @@ import {
   PRAZO_ESTORNO_MAX,
   destinatariosDoAviso,
   telefoneDeAvisoValido,
+  bloqueioDaDisputa,
+  disputaLiberadaEm,
+  problemaNaDisputa,
+  DISPUTA_PRAZO_DIAS,
+  RESPOSTA_PRAZO_DIAS,
 } from "@shared/chamados";
 
 const CPF = "529.982.247-25";
@@ -114,5 +119,51 @@ describe("aviso de chamado novo", () => {
 
   it("ninguém com WhatsApp: lista vazia (o contador do menu segue avisando)", () => {
     expect(destinatariosDoAviso(undefined, [null, ""])).toEqual([]);
+  });
+});
+
+describe("bloqueioDaDisputa", () => {
+  const dia = 86_400_000;
+  const agora = new Date("2026-09-20T12:00:00Z");
+  const base = {
+    estornoLigado: true,
+    status: "recusado" as const,
+    disputa: null,
+    abertoEm: new Date(agora.getTime() - 5 * dia),
+    concluidoEm: new Date(agora.getTime() - 2 * dia),
+    statusRifa: "published",
+    sorteioEm: new Date(agora.getTime() + 10 * dia),
+    agora,
+  };
+
+  it("recusado, dentro dos 7 dias: pode", () => {
+    expect(bloqueioDaDisputa(base)).toBeNull();
+  });
+  it("recusado há mais de 7 dias: não pode", () => {
+    expect(bloqueioDaDisputa({ ...base, concluidoEm: new Date(agora.getTime() - (DISPUTA_PRAZO_DIAS + 1) * dia) })).toMatch(/prazo/);
+  });
+  it("uma disputa por chamado", () => {
+    expect(bloqueioDaDisputa({ ...base, disputa: "improcedente" })).toMatch(/já foi levado/);
+  });
+  it("aprovado ou devolvido não tem o que contestar", () => {
+    expect(bloqueioDaDisputa({ ...base, status: "aprovado" })).toMatch(/aprovado/);
+    expect(bloqueioDaDisputa({ ...base, status: "estornado" })).toMatch(/aprovado/);
+  });
+  it("aberto: só depois do prazo da organização", () => {
+    const aberto = { ...base, status: "aberto" as const, concluidoEm: null };
+    expect(bloqueioDaDisputa({ ...aberto, abertoEm: new Date(agora.getTime() - 1 * dia) })).toMatch(/3 dias/);
+    expect(bloqueioDaDisputa({ ...aberto, abertoEm: new Date(agora.getTime() - (RESPOSTA_PRAZO_DIAS * dia + 1)) })).toBeNull();
+    expect(disputaLiberadaEm(aberto.abertoEm).getTime()).toBe(aberto.abertoEm.getTime() + RESPOSTA_PRAZO_DIAS * dia);
+  });
+  it("fecha 2 horas antes do sorteio, e depois dele", () => {
+    expect(bloqueioDaDisputa({ ...base, sorteioEm: new Date(agora.getTime() + 60 * 60 * 1000) })).toMatch(/2 horas/);
+    expect(bloqueioDaDisputa({ ...base, statusRifa: "drawn" })).toMatch(/sorteio/);
+  });
+  it("chave de reembolso desligada fecha tudo", () => {
+    expect(bloqueioDaDisputa({ ...base, estornoLigado: false })).toMatch(/não está aceitando/);
+  });
+  it("motivo precisa explicar", () => {
+    expect(problemaNaDisputa("não gostei")).toMatch(/20 caracteres/);
+    expect(problemaNaDisputa("A organização disse que não comprei, mas tenho o comprovante.")).toBeNull();
   });
 });

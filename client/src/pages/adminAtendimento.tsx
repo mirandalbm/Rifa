@@ -4,8 +4,16 @@ import { PanelShell } from "@/components/AppShell";
 import { Card, Button, Pill, Empty, Money } from "@/components/bits";
 import { Conversa, type Mensagem } from "@/components/Conversa";
 import { apiRequest } from "@/lib/queryClient";
+import { useSession } from "@/lib/session";
 import { formatBRL } from "@shared/format";
-import { NOME_STATUS_CHAMADO, PILL_CHAMADO, type StatusChamado } from "@shared/chamados";
+import {
+  NOME_STATUS_CHAMADO,
+  NOME_STATUS_DISPUTA,
+  PILL_CHAMADO,
+  PILL_DISPUTA,
+  type StatusChamado,
+  type StatusDisputa,
+} from "@shared/chamados";
 import { NOME_TIPO_REEMBOLSO, type TipoReembolso } from "@shared/reembolso";
 
 interface Linha {
@@ -18,6 +26,7 @@ interface Linha {
   cliente: string | null;
   nome: string;
   prazoEstornoAte: string | null;
+  disputa: StatusDisputa | null;
   createdAt: string;
   organizacao: string;
 }
@@ -36,7 +45,12 @@ interface Detalhe {
     taxaPct: number | null;
     taxaCents: number | null;
     devolverCents: number | null;
+    disputa: StatusDisputa | null;
+    disputaMotivo: string | null;
+    disputaAbertaEm: string | null;
+    disputaDecisao: string | null;
   };
+  sorteioEm: string | null;
   pedido: {
     code: number;
     status: string;
@@ -65,10 +79,13 @@ const FILTROS: { valor: string; rotulo: string }[] = [
   { valor: "aprovado", rotulo: "aguardando devolução" },
   { valor: "estornado", rotulo: "devolvidos" },
   { valor: "recusado", rotulo: "recusados" },
+  // Levados à plataforma pelo comprador: a palavra final é dela.
+  { valor: "disputa", rotulo: "em disputa" },
   { valor: "", rotulo: "todos" },
 ];
 
-function StatusPill({ s }: { s: StatusChamado }) {
+function StatusPill({ s, disputa }: { s: StatusChamado; disputa?: StatusDisputa | null }) {
+  if (disputa === "aberta") return <Pill status={PILL_DISPUTA.aberta}>{NOME_STATUS_DISPUTA.aberta}</Pill>;
   return <Pill status={PILL_CHAMADO[s]}>{NOME_STATUS_CHAMADO[s]}</Pill>;
 }
 
@@ -91,7 +108,11 @@ function Prazo({ ate }: { ate: string | null }) {
  */
 export function AdminAtendimento() {
   const qc = useQueryClient();
-  const [filtro, setFiltro] = useState("aberto");
+  const { data: sessao } = useSession();
+  const daPlataforma = sessao?.role === "admin";
+  // A plataforma abre na fila que só ela resolve.
+  const [escolhido, setFiltro] = useState<string | null>(null);
+  const filtro = escolhido ?? (daPlataforma ? "disputa" : "aberto");
   const [aberto, setAberto] = useState<string | null>(null);
 
   const { data: lista } = useQuery<Linha[]>({
@@ -136,7 +157,7 @@ export function AdminAtendimento() {
                   >
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <span className="tnum text-sm font-semibold">{c.protocolo}</span>
-                      <StatusPill s={c.status} />
+                      <StatusPill s={c.status} disputa={c.disputa} />
                     </div>
                     <p className="mt-1 text-sm">
                       {c.nome} <span className="tnum text-xs text-muted">· {c.cliente ?? "sem ID"}</span>
@@ -158,6 +179,7 @@ export function AdminAtendimento() {
         {aberto ? (
           <DetalheChamado
             id={aberto}
+            daPlataforma={daPlataforma}
             aoMudar={() => qc.invalidateQueries({ queryKey: ["/api/admin/chamados"] })}
           />
         ) : (
@@ -170,7 +192,7 @@ export function AdminAtendimento() {
   );
 }
 
-function DetalheChamado({ id, aoMudar }: { id: string; aoMudar: () => void }) {
+function DetalheChamado({ id, aoMudar, daPlataforma }: { id: string; aoMudar: () => void; daPlataforma: boolean }) {
   const qc = useQueryClient();
   const chave = [`/api/admin/chamados/${id}`];
   const { data } = useQuery<Detalhe>({ queryKey: chave, refetchInterval: 15_000 });
@@ -232,12 +254,13 @@ function DetalheChamado({ id, aoMudar }: { id: string; aoMudar: () => void }) {
 
   if (!data) return <Card><Empty>Carregando…</Empty></Card>;
   const { chamado, pedido, cliente } = data;
-  const emAndamento = chamado.status === "aberto" || chamado.status === "aprovado";
+  const emDisputa = chamado.disputa === "aberta";
+  const emAndamento = chamado.status === "aberto" || chamado.status === "aprovado" || emDisputa;
 
   return (
     <Card
       title={`Chamado ${chamado.protocolo}`}
-      right={<StatusPill s={chamado.status} />}
+      right={<StatusPill s={chamado.status} disputa={chamado.disputa} />}
     >
       <div className="space-y-3 border-b border-line p-4 text-sm">
         {aviso ? (
@@ -322,16 +345,26 @@ function DetalheChamado({ id, aoMudar }: { id: string; aoMudar: () => void }) {
         {chamado.status === "aprovado" ? <Prazo ate={chamado.prazoEstornoAte} /> : null}
       </div>
 
+      {chamado.disputa ? (
+        <DisputaDoChamado
+          id={id}
+          chamado={chamado}
+          sorteioEm={data.sorteioEm}
+          daPlataforma={daPlataforma}
+          aoDecidir={recarregar}
+        />
+      ) : null}
+
       <Conversa
         mensagens={data.mensagens}
-        meuLado="organizacao"
+        meuLado={daPlataforma && emDisputa ? "plataforma" : "organizacao"}
         anexoBase="/api/admin/chamados/anexos"
         podeEscrever={emAndamento}
         enviando={responder.isPending}
         enviar={(m) => responder.mutateAsync(m)}
       />
 
-      {chamado.status === "aberto" ? (
+      {chamado.status === "aberto" && !emDisputa ? (
         <div className="space-y-2 border-t border-line p-4">
           <label htmlFor="resposta" className="label-xs">
             Decisão (a resposta vai para o cliente)
@@ -394,5 +427,98 @@ function DetalheChamado({ id, aoMudar }: { id: string; aoMudar: () => void }) {
         <p className="border-t border-line px-4 py-3 text-xs text-muted">Decisão: {chamado.decisao}</p>
       ) : null}
     </Card>
+  );
+}
+
+/**
+ * A disputa: o que o comprador contestou e, para a plataforma, a decisão.
+ * A organização vê e pode argumentar na conversa, mas não decide.
+ */
+function DisputaDoChamado({
+  id,
+  chamado,
+  sorteioEm,
+  daPlataforma,
+  aoDecidir,
+}: {
+  id: string;
+  chamado: Detalhe["chamado"];
+  sorteioEm: string | null;
+  daPlataforma: boolean;
+  aoDecidir: () => void;
+}) {
+  const [decisao, setDecisao] = useState("");
+  const [erro, setErro] = useState<string | null>(null);
+  const decidir = useMutation({
+    mutationFn: (resultado: "procedente" | "improcedente") =>
+      apiRequest("POST", `/api/admin/chamados/${id}/disputa/decidir`, { resultado, decisao }),
+    onSuccess: () => {
+      setDecisao("");
+      setErro(null);
+      aoDecidir();
+    },
+    onError: (e: Error) => setErro(e.message),
+  });
+  const aberta = chamado.disputa === "aberta";
+
+  return (
+    <div className="space-y-2 border-b border-line p-4 text-sm">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="label-xs">Disputa</span>
+        {chamado.disputa ? (
+          <Pill status={PILL_DISPUTA[chamado.disputa]}>{NOME_STATUS_DISPUTA[chamado.disputa]}</Pill>
+        ) : null}
+        {chamado.disputaAbertaEm ? (
+          <span className="tnum text-xs text-muted">aberta em {new Date(chamado.disputaAbertaEm).toLocaleString("pt-BR")}</span>
+        ) : null}
+      </div>
+      {chamado.disputaMotivo ? (
+        <p className="rounded-md bg-mist px-3 py-2">
+          <span className="label-xs block">O comprador contesta</span>
+          {chamado.disputaMotivo}
+        </p>
+      ) : null}
+      {chamado.disputaDecisao ? <p className="text-xs text-muted">Decisão da plataforma: {chamado.disputaDecisao}</p> : null}
+
+      {aberta && !daPlataforma ? (
+        <p className="text-xs text-muted">
+          A decisão é da plataforma. Você pode explicar o seu lado na conversa acima.
+        </p>
+      ) : null}
+
+      {aberta && daPlataforma ? (
+        <div className="space-y-2">
+          {sorteioEm ? (
+            <p className="text-xs text-muted">
+              Sorteio em <span className="tnum">{new Date(sorteioEm).toLocaleString("pt-BR")}</span>. Procedente, o
+              chamado vira aprovado com o prazo de devolução da organização; a devolução segue pelo botão de sempre.
+            </p>
+          ) : null}
+          <label htmlFor="decisao-disputa" className="label-xs">
+            Decisão (vai para o comprador e para a organização)
+          </label>
+          <textarea
+            id="decisao-disputa"
+            rows={3}
+            value={decisao}
+            onChange={(e) => setDecisao(e.target.value)}
+            className="w-full rounded-md border border-line-2 px-3 py-2 text-sm"
+          />
+          {erro ? <p className="text-xs text-red">{erro}</p> : null}
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={() => decidir.mutate("procedente")} disabled={decisao.trim().length < 10 || decidir.isPending}>
+              Procedente: reembolsar
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={() => decidir.mutate("improcedente")}
+              disabled={decisao.trim().length < 10 || decidir.isPending}
+            >
+              Improcedente: manter a recusa
+            </Button>
+          </div>
+        </div>
+      ) : null}
+    </div>
   );
 }

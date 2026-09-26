@@ -11,6 +11,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useSession } from "@/lib/session";
 import { MediaManager } from "@/components/MediaManager";
 import { CampaignExtras } from "@/components/CampaignExtras";
+import { DadosLegaisCard } from "@/components/DadosLegaisCard";
 import { formatBRL, groupNumber, formatQuota } from "@shared/format";
 import { MAX_QUOTAS, MIN_QUOTAS } from "@shared/schema";
 import {
@@ -131,6 +132,7 @@ interface CampaignRow {
     status: string;
     drawAt: string | null;
     authorizationCode: string | null;
+    authorizationFileKey: string | null;
   };
   stats: { soldCount: number; revenueCents: number } | null;
 }
@@ -345,6 +347,10 @@ export function AdminCampanhas() {
 
       {mediaFor ? (
         <div className="mt-3 space-y-3">
+          {(() => {
+            const c = data?.find((r) => r.campaign.id === mediaFor)?.campaign;
+            return c ? <DadosLegaisCard campanha={c} /> : null;
+          })()}
           <MediaManager campaignId={mediaFor} />
           <CampaignExtras
             campaignId={mediaFor}

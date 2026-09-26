@@ -30,6 +30,7 @@ interface CampaignDetail {
     drawAt: string | null;
     drawSeedHash: string | null;
     authorizationCode: string | null;
+    temCertificado?: boolean;
   };
   stats: { soldCount: number; reservedCount: number };
   media: {
@@ -600,7 +601,22 @@ export default function Rifa() {
 
       <footer className="mt-8 space-y-1 border-t border-line pt-4 text-[11px] text-muted">
         {campaign.authorizationCode ? (
-          <p>Autorização SPA/MF: {campaign.authorizationCode}</p>
+          <p>
+            Autorização SPA/MF: <span className="tnum">{campaign.authorizationCode}</span>
+            {campaign.temCertificado ? (
+              <>
+                {" · "}
+                <a
+                  href={`/api/public/campaigns/${slug}/certificado`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="underline"
+                >
+                  ver certificado
+                </a>
+              </>
+            ) : null}
+          </p>
         ) : null}
         {campaign.drawSeedHash ? (
           <p className="tnum break-all">

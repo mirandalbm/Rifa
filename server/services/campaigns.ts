@@ -4,8 +4,10 @@
  */
 import { and, eq, sql } from "drizzle-orm";
 import { db } from "../db";
+import sharp from "sharp";
 import {
   campaigns,
+  campaignCertificados,
   campaignMedia,
   campaignStats,
   MIN_QUOTAS,
@@ -15,6 +17,11 @@ import {
   type Campaign,
 } from "@shared/schema";
 import { commitSeed } from "./draw";
+import {
+  CERTIFICADO_MAX_BYTES,
+  problemaNosDadosLegais,
+  tipoDoCertificado,
+} from "@shared/campanhaLegal";
 
 export class CampaignRuleError extends Error {
   constructor(message: string) {
@@ -29,6 +36,10 @@ const LOCKED_AFTER_PUBLISH = [
   "priceCents",
   "drawSeedHash",
   "slug",
+  // Quem comprou comprou aquela autorização e aquela data.
+  "authorizationCode",
+  "authorizationFileKey",
+  "drawAt",
 ] as const;
 
 export function assertEditable(
@@ -94,8 +105,13 @@ export async function publishBlockers(campaignId: string): Promise<string[]> {
       "Informe o certificado de autorização da SPA/MF: a autorização é da campanha, não da plataforma.",
     );
   }
+  if (campaign.authorizationCode && !campaign.authorizationFileKey) {
+    blockers.push("Anexe o arquivo do certificado de autorização (PDF ou imagem).");
+  }
   if (!campaign.drawAt) {
     blockers.push("Defina a data do sorteio.");
+  } else if (campaign.drawAt.getTime() <= Date.now()) {
+    blockers.push("A data do sorteio já passou: defina uma data futura.");
   }
 
   return blockers;
@@ -190,4 +206,103 @@ export async function campaignBySlug(slug: string) {
     .orderBy(campaignMedia.role, campaignMedia.position);
 
   return { ...row, media };
+}
+
+/* ------------------------------------------------------------------ *
+ * Dados legais: autorização SPA/MF e data do sorteio
+ * ------------------------------------------------------------------ */
+
+/** Marca em `authorizationFileKey`: o arquivo está em `campaign_certificados`. */
+export const CERTIFICADO_NO_BANCO = "banco";
+
+/** Lê o `data:` URL, confere o conteúdo e devolve o arquivo que vai guardado. */
+async function processarCertificado(dataUrl: string): Promise<{ mime: string; bytes: Buffer }> {
+  const m = /^data:([\w/+.-]+);base64,(.+)$/s.exec(dataUrl ?? "");
+  if (!m) throw new CampaignRuleError("Envie o certificado em PDF, JPG ou PNG.");
+  const bruto = Buffer.from(m[2], "base64");
+  if (bruto.length > CERTIFICADO_MAX_BYTES) {
+    throw new CampaignRuleError("O certificado passa de 5 MB. Envie um arquivo menor.");
+  }
+  const tipo = tipoDoCertificado(bruto);
+  if (tipo === "pdf") return { mime: "application/pdf", bytes: bruto };
+  if (tipo === "imagem") {
+    // Reprocessa: tira metadados e qualquer coisa escondida no arquivo.
+    try {
+      const bytes = await sharp(bruto).rotate().resize({ width: 2400, withoutEnlargement: true })
+        .jpeg({ quality: 85 }).toBuffer();
+      return { mime: "image/jpeg", bytes };
+    } catch {
+      throw new CampaignRuleError("Não consegui ler essa imagem. Envie o certificado em PDF, JPG ou PNG.");
+    }
+  }
+  throw new CampaignRuleError("O arquivo não é PDF nem imagem. Envie o certificado em PDF, JPG ou PNG.");
+}
+
+/**
+ * Grava número da autorização, arquivo do certificado e data do sorteio.
+ * Só em rascunho: depois de publicar os três travam (`LOCKED_AFTER_PUBLISH`).
+ */
+export async function salvarDadosLegais(
+  campaign: Campaign,
+  entrada: {
+    authorizationCode?: string | null;
+    drawAt?: string | null;
+    certificado?: { dataUrl: string; nome?: string } | null;
+  },
+): Promise<Campaign> {
+  if (campaign.status !== "draft") {
+    throw new CampaignRuleError(
+      "Autorização e data do sorteio travam ao publicar: quem comprou comprou aquela data.",
+    );
+  }
+
+  const codigo =
+    entrada.authorizationCode === undefined ? undefined : entrada.authorizationCode?.trim() || null;
+  const drawAt =
+    entrada.drawAt === undefined ? undefined : entrada.drawAt ? new Date(entrada.drawAt) : null;
+  const problema = problemaNosDadosLegais({ authorizationCode: codigo, drawAt }, new Date());
+  if (problema) throw new CampaignRuleError(problema);
+
+  const arquivo = entrada.certificado ? await processarCertificado(entrada.certificado.dataUrl) : null;
+  const nome = (entrada.certificado?.nome ?? "certificado").replace(/[^\w.\- ]+/g, "_").slice(0, 120);
+
+  return db.transaction(async (tx) => {
+    if (arquivo) {
+      await tx
+        .insert(campaignCertificados)
+        .values({ campaignId: campaign.id, mime: arquivo.mime, nome, bytes: arquivo.bytes, tamanho: arquivo.bytes.length })
+        .onConflictDoUpdate({
+          target: campaignCertificados.campaignId,
+          set: { mime: arquivo.mime, nome, bytes: arquivo.bytes, tamanho: arquivo.bytes.length, createdAt: new Date() },
+        });
+    }
+    const mudancas: Partial<Campaign> = {};
+    if (codigo !== undefined) mudancas.authorizationCode = codigo;
+    if (drawAt !== undefined) mudancas.drawAt = drawAt;
+    if (arquivo) mudancas.authorizationFileKey = CERTIFICADO_NO_BANCO;
+    if (Object.keys(mudancas).length === 0) throw new CampaignRuleError("Nada para salvar.");
+
+    // O status entra no WHERE: publicar ao mesmo tempo não deixa a data
+    // mudar depois de a campanha ir ao ar.
+    const [atualizada] = await tx
+      .update(campaigns)
+      .set(mudancas)
+      .where(and(eq(campaigns.id, campaign.id), eq(campaigns.status, "draft")))
+      .returning();
+    if (!atualizada) {
+      throw new CampaignRuleError(
+        "Autorização e data do sorteio travam ao publicar: quem comprou comprou aquela data.",
+      );
+    }
+    return atualizada;
+  });
+}
+
+/** O arquivo do certificado, para o painel e (depois de publicada) para o público. */
+export async function certificadoDa(campaignId: string) {
+  const [c] = await db
+    .select()
+    .from(campaignCertificados)
+    .where(eq(campaignCertificados.campaignId, campaignId));
+  return c ?? null;
 }

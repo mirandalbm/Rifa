@@ -17,7 +17,7 @@ import {
   createOrderSchema,
 } from "@shared/schema";
 import { normalizePhone, hidePhone } from "@shared/format";
-import { listPublicCampaigns, campaignBySlug } from "../services/campaigns";
+import { listPublicCampaigns, campaignBySlug, certificadoDa } from "../services/campaigns";
 import { createOrder, orderByCode, ordersByPhone, OrderError } from "../services/orders";
 import { blockBitmap, isTaken, BLOCK_SIZE, NumbersTakenError, NoQuotasAvailableError } from "../services/quotas";
 import { issueOtp, checkOtp, hashPassword } from "../auth";
@@ -82,6 +82,26 @@ publicRouter.get("/campaigns", async (_req, res, next) => {
 
 /* ---------------- tela inicial da rifa ---------------- */
 
+/**
+ * O certificado da SPA/MF é o documento que o apostador tem direito de
+ * conferir — público, mas só depois que a rifa vai ao ar.
+ */
+publicRouter.get("/campaigns/:slug/certificado", async (req, res, next) => {
+  try {
+    const found = await campaignBySlug(req.params.slug);
+    if (!found || found.campaign.status === "draft") {
+      return res.status(404).json({ message: "Rifa não encontrada." });
+    }
+    const c = await certificadoDa(found.campaign.id);
+    if (!c) return res.status(404).json({ message: "Certificado não disponível." });
+    res.setHeader("Cache-Control", "public, max-age=3600");
+    res.setHeader("Content-Disposition", `inline; filename="${c.nome}"`);
+    res.type(c.mime).send(c.bytes);
+  } catch (err) {
+    next(err);
+  }
+});
+
 publicRouter.get("/campaigns/:slug", async (req, res, next) => {
   try {
     const found = await campaignBySlug(req.params.slug);
@@ -110,6 +130,7 @@ publicRouter.get("/campaigns/:slug", async (req, res, next) => {
         drawAt: found.campaign.drawAt,
         drawSeedHash: found.campaign.drawSeedHash,
         authorizationCode: found.campaign.authorizationCode,
+        temCertificado: Boolean(found.campaign.authorizationFileKey),
         status: found.campaign.status,
       },
       stats: {

@@ -30,6 +30,8 @@ import {
   assertEditable,
   assertQuotaRange,
   CampaignRuleError,
+  salvarDadosLegais,
+  certificadoDa,
 } from "../services/campaigns";
 import { drawNumber } from "../services/draw";
 import {
@@ -281,6 +283,13 @@ adminRouter.patch("/campaigns/:id", async (req, res, next) => {
     // A campanha não muda de dono por PATCH: seria transferir venda, cota e
     // comissão de uma administradora para outra com um campo de formulário.
     delete (changes as { organizationId?: unknown }).organizationId;
+    // Só campos desconhecidos (ex.: autorização, que tem rota própria) viram
+    // um objeto vazio — e UPDATE sem nada para gravar quebra no banco.
+    if (Object.keys(changes).length === 0) {
+      return res.status(400).json({
+        message: "Nada para alterar. Autorização e data do sorteio ficam em \"Dados legais\".",
+      });
+    }
     assertEditable(campaign, changes);
     if (changes.totalQuotas) assertQuotaRange(changes.totalQuotas);
 
@@ -296,6 +305,49 @@ adminRouter.patch("/campaigns/:id", async (req, res, next) => {
     if (err instanceof CampaignRuleError) {
       return res.status(422).json({ message: err.message });
     }
+    next(err);
+  }
+});
+
+/**
+ * Autorização SPA/MF, arquivo do certificado e data do sorteio. Rota à
+ * parte do PATCH porque confere o arquivo e trava depois de publicar.
+ */
+adminRouter.put("/campaigns/:id/legal", async (req, res, next) => {
+  try {
+    const campaign = await assertCampaignInScope(req, req.params.id);
+    const cert = req.body?.certificado;
+    const atualizada = await salvarDadosLegais(campaign, {
+      authorizationCode:
+        req.body?.authorizationCode === undefined ? undefined : String(req.body.authorizationCode ?? ""),
+      drawAt: req.body?.drawAt === undefined ? undefined : req.body.drawAt ? String(req.body.drawAt) : null,
+      certificado: cert?.dataUrl ? { dataUrl: String(cert.dataUrl), nome: cert.nome ? String(cert.nome) : undefined } : null,
+    });
+    await audit(req, "campaign.legal", "campaign", campaign.id, {
+      authorizationCode: atualizada.authorizationCode,
+      drawAt: atualizada.drawAt,
+      certificado: Boolean(cert?.dataUrl),
+    });
+    res.json({
+      authorizationCode: atualizada.authorizationCode,
+      drawAt: atualizada.drawAt,
+      temCertificado: Boolean(atualizada.authorizationFileKey),
+    });
+  } catch (err) {
+    if (err instanceof CampaignRuleError) return res.status(422).json({ message: err.message });
+    next(err);
+  }
+});
+
+adminRouter.get("/campaigns/:id/certificado", async (req, res, next) => {
+  try {
+    const campaign = await assertCampaignInScope(req, req.params.id);
+    const c = await certificadoDa(campaign.id);
+    if (!c) return res.status(404).json({ message: "Certificado não enviado." });
+    res.setHeader("Cache-Control", "private, no-store");
+    res.setHeader("Content-Disposition", `inline; filename="${c.nome}"`);
+    res.type(c.mime).send(c.bytes);
+  } catch (err) {
     next(err);
   }
 });

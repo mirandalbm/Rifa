@@ -103,6 +103,7 @@ arquitetura.
 | autorização SPA/MF e data do sorteio | `shared/campanhaLegal.ts`, `salvarDadosLegais()` em `server/services/campaigns.ts`, `client/src/components/DadosLegaisCard.tsx` |
 | endereço do organizador e ordem da vitrine por região | `shared/endereco.ts` (regra), `salvarEndereco()` em `server/services/orgs.ts`, `server/services/cep.ts`, `client/src/components/EnderecoForm.tsx` |
 | perfil do organizador, seguir e sino | `shared/perfil.ts` (regras), `server/services/perfil.ts`, `client/src/pages/Perfil.tsx`, `client/src/components/Seguir.tsx`, `scripts/perfil-test.ts` |
+| white label do organizador (capa, cor de destaque, links) | `validarDestaque()`/`validarLinks()` em `shared/perfil.ts`, `salvarPerfil()` em `server/services/perfil.ts`, `client/src/components/DestaqueOrg.tsx`, `client/src/components/PerfilPublicoForm.tsx` |
 | notificações no celular (Web Push) | `shared/push.ts` (regras), `server/services/push.ts`, `client/public/sw.js`, `client/src/lib/push.ts`, `scripts/push-test.ts` |
 | regulamento, central de ajuda, transmissão e conferência do sorteio | `shared/regulamento.ts`, `shared/ajuda.ts`, `shared/sorteio.ts`, `client/src/components/SorteioCard.tsx`, `scripts/transparencia-test.ts` |
 | aparência da plataforma (construtor de templates) | `shared/template.ts` (regras), `server/services/template.ts`, `client/src/lib/template.ts`, `client/src/pages/adminAparencia.tsx`, `scripts/aparencia-test.ts` |
@@ -597,6 +598,26 @@ pedido, cotas e valor, e o cliente só pelo ID (`Cliente C-XXXXXXXX`).
 - **Organização arquivada: o perfil some (404).** Mesma regra do resto.
 - `PUT /organizacoes/:id/perfil` tem o recorte do endereço (o do vizinho é
   404) e está no `npm run isolation`.
+
+## White label do organizador — o que não pode afrouxar
+
+- **É a mesma régua do construtor, com menos opções.** Capa, cor de
+  destaque e links; foto e bio já existiam. Só dados — nada de HTML, CSS ou
+  script do organizador chega à tela.
+- **A cor de destaque vale só dentro do perfil** e na faixa da promotora na
+  página da rifa (`<DestaqueOrg>`, classe `.destaque-org`, que troca
+  `--marca`). Cabeçalho, vitrine e o significado das cores (verde, amarelo,
+  vermelho) não mudam. Contraste ≥ 3:1 nos **dois** temas, conferido no
+  servidor (`validarDestaque()`); é isso que deixa o botão Seguir usar
+  `bg-marca text-white` sem ficar ilegível.
+- **Link é só `https:`**, sem usuário/senha na URL e com domínio de verdade
+  (`validarLinks()`): o link sai na tela de todo apostador com a cara do
+  organizador — `javascript:` ou um `http:` seriam golpe com a assinatura
+  dele. Máximo 5; saem com `rel="noopener noreferrer nofollow ugc"`.
+- **A capa fica no banco** (`organizacao_capas`), reprocessada em 1500×500
+  WebP, como a foto. Endereço com `?v=`, cache eterno.
+- **Recusa não deixa nada pela metade**: tudo é conferido (inclusive abrir
+  as imagens) antes da transação. `npm run perfil` prova.
 
 ## Notificações no celular — o que não pode afrouxar
 

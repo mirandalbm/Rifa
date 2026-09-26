@@ -200,6 +200,14 @@ export const organizations = pgTable(
      * a mesma regra de `campaign_stats`: nada de `COUNT(*)` na página.
      */
     seguidoresCount: integer("seguidores_count").notNull().default(0),
+    /**
+     * White label do perfil: cor de destaque nos dois temas (nula = a da
+     * plataforma; contraste conferido em `validarDestaque()`) e os links da
+     * bio (só https, `validarLinks()`). A capa fica em `organizacao_capas`.
+     */
+    destaqueClaro: text("destaque_claro"),
+    destaqueEscuro: text("destaque_escuro"),
+    links: jsonb("links").$type<{ rotulo: string; url: string }[]>().notNull().default([]),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (t) => [uniqueIndex("uq_organizations_slug").on(t.slug)],
@@ -887,6 +895,20 @@ export const chamados = pgTable(
  * (reprocessada em 400 px, WebP) e não pode depender do R2 estar configurado.
  */
 export const organizacaoFotos = pgTable("organizacao_fotos", {
+  organizationId: uuid("organization_id")
+    .primaryKey()
+    .references(() => organizations.id, { onDelete: "cascade" }),
+  mime: text("mime").notNull(),
+  bytes: bytea("bytes").notNull(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+/**
+ * Capa do perfil da organização. Mesma regra da foto: no banco, reprocessada
+ * (1500×500, WebP, sem metadados) — o arquivo enviado nunca é servido como
+ * veio.
+ */
+export const organizacaoCapas = pgTable("organizacao_capas", {
   organizationId: uuid("organization_id")
     .primaryKey()
     .references(() => organizations.id, { onDelete: "cascade" }),

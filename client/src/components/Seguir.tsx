@@ -50,6 +50,9 @@ export function SeguirBotoes({ slug, compacto = false }: { slug: string; compact
   });
 
   const seguindo = data?.seguindo ?? false;
+  // Botão na cor de marca (a do perfil, dentro de `DestaqueOrg`). O texto é
+  // a cor da superfície (`text-white`): a marca tem contraste ≥ 3:1 com ela
+  // nos dois temas, conferido quando a cor é salva.
   const tamanho = compacto ? "px-3 py-1 text-xs" : "px-4 py-1.5 text-sm";
 
   return (
@@ -65,7 +68,7 @@ export function SeguirBotoes({ slug, compacto = false }: { slug: string; compact
         className={`rounded-md font-semibold ${tamanho} ${
           seguindo
             ? "border border-line-2 bg-mist text-ink hover:bg-mist-2"
-            : "bg-green text-on-green hover:brightness-95"
+            : "bg-marca text-white hover:brightness-95"
         }`}
       >
         {seguindo ? "Seguindo" : "Seguir"}
@@ -80,7 +83,7 @@ export function SeguirBotoes({ slug, compacto = false }: { slug: string; compact
           title={data?.sino ? "Avisos ligados" : "Avisos desligados"}
           className={`flex items-center justify-center rounded-md border border-line-2 ${
             compacto ? "h-7 w-8" : "h-8 w-9"
-          } ${data?.sino ? "text-green-deep" : "text-muted"} hover:bg-mist`}
+          } ${data?.sino ? "text-marca" : "text-muted"} hover:bg-mist`}
         >
           {data?.sino ? <Bell size={16} aria-hidden /> : <BellOff size={16} aria-hidden />}
         </button>

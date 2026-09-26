@@ -14,6 +14,7 @@ import { CampaignExtras } from "@/components/CampaignExtras";
 import { DadosLegaisCard, TransmissaoCard } from "@/components/DadosLegaisCard";
 import { EnderecoForm, type EnderecoParcial } from "@/components/EnderecoForm";
 import { PerfilPublicoForm } from "@/components/PerfilPublicoForm";
+import type { CorDeDestaque, LinkDoPerfil } from "@shared/perfil";
 import type { Endereco } from "@shared/endereco";
 import { formatBRL, groupNumber, formatQuota, maskPhone } from "@shared/format";
 import { MAX_QUOTAS, MIN_QUOTAS } from "@shared/schema";
@@ -1305,6 +1306,9 @@ function PerfilPublicoCard() {
     nome: string;
     bio?: string | null;
     foto?: string | null;
+    capa?: string | null;
+    destaque?: CorDeDestaque | null;
+    links?: LinkDoPerfil[];
   }>({ queryKey: ["/api/admin/organizer"] });
   if (!data?.organizacaoId || !data.slug) return null;
   return (
@@ -1316,6 +1320,9 @@ function PerfilPublicoCard() {
           nome={data.nome}
           bio={data.bio ?? null}
           foto={data.foto ?? null}
+          capa={data.capa ?? null}
+          destaque={data.destaque ?? null}
+          links={data.links ?? []}
           onSalvo={() => qc.invalidateQueries({ queryKey: ["/api/admin/organizer"] })}
         />
       </div>

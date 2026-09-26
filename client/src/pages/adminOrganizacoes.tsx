@@ -9,6 +9,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { MIN_SENHA, senhaInvalida } from "@shared/senha";
 import { EnderecoForm } from "@/components/EnderecoForm";
 import { PerfilPublicoForm } from "@/components/PerfilPublicoForm";
+import type { CorDeDestaque, LinkDoPerfil } from "@shared/perfil";
 import { cidadeUf, ufValida, type Endereco } from "@shared/endereco";
 import {
   LIBERACAO_COMISSAO,
@@ -32,6 +33,9 @@ interface Organizacao {
   bairro: string | null;
   bio: string | null;
   foto: string | null;
+  capa: string | null;
+  destaque: CorDeDestaque | null;
+  links: LinkDoPerfil[];
   observacao: string | null;
   billingMode: string;
   active: boolean;
@@ -531,6 +535,9 @@ function LinhaOrganizacao({
                   nome={o.name}
                   bio={o.bio}
                   foto={o.foto}
+                  capa={o.capa}
+                  destaque={o.destaque}
+                  links={o.links}
                   onSalvo={recarregarLista}
                 />
               </div>

@@ -17,6 +17,8 @@ import {
 import { priceOrder } from "@shared/pricing";
 import { regraDoReembolso } from "@shared/reembolso";
 import { ResponsiveImage } from "@/components/ResponsiveImage";
+import { DestaqueOrg } from "@/components/DestaqueOrg";
+import type { CorDeDestaque } from "@shared/perfil";
 import { SeguirBotoes, FotoDoPerfil } from "@/components/Seguir";
 import { SorteioCard } from "@/components/SorteioCard";
 
@@ -51,7 +53,7 @@ interface CampaignDetail {
   packages: { quantity: number; discountPct: number; highlight: boolean }[];
   blockSize: number;
   pagamento: { online: boolean; fisico: string[]; somenteFisico: boolean };
-  organizacao: { slug: string; nome: string; foto: string | null } | null;
+  organizacao: { slug: string; nome: string; foto: string | null; destaque: CorDeDestaque | null } | null;
 }
 
 interface BlockData {
@@ -193,13 +195,13 @@ export default function Rifa() {
   return (
     <PublicShell>
       {data?.organizacao ? (
-        <div className="-mt-1 mb-3 flex items-center gap-2">
+        <DestaqueOrg cor={data.organizacao.destaque} className="-mt-1 mb-3 flex items-center gap-2">
           <Link href={`/o/${data.organizacao.slug}`} className="flex min-w-0 flex-1 items-center gap-2">
             <FotoDoPerfil nome={data.organizacao.nome} foto={data.organizacao.foto} tamanho={32} />
             <span className="truncate text-sm font-semibold">{data.organizacao.nome}</span>
           </Link>
           <SeguirBotoes slug={data.organizacao.slug} compacto />
-        </div>
+        </DestaqueOrg>
       ) : null}
       {/* Banner, vídeo e fotos: a propaganda vem antes de tudo. */}
       <div

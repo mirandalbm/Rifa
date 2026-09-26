@@ -6,6 +6,7 @@
  * privacidade não pode ter duas cópias.
  */
 import { formatBRL } from "./format";
+import { CONTRASTE_MIN, FUNDO, contraste, corValida } from "./template";
 
 export const BIO_MAX = 300;
 
@@ -111,4 +112,108 @@ export function whatsappDoContato(contato: string | null | undefined): string | 
   if (d.length === 10 || d.length === 11) return `55${d}`;
   if ((d.length === 12 || d.length === 13) && d.startsWith("55")) return d;
   return null;
+}
+
+/* ------------------------------------------------------------------ *
+ * White label do organizador: cor de destaque e links
+ * ------------------------------------------------------------------ */
+
+
+export interface CorDeDestaque {
+  claro: string;
+  escuro: string;
+}
+
+/**
+ * A cor de destaque do perfil. Mesma régua da cor de marca da plataforma:
+ * precisa aparecer no fundo dos **dois** temas (contraste ≥ 3:1). `null`
+ * volta para a cor da plataforma. É destaque, não significado — dinheiro,
+ * espera e erro continuam com as cores de sempre.
+ */
+export function validarDestaque(bruta: unknown): CorDeDestaque | null {
+  if (bruta === null || bruta === undefined) return null;
+  if (typeof bruta !== "object") throw new Error("Cor de destaque inválida.");
+  const b = bruta as Record<string, unknown>;
+  const cor = {
+    claro: String(b.claro ?? "").toLowerCase(),
+    escuro: String(b.escuro ?? "").toLowerCase(),
+  };
+  for (const tema of ["claro", "escuro"] as const) {
+    if (!corValida(cor[tema])) throw new Error(`Cor do tema ${tema} inválida (use #rrggbb).`);
+    const c = contraste(cor[tema], FUNDO[tema]);
+    if (c < CONTRASTE_MIN) {
+      throw new Error(
+        `A cor do tema ${tema} quase não aparece no fundo (contraste ${c.toFixed(1)}:1; mínimo ${CONTRASTE_MIN}:1).`,
+      );
+    }
+  }
+  return cor;
+}
+
+export const LINKS_MAX = 5;
+export const ROTULO_MAX = 30;
+const URL_MAX = 300;
+
+export type RedeDoLink = "instagram" | "tiktok" | "youtube" | "facebook" | "whatsapp" | "telegram" | "site";
+
+export interface LinkDoPerfil {
+  rotulo: string;
+  url: string;
+}
+
+const REDE_POR_DOMINIO: [RegExp, RedeDoLink, string][] = [
+  [/(^|\.)instagram\.com$/, "instagram", "Instagram"],
+  [/(^|\.)tiktok\.com$/, "tiktok", "TikTok"],
+  [/(^|\.)(youtube\.com|youtu\.be)$/, "youtube", "YouTube"],
+  [/(^|\.)(facebook\.com|fb\.com)$/, "facebook", "Facebook"],
+  [/(^|\.)(wa\.me|whatsapp\.com)$/, "whatsapp", "WhatsApp"],
+  [/(^|\.)(t\.me|telegram\.me)$/, "telegram", "Telegram"],
+];
+
+/** De que rede é o link — decide o ícone e o rótulo padrão. */
+export function redeDoLink(url: string): { rede: RedeDoLink; nome: string } {
+  let host = "";
+  try {
+    host = new URL(url).hostname.toLowerCase();
+  } catch {
+    return { rede: "site", nome: "Site" };
+  }
+  for (const [re, rede, nome] of REDE_POR_DOMINIO) if (re.test(host)) return { rede, nome };
+  return { rede: "site", nome: host.replace(/^www\./, "") || "Site" };
+}
+
+/**
+ * Os links da bio. Só `https:` e sem usuário/senha na URL: o link vai para a
+ * tela de todo apostador, e `javascript:` ou `http:` seriam a porta de
+ * entrada de um golpe com a cara do organizador. Rótulo vazio vira o nome
+ * da rede. Link repetido sai.
+ */
+export function validarLinks(brutos: unknown): LinkDoPerfil[] {
+  if (brutos === null || brutos === undefined) return [];
+  if (!Array.isArray(brutos)) throw new Error("Os links precisam ser uma lista.");
+  if (brutos.length > LINKS_MAX) throw new Error(`No máximo ${LINKS_MAX} links.`);
+  const vistos = new Set<string>();
+  const saida: LinkDoPerfil[] = [];
+  brutos.forEach((b, i) => {
+    const n = i + 1;
+    const bruto = typeof b?.url === "string" ? b.url.trim() : "";
+    if (!bruto) throw new Error(`Link ${n}: informe o endereço.`);
+    if (bruto.length > URL_MAX) throw new Error(`Link ${n}: endereço longo demais.`);
+    let u: URL;
+    try {
+      u = new URL(/^[a-z][a-z0-9+.-]*:/i.test(bruto) ? bruto : `https://${bruto}`);
+    } catch {
+      throw new Error(`Link ${n}: endereço inválido.`);
+    }
+    if (u.protocol !== "https:") throw new Error(`Link ${n}: só endereços https.`);
+    if (u.username || u.password) throw new Error(`Link ${n}: endereço inválido.`);
+    if (!u.hostname.includes(".")) throw new Error(`Link ${n}: endereço inválido.`);
+    const url = u.toString();
+    if (vistos.has(url)) return;
+    vistos.add(url);
+    const rotuloBruto = typeof b?.rotulo === "string" ? b.rotulo.replace(/\s+/g, " ").trim() : "";
+    if (rotuloBruto.length > ROTULO_MAX) throw new Error(`Link ${n}: rótulo passa de ${ROTULO_MAX} caracteres.`);
+    saida.push({ rotulo: rotuloBruto || redeDoLink(url).nome, url });
+  });
+  return saida;
 }

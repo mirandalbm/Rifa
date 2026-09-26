@@ -7,6 +7,10 @@ import {
   linkDeCompartilhar,
   whatsappDoContato,
   BIO_MAX,
+  validarDestaque,
+  validarLinks,
+  redeDoLink,
+  LINKS_MAX,
 } from "../shared/perfil";
 import { formatBRL } from "../shared/format";
 
@@ -81,5 +85,67 @@ describe("contador e compartilhar", () => {
     expect(whatsappDoContato("(11) 3333-4444")).toBe("551133334444");
     expect(whatsappDoContato("+55 11 98888-7777")).toBe("5511988887777");
     expect(whatsappDoContato("contato@rifa.br")).toBeNull();
+  });
+});
+
+describe("cor de destaque do organizador", () => {
+  it("sem cor, vale a da plataforma", () => {
+    expect(validarDestaque(null)).toBeNull();
+    expect(validarDestaque(undefined)).toBeNull();
+  });
+
+  it("aceita cor com contraste nos dois temas e normaliza para minúscula", () => {
+    expect(validarDestaque({ claro: "#6D28D9", escuro: "#C4B5FD" })).toEqual({ claro: "#6d28d9", escuro: "#c4b5fd" });
+  });
+
+  it("recusa cor que some no fundo claro ou no escuro", () => {
+    expect(() => validarDestaque({ claro: "#fff59d", escuro: "#c4b5fd" })).toThrow(/tema claro.*contraste/);
+    expect(() => validarDestaque({ claro: "#6d28d9", escuro: "#1a1a2e" })).toThrow(/tema escuro.*contraste/);
+  });
+
+  it("recusa o que não é #rrggbb (nem nome de cor, nem CSS)", () => {
+    expect(() => validarDestaque({ claro: "red", escuro: "#c4b5fd" })).toThrow(/inválida/);
+    expect(() => validarDestaque({ claro: "#6d28d9;background:url(x)", escuro: "#c4b5fd" })).toThrow(/inválida/);
+    expect(() => validarDestaque("#6d28d9")).toThrow();
+  });
+});
+
+describe("links da bio", () => {
+  it("só https: javascript:, http: e data: são recusados", () => {
+    expect(() => validarLinks([{ url: "javascript:alert(1)" }])).toThrow(/https/);
+    expect(() => validarLinks([{ url: "http://exemplo.com.br" }])).toThrow(/https/);
+    expect(() => validarLinks([{ url: "data:text/html,<script>" }])).toThrow(/https/);
+  });
+
+  it("endereço sem esquema ganha https; usuário e senha na URL são recusados", () => {
+    expect(validarLinks([{ url: "instagram.com/rifas" }])[0].url).toBe("https://instagram.com/rifas");
+    expect(() => validarLinks([{ url: "https://banco.com@golpe.com" }])).toThrow(/inválido/);
+    expect(() => validarLinks([{ url: "https://localhost" }])).toThrow(/inválido/);
+  });
+
+  it("rótulo vazio vira o nome da rede; link repetido sai", () => {
+    const l = validarLinks([
+      { url: "https://www.instagram.com/rifas" },
+      { url: "https://www.instagram.com/rifas", rotulo: "de novo" },
+      { url: "https://loja.exemplo.com.br", rotulo: "  Nossa   loja " },
+    ]);
+    expect(l).toEqual([
+      { rotulo: "Instagram", url: "https://www.instagram.com/rifas" },
+      { rotulo: "Nossa loja", url: "https://loja.exemplo.com.br/" },
+    ]);
+  });
+
+  it(`no máximo ${LINKS_MAX}, e só as chaves conhecidas saem`, () => {
+    const seis = Array.from({ length: LINKS_MAX + 1 }, (_, i) => ({ url: `https://s${i}.com.br` }));
+    expect(() => validarLinks(seis)).toThrow(/No máximo/);
+    const [l] = validarLinks([{ url: "https://a.com.br", rotulo: "A", extra: "<script>" }]);
+    expect(Object.keys(l).sort()).toEqual(["rotulo", "url"]);
+  });
+
+  it("reconhece as redes pelo domínio, não pelo texto", () => {
+    expect(redeDoLink("https://wa.me/5511999999999").rede).toBe("whatsapp");
+    expect(redeDoLink("https://youtu.be/x").rede).toBe("youtube");
+    expect(redeDoLink("https://m.facebook.com/x").rede).toBe("facebook");
+    expect(redeDoLink("https://instagram.com.golpe.io/x").rede).toBe("site");
   });
 });

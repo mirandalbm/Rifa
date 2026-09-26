@@ -1,13 +1,15 @@
 /**
  * Prova do perfil do organizador, pela API de verdade: o perfil público, o
  * seguir (uma vez só, mesmo com toques simultâneos), o sino, o contador e a
- * privacidade do "seguido por".
+ * privacidade do "seguido por" — e o white label (capa, cor de destaque e
+ * links: contraste, só https, capa reprocessada).
  *
  *   npm run perfil      (com `npm run dev` no ar e o seed aplicado)
  */
 import "dotenv/config";
 import { baseUrl } from "./base-url";
 import { eq, sql } from "drizzle-orm";
+import sharp from "sharp";
 import { db, pool } from "../server/db";
 import { campaignStats, campaigns, draws, organizations } from "../shared/schema";
 
@@ -159,6 +161,55 @@ async function main() {
     const [fim] = await db.select().from(organizations).where(eq(organizations.id, org.id));
     checa("deixar de seguir três vezes desconta um", fim.seguidoresCount === 1, String(fim.seguidoresCount));
     checa("e diz que não segue mais", saidas.every((s) => s.json?.seguindo === false));
+
+    // White label: capa, cor de destaque e links.
+    const admin = new Cliente();
+    r = await admin.req("POST", "/api/auth/login", {
+      email: process.env.SEED_ADMIN_EMAIL ?? "admin@rifa.br",
+      password: process.env.SEED_ADMIN_PASSWORD ?? "admin123",
+    });
+    if (r.status !== 200) throw new Error(`login do administrador: HTTP ${r.status}`);
+    const rota = `/api/admin/organizacoes/${org.id}/perfil`;
+    r = await admin.req("PUT", rota, { destaque: { claro: "#fff59d", escuro: "#c4b5fd" } });
+    checa("cor de destaque sem contraste: recusa com o motivo", r.status === 400 && /contraste/.test(r.json?.message ?? ""), r.json?.message);
+    r = await admin.req("PUT", rota, { links: [{ rotulo: "clique", url: "javascript:alert(1)" }] });
+    checa("link javascript: é recusado", r.status === 400, `HTTP ${r.status}`);
+    r = await admin.req("PUT", rota, { capa: "data:text/html;base64,PHNjcmlwdD4=" });
+    checa("capa que não é imagem: recusa", r.status === 400, `HTTP ${r.status}`);
+    const [bioAntes] = await db.select({ bio: organizations.bio }).from(organizations).where(eq(organizations.id, org.id));
+    r = await admin.req("PUT", rota, { bio: "mudou", links: [{ url: "http://x.com.br" }] });
+    const [bioDepois] = await db.select({ bio: organizations.bio }).from(organizations).where(eq(organizations.id, org.id));
+    checa("recusa não deixa nada pela metade (a bio não mudou)", r.status === 400 && bioDepois.bio === bioAntes.bio);
+
+    const capa = await sharp({ create: { width: 900, height: 900, channels: 3, background: "#6d28d9" } })
+      .jpeg()
+      .toBuffer();
+    r = await admin.req("PUT", rota, {
+      capa: `data:image/jpeg;base64,${capa.toString("base64")}`,
+      destaque: { claro: "#6D28D9", escuro: "#c4b5fd" },
+      links: [{ url: "instagram.com/perfilteste" }, { rotulo: "Loja", url: "https://loja.exemplo.com.br", lixo: 1 }],
+    });
+    checa("salva capa, cor e links", r.status === 200, `HTTP ${r.status} ${r.json?.message ?? ""}`);
+    r = await anonimo.req("GET", `/api/public/o/${SLUG}`);
+    checa("o perfil devolve a cor de destaque", r.json?.destaque?.claro === "#6d28d9" && r.json?.destaque?.escuro === "#c4b5fd");
+    checa("e os links, normalizados",
+      JSON.stringify((r.json?.links ?? []).map((l: any) => [l.rotulo, l.url, Object.keys(l).length])) ===
+        JSON.stringify([
+          ["Instagram", "https://instagram.com/perfilteste", 2],
+          ["Loja", "https://loja.exemplo.com.br/", 2],
+        ]), JSON.stringify(r.json?.links));
+    const urlCapa = r.json?.capa as string | undefined;
+    const arq = await fetch(URL + (urlCapa ?? "/nada"));
+    const bytes = Buffer.from(await arq.arrayBuffer());
+    const meta = arq.status === 200 ? await sharp(bytes).metadata() : null;
+    checa("a capa é servida reprocessada: WebP 1500×500",
+      arq.headers.get("content-type") === "image/webp" && meta?.width === 1500 && meta?.height === 500,
+      `${arq.headers.get("content-type")} ${meta?.width}×${meta?.height}`);
+    r = await anonimo.req("GET", "/api/public/campaigns/perfil-teste-no-ar");
+    checa("a rifa leva a cor da promotora", r.json?.organizacao?.destaque?.claro === "#6d28d9");
+    r = await admin.req("PUT", rota, { capa: null, destaque: null, links: [] });
+    r = await anonimo.req("GET", `/api/public/o/${SLUG}`);
+    checa("tirar volta ao padrão da plataforma", r.json?.capa === null && r.json?.destaque === null && r.json?.links?.length === 0);
 
     await db.update(organizations).set({ archivedAt: new Date() }).where(eq(organizations.id, org.id));
     r = await anonimo.req("GET", `/api/public/o/${SLUG}`);

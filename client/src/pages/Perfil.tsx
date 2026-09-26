@@ -5,12 +5,15 @@ import { MoreVertical, Share2, MapPin, X, Copy, Check } from "lucide-react";
 import { PublicShell } from "@/components/AppShell";
 import { Money, Progress, Empty } from "@/components/bits";
 import { SeguirBotoes, FotoDoPerfil } from "@/components/Seguir";
+import { DestaqueOrg, LinksDoPerfil } from "@/components/DestaqueOrg";
 import { groupNumber, percent } from "@shared/format";
 import {
   contador,
   linkDeCompartilhar,
   whatsappDoContato,
   NOME_REDE,
+  type CorDeDestaque,
+  type LinkDoPerfil,
   type Rede,
 } from "@shared/perfil";
 
@@ -39,6 +42,9 @@ interface Perfil {
   slug: string;
   nome: string;
   foto: string | null;
+  capa: string | null;
+  destaque: CorDeDestaque | null;
+  links: LinkDoPerfil[];
   local: string | null;
   desde: string;
   cnpj: string | null;
@@ -108,10 +114,19 @@ export default function PerfilPage() {
 
   return (
     <PublicShell>
+      <DestaqueOrg cor={p.destaque}>
+      {/* Capa: 3:1, de ponta a ponta; a foto sobe um pouco sobre ela */}
+      {p.capa ? (
+        <div className="-mx-4 -mt-4 aspect-[3/1] overflow-hidden bg-mist-2 sm:mx-0 sm:mt-0 sm:rounded-xl">
+          <img src={p.capa} alt="" className="h-full w-full object-cover" />
+        </div>
+      ) : null}
       {/* Topo: nome, foto, contadores */}
-      <h1 className="font-display text-xl font-extrabold">{p.nome}</h1>
-      <div className="mt-3 flex items-center gap-4">
-        <FotoDoPerfil nome={p.nome} foto={p.foto} tamanho={84} />
+      <h1 className={`font-display text-xl font-extrabold ${p.capa ? "sr-only" : ""}`}>{p.nome}</h1>
+      <div className={`flex gap-4 ${p.capa ? "items-end" : "mt-3 items-center"}`}>
+        <span className={p.capa ? "-mt-10 rounded-full bg-white p-1" : ""}>
+          <FotoDoPerfil nome={p.nome} foto={p.foto} tamanho={84} />
+        </span>
         <dl className="grid flex-1 grid-cols-3 text-center">
           <Contador rotulo="rifas realizadas" valor={contador(p.rifasRealizadas)} />
           <Contador rotulo="seguidores" valor={contador(p.seguidores)} />
@@ -128,6 +143,12 @@ export default function PerfilPage() {
           </div>
         </dl>
       </div>
+
+      {p.capa ? (
+        <p aria-hidden className="mt-2 font-display text-xl font-extrabold">
+          {p.nome}
+        </p>
+      ) : null}
 
       {/* Ações: seguir, sino, ⋮ */}
       <div className="mt-4 flex items-center gap-2">
@@ -195,6 +216,7 @@ export default function PerfilPage() {
             ))}
           </div>
         ) : null}
+        <LinksDoPerfil links={p.links} />
         {p.seguidoPor ? <p className="pt-1 text-xs text-muted">{p.seguidoPor}</p> : null}
       </div>
 
@@ -205,7 +227,7 @@ export default function PerfilPage() {
             {p.destaques.map((d) => (
               <li key={d.slug} className="w-[72px] shrink-0 text-center">
                 <Link href={`/o/${p.slug}/r/${d.slug}`} className="block">
-                  <span className="mx-auto block h-16 w-16 overflow-hidden rounded-full border-2 border-line-2 p-[2px]">
+                  <span className="mx-auto block h-16 w-16 overflow-hidden rounded-full border-2 border-marca p-[2px]">
                     {d.capa ? (
                       <img src={d.capa} alt="" className="h-full w-full rounded-full object-cover" />
                     ) : (
@@ -304,6 +326,7 @@ export default function PerfilPage() {
           </p>
         </Folha>
       ) : null}
+      </DestaqueOrg>
     </PublicShell>
   );
 }

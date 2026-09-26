@@ -105,6 +105,7 @@ arquitetura.
 | perfil do organizador, seguir e sino | `shared/perfil.ts` (regras), `server/services/perfil.ts`, `client/src/pages/Perfil.tsx`, `client/src/components/Seguir.tsx`, `scripts/perfil-test.ts` |
 | notificações no celular (Web Push) | `shared/push.ts` (regras), `server/services/push.ts`, `client/public/sw.js`, `client/src/lib/push.ts`, `scripts/push-test.ts` |
 | regulamento, central de ajuda, transmissão e conferência do sorteio | `shared/regulamento.ts`, `shared/ajuda.ts`, `shared/sorteio.ts`, `client/src/components/SorteioCard.tsx`, `scripts/transparencia-test.ts` |
+| aparência da plataforma (construtor de templates) | `shared/template.ts` (regras), `server/services/template.ts`, `client/src/lib/template.ts`, `client/src/pages/adminAparencia.tsx`, `scripts/aparencia-test.ts` |
 | tema claro e escuro | `client/src/index.css` (variáveis), `client/src/lib/tema.ts`, `client/src/components/TemaToggle.tsx`, `tests/tema.test.ts` |
 | app instalável (PWA) | `client/public/sw.js`, `client/public/manifest.webmanifest`, `client/src/lib/pwa.ts` |
 
@@ -642,3 +643,26 @@ pedido, cotas e valor, e o cliente só pelo ID (`Cliente C-XXXXXXXX`).
 - **A ajuda responde com a regra em vigor** (`perguntasDaAjuda()` recebe a
   taxa de reembolso configurada): pergunta nova vai para `shared/ajuda.ts`,
   com `id` único.
+
+## Construtor de templates — o que não pode afrouxar
+
+- **Só dados, nunca HTML ou script.** Identidade (nome, logo, cor de marca,
+  fonte de uma lista, cantos), blocos que o sistema já sabe desenhar e os
+  textos do rodapé. `validarTemplate()` só guarda chaves conhecidas; bloco
+  novo entra em `TIPOS_DE_BLOCO` **e** no `switch` da vitrine.
+- **Cor de marca é marca, não significado** (`--marca`, `text-marca`): logo,
+  links, destaque. Dinheiro, espera e erro não mudam com o template. A cor
+  precisa de contraste ≥ 3:1 com o fundo de **cada** tema, conferido no
+  servidor; `FUNDO` é o mesmo do `index.css` (o teste confere).
+- **O feed de rifas não sai da vitrine**: template sem o bloco "Rifas no ar"
+  ligado é recusado.
+- **Publicar não sobrescreve**: cada publicação é uma linha em
+  `template_versoes`; voltar publica a antiga como versão nova. Versão que
+  não valide mais cai no padrão (`completarTemplate`) em vez de derrubar a
+  vitrine.
+- **Só o administrador geral** (403 para organizador, no `npm run isolation`).
+  A pré-visualização lê o rascunho por `?previa=1` num iframe do próprio
+  site — por isso `X-Frame-Options: SAMEORIGIN`, não `DENY`; site alheio
+  continua sem poder emoldurar a loja.
+- **A logo fica no banco** (`plataforma_arquivos`), reprocessada em WebP.
+- `npm run aparencia` prova tudo isso e devolve o estado de antes no fim.

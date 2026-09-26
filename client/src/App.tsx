@@ -10,6 +10,7 @@ import { roleSatisfies, type Role } from "@shared/access";
 import Vitrine from "@/pages/Vitrine";
 import Rifa from "@/pages/Rifa";
 import Perfil from "@/pages/Perfil";
+import { AplicarTemplate } from "@/lib/template";
 import Regulamento from "@/pages/Regulamento";
 import Ajuda from "@/pages/Ajuda";
 import Pedido from "@/pages/Pedido";
@@ -31,6 +32,7 @@ import {
 } from "@/pages/afiliado";
 import { AdminCambistas } from "@/pages/adminCambistas";
 import { AdminAntifraude } from "@/pages/adminAntifraude";
+import { AdminAparencia } from "@/pages/adminAparencia";
 import { AdminExportacoes } from "@/pages/adminExportacoes";
 import { AdminOrganizacoes } from "@/pages/adminOrganizacoes";
 import { AdminUsuarios } from "@/pages/adminUsuarios";
@@ -93,6 +95,7 @@ function NotFound() {
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
+      <AplicarTemplate />
       <TooltipProvider>
         <Switch>
           {/* Público */}
@@ -213,6 +216,11 @@ export default function App() {
           <Route path="/admin/organizacoes">
             <Guarded requires="admin">
               <AdminOrganizacoes />
+            </Guarded>
+          </Route>
+          <Route path="/admin/aparencia">
+            <Guarded requires="admin">
+              <AdminAparencia />
             </Guarded>
           </Route>
           <Route path="/admin/antifraude">

@@ -20,10 +20,12 @@ app.disable("x-powered-by");
 // Cabeçalhos de defesa baratos: o navegador não adivinha tipo de arquivo
 // (upload servido como página), a loja não abre dentro de iframe alheio
 // (clickjacking no botão de pagar) e o código do pedido na URL não vaza
-// no Referer para sites externos.
+// no Referer para sites externos. Iframe só do próprio site: é a
+// pré-visualização do construtor de templates (/admin/aparencia).
 app.use((_req, res, next) => {
   res.setHeader("X-Content-Type-Options", "nosniff");
-  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("X-Frame-Options", "SAMEORIGIN");
+  res.setHeader("Content-Security-Policy", "frame-ancestors 'self'");
   res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
   next();
 });
@@ -48,6 +50,7 @@ app.use(
     "/api/admin/chamados",
     "/api/admin/campaigns/:id/legal",
     "/api/admin/organizacoes/:id/perfil",
+    "/api/admin/template/logo",
   ],
   express.json({ limit: "8mb" }),
 );

@@ -15,6 +15,7 @@ import {
   ListOrdered,
   LogOut,
   Megaphone,
+  Palette,
   PanelLeftClose,
   PanelLeftOpen,
   Percent,
@@ -33,6 +34,8 @@ import {
 import type { SectionKey } from "@shared/access";
 import { useSession, useLogout } from "@/lib/session";
 import { TemaCiclo, TemaEscolha } from "@/components/TemaToggle";
+import { Marca } from "@/components/Marca";
+import { useTemplate } from "@/lib/template";
 
 /**
  * Menu do apostador com conta: o círculo com a inicial abre as compras, os
@@ -118,8 +121,8 @@ export function PublicShell({ children }: { children: ReactNode }) {
     <div className="min-h-screen bg-white">
       <header className="sticky top-0 z-20 border-b border-line bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-3">
-          <Link href="/" className="font-display text-lg font-extrabold tracking-tight">
-            rifa<span className="text-green">.</span>br
+          <Link href="/" className="text-lg">
+            <Marca />
           </Link>
           <nav className="flex items-center gap-3 text-sm">
             {session?.buyer?.conta ? null : (
@@ -158,15 +161,7 @@ export function PublicShell({ children }: { children: ReactNode }) {
         </div>
       </header>
       <main className="mx-auto max-w-3xl px-4 pb-8 pt-4">{children}</main>
-      <footer className="mx-auto flex max-w-3xl items-center justify-between gap-3 border-t border-line px-4 pb-28 pt-4 text-xs text-muted">
-        <span className="flex items-center gap-3">
-          <span>rifa.br</span>
-          <Link href="/ajuda" className="underline hover:text-ink">
-            Ajuda
-          </Link>
-        </span>
-        <TemaEscolha />
-      </footer>
+      <RodapePublico />
     </div>
   );
 }
@@ -194,6 +189,7 @@ const ICONE: Partial<Record<SectionKey, LucideIcon>> = {
   adminConfiguracoes: Settings,
   adminOrganizacoes: Building2,
   adminAntifraude: ShieldAlert,
+  adminAparencia: Palette,
 };
 
 const CHAVE_MENU = "rifa.menu.aberto";
@@ -236,6 +232,7 @@ export function PanelShell({
   const [location] = useLocation();
   const logout = useLogout();
   const [aberto, setAberto] = useState(menuInicial);
+  const nomeDaMarca = useTemplate().identidade.nome;
 
   // Chamado de reembolso tem prazo: o contador no menu é o aviso que o
   // organizador vê sem precisar abrir o Atendimento.
@@ -294,12 +291,10 @@ export function PanelShell({
             className="px-1 font-display text-lg font-extrabold tracking-tight"
           >
             {aberto ? (
-              <>
-                rifa<span className="text-green">.</span>br
-              </>
+              <Marca />
             ) : (
               <>
-                r<span className="text-green">.</span>
+                {(nomeDaMarca || "r").charAt(0)}<span className="text-marca">.</span>
               </>
             )}
           </Link>
@@ -387,5 +382,25 @@ export function PanelShell({
         <main className="px-4 py-5 md:px-5">{children}</main>
       </div>
     </div>
+  );
+}
+
+/** Rodapé da loja: textos do template, ajuda e o seletor de tema. */
+function RodapePublico() {
+  const t = useTemplate();
+  return (
+    <footer className="mx-auto max-w-3xl space-y-3 border-t border-line px-4 pb-28 pt-4 text-xs text-muted">
+      <div className="flex items-center justify-between gap-3">
+        <span className="flex items-center gap-3">
+          <span>{t.identidade.nome}</span>
+          <Link href="/ajuda" className="underline hover:text-ink">
+            Ajuda
+          </Link>
+        </span>
+        <TemaEscolha />
+      </div>
+      {t.textos.rodape ? <p className="whitespace-pre-line">{t.textos.rodape}</p> : null}
+      {t.textos.jogoResponsavel ? <p className="font-semibold">{t.textos.jogoResponsavel}</p> : null}
+    </footer>
   );
 }

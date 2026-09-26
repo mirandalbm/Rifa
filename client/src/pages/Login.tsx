@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
+import { Marca } from "@/components/Marca";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/bits";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -207,8 +208,8 @@ export default function Login() {
 
   return (
     <div className="mx-auto flex min-h-screen max-w-sm flex-col justify-center px-5 py-8">
-      <Link href="/" className="font-display text-2xl font-extrabold">
-        rifa<span className="text-green">.</span>br
+      <Link href="/" className="text-2xl">
+        <Marca />
       </Link>
 
       <div className="mt-5 grid grid-cols-2 gap-1 rounded-lg bg-mist-2 p-1" role="tablist">

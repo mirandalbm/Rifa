@@ -102,6 +102,15 @@ import {
 } from "../services/orgs";
 import { isUniqueViolation } from "../pgError";
 import { salvarPerfil } from "../services/perfil";
+import {
+  publicar,
+  rascunho as rascunhoDoTemplate,
+  restaurar,
+  salvarLogo,
+  salvarRascunho,
+  templatePublicado,
+  versoes as versoesDoTemplate,
+} from "../services/template";
 import { transmissaoValida } from "@shared/sorteio";
 import { avisarRifaNova, avisarResultado, emSegundoPlano } from "../services/push";
 import {
@@ -2083,6 +2092,74 @@ adminRouter.post("/payouts/:id/paid", async (req, res, next) => {
 
     await audit(req, "payout.paid", "payout", req.params.id);
     res.json(updated);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/* ---------------- aparência (construtor de templates) ---------------- */
+
+/**
+ * Só o administrador geral mexe na aparência da plataforma: é a tela de
+ * todo mundo. Organizador recebe 403 (rota da plataforma, todos sabem que
+ * existe) — o white label dele é outra coisa, no perfil.
+ */
+adminRouter.get("/template", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    const [r, p, v] = await Promise.all([rascunhoDoTemplate(), templatePublicado(), versoesDoTemplate()]);
+    res.json({ rascunho: r, publicado: p.template, versaoAtual: p.versao, versoes: v });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** O rascunho, para a pré-visualização (`?previa=1`). Mesmo formato do público. */
+adminRouter.get("/template/previa", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    res.setHeader("Cache-Control", "no-store");
+    res.json({ template: await rascunhoDoTemplate(), versao: "rascunho" });
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.put("/template/rascunho", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    res.json(await salvarRascunho(req.body));
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.put("/template/logo", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    res.json(await salvarLogo(req.body?.dataUrl));
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.post("/template/publicar", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    const v = await publicar(req.user!.id);
+    await audit(req, "template.publicar", "template", v.id, {});
+    res.status(201).json(v);
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.post("/template/versoes/:id/restaurar", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    const v = await restaurar(req.params.id, req.user!.id);
+    await audit(req, "template.restaurar", "template", v.id, { de: req.params.id });
+    res.status(201).json(v);
   } catch (err) {
     next(err);
   }

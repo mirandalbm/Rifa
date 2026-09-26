@@ -86,6 +86,7 @@ jobs:
       # enquanto roda, então vai por último.
       - run: npm run isolation
       - run: npm run refund
+      - run: npm run chamados
       - run: npm run load
 
       - name: Log do servidor

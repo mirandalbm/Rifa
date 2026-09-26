@@ -12,7 +12,12 @@ import {
   coupons,
   organizations,
   afiliadoVinculos,
+  recibos,
 } from "@shared/schema";
+import { getPlataforma } from "../services/settings";
+import { cadastroAprovado, documento, estadoFiscal, salvarDadosFiscais, salvarDocumento } from "../services/fiscal";
+import { pdfDoRecibo, reciboPorCodigo } from "../services/recibos";
+import { urlDeConferencia } from "../services/urls";
 import { aderir, comissaoNaRifa, organizacoesDoAfiliado, sair } from "../services/afiliados";
 import { identify } from "../services/antifraude";
 import QRCode from "qrcode";
@@ -107,11 +112,14 @@ affiliateRouter.get("/commissions", async (req, res, next) => {
         buyerName: sql<string>`CASE WHEN ${orders.sellerId} IS NOT NULL THEN ${buyers.name}
                                     ELSE split_part(${buyers.name}, ' ', 1) END`,
         campaignTitle: campaigns.title,
+        // Extrato por origem: a organização que paga cada comissão.
+        organizacao: organizations.name,
       })
       .from(commissions)
       .innerJoin(orders, eq(orders.id, commissions.orderId))
       .innerJoin(buyers, eq(buyers.id, orders.buyerId))
       .innerJoin(campaigns, eq(campaigns.id, commissions.campaignId))
+      .innerJoin(organizations, eq(organizations.id, campaigns.organizationId))
       .where(eq(commissions.affiliateId, id))
       .orderBy(desc(commissions.createdAt))
       .limit(200);
@@ -274,6 +282,11 @@ affiliateRouter.post("/payouts", async (req, res, next) => {
     if (!aff.pixKey) {
       return res.status(400).json({ message: "Cadastre sua chave Pix antes de sacar." });
     }
+    // Com a chave da plataforma ligada, só saca quem tem o cadastro fiscal
+    // aprovado: a comissão vai para uma pessoa identificada, com recibo.
+    if ((await getPlataforma()).exigirCadastroFiscal && !(await cadastroAprovado(id))) {
+      return res.status(409).json({ message: "Complete o cadastro fiscal (Meus dados) e aguarde a aprovação para sacar." });
+    }
 
     const payout = await db.transaction(async (tx) => {
       const disponivelPorOrg = await tx
@@ -325,13 +338,14 @@ affiliateRouter.post("/payouts", async (req, res, next) => {
 affiliateRouter.get("/payouts", async (req, res, next) => {
   try {
     const id = affiliateId(req);
-    res.json(
-      await db
-        .select()
-        .from(payouts)
-        .where(eq(payouts.affiliateId, id))
-        .orderBy(desc(payouts.requestedAt)),
-    );
+    const linhas = await db
+      .select({ payout: payouts, recibo: recibos.codigo, organizacao: organizations.name })
+      .from(payouts)
+      .leftJoin(recibos, eq(recibos.payoutId, payouts.id))
+      .leftJoin(organizations, eq(organizations.id, payouts.organizationId))
+      .where(eq(payouts.affiliateId, id))
+      .orderBy(desc(payouts.requestedAt));
+    res.json(linhas.map((l) => ({ ...l.payout, recibo: l.recibo, organizacao: l.organizacao })));
   } catch (err) {
     next(err);
   }
@@ -367,6 +381,60 @@ affiliateRouter.delete("/organizacoes/:slug", async (req, res, next) => {
   try {
     await sair(affiliateId(req), req.params.slug);
     res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/* ---------------- cadastro fiscal e recibos ---------------- */
+
+/** O próprio cadastro fiscal (os dados que ele mesmo mandou). */
+affiliateRouter.get("/fiscal", async (req, res, next) => {
+  try {
+    res.setHeader("Cache-Control", "no-store");
+    res.json({ ...(await estadoFiscal(affiliateId(req), true)), exigido: (await getPlataforma()).exigirCadastroFiscal });
+  } catch (err) {
+    next(err);
+  }
+});
+
+affiliateRouter.put("/fiscal", async (req, res, next) => {
+  try {
+    await salvarDadosFiscais(affiliateId(req), req.body);
+    res.json(await estadoFiscal(affiliateId(req), true));
+  } catch (err) {
+    next(err);
+  }
+});
+
+affiliateRouter.put("/fiscal/documentos/:tipo", async (req, res, next) => {
+  try {
+    await salvarDocumento(affiliateId(req), req.params.tipo, req.body?.arquivo);
+    res.json(await estadoFiscal(affiliateId(req), false));
+  } catch (err) {
+    next(err);
+  }
+});
+
+affiliateRouter.get("/fiscal/documentos/:tipo", async (req, res, next) => {
+  try {
+    const d = await documento(affiliateId(req), req.params.tipo);
+    res.setHeader("Cache-Control", "no-store");
+    res.type(d.mime).send(d.bytes);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** PDF do recibo de um saque dele. O de outro afiliado é 404. */
+affiliateRouter.get("/recibos/:codigo/pdf", async (req, res, next) => {
+  try {
+    const r = await reciboPorCodigo(req.params.codigo);
+    if (!r || r.affiliateId !== affiliateId(req)) return res.status(404).json({ message: "Recibo não encontrado." });
+    const pdf = await pdfDoRecibo(r, urlDeConferencia(r.codigo));
+    res.setHeader("Cache-Control", "no-store");
+    res.setHeader("Content-Disposition", `attachment; filename="recibo-${r.codigo}.pdf"`);
+    res.type("application/pdf").send(pdf);
   } catch (err) {
     next(err);
   }

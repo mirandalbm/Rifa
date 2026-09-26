@@ -15,6 +15,7 @@ interface Plataforma {
   provedorPix: Provedor["id"] | null;
   estornoManual: boolean;
   taxaReembolsoPct: number;
+  exigirCadastroFiscal: boolean;
   provedorEmUso: string;
   provedores: Provedor[];
 }
@@ -32,6 +33,7 @@ export function PagamentosCard() {
   const [provedor, setProvedor] = useState<string>("");
   const [estorno, setEstorno] = useState(false);
   const [taxa, setTaxa] = useState("10");
+  const [fiscal, setFiscal] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [ok, setOk] = useState(false);
 
@@ -40,6 +42,7 @@ export function PagamentosCard() {
     setProvedor(data.provedorPix ?? "");
     setEstorno(data.estornoManual);
     setTaxa(String(data.taxaReembolsoPct ?? 10));
+    setFiscal(data.exigirCadastroFiscal);
   }, [data]);
 
   const salvar = useMutation({
@@ -48,6 +51,7 @@ export function PagamentosCard() {
         provedorPix: provedor || null,
         estornoManual: estorno,
         taxaReembolsoPct: Number(taxa),
+        exigirCadastroFiscal: fiscal,
       }),
     onSuccess: () => {
       setErro(null);
@@ -172,6 +176,24 @@ export function PagamentosCard() {
             máximo 10%, o limite aceito pela Justiça. Os pedidos fecham 2 horas antes do sorteio.
             A regra aparece para o comprador antes da compra.
           </p>
+        </div>
+
+        <div className="border-t border-line pt-3">
+          <label className="flex items-start gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={fiscal}
+              onChange={(e) => setFiscal(e.target.checked)}
+              className="mt-1 h-4 w-4 accent-[var(--green)]"
+            />
+            <span>
+              Exigir cadastro fiscal para o saque do afiliado
+              <span className="block text-xs text-muted">
+                Ligado, o afiliado só pede saque com nome, CPF, endereço, conta e documentos
+                aprovados em Cadastros fiscais. O recibo de cada saque sai com esses dados.
+              </span>
+            </span>
+          </label>
         </div>
 
         <Button onClick={() => salvar.mutate()} disabled={salvar.isPending}>

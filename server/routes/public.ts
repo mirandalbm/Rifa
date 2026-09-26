@@ -1,3 +1,4 @@
+import { conferirRecibo } from "../services/recibos";
 import { aderir, pedirColaboracao, termoPublico } from "../services/afiliados";
 import { fotoDoGanhador, urlDaFotoDoGanhador } from "../services/ganhador";
 import {
@@ -208,6 +209,20 @@ publicRouter.get("/stories/:id/imagem", async (req, res, next) => {
     if (!s) return res.status(404).json({ message: "Story não encontrado." });
     res.setHeader("Cache-Control", "public, max-age=3600");
     res.type(s.mime).send(s.bytes);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/* ---------------- conferência de recibo ---------------- */
+
+/**
+ * Qualquer pessoa confere se um recibo é autêntico pelo código (o QR do
+ * PDF). Devolve só o que prova o recibo — nunca CPF nem chave Pix.
+ */
+publicRouter.get("/recibos/:codigo", async (req, res, next) => {
+  try {
+    res.json(await conferirRecibo(req.params.codigo));
   } catch (err) {
     next(err);
   }

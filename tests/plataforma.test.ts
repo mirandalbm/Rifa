@@ -28,7 +28,7 @@ describe("configuração da plataforma", () => {
 
   it("não guarda chave que não existe", () => {
     const c = validarConfigPlataforma({ estornoManual: true, extra: 1 } as never);
-    expect(Object.keys(c).sort()).toEqual(["estornoManual", "provedorPix", "taxaReembolsoPct"]);
+    expect(Object.keys(c).sort()).toEqual(["estornoManual", "exigirCadastroFiscal", "provedorPix", "taxaReembolsoPct"]);
   });
 });
 

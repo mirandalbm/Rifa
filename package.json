@@ -27,7 +27,8 @@
     "aparencia": "tsx scripts/aparencia-test.ts",
     "vitrine": "tsx scripts/vitrine-test.ts",
     "resultados": "tsx scripts/resultados-test.ts",
-    "afiliados": "tsx scripts/afiliados-test.ts"
+    "afiliados": "tsx scripts/afiliados-test.ts",
+    "fiscal": "tsx scripts/fiscal-test.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1131.0",
@@ -60,6 +61,7 @@
     "@radix-ui/react-toggle-group": "^1.1.3",
     "@radix-ui/react-tooltip": "^1.2.0",
     "@tanstack/react-query": "^5.60.5",
+    "@types/pdfkit": "^0.17.6",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
@@ -74,6 +76,7 @@
     "nanoid": "^5.1.5",
     "passport": "^0.7.0",
     "passport-local": "^1.0.0",
+    "pdfkit": "^0.17.2",
     "pg": "^8.23.0",
     "qrcode": "^1.5.4",
     "react": "^18.3.1",

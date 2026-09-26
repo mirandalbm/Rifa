@@ -98,6 +98,7 @@ arquitetura.
 | exportações | `shared/exports.ts` (formato) e `server/services/exports.ts` (consultas) |
 | usuários, senha e arquivamento | `server/routes/admin.ts` (`/usuarios`, `/organizacoes/:id/arquivar`), `shared/senha.ts` |
 | o que falta para vender em produção | `docs/PENDENCIAS.md` — **atualize no mesmo PR** que fechar um item |
+| cadastro fiscal do afiliado, cofre e recibo | `shared/fiscal.ts` (regras), `server/services/cofre.ts`, `server/services/fiscal.ts`, `server/services/recibos.ts`, `client/src/pages/afiliadoDados.tsx`, `adminFiscal.tsx`, `Recibo.tsx`, `scripts/fiscal-test.ts` |
 | plano da próxima fase (vitrine, contas, afiliados, marketing) | `docs/PLANO-FASE5.md` |
 | conta do apostador (senha, confirmação, exclusão) | `shared/contaComprador.ts`, `server/services/contaComprador.ts`, `scripts/conta-test.ts` |
 | de quem é o cliente (o que o organizador vê) | `shared/titularidade.ts` (regra) e `server/services/titularidade.ts` (SQL) |
@@ -788,4 +789,37 @@ pedido, cotas e valor, e o cliente só pelo ID (`Cliente C-XXXXXXXX`).
   código continuam sendo criados pela organização.
 - `npm run afiliados` prova tudo isso contra a API de verdade, inclusive o
   recorte entre duas organizações.
+
+## Cadastro fiscal e recibo — o que não pode afrouxar
+
+- **Dado fiscal e documento só entram cifrados** (`cofre.ts`, AES-256-GCM).
+  A chave vem de `COFRE_CHAVE`, nunca do banco: vazar o banco sozinho não
+  abre nada. Em produção, sem a chave, o cofre recusa — não existe modo
+  "sem cifrar". Trocar a chave sem migrar é perder os documentos.
+- **O CPF não vira chave crua.** A unicidade entre afiliados é pela
+  impressão (HMAC do cofre, `cpf_impressao`, índice único parcial) — o
+  índice decide, nunca um `SELECT` antes (409 para o repetido).
+- **O organizador nunca vê** (403 em `/api/admin/fiscal*`, no `npm run
+  isolation`). A plataforma vê, e **a auditoria é gravada antes** de o dado
+  sair — dados e cada documento. A lista não traz dado nenhum; os dados só
+  carregam ao conferir.
+- **Documento é conferido pelo conteúdo** (bytes mágicos: JPG, PNG, WebP,
+  PDF), até 6 MB, e servido com `no-store`.
+- **Mexer depois de aprovado volta para análise** — trocar a conta de
+  destino é exatamente o golpe de quem tomou a conta do afiliado. Decidir é
+  `UPDATE` condicional (`em_analise` → aprovado/recusado); recusa exige
+  motivo.
+- **Exigir o cadastro para sacar é escolha da plataforma**
+  (`exigirCadastroFiscal`, nasce desligada): quem já sacava não acorda
+  barrado.
+- **Baixa e recibo na mesma transação**, com `UPDATE` condicional: dois
+  cliques dão um recibo e um 409. Recibo que não fecha (origem ≠ valor) não
+  sai — e a baixa volta junto.
+- **O recibo é o retrato, não uma consulta**: `snapshot` + SHA-256 do texto
+  canônico + HMAC da plataforma. O PDF é gerado dele; a conferência pública
+  (`/recibo/<código>`) refaz os dois e mostra só primeiro nome, pagador e
+  valor — nunca CPF nem Pix. Um centavo mexido no banco vira "não confere".
+- **Recibo não se apaga junto com o saque** (FK sem cascata): script de
+  teste que apaga saque apaga o recibo antes.
+- `npm run fiscal` prova tudo isso contra a API de verdade.
 

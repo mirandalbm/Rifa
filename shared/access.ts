@@ -65,6 +65,8 @@ export type SectionKey =
   | "adminStories"
   | "afiliadoOrganizacoes"
   | "adminResultados"
+  | "afiliadoDados"
+  | "adminFiscal"
   | "adminFinanceiro"
   | "adminSorteios"
   | "adminCobranca"
@@ -98,6 +100,8 @@ export const SECTIONS: Section[] = [
   { key: "afiliadoOrganizacoes", path: "/afiliado/organizacoes", label: "Organizações", requires: "affiliate", nav: true },
   { key: "afiliadoComissoes", path: "/afiliado/comissoes", label: "Comissões", requires: "affiliate", nav: true },
   { key: "afiliadoSaques", path: "/afiliado/saques", label: "Saques", requires: "affiliate", nav: true },
+  // Cadastro fiscal: quem recebe a comissão. Cifrado; o organizador nunca vê.
+  { key: "afiliadoDados", path: "/afiliado/dados", label: "Meus dados", requires: "affiliate", nav: true },
 
   // Cambista — vende na mão, imprime o bilhete e acerta com a casa.
   { key: "cambistaVenda", path: "/cambista", label: "Nova venda", requires: "cambista", nav: true },
@@ -133,6 +137,8 @@ export const SECTIONS: Section[] = [
   { key: "adminOrganizacoes", path: "/admin/organizacoes", label: "Organizações", requires: "admin", nav: true },
   { key: "adminAntifraude", path: "/admin/antifraude", label: "Antifraude", requires: "admin", nav: true },
   { key: "adminAparencia", path: "/admin/aparencia", label: "Aparência", requires: "admin", nav: true },
+  // Cadastro fiscal dos afiliados: só a plataforma confere, e cada olhada é auditada.
+  { key: "adminFiscal", path: "/admin/fiscal", label: "Cadastros fiscais", requires: "admin", nav: true },
 ];
 
 export function sectionsFor(role: Role): Section[] {

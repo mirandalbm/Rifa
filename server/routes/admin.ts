@@ -15,6 +15,7 @@ import {
   buyers,
   affiliates,
   afiliadoVinculos,
+  recibos,
   users,
   commissions,
   coupons,
@@ -114,6 +115,9 @@ import {
   vinculosDaOrganizacao,
 } from "../services/afiliados";
 import { salvarFotoDoGanhador } from "../services/ganhador";
+import { emitirRecibo, pdfDoRecibo, reciboPorCodigo } from "../services/recibos";
+import { cadastrosFiscais, decidirCadastro, documento, estadoFiscal } from "../services/fiscal";
+import { urlDeConferencia } from "../services/urls";
 import { validarPeriodo } from "@shared/resultados";
 import {
   alterarBanner,
@@ -1570,6 +1574,10 @@ adminRouter.put("/plataforma", async (req, res, next) => {
         req.body?.taxaReembolsoPct !== undefined
           ? Number(req.body.taxaReembolsoPct)
           : (await getPlataforma()).taxaReembolsoPct,
+      exigirCadastroFiscal:
+        req.body?.exigirCadastroFiscal !== undefined
+          ? req.body.exigirCadastroFiscal === true
+          : (await getPlataforma()).exigirCadastroFiscal,
     });
     await audit(req, "plataforma.update", "settings", "plataforma", salva);
     res.json(salva);
@@ -2183,18 +2191,26 @@ adminRouter.post("/payouts/:id/paid", async (req, res, next) => {
       return res.status(404).json({ message: "Saque não encontrado." });
     }
 
-    const [updated] = await db
-      .update(payouts)
-      .set({
-        status: "paid",
-        processedAt: new Date(),
-        receiptUrl: req.body?.receiptUrl ? String(req.body.receiptUrl) : null,
-      })
-      .where(eq(payouts.id, req.params.id))
-      .returning();
+    // Baixa e recibo na mesma transação; o `UPDATE` condicional impede dar
+    // baixa duas vezes (e emitir dois recibos) em dois cliques.
+    const feito = await db.transaction(async (tx) => {
+      const [updated] = await tx
+        .update(payouts)
+        .set({
+          status: "paid",
+          processedAt: new Date(),
+          receiptUrl: req.body?.receiptUrl ? String(req.body.receiptUrl) : null,
+        })
+        .where(and(eq(payouts.id, req.params.id), eq(payouts.status, "requested")))
+        .returning();
+      if (!updated) return null;
+      const recibo = await emitirRecibo(tx, updated.id);
+      return { ...updated, recibo };
+    });
+    if (!feito) return res.status(409).json({ message: "Este saque já foi pago." });
 
-    await audit(req, "payout.paid", "payout", req.params.id);
-    res.json(updated);
+    await audit(req, "payout.paid", "payout", req.params.id, { recibo: feito.recibo });
+    res.json(feito);
   } catch (err) {
     next(err);
   }
@@ -2663,6 +2679,97 @@ adminRouter.post("/colaboradores/pedidos/:id", async (req, res, next) => {
     await decidirPedidoDeColaborador(orgOf(req), req.params.id, req.body?.status);
     await audit(req, "colaborador.pedido", "pedido_colaborador", req.params.id, { status: req.body?.status });
     res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/* ---------------- recibos ---------------- */
+
+/** PDF do recibo: a organização que pagou (ou a plataforma). O do vizinho é 404. */
+adminRouter.get("/recibos/:codigo/pdf", async (req, res, next) => {
+  try {
+    const r = await reciboPorCodigo(req.params.codigo);
+    const org = orgOf(req);
+    if (!r || (org && r.organizationId !== org)) return res.status(404).json({ message: "Recibo não encontrado." });
+    const pdf = await pdfDoRecibo(r, urlDeConferencia(r.codigo));
+    res.setHeader("Cache-Control", "no-store");
+    res.setHeader("Content-Disposition", `attachment; filename="recibo-${r.codigo}.pdf"`);
+    res.type("application/pdf").send(pdf);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** Saques pagos da organização (com o recibo de cada um). */
+adminRouter.get("/saques-pagos", async (req, res, next) => {
+  try {
+    const org = orgOf(req);
+    const linhas = await db
+      .select({
+        id: payouts.id,
+        amountCents: payouts.amountCents,
+        processedAt: payouts.processedAt,
+        codigoAfiliado: affiliates.code,
+        recibo: recibos.codigo,
+      })
+      .from(payouts)
+      .innerJoin(affiliates, eq(affiliates.id, payouts.affiliateId))
+      .leftJoin(recibos, eq(recibos.payoutId, payouts.id))
+      .where(and(eq(payouts.status, "paid"), org ? eq(payouts.organizationId, org) : sql`TRUE`))
+      .orderBy(desc(payouts.processedAt))
+      .limit(50);
+    res.json(linhas);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/* ---------------- cadastro fiscal (só a plataforma) ---------------- */
+
+/**
+ * O cadastro fiscal do afiliado é visto só pela plataforma — organizador
+ * recebe 403. Toda leitura de dado ou documento entra na auditoria **antes**
+ * de o dado sair (se a auditoria falhar, nada sai).
+ */
+adminRouter.get("/fiscal", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    res.json(await cadastrosFiscais());
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.get("/fiscal/:affiliateId", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    await audit(req, "fiscal.ver_dados", "affiliate", req.params.affiliateId);
+    res.setHeader("Cache-Control", "no-store");
+    res.json(await estadoFiscal(req.params.affiliateId, true));
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.get("/fiscal/:affiliateId/documentos/:tipo", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    await audit(req, "fiscal.ver_documento", "affiliate", req.params.affiliateId, { tipo: req.params.tipo });
+    const d = await documento(req.params.affiliateId, req.params.tipo);
+    res.setHeader("Cache-Control", "no-store");
+    res.type(d.mime).send(d.bytes);
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.post("/fiscal/:affiliateId/decidir", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    const feito = await decidirCadastro(req.params.affiliateId, req.body?.status, req.body?.motivo, req.user?.id ?? null);
+    await audit(req, "fiscal.decidir", "affiliate", req.params.affiliateId, { status: feito.status });
+    res.json(feito);
   } catch (err) {
     next(err);
   }

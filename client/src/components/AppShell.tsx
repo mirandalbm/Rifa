@@ -33,6 +33,8 @@ import {
   HelpCircle,
   CircleDashed,
   BarChart3,
+  IdCard,
+  FileCheck2,
 } from "lucide-react";
 import type { SectionKey } from "@shared/access";
 import { useSession, useLogout } from "@/lib/session";
@@ -184,6 +186,7 @@ const ICONE: Partial<Record<SectionKey, LucideIcon>> = {
   afiliadoOrganizacoes: Building2,
   afiliadoComissoes: Percent,
   afiliadoSaques: Banknote,
+  afiliadoDados: IdCard,
   cambistaVenda: ShoppingCart,
   cambistaVendas: ListOrdered,
   cambistaAcerto: HandCoins,
@@ -204,6 +207,7 @@ const ICONE: Partial<Record<SectionKey, LucideIcon>> = {
   adminOrganizacoes: Building2,
   adminAntifraude: ShieldAlert,
   adminAparencia: Palette,
+  adminFiscal: FileCheck2,
 };
 
 const CHAVE_MENU = "rifa.menu.aberto";

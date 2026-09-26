@@ -57,12 +57,20 @@ export interface ConfigPlataforma {
    * 7 dias, ou compra presencial), de 0 a 10% — ver `shared/reembolso.ts`.
    */
   taxaReembolsoPct: number;
+  /**
+   * Saque do afiliado só com o cadastro fiscal aprovado. **Desligado por
+   * padrão**: liga-se quando o contador confirmar o modelo (RPA ou nota) e as
+   * organizações já tiverem avisado os afiliados — senão o saque de todo
+   * mundo trava no dia seguinte.
+   */
+  exigirCadastroFiscal: boolean;
 }
 
 export const CONFIG_PADRAO: ConfigPlataforma = {
   provedorPix: null,
   estornoManual: false,
   taxaReembolsoPct: TAXA_REEMBOLSO_PADRAO_PCT,
+  exigirCadastroFiscal: false,
 };
 
 /** Só as chaves conhecidas: isto vem do corpo da requisição. */
@@ -83,6 +91,7 @@ export function validarConfigPlataforma(entrada: Partial<ConfigPlataforma>): Con
     provedorPix: provedor,
     estornoManual: entrada.estornoManual === true,
     taxaReembolsoPct: taxa,
+    exigirCadastroFiscal: entrada.exigirCadastroFiscal === true,
   };
 }
 

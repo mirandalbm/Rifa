@@ -41,6 +41,9 @@ import { AdminUsuarios } from "@/pages/adminUsuarios";
 import { AdminAtendimento } from "@/pages/adminAtendimento";
 import { AdminStories } from "@/pages/adminStories";
 import { AdminResultados } from "@/pages/adminResultados";
+import { AdminFiscal } from "@/pages/adminFiscal";
+import { AfiliadoDados } from "@/pages/afiliadoDados";
+import ReciboPage from "@/pages/Recibo";
 import { PanelShell } from "@/components/AppShell";
 import { TrocarSenha } from "@/components/TrocarSenha";
 import { AdminCobranca } from "@/pages/adminCobranca";
@@ -118,6 +121,7 @@ export default function App() {
           <Route path="/criar-conta" component={CriarConta} />
           <Route path="/seja-afiliado" component={CadastroAfiliado} />
           <Route path="/bilhete/:code" component={Bilhete} />
+          <Route path="/recibo/:codigo" component={ReciboPage} />
 
           {/* Afiliado */}
           <Route path="/afiliado">
@@ -143,6 +147,11 @@ export default function App() {
           <Route path="/afiliado/saques">
             <Guarded requires="affiliate">
               <AfiliadoSaques />
+            </Guarded>
+          </Route>
+          <Route path="/afiliado/dados">
+            <Guarded requires="affiliate">
+              <AfiliadoDados />
             </Guarded>
           </Route>
 
@@ -236,6 +245,11 @@ export default function App() {
           <Route path="/admin/organizacoes">
             <Guarded requires="admin">
               <AdminOrganizacoes />
+            </Guarded>
+          </Route>
+          <Route path="/admin/fiscal">
+            <Guarded requires="admin">
+              <AdminFiscal />
             </Guarded>
           </Route>
           <Route path="/admin/aparencia">

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { PRAZO_ESTORNO_MIN, PRAZO_ESTORNO_MAX } from "@shared/chamados";
 import { PanelShell } from "@/components/AppShell";
 import { Card, Button, Pill, Empty } from "@/components/bits";
 import { apiRequest } from "@/lib/queryClient";
@@ -26,6 +27,7 @@ interface Organizacao {
   createdAt: string;
   asaasWalletId: string | null;
   liberacaoComissao: LiberacaoComissao;
+  prazoEstornoDias: number;
   campanhas: number;
   pessoas: number;
 }
@@ -506,6 +508,7 @@ function PagamentoDaOrganizacao({ o }: { o: Organizacao }) {
   const qc = useQueryClient();
   const [carteira, setCarteira] = useState(o.asaasWalletId ?? "");
   const [liberacao, setLiberacao] = useState<LiberacaoComissao>(o.liberacaoComissao);
+  const [prazo, setPrazo] = useState(String(o.prazoEstornoDias ?? 7));
   const [msg, setMsg] = useState<{ ok: boolean; texto: string } | null>(null);
 
   const carteiraOk = carteira.trim() === "" || carteiraAsaasValida(carteira);
@@ -514,6 +517,7 @@ function PagamentoDaOrganizacao({ o }: { o: Organizacao }) {
       apiRequest("PATCH", `/api/admin/organizacoes/${o.id}`, {
         asaasWalletId: carteira.trim() || null,
         liberacaoComissao: liberacao,
+        prazoEstornoDias: Number(prazo),
       }),
     onSuccess: () => {
       setMsg({ ok: true, texto: "Salvo. Vale para as próximas vendas." });
@@ -564,6 +568,23 @@ function PagamentoDaOrganizacao({ o }: { o: Organizacao }) {
             </option>
           ))}
         </select>
+      </div>
+      <div>
+        <label htmlFor={`prazo-${o.id}`} className="label-xs">
+          Prazo de reembolso (dias após aprovar)
+        </label>
+        <input
+          id={`prazo-${o.id}`}
+          type="number"
+          min={PRAZO_ESTORNO_MIN}
+          max={PRAZO_ESTORNO_MAX}
+          value={prazo}
+          onChange={(e) => {
+            setMsg(null);
+            setPrazo(e.target.value);
+          }}
+          className="tnum mt-1 w-24 rounded-md border border-line-2 bg-white px-3 py-2 text-sm"
+        />
       </div>
       <div className="flex items-center gap-3 sm:col-span-2">
         <Button onClick={() => salvar.mutate()} disabled={!carteiraOk || salvar.isPending}>

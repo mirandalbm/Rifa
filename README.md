@@ -81,6 +81,7 @@ O seed imprime as credenciais no fim:
 | `npm run load` | teste de carga com compradores simultâneos |
 | `npm run isolation` | prova de isolamento entre organizações |
 | `npm run refund` | prova dos cinco efeitos do estorno |
+| `npm run chamados` | prova do reembolso por chamado (com `npm run dev` no ar) |
 
 ## Variáveis de ambiente
 
@@ -280,11 +281,18 @@ confirmado pelo provedor que o criou — cada um tem o próprio webhook:
 - **Comissão:** cada organização escolhe (em Configurações, ou o
   administrador geral em Organizações) se a comissão fica disponível
   **depois do sorteio** (padrão, com carência) ou **na hora do pagamento**.
-- **Estorno pelo painel:** desligado por padrão — numa rifa, compra é
-  participação. O administrador geral pode ligar para caso excepcional; aí
-  aparece o botão "estornar" em Pedidos. O botão desfaz cotas, comissão e
-  taxa no sistema; a devolução do dinheiro é feita no Pix ou no caixa.
+- **Reembolso por chamado:** desligado por padrão — numa rifa, compra é
+  participação. O administrador geral liga em Configurações → "Aceitar
+  pedidos de reembolso". Aí o comprador, **logado** em "Minhas cotas", pede o
+  reembolso de um pedido pago de rifa ainda não sorteada, com motivo, CPF e o
+  print do bilhete. A organização conversa com ele em **Atendimento**, aprova
+  ou recusa; aprovado, o protocolo (`RB-AAAAMMDD-NNNNNN`) e o prazo de
+  devolução da organização (1 a 30 dias, em Configurações) saem sozinhos.
+  "Fazer a devolução" devolve pelo provedor do Pix (mesma conta que pagou) e
+  desfaz cotas, comissão e taxa; venda do cambista é devolvida no caixa.
   Estorno avisado pelo próprio provedor é registrado mesmo desligado.
+- **ID do cliente:** todo comprador tem um código `C-XXXXXXXX`, mostrado em
+  "Minhas cotas" e no atendimento, além do telefone e do CPF.
 
 ### As cotas premiadas
 
@@ -551,11 +559,9 @@ Duas regras valem registrar:
   em `quota_alloc` e invisível para quem aloca pelo pool: sumiria do estoque
   sem ninguém perceber.
 
-O estorno entra pelo webhook do provedor e também pela mão
-(`POST /api/admin/orders/:code/estornar`), porque nem todo estorno vem do Pix
-— venda em dinheiro do cambista, cobrança contestada por fora, erro de
-operação. O botão **não devolve dinheiro**: quem devolve é o Pix ou o caixa, e
-a rota só acerta o que o sistema registrou.
+O estorno entra pelo webhook do provedor e pelo chamado de reembolso aprovado
+(`POST /api/admin/chamados/:id/estornar`). Não há outro caminho manual: sem
+pedido do comprador logado, conversa e protocolo, não se devolve.
 
 ```bash
 npm run refund

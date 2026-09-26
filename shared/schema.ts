@@ -13,7 +13,15 @@ import {
   uniqueIndex,
   primaryKey,
 } from "drizzle-orm/pg-core";
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
+import { customType } from "drizzle-orm/pg-core";
+
+/** Bytes crus (o anexo do chamado). O driver `pg` entrega `Buffer`. */
+const bytea = customType<{ data: Buffer; driverData: Buffer }>({
+  dataType() {
+    return "bytea";
+  },
+});
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -163,6 +171,12 @@ export const organizations = pgTable(
      * hora do pagamento. Escolha da organização.
      */
     liberacaoComissao: commissionRelease("liberacao_comissao").notNull().default("apos_sorteio"),
+    /**
+     * Dias que a organização se compromete a levar para devolver o dinheiro
+     * depois de aprovar um pedido de reembolso. O prazo de cada chamado é
+     * calculado sozinho na aprovação.
+     */
+    prazoEstornoDias: integer("prazo_estorno_dias").notNull().default(7),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (t) => [uniqueIndex("uq_organizations_slug").on(t.slug)],
@@ -201,9 +215,18 @@ export const buyers = pgTable(
     phone: text("phone").notNull(),
     cpf: text("cpf"),
     email: text("email"),
+    /**
+     * ID do cliente, visível para ele e para o atendimento (ex.: C-7F3K9Q2M).
+     * Sorteado, nunca sequencial; quem garante que não repete é o índice.
+     * Nasce na primeira vez que o comprador entra em "Minhas cotas".
+     */
+    codigo: text("codigo"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
-  (t) => [uniqueIndex("uq_buyers_phone").on(t.phone)],
+  (t) => [
+    uniqueIndex("uq_buyers_phone").on(t.phone),
+    uniqueIndex("uq_buyers_codigo").on(t.codigo),
+  ],
 );
 
 export const affiliates = pgTable(
@@ -714,6 +737,95 @@ export const auditLog = pgTable(
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (t) => [index("idx_audit_entity").on(t.entity, t.entityId, t.createdAt)],
+);
+
+/* ------------------------------------------------------------------ *
+ * Atendimento: chamados de reembolso com conversa
+ * ------------------------------------------------------------------ */
+
+export const chamadoStatus = pgEnum("chamado_status", [
+  "aberto",
+  "aprovado",
+  "recusado",
+  "estornado",
+]);
+
+/**
+ * Pedido de reembolso. Só o comprador logado abre, só para pedido pago dele,
+ * e só um chamado em andamento por pedido — quem garante é o índice parcial,
+ * não uma consulta antes.
+ */
+export const chamados = pgTable(
+  "chamados",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /** Número que o comprador e o atendimento usam para falar do caso. */
+    protocolo: text("protocolo").notNull(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "restrict" }),
+    orderId: uuid("order_id")
+      .notNull()
+      .references(() => orders.id, { onDelete: "restrict" }),
+    buyerId: uuid("buyer_id")
+      .notNull()
+      .references(() => buyers.id, { onDelete: "restrict" }),
+    status: chamadoStatus("status").notNull().default("aberto"),
+    motivo: text("motivo").notNull(),
+    /** Chave Pix para devolução quando o provedor não devolve sozinho. */
+    pixChave: text("pix_chave"),
+    /** Prazo para devolver, calculado na aprovação com o prazo da organização. */
+    prazoEstornoAte: timestamp("prazo_estorno_ate"),
+    concluidoEm: timestamp("concluido_em"),
+    concluidoPor: uuid("concluido_por"),
+    /** Resposta final da organização (aprovação ou motivo da recusa). */
+    decisao: text("decisao"),
+    estornadoEm: timestamp("estornado_em"),
+    /** Como o dinheiro voltou: pelo provedor, na conta que pagou, ou à mão. */
+    formaDevolucao: text("forma_devolucao"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("uq_chamados_protocolo").on(t.protocolo),
+    uniqueIndex("uq_chamados_pedido_andamento")
+      .on(t.orderId)
+      .where(sql`status in ('aberto', 'aprovado')`),
+    index("idx_chamados_org").on(t.organizationId, t.status, t.createdAt),
+  ],
+);
+
+/**
+ * Anexo (o print do bilhete). Guardado no próprio banco, já reprocessado:
+ * a imagem é decodificada e regravada em JPEG, o que descarta metadado
+ * (localização da foto) e qualquer coisa que não seja imagem de verdade.
+ */
+export const chamadoAnexos = pgTable("chamado_anexos", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  chamadoId: uuid("chamado_id")
+    .notNull()
+    .references(() => chamados.id, { onDelete: "cascade" }),
+  mime: text("mime").notNull(),
+  bytes: bytea("bytes").notNull(),
+  tamanho: integer("tamanho").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const chamadoMensagens = pgTable(
+  "chamado_mensagens",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    chamadoId: uuid("chamado_id")
+      .notNull()
+      .references(() => chamados.id, { onDelete: "cascade" }),
+    /** Quem escreveu: o comprador ou a organização (qualquer pessoa do painel). */
+    autor: text("autor").notNull(),
+    /** Pessoa do painel que respondeu; nulo quando é o comprador. */
+    userId: uuid("user_id"),
+    texto: text("texto").notNull(),
+    anexoId: uuid("anexo_id"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [index("idx_chamado_mensagens").on(t.chamadoId, t.createdAt)],
 );
 
 /* ------------------------------------------------------------------ *

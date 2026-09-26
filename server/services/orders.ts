@@ -824,7 +824,12 @@ export async function ordersByPhone(phone: string) {
   return db
     .select({
       order: orders,
-      campaign: { title: campaigns.title, slug: campaigns.slug, totalQuotas: campaigns.totalQuotas },
+      campaign: {
+        title: campaigns.title,
+        slug: campaigns.slug,
+        totalQuotas: campaigns.totalQuotas,
+        status: campaigns.status,
+      },
       numbers: sql<number[]>`coalesce(array_agg(${quotaAlloc.number} ORDER BY ${quotaAlloc.number})
         FILTER (WHERE ${quotaAlloc.number} IS NOT NULL), '{}')`,
     })
@@ -833,7 +838,7 @@ export async function ordersByPhone(phone: string) {
     .innerJoin(campaigns, eq(campaigns.id, orders.campaignId))
     .leftJoin(quotaAlloc, eq(quotaAlloc.orderId, orders.id))
     .where(eq(buyers.phone, digits))
-    .groupBy(orders.id, campaigns.title, campaigns.slug, campaigns.totalQuotas)
+    .groupBy(orders.id, campaigns.title, campaigns.slug, campaigns.totalQuotas, campaigns.status)
     .orderBy(desc(orders.createdAt));
 }
 

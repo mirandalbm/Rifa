@@ -3,7 +3,7 @@
 Lista viva do que falta para a rifa vender em produção. Atualizada a cada
 etapa — quem fechar um item marca aqui no mesmo PR.
 
-Última atualização: 26/09/2026 (Asaas, comissão e estorno).
+Última atualização: 26/09/2026 (reembolso por chamado).
 
 Legenda: **[você]** depende do responsável pela conta (cadastro, documento,
 senha); **[código]** é trabalho no repositório.
@@ -40,8 +40,17 @@ senha); **[código]** é trabalho no repositório.
 - [x] Asaas integrado ao lado do Mercado Pago: split para a carteira do
   promotor, CPF no checkout, cancelamento da cobrança de reserva vencida.
 - [x] Comissão: cada organização escolhe "depois do sorteio" ou "na hora".
-- [x] Estorno pelo painel: opção que o administrador geral liga (nasce
-  desligada) e botão "estornar" em Pedidos.
+- [x] Reembolso por chamado: o comprador logado pede em "Minhas cotas" com
+  CPF e print do bilhete; a organização conversa e decide em Atendimento;
+  protocolo e prazo de devolução (definido por cada organização) saem
+  sozinhos. O botão solto de estorno em Pedidos foi retirado. Todo comprador
+  tem um ID de cliente (`C-XXXXXXXX`).
+- [ ] **[você]** Ligar "Aceitar pedidos de reembolso" (Configurações →
+  Pagamentos e estorno) quando decidir aceitar, e cada organização conferir
+  o prazo de reembolso em Configurações.
+- [ ] **[você]** O comprador só entra em "Minhas cotas" pelo código do
+  WhatsApp: **sem o modelo `codigo_acesso` aprovado (item 1), ninguém
+  consegue pedir reembolso** — nem ver as cotas.
 - [ ] **[você]** Cloudflare R2: criar o bucket e gerar as chaves (sem isso,
   não sobe banner nem foto de rifa).
 - [ ] **[você]** Domínio próprio apontado para o Railway.
@@ -77,6 +86,9 @@ senha); **[código]** é trabalho no repositório.
   Android SDK.
 - [ ] **[código]** Pôster e transcode dos vídeos das rifas (Cloudflare Stream
   resolve os dois).
+- [ ] **[código]** Aviso ao organizador quando chega chamado novo (hoje a
+  tela de Atendimento se atualiza sozinha, mas não há WhatsApp/e-mail para
+  ele).
 - [ ] **[código]** Revisão completa das telas, com prints, para ajustes de uso.
 - [ ] **[código]** Cobrança com Asaas: nas vendas com split, a taxa da
   plataforma já fica retida na origem, mas a tela de Cobrança ainda a lista

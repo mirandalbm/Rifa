@@ -88,6 +88,7 @@ arquitetura.
 | isolamento entre organizadores | `server/services/orgs.ts` e `scripts/isolation-test.ts` |
 | rateio da venda | `shared/pricing.ts` (`splitOrder`) |
 | estorno | `server/services/orders.ts` (`refundOrder`) e `scripts/refund-test.ts` |
+| pedido de reembolso (chamado) | `shared/chamados.ts`, `server/services/chamados.ts`, `client/src/pages/adminAtendimento.tsx`, `scripts/chamados-test.ts` |
 | contrato de cobrança da plataforma | `shared/billing.ts` e `server/services/billing.ts` |
 | exportações | `shared/exports.ts` (formato) e `server/services/exports.ts` (consultas) |
 | usuários, senha e arquivamento | `server/routes/admin.ts` (`/usuarios`, `/organizacoes/:id/arquivar`), `shared/senha.ts` |
@@ -327,8 +328,9 @@ tem atrás.
 - **O QR do Asaas vale até o fim do dia.** Reserva vencida cancela a cobrança
   (`cancelCharge`, no relógio de expiração); senão o comprador pagaria uma
   reserva já devolvida.
-- **Estorno pelo painel nasce desligado** (`estornoManual`). Desligado barra
-  só o botão: estorno avisado pelo provedor (contestação, Pix devolvido) é
+- **Reembolso nasce desligado** (`estornoManual`, "Aceitar pedidos de
+  reembolso"). Desligado, o comprador não abre chamado e a organização não
+  devolve; estorno avisado pelo provedor (contestação, Pix devolvido) é
   registrado sempre — o dinheiro já saiu.
 - **Carteira do Asaas só a plataforma cadastra.** Trocar a carteira é trocar
   para onde vai o dinheiro das vendas.
@@ -390,6 +392,42 @@ comissão paga por venda que voltou, ou número que some do estoque.
   acontecer, mas estorno tardio acontece: quando pega uma comissão `paid`, o
   valor volta em `comissaoJaPagaCents` e vai para o log. Engolir calado seria
   esconder dinheiro que saiu.
-- **O botão do administrador não devolve dinheiro.** Quem devolve é o Pix ou
-  o caixa; a rota só acerta o que o sistema registrou. Misturar as duas
-  coisas faria o botão parecer que paga, e ninguém confere depois.
+- **Não existe botão solto de estorno.** O único caminho manual é o chamado
+  aprovado (seção abaixo). Com Pix, a devolução vai pelo provedor, para a
+  mesma conta que pagou, **antes** de `refundOrder`; se o provedor recusa, o
+  chamado volta a aprovado e nada é desfeito. Venda do cambista não tem
+  provedor: o sistema registra e o dinheiro volta pelo caixa
+  (`formaDevolucao = manual`).
+
+## Reembolso por chamado — o que não pode afrouxar
+
+Reembolso é a porta preferida de quem quer fraudar: comprar, perder e pedir o
+dinheiro de volta, ou pedir por um pedido que não é seu. Por isso ele não é
+botão, é **chamado** — com dono, prova, conversa e protocolo.
+
+- **Só o comprador logado pede.** A sessão do código pelo WhatsApp decide de
+  quem é o pedido; o número digitado não vale nada. Pedido de outro comprador
+  é 404 (`abrirChamado`), e o mesmo vale para ler chamado e print.
+- **Três identidades, conferidas juntas**: telefone (sessão), CPF e o ID do
+  cliente (`buyers.codigo`, `C-XXXXXXXX`, sorteado e sem caractere ambíguo).
+  O CPF, na primeira vez, fica no cadastro; dali em diante tem de bater.
+  O ID é o que o atendimento usa para falar da pessoa sem expor telefone.
+- **Depois do sorteio, nunca.** `bloqueioDoReembolso()` em
+  `shared/chamados.ts`, a mesma regra que esconde o botão e que o servidor
+  aplica. Quem perdeu pediria o dinheiro de volta.
+- **Um chamado em andamento por pedido** — quem decide é o índice único
+  parcial `uq_chamados_pedido_andamento`, não um `SELECT` antes.
+- **Limite do dia conta a tentativa, e conta o CPF errado.** Erro de
+  preenchimento (print faltando) sai **antes** do `hit()`, senão quem erra o
+  formulário fica 24 h sem pedir; o CPF é conferido **depois**, senão dá para
+  chutar CPF sem limite.
+- **O print é reprocessado** (`processarAnexo`: sharp → JPEG, sem metadados
+  de localização) e fica no banco, servido só pelas duas rotas que conferem o
+  dono, com `no-store`. Imagem do bilhete nunca vai para URL pública.
+- **Concluir é um `UPDATE` condicional** (`aberto` → `aprovado`/`recusado`).
+  O prazo de devolução sai de `organizations.prazoEstornoDias` (1 a 30),
+  calculado na conclusão, e vai na mensagem com o protocolo — é compromisso.
+- **Estornar toma o chamado** (`aprovado` → `estornado`) antes de chamar o
+  provedor: dois cliques simultâneos dão um estorno e um 409.
+- **O comprador nunca vê o nome de quem atendeu** — só "Atendimento".
+- `npm run chamados` prova tudo isso contra a API de verdade.

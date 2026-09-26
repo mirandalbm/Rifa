@@ -29,6 +29,16 @@ import { identify, guardOtp, guardOtpVerify, lookupBlocked, recordLookupMiss } f
 import { paymentSummary } from "@shared/payments";
 import { activePaymentProvider } from "../payments";
 import { EXIGE_CPF, type ProvedorPix } from "@shared/plataforma";
+import { getPlataforma } from "../services/settings";
+import {
+  abrirChamado,
+  anexoPara,
+  chamadoDoComprador,
+  chamadosDoComprador,
+  exigirComprador,
+  garantirCodigoCliente,
+  mensagemDoComprador,
+} from "../services/chamados";
 
 export const publicRouter = Router();
 
@@ -361,7 +371,12 @@ publicRouter.post("/my-quotas/verify", async (req, res, next) => {
       ? { id: buyer.id, phone: buyer.phone, name: buyer.name }
       : { id: "", phone, name: "" };
 
-    res.json({ orders: await ordersByPhone(phone) });
+    res.json({
+      orders: await ordersByPhone(phone),
+      phone,
+      cliente: buyer ? await garantirCodigoCliente(buyer.id) : null,
+      reembolso: (await getPlataforma()).estornoManual,
+    });
   } catch (err) {
     next(err);
   }
@@ -371,7 +386,76 @@ publicRouter.get("/my-quotas", async (req, res, next) => {
   try {
     const phone = req.session.buyer?.phone;
     if (!phone) return res.status(401).json({ message: "Confirme seu telefone." });
-    res.json({ orders: await ordersByPhone(phone) });
+    const buyerId = req.session.buyer?.id;
+    res.json({
+      orders: await ordersByPhone(phone),
+      phone,
+      cliente: buyerId ? await garantirCodigoCliente(buyerId) : null,
+      reembolso: (await getPlataforma()).estornoManual,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/* ---------------- reembolso: chamados do comprador ---------------- */
+
+// Tudo aqui exige o comprador logado (código pelo WhatsApp): o reembolso não
+// é pedido por quem só sabe o número do pedido.
+
+publicRouter.get("/chamados", async (req, res, next) => {
+  try {
+    const c = exigirComprador(req);
+    res.json({ cliente: await garantirCodigoCliente(c.id), chamados: await chamadosDoComprador(c.id) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+publicRouter.post("/chamados", async (req, res, next) => {
+  try {
+    const c = exigirComprador(req);
+    const chamado = await abrirChamado(c, {
+      orderCode: Number(req.body?.orderCode),
+      motivo: String(req.body?.motivo ?? ""),
+      cpf: String(req.body?.cpf ?? ""),
+      pixChave: req.body?.pixChave ? String(req.body.pixChave) : undefined,
+      anexo: String(req.body?.anexo ?? ""),
+    });
+    res.status(201).json({ id: chamado.id, protocolo: chamado.protocolo });
+  } catch (err) {
+    next(err);
+  }
+});
+
+publicRouter.get("/chamados/anexos/:id", async (req, res, next) => {
+  try {
+    const c = exigirComprador(req);
+    const a = await anexoPara(req.params.id, { buyerId: c.id });
+    res.setHeader("Cache-Control", "private, no-store");
+    res.type(a.mime).send(a.bytes);
+  } catch (err) {
+    next(err);
+  }
+});
+
+publicRouter.get("/chamados/:id", async (req, res, next) => {
+  try {
+    const c = exigirComprador(req);
+    res.json(await chamadoDoComprador(c.id, req.params.id));
+  } catch (err) {
+    next(err);
+  }
+});
+
+publicRouter.post("/chamados/:id/mensagens", async (req, res, next) => {
+  try {
+    const c = exigirComprador(req);
+    await mensagemDoComprador(c, req.params.id, {
+      texto: String(req.body?.texto ?? ""),
+      anexo: req.body?.anexo ? String(req.body.anexo) : undefined,
+    });
+    res.status(201).json({ ok: true });
   } catch (err) {
     next(err);
   }

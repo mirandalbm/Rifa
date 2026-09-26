@@ -96,6 +96,15 @@ import {
 } from "../services/orgs";
 import { isUniqueViolation } from "../pgError";
 import {
+  anexoPara,
+  chamadosAbertos,
+  concluirChamado,
+  detalheDoChamado,
+  executarEstorno,
+  listarChamados,
+  respostaDaOrganizacao,
+} from "../services/chamados";
+import {
   PROVEDORES_PIX,
   NOME_PROVEDOR,
   CREDENCIAIS_PROVEDOR,
@@ -1136,6 +1145,8 @@ adminRouter.patch("/organizacoes/:id", async (req, res, next) => {
       active: req.body?.active,
       asaasWalletId: req.body?.asaasWalletId,
       liberacaoComissao: req.body?.liberacaoComissao,
+      prazoEstornoDias:
+        req.body?.prazoEstornoDias !== undefined ? Number(req.body.prazoEstornoDias) : undefined,
     });
     await audit(req, "organizacao.update", "organization", alterada.id, req.body);
     res.json(alterada);
@@ -1284,15 +1295,6 @@ adminRouter.put("/plataforma", async (req, res, next) => {
   }
 });
 
-/** A tela de pedidos mostra o botão de estorno só quando está ligado. */
-adminRouter.get("/estorno", async (_req, res, next) => {
-  try {
-    res.json({ ligado: (await getPlataforma()).estornoManual });
-  } catch (err) {
-    next(err);
-  }
-});
-
 /** A escolha do organizador: comissão na hora ou depois do sorteio. */
 adminRouter.get("/comissao", async (req, res, next) => {
   try {
@@ -1325,6 +1327,123 @@ adminRouter.put("/comissao", async (req, res, next) => {
       liberacaoComissao: alterada.liberacaoComissao,
     });
     res.json({ liberacaoComissao: alterada.liberacaoComissao });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/* ---------------- atendimento: chamados de reembolso ---------------- */
+
+adminRouter.get("/chamados", async (req, res, next) => {
+  try {
+    res.json(await listarChamados(req, req.query.status ? String(req.query.status) : undefined));
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** O número ao lado de "Atendimento" no menu: chamados esperando alguém. */
+adminRouter.get("/chamados/pendentes", async (req, res, next) => {
+  try {
+    res.json({ total: await chamadosAbertos(req) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.get("/chamados/anexos/:id", async (req, res, next) => {
+  try {
+    const a = await anexoPara(req.params.id, { req });
+    res.setHeader("Cache-Control", "private, no-store");
+    res.type(a.mime).send(a.bytes);
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.get("/chamados/:id", async (req, res, next) => {
+  try {
+    res.json(await detalheDoChamado(req, req.params.id));
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.post("/chamados/:id/mensagens", async (req, res, next) => {
+  try {
+    await respostaDaOrganizacao(req, req.params.id, {
+      texto: String(req.body?.texto ?? ""),
+      anexo: req.body?.anexo ? String(req.body.anexo) : undefined,
+    });
+    res.status(201).json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.post("/chamados/:id/concluir", async (req, res, next) => {
+  try {
+    const feito = await concluirChamado(req, req.params.id, {
+      decisao: req.body?.decisao,
+      resposta: String(req.body?.resposta ?? ""),
+    });
+    await audit(req, `chamado.${feito.status}`, "chamado", feito.id, {
+      protocolo: feito.protocolo,
+      prazoEstornoAte: feito.prazoEstornoAte,
+    });
+    res.json(feito);
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.post("/chamados/:id/estornar", async (req, res, next) => {
+  try {
+    const { chamado, refund } = await executarEstorno(req, req.params.id);
+    await audit(req, "chamado.estornado", "chamado", chamado.id, {
+      protocolo: chamado.protocolo,
+      forma: chamado.formaDevolucao,
+      liberadas: refund?.liberadas.length ?? 0,
+      comissaoJaPagaCents: refund?.comissaoJaPagaCents ?? 0,
+    });
+    res.json({
+      protocolo: chamado.protocolo,
+      forma: chamado.formaDevolucao,
+      cotasLiberadas: refund?.liberadas.length ?? 0,
+      cotasCongeladas: refund ? refund.liberadas.length === 0 : false,
+      comissaoJaPagaCents: refund?.comissaoJaPagaCents ?? 0,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** Prazo de devolução da organização (o administrador geral edita em Organizações). */
+adminRouter.get("/reembolso", async (req, res, next) => {
+  try {
+    const org = orgOf(req);
+    if (!org) return res.json({ prazoEstornoDias: null, porOrganizacao: true });
+    const [linha] = await db
+      .select({ prazoEstornoDias: organizations.prazoEstornoDias })
+      .from(organizations)
+      .where(eq(organizations.id, org));
+    res.json({ prazoEstornoDias: linha?.prazoEstornoDias ?? 7, porOrganizacao: false });
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.put("/reembolso", async (req, res, next) => {
+  try {
+    const org = orgOf(req);
+    if (!org) {
+      return res.status(400).json({ message: "Defina por organização, na tela de Organizações." });
+    }
+    const alterada = await updateOrganization(org, { prazoEstornoDias: Number(req.body?.prazoEstornoDias) });
+    await audit(req, "organizacao.prazo_estorno", "organization", org, {
+      prazoEstornoDias: alterada.prazoEstornoDias,
+    });
+    res.json({ prazoEstornoDias: alterada.prazoEstornoDias });
   } catch (err) {
     next(err);
   }
@@ -1485,62 +1604,11 @@ adminRouter.patch("/usuarios/:id", async (req, res, next) => {
 
 /* ---------------- estorno ---------------- */
 
-/**
- * Estorna um pedido pago, na mão.
- *
- * Existe porque nem todo estorno vem do provedor: venda em dinheiro do
- * cambista, cobrança contestada por fora, erro de operação. O efeito é o
- * mesmo do webhook — cota de volta, comissão revertida, taxa cancelada.
- *
- * **Não devolve dinheiro.** Quem devolve é o Pix ou o caixa; isto acerta o
- * que o sistema registrou. Misturar as duas coisas faria o botão parecer que
- * paga, e ninguém confere depois.
+/*
+ * Estorno de pedido: não existe mais rota direta. O reembolso passa pelo
+ * atendimento (chamado aberto pelo comprador logado, aprovado com protocolo)
+ * — ver /chamados abaixo e `server/services/chamados.ts`.
  */
-adminRouter.post("/orders/:code/estornar", async (req, res, next) => {
-  try {
-    // Numa rifa a compra é participação e não se desfaz: o estorno pelo
-    // painel só existe quando a plataforma liga, para caso excepcional.
-    if (!(await getPlataforma()).estornoManual) {
-      return res.status(403).json({
-        message: "O estorno está desligado nas configurações da plataforma.",
-      });
-    }
-    const [pedido] = await db
-      .select({ id: orders.id, campaignId: orders.campaignId })
-      .from(orders)
-      .where(eq(orders.code, Number(req.params.code)));
-    if (!pedido) return res.status(404).json({ message: "Pedido não encontrado." });
-
-    await assertCampaignInScope(req, pedido.campaignId);
-
-    const r = await refundOrder(pedido.id);
-    if (!r) {
-      return res
-        .status(409)
-        .json({ message: "Este pedido não está pago — não há o que estornar." });
-    }
-
-    await audit(req, "order.refund", "order", pedido.id, {
-      liberadas: r.liberadas.length,
-      comissoes: r.comissoes,
-      comissaoJaPagaCents: r.comissaoJaPagaCents,
-      taxaCanceladaCents: r.taxaCanceladaCents,
-    });
-
-    res.json({
-      estornado: r.order.code,
-      cotasLiberadas: r.liberadas.length,
-      comissoesRevertidas: r.comissoes,
-      comissaoJaPagaCents: r.comissaoJaPagaCents,
-      taxaCanceladaCents: r.taxaCanceladaCents,
-      premiadasLiberadas: r.premiadasLiberadas,
-      // A cota não volta depois do sorteio: o quadro do sorteio é congelado.
-      cotasCongeladas: r.liberadas.length === 0,
-    });
-  } catch (err) {
-    next(err);
-  }
-});
 
 /* ---------------- cobrança da plataforma ---------------- */
 

@@ -119,7 +119,7 @@ async function record(bucket: string) {
  * passavam juntas. Gravando primeiro, cada requisição enxerga pelo menos a
  * própria linha e todas as confirmadas antes dela — no máximo `limit` passam.
  */
-async function hit(
+export async function hit(
   bucket: string,
   minutes: number,
   limit: number,

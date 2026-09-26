@@ -18,7 +18,16 @@ import "dotenv/config";
 import { baseUrl } from "./base-url";
 import { sql, eq } from "drizzle-orm";
 import { db, pool } from "../server/db";
-import { organizations, campaigns, users, buyers, orders, campaignStats } from "../shared/schema";
+import {
+  organizations,
+  campaigns,
+  users,
+  buyers,
+  orders,
+  campaignStats,
+  chamados,
+  chamadoAnexos,
+} from "../shared/schema";
 import { hashPassword } from "../server/auth";
 
 const URL = baseUrl();
@@ -32,6 +41,9 @@ interface Lado {
   userId: string;
   campaignId: string;
   orderCode: number;
+  chamadoId: string;
+  protocolo: string;
+  anexoId: string;
   cookie: string;
 }
 
@@ -129,6 +141,27 @@ async function montarLado(marca: string, indice: number): Promise<Lado> {
       expiresAt: new Date(Date.now() + 86_400_000),
     })
     .onConflictDoNothing();
+  const [pedido] = await db.select({ id: orders.id }).from(orders).where(eq(orders.code, orderCode));
+
+  // Um pedido de reembolso por lado, com o print: é o dado mais sensível da
+  // organização (CPF, chave Pix, foto do bilhete).
+  const protocolo = `RB-20260926-90000${indice}`;
+  await db.delete(chamados).where(eq(chamados.protocolo, protocolo));
+  const [chamado] = await db
+    .insert(chamados)
+    .values({
+      protocolo,
+      organizationId: org.id,
+      orderId: pedido.id,
+      buyerId: comprador.id,
+      motivo: `Reembolso de teste ${marca}`,
+      pixChave: `pix-${marca}@teste`,
+    })
+    .returning({ id: chamados.id });
+  const [anexo] = await db
+    .insert(chamadoAnexos)
+    .values({ chamadoId: chamado.id, mime: "image/jpeg", bytes: Buffer.from([0xff, 0xd8, 0xff]), tamanho: 3 })
+    .returning({ id: chamadoAnexos.id });
 
   return {
     slug,
@@ -139,6 +172,9 @@ async function montarLado(marca: string, indice: number): Promise<Lado> {
     userId: usuario.id,
     campaignId: campanha.id,
     orderCode,
+    chamadoId: chamado.id,
+    protocolo,
+    anexoId: anexo.id,
     cookie: await entrar(email, senha),
   };
 }
@@ -160,6 +196,12 @@ async function alcancaOVizinho(eu: Lado, vizinho: Lado) {
     ["GET extrato de cobrança do vizinho", `/api/admin/cobranca/extrato?organizacao=${vizinho.orgId}`, {}],
     ["POST redefinir senha do vizinho", `/api/admin/usuarios/${vizinho.userId}/senha`, { method: "POST", body: '{"password":"tomada-da-conta"}' }],
     ["PATCH comissão do vizinho", `/api/admin/organizacoes/${vizinho.orgId}`, { method: "PATCH", body: '{"liberacaoComissao":"imediata"}' }],
+    ["GET chamado do vizinho", `/api/admin/chamados/${vizinho.chamadoId}`, {}],
+    ["GET print do chamado do vizinho", `/api/admin/chamados/anexos/${vizinho.anexoId}`, {}],
+    ["POST responder no chamado do vizinho", `/api/admin/chamados/${vizinho.chamadoId}/mensagens`, { method: "POST", body: '{"texto":"invadido"}' }],
+    ["POST concluir chamado do vizinho", `/api/admin/chamados/${vizinho.chamadoId}/concluir`, { method: "POST", body: '{"decisao":"aprovado","resposta":"aprovado por invasor"}' }],
+    ["POST estornar pelo chamado do vizinho", `/api/admin/chamados/${vizinho.chamadoId}/estornar`, { method: "POST" }],
+    ["PATCH prazo de reembolso do vizinho", `/api/admin/organizacoes/${vizinho.orgId}`, { method: "PATCH", body: '{"prazoEstornoDias":30}' }],
     ["PATCH desligar o vizinho", `/api/admin/usuarios/${vizinho.userId}`, { method: "PATCH", body: '{"active":false}' }],
   ];
 
@@ -252,6 +294,20 @@ async function conteudoDasListas(eu: Lado, vizinho: Lado) {
     `${pedindoOVizinho.length} pessoa(s)`,
   );
 
+  const atendimento = (await (await pedir(eu.cookie, "/api/admin/chamados?status=")).json()) as {
+    protocolo: string;
+  }[];
+  checa(
+    "o atendimento não traz o chamado do vizinho",
+    !atendimento.some((c) => c.protocolo === vizinho.protocolo) &&
+      atendimento.some((c) => c.protocolo === eu.protocolo),
+    `${atendimento.length} chamado(s)`,
+  );
+  const pendentes = (await (await pedir(eu.cookie, "/api/admin/chamados/pendentes")).json()) as {
+    total: number;
+  };
+  checa("o contador do atendimento é só o meu", pendentes.total === 1, `${pendentes.total}`);
+
   const administradora = await (await pedir(eu.cookie, "/api/admin/organizer")).json();
   checa(
     "a administradora é a organização da sessão",
@@ -262,6 +318,7 @@ async function conteudoDasListas(eu: Lado, vizinho: Lado) {
 
 async function limpar(lados: Lado[]) {
   for (const l of lados) {
+    await db.delete(chamados).where(eq(chamados.organizationId, l.orgId));
     await db.delete(orders).where(eq(orders.campaignId, l.campaignId));
     await db.delete(campaignStats).where(eq(campaignStats.campaignId, l.campaignId));
     await db.delete(campaigns).where(eq(campaigns.id, l.campaignId));

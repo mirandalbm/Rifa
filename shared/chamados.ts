@@ -9,7 +9,7 @@
  * é isso que tira a graça do pedido falso: não adianta informar a chave
  * Pix de outra pessoa.
  */
-import { cpfValido } from "./format";
+import { cpfValido, normalizePhone } from "./format";
 
 export type StatusChamado = "aberto" | "aprovado" | "recusado" | "estornado";
 
@@ -93,4 +93,32 @@ export function problemaNoPedido(p: PedidoDeReembolso): string | null {
 export function prazoDoEstorno(concluidoEm: Date, dias: number): Date {
   const d = Math.min(PRAZO_ESTORNO_MAX, Math.max(PRAZO_ESTORNO_MIN, Math.round(dias)));
   return new Date(concluidoEm.getTime() + d * 86_400_000);
+}
+
+/* ------------------------------------------------------------------ *
+ * Aviso de chamado novo à organização
+ * ------------------------------------------------------------------ */
+
+/** DDD + número (10 ou 11 dígitos), com ou sem o 55 na frente. */
+export function telefoneDeAvisoValido(entrada: string): boolean {
+  const d = normalizePhone(entrada);
+  return d.length >= 10 && d.length <= 13;
+}
+
+/**
+ * Quem recebe o aviso de chamado novo. O número que a organização escolheu
+ * vale sozinho — é o do atendimento, e ela pode não querer o celular pessoal
+ * de todo organizador tocando. Sem ele, avisa os organizadores dela que têm
+ * WhatsApp no cadastro, para o chamado nunca chegar em silêncio.
+ */
+export function destinatariosDoAviso(
+  avisoTelefone: string | null | undefined,
+  telefonesDosOrganizadores: (string | null | undefined)[],
+): string[] {
+  if (avisoTelefone && telefoneDeAvisoValido(avisoTelefone)) return [normalizePhone(avisoTelefone)];
+  const vistos = new Set<string>();
+  for (const t of telefonesDosOrganizadores) {
+    if (t && telefoneDeAvisoValido(t)) vistos.add(normalizePhone(t));
+  }
+  return [...vistos];
 }

@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { TEMPLATES } from "../server/notifications/templates";
 
 /**
  * A conversa com a Meta, sem rede: um `fetch` de mentira faz o papel da
@@ -50,12 +51,14 @@ describe("preparar o WhatsApp pelo painel", () => {
     const r = await criarModelosFaltantes();
     const criados = pedidos.filter((p) => p.method === "POST").map((p) => p.body.name);
     expect(criados).not.toContain("codigo_acesso");
-    expect(criados).toHaveLength(7);
+    // Todos menos o que já existia (codigo_acesso).
+    expect(criados).toHaveLength(Object.keys(TEMPLATES).length - 1);
     expect(pedidos.every((p) => p.url.startsWith("https://graph.facebook.com/v25.0/"))).toBe(true);
     expect(r.find((m) => m.nome === "codigo_acesso")?.detalhe).toBe("já existia");
     expect(r.find((m) => m.nome === "cota_premiada")).toMatchObject({ ok: false });
     expect(r.find((m) => m.nome === "cota_premiada")?.detalhe).toContain("Texto recusado");
-    expect(r.filter((m) => m.ok)).toHaveLength(7);
+    // Todos menos o recusado (cota_premiada); o que já existia conta como ok.
+    expect(r.filter((m) => m.ok)).toHaveLength(Object.keys(TEMPLATES).length - 1);
   });
 
   it("token vencido vira instrução, não código de erro da Meta", async () => {

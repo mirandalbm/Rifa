@@ -15,7 +15,8 @@ export type TemplateName =
   | "venda_afiliado"
   | "sorteio_realizado"
   | "estorno_confirmado"
-  | "estorno_pos_sorteio";
+  | "estorno_pos_sorteio"
+  | "chamado_novo";
 
 export interface TemplateSpec {
   /** Nome do modelo aprovado na conta do WhatsApp Business. */
@@ -114,6 +115,20 @@ export const TEMPLATES: Record<TemplateName, TemplateSpec> = {
     corpo:
       "Olá, {{1}}. Seu pagamento na rifa {{2}}, no valor de {{3}}, foi estornado. Como o sorteio já aconteceu, seus números seguem no registro da rifa.",
     exemplo: ["Maria", "iPhone 17 Pro", "R$ 14,70"],
+  }),
+
+  /**
+   * Para a organização, não para o comprador: chegou pedido de reembolso e o
+   * prazo dela começa a contar quando aprovar. Sem nome nem telefone do
+   * cliente — só o ID —, porque o WhatsApp do atendimento pode estar num
+   * aparelho compartilhado.
+   */
+  chamado_novo: modelo("chamado_novo", {
+    categoria: "UTILITY",
+    order: ["rifa", "protocolo", "cliente", "valor", "link"],
+    corpo:
+      "Novo pedido de reembolso na rifa {{1}}. Protocolo {{2}}, cliente {{3}}, pedido de {{4}}. Veja o print e responda em {{5}} pelo painel.",
+    exemplo: ["iPhone 17 Pro", "RB-20260926-483920", "C-7K2M9QXR", "R$ 14,70", "https://rifa.br/admin/atendimento"],
   }),
 
   sorteio_realizado: modelo("sorteio_realizado", {

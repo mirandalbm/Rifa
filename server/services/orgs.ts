@@ -18,7 +18,8 @@ import { db } from "../db";
 import { campaigns, organizations, affiliates, users } from "@shared/schema";
 import type { OrganizerInfo } from "@shared/schema";
 import { LIBERACAO_COMISSAO, carteiraAsaasValida } from "@shared/plataforma";
-import { PRAZO_ESTORNO_MIN, PRAZO_ESTORNO_MAX } from "@shared/chamados";
+import { PRAZO_ESTORNO_MIN, PRAZO_ESTORNO_MAX, telefoneDeAvisoValido } from "@shared/chamados";
+import { normalizePhone } from "@shared/format";
 
 export class OrgScopeError extends Error {
   constructor(message: string, readonly status = 404) {
@@ -249,6 +250,7 @@ export async function updateOrganization(
     asaasWalletId: string | null;
     liberacaoComissao: string;
     prazoEstornoDias: number;
+    avisoTelefone: string | null;
   }>,
 ) {
   const patch: Record<string, unknown> = {};
@@ -262,6 +264,14 @@ export async function updateOrganization(
       );
     }
     patch.prazoEstornoDias = d;
+  }
+
+  if (input.avisoTelefone !== undefined) {
+    const t = input.avisoTelefone?.trim() || null;
+    if (t && !telefoneDeAvisoValido(t)) {
+      throw new OrgScopeError("WhatsApp do aviso inválido: informe DDD e número.", 400);
+    }
+    patch.avisoTelefone = t ? normalizePhone(t) : null;
   }
 
   if (input.liberacaoComissao !== undefined) {

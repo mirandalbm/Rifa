@@ -1147,6 +1147,8 @@ adminRouter.patch("/organizacoes/:id", async (req, res, next) => {
       liberacaoComissao: req.body?.liberacaoComissao,
       prazoEstornoDias:
         req.body?.prazoEstornoDias !== undefined ? Number(req.body.prazoEstornoDias) : undefined,
+      avisoTelefone:
+        req.body?.avisoTelefone !== undefined ? String(req.body.avisoTelefone ?? "") : undefined,
     });
     await audit(req, "organizacao.update", "organization", alterada.id, req.body);
     res.json(alterada);
@@ -1418,16 +1420,23 @@ adminRouter.post("/chamados/:id/estornar", async (req, res, next) => {
   }
 });
 
-/** Prazo de devolução da organização (o administrador geral edita em Organizações). */
+/**
+ * Prazo de devolução e WhatsApp do aviso de chamado novo, da organização da
+ * sessão (o administrador geral edita os dois em Organizações).
+ */
 adminRouter.get("/reembolso", async (req, res, next) => {
   try {
     const org = orgOf(req);
-    if (!org) return res.json({ prazoEstornoDias: null, porOrganizacao: true });
+    if (!org) return res.json({ prazoEstornoDias: null, avisoTelefone: null, porOrganizacao: true });
     const [linha] = await db
-      .select({ prazoEstornoDias: organizations.prazoEstornoDias })
+      .select({ prazoEstornoDias: organizations.prazoEstornoDias, avisoTelefone: organizations.avisoTelefone })
       .from(organizations)
       .where(eq(organizations.id, org));
-    res.json({ prazoEstornoDias: linha?.prazoEstornoDias ?? 7, porOrganizacao: false });
+    res.json({
+      prazoEstornoDias: linha?.prazoEstornoDias ?? 7,
+      avisoTelefone: linha?.avisoTelefone ?? null,
+      porOrganizacao: false,
+    });
   } catch (err) {
     next(err);
   }
@@ -1439,11 +1448,15 @@ adminRouter.put("/reembolso", async (req, res, next) => {
     if (!org) {
       return res.status(400).json({ message: "Defina por organização, na tela de Organizações." });
     }
-    const alterada = await updateOrganization(org, { prazoEstornoDias: Number(req.body?.prazoEstornoDias) });
+    const alterada = await updateOrganization(org, {
+      prazoEstornoDias: Number(req.body?.prazoEstornoDias),
+      avisoTelefone: req.body?.avisoTelefone !== undefined ? String(req.body.avisoTelefone ?? "") : undefined,
+    });
     await audit(req, "organizacao.prazo_estorno", "organization", org, {
       prazoEstornoDias: alterada.prazoEstornoDias,
+      avisoTelefone: alterada.avisoTelefone,
     });
-    res.json({ prazoEstornoDias: alterada.prazoEstornoDias });
+    res.json({ prazoEstornoDias: alterada.prazoEstornoDias, avisoTelefone: alterada.avisoTelefone });
   } catch (err) {
     next(err);
   }

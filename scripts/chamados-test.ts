@@ -17,6 +17,7 @@ import { eq, sql } from "drizzle-orm";
 import { db, pool } from "../server/db";
 import {
   organizations,
+  notifications,
   campaigns,
   users,
   buyers,
@@ -79,15 +80,14 @@ async function main() {
     .insert(organizations)
     .values({ slug: "e2e-org", name: "Promotora E2E", prazoEstornoDias: 5 })
     .returning();
-  await db
-    .insert(users)
-    .values({
-      role: "organizer",
-      organizationId: org.id,
-      name: "Org E2E",
-      email: "e2e@rifa.teste",
-      passwordHash: await hashPassword("senha-e2e-123"),
-    });
+  await db.insert(users).values({
+    role: "organizer",
+    organizationId: org.id,
+    name: "Org E2E",
+    email: "e2e@rifa.teste",
+    phone: "11955550001",
+    passwordHash: await hashPassword("senha-e2e-123"),
+  });
   const [camp] = await db
     .insert(campaigns)
     .values({
@@ -140,16 +140,14 @@ async function main() {
     return o;
   };
   const meu = await mk(93000001, camp.id, eu.id);
-  await db
-    .insert(quotaAlloc)
-    .values(
-      [7, 8, 9].map((n) => ({
-        campaignId: camp.id,
-        number: n,
-        status: "paid" as const,
-        orderId: meu.id,
-      })),
-    );
+  await db.insert(quotaAlloc).values(
+    [7, 8, 9].map((n) => ({
+      campaignId: camp.id,
+      number: n,
+      status: "paid" as const,
+      orderId: meu.id,
+    })),
+  );
   const doOutro = await mk(93000002, camp.id, outro.id);
   const sorteado = await mk(93000003, camp2.id, eu.id);
 
@@ -272,6 +270,25 @@ async function main() {
       "outro comprador não lê o chamado",
       (await j.req("GET", `/api/public/chamados/${chamadoId}`)).status === 404,
     );
+    // Sem número próprio, o aviso do chamado de Maria foi para o organizador.
+    const avisosMaria = await db
+      .select()
+      .from(notifications)
+      .where(eq(notifications.template, "chamado_novo"));
+    checa(
+      "aviso de chamado novo foi para o organizador",
+      avisosMaria.length === 1 && avisosMaria[0].to === "11955550001",
+      avisosMaria.map((a) => a.to).join(", ") || "nenhum",
+    );
+    checa(
+      "o aviso não leva telefone nem nome do cliente",
+      !JSON.stringify(avisosMaria[0]?.params ?? {}).match(/77770001|Maria/),
+    );
+    // Com número próprio, só ele recebe.
+    await db
+      .update(organizations)
+      .set({ avisoTelefone: "11955550009" })
+      .where(eq(organizations.id, org.id));
     r = await j.req("POST", "/api/public/chamados", {
       ...pedido,
       orderCode: doOutro.code,
@@ -300,6 +317,33 @@ async function main() {
       password: "senha-e2e-123",
     });
     checa("organizador entra", login.status === 200, `HTTP ${login.status}`);
+    const avisos = await db
+      .select()
+      .from(notifications)
+      .where(eq(notifications.template, "chamado_novo"));
+    checa(
+      "com número da organização, só ele recebe",
+      avisos.length === 2 && avisos.some((a) => a.to === "11955550009"),
+      avisos.map((a) => a.to).join(", "),
+    );
+    r = await o.req("PUT", "/api/admin/reembolso", {
+      prazoEstornoDias: 5,
+      avisoTelefone: "123",
+    });
+    checa(
+      "WhatsApp do aviso inválido: recusa",
+      r.status === 400,
+      r.json?.message,
+    );
+    r = await o.req("PUT", "/api/admin/reembolso", {
+      prazoEstornoDias: 5,
+      avisoTelefone: "(21) 97777-6666",
+    });
+    checa(
+      "organizador troca o WhatsApp do aviso",
+      r.status === 200 && r.json.avisoTelefone === "21977776666",
+      r.json?.avisoTelefone,
+    );
     const pend = await o.req("GET", "/api/admin/chamados/pendentes");
     checa(
       "contador de pendentes",
@@ -460,6 +504,9 @@ async function main() {
       lista.json.length === 1 && lista.json[0].id === chamadoId,
     );
   } finally {
+    await db.execute(
+      sql`delete from notifications where dedupe_key like ${`chamado:%`}`,
+    );
     await db
       .execute(sql`delete from rate_events where bucket like 'chamado:%'`)
       .catch(() => {});

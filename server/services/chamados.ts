@@ -32,13 +32,16 @@ import {
   ANEXO_MAX_BYTES,
   CHAMADOS_POR_DIA,
   bloqueioDoReembolso,
+  destinatariosDoAviso,
   gerarCodigoCliente,
   gerarProtocolo,
   prazoDoEstorno,
   problemaNoPedido,
   type PedidoDeReembolso,
 } from "@shared/chamados";
-import { cpfValido, hideCpf, hidePhone } from "@shared/format";
+import { cpfValido, formatBRL, hideCpf, hidePhone } from "@shared/format";
+import { notify } from "../notifications";
+import { publicUrl } from "./urls";
 import { isUniqueViolation } from "../pgError";
 import { getPlataforma } from "./settings";
 import { hit } from "./antifraude";
@@ -182,7 +185,7 @@ export async function abrirChamado(
 
   for (let tentativa = 0; tentativa < 5; tentativa++) {
     try {
-      return await db.transaction(async (tx) => {
+      const chamado = await db.transaction(async (tx) => {
         const [chamado] = await tx
           .insert(chamados)
           .values({
@@ -211,6 +214,15 @@ export async function abrirChamado(
         }
         return chamado;
       });
+      await avisarChamadoNovo({
+        chamadoId: chamado.id,
+        protocolo: chamado.protocolo,
+        organizationId: linha.organizationId,
+        campaignId: linha.order.campaignId,
+        valorCents: linha.order.amountCents,
+        buyerId: comprador.id,
+      });
+      return chamado;
     } catch (err) {
       if (isUniqueViolation(err, "uq_chamados_pedido_andamento")) {
         throw new ChamadoError("Já existe um pedido de reembolso em andamento para esta compra.", 409);
@@ -219,6 +231,66 @@ export async function abrirChamado(
     }
   }
   throw new ChamadoError("Não foi possível gerar o protocolo. Tente de novo.", 500);
+}
+
+/**
+ * Avisa a organização pelo WhatsApp que chegou pedido de reembolso. Falha de
+ * envio nunca desfaz o chamado — ele já está gravado e aparece no contador do
+ * menu; o aviso é o atalho, não a garantia.
+ */
+async function avisarChamadoNovo(c: {
+  chamadoId: string;
+  protocolo: string;
+  organizationId: string;
+  campaignId: string;
+  valorCents: number;
+  buyerId: string;
+}) {
+  try {
+    const [org] = await db
+      .select({ avisoTelefone: organizations.avisoTelefone })
+      .from(organizations)
+      .where(eq(organizations.id, c.organizationId));
+    const organizadores = await db
+      .select({ phone: users.phone })
+      .from(users)
+      .where(
+        and(
+          eq(users.organizationId, c.organizationId),
+          eq(users.role, "organizer"),
+          eq(users.active, true),
+        ),
+      );
+    const para = destinatariosDoAviso(
+      org?.avisoTelefone,
+      organizadores.map((u) => u.phone),
+    );
+    if (!para.length) {
+      console.warn(`[chamados] ${c.protocolo}: organização sem WhatsApp para o aviso`);
+      return;
+    }
+    const [camp] = await db
+      .select({ title: campaigns.title })
+      .from(campaigns)
+      .where(eq(campaigns.id, c.campaignId));
+    const cliente = (await garantirCodigoCliente(c.buyerId)) ?? "sem ID";
+    for (const to of para) {
+      await notify({
+        to,
+        template: "chamado_novo",
+        params: {
+          rifa: camp?.title ?? "",
+          protocolo: c.protocolo,
+          cliente,
+          valor: formatBRL(c.valorCents),
+          link: publicUrl("/admin/atendimento"),
+        },
+        dedupeKey: `chamado:${c.chamadoId}:aviso:${to}`,
+      });
+    }
+  } catch (err) {
+    console.error(`[chamados] aviso do ${c.protocolo} não enviado:`, err);
+  }
 }
 
 export async function chamadosDoComprador(buyerId: string) {

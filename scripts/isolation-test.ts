@@ -257,6 +257,7 @@ async function alcancaOVizinho(eu: Lado, vizinho: Lado) {
     ["PUT transmissão do vizinho", `/api/admin/campaigns/${c}/transmissao`, { method: "PUT", body: '{"url":"https://youtube.com/live/invadido"}' }],
     ["PUT perfil público do vizinho", `/api/admin/organizacoes/${vizinho.orgId}/perfil`, { method: "PUT", body: '{"bio":"perfil invadido"}' }],
     ["DELETE story do vizinho", `/api/admin/stories/${storyDoVizinho.id}`, { method: "DELETE" }],
+    ["PUT foto do ganhador do vizinho", `/api/admin/campaigns/${c}/foto-ganhador`, { method: "PUT", body: '{"foto":null}' }],
   ];
 
   for (const [nome, caminho, init] of tentativas) {

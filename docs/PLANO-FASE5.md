@@ -257,7 +257,7 @@ arquivos grandes demais para o banco.
 
 ---
 
-## 10. Painel de resultados do organizador **[decidido]**
+## 10. Painel de resultados do organizador **[decidido — feito, exceto o retorno das patrocinadas (etapa 15)]**
 
 - Vendas por dia, por canal (site, afiliado, cambista, anúncio, perfil),
   ticket médio, rifas que mais vendem, seguidores ganhos, retorno das rifas
@@ -290,7 +290,7 @@ arquivos grandes demais para o banco.
 | ✓ | Central de ajuda, regulamento e transmissão do sorteio | 7 | — |
 | ✓ | Construtor de templates e white label do organizador | 3.2 | 4 |
 | ✓ | Vitrine: banners, stories, estados, feed | 5 | 5 |
-| 10 | Painel de resultados do organizador | 10 | — |
+| ✓ | Painel de resultados do organizador | 10 | — |
 | 11 | Afiliado multi-organização, termo, colaborador | 9 | — |
 | 12 | Guarda da comissão, cadastro fiscal e recibo | 9 | contador |
 | 13 | Indicação, bônus e gamificação | 8 | 5, advogado |

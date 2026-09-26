@@ -32,6 +32,7 @@ import {
   type LucideIcon,
   HelpCircle,
   CircleDashed,
+  BarChart3,
 } from "lucide-react";
 import type { SectionKey } from "@shared/access";
 import { useSession, useLogout } from "@/lib/session";
@@ -190,6 +191,7 @@ const ICONE: Partial<Record<SectionKey, LucideIcon>> = {
   adminPedidos: Receipt,
   adminAtendimento: MessagesSquare,
   adminStories: CircleDashed,
+  adminResultados: BarChart3,
   adminAfiliados: Megaphone,
   adminCambistas: Store,
   adminUsuarios: Users,

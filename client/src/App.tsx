@@ -39,6 +39,7 @@ import { AdminOrganizacoes } from "@/pages/adminOrganizacoes";
 import { AdminUsuarios } from "@/pages/adminUsuarios";
 import { AdminAtendimento } from "@/pages/adminAtendimento";
 import { AdminStories } from "@/pages/adminStories";
+import { AdminResultados } from "@/pages/adminResultados";
 import { PanelShell } from "@/components/AppShell";
 import { TrocarSenha } from "@/components/TrocarSenha";
 import { AdminCobranca } from "@/pages/adminCobranca";
@@ -170,6 +171,11 @@ export default function App() {
           <Route path="/admin/pedidos">
             <Guarded requires="organizer">
               <AdminPedidos />
+            </Guarded>
+          </Route>
+          <Route path="/admin/resultados">
+            <Guarded requires="organizer">
+              <AdminResultados />
             </Guarded>
           </Route>
           <Route path="/admin/stories">

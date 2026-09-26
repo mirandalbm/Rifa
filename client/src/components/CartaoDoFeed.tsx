@@ -2,6 +2,8 @@ import { Link } from "wouter";
 import { MapPin, ShieldCheck } from "lucide-react";
 import { FotoDoPerfil } from "@/components/Seguir";
 import { Money, Progress } from "@/components/bits";
+import { marcarOrigem } from "@/lib/origem";
+import type { Origem } from "@shared/resultados";
 import { groupNumber, percent } from "@shared/format";
 
 export interface RifaDoFeed {
@@ -30,7 +32,7 @@ const PERTO = ["na sua cidade", "no seu estado"] as const;
  * topo, a imagem em retrato (4:5) e, embaixo, prêmio, selo da autorização,
  * preço, progresso e sorteio.
  */
-export function CartaoDoFeed({ rifa: c }: { rifa: RifaDoFeed }) {
+export function CartaoDoFeed({ rifa: c, origem = "vitrine" }: { rifa: RifaDoFeed; origem?: Origem }) {
   const pct = percent(c.soldCount, c.totalQuotas);
   const retaFinal = pct >= 85;
   const href = c.organizacao ? `/o/${c.organizacao.slug}/r/${c.slug}` : `/r/${c.slug}`;
@@ -57,7 +59,7 @@ export function CartaoDoFeed({ rifa: c }: { rifa: RifaDoFeed }) {
         </Link>
       ) : null}
 
-      <Link href={href} className="block">
+      <Link href={href} onClick={() => marcarOrigem(origem)} className="block">
         <div
           className="relative aspect-[4/5] overflow-hidden bg-mist-2"
           style={

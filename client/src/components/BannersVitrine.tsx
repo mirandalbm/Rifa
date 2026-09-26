@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
+import { marcarOrigem } from "@/lib/origem";
 
 interface BannerNoAr {
   id: string;
@@ -100,7 +101,7 @@ function Destino({ link, children }: { link: string | null; children: ReactNode 
   if (!link) return <>{children}</>;
   if (link.startsWith("/")) {
     return (
-      <Link href={link} className="block h-full">
+      <Link href={link} onClick={() => marcarOrigem("banner")} className="block h-full">
         {children}
       </Link>
     );

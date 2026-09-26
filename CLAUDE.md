@@ -107,6 +107,7 @@ arquitetura.
 | notificações no celular (Web Push) | `shared/push.ts` (regras), `server/services/push.ts`, `client/public/sw.js`, `client/src/lib/push.ts`, `scripts/push-test.ts` |
 | regulamento, central de ajuda, transmissão e conferência do sorteio | `shared/regulamento.ts`, `shared/ajuda.ts`, `shared/sorteio.ts`, `client/src/components/SorteioCard.tsx`, `scripts/transparencia-test.ts` |
 | vitrine: banners, stories, estados e feed | `shared/vitrine.ts` (regras), `server/services/vitrine.ts`, `client/src/components/BannersVitrine.tsx`, `Stories.tsx`, `EstadosVitrine.tsx`, `CartaoDoFeed.tsx`, `client/src/pages/adminStories.tsx`, `scripts/vitrine-test.ts` |
+| painel de resultados, origem da venda e foto do ganhador | `shared/resultados.ts` (regras), `server/services/resultados.ts`, `client/src/lib/origem.ts`, `client/src/pages/adminResultados.tsx`, `server/services/ganhador.ts`, `scripts/resultados-test.ts` |
 | aparência da plataforma (construtor de templates) | `shared/template.ts` (regras), `server/services/template.ts`, `client/src/lib/template.ts`, `client/src/pages/adminAparencia.tsx`, `scripts/aparencia-test.ts` |
 | tema claro e escuro | `client/src/index.css` (variáveis), `client/src/lib/tema.ts`, `client/src/components/TemaToggle.tsx`, `tests/tema.test.ts` |
 | app instalável (PWA) | `client/public/sw.js`, `client/public/manifest.webmanifest`, `client/src/lib/pwa.ts` |
@@ -721,4 +722,29 @@ pedido, cotas e valor, e o cliente só pelo ID (`Cliente C-XXXXXXXX`).
   (`"organizations"."id"`): o drizzle deixa a coluna sem prefixo dentro do
   template `sql`, e `id` vira o da tabela de dentro. E `timestamp` lido por SQL cru
   volta como texto sem fuso — é UTC, converta (`ultimoStorySql`).
+
+## Painel de resultados — o que não pode afrouxar
+
+- **Recorte em toda consulta** (`orgOf`), e o `?organizacao=` só vale para a
+  plataforma: o organizador que manda o id do vizinho continua vendo o
+  dele. `npm run resultados` confere os **valores** (receita, canais, rifas),
+  não só o 200.
+- **Receita é venda paga**, pelo dia do pagamento **no fuso de São Paulo**
+  (`paid_at` guarda UTC; o início do período é convertido uma vez no SQL e a
+  comparação fica na coluna crua). Pendente não entra; estornada sai da
+  receita e aparece em "Estornos". Dia sem venda aparece com zero
+  (`serieDiaria`).
+- **Canal: quem vendeu manda** (`canalDaVenda`): cambista, depois afiliado,
+  depois a origem do site. A **origem** (`orders.origem`) vem do navegador
+  (`client/src/lib/origem.ts`, último toque na aba; anúncio por UTM, gclid,
+  fbclid fica até fechar a aba) e é **só estatística** — valor fora de
+  `ORIGENS` vira nulo, e nunca decide comissão nem dinheiro.
+- **Ticket médio arredonda para baixo** — dinheiro é inteiro.
+- **Gráfico de uma série só, verde** (dinheiro que entrou): sem legenda,
+  com o dia em texto ao passar o dedo/mouse/foco e a tabela ao lado para
+  quem não enxerga o gráfico.
+- **Foto do ganhador só depois do sorteio** (409 antes), com recorte da
+  campanha (o do vizinho é 404), reprocessada em 1080×1350 WebP no banco.
+  Vira a capa do destaque no perfil e aparece no resultado. A autorização de
+  uso da imagem é do organizador com o ganhador — a tela avisa.
 

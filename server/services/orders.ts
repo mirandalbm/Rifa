@@ -4,6 +4,7 @@
  * O front nunca envia preço — envia campanha e quantidade (ou os números
  * escolhidos). O total é sempre recalculado aqui, em centavos inteiros.
  */
+import { validarOrigem } from "@shared/resultados";
 import { randomInt } from "node:crypto";
 import { and, eq, sql, desc, or, lte } from "drizzle-orm";
 import type { Titularidade } from "@shared/contaComprador";
@@ -366,6 +367,8 @@ export async function createOrder(
           sellerId: ctx.sellerId ?? null,
           method: ctx.sellerId ? "dinheiro" : "pix_online",
           viaConta: Boolean(ctx.contaId && !ctx.sellerId) || compraProvadaPeloCpf,
+          // Venda do cambista não tem origem de site: o canal é ele.
+          origem: ctx.sellerId ? null : validarOrigem(input.origem),
           deviceHash: identity.deviceHash,
           ipHash: identity.ipHash,
           couponId: attribution.couponId,

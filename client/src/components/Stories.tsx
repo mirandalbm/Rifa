@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { X } from "lucide-react";
 import { FotoDoPerfil } from "@/components/Seguir";
 import { marcarVisto, vistoAte } from "@/lib/stories";
+import { marcarOrigem } from "@/lib/origem";
 import { STORY_SEGUNDOS, temStoryNovo } from "@shared/vitrine";
 
 interface Story {
@@ -182,7 +183,10 @@ export function VisualizadorDeStories({ slug, onFechar }: { slug: string; onFech
               {atual.rifa ? (
                 <Link
                   href={`/o/${data.slug}/r/${atual.rifa.slug}`}
-                  onClick={onFechar}
+                  onClick={() => {
+                    marcarOrigem("story");
+                    onFechar();
+                  }}
                   className="block rounded-md bg-branco px-4 py-2.5 text-center text-sm font-semibold text-[#0b1f14]"
                 >
                   Ver a rifa: {atual.rifa.premio}

@@ -10,6 +10,12 @@
 
 import { TAXA_REEMBOLSO_MAX_PCT, TAXA_REEMBOLSO_PADRAO_PCT } from "./reembolso";
 import { BONUS_POR_INDICACAO_MAX, BONUS_POR_INDICACAO_PADRAO } from "./bonus";
+import {
+  PRECO_CLIQUE_PADRAO_CENTS,
+  RECARGA_MINIMA_PADRAO_CENTS,
+  precoDoCliqueValido,
+  recargaMinimaValida,
+} from "./patrocinio";
 
 export const PROVEDORES_PIX = ["mercadopago", "asaas"] as const;
 export type ProvedorPix = (typeof PROVEDORES_PIX)[number];
@@ -84,6 +90,17 @@ export interface ConfigPlataforma {
   bonusLigado: boolean;
   /** Cotas de bônus para quem indica, quando o indicado paga a primeira compra. */
   bonusPorIndicacao: number;
+  /**
+   * Rifas patrocinadas por clique (etapa 15). **Desligado por padrão**: liga
+   * quando a plataforma estiver pronta para receber o Pix das recargas.
+   * Desligado, o bloco some da vitrine, clique não é cobrado e recarga não
+   * sai; o saldo de cada organização fica guardado.
+   */
+  patrocinioLigado: boolean;
+  /** Preço de cada clique cobrado, em centavos. */
+  precoCliqueCents: number;
+  /** Menor recarga de saldo, em centavos. */
+  recargaMinimaCents: number;
 }
 
 export const CONFIG_PADRAO: ConfigPlataforma = {
@@ -94,6 +111,9 @@ export const CONFIG_PADRAO: ConfigPlataforma = {
   guardaComissao: false,
   bonusLigado: false,
   bonusPorIndicacao: BONUS_POR_INDICACAO_PADRAO,
+  patrocinioLigado: false,
+  precoCliqueCents: PRECO_CLIQUE_PADRAO_CENTS,
+  recargaMinimaCents: RECARGA_MINIMA_PADRAO_CENTS,
 };
 
 /** Só as chaves conhecidas: isto vem do corpo da requisição. */
@@ -118,6 +138,9 @@ export function validarConfigPlataforma(entrada: Partial<ConfigPlataforma>): Con
     guardaComissao: entrada.guardaComissao === true,
     bonusLigado: entrada.bonusLigado === true,
     bonusPorIndicacao: bonusPorIndicacaoValido(entrada.bonusPorIndicacao),
+    patrocinioLigado: entrada.patrocinioLigado === true,
+    precoCliqueCents: precoDoCliqueValido(entrada.precoCliqueCents),
+    recargaMinimaCents: recargaMinimaValida(entrada.recargaMinimaCents),
   };
 }
 

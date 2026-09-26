@@ -15,6 +15,7 @@ export const ORIGENS = {
   banner: "Banner",
   estado: "Página do estado",
   anuncio: "Anúncio",
+  patrocinada: "Rifa patrocinada",
 } as const;
 export type Origem = keyof typeof ORIGENS;
 

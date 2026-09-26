@@ -31,7 +31,8 @@
     "fiscal": "tsx scripts/fiscal-test.ts",
     "disputa": "tsx scripts/disputa-test.ts",
     "guarda": "tsx scripts/guarda-test.ts",
-    "bonus": "tsx scripts/bonus-test.ts"
+    "bonus": "tsx scripts/bonus-test.ts",
+    "patrocinio": "tsx scripts/patrocinio-test.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1131.0",

@@ -16,6 +16,8 @@ import { FotoComStory, VisualizadorDeStories, useVistos } from "@/components/Sto
 import { vistoAte } from "@/lib/stories";
 import { temStoryNovo } from "@shared/vitrine";
 import { InstalarApp } from "@/components/InstalarApp";
+import { Patrocinadas } from "@/components/Patrocinadas";
+import type { Bloco } from "@shared/template";
 
 /** Vitrine multi-rifas: todas as campanhas no ar, banner na frente. */
 export default function Vitrine() {
@@ -74,7 +76,7 @@ export default function Vitrine() {
 
   return (
     <PublicShell>
-      {template.blocos
+      {comPatrocinadas(template.blocos)
         .filter((b) => b.ligado)
         .map((b) => {
           switch (b.tipo) {
@@ -95,6 +97,8 @@ export default function Vitrine() {
                   {gradeDeRifas(b.quantidade ? data?.slice(0, b.quantidade) : data)}
                 </section>
               );
+            case "patrocinadas":
+              return <Patrocinadas key={b.id} rifas={data} titulo={b.titulo} />;
             case "texto":
               return (
                 <section key={b.id} className="mt-4 rounded-xl border border-line bg-mist p-4 text-sm">
@@ -115,6 +119,18 @@ export default function Vitrine() {
       <InstalarApp />
     </PublicShell>
   );
+}
+
+/**
+ * Template publicado antes do bloco "Patrocinadas" existir não o traz: entra
+ * logo antes do feed, ligado. Quem quiser mudar a ordem ou desligar faz pelo
+ * construtor — aí o bloco já vem salvo no template.
+ */
+function comPatrocinadas(blocos: Bloco[]): Bloco[] {
+  if (blocos.some((b) => b.tipo === "patrocinadas")) return blocos;
+  const i = blocos.findIndex((b) => b.tipo === "rifas");
+  const novo: Bloco = { id: "patrocinadas", tipo: "patrocinadas", ligado: true };
+  return i < 0 ? [...blocos, novo] : [...blocos.slice(0, i), novo, ...blocos.slice(i)];
 }
 
 /**

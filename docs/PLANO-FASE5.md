@@ -176,7 +176,7 @@ Tela inicial do apostador:
 
 ---
 
-## 5. Vitrine (tela inicial) **[decidido — feito, exceto patrocinadas (etapa 15), bandeiras e banner pago: ver PENDENCIAS]**
+## 5. Vitrine (tela inicial) **[decidido — feito, com as patrocinadas atrás de interruptor; faltam bandeiras e banner pago: ver PENDENCIAS]**
 
 Ordem padrão (reordenável pelo construtor, seção 3.2):
 
@@ -257,7 +257,7 @@ arquivos grandes demais para o banco.
 
 ---
 
-## 10. Painel de resultados do organizador **[decidido — feito, exceto o retorno das patrocinadas (etapa 15)]**
+## 10. Painel de resultados do organizador **[decidido — feito; o retorno das patrocinadas fica em Patrocínio]**
 
 - Vendas por dia, por canal (site, afiliado, cambista, anúncio, perfil),
   ticket médio, rifas que mais vendem, seguidores ganhos, retorno das rifas
@@ -296,6 +296,6 @@ arquivos grandes demais para o banco.
 | ✓ | Guarda da comissão pela plataforma (interruptor desligado até o contador) | 9 | — |
 | ✓ | Indicação, bônus e metas (interruptor desligado até o advogado) | 8 | — |
 | ✓ | Disputa de reembolso no administrador geral | 2 | — |
-| 15 | Rifas patrocinadas por clique | 5 | Pix da plataforma |
+| ✓ | Rifas patrocinadas por clique (interruptor desligado até a conta da plataforma) | 5 | — |
 | 16 | Marketing e tráfego pago | 11 | conta de anúncios |
 | 17 | Login com Google | 1.1 | cliente OAuth |

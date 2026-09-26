@@ -102,6 +102,7 @@ arquitetura.
 | cadastro fiscal do afiliado, cofre e recibo | `shared/fiscal.ts` (regras), `server/services/cofre.ts`, `server/services/fiscal.ts`, `server/services/recibos.ts`, `client/src/pages/afiliadoDados.tsx`, `adminFiscal.tsx`, `Recibo.tsx`, `scripts/fiscal-test.ts` |
 | guarda da comissão pela plataforma (etapa 12) | `guardaComissao` e `percentualDoPromotor()` em `shared/plataforma.ts`, `createOrder`/`settleOrderAsPaid` em `server/services/orders.ts`, `scripts/guarda-test.ts` |
 | indicação, bônus e metas (etapa 13) | `shared/bonus.ts` (regras), `server/services/bonus.ts`, `resgatarCotasDeBonus()` em `server/services/orders.ts`, `client/src/lib/indicacao.ts`, `client/src/pages/adminBonus.tsx`, `client/src/components/BonusDoComprador.tsx`, `scripts/bonus-test.ts` |
+| rifas patrocinadas por clique (etapa 15) | `shared/patrocinio.ts` (regras), `server/services/patrocinio.ts`, `client/src/pages/adminPatrocinio.tsx`, `client/src/components/Patrocinadas.tsx`, `scripts/patrocinio-test.ts` |
 | plano da próxima fase (vitrine, contas, afiliados, marketing) | `docs/PLANO-FASE5.md` |
 | conta do apostador (senha, confirmação, exclusão) | `shared/contaComprador.ts`, `server/services/contaComprador.ts`, `scripts/conta-test.ts` |
 | de quem é o cliente (o que o organizador vê) | `shared/titularidade.ts` (regra) e `server/services/titularidade.ts` (SQL) |
@@ -910,4 +911,33 @@ pedido, cotas e valor, e o cliente só pelo ID (`Cliente C-XXXXXXXX`).
   Fecha 2 horas antes do sorteio. **Cota de bônus não tem reembolso.**
 - **Desligado, nada acumula e nada se resgata**; o saldo de cada um fica.
 - `npm run bonus` prova tudo isso contra a API de verdade.
+
+## Rifas patrocinadas — o que não pode afrouxar
+
+- **Nasce desligado** (`patrocinioLigado`), e só a plataforma liga e define
+  preço do clique e recarga mínima. Desligado, o bloco vem vazio, clique
+  não é cobrado e recarga não sai; o saldo fica.
+- **O saldo anda pelo livro** (`patrocinio_lancamentos`, chave única): a
+  recarga paga credita uma vez, mesmo com o webhook repetido. A recarga é
+  Pix **sem split** para a conta da plataforma, com código na faixa de 9
+  dígitos (os pedidos usam 8) — o webhook reconhece a recarga
+  (`confirmarRecarga`) antes de procurar pedido.
+- **Saldo nunca fica negativo**: clique e ajuste descontam num `UPDATE`
+  condicional; sem saldo para um clique, a rifa sai do bloco sozinha.
+- **Clique honesto**: uma vez por aparelho (hash) em 24 h por patrocínio,
+  conferido sob trava do par (811402) — dois cliques simultâneos cobram um;
+  robô (`ehRobo`) e aparelho sem identificação não contam; a rota responde
+  204 sempre, para não ensinar o que conta.
+- **Propaganda se identifica**: cada cartão diz "Patrocinada" em texto.
+- **Recorte**: patrocinar só rifa própria no ar (a do vizinho é 404, por
+  `assertCampaignInScope`), pausar confere o dono antes; configuração e
+  ajuste de saldo são da plataforma (403 no `npm run isolation`). Até 3
+  patrocínios ativos por organização, contados sob trava (811401).
+- **Retorno**: cliques e gasto vêm de `patrocinio_cliques`; vendas, da
+  origem `patrocinada` (a mesma estatística do painel de resultados — não
+  decide dinheiro).
+- Template publicado antes do bloco existir ganha o bloco antes do feed
+  (`comPatrocinadas()` na vitrine); no construtor ele pode mudar de lugar
+  ou ser desligado.
+- `npm run patrocinio` prova tudo isso contra a API de verdade.
 

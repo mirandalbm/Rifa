@@ -4,6 +4,7 @@ import { db } from "../db";
 import { webhookEvents } from "@shared/schema";
 import { paymentProviderByName, PROVEDORES_CONHECIDOS } from "../payments";
 import { markOrderPaid, refundByChargeId } from "../services/orders";
+import { confirmarRecarga } from "../services/patrocinio";
 
 export const webhookRouter = Router();
 
@@ -46,7 +47,8 @@ webhookRouter.post("/:provider", async (req, res) => {
     if (event.event === "ignored" || !event.chargeId) {
       // Nada a fazer; o evento fica gravado para não ser reprocessado.
     } else if (event.event === "paid") {
-      await markOrderPaid(event.chargeId);
+      // Recarga de patrocínio (etapa 15) não é pedido: credita o saldo.
+      if (!(await confirmarRecarga(event.chargeId))) await markOrderPaid(event.chargeId);
     }
 
     // Estorno desfaz tudo que o pagamento criou: cota de volta ao estoque,

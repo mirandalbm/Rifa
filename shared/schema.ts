@@ -184,6 +184,8 @@ export const organizations = pgTable(
      * hora do pagamento. Escolha da organização.
      */
     liberacaoComissao: commissionRelease("liberacao_comissao").notNull().default("apos_sorteio"),
+    /** Saldo para rifas patrocinadas (etapa 15), em centavos. Anda com o livro, na mesma transação. */
+    patrocinioSaldoCents: integer("patrocinio_saldo_cents").notNull().default(0),
     /**
      * Dias que a organização se compromete a levar para devolver o dinheiro
      * depois de aprovar um pedido de reembolso. O prazo de cada chamado é
@@ -1521,3 +1523,94 @@ export const bonusMetas = pgTable("bonus_metas", {
   ativa: boolean("ativa").notNull().default(true),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
+
+/* ------------------------------------------------------------------ *
+ * Rifas patrocinadas por clique (etapa 15)
+ * ------------------------------------------------------------------ */
+
+/** Uma rifa que a organização pôs no bloco "Patrocinadas". Uma ativa por rifa. */
+export const patrocinios = pgTable(
+  "patrocinios",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    campaignId: uuid("campaign_id")
+      .notNull()
+      .references(() => campaigns.id, { onDelete: "cascade" }),
+    ativo: boolean("ativo").notNull().default(true),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("uq_patrocinio_rifa_ativa").on(t.campaignId).where(sql`ativo`),
+    index("idx_patrocinios_org").on(t.organizationId, t.ativo),
+  ],
+);
+
+/** Clique cobrado. Um por visitante (aparelho em hash) a cada 24 h, conferido sob trava. */
+export const patrocinioCliques = pgTable(
+  "patrocinio_cliques",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    patrocinioId: uuid("patrocinio_id")
+      .notNull()
+      .references(() => patrocinios.id, { onDelete: "cascade" }),
+    organizationId: uuid("organization_id").notNull(),
+    campaignId: uuid("campaign_id").notNull(),
+    visitanteHash: text("visitante_hash").notNull(),
+    valorCents: integer("valor_cents").notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    index("idx_patrocinio_clique_visitante").on(t.patrocinioId, t.visitanteHash, t.createdAt),
+    index("idx_patrocinio_clique_org").on(t.organizationId, t.createdAt),
+  ],
+);
+
+/**
+ * Entradas e ajustes do saldo de patrocínio (recarga paga, crédito ou
+ * débito da plataforma). A `chave` é única: o webhook repetido não credita
+ * duas vezes. Os cliques têm a tabela deles.
+ */
+export const patrocinioLancamentos = pgTable(
+  "patrocinio_lancamentos",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    valorCents: integer("valor_cents").notNull(),
+    /** recarga | ajuste */
+    motivo: text("motivo").notNull(),
+    chave: text("chave").notNull(),
+    descricao: text("descricao"),
+    userId: uuid("user_id"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("uq_patrocinio_lancamento_chave").on(t.chave), index("idx_patrocinio_lancamentos_org").on(t.organizationId, t.createdAt)],
+);
+
+/** Recarga por Pix para a conta da plataforma (sem split). */
+export const patrocinioRecargas = pgTable(
+  "patrocinio_recargas",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    /** Número da cobrança no provedor (faixa própria, fora da dos pedidos). */
+    codigo: integer("codigo").notNull(),
+    valorCents: integer("valor_cents").notNull(),
+    /** pendente | paga */
+    status: text("status").notNull().default("pendente"),
+    provider: text("provider"),
+    chargeId: text("charge_id"),
+    pixQr: text("pix_qr"),
+    pixCopyPaste: text("pix_copy_paste"),
+    expiresAt: timestamp("expires_at"),
+    pagaEm: timestamp("paga_em"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("uq_patrocinio_recarga_codigo").on(t.codigo), uniqueIndex("uq_patrocinio_recarga_charge").on(t.chargeId)],
+);

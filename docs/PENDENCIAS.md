@@ -181,8 +181,9 @@ Na ordem de entrega do plano:
   no site, vitrine, perfil, story, banner, página do estado ou anúncio);
   rifas que mais vendem. A plataforma escolhe a organização.
 - [x] Foto do ganhador como capa depois do sorteio (painel → Sorteios).
-- [ ] **[código]** Retorno das rifas patrocinadas no painel de resultados
-  (entra junto com as patrocinadas, etapa 15).
+- [x] Retorno das rifas patrocinadas (painel → Patrocínio): cliques, gasto,
+  vendas que vieram do bloco e custo por venda, nos últimos 30 dias; a
+  origem "Rifa patrocinada" também entra nos canais do painel de resultados.
 - [x] Afiliado de todas as organizações: cadastro avulso, adesão pelo
   painel do afiliado (Organizações), aprovação por organização, termo de
   adesão por versão fotografado na publicação de cada rifa, aceite com cópia
@@ -221,7 +222,14 @@ Na ordem de entrega do plano:
   decide (procedente: vira aprovado com o prazo da organização; improcedente:
   mantém a recusa), e a decisão encerra. Pedido premiado não tem disputa
   procedente.
-- [ ] **[código]** Rifas patrocinadas por clique.
+- [x] Rifas patrocinadas por clique, **atrás de um interruptor desligado**
+  (painel → Patrocínio, da plataforma): recarga de saldo por Pix para a
+  conta da plataforma (ou crédito lançado por ela), até 3 rifas por
+  organização, bloco "Patrocinadas" na vitrine com até 5 por visita,
+  clique cobrado uma vez por aparelho em 24 h, robô não conta.
+- [ ] **[você]** Ligar as patrocinadas e definir o preço do clique e a
+  recarga mínima (painel → Patrocínio) quando a conta da plataforma estiver
+  pronta para receber o Pix das recargas.
 - [ ] **[código]** Marketing e tráfego pago.
 - [ ] **[código]** Login com Google.
 - [ ] **[você]** Advogado: regra de reembolso (arrependimento × corte de

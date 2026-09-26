@@ -32,6 +32,7 @@ import {
 } from "lucide-react";
 import type { SectionKey } from "@shared/access";
 import { useSession, useLogout } from "@/lib/session";
+import { TemaCiclo, TemaEscolha } from "@/components/TemaToggle";
 
 /**
  * Menu do apostador com conta: o círculo com a inicial abre as compras, os
@@ -88,6 +89,7 @@ function MenuDoApostador({ nome }: { nome: string }) {
                 {rotulo}
               </button>
             ))}
+            <TemaCiclo className="flex w-full items-center gap-2 border-t border-line px-4 py-2 text-left text-sm hover:bg-mist [&>svg]:h-4 [&>svg]:w-4" />
             <button
               type="button"
               role="menuitem"
@@ -154,7 +156,11 @@ export function PublicShell({ children }: { children: ReactNode }) {
           </nav>
         </div>
       </header>
-      <main className="mx-auto max-w-3xl px-4 pb-24 pt-4">{children}</main>
+      <main className="mx-auto max-w-3xl px-4 pb-8 pt-4">{children}</main>
+      <footer className="mx-auto flex max-w-3xl items-center justify-between gap-3 border-t border-line px-4 pb-28 pt-4 text-xs text-muted">
+        <span>rifa.br</span>
+        <TemaEscolha />
+      </footer>
     </div>
   );
 }
@@ -324,7 +330,7 @@ export function PanelShell({
                 {n ? (
                   <span
                     aria-hidden
-                    className={`tnum rounded-full bg-yellow px-1.5 text-[11px] font-semibold leading-[18px] text-[#3B2A00] ${
+                    className={`tnum rounded-full bg-yellow px-1.5 text-[11px] font-semibold leading-[18px] text-on-yellow ${
                       aberto ? "ml-auto" : "absolute -right-0.5 -top-0.5"
                     }`}
                   >
@@ -352,6 +358,7 @@ export function PanelShell({
             <KeyRound size={18} className="shrink-0" aria-hidden />
             {aberto ? <span>Trocar senha</span> : null}
           </Link>
+          <TemaCiclo compacto={!aberto} className={`${item(false)} w-full`} />
           <button
             type="button"
             onClick={() => logout.mutate()}

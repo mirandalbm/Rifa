@@ -116,7 +116,9 @@ Na ordem de entrega do plano:
   estado; o endereço completo é pedido em Configurações.
 - [ ] **[você]** Cada organização conferir o endereço em Configurações →
   Endereço da organização (aparece "falta cadastrar" enquanto não tiver).
-- [ ] **[código]** Tema claro e escuro.
+- [x] Tema claro e escuro: segue o celular por padrão; a pessoa troca no
+  rodapé da loja, no menu da conta ou no menu do painel. O bilhete continua
+  branco (é papel).
 - [ ] **[código]** Perfil do organizador no formato do Instagram (seguir,
   sino, bio automática, destaques, grade em carrossel, menu, rifa dentro do
   perfil).

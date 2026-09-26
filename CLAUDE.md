@@ -102,6 +102,7 @@ arquitetura.
 | de quem é o cliente (o que o organizador vê) | `shared/titularidade.ts` (regra) e `server/services/titularidade.ts` (SQL) |
 | autorização SPA/MF e data do sorteio | `shared/campanhaLegal.ts`, `salvarDadosLegais()` em `server/services/campaigns.ts`, `client/src/components/DadosLegaisCard.tsx` |
 | endereço do organizador e ordem da vitrine por região | `shared/endereco.ts` (regra), `salvarEndereco()` em `server/services/orgs.ts`, `server/services/cep.ts`, `client/src/components/EnderecoForm.tsx` |
+| tema claro e escuro | `client/src/index.css` (variáveis), `client/src/lib/tema.ts`, `client/src/components/TemaToggle.tsx`, `tests/tema.test.ts` |
 | app instalável (PWA) | `client/public/sw.js`, `client/public/manifest.webmanifest`, `client/src/lib/pwa.ts` |
 
 ## Convenções
@@ -111,8 +112,8 @@ arquitetura.
   `tnum` — DM Mono com algarismo tabular.
 - Estado nunca é comunicado só por cor: use `<Pill>`, que traz rótulo em texto.
 - Paleta: branco de fundo; verde = dinheiro que entrou; amarelo = espera e
-  prêmio; vermelho = erro. Cor sem significado é ruído. O tema escuro (plano
-  da Fase 5) troca os tons, nunca o significado.
+  prêmio; vermelho = erro. Cor sem significado é ruído. O tema escuro troca
+  os tons, nunca o significado (seção "Tema claro e escuro").
 
 ## O que ainda não existe
 
@@ -544,3 +545,23 @@ pedido, cotas e valor, e o cliente só pelo ID (`Cliente C-XXXXXXXX`).
   não na conta: é conveniência, e sumir não estraga nada.
 - **Cadastro antigo "Cidade/UF"** é separado uma vez pelo relógio
   (`separarCidadesAntigas`, trava 811007), só onde a UF está vazia.
+
+## Tema claro e escuro — o que não pode afrouxar
+
+- **Cor é variável, nunca valor.** Tela nova usa as classes do Tailwind
+  (`bg-white`, `text-ink`, `text-green-deep`…), que leem as variáveis de
+  `index.css`. Hex no componente fica igual nos dois temas — só vale para o
+  que é igual de propósito: banner sobre foto (`text-branco`), texto sobre
+  amarelo (`text-on-yellow`) e o bilhete, que é papel e sai sempre branco.
+- **Os nomes ficaram, o papel também.** No escuro, `white` é a superfície e
+  `ink` o texto; os `-deep` são cor de **texto** (clareiam) e os `-soft` são
+  fundo de aviso (escurecem). Por isso `bg-green-deep` não é usado: no
+  escuro seria um fundo claro com texto branco.
+- **Duas entradas, mesmos valores**: o celular pedindo escuro e a escolha
+  explícita. `tests/tema.test.ts` confere que as duas são iguais e que o
+  escuro redefine toda cor do claro.
+- **Sem piscar.** O `index.html` aplica a escolha antes do primeiro desenho,
+  com a mesma chave (`rifa.tema`) e as cores da barra de `COR_DA_BARRA`; o
+  teste confere as duas coisas.
+- **A escolha fica no aparelho**, como a região: padrão automático, e
+  perder a escolha só devolve o automático.

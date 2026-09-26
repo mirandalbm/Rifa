@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams, useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { PublicShell } from "@/components/AppShell";
+import { PublicShell, acimaDoRodape } from "@/components/AppShell";
 import { Money, Progress, Button, Card } from "@/components/bits";
 import { apiRequest } from "@/lib/queryClient";
 import { useSession } from "@/lib/session";
@@ -595,7 +595,10 @@ export default function Rifa() {
 
       {/* Barra fixa: o total nunca sai da tela. */}
       {count > 0 && price && (data.pagamento?.online ?? true) ? (
-        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-mist px-4 py-3">
+        <div
+          className="fixed inset-x-0 z-30 border-t border-line bg-mist px-4 py-3"
+          style={{ bottom: acimaDoRodape }}
+        >
           <div className="mx-auto flex max-w-3xl items-center justify-between gap-3">
             <span className="tnum text-base">
               <span className="label-xs block">{count} cota(s)</span>

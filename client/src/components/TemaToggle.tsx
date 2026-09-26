@@ -7,7 +7,7 @@ const ICONE: Record<Tema, LucideIcon> = { automatico: Monitor, claro: Sun, escur
  * As três opções lado a lado, no rodapé: só os ícones; a escolhida mostra o
  * nome. O leitor de tela ouve o nome de todas (`aria-label`).
  */
-export function TemaEscolha({ className = "" }: { className?: string }) {
+export function TemaEscolha({ className = "", compacto = false }: { className?: string; compacto?: boolean }) {
   const [tema, escolher] = useTema();
   return (
     <div role="radiogroup" aria-label="Tema" className={`inline-flex rounded-md border border-line p-0.5 ${className}`}>
@@ -23,12 +23,12 @@ export function TemaEscolha({ className = "" }: { className?: string }) {
             aria-label={NOME_TEMA[t]}
             title={NOME_TEMA[t]}
             onClick={() => escolher(t)}
-            className={`flex items-center gap-1 rounded px-2 py-1 text-xs ${
+            className={`flex items-center gap-1 rounded ${compacto ? "px-1.5 py-0.5 text-[11px]" : "px-2 py-1 text-xs"} ${
               ativo ? "bg-mist-2 font-semibold text-ink" : "text-muted hover:text-ink"
             }`}
           >
-            <Icone size={15} aria-hidden />
-            {ativo ? <span aria-hidden>{NOME_TEMA[t]}</span> : null}
+            <Icone size={compacto ? 13 : 15} aria-hidden />
+            {ativo ? <span aria-hidden>{compacto && t === "automatico" ? "Auto" : NOME_TEMA[t]}</span> : null}
           </button>
         );
       })}

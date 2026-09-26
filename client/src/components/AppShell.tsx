@@ -30,12 +30,21 @@ import {
   Users,
   Wallet,
   type LucideIcon,
+  HelpCircle,
 } from "lucide-react";
 import type { SectionKey } from "@shared/access";
 import { useSession, useLogout } from "@/lib/session";
 import { TemaCiclo, TemaEscolha } from "@/components/TemaToggle";
 import { Marca } from "@/components/Marca";
 import { useTemplate } from "@/lib/template";
+
+/** Altura da faixa fixa do rodapé da loja (sem a área segura do celular). */
+export const ALTURA_DO_RODAPE = "2.25rem";
+/** Onde começa o que fica fixo acima do rodapé (barra de compra da rifa). */
+export const acimaDoRodape = `calc(${ALTURA_DO_RODAPE} + env(safe-area-inset-bottom))`;
+
+/** "Jogue com responsabilidade. Proibido…" → "Jogue com responsabilidade". */
+const primeiraFrase = (t: string) => t.split(/(?<=[.!?])\s/)[0].replace(/[.]$/, "");
 
 /**
  * Menu do apostador com conta: o círculo com a inicial abre as compras, os
@@ -385,22 +394,50 @@ export function PanelShell({
   );
 }
 
-/** Rodapé da loja: textos do template, ajuda e o seletor de tema. */
+/**
+ * Rodapé da loja: uma faixa fina **fixa na base** (`ALTURA_DO_RODAPE`), com o
+ * aviso de jogo responsável, a ajuda e o seletor de tema. Fixa para não
+ * "subir" em página curta nem andar com a rolagem. O texto livre do
+ * template (CNPJ, endereço) é mais longo e fica no fim da página, no fluxo.
+ * A barra de compra da rifa fica logo acima dela (`acimaDoRodape`).
+ */
 function RodapePublico() {
   const t = useTemplate();
   return (
-    <footer className="mx-auto max-w-3xl space-y-3 border-t border-line px-4 pb-28 pt-4 text-xs text-muted">
-      <div className="flex items-center justify-between gap-3">
-        <span className="flex items-center gap-3">
-          <span>{t.identidade.nome}</span>
-          <Link href="/ajuda" className="underline hover:text-ink">
-            Ajuda
+    <>
+      {t.textos.rodape ? (
+        <p className="mx-auto max-w-3xl whitespace-pre-line border-t border-line px-4 pt-3 text-[11px] text-muted">
+          {t.textos.rodape}
+        </p>
+      ) : null}
+      {/* Espaço para a faixa fixa não cobrir o fim da página. */}
+      <div aria-hidden style={{ height: acimaDoRodape }} />
+      <footer
+        className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-white/95 text-[11px] text-muted backdrop-blur"
+        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+      >
+        <div
+          className="mx-auto flex max-w-3xl items-center gap-1.5 px-4"
+          style={{ height: ALTURA_DO_RODAPE }}
+        >
+          {/* Na faixa vai a primeira frase do aviso; o "18+" diz o resto, e o
+              texto inteiro fica no title e para leitor de tela. */}
+          <p className="min-w-0 flex-1 truncate" title={t.textos.jogoResponsavel || undefined}>
+            <span className="mr-1 rounded border border-line-2 px-1 font-semibold text-ink-2">18+</span>
+            <span aria-hidden>{primeiraFrase(t.textos.jogoResponsavel)}</span>
+            <span className="sr-only">{t.textos.jogoResponsavel}</span>
+          </p>
+          <Link
+            href="/ajuda"
+            aria-label="Central de ajuda"
+            title="Central de ajuda"
+            className="flex shrink-0 items-center hover:text-ink"
+          >
+            <HelpCircle size={15} aria-hidden />
           </Link>
-        </span>
-        <TemaEscolha />
-      </div>
-      {t.textos.rodape ? <p className="whitespace-pre-line">{t.textos.rodape}</p> : null}
-      {t.textos.jogoResponsavel ? <p className="font-semibold">{t.textos.jogoResponsavel}</p> : null}
-    </footer>
+          <TemaEscolha compacto className="shrink-0" />
+        </div>
+      </footer>
+    </>
   );
 }

@@ -216,7 +216,7 @@ arquivos grandes demais para o banco.
 
 ---
 
-## 8. Crescimento: indicação, bônus e gamificação **[decidido]**
+## 8. Crescimento: indicação, bônus e gamificação **[decidido — feito atrás de interruptor; liga depois do advogado]**
 
 - **Indicação de apostador**: quem traz outro apostador ganha bônus (cotas
   grátis ou desconto na próxima compra) — diferente do afiliado, que ganha
@@ -231,7 +231,7 @@ arquivos grandes demais para o banco.
 
 ---
 
-## 9. Afiliado de todas as organizações **[decidido — feito: avulso, termo, aceite, colaborador, cadastro fiscal, recibo e extrato; falta a guarda pela plataforma (etapa 12, espera o contador)]**
+## 9. Afiliado de todas as organizações **[decidido — feito: avulso, termo, aceite, colaborador, cadastro fiscal, recibo e extrato; guarda pela plataforma feita atrás de interruptor; liga depois do contador]**
 
 - **Afiliado avulso**: cadastro sem organização; escolhe as rifas que quer
   divulgar e adere a quantas organizações quiser.
@@ -293,8 +293,8 @@ arquivos grandes demais para o banco.
 | ✓ | Painel de resultados do organizador | 10 | — |
 | ✓ | Afiliado multi-organização, termo, colaborador | 9 | — |
 | ✓ | Cadastro fiscal, recibo assinado e extrato por origem | 9 | — |
-| 12 | Guarda da comissão pela plataforma | 9 | contador |
-| 13 | Indicação, bônus e gamificação | 8 | 5, advogado |
+| ✓ | Guarda da comissão pela plataforma (interruptor desligado até o contador) | 9 | — |
+| ✓ | Indicação, bônus e metas (interruptor desligado até o advogado) | 8 | — |
 | ✓ | Disputa de reembolso no administrador geral | 2 | — |
 | 15 | Rifas patrocinadas por clique | 5 | Pix da plataforma |
 | 16 | Marketing e tráfego pago | 11 | conta de anúncios |

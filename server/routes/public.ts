@@ -49,14 +49,15 @@ import {
 } from "../services/perfil";
 import QRCode from "qrcode";
 import { publicUrl } from "../services/urls";
-import { createOrder, orderByCode, ordersByPhone, OrderError } from "../services/orders";
+import { createOrder, orderByCode, ordersByPhone, OrderError, resgatarCotasDeBonus } from "../services/orders";
+import { estadoDoBonus, registrarVisita } from "../services/bonus";
 import { blockBitmap, isTaken, BLOCK_SIZE, NumbersTakenError, NoQuotasAvailableError } from "../services/quotas";
 import { issueOtp, checkOtp, hashPassword } from "../auth";
 import { withUrls } from "../services/media";
 import { notify, notificationProvider } from "../notifications";
 import { buildTicket, escPosTicket, markTicketPrinted } from "../services/ticket";
 import { getPaymentMethods } from "../services/settings";
-import { identify, guardOtp, guardOtpVerify, lookupBlocked, recordLookupMiss } from "../services/antifraude";
+import { identify, guardOtp, guardOtpVerify, hit, lookupBlocked, recordLookupMiss } from "../services/antifraude";
 import { paymentSummary } from "@shared/payments";
 import { activePaymentProvider } from "../payments";
 import { EXIGE_CPF, type ProvedorPix } from "@shared/plataforma";
@@ -580,6 +581,7 @@ publicRouter.get("/campaigns/:slug/regulamento", async (req, res, next) => {
           authorizationCode: c.authorizationCode,
           drawSeedHash: c.drawSeedHash,
           regulamentoExtra: c.regulamentoExtra,
+          aceitaCotaBonus: c.aceitaCotaBonus,
         },
         promotora: {
           nome: org?.name ?? "—",
@@ -1090,6 +1092,47 @@ publicRouter.post("/chamados/:id/disputa", async (req, res, next) => {
     const c = exigirComprador(req);
     const feito = await abrirDisputa(c, req.params.id, String(req.body?.motivo ?? ""));
     res.status(201).json({ disputa: feito.disputa, protocolo: feito.protocolo });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/* ---------------- bônus: indicação, metas e cota grátis (etapa 13) ---------------- */
+
+/** A tela "Bônus" do comprador logado. Programa desligado: `{ ligado: false }`. */
+publicRouter.get("/bonus", async (req, res, next) => {
+  try {
+    const c = exigirComprador(req);
+    res.json(await estadoDoBonus(c.id));
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** Resgata cotas de bônus numa rifa que as aceita (regulamento). */
+publicRouter.post("/bonus/resgatar", async (req, res, next) => {
+  try {
+    const c = exigirComprador(req);
+    const limite = await hit(`bonus-resgate:${c.id}`, 60, 10);
+    if (limite.excedeu) return res.status(429).json({ message: "Muitos resgates em pouco tempo. Aguarde um pouco." });
+    const r = await resgatarCotasDeBonus(c.id, String(req.body?.campaignId ?? ""), Number(req.body?.quantidade));
+    res.status(201).json(r);
+  } catch (err) {
+    if (err instanceof NoQuotasAvailableError) return res.status(409).json({ message: err.message });
+    next(err);
+  }
+});
+
+/**
+ * Visita nova pelo link de indicação. Anônima: quem conta é o aparelho (em
+ * hash). Responde 204 sempre — o link não revela se o código existe.
+ */
+publicRouter.post("/bonus/visita", async (req, res, next) => {
+  try {
+    const id = identify(req);
+    const limite = await hit(`bonus-visita:${id.ipHash ?? "?"}`, 10, 60);
+    if (!limite.excedeu) await registrarVisita(req.body?.codigo, id.deviceHash);
+    res.status(204).end();
   } catch (err) {
     next(err);
   }

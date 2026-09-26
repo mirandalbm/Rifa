@@ -17,6 +17,7 @@ interface Campanha {
   authorizationCode: string | null;
   authorizationFileKey?: string | null;
   regulamentoExtra?: string | null;
+  aceitaCotaBonus?: boolean;
   transmissaoUrl?: string | null;
   slug?: string;
 }
@@ -58,6 +59,7 @@ export function DadosLegaisCard({ campanha }: { campanha: Campanha }) {
   const [data, setData] = useState(paraCampoLocal(campanha.drawAt));
   const [arquivo, setArquivo] = useState<{ dataUrl: string; nome: string } | null>(null);
   const [extra, setExtra] = useState(campanha.regulamentoExtra ?? "");
+  const [bonus, setBonus] = useState(Boolean(campanha.aceitaCotaBonus));
   const [msg, setMsg] = useState<{ ok: boolean; texto: string } | null>(null);
 
   useEffect(() => {
@@ -65,8 +67,9 @@ export function DadosLegaisCard({ campanha }: { campanha: Campanha }) {
     setData(paraCampoLocal(campanha.drawAt));
     setArquivo(null);
     setExtra(campanha.regulamentoExtra ?? "");
+    setBonus(Boolean(campanha.aceitaCotaBonus));
     setMsg(null);
-  }, [campanha.id, campanha.authorizationCode, campanha.drawAt, campanha.regulamentoExtra]);
+  }, [campanha.id, campanha.authorizationCode, campanha.drawAt, campanha.regulamentoExtra, campanha.aceitaCotaBonus]);
 
   const { data: pendencias } = useQuery<{ blockers: string[] }>({
     queryKey: [`/api/admin/campaigns/${campanha.id}/blockers`],
@@ -86,6 +89,7 @@ export function DadosLegaisCard({ campanha }: { campanha: Campanha }) {
         drawAt: drawAt ? drawAt.toISOString() : null,
         certificado: arquivo,
         regulamentoExtra: extra,
+        aceitaCotaBonus: bonus,
       }),
     onSuccess: () => {
       setArquivo(null);
@@ -201,6 +205,25 @@ export function DadosLegaisCard({ campanha }: { campanha: Campanha }) {
             }}
             className="mt-1 w-full rounded-md border border-line-2 px-3 py-2 disabled:bg-mist"
           />
+          <label className="mt-2 flex items-start gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={bonus}
+              disabled={!rascunho}
+              onChange={(e) => {
+                setMsg(null);
+                setBonus(e.target.checked);
+              }}
+              className="mt-1 h-4 w-4 accent-[var(--green)]"
+            />
+            <span>
+              Aceitar cotas de bônus do programa de indicação
+              <span className="block text-xs text-muted">
+                Só marque se o regulamento aprovado pela SPA/MF prevê cotas grátis: a cláusula entra no regulamento
+                desta rifa e trava ao publicar.
+              </span>
+            </span>
+          </label>
           <p className="text-[11px] text-muted">
             O resto do regulamento (promotora, autorização, prêmios, numeração, sorteio, entrega e
             reembolso) é montado sozinho dos dados da rifa.

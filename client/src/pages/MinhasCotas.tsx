@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { PublicShell } from "@/components/AppShell";
 import { Button, Card, Money, Pill, Empty } from "@/components/bits";
 import { Conversa, type Mensagem } from "@/components/Conversa";
+import { BonusDoComprador, type EstadoBonus } from "@/components/BonusDoComprador";
 import { apiRequest, ApiError } from "@/lib/queryClient";
 import { lerImagem } from "@/lib/anexo";
 import { estadoPush, ligarPush, desligarPush, type EstadoPush } from "@/lib/push";
@@ -207,9 +208,9 @@ function Painel({ conta, aoMudar }: { conta: Conta; aoMudar: (c: Conta | null) =
   // O menu do apostador abre direto numa aba (?aba=reembolsos, ?aba=conta) —
   // e troca de aba mesmo já estando nesta página.
   const busca = useSearch();
-  const abaDaUrl = (): "cotas" | "chamados" | "conta" => {
+  const abaDaUrl = (): "cotas" | "chamados" | "conta" | "bonus" => {
     const q = new URLSearchParams(busca).get("aba");
-    return q === "conta" ? "conta" : q === "reembolsos" ? "chamados" : "cotas";
+    return q === "conta" ? "conta" : q === "reembolsos" ? "chamados" : q === "bonus" ? "bonus" : "cotas";
   };
   const [aba, setAba] = useState(abaDaUrl);
   useEffect(() => setAba(abaDaUrl()), [busca]);
@@ -221,6 +222,8 @@ function Painel({ conta, aoMudar }: { conta: Conta; aoMudar: (c: Conta | null) =
     enabled: Boolean(conta.cliente),
   });
   const chamados = meus?.chamados ?? [];
+  // Programa de bônus (etapa 13): a aba só existe com ele ligado.
+  const { data: bonus } = useQuery<EstadoBonus | { ligado: false }>({ queryKey: ["/api/public/bonus"] });
   const emAndamento = new Set(
     chamados.filter((c) => c.status === "aberto" || c.status === "aprovado").map((c) => c.pedido),
   );
@@ -236,11 +239,12 @@ function Painel({ conta, aoMudar }: { conta: Conta; aoMudar: (c: Conta | null) =
         ) : null}
       </div>
 
-      <div className="mt-3 flex gap-1" role="tablist">
+      <div className="mt-3 flex flex-wrap gap-1" role="tablist">
         {(
           [
             ["cotas", "Minhas compras"],
             ["chamados", `Reembolsos${chamados.length ? ` (${chamados.length})` : ""}`],
+            ...(bonus?.ligado ? ([["bonus", `Bônus${bonus.saldo > 0 ? ` (${bonus.saldo})` : ""}`]] as const) : []),
             ["conta", "Minha conta"],
           ] as const
         ).map(([v, rotulo]) => (
@@ -279,6 +283,8 @@ function Painel({ conta, aoMudar }: { conta: Conta; aoMudar: (c: Conta | null) =
 
       {aba === "conta" ? (
         <MinhaConta aoSair={() => aoMudar(null)} />
+      ) : aba === "bonus" ? (
+        bonus?.ligado ? <BonusDoComprador dados={bonus} /> : <Empty>O programa de bônus não está ativo.</Empty>
       ) : aba === "cotas" ? (
         <>
           {conta.orders.length === 0 ? (

@@ -9,6 +9,7 @@
  * ------------------------------------------------------------------ */
 
 import { TAXA_REEMBOLSO_MAX_PCT, TAXA_REEMBOLSO_PADRAO_PCT } from "./reembolso";
+import { BONUS_POR_INDICACAO_MAX, BONUS_POR_INDICACAO_PADRAO } from "./bonus";
 
 export const PROVEDORES_PIX = ["mercadopago", "asaas"] as const;
 export type ProvedorPix = (typeof PROVEDORES_PIX)[number];
@@ -74,6 +75,15 @@ export interface ConfigPlataforma {
    * marcado — cada venda segue o contrato com que nasceu.
    */
   guardaComissao: boolean;
+  /**
+   * Programa de bônus (etapa 13: indicação, metas e cota grátis).
+   * **Desligado por padrão**: cota grátis precisa estar prevista no
+   * regulamento aprovado pela SPA/MF — liga-se depois de o advogado
+   * confirmar. Desligado, nada acumula e nada se resgata; o saldo fica.
+   */
+  bonusLigado: boolean;
+  /** Cotas de bônus para quem indica, quando o indicado paga a primeira compra. */
+  bonusPorIndicacao: number;
 }
 
 export const CONFIG_PADRAO: ConfigPlataforma = {
@@ -82,6 +92,8 @@ export const CONFIG_PADRAO: ConfigPlataforma = {
   taxaReembolsoPct: TAXA_REEMBOLSO_PADRAO_PCT,
   exigirCadastroFiscal: false,
   guardaComissao: false,
+  bonusLigado: false,
+  bonusPorIndicacao: BONUS_POR_INDICACAO_PADRAO,
 };
 
 /** Só as chaves conhecidas: isto vem do corpo da requisição. */
@@ -104,7 +116,18 @@ export function validarConfigPlataforma(entrada: Partial<ConfigPlataforma>): Con
     taxaReembolsoPct: taxa,
     exigirCadastroFiscal: entrada.exigirCadastroFiscal === true,
     guardaComissao: entrada.guardaComissao === true,
+    bonusLigado: entrada.bonusLigado === true,
+    bonusPorIndicacao: bonusPorIndicacaoValido(entrada.bonusPorIndicacao),
   };
+}
+
+function bonusPorIndicacaoValido(v: unknown): number {
+  if (v === undefined || v === null) return BONUS_POR_INDICACAO_PADRAO;
+  const n = Number(v);
+  if (!Number.isInteger(n) || n < 1 || n > BONUS_POR_INDICACAO_MAX) {
+    throw Object.assign(new Error(`O bônus por indicação vai de 1 a ${BONUS_POR_INDICACAO_MAX} cota(s).`), { status: 400 });
+  }
+  return n;
 }
 
 /* ------------------------------------------------------------------ *

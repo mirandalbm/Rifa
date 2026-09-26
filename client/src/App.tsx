@@ -42,6 +42,7 @@ import { AdminAtendimento } from "@/pages/adminAtendimento";
 import { AdminStories } from "@/pages/adminStories";
 import { AdminResultados } from "@/pages/adminResultados";
 import { AdminFiscal } from "@/pages/adminFiscal";
+import { AdminBonus } from "@/pages/adminBonus";
 import { AfiliadoDados } from "@/pages/afiliadoDados";
 import ReciboPage from "@/pages/Recibo";
 import { PanelShell } from "@/components/AppShell";
@@ -245,6 +246,11 @@ export default function App() {
           <Route path="/admin/organizacoes">
             <Guarded requires="admin">
               <AdminOrganizacoes />
+            </Guarded>
+          </Route>
+          <Route path="/admin/bonus">
+            <Guarded requires="admin">
+              <AdminBonus />
             </Guarded>
           </Route>
           <Route path="/admin/fiscal">

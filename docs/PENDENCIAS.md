@@ -202,9 +202,19 @@ Na ordem de entrega do plano:
   `openssl rand -base64 32`) **antes** de ligar o cadastro fiscal. Sem ela,
   em produção, o cadastro fiscal e o recibo recusam. Guardar uma cópia fora
   do Railway: perder a chave é perder os documentos.
-- [ ] **[código]** Guarda da comissão pela plataforma (split para a carteira
-  da plataforma, pagamento depois do sorteio) — espera o contador.
-- [ ] **[código]** Indicação, bônus e gamificação.
+- [x] Guarda da comissão pela plataforma, **atrás de um interruptor
+  desligado** (Configurações → Pagamentos → "A plataforma guarda a comissão
+  dos afiliados"): a comissão da venda online com afiliado sai do split da
+  organização, só libera depois do sorteio e é paga pela plataforma.
+- [ ] **[você]** Ligar a guarda da comissão depois de o contador confirmar o
+  modelo (a plataforma segurando dinheiro de terceiro até o sorteio; RPA ou
+  nota do afiliado).
+- [x] Indicação, bônus e metas, **atrás de um interruptor desligado**
+  (menu Bônus da plataforma): link de indicação, visitas novas, metas e
+  cotas grátis de bônus, resgatadas só em rifa cujo regulamento as prevê.
+- [ ] **[você]** Ligar o programa de bônus depois de o advogado confirmar a
+  cota grátis no regulamento aprovado pela SPA/MF; as organizações marcam
+  "aceitar cotas de bônus" nos dados legais de cada rifa, antes de publicar.
 - [x] Disputa de reembolso no administrador geral: o comprador leva à
   plataforma o chamado recusado (até 7 dias) ou sem resposta da organização
   (depois de 3 dias), antes do corte de 2 horas do sorteio. A plataforma

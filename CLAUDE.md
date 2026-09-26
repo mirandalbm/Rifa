@@ -100,6 +100,8 @@ arquitetura.
 | usuários, senha e arquivamento | `server/routes/admin.ts` (`/usuarios`, `/organizacoes/:id/arquivar`), `shared/senha.ts` |
 | o que falta para vender em produção | `docs/PENDENCIAS.md` — **atualize no mesmo PR** que fechar um item |
 | cadastro fiscal do afiliado, cofre e recibo | `shared/fiscal.ts` (regras), `server/services/cofre.ts`, `server/services/fiscal.ts`, `server/services/recibos.ts`, `client/src/pages/afiliadoDados.tsx`, `adminFiscal.tsx`, `Recibo.tsx`, `scripts/fiscal-test.ts` |
+| guarda da comissão pela plataforma (etapa 12) | `guardaComissao` e `percentualDoPromotor()` em `shared/plataforma.ts`, `createOrder`/`settleOrderAsPaid` em `server/services/orders.ts`, `scripts/guarda-test.ts` |
+| indicação, bônus e metas (etapa 13) | `shared/bonus.ts` (regras), `server/services/bonus.ts`, `resgatarCotasDeBonus()` em `server/services/orders.ts`, `client/src/lib/indicacao.ts`, `client/src/pages/adminBonus.tsx`, `client/src/components/BonusDoComprador.tsx`, `scripts/bonus-test.ts` |
 | plano da próxima fase (vitrine, contas, afiliados, marketing) | `docs/PLANO-FASE5.md` |
 | conta do apostador (senha, confirmação, exclusão) | `shared/contaComprador.ts`, `server/services/contaComprador.ts`, `scripts/conta-test.ts` |
 | de quem é o cliente (o que o organizador vê) | `shared/titularidade.ts` (regra) e `server/services/titularidade.ts` (SQL) |
@@ -811,8 +813,9 @@ pedido, cotas e valor, e o cliente só pelo ID (`Cliente C-XXXXXXXX`).
   organização mexer no cupom da outra, porque o afiliado é das duas.
 - **Saque é por organização** (`payouts.organization_id`): cada uma vê e
   paga só a comissão das rifas dela, e o painel Financeiro filtra pela
-  organização da rifa — nunca pela do usuário do afiliado. Até a plataforma
-  guardar a comissão (etapa 12), é assim que ninguém paga o que não deve.
+  organização da rifa — nunca pela do usuário do afiliado. Com a guarda da
+  plataforma ligada, a comissão guardada vira um saldo à parte, pago por ela
+  (seção abaixo).
 - **A organização decide o vínculo, nunca a conta.** `PATCH
   /affiliates/:id` do organizador muda o vínculo com ele; a conta (ativo,
   bloqueado) é da plataforma. Sair desfaz o vínculo sem apagar o que já foi
@@ -856,4 +859,55 @@ pedido, cotas e valor, e o cliente só pelo ID (`Cliente C-XXXXXXXX`).
 - **Recibo não se apaga junto com o saque** (FK sem cascata): script de
   teste que apaga saque apaga o recibo antes.
 - `npm run fiscal` prova tudo isso contra a API de verdade.
+
+## Guarda da comissão pela plataforma — o que não pode afrouxar
+
+- **Nasce desligada** (`guardaComissao`), e só a plataforma liga — depois de
+  o contador confirmar o modelo. `setPlataforma()` parte da configuração
+  atual: quem salva um pedaço não desliga o resto por omissão.
+- **O contrato é da venda, não da chave.** O pedido nasce marcado
+  (`orders.comissao_guardada`) junto com o split do Pix, e a comissão copia
+  a marca (`commissions.guardada`). Desligar depois não muda o que já nasceu
+  — o Pix daquela venda já foi dividido daquele jeito.
+- **Só venda online com afiliado.** O cambista acerta com a casa em mãos.
+- **No split, a comissão sai da parte do promotor, sobre o que sobrou da
+  taxa** (`percentualDoPromotor(taxa, comissão)`, a mesma ordem de
+  `splitOrder()`), arredondando para baixo: o promotor nunca recebe a
+  fração que não é dele.
+- **Guardada é sempre depois do sorteio**, mesmo com liberação "na hora" da
+  organização (`comissaoInicial(..., guardada)`).
+- **A organização não vê, não libera e não paga comissão guardada.** O
+  saldo do afiliado mostra "Plataforma" à parte; o saque dela nasce sem
+  organização, só o administrador geral dá baixa (o organizador recebe
+  404), e o recibo sai em nome da plataforma.
+- `npm run guarda` prova tudo isso contra a API de verdade.
+
+## Bônus, indicação e metas — o que não pode afrouxar
+
+- **Cota grátis só existe se o regulamento prevê.** O programa nasce
+  desligado (`bonusLigado`) e liga-se depois do advogado; o resgate só vale
+  em rifa com `aceita_cota_bonus`, marcada em `PUT /campaigns/:id/legal`,
+  que **trava ao publicar** e põe a cláusula no regulamento
+  (`clausulaDoBonus()`).
+- **Livro-razão com chave única** (`bonus_lancamentos.chave`): a mesma
+  indicação, meta ou resgate nunca lança duas vezes; o saldo
+  (`buyers.bonus_saldo`) só anda quando a linha entrou, na mesma transação.
+- **Indicação é da primeira compra paga do indicado**, conferida no próprio
+  `INSERT … SELECT` e com índice único por indicado; autoindicação (mesmo
+  comprador, telefone ou CPF) não conta. Confirma dentro da transação que
+  confirma o pagamento; **estorno tira o bônus** na transação do estorno
+  (`estornarIndicacao`) — senão comprar pelo próprio link com outro número e
+  pedir o dinheiro de volta renderia cota grátis. O saldo pode ficar
+  negativo: é dívida, e o resgate trava.
+- **O código do link não é o ID do cliente**: o ID prova identidade no
+  reembolso e não sai em link público.
+- **Visita conta uma vez por aparelho** (hash, índice único) e no máximo
+  `VISITAS_POR_DIA` por pessoa, contada sob trava (811301).
+- **O resgate é venda pelo caminho de sempre**: pedido de R$ 0,00
+  (`method = 'bonus'`), `reserveRandom` e `settleOrderAsPaid` — sem
+  comissão e sem taxa, porque não entrou dinheiro. O saldo sai num `UPDATE`
+  condicional na mesma transação que reserva: sem cota livre, nada sai.
+  Fecha 2 horas antes do sorteio. **Cota de bônus não tem reembolso.**
+- **Desligado, nada acumula e nada se resgata**; o saldo de cada um fica.
+- `npm run bonus` prova tudo isso contra a API de verdade.
 

@@ -19,6 +19,7 @@ import { regraDoReembolso } from "@shared/reembolso";
 import { ResponsiveImage } from "@/components/ResponsiveImage";
 import { DestaqueOrg } from "@/components/DestaqueOrg";
 import { lerOrigem } from "@/lib/origem";
+import { lerIndicacao } from "@/lib/indicacao";
 import type { CorDeDestaque } from "@shared/perfil";
 import { SeguirBotoes, FotoDoPerfil } from "@/components/Seguir";
 import { SorteioCard } from "@/components/SorteioCard";
@@ -159,6 +160,7 @@ export default function Rifa() {
         },
         couponCode: buyer.coupon || undefined,
         origem: lerOrigem(),
+        indicacao: lerIndicacao(),
       });
       return (await res.json()) as { code: number };
     },

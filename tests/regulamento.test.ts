@@ -73,4 +73,9 @@ describe("central de ajuda", () => {
     expect(buscarNaAjuda(todas, "  ")).toHaveLength(todas.length);
     expect(new Set(todas.map((p) => p.id)).size).toBe(todas.length);
   });
+
+  it("cota de bônus só entra no regulamento da rifa que a aceita", () => {
+    expect(texto(base)).not.toMatch(/cotas de bônus/);
+    expect(texto({ ...base, rifa: { ...base.rifa, aceitaCotaBonus: true } })).toMatch(/cotas de bônus/);
+  });
 });

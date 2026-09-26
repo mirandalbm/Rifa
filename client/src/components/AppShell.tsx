@@ -35,6 +35,7 @@ import {
   BarChart3,
   IdCard,
   FileCheck2,
+  Gift,
 } from "lucide-react";
 import type { SectionKey } from "@shared/access";
 import { useSession, useLogout } from "@/lib/session";
@@ -208,6 +209,7 @@ const ICONE: Partial<Record<SectionKey, LucideIcon>> = {
   adminAntifraude: ShieldAlert,
   adminAparencia: Palette,
   adminFiscal: FileCheck2,
+  adminBonus: Gift,
 };
 
 const CHAVE_MENU = "rifa.menu.aberto";

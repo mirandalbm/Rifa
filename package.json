@@ -29,7 +29,9 @@
     "resultados": "tsx scripts/resultados-test.ts",
     "afiliados": "tsx scripts/afiliados-test.ts",
     "fiscal": "tsx scripts/fiscal-test.ts",
-    "disputa": "tsx scripts/disputa-test.ts"
+    "disputa": "tsx scripts/disputa-test.ts",
+    "guarda": "tsx scripts/guarda-test.ts",
+    "bonus": "tsx scripts/bonus-test.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1131.0",

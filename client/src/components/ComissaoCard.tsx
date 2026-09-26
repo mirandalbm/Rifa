@@ -14,7 +14,7 @@ const EXPLICA: Record<LiberacaoComissao, string> = {
 /** Quando a comissão de afiliados e cambistas fica disponível — escolha da organização. */
 export function ComissaoCard() {
   const qc = useQueryClient();
-  const { data } = useQuery<{ liberacaoComissao: LiberacaoComissao | null; porOrganizacao: boolean }>(
+  const { data } = useQuery<{ liberacaoComissao: LiberacaoComissao | null; porOrganizacao: boolean; guardaDaPlataforma?: boolean }>(
     { queryKey: ["/api/admin/comissao"] },
   );
   const [modo, setModo] = useState<LiberacaoComissao>("apos_sorteio");
@@ -48,6 +48,12 @@ export function ComissaoCard() {
         {ok ? (
           <p className="rounded-md bg-green-soft px-3 py-2 text-sm text-green-deep">
             Salvo. Vale para as próximas vendas.
+          </p>
+        ) : null}
+        {data.guardaDaPlataforma ? (
+          <p className="rounded-md bg-yellow-soft px-3 py-2 text-xs text-yellow-deep">
+            A plataforma guarda a comissão dos afiliados nas vendas online: ela sai sempre depois do sorteio e é paga
+            pela plataforma. Esta escolha vale para os cambistas e para as vendas de antes.
           </p>
         ) : null}
         {LIBERACAO_COMISSAO.map((m) => (

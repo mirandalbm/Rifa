@@ -88,6 +88,8 @@ export const paymentMethod = pgEnum("payment_method", [
   "dinheiro",
   "cartao_maquininha",
   "pix_maquininha",
+  // Cota grátis do programa de bônus (etapa 13): pedido de R$ 0,00.
+  "bonus",
 ]);
 
 export const settlementStatus = pgEnum("settlement_status", [
@@ -284,11 +286,16 @@ export const buyers = pgTable(
     cep: text("cep"),
     cidade: text("cidade"),
     uf: text("uf"),
+    /** Código do link de indicação (etapa 13). Diferente do ID do cliente, que prova identidade no reembolso. */
+    codigoIndicacao: text("codigo_indicacao"),
+    /** Cotas de bônus a resgatar. Anda com `bonus_lancamentos`, na mesma transação. */
+    bonusSaldo: integer("bonus_saldo").notNull().default(0),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (t) => [
     uniqueIndex("uq_buyers_phone").on(t.phone),
     uniqueIndex("uq_buyers_codigo").on(t.codigo),
+    uniqueIndex("uq_buyers_codigo_indicacao").on(t.codigoIndicacao),
     // CPF e e-mail entram como forma de login só entre contas: comprador sem
     // conta pode repetir (a mesma pessoa com dois telefones, digitação antiga).
     uniqueIndex("uq_buyers_conta_cpf").on(t.cpf).where(sql`password_hash is not null`),
@@ -353,6 +360,12 @@ export const campaigns = pgTable(
      * da rifa: `montarRegulamento()`). Trava ao publicar, com a autorização.
      */
     regulamentoExtra: text("regulamento_extra"),
+    /**
+     * A rifa aceita cotas de bônus (etapa 13). Cota grátis precisa estar no
+     * regulamento aprovado: entra por `PUT /campaigns/:id/legal` e trava ao
+     * publicar, como a autorização.
+     */
+    aceitaCotaBonus: boolean("aceita_cota_bonus").notNull().default(false),
     /** Link da live ou do vídeo do sorteio. Muda a qualquer hora (só https). */
     transmissaoUrl: text("transmissao_url"),
     authorizationFileKey: text("authorization_file_key"),
@@ -525,6 +538,12 @@ export const orders = pgTable(
     /** Feito dentro da conta do apostador: é da conta mesmo sem telefone confirmado. */
     viaConta: boolean("via_conta").notNull().default(false),
     /**
+     * A comissão desta venda fica com a plataforma até o sorteio (etapa 12,
+     * `guardaComissao`). Decidido na criação do pedido, junto com o split do
+     * Pix — desligar a chave depois não muda o contrato desta venda.
+     */
+    comissaoGuardada: boolean("comissao_guardada").notNull().default(false),
+    /**
      * De onde a pessoa chegou à rifa (vitrine, perfil, story, banner,
      * estado, anúncio). Vem do navegador: é só estatística do painel de
      * resultados (`shared/resultados.ts`), nunca decide dinheiro.
@@ -612,6 +631,8 @@ export const commissions = pgTable(
     /** Liberação só depois da janela de estorno. */
     availableAt: timestamp("available_at").notNull(),
     payoutId: uuid("payout_id"),
+    /** Guardada pela plataforma (copiado do pedido): quem paga o saque é ela. */
+    guardada: boolean("guardada").notNull().default(false),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (t) => [
@@ -1156,6 +1177,8 @@ export const insertCampaignSchema = createInsertSchema(campaigns, {
     authorizationFileKey: true,
     drawAt: true,
     regulamentoExtra: true,
+    // Cota de bônus é cláusula do regulamento: só por PUT /legal (etapa 13).
+    aceitaCotaBonus: true,
     termoId: true,
     transmissaoUrl: true,
   });
@@ -1175,6 +1198,8 @@ export const createOrderSchema = z.object({
   affiliateCode: z.string().max(40).optional(),
   /** Estatística (`validarOrigem`); valor desconhecido é descartado. */
   origem: z.string().max(20).optional(),
+  /** Código do link de indicação (etapa 13); conferido no servidor. */
+  indicacao: z.string().max(20).optional(),
 });
 
 export type User = typeof users.$inferSelect;
@@ -1420,5 +1445,79 @@ export const recibos = pgTable("recibos", {
   snapshot: jsonb("snapshot").notNull(),
   hash: text("hash").notNull(),
   assinatura: text("assinatura").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+/* ------------------------------------------------------------------ *
+ * Programa de bônus (etapa 13): indicação, visitas, metas, cotas grátis
+ * ------------------------------------------------------------------ */
+
+/**
+ * Livro-razão do bônus. A `chave` diz por que entrou (ou saiu) e é única:
+ * a mesma indicação, meta ou resgate nunca lança duas vezes.
+ */
+export const bonusLancamentos = pgTable(
+  "bonus_lancamentos",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    buyerId: uuid("buyer_id")
+      .notNull()
+      .references(() => buyers.id, { onDelete: "cascade" }),
+    /** Positivo entra, negativo sai (resgate, estorno de indicação). */
+    quantidade: integer("quantidade").notNull(),
+    /** indicacao | meta | resgate | estorno_indicacao */
+    motivo: text("motivo").notNull(),
+    chave: text("chave").notNull(),
+    descricao: text("descricao"),
+    orderId: uuid("order_id"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("uq_bonus_lancamento_chave").on(t.chave), index("idx_bonus_lancamentos_buyer").on(t.buyerId, t.createdAt)],
+);
+
+/** Quem indicou quem. Uma indicação por indicado: o primeiro link que trouxe a pessoa. */
+export const indicacoes = pgTable(
+  "indicacoes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    indicadorId: uuid("indicador_id")
+      .notNull()
+      .references(() => buyers.id, { onDelete: "cascade" }),
+    indicadoId: uuid("indicado_id")
+      .notNull()
+      .references(() => buyers.id, { onDelete: "cascade" }),
+    /** O primeiro pedido do indicado: é o pagamento dele que confirma. */
+    orderId: uuid("order_id").notNull(),
+    /** pendente | confirmada | estornada */
+    status: text("status").notNull().default("pendente"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    confirmadaEm: timestamp("confirmada_em"),
+  },
+  (t) => [uniqueIndex("uq_indicacao_indicado").on(t.indicadoId), index("idx_indicacoes_indicador").on(t.indicadorId, t.status)],
+);
+
+/** Visita nova trazida pelo link: um aparelho conta uma vez por quem indica. */
+export const bonusVisitas = pgTable(
+  "bonus_visitas",
+  {
+    indicadorId: uuid("indicador_id")
+      .notNull()
+      .references(() => buyers.id, { onDelete: "cascade" }),
+    /** SHA-256 do identificador do aparelho: dado pessoal não vira chave crua. */
+    aparelhoHash: text("aparelho_hash").notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("uq_bonus_visita").on(t.indicadorId, t.aparelhoHash)],
+);
+
+/** Metas da plataforma (ex.: comprar em 3 rifas, indicar 5 amigos). */
+export const bonusMetas = pgTable("bonus_metas", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  titulo: text("titulo").notNull(),
+  /** rifas_compradas | indicacoes | visitas (`shared/bonus.ts`) */
+  tipo: text("tipo").notNull(),
+  alvo: integer("alvo").notNull(),
+  recompensa: integer("recompensa").notNull(),
+  ativa: boolean("ativa").notNull().default(true),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });

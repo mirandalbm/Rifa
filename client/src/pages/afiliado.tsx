@@ -345,7 +345,8 @@ export function AfiliadoSaques() {
         <Card title="Sacar">
           <div className="space-y-3 p-4">
             <p className="text-xs text-muted">
-              Cada organização paga a comissão das rifas dela: o saque é pedido a uma de cada vez.
+              Cada organização paga a comissão das rifas dela; a comissão guardada pela plataforma é paga por ela,
+              sempre depois do sorteio. O saque é pedido a um de cada vez.
             </p>
             {saldo.length === 0 ? <p className="text-sm text-muted">Nenhuma comissão ainda.</p> : null}
             <ul className="divide-y divide-line">
@@ -386,7 +387,7 @@ export function AfiliadoSaques() {
                 <li key={p.id} className="flex flex-wrap items-center gap-3 px-4 py-3 text-sm">
                   <span className="min-w-0 flex-1">
                     <span className="tnum block text-muted">{new Date(p.requestedAt).toLocaleDateString("pt-BR")}</span>
-                    {p.organizacao ? <span className="block truncate text-xs text-muted">{p.organizacao}</span> : null}
+                    <span className="block truncate text-xs text-muted">{p.organizacao ?? "Plataforma"}</span>
                   </span>
                   <Money cents={p.amountCents} />
                   <Pill status={p.status === "requested" ? "pending" : p.status} />

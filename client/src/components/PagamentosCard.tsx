@@ -16,6 +16,7 @@ interface Plataforma {
   estornoManual: boolean;
   taxaReembolsoPct: number;
   exigirCadastroFiscal: boolean;
+  guardaComissao: boolean;
   provedorEmUso: string;
   provedores: Provedor[];
 }
@@ -34,6 +35,7 @@ export function PagamentosCard() {
   const [estorno, setEstorno] = useState(false);
   const [taxa, setTaxa] = useState("10");
   const [fiscal, setFiscal] = useState(false);
+  const [guarda, setGuarda] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [ok, setOk] = useState(false);
 
@@ -43,6 +45,7 @@ export function PagamentosCard() {
     setEstorno(data.estornoManual);
     setTaxa(String(data.taxaReembolsoPct ?? 10));
     setFiscal(data.exigirCadastroFiscal);
+    setGuarda(data.guardaComissao);
   }, [data]);
 
   const salvar = useMutation({
@@ -52,6 +55,7 @@ export function PagamentosCard() {
         estornoManual: estorno,
         taxaReembolsoPct: Number(taxa),
         exigirCadastroFiscal: fiscal,
+        guardaComissao: guarda,
       }),
     onSuccess: () => {
       setErro(null);
@@ -191,6 +195,26 @@ export function PagamentosCard() {
               <span className="block text-xs text-muted">
                 Ligado, o afiliado só pede saque com nome, CPF, endereço, conta e documentos
                 aprovados em Cadastros fiscais. O recibo de cada saque sai com esses dados.
+              </span>
+            </span>
+          </label>
+        </div>
+
+        <div className="border-t border-line pt-3">
+          <label className="flex items-start gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={guarda}
+              onChange={(e) => setGuarda(e.target.checked)}
+              className="mt-1 h-4 w-4 accent-[var(--green)]"
+            />
+            <span>
+              A plataforma guarda a comissão dos afiliados
+              <span className="block text-xs text-muted">
+                Ligado, a venda online com afiliado nasce com a comissão na conta da plataforma (no Asaas, ela sai
+                do split da organização), liberada só depois do sorteio, e o saque é pago pela plataforma em
+                Financeiro. Vale para as vendas novas; as de antes seguem como nasceram. Ligue depois de o
+                contador confirmar o modelo.
               </span>
             </span>
           </label>

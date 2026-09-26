@@ -44,6 +44,8 @@ const LOCKED_AFTER_PUBLISH = [
   "authorizationCode",
   "authorizationFileKey",
   "drawAt",
+  // Cota de bônus é cláusula do regulamento aprovado.
+  "aceitaCotaBonus",
 ] as const;
 
 export function assertEditable(
@@ -270,6 +272,8 @@ export async function salvarDadosLegais(
     drawAt?: string | null;
     certificado?: { dataUrl: string; nome?: string } | null;
     regulamentoExtra?: unknown;
+    /** Cota de bônus prevista no regulamento (etapa 13). Trava ao publicar. */
+    aceitaCotaBonus?: boolean;
   },
 ): Promise<Campaign> {
   if (campaign.status !== "draft") {
@@ -311,6 +315,7 @@ export async function salvarDadosLegais(
     if (codigo !== undefined) mudancas.authorizationCode = codigo;
     if (drawAt !== undefined) mudancas.drawAt = drawAt;
     if (regulamentoExtra !== undefined) mudancas.regulamentoExtra = regulamentoExtra;
+    if (entrada.aceitaCotaBonus !== undefined) mudancas.aceitaCotaBonus = entrada.aceitaCotaBonus;
     if (arquivo) mudancas.authorizationFileKey = CERTIFICADO_NO_BANCO;
     if (Object.keys(mudancas).length === 0) throw new CampaignRuleError("Nada para salvar.");
 

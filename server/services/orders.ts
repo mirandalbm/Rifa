@@ -26,6 +26,7 @@ import {
   prizedQuotas,
   draws,
   platformCharges,
+  bonusLancamentos as bonusLancamentosTabela,
   type CreateOrderInput,
 } from "@shared/schema";
 import {
@@ -54,13 +55,15 @@ import {
   releasePaidQuotas,
 } from "./quotas";
 import { activePaymentProvider } from "../payments";
-import { getPaymentMethods } from "./settings";
+import { getPaymentMethods, getPlataforma } from "./settings";
 import { guardOrder, type RequestIdentity } from "./antifraude";
 import { enabledPhysical, labelFor } from "@shared/payments";
 import { notify } from "../notifications";
 import { publicUrl } from "./urls";
 import { formatBRL, formatQuota, cpfValido } from "@shared/format";
 import { isUniqueViolation } from "../pgError";
+import { avaliarMetas, confirmarIndicacao, estornarIndicacao, registrarIndicacao } from "./bonus";
+import { bloqueioDoResgate } from "@shared/bonus";
 
 /** Dias entre o pagamento e a liberação da comissão do afiliado. */
 export const REFUND_WINDOW_DAYS = Number(process.env.REFUND_WINDOW_DAYS ?? 7);
@@ -199,11 +202,12 @@ async function resolveAttribution(params: {
   // O afiliado só leva a venda da rifa de uma organização com que tem
   // vínculo aprovado — e, se a rifa foi publicada com termo, tendo aceitado
   // aquela versão. Sem isso a venda segue, sem afiliado.
-  if (affiliateId && !(await comissaoNaRifa(db, affiliateId, campaign)).recebe) {
+  const naRifa = affiliateId ? await comissaoNaRifa(db, affiliateId, campaign) : null;
+  if (affiliateId && !naRifa?.recebe) {
     affiliateId = null;
   }
 
-  return { affiliateId, couponId, couponPct };
+  return { affiliateId, couponId, couponPct, comissaoPct: affiliateId ? (naRifa?.pct ?? 0) : 0 };
 }
 
 export interface CreateOrderContext {
@@ -342,7 +346,7 @@ export async function createOrder(
 
   // Na venda física não há clique nem cookie: quem vendeu é quem leva.
   const attribution = ctx.sellerId
-    ? { affiliateId: ctx.sellerId, couponId: null as string | null, couponPct: 0 }
+    ? { affiliateId: ctx.sellerId, couponId: null as string | null, couponPct: 0, comissaoPct: 0 }
     : await resolveAttribution({
         couponCode: input.couponCode,
         sessionAffiliateCode: input.affiliateCode ?? ctx.sessionAffiliateCode,
@@ -363,6 +367,12 @@ export async function createOrder(
   });
 
   const expiresAt = new Date(Date.now() + campaign.reservationTtlMin * 60_000);
+
+  // Guarda da comissão (etapa 12): só venda online com afiliado. O cambista
+  // acerta com a casa em mãos; não há dinheiro dele passando pela plataforma.
+  const comissaoGuardada = Boolean(
+    !ctx.sellerId && attribution.affiliateId && (await getPlataforma()).guardaComissao,
+  );
 
   // A transação inteira é a unidade de repetição: se o código colidir, o
   // banco desfaz também a reserva de cota, e a próxima volta sorteia outro.
@@ -388,6 +398,7 @@ export async function createOrder(
           deviceHash: identity.deviceHash,
           ipHash: identity.ipHash,
           couponId: attribution.couponId,
+          comissaoGuardada,
           expiresAt,
         })
         .returning();
@@ -458,7 +469,7 @@ export async function createOrder(
       cpf: buyer.cpf ?? input.buyer.cpf ?? undefined,
     },
     expiresAt,
-    split: await splitDaOrganizacao(campaign.organizationId),
+    split: await splitDaOrganizacao(campaign.organizationId, comissaoGuardada ? attribution.comissaoPct : 0),
     });
   } catch (err) {
     await devolverReserva(order.id).catch((e) =>
@@ -487,6 +498,12 @@ export async function createOrder(
     await enterEndgame(campaign.id, campaign.totalQuotas);
   }
 
+  // Indicação (etapa 13): anotada com o Pix já gerado, e nunca derruba a
+  // compra — é bônus, não pagamento.
+  await registrarIndicacao({ codigo: input.indicacao, indicadoId: buyer.id, orderId: order.id }).catch((e) =>
+    console.error(`[bonus] indicação do pedido ${order.code} não anotada:`, e),
+  );
+
   return { order: withCharge, numbers, price };
 }
 
@@ -495,14 +512,16 @@ export async function createOrder(
  * a taxa da plataforma, em percentual sobre o líquido) cai direto na conta da
  * organização. Sem carteira, nada é dividido na origem.
  */
-async function splitDaOrganizacao(organizationId: string) {
+async function splitDaOrganizacao(organizationId: string, comissaoGuardadaPct = 0) {
   const [org] = await db
     .select({ walletId: organizations.asaasWalletId })
     .from(organizations)
     .where(eq(organizations.id, organizationId));
   if (!org?.walletId) return undefined;
   const plano = await planOfOrganization(organizationId);
-  return [{ walletId: org.walletId, percentual: percentualDoPromotor(platformPctFor(plano)) }];
+  // Com a guarda, a comissão fica na conta da plataforma: sai da parte do
+  // promotor, sobre o que sobrou da taxa (`percentualDoPromotor`).
+  return [{ walletId: org.walletId, percentual: percentualDoPromotor(platformPctFor(plano), comissaoGuardadaPct) }];
 }
 
 /**
@@ -532,6 +551,8 @@ async function settleOrderAsPaid(order: typeof orders.$inferSelect) {
         .where(eq(organizations.id, campaign.organizationId))
     : [];
   const liberacao = org?.liberacao ?? "apos_sorteio";
+  // Programa de bônus: lido antes da transação, como o contrato.
+  const bonus = await getPlataforma();
 
   const paidAt = new Date();
 
@@ -596,21 +617,38 @@ async function settleOrderAsPaid(order: typeof orders.$inferSelect) {
           campaignId: order.campaignId,
           amountCents: rateio.commissionCents,
           pct: rateio.commissionPct,
+          guardada: order.comissaoGuardada,
           // Depois do sorteio (padrão, com carência) ou na hora — escolha da
-          // organização. Ver `comissaoInicial()`.
+          // organização; guardada pela plataforma, sempre depois do sorteio.
+          // Ver `comissaoInicial()`.
           ...comissaoInicial(
             liberacao,
             paidAt,
             commissionAvailableAt(paidAt, REFUND_WINDOW_DAYS, campaign?.drawAt),
+            order.comissaoGuardada,
           ),
         })
         .onConflictDoNothing();
     }
 
-    return { order: updated, numbers, prizes };
+    // Indicação: o primeiro pagamento do indicado credita quem indicou, na
+    // mesma transação (estorno desfaz na do estorno — `estornarIndicacao`).
+    const indicadorId =
+      bonus.bonusLigado && order.method !== "bonus"
+        ? await confirmarIndicacao(tx, order, bonus.bonusPorIndicacao)
+        : null;
+
+    return { order: updated, numbers, prizes, indicadorId };
   });
 
   if (!result) return null;
+
+  // Metas: depois da transação e sem derrubar o pagamento (a venda já aconteceu).
+  if (bonus.bonusLigado) {
+    for (const quem of [order.buyerId, result.indicadorId].filter(Boolean) as string[]) {
+      await avaliarMetas(quem).catch((e) => console.error(`[bonus] metas de ${quem}:`, e));
+    }
+  }
 
   await announcePayment({
     orderId: order.id,
@@ -1034,6 +1072,9 @@ export async function refundOrder(orderId: string): Promise<RefundResult | null>
       .filter((c) => c.status === "paid")
       .reduce((soma, c) => soma + c.amountCents, 0);
 
+    // Bônus da indicação que este pedido confirmou sai junto (etapa 13).
+    await estornarIndicacao(tx, order.id);
+
     const taxas = await tx
       .update(platformCharges)
       .set({ status: "cancelada" })
@@ -1102,4 +1143,102 @@ export async function refundByChargeId(chargeId: string) {
   const [order] = await db.select().from(orders).where(eq(orders.pspChargeId, chargeId));
   if (!order) throw new OrderError("Pedido não encontrado para esta cobrança.", 404);
   return refundOrder(order.id);
+}
+
+/* ------------------------------------------------------------------ *
+ * Resgate de cotas de bônus (etapa 13)
+ * ------------------------------------------------------------------ */
+
+/**
+ * Cota grátis do programa de bônus: um pedido de R$ 0,00 pelo **mesmo**
+ * caminho de reserva das vendas (`reserveRandom`, `INSERT … ON CONFLICT`),
+ * e confirmado pelo mesmo núcleo do pagamento (`settleOrderAsPaid`) — sem
+ * comissão e sem taxa, porque não entrou dinheiro.
+ *
+ * O saldo sai num `UPDATE` condicional (saldo ≥ pedido) na mesma transação
+ * que reserva as cotas: sem cota livre, nada sai do saldo.
+ */
+export async function resgatarCotasDeBonus(buyerId: string, campaignId: string, quantidade: number) {
+  const [campaign] = await db.select().from(campaigns).where(eq(campaigns.id, campaignId));
+  if (!campaign) throw new OrderError("Rifa não encontrada.", 404);
+  const [comprador] = await db.select().from(buyers).where(eq(buyers.id, buyerId));
+  if (!comprador || comprador.excluidoEm) throw new OrderError("Entre de novo na sua conta.", 401);
+  const cfg = await getPlataforma();
+  const bloqueio = bloqueioDoResgate({
+    bonusLigado: cfg.bonusLigado,
+    aceitaCotaBonus: campaign.aceitaCotaBonus,
+    statusRifa: campaign.status,
+    sorteioEm: campaign.drawAt,
+    saldo: comprador.bonusSaldo,
+    quantidade,
+  });
+  if (bloqueio) throw new OrderError(bloqueio, 409);
+
+  const [stats] = await db.select().from(campaignStats).where(eq(campaignStats.campaignId, campaign.id));
+  if (!stats) throw new OrderError("Campanha sem contadores.", 500);
+  const expiresAt = new Date(Date.now() + campaign.reservationTtlMin * 60_000);
+
+  const resgatar = (code: number) =>
+    db.transaction(async (tx) => {
+      const [debitado] = await tx
+        .update(buyers)
+        .set({ bonusSaldo: sql`${buyers.bonusSaldo} - ${quantidade}` })
+        .where(and(eq(buyers.id, buyerId), sql`${buyers.bonusSaldo} >= ${quantidade}`))
+        .returning({ id: buyers.id });
+      if (!debitado) throw new OrderError("Saldo de bônus insuficiente.", 409);
+
+      const [created] = await tx
+        .insert(orders)
+        .values({
+          code,
+          campaignId: campaign.id,
+          buyerId,
+          quantity: quantidade,
+          amountCents: 0,
+          discountCents: 0,
+          status: "pending",
+          method: "bonus",
+          viaConta: true,
+          expiresAt,
+        })
+        .returning();
+
+      const reserved = await reserveRandom(tx, {
+        campaignId: campaign.id,
+        totalQuotas: campaign.totalQuotas,
+        count: quantidade,
+        orderId: created.id,
+        reservedUntil: expiresAt,
+        endgame: stats.endgame,
+      });
+      await bumpReserved(tx, campaign.id, reserved.numbers.length);
+
+      // O saldo já saiu acima; o lançamento é o registro (chave do pedido).
+      await tx.insert(bonusLancamentosTabela).values({
+        buyerId,
+        quantidade: -quantidade,
+        motivo: "resgate",
+        chave: `resgate:${created.id}`,
+        descricao: `Resgate em ${campaign.title}`,
+        orderId: created.id,
+      });
+      return created;
+    });
+
+  let pedido: typeof orders.$inferSelect | undefined;
+  for (let tentativa = 0; tentativa < ORDER_CODE_RETRIES; tentativa++) {
+    try {
+      pedido = await resgatar(randomOrderCode());
+      break;
+    } catch (err) {
+      if (!isOrderCodeConflict(err)) throw err;
+    }
+  }
+  if (!pedido) throw new OrderError("Não foi possível gerar o número do pedido.", 500);
+
+  const r = await settleOrderAsPaid(pedido);
+  if (shouldEnterEndgame(stats, campaign.totalQuotas)) {
+    await enterEndgame(campaign.id, campaign.totalQuotas);
+  }
+  return { code: pedido.code, numbers: r?.numbers ?? [] };
 }

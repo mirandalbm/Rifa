@@ -7,6 +7,7 @@
  *
  * Puro: o servidor monta, a tela mostra, o teste confere.
  */
+import { clausulaDoBonus } from "./bonus";
 import { formatBRL, formatQuota, groupNumber } from "./format";
 import { regraDoReembolso } from "./reembolso";
 
@@ -40,6 +41,8 @@ export interface DadosDoRegulamento {
     authorizationCode: string | null;
     drawSeedHash: string | null;
     regulamentoExtra: string | null;
+    /** Aceita cotas de bônus do programa de indicação (etapa 13). */
+    aceitaCotaBonus?: boolean;
   };
   promotora: {
     nome: string;
@@ -118,6 +121,7 @@ export function montarRegulamento(d: DadosDoRegulamento): Secao[] {
         `Cada pedido tem no mínimo ${rifa.minPerOrder} e no máximo ${groupNumber(rifa.maxPerOrder)} cota(s).`,
         `Só participa a cota paga. A reserva não paga em ${rifa.reservationTtlMin} minutos é desfeita e os números voltam a ficar livres.`,
         "Cada número é vendido uma única vez.",
+        ...(rifa.aceitaCotaBonus ? [clausulaDoBonus()] : []),
       ],
     },
     {

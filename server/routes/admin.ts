@@ -152,6 +152,7 @@ import {
   decidirDisputa,
   disputasAbertas,
 } from "../services/chamados";
+import { alterarMeta, criarMeta, painelDoBonus } from "../services/bonus";
 import {
   PROVEDORES_PIX,
   NOME_PROVEDOR,
@@ -370,8 +371,10 @@ adminRouter.put("/campaigns/:id/legal", async (req, res, next) => {
       drawAt: req.body?.drawAt === undefined ? undefined : req.body.drawAt ? String(req.body.drawAt) : null,
       certificado: cert?.dataUrl ? { dataUrl: String(cert.dataUrl), nome: cert.nome ? String(cert.nome) : undefined } : null,
       regulamentoExtra: req.body?.regulamentoExtra,
+      aceitaCotaBonus: req.body?.aceitaCotaBonus === undefined ? undefined : req.body.aceitaCotaBonus === true,
     });
     await audit(req, "campaign.legal", "campaign", campaign.id, {
+      aceitaCotaBonus: atualizada.aceitaCotaBonus,
       authorizationCode: atualizada.authorizationCode,
       drawAt: atualizada.drawAt,
       certificado: Boolean(cert?.dataUrl),
@@ -1580,6 +1583,11 @@ adminRouter.put("/plataforma", async (req, res, next) => {
         req.body?.exigirCadastroFiscal !== undefined
           ? req.body.exigirCadastroFiscal === true
           : (await getPlataforma()).exigirCadastroFiscal,
+      // Guarda da comissão (etapa 12): sem o campo, vale o que já estava.
+      guardaComissao:
+        req.body?.guardaComissao !== undefined
+          ? req.body.guardaComissao === true
+          : (await getPlataforma()).guardaComissao,
     });
     await audit(req, "plataforma.update", "settings", "plataforma", salva);
     res.json(salva);
@@ -1599,7 +1607,12 @@ adminRouter.get("/comissao", async (req, res, next) => {
       .select({ liberacaoComissao: organizations.liberacaoComissao })
       .from(organizations)
       .where(eq(organizations.id, org));
-    res.json({ liberacaoComissao: linha?.liberacaoComissao ?? "apos_sorteio", porOrganizacao: false });
+    res.json({
+      liberacaoComissao: linha?.liberacaoComissao ?? "apos_sorteio",
+      porOrganizacao: false,
+      // Com a guarda da plataforma, a comissão do afiliado online é dela e sai depois do sorteio.
+      guardaDaPlataforma: (await getPlataforma()).guardaComissao,
+    });
   } catch (err) {
     next(err);
   }
@@ -2147,8 +2160,8 @@ adminRouter.get("/finance", async (req, res, next) => {
       .innerJoin(users, eq(users.id, affiliates.userId))
       .innerJoin(campaigns, eq(campaigns.id, commissions.campaignId))
       // O afiliado é de várias organizações: cada uma vê (e paga) só a
-      // comissão das rifas dela.
-      .where(org ? eq(campaigns.organizationId, org) : sql`TRUE`)
+      // comissão das rifas dela — e a guardada pela plataforma não é dela.
+      .where(org ? and(eq(campaigns.organizationId, org), eq(commissions.guardada, false)) : sql`TRUE`)
       .groupBy(commissions.affiliateId, affiliates.code, users.name, affiliates.pixKey);
 
     // O saque é pedido a uma organização (`payouts.organization_id`): sem o
@@ -2188,7 +2201,7 @@ adminRouter.post("/finance/release", async (req, res, next) => {
           org
             ? sql`${commissions.campaignId} IN (
                 SELECT id FROM campaigns WHERE organization_id = ${org}::uuid
-              )`
+              ) AND NOT ${commissions.guardada}`
             : sql`TRUE`,
         ),
       )
@@ -2742,6 +2755,59 @@ adminRouter.get("/saques-pagos", async (req, res, next) => {
       .orderBy(desc(payouts.processedAt))
       .limit(50);
     res.json(linhas);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/* ---------------- programa de bônus (só a plataforma, etapa 13) ---------------- */
+
+adminRouter.get("/bonus", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    res.json(await painelDoBonus());
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** Liga/desliga o programa e o bônus por indicação. O resto da configuração fica como está. */
+adminRouter.put("/bonus/config", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    const atual = await getPlataforma();
+    const salva = await setPlataforma({
+      ...atual,
+      bonusLigado: req.body?.bonusLigado === undefined ? atual.bonusLigado : req.body.bonusLigado === true,
+      bonusPorIndicacao: req.body?.bonusPorIndicacao === undefined ? atual.bonusPorIndicacao : req.body.bonusPorIndicacao,
+    });
+    await audit(req, "bonus.config", "settings", "plataforma", {
+      bonusLigado: salva.bonusLigado,
+      bonusPorIndicacao: salva.bonusPorIndicacao,
+    });
+    res.json({ bonusLigado: salva.bonusLigado, bonusPorIndicacao: salva.bonusPorIndicacao });
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.post("/bonus/metas", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    const m = await criarMeta(req.body);
+    await audit(req, "bonus.meta.criar", "bonus_meta", m.id, m);
+    res.status(201).json(m);
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.put("/bonus/metas/:id", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    const m = await alterarMeta(req.params.id, req.body);
+    await audit(req, "bonus.meta.alterar", "bonus_meta", m.id, m);
+    res.json(m);
   } catch (err) {
     next(err);
   }

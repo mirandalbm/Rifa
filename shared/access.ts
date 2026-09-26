@@ -67,6 +67,7 @@ export type SectionKey =
   | "adminResultados"
   | "afiliadoDados"
   | "adminFiscal"
+  | "adminBonus"
   | "adminFinanceiro"
   | "adminSorteios"
   | "adminCobranca"
@@ -139,6 +140,8 @@ export const SECTIONS: Section[] = [
   { key: "adminAparencia", path: "/admin/aparencia", label: "Aparência", requires: "admin", nav: true },
   // Cadastro fiscal dos afiliados: só a plataforma confere, e cada olhada é auditada.
   { key: "adminFiscal", path: "/admin/fiscal", label: "Cadastros fiscais", requires: "admin", nav: true },
+  // Indicação, metas e cota grátis (etapa 13): o interruptor e as metas são da plataforma.
+  { key: "adminBonus", path: "/admin/bonus", label: "Bônus", requires: "admin", nav: true },
 ];
 
 export function sectionsFor(role: Role): Section[] {

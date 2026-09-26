@@ -166,6 +166,8 @@ export async function abrirChamado(
     agora,
   });
   if (bloqueio) throw new ChamadoError(bloqueio, 409);
+  // Cota de bônus não custou nada: não há o que devolver (regulamento).
+  if (linha.order.method === "bonus") throw new ChamadoError("Cota de bônus não tem reembolso.", 409);
 
   // Quanto volta é decidido agora: é a data do pedido que conta os 7 dias do
   // arrependimento (shared/reembolso.ts). Fica gravado no chamado.

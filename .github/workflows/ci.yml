@@ -97,6 +97,8 @@ jobs:
       - run: npm run afiliados
       - run: npm run fiscal
       - run: npm run disputa
+      - run: npm run guarda
+      - run: npm run bonus
       - run: npm run load
 
       - name: Log do servidor

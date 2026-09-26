@@ -119,7 +119,10 @@ export async function getPlataforma(): Promise<ConfigPlataforma> {
 export async function setPlataforma(
   candidato: Partial<ConfigPlataforma>,
 ): Promise<ConfigPlataforma> {
-  const value = validarConfigPlataforma(candidato);
+  // Parte da configuração atual: quem salva um pedaço (Pagamentos, Bônus)
+  // não apaga o resto por omissão. Campo `undefined` não conta como enviado.
+  const enviados = Object.fromEntries(Object.entries(candidato).filter(([, v]) => v !== undefined));
+  const value = validarConfigPlataforma({ ...(await getPlataforma()), ...enviados });
   if (value.provedorPix) {
     const faltando = CREDENCIAIS_PROVEDOR[value.provedorPix].filter((v) => !process.env[v]);
     if (faltando.length) {

@@ -430,4 +430,11 @@ botão, é **chamado** — com dono, prova, conversa e protocolo.
 - **Estornar toma o chamado** (`aprovado` → `estornado`) antes de chamar o
   provedor: dois cliques simultâneos dão um estorno e um 409.
 - **O comprador nunca vê o nome de quem atendeu** — só "Atendimento".
+- **Chamado novo avisa a organização** pelo WhatsApp (`chamado_novo`), depois
+  da transação: para `organizations.aviso_telefone` se houver, senão para os
+  organizadores ativos com telefone (`destinatariosDoAviso()`). O aviso leva
+  protocolo, ID do cliente e valor — **nunca nome nem telefone do comprador**,
+  porque o aparelho do atendimento pode ser compartilhado. Falha de envio não
+  desfaz o chamado; o contador no menu (`/chamados/pendentes`) é o aviso que
+  não depende da Meta.
 - `npm run chamados` prova tudo isso contra a API de verdade.

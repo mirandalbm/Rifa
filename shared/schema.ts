@@ -177,6 +177,8 @@ export const organizations = pgTable(
      * calculado sozinho na aprovação.
      */
     prazoEstornoDias: integer("prazo_estorno_dias").notNull().default(7),
+    /** WhatsApp que recebe o aviso de chamado novo. Nulo: os organizadores. */
+    avisoTelefone: text("aviso_telefone"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (t) => [uniqueIndex("uq_organizations_slug").on(t.slug)],

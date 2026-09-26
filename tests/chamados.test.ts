@@ -6,6 +6,8 @@ import {
   problemaNoPedido,
   prazoDoEstorno,
   PRAZO_ESTORNO_MAX,
+  destinatariosDoAviso,
+  telefoneDeAvisoValido,
 } from "@shared/chamados";
 
 const CPF = "529.982.247-25";
@@ -85,5 +87,32 @@ describe("prazo de devolução", () => {
     const dias = (d: Date) => (d.getTime() - concluido.getTime()) / 86_400_000;
     expect(dias(prazoDoEstorno(concluido, 365))).toBe(PRAZO_ESTORNO_MAX);
     expect(dias(prazoDoEstorno(concluido, 0))).toBe(1);
+  });
+});
+
+describe("aviso de chamado novo", () => {
+  it("aceita DDD + número, com ou sem 55", () => {
+    expect(telefoneDeAvisoValido("(11) 98888-7777")).toBe(true);
+    expect(telefoneDeAvisoValido("5511988887777")).toBe(true);
+    expect(telefoneDeAvisoValido("98888-7777")).toBe(false);
+    expect(telefoneDeAvisoValido("contato@rifa.br")).toBe(false);
+  });
+
+  it("o número da organização vale sozinho", () => {
+    expect(destinatariosDoAviso("(11) 3333-4444", ["11988887777"])).toEqual(["1133334444"]);
+  });
+
+  it("sem ele, avisa cada organizador com WhatsApp, uma vez só", () => {
+    expect(
+      destinatariosDoAviso(null, ["11988887777", "(11) 98888-7777", null, "123", "21977776666"]),
+    ).toEqual(["11988887777", "21977776666"]);
+  });
+
+  it("número inválido da organização cai nos organizadores", () => {
+    expect(destinatariosDoAviso("123", ["11988887777"])).toEqual(["11988887777"]);
+  });
+
+  it("ninguém com WhatsApp: lista vazia (o contador do menu segue avisando)", () => {
+    expect(destinatariosDoAviso(undefined, [null, ""])).toEqual([]);
   });
 });

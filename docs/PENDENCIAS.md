@@ -3,7 +3,7 @@
 Lista viva do que falta para a rifa vender em produção. Atualizada a cada
 etapa — quem fechar um item marca aqui no mesmo PR.
 
-Última atualização: 26/09/2026 (reembolso por chamado).
+Última atualização: 26/09/2026 (aviso de chamado novo).
 
 Legenda: **[você]** depende do responsável pela conta (cadastro, documento,
 senha); **[código]** é trabalho no repositório.
@@ -45,6 +45,14 @@ senha); **[código]** é trabalho no repositório.
   protocolo e prazo de devolução (definido por cada organização) saem
   sozinhos. O botão solto de estorno em Pedidos foi retirado. Todo comprador
   tem um ID de cliente (`C-XXXXXXXX`).
+- [x] Aviso de chamado novo: WhatsApp para a organização (modelo
+  `chamado_novo`) e contador em "Atendimento" no menu.
+- [ ] **[você]** Criar o modelo novo `chamado_novo` na Meta: Configurações →
+  WhatsApp → "Criar modelos que faltam na Meta" (cria só ele; depois esperar a
+  aprovação).
+- [ ] **[você]** Cada organização informar o WhatsApp do aviso em
+  Configurações → "Reembolso: prazo e aviso" (vazio, avisa os organizadores
+  que têm WhatsApp no cadastro).
 - [ ] **[você]** Ligar "Aceitar pedidos de reembolso" (Configurações →
   Pagamentos e estorno) quando decidir aceitar, e cada organização conferir
   o prazo de reembolso em Configurações.
@@ -86,9 +94,6 @@ senha); **[código]** é trabalho no repositório.
   Android SDK.
 - [ ] **[código]** Pôster e transcode dos vídeos das rifas (Cloudflare Stream
   resolve os dois).
-- [ ] **[código]** Aviso ao organizador quando chega chamado novo (hoje a
-  tela de Atendimento se atualiza sozinha, mas não há WhatsApp/e-mail para
-  ele).
 - [ ] **[código]** Revisão completa das telas, com prints, para ajustes de uso.
 - [ ] **[código]** Cobrança com Asaas: nas vendas com split, a taxa da
   plataforma já fica retida na origem, mas a tela de Cobrança ainda a lista

@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Link } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { PRAZO_ESTORNO_MIN, PRAZO_ESTORNO_MAX } from "@shared/chamados";
+import { PRAZO_ESTORNO_MIN, PRAZO_ESTORNO_MAX, telefoneDeAvisoValido } from "@shared/chamados";
+import { maskPhone } from "@shared/format";
 import { PanelShell } from "@/components/AppShell";
 import { Card, Button, Pill, Empty } from "@/components/bits";
 import { apiRequest } from "@/lib/queryClient";
@@ -28,6 +29,7 @@ interface Organizacao {
   asaasWalletId: string | null;
   liberacaoComissao: LiberacaoComissao;
   prazoEstornoDias: number;
+  avisoTelefone: string | null;
   campanhas: number;
   pessoas: number;
 }
@@ -509,6 +511,8 @@ function PagamentoDaOrganizacao({ o }: { o: Organizacao }) {
   const [carteira, setCarteira] = useState(o.asaasWalletId ?? "");
   const [liberacao, setLiberacao] = useState<LiberacaoComissao>(o.liberacaoComissao);
   const [prazo, setPrazo] = useState(String(o.prazoEstornoDias ?? 7));
+  const [aviso, setAviso] = useState(o.avisoTelefone ? maskPhone(o.avisoTelefone) : "");
+  const avisoOk = aviso.trim() === "" || telefoneDeAvisoValido(aviso);
   const [msg, setMsg] = useState<{ ok: boolean; texto: string } | null>(null);
 
   const carteiraOk = carteira.trim() === "" || carteiraAsaasValida(carteira);
@@ -518,6 +522,7 @@ function PagamentoDaOrganizacao({ o }: { o: Organizacao }) {
         asaasWalletId: carteira.trim() || null,
         liberacaoComissao: liberacao,
         prazoEstornoDias: Number(prazo),
+        avisoTelefone: aviso,
       }),
     onSuccess: () => {
       setMsg({ ok: true, texto: "Salvo. Vale para as próximas vendas." });
@@ -586,8 +591,25 @@ function PagamentoDaOrganizacao({ o }: { o: Organizacao }) {
           className="tnum mt-1 w-24 rounded-md border border-line-2 bg-white px-3 py-2 text-sm"
         />
       </div>
+      <div>
+        <label htmlFor={`aviso-${o.id}`} className="label-xs">
+          WhatsApp do aviso de chamado novo
+        </label>
+        <input
+          id={`aviso-${o.id}`}
+          inputMode="tel"
+          value={aviso}
+          onChange={(e) => {
+            setMsg(null);
+            setAviso(e.target.value);
+          }}
+          placeholder="vazio: os organizadores"
+          className="tnum mt-1 w-full rounded-md border border-line-2 bg-white px-3 py-2 text-sm"
+        />
+        {avisoOk ? null : <p className="mt-1 text-[11px] text-red">Informe DDD e número.</p>}
+      </div>
       <div className="flex items-center gap-3 sm:col-span-2">
-        <Button onClick={() => salvar.mutate()} disabled={!carteiraOk || salvar.isPending}>
+        <Button onClick={() => salvar.mutate()} disabled={!avisoOk || !carteiraOk || salvar.isPending}>
           Salvar pagamento
         </Button>
         {msg ? (

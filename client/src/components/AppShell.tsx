@@ -1,5 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { useState, type ReactNode } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   Banknote,
   Building2,
@@ -138,6 +139,18 @@ export function PanelShell({
   const logout = useLogout();
   const [aberto, setAberto] = useState(menuInicial);
 
+  // Chamado de reembolso tem prazo: o contador no menu é o aviso que o
+  // organizador vê sem precisar abrir o Atendimento.
+  const temAtendimento = Boolean(session?.sections.some((s) => s.key === "adminAtendimento"));
+  const { data: pendentes } = useQuery<{ total: number }>({
+    queryKey: ["/api/admin/chamados/pendentes"],
+    enabled: temAtendimento,
+    refetchInterval: 60_000,
+  });
+  const contador: Partial<Record<string, number>> = {
+    adminAtendimento: pendentes?.total || undefined,
+  };
+
   const alternar = () => {
     const novo = !aberto;
     setAberto(novo);
@@ -208,18 +221,30 @@ export function PanelShell({
           {session?.sections.map((s) => {
             const Icone = ICONE[s.key] ?? Circle;
             const ativo = location === s.path;
+            const n = contador[s.key];
+            const rotulo = n ? `${s.label} (${n} pendente${n > 1 ? "s" : ""})` : s.label;
             return (
               <Link
                 key={s.key}
                 href={s.path}
                 onClick={aoNavegar}
-                title={aberto ? undefined : s.label}
-                aria-label={s.label}
+                title={aberto ? undefined : rotulo}
+                aria-label={rotulo}
                 aria-current={ativo ? "page" : undefined}
-                className={item(ativo)}
+                className={`relative ${item(ativo)}`}
               >
                 <Icone size={18} className="shrink-0" aria-hidden />
                 {aberto ? <span className="truncate">{s.label}</span> : null}
+                {n ? (
+                  <span
+                    aria-hidden
+                    className={`tnum rounded-full bg-yellow px-1.5 text-[11px] font-semibold leading-[18px] text-[#3B2A00] ${
+                      aberto ? "ml-auto" : "absolute -right-0.5 -top-0.5"
+                    }`}
+                  >
+                    {n > 99 ? "99+" : n}
+                  </span>
+                ) : null}
               </Link>
             );
           })}

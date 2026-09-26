@@ -291,6 +291,10 @@ confirmado pelo provedor que o criou — cada um tem o próprio webhook:
   "Fazer a devolução" devolve pelo provedor do Pix (mesma conta que pagou) e
   desfaz cotas, comissão e taxa; venda do cambista é devolvida no caixa.
   Estorno avisado pelo próprio provedor é registrado mesmo desligado.
+- **Aviso de chamado novo:** a organização recebe no WhatsApp (número
+  definido em Configurações → "Reembolso: prazo e aviso"; vazio, vai para os
+  organizadores com WhatsApp no cadastro) e vê o contador em "Atendimento" no
+  menu.
 - **ID do cliente:** todo comprador tem um código `C-XXXXXXXX`, mostrado em
   "Minhas cotas" e no atendimento, além do telefone e do CPF.
 

@@ -181,6 +181,7 @@ export function PublicShell({ children }: { children: ReactNode }) {
 const ICONE: Partial<Record<SectionKey, LucideIcon>> = {
   afiliadoPainel: LayoutDashboard,
   afiliadoLinks: Link2,
+  afiliadoOrganizacoes: Building2,
   afiliadoComissoes: Percent,
   afiliadoSaques: Banknote,
   cambistaVenda: ShoppingCart,

@@ -358,6 +358,13 @@ export const campaigns = pgTable(
     authorizationFileKey: text("authorization_file_key"),
     status: campaignStatus("status").notNull().default("draft"),
     commissionPctDefault: integer("commission_pct_default").notNull().default(10),
+    /**
+     * O termo de adesão de afiliado em vigor quando a rifa foi publicada
+     * (`organizacao_termos`). Fotografado na publicação e fixo até o sorteio:
+     * a comissão das vendas desta rifa sai dele, e só ganha quem aceitou esta
+     * versão. Nulo: a organização não tinha termo.
+     */
+    termoId: uuid("termo_id"),
     featured: boolean("featured").notNull().default(false),
     sortWeight: integer("sort_weight").notNull().default(0),
     publishedAt: timestamp("published_at"),
@@ -551,6 +558,11 @@ export const coupons = pgTable(
       onDelete: "cascade",
     }),
     code: text("code").notNull(),
+    /**
+     * A organização que dá o desconto. Cupom de uma organização não vale na
+     * rifa de outra (o desconto sairia do bolso de quem não o criou).
+     */
+    organizationId: uuid("organization_id").references(() => organizations.id),
     discountPct: integer("discount_pct").notNull(),
     maxUses: integer("max_uses"),
     uses: integer("uses").notNull().default(0),
@@ -615,6 +627,11 @@ export const payouts = pgTable("payouts", {
     .references(() => affiliates.id, { onDelete: "cascade" }),
   amountCents: integer("amount_cents").notNull(),
   pixKey: text("pix_key").notNull(),
+  /**
+   * Quem paga este saque: a organização das rifas das comissões dele. O
+   * afiliado é de várias organizações, e cada uma paga só o que é dela.
+   */
+  organizationId: uuid("organization_id").references(() => organizations.id),
   status: payoutStatus("status").notNull().default("requested"),
   receiptUrl: text("receipt_url"),
   requestedAt: timestamp("requested_at").notNull().defaultNow(),
@@ -1123,6 +1140,7 @@ export const insertCampaignSchema = createInsertSchema(campaigns, {
     authorizationFileKey: true,
     drawAt: true,
     regulamentoExtra: true,
+    termoId: true,
     transmissaoUrl: true,
   });
 
@@ -1217,3 +1235,103 @@ export const campaignGanhadorFotos = pgTable("campaign_ganhador_fotos", {
   bytes: bytea("bytes").notNull(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
+
+/**
+ * Afiliado × organização. O afiliado é avulso (a conta não tem organização)
+ * e adere a quantas quiser; cada adesão passa pela organização. A chave é o
+ * par — aderir duas vezes é `ON CONFLICT`, nunca um `SELECT` antes.
+ */
+export const afiliadoVinculos = pgTable(
+  "afiliado_vinculos",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    affiliateId: uuid("affiliate_id")
+      .notNull()
+      .references(() => affiliates.id, { onDelete: "cascade" }),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    /** pendente | aprovado | recusado | desfeito (`STATUS_DO_VINCULO`). */
+    status: text("status").notNull().default("pendente"),
+    /** Percentual combinado com esta organização (só vale sem termo na rifa). */
+    commissionPct: integer("commission_pct"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    decididoEm: timestamp("decidido_em"),
+  },
+  (t) => [uniqueIndex("uq_vinculo_afiliado_org").on(t.affiliateId, t.organizationId)],
+);
+
+/**
+ * Termo de adesão de afiliado de cada organização, por versão. Publicar não
+ * sobrescreve: versão nova é linha nova, e o texto montado fica gravado.
+ */
+export const organizacaoTermos = pgTable(
+  "organizacao_termos",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    versao: integer("versao").notNull(),
+    comissaoPct: integer("comissao_pct").notNull(),
+    textoExtra: text("texto_extra").notNull().default(""),
+    /** O termo inteiro, como foi montado na publicação (`montarTermo`). */
+    texto: text("texto").notNull(),
+    criadoPor: uuid("criado_por"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("uq_termo_org_versao").on(t.organizationId, t.versao)],
+);
+
+/**
+ * Aceite do termo: cópia do texto, versão, quando, IP e aparelho (em hash,
+ * como no antifraude). É a prova do combinado — por isso guarda o texto, não
+ * só o id.
+ */
+export const termoAceites = pgTable(
+  "termo_aceites",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    vinculoId: uuid("vinculo_id")
+      .notNull()
+      .references(() => afiliadoVinculos.id, { onDelete: "cascade" }),
+    termoId: uuid("termo_id")
+      .notNull()
+      .references(() => organizacaoTermos.id),
+    versao: integer("versao").notNull(),
+    texto: text("texto").notNull(),
+    ipHash: text("ip_hash"),
+    deviceHash: text("device_hash"),
+    aceitoEm: timestamp("aceito_em").notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("uq_aceite_vinculo_termo").on(t.vinculoId, t.termoId)],
+);
+
+/**
+ * "Seja um colaborador": o apostador pede para vender (ser cambista) de uma
+ * organização. Um pedido em aberto por pessoa e organização — quem decide é
+ * o índice parcial, não um `SELECT` antes.
+ */
+export const pedidosColaborador = pgTable(
+  "pedidos_colaborador",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    buyerId: uuid("buyer_id")
+      .notNull()
+      .references(() => buyers.id, { onDelete: "cascade" }),
+    cidade: text("cidade").notNull(),
+    mensagem: text("mensagem").notNull().default(""),
+    /** pendente | atendido | recusado */
+    status: text("status").notNull().default("pendente"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    decididoEm: timestamp("decidido_em"),
+  },
+  (t) => [
+    uniqueIndex("uq_pedido_colaborador_aberto")
+      .on(t.organizationId, t.buyerId)
+      .where(sql`status = 'pendente'`),
+  ],
+);

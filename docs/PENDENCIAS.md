@@ -130,7 +130,7 @@ Na ordem de entrega do plano:
   "seguido por" só de quem liga o perfil público, destaques (rifas
   sorteadas) e grade com carrossel. A rifa abre dentro do perfil e tem
   seguir/sino. A vitrine mostra os perfis seguidos no topo.
-- [ ] **[código]** Ainda do perfil, depende de outras etapas: item "Bônus" do menu (gamificação), pedido de colaborador dentro do app e "seguidores da mesma
+- [ ] **[código]** Ainda do perfil, depende de outras etapas: item "Bônus" do menu (gamificação) e "seguidores da mesma
   rifa".
 - [ ] **[você]** Cada organização pôr foto e bio em Configurações → Perfil
   público.
@@ -183,7 +183,15 @@ Na ordem de entrega do plano:
 - [x] Foto do ganhador como capa depois do sorteio (painel → Sorteios).
 - [ ] **[código]** Retorno das rifas patrocinadas no painel de resultados
   (entra junto com as patrocinadas, etapa 15).
-- [ ] **[código]** Afiliado multi-organização, termo por rifa, colaborador.
+- [x] Afiliado de todas as organizações: cadastro avulso, adesão pelo
+  painel do afiliado (Organizações), aprovação por organização, termo de
+  adesão por versão fotografado na publicação de cada rifa, aceite com cópia
+  do texto, IP e aparelho; cupom e saque por organização; "Seja um
+  colaborador" dentro do app (pedido vai para Cambistas). O link sem vínculo
+  deixou de dar comissão na rifa de outra organização.
+- [ ] **[você]** Cada organização publicar o termo de adesão de afiliado
+  (Afiliados → Termo) e o advogado revisar o texto-base (`montarTermo()` em
+  `shared/afiliados.ts`).
 - [ ] **[código]** Guarda da comissão pela plataforma, cadastro fiscal e
   recibo.
 - [ ] **[código]** Indicação, bônus e gamificação.

@@ -14,6 +14,7 @@ import {
   orders,
   buyers,
   affiliates,
+  afiliadoVinculos,
   users,
   commissions,
   coupons,
@@ -104,6 +105,14 @@ import {
 import { isUniqueViolation } from "../pgError";
 import { destaqueDa, salvarPerfil, urlDaCapa, urlDaFoto } from "../services/perfil";
 import { resultados as resultadosDoPainel } from "../services/resultados";
+import {
+  decidirPedidoDeColaborador,
+  decidirVinculo,
+  pedidosDeColaborador,
+  publicarTermo,
+  termoAtual,
+  vinculosDaOrganizacao,
+} from "../services/afiliados";
 import { salvarFotoDoGanhador } from "../services/ganhador";
 import { validarPeriodo } from "@shared/resultados";
 import {
@@ -237,9 +246,10 @@ adminRouter.get("/overview", async (req, res, next) => {
       SELECT a.code, u.name, coalesce(sum(o.amount_cents), 0)::int AS cents
       FROM affiliates a
       JOIN users u ON u.id = a.user_id
-      LEFT JOIN orders o ON o.affiliate_id = a.id AND o.status = 'paid'
-      LEFT JOIN campaigns c ON c.id = o.campaign_id
-      WHERE ${org ? sql`u.organization_id = ${org}::uuid` : sql`TRUE`}
+      JOIN orders o ON o.affiliate_id = a.id AND o.status = 'paid'
+      JOIN campaigns c ON c.id = o.campaign_id
+      -- O afiliado é de várias organizações: conta a venda das rifas daqui.
+      WHERE ${org ? sql`c.organization_id = ${org}::uuid` : sql`TRUE`}
       GROUP BY a.code, u.name
       ORDER BY cents DESC
       LIMIT 5
@@ -713,6 +723,25 @@ adminRouter.get("/orders", async (req, res, next) => {
 adminRouter.get("/affiliates", async (req, res, next) => {
   try {
     const org = orgOf(req);
+    // A organização vê os afiliados pelo vínculo com ela (e as vendas das
+    // rifas dela); o status que ela decide é o do vínculo, não o da conta.
+    if (org) {
+      const vinculos = await vinculosDaOrganizacao(org);
+      return res.json(
+        vinculos.map((v) => ({
+          affiliate: { ...v.affiliate, pixKey: null },
+          user: v.user,
+          salesCents: v.salesCents,
+          vinculo: {
+            id: v.vinculo.id,
+            status: v.vinculo.status,
+            commissionPct: v.vinculo.commissionPct,
+            aceiteVersao: v.aceiteVersao,
+            termoVersaoAtual: v.termoVersaoAtual,
+          },
+        })),
+      );
+    }
     const rows = await db
       .select({
         affiliate: affiliates,
@@ -724,8 +753,8 @@ adminRouter.get("/affiliates", async (req, res, next) => {
       })
       .from(affiliates)
       .innerJoin(users, eq(users.id, affiliates.userId))
-      // O afiliado pertence à organização pelo usuário dele.
-      .where(org ? eq(users.organizationId, org) : sql`TRUE`)
+      // A plataforma vê todos os afiliados (a conta); cambista tem tela própria.
+      .where(eq(affiliates.kind, "online"))
       .orderBy(desc(affiliates.createdAt));
     res.json(rows);
   } catch (err) {
@@ -740,18 +769,16 @@ adminRouter.post("/affiliates", async (req, res, next) => {
       return res.status(400).json({ message: "Nome, e-mail, senha e código são obrigatórios." });
     }
 
-    // Mesma regra da campanha: o afiliado nasce com dono.
-    const organizationId = organizationForNewCampaign(
-      req,
-      req.body?.organizationId ? String(req.body.organizationId) : undefined,
-    );
+    // O afiliado é avulso (a conta não tem organização). Criado por um
+    // organizador, já nasce com o vínculo aprovado com a organização dele.
+    const organizationId = orgOf(req) ?? (req.body?.organizationId ? String(req.body.organizationId) : null);
 
     const created = await db.transaction(async (tx) => {
       const [user] = await tx
         .insert(users)
         .values({
           role: "affiliate",
-          organizationId,
+          organizationId: null,
           name: String(name),
           email: String(email).toLowerCase().trim(),
           passwordHash: await hashPassword(String(password)),
@@ -769,6 +796,12 @@ adminRouter.post("/affiliates", async (req, res, next) => {
         })
         .returning();
 
+      if (organizationId) {
+        await tx
+          .insert(afiliadoVinculos)
+          .values({ affiliateId: aff.id, organizationId, status: "aprovado", decididoEm: new Date() })
+          .onConflictDoNothing();
+      }
       return aff;
     });
 
@@ -781,7 +814,22 @@ adminRouter.post("/affiliates", async (req, res, next) => {
 
 adminRouter.patch("/affiliates/:id", async (req, res, next) => {
   try {
-    await assertAffiliateInScope(req, req.params.id);
+    const afiliado = await assertAffiliateInScope(req, req.params.id);
+    const org = orgOf(req);
+    // A organização decide o vínculo com ela — nunca a conta do afiliado,
+    // que é de todas as organizações a que ele aderiu.
+    if (org && afiliado.kind === "online") {
+      const status =
+        req.body?.status === "active" ? "aprovado" : req.body?.status === "blocked" ? "recusado" : req.body?.status;
+      const [v] = await db
+        .select({ id: afiliadoVinculos.id })
+        .from(afiliadoVinculos)
+        .where(and(eq(afiliadoVinculos.affiliateId, afiliado.id), eq(afiliadoVinculos.organizationId, org)));
+      if (!v) return res.status(404).json({ message: "Cadastro não encontrado." });
+      const feito = await decidirVinculo(org, v.id, { status, commissionPct: req.body?.commissionPct });
+      await audit(req, "afiliado.vinculo", "affiliate", afiliado.id, { status: feito.status, commissionPct: feito.commissionPct });
+      return res.json(feito);
+    }
 
     const changes: Record<string, unknown> = {};
     if (req.body?.status) changes.status = req.body.status;
@@ -822,7 +870,7 @@ adminRouter.get("/coupons", async (req, res, next) => {
       // e por isso não aparece para o organizador: ele não pode mexer nele.
       .where(
         org
-          ? sql`(${campaigns.organizationId} = ${org}::uuid OR ${users.organizationId} = ${org}::uuid)`
+          ? sql`(${coupons.organizationId} = ${org}::uuid OR ${campaigns.organizationId} = ${org}::uuid)`
           : sql`TRUE`,
       )
       .orderBy(desc(coupons.id));
@@ -863,12 +911,20 @@ adminRouter.post("/coupons", async (req, res, next) => {
     if (!req.body?.campaignId && !req.body?.affiliateId) {
       requirePlatformAdmin(req);
     }
+    // Quem dá o desconto: a organização da sessão, ou a da rifa escolhida.
+    // Cupom da plataforma (sem campanha e sem afiliado) não tem organização.
+    let organizationId = orgOf(req);
+    if (!organizationId && req.body?.campaignId) {
+      const [c] = await db.select({ org: campaigns.organizationId }).from(campaigns).where(eq(campaigns.id, String(req.body.campaignId)));
+      organizationId = c?.org ?? null;
+    }
 
     const [created] = await db
       .insert(coupons)
       .values({
         code,
         discountPct,
+        organizationId,
         affiliateId: req.body?.affiliateId || null,
         campaignId: req.body?.campaignId || null,
         maxUses: req.body?.maxUses ? Number(req.body.maxUses) : null,
@@ -888,9 +944,12 @@ adminRouter.delete("/coupons/:id", async (req, res, next) => {
     // Confere o dono antes de apagar, pelo mesmo motivo da cota premiada.
     const [alvo] = await db.select().from(coupons).where(eq(coupons.id, req.params.id));
     if (!alvo) return res.status(404).json({ message: "Cupom não encontrado." });
+    // O dono é a organização do cupom (o afiliado é de várias organizações:
+    // conferir pelo afiliado deixaria uma apagar o cupom da outra).
+    const org = orgOf(req);
     if (alvo.campaignId) await assertCampaignInScope(req, alvo.campaignId);
-    else if (alvo.affiliateId) await assertAffiliateInScope(req, alvo.affiliateId);
-    else requirePlatformAdmin(req);
+    if (org && alvo.organizationId !== org) return res.status(404).json({ message: "Cupom não encontrado." });
+    if (!alvo.organizationId && !alvo.campaignId) requirePlatformAdmin(req);
 
     const [removed] = await db.delete(coupons).where(eq(coupons.id, req.params.id)).returning();
     if (!removed) return res.status(404).json({ message: "Cupom não encontrado." });
@@ -2056,20 +2115,21 @@ adminRouter.get("/finance", async (req, res, next) => {
       .from(commissions)
       .innerJoin(affiliates, eq(affiliates.id, commissions.affiliateId))
       .innerJoin(users, eq(users.id, affiliates.userId))
-      .where(org ? eq(users.organizationId, org) : sql`TRUE`)
+      .innerJoin(campaigns, eq(campaigns.id, commissions.campaignId))
+      // O afiliado é de várias organizações: cada uma vê (e paga) só a
+      // comissão das rifas dela.
+      .where(org ? eq(campaigns.organizationId, org) : sql`TRUE`)
       .groupBy(commissions.affiliateId, affiliates.code, users.name, affiliates.pixKey);
 
-    // O saque é do afiliado, e o afiliado tem organização: sem o recorte, o
-    // organizador veria (e pagaria) pedido de saque que não é dele.
+    // O saque é pedido a uma organização (`payouts.organization_id`): sem o
+    // recorte, o organizador veria (e pagaria) saque que não é dele.
     const requested = await db
       .select({ payout: payouts })
       .from(payouts)
-      .innerJoin(affiliates, eq(affiliates.id, payouts.affiliateId))
-      .innerJoin(users, eq(users.id, affiliates.userId))
       .where(
         and(
           eq(payouts.status, "requested"),
-          org ? eq(users.organizationId, org) : sql`TRUE`,
+          org ? eq(payouts.organizationId, org) : sql`TRUE`,
         ),
       )
       .orderBy(desc(payouts.requestedAt));
@@ -2114,11 +2174,14 @@ adminRouter.post("/finance/release", async (req, res, next) => {
 adminRouter.post("/payouts/:id/paid", async (req, res, next) => {
   try {
     const [saque] = await db
-      .select({ affiliateId: payouts.affiliateId })
+      .select({ affiliateId: payouts.affiliateId, organizationId: payouts.organizationId })
       .from(payouts)
       .where(eq(payouts.id, req.params.id));
-    if (!saque) return res.status(404).json({ message: "Saque não encontrado." });
-    await assertAffiliateInScope(req, saque.affiliateId);
+    const org = orgOf(req);
+    // Quem paga é a organização do saque — o do vizinho é 404.
+    if (!saque || (org && saque.organizationId !== org)) {
+      return res.status(404).json({ message: "Saque não encontrado." });
+    }
 
     const [updated] = await db
       .update(payouts)
@@ -2543,6 +2606,62 @@ adminRouter.put("/campaigns/:id/foto-ganhador", async (req, res, next) => {
     await audit(req, "campanha.foto_ganhador", "campaign", req.params.id, {
       foto: req.body?.foto === null ? "removida" : "trocada",
     });
+    res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/* ---------------- termo de adesão de afiliado ---------------- */
+
+/** A organização do pedido: a da sessão; a plataforma diz qual. */
+function organizacaoDoPedido(req: Request): string | null {
+  const org = orgOf(req);
+  if (org) return org;
+  const pedida = req.query.organizacao ?? req.body?.organizacaoId;
+  return typeof pedida === "string" && /^[0-9a-f-]{36}$/i.test(pedida) ? pedida : null;
+}
+
+adminRouter.get("/termo-afiliado", async (req, res, next) => {
+  try {
+    const org = organizacaoDoPedido(req);
+    if (!org) return res.status(400).json({ message: "Escolha a organização." });
+    res.json({ termo: await termoAtual(org) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * Publica uma versão nova do termo. Não edita a anterior: rifa já publicada
+ * segue com a versão dela até o sorteio.
+ */
+adminRouter.post("/termo-afiliado", async (req, res, next) => {
+  try {
+    const org = organizacaoDoPedido(req);
+    if (!org) return res.status(400).json({ message: "Escolha a organização." });
+    const termo = await publicarTermo(org, req.body, req.user?.id ?? null);
+    await audit(req, "afiliado.termo", "organization", org, { versao: termo.versao, comissaoPct: termo.comissaoPct });
+    res.status(201).json(termo);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/* ---------------- pedidos para ser colaborador ---------------- */
+
+adminRouter.get("/colaboradores/pedidos", async (req, res, next) => {
+  try {
+    res.json(await pedidosDeColaborador(orgOf(req)));
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.post("/colaboradores/pedidos/:id", async (req, res, next) => {
+  try {
+    await decidirPedidoDeColaborador(orgOf(req), req.params.id, req.body?.status);
+    await audit(req, "colaborador.pedido", "pedido_colaborador", req.params.id, { status: req.body?.status });
     res.json({ ok: true });
   } catch (err) {
     next(err);

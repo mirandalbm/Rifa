@@ -63,6 +63,7 @@ export type SectionKey =
   | "adminUsuarios"
   | "adminAtendimento"
   | "adminStories"
+  | "afiliadoOrganizacoes"
   | "adminResultados"
   | "adminFinanceiro"
   | "adminSorteios"
@@ -93,6 +94,8 @@ export const SECTIONS: Section[] = [
   // Afiliado — login próprio, aprovado pelo administrador.
   { key: "afiliadoPainel", path: "/afiliado", label: "Visão geral", requires: "affiliate", nav: true },
   { key: "afiliadoLinks", path: "/afiliado/links", label: "Meus links", requires: "affiliate", nav: true },
+  // O afiliado é avulso: adere às organizações que quiser, com o termo de cada uma.
+  { key: "afiliadoOrganizacoes", path: "/afiliado/organizacoes", label: "Organizações", requires: "affiliate", nav: true },
   { key: "afiliadoComissoes", path: "/afiliado/comissoes", label: "Comissões", requires: "affiliate", nav: true },
   { key: "afiliadoSaques", path: "/afiliado/saques", label: "Saques", requires: "affiliate", nav: true },
 

@@ -4,6 +4,8 @@
  * O front nunca envia preço — envia campanha e quantidade (ou os números
  * escolhidos). O total é sempre recalculado aqui, em centavos inteiros.
  */
+import { comissaoNaRifa, cupomValeNaRifa } from "./afiliados";
+import type { Campaign } from "@shared/schema";
 import { validarOrigem } from "@shared/resultados";
 import { randomInt } from "node:crypto";
 import { and, eq, sql, desc, or, lte } from "drizzle-orm";
@@ -144,8 +146,9 @@ async function resolveAttribution(params: {
   couponCode?: string;
   sessionAffiliateCode?: string;
   buyerPhone: string;
+  campaign: Campaign;
 }) {
-  const { couponCode, sessionAffiliateCode, buyerPhone } = params;
+  const { couponCode, sessionAffiliateCode, buyerPhone, campaign } = params;
 
   let affiliateId: string | null = null;
   let couponId: string | null = null;
@@ -162,6 +165,11 @@ async function resolveAttribution(params: {
     }
     if (coupon.maxUses !== null && coupon.uses >= coupon.maxUses) {
       throw new OrderError("Este cupom atingiu o limite de usos.");
+    }
+    // O desconto sai do bolso de quem criou o cupom: cupom de uma
+    // organização não vale na rifa de outra, nem cupom preso a outra rifa.
+    if (!cupomValeNaRifa(coupon, campaign) || (coupon.campaignId && coupon.campaignId !== campaign.id)) {
+      throw new OrderError("Este cupom não vale para esta rifa.");
     }
     couponId = coupon.id;
     couponPct = coupon.discountPct;
@@ -186,6 +194,13 @@ async function resolveAttribution(params: {
     if (self?.phone && normalizePhone(self.phone) === buyerPhone) {
       affiliateId = null; // autoindicação
     }
+  }
+
+  // O afiliado só leva a venda da rifa de uma organização com que tem
+  // vínculo aprovado — e, se a rifa foi publicada com termo, tendo aceitado
+  // aquela versão. Sem isso a venda segue, sem afiliado.
+  if (affiliateId && !(await comissaoNaRifa(db, affiliateId, campaign)).recebe) {
+    affiliateId = null;
   }
 
   return { affiliateId, couponId, couponPct };
@@ -332,6 +347,7 @@ export async function createOrder(
         couponCode: input.couponCode,
         sessionAffiliateCode: input.affiliateCode ?? ctx.sessionAffiliateCode,
         buyerPhone: buyer.phone,
+        campaign,
       });
 
   const packages = await db
@@ -551,16 +567,15 @@ async function settleOrderAsPaid(order: typeof orders.$inferSelect) {
 
     // O rateio da venda, na ordem que não se negocia: a plataforma sai
     // antes, e a comissão incide sobre o que sobrou. Ver `splitOrder()`.
-    const [aff] = order.affiliateId
-      ? await tx.select().from(affiliates).where(eq(affiliates.id, order.affiliateId))
-      : [undefined];
+    // O percentual do termo fotografado na publicação da rifa (ou, sem
+    // termo, o combinado de antes) — ver `comissaoNaRifa()`.
+    const daRifa =
+      order.affiliateId && campaign ? await comissaoNaRifa(tx, order.affiliateId, campaign) : null;
 
     const rateio = splitOrder({
       paidCents: order.amountCents,
       platformPct: platformPctFor(plano),
-      commissionPct: order.affiliateId
-        ? (aff?.commissionPct ?? campaign?.commissionPctDefault ?? 0)
-        : 0,
+      commissionPct: order.affiliateId ? (daRifa?.pct ?? 0) : 0,
     });
 
     if (rateio.platformFeeCents > 0 && campaign) {

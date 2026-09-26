@@ -15,7 +15,7 @@
 import { and, eq, sql, isNull, isNotNull, type SQL } from "drizzle-orm";
 import type { Request } from "express";
 import { db } from "../db";
-import { campaigns, organizations, affiliates, users } from "@shared/schema";
+import { campaigns, organizations, affiliates, afiliadoVinculos, users } from "@shared/schema";
 import type { OrganizerInfo } from "@shared/schema";
 import { LIBERACAO_COMISSAO, carteiraAsaasValida } from "@shared/plataforma";
 import { PRAZO_ESTORNO_MIN, PRAZO_ESTORNO_MAX, telefoneDeAvisoValido } from "@shared/chamados";
@@ -100,8 +100,10 @@ export async function assertCampaignInScope(req: Request, campaignId: string) {
 }
 
 /**
- * O mesmo para afiliado e cambista: eles pendurados no usuário, o usuário
- * pendurado na organização.
+ * O mesmo para afiliado e cambista. O cambista é da organização pelo
+ * usuário. O afiliado é avulso: está no recorte da organização com que tem
+ * vínculo (em qualquer status — o pedido pendente também é dela para
+ * decidir). Sem vínculo, 404, como o dado de qualquer vizinho.
  */
 export async function assertAffiliateInScope(req: Request, affiliateId: string) {
   const [linha] = await db
@@ -113,11 +115,15 @@ export async function assertAffiliateInScope(req: Request, affiliateId: string) 
   if (!linha) throw new OrgScopeError("Cadastro não encontrado.");
 
   const org = orgOf(req);
-  if (org && linha.organizationId !== org) {
-    throw new OrgScopeError("Cadastro não encontrado.");
+  if (!org || linha.organizationId === org) return linha.afiliado;
+  if (linha.afiliado.kind === "online") {
+    const [v] = await db
+      .select({ id: afiliadoVinculos.id })
+      .from(afiliadoVinculos)
+      .where(and(eq(afiliadoVinculos.affiliateId, affiliateId), eq(afiliadoVinculos.organizationId, org)));
+    if (v) return linha.afiliado;
   }
-
-  return linha.afiliado;
+  throw new OrgScopeError("Cadastro não encontrado.");
 }
 
 /**

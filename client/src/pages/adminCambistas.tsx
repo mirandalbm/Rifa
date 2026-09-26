@@ -81,6 +81,10 @@ export function AdminCambistas() {
         <p className="mb-3 rounded-md bg-red-soft px-3 py-2 text-sm text-red">{erro}</p>
       ) : null}
 
+      <PedidosDeColaborador
+        onCriar={(p) => setForm({ ...form, name: p.nome, phone: p.telefone })}
+      />
+
       <div className="grid gap-3 lg:grid-cols-[1.4fr_1fr]">
         <Card
           title="A receber dos cambistas"
@@ -203,5 +207,71 @@ export function AdminCambistas() {
         </Card>
       </div>
     </PanelShell>
+  );
+}
+
+interface PedidoDeColaborador {
+  id: string;
+  status: "pendente" | "atendido" | "recusado";
+  cidade: string;
+  mensagem: string;
+  createdAt: string;
+  nome: string;
+  telefone: string;
+  organizacao: string;
+}
+
+/**
+ * "Seja um colaborador": quem pediu, pelo perfil, para vender para a
+ * organização. Atender preenche o cadastro de cambista abaixo com o nome e o
+ * WhatsApp; a senha e o código continuam sendo criados aqui.
+ */
+function PedidosDeColaborador({ onCriar }: { onCriar: (p: PedidoDeColaborador) => void }) {
+  const qc = useQueryClient();
+  const { data = [] } = useQuery<PedidoDeColaborador[]>({ queryKey: ["/api/admin/colaboradores/pedidos"] });
+  const decidir = useMutation({
+    mutationFn: (v: { id: string; status: "atendido" | "recusado" }) =>
+      apiRequest("POST", `/api/admin/colaboradores/pedidos/${v.id}`, { status: v.status }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/admin/colaboradores/pedidos"] }),
+  });
+  const abertos = data.filter((p) => p.status === "pendente");
+  if (abertos.length === 0) return null;
+  return (
+    <div className="mb-3">
+      <Card title="Querem ser colaboradores" right={<Pill status="pending">{`${abertos.length} pedido(s)`}</Pill>}>
+        <ul className="divide-y divide-line">
+          {abertos.map((p) => (
+            <li key={p.id} className="space-y-1 px-4 py-3 text-sm">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="min-w-0 flex-1">
+                  <span className="font-semibold">{p.nome}</span> ·{" "}
+                  <a href={`https://wa.me/55${p.telefone.replace(/\D/g, "")}`} target="_blank" rel="noopener noreferrer" className="tnum text-green-deep underline">
+                    {p.telefone}
+                  </a>{" "}
+                  · <span className="text-muted">{p.cidade}</span>
+                </span>
+                <span className="tnum text-xs text-muted">{new Date(p.createdAt).toLocaleDateString("pt-BR")}</span>
+              </div>
+              {p.mensagem ? <p className="text-ink-2">{p.mensagem}</p> : null}
+              <div className="flex gap-2">
+                <Button
+                  className="px-3 py-1 text-xs"
+                  onClick={() => {
+                    onCriar(p);
+                    decidir.mutate({ id: p.id, status: "atendido" });
+                    window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
+                  }}
+                >
+                  Cadastrar como cambista
+                </Button>
+                <Button variant="ghost" className="px-3 py-1 text-xs" onClick={() => decidir.mutate({ id: p.id, status: "recusado" })}>
+                  Recusar
+                </Button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </Card>
+    </div>
   );
 }

@@ -1,3 +1,4 @@
+import { aderir, pedirColaboracao, termoPublico } from "../services/afiliados";
 import { fotoDoGanhador, urlDaFotoDoGanhador } from "../services/ganhador";
 import {
   bannersNoAr,
@@ -207,6 +208,33 @@ publicRouter.get("/stories/:id/imagem", async (req, res, next) => {
     if (!s) return res.status(404).json({ message: "Story não encontrado." });
     res.setHeader("Cache-Control", "public, max-age=3600");
     res.type(s.mime).send(s.bytes);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/* ---------------- termo de afiliado e "seja um colaborador" ---------------- */
+
+/** O termo de adesão em vigor (para ler antes de se cadastrar). */
+publicRouter.get("/o/:slug/termo-afiliado", async (req, res, next) => {
+  try {
+    res.json(await termoPublico(req.params.slug));
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * "Seja um colaborador": o apostador pede para vender para a organização.
+ * Precisa estar logado — o pedido vai com o nome e o telefone da conta, que
+ * é como a organização responde. Um pedido em aberto por organização.
+ */
+publicRouter.post("/o/:slug/colaborador", async (req, res, next) => {
+  try {
+    const buyerId = req.session.buyer?.id;
+    if (!buyerId) return res.status(401).json({ message: "Entre na sua conta para pedir." });
+    await pedirColaboracao(buyerId, req.params.slug, req.body);
+    res.status(201).json({ ok: true, message: "Pedido enviado. A organização fala com você pelo WhatsApp." });
   } catch (err) {
     next(err);
   }
@@ -1164,8 +1192,9 @@ function firstNameAndInitial(name: string): string {
 /* ---------------- cadastro de afiliado ---------------- */
 
 /**
- * Qualquer pessoa se cadastra; ninguém divulga antes de ser aprovado pelo
- * administrador. O login de um cadastro pendente já responde explicando.
+ * Qualquer pessoa se cadastra como afiliado avulso e entra na hora; o que
+ * cada organização aprova é o vínculo com ela (ninguém ganha comissão numa
+ * organização sem ser aprovado por ela).
  */
 publicRouter.post("/afiliados/cadastro", async (req, res, next) => {
   try {
@@ -1188,51 +1217,43 @@ publicRouter.post("/afiliados/cadastro", async (req, res, next) => {
       return res.status(409).json({ message: "Já existe uma conta com este e-mail." });
     }
 
-    // Afiliado divulga a rifa de alguém, então nasce com dono. Com um
-    // promotor só no ar — o caso comum — não há o que perguntar; com vários,
-    // a escolha é obrigatória, senão o cadastro cairia na organização errada.
-    const ativas = await db
-      .select({ id: organizations.id, slug: organizations.slug })
-      .from(organizations)
-      .where(eq(organizations.active, true));
-
+    // O afiliado é avulso: a conta não tem organização, e ele adere a
+    // quantas quiser pelo painel. Se veio do perfil de uma organização
+    // (`?organizacao=`), o pedido de adesão já sai junto — com o aceite do
+    // termo dela, se houver (e tem de ser a versão em vigor).
     const pedida = String(req.body?.organizacao ?? "").trim();
-    const organizacao = pedida
-      ? ativas.find((o) => o.slug === pedida)
-      : ativas.length === 1
-        ? ativas[0]
-        : undefined;
-
-    if (!organizacao) {
-      return res.status(400).json({
-        message: pedida
-          ? "Organização não encontrada."
-          : "Escolha para qual organização você quer divulgar.",
-        organizacoes: ativas.map((o) => o.slug),
-      });
-    }
-
     const code = await freeAffiliateCode(name);
 
-    await db.transaction(async (tx) => {
+    const passwordHash = await hashPassword(password);
+    const aff = await db.transaction(async (tx) => {
       const [user] = await tx
         .insert(users)
-        .values({
-          role: "affiliate",
-          organizationId: organizacao.id,
-          name,
-          email,
-          phone,
-          passwordHash: await hashPassword(password),
-        })
+        .values({ role: "affiliate", organizationId: null, name, email, phone, passwordHash })
         .returning();
-
-      await tx.insert(affiliates).values({ userId: user.id, code, status: "pending" });
+      const [criado] = await tx
+        .insert(affiliates)
+        .values({ userId: user.id, code, status: "active", approvedAt: new Date() })
+        .returning();
+      return criado;
     });
 
-    res.status(201).json({
+    let adesao: { status: string } | null = null;
+    if (pedida) {
+      try {
+        adesao = await aderir(aff.id, pedida, { versao: req.body?.termoVersao, identidade: identify(req) });
+      } catch {
+        // A conta já existe; a adesão ele refaz pelo painel (termo mudou,
+        // organização saiu do ar). Não desfaz o cadastro por isso.
+        adesao = null;
+      }
+    }
+
+    return res.status(201).json({
       code,
-      message: "Cadastro enviado. Você recebe um aviso quando for aprovado.",
+      adesao,
+      message: adesao
+        ? "Cadastro feito. Seu pedido de adesão foi para a organização — entre para acompanhar."
+        : "Cadastro feito. Entre e escolha as organizações que você quer divulgar.",
     });
   } catch (err) {
     next(err);

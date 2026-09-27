@@ -432,9 +432,67 @@ export function AdminOrganizacoes() {
               </div>
             </Card>
           ) : null}
+          {situacao === "ativas" ? <DemonstracaoCard aoMudar={recarregar} /> : null}
         </div>
       </div>
     </PanelShell>
+  );
+}
+
+/**
+ * Organização de demonstração: um perfil completo (capa, cor, links e rifas
+ * sorteadas com foto do ganhador) para ver como fica — sem rifa à venda.
+ */
+function DemonstracaoCard({ aoMudar }: { aoMudar: () => void }) {
+  const qc = useQueryClient();
+  const { data } = useQuery<{ existe: boolean; slug: string; destaques: number }>({
+    queryKey: ["/api/admin/demonstracao"],
+  });
+  const [erro, setErro] = useState<string | null>(null);
+  const feito = () => {
+    setErro(null);
+    qc.invalidateQueries({ queryKey: ["/api/admin/demonstracao"] });
+    aoMudar();
+  };
+  const criar = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/admin/demonstracao"),
+    onSuccess: feito,
+    onError: (e: Error) => setErro(e.message),
+  });
+  const remover = useMutation({
+    mutationFn: () => apiRequest("DELETE", "/api/admin/demonstracao"),
+    onSuccess: feito,
+    onError: (e: Error) => setErro(e.message),
+  });
+  return (
+    <Card title="Perfil de demonstração">
+      <div className="space-y-3 p-4 text-sm">
+        <p className="text-xs text-muted">
+          Cria a organização "Demonstração" com capa, foto, bio, cor de destaque, links e duas rifas já sorteadas
+          com foto do ganhador — para ver como fica um perfil completo. Não tem rifa à venda nem acesso de
+          organizador. Remover arquiva e o perfil some.
+        </p>
+        {erro ? <p className="rounded-md bg-red-soft px-3 py-2 text-red">{erro}</p> : null}
+        {data?.existe ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <Pill status="active">no ar</Pill>
+            <Link href={`/o/${data.slug}`} className="font-semibold text-green-deep underline">
+              Ver o perfil
+            </Link>
+            <Button variant="ghost" onClick={() => criar.mutate()} disabled={criar.isPending}>
+              Refazer
+            </Button>
+            <Button variant="ghost" onClick={() => remover.mutate()} disabled={remover.isPending}>
+              Remover
+            </Button>
+          </div>
+        ) : (
+          <Button onClick={() => criar.mutate()} disabled={criar.isPending}>
+            {criar.isPending ? "Criando…" : "Criar perfil de demonstração"}
+          </Button>
+        )}
+      </div>
+    </Card>
   );
 }
 

@@ -9,8 +9,11 @@
  * - a **compra do anúncio** debita o saldo de uma vez (pacote de cliques);
  * - o **clique** gasta um clique do pacote num `UPDATE` condicional
  *   (usados < comprados) — o anúncio nunca gasta mais do que comprou;
- * - o que não pôde ser gasto (cancelado antes do 1º clique, rifa que saiu
- *   do ar) volta ao saldo, proporcional, pelo mesmo livro.
+ * - enquanto a rifa está no ar, o crédito do anúncio fica preso a ele (sem
+ *   cancelamento nem reembolso); quando a rifa sai do ar, o que não foi
+ *   gasto volta ao saldo como crédito, para qualquer rifa;
+ * - reembolso em dinheiro do saldo só por pedido ao suporte, e só com o
+ *   interruptor `patrocinioReembolso` ligado (desligado, nem aparece).
  *
  * A fila não é gravada: é calculada. Em cada segmento, os anúncios ativos
  * com clique sobrando, por ordem de chegada; os primeiros `vagas` estão no
@@ -28,6 +31,8 @@ import {
   patrocinioCliques,
   patrocinioLancamentos,
   patrocinioRecargas,
+  patrocinioReembolsoMensagens,
+  patrocinioReembolsos,
   users,
 } from "@shared/schema";
 import {
@@ -257,36 +262,12 @@ export async function comprarAnuncio(
 }
 
 /**
- * Cancelar só antes do primeiro clique (e o valor volta inteiro). Depois
- * disso o anúncio fica até gastar os cliques: é o combinado da vaga.
- */
-export async function cancelarAnuncio(req: Request, id: string) {
-  const [a] = uuidValido(id) ? await db.select().from(patrocinioAnuncios).where(eq(patrocinioAnuncios.id, id)) : [];
-  const org = orgOf(req);
-  if (!a || (org && a.organizationId !== org)) throw new PatrocinioError("Anúncio não encontrado.", 404);
-  return db.transaction(async (tx) => {
-    const [feito] = await tx
-      .update(patrocinioAnuncios)
-      .set({ status: "cancelado", encerradoEm: new Date(), reembolsoCents: a.valorPagoCents })
-      .where(and(eq(patrocinioAnuncios.id, id), eq(patrocinioAnuncios.status, "ativo"), eq(patrocinioAnuncios.cliquesUsados, 0)))
-      .returning();
-    if (!feito) throw new PatrocinioError("Este anúncio já começou: ele fica até gastar os cliques comprados.", 409);
-    await lancar(tx, {
-      organizationId: a.organizationId,
-      valorCents: a.valorPagoCents,
-      motivo: "reembolso",
-      chave: `reembolso-anuncio:${id}`,
-      descricao: "Anúncio cancelado antes do primeiro clique",
-      userId: req.user!.id,
-    });
-    return feito;
-  });
-}
-
-/**
  * Relógio: anúncio ativo de rifa que saiu do ar (sorteada, encerrada) ou de
- * promotora arquivada é encerrado, e o que não foi gasto volta ao saldo.
- * Condicional em `status = 'ativo'`: duas réplicas, um reembolso.
+ * promotora arquivada é encerrado, e o que não foi gasto volta ao saldo
+ * **como crédito**, para usar em outro anúncio de qualquer rifa. Enquanto a
+ * rifa está no ar, o crédito do anúncio fica preso a ele: não se cancela e
+ * não se pede reembolso. Condicional em `status = 'ativo'`: duas réplicas,
+ * uma devolução.
  */
 export async function encerrarAnunciosForaDoAr() {
   const r = await db.execute(sql`
@@ -299,24 +280,193 @@ export async function encerrarAnunciosForaDoAr() {
     await db.transaction(async (tx) => {
       const [a] = await tx.select().from(patrocinioAnuncios).where(and(eq(patrocinioAnuncios.id, id), eq(patrocinioAnuncios.status, "ativo"))).for("update");
       if (!a) return;
-      const volta = a.valorPagoCents - gastoAte(a.valorPagoCents, a.cliquesComprados, a.cliquesUsados);
-      await tx
-        .update(patrocinioAnuncios)
-        .set({ status: "encerrado", encerradoEm: new Date(), reembolsoCents: volta })
-        .where(eq(patrocinioAnuncios.id, id));
-      if (volta > 0) {
+      const sobra = a.valorPagoCents - gastoAte(a.valorPagoCents, a.cliquesComprados, a.cliquesUsados);
+      await tx.update(patrocinioAnuncios).set({ status: "encerrado", encerradoEm: new Date(), reembolsoCents: sobra }).where(eq(patrocinioAnuncios.id, id));
+      if (sobra > 0) {
         await lancar(tx, {
           organizationId: a.organizationId,
-          valorCents: volta,
-          motivo: "reembolso",
-          chave: `reembolso-anuncio:${id}`,
-          descricao: `Cliques não usados: a rifa saiu do ar (${a.cliquesComprados - a.cliquesUsados})`,
+          valorCents: sobra,
+          motivo: "sobra",
+          chave: `sobra-anuncio:${id}`,
+          descricao: `Créditos não usados voltaram ao saldo: a rifa saiu do ar (${a.cliquesComprados - a.cliquesUsados} cliques)`,
         });
       }
       n++;
     });
   }
   return n;
+}
+
+/* ------------------------------------------------------------------ *
+ * Reembolso do saldo: só pelo suporte, e só com o interruptor ligado
+ * ------------------------------------------------------------------ */
+
+const LETRAS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+const novoProtocolo = () => "PR-" + Array.from({ length: 6 }, () => LETRAS[randomInt(LETRAS.length)]).join("");
+const reais = (c: number) => (c / 100).toFixed(2).replace(".", ",");
+
+async function reembolsoNoRecorte(req: Request, id: string) {
+  const [p] = uuidValido(id) ? await db.select().from(patrocinioReembolsos).where(eq(patrocinioReembolsos.id, id)) : [];
+  const org = orgOf(req);
+  if (!p || (org && p.organizationId !== org)) throw new PatrocinioError("Pedido não encontrado.", 404);
+  return p;
+}
+
+/**
+ * A organização pede o reembolso, em dinheiro, de parte do saldo. Com o
+ * interruptor desligado a rota não existe para ela (404, sem explicar). O
+ * valor sai do saldo na hora (reservado): não pode ser gasto em anúncio
+ * enquanto o suporte analisa. Crédito preso a anúncio de rifa no ar não
+ * está no saldo — por isso não entra.
+ */
+export async function pedirReembolso(req: Request, entrada: { valorCents: unknown; chavePix: unknown; motivo: unknown }) {
+  const org = orgOf(req);
+  const cfg = await getPlataforma();
+  if (!org || !cfg.patrocinioReembolso) throw new PatrocinioError("Não encontrado.", 404);
+  const valor = Number(entrada.valorCents);
+  if (!Number.isInteger(valor) || valor < 100) throw new PatrocinioError("Informe o valor em reais (mínimo de 1,00).");
+  const chavePix = String(entrada.chavePix ?? "").trim().slice(0, 140);
+  if (chavePix.length < 5) throw new PatrocinioError("Informe a chave Pix para a devolução.");
+  const motivo = String(entrada.motivo ?? "").replace(/\s+/g, " ").trim().slice(0, 1000);
+  if (motivo.length < 10) throw new PatrocinioError("Conte ao suporte o motivo do pedido (pelo menos 10 letras).");
+  try {
+    return await db.transaction(async (tx) => {
+      let p: typeof patrocinioReembolsos.$inferSelect | undefined;
+      for (let i = 0; i < 5 && !p; i++) {
+        [p] = await tx
+          .insert(patrocinioReembolsos)
+          .values({ organizationId: org, protocolo: novoProtocolo(), valorCents: valor, chavePix, motivo, abertoPor: req.user!.id })
+          .onConflictDoNothing({ target: patrocinioReembolsos.protocolo })
+          .returning();
+      }
+      if (!p) throw new PatrocinioError("Não foi possível abrir o pedido. Tente de novo.", 500);
+      // Sem saldo, a transação cai inteira: nem o pedido fica.
+      await lancar(tx, {
+        organizationId: org,
+        valorCents: -valor,
+        motivo: "reembolso",
+        chave: `reembolso-reserva:${p.id}`,
+        descricao: `Reservado para o pedido de reembolso ${p.protocolo}`,
+        userId: req.user!.id,
+      });
+      await tx.insert(patrocinioReembolsoMensagens).values({ reembolsoId: p.id, autor: "organizacao", userId: req.user!.id, texto: motivo });
+      return p;
+    });
+  } catch (err) {
+    if (isUniqueViolation(err, "uq_patrocinio_reembolso_aberto")) throw new PatrocinioError("Já existe um pedido de reembolso em análise.", 409);
+    throw err;
+  }
+}
+
+/** Mensagem na conversa. Quem escreve é decidido pela sessão: organização ou plataforma. */
+export async function responderReembolso(req: Request, id: string, textoBruto: unknown) {
+  const p = await reembolsoNoRecorte(req, id);
+  const texto = String(textoBruto ?? "").trim().slice(0, 2000);
+  if (texto.length < 2) throw new PatrocinioError("Escreva a mensagem.");
+  if (p.status !== "aberto") throw new PatrocinioError("Este pedido já foi decidido.", 409);
+  const [m] = await db
+    .insert(patrocinioReembolsoMensagens)
+    .values({ reembolsoId: p.id, autor: orgOf(req) ? "organizacao" : "plataforma", userId: req.user!.id, texto })
+    .returning();
+  return m;
+}
+
+/**
+ * A plataforma decide. Aprovado: devolve em dinheiro o valor pedido menos o
+ * que retém (custo de divulgação externa), e o pedido fica "a pagar" até a
+ * baixa do Pix. Recusado: o valor reservado volta ao saldo. Pedido travado
+ * primeiro e `UPDATE` condicional: dois cliques, uma decisão.
+ */
+export async function decidirReembolso(req: Request, id: string, entrada: { aprovar: unknown; retidoCents?: unknown; explicacao: unknown }) {
+  if (orgOf(req)) throw new PatrocinioError("Só a plataforma decide o reembolso.", 403);
+  const p = await reembolsoNoRecorte(req, id);
+  const explicacao = String(entrada.explicacao ?? "").replace(/\s+/g, " ").trim().slice(0, 1000);
+  if (explicacao.length < 10) throw new PatrocinioError("Explique a decisão à organização (pelo menos 10 letras).");
+  const aprovar = entrada.aprovar === true;
+  const retido = aprovar ? Number(entrada.retidoCents ?? 0) : 0;
+  if (!Number.isInteger(retido) || retido < 0) throw new PatrocinioError("Informe o valor retido em centavos (zero se não houver).");
+  if (retido > p.valorCents) throw new PatrocinioError(`O valor retido passa do pedido (${reais(p.valorCents)} reais).`);
+  return db.transaction(async (tx) => {
+    const [atual] = await tx.select({ status: patrocinioReembolsos.status }).from(patrocinioReembolsos).where(eq(patrocinioReembolsos.id, p.id)).for("update");
+    if (atual?.status !== "aberto") throw new PatrocinioError("Este pedido já foi decidido.", 409);
+    const [feito] = await tx
+      .update(patrocinioReembolsos)
+      .set({
+        status: aprovar ? "aprovado" : "recusado",
+        retidoCents: aprovar ? retido : null,
+        devolverCents: aprovar ? p.valorCents - retido : 0,
+        explicacao,
+        decididoPor: req.user!.id,
+        decididoEm: new Date(),
+      })
+      .where(and(eq(patrocinioReembolsos.id, p.id), eq(patrocinioReembolsos.status, "aberto")))
+      .returning();
+    if (!feito) throw new PatrocinioError("Este pedido já foi decidido.", 409);
+    if (!aprovar) {
+      await lancar(tx, {
+        organizationId: p.organizationId,
+        valorCents: p.valorCents,
+        motivo: "reembolso",
+        chave: `reembolso-recusado:${p.id}`,
+        descricao: `Pedido de reembolso ${p.protocolo} recusado: o valor voltou ao saldo`,
+        userId: req.user!.id,
+      });
+    }
+    await tx.insert(patrocinioReembolsoMensagens).values({ reembolsoId: p.id, autor: "plataforma", userId: req.user!.id, texto: explicacao });
+    return feito;
+  });
+}
+
+/** A plataforma dá baixa depois de fazer o Pix. `UPDATE` condicional: uma baixa só. */
+export async function marcarReembolsoPago(req: Request, id: string) {
+  if (orgOf(req)) throw new PatrocinioError("Só a plataforma dá baixa no reembolso.", 403);
+  const p = await reembolsoNoRecorte(req, id);
+  const [feito] = await db
+    .update(patrocinioReembolsos)
+    .set({ status: "pago", pagoEm: new Date() })
+    .where(and(eq(patrocinioReembolsos.id, p.id), eq(patrocinioReembolsos.status, "aprovado")))
+    .returning();
+  if (!feito) throw new PatrocinioError("Só pedido aprovado e ainda não pago recebe baixa.", 409);
+  return feito;
+}
+
+/** Os pedidos com a conversa, no recorte de quem olha. Abertos e a pagar primeiro. */
+async function reembolsosDoPainel(org: string | null) {
+  const r = await db.execute(sql`
+    select p.id, p.protocolo, p.status, p.valor_cents, p.chave_pix, p.motivo, p.retido_cents, p.devolver_cents,
+           p.explicacao, p.created_at, p.decidido_em, p.pago_em, o.name as organizacao
+      from patrocinio_reembolsos p
+      join organizations o on o.id = p.organization_id
+     where true ${org ? sql`and p.organization_id = ${org}::uuid` : sql``}
+     order by (p.status in ('aberto', 'aprovado')) desc, p.created_at desc
+     limit 40`);
+  const linhas = r.rows as Record<string, any>[];
+  const ids = linhas.map((l) => l.id as string);
+  const msgs = ids.length
+    ? ((
+        await db.execute(sql`
+          select reembolso_id, autor, texto, created_at from patrocinio_reembolso_mensagens
+           where reembolso_id in (${sql.join(ids.map((i) => sql`${i}::uuid`), sql`, `)})
+           order by created_at`)
+      ).rows as { reembolso_id: string; autor: string; texto: string; created_at: string }[])
+    : [];
+  return linhas.map((l) => ({
+    id: l.id as string,
+    protocolo: l.protocolo as string,
+    status: l.status as "aberto" | "aprovado" | "pago" | "recusado",
+    organizacao: l.organizacao as string,
+    valorCents: Number(l.valor_cents),
+    chavePix: l.chave_pix as string,
+    motivo: l.motivo as string,
+    retidoCents: l.retido_cents === null ? null : Number(l.retido_cents),
+    devolverCents: l.devolver_cents === null ? null : Number(l.devolver_cents),
+    explicacao: (l.explicacao as string | null) ?? null,
+    createdAt: l.created_at,
+    decididoEm: l.decidido_em ?? null,
+    pagoEm: l.pago_em ?? null,
+    // A organização nunca vê o nome de quem atendeu, só "Suporte".
+    mensagens: msgs.filter((m) => m.reembolso_id === l.id).map((m) => ({ autor: m.autor, texto: m.texto, createdAt: m.created_at })),
+  }));
 }
 
 /* ------------------------------------------------------------------ *
@@ -602,7 +752,7 @@ export async function painelDoPatrocinio(req: Request, diasBrutos?: unknown) {
   const cfg = await getPlataforma();
   const org = orgOf(req);
   const dias = [7, 30, 90].includes(Number(diasBrutos)) ? Number(diasBrutos) : 30;
-  const config = { ligado: cfg.patrocinioLigado, ...cfg.patrocinio };
+  const config = { ligado: cfg.patrocinioLigado, reembolso: cfg.patrocinioReembolso, ...cfg.patrocinio };
   const ritmo = await ritmoPorSegmento();
   const { todas, daOrg } = await fila(cfg.patrocinio, org ? { organizationId: org } : undefined);
   const sit = situacoes(todas, ritmo);
@@ -642,6 +792,7 @@ export async function painelDoPatrocinio(req: Request, diasBrutos?: unknown) {
       vendidoCents: Number(vendidos.vendido),
       anunciosVendidos: Number(vendidos.anuncios),
       organizacoes,
+      reembolsos: await reembolsosDoPainel(null),
       ...n,
     };
   }
@@ -696,6 +847,9 @@ export async function painelDoPatrocinio(req: Request, diasBrutos?: unknown) {
     .where(and(eq(patrocinioRecargas.organizationId, org), eq(patrocinioRecargas.status, "pendente"), sql`${patrocinioRecargas.expiresAt} > now()`))
     .orderBy(desc(patrocinioRecargas.createdAt))
     .limit(1);
+  // Desligado, o organizador não recebe nem a palavra "reembolso" — salvo
+  // pedido que já existia, para terminar a conversa.
+  const reembolsos = await reembolsosDoPainel(org);
   return {
     plataforma: false as const,
     dias,
@@ -734,6 +888,7 @@ export async function painelDoPatrocinio(req: Request, diasBrutos?: unknown) {
     rifas,
     extrato,
     recargaPendente: recargaPendente ?? null,
+    reembolsos,
     ...n,
   };
 }

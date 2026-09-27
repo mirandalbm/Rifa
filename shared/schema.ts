@@ -1560,12 +1560,12 @@ export const patrocinioAnuncios = pgTable(
     precoCliqueCents: integer("preco_clique_cents").notNull(),
     descontoPct: integer("desconto_pct").notNull().default(0),
     valorPagoCents: integer("valor_pago_cents").notNull(),
-    /** ativo | encerrado (gastou tudo, ou a rifa saiu do ar) | cancelado (antes do 1º clique) */
+    /** ativo | encerrado (gastou tudo, ou a rifa saiu do ar) */
     status: text("status").notNull().default("ativo"),
     filaDesde: timestamp("fila_desde").notNull().defaultNow(),
     iniciadoEm: timestamp("iniciado_em"),
     encerradoEm: timestamp("encerrado_em"),
-    /** Devolvido ao saldo quando o anúncio não pôde gastar tudo (rifa fora do ar, cancelado). */
+    /** O que não foi gasto e voltou ao saldo como crédito quando a rifa saiu do ar. */
     reembolsoCents: integer("reembolso_cents").notNull().default(0),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
@@ -1573,6 +1573,63 @@ export const patrocinioAnuncios = pgTable(
     index("idx_anuncios_fila").on(t.segmento, t.status, t.filaDesde),
     index("idx_anuncios_org").on(t.organizationId, t.createdAt),
   ],
+);
+
+/**
+ * Pedido de reembolso, em dinheiro, do saldo de patrocínio. Só existe com o
+ * interruptor da plataforma ligado (`patrocinioReembolso`). O valor sai do
+ * saldo na abertura (reservado), para não ser gasto em anúncio enquanto o
+ * suporte analisa; recusado, volta ao saldo. Crédito de anúncio de rifa no ar
+ * não está no saldo — não há como pedir o reembolso dele.
+ */
+export const patrocinioReembolsos = pgTable(
+  "patrocinio_reembolsos",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    /** "PR-XXXXXX", sorteado: é como o suporte e a organização falam do pedido. */
+    protocolo: text("protocolo").notNull(),
+    /** aberto | aprovado (a pagar) | pago | recusado */
+    status: text("status").notNull().default("aberto"),
+    valorCents: integer("valor_cents").notNull(),
+    /** Para onde o suporte devolve o dinheiro. */
+    chavePix: text("chave_pix").notNull(),
+    motivo: text("motivo").notNull(),
+    abertoPor: uuid("aberto_por"),
+    /** Na decisão: o que a plataforma retém (custo de divulgação externa) e o que devolve em dinheiro. */
+    retidoCents: integer("retido_cents"),
+    devolverCents: integer("devolver_cents"),
+    explicacao: text("explicacao"),
+    decididoPor: uuid("decidido_por"),
+    decididoEm: timestamp("decidido_em"),
+    pagoEm: timestamp("pago_em"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("uq_patrocinio_reembolso_protocolo").on(t.protocolo),
+    // Um pedido em aberto por organização: quem decide é o índice, não um SELECT antes.
+    uniqueIndex("uq_patrocinio_reembolso_aberto").on(t.organizationId).where(sql`status = 'aberto'`),
+    index("idx_patrocinio_reembolsos_org").on(t.organizationId, t.createdAt),
+  ],
+);
+
+/** A conversa do pedido de reembolso: organização e suporte da plataforma. */
+export const patrocinioReembolsoMensagens = pgTable(
+  "patrocinio_reembolso_mensagens",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    reembolsoId: uuid("reembolso_id")
+      .notNull()
+      .references(() => patrocinioReembolsos.id, { onDelete: "cascade" }),
+    /** organizacao | plataforma */
+    autor: text("autor").notNull(),
+    userId: uuid("user_id"),
+    texto: text("texto").notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [index("idx_patrocinio_reembolso_mensagens").on(t.reembolsoId, t.createdAt)],
 );
 
 /** Clique cobrado: um por visitante (aparelho em hash) a cada 24 h, por anúncio, conferido sob trava. */

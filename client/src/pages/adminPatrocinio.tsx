@@ -45,7 +45,7 @@ interface Estado {
   cliques: number;
   gastoCents: number;
 }
-type Config = ConfigPatrocinio & { ligado: boolean };
+type Config = ConfigPatrocinio & { ligado: boolean; reembolso: boolean };
 interface Comum {
   dias: number;
   config: Config;
@@ -76,7 +76,28 @@ interface Anuncio {
   vendas: number;
   receitaCents: number;
 }
+interface Reembolso {
+  id: string;
+  protocolo: string;
+  status: "aberto" | "aprovado" | "pago" | "recusado";
+  organizacao: string;
+  valorCents: number;
+  chavePix: string;
+  motivo: string;
+  retidoCents: number | null;
+  devolverCents: number | null;
+  explicacao: string | null;
+  createdAt: string;
+  decididoEm: string | null;
+  pagoEm: string | null;
+  mensagens: {
+    autor: "organizacao" | "plataforma";
+    texto: string;
+    createdAt: string;
+  }[];
+}
 interface DaOrg extends Comum {
+  reembolsos: Reembolso[];
   plataforma: false;
   saldoCents: number;
   padrao: { uf: string | null; cidade: string | null };
@@ -110,6 +131,7 @@ interface NaFila {
 }
 interface DaPlataforma extends Comum {
   plataforma: true;
+  reembolsos: Reembolso[];
   fila: {
     segmento: string;
     alcance: Alcance;
@@ -515,18 +537,6 @@ function DaOrganizacaoView({ dados }: { dados: DaOrg }) {
   const recarregar = () =>
     qc.invalidateQueries({ queryKey: ["/api/admin/patrocinio"] });
   const falhou = (e: Error) => setMsg({ ok: false, texto: e.message });
-  const cancelar = useMutation({
-    mutationFn: (id: string) =>
-      apiRequest("POST", `/api/admin/patrocinio/anuncios/${id}/cancelar`),
-    onSuccess: () => {
-      setMsg({
-        ok: true,
-        texto: "Anúncio cancelado; o valor voltou ao saldo.",
-      });
-      recarregar();
-    },
-    onError: falhou,
-  });
   const ativos = dados.anuncios.filter((a) => a.status === "ativo");
   const antigos = dados.anuncios.filter((a) => a.status !== "ativo");
 
@@ -588,16 +598,6 @@ function DaOrganizacaoView({ dados }: { dados: DaOrg }) {
                     {formatBRL(a.receitaCents)}
                   </span>
                 </p>
-                {a.usados === 0 ? (
-                  <Button
-                    variant="ghost"
-                    className="px-3 py-1 text-xs"
-                    onClick={() => cancelar.mutate(a.id)}
-                    disabled={cancelar.isPending}
-                  >
-                    Cancelar (volta o valor inteiro)
-                  </Button>
-                ) : null}
               </li>
             ))}
           </ul>
@@ -607,8 +607,9 @@ function DaOrganizacaoView({ dados }: { dados: DaOrg }) {
         <p className="border-t border-line px-4 py-2 text-[11px] text-muted">
           A fila é por ordem de chegada. O anúncio que entra na vitrine fica até
           gastar todos os cliques comprados; aí o próximo da fila entra sozinho.
-          Cancelar só antes do primeiro clique. Se a rifa sair do ar antes, o
-          que não foi gasto volta ao saldo.
+          Não há cancelamento: enquanto a rifa está no ar, o crédito do anúncio
+          fica com ele. Se a rifa sair do ar antes de gastar tudo, o que sobrou
+          volta ao saldo como crédito, para usar em qualquer rifa.
         </p>
       </Card>
 
@@ -677,7 +678,7 @@ function DaOrganizacaoView({ dados }: { dados: DaOrg }) {
                   {groupNumber(a.cliques)} cliques · {a.vendas} venda(s) ·{" "}
                   {formatBRL(a.receitaCents)}
                   {a.reembolsoCents
-                    ? ` · devolvido ${formatBRL(a.reembolsoCents)}`
+                    ? ` · ${formatBRL(a.reembolsoCents)} voltaram ao saldo`
                     : ""}
                 </span>
                 <Pill status={PILL_SITUACAO[a.situacao][0]}>
@@ -688,7 +689,359 @@ function DaOrganizacaoView({ dados }: { dados: DaOrg }) {
           </ul>
         </Card>
       ) : null}
+
+      {/* Desligado, o reembolso não existe na tela: nem botão, nem menção. Só o
+          pedido que já existia segue visível, para terminar a conversa. */}
+      {dados.config.reembolso || dados.reembolsos.length ? (
+        <ReembolsosCard
+          reembolsos={dados.reembolsos}
+          plataforma={false}
+          podePedir={dados.config.reembolso}
+          saldoCents={dados.saldoCents}
+        />
+      ) : null}
     </div>
+  );
+}
+
+const PILL_REEMBOLSO: Record<Reembolso["status"], [string, string]> = {
+  aberto: ["pending", "em análise"],
+  aprovado: ["pending", "aprovado · a pagar"],
+  pago: ["paid", "pago"],
+  recusado: ["expired", "recusado"],
+};
+
+/**
+ * Pedidos de reembolso do saldo, com a conversa. A mesma tela para os dois
+ * lados: a organização fala com "Suporte" e só vê o botão de pedir com o
+ * interruptor ligado; a plataforma vê de quem é, decide e dá baixa no Pix.
+ */
+function ReembolsosCard({
+  reembolsos,
+  plataforma,
+  podePedir,
+  saldoCents,
+}: {
+  reembolsos: Reembolso[];
+  plataforma: boolean;
+  podePedir: boolean;
+  saldoCents: number;
+}) {
+  const emAnalise = reembolsos.filter((r) => r.status === "aberto").length;
+  const aPagar = reembolsos.filter((r) => r.status === "aprovado").length;
+  return (
+    <Card
+      title={
+        plataforma ? "Pedidos de reembolso do saldo" : "Reembolso do saldo"
+      }
+      right={
+        emAnalise || aPagar ? (
+          <Pill status="pending">
+            {[
+              emAnalise ? `${emAnalise} em análise` : "",
+              aPagar ? `${aPagar} a pagar` : "",
+            ]
+              .filter(Boolean)
+              .join(" · ")}
+          </Pill>
+        ) : undefined
+      }
+    >
+      {!plataforma && podePedir && !emAnalise ? (
+        <PedirReembolso saldoCents={saldoCents} />
+      ) : null}
+      {reembolsos.length ? (
+        <ul className="divide-y divide-line border-t border-line">
+          {reembolsos.map((r) => (
+            <ConversaDoReembolso key={r.id} r={r} plataforma={plataforma} />
+          ))}
+        </ul>
+      ) : plataforma ? (
+        <Empty>Nenhum pedido.</Empty>
+      ) : null}
+    </Card>
+  );
+}
+
+function PedirReembolso({ saldoCents }: { saldoCents: number }) {
+  const qc = useQueryClient();
+  const [aberto, setAberto] = useState(false);
+  const [valor, setValor] = useState(reais(saldoCents));
+  const [chavePix, setChavePix] = useState("");
+  const [motivo, setMotivo] = useState("");
+  const [msg, setMsg] = useState<{ ok: boolean; texto: string } | null>(null);
+  const pedir = useMutation({
+    mutationFn: () =>
+      apiRequest("POST", "/api/admin/patrocinio/reembolsos", {
+        valorCents: centavos(valor),
+        chavePix,
+        motivo,
+      }),
+    onSuccess: () => {
+      setAberto(false);
+      setMotivo("");
+      setMsg({
+        ok: true,
+        texto: "Pedido enviado ao suporte. A conversa segue aqui embaixo.",
+      });
+      qc.invalidateQueries({ queryKey: ["/api/admin/patrocinio"] });
+    },
+    onError: (e: Error) => setMsg({ ok: false, texto: e.message }),
+  });
+  if (!aberto)
+    return (
+      <div className="space-y-2 p-4 text-sm">
+        <Aviso msg={msg} />
+        <Button
+          variant="ghost"
+          disabled={saldoCents < 100}
+          onClick={() => setAberto(true)}
+        >
+          Pedir reembolso do saldo
+        </Button>
+      </div>
+    );
+  const valorCents = centavos(valor);
+  return (
+    <form
+      className="space-y-3 p-4 text-sm"
+      onSubmit={(e) => {
+        e.preventDefault();
+        setMsg(null);
+        pedir.mutate();
+      }}
+    >
+      <Aviso msg={msg} />
+      <div className="grid gap-2 sm:grid-cols-[10rem_1fr]">
+        <label className="block">
+          <span className="label-xs">Valor (R$)</span>
+          <input
+            value={valor}
+            onChange={(e) => setValor(e.target.value)}
+            inputMode="decimal"
+            className="tnum mt-1 w-full rounded-md border border-line-2 px-3 py-2"
+          />
+        </label>
+        <label className="block">
+          <span className="label-xs">Chave Pix para a devolução</span>
+          <input
+            value={chavePix}
+            onChange={(e) => setChavePix(e.target.value)}
+            maxLength={140}
+            className="mt-1 w-full rounded-md border border-line-2 px-3 py-2"
+          />
+        </label>
+      </div>
+      <label className="block">
+        <span className="label-xs">Motivo</span>
+        <textarea
+          value={motivo}
+          onChange={(e) => setMotivo(e.target.value)}
+          rows={3}
+          maxLength={1000}
+          className="mt-1 w-full rounded-md border border-line-2 px-3 py-2"
+        />
+      </label>
+      <p className="text-xs text-muted">
+        Vale para o saldo livre (
+        <span className="tnum">{formatBRL(saldoCents)}</span>); o crédito de
+        anúncio de rifa no ar não entra. O valor fica reservado enquanto o
+        suporte analisa e volta ao saldo se o pedido for recusado. O suporte
+        pode reter o custo de divulgação externa já feita.
+      </p>
+      <div className="flex gap-2">
+        <Button
+          type="submit"
+          disabled={
+            valorCents === null ||
+            valorCents < 100 ||
+            valorCents > saldoCents ||
+            chavePix.trim().length < 5 ||
+            motivo.trim().length < 10 ||
+            pedir.isPending
+          }
+        >
+          Enviar ao suporte
+        </Button>
+        <Button type="button" variant="ghost" onClick={() => setAberto(false)}>
+          Voltar
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+function ConversaDoReembolso({
+  r,
+  plataforma,
+}: {
+  r: Reembolso;
+  plataforma: boolean;
+}) {
+  const qc = useQueryClient();
+  const [texto, setTexto] = useState("");
+  const [retido, setRetido] = useState("0,00");
+  const [explicacao, setExplicacao] = useState("");
+  const [erro, setErro] = useState<string | null>(null);
+  const recarregar = () =>
+    qc.invalidateQueries({ queryKey: ["/api/admin/patrocinio"] });
+  const falhou = (x: Error) => setErro(x.message);
+  const responder = useMutation({
+    mutationFn: () =>
+      apiRequest("POST", `/api/admin/patrocinio/reembolsos/${r.id}/mensagens`, {
+        texto,
+      }),
+    onSuccess: () => {
+      setTexto("");
+      setErro(null);
+      recarregar();
+    },
+    onError: falhou,
+  });
+  const decidir = useMutation({
+    mutationFn: (aprovar: boolean) =>
+      apiRequest("POST", `/api/admin/patrocinio/reembolsos/${r.id}/decisao`, {
+        aprovar,
+        retidoCents: aprovar ? centavos(retido) : 0,
+        explicacao,
+      }),
+    onSuccess: () => {
+      setErro(null);
+      recarregar();
+    },
+    onError: falhou,
+  });
+  const pagar = useMutation({
+    mutationFn: () =>
+      apiRequest("POST", `/api/admin/patrocinio/reembolsos/${r.id}/pago`),
+    onSuccess: recarregar,
+    onError: falhou,
+  });
+  const retidoCents = centavos(retido);
+  const devolveria =
+    retidoCents === null ? null : Math.max(0, r.valorCents - retidoCents);
+  const quem = (autor: string) =>
+    autor === "plataforma" ? "Suporte" : plataforma ? r.organizacao : "Você";
+
+  return (
+    <li className="space-y-2 px-4 py-3 text-sm">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="tnum font-semibold">{r.protocolo}</span>
+        <span className="min-w-0 flex-1 truncate text-muted">
+          {plataforma ? r.organizacao : ""}
+        </span>
+        <Pill status={PILL_REEMBOLSO[r.status][0]}>
+          {PILL_REEMBOLSO[r.status][1]}
+        </Pill>
+      </div>
+      <p className="tnum text-xs text-muted">
+        Pedido: {formatBRL(r.valorCents)} · Pix: {r.chavePix}
+        {r.devolverCents !== null && r.status !== "recusado"
+          ? ` · retido ${formatBRL(r.retidoCents ?? 0)} · devolver ${formatBRL(r.devolverCents)}`
+          : ""}
+        {r.status === "recusado" ? " · o valor voltou ao saldo" : ""}
+      </p>
+      <ol className="space-y-1">
+        {r.mensagens.map((m, i) => (
+          <li
+            key={i}
+            className={`rounded-md px-3 py-2 ${m.autor === "plataforma" ? "bg-mist" : "border border-line"}`}
+          >
+            <span className="text-xs font-semibold">{quem(m.autor)}</span>
+            <span className="tnum ml-2 text-[11px] text-muted">
+              {new Date(m.createdAt).toLocaleString("pt-BR")}
+            </span>
+            <p className="whitespace-pre-wrap">{m.texto}</p>
+          </li>
+        ))}
+      </ol>
+      {erro ? (
+        <p className="rounded-md bg-red-soft px-3 py-2 text-xs text-red">
+          {erro}
+        </p>
+      ) : null}
+      {r.status === "aberto" ? (
+        <form
+          className="flex gap-2"
+          onSubmit={(ev) => {
+            ev.preventDefault();
+            responder.mutate();
+          }}
+        >
+          <input
+            value={texto}
+            onChange={(ev) => setTexto(ev.target.value)}
+            placeholder="Escreva uma mensagem"
+            aria-label={`Mensagem no pedido ${r.protocolo}`}
+            className="min-w-0 flex-1 rounded-md border border-line-2 px-3 py-2"
+          />
+          <Button
+            type="submit"
+            variant="ghost"
+            disabled={texto.trim().length < 2 || responder.isPending}
+          >
+            Enviar
+          </Button>
+        </form>
+      ) : null}
+      {plataforma && r.status === "aberto" ? (
+        <div className="space-y-2 rounded-md border border-line p-3">
+          <span className="label-xs">Decisão</span>
+          <div className="grid gap-2 sm:grid-cols-[10rem_1fr]">
+            <label className="block">
+              <span className="text-xs">Retido pela plataforma (R$)</span>
+              <input
+                value={retido}
+                onChange={(ev) => setRetido(ev.target.value)}
+                inputMode="decimal"
+                className="tnum mt-1 w-full rounded-md border border-line-2 px-3 py-2"
+              />
+            </label>
+            <label className="block">
+              <span className="text-xs">Explicação para a organização</span>
+              <input
+                value={explicacao}
+                onChange={(ev) => setExplicacao(ev.target.value)}
+                className="mt-1 w-full rounded-md border border-line-2 px-3 py-2"
+              />
+            </label>
+          </div>
+          <p className="tnum text-xs text-muted">
+            {devolveria === null
+              ? "Informe o valor retido em reais."
+              : `Aprovando, a plataforma devolve ${formatBRL(devolveria)} por Pix. Recusando, os ${formatBRL(r.valorCents)} voltam ao saldo.`}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              disabled={
+                explicacao.trim().length < 10 ||
+                retidoCents === null ||
+                decidir.isPending
+              }
+              onClick={() => decidir.mutate(true)}
+            >
+              Aprovar reembolso
+            </Button>
+            <Button
+              variant="ghost"
+              disabled={explicacao.trim().length < 10 || decidir.isPending}
+              onClick={() => decidir.mutate(false)}
+            >
+              Recusar
+            </Button>
+          </div>
+        </div>
+      ) : null}
+      {plataforma && r.status === "aprovado" ? (
+        <Button
+          variant="ghost"
+          onClick={() => pagar.mutate()}
+          disabled={pagar.isPending}
+        >
+          Pix de {formatBRL(r.devolverCents ?? 0)} feito — dar baixa
+        </Button>
+      ) : null}
+    </li>
   );
 }
 
@@ -1000,6 +1353,12 @@ function DaPlataformaView({ dados }: { dados: DaPlataforma }) {
         ]}
       />
       <FilaCard fila={dados.fila} />
+      <ReembolsosCard
+        reembolsos={dados.reembolsos}
+        plataforma
+        podePedir={false}
+        saldoCents={0}
+      />
       <div className="grid gap-3 lg:grid-cols-2">
         <ConfigCard config={dados.config} />
         <SaldosCard organizacoes={dados.organizacoes} />
@@ -1081,6 +1440,7 @@ function FilaCard({ fila }: { fila: DaPlataforma["fila"] }) {
 function ConfigCard({ config }: { config: Config }) {
   const qc = useQueryClient();
   const [ligado, setLigado] = useState(config.ligado);
+  const [reembolso, setReembolso] = useState(config.reembolso);
   const [precos, setPrecos] = useState({
     cidade: reais(config.precos.cidade),
     estado: reais(config.precos.estado),
@@ -1101,11 +1461,13 @@ function ConfigCard({ config }: { config: Config }) {
   const [recarga, setRecarga] = useState(reais(config.recargaMinimaCents));
   const [msg, setMsg] = useState<{ ok: boolean; texto: string } | null>(null);
   useEffect(() => setLigado(config.ligado), [config.ligado]);
+  useEffect(() => setReembolso(config.reembolso), [config.reembolso]);
 
   const salvar = useMutation({
     mutationFn: () =>
       apiRequest("PUT", "/api/admin/patrocinio/config", {
         ligado,
+        reembolso,
         patrocinio: {
           precos: {
             cidade: centavos(precos.cidade),
@@ -1161,6 +1523,22 @@ function ConfigCard({ config }: { config: Config }) {
             <span className="block text-xs text-muted">
               Desligado, o bloco some da vitrine, clique não é cobrado e nada se
               compra; saldos e anúncios ficam guardados.
+            </span>
+          </span>
+        </label>
+        <label className="flex items-start gap-2">
+          <input
+            type="checkbox"
+            checked={reembolso}
+            onChange={(e) => setReembolso(e.target.checked)}
+            className="mt-1 h-4 w-4 accent-[var(--green)]"
+          />
+          <span>
+            Mostrar o botão "Pedir reembolso do saldo" ao organizador
+            <span className="block text-xs text-muted">
+              Desligado, o botão não aparece no painel do organizador (nem se
+              fala em reembolso) e o pedido é recusado no servidor. Pedido que
+              já existia continua visível até terminar a conversa.
             </span>
           </span>
         </label>

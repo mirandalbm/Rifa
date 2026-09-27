@@ -94,6 +94,12 @@ export interface ConfigPlataforma {
   patrocinioLigado: boolean;
   /** Tabela de preço por alcance, faixas de desconto, mínimo, vagas e recarga mínima. */
   patrocinio: ConfigPatrocinio;
+  /**
+   * Mostra ao organizador o pedido de reembolso do saldo de patrocínio.
+   * Nasce desligado: desligado, o botão não existe na tela (nem se fala em
+   * reembolso) e o servidor responde 404.
+   */
+  patrocinioReembolso: boolean;
 }
 
 export const CONFIG_PADRAO: ConfigPlataforma = {
@@ -106,6 +112,7 @@ export const CONFIG_PADRAO: ConfigPlataforma = {
   bonusPorIndicacao: BONUS_POR_INDICACAO_PADRAO,
   patrocinioLigado: false,
   patrocinio: CONFIG_PATROCINIO_PADRAO,
+  patrocinioReembolso: false,
 };
 
 /** Só as chaves conhecidas: isto vem do corpo da requisição. */
@@ -132,6 +139,7 @@ export function validarConfigPlataforma(entrada: Partial<ConfigPlataforma>): Con
     bonusPorIndicacao: bonusPorIndicacaoValido(entrada.bonusPorIndicacao),
     patrocinioLigado: entrada.patrocinioLigado === true,
     patrocinio: validarConfigPatrocinio(entrada.patrocinio),
+    patrocinioReembolso: entrada.patrocinioReembolso === true,
   };
 }
 

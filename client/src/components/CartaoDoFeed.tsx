@@ -97,24 +97,8 @@ export function CartaoDoFeed({ rifa: c, origem = "vitrine" }: { rifa: RifaDoFeed
         </span>
       </Carrossel>
 
-      {/* Ações, legenda e comentários também ficam fora, embaixo. */}
-      <BarraDeAcoes
-        slug={c.slug}
-        titulo={c.prizeTitle}
-        caminho={href}
-        interacoes={interacoes}
-        aoComentar={() => setComentando(true)}
-      />
-      <Legenda autor={c.organizacao?.nome ?? ""} texto={c.legenda} />
-      {interacoes.comentarios ? (
-        <button type="button" onClick={() => setComentando(true)} className="block px-3 pt-1 text-left text-sm text-muted hover:text-ink">
-          Ver {interacoes.comentarios === 1 ? "o comentário" : <>todos os <span className="tnum">{groupNumber(interacoes.comentarios)}</span> comentários</>}
-        </button>
-      ) : null}
-      {quandoPublicou(c.publicadaEm) ? <p className="px-3 pt-1 text-xs text-muted">{quandoPublicou(c.publicadaEm)}</p> : null}
-
-      {/* Só a rifa vai dentro do cartão: prêmio, autorização, cota, sorteio e cotas. */}
-      <Link href={href} onClick={() => marcarOrigem(origem)} className="mx-3 mb-4 mt-3 block rounded-xl border border-line p-3 hover:bg-mist">
+      {/* Só a rifa vai dentro do cartão, logo abaixo da imagem e acima das ações. */}
+      <Link href={href} onClick={() => marcarOrigem(origem)} className="mx-3 mt-3 block rounded-xl border border-line p-3 hover:bg-mist">
         <div className="space-y-2">
           <h3 className="font-display text-base font-extrabold leading-tight">{c.prizeTitle}</h3>
           {c.demonstracao ? (
@@ -145,6 +129,23 @@ export function CartaoDoFeed({ rifa: c, origem = "vitrine" }: { rifa: RifaDoFeed
           </p>
         </div>
       </Link>
+
+      {/* Ações, legenda e comentários também ficam fora, embaixo. */}
+      <BarraDeAcoes
+        slug={c.slug}
+        titulo={c.prizeTitle}
+        caminho={href}
+        interacoes={interacoes}
+        aoComentar={() => setComentando(true)}
+      />
+      <Legenda autor={c.organizacao?.nome ?? ""} texto={c.legenda} />
+      {interacoes.comentarios ? (
+        <button type="button" onClick={() => setComentando(true)} className="block px-3 pt-1 text-left text-sm text-muted hover:text-ink">
+          Ver {interacoes.comentarios === 1 ? "o comentário" : <>todos os <span className="tnum">{groupNumber(interacoes.comentarios)}</span> comentários</>}
+        </button>
+      ) : null}
+      {quandoPublicou(c.publicadaEm) ? <p className="px-3 pb-4 pt-1 text-xs text-muted">{quandoPublicou(c.publicadaEm)}</p> : null}
+
       {comentando ? <PainelDeComentarios slug={c.slug} onFechar={() => setComentando(false)} /> : null}
     </article>
   );

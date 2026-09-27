@@ -1028,10 +1028,11 @@ estorno.
 - **Feed em formato de publicação do Instagram**: o topo **fora** da
   imagem (foto da promotora, nome com o selo, a cidade embaixo e "Seguir"
   só para quem ainda não segue — `seguindo` vem na lista, sem uma consulta
-  por cartão), o carrossel 4:5, e **fora** também as ações, a legenda, "Ver
-  comentários" e o "Há 3 dias" (`quandoPublicou`). **Dentro do cartão com
-  borda fica só a rifa**: prêmio, selo "Autorizada SPA/MF" com o número (a
-  rifa no ar sempre tem), cota, sorteio e cotas.
+  por cartão), o carrossel 4:5, logo abaixo dele o **cartão com borda, que
+  é só a rifa** (prêmio, selo "Autorizada SPA/MF" com o número — a rifa no
+  ar sempre tem —, cota, sorteio e cotas), e depois, **fora** do cartão, as
+  ações, a legenda, "Ver comentários" e o "Há 3 dias" (`quandoPublicou`).
+  A mesma ordem vale no perfil.
 - **Imagem nunca é servida como veio**: banner 1200×600 e story 1080×1920,
   WebP, sem metadados, no banco (até o R2 entrar).
 - **Subconsulta com tabela de fora escreve o nome da tabela**

@@ -10,7 +10,7 @@ import { createHash } from "node:crypto";
 import type { Request } from "express";
 import { and, eq, inArray, isNotNull, isNull, or, sql } from "drizzle-orm";
 import { db } from "../db";
-import { buyers, chamados, notifications } from "@shared/schema";
+import { buyers, chamados, compradorFotos, notifications } from "@shared/schema";
 import { cpfValido, normalizePhone } from "@shared/format";
 import {
   NOME_EXCLUIDO,
@@ -408,9 +408,13 @@ export async function excluirConta(req: Request, senha: string) {
         uf: null,
         passwordHash: null,
         telefoneConfirmadoEm: null,
+        // O perfil público some junto: apelido e foto são dado pessoal.
+        apelido: null,
+        fotoEm: null,
         excluidoEm: new Date(),
       })
       .where(eq(buyers.id, c.id));
+    await tx.delete(compradorFotos).where(eq(compradorFotos.buyerId, c.id));
     await tx
       .update(notifications)
       .set({ to: "removido", params: {} })

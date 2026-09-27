@@ -1,6 +1,8 @@
+import { useState } from "react";
 import { Link } from "wouter";
-import { MapPin, ShieldCheck } from "lucide-react";
+import { MapPin, MessageCircle, ShieldCheck } from "lucide-react";
 import { FotoDoPerfil } from "@/components/Seguir";
+import { PainelDeComentarios } from "@/components/Comentarios";
 import { Money, Progress } from "@/components/bits";
 import { marcarOrigem } from "@/lib/origem";
 import type { Origem } from "@shared/resultados";
@@ -21,6 +23,8 @@ export interface RifaDoFeed {
   bannerLqip?: string | null;
   autorizacao: string | null;
   demonstracao?: boolean;
+  /** Comentários visíveis na publicação. */
+  comentarios?: number;
   organizacao: { nome: string; slug: string; local: string | null; uf: string | null; foto: string | null } | null;
   /** 0 = na cidade de quem olha, 1 = no estado, 2 = o resto; nulo sem região. */
   perto: 0 | 1 | 2 | null;
@@ -37,6 +41,8 @@ export function CartaoDoFeed({ rifa: c, origem = "vitrine" }: { rifa: RifaDoFeed
   const pct = percent(c.soldCount, c.totalQuotas);
   const retaFinal = pct >= 85;
   const href = c.organizacao ? `/o/${c.organizacao.slug}/r/${c.slug}` : `/r/${c.slug}`;
+  // Comentários sobem por cima do feed, como no Instagram — sem sair da vitrine.
+  const [comentando, setComentando] = useState(false);
 
   return (
     <article className="overflow-hidden rounded-xl border border-line bg-white">
@@ -130,6 +136,21 @@ export function CartaoDoFeed({ rifa: c, origem = "vitrine" }: { rifa: RifaDoFeed
           </p>
         </div>
       </Link>
+      <button
+        type="button"
+        onClick={() => setComentando(true)}
+        className="flex w-full items-center gap-1.5 border-t border-line px-3 py-2 text-left text-xs text-ink-2 hover:bg-mist"
+      >
+        <MessageCircle size={16} aria-hidden />
+        {c.comentarios ? (
+          <span>
+            Ver <span className="tnum">{groupNumber(c.comentarios)}</span> comentário{c.comentarios === 1 ? "" : "s"}
+          </span>
+        ) : (
+          <span>Comentar</span>
+        )}
+      </button>
+      {comentando ? <PainelDeComentarios slug={c.slug} onFechar={() => setComentando(false)} /> : null}
     </article>
   );
 }

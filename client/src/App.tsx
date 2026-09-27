@@ -1,5 +1,5 @@
-import type { ReactNode } from "react";
-import { Switch, Route, Redirect } from "wouter";
+import { useEffect, type ReactNode } from "react";
+import { Switch, Route, Redirect, useLocation } from "wouter";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 import { Toaster } from "@/components/ui/toaster";
@@ -17,6 +17,7 @@ import Ajuda from "@/pages/Ajuda";
 import Pedido from "@/pages/Pedido";
 import MinhasCotas from "@/pages/MinhasCotas";
 import Notificacoes from "@/pages/Notificacoes";
+import Usuario from "@/pages/Usuario";
 import Login from "@/pages/Login";
 import CriarConta from "@/pages/CriarConta";
 import CadastroAfiliado from "@/pages/CadastroAfiliado";
@@ -103,10 +104,32 @@ function NotFound() {
   );
 }
 
+/**
+ * O organizador vê a plataforma pelo próprio perfil: a vitrine, a página de
+ * estado e o perfil (ou a rifa) de outra organização levam ao dele. É a
+ * visão dele, não uma barreira — o que é público continua público, e quem
+ * sai da conta volta a ver tudo. As telas do painel, a ajuda, o bilhete e
+ * o recibo seguem abertas.
+ */
+function VisaoDoOrganizador() {
+  const { data: sessao } = useSession();
+  const [local, navegar] = useLocation();
+  const meu = sessao?.role === "organizer" ? sessao.organizacao?.slug : undefined;
+  useEffect(() => {
+    if (!meu) return;
+    const outro = local.match(/^\/o\/([^/]+)/)?.[1];
+    if (local === "/" || local.startsWith("/estado/") || (outro && outro !== meu)) {
+      navegar(`/o/${meu}`, { replace: true });
+    }
+  }, [meu, local, navegar]);
+  return null;
+}
+
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AplicarTemplate />
+      <VisaoDoOrganizador />
       <TooltipProvider>
         <Switch>
           {/* Público */}
@@ -121,6 +144,7 @@ export default function App() {
           <Route path="/pedido/:code" component={Pedido} />
           <Route path="/minhas-cotas" component={MinhasCotas} />
           <Route path="/notificacoes" component={Notificacoes} />
+          <Route path="/u/:apelido" component={Usuario} />
           <Route path="/minhas-compras" component={MinhasCotas} />
           <Route path="/entrar" component={Login} />
           <Route path="/criar-conta" component={CriarConta} />

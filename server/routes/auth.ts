@@ -2,7 +2,7 @@ import { Router } from "express";
 import passport from "passport";
 import { eq } from "drizzle-orm";
 import { db } from "../db";
-import { users, auditLog } from "@shared/schema";
+import { users, auditLog, organizations } from "@shared/schema";
 import { currentRole, hashPassword, verifyPassword, type SessionUser } from "../auth";
 import { senhaInvalida } from "@shared/senha";
 import { guardLogin, identify } from "../services/antifraude";
@@ -20,8 +20,18 @@ function mascararEmail(email: string): string {
 }
 
 /** Quem sou eu e o que eu alcanço — o cliente monta o menu com isto. */
-authRouter.get("/me", (req, res) => {
+authRouter.get("/me", async (req, res, next) => {
+  try {
   const role = currentRole(req);
+  // O organizador vê a plataforma pelo próprio perfil: o cliente leva a
+  // vitrine e o perfil de outra organização para o dele (`VisaoDoOrganizador`).
+  const [organizacao] =
+    req.user?.role === "organizer" && req.user.organizationId
+      ? await db
+          .select({ slug: organizations.slug, nome: organizations.name })
+          .from(organizations)
+          .where(eq(organizations.id, req.user.organizationId))
+      : [];
   res.json({
     role,
     user: req.user ? { name: req.user.name, email: req.user.email } : null,
@@ -35,7 +45,11 @@ authRouter.get("/me", (req, res) => {
       : null,
     sections: sectionsFor(role),
     home: homeFor(role),
+    organizacao: organizacao ?? null,
   });
+  } catch (err) {
+    next(err);
+  }
 });
 
 /** Uma porta de entrada só: o papel no banco decide onde a pessoa cai. */

@@ -25,6 +25,8 @@ import { useRastreio } from "@/components/Marketing";
 import type { CorDeDestaque } from "@shared/perfil";
 import { SeguirBotoes, FotoDoPerfil } from "@/components/Seguir";
 import { SorteioCard } from "@/components/SorteioCard";
+import { Comentarios } from "@/components/Comentarios";
+import { BotaoDenunciar, SoValePelaPlataforma } from "@/components/Seguranca";
 import { Cartelas } from "@/components/Cartelas";
 
 interface CampaignDetail {
@@ -46,6 +48,7 @@ interface CampaignDetail {
     authorizationCode: string | null;
     temCertificado?: boolean;
     demonstracao?: boolean;
+    travada?: boolean;
   };
   stats: { soldCount: number; reservedCount: number };
   media: {
@@ -234,7 +237,7 @@ export default function Rifa() {
   const sold = stats.soldCount;
   const pct = percent(sold, campaign.totalQuotas);
   // Vende pela loja: com Pix online ligado e nunca em rifa de demonstração.
-  const vende = (data.pagamento?.online ?? true) && !campaign.demonstracao;
+  const vende = (data.pagamento?.online ?? true) && !campaign.demonstracao && !campaign.travada;
   const count = picked.length;
   const dadosOk = comprador.name.length >= 2 && comprador.phone.length >= 10 && cpfOk;
 
@@ -381,6 +384,23 @@ export default function Rifa() {
           <p className="mt-1 text-xs text-yellow-deep">
             Exemplo de como fica uma rifa na plataforma. Não está à venda e não tem sorteio.
           </p>
+        </div>
+      ) : null}
+
+      {campaign.travada ? (
+        <div className="mt-4 rounded-lg border border-red bg-red-soft p-3">
+          <h2 className="font-display text-sm font-bold text-red">Vendas suspensas pela plataforma</h2>
+          <p className="mt-1 text-xs text-red">
+            Esta rifa está em averiguação e não aceita novas compras. Quem já comprou mantém os bilhetes pagos pela
+            plataforma; em dúvida, fale com o atendimento.
+          </p>
+        </div>
+      ) : null}
+
+      {/* Só vale bilhete pago aqui: o aviso vem antes do botão de comprar. */}
+      {vende ? (
+        <div className="mt-4">
+          <SoValePelaPlataforma rifa={campaign.slug} />
         </div>
       ) : null}
 
@@ -773,6 +793,8 @@ export default function Rifa() {
 
       <SorteioCard slug={slug} />
 
+      <Comentarios slug={campaign.slug} />
+
       <footer className="mt-8 space-y-1 border-t border-line pt-4 text-[11px] text-muted">
         <p>
           <Link href={`${base}/regulamento`} className="underline">
@@ -782,6 +804,8 @@ export default function Rifa() {
           <Link href="/ajuda" className="underline">
             Ajuda
           </Link>
+          {" · "}
+          <BotaoDenunciar rifa={campaign.slug} comoLink />
         </p>
         {campaign.authorizationCode ? (
           <p>

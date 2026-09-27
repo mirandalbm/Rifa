@@ -151,7 +151,7 @@ async function fila(cfg: ConfigPatrocinio, filtro?: { segmentos?: string[]; orga
              row_number() over (partition by a.segmento order by a.fila_desde, a.id)::int as posicao,
              (case a.alcance when 'cidade' then ${cfg.vagas.cidade} when 'estado' then ${cfg.vagas.estado} else ${cfg.vagas.nacional} end)::int as vagas
         from patrocinio_anuncios a
-        join campaigns c on c.id = a.campaign_id and c.status = 'published'
+        join campaigns c on c.id = a.campaign_id and c.status = 'published' and c.travada_em is null
         join organizations o on o.id = a.organization_id and o.archived_at is null
        where a.status = 'ativo' and a.cliques_usados < a.cliques_comprados
     ) f

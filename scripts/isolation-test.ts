@@ -31,6 +31,7 @@ import {
   chamadoAnexos,
   stories,
   campanhaSolicitacoes,
+  comentarios,
 } from "../shared/schema";
 import { hashPassword } from "../server/auth";
 
@@ -242,7 +243,16 @@ async function alcancaOVizinho(eu: Lado, vizinho: Lado) {
       alteracoes: { title: { de: "a", para: "b" } },
     })
     .returning({ id: campanhaSolicitacoes.id });
+  // Um comentário na rifa do vizinho: moderar pelo id dele tem de dar 404.
+  const [comentarioDoVizinho] = await db
+    .insert(comentarios)
+    .values({ campaignId: c, organizationId: vizinho.orgId, autor: "organizacao", texto: "comentário do vizinho" })
+    .returning({ id: comentarios.id });
   const tentativas: [string, string, RequestInit][] = [
+    ["DELETE comentário na rifa do vizinho", `/api/public/comentarios/${comentarioDoVizinho.id}`, { method: "DELETE" }],
+    ["GET telefone do vizinho", `/api/admin/organizacoes/${vizinho.orgId}/telefone`, {}],
+    ["POST código no telefone do vizinho", `/api/admin/organizacoes/${vizinho.orgId}/telefone`, { method: "POST", body: '{"telefone":"11999998888"}' }],
+    ["POST confirmar telefone do vizinho", `/api/admin/organizacoes/${vizinho.orgId}/telefone/confirmar`, { method: "POST", body: '{"codigo":"123456"}' }],
     ["PATCH campanha", `/api/admin/campaigns/${c}`, { method: "PATCH", body: '{"title":"invadida"}' }],
     ["GET impedimentos", `/api/admin/campaigns/${c}/blockers`, {}],
     ["POST publicar", `/api/admin/campaigns/${c}/publish`, { method: "POST" }],
@@ -295,6 +305,12 @@ async function alcancaOVizinho(eu: Lado, vizinho: Lado) {
   const meusPedidos = (await (await pedir(eu.cookie, "/api/admin/solicitacoes")).json()) as { id: string }[];
   checa("a lista de pedidos não traz o do vizinho", !meusPedidos.some((x) => x.id === pedidoDoVizinho.id));
   await db.delete(campanhaSolicitacoes).where(eq(campanhaSolicitacoes.id, pedidoDoVizinho.id));
+  const [comentarioAinda] = await db
+    .select({ removidoEm: comentarios.removidoEm })
+    .from(comentarios)
+    .where(eq(comentarios.id, comentarioDoVizinho.id));
+  checa("o comentário do vizinho continua no ar", Boolean(comentarioAinda) && !comentarioAinda.removidoEm);
+  await db.delete(comentarios).where(eq(comentarios.id, comentarioDoVizinho.id));
   const [aindaLa] = await db.select({ id: stories.id }).from(stories).where(eq(stories.id, storyDoVizinho.id));
   checa("o story do vizinho continua no ar", Boolean(aindaLa));
   const meus = (await (await pedir(eu.cookie, "/api/admin/stories")).json()) as { id: string }[];
@@ -374,6 +390,11 @@ async function rotasDaPlataforma(eu: Lado) {
     ["PUT configuração do bônus", "/api/admin/bonus/config", { method: "PUT", body: '{"bonusLigado":true}' }],
     ["POST meta de bônus", "/api/admin/bonus/metas", { method: "POST", body: "{}" }],
     ["PUT meta de bônus", "/api/admin/bonus/metas/00000000-0000-0000-0000-000000000000", { method: "PUT", body: "{}" }],
+    ["GET denúncias", "/api/admin/denuncias", {}],
+    ["GET denúncia", "/api/admin/denuncias/00000000-0000-0000-0000-000000000000", {}],
+    ["POST decidir denúncia", "/api/admin/denuncias/00000000-0000-0000-0000-000000000000/decidir", { method: "POST", body: '{"acao":"banir","resposta":"xxxxxxxxxxxx"}' }],
+    ["POST aprovar telefone do organizador", `/api/admin/organizacoes/${eu.orgId}/telefone/aprovar`, { method: "POST" }],
+    ["POST destravar rifa", "/api/admin/campaigns/00000000-0000-0000-0000-000000000000/destravar", { method: "POST" }],
     ["POST decidir pedido de mudança em rifa", "/api/admin/solicitacoes/00000000-0000-0000-0000-000000000000/decidir", { method: "POST", body: '{"aprovar":true}' }],
     ["POST marcar rifa como teste", "/api/admin/campaigns/00000000-0000-0000-0000-000000000000/demonstracao", { method: "POST", body: '{"ligado":true}' }],
     ["POST tirar rifa do ar", "/api/admin/campaigns/00000000-0000-0000-0000-000000000000/tirar-do-ar", { method: "POST" }],

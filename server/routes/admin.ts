@@ -1,4 +1,16 @@
 import express, { Router, type Request, type Response as Resposta } from "express";
+import {
+  aprovarTelefone,
+  confirmarTelefone,
+  decidirDenuncia,
+  denunciasAbertas,
+  destravarRifa,
+  detalheDaDenuncia,
+  estadoDoTelefone,
+  listarDenuncias,
+  pedirCodigoDoTelefone,
+  varrerTextoDoOrganizador,
+} from "../services/seguranca";
 import { once } from "node:events";
 import { randomInt } from "node:crypto";
 import QRCode from "qrcode";
@@ -415,6 +427,17 @@ adminRouter.post("/campaigns/:id/editar", async (req, res, next) => {
   try {
     const campaign = await assertCampaignInScope(req, req.params.id);
     const corpo = (req.body ?? {}) as Record<string, unknown>;
+    if (orgOf(req)) {
+      emSegundoPlano(
+        varrerTextoDoOrganizador({
+          organizationId: campaign.organizationId,
+          campaignId: campaign.id,
+          onde: "texto da rifa",
+          texto: [corpo.title, corpo.description].filter((t) => typeof t === "string").join("\n"),
+        }),
+        "varredura",
+      );
+    }
 
     if (campaign.status === "draft") {
       const changes = insertCampaignSchema.partial().parse(corpo);
@@ -468,6 +491,88 @@ adminRouter.post("/campaigns/:id/adiar", async (req, res, next) => {
       para: pedido.drawAtNovo,
     });
     res.status(202).json({ protocolo: pedido.protocolo, solicitacaoId: pedido.id });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/* ------------- segurança: telefone, denúncias, trava ------------- */
+
+/** Telefone do organizador: provado pelo código e aprovado pela plataforma. */
+adminRouter.get("/organizacoes/:id/telefone", async (req, res, next) => {
+  try {
+    res.json(await estadoDoTelefone(req, req.params.id));
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.post("/organizacoes/:id/telefone", async (req, res, next) => {
+  try {
+    res.json(await pedirCodigoDoTelefone(req, req.params.id, req.body?.telefone));
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.post("/organizacoes/:id/telefone/confirmar", async (req, res, next) => {
+  try {
+    const r = await confirmarTelefone(req, req.params.id, req.body?.codigo);
+    await audit(req, "organizacao.telefone.confirmado", "organization", req.params.id, { telefone: r.telefone });
+    res.json(r);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** Só a plataforma aprova (403 para organizador, no `npm run isolation`). */
+adminRouter.post("/organizacoes/:id/telefone/aprovar", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    await audit(req, "organizacao.telefone.aprovado", "organization", req.params.id, {});
+    res.json(await aprovarTelefone(req, req.params.id));
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** Denúncias: só a plataforma vê e decide — a denunciada nunca (403). */
+adminRouter.get("/denuncias", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    res.json(await listarDenuncias(req.query.status ? String(req.query.status) : undefined));
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.get("/denuncias/:id", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    res.json(await detalheDaDenuncia(req.params.id));
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.post("/denuncias/:id/decidir", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    // Auditoria antes: travar e banir mudam rifa e organização na mesma transação.
+    await audit(req, `denuncia.${String(req.body?.acao ?? "")}`, "denuncia", req.params.id, {
+      resposta: req.body?.resposta ?? null,
+    });
+    res.json(await decidirDenuncia(req, req.params.id, { acao: req.body?.acao, resposta: req.body?.resposta }));
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.post("/campaigns/:id/destravar", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    await audit(req, "campaign.destravar", "campaign", req.params.id, {});
+    res.json(await destravarRifa(req.params.id));
   } catch (err) {
     next(err);
   }
@@ -1762,6 +1867,10 @@ adminRouter.put(
         destaque: b.destaque,
         links: b.links,
       });
+      // Bio pedindo pagamento por fora vira denúncia automática (não barra).
+      if (typeof b.bio === "string") {
+        emSegundoPlano(varrerTextoDoOrganizador({ organizationId: req.params.id, onde: "bio do perfil", texto: b.bio }), "varredura");
+      }
       const imagem = (v: unknown) => (v === null ? "removida" : v ? "trocada" : "igual");
       await audit(req, "organizacao.perfil", "organization", req.params.id, {
         bio: b.bio !== undefined,
@@ -1992,6 +2101,7 @@ adminRouter.get("/chamados/pendentes", async (req, res, next) => {
       total: await chamadosAbertos(req),
       disputas: orgOf(req) ? 0 : await disputasAbertas(),
       solicitacoes: orgOf(req) ? 0 : await solicitacoesEmAnalise(req),
+      denuncias: orgOf(req) ? 0 : await denunciasAbertas(),
     });
   } catch (err) {
     next(err);
@@ -2944,6 +3054,9 @@ adminRouter.post("/stories", async (req, res, next) => {
       campaignId: req.body?.campaignId,
     });
     await audit(req, "story.postar", "story", novo.id, { organizacao: org, rifa: req.body?.campaignId ?? null });
+    if (typeof req.body?.legenda === "string") {
+      emSegundoPlano(varrerTextoDoOrganizador({ organizationId: org, onde: "legenda de story", texto: req.body.legenda }), "varredura");
+    }
     res.status(201).json(novo);
   } catch (err) {
     next(err);

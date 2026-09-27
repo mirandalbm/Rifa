@@ -82,6 +82,24 @@ senha); **[código]** é trabalho no repositório.
 - [x] Vitrine como o Instagram: fileira de stories no topo (no lugar dos
   estados), perfil da promotora por cima da imagem no feed, e o coração no
   topo com a central de avisos (`/notificacoes`).
+- [x] Comentários na publicação da rifa (apostador com conta; a organização
+  responde e modera) e o organizador vendo a plataforma pelo próprio perfil.
+- [ ] Aviso ao organizador de comentário novo (hoje ele vê no próprio perfil;
+  falta o coração do painel).
+- [x] Comentários como no Instagram (apelido, foto, curtidas, respostas
+  recolhidas, reações) e perfil do apostador `/u/<apelido>` com o primeiro e
+  o último nome reais. A organização pede a remoção de comentário; a
+  plataforma decide.
+- [x] Segurança do organizador: telefone confirmado por código e aprovado
+  pela plataforma antes da primeira rifa, denúncias (do apostador e
+  automáticas quando o organizador pede Pix por fora), travar rifa e banir
+  organização.
+- [ ] **[você]** Aprovar o telefone de cada organização que já existe
+  (Organizações → "Aprovar telefone", depois que ela confirmar o código em
+  Configurações). Sem isso, ela não publica rifa nova.
+- [ ] Carrinho com várias rifas num Pix só (split para várias carteiras no
+  Asaas), compra rápida e "Presentear cotas" na barra dos comentários —
+  próximo PR.
 - [ ] **[você]** Antes de aprovar um adiamento, conferir se a autorização
   SPA/MF da rifa cobre a nova data (a plataforma não tem como checar isso
   sozinha).

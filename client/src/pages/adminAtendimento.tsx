@@ -4,6 +4,7 @@ import { PanelShell } from "@/components/AppShell";
 import { Card, Button, Pill, Empty, Money } from "@/components/bits";
 import { Conversa, type Mensagem } from "@/components/Conversa";
 import { SolicitacoesDeRifa } from "@/components/SolicitacoesDeRifa";
+import { DenunciasDaPlataforma } from "@/components/Seguranca";
 import { apiRequest } from "@/lib/queryClient";
 import { useSession } from "@/lib/session";
 import { formatBRL } from "@shared/format";
@@ -118,10 +119,16 @@ export function AdminAtendimento() {
 
   // Duas filas: reembolso (chamados dos compradores) e pedidos de mudança em
   // rifa publicada (edição e adiamento, que a plataforma analisa).
-  const [area, setArea] = useState<"reembolsos" | "rifas">(() =>
-    new URLSearchParams(window.location.search).get("aba") === "rifas" ? "rifas" : "reembolsos",
-  );
-  const { data: pendentes } = useQuery<{ total: number; disputas?: number; solicitacoes?: number }>({
+  const [area, setArea] = useState<"reembolsos" | "rifas" | "denuncias">(() => {
+    const aba = new URLSearchParams(window.location.search).get("aba");
+    return aba === "rifas" || aba === "denuncias" ? aba : "reembolsos";
+  });
+  const { data: pendentes } = useQuery<{
+    total: number;
+    disputas?: number;
+    solicitacoes?: number;
+    denuncias?: number;
+  }>({
     queryKey: ["/api/admin/chamados/pendentes"],
   });
   const { data: lista } = useQuery<Linha[]>({
@@ -136,6 +143,8 @@ export function AdminAtendimento() {
         [
           ["reembolsos", "Reembolsos"],
           ["rifas", "Rifas (edição e adiamento)"],
+          // Denúncias são só da plataforma: a denunciada nunca vê.
+          ...(daPlataforma ? ([["denuncias", "Denúncias"]] as const) : []),
         ] as const
       ).map(([valor, rotulo]) => (
         <button
@@ -149,6 +158,12 @@ export function AdminAtendimento() {
           }`}
         >
           {rotulo}
+          {valor === "denuncias" && pendentes?.denuncias ? (
+            <span className="tnum ml-1 rounded-full bg-yellow-soft px-1.5 text-[11px] text-yellow-deep">
+              {pendentes.denuncias}
+              <span className="sr-only"> em análise</span>
+            </span>
+          ) : null}
           {valor === "rifas" && pendentes?.solicitacoes ? (
             <span className="tnum ml-1 rounded-full bg-yellow-soft px-1.5 text-[11px] text-yellow-deep">
               {pendentes.solicitacoes}
@@ -159,6 +174,15 @@ export function AdminAtendimento() {
       ))}
     </div>
   );
+
+  if (area === "denuncias" && daPlataforma) {
+    return (
+      <PanelShell title="Atendimento">
+        {abas}
+        <DenunciasDaPlataforma />
+      </PanelShell>
+    );
+  }
 
   if (area === "rifas") {
     return (

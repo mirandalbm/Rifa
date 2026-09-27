@@ -2,7 +2,7 @@
  * Regras de campanha. A mais importante: o total de cotas trava na
  * publicação — mudar depois alteraria a chance de quem já comprou.
  */
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 import { db } from "../db";
 import sharp from "sharp";
 import {
@@ -89,6 +89,19 @@ export async function publishBlockers(campaignId: string): Promise<string[]> {
 
   const blockers: string[] = [];
   const ready = media.filter((m) => m.status === "ready");
+
+  // O telefone do organizador é provado pelo código e aprovado pela
+  // plataforma antes da primeira rifa — é o contato que responde por ela.
+  const [org] = await db
+    .select({ aprovado: organizations.telefoneAprovadoEm, banida: organizations.banidaEm })
+    .from(organizations)
+    .where(eq(organizations.id, campaign.organizationId));
+  if (org?.banida) blockers.push("Esta organização foi banida da plataforma.");
+  if (!org?.aprovado) {
+    blockers.push(
+      "Confirme o telefone da organização (Configurações) e espere a aprovação da plataforma antes de publicar.",
+    );
+  }
 
   if (!ready.some((m) => m.role === "banner")) {
     blockers.push("Falta o banner da rifa.");
@@ -210,7 +223,8 @@ export async function listPublicCampaigns() {
     .leftJoin(campaignStats, eq(campaignStats.campaignId, campaigns.id))
     .leftJoin(organizations, eq(organizations.id, campaigns.organizationId))
     .leftJoin(organizacaoFotos, eq(organizacaoFotos.organizationId, campaigns.organizationId))
-    .where(eq(campaigns.status, "published"))
+    // Travada pela plataforma sai da vitrine (a página segue, com o aviso).
+    .where(and(eq(campaigns.status, "published"), isNull(campaigns.travadaEm)))
     .orderBy(
       sql`${campaigns.featured} DESC, ${campaigns.sortWeight} DESC, ${campaigns.publishedAt} DESC`,
     );

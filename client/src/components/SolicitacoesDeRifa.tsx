@@ -24,6 +24,7 @@ interface Linha {
 }
 
 interface Detalhe {
+  comentario: { texto: string; autor: string; nomeReal: string; createdAt: string; removido: boolean } | null;
   solicitacao: {
     id: string;
     protocolo: string;
@@ -257,7 +258,26 @@ function DetalheDaSolicitacao({
           </div>
         </dl>
 
-        {s.tipo === "adiamento" ? (
+        {s.tipo === "remover_comentario" ? (
+          <div className="rounded-md border border-line p-3">
+            <p className="label-xs">Comentário que a organização quer remover</p>
+            {data.comentario ? (
+              <>
+                <p className="mt-1 text-xs text-muted">
+                  @{data.comentario.autor} ({data.comentario.nomeReal}) ·{" "}
+                  <span className="tnum">{quando(data.comentario.createdAt)}</span>
+                  {data.comentario.removido ? " · já removido" : ""}
+                </p>
+                <p className="mt-1 whitespace-pre-wrap break-words">{data.comentario.texto}</p>
+              </>
+            ) : null}
+            {s.motivo ? <p className="mt-2 text-xs text-muted">Motivo da organização: {s.motivo}</p> : null}
+            <p className="mt-2 text-[11px] text-muted">
+              Comentário pode ser denúncia contra a própria organização. Aprovar tira o comentário (e as respostas) do
+              ar; recusar mantém.
+            </p>
+          </div>
+        ) : s.tipo === "adiamento" ? (
           <div className="rounded-md border border-line p-3">
             <p className="label-xs">Datas do sorteio</p>
             <p className="mt-1">
@@ -308,7 +328,26 @@ function DetalheDaSolicitacao({
               onChange={(e) => setResposta(e.target.value)}
               className="w-full rounded-md border border-line-2 px-3 py-2 text-sm"
             />
-            {s.tipo === "adiamento" ? (
+            {s.tipo === "remover_comentario" ? (
+          <div className="rounded-md border border-line p-3">
+            <p className="label-xs">Comentário que a organização quer remover</p>
+            {data.comentario ? (
+              <>
+                <p className="mt-1 text-xs text-muted">
+                  @{data.comentario.autor} ({data.comentario.nomeReal}) ·{" "}
+                  <span className="tnum">{quando(data.comentario.createdAt)}</span>
+                  {data.comentario.removido ? " · já removido" : ""}
+                </p>
+                <p className="mt-1 whitespace-pre-wrap break-words">{data.comentario.texto}</p>
+              </>
+            ) : null}
+            {s.motivo ? <p className="mt-2 text-xs text-muted">Motivo da organização: {s.motivo}</p> : null}
+            <p className="mt-2 text-[11px] text-muted">
+              Comentário pode ser denúncia contra a própria organização. Aprovar tira o comentário (e as respostas) do
+              ar; recusar mantém.
+            </p>
+          </div>
+        ) : s.tipo === "adiamento" ? (
               <p className="text-[11px] text-muted">
                 Confira se a autorização SPA/MF da rifa cobre a nova data. Aprovado, quem comprou e quem segue
                 recebem o aviso, e as comissões que esperavam o sorteio passam a esperar a data nova.

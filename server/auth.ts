@@ -48,6 +48,8 @@ declare module "express-session" {
     };
     /** Código de acesso pendente: guardado na sessão, nunca no banco. */
     otp?: { phone: string; codeHash: string; expiresAt: number; attempts: number };
+    /** Código que prova o telefone do organizador (separado do do comprador). */
+    otpOrganizador?: { orgId: string; phone: string; codeHash: string; expiresAt: number; attempts: number };
     /** Segredo do 2FA ainda não confirmado: só vira definitivo após o código. */
     pendingTotpSecret?: string;
     /** Afiliado que trouxe a visita — primeiro clique, 30 dias. */
@@ -91,11 +93,14 @@ async function barreiraDaOrganizacao(user: {
 }): Promise<string | null> {
   if (!user.organizationId) return null;
   const [org] = await db
-    .select({ active: organizations.active, archivedAt: organizations.archivedAt })
+    .select({ active: organizations.active, archivedAt: organizations.archivedAt, banidaEm: organizations.banidaEm })
     .from(organizations)
     .where(eq(organizations.id, user.organizationId));
   if (!org || org.archivedAt) {
     return "Esta organização foi arquivada. Fale com a administração da plataforma.";
+  }
+  if (org.banidaEm) {
+    return "Esta organização foi banida da plataforma por descumprir as regras.";
   }
   if (!org.active && user.role === "organizer") {
     return "Sua organização está suspensa. Fale com a administração da plataforma.";

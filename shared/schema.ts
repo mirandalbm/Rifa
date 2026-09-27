@@ -201,6 +201,18 @@ export const organizations = pgTable(
     /** WhatsApp que recebe o aviso de chamado novo. Nulo: os organizadores. */
     avisoTelefone: text("aviso_telefone"),
     /**
+     * O telefone do organizador: provado pelo código do WhatsApp e aprovado
+     * pela plataforma antes da primeira rifa (`publishBlockers`). Trocar o
+     * número zera as duas marcas.
+     */
+    telefoneOrganizador: text("telefone_organizador"),
+    telefoneConfirmadoEm: timestamp("telefone_confirmado_em"),
+    telefoneAprovadoEm: timestamp("telefone_aprovado_em"),
+    telefoneAprovadoPor: uuid("telefone_aprovado_por"),
+    /** Banida por fraude (ex.: Pix fora da plataforma): porta fechada e rifas travadas. */
+    banidaEm: timestamp("banida_em"),
+    banidaMotivo: text("banida_motivo"),
+    /**
      * Perfil público (`/o/:slug`). A bio é o texto do organizador; a parte da
      * rifa atual é montada sozinha (`bioAutomatica()` em `shared/perfil.ts`).
      */
@@ -298,10 +310,19 @@ export const buyers = pgTable(
     codigoIndicacao: text("codigo_indicacao"),
     /** Cotas de bônus a resgatar. Anda com `bonus_lancamentos`, na mesma transação. */
     bonusSaldo: integer("bonus_saldo").notNull().default(0),
+    /**
+     * Apelido público, como o nome de usuário do Instagram (minúsculas,
+     * números, ponto e sublinhado). Exigido para comentar; o perfil
+     * `/u/<apelido>` mostra também o primeiro e o último nome reais.
+     */
+    apelido: text("apelido"),
+    /** Quando a foto do perfil mudou (a foto em si fica em `comprador_fotos`). */
+    fotoEm: timestamp("foto_em"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (t) => [
     uniqueIndex("uq_buyers_phone").on(t.phone),
+    uniqueIndex("uq_buyers_apelido").on(t.apelido).where(sql`apelido is not null`),
     uniqueIndex("uq_buyers_codigo").on(t.codigo),
     uniqueIndex("uq_buyers_codigo_indicacao").on(t.codigoIndicacao),
     // CPF e e-mail entram como forma de login só entre contas: comprador sem
@@ -385,6 +406,14 @@ export const campaigns = pgTable(
      * as duas, para ninguém descobrir o adiamento só no dia.
      */
     adiamentos: integer("adiamentos").notNull().default(0),
+    /** Comentários visíveis na publicação — contador, nunca `COUNT(*)`. */
+    comentariosCount: integer("comentarios_count").notNull().default(0),
+    /**
+     * Travada pela plataforma (denúncia procedente, organização banida):
+     * `createOrder` recusa, a vitrine esconde e a página avisa.
+     */
+    travadaEm: timestamp("travada_em"),
+    travadaMotivo: text("travada_motivo"),
     drawAtOriginal: timestamp("draw_at_original"),
     /** Link da live ou do vídeo do sorteio. Muda a qualquer hora (só https). */
     transmissaoUrl: text("transmissao_url"),
@@ -896,7 +925,7 @@ export const auditLog = pgTable(
  * Mudança em rifa publicada: edição e adiamento, analisados pela plataforma
  * ------------------------------------------------------------------ */
 
-export const solicitacaoTipo = pgEnum("solicitacao_tipo", ["edicao", "adiamento"]);
+export const solicitacaoTipo = pgEnum("solicitacao_tipo", ["edicao", "adiamento", "remover_comentario"]);
 export const solicitacaoStatus = pgEnum("solicitacao_status", [
   "em_analise",
   "aprovada",
@@ -929,6 +958,11 @@ export const campanhaSolicitacoes = pgTable(
     /** Adiamento: a data que valia no pedido e a pedida. */
     drawAtAtual: timestamp("draw_at_atual"),
     drawAtNovo: timestamp("draw_at_novo"),
+    /**
+     * Remoção de comentário pedida pela organização. Comentário pode ser
+     * denúncia contra ela mesma — por isso ela pede e a plataforma decide.
+     */
+    comentarioId: uuid("comentario_id"),
     motivo: text("motivo"),
     /** Resposta da plataforma (obrigatória na recusa). */
     decisao: text("decisao"),
@@ -939,8 +973,14 @@ export const campanhaSolicitacoes = pgTable(
   },
   (t) => [
     uniqueIndex("uq_solicitacao_protocolo").on(t.protocolo),
-    uniqueIndex("uq_solicitacao_em_analise")
+    // Nome novo quando o filtro mudou: `db:push` não troca o filtro de um
+    // índice existente. Edição e adiamento: um em análise por rifa e tipo;
+    // remoção de comentário: um em análise por comentário.
+    uniqueIndex("uq_solicitacao_rifa_em_analise")
       .on(t.campaignId, t.tipo)
+      .where(sql`status = 'em_analise' and tipo <> 'remover_comentario'`),
+    uniqueIndex("uq_solicitacao_comentario_em_analise")
+      .on(t.comentarioId)
       .where(sql`status = 'em_analise'`),
     index("idx_solicitacoes_org").on(t.organizationId, t.status),
   ],
@@ -1066,6 +1106,16 @@ export const organizacaoFotos = pgTable("organizacao_fotos", {
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
+/** Foto do perfil do apostador: no banco, reprocessada (320 px, WebP, sem metadados). */
+export const compradorFotos = pgTable("comprador_fotos", {
+  buyerId: uuid("buyer_id")
+    .primaryKey()
+    .references(() => buyers.id, { onDelete: "cascade" }),
+  mime: text("mime").notNull(),
+  bytes: bytea("bytes").notNull(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
 /**
  * Capa do perfil da organização. Mesma regra da foto: no banco, reprocessada
  * (1500×500, WebP, sem metadados) — o arquivo enviado nunca é servido como
@@ -1180,6 +1230,101 @@ export const pushEnvios = pgTable(
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (t) => [primaryKey({ columns: [t.buyerId, t.chave] })],
+);
+
+/**
+ * Comentários na publicação da rifa: o apostador (com conta) comenta, a
+ * organização dona da rifa responde e modera. Uma camada de resposta
+ * (`parentId` aponta sempre para o comentário do topo). Apagar é marcar
+ * (`removidoEm`): some da tela e do contador, fica para a auditoria.
+ */
+export const comentarios = pgTable(
+  "comentarios",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    campaignId: uuid("campaign_id")
+      .notNull()
+      .references(() => campaigns.id, { onDelete: "cascade" }),
+    /** A dona da rifa, copiada para o recorte da moderação. */
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "restrict" }),
+    parentId: uuid("parent_id"),
+    /** `comprador` ou `organizacao`. */
+    autor: text("autor").notNull(),
+    buyerId: uuid("buyer_id").references(() => buyers.id, { onDelete: "set null" }),
+    userId: uuid("user_id"),
+    texto: text("texto").notNull(),
+    /** Curtidas — contador na mesma transação de `comentario_curtidas`. */
+    curtidas: integer("curtidas").notNull().default(0),
+    removidoEm: timestamp("removido_em"),
+    removidoPor: uuid("removido_por"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    index("idx_comentarios_rifa").on(t.campaignId, t.createdAt),
+    index("idx_comentarios_parent").on(t.parentId),
+  ],
+);
+
+/** Uma curtida por pessoa e comentário: a chave decide, não um `SELECT` antes. */
+export const comentarioCurtidas = pgTable(
+  "comentario_curtidas",
+  {
+    comentarioId: uuid("comentario_id")
+      .notNull()
+      .references(() => comentarios.id, { onDelete: "cascade" }),
+    buyerId: uuid("buyer_id")
+      .notNull()
+      .references(() => buyers.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.comentarioId, t.buyerId] })],
+);
+
+export const denunciaStatus = pgEnum("denuncia_status", [
+  "aberta",
+  "improcedente",
+  "rifa_travada",
+  "organizacao_banida",
+]);
+
+/**
+ * Denúncia contra organização, rifa ou comentário. Vem do apostador (com
+ * conta) ou é automática (texto do próprio organizador pedindo pagamento
+ * por fora). Só a plataforma vê e decide — a organização denunciada nunca.
+ */
+export const denuncias = pgTable(
+  "denuncias",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    protocolo: text("protocolo").notNull(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "restrict" }),
+    campaignId: uuid("campaign_id").references(() => campaigns.id, { onDelete: "set null" }),
+    comentarioId: uuid("comentario_id"),
+    /** `apostador` ou `automatica`. */
+    origem: text("origem").notNull(),
+    buyerId: uuid("buyer_id").references(() => buyers.id, { onDelete: "set null" }),
+    motivo: text("motivo").notNull(),
+    texto: text("texto"),
+    /** Automática: o trecho que acendeu e onde estava. */
+    evidencia: text("evidencia"),
+    status: denunciaStatus("status").notNull().default("aberta"),
+    decisao: text("decisao"),
+    decididaPor: uuid("decidida_por"),
+    decididaEm: timestamp("decidida_em"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("uq_denuncia_protocolo").on(t.protocolo),
+    // Uma aberta por pessoa e organização: insistir não empilha denúncia.
+    uniqueIndex("uq_denuncia_aberta_por_pessoa")
+      .on(t.buyerId, t.organizationId)
+      .where(sql`status = 'aberta' and buyer_id is not null`),
+    index("idx_denuncias_status").on(t.status, t.createdAt),
+  ],
 );
 
 /**
@@ -1362,6 +1507,9 @@ export const insertCampaignSchema = createInsertSchema(campaigns, {
     demonstracao: true,
     adiamentos: true,
     drawAtOriginal: true,
+    comentariosCount: true,
+    travadaEm: true,
+    travadaMotivo: true,
   });
 
 export const createOrderSchema = z.object({

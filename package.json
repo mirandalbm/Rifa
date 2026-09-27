@@ -27,6 +27,8 @@
     "aparencia": "tsx scripts/aparencia-test.ts",
     "vitrine": "tsx scripts/vitrine-test.ts",
     "solicitacoes": "tsx scripts/solicitacoes-test.ts",
+    "comentarios": "tsx scripts/comentarios-test.ts",
+    "seguranca": "tsx scripts/seguranca-test.ts",
     "resultados": "tsx scripts/resultados-test.ts",
     "afiliados": "tsx scripts/afiliados-test.ts",
     "fiscal": "tsx scripts/fiscal-test.ts",

@@ -59,9 +59,10 @@ arquitetura.
     guardado num plano de mensalidade é bomba de relógio. Cobrar os dois
     juntos seria um terceiro modo, não um campo ligado junto.
 14. **Estorno desfaz tudo, ou não desfaz nada.** `refundOrder()` devolve cota,
-    contador, comissão, taxa da plataforma e cota premiada na mesma
-    transação. Desfazer quatro das cinco não dá erro — vira comissão paga a
-    quem não vendeu, ou número que some do estoque. `npm run refund` prova.
+    contador, comissão, taxa da plataforma, cota premiada e o crédito do
+    presente na mesma transação. Desfazer cinco das seis não dá erro — vira
+    comissão paga a quem não vendeu, ou número que some do estoque. `npm run
+    refund` prova (e `npm run presente`, o crédito).
 15. **Organização nula é a plataforma; qualquer outra é recorte.** Toda
     consulta do painel passa por `orgOf(req)`. Rota que busca por id usa
     `assertCampaignInScope()` ou `assertAffiliateInScope()` — nunca `select`
@@ -129,6 +130,7 @@ arquitetura.
 | perfil verificado (selo de trevo): documentos, foto, fila e cores | `shared/verificacao.ts` (regras e paleta), `server/services/verificacao.ts`, `server/services/rosto.ts` (comparador), `server/routes/verificacaoRotas.ts`, `client/src/components/Verificacao.tsx`, `SeloVerificado.tsx`, `VerificacoesDaPlataforma.tsx`, `CoresDoSelo.tsx`, `scripts/verificacao-test.ts` |
 | publicação da rifa: carrossel de até 10 (reels e vídeos), barra de ações (trevo, comentar, republicar, compartilhar, carrinho, comprar) e legenda | `shared/publicacao.ts` (regras), `server/services/publicacao.ts`, `server/services/media.ts` (limites), `client/src/components/Publicacao.tsx`, `scripts/publicacao-test.ts` |
 | carrinho (várias rifas, separadas por organização), o Pix único do carrinho e o comprar da publicação | `shared/carrinho.ts` (regras e split), `server/services/carrinho.ts`, `createCartOrder()` em `server/services/orders.ts`, `client/src/pages/CarrinhoPix.tsx`, `scripts/carrinho-test.ts`, `client/src/lib/carrinho.ts`, `client/src/pages/Carrinho.tsx`, `BarraDeAcoes` em `client/src/components/Publicacao.tsx`, `scripts/publicacao-test.ts` |
+| presente pelos comentários (desconto de primeira compra pago pela plataforma) | `shared/presente.ts` (regras), `server/services/presente.ts`, `prepararPedido`/`settleOrderAsPaid` em `server/services/orders.ts`, `Presentear` em `client/src/components/Comentarios.tsx`, `AvisoDePresente` em `client/src/pages/Rifa.tsx`, cartão Presente em `client/src/pages/adminBonus.tsx`, `scripts/presente-test.ts` |
 | app instalável (PWA) | `client/public/sw.js`, `client/public/manifest.webmanifest`, `client/src/lib/pwa.ts` |
 
 ## Convenções
@@ -474,8 +476,9 @@ promotor. **A ordem é sempre esta, e a plataforma sai primeiro.**
   baixo e o centavo que sobra fica com o promotor. Arredondar para cima em
   qualquer uma faria o sistema distribuir dinheiro que não existe. Há teste
   varrendo de 0 a R$ 20,00 em seis combinações de percentual.
-- **A base é o que o comprador pagou**, já com pacote e cupom descontados —
-  nunca o preço de tabela.
+- **A base é o que foi pago**, já com pacote e cupom descontados — nunca o
+  preço de tabela. No presente, pagaram dois: o comprador e a plataforma
+  (`amount_cents + presente_cents`), e o rateio corre sobre a soma.
 - **Mensalidade zera a taxa por venda.** É assim que o contrato de mensalidade
   não cobra duas vezes: `platformPctFor()` devolve 0 e o afiliado volta a
   receber sobre o valor cheio.
@@ -997,6 +1000,42 @@ promotora para a carteira dela **no mesmo pagamento**
 - **A consulta do carrinho** (`/carrinho/pedidos/:codigo`) tem a guarda de
   varredura da consulta do pedido e não traz nome nem telefone.
 - `npm run carrinho` prova tudo isso contra a API de verdade.
+
+## Presente — o que não pode afrouxar
+
+Quem tem conta manda, pelo ícone de presente ao lado do campo de
+comentário, o link da rifa com o código de indicação dele. O convidado ganha
+desconto na primeira compra — **pago pela plataforma**.
+
+- **Nasce desligado**, e só a plataforma liga, com percentual (1 a 50%) e
+  teto (R$ 1 a R$ 100) — cartão Presente em Bônus (403 para organizador,
+  no `npm run presente`). `validarConfigPresente` só guarda as três chaves.
+- **Uma vez por pessoa, e só com conta.** O CPF único entre contas é o que
+  faz o desconto ser um por pessoa; sessão só com o código do WhatsApp não
+  basta (`presenteDoPedido` exige senha e CPF). Só na primeira compra paga;
+  autoindicação (mesmo comprador, telefone ou CPF) não vale; cambista e
+  carrinho não levam. Dois pedidos com presente ao mesmo tempo: quem decide
+  é o índice parcial `uq_presente_por_comprador` (pedido vencido sai dele e
+  libera outro) — 409, nunca um `SELECT` antes.
+- **A compra conta como paga pelo preço cheio.** O comprador paga
+  `amount_cents`; a plataforma, `presente_cents`. O rateio (`splitOrder`)
+  corre sobre a soma: taxa, comissão e promotora como se fosse o preço
+  cheio. O comprador nunca paga R$ 0,00 (máximo 50%, e o desconto nunca
+  chega ao total). O reembolso devolve só o que o comprador pagou.
+- **A parte da promotora no desconto é crédito dela** (`presente_creditos`,
+  `creditoDoPresente()`: o desconto rateado — a taxa da plataforma sobre ele
+  fica com a plataforma; a comissão fica com a promotora, que paga o
+  afiliado, salvo guardada). Lançado na transação que confirma o pagamento
+  (um por pedido, índice único), **cancelado na do estorno** e repassado no
+  acerto: `darBaixa` fecha a conta nos dois sentidos, numa transação. Crédito
+  já repassado não volta sozinho — fica pago e vai para o log, como a
+  comissão já sacada.
+- **Quem convida ganha o bônus de indicação que já existe** (etapa 13), se
+  o programa estiver ligado — o presente usa o mesmo código e o mesmo
+  `?ind=`.
+- **A oferta pública mostra só o primeiro nome** de quem mandou (nunca
+  telefone). O código de quem manda (`/presente/meu`) pede conta (401).
+- `npm run presente` prova tudo isso contra a API de verdade.
 
 ## Notificações no celular — o que não pode afrouxar
 

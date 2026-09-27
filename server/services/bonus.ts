@@ -84,7 +84,7 @@ export async function garantirCodigoDeIndicacao(buyerId: string): Promise<string
   throw new BonusError("Não foi possível criar o link de indicação. Tente de novo.", 500);
 }
 
-async function indicadorPorCodigo(codigo: string) {
+export async function indicadorPorCodigo(codigo: string) {
   if (!codigoDeIndicacaoValido(codigo)) return null;
   const [b] = await db
     .select({ id: buyers.id, phone: buyers.phone, cpf: buyers.cpf, excluidoEm: buyers.excluidoEm })
@@ -302,7 +302,7 @@ export async function painelDoBonus() {
         (select count(*)::int from campaigns where aceita_cota_bonus and status = 'published') as rifas`)
   ).rows as { indicacoes: number; creditadas: number; resgatadas: number; rifas: number }[];
   return {
-    config: { bonusLigado: cfg.bonusLigado, bonusPorIndicacao: cfg.bonusPorIndicacao },
+    config: { bonusLigado: cfg.bonusLigado, bonusPorIndicacao: cfg.bonusPorIndicacao, presente: cfg.presente },
     metas,
     resumo,
   };

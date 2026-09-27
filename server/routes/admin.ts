@@ -3272,12 +3272,15 @@ adminRouter.put("/bonus/config", async (req, res, next) => {
       ...atual,
       bonusLigado: req.body?.bonusLigado === undefined ? atual.bonusLigado : req.body.bonusLigado === true,
       bonusPorIndicacao: req.body?.bonusPorIndicacao === undefined ? atual.bonusPorIndicacao : req.body.bonusPorIndicacao,
+      // O presente (desconto de primeira compra pago pela plataforma).
+      presente: req.body?.presente === undefined ? atual.presente : req.body.presente,
     });
     await audit(req, "bonus.config", "settings", "plataforma", {
       bonusLigado: salva.bonusLigado,
       bonusPorIndicacao: salva.bonusPorIndicacao,
+      presente: salva.presente,
     });
-    res.json({ bonusLigado: salva.bonusLigado, bonusPorIndicacao: salva.bonusPorIndicacao });
+    res.json({ bonusLigado: salva.bonusLigado, bonusPorIndicacao: salva.bonusPorIndicacao, presente: salva.presente });
   } catch (err) {
     next(err);
   }

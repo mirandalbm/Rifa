@@ -639,6 +639,13 @@ export const orders = pgTable(
      * todos eles; o valor de cada um continua sendo o do pedido.
      */
     carrinhoId: uuid("carrinho_id").references(() => carrinhoPedidos.id),
+    /**
+     * O presente (`shared/presente.ts`): a parte da compra que a plataforma
+     * pagou. O comprador pagou `amount_cents`; o rateio corre sobre a soma.
+     */
+    presenteCents: integer("presente_cents").notNull().default(0),
+    /** Quem mandou o presente (o comprador dono do link de indicação). */
+    presenteDe: uuid("presente_de"),
     pspProvider: text("psp_provider"),
     pspChargeId: text("psp_charge_id"),
     pixQr: text("pix_qr"),
@@ -654,6 +661,10 @@ export const orders = pgTable(
     index("idx_orders_affiliate").on(t.affiliateId),
     index("idx_orders_expiry").on(t.status, t.expiresAt),
     index("idx_orders_carrinho").on(t.carrinhoId),
+    // Um presente por pessoa: o pedido vencido sai do índice e libera outro.
+    uniqueIndex("uq_presente_por_comprador")
+      .on(t.buyerId)
+      .where(sql`${t.presenteCents} > 0 and ${t.status} in ('pending', 'paid', 'refunded')`),
     index("idx_orders_charge").on(t.pspChargeId),
   ],
 );
@@ -1649,6 +1660,29 @@ export const createOrderSchema = z.object({
   /** O aparelho aceitou os cookies de marketing (etapa 16). */
   marketing: z.boolean().optional(),
 });
+
+/**
+ * A parte da promotora no desconto do presente que a plataforma pagou
+ * (`creditoDoPresente`): a plataforma deve isto à organização. Lançado na
+ * transação que confirma o pagamento, um por pedido (índice único),
+ * cancelado na do estorno e acertado junto com a cobrança (`darBaixa`).
+ */
+export const presenteCreditos = pgTable(
+  "presente_creditos",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    orderId: uuid("order_id").notNull(),
+    amountCents: integer("amount_cents").notNull(),
+    /** devido → pago (acerto) ou cancelado (estorno). */
+    status: text("status").notNull().default("devido"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    pagoEm: timestamp("pago_em"),
+  },
+  (t) => [uniqueIndex("uq_presente_credito_pedido").on(t.orderId), index("idx_presente_creditos_org").on(t.organizationId, t.status)],
+);
 
 /** O carrinho pago num Pix só: rifa e quantidade — nunca preço nem número. */
 export const carrinhoCheckoutSchema = z.object({

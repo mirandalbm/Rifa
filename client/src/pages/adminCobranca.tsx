@@ -22,11 +22,14 @@ interface LinhaCarteira {
   abertoCents: number;
   pagoCents: number;
   lancamentos: number;
+  /** O que a plataforma deve à organização: a parte dela nos presentes. */
+  creditoCents: number;
 }
 
 interface Extrato {
   plano: BillingPlan;
   totais: { abertoCents: number; pagoCents: number };
+  creditos: { devidoCents: number; pagoCents: number };
   linhas: {
     charge: {
       id: string;
@@ -204,6 +207,11 @@ function Linha({
         </td>
         <td className="px-4 py-3 text-right">
           <Money cents={org.abertoCents} />
+          {org.creditoCents > 0 ? (
+            <span className="block text-[11px] text-muted">
+              a repassar (presentes): <Money cents={org.creditoCents} />
+            </span>
+          ) : null}
         </td>
         <td className="px-4 py-3 text-right text-muted">
           <Money cents={org.pagoCents} />
@@ -213,7 +221,7 @@ function Linha({
             <Button variant="ghost" onClick={editando ? fechar : abrir}>
               {editando ? "fechar" : "contrato"}
             </Button>
-            {org.abertoCents > 0 ? (
+            {org.abertoCents > 0 || org.creditoCents > 0 ? (
               <Button variant="ghost" onClick={baixar}>
                 dar baixa
               </Button>
@@ -305,7 +313,7 @@ function MinhaConta() {
 
   return (
     <PanelShell title="Cobrança">
-      <div className="mb-3 grid gap-3 sm:grid-cols-3">
+      <div className="mb-3 grid gap-3 sm:grid-cols-4">
         <Kpi
           label="Seu contrato"
           value={data ? BILLING_LABEL[data.plano.mode] : "—"}
@@ -319,6 +327,13 @@ function MinhaConta() {
         />
         <Kpi label="Em aberto" value={formatBRL(data?.totais.abertoCents ?? 0)} />
         <Kpi label="Já pago" value={formatBRL(data?.totais.pagoCents ?? 0)} />
+        {data?.creditos.devidoCents ? (
+          <Kpi
+            label="A receber da plataforma"
+            value={formatBRL(data.creditos.devidoCents)}
+            hint="sua parte nos descontos de presente que a plataforma pagou; entra no próximo acerto"
+          />
+        ) : null}
       </div>
 
       <Card title="Lançamentos">

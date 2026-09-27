@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Heart, MessageCircle, X } from "lucide-react";
+import { Gift, Heart, MessageCircle, X } from "lucide-react";
 import { Button, Pill } from "@/components/bits";
 import { apiRequest } from "@/lib/queryClient";
 import { EditarPerfilPublico, FotoDoApostador } from "@/components/PerfilDoApostador";
 import { COMENTARIO_MAX, EMOJI_SO_VERIFICADO, problemaNoComentario, temEmoji } from "@shared/comentarios";
 import { SeloVerificado } from "@/components/SeloVerificado";
 import { REACOES } from "@shared/perfilApostador";
+import { textoDoPresente } from "@shared/presente";
 
 interface Comentario {
   id: string;
@@ -184,6 +185,7 @@ function Escrever({
 }) {
   const [texto, setTexto] = useState("");
   const [erro, setErro] = useState<string | null>(null);
+  const [presenteAberto, setPresenteAberto] = useState(false);
   const campo = useRef<HTMLTextAreaElement>(null);
   useEffect(() => {
     if (foco) campo.current?.focus();
@@ -241,6 +243,7 @@ function Escrever({
           enviar.mutate();
         }}
       >
+        {comoOrganizacao ? null : <BotaoDePresente aberto={presenteAberto} aoAlternar={() => setPresenteAberto((v) => !v)} />}
         <label htmlFor={`comentar-${slug}`} className="sr-only">
           {rotulo}
         </label>
@@ -262,6 +265,103 @@ function Escrever({
         </Button>
       </form>
       {erro ? <p className="text-xs text-red">{erro}</p> : null}
+      {presenteAberto && !comoOrganizacao ? <Presentear slug={slug} /> : null}
+    </div>
+  );
+}
+
+/** O presente só aparece quando a plataforma o ligou. */
+function usePresenteLigado() {
+  const { data } = useQuery<{ ligado: boolean; pct?: number; tetoCents?: number }>({
+    queryKey: ["/api/public/presente"],
+    staleTime: 60_000,
+  });
+  return data?.ligado ? { pct: data.pct!, tetoCents: data.tetoCents! } : null;
+}
+
+/** O ícone de presente, ao lado do campo de comentário. */
+function BotaoDePresente({ aberto, aoAlternar }: { aberto: boolean; aoAlternar: () => void }) {
+  const cfg = usePresenteLigado();
+  if (!cfg) return null;
+  return (
+    <button
+      type="button"
+      onClick={aoAlternar}
+      aria-expanded={aberto}
+      aria-label="Mandar um presente para um amigo"
+      className={`mb-1.5 rounded-full p-1.5 hover:bg-mist ${aberto ? "text-marca" : "text-ink"}`}
+    >
+      <Gift size={24} strokeWidth={1.75} aria-hidden />
+    </button>
+  );
+}
+
+/**
+ * Mandar o presente: o link desta rifa com o código de indicação de quem
+ * manda. Quem recebe, com conta, ganha o desconto na primeira compra, pago
+ * pela plataforma; quem manda ganha o bônus de indicação (se ligado).
+ */
+function Presentear({ slug }: { slug: string }) {
+  const { data, error } = useQuery<{ ligado: boolean; codigo?: string; pct?: number; tetoCents?: number }>({
+    queryKey: ["/api/public/presente/meu"],
+    retry: false,
+  });
+  const [aviso, setAviso] = useState<string | null>(null);
+  if (error) {
+    return (
+      <p className="rounded-md bg-mist px-3 py-2 text-xs text-ink-2">
+        <Link href={`/entrar?volta=${encodeURIComponent(window.location.pathname)}`} className="font-semibold underline">
+          Entre na sua conta
+        </Link>{" "}
+        para mandar um presente.
+      </p>
+    );
+  }
+  if (!data?.ligado || !data.codigo) return null;
+  const link = `${window.location.origin}/r/${slug}?ind=${data.codigo}&presente=1`;
+  const oferta = textoDoPresente({ pct: data.pct!, tetoCents: data.tetoCents! });
+  const mensagem = `Um presente para você: ${oferta}. Crie sua conta e escolha seus números:`;
+  return (
+    <div className="space-y-2 rounded-lg border border-line bg-mist px-3 py-3 text-sm" role="region" aria-label="Mandar um presente">
+      <p className="flex items-start gap-2">
+        <Gift size={18} aria-hidden className="mt-0.5 shrink-0 text-marca" />
+        <span>
+          Mande um presente: quem receber ganha <b>{oferta}</b>. Vale uma vez por pessoa, com conta, na primeira compra.
+        </span>
+      </p>
+      <div className="flex gap-2">
+        <Button
+          className="flex-1 py-2 text-sm"
+          onClick={async () => {
+            try {
+              if (navigator.share) await navigator.share({ title: "Um presente para você", text: mensagem, url: link });
+              else {
+                await navigator.clipboard.writeText(`${mensagem} ${link}`);
+                setAviso("Convite copiado. Cole na conversa com seu amigo.");
+              }
+            } catch {
+              /* cancelou o menu do aparelho */
+            }
+          }}
+        >
+          Mandar presente
+        </Button>
+        <Button
+          variant="ghost"
+          className="py-2 text-sm"
+          onClick={async () => {
+            await navigator.clipboard.writeText(link).catch(() => {});
+            setAviso("Link copiado.");
+          }}
+        >
+          Copiar link
+        </Button>
+      </div>
+      {aviso ? (
+        <p className="text-xs text-muted" role="status">
+          {aviso}
+        </p>
+      ) : null}
     </div>
   );
 }

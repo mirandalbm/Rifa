@@ -106,7 +106,12 @@ senha); **[código]** é trabalho no repositório.
 - [ ] **[você]** Conferir no Asaas (sandbox) um Pix de carrinho com duas
   organizações com carteira: o split com dois destinos e a devolução
   parcial de um pedido.
-- [ ] **[código]** "Presentear cotas" na barra dos comentários.
+- [x] Presente pelos comentários: desconto de primeira compra pago pela
+  plataforma (percentual e teto no painel, nasce desligado), crédito da
+  promotora acertado na cobrança, bônus de indicação para quem convida.
+- [ ] **[você]** Advogado e contador: o desconto do presente pago pela
+  plataforma (promoção comercial, nota da plataforma) antes de ligar o
+  presente em Bônus → Presente.
 - [ ] **[você]** Antes de aprovar um adiamento, conferir se a autorização
   SPA/MF da rifa cobre a nova data (a plataforma não tem como checar isso
   sozinha).
@@ -317,8 +322,6 @@ Na ordem de entrega do plano:
   vídeo do feed até 15 min), curtir com o trevo, comentar, republicar,
   compartilhar e salvar com contadores, legenda da organização, "• Autor"
   nos comentários e apelido obrigatório no cadastro.
-- [ ] **[código]** Presente com convite (cadastro → compra com desconto de
-  primeira compra pago pela plataforma).
 - [ ] **[código]** Login com Google.
 - [ ] **[você]** Advogado: regra de reembolso (arrependimento × corte de
   2 h), cota grátis de bônus no regulamento.

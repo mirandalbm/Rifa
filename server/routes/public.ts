@@ -66,6 +66,7 @@ import QRCode from "qrcode";
 import { publicUrl } from "../services/urls";
 import { cartByCode, createCartOrder, createOrder, orderByCode, ordersByPhone, OrderError, resgatarCotasDeBonus } from "../services/orders";
 import { estadoDoBonus, registrarVisita } from "../services/bonus";
+import { meuCodigoDePresente, presentePublico } from "../services/presente";
 import { patrocinadasNoAr, registrarClique, registrarExibicoes } from "../services/patrocinio";
 import { pixelsPublicos } from "../services/marketing";
 import { ehRobo } from "@shared/patrocinio";
@@ -1130,6 +1131,7 @@ publicRouter.post("/orders", async (req, res, next) => {
       code: result.order.code,
       numbers: result.numbers,
       amountCents: result.order.amountCents,
+      presenteCents: result.order.presenteCents,
       discountCents: result.order.discountCents,
       expiresAt: result.order.expiresAt,
       pix: { qr: result.order.pixQr, copyPaste: result.order.pixCopyPaste },
@@ -1208,6 +1210,7 @@ publicRouter.get("/orders/:code", async (req, res, next) => {
       status: found.order.status,
       quantity: found.order.quantity,
       amountCents: found.order.amountCents,
+      presenteCents: found.order.presenteCents,
       discountCents: found.order.discountCents,
       expiresAt: found.order.expiresAt,
       paidAt: found.order.paidAt,
@@ -1543,6 +1546,38 @@ publicRouter.post("/chamados/:id/disputa", async (req, res, next) => {
 /* ---------------- bônus: indicação, metas e cota grátis (etapa 13) ---------------- */
 
 /** A tela "Bônus" do comprador logado. Programa desligado: `{ ligado: false }`. */
+/**
+ * O presente (`shared/presente.ts`): sem código, só a oferta (para o ícone
+ * nos comentários aparecer); com código, também o primeiro nome de quem
+ * mandou — nunca telefone.
+ */
+publicRouter.get("/presente", async (req, res, next) => {
+  try {
+    const codigo = typeof req.query.codigo === "string" ? req.query.codigo.toUpperCase() : "";
+    if (codigo) return res.json(await presentePublico(codigo));
+    const cfg = (await getPlataforma()).presente;
+    res.json(cfg.ligado ? { ligado: true, pct: cfg.pct, tetoCents: cfg.tetoCents } : { ligado: false });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** O código de quem manda o presente: só com conta. */
+publicRouter.get("/presente/meu", async (req, res, next) => {
+  try {
+    const id = req.session.buyer?.id;
+    const [conta] = id
+      ? await db.select({ senha: buyers.passwordHash, excluidoEm: buyers.excluidoEm }).from(buyers).where(eq(buyers.id, id))
+      : [];
+    if (!id || !conta?.senha || conta.excluidoEm) {
+      return res.status(401).json({ message: "Entre na sua conta para mandar um presente." });
+    }
+    res.json(await meuCodigoDePresente(id));
+  } catch (err) {
+    next(err);
+  }
+});
+
 publicRouter.get("/bonus", async (req, res, next) => {
   try {
     const c = exigirComprador(req);

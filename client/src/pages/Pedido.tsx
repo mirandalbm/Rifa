@@ -15,6 +15,8 @@ interface OrderView {
   status: "pending" | "paid" | "expired" | "refunded";
   quantity: number;
   amountCents: number;
+  /** A parte que a plataforma pagou (presente). */
+  presenteCents: number;
   discountCents: number;
   expiresAt: string | null;
   paidAt: string | null;
@@ -143,12 +145,18 @@ export default function Pedido() {
         <div className="space-y-2 p-4 text-sm">
           <div className="flex justify-between">
             <span className="text-ink-2">{order.quantity} cota(s)</span>
-            <Money cents={order.amountCents + order.discountCents} />
+            <Money cents={order.amountCents + order.presenteCents + order.discountCents} />
           </div>
           {order.discountCents > 0 ? (
             <div className="flex justify-between text-green-deep">
               <span>Desconto</span>
               <span className="tnum">− <Money cents={order.discountCents} /></span>
+            </div>
+          ) : null}
+          {order.presenteCents > 0 ? (
+            <div className="flex justify-between text-green-deep">
+              <span>Presente (pago pela plataforma)</span>
+              <span className="tnum">− <Money cents={order.presenteCents} /></span>
             </div>
           ) : null}
           <div className="flex justify-between font-medium">

@@ -32,6 +32,7 @@
     "verificacao": "tsx scripts/verificacao-test.ts",
     "publicacao": "tsx scripts/publicacao-test.ts",
     "carrinho": "tsx scripts/carrinho-test.ts",
+    "presente": "tsx scripts/presente-test.ts",
     "resultados": "tsx scripts/resultados-test.ts",
     "afiliados": "tsx scripts/afiliados-test.ts",
     "fiscal": "tsx scripts/fiscal-test.ts",

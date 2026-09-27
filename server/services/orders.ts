@@ -69,6 +69,7 @@ import { formatBRL, formatQuota, cpfValido } from "@shared/format";
 import { isUniqueViolation } from "../pgError";
 import { avaliarMetas, confirmarIndicacao, estornarIndicacao, registrarIndicacao } from "./bonus";
 import { anuncioDaVenda } from "./patrocinio";
+import { cancelarCreditoDoPresente, lancarCreditoDoPresente, presenteDoPedido } from "./presente";
 import { bloqueioDoResgate } from "@shared/bonus";
 
 /** Dias entre o pagamento e a liberação da comissão do afiliado. */
@@ -248,7 +249,7 @@ type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 async function prepararPedido(
   input: CreateOrderInput,
   ctx: CreateOrderContext,
-  opcoes: { antifraude?: boolean } = {},
+  opcoes: { antifraude?: boolean; presente?: boolean } = {},
 ) {
   const [campaign] = await db
     .select()
@@ -402,6 +403,19 @@ async function prepararPedido(
   // clicou num anúncio desta rifa há até 7 dias. Só estatística.
   const anuncioId = ctx.sellerId ? null : await anuncioDaVenda(identity.deviceHash, campaign.id);
 
+  // O presente: a parte da compra que a plataforma paga (primeira compra de
+  // quem tem conta e veio pelo link de alguém). O carrinho não leva.
+  const presente =
+    opcoes.presente === false
+      ? { cents: 0, deId: null }
+      : await presenteDoPedido({
+          buyerId: buyer.id,
+          contaId: ctx.contaId,
+          sellerId: ctx.sellerId,
+          codigo: input.indicacao,
+          totalCents: price.totalCents,
+        });
+
   return {
     input,
     ctx,
@@ -418,6 +432,7 @@ async function prepararPedido(
     expiresAt,
     comissaoGuardada,
     anuncioId,
+    presente,
   };
 }
 
@@ -444,7 +459,10 @@ async function inserirPedido(
       campaignId: campaign.id,
       buyerId: buyer.id,
       quantity,
-      amountCents: price.totalCents,
+      // O comprador paga o total menos o presente; a plataforma paga o resto.
+      amountCents: price.totalCents - p.presente.cents,
+      presenteCents: p.presente.cents,
+      presenteDe: p.presente.deId,
       discountCents: price.packageDiscountCents + price.couponDiscountCents,
       status: "pending",
       affiliateId: attribution.affiliateId,
@@ -523,7 +541,13 @@ export async function createOrder(
   const { order, numbers } = await comCodigoLivre(
     () => db.transaction((tx) => inserirPedido(tx, p, randomOrderCode())),
     isOrderCodeConflict,
-  );
+  ).catch((err) => {
+    // Dois pedidos com o presente ao mesmo tempo: o índice deixa um.
+    if (isUniqueViolation(err, "uq_presente_por_comprador")) {
+      throw new OrderError("Você já tem um pedido com o presente esperando pagamento. Pague esse ou espere a reserva vencer.", 409);
+    }
+    throw err;
+  });
 
   // Venda física não passa por provedor: o dinheiro entra na mão do cambista.
   if (ctx.sellerId) {
@@ -683,7 +707,7 @@ export async function createCartOrder(input: CarrinhoCheckoutInput, ctx: CreateO
           marketing: input.marketing,
         },
         { ...ctx, sellerId: undefined, identity },
-        { antifraude: false },
+        { antifraude: false, presente: false },
       ),
     );
   }
@@ -857,11 +881,26 @@ async function settleOrderAsPaid(order: typeof orders.$inferSelect) {
     const daRifa =
       order.affiliateId && campaign ? await comissaoNaRifa(tx, order.affiliateId, campaign) : null;
 
+    // Com o presente, a compra foi paga por dois: o comprador e a
+    // plataforma. O rateio corre sobre a soma — a promotora e o afiliado
+    // recebem como se fosse o preço cheio — e a parte da promotora no
+    // desconto vira crédito dela (`creditoDoPresente`).
     const rateio = splitOrder({
-      paidCents: order.amountCents,
+      paidCents: order.amountCents + order.presenteCents,
       platformPct: platformPctFor(plano),
       commissionPct: order.affiliateId ? (daRifa?.pct ?? 0) : 0,
     });
+
+    if (order.presenteCents > 0 && campaign) {
+      await lancarCreditoDoPresente(tx, {
+        organizationId: campaign.organizationId,
+        orderId: order.id,
+        presenteCents: order.presenteCents,
+        platformPct: rateio.platformPct,
+        commissionPct: rateio.commissionPct,
+        comissaoGuardada: order.comissaoGuardada,
+      });
+    }
 
     if (rateio.platformFeeCents > 0 && campaign) {
       await lancarTaxaDaVenda(tx, {
@@ -1371,6 +1410,8 @@ export async function refundOrder(orderId: string): Promise<RefundResult | null>
 
     // Bônus da indicação que este pedido confirmou sai junto (etapa 13).
     await estornarIndicacao(tx, order.id);
+    // E o crédito do presente que a plataforma devia à promotora.
+    await cancelarCreditoDoPresente(tx, order.id);
 
     const taxas = await tx
       .update(platformCharges)

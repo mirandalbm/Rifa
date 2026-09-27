@@ -14,7 +14,7 @@
  */
 import { and, eq, sql, desc, isNull } from "drizzle-orm";
 import { db } from "../db";
-import { organizations, platformCharges, orders, campaigns } from "@shared/schema";
+import { organizations, platformCharges, orders, campaigns, presenteCreditos } from "@shared/schema";
 import {
   validateBillingPlan,
   platformPctFor,
@@ -186,7 +186,16 @@ export async function extratoDa(organizationId: string, limite = 100) {
     .from(platformCharges)
     .where(eq(platformCharges.organizationId, organizationId));
 
-  return { linhas, totais };
+  // O que a plataforma deve à organização: a parte dela nos presentes.
+  const [creditos] = await db
+    .select({
+      devidoCents: sql<number>`coalesce(sum(${presenteCreditos.amountCents}) FILTER (WHERE ${presenteCreditos.status} = 'devido'), 0)::int`,
+      pagoCents: sql<number>`coalesce(sum(${presenteCreditos.amountCents}) FILTER (WHERE ${presenteCreditos.status} = 'pago'), 0)::int`,
+    })
+    .from(presenteCreditos)
+    .where(eq(presenteCreditos.organizationId, organizationId));
+
+  return { linhas, totais, creditos };
 }
 
 /** A carteira da plataforma: quanto cada organização deve. */
@@ -202,6 +211,8 @@ export async function carteiraDaPlataforma() {
       abertoCents: sql<number>`coalesce(sum(${platformCharges.amountCents}) FILTER (WHERE ${platformCharges.status} = 'aberta'), 0)::int`,
       pagoCents: sql<number>`coalesce(sum(${platformCharges.amountCents}) FILTER (WHERE ${platformCharges.status} = 'paga'), 0)::int`,
       lancamentos: sql<number>`count(${platformCharges.id})::int`,
+      // Subconsulta: somar no mesmo GROUP BY multiplicaria as linhas.
+      creditoCents: sql<number>`(select coalesce(sum(pc.amount_cents), 0)::int from presente_creditos pc where pc.organization_id = "organizations"."id" and pc.status = 'devido')`,
     })
     .from(organizations)
     .leftJoin(platformCharges, eq(platformCharges.organizationId, organizations.id))
@@ -209,18 +220,29 @@ export async function carteiraDaPlataforma() {
     .orderBy(organizations.name);
 }
 
-/** Dá baixa no que está em aberto de uma organização. */
+/**
+ * Acerta a conta de uma organização nos dois sentidos, numa transação: o
+ * que ela devia (taxas e mensalidades em aberto) e o que a plataforma devia
+ * a ela (créditos de presente).
+ */
 export async function darBaixa(organizationId: string): Promise<number> {
-  const linhas = await db
-    .update(platformCharges)
-    .set({ status: "paga", paidAt: new Date() })
-    .where(
-      and(
-        eq(platformCharges.organizationId, organizationId),
-        eq(platformCharges.status, "aberta"),
-      ),
-    )
-    .returning({ id: platformCharges.id });
-
-  return linhas.length;
+  return db.transaction(async (tx) => {
+    const agora = new Date();
+    const linhas = await tx
+      .update(platformCharges)
+      .set({ status: "paga", paidAt: agora })
+      .where(
+        and(
+          eq(platformCharges.organizationId, organizationId),
+          eq(platformCharges.status, "aberta"),
+        ),
+      )
+      .returning({ id: platformCharges.id });
+    const creditos = await tx
+      .update(presenteCreditos)
+      .set({ status: "pago", pagoEm: agora })
+      .where(and(eq(presenteCreditos.organizationId, organizationId), eq(presenteCreditos.status, "devido")))
+      .returning({ id: presenteCreditos.id });
+    return linhas.length + creditos.length;
+  });
 }

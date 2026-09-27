@@ -52,6 +52,7 @@ import { publicUrl } from "../services/urls";
 import { createOrder, orderByCode, ordersByPhone, OrderError, resgatarCotasDeBonus } from "../services/orders";
 import { estadoDoBonus, registrarVisita } from "../services/bonus";
 import { patrocinadasNoAr, registrarClique, registrarExibicoes } from "../services/patrocinio";
+import { pixelsPublicos } from "../services/marketing";
 import { ehRobo } from "@shared/patrocinio";
 import { blockBitmap, isTaken, BLOCK_SIZE, NumbersTakenError, NoQuotasAvailableError } from "../services/quotas";
 import { issueOtp, checkOtp, hashPassword } from "../auth";
@@ -821,10 +822,15 @@ publicRouter.get("/orders/:code", async (req, res, next) => {
       prizes: found.prizes,
       pix: { qr: found.order.pixQr, copyPaste: found.order.pixCopyPaste },
       campaign: {
+        id: found.campaign.id,
         title: found.campaign.title,
         slug: found.campaign.slug,
         totalQuotas: found.campaign.totalQuotas,
       },
+      // De quem é a rifa: o navegador conta a compra nos pixels da promotora (etapa 16).
+      organizacao: (
+        await db.select({ slug: organizations.slug }).from(organizations).where(eq(organizations.id, found.campaign.organizationId))
+      )[0]?.slug ?? null,
       buyer: { name: found.buyer.name },
     });
   } catch (err) {
@@ -1135,6 +1141,21 @@ publicRouter.post("/bonus/visita", async (req, res, next) => {
     const limite = await hit(`bonus-visita:${id.ipHash ?? "?"}`, 10, 60);
     if (!limite.excedeu) await registrarVisita(req.body?.codigo, id.deviceHash);
     res.status(204).end();
+  } catch (err) {
+    next(err);
+  }
+});
+
+/* ---------------- marketing (etapa 16) ---------------- */
+
+/**
+ * Os pixels que valem na página (da plataforma e, com `?organizacao=`, os
+ * da promotora). Desligado: `{ ligado: false }` e o navegador não carrega
+ * nada nem mostra aviso de cookies.
+ */
+publicRouter.get("/marketing", async (req, res, next) => {
+  try {
+    res.json(await pixelsPublicos(req.query.organizacao));
   } catch (err) {
     next(err);
   }

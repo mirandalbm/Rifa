@@ -187,6 +187,12 @@ export const organizations = pgTable(
     /** Saldo para rifas patrocinadas (etapa 15), em centavos. Anda com o livro, na mesma transação. */
     patrocinioSaldoCents: integer("patrocinio_saldo_cents").notNull().default(0),
     /**
+     * Números de rastreamento da organização (Meta, GA4, Google Ads, TikTok),
+     * conferidos por formato em `validarPixels()` — só dados, nunca script.
+     * Valem nas páginas dela (perfil e rifas), com o aviso de cookies aceito.
+     */
+    pixels: jsonb("pixels").$type<import("./marketing").Pixels>().notNull().default({}),
+    /**
      * Dias que a organização se compromete a levar para devolver o dinheiro
      * depois de aprovar um pedido de reembolso. O prazo de cada chamado é
      * calculado sozinho na aprovação.
@@ -556,6 +562,14 @@ export const orders = pgTable(
      * resultados (`shared/resultados.ts`), nunca decide dinheiro.
      */
     origem: text("origem"),
+    /** UTM e identificador de clique do anúncio (etapa 16). Estatística, como a origem. */
+    utm: jsonb("utm").$type<import("./marketing").Utm>(),
+    /**
+     * O comprador tinha aceitado os cookies de marketing no aparelho quando
+     * comprou. Sem isto, a compra não vai pelo servidor para nenhuma
+     * plataforma de anúncio (LGPD).
+     */
+    marketingConsentimento: boolean("marketing_consentimento").notNull().default(false),
     pspProvider: text("psp_provider"),
     pspChargeId: text("psp_charge_id"),
     pixQr: text("pix_qr"),
@@ -1207,6 +1221,10 @@ export const createOrderSchema = z.object({
   origem: z.string().max(20).optional(),
   /** Código do link de indicação (etapa 13); conferido no servidor. */
   indicacao: z.string().max(20).optional(),
+  /** UTM do anúncio (etapa 16); `validarUtm` descarta o que não conhece. */
+  utm: z.record(z.string(), z.unknown()).optional(),
+  /** O aparelho aceitou os cookies de marketing (etapa 16). */
+  marketing: z.boolean().optional(),
 });
 
 export type User = typeof users.$inferSelect;
@@ -1572,6 +1590,54 @@ export const patrocinioAnuncios = pgTable(
   (t) => [
     index("idx_anuncios_fila").on(t.segmento, t.status, t.filaDesde),
     index("idx_anuncios_org").on(t.organizationId, t.createdAt),
+  ],
+);
+
+/**
+ * Chaves de API das plataformas de anúncio (etapa 16), da plataforma
+ * (`dono = 'plataforma'`) e de cada organização (`dono = <id>`). Cifradas
+ * no cofre: vazar o banco não entrega o token que manda eventos em nome do
+ * anunciante. A tela nunca recebe o valor, só se existe.
+ */
+export const marketingCredenciais = pgTable("marketing_credenciais", {
+  dono: text("dono").primaryKey(),
+  dados: bytea("dados").notNull(),
+  iv: bytea("iv").notNull(),
+  tag: bytea("tag").notNull(),
+  chaveVersao: text("chave_versao").notNull(),
+  atualizadoEm: timestamp("atualizado_em").notNull().defaultNow(),
+});
+
+/**
+ * Compra a enviar pelo servidor para cada plataforma de anúncio (etapa 16).
+ * Nasce na transação que confirma o pagamento; o relógio envia. A chave
+ * única (pedido, destino) é a defesa contra mandar a mesma compra duas
+ * vezes — webhook repetido, várias réplicas.
+ */
+export const marketingEventos = pgTable(
+  "marketing_eventos",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orderId: uuid("order_id")
+      .notNull()
+      .references(() => orders.id, { onDelete: "cascade" }),
+    /** "plataforma" ou o id da organização: de quem são o pixel e o token. */
+    dono: text("dono").notNull(),
+    /** meta | ga4 | tiktok */
+    provedor: text("provedor").notNull(),
+    /** O número do pixel/medição no momento da venda. */
+    destino: text("destino").notNull(),
+    /** pendente | enviado | falhou */
+    status: text("status").notNull().default("pendente"),
+    tentativas: integer("tentativas").notNull().default(0),
+    ultimoErro: text("ultimo_erro"),
+    proximaTentativa: timestamp("proxima_tentativa").notNull().defaultNow(),
+    enviadoEm: timestamp("enviado_em"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("uq_marketing_evento").on(t.orderId, t.dono, t.provedor),
+    index("idx_marketing_eventos_fila").on(t.status, t.proximaTentativa),
   ],
 );
 

@@ -7,6 +7,8 @@
 import { comissaoNaRifa, cupomValeNaRifa } from "./afiliados";
 import type { Campaign } from "@shared/schema";
 import { validarOrigem } from "@shared/resultados";
+import { validarUtm } from "@shared/marketing";
+import { destinosDaCompra, enfileirarCompra } from "./marketing";
 import { randomInt } from "node:crypto";
 import { and, eq, sql, desc, or, lte } from "drizzle-orm";
 import type { Titularidade } from "@shared/contaComprador";
@@ -399,6 +401,8 @@ export async function createOrder(
           viaConta: Boolean(ctx.contaId && !ctx.sellerId) || compraProvadaPeloCpf,
           // Venda do cambista não tem origem de site: o canal é ele.
           origem: ctx.sellerId ? null : validarOrigem(input.origem),
+          utm: ctx.sellerId ? null : validarUtm(input.utm),
+          marketingConsentimento: !ctx.sellerId && input.marketing === true,
           deviceHash: identity.deviceHash,
           ipHash: identity.ipHash,
           couponId: attribution.couponId,
@@ -558,6 +562,12 @@ async function settleOrderAsPaid(order: typeof orders.$inferSelect) {
   const liberacao = org?.liberacao ?? "apos_sorteio";
   // Programa de bônus: lido antes da transação, como o contrato.
   const bonus = await getPlataforma();
+  // Marketing (etapa 16): para onde a compra vai pelo servidor, decidido fora
+  // do BEGIN (decifra chave). Falha aqui não pode derrubar o pagamento.
+  const destinos = await destinosDaCompra(order).catch((e) => {
+    console.error(`[marketing] destinos do pedido ${order.code}:`, e);
+    return [];
+  });
 
   const paidAt = new Date();
 
@@ -642,6 +652,10 @@ async function settleOrderAsPaid(order: typeof orders.$inferSelect) {
       bonus.bonusLigado && order.method !== "bonus"
         ? await confirmarIndicacao(tx, order, bonus.bonusPorIndicacao)
         : null;
+
+    // A compra para as plataformas de anúncio nasce com o pagamento: se a
+    // transação cair, o evento cai junto. Quem manda é o relógio.
+    await enfileirarCompra(tx, order.id, destinos);
 
     return { order: updated, numbers, prizes, indicadorId };
   });

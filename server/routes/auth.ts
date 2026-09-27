@@ -3,40 +3,56 @@ import passport from "passport";
 import { eq } from "drizzle-orm";
 import { db } from "../db";
 import { users, auditLog } from "@shared/schema";
-import { currentRole, hashPassword, verifyPassword, type SessionUser } from "../auth";
+import {
+  currentRole,
+  hashPassword,
+  verifyPassword,
+  type SessionUser,
+} from "../auth";
 import { senhaInvalida } from "@shared/senha";
 import { guardLogin, identify } from "../services/antifraude";
 import { sectionsFor, homeFor } from "@shared/access";
+import { getPlataforma } from "../services/settings";
 
 export const authRouter = Router();
 
 const LEMBRAR_MS = 30 * 24 * 60 * 60 * 1000;
 
 /** Quem sou eu e o que eu alcanço — o cliente monta o menu com isto. */
-authRouter.get("/me", (req, res) => {
-  const role = currentRole(req);
-  res.json({
-    role,
-    user: req.user ? { name: req.user.name, email: req.user.email } : null,
-    buyer: req.session.buyer?.phone
-      ? {
-          phone: req.session.buyer.phone,
-          name: req.session.buyer.name,
-          conta: Boolean(req.session.buyer.id),
-          confirmado: req.session.buyer.confirmado === true,
-        }
-      : null,
-    sections: sectionsFor(role),
-    home: homeFor(role),
-  });
+authRouter.get("/me", async (req, res, next) => {
+  try {
+    const role = currentRole(req);
+    const ligados = { marketing: (await getPlataforma()).marketingLigado };
+    res.json({
+      role,
+      user: req.user ? { name: req.user.name, email: req.user.email } : null,
+      buyer: req.session.buyer?.phone
+        ? {
+            phone: req.session.buyer.phone,
+            name: req.session.buyer.name,
+            conta: Boolean(req.session.buyer.id),
+            confirmado: req.session.buyer.confirmado === true,
+          }
+        : null,
+      sections: sectionsFor(role, ligados),
+      home: homeFor(role),
+    });
+  } catch (err) {
+    next(err);
+  }
 });
 
 /** Uma porta de entrada só: o papel no banco decide onde a pessoa cai. */
 authRouter.post("/login", async (req, res, next) => {
   // Força bruta é barrada antes de a senha ser sequer comparada.
-  const veredito = await guardLogin(String(req.body?.email ?? ""), identify(req));
+  const veredito = await guardLogin(
+    String(req.body?.email ?? ""),
+    identify(req),
+  );
   if (!veredito.allowed) {
-    return res.status(429).json({ message: veredito.reason, code: veredito.rule });
+    return res
+      .status(429)
+      .json({ message: veredito.reason, code: veredito.rule });
   }
 
   passport.authenticate(
@@ -54,8 +70,12 @@ authRouter.post("/login", async (req, res, next) => {
           code: info?.code,
         });
       }
-      req.logIn(user, (loginErr) => {
+      req.logIn(user, async (loginErr) => {
         if (loginErr) return next(loginErr);
+        const ligados = {
+          marketing:
+            (await getPlataforma().catch(() => null))?.marketingLigado === true,
+        };
         // "Lembrar de mim": a sessão dura 30 dias neste aparelho (renovando a
         // cada uso). Sem marcar, o cookie morre quando o navegador fecha —
         // é o certo em computador compartilhado. A senha nunca é guardada
@@ -68,7 +88,7 @@ authRouter.post("/login", async (req, res, next) => {
         res.json({
           role: user.role,
           user: { name: user.name, email: user.email },
-          sections: sectionsFor(user.role),
+          sections: sectionsFor(user.role, ligados),
           home: homeFor(user.role),
         });
       });
@@ -83,16 +103,22 @@ authRouter.post("/login", async (req, res, next) => {
  */
 authRouter.post("/senha", async (req, res, next) => {
   try {
-    if (!req.user) return res.status(401).json({ message: "Entre para continuar." });
+    if (!req.user)
+      return res.status(401).json({ message: "Entre para continuar." });
 
     const veredito = await guardLogin(req.user.email, identify(req));
     if (!veredito.allowed) {
-      return res.status(429).json({ message: veredito.reason, code: veredito.rule });
+      return res
+        .status(429)
+        .json({ message: veredito.reason, code: veredito.rule });
     }
 
     const atual = String(req.body?.atual ?? "");
     const nova = String(req.body?.nova ?? "");
-    const [user] = await db.select().from(users).where(eq(users.id, req.user.id));
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, req.user.id));
     if (!user || !(await verifyPassword(atual, user.passwordHash))) {
       return res.status(401).json({ message: "A senha atual não confere." });
     }

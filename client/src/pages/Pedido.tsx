@@ -6,6 +6,9 @@ import { Button, Card, Money, Pill } from "@/components/bits";
 import { formatQuota } from "@shared/format";
 import { apiRequest } from "@/lib/queryClient";
 import { printTicket } from "@/lib/pos";
+import { compraJaContada, definirOrganizacaoDaPagina } from "@/lib/marketing";
+import { useRastreio } from "@/components/Marketing";
+import { idDoEventoDeCompra } from "@shared/marketing";
 
 interface OrderView {
   code: number;
@@ -18,7 +21,8 @@ interface OrderView {
   numbers: number[];
   prizes: { number: number; label: string }[];
   pix: { qr: string | null; copyPaste: string | null };
-  campaign: { title: string; slug: string; totalQuotas: number };
+  campaign: { id: string; title: string; slug: string; totalQuotas: number };
+  organizacao: string | null;
   buyer: { name: string };
 }
 
@@ -49,6 +53,28 @@ export default function Pedido() {
   });
 
   const countdown = useCountdown(order?.status === "pending" ? order.expiresAt : null);
+
+  // Pixels da promotora nesta página; e a compra conta uma vez, com o mesmo
+  // id que o servidor manda — a plataforma de anúncio junta os dois.
+  const rastreio = useRastreio();
+  const dona = order?.organizacao ?? null;
+  useEffect(() => {
+    definirOrganizacaoDaPagina(dona);
+    return () => definirOrganizacaoDaPagina(null);
+  }, [dona]);
+  const pago = order?.status === "paid";
+  useEffect(() => {
+    if (!order || !pago || !rastreio.pronto || compraJaContada(order.code)) return;
+    rastreio({
+      tipo: "compra",
+      campanhaId: order.campaign.id,
+      titulo: order.campaign.title,
+      valorCents: order.amountCents,
+      quantidade: order.quantity,
+      idDoEvento: idDoEventoDeCompra(order.code),
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pago, rastreio.pronto]);
 
   if (!order) {
     return (

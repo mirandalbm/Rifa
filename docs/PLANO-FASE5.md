@@ -267,7 +267,7 @@ arquivos grandes demais para o banco.
 
 ---
 
-## 11. Marketing e tráfego pago
+## 11. Marketing e tráfego pago **[decidido — feito atrás de interruptor; liga depois da conta de anúncios]**
 
 - Pixels por organização e da plataforma (Meta, Google Ads/GA4, TikTok);
   compra contada pelo servidor na confirmação do pagamento; UTM; relatório
@@ -299,5 +299,5 @@ arquivos grandes demais para o banco.
 | ✓ | Indicação, bônus e metas (interruptor desligado até o advogado) | 8 | — |
 | ✓ | Disputa de reembolso no administrador geral | 2 | — |
 | ✓ | Rifas patrocinadas por clique (interruptor desligado até a conta da plataforma) | 5 | — |
-| 16 | Marketing e tráfego pago | 11 | conta de anúncios |
+| ✓ | Marketing e tráfego pago (interruptor desligado até a conta de anúncios) | 11 | — |
 | 17 | Login com Google | 1.1 | cliente OAuth |

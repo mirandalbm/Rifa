@@ -153,6 +153,7 @@ import {
   disputasAbertas,
 } from "../services/chamados";
 import { alterarMeta, criarMeta, painelDoBonus } from "../services/bonus";
+import { painelDoMarketing, salvarMarketing } from "../services/marketing";
 import {
   ajustarSaldo,
   comprarAnuncio,
@@ -2951,6 +2952,28 @@ adminRouter.post("/patrocinio/ajustes", async (req, res, next) => {
     const valorCents = Number(req.body?.valorCents);
     const r = await ajustarSaldo(req, organizationId, valorCents, String(req.body?.descricao ?? ""));
     await audit(req, "patrocinio.ajuste", "organization", organizationId, { valorCents, saldoCents: r.saldoCents });
+    res.json(r);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/* ---------------- marketing e tráfego pago (etapa 16) ---------------- */
+
+/** A mesma tela nos dois recortes; organizador com o interruptor desligado: 404. */
+adminRouter.get("/marketing", async (req, res, next) => {
+  try {
+    res.json(await painelDoMarketing(req, req.query.dias));
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** Pixels e chaves de quem está logado (plataforma: também o interruptor). As chaves nunca voltam. */
+adminRouter.put("/marketing", async (req, res, next) => {
+  try {
+    const r = await salvarMarketing(req, { ligado: req.body?.ligado, pixels: req.body?.pixels, credenciais: req.body?.credenciais });
+    await audit(req, "marketing.config", "marketing", orgOf(req) ?? "plataforma", { ligado: r.ligado, pixels: r.pixels, credenciais: r.credenciais });
     res.json(r);
   } catch (err) {
     next(err);

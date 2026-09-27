@@ -1,5 +1,6 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Link, useLocation, useParams } from "wouter";
+import { definirOrganizacaoDaPagina } from "@/lib/marketing";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { MoreVertical, Share2, MapPin, X, Copy, Check } from "lucide-react";
 import { PublicShell } from "@/components/AppShell";
@@ -72,6 +73,11 @@ const REDES: Rede[] = ["whatsapp", "telegram", "facebook", "instagram", "tiktok"
  */
 export default function PerfilPage() {
   const { org } = useParams<{ org: string }>();
+  // Os pixels da promotora valem no perfil dela (etapa 16).
+  useEffect(() => {
+    definirOrganizacaoDaPagina(org ?? null);
+    return () => definirOrganizacaoDaPagina(null);
+  }, [org]);
   const { data: p, isLoading, error } = useQuery<Perfil>({ queryKey: [`/api/public/o/${org}`] });
   const [menu, setMenu] = useState(false);
   const [painel, setPainel] = useState<"sobre" | "qr" | "compartilhar" | "colaborador" | null>(null);

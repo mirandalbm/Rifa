@@ -26,8 +26,11 @@ export type Raio = keyof typeof RAIOS;
 
 export const TIPOS_DE_BLOCO = {
   banners: "Banners da plataforma",
-  seguidos: "Stories dos perfis seguidos",
-  estados: "Estados com rifa no ar",
+  // Os dois viraram a mesma fileira de stories (todos os perfis com story,
+  // seguidos primeiro): ela aparece no lugar do primeiro dos dois que
+  // estiver ligado. Os estados seguem no seletor e em /estado/UF.
+  seguidos: "Stories (fileira do topo)",
+  estados: "Stories (no lugar dos estados)",
   regiao: "Seletor de estado",
   patrocinadas: "Rifas patrocinadas",
   rifas: "Rifas no ar (feed)",

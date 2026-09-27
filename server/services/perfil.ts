@@ -324,6 +324,51 @@ export async function perfisSeguidos(buyerId: string) {
   }));
 }
 
+/**
+ * A fileira de stories da vitrine, como a do Instagram: todo perfil com
+ * story no ar (organização não arquivada), quem a pessoa segue primeiro e,
+ * dentro de cada grupo, o story mais novo na frente. Quem já viu vai para o
+ * fim no aparelho (o "visto" fica lá, não aqui).
+ */
+export async function perfisComStory(buyerId: string | null) {
+  const seguindo = buyerId
+    ? sql<boolean>`exists (select 1 from ${seguidores} f
+         where f.organization_id = "organizations"."id" and f.buyer_id = ${buyerId}::uuid)`
+    : sql<boolean>`false`;
+  const linhas = await db
+    .select({
+      slug: organizations.slug,
+      nome: organizations.name,
+      foto: organizacaoFotos.updatedAt,
+      ultimoStory: ultimoStorySql,
+      seguindo,
+    })
+    .from(organizations)
+    .leftJoin(organizacaoFotos, eq(organizacaoFotos.organizationId, organizations.id))
+    .where(
+      and(
+        isNull(organizations.archivedAt),
+        sql`exists (select 1 from ${stories} s
+             where s.organization_id = "organizations"."id" and s.expira_em > now())`,
+      ),
+    )
+    .limit(60);
+  return linhas
+    .filter((l) => l.ultimoStory)
+    .sort(
+      (a, b) =>
+        Number(b.seguindo) - Number(a.seguindo) ||
+        (b.ultimoStory?.getTime() ?? 0) - (a.ultimoStory?.getTime() ?? 0),
+    )
+    .map((l) => ({
+      slug: l.slug,
+      nome: l.nome,
+      foto: urlDaFoto(l.slug, l.foto),
+      ultimoStory: l.ultimoStory,
+      seguindo: Boolean(l.seguindo),
+    }));
+}
+
 /* ------------------------------------------------------------------ *
  * Foto e bio (painel)
  * ------------------------------------------------------------------ */

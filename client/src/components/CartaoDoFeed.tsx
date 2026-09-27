@@ -40,37 +40,17 @@ export function CartaoDoFeed({ rifa: c, origem = "vitrine" }: { rifa: RifaDoFeed
 
   return (
     <article className="overflow-hidden rounded-xl border border-line bg-white">
-      {c.organizacao ? (
-        <Link href={`/o/${c.organizacao.slug}`} className="flex items-center gap-2 px-3 py-2">
-          <FotoDoPerfil nome={c.organizacao.nome} foto={c.organizacao.foto} tamanho={34} />
-          <span className="min-w-0 flex-1">
-            <span className="block truncate text-sm font-semibold">{c.organizacao.nome}</span>
-            {c.organizacao.local ? (
-              <span className="flex items-center gap-1 truncate text-[11px] text-muted">
-                <MapPin size={11} aria-hidden className="shrink-0" />
-                {c.organizacao.local}
-              </span>
-            ) : null}
-          </span>
-          {c.perto === 0 || c.perto === 1 ? (
-            <span className="shrink-0 rounded-full bg-mist-2 px-2 py-[1px] font-mono text-[10px] text-ink">
-              {PERTO[c.perto]}
-            </span>
-          ) : null}
-        </Link>
-      ) : null}
-
-      <Link href={href} onClick={() => marcarOrigem(origem)} className="block">
-        <div
-          className="relative aspect-[4/5] overflow-hidden bg-mist-2"
-          style={
-            c.banner
-              ? c.bannerLqip
-                ? { backgroundImage: `url(${c.bannerLqip})`, backgroundSize: "cover" }
-                : undefined
-              : { background: "linear-gradient(145deg,#0B1F14,#0d3a22 60%,#00873E)" }
-          }
-        >
+      <div
+        className="relative aspect-[4/5] overflow-hidden bg-mist-2"
+        style={
+          c.banner
+            ? c.bannerLqip
+              ? { backgroundImage: `url(${c.bannerLqip})`, backgroundSize: "cover" }
+              : undefined
+            : { background: "linear-gradient(145deg,#0B1F14,#0d3a22 60%,#00873E)" }
+        }
+      >
+        <Link href={href} onClick={() => marcarOrigem(origem)} className="absolute inset-0 block" aria-label={c.prizeTitle}>
           {c.banner ? (
             <img
               src={c.banner}
@@ -85,15 +65,45 @@ export function CartaoDoFeed({ rifa: c, origem = "vitrine" }: { rifa: RifaDoFeed
               {c.prizeTitle}
             </span>
           )}
-          <span
-            className={`absolute right-2 top-2 rounded px-2 py-[2px] font-mono text-[10px] ${
-              retaFinal ? "bg-yellow text-on-yellow" : "bg-branco text-[#0b1f14]"
-            }`}
+        </Link>
+        {/* Perfil por cima da imagem, como no Instagram: sombra no topo para
+            o texto branco ler sobre qualquer foto. O link do perfil é irmão
+            do da rifa (link dentro de link não vale). */}
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 top-0 h-24"
+          style={{ background: "linear-gradient(to bottom, rgba(0,0,0,.55), rgba(0,0,0,0))" }}
+        />
+        {c.organizacao ? (
+          <Link
+            href={`/o/${c.organizacao.slug}`}
+            className="absolute left-2 top-2 flex max-w-[70%] items-center gap-2 rounded-full pr-2 text-branco"
           >
-            {retaFinal ? "reta final" : `${pct}% vendida`}
-          </span>
-        </div>
+            <span className="rounded-full ring-2 ring-white/80">
+              <FotoDoPerfil nome={c.organizacao.nome} foto={c.organizacao.foto} tamanho={34} />
+            </span>
+            <span className="min-w-0" style={{ textShadow: "0 1px 2px rgba(0,0,0,.6)" }}>
+              <span className="block truncate text-sm font-semibold">{c.organizacao.nome}</span>
+              {c.organizacao.local ? (
+                <span className="flex items-center gap-1 truncate text-[11px] opacity-90">
+                  <MapPin size={11} aria-hidden className="shrink-0" />
+                  {c.organizacao.local}
+                  {c.perto === 0 || c.perto === 1 ? <span className="truncate"> · {PERTO[c.perto]}</span> : null}
+                </span>
+              ) : null}
+            </span>
+          </Link>
+        ) : null}
+        <span
+          className={`pointer-events-none absolute right-2 top-2 rounded px-2 py-[2px] font-mono text-[10px] ${
+            retaFinal ? "bg-yellow text-on-yellow" : "bg-branco text-[#0b1f14]"
+          }`}
+        >
+          {retaFinal ? "reta final" : `${pct}% vendida`}
+        </span>
+      </div>
 
+      <Link href={href} onClick={() => marcarOrigem(origem)} className="block">
         <div className="space-y-2 p-3">
           <h3 className="font-display text-base font-extrabold leading-tight">{c.prizeTitle}</h3>
           {c.demonstracao ? (

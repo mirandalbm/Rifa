@@ -9,6 +9,7 @@ import { separarCidadesAntigas } from "../services/orgs";
 import { avisarSorteiosChegando } from "../services/push";
 import { completarRegioesPendentes } from "../services/contaComprador";
 import { apagarStoriesVencidos } from "../services/vitrine";
+import { apagarNotificacoesAntigas } from "../services/notificacoes";
 import { encerrarAnunciosForaDoAr } from "../services/patrocinio";
 import { enviarEventosPendentes } from "../services/marketing";
 import { migrarAfiliadosAntigos } from "../services/afiliados";
@@ -44,6 +45,7 @@ const LOCK_LEMBRETE = 811_003;
 const LOCK_LIMPEZA = 811_004;
 const LOCK_STORIES = 811_010;
 const LOCK_AFILIADOS = 811_011;
+const LOCK_NOTIFICACOES = 811_012;
 const LOCK_MENSALIDADE = 811_005;
 const LOCK_CODIGOS = 811_006;
 const LOCK_CIDADES = 811_007;
@@ -231,6 +233,18 @@ export function startJobs() {
       console.error("[jobs] stories vencidos:", err);
     }
   }, releaseMs).unref();
+
+  // Central de avisos: o que passou de 90 dias sai (a tabela não cresce sem fim).
+  setInterval(async () => {
+    try {
+      await withLock(LOCK_NOTIFICACOES, async () => {
+        const n = await apagarNotificacoesAntigas();
+        if (n > 0) log(`${n} aviso(s) antigo(s) apagado(s) da central`, "jobs");
+      });
+    } catch (err) {
+      console.error("[jobs] central de avisos:", err);
+    }
+  }, 60 * 60_000).unref();
 
   // Anúncio patrocinado de rifa que saiu do ar: encerra e devolve ao saldo
   // o que não foi gasto (condicional: duas réplicas, um reembolso).

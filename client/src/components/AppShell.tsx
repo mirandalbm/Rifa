@@ -10,6 +10,7 @@ import {
   Circle,
   Download,
   HandCoins,
+  Heart,
   KeyRound,
   Landmark,
   LayoutDashboard,
@@ -132,6 +133,32 @@ function MenuDoApostador({ nome }: { nome: string }) {
 }
 
 /** Cabeçalho público: vitrine, rifa, pedido, minhas cotas. */
+/**
+ * O coração no topo, como no Instagram: leva à central de avisos. O número
+ * diz quantos avisos novos (até 99+) — está no rótulo também, nunca só a cor.
+ */
+function CoracaoDeAvisos() {
+  const { data } = useQuery<{ naoLidas: number }>({
+    queryKey: ["/api/public/notificacoes/resumo"],
+    refetchInterval: 60_000,
+  });
+  const n = data?.naoLidas ?? 0;
+  return (
+    <Link
+      href="/notificacoes"
+      className="relative rounded-md p-1 text-ink hover:bg-mist"
+      aria-label={n ? `Avisos: ${n > 99 ? "mais de 99" : n} novo(s)` : "Avisos"}
+    >
+      <Heart size={24} aria-hidden strokeWidth={2} />
+      {n ? (
+        <span className="tnum absolute -right-1 -top-1 min-w-[18px] rounded-full border-2 border-white bg-marca px-1 text-center text-[10px] font-bold leading-[14px] text-white">
+          {n > 99 ? "99+" : n}
+        </span>
+      ) : null}
+    </Link>
+  );
+}
+
 export function PublicShell({ children }: { children: ReactNode }) {
   const { data: session } = useSession();
 
@@ -143,6 +170,7 @@ export function PublicShell({ children }: { children: ReactNode }) {
             <Marca />
           </Link>
           <nav className="flex items-center gap-3 text-sm">
+            {session?.buyer ? <CoracaoDeAvisos /> : null}
             {session?.buyer?.conta ? null : (
               <Link href="/minhas-cotas" className="text-ink-2 hover:text-green-deep">
                 Minhas cotas

@@ -102,6 +102,23 @@ async function main() {
     r = await ana.req("POST", caminho, { texto: "me chama 11 98765-4321" });
     checa("telefone: 400", r.status === 400, r.json?.message);
 
+    console.log("\n  apelido e perfil:");
+    r = await ana.req("POST", caminho, { texto: "Oi!" });
+    checa("sem apelido não comenta (409)", r.status === 409, `HTTP ${r.status} ${r.json?.message ?? ""}`);
+    r = await ana.req("PUT", "/api/public/conta/perfil", { apelido: "11987654321" });
+    checa("apelido que é telefone: 400", r.status === 400, r.json?.message);
+    r = await ana.req("PUT", "/api/public/conta/perfil", { apelido: "admin" });
+    checa("apelido reservado: 400", r.status === 400, r.json?.message);
+    r = await ana.req("PUT", "/api/public/conta/perfil", { apelido: "@Ana.Comenta" });
+    checa("apelido salvo em minúsculas, sem @", r.status === 200 && r.json?.apelido === "ana.comenta", JSON.stringify(r.json));
+    r = await bruno.req("PUT", "/api/public/conta/perfil", { apelido: "ana.comenta" });
+    checa("apelido de outra pessoa: 409", r.status === 409, `HTTP ${r.status}`);
+    r = await bruno.req("PUT", "/api/public/conta/perfil", { apelido: "bruno_comenta" });
+    r = await anon.req("GET", "/api/public/u/ana.comenta");
+    checa("o perfil público mostra apelido e primeiro e último nome, sem telefone",
+      r.status === 200 && r.json?.nomeReal === "Ana Comenta" && !JSON.stringify(r.json).includes(PESSOAS[0].telefone),
+      JSON.stringify(r.json));
+
     console.log("\n  conversa:");
     r = await ana.req("POST", caminho, { texto: "Quando   é o sorteio?\n\n\n\nQuero participar!" });
     const pergunta = r.json?.id as string;
@@ -117,8 +134,9 @@ async function main() {
     const topo = r.json?.lista?.[0];
     checa("a lista traz a pergunta com as duas respostas, na ordem",
       topo?.id === pergunta && topo?.respostas?.length === 2 && topo.respostas[0].autor === "organizacao");
-    checa("texto limpo e o nome pelo primeiro nome e a inicial",
-      topo?.texto === "Quando é o sorteio?\n\nQuero participar!" && topo?.nome === "Ana P.", `${topo?.nome}`);
+    checa("texto limpo, com o apelido e o link do perfil",
+      topo?.texto === "Quando é o sorteio?\n\nQuero participar!" && topo?.nome === "ana.comenta" && topo?.perfil === "/u/ana.comenta",
+      `${topo?.nome}`);
     checa("a organização aparece com o nome dela", topo?.respostas?.[0]?.nome === "Rifas São José", topo?.respostas?.[0]?.nome);
     checa("telefone de quem comenta nunca sai", !JSON.stringify(r.json).includes(PESSOAS[0].telefone));
     checa("o contador anda junto (3), sem COUNT(*)", (await contador()) === 3, String(await contador()));
@@ -131,19 +149,43 @@ async function main() {
     checa("a resposta da organização chega na central da Ana",
       avisos.some((a) => a.tipo === "comentario" && a.url.endsWith("#comentarios")), String(avisos.length));
 
+    console.log("\n  curtidas:");
+    const toques = await Promise.all([1, 2, 3].map(() => bruno.req("PUT", `/api/public/comentarios/${pergunta}/curtida`, { curtir: true })));
+    const [curt] = await db.select({ n: comentarios.curtidas }).from(comentarios).where(eq(comentarios.id, pergunta));
+    checa("três toques simultâneos: uma curtida", toques.every((t) => t.status === 200) && curt.n === 1, String(curt.n));
+    r = await bruno.req("GET", caminho);
+    checa("quem curtiu vê o coração marcado", r.json?.lista?.[0]?.curti === true && r.json?.lista?.[0]?.curtidas === 1);
+    r = await bruno.req("PUT", `/api/public/comentarios/${pergunta}/curtida`, { curtir: false });
+    checa("descurtir volta a zero", r.status === 200 && r.json?.curtidas === 0, JSON.stringify(r.json));
+    r = await anon.req("PUT", `/api/public/comentarios/${pergunta}/curtida`, { curtir: true });
+    checa("sem conta não curte (401)", r.status === 401, `HTTP ${r.status}`);
+
     console.log("\n  moderação:");
     r = await bruno.req("DELETE", `/api/public/comentarios/${pergunta}`);
     checa("apostador não apaga comentário de outro (404)", r.status === 404, `HTTP ${r.status}`);
     r = await ana.req("GET", caminho);
     checa("a dona do comentário vê o botão de apagar; o Bruno não",
       r.json?.lista?.[0]?.podeApagar === true && (await bruno.req("GET", caminho)).json?.lista?.[0]?.podeApagar === false);
-    const [p1, p2] = await Promise.all([
-      marina.req("DELETE", `/api/public/comentarios/${pergunta}`),
-      marina.req("DELETE", `/api/public/comentarios/${pergunta}`),
-    ]);
-    checa("a organização apaga (e as respostas vão junto); dois cliques, um desconto",
-      [p1.status, p2.status].sort().join(",") === "200,404" && (await contador()) === 0,
-      `${p1.status},${p2.status} · contador ${await contador()}`);
+    r = await marina.req("DELETE", `/api/public/comentarios/${pergunta}`, { motivo: "curto" });
+    checa("pedir remoção sem motivo de verdade: 400", r.status === 400, `HTTP ${r.status}`);
+    r = await marina.req("DELETE", `/api/public/comentarios/${pergunta}`, { motivo: "Comentário ofensivo contra a equipe" });
+    const pedido = r.json?.solicitacaoId as string;
+    checa("a organização não apaga comentário de apostador: vira pedido (202)",
+      r.status === 202 && /^RS-/.test(r.json?.protocolo ?? "") && (await contador()) === 3, `HTTP ${r.status} · contador ${await contador()}`);
+    r = await marina.req("DELETE", `/api/public/comentarios/${pergunta}`, { motivo: "Comentário ofensivo contra a equipe" });
+    checa("um pedido de remoção por comentário (409)", r.status === 409, `HTTP ${r.status}`);
+    r = await marina.req("GET", caminho);
+    checa("a organização vê a remoção em análise", r.json?.lista?.[0]?.remocaoEmAnalise === true);
+    r = await marina.req("POST", `/api/admin/solicitacoes/${pedido}/decidir`, { aprovar: true });
+    checa("só a plataforma decide (403)", r.status === 403, `HTTP ${r.status}`);
+    r = await admin.req("GET", `/api/admin/solicitacoes/${pedido}`);
+    checa("quem analisa lê o comentário e o autor", r.json?.comentario?.autor === "ana.comenta" && r.json?.comentario?.texto?.startsWith("Quando"));
+    r = await admin.req("POST", `/api/admin/solicitacoes/${pedido}/decidir`, { aprovar: true, resposta: "Removido." });
+    checa("aprovado: o comentário e as respostas saem, e o contador desconta",
+      r.status === 200 && (await contador()) === 0, `HTTP ${r.status} ${r.json?.message ?? ""} · contador ${await contador()}`);
+    r = await marina.req("POST", caminho, { texto: "Aviso da organização" });
+    r = await marina.req("DELETE", `/api/public/comentarios/${r.json?.id}`);
+    checa("a organização apaga na hora o que ela mesma escreveu", r.status === 200 && (await contador()) === 0, `HTTP ${r.status}`);
     r = await bruno.req("POST", caminho, { texto: "Comentário do Bruno" });
     const doBruno = r.json?.id as string;
     r = await admin.req("DELETE", `/api/public/comentarios/${doBruno}`);

@@ -7,8 +7,10 @@
  * 1. **Nada muda na rifa até a aprovação.** O pedido guarda o antes e o
  *    depois; aprovar aplica exatamente aquilo, numa transação com o pedido
  *    travado — dois cliques, uma decisão.
- * 2. **Um em análise por rifa e tipo** — quem decide é o índice parcial
- *    `uq_solicitacao_em_analise`, não um `SELECT` antes.
+ * 2. **Um em análise por rifa e tipo** (e, na remoção de comentário, por
+ *    comentário) — quem decide são os índices parciais
+ *    `uq_solicitacao_rifa_em_analise` e `uq_solicitacao_comentario_em_analise`,
+ *    não um `SELECT` antes.
  * 3. **Recorte por organização** em toda leitura, e 404 para o pedido do
  *    vizinho. Decidir é só da plataforma (403).
  * 4. **Adiar mexe no relógio da comissão.** A comissão que esperava o
@@ -16,7 +18,7 @@
  *    sorteio que ela devia esperar.
  */
 import { randomInt } from "node:crypto";
-import { and, asc, desc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, isNull, sql } from "drizzle-orm";
 import type { Request } from "express";
 import { db } from "../db";
 import {
@@ -24,6 +26,8 @@ import {
   campaignStats,
   campanhaSolicitacaoMensagens,
   campanhaSolicitacoes,
+  buyers,
+  comentarios,
   draws,
   organizations,
   type Campaign,
@@ -31,6 +35,7 @@ import {
 import {
   CAMPOS_EDITAVEIS,
   MOTIVO_MAX,
+  MOTIVO_MIN,
   problemaNoAdiamento,
   protocoloDaSolicitacao,
   validarEdicao,
@@ -41,6 +46,8 @@ import {
   type ValorEditavel,
 } from "@shared/solicitacoes";
 import { isUniqueViolation } from "../pgError";
+import { nomeRealPublico } from "@shared/perfilApostador";
+import { removerNaTransacao } from "./comentarios";
 import { orgOf } from "./orgs";
 import { avisarAdiamento, emSegundoPlano } from "./push";
 
@@ -102,8 +109,14 @@ async function vendidas(campaignId: string) {
 /** Grava o pedido. O protocolo e o "um em análise" são decididos pelos índices. */
 async function registrar(
   req: Request,
-  c: Campaign,
-  dados: { tipo: TipoSolicitacao; alteracoes?: Alteracoes; drawAtNovo?: Date; motivo: string | null },
+  c: Pick<Campaign, "id" | "organizationId" | "drawAt">,
+  dados: {
+    tipo: TipoSolicitacao;
+    alteracoes?: Alteracoes;
+    drawAtNovo?: Date;
+    comentarioId?: string;
+    motivo: string | null;
+  },
 ) {
   for (let tentativa = 0; tentativa < 5; tentativa++) {
     try {
@@ -118,6 +131,7 @@ async function registrar(
             alteracoes: dados.alteracoes ?? null,
             drawAtAtual: dados.tipo === "adiamento" ? c.drawAt : null,
             drawAtNovo: dados.drawAtNovo ?? null,
+            comentarioId: dados.comentarioId ?? null,
             motivo: dados.motivo,
             criadoPor: req.user!.id,
           })
@@ -133,7 +147,10 @@ async function registrar(
         return s;
       });
     } catch (err) {
-      if (isUniqueViolation(err, "uq_solicitacao_em_analise")) {
+      if (isUniqueViolation(err, "uq_solicitacao_comentario_em_analise")) {
+        throw new SolicitacaoError("A remoção deste comentário já está em análise.", 409);
+      }
+      if (isUniqueViolation(err, "uq_solicitacao_rifa_em_analise")) {
         throw new SolicitacaoError(
           dados.tipo === "edicao"
             ? "Já existe uma edição desta rifa em análise. Espere a resposta ou cancele o pedido."
@@ -173,6 +190,31 @@ export async function pedirAdiamento(req: Request, c: Campaign, entrada: { novaD
   });
   if (problema) throw new SolicitacaoError(problema);
   return registrar(req, c, { tipo: "adiamento", drawAtNovo: novaData!, motivo: motivo.trim() });
+}
+
+/**
+ * A organização pede para tirar um comentário da rifa dela. O comentário
+ * continua no ar até a plataforma decidir: pode ser justamente a denúncia
+ * contra quem pede.
+ */
+export async function pedirRemocaoDeComentario(
+  req: Request,
+  dados: { campaignId: string; comentarioId: string; motivo: unknown },
+) {
+  const motivo = String(dados.motivo ?? "").trim();
+  if (motivo.length < MOTIVO_MIN) {
+    throw new SolicitacaoError("Explique por que o comentário deve sair (pelo menos 10 caracteres).", 400);
+  }
+  const [c] = await db
+    .select({ id: campaigns.id, organizationId: campaigns.organizationId, drawAt: campaigns.drawAt })
+    .from(campaigns)
+    .where(eq(campaigns.id, dados.campaignId));
+  if (!c) throw new SolicitacaoError("Rifa não encontrada.", 404);
+  return registrar(req, c, {
+    tipo: "remover_comentario",
+    comentarioId: dados.comentarioId,
+    motivo: motivo.slice(0, MOTIVO_MAX),
+  });
 }
 
 /** A lista do Atendimento, no recorte de quem olha. */
@@ -237,7 +279,31 @@ export async function detalheDaSolicitacao(req: Request, id: string) {
     .from(campanhaSolicitacaoMensagens)
     .where(eq(campanhaSolicitacaoMensagens.solicitacaoId, s.id))
     .orderBy(asc(campanhaSolicitacaoMensagens.createdAt));
+  // Remoção de comentário: quem analisa lê o comentário inteiro, com o autor.
+  const [comentario] = s.comentarioId
+    ? await db
+        .select({
+          texto: comentarios.texto,
+          autor: comentarios.autor,
+          createdAt: comentarios.createdAt,
+          removidoEm: comentarios.removidoEm,
+          apelido: buyers.apelido,
+          nome: buyers.name,
+        })
+        .from(comentarios)
+        .leftJoin(buyers, eq(buyers.id, comentarios.buyerId))
+        .where(eq(comentarios.id, s.comentarioId))
+    : [];
   return {
+    comentario: comentario
+      ? {
+          texto: comentario.texto,
+          autor: comentario.apelido ?? nomeRealPublico(comentario.nome),
+          nomeReal: nomeRealPublico(comentario.nome),
+          createdAt: comentario.createdAt,
+          removido: Boolean(comentario.removidoEm),
+        }
+      : null,
     solicitacao: {
       id: s.id,
       protocolo: s.protocolo,
@@ -327,7 +393,15 @@ export async function decidirSolicitacao(
       throw new SolicitacaoError("Este pedido já foi decidido.", 409);
     }
 
-    if (aprovar) {
+    if (aprovar && s.tipo === "remover_comentario") {
+      // Comentário não depende do estado da rifa: sai e desconta o contador.
+      // Se quem escreveu já o apagou, não há o que tirar — a decisão fica.
+      const [ainda] = await tx
+        .select({ id: comentarios.id })
+        .from(comentarios)
+        .where(and(eq(comentarios.id, s.comentarioId!), isNull(comentarios.removidoEm)));
+      if (ainda) await removerNaTransacao(tx, s.comentarioId!, req.user!.id);
+    } else if (aprovar) {
       const [c] = await tx.select().from(campaigns).where(eq(campaigns.id, s.campaignId)).for("update");
       const [d] = await tx.select({ executedAt: draws.executedAt }).from(draws).where(eq(draws.campaignId, c.id));
       if (c.status !== "published" || d?.executedAt) {

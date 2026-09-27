@@ -1,5 +1,6 @@
 import { conferirRecibo } from "../services/recibos";
-import { apagarComentario, comentar, listarComentarios } from "../services/comentarios";
+import { fotoDoApostador, meuPerfilPublico, perfilPublicoDoApostador, salvarPerfilPublico } from "../services/perfilApostador";
+import { apagarComentario, comentar, curtirComentario, listarComentarios } from "../services/comentarios";
 import { marcarTodasLidas, naoLidas, notificacoesDe } from "../services/notificacoes";
 import { aderir, pedirColaboracao, termoPublico } from "../services/afiliados";
 import { fotoDoGanhador, urlDaFotoDoGanhador } from "../services/ganhador";
@@ -423,9 +424,64 @@ publicRouter.post("/campaigns/:slug/comentarios", async (req, res, next) => {
   }
 });
 
+/**
+ * Apagar: quem escreveu e a plataforma apagam na hora; a organização dona
+ * pede (202) e a plataforma decide — comentário pode ser denúncia contra ela.
+ */
 publicRouter.delete("/comentarios/:id", async (req, res, next) => {
   try {
-    res.json(await apagarComentario(req, req.params.id));
+    const r = await apagarComentario(req, req.params.id, req.body?.motivo);
+    res.status("protocolo" in r ? 202 : 200).json(r);
+  } catch (err) {
+    next(err);
+  }
+});
+
+publicRouter.put("/comentarios/:id/curtida", async (req, res, next) => {
+  try {
+    res.json(await curtirComentario(req, req.params.id, req.body?.curtir === true));
+  } catch (err) {
+    next(err);
+  }
+});
+
+/* ---------------- perfil do apostador (/u/<apelido>) ---------------- */
+
+publicRouter.get("/conta/perfil", async (req, res, next) => {
+  try {
+    const id = req.session.buyer?.id;
+    if (!id) return res.status(401).json({ message: "Entre na sua conta." });
+    res.json(await meuPerfilPublico(id));
+  } catch (err) {
+    next(err);
+  }
+});
+
+publicRouter.put("/conta/perfil", async (req, res, next) => {
+  try {
+    const id = req.session.buyer?.id;
+    if (!id) return res.status(401).json({ message: "Entre na sua conta." });
+    res.json(await salvarPerfilPublico(id, { apelido: req.body?.apelido, foto: req.body?.foto }));
+  } catch (err) {
+    next(err);
+  }
+});
+
+publicRouter.get("/u/:apelido", async (req, res, next) => {
+  try {
+    res.json(await perfilPublicoDoApostador(req.params.apelido));
+  } catch (err) {
+    next(err);
+  }
+});
+
+publicRouter.get("/u/:apelido/foto", async (req, res, next) => {
+  try {
+    const f = await fotoDoApostador(req.params.apelido);
+    if (!f) return res.status(404).json({ message: "Sem foto." });
+    // O endereço leva a data (`?v=`): muda a foto, muda o endereço.
+    res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+    res.type(f.mime).send(f.bytes);
   } catch (err) {
     next(err);
   }

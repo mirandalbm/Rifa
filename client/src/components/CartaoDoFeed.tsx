@@ -1,6 +1,8 @@
+import { useState } from "react";
 import { Link } from "wouter";
 import { MapPin, MessageCircle, ShieldCheck } from "lucide-react";
 import { FotoDoPerfil } from "@/components/Seguir";
+import { PainelDeComentarios } from "@/components/Comentarios";
 import { Money, Progress } from "@/components/bits";
 import { marcarOrigem } from "@/lib/origem";
 import type { Origem } from "@shared/resultados";
@@ -39,6 +41,8 @@ export function CartaoDoFeed({ rifa: c, origem = "vitrine" }: { rifa: RifaDoFeed
   const pct = percent(c.soldCount, c.totalQuotas);
   const retaFinal = pct >= 85;
   const href = c.organizacao ? `/o/${c.organizacao.slug}/r/${c.slug}` : `/r/${c.slug}`;
+  // Comentários sobem por cima do feed, como no Instagram — sem sair da vitrine.
+  const [comentando, setComentando] = useState(false);
 
   return (
     <article className="overflow-hidden rounded-xl border border-line bg-white">
@@ -132,10 +136,10 @@ export function CartaoDoFeed({ rifa: c, origem = "vitrine" }: { rifa: RifaDoFeed
           </p>
         </div>
       </Link>
-      <Link
-        href={`${href}#comentarios`}
-        onClick={() => marcarOrigem(origem)}
-        className="flex items-center gap-1.5 border-t border-line px-3 py-2 text-xs text-ink-2 hover:bg-mist"
+      <button
+        type="button"
+        onClick={() => setComentando(true)}
+        className="flex w-full items-center gap-1.5 border-t border-line px-3 py-2 text-left text-xs text-ink-2 hover:bg-mist"
       >
         <MessageCircle size={16} aria-hidden />
         {c.comentarios ? (
@@ -145,7 +149,8 @@ export function CartaoDoFeed({ rifa: c, origem = "vitrine" }: { rifa: RifaDoFeed
         ) : (
           <span>Comentar</span>
         )}
-      </Link>
+      </button>
+      {comentando ? <PainelDeComentarios slug={c.slug} onFechar={() => setComentando(false)} /> : null}
     </article>
   );
 }

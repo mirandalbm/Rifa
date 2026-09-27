@@ -12,7 +12,15 @@
 import type { Request } from "express";
 import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { db } from "../db";
-import { buyers, campaigns, comentarios, organizations } from "@shared/schema";
+import {
+  buyers,
+  campaigns,
+  campanhaSolicitacoes,
+  comentarioCurtidas,
+  comentarios,
+  organizacaoFotos,
+  organizations,
+} from "@shared/schema";
 import {
   COMENTARIOS_POR_JANELA,
   JANELA_DE_COMENTARIOS_MIN,
@@ -23,6 +31,9 @@ import {
 import { mensagemRespostaAoComentario } from "@shared/push";
 import { hit } from "./antifraude";
 import { avisar, emSegundoPlano } from "./push";
+import { urlDaFoto } from "./perfil";
+import { urlDaFotoDoApostador } from "./perfilApostador";
+import { pedirRemocaoDeComentario } from "./solicitacoes";
 
 export class ComentarioError extends Error {
   constructor(message: string, readonly status = 400) {
@@ -42,9 +53,11 @@ async function rifaPublica(slug: string) {
       organizationId: campaigns.organizationId,
       orgNome: organizations.name,
       orgSlug: organizations.slug,
+      orgFotoEm: organizacaoFotos.updatedAt,
     })
     .from(campaigns)
     .innerJoin(organizations, eq(organizations.id, campaigns.organizationId))
+    .leftJoin(organizacaoFotos, eq(organizacaoFotos.organizationId, organizations.id))
     .where(and(eq(campaigns.slug, slug), isNull(organizations.archivedAt)));
   if (!r || r.status === "draft") throw new ComentarioError("Rifa não encontrada.", 404);
   return r;
@@ -57,6 +70,7 @@ function ehDaOrganizacao(req: Request, orgId: string) {
 
 export async function listarComentarios(req: Request, slug: string) {
   const rifa = await rifaPublica(slug);
+  const meuBuyer = req.session.buyer?.id ?? null;
   const linhas = await db
     .select({
       id: comentarios.id,
@@ -64,8 +78,15 @@ export async function listarComentarios(req: Request, slug: string) {
       autor: comentarios.autor,
       buyerId: comentarios.buyerId,
       texto: comentarios.texto,
+      curtidas: comentarios.curtidas,
       createdAt: comentarios.createdAt,
       nomeComprador: buyers.name,
+      apelido: buyers.apelido,
+      fotoEm: buyers.fotoEm,
+      curti: meuBuyer
+        ? sql<boolean>`exists (select 1 from ${comentarioCurtidas} cc
+             where cc.comentario_id = "comentarios"."id" and cc.buyer_id = ${meuBuyer}::uuid)`
+        : sql<boolean>`false`,
     })
     .from(comentarios)
     .leftJoin(buyers, eq(buyers.id, comentarios.buyerId))
@@ -75,30 +96,98 @@ export async function listarComentarios(req: Request, slug: string) {
     // Os mais recentes entram no limite; a conversa volta à ordem do tempo.
     .then((r) => r.reverse());
 
-  const moderador = ehDaOrganizacao(req, rifa.organizationId) || req.user?.role === "admin";
-  const meuBuyer = req.session.buyer?.id ?? null;
-  const publico = (l: (typeof linhas)[number]) => ({
-    id: l.id,
-    autor: l.autor as "comprador" | "organizacao",
-    nome: l.autor === "organizacao" ? rifa.orgNome : nomeNoComentario(l.nomeComprador),
-    texto: l.texto,
-    createdAt: l.createdAt,
-    meu: Boolean(meuBuyer && l.buyerId === meuBuyer && l.autor === "comprador"),
-    podeApagar: moderador || Boolean(meuBuyer && l.buyerId === meuBuyer && l.autor === "comprador"),
-  });
+  const daOrganizacao = ehDaOrganizacao(req, rifa.organizationId);
+  const plataforma = req.user?.role === "admin";
+  // A organização vê quais remoções ela já pediu (e esperam a plataforma).
+  const emAnalise = new Set(
+    daOrganizacao || plataforma
+      ? (
+          await db
+            .select({ id: campanhaSolicitacoes.comentarioId })
+            .from(campanhaSolicitacoes)
+            .where(
+              and(
+                eq(campanhaSolicitacoes.campaignId, rifa.id),
+                eq(campanhaSolicitacoes.tipo, "remover_comentario"),
+                eq(campanhaSolicitacoes.status, "em_analise"),
+              ),
+            )
+        ).map((r) => r.id)
+      : [],
+  );
+  const publico = (l: (typeof linhas)[number]) => {
+    const org = l.autor === "organizacao";
+    const meu = Boolean(meuBuyer && l.buyerId === meuBuyer && !org);
+    return {
+      id: l.id,
+      autor: l.autor as "comprador" | "organizacao",
+      // Apelido, como o nome de usuário do Instagram; quem comentou antes de
+      // o apelido existir aparece pelo primeiro nome e a inicial.
+      nome: org ? rifa.orgNome : (l.apelido ?? nomeNoComentario(l.nomeComprador)),
+      perfil: org ? `/o/${rifa.orgSlug}` : l.apelido ? `/u/${l.apelido}` : null,
+      foto: org ? urlDaFoto(rifa.orgSlug, rifa.orgFotoEm) : urlDaFotoDoApostador(l.apelido, l.fotoEm),
+      texto: l.texto,
+      curtidas: l.curtidas,
+      curti: Boolean(l.curti),
+      createdAt: l.createdAt,
+      meu,
+      // Quem escreveu e a plataforma apagam; a organização pede a remoção.
+      podeApagar: meu || plataforma,
+      podePedirRemocao: daOrganizacao && !org && !emAnalise.has(l.id),
+      remocaoEmAnalise: emAnalise.has(l.id),
+    };
+  };
   const topo = linhas.filter((l) => !l.parentId);
   const respostas = new Map<string, ReturnType<typeof publico>[]>();
   for (const l of linhas) {
     if (l.parentId) respostas.set(l.parentId, [...(respostas.get(l.parentId) ?? []), publico(l)]);
   }
+  const eu = meuBuyer
+    ? (await db.select({ apelido: buyers.apelido }).from(buyers).where(eq(buyers.id, meuBuyer)))[0]
+    : null;
   return {
     organizacao: { nome: rifa.orgNome, slug: rifa.orgSlug },
     // Quem pode escrever: apostador com conta, ou a organização dona.
-    podeComentar: Boolean(meuBuyer) || ehDaOrganizacao(req, rifa.organizationId),
-    comoOrganizacao: ehDaOrganizacao(req, rifa.organizationId),
+    podeComentar: Boolean(meuBuyer) || daOrganizacao,
+    comoOrganizacao: daOrganizacao,
+    // Apostador sem apelido escolhe um antes do primeiro comentário.
+    precisaApelido: !daOrganizacao && Boolean(meuBuyer) && !eu?.apelido,
+    podeCurtir: Boolean(meuBuyer),
     // Mais novo em cima; as respostas, na ordem da conversa.
     lista: topo.reverse().map((l) => ({ ...publico(l), respostas: respostas.get(l.id) ?? [] })),
   };
+}
+
+/**
+ * Curtir (ou descurtir) um comentário. A chave (comentário, pessoa) decide:
+ * o contador só anda quando a linha entrou ou saiu, na mesma transação —
+ * cinco toques simultâneos, uma curtida.
+ */
+export async function curtirComentario(req: Request, id: string, curtir: boolean) {
+  const buyerId = req.session.buyer?.id;
+  if (!buyerId) throw new ComentarioError("Entre na sua conta para curtir.", 401);
+  if (!/^[0-9a-f-]{36}$/i.test(id)) throw new ComentarioError("Comentário não encontrado.", 404);
+  return db.transaction(async (tx) => {
+    const [c] = await tx
+      .select({ id: comentarios.id })
+      .from(comentarios)
+      .where(and(eq(comentarios.id, id), isNull(comentarios.removidoEm)));
+    if (!c) throw new ComentarioError("Comentário não encontrado.", 404);
+    const mudou = curtir
+      ? await tx.insert(comentarioCurtidas).values({ comentarioId: id, buyerId }).onConflictDoNothing().returning()
+      : await tx
+          .delete(comentarioCurtidas)
+          .where(and(eq(comentarioCurtidas.comentarioId, id), eq(comentarioCurtidas.buyerId, buyerId)))
+          .returning();
+    if (mudou.length) {
+      await tx
+        .update(comentarios)
+        .set({ curtidas: curtir ? sql`${comentarios.curtidas} + 1` : sql`greatest(${comentarios.curtidas} - 1, 0)` })
+        .where(eq(comentarios.id, id));
+    }
+    const [depois] = await tx.select({ n: comentarios.curtidas }).from(comentarios).where(eq(comentarios.id, id));
+    return { curtidas: depois.n, curti: curtir };
+  });
 }
 
 export async function comentar(req: Request, slug: string, entrada: { texto?: unknown; respostaA?: unknown }) {
@@ -110,6 +199,11 @@ export async function comentar(req: Request, slug: string, entrada: { texto?: un
   // Erro de preenchimento sai antes de contar a tentativa.
   const problema = problemaNoComentario(entrada.texto);
   if (problema) throw new ComentarioError(problema, 400);
+  // Como no Instagram, quem comenta tem nome de usuário (o apelido).
+  if (!comoOrganizacao) {
+    const [eu] = await db.select({ apelido: buyers.apelido }).from(buyers).where(eq(buyers.id, buyerId!));
+    if (!eu?.apelido) throw new ComentarioError("Escolha seu apelido para comentar.", 409);
+  }
   const quem = comoOrganizacao ? `org:${req.user!.id}` : `comprador:${buyerId}`;
   const limite = await hit(`comentario:${quem}`, JANELA_DE_COMENTARIOS_MIN, COMENTARIOS_POR_JANELA);
   if (limite.excedeu) throw new ComentarioError("Muitos comentários seguidos. Espere alguns minutos.", 429);
@@ -174,52 +268,76 @@ export async function comentar(req: Request, slug: string, entrada: { texto?: un
  * rifa e a plataforma. Para os demais, o comentário não existe (404).
  * Apagar o do topo leva as respostas junto.
  */
-export async function apagarComentario(req: Request, id: string) {
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+/**
+ * Marca o comentário (e, se for do topo, as respostas) como removido e
+ * desconta o contador, numa transação que já está aberta. `UPDATE`
+ * condicional: se outro clique chegou antes, 404 e nada muda.
+ */
+export async function removerNaTransacao(tx: Tx, comentarioId: string, userId: string | null) {
+  const [c] = await tx
+    .select({ id: comentarios.id, campaignId: comentarios.campaignId, parentId: comentarios.parentId })
+    .from(comentarios)
+    .where(eq(comentarios.id, comentarioId));
+  if (!c) throw new ComentarioError("Comentário não encontrado.", 404);
+  const alvo = c.parentId
+    ? [c.id]
+    : [
+        c.id,
+        ...(
+          await tx
+            .select({ id: comentarios.id })
+            .from(comentarios)
+            .where(and(eq(comentarios.parentId, c.id), isNull(comentarios.removidoEm)))
+        ).map((r) => r.id),
+      ];
+  const apagados = await tx
+    .update(comentarios)
+    .set({ removidoEm: new Date(), removidoPor: userId })
+    .where(and(inArray(comentarios.id, alvo), isNull(comentarios.removidoEm)))
+    .returning({ id: comentarios.id });
+  // Outro clique chegou antes: o comentário já foi apagado — nada muda.
+  if (!apagados.some((a) => a.id === c.id)) throw new ComentarioError("Comentário não encontrado.", 404);
+  await tx
+    .update(campaigns)
+    .set({ comentariosCount: sql`greatest(${campaigns.comentariosCount} - ${apagados.length}, 0)` })
+    .where(eq(campaigns.id, c.campaignId));
+  return apagados.length;
+}
+
+/**
+ * Apagar. Quem escreveu, a plataforma — e a organização, no que ela mesma
+ * escreveu — apagam na hora. Comentário de apostador, a organização **pede**
+ * a remoção (vira solicitação no Atendimento): o comentário pode ser a
+ * denúncia contra ela, e quem decide é a plataforma. Para os demais, 404.
+ */
+export async function apagarComentario(req: Request, id: string, motivo?: unknown) {
   if (!/^[0-9a-f-]{36}$/i.test(id)) throw new ComentarioError("Comentário não encontrado.", 404);
   const [c] = await db
     .select({
       id: comentarios.id,
       campaignId: comentarios.campaignId,
       organizationId: comentarios.organizationId,
-      parentId: comentarios.parentId,
       autor: comentarios.autor,
       buyerId: comentarios.buyerId,
     })
     .from(comentarios)
     .where(and(eq(comentarios.id, id), isNull(comentarios.removidoEm)));
   const buyerId = req.session.buyer?.id ?? null;
-  const pode =
+  const daOrganizacao = Boolean(c) && ehDaOrganizacao(req, c.organizationId);
+  const direto =
     c &&
     (req.user?.role === "admin" ||
-      ehDaOrganizacao(req, c.organizationId) ||
+      (daOrganizacao && c.autor === "organizacao") ||
       (c.autor === "comprador" && buyerId && c.buyerId === buyerId));
-  if (!pode) throw new ComentarioError("Comentário não encontrado.", 404);
-
-  return db.transaction(async (tx) => {
-    const alvo = c.parentId
-      ? [c.id]
-      : [
-          c.id,
-          ...(
-            await tx
-              .select({ id: comentarios.id })
-              .from(comentarios)
-              .where(and(eq(comentarios.parentId, c.id), isNull(comentarios.removidoEm)))
-          ).map((r) => r.id),
-        ];
-    const apagados = await tx
-      .update(comentarios)
-      .set({ removidoEm: new Date(), removidoPor: req.user?.id ?? null })
-      .where(and(inArray(comentarios.id, alvo), isNull(comentarios.removidoEm)))
-      .returning({ id: comentarios.id });
-    // Outro clique chegou antes: o comentário já foi apagado — nada muda.
-    if (!apagados.some((a) => a.id === c.id)) throw new ComentarioError("Comentário não encontrado.", 404);
-    if (apagados.length) {
-      await tx
-        .update(campaigns)
-        .set({ comentariosCount: sql`greatest(${campaigns.comentariosCount} - ${apagados.length}, 0)` })
-        .where(eq(campaigns.id, c.campaignId));
-    }
-    return { apagados: apagados.length };
-  });
+  if (direto) {
+    const apagados = await db.transaction((tx) => removerNaTransacao(tx, c.id, req.user?.id ?? null));
+    return { apagados };
+  }
+  if (daOrganizacao) {
+    const pedido = await pedirRemocaoDeComentario(req, { campaignId: c.campaignId, comentarioId: c.id, motivo });
+    return { protocolo: pedido.protocolo, solicitacaoId: pedido.id };
+  }
+  throw new ComentarioError("Comentário não encontrado.", 404);
 }

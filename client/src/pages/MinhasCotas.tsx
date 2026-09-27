@@ -7,6 +7,7 @@ import { Conversa, type Mensagem } from "@/components/Conversa";
 import { BonusDoComprador, type EstadoBonus } from "@/components/BonusDoComprador";
 import { apiRequest, ApiError } from "@/lib/queryClient";
 import { lerImagem } from "@/lib/anexo";
+import { PerfilPublicoCard } from "@/components/PerfilDoApostador";
 import { estadoPush, ligarPush, desligarPush, type EstadoPush } from "@/lib/push";
 import { cepValido, cidadeUf, maskCep } from "@shared/endereco";
 import { formatQuota, maskPhone, maskCpf, cpfValido, formatBRL } from "@shared/format";
@@ -785,6 +786,7 @@ function MinhaConta({ aoSair }: { aoSair: () => void }) {
 
   return (
     <div className="mt-3 space-y-3">
+      <PerfilPublicoCard />
       <Card title="Meus dados">
         <dl className="grid gap-3 p-4 text-sm sm:grid-cols-2">
           <div>

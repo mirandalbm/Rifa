@@ -43,6 +43,7 @@ interface RifaDoPerfil {
   soldCount: number;
   drawAt: string | null;
   status: "published" | "closed" | "drawn";
+  vende?: boolean;
   midias: Peca[];
   legenda?: string | null;
   interacoes: Interacoes;
@@ -480,7 +481,7 @@ function CartaoDaRifa({ org, nome, rifa }: { org: string; nome: string; rifa: Ri
           </span>
         </p>
       </Link>
-      <BarraDeAcoes slug={rifa.slug} titulo={rifa.prizeTitle} caminho={href} interacoes={rifa.interacoes} aoComentar={() => setComentando(true)} />
+      <BarraDeAcoes slug={rifa.slug} titulo={rifa.prizeTitle} caminho={href} interacoes={rifa.interacoes} aoComentar={() => setComentando(true)} vende={rifa.vende} />
       <div className="pb-4">
         <Legenda autor={nome} texto={rifa.legenda} />
       </div>

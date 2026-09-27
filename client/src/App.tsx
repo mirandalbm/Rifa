@@ -16,6 +16,7 @@ import Regulamento from "@/pages/Regulamento";
 import Ajuda from "@/pages/Ajuda";
 import Pedido from "@/pages/Pedido";
 import MinhasCotas from "@/pages/MinhasCotas";
+import Carrinho from "@/pages/Carrinho";
 import Notificacoes from "@/pages/Notificacoes";
 import Usuario from "@/pages/Usuario";
 import Login from "@/pages/Login";
@@ -143,6 +144,7 @@ export default function App() {
           <Route path="/o/:org" component={Perfil} />
           <Route path="/pedido/:code" component={Pedido} />
           <Route path="/minhas-cotas" component={MinhasCotas} />
+          <Route path="/carrinho" component={Carrinho} />
           <Route path="/notificacoes" component={Notificacoes} />
           <Route path="/u/:apelido" component={Usuario} />
           <Route path="/minhas-compras" component={MinhasCotas} />

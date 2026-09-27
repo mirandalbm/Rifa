@@ -44,6 +44,7 @@ import {
 } from "lucide-react";
 import type { SectionKey } from "@shared/access";
 import { useSession, useLogout } from "@/lib/session";
+import { useCarrinho } from "@/lib/carrinho";
 import { TemaCiclo, TemaEscolha } from "@/components/TemaToggle";
 import { Marca } from "@/components/Marca";
 import { useTemplate } from "@/lib/template";
@@ -159,6 +160,23 @@ function CoracaoDeAvisos() {
   );
 }
 
+/**
+ * O carrinho no topo, ao lado do coração: aparece quando tem rifa nele. O
+ * número vai no rótulo também, nunca só a cor.
+ */
+function CarrinhoNoTopo() {
+  const n = useCarrinho().length;
+  if (!n) return null;
+  return (
+    <Link href="/carrinho" className="relative rounded-md p-1 text-ink hover:bg-mist" aria-label={`Carrinho: ${n} rifa(s)`}>
+      <ShoppingCart size={24} aria-hidden strokeWidth={2} />
+      <span className="tnum absolute -right-1 -top-1 min-w-[18px] rounded-full border-2 border-white bg-marca px-1 text-center text-[10px] font-bold leading-[14px] text-white">
+        {n}
+      </span>
+    </Link>
+  );
+}
+
 export function PublicShell({ children }: { children: ReactNode }) {
   const { data: session } = useSession();
 
@@ -170,6 +188,7 @@ export function PublicShell({ children }: { children: ReactNode }) {
             <Marca />
           </Link>
           <nav className="flex items-center gap-3 text-sm">
+            <CarrinhoNoTopo />
             {session?.buyer ? <CoracaoDeAvisos /> : null}
             {session?.buyer?.conta ? null : (
               <Link href="/minhas-cotas" className="text-ink-2 hover:text-green-deep">

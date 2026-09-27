@@ -8,6 +8,8 @@
  */
 import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import sharp from "sharp";
+import { rifaAVenda } from "@shared/carrinho";
+import { getPaymentMethods } from "./settings";
 import { db } from "../db";
 import {
   buyers,
@@ -197,6 +199,7 @@ export async function perfilPublico(slug: string, buyerId?: string | null) {
     .where(eq(organizations.id, org.id));
 
   const marcas = await minhasMarcas(buyerId, rifas.map((r) => r.campaign.id));
+  const pixOnline = (await getPaymentMethods()).pix_online;
   const cartao = (r: (typeof rifas)[number]) => ({
     id: r.campaign.id,
     legenda: r.campaign.legenda,
@@ -215,6 +218,14 @@ export async function perfilPublico(slug: string, buyerId?: string | null) {
     soldCount: r.stats?.soldCount ?? 0,
     drawAt: r.campaign.drawAt,
     status: r.campaign.status,
+    vende: rifaAVenda({
+      status: r.campaign.status,
+      demonstracao: r.campaign.demonstracao,
+      travada: Boolean(r.campaign.travadaEm),
+      soldCount: r.stats?.soldCount ?? 0,
+      totalQuotas: r.campaign.totalQuotas,
+      pixOnline,
+    }),
     midias: (midias.get(r.campaign.id) ?? []).map(pecaPublica),
   });
 

@@ -3,7 +3,9 @@
  * cadastro (e não repete); a barra de ações (curtir com o trevo,
  * republicar, salvar, compartilhar) com os contadores sem `COUNT(*)` e sem
  * dobrar com toques simultâneos; salvos privados; republicações no perfil;
- * a legenda da organização (régua e recorte); o carrossel de até 10 peças.
+ * a legenda da organização (régua e recorte); o carrossel de até 10 peças;
+ * o carrinho (rifa e quantidade vão, preço e disponibilidade voltam do
+ * servidor, nada é reservado).
  *
  *   npm run publicacao      (com `npm run dev` no ar e o seed aplicado)
  */
@@ -11,8 +13,9 @@ import "dotenv/config";
 import { baseUrl } from "./base-url";
 import { eq, inArray, sql } from "drizzle-orm";
 import { db, pool } from "../server/db";
-import { buyers, campaignMedia, campaignStats, campaigns, users } from "../shared/schema";
+import { buyers, campaignMedia, campaignStats, campaigns, quotaAlloc, quotaPackages, users } from "../shared/schema";
 import { MAX_CARROSSEL } from "../shared/publicacao";
+import { priceOrder } from "../shared/pricing";
 
 const URL = baseUrl();
 let falhas = 0;
@@ -153,6 +156,41 @@ async function main() {
     );
     r = await hugo.req("GET", `/api/public/campaigns/${SLUG}`);
     checa("a página da rifa também", r.json?.campaign?.interacoes?.curtidas === 1 && r.json.campaign.interacoes.curti === false);
+
+    console.log("\n  o carrinho:");
+    await db.insert(quotaPackages).values([
+      { campaignId: rifa.id, quantity: 10, discountPct: 10, highlight: true },
+      { campaignId: rifa.id, quantity: 25, discountPct: 15 },
+    ]);
+    r = await anon.req("GET", "/api/public/campaigns");
+    checa("a vitrine diz que a rifa vende (a barra mostra carrinho e comprar)", r.json?.find((c: { slug: string }) => c.slug === SLUG)?.vende === true);
+    r = await anon.req("POST", "/api/public/carrinho", {
+      itens: [
+        { slug: SLUG, quantidade: 0, precoCents: 1 },
+        { slug: RASCUNHO, quantidade: 5 },
+        { slug: "rifa-que-nao-existe", quantidade: 5 },
+        { slug: "<script>", quantidade: 5 },
+      ],
+    });
+    const [item, draft, sumiu] = r.json?.itens ?? [];
+    checa("sem conta, o carrinho responde (200) e ignora o que não é rifa", r.status === 200 && r.json.itens.length === 3, `HTTP ${r.status} ${r.json?.itens?.length}`);
+    checa(
+      "quantidade 0 vira a sugerida (o pacote em destaque), com o total do servidor",
+      item?.quantidade === 10 && item.totalCents === priceOrder({ quantity: 10, unitCents: 500, packages: [{ quantity: 10, discountPct: 10 }] }).totalCents,
+      JSON.stringify({ q: item?.quantidade, t: item?.totalCents }),
+    );
+    checa("o preço mandado pelo aparelho não conta", item?.totalCents === 4500, `${item?.totalCents}`);
+    checa("a promotora vem junto (o carrinho separa por organização)", Boolean(item?.organizacao?.slug) && item.vende === true);
+    checa("rascunho e rifa inexistente voltam indisponíveis", draft?.indisponivel === true && sumiu?.indisponivel === true);
+    r = await anon.req("POST", "/api/public/carrinho", { itens: [{ slug: SLUG, quantidade: 5000 }] });
+    checa("quantidade acima do que resta é cortada", r.json?.itens?.[0]?.quantidade === 100, `${r.json?.itens?.[0]?.quantidade}`);
+    const alocadas = await db.select({ n: sql<number>`count(*)::int` }).from(quotaAlloc).where(eq(quotaAlloc.campaignId, rifa.id));
+    const [st] = await db.select().from(campaignStats).where(eq(campaignStats.campaignId, rifa.id));
+    checa("o carrinho não reserva nada", alocadas[0].n === 0 && st.reservedCount === 0 && st.soldCount === 0);
+    await db.update(campaigns).set({ travadaEm: new Date() }).where(eq(campaigns.id, rifa.id));
+    r = await anon.req("POST", "/api/public/carrinho", { itens: [{ slug: SLUG, quantidade: 10 }] });
+    checa("rifa travada fica no carrinho, mas não vende", r.json?.itens?.[0]?.vende === false);
+    await db.update(campaigns).set({ travadaEm: null }).where(eq(campaigns.id, rifa.id));
 
     console.log("\n  a legenda da organização:");
     const L = `/api/admin/campaigns/${rifa.id}/legenda`;

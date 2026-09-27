@@ -225,6 +225,26 @@ export default function Rifa() {
     },
   });
 
+  // Chegou pelo "comprar" da publicação (`?comprar=1`) ou pelo carrinho
+  // (`?pacote=N`): abre a compra rápida — com as cartelas daquele tamanho,
+  // se veio do carrinho. Só sugere: a cota só é tomada ao pagar.
+  const rifaCarregada = data?.campaign.id;
+  useEffect(() => {
+    if (!data) return;
+    const q = new URLSearchParams(window.location.search);
+    const n = Number(q.get("pacote"));
+    const { minPerOrder, maxPerOrder } = data.campaign;
+    if (Number.isInteger(n) && n >= minPerOrder && n <= maxPerOrder) {
+      setPacote(n);
+      setPicked([]);
+      setShowMap(false);
+    }
+    if (q.has("pacote") || q.has("comprar")) {
+      setTimeout(() => document.getElementById("comprar")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rifaCarregada]);
+
   if (!data) {
     return (
       <PublicShell>
@@ -340,6 +360,8 @@ export default function Rifa() {
             caminho={data.organizacao ? `/o/${data.organizacao.slug}/r/${campaign.slug}` : `/r/${campaign.slug}`}
             interacoes={campaign.interacoes}
             aoComentar={() => document.getElementById("comentarios")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+            vende={vende && stats.soldCount < campaign.totalQuotas}
+            aoComprar={() => document.getElementById("comprar")?.scrollIntoView({ behavior: "smooth", block: "start" })}
           />
           <Legenda autor={data.organizacao?.nome ?? ""} texto={campaign.legenda} />
         </div>
@@ -405,7 +427,7 @@ export default function Rifa() {
       {/* Compra rápida — o caminho de 95% das vendas. Sem venda online, nem
           aparece: o atributo hidden perdia para a classe grid. */}
       {vende ? (
-      <div className="mt-5 grid grid-cols-4 gap-2">
+      <div id="comprar" className="mt-5 grid scroll-mt-20 grid-cols-4 gap-2">
         {(packages.length > 0
           ? packages
           : [

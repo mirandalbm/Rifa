@@ -343,3 +343,36 @@ export async function certificadoDa(campaignId: string) {
     .where(eq(campaignCertificados.campaignId, campaignId));
   return c ?? null;
 }
+
+/**
+ * Tira do ar uma rifa publicada que ninguém comprou: volta a rascunho.
+ *
+ * Só sem venda — pedido pago ou pendente, ou cota tomada, barra — porque
+ * com comprador o caminho é o estorno, não sumir com a rifa. A condição
+ * está no próprio UPDATE (nunca consultar e depois gravar). O compromisso
+ * do sorteio (semente e hash) é descartado junto: ninguém comprou com ele,
+ * e publicar de novo sorteia outra semente.
+ */
+export async function tirarDoAr(campaignId: string) {
+  return db.transaction(async (tx) => {
+    const r = await tx.execute(sql`
+      UPDATE campaigns
+         SET status = 'draft', published_at = NULL, draw_seed_hash = NULL
+       WHERE id = ${campaignId}::uuid
+         AND status = 'published'
+         AND NOT EXISTS (SELECT 1 FROM orders
+                          WHERE campaign_id = ${campaignId}::uuid
+                            AND status IN ('paid', 'pending'))
+         AND NOT EXISTS (SELECT 1 FROM quota_alloc WHERE campaign_id = ${campaignId}::uuid)
+      RETURNING id
+    `);
+    if (!r.rows.length) {
+      const [c] = await tx.select({ status: campaigns.status }).from(campaigns).where(eq(campaigns.id, campaignId));
+      if (!c) throw new CampaignRuleError("Rifa não encontrada.");
+      if (c.status !== "published") throw new CampaignRuleError("Esta rifa não está no ar.");
+      throw new CampaignRuleError("Esta rifa já tem compra: não sai do ar sem estornar quem comprou.");
+    }
+    await tx.execute(sql`DELETE FROM draws WHERE campaign_id = ${campaignId}::uuid AND executed_at IS NULL`);
+    return { ok: true };
+  });
+}

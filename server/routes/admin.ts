@@ -31,6 +31,7 @@ import {
 import {
   publishCampaign,
   publishBlockers,
+  tirarDoAr,
   assertEditable,
   assertQuotaRange,
   CampaignRuleError,
@@ -445,6 +446,25 @@ adminRouter.get("/campaigns/:id/blockers", async (req, res, next) => {
     await assertCampaignInScope(req, req.params.id);
     res.json({ blockers: await publishBlockers(req.params.id) });
   } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * Tirar do ar: rifa publicada sem nenhuma venda volta a rascunho. Só a
+ * plataforma (403 para organizador, no `npm run isolation`); com venda, 422
+ * — o caminho é estornar quem comprou.
+ */
+adminRouter.post("/campaigns/:id/tirar-do-ar", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    await tirarDoAr(req.params.id);
+    await audit(req, "campaign.tirar_do_ar", "campaign", req.params.id, {});
+    res.json({ ok: true });
+  } catch (err) {
+    if (err instanceof CampaignRuleError) {
+      return res.status(422).json({ message: err.message });
+    }
     next(err);
   }
 });

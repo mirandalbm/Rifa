@@ -98,6 +98,8 @@ jobs:
       - run: npm run seguranca
       - run: npm run verificacao
       - run: npm run publicacao
+      - run: npm run carrinho
+      - run: npm run presente
       - run: npm run resultados
       - run: npm run afiliados
       - run: npm run fiscal

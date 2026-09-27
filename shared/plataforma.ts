@@ -8,6 +8,7 @@
  * Provedor do Pix
  * ------------------------------------------------------------------ */
 
+import { CONFIG_PRESENTE_PADRAO, validarConfigPresente, type ConfigPresente } from "./presente";
 import { TAXA_REEMBOLSO_MAX_PCT, TAXA_REEMBOLSO_PADRAO_PCT } from "./reembolso";
 import { BONUS_POR_INDICACAO_MAX, BONUS_POR_INDICACAO_PADRAO } from "./bonus";
 import { CONFIG_PATROCINIO_PADRAO, validarConfigPatrocinio, type ConfigPatrocinio } from "./patrocinio";
@@ -99,6 +100,11 @@ export interface ConfigPlataforma {
   marketingPixels: Pixels;
   /** A cor do selo de verificado de cada um, da paleta de 12 (`PALETA_DO_SELO`). */
   coresDoSelo: CoresDoSelo;
+  /**
+   * O presente (desconto de primeira compra pago pela plataforma, mandado
+   * pelos comentários). Nasce desligado — ver `shared/presente.ts`.
+   */
+  presente: ConfigPresente;
 }
 
 export const CONFIG_PADRAO: ConfigPlataforma = {
@@ -113,6 +119,7 @@ export const CONFIG_PADRAO: ConfigPlataforma = {
   patrocinioReembolso: false,
   marketingPixels: {},
   coresDoSelo: CORES_DO_SELO_PADRAO,
+  presente: CONFIG_PRESENTE_PADRAO,
 };
 
 /** Só as chaves conhecidas: isto vem do corpo da requisição. */
@@ -141,6 +148,7 @@ export function validarConfigPlataforma(entrada: Partial<ConfigPlataforma>): Con
     patrocinioReembolso: entrada.patrocinioReembolso === true,
     marketingPixels: validarPixels(entrada.marketingPixels),
     coresDoSelo: coresDoSeloValidas(entrada.coresDoSelo),
+    presente: validarConfigPresente(entrada.presente),
   };
 }
 

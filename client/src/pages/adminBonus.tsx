@@ -4,9 +4,10 @@ import { PanelShell } from "@/components/AppShell";
 import { Button, Card, Empty, Pill } from "@/components/bits";
 import { apiRequest } from "@/lib/queryClient";
 import { BONUS_POR_INDICACAO_MAX, RESGATE_MAX, TIPOS_DE_META, type Meta, type TipoDeMeta } from "@shared/bonus";
+import { PRESENTE_PCT_MAX, textoDoPresente, type ConfigPresente } from "@shared/presente";
 
 interface Painel {
-  config: { bonusLigado: boolean; bonusPorIndicacao: number };
+  config: { bonusLigado: boolean; bonusPorIndicacao: number; presente: ConfigPresente };
   metas: Meta[];
   resumo: { indicacoes: number; creditadas: number; resgatadas: number; rifas: number };
 }
@@ -25,17 +26,30 @@ export function AdminBonus() {
   const [porIndicacao, setPorIndicacao] = useState("1");
   const [nova, setNova] = useState(vazia);
   const [msg, setMsg] = useState<{ ok: boolean; texto: string } | null>(null);
+  const [presente, setPresente] = useState({ ligado: false, pct: "10", teto: "10,00" });
 
   useEffect(() => {
     if (!data) return;
     setLigado(data.config.bonusLigado);
     setPorIndicacao(String(data.config.bonusPorIndicacao));
+    const p = data.config.presente;
+    setPresente({ ligado: p.ligado, pct: String(p.pct), teto: (p.tetoCents / 100).toFixed(2).replace(".", ",") });
   }, [data]);
+  const presenteConfig = {
+    ligado: presente.ligado,
+    pct: Number(presente.pct),
+    tetoCents: Math.round(Number(presente.teto.replace(/\./g, "").replace(",", ".")) * 100),
+  };
 
   const recarregar = () => qc.invalidateQueries({ queryKey: ["/api/admin/bonus"] });
   const falhou = (e: Error) => setMsg({ ok: false, texto: e.message });
   const salvar = useMutation({
-    mutationFn: () => apiRequest("PUT", "/api/admin/bonus/config", { bonusLigado: ligado, bonusPorIndicacao: Number(porIndicacao) }),
+    mutationFn: () =>
+      apiRequest("PUT", "/api/admin/bonus/config", {
+        bonusLigado: ligado,
+        bonusPorIndicacao: Number(porIndicacao),
+        presente: presenteConfig,
+      }),
     onSuccess: () => {
       setMsg({ ok: true, texto: "Salvo." });
       recarregar();
@@ -92,6 +106,59 @@ export function AdminBonus() {
                 Conta quando o indicado paga a primeira compra. Se essa compra for estornada, o bônus sai.
               </span>
             </label>
+            <Button onClick={() => salvar.mutate()} disabled={salvar.isPending}>
+              Salvar
+            </Button>
+          </div>
+        </Card>
+
+        <Card
+          title="Presente"
+          right={<Pill status={data?.config.presente.ligado ? "active" : "draft"}>{data?.config.presente.ligado ? "ligado" : "desligado"}</Pill>}
+        >
+          <div className="space-y-3 p-4 text-sm">
+            <label className="flex items-start gap-2">
+              <input
+                type="checkbox"
+                checked={presente.ligado}
+                onChange={(e) => setPresente({ ...presente, ligado: e.target.checked })}
+                className="mt-1 h-4 w-4 accent-[var(--green)]"
+              />
+              <span>
+                Presente pelos comentários
+                <span className="block text-xs text-muted">
+                  Quem tem conta manda um convite (o ícone de presente ao lado do campo de comentário). O convidado,
+                  com conta, ganha desconto na primeira compra paga — <b>pago pela plataforma</b>: a promotora e o
+                  afiliado recebem como se fosse o preço cheio, e a parte da promotora no desconto entra como crédito
+                  dela em Cobrança. Quem convida ganha o bônus de indicação, se o programa acima estiver ligado.
+                </span>
+              </span>
+            </label>
+            <div className="flex flex-wrap gap-3">
+              <label className="block">
+                <span className="label-xs">Desconto (1 a {PRESENTE_PCT_MAX}%)</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={PRESENTE_PCT_MAX}
+                  value={presente.pct}
+                  onChange={(e) => setPresente({ ...presente, pct: e.target.value })}
+                  className="tnum mt-1 block w-24 rounded-md border border-line-2 px-3 py-2"
+                />
+              </label>
+              <label className="block">
+                <span className="label-xs">Teto em reais (1,00 a 100,00)</span>
+                <input
+                  inputMode="decimal"
+                  value={presente.teto}
+                  onChange={(e) => setPresente({ ...presente, teto: e.target.value.replace(/[^\d,.]/g, "") })}
+                  className="tnum mt-1 block w-28 rounded-md border border-line-2 px-3 py-2"
+                />
+              </label>
+            </div>
+            {presenteConfig.pct >= 1 && presenteConfig.tetoCents > 0 ? (
+              <p className="text-xs text-muted">Aparece assim: “{textoDoPresente(presenteConfig)}”.</p>
+            ) : null}
             <Button onClick={() => salvar.mutate()} disabled={salvar.isPending}>
               Salvar
             </Button>

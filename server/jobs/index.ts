@@ -1,6 +1,6 @@
 import { and, eq, sql, gt, lt } from "drizzle-orm";
 import { db } from "../db";
-import { commissions, orders, buyers, campaigns } from "@shared/schema";
+import { commissions, orders, buyers, campaigns, carrinhoPedidos } from "@shared/schema";
 import { notify } from "../notifications";
 import { publicUrl } from "../services/urls";
 import { purgeRateEvents } from "../services/antifraude";
@@ -71,10 +71,12 @@ async function lembrarReservasVencendo() {
       order: orders,
       buyer: buyers,
       campaignTitle: campaigns.title,
+      carrinhoCodigo: carrinhoPedidos.codigo,
     })
     .from(orders)
     .innerJoin(buyers, eq(buyers.id, orders.buyerId))
     .innerJoin(campaigns, eq(campaigns.id, orders.campaignId))
+    .leftJoin(carrinhoPedidos, eq(carrinhoPedidos.id, orders.carrinhoId))
     .where(
       and(
         eq(orders.status, "pending"),
@@ -85,7 +87,14 @@ async function lembrarReservasVencendo() {
     .limit(200);
 
   let enviados = 0;
+  // O carrinho num Pix só recebe um lembrete, não um por rifa.
+  const carrinhos = new Set<string>();
   for (const row of pendentes) {
+    const carrinhoId = row.order.carrinhoId;
+    if (carrinhoId) {
+      if (carrinhos.has(carrinhoId)) continue;
+      carrinhos.add(carrinhoId);
+    }
     const restam = Math.max(
       1,
       Math.round((row.order.expiresAt!.getTime() - now.getTime()) / 60_000),
@@ -95,11 +104,11 @@ async function lembrarReservasVencendo() {
       template: "reserva_expirando",
       params: {
         nome: row.buyer.name.split(" ")[0],
-        rifa: row.campaignTitle,
+        rifa: carrinhoId ? "o seu carrinho" : row.campaignTitle,
         minutos: String(restam),
-        link: publicUrl(`/pedido/${row.order.code}`),
+        link: publicUrl(carrinhoId ? `/carrinho/pix/${row.carrinhoCodigo}` : `/pedido/${row.order.code}`),
       },
-      dedupeKey: `order:${row.order.id}:reserva_expirando`,
+      dedupeKey: carrinhoId ? `carrinho:${carrinhoId}:reserva_expirando` : `order:${row.order.id}:reserva_expirando`,
     });
     if (ok) enviados++;
   }

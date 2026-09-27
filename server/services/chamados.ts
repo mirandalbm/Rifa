@@ -708,7 +708,9 @@ export async function executarEstorno(req: Request, id: string) {
     if (pedido?.pspProvider && pedido.pspChargeId) {
       const provider = paymentProviderByName(pedido.pspProvider);
       if (provider.refund) {
-        await provider.refund(pedido.pspChargeId, devolver < pago ? devolver : undefined);
+        // Sem valor, o provedor devolve a cobrança inteira. No carrinho num
+        // Pix só a cobrança é de várias rifas: o valor vai sempre explícito.
+        await provider.refund(pedido.pspChargeId, devolver < pago || pedido.carrinhoId ? devolver : undefined);
         forma = pedido.pspProvider;
       }
     }

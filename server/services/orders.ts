@@ -10,7 +10,7 @@ import { validarOrigem } from "@shared/resultados";
 import { validarUtm } from "@shared/marketing";
 import { destinosDaCompra, enfileirarCompra } from "./marketing";
 import { randomInt } from "node:crypto";
-import { and, eq, sql, desc, or, lte } from "drizzle-orm";
+import { and, eq, inArray, sql, desc, or, lte } from "drizzle-orm";
 import type { Titularidade } from "@shared/contaComprador";
 import { garantirCodigoCliente } from "./codigoCliente";
 import { db } from "../db";
@@ -28,9 +28,12 @@ import {
   prizedQuotas,
   draws,
   platformCharges,
+  carrinhoPedidos,
   bonusLancamentos as bonusLancamentosTabela,
+  type CarrinhoCheckoutInput,
   type CreateOrderInput,
 } from "@shared/schema";
+import { CARRINHO_CODIGO_MAX, CARRINHO_CODIGO_MIN, limparCarrinho, splitDoCarrinho } from "@shared/carrinho";
 import {
   priceOrder,
   commissionAvailableAt,
@@ -66,6 +69,7 @@ import { formatBRL, formatQuota, cpfValido } from "@shared/format";
 import { isUniqueViolation } from "../pgError";
 import { avaliarMetas, confirmarIndicacao, estornarIndicacao, registrarIndicacao } from "./bonus";
 import { anuncioDaVenda } from "./patrocinio";
+import { cancelarCreditoDoPresente, lancarCreditoDoPresente, presenteDoPedido } from "./presente";
 import { bloqueioDoResgate } from "@shared/bonus";
 
 /** Dias entre o pagamento e a liberação da comissão do afiliado. */
@@ -234,9 +238,18 @@ export class FraudBlockedError extends OrderError {
   }
 }
 
-export async function createOrder(
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+/**
+ * Tudo que o pedido precisa antes de gravar: confere a rifa, os limites, o
+ * CPF e o antifraude, resolve comprador e afiliado e calcula o preço. É a
+ * mesma régua para a compra avulsa (`createOrder`) e para cada rifa do
+ * carrinho (`createCartOrder`), que chama o antifraude uma vez só, antes.
+ */
+async function prepararPedido(
   input: CreateOrderInput,
-  ctx: CreateOrderContext = {},
+  ctx: CreateOrderContext,
+  opcoes: { antifraude?: boolean; presente?: boolean } = {},
 ) {
   const [campaign] = await db
     .select()
@@ -327,16 +340,18 @@ export async function createOrder(
   // O antifraude entra antes de qualquer linha ser escrita: pedido recusado
   // não pode nem criar o comprador.
   const identity = ctx.identity ?? { ipHash: null, deviceHash: null };
-  const veredito = await guardOrder({
-    phone: input.buyer.phone,
-    identity,
-    campaignId: campaign.id,
-    quantity,
-    bySeller: Boolean(ctx.sellerId),
-    affiliateCode: input.affiliateCode ?? ctx.sessionAffiliateCode,
-  });
-  if (!veredito.allowed) {
-    throw new FraudBlockedError(veredito.reason ?? "Compra recusada.", veredito.rule);
+  if (opcoes.antifraude !== false) {
+    const veredito = await guardOrder({
+      phone: input.buyer.phone,
+      identity,
+      campaignId: campaign.id,
+      quantity,
+      bySeller: Boolean(ctx.sellerId),
+      affiliateCode: input.affiliateCode ?? ctx.sessionAffiliateCode,
+    });
+    if (!veredito.allowed) {
+      throw new FraudBlockedError(veredito.reason ?? "Compra recusada.", veredito.rule);
+    }
   }
 
   const buyer = await upsertBuyer(input.buyer);
@@ -388,80 +403,151 @@ export async function createOrder(
   // clicou num anúncio desta rifa há até 7 dias. Só estatística.
   const anuncioId = ctx.sellerId ? null : await anuncioDaVenda(identity.deviceHash, campaign.id);
 
-  // A transação inteira é a unidade de repetição: se o código colidir, o
-  // banco desfaz também a reserva de cota, e a próxima volta sorteia outro.
-  // Pedido sem cota seria fantasma; cota sem pedido, cota perdida.
-  const criarPedido = (code: number) =>
-    db.transaction(async (tx) => {
-      const [created] = await tx
-        .insert(orders)
-        .values({
-          code,
-          campaignId: campaign.id,
+  // O presente: a parte da compra que a plataforma paga (primeira compra de
+  // quem tem conta e veio pelo link de alguém). O carrinho não leva.
+  const presente =
+    opcoes.presente === false
+      ? { cents: 0, deId: null }
+      : await presenteDoPedido({
           buyerId: buyer.id,
-          quantity,
-          amountCents: price.totalCents,
-          discountCents: price.packageDiscountCents + price.couponDiscountCents,
-          status: "pending",
-          affiliateId: attribution.affiliateId,
-          sellerId: ctx.sellerId ?? null,
-          method: ctx.sellerId ? "dinheiro" : "pix_online",
-          viaConta: Boolean(ctx.contaId && !ctx.sellerId) || compraProvadaPeloCpf,
-          // Venda do cambista não tem origem de site: o canal é ele.
-          origem: ctx.sellerId ? null : validarOrigem(input.origem),
-          utm: ctx.sellerId ? null : validarUtm(input.utm),
-          marketingConsentimento: !ctx.sellerId && input.marketing === true,
-          deviceHash: identity.deviceHash,
-          ipHash: identity.ipHash,
-          couponId: attribution.couponId,
-          comissaoGuardada,
-          anuncioId,
-          expiresAt,
-        })
-        .returning();
+          contaId: ctx.contaId,
+          sellerId: ctx.sellerId,
+          codigo: input.indicacao,
+          totalCents: price.totalCents,
+        });
 
-      const reserved = wantsSpecific
-        ? await reserveSpecific(tx, {
-            campaignId: campaign.id,
-            totalQuotas: campaign.totalQuotas,
-            numbers: input.numbers!,
-            orderId: created.id,
-            reservedUntil: expiresAt,
-          })
-        : await reserveRandom(tx, {
-            campaignId: campaign.id,
-            totalQuotas: campaign.totalQuotas,
-            count: quantity,
-            orderId: created.id,
-            reservedUntil: expiresAt,
-            endgame: stats.endgame,
-          });
+  return {
+    input,
+    ctx,
+    campaign,
+    stats,
+    quantity,
+    wantsSpecific,
+    provider,
+    identity,
+    buyer,
+    compraProvadaPeloCpf,
+    attribution,
+    price,
+    expiresAt,
+    comissaoGuardada,
+    anuncioId,
+    presente,
+  };
+}
 
-      await bumpReserved(tx, campaign.id, reserved.numbers.length);
+type Preparo = Awaited<ReturnType<typeof prepararPedido>>;
 
-      if (attribution.couponId) {
-        await tx
-          .update(coupons)
-          .set({ uses: sql`${coupons.uses} + 1` })
-          .where(eq(coupons.id, attribution.couponId));
-      }
+/**
+ * Grava o pedido e reserva as cotas, dentro da transação de quem chama. A
+ * reserva é a de sempre (`reserveSpecific`/`reserveRandom`, pela PK): se
+ * faltar cota, a exceção desfaz a transação inteira — no carrinho, os
+ * pedidos das outras rifas também.
+ */
+async function inserirPedido(
+  tx: Tx,
+  p: Preparo,
+  code: number,
+  extra: { carrinhoId?: string; expiresAt?: Date } = {},
+) {
+  const { input, ctx, campaign, stats, quantity, buyer, attribution, price, identity } = p;
+  const expiresAt = extra.expiresAt ?? p.expiresAt;
+  const [created] = await tx
+    .insert(orders)
+    .values({
+      code,
+      campaignId: campaign.id,
+      buyerId: buyer.id,
+      quantity,
+      // O comprador paga o total menos o presente; a plataforma paga o resto.
+      amountCents: price.totalCents - p.presente.cents,
+      presenteCents: p.presente.cents,
+      presenteDe: p.presente.deId,
+      discountCents: price.packageDiscountCents + price.couponDiscountCents,
+      status: "pending",
+      affiliateId: attribution.affiliateId,
+      sellerId: ctx.sellerId ?? null,
+      method: ctx.sellerId ? "dinheiro" : "pix_online",
+      viaConta: Boolean(ctx.contaId && !ctx.sellerId) || p.compraProvadaPeloCpf,
+      // Venda do cambista não tem origem de site: o canal é ele.
+      origem: ctx.sellerId ? null : validarOrigem(input.origem),
+      utm: ctx.sellerId ? null : validarUtm(input.utm),
+      marketingConsentimento: !ctx.sellerId && input.marketing === true,
+      deviceHash: identity.deviceHash,
+      ipHash: identity.ipHash,
+      couponId: attribution.couponId,
+      comissaoGuardada: p.comissaoGuardada,
+      anuncioId: p.anuncioId,
+      carrinhoId: extra.carrinhoId ?? null,
+      expiresAt,
+    })
+    .returning();
 
-      return { order: created, numbers: reserved.numbers };
-    });
+  const reserved = p.wantsSpecific
+    ? await reserveSpecific(tx, {
+        campaignId: campaign.id,
+        totalQuotas: campaign.totalQuotas,
+        numbers: input.numbers!,
+        orderId: created.id,
+        reservedUntil: expiresAt,
+      })
+    : await reserveRandom(tx, {
+        campaignId: campaign.id,
+        totalQuotas: campaign.totalQuotas,
+        count: quantity,
+        orderId: created.id,
+        reservedUntil: expiresAt,
+        endgame: stats.endgame,
+      });
 
-  let criado: Awaited<ReturnType<typeof criarPedido>> | undefined;
+  await bumpReserved(tx, campaign.id, reserved.numbers.length);
+
+  if (attribution.couponId) {
+    await tx
+      .update(coupons)
+      .set({ uses: sql`${coupons.uses} + 1` })
+      .where(eq(coupons.id, attribution.couponId));
+  }
+
+  return { order: created, numbers: reserved.numbers };
+}
+
+/**
+ * Repete a transação com outro código enquanto o índice único do código
+ * recusar. A transação inteira é a unidade de repetição: se o código
+ * colidir, o banco desfaz também a reserva de cota, e a próxima volta
+ * sorteia outro. Pedido sem cota seria fantasma; cota sem pedido, cota
+ * perdida.
+ */
+async function comCodigoLivre<T>(gravar: () => Promise<T>, colidiu: (err: unknown) => boolean): Promise<T> {
   for (let tentativa = 0; tentativa < ORDER_CODE_RETRIES; tentativa++) {
     try {
-      criado = await criarPedido(randomOrderCode());
-      break;
+      return await gravar();
     } catch (err) {
-      if (!isOrderCodeConflict(err)) throw err;
+      if (!colidiu(err)) throw err;
     }
   }
-  if (!criado) {
-    throw new OrderError("Não foi possível gerar o número do pedido.", 500);
-  }
-  const { order, numbers } = criado;
+  throw new OrderError("Não foi possível gerar o número do pedido.", 500);
+}
+
+export async function createOrder(
+  input: CreateOrderInput,
+  ctx: CreateOrderContext = {},
+) {
+  const p = await prepararPedido(input, ctx);
+  input = p.input;
+  const { campaign, stats, quantity, provider, buyer, attribution, price, expiresAt, comissaoGuardada } = p;
+
+  const { order, numbers } = await comCodigoLivre(
+    () => db.transaction((tx) => inserirPedido(tx, p, randomOrderCode())),
+    isOrderCodeConflict,
+  ).catch((err) => {
+    // Dois pedidos com o presente ao mesmo tempo: o índice deixa um.
+    if (isUniqueViolation(err, "uq_presente_por_comprador")) {
+      throw new OrderError("Você já tem um pedido com o presente esperando pagamento. Pague esse ou espere a reserva vencer.", 409);
+    }
+    throw err;
+  });
 
   // Venda física não passa por provedor: o dinheiro entra na mão do cambista.
   if (ctx.sellerId) {
@@ -525,20 +611,199 @@ export async function createOrder(
 }
 
 /**
- * O split do Asaas: com carteira cadastrada, a parte do promotor (tudo menos
- * a taxa da plataforma, em percentual sobre o líquido) cai direto na conta da
- * organização. Sem carteira, nada é dividido na origem.
+ * A parte da organização no split do Asaas: a carteira dela e o percentual
+ * do promotor (tudo menos a taxa da plataforma, em percentual sobre o
+ * líquido). Sem carteira, nada é dividido na origem.
  */
-async function splitDaOrganizacao(organizationId: string, comissaoGuardadaPct = 0) {
+async function parteDaOrganizacao(organizationId: string, comissaoGuardadaPct = 0) {
   const [org] = await db
     .select({ walletId: organizations.asaasWalletId })
     .from(organizations)
     .where(eq(organizations.id, organizationId));
-  if (!org?.walletId) return undefined;
   const plano = await planOfOrganization(organizationId);
   // Com a guarda, a comissão fica na conta da plataforma: sai da parte do
   // promotor, sobre o que sobrou da taxa (`percentualDoPromotor`).
-  return [{ walletId: org.walletId, percentual: percentualDoPromotor(platformPctFor(plano), comissaoGuardadaPct) }];
+  return {
+    walletId: org?.walletId ?? null,
+    percentual: percentualDoPromotor(platformPctFor(plano), comissaoGuardadaPct),
+  };
+}
+
+/** O split do pedido avulso: a parte do promotor cai direto na carteira da organização. */
+async function splitDaOrganizacao(organizationId: string, comissaoGuardadaPct = 0) {
+  const parte = await parteDaOrganizacao(organizationId, comissaoGuardadaPct);
+  return parte.walletId ? [{ walletId: parte.walletId, percentual: parte.percentual }] : undefined;
+}
+
+/* ------------------------------------------------------------------ *
+ * Carrinho num Pix só
+ * ------------------------------------------------------------------ */
+
+function codigoDoCarrinho(): number {
+  return randomInt(CARRINHO_CODIGO_MIN, CARRINHO_CODIGO_MAX);
+}
+
+/**
+ * O carrinho pago num Pix só: um pedido por rifa, todos na mesma transação
+ * e na mesma cobrança, na conta da plataforma, com o split do Asaas levando
+ * a parte de cada promotora para a carteira dela no mesmo Pix.
+ *
+ * - O antifraude roda **uma vez**, antes de qualquer gravação, com a soma
+ *   das cotas; o carrinho conta como um pedido aberto (`guardOrder`).
+ * - Cada rifa passa pela mesma régua do pedido avulso (`prepararPedido`):
+ *   rifa no ar, mínimo e máximo, preço recalculado aqui.
+ * - **Tudo ou nada**: as reservas de todas as rifas estão na mesma
+ *   transação. Faltou cota em uma, nenhuma fica reservada.
+ * - Todos vencem juntos (o menor prazo de reserva entre as rifas): o relógio
+ *   devolve as cotas de todos e cancela a cobrança uma vez só.
+ * - Depois de pago, cada pedido segue sozinho: bilhete, comissão, taxa,
+ *   sorteio e estorno — este, sempre com o valor do pedido explícito, para
+ *   nunca devolver a cobrança inteira.
+ */
+export async function createCartOrder(input: CarrinhoCheckoutInput, ctx: CreateOrderContext = {}) {
+  const itens = limparCarrinho(input.itens).filter((i) => i.quantidade > 0);
+  if (itens.length === 0) throw new OrderError("O carrinho está vazio.");
+  const rifas = await db
+    .select({ id: campaigns.id, slug: campaigns.slug })
+    .from(campaigns)
+    .where(inArray(campaigns.slug, itens.map((i) => i.slug)));
+  const idDe = new Map(rifas.map((r) => [r.slug, r.id]));
+  const faltando = itens.find((i) => !idDe.has(i.slug));
+  if (faltando) throw new OrderError("Uma rifa do carrinho saiu do ar. Atualize o carrinho.", 409);
+
+  // Dentro da conta, quem compra é a conta — o telefone do antifraude também.
+  let telefone = input.buyer.phone;
+  if (ctx.contaId) {
+    const [conta] = await db.select({ phone: buyers.phone, excluidoEm: buyers.excluidoEm }).from(buyers).where(eq(buyers.id, ctx.contaId));
+    if (!conta || conta.excluidoEm) throw new OrderError("Entre de novo na sua conta.", 401);
+    telefone = conta.phone;
+  }
+
+  // Antes de qualquer linha: o carrinho inteiro é uma tentativa de compra.
+  const identity = ctx.identity ?? { ipHash: null, deviceHash: null };
+  const veredito = await guardOrder({
+    phone: telefone,
+    identity,
+    campaignId: idDe.get(itens[0].slug)!,
+    quantity: itens.reduce((s, i) => s + i.quantidade, 0),
+    bySeller: false,
+    affiliateCode: input.affiliateCode ?? ctx.sessionAffiliateCode,
+  });
+  if (!veredito.allowed) {
+    throw new FraudBlockedError(veredito.reason ?? "Compra recusada.", veredito.rule);
+  }
+
+  const preparos: Preparo[] = [];
+  for (const item of itens) {
+    preparos.push(
+      await prepararPedido(
+        {
+          campaignId: idDe.get(item.slug)!,
+          quantity: item.quantidade,
+          buyer: input.buyer,
+          affiliateCode: input.affiliateCode,
+          origem: input.origem,
+          utm: input.utm,
+          marketing: input.marketing,
+        },
+        { ...ctx, sellerId: undefined, identity },
+        { antifraude: false, presente: false },
+      ),
+    );
+  }
+  const provider = preparos[0].provider!;
+  const buyer = preparos[0].buyer;
+  const total = preparos.reduce((s, p) => s + p.price.totalCents, 0);
+  // Todos vencem juntos: o menor prazo de reserva entre as rifas.
+  const expiresAt = new Date(Math.min(...preparos.map((p) => p.expiresAt.getTime())));
+
+  const { carrinho, pedidos } = await comCodigoLivre(
+    () =>
+      db.transaction(async (tx) => {
+        const [carrinho] = await tx
+          .insert(carrinhoPedidos)
+          .values({ codigo: codigoDoCarrinho(), buyerId: buyer.id, totalCents: total, expiresAt })
+          .returning();
+        const pedidos = [];
+        for (const p of preparos) {
+          pedidos.push(await inserirPedido(tx, p, randomOrderCode(), { carrinhoId: carrinho.id, expiresAt }));
+        }
+        return { carrinho, pedidos };
+      }),
+    (err) => isOrderCodeConflict(err) || isUniqueViolation(err, "uq_carrinho_codigo"),
+  );
+
+  const devolverTudo = () =>
+    Promise.all(
+      pedidos.map((x) =>
+        devolverReserva(x.order.id).catch((e) =>
+          console.error(`[carrinho] não devolveu a reserva do pedido ${x.order.code}:`, e),
+        ),
+      ),
+    );
+
+  let charge: Awaited<ReturnType<typeof provider.createPixCharge>>;
+  try {
+    const partes = await Promise.all(
+      preparos.map(async (p) => ({
+        amountCents: p.price.totalCents,
+        ...(await parteDaOrganizacao(p.campaign.organizationId, p.comissaoGuardada ? p.attribution.comissaoPct : 0)),
+      })),
+    );
+    const split = splitDoCarrinho(partes.map((x) => ({ walletId: x.walletId, amountCents: x.amountCents, percentualDoPromotor: x.percentual })));
+    charge = await provider.createPixCharge({
+      orderCode: carrinho.codigo,
+      amountCents: total,
+      description: `Carrinho — ${pedidos.length} rifa(s)`,
+      payer: { name: buyer.name, phone: buyer.phone, cpf: buyer.cpf ?? preparos[0].input.buyer.cpf ?? undefined },
+      expiresAt,
+      split: split.length ? split : undefined,
+    });
+  } catch (err) {
+    await devolverTudo();
+    console.error(`[carrinho] Pix do carrinho ${carrinho.codigo} recusado:`, (err as Error).message);
+    if ((err as { status?: number }).status === 400) throw new OrderError((err as Error).message, 400);
+    throw new OrderError("Não foi possível gerar o Pix agora. Tente de novo em instantes.", 502);
+  }
+
+  const cobranca = {
+    pspProvider: charge.provider,
+    pspChargeId: charge.chargeId,
+    pixQr: charge.qr,
+    pixCopyPaste: charge.copyPaste,
+  };
+  const [comCobranca] = await db.update(carrinhoPedidos).set(cobranca).where(eq(carrinhoPedidos.id, carrinho.id)).returning();
+  await db.update(orders).set(cobranca).where(eq(orders.carrinhoId, carrinho.id));
+
+  for (const p of preparos) {
+    if (shouldEnterEndgame(p.stats, p.campaign.totalQuotas)) {
+      await enterEndgame(p.campaign.id, p.campaign.totalQuotas);
+    }
+  }
+  // Indicação: a primeira compra paga do indicado — o primeiro pedido basta.
+  await registrarIndicacao({ codigo: input.indicacao, indicadoId: buyer.id, orderId: pedidos[0].order.id }).catch((e) =>
+    console.error(`[bonus] indicação do carrinho ${carrinho.codigo} não anotada:`, e),
+  );
+
+  return {
+    carrinho: comCobranca,
+    pedidos: pedidos.map((x, i) => ({ order: x.order, numbers: x.numbers, campaign: preparos[i].campaign })),
+  };
+}
+
+/** O carrinho pelo código (a tela do Pix pergunta por aqui até o webhook chegar). */
+export async function cartByCode(codigo: number) {
+  if (!Number.isInteger(codigo)) return null;
+  const [carrinho] = await db.select().from(carrinhoPedidos).where(eq(carrinhoPedidos.codigo, codigo));
+  if (!carrinho) return null;
+  const pedidos = await db
+    .select({ order: orders, campaign: campaigns, orgNome: organizations.name, orgSlug: organizations.slug })
+    .from(orders)
+    .innerJoin(campaigns, eq(campaigns.id, orders.campaignId))
+    .innerJoin(organizations, eq(organizations.id, campaigns.organizationId))
+    .where(eq(orders.carrinhoId, carrinho.id))
+    .orderBy(orders.createdAt);
+  return { carrinho, pedidos };
 }
 
 /**
@@ -616,11 +881,26 @@ async function settleOrderAsPaid(order: typeof orders.$inferSelect) {
     const daRifa =
       order.affiliateId && campaign ? await comissaoNaRifa(tx, order.affiliateId, campaign) : null;
 
+    // Com o presente, a compra foi paga por dois: o comprador e a
+    // plataforma. O rateio corre sobre a soma — a promotora e o afiliado
+    // recebem como se fosse o preço cheio — e a parte da promotora no
+    // desconto vira crédito dela (`creditoDoPresente`).
     const rateio = splitOrder({
-      paidCents: order.amountCents,
+      paidCents: order.amountCents + order.presenteCents,
       platformPct: platformPctFor(plano),
       commissionPct: order.affiliateId ? (daRifa?.pct ?? 0) : 0,
     });
+
+    if (order.presenteCents > 0 && campaign) {
+      await lancarCreditoDoPresente(tx, {
+        organizationId: campaign.organizationId,
+        orderId: order.id,
+        presenteCents: order.presenteCents,
+        platformPct: rateio.platformPct,
+        commissionPct: rateio.commissionPct,
+        comissaoGuardada: order.comissaoGuardada,
+      });
+    }
 
     if (rateio.platformFeeCents > 0 && campaign) {
       await lancarTaxaDaVenda(tx, {
@@ -689,12 +969,15 @@ async function settleOrderAsPaid(order: typeof orders.$inferSelect) {
 }
 
 export async function markOrderPaid(chargeId: string) {
-  const [order] = await db
+  const achados = await db
     .select()
     .from(orders)
     .where(eq(orders.pspChargeId, chargeId));
 
-  if (!order) throw new OrderError("Pedido não encontrado para esta cobrança.", 404);
+  if (achados.length === 0) throw new OrderError("Pedido não encontrado para esta cobrança.", 404);
+  // Carrinho num Pix só: a cobrança paga vários pedidos, cada um pelo seu núcleo.
+  if (achados.length > 1 || achados[0].carrinhoId) return marcarCarrinhoPago(achados);
+  const [order] = achados;
   if (order.status === "paid") return { order, alreadyPaid: true, prizes: [] as string[] };
   if (order.status !== "pending") {
     throw new OrderError(`Pedido ${order.code} está ${order.status}.`, 409);
@@ -712,6 +995,32 @@ export async function markOrderPaid(chargeId: string) {
     alreadyPaid: false,
     prizes: result.prizes.map((p) => `${p.number} — ${p.label}`),
   };
+}
+
+/**
+ * O Pix do carrinho chegou: cada pedido vira pago pelo mesmo núcleo do
+ * avulso (`settleOrderAsPaid`), numa transação por pedido — idempotente
+ * como ele. Pedido que já não estava esperando (venceu antes do Pix) não é
+ * reaberto: vai para o log, porque é dinheiro que entrou sem cota.
+ */
+async function marcarCarrinhoPago(pedidos: (typeof orders.$inferSelect)[]) {
+  const prizes: string[] = [];
+  let pagos = 0;
+  for (const order of pedidos) {
+    if (order.status !== "pending") {
+      if (order.status !== "paid") {
+        console.error(`[carrinho] Pix pago com o pedido ${order.code} ${order.status}: devolver ${order.amountCents} centavos.`);
+      }
+      continue;
+    }
+    const r = await settleOrderAsPaid(order);
+    if (r) {
+      pagos++;
+      prizes.push(...r.prizes.map((p) => `${p.number} — ${p.label}`));
+    }
+  }
+  const [fresh] = await db.select().from(orders).where(eq(orders.id, pedidos[0].id));
+  return { order: fresh, alreadyPaid: pagos === 0, prizes };
 }
 
 /* ------------------------------------------------------------------ *
@@ -1101,6 +1410,8 @@ export async function refundOrder(orderId: string): Promise<RefundResult | null>
 
     // Bônus da indicação que este pedido confirmou sai junto (etapa 13).
     await estornarIndicacao(tx, order.id);
+    // E o crédito do presente que a plataforma devia à promotora.
+    await cancelarCreditoDoPresente(tx, order.id);
 
     const taxas = await tx
       .update(platformCharges)
@@ -1165,11 +1476,22 @@ async function anunciarEstorno(
   }
 }
 
-/** Estorno vindo do provedor, achado pela cobrança. */
+/**
+ * Estorno vindo do provedor, achado pela cobrança. O provedor só avisa
+ * "estornada" quando a cobrança **inteira** voltou (devolução parcial não
+ * muda o status), então no carrinho todos os pedidos dela são desfeitos —
+ * o dinheiro de todos saiu. `refundOrder` é idempotente: o que já tinha
+ * sido estornado pelo chamado não é desfeito de novo.
+ */
 export async function refundByChargeId(chargeId: string) {
-  const [order] = await db.select().from(orders).where(eq(orders.pspChargeId, chargeId));
-  if (!order) throw new OrderError("Pedido não encontrado para esta cobrança.", 404);
-  return refundOrder(order.id);
+  const pedidos = await db.select({ id: orders.id }).from(orders).where(eq(orders.pspChargeId, chargeId));
+  if (pedidos.length === 0) throw new OrderError("Pedido não encontrado para esta cobrança.", 404);
+  const feitos: RefundResult[] = [];
+  for (const p of pedidos) {
+    const r = await refundOrder(p.id);
+    if (r) feitos.push(r);
+  }
+  return feitos;
 }
 
 /* ------------------------------------------------------------------ *

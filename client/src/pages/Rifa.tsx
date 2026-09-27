@@ -21,6 +21,8 @@ import { regraDoReembolso } from "@shared/reembolso";
 import { DestaqueOrg } from "@/components/DestaqueOrg";
 import { lerOrigem } from "@/lib/origem";
 import { lerIndicacao } from "@/lib/indicacao";
+import { textoDoPresente } from "@shared/presente";
+import { Gift } from "lucide-react";
 import { consentiu, definirOrganizacaoDaPagina, lerUtm } from "@/lib/marketing";
 import { useRastreio } from "@/components/Marketing";
 import type { CorDeDestaque } from "@shared/perfil";
@@ -423,6 +425,8 @@ export default function Rifa() {
           </p>
         </div>
       ) : null}
+
+      {vende ? <AvisoDePresente naConta={naConta} volta={base} /> : null}
 
       {/* Compra rápida — o caminho de 95% das vendas. Sem venda online, nem
           aparece: o atributo hidden perdia para a classe grid. */}
@@ -839,5 +843,45 @@ export default function Rifa() {
         ) : null}
       </footer>
     </PublicShell>
+  );
+}
+
+/**
+ * Chegou por um presente (link de indicação com o presente ligado): diz de
+ * quem é e o que vale. O desconto é do servidor, na primeira compra paga de
+ * quem tem conta — aqui é só o aviso.
+ */
+function AvisoDePresente({ naConta, volta }: { naConta: boolean; volta: string }) {
+  const codigo = lerIndicacao();
+  const { data } = useQuery<{ ligado: boolean; valido?: boolean; de?: string; pct?: number; tetoCents?: number }>({
+    queryKey: [`/api/public/presente?codigo=${codigo ?? ""}`],
+    enabled: Boolean(codigo),
+    staleTime: 60_000,
+  });
+  if (!codigo || !data?.ligado || !data.valido) return null;
+  return (
+    <div className="mt-4 flex items-start gap-2 rounded-lg border border-marca px-3 py-3 text-sm">
+      <Gift size={20} aria-hidden className="mt-0.5 shrink-0 text-marca" />
+      <div>
+        <p>
+          <b>Presente{data.de ? ` de ${data.de}` : ""}:</b> {textoDoPresente({ pct: data.pct!, tetoCents: data.tetoCents! })}.
+        </p>
+        {naConta ? (
+          <p className="mt-1 text-xs text-muted">Se esta for sua primeira compra, o desconto já entra no Pix.</p>
+        ) : (
+          <p className="mt-1 text-xs text-muted">
+            Vale com conta:{" "}
+            <Link href={`/criar-conta?volta=${encodeURIComponent(volta)}`} className="font-semibold underline">
+              criar conta
+            </Link>{" "}
+            ou{" "}
+            <Link href={`/entrar?volta=${encodeURIComponent(volta)}`} className="font-semibold underline">
+              entrar
+            </Link>
+            .
+          </p>
+        )}
+      </div>
+    </div>
   );
 }

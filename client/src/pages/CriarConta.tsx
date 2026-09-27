@@ -55,7 +55,10 @@ export default function CriarConta() {
       }),
     onSuccess: () => {
       qc.invalidateQueries();
-      navigate("/");
+      // Veio de um presente (ou de outra página): volta para lá. Só caminho do
+      // próprio site — `//outro-site` seria redirecionador aberto.
+      const volta = new URLSearchParams(window.location.search).get("volta");
+      navigate(volta && volta.startsWith("/") && !volta.startsWith("//") ? volta : "/");
     },
     onError: (e: Error) => setErro(e.message),
   });

@@ -96,3 +96,47 @@ export function agruparPorOrganizacao<T extends { organizacao: { slug: string } 
   }
   return [...grupos].map(([slug, lista]) => ({ slug, itens: lista }));
 }
+
+/** O carrinho pago num Pix só tem código na faixa 100.000.000–899.999.999. */
+export const CARRINHO_CODIGO_MIN = 100_000_000;
+export const CARRINHO_CODIGO_MAX = 900_000_000;
+
+/**
+ * O split do Pix único do carrinho. O Asaas divide em percentual sobre o
+ * **líquido** da cobrança inteira, então a parte de cada promotora é a
+ * média dos percentuais dela pesada pelo valor de cada pedido:
+ *
+ *   percentual(carteira) = Σ valor_i × percentualDoPromotor_i / total
+ *
+ * Cada pedido entra com o percentual que teria sozinho (taxa do plano e
+ * comissão guardada, `percentualDoPromotor`), então o carrinho não muda o
+ * rateio de ninguém. Pedido de organização sem carteira não entra: a parte
+ * dela fica na conta da plataforma, como no pedido avulso. Arredonda para
+ * baixo em 4 casas (o que o Asaas aceita): a promotora nunca recebe fração
+ * que não é dela, e a soma nunca passa de 100%.
+ */
+export function splitDoCarrinho(
+  pedidos: { walletId: string | null; amountCents: number; percentualDoPromotor: number }[],
+): { walletId: string; percentual: number }[] {
+  const total = pedidos.reduce((s, p) => s + p.amountCents, 0);
+  if (total <= 0) return [];
+  const porCarteira = new Map<string, number>();
+  for (const p of pedidos) {
+    if (!p.walletId) continue;
+    porCarteira.set(p.walletId, (porCarteira.get(p.walletId) ?? 0) + p.amountCents * p.percentualDoPromotor);
+  }
+  return [...porCarteira]
+    .map(([walletId, soma]) => ({ walletId, percentual: Math.floor((soma / total) * 10_000 + 1e-9) / 10_000 }))
+    .filter((s) => s.percentual > 0);
+}
+
+/**
+ * A situação do carrinho, tirada dos pedidos dele (nunca guardada à parte,
+ * para não desencontrar): pago quando nenhum está esperando e algum foi
+ * pago; vencido quando todos venceram; senão, esperando o Pix.
+ */
+export function situacaoDoCarrinho(status: string[]): "pending" | "paid" | "expired" {
+  if (status.some((s) => s === "pending")) return "pending";
+  if (status.some((s) => s === "paid" || s === "refunded")) return "paid";
+  return "expired";
+}

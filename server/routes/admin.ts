@@ -1,3 +1,4 @@
+import { numerosPremiados } from "@shared/premiadas";
 import express, { Router, type Request, type Response as Resposta } from "express";
 import {
   aprovarTelefone,
@@ -993,6 +994,28 @@ adminRouter.post("/campaigns/:id/prized", async (req, res, next) => {
 
     if (prizeLabel.length < 2) {
       return res.status(400).json({ message: "Descreva o prêmio da cota." });
+    }
+
+    // Números escolhidos pelo organizador: só no cadastro, antes de publicar
+    // (`shared/premiadas.ts`). Depois, escolher seria poder premiar quem já comprou.
+    if (req.body?.numeros !== undefined) {
+      if (campaign.status !== "draft") {
+        return res.status(409).json({ message: "Escolher os números só no cadastro, antes de publicar. Depois, só sorteando." });
+      }
+      const lidos = numerosPremiados(req.body.numeros, campaign.totalQuotas);
+      if ("problema" in lidos) return res.status(400).json({ message: lidos.problema });
+      const criados = await db
+        .insert(prizedQuotas)
+        .values(lidos.numeros.map((number) => ({ campaignId: campaign.id, number, prizeLabel })))
+        .onConflictDoNothing()
+        .returning();
+      await audit(req, "prized.create", "campaign", campaign.id, { prizeLabel, quantity: criados.length, escolhidos: true });
+      const repetidos = lidos.numeros.length - criados.length;
+      return res.status(201).json({
+        created: criados.length,
+        prizeLabel,
+        ...(repetidos ? { aviso: `${repetidos} número(s) já eram premiados e ficaram como estavam.` } : {}),
+      });
     }
     if (!Number.isInteger(quantity) || quantity < 1 || quantity > 500) {
       return res.status(400).json({ message: "Sorteie de 1 a 500 cotas premiadas." });

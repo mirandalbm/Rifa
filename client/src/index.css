@@ -38,6 +38,7 @@
     --azul: #0a6fd6;
     /* Fundo dos números da cartela: o azul do "+" no claro, o verde a 85% no escuro. */
     --fundo-numero: var(--azul);
+    --texto-numero: var(--azul);
 
     /*
      * Cor de marca, vinda do template (lib/template.ts põe --marca-claro e
@@ -87,6 +88,7 @@
 
       --azul: #5aa9ff;
       --fundo-numero: color-mix(in srgb, var(--green) 85%, transparent);
+      --texto-numero: var(--green);
 
       --marca: var(--marca-escuro, #5dd394);
 
@@ -121,6 +123,7 @@
 
     --azul: #5aa9ff;
     --fundo-numero: color-mix(in srgb, var(--green) 85%, transparent);
+    --texto-numero: var(--green);
 
     --marca: var(--marca-escuro, #5dd394);
 
@@ -135,6 +138,11 @@
   .fundo-numero {
     background-color: var(--fundo-numero);
     color: var(--on-green);
+  }
+
+  /* Número livre no mapa: azul em negrito no claro, verde no escuro. */
+  .texto-numero {
+    color: var(--texto-numero);
   }
 
   /*

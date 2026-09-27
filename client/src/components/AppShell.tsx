@@ -10,7 +10,6 @@ import {
   Circle,
   Download,
   HandCoins,
-  Heart,
   KeyRound,
   Landmark,
   LayoutDashboard,
@@ -47,6 +46,7 @@ import { useSession, useLogout } from "@/lib/session";
 import { useCarrinho } from "@/lib/carrinho";
 import { TemaCiclo, TemaEscolha } from "@/components/TemaToggle";
 import { Marca } from "@/components/Marca";
+import { IconeTrevo } from "@/components/Publicacao";
 import { useTemplate } from "@/lib/template";
 
 /** Altura da faixa fixa do rodapé da loja (sem a área segura do celular). */
@@ -135,7 +135,8 @@ function MenuDoApostador({ nome }: { nome: string }) {
 
 /** Cabeçalho público: vitrine, rifa, pedido, minhas cotas. */
 /**
- * O coração no topo, como no Instagram: leva à central de avisos. O número
+ * O trevo no topo (o ícone do sistema, no lugar do coração do Instagram):
+ * leva à central de avisos. O número
  * diz quantos avisos novos (até 99+) — está no rótulo também, nunca só a cor.
  */
 function CoracaoDeAvisos() {
@@ -150,7 +151,7 @@ function CoracaoDeAvisos() {
       className="relative rounded-md p-1 text-ink hover:bg-mist"
       aria-label={n ? `Avisos: ${n > 99 ? "mais de 99" : n} novo(s)` : "Avisos"}
     >
-      <Heart size={24} aria-hidden strokeWidth={2} />
+      <IconeTrevo cheio={false} tamanho={26} />
       {n ? (
         <span className="tnum absolute -right-1 -top-1 min-w-[18px] rounded-full border-2 border-white bg-marca px-1 text-center text-[10px] font-bold leading-[14px] text-white">
           {n > 99 ? "99+" : n}

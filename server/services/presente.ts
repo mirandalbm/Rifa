@@ -111,6 +111,8 @@ export async function presentePublico(codigo: string) {
 /** O código de quem manda o presente (o mesmo link de indicação). */
 export async function meuCodigoDePresente(buyerId: string) {
   const cfg = (await getPlataforma()).presente;
-  if (!cfg.ligado) return { ligado: false as const };
+  // Desligado, o ícone continua: vira convite (o link da rifa com o código de
+  // indicação), sem desconto — o desconto só vale com o presente ligado.
+  if (!cfg.ligado) return { ligado: false as const, codigo: await garantirCodigoDeIndicacao(buyerId) };
   return { ligado: true as const, codigo: await garantirCodigoDeIndicacao(buyerId), pct: cfg.pct, tetoCents: cfg.tetoCents };
 }

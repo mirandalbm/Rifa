@@ -101,3 +101,10 @@ function AvisoDeCookies() {
 export function useTemMarketing() {
   return useAlvos().length > 0;
 }
+
+/** O aviso de cookies está na tela? (Outras faixas fixas esperam a escolha.) */
+export function useAvisoDeCookiesAberto() {
+  const alvos = useAlvos();
+  const escolha = useEscolha();
+  return alvos.length > 0 && !escolha;
+}

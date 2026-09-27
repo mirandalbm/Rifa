@@ -121,6 +121,7 @@ arquitetura.
 | painel de resultados, origem da venda e foto do ganhador | `shared/resultados.ts` (regras), `server/services/resultados.ts`, `client/src/lib/origem.ts`, `client/src/pages/adminResultados.tsx`, `server/services/ganhador.ts`, `scripts/resultados-test.ts` |
 | aparência da plataforma (construtor de templates) | `shared/template.ts` (regras), `server/services/template.ts`, `client/src/lib/template.ts`, `client/src/pages/adminAparencia.tsx`, `scripts/aparencia-test.ts` |
 | tema claro e escuro | `client/src/index.css` (variáveis), `client/src/lib/tema.ts`, `client/src/components/TemaToggle.tsx`, `tests/tema.test.ts` |
+| central de avisos do apostador (o coração no topo) | `server/services/notificacoes.ts`, `avisar()` em `server/services/push.ts`, `client/src/pages/Notificacoes.tsx`, `CoracaoDeAvisos` em `client/src/components/AppShell.tsx`, `scripts/push-test.ts` |
 | app instalável (PWA) | `client/public/sw.js`, `client/public/manifest.webmanifest`, `client/src/lib/pwa.ts` |
 
 ## Convenções
@@ -787,7 +788,16 @@ pedido, cotas e valor, e o cliente só pelo ID (`Cliente C-XXXXXXXX`).
 - **As chaves VAPID nunca se regeneram sozinhas**: vêm do ambiente ou são
   criadas uma vez em `app_settings`. Trocar invalida todas as inscrições.
 - Mudou `sw.js`? Troque `VERSAO` — senão o celular segue com a casca velha.
-- `npm run push` prova tudo isso, descriptografando o que chega.
+- **A central de avisos guarda o mesmo que sai por push** (o coração no
+  topo do site, `/notificacoes`). `avisar()` grava em `notificacoes` para
+  todo mundo que o aviso alcança — inclusive quem não ligou o push — com a
+  mesma chave por pessoa (índice único `uq_notificacao_chave`), então o
+  relógio que repete não duplica. Falha ao gravar não derruba o push nem o
+  fluxo. Só o próprio comprador lê (sessão; sem sessão, 401) e abrir marca
+  como lido. O número do coração vai no rótulo, não só na cor. O relógio
+  apaga o que passou de 90 dias (`apagarNotificacoesAntigas`, trava 811012).
+- `npm run push` prova tudo isso, descriptografando o que chega, e confere
+  a central de cada pessoa.
 
 ## Transparência — o que não pode afrouxar
 
@@ -854,12 +864,22 @@ pedido, cotas e valor, e o cliente só pelo ID (`Cliente C-XXXXXXXX`).
 - **O "visto" do story fica no aparelho** (`client/src/lib/stories.ts`),
   como a região e o tema: perder só acende o anel de novo. O anel aceso é
   mais grosso e diz "(novo)" no rótulo — nunca só cor.
-- **Estados ordenam, a página do estado filtra.** Os círculos põem o estado
-  de quem olha primeiro (`estadosComRifa`); `/estado/UF` é escolha explícita
+- **A fileira do topo é de stories, como no Instagram** (os círculos de
+  estado saíram dela). `GET /api/public/stories` (`perfisComStory()`)
+  traz todo perfil com story no ar e organização não arquivada, seguidos
+  primeiro e o mais novo na frente; o aparelho põe o já visto no fim. Ela
+  ocupa o lugar do primeiro bloco `seguidos` ou `estados` do template — o
+  outro não repete. O organizador vê "Seu story" no começo, que leva a
+  postar.
+- **Estados ordenam, a página do estado filtra.** O seletor "Rifas perto
+  de" põe o estado de quem olha primeiro; `/estado/UF` é escolha explícita
   da pessoa, por isso ali filtrar vale (`?estado=`). A vitrine segue só
   ordenando.
-- **Feed em formato de publicação** (4:5), com o perfil da promotora no
-  topo e o selo "Autorizada SPA/MF" com o número — a rifa no ar sempre tem.
+- **Feed em formato de publicação** (4:5), com o perfil da promotora
+  **por cima da imagem**, como no Instagram (sombra no topo para o texto
+  branco ler sobre qualquer foto; o link do perfil é irmão do link da rifa,
+  nunca dentro dele), e o selo "Autorizada SPA/MF" com o número — a rifa no
+  ar sempre tem.
 - **Imagem nunca é servida como veio**: banner 1200×600 e story 1080×1920,
   WebP, sem metadados, no banco (até o R2 entrar).
 - **Subconsulta com tabela de fora escreve o nome da tabela**

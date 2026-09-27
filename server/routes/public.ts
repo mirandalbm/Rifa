@@ -1,4 +1,5 @@
 import { conferirRecibo } from "../services/recibos";
+import { marcarTodasLidas, naoLidas, notificacoesDe } from "../services/notificacoes";
 import { aderir, pedirColaboracao, termoPublico } from "../services/afiliados";
 import { fotoDoGanhador, urlDaFotoDoGanhador } from "../services/ganhador";
 import {
@@ -46,6 +47,7 @@ import {
   deixarDeSeguir,
   ligarSino,
   perfisSeguidos,
+  perfisComStory,
 } from "../services/perfil";
 import QRCode from "qrcode";
 import { publicUrl } from "../services/urls";
@@ -393,6 +395,56 @@ publicRouter.get("/seguindo", async (req, res, next) => {
   try {
     const id = req.session.buyer?.id;
     res.json(id ? await perfisSeguidos(id) : []);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/* ---------------- central de avisos (o coração) ---------------- */
+
+/** Só o próprio comprador: sem sessão, 401 — a tela manda entrar. */
+function donoDosAvisos(req: Request) {
+  const id = req.session.buyer?.id;
+  if (!id) {
+    const e = new Error("Entre para ver seus avisos.") as Error & { status: number };
+    e.status = 401;
+    throw e;
+  }
+  return id;
+}
+
+publicRouter.get("/notificacoes/resumo", async (req, res, next) => {
+  try {
+    const id = req.session.buyer?.id;
+    // Sem sessão não é erro aqui: o coração só não mostra número.
+    res.json({ naoLidas: id ? await naoLidas(id) : 0 });
+  } catch (err) {
+    next(err);
+  }
+});
+
+publicRouter.get("/notificacoes", async (req, res, next) => {
+  try {
+    res.setHeader("Cache-Control", "private, no-store");
+    res.json(await notificacoesDe(donoDosAvisos(req)));
+  } catch (err) {
+    next(err);
+  }
+});
+
+publicRouter.post("/notificacoes/lidas", async (req, res, next) => {
+  try {
+    await marcarTodasLidas(donoDosAvisos(req));
+    res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** A fileira de stories da vitrine: todo perfil com story no ar, seguidos primeiro. */
+publicRouter.get("/stories", async (req, res, next) => {
+  try {
+    res.json(await perfisComStory(req.session.buyer?.id ?? null));
   } catch (err) {
     next(err);
   }

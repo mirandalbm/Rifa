@@ -177,6 +177,15 @@ async function main() {
     const ultimo = r.json?.ultimoStory ? new Date(r.json.ultimoStory).getTime() : 0;
     checa("o perfil acende o anel (ultimoStory, em UTC)", Math.abs(ultimo - Date.now()) < 5 * 60_000, r.json?.ultimoStory);
 
+    r = await anon.req("GET", "/api/public/stories");
+    const fileira = (r.json ?? []).map((o: any) => o.slug);
+    checa("a fileira da vitrine traz os dois perfis com story no ar",
+      fileira.includes(org.slug) && fileira.includes(VIZINHA), JSON.stringify(fileira));
+    await db.update(organizations).set({ archivedAt: new Date() }).where(eq(organizations.id, vizinha.id));
+    r = await anon.req("GET", "/api/public/stories");
+    checa("perfil arquivado sai da fileira", !(r.json ?? []).some((o: any) => o.slug === VIZINHA));
+    await db.update(organizations).set({ archivedAt: null }).where(eq(organizations.id, vizinha.id));
+
     r = await marina.req("GET", "/api/admin/stories");
     checa("o painel da organizadora lista só os dela", r.json?.some((s: any) => s.id === s1) && !r.json?.some((s: any) => s.id === sVizinha));
     r = await marina.req("DELETE", `/api/admin/stories/${sVizinha}`);

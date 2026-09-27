@@ -48,6 +48,7 @@ import {
   type TipoAviso,
 } from "@shared/push";
 import { formatQuota } from "@shared/format";
+import { registrarNotificacoes } from "./notificacoes";
 import { publicUrl } from "./urls";
 
 export class PushError extends Error {
@@ -173,6 +174,11 @@ export async function avisar(
     reivindicados.push(...r.map((x) => x.buyerId));
   }
   if (reivindicados.length === 0) return 0;
+  // A central de avisos (o coração) guarda todo aviso, com ou sem aparelho.
+  // Falha aqui não impede o push: é o mesmo cuidado de nunca derrubar o fluxo.
+  await registrarNotificacoes(reivindicados, tipo, chave, msg).catch((err) =>
+    console.error(`[push] central de avisos (${tipo}):`, (err as Error).message),
+  );
 
   const aparelhos = await db
     .select()

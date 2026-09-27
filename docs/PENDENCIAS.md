@@ -79,6 +79,9 @@ senha); **[código]** é trabalho no repositório.
   sorteio): pedido com nova data e motivo, analisado pela plataforma; ao
   aprovar, quem comprou e quem segue recebe o aviso e a página da rifa
   mostra a data de antes.
+- [x] Vitrine como o Instagram: fileira de stories no topo (no lugar dos
+  estados), perfil da promotora por cima da imagem no feed, e o coração no
+  topo com a central de avisos (`/notificacoes`).
 - [ ] **[você]** Antes de aprovar um adiamento, conferir se a autorização
   SPA/MF da rifa cobre a nova data (a plataforma não tem como checar isso
   sozinha).

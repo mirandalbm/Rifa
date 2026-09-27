@@ -1,16 +1,14 @@
 import { useState } from "react";
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { MapPin } from "lucide-react";
+import { MapPin, Plus } from "lucide-react";
 import { UFS, ufValida } from "@shared/endereco";
 import { lerRegiao, gravarRegiao, regiaoEfetiva, type EscolhaDeRegiao } from "@/lib/regiao";
 import { useSession } from "@/lib/session";
 import { useTemplate } from "@/lib/template";
-import { FotoDoPerfil } from "@/components/Seguir";
 import { PublicShell } from "@/components/AppShell";
 import { Empty } from "@/components/bits";
 import { BannersVitrine } from "@/components/BannersVitrine";
-import { EstadosVitrine } from "@/components/EstadosVitrine";
 import { CartaoDoFeed, type RifaDoFeed } from "@/components/CartaoDoFeed";
 import { FotoComStory, VisualizadorDeStories, useVistos } from "@/components/Stories";
 import { vistoAte } from "@/lib/stories";
@@ -74,20 +72,23 @@ export default function Vitrine() {
     </div>
   );
 
+  const blocos = comPatrocinadas(template.blocos).filter((b) => b.ligado);
+  // A fileira de stories ocupa o lugar do primeiro bloco "seguidos" ou
+  // "estados" do template (os estados deram lugar aos stories, como no
+  // Instagram); o outro não repete a fileira.
+  const lugarDosStories = blocos.find((b) => b.tipo === "seguidos" || b.tipo === "estados")?.id;
+
   return (
     <PublicShell>
-      {comPatrocinadas(template.blocos)
-        .filter((b) => b.ligado)
-        .map((b) => {
+      {blocos.map((b) => {
           switch (b.tipo) {
             case "regiao":
               return <div key={b.id}>{blocoRegiao}</div>;
             case "banners":
               return <BannersVitrine key={b.id} />;
             case "seguidos":
-              return <StoriesDosSeguidos key={b.id} />;
             case "estados":
-              return <EstadosVitrine key={b.id} uf={regiao?.uf ?? null} />;
+              return b.id === lugarDosStories ? <StoriesDaVitrine key={b.id} /> : null;
             case "rifas":
               return (
                 <section key={b.id} aria-label={b.titulo || "Rifas no ar"}>
@@ -133,38 +134,61 @@ function comPatrocinadas(blocos: Bloco[]): Bloco[] {
   return i < 0 ? [...blocos, novo] : [...blocos.slice(0, i), novo, ...blocos.slice(i)];
 }
 
+/** Tamanho da foto na fileira de stories — o do Instagram no celular. */
+const FOTO_DO_STORY = 74;
+
 /**
- * Stories dos perfis que a pessoa segue, em bolinhas no topo — como no
- * Instagram. Quem tem story novo vem primeiro, com o anel aceso; tocar abre
- * os stories (sem story, abre o perfil). Sem sessão ou sem ninguém seguido,
- * não ocupa espaço.
+ * A fileira de stories no topo da vitrine, como no Instagram: todo perfil
+ * com story no ar. Quem a pessoa segue vem primeiro; dentro disso, story
+ * ainda não visto antes do já visto (o "visto" fica no aparelho). Tocar abre
+ * os stories. O organizador vê "Seu story" no começo, que leva a postar.
+ * Sem nenhum story e sem ser organizador, não ocupa espaço.
  */
-function StoriesDosSeguidos() {
+function StoriesDaVitrine() {
   useVistos();
+  const { data: sessao } = useSession();
   const [aberto, setAberto] = useState<string | null>(null);
-  const { data } = useQuery<{ slug: string; nome: string; foto: string | null; ultimoStory: string | null }[]>({
-    queryKey: ["/api/public/seguindo"],
-  });
-  if (!data?.length) return null;
-  const peso = (o: { slug: string; ultimoStory: string | null }) =>
-    !o.ultimoStory ? 2 : temStoryNovo(o.ultimoStory, vistoAte(o.slug)) ? 0 : 1;
-  const ordem = [...data].sort((a, b) => peso(a) - peso(b));
+  const { data = [] } = useQuery<
+    { slug: string; nome: string; foto: string | null; ultimoStory: string; seguindo: boolean }[]
+  >({ queryKey: ["/api/public/stories"], staleTime: 60_000 });
+  const organizador = sessao?.role === "organizer";
+  if (data.length === 0 && !organizador) return null;
+  const visto = (o: { slug: string; ultimoStory: string }) => (temStoryNovo(o.ultimoStory, vistoAte(o.slug)) ? 0 : 1);
+  // Estável: mantém a ordem do servidor (seguidos, mais novo) dentro de cada faixa.
+  const ordem = [...data].sort((a, b) => visto(a) - visto(b));
   return (
-    <nav aria-label="Stories de quem você segue" className="-mx-4 mb-3 overflow-x-auto px-4" style={{ scrollbarWidth: "none" }}>
+    <nav aria-label="Stories" className="-mx-4 mb-3 overflow-x-auto px-4 pt-1" style={{ scrollbarWidth: "none" }}>
       <ul className="flex gap-3">
-        {ordem.map((o) => (
-          <li key={o.slug} className="w-20 shrink-0 text-center">
-            {o.ultimoStory ? (
-              <span className="mx-auto block w-fit">
-                <FotoComStory slug={o.slug} nome={o.nome} foto={o.foto} ultimoStory={o.ultimoStory} tamanho={62} onAbrir={() => setAberto(o.slug)} />
-              </span>
-            ) : (
-              <Link href={`/o/${o.slug}`} className="mx-auto block w-fit rounded-full border border-transparent p-[2px]">
-                <span className="block p-[2px]">
-                  <FotoDoPerfil nome={o.nome} foto={o.foto} tamanho={62} />
+        {organizador ? (
+          <li className="w-[86px] shrink-0 text-center">
+            <Link href="/admin/stories" className="mx-auto block w-fit" aria-label="Postar no seu story">
+              <span
+                className="relative flex items-center justify-center rounded-full border border-line-2 bg-mist p-[5px]"
+                style={{ width: FOTO_DO_STORY + 10, height: FOTO_DO_STORY + 10 }}
+              >
+                <span aria-hidden className="font-display text-2xl font-extrabold text-muted">
+                  {sessao?.user?.name?.trim().charAt(0).toUpperCase() ?? "+"}
                 </span>
-              </Link>
-            )}
+                <span className="absolute bottom-0 right-0 flex h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-ink text-white">
+                  <Plus size={14} aria-hidden />
+                </span>
+              </span>
+            </Link>
+            <span className="mt-1 block truncate text-xs text-ink-2">Seu story</span>
+          </li>
+        ) : null}
+        {ordem.map((o) => (
+          <li key={o.slug} className="w-[86px] shrink-0 text-center">
+            <span className="mx-auto block w-fit">
+              <FotoComStory
+                slug={o.slug}
+                nome={o.nome}
+                foto={o.foto}
+                ultimoStory={o.ultimoStory}
+                tamanho={FOTO_DO_STORY}
+                onAbrir={() => setAberto(o.slug)}
+              />
+            </span>
             <Link href={`/o/${o.slug}`} className="mt-1 block truncate text-xs text-ink-2">
               {o.nome}
             </Link>

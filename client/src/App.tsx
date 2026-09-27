@@ -16,6 +16,7 @@ import Regulamento from "@/pages/Regulamento";
 import Ajuda from "@/pages/Ajuda";
 import Pedido from "@/pages/Pedido";
 import MinhasCotas from "@/pages/MinhasCotas";
+import Notificacoes from "@/pages/Notificacoes";
 import Login from "@/pages/Login";
 import CriarConta from "@/pages/CriarConta";
 import CadastroAfiliado from "@/pages/CadastroAfiliado";
@@ -119,6 +120,7 @@ export default function App() {
           <Route path="/o/:org" component={Perfil} />
           <Route path="/pedido/:code" component={Pedido} />
           <Route path="/minhas-cotas" component={MinhasCotas} />
+          <Route path="/notificacoes" component={Notificacoes} />
           <Route path="/minhas-compras" component={MinhasCotas} />
           <Route path="/entrar" component={Login} />
           <Route path="/criar-conta" component={CriarConta} />

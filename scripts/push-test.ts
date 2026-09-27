@@ -24,6 +24,7 @@ import { db, pool } from "../server/db";
 import { buyers, campaignStats, campaigns, chamados, draws, orders, organizations, pushInscricoes } from "../shared/schema";
 import {
   avisarReembolso,
+  avisarAdiamento,
   avisarResultado,
   avisarRifaNova,
   avisarSorteiosChegando,
@@ -239,6 +240,33 @@ async function main() {
     await avisarReembolso(ch.id);
     checa("reembolso respondido chega só ao dono do chamado",
       quantos(dCarla) === 3 && quantos(dAna) === 3 && ler(dCarla, 2).title === "Reembolso aprovado");
+
+    // Sorteio adiado: quem comprou e quem segue com sino, uma vez por adiamento.
+    await db.update(campaigns).set({ adiamentos: 1, drawAt: new Date(Date.now() + 10 * 86_400_000) }).where(eq(campaigns.id, rifa.id));
+    await avisarAdiamento(rifa.id);
+    await avisarAdiamento(rifa.id);
+    checa("sorteio adiado: Ana e Carla, uma vez", quantos(dAna) === 4 && quantos(dCarla) === 4 && ler(dCarla, 3).title === "Sorteio adiado");
+
+    // A central de avisos (o coração): guarda o mesmo que saiu por push.
+    console.log("\n  central de avisos:");
+    let r2 = await carla.req("GET", "/api/public/notificacoes/resumo");
+    checa("o coração da Carla mostra 4 novos", r2.json?.naoLidas === 4, JSON.stringify(r2.json));
+    r2 = await carla.req("GET", "/api/public/notificacoes");
+    const tipos = (r2.json?.lista ?? []).map((a: any) => a.tipo).sort().join(",");
+    checa("a central traz sorteio chegando, resultado, reembolso e adiamento",
+      tipos === "reembolso,resultado,sorteio_adiado,sorteio_chegando", tipos);
+    r2 = await ana.req("GET", "/api/public/notificacoes");
+    checa("a da Ana não traz o reembolso da Carla",
+      r2.json?.lista?.length === 4 && !r2.json.lista.some((a: any) => a.tipo === "reembolso"), String(r2.json?.lista?.length));
+    r2 = await bruno.req("GET", "/api/public/notificacoes");
+    checa("sino desligado: a central do Bruno fica vazia", r2.json?.lista?.length === 0);
+    r2 = await new Cliente().req("GET", "/api/public/notificacoes");
+    checa("sem entrar: 401", r2.status === 401, `HTTP ${r2.status}`);
+    await carla.req("POST", "/api/public/notificacoes/lidas");
+    r2 = await carla.req("GET", "/api/public/notificacoes/resumo");
+    const ana2 = await ana.req("GET", "/api/public/notificacoes/resumo");
+    checa("abrir marca como lido só as da própria pessoa", r2.json?.naoLidas === 0 && ana2.json?.naoLidas === 4,
+      `${r2.json?.naoLidas}, ${ana2.json?.naoLidas}`);
 
     void anaId;
   } finally {

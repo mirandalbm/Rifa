@@ -1183,6 +1183,34 @@ export const pushEnvios = pgTable(
 );
 
 /**
+ * A central de avisos do apostador (o coração no topo, como no Instagram).
+ * Todo aviso que sai por push também fica aqui — inclusive para quem não
+ * ligou o push. A chave é a mesma do `push_envios`: uma linha por pessoa e
+ * aviso, nunca repetida. O relógio apaga o que passou de 90 dias.
+ */
+export const notificacoes = pgTable(
+  "notificacoes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    buyerId: uuid("buyer_id")
+      .notNull()
+      .references(() => buyers.id, { onDelete: "cascade" }),
+    tipo: text("tipo").notNull(),
+    chave: text("chave").notNull(),
+    titulo: text("titulo").notNull(),
+    corpo: text("corpo").notNull(),
+    /** Caminho interno aberto ao tocar. */
+    url: text("url").notNull(),
+    lidaEm: timestamp("lida_em"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("uq_notificacao_chave").on(t.buyerId, t.chave),
+    index("idx_notificacoes_buyer").on(t.buyerId, t.createdAt),
+  ],
+);
+
+/**
  * Cada publicação do template da plataforma é uma linha nova — nada é
  * sobrescrito. A que vale é a mais recente; "voltar" publica de novo o
  * conteúdo de uma antiga, e o histórico continua linear.

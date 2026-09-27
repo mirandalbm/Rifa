@@ -203,6 +203,11 @@ arquitetura.
   continua passando por `publishCampaign()` e pela invariante 9.
 - **Só a plataforma cria e remove** (403 para organizador). Remover volta
   as rifas a rascunho e arquiva a organização; o reset do lançamento apaga.
+- **Marcar como teste** (`marcarDemonstracao()`, `POST
+  /campaigns/:id/demonstracao`) liga a mesma marca numa rifa qualquer:
+  marcar só sem venda (quem comprou não acorda numa rifa "de exemplo");
+  desmarcar só com autorização SPA/MF (a demonstração criada sem ela não
+  passa a vender). Condições no próprio `UPDATE` (422); só a plataforma.
 - **Tirar do ar** (`tirarDoAr()`, `POST /campaigns/:id/tirar-do-ar`) vale
   para qualquer rifa publicada, mas só sem venda — pedido pago ou pendente,
   ou cota tomada, barram no próprio `UPDATE` (422). Volta a rascunho e

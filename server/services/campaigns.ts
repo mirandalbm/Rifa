@@ -376,3 +376,43 @@ export async function tirarDoAr(campaignId: string) {
     return { ok: true };
   });
 }
+
+/**
+ * Marca (ou desmarca) uma rifa como demonstração — "rifa de teste": fica na
+ * vitrine com a marca "Demonstração" e `createOrder` recusa venda.
+ *
+ * Marcar só vale sem venda (pedido pago ou pendente, ou cota tomada): quem
+ * comprou não pode acordar numa rifa "de exemplo". Desmarcar só vale para
+ * rifa com autorização SPA/MF — a de demonstração criada sem ela não passa
+ * a vender por um clique. As duas condições moram no próprio UPDATE.
+ */
+export async function marcarDemonstracao(campaignId: string, ligado: boolean) {
+  const r = await db.execute(sql`
+    UPDATE campaigns
+       SET demonstracao = ${ligado}::boolean
+     WHERE id = ${campaignId}::uuid
+       AND demonstracao <> ${ligado}::boolean
+       AND (
+         (${ligado}::boolean AND NOT EXISTS (SELECT 1 FROM orders
+                                     WHERE campaign_id = ${campaignId}::uuid
+                                       AND status IN ('paid', 'pending'))
+                    AND NOT EXISTS (SELECT 1 FROM quota_alloc WHERE campaign_id = ${campaignId}::uuid))
+         OR (NOT ${ligado}::boolean AND authorization_code IS NOT NULL)
+       )
+    RETURNING id
+  `);
+  if (r.rows.length) return { ok: true };
+  const [c] = await db
+    .select({ demonstracao: campaigns.demonstracao })
+    .from(campaigns)
+    .where(eq(campaigns.id, campaignId));
+  if (!c) throw new CampaignRuleError("Rifa não encontrada.");
+  if (c.demonstracao === ligado) {
+    throw new CampaignRuleError(ligado ? "Esta rifa já é de teste." : "Esta rifa não é de teste.");
+  }
+  throw new CampaignRuleError(
+    ligado
+      ? "Esta rifa já tem compra: não vira teste sem estornar quem comprou."
+      : "Rifa de teste sem autorização SPA/MF não passa a vender.",
+  );
+}

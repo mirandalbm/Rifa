@@ -32,6 +32,7 @@ import {
   publishCampaign,
   publishBlockers,
   tirarDoAr,
+  marcarDemonstracao,
   assertEditable,
   assertQuotaRange,
   CampaignRuleError,
@@ -460,6 +461,26 @@ adminRouter.post("/campaigns/:id/tirar-do-ar", async (req, res, next) => {
     requirePlatformAdmin(req);
     await tirarDoAr(req.params.id);
     await audit(req, "campaign.tirar_do_ar", "campaign", req.params.id, {});
+    res.json({ ok: true });
+  } catch (err) {
+    if (err instanceof CampaignRuleError) {
+      return res.status(422).json({ message: err.message });
+    }
+    next(err);
+  }
+});
+
+/**
+ * Rifa de teste (demonstração): marca ou desmarca. Só a plataforma (403 para
+ * organizador, no `npm run isolation`); as regras moram em
+ * `marcarDemonstracao()` — 422 quando não cabe.
+ */
+adminRouter.post("/campaigns/:id/demonstracao", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    const ligado = req.body?.ligado === true;
+    await marcarDemonstracao(req.params.id, ligado);
+    await audit(req, "campaign.demonstracao", "campaign", req.params.id, { ligado });
     res.json({ ok: true });
   } catch (err) {
     if (err instanceof CampaignRuleError) {

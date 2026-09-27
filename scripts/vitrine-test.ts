@@ -210,6 +210,28 @@ async function main() {
     const c = todas.json?.find((x: any) => x.id === rifaVizinha.id);
     checa("o feed traz o selo da autorização e o perfil (com foto)", c?.autorizacao === "SPA-VITRINE-1" && c?.organizacao?.slug === VIZINHA && "foto" in (c?.organizacao ?? {}));
 
+    // Marcar como teste: a rifa vira demonstração (marca na vitrine, sem venda).
+    console.log("\n  marcar como teste:");
+    r = await marina.req("POST", `/api/admin/campaigns/${rifaVizinha.id}/demonstracao`, { ligado: true });
+    checa("organizador não marca rifa como teste (403)", r.status === 403, `HTTP ${r.status}`);
+    r = await admin.req("POST", `/api/admin/campaigns/${rifaVizinha.id}/demonstracao`, { ligado: true });
+    let cartao = ((await anon.req("GET", "/api/public/campaigns")).json ?? []).find((c: any) => c.id === rifaVizinha.id);
+    checa("marcada: segue na vitrine com a marca de demonstração", r.status === 200 && cartao?.demonstracao === true, `HTTP ${r.status}`);
+    r = await anon.req("POST", "/api/public/orders", {
+      campaignId: rifaVizinha.id,
+      quantity: 1,
+      buyer: { name: "Teste Marcada", phone: "11988880001" },
+    });
+    checa("rifa marcada como teste não vende (409)", r.status === 409, `HTTP ${r.status} ${r.json?.message ?? ""}`);
+    r = await admin.req("POST", `/api/admin/campaigns/${rifaVizinha.id}/demonstracao`, { ligado: false });
+    cartao = ((await anon.req("GET", "/api/public/campaigns")).json ?? []).find((c: any) => c.id === rifaVizinha.id);
+    checa("desmarcada (tem autorização): volta a ser rifa normal", r.status === 200 && cartao && !cartao.demonstracao, `HTTP ${r.status}`);
+    await db.execute(sql`insert into quota_alloc (campaign_id, number, status, order_id, reserved_until)
+      values (${rifaVizinha.id}::uuid, 2, 'reserved', gen_random_uuid(), now() + interval '10 minutes')`);
+    r = await admin.req("POST", `/api/admin/campaigns/${rifaVizinha.id}/demonstracao`, { ligado: true });
+    checa("rifa com cota tomada não vira teste (422)", r.status === 422, `HTTP ${r.status}`);
+    await db.execute(sql`delete from quota_alloc where campaign_id = ${rifaVizinha.id}::uuid`);
+
     // Tirar do ar: só a plataforma, e só rifa sem venda (volta a rascunho).
     console.log("\n  tirar do ar:");
     r = await marina.req("POST", `/api/admin/campaigns/${rifaVizinha.id}/tirar-do-ar`);

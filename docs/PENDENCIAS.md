@@ -59,8 +59,14 @@ senha); **[código]** é trabalho no repositório.
 - [ ] **[você]** O comprador só entra em "Minhas cotas" pelo código do
   WhatsApp: **sem o modelo `codigo_acesso` aprovado (item 1), ninguém
   consegue pedir reembolso** — nem ver as cotas.
-- [ ] **[você]** Cloudflare R2: criar o bucket e gerar as chaves (sem isso,
-  não sobe banner nem foto de rifa).
+- [x] Imagens enviadas sobreviviam só até o próximo deploy (disco do
+  contêiner). Agora ficam no volume `rifa-uploads` do Railway, montado em
+  `/data`, com `UPLOAD_DIR=/data/uploads`. As que sumiram antes do volume
+  precisam ser enviadas de novo. Arquivo que falta responde 404 (antes: a
+  página do app com 200, e a imagem quebrava sem nada no log).
+- [ ] **[você]** Cloudflare R2: criar o bucket e gerar as chaves. O volume
+  resolve para uma réplica; com várias, ou muito tráfego de imagem, o R2
+  entra (basta `R2_BUCKET` e as chaves — o código já escolhe sozinho).
 - [ ] **[você]** Domínio próprio apontado para o Railway.
 - [x] Campos de autorização SPA/MF (número e arquivo do certificado) e data
   do sorteio no cadastro da campanha (Campanhas → Ajustar → "Dados legais

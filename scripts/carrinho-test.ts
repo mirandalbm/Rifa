@@ -30,6 +30,7 @@ const checa = (n: string, ok: boolean, d = "") => {
 };
 
 const PREFIXO = "carrinho-teste-";
+const ORG_SLUG = "carrinho-teste-promotora";
 const TELEFONES = ["11972220001", "11972220002", "11972220003", "11972220004"];
 
 async function req(metodo: string, caminho: string, corpo?: unknown) {
@@ -56,6 +57,7 @@ async function limpar() {
     await db.delete(buyers).where(inArray(buyers.id, gente.map((g) => g.id))).catch(() => {});
   }
   await db.delete(rateEvents).where(sql`${rateEvents.bucket} like 'order:%'`);
+  await db.delete(organizations).where(eq(organizations.slug, ORG_SLUG));
 }
 
 const statsDe = async (id: string) => (await db.select().from(campaignStats).where(eq(campaignStats.campaignId, id)))[0];
@@ -63,8 +65,11 @@ const statsDe = async (id: string) => (await db.select().from(campaignStats).whe
 async function main() {
   console.log("\n=== carrinho num Pix só ===\n");
   await limpar();
-  const orgs = await db.select().from(organizations).where(sql`${organizations.archivedAt} is null`).limit(2);
-  if (orgs.length < 2) throw new Error("Preciso de duas organizações no banco (rode o seed).");
+  // Duas promotoras: a do seed e uma desta prova (o banco do CI tem só uma).
+  const [daSeed] = await db.select().from(organizations).where(sql`${organizations.archivedAt} is null`).limit(1);
+  if (!daSeed) throw new Error("Nenhuma organização no banco. Rode `npm run db:seed`.");
+  const [segunda] = await db.insert(organizations).values({ name: "Promotora do carrinho", slug: ORG_SLUG }).returning();
+  const orgs = [daSeed, segunda];
 
   const nova = async (i: number, org: string, total: number, preco: number) => {
     const [c] = await db

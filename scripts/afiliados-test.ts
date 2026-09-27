@@ -262,7 +262,7 @@ async function main() {
 
     // Seja um colaborador.
     const pessoa = new Cliente();
-    r = await pessoa.req("POST", "/api/public/conta", { nome: "Bia Colaboradora", telefone: TEL_COLAB, cpf: "11144477735", cep: "01310-100", senha: SENHA, lembrar: true });
+    r = await pessoa.req("POST", "/api/public/conta", { apelido: "tst" + Math.random().toString(36).replace(/[^a-z]/g, "").slice(0, 12) + "x", nome: "Bia Colaboradora", telefone: TEL_COLAB, cpf: "11144477735", cep: "01310-100", senha: SENHA, lembrar: true });
     if (r.status !== 201) throw new Error(`conta: HTTP ${r.status} ${r.json?.message ?? ""}`);
     r = await anon.req("POST", `/api/public/o/${A.slug}/colaborador`, { cidade: "Natal" });
     checa("sem entrar, não pede (401)", r.status === 401, `HTTP ${r.status}`);

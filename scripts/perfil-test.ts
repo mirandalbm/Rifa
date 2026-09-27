@@ -124,7 +124,7 @@ async function main() {
     // Duas contas de comprador.
     const [ana, bruno] = [new Cliente(), new Cliente()];
     for (const [c, p] of [[ana, PESSOAS[0]], [bruno, PESSOAS[1]]] as const) {
-      const cr = await c.req("POST", "/api/public/conta", { ...p, cep: "01310-100", senha: "senha-perfil-1", lembrar: true });
+      const cr = await c.req("POST", "/api/public/conta", { apelido: "tst" + Math.random().toString(36).replace(/[^a-z]/g, "").slice(0, 12) + "x", ...p, cep: "01310-100", senha: "senha-perfil-1", lembrar: true });
       if (cr.status !== 201 && cr.status !== 200) throw new Error(`conta: HTTP ${cr.status} ${cr.json?.message}`);
     }
 

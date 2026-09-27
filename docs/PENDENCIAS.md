@@ -306,6 +306,10 @@ Na ordem de entrega do plano:
   `ROSTO_AWS_SECRET_ACCESS_KEY` e `ROSTO_AWS_REGION`. Sem isso, a plataforma
   confere a foto à mão. Confirmar com o advogado o texto do consentimento
   biométrico (LGPD, art. 11).
+- [x] Publicação como no Instagram: carrossel de até 10 (reels até 3 min,
+  vídeo do feed até 15 min), curtir com o trevo, comentar, republicar,
+  compartilhar e salvar com contadores, legenda da organização, "• Autor"
+  nos comentários e apelido obrigatório no cadastro.
 - [ ] **[código]** Presente com convite (cadastro → compra com desconto de
   primeira compra pago pela plataforma) e carrinho multi-rifa — próximo PR.
 - [ ] **[código]** Login com Google.

@@ -14,6 +14,10 @@ export function useCoresDoSelo(): CoresDoSelo {
   return data?.cores ?? CORES_DO_SELO_PADRAO;
 }
 
+/** Uma folha em coração, com a ponta no centro; as quatro saem nas diagonais, como no trevo de verdade. */
+export const FOLHA =
+  "M50 50 L39 39 C25 25 20 8 33 4 C42 1.5 48 7 50 13 C52 7 58 1.5 67 4 C80 8 75 25 61 39 Z";
+
 /**
  * O trevo de quatro folhas com o sinal de confirmação — o selo de
  * verificado. A cor diz de quem é (apostador, afiliado, organização) e o
@@ -22,7 +26,7 @@ export function useCoresDoSelo(): CoresDoSelo {
 export function Trevo({ cor, tamanho = 16, rotulo }: { cor: string; tamanho?: number; rotulo: string }) {
   return (
     <svg
-      viewBox="0 0 24 24"
+      viewBox="0 0 100 100"
       width={tamanho}
       height={tamanho}
       role="img"
@@ -30,13 +34,13 @@ export function Trevo({ cor, tamanho = 16, rotulo }: { cor: string; tamanho?: nu
       className="inline-block shrink-0 align-[-0.15em]"
     >
       <title>{rotulo}</title>
+      {/* Quatro folhas em coração, com a ponta no centro — o trevo. */}
       <g fill={cor}>
-        <circle cx="12" cy="6.6" r="5.4" />
-        <circle cx="12" cy="17.4" r="5.4" />
-        <circle cx="6.6" cy="12" r="5.4" />
-        <circle cx="17.4" cy="12" r="5.4" />
+        {[45, 135, 225, 315].map((giro) => (
+          <path key={giro} d={FOLHA} transform={`rotate(${giro} 50 50)`} />
+        ))}
       </g>
-      <path d="M7.6 12.3l3 3 5.8-6" fill="none" stroke="#ffffff" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M31 51 L44 64 L70 37" fill="none" stroke="#ffffff" strokeWidth="8" strokeLinejoin="miter" />
     </svg>
   );
 }

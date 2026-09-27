@@ -1,3 +1,4 @@
+import { LegendaCard } from "@/components/Publicacao";
 import { SeloVerificado } from "@/components/SeloVerificado";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -419,6 +420,7 @@ export function AdminCampanhas() {
                 ) : null}
                 <DadosLegaisCard campanha={c} />
                 <TransmissaoCard campanha={c} />
+                <LegendaCard campanha={c} />
               </>
             ) : null;
           })()}

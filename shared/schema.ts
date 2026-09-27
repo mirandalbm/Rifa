@@ -421,6 +421,16 @@ export const campaigns = pgTable(
     /** Comentários visíveis na publicação — contador, nunca `COUNT(*)`. */
     comentariosCount: integer("comentarios_count").notNull().default(0),
     /**
+     * A publicação, como no Instagram (`shared/publicacao.ts`): a legenda da
+     * organização (muda a qualquer hora, fora do `PATCH`, pela régua do
+     * comentário) e os contadores da barra de ações — cada um anda na mesma
+     * transação que grava ou apaga a linha, nunca `COUNT(*)`.
+     */
+    legenda: text("legenda"),
+    curtidasCount: integer("curtidas_count").notNull().default(0),
+    republicacoesCount: integer("republicacoes_count").notNull().default(0),
+    compartilhamentosCount: integer("compartilhamentos_count").notNull().default(0),
+    /**
      * Travada pela plataforma (denúncia procedente, organização banida):
      * `createOrder` recusa, a vitrine esconde e a página avisa.
      */
@@ -1304,6 +1314,47 @@ export const comentarioCurtidas = pgTable(
   (t) => [primaryKey({ columns: [t.comentarioId, t.buyerId] })],
 );
 
+/**
+ * A barra de ações da publicação. Cada uma é a chave (rifa, pessoa):
+ * `ON CONFLICT DO NOTHING`, e o contador da rifa só anda quando a linha
+ * entrou ou saiu, na mesma transação. Salvar não tem contador (é privado,
+ * como no Instagram); republicar aparece no perfil `/u/<apelido>`.
+ */
+function acaoDaPublicacao(nome: string) {
+  return pgTable(
+    nome,
+    {
+      campaignId: uuid("campaign_id")
+        .notNull()
+        .references(() => campaigns.id, { onDelete: "cascade" }),
+      buyerId: uuid("buyer_id")
+        .notNull()
+        .references(() => buyers.id, { onDelete: "cascade" }),
+      createdAt: timestamp("created_at").notNull().defaultNow(),
+    },
+    (t) => [primaryKey({ columns: [t.campaignId, t.buyerId] }), index(`idx_${nome}_buyer`).on(t.buyerId, t.createdAt)],
+  );
+}
+export const publicacaoCurtidas = acaoDaPublicacao("publicacao_curtidas");
+export const publicacaoRepublicacoes = acaoDaPublicacao("publicacao_republicacoes");
+export const publicacaoSalvos = acaoDaPublicacao("publicacao_salvos");
+
+/**
+ * Compartilhar conta uma vez por pessoa (ou aparelho, em hash) e rifa — o
+ * contador é vitrine, e clicar dez vezes não pode virar dez.
+ */
+export const publicacaoCompartilhamentos = pgTable(
+  "publicacao_compartilhamentos",
+  {
+    campaignId: uuid("campaign_id")
+      .notNull()
+      .references(() => campaigns.id, { onDelete: "cascade" }),
+    quem: text("quem").notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.campaignId, t.quem] })],
+);
+
 export const denunciaStatus = pgEnum("denuncia_status", [
   "aberta",
   "improcedente",
@@ -1483,8 +1534,10 @@ export const affiliatesRelations = relations(affiliates, ({ one, many }) => ({
 
 export const MIN_QUOTAS = 100;
 export const MAX_QUOTAS = 1_000_000;
-export const MAX_VIDEO_SECONDS = 60;
-export const MAX_PHOTOS = 5;
+/** Vídeo até 15 min (até 3 min é reels) — `shared/publicacao.ts`. */
+export const MAX_VIDEO_SECONDS = 900;
+/** Fotos: o carrossel inteiro (banner + fotos + vídeos) vai até 10 peças. */
+export const MAX_PHOTOS = 9;
 
 export const insertCampaignSchema = createInsertSchema(campaigns, {
   slug: z
@@ -1530,6 +1583,10 @@ export const insertCampaignSchema = createInsertSchema(campaigns, {
     adiamentos: true,
     drawAtOriginal: true,
     comentariosCount: true,
+    legenda: true,
+    curtidasCount: true,
+    republicacoesCount: true,
+    compartilhamentosCount: true,
     travadaEm: true,
     travadaMotivo: true,
   });

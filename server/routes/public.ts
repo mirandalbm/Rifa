@@ -13,6 +13,9 @@ import {
   storiesDoPerfil,
 } from "../services/vitrine";
 import { montarRotasDaVerificacao } from "./verificacaoRotas";
+import { midiasDas, pecaPublica } from "../services/perfil";
+import { buyerPorApelido, compartilhar, idsDaLista, marcar, minhasMarcas } from "../services/publicacao";
+import { ACOES, type Acao } from "@shared/publicacao";
 import { VerificacaoError } from "../services/verificacao";
 import { Router, type Request, type Response } from "express";
 import { createHash } from "node:crypto";
@@ -143,13 +146,26 @@ publicRouter.get("/campaigns", async (req, res, next) => {
       })),
       { uf, cidade },
     );
-    const banners = await db
-      .select()
-      .from(campaignMedia)
-      .where(and(eq(campaignMedia.role, "banner"), eq(campaignMedia.status, "ready")));
-    const bannerBy = new Map(banners.map((b) => [b.campaignId, withUrls(b)]));
+    res.json(await cartoesDoFeed(req, rows, uf, cidade));
+  } catch (err) {
+    next(err);
+  }
+});
 
-    res.json(
+type LinhaDaVitrine = Awaited<ReturnType<typeof listPublicCampaigns>>[number] & { uf?: string | null; cidade?: string | null };
+
+/**
+ * O cartão do feed de cada rifa: carrossel, legenda, a barra de ações (os
+ * contadores e o que quem olha já fez) e o resumo. O mesmo para a vitrine,
+ * os salvos e as republicações.
+ */
+async function cartoesDoFeed(req: Request, rows: LinhaDaVitrine[], uf: string | null = null, cidade: string | null = null) {
+    const ids = rows.map((r) => r.campaign.id);
+    const midias = await midiasDas(ids);
+    const marcas = await minhasMarcas(req.session.buyer?.id, ids);
+    const bannerBy = new Map(ids.map((id) => [id, midias.get(id)?.find((m) => m.role === "banner")]));
+
+    return (
       rows.map(({ campaign, stats, organizacao }) => ({
         id: campaign.id,
         slug: campaign.slug,
@@ -177,13 +193,20 @@ publicRouter.get("/campaigns", async (req, res, next) => {
         autorizacao: campaign.authorizationCode,
         demonstracao: campaign.demonstracao,
         comentarios: campaign.comentariosCount,
+        status: campaign.status,
+        legenda: campaign.legenda,
+        midias: (midias.get(campaign.id) ?? []).map(pecaPublica),
+        interacoes: {
+          curtidas: campaign.curtidasCount,
+          comentarios: campaign.comentariosCount,
+          republicacoes: campaign.republicacoesCount,
+          compartilhamentos: campaign.compartilhamentosCount,
+          ...marcas.get(campaign.id)!,
+        },
         perto: uf ? distancia({ uf: organizacao?.uf, cidade: organizacao?.cidade }, { uf, cidade }) : null,
-      })),
+      }))
     );
-  } catch (err) {
-    next(err);
-  }
-});
+}
 
 /* ---------------- vitrine: banners, stories e estados ---------------- */
 
@@ -512,6 +535,55 @@ publicRouter.get("/selos", async (_req, res, next) => {
   }
 });
 
+/* ---------------- a barra de ações da publicação ---------------- */
+
+/** Curtir (o trevo), republicar e salvar: `{ ligar: boolean }`. Devolve os contadores. */
+publicRouter.put("/campaigns/:slug/acoes/:acao", async (req, res, next) => {
+  try {
+    const acao = req.params.acao as Acao;
+    if (!ACOES.includes(acao)) return res.status(404).json({ message: "Ação desconhecida." });
+    res.json(await marcar(req, req.params.slug, acao, req.body?.ligar === true));
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** Compartilhou (pelo menu do aparelho ou copiando o link): conta uma vez por pessoa. */
+publicRouter.post("/campaigns/:slug/compartilhamentos", async (req, res, next) => {
+  try {
+    res.json(await compartilhar(req, req.params.slug));
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** Os salvos de quem está na sessão — privado, como no Instagram. */
+publicRouter.get("/conta/salvos", async (req, res, next) => {
+  try {
+    const id = req.session.buyer?.id;
+    if (!id) return res.status(401).json({ message: "Entre na sua conta." });
+    res.setHeader("Cache-Control", "no-store");
+    const ids = await idsDaLista(id, "salvo");
+    const linhas = await listPublicCampaigns(ids);
+    const ordem = new Map(ids.map((x, i) => [x, i]));
+    res.json(await cartoesDoFeed(req, linhas.sort((a, b) => ordem.get(a.campaign.id)! - ordem.get(b.campaign.id)!)));
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** O que alguém republicou aparece no perfil dele. */
+publicRouter.get("/u/:apelido/republicacoes", async (req, res, next) => {
+  try {
+    const ids = await idsDaLista(await buyerPorApelido(req.params.apelido), "republicacao");
+    const linhas = await listPublicCampaigns(ids);
+    const ordem = new Map(ids.map((x, i) => [x, i]));
+    res.json(await cartoesDoFeed(req, linhas.sort((a, b) => ordem.get(a.campaign.id)! - ordem.get(b.campaign.id)!)));
+  } catch (err) {
+    next(err);
+  }
+});
+
 publicRouter.get("/u/:apelido", async (req, res, next) => {
   try {
     res.json(await perfilPublicoDoApostador(req.params.apelido));
@@ -711,6 +783,14 @@ publicRouter.get("/campaigns/:slug", async (req, res, next) => {
         // Sorteio adiado: a página diz, com a data que valia antes.
         adiamentos: found.campaign.adiamentos,
         comentarios: found.campaign.comentariosCount,
+        legenda: found.campaign.legenda,
+        interacoes: {
+          curtidas: found.campaign.curtidasCount,
+          comentarios: found.campaign.comentariosCount,
+          republicacoes: found.campaign.republicacoesCount,
+          compartilhamentos: found.campaign.compartilhamentosCount,
+          ...(await minhasMarcas(req.session.buyer?.id, [found.campaign.id])).get(found.campaign.id)!,
+        },
         // Vendas suspensas pela plataforma: a página avisa e não oferece compra.
         travada: Boolean(found.campaign.travadaEm),
         drawAtOriginal: found.campaign.drawAtOriginal,
@@ -1189,6 +1269,7 @@ publicRouter.post("/conta", async (req, res, next) => {
   try {
     const conta = await criarConta(req, {
       nome: String(req.body?.nome ?? ""),
+      apelido: String(req.body?.apelido ?? ""),
       telefone: String(req.body?.telefone ?? ""),
       cpf: String(req.body?.cpf ?? ""),
       cep: String(req.body?.cep ?? ""),

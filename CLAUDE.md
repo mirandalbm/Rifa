@@ -127,6 +127,7 @@ arquitetura.
 | visão do organizador (só o próprio perfil) | `VisaoDoOrganizador` em `client/src/App.tsx`, `organizacao` em `GET /api/auth/me` |
 | central de avisos do apostador (o coração no topo) | `server/services/notificacoes.ts`, `avisar()` em `server/services/push.ts`, `client/src/pages/Notificacoes.tsx`, `CoracaoDeAvisos` em `client/src/components/AppShell.tsx`, `scripts/push-test.ts` |
 | perfil verificado (selo de trevo): documentos, foto, fila e cores | `shared/verificacao.ts` (regras e paleta), `server/services/verificacao.ts`, `server/services/rosto.ts` (comparador), `server/routes/verificacaoRotas.ts`, `client/src/components/Verificacao.tsx`, `SeloVerificado.tsx`, `VerificacoesDaPlataforma.tsx`, `CoresDoSelo.tsx`, `scripts/verificacao-test.ts` |
+| publicação da rifa: carrossel de até 10 (reels e vídeos), barra de ações (trevo, comentar, republicar, compartilhar, salvar) e legenda | `shared/publicacao.ts` (regras), `server/services/publicacao.ts`, `server/services/media.ts` (limites), `client/src/components/Publicacao.tsx`, `scripts/publicacao-test.ts` |
 | app instalável (PWA) | `client/public/sw.js`, `client/public/manifest.webmanifest`, `client/src/lib/pwa.ts` |
 
 ## Convenções
@@ -308,8 +309,8 @@ plataforma analisa** (Atendimento → Rifas, com conversa dos dois lados).
 
 A duração do vídeo e as dimensões da imagem são medidas em
 `server/services/probe.ts`, lendo o arquivo já armazenado. **Nunca** aceite o
-valor vindo do cliente: o limite de 60 s é promessa de tela e forjar um campo
-JSON é trivial. Se for aceitar um container novo (WebM, por exemplo), implemente
+valor vindo do cliente: o limite (3 min reels, 15 min feed) é promessa de
+tela e forjar um campo JSON é trivial. Se for aceitar um container novo (WebM, por exemplo), implemente
 a medição junto — sem medir, não entra na lista de mimes.
 
 ## Antifraude — o que não pode afrouxar
@@ -779,8 +780,11 @@ pedido, cotas e valor, e o cliente só pelo ID (`Cliente C-XXXXXXXX`).
   `/api/auth/me` devolve). É visão, não barreira: o que é público segue
   público. No próprio perfil, "Editar perfil" no lugar de "Seguir".
 - **Comenta quem tem conta e apelido** (`req.session.buyer.id`, 409 sem
-  apelido); a organização dona da rifa comenta e responde pela sessão do
-  painel, com o selo "organização". Rascunho não tem comentários (404).
+  apelido). **O apelido nasce no cadastro** (`problemaNoCadastro` exige,
+  `uq_buyers_apelido` decide o repetido); conta antiga sem apelido completa
+  em Minha conta — o comentário só aponta para lá. A organização dona da
+  rifa comenta e responde pela sessão do painel, com "• Autor" ao lado do
+  nome, como no Instagram. Rascunho não tem comentários (404).
   Uma camada de resposta: responder uma resposta entra no comentário do
   topo. Como no Instagram: foto, apelido, data, curtidas, respostas
   recolhidas e a barra de reações; no feed, os comentários sobem num painel
@@ -886,6 +890,31 @@ estorno.
 - Excluir a conta (LGPD) apaga a verificação junto.
 - `npm run verificacao` prova tudo isso contra a API de verdade (o
   comparador é injetado: a prova não sai para a internet).
+
+## Publicação da rifa — o que não pode afrouxar
+
+- **Carrossel de até 10 peças contando o banner** (`MAX_CARROSSEL`): fotos e
+  vídeos dividem as 9 vagas e a mesma sequência de posição. Conferido no
+  pedido de envio **e** de novo ao gravar (dois envios ao mesmo tempo).
+- **Vídeo até 3 min é reels, até 15 min é feed** (`formatoDoVideo()`), pela
+  duração medida no servidor; mais que isso é recusado. Reels toca mudo e em
+  loop no carrossel; o do feed só no toque.
+- **As ações são a chave (rifa, pessoa)** (`publicacao_curtidas`,
+  `_republicacoes`, `_salvos`): `ON CONFLICT DO NOTHING`, e o contador em
+  `campaigns` só anda quando a linha entrou ou saiu, na mesma transação —
+  cinco toques, uma curtida. Nada de `COUNT(*)`. A curtida é o **trevo**,
+  não o coração.
+- **Salvar é privado** (sem contador; `/conta/salvos` só da própria
+  pessoa). **Republicar precisa de apelido** (aparece em `/u/<apelido>`).
+  **Compartilhar conta uma vez por pessoa ou aparelho** (hash), porque o
+  contador é vitrine.
+- **Só conta age** (401 sem sessão), rascunho não tem publicação (404).
+- **A legenda é da organização e muda a qualquer hora** (`PUT
+  /campaigns/:id/legenda`, fora do `PATCH`): a régua do comentário (sem
+  link nem telefone, `problemaNaLegenda`) e a varredura do Pix por fora.
+  O recorte é `assertCampaignInScope` (o vizinho é 404, no `npm run
+  isolation`).
+- `npm run publicacao` prova tudo isso contra a API de verdade.
 
 ## Notificações no celular — o que não pode afrouxar
 

@@ -18,7 +18,7 @@ import { problemaNoCadastro } from "@shared/contaComprador";
 export default function CriarConta() {
   const [, navigate] = useLocation();
   const qc = useQueryClient();
-  const [f, setF] = useState({ nome: "", telefone: "", cpf: "", cep: "", email: "", senha: "", repetir: "" });
+  const [f, setF] = useState({ nome: "", apelido: "", telefone: "", cpf: "", cep: "", email: "", senha: "", repetir: "" });
   // A cidade que o CEP dá, mostrada embaixo do campo: a pessoa confere na hora.
   const [lugar, setLugar] = useState<string | null>(null);
 
@@ -45,6 +45,7 @@ export default function CriarConta() {
     mutationFn: () =>
       apiRequest("POST", "/api/public/conta", {
         nome: f.nome,
+        apelido: f.apelido,
         telefone: f.telefone,
         cpf: f.cpf,
         cep: f.cep,
@@ -74,7 +75,13 @@ export default function CriarConta() {
         onChange={(e) => {
           setErro(null);
           const valor =
-            id === "cpf" ? maskCpf(e.target.value) : id === "cep" ? maskCep(e.target.value) : e.target.value;
+            id === "cpf"
+              ? maskCpf(e.target.value)
+              : id === "cep"
+                ? maskCep(e.target.value)
+                : id === "apelido"
+                  ? e.target.value.replace(/^@/, "").toLowerCase()
+                  : e.target.value;
           setF({ ...f, [id]: valor });
           if (id === "cep") void conferirCep(valor);
         }}
@@ -103,6 +110,15 @@ export default function CriarConta() {
         }}
       >
         {campo("nome", "Nome completo", { autoComplete: "name" })}
+        {campo("apelido", "Apelido (seu nome de usuário, único na plataforma)", {
+          autoCapitalize: "none",
+          autoCorrect: "off",
+          placeholder: "ex.: ana.souza",
+          maxLength: 30,
+        })}
+        <p className="-mt-2 text-[11px] text-muted">
+          É como você aparece nos comentários e no seu perfil (letras, números, ponto e sublinhado).
+        </p>
         {campo("telefone", "WhatsApp com DDD", { inputMode: "tel", autoComplete: "tel" })}
         {campo("cpf", "CPF", { inputMode: "numeric", className: "tnum mt-1 w-full rounded-md border border-line-2 px-3 py-2 text-sm" })}
         {f.cpf.replace(/\D/g, "").length === 11 && !cpfValido(f.cpf) ? (

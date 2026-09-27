@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, Button, Pill, Empty } from "@/components/bits";
 import { apiRequest } from "@/lib/queryClient";
+import { duracao, formatoDoVideo } from "@shared/publicacao";
 
 interface MediaItem {
   id: string;
@@ -18,16 +19,16 @@ interface MediaItem {
 
 const ROLE_LABEL = {
   banner: "Banner · 1, obrigatório",
-  photo: "Fotos do prêmio · até 5",
-  video: "Vídeo do prêmio · até 60 s",
+  photo: "Fotos do carrossel",
+  video: "Vídeos · reels até 3 min, feed até 15 min",
 } as const;
 
 /** O que cada envio aceita — os mesmos limites que o servidor confere (`RULES` em server/services/media.ts). */
 const DICA = {
   banner:
     "Mínimo 1200 px de largura. A vitrine recorta em 4 por 5 e a página da rifa em faixa larga: deixe o prêmio no centro. JPG, PNG ou WebP até 8 MB.",
-  photo: "Mínimo 1080 px de largura; aparecem em 4 por 3. JPG, PNG ou WebP até 8 MB cada.",
-  video: "MP4 ou MOV, até 60 segundos e 300 MB. A duração é medida no servidor.",
+  photo: "Mínimo 1080 px de largura. JPG, PNG ou WebP até 8 MB cada. Fotos e vídeos dividem o carrossel: até 10 peças contando o banner.",
+  video: "MP4 ou MOV até 2 GB. Até 3 minutos entra como reels; até 15 minutos, como vídeo do feed. A duração é medida no servidor.",
 } as const;
 
 const ACCEPT = {
@@ -39,7 +40,7 @@ const ACCEPT = {
 function describe(m: MediaItem): string {
   if (m.role === "video") {
     const s = m.durationS ?? 0;
-    return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")} · medido no servidor`;
+    return `${duracao(s)} · ${formatoDoVideo(s) === "reels" ? "reels" : "feed"} · medido no servidor`;
   }
   return m.width && m.height ? `${m.width}×${m.height}` : "imagem de exemplo";
 }

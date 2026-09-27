@@ -152,6 +152,7 @@ import {
 import { emitirRecibo, pdfDoRecibo, reciboPorCodigo } from "../services/recibos";
 import { cadastrosFiscais, decidirCadastro, documento, estadoFiscal } from "../services/fiscal";
 import { montarRotasDaVerificacao } from "./verificacaoRotas";
+import { salvarLegenda } from "../services/publicacao";
 import {
   decidirVerificacao,
   detalheDaVerificacao,
@@ -685,6 +686,22 @@ adminRouter.put("/campaigns/:id/legal", async (req, res, next) => {
  * de publicar — o link da live só existe perto do sorteio, e o vídeo, depois.
  * Vazio apaga. Mesmo recorte de toda rota de campanha (vizinho: 404).
  */
+/**
+ * A legenda da publicação (o texto embaixo das ações, como no Instagram).
+ * Muda a qualquer hora — não é termo da rifa —, pela régua do comentário
+ * (sem link nem telefone) e com a varredura do Pix por fora.
+ */
+adminRouter.put("/campaigns/:id/legenda", async (req, res, next) => {
+  try {
+    const campaign = await assertCampaignInScope(req, req.params.id);
+    const salva = await salvarLegenda(campaign.id, campaign.organizationId, req.body?.legenda ?? "");
+    await audit(req, "campaign.legenda", "campaign", campaign.id, salva);
+    res.json(salva);
+  } catch (err) {
+    next(err);
+  }
+});
+
 adminRouter.put("/campaigns/:id/transmissao", async (req, res, next) => {
   try {
     const campaign = await assertCampaignInScope(req, req.params.id);
@@ -877,7 +894,7 @@ adminRouter.post("/campaigns/:id/media/upload-url", async (req, res, next) => {
  */
 adminRouter.put(
   "/media/raw",
-  express.raw({ type: "*/*", limit: "300mb" }),
+  express.raw({ type: "*/*", limit: "2gb" }),
   async (req, res, next) => {
     try {
       const store = storage();

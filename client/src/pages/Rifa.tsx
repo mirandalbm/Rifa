@@ -1,3 +1,4 @@
+import { BarraDeAcoes, Carrossel, Legenda, type Interacoes, type Peca } from "@/components/Publicacao";
 import { SeloVerificado } from "@/components/SeloVerificado";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams, useLocation } from "wouter";
@@ -17,7 +18,6 @@ import {
 } from "@shared/format";
 import { priceOrder } from "@shared/pricing";
 import { regraDoReembolso } from "@shared/reembolso";
-import { ResponsiveImage } from "@/components/ResponsiveImage";
 import { DestaqueOrg } from "@/components/DestaqueOrg";
 import { lerOrigem } from "@/lib/origem";
 import { lerIndicacao } from "@/lib/indicacao";
@@ -50,10 +50,13 @@ interface CampaignDetail {
     temCertificado?: boolean;
     demonstracao?: boolean;
     travada?: boolean;
+    legenda?: string | null;
+    interacoes?: Interacoes;
   };
   stats: { soldCount: number; reservedCount: number };
   media: {
     role: "banner" | "photo" | "video";
+    position: number;
     url: string;
     srcSetAvif: string | null;
     srcSetWebp: string | null;
@@ -103,7 +106,6 @@ export default function Rifa() {
   const [trocarSinal, setTrocarSinal] = useState<{ numeros: number[]; vez: number } | null>(null);
   const [search, setSearch] = useState("");
   const [showMap, setShowMap] = useState(false);
-  const [playVideo, setPlayVideo] = useState(false);
   const [buyer, setBuyer] = useState({ name: "", phone: "", coupon: "", cpf: "" });
   const [error, setError] = useState<string | null>(null);
 
@@ -233,8 +235,18 @@ export default function Rifa() {
 
   const { campaign, stats, media, packages } = data;
   const banner = media.find((m) => m.role === "banner");
-  const video = media.find((m) => m.role === "video");
-  const photos = media.filter((m) => m.role === "photo");
+  // Fotos e vídeos na ordem em que entraram (a posição é comum aos dois).
+  const carrossel: Peca[] = media
+    .filter((m) => m.role !== "banner")
+    .sort((a, b) => a.position - b.position)
+    .map((m) => ({
+      role: m.role,
+      url: m.url,
+      srcSet: m.srcSetWebp,
+      lqip: m.lqip,
+      alt: m.altText,
+      durationS: m.durationS,
+    }));
   const sold = stats.soldCount;
   const pct = percent(sold, campaign.totalQuotas);
   // Vende pela loja: com Pix online ligado e nunca em rifa de demonstração.
@@ -313,52 +325,23 @@ export default function Rifa() {
         </h1>
       </div>
 
-      {video ? (
-        <div className="mt-3">
-          {playVideo ? (
-            <video
-              src={video.url}
-              poster={video.poster ?? undefined}
-              controls
-              autoPlay
-              playsInline
-              className="aspect-video w-full rounded-lg bg-ink"
-            />
-          ) : (
-            // Nunca toca sozinho: carrega só o pôster e monta o player no toque.
-            <button
-              type="button"
-              onClick={() => setPlayVideo(true)}
-              className="relative flex aspect-video w-full items-center justify-center overflow-hidden rounded-lg bg-ink"
-              style={
-                video.poster
-                  ? { background: `center/cover url(${video.poster})` }
-                  : undefined
-              }
-            >
-              <span className="flex h-12 w-12 items-center justify-center rounded-full bg-white pl-1 text-green-deep shadow">
-                ▶
-              </span>
-              <span className="absolute bottom-2 right-2 rounded bg-ink/80 px-1.5 py-[2px] font-mono text-[10px] text-white">
-                {video.durationS ? `0:${String(video.durationS).padStart(2, "0")}` : "vídeo"}
-              </span>
-            </button>
-          )}
+      {/* O carrossel da publicação (fotos e vídeos, até 10 com o banner),
+          as ações e a legenda — como no feed. */}
+      {carrossel.length ? (
+        <div className="-mx-4 mt-3">
+          <Carrossel pecas={carrossel} titulo={campaign.prizeTitle} />
         </div>
       ) : null}
-
-      {photos.length > 0 ? (
-        <div className="mt-2 grid grid-cols-5 gap-1">
-          {photos.map((p, i) => (
-            <ResponsiveImage
-              key={i}
-              media={p}
-              alt={p.altText ?? `Foto ${i + 1} do prêmio`}
-              // Cinco miniaturas lado a lado: cada uma vale ~20% da largura.
-              sizes="(max-width: 640px) 20vw, 130px"
-              className="aspect-[4/3] w-full rounded-md border border-line object-cover"
-            />
-          ))}
+      {campaign.interacoes ? (
+        <div className="-mx-4">
+          <BarraDeAcoes
+            slug={campaign.slug}
+            titulo={campaign.prizeTitle}
+            caminho={data.organizacao ? `/o/${data.organizacao.slug}/r/${campaign.slug}` : `/r/${campaign.slug}`}
+            interacoes={campaign.interacoes}
+            aoComentar={() => document.getElementById("comentarios")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+          />
+          <Legenda autor={data.organizacao?.nome ?? ""} texto={campaign.legenda} />
         </div>
       ) : null}
 

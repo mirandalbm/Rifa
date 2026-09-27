@@ -1,3 +1,4 @@
+import { CartaoDoFeed, type RifaDoFeed } from "@/components/CartaoDoFeed";
 import { useEffect, useState } from "react";
 import { Link, useSearch } from "wouter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -210,9 +211,9 @@ function Painel({ conta, aoMudar }: { conta: Conta; aoMudar: (c: Conta | null) =
   // O menu do apostador abre direto numa aba (?aba=reembolsos, ?aba=conta) —
   // e troca de aba mesmo já estando nesta página.
   const busca = useSearch();
-  const abaDaUrl = (): "cotas" | "chamados" | "conta" | "bonus" => {
+  const abaDaUrl = (): "cotas" | "chamados" | "conta" | "bonus" | "salvos" => {
     const q = new URLSearchParams(busca).get("aba");
-    return q === "conta" ? "conta" : q === "reembolsos" ? "chamados" : q === "bonus" ? "bonus" : "cotas";
+    return q === "conta" ? "conta" : q === "reembolsos" ? "chamados" : q === "bonus" ? "bonus" : q === "salvos" ? "salvos" : "cotas";
   };
   const [aba, setAba] = useState(abaDaUrl);
   useEffect(() => setAba(abaDaUrl()), [busca]);
@@ -247,6 +248,7 @@ function Painel({ conta, aoMudar }: { conta: Conta; aoMudar: (c: Conta | null) =
             ["cotas", "Minhas compras"],
             ["chamados", `Reembolsos${chamados.length ? ` (${chamados.length})` : ""}`],
             ...(bonus?.ligado ? ([["bonus", `Bônus${bonus.saldo > 0 ? ` (${bonus.saldo})` : ""}`]] as const) : []),
+            ["salvos", "Salvos"],
             ["conta", "Minha conta"],
           ] as const
         ).map(([v, rotulo]) => (
@@ -283,7 +285,9 @@ function Painel({ conta, aoMudar }: { conta: Conta; aoMudar: (c: Conta | null) =
         </div>
       ) : null}
 
-      {aba === "conta" ? (
+      {aba === "salvos" ? (
+        <Salvos />
+      ) : aba === "conta" ? (
         <MinhaConta aoSair={() => aoMudar(null)} />
       ) : aba === "bonus" ? (
         bonus?.ligado ? <BonusDoComprador dados={bonus} /> : <Empty>O programa de bônus não está ativo.</Empty>
@@ -742,6 +746,22 @@ interface DadosConta {
 }
 
 /** Dados da conta, senha, sair e exclusão (LGPD). */
+/** As publicações que a pessoa salvou (o marcador da barra de ações) — só ela vê. */
+function Salvos() {
+  const { data } = useQuery<RifaDoFeed[]>({ queryKey: ["/api/public/conta/salvos"] });
+  if (!data) return <Empty>Carregando…</Empty>;
+  if (data.length === 0) {
+    return <Empty>Nada salvo ainda. Toque no marcador embaixo de uma publicação para guardar a rifa aqui.</Empty>;
+  }
+  return (
+    <div className="mt-3 grid gap-4 sm:grid-cols-2">
+      {data.map((r) => (
+        <CartaoDoFeed key={r.id} rifa={r} />
+      ))}
+    </div>
+  );
+}
+
 function MinhaConta({ aoSair }: { aoSair: () => void }) {
   const qc = useQueryClient();
   const { data } = useQuery<DadosConta>({ queryKey: ["/api/public/conta"] });

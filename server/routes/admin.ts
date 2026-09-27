@@ -115,6 +115,7 @@ import {
   vinculosDaOrganizacao,
 } from "../services/afiliados";
 import { salvarFotoDoGanhador } from "../services/ganhador";
+import { criarDemonstracao, removerDemonstracao, situacaoDaDemonstracao } from "../services/demonstracao";
 import { emitirRecibo, pdfDoRecibo, reciboPorCodigo } from "../services/recibos";
 import { cadastrosFiscais, decidirCadastro, documento, estadoFiscal } from "../services/fiscal";
 import { urlDeConferencia } from "../services/urls";
@@ -1336,6 +1337,41 @@ adminRouter.get("/organizacoes", async (req, res, next) => {
         destaque: destaqueDa(o),
       })),
     );
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * Organização de demonstração (perfil completo, sem rifa à venda): só a
+ * plataforma cria, vê e remove — 403 para organizador, no `npm run isolation`.
+ */
+adminRouter.get("/demonstracao", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    res.json(await situacaoDaDemonstracao());
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.post("/demonstracao", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    const feita = await criarDemonstracao(process.env.PUBLIC_BASE_URL ?? "");
+    await audit(req, "demonstracao.criar", "organization", feita.slug, {});
+    res.json(feita);
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.delete("/demonstracao", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    await removerDemonstracao();
+    await audit(req, "demonstracao.remover", "organization", "demonstracao", {});
+    res.json({ ok: true });
   } catch (err) {
     next(err);
   }

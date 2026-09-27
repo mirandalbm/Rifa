@@ -273,9 +273,9 @@ async function main() {
     await db.execute(sql`insert into quota_alloc (campaign_id, number, status, order_id, reserved_until)
       values (${paraApagar.id}::uuid, 5, 'reserved', gen_random_uuid(), now() + interval '10 minutes')`);
     r = await marina.req("DELETE", `/api/admin/campaigns/${paraApagar.id}`);
-    checa("organizador não apaga rifa (403)", r.status === 403, `HTTP ${r.status}`);
+    checa("organizador não apaga rifa de outra organização (404)", r.status === 404, `HTTP ${r.status}`);
     r = await admin.req("DELETE", `/api/admin/campaigns/${paraApagar.id}`);
-    checa("rifa que não é de teste não se apaga (422)", r.status === 422, `HTTP ${r.status} ${r.json?.message ?? ""}`);
+    checa("rifa de verdade com cota tomada não se apaga (422)", r.status === 422, `HTTP ${r.status} ${r.json?.message ?? ""}`);
     await db.update(campaigns).set({ demonstracao: true }).where(eq(campaigns.id, paraApagar.id));
     r = await admin.req("DELETE", `/api/admin/campaigns/${paraApagar.id}`);
     const [sobrou] = await db.execute(sql`select

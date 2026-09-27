@@ -15,6 +15,8 @@ import { DadosLegaisCard, TransmissaoCard } from "@/components/DadosLegaisCard";
 import { EnderecoForm, type EnderecoParcial } from "@/components/EnderecoForm";
 import { PerfilPublicoForm } from "@/components/PerfilPublicoForm";
 import { EnderecoCurto } from "@/components/LinksCurtos";
+import { AdiarSorteioCard, EditarRifaCard, type RifaEditavel } from "@/components/EditarRifa";
+import { podeExcluir } from "@shared/solicitacoes";
 import type { CorDeDestaque, LinkDoPerfil } from "@shared/perfil";
 import type { Endereco } from "@shared/endereco";
 import { formatBRL, groupNumber, formatQuota, maskPhone } from "@shared/format";
@@ -127,20 +129,17 @@ export function AdminPainel() {
 /* ----------------------------- campanhas ----------------------------- */
 
 interface CampaignRow {
-  campaign: {
-    id: string;
+  campaign: RifaEditavel & {
     slug: string;
-    title: string;
-    prizeTitle: string;
-    totalQuotas: number;
-    priceCents: number;
-    status: string;
-    drawAt: string | null;
     authorizationCode: string | null;
     authorizationFileKey: string | null;
     demonstracao?: boolean;
+    adiamentos?: number;
+    drawAtOriginal?: string | null;
   };
-  stats: { soldCount: number; revenueCents: number } | null;
+  stats: { soldCount: number; reservedCount?: number; revenueCents: number } | null;
+  /** Pedidos de mudança esperando a plataforma: "edicao", "adiamento". */
+  emAnalise?: string[] | null;
 }
 
 const PRESETS = [1_000, 10_000, 100_000, 1_000_000];
@@ -380,9 +379,23 @@ export function AdminCampanhas() {
       {mediaFor ? (
         <div className="mt-3 space-y-3">
           {(() => {
-            const c = data?.find((r) => r.campaign.id === mediaFor)?.campaign;
+            const linha = data?.find((r) => r.campaign.id === mediaFor);
+            const c = linha?.campaign;
+            const vendidas = linha?.stats?.soldCount ?? 0;
             return c ? (
               <>
+                <EditarRifaCard
+                  rifa={c}
+                  daPlataforma={daPlataforma}
+                  edicaoEmAnalise={Boolean(linha?.emAnalise?.includes("edicao"))}
+                />
+                {c.status === "published" && !c.demonstracao && vendidas < c.totalQuotas ? (
+                  <AdiarSorteioCard
+                    rifa={c}
+                    vendidas={vendidas}
+                    adiamentoEmAnalise={Boolean(linha?.emAnalise?.includes("adiamento"))}
+                  />
+                ) : null}
                 {c.status !== "draft" ? (
                   <Card title="Divulgação">
                     <div className="p-4">
@@ -421,7 +434,7 @@ export function AdminCampanhas() {
                 </tr>
               </thead>
               <tbody>
-                {data?.map(({ campaign, stats }) => (
+                {data?.map(({ campaign, stats, emAnalise }) => (
                   <tr key={campaign.id} className="border-t border-line">
                     <td className="px-3 py-2 font-medium">{campaign.prizeTitle}</td>
                     <td className="px-3 py-2">
@@ -440,11 +453,20 @@ export function AdminCampanhas() {
                       {campaign.drawAt
                         ? new Date(campaign.drawAt).toLocaleDateString("pt-BR")
                         : "—"}
+                      {campaign.adiamentos ? (
+                        <span className="block text-[11px] text-muted">
+                          adiado{campaign.drawAtOriginal
+                            ? ` (era ${new Date(campaign.drawAtOriginal).toLocaleDateString("pt-BR")})`
+                            : ""}
+                        </span>
+                      ) : null}
                     </td>
                     <td className="px-3 py-2">
                       <span className="flex flex-wrap gap-1">
                         <Pill status={campaign.status} />
                         {campaign.demonstracao ? <Pill status="pending">teste</Pill> : null}
+                        {emAnalise?.includes("edicao") ? <Pill status="pending">edição em análise</Pill> : null}
+                        {emAnalise?.includes("adiamento") ? <Pill status="pending">adiamento em análise</Pill> : null}
                       </span>
                     </td>
                     <td className="px-3 py-2">
@@ -456,7 +478,7 @@ export function AdminCampanhas() {
                             setMediaFor(mediaFor === campaign.id ? null : campaign.id)
                           }
                         >
-                          Ajustar
+                          Editar
                         </Button>
                         {campaign.status === "draft" ? (
                           <Button
@@ -496,7 +518,11 @@ export function AdminCampanhas() {
                             {campaign.demonstracao ? "Desmarcar teste" : "Marcar como teste"}
                           </Button>
                         ) : null}
-                        {daPlataforma && campaign.demonstracao ? (
+                        {podeExcluir({
+                          status: campaign.status,
+                          vendidas: (stats?.soldCount ?? 0) + (stats?.reservedCount ?? 0),
+                          demonstracao: campaign.demonstracao,
+                        }) ? (
                           <Button
                             variant="ghost"
                             className="px-2 py-1 text-xs text-red"

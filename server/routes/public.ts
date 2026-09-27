@@ -524,6 +524,9 @@ publicRouter.get("/campaigns/:slug", async (req, res, next) => {
         reservationTtlMin: found.campaign.reservationTtlMin,
         drawAt: found.campaign.drawAt,
         drawSeedHash: found.campaign.drawSeedHash,
+        // Sorteio adiado: a página diz, com a data que valia antes.
+        adiamentos: found.campaign.adiamentos,
+        drawAtOriginal: found.campaign.drawAtOriginal,
         authorizationCode: found.campaign.authorizationCode,
         temCertificado: Boolean(found.campaign.authorizationFileKey),
         transmissaoUrl: found.campaign.transmissaoUrl,

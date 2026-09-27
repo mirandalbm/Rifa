@@ -33,7 +33,7 @@ import {
   publishBlockers,
   tirarDoAr,
   marcarDemonstracao,
-  excluirRifaDeTeste,
+  excluirRifa,
   assertEditable,
   assertQuotaRange,
   CampaignRuleError,
@@ -119,6 +119,18 @@ import {
 } from "../services/afiliados";
 import { salvarFotoDoGanhador } from "../services/ganhador";
 import { cliquesDosLinks, linkCurtoDaRifa, linkCurtoDoPerfil } from "../services/links";
+import {
+  cancelarSolicitacao,
+  conferirEdicao,
+  decidirSolicitacao,
+  detalheDaSolicitacao,
+  escreverNaSolicitacao,
+  listarSolicitacoes,
+  pedirAdiamento,
+  pedirEdicao,
+  solicitacoesEmAnalise,
+  valoresNovos,
+} from "../services/solicitacoes";
 import {
   criarDemonstracao,
   preencherComExemplo,
@@ -305,7 +317,15 @@ adminRouter.get("/campaigns", async (req, res, next) => {
   try {
     const org = orgOf(req);
     const rows = await db
-      .select({ campaign: campaigns, stats: campaignStats })
+      .select({
+        campaign: campaigns,
+        stats: campaignStats,
+        // Pedidos de mudança esperando a plataforma (edição, adiamento).
+        emAnalise: sql<string[] | null>`(
+          SELECT array_agg(s.tipo::text) FROM campanha_solicitacoes s
+           WHERE s.campaign_id = "campaigns"."id" AND s.status = 'em_analise'
+        )`,
+      })
       .from(campaigns)
       .leftJoin(campaignStats, eq(campaignStats.campaignId, campaigns.id))
       .where(org ? eq(campaigns.organizationId, org) : sql`TRUE`)
@@ -359,6 +379,13 @@ adminRouter.patch("/campaigns/:id", async (req, res, next) => {
         message: "Nada para alterar. Autorização e data do sorteio ficam em \"Dados legais\".",
       });
     }
+    // Rifa no ar tem comprador: a organização não muda nada sozinha, pede
+    // (`/editar`) e a plataforma analisa.
+    if (campaign.status !== "draft" && orgOf(req)) {
+      return res.status(409).json({
+        message: "Rifa publicada: a edição vai para análise da plataforma. Use \"Editar rifa\" no painel.",
+      });
+    }
     assertEditable(campaign, changes);
     if (changes.totalQuotas) assertQuotaRange(changes.totalQuotas);
 
@@ -374,6 +401,133 @@ adminRouter.patch("/campaigns/:id", async (req, res, next) => {
     if (err instanceof CampaignRuleError) {
       return res.status(422).json({ message: err.message });
     }
+    next(err);
+  }
+});
+
+/**
+ * Editar rifa. Rascunho muda na hora (tudo, inclusive prêmio, preço e
+ * total). Publicada: o prêmio, o preço e o total não mudam nunca; o resto,
+ * se quem pede é a organização, vira pedido de análise (202) e a rifa só
+ * muda quando a plataforma aprovar. A própria plataforma aplica direto.
+ */
+adminRouter.post("/campaigns/:id/editar", async (req, res, next) => {
+  try {
+    const campaign = await assertCampaignInScope(req, req.params.id);
+    const corpo = (req.body ?? {}) as Record<string, unknown>;
+
+    if (campaign.status === "draft") {
+      const changes = insertCampaignSchema.partial().parse(corpo);
+      delete (changes as { organizationId?: unknown }).organizationId;
+      if (Object.keys(changes).length === 0) return res.status(400).json({ message: "Nada para alterar." });
+      if (changes.totalQuotas) assertQuotaRange(changes.totalQuotas);
+      const [updated] = await db.update(campaigns).set(changes).where(eq(campaigns.id, campaign.id)).returning();
+      await audit(req, "campaign.update", "campaign", campaign.id, changes);
+      return res.json({ aplicada: true, campaign: updated });
+    }
+
+    if (!orgOf(req)) {
+      const alteracoes = conferirEdicao(campaign, corpo);
+      const [updated] = await db
+        .update(campaigns)
+        .set(valoresNovos(alteracoes))
+        .where(eq(campaigns.id, campaign.id))
+        .returning();
+      await audit(req, "campaign.update", "campaign", campaign.id, alteracoes);
+      return res.json({ aplicada: true, campaign: updated });
+    }
+
+    const pedido = await pedirEdicao(req, campaign, corpo);
+    await audit(req, "campaign.edicao.pedida", "campaign", campaign.id, {
+      protocolo: pedido.protocolo,
+      alteracoes: pedido.alteracoes,
+    });
+    res.status(202).json({ aplicada: false, protocolo: pedido.protocolo, solicitacaoId: pedido.id });
+  } catch (err) {
+    if (err instanceof CampaignRuleError) {
+      return res.status(422).json({ message: err.message });
+    }
+    next(err);
+  }
+});
+
+/**
+ * Adiar o sorteio por não atingir a meta. Vira pedido de análise: a data
+ * só muda quando a plataforma aprovar (e aí quem comprou é avisado).
+ */
+adminRouter.post("/campaigns/:id/adiar", async (req, res, next) => {
+  try {
+    const campaign = await assertCampaignInScope(req, req.params.id);
+    const pedido = await pedirAdiamento(req, campaign, {
+      novaData: req.body?.novaData,
+      motivo: req.body?.motivo,
+    });
+    await audit(req, "campaign.adiamento.pedido", "campaign", campaign.id, {
+      protocolo: pedido.protocolo,
+      de: pedido.drawAtAtual,
+      para: pedido.drawAtNovo,
+    });
+    res.status(202).json({ protocolo: pedido.protocolo, solicitacaoId: pedido.id });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/* ------------- pedidos de mudança em rifa publicada ------------- */
+
+adminRouter.get("/solicitacoes", async (req, res, next) => {
+  try {
+    res.json(await listarSolicitacoes(req, req.query.status ? String(req.query.status) : undefined));
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.get("/solicitacoes/pendentes", async (req, res, next) => {
+  try {
+    res.json({ total: await solicitacoesEmAnalise(req) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.get("/solicitacoes/:id", async (req, res, next) => {
+  try {
+    res.json(await detalheDaSolicitacao(req, req.params.id));
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.post("/solicitacoes/:id/mensagens", async (req, res, next) => {
+  try {
+    res.status(201).json(await escreverNaSolicitacao(req, req.params.id, req.body?.texto));
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.post("/solicitacoes/:id/cancelar", async (req, res, next) => {
+  try {
+    await cancelarSolicitacao(req, req.params.id);
+    await audit(req, "solicitacao.cancelar", "solicitacao", req.params.id, {});
+    res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** A palavra final é da plataforma (403 para organizador, no `npm run isolation`). */
+adminRouter.post("/solicitacoes/:id/decidir", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    const aprovar = req.body?.aprovar === true;
+    // Auditoria antes: a decisão muda a rifa na mesma transação.
+    await audit(req, aprovar ? "solicitacao.aprovar" : "solicitacao.recusar", "solicitacao", req.params.id, {
+      resposta: req.body?.resposta ?? null,
+    });
+    res.json(await decidirSolicitacao(req, req.params.id, { aprovar, resposta: req.body?.resposta }));
+  } catch (err) {
     next(err);
   }
 });
@@ -498,20 +652,21 @@ adminRouter.post("/campaigns/:id/demonstracao", async (req, res, next) => {
 });
 
 /**
- * Apagar rifa de teste de vez (limpeza antes do lançamento). Só a plataforma
- * (403 para organizador, no `npm run isolation`); as regras moram em
- * `excluirRifaDeTeste()` — 422 quando não cabe. A auditoria vai antes.
+ * Apagar a rifa de vez: rascunho, rifa no ar sem nenhuma cota vendida, ou
+ * rifa de teste. A organização apaga a dela (a do vizinho é 404, no `npm
+ * run isolation`); as regras moram em `excluirRifa()` — 422 quando não
+ * cabe. A auditoria vai antes.
  */
 adminRouter.delete("/campaigns/:id", async (req, res, next) => {
   try {
-    requirePlatformAdmin(req);
-    const [c] = await db
-      .select({ title: campaigns.title, slug: campaigns.slug, demonstracao: campaigns.demonstracao })
-      .from(campaigns)
-      .where(eq(campaigns.id, req.params.id));
-    if (!c) return res.status(404).json({ message: "Rifa não encontrada." });
-    await audit(req, "campaign.excluir_teste", "campaign", req.params.id, { title: c.title, slug: c.slug });
-    await excluirRifaDeTeste(req.params.id);
+    const c = await assertCampaignInScope(req, req.params.id);
+    await audit(req, "campaign.excluir", "campaign", c.id, {
+      title: c.title,
+      slug: c.slug,
+      status: c.status,
+      demonstracao: c.demonstracao,
+    });
+    await excluirRifa(c.id);
     res.json({ ok: true });
   } catch (err) {
     if (err instanceof CampaignRuleError) {
@@ -1832,7 +1987,12 @@ adminRouter.get("/chamados", async (req, res, next) => {
 adminRouter.get("/chamados/pendentes", async (req, res, next) => {
   try {
     // A plataforma também vê quantas disputas esperam a palavra final dela.
-    res.json({ total: await chamadosAbertos(req), disputas: orgOf(req) ? 0 : await disputasAbertas() });
+    // E os pedidos de mudança em rifa publicada, que só ela decide.
+    res.json({
+      total: await chamadosAbertos(req),
+      disputas: orgOf(req) ? 0 : await disputasAbertas(),
+      solicitacoes: orgOf(req) ? 0 : await solicitacoesEmAnalise(req),
+    });
   } catch (err) {
     next(err);
   }

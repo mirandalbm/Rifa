@@ -112,6 +112,7 @@ arquitetura.
 | endereço do organizador e ordem da vitrine por região | `shared/endereco.ts` (regra), `salvarEndereco()` em `server/services/orgs.ts`, `server/services/cep.ts`, `client/src/components/EnderecoForm.tsx` |
 | perfil do organizador, seguir e sino | `shared/perfil.ts` (regras), `server/services/perfil.ts`, `client/src/pages/Perfil.tsx`, `client/src/components/Seguir.tsx`, `scripts/perfil-test.ts` |
 | perfil de demonstração (organização de exemplo, sem rifa à venda) | `server/services/demonstracao.ts`, card em `client/src/pages/adminOrganizacoes.tsx` |
+| editar, adiar e excluir rifa (pedido analisado pela plataforma) | `shared/solicitacoes.ts` (regras), `server/services/solicitacoes.ts`, `excluirRifa()` em `server/services/campaigns.ts`, `client/src/components/EditarRifa.tsx`, `client/src/components/SolicitacoesDeRifa.tsx`, `scripts/solicitacoes-test.ts` |
 | endereço curto (`/c/…`) e cliques nos links do perfil (`/l/…`) | `server/services/links.ts`, `client/src/components/LinksCurtos.tsx`, rotas em `server/routes/index.ts`, `scripts/perfil-test.ts` |
 | white label do organizador (capa, cor de destaque, links) | `validarDestaque()`/`validarLinks()` em `shared/perfil.ts`, `salvarPerfil()` em `server/services/perfil.ts`, `client/src/components/DestaqueOrg.tsx`, `client/src/components/PerfilPublicoForm.tsx` |
 | notificações no celular (Web Push) | `shared/push.ts` (regras), `server/services/push.ts`, `client/public/sw.js`, `client/src/lib/push.ts`, `scripts/push-test.ts` |
@@ -215,18 +216,58 @@ arquitetura.
   exemplo sorteadas, também marcadas), foto e capa só se faltarem, e três
   stories. Recusa (409) organização com rifa de verdade no ar — exemplo na
   vitrine de promotor real seria propaganda falsa com o nome dele.
-- **Excluir rifa de teste** (`excluirRifaDeTeste()`, `DELETE
-  /campaigns/:id`) apaga de vez — é a limpeza antes do lançamento. Só rifa
-  marcada como teste e sem dinheiro envolvido: pedido pago ou estornado,
-  cobrança da plataforma, chamado ou anúncio barram (422). O resto vai pela
-  cascata das chaves, numa transação com a rifa travada (`FOR UPDATE`)
-  antes de conferir. Auditoria antes de apagar; só a plataforma.
+- **Excluir rifa** (`excluirRifa()`, `DELETE /campaigns/:id`) apaga de
+  vez: rascunho, rifa no ar sem nenhuma cota tomada (nem reserva em
+  andamento) e rifa de teste. Dinheiro envolvido — pedido pago ou
+  estornado, cobrança da plataforma, chamado, anúncio — e rifa já sorteada
+  barram sempre (422). O resto vai pela cascata das chaves, numa transação
+  com a rifa travada (`FOR UPDATE`) antes de conferir: a reserva que
+  estiver gravando cota espera e a conferência a enxerga. Auditoria antes
+  de apagar. O organizador apaga a dele (a do vizinho é 404).
 - **Tirar do ar** (`tirarDoAr()`, `POST /campaigns/:id/tirar-do-ar`) vale
   para qualquer rifa publicada, mas só sem venda — pedido pago ou pendente,
   ou cota tomada, barram no próprio `UPDATE` (422). Volta a rascunho e
   descarta a semente ainda não usada; publicar de novo sorteia outra. Com
   comprador, o caminho é o estorno. Só a plataforma (403 no `npm run
   isolation`).
+
+## Editar e adiar rifa publicada — o que não pode afrouxar
+
+Rifa no ar tem comprador, e quem comprou comprou aquela rifa. Por isso,
+depois de publicar, a organização não muda nada sozinha: **pede, e a
+plataforma analisa** (Atendimento → Rifas, com conversa dos dois lados).
+
+- **O prêmio nunca muda depois de publicar** — nem pedindo, nem pela
+  plataforma (`LOCKED_AFTER_PUBLISH`, junto com preço, total e
+  autorização). O que dá para pedir está em `CAMPOS_EDITAVEIS`: título,
+  descrição, mínimo e máximo por pedido, tempo da reserva e comissão
+  padrão. Rascunho continua mudando na hora.
+- **O `PATCH` genérico não é atalho**: organizador em rifa publicada
+  recebe 409 e vai por `POST /campaigns/:id/editar` (202 com protocolo).
+  A plataforma edita direto, pela mesma régua (`validarEdicao()`). E
+  `demonstracao` saiu do `PATCH` — só `marcarDemonstracao()` mexe nela.
+- **Nada muda até a aprovação.** O pedido (`campanha_solicitacoes`,
+  protocolo `RS-AAAAMMDD-NNNNNN`) guarda o antes e o depois; aprovar
+  confere de novo contra a rifa de agora e aplica exatamente aquilo, com
+  o pedido travado (`FOR UPDATE`): dois cliques, uma decisão, um 409.
+- **Um em análise por rifa e tipo** — o índice parcial
+  `uq_solicitacao_em_analise` decide, não um `SELECT` antes.
+- **Adiar é por não atingir a meta**: rifa publicada, não sorteada e sem
+  todas as cotas vendidas; data nova depois da atual, com 24 h de
+  antecedência e até 180 dias; motivo obrigatório (`problemaNoAdiamento()`).
+  Quem aprova confere a autorização SPA/MF — a tela lembra.
+- **Aprovar o adiamento mexe em três coisas na mesma transação**: a data
+  (só se ainda for a do pedido), `draw_at_original` e `adiamentos`, e a
+  comissão `pending` da rifa, que passa a esperar a data nova — senão seria
+  liberada antes do sorteio que ela devia esperar.
+- **Adiamento se anuncia.** Push `sorteio_adiado` para quem comprou e quem
+  segue com sino (chave com o número do adiamento), a página da rifa diz
+  "Sorteio adiado — a data era …", e o aviso de "sorteio chegando" volta a
+  valer para a data nova (a chave leva o adiamento).
+- **Recorte**: o pedido do vizinho é 404 (ler, escrever, cancelar); decidir
+  é só da plataforma (403). Os dois no `npm run isolation`. Quem decidiu
+  aparece como "Plataforma"; a pessoa fica na auditoria.
+- `npm run solicitacoes` prova tudo isso contra a API de verdade.
 
 ## Venda física — o que não pode afrouxar
 

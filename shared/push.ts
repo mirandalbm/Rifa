@@ -59,7 +59,7 @@ export function chavesValidas(chaves: unknown): chaves is { p256dh: string; auth
   );
 }
 
-export type TipoAviso = "rifa_nova" | "sorteio_chegando" | "resultado" | "reembolso";
+export type TipoAviso = "rifa_nova" | "sorteio_chegando" | "sorteio_adiado" | "resultado" | "reembolso";
 
 export interface MensagemPush {
   title: string;
@@ -74,6 +74,7 @@ export interface MensagemPush {
 export const VALIDADE_S: Record<TipoAviso, number> = {
   rifa_nova: 24 * 3600,
   sorteio_chegando: 3600,
+  sorteio_adiado: 3 * 24 * 3600,
   resultado: 24 * 3600,
   reembolso: 3 * 24 * 3600,
 };
@@ -118,6 +119,20 @@ export function mensagemSorteioChegando(r: {
   return {
     title: `Sorteio ${r.quando}`,
     body: `${r.premio} — ainda dá para garantir seus números.`,
+    url: `/o/${r.orgSlug}/r/${r.slug}`,
+    tag: `sorteio:${r.slug}`,
+  };
+}
+
+export function mensagemSorteioAdiado(r: {
+  premio: string;
+  orgSlug: string;
+  slug: string;
+  novaData: string;
+}): MensagemPush {
+  return {
+    title: "Sorteio adiado",
+    body: `${r.premio} — nova data: ${r.novaData}. Seus números continuam valendo.`,
     url: `/o/${r.orgSlug}/r/${r.slug}`,
     tag: `sorteio:${r.slug}`,
   };

@@ -62,7 +62,7 @@ async function organizacaoPublica(slug: string) {
   const [org] = await db
     .select()
     .from(organizations)
-    .where(and(eq(organizations.slug, slug), isNull(organizations.archivedAt)));
+    .where(and(eq(organizations.slug, slug), isNull(organizations.archivedAt), isNull(organizations.banidaEm)));
   if (!org) throw new PerfilError("Perfil não encontrado.", 404);
   return org;
 }

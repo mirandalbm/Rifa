@@ -122,6 +122,8 @@ arquitetura.
 | aparência da plataforma (construtor de templates) | `shared/template.ts` (regras), `server/services/template.ts`, `client/src/lib/template.ts`, `client/src/pages/adminAparencia.tsx`, `scripts/aparencia-test.ts` |
 | tema claro e escuro | `client/src/index.css` (variáveis), `client/src/lib/tema.ts`, `client/src/components/TemaToggle.tsx`, `tests/tema.test.ts` |
 | comentários na publicação da rifa | `shared/comentarios.ts` (regras), `server/services/comentarios.ts`, `client/src/components/Comentarios.tsx`, `scripts/comentarios-test.ts` |
+| perfil do apostador (apelido, foto, `/u/<apelido>`) e curtidas | `shared/perfilApostador.ts`, `server/services/perfilApostador.ts`, `client/src/components/PerfilDoApostador.tsx`, `client/src/pages/Usuario.tsx`, `scripts/comentarios-test.ts` |
+| segurança do organizador: telefone aprovado, denúncias, rifa travada, banimento | `shared/seguranca.ts` (regras e varredura), `server/services/seguranca.ts`, `client/src/components/Seguranca.tsx`, `scripts/seguranca-test.ts` |
 | visão do organizador (só o próprio perfil) | `VisaoDoOrganizador` em `client/src/App.tsx`, `organizacao` em `GET /api/auth/me` |
 | central de avisos do apostador (o coração no topo) | `server/services/notificacoes.ts`, `avisar()` em `server/services/push.ts`, `client/src/pages/Notificacoes.tsx`, `CoracaoDeAvisos` em `client/src/components/AppShell.tsx`, `scripts/push-test.ts` |
 | app instalável (PWA) | `client/public/sw.js`, `client/public/manifest.webmanifest`, `client/src/lib/pwa.ts` |
@@ -775,10 +777,29 @@ pedido, cotas e valor, e o cliente só pelo ID (`Cliente C-XXXXXXXX`).
   organização levam ao dele (`VisaoDoOrganizador`, com o slug que
   `/api/auth/me` devolve). É visão, não barreira: o que é público segue
   público. No próprio perfil, "Editar perfil" no lugar de "Seguir".
-- **Comenta quem tem conta** (`req.session.buyer.id`); a organização dona
-  da rifa comenta e responde pela sessão do painel, com o selo
-  "organização". Rascunho não tem comentários (404). Uma camada de
-  resposta: responder uma resposta entra no comentário do topo.
+- **Comenta quem tem conta e apelido** (`req.session.buyer.id`, 409 sem
+  apelido); a organização dona da rifa comenta e responde pela sessão do
+  painel, com o selo "organização". Rascunho não tem comentários (404).
+  Uma camada de resposta: responder uma resposta entra no comentário do
+  topo. Como no Instagram: foto, apelido, data, curtidas, respostas
+  recolhidas e a barra de reações; no feed, os comentários sobem num painel
+  por cima da vitrine.
+- **O apelido é o nome de usuário** (`validarApelido()`: minúsculas,
+  números, ponto e sublinhado; sem telefone; reservados recusados), único
+  entre contas pelo índice parcial `uq_buyers_apelido`. O perfil
+  `/u/<apelido>` mostra foto, apelido e **sempre o primeiro e o último nome
+  reais** (`nomeRealPublico`) — nunca telefone, CPF ou e-mail. A foto fica
+  no banco (`comprador_fotos`, 320 px WebP). Excluir a conta (LGPD) leva
+  apelido e foto.
+- **Curtida é a chave (comentário, pessoa)** (`comentario_curtidas`):
+  `ON CONFLICT DO NOTHING`, e o contador `comentarios.curtidas` só anda
+  quando a linha entrou ou saiu, na mesma transação.
+- **A organização não apaga comentário de apostador — pede.** Comentário
+  pode ser a denúncia contra ela: `DELETE` dela vira solicitação
+  `remover_comentario` (202, motivo obrigatório, uma em análise por
+  comentário — índice `uq_solicitacao_comentario_em_analise`) e o
+  comentário fica no ar até a plataforma decidir em Atendimento → Rifas. O
+  que ela mesma escreveu, apaga na hora.
 - **Sem link e sem telefone, de ninguém** (`problemaNoComentario()`): é o
   golpe clássico na rifa alheia ("chama no zap", "Pix aqui"). O contato da
   organização está no perfil, pelos links conferidos.
@@ -786,15 +807,48 @@ pedido, cotas e valor, e o cliente só pelo ID (`Cliente C-XXXXXXXX`).
   (`nomeNoComentario`); telefone nunca sai.
 - **Contador sem `COUNT(*)`**: `campaigns.comentarios_count` anda na mesma
   transação que grava ou apaga.
-- **Apagar é marcar** (`removido_em`), e confere o dono antes: quem
-  escreveu, a organização dona da rifa ou a plataforma; para os demais, 404
-  (`npm run isolation`). O do topo leva as respostas. `UPDATE` condicional:
-  dois cliques, um desconto e um 404.
+- **Apagar é marcar** (`removido_em`, `removerNaTransacao`), e confere o
+  dono antes: quem escreveu ou a plataforma; para os demais, 404 (`npm run
+  isolation`). O do topo leva as respostas. `UPDATE` condicional: dois
+  cliques, um desconto e um 404.
 - **Limite por pessoa** (`hit`, 10 em 10 min), contado depois do erro de
   preenchimento — como o chamado.
 - **A resposta da organização avisa o apostador** (push e coração,
   `comentario`), fora da transação.
 - `npm run comentarios` prova tudo isso contra a API de verdade.
+
+## Segurança contra organizador fraudulento — o que não pode afrouxar
+
+O golpe: levar o apostador para um Pix fora da plataforma. Ele paga, não
+tem bilhete válido, e o dinheiro não passou por rateio, comissão nem
+estorno.
+
+- **Só vale bilhete pago pela plataforma** — dito antes da compra
+  (`SoValePelaPlataforma`), no regulamento (item 4) e na ajuda.
+- **Telefone do organizador provado e aprovado antes da primeira rifa.**
+  Código no WhatsApp (guardado só na sessão, em hash —
+  `otpOrganizador`) e aprovação da plataforma (403 para organizador), que
+  exige o número já provado. Trocar o número zera as duas marcas no mesmo
+  `UPDATE`. Sem aprovação, `publishBlockers` barra a publicação.
+- **Denúncia é só da plataforma.** O apostador (com conta) denuncia rifa,
+  comentário ou organização; uma aberta por pessoa e organização (índice
+  parcial `uq_denuncia_aberta_por_pessoa`), limite por dia. A denunciada
+  nunca vê a fila nem quem denunciou (403 no `npm run isolation`).
+- **Varredura automática do texto do organizador**
+  (`pedePagamentoPorFora()`): comentário da organização, bio, legenda de
+  story e texto da rifa. Procura o **pedido** ("faz um pix", "chave pix",
+  "paga direto", "deposita"), não a palavra "pix" — "paguei com Pix pelo
+  site" é o caminho certo. Acendeu, vira denúncia automática com o trecho;
+  não barra o que ele fez (quem decide é a plataforma) e nunca derruba o
+  fluxo (`emSegundoPlano`).
+- **Decidir é `UPDATE` condicional** (`status = 'aberta'`): improcedente,
+  **travar a rifa** (`campaigns.travada_em`: `createOrder` recusa com 409,
+  sai da vitrine e das patrocinadas, a página avisa) ou **banir a
+  organização** (`banida_em`, `active = false`: a porta fecha para todos
+  dela em `barreiraDaOrganizacao`, o perfil some e todas as rifas
+  publicadas travam na mesma transação). Travar e banir exigem motivo;
+  auditoria antes. Destravar é da plataforma e nunca vale para banida.
+- `npm run seguranca` prova tudo isso contra a API de verdade.
 
 ## Notificações no celular — o que não pode afrouxar
 

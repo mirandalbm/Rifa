@@ -34,6 +34,7 @@ import { avisar, emSegundoPlano } from "./push";
 import { urlDaFoto } from "./perfil";
 import { urlDaFotoDoApostador } from "./perfilApostador";
 import { pedirRemocaoDeComentario } from "./solicitacoes";
+import { varrerTextoDoOrganizador } from "./seguranca";
 
 export class ComentarioError extends Error {
   constructor(message: string, readonly status = 400) {
@@ -243,6 +244,21 @@ export async function comentar(req: Request, slug: string, entrada: { texto?: un
       .where(eq(campaigns.id, rifa.id));
     return c;
   });
+
+  // Texto do próprio organizador pedindo pagamento por fora vira denúncia
+  // automática para a plataforma — sem barrar o comentário (ela decide).
+  if (comoOrganizacao) {
+    emSegundoPlano(
+      varrerTextoDoOrganizador({
+        organizationId: rifa.organizationId,
+        campaignId: rifa.id,
+        comentarioId: novo.id,
+        onde: "comentário da organização",
+        texto,
+      }),
+      "varredura",
+    );
+  }
 
   // A organização respondeu um apostador: ele fica sabendo (push e coração).
   if (comoOrganizacao && autorDoPai?.autor === "comprador" && autorDoPai.buyerId) {

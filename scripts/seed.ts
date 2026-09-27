@@ -74,8 +74,16 @@ async function main() {
       cidade: "São Paulo",
       uf: "SP",
       observacao: "Bilhete válido mediante pagamento confirmado.",
+      // A organização de exemplo já vem com o telefone provado e aprovado:
+      // sem isso nenhuma rifa publica (`publishBlockers`).
+      telefoneOrganizador: "11933334444",
+      telefoneConfirmadoEm: new Date(),
+      telefoneAprovadoEm: new Date(),
     })
-    .onConflictDoUpdate({ target: organizations.slug, set: { active: true } })
+    .onConflictDoUpdate({
+      target: organizations.slug,
+      set: { active: true, telefoneOrganizador: "11933334444", telefoneConfirmadoEm: new Date(), telefoneAprovadoEm: new Date() },
+    })
     .returning();
 
   const [admin] = await db

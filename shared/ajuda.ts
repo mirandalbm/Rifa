@@ -40,6 +40,15 @@ export function perguntasDaAjuda(p: { taxaReembolsoPct: number; aceitaReembolso:
       ],
     },
     {
+      id: "pix-por-fora",
+      tema: "comprar",
+      pergunta: "A organização pediu Pix direto para ela. Posso pagar?",
+      resposta: [
+        "Não. Só vale bilhete pago aqui na plataforma: pagamento por fora não gera cota e não participa do sorteio.",
+        "Se alguém pedir Pix fora da plataforma, toque em Denunciar na rifa ou no perfil. A organização nunca fica sabendo quem denunciou, e pedir pagamento por fora leva ao banimento.",
+      ],
+    },
+    {
       id: "rifa-legal",
       tema: "comprar",
       pergunta: "Como sei que a rifa é legal?",

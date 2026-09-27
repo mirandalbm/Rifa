@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { AprovarTelefone } from "@/components/Seguranca";
 import { Link } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { PRAZO_ESTORNO_MIN, PRAZO_ESTORNO_MAX, telefoneDeAvisoValido } from "@shared/chamados";
@@ -45,6 +46,11 @@ interface Organizacao {
   liberacaoComissao: LiberacaoComissao;
   prazoEstornoDias: number;
   avisoTelefone: string | null;
+  telefoneOrganizador: string | null;
+  telefoneConfirmadoEm: string | null;
+  telefoneAprovadoEm: string | null;
+  banidaEm: string | null;
+  banidaMotivo: string | null;
   campanhas: number;
   pessoas: number;
 }
@@ -536,11 +542,21 @@ function LinhaOrganizacao({
           </Link>
         </td>
         <td className="px-4 py-3">
-          {o.archivedAt ? (
+          {o.banidaEm ? (
+            <Pill status="expired">banida</Pill>
+          ) : o.archivedAt ? (
             <Pill status="blocked">arquivada</Pill>
           ) : (
             <Pill status={o.active ? "active" : "blocked"}>{o.active ? "ativa" : "suspensa"}</Pill>
           )}
+          <span className="mt-1 block text-xs">
+            <AprovarTelefone
+              id={o.id}
+              telefone={o.telefoneOrganizador}
+              confirmadoEm={o.telefoneConfirmadoEm}
+              aprovadoEm={o.telefoneAprovadoEm}
+            />
+          </span>
         </td>
         <td className="px-4 py-3 text-right">
           <div className="flex flex-wrap justify-end gap-2">{acoes}</div>

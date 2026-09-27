@@ -142,7 +142,11 @@ async function main() {
   const orgs: { id: string; slug: string }[] = [];
   const organizadores: Cliente[] = [];
   for (const [i, slug] of SLUGS.entries()) {
-    const [o] = await db.insert(organizations).values({ slug, name: `Afiliados ${i ? "B" : "A"}`, cidade: "Natal", uf: "RN" }).returning();
+    // Telefone já aprovado: sem isso a rifa não publica (`publishBlockers`).
+    const [o] = await db
+      .insert(organizations)
+      .values({ slug, name: `Afiliados ${i ? "B" : "A"}`, cidade: "Natal", uf: "RN", telefoneConfirmadoEm: new Date(), telefoneAprovadoEm: new Date() })
+      .returning();
     await db.insert(users).values({ role: "organizer", organizationId: o.id, name: `Org ${i}`, email: EMAILS[i], passwordHash: await hashPassword(SENHA) });
     orgs.push(o);
     const c = new Cliente();

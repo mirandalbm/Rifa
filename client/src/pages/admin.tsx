@@ -16,6 +16,7 @@ import { EnderecoForm, type EnderecoParcial } from "@/components/EnderecoForm";
 import { PerfilPublicoForm } from "@/components/PerfilPublicoForm";
 import { EnderecoCurto } from "@/components/LinksCurtos";
 import { AdiarSorteioCard, EditarRifaCard, type RifaEditavel } from "@/components/EditarRifa";
+import { TelefoneDoOrganizadorCard } from "@/components/Seguranca";
 import { podeExcluir } from "@shared/solicitacoes";
 import type { CorDeDestaque, LinkDoPerfil } from "@shared/perfil";
 import type { Endereco } from "@shared/endereco";
@@ -136,6 +137,8 @@ interface CampaignRow {
     demonstracao?: boolean;
     adiamentos?: number;
     drawAtOriginal?: string | null;
+    travadaEm?: string | null;
+    travadaMotivo?: string | null;
   };
   stats: { soldCount: number; reservedCount?: number; revenueCents: number } | null;
   /** Pedidos de mudança esperando a plataforma: "edicao", "adiamento". */
@@ -199,6 +202,14 @@ export function AdminCampanhas() {
     onSuccess: () => {
       setError(null);
       setMediaFor(null);
+      qc.invalidateQueries();
+    },
+    onError: (err: Error) => setError(err.message),
+  });
+  const destravar = useMutation({
+    mutationFn: (id: string) => apiRequest("POST", `/api/admin/campaigns/${id}/destravar`),
+    onSuccess: () => {
+      setError(null);
       qc.invalidateQueries();
     },
     onError: (err: Error) => setError(err.message),
@@ -465,6 +476,7 @@ export function AdminCampanhas() {
                       <span className="flex flex-wrap gap-1">
                         <Pill status={campaign.status} />
                         {campaign.demonstracao ? <Pill status="pending">teste</Pill> : null}
+                        {campaign.travadaEm ? <Pill status="expired">travada</Pill> : null}
                         {emAnalise?.includes("edicao") ? <Pill status="pending">edição em análise</Pill> : null}
                         {emAnalise?.includes("adiamento") ? <Pill status="pending">adiamento em análise</Pill> : null}
                       </span>
@@ -486,6 +498,20 @@ export function AdminCampanhas() {
                             onClick={() => publish.mutate(campaign.id)}
                           >
                             Publicar
+                          </Button>
+                        ) : null}
+                        {daPlataforma && campaign.travadaEm ? (
+                          <Button
+                            variant="ghost"
+                            className="px-2 py-1 text-xs"
+                            disabled={destravar.isPending}
+                            onClick={() => {
+                              if (window.confirm(`Destravar "${campaign.title}"? As vendas voltam e ela volta à vitrine.\nMotivo da trava: ${campaign.travadaMotivo ?? "—"}`)) {
+                                destravar.mutate(campaign.id);
+                              }
+                            }}
+                          >
+                            Destravar
                           </Button>
                         ) : null}
                         {daPlataforma && campaign.status === "published" && !(stats?.soldCount) ? (
@@ -1714,6 +1740,7 @@ export function AdminConfiguracoes() {
         <OrganizerCard />
         <EnderecoDaOrganizacaoCard />
         <PerfilPublicoCard />
+        <TelefoneDoOrganizadorCard />
       </div>
       <div className="mb-3 grid gap-3 lg:grid-cols-2">
         <TwoFactorCard />

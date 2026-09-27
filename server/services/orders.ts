@@ -267,6 +267,10 @@ export async function createOrder(
   if (campaign.demonstracao) {
     throw new OrderError("Rifa de demonstração: não está à venda.", 409);
   }
+  // Travada pela plataforma (denúncia, organização banida): nada vende.
+  if (campaign.travadaEm) {
+    throw new OrderError("As vendas desta rifa estão suspensas pela plataforma.", 409);
+  }
 
   // O administrador decide os meios aceitos; a checagem é aqui, não na tela.
   const meios = await getPaymentMethods();

@@ -8,6 +8,7 @@ import { Money, Progress, Empty, Button } from "@/components/bits";
 import { apiRequest } from "@/lib/queryClient";
 import { useSession } from "@/lib/session";
 import { SeguirBotoes, FotoDoPerfil } from "@/components/Seguir";
+import { Denunciar } from "@/components/Seguranca";
 import { DestaqueOrg, LinksDoPerfil } from "@/components/DestaqueOrg";
 import { FotoComStory, VisualizadorDeStories } from "@/components/Stories";
 import { marcarOrigem } from "@/lib/origem";
@@ -80,6 +81,7 @@ export default function PerfilPage() {
   }, [org]);
   const { data: p, isLoading, error } = useQuery<Perfil>({ queryKey: [`/api/public/o/${org}`] });
   const { data: sessao } = useSession();
+  const [denunciando, setDenunciando] = useState(false);
   const [menu, setMenu] = useState(false);
   const [painel, setPainel] = useState<"sobre" | "qr" | "compartilhar" | "colaborador" | null>(null);
   const [copiado, setCopiado] = useState(false);
@@ -216,11 +218,14 @@ export default function PerfilPage() {
                   Compartilhar esse perfil
                 </ItemMenu>
                 <ItemMenu onClick={() => (setMenu(false), setPainel("qr"))}>QR code</ItemMenu>
+                <ItemMenu onClick={() => (setMenu(false), setDenunciando(true))}>Denunciar</ItemMenu>
               </div>
             </>
           ) : null}
         </div>
       </div>
+
+      {denunciando ? <Denunciar organizacao={p.slug} onFechar={() => setDenunciando(false)} /> : null}
 
       {/* Bio: o texto do organizador e a rifa atual, escrita sozinha */}
       <div className="mt-4 space-y-1 text-sm">

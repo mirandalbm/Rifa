@@ -121,6 +121,7 @@ export function montarRegulamento(d: DadosDoRegulamento): Secao[] {
         `Cada pedido tem no mínimo ${rifa.minPerOrder} e no máximo ${groupNumber(rifa.maxPerOrder)} cota(s).`,
         `Só participa a cota paga. A reserva não paga em ${rifa.reservationTtlMin} minutos é desfeita e os números voltam a ficar livres.`,
         "Cada número é vendido uma única vez.",
+        "Só vale bilhete pago pela plataforma. Pagamento feito por fora (Pix ou transferência direto à promotora ou a terceiros) não gera cota nem participa do sorteio, e pedir pagamento por fora leva ao banimento da promotora.",
         ...(rifa.aceitaCotaBonus ? [clausulaDoBonus()] : []),
       ],
     },

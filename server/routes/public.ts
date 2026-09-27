@@ -1,4 +1,5 @@
 import { conferirRecibo } from "../services/recibos";
+import { denunciar } from "../services/seguranca";
 import { fotoDoApostador, meuPerfilPublico, perfilPublicoDoApostador, salvarPerfilPublico } from "../services/perfilApostador";
 import { apagarComentario, comentar, curtirComentario, listarComentarios } from "../services/comentarios";
 import { marcarTodasLidas, naoLidas, notificacoesDe } from "../services/notificacoes";
@@ -445,6 +446,23 @@ publicRouter.put("/comentarios/:id/curtida", async (req, res, next) => {
   }
 });
 
+/** Denunciar rifa, comentário ou organização (apostador com conta). */
+publicRouter.post("/denuncias", async (req, res, next) => {
+  try {
+    res.status(201).json(
+      await denunciar(req, {
+        rifa: req.body?.rifa,
+        comentario: req.body?.comentario,
+        organizacao: req.body?.organizacao,
+        motivo: req.body?.motivo,
+        texto: req.body?.texto,
+      }),
+    );
+  } catch (err) {
+    next(err);
+  }
+});
+
 /* ---------------- perfil do apostador (/u/<apelido>) ---------------- */
 
 publicRouter.get("/conta/perfil", async (req, res, next) => {
@@ -666,6 +684,8 @@ publicRouter.get("/campaigns/:slug", async (req, res, next) => {
         // Sorteio adiado: a página diz, com a data que valia antes.
         adiamentos: found.campaign.adiamentos,
         comentarios: found.campaign.comentariosCount,
+        // Vendas suspensas pela plataforma: a página avisa e não oferece compra.
+        travada: Boolean(found.campaign.travadaEm),
         drawAtOriginal: found.campaign.drawAtOriginal,
         authorizationCode: found.campaign.authorizationCode,
         temCertificado: Boolean(found.campaign.authorizationFileKey),

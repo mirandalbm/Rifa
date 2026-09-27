@@ -291,7 +291,7 @@ export function PanelShell({
   // Chamado de reembolso tem prazo: o contador no menu é o aviso que o
   // organizador vê sem precisar abrir o Atendimento.
   const temAtendimento = Boolean(session?.sections.some((s) => s.key === "adminAtendimento"));
-  const { data: pendentes } = useQuery<{ total: number; disputas?: number; solicitacoes?: number }>({
+  const { data: pendentes } = useQuery<{ total: number; disputas?: number; solicitacoes?: number; denuncias?: number }>({
     queryKey: ["/api/admin/chamados/pendentes"],
     enabled: temAtendimento,
     refetchInterval: 60_000,
@@ -299,7 +299,9 @@ export function PanelShell({
   const contador: Partial<Record<string, number>> = {
     // A plataforma conta o que só ela resolve: as disputas.
     adminAtendimento:
-      (session?.role === "admin" ? (pendentes?.disputas ?? 0) + (pendentes?.solicitacoes ?? 0) : pendentes?.total) ||
+      (session?.role === "admin"
+        ? (pendentes?.disputas ?? 0) + (pendentes?.solicitacoes ?? 0) + (pendentes?.denuncias ?? 0)
+        : pendentes?.total) ||
       undefined,
   };
 

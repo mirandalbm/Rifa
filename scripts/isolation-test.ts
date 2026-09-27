@@ -250,6 +250,9 @@ async function alcancaOVizinho(eu: Lado, vizinho: Lado) {
     .returning({ id: comentarios.id });
   const tentativas: [string, string, RequestInit][] = [
     ["DELETE comentário na rifa do vizinho", `/api/public/comentarios/${comentarioDoVizinho.id}`, { method: "DELETE" }],
+    ["GET telefone do vizinho", `/api/admin/organizacoes/${vizinho.orgId}/telefone`, {}],
+    ["POST código no telefone do vizinho", `/api/admin/organizacoes/${vizinho.orgId}/telefone`, { method: "POST", body: '{"telefone":"11999998888"}' }],
+    ["POST confirmar telefone do vizinho", `/api/admin/organizacoes/${vizinho.orgId}/telefone/confirmar`, { method: "POST", body: '{"codigo":"123456"}' }],
     ["PATCH campanha", `/api/admin/campaigns/${c}`, { method: "PATCH", body: '{"title":"invadida"}' }],
     ["GET impedimentos", `/api/admin/campaigns/${c}/blockers`, {}],
     ["POST publicar", `/api/admin/campaigns/${c}/publish`, { method: "POST" }],
@@ -387,6 +390,11 @@ async function rotasDaPlataforma(eu: Lado) {
     ["PUT configuração do bônus", "/api/admin/bonus/config", { method: "PUT", body: '{"bonusLigado":true}' }],
     ["POST meta de bônus", "/api/admin/bonus/metas", { method: "POST", body: "{}" }],
     ["PUT meta de bônus", "/api/admin/bonus/metas/00000000-0000-0000-0000-000000000000", { method: "PUT", body: "{}" }],
+    ["GET denúncias", "/api/admin/denuncias", {}],
+    ["GET denúncia", "/api/admin/denuncias/00000000-0000-0000-0000-000000000000", {}],
+    ["POST decidir denúncia", "/api/admin/denuncias/00000000-0000-0000-0000-000000000000/decidir", { method: "POST", body: '{"acao":"banir","resposta":"xxxxxxxxxxxx"}' }],
+    ["POST aprovar telefone do organizador", `/api/admin/organizacoes/${eu.orgId}/telefone/aprovar`, { method: "POST" }],
+    ["POST destravar rifa", "/api/admin/campaigns/00000000-0000-0000-0000-000000000000/destravar", { method: "POST" }],
     ["POST decidir pedido de mudança em rifa", "/api/admin/solicitacoes/00000000-0000-0000-0000-000000000000/decidir", { method: "POST", body: '{"aprovar":true}' }],
     ["POST marcar rifa como teste", "/api/admin/campaigns/00000000-0000-0000-0000-000000000000/demonstracao", { method: "POST", body: '{"ligado":true}' }],
     ["POST tirar rifa do ar", "/api/admin/campaigns/00000000-0000-0000-0000-000000000000/tirar-do-ar", { method: "POST" }],

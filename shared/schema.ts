@@ -201,6 +201,18 @@ export const organizations = pgTable(
     /** WhatsApp que recebe o aviso de chamado novo. Nulo: os organizadores. */
     avisoTelefone: text("aviso_telefone"),
     /**
+     * O telefone do organizador: provado pelo código do WhatsApp e aprovado
+     * pela plataforma antes da primeira rifa (`publishBlockers`). Trocar o
+     * número zera as duas marcas.
+     */
+    telefoneOrganizador: text("telefone_organizador"),
+    telefoneConfirmadoEm: timestamp("telefone_confirmado_em"),
+    telefoneAprovadoEm: timestamp("telefone_aprovado_em"),
+    telefoneAprovadoPor: uuid("telefone_aprovado_por"),
+    /** Banida por fraude (ex.: Pix fora da plataforma): porta fechada e rifas travadas. */
+    banidaEm: timestamp("banida_em"),
+    banidaMotivo: text("banida_motivo"),
+    /**
      * Perfil público (`/o/:slug`). A bio é o texto do organizador; a parte da
      * rifa atual é montada sozinha (`bioAutomatica()` em `shared/perfil.ts`).
      */
@@ -396,6 +408,12 @@ export const campaigns = pgTable(
     adiamentos: integer("adiamentos").notNull().default(0),
     /** Comentários visíveis na publicação — contador, nunca `COUNT(*)`. */
     comentariosCount: integer("comentarios_count").notNull().default(0),
+    /**
+     * Travada pela plataforma (denúncia procedente, organização banida):
+     * `createOrder` recusa, a vitrine esconde e a página avisa.
+     */
+    travadaEm: timestamp("travada_em"),
+    travadaMotivo: text("travada_motivo"),
     drawAtOriginal: timestamp("draw_at_original"),
     /** Link da live ou do vídeo do sorteio. Muda a qualquer hora (só https). */
     transmissaoUrl: text("transmissao_url"),
@@ -1264,6 +1282,51 @@ export const comentarioCurtidas = pgTable(
   (t) => [primaryKey({ columns: [t.comentarioId, t.buyerId] })],
 );
 
+export const denunciaStatus = pgEnum("denuncia_status", [
+  "aberta",
+  "improcedente",
+  "rifa_travada",
+  "organizacao_banida",
+]);
+
+/**
+ * Denúncia contra organização, rifa ou comentário. Vem do apostador (com
+ * conta) ou é automática (texto do próprio organizador pedindo pagamento
+ * por fora). Só a plataforma vê e decide — a organização denunciada nunca.
+ */
+export const denuncias = pgTable(
+  "denuncias",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    protocolo: text("protocolo").notNull(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "restrict" }),
+    campaignId: uuid("campaign_id").references(() => campaigns.id, { onDelete: "set null" }),
+    comentarioId: uuid("comentario_id"),
+    /** `apostador` ou `automatica`. */
+    origem: text("origem").notNull(),
+    buyerId: uuid("buyer_id").references(() => buyers.id, { onDelete: "set null" }),
+    motivo: text("motivo").notNull(),
+    texto: text("texto"),
+    /** Automática: o trecho que acendeu e onde estava. */
+    evidencia: text("evidencia"),
+    status: denunciaStatus("status").notNull().default("aberta"),
+    decisao: text("decisao"),
+    decididaPor: uuid("decidida_por"),
+    decididaEm: timestamp("decidida_em"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("uq_denuncia_protocolo").on(t.protocolo),
+    // Uma aberta por pessoa e organização: insistir não empilha denúncia.
+    uniqueIndex("uq_denuncia_aberta_por_pessoa")
+      .on(t.buyerId, t.organizationId)
+      .where(sql`status = 'aberta' and buyer_id is not null`),
+    index("idx_denuncias_status").on(t.status, t.createdAt),
+  ],
+);
+
 /**
  * A central de avisos do apostador (o coração no topo, como no Instagram).
  * Todo aviso que sai por push também fica aqui — inclusive para quem não
@@ -1445,6 +1508,8 @@ export const insertCampaignSchema = createInsertSchema(campaigns, {
     adiamentos: true,
     drawAtOriginal: true,
     comentariosCount: true,
+    travadaEm: true,
+    travadaMotivo: true,
   });
 
 export const createOrderSchema = z.object({

@@ -1,4 +1,4 @@
-import express, { Router, type Request } from "express";
+import express, { Router, type Request, type Response as Resposta } from "express";
 import { once } from "node:events";
 import { randomInt } from "node:crypto";
 import QRCode from "qrcode";
@@ -32,6 +32,7 @@ import {
   publishCampaign,
   publishBlockers,
   tirarDoAr,
+  marcarDemonstracao,
   assertEditable,
   assertQuotaRange,
   CampaignRuleError,
@@ -116,7 +117,13 @@ import {
   vinculosDaOrganizacao,
 } from "../services/afiliados";
 import { salvarFotoDoGanhador } from "../services/ganhador";
-import { criarDemonstracao, removerDemonstracao, situacaoDaDemonstracao } from "../services/demonstracao";
+import { cliquesDosLinks, linkCurtoDaRifa, linkCurtoDoPerfil } from "../services/links";
+import {
+  criarDemonstracao,
+  preencherComExemplo,
+  removerDemonstracao,
+  situacaoDaDemonstracao,
+} from "../services/demonstracao";
 import { emitirRecibo, pdfDoRecibo, reciboPorCodigo } from "../services/recibos";
 import { cadastrosFiscais, decidirCadastro, documento, estadoFiscal } from "../services/fiscal";
 import { urlDeConferencia } from "../services/urls";
@@ -460,6 +467,26 @@ adminRouter.post("/campaigns/:id/tirar-do-ar", async (req, res, next) => {
     requirePlatformAdmin(req);
     await tirarDoAr(req.params.id);
     await audit(req, "campaign.tirar_do_ar", "campaign", req.params.id, {});
+    res.json({ ok: true });
+  } catch (err) {
+    if (err instanceof CampaignRuleError) {
+      return res.status(422).json({ message: err.message });
+    }
+    next(err);
+  }
+});
+
+/**
+ * Rifa de teste (demonstração): marca ou desmarca. Só a plataforma (403 para
+ * organizador, no `npm run isolation`); as regras moram em
+ * `marcarDemonstracao()` — 422 quando não cabe.
+ */
+adminRouter.post("/campaigns/:id/demonstracao", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    const ligado = req.body?.ligado === true;
+    await marcarDemonstracao(req.params.id, ligado);
+    await audit(req, "campaign.demonstracao", "campaign", req.params.id, { ligado });
     res.json({ ok: true });
   } catch (err) {
     if (err instanceof CampaignRuleError) {
@@ -1381,6 +1408,67 @@ adminRouter.post("/demonstracao", async (req, res, next) => {
     const feita = await criarDemonstracao(process.env.PUBLIC_BASE_URL ?? "");
     await audit(req, "demonstracao.criar", "organization", feita.slug, {});
     res.json(feita);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * Preencher com exemplo: fotos das publicações de teste, destaques, foto e
+ * capa (se faltarem) e stories numa organização de teste. Só a plataforma
+ * (403 para organizador, no `npm run isolation`); recusa (409) organização
+ * com rifa de verdade no ar.
+ */
+adminRouter.post("/organizacoes/:id/exemplo", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    const feito = await preencherComExemplo(req.params.id, process.env.PUBLIC_BASE_URL ?? "");
+    await audit(req, "organizacao.exemplo", "organization", req.params.id, feito);
+    res.json(feito);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/* ---------------- endereço curto e cliques nos links ---------------- */
+
+/** Recorte da organização pelo id do caminho: o do vizinho é 404. */
+function orgDoCaminho(req: Request, res: Resposta): boolean {
+  const org = orgOf(req);
+  if (org && org !== req.params.id) {
+    res.status(404).json({ message: "Organização não encontrada." });
+    return false;
+  }
+  return true;
+}
+
+/** Endereço curto do perfil (criado na primeira vez) e quantos acessos teve. */
+adminRouter.post("/organizacoes/:id/link-curto", async (req, res, next) => {
+  try {
+    if (!orgDoCaminho(req, res)) return;
+    const [o] = await db.select({ id: organizations.id }).from(organizations).where(eq(organizations.id, req.params.id));
+    if (!o) return res.status(404).json({ message: "Organização não encontrada." });
+    res.json(await linkCurtoDoPerfil(o.id));
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** Cliques nos links do perfil (redes sociais e contato), últimos 30 dias. */
+adminRouter.get("/organizacoes/:id/links/cliques", async (req, res, next) => {
+  try {
+    if (!orgDoCaminho(req, res)) return;
+    res.json(await cliquesDosLinks(req.params.id));
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** Endereço curto da rifa — recorte da campanha antes (o do vizinho é 404). */
+adminRouter.post("/campaigns/:id/link-curto", async (req, res, next) => {
+  try {
+    await assertCampaignInScope(req, req.params.id);
+    res.json(await linkCurtoDaRifa(req.params.id));
   } catch (err) {
     next(err);
   }

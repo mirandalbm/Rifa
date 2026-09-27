@@ -39,16 +39,20 @@ const ICONE: Record<RedeDoLink, LucideIcon> = {
  * Os links da bio. `nofollow ugc`: é texto do organizador, não indicação da
  * plataforma; e `noopener` para a página aberta não mexer nesta.
  */
-export function LinksDoPerfil({ links }: { links: LinkDoPerfil[] }) {
+/**
+ * Com `slug`, cada link passa por `/l/<perfil>/<n>`: o servidor conta o
+ * clique e redireciona para o endereço cadastrado (nunca outro).
+ */
+export function LinksDoPerfil({ links, slug }: { links: LinkDoPerfil[]; slug?: string }) {
   if (!links.length) return null;
   return (
     <ul className="flex flex-wrap gap-2 pt-1">
-      {links.map((l) => {
+      {links.map((l, i) => {
         const Icone = ICONE[redeDoLink(l.url).rede];
         return (
           <li key={l.url}>
             <a
-              href={l.url}
+              href={slug ? `/l/${encodeURIComponent(slug)}/${i}` : l.url}
               target="_blank"
               rel="noopener noreferrer nofollow ugc"
               className="inline-flex items-center gap-1.5 rounded-full border border-line-2 px-3 py-1 text-xs font-semibold text-marca hover:bg-mist"

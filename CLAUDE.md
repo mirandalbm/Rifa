@@ -112,6 +112,7 @@ arquitetura.
 | endereço do organizador e ordem da vitrine por região | `shared/endereco.ts` (regra), `salvarEndereco()` em `server/services/orgs.ts`, `server/services/cep.ts`, `client/src/components/EnderecoForm.tsx` |
 | perfil do organizador, seguir e sino | `shared/perfil.ts` (regras), `server/services/perfil.ts`, `client/src/pages/Perfil.tsx`, `client/src/components/Seguir.tsx`, `scripts/perfil-test.ts` |
 | perfil de demonstração (organização de exemplo, sem rifa à venda) | `server/services/demonstracao.ts`, card em `client/src/pages/adminOrganizacoes.tsx` |
+| endereço curto (`/c/…`) e cliques nos links do perfil (`/l/…`) | `server/services/links.ts`, `client/src/components/LinksCurtos.tsx`, rotas em `server/routes/index.ts`, `scripts/perfil-test.ts` |
 | white label do organizador (capa, cor de destaque, links) | `validarDestaque()`/`validarLinks()` em `shared/perfil.ts`, `salvarPerfil()` em `server/services/perfil.ts`, `client/src/components/DestaqueOrg.tsx`, `client/src/components/PerfilPublicoForm.tsx` |
 | notificações no celular (Web Push) | `shared/push.ts` (regras), `server/services/push.ts`, `client/public/sw.js`, `client/src/lib/push.ts`, `scripts/push-test.ts` |
 | regulamento, central de ajuda, transmissão e conferência do sorteio | `shared/regulamento.ts`, `shared/ajuda.ts`, `shared/sorteio.ts`, `client/src/components/SorteioCard.tsx`, `scripts/transparencia-test.ts` |
@@ -203,6 +204,17 @@ arquitetura.
   continua passando por `publishCampaign()` e pela invariante 9.
 - **Só a plataforma cria e remove** (403 para organizador). Remover volta
   as rifas a rascunho e arquiva a organização; o reset do lançamento apaga.
+- **Marcar como teste** (`marcarDemonstracao()`, `POST
+  /campaigns/:id/demonstracao`) liga a mesma marca numa rifa qualquer:
+  marcar só sem venda (quem comprou não acorda numa rifa "de exemplo");
+  desmarcar só com autorização SPA/MF (a demonstração criada sem ela não
+  passa a vender). Condições no próprio `UPDATE` (422); só a plataforma.
+- **Preencher com exemplo** (`preencherComExemplo()`, `POST
+  /organizacoes/:id/exemplo`) é para organização de teste: fotos das
+  publicações só das rifas marcadas como teste, dois destaques (rifas de
+  exemplo sorteadas, também marcadas), foto e capa só se faltarem, e três
+  stories. Recusa (409) organização com rifa de verdade no ar — exemplo na
+  vitrine de promotor real seria propaganda falsa com o nome dele.
 - **Tirar do ar** (`tirarDoAr()`, `POST /campaigns/:id/tirar-do-ar`) vale
   para qualquer rifa publicada, mas só sem venda — pedido pago ou pendente,
   ou cota tomada, barram no próprio `UPDATE` (422). Volta a rascunho e
@@ -694,6 +706,17 @@ pedido, cotas e valor, e o cliente só pelo ID (`Cliente C-XXXXXXXX`).
   WebP, como a foto. Endereço com `?v=`, cache eterno.
 - **Recusa não deixa nada pela metade**: tudo é conferido (inclusive abrir
   as imagens) antes da transação. `npm run perfil` prova.
+- **Redirecionamento só para destino guardado.** O endereço curto
+  (`/c/<código>`, um por perfil e um por rifa, índices parciais) leva a um
+  caminho do próprio site; o link do perfil (`/l/<perfil>/<n>`) leva ao
+  link número `n` que a organização cadastrou. Nada da URL vira destino —
+  senão a plataforma viraria redirecionador aberto com o nome do
+  organizador. Índice fora da lista é 404; código inexistente volta para a
+  vitrine.
+- **Clique é contado sem `COUNT(*)`**: o curto num `UPDATE cliques + 1`, o
+  link do perfil em `perfil_link_cliques` (organização, link, dia de São
+  Paulo, `ON CONFLICT DO UPDATE`). Robô (`ehRobo`) não conta. Recorte da
+  organização no painel (o do vizinho é 404, no `npm run isolation`).
 
 ## Notificações no celular — o que não pode afrouxar
 

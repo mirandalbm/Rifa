@@ -14,6 +14,7 @@ import { CampaignExtras } from "@/components/CampaignExtras";
 import { DadosLegaisCard, TransmissaoCard } from "@/components/DadosLegaisCard";
 import { EnderecoForm, type EnderecoParcial } from "@/components/EnderecoForm";
 import { PerfilPublicoForm } from "@/components/PerfilPublicoForm";
+import { EnderecoCurto } from "@/components/LinksCurtos";
 import type { CorDeDestaque, LinkDoPerfil } from "@shared/perfil";
 import type { Endereco } from "@shared/endereco";
 import { formatBRL, groupNumber, formatQuota, maskPhone } from "@shared/format";
@@ -137,6 +138,7 @@ interface CampaignRow {
     drawAt: string | null;
     authorizationCode: string | null;
     authorizationFileKey: string | null;
+    demonstracao?: boolean;
   };
   stats: { soldCount: number; revenueCents: number } | null;
 }
@@ -182,6 +184,15 @@ export function AdminCampanhas() {
   const publish = useMutation({
     mutationFn: (id: string) => apiRequest("POST", `/api/admin/campaigns/${id}/publish`),
     onSuccess: () => qc.invalidateQueries(),
+    onError: (err: Error) => setError(err.message),
+  });
+  const teste = useMutation({
+    mutationFn: ({ id, ligado }: { id: string; ligado: boolean }) =>
+      apiRequest("POST", `/api/admin/campaigns/${id}/demonstracao`, { ligado }),
+    onSuccess: () => {
+      setError(null);
+      qc.invalidateQueries();
+    },
     onError: (err: Error) => setError(err.message),
   });
   const tirar = useMutation({
@@ -363,6 +374,13 @@ export function AdminCampanhas() {
             const c = data?.find((r) => r.campaign.id === mediaFor)?.campaign;
             return c ? (
               <>
+                {c.status !== "draft" ? (
+                  <Card title="Divulgação">
+                    <div className="p-4">
+                      <EnderecoCurto alvo={{ tipo: "rifa", id: c.id }} rotulo="Endereço curto da rifa" />
+                    </div>
+                  </Card>
+                ) : null}
                 <DadosLegaisCard campanha={c} />
                 <TransmissaoCard campanha={c} />
               </>
@@ -415,7 +433,10 @@ export function AdminCampanhas() {
                         : "—"}
                     </td>
                     <td className="px-3 py-2">
-                      <Pill status={campaign.status} />
+                      <span className="flex flex-wrap gap-1">
+                        <Pill status={campaign.status} />
+                        {campaign.demonstracao ? <Pill status="pending">teste</Pill> : null}
+                      </span>
                     </td>
                     <td className="px-3 py-2">
                       <span className="flex gap-1">
@@ -448,6 +469,22 @@ export function AdminCampanhas() {
                             }}
                           >
                             Tirar do ar
+                          </Button>
+                        ) : null}
+                        {daPlataforma && (campaign.demonstracao ? Boolean(campaign.authorizationCode) : !(stats?.soldCount)) ? (
+                          <Button
+                            variant="ghost"
+                            className="px-2 py-1 text-xs"
+                            disabled={teste.isPending}
+                            onClick={() => {
+                              const ligar = !campaign.demonstracao;
+                              const aviso = ligar
+                                ? `Marcar "${campaign.title}" como teste? Fica na vitrine com a marca "Demonstração" e não vende.`
+                                : `Desmarcar "${campaign.title}"? Ela volta a vender normalmente.`;
+                              if (window.confirm(aviso)) teste.mutate({ id: campaign.id, ligado: ligar });
+                            }}
+                          >
+                            {campaign.demonstracao ? "Desmarcar teste" : "Marcar como teste"}
                           </Button>
                         ) : null}
                       </span>

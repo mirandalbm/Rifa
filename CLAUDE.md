@@ -192,9 +192,10 @@ arquitetura.
 
 ## Cartelas e mapa de números — o que não pode afrouxar
 
-- **Os números da cartela são verdes com texto branco** (`.fundo-numero`:
-  o verde do sistema a 85%, contraste 3,6:1 — a 50% o branco cai para 2:1),
-  na página da rifa, na janela do "+" e no carrinho.
+- **Os números da cartela têm fundo colorido e texto branco**
+  (`.fundo-numero`, variável `--fundo-numero`): azul do "+" a 85% no tema
+  claro (3,8:1) e verde do sistema a 85% no escuro — a 50% o branco cai
+  para 2:1. Vale na página da rifa, na janela do "+" e no carrinho.
 - **Cartela é sugestão, não reserva.** `GET /campaigns/:slug/cartelas`
   sorteia grupos de números livres (do `free_pool` em endgame) e não grava
   nada. A compra vai com os números e passa por `reserveSpecific` — tudo ou

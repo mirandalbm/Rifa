@@ -208,6 +208,12 @@ arquitetura.
   marcar só sem venda (quem comprou não acorda numa rifa "de exemplo");
   desmarcar só com autorização SPA/MF (a demonstração criada sem ela não
   passa a vender). Condições no próprio `UPDATE` (422); só a plataforma.
+- **Preencher com exemplo** (`preencherComExemplo()`, `POST
+  /organizacoes/:id/exemplo`) é para organização de teste: fotos das
+  publicações só das rifas marcadas como teste, dois destaques (rifas de
+  exemplo sorteadas, também marcadas), foto e capa só se faltarem, e três
+  stories. Recusa (409) organização com rifa de verdade no ar — exemplo na
+  vitrine de promotor real seria propaganda falsa com o nome dele.
 - **Tirar do ar** (`tirarDoAr()`, `POST /campaigns/:id/tirar-do-ar`) vale
   para qualquer rifa publicada, mas só sem venda — pedido pago ou pendente,
   ou cota tomada, barram no próprio `UPDATE` (422). Volta a rascunho e

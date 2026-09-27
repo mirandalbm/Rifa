@@ -117,7 +117,12 @@ import {
   vinculosDaOrganizacao,
 } from "../services/afiliados";
 import { salvarFotoDoGanhador } from "../services/ganhador";
-import { criarDemonstracao, removerDemonstracao, situacaoDaDemonstracao } from "../services/demonstracao";
+import {
+  criarDemonstracao,
+  preencherComExemplo,
+  removerDemonstracao,
+  situacaoDaDemonstracao,
+} from "../services/demonstracao";
 import { emitirRecibo, pdfDoRecibo, reciboPorCodigo } from "../services/recibos";
 import { cadastrosFiscais, decidirCadastro, documento, estadoFiscal } from "../services/fiscal";
 import { urlDeConferencia } from "../services/urls";
@@ -1402,6 +1407,23 @@ adminRouter.post("/demonstracao", async (req, res, next) => {
     const feita = await criarDemonstracao(process.env.PUBLIC_BASE_URL ?? "");
     await audit(req, "demonstracao.criar", "organization", feita.slug, {});
     res.json(feita);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * Preencher com exemplo: fotos das publicações de teste, destaques, foto e
+ * capa (se faltarem) e stories numa organização de teste. Só a plataforma
+ * (403 para organizador, no `npm run isolation`); recusa (409) organização
+ * com rifa de verdade no ar.
+ */
+adminRouter.post("/organizacoes/:id/exemplo", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    const feito = await preencherComExemplo(req.params.id);
+    await audit(req, "organizacao.exemplo", "organization", req.params.id, feito);
+    res.json(feito);
   } catch (err) {
     next(err);
   }

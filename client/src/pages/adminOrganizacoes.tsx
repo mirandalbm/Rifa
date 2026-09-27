@@ -601,6 +601,7 @@ function LinhaOrganizacao({
               </div>
             )}
             {o.archivedAt ? null : <PagamentoDaOrganizacao o={o} />}
+            {o.archivedAt ? null : <ExemploDaOrganizacao id={o.id} aoFeito={recarregarLista} />}
           </td>
         </tr>
       ) : null}
@@ -732,6 +733,58 @@ function PagamentoDaOrganizacao({ o }: { o: Organizacao }) {
           <span className={`text-xs ${msg.ok ? "text-green-deep" : "text-red"}`}>{msg.texto}</span>
         ) : null}
       </div>
+    </div>
+  );
+}
+
+/**
+ * Organização de teste com cara de pronta: fotos das publicações das rifas
+ * marcadas como teste, dois destaques, foto e capa (se faltarem) e stories.
+ * O servidor recusa se houver rifa de verdade no ar.
+ */
+function ExemploDaOrganizacao({ id, aoFeito }: { id: string; aoFeito: () => void }) {
+  const qc = useQueryClient();
+  const [msg, setMsg] = useState<{ ok: boolean; texto: string } | null>(null);
+  const preencher = useMutation({
+    mutationFn: async () =>
+      (await apiRequest("POST", `/api/admin/organizacoes/${id}/exemplo`)).json() as Promise<{
+        fotosDePublicacao: number;
+        destaques: number;
+        stories: number;
+      }>,
+    onSuccess: (r) => {
+      setMsg({
+        ok: true,
+        texto: `Pronto: fotos em ${r.fotosDePublicacao} rifa(s) de teste, ${r.destaques} destaques e ${r.stories} stories (vivem 24 h).`,
+      });
+      qc.invalidateQueries();
+      aoFeito();
+    },
+    onError: (e: Error) => setMsg({ ok: false, texto: e.message }),
+  });
+  return (
+    <div className="mt-4 border-t border-line pt-3 text-sm">
+      <p className="label-xs mb-1">Organização de teste</p>
+      <p className="text-xs text-muted">
+        Preenche com imagens de exemplo: fotos das publicações das rifas marcadas como teste, dois destaques de
+        rifas sorteadas com foto do ganhador, foto e capa do perfil (só se faltarem) e três stories. Só para
+        organização sem rifa de verdade no ar.
+      </p>
+      {msg ? (
+        <p className={`mt-2 rounded-md px-3 py-2 text-xs ${msg.ok ? "bg-green-soft text-green-deep" : "bg-red-soft text-red"}`}>
+          {msg.texto}
+        </p>
+      ) : null}
+      <Button
+        variant="ghost"
+        className="mt-2"
+        disabled={preencher.isPending}
+        onClick={() => {
+          if (window.confirm("Preencher esta organização com imagens de exemplo?")) preencher.mutate();
+        }}
+      >
+        {preencher.isPending ? "Preenchendo…" : "Preencher com exemplo"}
+      </Button>
     </div>
   );
 }

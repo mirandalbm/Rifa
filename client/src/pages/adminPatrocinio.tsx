@@ -45,7 +45,7 @@ interface Estado {
   cliques: number;
   gastoCents: number;
 }
-type Config = ConfigPatrocinio & { ligado: boolean; reembolso: boolean };
+type Config = ConfigPatrocinio & { reembolso: boolean };
 interface Comum {
   dias: number;
   config: Config;
@@ -542,12 +542,6 @@ function DaOrganizacaoView({ dados }: { dados: DaOrg }) {
 
   return (
     <div className="space-y-3">
-      {!dados.config.ligado ? (
-        <p className="rounded-md bg-yellow-soft px-3 py-2 text-sm text-yellow-deep">
-          As rifas patrocinadas ainda não estão ativas na plataforma. O saldo
-          fica guardado.
-        </p>
-      ) : null}
       <Aviso msg={msg} />
       <Numeros
         t={dados.totais}
@@ -1213,7 +1207,6 @@ function NovoAnuncio({
         <Button
           type="submit"
           disabled={
-            !cfg.ligado ||
             !rifa ||
             "erro" in preco ||
             semSaldo ||
@@ -1318,7 +1311,6 @@ function SaldoERecarga({
             <Button
               type="submit"
               disabled={
-                !dados.config.ligado ||
                 centavos(valor) === null ||
                 recarga.isPending
               }
@@ -1439,7 +1431,6 @@ function FilaCard({ fila }: { fila: DaPlataforma["fila"] }) {
 
 function ConfigCard({ config }: { config: Config }) {
   const qc = useQueryClient();
-  const [ligado, setLigado] = useState(config.ligado);
   const [reembolso, setReembolso] = useState(config.reembolso);
   const [precos, setPrecos] = useState({
     cidade: reais(config.precos.cidade),
@@ -1460,13 +1451,11 @@ function ConfigCard({ config }: { config: Config }) {
   });
   const [recarga, setRecarga] = useState(reais(config.recargaMinimaCents));
   const [msg, setMsg] = useState<{ ok: boolean; texto: string } | null>(null);
-  useEffect(() => setLigado(config.ligado), [config.ligado]);
   useEffect(() => setReembolso(config.reembolso), [config.reembolso]);
 
   const salvar = useMutation({
     mutationFn: () =>
       apiRequest("PUT", "/api/admin/patrocinio/config", {
-        ligado,
         reembolso,
         patrocinio: {
           precos: {
@@ -1501,31 +1490,9 @@ function ConfigCard({ config }: { config: Config }) {
   const campo = "tnum mt-1 w-full rounded-md border border-line-2 px-2 py-2";
 
   return (
-    <Card
-      title="Configuração"
-      right={
-        <Pill status={config.ligado ? "active" : "draft"}>
-          {config.ligado ? "ligado" : "desligado"}
-        </Pill>
-      }
-    >
+    <Card title="Configuração">
       <div className="space-y-3 p-4 text-sm">
         <Aviso msg={msg} />
-        <label className="flex items-start gap-2">
-          <input
-            type="checkbox"
-            checked={ligado}
-            onChange={(e) => setLigado(e.target.checked)}
-            className="mt-1 h-4 w-4 accent-[var(--green)]"
-          />
-          <span>
-            Rifas patrocinadas por clique
-            <span className="block text-xs text-muted">
-              Desligado, o bloco some da vitrine, clique não é cobrado e nada se
-              compra; saldos e anúncios ficam guardados.
-            </span>
-          </span>
-        </label>
         <label className="flex items-start gap-2">
           <input
             type="checkbox"

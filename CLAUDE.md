@@ -103,6 +103,7 @@ arquitetura.
 | guarda da comissão pela plataforma (etapa 12) | `guardaComissao` e `percentualDoPromotor()` em `shared/plataforma.ts`, `createOrder`/`settleOrderAsPaid` em `server/services/orders.ts`, `scripts/guarda-test.ts` |
 | indicação, bônus e metas (etapa 13) | `shared/bonus.ts` (regras), `server/services/bonus.ts`, `resgatarCotasDeBonus()` em `server/services/orders.ts`, `client/src/lib/indicacao.ts`, `client/src/pages/adminBonus.tsx`, `client/src/components/BonusDoComprador.tsx`, `scripts/bonus-test.ts` |
 | rifas patrocinadas por clique (etapa 15): pacote, fila, tabela e números | `shared/patrocinio.ts` (regras, preço, previsão da fila), `server/services/patrocinio.ts`, `client/src/pages/adminPatrocinio.tsx`, `client/src/components/Patrocinadas.tsx`, `scripts/patrocinio-test.ts` |
+| marketing e tráfego pago (etapa 16): pixels, aviso de cookies, UTM, compra pelo servidor | `shared/marketing.ts` (regras e corpos das APIs), `server/services/marketing.ts`, `client/src/lib/marketing.ts`, `client/src/components/Marketing.tsx`, `client/src/pages/adminMarketing.tsx`, `scripts/marketing-test.ts` |
 | plano da próxima fase (vitrine, contas, afiliados, marketing) | `docs/PLANO-FASE5.md` |
 | conta do apostador (senha, confirmação, exclusão) | `shared/contaComprador.ts`, `server/services/contaComprador.ts`, `scripts/conta-test.ts` |
 | de quem é o cliente (o que o organizador vê) | `shared/titularidade.ts` (regra) e `server/services/titularidade.ts` (SQL) |
@@ -919,11 +920,11 @@ Brasil) + quantos cliques. Pago de uma vez com o saldo, entra no fim da
 fila do seu segmento e, quando pega a vaga, **fica até gastar o pacote** —
 aí o próximo entra sozinho.
 
-- **Nasce desligado** (`patrocinioLigado`), e só a plataforma liga e edita a
-  tabela (`ConfigPatrocinio`: preço do clique por alcance em centavos,
-  faixas de desconto por volume, mínimo de cliques, vagas por alcance,
-  recarga mínima). Desligado, o bloco vem vazio, clique não gasta e nada se
-  compra; saldo e anúncios ficam.
+- **Sem interruptor geral** — o único interruptor do patrocínio é o do
+  reembolso do saldo (abaixo). Só a plataforma edita a tabela
+  (`ConfigPatrocinio`: preço do clique por alcance em centavos, faixas de
+  desconto por volume, mínimo de cliques, vagas por alcance, recarga
+  mínima). Sem anúncio no ar, o bloco vem vazio e some da vitrine.
 - **O preço é fotografado na compra** (`preco_clique_cents`,
   `desconto_pct`, `valor_pago_cents`): mudar a tabela não mexe em anúncio
   comprado. Total arredonda para baixo; o desconto da faixa só cresce
@@ -987,4 +988,48 @@ aí o próximo entra sozinho.
   (`comPatrocinadas()` na vitrine); no construtor ele pode mudar de lugar
   ou ser desligado.
 - `npm run patrocinio` prova tudo isso contra a API de verdade.
+
+## Marketing e tráfego pago — o que não pode afrouxar
+
+- **Sem interruptor: quem liga é o pixel.** O menu Marketing existe para a
+  plataforma e para o organizador; sem nenhum pixel cadastrado para a
+  página, nada carrega, o aviso de cookies não aparece e nenhuma compra vira
+  evento. (O único interruptor ligado a dinheiro de anúncio é o do
+  reembolso do saldo de patrocínio.)
+- **Só dados, nunca script.** Pixel é número conferido por formato
+  (`validarPixels`: Meta, GA4, Google Ads e rótulo, TikTok); quem monta o
+  código que roda no navegador é `client/src/lib/marketing.ts`, chamando as
+  funções oficiais com o número. Campo livre viraria script de terceiro na
+  tela de todo apostador.
+- **Consentimento antes do pixel** (LGPD). Sem o "Aceitar" do aviso
+  (`rifa.cookies`, no aparelho, com versão), nenhum script carrega. Recusar
+  é tão fácil quanto aceitar (dois botões iguais) e o rodapé tem "Cookies"
+  para mudar de ideia. O pedido leva `marketing: true/false`
+  (`orders.marketing_consentimento`): sem o aceite, a compra **não** sai
+  pelo servidor.
+- **Cada evento vai só para os pixels da página** (`trackSingle`,
+  `send_to`, `ttq.instance`): na SPA o pixel da promotora A continuaria
+  iniciado na rifa da B. A página diz de quem é
+  (`definirOrganizacaoDaPagina`) e sai limpando.
+- **A compra conta pelo servidor, uma vez.** Na transação que confirma o
+  pagamento, `enfileirarCompra` grava uma linha por destino com pixel **e**
+  chave (`marketing_eventos`, único por pedido+dono+provedor); os destinos
+  são lidos antes do BEGIN (decifram chave). O relógio
+  (`enviarEventosPendentes`, trava 811501) toma cada linha num `UPDATE`
+  condicional, manda com prazo de 5 s e, falhando, espera 1, 5, 25, 125 min;
+  na quinta desiste (`falhou`). Falha nunca toca o pagamento.
+- **Mesmo `event_id` no navegador e no servidor** (`compra-<código>`): Meta,
+  Google e TikTok juntam os dois. O navegador conta a compra uma vez por
+  aparelho (`compraJaContada`).
+- **Dado pessoal só em hash e só com consentimento**: telefone vira
+  `sha256("55" + DDD + número)`; o clique do anúncio (fbclid/ttclid) vai
+  como identificador do anúncio. Nome, CPF e e-mail nunca saem.
+- **Chaves de API cifradas no cofre** (`marketing_credenciais`, uma por
+  dono: `plataforma` ou o id da organização) e **nunca voltam** — a tela
+  sabe só se existe. Campo ausente mantém, vazio apaga.
+- **UTM é estatística**, como a origem: `validarUtm` só guarda as chaves
+  conhecidas, limpas e curtas (`orders.utm`); o relatório "Vendas por
+  campanha" agrupa por fonte/meio/campanha com o recorte de `orgOf`.
+- `npm run marketing` prova tudo isso contra a API de verdade (o envio é
+  injetado: a prova não sai para a internet).
 

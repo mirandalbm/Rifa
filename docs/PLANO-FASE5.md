@@ -176,7 +176,7 @@ Tela inicial do apostador:
 
 ---
 
-## 5. Vitrine (tela inicial) **[decidido — feito, com as patrocinadas atrás de interruptor; faltam bandeiras e banner pago: ver PENDENCIAS]**
+## 5. Vitrine (tela inicial) **[decidido — feito; faltam bandeiras e banner pago: ver PENDENCIAS]**
 
 Ordem padrão (reordenável pelo construtor, seção 3.2):
 
@@ -267,7 +267,7 @@ arquivos grandes demais para o banco.
 
 ---
 
-## 11. Marketing e tráfego pago
+## 11. Marketing e tráfego pago **[decidido — feito; vale quando houver pixel cadastrado]**
 
 - Pixels por organização e da plataforma (Meta, Google Ads/GA4, TikTok);
   compra contada pelo servidor na confirmação do pagamento; UTM; relatório
@@ -298,6 +298,6 @@ arquivos grandes demais para o banco.
 | ✓ | Guarda da comissão pela plataforma (interruptor desligado até o contador) | 9 | — |
 | ✓ | Indicação, bônus e metas (interruptor desligado até o advogado) | 8 | — |
 | ✓ | Disputa de reembolso no administrador geral | 2 | — |
-| ✓ | Rifas patrocinadas por clique (interruptor desligado até a conta da plataforma) | 5 | — |
-| 16 | Marketing e tráfego pago | 11 | conta de anúncios |
+| ✓ | Rifas patrocinadas por clique (só o reembolso do saldo tem interruptor) | 5 | — |
+| ✓ | Marketing e tráfego pago (sem interruptor: vale com pixel cadastrado) | 11 | — |
 | 17 | Login com Google | 1.1 | cliente OAuth |

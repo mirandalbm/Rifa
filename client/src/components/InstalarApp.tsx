@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useInstalacao } from "@/lib/pwa";
 import { useTemplate } from "@/lib/template";
+import { useAvisoDeCookiesAberto } from "@/components/Marketing";
 
 const CHAVE = "rifa.instalar.fechado";
 
@@ -31,7 +32,10 @@ export function InstalarApp() {
   const [fechado, setFechado] = useState(fechadoAntes);
   const [ajuda, setAjuda] = useState(false);
 
-  if (instalado || fechado) return null;
+  // Um aviso de cada vez: o de cookies (LGPD) vem primeiro e não pode ficar coberto.
+  const avisoAberto = useAvisoDeCookiesAberto();
+
+  if (instalado || fechado || avisoAberto) return null;
 
   const fechar = () => {
     setFechado(true);

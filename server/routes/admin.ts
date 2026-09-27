@@ -153,6 +153,7 @@ import {
   disputasAbertas,
 } from "../services/chamados";
 import { alterarMeta, criarMeta, painelDoBonus } from "../services/bonus";
+import { painelDoMarketing, salvarMarketing } from "../services/marketing";
 import {
   ajustarSaldo,
   comprarAnuncio,
@@ -2928,16 +2929,14 @@ adminRouter.put("/patrocinio/config", async (req, res, next) => {
     // Tabela de preço, faixas, mínimo, vagas e recarga mínima: o que vier
     // substitui a configuração do patrocínio inteira (validada em conjunto).
     const salva = await setPlataforma({
-      patrocinioLigado: req.body?.ligado === undefined ? undefined : req.body.ligado === true,
       patrocinioReembolso: req.body?.reembolso === undefined ? undefined : req.body.reembolso === true,
       patrocinio: req.body?.patrocinio === undefined ? undefined : req.body.patrocinio,
     });
     await audit(req, "patrocinio.config", "settings", "plataforma", {
-      ligado: salva.patrocinioLigado,
       reembolso: salva.patrocinioReembolso,
       patrocinio: salva.patrocinio,
     });
-    res.json({ ligado: salva.patrocinioLigado, reembolso: salva.patrocinioReembolso, ...salva.patrocinio });
+    res.json({ reembolso: salva.patrocinioReembolso, ...salva.patrocinio });
   } catch (err) {
     next(err);
   }
@@ -2951,6 +2950,28 @@ adminRouter.post("/patrocinio/ajustes", async (req, res, next) => {
     const valorCents = Number(req.body?.valorCents);
     const r = await ajustarSaldo(req, organizationId, valorCents, String(req.body?.descricao ?? ""));
     await audit(req, "patrocinio.ajuste", "organization", organizationId, { valorCents, saldoCents: r.saldoCents });
+    res.json(r);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/* ---------------- marketing e tráfego pago (etapa 16) ---------------- */
+
+/** A mesma tela nos dois recortes (plataforma e organização). */
+adminRouter.get("/marketing", async (req, res, next) => {
+  try {
+    res.json(await painelDoMarketing(req, req.query.dias));
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** Pixels e chaves de quem está logado. As chaves nunca voltam. */
+adminRouter.put("/marketing", async (req, res, next) => {
+  try {
+    const r = await salvarMarketing(req, { pixels: req.body?.pixels, credenciais: req.body?.credenciais });
+    await audit(req, "marketing.config", "marketing", orgOf(req) ?? "plataforma", { pixels: r.pixels, credenciais: r.credenciais });
     res.json(r);
   } catch (err) {
     next(err);

@@ -12,6 +12,13 @@ export const authRouter = Router();
 
 const LEMBRAR_MS = 30 * 24 * 60 * 60 * 1000;
 
+/** "leandro@exemplo.com" → "le****@exemplo.com": dá para reconhecer no log sem expor a conta inteira. */
+function mascararEmail(email: string): string {
+  const [nome, dominio] = email.trim().toLowerCase().split("@");
+  if (!dominio) return "(e-mail inválido)";
+  return `${nome.slice(0, 2)}${"*".repeat(Math.max(1, nome.length - 2))}@${dominio}`;
+}
+
 /** Quem sou eu e o que eu alcanço — o cliente monta o menu com isto. */
 authRouter.get("/me", (req, res) => {
   const role = currentRole(req);
@@ -44,10 +51,15 @@ authRouter.post("/login", async (req, res, next) => {
     (
       err: Error | null,
       user: SessionUser | false,
-      info?: { message?: string; code?: string },
+      info?: { message?: string; code?: string; motivo?: string },
     ) => {
       if (err) return next(err);
       if (!user) {
+        // Para quem administra o servidor saber por que um login não entrou:
+        // o motivo real e o e-mail mascarado, nunca a senha nem o código.
+        console.warn(
+          `[login] recusado: ${info?.motivo ?? info?.code ?? info?.message ?? "sem motivo"} — ${mascararEmail(String(req.body?.email ?? ""))}`,
+        );
         return res.status(401).json({
           message: info?.message ?? "Não foi possível entrar.",
           // A tela usa isto para pedir o código em vez de repetir a senha.

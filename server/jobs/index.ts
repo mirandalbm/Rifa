@@ -10,6 +10,7 @@ import { avisarSorteiosChegando } from "../services/push";
 import { completarRegioesPendentes } from "../services/contaComprador";
 import { apagarStoriesVencidos } from "../services/vitrine";
 import { encerrarAnunciosForaDoAr } from "../services/patrocinio";
+import { enviarEventosPendentes } from "../services/marketing";
 import { migrarAfiliadosAntigos } from "../services/afiliados";
 import { lancarMensalidades } from "../services/billing";
 import { releaseExpired } from "../services/quotas";
@@ -49,6 +50,7 @@ const LOCK_CIDADES = 811_007;
 const LOCK_PUSH_SORTEIO = 811_008;
 const LOCK_REGIOES = 811_009;
 const LOCK_ANUNCIOS = 811_403;
+const LOCK_MARKETING = 811_501;
 
 /** Quantos minutos antes de a reserva cair o lembrete é enviado. */
 const LEMBRETE_MINUTOS = Number(process.env.REMINDER_MINUTES_BEFORE ?? 5);
@@ -236,12 +238,26 @@ export function startJobs() {
     try {
       await withLock(LOCK_ANUNCIOS, async () => {
         const n = await encerrarAnunciosForaDoAr();
-        if (n > 0) log(`${n} anúncio(s) patrocinado(s) encerrado(s) com reembolso`, "jobs");
+        if (n > 0) log(`${n} anúncio(s) patrocinado(s) encerrado(s); a sobra voltou ao saldo`, "jobs");
       });
     } catch (err) {
       console.error("[jobs] anúncios de rifa fora do ar:", err);
     }
   }, releaseMs).unref();
+
+  // Compra para as plataformas de anúncio (etapa 16): a cada minuto, só uma
+  // réplica. Falha de envio fica na fila com espera crescente; nunca toca o
+  // pagamento, que já aconteceu.
+  setInterval(async () => {
+    try {
+      await withLock(LOCK_MARKETING, async () => {
+        const n = await enviarEventosPendentes();
+        if (n > 0) log(`${n} compra(s) enviada(s) às plataformas de anúncio`, "jobs");
+      });
+    } catch (err) {
+      console.error("[jobs] eventos de marketing:", err);
+    }
+  }, 60_000).unref();
 
   setInterval(async () => {
     try {

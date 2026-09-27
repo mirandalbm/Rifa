@@ -146,6 +146,16 @@ function PainelForm() {
           </div>
         ) : null}
 
+        {!needsToken ? (
+          <button
+            type="button"
+            onClick={() => setNeedsToken(true)}
+            className="text-xs text-ink-2 underline"
+          >
+            Tenho código do autenticador
+          </button>
+        ) : null}
+
         <label className="flex items-start gap-2 text-sm text-ink-2">
           <input
             type="checkbox"

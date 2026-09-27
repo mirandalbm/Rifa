@@ -20,6 +20,8 @@ import { ResponsiveImage } from "@/components/ResponsiveImage";
 import { DestaqueOrg } from "@/components/DestaqueOrg";
 import { lerOrigem } from "@/lib/origem";
 import { lerIndicacao } from "@/lib/indicacao";
+import { consentiu, definirOrganizacaoDaPagina, lerUtm } from "@/lib/marketing";
+import { useRastreio } from "@/components/Marketing";
 import type { CorDeDestaque } from "@shared/perfil";
 import { SeguirBotoes, FotoDoPerfil } from "@/components/Seguir";
 import { SorteioCard } from "@/components/SorteioCard";
@@ -147,6 +149,21 @@ export default function Rifa() {
   });
   const isTaken = useTakenSet(blockData);
 
+  const rastreio = useRastreio();
+  // Os pixels da promotora valem nesta página; ao sair, não valem mais.
+  const donaDaRifa = data?.organizacao?.slug ?? null;
+  useEffect(() => {
+    definirOrganizacaoDaPagina(donaDaRifa);
+    return () => definirOrganizacaoDaPagina(null);
+  }, [donaDaRifa]);
+  const campanhaVista = data?.campaign.id;
+  useEffect(() => {
+    if (!data) return;
+    rastreio({ tipo: "ver_rifa", campanhaId: data.campaign.id, titulo: data.campaign.title, valorCents: data.campaign.priceCents });
+    // Uma vez por rifa aberta, quando os pixels (e o "aceito") estiverem prontos.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [campanhaVista, rastreio.pronto]);
+
   const createOrder = useMutation({
     mutationFn: async () => {
       const res = await apiRequest("POST", "/api/public/orders", {
@@ -161,10 +178,23 @@ export default function Rifa() {
         couponCode: buyer.coupon || undefined,
         origem: lerOrigem(),
         indicacao: lerIndicacao(),
+        utm: lerUtm(),
+        marketing: consentiu(),
       });
-      return (await res.json()) as { code: number };
+      return (await res.json()) as { code: number; amountCents?: number };
     },
-    onSuccess: (order) => navigate(`/pedido/${order.code}`),
+    onSuccess: (order) => {
+      if (data) {
+        rastreio({
+          tipo: "checkout",
+          campanhaId: data.campaign.id,
+          titulo: data.campaign.title,
+          valorCents: order.amountCents ?? 0,
+          quantidade: picked.length > 0 ? picked.length : quantity,
+        });
+      }
+      navigate(`/pedido/${order.code}`);
+    },
     onError: (err: Error) => setError(err.message),
   });
 

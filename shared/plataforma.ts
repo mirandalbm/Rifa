@@ -11,6 +11,7 @@
 import { TAXA_REEMBOLSO_MAX_PCT, TAXA_REEMBOLSO_PADRAO_PCT } from "./reembolso";
 import { BONUS_POR_INDICACAO_MAX, BONUS_POR_INDICACAO_PADRAO } from "./bonus";
 import { CONFIG_PATROCINIO_PADRAO, validarConfigPatrocinio, type ConfigPatrocinio } from "./patrocinio";
+import { validarPixels, type Pixels } from "./marketing";
 
 export const PROVEDORES_PIX = ["mercadopago", "asaas"] as const;
 export type ProvedorPix = (typeof PROVEDORES_PIX)[number];
@@ -85,14 +86,7 @@ export interface ConfigPlataforma {
   bonusLigado: boolean;
   /** Cotas de bônus para quem indica, quando o indicado paga a primeira compra. */
   bonusPorIndicacao: number;
-  /**
-   * Rifas patrocinadas por clique (etapa 15). **Desligado por padrão**: liga
-   * quando a plataforma estiver pronta para receber o Pix das recargas.
-   * Desligado, o bloco some da vitrine, clique não é cobrado e recarga não
-   * sai; o saldo de cada organização fica guardado.
-   */
-  patrocinioLigado: boolean;
-  /** Tabela de preço por alcance, faixas de desconto, mínimo, vagas e recarga mínima. */
+  /** Rifas patrocinadas (etapa 15): tabela de preço por alcance, faixas de desconto, mínimo, vagas e recarga mínima. */
   patrocinio: ConfigPatrocinio;
   /**
    * Mostra ao organizador o pedido de reembolso do saldo de patrocínio.
@@ -100,6 +94,8 @@ export interface ConfigPlataforma {
    * reembolso) e o servidor responde 404.
    */
   patrocinioReembolso: boolean;
+  /** Os números de rastreamento da plataforma (valem em todas as páginas). */
+  marketingPixels: Pixels;
 }
 
 export const CONFIG_PADRAO: ConfigPlataforma = {
@@ -110,9 +106,9 @@ export const CONFIG_PADRAO: ConfigPlataforma = {
   guardaComissao: false,
   bonusLigado: false,
   bonusPorIndicacao: BONUS_POR_INDICACAO_PADRAO,
-  patrocinioLigado: false,
   patrocinio: CONFIG_PATROCINIO_PADRAO,
   patrocinioReembolso: false,
+  marketingPixels: {},
 };
 
 /** Só as chaves conhecidas: isto vem do corpo da requisição. */
@@ -137,9 +133,9 @@ export function validarConfigPlataforma(entrada: Partial<ConfigPlataforma>): Con
     guardaComissao: entrada.guardaComissao === true,
     bonusLigado: entrada.bonusLigado === true,
     bonusPorIndicacao: bonusPorIndicacaoValido(entrada.bonusPorIndicacao),
-    patrocinioLigado: entrada.patrocinioLigado === true,
     patrocinio: validarConfigPatrocinio(entrada.patrocinio),
     patrocinioReembolso: entrada.patrocinioReembolso === true,
+    marketingPixels: validarPixels(entrada.marketingPixels),
   };
 }
 

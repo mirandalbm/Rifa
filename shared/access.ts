@@ -69,6 +69,7 @@ export type SectionKey =
   | "adminFiscal"
   | "adminBonus"
   | "adminPatrocinio"
+  | "adminMarketing"
   | "adminFinanceiro"
   | "adminSorteios"
   | "adminCobranca"
@@ -123,6 +124,8 @@ export const SECTIONS: Section[] = [
   { key: "adminStories", path: "/admin/stories", label: "Stories", requires: "organizer", nav: true },
   // Rifas patrocinadas por clique (etapa 15): saldo e rifas da organização; a plataforma configura.
   { key: "adminPatrocinio", path: "/admin/patrocinio", label: "Patrocínio", requires: "organizer", nav: true },
+  // Pixels, chaves e vendas por campanha (etapa 16).
+  { key: "adminMarketing", path: "/admin/marketing", label: "Marketing", requires: "organizer", nav: true },
   { key: "adminAfiliados", path: "/admin/afiliados", label: "Afiliados", requires: "organizer", nav: true },
   { key: "adminCambistas", path: "/admin/cambistas", label: "Cambistas", requires: "organizer", nav: true },
   // Todo mundo que entra no painel, com os dados de cada um. O organizador vê

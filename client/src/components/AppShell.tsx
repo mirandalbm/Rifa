@@ -2,6 +2,8 @@ import { Link, useLocation } from "wouter";
 import { useState, type ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import { Marketing, useTemMarketing } from "@/components/Marketing";
+import { reabrirAviso, useEscolha } from "@/lib/marketing";
 import {
   Banknote,
   Building2,
@@ -37,6 +39,7 @@ import {
   FileCheck2,
   Gift,
   Rocket,
+  Target,
 } from "lucide-react";
 import type { SectionKey } from "@shared/access";
 import { useSession, useLogout } from "@/lib/session";
@@ -212,6 +215,7 @@ const ICONE: Partial<Record<SectionKey, LucideIcon>> = {
   adminFiscal: FileCheck2,
   adminBonus: Gift,
   adminPatrocinio: Rocket,
+  adminMarketing: Target,
 };
 
 const CHAVE_MENU = "rifa.menu.aberto";
@@ -449,9 +453,23 @@ function RodapePublico() {
           >
             <HelpCircle size={15} aria-hidden />
           </Link>
+          <PreferenciaDeCookies />
           <TemaEscolha compacto className="shrink-0" />
         </div>
       </footer>
+      <Marketing />
     </>
+  );
+}
+
+/** "Cookies" no rodapé: reabre o aviso. Só existe quando há pixel na página e a pessoa já escolheu. */
+function PreferenciaDeCookies() {
+  const tem = useTemMarketing();
+  const escolha = useEscolha();
+  if (!tem || !escolha) return null;
+  return (
+    <button type="button" onClick={reabrirAviso} className="shrink-0 underline hover:text-ink">
+      Cookies
+    </button>
   );
 }

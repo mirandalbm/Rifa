@@ -1,7 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Link, useLocation } from "wouter";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Bookmark, MessageCircle, Repeat2, Send } from "lucide-react";
 import { Button, Card } from "@/components/bits";
 import { FOLHA } from "@/components/SeloVerificado";
 import { apiRequest } from "@/lib/queryClient";
@@ -161,16 +160,78 @@ function VideoDaPublicacao({ peca }: { peca: Peca }) {
   );
 }
 
-/** O trevo da curtida: contorno quando não curtiu, cheio na cor da marca quando curtiu. */
-export function IconeTrevo({ cheio, tamanho = 26 }: { cheio: boolean; tamanho?: number }) {
+/**
+ * Os ícones da barra, no desenho do Instagram: traço fino (1,75 em 24),
+ * pontas e cantos redondos — mais suaves aos olhos que os de linha grossa.
+ */
+const TRACO = { fill: "none", stroke: "currentColor", strokeWidth: 1.75, strokeLinecap: "round", strokeLinejoin: "round" } as const;
+
+function Icone({ tamanho = 26, children, className }: { tamanho?: number; children: ReactNode; className?: string }) {
   return (
-    <svg viewBox="0 0 100 100" width={tamanho} height={tamanho} aria-hidden className={cheio ? "text-marca" : ""}>
-      <g fill={cheio ? "currentColor" : "none"} stroke="currentColor" strokeWidth={cheio ? 0 : 6} strokeLinejoin="round">
-        {[45, 135, 225, 315].map((giro) => (
-          <path key={giro} d={FOLHA} transform={`rotate(${giro} 50 50)`} />
-        ))}
-      </g>
+    <svg viewBox="0 0 24 24" width={tamanho} height={tamanho} aria-hidden className={className}>
+      {children}
     </svg>
+  );
+}
+
+/**
+ * O trevo da curtida: contorno quando não curtiu, cheio na cor da marca
+ * quando curtiu. O contorno é o das quatro folhas juntas — traço grosso
+ * por baixo e as folhas pintadas da cor do fundo por cima, para as linhas
+ * de dentro (onde as folhas se encostam) não aparecerem.
+ */
+export function IconeTrevo({ cheio, tamanho = 26 }: { cheio: boolean; tamanho?: number }) {
+  const folhas = (props: Record<string, unknown>) => (
+    <g {...props}>
+      {[45, 135, 225, 315].map((giro) => (
+        <path key={giro} d={FOLHA} transform={`rotate(${giro} 50 50)`} />
+      ))}
+    </g>
+  );
+  return (
+    <svg viewBox="-4 -4 108 108" width={tamanho} height={tamanho} aria-hidden className={cheio ? "text-marca" : ""}>
+      {cheio
+        ? folhas({ fill: "currentColor" })
+        : (
+          <>
+            {folhas({ fill: "none", stroke: "currentColor", strokeWidth: 15, strokeLinejoin: "round" })}
+            {folhas({ fill: "var(--white)" })}
+          </>
+        )}
+    </svg>
+  );
+}
+
+function IconeComentar() {
+  return (
+    <Icone>
+      <path {...TRACO} d="M20.66 17A9.99 9.99 0 1 0 17.07 20.62L22 22Z" />
+    </Icone>
+  );
+}
+
+function IconeRepublicar({ ligado }: { ligado: boolean }) {
+  return (
+    <Icone className={ligado ? "text-marca" : ""}>
+      <path {...TRACO} d="M19.5 10V9a4 4 0 0 0-4-4H6.5M9 2 6 5l3 3M4.5 14v1a4 4 0 0 0 4 4h9M15 22l3-3-3-3" />
+      <path {...TRACO} d="m8.75 12.25 2.25 2.25 4.25-4.25" />
+    </Icone>
+  );
+}
+
+function IconeCompartilhar() {
+  return (
+    <Icone tamanho={25}>
+      <path {...TRACO} d="M22 3 9.22 10.08M11.7 20.33 22 3H2l7.22 7.08Z" />
+    </Icone>
+  );
+}
+
+function IconeSalvar({ ligado }: { ligado: boolean }) {
+  return (
+    <Icone>
+      <path {...TRACO} fill={ligado ? "currentColor" : "none"} d="M19.5 21 12 14.5 4.5 21V3.5h15Z" />
+    </Icone>
   );
 }
 
@@ -253,11 +314,11 @@ export function BarraDeAcoes({
           onClick={() => acao.mutate({ acao: "curtida", ligar: !i.curti })}
         >
           <IconeTrevo cheio={i.curti} />
-          <span className="tnum text-sm font-semibold">{contadorCurto(i.curtidas)}</span>
+          <span className="tnum text-[15px] font-medium">{contadorCurto(i.curtidas)}</span>
         </button>
         <button type="button" className={botao} aria-label={`Comentar (${i.comentarios} comentário${i.comentarios === 1 ? "" : "s"})`} onClick={aoComentar}>
-          <MessageCircle size={25} aria-hidden />
-          <span className="tnum text-sm font-semibold">{contadorCurto(i.comentarios)}</span>
+          <IconeComentar />
+          <span className="tnum text-[15px] font-medium">{contadorCurto(i.comentarios)}</span>
         </button>
         <button
           type="button"
@@ -266,12 +327,12 @@ export function BarraDeAcoes({
           aria-label={`${i.republiquei ? "Desfazer republicação" : "Republicar no seu perfil"} (${i.republicacoes})`}
           onClick={() => acao.mutate({ acao: "republicacao", ligar: !i.republiquei })}
         >
-          <Repeat2 size={26} aria-hidden className={i.republiquei ? "text-marca" : ""} />
-          <span className="tnum text-sm font-semibold">{contadorCurto(i.republicacoes)}</span>
+          <IconeRepublicar ligado={i.republiquei} />
+          <span className="tnum text-[15px] font-medium">{contadorCurto(i.republicacoes)}</span>
         </button>
         <button type="button" className={botao} aria-label={`Compartilhar (${i.compartilhamentos})`} onClick={() => void compartilhar()}>
-          <Send size={24} aria-hidden />
-          <span className="tnum text-sm font-semibold">{contadorCurto(i.compartilhamentos)}</span>
+          <IconeCompartilhar />
+          <span className="tnum text-[15px] font-medium">{contadorCurto(i.compartilhamentos)}</span>
         </button>
         <button
           type="button"
@@ -280,7 +341,7 @@ export function BarraDeAcoes({
           aria-label={i.salvei ? "Tirar dos salvos" : "Salvar"}
           onClick={() => acao.mutate({ acao: "salvo", ligar: !i.salvei })}
         >
-          <Bookmark size={25} aria-hidden className={i.salvei ? "fill-current" : ""} />
+          <IconeSalvar ligado={i.salvei} />
         </button>
       </div>
       {aviso ? (

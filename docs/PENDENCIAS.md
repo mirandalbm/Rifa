@@ -82,6 +82,10 @@ senha); **[código]** é trabalho no repositório.
 - [x] Vitrine como o Instagram: fileira de stories no topo (no lugar dos
   estados), perfil da promotora por cima da imagem no feed, e o coração no
   topo com a central de avisos (`/notificacoes`).
+- [x] Comentários na publicação da rifa (apostador com conta; a organização
+  responde e modera) e o organizador vendo a plataforma pelo próprio perfil.
+- [ ] Aviso ao organizador de comentário novo (hoje ele vê no próprio perfil;
+  falta o coração do painel).
 - [ ] **[você]** Antes de aprovar um adiamento, conferir se a autorização
   SPA/MF da rifa cobre a nova data (a plataforma não tem como checar isso
   sozinha).

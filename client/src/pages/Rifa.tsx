@@ -25,6 +25,7 @@ import { useRastreio } from "@/components/Marketing";
 import type { CorDeDestaque } from "@shared/perfil";
 import { SeguirBotoes, FotoDoPerfil } from "@/components/Seguir";
 import { SorteioCard } from "@/components/SorteioCard";
+import { Comentarios } from "@/components/Comentarios";
 import { Cartelas } from "@/components/Cartelas";
 
 interface CampaignDetail {
@@ -772,6 +773,8 @@ export default function Rifa() {
       ) : null}
 
       <SorteioCard slug={slug} />
+
+      <Comentarios slug={campaign.slug} />
 
       <footer className="mt-8 space-y-1 border-t border-line pt-4 text-[11px] text-muted">
         <p>

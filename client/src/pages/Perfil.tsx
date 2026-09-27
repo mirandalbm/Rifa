@@ -79,6 +79,7 @@ export default function PerfilPage() {
     return () => definirOrganizacaoDaPagina(null);
   }, [org]);
   const { data: p, isLoading, error } = useQuery<Perfil>({ queryKey: [`/api/public/o/${org}`] });
+  const { data: sessao } = useSession();
   const [menu, setMenu] = useState(false);
   const [painel, setPainel] = useState<"sobre" | "qr" | "compartilhar" | "colaborador" | null>(null);
   const [copiado, setCopiado] = useState(false);
@@ -171,7 +172,17 @@ export default function PerfilPage() {
 
       {/* Ações: seguir, sino, ⋮ */}
       <div className="mt-4 flex items-center gap-2">
-        <SeguirBotoes slug={p.slug} />
+        {/* No próprio perfil, o organizador edita em vez de seguir. */}
+        {sessao?.organizacao?.slug === p.slug ? (
+          <Link
+            href="/admin/configuracoes"
+            className="rounded-md border border-line-2 px-4 py-1.5 text-sm font-semibold hover:bg-mist"
+          >
+            Editar perfil
+          </Link>
+        ) : (
+          <SeguirBotoes slug={p.slug} />
+        )}
         <div className="relative ml-auto">
           <button
             type="button"

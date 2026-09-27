@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Bell, CalendarClock, Gift, PartyPopper, ReceiptText, Trophy } from "lucide-react";
+import { ArrowLeft, Bell, CalendarClock, Gift, MessageCircle, PartyPopper, ReceiptText, Trophy } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { PublicShell } from "@/components/AppShell";
 import { Empty } from "@/components/bits";
@@ -24,6 +24,7 @@ const ICONE: Record<string, LucideIcon> = {
   sorteio_adiado: CalendarClock,
   resultado: Trophy,
   reembolso: ReceiptText,
+  comentario: MessageCircle,
 };
 
 const tempo = (iso: string) => {

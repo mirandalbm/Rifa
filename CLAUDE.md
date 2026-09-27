@@ -121,6 +121,8 @@ arquitetura.
 | painel de resultados, origem da venda e foto do ganhador | `shared/resultados.ts` (regras), `server/services/resultados.ts`, `client/src/lib/origem.ts`, `client/src/pages/adminResultados.tsx`, `server/services/ganhador.ts`, `scripts/resultados-test.ts` |
 | aparência da plataforma (construtor de templates) | `shared/template.ts` (regras), `server/services/template.ts`, `client/src/lib/template.ts`, `client/src/pages/adminAparencia.tsx`, `scripts/aparencia-test.ts` |
 | tema claro e escuro | `client/src/index.css` (variáveis), `client/src/lib/tema.ts`, `client/src/components/TemaToggle.tsx`, `tests/tema.test.ts` |
+| comentários na publicação da rifa | `shared/comentarios.ts` (regras), `server/services/comentarios.ts`, `client/src/components/Comentarios.tsx`, `scripts/comentarios-test.ts` |
+| visão do organizador (só o próprio perfil) | `VisaoDoOrganizador` em `client/src/App.tsx`, `organizacao` em `GET /api/auth/me` |
 | central de avisos do apostador (o coração no topo) | `server/services/notificacoes.ts`, `avisar()` em `server/services/push.ts`, `client/src/pages/Notificacoes.tsx`, `CoracaoDeAvisos` em `client/src/components/AppShell.tsx`, `scripts/push-test.ts` |
 | app instalável (PWA) | `client/public/sw.js`, `client/public/manifest.webmanifest`, `client/src/lib/pwa.ts` |
 
@@ -765,6 +767,34 @@ pedido, cotas e valor, e o cliente só pelo ID (`Cliente C-XXXXXXXX`).
   link do perfil em `perfil_link_cliques` (organização, link, dia de São
   Paulo, `ON CONFLICT DO UPDATE`). Robô (`ehRobo`) não conta. Recorte da
   organização no painel (o do vizinho é 404, no `npm run isolation`).
+
+## Comentários e a visão do organizador — o que não pode afrouxar
+
+- **O organizador vê a plataforma pelo próprio perfil.** Com sessão de
+  organizador, a vitrine, a página de estado e o perfil (ou rifa) de outra
+  organização levam ao dele (`VisaoDoOrganizador`, com o slug que
+  `/api/auth/me` devolve). É visão, não barreira: o que é público segue
+  público. No próprio perfil, "Editar perfil" no lugar de "Seguir".
+- **Comenta quem tem conta** (`req.session.buyer.id`); a organização dona
+  da rifa comenta e responde pela sessão do painel, com o selo
+  "organização". Rascunho não tem comentários (404). Uma camada de
+  resposta: responder uma resposta entra no comentário do topo.
+- **Sem link e sem telefone, de ninguém** (`problemaNoComentario()`): é o
+  golpe clássico na rifa alheia ("chama no zap", "Pix aqui"). O contato da
+  organização está no perfil, pelos links conferidos.
+- **O apostador aparece pelo primeiro nome e a inicial**
+  (`nomeNoComentario`); telefone nunca sai.
+- **Contador sem `COUNT(*)`**: `campaigns.comentarios_count` anda na mesma
+  transação que grava ou apaga.
+- **Apagar é marcar** (`removido_em`), e confere o dono antes: quem
+  escreveu, a organização dona da rifa ou a plataforma; para os demais, 404
+  (`npm run isolation`). O do topo leva as respostas. `UPDATE` condicional:
+  dois cliques, um desconto e um 404.
+- **Limite por pessoa** (`hit`, 10 em 10 min), contado depois do erro de
+  preenchimento — como o chamado.
+- **A resposta da organização avisa o apostador** (push e coração,
+  `comentario`), fora da transação.
+- `npm run comentarios` prova tudo isso contra a API de verdade.
 
 ## Notificações no celular — o que não pode afrouxar
 

@@ -1,4 +1,5 @@
 import { conferirRecibo } from "../services/recibos";
+import { apagarComentario, comentar, listarComentarios } from "../services/comentarios";
 import { marcarTodasLidas, naoLidas, notificacoesDe } from "../services/notificacoes";
 import { aderir, pedirColaboracao, termoPublico } from "../services/afiliados";
 import { fotoDoGanhador, urlDaFotoDoGanhador } from "../services/ganhador";
@@ -170,6 +171,7 @@ publicRouter.get("/campaigns", async (req, res, next) => {
         // Selo "Autorizada SPA/MF": rifa no ar sempre tem (não publica sem).
         autorizacao: campaign.authorizationCode,
         demonstracao: campaign.demonstracao,
+        comentarios: campaign.comentariosCount,
         perto: uf ? distancia({ uf: organizacao?.uf, cidade: organizacao?.cidade }, { uf, cidade }) : null,
       })),
     );
@@ -400,6 +402,35 @@ publicRouter.get("/seguindo", async (req, res, next) => {
   }
 });
 
+/* ---------------- comentários na publicação ---------------- */
+
+publicRouter.get("/campaigns/:slug/comentarios", async (req, res, next) => {
+  try {
+    res.setHeader("Cache-Control", "private, no-store");
+    res.json(await listarComentarios(req, req.params.slug));
+  } catch (err) {
+    next(err);
+  }
+});
+
+publicRouter.post("/campaigns/:slug/comentarios", async (req, res, next) => {
+  try {
+    res.status(201).json(
+      await comentar(req, req.params.slug, { texto: req.body?.texto, respostaA: req.body?.respostaA }),
+    );
+  } catch (err) {
+    next(err);
+  }
+});
+
+publicRouter.delete("/comentarios/:id", async (req, res, next) => {
+  try {
+    res.json(await apagarComentario(req, req.params.id));
+  } catch (err) {
+    next(err);
+  }
+});
+
 /* ---------------- central de avisos (o coração) ---------------- */
 
 /** Só o próprio comprador: sem sessão, 401 — a tela manda entrar. */
@@ -578,6 +609,7 @@ publicRouter.get("/campaigns/:slug", async (req, res, next) => {
         drawSeedHash: found.campaign.drawSeedHash,
         // Sorteio adiado: a página diz, com a data que valia antes.
         adiamentos: found.campaign.adiamentos,
+        comentarios: found.campaign.comentariosCount,
         drawAtOriginal: found.campaign.drawAtOriginal,
         authorizationCode: found.campaign.authorizationCode,
         temCertificado: Boolean(found.campaign.authorizationFileKey),

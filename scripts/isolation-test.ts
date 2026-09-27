@@ -31,6 +31,7 @@ import {
   chamadoAnexos,
   stories,
   campanhaSolicitacoes,
+  comentarios,
 } from "../shared/schema";
 import { hashPassword } from "../server/auth";
 
@@ -242,7 +243,13 @@ async function alcancaOVizinho(eu: Lado, vizinho: Lado) {
       alteracoes: { title: { de: "a", para: "b" } },
     })
     .returning({ id: campanhaSolicitacoes.id });
+  // Um comentário na rifa do vizinho: moderar pelo id dele tem de dar 404.
+  const [comentarioDoVizinho] = await db
+    .insert(comentarios)
+    .values({ campaignId: c, organizationId: vizinho.orgId, autor: "organizacao", texto: "comentário do vizinho" })
+    .returning({ id: comentarios.id });
   const tentativas: [string, string, RequestInit][] = [
+    ["DELETE comentário na rifa do vizinho", `/api/public/comentarios/${comentarioDoVizinho.id}`, { method: "DELETE" }],
     ["PATCH campanha", `/api/admin/campaigns/${c}`, { method: "PATCH", body: '{"title":"invadida"}' }],
     ["GET impedimentos", `/api/admin/campaigns/${c}/blockers`, {}],
     ["POST publicar", `/api/admin/campaigns/${c}/publish`, { method: "POST" }],
@@ -295,6 +302,12 @@ async function alcancaOVizinho(eu: Lado, vizinho: Lado) {
   const meusPedidos = (await (await pedir(eu.cookie, "/api/admin/solicitacoes")).json()) as { id: string }[];
   checa("a lista de pedidos não traz o do vizinho", !meusPedidos.some((x) => x.id === pedidoDoVizinho.id));
   await db.delete(campanhaSolicitacoes).where(eq(campanhaSolicitacoes.id, pedidoDoVizinho.id));
+  const [comentarioAinda] = await db
+    .select({ removidoEm: comentarios.removidoEm })
+    .from(comentarios)
+    .where(eq(comentarios.id, comentarioDoVizinho.id));
+  checa("o comentário do vizinho continua no ar", Boolean(comentarioAinda) && !comentarioAinda.removidoEm);
+  await db.delete(comentarios).where(eq(comentarios.id, comentarioDoVizinho.id));
   const [aindaLa] = await db.select({ id: stories.id }).from(stories).where(eq(stories.id, storyDoVizinho.id));
   checa("o story do vizinho continua no ar", Boolean(aindaLa));
   const meus = (await (await pedir(eu.cookie, "/api/admin/stories")).json()) as { id: string }[];

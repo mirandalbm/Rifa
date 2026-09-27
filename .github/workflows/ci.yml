@@ -94,6 +94,7 @@ jobs:
       - run: npm run aparencia
       - run: npm run vitrine
       - run: npm run solicitacoes
+      - run: npm run comentarios
       - run: npm run resultados
       - run: npm run afiliados
       - run: npm run fiscal

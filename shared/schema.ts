@@ -385,6 +385,8 @@ export const campaigns = pgTable(
      * as duas, para ninguém descobrir o adiamento só no dia.
      */
     adiamentos: integer("adiamentos").notNull().default(0),
+    /** Comentários visíveis na publicação — contador, nunca `COUNT(*)`. */
+    comentariosCount: integer("comentarios_count").notNull().default(0),
     drawAtOriginal: timestamp("draw_at_original"),
     /** Link da live ou do vídeo do sorteio. Muda a qualquer hora (só https). */
     transmissaoUrl: text("transmissao_url"),
@@ -1183,6 +1185,39 @@ export const pushEnvios = pgTable(
 );
 
 /**
+ * Comentários na publicação da rifa: o apostador (com conta) comenta, a
+ * organização dona da rifa responde e modera. Uma camada de resposta
+ * (`parentId` aponta sempre para o comentário do topo). Apagar é marcar
+ * (`removidoEm`): some da tela e do contador, fica para a auditoria.
+ */
+export const comentarios = pgTable(
+  "comentarios",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    campaignId: uuid("campaign_id")
+      .notNull()
+      .references(() => campaigns.id, { onDelete: "cascade" }),
+    /** A dona da rifa, copiada para o recorte da moderação. */
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "restrict" }),
+    parentId: uuid("parent_id"),
+    /** `comprador` ou `organizacao`. */
+    autor: text("autor").notNull(),
+    buyerId: uuid("buyer_id").references(() => buyers.id, { onDelete: "set null" }),
+    userId: uuid("user_id"),
+    texto: text("texto").notNull(),
+    removidoEm: timestamp("removido_em"),
+    removidoPor: uuid("removido_por"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    index("idx_comentarios_rifa").on(t.campaignId, t.createdAt),
+    index("idx_comentarios_parent").on(t.parentId),
+  ],
+);
+
+/**
  * A central de avisos do apostador (o coração no topo, como no Instagram).
  * Todo aviso que sai por push também fica aqui — inclusive para quem não
  * ligou o push. A chave é a mesma do `push_envios`: uma linha por pessoa e
@@ -1362,6 +1397,7 @@ export const insertCampaignSchema = createInsertSchema(campaigns, {
     demonstracao: true,
     adiamentos: true,
     drawAtOriginal: true,
+    comentariosCount: true,
   });
 
 export const createOrderSchema = z.object({

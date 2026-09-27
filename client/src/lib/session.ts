@@ -9,6 +9,8 @@ export interface SessionInfo {
   buyer: { phone: string; name: string; conta: boolean; confirmado: boolean } | null;
   sections: Section[];
   home: string;
+  /** Organizador: a organização dele (ele vê a plataforma pelo próprio perfil). */
+  organizacao?: { slug: string; nome: string } | null;
 }
 
 /**

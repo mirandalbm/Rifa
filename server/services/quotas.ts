@@ -499,3 +499,62 @@ export async function isTaken(campaignId: string, number: number): Promise<boole
     .where(and(eq(quotaAlloc.campaignId, campaignId), eq(quotaAlloc.number, number)));
   return Boolean(row);
 }
+
+/* ------------------------------------------------------------------ *
+ * Cartelas — sugestão de números livres, sem reservar
+ * ------------------------------------------------------------------ */
+
+/** Quantas cartelas a tela mostra de uma vez, e o teto que a rota aceita. */
+export const CARTELAS_MAX = 6;
+
+/**
+ * Sugere `cartelas` grupos de `quantidade` números livres, sem repetir número
+ * entre elas. É só sugestão: não grava nada. Quem decide é a compra, que vai
+ * pelo caminho de sempre (`reserveSpecific`, `INSERT … ON CONFLICT`, tudo ou
+ * nada) — se alguém levar um número no meio, a compra recusa e a tela troca
+ * a cartela. Nunca "consultar e gravar": aqui só se consulta.
+ */
+export async function sugerirCartelas(params: {
+  campaignId: string;
+  totalQuotas: number;
+  quantidade: number;
+  cartelas: number;
+  endgame: boolean;
+}): Promise<number[][]> {
+  const { campaignId, totalQuotas, quantidade, cartelas, endgame } = params;
+  const precisa = quantidade * cartelas;
+  const livres: number[] = [];
+
+  if (endgame) {
+    // Na reta final o pool é a lista dos livres: sorteia direto dele.
+    const r = await db.execute(sql`
+      SELECT number FROM free_pool
+      WHERE campaign_id = ${campaignId}::uuid
+      ORDER BY random()
+      LIMIT ${precisa}
+    `);
+    livres.push(...(r.rows as { number: number }[]).map((x) => Number(x.number)));
+  } else {
+    const tentados = new Set<number>();
+    for (let round = 0; round < MAX_SAMPLING_ROUNDS && livres.length < precisa; round++) {
+      const candidatos = sampleCandidates(totalQuotas, precisa - livres.length, tentados);
+      if (candidatos.length === 0) break;
+      candidatos.forEach((n) => tentados.add(n));
+      const r = await db.execute(sql`
+        SELECT number FROM quota_alloc
+        WHERE campaign_id = ${campaignId}::uuid
+          AND number = ANY(${intArray(candidatos)}::int[])
+      `);
+      const tomados = new Set((r.rows as { number: number }[]).map((x) => Number(x.number)));
+      for (const n of candidatos) {
+        if (!tomados.has(n) && livres.length < precisa) livres.push(n);
+      }
+    }
+  }
+
+  const grupos: number[][] = [];
+  for (let i = 0; i + quantidade <= livres.length && grupos.length < cartelas; i += quantidade) {
+    grupos.push(livres.slice(i, i + quantidade).sort((a, b) => a - b));
+  }
+  return grupos;
+}

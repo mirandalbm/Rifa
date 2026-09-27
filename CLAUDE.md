@@ -74,6 +74,7 @@ arquitetura.
 |---|---|
 | mudar quem acessa o quê | `shared/access.ts` (cliente e servidor leem daqui) |
 | mexer em reserva/alocação | `server/services/quotas.ts` |
+| cartelas da compra rápida e mapa de números | `sugerirCartelas()` em `server/services/quotas.ts`, `client/src/components/Cartelas.tsx`, `client/src/pages/Rifa.tsx` |
 | mexer no fluxo do pedido | `server/services/orders.ts` |
 | trocar o provedor de pagamento | `server/payments/` — implemente `PaymentProvider`; a escolha é do painel (`shared/plataforma.ts`) |
 | regras de publicação e mídia | `server/services/campaigns.ts`, `server/routes/admin.ts` |
@@ -175,6 +176,20 @@ arquitetura.
   vende — e a tela não denunciaria isso.
 - `validatePaymentMethods` só aceita as chaves conhecidas: isto vem do corpo
   da requisição e espalhar o objeto cru guardaria qualquer coisa.
+
+## Cartelas e mapa de números — o que não pode afrouxar
+
+- **Cartela é sugestão, não reserva.** `GET /campaigns/:slug/cartelas`
+  sorteia grupos de números livres (do `free_pool` em endgame) e não grava
+  nada. A compra vai com os números e passa por `reserveSpecific` — tudo ou
+  nada, pela PK. Se alguém levou um número no meio, a compra recusa (409) e a
+  tela troca aquela cartela sozinha. Nunca transformar a sugestão em
+  "consultar e gravar".
+- **Cartelas não repetem número entre si**, e `npm run load` confere que a
+  sugestão só traz número livre, inclusive na reta final.
+- **O mapa pagina de 100 em 100** sobre o bitmap de 1.000 do servidor e
+  mostra o número inteiro (`formatQuota`). Cortar dígito fazia o bloco 2
+  parecer o bloco 1.
 
 ## Venda física — o que não pode afrouxar
 

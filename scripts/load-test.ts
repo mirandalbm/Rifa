@@ -281,6 +281,39 @@ async function conferirInvariantes(campaignId: string, total: number) {
   return { checagens, linhas, stats, pedidos };
 }
 
+/**
+ * Cartelas da compra rápida, com a rifa já disputada (e em endgame, se for o
+ * caso): toda sugestão tem de ser número livre agora, sem repetir entre
+ * cartelas. Sugerir cota tomada deixaria o comprador pagar e levar recusa.
+ */
+async function conferirCartelas(opcoes: Opcoes, campaignId: string) {
+  const res = await fetch(
+    `${opcoes.url}/api/public/campaigns/${opcoes.slug}/cartelas?quantidade=${opcoes.quotas}&cartelas=3`,
+  );
+  const corpo = (await res.json()) as { cartelas?: number[][] };
+  const numeros = (corpo.cartelas ?? []).flat();
+  const tomados = numeros.length
+    ? ((
+        await db.execute(sql`
+          SELECT count(*)::int AS n FROM quota_alloc
+          WHERE campaign_id = ${campaignId}::uuid AND number = ANY(${`{${numeros.join(",")}}`}::int[])
+        `)
+      ).rows[0] as { n: number }).n
+    : 0;
+  return [
+    {
+      nome: "cartelas sugerem só número livre",
+      ok: res.ok && numeros.length > 0 && tomados === 0,
+      detalhe: `${res.status}, ${corpo.cartelas?.length ?? 0} cartela(s), ${tomados} número(s) já tomados`,
+    },
+    {
+      nome: "cartelas não repetem número entre si",
+      ok: new Set(numeros).size === numeros.length,
+      detalhe: `${numeros.length} números, ${new Set(numeros).size} distintos`,
+    },
+  ];
+}
+
 async function main() {
   const opcoes = lerOpcoes();
   console.log("\n=== teste de carga ===");
@@ -348,6 +381,7 @@ async function main() {
     campanha.id,
     campanha.totalQuotas,
   );
+  checagens.push(...(await conferirCartelas(opcoes, campanha.id)));
   for (const c of checagens) {
     console.log(`    ${c.ok ? "✓" : "✗"} ${c.nome} (${c.detalhe})`);
   }

@@ -216,9 +216,9 @@ export default function PerfilPage() {
             <MapPin size={13} aria-hidden /> {p.local}
           </p>
         ) : null}
-        {p.bio ? <p className="whitespace-pre-line">{p.bio}</p> : null}
+        {p.bio ? <p className="whitespace-pre-line font-semibold">{p.bio}</p> : null}
         {p.bioAutomatica.length ? (
-          <div className="pt-1 text-[13px] text-ink-2">
+          <div className="pt-1 text-[13px] font-semibold text-ink-2">
             {p.bioAutomatica.map((l) => (
               <p key={l}>{l}</p>
             ))}
@@ -244,10 +244,10 @@ export default function PerfilPage() {
                       </span>
                     )}
                   </span>
-                  <span className="tnum mt-1 block text-[11px] text-muted">
+                  <span className="mt-1 block truncate text-[11px] font-semibold">{d.prizeTitle}</span>
+                  <span className="tnum block text-[10px] text-muted">
                     {d.sorteadaEm ? new Date(d.sorteadaEm).toLocaleDateString("pt-BR") : "—"}
                   </span>
-                  <span className="sr-only">{d.prizeTitle}</span>
                 </Link>
               </li>
             ))}

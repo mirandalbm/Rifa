@@ -195,6 +195,15 @@ export function AdminCampanhas() {
     },
     onError: (err: Error) => setError(err.message),
   });
+  const excluir = useMutation({
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/admin/campaigns/${id}`),
+    onSuccess: () => {
+      setError(null);
+      setMediaFor(null);
+      qc.invalidateQueries();
+    },
+    onError: (err: Error) => setError(err.message),
+  });
   const tirar = useMutation({
     mutationFn: (id: string) => apiRequest("POST", `/api/admin/campaigns/${id}/tirar-do-ar`),
     onSuccess: () => {
@@ -485,6 +494,24 @@ export function AdminCampanhas() {
                             }}
                           >
                             {campaign.demonstracao ? "Desmarcar teste" : "Marcar como teste"}
+                          </Button>
+                        ) : null}
+                        {daPlataforma && campaign.demonstracao ? (
+                          <Button
+                            variant="ghost"
+                            className="px-2 py-1 text-xs text-red"
+                            disabled={excluir.isPending}
+                            onClick={() => {
+                              if (
+                                window.confirm(
+                                  `Apagar "${campaign.title}" de vez? Some a rifa, o sorteio, as mídias e os pedidos não pagos. Não tem volta.`,
+                                )
+                              ) {
+                                excluir.mutate(campaign.id);
+                              }
+                            }}
+                          >
+                            Excluir
                           </Button>
                         ) : null}
                       </span>

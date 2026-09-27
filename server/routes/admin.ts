@@ -33,6 +33,7 @@ import {
   publishBlockers,
   tirarDoAr,
   marcarDemonstracao,
+  excluirRifaDeTeste,
   assertEditable,
   assertQuotaRange,
   CampaignRuleError,
@@ -487,6 +488,30 @@ adminRouter.post("/campaigns/:id/demonstracao", async (req, res, next) => {
     const ligado = req.body?.ligado === true;
     await marcarDemonstracao(req.params.id, ligado);
     await audit(req, "campaign.demonstracao", "campaign", req.params.id, { ligado });
+    res.json({ ok: true });
+  } catch (err) {
+    if (err instanceof CampaignRuleError) {
+      return res.status(422).json({ message: err.message });
+    }
+    next(err);
+  }
+});
+
+/**
+ * Apagar rifa de teste de vez (limpeza antes do lançamento). Só a plataforma
+ * (403 para organizador, no `npm run isolation`); as regras moram em
+ * `excluirRifaDeTeste()` — 422 quando não cabe. A auditoria vai antes.
+ */
+adminRouter.delete("/campaigns/:id", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    const [c] = await db
+      .select({ title: campaigns.title, slug: campaigns.slug, demonstracao: campaigns.demonstracao })
+      .from(campaigns)
+      .where(eq(campaigns.id, req.params.id));
+    if (!c) return res.status(404).json({ message: "Rifa não encontrada." });
+    await audit(req, "campaign.excluir_teste", "campaign", req.params.id, { title: c.title, slug: c.slug });
+    await excluirRifaDeTeste(req.params.id);
     res.json({ ok: true });
   } catch (err) {
     if (err instanceof CampaignRuleError) {

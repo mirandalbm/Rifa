@@ -346,6 +346,7 @@ async function rotasDaPlataforma(eu: Lado) {
     ["PUT configuração do bônus", "/api/admin/bonus/config", { method: "PUT", body: '{"bonusLigado":true}' }],
     ["POST meta de bônus", "/api/admin/bonus/metas", { method: "POST", body: "{}" }],
     ["PUT meta de bônus", "/api/admin/bonus/metas/00000000-0000-0000-0000-000000000000", { method: "PUT", body: "{}" }],
+    ["DELETE excluir rifa de teste", "/api/admin/campaigns/00000000-0000-0000-0000-000000000000", { method: "DELETE" }],
     ["POST marcar rifa como teste", "/api/admin/campaigns/00000000-0000-0000-0000-000000000000/demonstracao", { method: "POST", body: '{"ligado":true}' }],
     ["POST tirar rifa do ar", "/api/admin/campaigns/00000000-0000-0000-0000-000000000000/tirar-do-ar", { method: "POST" }],
     ["POST preencher organização com exemplo", `/api/admin/organizacoes/${eu.orgId}/exemplo`, { method: "POST" }],

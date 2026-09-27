@@ -215,6 +215,12 @@ arquitetura.
   exemplo sorteadas, também marcadas), foto e capa só se faltarem, e três
   stories. Recusa (409) organização com rifa de verdade no ar — exemplo na
   vitrine de promotor real seria propaganda falsa com o nome dele.
+- **Excluir rifa de teste** (`excluirRifaDeTeste()`, `DELETE
+  /campaigns/:id`) apaga de vez — é a limpeza antes do lançamento. Só rifa
+  marcada como teste e sem dinheiro envolvido: pedido pago ou estornado,
+  cobrança da plataforma, chamado ou anúncio barram (422). O resto vai pela
+  cascata das chaves, numa transação com a rifa travada (`FOR UPDATE`)
+  antes de conferir. Auditoria antes de apagar; só a plataforma.
 - **Tirar do ar** (`tirarDoAr()`, `POST /campaigns/:id/tirar-do-ar`) vale
   para qualquer rifa publicada, mas só sem venda — pedido pago ou pendente,
   ou cota tomada, barram no próprio `UPDATE` (422). Volta a rascunho e

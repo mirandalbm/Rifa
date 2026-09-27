@@ -252,6 +252,38 @@ async function main() {
     checa("rifa com cota tomada não vira teste (422)", r.status === 422, `HTTP ${r.status}`);
     await db.execute(sql`delete from quota_alloc where campaign_id = ${rifaVizinha.id}::uuid`);
 
+    // Excluir rifa de teste: só marcada, e vai tudo junto (cotas, estatística).
+    console.log("\n  excluir rifa de teste:");
+    const [paraApagar] = await db
+      .insert(campaigns)
+      .values({
+        organizationId: vizinha.id,
+        slug: "vitrine-teste-apagar",
+        title: "Rifa para apagar",
+        prizeTitle: "Rifa para apagar",
+        totalQuotas: 100,
+        priceCents: 100,
+        status: "published",
+        publishedAt: new Date(),
+        drawAt: new Date(Date.now() + 7 * 86_400_000),
+        authorizationCode: "SPA-VITRINE-APAGAR",
+      })
+      .returning();
+    await db.insert(campaignStats).values({ campaignId: paraApagar.id });
+    await db.execute(sql`insert into quota_alloc (campaign_id, number, status, order_id, reserved_until)
+      values (${paraApagar.id}::uuid, 5, 'reserved', gen_random_uuid(), now() + interval '10 minutes')`);
+    r = await marina.req("DELETE", `/api/admin/campaigns/${paraApagar.id}`);
+    checa("organizador não apaga rifa (403)", r.status === 403, `HTTP ${r.status}`);
+    r = await admin.req("DELETE", `/api/admin/campaigns/${paraApagar.id}`);
+    checa("rifa que não é de teste não se apaga (422)", r.status === 422, `HTTP ${r.status} ${r.json?.message ?? ""}`);
+    await db.update(campaigns).set({ demonstracao: true }).where(eq(campaigns.id, paraApagar.id));
+    r = await admin.req("DELETE", `/api/admin/campaigns/${paraApagar.id}`);
+    const [sobrou] = await db.execute(sql`select
+        (select count(*) from campaigns where id = ${paraApagar.id}::uuid)::int as rifa,
+        (select count(*) from quota_alloc where campaign_id = ${paraApagar.id}::uuid)::int as cotas,
+        (select count(*) from campaign_stats where campaign_id = ${paraApagar.id}::uuid)::int as stats`).then((x) => x.rows as { rifa: number; cotas: number; stats: number }[]);
+    checa("rifa de teste apagada com cotas e estatística", r.status === 200 && sobrou.rifa + sobrou.cotas + sobrou.stats === 0, `HTTP ${r.status} · ${JSON.stringify(sobrou)}`);
+
     // Tirar do ar: só a plataforma, e só rifa sem venda (volta a rascunho).
     console.log("\n  tirar do ar:");
     r = await marina.req("POST", `/api/admin/campaigns/${rifaVizinha.id}/tirar-do-ar`);
@@ -274,7 +306,7 @@ async function main() {
     r = await admin.req("POST", "/api/admin/demonstracao");
     checa("plataforma cria o perfil de demonstração", r.status === 200, `HTTP ${r.status}`);
     r = await anon.req("GET", "/api/public/campaigns");
-    const demos = (r.json ?? []).filter((c: any) => c.demonstracao);
+    const demos = (r.json ?? []).filter((c: any) => c.demonstracao && c.organizacao?.slug === "demonstracao");
     checa("três rifas de demonstração na vitrine, sem selo SPA/MF", demos.length === 3 && demos.every((c: any) => !c.autorizacao), `${demos.length}`);
     const [umaDemo] = await db.select({ id: campaigns.id }).from(campaigns).where(sql`${campaigns.slug} = 'demonstracao-pix-5-mil'`);
     r = await anon.req("POST", "/api/public/orders", {
@@ -288,7 +320,9 @@ async function main() {
     r = await marina.req("POST", "/api/admin/demonstracao");
     checa("organizador não cria demonstração (403)", r.status === 403, `HTTP ${r.status}`);
     r = await admin.req("DELETE", "/api/admin/demonstracao");
-    const semDemo = ((await anon.req("GET", "/api/public/campaigns")).json ?? []).every((c: any) => !c.demonstracao);
+    const semDemo = ((await anon.req("GET", "/api/public/campaigns")).json ?? []).every(
+      (c: any) => !(c.demonstracao && c.organizacao?.slug === "demonstracao"),
+    );
     const perfilDemo = await anon.req("GET", "/api/public/o/demonstracao");
     checa("remover tira da vitrine e o perfil some (404)", r.status === 200 && semDemo && perfilDemo.status === 404, `HTTP ${r.status} · perfil ${perfilDemo.status}`);
     if (demoAntes) await admin.req("POST", "/api/admin/demonstracao");

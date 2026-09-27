@@ -68,6 +68,9 @@ senha); **[código]** é trabalho no repositório.
   resolve para uma réplica; com várias, ou muito tráfego de imagem, o R2
   entra (basta `R2_BUCKET` e as chaves — o código já escolhe sozinho).
 - [ ] **[você]** Domínio próprio apontado para o Railway.
+- [x] Excluir rifa de teste pelo painel (Campanhas → Marcar como teste →
+  Excluir): apaga a rifa, o sorteio, as mídias e os pedidos não pagos; rifa
+  com venda paga não se apaga.
 - [ ] **Antes de abrir para o público: reset geral.** Apagar o perfil de
   demonstração (Organizações → Perfil de demonstração → Remover, ou apagar
   a organização `demonstracao` e as rifas `demonstracao-*` no reset) e os

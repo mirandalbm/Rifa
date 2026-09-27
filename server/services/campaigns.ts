@@ -416,3 +416,47 @@ export async function marcarDemonstracao(campaignId: string, ligado: boolean) {
       : "Rifa de teste sem autorização SPA/MF não passa a vender.",
   );
 }
+
+/**
+ * Apaga de vez uma rifa de teste — para limpar o banco antes do lançamento.
+ *
+ * Só rifa marcada como teste (`demonstracao`) e sem dinheiro envolvido:
+ * pedido pago ou estornado, cobrança da plataforma, chamado ou anúncio
+ * patrocinado barram (422). O resto vai junto, pela cascata das chaves:
+ * pedidos não pagos, cotas, pool, sorteio (semente), estatística, mídia,
+ * pacotes, cotas premiadas, cupons, endereço curto. Story que levava a ela
+ * fica, sem o link. Tudo numa transação, com a rifa travada antes de
+ * conferir — conferir e apagar em passos soltos seria corrida.
+ */
+export async function excluirRifaDeTeste(campaignId: string) {
+  return db.transaction(async (tx) => {
+    const trava = await tx.execute(sql`
+      SELECT demonstracao FROM campaigns WHERE id = ${campaignId}::uuid FOR UPDATE
+    `);
+    const c = trava.rows[0] as { demonstracao: boolean } | undefined;
+    if (!c) throw new CampaignRuleError("Rifa não encontrada.");
+    if (!c.demonstracao) {
+      throw new CampaignRuleError("Só rifa marcada como teste pode ser excluída. Marque como teste antes.");
+    }
+    const r = await tx.execute(sql`
+      SELECT
+        EXISTS (SELECT 1 FROM orders WHERE campaign_id = ${campaignId}::uuid AND status IN ('paid', 'refunded')) AS vendeu,
+        EXISTS (SELECT 1 FROM platform_charges pc JOIN orders o ON o.id = pc.order_id
+                 WHERE o.campaign_id = ${campaignId}::uuid) AS cobrou,
+        EXISTS (SELECT 1 FROM chamados ch JOIN orders o ON o.id = ch.order_id
+                 WHERE o.campaign_id = ${campaignId}::uuid) AS chamado,
+        EXISTS (SELECT 1 FROM patrocinio_anuncios WHERE campaign_id = ${campaignId}::uuid) AS anuncio
+    `);
+    const f = r.rows[0] as { vendeu: boolean; cobrou: boolean; chamado: boolean; anuncio: boolean };
+    if (f.vendeu || f.cobrou) throw new CampaignRuleError("Esta rifa teve venda paga: não pode ser apagada.");
+    if (f.chamado) throw new CampaignRuleError("Esta rifa tem chamado de reembolso: não pode ser apagada.");
+    if (f.anuncio) throw new CampaignRuleError("Esta rifa teve anúncio patrocinado: não pode ser apagada.");
+    // Indicação presa a pedido que nunca foi pago (sem chave estrangeira).
+    await tx.execute(sql`
+      DELETE FROM indicacoes WHERE status = 'pendente'
+         AND order_id IN (SELECT id FROM orders WHERE campaign_id = ${campaignId}::uuid)
+    `);
+    await tx.execute(sql`DELETE FROM campaigns WHERE id = ${campaignId}::uuid`);
+    return { ok: true };
+  });
+}

@@ -22,6 +22,14 @@ const ROLE_LABEL = {
   video: "Vídeo do prêmio · até 60 s",
 } as const;
 
+/** O que cada envio aceita — os mesmos limites que o servidor confere (`RULES` em server/services/media.ts). */
+const DICA = {
+  banner:
+    "Mínimo 1200 px de largura. A vitrine recorta em 4 por 5 e a página da rifa em faixa larga: deixe o prêmio no centro. JPG, PNG ou WebP até 8 MB.",
+  photo: "Mínimo 1080 px de largura; aparecem em 4 por 3. JPG, PNG ou WebP até 8 MB cada.",
+  video: "MP4 ou MOV, até 60 segundos e 300 MB. A duração é medida no servidor.",
+} as const;
+
 const ACCEPT = {
   banner: "image/jpeg,image/png,image/webp",
   photo: "image/jpeg,image/png,image/webp",
@@ -33,7 +41,7 @@ function describe(m: MediaItem): string {
     const s = m.durationS ?? 0;
     return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")} · medido no servidor`;
   }
-  return `${m.width}×${m.height}`;
+  return m.width && m.height ? `${m.width}×${m.height}` : "imagem de exemplo";
 }
 
 /**
@@ -149,6 +157,8 @@ export function MediaManager({ campaignId }: { campaignId: string }) {
                 />
               </label>
             </div>
+
+            <p className="text-[11px] text-muted">{DICA[role]}</p>
 
             {role === "photo" ? (
               <input

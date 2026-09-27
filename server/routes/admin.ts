@@ -155,10 +155,12 @@ import {
 import { alterarMeta, criarMeta, painelDoBonus } from "../services/bonus";
 import {
   ajustarSaldo,
-  cancelarAnuncio,
   comprarAnuncio,
+  decidirEstorno,
   painelDoPatrocinio,
+  pedirEstorno,
   pedirRecarga,
+  responderEstorno,
 } from "../services/patrocinio";
 import {
   PROVEDORES_PIX,
@@ -2853,11 +2855,45 @@ adminRouter.post("/patrocinio/anuncios", async (req, res, next) => {
   }
 });
 
-adminRouter.post("/patrocinio/anuncios/:id/cancelar", async (req, res, next) => {
+/**
+ * Não existe cancelamento pelo organizador: o anúncio pode ter acionado
+ * serviço externo. O caminho é o pedido de estorno ao suporte, com conversa,
+ * e quem decide quanto volta é a plataforma.
+ */
+adminRouter.post("/patrocinio/anuncios/:id/estorno", async (req, res, next) => {
   try {
-    const a = await cancelarAnuncio(req, req.params.id);
-    await audit(req, "patrocinio.cancelar", "patrocinio_anuncio", a.id, { reembolsoCents: a.reembolsoCents });
-    res.json(a);
+    const e = await pedirEstorno(req, req.params.id, req.body?.motivo);
+    await audit(req, "patrocinio.estorno.pedido", "patrocinio_estorno", e.id, { anuncioId: e.anuncioId, protocolo: e.protocolo });
+    res.status(201).json(e);
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.post("/patrocinio/estornos/:id/mensagens", async (req, res, next) => {
+  try {
+    res.status(201).json(await responderEstorno(req, req.params.id, req.body?.texto));
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** Só a plataforma decide (403 para organizador, no `npm run isolation`). */
+adminRouter.post("/patrocinio/estornos/:id/decisao", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    const e = await decidirEstorno(req, req.params.id, {
+      aprovar: req.body?.aprovar,
+      custosExternosCents: req.body?.custosExternosCents,
+      explicacao: req.body?.explicacao,
+    });
+    await audit(req, `patrocinio.estorno.${e.status}`, "patrocinio_estorno", e.id, {
+      protocolo: e.protocolo,
+      naoGastoCents: e.naoGastoCents,
+      custosExternosCents: e.custosExternosCents,
+      devolvidoCents: e.devolvidoCents,
+    });
+    res.json(e);
   } catch (err) {
     next(err);
   }

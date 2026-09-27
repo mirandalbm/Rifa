@@ -9,8 +9,9 @@
  * - a **compra do anúncio** debita o saldo de uma vez (pacote de cliques);
  * - o **clique** gasta um clique do pacote num `UPDATE` condicional
  *   (usados < comprados) — o anúncio nunca gasta mais do que comprou;
- * - o que não pôde ser gasto (cancelado antes do 1º clique, rifa que saiu
- *   do ar) volta ao saldo, proporcional, pelo mesmo livro.
+ * - o que não foi gasto **não volta sozinho**: só por pedido de estorno ao
+ *   suporte, que desconta o custo externo que o anúncio já acionou (rede
+ *   social, busca) e credita o resto pelo mesmo livro.
  *
  * A fila não é gravada: é calculada. Em cada segmento, os anúncios ativos
  * com clique sobrando, por ordem de chegada; os primeiros `vagas` estão no
@@ -26,6 +27,8 @@ import {
   organizations,
   patrocinioAnuncios,
   patrocinioCliques,
+  patrocinioEstornoMensagens,
+  patrocinioEstornos,
   patrocinioLancamentos,
   patrocinioRecargas,
   users,
@@ -256,67 +259,204 @@ export async function comprarAnuncio(
   });
 }
 
-/**
- * Cancelar só antes do primeiro clique (e o valor volta inteiro). Depois
- * disso o anúncio fica até gastar os cliques: é o combinado da vaga.
- */
-export async function cancelarAnuncio(req: Request, id: string) {
-  const [a] = uuidValido(id) ? await db.select().from(patrocinioAnuncios).where(eq(patrocinioAnuncios.id, id)) : [];
-  const org = orgOf(req);
-  if (!a || (org && a.organizationId !== org)) throw new PatrocinioError("Anúncio não encontrado.", 404);
-  return db.transaction(async (tx) => {
-    const [feito] = await tx
-      .update(patrocinioAnuncios)
-      .set({ status: "cancelado", encerradoEm: new Date(), reembolsoCents: a.valorPagoCents })
-      .where(and(eq(patrocinioAnuncios.id, id), eq(patrocinioAnuncios.status, "ativo"), eq(patrocinioAnuncios.cliquesUsados, 0)))
-      .returning();
-    if (!feito) throw new PatrocinioError("Este anúncio já começou: ele fica até gastar os cliques comprados.", 409);
-    await lancar(tx, {
-      organizationId: a.organizationId,
-      valorCents: a.valorPagoCents,
-      motivo: "reembolso",
-      chave: `reembolso-anuncio:${id}`,
-      descricao: "Anúncio cancelado antes do primeiro clique",
-      userId: req.user!.id,
-    });
-    return feito;
-  });
+/** O que o anúncio ainda não gastou (e ainda não voltou ao saldo). */
+export function naoGastoDe(a: { valorPagoCents: number; cliquesComprados: number; cliquesUsados: number; reembolsoCents: number; status: string }) {
+  if (a.status === "cancelado") return 0;
+  return Math.max(0, a.valorPagoCents - gastoAte(a.valorPagoCents, a.cliquesComprados, a.cliquesUsados) - a.reembolsoCents);
 }
 
 /**
  * Relógio: anúncio ativo de rifa que saiu do ar (sorteada, encerrada) ou de
- * promotora arquivada é encerrado, e o que não foi gasto volta ao saldo.
- * Condicional em `status = 'ativo'`: duas réplicas, um reembolso.
+ * promotora arquivada é encerrado. **Nada volta sozinho**: o que não foi
+ * gasto fica à vista no painel e só é devolvido por pedido ao suporte, que
+ * desconta o que o anúncio já acionou fora da plataforma.
  */
 export async function encerrarAnunciosForaDoAr() {
   const r = await db.execute(sql`
-    select a.id from patrocinio_anuncios a
-      join campaigns c on c.id = a.campaign_id
-      join organizations o on o.id = a.organization_id
-     where a.status = 'ativo' and (c.status <> 'published' or o.archived_at is not null)`);
-  let n = 0;
-  for (const { id } of r.rows as { id: string }[]) {
-    await db.transaction(async (tx) => {
-      const [a] = await tx.select().from(patrocinioAnuncios).where(and(eq(patrocinioAnuncios.id, id), eq(patrocinioAnuncios.status, "ativo"))).for("update");
-      if (!a) return;
-      const volta = a.valorPagoCents - gastoAte(a.valorPagoCents, a.cliquesComprados, a.cliquesUsados);
+    update patrocinio_anuncios a set status = 'encerrado', encerrado_em = now()
+      from campaigns c, organizations o
+     where c.id = a.campaign_id and o.id = a.organization_id
+       and a.status = 'ativo' and (c.status <> 'published' or o.archived_at is not null)
+    returning a.id`);
+  return r.rows.length;
+}
+
+/* ------------------------------------------------------------------ *
+ * Estorno do anúncio: só pelo suporte
+ * ------------------------------------------------------------------ */
+
+const LETRAS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+const novoProtocolo = () => "PE-" + Array.from({ length: 6 }, () => LETRAS[randomInt(LETRAS.length)]).join("");
+
+async function estornoNoRecorte(req: Request, id: string) {
+  const [e] = uuidValido(id) ? await db.select().from(patrocinioEstornos).where(eq(patrocinioEstornos.id, id)) : [];
+  const org = orgOf(req);
+  if (!e || (org && e.organizationId !== org)) throw new PatrocinioError("Pedido não encontrado.", 404);
+  return e;
+}
+
+/**
+ * A organização pede o estorno de um anúncio ao suporte. O anúncio segue no
+ * ar enquanto o suporte analisa (a vaga é dele até o fim); o valor é
+ * calculado na decisão, sobre o que ainda não tiver sido gasto.
+ */
+export async function pedirEstorno(req: Request, anuncioId: string, motivoBruto: unknown) {
+  const org = orgOf(req);
+  if (!org) throw new PatrocinioError("O pedido de estorno é da organização dona do anúncio.", 400);
+  const [a] = uuidValido(anuncioId) ? await db.select().from(patrocinioAnuncios).where(eq(patrocinioAnuncios.id, anuncioId)) : [];
+  if (!a || a.organizationId !== org) throw new PatrocinioError("Anúncio não encontrado.", 404);
+  const motivo = String(motivoBruto ?? "").replace(/\s+/g, " ").trim().slice(0, 1000);
+  if (motivo.length < 10) throw new PatrocinioError("Conte ao suporte o motivo do pedido (pelo menos 10 letras).");
+  if (naoGastoDe(a) <= 0) throw new PatrocinioError("Este anúncio já gastou tudo o que foi pago: não há o que estornar.", 409);
+  try {
+    return await db.transaction(async (tx) => {
+      let e: typeof patrocinioEstornos.$inferSelect | undefined;
+      for (let i = 0; i < 5 && !e; i++) {
+        [e] = await tx
+          .insert(patrocinioEstornos)
+          .values({ anuncioId: a.id, organizationId: org, protocolo: novoProtocolo(), motivo, abertoPor: req.user!.id })
+          .onConflictDoNothing({ target: patrocinioEstornos.protocolo })
+          .returning();
+      }
+      if (!e) throw new PatrocinioError("Não foi possível abrir o pedido. Tente de novo.", 500);
+      await tx.insert(patrocinioEstornoMensagens).values({ estornoId: e.id, autor: "organizacao", userId: req.user!.id, texto: motivo });
+      return e;
+    });
+  } catch (err) {
+    if (isUniqueViolation(err, "uq_patrocinio_estorno_aberto")) throw new PatrocinioError("Já existe um pedido de estorno em aberto para este anúncio.", 409);
+    throw err;
+  }
+}
+
+/** Mensagem na conversa do pedido. Quem escreve é decidido pela sessão: organização ou plataforma. */
+export async function responderEstorno(req: Request, id: string, textoBruto: unknown) {
+  const e = await estornoNoRecorte(req, id);
+  const texto = String(textoBruto ?? "").trim().slice(0, 2000);
+  if (texto.length < 2) throw new PatrocinioError("Escreva a mensagem.");
+  if (e.status !== "aberto") throw new PatrocinioError("Este pedido já foi decidido.", 409);
+  const [m] = await db
+    .insert(patrocinioEstornoMensagens)
+    .values({ estornoId: e.id, autor: orgOf(req) ? "organizacao" : "plataforma", userId: req.user!.id, texto })
+    .returning();
+  return m;
+}
+
+/**
+ * A plataforma decide. Aprovado: devolve ao saldo o que não foi gasto menos
+ * o custo externo que o anúncio acionou, e o anúncio sai da fila. Tudo na
+ * mesma transação, com o pedido tomado num `UPDATE` condicional (dois
+ * cliques, uma decisão) e o anúncio travado para o cálculo.
+ */
+export async function decidirEstorno(
+  req: Request,
+  id: string,
+  entrada: { aprovar: unknown; custosExternosCents?: unknown; explicacao: unknown },
+) {
+  if (orgOf(req)) throw new PatrocinioError("Só a plataforma decide o estorno.", 403);
+  const e = await estornoNoRecorte(req, id);
+  const explicacao = String(entrada.explicacao ?? "").replace(/\s+/g, " ").trim().slice(0, 1000);
+  if (explicacao.length < 10) throw new PatrocinioError("Explique a decisão à organização (pelo menos 10 letras).");
+  const aprovar = entrada.aprovar === true;
+  const custos = aprovar ? Number(entrada.custosExternosCents ?? 0) : 0;
+  if (!Number.isInteger(custos) || custos < 0) throw new PatrocinioError("Informe o custo externo em centavos (zero se não houve).");
+  return db.transaction(async (tx) => {
+    // O pedido primeiro: quem chega depois da decisão recebe 409, não um cálculo sobre o anúncio já estornado.
+    const [atual] = await tx.select({ status: patrocinioEstornos.status }).from(patrocinioEstornos).where(eq(patrocinioEstornos.id, e.id)).for("update");
+    if (atual?.status !== "aberto") throw new PatrocinioError("Este pedido já foi decidido.", 409);
+    const [a] = await tx.select().from(patrocinioAnuncios).where(eq(patrocinioAnuncios.id, e.anuncioId)).for("update");
+    const naoGasto = naoGastoDe(a);
+    if (custos > naoGasto) throw new PatrocinioError(`O custo externo passa do que não foi gasto (${(naoGasto / 100).toFixed(2).replace(".", ",")} reais).`);
+    const devolvido = aprovar ? naoGasto - custos : 0;
+    const [feito] = await tx
+      .update(patrocinioEstornos)
+      .set({
+        status: aprovar ? "aprovado" : "recusado",
+        naoGastoCents: naoGasto,
+        custosExternosCents: aprovar ? custos : null,
+        devolvidoCents: devolvido,
+        explicacao,
+        decididoPor: req.user!.id,
+        decididoEm: new Date(),
+      })
+      .where(and(eq(patrocinioEstornos.id, e.id), eq(patrocinioEstornos.status, "aberto")))
+      .returning();
+    if (!feito) throw new PatrocinioError("Este pedido já foi decidido.", 409);
+    if (aprovar) {
       await tx
         .update(patrocinioAnuncios)
-        .set({ status: "encerrado", encerradoEm: new Date(), reembolsoCents: volta })
-        .where(eq(patrocinioAnuncios.id, id));
-      if (volta > 0) {
+        .set({
+          status: "cancelado",
+          encerradoEm: a.encerradoEm ?? new Date(),
+          reembolsoCents: a.reembolsoCents + devolvido,
+        })
+        .where(eq(patrocinioAnuncios.id, a.id));
+      if (devolvido > 0) {
         await lancar(tx, {
           organizationId: a.organizationId,
-          valorCents: volta,
-          motivo: "reembolso",
-          chave: `reembolso-anuncio:${id}`,
-          descricao: `Cliques não usados: a rifa saiu do ar (${a.cliquesComprados - a.cliquesUsados})`,
+          valorCents: devolvido,
+          motivo: "estorno",
+          chave: `estorno-anuncio:${e.id}`,
+          descricao: `Estorno pelo suporte (${e.protocolo})${custos ? `, descontados ${(custos / 100).toFixed(2).replace(".", ",")} de custos externos` : ""}`,
+          userId: req.user!.id,
         });
       }
-      n++;
-    });
-  }
-  return n;
+    }
+    await tx.insert(patrocinioEstornoMensagens).values({ estornoId: e.id, autor: "plataforma", userId: req.user!.id, texto: explicacao });
+    return feito;
+  });
+}
+
+/** Os pedidos com a conversa, no recorte de quem olha. A plataforma vê os abertos primeiro. */
+async function estornosDoPainel(org: string | null) {
+  const r = await db.execute(sql`
+    select e.id, e.protocolo, e.status, e.motivo, e.nao_gasto_cents, e.custos_externos_cents, e.devolvido_cents,
+           e.explicacao, e.created_at, e.decidido_em, e.anuncio_id,
+           o.name as organizacao, c.title as rifa,
+           a.valor_pago_cents, a.cliques_comprados, a.cliques_usados, a.reembolso_cents, a.status as anuncio_status
+      from patrocinio_estornos e
+      join patrocinio_anuncios a on a.id = e.anuncio_id
+      join campaigns c on c.id = a.campaign_id
+      join organizations o on o.id = e.organization_id
+     where true ${org ? sql`and e.organization_id = ${org}::uuid` : sql``}
+     order by (e.status = 'aberto') desc, e.created_at desc
+     limit 40`);
+  const linhas = r.rows as Record<string, any>[];
+  const ids = linhas.map((l) => l.id as string);
+  const msgs = ids.length
+    ? ((
+        await db.execute(sql`
+          select estorno_id, autor, texto, created_at from patrocinio_estorno_mensagens
+           where estorno_id in (${sql.join(ids.map((i) => sql`${i}::uuid`), sql`, `)})
+           order by created_at`)
+      ).rows as { estorno_id: string; autor: string; texto: string; created_at: string }[])
+    : [];
+  return linhas.map((l) => ({
+    id: l.id as string,
+    protocolo: l.protocolo as string,
+    status: l.status as "aberto" | "aprovado" | "recusado",
+    anuncioId: l.anuncio_id as string,
+    organizacao: l.organizacao as string,
+    rifa: l.rifa as string,
+    motivo: l.motivo as string,
+    // Aberto: o que não foi gasto agora (o anúncio pode seguir no ar). Decidido: o retrato da decisão.
+    naoGastoCents:
+      l.status === "aberto"
+        ? naoGastoDe({
+            valorPagoCents: Number(l.valor_pago_cents),
+            cliquesComprados: Number(l.cliques_comprados),
+            cliquesUsados: Number(l.cliques_usados),
+            reembolsoCents: Number(l.reembolso_cents),
+            status: l.anuncio_status,
+          })
+        : Number(l.nao_gasto_cents ?? 0),
+    custosExternosCents: l.custos_externos_cents === null ? null : Number(l.custos_externos_cents),
+    devolvidoCents: l.devolvido_cents === null ? null : Number(l.devolvido_cents),
+    explicacao: (l.explicacao as string | null) ?? null,
+    createdAt: l.created_at,
+    decididoEm: l.decidido_em ?? null,
+    // A organização nunca vê o nome de quem atendeu, só "Suporte".
+    mensagens: msgs.filter((m) => m.estorno_id === l.id).map((m) => ({ autor: m.autor, texto: m.texto, createdAt: m.created_at })),
+  }));
 }
 
 /* ------------------------------------------------------------------ *
@@ -642,6 +782,7 @@ export async function painelDoPatrocinio(req: Request, diasBrutos?: unknown) {
       vendidoCents: Number(vendidos.vendido),
       anunciosVendidos: Number(vendidos.anuncios),
       organizacoes,
+      estornos: await estornosDoPainel(null),
       ...n,
     };
   }
@@ -696,6 +837,8 @@ export async function painelDoPatrocinio(req: Request, diasBrutos?: unknown) {
     .where(and(eq(patrocinioRecargas.organizationId, org), eq(patrocinioRecargas.status, "pendente"), sql`${patrocinioRecargas.expiresAt} > now()`))
     .orderBy(desc(patrocinioRecargas.createdAt))
     .limit(1);
+  const estornos = await estornosDoPainel(org);
+  const emAberto = new Map(estornos.filter((e) => e.status === "aberto").map((e) => [e.anuncioId, e.protocolo]));
   return {
     plataforma: false as const,
     dias,
@@ -718,6 +861,8 @@ export async function painelDoPatrocinio(req: Request, diasBrutos?: unknown) {
         descontoPct: a.descontoPct,
         gastoCents: gastoAte(a.valorPagoCents, a.cliquesComprados, a.cliquesUsados),
         reembolsoCents: a.reembolsoCents,
+        naoGastoCents: naoGastoDe(a),
+        estornoEmAberto: emAberto.get(a.id) ?? null,
         status: a.status,
         situacao: a.status !== "ativo" ? a.status : s ? (s.noAr ? "no_ar" : "na_fila") : "parado",
         posicaoNaFila: s?.posicaoNaFila ?? null,
@@ -734,6 +879,7 @@ export async function painelDoPatrocinio(req: Request, diasBrutos?: unknown) {
     rifas,
     extrato,
     recargaPendente: recargaPendente ?? null,
+    estornos,
     ...n,
   };
 }

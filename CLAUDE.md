@@ -939,16 +939,28 @@ aí o próximo entra sozinho.
   transação. O gasto é `gastoAte()` — proporcional, para baixo — e a soma
   dos cliques dá exatamente o valor pago.
 - **O saldo anda pelo livro** (`patrocinio_lancamentos`, chave única):
-  compra (`anuncio:<id>`), devolução (`reembolso-anuncio:<id>`) e recarga
-  lançam uma vez só, e o saldo nunca fica negativo (`UPDATE` condicional —
+  compra (`anuncio:<id>`), estorno e recarga
+  lançam uma vez só (o estorno do suporte é `estorno-anuncio:<pedido>`), e o saldo nunca fica negativo (`UPDATE` condicional —
   sem saldo, a compra cai inteira e nada entra na fila). A recarga é Pix
   **sem split** para a conta da plataforma, com código na faixa de 9
   dígitos; o webhook reconhece a recarga (`confirmarRecarga`) antes de
   procurar pedido.
-- **Cancelar só antes do primeiro clique** (volta tudo). Depois, a vaga é
-  do anúncio até o fim. Rifa que sai do ar (ou promotora arquivada): o
-  relógio (`encerrarAnunciosForaDoAr`, trava 811403) encerra e devolve o que
-  não foi gasto, condicional em `status = 'ativo'`.
+- **Não existe cancelamento pelo painel, nem estorno automático.** O
+  anúncio pode acionar divulgação fora da plataforma (redes sociais, busca),
+  e esse custo não volta. O único caminho é o **pedido de estorno ao
+  suporte** (`pedirEstorno`, `patrocinio_estornos`), com conversa entre a
+  organização e a plataforma; a organização vê só "Suporte", nunca o nome de
+  quem atendeu. Rifa que sai do ar (ou promotora arquivada): o relógio
+  (`encerrarAnunciosForaDoAr`, trava 811403) só **para** o anúncio; o não
+  gasto (`naoGastoDe()`) fica à vista e também é pedido ao suporte.
+- **Só a plataforma decide** (403 para organizador, no `npm run
+  isolation`), com explicação e o custo externo em centavos: volta ao saldo
+  o não gasto **na hora da decisão** menos esse custo, e o anúncio sai da
+  fila (`cancelado`). O pedido é travado antes do cálculo e tomado num
+  `UPDATE` condicional (`aberto` → decidido): dois cliques, uma decisão. Um
+  pedido em aberto por anúncio pelo índice parcial
+  (`uq_patrocinio_estorno_aberto`). Enquanto o suporte analisa, o anúncio
+  segue no ar — a vaga é dele até o fim.
 - **Clique honesto**: uma vez por aparelho (hash) em 24 h por anúncio, sob
   trava do par (811402); robô (`ehRobo`), aparelho sem identificação e
   anúncio esgotado vão para **barrados** — o patrocinador vê o que não
@@ -959,8 +971,9 @@ aí o próximo entra sozinho.
   mesmo aparelho que clicou na mesma rifa em até 7 dias (`orders.anuncio_id`,
   último clique): estatística, nunca decide dinheiro.
 - **Recorte**: anúncio só de rifa própria no ar (vizinho 404 por
-  `assertCampaignInScope`), cancelar confere o dono antes; o organizador vê
-  só os números dele e nunca a fila dos outros. Configuração e ajuste de
+  `assertCampaignInScope`); pedido e conversa de estorno conferem o dono
+  (o do vizinho é 404); o organizador vê só os números dele e nunca a fila
+  dos outros. Configuração e ajuste de
   saldo são da plataforma (403 no `npm run isolation`).
 - **Propaganda se identifica**: cada cartão diz "Patrocinada" em texto.
   Quem olha vê cidade, estado e Brasil nessa ordem, uma vez por rifa.

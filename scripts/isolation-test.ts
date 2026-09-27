@@ -337,6 +337,7 @@ async function rotasDaPlataforma(eu: Lado) {
     ["POST decidir disputa de reembolso", "/api/admin/chamados/00000000-0000-0000-0000-000000000000/disputa/decidir", { method: "POST", body: '{"resultado":"procedente","decisao":"xxxxxxxxxxxx"}' }],
     ["PUT configuração do patrocínio", "/api/admin/patrocinio/config", { method: "PUT", body: '{"ligado":true}' }],
     ["POST ajuste de saldo de patrocínio", "/api/admin/patrocinio/ajustes", { method: "POST", body: "{}" }],
+    ["POST decisão de estorno de anúncio", "/api/admin/patrocinio/estornos/00000000-0000-4000-8000-000000000000/decisao", { method: "POST", body: "{}" }],
     ["GET programa de bônus", "/api/admin/bonus", {}],
     ["PUT configuração do bônus", "/api/admin/bonus/config", { method: "PUT", body: '{"bonusLigado":true}' }],
     ["POST meta de bônus", "/api/admin/bonus/metas", { method: "POST", body: "{}" }],

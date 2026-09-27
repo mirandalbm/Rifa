@@ -1560,12 +1560,12 @@ export const patrocinioAnuncios = pgTable(
     precoCliqueCents: integer("preco_clique_cents").notNull(),
     descontoPct: integer("desconto_pct").notNull().default(0),
     valorPagoCents: integer("valor_pago_cents").notNull(),
-    /** ativo | encerrado (gastou tudo, ou a rifa saiu do ar) | cancelado (antes do 1º clique) */
+    /** ativo | encerrado (gastou tudo, ou a rifa saiu do ar) | cancelado (estorno aprovado pelo suporte) */
     status: text("status").notNull().default("ativo"),
     filaDesde: timestamp("fila_desde").notNull().defaultNow(),
     iniciadoEm: timestamp("iniciado_em"),
     encerradoEm: timestamp("encerrado_em"),
-    /** Devolvido ao saldo quando o anúncio não pôde gastar tudo (rifa fora do ar, cancelado). */
+    /** Devolvido ao saldo pelo suporte (pedido de estorno aprovado), já descontados os custos externos. */
     reembolsoCents: integer("reembolso_cents").notNull().default(0),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
@@ -1573,6 +1573,60 @@ export const patrocinioAnuncios = pgTable(
     index("idx_anuncios_fila").on(t.segmento, t.status, t.filaDesde),
     index("idx_anuncios_org").on(t.organizationId, t.createdAt),
   ],
+);
+
+/**
+ * Pedido de estorno do anúncio, feito pela organização ao suporte da
+ * plataforma. Não existe cancelamento pelo próprio organizador: o anúncio
+ * pode ter acionado serviço externo (rede social, busca), e quanto volta é
+ * decisão da plataforma, descontando esse custo.
+ */
+export const patrocinioEstornos = pgTable(
+  "patrocinio_estornos",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    anuncioId: uuid("anuncio_id")
+      .notNull()
+      .references(() => patrocinioAnuncios.id, { onDelete: "cascade" }),
+    organizationId: uuid("organization_id").notNull(),
+    /** "PE-XXXXXX", sorteado: é como o suporte e a organização falam do pedido. */
+    protocolo: text("protocolo").notNull(),
+    /** aberto | aprovado | recusado */
+    status: text("status").notNull().default("aberto"),
+    motivo: text("motivo").notNull(),
+    abertoPor: uuid("aberto_por"),
+    /** Na decisão: o que não tinha sido gasto, o custo externo descontado e o que voltou ao saldo. */
+    naoGastoCents: integer("nao_gasto_cents"),
+    custosExternosCents: integer("custos_externos_cents"),
+    devolvidoCents: integer("devolvido_cents"),
+    explicacao: text("explicacao"),
+    decididoPor: uuid("decidido_por"),
+    decididoEm: timestamp("decidido_em"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("uq_patrocinio_estorno_protocolo").on(t.protocolo),
+    // Um pedido em aberto por anúncio: quem decide é o índice, não um SELECT antes.
+    uniqueIndex("uq_patrocinio_estorno_aberto").on(t.anuncioId).where(sql`status = 'aberto'`),
+    index("idx_patrocinio_estornos_org").on(t.organizationId, t.createdAt),
+  ],
+);
+
+/** A conversa do pedido de estorno: organização e suporte da plataforma. */
+export const patrocinioEstornoMensagens = pgTable(
+  "patrocinio_estorno_mensagens",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    estornoId: uuid("estorno_id")
+      .notNull()
+      .references(() => patrocinioEstornos.id, { onDelete: "cascade" }),
+    /** organizacao | plataforma */
+    autor: text("autor").notNull(),
+    userId: uuid("user_id"),
+    texto: text("texto").notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [index("idx_patrocinio_estorno_mensagens").on(t.estornoId, t.createdAt)],
 );
 
 /** Clique cobrado: um por visitante (aparelho em hash) a cada 24 h, por anúncio, conferido sob trava. */

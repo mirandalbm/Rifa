@@ -10,8 +10,9 @@
  *   o pacote e o segundo entra sozinho no clique seguinte, com a previsão;
  * - clique: uma vez por aparelho em 24 h; robô, aparelho sem identificação e
  *   anúncio esgotado vão para "barrados" e não gastam;
- * - cancelar só antes do primeiro clique (volta tudo); rifa fora do ar
- *   devolve o que não foi gasto;
+ * - não existe cancelar pelo painel: o estorno é pedido ao suporte, com
+ *   conversa; só a plataforma decide, descontando o custo externo, uma vez
+ *   só; rifa fora do ar para o anúncio sem devolver nada sozinho;
  * - retorno: exibições, cliques, gasto e a venda atribuída pelo aparelho,
  *   cada organização vendo só o dela.
  *
@@ -228,13 +229,57 @@ async function main() {
     checa("B não vê os anúncios de A", !r.json?.anuncios?.some((a: any) => a.id === nA || a.id === eA));
     checa("organizador não recebe a fila da plataforma", r.json?.plataforma === false && r.json?.fila === undefined && r.json?.organizacoes === undefined);
 
-    // Cancelar.
-    r = await orgA.req("POST", `/api/admin/patrocinio/anuncios/${cB}/cancelar`);
-    checa("o vizinho não cancela (404)", r.status === 404, `HTTP ${r.status}`);
+    // Sem cancelamento pelo painel: estorno só pelo suporte.
     r = await orgB.req("POST", `/api/admin/patrocinio/anuncios/${cB}/cancelar`);
-    checa("cancelar antes do 1º clique devolve tudo", r.status === 200 && (await saldo(B.id)) === 910 && (await anuncio(cB)).status === "cancelado", `HTTP ${r.status}`);
-    r = await orgB.req("POST", `/api/admin/patrocinio/anuncios/${cB}/cancelar`);
-    checa("cancelar de novo: 409, sem devolver duas vezes", r.status === 409 && (await saldo(B.id)) === 910, `HTTP ${r.status}`);
+    checa("não existe cancelar pelo painel (404)", r.status === 404 && (await saldo(B.id)) === 860, `HTTP ${r.status}`);
+    r = await orgA.req("POST", `/api/admin/patrocinio/anuncios/${cB}/estorno`, { motivo: "Quero o dinheiro do vizinho" });
+    checa("o vizinho não pede estorno (404)", r.status === 404, `HTTP ${r.status}`);
+    r = await orgB.req("POST", `/api/admin/patrocinio/anuncios/${cB}/estorno`, { motivo: "curto" });
+    checa("pedido sem motivo: 400", r.status === 400, `HTTP ${r.status}`);
+    const [e1, e2] = await Promise.all([
+      orgB.req("POST", `/api/admin/patrocinio/anuncios/${cB}/estorno`, { motivo: "Errei a cidade do anúncio, era outra." }),
+      orgB.req("POST", `/api/admin/patrocinio/anuncios/${cB}/estorno`, { motivo: "Errei a cidade do anúncio, era outra." }),
+    ]);
+    const estorno = (e1.status === 201 ? e1 : e2).json;
+    checa("dois pedidos ao mesmo tempo: um abre, o outro 409", [e1.status, e2.status].sort().join() === "201,409", `${e1.status} ${e2.status}`);
+    checa("pedir não devolve nada nem tira da fila", /^PE-[A-Z2-9]{6}$/.test(estorno?.protocolo ?? "") && (await saldo(B.id)) === 860 && (await anuncio(cB)).status === "ativo");
+    r = await orgA.req("POST", `/api/admin/patrocinio/estornos/${estorno.id}/mensagens`, { texto: "oi" });
+    checa("o vizinho não entra na conversa (404)", r.status === 404, `HTTP ${r.status}`);
+    r = await orgB.req("POST", `/api/admin/patrocinio/estornos/${estorno.id}/mensagens`, { texto: "Podem ver, por favor?" });
+    checa("a organização escreve", r.status === 201 && r.json?.autor === "organizacao", `HTTP ${r.status}`);
+    r = await admin.req("POST", `/api/admin/patrocinio/estornos/${estorno.id}/mensagens`, { texto: "Estamos conferindo o que o anúncio acionou." });
+    checa("o suporte responde", r.status === 201 && r.json?.autor === "plataforma", `HTTP ${r.status}`);
+    r = await orgB.req("POST", `/api/admin/patrocinio/estornos/${estorno.id}/decisao`, { aprovar: true, custosExternosCents: 0, explicacao: "Eu mesmo aprovo isto." });
+    checa("organizador não decide (403)", r.status === 403 && (await saldo(B.id)) === 860, `HTTP ${r.status}`);
+    r = await admin.req("POST", `/api/admin/patrocinio/estornos/${estorno.id}/decisao`, { aprovar: true, custosExternosCents: 60, explicacao: "Custo maior que o não gasto." });
+    checa("custo externo maior que o não gasto: 400", r.status === 400, `HTTP ${r.status}`);
+    const [d1, d2] = await Promise.all([
+      admin.req("POST", `/api/admin/patrocinio/estornos/${estorno.id}/decisao`, { aprovar: true, custosExternosCents: 20, explicacao: "Aprovado, descontado o impulsionamento externo." }),
+      admin.req("POST", `/api/admin/patrocinio/estornos/${estorno.id}/decisao`, { aprovar: true, custosExternosCents: 20, explicacao: "Aprovado, descontado o impulsionamento externo." }),
+    ]);
+    const cancelado = await anuncio(cB);
+    checa(
+      "aprovado: volta o não gasto menos o custo externo, uma vez só",
+      [d1.status, d2.status].sort().join() === "200,409" && (await saldo(B.id)) === 890 && cancelado.status === "cancelado" && cancelado.reembolsoCents === 30,
+      `${d1.status} ${d2.status} ${await saldo(B.id)} ${cancelado.status} ${cancelado.reembolsoCents}`,
+    );
+    r = await orgB.req("POST", `/api/admin/patrocinio/estornos/${estorno.id}/mensagens`, { texto: "Obrigado" });
+    checa("decidido: a conversa fecha (409)", r.status === 409, `HTTP ${r.status}`);
+    r = await orgB.req("POST", `/api/admin/patrocinio/anuncios/${cB}/estorno`, { motivo: "Quero pedir de novo o mesmo." });
+    checa("estornado: não pede de novo (409)", r.status === 409, `HTTP ${r.status}`);
+    r = await orgB.req("GET", "/api/admin/patrocinio");
+    const visto = r.json?.estornos?.find((e: any) => e.id === estorno.id);
+    checa(
+      "a organização vê a decisão e a conversa, com o suporte sem nome",
+      visto?.status === "aprovado" && visto?.devolvidoCents === 30 && visto?.custosExternosCents === 20 && visto?.mensagens?.length === 4 &&
+        visto.mensagens.every((m: any) => Object.keys(m).sort().join() === "autor,createdAt,texto"),
+      JSON.stringify(visto),
+    );
+    checa("o extrato mostra o estorno", r.json?.extrato?.some((x: any) => x.valorCents === 30 && /PE-/.test(x.descricao ?? "")));
+    r = await orgA.req("GET", "/api/admin/patrocinio");
+    checa("a outra organização não vê o pedido", !r.json?.estornos?.some((e: any) => e.id === estorno.id));
+    r = await admin.req("GET", "/api/admin/patrocinio");
+    checa("a plataforma vê o pedido com a organização", r.json?.estornos?.some((e: any) => e.id === estorno.id && e.organizacao === "Patrocínio B"));
 
     // Exibições.
     await new Cliente("aparelho-x").req("POST", "/api/public/patrocinadas/exibicoes", { ids: [nA, eA], uf: "SP" });
@@ -243,8 +288,6 @@ async function main() {
     // Cliques no anúncio nacional de A (3 comprados).
     await clique(nA, new Cliente("aparelho-1"));
     checa("clique gasta um do pacote", (await anuncio(nA)).cliquesUsados === 1);
-    r = await orgA.req("POST", `/api/admin/patrocinio/anuncios/${nA}/cancelar`);
-    checa("depois do 1º clique não cancela (409)", r.status === 409, `HTTP ${r.status}`);
     await Promise.all([clique(nA, new Cliente("aparelho-1")), clique(nA, new Cliente("aparelho-1"))]);
     checa("o mesmo aparelho em 24 h não gasta de novo", (await anuncio(nA)).cliquesUsados === 1);
     await clique(nA, new Cliente("aparelho-2", "Googlebot/2.1 (+http://www.google.com/bot.html)"));
@@ -295,13 +338,19 @@ async function main() {
       r.json?.totais?.cliques >= 4 && r.json?.vendidoCents >= 90 + 1800 + 90 && r.json.organizacoes.some((o: any) => o.id === A.id && o.saldoCents === 110),
     );
 
-    // Rifa fora do ar devolve o que não foi gasto.
+    // Rifa fora do ar: o anúncio para, e nada volta sozinho.
     await db.update(campaigns).set({ status: "closed" }).where(eq(campaigns.id, rB.id));
     checa("rifa fora do ar sai do bloco", !(await vitrine()).some((x) => x.id === nB));
     await encerrarAnunciosForaDoAr();
     await encerrarAnunciosForaDoAr();
     const fim = await anuncio(nB);
-    checa("encerra e devolve 2 de 3 cliques, uma vez só", fim.status === "encerrado" && fim.reembolsoCents === 60 && (await saldo(B.id)) === 970, `${fim.status} ${fim.reembolsoCents} ${await saldo(B.id)}`);
+    checa("encerra sem devolver sozinho", fim.status === "encerrado" && fim.reembolsoCents === 0 && (await saldo(B.id)) === 890, `${fim.status} ${fim.reembolsoCents} ${await saldo(B.id)}`);
+    r = await orgB.req("GET", "/api/admin/patrocinio");
+    checa("o não gasto fica à vista (2 de 3 cliques)", r.json?.anuncios?.find((a: any) => a.id === nB)?.naoGastoCents === 60);
+    r = await orgB.req("POST", `/api/admin/patrocinio/anuncios/${nB}/estorno`, { motivo: "A rifa foi encerrada antes do fim do pacote." });
+    const pedido2 = r.json;
+    r = await admin.req("POST", `/api/admin/patrocinio/estornos/${pedido2?.id}/decisao`, { aprovar: false, explicacao: "Os cliques restantes já foram comprados fora." });
+    checa("recusado: nada volta e o anúncio fica como estava", r.status === 200 && r.json?.status === "recusado" && (await saldo(B.id)) === 890 && (await anuncio(nB)).status === "encerrado", `HTTP ${r.status}`);
 
     // Desligar.
     await admin.req("PUT", "/api/admin/patrocinio/config", { ligado: false });

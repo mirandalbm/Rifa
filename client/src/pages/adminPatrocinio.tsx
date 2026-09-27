@@ -65,6 +65,10 @@ interface Anuncio {
   descontoPct: number;
   gastoCents: number;
   reembolsoCents: number;
+  /** O que ainda não foi gasto nem devolvido: só volta por pedido ao suporte. */
+  naoGastoCents: number;
+  /** Protocolo do pedido de estorno em análise, se houver. */
+  estornoEmAberto: string | null;
   status: string;
   situacao: "no_ar" | "na_fila" | "parado" | "encerrado" | "cancelado";
   posicaoNaFila: number | null;
@@ -76,7 +80,28 @@ interface Anuncio {
   vendas: number;
   receitaCents: number;
 }
+interface Estorno {
+  id: string;
+  protocolo: string;
+  status: "aberto" | "aprovado" | "recusado";
+  anuncioId: string;
+  organizacao: string;
+  rifa: string;
+  motivo: string;
+  naoGastoCents: number;
+  custosExternosCents: number | null;
+  devolvidoCents: number | null;
+  explicacao: string | null;
+  createdAt: string;
+  decididoEm: string | null;
+  mensagens: {
+    autor: "organizacao" | "plataforma";
+    texto: string;
+    createdAt: string;
+  }[];
+}
 interface DaOrg extends Comum {
+  estornos: Estorno[];
   plataforma: false;
   saldoCents: number;
   padrao: { uf: string | null; cidade: string | null };
@@ -110,6 +135,7 @@ interface NaFila {
 }
 interface DaPlataforma extends Comum {
   plataforma: true;
+  estornos: Estorno[];
   fila: {
     segmento: string;
     alcance: Alcance;
@@ -515,18 +541,6 @@ function DaOrganizacaoView({ dados }: { dados: DaOrg }) {
   const recarregar = () =>
     qc.invalidateQueries({ queryKey: ["/api/admin/patrocinio"] });
   const falhou = (e: Error) => setMsg({ ok: false, texto: e.message });
-  const cancelar = useMutation({
-    mutationFn: (id: string) =>
-      apiRequest("POST", `/api/admin/patrocinio/anuncios/${id}/cancelar`),
-    onSuccess: () => {
-      setMsg({
-        ok: true,
-        texto: "Anúncio cancelado; o valor voltou ao saldo.",
-      });
-      recarregar();
-    },
-    onError: falhou,
-  });
   const ativos = dados.anuncios.filter((a) => a.status === "ativo");
   const antigos = dados.anuncios.filter((a) => a.status !== "ativo");
 
@@ -588,16 +602,18 @@ function DaOrganizacaoView({ dados }: { dados: DaOrg }) {
                     {formatBRL(a.receitaCents)}
                   </span>
                 </p>
-                {a.usados === 0 ? (
-                  <Button
-                    variant="ghost"
-                    className="px-3 py-1 text-xs"
-                    onClick={() => cancelar.mutate(a.id)}
-                    disabled={cancelar.isPending}
-                  >
-                    Cancelar (volta o valor inteiro)
-                  </Button>
-                ) : null}
+                <PedirEstorno
+                  anuncio={a}
+                  aoPedir={() => {
+                    setMsg({
+                      ok: true,
+                      texto:
+                        "Pedido enviado ao suporte. Acompanhe a conversa em Estornos pelo suporte.",
+                    });
+                    recarregar();
+                  }}
+                  aoFalhar={falhou}
+                />
               </li>
             ))}
           </ul>
@@ -607,8 +623,11 @@ function DaOrganizacaoView({ dados }: { dados: DaOrg }) {
         <p className="border-t border-line px-4 py-2 text-[11px] text-muted">
           A fila é por ordem de chegada. O anúncio que entra na vitrine fica até
           gastar todos os cliques comprados; aí o próximo da fila entra sozinho.
-          Cancelar só antes do primeiro clique. Se a rifa sair do ar antes, o
-          que não foi gasto volta ao saldo.
+          Não há cancelamento pelo painel: o anúncio pode acionar divulgação
+          fora da plataforma (redes sociais, busca). Para pedir o estorno do que
+          não foi gasto, fale com o suporte — o valor é decidido por ele,
+          descontados os custos externos. Se a rifa sair do ar antes, o anúncio
+          para, e o que sobrou também é pedido ao suporte.
         </p>
       </Card>
 
@@ -679,16 +698,320 @@ function DaOrganizacaoView({ dados }: { dados: DaOrg }) {
                   {a.reembolsoCents
                     ? ` · devolvido ${formatBRL(a.reembolsoCents)}`
                     : ""}
+                  {a.naoGastoCents
+                    ? ` · não gasto ${formatBRL(a.naoGastoCents)}`
+                    : ""}
                 </span>
                 <Pill status={PILL_SITUACAO[a.situacao][0]}>
                   {PILL_SITUACAO[a.situacao][1]}
                 </Pill>
+                <div className="w-full">
+                  <PedirEstorno
+                    anuncio={a}
+                    aoPedir={() => {
+                      setMsg({ ok: true, texto: "Pedido enviado ao suporte." });
+                      recarregar();
+                    }}
+                    aoFalhar={falhou}
+                  />
+                </div>
               </li>
             ))}
           </ul>
         </Card>
       ) : null}
+
+      <EstornosCard estornos={dados.estornos} plataforma={false} />
     </div>
+  );
+}
+
+/**
+ * Pedido de estorno ao suporte. Só aparece quando há o que devolver e não
+ * há pedido em análise; o valor final é decidido pela plataforma.
+ */
+function PedirEstorno({
+  anuncio,
+  aoPedir,
+  aoFalhar,
+}: {
+  anuncio: Anuncio;
+  aoPedir: () => void;
+  aoFalhar: (e: Error) => void;
+}) {
+  const [aberto, setAberto] = useState(false);
+  const [motivo, setMotivo] = useState("");
+  const pedir = useMutation({
+    mutationFn: () =>
+      apiRequest(
+        "POST",
+        `/api/admin/patrocinio/anuncios/${anuncio.id}/estorno`,
+        {
+          motivo,
+        },
+      ),
+    onSuccess: () => {
+      setAberto(false);
+      setMotivo("");
+      aoPedir();
+    },
+    onError: aoFalhar,
+  });
+  if (anuncio.estornoEmAberto)
+    return (
+      <Pill status="pending">
+        estorno em análise · {anuncio.estornoEmAberto}
+      </Pill>
+    );
+  if (anuncio.naoGastoCents <= 0) return null;
+  if (!aberto)
+    return (
+      <Button
+        variant="ghost"
+        className="px-3 py-1 text-xs"
+        onClick={() => setAberto(true)}
+      >
+        Pedir estorno ao suporte
+      </Button>
+    );
+  return (
+    <form
+      className="space-y-2 rounded-md border border-line p-3"
+      onSubmit={(e) => {
+        e.preventDefault();
+        pedir.mutate();
+      }}
+    >
+      <label className="block">
+        <span className="label-xs">Motivo do pedido</span>
+        <textarea
+          value={motivo}
+          onChange={(e) => setMotivo(e.target.value)}
+          rows={3}
+          maxLength={1000}
+          className="mt-1 w-full rounded-md border border-line-2 px-3 py-2 text-sm"
+        />
+      </label>
+      <p className="text-xs text-muted">
+        Não gasto até agora:{" "}
+        <span className="tnum">{formatBRL(anuncio.naoGastoCents)}</span>. O
+        anúncio segue no ar enquanto o suporte analisa; o valor devolvido é
+        calculado na decisão, descontados os custos de divulgação externa que o
+        anúncio já tiver acionado, e volta ao saldo.
+      </p>
+      <div className="flex gap-2">
+        <Button
+          type="submit"
+          disabled={motivo.trim().length < 10 || pedir.isPending}
+        >
+          Enviar ao suporte
+        </Button>
+        <Button type="button" variant="ghost" onClick={() => setAberto(false)}>
+          Voltar
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+const PILL_ESTORNO: Record<Estorno["status"], [string, string]> = {
+  aberto: ["pending", "em análise"],
+  aprovado: ["paid", "aprovado"],
+  recusado: ["expired", "recusado"],
+};
+
+/**
+ * Os pedidos de estorno com a conversa. A mesma tela para os dois lados:
+ * a organização fala com "Suporte"; a plataforma vê de quem é e decide.
+ */
+function EstornosCard({
+  estornos,
+  plataforma,
+}: {
+  estornos: Estorno[];
+  plataforma: boolean;
+}) {
+  const abertos = estornos.filter((e) => e.status === "aberto").length;
+  return (
+    <Card
+      title={plataforma ? "Pedidos de estorno" : "Estornos pelo suporte"}
+      right={
+        abertos ? <Pill status="pending">{abertos} em análise</Pill> : undefined
+      }
+    >
+      {estornos.length ? (
+        <ul className="divide-y divide-line">
+          {estornos.map((e) => (
+            <ConversaDoEstorno key={e.id} e={e} plataforma={plataforma} />
+          ))}
+        </ul>
+      ) : (
+        <Empty>
+          {plataforma
+            ? "Nenhum pedido de estorno."
+            : "Nenhum pedido. Para pedir o estorno de um anúncio, use o botão no anúncio."}
+        </Empty>
+      )}
+    </Card>
+  );
+}
+
+function ConversaDoEstorno({
+  e,
+  plataforma,
+}: {
+  e: Estorno;
+  plataforma: boolean;
+}) {
+  const qc = useQueryClient();
+  const [texto, setTexto] = useState("");
+  const [custos, setCustos] = useState("0,00");
+  const [explicacao, setExplicacao] = useState("");
+  const [erro, setErro] = useState<string | null>(null);
+  const recarregar = () =>
+    qc.invalidateQueries({ queryKey: ["/api/admin/patrocinio"] });
+  const responder = useMutation({
+    mutationFn: () =>
+      apiRequest("POST", `/api/admin/patrocinio/estornos/${e.id}/mensagens`, {
+        texto,
+      }),
+    onSuccess: () => {
+      setTexto("");
+      setErro(null);
+      recarregar();
+    },
+    onError: (x: Error) => setErro(x.message),
+  });
+  const decidir = useMutation({
+    mutationFn: (aprovar: boolean) =>
+      apiRequest("POST", `/api/admin/patrocinio/estornos/${e.id}/decisao`, {
+        aprovar,
+        custosExternosCents: aprovar ? centavos(custos) : 0,
+        explicacao,
+      }),
+    onSuccess: () => {
+      setErro(null);
+      recarregar();
+    },
+    onError: (x: Error) => setErro(x.message),
+  });
+  const custosCents = centavos(custos);
+  const devolveria =
+    custosCents === null ? null : Math.max(0, e.naoGastoCents - custosCents);
+  const quem = (autor: string) =>
+    autor === "plataforma" ? "Suporte" : plataforma ? e.organizacao : "Você";
+
+  return (
+    <li className="space-y-2 px-4 py-3 text-sm">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="tnum font-semibold">{e.protocolo}</span>
+        <span className="min-w-0 flex-1 truncate text-muted">
+          {plataforma ? `${e.organizacao} · ` : ""}
+          {e.rifa}
+        </span>
+        <Pill status={PILL_ESTORNO[e.status][0]}>
+          {PILL_ESTORNO[e.status][1]}
+        </Pill>
+      </div>
+      <p className="tnum text-xs text-muted">
+        {e.status === "aberto" ? "Não gasto agora" : "Não gasto na decisão"}:{" "}
+        {formatBRL(e.naoGastoCents)}
+        {e.status === "aprovado"
+          ? ` · custos externos ${formatBRL(e.custosExternosCents ?? 0)} · devolvido ao saldo ${formatBRL(e.devolvidoCents ?? 0)}`
+          : ""}
+      </p>
+      <ol className="space-y-1">
+        {e.mensagens.map((m, i) => (
+          <li
+            key={i}
+            className={`rounded-md px-3 py-2 ${m.autor === "plataforma" ? "bg-mist" : "border border-line"}`}
+          >
+            <span className="text-xs font-semibold">{quem(m.autor)}</span>
+            <span className="tnum ml-2 text-[11px] text-muted">
+              {new Date(m.createdAt).toLocaleString("pt-BR")}
+            </span>
+            <p className="whitespace-pre-wrap">{m.texto}</p>
+          </li>
+        ))}
+      </ol>
+      {erro ? (
+        <p className="rounded-md bg-red-soft px-3 py-2 text-xs text-red">
+          {erro}
+        </p>
+      ) : null}
+      {e.status === "aberto" ? (
+        <form
+          className="flex gap-2"
+          onSubmit={(ev) => {
+            ev.preventDefault();
+            responder.mutate();
+          }}
+        >
+          <input
+            value={texto}
+            onChange={(ev) => setTexto(ev.target.value)}
+            placeholder="Escreva uma mensagem"
+            aria-label={`Mensagem no pedido ${e.protocolo}`}
+            className="min-w-0 flex-1 rounded-md border border-line-2 px-3 py-2"
+          />
+          <Button
+            type="submit"
+            variant="ghost"
+            disabled={texto.trim().length < 2 || responder.isPending}
+          >
+            Enviar
+          </Button>
+        </form>
+      ) : null}
+      {plataforma && e.status === "aberto" ? (
+        <div className="space-y-2 rounded-md border border-line p-3">
+          <span className="label-xs">Decisão</span>
+          <div className="grid gap-2 sm:grid-cols-[10rem_1fr]">
+            <label className="block">
+              <span className="text-xs">Custos externos (R$)</span>
+              <input
+                value={custos}
+                onChange={(ev) => setCustos(ev.target.value)}
+                inputMode="decimal"
+                className="tnum mt-1 w-full rounded-md border border-line-2 px-3 py-2"
+              />
+            </label>
+            <label className="block">
+              <span className="text-xs">Explicação para a organização</span>
+              <input
+                value={explicacao}
+                onChange={(ev) => setExplicacao(ev.target.value)}
+                className="mt-1 w-full rounded-md border border-line-2 px-3 py-2"
+              />
+            </label>
+          </div>
+          <p className="tnum text-xs text-muted">
+            {devolveria === null
+              ? "Informe o custo em reais."
+              : `Aprovando, voltam ${formatBRL(devolveria)} ao saldo e o anúncio sai da fila (calculado de novo na hora, sobre o que não tiver sido gasto).`}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              disabled={
+                explicacao.trim().length < 10 ||
+                custosCents === null ||
+                decidir.isPending
+              }
+              onClick={() => decidir.mutate(true)}
+            >
+              Aprovar estorno
+            </Button>
+            <Button
+              variant="ghost"
+              disabled={explicacao.trim().length < 10 || decidir.isPending}
+              onClick={() => decidir.mutate(false)}
+            >
+              Recusar
+            </Button>
+          </div>
+        </div>
+      ) : null}
+    </li>
   );
 }
 
@@ -1000,6 +1323,7 @@ function DaPlataformaView({ dados }: { dados: DaPlataforma }) {
         ]}
       />
       <FilaCard fila={dados.fila} />
+      <EstornosCard estornos={dados.estornos} plataforma />
       <div className="grid gap-3 lg:grid-cols-2">
         <ConfigCard config={dados.config} />
         <SaldosCard organizacoes={dados.organizacoes} />

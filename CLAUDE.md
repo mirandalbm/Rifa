@@ -920,11 +920,11 @@ Brasil) + quantos cliques. Pago de uma vez com o saldo, entra no fim da
 fila do seu segmento e, quando pega a vaga, **fica até gastar o pacote** —
 aí o próximo entra sozinho.
 
-- **Nasce desligado** (`patrocinioLigado`), e só a plataforma liga e edita a
-  tabela (`ConfigPatrocinio`: preço do clique por alcance em centavos,
-  faixas de desconto por volume, mínimo de cliques, vagas por alcance,
-  recarga mínima). Desligado, o bloco vem vazio, clique não gasta e nada se
-  compra; saldo e anúncios ficam.
+- **Sem interruptor geral** — o único interruptor do patrocínio é o do
+  reembolso do saldo (abaixo). Só a plataforma edita a tabela
+  (`ConfigPatrocinio`: preço do clique por alcance em centavos, faixas de
+  desconto por volume, mínimo de cliques, vagas por alcance, recarga
+  mínima). Sem anúncio no ar, o bloco vem vazio e some da vitrine.
 - **O preço é fotografado na compra** (`preco_clique_cents`,
   `desconto_pct`, `valor_pago_cents`): mudar a tabela não mexe em anúncio
   comprado. Total arredonda para baixo; o desconto da faixa só cresce

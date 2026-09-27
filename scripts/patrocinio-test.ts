@@ -1,8 +1,8 @@
 /**
  * Prova das rifas patrocinadas por clique (etapa 15), pela API de verdade:
  *
- * - desligado (padrão), o bloco vem vazio e nada se compra; só a plataforma
- *   liga e edita a tabela (organizador: 403), sem mexer no resto da config;
+ * - sem anúncio, o bloco vem vazio; só a plataforma edita a tabela
+ *   (organizador: 403), sem mexer no resto da config;
  * - recarga por Pix: mínimo conferido, crédito uma vez só (webhook repetido);
  * - anúncio = pacote de cliques: preço da tabela por alcance, desconto da
  *   faixa, mínimo de cliques, sem saldo nada entra, rifa do vizinho é 404;
@@ -148,20 +148,17 @@ async function main() {
   };
 
   try {
-    await admin.req("PUT", "/api/admin/patrocinio/config", { ligado: false });
-    checa("desligado: bloco vazio", (await vitrine()).length === 0);
-    let r = await comprar(orgA, { campaignId: rA.id, alcance: "nacional", cliques: 3 });
-    checa("desligado: não compra (409)", r.status === 409, `HTTP ${r.status}`);
+    checa("sem anúncio: bloco vazio", !(await vitrine()).some((x) => x.campaignId === rA.id || x.campaignId === rB.id));
 
-    r = await orgA.req("PUT", "/api/admin/patrocinio/config", { ligado: true, patrocinio: TABELA });
-    checa("organizador não liga nem mexe na tabela (403)", r.status === 403, `HTTP ${r.status}`);
-    r = await admin.req("PUT", "/api/admin/patrocinio/config", { ligado: true, patrocinio: { ...TABELA, faixas: [{ aPartirDe: 100, descontoPct: 10 }, { aPartirDe: 200, descontoPct: 5 }] } });
+    let r = await orgA.req("PUT", "/api/admin/patrocinio/config", { patrocinio: TABELA });
+    checa("organizador não mexe na tabela (403)", r.status === 403, `HTTP ${r.status}`);
+    r = await admin.req("PUT", "/api/admin/patrocinio/config", { patrocinio: { ...TABELA, faixas: [{ aPartirDe: 100, descontoPct: 10 }, { aPartirDe: 200, descontoPct: 5 }] } });
     checa("faixa com desconto que diminui: 400", r.status === 400, `HTTP ${r.status}`);
     const cfgAntes = (await admin.req("GET", "/api/admin/plataforma")).json;
-    r = await admin.req("PUT", "/api/admin/patrocinio/config", { ligado: true, patrocinio: TABELA });
-    checa("a plataforma liga com a tabela", r.status === 200 && r.json?.ligado === true && r.json?.precos?.estado === 20 && r.json?.vagas?.nacional === 1, `HTTP ${r.status}`);
+    r = await admin.req("PUT", "/api/admin/patrocinio/config", { patrocinio: TABELA });
+    checa("a plataforma salva a tabela", r.status === 200 && r.json?.precos?.estado === 20 && r.json?.vagas?.nacional === 1, `HTTP ${r.status}`);
     const cfgDepois = (await admin.req("GET", "/api/admin/plataforma")).json;
-    checa("ligar não mexe no resto", cfgDepois.estornoManual === cfgAntes.estornoManual && cfgDepois.bonusLigado === cfgAntes.bonusLigado);
+    checa("salvar a tabela não mexe no resto", cfgDepois.estornoManual === cfgAntes.estornoManual && cfgDepois.bonusLigado === cfgAntes.bonusLigado);
 
     // Recarga.
     r = await orgA.req("POST", "/api/admin/patrocinio/recargas", { valorCents: 500 });
@@ -246,7 +243,7 @@ async function main() {
     r = await orgB.req("PUT", "/api/admin/patrocinio/config", { reembolso: true });
     checa("organizador não liga o reembolso (403)", r.status === 403, `HTTP ${r.status}`);
     r = await admin.req("PUT", "/api/admin/patrocinio/config", { reembolso: true });
-    checa("a plataforma liga o reembolso sem mexer no resto", r.status === 200 && r.json?.reembolso === true && r.json?.ligado === true && r.json?.precos?.estado === 20, JSON.stringify(r.json));
+    checa("a plataforma liga o reembolso sem mexer no resto", r.status === 200 && r.json?.reembolso === true && r.json?.precos?.estado === 20, JSON.stringify(r.json));
 
     r = await pedirReembolso(orgB, { ...corpoOk, motivo: "curto" });
     checa("pedido sem motivo: 400", r.status === 400, `HTTP ${r.status}`);
@@ -381,12 +378,6 @@ async function main() {
     r = await orgB.req("GET", "/api/admin/patrocinio");
     checa("o extrato mostra o crédito que voltou", r.json?.extrato?.some((x: any) => x.valorCents === 60 && /voltaram ao saldo/.test(x.descricao ?? "")));
 
-    // Desligar.
-    await admin.req("PUT", "/api/admin/patrocinio/config", { ligado: false });
-    checa("desligado: bloco vazio de novo", (await vitrine("?uf=SP")).length === 0);
-    const usados = (await anuncio(eA)).cliquesUsados;
-    await clique(eA, new Cliente("aparelho-8"));
-    checa("desligado: clique não gasta, anúncio fica guardado", (await anuncio(eA)).cliquesUsados === usados && (await anuncio(eA)).status === "ativo");
   } finally {
     if (antes) await db.update(appSettings).set({ value: antes.value }).where(eq(appSettings.key, "plataforma"));
     else await db.delete(appSettings).where(eq(appSettings.key, "plataforma"));

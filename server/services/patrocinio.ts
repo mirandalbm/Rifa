@@ -71,11 +71,6 @@ type Executor = Tx | typeof db;
 const ufValida = (uf: unknown): uf is string => typeof uf === "string" && uf in UFS;
 const uuidValido = (id: unknown): id is string => typeof id === "string" && /^[0-9a-f-]{36}$/i.test(id);
 
-async function exigirLigado() {
-  const cfg = await getPlataforma();
-  if (!cfg.patrocinioLigado) throw new PatrocinioError("As rifas patrocinadas não estão ativas na plataforma.", 409);
-  return cfg;
-}
 
 /** Credita (ou debita) o saldo pelo livro. Só mexe no saldo se a chave for nova; nunca deixa negativo. */
 async function lancar(
@@ -213,7 +208,7 @@ export async function comprarAnuncio(
   req: Request,
   entrada: { campaignId: unknown; alcance: unknown; uf?: unknown; cidade?: unknown; cliques: unknown },
 ) {
-  const cfg = await exigirLigado();
+  const cfg = await getPlataforma();
   const campanha = await assertCampaignInScope(req, String(entrada.campaignId ?? ""));
   if (campanha.status !== "published") throw new PatrocinioError("Só rifa no ar pode ser patrocinada.", 409);
   const alcance = String(entrada.alcance) as Alcance;
@@ -474,7 +469,7 @@ async function reembolsosDoPainel(org: string | null) {
  * ------------------------------------------------------------------ */
 
 export async function pedirRecarga(req: Request, valorCents: number) {
-  const cfg = await exigirLigado();
+  const cfg = await getPlataforma();
   const orgId = orgOf(req);
   if (!orgId) throw new PatrocinioError("A plataforma lança crédito pelo ajuste, não por recarga.", 400);
   const problema = problemaNaRecarga(valorCents, cfg.patrocinio.recargaMinimaCents);
@@ -568,7 +563,6 @@ export async function ajustarSaldo(req: Request, organizationId: string, valorCe
 /** As patrocinadas para quem olha: as que estão no ar na cidade, no estado e no Brasil, nessa ordem. */
 export async function patrocinadasNoAr(uf?: unknown, cidade?: unknown) {
   const cfg = await getPlataforma();
-  if (!cfg.patrocinioLigado) return [];
   const u = ufValida(String(uf ?? "").toUpperCase()) ? String(uf).toUpperCase() : null;
   const segs = segmentosDeQuemOlha(u, typeof cidade === "string" ? cidade.slice(0, 80) : null);
   const { todas } = await fila(cfg.patrocinio, { segmentos: segs.map((s) => s.segmento) });
@@ -583,7 +577,7 @@ export async function patrocinadasNoAr(uf?: unknown, cidade?: unknown) {
 
 /** Exibição do bloco (estatística do patrocinador). Só conta anúncio ativo. */
 export async function registrarExibicoes(ids: unknown, uf: unknown) {
-  if (!(await getPlataforma()).patrocinioLigado || !Array.isArray(ids)) return 0;
+  if (!Array.isArray(ids)) return 0;
   const validos = [...new Set(ids.filter(uuidValido))].slice(0, 15);
   if (!validos.length) return 0;
   const anuncios = await db
@@ -602,7 +596,7 @@ export async function registrarExibicoes(ids: unknown, uf: unknown) {
  */
 export async function registrarClique(anuncioId: string, visitanteHash: string | null, userAgent: string | undefined, uf: unknown) {
   const cfg = await getPlataforma();
-  if (!cfg.patrocinioLigado || !uuidValido(anuncioId)) return false;
+  if (!uuidValido(anuncioId)) return false;
   const [a] = await db
     .select({ id: patrocinioAnuncios.id, organizationId: patrocinioAnuncios.organizationId, campaignId: patrocinioAnuncios.campaignId })
     .from(patrocinioAnuncios)
@@ -752,7 +746,7 @@ export async function painelDoPatrocinio(req: Request, diasBrutos?: unknown) {
   const cfg = await getPlataforma();
   const org = orgOf(req);
   const dias = [7, 30, 90].includes(Number(diasBrutos)) ? Number(diasBrutos) : 30;
-  const config = { ligado: cfg.patrocinioLigado, reembolso: cfg.patrocinioReembolso, ...cfg.patrocinio };
+  const config = { reembolso: cfg.patrocinioReembolso, ...cfg.patrocinio };
   const ritmo = await ritmoPorSegmento();
   const { todas, daOrg } = await fila(cfg.patrocinio, org ? { organizationId: org } : undefined);
   const sit = situacoes(todas, ritmo);

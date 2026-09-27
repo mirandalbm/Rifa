@@ -2929,16 +2929,14 @@ adminRouter.put("/patrocinio/config", async (req, res, next) => {
     // Tabela de preço, faixas, mínimo, vagas e recarga mínima: o que vier
     // substitui a configuração do patrocínio inteira (validada em conjunto).
     const salva = await setPlataforma({
-      patrocinioLigado: req.body?.ligado === undefined ? undefined : req.body.ligado === true,
       patrocinioReembolso: req.body?.reembolso === undefined ? undefined : req.body.reembolso === true,
       patrocinio: req.body?.patrocinio === undefined ? undefined : req.body.patrocinio,
     });
     await audit(req, "patrocinio.config", "settings", "plataforma", {
-      ligado: salva.patrocinioLigado,
       reembolso: salva.patrocinioReembolso,
       patrocinio: salva.patrocinio,
     });
-    res.json({ ligado: salva.patrocinioLigado, reembolso: salva.patrocinioReembolso, ...salva.patrocinio });
+    res.json({ reembolso: salva.patrocinioReembolso, ...salva.patrocinio });
   } catch (err) {
     next(err);
   }

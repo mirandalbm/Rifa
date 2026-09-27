@@ -1163,7 +1163,7 @@ publicRouter.get("/marketing", async (req, res, next) => {
 
 /* ---------------- rifas patrocinadas (etapa 15) ---------------- */
 
-/** As patrocinadas para a região de quem olha (cidade, estado, Brasil). Desligado: lista vazia. */
+/** As patrocinadas para a região de quem olha (cidade, estado, Brasil). */
 publicRouter.get("/patrocinadas", async (req, res, next) => {
   try {
     res.setHeader("Cache-Control", "no-store");

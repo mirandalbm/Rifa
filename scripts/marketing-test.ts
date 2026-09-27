@@ -172,7 +172,7 @@ async function main() {
     checa("a plataforma salva pixels e chaves", r.status === 200 && r.json?.credenciais?.metaToken === true, `HTTP ${r.status} ${r.texto}`);
     checa("a chave não volta na resposta", !r.texto.includes(TOKEN_META) && !r.texto.includes(SEGREDO_GA4));
     const cfgDepois = (await admin.req("GET", "/api/admin/plataforma")).json;
-    checa("salvar não mexe no resto", cfgDepois.estornoManual === cfgAntes.estornoManual && cfgDepois.patrocinioLigado === cfgAntes.patrocinioLigado);
+    checa("salvar não mexe no resto", cfgDepois.estornoManual === cfgAntes.estornoManual && cfgDepois.patrocinioReembolso === cfgAntes.patrocinioReembolso);
     const guardada = (await db.execute(sql`select dados from marketing_credenciais where dono = 'plataforma'`)).rows[0] as { dados: Buffer };
     checa("no banco, a chave está cifrada", Boolean(guardada) && !Buffer.from(guardada.dados).toString("latin1").includes(TOKEN_META));
 

@@ -86,14 +86,7 @@ export interface ConfigPlataforma {
   bonusLigado: boolean;
   /** Cotas de bônus para quem indica, quando o indicado paga a primeira compra. */
   bonusPorIndicacao: number;
-  /**
-   * Rifas patrocinadas por clique (etapa 15). **Desligado por padrão**: liga
-   * quando a plataforma estiver pronta para receber o Pix das recargas.
-   * Desligado, o bloco some da vitrine, clique não é cobrado e recarga não
-   * sai; o saldo de cada organização fica guardado.
-   */
-  patrocinioLigado: boolean;
-  /** Tabela de preço por alcance, faixas de desconto, mínimo, vagas e recarga mínima. */
+  /** Rifas patrocinadas (etapa 15): tabela de preço por alcance, faixas de desconto, mínimo, vagas e recarga mínima. */
   patrocinio: ConfigPatrocinio;
   /**
    * Mostra ao organizador o pedido de reembolso do saldo de patrocínio.
@@ -113,7 +106,6 @@ export const CONFIG_PADRAO: ConfigPlataforma = {
   guardaComissao: false,
   bonusLigado: false,
   bonusPorIndicacao: BONUS_POR_INDICACAO_PADRAO,
-  patrocinioLigado: false,
   patrocinio: CONFIG_PATROCINIO_PADRAO,
   patrocinioReembolso: false,
   marketingPixels: {},
@@ -141,7 +133,6 @@ export function validarConfigPlataforma(entrada: Partial<ConfigPlataforma>): Con
     guardaComissao: entrada.guardaComissao === true,
     bonusLigado: entrada.bonusLigado === true,
     bonusPorIndicacao: bonusPorIndicacaoValido(entrada.bonusPorIndicacao),
-    patrocinioLigado: entrada.patrocinioLigado === true,
     patrocinio: validarConfigPatrocinio(entrada.patrocinio),
     patrocinioReembolso: entrada.patrocinioReembolso === true,
     marketingPixels: validarPixels(entrada.marketingPixels),

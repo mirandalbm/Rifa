@@ -224,8 +224,8 @@ Na ordem de entrega do plano:
   decide (procedente: vira aprovado com o prazo da organização; improcedente:
   mantém a recusa), e a decisão encerra. Pedido premiado não tem disputa
   procedente.
-- [x] Rifas patrocinadas por clique, **atrás de um interruptor desligado**
-  (painel → Patrocínio, da plataforma): recarga de saldo por Pix para a
+- [x] Rifas patrocinadas por clique (painel → Patrocínio), sem interruptor
+  geral: recarga de saldo por Pix para a
   conta da plataforma (ou crédito lançado por ela); anúncio = pacote de
   cliques com alcance cidade, estado ou Brasil, preço por alcance e desconto
   por volume da tabela da plataforma; fila por ordem de chegada com vagas
@@ -235,10 +235,10 @@ Na ordem de entrega do plano:
   a rifa sai do ar, o que não foi gasto volta ao saldo como crédito, para
   qualquer rifa. Reembolso em dinheiro do saldo pelo suporte, com conversa,
   atrás de um interruptor próprio (desligado, o botão nem aparece).
-- [ ] **[você]** Ligar as patrocinadas e ajustar a tabela (preço do clique
-  por alcance, faixas de desconto, mínimo de cliques, vagas e recarga
-  mínima — painel → Patrocínio) quando a conta da plataforma estiver pronta
-  para receber o Pix das recargas.
+- [ ] **[você]** Conferir a tabela das patrocinadas (preço do clique por
+  alcance, faixas de desconto, mínimo de cliques, vagas e recarga mínima —
+  painel → Patrocínio) e a conta da plataforma que recebe o Pix das
+  recargas.
 - [ ] **[você]** Decidir se liga o botão "Pedir reembolso do saldo" do
   patrocínio (painel → Patrocínio → Configuração), depois de medir quantos
   organizadores pedem reembolso pelo atendimento.

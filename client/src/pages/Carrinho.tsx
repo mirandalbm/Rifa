@@ -150,7 +150,7 @@ function ItemDoCarrinho({ item: i, aoComprar }: { item: Item; aoComprar: () => v
           i.numeros?.length ? (
             <ul className="mt-1.5 flex flex-wrap gap-1" aria-label={`Números escolhidos de ${i.prizeTitle}`}>
               {i.numeros.slice(0, 12).map((n) => (
-                <li key={n} className="tnum rounded bg-green px-1 py-px text-[10px] font-bold text-on-green">
+                <li key={n} className="tnum fundo-numero rounded px-1 py-px text-[10px] font-bold">
                   {formatQuota(n, i.totalQuotas)}
                 </li>
               ))}

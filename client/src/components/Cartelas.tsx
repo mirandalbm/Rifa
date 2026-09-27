@@ -108,7 +108,7 @@ export function Cartelas({
               {numeros.map((n) => (
                 <li
                   key={n}
-                  className="tnum rounded-md bg-green px-1.5 py-0.5 text-xs font-bold text-on-green"
+                  className="tnum fundo-numero rounded-md px-1.5 py-0.5 text-xs font-bold"
                 >
                   {formatQuota(n, totalQuotas)}
                 </li>

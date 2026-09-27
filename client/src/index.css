@@ -124,6 +124,16 @@
   }
 
   /*
+   * Fundo dos números da cartela: o verde do sistema a 85%, mais suave que o
+   * sólido e ainda legível com o número branco (3,6:1). A 50% o branco cai
+   * para 2:1 e o número some — foi testado.
+   */
+  .fundo-numero {
+    background-color: color-mix(in srgb, var(--green) 85%, transparent);
+    color: var(--on-green);
+  }
+
+  /*
    * Destaque do organizador (white label do perfil). Troca só a cor de
    * marca, e só dentro do perfil e da faixa da promotora na rifa: o resto
    * da plataforma, e o significado das cores, ficam como estão.

@@ -193,8 +193,8 @@ arquitetura.
 ## Cartelas e mapa de números — o que não pode afrouxar
 
 - **Os números da cartela têm fundo colorido e texto branco**
-  (`.fundo-numero`, variável `--fundo-numero`): azul escuro a 85% no tema
-  claro (4,9:1) e verde do sistema a 85% no escuro — a 50% o branco cai
+  (`.fundo-numero`, variável `--fundo-numero`): o azul do "+" sólido no
+  tema claro (4,9:1) e verde do sistema a 85% no escuro — a 50% o branco cai
   para 2:1. Vale na página da rifa, na janela do "+" e no carrinho.
 - **Cartela é sugestão, não reserva.** `GET /campaigns/:slug/cartelas`
   sorteia grupos de números livres (do `free_pool` em endgame) e não grava

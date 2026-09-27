@@ -1,14 +1,19 @@
 /**
  * Prova das rifas patrocinadas por clique (etapa 15), pela API de verdade:
  *
- * - desligado (padrão), o bloco vem vazio e nada é cobrado; só a plataforma
- *   liga (organizador: 403) e ligar não mexe no resto da configuração;
+ * - desligado (padrão), o bloco vem vazio e nada se compra; só a plataforma
+ *   liga e edita a tabela (organizador: 403), sem mexer no resto da config;
  * - recarga por Pix: mínimo conferido, crédito uma vez só (webhook repetido);
- * - patrocinar só rifa própria no ar (a do vizinho é 404), uma vez por rifa;
- * - clique: uma vez por aparelho em 24 h, robô e aparelho sem identificação
- *   não contam, saldo não fica negativo e, sem saldo, a rifa sai do bloco;
- * - ajuste só da plataforma, sem deixar o saldo negativo;
- * - retorno: cliques, gasto e as vendas que vieram do bloco.
+ * - anúncio = pacote de cliques: preço da tabela por alcance, desconto da
+ *   faixa, mínimo de cliques, sem saldo nada entra, rifa do vizinho é 404;
+ * - fila por ordem de chegada: com uma vaga, o primeiro fica no ar até gastar
+ *   o pacote e o segundo entra sozinho no clique seguinte, com a previsão;
+ * - clique: uma vez por aparelho em 24 h; robô, aparelho sem identificação e
+ *   anúncio esgotado vão para "barrados" e não gastam;
+ * - cancelar só antes do primeiro clique (volta tudo); rifa fora do ar
+ *   devolve o que não foi gasto;
+ * - retorno: exibições, cliques, gasto e a venda atribuída pelo aparelho,
+ *   cada organização vendo só o dela.
  *
  *   npm run patrocinio      (com `npm run dev` no ar e o seed aplicado)
  */
@@ -17,7 +22,8 @@ import { baseUrl } from "./base-url";
 import { eq, inArray, sql } from "drizzle-orm";
 import { db, pool } from "../server/db";
 import { hashPassword } from "../server/auth";
-import { appSettings, campaignStats, campaigns, orders, organizations, patrocinioRecargas, users } from "../shared/schema";
+import { appSettings, campaignStats, campaigns, orders, organizations, patrocinioAnuncios, patrocinioRecargas, users } from "../shared/schema";
+import { encerrarAnunciosForaDoAr } from "../server/services/patrocinio";
 
 const URL = baseUrl();
 let falhas = 0;
@@ -63,13 +69,12 @@ async function limpar() {
   const ids = os.map((o) => o.id);
   if (ids.length) {
     const l = sql.raw(`('${ids.join("','")}')`);
-    await db.execute(sql`delete from patrocinio_cliques where organization_id in ${l}`);
-    await db.execute(sql`delete from patrocinios where organization_id in ${l}`);
-    await db.execute(sql`delete from patrocinio_lancamentos where organization_id in ${l}`);
-    await db.execute(sql`delete from patrocinio_recargas where organization_id in ${l}`);
     await db.execute(sql`delete from quota_alloc where campaign_id in (select id from campaigns where organization_id in ${l})`);
     await db.execute(sql`delete from platform_charges where order_id in (select id from orders where campaign_id in (select id from campaigns where organization_id in ${l}))`);
     await db.execute(sql`delete from orders where campaign_id in (select id from campaigns where organization_id in ${l})`);
+    await db.execute(sql`delete from patrocinio_anuncios where organization_id in ${l}`);
+    await db.execute(sql`delete from patrocinio_lancamentos where organization_id in ${l}`);
+    await db.execute(sql`delete from patrocinio_recargas where organization_id in ${l}`);
     await db.execute(sql`delete from campaigns where organization_id in ${l}`);
   }
   await db.delete(users).where(inArray(users.email, EMAILS));
@@ -83,6 +88,11 @@ async function saldo(id: string) {
   return o.s;
 }
 
+async function anuncio(id: string) {
+  const [a] = await db.select().from(patrocinioAnuncios).where(eq(patrocinioAnuncios.id, id));
+  return a;
+}
+
 async function main() {
   console.log("\n=== rifas patrocinadas ===\n");
   await limpar();
@@ -92,7 +102,10 @@ async function main() {
   const rifas: { id: string; slug: string }[] = [];
   const clientes: Cliente[] = [];
   for (const [i, slug] of SLUGS.entries()) {
-    const [o] = await db.insert(organizations).values({ slug, name: `Patrocínio ${i ? "B" : "A"}`, cnpj: "11222333000181" }).returning();
+    const [o] = await db
+      .insert(organizations)
+      .values({ slug, name: `Patrocínio ${i ? "B" : "A"}`, cnpj: "11222333000181", uf: "SP", cidade: "Campinas" })
+      .returning();
     await db.insert(users).values({ role: "organizer", organizationId: o.id, name: `Org ${i}`, email: EMAILS[i], passwordHash: await hashPassword(SENHA) });
     const [c] = await db
       .insert(campaigns)
@@ -119,26 +132,36 @@ async function main() {
   const [rA, rB] = rifas;
   const [orgA, orgB] = clientes;
   const admin = await new Cliente().entrar("admin@rifa.br", "admin123");
-  const clique = (pid: string, c: Cliente) => c.req("POST", `/api/public/patrocinadas/${pid}/clique`);
+  const clique = (id: string, c: Cliente, uf = "SP") => c.req("POST", `/api/public/patrocinadas/${id}/clique`, { uf });
+  const vitrine = async (q = "") => ((await new Cliente().req("GET", `/api/public/patrocinadas${q}`)).json ?? []) as { id: string; campaignId: string }[];
+  const comprar = (c: Cliente, corpo: Record<string, unknown>) => c.req("POST", "/api/admin/patrocinio/anuncios", corpo);
+  const TABELA = {
+    precos: { cidade: 10, estado: 20, nacional: 30 },
+    faixas: [{ aPartirDe: 100, descontoPct: 10 }],
+    minimoCliques: 3,
+    vagas: { cidade: 1, estado: 1, nacional: 1 },
+    recargaMinimaCents: 1000,
+  };
 
   try {
     await admin.req("PUT", "/api/admin/patrocinio/config", { ligado: false });
-    let r = await new Cliente().req("GET", "/api/public/patrocinadas");
-    checa("desligado: bloco vazio", Array.isArray(r.json) && r.json.length === 0);
-    r = await orgA.req("POST", "/api/admin/patrocinio/patrocinios", { campaignId: rA.id });
-    checa("desligado: não patrocina (409)", r.status === 409, `HTTP ${r.status}`);
+    checa("desligado: bloco vazio", (await vitrine()).length === 0);
+    let r = await comprar(orgA, { campaignId: rA.id, alcance: "nacional", cliques: 3 });
+    checa("desligado: não compra (409)", r.status === 409, `HTTP ${r.status}`);
 
-    r = await orgA.req("PUT", "/api/admin/patrocinio/config", { ligado: true });
-    checa("organizador não liga (403)", r.status === 403, `HTTP ${r.status}`);
+    r = await orgA.req("PUT", "/api/admin/patrocinio/config", { ligado: true, patrocinio: TABELA });
+    checa("organizador não liga nem mexe na tabela (403)", r.status === 403, `HTTP ${r.status}`);
+    r = await admin.req("PUT", "/api/admin/patrocinio/config", { ligado: true, patrocinio: { ...TABELA, faixas: [{ aPartirDe: 100, descontoPct: 10 }, { aPartirDe: 200, descontoPct: 5 }] } });
+    checa("faixa com desconto que diminui: 400", r.status === 400, `HTTP ${r.status}`);
     const cfgAntes = (await admin.req("GET", "/api/admin/plataforma")).json;
-    r = await admin.req("PUT", "/api/admin/patrocinio/config", { ligado: true, precoCliqueCents: 50, recargaMinimaCents: 1000 });
-    checa("a plataforma liga, com preço e mínimo", r.status === 200 && r.json?.ligado === true && r.json?.precoCliqueCents === 50, `HTTP ${r.status}`);
+    r = await admin.req("PUT", "/api/admin/patrocinio/config", { ligado: true, patrocinio: TABELA });
+    checa("a plataforma liga com a tabela", r.status === 200 && r.json?.ligado === true && r.json?.precos?.estado === 20 && r.json?.vagas?.nacional === 1, `HTTP ${r.status}`);
     const cfgDepois = (await admin.req("GET", "/api/admin/plataforma")).json;
     checa("ligar não mexe no resto", cfgDepois.estornoManual === cfgAntes.estornoManual && cfgDepois.bonusLigado === cfgAntes.bonusLigado);
 
     // Recarga.
     r = await orgA.req("POST", "/api/admin/patrocinio/recargas", { valorCents: 500 });
-    checa("abaixo do mínimo: 400", r.status === 400, `HTTP ${r.status}`);
+    checa("recarga abaixo do mínimo: 400", r.status === 400, `HTTP ${r.status}`);
     r = await orgA.req("POST", "/api/admin/patrocinio/recargas", { valorCents: 2000 });
     checa("recarga gera Pix", r.status === 201 && r.json?.codigo >= 900_000_000 && Boolean(r.json?.pix?.copyPaste), `HTTP ${r.status} ${r.json?.message ?? ""}`);
     const codigo = r.json?.codigo;
@@ -151,77 +174,141 @@ async function main() {
     r = await admin.req("POST", "/api/admin/patrocinio/recargas", { valorCents: 2000 });
     checa("a plataforma não recarrega (usa ajuste)", r.status === 400, `HTTP ${r.status}`);
 
-    // Patrocinar.
-    r = await orgA.req("POST", "/api/admin/patrocinio/patrocinios", { campaignId: rB.id });
-    checa("a rifa do vizinho é 404", r.status === 404, `HTTP ${r.status}`);
-    r = await orgA.req("POST", "/api/admin/patrocinio/patrocinios", { campaignId: rA.id });
-    checa("patrocina a própria rifa", r.status === 201, `HTTP ${r.status} ${r.json?.message ?? ""}`);
-    const pA = r.json?.id as string;
-    r = await orgA.req("POST", "/api/admin/patrocinio/patrocinios", { campaignId: rA.id });
-    checa("a mesma rifa duas vezes: 409", r.status === 409, `HTTP ${r.status}`);
-
     // Ajuste da plataforma para a B.
     r = await orgA.req("POST", "/api/admin/patrocinio/ajustes", { organizationId: B.id, valorCents: 100, descricao: "crédito de teste" });
     checa("organizador não ajusta saldo (403)", r.status === 403, `HTTP ${r.status}`);
-    r = await admin.req("POST", "/api/admin/patrocinio/ajustes", { organizationId: B.id, valorCents: 100, descricao: "Crédito de boas-vindas" });
-    checa("a plataforma credita", r.status === 200 && r.json?.saldoCents === 100, `HTTP ${r.status}`);
-    r = await admin.req("POST", "/api/admin/patrocinio/ajustes", { organizationId: B.id, valorCents: -500, descricao: "Débito maior que o saldo" });
-    checa("ajuste não deixa o saldo negativo (409)", r.status === 409 && (await saldo(B.id)) === 100, `HTTP ${r.status}`);
-    r = await orgB.req("POST", "/api/admin/patrocinio/patrocinios", { campaignId: rB.id });
-    const pB = r.json?.id as string;
-    r = await orgB.req("POST", `/api/admin/patrocinio/patrocinios/${pA}/pausar`);
-    checa("o vizinho não pausa (404)", r.status === 404, `HTTP ${r.status}`);
+    r = await admin.req("POST", "/api/admin/patrocinio/ajustes", { organizationId: B.id, valorCents: 1000, descricao: "Crédito de boas-vindas" });
+    checa("a plataforma credita", r.status === 200 && r.json?.saldoCents === 1000, `HTTP ${r.status}`);
+    r = await admin.req("POST", "/api/admin/patrocinio/ajustes", { organizationId: B.id, valorCents: -5000, descricao: "Débito maior que o saldo" });
+    checa("ajuste não deixa o saldo negativo (409)", r.status === 409 && (await saldo(B.id)) === 1000, `HTTP ${r.status}`);
 
-    r = await new Cliente().req("GET", "/api/public/patrocinadas");
-    checa("as duas no bloco", r.json?.length === 2 && r.json.some((x: any) => x.id === pA) && r.json.some((x: any) => x.id === pB), JSON.stringify(r.json));
+    // Compra do pacote.
+    r = await comprar(orgA, { campaignId: rA.id, alcance: "nacional", cliques: 2 });
+    checa("abaixo do mínimo de cliques: 400", r.status === 400, `HTTP ${r.status}`);
+    r = await comprar(orgA, { campaignId: rB.id, alcance: "nacional", cliques: 3 });
+    checa("rifa do vizinho: 404", r.status === 404, `HTTP ${r.status}`);
+    r = await comprar(orgA, { campaignId: rA.id, alcance: "estado", cliques: 3 });
+    checa("estado sem UF: 400", r.status === 400, `HTTP ${r.status}`);
+    r = await comprar(orgA, { campaignId: rA.id, alcance: "nacional", cliques: 3 });
+    const nA = r.json?.id as string;
+    checa("compra nacional: 3 × 30 = R$ 0,90", r.status === 201 && r.json?.valorPagoCents === 90 && (await saldo(A.id)) === 1910, `HTTP ${r.status} ${r.json?.message ?? ""}`);
+    r = await comprar(orgA, { campaignId: rA.id, alcance: "estado", uf: "SP", cliques: 100 });
+    const eA = r.json?.id as string;
+    checa("pacote de 100 no estado: 10% de desconto (R$ 18,00)", r.status === 201 && r.json?.valorPagoCents === 1800 && r.json?.descontoPct === 10 && (await saldo(A.id)) === 110, `HTTP ${r.status} ${JSON.stringify(r.json)}`);
+    const quantosAntes = (await db.select().from(patrocinioAnuncios).where(eq(patrocinioAnuncios.organizationId, A.id))).length;
+    r = await comprar(orgA, { campaignId: rA.id, alcance: "nacional", cliques: 10 });
+    const quantosDepois = (await db.select().from(patrocinioAnuncios).where(eq(patrocinioAnuncios.organizationId, A.id))).length;
+    checa("sem saldo: 409 e nada entra na fila", r.status === 409 && quantosDepois === quantosAntes && (await saldo(A.id)) === 110, `HTTP ${r.status}`);
 
-    // Cliques.
-    await clique(pA, new Cliente("aparelho-1"));
-    checa("clique cobra o preço", (await saldo(A.id)) === 1950, String(await saldo(A.id)));
-    await Promise.all([clique(pA, new Cliente("aparelho-1")), clique(pA, new Cliente("aparelho-1"))]);
-    checa("o mesmo aparelho em 24 h não cobra de novo", (await saldo(A.id)) === 1950);
-    await clique(pA, new Cliente("aparelho-2", "Googlebot/2.1 (+http://www.google.com/bot.html)"));
-    await clique(pA, new Cliente(undefined));
-    checa("robô e aparelho sem identificação não contam", (await saldo(A.id)) === 1950);
-    await Promise.all([clique(pA, new Cliente("aparelho-3")), clique(pA, new Cliente("aparelho-4"))]);
-    checa("aparelhos diferentes contam", (await saldo(A.id)) === 1850, String(await saldo(A.id)));
+    r = await comprar(orgB, { campaignId: rB.id, alcance: "nacional", cliques: 3 });
+    const nB = r.json?.id as string;
+    checa("B compra nacional e vai para a fila", r.status === 201 && (await saldo(B.id)) === 910);
+    r = await comprar(orgB, { campaignId: rB.id, alcance: "cidade", uf: "RJ", cidade: "Niterói", cliques: 5 });
+    const cB = r.json?.id as string;
+    checa("B compra cidade (5 × 10)", r.status === 201 && r.json?.valorPagoCents === 50 && r.json?.segmento === "cidade:RJ:niteroi" && (await saldo(B.id)) === 860, JSON.stringify(r.json));
 
-    await clique(pB, new Cliente("aparelho-1"));
-    await clique(pB, new Cliente("aparelho-2"));
-    await clique(pB, new Cliente("aparelho-3"));
-    checa("sem saldo, para de cobrar (nunca negativo)", (await saldo(B.id)) === 0, String(await saldo(B.id)));
-    r = await new Cliente().req("GET", "/api/public/patrocinadas");
-    checa("sem saldo, sai do bloco", r.json?.length === 1 && r.json[0].id === pA);
+    // Fila.
+    let v = await vitrine();
+    checa("uma vaga no Brasil: só o primeiro a chegar", v.length === 1 && v[0].id === nA, JSON.stringify(v));
+    v = await vitrine("?uf=SP");
+    checa("quem olha de SP vê o estado primeiro, uma vez por rifa", v.length === 1 && v[0].id === eA, JSON.stringify(v));
+    v = await vitrine("?uf=RJ&cidade=niteroi");
+    checa("quem olha de Niterói vê a cidade, depois o Brasil", v.map((x) => x.id).join() === [cB, nA].join(), JSON.stringify(v));
+    r = await admin.req("GET", "/api/admin/patrocinio");
+    const segN = r.json?.fila?.find((s: any) => s.segmento === "nacional");
+    const naFilaB = segN?.anuncios?.find((a: any) => a.id === nB);
+    checa(
+      "a plataforma vê a fila: A no ar, B em 1º com previsão de 3 cliques",
+      segN?.anuncios?.find((a: any) => a.id === nA)?.noAr === true && naFilaB?.noAr === false && naFilaB?.posicaoNaFila === 1 && naFilaB?.entraEmCliques === 3,
+      JSON.stringify(segN),
+    );
+    r = await orgB.req("GET", "/api/admin/patrocinio");
+    const meuB = r.json?.anuncios?.find((a: any) => a.id === nB);
+    checa("B vê a própria posição", meuB?.situacao === "na_fila" && meuB?.posicaoNaFila === 1 && meuB?.entraEmCliques === 3, JSON.stringify(meuB));
+    checa("B não vê os anúncios de A", !r.json?.anuncios?.some((a: any) => a.id === nA || a.id === eA));
+    checa("organizador não recebe a fila da plataforma", r.json?.plataforma === false && r.json?.fila === undefined && r.json?.organizacoes === undefined);
 
-    // Retorno: uma venda que veio do bloco.
-    const compra = await new Cliente("aparelho-5").req("POST", "/api/public/orders", {
-      campaignId: rA.id,
+    // Cancelar.
+    r = await orgA.req("POST", `/api/admin/patrocinio/anuncios/${cB}/cancelar`);
+    checa("o vizinho não cancela (404)", r.status === 404, `HTTP ${r.status}`);
+    r = await orgB.req("POST", `/api/admin/patrocinio/anuncios/${cB}/cancelar`);
+    checa("cancelar antes do 1º clique devolve tudo", r.status === 200 && (await saldo(B.id)) === 910 && (await anuncio(cB)).status === "cancelado", `HTTP ${r.status}`);
+    r = await orgB.req("POST", `/api/admin/patrocinio/anuncios/${cB}/cancelar`);
+    checa("cancelar de novo: 409, sem devolver duas vezes", r.status === 409 && (await saldo(B.id)) === 910, `HTTP ${r.status}`);
+
+    // Exibições.
+    await new Cliente("aparelho-x").req("POST", "/api/public/patrocinadas/exibicoes", { ids: [nA, eA], uf: "SP" });
+    await new Cliente("aparelho-y", "Googlebot/2.1 (+http://www.google.com/bot.html)").req("POST", "/api/public/patrocinadas/exibicoes", { ids: [nA], uf: "SP" });
+
+    // Cliques no anúncio nacional de A (3 comprados).
+    await clique(nA, new Cliente("aparelho-1"));
+    checa("clique gasta um do pacote", (await anuncio(nA)).cliquesUsados === 1);
+    r = await orgA.req("POST", `/api/admin/patrocinio/anuncios/${nA}/cancelar`);
+    checa("depois do 1º clique não cancela (409)", r.status === 409, `HTTP ${r.status}`);
+    await Promise.all([clique(nA, new Cliente("aparelho-1")), clique(nA, new Cliente("aparelho-1"))]);
+    checa("o mesmo aparelho em 24 h não gasta de novo", (await anuncio(nA)).cliquesUsados === 1);
+    await clique(nA, new Cliente("aparelho-2", "Googlebot/2.1 (+http://www.google.com/bot.html)"));
+    await clique(nA, new Cliente(undefined));
+    checa("robô e aparelho sem identificação não gastam", (await anuncio(nA)).cliquesUsados === 1);
+    await Promise.all([clique(nA, new Cliente("aparelho-3")), clique(nA, new Cliente("aparelho-4"))]);
+    const acabou = await anuncio(nA);
+    checa("o último clique encerra o anúncio", acabou.cliquesUsados === 3 && acabou.status === "encerrado", `${acabou.cliquesUsados} ${acabou.status}`);
+    await clique(nA, new Cliente("aparelho-5"));
+    checa("anúncio esgotado não passa do pacote", (await anuncio(nA)).cliquesUsados === 3);
+    v = await vitrine();
+    checa("o próximo da fila entra sozinho", v.length === 1 && v[0].id === nB, JSON.stringify(v));
+    checa("o saldo não mexe no clique (já foi pago no pacote)", (await saldo(A.id)) === 110);
+
+    // Venda atribuída pelo aparelho.
+    await clique(nB, new Cliente("aparelho-9", NAVEGADOR), "RJ");
+    const compra = await new Cliente("aparelho-9").req("POST", "/api/public/orders", {
+      campaignId: rB.id,
       quantity: 2,
       buyer: { name: "Comprador Patrocínio", phone: "11944430001" },
-      origem: "patrocinada",
     });
     await fetch(`${URL}/api/dev/pay/${compra.json?.code}`, { method: "POST" });
-    r = await orgA.req("GET", "/api/admin/patrocinio");
-    const ret = r.json?.retorno?.find((x: any) => x.campaignId === rA.id);
-    checa("retorno: 3 cliques, R$ 1,50, 1 venda", ret?.cliques === 3 && ret?.gastoCents === 150 && ret?.vendas === 1 && ret?.custoPorVendaCents === 150, JSON.stringify(ret));
-    checa("a organização só vê o próprio retorno", !r.json?.retorno?.some((x: any) => x.campaignId === rB.id));
     const [pedido] = await db.select().from(orders).where(eq(orders.code, compra.json?.code));
-    checa("a origem da venda fica gravada", pedido?.origem === "patrocinada");
-    r = await admin.req("GET", "/api/admin/patrocinio");
-    checa("a plataforma vê o saldo de todas", r.json?.plataforma === true && r.json.organizacoes.some((o: any) => o.id === A.id && o.saldoCents === 1850));
+    checa("a venda do aparelho que clicou fica com o anúncio", pedido?.anuncioId === nB, String(pedido?.anuncioId));
+    const outra = await new Cliente("aparelho-sem-clique").req("POST", "/api/public/orders", {
+      campaignId: rB.id,
+      quantity: 1,
+      buyer: { name: "Outro Comprador", phone: "11944430002" },
+    });
+    const [p2] = await db.select().from(orders).where(eq(orders.code, outra.json?.code));
+    checa("sem clique, a venda não é atribuída", p2 && p2.anuncioId === null);
 
-    // Pausar e desligar.
-    r = await orgA.req("POST", `/api/admin/patrocinio/patrocinios/${pA}/pausar`);
-    checa("pausa", r.status === 200 && r.json?.ativo === false);
-    await clique(pA, new Cliente("aparelho-9"));
-    checa("pausado não cobra", (await saldo(A.id)) === 1850);
-    await orgA.req("POST", "/api/admin/patrocinio/patrocinios", { campaignId: rA.id });
+    // Números do patrocinador.
+    r = await orgA.req("GET", "/api/admin/patrocinio?dias=7");
+    let t = r.json?.totais;
+    checa("A: 3 cliques, R$ 0,90, exibições e barrados", r.json?.dias === 7 && t?.cliques === 3 && t?.gastoCents === 90 && t?.exibicoes === 2 && t?.barrados >= 4, JSON.stringify(t));
+    const linhaA = r.json?.anuncios?.find((a: any) => a.id === nA);
+    checa("A: o anúncio encerrado com gasto cheio", linhaA?.situacao === "encerrado" && linhaA?.gastoCents === 90 && linhaA?.cliques === 3, JSON.stringify(linhaA));
+    checa("A: o estado dos cliques entra na tabela", r.json?.porEstado?.some((e: any) => e.uf === "SP" && e.cliques === 3));
+    r = await orgB.req("GET", "/api/admin/patrocinio");
+    t = r.json?.totais;
+    checa("B: 1 clique, 1 venda atribuída, R$ 10,00", t?.cliques === 1 && t?.vendas === 1 && t?.receitaCents === 1000 && t?.custoPorVendaCents === 30, JSON.stringify(t));
+    checa("B: retorno calculado", t?.retorno === Math.round((100 * 1000) / 30) / 100, String(t?.retorno));
+    checa("B: a série diária soma a receita", r.json?.serie?.reduce((s: number, d: any) => s + d.receitaCents, 0) === 1000);
+    r = await admin.req("GET", "/api/admin/patrocinio");
+    checa(
+      "a plataforma vê o total e o saldo de todas",
+      r.json?.totais?.cliques >= 4 && r.json?.vendidoCents >= 90 + 1800 + 90 && r.json.organizacoes.some((o: any) => o.id === A.id && o.saldoCents === 110),
+    );
+
+    // Rifa fora do ar devolve o que não foi gasto.
+    await db.update(campaigns).set({ status: "closed" }).where(eq(campaigns.id, rB.id));
+    checa("rifa fora do ar sai do bloco", !(await vitrine()).some((x) => x.id === nB));
+    await encerrarAnunciosForaDoAr();
+    await encerrarAnunciosForaDoAr();
+    const fim = await anuncio(nB);
+    checa("encerra e devolve 2 de 3 cliques, uma vez só", fim.status === "encerrado" && fim.reembolsoCents === 60 && (await saldo(B.id)) === 970, `${fim.status} ${fim.reembolsoCents} ${await saldo(B.id)}`);
+
+    // Desligar.
     await admin.req("PUT", "/api/admin/patrocinio/config", { ligado: false });
-    r = await new Cliente().req("GET", "/api/public/patrocinadas");
-    checa("desligado: bloco vazio de novo", r.json?.length === 0);
-    const [novo] = (await db.execute(sql`select id from patrocinios where campaign_id = ${rA.id}::uuid and ativo`)).rows as { id: string }[];
-    await clique(novo.id, new Cliente("aparelho-8"));
-    checa("desligado: clique não cobra, saldo fica", (await saldo(A.id)) === 1850);
+    checa("desligado: bloco vazio de novo", (await vitrine("?uf=SP")).length === 0);
+    const usados = (await anuncio(eA)).cliquesUsados;
+    await clique(eA, new Cliente("aparelho-8"));
+    checa("desligado: clique não gasta, anúncio fica guardado", (await anuncio(eA)).cliquesUsados === usados && (await anuncio(eA)).status === "ativo");
   } finally {
     if (antes) await db.update(appSettings).set({ value: antes.value }).where(eq(appSettings.key, "plataforma"));
     else await db.delete(appSettings).where(eq(appSettings.key, "plataforma"));

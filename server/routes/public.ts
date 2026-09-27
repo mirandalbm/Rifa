@@ -51,7 +51,8 @@ import QRCode from "qrcode";
 import { publicUrl } from "../services/urls";
 import { createOrder, orderByCode, ordersByPhone, OrderError, resgatarCotasDeBonus } from "../services/orders";
 import { estadoDoBonus, registrarVisita } from "../services/bonus";
-import { patrocinadasNoAr, registrarClique } from "../services/patrocinio";
+import { patrocinadasNoAr, registrarClique, registrarExibicoes } from "../services/patrocinio";
+import { ehRobo } from "@shared/patrocinio";
 import { blockBitmap, isTaken, BLOCK_SIZE, NumbersTakenError, NoQuotasAvailableError } from "../services/quotas";
 import { issueOtp, checkOtp, hashPassword } from "../auth";
 import { withUrls } from "../services/media";
@@ -1141,25 +1142,37 @@ publicRouter.post("/bonus/visita", async (req, res, next) => {
 
 /* ---------------- rifas patrocinadas (etapa 15) ---------------- */
 
-/** As patrocinadas desta visita. Desligado: lista vazia. */
-publicRouter.get("/patrocinadas", async (_req, res, next) => {
+/** As patrocinadas para a região de quem olha (cidade, estado, Brasil). Desligado: lista vazia. */
+publicRouter.get("/patrocinadas", async (req, res, next) => {
   try {
     res.setHeader("Cache-Control", "no-store");
-    res.json(await patrocinadasNoAr());
+    res.json(await patrocinadasNoAr(req.query.uf, req.query.cidade));
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** O bloco foi visto (estatística do patrocinador). Responde 204 sempre. */
+publicRouter.post("/patrocinadas/exibicoes", async (req, res, next) => {
+  try {
+    const id = identify(req);
+    const limite = await hit(`patrocinio-exibicao:${id.ipHash ?? "?"}`, 10, 200);
+    if (!limite.excedeu && !ehRobo(req.get("user-agent"))) await registrarExibicoes(req.body?.ids, req.body?.uf);
+    res.status(204).end();
   } catch (err) {
     next(err);
   }
 });
 
 /**
- * Clique na patrocinada. Responde 204 sempre: quem clica não precisa saber
- * se contou, e o robô não aprende o que conta.
+ * Clique no anúncio. Responde 204 sempre: quem clica não precisa saber se
+ * contou, e o robô não aprende o que conta.
  */
 publicRouter.post("/patrocinadas/:id/clique", async (req, res, next) => {
   try {
     const id = identify(req);
     const limite = await hit(`patrocinio-clique:${id.ipHash ?? "?"}`, 10, 120);
-    if (!limite.excedeu) await registrarClique(req.params.id, id.deviceHash, req.get("user-agent"));
+    if (!limite.excedeu) await registrarClique(req.params.id, id.deviceHash, req.get("user-agent"), req.body?.uf);
     res.status(204).end();
   } catch (err) {
     next(err);

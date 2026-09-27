@@ -98,7 +98,7 @@ export default function Vitrine() {
                 </section>
               );
             case "patrocinadas":
-              return <Patrocinadas key={b.id} rifas={data} titulo={b.titulo} />;
+              return <Patrocinadas key={b.id} rifas={data} titulo={b.titulo} regiao={regiao ? { uf: regiao.uf, cidade: regiao.cidade ?? null } : null} />;
             case "texto":
               return (
                 <section key={b.id} className="mt-4 rounded-xl border border-line bg-mist p-4 text-sm">

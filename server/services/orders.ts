@@ -63,6 +63,7 @@ import { publicUrl } from "./urls";
 import { formatBRL, formatQuota, cpfValido } from "@shared/format";
 import { isUniqueViolation } from "../pgError";
 import { avaliarMetas, confirmarIndicacao, estornarIndicacao, registrarIndicacao } from "./bonus";
+import { anuncioDaVenda } from "./patrocinio";
 import { bloqueioDoResgate } from "@shared/bonus";
 
 /** Dias entre o pagamento e a liberação da comissão do afiliado. */
@@ -373,6 +374,9 @@ export async function createOrder(
   const comissaoGuardada = Boolean(
     !ctx.sellerId && attribution.affiliateId && (await getPlataforma()).guardaComissao,
   );
+  // Venda que veio de anúncio patrocinado (etapa 15): o mesmo aparelho
+  // clicou num anúncio desta rifa há até 7 dias. Só estatística.
+  const anuncioId = ctx.sellerId ? null : await anuncioDaVenda(identity.deviceHash, campaign.id);
 
   // A transação inteira é a unidade de repetição: se o código colidir, o
   // banco desfaz também a reserva de cota, e a próxima volta sorteia outro.
@@ -399,6 +403,7 @@ export async function createOrder(
           ipHash: identity.ipHash,
           couponId: attribution.couponId,
           comissaoGuardada,
+          anuncioId,
           expiresAt,
         })
         .returning();

@@ -102,7 +102,7 @@ arquitetura.
 | cadastro fiscal do afiliado, cofre e recibo | `shared/fiscal.ts` (regras), `server/services/cofre.ts`, `server/services/fiscal.ts`, `server/services/recibos.ts`, `client/src/pages/afiliadoDados.tsx`, `adminFiscal.tsx`, `Recibo.tsx`, `scripts/fiscal-test.ts` |
 | guarda da comissão pela plataforma (etapa 12) | `guardaComissao` e `percentualDoPromotor()` em `shared/plataforma.ts`, `createOrder`/`settleOrderAsPaid` em `server/services/orders.ts`, `scripts/guarda-test.ts` |
 | indicação, bônus e metas (etapa 13) | `shared/bonus.ts` (regras), `server/services/bonus.ts`, `resgatarCotasDeBonus()` em `server/services/orders.ts`, `client/src/lib/indicacao.ts`, `client/src/pages/adminBonus.tsx`, `client/src/components/BonusDoComprador.tsx`, `scripts/bonus-test.ts` |
-| rifas patrocinadas por clique (etapa 15) | `shared/patrocinio.ts` (regras), `server/services/patrocinio.ts`, `client/src/pages/adminPatrocinio.tsx`, `client/src/components/Patrocinadas.tsx`, `scripts/patrocinio-test.ts` |
+| rifas patrocinadas por clique (etapa 15): pacote, fila, tabela e números | `shared/patrocinio.ts` (regras, preço, previsão da fila), `server/services/patrocinio.ts`, `client/src/pages/adminPatrocinio.tsx`, `client/src/components/Patrocinadas.tsx`, `scripts/patrocinio-test.ts` |
 | plano da próxima fase (vitrine, contas, afiliados, marketing) | `docs/PLANO-FASE5.md` |
 | conta do apostador (senha, confirmação, exclusão) | `shared/contaComprador.ts`, `server/services/contaComprador.ts`, `scripts/conta-test.ts` |
 | de quem é o cliente (o que o organizador vê) | `shared/titularidade.ts` (regra) e `server/services/titularidade.ts` (SQL) |
@@ -914,28 +914,56 @@ pedido, cotas e valor, e o cliente só pelo ID (`Cliente C-XXXXXXXX`).
 
 ## Rifas patrocinadas — o que não pode afrouxar
 
-- **Nasce desligado** (`patrocinioLigado`), e só a plataforma liga e define
-  preço do clique e recarga mínima. Desligado, o bloco vem vazio, clique
-  não é cobrado e recarga não sai; o saldo fica.
-- **O saldo anda pelo livro** (`patrocinio_lancamentos`, chave única): a
-  recarga paga credita uma vez, mesmo com o webhook repetido. A recarga é
-  Pix **sem split** para a conta da plataforma, com código na faixa de 9
-  dígitos (os pedidos usam 8) — o webhook reconhece a recarga
-  (`confirmarRecarga`) antes de procurar pedido.
-- **Saldo nunca fica negativo**: clique e ajuste descontam num `UPDATE`
-  condicional; sem saldo para um clique, a rifa sai do bloco sozinha.
-- **Clique honesto**: uma vez por aparelho (hash) em 24 h por patrocínio,
-  conferido sob trava do par (811402) — dois cliques simultâneos cobram um;
-  robô (`ehRobo`) e aparelho sem identificação não contam; a rota responde
-  204 sempre, para não ensinar o que conta.
+O anúncio é um **pacote de cliques**: rifa + alcance (cidade, estado ou
+Brasil) + quantos cliques. Pago de uma vez com o saldo, entra no fim da
+fila do seu segmento e, quando pega a vaga, **fica até gastar o pacote** —
+aí o próximo entra sozinho.
+
+- **Nasce desligado** (`patrocinioLigado`), e só a plataforma liga e edita a
+  tabela (`ConfigPatrocinio`: preço do clique por alcance em centavos,
+  faixas de desconto por volume, mínimo de cliques, vagas por alcance,
+  recarga mínima). Desligado, o bloco vem vazio, clique não gasta e nada se
+  compra; saldo e anúncios ficam.
+- **O preço é fotografado na compra** (`preco_clique_cents`,
+  `desconto_pct`, `valor_pago_cents`): mudar a tabela não mexe em anúncio
+  comprado. Total arredonda para baixo; o desconto da faixa só cresce
+  (`validarConfigPatrocinio`), senão pacote maior sairia mais caro.
+- **A fila não é gravada, é calculada** (`fila()`): anúncios ativos com
+  clique sobrando, rifa no ar e promotora não arquivada, numerados por
+  `fila_desde` em cada segmento (`nacional`, `estado:UF`,
+  `cidade:UF:nome-sem-acento`); os primeiros `vagas` estão no ar. Nada a
+  promover, nada a esquecer de promover. A previsão (`previsaoDaFila`) usa o
+  ritmo das últimas 24 h — é estimativa e a tela diz isso.
+- **O anúncio nunca gasta mais do que comprou**: o clique é `UPDATE`
+  condicional (`usados < comprados`), e o último encerra o anúncio na mesma
+  transação. O gasto é `gastoAte()` — proporcional, para baixo — e a soma
+  dos cliques dá exatamente o valor pago.
+- **O saldo anda pelo livro** (`patrocinio_lancamentos`, chave única):
+  compra (`anuncio:<id>`), devolução (`reembolso-anuncio:<id>`) e recarga
+  lançam uma vez só, e o saldo nunca fica negativo (`UPDATE` condicional —
+  sem saldo, a compra cai inteira e nada entra na fila). A recarga é Pix
+  **sem split** para a conta da plataforma, com código na faixa de 9
+  dígitos; o webhook reconhece a recarga (`confirmarRecarga`) antes de
+  procurar pedido.
+- **Cancelar só antes do primeiro clique** (volta tudo). Depois, a vaga é
+  do anúncio até o fim. Rifa que sai do ar (ou promotora arquivada): o
+  relógio (`encerrarAnunciosForaDoAr`, trava 811403) encerra e devolve o que
+  não foi gasto, condicional em `status = 'ativo'`.
+- **Clique honesto**: uma vez por aparelho (hash) em 24 h por anúncio, sob
+  trava do par (811402); robô (`ehRobo`), aparelho sem identificação e
+  anúncio esgotado vão para **barrados** — o patrocinador vê o que não
+  pagou. A rota responde 204 sempre, para não ensinar o que conta.
+- **Números para provar que vale a pena**: `patrocinio_diario` (por
+  anúncio, dia de São Paulo e UF de quem olhou) guarda exibições, cliques,
+  barrados e gasto — sem `COUNT(*)` no painel. A **venda atribuída** é do
+  mesmo aparelho que clicou na mesma rifa em até 7 dias (`orders.anuncio_id`,
+  último clique): estatística, nunca decide dinheiro.
+- **Recorte**: anúncio só de rifa própria no ar (vizinho 404 por
+  `assertCampaignInScope`), cancelar confere o dono antes; o organizador vê
+  só os números dele e nunca a fila dos outros. Configuração e ajuste de
+  saldo são da plataforma (403 no `npm run isolation`).
 - **Propaganda se identifica**: cada cartão diz "Patrocinada" em texto.
-- **Recorte**: patrocinar só rifa própria no ar (a do vizinho é 404, por
-  `assertCampaignInScope`), pausar confere o dono antes; configuração e
-  ajuste de saldo são da plataforma (403 no `npm run isolation`). Até 3
-  patrocínios ativos por organização, contados sob trava (811401).
-- **Retorno**: cliques e gasto vêm de `patrocinio_cliques`; vendas, da
-  origem `patrocinada` (a mesma estatística do painel de resultados — não
-  decide dinheiro).
+  Quem olha vê cidade, estado e Brasil nessa ordem, uma vez por rifa.
 - Template publicado antes do bloco existir ganha o bloco antes do feed
   (`comPatrocinadas()` na vitrine); no construtor ele pode mudar de lugar
   ou ser desligado.

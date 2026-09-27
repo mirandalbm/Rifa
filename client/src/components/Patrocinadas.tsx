@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { Money } from "@/components/bits";
@@ -12,16 +13,44 @@ import type { RifaDoFeed } from "@/components/CartaoDoFeed";
  * servidor (uma vez por aparelho em 24 h, robô não conta); aqui só avisa, sem
  * segurar a navegação.
  */
-export function Patrocinadas({ rifas, titulo }: { rifas: RifaDoFeed[] | undefined; titulo?: string }) {
-  const { data } = useQuery<{ id: string; campaignId: string }[]>({ queryKey: ["/api/public/patrocinadas"], staleTime: 60_000 });
+export function Patrocinadas({
+  rifas,
+  titulo,
+  regiao,
+}: {
+  rifas: RifaDoFeed[] | undefined;
+  titulo?: string;
+  /** Região de quem olha: decide as filas (cidade, estado, Brasil). */
+  regiao: { uf: string; cidade: string | null } | null;
+}) {
+  const { data } = useQuery<{ id: string; campaignId: string }[]>({
+    queryKey: ["/api/public/patrocinadas", regiao ? { uf: regiao.uf, cidade: regiao.cidade ?? undefined } : undefined],
+    staleTime: 60_000,
+  });
   const porId = new Map((rifas ?? []).map((r) => [r.id, r]));
   const lista = (data ?? []).map((p) => ({ p, r: porId.get(p.campaignId) })).filter((x) => x.r) as { p: { id: string }; r: RifaDoFeed }[];
+  const ids = lista.map((x) => x.p.id).join(",");
+
+  // Exibição: uma vez por anúncio nesta aba — recarregar a vitrine não infla o número do patrocinador.
+  useEffect(() => {
+    if (!ids) return;
+    let novos = ids.split(",");
+    try {
+      const vistos = new Set<string>(JSON.parse(sessionStorage.getItem("rifa.patrocinadas.vistas") ?? "[]"));
+      novos = novos.filter((i) => !vistos.has(i));
+      sessionStorage.setItem("rifa.patrocinadas.vistas", JSON.stringify([...vistos, ...novos].slice(-100)));
+    } catch {
+      // armazenamento bloqueado: conta nesta carga
+    }
+    if (novos.length) apiRequest("POST", "/api/public/patrocinadas/exibicoes", { ids: novos, uf: regiao?.uf }).catch(() => {});
+  }, [ids, regiao?.uf]);
+
   if (!lista.length) return null;
 
   const clicou = (id: string) => {
     marcarOrigem("patrocinada");
     // A navegação é dentro do app: o aviso segue mesmo com a página trocando.
-    apiRequest("POST", `/api/public/patrocinadas/${id}/clique`).catch(() => {});
+    apiRequest("POST", `/api/public/patrocinadas/${id}/clique`, { uf: regiao?.uf }).catch(() => {});
   };
 
   return (

@@ -9,6 +9,7 @@ import { separarCidadesAntigas } from "../services/orgs";
 import { avisarSorteiosChegando } from "../services/push";
 import { completarRegioesPendentes } from "../services/contaComprador";
 import { apagarStoriesVencidos } from "../services/vitrine";
+import { encerrarAnunciosForaDoAr } from "../services/patrocinio";
 import { migrarAfiliadosAntigos } from "../services/afiliados";
 import { lancarMensalidades } from "../services/billing";
 import { releaseExpired } from "../services/quotas";
@@ -47,6 +48,7 @@ const LOCK_CODIGOS = 811_006;
 const LOCK_CIDADES = 811_007;
 const LOCK_PUSH_SORTEIO = 811_008;
 const LOCK_REGIOES = 811_009;
+const LOCK_ANUNCIOS = 811_403;
 
 /** Quantos minutos antes de a reserva cair o lembrete é enviado. */
 const LEMBRETE_MINUTOS = Number(process.env.REMINDER_MINUTES_BEFORE ?? 5);
@@ -225,6 +227,19 @@ export function startJobs() {
       });
     } catch (err) {
       console.error("[jobs] stories vencidos:", err);
+    }
+  }, releaseMs).unref();
+
+  // Anúncio patrocinado de rifa que saiu do ar: encerra e devolve ao saldo
+  // o que não foi gasto (condicional: duas réplicas, um reembolso).
+  setInterval(async () => {
+    try {
+      await withLock(LOCK_ANUNCIOS, async () => {
+        const n = await encerrarAnunciosForaDoAr();
+        if (n > 0) log(`${n} anúncio(s) patrocinado(s) encerrado(s) com reembolso`, "jobs");
+      });
+    } catch (err) {
+      console.error("[jobs] anúncios de rifa fora do ar:", err);
     }
   }, releaseMs).unref();
 

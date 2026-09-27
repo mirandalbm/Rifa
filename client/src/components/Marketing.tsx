@@ -11,7 +11,7 @@ import {
   type Evento,
 } from "@/lib/marketing";
 
-type Resposta = { ligado: false } | { ligado: true; plataforma: Pixels | null; organizacao: Pixels | null };
+type Resposta = { plataforma: Pixels | null; organizacao: Pixels | null };
 
 /** Os pixels que valem nesta página (plataforma + promotora da página). Vazio: nada a carregar. */
 function useAlvos(): Pixels[] {
@@ -21,14 +21,14 @@ function useAlvos(): Pixels[] {
     staleTime: 5 * 60_000,
   });
   return useMemo(() => {
-    if (!data?.ligado) return [];
+    if (!data) return [];
     return [data.plataforma, data.organizacao].filter(Boolean) as Pixels[];
   }, [data]);
 }
 
 /**
- * Fica no `PublicShell`. Desligado na plataforma, ou sem pixel nenhum: não
- * desenha nada e não carrega nada. Com pixel e sem escolha: o aviso. Com
+ * Fica no `PublicShell`. Sem pixel nenhum: não desenha nada e não carrega
+ * nada. Com pixel e sem escolha: o aviso. Com
  * "aceito": carrega os pixels e conta a página vista a cada troca de rota.
  */
 export function Marketing() {

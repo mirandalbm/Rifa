@@ -1,10 +1,10 @@
 /**
  * Prova do marketing e tráfego pago (etapa 16), pela API de verdade:
  *
- * - desligado (padrão): nenhum pixel na página pública, o organizador não
- *   vê o menu e o painel dele é 404, e compra paga não vira evento;
- * - só a plataforma liga; pixel fora do formato (cara de script) é 400 e
- *   não mexe em nada; ligar não mexe no resto da configuração;
+ * - sem pixel cadastrado: nada na página pública e compra paga não vira
+ *   evento; o menu Marketing existe para a plataforma e o organizador;
+ * - pixel fora do formato (cara de script) é 400 e não mexe em nada; salvar
+ *   não mexe no resto da configuração;
  * - chaves de API: cifradas no banco, nunca voltam em resposta nenhuma;
  * - cada organização mexe só nos pixels dela, e a página pública de uma
  *   rifa traz os pixels da promotora dela — nunca os da vizinha;
@@ -147,46 +147,36 @@ async function main() {
   };
 
   try {
-    // Desligado.
-    await admin.req("PUT", "/api/admin/marketing", { ligado: false });
+    // Sem pixel.
+    await admin.req("PUT", "/api/admin/marketing", { pixels: {}, credenciais: { metaToken: "", ga4Segredo: "", tiktokToken: "" } });
     let r = await new Cliente().req("GET", `/api/public/marketing?organizacao=${A.slug}`);
-    checa("desligado: a página pública não recebe pixel", r.status === 200 && r.json?.ligado === false && !("plataforma" in (r.json ?? {})));
+    checa("sem pixel: a página pública não recebe nada", r.status === 200 && r.json?.plataforma === null && r.json?.organizacao === null, r.texto);
     r = await orgA.req("GET", "/api/admin/marketing");
-    checa("desligado: painel do organizador é 404", r.status === 404, `HTTP ${r.status}`);
-    r = await orgA.req("PUT", "/api/admin/marketing", { pixels: { meta: "1234567890123" } });
-    checa("desligado: organizador não salva (404)", r.status === 404, `HTTP ${r.status}`);
+    checa("o organizador tem o painel Marketing", r.status === 200 && r.json?.plataforma === false, `HTTP ${r.status}`);
     r = await orgA.req("GET", "/api/auth/me");
-    checa("desligado: o menu do organizador não tem Marketing", !r.json?.sections?.some((s: any) => s.key === "adminMarketing"));
-    r = await admin.req("GET", "/api/auth/me");
-    checa("a plataforma vê o menu sempre", r.json?.sections?.some((s: any) => s.key === "adminMarketing"));
+    checa("o menu do organizador tem Marketing", r.json?.sections?.some((s: any) => s.key === "adminMarketing"));
     let code = await comprar(rA, { marketing: true });
     await pagar(code);
-    checa("desligado: compra paga não vira evento", (await eventosDo(code)).length === 0);
+    checa("sem pixel: compra paga não vira evento", (await eventosDo(code)).length === 0);
 
-    // Ligar.
+    // Pixels e chaves da plataforma.
     const cfgAntes = (await admin.req("GET", "/api/admin/plataforma")).json;
-    r = await admin.req("PUT", "/api/admin/marketing", { ligado: true, pixels: { meta: "123');alert(1);//" } });
+    r = await admin.req("PUT", "/api/admin/marketing", { pixels: { meta: "123');alert(1);//" } });
     checa("pixel com cara de script: 400", r.status === 400, `HTTP ${r.status}`);
     r = await admin.req("GET", "/api/admin/marketing");
-    checa("e nada mudou", r.json?.ligado === false);
+    checa("e nada mudou", !r.json?.pixels?.meta);
     r = await admin.req("PUT", "/api/admin/marketing", {
-      ligado: true,
       pixels: { meta: "1111222233334444", ga4: "G-PLATAFORMA1" },
       credenciais: { metaToken: TOKEN_META, ga4Segredo: SEGREDO_GA4 },
     });
-    checa("a plataforma liga com pixels e chaves", r.status === 200 && r.json?.ligado === true && r.json?.credenciais?.metaToken === true, `HTTP ${r.status} ${r.texto}`);
+    checa("a plataforma salva pixels e chaves", r.status === 200 && r.json?.credenciais?.metaToken === true, `HTTP ${r.status} ${r.texto}`);
     checa("a chave não volta na resposta", !r.texto.includes(TOKEN_META) && !r.texto.includes(SEGREDO_GA4));
     const cfgDepois = (await admin.req("GET", "/api/admin/plataforma")).json;
-    checa("ligar não mexe no resto", cfgDepois.estornoManual === cfgAntes.estornoManual && cfgDepois.patrocinioLigado === cfgAntes.patrocinioLigado);
+    checa("salvar não mexe no resto", cfgDepois.estornoManual === cfgAntes.estornoManual && cfgDepois.patrocinioLigado === cfgAntes.patrocinioLigado);
     const guardada = (await db.execute(sql`select dados from marketing_credenciais where dono = 'plataforma'`)).rows[0] as { dados: Buffer };
     checa("no banco, a chave está cifrada", Boolean(guardada) && !Buffer.from(guardada.dados).toString("latin1").includes(TOKEN_META));
-    r = await orgA.req("PUT", "/api/admin/marketing", { ligado: false });
-    r = await admin.req("GET", "/api/admin/marketing");
-    checa("organizador não desliga o programa", r.json?.ligado === true);
 
     // Pixels de cada organização.
-    r = await orgA.req("GET", "/api/auth/me");
-    checa("ligado: o organizador vê o menu Marketing", r.json?.sections?.some((s: any) => s.key === "adminMarketing"));
     r = await orgA.req("PUT", "/api/admin/marketing", { pixels: { tiktok: "C1A2B3C4D5E6F7G8H9I0" }, credenciais: { tiktokToken: TOKEN_TIKTOK } });
     checa("organização A salva os dela", r.status === 200 && r.json?.pixels?.tiktok === "C1A2B3C4D5E6F7G8H9I0" && r.json?.credenciais?.tiktokToken === true, `HTTP ${r.status} ${r.texto}`);
     checa("sem devolver a chave", !r.texto.includes(TOKEN_TIKTOK));
@@ -263,15 +253,14 @@ async function main() {
     r = await orgB.req("GET", "/api/admin/marketing");
     checa("B não vê a campanha de A", !r.json?.campanhas?.some((c: any) => c.campanha === "moto-junho"));
 
-    // Desligar de novo.
-    await admin.req("PUT", "/api/admin/marketing", { ligado: false });
+    // Apagar os pixels: volta a não carregar nada nem mandar nada.
+    await admin.req("PUT", "/api/admin/marketing", { pixels: {} });
+    await orgA.req("PUT", "/api/admin/marketing", { pixels: {} });
     r = await new Cliente().req("GET", `/api/public/marketing?organizacao=${A.slug}`);
-    checa("desligado de novo: página sem pixel", r.json?.ligado === false);
+    checa("sem pixel de novo: página sem pixel", r.json?.plataforma === null && r.json?.organizacao === null);
     code = await comprar(rA, { marketing: true });
     await pagar(code);
-    checa("desligado de novo: compra não vira evento", (await eventosDo(code)).length === 0);
-    r = await orgA.req("GET", "/api/admin/marketing");
-    checa("desligado de novo: painel do organizador 404", r.status === 404);
+    checa("sem pixel de novo: compra não vira evento", (await eventosDo(code)).length === 0);
   } finally {
     if (antes) await db.update(appSettings).set({ value: antes.value }).where(eq(appSettings.key, "plataforma"));
     else await db.delete(appSettings).where(eq(appSettings.key, "plataforma"));

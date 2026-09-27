@@ -124,7 +124,7 @@ export const SECTIONS: Section[] = [
   { key: "adminStories", path: "/admin/stories", label: "Stories", requires: "organizer", nav: true },
   // Rifas patrocinadas por clique (etapa 15): saldo e rifas da organização; a plataforma configura.
   { key: "adminPatrocinio", path: "/admin/patrocinio", label: "Patrocínio", requires: "organizer", nav: true },
-  // Pixels, chaves e vendas por campanha (etapa 16). O organizador só vê com o interruptor ligado.
+  // Pixels, chaves e vendas por campanha (etapa 16).
   { key: "adminMarketing", path: "/admin/marketing", label: "Marketing", requires: "organizer", nav: true },
   { key: "adminAfiliados", path: "/admin/afiliados", label: "Afiliados", requires: "organizer", nav: true },
   { key: "adminCambistas", path: "/admin/cambistas", label: "Cambistas", requires: "organizer", nav: true },
@@ -150,14 +150,8 @@ export const SECTIONS: Section[] = [
   { key: "adminBonus", path: "/admin/bonus", label: "Bônus", requires: "admin", nav: true },
 ];
 
-/**
- * O menu de cada papel. Seção atrás de interruptor da plataforma some para o
- * organizador enquanto está desligada — não aparece nem como "em breve".
- */
-export function sectionsFor(role: Role, ligados: { marketing?: boolean } = {}): Section[] {
-  return SECTIONS.filter(
-    (s) => s.nav && roleSatisfies(role, s.requires) && !(s.key === "adminMarketing" && role !== "admin" && !ligados.marketing),
-  );
+export function sectionsFor(role: Role): Section[] {
+  return SECTIONS.filter((s) => s.nav && roleSatisfies(role, s.requires));
 }
 
 export function canAccess(role: Role, key: SectionKey): boolean {

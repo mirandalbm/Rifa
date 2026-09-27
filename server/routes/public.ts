@@ -1150,8 +1150,8 @@ publicRouter.post("/bonus/visita", async (req, res, next) => {
 
 /**
  * Os pixels que valem na página (da plataforma e, com `?organizacao=`, os
- * da promotora). Desligado: `{ ligado: false }` e o navegador não carrega
- * nada nem mostra aviso de cookies.
+ * da promotora). Sem pixel, o navegador não carrega nada nem mostra aviso
+ * de cookies.
  */
 publicRouter.get("/marketing", async (req, res, next) => {
   try {

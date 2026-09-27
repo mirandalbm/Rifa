@@ -991,11 +991,11 @@ aí o próximo entra sozinho.
 
 ## Marketing e tráfego pago — o que não pode afrouxar
 
-- **Nasce desligado** (`marketingLigado`), e só a plataforma liga — depois
-  de a Meta e o Google aceitarem anúncio de sorteio na conta. Desligado,
-  nenhum pixel carrega, o aviso de cookies não aparece, nenhuma compra vira
-  evento e o organizador **não vê o menu** (`sectionsFor(role, ligados)`) —
-  o painel e o salvar dele respondem 404.
+- **Sem interruptor: quem liga é o pixel.** O menu Marketing existe para a
+  plataforma e para o organizador; sem nenhum pixel cadastrado para a
+  página, nada carrega, o aviso de cookies não aparece e nenhuma compra vira
+  evento. (O único interruptor ligado a dinheiro de anúncio é o do
+  reembolso do saldo de patrocínio.)
 - **Só dados, nunca script.** Pixel é número conferido por formato
   (`validarPixels`: Meta, GA4, Google Ads e rótulo, TikTok); quem monta o
   código que roda no navegador é `client/src/lib/marketing.ts`, chamando as

@@ -242,15 +242,15 @@ Na ordem de entrega do plano:
 - [ ] **[você]** Decidir se liga o botão "Pedir reembolso do saldo" do
   patrocínio (painel → Patrocínio → Configuração), depois de medir quantos
   organizadores pedem reembolso pelo atendimento.
-- [x] Marketing e tráfego pago, **atrás de um interruptor desligado**
-  (painel → Marketing): pixels da plataforma e de cada organização (Meta,
+- [x] Marketing e tráfego pago (painel → Marketing), sem interruptor —
+  vale quando houver pixel cadastrado: pixels da plataforma e de cada organização (Meta,
   GA4, Google Ads, TikTok), aviso de cookies (LGPD) antes de qualquer pixel,
   compra enviada pelo servidor na confirmação do pagamento (API de
   Conversões da Meta, Measurement Protocol do GA4, Events API do TikTok),
   UTM no pedido e vendas por campanha.
 - [ ] **[você]** Confirmar com a Meta e o Google que a conta de anúncios pode
-  rodar anúncio de sorteio; depois ligar o Marketing (painel → Marketing) e
-  cadastrar os pixels e as chaves de API da plataforma.
+  rodar anúncio de sorteio; depois cadastrar os pixels e as chaves de API da
+  plataforma (painel → Marketing).
 - [ ] **[código]** Login com Google.
 - [ ] **[você]** Advogado: regra de reembolso (arrependimento × corte de
   2 h), cota grátis de bônus no regulamento.

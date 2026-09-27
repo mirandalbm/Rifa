@@ -17,7 +17,6 @@ import {
 interface Painel {
   plataforma: boolean;
   dias: number;
-  ligado: boolean;
   pixels: Pixels;
   credenciais: Record<(typeof CAMPOS_DE_CREDENCIAL)[number], boolean>;
   campanhas: { fonte: string; meio: string; campanha: string; pedidos: number; vendas: number; receitaCents: number }[];
@@ -28,9 +27,8 @@ const NOME_ENVIO: Record<string, string> = { meta: PROVEDORES.meta, ga4: PROVEDO
 
 /**
  * Marketing e tráfego pago (etapa 16). A mesma tela nos dois recortes: a
- * plataforma liga o programa e cuida dos pixels dela (todas as páginas); a
- * organização, dos dela (perfil e rifas dela) — e só vê este menu com o
- * programa ligado.
+ * plataforma cuida dos pixels dela (todas as páginas); a organização, dos
+ * dela (perfil e rifas dela).
  */
 export function AdminMarketing() {
   const [dias, setDias] = useState(30);
@@ -56,19 +54,16 @@ export function AdminMarketing() {
 
 function ConfigCard({ dados }: { dados: Painel }) {
   const qc = useQueryClient();
-  const [ligado, setLigado] = useState(dados.ligado);
   const [pixels, setPixels] = useState<Record<string, string>>({});
   const [chaves, setChaves] = useState<Record<string, string>>({});
   const [msg, setMsg] = useState<{ ok: boolean; texto: string } | null>(null);
   useEffect(() => {
-    setLigado(dados.ligado);
     setPixels(Object.fromEntries(CAMPOS_DE_PIXEL.map((c) => [c, dados.pixels[c] ?? ""])));
-  }, [dados.ligado, dados.pixels]);
+  }, [dados.pixels]);
 
   const salvar = useMutation({
     mutationFn: (apagar?: string) =>
       apiRequest("PUT", "/api/admin/marketing", {
-        ...(dados.plataforma ? { ligado } : {}),
         pixels,
         // Só vai o que foi digitado (ou o que se pediu para apagar): o que já está guardado fica.
         credenciais: apagar
@@ -80,7 +75,6 @@ function ConfigCard({ dados }: { dados: Painel }) {
       setMsg({ ok: true, texto: "Salvo." });
       qc.invalidateQueries({ queryKey: ["/api/admin/marketing"] });
       qc.invalidateQueries({ queryKey: ["/api/public/marketing"] });
-      qc.invalidateQueries({ queryKey: ["/api/auth/me"] });
     },
     onError: (e: Error) => setMsg({ ok: false, texto: e.message }),
   });
@@ -88,7 +82,6 @@ function ConfigCard({ dados }: { dados: Painel }) {
   return (
     <Card
       title={dados.plataforma ? "Pixels da plataforma" : "Pixels da sua organização"}
-      right={dados.plataforma ? <Pill status={dados.ligado ? "active" : "draft"}>{dados.ligado ? "ligado" : "desligado"}</Pill> : undefined}
     >
       <form
         className="space-y-3 p-4 text-sm"
@@ -101,24 +94,13 @@ function ConfigCard({ dados }: { dados: Painel }) {
         {msg ? (
           <p className={`rounded-md px-3 py-2 ${msg.ok ? "bg-green-soft text-green-deep" : "bg-red-soft text-red"}`}>{msg.texto}</p>
         ) : null}
-        {dados.plataforma ? (
-          <label className="flex items-start gap-2">
-            <input type="checkbox" checked={ligado} onChange={(e) => setLigado(e.target.checked)} className="mt-1 h-4 w-4 accent-[var(--green)]" />
-            <span>
-              Marketing e tráfego pago
-              <span className="block text-xs text-muted">
-                Desligado, nenhum pixel carrega, o aviso de cookies não aparece, nenhuma compra é enviada às plataformas de
-                anúncio e o organizador não vê este menu. Ligue depois de a Meta e o Google aceitarem anúncio de sorteio na
-                conta.
-              </span>
-            </span>
-          </label>
-        ) : (
-          <p className="text-xs text-muted">
-            Valem no seu perfil e nas páginas das suas rifas, para quem aceitar os cookies. Informe só o número de cada
-            pixel — o sistema monta o código.
-          </p>
-        )}
+        <p className="text-xs text-muted">
+          {dados.plataforma
+            ? "Valem em todas as páginas do site, para quem aceitar os cookies."
+            : "Valem no seu perfil e nas páginas das suas rifas, para quem aceitar os cookies."}{" "}
+          Informe só o número de cada pixel — o sistema monta o código. Sem nenhum pixel, nada carrega e o aviso de
+          cookies não aparece.
+        </p>
         <div className="grid gap-2 sm:grid-cols-2">
           {CAMPOS_DE_PIXEL.map((c) => (
             <label key={c} className="block">

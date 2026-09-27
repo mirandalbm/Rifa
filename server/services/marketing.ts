@@ -4,7 +4,7 @@
  *
  * - Pixels (números públicos): da plataforma em `app_settings`, da
  *   organização em `organizations.pixels`. A tela recebe só os que valem
- *   para a página, e só com o interruptor ligado.
+ *   para a página.
  * - Chaves de API (segredo): cifradas no cofre (`marketing_credenciais`),
  *   nunca devolvidas — a tela só sabe se existem.
  * - A compra pelo servidor: a transação que confirma o pagamento chama
@@ -78,14 +78,9 @@ async function gravarCredenciais(dono: string, bruto: unknown) {
  * Configuração (painel)
  * ------------------------------------------------------------------ */
 
-/**
- * Salva pixels e chaves. A plataforma mexe nos dela (e no interruptor);
- * a organização, nos dela — e só com o interruptor ligado (desligado, o
- * menu nem existe para ela: 404).
- */
-export async function salvarMarketing(req: Request, corpo: { ligado?: unknown; pixels?: unknown; credenciais?: unknown }) {
+/** Salva pixels e chaves: a plataforma mexe nos dela; a organização, nos dela. */
+export async function salvarMarketing(req: Request, corpo: { pixels?: unknown; credenciais?: unknown }) {
   const org = orgOf(req);
-  const cfg = await getPlataforma();
   let pixels: Pixels;
   try {
     pixels = validarPixels(corpo.pixels ?? {});
@@ -93,24 +88,19 @@ export async function salvarMarketing(req: Request, corpo: { ligado?: unknown; p
     throw new MarketingError((e as Error).message);
   }
   if (!org) {
-    const salva = await setPlataforma({
-      marketingLigado: corpo.ligado === undefined ? undefined : corpo.ligado === true,
-      marketingPixels: corpo.pixels === undefined ? undefined : pixels,
-    });
+    const salva = await setPlataforma({ marketingPixels: corpo.pixels === undefined ? undefined : pixels });
     const credenciais = await gravarCredenciais("plataforma", corpo.credenciais);
-    return { ligado: salva.marketingLigado, pixels: salva.marketingPixels, credenciais };
+    return { pixels: salva.marketingPixels, credenciais };
   }
-  if (!cfg.marketingLigado) throw new MarketingError("Não encontrado.", 404);
   if (corpo.pixels !== undefined) await db.update(organizations).set({ pixels }).where(eq(organizations.id, org));
   const credenciais = await gravarCredenciais(org, corpo.credenciais);
   const [o] = await db.select({ pixels: organizations.pixels }).from(organizations).where(eq(organizations.id, org));
-  return { ligado: true, pixels: o.pixels, credenciais };
+  return { pixels: o.pixels, credenciais };
 }
 
-/** O que o navegador precisa numa página: o interruptor e os pixels que valem nela. */
+/** Os pixels que valem numa página. Sem pixel nenhum, o navegador não carrega nada nem mostra aviso. */
 export async function pixelsPublicos(organizacao?: unknown) {
   const cfg = await getPlataforma();
-  if (!cfg.marketingLigado) return { ligado: false as const };
   let daOrg: Pixels | null = null;
   if (typeof organizacao === "string" && organizacao.length <= 80) {
     const [o] = await db
@@ -124,7 +114,7 @@ export async function pixelsPublicos(organizacao?: unknown) {
       );
     daOrg = o && temPixel(o.pixels) ? o.pixels : null;
   }
-  return { ligado: true as const, plataforma: temPixel(cfg.marketingPixels) ? cfg.marketingPixels : null, organizacao: daOrg };
+  return { plataforma: temPixel(cfg.marketingPixels) ? cfg.marketingPixels : null, organizacao: daOrg };
 }
 
 /* ------------------------------------------------------------------ *
@@ -133,8 +123,7 @@ export async function pixelsPublicos(organizacao?: unknown) {
 
 /**
  * Dentro da transação que confirma o pagamento: uma linha por destino com
- * pixel e chave. Só venda online, com consentimento, e só com o interruptor
- * ligado. `ON CONFLICT DO NOTHING`: a mesma compra nunca entra duas vezes.
+ * pixel e chave. Só venda online e com consentimento. `ON CONFLICT DO NOTHING`: a mesma compra nunca entra duas vezes.
  * Recebe o que foi lido antes da transação (`destinosDaCompra`), para não
  * decifrar nada com o BEGIN aberto.
  */
@@ -156,7 +145,6 @@ export interface Destino {
 export async function destinosDaCompra(order: { marketingConsentimento: boolean; sellerId: string | null; method: string; campaignId: string }) {
   if (!order.marketingConsentimento || order.sellerId || order.method === "bonus") return [];
   const cfg = await getPlataforma();
-  if (!cfg.marketingLigado) return [];
   const [c] = await db
     .select({ orgId: campaigns.organizationId, pixels: organizations.pixels })
     .from(campaigns)
@@ -279,14 +267,12 @@ function requisicao(provedor: string, destino: string, cred: Credenciais, c: Com
 
 /**
  * O painel Marketing, nos dois recortes. Organizador: os pixels e chaves
- * dele e as vendas por campanha das rifas dele — e 404 com o interruptor
- * desligado. Plataforma: o interruptor, os dela, a fila de envio e as
- * vendas por campanha de todas.
+ * dele e as vendas por campanha das rifas dele. Plataforma: os dela, a fila
+ * de envio e as vendas por campanha de todas.
  */
 export async function painelDoMarketing(req: Request, diasBrutos?: unknown) {
   const org = orgOf(req);
   const cfg = await getPlataforma();
-  if (org && !cfg.marketingLigado) throw new MarketingError("Não encontrado.", 404);
   const dias = [7, 30, 90].includes(Number(diasBrutos)) ? Number(diasBrutos) : 30;
   const filtroOrg = org ? sql`and c.organization_id = ${org}::uuid` : sql``;
   const linhas = (
@@ -320,7 +306,6 @@ export async function painelDoMarketing(req: Request, diasBrutos?: unknown) {
   return {
     plataforma: !org,
     dias,
-    ligado: cfg.marketingLigado,
     pixels: org ? (o?.pixels ?? {}) : cfg.marketingPixels,
     credenciais: quaisCredenciais(await lerCredenciais(org ?? "plataforma").catch(() => ({}))),
     campanhas,

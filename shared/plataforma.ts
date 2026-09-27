@@ -101,13 +101,6 @@ export interface ConfigPlataforma {
    * reembolso) e o servidor responde 404.
    */
   patrocinioReembolso: boolean;
-  /**
-   * Marketing e tráfego pago (etapa 16): pixels, aviso de cookies e a compra
-   * pelo servidor. Nasce desligado — liga depois de Meta e Google aceitarem
-   * anúncio de sorteio na conta. Desligado, nenhum pixel carrega, nenhum
-   * evento sai e o organizador não vê o menu Marketing.
-   */
-  marketingLigado: boolean;
   /** Os números de rastreamento da plataforma (valem em todas as páginas). */
   marketingPixels: Pixels;
 }
@@ -123,7 +116,6 @@ export const CONFIG_PADRAO: ConfigPlataforma = {
   patrocinioLigado: false,
   patrocinio: CONFIG_PATROCINIO_PADRAO,
   patrocinioReembolso: false,
-  marketingLigado: false,
   marketingPixels: {},
 };
 
@@ -152,7 +144,6 @@ export function validarConfigPlataforma(entrada: Partial<ConfigPlataforma>): Con
     patrocinioLigado: entrada.patrocinioLigado === true,
     patrocinio: validarConfigPatrocinio(entrada.patrocinio),
     patrocinioReembolso: entrada.patrocinioReembolso === true,
-    marketingLigado: entrada.marketingLigado === true,
     marketingPixels: validarPixels(entrada.marketingPixels),
   };
 }

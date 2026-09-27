@@ -2960,7 +2960,7 @@ adminRouter.post("/patrocinio/ajustes", async (req, res, next) => {
 
 /* ---------------- marketing e tráfego pago (etapa 16) ---------------- */
 
-/** A mesma tela nos dois recortes; organizador com o interruptor desligado: 404. */
+/** A mesma tela nos dois recortes (plataforma e organização). */
 adminRouter.get("/marketing", async (req, res, next) => {
   try {
     res.json(await painelDoMarketing(req, req.query.dias));
@@ -2969,11 +2969,11 @@ adminRouter.get("/marketing", async (req, res, next) => {
   }
 });
 
-/** Pixels e chaves de quem está logado (plataforma: também o interruptor). As chaves nunca voltam. */
+/** Pixels e chaves de quem está logado. As chaves nunca voltam. */
 adminRouter.put("/marketing", async (req, res, next) => {
   try {
-    const r = await salvarMarketing(req, { ligado: req.body?.ligado, pixels: req.body?.pixels, credenciais: req.body?.credenciais });
-    await audit(req, "marketing.config", "marketing", orgOf(req) ?? "plataforma", { ligado: r.ligado, pixels: r.pixels, credenciais: r.credenciais });
+    const r = await salvarMarketing(req, { pixels: req.body?.pixels, credenciais: req.body?.credenciais });
+    await audit(req, "marketing.config", "marketing", orgOf(req) ?? "plataforma", { pixels: r.pixels, credenciais: r.credenciais });
     res.json(r);
   } catch (err) {
     next(err);

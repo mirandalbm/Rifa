@@ -458,12 +458,10 @@ function CartaoDaRifa({ org, nome, rifa }: { org: string; nome: string; rifa: Ri
   const [comentando, setComentando] = useState(false);
 
   return (
-    <article className="overflow-hidden rounded-xl border border-line bg-white">
+    <article className="overflow-hidden bg-white">
       <Carrossel pecas={rifa.midias} titulo={rifa.prizeTitle} proporcao="aspect-[4/5]" href={href} aoAbrir={() => marcarOrigem("perfil")} />
-      <BarraDeAcoes slug={rifa.slug} titulo={rifa.prizeTitle} caminho={href} interacoes={rifa.interacoes} aoComentar={() => setComentando(true)} />
-      <Legenda autor={nome} texto={rifa.legenda} />
-      {comentando ? <PainelDeComentarios slug={rifa.slug} onFechar={() => setComentando(false)} /> : null}
-      <Link href={href} onClick={() => marcarOrigem("perfil")} className="block space-y-2 p-3">
+      {/* Só a rifa vai dentro do cartão, logo abaixo da imagem e acima das ações, como no feed. */}
+      <Link href={href} onClick={() => marcarOrigem("perfil")} className="mx-3 mt-3 block space-y-2 rounded-xl border border-line p-3 hover:bg-mist">
         <div className="flex items-baseline justify-between gap-2">
           <h3 className="font-display text-base font-extrabold leading-tight">{rifa.prizeTitle}</h3>
           <Money cents={rifa.priceCents} className="shrink-0 text-sm text-green-deep" />
@@ -482,6 +480,11 @@ function CartaoDaRifa({ org, nome, rifa }: { org: string; nome: string; rifa: Ri
           </span>
         </p>
       </Link>
+      <BarraDeAcoes slug={rifa.slug} titulo={rifa.prizeTitle} caminho={href} interacoes={rifa.interacoes} aoComentar={() => setComentando(true)} />
+      <div className="pb-4">
+        <Legenda autor={nome} texto={rifa.legenda} />
+      </div>
+      {comentando ? <PainelDeComentarios slug={rifa.slug} onFechar={() => setComentando(false)} /> : null}
     </article>
   );
 }

@@ -146,9 +146,17 @@ export function setupAuth(app: Express) {
           .from(users)
           .where(eq(users.email, email.toLowerCase().trim()));
 
-        // Mesma resposta para e-mail inexistente e senha errada.
-        if (!user || !user.active || !(await verifyPassword(password, user.passwordHash))) {
-          return done(null, false, { message: "E-mail ou senha incorretos." });
+        // Mesma resposta para e-mail inexistente e senha errada. O motivo de
+        // verdade (`motivo`) fica só no log do servidor — nunca vai à tela.
+        const recusa = !user
+          ? "conta_inexistente"
+          : !user.active
+            ? "conta_inativa"
+            : !(await verifyPassword(password, user.passwordHash))
+              ? "senha_errada"
+              : null;
+        if (recusa) {
+          return done(null, false, { message: "E-mail ou senha incorretos.", motivo: recusa } as never);
         }
 
         // Segundo fator: a senha certa sozinha não entra.

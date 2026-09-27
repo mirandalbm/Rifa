@@ -134,10 +134,9 @@ export default function PerfilPage() {
           <CapaPadrao nome={p.nome} />
         )}
       </div>
-      {/* Topo: nome, foto, contadores */}
-      <h1 className="sr-only">{p.nome}</h1>
+      {/* Topo: foto à esquerda; à direita, o nome e, embaixo dele, os contadores */}
       <div className="flex items-end gap-4">
-        <span className="relative z-10 -mt-10 rounded-full bg-white p-1">
+        <span className="relative z-10 -mt-10 shrink-0 rounded-full bg-white p-1">
           <FotoComStory
             slug={p.slug}
             nome={p.nome}
@@ -147,26 +146,28 @@ export default function PerfilPage() {
             onAbrir={() => setStories(true)}
           />
         </span>
-        <dl className="grid flex-1 grid-cols-3 text-center">
-          <Contador rotulo="rifas realizadas" valor={contador(p.rifasRealizadas)} />
-          <Contador rotulo="seguidores" valor={contador(p.seguidores)} />
-          <div>
-            <button
-              type="button"
-              onClick={() => setPainel("compartilhar")}
-              className="mx-auto flex h-9 w-9 items-center justify-center rounded-full bg-mist-2 text-ink hover:bg-line"
-              aria-label="Compartilhar este perfil"
-            >
-              <Share2 size={17} aria-hidden />
-            </button>
-            <dd className="mt-1 text-[11px] text-muted">compartilhar</dd>
-          </div>
-        </dl>
+        <div className="min-w-0 flex-1 pt-2">
+          <h1 className="line-clamp-2 font-display text-lg font-extrabold leading-tight">{p.nome}</h1>
+          <dl className="mt-2 grid grid-cols-3 text-center">
+            <Contador rotulo="rifas realizadas" valor={contador(p.rifasRealizadas)} />
+            <Contador rotulo="seguidores" valor={contador(p.seguidores)} />
+            <div>
+              <dt className="sr-only">compartilhar</dt>
+              <dd>
+                <button
+                  type="button"
+                  onClick={() => setPainel("compartilhar")}
+                  className="mx-auto flex h-7 items-center justify-center text-ink hover:text-marca"
+                  aria-label="Compartilhar este perfil"
+                >
+                  <Share2 size={20} aria-hidden />
+                </button>
+              </dd>
+              <dd className="text-[11px] text-muted">compartilhar</dd>
+            </div>
+          </dl>
+        </div>
       </div>
-
-      <p aria-hidden className="mt-2 font-display text-xl font-extrabold">
-        {p.nome}
-      </p>
 
       {/* Ações: seguir, sino, ⋮ */}
       <div className="mt-4 flex items-center gap-2">

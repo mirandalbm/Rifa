@@ -231,13 +231,17 @@ Na ordem de entrega do plano:
   por volume da tabela da plataforma; fila por ordem de chegada com vagas
   por alcance — quem entra fica até gastar o pacote e o próximo entra
   sozinho; card da fila com a previsão de entrada; clique cobrado uma vez
-  por aparelho em 24 h, robô não conta. Sem cancelamento pelo painel: o
-  estorno do que não foi gasto é pedido ao suporte, com conversa, e a
-  plataforma decide quanto volta ao saldo, descontados os custos externos.
+  por aparelho em 24 h, robô não conta. Sem cancelamento de anúncio: quando
+  a rifa sai do ar, o que não foi gasto volta ao saldo como crédito, para
+  qualquer rifa. Reembolso em dinheiro do saldo pelo suporte, com conversa,
+  atrás de um interruptor próprio (desligado, o botão nem aparece).
 - [ ] **[você]** Ligar as patrocinadas e ajustar a tabela (preço do clique
   por alcance, faixas de desconto, mínimo de cliques, vagas e recarga
   mínima — painel → Patrocínio) quando a conta da plataforma estiver pronta
   para receber o Pix das recargas.
+- [ ] **[você]** Decidir se liga o botão "Pedir reembolso do saldo" do
+  patrocínio (painel → Patrocínio → Configuração), depois de medir quantos
+  organizadores pedem reembolso pelo atendimento.
 - [ ] **[código]** Marketing e tráfego pago.
 - [ ] **[código]** Login com Google.
 - [ ] **[você]** Advogado: regra de reembolso (arrependimento × corte de

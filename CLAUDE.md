@@ -940,27 +940,33 @@ aí o próximo entra sozinho.
   dos cliques dá exatamente o valor pago.
 - **O saldo anda pelo livro** (`patrocinio_lancamentos`, chave única):
   compra (`anuncio:<id>`), estorno e recarga
-  lançam uma vez só (o estorno do suporte é `estorno-anuncio:<pedido>`), e o saldo nunca fica negativo (`UPDATE` condicional —
+  lançam uma vez só, e o saldo nunca fica negativo (`UPDATE` condicional —
   sem saldo, a compra cai inteira e nada entra na fila). A recarga é Pix
   **sem split** para a conta da plataforma, com código na faixa de 9
   dígitos; o webhook reconhece a recarga (`confirmarRecarga`) antes de
   procurar pedido.
-- **Não existe cancelamento pelo painel, nem estorno automático.** O
-  anúncio pode acionar divulgação fora da plataforma (redes sociais, busca),
-  e esse custo não volta. O único caminho é o **pedido de estorno ao
-  suporte** (`pedirEstorno`, `patrocinio_estornos`), com conversa entre a
-  organização e a plataforma; a organização vê só "Suporte", nunca o nome de
-  quem atendeu. Rifa que sai do ar (ou promotora arquivada): o relógio
-  (`encerrarAnunciosForaDoAr`, trava 811403) só **para** o anúncio; o não
-  gasto (`naoGastoDe()`) fica à vista e também é pedido ao suporte.
-- **Só a plataforma decide** (403 para organizador, no `npm run
-  isolation`), com explicação e o custo externo em centavos: volta ao saldo
-  o não gasto **na hora da decisão** menos esse custo, e o anúncio sai da
-  fila (`cancelado`). O pedido é travado antes do cálculo e tomado num
-  `UPDATE` condicional (`aberto` → decidido): dois cliques, uma decisão. Um
-  pedido em aberto por anúncio pelo índice parcial
-  (`uq_patrocinio_estorno_aberto`). Enquanto o suporte analisa, o anúncio
-  segue no ar — a vaga é dele até o fim.
+- **Não existe cancelamento de anúncio.** Enquanto a rifa está no ar, o
+  crédito do anúncio fica preso a ele — não se cancela e não se pede
+  reembolso. Quando a rifa sai do ar (ou a promotora é arquivada), o relógio
+  (`encerrarAnunciosForaDoAr`, trava 811403) encerra o anúncio e devolve ao
+  saldo, **como crédito**, o que não foi gasto (`sobra-anuncio:<id>`),
+  condicional em `status = 'ativo'`. O saldo vale para qualquer rifa.
+- **Reembolso em dinheiro do saldo tem interruptor próprio**
+  (`patrocinioReembolso`, nasce desligado — a plataforma quer medir a
+  demanda primeiro). Desligado, o organizador **não vê o botão nem a palavra
+  reembolso** (para não gerar especulação) e `POST /patrocinio/reembolsos`
+  responde 404; pedido que já existia continua visível até terminar.
+  Ligado, o pedido (`patrocinio_reembolsos`, protocolo `PR-XXXXXX`) leva
+  valor, chave Pix e motivo, e **reserva o valor no saldo** na abertura
+  (`reembolso-reserva:<id>`) — não dá para gastar em anúncio o que está em
+  análise. Um em aberto por organização (índice parcial
+  `uq_patrocinio_reembolso_aberto`). A conversa é entre a organização e
+  "Suporte" (nunca o nome de quem atendeu).
+- **Só a plataforma decide e dá baixa** (403 para organizador, no `npm run
+  isolation`): aprovado devolve por Pix o pedido menos o que ela retém
+  (custo de divulgação externa), e fica "a pagar" até a baixa; recusado
+  devolve o valor ao saldo (`reembolso-recusado:<id>`). Pedido travado antes
+  e `UPDATE` condicional em cada passo: dois cliques, uma decisão, uma baixa.
 - **Clique honesto**: uma vez por aparelho (hash) em 24 h por anúncio, sob
   trava do par (811402); robô (`ehRobo`), aparelho sem identificação e
   anúncio esgotado vão para **barrados** — o patrocinador vê o que não
@@ -971,7 +977,7 @@ aí o próximo entra sozinho.
   mesmo aparelho que clicou na mesma rifa em até 7 dias (`orders.anuncio_id`,
   último clique): estatística, nunca decide dinheiro.
 - **Recorte**: anúncio só de rifa própria no ar (vizinho 404 por
-  `assertCampaignInScope`); pedido e conversa de estorno conferem o dono
+  `assertCampaignInScope`); pedido e conversa de reembolso conferem o dono
   (o do vizinho é 404); o organizador vê só os números dele e nunca a fila
   dos outros. Configuração e ajuste de
   saldo são da plataforma (403 no `npm run isolation`).

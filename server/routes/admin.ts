@@ -156,11 +156,12 @@ import { alterarMeta, criarMeta, painelDoBonus } from "../services/bonus";
 import {
   ajustarSaldo,
   comprarAnuncio,
-  decidirEstorno,
+  decidirReembolso,
+  marcarReembolsoPago,
   painelDoPatrocinio,
-  pedirEstorno,
   pedirRecarga,
-  responderEstorno,
+  pedirReembolso,
+  responderReembolso,
 } from "../services/patrocinio";
 import {
   PROVEDORES_PIX,
@@ -2856,44 +2857,55 @@ adminRouter.post("/patrocinio/anuncios", async (req, res, next) => {
 });
 
 /**
- * Não existe cancelamento pelo organizador: o anúncio pode ter acionado
- * serviço externo. O caminho é o pedido de estorno ao suporte, com conversa,
- * e quem decide quanto volta é a plataforma.
+ * Reembolso do saldo pelo suporte. Não existe cancelamento de anúncio: o
+ * crédito de rifa no ar fica preso a ele. Com o interruptor
+ * `patrocinioReembolso` desligado, a abertura responde 404 ao organizador.
  */
-adminRouter.post("/patrocinio/anuncios/:id/estorno", async (req, res, next) => {
+adminRouter.post("/patrocinio/reembolsos", async (req, res, next) => {
   try {
-    const e = await pedirEstorno(req, req.params.id, req.body?.motivo);
-    await audit(req, "patrocinio.estorno.pedido", "patrocinio_estorno", e.id, { anuncioId: e.anuncioId, protocolo: e.protocolo });
-    res.status(201).json(e);
+    const p = await pedirReembolso(req, { valorCents: req.body?.valorCents, chavePix: req.body?.chavePix, motivo: req.body?.motivo });
+    await audit(req, "patrocinio.reembolso.pedido", "patrocinio_reembolso", p.id, { protocolo: p.protocolo, valorCents: p.valorCents });
+    res.status(201).json(p);
   } catch (err) {
     next(err);
   }
 });
 
-adminRouter.post("/patrocinio/estornos/:id/mensagens", async (req, res, next) => {
+adminRouter.post("/patrocinio/reembolsos/:id/mensagens", async (req, res, next) => {
   try {
-    res.status(201).json(await responderEstorno(req, req.params.id, req.body?.texto));
+    res.status(201).json(await responderReembolso(req, req.params.id, req.body?.texto));
   } catch (err) {
     next(err);
   }
 });
 
-/** Só a plataforma decide (403 para organizador, no `npm run isolation`). */
-adminRouter.post("/patrocinio/estornos/:id/decisao", async (req, res, next) => {
+/** Só a plataforma decide e dá baixa (403 para organizador, no `npm run isolation`). */
+adminRouter.post("/patrocinio/reembolsos/:id/decisao", async (req, res, next) => {
   try {
     requirePlatformAdmin(req);
-    const e = await decidirEstorno(req, req.params.id, {
+    const p = await decidirReembolso(req, req.params.id, {
       aprovar: req.body?.aprovar,
-      custosExternosCents: req.body?.custosExternosCents,
+      retidoCents: req.body?.retidoCents,
       explicacao: req.body?.explicacao,
     });
-    await audit(req, `patrocinio.estorno.${e.status}`, "patrocinio_estorno", e.id, {
-      protocolo: e.protocolo,
-      naoGastoCents: e.naoGastoCents,
-      custosExternosCents: e.custosExternosCents,
-      devolvidoCents: e.devolvidoCents,
+    await audit(req, `patrocinio.reembolso.${p.status}`, "patrocinio_reembolso", p.id, {
+      protocolo: p.protocolo,
+      valorCents: p.valorCents,
+      retidoCents: p.retidoCents,
+      devolverCents: p.devolverCents,
     });
-    res.json(e);
+    res.json(p);
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.post("/patrocinio/reembolsos/:id/pago", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    const p = await marcarReembolsoPago(req, req.params.id);
+    await audit(req, "patrocinio.reembolso.pago", "patrocinio_reembolso", p.id, { protocolo: p.protocolo, devolverCents: p.devolverCents });
+    res.json(p);
   } catch (err) {
     next(err);
   }
@@ -2917,10 +2929,15 @@ adminRouter.put("/patrocinio/config", async (req, res, next) => {
     // substitui a configuração do patrocínio inteira (validada em conjunto).
     const salva = await setPlataforma({
       patrocinioLigado: req.body?.ligado === undefined ? undefined : req.body.ligado === true,
+      patrocinioReembolso: req.body?.reembolso === undefined ? undefined : req.body.reembolso === true,
       patrocinio: req.body?.patrocinio === undefined ? undefined : req.body.patrocinio,
     });
-    await audit(req, "patrocinio.config", "settings", "plataforma", { ligado: salva.patrocinioLigado, patrocinio: salva.patrocinio });
-    res.json({ ligado: salva.patrocinioLigado, ...salva.patrocinio });
+    await audit(req, "patrocinio.config", "settings", "plataforma", {
+      ligado: salva.patrocinioLigado,
+      reembolso: salva.patrocinioReembolso,
+      patrocinio: salva.patrocinio,
+    });
+    res.json({ ligado: salva.patrocinioLigado, reembolso: salva.patrocinioReembolso, ...salva.patrocinio });
   } catch (err) {
     next(err);
   }

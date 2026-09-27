@@ -1560,12 +1560,12 @@ export const patrocinioAnuncios = pgTable(
     precoCliqueCents: integer("preco_clique_cents").notNull(),
     descontoPct: integer("desconto_pct").notNull().default(0),
     valorPagoCents: integer("valor_pago_cents").notNull(),
-    /** ativo | encerrado (gastou tudo, ou a rifa saiu do ar) | cancelado (estorno aprovado pelo suporte) */
+    /** ativo | encerrado (gastou tudo, ou a rifa saiu do ar) */
     status: text("status").notNull().default("ativo"),
     filaDesde: timestamp("fila_desde").notNull().defaultNow(),
     iniciadoEm: timestamp("iniciado_em"),
     encerradoEm: timestamp("encerrado_em"),
-    /** Devolvido ao saldo pelo suporte (pedido de estorno aprovado), já descontados os custos externos. */
+    /** O que não foi gasto e voltou ao saldo como crédito quando a rifa saiu do ar. */
     reembolsoCents: integer("reembolso_cents").notNull().default(0),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
@@ -1576,57 +1576,60 @@ export const patrocinioAnuncios = pgTable(
 );
 
 /**
- * Pedido de estorno do anúncio, feito pela organização ao suporte da
- * plataforma. Não existe cancelamento pelo próprio organizador: o anúncio
- * pode ter acionado serviço externo (rede social, busca), e quanto volta é
- * decisão da plataforma, descontando esse custo.
+ * Pedido de reembolso, em dinheiro, do saldo de patrocínio. Só existe com o
+ * interruptor da plataforma ligado (`patrocinioReembolso`). O valor sai do
+ * saldo na abertura (reservado), para não ser gasto em anúncio enquanto o
+ * suporte analisa; recusado, volta ao saldo. Crédito de anúncio de rifa no ar
+ * não está no saldo — não há como pedir o reembolso dele.
  */
-export const patrocinioEstornos = pgTable(
-  "patrocinio_estornos",
+export const patrocinioReembolsos = pgTable(
+  "patrocinio_reembolsos",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    anuncioId: uuid("anuncio_id")
+    organizationId: uuid("organization_id")
       .notNull()
-      .references(() => patrocinioAnuncios.id, { onDelete: "cascade" }),
-    organizationId: uuid("organization_id").notNull(),
-    /** "PE-XXXXXX", sorteado: é como o suporte e a organização falam do pedido. */
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    /** "PR-XXXXXX", sorteado: é como o suporte e a organização falam do pedido. */
     protocolo: text("protocolo").notNull(),
-    /** aberto | aprovado | recusado */
+    /** aberto | aprovado (a pagar) | pago | recusado */
     status: text("status").notNull().default("aberto"),
+    valorCents: integer("valor_cents").notNull(),
+    /** Para onde o suporte devolve o dinheiro. */
+    chavePix: text("chave_pix").notNull(),
     motivo: text("motivo").notNull(),
     abertoPor: uuid("aberto_por"),
-    /** Na decisão: o que não tinha sido gasto, o custo externo descontado e o que voltou ao saldo. */
-    naoGastoCents: integer("nao_gasto_cents"),
-    custosExternosCents: integer("custos_externos_cents"),
-    devolvidoCents: integer("devolvido_cents"),
+    /** Na decisão: o que a plataforma retém (custo de divulgação externa) e o que devolve em dinheiro. */
+    retidoCents: integer("retido_cents"),
+    devolverCents: integer("devolver_cents"),
     explicacao: text("explicacao"),
     decididoPor: uuid("decidido_por"),
     decididoEm: timestamp("decidido_em"),
+    pagoEm: timestamp("pago_em"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (t) => [
-    uniqueIndex("uq_patrocinio_estorno_protocolo").on(t.protocolo),
-    // Um pedido em aberto por anúncio: quem decide é o índice, não um SELECT antes.
-    uniqueIndex("uq_patrocinio_estorno_aberto").on(t.anuncioId).where(sql`status = 'aberto'`),
-    index("idx_patrocinio_estornos_org").on(t.organizationId, t.createdAt),
+    uniqueIndex("uq_patrocinio_reembolso_protocolo").on(t.protocolo),
+    // Um pedido em aberto por organização: quem decide é o índice, não um SELECT antes.
+    uniqueIndex("uq_patrocinio_reembolso_aberto").on(t.organizationId).where(sql`status = 'aberto'`),
+    index("idx_patrocinio_reembolsos_org").on(t.organizationId, t.createdAt),
   ],
 );
 
-/** A conversa do pedido de estorno: organização e suporte da plataforma. */
-export const patrocinioEstornoMensagens = pgTable(
-  "patrocinio_estorno_mensagens",
+/** A conversa do pedido de reembolso: organização e suporte da plataforma. */
+export const patrocinioReembolsoMensagens = pgTable(
+  "patrocinio_reembolso_mensagens",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    estornoId: uuid("estorno_id")
+    reembolsoId: uuid("reembolso_id")
       .notNull()
-      .references(() => patrocinioEstornos.id, { onDelete: "cascade" }),
+      .references(() => patrocinioReembolsos.id, { onDelete: "cascade" }),
     /** organizacao | plataforma */
     autor: text("autor").notNull(),
     userId: uuid("user_id"),
     texto: text("texto").notNull(),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
-  (t) => [index("idx_patrocinio_estorno_mensagens").on(t.estornoId, t.createdAt)],
+  (t) => [index("idx_patrocinio_reembolso_mensagens").on(t.reembolsoId, t.createdAt)],
 );
 
 /** Clique cobrado: um por visitante (aparelho em hash) a cada 24 h, por anúncio, conferido sob trava. */

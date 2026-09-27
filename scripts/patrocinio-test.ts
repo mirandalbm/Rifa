@@ -10,9 +10,11 @@
  *   o pacote e o segundo entra sozinho no clique seguinte, com a previsão;
  * - clique: uma vez por aparelho em 24 h; robô, aparelho sem identificação e
  *   anúncio esgotado vão para "barrados" e não gastam;
- * - não existe cancelar pelo painel: o estorno é pedido ao suporte, com
- *   conversa; só a plataforma decide, descontando o custo externo, uma vez
- *   só; rifa fora do ar para o anúncio sem devolver nada sozinho;
+ * - não existe cancelar anúncio; rifa fora do ar credita no saldo o que não
+ *   foi gasto;
+ * - reembolso do saldo só com o interruptor ligado (desligado: 404 e nada no
+ *   painel), valor reservado na abertura, conversa, decisão e baixa só da
+ *   plataforma, uma vez cada;
  * - retorno: exibições, cliques, gasto e a venda atribuída pelo aparelho,
  *   cada organização vendo só o dela.
  *
@@ -75,6 +77,7 @@ async function limpar() {
     await db.execute(sql`delete from orders where campaign_id in (select id from campaigns where organization_id in ${l})`);
     await db.execute(sql`delete from patrocinio_anuncios where organization_id in ${l}`);
     await db.execute(sql`delete from patrocinio_lancamentos where organization_id in ${l}`);
+    await db.execute(sql`delete from patrocinio_reembolsos where organization_id in ${l}`);
     await db.execute(sql`delete from patrocinio_recargas where organization_id in ${l}`);
     await db.execute(sql`delete from campaigns where organization_id in ${l}`);
   }
@@ -229,57 +232,82 @@ async function main() {
     checa("B não vê os anúncios de A", !r.json?.anuncios?.some((a: any) => a.id === nA || a.id === eA));
     checa("organizador não recebe a fila da plataforma", r.json?.plataforma === false && r.json?.fila === undefined && r.json?.organizacoes === undefined);
 
-    // Sem cancelamento pelo painel: estorno só pelo suporte.
+    // Sem cancelamento: o crédito do anúncio de rifa no ar fica com ele.
     r = await orgB.req("POST", `/api/admin/patrocinio/anuncios/${cB}/cancelar`);
-    checa("não existe cancelar pelo painel (404)", r.status === 404 && (await saldo(B.id)) === 860, `HTTP ${r.status}`);
-    r = await orgA.req("POST", `/api/admin/patrocinio/anuncios/${cB}/estorno`, { motivo: "Quero o dinheiro do vizinho" });
-    checa("o vizinho não pede estorno (404)", r.status === 404, `HTTP ${r.status}`);
-    r = await orgB.req("POST", `/api/admin/patrocinio/anuncios/${cB}/estorno`, { motivo: "curto" });
-    checa("pedido sem motivo: 400", r.status === 400, `HTTP ${r.status}`);
-    const [e1, e2] = await Promise.all([
-      orgB.req("POST", `/api/admin/patrocinio/anuncios/${cB}/estorno`, { motivo: "Errei a cidade do anúncio, era outra." }),
-      orgB.req("POST", `/api/admin/patrocinio/anuncios/${cB}/estorno`, { motivo: "Errei a cidade do anúncio, era outra." }),
-    ]);
-    const estorno = (e1.status === 201 ? e1 : e2).json;
-    checa("dois pedidos ao mesmo tempo: um abre, o outro 409", [e1.status, e2.status].sort().join() === "201,409", `${e1.status} ${e2.status}`);
-    checa("pedir não devolve nada nem tira da fila", /^PE-[A-Z2-9]{6}$/.test(estorno?.protocolo ?? "") && (await saldo(B.id)) === 860 && (await anuncio(cB)).status === "ativo");
-    r = await orgA.req("POST", `/api/admin/patrocinio/estornos/${estorno.id}/mensagens`, { texto: "oi" });
-    checa("o vizinho não entra na conversa (404)", r.status === 404, `HTTP ${r.status}`);
-    r = await orgB.req("POST", `/api/admin/patrocinio/estornos/${estorno.id}/mensagens`, { texto: "Podem ver, por favor?" });
-    checa("a organização escreve", r.status === 201 && r.json?.autor === "organizacao", `HTTP ${r.status}`);
-    r = await admin.req("POST", `/api/admin/patrocinio/estornos/${estorno.id}/mensagens`, { texto: "Estamos conferindo o que o anúncio acionou." });
-    checa("o suporte responde", r.status === 201 && r.json?.autor === "plataforma", `HTTP ${r.status}`);
-    r = await orgB.req("POST", `/api/admin/patrocinio/estornos/${estorno.id}/decisao`, { aprovar: true, custosExternosCents: 0, explicacao: "Eu mesmo aprovo isto." });
-    checa("organizador não decide (403)", r.status === 403 && (await saldo(B.id)) === 860, `HTTP ${r.status}`);
-    r = await admin.req("POST", `/api/admin/patrocinio/estornos/${estorno.id}/decisao`, { aprovar: true, custosExternosCents: 60, explicacao: "Custo maior que o não gasto." });
-    checa("custo externo maior que o não gasto: 400", r.status === 400, `HTTP ${r.status}`);
-    const [d1, d2] = await Promise.all([
-      admin.req("POST", `/api/admin/patrocinio/estornos/${estorno.id}/decisao`, { aprovar: true, custosExternosCents: 20, explicacao: "Aprovado, descontado o impulsionamento externo." }),
-      admin.req("POST", `/api/admin/patrocinio/estornos/${estorno.id}/decisao`, { aprovar: true, custosExternosCents: 20, explicacao: "Aprovado, descontado o impulsionamento externo." }),
-    ]);
-    const cancelado = await anuncio(cB);
-    checa(
-      "aprovado: volta o não gasto menos o custo externo, uma vez só",
-      [d1.status, d2.status].sort().join() === "200,409" && (await saldo(B.id)) === 890 && cancelado.status === "cancelado" && cancelado.reembolsoCents === 30,
-      `${d1.status} ${d2.status} ${await saldo(B.id)} ${cancelado.status} ${cancelado.reembolsoCents}`,
-    );
-    r = await orgB.req("POST", `/api/admin/patrocinio/estornos/${estorno.id}/mensagens`, { texto: "Obrigado" });
-    checa("decidido: a conversa fecha (409)", r.status === 409, `HTTP ${r.status}`);
-    r = await orgB.req("POST", `/api/admin/patrocinio/anuncios/${cB}/estorno`, { motivo: "Quero pedir de novo o mesmo." });
-    checa("estornado: não pede de novo (409)", r.status === 409, `HTTP ${r.status}`);
+    checa("não existe cancelar anúncio (404)", r.status === 404 && (await saldo(B.id)) === 860, `HTTP ${r.status}`);
+
+    // Reembolso do saldo: interruptor desligado = não existe para o organizador.
+    const pedirReembolso = (c: Cliente, corpo: Record<string, unknown>) => c.req("POST", "/api/admin/patrocinio/reembolsos", corpo);
+    const corpoOk = { valorCents: 300, chavePix: "financeiro@patrocinio-b.teste", motivo: "Vamos pausar a divulgação neste mês." };
     r = await orgB.req("GET", "/api/admin/patrocinio");
-    const visto = r.json?.estornos?.find((e: any) => e.id === estorno.id);
+    checa("desligado: o painel não traz reembolso", r.json?.config?.reembolso === false && r.json?.reembolsos?.length === 0);
+    r = await pedirReembolso(orgB, corpoOk);
+    checa("desligado: pedir reembolso é 404", r.status === 404 && (await saldo(B.id)) === 860, `HTTP ${r.status}`);
+    r = await orgB.req("PUT", "/api/admin/patrocinio/config", { reembolso: true });
+    checa("organizador não liga o reembolso (403)", r.status === 403, `HTTP ${r.status}`);
+    r = await admin.req("PUT", "/api/admin/patrocinio/config", { reembolso: true });
+    checa("a plataforma liga o reembolso sem mexer no resto", r.status === 200 && r.json?.reembolso === true && r.json?.ligado === true && r.json?.precos?.estado === 20, JSON.stringify(r.json));
+
+    r = await pedirReembolso(orgB, { ...corpoOk, motivo: "curto" });
+    checa("pedido sem motivo: 400", r.status === 400, `HTTP ${r.status}`);
+    r = await pedirReembolso(orgB, { ...corpoOk, valorCents: 5000 });
+    checa("mais que o saldo livre: 409, e nada fica", r.status === 409 && (await saldo(B.id)) === 860, `HTTP ${r.status}`);
+    const [e1, e2] = await Promise.all([pedirReembolso(orgB, corpoOk), pedirReembolso(orgB, corpoOk)]);
+    const pedidoR = (e1.status === 201 ? e1 : e2).json;
+    checa("dois pedidos ao mesmo tempo: um abre, o outro 409", [e1.status, e2.status].sort().join() === "201,409", `${e1.status} ${e2.status}`);
+    checa("o valor fica reservado (sai do saldo)", /^PR-[A-Z2-9]{6}$/.test(pedidoR?.protocolo ?? "") && (await saldo(B.id)) === 560, String(await saldo(B.id)));
+    r = await orgA.req("POST", `/api/admin/patrocinio/reembolsos/${pedidoR.id}/mensagens`, { texto: "oi" });
+    checa("o vizinho não entra na conversa (404)", r.status === 404, `HTTP ${r.status}`);
+    r = await orgB.req("POST", `/api/admin/patrocinio/reembolsos/${pedidoR.id}/mensagens`, { texto: "Podem ver, por favor?" });
+    checa("a organização escreve", r.status === 201 && r.json?.autor === "organizacao", `HTTP ${r.status}`);
+    r = await admin.req("POST", `/api/admin/patrocinio/reembolsos/${pedidoR.id}/mensagens`, { texto: "Estamos conferindo a divulgação externa." });
+    checa("o suporte responde", r.status === 201 && r.json?.autor === "plataforma", `HTTP ${r.status}`);
+    r = await orgB.req("POST", `/api/admin/patrocinio/reembolsos/${pedidoR.id}/decisao`, { aprovar: true, retidoCents: 0, explicacao: "Eu mesmo aprovo isto." });
+    checa("organizador não decide (403)", r.status === 403, `HTTP ${r.status}`);
+    r = await admin.req("POST", `/api/admin/patrocinio/reembolsos/${pedidoR.id}/decisao`, { aprovar: true, retidoCents: 400, explicacao: "Retido maior que o pedido." });
+    checa("retido maior que o pedido: 400", r.status === 400, `HTTP ${r.status}`);
+    const [d1, d2] = await Promise.all([
+      admin.req("POST", `/api/admin/patrocinio/reembolsos/${pedidoR.id}/decisao`, { aprovar: true, retidoCents: 50, explicacao: "Aprovado, retido o impulsionamento externo." }),
+      admin.req("POST", `/api/admin/patrocinio/reembolsos/${pedidoR.id}/decisao`, { aprovar: false, explicacao: "Recusado no mesmo clique." }),
+    ]);
+    const decidido = (d1.status === 200 ? d1 : d2).json;
+    checa("dois cliques, uma decisão", [d1.status, d2.status].sort().join() === "200,409", `${d1.status} ${d2.status}`);
+    const saldoEsperado = decidido?.status === "aprovado" ? 560 : 860;
+    checa("a decisão mexe no saldo uma vez só", (await saldo(B.id)) === saldoEsperado, `${decidido?.status} ${await saldo(B.id)}`);
+    r = await orgB.req("POST", `/api/admin/patrocinio/reembolsos/${pedidoR.id}/mensagens`, { texto: "Obrigado" });
+    checa("decidido: a conversa fecha (409)", r.status === 409, `HTTP ${r.status}`);
+
+    // Um aprovado de ponta a ponta: devolve o pedido menos o retido, e a baixa sai uma vez.
+    let aprovado = decidido;
+    if (decidido?.status !== "aprovado") {
+      const p3 = (await pedirReembolso(orgB, corpoOk)).json;
+      aprovado = (await admin.req("POST", `/api/admin/patrocinio/reembolsos/${p3.id}/decisao`, { aprovar: true, retidoCents: 50, explicacao: "Aprovado, retido o impulsionamento externo." })).json;
+    }
+    checa("aprovado: devolve o pedido menos o retido, sem voltar ao saldo", aprovado?.devolverCents === 250 && aprovado?.retidoCents === 50 && (await saldo(B.id)) === 560, JSON.stringify(aprovado));
+    r = await orgB.req("POST", `/api/admin/patrocinio/reembolsos/${aprovado.id}/pago`);
+    checa("organizador não dá baixa (403)", r.status === 403, `HTTP ${r.status}`);
+    const [b1, b2] = await Promise.all([
+      admin.req("POST", `/api/admin/patrocinio/reembolsos/${aprovado.id}/pago`),
+      admin.req("POST", `/api/admin/patrocinio/reembolsos/${aprovado.id}/pago`),
+    ]);
+    checa("baixa do Pix uma vez só", [b1.status, b2.status].sort().join() === "200,409", `${b1.status} ${b2.status}`);
+    r = await orgB.req("GET", "/api/admin/patrocinio");
+    const visto = r.json?.reembolsos?.find((x: any) => x.id === aprovado.id);
     checa(
-      "a organização vê a decisão e a conversa, com o suporte sem nome",
-      visto?.status === "aprovado" && visto?.devolvidoCents === 30 && visto?.custosExternosCents === 20 && visto?.mensagens?.length === 4 &&
-        visto.mensagens.every((m: any) => Object.keys(m).sort().join() === "autor,createdAt,texto"),
+      "a organização vê o pedido pago e a conversa, com o suporte sem nome",
+      visto?.status === "pago" && visto.mensagens.every((m: any) => Object.keys(m).sort().join() === "autor,createdAt,texto"),
       JSON.stringify(visto),
     );
-    checa("o extrato mostra o estorno", r.json?.extrato?.some((x: any) => x.valorCents === 30 && /PE-/.test(x.descricao ?? "")));
     r = await orgA.req("GET", "/api/admin/patrocinio");
-    checa("a outra organização não vê o pedido", !r.json?.estornos?.some((e: any) => e.id === estorno.id));
+    checa("a outra organização não vê os pedidos", !r.json?.reembolsos?.some((x: any) => x.id === pedidoR.id || x.id === aprovado.id));
     r = await admin.req("GET", "/api/admin/patrocinio");
-    checa("a plataforma vê o pedido com a organização", r.json?.estornos?.some((e: any) => e.id === estorno.id && e.organizacao === "Patrocínio B"));
+    checa("a plataforma vê o pedido com a organização", r.json?.reembolsos?.some((x: any) => x.id === aprovado.id && x.organizacao === "Patrocínio B"));
+    await admin.req("PUT", "/api/admin/patrocinio/config", { reembolso: false });
+    r = await pedirReembolso(orgB, corpoOk);
+    checa("desligado de novo: 404, e o histórico continua visível", r.status === 404 && (await orgB.req("GET", "/api/admin/patrocinio")).json?.reembolsos?.length >= 1, `HTTP ${r.status}`);
+    // Para o resto da prova, o saldo de B volta ao que seria sem os pedidos.
+    await admin.req("POST", "/api/admin/patrocinio/ajustes", { organizationId: B.id, valorCents: 860 - (await saldo(B.id)), descricao: "Acerto do teste de reembolso" });
+    checa("acerto do teste", (await saldo(B.id)) === 860);
 
     // Exibições.
     await new Cliente("aparelho-x").req("POST", "/api/public/patrocinadas/exibicoes", { ids: [nA, eA], uf: "SP" });
@@ -338,19 +366,20 @@ async function main() {
       r.json?.totais?.cliques >= 4 && r.json?.vendidoCents >= 90 + 1800 + 90 && r.json.organizacoes.some((o: any) => o.id === A.id && o.saldoCents === 110),
     );
 
-    // Rifa fora do ar: o anúncio para, e nada volta sozinho.
+    // Rifa fora do ar: o anúncio para e o que sobrou volta ao saldo como crédito.
     await db.update(campaigns).set({ status: "closed" }).where(eq(campaigns.id, rB.id));
     checa("rifa fora do ar sai do bloco", !(await vitrine()).some((x) => x.id === nB));
     await encerrarAnunciosForaDoAr();
     await encerrarAnunciosForaDoAr();
     const fim = await anuncio(nB);
-    checa("encerra sem devolver sozinho", fim.status === "encerrado" && fim.reembolsoCents === 0 && (await saldo(B.id)) === 890, `${fim.status} ${fim.reembolsoCents} ${await saldo(B.id)}`);
+    // Os dois anúncios de B são da rifa que saiu: o nacional (2 de 3 cliques, R$ 0,60) e o da cidade (inteiro, R$ 0,50).
+    checa(
+      "encerra e credita o não gasto de cada anúncio, uma vez só",
+      fim.status === "encerrado" && fim.reembolsoCents === 60 && (await anuncio(cB)).reembolsoCents === 50 && (await saldo(B.id)) === 970,
+      `${fim.status} ${fim.reembolsoCents} ${await saldo(B.id)}`,
+    );
     r = await orgB.req("GET", "/api/admin/patrocinio");
-    checa("o não gasto fica à vista (2 de 3 cliques)", r.json?.anuncios?.find((a: any) => a.id === nB)?.naoGastoCents === 60);
-    r = await orgB.req("POST", `/api/admin/patrocinio/anuncios/${nB}/estorno`, { motivo: "A rifa foi encerrada antes do fim do pacote." });
-    const pedido2 = r.json;
-    r = await admin.req("POST", `/api/admin/patrocinio/estornos/${pedido2?.id}/decisao`, { aprovar: false, explicacao: "Os cliques restantes já foram comprados fora." });
-    checa("recusado: nada volta e o anúncio fica como estava", r.status === 200 && r.json?.status === "recusado" && (await saldo(B.id)) === 890 && (await anuncio(nB)).status === "encerrado", `HTTP ${r.status}`);
+    checa("o extrato mostra o crédito que voltou", r.json?.extrato?.some((x: any) => x.valorCents === 60 && /voltaram ao saldo/.test(x.descricao ?? "")));
 
     // Desligar.
     await admin.req("PUT", "/api/admin/patrocinio/config", { ligado: false });

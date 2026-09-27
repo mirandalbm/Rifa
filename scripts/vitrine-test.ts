@@ -209,6 +209,31 @@ async function main() {
     checa("estado inválido não filtra nada", r.json?.length === todas.json?.length);
     const c = todas.json?.find((x: any) => x.id === rifaVizinha.id);
     checa("o feed traz o selo da autorização e o perfil (com foto)", c?.autorizacao === "SPA-VITRINE-1" && c?.organizacao?.slug === VIZINHA && "foto" in (c?.organizacao ?? {}));
+
+    // Perfil de demonstração: rifas na vitrine marcadas, que nunca vendem.
+    console.log("\n  demonstração:");
+    const demoAntes = (await admin.req("GET", "/api/admin/demonstracao")).json?.existe === true;
+    r = await admin.req("POST", "/api/admin/demonstracao");
+    checa("plataforma cria o perfil de demonstração", r.status === 200, `HTTP ${r.status}`);
+    r = await anon.req("GET", "/api/public/campaigns");
+    const demos = (r.json ?? []).filter((c: any) => c.demonstracao);
+    checa("três rifas de demonstração na vitrine, sem selo SPA/MF", demos.length === 3 && demos.every((c: any) => !c.autorizacao), `${demos.length}`);
+    const [umaDemo] = await db.select({ id: campaigns.id }).from(campaigns).where(sql`${campaigns.slug} = 'demonstracao-pix-5-mil'`);
+    r = await anon.req("POST", "/api/public/orders", {
+      campaignId: umaDemo?.id,
+      quantity: 5,
+      buyer: { name: "Teste Demonstração", phone: "11988880000" },
+    });
+    checa("rifa de demonstração não vende (409)", r.status === 409 && /demonstração/i.test(r.json?.message ?? ""), `HTTP ${r.status} ${r.json?.message ?? ""}`);
+    r = await anon.req("GET", "/api/public/o/demonstracao");
+    checa("perfil com capa, links e dois destaques", r.status === 200 && Boolean(r.json?.capa) && r.json?.links?.length > 0 && r.json?.destaques?.length === 2, `HTTP ${r.status}`);
+    r = await marina.req("POST", "/api/admin/demonstracao");
+    checa("organizador não cria demonstração (403)", r.status === 403, `HTTP ${r.status}`);
+    r = await admin.req("DELETE", "/api/admin/demonstracao");
+    const semDemo = ((await anon.req("GET", "/api/public/campaigns")).json ?? []).every((c: any) => !c.demonstracao);
+    const perfilDemo = await anon.req("GET", "/api/public/o/demonstracao");
+    checa("remover tira da vitrine e o perfil some (404)", r.status === 200 && semDemo && perfilDemo.status === 404, `HTTP ${r.status} · perfil ${perfilDemo.status}`);
+    if (demoAntes) await admin.req("POST", "/api/admin/demonstracao");
   } finally {
     await db.delete(stories).where(storiesAntes.length ? notInArray(stories.id, storiesAntes) : sql`true`);
     await db.delete(plataformaBanners);

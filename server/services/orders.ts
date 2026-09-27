@@ -263,6 +263,10 @@ export async function createOrder(
   if (campaign.status !== "published") {
     throw new OrderError("Esta rifa não está aberta para compra.", 409);
   }
+  // Demonstração aparece na vitrine, mas não vende: nem site, nem cambista.
+  if (campaign.demonstracao) {
+    throw new OrderError("Rifa de demonstração: não está à venda.", 409);
+  }
 
   // O administrador decide os meios aceitos; a checagem é aqui, não na tela.
   const meios = await getPaymentMethods();

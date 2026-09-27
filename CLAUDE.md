@@ -192,6 +192,18 @@ arquitetura.
   mostra o número inteiro (`formatQuota`). Cortar dígito fazia o bloco 2
   parecer o bloco 1.
 
+## Perfil de demonstração — o que não pode afrouxar
+
+- **Demonstração nunca vende.** As rifas "no ar" do perfil de exemplo levam
+  `campaigns.demonstracao`: o cartão da vitrine diz "Demonstração" no lugar
+  do selo SPA/MF, a página não oferece compra e `createOrder` recusa (409)
+  — site, cambista e bônus passam por ele. `npm run vitrine` prova.
+- **É a única rifa publicada sem autorização**, e por isso não tem número
+  de autorização nem sorteio (data longe, sem semente). Rifa de verdade
+  continua passando por `publishCampaign()` e pela invariante 9.
+- **Só a plataforma cria e remove** (403 para organizador). Remover volta
+  as rifas a rascunho e arquiva a organização; o reset do lançamento apaga.
+
 ## Venda física — o que não pode afrouxar
 
 - **Reservar antes de cobrar.** Nunca inverter: cartão aprovado com a cota já

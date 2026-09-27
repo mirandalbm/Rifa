@@ -20,6 +20,7 @@ export interface RifaDoFeed {
   bannerSrcSet?: string | null;
   bannerLqip?: string | null;
   autorizacao: string | null;
+  demonstracao?: boolean;
   organizacao: { nome: string; slug: string; local: string | null; uf: string | null; foto: string | null } | null;
   /** 0 = na cidade de quem olha, 1 = no estado, 2 = o resto; nulo sem região. */
   perto: 0 | 1 | 2 | null;
@@ -95,7 +96,11 @@ export function CartaoDoFeed({ rifa: c, origem = "vitrine" }: { rifa: RifaDoFeed
 
         <div className="space-y-2 p-3">
           <h3 className="font-display text-base font-extrabold leading-tight">{c.prizeTitle}</h3>
-          {c.autorizacao ? (
+          {c.demonstracao ? (
+            <p className="text-[11px] font-semibold text-yellow-deep">
+              <span className="rounded bg-yellow-soft px-1.5 py-[1px]">Demonstração</span> · exemplo, não está à venda
+            </p>
+          ) : c.autorizacao ? (
             <p className="flex items-center gap-1 text-[11px] font-semibold text-ink-2">
               <ShieldCheck size={13} aria-hidden className="text-marca" />
               Autorizada SPA/MF <span className="tnum font-normal text-muted">· {c.autorizacao}</span>

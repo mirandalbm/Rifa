@@ -5,7 +5,8 @@ import { Heart, MessageCircle, X } from "lucide-react";
 import { Button, Pill } from "@/components/bits";
 import { apiRequest } from "@/lib/queryClient";
 import { EditarPerfilPublico, FotoDoApostador } from "@/components/PerfilDoApostador";
-import { COMENTARIO_MAX, problemaNoComentario } from "@shared/comentarios";
+import { COMENTARIO_MAX, EMOJI_SO_VERIFICADO, problemaNoComentario, temEmoji } from "@shared/comentarios";
+import { SeloVerificado } from "@/components/SeloVerificado";
 import { REACOES } from "@shared/perfilApostador";
 
 interface Comentario {
@@ -14,6 +15,7 @@ interface Comentario {
   nome: string;
   perfil: string | null;
   foto: string | null;
+  verificado: boolean;
   texto: string;
   curtidas: number;
   curti: boolean;
@@ -25,11 +27,12 @@ interface Comentario {
 }
 
 interface Lista {
-  organizacao: { nome: string; slug: string };
+  organizacao: { nome: string; slug: string; verificada: boolean };
   podeComentar: boolean;
   comoOrganizacao: boolean;
   precisaApelido: boolean;
   podeCurtir: boolean;
+  podeUsarEmoji: boolean;
   lista: (Comentario & { respostas: Comentario[] })[];
 }
 
@@ -44,12 +47,18 @@ const tempo = (iso: string) => {
 
 /** Nome com link para o perfil (do apostador ou da organização). */
 function Nome({ c }: { c: Comentario }) {
-  return c.perfil ? (
-    <Link href={c.perfil} className="font-semibold hover:underline">
-      {c.nome}
-    </Link>
-  ) : (
-    <b className="font-semibold">{c.nome}</b>
+  const selo = c.verificado ? <SeloVerificado sujeito={c.autor === "organizacao" ? "organizacao" : "apostador"} tamanho={14} /> : null;
+  return (
+    <span className="inline-flex items-center gap-1">
+      {c.perfil ? (
+        <Link href={c.perfil} className="font-semibold hover:underline">
+          {c.nome}
+        </Link>
+      ) : (
+        <b className="font-semibold">{c.nome}</b>
+      )}
+      {selo}
+    </span>
   );
 }
 
@@ -159,12 +168,16 @@ function Escrever({
   aoEnviar,
   rotulo,
   foco,
+  podeUsarEmoji,
+  comoOrganizacao,
 }: {
   slug: string;
   respostaA: { id: string; nome: string } | null;
   aoEnviar: () => void;
   rotulo: string;
   foco: number;
+  podeUsarEmoji: boolean;
+  comoOrganizacao: boolean;
 }) {
   const [texto, setTexto] = useState("");
   const [erro, setErro] = useState<string | null>(null);
@@ -184,12 +197,17 @@ function Escrever({
   });
   return (
     <div className="space-y-2 border-t border-line pt-2">
-      <div className="flex justify-between px-1 text-2xl" role="group" aria-label="Reações rápidas">
+      <div
+        className={`flex justify-between px-1 text-2xl ${podeUsarEmoji ? "" : "opacity-40 grayscale"}`}
+        role="group"
+        aria-label={podeUsarEmoji ? "Reações rápidas" : "Reações rápidas (só para perfil verificado)"}
+      >
         {REACOES.map((r) => (
           <button
             key={r}
             type="button"
-            className="rounded-md px-1 hover:bg-mist"
+            disabled={!podeUsarEmoji}
+            className="rounded-md px-1 hover:bg-mist disabled:cursor-not-allowed disabled:hover:bg-transparent"
             aria-label={`Inserir ${r}`}
             onClick={() => {
               setTexto((t) => (t + r).slice(0, COMENTARIO_MAX));
@@ -200,11 +218,22 @@ function Escrever({
           </button>
         ))}
       </div>
+      {podeUsarEmoji ? null : (
+        <p className="flex items-center gap-1.5 px-1 text-xs text-muted">
+          <SeloVerificado sujeito={comoOrganizacao ? "organizacao" : "apostador"} tamanho={14} />
+          <span>
+            Emojis são para perfis verificados.{" "}
+            <Link href={comoOrganizacao ? "/admin/configuracoes#verificacao" : "/minhas-cotas?aba=conta#verificacao"} className="font-semibold text-marca">
+              Verificar meu perfil
+            </Link>
+          </span>
+        </p>
+      )}
       <form
         className="flex items-end gap-2"
         onSubmit={(e) => {
           e.preventDefault();
-          const p = problemaNoComentario(texto);
+          const p = problemaNoComentario(texto) ?? (!podeUsarEmoji && temEmoji(texto) ? EMOJI_SO_VERIFICADO : null);
           if (p) return setErro(p);
           enviar.mutate();
         }}
@@ -351,6 +380,8 @@ export function Comentarios({ slug, dentroDoPainel }: { slug: string; dentroDoPa
               slug={slug}
               respostaA={respondendo}
               foco={foco}
+              podeUsarEmoji={Boolean(data.podeUsarEmoji)}
+              comoOrganizacao={data.comoOrganizacao}
               rotulo={data.comoOrganizacao ? `Comentar como ${data.organizacao.nome}…` : "Participe da conversa…"}
               aoEnviar={() => {
                 if (respondendo) setAbertas((s) => new Set(s).add(respondendo.id));

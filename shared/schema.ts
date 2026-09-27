@@ -230,6 +230,8 @@ export const organizations = pgTable(
     destaqueClaro: text("destaque_claro"),
     destaqueEscuro: text("destaque_escuro"),
     links: jsonb("links").$type<{ rotulo: string; url: string }[]>().notNull().default([]),
+    /** Organização verificada (selo de trevo): espelho de `verificacoes`, na mesma transação. */
+    verificadaEm: timestamp("verificada_em"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (t) => [uniqueIndex("uq_organizations_slug").on(t.slug)],
@@ -318,6 +320,12 @@ export const buyers = pgTable(
     apelido: text("apelido"),
     /** Quando a foto do perfil mudou (a foto em si fica em `comprador_fotos`). */
     fotoEm: timestamp("foto_em"),
+    /**
+     * Perfil verificado (selo de trevo). Espelho de `verificacoes.status =
+     * 'verificado'`, gravado na mesma transação — a vitrine e os
+     * comentários leem daqui sem juntar a tabela do cofre.
+     */
+    verificadoEm: timestamp("verificado_em"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (t) => [
@@ -346,6 +354,10 @@ export const affiliates = pgTable(
     commissionPct: integer("commission_pct"),
     status: affiliateStatus("status").notNull().default("pending"),
     approvedAt: timestamp("approved_at"),
+    /** Quando a foto do perfil mudou (a foto fica em `afiliado_fotos`). */
+    fotoEm: timestamp("foto_em"),
+    /** Afiliado verificado (selo de trevo): espelho de `verificacoes`, na mesma transação. */
+    verificadoEm: timestamp("verificado_em"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (t) => [
@@ -1111,6 +1123,16 @@ export const compradorFotos = pgTable("comprador_fotos", {
   buyerId: uuid("buyer_id")
     .primaryKey()
     .references(() => buyers.id, { onDelete: "cascade" }),
+  mime: text("mime").notNull(),
+  bytes: bytea("bytes").notNull(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+/** Foto do perfil do afiliado — a que se compara com o documento na verificação. */
+export const afiliadoFotos = pgTable("afiliado_fotos", {
+  affiliateId: uuid("affiliate_id")
+    .primaryKey()
+    .references(() => affiliates.id, { onDelete: "cascade" }),
   mime: text("mime").notNull(),
   bytes: bytea("bytes").notNull(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
@@ -2100,4 +2122,68 @@ export const patrocinioRecargas = pgTable(
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (t) => [uniqueIndex("uq_patrocinio_recarga_codigo").on(t.codigo), uniqueIndex("uq_patrocinio_recarga_charge").on(t.chargeId)],
+);
+
+/**
+ * Verificação do perfil (selo de trevo) de apostador, afiliado e
+ * organização — `shared/verificacao.ts`. Um pedido por sujeito. Os dados
+ * ficam **cifrados** como o cadastro fiscal; em claro, só o status e a
+ * impressão do CPF (HMAC), que impede o mesmo CPF de verificar duas contas
+ * do mesmo tipo — o índice decide, nunca um `SELECT` antes.
+ *
+ * `foto_versao` é a foto do perfil que foi comparada: trocar a foto de um
+ * perfil verificado tira o selo até a nova ser conferida.
+ */
+export const verificacoes = pgTable(
+  "verificacoes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /** apostador | afiliado | organizacao */
+    sujeito: text("sujeito").notNull(),
+    /** O id em `buyers`, `affiliates` ou `organizations`, conforme o sujeito. */
+    sujeitoId: uuid("sujeito_id").notNull(),
+    /** `STATUS_VERIFICACAO` */
+    status: text("status").notNull().default("incompleto"),
+    dados: bytea("dados"),
+    iv: bytea("iv"),
+    tag: bytea("tag"),
+    chaveVersao: text("chave_versao"),
+    cpfImpressao: text("cpf_impressao"),
+    motivo: text("motivo"),
+    enviadoEm: timestamp("enviado_em"),
+    documentosAprovadosEm: timestamp("documentos_aprovados_em"),
+    documentosAprovadosPor: uuid("documentos_aprovados_por"),
+    fotoVersao: timestamp("foto_versao"),
+    /** `automatico` (comparador) ou o id de quem conferiu. */
+    fotoConferidaPor: text("foto_conferida_por"),
+    fotoSimilaridade: integer("foto_similaridade"),
+    verificadoEm: timestamp("verificado_em"),
+    decididoEm: timestamp("decidido_em"),
+    decididoPor: uuid("decidido_por"),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("uq_verificacao_sujeito").on(t.sujeito, t.sujeitoId),
+    uniqueIndex("uq_verificacao_cpf").on(t.sujeito, t.cpfImpressao).where(sql`cpf_impressao is not null`),
+  ],
+);
+
+/** Documentos da verificação, cifrados como os dados. Um por tipo. */
+export const verificacaoDocumentos = pgTable(
+  "verificacao_documentos",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    verificacaoId: uuid("verificacao_id")
+      .notNull()
+      .references(() => verificacoes.id, { onDelete: "cascade" }),
+    tipo: text("tipo").notNull(),
+    mime: text("mime").notNull(),
+    tamanho: integer("tamanho").notNull(),
+    dados: bytea("dados").notNull(),
+    iv: bytea("iv").notNull(),
+    tag: bytea("tag").notNull(),
+    chaveVersao: text("chave_versao").notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("uq_verificacao_documento_tipo").on(t.verificacaoId, t.tipo)],
 );

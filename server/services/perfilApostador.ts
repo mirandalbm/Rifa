@@ -14,6 +14,8 @@ import { db } from "../db";
 import { buyers, compradorFotos } from "@shared/schema";
 import { nomeRealPublico, validarApelido } from "@shared/perfilApostador";
 import { isUniqueViolation } from "../pgError";
+import { depoisDaFoto, fotoMudouNaTransacao } from "./verificacao";
+import type { StatusVerificacao } from "@shared/verificacao";
 
 export class PerfilApostadorError extends Error {
   constructor(message: string, readonly status = 400) {
@@ -46,7 +48,7 @@ async function processarFoto(dataUrl: string) {
 
 async function contaDe(buyerId: string) {
   const [b] = await db
-    .select({ id: buyers.id, nome: buyers.name, apelido: buyers.apelido, fotoEm: buyers.fotoEm, conta: buyers.passwordHash })
+    .select({ id: buyers.id, nome: buyers.name, apelido: buyers.apelido, fotoEm: buyers.fotoEm, conta: buyers.passwordHash, verificadoEm: buyers.verificadoEm })
     .from(buyers)
     .where(and(eq(buyers.id, buyerId), isNull(buyers.excluidoEm)));
   if (!b?.conta) throw new PerfilApostadorError("Entre na sua conta.", 401);
@@ -59,6 +61,7 @@ export async function meuPerfilPublico(buyerId: string) {
     apelido: b.apelido,
     foto: urlDaFotoDoApostador(b.apelido, b.fotoEm),
     nomeReal: nomeRealPublico(b.nome),
+    verificado: Boolean(b.verificadoEm),
   };
 }
 
@@ -80,6 +83,7 @@ export async function salvarPerfilPublico(buyerId: string, entrada: { apelido?: 
     throw new PerfilApostadorError("Escolha um apelido antes da foto.");
   }
 
+  let statusDaVerificacao: StatusVerificacao | null = null;
   try {
     await db.transaction(async (tx) => {
       const agora = new Date();
@@ -98,6 +102,8 @@ export async function salvarPerfilPublico(buyerId: string, entrada: { apelido?: 
           ...(foto !== undefined ? { fotoEm: foto ? agora : null } : {}),
         })
         .where(eq(buyers.id, buyerId));
+      // Foto nova tira o selo aqui mesmo, até ser conferida de novo.
+      if (foto !== undefined) statusDaVerificacao = await fotoMudouNaTransacao(tx, "apostador", buyerId);
     });
   } catch (err) {
     if (isUniqueViolation(err, "uq_buyers_apelido")) {
@@ -105,6 +111,7 @@ export async function salvarPerfilPublico(buyerId: string, entrada: { apelido?: 
     }
     throw err;
   }
+  depoisDaFoto("apostador", buyerId, statusDaVerificacao);
   return meuPerfilPublico(buyerId);
 }
 
@@ -112,7 +119,7 @@ export async function salvarPerfilPublico(buyerId: string, entrada: { apelido?: 
 export async function perfilPublicoDoApostador(apelidoBruto: string) {
   const apelido = apelidoBruto.toLowerCase();
   const [b] = await db
-    .select({ nome: buyers.name, apelido: buyers.apelido, fotoEm: buyers.fotoEm, desde: buyers.contaCriadaEm })
+    .select({ nome: buyers.name, apelido: buyers.apelido, fotoEm: buyers.fotoEm, desde: buyers.contaCriadaEm, verificadoEm: buyers.verificadoEm })
     .from(buyers)
     .where(and(eq(buyers.apelido, apelido), isNull(buyers.excluidoEm)));
   if (!b) throw new PerfilApostadorError("Perfil não encontrado.", 404);
@@ -121,6 +128,7 @@ export async function perfilPublicoDoApostador(apelidoBruto: string) {
     nomeReal: nomeRealPublico(b.nome),
     foto: urlDaFotoDoApostador(b.apelido, b.fotoEm),
     desde: b.desde,
+    verificado: Boolean(b.verificadoEm),
   };
 }
 

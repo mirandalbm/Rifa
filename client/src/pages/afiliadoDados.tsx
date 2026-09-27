@@ -3,6 +3,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { PanelShell } from "@/components/AppShell";
 import { Button, Card, Pill } from "@/components/bits";
 import { apiRequest } from "@/lib/queryClient";
+import { lerImagem } from "@/lib/anexo";
+import { VerificacaoCard } from "@/components/Verificacao";
 import { maskCpf } from "@shared/format";
 import { UFS, maskCep } from "@shared/endereco";
 import {
@@ -214,6 +216,90 @@ export function AfiliadoDados() {
           </ul>
         </Card>
       </div>
+
+      <div className="mt-6 space-y-3">
+        <Card title="Foto do perfil">
+          <div className="p-4">
+            <FotoDoAfiliado />
+          </div>
+        </Card>
+        <VerificacaoCard
+          base="/api/affiliate/verificacao"
+          sujeito="afiliado"
+          foto={<p className="rounded-md bg-yellow-soft px-3 py-2 text-yellow-deep">Ponha uma foto sua, de rosto, em “Foto do perfil”, acima.</p>}
+          extra={<CopiarDoFiscal />}
+        />
+      </div>
     </PanelShell>
+  );
+}
+
+/** A foto do afiliado — a que a plataforma compara com o documento. */
+function FotoDoAfiliado() {
+  const qc = useQueryClient();
+  const { data } = useQuery<{ affiliate: { foto: string | null; verificado: boolean } }>({ queryKey: ["/api/affiliate/overview"] });
+  const [erro, setErro] = useState<string | null>(null);
+  const salvar = useMutation({
+    mutationFn: (foto: string | null) => apiRequest("PUT", "/api/affiliate/foto", { foto }),
+    onSuccess: () => {
+      setErro(null);
+      qc.invalidateQueries({ queryKey: ["/api/affiliate/overview"] });
+      qc.invalidateQueries({ queryKey: ["/api/affiliate/verificacao"] });
+    },
+    onError: (e: Error) => setErro(e.message),
+  });
+  const foto = data?.affiliate.foto ?? null;
+  const verificado = Boolean(data?.affiliate.verificado);
+  return (
+    <div className="flex flex-wrap items-center gap-3 text-sm">
+      {foto ? (
+        <img src={foto} alt="Sua foto do perfil" width={56} height={56} className="h-14 w-14 rounded-full border border-line object-cover" />
+      ) : (
+        <span className="flex h-14 w-14 items-center justify-center rounded-full bg-mist-2 text-xs text-muted">sem foto</span>
+      )}
+      <label className="cursor-pointer rounded-md border border-line-2 px-3 py-1.5 text-xs font-semibold hover:bg-mist">
+        {foto ? "Trocar foto" : "Pôr foto"}
+        <input
+          type="file"
+          accept="image/*"
+          className="sr-only"
+          onChange={async (e) => {
+            const f = e.target.files?.[0];
+            e.target.value = "";
+            if (!f) return;
+            if (verificado && !window.confirm("Trocar a foto tira o selo de verificado até a nova ser conferida. Trocar?")) return;
+            try {
+              salvar.mutate(await lerImagem(f));
+            } catch (err) {
+              setErro((err as Error).message);
+            }
+          }}
+        />
+      </label>
+      <span className="text-xs text-muted">Uma foto sua, de rosto — é ela que comparamos com o documento.</span>
+      {erro ? <p className="basis-full text-xs text-red">{erro}</p> : null}
+    </div>
+  );
+}
+
+/** O RG já mandado no cadastro fiscal serve também para a verificação. */
+function CopiarDoFiscal() {
+  const qc = useQueryClient();
+  const [msg, setMsg] = useState<string | null>(null);
+  const copiar = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/affiliate/verificacao/copiar-do-fiscal"),
+    onSuccess: () => {
+      setMsg("Documentos copiados do cadastro fiscal.");
+      qc.invalidateQueries({ queryKey: ["/api/affiliate/verificacao"] });
+    },
+    onError: (e: Error) => setMsg(e.message),
+  });
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <Button variant="ghost" className="text-xs" disabled={copiar.isPending} onClick={() => copiar.mutate()}>
+        Usar os documentos do cadastro fiscal
+      </Button>
+      {msg ? <span className="text-xs text-muted">{msg}</span> : null}
+    </div>
   );
 }

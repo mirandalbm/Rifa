@@ -126,6 +126,7 @@ arquitetura.
 | segurança do organizador: telefone aprovado, denúncias, rifa travada, banimento | `shared/seguranca.ts` (regras e varredura), `server/services/seguranca.ts`, `client/src/components/Seguranca.tsx`, `scripts/seguranca-test.ts` |
 | visão do organizador (só o próprio perfil) | `VisaoDoOrganizador` em `client/src/App.tsx`, `organizacao` em `GET /api/auth/me` |
 | central de avisos do apostador (o coração no topo) | `server/services/notificacoes.ts`, `avisar()` em `server/services/push.ts`, `client/src/pages/Notificacoes.tsx`, `CoracaoDeAvisos` em `client/src/components/AppShell.tsx`, `scripts/push-test.ts` |
+| perfil verificado (selo de trevo): documentos, foto, fila e cores | `shared/verificacao.ts` (regras e paleta), `server/services/verificacao.ts`, `server/services/rosto.ts` (comparador), `server/routes/verificacaoRotas.ts`, `client/src/components/Verificacao.tsx`, `SeloVerificado.tsx`, `VerificacoesDaPlataforma.tsx`, `CoresDoSelo.tsx`, `scripts/verificacao-test.ts` |
 | app instalável (PWA) | `client/public/sw.js`, `client/public/manifest.webmanifest`, `client/src/lib/pwa.ts` |
 
 ## Convenções
@@ -849,6 +850,42 @@ estorno.
   publicadas travam na mesma transação). Travar e banir exigem motivo;
   auditoria antes. Destravar é da plataforma e nunca vale para banida.
 - `npm run seguranca` prova tudo isso contra a API de verdade.
+
+## Perfil verificado — o que não pode afrouxar
+
+- **Destaca, não barra.** Sem o selo, o apostador compra e comenta (sem
+  emoji), o afiliado divulga e a organização faz rifa. Nenhuma regra de
+  venda ou publicação olha a verificação.
+- **Emoji é vantagem de verificado** (`temEmoji()` em
+  `shared/comentarios.ts`, 403 em `comentar`), para apostador e para a
+  organização que comenta. Foto no perfil **não** é exigida para comentar.
+- **Dados e documentos no cofre**, como o cadastro fiscal. A fila não traz
+  dado pessoal; o detalhe e cada documento entram em `audit_log` antes de
+  sair. Fila e decisão são só da plataforma (403); a organização verifica
+  só a si mesma (o vizinho é 404) — os dois no `npm run isolation`.
+- **O mesmo CPF não verifica dois perfis do mesmo tipo**: índice
+  `uq_verificacao_cpf` sobre a impressão (HMAC), nunca um `SELECT` antes. O
+  apostador verifica com o CPF da própria conta (409 se outro).
+- **Pessoa compara a foto do perfil com a frente do documento** (que por
+  isso vai como imagem, nunca PDF); organização não compara (a foto é a
+  marca). Consentimento biométrico marcado na tela, conferido no servidor.
+- **Trocar ou tirar a foto apaga o selo na transação que troca a foto**
+  (`fotoMudouNaTransacao`); mexer em dado ou documento derruba a aprovação
+  dos documentos. O selo público (`buyers.verificado_em`,
+  `affiliates.verificado_em`, `organizations.verificada_em`) muda sempre na
+  mesma transação do status.
+- **Quem aprova a foto diz qual viu** (`fotoVersao`): mudou no meio, 409.
+  O comparador automático (`ROSTO_PROVEDOR=rekognition`, nasce desligado)
+  só verifica acima de `LIMIAR_ROSTO` e só se a foto comparada ainda for a
+  do perfil (`foto_versao` no `UPDATE`); abaixo, ou com o provedor fora,
+  **não recusa** — fica para uma pessoa.
+- **O selo é um trevo com o sinal de confirmação**, com rótulo em texto
+  (`ROTULO_DO_SELO`). As cores saem da paleta de 12 (`PALETA_DO_SELO`,
+  contraste ≥ 3:1 nos dois temas e com o sinal branco — o teste confere),
+  três diferentes; só a plataforma escolhe (`PUT /admin/selos`).
+- Excluir a conta (LGPD) apaga a verificação junto.
+- `npm run verificacao` prova tudo isso contra a API de verdade (o
+  comparador é injetado: a prova não sai para a internet).
 
 ## Notificações no celular — o que não pode afrouxar
 

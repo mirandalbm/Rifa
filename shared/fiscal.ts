@@ -58,6 +58,20 @@ export function maiorDeIdade(nascimento: string, hoje = new Date()): boolean {
   return idade >= 18 && idade < 120;
 }
 
+/** Banco (3 dígitos), agência, conta com dígito e o tipo. Usado também na verificação do perfil. */
+export function validarContaBancaria(bruto: unknown): ContaBancaria {
+  const c = (bruto ?? {}) as Record<string, unknown>;
+  const banco = String(c.banco ?? "").replace(/\D/g, "");
+  const agencia = String(c.agencia ?? "").replace(/\D/g, "");
+  const conta = String(c.conta ?? "").replace(/[^0-9Xx]/g, "").toUpperCase();
+  if (!/^\d{3}$/.test(banco)) throw new Error("Código do banco com 3 dígitos (ex.: 001, 237, 260).");
+  if (!/^\d{3,5}$/.test(agencia)) throw new Error("Agência inválida.");
+  if (!/^\d{3,13}[0-9X]$/.test(conta)) throw new Error("Conta inválida (com o dígito).");
+  const tipo = c.tipo === "poupanca" ? "poupanca" : c.tipo === "corrente" ? "corrente" : null;
+  if (!tipo) throw new Error("Escolha conta corrente ou poupança.");
+  return { banco, agencia, conta, tipo };
+}
+
 /** Confere e normaliza. Só chaves conhecidas saem daqui. */
 export function validarCadastroFiscal(bruto: unknown): DadosFiscais {
   const b = (bruto ?? {}) as Record<string, any>;
@@ -78,17 +92,8 @@ export function validarCadastroFiscal(bruto: unknown): DadosFiscais {
     throw new Error((e as Error).message);
   }
 
-  const c = (b.conta ?? {}) as Record<string, unknown>;
-  const banco = String(c.banco ?? "").replace(/\D/g, "");
-  const agencia = String(c.agencia ?? "").replace(/\D/g, "");
-  const conta = String(c.conta ?? "").replace(/[^0-9Xx]/g, "").toUpperCase();
-  if (!/^\d{3}$/.test(banco)) throw new Error("Código do banco com 3 dígitos (ex.: 001, 237, 260).");
-  if (!/^\d{3,5}$/.test(agencia)) throw new Error("Agência inválida.");
-  if (!/^\d{3,13}[0-9X]$/.test(conta)) throw new Error("Conta inválida (com o dígito).");
-  const tipo = c.tipo === "poupanca" ? "poupanca" : c.tipo === "corrente" ? "corrente" : null;
-  if (!tipo) throw new Error("Escolha conta corrente ou poupança.");
-
-  return { nomeCompleto, cpf, rg, nascimento, endereco, conta: { banco, agencia, conta, tipo } };
+  const conta = validarContaBancaria(b.conta);
+  return { nomeCompleto, cpf, rg, nascimento, endereco, conta };
 }
 
 /** O cadastro está completo para ir à análise? Dados e os três documentos. */

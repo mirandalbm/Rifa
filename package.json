@@ -29,6 +29,7 @@
     "solicitacoes": "tsx scripts/solicitacoes-test.ts",
     "comentarios": "tsx scripts/comentarios-test.ts",
     "seguranca": "tsx scripts/seguranca-test.ts",
+    "verificacao": "tsx scripts/verificacao-test.ts",
     "resultados": "tsx scripts/resultados-test.ts",
     "afiliados": "tsx scripts/afiliados-test.ts",
     "fiscal": "tsx scripts/fiscal-test.ts",
@@ -39,6 +40,7 @@
     "marketing": "tsx scripts/marketing-test.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-rekognition": "^3.1141.0",
     "@aws-sdk/client-s3": "^3.1131.0",
     "@aws-sdk/s3-request-presigner": "^3.1131.0",
     "@radix-ui/react-accordion": "^1.2.4",

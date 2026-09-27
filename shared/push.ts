@@ -65,7 +65,8 @@ export type TipoAviso =
   | "sorteio_adiado"
   | "resultado"
   | "reembolso"
-  | "comentario";
+  | "comentario"
+  | "verificacao";
 
 export interface MensagemPush {
   title: string;
@@ -82,6 +83,7 @@ export const VALIDADE_S: Record<TipoAviso, number> = {
   sorteio_chegando: 3600,
   sorteio_adiado: 3 * 24 * 3600,
   comentario: 24 * 3600,
+  verificacao: 3 * 24 * 3600,
   resultado: 24 * 3600,
   reembolso: 3 * 24 * 3600,
 };
@@ -152,6 +154,16 @@ export function mensagemRespostaAoComentario(r: { org: string; texto: string; ur
     url: r.url,
     tag: `comentario:${r.url}`,
   };
+}
+
+/** A análise da verificação terminou: selo, foto a trocar ou documento a corrigir. */
+export function mensagemVerificacao(r: { status: "verificado" | "foto_divergente" | "recusado" }): MensagemPush {
+  const texto = {
+    verificado: { title: "Seu perfil foi verificado", body: "O selo de trevo já aparece ao lado do seu nome — e agora você comenta com emojis." },
+    foto_divergente: { title: "A foto do perfil não confere", body: "Os documentos estão certos, mas a foto do perfil não é a da pessoa do documento. Troque por uma foto sua." },
+    recusado: { title: "Verificação recusada", body: "Veja o motivo em Minha conta e envie de novo." },
+  }[r.status];
+  return { ...texto, url: "/minhas-cotas?aba=conta#verificacao", tag: "verificacao" };
 }
 
 export function mensagemResultado(r: { premio: string; orgSlug: string; slug: string; numero: string }): MensagemPush {

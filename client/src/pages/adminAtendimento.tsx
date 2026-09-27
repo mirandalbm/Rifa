@@ -5,6 +5,7 @@ import { Card, Button, Pill, Empty, Money } from "@/components/bits";
 import { Conversa, type Mensagem } from "@/components/Conversa";
 import { SolicitacoesDeRifa } from "@/components/SolicitacoesDeRifa";
 import { DenunciasDaPlataforma } from "@/components/Seguranca";
+import { VerificacoesDaPlataforma } from "@/components/VerificacoesDaPlataforma";
 import { apiRequest } from "@/lib/queryClient";
 import { useSession } from "@/lib/session";
 import { formatBRL } from "@shared/format";
@@ -119,15 +120,16 @@ export function AdminAtendimento() {
 
   // Duas filas: reembolso (chamados dos compradores) e pedidos de mudança em
   // rifa publicada (edição e adiamento, que a plataforma analisa).
-  const [area, setArea] = useState<"reembolsos" | "rifas" | "denuncias">(() => {
+  const [area, setArea] = useState<"reembolsos" | "rifas" | "denuncias" | "verificacoes">(() => {
     const aba = new URLSearchParams(window.location.search).get("aba");
-    return aba === "rifas" || aba === "denuncias" ? aba : "reembolsos";
+    return aba === "rifas" || aba === "denuncias" || aba === "verificacoes" ? aba : "reembolsos";
   });
   const { data: pendentes } = useQuery<{
     total: number;
     disputas?: number;
     solicitacoes?: number;
     denuncias?: number;
+    verificacoes?: number;
   }>({
     queryKey: ["/api/admin/chamados/pendentes"],
   });
@@ -144,7 +146,7 @@ export function AdminAtendimento() {
           ["reembolsos", "Reembolsos"],
           ["rifas", "Rifas (edição e adiamento)"],
           // Denúncias são só da plataforma: a denunciada nunca vê.
-          ...(daPlataforma ? ([["denuncias", "Denúncias"]] as const) : []),
+          ...(daPlataforma ? ([["denuncias", "Denúncias"], ["verificacoes", "Verificações"]] as const) : []),
         ] as const
       ).map(([valor, rotulo]) => (
         <button
@@ -164,6 +166,12 @@ export function AdminAtendimento() {
               <span className="sr-only"> em análise</span>
             </span>
           ) : null}
+          {valor === "verificacoes" && pendentes?.verificacoes ? (
+            <span className="tnum ml-1 rounded-full bg-yellow-soft px-1.5 text-[11px] text-yellow-deep">
+              {pendentes.verificacoes}
+              <span className="sr-only"> em análise</span>
+            </span>
+          ) : null}
           {valor === "rifas" && pendentes?.solicitacoes ? (
             <span className="tnum ml-1 rounded-full bg-yellow-soft px-1.5 text-[11px] text-yellow-deep">
               {pendentes.solicitacoes}
@@ -180,6 +188,15 @@ export function AdminAtendimento() {
       <PanelShell title="Atendimento">
         {abas}
         <DenunciasDaPlataforma />
+      </PanelShell>
+    );
+  }
+
+  if (area === "verificacoes" && daPlataforma) {
+    return (
+      <PanelShell title="Atendimento">
+        {abas}
+        <VerificacoesDaPlataforma />
       </PanelShell>
     );
   }

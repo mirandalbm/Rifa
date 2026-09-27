@@ -23,6 +23,8 @@ import {
 } from "@shared/schema";
 import {
   COMENTARIOS_POR_JANELA,
+  EMOJI_SO_VERIFICADO,
+  temEmoji,
   JANELA_DE_COMENTARIOS_MIN,
   limparComentario,
   nomeNoComentario,
@@ -55,6 +57,7 @@ async function rifaPublica(slug: string) {
       orgNome: organizations.name,
       orgSlug: organizations.slug,
       orgFotoEm: organizacaoFotos.updatedAt,
+      orgVerificadaEm: organizations.verificadaEm,
     })
     .from(campaigns)
     .innerJoin(organizations, eq(organizations.id, campaigns.organizationId))
@@ -84,6 +87,7 @@ export async function listarComentarios(req: Request, slug: string) {
       nomeComprador: buyers.name,
       apelido: buyers.apelido,
       fotoEm: buyers.fotoEm,
+      verificadoEm: buyers.verificadoEm,
       curti: meuBuyer
         ? sql<boolean>`exists (select 1 from ${comentarioCurtidas} cc
              where cc.comentario_id = "comentarios"."id" and cc.buyer_id = ${meuBuyer}::uuid)`
@@ -127,6 +131,8 @@ export async function listarComentarios(req: Request, slug: string) {
       nome: org ? rifa.orgNome : (l.apelido ?? nomeNoComentario(l.nomeComprador)),
       perfil: org ? `/o/${rifa.orgSlug}` : l.apelido ? `/u/${l.apelido}` : null,
       foto: org ? urlDaFoto(rifa.orgSlug, rifa.orgFotoEm) : urlDaFotoDoApostador(l.apelido, l.fotoEm),
+      // O selo de trevo (apostador ou organização verificados).
+      verificado: org ? Boolean(rifa.orgVerificadaEm) : Boolean(l.verificadoEm),
       texto: l.texto,
       curtidas: l.curtidas,
       curti: Boolean(l.curti),
@@ -144,16 +150,18 @@ export async function listarComentarios(req: Request, slug: string) {
     if (l.parentId) respostas.set(l.parentId, [...(respostas.get(l.parentId) ?? []), publico(l)]);
   }
   const eu = meuBuyer
-    ? (await db.select({ apelido: buyers.apelido }).from(buyers).where(eq(buyers.id, meuBuyer)))[0]
+    ? (await db.select({ apelido: buyers.apelido, verificadoEm: buyers.verificadoEm }).from(buyers).where(eq(buyers.id, meuBuyer)))[0]
     : null;
   return {
-    organizacao: { nome: rifa.orgNome, slug: rifa.orgSlug },
+    organizacao: { nome: rifa.orgNome, slug: rifa.orgSlug, verificada: Boolean(rifa.orgVerificadaEm) },
     // Quem pode escrever: apostador com conta, ou a organização dona.
     podeComentar: Boolean(meuBuyer) || daOrganizacao,
     comoOrganizacao: daOrganizacao,
     // Apostador sem apelido escolhe um antes do primeiro comentário.
     precisaApelido: !daOrganizacao && Boolean(meuBuyer) && !eu?.apelido,
     podeCurtir: Boolean(meuBuyer),
+    // Emoji é vantagem de perfil verificado; a tela explica e leva à verificação.
+    podeUsarEmoji: daOrganizacao ? Boolean(rifa.orgVerificadaEm) : Boolean(eu?.verificadoEm),
     // Mais novo em cima; as respostas, na ordem da conversa.
     lista: topo.reverse().map((l) => ({ ...publico(l), respostas: respostas.get(l.id) ?? [] })),
   };
@@ -200,11 +208,15 @@ export async function comentar(req: Request, slug: string, entrada: { texto?: un
   // Erro de preenchimento sai antes de contar a tentativa.
   const problema = problemaNoComentario(entrada.texto);
   if (problema) throw new ComentarioError(problema, 400);
-  // Como no Instagram, quem comenta tem nome de usuário (o apelido).
+  // Como no Instagram, quem comenta tem nome de usuário (o apelido). Foto
+  // não é exigida; emoji, sim, é só de perfil verificado.
+  let verificado = Boolean(rifa.orgVerificadaEm);
   if (!comoOrganizacao) {
-    const [eu] = await db.select({ apelido: buyers.apelido }).from(buyers).where(eq(buyers.id, buyerId!));
+    const [eu] = await db.select({ apelido: buyers.apelido, verificadoEm: buyers.verificadoEm }).from(buyers).where(eq(buyers.id, buyerId!));
     if (!eu?.apelido) throw new ComentarioError("Escolha seu apelido para comentar.", 409);
+    verificado = Boolean(eu.verificadoEm);
   }
+  if (!verificado && temEmoji(String(entrada.texto))) throw new ComentarioError(EMOJI_SO_VERIFICADO, 403);
   const quem = comoOrganizacao ? `org:${req.user!.id}` : `comprador:${buyerId}`;
   const limite = await hit(`comentario:${quem}`, JANELA_DE_COMENTARIOS_MIN, COMENTARIOS_POR_JANELA);
   if (limite.excedeu) throw new ComentarioError("Muitos comentários seguidos. Espere alguns minutos.", 429);

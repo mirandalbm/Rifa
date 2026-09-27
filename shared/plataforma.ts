@@ -12,6 +12,7 @@ import { TAXA_REEMBOLSO_MAX_PCT, TAXA_REEMBOLSO_PADRAO_PCT } from "./reembolso";
 import { BONUS_POR_INDICACAO_MAX, BONUS_POR_INDICACAO_PADRAO } from "./bonus";
 import { CONFIG_PATROCINIO_PADRAO, validarConfigPatrocinio, type ConfigPatrocinio } from "./patrocinio";
 import { validarPixels, type Pixels } from "./marketing";
+import { CORES_DO_SELO_PADRAO, validarCoresDoSelo, type CoresDoSelo } from "./verificacao";
 
 export const PROVEDORES_PIX = ["mercadopago", "asaas"] as const;
 export type ProvedorPix = (typeof PROVEDORES_PIX)[number];
@@ -96,6 +97,8 @@ export interface ConfigPlataforma {
   patrocinioReembolso: boolean;
   /** Os números de rastreamento da plataforma (valem em todas as páginas). */
   marketingPixels: Pixels;
+  /** A cor do selo de verificado de cada um, da paleta de 12 (`PALETA_DO_SELO`). */
+  coresDoSelo: CoresDoSelo;
 }
 
 export const CONFIG_PADRAO: ConfigPlataforma = {
@@ -109,6 +112,7 @@ export const CONFIG_PADRAO: ConfigPlataforma = {
   patrocinio: CONFIG_PATROCINIO_PADRAO,
   patrocinioReembolso: false,
   marketingPixels: {},
+  coresDoSelo: CORES_DO_SELO_PADRAO,
 };
 
 /** Só as chaves conhecidas: isto vem do corpo da requisição. */
@@ -136,7 +140,16 @@ export function validarConfigPlataforma(entrada: Partial<ConfigPlataforma>): Con
     patrocinio: validarConfigPatrocinio(entrada.patrocinio),
     patrocinioReembolso: entrada.patrocinioReembolso === true,
     marketingPixels: validarPixels(entrada.marketingPixels),
+    coresDoSelo: coresDoSeloValidas(entrada.coresDoSelo),
   };
+}
+
+function coresDoSeloValidas(v: unknown): CoresDoSelo {
+  try {
+    return validarCoresDoSelo(v);
+  } catch (e) {
+    throw Object.assign(new Error((e as Error).message), { status: 400 });
+  }
 }
 
 function bonusPorIndicacaoValido(v: unknown): number {

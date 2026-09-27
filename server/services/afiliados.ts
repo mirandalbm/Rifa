@@ -218,7 +218,7 @@ export async function vinculosDaOrganizacao(orgId: string | null) {
   const linhas = await db
     .select({
       vinculo: afiliadoVinculos,
-      affiliate: { id: affiliates.id, code: affiliates.code, status: affiliates.status, commissionPct: affiliates.commissionPct },
+      affiliate: { id: affiliates.id, code: affiliates.code, status: affiliates.status, commissionPct: affiliates.commissionPct, verificadoEm: affiliates.verificadoEm },
       user: { name: users.name, email: users.email, phone: users.phone },
       organizacao: organizations.name,
       aceiteVersao: sql<number | null>`(

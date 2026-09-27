@@ -23,6 +23,8 @@ import { identify } from "../services/antifraude";
 import QRCode from "qrcode";
 import { affiliateId } from "../auth";
 import { formatBRL } from "@shared/format";
+import { montarRotasDaVerificacao } from "./verificacaoRotas";
+import { copiarDocumentosDoFiscal, estadoDaVerificacao, fotoDoAfiliado, salvarFotoDoAfiliado } from "../services/verificacao";
 
 export const affiliateRouter = Router();
 
@@ -74,6 +76,8 @@ affiliateRouter.get("/overview", async (req, res, next) => {
         pixKey: aff.pixKey,
         commissionPct: aff.commissionPct,
         status: aff.status,
+        foto: aff.fotoEm ? `/api/affiliate/foto?v=${aff.fotoEm.getTime()}` : null,
+        verificado: Boolean(aff.verificadoEm),
       },
       clicks: clicks.n,
       sales: sales.orders,
@@ -430,6 +434,40 @@ affiliateRouter.get("/fiscal/documentos/:tipo", async (req, res, next) => {
     const d = await documento(affiliateId(req), req.params.tipo);
     res.setHeader("Cache-Control", "no-store");
     res.type(d.mime).send(d.bytes);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/* ---------------- verificação do perfil (selo de trevo) ---------------- */
+
+montarRotasDaVerificacao(affiliateRouter, "/verificacao", "afiliado", (req) => affiliateId(req));
+
+/** Os documentos do cadastro fiscal servem aqui também — sem fotografar o RG de novo. */
+affiliateRouter.post("/verificacao/copiar-do-fiscal", async (req, res, next) => {
+  try {
+    await copiarDocumentosDoFiscal(affiliateId(req));
+    res.json(await estadoDaVerificacao("afiliado", affiliateId(req), true));
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** A foto do perfil do afiliado (a que se compara com o documento). */
+affiliateRouter.put("/foto", async (req, res, next) => {
+  try {
+    res.json(await salvarFotoDoAfiliado(affiliateId(req), req.body?.foto ?? null));
+  } catch (err) {
+    next(err);
+  }
+});
+
+affiliateRouter.get("/foto", async (req, res, next) => {
+  try {
+    const f = await fotoDoAfiliado(affiliateId(req));
+    if (!f) return res.status(404).json({ message: "Sem foto." });
+    res.setHeader("Cache-Control", "private, max-age=31536000, immutable");
+    res.type(f.mime).send(f.bytes);
   } catch (err) {
     next(err);
   }

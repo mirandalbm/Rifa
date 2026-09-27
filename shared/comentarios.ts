@@ -41,3 +41,12 @@ export function nomeNoComentario(nome: string | null | undefined) {
   if (partes.length === 0) return "Apostador";
   return partes.length > 1 ? `${partes[0]} ${partes[1].charAt(0).toUpperCase()}.` : partes[0];
 }
+
+/**
+ * Emoji é vantagem de perfil verificado (`shared/verificacao.ts`): quem não
+ * é verificado comenta com texto. A regra vale para apostador e para a
+ * organização que comenta na própria rifa.
+ */
+const EMOJI = /\p{Extended_Pictographic}/u;
+export const temEmoji = (texto: string) => EMOJI.test(texto);
+export const EMOJI_SO_VERIFICADO = "Só perfis verificados comentam com emoji. Verifique o seu perfil para liberar.";

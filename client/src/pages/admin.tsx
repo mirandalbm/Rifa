@@ -1,3 +1,4 @@
+import { SeloVerificado } from "@/components/SeloVerificado";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { TrocarSenha } from "@/components/TrocarSenha";
@@ -17,6 +18,8 @@ import { PerfilPublicoForm } from "@/components/PerfilPublicoForm";
 import { EnderecoCurto } from "@/components/LinksCurtos";
 import { AdiarSorteioCard, EditarRifaCard, type RifaEditavel } from "@/components/EditarRifa";
 import { TelefoneDoOrganizadorCard } from "@/components/Seguranca";
+import { VerificacaoCard } from "@/components/Verificacao";
+import { CoresDoSeloCard } from "@/components/CoresDoSelo";
 import { podeExcluir } from "@shared/solicitacoes";
 import type { CorDeDestaque, LinkDoPerfil } from "@shared/perfil";
 import type { Endereco } from "@shared/endereco";
@@ -658,7 +661,7 @@ export function AdminAfiliados() {
   const daOrganizacao = sessao?.role !== "admin";
   const { data } = useQuery<
     {
-      affiliate: { id: string; code: string; status: string; commissionPct: number | null; pixKey: string | null };
+      affiliate: { id: string; code: string; status: string; commissionPct: number | null; pixKey: string | null; verificadoEm?: string | null };
       user: { name: string; email: string };
       salesCents: number;
       /** Só para a organização: o vínculo do afiliado com ela. */
@@ -709,7 +712,13 @@ export function AdminAfiliados() {
                   className="flex flex-wrap items-center gap-3 px-4 py-3 text-sm"
                 >
                   <span className="flex-1">
-                    {row.user.name} · <span className="tnum text-muted">{row.user.email}</span>
+                    {row.user.name}
+                    {row.affiliate.verificadoEm ? (
+                      <span className="ml-1 inline-block">
+                        <SeloVerificado sujeito="afiliado" tamanho={14} />
+                      </span>
+                    ) : null}{" "}
+                    · <span className="tnum text-muted">{row.user.email}</span>
                   </span>
                   <span className="tnum text-xs text-muted">
                     código {row.affiliate.code}
@@ -785,7 +794,13 @@ export function AdminAfiliados() {
               return (
                 <li key={row.affiliate.id} className="flex flex-wrap items-center gap-3 px-4 py-3 text-sm">
                   <span className="min-w-0 flex-1">
-                    {row.user.name} · <span className="tnum text-muted">{row.affiliate.code}</span>
+                    {row.user.name}
+                    {row.affiliate.verificadoEm ? (
+                      <span className="ml-1 inline-block">
+                        <SeloVerificado sujeito="afiliado" tamanho={14} />
+                      </span>
+                    ) : null}{" "}
+                    · <span className="tnum text-muted">{row.affiliate.code}</span>
                     {semAceite ? (
                       <span className="block text-[11px] text-yellow-deep">
                         ainda não aceitou a versão {row.vinculo!.termoVersaoAtual} do termo
@@ -1726,6 +1741,17 @@ function PerfilPublicoCard() {
   );
 }
 
+/** A organização pede o selo de verificada (opcional — não trava rifa nenhuma). */
+function VerificacaoDaOrganizacaoCard() {
+  const { data } = useQuery<{ organizacaoId?: string }>({ queryKey: ["/api/admin/organizer"] });
+  if (!data?.organizacaoId) return null;
+  return (
+    <div className="mb-3">
+      <VerificacaoCard base={`/api/admin/organizacoes/${data.organizacaoId}/verificacao`} sujeito="organizacao" />
+    </div>
+  );
+}
+
 export function AdminConfiguracoes() {
   const { data: session } = useSession();
   const plataforma = session?.role === "admin";
@@ -1742,6 +1768,7 @@ export function AdminConfiguracoes() {
         <PerfilPublicoCard />
         <TelefoneDoOrganizadorCard />
       </div>
+      {plataforma ? <CoresDoSeloCard /> : <VerificacaoDaOrganizacaoCard />}
       <div className="mb-3 grid gap-3 lg:grid-cols-2">
         <TwoFactorCard />
         <TrocarSenha />

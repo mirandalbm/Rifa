@@ -206,6 +206,7 @@ export async function perfilPublico(slug: string, buyerId?: string | null) {
   return {
     slug: org.slug,
     nome: org.name,
+    verificada: Boolean(org.verificadaEm),
     foto: urlDaFoto(org.slug, foto?.updatedAt),
     capa: urlDaCapa(org.slug, capa?.updatedAt),
     ultimoStory: ultimo?.em ?? null,

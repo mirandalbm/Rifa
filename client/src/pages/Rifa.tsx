@@ -25,6 +25,7 @@ import { useRastreio } from "@/components/Marketing";
 import type { CorDeDestaque } from "@shared/perfil";
 import { SeguirBotoes, FotoDoPerfil } from "@/components/Seguir";
 import { SorteioCard } from "@/components/SorteioCard";
+import { Cartelas } from "@/components/Cartelas";
 
 interface CampaignDetail {
   campaign: {
@@ -67,6 +68,9 @@ interface BlockData {
   takenCount: number;
 }
 
+/** Quantos números o mapa mostra por página (o bloco do servidor tem 1.000). */
+const POR_PAGINA = 100;
+
 /** Bitmap do bloco: 1.000 bits, 125 bytes. Bloco cheio e vazio custam igual. */
 function useTakenSet(block: BlockData | undefined) {
   return useMemo(() => {
@@ -84,9 +88,12 @@ export default function Rifa() {
   const { slug, org } = useParams<{ slug: string; org?: string }>();
   const base = org ? `/o/${org}/r/${slug}` : `/r/${slug}`;
   const [, navigate] = useLocation();
-  const [quantity, setQuantity] = useState(0);
+  // Pacote escolhido na compra rápida: mostra as cartelas daquele tamanho.
+  const [pacote, setPacote] = useState(0);
   const [picked, setPicked] = useState<number[]>([]);
-  const [block, setBlock] = useState(0);
+  // Página do mapa, de 100 em 100; o bloco buscado no servidor sai dela.
+  const [pagina, setPagina] = useState(0);
+  const [trocarSinal, setTrocarSinal] = useState<{ numeros: number[]; vez: number } | null>(null);
   const [search, setSearch] = useState("");
   const [showMap, setShowMap] = useState(false);
   const [playVideo, setPlayVideo] = useState(false);
@@ -143,6 +150,8 @@ export default function Rifa() {
     { nome: string; telefone: string; quantidade: number; quando: string }[]
   >({ queryKey: [`/api/public/campaigns/${slug}/ultimas-compras`] });
 
+  const blockSize = data?.blockSize ?? 1000;
+  const block = Math.floor((pagina * POR_PAGINA) / blockSize);
   const { data: blockData } = useQuery<BlockData>({
     queryKey: [`/api/public/campaigns/${slug}/blocks/${block}`],
     enabled: showMap,
@@ -165,11 +174,12 @@ export default function Rifa() {
   }, [campanhaVista, rastreio.pronto]);
 
   const createOrder = useMutation({
-    mutationFn: async () => {
+    // A compra vai sempre com os números — da cartela ou do mapa. Quem garante
+    // que ninguém mais leva é a reserva no servidor, não a tela.
+    mutationFn: async (numeros: number[]) => {
       const res = await apiRequest("POST", "/api/public/orders", {
         campaignId: data!.campaign.id,
-        quantity: picked.length > 0 ? undefined : quantity,
-        numbers: picked.length > 0 ? picked : undefined,
+        numbers: numeros,
         buyer: {
           name: comprador.name,
           phone: comprador.phone,
@@ -183,19 +193,27 @@ export default function Rifa() {
       });
       return (await res.json()) as { code: number; amountCents?: number };
     },
-    onSuccess: (order) => {
+    onSuccess: (order, numeros) => {
       if (data) {
         rastreio({
           tipo: "checkout",
           campanhaId: data.campaign.id,
           titulo: data.campaign.title,
           valorCents: order.amountCents ?? 0,
-          quantidade: picked.length > 0 ? picked.length : quantity,
+          quantidade: numeros.length,
         });
       }
       navigate(`/pedido/${order.code}`);
     },
-    onError: (err: Error) => setError(err.message),
+    onError: (err: Error, numeros) => {
+      setError(err.message);
+      // Cartela com número que alguém acabou de levar: troca por outra.
+      if (pacote && err.message.includes("acabaram de ser levados")) {
+        setPicked([]);
+        setTrocarSinal((t) => ({ numeros, vez: (t?.vez ?? 0) + 1 }));
+        setError("Um número desta cartela acabou de ser levado. Trocamos a cartela — confira e pague de novo.");
+      }
+    },
   });
 
   if (!data) {
@@ -212,18 +230,31 @@ export default function Rifa() {
   const photos = media.filter((m) => m.role === "photo");
   const sold = stats.soldCount;
   const pct = percent(sold, campaign.totalQuotas);
-  const count = picked.length > 0 ? picked.length : quantity;
+  const count = picked.length;
+  const dadosOk = comprador.name.length >= 2 && comprador.phone.length >= 10 && cpfOk;
 
   const price =
     count > 0
       ? priceOrder({ quantity: count, unitCents: campaign.priceCents, packages })
       : null;
 
-  const totalBlocks = Math.ceil(campaign.totalQuotas / data.blockSize);
+  const totalPaginas = Math.ceil(campaign.totalQuotas / POR_PAGINA);
+  const inicioDaPagina = pagina * POR_PAGINA + 1;
+  const fimDaPagina = Math.min(inicioDaPagina + POR_PAGINA - 1, campaign.totalQuotas);
 
   function togglePick(n: number) {
     setPicked((prev) => (prev.includes(n) ? prev.filter((x) => x !== n) : [...prev, n]));
-    setQuantity(0);
+  }
+
+  function pagarCartela(numeros: number[]) {
+    setPicked(numeros);
+    setError(null);
+    if (dadosOk) {
+      createOrder.mutate(numeros);
+    } else {
+      // Falta nome e WhatsApp: leva ao formulário; a barra de baixo paga esta cartela.
+      setTimeout(() => document.getElementById("seus-dados")?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
+    }
   }
 
   return (
@@ -363,18 +394,21 @@ export default function Rifa() {
             key={p.quantity}
             type="button"
             onClick={() => {
-              setQuantity(p.quantity);
+              setPacote(p.quantity);
               setPicked([]);
+              setShowMap(false);
+              setError(null);
             }}
+            aria-pressed={pacote === p.quantity}
             className={`rounded-md border px-2 py-2 text-center ${
-              quantity === p.quantity
+              pacote === p.quantity
                 ? "border-green bg-green-soft"
                 : p.highlight
                   ? "border-yellow bg-yellow-soft"
                   : "border-line-2 bg-white"
             }`}
           >
-            <span className="tnum block text-sm">+{p.quantity}</span>
+            <span className="tnum block text-sm font-bold">+{p.quantity}</span>
             <span className="text-[10px] text-muted">
               {p.discountPct > 0
                 ? `−${p.discountPct}%`
@@ -383,6 +417,23 @@ export default function Rifa() {
           </button>
         ))}
       </div>
+
+      {pacote > 0 && (data.pagamento?.online ?? true) ? (
+        <Cartelas
+          slug={slug}
+          quantidade={pacote}
+          totalQuotas={campaign.totalQuotas}
+          unitCents={campaign.priceCents}
+          packages={packages}
+          escolhida={picked.length ? picked : null}
+          pagando={createOrder.isPending}
+          onPagar={pagarCartela}
+          trocarSinal={trocarSinal}
+        />
+      ) : null}
+      {pacote > 0 && error && count === 0 ? (
+        <p role="alert" className="mt-2 rounded-md bg-red-soft px-3 py-2 text-sm text-red">{error}</p>
+      ) : null}
 
       {/* Cotas premiadas: mostramos o prêmio e quantos restam, nunca o número. */}
       {premios && premios.total > 0 ? (
@@ -437,7 +488,8 @@ export default function Rifa() {
           onClick={() => {
             const n = Number(search);
             if (n >= 1 && n <= campaign.totalQuotas) {
-              setBlock(Math.floor((n - 1) / data.blockSize));
+              setPagina(Math.floor((n - 1) / POR_PAGINA));
+              setPacote(0);
               setShowMap(true);
             }
           }}
@@ -448,7 +500,13 @@ export default function Rifa() {
 
       <button
         type="button"
-        onClick={() => setShowMap((v) => !v)}
+        onClick={() => {
+          setShowMap((v) => !v);
+          if (pacote) {
+            setPacote(0);
+            setPicked([]);
+          }
+        }}
         className="mt-3 text-sm text-green-deep underline"
       >
         {showMap ? "esconder o mapa de números" : "escolher no mapa"}
@@ -456,22 +514,24 @@ export default function Rifa() {
 
       {showMap ? (
         <Card
-          title={`Bloco ${block + 1} de ${groupNumber(totalBlocks)}`}
+          title={`Números ${formatQuota(inicioDaPagina, campaign.totalQuotas)} a ${formatQuota(fimDaPagina, campaign.totalQuotas)}`}
           right={
             <span className="flex gap-1">
               <button
                 type="button"
-                aria-label="Bloco anterior"
-                onClick={() => setBlock((b) => Math.max(0, b - 1))}
-                className="h-7 w-7 rounded-md border border-line-2"
+                aria-label="Números anteriores"
+                disabled={pagina === 0}
+                onClick={() => setPagina((b) => Math.max(0, b - 1))}
+                className="h-7 w-7 rounded-md border border-line-2 disabled:opacity-40"
               >
                 ‹
               </button>
               <button
                 type="button"
-                aria-label="Próximo bloco"
-                onClick={() => setBlock((b) => Math.min(totalBlocks - 1, b + 1))}
-                className="h-7 w-7 rounded-md border border-line-2"
+                aria-label="Próximos números"
+                disabled={pagina >= totalPaginas - 1}
+                onClick={() => setPagina((b) => Math.min(totalPaginas - 1, b + 1))}
+                className="h-7 w-7 rounded-md border border-line-2 disabled:opacity-40"
               >
                 ›
               </button>
@@ -479,16 +539,16 @@ export default function Rifa() {
           }
         >
           <div className="p-3">
-            {blockData && isTaken ? (
+            {blockData && isTaken && blockData.from <= inicioDaPagina && blockData.to >= fimDaPagina ? (
               <>
                 <p className="label-xs mb-2">
-                  {blockData.takenCount} de {blockData.to - blockData.from + 1} tomadas ·{" "}
-                  {groupNumber(blockData.from)}–{groupNumber(blockData.to)}
+                  Página <span className="tnum">{groupNumber(pagina + 1)}</span> de{" "}
+                  <span className="tnum">{groupNumber(totalPaginas)}</span>
                 </p>
-                <div className="grid grid-cols-6 gap-1 sm:grid-cols-10">
-                  {Array.from({ length: Math.min(120, blockData.to - blockData.from + 1) }).map(
+                <div className="grid grid-cols-5 gap-1 sm:grid-cols-10">
+                  {Array.from({ length: fimDaPagina - inicioDaPagina + 1 }).map(
                     (_, i) => {
-                      const n = blockData.from + i;
+                      const n = inicioDaPagina + i;
                       const taken = isTaken(n);
                       const mine = picked.includes(n);
                       return (
@@ -498,7 +558,7 @@ export default function Rifa() {
                           disabled={taken}
                           onClick={() => togglePick(n)}
                           aria-label={`Cota ${formatQuota(n, campaign.totalQuotas)}${taken ? " — indisponível" : ""}`}
-                          className={`tnum aspect-square rounded-md border text-[10px] ${
+                          className={`tnum rounded-md border py-2 text-[11px] font-bold ${
                             taken
                               ? "cursor-not-allowed border-green bg-green text-on-green"
                               : mine
@@ -506,15 +566,14 @@ export default function Rifa() {
                                 : "border-line-2 bg-white text-ink-2"
                           }`}
                         >
-                          {String(n).slice(-3)}
+                          {formatQuota(n, campaign.totalQuotas)}
                         </button>
                       );
                     },
                   )}
                 </div>
                 <p className="mt-2 text-[11px] text-muted">
-                  Mostrando os 120 primeiros números do bloco. Use a busca para ir direto a um
-                  número.
+                  Use as setas para ver os próximos 100 números, ou a busca para ir direto a um número.
                 </p>
               </>
             ) : (
@@ -526,6 +585,7 @@ export default function Rifa() {
 
       {/* Checkout */}
       {count > 0 && (data.pagamento?.online ?? true) ? (
+        <div id="seus-dados" className="scroll-mt-4">
         <Card title="Seus dados">
           <div className="space-y-3 p-4">
             {picked.length > 0 ? (
@@ -625,6 +685,7 @@ export default function Rifa() {
             </p>
           </div>
         </Card>
+        </div>
       ) : null}
 
       {/* Barra fixa: o total nunca sai da tela. */}
@@ -640,15 +701,10 @@ export default function Rifa() {
             </span>
             <Button
               className="flex-1"
-              disabled={
-                createOrder.isPending ||
-                comprador.name.length < 2 ||
-                comprador.phone.length < 10 ||
-                !cpfOk
-              }
+              disabled={createOrder.isPending || !dadosOk}
               onClick={() => {
                 setError(null);
-                createOrder.mutate();
+                createOrder.mutate(picked);
               }}
             >
               {createOrder.isPending ? "Reservando…" : "Pagar com Pix"}

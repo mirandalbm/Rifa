@@ -54,7 +54,15 @@ import { estadoDoBonus, registrarVisita } from "../services/bonus";
 import { patrocinadasNoAr, registrarClique, registrarExibicoes } from "../services/patrocinio";
 import { pixelsPublicos } from "../services/marketing";
 import { ehRobo } from "@shared/patrocinio";
-import { blockBitmap, isTaken, BLOCK_SIZE, NumbersTakenError, NoQuotasAvailableError } from "../services/quotas";
+import {
+  blockBitmap,
+  isTaken,
+  sugerirCartelas,
+  BLOCK_SIZE,
+  CARTELAS_MAX,
+  NumbersTakenError,
+  NoQuotasAvailableError,
+} from "../services/quotas";
 import { issueOtp, checkOtp, hashPassword } from "../auth";
 import { withUrls } from "../services/media";
 import { notify, notificationProvider } from "../notifications";
@@ -670,6 +678,40 @@ publicRouter.get("/campaigns/:slug/blocks/:block", async (req, res, next) => {
     }
 
     res.json(await blockBitmap(found.campaign.id, block, found.campaign.totalQuotas));
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * Cartelas da compra rápida: grupos de números livres sorteados, para o
+ * comprador ver os números antes de pagar e trocar se não gostar. Não
+ * reserva nada — a compra vai com os números e passa pela PK como sempre.
+ */
+publicRouter.get("/campaigns/:slug/cartelas", async (req, res, next) => {
+  try {
+    const found = await campaignBySlug(req.params.slug);
+    if (!found || found.campaign.status !== "published") {
+      return res.status(404).json({ message: "Rifa não encontrada." });
+    }
+    const { minPerOrder, maxPerOrder, totalQuotas } = found.campaign;
+    const quantidade = Number(req.query.quantidade);
+    const cartelas = Number(req.query.cartelas ?? 3);
+    if (!Number.isInteger(quantidade) || quantidade < minPerOrder || quantidade > maxPerOrder) {
+      return res.status(400).json({ message: `Escolha de ${minPerOrder} a ${maxPerOrder} números.` });
+    }
+    if (!Number.isInteger(cartelas) || cartelas < 1 || cartelas > CARTELAS_MAX) {
+      return res.status(400).json({ message: "Quantidade de cartelas fora da faixa." });
+    }
+    const grupos = await sugerirCartelas({
+      campaignId: found.campaign.id,
+      totalQuotas,
+      quantidade,
+      cartelas,
+      endgame: found.stats?.endgame ?? false,
+    });
+    res.set("Cache-Control", "no-store");
+    res.json({ cartelas: grupos });
   } catch (err) {
     next(err);
   }

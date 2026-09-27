@@ -27,6 +27,8 @@ export interface RifaDoFeed {
   /** Comentários visíveis na publicação. */
   comentarios?: number;
   status?: string;
+  /** Aceita compra agora (`rifaAVenda`): a barra mostra carrinho e comprar. */
+  vende?: boolean;
   publicadaEm?: string | null;
   /** O texto da organização embaixo da publicação. */
   legenda?: string | null;
@@ -43,7 +45,7 @@ const PERTO = ["na sua cidade", "no seu estado"] as const;
 /**
  * Uma rifa no feed, em formato de publicação do Instagram: o carrossel em
  * retrato (4:5) com o perfil da promotora por cima, a barra de ações
- * (trevo, comentar, republicar, compartilhar, salvar), a legenda e, embaixo,
+ * (trevo, comentar, republicar, compartilhar, carrinho e comprar), a legenda e, embaixo,
  * prêmio, selo da autorização, preço, progresso e sorteio.
  */
 export function CartaoDoFeed({ rifa: c, origem = "vitrine" }: { rifa: RifaDoFeed; origem?: Origem }) {
@@ -137,6 +139,7 @@ export function CartaoDoFeed({ rifa: c, origem = "vitrine" }: { rifa: RifaDoFeed
         caminho={href}
         interacoes={interacoes}
         aoComentar={() => setComentando(true)}
+        vende={c.vende}
       />
       <Legenda autor={c.organizacao?.nome ?? ""} texto={c.legenda} />
       {interacoes.comentarios ? (

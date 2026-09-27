@@ -97,9 +97,12 @@ senha); **[código]** é trabalho no repositório.
 - [ ] **[você]** Aprovar o telefone de cada organização que já existe
   (Organizações → "Aprovar telefone", depois que ela confirmar o código em
   Configurações). Sem isso, ela não publica rifa nova.
-- [ ] Carrinho com várias rifas num Pix só (split para várias carteiras no
-  Asaas), compra rápida e "Presentear cotas" na barra dos comentários —
-  próximo PR.
+- [x] Carrinho e comprar na barra da publicação (no lugar do salvar):
+  carrinho no aparelho, separado por organização, preço do servidor, e
+  "Comprar" abrindo a compra rápida da rifa no tamanho escolhido.
+- [ ] **[código]** Carrinho num Pix só (split para várias carteiras no
+  Asaas, webhook que confirma vários pedidos, estorno parcial da cobrança
+  conjunta) e "Presentear cotas" na barra dos comentários.
 - [ ] **[você]** Antes de aprovar um adiamento, conferir se a autorização
   SPA/MF da rifa cobre a nova data (a plataforma não tem como checar isso
   sozinha).
@@ -311,7 +314,7 @@ Na ordem de entrega do plano:
   compartilhar e salvar com contadores, legenda da organização, "• Autor"
   nos comentários e apelido obrigatório no cadastro.
 - [ ] **[código]** Presente com convite (cadastro → compra com desconto de
-  primeira compra pago pela plataforma) e carrinho multi-rifa — próximo PR.
+  primeira compra pago pela plataforma) e o carrinho num Pix só.
 - [ ] **[código]** Login com Google.
 - [ ] **[você]** Advogado: regra de reembolso (arrependimento × corte de
   2 h), cota grátis de bônus no regulamento.

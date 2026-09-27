@@ -6,6 +6,8 @@ import { FOLHA, SeloVerificado } from "@/components/SeloVerificado";
 import { FotoDoPerfil } from "@/components/Seguir";
 import { useSession } from "@/lib/session";
 import { apiRequest } from "@/lib/queryClient";
+import { porNoCarrinho, tirarDoCarrinho, useCarrinho } from "@/lib/carrinho";
+import { CARRINHO_MAX_ITENS } from "@shared/carrinho";
 import {
   LEGENDA_MAX,
   contadorCurto,
@@ -229,19 +231,34 @@ function IconeCompartilhar() {
   );
 }
 
-function IconeSalvar({ ligado }: { ligado: boolean }) {
+function IconeCarrinho({ ligado }: { ligado: boolean }) {
+  return (
+    <Icone className={ligado ? "text-marca" : ""}>
+      <path {...TRACO} fill={ligado ? "currentColor" : "none"} d="M5.5 6h15.25l-1.9 8.1a1.5 1.5 0 0 1-1.46 1.15H8.3a1.5 1.5 0 0 1-1.47-1.2Z" />
+      <path {...TRACO} d="M5.5 6 4.9 3.2A1.5 1.5 0 0 0 3.43 2H2" />
+      <circle {...TRACO} cx="9" cy="20" r="1.4" />
+      <circle {...TRACO} cx="17" cy="20" r="1.4" />
+    </Icone>
+  );
+}
+
+/** Comprar agora: a sacola com o raio da compra rápida. */
+function IconeComprar() {
   return (
     <Icone>
-      <path {...TRACO} fill={ligado ? "currentColor" : "none"} d="M19.5 21 12 14.5 4.5 21V3.5h15Z" />
+      <path {...TRACO} d="M4.5 7.5h15l-1 12.1a1.5 1.5 0 0 1-1.5 1.4H7a1.5 1.5 0 0 1-1.5-1.4Z" />
+      <path {...TRACO} d="M8.5 7.5V6a3.5 3.5 0 0 1 7 0v1.5" />
+      <path {...TRACO} d="m12.75 10.5-2.5 4h3.5l-2.5 4" />
     </Icone>
   );
 }
 
 /**
  * A barra embaixo da publicação, como no Instagram: curtir (o trevo),
- * comentar, republicar e compartilhar, com os contadores, e salvar à
- * direita (sem contador — é privado). Quem não entrou na conta é levado
- * a entrar; o servidor decide de novo (401).
+ * comentar, republicar e compartilhar, com os contadores; à direita, o
+ * carrinho e o comprar. Quem não entrou na conta é levado a entrar para
+ * curtir e republicar; o servidor decide de novo (401). Carrinho e
+ * comprar não pedem conta e só aparecem na rifa que vende agora.
  */
 export function BarraDeAcoes({
   slug,
@@ -249,19 +266,48 @@ export function BarraDeAcoes({
   caminho,
   interacoes,
   aoComentar,
+  vende = false,
+  aoComprar,
 }: {
   slug: string;
   titulo: string;
-  /** Endereço da rifa, para compartilhar. */
+  /** Endereço da rifa, para compartilhar e comprar. */
   caminho: string;
   interacoes: Interacoes;
   aoComentar: () => void;
+  /** A rifa aceita compra agora (`rifaAVenda`): mostra carrinho e comprar. */
+  vende?: boolean;
+  /** Na própria página da rifa, comprar rola até a compra rápida. */
+  aoComprar?: () => void;
 }) {
   const qc = useQueryClient();
   const [, navegar] = useLocation();
   const [i, setI] = useState(interacoes);
-  const [aviso, setAviso] = useState<string | null>(null);
+  const [aviso, setAviso] = useState<ReactNode>(null);
   useEffect(() => setI(interacoes), [interacoes]);
+  const carrinho = useCarrinho();
+  const naSacola = carrinho.some((x) => x.slug === slug);
+
+  function alternarCarrinho() {
+    if (naSacola) {
+      tirarDoCarrinho(slug);
+      setAviso("Tirada do carrinho.");
+      return;
+    }
+    // Quantidade 0 = a sugerida pela rifa (o pacote em destaque); o servidor decide.
+    if (!porNoCarrinho(slug, 0)) {
+      setAviso(`O carrinho já tem ${CARRINHO_MAX_ITENS} rifas. Compre ou tire alguma antes.`);
+      return;
+    }
+    setAviso(
+      <>
+        No carrinho.{" "}
+        <Link href="/carrinho" className="font-semibold text-ink underline">
+          Ver carrinho
+        </Link>
+      </>,
+    );
+  }
 
   const acao = useMutation({
     mutationFn: async (v: { acao: Acao; ligar: boolean }) =>
@@ -336,15 +382,27 @@ export function BarraDeAcoes({
           <IconeCompartilhar />
           <span className="tnum text-[15px] font-medium">{contadorCurto(i.compartilhamentos)}</span>
         </button>
-        <button
-          type="button"
-          className={`${botao} ml-auto`}
-          aria-pressed={i.salvei}
-          aria-label={i.salvei ? "Tirar dos salvos" : "Salvar"}
-          onClick={() => acao.mutate({ acao: "salvo", ligar: !i.salvei })}
-        >
-          <IconeSalvar ligado={i.salvei} />
-        </button>
+        {vende ? (
+          <>
+            <button
+              type="button"
+              className={`${botao} ml-auto`}
+              aria-pressed={naSacola}
+              aria-label={naSacola ? "Tirar do carrinho" : "Pôr no carrinho"}
+              onClick={alternarCarrinho}
+            >
+              <IconeCarrinho ligado={naSacola} />
+            </button>
+            <button
+              type="button"
+              className={botao}
+              aria-label="Comprar agora"
+              onClick={() => (aoComprar ? aoComprar() : navegar(`${caminho}?comprar=1`))}
+            >
+              <IconeComprar />
+            </button>
+          </>
+        ) : null}
       </div>
       {aviso ? (
         <p className="pt-1 text-xs text-muted" role="status">

@@ -127,7 +127,8 @@ arquitetura.
 | visão do organizador (só o próprio perfil) | `VisaoDoOrganizador` em `client/src/App.tsx`, `organizacao` em `GET /api/auth/me` |
 | central de avisos do apostador (o coração no topo) | `server/services/notificacoes.ts`, `avisar()` em `server/services/push.ts`, `client/src/pages/Notificacoes.tsx`, `CoracaoDeAvisos` em `client/src/components/AppShell.tsx`, `scripts/push-test.ts` |
 | perfil verificado (selo de trevo): documentos, foto, fila e cores | `shared/verificacao.ts` (regras e paleta), `server/services/verificacao.ts`, `server/services/rosto.ts` (comparador), `server/routes/verificacaoRotas.ts`, `client/src/components/Verificacao.tsx`, `SeloVerificado.tsx`, `VerificacoesDaPlataforma.tsx`, `CoresDoSelo.tsx`, `scripts/verificacao-test.ts` |
-| publicação da rifa: carrossel de até 10 (reels e vídeos), barra de ações (trevo, comentar, republicar, compartilhar, salvar) e legenda | `shared/publicacao.ts` (regras), `server/services/publicacao.ts`, `server/services/media.ts` (limites), `client/src/components/Publicacao.tsx`, `scripts/publicacao-test.ts` |
+| publicação da rifa: carrossel de até 10 (reels e vídeos), barra de ações (trevo, comentar, republicar, compartilhar, carrinho, comprar) e legenda | `shared/publicacao.ts` (regras), `server/services/publicacao.ts`, `server/services/media.ts` (limites), `client/src/components/Publicacao.tsx`, `scripts/publicacao-test.ts` |
+| carrinho (várias rifas, separadas por organização) e o comprar da publicação | `shared/carrinho.ts` (regras), `server/services/carrinho.ts`, `client/src/lib/carrinho.ts`, `client/src/pages/Carrinho.tsx`, `BarraDeAcoes` em `client/src/components/Publicacao.tsx`, `scripts/publicacao-test.ts` |
 | app instalável (PWA) | `client/public/sw.js`, `client/public/manifest.webmanifest`, `client/src/lib/pwa.ts` |
 
 ## Convenções
@@ -904,17 +905,56 @@ estorno.
   `campaigns` só anda quando a linha entrou ou saiu, na mesma transação —
   cinco toques, uma curtida. Nada de `COUNT(*)`. A curtida é o **trevo**,
   não o coração.
-- **Salvar é privado** (sem contador; `/conta/salvos` só da própria
-  pessoa). **Republicar precisa de apelido** (aparece em `/u/<apelido>`).
+- **Salvar saiu da barra** (o carrinho ficou no lugar); o que já foi salvo
+  segue em Minha conta → Salvos, privado (sem contador; `/conta/salvos` só
+  da própria pessoa). **Republicar precisa de apelido** (aparece em `/u/<apelido>`).
   **Compartilhar conta uma vez por pessoa ou aparelho** (hash), porque o
   contador é vitrine.
 - **Só conta age** (401 sem sessão), rascunho não tem publicação (404).
+  Carrinho e comprar não pedem conta — são o caminho da compra, que já
+  aceita comprador sem conta.
 - **A legenda é da organização e muda a qualquer hora** (`PUT
   /campaigns/:id/legenda`, fora do `PATCH`): a régua do comentário (sem
   link nem telefone, `problemaNaLegenda`) e a varredura do Pix por fora.
   O recorte é `assertCampaignInScope` (o vizinho é 404, no `npm run
   isolation`).
 - `npm run publicacao` prova tudo isso contra a API de verdade.
+
+## Carrinho e comprar — o que não pode afrouxar
+
+Na barra da publicação, o **carrinho** fica no espaço do meio e o
+**comprar** (a sacola com o raio) no canto direito, onde era o salvar.
+
+- **Carrinho é lista de desejo, não reserva.** Guarda rifa e quantidade —
+  nunca número, nunca preço. A cota só é tomada na compra, pelo caminho de
+  sempre (`createOrder` → `reserveSpecific`, pela PK). Transformar o
+  carrinho em reserva seria cota presa por quem não paga — o ataque de
+  bloqueio de estoque da seção de antifraude.
+- **Fica no aparelho** (`rifa.carrinho`), como a região e o tema: perder
+  só esvazia. Até `CARRINHO_MAX_ITENS` (20) rifas; quantidade 0 é "a
+  sugerida pela rifa" (`quantidadeInicial`: pacote em destaque, senão o
+  menor, senão o mínimo).
+- **O preço é do servidor.** `POST /api/public/carrinho` recebe rifa e
+  quantidade (`limparCarrinho` joga fora o resto, inclusive preço) e
+  devolve o total por `priceOrder()`, a quantidade cortada entre o mínimo e
+  o que resta, e se a rifa ainda vende (`rifaAVenda()`, a mesma régua da
+  página da rifa). Rascunho, rifa apagada e promotora arquivada voltam
+  indisponíveis e o aparelho tira do carrinho. A compra recalcula de novo.
+- **Separado por organização**, porque cada promotora tem a própria
+  autorização, o próprio bilhete e o próprio Pix. Hoje cada rifa é paga no
+  Pix dela: "Comprar" leva à rifa com `?pacote=N`, que abre a compra
+  rápida com as cartelas daquele tamanho. **Um Pix só para o carrinho
+  inteiro ainda não existe** (split para várias carteiras, webhook que
+  confirma vários pedidos, estorno parcial de uma cobrança conjunta) — está
+  em `docs/PENDENCIAS.md`.
+- **Carrinho e comprar só aparecem na rifa que vende agora** (`vende` na
+  vitrine, no perfil e na página, por `rifaAVenda()`): demonstração,
+  travada, esgotada, encerrada ou sem Pix online não mostram os dois.
+- **Comprar não é atalho**: leva à compra rápida da rifa (`?comprar=1`),
+  com o aviso "só vale bilhete pago pela plataforma" antes do botão.
+- `npm run publicacao` prova o carrinho contra a API de verdade (preço do
+  aparelho ignorado, rascunho indisponível, quantidade cortada, nada
+  reservado, rifa travada sem venda).
 
 ## Notificações no celular — o que não pode afrouxar
 

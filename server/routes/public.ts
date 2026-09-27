@@ -14,6 +14,8 @@ import {
 } from "../services/vitrine";
 import { montarRotasDaVerificacao } from "./verificacaoRotas";
 import { midiasDas, pecaPublica } from "../services/perfil";
+import { itensDoCarrinho } from "../services/carrinho";
+import { rifaAVenda } from "@shared/carrinho";
 import { buyerPorApelido, compartilhar, idsDaLista, marcar, minhasMarcas } from "../services/publicacao";
 import { ACOES, type Acao } from "@shared/publicacao";
 import { VerificacaoError } from "../services/verificacao";
@@ -178,6 +180,8 @@ async function cartoesDoFeed(req: Request, rows: LinhaDaVitrine[], uf: string | 
         : [],
     );
     const bannerBy = new Map(ids.map((id) => [id, midias.get(id)?.find((m) => m.role === "banner")]));
+    // Carrinho e comprar só aparecem na rifa que vende agora.
+    const pixOnline = (await getPaymentMethods()).pix_online;
 
     return (
       rows.map(({ campaign, stats, organizacao }) => ({
@@ -209,6 +213,14 @@ async function cartoesDoFeed(req: Request, rows: LinhaDaVitrine[], uf: string | 
         demonstracao: campaign.demonstracao,
         comentarios: campaign.comentariosCount,
         status: campaign.status,
+        vende: rifaAVenda({
+          status: campaign.status,
+          demonstracao: campaign.demonstracao,
+          travada: Boolean(campaign.travadaEm),
+          soldCount: stats?.soldCount ?? 0,
+          totalQuotas: campaign.totalQuotas,
+          pixOnline,
+        }),
         publicadaEm: campaign.publishedAt,
         legenda: campaign.legenda,
         midias: (midias.get(campaign.id) ?? []).map(pecaPublica),
@@ -574,6 +586,19 @@ publicRouter.post("/campaigns/:slug/compartilhamentos", async (req, res, next) =
 });
 
 /** Os salvos de quem está na sessão — privado, como no Instagram. */
+/**
+ * O carrinho: o aparelho manda rifa e quantidade, o servidor devolve o que
+ * cada item é agora e o total calculado aqui. Não grava nem reserva nada.
+ */
+publicRouter.post("/carrinho", async (req, res, next) => {
+  try {
+    res.set("Cache-Control", "no-store");
+    res.json({ itens: await itensDoCarrinho(req.body?.itens) });
+  } catch (err) {
+    next(err);
+  }
+});
+
 publicRouter.get("/conta/salvos", async (req, res, next) => {
   try {
     const id = req.session.buyer?.id;

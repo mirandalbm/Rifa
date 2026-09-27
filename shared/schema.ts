@@ -379,6 +379,13 @@ export const campaigns = pgTable(
      * marca "Demonstração" e nunca vende — `createOrder` recusa.
      */
     demonstracao: boolean("demonstracao").notNull().default(false),
+    /**
+     * Quantas vezes o sorteio foi adiado (pedido aprovado pela plataforma) e
+     * a data que valia antes do primeiro adiamento — a página da rifa mostra
+     * as duas, para ninguém descobrir o adiamento só no dia.
+     */
+    adiamentos: integer("adiamentos").notNull().default(0),
+    drawAtOriginal: timestamp("draw_at_original"),
     /** Link da live ou do vídeo do sorteio. Muda a qualquer hora (só https). */
     transmissaoUrl: text("transmissao_url"),
     authorizationFileKey: text("authorization_file_key"),
@@ -886,6 +893,76 @@ export const auditLog = pgTable(
 );
 
 /* ------------------------------------------------------------------ *
+ * Mudança em rifa publicada: edição e adiamento, analisados pela plataforma
+ * ------------------------------------------------------------------ */
+
+export const solicitacaoTipo = pgEnum("solicitacao_tipo", ["edicao", "adiamento"]);
+export const solicitacaoStatus = pgEnum("solicitacao_status", [
+  "em_analise",
+  "aprovada",
+  "recusada",
+  "cancelada",
+]);
+
+/**
+ * Pedido da organização para mudar uma rifa já publicada. Nada muda na rifa
+ * até a plataforma aprovar; a aprovação aplica exatamente o que foi pedido
+ * (`alteracoes` guarda o antes e o depois de cada campo). Um em análise por
+ * rifa e tipo — o índice parcial decide, não um `SELECT` antes.
+ */
+export const campanhaSolicitacoes = pgTable(
+  "campanha_solicitacoes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /** `RS-XXXXXX`: o número que as duas pontas usam para falar do pedido. */
+    protocolo: text("protocolo").notNull(),
+    campaignId: uuid("campaign_id")
+      .notNull()
+      .references(() => campaigns.id, { onDelete: "cascade" }),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "restrict" }),
+    tipo: solicitacaoTipo("tipo").notNull(),
+    status: solicitacaoStatus("status").notNull().default("em_analise"),
+    /** Edição: `{ campo: { de, para } }`. */
+    alteracoes: jsonb("alteracoes"),
+    /** Adiamento: a data que valia no pedido e a pedida. */
+    drawAtAtual: timestamp("draw_at_atual"),
+    drawAtNovo: timestamp("draw_at_novo"),
+    motivo: text("motivo"),
+    /** Resposta da plataforma (obrigatória na recusa). */
+    decisao: text("decisao"),
+    criadoPor: uuid("criado_por"),
+    decididoPor: uuid("decidido_por"),
+    decididoEm: timestamp("decidido_em"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("uq_solicitacao_protocolo").on(t.protocolo),
+    uniqueIndex("uq_solicitacao_em_analise")
+      .on(t.campaignId, t.tipo)
+      .where(sql`status = 'em_analise'`),
+    index("idx_solicitacoes_org").on(t.organizationId, t.status),
+  ],
+);
+
+export const campanhaSolicitacaoMensagens = pgTable(
+  "campanha_solicitacao_mensagens",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    solicitacaoId: uuid("solicitacao_id")
+      .notNull()
+      .references(() => campanhaSolicitacoes.id, { onDelete: "cascade" }),
+    /** `organizacao` ou `plataforma` — a pessoa fica em `userId` e na auditoria. */
+    autor: text("autor").notNull(),
+    userId: uuid("user_id"),
+    texto: text("texto").notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [index("idx_solicitacao_mensagens").on(t.solicitacaoId, t.createdAt)],
+);
+
+/* ------------------------------------------------------------------ *
  * Atendimento: chamados de reembolso com conversa
  * ------------------------------------------------------------------ */
 
@@ -1251,6 +1328,12 @@ export const insertCampaignSchema = createInsertSchema(campaigns, {
     aceitaCotaBonus: true,
     termoId: true,
     transmissaoUrl: true,
+    // Rifa de teste tem rota própria (`marcarDemonstracao`), que confere
+    // venda e autorização; pelo formulário genérico, desmarcar faria a
+    // demonstração vender sem autorização SPA/MF.
+    demonstracao: true,
+    adiamentos: true,
+    drawAtOriginal: true,
   });
 
 export const createOrderSchema = z.object({

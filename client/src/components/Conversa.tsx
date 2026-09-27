@@ -23,6 +23,8 @@ export function Conversa({
   podeEscrever,
   enviar,
   enviando,
+  comAnexo = true,
+  encerrado = "Chamado encerrado.",
 }: {
   mensagens: Mensagem[];
   meuLado: "comprador" | "organizacao" | "plataforma";
@@ -30,6 +32,9 @@ export function Conversa({
   podeEscrever: boolean;
   enviar: (m: { texto: string; anexo?: string }) => Promise<unknown>;
   enviando: boolean;
+  /** Conversa sem print (pedido de mudança de rifa): só texto. */
+  comAnexo?: boolean;
+  encerrado?: string;
 }) {
   const [texto, setTexto] = useState("");
   const [anexo, setAnexo] = useState<string | undefined>();
@@ -101,32 +106,34 @@ export function Conversa({
             className="w-full rounded-md border border-line-2 px-3 py-2 text-sm"
           />
           <div className="flex flex-wrap items-center gap-2">
-            <input
-              ref={arquivo}
-              type="file"
-              accept="image/*"
-              aria-label="Anexar imagem"
-              onChange={async (e) => {
-                const f = e.target.files?.[0];
-                if (!f) return setAnexo(undefined);
-                try {
-                  setAnexo(await lerImagem(f));
-                } catch (err) {
-                  setErro((err as Error).message);
-                  e.target.value = "";
-                }
-              }}
-              className="text-xs"
-            />
+            {comAnexo ? (
+              <input
+                ref={arquivo}
+                type="file"
+                accept="image/*"
+                aria-label="Anexar imagem"
+                onChange={async (e) => {
+                  const f = e.target.files?.[0];
+                  if (!f) return setAnexo(undefined);
+                  try {
+                    setAnexo(await lerImagem(f));
+                  } catch (err) {
+                    setErro((err as Error).message);
+                    e.target.value = "";
+                  }
+                }}
+                className="text-xs"
+              />
+            ) : null}
             <Button type="submit" disabled={enviando || (!texto.trim() && !anexo)}>
               {enviando ? "Enviando…" : "Enviar"}
             </Button>
           </div>
-          <p className="text-[11px] text-muted">Anexo: uma imagem (foto ou print) até 5 MB.</p>
+          {comAnexo ? <p className="text-[11px] text-muted">Anexo: uma imagem (foto ou print) até 5 MB.</p> : null}
           {erro ? <p className="text-xs text-red">{erro}</p> : null}
         </form>
       ) : (
-        <p className="border-t border-line px-3 py-2 text-xs text-muted">Chamado encerrado.</p>
+        <p className="border-t border-line px-3 py-2 text-xs text-muted">{encerrado}</p>
       )}
     </div>
   );

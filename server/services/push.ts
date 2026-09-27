@@ -41,6 +41,7 @@ import {
   mensagemDisputa,
   mensagemReembolso,
   mensagemResultado,
+  mensagemSorteioAdiado,
   mensagemRifaNova,
   mensagemSorteioChegando,
   type MensagemPush,
@@ -257,6 +258,35 @@ export async function avisarRifaNova(campaignId: string) {
   );
 }
 
+/**
+ * Sorteio adiado (pedido aprovado pela plataforma): quem comprou e quem
+ * segue com o sino. A chave leva o número do adiamento — um aviso por
+ * adiamento, nunca repetido.
+ */
+export async function avisarAdiamento(campaignId: string) {
+  const r = await rifaComDona(campaignId);
+  if (!r?.campaign.drawAt || !r.campaign.adiamentos) return 0;
+  const publico = [...(await seguidoresComSino(r.org.id)), ...(await participantes(campaignId))];
+  return avisar(
+    publico,
+    "sorteio_adiado",
+    `${r.campaign.id}:${r.campaign.adiamentos}`,
+    mensagemSorteioAdiado({
+      premio: r.campaign.prizeTitle,
+      orgSlug: r.org.slug,
+      slug: r.campaign.slug,
+      novaData: r.campaign.drawAt.toLocaleString("pt-BR", {
+        timeZone: "America/Sao_Paulo",
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+    }),
+  );
+}
+
 /** Resultado: seguidores com sino e todos que compraram. */
 export async function avisarResultado(campaignId: string) {
   const r = await rifaComDona(campaignId);
@@ -285,7 +315,7 @@ export async function avisarResultado(campaignId: string) {
 export async function avisarSorteiosChegando(agora = new Date()) {
   const maior = Math.max(...JANELAS_DO_SORTEIO.map((j) => j.antesMs));
   const rifas = await db
-    .select({ id: campaigns.id, drawAt: campaigns.drawAt })
+    .select({ id: campaigns.id, drawAt: campaigns.drawAt, adiamentos: campaigns.adiamentos })
     .from(campaigns)
     .where(
       and(
@@ -295,7 +325,7 @@ export async function avisarSorteiosChegando(agora = new Date()) {
       ),
     );
   let total = 0;
-  for (const { id, drawAt } of rifas) {
+  for (const { id, drawAt, adiamentos } of rifas) {
     const janela = janelaDoSorteio(drawAt, agora);
     if (!janela) continue;
     const r = await rifaComDona(id);
@@ -304,7 +334,8 @@ export async function avisarSorteiosChegando(agora = new Date()) {
     total += await avisar(
       publico,
       "sorteio_chegando",
-      `${id}:${janela.chave}`,
+      // Adiada, a rifa volta a avisar na data nova: a chave leva o adiamento.
+      adiamentos ? `${id}:a${adiamentos}:${janela.chave}` : `${id}:${janela.chave}`,
       mensagemSorteioChegando({
         premio: r.campaign.prizeTitle,
         orgSlug: r.org.slug,

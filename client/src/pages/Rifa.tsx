@@ -41,6 +41,8 @@ interface CampaignDetail {
     reservationTtlMin: number;
     drawAt: string | null;
     drawSeedHash: string | null;
+    adiamentos?: number;
+    drawAtOriginal?: string | null;
     authorizationCode: string | null;
     temCertificado?: boolean;
     demonstracao?: boolean;
@@ -294,6 +296,13 @@ export default function Rifa() {
             ? `Sorteio ${new Date(campaign.drawAt).toLocaleDateString("pt-BR")} · Loteria Federal`
             : "Sorteio a definir"}
         </p>
+        {campaign.adiamentos && campaign.drawAtOriginal ? (
+          <p className="relative mt-1 text-xs text-branco">
+            Sorteio adiado — a data era{" "}
+            <span className="tnum">{new Date(campaign.drawAtOriginal).toLocaleDateString("pt-BR")}</span>. Seus
+            números continuam valendo.
+          </p>
+        ) : null}
         <h1 className="relative mt-1 font-display text-2xl font-extrabold leading-tight">
           {campaign.prizeTitle}
         </h1>

@@ -68,6 +68,20 @@ senha); **[código]** é trabalho no repositório.
   resolve para uma réplica; com várias, ou muito tráfego de imagem, o R2
   entra (basta `R2_BUCKET` e as chaves — o código já escolhe sozinho).
 - [ ] **[você]** Domínio próprio apontado para o Railway.
+- [x] Excluir rifa pelo painel (Campanhas → Excluir): rascunho, rifa no ar
+  sem nenhuma cota vendida, ou rifa marcada como teste. Apaga a rifa, o
+  sorteio, as mídias e os pedidos não pagos; com venda, não se apaga (o
+  caminho é o estorno). O organizador apaga a dele.
+- [x] Editar rifa (Campanhas → Editar): rascunho muda na hora; publicada, a
+  organização pede e a plataforma aprova ou recusa em Atendimento → Rifas,
+  com conversa. O prêmio, o preço e o total não mudam depois de publicar.
+- [x] Adiar sorteio por não atingir a meta (Campanhas → Editar → Adiar
+  sorteio): pedido com nova data e motivo, analisado pela plataforma; ao
+  aprovar, quem comprou e quem segue recebe o aviso e a página da rifa
+  mostra a data de antes.
+- [ ] **[você]** Antes de aprovar um adiamento, conferir se a autorização
+  SPA/MF da rifa cobre a nova data (a plataforma não tem como checar isso
+  sozinha).
 - [ ] **Antes de abrir para o público: reset geral.** Apagar o perfil de
   demonstração (Organizações → Perfil de demonstração → Remover, ou apagar
   a organização `demonstracao` e as rifas `demonstracao-*` no reset) e os

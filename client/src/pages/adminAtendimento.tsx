@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { PanelShell } from "@/components/AppShell";
 import { Card, Button, Pill, Empty, Money } from "@/components/bits";
 import { Conversa, type Mensagem } from "@/components/Conversa";
+import { SolicitacoesDeRifa } from "@/components/SolicitacoesDeRifa";
 import { apiRequest } from "@/lib/queryClient";
 import { useSession } from "@/lib/session";
 import { formatBRL } from "@shared/format";
@@ -115,13 +116,62 @@ export function AdminAtendimento() {
   const filtro = escolhido ?? (daPlataforma ? "disputa" : "aberto");
   const [aberto, setAberto] = useState<string | null>(null);
 
+  // Duas filas: reembolso (chamados dos compradores) e pedidos de mudança em
+  // rifa publicada (edição e adiamento, que a plataforma analisa).
+  const [area, setArea] = useState<"reembolsos" | "rifas">(() =>
+    new URLSearchParams(window.location.search).get("aba") === "rifas" ? "rifas" : "reembolsos",
+  );
+  const { data: pendentes } = useQuery<{ total: number; disputas?: number; solicitacoes?: number }>({
+    queryKey: ["/api/admin/chamados/pendentes"],
+  });
   const { data: lista } = useQuery<Linha[]>({
     queryKey: ["/api/admin/chamados", filtro ? { status: filtro } : {}],
     refetchInterval: 30_000,
+    enabled: area === "reembolsos",
   });
+
+  const abas = (
+    <div className="mb-4 flex gap-1 border-b border-line" role="tablist" aria-label="Filas do atendimento">
+      {(
+        [
+          ["reembolsos", "Reembolsos"],
+          ["rifas", "Rifas (edição e adiamento)"],
+        ] as const
+      ).map(([valor, rotulo]) => (
+        <button
+          key={valor}
+          type="button"
+          role="tab"
+          aria-selected={area === valor}
+          onClick={() => setArea(valor)}
+          className={`-mb-px border-b-2 px-3 py-2 text-sm ${
+            area === valor ? "border-green font-semibold text-ink" : "border-transparent text-ink-2 hover:text-ink"
+          }`}
+        >
+          {rotulo}
+          {valor === "rifas" && pendentes?.solicitacoes ? (
+            <span className="tnum ml-1 rounded-full bg-yellow-soft px-1.5 text-[11px] text-yellow-deep">
+              {pendentes.solicitacoes}
+              <span className="sr-only"> em análise</span>
+            </span>
+          ) : null}
+        </button>
+      ))}
+    </div>
+  );
+
+  if (area === "rifas") {
+    return (
+      <PanelShell title="Atendimento">
+        {abas}
+        <SolicitacoesDeRifa daPlataforma={daPlataforma} />
+      </PanelShell>
+    );
+  }
 
   return (
     <PanelShell title="Atendimento">
+      {abas}
       <div className="mb-3 flex flex-wrap gap-1" role="tablist" aria-label="Situação dos chamados">
         {FILTROS.map((f) => (
           <button

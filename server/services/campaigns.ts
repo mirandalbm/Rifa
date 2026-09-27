@@ -38,6 +38,8 @@ export class CampaignRuleError extends Error {
 const LOCKED_AFTER_PUBLISH = [
   "totalQuotas",
   "priceCents",
+  // Quem comprou comprou aquele prêmio: não muda nem com pedido de análise.
+  "prizeTitle",
   "drawSeedHash",
   "slug",
   // Quem comprou comprou aquela autorização e aquela data.
@@ -59,7 +61,9 @@ export function assertEditable(
       throw new CampaignRuleError(
         field === "totalQuotas"
           ? "O total de cotas trava ao publicar: mudá-lo agora alteraria a chance de quem já comprou."
-          : `O campo "${field}" não pode mudar depois da publicação.`,
+          : field === "prizeTitle"
+            ? "O prêmio não muda depois de publicar: quem comprou comprou aquele prêmio."
+            : `O campo "${field}" não pode mudar depois da publicação.`,
       );
     }
   }
@@ -415,4 +419,57 @@ export async function marcarDemonstracao(campaignId: string, ligado: boolean) {
       ? "Esta rifa já tem compra: não vira teste sem estornar quem comprou."
       : "Rifa de teste sem autorização SPA/MF não passa a vender.",
   );
+}
+
+/**
+ * Apaga a rifa de vez. Cabe em rifa que nunca vendeu: rascunho, rifa
+ * publicada sem nenhuma cota tomada, e rifa de teste (a limpeza antes do
+ * lançamento). Com comprador, o caminho é o estorno — nunca o apagar.
+ *
+ * A rifa é travada (`FOR UPDATE`) antes de conferir: a reserva que estiver
+ * gravando cota espera, e a conferência já a enxerga. Dinheiro envolvido
+ * (pedido pago ou estornado, cobrança da plataforma, chamado, anúncio)
+ * barra sempre — são registros que a contabilidade precisa encontrar.
+ * O resto vai pela cascata das chaves.
+ */
+export async function excluirRifa(campaignId: string) {
+  return db.transaction(async (tx) => {
+    const trava = await tx.execute(sql`
+      SELECT status, demonstracao FROM campaigns WHERE id = ${campaignId}::uuid FOR UPDATE
+    `);
+    const c = trava.rows[0] as { status: string; demonstracao: boolean } | undefined;
+    if (!c) throw new CampaignRuleError("Rifa não encontrada.");
+    const r = await tx.execute(sql`
+      SELECT
+        EXISTS (SELECT 1 FROM orders WHERE campaign_id = ${campaignId}::uuid AND status IN ('paid', 'refunded')) AS vendeu,
+        EXISTS (SELECT 1 FROM orders WHERE campaign_id = ${campaignId}::uuid AND status = 'pending') AS reservando,
+        EXISTS (SELECT 1 FROM quota_alloc WHERE campaign_id = ${campaignId}::uuid) AS cota,
+        EXISTS (SELECT 1 FROM draws WHERE campaign_id = ${campaignId}::uuid AND executed_at IS NOT NULL) AS sorteada,
+        EXISTS (SELECT 1 FROM platform_charges pc JOIN orders o ON o.id = pc.order_id
+                 WHERE o.campaign_id = ${campaignId}::uuid) AS cobrou,
+        EXISTS (SELECT 1 FROM chamados ch JOIN orders o ON o.id = ch.order_id
+                 WHERE o.campaign_id = ${campaignId}::uuid) AS chamado,
+        EXISTS (SELECT 1 FROM patrocinio_anuncios WHERE campaign_id = ${campaignId}::uuid) AS anuncio
+    `);
+    const f = r.rows[0] as Record<"vendeu" | "reservando" | "cota" | "sorteada" | "cobrou" | "chamado" | "anuncio", boolean>;
+    if (f.vendeu || f.cobrou) throw new CampaignRuleError("Esta rifa teve venda paga: não pode ser apagada. Com comprador, o caminho é o estorno.");
+    if (f.chamado) throw new CampaignRuleError("Esta rifa tem chamado de reembolso: não pode ser apagada.");
+    if (f.anuncio) throw new CampaignRuleError("Esta rifa teve anúncio patrocinado: não pode ser apagada.");
+    if (f.sorteada) throw new CampaignRuleError("Esta rifa já foi sorteada: não pode ser apagada.");
+    if (!c.demonstracao) {
+      if (c.status !== "draft" && c.status !== "published") {
+        throw new CampaignRuleError("Só dá para apagar rascunho ou rifa no ar sem nenhuma cota vendida.");
+      }
+      if (f.reservando || f.cota) {
+        throw new CampaignRuleError("Esta rifa tem cota reservada ou comprada: não pode ser apagada.");
+      }
+    }
+    // Indicação presa a pedido que nunca foi pago (sem chave estrangeira).
+    await tx.execute(sql`
+      DELETE FROM indicacoes WHERE status = 'pendente'
+         AND order_id IN (SELECT id FROM orders WHERE campaign_id = ${campaignId}::uuid)
+    `);
+    await tx.execute(sql`DELETE FROM campaigns WHERE id = ${campaignId}::uuid`);
+    return { ok: true };
+  });
 }

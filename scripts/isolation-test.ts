@@ -30,6 +30,7 @@ import {
   chamados,
   chamadoAnexos,
   stories,
+  campanhaSolicitacoes,
 } from "../shared/schema";
 import { hashPassword } from "../server/auth";
 
@@ -229,6 +230,18 @@ async function alcancaOVizinho(eu: Lado, vizinho: Lado) {
     .insert(stories)
     .values({ organizationId: vizinho.orgId, mime: "image/webp", bytes: Buffer.from([0]), expiraEm: new Date(Date.now() + 3_600_000) })
     .returning({ id: stories.id });
+  // Um pedido de mudança do vizinho em análise: ler, responder e cancelar
+  // pelo id dele tem de dar 404.
+  const [pedidoDoVizinho] = await db
+    .insert(campanhaSolicitacoes)
+    .values({
+      protocolo: `RS-ISOL-${Date.now()}`,
+      campaignId: c,
+      organizationId: vizinho.orgId,
+      tipo: "edicao",
+      alteracoes: { title: { de: "a", para: "b" } },
+    })
+    .returning({ id: campanhaSolicitacoes.id });
   const tentativas: [string, string, RequestInit][] = [
     ["PATCH campanha", `/api/admin/campaigns/${c}`, { method: "PATCH", body: '{"title":"invadida"}' }],
     ["GET impedimentos", `/api/admin/campaigns/${c}/blockers`, {}],
@@ -261,12 +274,27 @@ async function alcancaOVizinho(eu: Lado, vizinho: Lado) {
     ["POST endereço curto do perfil do vizinho", `/api/admin/organizacoes/${vizinho.orgId}/link-curto`, { method: "POST" }],
     ["GET cliques nos links do vizinho", `/api/admin/organizacoes/${vizinho.orgId}/links/cliques`, {}],
     ["POST endereço curto da rifa do vizinho", `/api/admin/campaigns/${c}/link-curto`, { method: "POST" }],
+    ["POST editar rifa do vizinho", `/api/admin/campaigns/${c}/editar`, { method: "POST", body: '{"title":"invadida"}' }],
+    ["POST adiar sorteio do vizinho", `/api/admin/campaigns/${c}/adiar`, { method: "POST", body: '{"novaData":"2099-01-01T00:00:00Z","motivo":"adiamento invadido"}' }],
+    ["GET pedido de mudança do vizinho", `/api/admin/solicitacoes/${pedidoDoVizinho.id}`, {}],
+    ["POST mensagem no pedido do vizinho", `/api/admin/solicitacoes/${pedidoDoVizinho.id}/mensagens`, { method: "POST", body: '{"texto":"invadido"}' }],
+    ["POST cancelar pedido do vizinho", `/api/admin/solicitacoes/${pedidoDoVizinho.id}/cancelar`, { method: "POST" }],
+    // Por último: se o recorte falhasse, apagaria a rifa do vizinho.
+    ["DELETE rifa do vizinho", `/api/admin/campaigns/${c}`, { method: "DELETE" }],
   ];
 
   for (const [nome, caminho, init] of tentativas) {
     const res = await pedir(eu.cookie, caminho, init);
     checa(nome, res.status === 404, `HTTP ${res.status}`);
   }
+  const [pedidoAinda] = await db
+    .select({ status: campanhaSolicitacoes.status })
+    .from(campanhaSolicitacoes)
+    .where(eq(campanhaSolicitacoes.id, pedidoDoVizinho.id));
+  checa("o pedido do vizinho continua em análise", pedidoAinda?.status === "em_analise", pedidoAinda?.status);
+  const meusPedidos = (await (await pedir(eu.cookie, "/api/admin/solicitacoes")).json()) as { id: string }[];
+  checa("a lista de pedidos não traz o do vizinho", !meusPedidos.some((x) => x.id === pedidoDoVizinho.id));
+  await db.delete(campanhaSolicitacoes).where(eq(campanhaSolicitacoes.id, pedidoDoVizinho.id));
   const [aindaLa] = await db.select({ id: stories.id }).from(stories).where(eq(stories.id, storyDoVizinho.id));
   checa("o story do vizinho continua no ar", Boolean(aindaLa));
   const meus = (await (await pedir(eu.cookie, "/api/admin/stories")).json()) as { id: string }[];
@@ -346,6 +374,7 @@ async function rotasDaPlataforma(eu: Lado) {
     ["PUT configuração do bônus", "/api/admin/bonus/config", { method: "PUT", body: '{"bonusLigado":true}' }],
     ["POST meta de bônus", "/api/admin/bonus/metas", { method: "POST", body: "{}" }],
     ["PUT meta de bônus", "/api/admin/bonus/metas/00000000-0000-0000-0000-000000000000", { method: "PUT", body: "{}" }],
+    ["POST decidir pedido de mudança em rifa", "/api/admin/solicitacoes/00000000-0000-0000-0000-000000000000/decidir", { method: "POST", body: '{"aprovar":true}' }],
     ["POST marcar rifa como teste", "/api/admin/campaigns/00000000-0000-0000-0000-000000000000/demonstracao", { method: "POST", body: '{"ligado":true}' }],
     ["POST tirar rifa do ar", "/api/admin/campaigns/00000000-0000-0000-0000-000000000000/tirar-do-ar", { method: "POST" }],
     ["POST preencher organização com exemplo", `/api/admin/organizacoes/${eu.orgId}/exemplo`, { method: "POST" }],

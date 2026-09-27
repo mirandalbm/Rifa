@@ -217,6 +217,7 @@ export async function listPublicCampaigns() {
         uf: organizations.uf,
         // O feed mostra o perfil no topo de cada cartão.
         fotoEm: organizacaoFotos.updatedAt,
+        verificadaEm: organizations.verificadaEm,
       },
     })
     .from(campaigns)

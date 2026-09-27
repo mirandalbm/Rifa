@@ -5,11 +5,13 @@ import { Button, Card } from "@/components/bits";
 import { apiRequest } from "@/lib/queryClient";
 import { lerImagem } from "@/lib/anexo";
 import { APELIDO_MAX, validarApelido } from "@shared/perfilApostador";
+import { SeloVerificado } from "@/components/SeloVerificado";
 
 interface MeuPerfil {
   apelido: string | null;
   foto: string | null;
   nomeReal: string;
+  verificado?: boolean;
 }
 
 /** A foto redonda do apostador (ou a inicial, sem foto). */
@@ -56,6 +58,8 @@ export function EditarPerfilPublico({ compacto, aoSalvar }: { compacto?: boolean
       setOk("Perfil salvo.");
       setApelido(null);
       qc.invalidateQueries({ queryKey: ["/api/public/conta/perfil"] });
+      // A foto é a que se compara com o documento: trocar mexe na verificação.
+      qc.invalidateQueries({ queryKey: ["/api/public/conta/verificacao"] });
       qc.invalidateQueries({ predicate: (q) => String(q.queryKey[0]).includes("/comentarios") });
       aoSalvar?.();
     },
@@ -71,7 +75,10 @@ export function EditarPerfilPublico({ compacto, aoSalvar }: { compacto?: boolean
       <div className="flex items-center gap-3">
         <FotoDoApostador nome={valor || data.nomeReal} foto={data.foto} tamanho={compacto ? 40 : 64} />
         <div className="min-w-0 text-sm">
-          <p className="font-semibold">{data.apelido ? `@${data.apelido}` : "Sem apelido ainda"}</p>
+          <p className="flex items-center gap-1 font-semibold">
+            {data.apelido ? `@${data.apelido}` : "Sem apelido ainda"}
+            {data.verificado ? <SeloVerificado sujeito="apostador" /> : null}
+          </p>
           <p className="text-muted">{data.nomeReal}</p>
         </div>
       </div>
@@ -118,6 +125,10 @@ export function EditarPerfilPublico({ compacto, aoSalvar }: { compacto?: boolean
             onChange={async (e) => {
               const f = e.target.files?.[0];
               if (!f) return;
+              if (data.verificado && !window.confirm("Trocar a foto tira o selo de verificado até a nova ser conferida. Trocar?")) {
+                e.target.value = "";
+                return;
+              }
               try {
                 salvar.mutate({ foto: await lerImagem(f) });
               } catch (err) {
@@ -130,7 +141,14 @@ export function EditarPerfilPublico({ compacto, aoSalvar }: { compacto?: boolean
             {data.foto ? "Trocar foto" : "Pôr foto"}
           </Button>
           {data.foto ? (
-            <Button variant="ghost" className="text-sm" onClick={() => salvar.mutate({ foto: null })}>
+            <Button
+              variant="ghost"
+              className="text-sm"
+              onClick={() =>
+                (!data.verificado || window.confirm("Sem foto, o perfil perde o selo de verificado. Tirar a foto?")) &&
+                salvar.mutate({ foto: null })
+              }
+            >
               Tirar foto
             </Button>
           ) : null}

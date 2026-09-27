@@ -297,6 +297,17 @@ Na ordem de entrega do plano:
 - [ ] **[você]** Confirmar com a Meta e o Google que a conta de anúncios pode
   rodar anúncio de sorteio; depois cadastrar os pixels e as chaves de API da
   plataforma (painel → Marketing).
+- [x] Perfil verificado (selo de trevo) para apostador, afiliado e
+  organização: documentos cifrados, foto do perfil conferida lado a lado
+  (Atendimento → Verificações), cores do selo em Configurações e emoji nos
+  comentários só para verificado. Não barra ninguém de comprar ou fazer rifa.
+- [ ] **[você]** Comparação automática da foto (opcional): criar conta na AWS
+  e pôr no Railway `ROSTO_PROVEDOR=rekognition`, `ROSTO_AWS_ACCESS_KEY_ID`,
+  `ROSTO_AWS_SECRET_ACCESS_KEY` e `ROSTO_AWS_REGION`. Sem isso, a plataforma
+  confere a foto à mão. Confirmar com o advogado o texto do consentimento
+  biométrico (LGPD, art. 11).
+- [ ] **[código]** Presente com convite (cadastro → compra com desconto de
+  primeira compra pago pela plataforma) e carrinho multi-rifa — próximo PR.
 - [ ] **[código]** Login com Google.
 - [ ] **[você]** Advogado: regra de reembolso (arrependimento × corte de
   2 h), cota grátis de bônus no regulamento.

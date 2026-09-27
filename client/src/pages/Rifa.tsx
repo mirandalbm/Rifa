@@ -1,3 +1,4 @@
+import { SeloVerificado } from "@/components/SeloVerificado";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams, useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -64,7 +65,7 @@ interface CampaignDetail {
   packages: { quantity: number; discountPct: number; highlight: boolean }[];
   blockSize: number;
   pagamento: { online: boolean; fisico: string[]; somenteFisico: boolean };
-  organizacao: { slug: string; nome: string; foto: string | null; destaque: CorDeDestaque | null } | null;
+  organizacao: { slug: string; nome: string; foto: string | null; destaque: CorDeDestaque | null; verificada?: boolean } | null;
 }
 
 interface BlockData {
@@ -272,6 +273,7 @@ export default function Rifa() {
           <Link href={`/o/${data.organizacao.slug}`} className="flex min-w-0 flex-1 items-center gap-2">
             <FotoDoPerfil nome={data.organizacao.nome} foto={data.organizacao.foto} tamanho={32} />
             <span className="truncate text-sm font-semibold">{data.organizacao.nome}</span>
+            {data.organizacao.verificada ? <SeloVerificado sujeito="organizacao" tamanho={16} /> : null}
           </Link>
           <SeguirBotoes slug={data.organizacao.slug} compacto />
         </DestaqueOrg>

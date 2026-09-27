@@ -1,3 +1,4 @@
+import { SeloVerificado } from "@/components/SeloVerificado";
 import { useEffect, useState, type ReactNode } from "react";
 import { Link, useLocation, useParams } from "wouter";
 import { definirOrganizacaoDaPagina } from "@/lib/marketing";
@@ -44,6 +45,7 @@ interface RifaDoPerfil {
 }
 
 interface Perfil {
+  verificada?: boolean;
   slug: string;
   nome: string;
   foto: string | null;
@@ -150,7 +152,14 @@ export default function PerfilPage() {
           />
         </span>
         <div className="min-w-0 flex-1 pt-2">
-          <h1 className="line-clamp-2 font-display text-lg font-extrabold leading-tight">{p.nome}</h1>
+          <h1 className="line-clamp-2 font-display text-lg font-extrabold leading-tight">
+            {p.nome}
+            {p.verificada ? (
+              <span className="ml-1.5 inline-block">
+                <SeloVerificado sujeito="organizacao" tamanho={18} />
+              </span>
+            ) : null}
+          </h1>
           <dl className="mt-2 grid grid-cols-3 text-center">
             <Contador rotulo="rifas realizadas" valor={contador(p.rifasRealizadas)} />
             <Contador rotulo="seguidores" valor={contador(p.seguidores)} />

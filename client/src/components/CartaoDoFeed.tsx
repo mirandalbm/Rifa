@@ -1,3 +1,4 @@
+import { SeloVerificado } from "@/components/SeloVerificado";
 import { useState } from "react";
 import { Link } from "wouter";
 import { MapPin, MessageCircle, ShieldCheck } from "lucide-react";
@@ -25,7 +26,7 @@ export interface RifaDoFeed {
   demonstracao?: boolean;
   /** Comentários visíveis na publicação. */
   comentarios?: number;
-  organizacao: { nome: string; slug: string; local: string | null; uf: string | null; foto: string | null } | null;
+  organizacao: { nome: string; slug: string; local: string | null; uf: string | null; foto: string | null; verificada?: boolean } | null;
   /** 0 = na cidade de quem olha, 1 = no estado, 2 = o resto; nulo sem região. */
   perto: 0 | 1 | 2 | null;
 }
@@ -89,7 +90,10 @@ export function CartaoDoFeed({ rifa: c, origem = "vitrine" }: { rifa: RifaDoFeed
               <FotoDoPerfil nome={c.organizacao.nome} foto={c.organizacao.foto} tamanho={34} />
             </span>
             <span className="min-w-0" style={{ textShadow: "0 1px 2px rgba(0,0,0,.6)" }}>
-              <span className="block truncate text-sm font-semibold">{c.organizacao.nome}</span>
+              <span className="flex items-center gap-1 text-sm font-semibold">
+                <span className="truncate">{c.organizacao.nome}</span>
+                {c.organizacao.verificada ? <SeloVerificado sujeito="organizacao" tamanho={14} /> : null}
+              </span>
               {c.organizacao.local ? (
                 <span className="flex items-center gap-1 truncate text-[11px] opacity-90">
                   <MapPin size={11} aria-hidden className="shrink-0" />

@@ -151,6 +151,15 @@ import {
 } from "../services/demonstracao";
 import { emitirRecibo, pdfDoRecibo, reciboPorCodigo } from "../services/recibos";
 import { cadastrosFiscais, decidirCadastro, documento, estadoFiscal } from "../services/fiscal";
+import { montarRotasDaVerificacao } from "./verificacaoRotas";
+import {
+  decidirVerificacao,
+  detalheDaVerificacao,
+  documentoDaVerificacao,
+  filaDeVerificacoes,
+  fotoDaVerificacao,
+  verificacoesPendentes,
+} from "../services/verificacao";
 import { urlDeConferencia } from "../services/urls";
 import { validarPeriodo } from "@shared/resultados";
 import {
@@ -2012,6 +2021,18 @@ adminRouter.get("/plataforma", async (req, res, next) => {
   }
 });
 
+/** As cores do selo de verificado (paleta de 12). Só a plataforma. */
+adminRouter.put("/selos", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    const salva = await setPlataforma({ coresDoSelo: req.body?.cores });
+    await audit(req, "plataforma.selos", "settings", "plataforma", salva.coresDoSelo);
+    res.json({ cores: salva.coresDoSelo });
+  } catch (err) {
+    next(err);
+  }
+});
+
 adminRouter.put("/plataforma", async (req, res, next) => {
   try {
     requirePlatformAdmin(req);
@@ -2102,6 +2123,7 @@ adminRouter.get("/chamados/pendentes", async (req, res, next) => {
       disputas: orgOf(req) ? 0 : await disputasAbertas(),
       solicitacoes: orgOf(req) ? 0 : await solicitacoesEmAnalise(req),
       denuncias: orgOf(req) ? 0 : await denunciasAbertas(),
+      verificacoes: orgOf(req) ? 0 : await verificacoesPendentes(),
     });
   } catch (err) {
     next(err);
@@ -3415,6 +3437,73 @@ adminRouter.put("/marketing", async (req, res, next) => {
     const r = await salvarMarketing(req, { pixels: req.body?.pixels, credenciais: req.body?.credenciais });
     await audit(req, "marketing.config", "marketing", orgOf(req) ?? "plataforma", { pixels: r.pixels, credenciais: r.credenciais });
     res.json(r);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/* ---------------- verificação do perfil (selo de trevo) ---------------- */
+
+/**
+ * A organização verifica a si mesma (o do vizinho é 404). A plataforma não
+ * preenche por ela: confere pela fila, com auditoria.
+ */
+montarRotasDaVerificacao(adminRouter, "/organizacoes/:id/verificacao", "organizacao", (req) => {
+  const org = orgOf(req);
+  if (!org) throw Object.assign(new Error("A plataforma confere pela fila de verificações."), { status: 403 });
+  if (org !== req.params.id) throw Object.assign(new Error("Organização não encontrada."), { status: 404 });
+  return org;
+});
+
+/** A fila: só a plataforma (403 para organizador). Sem dado pessoal — o detalhe carrega com auditoria. */
+adminRouter.get("/verificacoes", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    res.json(await filaDeVerificacoes(req.query.filtro === "todas" ? "todas" : "pendentes"));
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.get("/verificacoes/:id", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    await audit(req, "verificacao.ver_dados", "verificacao", req.params.id);
+    res.setHeader("Cache-Control", "no-store");
+    res.json(await detalheDaVerificacao(req.params.id));
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.get("/verificacoes/:id/documentos/:tipo", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    await audit(req, "verificacao.ver_documento", "verificacao", req.params.id, { tipo: req.params.tipo });
+    const d = await documentoDaVerificacao(req.params.id, req.params.tipo);
+    res.setHeader("Cache-Control", "no-store");
+    res.type(d.mime).send(d.bytes);
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.get("/verificacoes/:id/foto", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    const bytes = await fotoDaVerificacao(req.params.id);
+    res.setHeader("Cache-Control", "no-store");
+    res.type("image/webp").send(bytes);
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.post("/verificacoes/:id/decidir", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    await audit(req, "verificacao.decidir", "verificacao", req.params.id, { acao: req.body?.acao });
+    res.json(await decidirVerificacao(req, req.params.id, req.body ?? {}));
   } catch (err) {
     next(err);
   }

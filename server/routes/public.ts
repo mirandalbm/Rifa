@@ -12,6 +12,8 @@ import {
   imagemDoStory,
   storiesDoPerfil,
 } from "../services/vitrine";
+import { montarRotasDaVerificacao } from "./verificacaoRotas";
+import { VerificacaoError } from "../services/verificacao";
 import { Router, type Request, type Response } from "express";
 import { createHash } from "node:crypto";
 import { eq, and, desc, sql } from "drizzle-orm";
@@ -168,6 +170,7 @@ publicRouter.get("/campaigns", async (req, res, next) => {
               local: cidadeUf(organizacao.cidade, organizacao.uf),
               uf: organizacao.uf,
               foto: organizacao.slug ? urlDaFoto(organizacao.slug, organizacao.fotoEm) : null,
+              verificada: Boolean(organizacao.verificadaEm),
             }
           : null,
         // Selo "Autorizada SPA/MF": rifa no ar sempre tem (não publica sem).
@@ -285,6 +288,7 @@ async function organizacaoDaRifa(orgId: string) {
       foto: organizacaoFotos.updatedAt,
       destaqueClaro: organizations.destaqueClaro,
       destaqueEscuro: organizations.destaqueEscuro,
+      verificadaEm: organizations.verificadaEm,
     })
     .from(organizations)
     .leftJoin(organizacaoFotos, eq(organizacaoFotos.organizationId, organizations.id))
@@ -294,6 +298,7 @@ async function organizacaoDaRifa(orgId: string) {
     slug: o.slug,
     nome: o.nome,
     foto: urlDaFoto(o.slug, o.foto),
+    verificada: Boolean(o.verificadaEm),
     // A rifa abre dentro do perfil: leva a cor de destaque da promotora.
     destaque: destaqueDa(o),
   };
@@ -480,6 +485,28 @@ publicRouter.put("/conta/perfil", async (req, res, next) => {
     const id = req.session.buyer?.id;
     if (!id) return res.status(401).json({ message: "Entre na sua conta." });
     res.json(await salvarPerfilPublico(id, { apelido: req.body?.apelido, foto: req.body?.foto }));
+  } catch (err) {
+    next(err);
+  }
+});
+
+/* ---------------- verificação do apostador (selo de trevo) ---------------- */
+
+/** Só conta com senha se verifica: o selo é do perfil público, e perfil é de conta. */
+async function contaParaVerificar(req: Request) {
+  const id = req.session.buyer?.id;
+  if (!id) throw new VerificacaoError("Entre na sua conta.", 401);
+  const [b] = await db.select({ conta: buyers.passwordHash, excluido: buyers.excluidoEm }).from(buyers).where(eq(buyers.id, id));
+  if (!b?.conta || b.excluido) throw new VerificacaoError("Crie sua conta com senha para verificar o perfil.", 401);
+  return id;
+}
+montarRotasDaVerificacao(publicRouter, "/conta/verificacao", "apostador", contaParaVerificar);
+
+/** As cores do selo de cada um (escolha da plataforma, da paleta de 12). */
+publicRouter.get("/selos", async (_req, res, next) => {
+  try {
+    res.setHeader("Cache-Control", "public, max-age=60");
+    res.json({ cores: (await getPlataforma()).coresDoSelo });
   } catch (err) {
     next(err);
   }

@@ -8,6 +8,7 @@ import { BonusDoComprador, type EstadoBonus } from "@/components/BonusDoComprado
 import { apiRequest, ApiError } from "@/lib/queryClient";
 import { lerImagem } from "@/lib/anexo";
 import { PerfilPublicoCard } from "@/components/PerfilDoApostador";
+import { VerificacaoCard } from "@/components/Verificacao";
 import { estadoPush, ligarPush, desligarPush, type EstadoPush } from "@/lib/push";
 import { cepValido, cidadeUf, maskCep } from "@shared/endereco";
 import { formatQuota, maskPhone, maskCpf, cpfValido, formatBRL } from "@shared/format";
@@ -787,6 +788,17 @@ function MinhaConta({ aoSair }: { aoSair: () => void }) {
   return (
     <div className="mt-3 space-y-3">
       <PerfilPublicoCard />
+      {data.temSenha ? (
+        <VerificacaoCard
+          base="/api/public/conta/verificacao"
+          sujeito="apostador"
+          foto={<p className="rounded-md bg-yellow-soft px-3 py-2 text-yellow-deep">Ponha uma foto sua, de rosto, em “Meu perfil público”, acima.</p>}
+        />
+      ) : (
+        <Card title="Perfil verificado">
+          <p className="p-4 text-sm text-muted">Crie uma senha (abaixo) para ter perfil público e pedir o selo de verificado.</p>
+        </Card>
+      )}
       <Card title="Meus dados">
         <dl className="grid gap-3 p-4 text-sm sm:grid-cols-2">
           <div>

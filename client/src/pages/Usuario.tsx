@@ -3,12 +3,14 @@ import { useQuery } from "@tanstack/react-query";
 import { PublicShell } from "@/components/AppShell";
 import { Empty } from "@/components/bits";
 import { FotoDoApostador } from "@/components/PerfilDoApostador";
+import { SeloVerificado } from "@/components/SeloVerificado";
 
 interface PerfilDoApostador {
   apelido: string;
   nomeReal: string;
   foto: string | null;
   desde: string | null;
+  verificado: boolean;
 }
 
 /**
@@ -26,7 +28,11 @@ export default function Usuario() {
         <section className="flex flex-col items-center gap-3 py-6 text-center">
           <FotoDoApostador nome={data.apelido} foto={data.foto} tamanho={112} />
           <div>
-            <h1 className="font-display text-xl font-bold">@{data.apelido}</h1>
+            <h1 className="flex items-center justify-center gap-1.5 font-display text-xl font-bold">
+              @{data.apelido}
+              {data.verificado ? <SeloVerificado sujeito="apostador" tamanho={20} /> : null}
+            </h1>
+            {data.verificado ? <p className="text-xs text-muted">Apostador verificado: documentos e foto conferidos pela plataforma.</p> : null}
             <p className="text-ink-2">{data.nomeReal}</p>
             {data.desde ? (
               <p className="mt-1 text-xs text-muted">

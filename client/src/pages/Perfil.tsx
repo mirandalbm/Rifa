@@ -465,10 +465,10 @@ function CartaoDaRifa({ org, nome, rifa }: { org: string; nome: string; rifa: Ri
       <Link href={href} onClick={() => marcarOrigem("perfil")} className="mx-3 mt-3 block space-y-2 rounded-xl border border-line p-3 hover:bg-mist">
         <div className="flex items-baseline justify-between gap-2">
           <h3 className="font-display text-base font-extrabold leading-tight">{rifa.prizeTitle}</h3>
-          <Money cents={rifa.priceCents} className="shrink-0 text-sm text-green-deep" />
+          <Money cents={rifa.priceCents} className="shrink-0 text-sm font-bold text-green-deep" />
         </div>
         <Progress value={rifa.soldCount} total={rifa.totalQuotas} tone={pct >= 85 ? "yellow" : "green"} />
-        <p className="flex justify-between text-xs text-muted">
+        <p className="flex justify-between text-xs font-semibold text-ink-2">
           <span className="tnum">
             {groupNumber(rifa.soldCount)} de {groupNumber(rifa.totalQuotas)} cotas
           </span>

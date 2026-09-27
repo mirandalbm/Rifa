@@ -110,12 +110,12 @@ export function CartaoDoFeed({ rifa: c, origem = "vitrine" }: { rifa: RifaDoFeed
           ) : c.autorizacao ? (
             <p className="flex items-center gap-1 text-[11px] font-semibold text-ink-2">
               <ShieldCheck size={13} aria-hidden className="text-marca" />
-              Autorizada SPA/MF <span className="tnum font-normal text-muted">· {c.autorizacao}</span>
+              Autorizada SPA/MF <span className="tnum font-semibold text-ink-2">· {c.autorizacao}</span>
             </p>
           ) : null}
-          <div className="flex items-baseline justify-between text-xs text-muted">
+          <div className="flex items-baseline justify-between text-xs font-semibold text-ink-2">
             <span>
-              cota <Money cents={c.priceCents} className="text-sm text-green-deep" />
+              cota <Money cents={c.priceCents} className="text-sm font-bold text-green-deep" />
             </span>
             <span className="tnum">
               {c.status && c.status !== "published"
@@ -126,7 +126,7 @@ export function CartaoDoFeed({ rifa: c, origem = "vitrine" }: { rifa: RifaDoFeed
             </span>
           </div>
           <Progress value={c.soldCount} total={c.totalQuotas} tone={retaFinal ? "yellow" : "green"} />
-          <p className="label-xs">
+          <p className="label-xs font-semibold text-ink-2">
             {groupNumber(c.soldCount)} de {groupNumber(c.totalQuotas)} cotas
           </p>
         </div>

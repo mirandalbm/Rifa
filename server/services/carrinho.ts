@@ -66,6 +66,8 @@ export async function itensDoCarrinho(bruto: unknown) {
       maxPerOrder: max,
       packages,
       quantidade,
+      // A cartela escolhida segue só se a quantidade não precisou ser cortada.
+      numeros: p.numeros && p.numeros.length === quantidade && p.numeros.every((n) => n <= c.totalQuotas) ? p.numeros : null,
       totalCents: totalDoItem(quantidade, c.priceCents, packages),
       vende,
       status: c.status,

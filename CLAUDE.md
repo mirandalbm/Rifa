@@ -128,8 +128,8 @@ arquitetura.
 | visão do organizador (só o próprio perfil) | `VisaoDoOrganizador` em `client/src/App.tsx`, `organizacao` em `GET /api/auth/me` |
 | central de avisos do apostador (o coração no topo) | `server/services/notificacoes.ts`, `avisar()` em `server/services/push.ts`, `client/src/pages/Notificacoes.tsx`, `CoracaoDeAvisos` em `client/src/components/AppShell.tsx`, `scripts/push-test.ts` |
 | perfil verificado (selo de trevo): documentos, foto, fila e cores | `shared/verificacao.ts` (regras e paleta), `server/services/verificacao.ts`, `server/services/rosto.ts` (comparador), `server/routes/verificacaoRotas.ts`, `client/src/components/Verificacao.tsx`, `SeloVerificado.tsx`, `VerificacoesDaPlataforma.tsx`, `CoresDoSelo.tsx`, `scripts/verificacao-test.ts` |
-| publicação da rifa: carrossel de até 10 (reels e vídeos), barra de ações (trevo, comentar, republicar, compartilhar, carrinho, comprar) e legenda | `shared/publicacao.ts` (regras), `server/services/publicacao.ts`, `server/services/media.ts` (limites), `client/src/components/Publicacao.tsx`, `scripts/publicacao-test.ts` |
-| carrinho (várias rifas, separadas por organização), o Pix único do carrinho e o comprar da publicação | `shared/carrinho.ts` (regras e split), `server/services/carrinho.ts`, `createCartOrder()` em `server/services/orders.ts`, `client/src/pages/CarrinhoPix.tsx`, `scripts/carrinho-test.ts`, `client/src/lib/carrinho.ts`, `client/src/pages/Carrinho.tsx`, `BarraDeAcoes` em `client/src/components/Publicacao.tsx`, `scripts/publicacao-test.ts` |
+| publicação da rifa: carrossel de até 10 (reels e vídeos), barra de ações (trevo, comentar, republicar, compartilhar, "+" do carrinho, comprar) e legenda | `shared/publicacao.ts` (regras), `server/services/publicacao.ts`, `server/services/media.ts` (limites), `client/src/components/Publicacao.tsx`, `scripts/publicacao-test.ts` |
+| carrinho (várias rifas, separadas por organização), o Pix único do carrinho e o comprar da publicação | `shared/carrinho.ts` (regras e split), `server/services/carrinho.ts`, `createCartOrder()` em `server/services/orders.ts`, `client/src/pages/CarrinhoPix.tsx`, `client/src/components/EscolherBilhete.tsx` (a janela do "+"), `scripts/carrinho-test.ts`, `client/src/lib/carrinho.ts`, `client/src/pages/Carrinho.tsx`, `BarraDeAcoes` em `client/src/components/Publicacao.tsx`, `scripts/publicacao-test.ts` |
 | presente pelos comentários (desconto de primeira compra pago pela plataforma) | `shared/presente.ts` (regras), `server/services/presente.ts`, `prepararPedido`/`settleOrderAsPaid` em `server/services/orders.ts`, `Presentear` em `client/src/components/Comentarios.tsx`, `AvisoDePresente` em `client/src/pages/Rifa.tsx`, cartão Presente em `client/src/pages/adminBonus.tsx`, `scripts/presente-test.ts` |
 | app instalável (PWA) | `client/public/sw.js`, `client/public/manifest.webmanifest`, `client/src/lib/pwa.ts` |
 
@@ -192,6 +192,10 @@ arquitetura.
 
 ## Cartelas e mapa de números — o que não pode afrouxar
 
+- **Os números da cartela têm fundo colorido e texto branco**
+  (`.fundo-numero`, variável `--fundo-numero`): o azul do "+" sólido no
+  tema claro (4,9:1) e verde do sistema a 85% no escuro — a 50% o branco cai
+  para 2:1. Vale na página da rifa, na janela do "+" e no carrinho.
 - **Cartela é sugestão, não reserva.** `GET /campaigns/:slug/cartelas`
   sorteia grupos de números livres (do `free_pool` em endgame) e não grava
   nada. A compra vai com os números e passa por `reserveSpecific` — tudo ou
@@ -792,7 +796,8 @@ pedido, cotas e valor, e o cliente só pelo ID (`Cliente C-XXXXXXXX`).
   Uma camada de resposta: responder uma resposta entra no comentário do
   topo. Como no Instagram: foto, apelido, data, curtidas, respostas
   recolhidas e a barra de reações; no feed, os comentários sobem num painel
-  por cima da vitrine.
+  por cima da vitrine. Tamanho e fonte do Instagram: 14 px na fonte do
+  sistema do aparelho (`font-instagram`), 12 px nos detalhes.
 - **O apelido é o nome de usuário** (`validarApelido()`: minúsculas,
   números, ponto e sublinhado; sem telefone; reservados recusados), único
   entre contas pelo índice parcial `uq_buyers_apelido`. O perfil
@@ -925,14 +930,22 @@ estorno.
 
 ## Carrinho e comprar — o que não pode afrouxar
 
-Na barra da publicação, o **carrinho** fica no espaço do meio e o
-**comprar** (a sacola com o raio) no canto direito, onde era o salvar.
+Na barra da publicação, o **"+"** (azul, em negrito) fica no espaço do meio
+e o **comprar** (a sacola) no canto direito, onde era o salvar. O "+" abre
+a janela dos números (`EscolherBilhete`): os tamanhos 5, 10, 25 e 50 (ou
+uma quantidade digitada, no mínimo e máximo da rifa) e as cartelas daquele
+tamanho (`Cartelas` com `acao="carrinho"`); a cartela escolhida vai para o
+carrinho.
 
-- **Carrinho é lista de desejo, não reserva.** Guarda rifa e quantidade —
-  nunca número, nunca preço. A cota só é tomada na compra, pelo caminho de
-  sempre (`createOrder` → `reserveSpecific`, pela PK). Transformar o
-  carrinho em reserva seria cota presa por quem não paga — o ataque de
-  bloqueio de estoque da seção de antifraude.
+- **Carrinho é lista de desejo, não reserva.** Guarda rifa, quantidade e a
+  cartela escolhida (`numeros`, só se tiver exatamente a quantidade) —
+  nunca preço. A cota só é tomada na compra, pelo caminho de sempre
+  (`createOrder` → `reserveSpecific`, pela PK). Transformar o carrinho em
+  reserva seria cota presa por quem não paga — o ataque de bloqueio de
+  estoque da seção de antifraude. Se um número da cartela foi levado, a
+  compra do carrinho recusa inteira (409, com o `slug` da rifa), o
+  aparelho esquece aquela cartela (`esquecerCartela`) e a rifa passa a ser
+  sorteada na hora.
 - **Fica no aparelho** (`rifa.carrinho`), como a região e o tema: perder
   só esvazia. Até `CARRINHO_MAX_ITENS` (20) rifas; quantidade 0 é "a
   sugerida pela rifa" (`quantidadeInicial`: pacote em destaque, senão o
@@ -951,7 +964,14 @@ Na barra da publicação, o **carrinho** fica no espaço do meio e o
   vitrine, no perfil e na página, por `rifaAVenda()`): demonstração,
   travada, esgotada, encerrada ou sem Pix online não mostram os dois.
 - **Comprar não é atalho**: leva à compra rápida da rifa (`?comprar=1`),
-  com o aviso "só vale bilhete pago pela plataforma" antes do botão.
+  com o aviso "só vale bilhete pago pela plataforma" antes do botão. A
+  página da rifa abre com o bloco de números já aberto (o pacote em
+  destaque, senão o segundo, senão o primeiro).
+- **O Pix e o split são os mesmos em toda a plataforma**: compra pelos
+  botões da publicação, compra direta na página da rifa dentro do perfil da
+  organização e carrinho — todas pagam à plataforma e passam pelo split do
+  Asaas com `percentualDoPromotor` (avulso: `splitDaOrganizacao`;
+  carrinho: `splitDoCarrinho`, que com uma promotora só dá o mesmo número).
 - `npm run publicacao` prova o carrinho contra a API de verdade (preço do
   aparelho ignorado, rascunho indisponível, quantidade cortada, nada
   reservado, rifa travada sem venda).

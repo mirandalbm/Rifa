@@ -1176,8 +1176,17 @@ publicRouter.post("/carrinho/checkout", async (req, res, next) => {
       })),
     });
   } catch (err) {
-    if (err instanceof NumbersTakenError || err instanceof NoQuotasAvailableError) {
-      return res.status(409).json({ message: "Uma das rifas do carrinho não tem mais cotas suficientes. Confira as quantidades." });
+    if (err instanceof NumbersTakenError) {
+      return res.status(409).json({
+        message: "Alguns números escolhidos acabaram de ser levados. Sorteamos outros na hora — confira e pague de novo.",
+        slug: (err as { slug?: string }).slug,
+      });
+    }
+    if (err instanceof NoQuotasAvailableError) {
+      return res.status(409).json({
+        message: "Uma das rifas do carrinho não tem mais cotas suficientes. Confira as quantidades.",
+        slug: (err as { slug?: string }).slug,
+      });
     }
     if (err instanceof OrderError) {
       return res.status(err.status).json({ message: err.message });

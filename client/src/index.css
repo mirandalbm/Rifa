@@ -34,6 +34,11 @@
     /* Texto sobre o amarelo: o amarelo é o mesmo nos dois temas. */
     --on-yellow: #3b2a00;
 
+    /* O "+" do carrinho na barra da publicação (azul, como pediu o produto). */
+    --azul: #0a6fd6;
+    /* Fundo dos números da cartela: o azul do "+" no claro, o verde a 85% no escuro. */
+    --fundo-numero: var(--azul);
+
     /*
      * Cor de marca, vinda do template (lib/template.ts põe --marca-claro e
      * --marca-escuro na raiz). É marca, não significado: dinheiro, espera e
@@ -80,6 +85,9 @@
 
       --on-yellow: #3b2a00;
 
+      --azul: #5aa9ff;
+      --fundo-numero: color-mix(in srgb, var(--green) 85%, transparent);
+
       --marca: var(--marca-escuro, #5dd394);
 
       color-scheme: dark;
@@ -111,9 +119,22 @@
 
     --on-yellow: #3b2a00;
 
+    --azul: #5aa9ff;
+    --fundo-numero: color-mix(in srgb, var(--green) 85%, transparent);
+
     --marca: var(--marca-escuro, #5dd394);
 
     color-scheme: dark;
+  }
+
+  /*
+   * Fundo dos números da cartela (`--fundo-numero`): no claro, o azul do
+   * "+" sólido (branco a 4,9:1); no escuro, o verde do sistema a 85%. A 50%
+   * o número branco cai para 2:1 e some — foi testado.
+   */
+  .fundo-numero {
+    background-color: var(--fundo-numero);
+    color: var(--on-green);
   }
 
   /*

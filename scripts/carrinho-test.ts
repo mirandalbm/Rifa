@@ -134,6 +134,37 @@ async function main() {
     r = await req("GET", `/api/public/orders/${doCarrinho[0].code}`);
     checa("o pedido diz de que carrinho é e o total do Pix", r.json?.carrinho?.codigo === codigo && r.json.carrinho.totalCents === esperado);
 
+    console.log("\n  cartela escolhida:");
+    r = await req("GET", `/api/public/campaigns/${b.slug}/cartelas?quantidade=5&cartelas=1`);
+    const cartela = (r.json?.cartelas?.[0] ?? []) as number[];
+    r = await req("POST", "/api/public/carrinho", { itens: [{ slug: b.slug, quantidade: 5, numeros: cartela }] });
+    checa("a consulta do carrinho devolve a cartela guardada", JSON.stringify(r.json?.itens?.[0]?.numeros) === JSON.stringify(cartela));
+    r = await req("POST", "/api/public/carrinho/checkout", { itens: [{ slug: b.slug, quantidade: 5, numeros: cartela }], buyer: comprador(2) });
+    const pedidoCartela = await db.select().from(orders).where(eq(orders.code, r.json?.pedidos?.[0]?.code ?? 0));
+    const reservados = pedidoCartela.length
+      ? (await db.select({ n: quotaAlloc.number }).from(quotaAlloc).where(eq(quotaAlloc.orderId, pedidoCartela[0].id))).map((x) => x.n)
+      : [];
+    checa(
+      "a compra reserva exatamente os números da cartela",
+      r.status === 201 && reservados.length === 5 && cartela.every((n) => reservados.includes(n)),
+      `HTTP ${r.status} ${r.json?.message ?? ""}`,
+    );
+    r = await req("POST", "/api/public/carrinho/checkout", {
+      itens: [
+        { slug: a.slug, quantidade: 1 },
+        { slug: b.slug, quantidade: 5, numeros: cartela },
+      ],
+      buyer: comprador(1),
+    });
+    checa(
+      "número da cartela já levado: 409 dizendo de qual rifa, e nada reservado",
+      r.status === 409 && r.json?.slug === b.slug && (await statsDe(a.id)).reservedCount === 4,
+      `HTTP ${r.status} ${r.json?.slug ?? ""}`,
+    );
+    await db.delete(quotaAlloc).where(eq(quotaAlloc.orderId, pedidoCartela[0]?.id ?? "00000000-0000-0000-0000-000000000000"));
+    await db.update(orders).set({ status: "expired" }).where(eq(orders.id, pedidoCartela[0]?.id ?? "00000000-0000-0000-0000-000000000000"));
+    await db.update(campaignStats).set({ reservedCount: 3 }).where(eq(campaignStats.campaignId, b.id));
+
     console.log("\n  tudo ou nada:");
     const antes = await statsDe(a.id);
     r = await req("POST", "/api/public/carrinho/checkout", {

@@ -96,6 +96,14 @@ function useTakenSet(block: BlockData | undefined) {
   }, [block]);
 }
 
+/** Sem pacote cadastrado na rifa, a compra rápida oferece estes. */
+const PACOTES_PADRAO = [
+  { quantity: 5, discountPct: 0, highlight: false },
+  { quantity: 10, discountPct: 0, highlight: true },
+  { quantity: 25, discountPct: 0, highlight: false },
+  { quantity: 50, discountPct: 0, highlight: false },
+];
+
 export default function Rifa() {
   const { slug, org } = useParams<{ slug: string; org?: string }>();
   const base = org ? `/o/${org}/r/${slug}` : `/r/${slug}`;
@@ -240,6 +248,13 @@ export default function Rifa() {
       setPacote(n);
       setPicked([]);
       setShowMap(false);
+    } else if ((data.pagamento?.online ?? true) && !data.campaign.demonstracao && !data.campaign.travada) {
+      // O bloco de números já abre com um pacote (o em destaque, senão o
+      // segundo, senão o primeiro): quem chega vê as cartelas sem tocar em nada.
+      const pacotes = data.packages.length ? data.packages : PACOTES_PADRAO;
+      const inicial =
+        pacotes.find((p) => p.highlight)?.quantity ?? pacotes[1]?.quantity ?? pacotes[0]?.quantity ?? 0;
+      if (inicial >= minPerOrder && inicial <= maxPerOrder) setPacote(inicial);
     }
     if (q.has("pacote") || q.has("comprar")) {
       setTimeout(() => document.getElementById("comprar")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
@@ -371,7 +386,7 @@ export default function Rifa() {
 
       {/* Preço e progresso entram sem rolagem. */}
       <div className="mt-4 flex items-baseline gap-2">
-        <Money cents={campaign.priceCents} className="text-2xl text-green-deep" />
+        <Money cents={campaign.priceCents} className="text-2xl font-bold text-green-deep" />
         <span className="text-xs text-muted">
           por cota · mínimo {campaign.minPerOrder}
         </span>
@@ -432,15 +447,7 @@ export default function Rifa() {
           aparece: o atributo hidden perdia para a classe grid. */}
       {vende ? (
       <div id="comprar" className="mt-5 grid scroll-mt-20 grid-cols-4 gap-2">
-        {(packages.length > 0
-          ? packages
-          : [
-              { quantity: 5, discountPct: 0, highlight: false },
-              { quantity: 10, discountPct: 0, highlight: true },
-              { quantity: 25, discountPct: 0, highlight: false },
-              { quantity: 50, discountPct: 0, highlight: false },
-            ]
-        ).map((p) => (
+        {(packages.length > 0 ? packages : PACOTES_PADRAO).map((p) => (
           <button
             key={p.quantity}
             type="button"

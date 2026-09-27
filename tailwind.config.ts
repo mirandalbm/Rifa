@@ -29,11 +29,15 @@ export default {
         branco: "#ffffff",
         /** Cor de marca do template: logo, links, destaque de navegação. */
         marca: "var(--marca)",
+        /** O "+" do carrinho na barra da publicação. */
+        azul: "var(--azul)",
       },
       fontFamily: {
         display: ['"Bricolage Grotesque"', "ui-sans-serif", "system-ui", "sans-serif"],
         sans: ['var(--fonte, "Instrument Sans")', "ui-sans-serif", "system-ui", "sans-serif"],
         mono: ['"DM Mono"', "ui-monospace", "monospace"],
+        /** Comentários no tamanho e na fonte do Instagram (a do sistema do aparelho). */
+        instagram: ["-apple-system", "BlinkMacSystemFont", '"Segoe UI"', "Roboto", "Helvetica", "Arial", "sans-serif"],
       },
       // Os cantos seguem o template (`--raio`, padrão 9px): reto, suave ou redondo.
       borderRadius: {

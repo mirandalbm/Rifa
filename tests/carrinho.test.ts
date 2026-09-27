@@ -29,6 +29,14 @@ describe("limparCarrinho", () => {
     ).toEqual([{ slug: "pix-10-mil", quantidade: 10 }]);
   });
 
+  it("guarda a cartela escolhida só se tiver a quantidade do item, sem repetir", () => {
+    expect(limparCarrinho([{ slug: "a", quantidade: 3, numeros: [7, 2, 9] }])).toEqual([{ slug: "a", quantidade: 3, numeros: [7, 2, 9] }]);
+    expect(limparCarrinho([{ slug: "a", quantidade: 4, numeros: [7, 2, 9] }])).toEqual([{ slug: "a", quantidade: 4 }]);
+    expect(limparCarrinho([{ slug: "a", quantidade: 3, numeros: [7, 7, 9] }])).toEqual([{ slug: "a", quantidade: 3 }]);
+    expect(limparCarrinho([{ slug: "a", quantidade: 2, numeros: [0, 1] }])).toEqual([{ slug: "a", quantidade: 2 }]);
+    expect(limparCarrinho([{ slug: "a", quantidade: 2, numeros: ["1", "2"] }])).toEqual([{ slug: "a", quantidade: 2 }]);
+  });
+
   it("zero quer dizer a quantidade sugerida pela rifa", () => {
     expect(limparCarrinho([{ slug: "a", quantidade: 0 }])).toEqual([{ slug: "a", quantidade: 0 }]);
   });

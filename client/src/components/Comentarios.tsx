@@ -104,17 +104,17 @@ function Linha({
       ) : (
         <FotoDoApostador nome={c.nome} foto={c.foto} tamanho={resposta ? 28 : 36} />
       )}
-      <div className="min-w-0 flex-1 text-sm">
+      <div className="min-w-0 flex-1 text-[14px] leading-[18px]">
         <p className="flex flex-wrap items-center gap-x-2">
           <Nome c={c} />
-          <span className="text-xs text-muted">
+          <span className="text-[12px] text-muted">
             <span className="tnum">{tempo(c.createdAt)}</span>
             {/* Quem é dono da publicação, como o "Author" do Instagram. */}
             {org ? <span> • Autor</span> : null}
           </span>
         </p>
         <p className="mt-0.5 whitespace-pre-wrap break-words">{c.texto}</p>
-        <p className="mt-1 flex flex-wrap gap-4 text-xs font-semibold text-muted">
+        <p className="mt-1.5 flex flex-wrap gap-4 text-[12px] font-semibold text-muted">
           {aoResponder ? (
             <button type="button" className="hover:text-ink" onClick={aoResponder}>
               Responder
@@ -155,7 +155,7 @@ function Linha({
         className="flex w-8 shrink-0 flex-col items-center pt-1 text-muted disabled:opacity-60"
       >
         <Heart size={16} aria-hidden className={curtido.curti ? "fill-current text-marca" : ""} />
-        {curtido.n ? <span className="tnum text-[11px]">{curtido.n}</span> : null}
+        {curtido.n ? <span className="tnum text-[12px]">{curtido.n}</span> : null}
       </button>
     </div>
   );
@@ -163,8 +163,7 @@ function Linha({
 
 /**
  * A barra de baixo, como no Instagram: reações rápidas em cima e o campo
- * "Participe da conversa…". Os botões de carrinho, compra rápida e presente
- * entram aqui na etapa do carrinho.
+ * "Participe da conversa…", com o presente ao lado.
  */
 function Escrever({
   slug,
@@ -258,7 +257,7 @@ function Escrever({
             setErro(null);
             setTexto(e.target.value);
           }}
-          className="min-h-[44px] flex-1 resize-none rounded-full border border-line-2 px-4 py-2.5 text-sm"
+          className="min-h-[44px] flex-1 resize-none rounded-full border border-line-2 px-4 py-2.5 text-[14px] leading-[18px]"
         />
         <Button type="submit" disabled={enviar.isPending || !texto.trim()} className="rounded-full px-4 py-2.5 text-sm">
           Publicar
@@ -397,7 +396,8 @@ export function Comentarios({ slug, dentroDoPainel }: { slug: string; dentroDoPa
   const total = data?.lista.reduce((n, c) => n + 1 + c.respostas.length, 0) ?? 0;
 
   return (
-    <section id={dentroDoPainel ? undefined : "comentarios"} aria-label="Comentários" className="scroll-mt-20">
+    // Tamanho e fonte do Instagram: 14 px na fonte do sistema do aparelho, 12 px nos detalhes.
+    <section id={dentroDoPainel ? undefined : "comentarios"} aria-label="Comentários" className="scroll-mt-20 font-instagram">
       {dentroDoPainel ? null : (
         <h2 className="mb-3 mt-6 flex items-center gap-2 font-display text-lg font-bold">
           <MessageCircle size={20} aria-hidden />

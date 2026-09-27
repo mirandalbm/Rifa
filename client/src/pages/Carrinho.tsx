@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Minus, Plus, Trash2 } from "lucide-react";
 import { PublicShell } from "@/components/AppShell";
 import { Button, Money, Pill } from "@/components/bits";
@@ -9,7 +9,13 @@ import { SeloVerificado } from "@/components/SeloVerificado";
 import { apiRequest } from "@/lib/queryClient";
 import { porNoCarrinho, tirarDoCarrinho, useCarrinho } from "@/lib/carrinho";
 import { agruparPorOrganizacao, quantidadeNaFaixa } from "@shared/carrinho";
-import { formatBRL } from "@shared/format";
+import { cpfValido, formatBRL, maskCpf, maskPhone } from "@shared/format";
+import { useSession } from "@/lib/session";
+import { lerOrigem } from "@/lib/origem";
+import { lerIndicacao } from "@/lib/indicacao";
+import { consentiu, lerUtm } from "@/lib/marketing";
+import { regraDoReembolso } from "@shared/reembolso";
+import { SO_VALE_PELA_PLATAFORMA } from "@shared/seguranca";
 
 interface Item {
   slug: string;
@@ -29,9 +35,10 @@ type Resposta = { itens: (Item | { slug: string; indisponivel: true })[] };
 
 /**
  * O carrinho, separado por organização: cada promotora tem a própria
- * autorização, o próprio bilhete e o próprio Pix. O total de cada item é o
- * do servidor; aqui só se escolhe a quantidade. Comprar leva à rifa com a
- * compra rápida aberta naquele tamanho — a cota só é tomada ao pagar.
+ * autorização e o próprio bilhete. O total de cada item é o do servidor;
+ * aqui só se escolhe a quantidade. Paga-se tudo num Pix só (a plataforma
+ * reparte no mesmo pagamento), ou uma rifa por vez: "Comprar" leva à rifa
+ * com a compra rápida aberta naquele tamanho. A cota só é tomada ao pagar.
  */
 export default function Carrinho() {
   const itens = useCarrinho();
@@ -70,7 +77,8 @@ export default function Carrinho() {
       ) : (
         <>
           <p className="mt-1 text-xs text-muted">
-            Cada rifa é paga no Pix dela, com a autorização e o bilhete da promotora. Os números só ficam seus ao pagar.
+            Tudo num Pix só, pago à plataforma: a parte de cada promotora vai para ela no mesmo pagamento. Cada rifa
+            continua com a autorização e o bilhete da promotora, e os números só ficam seus ao pagar.
           </p>
           <div className="mt-4 space-y-5">
             {grupos.map((g) => {
@@ -101,6 +109,7 @@ export default function Carrinho() {
             </span>
             <Money cents={total} className="text-lg font-bold text-green-deep" />
           </div>
+          {aVenda.length ? <PagarCarrinho itens={aVenda} total={total} /> : null}
         </>
       )}
     </PublicShell>
@@ -179,5 +188,134 @@ function ItemDoCarrinho({ item: i, aoComprar }: { item: Item; aoComprar: () => v
         )}
       </div>
     </li>
+  );
+}
+
+/**
+ * Pagar tudo num Pix só: nome, WhatsApp e (se o provedor pedir) CPF, como
+ * na página da rifa. Vão rifa e quantidade — o preço é do servidor, que
+ * reserva tudo ou nada e devolve o Pix do carrinho.
+ */
+function PagarCarrinho({ itens, total }: { itens: Item[]; total: number }) {
+  const [, navegar] = useLocation();
+  const { data: sessao } = useSession();
+  const naConta = Boolean(sessao?.buyer?.conta);
+  const { data: checkout } = useQuery<{ exigeCpf: boolean; reembolso?: { aceita: boolean; taxaPct: number } }>({
+    queryKey: ["/api/public/checkout"],
+  });
+  const exigeCpf = (checkout?.exigeCpf ?? false) && !naConta;
+  const [dados, setDados] = useState({ name: "", phone: "", cpf: "" });
+  const [erro, setErro] = useState<string | null>(null);
+  const comprador = naConta
+    ? { name: sessao!.buyer!.name || "Conta", phone: sessao!.buyer!.phone }
+    : { name: dados.name, phone: dados.phone };
+  const cpfOk = !exigeCpf || cpfValido(dados.cpf);
+  const pronto = comprador.name.trim().length >= 2 && comprador.phone.replace(/\D/g, "").length >= 10 && cpfOk;
+
+  const pagar = useMutation({
+    mutationFn: async () =>
+      (
+        await apiRequest("POST", "/api/public/carrinho/checkout", {
+          itens: itens.map((i) => ({ slug: i.slug, quantidade: i.quantidade })),
+          buyer: { ...comprador, ...(exigeCpf ? { cpf: dados.cpf.replace(/\D/g, "") } : {}) },
+          origem: lerOrigem(),
+          indicacao: lerIndicacao(),
+          utm: lerUtm(),
+          marketing: consentiu(),
+        })
+      ).json() as Promise<{ codigo: number }>,
+    onSuccess: (r) => {
+      // O que foi para o Pix sai do carrinho; o resto (sem venda agora) fica.
+      itens.forEach((i) => tirarDoCarrinho(i.slug));
+      navegar(`/carrinho/pix/${r.codigo}`);
+    },
+    onError: (e: Error) => setErro(e.message),
+  });
+
+  return (
+    <section aria-label="Pagar tudo num Pix só" className="mt-4 space-y-3 rounded-xl border border-line p-3">
+      <h2 className="font-display text-base font-bold">Pagar tudo num Pix só</h2>
+      {naConta ? (
+        <p className="rounded-md bg-green-soft px-3 py-2 text-sm text-green-deep">
+          Comprando como <strong>{comprador.name}</strong> · <span className="tnum">{maskPhone(comprador.phone)}</span>
+        </p>
+      ) : (
+        <>
+          <div>
+            <label htmlFor="carrinho-nome" className="label-xs">
+              Nome
+            </label>
+            <input
+              id="carrinho-nome"
+              value={dados.name}
+              onChange={(e) => setDados({ ...dados, name: e.target.value })}
+              className="mt-1 w-full rounded-md border border-line-2 bg-white px-3 py-2 text-sm"
+            />
+          </div>
+          <div>
+            <label htmlFor="carrinho-whatsapp" className="label-xs">
+              WhatsApp
+            </label>
+            <input
+              id="carrinho-whatsapp"
+              value={dados.phone}
+              inputMode="tel"
+              onChange={(e) => setDados({ ...dados, phone: e.target.value })}
+              className="tnum mt-1 w-full rounded-md border border-line-2 bg-white px-3 py-2 text-sm"
+            />
+          </div>
+        </>
+      )}
+      {exigeCpf ? (
+        <div>
+          <label htmlFor="carrinho-cpf" className="label-xs">
+            CPF
+          </label>
+          <input
+            id="carrinho-cpf"
+            value={dados.cpf}
+            inputMode="numeric"
+            autoComplete="off"
+            placeholder="000.000.000-00"
+            onChange={(e) => setDados({ ...dados, cpf: maskCpf(e.target.value) })}
+            className="tnum mt-1 w-full rounded-md border border-line-2 bg-white px-3 py-2 text-sm"
+          />
+          {dados.cpf.replace(/\D/g, "").length === 11 && !cpfOk ? (
+            <p className="mt-1 text-[11px] text-red">CPF inválido. Confira os números.</p>
+          ) : (
+            <p className="mt-1 text-[11px] text-muted">Exigido pelo banco para gerar o Pix. Não aparece para ninguém.</p>
+          )}
+        </div>
+      ) : null}
+      <p className="text-[11px] text-muted">{SO_VALE_PELA_PLATAFORMA}</p>
+      {checkout?.reembolso?.aceita ? <p className="text-[11px] text-muted">{regraDoReembolso(checkout.reembolso.taxaPct)}</p> : null}
+      <p className="text-[11px] text-muted">
+        Ao comprar, você aceita o regulamento de cada rifa:{" "}
+        {itens.map((i, n) => (
+          <span key={i.slug}>
+            {n ? ", " : ""}
+            <Link href={`/o/${i.organizacao.slug}/r/${i.slug}/regulamento`} className="underline">
+              {i.prizeTitle}
+            </Link>
+          </span>
+        ))}
+        .
+      </p>
+      {erro ? (
+        <p role="alert" className="rounded-md bg-red-soft px-3 py-2 text-sm text-red">
+          {erro}
+        </p>
+      ) : null}
+      <Button
+        className="w-full"
+        disabled={!pronto || pagar.isPending}
+        onClick={() => {
+          setErro(null);
+          pagar.mutate();
+        }}
+      >
+        {pagar.isPending ? "Reservando…" : `Pagar ${formatBRL(total)} com Pix`}
+      </Button>
+    </section>
   );
 }

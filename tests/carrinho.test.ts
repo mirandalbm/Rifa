@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   CARRINHO_MAX_ITENS,
   agruparPorOrganizacao,
+  splitDoCarrinho,
+  situacaoDoCarrinho,
   limparCarrinho,
   quantidadeInicial,
   quantidadeNaFaixa,
@@ -103,5 +105,73 @@ describe("agruparPorOrganizacao", () => {
       ["b", [1, 3]],
       ["a", [2]],
     ]);
+  });
+});
+
+describe("splitDoCarrinho", () => {
+  it("uma promotora só: o mesmo percentual do pedido avulso", () => {
+    expect(
+      splitDoCarrinho([
+        { walletId: "w1", amountCents: 1000, percentualDoPromotor: 95 },
+        { walletId: "w1", amountCents: 3000, percentualDoPromotor: 95 },
+      ]),
+    ).toEqual([{ walletId: "w1", percentual: 95 }]);
+  });
+
+  it("duas promotoras: cada uma pesada pelo valor dos pedidos dela", () => {
+    // 1000 a 95% e 3000 a 90%: 950/4000 = 23,75% e 2700/4000 = 67,5%.
+    expect(
+      splitDoCarrinho([
+        { walletId: "a", amountCents: 1000, percentualDoPromotor: 95 },
+        { walletId: "b", amountCents: 3000, percentualDoPromotor: 90 },
+      ]),
+    ).toEqual([
+      { walletId: "a", percentual: 23.75 },
+      { walletId: "b", percentual: 67.5 },
+    ]);
+  });
+
+  it("sem carteira, a parte fica na plataforma (não entra no split)", () => {
+    expect(
+      splitDoCarrinho([
+        { walletId: null, amountCents: 1000, percentualDoPromotor: 100 },
+        { walletId: "b", amountCents: 1000, percentualDoPromotor: 100 },
+      ]),
+    ).toEqual([{ walletId: "b", percentual: 50 }]);
+  });
+
+  it("arredonda para baixo em 4 casas e a soma nunca passa de 100%", () => {
+    for (let a = 1; a <= 997; a += 37) {
+      for (const pct of [100, 95, 92.5, 87.3333]) {
+        const partes = splitDoCarrinho([
+          { walletId: "a", amountCents: a, percentualDoPromotor: pct },
+          { walletId: "b", amountCents: 1000 - a + 3, percentualDoPromotor: pct },
+          { walletId: "c", amountCents: 7, percentualDoPromotor: 100 },
+        ]);
+        const soma = partes.reduce((s, p) => s + p.percentual, 0);
+        expect(soma).toBeLessThanOrEqual(100 + 1e-9);
+        for (const p of partes) expect(Math.round(p.percentual * 10_000)).toBeCloseTo(p.percentual * 10_000, 6);
+      }
+    }
+  });
+
+  it("nunca dá à promotora mais do que ela teria pedido a pedido", () => {
+    const pedidos = [
+      { walletId: "a", amountCents: 333, percentualDoPromotor: 95 },
+      { walletId: "a", amountCents: 667, percentualDoPromotor: 90 },
+      { walletId: "b", amountCents: 1, percentualDoPromotor: 95 },
+    ];
+    const total = 1001;
+    const [a] = splitDoCarrinho(pedidos);
+    expect((a.percentual / 100) * total).toBeLessThanOrEqual(333 * 0.95 + 667 * 0.9 + 1e-9);
+  });
+});
+
+describe("situacaoDoCarrinho", () => {
+  it("esperando enquanto algum espera; pago se algum pagou; senão vencido", () => {
+    expect(situacaoDoCarrinho(["pending", "pending"])).toBe("pending");
+    expect(situacaoDoCarrinho(["paid", "paid"])).toBe("paid");
+    expect(situacaoDoCarrinho(["paid", "refunded"])).toBe("paid");
+    expect(situacaoDoCarrinho(["expired", "expired"])).toBe("expired");
   });
 });

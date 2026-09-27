@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react";
-import { useParams } from "wouter";
+import { useEffect } from "react";
+import { Link, useParams } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { PublicShell } from "@/components/AppShell";
 import { Button, Card, Money, Pill } from "@/components/bits";
 import { formatQuota } from "@shared/format";
-import { apiRequest } from "@/lib/queryClient";
+import { PixParaPagar, useCountdown } from "@/components/PixParaPagar";
 import { printTicket } from "@/lib/pos";
 import { compraJaContada, definirOrganizacaoDaPagina } from "@/lib/marketing";
 import { useRastreio } from "@/components/Marketing";
@@ -24,26 +24,12 @@ interface OrderView {
   campaign: { id: string; title: string; slug: string; totalQuotas: number };
   organizacao: string | null;
   buyer: { name: string };
-}
-
-function useCountdown(until: string | null) {
-  const [left, setLeft] = useState(0);
-  useEffect(() => {
-    if (!until) return;
-    const tick = () =>
-      setLeft(Math.max(0, Math.floor((new Date(until).getTime() - Date.now()) / 1000)));
-    tick();
-    const id = setInterval(tick, 1000);
-    return () => clearInterval(id);
-  }, [until]);
-  const mm = String(Math.floor(left / 60)).padStart(2, "0");
-  const ss = String(left % 60).padStart(2, "0");
-  return { left, label: `${mm}:${ss}` };
+  /** Pedido do carrinho num Pix só: o Pix é o do carrinho inteiro. */
+  carrinho: { codigo: number; totalCents: number } | null;
 }
 
 export default function Pedido() {
   const { code } = useParams<{ code: string }>();
-  const [copied, setCopied] = useState(false);
 
   const { data: order } = useQuery<OrderView>({
     queryKey: [`/api/public/orders/${code}`],
@@ -133,55 +119,24 @@ export default function Pedido() {
         </div>
       ) : null}
 
-      {order.status === "pending" && order.pix.copyPaste ? (
-        <Card title="Pague com Pix">
-          <div className="space-y-3 p-4">
-            {order.pix.qr ? (
-              <img
-                src={order.pix.qr}
-                alt="QR Code do Pix"
-                className="mx-auto h-44 w-44 rounded-lg border border-line"
-              />
-            ) : null}
-
-            <div className="flex items-center gap-2 rounded-md border border-line-2 px-3 py-2">
-              <span className="tnum flex-1 truncate text-[11px] text-muted">
-                {order.pix.copyPaste}
-              </span>
-              <Button
-                variant="ghost"
-                className="px-3 py-1 text-xs"
-                onClick={async () => {
-                  await navigator.clipboard.writeText(order.pix.copyPaste!);
-                  setCopied(true);
-                  setTimeout(() => setCopied(false), 2000);
-                }}
-              >
-                {copied ? "copiado" : "copiar"}
-              </Button>
-            </div>
-
-            <ol className="space-y-2 text-sm text-ink-2">
-              <li>1. Abra o app do banco e escolha <b>Pix Copia e Cola</b>.</li>
-              <li>
-                2. Cole o código e confirme os <Money cents={order.amountCents} />.
-              </li>
-              <li>3. A confirmação chega no seu WhatsApp em segundos.</li>
-            </ol>
-
-            {import.meta.env.DEV ? (
-              <Button
-                variant="yellow"
-                className="w-full"
-                onClick={async () => {
-                  await apiRequest("POST", `/api/dev/pay/${order.code}`);
-                }}
-              >
-                simular pagamento (desenvolvimento)
-              </Button>
-            ) : null}
-          </div>
-        </Card>
+      {/* No carrinho num Pix só, o Pix é um para todas as rifas. */}
+      {order.status === "pending" && order.carrinho ? (
+        <div className="mt-3 rounded-md border border-line px-3 py-3 text-sm">
+          <p>
+            Este pedido está no carrinho <span className="tnum">#{order.carrinho.codigo}</span>. O Pix é um só, de{" "}
+            <Money cents={order.carrinho.totalCents} />, para todas as rifas dele.
+          </p>
+          <Link href={`/carrinho/pix/${order.carrinho.codigo}`} className="mt-2 inline-block font-semibold text-green-deep underline">
+            Pagar o Pix do carrinho
+          </Link>
+        </div>
+      ) : order.status === "pending" && order.pix.copyPaste ? (
+        <PixParaPagar
+          qr={order.pix.qr}
+          copyPaste={order.pix.copyPaste}
+          amountCents={order.amountCents}
+          pedidoParaSimular={order.code}
+        />
       ) : null}
 
       <Card title="Resumo">

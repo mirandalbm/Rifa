@@ -633,6 +633,12 @@ export const orders = pgTable(
      * plataforma de anúncio (LGPD).
      */
     marketingConsentimento: boolean("marketing_consentimento").notNull().default(false),
+    /**
+     * Pedido que saiu do carrinho, num Pix só com os das outras rifas
+     * (`carrinho_pedidos`). A cobrança (`psp_charge_id`, QR) é a mesma em
+     * todos eles; o valor de cada um continua sendo o do pedido.
+     */
+    carrinhoId: uuid("carrinho_id").references(() => carrinhoPedidos.id),
     pspProvider: text("psp_provider"),
     pspChargeId: text("psp_charge_id"),
     pixQr: text("pix_qr"),
@@ -647,7 +653,37 @@ export const orders = pgTable(
     index("idx_orders_buyer").on(t.buyerId),
     index("idx_orders_affiliate").on(t.affiliateId),
     index("idx_orders_expiry").on(t.status, t.expiresAt),
+    index("idx_orders_carrinho").on(t.carrinhoId),
+    index("idx_orders_charge").on(t.pspChargeId),
   ],
+);
+
+/**
+ * O carrinho pago num Pix só: uma cobrança na conta da plataforma com o
+ * total de várias rifas, de uma ou mais organizações, e o split do Asaas
+ * mandando a parte de cada promotora para a carteira dela no mesmo Pix
+ * (`splitDoCarrinho()` em `shared/carrinho.ts`). Cada rifa continua sendo
+ * um pedido (`orders.carrinho_id`) — bilhete, comissão, taxa, estorno e
+ * sorteio seguem pedido a pedido.
+ */
+export const carrinhoPedidos = pgTable(
+  "carrinho_pedidos",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /** Sorteado na faixa de 9 dígitos abaixo da recarga do patrocínio. */
+    codigo: integer("codigo").notNull(),
+    buyerId: uuid("buyer_id")
+      .notNull()
+      .references(() => buyers.id),
+    totalCents: integer("total_cents").notNull(),
+    pspProvider: text("psp_provider"),
+    pspChargeId: text("psp_charge_id"),
+    pixQr: text("pix_qr"),
+    pixCopyPaste: text("pix_copy_paste"),
+    expiresAt: timestamp("expires_at").notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("uq_carrinho_codigo").on(t.codigo), index("idx_carrinho_buyer").on(t.buyerId)],
 );
 
 export const coupons = pgTable(
@@ -1613,6 +1649,21 @@ export const createOrderSchema = z.object({
   /** O aparelho aceitou os cookies de marketing (etapa 16). */
   marketing: z.boolean().optional(),
 });
+
+/** O carrinho pago num Pix só: rifa e quantidade — nunca preço nem número. */
+export const carrinhoCheckoutSchema = z.object({
+  itens: z
+    .array(z.object({ slug: z.string().min(1).max(120), quantidade: z.number().int().min(1).max(10_000) }))
+    .min(1)
+    .max(20),
+  buyer: createOrderSchema.shape.buyer,
+  affiliateCode: z.string().max(40).optional(),
+  origem: z.string().max(20).optional(),
+  indicacao: z.string().max(20).optional(),
+  utm: z.record(z.string(), z.unknown()).optional(),
+  marketing: z.boolean().optional(),
+});
+export type CarrinhoCheckoutInput = z.infer<typeof carrinhoCheckoutSchema>;
 
 export type User = typeof users.$inferSelect;
 export type Campaign = typeof campaigns.$inferSelect;

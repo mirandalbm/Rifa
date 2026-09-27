@@ -56,13 +56,15 @@ webhookRouter.post("/:provider", async (req, res) => {
     // era gravado e ignorado — a venda sumia do caixa mas a comissão era
     // liberada normalmente pelo relógio, que só olha a carência.
     if (event.event === "refunded" && event.chargeId) {
-      const r = await refundByChargeId(event.chargeId);
-      if (r && r.comissaoJaPagaCents > 0) {
-        // Comissão já sacada não volta sozinha. Fica no log porque é dinheiro
-        // que saiu e alguém precisa cobrar de volta.
-        console.warn(
-          `[webhook] estorno do pedido ${r.order.code}: ${r.comissaoJaPagaCents} centavos de comissão já tinham sido pagos`,
-        );
+      // No carrinho num Pix só, a cobrança é de vários pedidos: todos voltam.
+      for (const r of await refundByChargeId(event.chargeId)) {
+        if (r.comissaoJaPagaCents > 0) {
+          // Comissão já sacada não volta sozinha. Fica no log porque é dinheiro
+          // que saiu e alguém precisa cobrar de volta.
+          console.warn(
+            `[webhook] estorno do pedido ${r.order.code}: ${r.comissaoJaPagaCents} centavos de comissão já tinham sido pagos`,
+          );
+        }
       }
     }
 

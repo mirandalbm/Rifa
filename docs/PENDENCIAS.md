@@ -100,9 +100,13 @@ senha); **[código]** é trabalho no repositório.
 - [x] Carrinho e comprar na barra da publicação (no lugar do salvar):
   carrinho no aparelho, separado por organização, preço do servidor, e
   "Comprar" abrindo a compra rápida da rifa no tamanho escolhido.
-- [ ] **[código]** Carrinho num Pix só (split para várias carteiras no
-  Asaas, webhook que confirma vários pedidos, estorno parcial da cobrança
-  conjunta) e "Presentear cotas" na barra dos comentários.
+- [x] Carrinho num Pix só, pago à plataforma, com o split do Asaas levando
+  a parte de cada promotora no mesmo pagamento; tudo ou nada na reserva,
+  vencimento conjunto, estorno pedido a pedido com valor explícito.
+- [ ] **[você]** Conferir no Asaas (sandbox) um Pix de carrinho com duas
+  organizações com carteira: o split com dois destinos e a devolução
+  parcial de um pedido.
+- [ ] **[código]** "Presentear cotas" na barra dos comentários.
 - [ ] **[você]** Antes de aprovar um adiamento, conferir se a autorização
   SPA/MF da rifa cobre a nova data (a plataforma não tem como checar isso
   sozinha).
@@ -314,7 +318,7 @@ Na ordem de entrega do plano:
   compartilhar e salvar com contadores, legenda da organização, "• Autor"
   nos comentários e apelido obrigatório no cadastro.
 - [ ] **[código]** Presente com convite (cadastro → compra com desconto de
-  primeira compra pago pela plataforma) e o carrinho num Pix só.
+  primeira compra pago pela plataforma).
 - [ ] **[código]** Login com Google.
 - [ ] **[você]** Advogado: regra de reembolso (arrependimento × corte de
   2 h), cota grátis de bônus no regulamento.

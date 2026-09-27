@@ -409,12 +409,12 @@ export async function releaseExpired(now = new Date()): Promise<Expiradas> {
       .where(and(inArray(orders.id, orderIds), eq(orders.status, "pending")))
       .returning({ provider: orders.pspProvider, chargeId: orders.pspChargeId });
 
-    return {
-      liberadas: expired.length,
-      cobrancas: vencidos.flatMap((v) =>
-        v.provider && v.chargeId ? [{ provider: v.provider, chargeId: v.chargeId }] : [],
-      ),
-    };
+    // O carrinho num Pix só tem uma cobrança para vários pedidos: cancela uma vez.
+    const cobrancas = new Map<string, { provider: string; chargeId: string }>();
+    for (const v of vencidos) {
+      if (v.provider && v.chargeId) cobrancas.set(v.chargeId, { provider: v.provider, chargeId: v.chargeId });
+    }
+    return { liberadas: expired.length, cobrancas: [...cobrancas.values()] };
   });
 }
 

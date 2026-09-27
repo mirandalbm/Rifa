@@ -256,7 +256,8 @@ export async function guardOrder(input: OrderGuardInput): Promise<FraudCheckResu
   if (buyer) {
     const [abertos] = await db
       .select({
-        pedidos: sql<number>`count(*)::int`,
+        // O carrinho num Pix só é um pedido aberto, não um por rifa.
+        pedidos: sql<number>`count(distinct coalesce(${orders.carrinhoId}, ${orders.id}))::int`,
         cotas: sql<number>`coalesce(sum(${orders.quantity}), 0)::int`,
       })
       .from(orders)

@@ -15,7 +15,7 @@ import {
 import { montarRotasDaVerificacao } from "./verificacaoRotas";
 import { midiasDas, pecaPublica } from "../services/perfil";
 import { itensDoCarrinho } from "../services/carrinho";
-import { rifaAVenda } from "@shared/carrinho";
+import { rifaAVenda, situacaoDoCarrinho } from "@shared/carrinho";
 import { buyerPorApelido, compartilhar, idsDaLista, marcar, minhasMarcas } from "../services/publicacao";
 import { ACOES, type Acao } from "@shared/publicacao";
 import { VerificacaoError } from "../services/verificacao";
@@ -39,6 +39,8 @@ import {
   organizacaoFotos,
   draws,
   createOrderSchema,
+  carrinhoCheckoutSchema,
+  carrinhoPedidos,
 } from "@shared/schema";
 import { normalizePhone, hidePhone, formatQuota } from "@shared/format";
 import { listPublicCampaigns, campaignBySlug, certificadoDa } from "../services/campaigns";
@@ -62,7 +64,7 @@ import {
 } from "../services/perfil";
 import QRCode from "qrcode";
 import { publicUrl } from "../services/urls";
-import { createOrder, orderByCode, ordersByPhone, OrderError, resgatarCotasDeBonus } from "../services/orders";
+import { cartByCode, createCartOrder, createOrder, orderByCode, ordersByPhone, OrderError, resgatarCotasDeBonus } from "../services/orders";
 import { estadoDoBonus, registrarVisita } from "../services/bonus";
 import { patrocinadasNoAr, registrarClique, registrarExibicoes } from "../services/patrocinio";
 import { pixelsPublicos } from "../services/marketing";
@@ -1146,6 +1148,42 @@ publicRouter.post("/orders", async (req, res, next) => {
   }
 });
 
+/**
+ * O carrinho num Pix só: um pedido por rifa, na mesma transação e na mesma
+ * cobrança (`createCartOrder`). O corpo leva rifa e quantidade — o preço é
+ * daqui.
+ */
+publicRouter.post("/carrinho/checkout", async (req, res, next) => {
+  try {
+    const input = carrinhoCheckoutSchema.parse(req.body);
+    const r = await createCartOrder(input, {
+      sessionAffiliateCode: req.session.affiliateCode,
+      identity: identify(req),
+      contaId: req.session.buyer?.id || undefined,
+    });
+    res.status(201).json({
+      codigo: r.carrinho.codigo,
+      totalCents: r.carrinho.totalCents,
+      expiresAt: r.carrinho.expiresAt,
+      pix: { qr: r.carrinho.pixQr, copyPaste: r.carrinho.pixCopyPaste },
+      pedidos: r.pedidos.map((x) => ({
+        code: x.order.code,
+        amountCents: x.order.amountCents,
+        quantity: x.order.quantity,
+        rifa: x.campaign.slug,
+      })),
+    });
+  } catch (err) {
+    if (err instanceof NumbersTakenError || err instanceof NoQuotasAvailableError) {
+      return res.status(409).json({ message: "Uma das rifas do carrinho não tem mais cotas suficientes. Confira as quantidades." });
+    }
+    if (err instanceof OrderError) {
+      return res.status(err.status).json({ message: err.message });
+    }
+    next(err);
+  }
+});
+
 /** Barra quem está varrendo códigos de pedido; ver `lookupBlocked`. */
 async function lookupGuard(req: Request, res: Response): Promise<boolean> {
   if (await lookupBlocked(identify(req))) {
@@ -1187,6 +1225,47 @@ publicRouter.get("/orders/:code", async (req, res, next) => {
         await db.select({ slug: organizations.slug }).from(organizations).where(eq(organizations.id, found.campaign.organizationId))
       )[0]?.slug ?? null,
       buyer: { name: found.buyer.name },
+      // Pedido do carrinho num Pix só: o Pix é o do carrinho inteiro.
+      carrinho: found.order.carrinhoId
+        ? await db
+            .select({ codigo: carrinhoPedidos.codigo, totalCents: carrinhoPedidos.totalCents })
+            .from(carrinhoPedidos)
+            .where(eq(carrinhoPedidos.id, found.order.carrinhoId))
+            .then((r) => r[0] ?? null)
+        : null,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * A tela do Pix do carrinho pergunta por aqui até o webhook chegar. Mesma
+ * guarda da consulta do pedido (código sorteado, varredura barrada), e
+ * nenhum dado do comprador: só as rifas, os valores e a situação.
+ */
+publicRouter.get("/carrinho/pedidos/:codigo", async (req, res, next) => {
+  try {
+    if (!(await lookupGuard(req, res))) return;
+    const found = await cartByCode(Number(req.params.codigo));
+    if (!found) {
+      await recordLookupMiss(identify(req));
+      return res.status(404).json({ message: "Carrinho não encontrado." });
+    }
+    res.json({
+      codigo: found.carrinho.codigo,
+      totalCents: found.carrinho.totalCents,
+      expiresAt: found.carrinho.expiresAt,
+      status: situacaoDoCarrinho(found.pedidos.map((p) => p.order.status)),
+      pix: { qr: found.carrinho.pixQr, copyPaste: found.carrinho.pixCopyPaste },
+      pedidos: found.pedidos.map((p) => ({
+        code: p.order.code,
+        status: p.order.status,
+        quantity: p.order.quantity,
+        amountCents: p.order.amountCents,
+        rifa: { slug: p.campaign.slug, titulo: p.campaign.prizeTitle },
+        organizacao: { slug: p.orgSlug, nome: p.orgNome },
+      })),
     });
   } catch (err) {
     next(err);

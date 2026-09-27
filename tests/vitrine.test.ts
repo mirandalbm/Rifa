@@ -95,12 +95,13 @@ describe("estados com rifa", () => {
 });
 
 describe("blocos novos no template", () => {
-  it("o padrão tem banners, stories, estados, seletor e feed, e valida", () => {
+  it("o padrão tem banners, stories, estados, seletor, patrocinadas e feed, e valida", () => {
     expect(validarTemplate(TEMPLATE_PADRAO).blocos.map((b) => b.tipo)).toEqual([
       "banners",
       "seguidos",
       "estados",
       "regiao",
+      "patrocinadas",
       "rifas",
       "ajuda",
     ]);

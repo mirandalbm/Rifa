@@ -181,8 +181,11 @@ Na ordem de entrega do plano:
   no site, vitrine, perfil, story, banner, página do estado ou anúncio);
   rifas que mais vendem. A plataforma escolhe a organização.
 - [x] Foto do ganhador como capa depois do sorteio (painel → Sorteios).
-- [ ] **[código]** Retorno das rifas patrocinadas no painel de resultados
-  (entra junto com as patrocinadas, etapa 15).
+- [x] Retorno das rifas patrocinadas (painel → Patrocínio): gasto, receita,
+  retorno por real, vendas, custo por venda, cliques, taxa de clique e custo
+  por clique em 7, 30 ou 90 dias; funil exibição → clique → pedido → venda;
+  gasto × receita por dia; estado de quem viu; cliques barrados. A venda
+  conta para o anúncio quando o mesmo aparelho clicou e comprou em 7 dias.
 - [x] Afiliado de todas as organizações: cadastro avulso, adesão pelo
   painel do afiliado (Organizações), aprovação por organização, termo de
   adesão por versão fotografado na publicação de cada rifa, aceite com cópia
@@ -221,7 +224,18 @@ Na ordem de entrega do plano:
   decide (procedente: vira aprovado com o prazo da organização; improcedente:
   mantém a recusa), e a decisão encerra. Pedido premiado não tem disputa
   procedente.
-- [ ] **[código]** Rifas patrocinadas por clique.
+- [x] Rifas patrocinadas por clique, **atrás de um interruptor desligado**
+  (painel → Patrocínio, da plataforma): recarga de saldo por Pix para a
+  conta da plataforma (ou crédito lançado por ela); anúncio = pacote de
+  cliques com alcance cidade, estado ou Brasil, preço por alcance e desconto
+  por volume da tabela da plataforma; fila por ordem de chegada com vagas
+  por alcance — quem entra fica até gastar o pacote e o próximo entra
+  sozinho; card da fila com a previsão de entrada; clique cobrado uma vez
+  por aparelho em 24 h, robô não conta.
+- [ ] **[você]** Ligar as patrocinadas e ajustar a tabela (preço do clique
+  por alcance, faixas de desconto, mínimo de cliques, vagas e recarga
+  mínima — painel → Patrocínio) quando a conta da plataforma estiver pronta
+  para receber o Pix das recargas.
 - [ ] **[código]** Marketing e tráfego pago.
 - [ ] **[código]** Login com Google.
 - [ ] **[você]** Advogado: regra de reembolso (arrependimento × corte de

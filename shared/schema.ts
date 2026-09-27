@@ -184,6 +184,8 @@ export const organizations = pgTable(
      * hora do pagamento. Escolha da organização.
      */
     liberacaoComissao: commissionRelease("liberacao_comissao").notNull().default("apos_sorteio"),
+    /** Saldo para rifas patrocinadas (etapa 15), em centavos. Anda com o livro, na mesma transação. */
+    patrocinioSaldoCents: integer("patrocinio_saldo_cents").notNull().default(0),
     /**
      * Dias que a organização se compromete a levar para devolver o dinheiro
      * depois de aprovar um pedido de reembolso. O prazo de cada chamado é
@@ -543,6 +545,11 @@ export const orders = pgTable(
      * Pix — desligar a chave depois não muda o contrato desta venda.
      */
     comissaoGuardada: boolean("comissao_guardada").notNull().default(false),
+    /**
+     * Anúncio patrocinado que trouxe esta venda (etapa 15): o mesmo aparelho
+     * clicou nele, nesta rifa, até 7 dias antes. Estatística do patrocínio.
+     */
+    anuncioId: uuid("anuncio_id"),
     /**
      * De onde a pessoa chegou à rifa (vitrine, perfil, story, banner,
      * estado, anúncio). Vem do navegador: é só estatística do painel de
@@ -1521,3 +1528,145 @@ export const bonusMetas = pgTable("bonus_metas", {
   ativa: boolean("ativa").notNull().default(true),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
+
+/* ------------------------------------------------------------------ *
+ * Rifas patrocinadas por clique (etapa 15)
+ * ------------------------------------------------------------------ */
+
+/**
+ * O anúncio: um pacote de cliques para uma rifa, num alcance. Pago de uma
+ * vez com o saldo. Fica na fila do seu segmento (`segmento`, por ordem de
+ * `fila_desde`) e, quando entra na vaga, só sai ao gastar todos os cliques.
+ */
+export const patrocinioAnuncios = pgTable(
+  "patrocinio_anuncios",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    campaignId: uuid("campaign_id")
+      .notNull()
+      .references(() => campaigns.id, { onDelete: "cascade" }),
+    /** cidade | estado | nacional (`shared/patrocinio.ts`) */
+    alcance: text("alcance").notNull(),
+    uf: text("uf"),
+    cidade: text("cidade"),
+    /** A chave da fila: "nacional", "estado:SP", "cidade:SP:campinas". */
+    segmento: text("segmento").notNull(),
+    cliquesComprados: integer("cliques_comprados").notNull(),
+    cliquesUsados: integer("cliques_usados").notNull().default(0),
+    /** Preço da tabela e desconto no dia da compra: mudar a tabela não mexe no que já foi pago. */
+    precoCliqueCents: integer("preco_clique_cents").notNull(),
+    descontoPct: integer("desconto_pct").notNull().default(0),
+    valorPagoCents: integer("valor_pago_cents").notNull(),
+    /** ativo | encerrado (gastou tudo, ou a rifa saiu do ar) | cancelado (antes do 1º clique) */
+    status: text("status").notNull().default("ativo"),
+    filaDesde: timestamp("fila_desde").notNull().defaultNow(),
+    iniciadoEm: timestamp("iniciado_em"),
+    encerradoEm: timestamp("encerrado_em"),
+    /** Devolvido ao saldo quando o anúncio não pôde gastar tudo (rifa fora do ar, cancelado). */
+    reembolsoCents: integer("reembolso_cents").notNull().default(0),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    index("idx_anuncios_fila").on(t.segmento, t.status, t.filaDesde),
+    index("idx_anuncios_org").on(t.organizationId, t.createdAt),
+  ],
+);
+
+/** Clique cobrado: um por visitante (aparelho em hash) a cada 24 h, por anúncio, conferido sob trava. */
+export const patrocinioCliques = pgTable(
+  "patrocinio_cliques",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    anuncioId: uuid("anuncio_id")
+      .notNull()
+      .references(() => patrocinioAnuncios.id, { onDelete: "cascade" }),
+    organizationId: uuid("organization_id").notNull(),
+    campaignId: uuid("campaign_id").notNull(),
+    visitanteHash: text("visitante_hash").notNull(),
+    /** O que este clique gastou do pacote (`gastoAte`): a soma é o valor pago. */
+    valorCents: integer("valor_cents").notNull(),
+    uf: text("uf"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    index("idx_patrocinio_clique_visitante").on(t.anuncioId, t.visitanteHash, t.createdAt),
+    index("idx_patrocinio_clique_atribuicao").on(t.visitanteHash, t.campaignId, t.createdAt),
+  ],
+);
+
+/**
+ * Os números do dia, por anúncio e estado de quem olhou: é daqui que o
+ * painel lê (somar dias, não varrer cliques). Incrementado por upsert.
+ */
+export const patrocinioDiario = pgTable(
+  "patrocinio_diario",
+  {
+    anuncioId: uuid("anuncio_id")
+      .notNull()
+      .references(() => patrocinioAnuncios.id, { onDelete: "cascade" }),
+    organizationId: uuid("organization_id").notNull(),
+    /** Dia no fuso de São Paulo (AAAA-MM-DD). */
+    dia: text("dia").notNull(),
+    /** Estado de quem olhou ("" quando não se sabe). */
+    uf: text("uf").notNull().default(""),
+    exibicoes: integer("exibicoes").notNull().default(0),
+    cliques: integer("cliques").notNull().default(0),
+    /** Cliques recusados: robô, repetido em 24 h, pacote esgotado. */
+    barrados: integer("barrados").notNull().default(0),
+    gastoCents: integer("gasto_cents").notNull().default(0),
+  },
+  (t) => [
+    primaryKey({ columns: [t.anuncioId, t.dia, t.uf] }),
+    index("idx_patrocinio_diario_org").on(t.organizationId, t.dia),
+  ],
+);
+
+/**
+ * Entradas e ajustes do saldo de patrocínio (recarga paga, crédito ou
+ * débito da plataforma). A `chave` é única: o webhook repetido não credita
+ * duas vezes. Os cliques têm a tabela deles.
+ */
+export const patrocinioLancamentos = pgTable(
+  "patrocinio_lancamentos",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    valorCents: integer("valor_cents").notNull(),
+    /** recarga | ajuste */
+    motivo: text("motivo").notNull(),
+    chave: text("chave").notNull(),
+    descricao: text("descricao"),
+    userId: uuid("user_id"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("uq_patrocinio_lancamento_chave").on(t.chave), index("idx_patrocinio_lancamentos_org").on(t.organizationId, t.createdAt)],
+);
+
+/** Recarga por Pix para a conta da plataforma (sem split). */
+export const patrocinioRecargas = pgTable(
+  "patrocinio_recargas",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    /** Número da cobrança no provedor (faixa própria, fora da dos pedidos). */
+    codigo: integer("codigo").notNull(),
+    valorCents: integer("valor_cents").notNull(),
+    /** pendente | paga */
+    status: text("status").notNull().default("pendente"),
+    provider: text("provider"),
+    chargeId: text("charge_id"),
+    pixQr: text("pix_qr"),
+    pixCopyPaste: text("pix_copy_paste"),
+    expiresAt: timestamp("expires_at"),
+    pagaEm: timestamp("paga_em"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("uq_patrocinio_recarga_codigo").on(t.codigo), uniqueIndex("uq_patrocinio_recarga_charge").on(t.chargeId)],
+);

@@ -36,6 +36,7 @@ import {
   IdCard,
   FileCheck2,
   Gift,
+  Rocket,
 } from "lucide-react";
 import type { SectionKey } from "@shared/access";
 import { useSession, useLogout } from "@/lib/session";
@@ -210,6 +211,7 @@ const ICONE: Partial<Record<SectionKey, LucideIcon>> = {
   adminAparencia: Palette,
   adminFiscal: FileCheck2,
   adminBonus: Gift,
+  adminPatrocinio: Rocket,
 };
 
 const CHAVE_MENU = "rifa.menu.aberto";

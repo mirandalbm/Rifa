@@ -99,6 +99,7 @@ jobs:
       - run: npm run disputa
       - run: npm run guarda
       - run: npm run bonus
+      - run: npm run patrocinio
       - run: npm run load
 
       - name: Log do servidor

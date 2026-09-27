@@ -154,6 +154,13 @@ import {
 } from "../services/chamados";
 import { alterarMeta, criarMeta, painelDoBonus } from "../services/bonus";
 import {
+  ajustarSaldo,
+  cancelarAnuncio,
+  comprarAnuncio,
+  painelDoPatrocinio,
+  pedirRecarga,
+} from "../services/patrocinio";
+import {
   PROVEDORES_PIX,
   NOME_PROVEDOR,
   CREDENCIAIS_PROVEDOR,
@@ -2808,6 +2815,90 @@ adminRouter.put("/bonus/metas/:id", async (req, res, next) => {
     const m = await alterarMeta(req.params.id, req.body);
     await audit(req, "bonus.meta.alterar", "bonus_meta", m.id, m);
     res.json(m);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/* ---------------- rifas patrocinadas (etapa 15) ---------------- */
+
+/** A mesma tela, dois recortes: a organização vê os anúncios e números dela; a plataforma, a fila e todas. */
+adminRouter.get("/patrocinio", async (req, res, next) => {
+  try {
+    res.json(await painelDoPatrocinio(req, req.query.dias));
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** Compra um anúncio (pacote de cliques) com o saldo. */
+adminRouter.post("/patrocinio/anuncios", async (req, res, next) => {
+  try {
+    const a = await comprarAnuncio(req, {
+      campaignId: req.body?.campaignId,
+      alcance: req.body?.alcance,
+      uf: req.body?.uf,
+      cidade: req.body?.cidade,
+      cliques: req.body?.cliques,
+    });
+    await audit(req, "patrocinio.anuncio", "patrocinio_anuncio", a.id, {
+      campaignId: a.campaignId,
+      segmento: a.segmento,
+      cliques: a.cliquesComprados,
+      valorPagoCents: a.valorPagoCents,
+    });
+    res.status(201).json(a);
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.post("/patrocinio/anuncios/:id/cancelar", async (req, res, next) => {
+  try {
+    const a = await cancelarAnuncio(req, req.params.id);
+    await audit(req, "patrocinio.cancelar", "patrocinio_anuncio", a.id, { reembolsoCents: a.reembolsoCents });
+    res.json(a);
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.post("/patrocinio/recargas", async (req, res, next) => {
+  try {
+    const r = await pedirRecarga(req, Number(req.body?.valorCents));
+    await audit(req, "patrocinio.recarga", "patrocinio_recarga", r.id, { valorCents: r.valorCents, codigo: r.codigo });
+    res.status(201).json({ id: r.id, codigo: r.codigo, valorCents: r.valorCents, pix: { qr: r.pixQr, copyPaste: r.pixCopyPaste }, expiresAt: r.expiresAt });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** Configuração (só a plataforma). O resto da configuração fica como está. */
+adminRouter.put("/patrocinio/config", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    // Tabela de preço, faixas, mínimo, vagas e recarga mínima: o que vier
+    // substitui a configuração do patrocínio inteira (validada em conjunto).
+    const salva = await setPlataforma({
+      patrocinioLigado: req.body?.ligado === undefined ? undefined : req.body.ligado === true,
+      patrocinio: req.body?.patrocinio === undefined ? undefined : req.body.patrocinio,
+    });
+    await audit(req, "patrocinio.config", "settings", "plataforma", { ligado: salva.patrocinioLigado, patrocinio: salva.patrocinio });
+    res.json({ ligado: salva.patrocinioLigado, ...salva.patrocinio });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** Crédito ou débito no saldo de uma organização (só a plataforma). */
+adminRouter.post("/patrocinio/ajustes", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    const organizationId = String(req.body?.organizationId ?? "");
+    const valorCents = Number(req.body?.valorCents);
+    const r = await ajustarSaldo(req, organizationId, valorCents, String(req.body?.descricao ?? ""));
+    await audit(req, "patrocinio.ajuste", "organization", organizationId, { valorCents, saldoCents: r.saldoCents });
+    res.json(r);
   } catch (err) {
     next(err);
   }

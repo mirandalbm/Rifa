@@ -17,7 +17,16 @@ import "dotenv/config";
 import { baseUrl } from "./base-url";
 import { eq, like, sql } from "drizzle-orm";
 import { db, pool } from "../server/db";
-import { campaignStats, campaigns, campanhaSolicitacoes, commissions, orders, users } from "../shared/schema";
+import {
+  affiliates,
+  buyers,
+  campaignStats,
+  campaigns,
+  campanhaSolicitacoes,
+  commissions,
+  orders,
+  users,
+} from "../shared/schema";
 
 const URL = baseUrl();
 let falhas = 0;
@@ -42,6 +51,9 @@ class Cliente {
 }
 
 const PREFIXO = "solic-teste-";
+// Comprador e afiliado próprios: o banco do CI só tem o seed.
+const TELEFONE = "11900005544";
+const EMAIL_AFILIADO = "afiliado@solic-teste.br";
 const DIA = 86_400_000;
 
 async function limpar() {
@@ -50,6 +62,9 @@ async function limpar() {
   await db.execute(sql`delete from quota_alloc where campaign_id in ${minhas}`);
   await db.execute(sql`delete from orders where campaign_id in ${minhas}`);
   await db.delete(campaigns).where(like(campaigns.slug, `${PREFIXO}%`));
+  await db.execute(sql`delete from affiliates where user_id in (select id from users where email = ${EMAIL_AFILIADO})`);
+  await db.delete(users).where(eq(users.email, EMAIL_AFILIADO));
+  await db.delete(buyers).where(eq(buyers.phone, TELEFONE));
 }
 
 async function main() {
@@ -105,7 +120,7 @@ async function main() {
     r = await marina.req("DELETE", `/api/admin/campaigns/${comCota.id}`);
     checa("rifa com cota reservada não se apaga (422)", r.status === 422, `HTTP ${r.status}`);
 
-    const [comprador] = (await db.execute(sql`select id from buyers limit 1`)).rows as { id: string }[];
+    const [comprador] = await db.insert(buyers).values({ name: "Comprador Teste", phone: TELEFONE }).returning();
     const comVenda = await rifa("com-venda", "published");
     const [pago] = await db
       .insert(orders)
@@ -224,7 +239,14 @@ async function main() {
     checa("sem motivo de verdade: recusa (422)", r.status === 422, `HTTP ${r.status}`);
 
     // A comissão da venda paga esperava o sorteio de antes.
-    const [afiliado] = (await db.execute(sql`select id from affiliates limit 1`)).rows as { id: string }[];
+    const [uAfiliado] = await db
+      .insert(users)
+      .values({ role: "affiliate", name: "Afiliado Teste", email: EMAIL_AFILIADO, passwordHash: "x" })
+      .returning();
+    const [afiliado] = await db
+      .insert(affiliates)
+      .values({ userId: uAfiliado.id, code: `SOLIC${Date.now() % 100000}`, status: "active" })
+      .returning();
     await db.insert(commissions).values({
       affiliateId: afiliado.id,
       orderId: pago.id,

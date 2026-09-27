@@ -41,6 +41,12 @@ app.use(
     index: false,
   }),
 );
+// Arquivo que não existe é 404 — nunca a página do app. Sem isto o curinga
+// da SPA respondia 200 com HTML, a imagem quebrava na tela e o log não
+// mostrava nada (foi assim que o disco apagado a cada deploy passou calado).
+app.use("/uploads", (_req, res) => {
+  res.status(404).end();
+});
 
 // O chamado leva o print do bilhete (até 5 MB em base64). Só estas rotas
 // aceitam corpo maior; o resto segue no limite de 1 MB.

@@ -147,6 +147,7 @@ export function AdminAparencia() {
                       onChange={(e) => {
                         const f = e.target.files?.[0];
                         if (!f) return;
+                        if (f.size > 2 * 1024 * 1024) return window.alert("A logo passa de 2 MB.");
                         const r = new FileReader();
                         r.onload = () => enviarLogo.mutate(String(r.result));
                         r.readAsDataURL(f);
@@ -159,6 +160,10 @@ export function AdminAparencia() {
                     </button>
                   ) : null}
                 </div>
+                <p className="mt-1 text-[11px] text-muted">
+                  Horizontal, de preferência PNG com fundo transparente. Aparece com até{" "}
+                  <span className="tnum">96</span> px de altura. PNG, JPG ou WebP até 2 MB.
+                </p>
               </div>
               {(["claro", "escuro"] as const).map((tema) => {
                 const c = id.cor[tema];

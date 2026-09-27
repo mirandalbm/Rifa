@@ -124,7 +124,8 @@ export function AdminStories() {
                 </label>
                 <p className="text-[11px] text-muted">
                   Em pé (9 por 16, recortada em <span className="tnum">1080 × 1920</span>). Some em{" "}
-                  <span className="tnum">{STORY_HORAS}</span> h. Até <span className="tnum">{STORIES_MAX}</span> no ar.
+                  <span className="tnum">{STORY_HORAS}</span> h. Até <span className="tnum">{STORIES_MAX}</span> no ar. JPG,
+                  PNG ou WebP até 5 MB.
                 </p>
               </div>
             </div>

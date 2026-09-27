@@ -122,6 +122,7 @@ export function Conversa({
               {enviando ? "Enviando…" : "Enviar"}
             </Button>
           </div>
+          <p className="text-[11px] text-muted">Anexo: uma imagem (foto ou print) até 5 MB.</p>
           {erro ? <p className="text-xs text-red">{erro}</p> : null}
         </form>
       ) : (

@@ -34,6 +34,9 @@
     /* Texto sobre o amarelo: o amarelo é o mesmo nos dois temas. */
     --on-yellow: #3b2a00;
 
+    /* O "+" do carrinho na barra da publicação (azul, como pediu o produto). */
+    --azul: #0a6fd6;
+
     /*
      * Cor de marca, vinda do template (lib/template.ts põe --marca-claro e
      * --marca-escuro na raiz). É marca, não significado: dinheiro, espera e
@@ -80,6 +83,8 @@
 
       --on-yellow: #3b2a00;
 
+      --azul: #5aa9ff;
+
       --marca: var(--marca-escuro, #5dd394);
 
       color-scheme: dark;
@@ -110,6 +115,8 @@
     --red-soft: #3a1b17;
 
     --on-yellow: #3b2a00;
+
+    --azul: #5aa9ff;
 
     --marca: var(--marca-escuro, #5dd394);
 

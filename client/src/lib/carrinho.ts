@@ -36,13 +36,23 @@ export function noCarrinho(slug: string) {
   return lerCarrinho().some((i) => i.slug === slug);
 }
 
-/** Põe no carrinho (ou troca a quantidade). Devolve falso se o carrinho está cheio. */
-export function porNoCarrinho(slug: string, quantidade: number): boolean {
+/**
+ * Põe no carrinho (ou troca a quantidade). Com a cartela escolhida, guarda os
+ * números (sugestão — a reserva é só na compra); mudar a quantidade depois
+ * descarta a cartela. Devolve falso se o carrinho está cheio.
+ */
+export function porNoCarrinho(slug: string, quantidade: number, numeros?: number[]): boolean {
   const atual = lerCarrinho();
   const ja = atual.some((i) => i.slug === slug);
   if (!ja && atual.length >= CARRINHO_MAX_ITENS) return false;
-  gravar(ja ? atual.map((i) => (i.slug === slug ? { slug, quantidade } : i)) : [...atual, { slug, quantidade }]);
+  const item = numeros && numeros.length === quantidade ? { slug, quantidade, numeros } : { slug, quantidade };
+  gravar(ja ? atual.map((i) => (i.slug === slug ? item : i)) : [...atual, item]);
   return true;
+}
+
+/** Alguém levou um número da cartela: o item fica, e o número passa a ser sorteado na compra. */
+export function esquecerCartela(slug: string) {
+  gravar(lerCarrinho().map((i) => (i.slug === slug ? { slug: i.slug, quantidade: i.quantidade } : i)));
 }
 
 export function tirarDoCarrinho(slug: string) {

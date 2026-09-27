@@ -699,7 +699,8 @@ export async function createCartOrder(input: CarrinhoCheckoutInput, ctx: CreateO
       await prepararPedido(
         {
           campaignId: idDe.get(item.slug)!,
-          quantity: item.quantidade,
+          // Com a cartela escolhida, a reserva é daqueles números (tudo ou nada).
+          ...(item.numeros ? { numbers: item.numeros } : { quantity: item.quantidade }),
           buyer: input.buyer,
           affiliateCode: input.affiliateCode,
           origem: input.origem,
@@ -726,7 +727,12 @@ export async function createCartOrder(input: CarrinhoCheckoutInput, ctx: CreateO
           .returning();
         const pedidos = [];
         for (const p of preparos) {
-          pedidos.push(await inserirPedido(tx, p, randomOrderCode(), { carrinhoId: carrinho.id, expiresAt }));
+          try {
+            pedidos.push(await inserirPedido(tx, p, randomOrderCode(), { carrinhoId: carrinho.id, expiresAt }));
+          } catch (err) {
+            // A tela precisa saber de qual rifa era o número levado, para sortear de novo só nela.
+            throw Object.assign(err as Error, { slug: p.campaign.slug });
+          }
         }
         return { carrinho, pedidos };
       }),

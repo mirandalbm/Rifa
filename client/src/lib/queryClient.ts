@@ -24,6 +24,8 @@ export class ApiError extends Error {
     readonly status: number,
     /** Motivo legível por código, quando o servidor manda um (ex.: totp_required). */
     readonly code?: string,
+    /** O corpo inteiro da resposta de erro (ex.: `slug` da rifa do carrinho). */
+    readonly corpo?: Record<string, unknown>,
   ) {
     super(message);
     this.name = "ApiError";
@@ -40,14 +42,16 @@ async function throwIfResNotOk(res: Response) {
   const text = (await res.text()) || res.statusText;
   let message = text;
   let code: string | undefined;
+  let corpo: Record<string, unknown> | undefined;
   try {
     const parsed = JSON.parse(text) as { message?: string; code?: string };
     if (parsed?.message) message = parsed.message;
     code = parsed?.code;
+    corpo = parsed as Record<string, unknown>;
   } catch {
     // resposta não-JSON: fica o texto mesmo
   }
-  throw new ApiError(message, res.status, code);
+  throw new ApiError(message, res.status, code, corpo);
 }
 
 export async function apiRequest(

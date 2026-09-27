@@ -1,9 +1,10 @@
 /**
  * O carrinho do apostador: rifas e quantidades, de várias organizações.
  *
- * - **Carrinho é lista de desejo, não reserva.** Guarda a rifa e quantas
- *   cotas — nunca número. A cota só é tomada na compra, pelo caminho de
- *   sempre (`reserveSpecific`/`reserveRandom`, pela PK).
+ * - **Carrinho é lista de desejo, não reserva.** Guarda a rifa, quantas
+ *   cotas e, se a pessoa escolheu na janela do "+", a cartela sugerida. A
+ *   cota só é tomada na compra, pelo caminho de sempre
+ *   (`reserveSpecific`/`reserveRandom`, pela PK).
  * - **Fica no aparelho** (`rifa.carrinho`), como a região e o tema: perder
  *   só esvazia o carrinho.
  * - **O preço é do servidor.** O aparelho manda rifa e quantidade;
@@ -18,6 +19,23 @@ export interface ItemDoCarrinho {
   slug: string;
   /** 0 = ainda não escolheu: vale a sugerida pela rifa (`quantidadeInicial`). */
   quantidade: number;
+  /**
+   * A cartela escolhida na janela do "+" (`sugerirCartelas`). Sugestão, não
+   * reserva: vai para `reserveSpecific` só na compra, e se alguém levou um
+   * número no meio a compra recusa (409) e o carrinho volta a sortear na hora.
+   */
+  numeros?: number[];
+}
+
+/** Maior cartela guardada no aparelho (a compra rápida vai até 50; a escolhida pelo usuário, até isto). */
+export const CARTELA_MAX_NUMEROS = 1_000;
+
+/** Números da cartela, se servirem: inteiros positivos, sem repetir, até o teto. */
+export function numerosDaCartela(v: unknown): number[] | undefined {
+  if (!Array.isArray(v) || v.length === 0 || v.length > CARTELA_MAX_NUMEROS) return undefined;
+  if (!v.every((n) => typeof n === "number" && Number.isInteger(n) && n > 0 && n <= 10_000_000)) return undefined;
+  const unicos = [...new Set(v as number[])];
+  return unicos.length === v.length ? unicos : undefined;
 }
 
 const SLUG = /^[a-z0-9][a-z0-9-]{0,119}$/;
@@ -29,16 +47,18 @@ const SLUG = /^[a-z0-9][a-z0-9-]{0,119}$/;
  */
 export function limparCarrinho(bruto: unknown): ItemDoCarrinho[] {
   if (!Array.isArray(bruto)) return [];
-  const porSlug = new Map<string, number>();
+  const porSlug = new Map<string, ItemDoCarrinho>();
   for (const x of bruto) {
     if (!x || typeof x !== "object") continue;
-    const { slug, quantidade } = x as Record<string, unknown>;
+    const { slug, quantidade, numeros } = x as Record<string, unknown>;
     if (typeof slug !== "string" || !SLUG.test(slug)) continue;
     if (typeof quantidade !== "number" || !Number.isInteger(quantidade) || quantidade < 0 || quantidade > 1_000_000) continue;
+    // A cartela só vale se tiver exatamente a quantidade do item.
+    const cartela = numerosDaCartela(numeros);
     porSlug.delete(slug);
-    porSlug.set(slug, quantidade);
+    porSlug.set(slug, cartela && cartela.length === quantidade ? { slug, quantidade, numeros: cartela } : { slug, quantidade });
   }
-  return [...porSlug].slice(-CARRINHO_MAX_ITENS).map(([slug, quantidade]) => ({ slug, quantidade }));
+  return [...porSlug.values()].slice(-CARRINHO_MAX_ITENS);
 }
 
 /** A rifa aceita compra pela loja agora? A mesma régua da página da rifa. */

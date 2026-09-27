@@ -6,10 +6,10 @@ import { PublicShell } from "@/components/AppShell";
 import { Button, Money, Pill } from "@/components/bits";
 import { FotoDoPerfil } from "@/components/Seguir";
 import { SeloVerificado } from "@/components/SeloVerificado";
-import { apiRequest } from "@/lib/queryClient";
-import { porNoCarrinho, tirarDoCarrinho, useCarrinho } from "@/lib/carrinho";
+import { ApiError, apiRequest } from "@/lib/queryClient";
+import { esquecerCartela, porNoCarrinho, tirarDoCarrinho, useCarrinho } from "@/lib/carrinho";
 import { agruparPorOrganizacao, quantidadeNaFaixa } from "@shared/carrinho";
-import { cpfValido, formatBRL, maskCpf, maskPhone } from "@shared/format";
+import { cpfValido, formatBRL, formatQuota, maskCpf, maskPhone } from "@shared/format";
 import { useSession } from "@/lib/session";
 import { lerOrigem } from "@/lib/origem";
 import { lerIndicacao } from "@/lib/indicacao";
@@ -26,6 +26,9 @@ interface Item {
   maxPerOrder: number;
   quantidade: number;
   totalCents: number;
+  /** A cartela escolhida na janela do "+" (sugestão; sem ela, os números são sorteados na compra). */
+  numeros: number[] | null;
+  totalQuotas: number;
   vende: boolean;
   status: string;
   capa: { url: string; lqip?: string | null; role: string } | null;
@@ -144,6 +147,22 @@ function ItemDoCarrinho({ item: i, aoComprar }: { item: Item; aoComprar: () => v
           <span className="tnum">{formatBRL(i.priceCents)}</span> por cota
         </p>
         {i.vende ? (
+          i.numeros?.length ? (
+            <ul className="mt-1.5 flex flex-wrap gap-1" aria-label={`Números escolhidos de ${i.prizeTitle}`}>
+              {i.numeros.slice(0, 12).map((n) => (
+                <li key={n} className="tnum rounded bg-green px-1 py-px text-[10px] font-bold text-on-green">
+                  {formatQuota(n, i.totalQuotas)}
+                </li>
+              ))}
+              {i.numeros.length > 12 ? (
+                <li className="tnum px-1 text-[10px] text-muted">+{i.numeros.length - 12}</li>
+              ) : null}
+            </ul>
+          ) : (
+            <p className="mt-1 text-[11px] text-muted">Números sorteados na hora de pagar.</p>
+          )
+        ) : null}
+        {i.vende ? (
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <div className="flex items-center rounded-md border border-line-2">
               <button
@@ -216,7 +235,7 @@ function PagarCarrinho({ itens, total }: { itens: Item[]; total: number }) {
     mutationFn: async () =>
       (
         await apiRequest("POST", "/api/public/carrinho/checkout", {
-          itens: itens.map((i) => ({ slug: i.slug, quantidade: i.quantidade })),
+          itens: itens.map((i) => ({ slug: i.slug, quantidade: i.quantidade, ...(i.numeros?.length ? { numeros: i.numeros } : {}) })),
           buyer: { ...comprador, ...(exigeCpf ? { cpf: dados.cpf.replace(/\D/g, "") } : {}) },
           origem: lerOrigem(),
           indicacao: lerIndicacao(),
@@ -229,7 +248,12 @@ function PagarCarrinho({ itens, total }: { itens: Item[]; total: number }) {
       itens.forEach((i) => tirarDoCarrinho(i.slug));
       navegar(`/carrinho/pix/${r.codigo}`);
     },
-    onError: (e: Error) => setErro(e.message),
+    onError: (e: Error) => {
+      setErro(e.message);
+      // Alguém levou um número da cartela: aquela rifa passa a sortear na hora.
+      const slug = (e as ApiError).corpo?.slug;
+      if (typeof slug === "string") esquecerCartela(slug);
+    },
   });
 
   return (

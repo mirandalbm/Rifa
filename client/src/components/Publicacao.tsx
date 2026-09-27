@@ -6,8 +6,8 @@ import { FOLHA, SeloVerificado } from "@/components/SeloVerificado";
 import { FotoDoPerfil } from "@/components/Seguir";
 import { useSession } from "@/lib/session";
 import { apiRequest } from "@/lib/queryClient";
-import { porNoCarrinho, tirarDoCarrinho, useCarrinho } from "@/lib/carrinho";
-import { CARRINHO_MAX_ITENS } from "@shared/carrinho";
+import { useCarrinho } from "@/lib/carrinho";
+import { EscolherBilhete } from "@/components/EscolherBilhete";
 import {
   LEGENDA_MAX,
   contadorCurto,
@@ -231,24 +231,21 @@ function IconeCompartilhar() {
   );
 }
 
-function IconeCarrinho({ ligado }: { ligado: boolean }) {
+/** O "+" do carrinho: em negrito, azul — abre a janela para escolher os números. */
+function IconeMais() {
   return (
-    <Icone className={ligado ? "text-marca" : ""}>
-      <path {...TRACO} fill={ligado ? "currentColor" : "none"} d="M5.5 6h15.25l-1.9 8.1a1.5 1.5 0 0 1-1.46 1.15H8.3a1.5 1.5 0 0 1-1.47-1.2Z" />
-      <path {...TRACO} d="M5.5 6 4.9 3.2A1.5 1.5 0 0 0 3.43 2H2" />
-      <circle {...TRACO} cx="9" cy="20" r="1.4" />
-      <circle {...TRACO} cx="17" cy="20" r="1.4" />
+    <Icone tamanho={28} className="text-azul">
+      <path fill="none" stroke="currentColor" strokeWidth={3.25} strokeLinecap="round" d="M12 4.5v15M4.5 12h15" />
     </Icone>
   );
 }
 
-/** Comprar agora: a sacola com o raio da compra rápida. */
+/** Comprar agora: a sacola de compras, no mesmo traço dos outros ícones. */
 function IconeComprar() {
   return (
     <Icone>
-      <path {...TRACO} d="M4.5 7.5h15l-1 12.1a1.5 1.5 0 0 1-1.5 1.4H7a1.5 1.5 0 0 1-1.5-1.4Z" />
-      <path {...TRACO} d="M8.5 7.5V6a3.5 3.5 0 0 1 7 0v1.5" />
-      <path {...TRACO} d="m12.75 10.5-2.5 4h3.5l-2.5 4" />
+      <path {...TRACO} d="M4.75 7.75h14.5l-1.1 11.6a1.9 1.9 0 0 1-1.9 1.65H7.75a1.9 1.9 0 0 1-1.9-1.65Z" />
+      <path {...TRACO} d="M8.75 10.25V6.75a3.25 3.25 0 0 1 6.5 0v3.5" />
     </Icone>
   );
 }
@@ -256,7 +253,7 @@ function IconeComprar() {
 /**
  * A barra embaixo da publicação, como no Instagram: curtir (o trevo),
  * comentar, republicar e compartilhar, com os contadores; à direita, o
- * carrinho e o comprar. Quem não entrou na conta é levado a entrar para
+ * "+" (abre a janela dos números e põe no carrinho) e o comprar. Quem não entrou na conta é levado a entrar para
  * curtir e republicar; o servidor decide de novo (401). Carrinho e
  * comprar não pedem conta e só aparecem na rifa que vende agora.
  */
@@ -287,27 +284,7 @@ export function BarraDeAcoes({
   useEffect(() => setI(interacoes), [interacoes]);
   const carrinho = useCarrinho();
   const naSacola = carrinho.some((x) => x.slug === slug);
-
-  function alternarCarrinho() {
-    if (naSacola) {
-      tirarDoCarrinho(slug);
-      setAviso("Tirada do carrinho.");
-      return;
-    }
-    // Quantidade 0 = a sugerida pela rifa (o pacote em destaque); o servidor decide.
-    if (!porNoCarrinho(slug, 0)) {
-      setAviso(`O carrinho já tem ${CARRINHO_MAX_ITENS} rifas. Compre ou tire alguma antes.`);
-      return;
-    }
-    setAviso(
-      <>
-        No carrinho.{" "}
-        <Link href="/carrinho" className="font-semibold text-ink underline">
-          Ver carrinho
-        </Link>
-      </>,
-    );
-  }
+  const [escolhendo, setEscolhendo] = useState(false);
 
   const acao = useMutation({
     mutationFn: async (v: { acao: Acao; ligar: boolean }) =>
@@ -387,11 +364,11 @@ export function BarraDeAcoes({
             <button
               type="button"
               className={`${botao} ml-auto`}
-              aria-pressed={naSacola}
-              aria-label={naSacola ? "Tirar do carrinho" : "Pôr no carrinho"}
-              onClick={alternarCarrinho}
+              aria-haspopup="dialog"
+              aria-label={naSacola ? "No carrinho — escolher os números de novo" : "Escolher os números e pôr no carrinho"}
+              onClick={() => setEscolhendo(true)}
             >
-              <IconeCarrinho ligado={naSacola} />
+              <IconeMais />
             </button>
             <button
               type="button"
@@ -408,6 +385,23 @@ export function BarraDeAcoes({
         <p className="pt-1 text-xs text-muted" role="status">
           {aviso}
         </p>
+      ) : null}
+      {escolhendo ? (
+        <EscolherBilhete
+          slug={slug}
+          aoFechar={() => setEscolhendo(false)}
+          aoAdicionar={(n) => {
+            setEscolhendo(false);
+            setAviso(
+              <>
+                Bilhete de <span className="tnum">{n}</span> números no carrinho.{" "}
+                <Link href="/carrinho" className="font-semibold text-ink underline">
+                  Ver carrinho
+                </Link>
+              </>,
+            );
+          }}
+        />
       ) : null}
     </div>
   );

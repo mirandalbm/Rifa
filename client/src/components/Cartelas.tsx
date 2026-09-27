@@ -31,6 +31,7 @@ export function Cartelas({
   pagando,
   onPagar,
   trocarSinal,
+  acao = "pagar",
 }: {
   slug: string;
   quantidade: number;
@@ -43,6 +44,8 @@ export function Cartelas({
   onPagar: (numeros: number[]) => void;
   /** Muda quando a compra de uma cartela falhou por número levado: troca aquela. */
   trocarSinal: { numeros: number[]; vez: number } | null;
+  /** O que o botão da cartela faz: pagar agora ou pôr no carrinho (janela do "+"). */
+  acao?: "pagar" | "carrinho";
 }) {
   const [cartelas, setCartelas] = useState<number[][] | null>(null);
   const [erro, setErro] = useState<string | null>(null);
@@ -105,7 +108,7 @@ export function Cartelas({
               {numeros.map((n) => (
                 <li
                   key={n}
-                  className="tnum rounded-md border border-line-2 bg-mist px-1.5 py-0.5 text-xs font-bold text-ink"
+                  className="tnum rounded-md bg-green px-1.5 py-0.5 text-xs font-bold text-on-green"
                 >
                   {formatQuota(n, totalQuotas)}
                 </li>
@@ -127,7 +130,17 @@ export function Cartelas({
                 disabled={trocando === i || pagando}
                 className="rounded-md bg-green px-3 py-2 text-sm font-semibold text-on-green disabled:opacity-60"
               >
-                {pagando && marcada ? "Reservando…" : <>Pagar <span className="tnum">{formatBRL(preco.totalCents)}</span></>}
+                {acao === "carrinho" ? (
+                  <>
+                    Pôr no carrinho · <span className="tnum">{formatBRL(preco.totalCents)}</span>
+                  </>
+                ) : pagando && marcada ? (
+                  "Reservando…"
+                ) : (
+                  <>
+                    Pagar <span className="tnum">{formatBRL(preco.totalCents)}</span>
+                  </>
+                )}
               </button>
             </div>
           </article>

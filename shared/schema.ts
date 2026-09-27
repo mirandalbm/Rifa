@@ -1687,7 +1687,14 @@ export const presenteCreditos = pgTable(
 /** O carrinho pago num Pix só: rifa e quantidade — nunca preço nem número. */
 export const carrinhoCheckoutSchema = z.object({
   itens: z
-    .array(z.object({ slug: z.string().min(1).max(120), quantidade: z.number().int().min(1).max(10_000) }))
+    .array(
+      z.object({
+        slug: z.string().min(1).max(120),
+        quantidade: z.number().int().min(1).max(10_000),
+        /** A cartela escolhida (sugestão): vai para `reserveSpecific`, tudo ou nada. */
+        numeros: z.array(z.number().int().positive()).max(10_000).optional(),
+      }),
+    )
     .min(1)
     .max(20),
   buyer: createOrderSchema.shape.buyer,

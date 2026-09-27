@@ -19,7 +19,7 @@ import { ACOES, type Acao } from "@shared/publicacao";
 import { VerificacaoError } from "../services/verificacao";
 import { Router, type Request, type Response } from "express";
 import { createHash } from "node:crypto";
-import { eq, and, desc, sql } from "drizzle-orm";
+import { eq, and, desc, inArray, sql } from "drizzle-orm";
 import { db } from "../db";
 import {
   campaigns,
@@ -30,6 +30,7 @@ import {
   affiliates,
   clickEvents,
   buyers,
+  seguidores,
   users,
   orders,
   prizedQuotas,
@@ -163,6 +164,19 @@ async function cartoesDoFeed(req: Request, rows: LinhaDaVitrine[], uf: string | 
     const ids = rows.map((r) => r.campaign.id);
     const midias = await midiasDas(ids);
     const marcas = await minhasMarcas(req.session.buyer?.id, ids);
+    // "Seguir" no topo da publicação, como no Instagram: some quando já segue.
+    const buyerId = req.session.buyer?.id;
+    const orgIds = [...new Set(rows.map((r) => r.campaign.organizationId))];
+    const sigo = new Set(
+      buyerId && orgIds.length
+        ? (
+            await db
+              .select({ org: seguidores.organizationId })
+              .from(seguidores)
+              .where(and(eq(seguidores.buyerId, buyerId), inArray(seguidores.organizationId, orgIds)))
+          ).map((x) => x.org)
+        : [],
+    );
     const bannerBy = new Map(ids.map((id) => [id, midias.get(id)?.find((m) => m.role === "banner")]));
 
     return (
@@ -187,6 +201,7 @@ async function cartoesDoFeed(req: Request, rows: LinhaDaVitrine[], uf: string | 
               uf: organizacao.uf,
               foto: organizacao.slug ? urlDaFoto(organizacao.slug, organizacao.fotoEm) : null,
               verificada: Boolean(organizacao.verificadaEm),
+              seguindo: sigo.has(campaign.organizationId),
             }
           : null,
         // Selo "Autorizada SPA/MF": rifa no ar sempre tem (não publica sem).
@@ -194,6 +209,7 @@ async function cartoesDoFeed(req: Request, rows: LinhaDaVitrine[], uf: string | 
         demonstracao: campaign.demonstracao,
         comentarios: campaign.comentariosCount,
         status: campaign.status,
+        publicadaEm: campaign.publishedAt,
         legenda: campaign.legenda,
         midias: (midias.get(campaign.id) ?? []).map(pecaPublica),
         interacoes: {

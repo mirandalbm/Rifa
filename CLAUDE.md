@@ -1025,11 +1025,13 @@ estorno.
   de" põe o estado de quem olha primeiro; `/estado/UF` é escolha explícita
   da pessoa, por isso ali filtrar vale (`?estado=`). A vitrine segue só
   ordenando.
-- **Feed em formato de publicação** (4:5), com o perfil da promotora
-  **por cima da imagem**, como no Instagram (sombra no topo para o texto
-  branco ler sobre qualquer foto; o link do perfil é irmão do link da rifa,
-  nunca dentro dele), e o selo "Autorizada SPA/MF" com o número — a rifa no
-  ar sempre tem.
+- **Feed em formato de publicação do Instagram**: o topo **fora** da
+  imagem (foto da promotora, nome com o selo, a cidade embaixo e "Seguir"
+  só para quem ainda não segue — `seguindo` vem na lista, sem uma consulta
+  por cartão), o carrossel 4:5, e **fora** também as ações, a legenda, "Ver
+  comentários" e o "Há 3 dias" (`quandoPublicou`). **Dentro do cartão com
+  borda fica só a rifa**: prêmio, selo "Autorizada SPA/MF" com o número (a
+  rifa no ar sempre tem), cota, sorteio e cotas.
 - **Imagem nunca é servida como veio**: banner 1200×600 e story 1080×1920,
   WebP, sem metadados, no banco (até o R2 entrar).
 - **Subconsulta com tabela de fora escreve o nome da tabela**

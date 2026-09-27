@@ -9,6 +9,7 @@ import {
   duracao,
   formatoDoVideo,
   problemaNaLegenda,
+  quandoPublicou,
 } from "@shared/publicacao";
 import { problemaNoComentario } from "@shared/comentarios";
 
@@ -58,5 +59,18 @@ describe("contadores", () => {
     expect(contadorCurto(9999)).toBe("9.999");
     expect(contadorCurto(12_345)).toBe("12,3 mil");
     expect(contadorCurto(1_234_567)).toBe("1,2 mi");
+  });
+});
+
+describe("quando publicou", () => {
+  const agora = new Date("2026-09-27T15:00:00Z");
+  it("relativo até uma semana, depois a data", () => {
+    expect(quandoPublicou(new Date("2026-09-27T14:59:40Z"), agora)).toBe("Agora");
+    expect(quandoPublicou(new Date("2026-09-27T14:15:00Z"), agora)).toBe("Há 45 minutos");
+    expect(quandoPublicou(new Date("2026-09-27T14:00:00Z"), agora)).toBe("Há 1 hora");
+    expect(quandoPublicou(new Date("2026-09-24T15:00:00Z"), agora)).toBe("Há 3 dias");
+    expect(quandoPublicou(new Date("2026-09-16T15:00:00Z"), agora)).toBe("16 de setembro");
+    expect(quandoPublicou(new Date("2025-09-16T15:00:00Z"), agora)).toBe("16 de setembro de 2025");
+    expect(quandoPublicou(null, agora)).toBeNull();
   });
 });

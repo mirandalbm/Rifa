@@ -73,3 +73,25 @@ export function contadorCurto(n: number): string {
   if (n < 1_000_000) return `${um(n / 1000)} mil`;
   return `${um(n / 1_000_000)} mi`;
 }
+
+/**
+ * "Há 3 dias", como embaixo da publicação no Instagram. Até uma semana é
+ * relativo; depois, a data ("16 de setembro", com o ano se for outro).
+ */
+export function quandoPublicou(iso: string | Date | null | undefined, agora = new Date()): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  const min = Math.max(0, Math.floor((agora.getTime() - d.getTime()) / 60_000));
+  if (min < 1) return "Agora";
+  if (min < 60) return `Há ${min} ${min === 1 ? "minuto" : "minutos"}`;
+  const h = Math.floor(min / 60);
+  if (h < 24) return `Há ${h} ${h === 1 ? "hora" : "horas"}`;
+  const dias = Math.floor(h / 24);
+  if (dias < 7) return `Há ${dias} ${dias === 1 ? "dia" : "dias"}`;
+  return d.toLocaleDateString("pt-BR", {
+    day: "numeric",
+    month: "long",
+    ...(d.getFullYear() !== agora.getFullYear() ? { year: "numeric" } : {}),
+    timeZone: "America/Sao_Paulo",
+  });
+}

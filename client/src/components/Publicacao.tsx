@@ -2,7 +2,9 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Link, useLocation } from "wouter";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button, Card } from "@/components/bits";
-import { FOLHA } from "@/components/SeloVerificado";
+import { FOLHA, SeloVerificado } from "@/components/SeloVerificado";
+import { FotoDoPerfil } from "@/components/Seguir";
+import { useSession } from "@/lib/session";
 import { apiRequest } from "@/lib/queryClient";
 import {
   LEGENDA_MAX,
@@ -97,7 +99,7 @@ export function Carrossel({
         </div>
         {children}
         {pecas.length > 1 ? (
-          <span className="tnum pointer-events-none absolute right-2 top-12 rounded-full bg-black/60 px-2 py-[1px] text-[11px] text-branco">
+          <span className="tnum pointer-events-none absolute right-2 top-2 rounded-full bg-black/60 px-2 py-[1px] text-[11px] text-branco">
             {atual + 1}/{pecas.length}
           </span>
         ) : null}
@@ -360,13 +362,17 @@ export function BarraDeAcoes({
 export function Legenda({ autor, texto }: { autor: ReactNode; texto: string | null | undefined }) {
   const [aberta, setAberta] = useState(false);
   if (!texto) return null;
-  const longa = texto.length > 120 || texto.includes("\n");
+  // Recolhida: a primeira linha, cortada no tamanho de uma linha e meia,
+  // com "… mais" no fim — o botão fica sempre visível, como no Instagram.
+  const primeira = texto.split("\n")[0];
+  const longa = texto.length > 90 || texto.includes("\n");
+  const curto = primeira.length > 90 ? `${primeira.slice(0, 90).replace(/\s+\S*$/, "")}` : primeira;
   return (
-    <p className={`whitespace-pre-wrap break-words px-3 pt-1 text-sm ${aberta ? "" : "line-clamp-2"}`}>
-      <b className="font-semibold">{autor}</b> {texto}
+    <p className="whitespace-pre-wrap break-words px-3 pt-1 text-sm">
+      <b className="font-semibold">{autor}</b> {longa && !aberta ? curto : texto}
       {longa && !aberta ? (
         <>
-          {" "}
+          …{" "}
           <button type="button" className="text-muted" onClick={() => setAberta(true)}>
             mais
           </button>
@@ -421,5 +427,73 @@ export function LegendaCard({ campanha }: { campanha: { id: string; legenda?: st
         </Button>
       </div>
     </Card>
+  );
+}
+
+/**
+ * O topo da publicação, fora da imagem, como no Instagram: a foto da
+ * promotora à esquerda, o nome (com o selo) em cima e a linha de baixo
+ * (onde fica a cidade), e à direita "Seguir" — só para quem ainda não segue.
+ * Seguir é um toque: sem conta, leva a entrar e volta para cá.
+ */
+export function CabecalhoDaPublicacao({
+  slug,
+  nome,
+  foto,
+  verificada,
+  subtitulo,
+  seguindo,
+}: {
+  slug: string;
+  nome: string;
+  foto: string | null;
+  verificada?: boolean;
+  subtitulo?: ReactNode;
+  seguindo?: boolean;
+}) {
+  const qc = useQueryClient();
+  const [, navegar] = useLocation();
+  const { data: sessao } = useSession();
+  const [segui, setSegui] = useState(Boolean(seguindo));
+  useEffect(() => setSegui(Boolean(seguindo)), [seguindo]);
+  // O organizador vendo a própria publicação não se segue.
+  const minha = sessao?.organizacao?.slug === slug;
+  const seguir = useMutation({
+    mutationFn: () => apiRequest("POST", `/api/public/o/${slug}/seguir`),
+    onMutate: () => setSegui(true),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [`/api/public/o/${slug}/seguir`] });
+      qc.invalidateQueries({ queryKey: ["/api/public/seguindo"] });
+    },
+    onError: () => {
+      setSegui(false);
+      navegar(`/entrar?volta=${encodeURIComponent(window.location.pathname)}`);
+    },
+  });
+  return (
+    <div className="flex items-center gap-3 px-3 py-2.5">
+      <Link href={`/o/${slug}`} className="flex min-w-0 flex-1 items-center gap-3">
+        <FotoDoPerfil nome={nome} foto={foto} tamanho={36} />
+        <span className="min-w-0 leading-tight">
+          <span className="flex items-center gap-1 text-sm font-semibold">
+            <span className="truncate">{nome}</span>
+            {verificada ? <SeloVerificado sujeito="organizacao" tamanho={14} /> : null}
+          </span>
+          {subtitulo ? <span className="block truncate text-xs text-ink-2">{subtitulo}</span> : null}
+        </span>
+      </Link>
+      {!segui && !minha ? (
+        <button
+          type="button"
+          onClick={() => {
+            if (!sessao?.buyer) return navegar(`/entrar?volta=${encodeURIComponent(window.location.pathname)}`);
+            seguir.mutate();
+          }}
+          className="shrink-0 rounded-lg bg-mist-2 px-4 py-1.5 text-sm font-semibold hover:brightness-95"
+        >
+          Seguir
+        </button>
+      ) : null}
+    </div>
   );
 }

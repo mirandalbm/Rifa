@@ -1,17 +1,20 @@
 /**
- * Mídia da campanha: 1 banner, até 5 fotos e 1 vídeo de no máximo 60 s
- * (docs/PLANO-RIFA.md §4.2).
+ * Mídia da campanha: o carrossel da publicação, como no Instagram — o
+ * banner (a capa) e, junto, fotos e vídeos até 10 peças no total
+ * (`MAX_CARROSSEL`). Vídeo até 3 min entra como reels; até 15 min, como
+ * vídeo do feed (`formatoDoVideo()` em `shared/publicacao.ts`).
  *
  * O limite do vídeo não é decorativo — é o que o comprador vê prometido na
  * tela. Por isso a duração é MEDIDA aqui, lendo o arquivo já armazenado, e
  * não aceita o que o navegador informou.
  */
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { db } from "../db";
 import { campaignMedia, MAX_PHOTOS, MAX_VIDEO_SECONDS } from "@shared/schema";
 import { storage, mediaKey, type UploadTicket } from "./storage";
 import { probeImage, probeVideoDuration, UnreadableMediaError } from "./probe";
 import { processImage, srcSet, removeVariants, type ImageVariant } from "./images";
+import { MAX_CARROSSEL, duracao, formatoDoVideo } from "@shared/publicacao";
 
 export type MediaRole = "banner" | "photo" | "video";
 
@@ -47,10 +50,10 @@ export const RULES: Record<MediaRole, RoleRule> = {
   },
   video: {
     // WebM ficou de fora de propósito: sem saber medir, não dá para prometer
-    // o limite de 60 s — e prometer sem medir é pior do que não aceitar.
-    max: 1,
+    // o limite de duração — e prometer sem medir é pior do que não aceitar.
+    max: MAX_CARROSSEL - 1,
     mimes: ["video/mp4", "video/quicktime"],
-    maxBytes: 300 * 1024 * 1024,
+    maxBytes: 2 * 1024 * 1024 * 1024,
     label: "vídeo do prêmio",
   },
 };
@@ -62,6 +65,24 @@ async function countRole(campaignId: string, role: MediaRole): Promise<number> {
     .from(campaignMedia)
     .where(and(eq(campaignMedia.campaignId, campaignId), eq(campaignMedia.role, role)));
   return rows.length;
+}
+
+/**
+ * Fotos e vídeos dividem o carrossel: juntos, até `MAX_CARROSSEL - 1` (a
+ * vaga que sobra é do banner). A posição também é comum aos dois — é a
+ * ordem em que aparecem.
+ */
+async function pecasDoCarrossel(campaignId: string): Promise<number> {
+  const rows = await db
+    .select({ id: campaignMedia.id })
+    .from(campaignMedia)
+    .where(and(eq(campaignMedia.campaignId, campaignId), inArray(campaignMedia.role, ["photo", "video"])));
+  return rows.length;
+}
+
+async function cabe(campaignId: string, role: MediaRole) {
+  if (role === "banner") return (await countRole(campaignId, role)) < 1;
+  return (await pecasDoCarrossel(campaignId)) < MAX_CARROSSEL - 1;
 }
 
 /**
@@ -78,12 +99,11 @@ export async function requestUpload(params: {
   const rule = RULES[params.role];
   if (!rule) throw new MediaRuleError("Tipo de mídia inválido.", 400);
 
-  const used = await countRole(params.campaignId, params.role);
-  if (used >= rule.max) {
+  if (!(await cabe(params.campaignId, params.role))) {
     throw new MediaRuleError(
-      rule.max === 1
+      params.role === "banner"
         ? `Esta rifa já tem ${rule.label}. Remova o atual para enviar outro.`
-        : `São no máximo ${rule.max} ${rule.label}s.`,
+        : `O carrossel tem no máximo ${MAX_CARROSSEL} peças, contando o banner. Remova uma para enviar outra.`,
       409,
     );
   }
@@ -170,9 +190,9 @@ async function ingest(params: {
   try {
     if (params.role === "video") {
       const seconds = await probeVideoDuration(read, size);
-      if (seconds > MAX_VIDEO_SECONDS) {
+      if (seconds > MAX_VIDEO_SECONDS || !formatoDoVideo(seconds)) {
         throw new MediaRuleError(
-          `O vídeo tem ${formatDuration(seconds)} — o limite é ${MAX_VIDEO_SECONDS}s.`,
+          `O vídeo tem ${duracao(seconds)} — o limite é ${duracao(MAX_VIDEO_SECONDS)} (até ${duracao(180)} entra como reels).`,
         );
       }
       durationS = Math.round(seconds);
@@ -202,7 +222,11 @@ async function ingest(params: {
     throw err;
   }
 
-  const position = await countRole(params.campaignId, params.role);
+  // Conferido de novo aqui: dois envios ao mesmo tempo passaram pelo passo 1.
+  if (!(await cabe(params.campaignId, params.role))) {
+    throw new MediaRuleError(`O carrossel tem no máximo ${MAX_CARROSSEL} peças, contando o banner.`, 409);
+  }
+  const position = params.role === "banner" ? 0 : await pecasDoCarrossel(params.campaignId);
 
   const [created] = await db
     .insert(campaignMedia)
@@ -262,7 +286,3 @@ export function withUrls(m: MediaRow) {
   };
 }
 
-function formatDuration(seconds: number): string {
-  const s = Math.round(seconds);
-  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
-}

@@ -2,7 +2,7 @@
  * Regras de campanha. A mais importante: o total de cotas trava na
  * publicação — mudar depois alteraria a chance de quem já comprou.
  */
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import { db } from "../db";
 import sharp from "sharp";
 import {
@@ -110,18 +110,13 @@ export async function publishBlockers(campaignId: string): Promise<string[]> {
   if (photos.length === 0) {
     blockers.push("Envie ao menos 1 foto do prêmio.");
   }
-  if (photos.length > MAX_PHOTOS) {
-    blockers.push(`São no máximo ${MAX_PHOTOS} fotos do prêmio.`);
-  }
   const videos = ready.filter((m) => m.role === "video");
-  if (videos.length > 1) {
-    blockers.push("Só é permitido 1 vídeo por campanha.");
+  if (photos.length + videos.length > MAX_PHOTOS) {
+    blockers.push(`O carrossel tem no máximo ${MAX_PHOTOS + 1} peças, contando o banner.`);
   }
   const longVideo = videos.find((v) => (v.durationS ?? 0) > MAX_VIDEO_SECONDS);
   if (longVideo) {
-    blockers.push(
-      `O vídeo tem ${longVideo.durationS}s — o limite é ${MAX_VIDEO_SECONDS}s.`,
-    );
+    blockers.push(`Um vídeo passa de ${MAX_VIDEO_SECONDS / 60} minutos.`);
   }
   if (!campaign.authorizationCode) {
     blockers.push(
@@ -204,7 +199,13 @@ export async function publishCampaign(campaignId: string): Promise<Campaign> {
 }
 
 /** Vitrine: campanhas no ar, em destaque primeiro. */
-export async function listPublicCampaigns() {
+/**
+ * As rifas da vitrine. Com `ids` (salvos, republicações), traz também as já
+ * encerradas e sorteadas — o que a pessoa guardou continua lá depois do
+ * sorteio — mas nunca rascunho nem organização arquivada.
+ */
+export async function listPublicCampaigns(ids?: string[]) {
+  if (ids && ids.length === 0) return [];
   return db
     .select({
       campaign: campaigns,
@@ -225,7 +226,11 @@ export async function listPublicCampaigns() {
     .leftJoin(organizations, eq(organizations.id, campaigns.organizationId))
     .leftJoin(organizacaoFotos, eq(organizacaoFotos.organizationId, campaigns.organizationId))
     // Travada pela plataforma sai da vitrine (a página segue, com o aviso).
-    .where(and(eq(campaigns.status, "published"), isNull(campaigns.travadaEm)))
+    .where(
+      ids
+        ? and(inArray(campaigns.id, ids), sql`${campaigns.status} <> 'draft'`, isNull(organizations.archivedAt))
+        : and(eq(campaigns.status, "published"), isNull(campaigns.travadaEm)),
+    )
     .orderBy(
       sql`${campaigns.featured} DESC, ${campaigns.sortWeight} DESC, ${campaigns.publishedAt} DESC`,
     );

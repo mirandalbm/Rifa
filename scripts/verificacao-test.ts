@@ -126,7 +126,7 @@ async function main() {
 
   const [carla, diego, elisa, anon] = [new Cliente(), new Cliente(), new Cliente(), new Cliente()];
   for (const [c, p] of [[carla, PESSOAS[0]], [diego, PESSOAS[1]], [elisa, PESSOAS[2]]] as const) {
-    const r = await c.req("POST", "/api/public/conta", { ...p, cep: "01310-100", senha: "senha-verifica-1", lembrar: true });
+    const r = await c.req("POST", "/api/public/conta", { apelido: "tst" + Math.random().toString(36).replace(/[^a-z]/g, "").slice(0, 12) + "x", ...p, cep: "01310-100", senha: "senha-verifica-1", lembrar: true });
     if (r.status >= 300) throw new Error(`conta: HTTP ${r.status} ${r.json?.message}`);
   }
   await carla.req("PUT", "/api/public/conta/perfil", { apelido: "carla.verifica" });

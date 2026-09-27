@@ -90,7 +90,7 @@ async function main() {
   r = await admin.req("POST", "/api/auth/login", { email: "admin@rifa.br", password: "admin123" });
   if (r.status !== 200) throw new Error(`login do administrador: HTTP ${r.status}`);
   const apostador = new Cliente();
-  r = await apostador.req("POST", "/api/public/conta", {
+  r = await apostador.req("POST", "/api/public/conta", { apelido: "tst" + Math.random().toString(36).replace(/[^a-z]/g, "").slice(0, 12) + "x",
     nome: "Paula Denuncia",
     telefone: TELEFONE_COMPRADOR,
     cpf: "39053344705",

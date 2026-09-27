@@ -1,4 +1,6 @@
 import { SeloVerificado } from "@/components/SeloVerificado";
+import { BarraDeAcoes, Carrossel, Legenda, type Interacoes, type Peca } from "@/components/Publicacao";
+import { PainelDeComentarios } from "@/components/Comentarios";
 import { useEffect, useState, type ReactNode } from "react";
 import { Link, useLocation, useParams } from "wouter";
 import { definirOrganizacaoDaPagina } from "@/lib/marketing";
@@ -41,7 +43,9 @@ interface RifaDoPerfil {
   soldCount: number;
   drawAt: string | null;
   status: "published" | "closed" | "drawn";
-  midias: Midia[];
+  midias: Peca[];
+  legenda?: string | null;
+  interacoes: Interacoes;
 }
 
 interface Perfil {
@@ -286,7 +290,7 @@ export default function PerfilPage() {
       <section aria-label="Rifas no ar" className="mt-5 space-y-4 border-t border-line pt-4">
         {p.rifas.length === 0 ? <Empty>Nenhuma rifa no ar agora.</Empty> : null}
         {p.rifas.map((r) => (
-          <CartaoDaRifa key={r.id} org={p.slug} rifa={r} />
+          <CartaoDaRifa key={r.id} org={p.slug} nome={p.nome} rifa={r} />
         ))}
       </section>
 
@@ -447,62 +451,18 @@ function Linha({ rotulo, valor, tnum }: { rotulo: string; valor: string; tnum?: 
   );
 }
 
-/** Uma rifa na grade: carrossel (banner, até 5 fotos, 1 vídeo) e o resumo. */
-function CartaoDaRifa({ org, rifa }: { org: string; rifa: RifaDoPerfil }) {
-  const [atual, setAtual] = useState(0);
+/** Uma rifa no perfil, como publicação: carrossel, ações, legenda e o resumo. */
+function CartaoDaRifa({ org, nome, rifa }: { org: string; nome: string; rifa: RifaDoPerfil }) {
   const pct = percent(rifa.soldCount, rifa.totalQuotas);
   const href = `/o/${org}/r/${rifa.slug}`;
-  const midias = rifa.midias;
+  const [comentando, setComentando] = useState(false);
 
   return (
     <article className="overflow-hidden rounded-xl border border-line bg-white">
-      {midias.length ? (
-        <div className="relative">
-          <div
-            className="flex snap-x snap-mandatory overflow-x-auto"
-            style={{ scrollbarWidth: "none" }}
-            onScroll={(e) => {
-              const el = e.currentTarget;
-              setAtual(Math.round(el.scrollLeft / el.clientWidth));
-            }}
-          >
-            {midias.map((m, i) => (
-              <div key={m.url} className="aspect-[4/3] w-full shrink-0 snap-center bg-mist-2">
-                {m.role === "video" ? (
-                  <video src={m.url} controls playsInline preload="none" className="h-full w-full object-cover" />
-                ) : (
-                  <Link href={href} onClick={() => marcarOrigem("perfil")}>
-                    <img
-                      src={m.url}
-                      srcSet={m.srcSet ?? undefined}
-                      sizes="(min-width: 768px) 720px, 100vw"
-                      alt={i === 0 ? rifa.prizeTitle : ""}
-                      loading={i === 0 ? "eager" : "lazy"}
-                      className="h-full w-full object-cover"
-                      style={m.lqip ? { backgroundImage: `url(${m.lqip})`, backgroundSize: "cover" } : undefined}
-                    />
-                  </Link>
-                )}
-              </div>
-            ))}
-          </div>
-          {midias.length > 1 ? (
-            <>
-              <span className="tnum absolute right-2 top-2 rounded-full bg-black/60 px-2 py-[1px] text-[11px] text-branco">
-                {atual + 1}/{midias.length}
-              </span>
-              <div className="absolute inset-x-0 bottom-2 flex justify-center gap-1" aria-hidden>
-                {midias.map((m, i) => (
-                  <span
-                    key={m.url}
-                    className={`h-1.5 w-1.5 rounded-full ${i === atual ? "bg-branco" : "bg-branco/50"}`}
-                  />
-                ))}
-              </div>
-            </>
-          ) : null}
-        </div>
-      ) : null}
+      <Carrossel pecas={rifa.midias} titulo={rifa.prizeTitle} proporcao="aspect-[4/5]" href={href} aoAbrir={() => marcarOrigem("perfil")} />
+      <BarraDeAcoes slug={rifa.slug} titulo={rifa.prizeTitle} caminho={href} interacoes={rifa.interacoes} aoComentar={() => setComentando(true)} />
+      <Legenda autor={nome} texto={rifa.legenda} />
+      {comentando ? <PainelDeComentarios slug={rifa.slug} onFechar={() => setComentando(false)} /> : null}
       <Link href={href} onClick={() => marcarOrigem("perfil")} className="block space-y-2 p-3">
         <div className="flex items-baseline justify-between gap-2">
           <h3 className="font-display text-base font-extrabold leading-tight">{rifa.prizeTitle}</h3>

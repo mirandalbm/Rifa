@@ -106,8 +106,11 @@ function Linha({
       <div className="min-w-0 flex-1 text-sm">
         <p className="flex flex-wrap items-center gap-x-2">
           <Nome c={c} />
-          {org ? <Pill status="published">organização</Pill> : null}
-          <span className="tnum text-xs text-muted">{tempo(c.createdAt)}</span>
+          <span className="text-xs text-muted">
+            <span className="tnum">{tempo(c.createdAt)}</span>
+            {/* Quem é dono da publicação, como o "Author" do Instagram. */}
+            {org ? <span> • Autor</span> : null}
+          </span>
         </p>
         <p className="mt-0.5 whitespace-pre-wrap break-words">{c.texto}</p>
         <p className="mt-1 flex flex-wrap gap-4 text-xs font-semibold text-muted">
@@ -362,10 +365,14 @@ export function Comentarios({ slug, dentroDoPainel }: { slug: string; dentroDoPa
             para comentar e conversar com {data.organizacao.nome}.
           </p>
         ) : data.precisaApelido ? (
-          <div className="rounded-xl border border-line p-3">
-            <p className="mb-2 text-sm font-semibold">Escolha seu apelido para comentar</p>
-            <EditarPerfilPublico compacto aoSalvar={recarregar} />
-          </div>
+          // Conta antiga, de antes do apelido no cadastro: completa em Minha conta.
+          <p className="rounded-xl border border-line bg-mist px-3 py-2 text-sm">
+            Para comentar, complete seu cadastro com um apelido em{" "}
+            <Link href="/minhas-cotas?aba=conta" className="font-semibold text-marca">
+              Minha conta
+            </Link>
+            .
+          </p>
         ) : (
           <>
             {respondendo ? (

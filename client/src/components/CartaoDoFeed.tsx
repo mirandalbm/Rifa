@@ -1,7 +1,8 @@
 import { SeloVerificado } from "@/components/SeloVerificado";
 import { useState } from "react";
 import { Link } from "wouter";
-import { MapPin, MessageCircle, ShieldCheck } from "lucide-react";
+import { MapPin, ShieldCheck } from "lucide-react";
+import { BarraDeAcoes, Carrossel, Legenda, type Interacoes, type Peca } from "@/components/Publicacao";
 import { FotoDoPerfil } from "@/components/Seguir";
 import { PainelDeComentarios } from "@/components/Comentarios";
 import { Money, Progress } from "@/components/bits";
@@ -26,6 +27,12 @@ export interface RifaDoFeed {
   demonstracao?: boolean;
   /** Comentários visíveis na publicação. */
   comentarios?: number;
+  status?: string;
+  /** O texto da organização embaixo da publicação. */
+  legenda?: string | null;
+  /** O carrossel (banner, fotos e vídeos, até 10). */
+  midias?: Peca[];
+  interacoes?: Interacoes;
   organizacao: { nome: string; slug: string; local: string | null; uf: string | null; foto: string | null; verificada?: boolean } | null;
   /** 0 = na cidade de quem olha, 1 = no estado, 2 = o resto; nulo sem região. */
   perto: 0 | 1 | 2 | null;
@@ -34,9 +41,10 @@ export interface RifaDoFeed {
 const PERTO = ["na sua cidade", "no seu estado"] as const;
 
 /**
- * Uma rifa no feed, em formato de publicação: o perfil da promotora no
- * topo, a imagem em retrato (4:5) e, embaixo, prêmio, selo da autorização,
- * preço, progresso e sorteio.
+ * Uma rifa no feed, em formato de publicação do Instagram: o carrossel em
+ * retrato (4:5) com o perfil da promotora por cima, a barra de ações
+ * (trevo, comentar, republicar, compartilhar, salvar), a legenda e, embaixo,
+ * prêmio, selo da autorização, preço, progresso e sorteio.
  */
 export function CartaoDoFeed({ rifa: c, origem = "vitrine" }: { rifa: RifaDoFeed; origem?: Origem }) {
   const pct = percent(c.soldCount, c.totalQuotas);
@@ -45,34 +53,21 @@ export function CartaoDoFeed({ rifa: c, origem = "vitrine" }: { rifa: RifaDoFeed
   // Comentários sobem por cima do feed, como no Instagram — sem sair da vitrine.
   const [comentando, setComentando] = useState(false);
 
+  const pecas: Peca[] =
+    c.midias ?? (c.banner ? [{ role: "banner", url: c.banner, srcSet: c.bannerSrcSet, lqip: c.bannerLqip }] : []);
+  const interacoes: Interacoes = c.interacoes ?? {
+    curtidas: 0,
+    comentarios: c.comentarios ?? 0,
+    republicacoes: 0,
+    compartilhamentos: 0,
+    curti: false,
+    republiquei: false,
+    salvei: false,
+  };
+
   return (
     <article className="overflow-hidden rounded-xl border border-line bg-white">
-      <div
-        className="relative aspect-[4/5] overflow-hidden bg-mist-2"
-        style={
-          c.banner
-            ? c.bannerLqip
-              ? { backgroundImage: `url(${c.bannerLqip})`, backgroundSize: "cover" }
-              : undefined
-            : { background: "linear-gradient(145deg,#0B1F14,#0d3a22 60%,#00873E)" }
-        }
-      >
-        <Link href={href} onClick={() => marcarOrigem(origem)} className="absolute inset-0 block" aria-label={c.prizeTitle}>
-          {c.banner ? (
-            <img
-              src={c.banner}
-              srcSet={c.bannerSrcSet ?? undefined}
-              sizes="(min-width: 768px) 360px, 100vw"
-              alt={c.prizeTitle}
-              loading="lazy"
-              className="h-full w-full object-cover"
-            />
-          ) : (
-            <span className="absolute inset-0 flex items-end p-4 font-display text-2xl font-extrabold leading-tight text-branco">
-              {c.prizeTitle}
-            </span>
-          )}
-        </Link>
+      <Carrossel pecas={pecas} titulo={c.prizeTitle} href={href} aoAbrir={() => marcarOrigem(origem)}>
         {/* Perfil por cima da imagem, como no Instagram: sombra no topo para
             o texto branco ler sobre qualquer foto. O link do perfil é irmão
             do da rifa (link dentro de link não vale). */}
@@ -111,10 +106,24 @@ export function CartaoDoFeed({ rifa: c, origem = "vitrine" }: { rifa: RifaDoFeed
         >
           {retaFinal ? "reta final" : `${pct}% vendida`}
         </span>
-      </div>
+      </Carrossel>
 
-      <Link href={href} onClick={() => marcarOrigem(origem)} className="block">
-        <div className="space-y-2 p-3">
+      <BarraDeAcoes
+        slug={c.slug}
+        titulo={c.prizeTitle}
+        caminho={href}
+        interacoes={interacoes}
+        aoComentar={() => setComentando(true)}
+      />
+      <Legenda autor={c.organizacao?.nome ?? ""} texto={c.legenda} />
+      {interacoes.comentarios ? (
+        <button type="button" onClick={() => setComentando(true)} className="block px-3 pt-1 text-left text-sm text-muted hover:text-ink">
+          Ver {interacoes.comentarios === 1 ? "o comentário" : <>todos os <span className="tnum">{groupNumber(interacoes.comentarios)}</span> comentários</>}
+        </button>
+      ) : null}
+
+      <Link href={href} onClick={() => marcarOrigem(origem)} className="mt-1 block">
+        <div className="space-y-2 p-3 pt-1">
           <h3 className="font-display text-base font-extrabold leading-tight">{c.prizeTitle}</h3>
           {c.demonstracao ? (
             <p className="text-[11px] font-semibold text-yellow-deep">
@@ -131,7 +140,11 @@ export function CartaoDoFeed({ rifa: c, origem = "vitrine" }: { rifa: RifaDoFeed
               cota <Money cents={c.priceCents} className="text-sm text-green-deep" />
             </span>
             <span className="tnum">
-              {c.drawAt ? `sorteio ${new Date(c.drawAt).toLocaleDateString("pt-BR")}` : "sorteio a definir"}
+              {c.status && c.status !== "published"
+                ? "vendas encerradas"
+                : c.drawAt
+                  ? `sorteio ${new Date(c.drawAt).toLocaleDateString("pt-BR")}`
+                  : "sorteio a definir"}
             </span>
           </div>
           <Progress value={c.soldCount} total={c.totalQuotas} tone={retaFinal ? "yellow" : "green"} />
@@ -140,20 +153,6 @@ export function CartaoDoFeed({ rifa: c, origem = "vitrine" }: { rifa: RifaDoFeed
           </p>
         </div>
       </Link>
-      <button
-        type="button"
-        onClick={() => setComentando(true)}
-        className="flex w-full items-center gap-1.5 border-t border-line px-3 py-2 text-left text-xs text-ink-2 hover:bg-mist"
-      >
-        <MessageCircle size={16} aria-hidden />
-        {c.comentarios ? (
-          <span>
-            Ver <span className="tnum">{groupNumber(c.comentarios)}</span> comentário{c.comentarios === 1 ? "" : "s"}
-          </span>
-        ) : (
-          <span>Comentar</span>
-        )}
-      </button>
       {comentando ? <PainelDeComentarios slug={c.slug} onFechar={() => setComentando(false)} /> : null}
     </article>
   );

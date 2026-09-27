@@ -6,6 +6,7 @@
  * telefone não confirmado só enxerga o que comprou dentro dela. Quem
  * confirma o telefone é o código do WhatsApp — o mesmo de "Minhas cotas".
  */
+import { validarApelido } from "@shared/perfilApostador";
 import { createHash } from "node:crypto";
 import type { Request } from "express";
 import { and, eq, inArray, isNotNull, isNull, or, sql } from "drizzle-orm";
@@ -97,6 +98,7 @@ export async function criarConta(req: Request, entrada: CadastroComprador & { le
   const cpf = entrada.cpf.replace(/\D/g, "");
   const email = entrada.email?.trim().toLowerCase() || null;
   const nome = entrada.nome.trim();
+  const apelido = (validarApelido(entrada.apelido) as { apelido: string }).apelido;
   // O CEP diz cidade e estado. Serviço de CEP fora do ar não barra o
   // cadastro: guarda o CEP e o relógio completa depois. CEP que não existe,
   // sim — é erro de digitação, e a vitrine ordenaria pelo lugar errado.
@@ -133,6 +135,7 @@ export async function criarConta(req: Request, entrada: CadastroComprador & { le
           name: nome,
           cpf,
           email,
+          apelido,
           ...regiao,
           passwordHash,
           contaCriadaEm: new Date(),
@@ -150,6 +153,7 @@ export async function criarConta(req: Request, entrada: CadastroComprador & { le
           phone,
           cpf,
           email,
+          apelido,
           ...regiao,
           passwordHash,
           contaCriadaEm: new Date(),
@@ -166,6 +170,9 @@ export async function criarConta(req: Request, entrada: CadastroComprador & { le
     }
     if (isUniqueViolation(err, "uq_buyers_conta_email")) {
       throw new ContaError("Já existe uma conta com este e-mail. Entre com a senha.", 409);
+    }
+    if (isUniqueViolation(err, "uq_buyers_apelido")) {
+      throw new ContaError("Esse apelido já é de outra pessoa. Escolha outro.", 409);
     }
     if (isUniqueViolation(err, "uq_buyers_phone")) {
       throw new ContaError("Este telefone já tem conta. Entre com a senha.", 409);

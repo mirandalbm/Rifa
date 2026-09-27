@@ -33,6 +33,8 @@ import {
 } from "@shared/perfil";
 import { cidadeUf } from "@shared/endereco";
 import { withUrls } from "./media";
+import { MAX_CARROSSEL, formatoDoVideo } from "@shared/publicacao";
+import { minhasMarcas } from "./publicacao";
 import { urlDaFotoDoGanhador } from "./ganhador";
 
 export class PerfilError extends Error {
@@ -55,7 +57,6 @@ export const urlDaFoto = (slug: string, em: Date | null | undefined) =>
   em ? `/api/public/o/${slug}/foto?v=${em.getTime()}` : null;
 export const urlDaCapa = (slug: string, em: Date | null | undefined) =>
   em ? `/api/public/o/${slug}/capa?v=${em.getTime()}` : null;
-const FOTOS_NO_CARROSSEL = 5;
 
 /** A organização visível pelo endereço. Arquivada "não existe". */
 async function organizacaoPublica(slug: string) {
@@ -67,8 +68,11 @@ async function organizacaoPublica(slug: string) {
   return org;
 }
 
-/** Banner, até 5 fotos e 1 vídeo de cada rifa, na ordem do carrossel. */
-async function midiasDas(ids: string[]) {
+/**
+ * O carrossel de cada rifa (`MAX_CARROSSEL`): o banner primeiro, depois
+ * fotos e vídeos na ordem em que entraram (a posição é comum aos dois).
+ */
+export async function midiasDas(ids: string[]) {
   const porRifa = new Map<string, ReturnType<typeof withUrls>[]>();
   if (ids.length === 0) return porRifa;
   const linhas = await db
@@ -76,20 +80,28 @@ async function midiasDas(ids: string[]) {
     .from(campaignMedia)
     .where(and(inArray(campaignMedia.campaignId, ids), eq(campaignMedia.status, "ready")))
     .orderBy(asc(campaignMedia.position));
-  const ordem = { banner: 0, photo: 1, video: 2 } as const;
-  linhas.sort((a, b) => ordem[a.role] - ordem[b.role] || a.position - b.position);
+  linhas.sort((a, b) => Number(b.role === "banner") - Number(a.role === "banner") || a.position - b.position || +a.createdAt - +b.createdAt);
   for (const m of linhas) {
     const lista = porRifa.get(m.campaignId) ?? [];
-    const fotos = lista.filter((x) => x.role === "photo").length;
-    const videos = lista.filter((x) => x.role === "video").length;
-    const banners = lista.filter((x) => x.role === "banner").length;
-    if (m.role === "photo" && fotos >= FOTOS_NO_CARROSSEL) continue;
-    if (m.role === "video" && videos >= 1) continue;
-    if (m.role === "banner" && banners >= 1) continue;
+    if (lista.length >= MAX_CARROSSEL) continue;
+    if (m.role === "banner" && lista.some((x) => x.role === "banner")) continue;
     lista.push(withUrls(m));
     porRifa.set(m.campaignId, lista);
   }
   return porRifa;
+}
+
+/** Como a peça sai para a tela: imagem com srcset, ou vídeo com a duração e o formato. */
+export function pecaPublica(m: ReturnType<typeof withUrls>) {
+  return {
+    role: m.role,
+    url: m.url,
+    srcSet: m.srcSetWebp,
+    lqip: m.lqip,
+    alt: m.altText,
+    durationS: m.durationS,
+    formato: m.role === "video" && m.durationS ? formatoDoVideo(m.durationS) : null,
+  };
 }
 
 /**
@@ -184,8 +196,17 @@ export async function perfilPublico(slug: string, buyerId?: string | null) {
     .from(organizations)
     .where(eq(organizations.id, org.id));
 
+  const marcas = await minhasMarcas(buyerId, rifas.map((r) => r.campaign.id));
   const cartao = (r: (typeof rifas)[number]) => ({
     id: r.campaign.id,
+    legenda: r.campaign.legenda,
+    interacoes: {
+      curtidas: r.campaign.curtidasCount,
+      comentarios: r.campaign.comentariosCount,
+      republicacoes: r.campaign.republicacoesCount,
+      compartilhamentos: r.campaign.compartilhamentosCount,
+      ...marcas.get(r.campaign.id)!,
+    },
     slug: r.campaign.slug,
     title: r.campaign.title,
     prizeTitle: r.campaign.prizeTitle,
@@ -194,13 +215,7 @@ export async function perfilPublico(slug: string, buyerId?: string | null) {
     soldCount: r.stats?.soldCount ?? 0,
     drawAt: r.campaign.drawAt,
     status: r.campaign.status,
-    midias: (midias.get(r.campaign.id) ?? []).map((m) => ({
-      role: m.role,
-      url: m.url,
-      srcSet: m.srcSetWebp,
-      lqip: m.lqip,
-      mime: m.mime,
-    })),
+    midias: (midias.get(r.campaign.id) ?? []).map(pecaPublica),
   });
 
   return {

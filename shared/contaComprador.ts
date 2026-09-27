@@ -12,6 +12,7 @@
  * - o que sobrar (compra antiga sem CPF gravado) só aparece depois que o
  *   telefone é confirmado pelo código do WhatsApp.
  */
+import { validarApelido } from "./perfilApostador";
 import { cpfValido, normalizePhone } from "./format";
 import { cepValido } from "./endereco";
 import { senhaInvalida } from "./senha";
@@ -38,6 +39,12 @@ export interface CadastroComprador {
   cep: string;
   email?: string;
   senha: string;
+  /**
+   * O nome de usuário (como o do Instagram), escolhido no cadastro — é como
+   * a pessoa aparece nos comentários e em `/u/<apelido>`. Único entre contas
+   * (`uq_buyers_apelido`): o índice decide, não um `SELECT` antes.
+   */
+  apelido: string;
 }
 
 /** Devolve o problema, ou `null` se o cadastro pode seguir. */
@@ -49,7 +56,10 @@ export function problemaNoCadastro(c: CadastroComprador): string | null {
   if (!cepValido(c.cep ?? "")) return "Informe o CEP (8 números).";
   const email = (c.email ?? "").trim();
   if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return "E-mail inválido.";
-  return senhaInvalida(c.senha ?? "", "buyer");
+  const senha = senhaInvalida(c.senha ?? "", "buyer");
+  if (senha) return senha;
+  const apelido = validarApelido(c.apelido);
+  return apelido.ok ? null : `Apelido: ${apelido.erro}`;
 }
 
 /** O que a conta já provou sobre as compras feitas fora dela. */

@@ -12,6 +12,7 @@ const ok = {
   cpf: "529.982.247-25",
   cep: "01310-100",
   senha: "segredo-forte-1",
+  apelido: "maria.silva",
 };
 
 describe("identificador de login", () => {
@@ -28,6 +29,13 @@ describe("identificador de login", () => {
 });
 
 describe("cadastro do apostador", () => {
+  it("o apelido é escolhido no cadastro, pela régua do perfil", () => {
+    expect(problemaNoCadastro({ ...ok, apelido: "" })).toMatch(/Apelido/);
+    expect(problemaNoCadastro({ ...ok, apelido: "11987654321" })).toMatch(/Apelido/);
+    expect(problemaNoCadastro({ ...ok, apelido: "admin" })).toMatch(/reservado/);
+    expect(problemaNoCadastro({ ...ok, apelido: "@Maria.Silva" })).toBeNull();
+  });
+
   it("aceita o cadastro completo, com ou sem e-mail", () => {
     expect(problemaNoCadastro(ok)).toBeNull();
     expect(problemaNoCadastro({ ...ok, email: "maria@exemplo.com" })).toBeNull();

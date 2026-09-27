@@ -9,7 +9,7 @@
  */
 import "dotenv/config";
 import { baseUrl } from "./base-url";
-import { eq, sql } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 import { db, pool } from "../server/db";
 import { buyers, campaignStats, campaigns, comentarios, notificacoes, users } from "../shared/schema";
 import { COMENTARIOS_POR_JANELA } from "../shared/comentarios";
@@ -79,7 +79,7 @@ async function main() {
 
   const [ana, bruno, anon] = [new Cliente(), new Cliente(), new Cliente()];
   for (const [c, p] of [[ana, PESSOAS[0]], [bruno, PESSOAS[1]]] as const) {
-    const cr = await c.req("POST", "/api/public/conta", { ...p, cep: "01310-100", senha: "senha-comenta-1", lembrar: true });
+    const cr = await c.req("POST", "/api/public/conta", { apelido: "tst" + Math.random().toString(36).replace(/[^a-z]/g, "").slice(0, 12) + "x", ...p, cep: "01310-100", senha: "senha-comenta-1", lembrar: true });
     if (cr.status >= 300) throw new Error(`conta: HTTP ${cr.status} ${cr.json?.message}`);
   }
   const [anaB] = await db.select({ id: buyers.id }).from(buyers).where(eq(buyers.phone, PESSOAS[0].telefone));
@@ -103,6 +103,8 @@ async function main() {
     checa("telefone: 400", r.status === 400, r.json?.message);
 
     console.log("\n  apelido e perfil:");
+    // O apelido nasce no cadastro; conta antiga pode não ter — é ela que a regra barra.
+    await db.update(buyers).set({ apelido: null }).where(inArray(buyers.phone, PESSOAS.map((p) => p.telefone)));
     r = await ana.req("POST", caminho, { texto: "Oi!" });
     checa("sem apelido não comenta (409)", r.status === 409, `HTTP ${r.status} ${r.json?.message ?? ""}`);
     r = await ana.req("PUT", "/api/public/conta/perfil", { apelido: "11987654321" });

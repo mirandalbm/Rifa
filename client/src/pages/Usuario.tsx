@@ -1,3 +1,5 @@
+import { Repeat2 } from "lucide-react";
+import { CartaoDoFeed, type RifaDoFeed } from "@/components/CartaoDoFeed";
 import { useParams } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { PublicShell } from "@/components/AppShell";
@@ -45,6 +47,25 @@ export default function Usuario() {
           </div>
         </section>
       ) : null}
+      {data ? <Republicacoes apelido={data.apelido} /> : null}
     </PublicShell>
+  );
+}
+
+/** O que a pessoa republicou (o botão de republicar da publicação) aparece no perfil dela. */
+function Republicacoes({ apelido }: { apelido: string }) {
+  const { data } = useQuery<RifaDoFeed[]>({ queryKey: [`/api/public/u/${apelido}/republicacoes`] });
+  if (!data?.length) return null;
+  return (
+    <section aria-label="Republicações" className="mt-2">
+      <h2 className="mb-3 flex items-center gap-2 font-display text-lg font-bold">
+        <Repeat2 size={20} aria-hidden /> Republicações
+      </h2>
+      <div className="grid gap-4 sm:grid-cols-2">
+        {data.map((r) => (
+          <CartaoDoFeed key={r.id} rifa={r} />
+        ))}
+      </div>
+    </section>
   );
 }

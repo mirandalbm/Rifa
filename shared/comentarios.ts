@@ -18,13 +18,19 @@ const LINK = /(https?:\/\/|www\.|\b[a-z0-9-]+\.(com|net|org|br|io|me|app|link|si
 /** 8 dígitos ou mais, com ou sem separadores: telefone, conta, chave. */
 const MUITOS_DIGITOS = /(\d[\s.()-]*){8,}/;
 
+/** Link ou telefone no texto — a régua do comentário e da legenda da publicação. */
+export function temLinkOuTelefone(t: string): string | null {
+  if (LINK.test(t)) return "Não pode ter link — é assim que golpista tenta levar gente para fora da rifa.";
+  if (MUITOS_DIGITOS.test(t)) return "Não pode ter telefone nem número longo. O contato da organização está no perfil.";
+  return null;
+}
+
 export function problemaNoComentario(texto: unknown): string | null {
   const t = typeof texto === "string" ? texto.trim() : "";
   if (!t) return "Escreva o comentário.";
   if (t.length > COMENTARIO_MAX) return `O comentário passa de ${COMENTARIO_MAX} caracteres.`;
-  if (LINK.test(t)) return "Comentário não pode ter link — é assim que golpista tenta levar gente para fora da rifa.";
-  if (MUITOS_DIGITOS.test(t)) return "Comentário não pode ter telefone nem número longo. O contato da organização está no perfil.";
-  return null;
+  const p = temLinkOuTelefone(t);
+  return p ? `Comentário ${p.charAt(0).toLowerCase()}${p.slice(1)}` : null;
 }
 
 /** Espaços repetidos viram um; quebras de linha ficam (até duas seguidas). */

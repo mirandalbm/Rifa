@@ -445,7 +445,7 @@ export function AdminOrganizacoes() {
  */
 function DemonstracaoCard({ aoMudar }: { aoMudar: () => void }) {
   const qc = useQueryClient();
-  const { data } = useQuery<{ existe: boolean; slug: string; destaques: number }>({
+  const { data } = useQuery<{ existe: boolean; slug: string; rifas: number }>({
     queryKey: ["/api/admin/demonstracao"],
   });
   const [erro, setErro] = useState<string | null>(null);
@@ -468,8 +468,8 @@ function DemonstracaoCard({ aoMudar }: { aoMudar: () => void }) {
     <Card title="Perfil de demonstração">
       <div className="space-y-3 p-4 text-sm">
         <p className="text-xs text-muted">
-          Cria a organização "Demonstração" com capa, foto, bio, cor de destaque, links e duas rifas já sorteadas
-          com foto do ganhador — para ver como fica um perfil completo. Não tem rifa à venda nem acesso de
+          Cria a organização "Demonstração" com capa, foto, bio, cor de destaque, links, três rifas na página inicial marcadas "Demonstração" (não vendem) e duas já sorteadas
+          com foto do ganhador. Nada dela vende e não tem acesso de
           organizador. Remover arquiva e o perfil some.
         </p>
         {erro ? <p className="rounded-md bg-red-soft px-3 py-2 text-red">{erro}</p> : null}

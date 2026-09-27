@@ -167,6 +167,7 @@ publicRouter.get("/campaigns", async (req, res, next) => {
           : null,
         // Selo "Autorizada SPA/MF": rifa no ar sempre tem (não publica sem).
         autorizacao: campaign.authorizationCode,
+        demonstracao: campaign.demonstracao,
         perto: uf ? distancia({ uf: organizacao?.uf, cidade: organizacao?.cidade }, { uf, cidade }) : null,
       })),
     );
@@ -527,6 +528,7 @@ publicRouter.get("/campaigns/:slug", async (req, res, next) => {
         temCertificado: Boolean(found.campaign.authorizationFileKey),
         transmissaoUrl: found.campaign.transmissaoUrl,
         status: found.campaign.status,
+        demonstracao: found.campaign.demonstracao,
       },
       stats: {
         soldCount: found.stats?.soldCount ?? 0,

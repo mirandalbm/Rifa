@@ -374,6 +374,11 @@ export const campaigns = pgTable(
      * publicar, como a autorização.
      */
     aceitaCotaBonus: boolean("aceita_cota_bonus").notNull().default(false),
+    /**
+     * Rifa de demonstração (perfil de exemplo): aparece na vitrine com a
+     * marca "Demonstração" e nunca vende — `createOrder` recusa.
+     */
+    demonstracao: boolean("demonstracao").notNull().default(false),
     /** Link da live ou do vídeo do sorteio. Muda a qualquer hora (só https). */
     transmissaoUrl: text("transmissao_url"),
     authorizationFileKey: text("authorization_file_key"),

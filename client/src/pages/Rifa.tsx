@@ -43,6 +43,7 @@ interface CampaignDetail {
     drawSeedHash: string | null;
     authorizationCode: string | null;
     temCertificado?: boolean;
+    demonstracao?: boolean;
   };
   stats: { soldCount: number; reservedCount: number };
   media: {
@@ -230,6 +231,8 @@ export default function Rifa() {
   const photos = media.filter((m) => m.role === "photo");
   const sold = stats.soldCount;
   const pct = percent(sold, campaign.totalQuotas);
+  // Vende pela loja: com Pix online ligado e nunca em rifa de demonstração.
+  const vende = (data.pagamento?.online ?? true) && !campaign.demonstracao;
   const count = picked.length;
   const dadosOk = comprador.name.length >= 2 && comprador.phone.length >= 10 && cpfOk;
 
@@ -363,8 +366,17 @@ export default function Rifa() {
         <Progress value={sold} total={campaign.totalQuotas} tone={pct >= 85 ? "yellow" : "green"} />
       </div>
 
+      {campaign.demonstracao ? (
+        <div className="mt-4 rounded-lg border border-yellow bg-yellow-soft p-3">
+          <h2 className="font-display text-sm font-bold text-yellow-deep">Rifa de demonstração</h2>
+          <p className="mt-1 text-xs text-yellow-deep">
+            Exemplo de como fica uma rifa na plataforma. Não está à venda e não tem sorteio.
+          </p>
+        </div>
+      ) : null}
+
       {/* Sem Pix online, a página não promete o que não entrega. */}
-      {data.pagamento && !data.pagamento.online ? (
+      {!campaign.demonstracao && data.pagamento && !data.pagamento.online ? (
         <div className="mt-4 rounded-lg border border-yellow bg-yellow-soft p-3">
           <h2 className="font-display text-sm font-bold text-yellow-deep">
             Esta rifa está vendendo só presencialmente
@@ -376,11 +388,10 @@ export default function Rifa() {
         </div>
       ) : null}
 
-      {/* Compra rápida — o caminho de 95% das vendas. */}
-      <div
-        className="mt-5 grid grid-cols-4 gap-2"
-        hidden={data.pagamento ? !data.pagamento.online : false}
-      >
+      {/* Compra rápida — o caminho de 95% das vendas. Sem venda online, nem
+          aparece: o atributo hidden perdia para a classe grid. */}
+      {vende ? (
+      <div className="mt-5 grid grid-cols-4 gap-2">
         {(packages.length > 0
           ? packages
           : [
@@ -417,8 +428,9 @@ export default function Rifa() {
           </button>
         ))}
       </div>
+      ) : null}
 
-      {pacote > 0 && (data.pagamento?.online ?? true) ? (
+      {pacote > 0 && vende ? (
         <Cartelas
           slug={slug}
           quantidade={pacote}
@@ -584,7 +596,7 @@ export default function Rifa() {
       ) : null}
 
       {/* Checkout */}
-      {count > 0 && (data.pagamento?.online ?? true) ? (
+      {count > 0 && vende ? (
         <div id="seus-dados" className="scroll-mt-4">
         <Card title="Seus dados">
           <div className="space-y-3 p-4">
@@ -689,7 +701,7 @@ export default function Rifa() {
       ) : null}
 
       {/* Barra fixa: o total nunca sai da tela. */}
-      {count > 0 && price && (data.pagamento?.online ?? true) ? (
+      {count > 0 && price && vende ? (
         <div
           className="fixed inset-x-0 z-30 border-t border-line bg-mist px-4 py-3"
           style={{ bottom: acimaDoRodape }}

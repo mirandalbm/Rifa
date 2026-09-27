@@ -68,6 +68,11 @@ senha); **[código]** é trabalho no repositório.
   resolve para uma réplica; com várias, ou muito tráfego de imagem, o R2
   entra (basta `R2_BUCKET` e as chaves — o código já escolhe sozinho).
 - [ ] **[você]** Domínio próprio apontado para o Railway.
+- [ ] **Antes de abrir para o público: reset geral.** Apagar o perfil de
+  demonstração (Organizações → Perfil de demonstração → Remover, ou apagar
+  a organização `demonstracao` e as rifas `demonstracao-*` no reset) e os
+  dados de teste. As rifas de demonstração não vendem, mas não devem ficar
+  na vitrine do lançamento.
 - [x] Campos de autorização SPA/MF (número e arquivo do certificado) e data
   do sorteio no cadastro da campanha (Campanhas → Ajustar → "Dados legais
   da rifa"), com a lista do que falta para publicar. Travam ao publicar.

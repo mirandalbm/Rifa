@@ -36,8 +36,8 @@
 
     /* O "+" do carrinho na barra da publicação (azul, como pediu o produto). */
     --azul: #0a6fd6;
-    /* Fundo dos números da cartela: azul no claro, verde no escuro, a 85%. */
-    --fundo-numero: color-mix(in srgb, var(--azul) 85%, transparent);
+    /* Fundo dos números da cartela: azul escuro no claro, verde no escuro, a 85%. */
+    --fundo-numero: color-mix(in srgb, #1d4ed8 85%, transparent);
 
     /*
      * Cor de marca, vinda do template (lib/template.ts põe --marca-claro e
@@ -128,8 +128,8 @@
   }
 
   /*
-   * Fundo dos números da cartela (`--fundo-numero`): no claro, o azul do
-   * "+" a 85% (branco a 3,8:1); no escuro, o verde do sistema a 85%. A 50%
+   * Fundo dos números da cartela (`--fundo-numero`): no claro, o azul
+   * escuro a 85% (branco a 4,9:1); no escuro, o verde do sistema a 85%. A 50%
    * o número branco cai para 2:1 e some — foi testado.
    */
   .fundo-numero {

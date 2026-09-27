@@ -125,16 +125,19 @@ export default function PerfilPage() {
   return (
     <PublicShell>
       <DestaqueOrg cor={p.destaque}>
-      {/* Capa: 3:1, de ponta a ponta; a foto sobe um pouco sobre ela */}
-      {p.capa ? (
-        <div className="-mx-4 -mt-4 aspect-[3/1] overflow-hidden bg-mist-2 sm:mx-0 sm:mt-0 sm:rounded-xl">
+      {/* Capa: 3:1, de ponta a ponta; a foto sobe um pouco sobre ela. Sem
+          capa enviada, o padrão: o nome sobre um degradê da cor de destaque. */}
+      <div className="-mx-4 -mt-4 aspect-[3/1] overflow-hidden bg-mist-2 sm:mx-0 sm:mt-0 sm:rounded-xl">
+        {p.capa ? (
           <img src={p.capa} alt="" className="h-full w-full object-cover" />
-        </div>
-      ) : null}
+        ) : (
+          <CapaPadrao nome={p.nome} />
+        )}
+      </div>
       {/* Topo: nome, foto, contadores */}
-      <h1 className={`font-display text-xl font-extrabold ${p.capa ? "sr-only" : ""}`}>{p.nome}</h1>
-      <div className={`flex gap-4 ${p.capa ? "items-end" : "mt-3 items-center"}`}>
-        <span className={p.capa ? "-mt-10 rounded-full bg-white p-1" : ""}>
+      <h1 className="sr-only">{p.nome}</h1>
+      <div className="flex items-end gap-4">
+        <span className="relative z-10 -mt-10 rounded-full bg-white p-1">
           <FotoComStory
             slug={p.slug}
             nome={p.nome}
@@ -161,11 +164,9 @@ export default function PerfilPage() {
         </dl>
       </div>
 
-      {p.capa ? (
-        <p aria-hidden className="mt-2 font-display text-xl font-extrabold">
-          {p.nome}
-        </p>
-      ) : null}
+      <p aria-hidden className="mt-2 font-display text-xl font-extrabold">
+        {p.nome}
+      </p>
 
       {/* Ações: seguir, sino, ⋮ */}
       <div className="mt-4 flex items-center gap-2">
@@ -552,5 +553,30 @@ function PedidoDeColaborador({ slug, nome }: { slug: string; nome: string }) {
         {pedir.isPending ? "Enviando…" : "Quero ser colaborador"}
       </Button>
     </form>
+  );
+}
+
+/**
+ * Capa de quem ainda não enviou a sua: degradê da cor de destaque (`--marca`)
+ * escurecido, para o nome em branco ler nos dois temas — no escuro a
+ * `--marca` é clara. Nada é gravado — enviar a
+ * capa no painel troca na hora.
+ */
+function CapaPadrao({ nome }: { nome: string }) {
+  return (
+    <div
+      aria-hidden
+      className="relative flex h-full w-full items-center justify-center overflow-hidden px-6"
+      style={{
+        background:
+          "linear-gradient(135deg, color-mix(in srgb, var(--marca) 62%, #0b1f14), color-mix(in srgb, var(--marca) 40%, #4c1d95))",
+      }}
+    >
+      <span className="absolute -right-6 -top-10 h-32 w-32 rounded-full bg-white/10" />
+      <span className="absolute -bottom-12 -left-8 h-28 w-28 rounded-full bg-black/10" />
+      <span className="relative line-clamp-2 text-center font-display text-2xl font-extrabold text-branco drop-shadow">
+        {nome}
+      </span>
+    </div>
   );
 }

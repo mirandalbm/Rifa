@@ -184,6 +184,14 @@ export function AdminCampanhas() {
     onSuccess: () => qc.invalidateQueries(),
     onError: (err: Error) => setError(err.message),
   });
+  const tirar = useMutation({
+    mutationFn: (id: string) => apiRequest("POST", `/api/admin/campaigns/${id}/tirar-do-ar`),
+    onSuccess: () => {
+      setError(null);
+      qc.invalidateQueries();
+    },
+    onError: (err: Error) => setError(err.message),
+  });
 
   const digits = String(form.totalQuotas).length;
 
@@ -426,6 +434,20 @@ export function AdminCampanhas() {
                             onClick={() => publish.mutate(campaign.id)}
                           >
                             Publicar
+                          </Button>
+                        ) : null}
+                        {daPlataforma && campaign.status === "published" && !(stats?.soldCount) ? (
+                          <Button
+                            variant="ghost"
+                            className="px-2 py-1 text-xs"
+                            disabled={tirar.isPending}
+                            onClick={() => {
+                              if (window.confirm(`Tirar "${campaign.title}" do ar? Ela volta a rascunho e sai da vitrine.`)) {
+                                tirar.mutate(campaign.id);
+                              }
+                            }}
+                          >
+                            Tirar do ar
                           </Button>
                         ) : null}
                       </span>

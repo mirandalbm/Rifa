@@ -210,6 +210,22 @@ async function main() {
     const c = todas.json?.find((x: any) => x.id === rifaVizinha.id);
     checa("o feed traz o selo da autorização e o perfil (com foto)", c?.autorizacao === "SPA-VITRINE-1" && c?.organizacao?.slug === VIZINHA && "foto" in (c?.organizacao ?? {}));
 
+    // Tirar do ar: só a plataforma, e só rifa sem venda (volta a rascunho).
+    console.log("\n  tirar do ar:");
+    r = await marina.req("POST", `/api/admin/campaigns/${rifaVizinha.id}/tirar-do-ar`);
+    checa("organizador não tira rifa do ar (403)", r.status === 403, `HTTP ${r.status}`);
+    await db.execute(sql`insert into quota_alloc (campaign_id, number, status, order_id, reserved_until)
+      values (${rifaVizinha.id}::uuid, 1, 'reserved', gen_random_uuid(), now() + interval '10 minutes')`);
+    r = await admin.req("POST", `/api/admin/campaigns/${rifaVizinha.id}/tirar-do-ar`);
+    checa("rifa com cota tomada não sai do ar (422)", r.status === 422, `HTTP ${r.status} ${r.json?.message ?? ""}`);
+    await db.execute(sql`delete from quota_alloc where campaign_id = ${rifaVizinha.id}::uuid`);
+    r = await admin.req("POST", `/api/admin/campaigns/${rifaVizinha.id}/tirar-do-ar`);
+    const [depois] = await db.select({ status: campaigns.status }).from(campaigns).where(eq(campaigns.id, rifaVizinha.id));
+    const naVitrine = ((await anon.req("GET", "/api/public/campaigns")).json ?? []).some((c: any) => c.id === rifaVizinha.id);
+    checa("sem venda: volta a rascunho e sai da vitrine", r.status === 200 && depois?.status === "draft" && !naVitrine, `HTTP ${r.status} · ${depois?.status}`);
+    r = await admin.req("POST", `/api/admin/campaigns/${rifaVizinha.id}/tirar-do-ar`);
+    checa("rascunho não sai do ar de novo (422)", r.status === 422, `HTTP ${r.status}`);
+
     // Perfil de demonstração: rifas na vitrine marcadas, que nunca vendem.
     console.log("\n  demonstração:");
     const demoAntes = (await admin.req("GET", "/api/admin/demonstracao")).json?.existe === true;

@@ -278,7 +278,7 @@ async function storiesDeExemplo(orgId: string, campaignId: string | null, nome: 
  * Recusa organização com rifa de verdade no ar (não marcada como teste):
  * exemplo em vitrine de promotor real seria propaganda falsa com o nome dele.
  */
-export async function preencherComExemplo(orgId: string) {
+export async function preencherComExemplo(orgId: string, baseUrl = "") {
   const [org] = await db.select().from(organizations).where(eq(organizations.id, orgId));
   if (!org || org.archivedAt) throw new OrgScopeError("Organização não encontrada.", 404);
 
@@ -291,6 +291,23 @@ export async function preencherComExemplo(orgId: string) {
       "Esta organização tem rifa de verdade no ar. Marque como teste (em Campanhas) antes de preencher com exemplo.",
       409,
     );
+  }
+
+  // Links (redes sociais e contato): só se ainda não tiver nenhum. Apontam
+  // para a rede (sem conta de ninguém) e para páginas do próprio site.
+  if (!((org.links as unknown[] | null)?.length)) {
+    const site = /^https:\/\//.test(baseUrl) ? baseUrl.replace(/\/+$/, "") : null;
+    await salvarPerfil(orgId, {
+      links: [
+        { rotulo: "Instagram", url: "https://www.instagram.com/" },
+        ...(site
+          ? [
+              { rotulo: "Fale conosco", url: `${site}/ajuda` },
+              { rotulo: "Nosso site", url: `${site}/o/${org.slug}` },
+            ]
+          : []),
+      ],
+    });
   }
 
   // Foto e capa: só o que falta — a enviada pelo organizador fica.

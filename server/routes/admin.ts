@@ -1,4 +1,4 @@
-import express, { Router, type Request } from "express";
+import express, { Router, type Request, type Response as Resposta } from "express";
 import { once } from "node:events";
 import { randomInt } from "node:crypto";
 import QRCode from "qrcode";
@@ -117,6 +117,7 @@ import {
   vinculosDaOrganizacao,
 } from "../services/afiliados";
 import { salvarFotoDoGanhador } from "../services/ganhador";
+import { cliquesDosLinks, linkCurtoDaRifa, linkCurtoDoPerfil } from "../services/links";
 import {
   criarDemonstracao,
   preencherComExemplo,
@@ -1421,9 +1422,53 @@ adminRouter.post("/demonstracao", async (req, res, next) => {
 adminRouter.post("/organizacoes/:id/exemplo", async (req, res, next) => {
   try {
     requirePlatformAdmin(req);
-    const feito = await preencherComExemplo(req.params.id);
+    const feito = await preencherComExemplo(req.params.id, process.env.PUBLIC_BASE_URL ?? "");
     await audit(req, "organizacao.exemplo", "organization", req.params.id, feito);
     res.json(feito);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/* ---------------- endereço curto e cliques nos links ---------------- */
+
+/** Recorte da organização pelo id do caminho: o do vizinho é 404. */
+function orgDoCaminho(req: Request, res: Resposta): boolean {
+  const org = orgOf(req);
+  if (org && org !== req.params.id) {
+    res.status(404).json({ message: "Organização não encontrada." });
+    return false;
+  }
+  return true;
+}
+
+/** Endereço curto do perfil (criado na primeira vez) e quantos acessos teve. */
+adminRouter.post("/organizacoes/:id/link-curto", async (req, res, next) => {
+  try {
+    if (!orgDoCaminho(req, res)) return;
+    const [o] = await db.select({ id: organizations.id }).from(organizations).where(eq(organizations.id, req.params.id));
+    if (!o) return res.status(404).json({ message: "Organização não encontrada." });
+    res.json(await linkCurtoDoPerfil(o.id));
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** Cliques nos links do perfil (redes sociais e contato), últimos 30 dias. */
+adminRouter.get("/organizacoes/:id/links/cliques", async (req, res, next) => {
+  try {
+    if (!orgDoCaminho(req, res)) return;
+    res.json(await cliquesDosLinks(req.params.id));
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** Endereço curto da rifa — recorte da campanha antes (o do vizinho é 404). */
+adminRouter.post("/campaigns/:id/link-curto", async (req, res, next) => {
+  try {
+    await assertCampaignInScope(req, req.params.id);
+    res.json(await linkCurtoDaRifa(req.params.id));
   } catch (err) {
     next(err);
   }

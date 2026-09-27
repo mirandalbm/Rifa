@@ -1,3 +1,4 @@
+import { CliquesDosLinks, EnderecoCurto } from "@/components/LinksCurtos";
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import { useMutation } from "@tanstack/react-query";
@@ -112,6 +113,7 @@ export function PerfilPublicoForm({
   };
 
   return (
+    <>
     <form
       className="space-y-3"
       onSubmit={(e) => {
@@ -307,5 +309,10 @@ export function PerfilPublicoForm({
         </Link>
       </div>
     </form>
+    <div className="mt-4 space-y-3 border-t border-line pt-3">
+      <EnderecoCurto alvo={{ tipo: "perfil", id: organizacaoId }} rotulo="Endereço curto do perfil" />
+      <CliquesDosLinks organizacaoId={organizacaoId} />
+    </div>
+    </>
   );
 }

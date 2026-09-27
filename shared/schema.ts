@@ -1004,6 +1004,50 @@ export const organizacaoCapas = pgTable("organizacao_capas", {
 });
 
 /**
+ * Endereço curto (`/c/<codigo>`): um por perfil e um por rifa, criado na
+ * primeira vez que o painel pede. Os índices parciais decidem "um por
+ * destino"; o `codigo` único decide colisão — nunca um `SELECT` antes.
+ * `cliques` anda num `UPDATE` a cada acesso de gente (robô não conta).
+ */
+export const linksCurtos = pgTable(
+  "links_curtos",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    codigo: text("codigo").notNull(),
+    tipo: text("tipo").notNull(), // 'perfil' | 'rifa'
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    campaignId: uuid("campaign_id").references(() => campaigns.id, { onDelete: "cascade" }),
+    cliques: integer("cliques").notNull().default(0),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("uq_link_curto_codigo").on(t.codigo),
+    uniqueIndex("uq_link_curto_perfil").on(t.organizationId).where(sql`tipo = 'perfil'`),
+    uniqueIndex("uq_link_curto_rifa").on(t.campaignId).where(sql`tipo = 'rifa'`),
+  ],
+);
+
+/**
+ * Cliques nos links do perfil (redes sociais e contato), por dia de São
+ * Paulo. Chave (organização, link, dia): o clique é `INSERT … ON CONFLICT
+ * DO UPDATE cliques + 1` — sem `COUNT(*)` no painel.
+ */
+export const perfilLinkCliques = pgTable(
+  "perfil_link_cliques",
+  {
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    url: text("url").notNull(),
+    dia: text("dia").notNull(), // AAAA-MM-DD em São Paulo
+    cliques: integer("cliques").notNull().default(0),
+  },
+  (t) => [primaryKey({ columns: [t.organizationId, t.url, t.dia] })],
+);
+
+/**
  * Quem segue quem. A chave é o par: seguir duas vezes é `ON CONFLICT DO
  * NOTHING`, nunca um `SELECT` antes. `sino` liga junto com o seguir.
  */

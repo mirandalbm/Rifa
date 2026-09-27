@@ -767,7 +767,8 @@ function ExemploDaOrganizacao({ id, aoFeito }: { id: string; aoFeito: () => void
       <p className="label-xs mb-1">Organização de teste</p>
       <p className="text-xs text-muted">
         Preenche com imagens de exemplo: fotos das publicações das rifas marcadas como teste, dois destaques de
-        rifas sorteadas com foto do ganhador, foto e capa do perfil (só se faltarem) e três stories. Só para
+        rifas sorteadas com foto do ganhador, foto, capa e links de redes sociais e contato (só se faltarem) e três
+        stories. Só para
         organização sem rifa de verdade no ar.
       </p>
       {msg ? (

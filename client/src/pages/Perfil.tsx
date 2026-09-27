@@ -226,7 +226,7 @@ export default function PerfilPage() {
             ))}
           </div>
         ) : null}
-        <LinksDoPerfil links={p.links} />
+        <LinksDoPerfil links={p.links} slug={p.slug} />
         {p.seguidoPor ? <p className="pt-1 text-xs text-muted">{p.seguidoPor}</p> : null}
       </div>
 

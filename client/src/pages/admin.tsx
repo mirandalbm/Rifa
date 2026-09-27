@@ -14,6 +14,7 @@ import { CampaignExtras } from "@/components/CampaignExtras";
 import { DadosLegaisCard, TransmissaoCard } from "@/components/DadosLegaisCard";
 import { EnderecoForm, type EnderecoParcial } from "@/components/EnderecoForm";
 import { PerfilPublicoForm } from "@/components/PerfilPublicoForm";
+import { EnderecoCurto } from "@/components/LinksCurtos";
 import type { CorDeDestaque, LinkDoPerfil } from "@shared/perfil";
 import type { Endereco } from "@shared/endereco";
 import { formatBRL, groupNumber, formatQuota, maskPhone } from "@shared/format";
@@ -373,6 +374,13 @@ export function AdminCampanhas() {
             const c = data?.find((r) => r.campaign.id === mediaFor)?.campaign;
             return c ? (
               <>
+                {c.status !== "draft" ? (
+                  <Card title="Divulgação">
+                    <div className="p-4">
+                      <EnderecoCurto alvo={{ tipo: "rifa", id: c.id }} rotulo="Endereço curto da rifa" />
+                    </div>
+                  </Card>
+                ) : null}
                 <DadosLegaisCard campanha={c} />
                 <TransmissaoCard campanha={c} />
               </>

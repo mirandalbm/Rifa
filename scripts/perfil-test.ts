@@ -211,6 +211,34 @@ async function main() {
     r = await anonimo.req("GET", `/api/public/o/${SLUG}`);
     checa("tirar volta ao padrão da plataforma", r.json?.capa === null && r.json?.destaque === null && r.json?.links?.length === 0);
 
+    // Endereço curto e cliques nos links do perfil.
+    {
+      console.log("\n  endereço curto e links:");
+      const o = org;
+      await db.update(organizations).set({ links: [{ rotulo: "Instagram", url: "https://www.instagram.com/perfilteste" }] }).where(eq(organizations.id, o.id));
+      r = await admin.req("POST", `/api/admin/organizacoes/${o.id}/link-curto`);
+      const r2 = await admin.req("POST", `/api/admin/organizacoes/${o.id}/link-curto`);
+      checa("endereço curto do perfil: um só, mesmo pedido duas vezes", r.status === 200 && /^\/c\/[2-9A-Z]{6}$/.test(r.json?.caminho) && r2.json?.codigo === r.json?.codigo, `${r.json?.caminho} · ${r2.json?.caminho}`);
+      const humano = { "User-Agent": "Mozilla/5.0 (Linux; Android 14) Chrome/130 Mobile" };
+      let f = await fetch(URL + r.json.caminho, { redirect: "manual", headers: humano });
+      checa("o curto redireciona para o perfil", f.status === 302 && f.headers.get("location") === `/o/${SLUG}`, `${f.status} ${f.headers.get("location")}`);
+      f = await fetch(URL + r.json.caminho.toLowerCase(), { redirect: "manual", headers: humano });
+      await fetch(URL + r.json.caminho, { redirect: "manual", headers: { "User-Agent": "Googlebot/2.1" } });
+      r = await admin.req("POST", `/api/admin/organizacoes/${o.id}/link-curto`);
+      checa("acessos contam gente, robô não", r.json?.cliques === 2, `${r.json?.cliques}`);
+      f = await fetch(`${URL}/c/ZZZZZZ`, { redirect: "manual" });
+      checa("código que não existe volta para a vitrine", f.status === 302 && f.headers.get("location") === "/", `${f.status} ${f.headers.get("location")}`);
+
+      f = await fetch(`${URL}/l/${SLUG}/0`, { redirect: "manual", headers: humano });
+      checa("link do perfil redireciona para o endereço cadastrado", f.status === 302 && f.headers.get("location") === "https://www.instagram.com/perfilteste", `${f.status} ${f.headers.get("location")}`);
+      f = await fetch(`${URL}/l/${SLUG}/7`, { redirect: "manual", headers: humano });
+      checa("índice fora da lista: 404 (não redireciona para nada)", f.status === 404, `${f.status}`);
+      r = await admin.req("GET", `/api/admin/organizacoes/${o.id}/links/cliques`);
+      checa("o painel conta o clique no link", r.json?.links?.[0]?.cliques === 1, JSON.stringify(r.json?.links));
+      await db.execute(sql`delete from links_curtos where organization_id = ${o.id}::uuid`);
+      await db.execute(sql`delete from perfil_link_cliques where organization_id = ${o.id}::uuid`);
+    }
+
     await db.update(organizations).set({ archivedAt: new Date() }).where(eq(organizations.id, org.id));
     r = await anonimo.req("GET", `/api/public/o/${SLUG}`);
     checa("organização arquivada: perfil some (404)", r.status === 404, `HTTP ${r.status}`);

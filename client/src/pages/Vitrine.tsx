@@ -11,6 +11,7 @@ import { Empty } from "@/components/bits";
 import { BannersVitrine } from "@/components/BannersVitrine";
 import { CartaoDoFeed, type RifaDoFeed } from "@/components/CartaoDoFeed";
 import { FotoComStory, VisualizadorDeStories, useVistos } from "@/components/Stories";
+import { FotoDoPerfil } from "@/components/Seguir";
 import { vistoAte } from "@/lib/stories";
 import { temStoryNovo } from "@shared/vitrine";
 import { InstalarApp } from "@/components/InstalarApp";
@@ -211,6 +212,13 @@ function StoriesDaVitrine() {
     { slug: string; nome: string; foto: string | null; ultimoStory: string; seguindo: boolean }[]
   >({ queryKey: ["/api/public/stories"], staleTime: 60_000 });
   const organizador = sessao?.role === "organizer";
+  // "Seu story" com a foto da própria organização, como no Instagram.
+  const minha = sessao?.organizacao?.slug;
+  const { data: meuPerfil } = useQuery<{ foto: string | null; nome: string }>({
+    queryKey: [`/api/public/o/${minha}`],
+    enabled: organizador && Boolean(minha),
+    staleTime: 60_000,
+  });
   if (data.length === 0 && !organizador) return null;
   const visto = (o: { slug: string; ultimoStory: string }) => (temStoryNovo(o.ultimoStory, vistoAte(o.slug)) ? 0 : 1);
   // Estável: mantém a ordem do servidor (seguidos, mais novo) dentro de cada faixa.
@@ -222,14 +230,12 @@ function StoriesDaVitrine() {
           <li className="w-[86px] shrink-0 text-center">
             <Link href="/admin/stories" className="mx-auto block w-fit" aria-label="Postar no seu story">
               <span
-                className="relative flex items-center justify-center rounded-full border border-line-2 bg-mist p-[5px]"
+                className="relative flex items-center justify-center rounded-full p-[5px]"
                 style={{ width: FOTO_DO_STORY + 10, height: FOTO_DO_STORY + 10 }}
               >
-                <span aria-hidden className="font-display text-2xl font-extrabold text-muted">
-                  {sessao?.user?.name?.trim().charAt(0).toUpperCase() ?? "+"}
-                </span>
+                <FotoDoPerfil nome={meuPerfil?.nome ?? sessao?.organizacao?.nome ?? sessao?.user?.name ?? "?"} foto={meuPerfil?.foto} tamanho={FOTO_DO_STORY} />
                 <span className="absolute bottom-0 right-0 flex h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-ink text-white">
-                  <Plus size={14} aria-hidden />
+                  <Plus size={14} strokeWidth={3.25} aria-hidden />
                 </span>
               </span>
             </Link>

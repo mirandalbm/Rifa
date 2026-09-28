@@ -4,6 +4,7 @@ import {
   BOTOES_DO_CONSOLE,
   CORES_DO_AVISO,
   botaoAtivo,
+  pendenciasDaConta,
   quemPublica,
   validarAvisoDoTrevo,
 } from "@shared/console";
@@ -72,5 +73,18 @@ describe("quem vê o ícone de publicação", () => {
     expect(quemPublica({ role: null, apostador: true }, true)).toBe("apostador");
     expect(quemPublica(null, true)).toBeNull();
     expect(quemPublica({ role: "cambista" }, true)).toBeNull();
+  });
+});
+
+describe("pendências da conta (o ponto na foto do perfil)", () => {
+  it("sem conta, nada a completar", () => {
+    expect(pendenciasDaConta(null)).toEqual([]);
+    expect(pendenciasDaConta({ conta: false, confirmado: false, apelido: null })).toEqual([]);
+  });
+
+  it("apelido e telefone confirmado, cada um uma pendência em texto", () => {
+    expect(pendenciasDaConta({ conta: true, confirmado: false, apelido: null })).toHaveLength(2);
+    expect(pendenciasDaConta({ conta: true, confirmado: true, apelido: "ana" })).toEqual([]);
+    expect(pendenciasDaConta({ conta: true, confirmado: false, apelido: "ana" })[0]).toMatch(/telefone/);
   });
 });

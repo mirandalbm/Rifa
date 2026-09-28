@@ -377,6 +377,8 @@ Na ordem de entrega do plano:
   esquerda e não lidas depois; o organizador só vê o que é dele) e
   **Buscar** (últimas publicações, com a tabela do que aparece ligada pela
   plataforma).
+- [ ] **[código]** Selo "ao vivo" no story (anel com a transmissão), junto
+  com a etapa do Reels.
 - [ ] **[código]** Perfil do usuário: os bilhetes como publicações privadas
   (uma por compra ou carrossel), com data, hora, prêmio e números.
 - [ ] **[código]** Ferramentas de publicação: as do Instagram adaptadas à
@@ -409,6 +411,10 @@ Na ordem de entrega do plano:
   split", **não cobre de novo** a taxa de organização com carteira Asaas.
 
 ## Feito
+
+- [x] "Seu story" com o "+" na foto do próprio perfil (e a foto da
+  organização na fileira) e o ponto verde na foto do perfil quando falta
+  apelido ou telefone confirmado, com o quadro "Complete sua conta".
 
 - [x] Topo e console do app como no Instagram: logo, publicação e trevo com
   ponto verde no topo; Início, Reels, Mensagens, Buscar, Carrinho e Perfil na

@@ -311,6 +311,14 @@ Como no Instagram, com as nossas cores (verde no lugar do vermelho e do rosa).
   interruptor `publicarApostador` (nasce desligado). Sem conta, não
   aparece. O menu vai para o `body` (portal): dentro do topo, o console
   passaria por cima.
+- **Ponto na foto do perfil = conta incompleta** (`pendenciasDaConta()`:
+  apelido faltando, telefone não confirmado), só para quem tem conta. O
+  ponto é verde e o que falta vai no rótulo do botão e num quadro "Complete
+  sua conta" em `/perfil` — nunca só o ponto.
+- **"Seu story" é o "+" na foto do próprio perfil** (o organizador, na
+  vitrine, é levado ao perfil dele, então é ali que ele está), e na fileira
+  de stories vai com a foto da organização, não a inicial. O selo "ao vivo"
+  no story fica para a etapa do Reels.
 - **O "18+", a ajuda, o tema e os cookies moram em `/perfil`**; não há mais
   faixa fixa de rodapé. O texto livre do rodapé (template) segue no fim da
   página.

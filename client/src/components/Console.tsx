@@ -9,6 +9,7 @@ import {
   BOTOES_DO_CONSOLE,
   CORES_DO_AVISO,
   botaoAtivo,
+  pendenciasDaConta,
   quemPublica,
   type AvisoDoTrevo,
   type BotaoDoConsole,
@@ -211,10 +212,25 @@ function AvatarDoConsole() {
   return <IconePerfil tamanho={26} />;
 }
 
+/** O que falta na conta de quem entrou (o ponto na foto do perfil). */
+export function usePendencias(): string[] {
+  const { data: sessao } = useSession();
+  const conta = Boolean(sessao?.buyer?.conta);
+  const { data } = useQuery<{ apelido: string | null }>({ queryKey: ["/api/public/conta/perfil"], enabled: conta });
+  if (!conta || !data) return [];
+  return pendenciasDaConta({ conta, confirmado: Boolean(sessao?.buyer?.confirmado), apelido: data.apelido });
+}
+
 function BotaoDoConsole({ chave, rotulo, caminho, ativo, lateral }: { chave: BotaoDoConsole; rotulo: string; caminho: string; ativo: boolean; lateral: boolean }) {
   const itens = useCarrinho().length;
+  const pendencias = usePendencias().length;
   const Icone = chave === "perfil" ? null : ICONE[chave];
-  const nome = chave === "carrinho" && itens ? `${rotulo}: ${itens} rifa(s)` : rotulo;
+  const nome =
+    chave === "carrinho" && itens
+      ? `${rotulo}: ${itens} rifa(s)`
+      : chave === "perfil" && pendencias
+        ? `${rotulo}: ${pendencias} pendência(s) na conta`
+        : rotulo;
   const icone: ReactNode = Icone ? (
     <Icone aceso={ativo} tamanho={26} />
   ) : (
@@ -243,6 +259,9 @@ function BotaoDoConsole({ chave, rotulo, caminho, ativo, lateral }: { chave: Bot
           >
             {itens > 9 ? "9+" : itens}
           </span>
+        ) : null}
+        {chave === "perfil" && pendencias ? (
+          <span aria-hidden className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-green" />
         ) : null}
       </span>
       {lateral ? <span className="hidden text-[15px] xl:inline">{rotulo}</span> : null}

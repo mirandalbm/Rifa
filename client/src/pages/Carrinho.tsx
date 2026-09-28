@@ -7,8 +7,8 @@ import { Button, Money, Pill } from "@/components/bits";
 import { FotoDoPerfil } from "@/components/Seguir";
 import { SeloVerificado } from "@/components/SeloVerificado";
 import { ApiError, apiRequest } from "@/lib/queryClient";
-import { esquecerCartela, porNoCarrinho, tirarDoCarrinho, useCarrinho } from "@/lib/carrinho";
-import { agruparPorOrganizacao, quantidadeNaFaixa } from "@shared/carrinho";
+import { esquecerCartela, porNoCarrinho, tirarBilheteDoCarrinho, tirarDoCarrinho, useCarrinho } from "@/lib/carrinho";
+import { agruparPorOrganizacao, bilhetesDoItem, quantidadeNaFaixa } from "@shared/carrinho";
 import { cpfValido, formatBRL, formatQuota, maskCpf, maskPhone } from "@shared/format";
 import { corDaCasa } from "@/lib/quadro";
 import { useSession } from "@/lib/session";
@@ -65,6 +65,11 @@ export default function Carrinho() {
   const grupos = agruparPorOrganizacao(validos);
   const aVenda = validos.filter((i) => i.vende);
   const total = aVenda.reduce((s, i) => s + i.totalCents, 0);
+  // Quantos bilhetes vão no Pix: os que a pessoa pôs, ou um por rifa sem cartela.
+  const nBilhetes = aVenda.reduce(
+    (s, i) => s + (i.numeros ? (bilhetesDoItem(itens.find((x) => x.slug === i.slug)?.bilhetes, i.numeros)?.length ?? 1) : 1),
+    0,
+  );
 
   return (
     <PublicShell larga>
@@ -102,7 +107,7 @@ export default function Carrinho() {
                   </header>
                   <ul className="divide-y divide-line">
                     {g.itens.map((i) => (
-                      <ItemDoCarrinho key={i.slug} item={i} />
+                      <ItemDoCarrinho key={i.slug} item={i} bilhetes={itens.find((x) => x.slug === i.slug)?.bilhetes} />
                     ))}
                   </ul>
                 </section>
@@ -113,7 +118,8 @@ export default function Carrinho() {
           <aside aria-label="Pagar o carrinho" className="lg:sticky lg:top-[68px] lg:mt-1 lg:rounded-xl lg:border lg:border-line lg:p-4">
           <div className="mt-5 flex items-baseline justify-between border-t border-line pt-3 lg:mt-0 lg:border-t-0 lg:pt-0">
             <span className="text-sm">
-              Total de <span className="tnum">{aVenda.length}</span> rifa{aVenda.length === 1 ? "" : "s"}
+              Total de <span className="tnum">{aVenda.length}</span> rifa{aVenda.length === 1 ? "" : "s"} ·{" "}
+              <span className="tnum">{nBilhetes}</span> bilhete{nBilhetes === 1 ? "" : "s"}
             </span>
             <Money cents={total} className="text-lg font-bold text-green-deep" />
           </div>
@@ -125,8 +131,10 @@ export default function Carrinho() {
   );
 }
 
-function ItemDoCarrinho({ item: i }: { item: Item }) {
+function ItemDoCarrinho({ item: i, bilhetes: bilhetesGuardados }: { item: Item; bilhetes?: number[][] }) {
   const [texto, setTexto] = useState(String(i.quantidade));
+  // Cada bilhete que a pessoa pôs, separado. Item antigo (sem a lista) é um bilhete só.
+  const bilhetes = i.numeros ? (bilhetesDoItem(bilhetesGuardados, i.numeros) ?? [i.numeros]) : null;
   useEffect(() => setTexto(String(i.quantidade)), [i.quantidade]);
   const mudar = (q: number) => porNoCarrinho(i.slug, quantidadeNaFaixa(q, i.minPerOrder, i.maxPerOrder));
 
@@ -159,22 +167,48 @@ function ItemDoCarrinho({ item: i }: { item: Item }) {
           <span className="tnum">{formatBRL(i.priceCents)}</span> por cota
         </p>
         {i.vende ? (
-          i.numeros?.length ? (
-            <ul className="mt-1.5 flex flex-wrap gap-1" aria-label={`Números escolhidos de ${i.prizeTitle}`}>
-              {i.numeros.slice(0, 12).map((n) => (
-                <li key={n} className={`tnum quadro min-w-10 px-1 text-[10px] ${corDaCasa(n)}`}>
-                  {formatQuota(n, i.totalQuotas)}
+          bilhetes ? (
+            <ol className="mt-2 space-y-2" aria-label={`Bilhetes de ${i.prizeTitle}`}>
+              {bilhetes.map((b, k) => (
+                <li key={b.join()} className="rounded-lg border border-line p-2">
+                  <div className="flex items-center gap-2">
+                    <span className="flex-1 text-xs font-semibold">
+                      Bilhete <span className="tnum">{k + 1}</span> ·{" "}
+                      <span className="tnum font-normal text-muted">{b.length} números</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => tirarBilheteDoCarrinho(i.slug, k)}
+                      aria-label={`Tirar o bilhete ${k + 1} de ${i.prizeTitle}`}
+                      className="rounded-md p-1 text-muted hover:bg-mist hover:text-ink"
+                    >
+                      <Trash2 size={14} aria-hidden />
+                    </button>
+                  </div>
+                  <ul className="mt-1.5 flex flex-wrap gap-1" aria-label={`Números do bilhete ${k + 1}`}>
+                    {b.map((n) => (
+                      <li key={n} className={`tnum quadro min-w-10 px-1 text-[10px] ${corDaCasa(n)}`}>
+                        {formatQuota(n, i.totalQuotas)}
+                      </li>
+                    ))}
+                  </ul>
                 </li>
               ))}
-              {i.numeros.length > 12 ? (
-                <li className="tnum flex items-center px-1 text-[10px] text-muted">+{i.numeros.length - 12}</li>
-              ) : null}
-            </ul>
+            </ol>
           ) : (
             <p className="mt-1 text-[11px] text-muted">Números sorteados na hora de pagar.</p>
           )
         ) : null}
-        {i.vende ? (
+        {i.vende && bilhetes ? (
+          <div className="mt-2 flex items-center justify-between gap-2">
+            <span className="text-xs text-muted">
+              <span className="tnum">{bilhetes.length}</span> bilhete{bilhetes.length === 1 ? "" : "s"} ·{" "}
+              <span className="tnum">{i.quantidade}</span> números
+            </span>
+            <Money cents={i.totalCents} className="text-sm text-green-deep" />
+          </div>
+        ) : null}
+        {i.vende && !bilhetes ? (
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <div className="flex items-center rounded-md border border-line-2">
               <button
@@ -209,7 +243,7 @@ function ItemDoCarrinho({ item: i }: { item: Item }) {
             </div>
             <Money cents={i.totalCents} className="text-sm text-green-deep" />
           </div>
-        ) : (
+        ) : i.vende ? null : (
           <div className="mt-2">
             <Pill status="closed">{i.status === "published" ? "Sem venda no momento" : "Vendas encerradas"}</Pill>
           </div>

@@ -132,6 +132,8 @@ senha); **[código]** é trabalho no repositório.
 - [x] Cota surpresa: presente animado na publicação (só com cota premiada),
   que revela o número comprado; o aviso amarelo saiu. Cartela com trocar,
   carrinho e Pagar numa linha, e várias cartelas da mesma rifa no carrinho.
+- [x] Vários bilhetes por rifa no carrinho, cada um listado e removível; a
+  janela do "+" fica aberta ("Adicionar") e troca a cartela adicionada.
 - [x] Vitrine no computador: feed em 3 colunas e "Sorteios chegando" ao lado
   do banner.
 - [x] Perfil da organização no computador: cartão do perfil à esquerda e

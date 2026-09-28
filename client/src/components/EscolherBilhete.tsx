@@ -3,7 +3,7 @@ import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { X } from "lucide-react";
 import { Cartelas } from "@/components/Cartelas";
-import { avisoDaJuntada, juntarNoCarrinho } from "@/lib/carrinho";
+import { avisoDaJuntada, juntarNoCarrinho, lerCarrinho } from "@/lib/carrinho";
 import { CARTELA_MAX_NUMEROS, quantidadeNaFaixa } from "@shared/carrinho";
 import { priceOrder, type PricingPackage } from "@shared/pricing";
 import { formatBRL } from "@shared/format";
@@ -38,7 +38,6 @@ export function EscolherBilhete({
   const [quantidade, setQuantidade] = useState(0);
   const [outra, setOutra] = useState("");
   const [cheio, setCheio] = useState(false);
-  const [recusa, setRecusa] = useState<string | null>(null);
 
   // Esc fecha, e a página de trás não rola enquanto a janela está aberta.
   useEffect(() => {
@@ -150,12 +149,6 @@ export function EscolherBilhete({
               </p>
             ) : null}
 
-            {recusa ? (
-              <p role="alert" className="mt-3 rounded-md bg-red-soft px-3 py-2 text-sm text-red">
-                {recusa}
-              </p>
-            ) : null}
-
             {quantidade ? (
               <Cartelas
                 slug={slug}
@@ -167,12 +160,15 @@ export function EscolherBilhete({
                 pagando={false}
                 trocarSinal={null}
                 acao="carrinho"
-                onPagar={(numeros) => {
-                  // Soma à rifa no carrinho: dá para pôr várias cartelas.
+                onPagar={() => {}}
+                evitar={() => lerCarrinho().find((i) => i.slug === slug)?.numeros ?? []}
+                onCarrinho={(numeros) => {
+                  // Soma à rifa no carrinho: dá para pôr vários bilhetes; a
+                  // janela fica aberta e a cartela adicionada dá lugar a outra.
                   const r = juntarNoCarrinho(slug, numeros, c.maxPerOrder);
-                  if (r.ok) return aoAdicionar(r.total);
-                  if (r.motivo === "cheio") return setCheio(true);
-                  setRecusa(avisoDaJuntada(r, c.maxPerOrder).texto);
+                  if (!r.ok && r.motivo === "cheio") setCheio(true);
+                  if (r.ok) aoAdicionar(r.total);
+                  return avisoDaJuntada(r, c.maxPerOrder);
                 }}
               />
             ) : null}

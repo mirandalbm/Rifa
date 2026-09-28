@@ -34,20 +34,7 @@ interface Lista {
   precisaApelido: boolean;
   podeCurtir: boolean;
   podeUsarEmoji: boolean;
-  premiados: Premiado[];
   lista: (Comentario & { respostas: Comentario[] })[];
-}
-
-/** Quem levou uma cota premiada: fica fixo no topo dos comentários. */
-interface Premiado {
-  numero: number;
-  cota: string;
-  premio: string;
-  em: string | null;
-  nome: string;
-  perfil: string | null;
-  foto: string | null;
-  verificado: boolean;
 }
 
 const tempo = (iso: string) => {
@@ -437,34 +424,6 @@ export function Comentarios({ slug, dentroDoPainel }: { slug: string; dentroDoPa
         </h2>
       )}
 
-      {data?.premiados?.length ? (
-        <ul className="mb-5 space-y-3" aria-label="Cotas premiadas">
-          {data.premiados.map((p) => (
-            <li key={p.numero} className="flex gap-3 rounded-xl border border-yellow bg-yellow-soft px-3 py-2.5">
-              {p.perfil ? (
-                <Link href={p.perfil} aria-hidden tabIndex={-1} className="shrink-0">
-                  <FotoDoApostador nome={p.nome} foto={p.foto} tamanho={36} />
-                </Link>
-              ) : (
-                <FotoDoApostador nome={p.nome} foto={p.foto} tamanho={36} />
-              )}
-              <div className="min-w-0 flex-1 text-[14px] leading-[18px]">
-                <p className="flex flex-wrap items-center gap-x-2">
-                  <Nome c={{ nome: p.nome, perfil: p.perfil, verificado: p.verificado, autor: "comprador" } as Comentario} />
-                  <span className="text-[12px] text-muted">
-                    {p.em ? <span className="tnum">{tempo(p.em)}</span> : null}{" "}
-                    <span aria-hidden>🏆</span> <b className="tnum text-ink">cota {p.cota}</b>
-                  </span>
-                </p>
-                <p className="mt-0.5 break-words">
-                  Ganhou <b>{p.premio}</b> com a cota premiada.
-                </p>
-              </div>
-              <span className="self-start"><Pill status="pending">premiado</Pill></span>
-            </li>
-          ))}
-        </ul>
-      ) : null}
 
       <ul className="space-y-5">
         {data?.lista.map((c) => {
@@ -513,7 +472,7 @@ export function Comentarios({ slug, dentroDoPainel }: { slug: string; dentroDoPa
           );
         })}
       </ul>
-      {data && data.lista.length === 0 && !data.premiados?.length ? (
+      {data && data.lista.length === 0 ? (
         <p className="py-4 text-center text-sm text-muted">Ainda sem comentários. Comece a conversa.</p>
       ) : null}
 

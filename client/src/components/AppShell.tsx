@@ -189,7 +189,7 @@ export function PublicShell({ children, larga }: { children: ReactNode; larga?: 
 
   return (
     <div className="min-h-screen bg-white">
-      <header className="sticky top-0 z-20 border-b border-line bg-white/95 backdrop-blur">
+      <header className="sticky top-0 z-20 border-b border-line bg-white">
         <div className={`mx-auto flex ${largura} items-center justify-between px-4 py-3`}>
           <Link href="/" className="text-lg">
             <Marca />
@@ -489,7 +489,7 @@ function RodapePublico({ largura }: { largura: string }) {
       {/* Espaço para a faixa fixa não cobrir o fim da página. */}
       <div aria-hidden style={{ height: acimaDoRodape }} />
       <footer
-        className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-white/95 text-[11px] text-muted backdrop-blur"
+        className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-white text-[11px] text-muted"
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       >
         <div

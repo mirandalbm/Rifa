@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { MapPin, Plus } from "lucide-react";
+import { CalendarClock, MapPin, Plus } from "lucide-react";
 import { UFS, ufValida } from "@shared/endereco";
 import { lerRegiao, gravarRegiao, regiaoEfetiva, type EscolhaDeRegiao } from "@/lib/regiao";
 import { useSession } from "@/lib/session";
@@ -16,6 +16,7 @@ import { temStoryNovo } from "@shared/vitrine";
 import { InstalarApp } from "@/components/InstalarApp";
 import { Patrocinadas } from "@/components/Patrocinadas";
 import type { Bloco } from "@shared/template";
+import { formatBRL } from "@shared/format";
 
 /** Vitrine multi-rifas: todas as campanhas no ar, banner na frente. */
 export default function Vitrine() {
@@ -67,7 +68,7 @@ export default function Vitrine() {
       </div>
   );
   const gradeDeRifas = (lista: RifaDoFeed[] | undefined) => (
-    <div className="mt-3 grid gap-4 sm:grid-cols-2">
+    <div className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {lista?.map((c) => <CartaoDoFeed key={c.id} rifa={c} />)}
     </div>
   );
@@ -79,13 +80,20 @@ export default function Vitrine() {
   const lugarDosStories = blocos.find((b) => b.tipo === "seguidos" || b.tipo === "estados")?.id;
 
   return (
-    <PublicShell>
+    <PublicShell larga>
       {blocos.map((b) => {
           switch (b.tipo) {
             case "regiao":
               return <div key={b.id}>{blocoRegiao}</div>;
             case "banners":
-              return <BannersVitrine key={b.id} />;
+              // No computador, o banner divide a faixa com os sorteios mais
+              // próximos (bento); no celular, só o banner, como sempre.
+              return (
+                <div key={b.id} className="lg:mb-3 lg:grid lg:grid-cols-[2fr_1fr] lg:items-stretch lg:gap-4">
+                  <BannersVitrine />
+                  <SorteiosChegando rifas={data} />
+                </div>
+              );
             case "seguidos":
             case "estados":
               return b.id === lugarDosStories ? <StoriesDaVitrine key={b.id} /> : null;
@@ -132,6 +140,55 @@ function comPatrocinadas(blocos: Bloco[]): Bloco[] {
   const i = blocos.findIndex((b) => b.tipo === "rifas");
   const novo: Bloco = { id: "patrocinadas", tipo: "patrocinadas", ligado: true };
   return i < 0 ? [...blocos, novo] : [...blocos.slice(0, i), novo, ...blocos.slice(i)];
+}
+
+/**
+ * O cartão ao lado do banner no computador: as rifas à venda com o sorteio
+ * mais perto (amarelo = espera e prêmio). Só aparece a partir de `lg` — no
+ * celular o feed já traz as mesmas rifas.
+ */
+function SorteiosChegando({ rifas }: { rifas: RifaDoFeed[] | undefined }) {
+  const agora = Date.now();
+  const proximas = (rifas ?? [])
+    .filter((r) => r.vende !== false && r.drawAt && new Date(r.drawAt).getTime() > agora)
+    .sort((a, b) => new Date(a.drawAt!).getTime() - new Date(b.drawAt!).getTime())
+    .slice(0, 4);
+  if (proximas.length === 0) return null;
+  const faltam = (iso: string) => {
+    const dias = Math.ceil((new Date(iso).getTime() - agora) / 86_400_000);
+    return dias <= 1 ? "amanhã ou hoje" : `em ${dias} dias`;
+  };
+  return (
+    <section aria-label="Sorteios chegando" className="hidden rounded-xl border border-yellow bg-yellow-soft p-4 lg:block">
+      <h2 className="flex items-center gap-2 font-display text-base font-bold text-yellow-deep">
+        <CalendarClock size={18} aria-hidden />
+        Sorteios chegando
+      </h2>
+      <ul className="mt-3 space-y-2">
+        {proximas.map((r) => (
+          <li key={r.id}>
+            <Link
+              href={r.organizacao ? `/o/${r.organizacao.slug}/r/${r.slug}` : `/r/${r.slug}`}
+              className="flex items-center gap-3 rounded-lg bg-white p-2 hover:bg-mist"
+            >
+              <span
+                aria-hidden
+                className="h-12 w-12 shrink-0 rounded-md bg-mist-2 bg-cover bg-center"
+                style={r.banner ? { backgroundImage: `url(${r.banner})` } : { background: "linear-gradient(145deg,#0B1F14,#00873E)" }}
+              />
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-bold">{r.prizeTitle}</span>
+                <span className="block text-xs text-muted">
+                  <span className="tnum">{new Date(r.drawAt!).toLocaleDateString("pt-BR")}</span> · {faltam(r.drawAt!)}
+                </span>
+              </span>
+              <span className="tnum shrink-0 text-sm font-bold text-green-deep">{formatBRL(r.priceCents)}</span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
 }
 
 /** Tamanho da foto na fileira de stories — o do Instagram no celular. */

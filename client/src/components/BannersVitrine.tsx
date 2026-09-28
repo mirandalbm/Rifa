@@ -43,7 +43,7 @@ export function BannersVitrine() {
     <section
       aria-label="Destaques"
       aria-roledescription="carrossel"
-      className="relative -mx-4 mb-3 sm:mx-0"
+      className="relative -mx-4 mb-3 sm:mx-0 lg:mb-0"
       onPointerDown={() => setParado(true)}
       onMouseEnter={() => setParado(true)}
       onMouseLeave={() => setParado(false)}

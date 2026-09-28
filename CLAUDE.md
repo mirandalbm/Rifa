@@ -234,6 +234,13 @@ arquitetura.
   a ordem do celular — publicação, compra, resto — e a grade só reposiciona
   (`lg:col-start`/`lg:row-start`); inverter a ordem no DOM mudaria o
   celular e a leitura de tela.
+- **Vitrine**: feed em 3 colunas; o banner divide a faixa com "Sorteios
+  chegando" (`SorteiosChegando`, só `lg`, amarelo = espera e prêmio: as
+  rifas à venda com sorteio mais perto). A barra de ações aperta pela
+  largura do próprio cartão (`.barra-de-acoes`, container query ≤ 360 px),
+  não da tela.
+- **Topo e faixa de baixo são opacos** (`bg-white`, sem desfoque): com
+  transparência o conteúdo aparecia por baixo ao rolar.
 - **Cor com opacidade**: `white` no Tailwind é `color-mix` com
   `<alpha-value>`, senão `bg-white/95` sai transparente (era o topo e a
   faixa de baixo). Outra cor que precisar de `/NN` ganha o mesmo formato.

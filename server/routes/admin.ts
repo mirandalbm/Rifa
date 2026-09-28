@@ -318,7 +318,47 @@ adminRouter.get("/overview", async (req, res, next) => {
       LIMIT 5
     `);
 
+    // Para o painel em grade: o próximo sorteio, o que falta fazer e as
+    // últimas vendas. Mesmo recorte; a venda sai sem nome nem telefone
+    // (quem é o cliente é regra da titularidade — aqui basta o pedido).
+    const proximo = await db.execute(sql`
+      SELECT c.slug, c.prize_title AS "prizeTitle", (c.draw_at AT TIME ZONE 'UTC') AS "drawAt", c.total_quotas AS "totalQuotas",
+             coalesce(s.sold_count, 0)::int AS "soldCount"
+      FROM campaigns c
+      LEFT JOIN campaign_stats s ON s.campaign_id = c.id
+      WHERE c.status = 'published' AND c.draw_at > now() AND NOT c.demonstracao
+        ${daCampanha}
+      ORDER BY c.draw_at
+      LIMIT 1
+    `);
+    const [pend] = (
+      await db.execute(sql`
+        SELECT
+          (SELECT count(*)::int FROM chamados ch WHERE ch.status = 'aberto'
+             ${org ? sql`AND ch.organization_id = ${org}::uuid` : sql``}) AS "chamadosAbertos",
+          (SELECT count(*)::int FROM campaigns c WHERE c.status = 'draft' AND NOT c.demonstracao
+             AND c.authorization_code IS NULL ${daCampanha}) AS "rascunhosSemAutorizacao",
+          (SELECT count(*)::int FROM orders o JOIN campaigns c ON c.id = o.campaign_id
+             WHERE o.status = 'pending' ${daCampanha}) AS "pedidosEsperandoPix"
+      `)
+    ).rows as { chamadosAbertos: number; rascunhosSemAutorizacao: number; pedidosEsperandoPix: number }[];
+    const telefonePendente = org
+      ? !(await db.select({ em: organizations.telefoneAprovadoEm }).from(organizations).where(eq(organizations.id, org)))[0]?.em
+      : false;
+    const ultimas = await db.execute(sql`
+      SELECT o.code, c.prize_title AS "prizeTitle", o.quantity, o.amount_cents AS "amountCents", (o.paid_at AT TIME ZONE 'UTC') AS "paidAt",
+             (o.seller_id IS NOT NULL) AS cambista
+      FROM orders o
+      JOIN campaigns c ON c.id = o.campaign_id
+      WHERE o.status = 'paid' ${daCampanha}
+      ORDER BY o.paid_at DESC
+      LIMIT 6
+    `);
+
     res.json({
+      proximoSorteio: proximo.rows[0] ?? null,
+      pendencias: { ...pend, telefonePendente },
+      ultimasVendas: ultimas.rows,
       revenueCents: totals.revenueCents,
       soldCount: totals.soldCount,
       reservedCount: totals.reservedCount,

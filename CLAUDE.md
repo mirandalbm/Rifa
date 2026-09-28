@@ -242,6 +242,14 @@ arquitetura.
 - **Perfil da organização**: capa 4:1; abaixo, o cartão do perfil (foto,
   contadores, ações, bio, links, destaques) numa coluna de 320 px fixa na
   rolagem, e as rifas em 2 colunas ao lado.
+- **Painel do organizador em grade bento** (`Bento` em
+  `client/src/pages/admin.tsx`, etiqueta presa na borda): receita com o
+  gráfico em 2×2, cotas, comissão, próximo sorteio (amarelo), o que falta
+  (telefone, reembolsos, rascunho sem autorização, Pix esperando) e as
+  últimas vendas. Tudo vem de `/api/admin/overview`, com o recorte de
+  `orgOf` em cada consulta; a venda sai **sem** nome nem telefone (quem é
+  o cliente é regra da titularidade). `npm run isolation` confere que as
+  últimas vendas não trazem o pedido do vizinho.
 - **Topo e faixa de baixo são opacos** (`bg-white`, sem desfoque): com
   transparência o conteúdo aparecia por baixo ao rolar.
 - **Cor com opacidade**: `white` no Tailwind é `color-mix` com

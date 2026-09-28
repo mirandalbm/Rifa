@@ -1,6 +1,7 @@
 import { LegendaCard } from "@/components/Publicacao";
 import { SeloVerificado } from "@/components/SeloVerificado";
 import { useState } from "react";
+import { Link } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { TrocarSenha } from "@/components/TrocarSenha";
 import { WhatsAppCard } from "@/components/WhatsAppCard";
@@ -44,7 +45,33 @@ interface AdminOverview {
   commissionAffiliates: number;
   daily: { day: string; cents: number }[];
   topAffiliates: { code: string; name: string; cents: number }[];
+  proximoSorteio?: { slug: string; prizeTitle: string; drawAt: string; totalQuotas: number; soldCount: number } | null;
+  pendencias?: { chamadosAbertos: number; rascunhosSemAutorizacao: number; pedidosEsperandoPix: number; telefonePendente: boolean };
+  ultimasVendas?: { code: number; prizeTitle: string; quantity: number; amountCents: number; paidAt: string; cambista: boolean }[];
 }
+
+/**
+ * O cartão da grade do painel (bento): a etiqueta presa na borda de cima diz
+ * o que é o cartão antes de ler o conteúdo.
+ */
+function Bento({ rotulo, className = "", tom, children }: { rotulo: string; className?: string; tom?: "green" | "yellow"; children: React.ReactNode }) {
+  const fundo = tom === "green" ? "border-green bg-green-soft" : tom === "yellow" ? "border-yellow bg-yellow-soft" : "border-line bg-white";
+  return (
+    <section aria-label={rotulo} className={`relative mt-2 min-w-0 rounded-xl border ${fundo} px-4 pb-4 pt-5 ${className}`}>
+      <span className="absolute -top-2.5 left-3 rounded-full border border-line bg-white px-2 font-mono text-[10px] uppercase tracking-widest text-muted">
+        {rotulo}
+      </span>
+      {children}
+    </section>
+  );
+}
+
+const quandoFoi = (iso: string) => {
+  const min = Math.max(1, Math.round((Date.now() - new Date(iso).getTime()) / 60_000));
+  if (min < 60) return `há ${min} min`;
+  const h = Math.floor(min / 60);
+  return h < 24 ? `há ${h} h` : `há ${Math.floor(h / 24)} d`;
+};
 
 function RevenueChart({ data }: { data: { day: string; cents: number }[] }) {
   if (data.length === 0) return <Empty>Sem receita nos últimos 14 dias.</Empty>;
@@ -72,59 +99,131 @@ function RevenueChart({ data }: { data: { day: string; cents: number }[] }) {
 export function AdminPainel() {
   const { data } = useQuery<AdminOverview>({ queryKey: ["/api/admin/overview"] });
 
+  const p = data?.pendencias;
+  const afazer = p
+    ? [
+        p.telefonePendente ? { texto: "Confirmar o telefone da organização (exigido para publicar)", href: "/admin/configuracoes" } : null,
+        p.chamadosAbertos ? { texto: `${p.chamadosAbertos} pedido(s) de reembolso esperando resposta`, href: "/admin/atendimento" } : null,
+        p.rascunhosSemAutorizacao
+          ? { texto: `${p.rascunhosSemAutorizacao} rascunho(s) sem autorização SPA/MF`, href: "/admin/campanhas" }
+          : null,
+        p.pedidosEsperandoPix ? { texto: `${p.pedidosEsperandoPix} pedido(s) esperando o Pix`, href: "/admin/pedidos" } : null,
+      ].filter((x): x is { texto: string; href: string } => Boolean(x))
+    : [];
+  const prox = data?.proximoSorteio;
+  const faltam = prox ? Math.max(0, Math.ceil((new Date(prox.drawAt).getTime() - Date.now()) / 86_400_000)) : 0;
+
   return (
     <PanelShell title="Painel">
       {!data ? (
         <Empty>Carregando…</Empty>
       ) : (
-        <div className="space-y-4">
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <Kpi label="Receita paga" value={formatBRL(data.revenueCents)} highlight />
-            <Kpi
-              label="Cotas vendidas"
-              value={groupNumber(data.soldCount)}
-              hint={`de ${groupNumber(data.publishedQuotas)} publicadas`}
-            />
-            <Kpi
-              label="Reservas abertas"
-              value={groupNumber(data.reservedCount)}
-              hint="expiram pelo prazo da campanha"
-            />
-            <Kpi
-              label="Comissão a pagar"
-              value={formatBRL(data.commissionToPayCents)}
-              hint={`${data.commissionAffiliates} afiliado(s)`}
-            />
-          </div>
-
-          <div className="grid gap-3 lg:grid-cols-[1.5fr_1fr]">
-            <Card title="Receita paga por dia" right={<span className="label-xs">14 dias</span>}>
+        // Grade bento: no computador, 4 colunas com a receita em destaque
+        // (2×2); no tablet, 2; no celular, uma, na ordem do que importa.
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <Bento rotulo="Receita paga" tom="green" className="sm:col-span-2 lg:row-span-2">
+            <p className="tnum font-mono text-3xl font-bold text-green-deep">{formatBRL(data.revenueCents)}</p>
+            <p className="mt-1 text-xs text-muted">
+              Por dia, nos últimos <span className="tnum">14</span> dias
+            </p>
+            <div className="-mx-4">
               <RevenueChart data={data.daily} />
-            </Card>
-            <Card title="Top afiliados">
-              {data.topAffiliates.length === 0 ? (
-                <Empty>Nenhum afiliado ainda.</Empty>
-              ) : (
-                <ul className="divide-y divide-line">
-                  {data.topAffiliates.map((a, i) => (
-                    <li key={a.code} className="flex items-center gap-3 px-4 py-2 text-sm">
-                      <span
-                        className={`tnum flex h-5 w-5 items-center justify-center rounded text-[10px] ${
-                          i === 0 ? "bg-yellow text-on-yellow" : "bg-mist-2 text-muted"
-                        }`}
-                      >
-                        {i + 1}
+            </div>
+          </Bento>
+          <Bento rotulo="Cotas vendidas">
+            <p className="tnum font-mono text-2xl font-bold">{groupNumber(data.soldCount)}</p>
+            <p className="mt-1 text-xs text-muted">
+              de <span className="tnum">{groupNumber(data.publishedQuotas)}</span> publicadas ·{" "}
+              <span className="tnum">{groupNumber(data.reservedCount)}</span> reservadas
+            </p>
+          </Bento>
+          <Bento rotulo="Comissão a pagar">
+            <p className="tnum font-mono text-2xl font-bold">{formatBRL(data.commissionToPayCents)}</p>
+            <p className="mt-1 text-xs text-muted">
+              <span className="tnum">{data.commissionAffiliates}</span> afiliado(s)
+            </p>
+          </Bento>
+          <Bento rotulo="Próximo sorteio" tom="yellow" className="sm:col-span-2">
+            {prox ? (
+              <Link href={`/r/${prox.slug}`} className="block space-y-2 hover:opacity-90">
+                <p className="flex flex-wrap items-baseline justify-between gap-x-2">
+                  <span className="min-w-0 truncate font-display text-base font-bold">{prox.prizeTitle}</span>
+                  <span className="tnum shrink-0 text-sm font-semibold text-yellow-deep">
+                    {new Date(prox.drawAt).toLocaleDateString("pt-BR")} · {faltam <= 1 ? "amanhã ou hoje" : `em ${faltam} dias`}
+                  </span>
+                </p>
+                <Progress value={prox.soldCount} total={prox.totalQuotas} tone="yellow" />
+                <p className="tnum text-xs text-yellow-deep">
+                  {groupNumber(prox.soldCount)} de {groupNumber(prox.totalQuotas)} cotas vendidas
+                </p>
+              </Link>
+            ) : (
+              <p className="text-sm text-yellow-deep">Nenhuma rifa no ar com sorteio marcado.</p>
+            )}
+          </Bento>
+          <Bento rotulo="O que falta" className="sm:col-span-2">
+            {afazer.length === 0 ? (
+              <p className="flex items-center gap-2 text-sm">
+                <span className="shrink-0"><Pill status="paid">em dia</Pill></span> Nada esperando por você agora.
+              </p>
+            ) : (
+              <ul className="space-y-2 text-sm">
+                {afazer.map((a) => (
+                  <li key={a.href + a.texto}>
+                    <Link href={a.href} className="flex items-center gap-2 rounded-md px-1 py-1 hover:bg-mist">
+                      <span className="shrink-0"><Pill status="pending">pendente</Pill></span>
+                      <span className="flex-1">{a.texto}</span>
+                      <span aria-hidden className="text-muted">→</span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Bento>
+          <Bento rotulo="Últimas vendas" className="sm:col-span-2 lg:row-span-2">
+            {!data.ultimasVendas?.length ? (
+              <Empty>Nenhuma venda paga ainda.</Empty>
+            ) : (
+              <ul className="-mx-4 divide-y divide-line">
+                {data.ultimasVendas.map((v) => (
+                  <li key={v.code} className="flex items-center gap-3 px-4 py-2 text-sm">
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate font-semibold">{v.prizeTitle}</span>
+                      <span className="block text-xs text-muted">
+                        <span className="tnum">#{v.code}</span> · <span className="tnum">{v.quantity}</span> cota(s) ·{" "}
+                        {quandoFoi(v.paidAt)}
+                        {v.cambista ? " · cambista" : ""}
                       </span>
-                      <span className="flex-1">
-                        {a.name} · <span className="tnum text-muted">{a.code}</span>
-                      </span>
-                      <Money cents={a.cents} className="text-ink-2" />
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </Card>
-          </div>
+                    </span>
+                    <Money cents={v.amountCents} className="shrink-0 font-semibold text-green-deep" />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Bento>
+          <Bento rotulo="Top afiliados" className="sm:col-span-2">
+            {data.topAffiliates.length === 0 ? (
+              <p className="text-sm text-muted">Nenhum afiliado ainda.</p>
+            ) : (
+              <ul className="-mx-4 divide-y divide-line">
+                {data.topAffiliates.map((a, i) => (
+                  <li key={a.code} className="flex items-center gap-3 px-4 py-2 text-sm">
+                    <span
+                      className={`tnum flex h-5 w-5 items-center justify-center rounded text-[10px] ${
+                        i === 0 ? "bg-yellow text-on-yellow" : "bg-mist-2 text-muted"
+                      }`}
+                    >
+                      {i + 1}
+                    </span>
+                    <span className="flex-1">
+                      {a.name} · <span className="tnum text-muted">{a.code}</span>
+                    </span>
+                    <Money cents={a.cents} className="text-ink-2" />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Bento>
         </div>
       )}
     </PanelShell>

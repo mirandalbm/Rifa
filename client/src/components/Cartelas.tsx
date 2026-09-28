@@ -35,6 +35,7 @@ export function Cartelas({
   trocarSinal,
   acao = "pagar",
   onCarrinho,
+  evitar,
 }: {
   slug: string;
   quantidade: number;
@@ -50,10 +51,14 @@ export function Cartelas({
   /** O que o botão da cartela faz: pagar agora ou pôr no carrinho (janela do "+"). */
   acao?: "pagar" | "carrinho";
   /**
-   * Com pagar agora, o ícone do carrinho ao lado junta a cartela à rifa no
-   * carrinho (dá para juntar várias). Devolve o aviso para mostrar.
+   * Põe a cartela no carrinho (junta à rifa: dá para pôr várias). Com
+   * pagar agora, é o ícone ao lado do Pagar; na janela do "+", é o botão
+   * "Adicionar". Devolve o aviso; deu certo, a cartela sai da tela e
+   * outra, sorteada, entra no lugar.
    */
-  onCarrinho?: (numeros: number[]) => { ok: boolean; texto: string };
+  onCarrinho?: (numeros: number[]) => { ok: boolean; texto: string; trocar?: boolean };
+  /** Números que a cartela sorteada no lugar deve evitar (os que já estão no carrinho). */
+  evitar?: () => number[];
 }) {
   const [cartelas, setCartelas] = useState<number[][] | null>(null);
   const [erro, setErro] = useState<string | null>(null);
@@ -75,13 +80,26 @@ export function Cartelas({
   async function trocar(i: number) {
     setTrocando(i);
     try {
-      const [nova] = await buscar(slug, quantidade, 1);
+      // Até três tentativas de uma cartela sem número que já está no carrinho.
+      // Também os das outras cartelas da tela: cartelas não repetem número entre si.
+      const outras = (cartelas ?? []).filter((_, j) => j !== i).flat();
+      const fora = new Set([...(evitar?.() ?? []), ...outras]);
+      let [nova] = await buscar(slug, quantidade, 1);
+      for (let t = 0; t < 2 && nova?.some((n) => fora.has(n)); t++) [nova] = await buscar(slug, quantidade, 1);
       if (nova) setCartelas((atual) => (atual ? atual.map((c, j) => (j === i ? nova : c)) : atual));
     } catch (e) {
       setErro((e as Error).message);
     } finally {
       setTrocando(null);
     }
+  }
+
+  /** Põe no carrinho; deu certo, a cartela sai e outra entra no lugar. */
+  function adicionar(i: number, numeros: number[]) {
+    if (!onCarrinho) return;
+    const r = onCarrinho(numeros);
+    setAviso({ i, ...r });
+    if (r.ok || r.trocar) void trocar(i);
   }
 
   // Compra recusada porque alguém levou um número: a cartela é trocada sozinha.
@@ -141,7 +159,7 @@ export function Cartelas({
               {onCarrinho && acao === "pagar" ? (
                 <button
                   type="button"
-                  onClick={() => setAviso({ i, ...onCarrinho(numeros) })}
+                  onClick={() => adicionar(i, numeros)}
                   disabled={trocando === i || pagando}
                   aria-label={`Pôr a cartela ${i + 1} no carrinho`}
                   title="Pôr no carrinho"
@@ -152,13 +170,13 @@ export function Cartelas({
               ) : null}
               <button
                 type="button"
-                onClick={() => onPagar(numeros)}
+                onClick={() => (acao === "carrinho" && onCarrinho ? adicionar(i, numeros) : onPagar(numeros))}
                 disabled={trocando === i || pagando}
                 className="h-11 min-w-0 flex-1 rounded-md bg-green px-3 text-base font-bold text-on-green disabled:opacity-60"
               >
                 {acao === "carrinho" ? (
                   <>
-                    Pôr no carrinho · <span className="tnum">{formatBRL(preco.totalCents)}</span>
+                    Adicionar · <span className="tnum">{formatBRL(preco.totalCents)}</span>
                   </>
                 ) : pagando && marcada ? (
                   "Reservando…"

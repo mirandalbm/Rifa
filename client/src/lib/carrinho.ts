@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from "react";
-import { CARRINHO_MAX_ITENS, juntarCartela, limparCarrinho, type ItemDoCarrinho } from "@shared/carrinho";
+import { CARRINHO_MAX_ITENS, juntarCartela, limparCarrinho, tirarBilhete, type ItemDoCarrinho } from "@shared/carrinho";
 
 /**
  * O carrinho fica neste aparelho, como a região e o tema. Guarda rifa e
@@ -69,19 +69,35 @@ export function juntarNoCarrinho(
 }
 
 /** O aviso de `juntarNoCarrinho`, o mesmo na página da rifa e na janela do "+". */
-export function avisoDaJuntada(r: ReturnType<typeof juntarNoCarrinho>, maximo?: number): { ok: boolean; texto: string } {
+export function avisoDaJuntada(
+  r: ReturnType<typeof juntarNoCarrinho>,
+  maximo?: number,
+): { ok: boolean; texto: string; trocar?: boolean } {
   if (r.ok) {
     return {
       ok: true,
       texto:
         r.novos === r.total
-          ? `Cartela no carrinho (${r.total} números).`
-          : `Cartela somada: ${r.total} números desta rifa no carrinho.`,
+          ? `Bilhete adicionado (${r.total} números).`
+          : `Bilhete adicionado: ${r.total} números desta rifa no carrinho.`,
     };
   }
   if (r.motivo === "cheio") return { ok: false, texto: "O carrinho já tem 20 rifas. Pague ou tire alguma antes." };
-  if (r.motivo === "repetida") return { ok: false, texto: "Estes números já estão no carrinho." };
+  if (r.motivo === "repetida") {
+    return { ok: false, trocar: true, texto: "Algum destes números já está no seu carrinho — sorteamos outra cartela." };
+  }
   return { ok: false, texto: `Passa do máximo de ${maximo ?? "cotas"} números por pedido desta rifa.` };
+}
+
+/** Tira um bilhete da rifa no carrinho; o último bilhete leva a rifa junto. */
+export function tirarBilheteDoCarrinho(slug: string, indice: number) {
+  gravar(
+    lerCarrinho().flatMap((i) => {
+      if (i.slug !== slug) return [i];
+      const resto = tirarBilhete(i, indice);
+      return resto ? [resto] : [];
+    }),
+  );
 }
 
 /** Alguém levou um número da cartela: o item fica, e o número passa a ser sorteado na compra. */

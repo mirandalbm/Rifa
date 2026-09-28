@@ -478,10 +478,10 @@ export function BarraDeAcoes({
           slug={slug}
           aoFechar={() => setEscolhendo(false)}
           aoAdicionar={(n) => {
-            setEscolhendo(false);
+            // A janela fica aberta para pôr mais bilhetes; o aviso fica na barra.
             setAviso(
               <>
-                Bilhete de <span className="tnum">{n}</span> números no carrinho.{" "}
+                <span className="tnum">{n}</span> números desta rifa no carrinho.{" "}
                 <Link href="/carrinho" className="font-semibold text-ink underline">
                   Ver carrinho
                 </Link>

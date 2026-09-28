@@ -85,7 +85,7 @@ arquitetura.
 | segundo fator | `server/services/totp.ts` |
 | variantes de imagem | `server/services/images.ts` |
 | mensagens e modelos | `server/notifications/` |
-| cotas premiadas | `shared/premiadas.ts` (números escolhidos), `server/routes/admin.ts` (sorteio e escolha), `services/orders.ts` (revelação), `premiados` em `listarComentarios()` (ganhador no topo), `client/src/components/CotaSurpresa.tsx` (o presente na publicação) |
+| cotas premiadas | `shared/premiadas.ts` (números escolhidos), `server/routes/admin.ts` (sorteio e escolha), `services/orders.ts` (revelação), `premiados` em `listarComentarios()` (o comentário fixo de quem levou), `client/src/components/CotaSurpresa.tsx` (o presente na publicação, que revela) |
 | cadastro/cupom/kit do afiliado | `server/routes/public.ts`, `server/routes/affiliate.ts` |
 | afiliado de todas as organizações (vínculo, termo, aceite, colaborador) | `shared/afiliados.ts` (regras), `server/services/afiliados.ts` (`comissaoNaRifa`), `client/src/pages/afiliado.tsx` (`AfiliadoOrganizacoes`), `scripts/afiliados-test.ts` |
 | venda física e acerto | `server/routes/seller.ts`, `server/services/settlements.ts` |
@@ -1006,11 +1006,13 @@ pedido, cotas e valor, e o cliente só pelo ID (`Cliente C-XXXXXXXX`).
   cliques, um desconto e um 404.
 - **Limite por pessoa** (`hit`, 10 em 10 min), contado depois do erro de
   preenchimento — como o chamado.
-- **Cota premiada no topo** (`premiados` em `listarComentarios()`): quem
-  levou uma cota premiada fica fixo no topo, com 🏆, a cota e o prêmio.
-  Só pedido **pago** (o estorno devolve a cota premiada e o destaque some
-  junto) e só o número já reclamado — antes da compra, o número nunca sai
-  (invariante das mensagens). Nome como no comentário, nunca telefone.
+- **O comentário fixo é só o de quem levou cota premiada** (`premiados`
+  em `listarComentarios()`): fica no topo, marcado "Fixado", com 🏆, o
+  prêmio e a cota — no estilo dos outros comentários, **sem destaque
+  amarelo**. Só pedido **pago** (o estorno devolve a cota premiada e o
+  fixo some junto) e só o número já reclamado — antes da compra, o número
+  nunca sai (invariante das mensagens). Nome como no comentário, nunca
+  telefone. Nenhum outro comentário é fixado.
 - **A cota surpresa é o presente animado** no canto de baixo à direita da
   publicação, na página da rifa (`CotaSurpresa`, `canto` do `Carrossel`,
   que sobe acima do som no vídeo). Só existe com cota premiada — é opcional
@@ -1162,13 +1164,21 @@ compra já está na tela. Cada cartela traz tudo numa linha: **trocar** (só
 o ícone, à esquerda), o **carrinho** (a sacola, que junta a cartela) e o
 **Pagar**, maior, no canto direito.
 
-- **Dá para pôr várias cartelas da mesma rifa** (`juntarCartela()` em
+- **Vários bilhetes por rifa, e de várias rifas** (`juntarCartela()` em
   `shared/carrinho.ts`, `juntarNoCarrinho()` no aparelho — na página e na
   janela do "+"). O carrinho segue com **um item por rifa** (cada rifa é um
-  pedido): a cartela nova soma os números, sem repetir; toda repetida não
-  muda nada; passar do máximo por pedido recusa sem cortar. Item que só
-  tinha quantidade (mudada no carrinho) soma a quantidade, e os números
-  passam a ser sorteados — a cartela só vale com exatamente a quantidade.
+  pedido, com todos os números), e os bilhetes ficam separados em
+  `bilhetes` só para mostrar: o carrinho lista cada rifa com cada bilhete,
+  tira um bilhete sozinho (`tirarBilhete()`) e soma rifas e bilhetes no
+  total. `bilhetesDoItem()` só aceita bilhetes que, juntos e na ordem, são
+  exatamente os `numeros`. Bilhete com número que já está no carrinho não
+  entra pela metade (`repetida`) e a tela sorteia outra cartela; passar do
+  máximo por pedido recusa. Item que só tinha quantidade (mudada no
+  carrinho) soma a quantidade, e os números passam a ser sorteados.
+- **"Adicionar" não fecha a janela do "+"**: o bilhete adicionado sai da
+  tela e outro, sorteado evitando os números do carrinho (`evitar`), entra
+  no lugar — dá para pôr vários seguidos. O mesmo vale para o ícone do
+  carrinho na cartela da página da rifa.
 
 - **Carrinho é lista de desejo, não reserva.** Guarda rifa, quantidade e a
   cartela escolhida (`numeros`, só se tiver exatamente a quantidade) —

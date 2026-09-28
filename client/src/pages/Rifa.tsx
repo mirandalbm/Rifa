@@ -35,7 +35,7 @@ import { Comentarios, PainelDeComentarios } from "@/components/Comentarios";
 import { BotaoDenunciar, SoValePelaPlataforma } from "@/components/Seguranca";
 import { Cartelas } from "@/components/Cartelas";
 import { CotaSurpresa, type PremiosDaRifa } from "@/components/CotaSurpresa";
-import { avisoDaJuntada, juntarNoCarrinho } from "@/lib/carrinho";
+import { avisoDaJuntada, juntarNoCarrinho, lerCarrinho } from "@/lib/carrinho";
 
 interface CampaignDetail {
   campaign: {
@@ -547,6 +547,7 @@ export default function Rifa() {
           pagando={createOrder.isPending}
           onPagar={pagarCartela}
           onCarrinho={(numeros) => avisoDaJuntada(juntarNoCarrinho(slug, numeros, campaign.maxPerOrder), campaign.maxPerOrder)}
+          evitar={() => lerCarrinho().find((i) => i.slug === slug)?.numeros ?? []}
           trocarSinal={trocarSinal}
         />
       ) : null}

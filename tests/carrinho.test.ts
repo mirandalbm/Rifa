@@ -3,6 +3,8 @@ import {
   CARRINHO_MAX_ITENS,
   agruparPorOrganizacao,
   juntarCartela,
+  bilhetesDoItem,
+  tirarBilhete,
   splitDoCarrinho,
   situacaoDoCarrinho,
   limparCarrinho,
@@ -66,13 +68,21 @@ describe("limparCarrinho", () => {
 describe("juntarCartela", () => {
   it("a primeira cartela vira o item, com a quantidade dos números", () => {
     const r = juntarCartela(undefined, "a", [1, 2, 3]);
-    expect(r).toEqual({ ok: true, item: { slug: "a", quantidade: 3, numeros: [1, 2, 3] }, novos: 3 });
+    expect(r).toEqual({ ok: true, item: { slug: "a", quantidade: 3, numeros: [1, 2, 3], bilhetes: [[1, 2, 3]] }, novos: 3 });
   });
 
-  it("a segunda cartela soma os números, sem repetir — e o item continua válido para o carrinho", () => {
-    const r = juntarCartela({ slug: "a", quantidade: 3, numeros: [1, 2, 3] }, "a", [3, 4, 5]);
-    expect(r).toEqual({ ok: true, item: { slug: "a", quantidade: 5, numeros: [1, 2, 3, 4, 5] }, novos: 2 });
+  it("a segunda cartela vira outro bilhete da mesma rifa — e o item continua válido para o carrinho", () => {
+    const r = juntarCartela({ slug: "a", quantidade: 3, numeros: [1, 2, 3], bilhetes: [[1, 2, 3]] }, "a", [4, 5]);
+    expect(r).toEqual({
+      ok: true,
+      item: { slug: "a", quantidade: 5, numeros: [1, 2, 3, 4, 5], bilhetes: [[1, 2, 3], [4, 5]] },
+      novos: 2,
+    });
     if (r.ok) expect(limparCarrinho([r.item])).toEqual([r.item]);
+  });
+
+  it("bilhete com um número que já está no carrinho não entra pela metade", () => {
+    expect(juntarCartela({ slug: "a", quantidade: 3, numeros: [1, 2, 3] }, "a", [3, 4, 5])).toEqual({ ok: false, motivo: "repetida" });
   });
 
   it("cartela toda repetida não muda nada", () => {
@@ -94,9 +104,36 @@ describe("juntarCartela", () => {
   it("item com a quantidade sugerida (0) é trocado pela cartela", () => {
     expect(juntarCartela({ slug: "a", quantidade: 0 }, "a", [4, 5])).toEqual({
       ok: true,
-      item: { slug: "a", quantidade: 2, numeros: [4, 5] },
+      item: { slug: "a", quantidade: 2, numeros: [4, 5], bilhetes: [[4, 5]] },
       novos: 2,
     });
+  });
+});
+
+describe("bilhetes no carrinho", () => {
+  it("vários bilhetes da mesma rifa ficam separados, e juntos são os números do pedido", () => {
+    const item = juntarCartela(undefined, "a", [1, 2]);
+    if (!item.ok) throw new Error();
+    const r = juntarCartela(item.item, "a", [7, 8]);
+    if (!r.ok) throw new Error();
+    expect(r.item.bilhetes).toEqual([[1, 2], [7, 8]]);
+    expect(limparCarrinho([r.item])).toEqual([r.item]);
+  });
+
+  it("bilhetes que não batem com os números são descartados (os números ficam)", () => {
+    expect(limparCarrinho([{ slug: "a", quantidade: 3, numeros: [1, 2, 3], bilhetes: [[1, 2], [4]] }])).toEqual([
+      { slug: "a", quantidade: 3, numeros: [1, 2, 3] },
+    ]);
+    expect(bilhetesDoItem([[2, 1]], [1, 2])).toBeUndefined();
+    expect(bilhetesDoItem([[1], [2]], [1, 2])).toEqual([[1], [2]]);
+  });
+
+  it("tirar um bilhete deixa os outros; o último leva a rifa", () => {
+    const item = { slug: "a", quantidade: 4, numeros: [1, 2, 7, 8], bilhetes: [[1, 2], [7, 8]] };
+    expect(tirarBilhete(item, 0)).toEqual({ slug: "a", quantidade: 2, numeros: [7, 8], bilhetes: [[7, 8]] });
+    expect(tirarBilhete({ slug: "a", quantidade: 2, numeros: [7, 8], bilhetes: [[7, 8]] }, 0)).toBeNull();
+    // Item antigo, sem a lista de bilhetes: a cartela inteira é um bilhete.
+    expect(tirarBilhete({ slug: "a", quantidade: 2, numeros: [7, 8] }, 0)).toBeNull();
   });
 });
 

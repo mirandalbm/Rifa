@@ -25,6 +25,22 @@ export interface ItemDoCarrinho {
    * número no meio a compra recusa (409) e o carrinho volta a sortear na hora.
    */
   numeros?: number[];
+  /**
+   * Os bilhetes (cartelas) que formam os `numeros`, na ordem em que entraram:
+   * só para mostrar cada bilhete separado no carrinho. A compra segue um
+   * pedido por rifa, com todos os números; juntos, os bilhetes são
+   * exatamente os `numeros`, sem repetir.
+   */
+  bilhetes?: number[][];
+}
+
+/** Os bilhetes servem se, juntos e na ordem, são exatamente os números. */
+export function bilhetesDoItem(bilhetes: unknown, numeros: number[]): number[][] | undefined {
+  if (!Array.isArray(bilhetes) || bilhetes.length === 0 || bilhetes.length > numeros.length) return undefined;
+  const grupos = bilhetes.map((b) => numerosDaCartela(b));
+  if (grupos.some((g) => !g)) return undefined;
+  const juntos = (grupos as number[][]).flat();
+  return juntos.length === numeros.length && juntos.every((n, i) => n === numeros[i]) ? (grupos as number[][]) : undefined;
 }
 
 /** Maior cartela guardada no aparelho (a compra rápida vai até 50; a escolhida pelo usuário, até isto). */
@@ -43,8 +59,9 @@ export function numerosDaCartela(v: unknown): number[] | undefined {
  * por rifa (cada rifa é um pedido na compra), e a cartela nova soma os
  * números dela aos que já estavam lá:
  *
- * - item com cartela: junta os números, sem repetir; se todos já estavam,
- *   é `repetida`;
+ * - item com cartela: o bilhete novo entra em `bilhetes` e os números dele
+ *   somam aos de antes; bilhete com qualquer número que já está no
+ *   carrinho é `repetida` (não entra pela metade);
  * - item só com quantidade (a pessoa mudou a quantidade no carrinho): soma
  *   a quantidade e os números passam a ser sorteados na compra — a cartela
  *   só vale se tiver exatamente a quantidade do item;
@@ -64,19 +81,34 @@ export function juntarCartela(
   const cartela = [...new Set(numeros)];
   if (!atual || atual.quantidade === 0) {
     if (cartela.length > teto) return { ok: false, motivo: "maximo" };
-    return { ok: true, item: { slug, quantidade: cartela.length, numeros: cartela }, novos: cartela.length };
+    return { ok: true, item: { slug, quantidade: cartela.length, numeros: cartela, bilhetes: [cartela] }, novos: cartela.length };
   }
   if (!atual.numeros) {
     const quantidade = atual.quantidade + cartela.length;
     if (quantidade > maximo) return { ok: false, motivo: "maximo" };
     return { ok: true, item: { slug, quantidade }, novos: cartela.length };
   }
+  // Bilhete com número que já está no carrinho não entra: ficaria menor
+  // do que a pessoa escolheu. A tela troca a cartela por outra.
   const ja = new Set(atual.numeros);
-  const novos = cartela.filter((n) => !ja.has(n));
-  if (novos.length === 0) return { ok: false, motivo: "repetida" };
+  if (cartela.some((n) => ja.has(n))) return { ok: false, motivo: "repetida" };
+  const novos = cartela;
   const juntos = [...atual.numeros, ...novos];
   if (juntos.length > teto) return { ok: false, motivo: "maximo" };
-  return { ok: true, item: { slug, quantidade: juntos.length, numeros: juntos }, novos: novos.length };
+  const antes = atual.bilhetes ?? [atual.numeros];
+  return { ok: true, item: { slug, quantidade: juntos.length, numeros: juntos, bilhetes: [...antes, novos] }, novos: novos.length };
+}
+
+/**
+ * Tira um bilhete do item: os outros ficam, com os números deles. Sem
+ * bilhete nenhum, o item sai do carrinho (`null`).
+ */
+export function tirarBilhete(item: ItemDoCarrinho, indice: number): ItemDoCarrinho | null {
+  if (!item.numeros) return item;
+  const bilhetes = (item.bilhetes ?? [item.numeros]).filter((_, i) => i !== indice);
+  if (bilhetes.length === 0) return null;
+  const numeros = bilhetes.flat();
+  return { slug: item.slug, quantidade: numeros.length, numeros, bilhetes };
 }
 
 const SLUG = /^[a-z0-9][a-z0-9-]{0,119}$/;
@@ -91,13 +123,16 @@ export function limparCarrinho(bruto: unknown): ItemDoCarrinho[] {
   const porSlug = new Map<string, ItemDoCarrinho>();
   for (const x of bruto) {
     if (!x || typeof x !== "object") continue;
-    const { slug, quantidade, numeros } = x as Record<string, unknown>;
+    const { slug, quantidade, numeros, bilhetes } = x as Record<string, unknown>;
     if (typeof slug !== "string" || !SLUG.test(slug)) continue;
     if (typeof quantidade !== "number" || !Number.isInteger(quantidade) || quantidade < 0 || quantidade > 1_000_000) continue;
     // A cartela só vale se tiver exatamente a quantidade do item.
     const cartela = numerosDaCartela(numeros);
     porSlug.delete(slug);
-    porSlug.set(slug, cartela && cartela.length === quantidade ? { slug, quantidade, numeros: cartela } : { slug, quantidade });
+    if (cartela && cartela.length === quantidade) {
+      const grupos = bilhetesDoItem(bilhetes, cartela);
+      porSlug.set(slug, grupos ? { slug, quantidade, numeros: cartela, bilhetes: grupos } : { slug, quantidade, numeros: cartela });
+    } else porSlug.set(slug, { slug, quantidade });
   }
   return [...porSlug.values()].slice(-CARRINHO_MAX_ITENS);
 }

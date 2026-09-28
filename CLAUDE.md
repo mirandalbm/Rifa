@@ -1022,9 +1022,9 @@ pedido, cotas e valor, e o cliente só pelo ID (`Cliente C-XXXXXXXX`).
   número novo desde a última visita deste aparelho (`novosRevelados()`,
   `rifa.surpresa.<rifa>`): quem comprou e voltou encontra o número dele. Na
   primeira visita não abre — seria barulho para todo mundo. **Só o ícone,
-  sem círculo**: preto no claro e branco no escuro (`text-ink`), com halo
-  da cor do fundo para ler sobre a foto; pisca enquanto há prêmio em
-  segredo e para, aberto, quando tudo foi revelado (ou com "menos
+  sem círculo nem sombra**: preto no claro e branco no escuro
+  (`text-ink`); pisca (aceso e apagado, meio segundo cada) enquanto há
+  prêmio em segredo e para, aberto, quando tudo foi revelado (ou com "menos
   movimento" no aparelho).
 - **Os números premiados se escolhem no cadastro** (`POST
   /campaigns/:id/prized` com `numeros`, `numerosPremiados()`): só em

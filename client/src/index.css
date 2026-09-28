@@ -209,21 +209,18 @@
   }
 
   /*
-   * O presente da cota surpresa: só o ícone, piscando enquanto há prêmio em
-   * segredo; ao revelar, a tampa sobe e o número aparece. O halo da cor do
-   * fundo (`--white`) deixa o traço legível sobre qualquer foto. Quem pediu
-   * menos movimento ao aparelho vê tudo parado.
+   * O presente da cota surpresa: só o ícone, sem sombra, piscando (aceso e
+   * apagado, meio segundo cada) enquanto há prêmio em segredo; ao revelar,
+   * a tampa sobe e o número aparece. Quem pediu menos movimento ao aparelho
+   * vê tudo parado.
    */
-  .presente-icone svg {
-    filter: drop-shadow(0 0 1.5px var(--white)) drop-shadow(0 0 3px var(--white));
-  }
   @keyframes presente-pisca {
-    0%, 100% { opacity: 1; transform: scale(1); }
-    50% { opacity: 0.35; transform: scale(0.92); }
+    0% { opacity: 1; }
+    50% { opacity: 0; }
   }
   .presente-pisca {
     display: inline-flex;
-    animation: presente-pisca 1.4s ease-in-out infinite;
+    animation: presente-pisca 1s steps(1, end) infinite;
   }
   .presente-tampa-aberta {
     transform: translateY(-2.5px) rotate(-12deg);

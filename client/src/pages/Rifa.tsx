@@ -28,7 +28,7 @@ import { useRastreio } from "@/components/Marketing";
 import type { CorDeDestaque } from "@shared/perfil";
 import { SeguirBotoes, FotoDoPerfil } from "@/components/Seguir";
 import { SorteioCard } from "@/components/SorteioCard";
-import { Comentarios } from "@/components/Comentarios";
+import { Comentarios, PainelDeComentarios } from "@/components/Comentarios";
 import { BotaoDenunciar, SoValePelaPlataforma } from "@/components/Seguranca";
 import { Cartelas } from "@/components/Cartelas";
 
@@ -116,6 +116,8 @@ export default function Rifa() {
   const [trocarSinal, setTrocarSinal] = useState<{ numeros: number[]; vez: number } | null>(null);
   const [search, setSearch] = useState("");
   const [showMap, setShowMap] = useState(false);
+  // O ícone de comentar abre a janela de baixo para cima, como no Instagram.
+  const [comentando, setComentando] = useState(false);
   const [buyer, setBuyer] = useState({ name: "", phone: "", coupon: "", cpf: "" });
   const [error, setError] = useState<string | null>(null);
 
@@ -249,12 +251,15 @@ export default function Rifa() {
       setPicked([]);
       setShowMap(false);
     } else if ((data.pagamento?.online ?? true) && !data.campaign.demonstracao && !data.campaign.travada) {
-      // O bloco de números já abre com um pacote (o em destaque, senão o
-      // segundo, senão o primeiro): quem chega vê as cartelas sem tocar em nada.
+      // A rifa sempre abre no +10: quem chega vê as cartelas sem tocar em
+      // nada. Fora da faixa da rifa, o pacote em destaque, senão o primeiro.
       const pacotes = data.packages.length ? data.packages : PACOTES_PADRAO;
-      const inicial =
-        pacotes.find((p) => p.highlight)?.quantity ?? pacotes[1]?.quantity ?? pacotes[0]?.quantity ?? 0;
-      if (inicial >= minPerOrder && inicial <= maxPerOrder) setPacote(inicial);
+      const cabe = (n: number) => n >= minPerOrder && n <= maxPerOrder;
+      const inicial = cabe(10)
+        ? 10
+        : (pacotes.find((p) => p.highlight && cabe(p.quantity)) ?? pacotes.find((p) => cabe(p.quantity)))?.quantity;
+      if (inicial) setPacote(inicial);
+      else setShowMap(true);
     }
     if (q.has("pacote") || q.has("comprar")) {
       setTimeout(() => document.getElementById("comprar")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
@@ -376,7 +381,7 @@ export default function Rifa() {
             titulo={campaign.prizeTitle}
             caminho={data.organizacao ? `/o/${data.organizacao.slug}/r/${campaign.slug}` : `/r/${campaign.slug}`}
             interacoes={campaign.interacoes}
-            aoComentar={() => document.getElementById("comentarios")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+            aoComentar={() => setComentando(true)}
             vende={vende && stats.soldCount < campaign.totalQuotas}
             aoComprar={() => document.getElementById("comprar")?.scrollIntoView({ behavior: "smooth", block: "start" })}
           />
@@ -446,7 +451,24 @@ export default function Rifa() {
       {/* Compra rápida — o caminho de 95% das vendas. Sem venda online, nem
           aparece: o atributo hidden perdia para a classe grid. */}
       {vende ? (
-      <div id="comprar" className="mt-5 grid scroll-mt-20 grid-cols-4 gap-2">
+      <div id="comprar" className="mt-5 grid scroll-mt-20 grid-cols-5 gap-2">
+        {/* O +0 abre o mapa: escolher número a número. */}
+        <button
+          type="button"
+          onClick={() => {
+            setPacote(0);
+            setPicked([]);
+            setShowMap(true);
+            setError(null);
+          }}
+          aria-pressed={showMap && pacote === 0}
+          className={`rounded-md border px-2 py-2 text-center ${
+            showMap && pacote === 0 ? "border-green bg-green-soft" : "border-line-2 bg-white"
+          }`}
+        >
+          <span className="tnum block text-sm font-bold">+0</span>
+          <span className="text-[10px] text-muted">mapa</span>
+        </button>
         {(packages.length > 0 ? packages : PACOTES_PADRAO).map((p) => (
           <button
             key={p.quantity}
@@ -532,50 +554,38 @@ export default function Rifa() {
         </div>
       ) : null}
 
-      {/* Busca direta: quem sabe o número pula o mapa inteiro. */}
-      <div className="mt-4 flex gap-2">
-        <input
-          id="busca-numero"
-          value={search}
-          onChange={(e) => setSearch(e.target.value.replace(/\D/g, ""))}
-          inputMode="numeric"
-          placeholder={`ir para o número (1 a ${groupNumber(campaign.totalQuotas)})`}
-          className="tnum w-full rounded-md border border-line-2 px-3 py-2 text-sm"
-        />
-        <Button
-          variant="ghost"
-          onClick={() => {
-            const n = Number(search);
-            if (n >= 1 && n <= campaign.totalQuotas) {
-              setPagina(Math.floor((n - 1) / POR_PAGINA));
-              setPacote(0);
-              setShowMap(true);
-            }
-          }}
-        >
-          Buscar
-        </Button>
-      </div>
-
-      <button
-        type="button"
-        onClick={() => {
-          setShowMap((v) => !v);
-          if (pacote) {
-            setPacote(0);
-            setPicked([]);
-          }
-        }}
-        className="mt-3 text-sm text-green-deep underline"
-      >
-        {showMap ? "esconder o mapa de números" : "escolher no mapa"}
-      </button>
-
       {showMap ? (
-        <Card
-          title={`Números ${formatQuota(inicioDaPagina, campaign.totalQuotas)} a ${formatQuota(fimDaPagina, campaign.totalQuotas)}`}
-          right={
-            <span className="flex gap-1">
+        <section className="mt-4 overflow-hidden rounded-xl border border-line bg-white" aria-label="Mapa de números">
+          {/* Cabeçalho: a faixa da página, a busca e as setas. */}
+          <header className="flex items-center gap-2 border-b border-line px-3 py-2.5">
+            <h2 className="tnum shrink-0 font-display text-sm font-bold">
+              {formatQuota(inicioDaPagina, campaign.totalQuotas)} a {formatQuota(fimDaPagina, campaign.totalQuotas)}
+            </h2>
+            <form
+              className="flex min-w-0 flex-1 gap-1"
+              onSubmit={(e) => {
+                e.preventDefault();
+                const n = Number(search);
+                if (n >= 1 && n <= campaign.totalQuotas) setPagina(Math.floor((n - 1) / POR_PAGINA));
+              }}
+            >
+              <label htmlFor="busca-numero" className="sr-only">
+                Buscar número (1 a {groupNumber(campaign.totalQuotas)})
+              </label>
+              <input
+                id="busca-numero"
+                value={search}
+                onChange={(e) => setSearch(e.target.value.replace(/\D/g, ""))}
+                inputMode="numeric"
+                enterKeyHint="search"
+                placeholder="nº"
+                className="tnum min-w-0 flex-1 rounded-md border border-line-2 bg-white px-2 py-1 text-sm"
+              />
+              <button type="submit" className="shrink-0 rounded-md border border-line-2 px-2 py-1 text-xs font-semibold hover:bg-mist">
+                Buscar
+              </button>
+            </form>
+            <span className="flex shrink-0 gap-1">
               <button
                 type="button"
                 aria-label="Números anteriores"
@@ -595,8 +605,7 @@ export default function Rifa() {
                 ›
               </button>
             </span>
-          }
-        >
+          </header>
           <div className="p-3">
             {blockData && isTaken && blockData.from <= inicioDaPagina && blockData.to >= fimDaPagina ? (
               <>
@@ -622,7 +631,7 @@ export default function Rifa() {
                               ? "cursor-not-allowed border-green bg-green text-on-green"
                               : mine
                                 ? "border-2 border-green bg-green-soft text-green-deep"
-                                : "border-line-2 bg-white text-ink-2"
+                                : "texto-numero border-line-2 bg-white"
                           }`}
                         >
                           {formatQuota(n, campaign.totalQuotas)}
@@ -632,14 +641,14 @@ export default function Rifa() {
                   )}
                 </div>
                 <p className="mt-2 text-[11px] text-muted">
-                  Use as setas para ver os próximos 100 números, ou a busca para ir direto a um número.
+                  Use as setas para ver os próximos 100 números, ou a busca para ir direto a um número. Toque para escolher.
                 </p>
               </>
             ) : (
               <p className="py-6 text-center text-sm text-muted">Carregando bloco…</p>
             )}
           </div>
-        </Card>
+        </section>
       ) : null}
 
       {/* Checkout */}
@@ -812,6 +821,7 @@ export default function Rifa() {
       <SorteioCard slug={slug} />
 
       <Comentarios slug={campaign.slug} />
+      {comentando ? <PainelDeComentarios slug={campaign.slug} onFechar={() => setComentando(false)} /> : null}
 
       <footer className="mt-8 space-y-1 border-t border-line pt-4 text-[11px] text-muted">
         <p>

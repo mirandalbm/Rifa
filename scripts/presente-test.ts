@@ -139,7 +139,10 @@ async function main() {
     await ana.req("POST", "/api/public/conta", conta(PESSOAS[0]));
     await bia.req("POST", "/api/public/conta", conta(PESSOAS[1]));
     r = await ana.req("GET", "/api/public/presente/meu");
-    checa("desligado, não há presente para mandar", r.status === 200 && r.json?.ligado === false);
+    checa(
+      "desligado, o presente vira convite: código, sem desconto",
+      r.status === 200 && r.json?.ligado === false && Boolean(r.json.codigo) && r.json.pct === undefined,
+    );
 
     await config({ ligado: true, pct: 10, tetoCents: 700 });
     r = await avulso.req("GET", "/api/public/presente/meu");

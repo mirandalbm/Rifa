@@ -19,7 +19,9 @@ import {
   comentarioCurtidas,
   comentarios,
   organizacaoFotos,
+  orders,
   organizations,
+  prizedQuotas,
 } from "@shared/schema";
 import {
   COMENTARIOS_POR_JANELA,
@@ -31,6 +33,7 @@ import {
   problemaNoComentario,
 } from "@shared/comentarios";
 import { mensagemRespostaAoComentario } from "@shared/push";
+import { formatQuota } from "@shared/format";
 import { hit } from "./antifraude";
 import { avisar, emSegundoPlano } from "./push";
 import { urlDaFoto } from "./perfil";
@@ -53,6 +56,7 @@ async function rifaPublica(slug: string) {
       id: campaigns.id,
       slug: campaigns.slug,
       status: campaigns.status,
+      totalQuotas: campaigns.totalQuotas,
       organizationId: campaigns.organizationId,
       orgNome: organizations.name,
       orgSlug: organizations.slug,
@@ -152,8 +156,37 @@ export async function listarComentarios(req: Request, slug: string) {
   const eu = meuBuyer
     ? (await db.select({ apelido: buyers.apelido, verificadoEm: buyers.verificadoEm }).from(buyers).where(eq(buyers.id, meuBuyer)))[0]
     : null;
+  // Quem levou uma cota premiada fica fixo no topo, com o troféu e a cota.
+  // Só pedido pago: o estorno devolve a cota premiada e o destaque some junto.
+  // O número só aparece depois de reclamado — antes, nunca sai em rota pública.
+  const ganhadores = await db
+    .select({
+      numero: prizedQuotas.number,
+      premio: prizedQuotas.prizeLabel,
+      em: prizedQuotas.claimedAt,
+      nomeComprador: buyers.name,
+      apelido: buyers.apelido,
+      fotoEm: buyers.fotoEm,
+      verificadoEm: buyers.verificadoEm,
+    })
+    .from(prizedQuotas)
+    .innerJoin(orders, eq(orders.id, prizedQuotas.claimedByOrderId))
+    .innerJoin(buyers, eq(buyers.id, orders.buyerId))
+    .where(and(eq(prizedQuotas.campaignId, rifa.id), eq(orders.status, "paid")))
+    .orderBy(desc(prizedQuotas.claimedAt))
+    .limit(20);
   return {
     organizacao: { nome: rifa.orgNome, slug: rifa.orgSlug, verificada: Boolean(rifa.orgVerificadaEm) },
+    premiados: ganhadores.map((g) => ({
+      numero: g.numero,
+      cota: formatQuota(g.numero, rifa.totalQuotas),
+      premio: g.premio,
+      em: g.em,
+      nome: g.apelido ?? nomeNoComentario(g.nomeComprador),
+      perfil: g.apelido ? `/u/${g.apelido}` : null,
+      foto: urlDaFotoDoApostador(g.apelido, g.fotoEm),
+      verificado: Boolean(g.verificadoEm),
+    })),
     // Quem pode escrever: apostador com conta, ou a organização dona.
     podeComentar: Boolean(meuBuyer) || daOrganizacao,
     comoOrganizacao: daOrganizacao,

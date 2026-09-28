@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link, useLocation } from "wouter";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button, Card } from "@/components/bits";
@@ -145,21 +145,104 @@ function Imagem({ peca, titulo, primeira }: { peca: Peca; titulo: string; primei
 function VideoDaPublicacao({ peca }: { peca: Peca }) {
   const formato = peca.formato ?? (peca.durationS ? formatoDoVideo(peca.durationS) : null);
   const reels = formato === "reels";
+  const video = useRef<HTMLVideoElement>(null);
+  // Como no Instagram: começa mudo, o botão de som fica no canto de baixo à
+  // direita, e no fim aparece "Assistir novamente".
+  const [mudo, setMudo] = useState(true);
+  const [acabou, setAcabou] = useState(false);
+  const [tocando, setTocando] = useState(false);
+
+  // O reels toca sozinho (mudo) quando aparece na tela e para quando sai.
+  useEffect(() => {
+    const v = video.current;
+    if (!v || !reels || typeof IntersectionObserver === "undefined") return;
+    const olho = new IntersectionObserver(
+      ([e]) => {
+        if (e.isIntersecting && e.intersectionRatio >= 0.6) {
+          if (!v.ended) v.play().catch(() => {});
+        } else v.pause();
+      },
+      { threshold: [0, 0.6] },
+    );
+    olho.observe(v);
+    return () => olho.disconnect();
+  }, [reels]);
+
+  const alternar = () => {
+    const v = video.current;
+    if (!v) return;
+    if (v.paused) v.play().catch(() => {});
+    else v.pause();
+  };
+  const denovo = () => {
+    const v = video.current;
+    if (!v) return;
+    v.currentTime = 0;
+    setAcabou(false);
+    v.play().catch(() => {});
+  };
+
   return (
     <>
       <video
+        ref={video}
         src={peca.url}
-        controls
         playsInline
-        muted={reels}
-        loop={reels}
+        muted={mudo}
         preload="metadata"
-        className="h-full w-full bg-ink object-cover"
+        onClick={alternar}
+        onPlay={() => {
+          setTocando(true);
+          setAcabou(false);
+        }}
+        onPause={() => setTocando(false)}
+        onEnded={() => setAcabou(true)}
+        className="h-full w-full cursor-pointer bg-ink object-cover"
       />
-      <span className="pointer-events-none absolute bottom-12 left-2 rounded bg-black/60 px-1.5 py-[1px] text-[10px] text-branco">
+      {!tocando && !acabou ? (
+        <button
+          type="button"
+          onClick={alternar}
+          aria-label="Tocar vídeo"
+          className="absolute left-1/2 top-1/2 flex h-16 w-16 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-black/50 text-branco"
+        >
+          <svg viewBox="0 0 24 24" width={30} height={30} aria-hidden>
+            <path d="M8 5.5v13l10.5-6.5Z" fill="currentColor" />
+          </svg>
+        </button>
+      ) : null}
+      {acabou ? (
+        <button
+          type="button"
+          onClick={denovo}
+          className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/40 text-branco"
+        >
+          <svg viewBox="0 0 24 24" width={40} height={40} aria-hidden>
+            <path d="M4 12a8 8 0 1 0 2.35-5.65M4 4v4.5h4.5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          <span className="text-sm font-semibold">Assistir novamente</span>
+        </button>
+      ) : null}
+      <span className="pointer-events-none absolute bottom-3 left-2 rounded bg-black/60 px-1.5 py-[1px] text-[10px] text-branco">
         {reels ? "Reels" : "Vídeo"}
         {peca.durationS ? <span className="tnum"> · {duracao(peca.durationS)}</span> : null}
       </span>
+      <button
+        type="button"
+        onClick={() => setMudo((m) => !m)}
+        aria-label={mudo ? "Ligar o som" : "Desligar o som"}
+        aria-pressed={!mudo}
+        className="absolute bottom-3 right-3 flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-branco"
+      >
+        <svg viewBox="0 0 24 24" width={16} height={16} aria-hidden>
+          <path d="M3 9.5h4l5-4v13l-5-4H3Z" fill="currentColor" />
+          {mudo ? (
+            <path d="M16 9.5l5 5M21 9.5l-5 5" stroke="currentColor" strokeWidth={2} strokeLinecap="round" />
+          ) : (
+            <path d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" />
+          )}
+        </svg>
+      </button>
     </>
   );
 }

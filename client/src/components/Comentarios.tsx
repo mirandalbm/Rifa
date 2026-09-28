@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Gift, Heart, MessageCircle, X } from "lucide-react";
+import { ArrowUp, Gift, Heart, MessageCircle, X } from "lucide-react";
 import { Button, Pill } from "@/components/bits";
 import { apiRequest } from "@/lib/queryClient";
 import { EditarPerfilPublico, FotoDoApostador } from "@/components/PerfilDoApostador";
@@ -34,7 +34,20 @@ interface Lista {
   precisaApelido: boolean;
   podeCurtir: boolean;
   podeUsarEmoji: boolean;
+  premiados: Premiado[];
   lista: (Comentario & { respostas: Comentario[] })[];
+}
+
+/** Quem levou uma cota premiada: fica fixo no topo dos comentários. */
+interface Premiado {
+  numero: number;
+  cota: string;
+  premio: string;
+  em: string | null;
+  nome: string;
+  perfil: string | null;
+  foto: string | null;
+  verificado: boolean;
 }
 
 const tempo = (iso: string) => {
@@ -186,6 +199,7 @@ function Escrever({
   const [erro, setErro] = useState<string | null>(null);
   const [presenteAberto, setPresenteAberto] = useState(false);
   const campo = useRef<HTMLTextAreaElement>(null);
+  const formulario = useRef<HTMLFormElement>(null);
   useEffect(() => {
     if (foco) campo.current?.focus();
   }, [foco]);
@@ -234,34 +248,54 @@ function Escrever({
         </p>
       )}
       <form
+        ref={formulario}
         className="flex items-end gap-2"
         onSubmit={(e) => {
           e.preventDefault();
           const p = problemaNoComentario(texto) ?? (!podeUsarEmoji && temEmoji(texto) ? EMOJI_SO_VERIFICADO : null);
           if (p) return setErro(p);
-          enviar.mutate();
+          if (!enviar.isPending) enviar.mutate();
         }}
       >
-        {comoOrganizacao ? null : <BotaoDePresente aberto={presenteAberto} aoAlternar={() => setPresenteAberto((v) => !v)} />}
         <label htmlFor={`comentar-${slug}`} className="sr-only">
           {rotulo}
         </label>
-        <textarea
-          id={`comentar-${slug}`}
-          ref={campo}
-          rows={1}
-          maxLength={COMENTARIO_MAX}
-          value={texto}
-          placeholder={respostaA ? `Responder @${respostaA.nome}…` : rotulo}
-          onChange={(e) => {
-            setErro(null);
-            setTexto(e.target.value);
-          }}
-          className="min-h-[44px] flex-1 resize-none rounded-full border border-line-2 px-4 py-2.5 text-[14px] leading-[18px]"
-        />
-        <Button type="submit" disabled={enviar.isPending || !texto.trim()} className="rounded-full px-4 py-2.5 text-sm">
-          Publicar
-        </Button>
+        {/* O campo sutil do Instagram: pílula fina, com o envio dentro dela. */}
+        <div className="flex min-w-0 flex-1 items-end rounded-full border border-line-2 bg-white py-1 pl-4 pr-1 focus-within:border-ink-2">
+          <textarea
+            id={`comentar-${slug}`}
+            ref={campo}
+            rows={1}
+            maxLength={COMENTARIO_MAX}
+            value={texto}
+            enterKeyHint="send"
+            placeholder={respostaA ? `Responder @${respostaA.nome}…` : rotulo}
+            onChange={(e) => {
+              setErro(null);
+              setTexto(e.target.value);
+            }}
+            onKeyDown={(e) => {
+              // "Enviar" do teclado do celular (e Enter no computador) publica;
+              // Shift+Enter quebra a linha.
+              if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+                e.preventDefault();
+                if (texto.trim()) formulario.current?.requestSubmit();
+              }
+            }}
+            className="max-h-24 min-h-[30px] flex-1 resize-none bg-transparent py-[6px] text-[14px] leading-[18px] outline-none placeholder:text-muted"
+          />
+          {texto.trim() ? (
+            <button
+              type="submit"
+              disabled={enviar.isPending}
+              aria-label="Publicar comentário"
+              className="ml-1 flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full bg-green text-on-green disabled:opacity-60"
+            >
+              <ArrowUp size={18} strokeWidth={2.5} aria-hidden />
+            </button>
+          ) : null}
+        </div>
+        {comoOrganizacao ? null : <BotaoDePresente aberto={presenteAberto} aoAlternar={() => setPresenteAberto((v) => !v)} />}
       </form>
       {erro ? <p className="text-xs text-red">{erro}</p> : null}
       {presenteAberto && !comoOrganizacao ? <Presentear slug={slug} /> : null}
@@ -269,28 +303,17 @@ function Escrever({
   );
 }
 
-/** O presente só aparece quando a plataforma o ligou. */
-function usePresenteLigado() {
-  const { data } = useQuery<{ ligado: boolean; pct?: number; tetoCents?: number }>({
-    queryKey: ["/api/public/presente"],
-    staleTime: 60_000,
-  });
-  return data?.ligado ? { pct: data.pct!, tetoCents: data.tetoCents! } : null;
-}
-
-/** O ícone de presente, ao lado do campo de comentário. */
+/** O ícone de presente, à direita do campo de comentário — sempre à vista. */
 function BotaoDePresente({ aberto, aoAlternar }: { aberto: boolean; aoAlternar: () => void }) {
-  const cfg = usePresenteLigado();
-  if (!cfg) return null;
   return (
     <button
       type="button"
       onClick={aoAlternar}
       aria-expanded={aberto}
       aria-label="Mandar um presente para um amigo"
-      className={`mb-1.5 rounded-full p-1.5 hover:bg-mist ${aberto ? "text-marca" : "text-ink"}`}
+      className={`mb-0.5 rounded-full p-1.5 hover:bg-mist ${aberto ? "text-marca" : "text-ink"}`}
     >
-      <Gift size={24} strokeWidth={1.75} aria-hidden />
+      <Gift size={26} strokeWidth={1.75} aria-hidden />
     </button>
   );
 }
@@ -316,16 +339,25 @@ function Presentear({ slug }: { slug: string }) {
       </p>
     );
   }
-  if (!data?.ligado || !data.codigo) return null;
-  const link = `${window.location.origin}/r/${slug}?ind=${data.codigo}&presente=1`;
-  const oferta = textoDoPresente({ pct: data.pct!, tetoCents: data.tetoCents! });
-  const mensagem = `Um presente para você: ${oferta}. Crie sua conta e escolha seus números:`;
+  if (!data?.codigo) return <p className="text-xs text-muted">Carregando…</p>;
+  // Com o presente ligado, leva o desconto; desligado, é convite para a rifa.
+  const oferta = data.ligado ? textoDoPresente({ pct: data.pct!, tetoCents: data.tetoCents! }) : null;
+  const link = `${window.location.origin}/r/${slug}?ind=${data.codigo}${oferta ? "&presente=1" : ""}`;
+  const mensagem = oferta
+    ? `Um presente para você: ${oferta}. Crie sua conta e escolha seus números:`
+    : "Olha esta rifa — escolha seus números:";
   return (
     <div className="space-y-2 rounded-lg border border-line bg-mist px-3 py-3 text-sm" role="region" aria-label="Mandar um presente">
       <p className="flex items-start gap-2">
         <Gift size={18} aria-hidden className="mt-0.5 shrink-0 text-marca" />
         <span>
-          Mande um presente: quem receber ganha <b>{oferta}</b>. Vale uma vez por pessoa, com conta, na primeira compra.
+          {oferta ? (
+            <>
+              Mande um presente: quem receber ganha <b>{oferta}</b>. Vale uma vez por pessoa, com conta, na primeira compra.
+            </>
+          ) : (
+            <>Convide um amigo para esta rifa pelo seu link.</>
+          )}
         </span>
       </p>
       <div className="flex gap-2">
@@ -343,7 +375,7 @@ function Presentear({ slug }: { slug: string }) {
             }
           }}
         >
-          Mandar presente
+          {oferta ? "Mandar presente" : "Convidar"}
         </Button>
         <Button
           variant="ghost"
@@ -405,6 +437,35 @@ export function Comentarios({ slug, dentroDoPainel }: { slug: string; dentroDoPa
         </h2>
       )}
 
+      {data?.premiados?.length ? (
+        <ul className="mb-5 space-y-3" aria-label="Cotas premiadas">
+          {data.premiados.map((p) => (
+            <li key={p.numero} className="flex gap-3 rounded-xl border border-yellow bg-yellow-soft px-3 py-2.5">
+              {p.perfil ? (
+                <Link href={p.perfil} aria-hidden tabIndex={-1} className="shrink-0">
+                  <FotoDoApostador nome={p.nome} foto={p.foto} tamanho={36} />
+                </Link>
+              ) : (
+                <FotoDoApostador nome={p.nome} foto={p.foto} tamanho={36} />
+              )}
+              <div className="min-w-0 flex-1 text-[14px] leading-[18px]">
+                <p className="flex flex-wrap items-center gap-x-2">
+                  <Nome c={{ nome: p.nome, perfil: p.perfil, verificado: p.verificado, autor: "comprador" } as Comentario} />
+                  <span className="text-[12px] text-muted">
+                    {p.em ? <span className="tnum">{tempo(p.em)}</span> : null}{" "}
+                    <span aria-hidden>🏆</span> <b className="tnum text-ink">cota {p.cota}</b>
+                  </span>
+                </p>
+                <p className="mt-0.5 break-words">
+                  Ganhou <b>{p.premio}</b> com a cota premiada.
+                </p>
+              </div>
+              <span className="self-start"><Pill status="pending">premiado</Pill></span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+
       <ul className="space-y-5">
         {data?.lista.map((c) => {
           const aberta = abertas.has(c.id);
@@ -452,7 +513,7 @@ export function Comentarios({ slug, dentroDoPainel }: { slug: string; dentroDoPa
           );
         })}
       </ul>
-      {data && data.lista.length === 0 ? (
+      {data && data.lista.length === 0 && !data.premiados?.length ? (
         <p className="py-4 text-center text-sm text-muted">Ainda sem comentários. Comece a conversa.</p>
       ) : null}
 

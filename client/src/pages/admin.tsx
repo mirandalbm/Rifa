@@ -430,6 +430,7 @@ export function AdminCampanhas() {
             totalQuotas={
               data?.find((c) => c.campaign.id === mediaFor)?.campaign.totalQuotas ?? 1000
             }
+            rascunho={data?.find((c) => c.campaign.id === mediaFor)?.campaign.status === "draft"}
           />
         </div>
       ) : null}

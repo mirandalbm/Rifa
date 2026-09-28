@@ -83,7 +83,7 @@ arquitetura.
 | segundo fator | `server/services/totp.ts` |
 | variantes de imagem | `server/services/images.ts` |
 | mensagens e modelos | `server/notifications/` |
-| cotas premiadas | `server/routes/admin.ts` (sorteio) e `services/orders.ts` (revelação) |
+| cotas premiadas | `shared/premiadas.ts` (números escolhidos), `server/routes/admin.ts` (sorteio e escolha), `services/orders.ts` (revelação), `premiados` em `listarComentarios()` (ganhador no topo) |
 | cadastro/cupom/kit do afiliado | `server/routes/public.ts`, `server/routes/affiliate.ts` |
 | afiliado de todas as organizações (vínculo, termo, aceite, colaborador) | `shared/afiliados.ts` (regras), `server/services/afiliados.ts` (`comissaoNaRifa`), `client/src/pages/afiliado.tsx` (`AfiliadoOrganizacoes`), `scripts/afiliados-test.ts` |
 | venda física e acerto | `server/routes/seller.ts`, `server/services/settlements.ts` |
@@ -126,7 +126,7 @@ arquitetura.
 | perfil do apostador (apelido, foto, `/u/<apelido>`) e curtidas | `shared/perfilApostador.ts`, `server/services/perfilApostador.ts`, `client/src/components/PerfilDoApostador.tsx`, `client/src/pages/Usuario.tsx`, `scripts/comentarios-test.ts` |
 | segurança do organizador: telefone aprovado, denúncias, rifa travada, banimento | `shared/seguranca.ts` (regras e varredura), `server/services/seguranca.ts`, `client/src/components/Seguranca.tsx`, `scripts/seguranca-test.ts` |
 | visão do organizador (só o próprio perfil) | `VisaoDoOrganizador` em `client/src/App.tsx`, `organizacao` em `GET /api/auth/me` |
-| central de avisos do apostador (o coração no topo) | `server/services/notificacoes.ts`, `avisar()` em `server/services/push.ts`, `client/src/pages/Notificacoes.tsx`, `CoracaoDeAvisos` em `client/src/components/AppShell.tsx`, `scripts/push-test.ts` |
+| central de avisos do apostador (o trevo no topo) | `server/services/notificacoes.ts`, `avisar()` em `server/services/push.ts`, `client/src/pages/Notificacoes.tsx`, `CoracaoDeAvisos` em `client/src/components/AppShell.tsx`, `scripts/push-test.ts` |
 | perfil verificado (selo de trevo): documentos, foto, fila e cores | `shared/verificacao.ts` (regras e paleta), `server/services/verificacao.ts`, `server/services/rosto.ts` (comparador), `server/routes/verificacaoRotas.ts`, `client/src/components/Verificacao.tsx`, `SeloVerificado.tsx`, `VerificacoesDaPlataforma.tsx`, `CoresDoSelo.tsx`, `scripts/verificacao-test.ts` |
 | publicação da rifa: carrossel de até 10 (reels e vídeos), barra de ações (trevo, comentar, republicar, compartilhar, "+" do carrinho, comprar) e legenda | `shared/publicacao.ts` (regras), `server/services/publicacao.ts`, `server/services/media.ts` (limites), `client/src/components/Publicacao.tsx`, `scripts/publicacao-test.ts` |
 | carrinho (várias rifas, separadas por organização), o Pix único do carrinho e o comprar da publicação | `shared/carrinho.ts` (regras e split), `server/services/carrinho.ts`, `createCartOrder()` em `server/services/orders.ts`, `client/src/pages/CarrinhoPix.tsx`, `client/src/components/EscolherBilhete.tsx` (a janela do "+"), `scripts/carrinho-test.ts`, `client/src/lib/carrinho.ts`, `client/src/pages/Carrinho.tsx`, `BarraDeAcoes` em `client/src/components/Publicacao.tsx`, `scripts/publicacao-test.ts` |
@@ -207,6 +207,10 @@ arquitetura.
 - **O mapa pagina de 100 em 100** sobre o bitmap de 1.000 do servidor e
   mostra o número inteiro (`formatQuota`). Cortar dígito fazia o bloco 2
   parecer o bloco 1.
+- **A página abre no +10** (fora da faixa da rifa, o pacote em destaque);
+  o **+0**, à esquerda do +5, abre o mapa. O cabeçalho do mapa é a faixa
+  da página ("0001 a 0100"), a busca e as setas. Número livre em negrito
+  com `.texto-numero` (`--texto-numero`: azul no claro, verde no escuro).
 
 ## Perfil de demonstração — o que não pode afrouxar
 
@@ -827,7 +831,20 @@ pedido, cotas e valor, e o cliente só pelo ID (`Cliente C-XXXXXXXX`).
   cliques, um desconto e um 404.
 - **Limite por pessoa** (`hit`, 10 em 10 min), contado depois do erro de
   preenchimento — como o chamado.
-- **A resposta da organização avisa o apostador** (push e coração,
+- **Cota premiada no topo** (`premiados` em `listarComentarios()`): quem
+  levou uma cota premiada fica fixo no topo, com 🏆, a cota e o prêmio.
+  Só pedido **pago** (o estorno devolve a cota premiada e o destaque some
+  junto) e só o número já reclamado — antes da compra, o número nunca sai
+  (invariante das mensagens). Nome como no comentário, nunca telefone.
+- **Os números premiados se escolhem no cadastro** (`POST
+  /campaigns/:id/prized` com `numeros`, `numerosPremiados()`): só em
+  rascunho (409 depois de publicar — escolher com venda em andamento seria
+  poder premiar quem já comprou); publicada, só sorteando.
+- **O campo de comentar** é a pílula do Instagram: o envio (verde) aparece
+  dentro dela quando há texto, e o "Enviar" do teclado publica
+  (`enterKeyHint="send"`; Shift+Enter quebra a linha). O ícone de comentar
+  da página da rifa abre `PainelDeComentarios`.
+- **A resposta da organização avisa o apostador** (push e trevo de avisos,
   `comentario`), fora da transação.
 - `npm run comentarios` prova tudo isso contra a API de verdade.
 
@@ -906,8 +923,10 @@ estorno.
   vídeos dividem as 9 vagas e a mesma sequência de posição. Conferido no
   pedido de envio **e** de novo ao gravar (dois envios ao mesmo tempo).
 - **Vídeo até 3 min é reels, até 15 min é feed** (`formatoDoVideo()`), pela
-  duração medida no servidor; mais que isso é recusado. Reels toca mudo e em
-  loop no carrossel; o do feed só no toque.
+  duração medida no servidor; mais que isso é recusado. Reels toca sozinho,
+  mudo, quando aparece na tela; o do feed só no toque. Como no Instagram:
+  sem os controles do navegador, o som no canto de baixo à direita e
+  "Assistir novamente" no fim.
 - **As ações são a chave (rifa, pessoa)** (`publicacao_curtidas`,
   `_republicacoes`, `_salvos`): `ON CONFLICT DO NOTHING`, e o contador em
   `campaigns` só anda quando a linha entrou ou saiu, na mesma transação —
@@ -1030,6 +1049,9 @@ desconto na primeira compra — **pago pela plataforma**.
 - **Nasce desligado**, e só a plataforma liga, com percentual (1 a 50%) e
   teto (R$ 1 a R$ 100) — cartão Presente em Bônus (403 para organizador,
   no `npm run presente`). `validarConfigPresente` só guarda as três chaves.
+- **O ícone fica sempre à direita do campo de comentário.** Desligado, o
+  presente vira convite: o link da rifa com o código de indicação, sem
+  desconto (`meuCodigoDePresente` devolve o código e `ligado: false`).
 - **Uma vez por pessoa, e só com conta.** O CPF único entre contas é o que
   faz o desconto ser um por pessoa; sessão só com o código do WhatsApp não
   basta (`presenteDoPedido` exige senha e CPF). Só na primeira compra paga;
@@ -1079,13 +1101,13 @@ desconto na primeira compra — **pago pela plataforma**.
 - **As chaves VAPID nunca se regeneram sozinhas**: vêm do ambiente ou são
   criadas uma vez em `app_settings`. Trocar invalida todas as inscrições.
 - Mudou `sw.js`? Troque `VERSAO` — senão o celular segue com a casca velha.
-- **A central de avisos guarda o mesmo que sai por push** (o coração no
+- **A central de avisos guarda o mesmo que sai por push** (o trevo no
   topo do site, `/notificacoes`). `avisar()` grava em `notificacoes` para
   todo mundo que o aviso alcança — inclusive quem não ligou o push — com a
   mesma chave por pessoa (índice único `uq_notificacao_chave`), então o
   relógio que repete não duplica. Falha ao gravar não derruba o push nem o
   fluxo. Só o próprio comprador lê (sessão; sem sessão, 401) e abrir marca
-  como lido. O número do coração vai no rótulo, não só na cor. O relógio
+  como lido. O número do trevo vai no rótulo, não só na cor. O relógio
   apaga o que passou de 90 dias (`apagarNotificacoesAntigas`, trava 811012).
 - `npm run push` prova tudo isso, descriptografando o que chega, e confere
   a central de cada pessoa.

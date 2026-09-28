@@ -11,7 +11,7 @@ import "dotenv/config";
 import { baseUrl } from "./base-url";
 import { eq, inArray, sql } from "drizzle-orm";
 import { db, pool } from "../server/db";
-import { buyers, campaignStats, campaigns, comentarios, notificacoes, users } from "../shared/schema";
+import { buyers, campaignStats, campaigns, comentarios, notificacoes, prizedQuotas, users } from "../shared/schema";
 import { COMENTARIOS_POR_JANELA } from "../shared/comentarios";
 
 const URL = baseUrl();
@@ -75,7 +75,7 @@ async function main() {
     .values({ ...base, slug: SLUG, status: "published", publishedAt: new Date() })
     .returning();
   await db.insert(campaignStats).values({ campaignId: rifa.id });
-  await db.insert(campaigns).values({ ...base, slug: RASCUNHO, status: "draft" });
+  const [rascunho] = await db.insert(campaigns).values({ ...base, slug: RASCUNHO, status: "draft" }).returning();
 
   const [ana, bruno, anon] = [new Cliente(), new Cliente(), new Cliente()];
   for (const [c, p] of [[ana, PESSOAS[0]], [bruno, PESSOAS[1]]] as const) {
@@ -195,6 +195,38 @@ async function main() {
     r = await bruno.req("POST", caminho, { texto: "Outro do Bruno" });
     r = await bruno.req("DELETE", `/api/public/comentarios/${r.json?.id}`);
     checa("quem escreveu apaga o próprio", r.status === 200 && (await contador()) === 0, `HTTP ${r.status}`);
+
+    console.log("\n  cota premiada escolhida e o ganhador no topo:");
+    r = await marina.req("POST", `/api/admin/campaigns/${rascunho.id}/prized`, { prizeLabel: "Pix de R$ 50", numeros: "7, 7" });
+    checa("número repetido é recusado", r.status === 422 || r.status === 400, `HTTP ${r.status}`);
+    r = await marina.req("POST", `/api/admin/campaigns/${rascunho.id}/prized`, { prizeLabel: "Pix de R$ 50", numeros: "101" });
+    checa("número fora da rifa é recusado", r.status === 422 || r.status === 400, `HTTP ${r.status}`);
+    r = await marina.req("POST", `/api/admin/campaigns/${rascunho.id}/prized`, { prizeLabel: "Pix de R$ 50", numeros: "7, 42" });
+    checa("no cadastro (rascunho), a organização escolhe os números", r.status === 201 && r.json?.created === 2, `HTTP ${r.status}`);
+    r = await marina.req("POST", `/api/admin/campaigns/${rifa.id}/prized`, { prizeLabel: "Pix de R$ 50", numeros: "8" });
+    checa("depois de publicar, escolher é recusado (409)", r.status === 409, `HTTP ${r.status}`);
+    // Na rifa no ar, a cota premiada nasce como se tivesse vindo do cadastro.
+    await db.insert(prizedQuotas).values({ campaignId: rifa.id, number: 7, prizeLabel: "Pix de R$ 50" });
+    r = await anon.req("GET", caminho);
+    checa("antes da compra, ninguém no topo (o número não sai)", r.json?.premiados?.length === 0 && !JSON.stringify(r.json).includes("Pix de R$ 50"));
+    await db.execute(sql`delete from rate_events where bucket like 'order:%'`);
+    r = await ana.req("POST", "/api/public/orders", {
+      campaignId: rifa.id,
+      numbers: [7],
+      buyer: { name: PESSOAS[0].nome, phone: PESSOAS[0].telefone, cpf: PESSOAS[0].cpf },
+    });
+    checa("a compra da cota premiada entra", r.status === 201, `HTTP ${r.status} ${JSON.stringify(r.json)}`);
+    const codigo = r.json?.code;
+    r = await anon.req("GET", caminho);
+    checa("pedido não pago não vai para o topo", r.json?.premiados?.length === 0);
+    r = await anon.req("POST", `/api/dev/pay/${codigo}`);
+    r = await anon.req("GET", caminho);
+    const g = r.json?.premiados?.[0];
+    checa(
+      "pago: o ganhador fica fixo no topo, com a cota e o prêmio, sem telefone",
+      g?.cota === "007" && g.premio === "Pix de R$ 50" && g.nome === "ana.comenta" && !JSON.stringify(r.json.premiados).includes(PESSOAS[0].telefone),
+      JSON.stringify(g),
+    );
 
     console.log("\n  limite:");
     await db.execute(sql`delete from rate_events where bucket like 'comentario:%'`);

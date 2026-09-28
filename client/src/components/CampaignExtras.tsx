@@ -22,9 +22,12 @@ interface Prized {
 export function CampaignExtras({
   campaignId,
   totalQuotas,
+  rascunho = false,
 }: {
   campaignId: string;
   totalQuotas: number;
+  /** Escolher os números só no cadastro; depois de publicar, só sorteando. */
+  rascunho?: boolean;
 }) {
   const qc = useQueryClient();
   const [error, setError] = useState<string | null>(null);
@@ -57,6 +60,23 @@ export function CampaignExtras({
   });
 
   const [prize, setPrize] = useState({ prizeLabel: "", quantity: 1 });
+  const [escolhidos, setEscolhidos] = useState("");
+  const [aviso, setAviso] = useState<string | null>(null);
+
+  const escolherPrized = useMutation({
+    mutationFn: async () =>
+      (await apiRequest("POST", `/api/admin/campaigns/${campaignId}/prized`, {
+        prizeLabel: prize.prizeLabel,
+        numeros: escolhidos,
+      })).json() as Promise<{ created: number; aviso?: string }>,
+    onSuccess: (r) => {
+      setEscolhidos("");
+      setError(null);
+      setAviso(r.aviso ?? null);
+      qc.invalidateQueries({ queryKey: [`/api/admin/campaigns/${campaignId}/prized`] });
+    },
+    onError: (err: Error) => setError(err.message),
+  });
 
   const drawPrized = useMutation({
     mutationFn: () =>
@@ -172,8 +192,9 @@ export function CampaignExtras({
       >
         <div className="space-y-3 p-4">
           <p className="text-xs text-muted">
-            Os números são sorteados aqui e ficam escondidos do público — quem soubesse
-            qual é compraria só aquele.
+            Escolha os números premiados no cadastro (ou sorteie). Eles ficam escondidos do
+            público — quem soubesse compraria só aquele. Quem comprar um deles ganha na hora, e
+            o perfil aparece fixo no topo dos comentários da rifa com a cota.
           </p>
 
           <div className="flex flex-wrap items-end gap-2">
@@ -206,6 +227,36 @@ export function CampaignExtras({
               Sortear
             </Button>
           </div>
+
+          {rascunho ? (
+            <div className="flex flex-wrap items-end gap-2">
+              <div className="min-w-0 flex-1">
+                <label htmlFor="prize-numeros" className="label-xs">
+                  Ou escolha os números (separados por vírgula)
+                </label>
+                <input
+                  id="prize-numeros"
+                  inputMode="numeric"
+                  value={escolhidos}
+                  placeholder={`ex.: 7, 2376, ${Math.min(totalQuotas, 99999)}`}
+                  onChange={(e) => setEscolhidos(e.target.value.replace(/[^\d,;\s]/g, ""))}
+                  className="tnum mt-1 w-full rounded-md border border-line-2 px-3 py-2 text-sm"
+                />
+              </div>
+              <Button
+                variant="ghost"
+                onClick={() => escolherPrized.mutate()}
+                disabled={prize.prizeLabel.length < 2 || !escolhidos.trim() || escolherPrized.isPending}
+              >
+                Adicionar números
+              </Button>
+            </div>
+          ) : (
+            <p className="text-[11px] text-muted">
+              Rifa publicada: escolher os números não é mais possível (seria poder premiar quem já comprou) — só sortear.
+            </p>
+          )}
+          {aviso ? <p className="text-xs text-yellow-deep">{aviso}</p> : null}
 
           {error ? (
             <p className="rounded-md bg-red-soft px-3 py-2 text-sm text-red">{error}</p>

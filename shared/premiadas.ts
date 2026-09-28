@@ -1,0 +1,40 @@
+/**
+ * Cotas premiadas: o organizador escolhe os números no cadastro da rifa (ou
+ * pede para sortear). Quem comprar um deles leva o prêmio na hora — a
+ * revelação acontece no pagamento (`settleOrderAsPaid`), e depois disso o
+ * ganhador aparece fixo no topo dos comentários da rifa com a cota.
+ *
+ * - **Escolher é só antes de publicar.** Depois de ter comprador, escolher o
+ *   número seria poder premiar quem já comprou (um amigo, a própria conta).
+ *   Sortear continua valendo a qualquer hora, porque ninguém escolhe.
+ * - **O número não sai em endpoint público antes de ser ganho**: só a
+ *   descrição do prêmio. Ganho, a cota já foi vendida — mostrar não dá
+ *   vantagem a ninguém.
+ */
+
+export const PREMIADAS_MAX = 500;
+
+/**
+ * Lê a lista digitada ("12, 345 1000") ou recebida e confere: inteiros na
+ * faixa da rifa, sem repetir, até `PREMIADAS_MAX`. Devolve a lista ou o
+ * problema, em português.
+ */
+export function numerosPremiados(bruto: unknown, totalQuotas: number): { numeros: number[] } | { problema: string } {
+  const lista = Array.isArray(bruto)
+    ? bruto
+    : typeof bruto === "string"
+      ? bruto.split(/[\s,;]+/).filter(Boolean)
+      : null;
+  if (!lista || lista.length === 0) return { problema: "Informe ao menos um número." };
+  if (lista.length > PREMIADAS_MAX) return { problema: `No máximo ${PREMIADAS_MAX} cotas premiadas por vez.` };
+  const numeros: number[] = [];
+  for (const x of lista) {
+    const n = typeof x === "number" ? x : Number(String(x).replace(/\D/g, "") || NaN);
+    if (!Number.isInteger(n) || n < 1 || n > totalQuotas) {
+      return { problema: `O número ${String(x)} está fora da faixa da rifa (1 a ${totalQuotas}).` };
+    }
+    if (numeros.includes(n)) return { problema: `O número ${n} está repetido.` };
+    numeros.push(n);
+  }
+  return { numeros };
+}

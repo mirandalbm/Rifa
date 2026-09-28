@@ -80,12 +80,12 @@ senha); **[código]** é trabalho no repositório.
   aprovar, quem comprou e quem segue recebe o aviso e a página da rifa
   mostra a data de antes.
 - [x] Vitrine como o Instagram: fileira de stories no topo (no lugar dos
-  estados), perfil da promotora por cima da imagem no feed, e o coração no
-  topo com a central de avisos (`/notificacoes`).
+  estados), perfil da promotora por cima da imagem no feed, e o trevo no
+  topo (era o coração) com a central de avisos (`/notificacoes`).
 - [x] Comentários na publicação da rifa (apostador com conta; a organização
   responde e modera) e o organizador vendo a plataforma pelo próprio perfil.
 - [ ] Aviso ao organizador de comentário novo (hoje ele vê no próprio perfil;
-  falta o coração do painel).
+  falta o trevo de avisos no painel).
 - [x] Comentários como no Instagram (apelido, foto, curtidas, respostas
   recolhidas, reações) e perfil do apostador `/u/<apelido>` com o primeiro e
   o último nome reais. A organização pede a remoção de comentário; a
@@ -109,6 +109,19 @@ senha); **[código]** é trabalho no repositório.
 - [x] Presente pelos comentários: desconto de primeira compra pago pela
   plataforma (percentual e teto no painel, nasce desligado), crédito da
   promotora acertado na cobrança, bônus de indicação para quem convida.
+- [x] Página da rifa: abre sempre no +10; o +0 abre o mapa (sem o
+  "esconder o mapa"), com a faixa da página, a busca e as setas no topo e
+  os números livres em azul (claro) / verde (escuro), em negrito.
+- [x] Cotas premiadas escolhidas pela organização no cadastro (rascunho);
+  quem compra ganha na hora e fica fixo no topo dos comentários com 🏆 e a
+  cota.
+- [x] Vídeo como no Instagram: botão de som no canto de baixo à direita e
+  "Assistir novamente" no fim.
+- [x] Comentários: o ícone abre a janela de baixo para cima; campo sutil com
+  o envio verde dentro (e pelo "Enviar" do teclado); presente à direita,
+  sempre à vista (desligado, vira convite sem desconto).
+- [ ] **[você]** Conferir o vídeo no celular (som e "Assistir novamente"): o
+  banco de testes não tem vídeo, então não saiu captura dele.
 - [ ] **[você]** Advogado e contador: o desconto do presente pago pela
   plataforma (promoção comercial, nota da plataforma) antes de ligar o
   presente em Bônus → Presente.

@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from "react";
-import { CARRINHO_MAX_ITENS, limparCarrinho, type ItemDoCarrinho } from "@shared/carrinho";
+import { CARRINHO_MAX_ITENS, juntarCartela, limparCarrinho, type ItemDoCarrinho } from "@shared/carrinho";
 
 /**
  * O carrinho fica neste aparelho, como a região e o tema. Guarda rifa e
@@ -48,6 +48,40 @@ export function porNoCarrinho(slug: string, quantidade: number, numeros?: number
   const item = numeros && numeros.length === quantidade ? { slug, quantidade, numeros } : { slug, quantidade };
   gravar(ja ? atual.map((i) => (i.slug === slug ? item : i)) : [...atual, item]);
   return true;
+}
+
+/**
+ * Soma mais uma cartela à rifa no carrinho (`juntarCartela`): a pessoa pode
+ * pôr quantas cartelas quiser da mesma rifa, até o máximo por pedido.
+ */
+export function juntarNoCarrinho(
+  slug: string,
+  numeros: number[],
+  maximo?: number,
+): { ok: true; novos: number; total: number } | { ok: false; motivo: "cheio" | "repetida" | "maximo" } {
+  const itens = lerCarrinho();
+  const atual = itens.find((i) => i.slug === slug);
+  if (!atual && itens.length >= CARRINHO_MAX_ITENS) return { ok: false, motivo: "cheio" };
+  const r = juntarCartela(atual, slug, numeros, maximo);
+  if (!r.ok) return r;
+  gravar(atual ? itens.map((i) => (i.slug === slug ? r.item : i)) : [...itens, r.item]);
+  return { ok: true, novos: r.novos, total: r.item.quantidade };
+}
+
+/** O aviso de `juntarNoCarrinho`, o mesmo na página da rifa e na janela do "+". */
+export function avisoDaJuntada(r: ReturnType<typeof juntarNoCarrinho>, maximo?: number): { ok: boolean; texto: string } {
+  if (r.ok) {
+    return {
+      ok: true,
+      texto:
+        r.novos === r.total
+          ? `Cartela no carrinho (${r.total} números).`
+          : `Cartela somada: ${r.total} números desta rifa no carrinho.`,
+    };
+  }
+  if (r.motivo === "cheio") return { ok: false, texto: "O carrinho já tem 20 rifas. Pague ou tire alguma antes." };
+  if (r.motivo === "repetida") return { ok: false, texto: "Estes números já estão no carrinho." };
+  return { ok: false, texto: `Passa do máximo de ${maximo ?? "cotas"} números por pedido desta rifa.` };
 }
 
 /** Alguém levou um número da cartela: o item fica, e o número passa a ser sorteado na compra. */

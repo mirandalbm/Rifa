@@ -129,6 +129,9 @@ senha); **[código]** é trabalho no repositório.
 - [x] Mapa e cartelas em casas quadradas, azuis e verdes ao acaso nos dois
   temas (a cor sai do número, a mesma em toda tela), o escolhido destacado
   com ✓; o mesmo formato na janela do "+" e no carrinho.
+- [x] Cota surpresa: presente animado na publicação (só com cota premiada),
+  que revela o número comprado; o aviso amarelo saiu. Cartela com trocar,
+  carrinho e Pagar numa linha, e várias cartelas da mesma rifa no carrinho.
 - [x] Vitrine no computador: feed em 3 colunas e "Sorteios chegando" ao lado
   do banner.
 - [x] Perfil da organização no computador: cartão do perfil à esquerda e

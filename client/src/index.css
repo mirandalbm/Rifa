@@ -209,6 +209,43 @@
   }
 
   /*
+   * O presente da cota surpresa: só o ícone, sem sombra, piscando (aceso e
+   * apagado, meio segundo cada) enquanto há prêmio em segredo; ao revelar,
+   * a tampa sobe e o número aparece. Quem pediu menos movimento ao aparelho
+   * vê tudo parado.
+   */
+  @keyframes presente-pisca {
+    0% { opacity: 1; }
+    50% { opacity: 0; }
+  }
+  .presente-pisca {
+    display: inline-flex;
+    animation: presente-pisca 1s steps(1, end) infinite;
+  }
+  .presente-tampa-aberta {
+    transform: translateY(-2.5px) rotate(-12deg);
+    transform-origin: 4px 11px;
+    transition: transform 0.35s ease-out;
+  }
+  @keyframes presente-revela {
+    0% { transform: scale(0.4); opacity: 0; }
+    60% { transform: scale(1.12); opacity: 1; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+  .presente-revela {
+    animation: presente-revela 0.5s ease-out both;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .presente-pisca,
+    .presente-revela {
+      animation: none;
+    }
+    .presente-tampa-aberta {
+      transition: none;
+    }
+  }
+
+  /*
    * Destaque do organizador (white label do perfil). Troca só a cor de
    * marca, e só dentro do perfil e da faixa da promotora na rifa: o resto
    * da plataforma, e o significado das cores, ficam como estão.

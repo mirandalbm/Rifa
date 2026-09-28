@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   CARRINHO_MAX_ITENS,
   agruparPorOrganizacao,
+  juntarCartela,
   splitDoCarrinho,
   situacaoDoCarrinho,
   limparCarrinho,
@@ -59,6 +60,43 @@ describe("limparCarrinho", () => {
     const r = limparCarrinho(muitos);
     expect(r).toHaveLength(CARRINHO_MAX_ITENS);
     expect(r[r.length - 1].slug).toBe("r29");
+  });
+});
+
+describe("juntarCartela", () => {
+  it("a primeira cartela vira o item, com a quantidade dos números", () => {
+    const r = juntarCartela(undefined, "a", [1, 2, 3]);
+    expect(r).toEqual({ ok: true, item: { slug: "a", quantidade: 3, numeros: [1, 2, 3] }, novos: 3 });
+  });
+
+  it("a segunda cartela soma os números, sem repetir — e o item continua válido para o carrinho", () => {
+    const r = juntarCartela({ slug: "a", quantidade: 3, numeros: [1, 2, 3] }, "a", [3, 4, 5]);
+    expect(r).toEqual({ ok: true, item: { slug: "a", quantidade: 5, numeros: [1, 2, 3, 4, 5] }, novos: 2 });
+    if (r.ok) expect(limparCarrinho([r.item])).toEqual([r.item]);
+  });
+
+  it("cartela toda repetida não muda nada", () => {
+    expect(juntarCartela({ slug: "a", quantidade: 2, numeros: [1, 2] }, "a", [2, 1])).toEqual({ ok: false, motivo: "repetida" });
+  });
+
+  it("passar do máximo da rifa recusa, sem cortar a cartela", () => {
+    expect(juntarCartela({ slug: "a", quantidade: 8, numeros: [1, 2, 3, 4, 5, 6, 7, 8] }, "a", [9, 10, 11], 10)).toEqual({
+      ok: false,
+      motivo: "maximo",
+    });
+    expect(juntarCartela(undefined, "a", [1, 2, 3], 2)).toEqual({ ok: false, motivo: "maximo" });
+  });
+
+  it("item só com quantidade soma a quantidade, e os números passam a ser sorteados", () => {
+    expect(juntarCartela({ slug: "a", quantidade: 7 }, "a", [1, 2, 3])).toEqual({ ok: true, item: { slug: "a", quantidade: 10 }, novos: 3 });
+  });
+
+  it("item com a quantidade sugerida (0) é trocado pela cartela", () => {
+    expect(juntarCartela({ slug: "a", quantidade: 0 }, "a", [4, 5])).toEqual({
+      ok: true,
+      item: { slug: "a", quantidade: 2, numeros: [4, 5] },
+      novos: 2,
+    });
   });
 });
 

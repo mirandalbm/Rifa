@@ -3,7 +3,7 @@ import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { X } from "lucide-react";
 import { Cartelas } from "@/components/Cartelas";
-import { porNoCarrinho } from "@/lib/carrinho";
+import { avisoDaJuntada, juntarNoCarrinho } from "@/lib/carrinho";
 import { CARTELA_MAX_NUMEROS, quantidadeNaFaixa } from "@shared/carrinho";
 import { priceOrder, type PricingPackage } from "@shared/pricing";
 import { formatBRL } from "@shared/format";
@@ -38,6 +38,7 @@ export function EscolherBilhete({
   const [quantidade, setQuantidade] = useState(0);
   const [outra, setOutra] = useState("");
   const [cheio, setCheio] = useState(false);
+  const [recusa, setRecusa] = useState<string | null>(null);
 
   // Esc fecha, e a página de trás não rola enquanto a janela está aberta.
   useEffect(() => {
@@ -149,6 +150,12 @@ export function EscolherBilhete({
               </p>
             ) : null}
 
+            {recusa ? (
+              <p role="alert" className="mt-3 rounded-md bg-red-soft px-3 py-2 text-sm text-red">
+                {recusa}
+              </p>
+            ) : null}
+
             {quantidade ? (
               <Cartelas
                 slug={slug}
@@ -161,8 +168,11 @@ export function EscolherBilhete({
                 trocarSinal={null}
                 acao="carrinho"
                 onPagar={(numeros) => {
-                  if (!porNoCarrinho(slug, numeros.length, numeros)) return setCheio(true);
-                  aoAdicionar(numeros.length);
+                  // Soma à rifa no carrinho: dá para pôr várias cartelas.
+                  const r = juntarNoCarrinho(slug, numeros, c.maxPerOrder);
+                  if (r.ok) return aoAdicionar(r.total);
+                  if (r.motivo === "cheio") return setCheio(true);
+                  setRecusa(avisoDaJuntada(r, c.maxPerOrder).texto);
                 }}
               />
             ) : null}

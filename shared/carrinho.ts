@@ -38,6 +38,47 @@ export function numerosDaCartela(v: unknown): number[] | undefined {
   return unicos.length === v.length ? unicos : undefined;
 }
 
+/**
+ * Juntar mais uma cartela ao item da rifa. O carrinho continua com um item
+ * por rifa (cada rifa é um pedido na compra), e a cartela nova soma os
+ * números dela aos que já estavam lá:
+ *
+ * - item com cartela: junta os números, sem repetir; se todos já estavam,
+ *   é `repetida`;
+ * - item só com quantidade (a pessoa mudou a quantidade no carrinho): soma
+ *   a quantidade e os números passam a ser sorteados na compra — a cartela
+ *   só vale se tiver exatamente a quantidade do item;
+ * - passar do máximo da rifa (ou do teto da cartela) é `maximo`, e nada muda.
+ */
+export type CartelaJuntada =
+  | { ok: true; item: ItemDoCarrinho; novos: number }
+  | { ok: false; motivo: "repetida" | "maximo" };
+
+export function juntarCartela(
+  atual: ItemDoCarrinho | undefined,
+  slug: string,
+  numeros: number[],
+  maximo: number = CARTELA_MAX_NUMEROS,
+): CartelaJuntada {
+  const teto = Math.min(maximo, CARTELA_MAX_NUMEROS);
+  const cartela = [...new Set(numeros)];
+  if (!atual || atual.quantidade === 0) {
+    if (cartela.length > teto) return { ok: false, motivo: "maximo" };
+    return { ok: true, item: { slug, quantidade: cartela.length, numeros: cartela }, novos: cartela.length };
+  }
+  if (!atual.numeros) {
+    const quantidade = atual.quantidade + cartela.length;
+    if (quantidade > maximo) return { ok: false, motivo: "maximo" };
+    return { ok: true, item: { slug, quantidade }, novos: cartela.length };
+  }
+  const ja = new Set(atual.numeros);
+  const novos = cartela.filter((n) => !ja.has(n));
+  if (novos.length === 0) return { ok: false, motivo: "repetida" };
+  const juntos = [...atual.numeros, ...novos];
+  if (juntos.length > teto) return { ok: false, motivo: "maximo" };
+  return { ok: true, item: { slug, quantidade: juntos.length, numeros: juntos }, novos: novos.length };
+}
+
 const SLUG = /^[a-z0-9][a-z0-9-]{0,119}$/;
 
 /**

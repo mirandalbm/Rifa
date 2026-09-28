@@ -286,7 +286,9 @@ Como no Instagram, com as nossas cores (verde no lugar do vermelho e do rosa).
   conta saíram do topo.
 - **Console na base, seis botões** (`BOTOES_DO_CONSOLE`): Início, Reels,
   Mensagens, Buscar, Carrinho (o carrinho final, para pagar) e Perfil (a
-  foto de quem entrou). O que ainda não existe (`pronto: false`) aparece
+  foto de quem entrou). **Ícones no traço suave** (`Icones.tsx`: 1,75 em 24,
+  pontas e cantos redondos), os mesmos da barra de ações — nada de ícone
+  de biblioteca de traço reto no console. O que ainda não existe (`pronto: false`) aparece
   mesmo assim e leva a "Em breve" (`EM_BREVE`) — o app em desenvolvimento
   mostra a forma final. Botão aceso com traço mais grosso **e**
   `aria-current`, nunca só a cor; o número do carrinho vai no rótulo.
@@ -296,7 +298,7 @@ Como no Instagram, com as nossas cores (verde no lugar do vermelho e do rosa).
   isolation`). Só estilo e cor conhecidos entram (`validarAvisoDoTrevo`);
   as cores fixas são da paleta do selo **sem os roxos** (roxo, violeta,
   magenta e índigo não são cor do sistema — claro é branco e azul com
-  detalhes verdes, escuro é preto com detalhes azuis), com contraste ≥ 3:1
+  detalhes verdes; escuro é preto e verde, com azul em alguns lugares), com contraste ≥ 3:1
   nos dois temas (o teste confere). O número de avisos vai no rótulo.
 - **A logo não muda** — nem na lateral do computador, onde só fica menor.
   É o último item do sistema a mudar.

@@ -1,3 +1,4 @@
+import { Icone, IconeAviao, IconeSacola, TRACO } from "@/components/Icones";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link, useLocation } from "wouter";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -285,19 +286,6 @@ function VideoDaPublicacao({ peca }: { peca: Peca }) {
   );
 }
 
-/**
- * Os ícones da barra, no desenho do Instagram: traço fino (1,75 em 24),
- * pontas e cantos redondos — mais suaves aos olhos que os de linha grossa.
- */
-const TRACO = { fill: "none", stroke: "currentColor", strokeWidth: 1.75, strokeLinecap: "round", strokeLinejoin: "round" } as const;
-
-function Icone({ tamanho = 26, children, className }: { tamanho?: number; children: ReactNode; className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" width={tamanho} height={tamanho} aria-hidden className={className}>
-      {children}
-    </svg>
-  );
-}
 
 /**
  * O trevo da curtida: contorno quando não curtiu, cheio na cor da marca
@@ -345,13 +333,6 @@ function IconeRepublicar({ ligado }: { ligado: boolean }) {
   );
 }
 
-function IconeCompartilhar() {
-  return (
-    <Icone tamanho={25}>
-      <path {...TRACO} d="M22 3 9.22 10.08M11.7 20.33 22 3H2l7.22 7.08Z" />
-    </Icone>
-  );
-}
 
 /** O "+" do carrinho: em negrito, azul — abre a janela para escolher os números. */
 function IconeMais() {
@@ -362,15 +343,6 @@ function IconeMais() {
   );
 }
 
-/** Comprar agora: a sacola de compras, no mesmo traço dos outros ícones. */
-function IconeComprar() {
-  return (
-    <Icone>
-      <path {...TRACO} d="M4.75 7.75h14.5l-1.1 11.6a1.9 1.9 0 0 1-1.9 1.65H7.75a1.9 1.9 0 0 1-1.9-1.65Z" />
-      <path {...TRACO} d="M8.75 10.25V6.75a3.25 3.25 0 0 1 6.5 0v3.5" />
-    </Icone>
-  );
-}
 
 /**
  * A barra embaixo da publicação, como no Instagram: curtir (o trevo),
@@ -480,7 +452,7 @@ export function BarraDeAcoes({
           <span className="tnum text-[15px] font-medium">{contadorCurto(i.republicacoes)}</span>
         </button>
         <button type="button" className={botao} aria-label={`Compartilhar (${i.compartilhamentos})`} onClick={() => void compartilhar()}>
-          <IconeCompartilhar />
+          <IconeAviao />
           <span className="tnum text-[15px] font-medium">{contadorCurto(i.compartilhamentos)}</span>
         </button>
         {vende ? (
@@ -500,7 +472,7 @@ export function BarraDeAcoes({
               aria-label="Comprar agora"
               onClick={() => (aoComprar ? aoComprar() : navegar(`${caminho}?comprar=1`))}
             >
-              <IconeComprar />
+              <IconeSacola />
             </button>
           </>
         ) : null}

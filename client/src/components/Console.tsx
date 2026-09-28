@@ -2,17 +2,8 @@ import { useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Link, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import {
-  CircleUserRound,
-  Clapperboard,
-  House,
-  Search,
-  Send,
-  ShoppingBag,
-  WandSparkles,
-  X,
-  type LucideIcon,
-} from "lucide-react";
+import { CircleUserRound, X } from "lucide-react";
+import { IconeAviao, IconeCasa, IconeLupa, IconeReels, IconeSacola, IconeVarinha } from "@/components/Icones";
 import {
   AVISO_DO_TREVO_PADRAO,
   BOTOES_DO_CONSOLE,
@@ -44,12 +35,13 @@ export function useConfigDoApp(): ConfigDoApp {
   return data ?? { avisoDoTrevo: AVISO_DO_TREVO_PADRAO, publicarApostador: false };
 }
 
-const ICONE: Record<Exclude<BotaoDoConsole, "perfil">, LucideIcon> = {
-  inicio: House,
-  reels: Clapperboard,
-  mensagens: Send,
-  buscar: Search,
-  carrinho: ShoppingBag,
+/** Os ícones do console, no traço suave da barra de ações (`Icones.tsx`). */
+const ICONE: Record<Exclude<BotaoDoConsole, "perfil">, (p: { aceso?: boolean; tamanho?: number }) => ReactNode> = {
+  inicio: IconeCasa,
+  reels: IconeReels,
+  mensagens: IconeAviao,
+  buscar: IconeLupa,
+  carrinho: IconeSacola,
 };
 
 /* ------------------------------------------------------------------ *
@@ -121,7 +113,7 @@ export function BotaoPublicar({ comRotulo = false }: { comRotulo?: boolean }) {
         title="Criar publicação"
         className={itemClasse(comRotulo)}
       >
-        <WandSparkles size={25} strokeWidth={1.75} aria-hidden />
+        <IconeVarinha tamanho={26} />
         {comRotulo ? <span className="hidden xl:inline">Criar</span> : null}
       </button>
       {/* No body: dentro do topo (camada própria, z-20) o console passaria por cima do menu. */}
@@ -216,7 +208,7 @@ function AvatarDoConsole() {
       </span>
     );
   }
-  return <CircleUserRound size={26} strokeWidth={1.75} aria-hidden />;
+  return <CircleUserRound size={26} strokeWidth={1.75} absoluteStrokeWidth={false} aria-hidden />;
 }
 
 function BotaoDoConsole({ chave, rotulo, caminho, ativo, lateral }: { chave: BotaoDoConsole; rotulo: string; caminho: string; ativo: boolean; lateral: boolean }) {
@@ -224,7 +216,7 @@ function BotaoDoConsole({ chave, rotulo, caminho, ativo, lateral }: { chave: Bot
   const Icone = chave === "perfil" ? null : ICONE[chave];
   const nome = chave === "carrinho" && itens ? `${rotulo}: ${itens} rifa(s)` : rotulo;
   const icone: ReactNode = Icone ? (
-    <Icone size={26} strokeWidth={ativo ? 2.5 : 1.75} aria-hidden />
+    <Icone aceso={ativo} tamanho={26} />
   ) : (
     <span className={`inline-flex rounded-full ${ativo ? "ring-2 ring-ink ring-offset-1 ring-offset-white" : ""}`}>
       <AvatarDoConsole />

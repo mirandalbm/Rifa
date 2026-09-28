@@ -34,7 +34,20 @@ interface Lista {
   precisaApelido: boolean;
   podeCurtir: boolean;
   podeUsarEmoji: boolean;
+  premiados: Premiado[];
   lista: (Comentario & { respostas: Comentario[] })[];
+}
+
+/** Quem levou uma cota premiada: o único comentário fixo, no topo. */
+interface Premiado {
+  numero: number;
+  cota: string;
+  premio: string;
+  em: string | null;
+  nome: string;
+  perfil: string | null;
+  foto: string | null;
+  verificado: boolean;
 }
 
 const tempo = (iso: string) => {
@@ -425,6 +438,36 @@ export function Comentarios({ slug, dentroDoPainel }: { slug: string; dentroDoPa
       )}
 
 
+      {/* O comentário fixo é só o de quem levou a cota premiada — no estilo
+          dos outros, sem cor de destaque, com "Fixado" escrito. */}
+      {data?.premiados?.length ? (
+        <ul className="mb-5 space-y-5 border-b border-line pb-5" aria-label="Comentário fixo: cota premiada">
+          {data.premiados.map((p) => (
+            <li key={p.numero} className="flex gap-3">
+              {p.perfil ? (
+                <Link href={p.perfil} aria-hidden tabIndex={-1} className="shrink-0">
+                  <FotoDoApostador nome={p.nome} foto={p.foto} tamanho={36} />
+                </Link>
+              ) : (
+                <FotoDoApostador nome={p.nome} foto={p.foto} tamanho={36} />
+              )}
+              <div className="min-w-0 flex-1 text-[14px] leading-[18px]">
+                <p className="mb-0.5 text-[12px] text-muted">
+                  <span aria-hidden>📌</span> Fixado
+                </p>
+                <p className="flex flex-wrap items-center gap-x-2">
+                  <Nome c={{ nome: p.nome, perfil: p.perfil, verificado: p.verificado, autor: "comprador" } as Comentario} />
+                  {p.em ? <span className="tnum text-[12px] text-muted">{tempo(p.em)}</span> : null}
+                </p>
+                <p className="mt-0.5 break-words">
+                  <span aria-hidden>🏆</span> Ganhou <b>{p.premio}</b> com a cota premiada <b className="tnum">{p.cota}</b>.
+                </p>
+              </div>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+
       <ul className="space-y-5">
         {data?.lista.map((c) => {
           const aberta = abertas.has(c.id);
@@ -472,7 +515,7 @@ export function Comentarios({ slug, dentroDoPainel }: { slug: string; dentroDoPa
           );
         })}
       </ul>
-      {data && data.lista.length === 0 ? (
+      {data && data.lista.length === 0 && !data.premiados?.length ? (
         <p className="py-4 text-center text-sm text-muted">Ainda sem comentários. Comece a conversa.</p>
       ) : null}
 

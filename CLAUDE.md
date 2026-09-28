@@ -85,7 +85,7 @@ arquitetura.
 | segundo fator | `server/services/totp.ts` |
 | variantes de imagem | `server/services/images.ts` |
 | mensagens e modelos | `server/notifications/` |
-| cotas premiadas | `shared/premiadas.ts` (números escolhidos), `server/routes/admin.ts` (sorteio e escolha), `services/orders.ts` (revelação), `premiados` em `listarComentarios()` (quem levou), `client/src/components/CotaSurpresa.tsx` (o presente na publicação, que revela) |
+| cotas premiadas | `shared/premiadas.ts` (números escolhidos), `server/routes/admin.ts` (sorteio e escolha), `services/orders.ts` (revelação), `premiados` em `listarComentarios()` (o comentário fixo de quem levou), `client/src/components/CotaSurpresa.tsx` (o presente na publicação, que revela) |
 | cadastro/cupom/kit do afiliado | `server/routes/public.ts`, `server/routes/affiliate.ts` |
 | afiliado de todas as organizações (vínculo, termo, aceite, colaborador) | `shared/afiliados.ts` (regras), `server/services/afiliados.ts` (`comissaoNaRifa`), `client/src/pages/afiliado.tsx` (`AfiliadoOrganizacoes`), `scripts/afiliados-test.ts` |
 | venda física e acerto | `server/routes/seller.ts`, `server/services/settlements.ts` |
@@ -1006,13 +1006,13 @@ pedido, cotas e valor, e o cliente só pelo ID (`Cliente C-XXXXXXXX`).
   cliques, um desconto e um 404.
 - **Limite por pessoa** (`hit`, 10 em 10 min), contado depois do erro de
   preenchimento — como o chamado.
-- **Quem levou cota premiada** (`premiados` em `listarComentarios()`): só
-  pedido **pago** (o estorno devolve a cota premiada e o nome some junto) e
-  só o número já reclamado — antes da compra, o número nunca sai
-  (invariante das mensagens). Nome como no comentário, nunca telefone. A
-  lista **não aparece mais fixa em destaque amarelo no topo dos
-  comentários** (saiu a pedido do produto): quem mostra é o presente da
-  cota surpresa, abaixo.
+- **O comentário fixo é só o de quem levou cota premiada** (`premiados`
+  em `listarComentarios()`): fica no topo, marcado "Fixado", com 🏆, o
+  prêmio e a cota — no estilo dos outros comentários, **sem destaque
+  amarelo**. Só pedido **pago** (o estorno devolve a cota premiada e o
+  fixo some junto) e só o número já reclamado — antes da compra, o número
+  nunca sai (invariante das mensagens). Nome como no comentário, nunca
+  telefone. Nenhum outro comentário é fixado.
 - **A cota surpresa é o presente animado** no canto de baixo à direita da
   publicação, na página da rifa (`CotaSurpresa`, `canto` do `Carrossel`,
   que sobe acima do som no vídeo). Só existe com cota premiada — é opcional

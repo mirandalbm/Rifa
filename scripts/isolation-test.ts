@@ -34,6 +34,7 @@ import {
   comentarios,
 } from "../shared/schema";
 import { hashPassword } from "../server/auth";
+import { mediaKey, storage } from "../server/services/storage";
 
 const URL = baseUrl();
 
@@ -320,6 +321,68 @@ async function alcancaOVizinho(eu: Lado, vizinho: Lado) {
   checa("o story do vizinho continua no ar", Boolean(aindaLa));
   const meus = (await (await pedir(eu.cookie, "/api/admin/stories")).json()) as { id: string }[];
   checa("a lista de stories não traz o do vizinho", !meus.some((x) => x.id === storyDoVizinho.id));
+}
+
+/**
+ * A confirmação do envio de mídia recebe a chave do arquivo pelo corpo. A
+ * chave do vizinho aparece no endereço público da imagem dele: com ela, e
+ * uma mídia que reprova (foto sem texto alternativo), a limpeza da recusa
+ * apagava o arquivo do vizinho. Agora a chave de outra rifa é recusada antes
+ * de tudo, e o arquivo dele fica onde estava.
+ */
+async function midiaDoVizinho(eu: Lado, vizinho: Lado) {
+  const chave = mediaKey(vizinho.campaignId, "photo", "image/webp");
+  await storage().write(chave, Buffer.from("RIFF0000WEBPVP8 isolamento"), "image/webp");
+  try {
+    for (const [nome, corpo] of [
+      ["foto que reprova com a chave do vizinho", { role: "photo", storageKey: chave, mime: "image/webp" }],
+      ["banner com a chave do vizinho", { role: "banner", storageKey: chave, mime: "image/webp" }],
+    ] as const) {
+      const res = await pedir(eu.cookie, `/api/admin/campaigns/${eu.campaignId}/media`, {
+        method: "POST",
+        body: JSON.stringify(corpo),
+      });
+      checa(`${nome} é recusada`, res.status === 400, `HTTP ${res.status}`);
+    }
+    const aindaLa = await storage()
+      .size(chave)
+      .then(() => true)
+      .catch(() => false);
+    checa("o arquivo do vizinho continua no armazenamento", aindaLa);
+  } finally {
+    await storage().remove(chave).catch(() => {});
+  }
+}
+
+/**
+ * Afiliado antigo ainda tem a organização no usuário, mas trabalha para
+ * várias: a conta dele é da plataforma. Redefinir a senha pela lista de
+ * usuários daria a esta organização a conta — e os saques — dele nas outras.
+ */
+async function contaDoAfiliadoAntigo(eu: Lado) {
+  const email = `iso-afiliado-antigo-${eu.nome}@rifa.teste`;
+  const hashAntes = await hashPassword("senha-do-afiliado-1");
+  const [u] = await db
+    .insert(users)
+    .values({ role: "affiliate", organizationId: eu.orgId, name: `Afiliado antigo ${eu.nome}`, email, passwordHash: hashAntes })
+    .onConflictDoUpdate({ target: users.email, set: { organizationId: eu.orgId, passwordHash: hashAntes, active: true } })
+    .returning({ id: users.id });
+  try {
+    const senha = await pedir(eu.cookie, `/api/admin/usuarios/${u.id}/senha`, {
+      method: "POST",
+      body: JSON.stringify({ password: "tomada-da-conta-1" }),
+    });
+    checa("redefinir a senha do afiliado é recusado", senha.status === 403, `HTTP ${senha.status}`);
+    const desligar = await pedir(eu.cookie, `/api/admin/usuarios/${u.id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ active: false }),
+    });
+    checa("desligar a conta do afiliado é recusado", desligar.status === 403, `HTTP ${desligar.status}`);
+    const [depois] = await db.select({ hash: users.passwordHash, active: users.active }).from(users).where(eq(users.id, u.id));
+    checa("a senha e o acesso do afiliado ficaram como estavam", depois?.hash === hashAntes && depois?.active === true);
+  } finally {
+    await db.delete(users).where(eq(users.id, u.id));
+  }
 }
 
 const ENDERECO_VALIDO = JSON.stringify({
@@ -616,6 +679,12 @@ async function main() {
 
     console.log("\n  endereço da organização:");
     await enderecoProprio(norte, sul);
+
+    console.log("\n  mídia com a chave do arquivo do vizinho:");
+    await midiaDoVizinho(norte, sul);
+
+    console.log("\n  conta do afiliado antigo da própria organização (espera 403):");
+    await contaDoAfiliadoAntigo(norte);
 
     console.log("\n  rotas da plataforma (espera 403):");
     await rotasDaPlataforma(norte);

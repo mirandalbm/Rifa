@@ -105,6 +105,12 @@ describe("cofre", () => {
     dados[0] ^= 1;
     expect(() => decifrar({ ...c, dados })).toThrow();
   });
+  it("tag curta é recusada, mesmo sendo o começo da tag certa", () => {
+    // O GCM aceitaria uma tag de 4 bytes: forjar ficaria bem mais barato.
+    const c = cifrar(Buffer.from("documento"));
+    expect(() => decifrar({ ...c, tag: c.tag.subarray(0, 4) })).toThrow();
+    expect(decifrar(c).toString()).toBe("documento");
+  });
   it("mesmo texto, IV diferente", () => {
     expect(cifrar(Buffer.from("a")).iv.equals(cifrar(Buffer.from("a")).iv)).toBe(false);
   });

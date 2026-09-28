@@ -331,7 +331,9 @@ export function AdminCampanhas() {
   return (
     <PanelShell title="Campanhas">
       <div className="mb-4 flex items-center justify-between">
-        <p className="text-sm text-muted">{data?.length ?? 0} campanha(s)</p>
+        <p className="text-sm text-muted">
+          <span className="tnum">{data?.length ?? 0}</span> campanha(s)
+        </p>
         <Button onClick={() => setOpen((v) => !v)}>
           {open ? "Fechar" : "Nova campanha"}
         </Button>
@@ -1233,14 +1235,16 @@ export function AdminFinanceiro() {
         <Card title="Saques pagos">
           <ul className="divide-y divide-line">
             {pagos.map((p) => (
-              <li key={p.id} className="flex items-center gap-3 px-4 py-3 text-sm">
-                <span className="min-w-0 flex-1">
-                  <span className="tnum">{p.codigoAfiliado}</span>
+              // Quebra em duas linhas no celular: o código não pode ser espremido
+              // até sumir por baixo do valor.
+              <li key={p.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 text-sm">
+                <span className="min-w-[8rem] flex-1">
+                  <span className="tnum block truncate">{p.codigoAfiliado}</span>
                   <span className="tnum block text-xs text-muted">
                     {p.processedAt ? new Date(p.processedAt).toLocaleDateString("pt-BR") : ""}
                   </span>
                 </span>
-                <Money cents={p.amountCents} />
+                <Money cents={p.amountCents} className="shrink-0" />
                 {p.recibo ? (
                   <a
                     href={`/api/admin/recibos/${p.recibo}/pdf`}
@@ -1857,9 +1861,10 @@ function VerificacaoDaOrganizacaoCard() {
 export function AdminConfiguracoes() {
   const { data: session } = useSession();
   const plataforma = session?.role === "admin";
+  // A trilha é só da plataforma (o servidor recusa o organizador): sem pedir, sem cartão vazio.
   const { data } = useQuery<
     { id: string; action: string; entity: string; createdAt: string; actorRole: string }[]
-  >({ queryKey: ["/api/admin/audit"] });
+  >({ queryKey: ["/api/admin/audit"], enabled: plataforma });
 
   return (
     <PanelShell title="Configurações">
@@ -1886,6 +1891,7 @@ export function AdminConfiguracoes() {
           <ReembolsoCard />
         </div>
       )}
+      {plataforma ? (
       <Card title="Trilha de auditoria" right={<span className="label-xs">últimas 200 ações</span>}>
         <ul className="divide-y divide-line">
           {data?.map((a) => (
@@ -1900,6 +1906,7 @@ export function AdminConfiguracoes() {
         </ul>
         {data?.length === 0 ? <Empty>Nenhuma ação registrada.</Empty> : null}
       </Card>
+      ) : null}
     </PanelShell>
   );
 }

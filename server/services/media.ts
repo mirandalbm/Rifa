@@ -11,7 +11,7 @@
 import { and, eq, inArray } from "drizzle-orm";
 import { db } from "../db";
 import { campaignMedia, MAX_PHOTOS, MAX_VIDEO_SECONDS } from "@shared/schema";
-import { storage, mediaKey, type UploadTicket } from "./storage";
+import { storage, mediaKey, chaveDaCampanha, type UploadTicket } from "./storage";
 import { probeImage, probeVideoDuration, UnreadableMediaError } from "./probe";
 import { processImage, srcSet, removeVariants, type ImageVariant } from "./images";
 import { MAX_CARROSSEL, duracao, formatoDoVideo } from "@shared/publicacao";
@@ -139,6 +139,12 @@ export async function ingestUpload(params: {
   altText?: string;
   mime: string;
 }) {
+  // A chave vem do navegador: só vale a que o passo 1 gerou para esta rifa.
+  // Conferida antes de tudo — inclusive da limpeza abaixo, que apaga o
+  // objeto da chave recusada.
+  if (!chaveDaCampanha(params.storageKey, params.campaignId, params.role)) {
+    throw new MediaRuleError("Envio inválido para esta rifa. Envie o arquivo de novo.", 400);
+  }
   try {
     return await ingest(params);
   } catch (err) {
@@ -205,6 +211,13 @@ async function ingest(params: {
       if (rule.minWidth && width < rule.minWidth) {
         throw new MediaRuleError(
           `A imagem tem ${width}px de largura — o mínimo para ${rule.label} é ${rule.minWidth}px.`,
+        );
+      }
+      // Medido pelo cabeçalho, antes de abrir: acima do teto, o processamento
+      // recusaria com erro genérico (e abrir custaria a memória do processo).
+      if (width * height > 40_000_000) {
+        throw new MediaRuleError(
+          `A imagem tem ${width} × ${height} pixels — grande demais. Envie com até 40 megapixels.`,
         );
       }
 

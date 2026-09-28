@@ -3,7 +3,7 @@ import passport from "passport";
 import { eq } from "drizzle-orm";
 import { db } from "../db";
 import { users, auditLog, organizations } from "@shared/schema";
-import { currentRole, hashPassword, verifyPassword, type SessionUser } from "../auth";
+import { currentRole, encerrarSessoesDoUsuario, hashPassword, verifyPassword, type SessionUser } from "../auth";
 import { senhaInvalida } from "@shared/senha";
 import { guardLogin, identify } from "../services/antifraude";
 import { sectionsFor, homeFor } from "@shared/access";
@@ -132,6 +132,8 @@ authRouter.post("/senha", async (req, res, next) => {
       .update(users)
       .set({ passwordHash: await hashPassword(nova) })
       .where(eq(users.id, user.id));
+    // Quem entrou com a senha antiga em outro aparelho sai; esta sessão fica.
+    await encerrarSessoesDoUsuario(user.id, req.sessionID);
     await db.insert(auditLog).values({
       actorId: user.id,
       actorRole: user.role,

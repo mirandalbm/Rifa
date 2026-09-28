@@ -236,7 +236,11 @@ async function main() {
 
     // Saque por organização.
     await db.update(commissions).set({ status: "available" }).where(eq(commissions.affiliateId, aff.id));
-    await afiliada.req("PATCH", "/api/affiliate/pix-key", { pixKey: "ana@exemplo.com" });
+    // A chave Pix é para onde vai o saque: sem a senha, a sessão sozinha não troca.
+    r = await afiliada.req("PATCH", "/api/affiliate/pix-key", { pixKey: "golpe@exemplo.com" });
+    checa("trocar a chave Pix sem a senha é recusado (401)", r.status === 401, `HTTP ${r.status}`);
+    r = await afiliada.req("PATCH", "/api/affiliate/pix-key", { pixKey: "ana@exemplo.com", senha: SENHA });
+    checa("com a senha, a chave Pix troca", r.status === 200, `HTTP ${r.status} ${r.json?.message ?? ""}`);
     r = await afiliada.req("GET", "/api/affiliate/saldo");
     const saldoA = r.json?.find((s: any) => s.organizacaoId === A.id);
     checa("saldo separado por organização", saldoA?.disponivelCents > 0 && !r.json?.some((s: any) => s.organizacaoId === B.id));

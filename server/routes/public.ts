@@ -20,7 +20,7 @@ import { buyerPorApelido, compartilhar, idsDaLista, marcar, minhasMarcas } from 
 import { ACOES, type Acao } from "@shared/publicacao";
 import { VerificacaoError } from "../services/verificacao";
 import { Router, type Request, type Response } from "express";
-import { createHash } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { eq, and, desc, inArray, sql } from "drizzle-orm";
 import { db } from "../db";
 import {
@@ -80,6 +80,8 @@ import {
   NoQuotasAvailableError,
 } from "../services/quotas";
 import { issueOtp, checkOtp, hashPassword } from "../auth";
+import { isUniqueViolation } from "../pgError";
+import { senhaInvalida } from "@shared/senha";
 import { withUrls } from "../services/media";
 import { notify, notificationProvider } from "../notifications";
 import { buildTicket, escPosTicket, markTicketPrinted } from "../services/ticket";
@@ -1714,8 +1716,14 @@ publicRouter.get("/tickets/:code/escpos", async (req, res, next) => {
   }
 });
 
+/**
+ * Marca o bilhete como impresso (trilha de reimpressão). Quem imprime é a
+ * maquininha do cambista, com a sessão do painel: sem ela, qualquer um que
+ * soubesse o código mexia na trilha do pedido dos outros.
+ */
 publicRouter.post("/tickets/:code/printed", async (req, res, next) => {
   try {
+    if (!req.user) return res.status(401).json({ message: "Entre para continuar." });
     await markTicketPrinted(Number(req.params.code));
     res.json({ ok: true });
   } catch (err) {
@@ -1819,13 +1827,17 @@ publicRouter.post("/afiliados/cadastro", async (req, res, next) => {
       return res.status(400).json({ message: "E-mail inválido." });
     }
     if (phone.length < 10) return res.status(400).json({ message: "WhatsApp inválido." });
-    if (password.length < 8) {
-      return res.status(400).json({ message: "A senha precisa de ao menos 8 caracteres." });
-    }
+    // A mesma régua de senha do painel (tamanho e as senhas conhecidas demais).
+    const senhaRuim = senhaInvalida(password, "affiliate");
+    if (senhaRuim) return res.status(400).json({ message: senhaRuim });
 
-    const [existing] = await db.select().from(users).where(eq(users.email, email));
-    if (existing) {
-      return res.status(409).json({ message: "Já existe uma conta com este e-mail." });
+    // A conta entra na hora e cada cadastro custa um scrypt: sem limite por
+    // endereço, um robô criava contas à vontade (e testava quais e-mails já
+    // têm acesso ao painel). Contado depois do erro de preenchimento.
+    const ident = identify(req);
+    const limite = await hit(`afiliado-cadastro:${ident.ipHash ?? "sem-ip"}`, 60, 10);
+    if (limite.excedeu) {
+      return res.status(429).json({ message: "Muitos cadastros deste endereço. Tente de novo em uma hora." });
     }
 
     // O afiliado é avulso: a conta não tem organização, e ele adere a
@@ -1833,20 +1845,36 @@ publicRouter.post("/afiliados/cadastro", async (req, res, next) => {
     // (`?organizacao=`), o pedido de adesão já sai junto — com o aceite do
     // termo dela, se houver (e tem de ser a versão em vigor).
     const pedida = String(req.body?.organizacao ?? "").trim();
-    const code = await freeAffiliateCode(name);
 
     const passwordHash = await hashPassword(password);
-    const aff = await db.transaction(async (tx) => {
-      const [user] = await tx
-        .insert(users)
-        .values({ role: "affiliate", organizationId: null, name, email, phone, passwordHash })
-        .returning();
-      const [criado] = await tx
-        .insert(affiliates)
-        .values({ userId: user.id, code, status: "active", approvedAt: new Date() })
-        .returning();
-      return criado;
-    });
+    let aff: typeof affiliates.$inferSelect;
+    try {
+      aff = await db.transaction(async (tx) => {
+        const [user] = await tx
+          .insert(users)
+          .values({ role: "affiliate", organizationId: null, name, email, phone, passwordHash })
+          .returning();
+        // Quem decide se o código está livre é o índice: `ON CONFLICT DO
+        // NOTHING` e, se não entrou, o próximo candidato (consultar antes
+        // deixava dois cadastros do mesmo nome pegarem o mesmo código).
+        for (const code of codigosDeAfiliado(name)) {
+          const [criado] = await tx
+            .insert(affiliates)
+            .values({ userId: user.id, code, status: "active", approvedAt: new Date() })
+            .onConflictDoNothing({ target: affiliates.code })
+            .returning();
+          if (criado) return criado;
+        }
+        throw new Error("Não achei código de afiliado livre.");
+      });
+    } catch (err) {
+      // E-mail repetido: quem decide é o índice, não uma consulta antes.
+      if (isUniqueViolation(err, "uq_users_email")) {
+        return res.status(409).json({ message: "Já existe uma conta com este e-mail." });
+      }
+      throw err;
+    }
+    const code = aff.code;
 
     let adesao: { status: string } | null = null;
     if (pedida) {
@@ -1871,8 +1899,8 @@ publicRouter.post("/afiliados/cadastro", async (req, res, next) => {
   }
 });
 
-/** Código a partir do primeiro nome, com sufixo quando já existir. */
-async function freeAffiliateCode(name: string): Promise<string> {
+/** Candidatos a código, a partir do primeiro nome: ANA, ANA2, ANA3… e, por fim, sorteados. */
+function* codigosDeAfiliado(name: string): Generator<string> {
   const base =
     name
       .normalize("NFD")
@@ -1880,13 +1908,8 @@ async function freeAffiliateCode(name: string): Promise<string> {
       .toUpperCase()
       .replace(/[^A-Z0-9]/g, "")
       .slice(0, 8) || "AFILIADO";
-
-  for (let i = 0; i < 50; i++) {
-    const candidate = i === 0 ? base : `${base}${i + 1}`;
-    const [taken] = await db.select().from(affiliates).where(eq(affiliates.code, candidate));
-    if (!taken) return candidate;
-  }
-  return `AF${Date.now().toString(36).toUpperCase().slice(-6)}`;
+  for (let i = 0; i < 50; i++) yield i === 0 ? base : `${base}${i + 1}`;
+  for (let i = 0; i < 5; i++) yield `AF${randomBytes(4).toString("hex").toUpperCase()}`;
 }
 
 /* ---------------- ranking público ---------------- */

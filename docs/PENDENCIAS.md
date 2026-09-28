@@ -3,7 +3,7 @@
 Lista viva do que falta para a rifa vender em produção. Atualizada a cada
 etapa — quem fechar um item marca aqui no mesmo PR.
 
-Última atualização: 26/09/2026 (de quem é o cliente).
+Última atualização: 28/09/2026 (revisão de erros e de segurança; versões).
 
 Legenda: **[você]** depende do responsável pela conta (cadastro, documento,
 senha); **[código]** é trabalho no repositório.
@@ -165,6 +165,19 @@ senha); **[código]** é trabalho no repositório.
 - [ ] **[você]** Redefinir a senha do organizador (Usuários → senha).
 - [ ] **[você]** Apagar na Meta o token temporário antigo (também passou pela
   conversa).
+- [ ] **[você]** Publicar a revisão de segurança logo (o repositório é
+  público: a correção fica visível antes de estar no ar).
+- [ ] **[você]** Conferir no Railway: `SESSION_SECRET` e `COFRE_CHAVE`
+  definidas e longas, e nenhum acesso com senha de exemplo do seed
+  (`admin123`, `organizador123`…) — o seed nunca deve ter rodado no banco de
+  produção, e agora ele se recusa.
+- [ ] **[você]** Conferir em Antifraude que os registros mostram endereços
+  diferentes: o limite por IP depende de o Railway entregar o IP de quem
+  acessa (um único IP para todos seria sinal de proxy a mais no caminho).
+- [x] Revisão de erros e de segurança (28/09/2026): 25 provas contra a API,
+  180 capturas, log do servidor e `npm audit`; uma falha alta e quatro médias
+  corrigidas, com prova. Registro e o que ficou para depois em
+  `docs/SEGURANCA.md`.
 
 ## 4. Limpeza no GitHub
 
@@ -364,7 +377,17 @@ Na ordem de entrega do plano:
   Android SDK.
 - [ ] **[código]** Pôster e transcode dos vídeos das rifas (Cloudflare Stream
   resolve os dois).
-- [ ] **[código]** Revisão completa das telas, com prints, para ajustes de uso.
+- [x] Revisão completa das telas, com prints: `npm run telas` (60 telas,
+  seis papéis, 390/820/1440 px) e o guia `docs/VERSOES.md` — regras entre as
+  versões, mapa de cada tela e o registro das mudanças do celular (leva a
+  cada 10).
+- [ ] **[código]** Segurança, para depois (`docs/SEGURANCA.md`): política de
+  conteúdo (CSP) em modo relatório, segredo do segundo fator no cofre, custo
+  do scrypt, clique patrocinado mais difícil de forjar e rotas públicas de
+  rascunho.
+- [ ] **[código]** Pendências da revisão das versões (P1 a P14 em
+  `docs/VERSOES.md`): tablet da página da rifa e do perfil, um componente
+  só para as seis janelas, tabelas do painel no celular.
 - [ ] **[código]** Cobrança com Asaas: nas vendas com split, a taxa da
   plataforma já fica retida na origem, mas a tela de Cobrança ainda a lista
   como devida pela organização. Até marcar essas taxas como "recebidas no

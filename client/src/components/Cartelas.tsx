@@ -101,7 +101,9 @@ export function Cartelas({
             className={`rounded-xl border bg-white p-3 ${marcada ? "border-2 border-green" : "border-line"}`}
           >
             <header className="flex items-baseline justify-between">
-              <h3 className="font-display text-sm font-bold">Cartela {i + 1}</h3>
+              <h3 className="font-display text-sm font-bold">
+                Cartela <span className="tnum">{i + 1}</span>
+              </h3>
               <span className="tnum text-xs text-muted">{quantidade} números</span>
             </header>
             <ul className="mt-2 flex flex-wrap gap-1" aria-label="Números da cartela">

@@ -16,6 +16,7 @@ import { db, pool } from "../server/db";
 import { campaigns, campaignStats, quotaAlloc, orders, appSettings } from "../shared/schema";
 import { enterEndgame, ENDGAME_THRESHOLD } from "../server/services/quotas";
 import { DEFAULT_LIMITS } from "../shared/antifraude";
+import { getLimits } from "../server/services/antifraude";
 
 interface Opcoes {
   url: string;
@@ -205,6 +206,42 @@ async function afrouxarIp(buyers: number) {
   };
 }
 
+/**
+ * O mesmo telefone em paralelo: dois toques em "pagar", ou um script que
+ * tenta prender estoque com um número só. Nenhum pedido vira erro 500 (o
+ * comprador nasce uma vez, quem decide é o índice) e as reservas abertas não
+ * passam do limite (a conferência dentro da transação, com o comprador
+ * travado — antes, cinco passavam juntas com limite de dois).
+ */
+async function mesmoTelefoneEmParalelo(opcoes: Opcoes, campaignId: string) {
+  const limite = (await getLimits()).openOrdersPerPhone;
+  const telefone = `1196${String(Date.now()).slice(-7)}`;
+  const respostas = await Promise.all(
+    Array.from({ length: 8 }, (_, i) =>
+      fetch(`${opcoes.url}/api/public/orders`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-device-id": `paralelo-${telefone}-${i}` },
+        body: JSON.stringify({ campaignId, quantity: 1, buyer: { name: "Mesmo Telefone", phone: telefone } }),
+      })
+        .then((r) => r.status)
+        .catch(() => 0),
+    ),
+  );
+  const criados = respostas.filter((s) => s === 201).length;
+  return [
+    {
+      nome: "o mesmo telefone em paralelo não dá erro 500",
+      ok: respostas.every((s) => s > 0 && s < 500),
+      detalhe: respostas.join(" "),
+    },
+    {
+      nome: "nem passa do limite de reservas abertas",
+      ok: criados >= 1 && criados <= limite,
+      detalhe: `${criados} de ${limite}`,
+    },
+  ];
+}
+
 function percentil(valores: number[], p: number): number {
   if (valores.length === 0) return 0;
   const ordenado = [...valores].sort((a, b) => a - b);
@@ -346,11 +383,13 @@ async function main() {
   const inicio = Date.now();
   let resultados: Resultado[];
   let duracao: number;
+  let paralelo: Awaited<ReturnType<typeof mesmoTelefoneEmParalelo>>;
   try {
     resultados = await Promise.all(
       Array.from({ length: opcoes.buyers }, (_, i) => comprar(opcoes, campanha.id, i)),
     );
     duracao = Date.now() - inicio;
+    paralelo = await mesmoTelefoneEmParalelo(opcoes, campanha.id);
   } finally {
     await restaurarAntifraude();
   }
@@ -382,6 +421,7 @@ async function main() {
     campanha.totalQuotas,
   );
   checagens.push(...(await conferirCartelas(opcoes, campanha.id)));
+  checagens.push(...paralelo);
   for (const c of checagens) {
     console.log(`    ${c.ok ? "✓" : "✗"} ${c.nome} (${c.detalhe})`);
   }

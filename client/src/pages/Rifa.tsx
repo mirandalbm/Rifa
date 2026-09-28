@@ -242,9 +242,10 @@ export default function Rifa() {
     },
   });
 
-  // Chegou pelo "comprar" da publicação (`?comprar=1`) ou pelo carrinho
-  // (`?pacote=N`): abre a compra rápida — com as cartelas daquele tamanho,
-  // se veio do carrinho. Só sugere: a cota só é tomada ao pagar.
+  // Chegou pelo "comprar" da publicação (`?comprar=1`) ou por um link com o
+  // tamanho (`?pacote=N`, o do antigo "Comprar" do carrinho, que pode ter
+  // sido compartilhado): abre a compra rápida — com as cartelas daquele
+  // tamanho, se veio com ele. Só sugere: a cota só é tomada ao pagar.
   const rifaCarregada = data?.campaign.id;
   useEffect(() => {
     if (!data) return;
@@ -413,7 +414,7 @@ export default function Rifa() {
       <div className="mt-4 flex items-baseline gap-2">
         <Money cents={campaign.priceCents} className="text-2xl font-bold text-green-deep" />
         <span className="text-xs text-muted">
-          por cota · mínimo {campaign.minPerOrder}
+          por cota · mínimo <span className="tnum">{campaign.minPerOrder}</span>
         </span>
       </div>
 
@@ -509,7 +510,7 @@ export default function Rifa() {
             }`}
           >
             <span className="tnum block text-sm font-bold">+{p.quantity}</span>
-            <span className="text-[10px] text-muted">
+            <span className="tnum text-[10px] text-muted">
               {p.discountPct > 0
                 ? `−${p.discountPct}%`
                 : formatBRL(p.quantity * campaign.priceCents)}

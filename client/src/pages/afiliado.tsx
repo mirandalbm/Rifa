@@ -63,7 +63,14 @@ export function AfiliadoPainel() {
             <Kpi
               label="Vendas"
               value={String(data.sales)}
-              hint={`conversão de ${(data.conversion * 100).toFixed(1)}%`}
+              hint={
+                <>
+                  conversão de{" "}
+                  <span className="tnum">
+                    {(data.conversion * 100).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%
+                  </span>
+                </>
+              }
             />
             <Kpi label="Receita gerada" value={formatBRL(data.revenueCents)} />
             <Kpi
@@ -71,7 +78,11 @@ export function AfiliadoPainel() {
               value={formatBRL(
                 data.commission.pendingCents + data.commission.availableCents,
               )}
-              hint={`${formatBRL(data.commission.availableCents)} já liberados`}
+              hint={
+                <>
+                  <span className="tnum">{formatBRL(data.commission.availableCents)}</span> já liberados
+                </>
+              }
               highlight
             />
           </div>
@@ -90,8 +101,8 @@ export function AfiliadoPainel() {
                   {formatBRL(data.commission.availableCents)}
                 </p>
                 <p className="text-[11px] text-muted">
-                  {formatBRL(data.commission.pendingCents)} ficam pendentes até passar a carência
-                  contra estorno.
+                  <span className="tnum">{formatBRL(data.commission.pendingCents)}</span> ficam pendentes até passar a
+                  carência contra estorno.
                 </p>
               </div>
             </Card>
@@ -304,11 +315,20 @@ export function AfiliadoSaques() {
   >({ queryKey: ["/api/affiliate/payouts"] });
 
   const [pixKey, setPixKey] = useState("");
+  const [senhaPix, setSenhaPix] = useState("");
+  const [avisoPix, setAvisoPix] = useState<{ ok: boolean; texto: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // A chave é para onde vai o dinheiro: trocar pede a senha (o servidor confere).
   const savePix = useMutation({
-    mutationFn: () => apiRequest("PATCH", "/api/affiliate/pix-key", { pixKey }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/affiliate/overview"] }),
+    mutationFn: () => apiRequest("PATCH", "/api/affiliate/pix-key", { pixKey, senha: senhaPix }),
+    onSuccess: () => {
+      setPixKey("");
+      setSenhaPix("");
+      setAvisoPix({ ok: true, texto: "Chave Pix trocada." });
+      qc.invalidateQueries({ queryKey: ["/api/affiliate/overview"] });
+    },
+    onError: (err: Error) => setAvisoPix({ ok: false, texto: err.message }),
   });
 
   const { data: saldo = [] } = useQuery<
@@ -329,14 +349,37 @@ export function AfiliadoSaques() {
             <p className="text-sm text-muted">
               Atual: <span className="tnum">{overview?.affiliate.pixKey ?? "não cadastrada"}</span>
             </p>
-            <input
-              id="pix-key"
-              value={pixKey}
-              onChange={(e) => setPixKey(e.target.value)}
-              placeholder="e-mail, CPF, telefone ou chave aleatória"
-              className="w-full rounded-md border border-line-2 px-3 py-2 text-sm"
-            />
-            <Button onClick={() => savePix.mutate()} disabled={pixKey.length < 5}>
+            <div>
+              <label htmlFor="pix-key" className="label-xs">
+                Nova chave Pix
+              </label>
+              <input
+                id="pix-key"
+                value={pixKey}
+                onChange={(e) => setPixKey(e.target.value)}
+                placeholder="e-mail, CPF, telefone ou chave aleatória"
+                className="mt-1 w-full rounded-md border border-line-2 px-3 py-2 text-sm"
+              />
+            </div>
+            <div>
+              <label htmlFor="pix-senha" className="label-xs">
+                Sua senha, para confirmar
+              </label>
+              <input
+                id="pix-senha"
+                type="password"
+                autoComplete="current-password"
+                value={senhaPix}
+                onChange={(e) => setSenhaPix(e.target.value)}
+                className="mt-1 w-full rounded-md border border-line-2 px-3 py-2 text-sm"
+              />
+            </div>
+            {avisoPix ? (
+              <p className={`text-sm ${avisoPix.ok ? "text-green-deep" : "text-red"}`} role={avisoPix.ok ? "status" : "alert"}>
+                {avisoPix.texto}
+              </p>
+            ) : null}
+            <Button onClick={() => savePix.mutate()} disabled={pixKey.length < 5 || !senhaPix || savePix.isPending}>
               Salvar chave
             </Button>
           </div>

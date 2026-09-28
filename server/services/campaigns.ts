@@ -275,7 +275,8 @@ async function processarCertificado(dataUrl: string): Promise<{ mime: string; by
   if (tipo === "imagem") {
     // Reprocessa: tira metadados e qualquer coisa escondida no arquivo.
     try {
-      const bytes = await sharp(bruto).rotate().resize({ width: 2400, withoutEnlargement: true })
+      // Teto de pixels como nas outras fotos: imagem-bomba não derruba o processo.
+      const bytes = await sharp(bruto, { limitInputPixels: 40_000_000 }).rotate().resize({ width: 2400, withoutEnlargement: true })
         .jpeg({ quality: 85 }).toBuffer();
       return { mime: "image/jpeg", bytes };
     } catch {

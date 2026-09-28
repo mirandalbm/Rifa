@@ -55,6 +55,13 @@ const PALETTES = [
 ];
 
 async function main() {
+  // Os acessos de exemplo têm senha conhecida — e este repositório é público.
+  // Em produção quem cria o administrador é `npm run admin:create`, com senha
+  // própria; o seed se recusa, para ninguém popular o banco de verdade com
+  // "admin123" por engano.
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("O seed é só para desenvolvimento. Em produção use `npm run admin:create`.");
+  }
   const adminEmail = process.env.SEED_ADMIN_EMAIL ?? "admin@rifa.br";
   const adminPassword = process.env.SEED_ADMIN_PASSWORD ?? "admin123";
 

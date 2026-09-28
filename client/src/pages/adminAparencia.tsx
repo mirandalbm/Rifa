@@ -120,7 +120,9 @@ export function AdminAparencia() {
 
   return (
     <PanelShell title="Aparência">
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_440px]">
+      {/* grid-cols-1 (minmax 0): sem ele a coluna cresce até a pré-visualização
+          de 400 px e a página passa da tela do celular. */}
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_440px]">
         <div className="space-y-3">
           <Card title="Identidade">
             <div className="grid gap-4 p-4 text-sm sm:grid-cols-2">
@@ -398,11 +400,12 @@ export function AdminAparencia() {
               </div>
             }
           >
-            <div className="flex justify-center overflow-hidden bg-mist p-3">
+            {/* mx-auto no filho centraliza quando cabe e deixa rolar quando não cabe. */}
+            <div className="flex overflow-x-auto bg-mist p-3">
               {tela === "celular" ? (
-                <iframe title="Pré-visualização no celular" src="/?previa=1" className="h-[700px] w-[375px] rounded-xl border border-line bg-white" />
+                <iframe title="Pré-visualização no celular" src="/?previa=1" className="mx-auto h-[700px] w-[375px] shrink-0 rounded-xl border border-line bg-white" />
               ) : (
-                <div className="h-[430px] w-[400px] overflow-hidden rounded-lg border border-line bg-white">
+                <div className="mx-auto h-[430px] w-[400px] shrink-0 overflow-hidden rounded-lg border border-line bg-white">
                   <iframe
                     title="Pré-visualização no computador"
                     src="/?previa=1"

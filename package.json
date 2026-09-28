@@ -40,7 +40,8 @@
     "guarda": "tsx scripts/guarda-test.ts",
     "bonus": "tsx scripts/bonus-test.ts",
     "patrocinio": "tsx scripts/patrocinio-test.ts",
-    "marketing": "tsx scripts/marketing-test.ts"
+    "marketing": "tsx scripts/marketing-test.ts",
+    "telas": "tsx scripts/telas.ts"
   },
   "dependencies": {
     "@aws-sdk/client-rekognition": "^3.1141.0",
@@ -125,6 +126,7 @@
     "dotenv": "^17.4.2",
     "drizzle-kit": "^0.31.11",
     "esbuild": "^0.25.0",
+    "playwright-core": "1.55.0",
     "postcss": "^8.4.47",
     "tailwindcss": "^3.4.17",
     "tsx": "^4.19.1",

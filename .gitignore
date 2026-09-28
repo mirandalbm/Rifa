@@ -8,3 +8,6 @@ uploads
 
 # Credenciais locais
 .env
+
+# Capturas do npm run telas
+capturas

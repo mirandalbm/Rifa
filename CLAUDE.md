@@ -47,7 +47,9 @@ arquitetura.
 11. **Consultar e depois gravar é sempre bug.** Vale para cota (invariante 1) e
     vale para o código do pedido: quem decide é o índice único. Se você achar
     um `SELECT` para ver se "está livre" seguido de um `INSERT`, é uma corrida
-    esperando 500 simultâneos.
+    esperando 500 simultâneos. Também o comprador (`upsertBuyer`, pelo
+    `uq_buyers_phone`), o cupom, a organização e o código do afiliado — o
+    primeiro pedido de um telefone novo, tocado duas vezes, dava erro 500.
 12. **No rateio, a plataforma sai antes.** `splitOrder()` em
     `shared/pricing.ts`: a taxa incide sobre o pago, e a comissão do afiliado
     ou do cambista incide sobre o que **sobrou** dela. As duas fatias
@@ -132,6 +134,8 @@ arquitetura.
 | carrinho (várias rifas, separadas por organização), o Pix único do carrinho e o comprar da publicação | `shared/carrinho.ts` (regras e split), `server/services/carrinho.ts`, `createCartOrder()` em `server/services/orders.ts`, `client/src/pages/CarrinhoPix.tsx`, `client/src/components/EscolherBilhete.tsx` (a janela do "+"), `scripts/carrinho-test.ts`, `client/src/lib/carrinho.ts`, `client/src/pages/Carrinho.tsx`, `BarraDeAcoes` em `client/src/components/Publicacao.tsx`, `scripts/publicacao-test.ts` |
 | presente pelos comentários (desconto de primeira compra pago pela plataforma) | `shared/presente.ts` (regras), `server/services/presente.ts`, `prepararPedido`/`settleOrderAsPaid` em `server/services/orders.ts`, `Presentear` em `client/src/components/Comentarios.tsx`, `AvisoDePresente` em `client/src/pages/Rifa.tsx`, cartão Presente em `client/src/pages/adminBonus.tsx`, `scripts/presente-test.ts` |
 | app instalável (PWA) | `client/public/sw.js`, `client/public/manifest.webmanifest`, `client/src/lib/pwa.ts` |
+| segurança: onde mora cada defesa, lista de conferência de rota nova e as revisões | `docs/SEGURANCA.md` |
+| versões (celular, tablet, computador): registro das mudanças do celular, levas, mapa das telas e auditoria | `docs/VERSOES.md` (guia, mapa e registro — **anote no mesmo PR**), `scripts/telas.ts` (`npm run telas`), `tests/versoes.test.ts` |
 
 ## Convenções
 
@@ -144,6 +148,10 @@ arquitetura.
   os tons, nunca o significado (seção "Tema claro e escuro").
 
 ## O que ainda não existe
+
+- Política de conteúdo (CSP) completa: hoje só `frame-ancestors`. Os pixels
+  de marketing pedem a lista de origens — o caminho é começar em modo
+  relatório. O que mais ficou para depois está em `docs/SEGURANCA.md`.
 
 - Pôster extraído do vídeo e transcode: hoje servimos o arquivo original. A
   medição e os limites já existem; falta o processamento. Cloudflare Stream
@@ -260,6 +268,34 @@ arquitetura.
   `<alpha-value>`, senão `bg-white/95` sai transparente (era o topo e a
   faixa de baixo). Outra cor que precisar de `/NN` ganha o mesmo formato.
 
+## Versões — o que não pode afrouxar
+
+Um código só, três larguras: celular (até 639 px, a referência), tablet
+(640 a 1023) e computador (1024 ou mais). O guia, o mapa de cada tela e o
+registro estão em `docs/VERSOES.md`.
+
+- **Mudança no celular entra no registro no mesmo PR** (`docs/VERSOES.md`,
+  situação `aguardando leva`). A cada **10** aguardando, o PR seguinte é a
+  **leva**: confere as três larguras e arruma o tablet e o computador de uma
+  vez. `tests/versoes.test.ts` falha na 11ª — a leva não fica esquecida.
+- **Quebra não espera a leva.** Página rolando para o lado, botão sumindo,
+  controle sem nome ou erro na página em outra largura é consertado no
+  mesmo PR: `npm run telas` (60 telas × 390/820/1440, com captura) não pode
+  reprovar. O que espera a leva é só o arranjo.
+- **Rota nova entra no mapa** do guia; o teste confere o mapa contra o
+  `App.tsx` nos dois sentidos.
+- **Grade começa em `grid-cols-1`** e filho com texto longo leva `min-w-0`:
+  a coluna implícita é `auto` e cresce até o conteúdo (foi o estouro do
+  painel bento e da Aparência).
+- **`sr-only` dentro de faixa que rola precisa de ancestral `relative`
+  dentro da faixa** — é absoluto e, sem isso, escapa do `overflow-x-auto` e
+  alarga a página (foi o estouro do Atendimento da plataforma).
+- **Campo de digitar com 16 px ou mais no celular** (regra global no
+  `index.css`, sem `!important`, que poupa o `text-lg` de propósito): abaixo
+  disso o iPhone aproxima a tela ao focar — o `npm run telas` reprova. Campo
+  com rótulo visível — placeholder não é rótulo. Alvo de toque com 24 × 24
+  px ou mais.
+
 ## Perfil de demonstração — o que não pode afrouxar
 
 - **Demonstração nunca vende.** As rifas "no ar" do perfil de exemplo levam
@@ -372,6 +408,14 @@ valor vindo do cliente: o limite (3 min reels, 15 min feed) é promessa de
 tela e forjar um campo JSON é trivial. Se for aceitar um container novo (WebM, por exemplo), implemente
 a medição junto — sem medir, não entra na lista de mimes.
 
+A **chave do arquivo** também volta do navegador na confirmação do envio, e
+só vale a que o passo 1 gerou para aquela rifa e aquele papel
+(`chaveDaCampanha()` em `storage.ts`), conferida antes de tudo — a recusa da
+mídia apaga o objeto da chave, e a chave de outra organização aparece no
+endereço público da imagem dela. A imagem é aberta com teto de 40
+megapixels (medido pelo cabeçalho antes de abrir): um PNG pequeno pode
+dizer 16.000 × 16.000 e derrubar o processo. `npm run isolation` prova.
+
 ## Antifraude — o que não pode afrouxar
 
 O ataque que dói numa rifa **não é o de pagamento: é bloqueio de estoque.** Um
@@ -397,6 +441,15 @@ Por isso o limite mais apertado é o de reserva em aberto
   limite enquanto roda, devolvendo a configuração de antes no fim.
 - **`rate_events` é lixo com data.** O relógio limpa o que passou de 2 horas
   (`purgeRateEvents`, trava de aplicação 811004). Sem isso a tabela só cresce.
+- **A reserva em aberto é conferida de novo dentro da transação que grava o
+  pedido**, com o comprador travado (`conferirReservaAberta`, trava 811601).
+  `guardOrder()` conta os pedidos que já existem: pedidos em paralelo do
+  mesmo telefone liam todos "nenhuma reserva" e passavam juntos (cinco com
+  limite de dois). O carrinho confere uma vez, com a soma. `npm run load`
+  prova.
+- **Dentro de transação, só o `tx`** — inclusive para ler os limites
+  (`getLimits(tx)`). Chamar o `db` de dentro pede uma segunda conexão ao pool;
+  sob carga, todas esperam a segunda e o servidor para.
 
 ## Código do pedido — o que não pode afrouxar
 
@@ -485,6 +538,15 @@ tem atrás.
   conferido na entrada e em toda requisição (`barreiraDaOrganizacao()`).
 - **A lista de usuários nunca devolve hash de senha nem segredo do
   autenticador** — só se o segundo fator está ligado.
+- **Senha nova derruba as outras sessões.** Trocar a própria mantém a sessão
+  de quem trocou e encerra as demais; redefinir a de outra pessoa encerra
+  todas (`encerrarSessoesDoUsuario`). Senão a sessão roubada sobrevive à
+  troca que existia para encerrá-la.
+- **A conta do afiliado é da plataforma** — inclusive a do afiliado antigo,
+  que ainda tem a organização no usuário: a organização não redefine a
+  senha nem desliga (403, no `npm run isolation`). Ele trabalha para várias.
+- **Cambista e afiliado passam pela mesma régua de senha** (`senhaInvalida`)
+  do resto do painel.
 
 ## App instalável — o que não pode afrouxar
 
@@ -1024,9 +1086,10 @@ carrinho.
   página da rifa). Rascunho, rifa apagada e promotora arquivada voltam
   indisponíveis e o aparelho tira do carrinho. A compra recalcula de novo.
 - **Separado por organização**, porque cada promotora tem a própria
-  autorização e o próprio bilhete. Paga-se de dois jeitos: rifa a rifa
-  ("Comprar" leva à rifa com `?pacote=N`, que abre a compra rápida com as
-  cartelas daquele tamanho) ou **tudo num Pix só** (seção abaixo).
+  autorização e o próprio bilhete. **Paga-se de um jeito só**: o Pix da
+  plataforma, no botão de pagamento do carrinho — o único; o item não tem
+  "Comprar" próprio. O split para cada promotora é interno e não aparece
+  para quem compra (seção abaixo).
 - **Carrinho e comprar só aparecem na rifa que vende agora** (`vende` na
   vitrine, no perfil e na página, por `rifaAVenda()`): demonstração,
   travada, esgotada, encerrada ou sem Pix online não mostram os dois.
@@ -1306,6 +1369,9 @@ desconto na primeira compra — **pago pela plataforma**.
   organização da rifa — nunca pela do usuário do afiliado. Com a guarda da
   plataforma ligada, a comissão guardada vira um saldo à parte, pago por ela
   (seção abaixo).
+- **Trocar a chave Pix pede a senha** e fica na auditoria (com a chave
+  mascarada): é para onde vai o dinheiro dos saques, e quem tomou a sessão
+  não troca sozinho. A senha conta na janela de força bruta do login.
 - **A organização decide o vínculo, nunca a conta.** `PATCH
   /affiliates/:id` do organizador muda o vínculo com ele; a conta (ativo,
   bloqueado) é da plataforma. Sair desfaz o vínculo sem apagar o que já foi

@@ -140,7 +140,15 @@ export function AdminAtendimento() {
   });
 
   const abas = (
-    <div className="mb-4 flex gap-1 border-b border-line" role="tablist" aria-label="Filas do atendimento">
+    // No celular as abas rolam para o lado (sem empurrar a página para fora da
+    // tela). Cada aba é `relative`: o `sr-only` do contador é absoluto e, sem
+    // ancestral posicionado dentro da faixa, escaparia dela e alargaria a página.
+    <div
+      className="-mx-4 mb-4 flex gap-1 overflow-x-auto border-b border-line px-4 sm:mx-0 sm:px-0"
+      style={{ scrollbarWidth: "none" }}
+      role="tablist"
+      aria-label="Filas do atendimento"
+    >
       {(
         [
           ["reembolsos", "Reembolsos"],
@@ -155,7 +163,7 @@ export function AdminAtendimento() {
           role="tab"
           aria-selected={area === valor}
           onClick={() => setArea(valor)}
-          className={`-mb-px border-b-2 px-3 py-2 text-sm ${
+          className={`relative -mb-px shrink-0 whitespace-nowrap border-b-2 px-3 py-2 text-sm ${
             area === valor ? "border-green font-semibold text-ink" : "border-transparent text-ink-2 hover:text-ink"
           }`}
         >

@@ -61,7 +61,7 @@ import {
 } from "./quotas";
 import { activePaymentProvider } from "../payments";
 import { getPaymentMethods, getPlataforma } from "./settings";
-import { guardOrder, type RequestIdentity } from "./antifraude";
+import { conferirReservaAberta, guardOrder, type RequestIdentity } from "./antifraude";
 import { enabledPhysical, labelFor } from "@shared/payments";
 import { notify } from "../notifications";
 import { publicUrl } from "./urls";
@@ -126,25 +126,30 @@ async function upsertBuyer(input: CreateOrderInput["buyer"]) {
   const phone = normalizePhone(input.phone);
   if (phone.length < 10) throw new OrderError("Telefone inválido.");
 
-  const [existing] = await db.select().from(buyers).where(eq(buyers.phone, phone));
+  let [existing] = await db.select().from(buyers).where(eq(buyers.phone, phone));
+  if (!existing) {
+    // Quem cria é o índice, não a consulta de cima: dois pedidos ao mesmo
+    // tempo do mesmo telefone novo (dois toques em "pagar") liam os dois
+    // "não existe", e o segundo caía no `uq_buyers_phone` como erro 500.
+    const [created] = await db
+      .insert(buyers)
+      .values({ name: input.name, phone, cpf: input.cpf, email: input.email })
+      .onConflictDoNothing({ target: buyers.phone })
+      .returning();
+    if (created) return created;
+    [existing] = await db.select().from(buyers).where(eq(buyers.phone, phone));
+    if (!existing) throw new OrderError("Não foi possível registrar o comprador. Tente de novo.", 409);
+  }
   // Conta com senha tem dono: compra sem entrar, com o telefone dela, não
   // renomeia nem troca o CPF de ninguém.
-  if (existing?.passwordHash) return existing;
-  if (existing) {
-    // O CPF entra quando faltava (o Asaas passou a pedir), mas não troca o
-    // que já estava gravado: o CPF do comprador não muda de pedido para pedido.
-    const cpf = existing.cpf ?? input.cpf ?? null;
-    if (existing.name !== input.name || cpf !== existing.cpf) {
-      await db.update(buyers).set({ name: input.name, cpf }).where(eq(buyers.id, existing.id));
-    }
-    return { ...existing, name: input.name, cpf };
+  if (existing.passwordHash) return existing;
+  // O CPF entra quando faltava (o Asaas passou a pedir), mas não troca o
+  // que já estava gravado: o CPF do comprador não muda de pedido para pedido.
+  const cpf = existing.cpf ?? input.cpf ?? null;
+  if (existing.name !== input.name || cpf !== existing.cpf) {
+    await db.update(buyers).set({ name: input.name, cpf }).where(eq(buyers.id, existing.id));
   }
-
-  const [created] = await db
-    .insert(buyers)
-    .values({ name: input.name, phone, cpf: input.cpf, email: input.email })
-    .returning();
-  return created;
+  return { ...existing, name: input.name, cpf };
 }
 
 /**
@@ -239,6 +244,12 @@ export class FraudBlockedError extends OrderError {
 }
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+/** A reserva em aberto conferida dentro da transação (ver `conferirReservaAberta`). */
+async function reservaAbertaNaTransacao(tx: Tx, buyerId: string, quantidade: number) {
+  const veredito = await conferirReservaAberta(tx, buyerId, quantidade);
+  if (!veredito.allowed) throw new FraudBlockedError(veredito.reason ?? "Compra recusada.", veredito.rule);
+}
 
 /**
  * Tudo que o pedido precisa antes de gravar: confere a rifa, os limites, o
@@ -539,7 +550,13 @@ export async function createOrder(
   const { campaign, stats, quantity, provider, buyer, attribution, price, expiresAt, comissaoGuardada } = p;
 
   const { order, numbers } = await comCodigoLivre(
-    () => db.transaction((tx) => inserirPedido(tx, p, randomOrderCode())),
+    () =>
+      db.transaction(async (tx) => {
+        // A venda do cambista é isenta dos limites de comprador (como no
+        // `guardOrder`); a online confere de novo, já com o comprador travado.
+        if (!ctx.sellerId) await reservaAbertaNaTransacao(tx, buyer.id, quantity);
+        return inserirPedido(tx, p, randomOrderCode());
+      }),
     isOrderCodeConflict,
   ).catch((err) => {
     // Dois pedidos com o presente ao mesmo tempo: o índice deixa um.
@@ -721,6 +738,8 @@ export async function createCartOrder(input: CarrinhoCheckoutInput, ctx: CreateO
   const { carrinho, pedidos } = await comCodigoLivre(
     () =>
       db.transaction(async (tx) => {
+        // O carrinho é um pedido aberto só, com a soma das cotas.
+        await reservaAbertaNaTransacao(tx, buyer.id, preparos.reduce((s, p) => s + p.quantity, 0));
         const [carrinho] = await tx
           .insert(carrinhoPedidos)
           .values({ codigo: codigoDoCarrinho(), buyerId: buyer.id, totalCents: total, expiresAt })

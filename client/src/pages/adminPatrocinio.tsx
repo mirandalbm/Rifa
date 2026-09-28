@@ -251,7 +251,7 @@ export function AdminPatrocinio() {
                 : "rounded-md px-3 py-1.5 text-sm text-ink-2 hover:bg-mist-2"
             }
           >
-            {d} dias
+            <span className="tnum">{d}</span> dias
           </button>
         ))}
       </div>
@@ -1201,7 +1201,7 @@ function NovoAnuncio({
         {semSaldo ? (
           <p className="text-xs text-red">
             Saldo insuficiente: recarregue{" "}
-            {formatBRL(total! - dados.saldoCents)} ou mais.
+            <span className="tnum">{formatBRL(total! - dados.saldoCents)}</span> ou mais.
           </p>
         ) : null}
         <Button
@@ -1318,7 +1318,7 @@ function SaldoERecarga({
               Gerar Pix
             </Button>
             <span className="w-full text-xs text-muted">
-              Mínimo de {formatBRL(dados.config.recargaMinimaCents)}. O Pix vai
+              Mínimo de <span className="tnum">{formatBRL(dados.config.recargaMinimaCents)}</span>. O Pix vai
               para a conta da plataforma.
             </span>
           </form>
@@ -1676,6 +1676,7 @@ function SaldosCard({
         <Aviso msg={msg} />
         <span className="label-xs">Ajuste de saldo (crédito ou débito)</span>
         <select
+          aria-label="Organização"
           value={ajuste.organizationId}
           onChange={(e) =>
             setAjuste({ ...ajuste, organizationId: e.target.value })
@@ -1689,22 +1690,28 @@ function SaldosCard({
             </option>
           ))}
         </select>
-        <div className="grid grid-cols-[8rem_1fr] gap-2">
-          <input
-            value={ajuste.valor}
-            onChange={(e) => setAjuste({ ...ajuste, valor: e.target.value })}
-            placeholder="-10,00 ou 50,00"
-            inputMode="decimal"
-            className="tnum rounded-md border border-line-2 px-3 py-2"
-          />
-          <input
-            value={ajuste.descricao}
-            onChange={(e) =>
-              setAjuste({ ...ajuste, descricao: e.target.value })
-            }
-            placeholder="Motivo (vai para o extrato)"
-            className="rounded-md border border-line-2 px-3 py-2"
-          />
+        {/* Rótulo visível: o placeholder some quando a pessoa começa a digitar. */}
+        <div className="grid grid-cols-[8rem_minmax(0,1fr)] gap-2">
+          <label>
+            <span className="label-xs">Valor (R$)</span>
+            <input
+              value={ajuste.valor}
+              onChange={(e) => setAjuste({ ...ajuste, valor: e.target.value })}
+              placeholder="-10,00 ou 50,00"
+              inputMode="decimal"
+              className="tnum mt-1 w-full rounded-md border border-line-2 px-3 py-2"
+            />
+          </label>
+          <label>
+            <span className="label-xs">Motivo (vai para o extrato)</span>
+            <input
+              value={ajuste.descricao}
+              onChange={(e) =>
+                setAjuste({ ...ajuste, descricao: e.target.value })
+              }
+              className="mt-1 w-full rounded-md border border-line-2 px-3 py-2"
+            />
+          </label>
         </div>
         <Button
           type="submit"

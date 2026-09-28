@@ -56,6 +56,20 @@ export function mediaKey(campaignId: string, role: string, mime: string): string
   return `campanhas/${campaignId}/${role}-${randomUUID()}${ext}`;
 }
 
+/**
+ * A chave foi gerada por `mediaKey` para esta campanha e este papel? A
+ * confirmação do envio recebe a chave do navegador: sem conferir, o
+ * organizador de uma rifa apontava a chave de outra organização (as chaves
+ * aparecem nos endereços públicos das imagens) — e a recusa da mídia apaga
+ * o objeto da chave. Era apagar o banner do vizinho.
+ */
+export function chaveDaCampanha(key: string, campaignId: string, role: string): boolean {
+  const exts = Object.values(EXT_BY_MIME).map((e) => e.slice(1)).join("|");
+  const re = new RegExp(`^campanhas/([0-9a-f-]{36})/([a-z]+)-[0-9a-f-]{36}(\\.(${exts}))?$`);
+  const m = re.exec(key);
+  return Boolean(m && m[1] === campaignId && m[2] === role);
+}
+
 /* ------------------------------------------------------------------ *
  * Desenvolvimento: disco local
  * ------------------------------------------------------------------ */

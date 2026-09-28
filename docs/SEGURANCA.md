@@ -1,0 +1,117 @@
+# Segurança
+
+Visão de conjunto: onde mora cada defesa, a lista de conferência para rota
+nova e o registro das revisões. As regras de cada área seguem no `CLAUDE.md`,
+nas seções "o que não pode afrouxar" — este guia não as repete, aponta para
+elas.
+
+Este repositório é **público**. Falha encontrada é corrigida antes de ser
+descrita aqui; o detalhe de como explorar não entra no repositório.
+
+Última revisão completa: 28/09/2026 (abaixo).
+
+## Quem ataca o quê
+
+| Quem | O que quer | Onde mora a defesa |
+|---|---|---|
+| Robô anônimo | prender estoque (reservar sem pagar), varrer códigos de pedido, criar contas em massa | antifraude (limites por IP, aparelho e telefone; reserva em aberto conferida de novo dentro da transação), código do pedido sorteado com guarda de varredura, limite de cadastro por endereço |
+| Comprador | pagar menos, pedir reembolso do que não é dele, ganhar e ser reembolsado | preço calculado no servidor, chamado com três identidades, reembolso e disputa fechados perto do sorteio |
+| Organizador | ver ou mexer no que é de outra organização | recorte `orgOf` + `assert*InScope` (404 para o vizinho), provado no `npm run isolation` |
+| Quem toma uma sessão | desviar dinheiro (carteira, chave Pix), trancar o dono do lado de fora | senha nas ações que mudam para onde o dinheiro vai, segundo fator para arquivar, sessões derrubadas na troca de senha |
+| Quem forja pagamento | marcar pedido como pago | webhook assinado, status consultado na API do provedor, idempotência por `(provider, external_id)` |
+| Quem lê o banco vazado | documentos, CPF, dados fiscais | cofre AES-256-GCM com a chave fora do banco, CPF só como HMAC, senha em scrypt |
+
+## Controles e onde moram
+
+| Controle | Onde | Prova |
+|---|---|---|
+| Sessão: cookie `httpOnly`, `SameSite=Lax`, `Secure` em produção; sessão nova a cada entrada | `server/auth.ts`, `server/services/contaComprador.ts` | — |
+| Senha: scrypt, régua única (`shared/senha.ts`), força bruta contada por conta e por IP (`guardLogin`) | `server/auth.ts`, `server/routes/auth.ts` | `tests/senha.test.ts` |
+| Troca e redefinição de senha derrubam as outras sessões (painel e apostador) | `encerrarSessoesDoUsuario`, `encerrarOutrasSessoes` | — |
+| Segundo fator do painel (TOTP); obrigatório para arquivar organização | `server/services/totp.ts`, `server/routes/admin.ts` | `tests/totp.test.ts` |
+| Recorte por organização | `orgOf`, `assertCampaignInScope`, `assertAffiliateInScope`, `assertUserInScope` | `npm run isolation` |
+| Arquivo: tipo conferido pelo conteúdo, reprocessado (sharp, teto de 40 MP), nunca servido como veio; chave de mídia gerada pelo servidor e conferida na volta | `server/services/media.ts`, `storage.ts`, `probe.ts` | `tests/midia.test.ts`, `npm run isolation` |
+| Pagamento: webhook assinado (tempo constante), status pela API, idempotente | `server/routes/webhooks.ts`, `server/payments/` | `tests/mercadopago.test.ts`, `tests/asaas.test.ts` |
+| Antifraude: limites antes do primeiro `INSERT` e a reserva em aberto de novo na transação | `server/services/antifraude.ts`, `orders.ts` | `npm run load` |
+| Endereço vindo de usuário: só `https:`, nunca vira redirecionamento aberto | `shared/perfil.ts`, `shared/vitrine.ts`, `server/services/links.ts` | `npm run perfil` |
+| Push só para serviço conhecido (contra SSRF) | `shared/push.ts` | `tests/push.test.ts` |
+| Cabeçalhos: `nosniff`, `X-Frame-Options`, `frame-ancestors`, `Referrer-Policy`; HSTS em produção | `server/index.ts` | — |
+| Segredos obrigatórios em produção (`SESSION_SECRET`, `COFRE_CHAVE`, R2); o seed se recusa em produção | `server/auth.ts`, `cofre.ts`, `storage.ts`, `scripts/seed.ts` | — |
+| Log: método, caminho sem a query, status e tempo; recusa de login com o e-mail mascarado | `server/index.ts`, `server/routes/auth.ts` | — |
+| Dependências sem vulnerabilidade conhecida | `package-lock.json` | `npm audit` |
+
+## Rota nova: lista de conferência
+
+- [ ] **Recorte.** Id de organização, rifa ou filho (mídia, cupom, saque…)
+  passa por `orgOf`/`assert*InScope` **antes** de ler ou gravar. O do vizinho
+  é 404. A rota entra no `npm run isolation`.
+- [ ] **O índice decide.** Nada de consultar "já existe?" e depois gravar:
+  `ON CONFLICT` ou `isUniqueViolation` → 409. Dois pedidos ao mesmo tempo
+  passam os dois pela consulta.
+- [ ] **Dentro da transação, só o `tx`.** Chamar o `db` de dentro de uma
+  transação pede uma segunda conexão ao pool; com carga, todas as transações
+  esperam a segunda e o servidor para (foi o que o `npm run load` pegou).
+- [ ] **Entrada pública tem limite** (`hit`), contado depois do erro de
+  preenchimento, com mensagem em português.
+- [ ] **Arquivo** conferido pelo conteúdo, reprocessado com teto de pixels,
+  servido com `nosniff`. Chave de armazenamento vem do servidor e é
+  conferida quando volta do navegador.
+- [ ] **Endereço vindo do usuário:** só `https:`, sem usuário e senha na URL.
+- [ ] **Dinheiro:** ação que muda valor ou para onde o dinheiro vai pede
+  senha (e segundo fator no painel, quando couber) e grava auditoria.
+- [ ] **Dado pessoal** não sai em rota pública (primeiro nome; telefone e CPF
+  mascarados) e não vai inteiro para o log.
+
+## Como conferir
+
+```
+npm run check && npm test          # tipos e testes (o CI roda os dois)
+npm audit                          # dependências
+npm run isolation                  # recorte entre organizações
+npm run load                       # simultaneidade, estoque e antifraude
+npm run telas                      # telas: nome dos controles, estouro, erros
+```
+
+O CI roda as 25 provas contra a API a cada PR (`.github/workflows/ci.yml`).
+
+## Revisões
+
+### 28/09/2026
+
+Escopo: todas as rotas (`/api/public`, `/api/admin`, `/api/affiliate`,
+`/api/seller`, webhooks, `/c/` e `/l/`), os serviços de dinheiro, upload,
+sessão, antifraude e o cliente (o que fica no aparelho, links, service
+worker). As 25 provas da API, 180 capturas de tela, o log do servidor e o
+`npm audit` (nenhuma vulnerabilidade conhecida).
+
+**Corrigido nesta revisão:**
+
+| Gravidade | O quê | Onde (e prova) |
+|---|---|---|
+| Alta | A confirmação do envio de mídia não conferia se a chave do arquivo era da rifa | `media.ts`, `storage.ts` (`npm run isolation`, `tests/midia.test.ts`) |
+| Média | A lista de usuários da organização alcançava a conta do afiliado antigo, que é da plataforma | `admin.ts` (`npm run isolation`) |
+| Média | Trocar a chave Pix do afiliado não pedia senha nem ficava na auditoria | `affiliate.ts`, tela Saques (`npm run afiliados`) |
+| Média | Trocar ou redefinir a senha do painel não derrubava as outras sessões | `auth.ts`, `routes/auth.ts`, `admin.ts` |
+| Média | Pedidos simultâneos do mesmo telefone passavam do limite de reservas abertas, e o primeiro pedido de um telefone novo podia dar erro 500 | `antifraude.ts`, `orders.ts` (`npm run load`) |
+| Baixa | Teto de pixels nas fotos da rifa e no certificado; limite e régua de senha no cadastro de afiliado; régua de senha no cadastro de cambista; "consultar e gravar" em cupom, organização e código de afiliado; bilhete impresso só com sessão; log sem as respostas de sucesso; HSTS; tamanho da tag do cofre; comprovante de saque só `https:`; formato do id do Asaas; seed recusado em produção | vários |
+| Teste | Três provas escolhiam a organização com `limit(1)` sem ordem e falhavam conforme o estado do banco | `scripts/refund-test.ts`, `conta-test.ts`, `carrinho-test.ts` |
+
+**Sem correção nesta revisão** (risco aceito ou plano, em
+`docs/PENDENCIAS.md`):
+
+- A consulta pública do pedido e o bilhete mostram o nome completo de quem
+  comprou (telefone e CPF mascarados). É decisão do produto; o código do
+  pedido é sorteado entre 90 milhões e a varredura é barrada por IP.
+- O identificador do aparelho vem do navegador: o limite por aparelho se
+  contorna trocando o identificador; quem segura é o limite por IP.
+- O bloqueio por excesso de tentativas de entrada pode ser usado para trancar
+  uma conta por 15 minutos.
+- Sem política de conteúdo (CSP) completa — só `frame-ancestors`. Os pixels
+  de marketing pedem a lista das origens; o caminho é começar em modo
+  relatório.
+- Clique em rifa patrocinada: quem controla muitos IPs consegue gastar o
+  pacote de outro organizador (o barrado conta por IP e aparelho).
+- As rotas públicas de ocupação, prêmios e ranking respondem também para rifa
+  em rascunho (só números, sem dado pessoal).
+- O segredo do segundo fator fica no banco sem cifra (pode ir para o cofre).
+- A senha usa o scrypt com o custo padrão do Node (N = 16.384).

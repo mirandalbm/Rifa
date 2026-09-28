@@ -40,7 +40,10 @@ function checa(nome: string, ok: boolean, detalhe = "") {
 const SLUG = "estorno-teste";
 
 async function montar() {
-  const [org] = await db.select().from(organizations).limit(1);
+  // A organização do seed, pelo slug: é nela que o afiliado JOAO7 tem vínculo.
+  // `limit(1)` sem ordem devolvia a linha que estivesse primeiro no disco — e
+  // depois de um UPDATE qualquer, podia ser a de outra prova (sem comissão).
+  const [org] = await db.select().from(organizations).where(eq(organizations.slug, "rifas-sao-jose"));
   if (!org) throw new Error("Nenhuma organização no banco. Rode `npm run db:seed`.");
 
   // Contrato de comissão, para a taxa existir e poder ser cancelada.

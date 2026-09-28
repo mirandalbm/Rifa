@@ -40,8 +40,14 @@ const LIMITS_KEY = "antifraude";
  * Configuração
  * ------------------------------------------------------------------ */
 
-export async function getLimits(): Promise<AntiFraudLimits> {
-  const [row] = await db
+/**
+ * `banco`: dentro de uma transação, passe a transação. Buscar pelo `db` com a
+ * transação aberta pede uma segunda conexão ao pool — com o pool cheio de
+ * transações esperando a segunda, ninguém anda (foi o travamento do
+ * `npm run load` com 500 compradores).
+ */
+export async function getLimits(banco: Pick<typeof db, "select"> = db): Promise<AntiFraudLimits> {
+  const [row] = await banco
     .select()
     .from(appSettings)
     .where(eq(appSettings.key, LIMITS_KEY));
@@ -211,6 +217,50 @@ export interface OrderGuardInput {
   /** Cambista vende na mão: os limites de comprador não se aplicam a ele. */
   bySeller?: boolean;
   affiliateCode?: string;
+}
+
+/** Trava da reserva em aberto por comprador (`pg_advisory_xact_lock`). */
+const TRAVA_RESERVA_ABERTA = 811_601;
+
+type Transacao = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+/**
+ * A régua da reserva em aberto de novo, agora dentro da transação que grava
+ * o pedido e com o comprador travado. `guardOrder()` confere antes (e
+ * registra a recusa), mas conta os pedidos que já existem: pedidos em
+ * paralelo do mesmo telefone liam todos "nenhuma reserva aberta" e passavam
+ * juntos — cinco reservas com limite de dois. Aqui o segundo espera o
+ * primeiro gravar e já o enxerga. Recusar desfaz a transação: nada fica.
+ */
+export async function conferirReservaAberta(
+  tx: Transacao,
+  buyerId: string,
+  quantidade: number,
+): Promise<FraudCheckResult> {
+  await tx.execute(sql`select pg_advisory_xact_lock(${TRAVA_RESERVA_ABERTA}, hashtext(${buyerId}))`);
+  const limits = await getLimits(tx);
+  const [abertos] = await tx
+    .select({
+      pedidos: sql<number>`count(distinct coalesce(${orders.carrinhoId}, ${orders.id}))::int`,
+      cotas: sql<number>`coalesce(sum(${orders.quantity}), 0)::int`,
+    })
+    .from(orders)
+    .where(and(eq(orders.buyerId, buyerId), eq(orders.status, "pending"), gt(orders.expiresAt, new Date())));
+  if (abertos.pedidos >= limits.openOrdersPerPhone) {
+    return {
+      allowed: false,
+      rule: "reserva_aberta",
+      reason: `Você já tem ${abertos.pedidos} pedido(s) aguardando pagamento. Pague ou aguarde expirar antes de reservar mais.`,
+    };
+  }
+  if (abertos.cotas + quantidade > limits.reservedQuotasPerPhone) {
+    return {
+      allowed: false,
+      rule: "reserva_aberta",
+      reason: `Você já tem ${abertos.cotas} cota(s) reservadas sem pagamento. O limite é ${limits.reservedQuotasPerPhone}.`,
+    };
+  }
+  return { allowed: true };
 }
 
 export async function guardOrder(input: OrderGuardInput): Promise<FraudCheckResult> {

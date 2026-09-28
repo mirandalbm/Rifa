@@ -280,14 +280,7 @@ export async function createOrganization(input: {
   const slug = slugify(name);
   if (!slug) throw new OrgScopeError("Nome inválido para gerar o endereço.", 400);
 
-  const [existe] = await db
-    .select({ id: organizations.id })
-    .from(organizations)
-    .where(eq(organizations.slug, slug));
-  if (existe) {
-    throw new OrgScopeError("Já existe uma organização com este nome.", 409);
-  }
-
+  // Nome repetido: quem decide é o índice do endereço (`uq_organizations_slug`).
   const [criada] = await db
     .insert(organizations)
     .values({
@@ -297,7 +290,9 @@ export async function createOrganization(input: {
       contato: input.contato?.trim() || null,
       observacao: input.observacao?.trim() || null,
     })
+    .onConflictDoNothing({ target: organizations.slug })
     .returning();
+  if (!criada) throw new OrgScopeError("Já existe uma organização com este nome.", 409);
 
   return criada;
 }

@@ -23,7 +23,7 @@ export function TemaEscolha({ className = "", compacto = false }: { className?: 
             aria-label={NOME_TEMA[t]}
             title={NOME_TEMA[t]}
             onClick={() => escolher(t)}
-            className={`flex items-center gap-1 rounded ${compacto ? "px-1.5 py-0.5 text-[11px]" : "px-2 py-1 text-xs"} ${
+            className={`flex items-center gap-1 rounded ${compacto ? "min-h-[24px] min-w-[24px] justify-center px-1.5 text-[11px]" : "px-2 py-1 text-xs"} ${
               ativo ? "bg-mist-2 font-semibold text-ink" : "text-muted hover:text-ink"
             }`}
           >

@@ -168,7 +168,7 @@ export default function PerfilPage() {
               title="Postar no seu story"
               className="absolute bottom-1 right-1 flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-ink text-white"
             >
-              <Plus size={16} aria-hidden />
+              <Plus size={16} strokeWidth={3.25} aria-hidden />
             </Link>
           ) : null}
         </span>

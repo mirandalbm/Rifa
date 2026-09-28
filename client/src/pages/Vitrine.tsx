@@ -235,7 +235,7 @@ function StoriesDaVitrine() {
               >
                 <FotoDoPerfil nome={meuPerfil?.nome ?? sessao?.organizacao?.nome ?? sessao?.user?.name ?? "?"} foto={meuPerfil?.foto} tamanho={FOTO_DO_STORY} />
                 <span className="absolute bottom-0 right-0 flex h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-ink text-white">
-                  <Plus size={14} aria-hidden />
+                  <Plus size={14} strokeWidth={3.25} aria-hidden />
                 </span>
               </span>
             </Link>

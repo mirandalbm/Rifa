@@ -71,7 +71,9 @@ async function main() {
   await limpar();
 
   // Rifa própria do teste: as compras daqui não mexem nos contadores do seed.
-  const [org] = await db.select().from(organizations).limit(1);
+  // A do seed, pelo slug: `limit(1)` sem ordem podia cair numa organização
+  // arquivada ou banida por outra prova.
+  const [org] = await db.select().from(organizations).where(eq(organizations.slug, "rifas-sao-jose"));
   if (!org) throw new Error("Nenhuma organização. Rode `npm run db:seed`.");
   await db.delete(campaigns).where(eq(campaigns.slug, "conta-teste"));
   const [rifa] = await db

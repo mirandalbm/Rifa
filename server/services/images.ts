@@ -25,12 +25,20 @@ export interface ProcessedImage {
   lqip: string;
 }
 
+/**
+ * Teto de pixels ao abrir a imagem, o mesmo das outras fotos do sistema: um
+ * PNG de poucos megabytes pode dizer 16.000 × 16.000 e, aberto, ocupar mais
+ * de 1 GB de memória — o processo cai e leva todo mundo junto.
+ */
+const LIMITE_DE_PIXELS = 40_000_000;
+const abrir = (source: Buffer) => sharp(source, { limitInputPixels: LIMITE_DE_PIXELS });
+
 export async function processImage(
   source: Buffer,
   baseKey: string,
 ): Promise<ProcessedImage> {
   const store = storage();
-  const meta = await sharp(source).metadata();
+  const meta = await abrir(source).metadata();
   const original = meta.width ?? WIDTHS[WIDTHS.length - 1];
 
   const variants: ImageVariant[] = [];
@@ -40,7 +48,7 @@ export async function processImage(
     if (width > original) continue;
 
     for (const format of ["avif", "webp"] as const) {
-      const pipeline = sharp(source).resize({ width, withoutEnlargement: true });
+      const pipeline = abrir(source).resize({ width, withoutEnlargement: true });
       const buf =
         format === "avif"
           ? await pipeline.avif({ quality: 55 }).toBuffer()
@@ -52,7 +60,7 @@ export async function processImage(
     }
   }
 
-  const lqipBuf = await sharp(source)
+  const lqipBuf = await abrir(source)
     .resize({ width: 20 })
     .webp({ quality: 40 })
     .toBuffer();

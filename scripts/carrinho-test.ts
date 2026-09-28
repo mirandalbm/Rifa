@@ -66,7 +66,7 @@ async function main() {
   console.log("\n=== carrinho num Pix só ===\n");
   await limpar();
   // Duas promotoras: a do seed e uma desta prova (o banco do CI tem só uma).
-  const [daSeed] = await db.select().from(organizations).where(sql`${organizations.archivedAt} is null`).limit(1);
+  const [daSeed] = await db.select().from(organizations).where(eq(organizations.slug, "rifas-sao-jose"));
   if (!daSeed) throw new Error("Nenhuma organização no banco. Rode `npm run db:seed`.");
   const [segunda] = await db.insert(organizations).values({ name: "Promotora do carrinho", slug: ORG_SLUG }).returning();
   const orgs = [daSeed, segunda];

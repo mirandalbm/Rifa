@@ -13,15 +13,17 @@ import {
   organizations,
   afiliadoVinculos,
   recibos,
+  users,
+  auditLog,
 } from "@shared/schema";
 import { getPlataforma } from "../services/settings";
 import { cadastroAprovado, documento, estadoFiscal, salvarDadosFiscais, salvarDocumento } from "../services/fiscal";
 import { pdfDoRecibo, reciboPorCodigo } from "../services/recibos";
 import { urlDeConferencia } from "../services/urls";
 import { aderir, comissaoNaRifa, organizacoesDoAfiliado, sair } from "../services/afiliados";
-import { identify } from "../services/antifraude";
+import { guardLogin, identify } from "../services/antifraude";
 import QRCode from "qrcode";
-import { affiliateId } from "../auth";
+import { affiliateId, verifyPassword } from "../auth";
 import { formatBRL } from "@shared/format";
 import { montarRotasDaVerificacao } from "./verificacaoRotas";
 import { copiarDocumentosDoFiscal, estadoDaVerificacao, fotoDoAfiliado, salvarFotoDoAfiliado } from "../services/verificacao";
@@ -240,13 +242,41 @@ function publicBaseUrl(req: { protocol: string; get(name: string): string | unde
   return `${req.protocol}://${host}`;
 }
 
+/** "joao@exemplo.com" → "joa•••com": reconhecível na auditoria sem guardar a chave inteira. */
+function mascararChave(chave: string | null | undefined): string | null {
+  if (!chave) return null;
+  return chave.length <= 6 ? "•••" : `${chave.slice(0, 3)}•••${chave.slice(-3)}`;
+}
+
+/**
+ * Trocar a chave Pix é trocar para onde vai o dinheiro dos saques. Quem tomou
+ * a sessão do afiliado não pode fazer isso sozinho: pede a senha — que conta
+ * na mesma janela de força bruta do login — e a troca fica na auditoria.
+ */
 affiliateRouter.patch("/pix-key", async (req, res, next) => {
   try {
     const id = affiliateId(req);
     const pixKey = String(req.body?.pixKey ?? "").trim();
-    if (pixKey.length < 5) return res.status(400).json({ message: "Chave Pix inválida." });
+    if (pixKey.length < 5 || pixKey.length > 140) return res.status(400).json({ message: "Chave Pix inválida." });
 
+    const veredito = await guardLogin(req.user!.email, identify(req));
+    if (!veredito.allowed) return res.status(429).json({ message: veredito.reason });
+    const [conta] = await db.select({ hash: users.passwordHash }).from(users).where(eq(users.id, req.user!.id));
+    if (!conta || !(await verifyPassword(String(req.body?.senha ?? ""), conta.hash))) {
+      return res.status(401).json({ message: "A senha não confere." });
+    }
+
+    const [antes] = await db.select({ pixKey: affiliates.pixKey }).from(affiliates).where(eq(affiliates.id, id));
     await db.update(affiliates).set({ pixKey }).where(eq(affiliates.id, id));
+    await db.insert(auditLog).values({
+      actorId: req.user!.id,
+      actorRole: req.user!.role,
+      action: "afiliado.pix.trocada",
+      entity: "affiliate",
+      entityId: id,
+      diff: { de: mascararChave(antes?.pixKey), para: mascararChave(pixKey) },
+      ip: req.ip,
+    });
     res.json({ pixKey });
   } catch (err) {
     next(err);

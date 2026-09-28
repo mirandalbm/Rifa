@@ -315,11 +315,20 @@ export function AfiliadoSaques() {
   >({ queryKey: ["/api/affiliate/payouts"] });
 
   const [pixKey, setPixKey] = useState("");
+  const [senhaPix, setSenhaPix] = useState("");
+  const [avisoPix, setAvisoPix] = useState<{ ok: boolean; texto: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // A chave é para onde vai o dinheiro: trocar pede a senha (o servidor confere).
   const savePix = useMutation({
-    mutationFn: () => apiRequest("PATCH", "/api/affiliate/pix-key", { pixKey }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/affiliate/overview"] }),
+    mutationFn: () => apiRequest("PATCH", "/api/affiliate/pix-key", { pixKey, senha: senhaPix }),
+    onSuccess: () => {
+      setPixKey("");
+      setSenhaPix("");
+      setAvisoPix({ ok: true, texto: "Chave Pix trocada." });
+      qc.invalidateQueries({ queryKey: ["/api/affiliate/overview"] });
+    },
+    onError: (err: Error) => setAvisoPix({ ok: false, texto: err.message }),
   });
 
   const { data: saldo = [] } = useQuery<
@@ -352,7 +361,25 @@ export function AfiliadoSaques() {
                 className="mt-1 w-full rounded-md border border-line-2 px-3 py-2 text-sm"
               />
             </div>
-            <Button onClick={() => savePix.mutate()} disabled={pixKey.length < 5}>
+            <div>
+              <label htmlFor="pix-senha" className="label-xs">
+                Sua senha, para confirmar
+              </label>
+              <input
+                id="pix-senha"
+                type="password"
+                autoComplete="current-password"
+                value={senhaPix}
+                onChange={(e) => setSenhaPix(e.target.value)}
+                className="mt-1 w-full rounded-md border border-line-2 px-3 py-2 text-sm"
+              />
+            </div>
+            {avisoPix ? (
+              <p className={`text-sm ${avisoPix.ok ? "text-green-deep" : "text-red"}`} role={avisoPix.ok ? "status" : "alert"}>
+                {avisoPix.texto}
+              </p>
+            ) : null}
+            <Button onClick={() => savePix.mutate()} disabled={pixKey.length < 5 || !senhaPix || savePix.isPending}>
               Salvar chave
             </Button>
           </div>

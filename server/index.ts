@@ -22,11 +22,17 @@ app.disable("x-powered-by");
 // (clickjacking no botão de pagar) e o código do pedido na URL não vaza
 // no Referer para sites externos. Iframe só do próprio site: é a
 // pré-visualização do construtor de templates (/admin/aparencia).
+const producao = process.env.NODE_ENV === "production";
 app.use((_req, res, next) => {
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("X-Frame-Options", "SAMEORIGIN");
   res.setHeader("Content-Security-Policy", "frame-ancestors 'self'");
   res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  // Em produção o site é só HTTPS: o navegador passa a recusar a versão sem
+  // cadeado (quem estiver no meio do caminho não rebaixa para HTTP e lê o
+  // cookie da sessão). Sem `includeSubDomains`: outro subdomínio do domínio
+  // não é deste sistema.
+  if (producao) res.setHeader("Strict-Transport-Security", "max-age=15552000");
   next();
 });
 
@@ -72,9 +78,15 @@ app.use(express.urlencoded({ extended: false }));
 
 app.use((req, res, next) => {
   const start = Date.now();
+  // O caminho é lido aqui, na entrada: dentro de um roteador montado o
+  // Express corta o prefixo (`/api/public/orders` vira `/orders`), e lido no
+  // `finish` o log só pegava as respostas que voltavam ao nível do app — as
+  // vendas com sucesso sumiam do registro. Sem a query string: ela pode levar
+  // dado de quem pede.
+  const caminho = req.path;
   res.on("finish", () => {
-    if (req.path.startsWith("/api")) {
-      log(`${req.method} ${req.path} ${res.statusCode} em ${Date.now() - start}ms`);
+    if (caminho.startsWith("/api")) {
+      log(`${req.method} ${caminho} ${res.statusCode} em ${Date.now() - start}ms`);
     }
   });
   next();

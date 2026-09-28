@@ -72,8 +72,12 @@ export function cifrar(claro: Buffer): Cifrado {
 
 export function decifrar(x: Cifrado): Buffer {
   if (x.versao !== "v1") throw new CofreError(`Versão de chave desconhecida: ${x.versao}.`);
+  // A tag tem 16 bytes, sempre (é o que `cifrar` grava). Sem fixar o
+  // tamanho, o GCM aceita tag curta — de 4 bytes — e quem mexesse no banco
+  // teria bem menos tentativas a fazer para forjar um dado.
+  if (x.tag.length !== 16) throw new CofreError("O dado guardado não confere (adulterado ou chave errada).");
   try {
-    const d = createDecipheriv("aes-256-gcm", derivada("dados-v1"), x.iv);
+    const d = createDecipheriv("aes-256-gcm", derivada("dados-v1"), x.iv, { authTagLength: 16 });
     d.setAuthTag(x.tag);
     return Buffer.concat([d.update(x.dados), d.final()]);
   } catch {

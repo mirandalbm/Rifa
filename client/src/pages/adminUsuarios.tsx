@@ -203,6 +203,7 @@ export function AdminUsuarios() {
                       aberto={aberto === u.id}
                       alternarAberto={() => setAberto(aberto === u.id ? null : u.id)}
                       souEu={u.email === session?.user?.email}
+                      contaDaPlataforma={!plataforma && u.role === "affiliate"}
                       onSenha={() => {
                         setSenhaDe(u);
                         setSenha("");
@@ -271,6 +272,7 @@ function FragmentoUsuario({
   aberto,
   alternarAberto,
   souEu,
+  contaDaPlataforma,
   onSenha,
   onAlternar,
 }: {
@@ -278,6 +280,8 @@ function FragmentoUsuario({
   aberto: boolean;
   alternarAberto: () => void;
   souEu: boolean;
+  /** Afiliado visto pela organização: a conta é da plataforma, o vínculo é em Afiliados. */
+  contaDaPlataforma: boolean;
   onSenha: () => void;
   onAlternar: () => void;
 }) {
@@ -315,6 +319,8 @@ function FragmentoUsuario({
         <td className="px-3 py-2 text-right">
           {souEu ? (
             <span className="text-[11px] text-muted">você</span>
+          ) : contaDaPlataforma ? (
+            <span className="text-[11px] text-muted">conta da plataforma</span>
           ) : (
             <div className="flex justify-end gap-2 whitespace-nowrap">
               <Button variant="ghost" onClick={onSenha}>

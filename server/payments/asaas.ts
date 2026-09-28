@@ -182,6 +182,9 @@ export class AsaasProvider implements PaymentProvider {
       payment?: { id?: string };
     };
     const id = corpo.payment?.id;
+    // O id vai no caminho da nossa chamada à API: só o formato do Asaas
+    // (`pay_…`), nunca uma barra ou `..` que mudasse o endereço consultado.
+    if (id && !/^[A-Za-z0-9_-]{1,64}$/.test(id)) throw new Error("Id de cobrança do Asaas inválido.");
     if (!id) {
       // Evento que não é de cobrança (conta, transferência): nada a fazer.
       return { externalId: corpo.id ?? `asaas:${Date.now()}`, chargeId: "", event: "ignored" };

@@ -5,7 +5,7 @@ import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
 import { randomBytes, scrypt, timingSafeEqual, randomInt } from "node:crypto";
 import { promisify } from "node:util";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { db } from "./db";
 import { users, affiliates, organizations } from "@shared/schema";
 import { type Role, roleSatisfies } from "@shared/access";
@@ -30,6 +30,19 @@ export async function verifyPassword(plain: string, stored: string): Promise<boo
   const expected = Buffer.from(key, "hex");
   if (expected.length !== derived.length) return false;
   return timingSafeEqual(derived, expected);
+}
+
+/**
+ * Derruba as sessões do painel de um usuário (menos a de quem pediu, se
+ * houver). Senha nova é o momento de expulsar quem entrou com a antiga — do
+ * contrário, a sessão roubada sobrevive à troca que existia para encerrá-la.
+ * O passport guarda o id em `sess.passport.user`.
+ */
+export async function encerrarSessoesDoUsuario(userId: string, manterSid?: string) {
+  await db.execute(sql`
+    DELETE FROM sessions
+    WHERE sess -> 'passport' ->> 'user' = ${userId}
+      ${manterSid ? sql`AND sid <> ${manterSid}` : sql``}`);
 }
 
 /* ------------------------------------------------------------------ *

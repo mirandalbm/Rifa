@@ -299,3 +299,5 @@ ou `leva N`. O teste confere o formato, a numeração e o limite da leva.
 |---|---|---|---|---|---|---|
 | 1 | 2026-09-28 | #58 | Carrinho | Saiu o "Pagar tudo num Pix só": o pagamento é só o Pix da plataforma, e o split para cada promotora fica por dentro | Vale igual; no computador o total e o botão seguem na coluna da direita | leva 0 |
 | 2 | 2026-09-28 | #58 | Carrinho | Saiu o "Comprar" de cada rifa: fica só o botão de pagamento | Vale igual; conferido em 820 e 1440 | leva 0 |
+| 3 | 2026-09-28 | #58 | Afiliado · Saques | Trocar a chave Pix pede a senha ("Sua senha, para confirmar") e mostra se trocou ou o motivo da recusa | Vale igual (mesmo cartão); a conferir na leva | aguardando leva |
+| 4 | 2026-09-28 | #58 | Painel · Usuários | Na lista do organizador, a conta de afiliado mostra "conta da plataforma" no lugar de senha e desligar | Vale igual; no celular a coluna fica no fim da tabela que rola (P5) | aguardando leva |

@@ -63,7 +63,7 @@ import {
   MediaRuleError,
 } from "../services/media";
 import { storage, LocalDiskStorage } from "../services/storage";
-import { hashPassword, verifyPassword } from "../auth";
+import { encerrarSessoesDoUsuario, hashPassword, verifyPassword } from "../auth";
 import { notify } from "../notifications";
 import { publicUrl } from "../services/urls";
 import { formatQuota, normalizePhone } from "@shared/format";
@@ -1339,9 +1339,6 @@ adminRouter.post("/coupons", async (req, res, next) => {
       return res.status(400).json({ message: "O desconto precisa ficar entre 1% e 50%." });
     }
 
-    const [existing] = await db.select().from(coupons).where(eq(coupons.code, code));
-    if (existing) return res.status(409).json({ message: "Este código já existe." });
-
     // Cupom de organizador tem que morder algo dele. Sem campanha e sem
     // afiliado o cupom vale em toda a plataforma — isso é da plataforma.
     if (req.body?.campaignId) {
@@ -1361,6 +1358,8 @@ adminRouter.post("/coupons", async (req, res, next) => {
       organizationId = c?.org ?? null;
     }
 
+    // Código repetido: quem decide é o índice (`uq_coupons_code`), não uma
+    // consulta antes — dois cadastros ao mesmo tempo passariam os dois.
     const [created] = await db
       .insert(coupons)
       .values({
@@ -1372,7 +1371,9 @@ adminRouter.post("/coupons", async (req, res, next) => {
         maxUses: req.body?.maxUses ? Number(req.body.maxUses) : null,
         expiresAt: req.body?.expiresAt ? new Date(req.body.expiresAt) : null,
       })
+      .onConflictDoNothing({ target: coupons.code })
       .returning();
+    if (!created) return res.status(409).json({ message: "Este código já existe." });
 
     await audit(req, "coupon.create", "coupon", created.id, { code, discountPct });
     res.status(201).json(created);
@@ -1415,6 +1416,9 @@ adminRouter.post("/sellers", async (req, res, next) => {
     if (!name || !email || !password || !code) {
       return res.status(400).json({ message: "Nome, e-mail, senha e código são obrigatórios." });
     }
+    // O cambista vende e dá baixa em dinheiro: a mesma régua de senha do resto.
+    const senhaRuim = senhaInvalida(String(password), "cambista");
+    if (senhaRuim) return res.status(400).json({ message: senhaRuim });
 
     const organizationId = organizationForNewCampaign(
       req,
@@ -1447,6 +1451,11 @@ adminRouter.post("/sellers", async (req, res, next) => {
         .returning();
 
       return seller;
+    }).catch((err) => {
+      // Repetido: quem decide é o índice (e vira 409, não erro interno).
+      if (isUniqueViolation(err, "uq_users_email")) throw new OrgScopeError("Já existe um acesso com este e-mail.", 409);
+      if (isUniqueViolation(err, "uq_affiliates_code")) throw new OrgScopeError("Este código já é de outro cambista ou afiliado.", 409);
+      throw err;
     });
 
     await audit(req, "seller.create", "affiliate", created.id, { code: created.code });
@@ -2444,6 +2453,16 @@ async function assertUserInScope(req: Request, userId: string) {
   if (!alvo || (org && alvo.organizationId !== org)) {
     throw new OrgScopeError("Usuário não encontrado.");
   }
+  // A conta do afiliado é da plataforma, mesmo a do afiliado antigo que ainda
+  // tem a organização no usuário: ele trabalha para várias. Redefinir a senha
+  // dele daria a uma organização a conta — e os saques — que ele tem nas
+  // outras. A organização decide o vínculo, em Afiliados.
+  if (org && alvo.role === "affiliate") {
+    throw new OrgScopeError(
+      "A conta do afiliado é da plataforma. O vínculo com a sua organização você decide em Afiliados.",
+      403,
+    );
+  }
   return alvo;
 }
 
@@ -2468,6 +2487,9 @@ adminRouter.post("/usuarios/:id/senha", async (req, res, next) => {
       .update(users)
       .set({ passwordHash: await hashPassword(senha) })
       .where(eq(users.id, alvo.id));
+    // Senha redefinida é, quase sempre, suspeita de conta tomada: todas as
+    // sessões da pessoa caem e ela entra de novo com a senha nova.
+    await encerrarSessoesDoUsuario(alvo.id);
     await audit(req, "usuario.senha.redefinida", "user", alvo.id, { email: alvo.email });
     res.json({ ok: true });
   } catch (err) {
@@ -2766,6 +2788,17 @@ adminRouter.post("/finance/release", async (req, res, next) => {
   }
 });
 
+/** O endereço do comprovante do saque, se for `https:` e de tamanho razoável; senão, nada. */
+function comprovanteValido(bruto: unknown): string | null {
+  if (typeof bruto !== "string" || bruto.length > 500) return null;
+  try {
+    const u = new URL(bruto.trim());
+    return u.protocol === "https:" && !u.username && !u.password ? u.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
 adminRouter.post("/payouts/:id/paid", async (req, res, next) => {
   try {
     const [saque] = await db
@@ -2786,7 +2819,8 @@ adminRouter.post("/payouts/:id/paid", async (req, res, next) => {
         .set({
           status: "paid",
           processedAt: new Date(),
-          receiptUrl: req.body?.receiptUrl ? String(req.body.receiptUrl) : null,
+          // Endereço do comprovante: só `https:` (nunca `javascript:`), como os links do perfil.
+          receiptUrl: comprovanteValido(req.body?.receiptUrl),
         })
         .where(and(eq(payouts.id, req.params.id), eq(payouts.status, "requested")))
         .returning();

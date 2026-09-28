@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
-import { IconeSacola, IconeTrocar } from "@/components/Icones";
+import { IconeMais, IconeTrocar } from "@/components/Icones";
 import { apiRequest } from "@/lib/queryClient";
 import { formatBRL, formatQuota, quotaDigits } from "@shared/format";
 import { corDaCasa, letraDoQuadro } from "@/lib/quadro";
@@ -165,7 +165,7 @@ export function Cartelas({
                   title="Pôr no carrinho"
                   className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md border border-line-2 hover:bg-mist disabled:opacity-60"
                 >
-                  <IconeSacola tamanho={22} />
+                  <IconeMais tamanho={24} />
                 </button>
               ) : null}
               <button

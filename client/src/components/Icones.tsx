@@ -140,3 +140,16 @@ export function IconePresente({ tamanho = 26, aberto = false }: P & { aberto?: b
     </Icone>
   );
 }
+
+/**
+ * O "+" de pôr no carrinho: em negrito, azul no claro e verde no escuro
+ * (`--mais`). Na barra da publicação abre a janela dos números; na cartela,
+ * adiciona aquele bilhete.
+ */
+export function IconeMais({ tamanho = 28 }: P) {
+  return (
+    <Icone tamanho={tamanho} className="text-mais">
+      <path fill="none" stroke="currentColor" strokeWidth={3.25} strokeLinecap="round" d="M12 4.5v15M4.5 12h15" />
+    </Icone>
+  );
+}

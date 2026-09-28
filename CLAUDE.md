@@ -1161,7 +1161,8 @@ carrinho.
 
 **Na página da rifa, o "+" e a sacola saem de baixo da publicação** — a
 compra já está na tela. Cada cartela traz tudo numa linha: **trocar** (só
-o ícone, à esquerda), o **carrinho** (a sacola, que junta a cartela) e o
+o ícone, à esquerda), o **"+"** (o mesmo "+" azul/verde em negrito da
+barra, `IconeMais` em `Icones.tsx`, que junta a cartela ao carrinho) e o
 **Pagar**, maior, no canto direito.
 
 - **Vários bilhetes por rifa, e de várias rifas** (`juntarCartela()` em

@@ -286,9 +286,12 @@ Como no Instagram, com as nossas cores (verde no lugar do vermelho e do rosa).
   conta saíram do topo.
 - **Console na base, seis botões** (`BOTOES_DO_CONSOLE`): Início, Reels,
   Mensagens, Buscar, Carrinho (o carrinho final, para pagar) e Perfil (a
-  foto de quem entrou). **Ícones no traço suave** (`Icones.tsx`: 1,75 em 24,
-  pontas e cantos redondos), os mesmos da barra de ações — nada de ícone
-  de biblioteca de traço reto no console. O que ainda não existe (`pronto: false`) aparece
+  foto de quem entrou). **Os ícones moram em `Icones.tsx`**, os mesmos na
+  barra de ações e no console: a casa é nossa; republicar é Tabler; reels
+  é Iconoir com os cantos arredondados; o resto é Solar, com a versão
+  cheia no botão aceso. A Solar é CC BY 4.0: o crédito fica em `/perfil`
+  e em `docs/LICENCAS-DE-TERCEIROS.md` — ícone novo de terceiro entra lá
+  também. Nada de ícone de traço reto no console. O que ainda não existe (`pronto: false`) aparece
   mesmo assim e leva a "Em breve" (`EM_BREVE`) — o app em desenvolvimento
   mostra a forma final. Botão aceso com traço mais grosso **e**
   `aria-current`, nunca só a cor; o número do carrinho vai no rótulo.

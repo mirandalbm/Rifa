@@ -2,8 +2,8 @@ import { useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Link, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { CircleUserRound, X } from "lucide-react";
-import { IconeAviao, IconeCasa, IconeLupa, IconeReels, IconeSacola, IconeVarinha } from "@/components/Icones";
+import { X } from "lucide-react";
+import { IconeAviao, IconeCasa, IconeLupa, IconePerfil, IconeReels, IconeSacola, IconeVarinha } from "@/components/Icones";
 import {
   AVISO_DO_TREVO_PADRAO,
   BOTOES_DO_CONSOLE,
@@ -208,7 +208,7 @@ function AvatarDoConsole() {
       </span>
     );
   }
-  return <CircleUserRound size={26} strokeWidth={1.75} absoluteStrokeWidth={false} aria-hidden />;
+  return <IconePerfil tamanho={26} />;
 }
 
 function BotaoDoConsole({ chave, rotulo, caminho, ativo, lateral }: { chave: BotaoDoConsole; rotulo: string; caminho: string; ativo: boolean; lateral: boolean }) {

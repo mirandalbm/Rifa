@@ -1,4 +1,4 @@
-import { Icone, IconeAviao, IconeSacola, TRACO } from "@/components/Icones";
+import { Icone, IconeAviao, IconeComentar, IconeRepublicar, IconeSacola } from "@/components/Icones";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link, useLocation } from "wouter";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -316,22 +316,7 @@ export function IconeTrevo({ cheio, tamanho = 26, corDoCheio }: { cheio: boolean
   );
 }
 
-function IconeComentar() {
-  return (
-    <Icone>
-      <path {...TRACO} d="M20.66 17A9.99 9.99 0 1 0 17.07 20.62L22 22Z" />
-    </Icone>
-  );
-}
 
-function IconeRepublicar({ ligado }: { ligado: boolean }) {
-  return (
-    <Icone className={ligado ? "text-marca" : ""}>
-      <path {...TRACO} d="M19.5 10V9a4 4 0 0 0-4-4H6.5M9 2 6 5l3 3M4.5 14v1a4 4 0 0 0 4 4h9M15 22l3-3-3-3" />
-      <path {...TRACO} d="m8.75 12.25 2.25 2.25 4.25-4.25" />
-    </Icone>
-  );
-}
 
 
 /** O "+" do carrinho: em negrito, azul — abre a janela para escolher os números. */
@@ -448,7 +433,7 @@ export function BarraDeAcoes({
           aria-label={`${i.republiquei ? "Desfazer republicação" : "Republicar no seu perfil"} (${i.republicacoes})`}
           onClick={() => acao.mutate({ acao: "republicacao", ligar: !i.republiquei })}
         >
-          <IconeRepublicar ligado={i.republiquei} />
+          <IconeRepublicar className={i.republiquei ? "text-marca" : ""} />
           <span className="tnum text-[15px] font-medium">{contadorCurto(i.republicacoes)}</span>
         </button>
         <button type="button" className={botao} aria-label={`Compartilhar (${i.compartilhamentos})`} onClick={() => void compartilhar()}>

@@ -1,8 +1,10 @@
-import { Clapperboard, Search, Send, type LucideIcon } from "lucide-react";
+import type { ReactNode } from "react";
+import { IconeAviao, IconeLupa, IconeReels } from "@/components/Icones";
 import { PublicShell } from "@/components/AppShell";
 import { EM_BREVE } from "@shared/console";
 
-const ICONE: Record<keyof typeof EM_BREVE, LucideIcon> = { reels: Clapperboard, mensagens: Send, buscar: Search };
+/** Os mesmos desenhos do console (`Icones.tsx`). */
+const ICONE: Record<keyof typeof EM_BREVE, (p: { tamanho?: number }) => ReactNode> = { reels: IconeReels, mensagens: IconeAviao, buscar: IconeLupa };
 
 /**
  * Os botões do console que ainda não existem levam aqui: o app em
@@ -15,7 +17,7 @@ export function EmBreve({ tela }: { tela: keyof typeof EM_BREVE }) {
     <PublicShell>
       <section className="flex min-h-[60vh] flex-col items-center justify-center text-center">
         <span className="flex h-20 w-20 items-center justify-center rounded-full border-2 border-ink">
-          <Icone size={36} strokeWidth={1.5} aria-hidden />
+          <Icone tamanho={40} />
         </span>
         <h1 className="mt-4 font-display text-2xl font-extrabold">{titulo}</h1>
         <p className="mt-1 inline-block rounded-full bg-yellow-soft px-3 py-0.5 text-xs font-semibold text-yellow-deep">Em breve</p>

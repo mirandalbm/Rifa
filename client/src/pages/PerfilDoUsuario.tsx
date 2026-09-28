@@ -117,6 +117,10 @@ export default function PerfilDoUsuario() {
         <span className="tnum shrink-0 rounded border border-line-2 px-1 font-semibold text-ink-2">18+</span>
         <span>{t.textos.jogoResponsavel}</span>
       </p>
+      {/* A Solar pede crédito (CC BY 4.0); as outras duas vão junto. */}
+      <p className="mt-3 text-[11px] text-muted">
+        Ícones: Solar, de 480 Design (CC BY 4.0); Tabler e Iconoir (MIT).
+      </p>
     </PublicShell>
   );
 }

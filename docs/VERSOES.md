@@ -158,6 +158,8 @@ celular, na largura da casca.
 | `/pedido/:codigo` | `pages/Pedido.tsx` | 768 | coluna | igual | igual |
 | `/minhas-cotas`, `/minhas-compras` | `pages/MinhasCotas.tsx` | 768 | coluna com abas | igual | igual |
 | `/notificacoes` | `pages/Notificacoes.tsx` | 768 | coluna | igual | igual |
+| `/perfil` | `pages/PerfilDoUsuario.tsx` | 768 | foto e nome, menu da conta (bilhetes, reembolsos, conta, painel, ajuda), tema, cookies e o "18+" | igual | igual |
+| `/reels`, `/mensagens`, `/buscar` | `pages/EmBreve.tsx` | 768 | "Em breve" com o que vem | igual | igual |
 | `/ajuda` | `pages/Ajuda.tsx` | 768 | coluna | igual | igual |
 | `/r/:rifa/regulamento`, `/o/:org/r/:rifa/regulamento` | `pages/Regulamento.tsx` | 768 | coluna | igual | igual |
 | `/recibo/:codigo` | `pages/Recibo.tsx` | 768 | coluna | igual | igual |
@@ -302,3 +304,4 @@ ou `leva N`. O teste confere o formato, a numeração e o limite da leva.
 | 3 | 2026-09-28 | #58 | Afiliado · Saques | Trocar a chave Pix pede a senha ("Sua senha, para confirmar") e mostra se trocou ou o motivo da recusa | Vale igual (mesmo cartão); a conferir na leva | aguardando leva |
 | 4 | 2026-09-28 | #58 | Painel · Usuários | Na lista do organizador, a conta de afiliado mostra "conta da plataforma" no lugar de senha e desligar | Vale igual; no celular a coluna fica no fim da tabela que rola (P5) | aguardando leva |
 | 5 | 2026-09-28 | #59 | Vitrine, perfil e rifa · publicação | O carrossel segue o formato da primeira peça (4:5, 1:1, 1,91:1 ou 9:16); no vertical o perfil da promotora vai por cima da imagem | Vale igual; o 9:16 limitado a 85% da altura da tela, conferido em 1440 na grade de 3 colunas | aguardando leva |
+| 6 | 2026-09-28 | #60 | Loja inteira · topo e console | Topo com a logo, a publicação e o trevo (ponto verde); console fixo na base com Início, Reels, Mensagens, Buscar, Carrinho e Perfil; "18+", ajuda, tema e cookies foram para `/perfil` | Tablet igual ao celular; no computador o topo some e o console vira a lateral esquerda (ícones em `lg`, com nomes em `xl`) | aguardando leva |

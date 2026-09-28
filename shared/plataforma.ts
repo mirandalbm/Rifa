@@ -8,6 +8,7 @@
  * Provedor do Pix
  * ------------------------------------------------------------------ */
 
+import { AVISO_DO_TREVO_PADRAO, validarAvisoDoTrevo, type AvisoDoTrevo } from "./console";
 import { CONFIG_PRESENTE_PADRAO, validarConfigPresente, type ConfigPresente } from "./presente";
 import { TAXA_REEMBOLSO_MAX_PCT, TAXA_REEMBOLSO_PADRAO_PCT } from "./reembolso";
 import { BONUS_POR_INDICACAO_MAX, BONUS_POR_INDICACAO_PADRAO } from "./bonus";
@@ -105,6 +106,13 @@ export interface ConfigPlataforma {
    * pelos comentários). Nasce desligado — ver `shared/presente.ts`.
    */
   presente: ConfigPresente;
+  /** Como o trevo do topo avisa que há novidade (ponto ou cheio, e a cor). */
+  avisoDoTrevo: AvisoDoTrevo;
+  /**
+   * O ícone de publicação para o apostador. Nasce desligado: por ora só a
+   * organização e o influenciador publicam.
+   */
+  publicarApostador: boolean;
 }
 
 export const CONFIG_PADRAO: ConfigPlataforma = {
@@ -120,6 +128,8 @@ export const CONFIG_PADRAO: ConfigPlataforma = {
   marketingPixels: {},
   coresDoSelo: CORES_DO_SELO_PADRAO,
   presente: CONFIG_PRESENTE_PADRAO,
+  avisoDoTrevo: AVISO_DO_TREVO_PADRAO,
+  publicarApostador: false,
 };
 
 /** Só as chaves conhecidas: isto vem do corpo da requisição. */
@@ -149,6 +159,8 @@ export function validarConfigPlataforma(entrada: Partial<ConfigPlataforma>): Con
     marketingPixels: validarPixels(entrada.marketingPixels),
     coresDoSelo: coresDoSeloValidas(entrada.coresDoSelo),
     presente: validarConfigPresente(entrada.presente),
+    avisoDoTrevo: validarAvisoDoTrevo(entrada.avisoDoTrevo),
+    publicarApostador: entrada.publicarApostador === true,
   };
 }
 

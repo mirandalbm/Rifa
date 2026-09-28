@@ -19,6 +19,8 @@ import MinhasCotas from "@/pages/MinhasCotas";
 import Carrinho from "@/pages/Carrinho";
 import CarrinhoPix from "@/pages/CarrinhoPix";
 import Notificacoes from "@/pages/Notificacoes";
+import PerfilDoUsuario from "@/pages/PerfilDoUsuario";
+import { Buscar, Mensagens, Reels } from "@/pages/EmBreve";
 import Usuario from "@/pages/Usuario";
 import Login from "@/pages/Login";
 import CriarConta from "@/pages/CriarConta";
@@ -148,6 +150,10 @@ export default function App() {
           <Route path="/carrinho" component={Carrinho} />
           <Route path="/carrinho/pix/:codigo" component={CarrinhoPix} />
           <Route path="/notificacoes" component={Notificacoes} />
+          <Route path="/perfil" component={PerfilDoUsuario} />
+          <Route path="/reels" component={Reels} />
+          <Route path="/mensagens" component={Mensagens} />
+          <Route path="/buscar" component={Buscar} />
           <Route path="/u/:apelido" component={Usuario} />
           <Route path="/minhas-compras" component={MinhasCotas} />
           <Route path="/entrar" component={Login} />

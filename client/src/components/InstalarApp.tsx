@@ -1,3 +1,4 @@
+import { acimaDoConsole } from "@/components/Console";
 import { useState } from "react";
 import { useInstalacao } from "@/lib/pwa";
 import { useTemplate } from "@/lib/template";
@@ -52,8 +53,8 @@ export function InstalarApp() {
       <div aria-hidden className="h-24" />
       <aside
         aria-label="Instalar o aplicativo"
-        className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-white/95 backdrop-blur"
-        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+        className="fixed inset-x-0 bottom-[var(--acima-do-console)] z-40 border-t border-line bg-white/95 backdrop-blur lg:bottom-0 lg:left-[72px] xl:left-[244px]"
+        style={{ ["--acima-do-console" as string]: acimaDoConsole }}
       >
         <div className="mx-auto flex max-w-3xl items-center gap-3 px-4 py-3">
           <img

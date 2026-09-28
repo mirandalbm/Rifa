@@ -371,6 +371,21 @@ Na ordem de entrega do plano:
 
 ## 6. Código, para depois
 
+- [ ] **[código]** Botões do console ainda "Em breve", cada um planejado
+  com você antes: **Reels** (tela cheia, com carrinho e compra rápida),
+  **Mensagens** (conversas entre amigos e sobre rifas comentadas; online à
+  esquerda e não lidas depois; o organizador só vê o que é dele) e
+  **Buscar** (últimas publicações, com a tabela do que aparece ligada pela
+  plataforma).
+- [ ] **[código]** Perfil do usuário: os bilhetes como publicações privadas
+  (uma por compra ou carrossel), com data, hora, prêmio e números.
+- [ ] **[código]** Ferramentas de publicação: as do Instagram adaptadas à
+  criação de rifa (organização); para o influenciador, criar e republicar
+  com o material da organização, com publicação direta ou só depois da
+  autorização dela; e a publicação do apostador (hoje atrás do interruptor).
+- [ ] **[código]** Remodelagem do web e dos painéis, depois do app
+  (`docs/REMODELAGEM.md`: inventário e lista de conferência).
+
 - [ ] **[código]** Maquininha Stone no invólucro Android: faltam os nomes de
   classe do SDK da Stone (a do PagBank está pronta).
 - [ ] **[código]** Compilar o APK das maquininhas — precisa de máquina com o
@@ -394,6 +409,12 @@ Na ordem de entrega do plano:
   split", **não cobre de novo** a taxa de organização com carteira Asaas.
 
 ## Feito
+
+- [x] Topo e console do app como no Instagram: logo, publicação e trevo com
+  ponto verde no topo; Início, Reels, Mensagens, Buscar, Carrinho e Perfil na
+  base (os três do meio com "Em breve"); lateral esquerda no computador;
+  "18+", ajuda, tema e cookies na tela do perfil; aviso do trevo e publicação
+  do apostador escolhidos pela plataforma em Aparência.
 
 - [x] Formatos da publicação como no Instagram: retrato 4:5, quadrado 1:1,
   paisagem 1,91:1 e vertical 9:16 (perfil por cima), pela primeira peça,

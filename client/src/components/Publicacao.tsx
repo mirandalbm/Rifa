@@ -305,7 +305,7 @@ function Icone({ tamanho = 26, children, className }: { tamanho?: number; childr
  * por baixo e as folhas pintadas da cor do fundo por cima, para as linhas
  * de dentro (onde as folhas se encostam) não aparecerem.
  */
-export function IconeTrevo({ cheio, tamanho = 26 }: { cheio: boolean; tamanho?: number }) {
+export function IconeTrevo({ cheio, tamanho = 26, corDoCheio }: { cheio: boolean; tamanho?: number; corDoCheio?: string }) {
   const folhas = (props: Record<string, unknown>) => (
     <g {...props}>
       {[45, 135, 225, 315].map((giro) => (
@@ -314,7 +314,8 @@ export function IconeTrevo({ cheio, tamanho = 26 }: { cheio: boolean; tamanho?: 
     </g>
   );
   return (
-    <svg viewBox="-4 -4 108 108" width={tamanho} height={tamanho} aria-hidden className={cheio ? "text-marca" : ""}>
+    // Cheio pega a cor da marca; com `corDoCheio`, a cor de quem envolve (o aviso do topo).
+    <svg viewBox="-4 -4 108 108" width={tamanho} height={tamanho} aria-hidden className={cheio && !corDoCheio ? "text-marca" : ""}>
       {cheio
         ? folhas({ fill: "currentColor" })
         : (

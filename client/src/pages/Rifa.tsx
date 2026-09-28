@@ -34,6 +34,8 @@ import { SorteioCard } from "@/components/SorteioCard";
 import { Comentarios, PainelDeComentarios } from "@/components/Comentarios";
 import { BotaoDenunciar, SoValePelaPlataforma } from "@/components/Seguranca";
 import { Cartelas } from "@/components/Cartelas";
+import { CotaSurpresa, type PremiosDaRifa } from "@/components/CotaSurpresa";
+import { avisoDaJuntada, juntarNoCarrinho } from "@/lib/carrinho";
 
 interface CampaignDetail {
   campaign: {
@@ -167,11 +169,8 @@ export default function Rifa() {
     }
   }, [slug]);
 
-  const { data: premios } = useQuery<{
-    total: number;
-    restantes: number;
-    premios: { label: string; total: number; restantes: number }[];
-  }>({ queryKey: [`/api/public/campaigns/${slug}/premios`] });
+  // Cota surpresa (o presente na publicação): só existe se a rifa tem cota premiada.
+  const { data: premios } = useQuery<PremiosDaRifa>({ queryKey: [`/api/public/campaigns/${slug}/premios`] });
 
   const { data: ranking } = useQuery<{ nome: string; telefone: string; quotas: number }[]>({
     queryKey: [`/api/public/campaigns/${slug}/ranking`],
@@ -392,7 +391,16 @@ export default function Rifa() {
           as ações e a legenda — como no feed. */}
       {carrossel.length ? (
         <div className="-mx-4 mt-3 lg:mx-0 lg:overflow-hidden lg:rounded-xl">
-          <Carrossel pecas={carrossel} titulo={campaign.prizeTitle} />
+          <Carrossel
+            pecas={carrossel}
+            titulo={campaign.prizeTitle}
+            canto={premios && premios.total > 0 ? <CotaSurpresa slug={slug} premios={premios} /> : null}
+          />
+        </div>
+      ) : premios && premios.total > 0 ? (
+        // Sem foto nem vídeo, o presente fica no fim da faixa da rifa.
+        <div className="mt-3 flex justify-end">
+          <CotaSurpresa slug={slug} premios={premios} />
         </div>
       ) : null}
       {campaign.interacoes ? (
@@ -403,8 +411,6 @@ export default function Rifa() {
             caminho={data.organizacao ? `/o/${data.organizacao.slug}/r/${campaign.slug}` : `/r/${campaign.slug}`}
             interacoes={campaign.interacoes}
             aoComentar={() => setComentando(true)}
-            vende={vende && stats.soldCount < campaign.totalQuotas}
-            aoComprar={() => document.getElementById("comprar")?.scrollIntoView({ behavior: "smooth", block: "start" })}
           />
           <Legenda autor={data.organizacao?.nome ?? ""} texto={campaign.legenda} />
         </div>
@@ -540,49 +546,12 @@ export default function Rifa() {
           escolhida={picked.length ? picked : null}
           pagando={createOrder.isPending}
           onPagar={pagarCartela}
+          onCarrinho={(numeros) => avisoDaJuntada(juntarNoCarrinho(slug, numeros, campaign.maxPerOrder), campaign.maxPerOrder)}
           trocarSinal={trocarSinal}
         />
       ) : null}
       {pacote > 0 && error && count === 0 ? (
         <p role="alert" className="mt-2 rounded-md bg-red-soft px-3 py-2 text-sm text-red">{error}</p>
-      ) : null}
-
-      {/* Cotas premiadas: mostramos o prêmio e quantos restam, nunca o número. */}
-      {premios && premios.total > 0 ? (
-        <div className="mt-4 rounded-lg border border-yellow bg-yellow-soft p-3">
-          <div className="flex items-baseline justify-between">
-            <h2 className="font-display text-sm font-bold text-yellow-deep">
-              Cotas premiadas
-            </h2>
-            <span className="tnum text-xs text-yellow-deep">
-              {premios.restantes} de {premios.total} em jogo
-            </span>
-          </div>
-          <ul className="mt-2 flex flex-wrap gap-1.5">
-            {premios.premios.map((p) => (
-              <li
-                key={p.label}
-                className={`rounded-md px-2 py-1 text-xs ${
-                  p.restantes === 0
-                    ? "bg-mist-2 text-muted line-through"
-                    : "bg-white text-ink-2"
-                }`}
-              >
-                {p.label}
-                {p.restantes === 0 ? (
-                  // Prêmio que já saiu continua na lista: é prova de que
-                  // as cotas premiadas são reais.
-                  <span className="ml-1 no-underline">já saiu</span>
-                ) : p.total > 1 ? (
-                  <span className="tnum ml-1 text-muted">×{p.restantes}</span>
-                ) : null}
-              </li>
-            ))}
-          </ul>
-          <p className="mt-2 text-[11px] text-yellow-deep">
-            Os números premiados são secretos e aparecem na hora que você paga.
-          </p>
-        </div>
       ) : null}
 
       {showMap ? (

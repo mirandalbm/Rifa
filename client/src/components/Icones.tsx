@@ -109,3 +109,34 @@ export function IconeComentar({ tamanho }: P) {
 export function IconeRepublicar({ tamanho, className }: P & { className?: string }) {
   return <Desenho corpo={REPUBLICAR} tamanho={tamanho} className={className} />;
 }
+
+/** Trocar os números da cartela: duas setas em roda (desenho nosso, no traço da casa). */
+export function IconeTrocar({ tamanho = 22, girando = false }: P & { girando?: boolean }) {
+  return (
+    <Icone tamanho={tamanho} className={girando ? "animate-spin" : undefined}>
+      <g {...TRACO}>
+        <path d="M20 12a8 8 0 0 1-14.2 5.05" />
+        <path d="M4 12a8 8 0 0 1 14.2-5.05" />
+        <path d="M18.5 3.5V7H15" />
+        <path d="M5.5 20.5V17H9" />
+      </g>
+    </Icone>
+  );
+}
+
+/** O presente da cota surpresa (desenho nosso): caixa com laço, a tampa separada para poder abrir. */
+export function IconePresente({ tamanho = 26, aberto = false }: P & { aberto?: boolean }) {
+  return (
+    <Icone tamanho={tamanho}>
+      <g {...TRACO}>
+        <rect x="4.5" y="11" width="15" height="9.5" rx="2" />
+        <path d="M12 11v9.5" />
+        <g className={aberto ? "presente-tampa-aberta" : undefined}>
+          <rect x="3" y="7" width="18" height="4" rx="1.5" />
+          <path d="M12 7c-1.2-2.6-4.6-3.4-4.6-1.3C7.4 7 10 7 12 7Z" />
+          <path d="M12 7c1.2-2.6 4.6-3.4 4.6-1.3C16.6 7 14 7 12 7Z" />
+        </g>
+      </g>
+    </Icone>
+  );
+}

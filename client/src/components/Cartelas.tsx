@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { RefreshCw } from "lucide-react";
+import { Link } from "wouter";
+import { IconeSacola, IconeTrocar } from "@/components/Icones";
 import { apiRequest } from "@/lib/queryClient";
 import { formatBRL, formatQuota, quotaDigits } from "@shared/format";
 import { corDaCasa, letraDoQuadro } from "@/lib/quadro";
@@ -33,6 +34,7 @@ export function Cartelas({
   onPagar,
   trocarSinal,
   acao = "pagar",
+  onCarrinho,
 }: {
   slug: string;
   quantidade: number;
@@ -47,10 +49,16 @@ export function Cartelas({
   trocarSinal: { numeros: number[]; vez: number } | null;
   /** O que o botão da cartela faz: pagar agora ou pôr no carrinho (janela do "+"). */
   acao?: "pagar" | "carrinho";
+  /**
+   * Com pagar agora, o ícone do carrinho ao lado junta a cartela à rifa no
+   * carrinho (dá para juntar várias). Devolve o aviso para mostrar.
+   */
+  onCarrinho?: (numeros: number[]) => { ok: boolean; texto: string };
 }) {
   const [cartelas, setCartelas] = useState<number[][] | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [trocando, setTrocando] = useState<number | null>(null);
+  const [aviso, setAviso] = useState<{ i: number; ok: boolean; texto: string } | null>(null);
 
   useEffect(() => {
     let vivo = true;
@@ -118,21 +126,35 @@ export function Cartelas({
                 </li>
               ))}
             </ul>
-            <div className="mt-3 grid grid-cols-[auto_1fr] gap-2">
+            {/* Numa linha só: trocar (só o ícone), o carrinho e o pagar, maior, no canto. */}
+            <div className="mt-3 flex items-center gap-2">
               <button
                 type="button"
                 onClick={() => void trocar(i)}
                 disabled={trocando === i || pagando}
-                className="flex items-center gap-1 rounded-md border border-line-2 px-3 py-2 text-xs font-semibold hover:bg-mist disabled:opacity-60"
+                aria-label={`Trocar os números da cartela ${i + 1}`}
+                title="Trocar números"
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md border border-line-2 hover:bg-mist disabled:opacity-60"
               >
-                <RefreshCw size={13} aria-hidden className={trocando === i ? "animate-spin" : ""} />
-                Trocar números
+                <IconeTrocar girando={trocando === i} />
               </button>
+              {onCarrinho && acao === "pagar" ? (
+                <button
+                  type="button"
+                  onClick={() => setAviso({ i, ...onCarrinho(numeros) })}
+                  disabled={trocando === i || pagando}
+                  aria-label={`Pôr a cartela ${i + 1} no carrinho`}
+                  title="Pôr no carrinho"
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md border border-line-2 hover:bg-mist disabled:opacity-60"
+                >
+                  <IconeSacola tamanho={22} />
+                </button>
+              ) : null}
               <button
                 type="button"
                 onClick={() => onPagar(numeros)}
                 disabled={trocando === i || pagando}
-                className="rounded-md bg-green px-3 py-2 text-sm font-semibold text-on-green disabled:opacity-60"
+                className="h-11 min-w-0 flex-1 rounded-md bg-green px-3 text-base font-bold text-on-green disabled:opacity-60"
               >
                 {acao === "carrinho" ? (
                   <>
@@ -147,6 +169,16 @@ export function Cartelas({
                 )}
               </button>
             </div>
+            {aviso?.i === i ? (
+              <p role="status" className={`mt-2 text-xs ${aviso.ok ? "text-green-deep" : "text-red"}`}>
+                {aviso.texto}{" "}
+                {aviso.ok ? (
+                  <Link href="/carrinho" className="font-semibold underline">
+                    Ver carrinho
+                  </Link>
+                ) : null}
+              </p>
+            ) : null}
           </article>
         );
       })}

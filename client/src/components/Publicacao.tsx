@@ -68,6 +68,7 @@ export function Carrossel({
   href,
   aoAbrir,
   perfil,
+  canto,
   children,
 }: {
   pecas: Peca[];
@@ -81,6 +82,8 @@ export function Carrossel({
   perfil?: (sobreImagem: boolean) => ReactNode;
   /** O que vai por cima da imagem (o selo de vendidas), abaixo do perfil quando ele está por cima. */
   children?: ReactNode;
+  /** Botão no canto de baixo à direita (a cota surpresa); no vídeo, sobe acima do som. */
+  canto?: ReactNode;
 }) {
   const [atual, setAtual] = useState(0);
   const formato = formatoDoCarrossel(pecas);
@@ -144,6 +147,9 @@ export function Carrossel({
             </span>
           ) : null}
         </div>
+        {canto ? (
+          <div className={`absolute right-3 ${pecas[atual]?.role === "video" ? "bottom-14" : "bottom-3"}`}>{canto}</div>
+        ) : null}
       </div>
       {pecas.length > 1 ? (
         <div className="flex justify-center gap-1 pt-2" aria-hidden>

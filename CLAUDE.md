@@ -85,7 +85,7 @@ arquitetura.
 | segundo fator | `server/services/totp.ts` |
 | variantes de imagem | `server/services/images.ts` |
 | mensagens e modelos | `server/notifications/` |
-| cotas premiadas | `shared/premiadas.ts` (números escolhidos), `server/routes/admin.ts` (sorteio e escolha), `services/orders.ts` (revelação), `premiados` em `listarComentarios()` (ganhador no topo) |
+| cotas premiadas | `shared/premiadas.ts` (números escolhidos), `server/routes/admin.ts` (sorteio e escolha), `services/orders.ts` (revelação), `premiados` em `listarComentarios()` (ganhador no topo), `client/src/components/CotaSurpresa.tsx` (o presente na publicação) |
 | cadastro/cupom/kit do afiliado | `server/routes/public.ts`, `server/routes/affiliate.ts` |
 | afiliado de todas as organizações (vínculo, termo, aceite, colaborador) | `shared/afiliados.ts` (regras), `server/services/afiliados.ts` (`comissaoNaRifa`), `client/src/pages/afiliado.tsx` (`AfiliadoOrganizacoes`), `scripts/afiliados-test.ts` |
 | venda física e acerto | `server/routes/seller.ts`, `server/services/settlements.ts` |
@@ -1011,6 +1011,18 @@ pedido, cotas e valor, e o cliente só pelo ID (`Cliente C-XXXXXXXX`).
   Só pedido **pago** (o estorno devolve a cota premiada e o destaque some
   junto) e só o número já reclamado — antes da compra, o número nunca sai
   (invariante das mensagens). Nome como no comentário, nunca telefone.
+- **A cota surpresa é o presente animado** no canto de baixo à direita da
+  publicação, na página da rifa (`CotaSurpresa`, `canto` do `Carrossel`,
+  que sobe acima do som no vídeo). Só existe com cota premiada — é opcional
+  da organização ou da plataforma; sem nenhuma, o presente não aparece. O
+  aviso amarelo "Cotas premiadas" saiu da página: o presente o substitui.
+  Aberto, mostra cada prêmio em segredo ("?") e o número já reclamado com
+  quem levou — os mesmos `premiados` do topo dos comentários, que já são
+  públicos; o número em jogo nunca sai. **Abre sozinho** quando aparece
+  número novo desde a última visita deste aparelho (`novosRevelados()`,
+  `rifa.surpresa.<rifa>`): quem comprou e voltou encontra o número dele. Na
+  primeira visita não abre — seria barulho para todo mundo. Balança sem
+  incomodar e para com "menos movimento" do aparelho.
 - **Os números premiados se escolhem no cadastro** (`POST
   /campaigns/:id/prized` com `numeros`, `numerosPremiados()`): só em
   rascunho (409 depois de publicar — escolher com venda em andamento seria
@@ -1142,6 +1154,19 @@ uma quantidade digitada, no mínimo e máximo da rifa) e as cartelas daquele
 tamanho (`Cartelas` com `acao="carrinho"`); a cartela escolhida vai para o
 carrinho.
 
+**Na página da rifa, o "+" e a sacola saem de baixo da publicação** — a
+compra já está na tela. Cada cartela traz tudo numa linha: **trocar** (só
+o ícone, à esquerda), o **carrinho** (a sacola, que junta a cartela) e o
+**Pagar**, maior, no canto direito.
+
+- **Dá para pôr várias cartelas da mesma rifa** (`juntarCartela()` em
+  `shared/carrinho.ts`, `juntarNoCarrinho()` no aparelho — na página e na
+  janela do "+"). O carrinho segue com **um item por rifa** (cada rifa é um
+  pedido): a cartela nova soma os números, sem repetir; toda repetida não
+  muda nada; passar do máximo por pedido recusa sem cortar. Item que só
+  tinha quantidade (mudada no carrinho) soma a quantidade, e os números
+  passam a ser sorteados — a cartela só vale com exatamente a quantidade.
+
 - **Carrinho é lista de desejo, não reserva.** Guarda rifa, quantidade e a
   cartela escolhida (`numeros`, só se tiver exatamente a quantidade) —
   nunca preço. A cota só é tomada na compra, pelo caminho de sempre
@@ -1167,7 +1192,7 @@ carrinho.
   "Comprar" próprio. O split para cada promotora é interno e não aparece
   para quem compra (seção abaixo).
 - **Carrinho e comprar só aparecem na rifa que vende agora** (`vende` na
-  vitrine, no perfil e na página, por `rifaAVenda()`): demonstração,
+  vitrine e no perfil, por `rifaAVenda()`): demonstração,
   travada, esgotada, encerrada ou sem Pix online não mostram os dois.
 - **Comprar não é atalho**: leva à compra rápida da rifa (`?comprar=1`),
   com o aviso "só vale bilhete pago pela plataforma" antes do botão. A

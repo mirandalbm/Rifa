@@ -38,9 +38,20 @@
     --azul: #0a6fd6;
     /* O "+" do carrinho: azul no claro, verde no escuro (preto e verde). */
     --mais: var(--azul);
-    /* Fundo dos números da cartela: o azul do "+" no claro, o verde a 85% no escuro. */
-    --fundo-numero: var(--azul);
-    --texto-numero: var(--azul);
+
+    /*
+     * Casas quadradas do mapa e da cartela, alternando duas cores (como o
+     * quadriculado de bilhete): no claro, azul cheio e branco com borda
+     * azul; o escolhido é o verde (os detalhes verdes). No escuro, verde
+     * cheio e preto com borda verde; o escolhido é o azul.
+     */
+    --quadro-cheio: #0a6fd6;
+    --quadro-cheio-texto: #ffffff;
+    --quadro-vazado: #ffffff;
+    --quadro-vazado-borda: #0a6fd6;
+    --quadro-vazado-texto: #0a6fd6;
+    --quadro-escolhido: #00873e;
+    --quadro-escolhido-texto: #ffffff;
 
     /*
      * Cor de marca, vinda do template (lib/template.ts põe --marca-claro e
@@ -90,8 +101,13 @@
 
       --azul: #5aa9ff;
       --mais: var(--green-deep);
-      --fundo-numero: color-mix(in srgb, var(--green) 85%, transparent);
-      --texto-numero: var(--green);
+      --quadro-cheio: #16924e;
+      --quadro-cheio-texto: #ffffff;
+      --quadro-vazado: #0e1712;
+      --quadro-vazado-borda: #16924e;
+      --quadro-vazado-texto: #5dd394;
+      --quadro-escolhido: #5aa9ff;
+      --quadro-escolhido-texto: #0e1712;
 
       --marca: var(--marca-escuro, #5dd394);
 
@@ -126,22 +142,17 @@
 
     --azul: #5aa9ff;
     --mais: var(--green-deep);
-    --fundo-numero: color-mix(in srgb, var(--green) 85%, transparent);
-    --texto-numero: var(--green);
+    --quadro-cheio: #16924e;
+    --quadro-cheio-texto: #ffffff;
+    --quadro-vazado: #0e1712;
+    --quadro-vazado-borda: #16924e;
+    --quadro-vazado-texto: #5dd394;
+    --quadro-escolhido: #5aa9ff;
+    --quadro-escolhido-texto: #0e1712;
 
     --marca: var(--marca-escuro, #5dd394);
 
     color-scheme: dark;
-  }
-
-  /*
-   * Fundo dos números da cartela (`--fundo-numero`): no claro, o azul do
-   * "+" sólido (branco a 4,9:1); no escuro, o verde do sistema a 85%. A 50%
-   * o número branco cai para 2:1 e some — foi testado.
-   */
-  .fundo-numero {
-    background-color: var(--fundo-numero);
-    color: var(--on-green);
   }
 
   /*
@@ -165,9 +176,43 @@
     }
   }
 
-  /* Número livre no mapa: azul em negrito no claro, verde no escuro. */
-  .texto-numero {
-    color: var(--texto-numero);
+  /*
+   * A casa quadrada do número (mapa, cartela, janela do "+" e carrinho).
+   * Duas cores alternadas dão o contraste do quadriculado; o estado nunca
+   * vai só na cor: o escolhido leva ✓ e `aria-pressed`, o vendido é cinza
+   * e riscado.
+   */
+  .quadro {
+    aspect-ratio: 1 / 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.5rem;
+    border: 2px solid transparent;
+    font-weight: 800;
+    line-height: 1;
+  }
+  .quadro-cheio {
+    background-color: var(--quadro-cheio);
+    border-color: var(--quadro-cheio);
+    color: var(--quadro-cheio-texto);
+  }
+  .quadro-vazado {
+    background-color: var(--quadro-vazado);
+    border-color: var(--quadro-vazado-borda);
+    color: var(--quadro-vazado-texto);
+  }
+  .quadro-escolhido {
+    position: relative;
+    background-color: var(--quadro-escolhido);
+    border-color: var(--quadro-escolhido);
+    color: var(--quadro-escolhido-texto);
+  }
+  .quadro-vendido {
+    background-color: var(--mist-2);
+    border-color: var(--line);
+    color: var(--muted);
+    text-decoration: line-through;
   }
 
   /*

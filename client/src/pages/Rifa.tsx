@@ -15,6 +15,7 @@ import {
   cpfValido,
   maskCpf,
   maskPhone,
+  quotaDigits,
 } from "@shared/format";
 import { priceOrder } from "@shared/pricing";
 import { regraDoReembolso } from "@shared/reembolso";
@@ -26,6 +27,7 @@ import { Gift } from "lucide-react";
 import { consentiu, definirOrganizacaoDaPagina, lerUtm } from "@/lib/marketing";
 import { useRastreio } from "@/components/Marketing";
 import { embaralharPagina } from "@/lib/embaralhar";
+import { casaCheia, colunasDoMapa, letraDoQuadro, useTablet } from "@/lib/quadro";
 import type { CorDeDestaque } from "@shared/perfil";
 import { SeguirBotoes, FotoDoPerfil } from "@/components/Seguir";
 import { SorteioCard } from "@/components/SorteioCard";
@@ -122,6 +124,7 @@ export default function Rifa() {
   // e destaca o que a pessoa buscou.
   const [semente] = useState(() => Math.floor(Math.random() * 2 ** 31));
   const [buscado, setBuscado] = useState<number | null>(null);
+  const tablet = useTablet();
   const [showMap, setShowMap] = useState(false);
   // O ícone de comentar abre a janela de baixo para cima, como no Instagram.
   const [comentando, setComentando] = useState(false);
@@ -314,6 +317,9 @@ export default function Rifa() {
   const totalPaginas = Math.ceil(campaign.totalQuotas / POR_PAGINA);
   const inicioDaPagina = pagina * POR_PAGINA + 1;
   const fimDaPagina = Math.min(inicioDaPagina + POR_PAGINA - 1, campaign.totalQuotas);
+  // O quadriculado: 5 ou 10 colunas, pela largura e pelo tamanho do número.
+  const colunas = colunasDoMapa(quotaDigits(campaign.totalQuotas), tablet);
+  const letra = letraDoQuadro(quotaDigits(campaign.totalQuotas));
 
   function togglePick(n: number) {
     setPicked((prev) => (prev.includes(n) ? prev.filter((x) => x !== n) : [...prev, n]));
@@ -643,9 +649,9 @@ export default function Rifa() {
                   Página <span className="tnum">{groupNumber(pagina + 1)}</span> de{" "}
                   <span className="tnum">{groupNumber(totalPaginas)}</span>
                 </p>
-                <div className="grid grid-cols-5 gap-1 sm:grid-cols-10 lg:grid-cols-5">
+                <div className="grid gap-1.5" style={{ gridTemplateColumns: `repeat(${colunas}, minmax(0, 1fr))` }}>
                   {embaralharPagina(inicioDaPagina, fimDaPagina, semente).map(
-                    (n) => {
+                    (n, i) => {
                       const taken = isTaken(n);
                       const mine = picked.includes(n);
                       return (
@@ -657,24 +663,29 @@ export default function Rifa() {
                           onClick={() => togglePick(n)}
                           aria-pressed={taken ? undefined : mine}
                           aria-label={`Cota ${formatQuota(n, campaign.totalQuotas)}${taken ? " — indisponível" : mine ? " — escolhida" : ""}`}
-                          className={`tnum rounded-md border py-2 text-[11px] font-bold ${
-                            n === buscado ? "outline outline-2 outline-offset-1 outline-ink " : ""
+                          className={`tnum quadro ${letra} ${
+                            n === buscado ? "outline outline-2 outline-offset-2 outline-ink " : ""
                           }${
                             taken
-                              ? "cursor-not-allowed border-line bg-mist-2 text-muted line-through"
+                              ? "quadro-vendido cursor-not-allowed"
                               : mine
-                                ? "fundo-numero border-transparent"
-                                : "texto-numero border-line-2 bg-white"
+                                ? "quadro-escolhido"
+                                : casaCheia(i, colunas)
+                                  ? "quadro-cheio"
+                                  : "quadro-vazado"
                           }`}
                         >
                           {formatQuota(n, campaign.totalQuotas)}
+                          {mine && !taken ? (
+                            <span aria-hidden className="absolute right-0.5 top-0 text-[10px] leading-none">✓</span>
+                          ) : null}
                         </button>
                       );
                     },
                   )}
                 </div>
                 <p className="mt-2 text-[11px] text-muted">
-                  Os números de cada página aparecem embaralhados. Use as setas para ver os próximos 100, ou a busca para achar um número (ele fica contornado). Toque para escolher.
+                  Os números de cada página aparecem embaralhados. Use as setas para ver os próximos 100, ou a busca para achar um número (ele fica contornado). Toque para escolher: o escolhido fica marcado com ✓, e o vendido, riscado.
                 </p>
               </>
             ) : (

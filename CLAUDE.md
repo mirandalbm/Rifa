@@ -77,7 +77,7 @@ arquitetura.
 |---|---|
 | mudar quem acessa o quê | `shared/access.ts` (cliente e servidor leem daqui) |
 | mexer em reserva/alocação | `server/services/quotas.ts` |
-| cartelas da compra rápida e mapa de números | `sugerirCartelas()` em `server/services/quotas.ts`, `client/src/components/Cartelas.tsx`, `client/src/pages/Rifa.tsx` |
+| cartelas da compra rápida e mapa de números | `sugerirCartelas()` em `server/services/quotas.ts`, `client/src/components/Cartelas.tsx`, `client/src/pages/Rifa.tsx`, o quadriculado em `client/src/lib/quadro.ts` e `.quadro` em `client/src/index.css` |
 | mexer no fluxo do pedido | `server/services/orders.ts` |
 | trocar o provedor de pagamento | `server/payments/` — implemente `PaymentProvider`; a escolha é do painel (`shared/plataforma.ts`) |
 | regras de publicação e mídia | `server/services/campaigns.ts`, `server/routes/admin.ts` |
@@ -203,10 +203,15 @@ arquitetura.
 
 ## Cartelas e mapa de números — o que não pode afrouxar
 
-- **Os números da cartela têm fundo colorido e texto branco**
-  (`.fundo-numero`, variável `--fundo-numero`): o azul do "+" sólido no
-  tema claro (4,9:1) e verde do sistema a 85% no escuro — a 50% o branco cai
-  para 2:1. Vale na página da rifa, na janela do "+" e no carrinho.
+- **Número é casa quadrada, em quadriculado de duas cores** (`.quadro`
+  com `.quadro-cheio`/`.quadro-vazado`, variáveis `--quadro-*` em
+  `index.css`, `casaCheia()` em `client/src/lib/quadro.ts`): no claro,
+  azul cheio com número branco e branco com borda e número azuis; no
+  escuro, verde cheio e preto com borda e número verdes. Vale no mapa, na
+  cartela da página da rifa, na janela do "+" e no carrinho. A
+  alternância é de xadrez pela quantidade de colunas (com 10 colunas,
+  alternar pelo índice daria listras). Contraste ≥ 3:1 em cada casa, nos
+  dois temas — `tests/quadro.test.ts` confere.
 - **Cartela é sugestão, não reserva.** `GET /campaigns/:slug/cartelas`
   sorteia grupos de números livres (do `free_pool` em endgame) e não grava
   nada. A compra vai com os números e passa por `reserveSpecific` — tudo ou
@@ -220,12 +225,13 @@ arquitetura.
   parecer o bloco 1.
 - **A página abre no +10** (fora da faixa da rifa, o pacote em destaque);
   o **+0**, à esquerda do +5, abre o mapa. O cabeçalho do mapa é a faixa
-  da página ("0001 a 0100"), a busca e as setas. Número livre em negrito
-  com `.texto-numero` (`--texto-numero`: azul no claro, verde no escuro).
-  O número escolhido fica como o da cartela (`.fundo-numero`: fundo azul no
-  claro, verde no escuro, texto branco, e `aria-pressed`); o vendido é
-  cinza e riscado — não verde, senão no escuro se confundiria com o
-  escolhido.
+  da página ("0001 a 0100"), a busca e as setas. O mapa tem 10 colunas no
+  tablet e com número de até 3 dígitos, e 5 no resto (`colunasDoMapa()`),
+  para o número inteiro caber — até 7 dígitos na rifa de 1 milhão.
+  O **escolhido** troca para a terceira cor (`.quadro-escolhido`: verde no
+  claro — os detalhes verdes —, azul no escuro), com ✓ no canto e
+  `aria-pressed`; o **vendido** é cinza e riscado (`.quadro-vendido`).
+  Estado nunca só pela cor.
 - **Os números de cada página aparecem embaralhados**
   (`embaralharPagina()` em `client/src/lib/embaralhar.ts`, semente da
   visita): a página continua sendo a faixa do cabeçalho, só a ordem na tela

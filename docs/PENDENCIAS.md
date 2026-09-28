@@ -126,6 +126,9 @@ senha); **[código]** é trabalho no repositório.
 - [x] Mapa de números com cada página embaralhada; a busca contorna o
   número e rola até ele. Número escolhido na cor da cartela (azul/verde,
   texto branco); vendido cinza e riscado.
+- [x] Mapa e cartelas em casas quadradas, quadriculado de duas cores (azul
+  e branco no claro, verde e preto no escuro), o escolhido na terceira cor
+  com ✓; o mesmo formato na janela do "+" e no carrinho.
 - [x] Vitrine no computador: feed em 3 colunas e "Sorteios chegando" ao lado
   do banner.
 - [x] Perfil da organização no computador: cartão do perfil à esquerda e

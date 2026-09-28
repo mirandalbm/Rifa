@@ -126,8 +126,10 @@ senha); **[código]** é trabalho no repositório.
 - [x] Mapa de números com cada página embaralhada; a busca contorna o
   número e rola até ele. Número escolhido na cor da cartela (azul/verde,
   texto branco); vendido cinza e riscado.
-- [ ] Mesma grade no computador para a vitrine, o perfil da organização e o
-  painel do organizador (um PR por tela).
+- [x] Vitrine no computador: feed em 3 colunas e "Sorteios chegando" ao lado
+  do banner.
+- [ ] Mesma grade no computador para o perfil da organização e o painel do
+  organizador (um PR por tela).
 - [ ] **[você]** Conferir o vídeo no celular (som e "Assistir novamente"): o
   banco de testes não tem vídeo, então não saiu captura dele.
 - [ ] **[você]** Advogado e contador: o desconto do presente pago pela

@@ -412,7 +412,9 @@ export function BarraDeAcoes({
 
   const botao = "flex items-center gap-1.5 rounded-md py-1 pr-1 hover:opacity-70 disabled:opacity-50";
   return (
-    <div className="px-3 pt-2">
+    // `barra-de-acoes`: em cartão estreito (a vitrine em 3 colunas no
+    // computador, celular pequeno) a barra aperta pela largura dela mesma.
+    <div className="barra-de-acoes px-3 pt-2">
       <div className="flex items-center gap-4">
         <button
           type="button"

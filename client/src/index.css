@@ -140,6 +140,27 @@
     color: var(--on-green);
   }
 
+  /*
+   * A barra de ações da publicação aperta pela largura do próprio cartão
+   * (container query), não da tela: na vitrine em 3 colunas o cartão é
+   * estreito mesmo num monitor grande.
+   */
+  .barra-de-acoes {
+    container-type: inline-size;
+  }
+  @container (max-width: 360px) {
+    .barra-de-acoes > div {
+      gap: 0.6rem;
+    }
+    .barra-de-acoes svg {
+      width: 23px;
+      height: 23px;
+    }
+    .barra-de-acoes .tnum {
+      font-size: 13px;
+    }
+  }
+
   /* Número livre no mapa: azul em negrito no claro, verde no escuro. */
   .texto-numero {
     color: var(--texto-numero);

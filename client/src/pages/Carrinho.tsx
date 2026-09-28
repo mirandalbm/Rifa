@@ -66,7 +66,7 @@ export default function Carrinho() {
   const total = aVenda.reduce((s, i) => s + i.totalCents, 0);
 
   return (
-    <PublicShell>
+    <PublicShell larga>
       <h1 className="font-display text-xl font-extrabold">Carrinho</h1>
       {itens.length === 0 ? (
         <div className="mt-8 text-center">
@@ -78,7 +78,10 @@ export default function Carrinho() {
       ) : isLoading && !data ? (
         <p className="py-10 text-center text-sm text-muted">Carregando…</p>
       ) : (
-        <>
+        // No computador, as rifas à esquerda e o total com o Pix à direita,
+        // fixo na rolagem; no celular, um embaixo do outro, como sempre.
+        <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start lg:gap-8">
+          <div>
           <p className="mt-1 text-xs text-muted">
             Tudo num Pix só, pago à plataforma: a parte de cada promotora vai para ela no mesmo pagamento. Cada rifa
             continua com a autorização e o bilhete da promotora, e os números só ficam seus ao pagar.
@@ -106,14 +109,17 @@ export default function Carrinho() {
               );
             })}
           </div>
-          <div className="mt-5 flex items-baseline justify-between border-t border-line pt-3">
+          </div>
+          <aside aria-label="Pagar o carrinho" className="lg:sticky lg:top-[68px] lg:mt-1 lg:rounded-xl lg:border lg:border-line lg:p-4">
+          <div className="mt-5 flex items-baseline justify-between border-t border-line pt-3 lg:mt-0 lg:border-t-0 lg:pt-0">
             <span className="text-sm">
               Total de <span className="tnum">{aVenda.length}</span> rifa{aVenda.length === 1 ? "" : "s"}
             </span>
             <Money cents={total} className="text-lg font-bold text-green-deep" />
           </div>
           {aVenda.length ? <PagarCarrinho itens={aVenda} total={total} /> : null}
-        </>
+          </aside>
+        </div>
       )}
     </PublicShell>
   );

@@ -250,6 +250,10 @@ arquitetura.
   `orgOf` em cada consulta; a venda sai **sem** nome nem telefone (quem é
   o cliente é regra da titularidade). `npm run isolation` confere que as
   últimas vendas não trazem o pedido do vizinho.
+- **Demais telas largas**: página do estado e perfil do apostador (feed em
+  3 colunas) e carrinho (rifas à esquerda, total e Pix à direita, fixo na
+  rolagem). Formulário e texto de leitura (Minhas compras, pedido, ajuda,
+  avisos) seguem na coluna estreita de propósito — linha longa cansa.
 - **Topo e faixa de baixo são opacos** (`bg-white`, sem desfoque): com
   transparência o conteúdo aparecia por baixo ao rolar.
 - **Cor com opacidade**: `white` no Tailwind é `color-mix` com

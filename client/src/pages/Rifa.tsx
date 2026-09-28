@@ -27,7 +27,7 @@ import { Gift } from "lucide-react";
 import { consentiu, definirOrganizacaoDaPagina, lerUtm } from "@/lib/marketing";
 import { useRastreio } from "@/components/Marketing";
 import { embaralharPagina } from "@/lib/embaralhar";
-import { casaCheia, colunasDoMapa, letraDoQuadro, useTablet } from "@/lib/quadro";
+import { corDaCasa, colunasDoMapa, letraDoQuadro, useTablet } from "@/lib/quadro";
 import type { CorDeDestaque } from "@shared/perfil";
 import { SeguirBotoes, FotoDoPerfil } from "@/components/Seguir";
 import { SorteioCard } from "@/components/SorteioCard";
@@ -651,7 +651,7 @@ export default function Rifa() {
                 </p>
                 <div className="grid gap-1.5" style={{ gridTemplateColumns: `repeat(${colunas}, minmax(0, 1fr))` }}>
                   {embaralharPagina(inicioDaPagina, fimDaPagina, semente).map(
-                    (n, i) => {
+                    (n) => {
                       const taken = isTaken(n);
                       const mine = picked.includes(n);
                       return (
@@ -670,9 +670,7 @@ export default function Rifa() {
                               ? "quadro-vendido cursor-not-allowed"
                               : mine
                                 ? "quadro-escolhido"
-                                : casaCheia(i, colunas)
-                                  ? "quadro-cheio"
-                                  : "quadro-vazado"
+                                : corDaCasa(n)
                           }`}
                         >
                           {formatQuota(n, campaign.totalQuotas)}

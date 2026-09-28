@@ -10,6 +10,7 @@ import { ApiError, apiRequest } from "@/lib/queryClient";
 import { esquecerCartela, porNoCarrinho, tirarDoCarrinho, useCarrinho } from "@/lib/carrinho";
 import { agruparPorOrganizacao, quantidadeNaFaixa } from "@shared/carrinho";
 import { cpfValido, formatBRL, formatQuota, maskCpf, maskPhone } from "@shared/format";
+import { corDaCasa } from "@/lib/quadro";
 import { useSession } from "@/lib/session";
 import { lerOrigem } from "@/lib/origem";
 import { lerIndicacao } from "@/lib/indicacao";
@@ -160,8 +161,8 @@ function ItemDoCarrinho({ item: i }: { item: Item }) {
         {i.vende ? (
           i.numeros?.length ? (
             <ul className="mt-1.5 flex flex-wrap gap-1" aria-label={`Números escolhidos de ${i.prizeTitle}`}>
-              {i.numeros.slice(0, 12).map((n, j) => (
-                <li key={n} className={`tnum quadro min-w-10 px-1 text-[10px] ${j % 2 === 0 ? "quadro-cheio" : "quadro-vazado"}`}>
+              {i.numeros.slice(0, 12).map((n) => (
+                <li key={n} className={`tnum quadro min-w-10 px-1 text-[10px] ${corDaCasa(n)}`}>
                   {formatQuota(n, i.totalQuotas)}
                 </li>
               ))}

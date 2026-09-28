@@ -2,9 +2,7 @@ import { useEffect, useState } from "react";
 
 /**
  * O quadriculado dos números (mapa, cartela, janela do "+" e carrinho): casas
- * quadradas alternando duas cores, como no tabuleiro de xadrez. A alternância
- * depende de quantas colunas a grade tem — com número par de colunas, alternar
- * pelo índice daria listras, não xadrez.
+ * quadradas, azuis e verdes misturadas ao acaso, nos dois temas.
  */
 
 /**
@@ -17,9 +15,19 @@ export function colunasDoMapa(digitos: number, tablet: boolean): 5 | 10 {
   return tablet || digitos <= 3 ? 10 : 5;
 }
 
-/** A casa `i` (da esquerda para a direita, de cima para baixo) é a cheia? */
-export function casaCheia(i: number, colunas: number): boolean {
-  return (Math.floor(i / colunas) + (i % colunas)) % 2 === 0;
+/**
+ * A cor da casa, azul ou verde, sorteada pelo próprio número (como na
+ * imagem de referência, sem padrão à vista). É determinística: o mesmo
+ * número tem a mesma cor no mapa, na cartela e no carrinho, e a tela não
+ * troca de cor a cada toque. Só apresentação — não diz nada do número.
+ */
+export function corDaCasa(n: number): "quadro-azul" | "quadro-verde" {
+  // Mistura de bits (a finalização do murmur3): números vizinhos caem em
+  // cores sem relação entre si.
+  let h = Math.imul(n ^ (n >>> 16), 0x85ebca6b);
+  h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35);
+  h ^= h >>> 16;
+  return (h & 1) === 0 ? "quadro-azul" : "quadro-verde";
 }
 
 /** Tamanho da letra pela quantidade de dígitos: o número nunca é cortado. */

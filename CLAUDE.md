@@ -203,15 +203,15 @@ arquitetura.
 
 ## Cartelas e mapa de números — o que não pode afrouxar
 
-- **Número é casa quadrada, em quadriculado de duas cores** (`.quadro`
-  com `.quadro-cheio`/`.quadro-vazado`, variáveis `--quadro-*` em
-  `index.css`, `casaCheia()` em `client/src/lib/quadro.ts`): no claro,
-  azul cheio com número branco e branco com borda e número azuis; no
-  escuro, verde cheio e preto com borda e número verdes. Vale no mapa, na
-  cartela da página da rifa, na janela do "+" e no carrinho. A
-  alternância é de xadrez pela quantidade de colunas (com 10 colunas,
-  alternar pelo índice daria listras). Contraste ≥ 3:1 em cada casa, nos
-  dois temas — `tests/quadro.test.ts` confere.
+- **Número é casa quadrada, azul ou verde ao acaso** (`.quadro` com
+  `.quadro-azul`/`.quadro-verde`, variáveis `--quadro-*` em `index.css`),
+  cheias e com número branco nos **dois** temas — sem casa branca ou preta.
+  A cor sai do próprio número (`corDaCasa()` em `client/src/lib/quadro.ts`):
+  parece aleatória, mas o mesmo número tem a mesma cor no mapa, na cartela
+  da página da rifa, na janela do "+" e no carrinho, e a tela não troca de
+  cor a cada toque. É só apresentação. Contraste ≥ 3:1 em cada casa e do
+  escolhido contra as duas cores, nos dois temas — `tests/quadro.test.ts`
+  confere.
 - **Cartela é sugestão, não reserva.** `GET /campaigns/:slug/cartelas`
   sorteia grupos de números livres (do `free_pool` em endgame) e não grava
   nada. A compra vai com os números e passa por `reserveSpecific` — tudo ou
@@ -228,8 +228,8 @@ arquitetura.
   da página ("0001 a 0100"), a busca e as setas. O mapa tem 10 colunas no
   tablet e com número de até 3 dígitos, e 5 no resto (`colunasDoMapa()`),
   para o número inteiro caber — até 7 dígitos na rifa de 1 milhão.
-  O **escolhido** troca para a terceira cor (`.quadro-escolhido`: verde no
-  claro — os detalhes verdes —, azul no escuro), com ✓ no canto e
+  O **escolhido** sai do azul e do verde (`.quadro-escolhido`: a cor do
+  texto — quase preto no claro, quase branco no escuro), com ✓ no canto e
   `aria-pressed`; o **vendido** é cinza e riscado (`.quadro-vendido`).
   Estado nunca só pela cor.
 - **Os números de cada página aparecem embaralhados**

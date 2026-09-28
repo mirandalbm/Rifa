@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { RefreshCw } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { formatBRL, formatQuota, quotaDigits } from "@shared/format";
-import { casaCheia, letraDoQuadro } from "@/lib/quadro";
+import { corDaCasa, letraDoQuadro } from "@/lib/quadro";
 import { priceOrder, type PricingPackage } from "@shared/pricing";
 
 /** Quantas cartelas aparecem por pacote. */
@@ -107,12 +107,12 @@ export function Cartelas({
               </h3>
               <span className="tnum text-xs text-muted">{quantidade} números</span>
             </header>
-            {/* O mesmo quadriculado do mapa: casas quadradas, cores alternadas. */}
+            {/* O mesmo quadriculado do mapa: casas quadradas, azul e verde ao acaso. */}
             <ul className="mt-2 grid grid-cols-5 gap-1.5" aria-label="Números da cartela">
-              {numeros.map((n, j) => (
+              {numeros.map((n) => (
                 <li
                   key={n}
-                  className={`tnum quadro ${letraDoQuadro(quotaDigits(totalQuotas))} ${casaCheia(j, 5) ? "quadro-cheio" : "quadro-vazado"}`}
+                  className={`tnum quadro ${letraDoQuadro(quotaDigits(totalQuotas))} ${corDaCasa(n)}`}
                 >
                   {formatQuota(n, totalQuotas)}
                 </li>

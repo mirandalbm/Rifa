@@ -5,7 +5,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Link, useLocation, useParams } from "wouter";
 import { definirOrganizacaoDaPagina } from "@/lib/marketing";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { MoreVertical, Share2, MapPin, X, Copy, Check } from "lucide-react";
+import { MoreVertical, Share2, MapPin, X, Copy, Check, Plus } from "lucide-react";
 import { PublicShell } from "@/components/AppShell";
 import { Money, Progress, Empty, Button } from "@/components/bits";
 import { apiRequest } from "@/lib/queryClient";
@@ -160,6 +160,17 @@ export default function PerfilPage() {
             tamanho={84}
             onAbrir={() => setStories(true)}
           />
+          {/* No próprio perfil, o "+" da foto posta no story, como no Instagram. */}
+          {sessao?.organizacao?.slug === p.slug ? (
+            <Link
+              href="/admin/stories"
+              aria-label="Postar no seu story"
+              title="Postar no seu story"
+              className="absolute bottom-1 right-1 flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-ink text-white"
+            >
+              <Plus size={16} aria-hidden />
+            </Link>
+          ) : null}
         </span>
         <div className="min-w-0 flex-1 pt-2">
           <h1 className="line-clamp-2 font-display text-lg font-extrabold leading-tight">

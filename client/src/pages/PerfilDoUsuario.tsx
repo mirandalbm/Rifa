@@ -15,6 +15,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { PreferenciaDeCookies, PublicShell } from "@/components/AppShell";
+import { usePendencias } from "@/components/Console";
 import { FotoDoApostador } from "@/components/PerfilDoApostador";
 import { TemaEscolha } from "@/components/TemaToggle";
 import { apiRequest } from "@/lib/queryClient";
@@ -53,6 +54,7 @@ export default function PerfilDoUsuario() {
     queryKey: ["/api/public/conta/perfil"],
     enabled: conta,
   });
+  const pendencias = usePendencias();
   const nome = sessao?.user?.name ?? perfil?.nomeReal ?? sessao?.buyer?.name ?? null;
 
   async function sair() {
@@ -72,6 +74,20 @@ export default function PerfilDoUsuario() {
           {!nome ? <p className="text-sm text-muted">Entre para comprar, comentar e acompanhar seus bilhetes.</p> : null}
         </div>
       </section>
+
+      {pendencias.length ? (
+        <section aria-label="Complete sua conta" className="mt-3 rounded-lg border border-green bg-green-soft p-3 text-sm">
+          <p className="font-semibold text-green-deep">Complete sua conta</p>
+          <ul className="mt-1 list-disc pl-5 text-ink-2">
+            {pendencias.map((p) => (
+              <li key={p}>{p}</li>
+            ))}
+          </ul>
+          <Link href="/minhas-compras?aba=conta" className="mt-2 inline-block font-semibold text-green-deep underline">
+            Ir para Minha conta
+          </Link>
+        </section>
+      ) : null}
 
       <ul className="mt-4 divide-y divide-line border-y border-line">
         {!sessao?.user && !sessao?.buyer ? (

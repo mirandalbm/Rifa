@@ -121,3 +121,26 @@ export function quemPublica(
   if (sessao.apostador && publicarApostador) return "apostador";
   return null;
 }
+
+/* ------------------------------------------------------------------ *
+ * Pendências da conta (o ponto na foto do perfil, no console)
+ * ------------------------------------------------------------------ */
+
+export interface ContaParaPendencias {
+  conta: boolean;
+  confirmado: boolean;
+  apelido: string | null | undefined;
+}
+
+/**
+ * O que falta na conta do apostador — o ponto na foto do perfil, como o
+ * do Instagram. Sem conta (só o código do WhatsApp) não há o que completar.
+ * O texto vai no rótulo do botão e na tela do perfil, nunca só o ponto.
+ */
+export function pendenciasDaConta(c: ContaParaPendencias | null | undefined): string[] {
+  if (!c?.conta) return [];
+  const falta: string[] = [];
+  if (!c.apelido) falta.push("Escolha seu apelido para comentar e republicar");
+  if (!c.confirmado) falta.push("Confirme seu telefone pelo WhatsApp");
+  return falta;
+}

@@ -1,3 +1,4 @@
+import { acimaDoConsole } from "@/components/Console";
 import { useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
@@ -68,8 +69,8 @@ function AvisoDeCookies() {
     <div
       role="dialog"
       aria-label="Aviso de cookies"
-      className="fixed inset-x-0 bottom-12 z-30 px-3"
-      style={{ marginBottom: "env(safe-area-inset-bottom)" }}
+      className="fixed inset-x-0 bottom-[calc(var(--acima-do-console)+0.5rem)] z-30 px-3 lg:bottom-4 lg:left-[72px] xl:left-[244px]"
+      style={{ ["--acima-do-console" as string]: acimaDoConsole }}
     >
       <div className="mx-auto max-w-3xl rounded-xl border border-line bg-white p-4 text-sm shadow-lg">
         <p>

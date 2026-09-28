@@ -33,6 +33,7 @@ export default {
         marca: "var(--marca)",
         /** O "+" do carrinho na barra da publicação. */
         azul: "var(--azul)",
+        mais: "var(--mais)",
       },
       fontFamily: {
         display: ['"Bricolage Grotesque"', "ui-sans-serif", "system-ui", "sans-serif"],

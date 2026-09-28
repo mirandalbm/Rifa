@@ -1,8 +1,8 @@
 import { Link, useLocation } from "wouter";
 import { useState, type ReactNode } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import { useQuery } from "@tanstack/react-query";
 import { Marketing, useTemMarketing } from "@/components/Marketing";
+import { ALTURA_DO_CONSOLE, BotaoPublicar, ConsoleDoApp, TrevoDeAvisos, acimaDoConsole } from "@/components/Console";
 import { reabrirAviso, useEscolha } from "@/lib/marketing";
 import {
   Banknote,
@@ -32,7 +32,6 @@ import {
   Users,
   Wallet,
   type LucideIcon,
-  HelpCircle,
   CircleDashed,
   BarChart3,
   IdCard,
@@ -43,192 +42,40 @@ import {
 } from "lucide-react";
 import type { SectionKey } from "@shared/access";
 import { useSession, useLogout } from "@/lib/session";
-import { useCarrinho } from "@/lib/carrinho";
-import { TemaCiclo, TemaEscolha } from "@/components/TemaToggle";
+import { TemaCiclo } from "@/components/TemaToggle";
 import { Marca } from "@/components/Marca";
-import { IconeTrevo } from "@/components/Publicacao";
 import { useTemplate } from "@/lib/template";
 
-/** Altura da faixa fixa do rodapé da loja (sem a área segura do celular). */
-export const ALTURA_DO_RODAPE = "2.25rem";
-/** Onde começa o que fica fixo acima do rodapé (barra de compra da rifa). */
-export const acimaDoRodape = `calc(${ALTURA_DO_RODAPE} + env(safe-area-inset-bottom))`;
-
-/** "Jogue com responsabilidade. Proibido…" → "Jogue com responsabilidade". */
-const primeiraFrase = (t: string) => t.split(/(?<=[.!?])\s/)[0].replace(/[.]$/, "");
-
 /**
- * Menu do apostador com conta: o círculo com a inicial abre as compras, os
- * reembolsos, a conta e o sair.
+ * Mantidos com os nomes antigos: o que fica fixo acima da base (barra de
+ * compra da rifa, avisos) agora fica acima do console.
  */
-function MenuDoApostador({ nome }: { nome: string }) {
-  const [aberto, setAberto] = useState(false);
-  const [, navigate] = useLocation();
-  const qc = useQueryClient();
-  const ir = (href: string) => {
-    setAberto(false);
-    navigate(href);
-  };
-  const itens: [string, string][] = [
-    ["Minhas compras", "/minhas-compras"],
-    ["Reembolsos", "/minhas-compras?aba=reembolsos"],
-    ["Minha conta", "/minhas-compras?aba=conta"],
-    ["Ajuda", "/ajuda"],
-  ];
-  return (
-    <div className="relative">
-      <button
-        type="button"
-        aria-haspopup="menu"
-        aria-expanded={aberto}
-        aria-label="Menu da conta"
-        onClick={() => setAberto(!aberto)}
-        className="flex items-center gap-2 rounded-full border border-line py-0.5 pl-0.5 pr-3 text-xs font-semibold text-ink-2 hover:bg-mist"
-      >
-        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-green text-on-green">
-          {nome.trim().charAt(0).toUpperCase() || "?"}
-        </span>
-        <span className="max-w-[90px] truncate">{nome.split(" ")[0]}</span>
-      </button>
-      {aberto ? (
-        <>
-          <button
-            type="button"
-            aria-label="Fechar menu"
-            className="fixed inset-0 z-30 cursor-default"
-            onClick={() => setAberto(false)}
-          />
-          <div
-            role="menu"
-            className="absolute right-0 z-40 mt-2 w-48 overflow-hidden rounded-lg border border-line bg-white py-1 shadow-lg"
-          >
-            {itens.map(([rotulo, href]) => (
-              <button
-                key={href}
-                type="button"
-                role="menuitem"
-                onClick={() => ir(href)}
-                className="block w-full px-4 py-2 text-left text-sm hover:bg-mist"
-              >
-                {rotulo}
-              </button>
-            ))}
-            <TemaCiclo className="flex w-full items-center gap-2 border-t border-line px-4 py-2 text-left text-sm hover:bg-mist [&>svg]:h-4 [&>svg]:w-4" />
-            <button
-              type="button"
-              role="menuitem"
-              onClick={async () => {
-                await apiRequest("POST", "/api/public/conta/sair");
-                qc.invalidateQueries();
-                ir("/");
-              }}
-              className="block w-full border-t border-line px-4 py-2 text-left text-sm text-red hover:bg-mist"
-            >
-              Sair
-            </button>
-          </div>
-        </>
-      ) : null}
-    </div>
-  );
-}
-
-/** Cabeçalho público: vitrine, rifa, pedido, minhas cotas. */
-/**
- * O trevo no topo (o ícone do sistema, no lugar do coração do Instagram):
- * leva à central de avisos. O número
- * diz quantos avisos novos (até 99+) — está no rótulo também, nunca só a cor.
- */
-function CoracaoDeAvisos() {
-  const { data } = useQuery<{ naoLidas: number }>({
-    queryKey: ["/api/public/notificacoes/resumo"],
-    refetchInterval: 60_000,
-  });
-  const n = data?.naoLidas ?? 0;
-  return (
-    <Link
-      href="/notificacoes"
-      className="relative rounded-md p-1 text-ink hover:bg-mist"
-      aria-label={n ? `Avisos: ${n > 99 ? "mais de 99" : n} novo(s)` : "Avisos"}
-    >
-      <IconeTrevo cheio={false} tamanho={26} />
-      {n ? (
-        <span className="tnum absolute -right-1 -top-1 min-w-[18px] rounded-full border-2 border-white bg-marca px-1 text-center text-[10px] font-bold leading-[14px] text-white">
-          {n > 99 ? "99+" : n}
-        </span>
-      ) : null}
-    </Link>
-  );
-}
+export const ALTURA_DO_RODAPE = ALTURA_DO_CONSOLE;
+export const acimaDoRodape = acimaDoConsole;
 
 /**
- * O carrinho no topo, ao lado do coração: aparece quando tem rifa nele. O
- * número vai no rótulo também, nunca só a cor.
- */
-function CarrinhoNoTopo() {
-  const n = useCarrinho().length;
-  if (!n) return null;
-  return (
-    <Link href="/carrinho" className="relative rounded-md p-1 text-ink hover:bg-mist" aria-label={`Carrinho: ${n} rifa(s)`}>
-      <ShoppingCart size={24} aria-hidden strokeWidth={2} />
-      <span className="tnum absolute -right-1 -top-1 min-w-[18px] rounded-full border-2 border-white bg-marca px-1 text-center text-[10px] font-bold leading-[14px] text-white">
-        {n}
-      </span>
-    </Link>
-  );
-}
-
-/**
- * `larga`: no computador (a partir de `lg`) a página abre em grade larga —
- * a rifa em duas colunas, a vitrine e o perfil em cartões. No celular é a
- * mesma coluna de sempre.
+ * Casca da loja, como no Instagram. No celular e no tablet: o topo com a
+ * logo à esquerda e, à direita, a publicação e o trevo de avisos; embaixo, o
+ * console fixo com os seis botões. No computador (`lg`): o topo some e tudo
+ * vai para o menu da lateral esquerda (`ConsoleDoApp`).
+ *
+ * `larga`: no computador a página abre em grade larga — a rifa em duas
+ * colunas, a vitrine e o perfil em cartões. No celular é a mesma coluna de
+ * sempre.
  */
 export function PublicShell({ children, larga }: { children: ReactNode; larga?: boolean }) {
-  const { data: session } = useSession();
   const largura = larga ? "max-w-3xl lg:max-w-6xl" : "max-w-3xl";
 
   return (
-    <div className="min-h-screen bg-white">
-      <header className="sticky top-0 z-20 border-b border-line bg-white">
-        <div className={`mx-auto flex ${largura} items-center justify-between px-4 py-3`}>
+    <div className="min-h-screen bg-white lg:pl-[72px] xl:pl-[244px]">
+      <header className="sticky top-0 z-20 border-b border-line bg-white lg:hidden">
+        <div className={`mx-auto flex ${largura} items-center justify-between px-4 py-2`}>
           <Link href="/" className="text-lg">
             <Marca />
           </Link>
-          <nav className="flex items-center gap-3 text-sm">
-            <CarrinhoNoTopo />
-            {session?.buyer ? <CoracaoDeAvisos /> : null}
-            {session?.buyer?.conta ? null : (
-              <Link href="/minhas-cotas" className="text-ink-2 hover:text-green-deep">
-                Minhas cotas
-              </Link>
-            )}
-            {/* Quem é do painel vai para o painel; o apostador com conta vai
-                para as cotas dele; os demais veem entrar e cadastrar. */}
-            {session?.user ? (
-              <Link
-                href={session.home}
-                className="rounded-md bg-green-soft px-3 py-1.5 text-xs font-semibold text-green-deep"
-              >
-                Meu painel
-              </Link>
-            ) : session?.buyer?.conta ? (
-              <MenuDoApostador nome={session.buyer.name} />
-            ) : (
-              <>
-                <Link
-                  href="/entrar"
-                  className="rounded-md border-2 border-green px-3 py-1 text-xs font-semibold text-green-deep hover:bg-green-soft"
-                >
-                  Entrar
-                </Link>
-                <Link
-                  href="/criar-conta"
-                  className="rounded-md border-2 border-green bg-green px-3 py-1 text-xs font-semibold text-on-green hover:brightness-95"
-                >
-                  Cadastrar
-                </Link>
-              </>
-            )}
+          <nav aria-label="Criar e avisos" className="flex items-center gap-1">
+            <BotaoPublicar />
+            <TrevoDeAvisos />
           </nav>
         </div>
       </header>
@@ -471,11 +318,9 @@ export function PanelShell({
 }
 
 /**
- * Rodapé da loja: uma faixa fina **fixa na base** (`ALTURA_DO_RODAPE`), com o
- * aviso de jogo responsável, a ajuda e o seletor de tema. Fixa para não
- * "subir" em página curta nem andar com a rolagem. O texto livre do
- * template (CNPJ, endereço) é mais longo e fica no fim da página, no fluxo.
- * A barra de compra da rifa fica logo acima dela (`acimaDoRodape`).
+ * O fim da página: o texto livre do rodapé (template), o espaço para o
+ * console fixo não cobrir o conteúdo, e o console. O "18+", a ajuda, o tema
+ * e os cookies moram na tela do perfil (`/perfil`).
  */
 function RodapePublico({ largura }: { largura: string }) {
   const t = useTemplate();
@@ -486,48 +331,22 @@ function RodapePublico({ largura }: { largura: string }) {
           {t.textos.rodape}
         </p>
       ) : null}
-      {/* Espaço para a faixa fixa não cobrir o fim da página. */}
-      <div aria-hidden style={{ height: acimaDoRodape }} />
-      <footer
-        className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-white text-[11px] text-muted"
-        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
-      >
-        <div
-          className={`mx-auto flex ${largura} items-center gap-1.5 px-4`}
-          style={{ height: ALTURA_DO_RODAPE }}
-        >
-          {/* Na faixa vai a primeira frase do aviso; o "18+" diz o resto, e o
-              texto inteiro fica no title e para leitor de tela. */}
-          <p className="min-w-0 flex-1 truncate" title={t.textos.jogoResponsavel || undefined}>
-            <span className="tnum mr-1 rounded border border-line-2 px-1 font-semibold text-ink-2">18+</span>
-            <span aria-hidden>{primeiraFrase(t.textos.jogoResponsavel)}</span>
-            <span className="sr-only">{t.textos.jogoResponsavel}</span>
-          </p>
-          <Link
-            href="/ajuda"
-            aria-label="Central de ajuda"
-            title="Central de ajuda"
-            className="flex h-6 w-6 shrink-0 items-center justify-center hover:text-ink"
-          >
-            <HelpCircle size={15} aria-hidden />
-          </Link>
-          <PreferenciaDeCookies />
-          <TemaEscolha compacto className="shrink-0" />
-        </div>
-      </footer>
+      {/* Espaço para o console fixo não cobrir o fim da página (no computador ele é lateral). */}
+      <div aria-hidden className="lg:hidden" style={{ height: acimaDoConsole }} />
+      <ConsoleDoApp />
       <Marketing />
     </>
   );
 }
 
-/** "Cookies" no rodapé: reabre o aviso. Só existe quando há pixel na página e a pessoa já escolheu. */
-function PreferenciaDeCookies() {
+/** "Cookies": reabre o aviso. Só existe quando há pixel na página e a pessoa já escolheu. */
+export function PreferenciaDeCookies({ className }: { className?: string }) {
   const tem = useTemMarketing();
   const escolha = useEscolha();
   if (!tem || !escolha) return null;
   return (
-    <button type="button" onClick={reabrirAviso} className="shrink-0 underline hover:text-ink">
-      Cookies
+    <button type="button" onClick={reabrirAviso} className={className ?? "shrink-0 underline hover:text-ink"}>
+      Preferência de cookies
     </button>
   );
 }

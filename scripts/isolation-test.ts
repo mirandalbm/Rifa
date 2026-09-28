@@ -476,6 +476,7 @@ async function rotasDaPlataforma(eu: Lado) {
     ["GET foto da verificação", "/api/admin/verificacoes/00000000-0000-0000-0000-000000000000/foto", {}],
     ["POST decidir verificação", "/api/admin/verificacoes/00000000-0000-0000-0000-000000000000/decidir", { method: "POST", body: '{"acao":"aprovar"}' }],
     ["PUT cores do selo", "/api/admin/selos", { method: "PUT", body: '{"cores":{"apostador":"laranja"}}' }],
+    ["PUT topo do app (aviso do trevo)", "/api/admin/app", { method: "PUT", body: '{"avisoDoTrevo":{"estilo":"cheio","cor":"rosa"},"publicarApostador":true}' }],
     ["GET cadastros fiscais", "/api/admin/fiscal", {}],
     ["GET cadastro fiscal", "/api/admin/fiscal/00000000-0000-0000-0000-000000000000", {}],
     ["GET documento fiscal", "/api/admin/fiscal/00000000-0000-0000-0000-000000000000/documentos/identidade_frente", {}],

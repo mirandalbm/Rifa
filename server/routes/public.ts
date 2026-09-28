@@ -558,6 +558,17 @@ async function contaParaVerificar(req: Request) {
 }
 montarRotasDaVerificacao(publicRouter, "/conta/verificacao", "apostador", contaParaVerificar);
 
+/** O que o topo do app precisa saber: como o trevo avisa e se o apostador publica. */
+publicRouter.get("/app", async (_req, res, next) => {
+  try {
+    const p = await getPlataforma();
+    res.setHeader("Cache-Control", "public, max-age=60");
+    res.json({ avisoDoTrevo: p.avisoDoTrevo, publicarApostador: p.publicarApostador });
+  } catch (err) {
+    next(err);
+  }
+});
+
 /** As cores do selo de cada um (escolha da plataforma, da paleta de 12). */
 publicRouter.get("/selos", async (_req, res, next) => {
   try {

@@ -1,3 +1,4 @@
+import { Icone, IconeAviao, IconeComentar, IconeRepublicar, IconeSacola } from "@/components/Icones";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link, useLocation } from "wouter";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -285,19 +286,6 @@ function VideoDaPublicacao({ peca }: { peca: Peca }) {
   );
 }
 
-/**
- * Os ícones da barra, no desenho do Instagram: traço fino (1,75 em 24),
- * pontas e cantos redondos — mais suaves aos olhos que os de linha grossa.
- */
-const TRACO = { fill: "none", stroke: "currentColor", strokeWidth: 1.75, strokeLinecap: "round", strokeLinejoin: "round" } as const;
-
-function Icone({ tamanho = 26, children, className }: { tamanho?: number; children: ReactNode; className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" width={tamanho} height={tamanho} aria-hidden className={className}>
-      {children}
-    </svg>
-  );
-}
 
 /**
  * O trevo da curtida: contorno quando não curtiu, cheio na cor da marca
@@ -305,7 +293,7 @@ function Icone({ tamanho = 26, children, className }: { tamanho?: number; childr
  * por baixo e as folhas pintadas da cor do fundo por cima, para as linhas
  * de dentro (onde as folhas se encostam) não aparecerem.
  */
-export function IconeTrevo({ cheio, tamanho = 26 }: { cheio: boolean; tamanho?: number }) {
+export function IconeTrevo({ cheio, tamanho = 26, corDoCheio }: { cheio: boolean; tamanho?: number; corDoCheio?: string }) {
   const folhas = (props: Record<string, unknown>) => (
     <g {...props}>
       {[45, 135, 225, 315].map((giro) => (
@@ -314,7 +302,8 @@ export function IconeTrevo({ cheio, tamanho = 26 }: { cheio: boolean; tamanho?: 
     </g>
   );
   return (
-    <svg viewBox="-4 -4 108 108" width={tamanho} height={tamanho} aria-hidden className={cheio ? "text-marca" : ""}>
+    // Cheio pega a cor da marca; com `corDoCheio`, a cor de quem envolve (o aviso do topo).
+    <svg viewBox="-4 -4 108 108" width={tamanho} height={tamanho} aria-hidden className={cheio && !corDoCheio ? "text-marca" : ""}>
       {cheio
         ? folhas({ fill: "currentColor" })
         : (
@@ -327,49 +316,18 @@ export function IconeTrevo({ cheio, tamanho = 26 }: { cheio: boolean; tamanho?: 
   );
 }
 
-function IconeComentar() {
-  return (
-    <Icone>
-      <path {...TRACO} d="M20.66 17A9.99 9.99 0 1 0 17.07 20.62L22 22Z" />
-    </Icone>
-  );
-}
 
-function IconeRepublicar({ ligado }: { ligado: boolean }) {
-  return (
-    <Icone className={ligado ? "text-marca" : ""}>
-      <path {...TRACO} d="M19.5 10V9a4 4 0 0 0-4-4H6.5M9 2 6 5l3 3M4.5 14v1a4 4 0 0 0 4 4h9M15 22l3-3-3-3" />
-      <path {...TRACO} d="m8.75 12.25 2.25 2.25 4.25-4.25" />
-    </Icone>
-  );
-}
 
-function IconeCompartilhar() {
-  return (
-    <Icone tamanho={25}>
-      <path {...TRACO} d="M22 3 9.22 10.08M11.7 20.33 22 3H2l7.22 7.08Z" />
-    </Icone>
-  );
-}
 
-/** O "+" do carrinho: em negrito, azul — abre a janela para escolher os números. */
+/** O "+" do carrinho: em negrito, azul no claro e verde no escuro (`--mais`) — abre a janela para escolher os números. */
 function IconeMais() {
   return (
-    <Icone tamanho={28} className="text-azul">
+    <Icone tamanho={28} className="text-mais">
       <path fill="none" stroke="currentColor" strokeWidth={3.25} strokeLinecap="round" d="M12 4.5v15M4.5 12h15" />
     </Icone>
   );
 }
 
-/** Comprar agora: a sacola de compras, no mesmo traço dos outros ícones. */
-function IconeComprar() {
-  return (
-    <Icone>
-      <path {...TRACO} d="M4.75 7.75h14.5l-1.1 11.6a1.9 1.9 0 0 1-1.9 1.65H7.75a1.9 1.9 0 0 1-1.9-1.65Z" />
-      <path {...TRACO} d="M8.75 10.25V6.75a3.25 3.25 0 0 1 6.5 0v3.5" />
-    </Icone>
-  );
-}
 
 /**
  * A barra embaixo da publicação, como no Instagram: curtir (o trevo),
@@ -475,11 +433,11 @@ export function BarraDeAcoes({
           aria-label={`${i.republiquei ? "Desfazer republicação" : "Republicar no seu perfil"} (${i.republicacoes})`}
           onClick={() => acao.mutate({ acao: "republicacao", ligar: !i.republiquei })}
         >
-          <IconeRepublicar ligado={i.republiquei} />
+          <IconeRepublicar className={i.republiquei ? "text-marca" : ""} />
           <span className="tnum text-[15px] font-medium">{contadorCurto(i.republicacoes)}</span>
         </button>
         <button type="button" className={botao} aria-label={`Compartilhar (${i.compartilhamentos})`} onClick={() => void compartilhar()}>
-          <IconeCompartilhar />
+          <IconeAviao />
           <span className="tnum text-[15px] font-medium">{contadorCurto(i.compartilhamentos)}</span>
         </button>
         {vende ? (
@@ -499,7 +457,7 @@ export function BarraDeAcoes({
               aria-label="Comprar agora"
               onClick={() => (aoComprar ? aoComprar() : navegar(`${caminho}?comprar=1`))}
             >
-              <IconeComprar />
+              <IconeSacola />
             </button>
           </>
         ) : null}

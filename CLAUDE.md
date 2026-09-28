@@ -134,6 +134,8 @@ arquitetura.
 | publicação da rifa: carrossel de até 10 (reels e vídeos), barra de ações (trevo, comentar, republicar, compartilhar, "+" do carrinho, comprar) e legenda | `shared/publicacao.ts` (regras), `server/services/publicacao.ts`, `server/services/media.ts` (limites), `client/src/components/Publicacao.tsx`, `scripts/publicacao-test.ts` |
 | carrinho (várias rifas, separadas por organização), o Pix único do carrinho e o comprar da publicação | `shared/carrinho.ts` (regras e split), `server/services/carrinho.ts`, `createCartOrder()` em `server/services/orders.ts`, `client/src/pages/CarrinhoPix.tsx`, `client/src/components/EscolherBilhete.tsx` (a janela do "+"), `scripts/carrinho-test.ts`, `client/src/lib/carrinho.ts`, `client/src/pages/Carrinho.tsx`, `BarraDeAcoes` em `client/src/components/Publicacao.tsx`, `scripts/publicacao-test.ts` |
 | presente pelos comentários (desconto de primeira compra pago pela plataforma) | `shared/presente.ts` (regras), `server/services/presente.ts`, `prepararPedido`/`settleOrderAsPaid` em `server/services/orders.ts`, `Presentear` em `client/src/components/Comentarios.tsx`, `AvisoDePresente` em `client/src/pages/Rifa.tsx`, cartão Presente em `client/src/pages/adminBonus.tsx`, `scripts/presente-test.ts` |
+| topo e console do app (os 6 botões da base, a lateral no computador, o trevo e a publicação) | `shared/console.ts` (botões, aviso do trevo, quem publica), `client/src/components/Console.tsx`, `PublicShell` em `client/src/components/AppShell.tsx`, `client/src/pages/PerfilDoUsuario.tsx`, `client/src/pages/EmBreve.tsx`, `client/src/components/TopoDoAppCard.tsx`, `tests/console.test.ts` |
+| remodelagem do web e dos painéis: inventário do que existe e lista de conferência | `docs/REMODELAGEM.md` |
 | app instalável (PWA) | `client/public/sw.js`, `client/public/manifest.webmanifest`, `client/src/lib/pwa.ts` |
 | segurança: onde mora cada defesa, lista de conferência de rota nova e as revisões | `docs/SEGURANCA.md` |
 | versões (celular, tablet, computador): registro das mudanças do celular, levas, mapa das telas e auditoria | `docs/VERSOES.md` (guia, mapa e registro — **anote no mesmo PR**), `scripts/telas.ts` (`npm run telas`), `tests/versoes.test.ts` |
@@ -263,11 +265,55 @@ arquitetura.
   3 colunas) e carrinho (rifas à esquerda, total e Pix à direita, fixo na
   rolagem). Formulário e texto de leitura (Minhas compras, pedido, ajuda,
   avisos) seguem na coluna estreita de propósito — linha longa cansa.
-- **Topo e faixa de baixo são opacos** (`bg-white`, sem desfoque): com
+- **Topo e console são opacos** (`bg-white`, sem desfoque): com
   transparência o conteúdo aparecia por baixo ao rolar.
+- **No computador o topo some e o console vira a lateral esquerda**
+  (`ConsoleDoApp`: 72 px só com ícones em `lg`, 244 px com os nomes em
+  `xl`, como o Instagram web), com a logo, o trevo e a publicação junto.
+  `PublicShell` recua o conteúdo (`lg:pl-[72px] xl:pl-[244px]`); o que fica
+  fixo embaixo (aviso de cookies, instalar o app) também recua. É a proposta
+  até a remodelagem do web (`docs/REMODELAGEM.md`).
 - **Cor com opacidade**: `white` no Tailwind é `color-mix` com
   `<alpha-value>`, senão `bg-white/95` sai transparente (era o topo e a
   faixa de baixo). Outra cor que precisar de `/NN` ganha o mesmo formato.
+
+## Topo e console do app — o que não pode afrouxar
+
+Como no Instagram, com as nossas cores (verde no lugar do vermelho e do rosa).
+
+- **Topo**: a logo à esquerda; à direita só a publicação (a varinha) e, no
+  canto, o trevo de avisos. Carrinho, "Minhas cotas", Entrar e o menu da
+  conta saíram do topo.
+- **Console na base, seis botões** (`BOTOES_DO_CONSOLE`): Início, Reels,
+  Mensagens, Buscar, Carrinho (o carrinho final, para pagar) e Perfil (a
+  foto de quem entrou). **Os ícones moram em `Icones.tsx`**, os mesmos na
+  barra de ações e no console: a casa é nossa; republicar é Tabler; reels
+  é Iconoir com os cantos arredondados; o resto é Solar, com a versão
+  cheia no botão aceso. A Solar é CC BY 4.0: o crédito fica em `/perfil`
+  e em `docs/LICENCAS-DE-TERCEIROS.md` — ícone novo de terceiro entra lá
+  também. Nada de ícone de traço reto no console. O que ainda não existe (`pronto: false`) aparece
+  mesmo assim e leva a "Em breve" (`EM_BREVE`) — o app em desenvolvimento
+  mostra a forma final. Botão aceso com traço mais grosso **e**
+  `aria-current`, nunca só a cor; o número do carrinho vai no rótulo.
+- **O trevo avisa com um ponto verde** (padrão) ou cheio, na cor que a
+  plataforma escolher (`avisoDoTrevo` em `ConfigPlataforma`, cartão "Topo
+  do app" em Aparência, `PUT /admin/app`, 403 para organizador no `npm run
+  isolation`). Só estilo e cor conhecidos entram (`validarAvisoDoTrevo`);
+  as cores fixas são da paleta do selo **sem os roxos** (roxo, violeta,
+  magenta e índigo não são cor do sistema — claro é branco e azul com
+  detalhes verdes; escuro é preto e verde, com azul em alguns lugares), com contraste ≥ 3:1
+  nos dois temas (o teste confere). O número de avisos vai no rótulo.
+- **A logo não muda** — nem na lateral do computador, onde só fica menor.
+  É o último item do sistema a mudar.
+- **Quem vê a publicação** (`quemPublica()`): organização e plataforma
+  (Criar: rifa, story, legenda), afiliado como influenciador (kit e, em
+  breve, publicar com o material da organização) e o apostador só com o
+  interruptor `publicarApostador` (nasce desligado). Sem conta, não
+  aparece. O menu vai para o `body` (portal): dentro do topo, o console
+  passaria por cima.
+- **O "18+", a ajuda, o tema e os cookies moram em `/perfil`**; não há mais
+  faixa fixa de rodapé. O texto livre do rodapé (template) segue no fim da
+  página.
 
 ## Versões — o que não pode afrouxar
 
@@ -1075,7 +1121,7 @@ estorno.
 
 ## Carrinho e comprar — o que não pode afrouxar
 
-Na barra da publicação, o **"+"** (azul, em negrito) fica no espaço do meio
+Na barra da publicação, o **"+"** (azul no claro, verde no escuro — `--mais` —, em negrito) fica no espaço do meio
 e o **comprar** (a sacola) no canto direito, onde era o salvar. O "+" abre
 a janela dos números (`EscolherBilhete`): os tamanhos 5, 10, 25 e 50 (ou
 uma quantidade digitada, no mínimo e máximo da rifa) e as cartelas daquele
@@ -1573,8 +1619,8 @@ aí o próximo entra sozinho.
   tela de todo apostador.
 - **Consentimento antes do pixel** (LGPD). Sem o "Aceitar" do aviso
   (`rifa.cookies`, no aparelho, com versão), nenhum script carrega. Recusar
-  é tão fácil quanto aceitar (dois botões iguais) e o rodapé tem "Cookies"
-  para mudar de ideia. O pedido leva `marketing: true/false`
+  é tão fácil quanto aceitar (dois botões iguais) e a tela do perfil
+  (`/perfil`) tem "Preferência de cookies" para mudar de ideia. O pedido leva `marketing: true/false`
   (`orders.marketing_consentimento`): sem o aceite, a compra **não** sai
   pelo servidor.
 - **Cada evento vai só para os pixels da página** (`trackSingle`,

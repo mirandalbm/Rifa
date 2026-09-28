@@ -214,10 +214,16 @@ async function afrouxarIp(buyers: number) {
  * travado — antes, cinco passavam juntas com limite de dois).
  */
 async function mesmoTelefoneEmParalelo(opcoes: Opcoes, campaignId: string) {
-  const limite = (await getLimits()).openOrdersPerPhone;
+  const limites = await getLimits();
+  const limite = limites.openOrdersPerPhone;
   const telefone = `1196${String(Date.now()).slice(-7)}`;
+  // Tantos quantos o limite por telefone deixa tentar (5 em 10 min): acima
+  // dele, o antifraude conta todos antes de decidir e recusa a rajada
+  // inteira com 429 — certo para o site, mas aí nenhum chega à reserva e a
+  // prova não mede o que existe para medir (a reserva em aberto na transação).
+  const tentativas = Math.max(limite + 1, Math.min(8, limites.ordersPerPhone));
   const respostas = await Promise.all(
-    Array.from({ length: 8 }, (_, i) =>
+    Array.from({ length: tentativas }, (_, i) =>
       fetch(`${opcoes.url}/api/public/orders`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-device-id": `paralelo-${telefone}-${i}` },

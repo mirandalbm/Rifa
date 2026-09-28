@@ -133,17 +133,22 @@ export default function PerfilPage() {
   };
 
   return (
-    <PublicShell>
+    <PublicShell larga>
       <DestaqueOrg cor={p.destaque}>
       {/* Capa: 3:1, de ponta a ponta; a foto sobe um pouco sobre ela. Sem
           capa enviada, o padrão: o nome sobre um degradê da cor de destaque. */}
-      <div className="-mx-4 -mt-4 aspect-[3/1] overflow-hidden bg-mist-2 sm:mx-0 sm:mt-0 sm:rounded-xl">
+      <div className="-mx-4 -mt-4 aspect-[3/1] overflow-hidden bg-mist-2 sm:mx-0 sm:mt-0 sm:rounded-xl lg:aspect-[4/1]">
         {p.capa ? (
           <img src={p.capa} alt="" className="h-full w-full object-cover" />
         ) : (
           <CapaPadrao nome={p.nome} />
         )}
       </div>
+      {/* No computador, duas colunas abaixo da capa: o cartão do perfil à
+          esquerda, fixo na rolagem, e as rifas em grade à direita. No
+          celular, a mesma ordem de sempre. */}
+      <div className="lg:grid lg:grid-cols-[320px_minmax(0,1fr)] lg:items-start lg:gap-8">
+      <div className="lg:sticky lg:top-[68px]">
       {/* Topo: foto à esquerda; à direita, o nome e, embaixo dele, os contadores */}
       <div className="flex items-end gap-4">
         <span className="relative z-10 -mt-10 shrink-0 rounded-full bg-white p-1">
@@ -262,8 +267,8 @@ export default function PerfilPage() {
 
       {/* Destaques: rifas já sorteadas */}
       {p.destaques.length ? (
-        <section aria-label="Rifas realizadas" className="-mx-4 mt-5 overflow-x-auto px-4">
-          <ul className="flex gap-4">
+        <section aria-label="Rifas realizadas" className="-mx-4 mt-5 overflow-x-auto px-4 lg:mx-0 lg:overflow-visible lg:px-0">
+          <ul className="flex gap-4 lg:flex-wrap">
             {p.destaques.map((d) => (
               <li key={d.slug} className="w-[72px] shrink-0 text-center">
                 <Link href={`/o/${p.slug}/r/${d.slug}`} onClick={() => marcarOrigem("perfil")} className="block">
@@ -287,13 +292,23 @@ export default function PerfilPage() {
         </section>
       ) : null}
 
-      {/* Grade: uma rifa por linha, cada uma em carrossel */}
-      <section aria-label="Rifas no ar" className="mt-5 space-y-4 border-t border-line pt-4">
-        {p.rifas.length === 0 ? <Empty>Nenhuma rifa no ar agora.</Empty> : null}
+      </div>
+
+      {/* Grade: uma rifa por linha no celular, duas no computador */}
+      <section
+        aria-label="Rifas no ar"
+        className="mt-5 space-y-4 border-t border-line pt-4 lg:grid lg:grid-cols-2 lg:gap-6 lg:space-y-0 lg:border-t-0 lg:pt-0"
+      >
+        {p.rifas.length === 0 ? (
+          <div className="lg:col-span-2">
+            <Empty>Nenhuma rifa no ar agora.</Empty>
+          </div>
+        ) : null}
         {p.rifas.map((r) => (
           <CartaoDaRifa key={r.id} org={p.slug} nome={p.nome} rifa={r} />
         ))}
       </section>
+      </div>
 
       {painel === "sobre" ? (
         <Folha titulo="Sobre essa conta" fechar={() => setPainel(null)}>

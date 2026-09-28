@@ -239,6 +239,9 @@ arquitetura.
   rifas à venda com sorteio mais perto). A barra de ações aperta pela
   largura do próprio cartão (`.barra-de-acoes`, container query ≤ 360 px),
   não da tela.
+- **Perfil da organização**: capa 4:1; abaixo, o cartão do perfil (foto,
+  contadores, ações, bio, links, destaques) numa coluna de 320 px fixa na
+  rolagem, e as rifas em 2 colunas ao lado.
 - **Topo e faixa de baixo são opacos** (`bg-white`, sem desfoque): com
   transparência o conteúdo aparecia por baixo ao rolar.
 - **Cor com opacidade**: `white` no Tailwind é `color-mix` com

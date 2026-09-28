@@ -209,20 +209,21 @@
   }
 
   /*
-   * O presente da cota surpresa: balança de tempos em tempos (chama sem
-   * incomodar) e, ao revelar, a tampa sobe e o número aparece. Quem pediu
+   * O presente da cota surpresa: só o ícone, piscando enquanto há prêmio em
+   * segredo; ao revelar, a tampa sobe e o número aparece. O halo da cor do
+   * fundo (`--white`) deixa o traço legível sobre qualquer foto. Quem pediu
    * menos movimento ao aparelho vê tudo parado.
    */
-  @keyframes presente-balanca {
-    0%, 78%, 100% { transform: rotate(0deg); }
-    82% { transform: rotate(-14deg); }
-    86% { transform: rotate(12deg); }
-    90% { transform: rotate(-8deg); }
-    94% { transform: rotate(5deg); }
+  .presente-icone svg {
+    filter: drop-shadow(0 0 1.5px var(--white)) drop-shadow(0 0 3px var(--white));
   }
-  .presente-balanca {
-    animation: presente-balanca 3.2s ease-in-out infinite;
-    transform-origin: 50% 85%;
+  @keyframes presente-pisca {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.35; transform: scale(0.92); }
+  }
+  .presente-pisca {
+    display: inline-flex;
+    animation: presente-pisca 1.4s ease-in-out infinite;
   }
   .presente-tampa-aberta {
     transform: translateY(-2.5px) rotate(-12deg);
@@ -238,7 +239,7 @@
     animation: presente-revela 0.5s ease-out both;
   }
   @media (prefers-reduced-motion: reduce) {
-    .presente-balanca,
+    .presente-pisca,
     .presente-revela {
       animation: none;
     }

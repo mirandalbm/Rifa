@@ -98,13 +98,13 @@ export function CotaSurpresa({ slug, premios }: { slug: string; premios: Premios
         onClick={() => setAberta(true)}
         aria-haspopup="dialog"
         aria-label={`Cota surpresa: ${emJogo} de ${premios.total} ${premios.total === 1 ? "prêmio" : "prêmios"} em jogo`}
-        className="relative flex h-12 w-12 items-center justify-center rounded-full bg-yellow text-on-yellow shadow-card"
+        // Só o ícone, sem fundo: preto no claro, branco no escuro (`text-ink`),
+        // com um halo da cor do fundo para ler sobre qualquer foto. Pisca
+        // enquanto há prêmio em segredo; tudo revelado, fica parado e aberto.
+        className="presente-icone flex h-12 w-12 items-center justify-center text-ink"
       >
-        <span className={emJogo > 0 ? "presente-balanca" : undefined}>
-          <IconePresente tamanho={28} aberto={emJogo === 0} />
-        </span>
-        <span className="tnum absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-white px-1 text-[11px] font-bold text-ink shadow">
-          {emJogo}
+        <span className={emJogo > 0 ? "presente-pisca" : undefined}>
+          <IconePresente tamanho={34} aberto={emJogo === 0} />
         </span>
       </button>
 
@@ -118,8 +118,8 @@ export function CotaSurpresa({ slug, premios }: { slug: string; premios: Premios
             className="max-h-[85vh] w-full overflow-y-auto rounded-t-2xl bg-white p-4 shadow-card sm:max-w-md sm:rounded-2xl"
           >
             <header className="flex items-start gap-3">
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-yellow text-on-yellow">
-                <IconePresente tamanho={26} aberto={destaque.length > 0} />
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center text-ink">
+                <IconePresente tamanho={30} aberto={destaque.length > 0} />
               </span>
               <div className="min-w-0 flex-1">
                 <h2 id={titulo} className="font-display text-lg font-extrabold leading-tight">

@@ -1021,8 +1021,11 @@ pedido, cotas e valor, e o cliente só pelo ID (`Cliente C-XXXXXXXX`).
   públicos; o número em jogo nunca sai. **Abre sozinho** quando aparece
   número novo desde a última visita deste aparelho (`novosRevelados()`,
   `rifa.surpresa.<rifa>`): quem comprou e voltou encontra o número dele. Na
-  primeira visita não abre — seria barulho para todo mundo. Balança sem
-  incomodar e para com "menos movimento" do aparelho.
+  primeira visita não abre — seria barulho para todo mundo. **Só o ícone,
+  sem círculo**: preto no claro e branco no escuro (`text-ink`), com halo
+  da cor do fundo para ler sobre a foto; pisca enquanto há prêmio em
+  segredo e para, aberto, quando tudo foi revelado (ou com "menos
+  movimento" no aparelho).
 - **Os números premiados se escolhem no cadastro** (`POST
   /campaigns/:id/prized` com `numeros`, `numerosPremiados()`): só em
   rascunho (409 depois de publicar — escolher com venda em andamento seria

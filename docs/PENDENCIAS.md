@@ -128,8 +128,9 @@ senha); **[código]** é trabalho no repositório.
   texto branco); vendido cinza e riscado.
 - [x] Vitrine no computador: feed em 3 colunas e "Sorteios chegando" ao lado
   do banner.
-- [ ] Mesma grade no computador para o perfil da organização e o painel do
-  organizador (um PR por tela).
+- [x] Perfil da organização no computador: cartão do perfil à esquerda e
+  rifas em 2 colunas.
+- [ ] Mesma grade no computador para o painel do organizador.
 - [ ] **[você]** Conferir o vídeo no celular (som e "Assistir novamente"): o
   banco de testes não tem vídeo, então não saiu captura dele.
 - [ ] **[você]** Advogado e contador: o desconto do presente pago pela

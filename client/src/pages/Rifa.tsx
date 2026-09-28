@@ -321,7 +321,12 @@ export default function Rifa() {
   }
 
   return (
-    <PublicShell>
+    <PublicShell larga>
+      {/* No computador, duas colunas: a publicação à esquerda e a compra à
+          direita, fixa enquanto rola. No celular, a mesma ordem de sempre:
+          publicação, compra, e o resto (últimas compras, sorteio, comentários). */}
+      <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_440px] lg:items-start lg:gap-x-8">
+      <div className="lg:col-start-1 lg:row-start-1">
       {data?.organizacao ? (
         <DestaqueOrg cor={data.organizacao.destaque} className="-mt-1 mb-3 flex items-center gap-2">
           <Link href={`/o/${data.organizacao.slug}`} className="flex min-w-0 flex-1 items-center gap-2">
@@ -334,7 +339,7 @@ export default function Rifa() {
       ) : null}
       {/* Banner, vídeo e fotos: a propaganda vem antes de tudo. */}
       <div
-        className="relative -mx-4 flex min-h-[150px] flex-col justify-end overflow-hidden p-4 text-branco"
+        className="relative -mx-4 flex min-h-[150px] flex-col justify-end overflow-hidden p-4 text-branco lg:mx-0 lg:rounded-xl"
         style={{
           background: banner
             ? `center/cover url(${banner.url})`
@@ -370,12 +375,12 @@ export default function Rifa() {
       {/* O carrossel da publicação (fotos e vídeos, até 10 com o banner),
           as ações e a legenda — como no feed. */}
       {carrossel.length ? (
-        <div className="-mx-4 mt-3">
+        <div className="-mx-4 mt-3 lg:mx-0 lg:overflow-hidden lg:rounded-xl">
           <Carrossel pecas={carrossel} titulo={campaign.prizeTitle} />
         </div>
       ) : null}
       {campaign.interacoes ? (
-        <div className="-mx-4">
+        <div className="-mx-4 lg:mx-0">
           <BarraDeAcoes
             slug={campaign.slug}
             titulo={campaign.prizeTitle}
@@ -389,6 +394,16 @@ export default function Rifa() {
         </div>
       ) : null}
 
+      </div>
+
+      {/* A compra: no computador, coluna da direita que acompanha a rolagem
+          (com rolagem própria quando o mapa e o formulário passam da tela). */}
+      <aside
+        aria-label="Comprar"
+        className="lg:sticky lg:top-[68px] lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:max-h-[calc(100vh-68px-48px)] lg:overflow-y-auto lg:rounded-xl lg:border lg:border-line lg:px-4 lg:[scrollbar-width:thin]"
+      >
+      {/* No computador o prêmio encabeça a coluna da compra. */}
+      <h2 className="mt-4 hidden font-display text-lg font-extrabold leading-tight lg:block">{campaign.prizeTitle}</h2>
       {/* Preço e progresso entram sem rolagem. */}
       <div className="mt-4 flex items-baseline gap-2">
         <Money cents={campaign.priceCents} className="text-2xl font-bold text-green-deep" />
@@ -613,7 +628,7 @@ export default function Rifa() {
                   Página <span className="tnum">{groupNumber(pagina + 1)}</span> de{" "}
                   <span className="tnum">{groupNumber(totalPaginas)}</span>
                 </p>
-                <div className="grid grid-cols-5 gap-1 sm:grid-cols-10">
+                <div className="grid grid-cols-5 gap-1 sm:grid-cols-10 lg:grid-cols-5">
                   {Array.from({ length: fimDaPagina - inicioDaPagina + 1 }).map(
                     (_, i) => {
                       const n = inicioDaPagina + i;
@@ -759,7 +774,7 @@ export default function Rifa() {
       {/* Barra fixa: o total nunca sai da tela. */}
       {count > 0 && price && vende ? (
         <div
-          className="fixed inset-x-0 z-30 border-t border-line bg-mist px-4 py-3"
+          className="fixed inset-x-0 z-30 border-t border-line bg-mist px-4 py-3 lg:hidden"
           style={{ bottom: acimaDoRodape }}
         >
           <div className="mx-auto flex max-w-3xl items-center justify-between gap-3">
@@ -780,7 +795,29 @@ export default function Rifa() {
           </div>
         </div>
       ) : null}
+      {/* No computador, o total e o Pix ficam no pé da coluna da compra. */}
+      {count > 0 && price && vende ? (
+        <div className="sticky bottom-0 z-10 -mx-4 mt-3 hidden items-center gap-3 border-t border-line bg-mist px-4 py-3 lg:flex">
+          <span className="tnum text-base">
+            <span className="label-xs block">{count} cota(s)</span>
+            {formatBRL(price.totalCents)}
+          </span>
+          <Button
+            className="flex-1"
+            disabled={createOrder.isPending || !dadosOk}
+            onClick={() => {
+              setError(null);
+              createOrder.mutate(picked);
+            }}
+          >
+            {createOrder.isPending ? "Reservando…" : "Pagar com Pix"}
+          </Button>
+        </div>
+      ) : null}
 
+      </aside>
+
+      <div className="space-y-4 pt-4 lg:col-start-1 lg:row-start-2">
       {ultimas && ultimas.length > 0 ? (
         <Card title="Últimas compras">
           <ul className="divide-y divide-line">
@@ -859,6 +896,8 @@ export default function Rifa() {
           </p>
         ) : null}
       </footer>
+      </div>
+      </div>
     </PublicShell>
   );
 }

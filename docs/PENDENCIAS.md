@@ -120,6 +120,11 @@ senha); **[código]** é trabalho no repositório.
 - [x] Comentários: o ícone abre a janela de baixo para cima; campo sutil com
   o envio verde dentro (e pelo "Enviar" do teclado); presente à direita,
   sempre à vista (desligado, vira convite sem desconto).
+- [x] Página da rifa no computador em duas colunas: publicação à esquerda e
+  a compra fixa à direita, com o Pix no pé; topo e faixa de baixo deixaram
+  de ficar transparentes.
+- [ ] Mesma grade no computador para a vitrine, o perfil da organização e o
+  painel do organizador (um PR por tela).
 - [ ] **[você]** Conferir o vídeo no celular (som e "Assistir novamente"): o
   banco de testes não tem vídeo, então não saiu captura dele.
 - [ ] **[você]** Advogado e contador: o desconto do presente pago pela

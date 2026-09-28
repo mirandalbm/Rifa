@@ -92,7 +92,7 @@ export function Cartelas({
   }
 
   return (
-    <section aria-label={`Cartelas de ${quantidade} números`} className="mt-3 grid gap-3 sm:grid-cols-2">
+    <section aria-label={`Cartelas de ${quantidade} números`} className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
       {cartelas.map((numeros, i) => {
         const marcada = escolhida?.join() === numeros.join();
         return (

@@ -130,7 +130,8 @@ senha); **[código]** é trabalho no repositório.
   do banner.
 - [x] Perfil da organização no computador: cartão do perfil à esquerda e
   rifas em 2 colunas.
-- [ ] Mesma grade no computador para o painel do organizador.
+- [x] Painel do organizador em grade bento: receita, cotas, comissão,
+  próximo sorteio, o que falta fazer e últimas vendas.
 - [ ] **[você]** Conferir o vídeo no celular (som e "Assistir novamente"): o
   banco de testes não tem vídeo, então não saiu captura dele.
 - [ ] **[você]** Advogado e contador: o desconto do presente pago pela

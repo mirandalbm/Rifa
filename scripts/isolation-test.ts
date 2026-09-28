@@ -450,6 +450,13 @@ async function conteudoDasListas(eu: Lado, vizinho: Lado) {
     `${(painel as { revenueCents: number }).revenueCents} centavos`,
   );
 
+  const ultimas = ((painel as { ultimasVendas?: { code: number }[] }).ultimasVendas ?? []).map((v) => v.code);
+  checa(
+    "as últimas vendas do painel não trazem o pedido do vizinho",
+    !ultimas.includes(vizinho.orderCode) && !JSON.stringify(ultimas).includes(vizinho.nome),
+    `${ultimas.length} venda(s)`,
+  );
+
   const csv = await (await pedir(eu.cookie, "/api/admin/exportacoes/compradores")).text();
   checa(
     "a exportação de compradores não traz o cliente do vizinho",

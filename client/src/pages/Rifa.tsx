@@ -25,6 +25,7 @@ import { textoDoPresente } from "@shared/presente";
 import { Gift } from "lucide-react";
 import { consentiu, definirOrganizacaoDaPagina, lerUtm } from "@/lib/marketing";
 import { useRastreio } from "@/components/Marketing";
+import { embaralharPagina } from "@/lib/embaralhar";
 import type { CorDeDestaque } from "@shared/perfil";
 import { SeguirBotoes, FotoDoPerfil } from "@/components/Seguir";
 import { SorteioCard } from "@/components/SorteioCard";
@@ -115,6 +116,10 @@ export default function Rifa() {
   const [pagina, setPagina] = useState(0);
   const [trocarSinal, setTrocarSinal] = useState<{ numeros: number[]; vez: number } | null>(null);
   const [search, setSearch] = useState("");
+  // O mapa mostra os números de cada página embaralhados (semente da visita)
+  // e destaca o que a pessoa buscou.
+  const [semente] = useState(() => Math.floor(Math.random() * 2 ** 31));
+  const [buscado, setBuscado] = useState<number | null>(null);
   const [showMap, setShowMap] = useState(false);
   // O ícone de comentar abre a janela de baixo para cima, como no Instagram.
   const [comentando, setComentando] = useState(false);
@@ -321,7 +326,12 @@ export default function Rifa() {
   }
 
   return (
-    <PublicShell>
+    <PublicShell larga>
+      {/* No computador, duas colunas: a publicação à esquerda e a compra à
+          direita, fixa enquanto rola. No celular, a mesma ordem de sempre:
+          publicação, compra, e o resto (últimas compras, sorteio, comentários). */}
+      <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_440px] lg:items-start lg:gap-x-8">
+      <div className="lg:col-start-1 lg:row-start-1">
       {data?.organizacao ? (
         <DestaqueOrg cor={data.organizacao.destaque} className="-mt-1 mb-3 flex items-center gap-2">
           <Link href={`/o/${data.organizacao.slug}`} className="flex min-w-0 flex-1 items-center gap-2">
@@ -334,7 +344,7 @@ export default function Rifa() {
       ) : null}
       {/* Banner, vídeo e fotos: a propaganda vem antes de tudo. */}
       <div
-        className="relative -mx-4 flex min-h-[150px] flex-col justify-end overflow-hidden p-4 text-branco"
+        className="relative -mx-4 flex min-h-[150px] flex-col justify-end overflow-hidden p-4 text-branco lg:mx-0 lg:rounded-xl"
         style={{
           background: banner
             ? `center/cover url(${banner.url})`
@@ -370,12 +380,12 @@ export default function Rifa() {
       {/* O carrossel da publicação (fotos e vídeos, até 10 com o banner),
           as ações e a legenda — como no feed. */}
       {carrossel.length ? (
-        <div className="-mx-4 mt-3">
+        <div className="-mx-4 mt-3 lg:mx-0 lg:overflow-hidden lg:rounded-xl">
           <Carrossel pecas={carrossel} titulo={campaign.prizeTitle} />
         </div>
       ) : null}
       {campaign.interacoes ? (
-        <div className="-mx-4">
+        <div className="-mx-4 lg:mx-0">
           <BarraDeAcoes
             slug={campaign.slug}
             titulo={campaign.prizeTitle}
@@ -389,6 +399,16 @@ export default function Rifa() {
         </div>
       ) : null}
 
+      </div>
+
+      {/* A compra: no computador, coluna da direita que acompanha a rolagem
+          (com rolagem própria quando o mapa e o formulário passam da tela). */}
+      <aside
+        aria-label="Comprar"
+        className="lg:sticky lg:top-[68px] lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:max-h-[calc(100vh-68px-48px)] lg:overflow-y-auto lg:rounded-xl lg:border lg:border-line lg:px-4 lg:[scrollbar-width:thin]"
+      >
+      {/* No computador o prêmio encabeça a coluna da compra. */}
+      <h2 className="mt-4 hidden font-display text-lg font-extrabold leading-tight lg:block">{campaign.prizeTitle}</h2>
       {/* Preço e progresso entram sem rolagem. */}
       <div className="mt-4 flex items-baseline gap-2">
         <Money cents={campaign.priceCents} className="text-2xl font-bold text-green-deep" />
@@ -566,7 +586,12 @@ export default function Rifa() {
               onSubmit={(e) => {
                 e.preventDefault();
                 const n = Number(search);
-                if (n >= 1 && n <= campaign.totalQuotas) setPagina(Math.floor((n - 1) / POR_PAGINA));
+                if (n >= 1 && n <= campaign.totalQuotas) {
+                  setPagina(Math.floor((n - 1) / POR_PAGINA));
+                  setBuscado(n);
+                  // Embaralhado, o número pode cair em qualquer canto: rola até ele.
+                  setTimeout(() => document.querySelector(`[data-numero="${n}"]`)?.scrollIntoView({ behavior: "smooth", block: "center" }), 300);
+                }
               }}
             >
               <label htmlFor="busca-numero" className="sr-only">
@@ -613,24 +638,27 @@ export default function Rifa() {
                   Página <span className="tnum">{groupNumber(pagina + 1)}</span> de{" "}
                   <span className="tnum">{groupNumber(totalPaginas)}</span>
                 </p>
-                <div className="grid grid-cols-5 gap-1 sm:grid-cols-10">
-                  {Array.from({ length: fimDaPagina - inicioDaPagina + 1 }).map(
-                    (_, i) => {
-                      const n = inicioDaPagina + i;
+                <div className="grid grid-cols-5 gap-1 sm:grid-cols-10 lg:grid-cols-5">
+                  {embaralharPagina(inicioDaPagina, fimDaPagina, semente).map(
+                    (n) => {
                       const taken = isTaken(n);
                       const mine = picked.includes(n);
                       return (
                         <button
                           key={n}
+                          data-numero={n}
                           type="button"
                           disabled={taken}
                           onClick={() => togglePick(n)}
-                          aria-label={`Cota ${formatQuota(n, campaign.totalQuotas)}${taken ? " — indisponível" : ""}`}
+                          aria-pressed={taken ? undefined : mine}
+                          aria-label={`Cota ${formatQuota(n, campaign.totalQuotas)}${taken ? " — indisponível" : mine ? " — escolhida" : ""}`}
                           className={`tnum rounded-md border py-2 text-[11px] font-bold ${
+                            n === buscado ? "outline outline-2 outline-offset-1 outline-ink " : ""
+                          }${
                             taken
-                              ? "cursor-not-allowed border-green bg-green text-on-green"
+                              ? "cursor-not-allowed border-line bg-mist-2 text-muted line-through"
                               : mine
-                                ? "border-2 border-green bg-green-soft text-green-deep"
+                                ? "fundo-numero border-transparent"
                                 : "texto-numero border-line-2 bg-white"
                           }`}
                         >
@@ -641,7 +669,7 @@ export default function Rifa() {
                   )}
                 </div>
                 <p className="mt-2 text-[11px] text-muted">
-                  Use as setas para ver os próximos 100 números, ou a busca para ir direto a um número. Toque para escolher.
+                  Os números de cada página aparecem embaralhados. Use as setas para ver os próximos 100, ou a busca para achar um número (ele fica contornado). Toque para escolher.
                 </p>
               </>
             ) : (
@@ -759,7 +787,7 @@ export default function Rifa() {
       {/* Barra fixa: o total nunca sai da tela. */}
       {count > 0 && price && vende ? (
         <div
-          className="fixed inset-x-0 z-30 border-t border-line bg-mist px-4 py-3"
+          className="fixed inset-x-0 z-30 border-t border-line bg-mist px-4 py-3 lg:hidden"
           style={{ bottom: acimaDoRodape }}
         >
           <div className="mx-auto flex max-w-3xl items-center justify-between gap-3">
@@ -780,7 +808,29 @@ export default function Rifa() {
           </div>
         </div>
       ) : null}
+      {/* No computador, o total e o Pix ficam no pé da coluna da compra. */}
+      {count > 0 && price && vende ? (
+        <div className="sticky bottom-0 z-10 -mx-4 mt-3 hidden items-center gap-3 border-t border-line bg-mist px-4 py-3 lg:flex">
+          <span className="tnum text-base">
+            <span className="label-xs block">{count} cota(s)</span>
+            {formatBRL(price.totalCents)}
+          </span>
+          <Button
+            className="flex-1"
+            disabled={createOrder.isPending || !dadosOk}
+            onClick={() => {
+              setError(null);
+              createOrder.mutate(picked);
+            }}
+          >
+            {createOrder.isPending ? "Reservando…" : "Pagar com Pix"}
+          </Button>
+        </div>
+      ) : null}
 
+      </aside>
+
+      <div className="space-y-4 pt-4 lg:col-start-1 lg:row-start-2">
       {ultimas && ultimas.length > 0 ? (
         <Card title="Últimas compras">
           <ul className="divide-y divide-line">
@@ -859,6 +909,8 @@ export default function Rifa() {
           </p>
         ) : null}
       </footer>
+      </div>
+      </div>
     </PublicShell>
   );
 }

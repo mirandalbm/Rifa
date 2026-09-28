@@ -6,7 +6,9 @@ export default {
   theme: {
     extend: {
       colors: {
-        white: "var(--white)",
+        // Com o `<alpha-value>`, `bg-white/95` funciona sobre a variável do tema
+        // (sem ele o Tailwind não aplica a opacidade e a cor some).
+        white: "color-mix(in srgb, var(--white) calc(<alpha-value> * 100%), transparent)",
         mist: { DEFAULT: "var(--mist)", 2: "var(--mist-2)" },
         ink: { DEFAULT: "var(--ink)", 2: "var(--ink-2)" },
         muted: "var(--muted)",

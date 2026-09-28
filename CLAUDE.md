@@ -211,6 +211,32 @@ arquitetura.
   o **+0**, à esquerda do +5, abre o mapa. O cabeçalho do mapa é a faixa
   da página ("0001 a 0100"), a busca e as setas. Número livre em negrito
   com `.texto-numero` (`--texto-numero`: azul no claro, verde no escuro).
+  O número escolhido fica como o da cartela (`.fundo-numero`: fundo azul no
+  claro, verde no escuro, texto branco, e `aria-pressed`); o vendido é
+  cinza e riscado — não verde, senão no escuro se confundiria com o
+  escolhido.
+- **Os números de cada página aparecem embaralhados**
+  (`embaralharPagina()` em `client/src/lib/embaralhar.ts`, semente da
+  visita): a página continua sendo a faixa do cabeçalho, só a ordem na tela
+  muda, e a mesma página volta na mesma ordem. O número buscado fica
+  contornado e a tela rola até ele. É só apresentação — a reserva segue
+  pela PK.
+
+## Layout no computador — o que não pode afrouxar
+
+- **O celular é a referência; o computador abre em grade a partir de `lg`.**
+  `PublicShell larga` passa a coluna de 768 px para 1152 px só em `lg`;
+  abaixo disso nada muda. Tela nova larga reorganiza por classes `lg:`,
+  nunca com um segundo componente para o computador.
+- **Página da rifa em duas colunas**: publicação (organização, banner,
+  carrossel, ações) à esquerda; a compra (`<aside>`) à direita, fixa na
+  rolagem e com rolagem própria, e o total com o Pix no pé dela. O DOM segue
+  a ordem do celular — publicação, compra, resto — e a grade só reposiciona
+  (`lg:col-start`/`lg:row-start`); inverter a ordem no DOM mudaria o
+  celular e a leitura de tela.
+- **Cor com opacidade**: `white` no Tailwind é `color-mix` com
+  `<alpha-value>`, senão `bg-white/95` sai transparente (era o topo e a
+  faixa de baixo). Outra cor que precisar de `/NN` ganha o mesmo formato.
 
 ## Perfil de demonstração — o que não pode afrouxar
 

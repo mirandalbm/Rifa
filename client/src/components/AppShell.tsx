@@ -178,13 +178,19 @@ function CarrinhoNoTopo() {
   );
 }
 
-export function PublicShell({ children }: { children: ReactNode }) {
+/**
+ * `larga`: no computador (a partir de `lg`) a página abre em grade larga —
+ * a rifa em duas colunas, a vitrine e o perfil em cartões. No celular é a
+ * mesma coluna de sempre.
+ */
+export function PublicShell({ children, larga }: { children: ReactNode; larga?: boolean }) {
   const { data: session } = useSession();
+  const largura = larga ? "max-w-3xl lg:max-w-6xl" : "max-w-3xl";
 
   return (
     <div className="min-h-screen bg-white">
       <header className="sticky top-0 z-20 border-b border-line bg-white/95 backdrop-blur">
-        <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-3">
+        <div className={`mx-auto flex ${largura} items-center justify-between px-4 py-3`}>
           <Link href="/" className="text-lg">
             <Marca />
           </Link>
@@ -226,8 +232,8 @@ export function PublicShell({ children }: { children: ReactNode }) {
           </nav>
         </div>
       </header>
-      <main className="mx-auto max-w-3xl px-4 pb-8 pt-4">{children}</main>
-      <RodapePublico />
+      <main className={`mx-auto ${largura} px-4 pb-8 pt-4`}>{children}</main>
+      <RodapePublico largura={largura} />
     </div>
   );
 }
@@ -471,12 +477,12 @@ export function PanelShell({
  * template (CNPJ, endereço) é mais longo e fica no fim da página, no fluxo.
  * A barra de compra da rifa fica logo acima dela (`acimaDoRodape`).
  */
-function RodapePublico() {
+function RodapePublico({ largura }: { largura: string }) {
   const t = useTemplate();
   return (
     <>
       {t.textos.rodape ? (
-        <p className="mx-auto max-w-3xl whitespace-pre-line border-t border-line px-4 pt-3 text-[11px] text-muted">
+        <p className={`mx-auto ${largura} whitespace-pre-line border-t border-line px-4 pt-3 text-[11px] text-muted`}>
           {t.textos.rodape}
         </p>
       ) : null}
@@ -487,7 +493,7 @@ function RodapePublico() {
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       >
         <div
-          className="mx-auto flex max-w-3xl items-center gap-1.5 px-4"
+          className={`mx-auto flex ${largura} items-center gap-1.5 px-4`}
           style={{ height: ALTURA_DO_RODAPE }}
         >
           {/* Na faixa vai a primeira frase do aviso; o "18+" diz o resto, e o

@@ -66,6 +66,8 @@ interface CampaignDetail {
     lqip: string | null;
     poster: string | null;
     durationS: number | null;
+    width?: number | null;
+    height?: number | null;
     altText: string | null;
   }[];
   packages: { quantity: number; discountPct: number; highlight: boolean }[];
@@ -294,6 +296,8 @@ export default function Rifa() {
       lqip: m.lqip,
       alt: m.altText,
       durationS: m.durationS,
+      largura: m.width,
+      altura: m.height,
     }));
   const sold = stats.soldCount;
   const pct = percent(sold, campaign.totalQuotas);

@@ -37,6 +37,68 @@ export function cabeNoCarrossel(pecasAtuais: number) {
 }
 
 /* ------------------------------------------------------------------ *
+ * Formato da peça (proporção), como no Instagram
+ * ------------------------------------------------------------------ */
+
+/**
+ * Os quatro formatos do Instagram. No feed: retrato 4:5 (o recomendado),
+ * quadrado 1:1 e paisagem 1,91:1; vertical 9:16 é o de reels e stories.
+ * `razao` é largura ÷ altura; `classe` é a do Tailwind para a caixa.
+ */
+export const FORMATOS = {
+  retrato: { rotulo: "Retrato 4:5", razao: 4 / 5, classe: "aspect-[4/5]", recomendado: "1080 × 1350" },
+  quadrado: { rotulo: "Quadrado 1:1", razao: 1, classe: "aspect-square", recomendado: "1080 × 1080" },
+  paisagem: { rotulo: "Paisagem 1,91:1", razao: 1.91, classe: "aspect-[191/100]", recomendado: "1080 × 566" },
+  vertical: { rotulo: "Vertical 9:16", razao: 9 / 16, classe: "aspect-[9/16]", recomendado: "1080 × 1920" },
+} as const;
+
+export type Formato = keyof typeof FORMATOS;
+
+/** Sem medida (peça antiga, vídeo enviado antes da medição), vale o retrato — o de antes. */
+export const FORMATO_PADRAO: Formato = "retrato";
+
+/**
+ * O formato mais próximo da peça, pelas dimensões **medidas no servidor**.
+ * As fronteiras do feed ficam no meio (em escala logarítmica) entre dois
+ * formatos vizinhos: 4:3 cai em quadrado e 16:9 em paisagem. A do vertical
+ * é mais baixa (0,65): a foto 2:3 de câmera é retrato, como no Instagram,
+ * e só o que é de fato em pé de tela (3:5, 9:16) vira vertical. Foto de
+ * celular em pé (3:4) é retrato.
+ */
+export function formatoDaPeca(largura: number | null | undefined, altura: number | null | undefined): Formato {
+  if (!largura || !altura || largura <= 0 || altura <= 0) return FORMATO_PADRAO;
+  const r = largura / altura;
+  const meio = (a: number, b: number) => Math.sqrt(a * b);
+  if (r < 0.65) return "vertical";
+  if (r < meio(FORMATOS.retrato.razao, FORMATOS.quadrado.razao)) return "retrato";
+  if (r < meio(FORMATOS.quadrado.razao, FORMATOS.paisagem.razao)) return "quadrado";
+  return "paisagem";
+}
+
+/**
+ * A regra de ouro do carrossel: **a primeira peça define o formato de
+ * todas**. As seguintes são cortadas ao centro (`object-cover`) para caber
+ * na mesma caixa — por isso o assunto vai no meio da foto.
+ */
+export function formatoDoCarrossel(pecas: { largura?: number | null; altura?: number | null }[]): Formato {
+  const primeira = pecas[0];
+  return primeira ? formatoDaPeca(primeira.largura, primeira.altura) : FORMATO_PADRAO;
+}
+
+/**
+ * No vertical (9:16) a peça ocupa a tela, e o perfil da promotora vai **por
+ * cima** dela, como no reels; nos outros três, **acima**, fora da imagem.
+ * A faixa de cima de 220 px em 1920 (11,5%) é a área que a interface cobre
+ * — texto importante da arte fica fora dela e dos 450 px de baixo.
+ */
+export function perfilPorCima(formato: Formato) {
+  return formato === "vertical";
+}
+
+/** Áreas seguras do 9:16, em fração da altura e da largura (220/1920, 450/1920, 35/1080). */
+export const AREA_SEGURA = { topo: 220 / 1920, base: 450 / 1920, lados: 35 / 1080 } as const;
+
+/* ------------------------------------------------------------------ *
  * Legenda
  * ------------------------------------------------------------------ */
 

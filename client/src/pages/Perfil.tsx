@@ -475,7 +475,7 @@ function CartaoDaRifa({ org, nome, rifa }: { org: string; nome: string; rifa: Ri
 
   return (
     <article className="overflow-hidden bg-white">
-      <Carrossel pecas={rifa.midias} titulo={rifa.prizeTitle} proporcao="aspect-[4/5]" href={href} aoAbrir={() => marcarOrigem("perfil")} />
+      <Carrossel pecas={rifa.midias} titulo={rifa.prizeTitle} href={href} aoAbrir={() => marcarOrigem("perfil")} />
       {/* Só a rifa vai dentro do cartão, logo abaixo da imagem e acima das ações, como no feed. */}
       <Link href={href} onClick={() => marcarOrigem("perfil")} className="mx-3 mt-3 block space-y-2 rounded-xl border border-line p-3 hover:bg-mist">
         <div className="flex items-baseline justify-between gap-2">

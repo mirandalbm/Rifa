@@ -156,6 +156,49 @@ export async function probeVideoDuration(
   return duration / timescale;
 }
 
+/**
+ * Largura e altura **de exibição** do vídeo: a trilha de vídeo (`tkhd` com
+ * largura diferente de zero) dentro de cada `trak` do `moov`. Celular grava
+ * em pé guardando o quadro deitado (1920 × 1080) com uma matriz de rotação
+ * de 90° — sem aplicar a matriz, o reels em pé seria medido como paisagem.
+ * Nulo quando o arquivo não diz (o formato cai no padrão, não recusa).
+ */
+export async function probeVideoDimensions(
+  read: RangeReader,
+  totalSize: number,
+): Promise<{ width: number; height: number } | null> {
+  const moov = await findBox(read, 0, totalSize, "moov");
+  if (!moov) return null;
+  let offset = moov.contentStart;
+  // Até 8 trilhas: vídeo, áudio, legenda… o resto não interessa.
+  for (let i = 0; i < 8; i++) {
+    const trak = await findBox(read, offset, moov.end, "trak");
+    if (!trak) return null;
+    const tkhd = await findBox(read, trak.contentStart, trak.end, "tkhd");
+    if (tkhd) {
+      const h = await read(tkhd.contentStart, 96);
+      const v1 = h[0] === 1;
+      const matriz = v1 ? 52 : 40;
+      const larg = v1 ? 88 : 76;
+      if (h.length >= larg + 8) {
+        const w = h.readUInt32BE(larg) / 65536;
+        const alt = h.readUInt32BE(larg + 4) / 65536;
+        if (w > 0 && alt > 0) {
+          // Matriz [a b u; c d v; x y w]: a = 0 e b ≠ 0 é giro de 90° ou 270°.
+          const a = h.readInt32BE(matriz);
+          const b = h.readInt32BE(matriz + 4);
+          const girado = a === 0 && b !== 0;
+          const width = Math.round(girado ? alt : w);
+          const height = Math.round(girado ? w : alt);
+          return { width, height };
+        }
+      }
+    }
+    offset = trak.end;
+  }
+  return null;
+}
+
 interface BoxRef {
   type: string;
   start: number;

@@ -48,6 +48,12 @@ function placeholder(params: {
   return `data:image/svg+xml;base64,${Buffer.from(svg).toString("base64")}`;
 }
 
+const FORMATO_DO_BANNER = [
+  { w: 1080, h: 1350 },
+  { w: 1080, h: 1920 },
+  { w: 1600, h: 838 },
+];
+
 const PALETTES = [
   { from: "#0B1F14", to: "#00873E" },
   { from: "#123D24", to: "#12B45C" },
@@ -242,10 +248,12 @@ async function main() {
         campaignId: campaign.id,
         role: "banner",
         position: 0,
-        storageKey: placeholder({ ...PALETTES[i], label: "banner", sub: "imagem de exemplo" }),
+        // Um formato por rifa, para a vitrine mostrar os três jeitos do
+        // Instagram: retrato 4:5, vertical 9:16 (perfil por cima) e paisagem.
+        storageKey: placeholder({ ...PALETTES[i], label: "banner", sub: "imagem de exemplo", ...FORMATO_DO_BANNER[i % 3] }),
         mime: "image/svg+xml",
-        width: 1600,
-        height: 900,
+        width: FORMATO_DO_BANNER[i % 3].w,
+        height: FORMATO_DO_BANNER[i % 3].h,
         altText: spec.prizeTitle,
         status: "ready",
       },

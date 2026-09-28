@@ -23,6 +23,9 @@ export interface ProcessedImage {
   variants: ImageVariant[];
   /** Data URI de 20 px — entra no HTML e some quando a foto real carrega. */
   lqip: string;
+  /** Largura e altura como a foto é exibida, já com a rotação do EXIF. */
+  largura: number;
+  altura: number;
 }
 
 /**
@@ -31,15 +34,24 @@ export interface ProcessedImage {
  * de 1 GB de memória — o processo cai e leva todo mundo junto.
  */
 const LIMITE_DE_PIXELS = 40_000_000;
-const abrir = (source: Buffer) => sharp(source, { limitInputPixels: LIMITE_DE_PIXELS });
+/**
+ * `rotate()` sem argumento aplica a rotação do EXIF: o celular grava a foto
+ * em pé deitada, com a orientação no cabeçalho, e a variante sai sem
+ * metadados — sem girar antes, a foto apareceria deitada na publicação.
+ */
+const abrir = (source: Buffer) => sharp(source, { limitInputPixels: LIMITE_DE_PIXELS }).rotate();
 
 export async function processImage(
   source: Buffer,
   baseKey: string,
 ): Promise<ProcessedImage> {
   const store = storage();
-  const meta = await abrir(source).metadata();
-  const original = meta.width ?? WIDTHS[WIDTHS.length - 1];
+  const meta = await sharp(source, { limitInputPixels: LIMITE_DE_PIXELS }).metadata();
+  // Orientação 5 a 8 do EXIF é giro de 90° ou 270°: largura e altura trocam.
+  const deitada = (meta.orientation ?? 1) >= 5;
+  const largura = (deitada ? meta.height : meta.width) ?? WIDTHS[WIDTHS.length - 1];
+  const altura = (deitada ? meta.width : meta.height) ?? largura;
+  const original = largura;
 
   const variants: ImageVariant[] = [];
 
@@ -68,6 +80,8 @@ export async function processImage(
   return {
     variants,
     lqip: `data:image/webp;base64,${lqipBuf.toString("base64")}`,
+    largura,
+    altura,
   };
 }
 

@@ -103,6 +103,9 @@ export function pecaPublica(m: ReturnType<typeof withUrls>) {
     alt: m.altText,
     durationS: m.durationS,
     formato: m.role === "video" && m.durationS ? formatoDoVideo(m.durationS) : null,
+    // A proporção medida no servidor: a primeira peça define o formato do carrossel.
+    largura: m.width,
+    altura: m.height,
   };
 }
 

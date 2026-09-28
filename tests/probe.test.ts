@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   probeImage,
+  probeVideoDimensions,
   probeVideoDuration,
   bufferReader,
   UnreadableMediaError,
@@ -112,5 +113,42 @@ describe("duração do vídeo", () => {
     await expect(
       probeVideoDuration(bufferReader(notMp4), notMp4.length),
     ).rejects.toThrow(UnreadableMediaError);
+  });
+});
+
+/** tkhd versão 0 com a matriz e as medidas em ponto fixo 16.16. */
+function tkhd(w: number, h: number, giro90 = false): Buffer {
+  const c = Buffer.alloc(84);
+  c[0] = 0;
+  // Matriz: identidade [1 0 0; 0 1 0] ou giro de 90° [0 1 0; -1 0 0].
+  c.writeInt32BE(giro90 ? 0 : 0x10000, 40);
+  c.writeInt32BE(giro90 ? 0x10000 : 0, 44);
+  c.writeInt32BE(giro90 ? -0x10000 : 0, 52);
+  c.writeInt32BE(giro90 ? 0 : 0x10000, 56);
+  c.writeUInt32BE(w * 65536, 76);
+  c.writeUInt32BE(h * 65536, 80);
+  return box("tkhd", c);
+}
+
+function mp4Com(...traks: Buffer[]): Buffer {
+  const ftyp = box("ftyp", Buffer.from("isomiso2avc1mp41", "ascii"));
+  const moov = box("moov", Buffer.concat([mvhd(20), ...traks.map((t) => box("trak", t))]));
+  return Buffer.concat([ftyp, moov, box("mdat", Buffer.alloc(1024))]);
+}
+
+describe("medidas do vídeo (formato da publicação)", () => {
+  it("lê largura e altura da trilha de vídeo, pulando a de áudio (largura zero)", async () => {
+    const file = mp4Com(tkhd(0, 0), tkhd(1080, 1920));
+    expect(await probeVideoDimensions(bufferReader(file), file.length)).toEqual({ width: 1080, height: 1920 });
+  });
+
+  it("aplica o giro de 90° do celular: quadro deitado vira reels em pé", async () => {
+    const file = mp4Com(tkhd(1920, 1080, true));
+    expect(await probeVideoDimensions(bufferReader(file), file.length)).toEqual({ width: 1080, height: 1920 });
+  });
+
+  it("sem trilha de vídeo, devolve nulo (o formato cai no padrão, não recusa)", async () => {
+    const file = mp4(30);
+    expect(await probeVideoDimensions(bufferReader(file), file.length)).toBeNull();
   });
 });

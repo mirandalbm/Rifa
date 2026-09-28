@@ -39,13 +39,13 @@ type Resposta = { itens: (Item | { slug: string; indisponivel: true })[] };
 /**
  * O carrinho, separado por organização: cada promotora tem a própria
  * autorização e o próprio bilhete. O total de cada item é o do servidor;
- * aqui só se escolhe a quantidade. Paga-se tudo num Pix só (a plataforma
- * reparte no mesmo pagamento), ou uma rifa por vez: "Comprar" leva à rifa
- * com a compra rápida aberta naquele tamanho. A cota só é tomada ao pagar.
+ * aqui só se escolhe a quantidade. Paga-se de um jeito só: o Pix da
+ * plataforma, com o botão de pagamento embaixo — o split para cada
+ * promotora é interno e não aparece para quem compra. A cota só é tomada
+ * ao pagar.
  */
 export default function Carrinho() {
   const itens = useCarrinho();
-  const [, navegar] = useLocation();
   const { data, isLoading } = useQuery<Resposta>({
     queryKey: ["/api/public/carrinho", itens],
     queryFn: async () => (await apiRequest("POST", "/api/public/carrinho", { itens })).json(),
@@ -83,8 +83,7 @@ export default function Carrinho() {
         <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start lg:gap-8">
           <div>
           <p className="mt-1 text-xs text-muted">
-            Tudo num Pix só, pago à plataforma: a parte de cada promotora vai para ela no mesmo pagamento. Cada rifa
-            continua com a autorização e o bilhete da promotora, e os números só ficam seus ao pagar.
+            Cada rifa continua com a autorização e o bilhete da promotora. Os números só ficam seus ao pagar.
           </p>
           <div className="mt-4 space-y-5">
             {grupos.map((g) => {
@@ -102,7 +101,7 @@ export default function Carrinho() {
                   </header>
                   <ul className="divide-y divide-line">
                     {g.itens.map((i) => (
-                      <ItemDoCarrinho key={i.slug} item={i} aoComprar={() => navegar(`/o/${org.slug}/r/${i.slug}?pacote=${i.quantidade}`)} />
+                      <ItemDoCarrinho key={i.slug} item={i} />
                     ))}
                   </ul>
                 </section>
@@ -125,14 +124,20 @@ export default function Carrinho() {
   );
 }
 
-function ItemDoCarrinho({ item: i, aoComprar }: { item: Item; aoComprar: () => void }) {
+function ItemDoCarrinho({ item: i }: { item: Item }) {
   const [texto, setTexto] = useState(String(i.quantidade));
   useEffect(() => setTexto(String(i.quantidade)), [i.quantidade]);
   const mudar = (q: number) => porNoCarrinho(i.slug, quantidadeNaFaixa(q, i.minPerOrder, i.maxPerOrder));
 
   return (
     <li className="flex gap-3 p-3">
-      <Link href={`/o/${i.organizacao.slug}/r/${i.slug}`} className="h-20 w-16 shrink-0 overflow-hidden rounded-md bg-mist">
+      {/* A foto repete o link do título ao lado: fora da ordem do teclado e do leitor de tela. */}
+      <Link
+        href={`/o/${i.organizacao.slug}/r/${i.slug}`}
+        aria-hidden
+        tabIndex={-1}
+        className="h-20 w-16 shrink-0 overflow-hidden rounded-md bg-mist"
+      >
         {i.capa && i.capa.role !== "video" ? <img src={i.capa.url} alt="" className="h-full w-full object-cover" /> : null}
       </Link>
       <div className="min-w-0 flex-1">
@@ -202,9 +207,6 @@ function ItemDoCarrinho({ item: i, aoComprar }: { item: Item; aoComprar: () => v
               </button>
             </div>
             <Money cents={i.totalCents} className="text-sm text-green-deep" />
-            <Button className="ml-auto px-3 py-1.5 text-xs" onClick={aoComprar}>
-              Comprar
-            </Button>
           </div>
         ) : (
           <div className="mt-2">
@@ -217,9 +219,10 @@ function ItemDoCarrinho({ item: i, aoComprar }: { item: Item; aoComprar: () => v
 }
 
 /**
- * Pagar tudo num Pix só: nome, WhatsApp e (se o provedor pedir) CPF, como
- * na página da rifa. Vão rifa e quantidade — o preço é do servidor, que
- * reserva tudo ou nada e devolve o Pix do carrinho.
+ * Seus dados e o botão de pagamento — o único do carrinho: nome, WhatsApp
+ * e (se o provedor pedir) CPF, como na página da rifa. Vão rifa e
+ * quantidade — o preço é do servidor, que reserva tudo ou nada e devolve o
+ * Pix da plataforma para o carrinho inteiro.
  */
 function PagarCarrinho({ itens, total }: { itens: Item[]; total: number }) {
   const [, navegar] = useLocation();
@@ -263,8 +266,8 @@ function PagarCarrinho({ itens, total }: { itens: Item[]; total: number }) {
   });
 
   return (
-    <section aria-label="Pagar tudo num Pix só" className="mt-4 space-y-3 rounded-xl border border-line p-3">
-      <h2 className="font-display text-base font-bold">Pagar tudo num Pix só</h2>
+    <section aria-label="Seus dados" className="mt-4 space-y-3 rounded-xl border border-line p-3">
+      <h2 className="font-display text-base font-bold">Seus dados</h2>
       {naConta ? (
         <p className="rounded-md bg-green-soft px-3 py-2 text-sm text-green-deep">
           Comprando como <strong>{comprador.name}</strong> · <span className="tnum">{maskPhone(comprador.phone)}</span>

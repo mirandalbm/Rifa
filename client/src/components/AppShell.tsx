@@ -373,7 +373,7 @@ export function PanelShell({
           <Link
             href="/"
             title="Ir para as rifas"
-            className="px-1 font-display text-lg font-extrabold tracking-tight"
+            className="min-w-[24px] px-1 text-center font-display text-lg font-extrabold tracking-tight"
           >
             {aberto ? (
               <Marca />
@@ -499,7 +499,7 @@ function RodapePublico({ largura }: { largura: string }) {
           {/* Na faixa vai a primeira frase do aviso; o "18+" diz o resto, e o
               texto inteiro fica no title e para leitor de tela. */}
           <p className="min-w-0 flex-1 truncate" title={t.textos.jogoResponsavel || undefined}>
-            <span className="mr-1 rounded border border-line-2 px-1 font-semibold text-ink-2">18+</span>
+            <span className="tnum mr-1 rounded border border-line-2 px-1 font-semibold text-ink-2">18+</span>
             <span aria-hidden>{primeiraFrase(t.textos.jogoResponsavel)}</span>
             <span className="sr-only">{t.textos.jogoResponsavel}</span>
           </p>
@@ -507,7 +507,7 @@ function RodapePublico({ largura }: { largura: string }) {
             href="/ajuda"
             aria-label="Central de ajuda"
             title="Central de ajuda"
-            className="flex shrink-0 items-center hover:text-ink"
+            className="flex h-6 w-6 shrink-0 items-center justify-center hover:text-ink"
           >
             <HelpCircle size={15} aria-hidden />
           </Link>

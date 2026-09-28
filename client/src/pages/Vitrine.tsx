@@ -81,6 +81,8 @@ export default function Vitrine() {
 
   return (
     <PublicShell larga>
+      {/* Título da página para leitor de tela (a vitrine abre direto nos banners). */}
+      <h1 className="sr-only">Rifas no ar</h1>
       {blocos.map((b) => {
           switch (b.tipo) {
             case "regiao":

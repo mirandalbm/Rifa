@@ -221,6 +221,8 @@ export default function Login() {
       <Link href="/" className="text-2xl">
         <Marca />
       </Link>
+      {/* O título da página, para leitor de tela: a tela já diz "entrar" pelas abas. */}
+      <h1 className="sr-only">Entrar</h1>
 
       <div className="mt-5 grid grid-cols-2 gap-1 rounded-lg bg-mist-2 p-1" role="tablist">
         {(

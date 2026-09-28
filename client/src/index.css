@@ -242,3 +242,19 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/*
+ * iPhone: o Safari dá zoom sozinho ao tocar num campo com letra menor que
+ * 16 px — e a tela fica ampliada no meio da compra. No celular, todo campo
+ * de digitar tem pelo menos 16 px; a partir de `sm` (640 px) vale o tamanho
+ * da classe. Um lugar só, em vez de lembrar em cada formulário. Sem
+ * `!important`: os `:not()` já vencem a classe de tamanho, e o campo que é
+ * maior de propósito (o código de acesso em `text-lg`) fica como está.
+ */
+@media (max-width: 639px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not(.text-lg):not(.text-xl):not(.text-2xl),
+  select:not(.text-lg):not(.text-xl):not(.text-2xl),
+  textarea:not(.text-lg):not(.text-xl):not(.text-2xl) {
+    font-size: 16px;
+  }
+}

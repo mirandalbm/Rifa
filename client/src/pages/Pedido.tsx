@@ -144,7 +144,9 @@ export default function Pedido() {
       <Card title="Resumo">
         <div className="space-y-2 p-4 text-sm">
           <div className="flex justify-between">
-            <span className="text-ink-2">{order.quantity} cota(s)</span>
+            <span className="text-ink-2">
+              <span className="tnum">{order.quantity}</span> cota(s)
+            </span>
             <Money cents={order.amountCents + order.presenteCents + order.discountCents} />
           </div>
           {order.discountCents > 0 ? (

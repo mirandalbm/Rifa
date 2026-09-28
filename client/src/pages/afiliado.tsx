@@ -63,7 +63,14 @@ export function AfiliadoPainel() {
             <Kpi
               label="Vendas"
               value={String(data.sales)}
-              hint={`conversão de ${(data.conversion * 100).toFixed(1)}%`}
+              hint={
+                <>
+                  conversão de{" "}
+                  <span className="tnum">
+                    {(data.conversion * 100).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%
+                  </span>
+                </>
+              }
             />
             <Kpi label="Receita gerada" value={formatBRL(data.revenueCents)} />
             <Kpi
@@ -71,7 +78,11 @@ export function AfiliadoPainel() {
               value={formatBRL(
                 data.commission.pendingCents + data.commission.availableCents,
               )}
-              hint={`${formatBRL(data.commission.availableCents)} já liberados`}
+              hint={
+                <>
+                  <span className="tnum">{formatBRL(data.commission.availableCents)}</span> já liberados
+                </>
+              }
               highlight
             />
           </div>
@@ -90,8 +101,8 @@ export function AfiliadoPainel() {
                   {formatBRL(data.commission.availableCents)}
                 </p>
                 <p className="text-[11px] text-muted">
-                  {formatBRL(data.commission.pendingCents)} ficam pendentes até passar a carência
-                  contra estorno.
+                  <span className="tnum">{formatBRL(data.commission.pendingCents)}</span> ficam pendentes até passar a
+                  carência contra estorno.
                 </p>
               </div>
             </Card>
@@ -329,13 +340,18 @@ export function AfiliadoSaques() {
             <p className="text-sm text-muted">
               Atual: <span className="tnum">{overview?.affiliate.pixKey ?? "não cadastrada"}</span>
             </p>
-            <input
-              id="pix-key"
-              value={pixKey}
-              onChange={(e) => setPixKey(e.target.value)}
-              placeholder="e-mail, CPF, telefone ou chave aleatória"
-              className="w-full rounded-md border border-line-2 px-3 py-2 text-sm"
-            />
+            <div>
+              <label htmlFor="pix-key" className="label-xs">
+                Nova chave Pix
+              </label>
+              <input
+                id="pix-key"
+                value={pixKey}
+                onChange={(e) => setPixKey(e.target.value)}
+                placeholder="e-mail, CPF, telefone ou chave aleatória"
+                className="mt-1 w-full rounded-md border border-line-2 px-3 py-2 text-sm"
+              />
+            </div>
             <Button onClick={() => savePix.mutate()} disabled={pixKey.length < 5}>
               Salvar chave
             </Button>

@@ -180,7 +180,7 @@ export function CambistaVenda() {
             </div>
 
             <div>
-              <span className="label-xs">Quantas cotas</span>
+              <label htmlFor="quantidade" className="label-xs">Quantas cotas</label>
               <div className="mt-1 grid grid-cols-4 gap-2">
                 {[1, 5, 10, 25].map((n) => (
                   <button
@@ -484,7 +484,7 @@ export function CambistaAcerto() {
             <div className="space-y-2 p-4 text-sm">
               <div className="flex justify-between">
                 <span className="text-ink-2">
-                  {data.aberto.orderCount} venda(s) recolhida(s)
+                  <span className="tnum">{data.aberto.orderCount}</span> venda(s) recolhida(s)
                 </span>
                 <Money cents={data.aberto.grossCents} />
               </div>

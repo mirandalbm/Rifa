@@ -105,7 +105,8 @@ export function Kpi({
 }: {
   label: string;
   value: string;
-  hint?: string;
+  /** Texto de apoio; número dentro dele vai num <span className="tnum">. */
+  hint?: ReactNode;
   highlight?: boolean;
 }) {
   return (

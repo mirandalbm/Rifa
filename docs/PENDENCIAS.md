@@ -3,7 +3,7 @@
 Lista viva do que falta para a rifa vender em produção. Atualizada a cada
 etapa — quem fechar um item marca aqui no mesmo PR.
 
-Última atualização: 26/09/2026 (de quem é o cliente).
+Última atualização: 28/09/2026 (versões: guia, registro e auditoria das telas).
 
 Legenda: **[você]** depende do responsável pela conta (cadastro, documento,
 senha); **[código]** é trabalho no repositório.
@@ -364,7 +364,13 @@ Na ordem de entrega do plano:
   Android SDK.
 - [ ] **[código]** Pôster e transcode dos vídeos das rifas (Cloudflare Stream
   resolve os dois).
-- [ ] **[código]** Revisão completa das telas, com prints, para ajustes de uso.
+- [x] Revisão completa das telas, com prints: `npm run telas` (60 telas,
+  seis papéis, 390/820/1440 px) e o guia `docs/VERSOES.md` — regras entre as
+  versões, mapa de cada tela e o registro das mudanças do celular (leva a
+  cada 10).
+- [ ] **[código]** Pendências da revisão das versões (P1 a P13 em
+  `docs/VERSOES.md`): tablet da página da rifa e do perfil, um componente
+  só para as seis janelas, tabelas do painel no celular.
 - [ ] **[código]** Cobrança com Asaas: nas vendas com split, a taxa da
   plataforma já fica retida na origem, mas a tela de Cobrança ainda a lista
   como devida pela organização. Até marcar essas taxas como "recebidas no

@@ -203,7 +203,7 @@ function CampanhasCard({ dados, dias, setDias }: { dados: Painel; dias: number; 
               onClick={() => setDias(d)}
               className={dias === d ? "rounded-md bg-green px-2 py-1 text-xs font-semibold text-on-green" : "rounded-md px-2 py-1 text-xs text-ink-2 hover:bg-mist-2"}
             >
-              {d} dias
+              <span className="tnum">{d}</span> dias
             </button>
           ))}
         </span>

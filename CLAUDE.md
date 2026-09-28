@@ -132,6 +132,7 @@ arquitetura.
 | carrinho (várias rifas, separadas por organização), o Pix único do carrinho e o comprar da publicação | `shared/carrinho.ts` (regras e split), `server/services/carrinho.ts`, `createCartOrder()` em `server/services/orders.ts`, `client/src/pages/CarrinhoPix.tsx`, `client/src/components/EscolherBilhete.tsx` (a janela do "+"), `scripts/carrinho-test.ts`, `client/src/lib/carrinho.ts`, `client/src/pages/Carrinho.tsx`, `BarraDeAcoes` em `client/src/components/Publicacao.tsx`, `scripts/publicacao-test.ts` |
 | presente pelos comentários (desconto de primeira compra pago pela plataforma) | `shared/presente.ts` (regras), `server/services/presente.ts`, `prepararPedido`/`settleOrderAsPaid` em `server/services/orders.ts`, `Presentear` em `client/src/components/Comentarios.tsx`, `AvisoDePresente` em `client/src/pages/Rifa.tsx`, cartão Presente em `client/src/pages/adminBonus.tsx`, `scripts/presente-test.ts` |
 | app instalável (PWA) | `client/public/sw.js`, `client/public/manifest.webmanifest`, `client/src/lib/pwa.ts` |
+| versões (celular, tablet, computador): registro das mudanças do celular, levas, mapa das telas e auditoria | `docs/VERSOES.md` (guia, mapa e registro — **anote no mesmo PR**), `scripts/telas.ts` (`npm run telas`), `tests/versoes.test.ts` |
 
 ## Convenções
 
@@ -259,6 +260,34 @@ arquitetura.
 - **Cor com opacidade**: `white` no Tailwind é `color-mix` com
   `<alpha-value>`, senão `bg-white/95` sai transparente (era o topo e a
   faixa de baixo). Outra cor que precisar de `/NN` ganha o mesmo formato.
+
+## Versões — o que não pode afrouxar
+
+Um código só, três larguras: celular (até 639 px, a referência), tablet
+(640 a 1023) e computador (1024 ou mais). O guia, o mapa de cada tela e o
+registro estão em `docs/VERSOES.md`.
+
+- **Mudança no celular entra no registro no mesmo PR** (`docs/VERSOES.md`,
+  situação `aguardando leva`). A cada **10** aguardando, o PR seguinte é a
+  **leva**: confere as três larguras e arruma o tablet e o computador de uma
+  vez. `tests/versoes.test.ts` falha na 11ª — a leva não fica esquecida.
+- **Quebra não espera a leva.** Página rolando para o lado, botão sumindo,
+  controle sem nome ou erro na página em outra largura é consertado no
+  mesmo PR: `npm run telas` (60 telas × 390/820/1440, com captura) não pode
+  reprovar. O que espera a leva é só o arranjo.
+- **Rota nova entra no mapa** do guia; o teste confere o mapa contra o
+  `App.tsx` nos dois sentidos.
+- **Grade começa em `grid-cols-1`** e filho com texto longo leva `min-w-0`:
+  a coluna implícita é `auto` e cresce até o conteúdo (foi o estouro do
+  painel bento e da Aparência).
+- **`sr-only` dentro de faixa que rola precisa de ancestral `relative`
+  dentro da faixa** — é absoluto e, sem isso, escapa do `overflow-x-auto` e
+  alarga a página (foi o estouro do Atendimento da plataforma).
+- **Campo de digitar com 16 px ou mais no celular** (regra global no
+  `index.css`, sem `!important`, que poupa o `text-lg` de propósito): abaixo
+  disso o iPhone aproxima a tela ao focar — o `npm run telas` reprova. Campo
+  com rótulo visível — placeholder não é rótulo. Alvo de toque com 24 × 24
+  px ou mais.
 
 ## Perfil de demonstração — o que não pode afrouxar
 
@@ -1024,9 +1053,10 @@ carrinho.
   página da rifa). Rascunho, rifa apagada e promotora arquivada voltam
   indisponíveis e o aparelho tira do carrinho. A compra recalcula de novo.
 - **Separado por organização**, porque cada promotora tem a própria
-  autorização e o próprio bilhete. Paga-se de dois jeitos: rifa a rifa
-  ("Comprar" leva à rifa com `?pacote=N`, que abre a compra rápida com as
-  cartelas daquele tamanho) ou **tudo num Pix só** (seção abaixo).
+  autorização e o próprio bilhete. **Paga-se de um jeito só**: o Pix da
+  plataforma, no botão de pagamento do carrinho — o único; o item não tem
+  "Comprar" próprio. O split para cada promotora é interno e não aparece
+  para quem compra (seção abaixo).
 - **Carrinho e comprar só aparecem na rifa que vende agora** (`vende` na
   vitrine, no perfil e na página, por `rifaAVenda()`): demonstração,
   travada, esgotada, encerrada ou sem Pix online não mostram os dois.

@@ -124,7 +124,8 @@ senha); **[código]** é trabalho no repositório.
   a compra fixa à direita, com o Pix no pé; topo e faixa de baixo deixaram
   de ficar transparentes.
 - [x] Mapa de números com cada página embaralhada; a busca contorna o
-  número e rola até ele.
+  número e rola até ele. Número escolhido na cor da cartela (azul/verde,
+  texto branco); vendido cinza e riscado.
 - [ ] Mesma grade no computador para a vitrine, o perfil da organização e o
   painel do organizador (um PR por tela).
 - [ ] **[você]** Conferir o vídeo no celular (som e "Assistir novamente"): o

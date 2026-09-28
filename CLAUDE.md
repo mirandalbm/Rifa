@@ -211,6 +211,10 @@ arquitetura.
   o **+0**, à esquerda do +5, abre o mapa. O cabeçalho do mapa é a faixa
   da página ("0001 a 0100"), a busca e as setas. Número livre em negrito
   com `.texto-numero` (`--texto-numero`: azul no claro, verde no escuro).
+  O número escolhido fica como o da cartela (`.fundo-numero`: fundo azul no
+  claro, verde no escuro, texto branco, e `aria-pressed`); o vendido é
+  cinza e riscado — não verde, senão no escuro se confundiria com o
+  escolhido.
 - **Os números de cada página aparecem embaralhados**
   (`embaralharPagina()` em `client/src/lib/embaralhar.ts`, semente da
   visita): a página continua sendo a faixa do cabeçalho, só a ordem na tela

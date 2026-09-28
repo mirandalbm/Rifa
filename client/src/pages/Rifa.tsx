@@ -650,14 +650,15 @@ export default function Rifa() {
                           type="button"
                           disabled={taken}
                           onClick={() => togglePick(n)}
-                          aria-label={`Cota ${formatQuota(n, campaign.totalQuotas)}${taken ? " — indisponível" : ""}`}
+                          aria-pressed={taken ? undefined : mine}
+                          aria-label={`Cota ${formatQuota(n, campaign.totalQuotas)}${taken ? " — indisponível" : mine ? " — escolhida" : ""}`}
                           className={`tnum rounded-md border py-2 text-[11px] font-bold ${
                             n === buscado ? "outline outline-2 outline-offset-1 outline-ink " : ""
                           }${
                             taken
-                              ? "cursor-not-allowed border-green bg-green text-on-green"
+                              ? "cursor-not-allowed border-line bg-mist-2 text-muted line-through"
                               : mine
-                                ? "border-2 border-green bg-green-soft text-green-deep"
+                                ? "fundo-numero border-transparent"
                                 : "texto-numero border-line-2 bg-white"
                           }`}
                         >

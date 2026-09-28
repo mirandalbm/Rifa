@@ -395,6 +395,12 @@ Na ordem de entrega do plano:
 
 ## Feito
 
+- [x] Formatos da publicação como no Instagram: retrato 4:5, quadrado 1:1,
+  paisagem 1,91:1 e vertical 9:16 (perfil por cima), pela primeira peça,
+  com as medidas do vídeo lidas no servidor e a foto de celular em pé
+  saindo em pé. A tela de mídia mostra o formato de cada peça e as medidas
+  recomendadas.
+
 - [x] Publicação no Railway: banco, variáveis, preparo do banco a cada
   versão, verificação de saúde e reinício automático.
 - [x] Administrador geral criado.

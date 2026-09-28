@@ -12,7 +12,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import { db } from "../db";
 import { campaignMedia, MAX_PHOTOS, MAX_VIDEO_SECONDS } from "@shared/schema";
 import { storage, mediaKey, chaveDaCampanha, type UploadTicket } from "./storage";
-import { probeImage, probeVideoDuration, UnreadableMediaError } from "./probe";
+import { probeImage, probeVideoDimensions, probeVideoDuration, UnreadableMediaError } from "./probe";
 import { processImage, srcSet, removeVariants, type ImageVariant } from "./images";
 import { MAX_CARROSSEL, duracao, formatoDoVideo } from "@shared/publicacao";
 
@@ -202,6 +202,10 @@ async function ingest(params: {
         );
       }
       durationS = Math.round(seconds);
+      // A proporção decide o formato da publicação (4:5, 1:1, 1,91:1, 9:16).
+      const dim = await probeVideoDimensions(read, size);
+      width = dim?.width ?? null;
+      height = dim?.height ?? null;
     } else {
       const head = await read(0, 64 * 1024);
       const image = probeImage(head);
@@ -226,6 +230,10 @@ async function ingest(params: {
       const processed = await processImage(await store.readAll(params.storageKey), params.storageKey);
       variants = processed.variants;
       lqip = processed.lqip;
+      // Guardada como a imagem é **exibida** (foto de celular em pé vem
+      // deitada no cabeçalho, com a rotação no EXIF).
+      width = processed.largura;
+      height = processed.altura;
     }
   } catch (err) {
     if (err instanceof MediaRuleError) throw err;

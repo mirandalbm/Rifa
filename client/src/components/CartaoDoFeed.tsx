@@ -43,8 +43,9 @@ export interface RifaDoFeed {
 const PERTO = ["na sua cidade", "no seu estado"] as const;
 
 /**
- * Uma rifa no feed, em formato de publicação do Instagram: o carrossel em
- * retrato (4:5) com o perfil da promotora por cima, a barra de ações
+ * Uma rifa no feed, em formato de publicação do Instagram: o carrossel no
+ * formato da primeira peça (4:5, 1:1, 1,91:1 ou 9:16), com o perfil da
+ * promotora acima dela — ou por cima, no vertical —, a barra de ações
  * (trevo, comentar, republicar, compartilhar, carrinho e comprar), a legenda e, embaixo,
  * prêmio, selo da autorização, preço, progresso e sorteio.
  */
@@ -69,29 +70,39 @@ export function CartaoDoFeed({ rifa: c, origem = "vitrine" }: { rifa: RifaDoFeed
 
   return (
     <article className="-mx-4 overflow-hidden bg-white sm:mx-0">
-      {/* O topo fica fora da imagem, como no Instagram. */}
-      {c.organizacao ? (
-        <CabecalhoDaPublicacao
-          slug={c.organizacao.slug}
-          nome={c.organizacao.nome}
-          foto={c.organizacao.foto}
-          verificada={c.organizacao.verificada}
-          seguindo={c.organizacao.seguindo}
-          subtitulo={
-            c.organizacao.local ? (
-              <span className="flex items-center gap-1">
-                <MapPin size={11} aria-hidden className="shrink-0" />
-                {c.organizacao.local}
-                {c.perto === 0 || c.perto === 1 ? <span className="truncate"> · {PERTO[c.perto]}</span> : null}
-              </span>
-            ) : null
-          }
-        />
-      ) : null}
-
-      <Carrossel pecas={pecas} titulo={c.prizeTitle} href={href} aoAbrir={() => marcarOrigem(origem)}>
+      {/* O topo fica fora da imagem nos formatos do feed e por cima dela no
+          vertical (9:16), como no reels — quem decide é o formato da primeira peça. */}
+      <Carrossel
+        pecas={pecas}
+        titulo={c.prizeTitle}
+        href={href}
+        aoAbrir={() => marcarOrigem(origem)}
+        perfil={
+          c.organizacao
+            ? (sobreImagem) => (
+                <CabecalhoDaPublicacao
+                  slug={c.organizacao!.slug}
+                  nome={c.organizacao!.nome}
+                  foto={c.organizacao!.foto}
+                  verificada={c.organizacao!.verificada}
+                  seguindo={c.organizacao!.seguindo}
+                  sobreImagem={sobreImagem}
+                  subtitulo={
+                    c.organizacao!.local ? (
+                      <span className="flex items-center gap-1">
+                        <MapPin size={11} aria-hidden className="shrink-0" />
+                        {c.organizacao!.local}
+                        {c.perto === 0 || c.perto === 1 ? <span className="truncate"> · {PERTO[c.perto]}</span> : null}
+                      </span>
+                    ) : null
+                  }
+                />
+              )
+            : undefined
+        }
+      >
         <span
-          className={`pointer-events-none absolute left-2 top-2 rounded px-2 py-[2px] font-mono text-[10px] ${
+          className={`absolute left-2 top-2 rounded px-2 py-[2px] font-mono text-[10px] ${
             retaFinal ? "bg-yellow text-on-yellow" : "bg-branco text-[#0b1f14]"
           }`}
         >

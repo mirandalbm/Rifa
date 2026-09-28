@@ -7,7 +7,11 @@ import {
   cabeNoCarrossel,
   contadorCurto,
   duracao,
+  FORMATO_PADRAO,
+  formatoDaPeca,
+  formatoDoCarrossel,
   formatoDoVideo,
+  perfilPorCima,
   problemaNaLegenda,
   quandoPublicou,
 } from "@shared/publicacao";
@@ -72,5 +76,38 @@ describe("quando publicou", () => {
     expect(quandoPublicou(new Date("2026-09-16T15:00:00Z"), agora)).toBe("16 de setembro");
     expect(quandoPublicou(new Date("2025-09-16T15:00:00Z"), agora)).toBe("16 de setembro de 2025");
     expect(quandoPublicou(null, agora)).toBeNull();
+  });
+});
+
+describe("formato da peça, como no Instagram", () => {
+  it("as medidas recomendadas caem cada uma no seu formato", () => {
+    expect(formatoDaPeca(1080, 1350)).toBe("retrato");
+    expect(formatoDaPeca(1080, 1080)).toBe("quadrado");
+    expect(formatoDaPeca(1080, 566)).toBe("paisagem");
+    expect(formatoDaPeca(1920, 1080)).toBe("paisagem");
+    expect(formatoDaPeca(1080, 1920)).toBe("vertical");
+  });
+
+  it("as proporções do meio vão para o vizinho mais próximo", () => {
+    expect(formatoDaPeca(3000, 4000)).toBe("retrato"); // foto de celular em pé (3:4)
+    expect(formatoDaPeca(4000, 3000)).toBe("quadrado"); // 4:3
+    expect(formatoDaPeca(2000, 3000)).toBe("retrato"); // 2:3
+    expect(formatoDaPeca(900, 1600)).toBe("vertical");
+  });
+
+  it("sem medida (peça antiga) vale o retrato de antes", () => {
+    expect(formatoDaPeca(null, null)).toBe(FORMATO_PADRAO);
+    expect(formatoDaPeca(0, 100)).toBe("retrato");
+  });
+
+  it("a primeira peça define o formato do carrossel inteiro", () => {
+    expect(formatoDoCarrossel([{ largura: 1080, altura: 1920 }, { largura: 1080, altura: 1080 }])).toBe("vertical");
+    expect(formatoDoCarrossel([{ largura: 1080, altura: 1080 }, { largura: 1080, altura: 1920 }])).toBe("quadrado");
+    expect(formatoDoCarrossel([])).toBe("retrato");
+  });
+
+  it("só o vertical põe o perfil por cima da imagem", () => {
+    expect(perfilPorCima("vertical")).toBe(true);
+    for (const f of ["retrato", "quadrado", "paisagem"] as const) expect(perfilPorCima(f)).toBe(false);
   });
 });

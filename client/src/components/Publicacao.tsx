@@ -11,8 +11,11 @@ import { EscolherBilhete } from "@/components/EscolherBilhete";
 import {
   LEGENDA_MAX,
   contadorCurto,
+  FORMATOS,
   duracao,
+  formatoDoCarrossel,
   formatoDoVideo,
+  perfilPorCima,
   problemaNaLegenda,
   type Acao,
   type FormatoDoVideo,
@@ -27,6 +30,9 @@ export interface Peca {
   alt?: string | null;
   durationS?: number | null;
   formato?: FormatoDoVideo | null;
+  /** Medidas de exibição (servidor): a primeira peça define o formato do carrossel. */
+  largura?: number | null;
+  altura?: number | null;
 }
 
 export interface Interacoes {
@@ -39,33 +45,52 @@ export interface Interacoes {
   salvei: boolean;
 }
 
+/** Altura da faixa do perfil sobre a imagem (foto de 36 px + respiro). */
+const FAIXA_DO_PERFIL = 56;
+
 /**
  * O carrossel da publicação, como no Instagram: até 10 peças, arrastando
  * para o lado, com "1/8" no canto e os pontinhos embaixo. Vídeo até 3 min
  * é reels (toca mudo e em loop no próprio carrossel, com controles); até
  * 15 min, vídeo do feed (só toca no toque).
+ *
+ * O formato é o da **primeira peça** (`formatoDoCarrossel`): retrato 4:5,
+ * quadrado 1:1, paisagem 1,91:1 ou vertical 9:16; as outras são cortadas ao
+ * centro para caber na mesma caixa. O `perfil` (foto e nome da promotora)
+ * vai **acima** da imagem nos três formatos do feed e **por cima** dela no
+ * vertical, como no reels (`perfilPorCima`).
  */
 export function Carrossel({
   pecas,
   titulo,
-  proporcao = "aspect-[4/5]",
+  proporcao,
   href,
   aoAbrir,
+  perfil,
   children,
 }: {
   pecas: Peca[];
   titulo: string;
+  /** Força uma caixa (classe do Tailwind); sem ela, vale o formato da primeira peça. */
   proporcao?: string;
   /** Toque na imagem leva à rifa (no feed e no perfil). */
   href?: string;
   aoAbrir?: () => void;
-  /** O que vai por cima da imagem (o perfil da promotora, o selo de vendidas). */
+  /** O topo da publicação; recebe `true` quando vai por cima da imagem. */
+  perfil?: (sobreImagem: boolean) => ReactNode;
+  /** O que vai por cima da imagem (o selo de vendidas), abaixo do perfil quando ele está por cima. */
   children?: ReactNode;
 }) {
   const [atual, setAtual] = useState(0);
+  const formato = formatoDoCarrossel(pecas);
+  const porCima = !proporcao && perfilPorCima(formato);
+  const caixa = proporcao ?? FORMATOS[formato].classe;
+  const desce = porCima && perfil ? FAIXA_DO_PERFIL : 0;
   return (
-    <div>
-      <div className={`relative overflow-hidden bg-mist-2 ${proporcao}`}>
+    <div data-formato={proporcao ? undefined : formato}>
+      {perfil && !porCima ? perfil(false) : null}
+      {/* No vertical, a caixa não passa da altura da tela (computador, tablet deitado). */}
+      <div className={`relative overflow-hidden bg-mist-2 ${caixa} ${porCima ? "max-h-[85svh] w-full" : ""}`}>
         <div
           className="flex h-full snap-x snap-mandatory overflow-x-auto"
           style={{ scrollbarWidth: "none" }}
@@ -99,12 +124,25 @@ export function Carrossel({
             )
           ) : null}
         </div>
-        {children}
-        {pecas.length > 1 ? (
-          <span className="tnum pointer-events-none absolute right-2 top-2 rounded-full bg-black/60 px-2 py-[1px] text-[11px] text-branco">
-            {atual + 1}/{pecas.length}
-          </span>
+        {porCima && perfil ? (
+          <div className="absolute inset-x-0 top-0">
+            {/* Sombra de cima: nome e "Seguir" legíveis sobre qualquer imagem. */}
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-x-0 top-0 h-24"
+              style={{ background: "linear-gradient(to bottom, rgba(0,0,0,.55), rgba(0,0,0,0))" }}
+            />
+            <div className="relative">{perfil(true)}</div>
+          </div>
         ) : null}
+        <div className="pointer-events-none absolute inset-x-0 bottom-0" style={{ top: desce }}>
+          {children}
+          {pecas.length > 1 ? (
+            <span className="tnum absolute right-2 top-2 rounded-full bg-black/60 px-2 py-[1px] text-[11px] text-branco">
+              {atual + 1}/{pecas.length}
+            </span>
+          ) : null}
+        </div>
       </div>
       {pecas.length > 1 ? (
         <div className="flex justify-center gap-1 pt-2" aria-hidden>
@@ -580,6 +618,7 @@ export function CabecalhoDaPublicacao({
   verificada,
   subtitulo,
   seguindo,
+  sobreImagem = false,
 }: {
   slug: string;
   nome: string;
@@ -587,6 +626,8 @@ export function CabecalhoDaPublicacao({
   verificada?: boolean;
   subtitulo?: ReactNode;
   seguindo?: boolean;
+  /** Por cima da imagem (formato vertical, como no reels): texto branco e "Seguir" com contorno. */
+  sobreImagem?: boolean;
 }) {
   const qc = useQueryClient();
   const [, navegar] = useLocation();
@@ -608,7 +649,7 @@ export function CabecalhoDaPublicacao({
     },
   });
   return (
-    <div className="flex items-center gap-3 px-3 py-2.5">
+    <div className={`flex items-center gap-3 px-3 py-2.5 ${sobreImagem ? "text-branco" : ""}`}>
       <Link href={`/o/${slug}`} className="flex min-w-0 flex-1 items-center gap-3">
         <FotoDoPerfil nome={nome} foto={foto} tamanho={36} />
         <span className="min-w-0 leading-tight">
@@ -616,7 +657,9 @@ export function CabecalhoDaPublicacao({
             <span className="truncate">{nome}</span>
             {verificada ? <SeloVerificado sujeito="organizacao" tamanho={14} /> : null}
           </span>
-          {subtitulo ? <span className="block truncate text-xs text-ink-2">{subtitulo}</span> : null}
+          {subtitulo ? (
+            <span className={`block truncate text-xs ${sobreImagem ? "text-branco opacity-90" : "text-ink-2"}`}>{subtitulo}</span>
+          ) : null}
         </span>
       </Link>
       {!segui && !minha ? (
@@ -626,7 +669,9 @@ export function CabecalhoDaPublicacao({
             if (!sessao?.buyer) return navegar(`/entrar?volta=${encodeURIComponent(window.location.pathname)}`);
             seguir.mutate();
           }}
-          className="shrink-0 rounded-lg bg-mist-2 px-4 py-1.5 text-sm font-semibold hover:brightness-95"
+          className={`shrink-0 rounded-lg px-4 py-1.5 text-sm font-semibold ${
+            sobreImagem ? "border border-branco text-branco hover:bg-black/20" : "bg-mist-2 hover:brightness-95"
+          }`}
         >
           Seguir
         </button>

@@ -862,6 +862,8 @@ publicRouter.get("/campaigns/:slug", async (req, res, next) => {
           poster: m.posterKey,
           durationS: m.durationS,
           altText: m.altText,
+          width: m.width,
+          height: m.height,
         };
       }),
       packages,

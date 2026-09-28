@@ -130,6 +130,7 @@ arquitetura.
 | visão do organizador (só o próprio perfil) | `VisaoDoOrganizador` em `client/src/App.tsx`, `organizacao` em `GET /api/auth/me` |
 | central de avisos do apostador (o trevo no topo) | `server/services/notificacoes.ts`, `avisar()` em `server/services/push.ts`, `client/src/pages/Notificacoes.tsx`, `CoracaoDeAvisos` em `client/src/components/AppShell.tsx`, `scripts/push-test.ts` |
 | perfil verificado (selo de trevo): documentos, foto, fila e cores | `shared/verificacao.ts` (regras e paleta), `server/services/verificacao.ts`, `server/services/rosto.ts` (comparador), `server/routes/verificacaoRotas.ts`, `client/src/components/Verificacao.tsx`, `SeloVerificado.tsx`, `VerificacoesDaPlataforma.tsx`, `CoresDoSelo.tsx`, `scripts/verificacao-test.ts` |
+| formato da publicação (retrato 4:5, quadrado 1:1, paisagem 1,91:1, vertical 9:16) e o perfil acima ou por cima | `formatoDaPeca()`/`formatoDoCarrossel()`/`perfilPorCima()` em `shared/publicacao.ts`, `probeVideoDimensions()` em `server/services/probe.ts`, `Carrossel` em `client/src/components/Publicacao.tsx`, `tests/publicacao.test.ts` |
 | publicação da rifa: carrossel de até 10 (reels e vídeos), barra de ações (trevo, comentar, republicar, compartilhar, "+" do carrinho, comprar) e legenda | `shared/publicacao.ts` (regras), `server/services/publicacao.ts`, `server/services/media.ts` (limites), `client/src/components/Publicacao.tsx`, `scripts/publicacao-test.ts` |
 | carrinho (várias rifas, separadas por organização), o Pix único do carrinho e o comprar da publicação | `shared/carrinho.ts` (regras e split), `server/services/carrinho.ts`, `createCartOrder()` em `server/services/orders.ts`, `client/src/pages/CarrinhoPix.tsx`, `client/src/components/EscolherBilhete.tsx` (a janela do "+"), `scripts/carrinho-test.ts`, `client/src/lib/carrinho.ts`, `client/src/pages/Carrinho.tsx`, `BarraDeAcoes` em `client/src/components/Publicacao.tsx`, `scripts/publicacao-test.ts` |
 | presente pelos comentários (desconto de primeira compra pago pela plataforma) | `shared/presente.ts` (regras), `server/services/presente.ts`, `prepararPedido`/`settleOrderAsPaid` em `server/services/orders.ts`, `Presentear` em `client/src/components/Comentarios.tsx`, `AvisoDePresente` em `client/src/pages/Rifa.tsx`, cartão Presente em `client/src/pages/adminBonus.tsx`, `scripts/presente-test.ts` |
@@ -402,8 +403,12 @@ plataforma analisa** (Atendimento → Rifas, com conversa dos dois lados).
 
 ## Mídia — o que não pode afrouxar
 
-A duração do vídeo e as dimensões da imagem são medidas em
-`server/services/probe.ts`, lendo o arquivo já armazenado. **Nunca** aceite o
+A duração e as dimensões do vídeo e as dimensões da imagem são medidas em
+`server/services/probe.ts` e `images.ts`, lendo o arquivo já armazenado.
+As dimensões guardadas são as **de exibição**: a foto com a rotação do EXIF
+aplicada (`rotate()` no `sharp`, senão a foto de celular em pé saía deitada)
+e o vídeo com a matriz do `tkhd` (reels gravado em pé vem como quadro
+deitado girado 90°). **Nunca** aceite o
 valor vindo do cliente: o limite (3 min reels, 15 min feed) é promessa de
 tela e forjar um campo JSON é trivial. Se for aceitar um container novo (WebM, por exemplo), implemente
 a medição junto — sem medir, não entra na lista de mimes.
@@ -1032,6 +1037,17 @@ estorno.
 - **Carrossel de até 10 peças contando o banner** (`MAX_CARROSSEL`): fotos e
   vídeos dividem as 9 vagas e a mesma sequência de posição. Conferido no
   pedido de envio **e** de novo ao gravar (dois envios ao mesmo tempo).
+- **A primeira peça define o formato do carrossel**, como no Instagram
+  (`formatoDoCarrossel()`): retrato 4:5, quadrado 1:1, paisagem 1,91:1 ou
+  vertical 9:16, pelo que o servidor mediu — nunca pelo navegador. As
+  outras peças são cortadas ao centro na mesma caixa. Sem medida (peça
+  antiga), retrato, que era o de antes. A foto 2:3 de câmera é retrato; só
+  o que é em pé de tela (abaixo de 0,65) vira vertical.
+- **O perfil vai acima nos formatos do feed e por cima no vertical**
+  (`perfilPorCima()`), como no reels: sombra em cima, texto branco e
+  "Seguir" com contorno; o selo de vendidas e o "1/8" descem para baixo
+  dele. O 9:16 não passa de 85% da altura da tela (computador, tablet
+  deitado). A regra mora no `Carrossel` (`perfil`), não em cada tela.
 - **Vídeo até 3 min é reels, até 15 min é feed** (`formatoDoVideo()`), pela
   duração medida no servidor; mais que isso é recusado. Reels toca sozinho,
   mudo, quando aparece na tela; o do feed só no toque. Como no Instagram:

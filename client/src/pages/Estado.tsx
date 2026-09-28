@@ -20,7 +20,7 @@ export default function EstadoPage() {
   });
 
   return (
-    <PublicShell>
+    <PublicShell larga>
       <Link href="/" className="inline-flex items-center gap-1 text-sm text-ink-2 hover:text-ink">
         <ArrowLeft size={15} aria-hidden /> Todo o Brasil
       </Link>
@@ -31,7 +31,7 @@ export default function EstadoPage() {
           <h1 className="mt-2 font-display text-xl font-extrabold">Rifas em {UFS[uf]}</h1>
           {isLoading ? <p className="py-2 text-sm text-muted">Carregando rifas…</p> : null}
           {!isLoading && (data?.length ?? 0) === 0 ? <Empty>Nenhuma rifa no ar neste estado agora.</Empty> : null}
-          <div className="mt-3 grid gap-4 sm:grid-cols-2">
+          <div className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {data?.map((c) => <CartaoDoFeed key={c.id} rifa={c} origem="estado" />)}
           </div>
         </>

@@ -132,6 +132,8 @@ senha); **[código]** é trabalho no repositório.
   rifas em 2 colunas.
 - [x] Painel do organizador em grade bento: receita, cotas, comissão,
   próximo sorteio, o que falta fazer e últimas vendas.
+- [x] Carrinho, página do estado e perfil do apostador no computador
+  (formulários e textos seguem na coluna estreita).
 - [ ] **[você]** Conferir o vídeo no celular (som e "Assistir novamente"): o
   banco de testes não tem vídeo, então não saiu captura dele.
 - [ ] **[você]** Advogado e contador: o desconto do presente pago pela

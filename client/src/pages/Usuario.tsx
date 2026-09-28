@@ -23,7 +23,7 @@ export default function Usuario() {
   const { apelido } = useParams<{ apelido: string }>();
   const { data, isLoading, error } = useQuery<PerfilDoApostador>({ queryKey: [`/api/public/u/${apelido}`] });
   return (
-    <PublicShell>
+    <PublicShell larga>
       {isLoading ? <p className="text-sm text-muted">Carregando…</p> : null}
       {error ? <Empty>Perfil não encontrado.</Empty> : null}
       {data ? (
@@ -61,7 +61,7 @@ function Republicacoes({ apelido }: { apelido: string }) {
       <h2 className="mb-3 flex items-center gap-2 font-display text-lg font-bold">
         <Repeat2 size={20} aria-hidden /> Republicações
       </h2>
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {data.map((r) => (
           <CartaoDoFeed key={r.id} rifa={r} />
         ))}

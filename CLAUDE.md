@@ -1121,7 +1121,7 @@ estorno.
 
 ## Carrinho e comprar — o que não pode afrouxar
 
-Na barra da publicação, o **"+"** (azul, em negrito) fica no espaço do meio
+Na barra da publicação, o **"+"** (azul no claro, verde no escuro — `--mais` —, em negrito) fica no espaço do meio
 e o **comprar** (a sacola) no canto direito, onde era o salvar. O "+" abre
 a janela dos números (`EscolherBilhete`): os tamanhos 5, 10, 25 e 50 (ou
 uma quantidade digitada, no mínimo e máximo da rifa) e as cartelas daquele

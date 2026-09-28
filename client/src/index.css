@@ -36,6 +36,8 @@
 
     /* O "+" do carrinho na barra da publicação (azul, como pediu o produto). */
     --azul: #0a6fd6;
+    /* O "+" do carrinho: azul no claro, verde no escuro (preto e verde). */
+    --mais: var(--azul);
     /* Fundo dos números da cartela: o azul do "+" no claro, o verde a 85% no escuro. */
     --fundo-numero: var(--azul);
     --texto-numero: var(--azul);
@@ -87,6 +89,7 @@
       --on-yellow: #3b2a00;
 
       --azul: #5aa9ff;
+      --mais: var(--green-deep);
       --fundo-numero: color-mix(in srgb, var(--green) 85%, transparent);
       --texto-numero: var(--green);
 
@@ -122,6 +125,7 @@
     --on-yellow: #3b2a00;
 
     --azul: #5aa9ff;
+    --mais: var(--green-deep);
     --fundo-numero: color-mix(in srgb, var(--green) 85%, transparent);
     --texto-numero: var(--green);
 

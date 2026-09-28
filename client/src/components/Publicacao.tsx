@@ -319,10 +319,10 @@ export function IconeTrevo({ cheio, tamanho = 26, corDoCheio }: { cheio: boolean
 
 
 
-/** O "+" do carrinho: em negrito, azul — abre a janela para escolher os números. */
+/** O "+" do carrinho: em negrito, azul no claro e verde no escuro (`--mais`) — abre a janela para escolher os números. */
 function IconeMais() {
   return (
-    <Icone tamanho={28} className="text-azul">
+    <Icone tamanho={28} className="text-mais">
       <path fill="none" stroke="currentColor" strokeWidth={3.25} strokeLinecap="round" d="M12 4.5v15M4.5 12h15" />
     </Icone>
   );

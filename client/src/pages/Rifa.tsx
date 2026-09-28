@@ -25,6 +25,7 @@ import { textoDoPresente } from "@shared/presente";
 import { Gift } from "lucide-react";
 import { consentiu, definirOrganizacaoDaPagina, lerUtm } from "@/lib/marketing";
 import { useRastreio } from "@/components/Marketing";
+import { embaralharPagina } from "@/lib/embaralhar";
 import type { CorDeDestaque } from "@shared/perfil";
 import { SeguirBotoes, FotoDoPerfil } from "@/components/Seguir";
 import { SorteioCard } from "@/components/SorteioCard";
@@ -115,6 +116,10 @@ export default function Rifa() {
   const [pagina, setPagina] = useState(0);
   const [trocarSinal, setTrocarSinal] = useState<{ numeros: number[]; vez: number } | null>(null);
   const [search, setSearch] = useState("");
+  // O mapa mostra os números de cada página embaralhados (semente da visita)
+  // e destaca o que a pessoa buscou.
+  const [semente] = useState(() => Math.floor(Math.random() * 2 ** 31));
+  const [buscado, setBuscado] = useState<number | null>(null);
   const [showMap, setShowMap] = useState(false);
   // O ícone de comentar abre a janela de baixo para cima, como no Instagram.
   const [comentando, setComentando] = useState(false);
@@ -581,7 +586,12 @@ export default function Rifa() {
               onSubmit={(e) => {
                 e.preventDefault();
                 const n = Number(search);
-                if (n >= 1 && n <= campaign.totalQuotas) setPagina(Math.floor((n - 1) / POR_PAGINA));
+                if (n >= 1 && n <= campaign.totalQuotas) {
+                  setPagina(Math.floor((n - 1) / POR_PAGINA));
+                  setBuscado(n);
+                  // Embaralhado, o número pode cair em qualquer canto: rola até ele.
+                  setTimeout(() => document.querySelector(`[data-numero="${n}"]`)?.scrollIntoView({ behavior: "smooth", block: "center" }), 300);
+                }
               }}
             >
               <label htmlFor="busca-numero" className="sr-only">
@@ -629,19 +639,21 @@ export default function Rifa() {
                   <span className="tnum">{groupNumber(totalPaginas)}</span>
                 </p>
                 <div className="grid grid-cols-5 gap-1 sm:grid-cols-10 lg:grid-cols-5">
-                  {Array.from({ length: fimDaPagina - inicioDaPagina + 1 }).map(
-                    (_, i) => {
-                      const n = inicioDaPagina + i;
+                  {embaralharPagina(inicioDaPagina, fimDaPagina, semente).map(
+                    (n) => {
                       const taken = isTaken(n);
                       const mine = picked.includes(n);
                       return (
                         <button
                           key={n}
+                          data-numero={n}
                           type="button"
                           disabled={taken}
                           onClick={() => togglePick(n)}
                           aria-label={`Cota ${formatQuota(n, campaign.totalQuotas)}${taken ? " — indisponível" : ""}`}
                           className={`tnum rounded-md border py-2 text-[11px] font-bold ${
+                            n === buscado ? "outline outline-2 outline-offset-1 outline-ink " : ""
+                          }${
                             taken
                               ? "cursor-not-allowed border-green bg-green text-on-green"
                               : mine
@@ -656,7 +668,7 @@ export default function Rifa() {
                   )}
                 </div>
                 <p className="mt-2 text-[11px] text-muted">
-                  Use as setas para ver os próximos 100 números, ou a busca para ir direto a um número. Toque para escolher.
+                  Os números de cada página aparecem embaralhados. Use as setas para ver os próximos 100, ou a busca para achar um número (ele fica contornado). Toque para escolher.
                 </p>
               </>
             ) : (

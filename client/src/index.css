@@ -209,19 +209,10 @@
   }
 
   /*
-   * O presente da cota surpresa: só o ícone, sem sombra, piscando (aceso e
-   * apagado, meio segundo cada) enquanto há prêmio em segredo; ao revelar,
-   * a tampa sobe e o número aparece. Quem pediu menos movimento ao aparelho
+   * O presente da cota surpresa: só o ícone, branco e parado, sem sombra;
+   * ao revelar, a tampa sobe e o número aparece. Quem pediu menos movimento ao aparelho
    * vê tudo parado.
    */
-  @keyframes presente-pisca {
-    0% { opacity: 1; }
-    50% { opacity: 0; }
-  }
-  .presente-pisca {
-    display: inline-flex;
-    animation: presente-pisca 1s steps(1, end) infinite;
-  }
   .presente-tampa-aberta {
     transform: translateY(-2.5px) rotate(-12deg);
     transform-origin: 4px 11px;
@@ -236,7 +227,6 @@
     animation: presente-revela 0.5s ease-out both;
   }
   @media (prefers-reduced-motion: reduce) {
-    .presente-pisca,
     .presente-revela {
       animation: none;
     }

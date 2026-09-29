@@ -164,6 +164,7 @@ export async function listarComentarios(req: Request, slug: string) {
       numero: prizedQuotas.number,
       premio: prizedQuotas.prizeLabel,
       em: prizedQuotas.claimedAt,
+      buyerId: orders.buyerId,
       nomeComprador: buyers.name,
       apelido: buyers.apelido,
       fotoEm: buyers.fotoEm,
@@ -175,9 +176,20 @@ export async function listarComentarios(req: Request, slug: string) {
     .where(and(eq(prizedQuotas.campaignId, rifa.id), eq(orders.status, "paid")))
     .orderBy(desc(prizedQuotas.claimedAt))
     .limit(20);
+  // Se o ganhador comentou na rifa, o comentário dele (o mais novo do topo)
+  // sobe para baixo do parabéns fixo e sai da lista — não aparece duas vezes.
+  // Sem comentário, fica só o parabéns automático.
+  const fixados = new Map<string, string>();
+  for (const g of ganhadores) {
+    if (fixados.has(g.buyerId)) continue;
+    const dele = topo.filter((l) => l.autor === "comprador" && l.buyerId === g.buyerId);
+    if (dele.length) fixados.set(g.buyerId, dele[dele.length - 1].id);
+  }
+  const fixadosIds = new Set(fixados.values());
+  const comRespostas = (l: (typeof linhas)[number]) => ({ ...publico(l), respostas: respostas.get(l.id) ?? [] });
   return {
     organizacao: { nome: rifa.orgNome, slug: rifa.orgSlug, verificada: Boolean(rifa.orgVerificadaEm) },
-    premiados: ganhadores.map((g) => ({
+    premiados: ganhadores.map((g, i) => ({
       numero: g.numero,
       cota: formatQuota(g.numero, rifa.totalQuotas),
       premio: g.premio,
@@ -186,6 +198,13 @@ export async function listarComentarios(req: Request, slug: string) {
       perfil: g.apelido ? `/u/${g.apelido}` : null,
       foto: urlDaFotoDoApostador(g.apelido, g.fotoEm),
       verificado: Boolean(g.verificadoEm),
+      comentario: (() => {
+        // Quem levou duas cotas premiadas mostra o comentário uma vez só.
+        const primeiro = ganhadores.findIndex((o) => o.buyerId === g.buyerId) === i;
+        const id = primeiro ? fixados.get(g.buyerId) : undefined;
+        const l = id ? topo.find((t) => t.id === id) : null;
+        return l ? comRespostas(l) : null;
+      })(),
     })),
     // Quem pode escrever: apostador com conta, ou a organização dona.
     podeComentar: Boolean(meuBuyer) || daOrganizacao,
@@ -196,7 +215,10 @@ export async function listarComentarios(req: Request, slug: string) {
     // Emoji é vantagem de perfil verificado; a tela explica e leva à verificação.
     podeUsarEmoji: daOrganizacao ? Boolean(rifa.orgVerificadaEm) : Boolean(eu?.verificadoEm),
     // Mais novo em cima; as respostas, na ordem da conversa.
-    lista: topo.reverse().map((l) => ({ ...publico(l), respostas: respostas.get(l.id) ?? [] })),
+    lista: topo
+      .filter((l) => !fixadosIds.has(l.id))
+      .reverse()
+      .map(comRespostas),
   };
 }
 

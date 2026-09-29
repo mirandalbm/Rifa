@@ -48,6 +48,8 @@ interface Premiado {
   perfil: string | null;
   foto: string | null;
   verificado: boolean;
+  /** O comentário que o ganhador deixou na rifa, se deixou: vai logo abaixo do parabéns. */
+  comentario: (Comentario & { respostas: Comentario[] }) | null;
 }
 
 const tempo = (iso: string) => {
@@ -439,7 +441,9 @@ export function Comentarios({ slug, dentroDoPainel }: { slug: string; dentroDoPa
 
 
       {/* O comentário fixo é só o de quem levou a cota premiada — no estilo
-          dos outros, sem cor de destaque, com "Fixado" escrito. */}
+          dos outros, sem cor de destaque, com "Fixado" escrito. É o parabéns
+          automático; se o ganhador comentou na rifa, o comentário dele vem
+          logo abaixo. Sem ganhador, nada é fixado. */}
       {data?.premiados?.length ? (
         <ul className="mb-5 space-y-5 border-b border-line pb-5" aria-label="Comentário fixo: cota premiada">
           {data.premiados.map((p) => (
@@ -460,8 +464,17 @@ export function Comentarios({ slug, dentroDoPainel }: { slug: string; dentroDoPa
                   {p.em ? <span className="tnum text-[12px] text-muted">{tempo(p.em)}</span> : null}
                 </p>
                 <p className="mt-0.5 break-words">
-                  <span aria-hidden>🏆</span> Ganhou <b>{p.premio}</b> com a cota premiada <b className="tnum">{p.cota}</b>.
+                  <span aria-hidden>🏆</span> Parabéns! Ganhou <b>{p.premio}</b> com a cota premiada{" "}
+                  <b className="tnum">{p.cota}</b>.
                 </p>
+                {p.comentario ? (
+                  <div className="mt-3 space-y-3">
+                    <Linha c={p.comentario} podeCurtir={Boolean(data.podeCurtir)} aoMudar={recarregar} />
+                    {p.comentario.respostas.map((r) => (
+                      <Linha key={r.id} c={r} resposta podeCurtir={Boolean(data.podeCurtir)} aoMudar={recarregar} />
+                    ))}
+                  </div>
+                ) : null}
               </div>
             </li>
           ))}

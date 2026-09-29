@@ -98,14 +98,11 @@ export function CotaSurpresa({ slug, premios }: { slug: string; premios: Premios
         onClick={() => setAberta(true)}
         aria-haspopup="dialog"
         aria-label={`Cota surpresa: ${emJogo} de ${premios.total} ${premios.total === 1 ? "prêmio" : "prêmios"} em jogo`}
-        // Só o ícone, sem fundo nem sombra: preto no claro, branco no escuro
-        // (`text-ink`). Pisca enquanto há prêmio em segredo; tudo revelado,
-        // fica parado e aberto.
-        className="flex h-12 w-12 items-center justify-center text-ink"
+        // Só o ícone, parado, sem fundo nem sombra, branco nos dois temas
+        // (fica sobre a foto, como o botão de som). Tudo revelado, abre a tampa.
+        className="flex h-12 w-12 items-center justify-center text-branco"
       >
-        <span className={emJogo > 0 ? "presente-pisca" : undefined}>
-          <IconePresente tamanho={34} aberto={emJogo === 0} />
-        </span>
+        <IconePresente tamanho={34} aberto={emJogo === 0} />
       </button>
 
       {aberta ? (

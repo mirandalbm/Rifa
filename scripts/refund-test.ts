@@ -124,7 +124,7 @@ async function casoSimples(campaignId: string) {
   const pedido = await comprarEPagar(campaignId, {
     quantity: 10,
     affiliateCode: "JOAO7",
-    buyer: { name: "Estorno Simples", phone: `1198${Date.now() % 10_000_000}` },
+    buyer: { name: "Estorno Simples", phone: `1198${String(Date.now() % 10_000_000).padStart(7, "0")}` },
   });
 
   const pago = await estadoDoPedido(pedido.code);
@@ -178,7 +178,7 @@ async function casoEndgame(campaignId: string) {
 
   const pedido = await comprarEPagar(campaignId, {
     quantity: 5,
-    buyer: { name: "Estorno Endgame", phone: `1197${Date.now() % 10_000_000}` },
+    buyer: { name: "Estorno Endgame", phone: `1197${String(Date.now() % 10_000_000).padStart(7, "0")}` },
   });
 
   const [noPoolDurante] = await db
@@ -229,7 +229,7 @@ async function casoPremiada(campaignId: string) {
 
   const pedido = await comprarEPagar(campaignId, {
     numbers: [777],
-    buyer: { name: "Estorno Premiado", phone: `1196${Date.now() % 10_000_000}` },
+    buyer: { name: "Estorno Premiado", phone: `1196${String(Date.now() % 10_000_000).padStart(7, "0")}` },
   });
 
   const [reclamada] = await db
@@ -253,7 +253,7 @@ async function casoSorteada(campaignId: string) {
 
   const pedido = await comprarEPagar(campaignId, {
     quantity: 3,
-    buyer: { name: "Estorno Sorteada", phone: `1195${Date.now() % 10_000_000}` },
+    buyer: { name: "Estorno Sorteada", phone: `1195${String(Date.now() % 10_000_000).padStart(7, "0")}` },
   });
 
   // Marca o sorteio como executado depois da venda.

@@ -48,6 +48,8 @@ interface Premiado {
   perfil: string | null;
   foto: string | null;
   verificado: boolean;
+  /** O comentário que o ganhador deixou na rifa, se deixou: vai logo abaixo do parabéns. */
+  comentario: (Comentario & { respostas: Comentario[] }) | null;
 }
 
 const tempo = (iso: string) => {
@@ -404,7 +406,20 @@ function Presentear({ slug }: { slug: string }) {
  * responde com o selo "organização" e **pede** a remoção — quem decide é a
  * plataforma, porque comentário pode ser denúncia.
  */
-export function Comentarios({ slug, dentroDoPainel }: { slug: string; dentroDoPainel?: boolean }) {
+export function Comentarios({
+  slug,
+  dentroDoPainel,
+  aoAbrirPainel,
+}: {
+  slug: string;
+  dentroDoPainel?: boolean;
+  /**
+   * Na página da rifa, embaixo da compra, fica só o fixo (o parabéns a quem
+   * levou a cota premiada) e o atalho para o painel — a conversa inteira
+   * mora no painel, como no Instagram. Sem ganhador, nada é fixado.
+   */
+  aoAbrirPainel?: () => void;
+}) {
   const qc = useQueryClient();
   const chave = [`/api/public/campaigns/${slug}/comentarios`];
   const { data } = useQuery<Lista>({ queryKey: chave });
@@ -425,7 +440,10 @@ export function Comentarios({ slug, dentroDoPainel }: { slug: string; dentroDoPa
     }
   }, [carregou, dentroDoPainel]);
 
-  const total = data?.lista.reduce((n, c) => n + 1 + c.respostas.length, 0) ?? 0;
+  // O comentário do ganhador sobe para baixo do parabéns, mas continua contando.
+  const total =
+    (data?.lista.reduce((n, c) => n + 1 + c.respostas.length, 0) ?? 0) +
+    (data?.premiados ?? []).reduce((n, p) => n + (p.comentario ? 1 + p.comentario.respostas.length : 0), 0);
 
   return (
     // Tamanho e fonte do Instagram: 14 px na fonte do sistema do aparelho, 12 px nos detalhes.
@@ -439,7 +457,9 @@ export function Comentarios({ slug, dentroDoPainel }: { slug: string; dentroDoPa
 
 
       {/* O comentário fixo é só o de quem levou a cota premiada — no estilo
-          dos outros, sem cor de destaque, com "Fixado" escrito. */}
+          dos outros, sem cor de destaque, com "Fixado" escrito. É o parabéns
+          automático; se o ganhador comentou na rifa, o comentário dele vem
+          logo abaixo. Sem ganhador, nada é fixado. */}
       {data?.premiados?.length ? (
         <ul className="mb-5 space-y-5 border-b border-line pb-5" aria-label="Comentário fixo: cota premiada">
           {data.premiados.map((p) => (
@@ -460,14 +480,41 @@ export function Comentarios({ slug, dentroDoPainel }: { slug: string; dentroDoPa
                   {p.em ? <span className="tnum text-[12px] text-muted">{tempo(p.em)}</span> : null}
                 </p>
                 <p className="mt-0.5 break-words">
-                  <span aria-hidden>🏆</span> Ganhou <b>{p.premio}</b> com a cota premiada <b className="tnum">{p.cota}</b>.
+                  <span aria-hidden>🏆</span> Parabéns! Ganhou <b>{p.premio}</b> com a cota premiada{" "}
+                  <b className="tnum">{p.cota}</b>.
                 </p>
+                {p.comentario ? (
+                  <div className="mt-3 space-y-3">
+                    <Linha c={p.comentario} podeCurtir={Boolean(data.podeCurtir)} aoMudar={recarregar} />
+                    {p.comentario.respostas.map((r) => (
+                      <Linha key={r.id} c={r} resposta podeCurtir={Boolean(data.podeCurtir)} aoMudar={recarregar} />
+                    ))}
+                  </div>
+                ) : null}
               </div>
             </li>
           ))}
         </ul>
       ) : null}
 
+      {aoAbrirPainel ? (
+        <button
+          type="button"
+          onClick={aoAbrirPainel}
+          className="text-[14px] font-semibold text-muted hover:text-ink"
+        >
+          {total > 0 ? (
+            <>
+              Ver {total === 1 ? "o comentário" : <>os <span className="tnum">{total}</span> comentários</>}
+            </>
+          ) : (
+            "Comentar"
+          )}
+        </button>
+      ) : null}
+
+      {aoAbrirPainel ? null : (
+      <>
       <ul className="space-y-5">
         {data?.lista.map((c) => {
           const aberta = abertas.has(c.id);
@@ -562,6 +609,8 @@ export function Comentarios({ slug, dentroDoPainel }: { slug: string; dentroDoPa
           </>
         )}
       </div>
+      </>
+      )}
     </section>
   );
 }

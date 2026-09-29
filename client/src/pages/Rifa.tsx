@@ -129,7 +129,9 @@ export default function Rifa() {
   const tablet = useTablet();
   const [showMap, setShowMap] = useState(false);
   // O ícone de comentar abre a janela de baixo para cima, como no Instagram.
-  const [comentando, setComentando] = useState(false);
+  // Quem chega pelo aviso ou pelo "Ver comentários" do feed (#comentarios)
+  // encontra a janela aberta: embaixo da rifa fica só o comentário fixo.
+  const [comentando, setComentando] = useState(() => typeof window !== "undefined" && window.location.hash === "#comentarios");
   const [buyer, setBuyer] = useState({ name: "", phone: "", coupon: "", cpf: "" });
   const [error, setError] = useState<string | null>(null);
 
@@ -854,7 +856,7 @@ export default function Rifa() {
 
       <SorteioCard slug={slug} />
 
-      <Comentarios slug={campaign.slug} />
+      <Comentarios slug={campaign.slug} aoAbrirPainel={() => setComentando(true)} />
       {comentando ? <PainelDeComentarios slug={campaign.slug} onFechar={() => setComentando(false)} /> : null}
 
       <footer className="mt-8 space-y-1 border-t border-line pt-4 text-[11px] text-muted">

@@ -1,4 +1,4 @@
-import { Icone, IconeAviao, IconeComentar, IconeRepublicar, IconeSacola } from "@/components/Icones";
+import { Icone, IconeAviao, IconeComentar, IconeMais, IconeRepublicar, IconeSacola } from "@/components/Icones";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link, useLocation } from "wouter";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -325,14 +325,6 @@ export function IconeTrevo({ cheio, tamanho = 26, corDoCheio }: { cheio: boolean
 
 
 
-/** O "+" do carrinho: em negrito, azul no claro e verde no escuro (`--mais`) — abre a janela para escolher os números. */
-function IconeMais() {
-  return (
-    <Icone tamanho={28} className="text-mais">
-      <path fill="none" stroke="currentColor" strokeWidth={3.25} strokeLinecap="round" d="M12 4.5v15M4.5 12h15" />
-    </Icone>
-  );
-}
 
 
 /**

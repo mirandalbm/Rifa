@@ -227,6 +227,17 @@ async function main() {
       g?.cota === "007" && g.premio === "Pix de R$ 50" && g.nome === "ana.comenta" && !JSON.stringify(r.json.premiados).includes(PESSOAS[0].telefone),
       JSON.stringify(g),
     );
+    checa("sem comentário do ganhador, só o parabéns automático", g && g.comentario === null && !("buyerId" in g));
+    await db.execute(sql`delete from rate_events where bucket like 'comentario:%'`);
+    await ana.req("POST", caminho, { texto: "Ganhei, obrigada!" });
+    r = await anon.req("GET", caminho);
+    const g2 = r.json?.premiados?.[0];
+    const naLista = r.json?.lista?.some((c: { texto: string }) => c.texto === "Ganhei, obrigada!");
+    checa(
+      "o comentário do ganhador vai para baixo do parabéns e sai da lista",
+      r.json?.premiados?.length === 1 && g2?.comentario?.texto === "Ganhei, obrigada!" && !naLista,
+      JSON.stringify(g2?.comentario),
+    );
 
     console.log("\n  limite:");
     await db.execute(sql`delete from rate_events where bucket like 'comentario:%'`);

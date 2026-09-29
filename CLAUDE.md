@@ -1012,7 +1012,13 @@ pedido, cotas e valor, e o cliente só pelo ID (`Cliente C-XXXXXXXX`).
   amarelo**. Só pedido **pago** (o estorno devolve a cota premiada e o
   fixo some junto) e só o número já reclamado — antes da compra, o número
   nunca sai (invariante das mensagens). Nome como no comentário, nunca
-  telefone. Nenhum outro comentário é fixado.
+  telefone. Nenhum outro comentário é fixado — sem ganhador, nada fica no
+  topo. O fixo é o **parabéns automático**; se o ganhador comentou na rifa,
+  o comentário dele (o mais novo) vai logo abaixo do parabéns e sai da
+  lista, para não aparecer duas vezes. **Embaixo da rifa fica só o fixo**
+  e o "Ver os N comentários" (`aoAbrirPainel`); a conversa inteira e o
+  campo de comentar moram no `PainelDeComentarios`, que abre sozinho
+  quando se chega por `#comentarios`.
 - **A cota surpresa é o presente animado** no canto de baixo à direita da
   publicação, na página da rifa (`CotaSurpresa`, `canto` do `Carrossel`,
   que sobe acima do som no vídeo). Só existe com cota premiada — é opcional
@@ -1024,10 +1030,9 @@ pedido, cotas e valor, e o cliente só pelo ID (`Cliente C-XXXXXXXX`).
   número novo desde a última visita deste aparelho (`novosRevelados()`,
   `rifa.surpresa.<rifa>`): quem comprou e voltou encontra o número dele. Na
   primeira visita não abre — seria barulho para todo mundo. **Só o ícone,
-  sem círculo nem sombra**: preto no claro e branco no escuro
-  (`text-ink`); pisca (aceso e apagado, meio segundo cada) enquanto há
-  prêmio em segredo e para, aberto, quando tudo foi revelado (ou com "menos
-  movimento" no aparelho).
+  parado, sem círculo nem sombra, branco nos dois temas** (`text-branco`:
+  fica sobre a foto, como o botão de som); a tampa abre quando tudo foi
+  revelado. Não pisca — ficou ruim na tela.
 - **Os números premiados se escolhem no cadastro** (`POST
   /campaigns/:id/prized` com `numeros`, `numerosPremiados()`): só em
   rascunho (409 depois de publicar — escolher com venda em andamento seria
@@ -1161,7 +1166,8 @@ carrinho.
 
 **Na página da rifa, o "+" e a sacola saem de baixo da publicação** — a
 compra já está na tela. Cada cartela traz tudo numa linha: **trocar** (só
-o ícone, à esquerda), o **carrinho** (a sacola, que junta a cartela) e o
+o ícone, à esquerda), o **"+"** (o mesmo "+" azul/verde em negrito da
+barra, `IconeMais` em `Icones.tsx`, que junta a cartela ao carrinho) e o
 **Pagar**, maior, no canto direito.
 
 - **Vários bilhetes por rifa, e de várias rifas** (`juntarCartela()` em

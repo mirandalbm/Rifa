@@ -251,7 +251,10 @@ function cotas(escopo: ExportScope): ExportStream {
                  CASE WHEN o.id IS NULL THEN NULL
                       ELSE ${nomeNoPainelSql(clienteVisivelSql(escopo.organizationId))} END AS comprador,
                  ${dadoNoPainelSql(clienteVisivelSql(escopo.organizationId), "b.phone")} AS telefone,
-                 pq.prize_label AS premio
+                 -- Número premiado ainda não ganho (só reservado) não se
+                 -- entrega à organização: ela saberia qual é. Ganho, é público.
+                 CASE WHEN pq.claimed_by_order_id IS NOT NULL OR ${sql.raw(escopo.organizationId === null ? "true" : "false")}
+                      THEN pq.prize_label END AS premio
             FROM quota_alloc a
             -- LEFT, nao INNER: quota_alloc.order_id nao tem chave
             -- estrangeira (a cota e gravada antes de tudo, pela PK, e e ela

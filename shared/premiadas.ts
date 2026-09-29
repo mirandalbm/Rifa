@@ -1,10 +1,11 @@
 /**
- * Cotas premiadas: o organizador escolhe os números no cadastro da rifa (ou
- * pede para sortear). Quem comprar um deles leva o prêmio na hora — a
+ * Cotas premiadas: o sistema sorteia os números, e só a plataforma vê quais
+ * são (a organização sorteia e vê "em segredo" até alguém ganhar; a
+ * plataforma pode escolher, só no rascunho). Quem comprar um deles leva o prêmio na hora — a
  * revelação acontece no pagamento (`settleOrderAsPaid`), e depois disso o
  * ganhador aparece fixo no topo dos comentários da rifa com a cota.
  *
- * - **Escolher é só antes de publicar.** Depois de ter comprador, escolher o
+ * - **Escolher é só da plataforma, e só antes de publicar.** Depois de ter comprador, escolher o
  *   número seria poder premiar quem já comprou (um amigo, a própria conta).
  *   Sortear continua valendo a qualquer hora, porque ninguém escolhe.
  * - **O número não sai em endpoint público antes de ser ganho**: só a

@@ -82,7 +82,7 @@ export function Carrossel({
   perfil?: (sobreImagem: boolean) => ReactNode;
   /** O que vai por cima da imagem (o selo de vendidas), abaixo do perfil quando ele está por cima. */
   children?: ReactNode;
-  /** Botão no canto de baixo à direita (a cota surpresa); no vídeo, sobe acima do som. */
+  /** Botão no canto de cima à direita, abaixo do contador (a cota surpresa). */
   canto?: ReactNode;
 }) {
   const [atual, setAtual] = useState(0);
@@ -146,10 +146,12 @@ export function Carrossel({
               {atual + 1}/{pecas.length}
             </span>
           ) : null}
+          {/* O canto (a cota surpresa) fica em cima, logo abaixo do "1/8" —
+              embaixo à direita mora o som do vídeo. Desce com o perfil por cima. */}
+          {canto ? (
+            <div className={`pointer-events-auto absolute right-0 ${pecas.length > 1 ? "top-7" : "top-0"}`}>{canto}</div>
+          ) : null}
         </div>
-        {canto ? (
-          <div className={`absolute right-3 ${pecas[atual]?.role === "video" ? "bottom-14" : "bottom-3"}`}>{canto}</div>
-        ) : null}
       </div>
       {pecas.length > 1 ? (
         <div className="flex justify-center gap-1 pt-2" aria-hidden>

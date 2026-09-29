@@ -1015,7 +1015,11 @@ adminRouter.get("/campaigns/:id/prized", async (req, res, next) => {
       .from(prizedQuotas)
       .where(eq(prizedQuotas.campaignId, req.params.id))
       .orderBy(prizedQuotas.number);
-    res.json(rows);
+    // O número em jogo é só da plataforma. Se a organização soubesse qual é,
+    // poderia comprá-lo (ou passá-lo a um conhecido) — a fraude que a cota
+    // sorteada existe para evitar. Depois de ganho, a cota já foi vendida e o
+    // número é público (topo dos comentários), então volta a aparecer.
+    res.json(isPlatform(req) ? rows : rows.map((r) => (r.claimedByOrderId ? r : { ...r, number: null })));
   } catch (err) {
     next(err);
   }
@@ -1036,9 +1040,13 @@ adminRouter.post("/campaigns/:id/prized", async (req, res, next) => {
       return res.status(400).json({ message: "Descreva o prêmio da cota." });
     }
 
-    // Números escolhidos pelo organizador: só no cadastro, antes de publicar
-    // (`shared/premiadas.ts`). Depois, escolher seria poder premiar quem já comprou.
+    // Números escolhidos: só a plataforma, e só no cadastro, antes de publicar
+    // (`shared/premiadas.ts`). A organização sorteia — quem escolhe o número
+    // premiado da própria rifa pode comprá-lo.
     if (req.body?.numeros !== undefined) {
+      if (!isPlatform(req)) {
+        return res.status(403).json({ message: "As cotas premiadas são sorteadas pelo sistema. Só a plataforma vê os números." });
+      }
       if (campaign.status !== "draft") {
         return res.status(409).json({ message: "Escolher os números só no cadastro, antes de publicar. Depois, só sorteando." });
       }

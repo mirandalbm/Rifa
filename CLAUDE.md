@@ -1020,9 +1020,9 @@ pedido, cotas e valor, e o cliente só pelo ID (`Cliente C-XXXXXXXX`).
   e o "Ver os N comentários" (`aoAbrirPainel`); a conversa inteira e o
   campo de comentar moram no `PainelDeComentarios`, que abre sozinho
   quando se chega por `#comentarios`.
-- **A cota surpresa é o presente animado** no canto de baixo à direita da
-  publicação, na página da rifa (`CotaSurpresa`, `canto` do `Carrossel`,
-  que sobe acima do som no vídeo). Só existe com cota premiada — é opcional
+- **A cota surpresa é o presente** no canto de cima à direita da
+  publicação, logo abaixo do contador "1/5", na página da rifa
+  (`CotaSurpresa`, `canto` do `Carrossel`) — embaixo fica o som do vídeo. Só existe com cota premiada — é opcional
   da organização ou da plataforma; sem nenhuma, o presente não aparece. O
   aviso amarelo "Cotas premiadas" saiu da página: o presente o substitui.
   Aberto, mostra cada prêmio em segredo ("?") e o número já reclamado com
@@ -1034,10 +1034,15 @@ pedido, cotas e valor, e o cliente só pelo ID (`Cliente C-XXXXXXXX`).
   parado, sem círculo nem sombra, branco nos dois temas** (`text-branco`:
   fica sobre a foto, como o botão de som); a tampa abre quando tudo foi
   revelado. Não pisca — ficou ruim na tela.
-- **Os números premiados se escolhem no cadastro** (`POST
-  /campaigns/:id/prized` com `numeros`, `numerosPremiados()`): só em
-  rascunho (409 depois de publicar — escolher com venda em andamento seria
-  poder premiar quem já comprou); publicada, só sorteando.
+- **O número premiado é sorteado e só a plataforma o vê.** A organização
+  só sorteia (`POST /campaigns/:id/prized` com `quantity`); mandar
+  `numeros` é 403 — quem escolhe o número premiado da própria rifa pode
+  comprá-lo. `GET /campaigns/:id/prized` devolve `number: null` para a
+  organização enquanto a cota está em jogo (ganha, o número já é público e
+  volta a aparecer), e o relatório de cotas só marca "Cota premiada" em
+  número já ganho. A plataforma vê os números e, só no rascunho, pode
+  escolhê-los (`numerosPremiados()`; 409 depois de publicar). `npm run
+  comentarios` prova.
 - **O campo de comentar** é a pílula do Instagram: o envio (verde) aparece
   dentro dela quando há texto, e o "Enviar" do teclado publica
   (`enterKeyHint="send"`; Shift+Enter quebra a linha). O ícone de comentar

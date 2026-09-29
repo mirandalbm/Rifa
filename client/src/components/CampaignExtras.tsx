@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, Button, Empty, Pill } from "@/components/bits";
 import { apiRequest } from "@/lib/queryClient";
+import { useSession } from "@/lib/session";
 import { formatQuota, groupNumber } from "@shared/format";
 
 interface Pkg {
@@ -13,7 +14,8 @@ interface Pkg {
 
 interface Prized {
   id: string;
-  number: number;
+  /** Nulo para a organização enquanto a cota está em jogo: só a plataforma vê o número. */
+  number: number | null;
   prizeLabel: string;
   claimedByOrderId: string | null;
 }
@@ -59,6 +61,10 @@ export function CampaignExtras({
     queryKey: [`/api/admin/campaigns/${campaignId}/prized`],
   });
 
+  // A organização só sorteia e não vê o número em jogo; a plataforma vê e,
+  // no rascunho, pode escolher.
+  const { data: sessao } = useSession();
+  const plataforma = sessao?.role === "admin";
   const [prize, setPrize] = useState({ prizeLabel: "", quantity: 1 });
   const [escolhidos, setEscolhidos] = useState("");
   const [aviso, setAviso] = useState<string | null>(null);
@@ -192,9 +198,9 @@ export function CampaignExtras({
       >
         <div className="space-y-3 p-4">
           <p className="text-xs text-muted">
-            Escolha os números premiados no cadastro (ou sorteie). Eles ficam escondidos do
-            público — quem soubesse compraria só aquele. Quem comprar um deles ganha na hora, e
-            o perfil aparece fixo no topo dos comentários da rifa com a cota.
+            Os números premiados são sorteados pelo sistema e ficam em segredo — para o
+            público e para a organização; só a plataforma vê quais são. Quem comprar um
+            deles ganha na hora, e o número aparece aqui e fixo no topo dos comentários.
           </p>
 
           <div className="flex flex-wrap items-end gap-2">
@@ -228,7 +234,7 @@ export function CampaignExtras({
             </Button>
           </div>
 
-          {rascunho ? (
+          {!plataforma ? null : rascunho ? (
             <div className="flex flex-wrap items-end gap-2">
               <div className="min-w-0 flex-1">
                 <label htmlFor="prize-numeros" className="label-xs">
@@ -268,7 +274,9 @@ export function CampaignExtras({
             <ul className="max-h-56 divide-y divide-line overflow-y-auto">
               {prized.map((p) => (
                 <li key={p.id} className="flex items-center gap-2 py-1.5 text-sm">
-                  <span className="tnum w-24">{formatQuota(p.number, totalQuotas)}</span>
+                  <span className="tnum w-24">
+                    {p.number === null ? <span className="text-muted">Em segredo</span> : formatQuota(p.number, totalQuotas)}
+                  </span>
                   <span className="flex-1 text-ink-2">{p.prizeLabel}</span>
                   {p.claimedByOrderId ? (
                     <Pill status="paid">ganha</Pill>

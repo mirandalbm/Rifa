@@ -1475,7 +1475,14 @@ desconto na primeira compra — **pago pela plataforma**.
   é só a rifa** (prêmio, selo "Autorizada SPA/MF" com o número — a rifa no
   ar sempre tem —, cota, sorteio e cotas), e depois, **fora** do cartão, as
   ações, a legenda, "Ver comentários" e o "Há 3 dias" (`quandoPublicou`).
-  A mesma ordem vale no perfil.
+  A mesma ordem vale no perfil. **Do tablet em diante não há faixa branca
+  em cima**: o perfil (foto, nome, cidade e "Seguir") vai por cima da
+  imagem em todos os formatos, com a sombra do reels, e a imagem tem os
+  quatro cantos arredondados (`perfilSobreNaWeb` no `Carrossel`, só por
+  classes `md:` — o celular não muda). O selo de vendidas e o "1/8" descem
+  para baixo do perfil, e o selo segue o padrão do "1/8" (fundo escuro,
+  texto branco, mesma fonte). Depois do toque em "Seguir", o botão vira
+  "Seguindo" com ✓; quem já seguia continua sem botão.
 - **Imagem nunca é servida como veio**: banner 1200×600 e story 1080×1920,
   WebP, sem metadados, no banco (até o R2 entrar).
 - **Subconsulta com tabela de fora escreve o nome da tabela**

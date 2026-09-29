@@ -15,7 +15,7 @@ import {
   type BotaoDoConsole,
 } from "@shared/console";
 import { useSession } from "@/lib/session";
-import { useCarrinho } from "@/lib/carrinho";
+import { bilhetesNoCarrinho, useCarrinho } from "@/lib/carrinho";
 import { IconeTrevo } from "@/components/Publicacao";
 import { FotoDoApostador } from "@/components/PerfilDoApostador";
 import { Marca } from "@/components/Marca";
@@ -222,12 +222,14 @@ export function usePendencias(): string[] {
 }
 
 function BotaoDoConsole({ chave, rotulo, caminho, ativo, lateral }: { chave: BotaoDoConsole; rotulo: string; caminho: string; ativo: boolean; lateral: boolean }) {
-  const itens = useCarrinho().length;
+  // O número do carrinho conta os bilhetes (cada cartela posta é um); a
+  // rifa que só tem quantidade conta como um.
+  const itens = bilhetesNoCarrinho(useCarrinho());
   const pendencias = usePendencias().length;
   const Icone = chave === "perfil" ? null : ICONE[chave];
   const nome =
     chave === "carrinho" && itens
-      ? `${rotulo}: ${itens} rifa(s)`
+      ? `${rotulo}: ${itens} bilhete(s)`
       : chave === "perfil" && pendencias
         ? `${rotulo}: ${pendencias} pendência(s) na conta`
         : rotulo;

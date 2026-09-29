@@ -4,6 +4,7 @@ import {
   agruparPorOrganizacao,
   juntarCartela,
   bilhetesDoItem,
+  bilhetesNoCarrinho,
   tirarBilhete,
   splitDoCarrinho,
   situacaoDoCarrinho,
@@ -256,5 +257,18 @@ describe("situacaoDoCarrinho", () => {
     expect(situacaoDoCarrinho(["paid", "paid"])).toBe("paid");
     expect(situacaoDoCarrinho(["paid", "refunded"])).toBe("paid");
     expect(situacaoDoCarrinho(["expired", "expired"])).toBe("expired");
+  });
+});
+
+describe("bilhetesNoCarrinho (o número do console)", () => {
+  it("conta cada bilhete, não cada rifa", () => {
+    expect(
+      bilhetesNoCarrinho([
+        { slug: "a", quantidade: 4, numeros: [1, 2, 3, 4], bilhetes: [[1, 2], [3, 4]] },
+        { slug: "b", quantidade: 10 },
+        { slug: "c", quantidade: 2, numeros: [5, 6] },
+      ]),
+    ).toBe(4);
+    expect(bilhetesNoCarrinho([])).toBe(0);
   });
 });

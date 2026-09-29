@@ -135,40 +135,48 @@ function ItemDoCarrinho({ item: i, bilhetes: bilhetesGuardados }: { item: Item; 
   const [texto, setTexto] = useState(String(i.quantidade));
   // Cada bilhete que a pessoa pôs, separado. Item antigo (sem a lista) é um bilhete só.
   const bilhetes = i.numeros ? (bilhetesDoItem(bilhetesGuardados, i.numeros) ?? [i.numeros]) : null;
+  // Foto que não carrega some, em vez do ícone de imagem quebrada.
+  const [semFoto, setSemFoto] = useState(false);
   useEffect(() => setTexto(String(i.quantidade)), [i.quantidade]);
   const mudar = (q: number) => porNoCarrinho(i.slug, quantidadeNaFaixa(q, i.minPerOrder, i.maxPerOrder));
 
   return (
-    <li className="flex gap-3 p-3">
-      {/* A foto repete o link do título ao lado: fora da ordem do teclado e do leitor de tela. */}
-      <Link
-        href={`/o/${i.organizacao.slug}/r/${i.slug}`}
-        aria-hidden
-        tabIndex={-1}
-        className="h-20 w-16 shrink-0 overflow-hidden rounded-md bg-mist"
-      >
-        {i.capa && i.capa.role !== "video" ? <img src={i.capa.url} alt="" className="h-full w-full object-cover" /> : null}
-      </Link>
-      <div className="min-w-0 flex-1">
-        <div className="flex items-start gap-2">
-          <Link href={`/o/${i.organizacao.slug}/r/${i.slug}`} className="min-w-0 flex-1 text-sm font-semibold leading-tight">
+    // A rifa numa faixa no topo (foto, título, preço e a lixeira) e, embaixo,
+    // em largura inteira, os bilhetes dela.
+    <li className="p-3">
+      <div className="flex items-center gap-3">
+        {/* A foto repete o link do título ao lado: fora da ordem do teclado e do leitor de tela. */}
+        <Link
+          href={`/o/${i.organizacao.slug}/r/${i.slug}`}
+          aria-hidden
+          tabIndex={-1}
+          className="h-14 w-14 shrink-0 overflow-hidden rounded-md bg-mist"
+        >
+          {i.capa && i.capa.role !== "video" && !semFoto ? (
+            <img src={i.capa.url} alt="" onError={() => setSemFoto(true)} className="h-full w-full object-cover" />
+          ) : null}
+        </Link>
+        <div className="min-w-0 flex-1">
+          <Link href={`/o/${i.organizacao.slug}/r/${i.slug}`} className="block text-sm font-semibold leading-tight">
             {i.prizeTitle}
           </Link>
-          <button
-            type="button"
-            onClick={() => tirarDoCarrinho(i.slug)}
-            aria-label={`Tirar ${i.prizeTitle} do carrinho`}
-            className="rounded-md p-1 text-muted hover:bg-mist hover:text-ink"
-          >
-            <Trash2 size={16} aria-hidden />
-          </button>
+          <p className="mt-0.5 text-xs text-muted">
+            <span className="tnum">{formatBRL(i.priceCents)}</span> por cota
+          </p>
         </div>
-        <p className="mt-0.5 text-xs text-muted">
-          <span className="tnum">{formatBRL(i.priceCents)}</span> por cota
-        </p>
+        <button
+          type="button"
+          onClick={() => tirarDoCarrinho(i.slug)}
+          aria-label={`Tirar ${i.prizeTitle} do carrinho`}
+          className="self-start rounded-md p-1 text-muted hover:bg-mist hover:text-ink"
+        >
+          <Trash2 size={16} aria-hidden />
+        </button>
+      </div>
+      <div className="min-w-0">
         {i.vende ? (
           bilhetes ? (
-            <ol className="mt-2 space-y-2" aria-label={`Bilhetes de ${i.prizeTitle}`}>
+            <ol className="mt-3 space-y-2" aria-label={`Bilhetes de ${i.prizeTitle}`}>
               {bilhetes.map((b, k) => (
                 <li key={b.join()} className="rounded-lg border border-line p-2">
                   <div className="flex items-center gap-2">

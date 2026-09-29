@@ -94,3 +94,36 @@ export function faltaParaOSorteio(drawAt: string | Date, agora: number = Date.no
     segundos: s % 60,
   };
 }
+
+/**
+ * Qualidade do vídeo, como o menu do YouTube. Só o Vimeo aceita que o site
+ * escolha (`quality=` no endereço do player); o YouTube ignora o pedido desde
+ * 2019 e a Twitch e o Facebook não têm o parâmetro — neles a qualidade fica
+ * na engrenagem do próprio player. Por isso o seletor só aparece onde muda
+ * alguma coisa (`aceitaQualidade`): botão sem efeito seria mentira na tela.
+ * Os valores são os do Vimeo; o rótulo, o de sempre.
+ */
+export const QUALIDADES_DO_VIDEO = [
+  { valor: "auto", rotulo: "Automática" },
+  { valor: "4k", rotulo: "2160p" },
+  { valor: "2k", rotulo: "1440p" },
+  { valor: "1080p", rotulo: "1080p" },
+  { valor: "720p", rotulo: "720p" },
+  { valor: "540p", rotulo: "540p" },
+  { valor: "360p", rotulo: "360p" },
+  { valor: "240p", rotulo: "240p" },
+] as const;
+export type QualidadeDoVideo = (typeof QUALIDADES_DO_VIDEO)[number]["valor"];
+
+export function aceitaQualidade(video: VideoDaTransmissao | null | undefined): boolean {
+  return video?.tipo === "embutido" && video.servico === "vimeo";
+}
+
+/** O endereço do player com a qualidade escolhida (automática: como veio). */
+export function srcComQualidade(src: string, qualidade: QualidadeDoVideo): string {
+  if (qualidade === "auto" || !QUALIDADES_DO_VIDEO.some((q) => q.valor === qualidade)) return src;
+  const u = new URL(src);
+  if (u.hostname !== "player.vimeo.com") return src;
+  u.searchParams.set("quality", qualidade);
+  return u.toString();
+}

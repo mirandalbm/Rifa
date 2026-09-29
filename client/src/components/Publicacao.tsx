@@ -1,6 +1,7 @@
 import { Icone, IconeAviao, IconeComentar, IconeMais, IconeRepublicar, IconeSacola } from "@/components/Icones";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link, useLocation } from "wouter";
+import { Check } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button, Card } from "@/components/bits";
 import { FOLHA, SeloVerificado } from "@/components/SeloVerificado";
@@ -59,7 +60,9 @@ const FAIXA_DO_PERFIL = 56;
  * quadrado 1:1, paisagem 1,91:1 ou vertical 9:16; as outras são cortadas ao
  * centro para caber na mesma caixa. O `perfil` (foto e nome da promotora)
  * vai **acima** da imagem nos três formatos do feed e **por cima** dela no
- * vertical, como no reels (`perfilPorCima`).
+ * vertical, como no reels (`perfilPorCima`). Com `perfilSobreNaWeb` (o
+ * feed), do tablet em diante ele vai por cima em todos os formatos e a
+ * imagem ganha cantos arredondados; o celular segue como está.
  */
 export function Carrossel({
   pecas,
@@ -68,6 +71,7 @@ export function Carrossel({
   href,
   aoAbrir,
   perfil,
+  perfilSobreNaWeb = false,
   canto,
   children,
 }: {
@@ -80,6 +84,8 @@ export function Carrossel({
   aoAbrir?: () => void;
   /** O topo da publicação; recebe `true` quando vai por cima da imagem. */
   perfil?: (sobreImagem: boolean) => ReactNode;
+  /** Do tablet em diante (`md`), o perfil vai por cima da imagem em qualquer formato. */
+  perfilSobreNaWeb?: boolean;
   /** O que vai por cima da imagem (o selo de vendidas), abaixo do perfil quando ele está por cima. */
   children?: ReactNode;
   /** Botão no canto de cima à direita, abaixo do contador (a cota surpresa). */
@@ -90,11 +96,18 @@ export function Carrossel({
   const porCima = !proporcao && perfilPorCima(formato);
   const caixa = proporcao ?? FORMATOS[formato].classe;
   const desce = porCima && perfil ? FAIXA_DO_PERFIL : 0;
+  // Na web o perfil passa para cima da imagem só por classe (`md:`): o
+  // celular não muda, e o selo e o "1/8" descem para baixo dele.
+  const web = Boolean(perfilSobreNaWeb && perfil && !porCima);
   return (
     <div data-formato={proporcao ? undefined : formato}>
-      {perfil && !porCima ? perfil(false) : null}
+      {perfil && !porCima ? web ? <div className="md:hidden">{perfil(false)}</div> : perfil(false) : null}
       {/* No vertical, a caixa não passa da altura da tela (computador, tablet deitado). */}
-      <div className={`relative overflow-hidden bg-mist-2 ${caixa} ${porCima ? "max-h-[85svh] w-full" : ""}`}>
+      <div
+        className={`relative overflow-hidden bg-mist-2 ${caixa} ${porCima ? "max-h-[85svh] w-full" : ""} ${
+          perfilSobreNaWeb ? "md:rounded-2xl" : ""
+        }`}
+      >
         <div
           className="flex h-full snap-x snap-mandatory overflow-x-auto"
           style={{ scrollbarWidth: "none" }}
@@ -128,8 +141,8 @@ export function Carrossel({
             )
           ) : null}
         </div>
-        {porCima && perfil ? (
-          <div className="absolute inset-x-0 top-0">
+        {(porCima || web) && perfil ? (
+          <div className={`absolute inset-x-0 top-0 ${web ? "hidden md:block" : ""}`}>
             {/* Sombra de cima: nome e "Seguir" legíveis sobre qualquer imagem. */}
             <div
               aria-hidden
@@ -139,7 +152,10 @@ export function Carrossel({
             <div className="relative">{perfil(true)}</div>
           </div>
         ) : null}
-        <div className="pointer-events-none absolute inset-x-0 bottom-0" style={{ top: desce }}>
+        <div
+          className={`pointer-events-none absolute inset-x-0 bottom-0 ${web ? "md:!top-14" : ""}`}
+          style={{ top: desce }}
+        >
           {children}
           {pecas.length > 1 ? (
             <span className="tnum absolute right-2 top-2 rounded-full bg-black/60 px-2 py-[1px] text-[11px] text-branco">
@@ -591,18 +607,25 @@ export function CabecalhoDaPublicacao({
   const [, navegar] = useLocation();
   const { data: sessao } = useSession();
   const [segui, setSegui] = useState(Boolean(seguindo));
+  // Quem acabou de tocar em "Seguir" vê "Seguindo" no lugar (do tablet em
+  // diante); quem já seguia não vê botão nenhum, como antes.
+  const [acabeiDeSeguir, setAcabeiDeSeguir] = useState(false);
   useEffect(() => setSegui(Boolean(seguindo)), [seguindo]);
   // O organizador vendo a própria publicação não se segue.
   const minha = sessao?.organizacao?.slug === slug;
   const seguir = useMutation({
     mutationFn: () => apiRequest("POST", `/api/public/o/${slug}/seguir`),
-    onMutate: () => setSegui(true),
+    onMutate: () => {
+      setSegui(true);
+      setAcabeiDeSeguir(true);
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [`/api/public/o/${slug}/seguir`] });
       qc.invalidateQueries({ queryKey: ["/api/public/seguindo"] });
     },
     onError: () => {
       setSegui(false);
+      setAcabeiDeSeguir(false);
       navegar(`/entrar?volta=${encodeURIComponent(window.location.pathname)}`);
     },
   });
@@ -633,6 +656,15 @@ export function CabecalhoDaPublicacao({
         >
           Seguir
         </button>
+      ) : segui && acabeiDeSeguir && !minha ? (
+        <span
+          role="status"
+          className={`hidden shrink-0 items-center gap-1 rounded-lg px-3 py-1.5 text-sm font-semibold md:inline-flex ${
+            sobreImagem ? "border border-branco/70 text-branco" : "bg-mist-2 text-ink-2"
+          }`}
+        >
+          <Check size={15} aria-hidden /> Seguindo
+        </span>
       ) : null}
     </div>
   );

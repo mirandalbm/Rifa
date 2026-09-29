@@ -71,3 +71,26 @@ describe("validarApoios (logos do rodapé)", () => {
     expect(apoios).toEqual([]);
   });
 });
+
+describe("qualidade do vídeo", () => {
+  it("só o Vimeo oferece o seletor", async () => {
+    const { aceitaQualidade } = await import("@shared/aoVivo");
+    expect(aceitaQualidade(videoDaTransmissao("https://vimeo.com/123456"))).toBe(true);
+    expect(aceitaQualidade(videoDaTransmissao("https://youtu.be/dQw4w9WgXcQ"))).toBe(false);
+    expect(aceitaQualidade(videoDaTransmissao("https://www.twitch.tv/canal"))).toBe(false);
+    expect(aceitaQualidade(videoDaTransmissao("https://exemplo.com/live"))).toBe(false);
+    expect(aceitaQualidade(null)).toBe(false);
+  });
+
+  it("põe a qualidade no endereço do Vimeo, e só nele", async () => {
+    const { srcComQualidade } = await import("@shared/aoVivo");
+    const vimeo = "https://player.vimeo.com/video/123456?autoplay=1&muted=1";
+    expect(srcComQualidade(vimeo, "auto")).toBe(vimeo);
+    expect(srcComQualidade(vimeo, "1080p")).toBe("https://player.vimeo.com/video/123456?autoplay=1&muted=1&quality=1080p");
+    expect(srcComQualidade(vimeo, "4k")).toContain("quality=4k");
+    const yt = "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?autoplay=1";
+    expect(srcComQualidade(yt, "720p")).toBe(yt);
+    // Valor fora da lista não entra no endereço.
+    expect(srcComQualidade(vimeo, "999p" as never)).toBe(vimeo);
+  });
+});

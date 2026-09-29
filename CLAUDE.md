@@ -277,8 +277,17 @@ arquitetura.
   `iframe` com `sandbox`; qualquer outro link abre numa aba nova — emoldurar
   qualquer endereço seria pôr página alheia dentro do site. **Flutuar**
   solta a tela da coluna (portal no `body`): arrasta pela barra, muda de
-  tamanho pelo canto ou por P/M/G (16:9), nunca sai da janela, e o Esc ou o
+  tamanho pelo canto (livre, sempre 16:9), nunca sai da janela, e o Esc ou o
   X a devolvem. Flutuando, "jogando agora" ocupa o espaço dela.
+- **A barra de baixo da tela é a do YouTube**: qualidade num seletor
+  (Automática, 2160p … 240p), flutuar e **tela cheia** (a tela inteira,
+  barra junto; o Esc do navegador sai da tela cheia, não da flutuante). Fica
+  fora do vídeo, para não cobrir os botões do player. **O seletor só aparece
+  onde muda alguma coisa** (`aceitaQualidade()`): hoje só o Vimeo aceita a
+  qualidade pelo endereço (`srcComQualidade()`); o YouTube ignora o pedido
+  desde 2019, e a Twitch e o Facebook não têm o parâmetro — neles a
+  qualidade fica na engrenagem do próprio player. Botão sem efeito seria
+  mentira na tela.
 - **Rodapé da plataforma** (`RodapeDaPlataforma`, só tablet e computador;
   no celular isso mora em `/perfil`): texto livre do template, links,
   pagamento (Pix pela plataforma), 18+ com o aviso de jogo responsável e a
@@ -1466,7 +1475,14 @@ desconto na primeira compra — **pago pela plataforma**.
   é só a rifa** (prêmio, selo "Autorizada SPA/MF" com o número — a rifa no
   ar sempre tem —, cota, sorteio e cotas), e depois, **fora** do cartão, as
   ações, a legenda, "Ver comentários" e o "Há 3 dias" (`quandoPublicou`).
-  A mesma ordem vale no perfil.
+  A mesma ordem vale no perfil. **Do tablet em diante não há faixa branca
+  em cima**: o perfil (foto, nome, cidade e "Seguir") vai por cima da
+  imagem em todos os formatos, com a sombra do reels, e a imagem tem os
+  quatro cantos arredondados (`perfilSobreNaWeb` no `Carrossel`, só por
+  classes `md:` — o celular não muda). O selo de vendidas e o "1/8" descem
+  para baixo do perfil, e o selo segue o padrão do "1/8" (fundo escuro,
+  texto branco, mesma fonte). Depois do toque em "Seguir", o botão vira
+  "Seguindo" com ✓; quem já seguia continua sem botão.
 - **Imagem nunca é servida como veio**: banner 1200×600 e story 1080×1920,
   WebP, sem metadados, no banco (até o R2 entrar).
 - **Subconsulta com tabela de fora escreve o nome da tabela**

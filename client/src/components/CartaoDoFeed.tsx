@@ -45,7 +45,8 @@ const PERTO = ["na sua cidade", "no seu estado"] as const;
 /**
  * Uma rifa no feed, em formato de publicação do Instagram: o carrossel no
  * formato da primeira peça (4:5, 1:1, 1,91:1 ou 9:16), com o perfil da
- * promotora acima dela — ou por cima, no vertical —, a barra de ações
+ * promotora acima dela — ou por cima, no vertical e, do tablet em diante,
+ * em todos os formatos (sem a faixa branca, a imagem com cantos redondos) —, a barra de ações
  * (trevo, comentar, republicar, compartilhar, carrinho e comprar), a legenda e, embaixo,
  * prêmio, selo da autorização, preço, progresso e sorteio.
  */
@@ -77,6 +78,7 @@ export function CartaoDoFeed({ rifa: c, origem = "vitrine" }: { rifa: RifaDoFeed
         titulo={c.prizeTitle}
         href={href}
         aoAbrir={() => marcarOrigem(origem)}
+        perfilSobreNaWeb
         perfil={
           c.organizacao
             ? (sobreImagem) => (
@@ -102,7 +104,8 @@ export function CartaoDoFeed({ rifa: c, origem = "vitrine" }: { rifa: RifaDoFeed
         }
       >
         <span
-          className={`absolute left-2 top-2 rounded px-2 py-[2px] font-mono text-[10px] ${
+          // Na web, no mesmo padrão do "1/8" do carrossel (cor e fonte).
+          className={`tnum absolute left-2 top-2 rounded px-2 py-[2px] font-mono text-[10px] md:rounded-full md:bg-black/60 md:py-[1px] md:text-[11px] md:text-branco ${
             retaFinal ? "bg-yellow text-on-yellow" : "bg-branco text-[#0b1f14]"
           }`}
         >

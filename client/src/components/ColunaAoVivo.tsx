@@ -1,10 +1,18 @@
-import { useEffect, useRef, useState, type PointerEvent as PE, type ReactNode } from "react";
+import { useEffect, useRef, useState, type PointerEvent as PE, type ReactNode, type RefObject } from "react";
 import { createPortal } from "react-dom";
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { ExternalLink, PictureInPicture2, Radio, Trophy, Users, X } from "lucide-react";
+import { ExternalLink, Maximize, Minimize, PictureInPicture2, Radio, Settings, Trophy, Users, X } from "lucide-react";
 import { acimaDoConsole } from "@/components/Console";
-import { faltaParaOSorteio, srcDaTwitch, type VideoDaTransmissao } from "@shared/aoVivo";
+import {
+  QUALIDADES_DO_VIDEO,
+  aceitaQualidade,
+  faltaParaOSorteio,
+  srcComQualidade,
+  srcDaTwitch,
+  type QualidadeDoVideo,
+  type VideoDaTransmissao,
+} from "@shared/aoVivo";
 
 /** O que `GET /api/public/vitrine/ao-vivo` devolve — já recortado no servidor. */
 interface AoVivo {
@@ -88,7 +96,23 @@ function TelaDoSorteio({
   flutuando: boolean;
   onFlutuar: (v: boolean) => void;
 }) {
-  const conteudo = <ConteudoDaTela proximo={proximo} />;
+  const [agora, setAgora] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setAgora(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+  // A qualidade escolhida fica aqui em cima: flutuar não a perde.
+  const [qualidade, setQualidade] = useState<QualidadeDoVideo>("auto");
+
+  const tela = (
+    <Tela
+      proximo={proximo}
+      agora={agora}
+      qualidade={qualidade}
+      onQualidade={setQualidade}
+      onFlutuar={flutuando || !proximo ? undefined : () => onFlutuar(true)}
+    />
+  );
   if (flutuando) {
     return (
       <>
@@ -100,36 +124,105 @@ function TelaDoSorteio({
             Voltar para a coluna
           </button>
         </div>
-        {createPortal(<TelaFlutuante onFechar={() => onFlutuar(false)}>{conteudo}</TelaFlutuante>, document.body)}
+        {createPortal(<TelaFlutuante onFechar={() => onFlutuar(false)}>{tela}</TelaFlutuante>, document.body)}
       </>
     );
   }
   return (
-    <section aria-label="Próximo sorteio" className="relative shrink-0 overflow-hidden rounded-xl bg-[#0B1F14]">
-      <div className="aspect-video">{conteudo}</div>
-      {proximo ? (
-        <button
-          type="button"
-          onClick={() => onFlutuar(true)}
-          aria-label="Deixar a tela flutuando"
-          title="Flutuar"
-          className="absolute right-2 top-2 rounded-md bg-black/50 p-1.5 text-branco hover:bg-black/70"
-        >
-          <PictureInPicture2 size={16} aria-hidden />
-        </button>
-      ) : null}
+    <section aria-label="Próximo sorteio" className="shrink-0 overflow-hidden rounded-xl">
+      {tela}
     </section>
   );
 }
 
-/** Contagem até o sorteio; na hora, a transmissão (ou o link dela). */
-function ConteudoDaTela({ proximo }: { proximo: AoVivo["proximo"] }) {
-  const [agora, setAgora] = useState(() => Date.now());
+/** Liga e desliga a tela cheia de um elemento, sabendo quando o navegador sai sozinho (Esc). */
+function useTelaCheia(ref: RefObject<HTMLElement | null>) {
+  const [cheia, setCheia] = useState(false);
   useEffect(() => {
-    const t = setInterval(() => setAgora(Date.now()), 1000);
-    return () => clearInterval(t);
-  }, []);
+    const mudou = () => setCheia(document.fullscreenElement === ref.current && ref.current !== null);
+    document.addEventListener("fullscreenchange", mudou);
+    return () => document.removeEventListener("fullscreenchange", mudou);
+  }, [ref]);
+  const alternar = () => {
+    if (document.fullscreenElement) void document.exitFullscreen?.().catch(() => {});
+    else void ref.current?.requestFullscreen?.().catch(() => {});
+  };
+  return { cheia, alternar, disponivel: typeof document !== "undefined" && document.fullscreenEnabled !== false };
+}
 
+/**
+ * A tela com a barra de baixo, como no YouTube: qualidade (só onde o
+ * player aceita — `aceitaQualidade()`), flutuar e tela cheia. A barra fica
+ * fora do vídeo, para não cobrir os botões do próprio player, e vai junto
+ * para a tela cheia.
+ */
+function Tela({
+  proximo,
+  agora,
+  qualidade,
+  onQualidade,
+  onFlutuar,
+}: {
+  proximo: AoVivo["proximo"];
+  agora: number;
+  qualidade: QualidadeDoVideo;
+  onQualidade: (q: QualidadeDoVideo) => void;
+  onFlutuar?: () => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const { cheia, alternar, disponivel } = useTelaCheia(ref);
+  const aoVivo = proximo ? faltaParaOSorteio(proximo.drawAt, agora).aoVivo : false;
+  const comQualidade = aoVivo && aceitaQualidade(proximo?.video);
+
+  return (
+    <div ref={ref} className="flex h-full w-full flex-col bg-[#0B1F14]">
+      <div className={`min-h-0 ${cheia ? "flex-1" : "aspect-video"}`}>
+        <ConteudoDaTela proximo={proximo} agora={agora} qualidade={qualidade} />
+      </div>
+      {proximo ? (
+        <div className="flex h-9 shrink-0 items-center justify-end gap-1 bg-black/40 pl-1.5 pr-4 text-branco">
+          {comQualidade ? (
+            <label className="mr-auto flex items-center gap-1 text-[11px]">
+              <Settings size={14} aria-hidden />
+              <span className="sr-only">Qualidade do vídeo</span>
+              <select
+                value={qualidade}
+                onChange={(e) => onQualidade(e.target.value as QualidadeDoVideo)}
+                className="tnum h-7 rounded bg-black/40 px-1 text-[11px] text-branco hover:bg-black/60"
+              >
+                {QUALIDADES_DO_VIDEO.map((q) => (
+                  <option key={q.valor} value={q.valor} className="bg-white text-ink">
+                    {q.rotulo}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
+          {onFlutuar && !cheia ? (
+            <button type="button" onClick={onFlutuar} aria-label="Deixar a tela flutuando" title="Flutuar" className="rounded p-1.5 hover:bg-white/20">
+              <PictureInPicture2 size={16} aria-hidden />
+            </button>
+          ) : null}
+          {disponivel ? (
+            <button
+              type="button"
+              onClick={alternar}
+              aria-label={cheia ? "Sair da tela cheia" : "Tela cheia"}
+              title={cheia ? "Sair da tela cheia" : "Tela cheia"}
+              aria-pressed={cheia}
+              className="rounded p-1.5 hover:bg-white/20"
+            >
+              {cheia ? <Minimize size={16} aria-hidden /> : <Maximize size={16} aria-hidden />}
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/** Contagem até o sorteio; na hora, a transmissão (ou o link dela). */
+function ConteudoDaTela({ proximo, agora, qualidade }: { proximo: AoVivo["proximo"]; agora: number; qualidade: QualidadeDoVideo }) {
   if (!proximo) {
     return (
       <div className="flex h-full items-center justify-center p-4 text-center text-sm text-branco/80">
@@ -142,9 +235,12 @@ function ConteudoDaTela({ proximo }: { proximo: AoVivo["proximo"] }) {
   const hora = new Date(proximo.drawAt).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 
   if (falta.aoVivo && proximo.video && proximo.video.tipo !== "link") {
-    const src = proximo.video.tipo === "twitch" ? srcDaTwitch(proximo.video.canal, window.location.hostname) : proximo.video.src;
+    const src =
+      proximo.video.tipo === "twitch" ? srcDaTwitch(proximo.video.canal, window.location.hostname) : srcComQualidade(proximo.video.src, qualidade);
     return (
       <iframe
+        // Trocar a qualidade recarrega o player com o endereço novo.
+        key={src}
         src={src}
         title={`Sorteio ao vivo: ${proximo.prizeTitle}`}
         className="h-full w-full"
@@ -201,30 +297,24 @@ function ConteudoDaTela({ proximo }: { proximo: AoVivo["proximo"] }) {
   );
 }
 
-/** Tamanhos prontos da tela flutuante (largura; a altura segue o 16:9). */
-const TAMANHOS: [string, number][] = [
-  ["P", 320],
-  ["M", 480],
-  ["G", 720],
-];
 const LARGURA_MIN = 280;
 
 /**
  * A tela solta da coluna: arrasta pela barra de cima, muda de tamanho pelo
- * canto (ou pelos tamanhos prontos) e nunca sai da janela. Fechar devolve a
- * tela à coluna.
+ * canto (livre, sempre 16:9) e nunca sai da janela. Qualidade e tela cheia
+ * ficam na barra de baixo da própria tela. Fechar devolve a tela à coluna.
  */
 function TelaFlutuante({ children, onFechar }: { children: ReactNode; onFechar: () => void }) {
   const [largura, setLargura] = useState(480);
-  const [pos, setPos] = useState(() => ({ x: window.innerWidth - 480 - 24, y: window.innerHeight - 270 - 24 - 36 }));
+  const [pos, setPos] = useState(() => ({ x: window.innerWidth - 480 - 24, y: window.innerHeight - 270 - 24 - 72 }));
   const arrasto = useRef<{ dx: number; dy: number } | null>(null);
   const redim = useRef<{ x0: number; l0: number } | null>(null);
-  const altura = Math.round((largura * 9) / 16) + 36;
+  const altura = Math.round((largura * 9) / 16) + 72;
 
   // Nunca fora da janela (inclusive quando a janela muda de tamanho).
   const prender = (x: number, y: number, l = largura) => ({
     x: Math.min(Math.max(0, x), Math.max(0, window.innerWidth - l)),
-    y: Math.min(Math.max(0, y), Math.max(0, window.innerHeight - (Math.round((l * 9) / 16) + 36))),
+    y: Math.min(Math.max(0, y), Math.max(0, window.innerHeight - (Math.round((l * 9) / 16) + 72))),
   });
   useEffect(() => {
     const ajustar = () => setPos((p) => prender(p.x, p.y));
@@ -232,7 +322,8 @@ function TelaFlutuante({ children, onFechar }: { children: ReactNode; onFechar: 
     return () => window.removeEventListener("resize", ajustar);
   });
   useEffect(() => {
-    const esc = (e: KeyboardEvent) => e.key === "Escape" && onFechar();
+    // Em tela cheia, o Esc é do navegador: sai da tela cheia, não da flutuante.
+    const esc = (e: KeyboardEvent) => e.key === "Escape" && !document.fullscreenElement && onFechar();
     window.addEventListener("keydown", esc);
     return () => window.removeEventListener("keydown", esc);
   }, [onFechar]);
@@ -274,18 +365,6 @@ function TelaFlutuante({ children, onFechar }: { children: ReactNode; onFechar: 
         onPointerUp={() => (arrasto.current = null)}
       >
         <span className="flex-1 truncate text-xs font-semibold">Sorteio · arraste para mover</span>
-        {TAMANHOS.map(([nome, l]) => (
-          <button
-            key={nome}
-            type="button"
-            onClick={() => mudarLargura(l)}
-            aria-label={`Tamanho ${nome}`}
-            aria-pressed={largura === l}
-            className={`h-6 w-6 rounded text-[11px] font-bold ${largura === l ? "bg-branco text-[#0B1F14]" : "hover:bg-white/20"}`}
-          >
-            {nome}
-          </button>
-        ))}
         <button type="button" onClick={onFechar} aria-label="Voltar a tela para a coluna" className="ml-1 rounded p-1 hover:bg-white/20">
           <X size={15} aria-hidden />
         </button>

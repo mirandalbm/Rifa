@@ -440,6 +440,7 @@ async function rotasDaPlataforma(eu: Lado) {
     ["GET pré-visualização do template", "/api/admin/template/previa", {}],
     ["PUT rascunho do template", "/api/admin/template/rascunho", { method: "PUT", body: "{}" }],
     ["PUT logo da plataforma", "/api/admin/template/logo", { method: "PUT", body: "{}" }],
+    ["PUT logo de apoio do rodapé", "/api/admin/template/apoio", { method: "PUT", body: "{}" }],
     ["POST publicar template", "/api/admin/template/publicar", { method: "POST" }],
     ["POST restaurar versão do template", "/api/admin/template/versoes/00000000-0000-0000-0000-000000000000/restaurar", { method: "POST" }],
     ["GET banners da vitrine", "/api/admin/banners", {}],

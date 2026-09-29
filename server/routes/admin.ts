@@ -180,6 +180,7 @@ import {
   rascunho as rascunhoDoTemplate,
   restaurar,
   salvarLogo,
+  salvarApoio,
   salvarRascunho,
   templatePublicado,
   versoes as versoesDoTemplate,
@@ -2902,6 +2903,15 @@ adminRouter.put("/template/logo", async (req, res, next) => {
   try {
     requirePlatformAdmin(req);
     res.json(await salvarLogo(req.body?.dataUrl));
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.put("/template/apoio", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    res.status(201).json(await salvarApoio(req.body?.dataUrl));
   } catch (err) {
     next(err);
   }

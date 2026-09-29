@@ -1,3 +1,5 @@
+import { validarLinkDoBanner } from "./vitrine";
+
 /**
  * Construtor de templates: a aparência da plataforma, editada pelo
  * administrador geral sem código.
@@ -63,6 +65,46 @@ export interface Template {
   };
   blocos: Bloco[];
   textos: { rodape: string; jogoResponsavel: string };
+  /**
+   * Logos no rodapé do tablet e do computador (casas de apoio, ONGs, órgãos
+   * públicos): cada um é botão com link. A imagem é a que o servidor
+   * reprocessou (`/api/public/marca/apoio/<id>`); o link, caminho do site ou
+   * `https:` — a régua do banner.
+   */
+  apoios?: Apoio[];
+}
+
+export interface Apoio {
+  id: string;
+  nome: string;
+  imagem: string;
+  link: string | null;
+}
+
+export const APOIOS_MAX = 12;
+const IMAGEM_DO_APOIO = /^\/api\/public\/marca\/apoio\/([a-z0-9-]{8,40})\?v=\d{1,15}$/;
+
+/** Os logos do rodapé: só o que o servidor gerou, com nome e link conferidos. */
+export function validarApoios(bruto: unknown): Apoio[] {
+  if (bruto === undefined || bruto === null) return [];
+  if (!Array.isArray(bruto)) throw new TemplateInvalido("Logos do rodapé inválidos.");
+  if (bruto.length > APOIOS_MAX) throw new TemplateInvalido(`No máximo ${APOIOS_MAX} logos no rodapé.`);
+  const ids = new Set<string>();
+  return bruto.map((a: any, i: number) => {
+    const imagem = typeof a?.imagem === "string" ? a.imagem : "";
+    const m = IMAGEM_DO_APOIO.exec(imagem);
+    if (!m || a?.id !== m[1] || ids.has(m[1])) throw new TemplateInvalido(`Logo ${i + 1}: envie a imagem de novo.`);
+    ids.add(m[1]);
+    const nome = texto(a.nome, 60, `Nome do logo ${i + 1}`);
+    if (nome.length < 2) throw new TemplateInvalido(`Logo ${i + 1}: escreva o nome (é o texto alternativo da imagem).`);
+    let link: string | null;
+    try {
+      link = validarLinkDoBanner(a.link);
+    } catch (err) {
+      throw new TemplateInvalido(`Logo ${i + 1}: ${(err as Error).message}`);
+    }
+    return { id: m[1], nome, imagem, link };
+  });
 }
 
 /** Fundo de cada tema (o mesmo de `index.css`): a cor de marca tem de aparecer nele. */
@@ -91,6 +133,7 @@ export const TEMPLATE_PADRAO: Template = {
     rodape: "",
     jogoResponsavel: "Jogue com responsabilidade. Proibido para menores de 18 anos.",
   },
+  apoios: [],
 };
 
 /* ------------------------------------------------------------------ *
@@ -200,6 +243,7 @@ export function validarTemplate(entrada: unknown): Template {
       rodape: texto(e.textos?.rodape, 300, "O rodapé"),
       jogoResponsavel: texto(e.textos?.jogoResponsavel, 200, "O aviso de jogo responsável"),
     },
+    apoios: validarApoios(e.apoios),
   };
 }
 

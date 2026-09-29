@@ -1,6 +1,7 @@
 import { Link, useLocation } from "wouter";
 import { useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { RodapeDaPlataforma } from "@/components/RodapeDaPlataforma";
 import { Marketing, useTemMarketing } from "@/components/Marketing";
 import { ALTURA_DO_CONSOLE, BotaoPublicar, ConsoleDoApp, TrevoDeAvisos, acimaDoConsole } from "@/components/Console";
 import { reabrirAviso, useEscolha } from "@/lib/marketing";
@@ -63,11 +64,25 @@ export const acimaDoRodape = acimaDoConsole;
  * colunas, a vitrine e o perfil em cartões. No celular é a mesma coluna de
  * sempre.
  */
-export function PublicShell({ children, larga }: { children: ReactNode; larga?: boolean }) {
-  const largura = larga ? "max-w-3xl lg:max-w-6xl" : "max-w-3xl";
+export function PublicShell({
+  children,
+  larga,
+  vitrine,
+  rodape,
+}: {
+  children: ReactNode;
+  larga?: boolean;
+  /** A vitrine ocupa a largura toda do tablet em diante (feed e coluna ao vivo). */
+  vitrine?: boolean;
+  /** O rodapé da plataforma (informações, pagamentos, 18+ e logos) — tablet e computador. */
+  rodape?: boolean;
+}) {
+  // A vitrine ocupa a tela toda do tablet em diante: as colunas ficam
+  // coladas (1 px de linha entre elas), sem margem sobrando dos lados.
+  const largura = vitrine ? "max-w-3xl md:max-w-none" : larga ? "max-w-3xl lg:max-w-6xl" : "max-w-3xl";
 
   return (
-    <div className="min-h-screen bg-white lg:pl-[72px] xl:pl-[244px]">
+    <div className="min-h-screen bg-white lg:pl-[72px]">
       <header className="sticky top-0 z-20 border-b border-line bg-white lg:hidden">
         <div className={`mx-auto flex ${largura} items-center justify-between px-4 py-2`}>
           <Link href="/" className="text-lg">
@@ -79,8 +94,9 @@ export function PublicShell({ children, larga }: { children: ReactNode; larga?: 
           </nav>
         </div>
       </header>
-      <main className={`mx-auto ${largura} px-4 pb-8 pt-4`}>{children}</main>
-      <RodapePublico largura={largura} />
+      <main className={`mx-auto ${largura} px-4 pb-8 pt-4 ${vitrine ? "md:p-0" : ""}`}>{children}</main>
+      {rodape ? <RodapeDaPlataforma /> : null}
+      <RodapePublico largura={largura} comRodape={Boolean(rodape)} />
     </div>
   );
 }
@@ -322,12 +338,13 @@ export function PanelShell({
  * console fixo não cobrir o conteúdo, e o console. O "18+", a ajuda, o tema
  * e os cookies moram na tela do perfil (`/perfil`).
  */
-function RodapePublico({ largura }: { largura: string }) {
+function RodapePublico({ largura, comRodape }: { largura: string; comRodape: boolean }) {
   const t = useTemplate();
   return (
     <>
       {t.textos.rodape ? (
-        <p className={`mx-auto ${largura} whitespace-pre-line border-t border-line px-4 pt-3 text-[11px] text-muted`}>
+        // Com o rodapé da plataforma (tablet e computador), o texto livre já vai nele.
+        <p className={`mx-auto ${largura} whitespace-pre-line border-t border-line px-4 pt-3 text-[11px] text-muted ${comRodape ? "md:hidden" : ""}`}>
           {t.textos.rodape}
         </p>
       ) : null}

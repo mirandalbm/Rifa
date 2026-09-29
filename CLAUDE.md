@@ -136,6 +136,7 @@ arquitetura.
 | presente pelos comentários (desconto de primeira compra pago pela plataforma) | `shared/presente.ts` (regras), `server/services/presente.ts`, `prepararPedido`/`settleOrderAsPaid` em `server/services/orders.ts`, `Presentear` em `client/src/components/Comentarios.tsx`, `AvisoDePresente` em `client/src/pages/Rifa.tsx`, cartão Presente em `client/src/pages/adminBonus.tsx`, `scripts/presente-test.ts` |
 | topo e console do app (os 6 botões da base, a lateral no computador, o trevo e a publicação) | `shared/console.ts` (botões, aviso do trevo, quem publica), `client/src/components/Console.tsx`, `PublicShell` em `client/src/components/AppShell.tsx`, `client/src/pages/PerfilDoUsuario.tsx`, `client/src/pages/EmBreve.tsx`, `client/src/components/TopoDoAppCard.tsx`, `tests/console.test.ts` |
 | remodelagem do web e dos painéis: inventário do que existe e lista de conferência | `docs/REMODELAGEM.md` |
+| vitrine no tablet e no computador: coluna ao vivo (tela do sorteio, ganhadores, jogando agora), tela flutuante e rodapé com logos | `shared/aoVivo.ts` (regras), `server/services/aoVivo.ts`, `client/src/components/ColunaAoVivo.tsx`, `client/src/components/RodapeDaPlataforma.tsx`, `validarApoios()` em `shared/template.ts`, `tests/aoVivo.test.ts`, `scripts/vitrine-test.ts` |
 | app instalável (PWA) | `client/public/sw.js`, `client/public/manifest.webmanifest`, `client/src/lib/pwa.ts` |
 | segurança: onde mora cada defesa, lista de conferência de rota nova e as revisões | `docs/SEGURANCA.md` |
 | versões (celular, tablet, computador): registro das mudanças do celular, levas, mapa das telas e auditoria | `docs/VERSOES.md` (guia, mapa e registro — **anote no mesmo PR**), `scripts/telas.ts` (`npm run telas`), `tests/versoes.test.ts` |
@@ -251,11 +252,42 @@ arquitetura.
   a ordem do celular — publicação, compra, resto — e a grade só reposiciona
   (`lg:col-start`/`lg:row-start`); inverter a ordem no DOM mudaria o
   celular e a leitura de tela.
-- **Vitrine**: feed em 3 colunas; o banner divide a faixa com "Sorteios
-  chegando" (`SorteiosChegando`, só `lg`, amarelo = espera e prêmio: as
-  rifas à venda com sorteio mais perto). A barra de ações aperta pela
-  largura do próprio cartão (`.barra-de-acoes`, container query ≤ 360 px),
-  não da tela.
+- **Vitrine: uma rifa por vez, em todas as larguras**, com rolagem
+  infinita (`FeedInfinito`: leva de 4, a próxima ao chegar perto do fim, e
+  "Ver mais rifas" de reserva). No tablet e no computador o cartão tem
+  cantos arredondados e borda, as **colunas ficam coladas** (a vitrine
+  ocupa a largura toda — `PublicShell vitrine` — e entre o feed e a coluna
+  há só a linha de 1 px, nada de espaço grande), e à direita fica a **coluna ao vivo**
+  (`ColunaAoVivo`, fixa na rolagem): a tela do próximo sorteio no alto, os
+  últimos ganhadores no meio (no máximo 5) e quem está jogando agora
+  embaixo, os dois com o mais novo no topo. O celular não tem a coluna. A
+  barra de ações aperta pela largura do próprio cartão (`.barra-de-acoes`,
+  container query ≤ 360 px), não da tela.
+- **A coluna ao vivo é só dado real** (`GET /api/public/vitrine/ao-vivo`,
+  `server/services/aoVivo.ts`, guardada 5 s no servidor, a tela consulta a
+  cada 15 s): ganhador é sorteio feito ou cota premiada paga; "jogando
+  agora" é compra paga. Nome curto (`nomeCurto()`: "Ana S."), cidade/UF do
+  cadastro — nunca telefone, CPF, código do pedido ou id (a chave de cada
+  item é um hash). Demonstração, rifa travada e promotora arquivada ou
+  banida ficam de fora. Nada simulado e nenhum contador de "online".
+- **A tela do sorteio** mostra a contagem até o próximo sorteio da
+  plataforma e, na hora, a transmissão da rifa (`transmissaoUrl`). Vídeo
+  dentro da tela só de serviço conhecido (`videoDaTransmissao()` em
+  `shared/aoVivo.ts`: YouTube sem cookie, Vimeo, Twitch, Facebook), num
+  `iframe` com `sandbox`; qualquer outro link abre numa aba nova — emoldurar
+  qualquer endereço seria pôr página alheia dentro do site. **Flutuar**
+  solta a tela da coluna (portal no `body`): arrasta pela barra, muda de
+  tamanho pelo canto ou por P/M/G (16:9), nunca sai da janela, e o Esc ou o
+  X a devolvem. Flutuando, "jogando agora" ocupa o espaço dela.
+- **Rodapé da plataforma** (`RodapeDaPlataforma`, só tablet e computador;
+  no celular isso mora em `/perfil`): texto livre do template, links,
+  pagamento (Pix pela plataforma), 18+ com o aviso de jogo responsável e a
+  **faixa de logos de apoio** — até 12 (`APOIOS_MAX`), cadastrados só pela
+  plataforma em Aparência ("Logos do rodapé", `PUT /admin/template/apoio`,
+  403 no `npm run isolation`). A imagem é reprocessada (WebP, até 96 px de
+  altura) e guardada em `plataforma_arquivos`; o nome é o texto
+  alternativo; o link é caminho do site ou `https:` (`validarApoios()`, a
+  régua do banner). Entra no ar ao publicar o template.
 - **Perfil da organização**: capa 4:1; abaixo, o cartão do perfil (foto,
   contadores, ações, bio, links, destaques) numa coluna de 320 px fixa na
   rolagem, e as rifas em 2 colunas ao lado.
@@ -274,11 +306,12 @@ arquitetura.
 - **Topo e console são opacos** (`bg-white`, sem desfoque): com
   transparência o conteúdo aparecia por baixo ao rolar.
 - **No computador o topo some e o console vira a lateral esquerda**
-  (`ConsoleDoApp`: 72 px só com ícones em `lg`, 244 px com os nomes em
-  `xl`, como o Instagram web), com a logo, o trevo e a publicação junto.
-  `PublicShell` recua o conteúdo (`lg:pl-[72px] xl:pl-[244px]`); o que fica
-  fixo embaixo (aviso de cookies, instalar o app) também recua. É a proposta
-  até a remodelagem do web (`docs/REMODELAGEM.md`).
+  (`ConsoleDoApp`), **sempre só com os ícones** (72 px): ao passar o
+  ponteiro — ou ao entrar pelo teclado (`focus-within`) — abre com os nomes
+  (244 px) **por cima** do conteúdo, sem empurrar a página, e fecha ao sair.
+  A logo, o trevo e a publicação ficam nela. `PublicShell` recua o conteúdo
+  72 px (`lg:pl-[72px]`); o que fica fixo embaixo (aviso de cookies,
+  instalar o app) também.
 - **Cor com opacidade**: `white` no Tailwind é `color-mix` com
   `<alpha-value>`, senão `bg-white/95` sai transparente (era o topo e a
   faixa de baixo). Outra cor que precisar de `/NN` ganha o mesmo formato.

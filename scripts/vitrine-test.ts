@@ -335,6 +335,36 @@ async function main() {
     const perfilDemo = await anon.req("GET", "/api/public/o/demonstracao");
     checa("remover tira da vitrine e o perfil some (404)", r.status === 200 && semDemo && perfilDemo.status === 404, `HTTP ${r.status} · perfil ${perfilDemo.status}`);
     if (demoAntes) await admin.req("POST", "/api/admin/demonstracao");
+
+    console.log("\n  coluna ao vivo (tablet e computador):");
+    await new Promise((ok) => setTimeout(ok, 5_200)); // a coluna é guardada por 5 s
+    r = await anon.req("GET", "/api/public/vitrine/ao-vivo");
+    const coluna = JSON.stringify(r.json ?? {});
+    checa(
+      "responde com próximo sorteio, ganhadores (até 5) e quem joga (só pago)",
+      r.status === 200 && Array.isArray(r.json?.ganhadores) && r.json.ganhadores.length <= 5 && Array.isArray(r.json?.jogando),
+      `HTTP ${r.status}`,
+    );
+    checa(
+      "nunca traz telefone, CPF, código do pedido nem id do comprador",
+      !/"(telefone|phone|cpf|code|codigo|buyerId|orderId)"/.test(coluna) && !/\d{10,11}/.test(coluna.replace(/"(em|drawAt|chave)":"[^"]+"/g, "")),
+      coluna.slice(0, 120),
+    );
+    checa(
+      "rifa de demonstração não entra na coluna",
+      !(r.json?.jogando ?? []).some((j: any) => j.rifa?.organizacao === "demonstracao") && r.json?.proximo?.organizacao?.slug !== "demonstracao",
+    );
+    r = await marina.req("PUT", "/api/admin/template/apoio", { dataUrl: "data:image/png;base64,AAAA" });
+    checa("organizador não envia logo do rodapé (403)", r.status === 403, `HTTP ${r.status}`);
+    const png = (await sharp({ create: { width: 400, height: 200, channels: 3, background: "#00873e" } }).png().toBuffer()).toString("base64");
+    r = await admin.req("PUT", "/api/admin/template/apoio", { dataUrl: `data:image/png;base64,${png}` });
+    const apoio = r.json?.imagem ? await medir(r.json.imagem) : null;
+    checa(
+      "logo do rodapé reprocessado: WebP até 96 px de altura",
+      r.status === 201 && apoio?.tipo === "image/webp" && (apoio?.altura ?? 999) <= 96,
+      `HTTP ${r.status} ${apoio?.tipo} ${apoio?.largura}×${apoio?.altura}`,
+    );
+    if (r.json?.id) await db.execute(sql`delete from plataforma_arquivos where chave = ${"apoio:" + r.json.id}`);
   } finally {
     await db.delete(stories).where(storiesAntes.length ? notInArray(stories.id, storiesAntes) : sql`true`);
     await db.delete(plataformaBanners);

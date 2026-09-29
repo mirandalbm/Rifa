@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 /**
  * Template da plataforma: rascunho, publicação e versões.
  *
@@ -136,6 +137,38 @@ export async function salvarLogo(dataUrl: unknown): Promise<Template> {
     .onConflictDoUpdate({ target: plataformaArquivos.chave, set: { bytes, mime: "image/webp", updatedAt: agora } });
   const t = await rascunho();
   return salvarRascunho({ ...t, identidade: { ...t.identidade, logo: `/api/public/marca/logo?v=${agora.getTime()}` } });
+}
+
+/**
+ * Logo de apoio do rodapé: reprocessada como a logo (até 96 px de altura,
+ * WebP, sem metadados), guardada com um id novo. Devolve o endereço para o
+ * rascunho — entra no ar só ao publicar, com nome e link conferidos por
+ * `validarApoios()`.
+ */
+export async function salvarApoio(dataUrl: unknown): Promise<{ id: string; imagem: string }> {
+  const m = /^data:(image\/(png|jpeg|webp));base64,([A-Za-z0-9+/=]+)$/i.exec(String(dataUrl ?? ""));
+  if (!m) throw new TemplateError("Envie o logo em PNG, JPG ou WebP.");
+  const bruto = Buffer.from(m[3], "base64");
+  if (bruto.length > LOGO_MAX_BYTES) throw new TemplateError("O logo passa de 2 MB.");
+  let bytes: Buffer;
+  try {
+    bytes = await sharp(bruto, { limitInputPixels: 25_000_000 })
+      .resize({ height: 96, width: 320, fit: "inside", withoutEnlargement: true })
+      .webp({ quality: 90 })
+      .toBuffer();
+  } catch {
+    throw new TemplateError("Não consegui ler essa imagem.");
+  }
+  const id = randomUUID();
+  const agora = new Date();
+  await db.insert(plataformaArquivos).values({ chave: `apoio:${id}`, mime: "image/webp", bytes, updatedAt: agora });
+  return { id, imagem: `/api/public/marca/apoio/${id}?v=${agora.getTime()}` };
+}
+
+export async function apoio(id: string) {
+  if (!/^[a-z0-9-]{8,40}$/.test(id)) return null;
+  const [f] = await db.select().from(plataformaArquivos).where(eq(plataformaArquivos.chave, `apoio:${id}`));
+  return f ?? null;
 }
 
 export async function logo() {

@@ -80,7 +80,7 @@ export function TrevoDeAvisos({ comRotulo = false }: { comRotulo?: boolean }) {
           />
         ) : null}
       </span>
-      {comRotulo ? <span className="hidden xl:inline">Avisos</span> : null}
+      {comRotulo ? <span className="hidden group-hover/lateral:inline group-focus-within/lateral:inline">Avisos</span> : null}
     </Link>
   );
 }
@@ -115,7 +115,7 @@ export function BotaoPublicar({ comRotulo = false }: { comRotulo?: boolean }) {
         className={itemClasse(comRotulo)}
       >
         <IconeVarinha tamanho={26} />
-        {comRotulo ? <span className="hidden xl:inline">Criar</span> : null}
+        {comRotulo ? <span className="hidden group-hover/lateral:inline group-focus-within/lateral:inline">Criar</span> : null}
       </button>
       {/* No body: dentro do topo (camada própria, z-20) o console passaria por cima do menu. */}
       {aberto ? createPortal(<MenuCriar quem={quem} onFechar={() => setAberto(false)} />, document.body) : null}
@@ -188,7 +188,7 @@ function MenuCriar({ quem, onFechar }: { quem: NonNullable<ReturnType<typeof que
 /** No celular, só o ícone (a barra é estreita); na lateral larga (`xl`), ícone e nome. */
 function itemClasse(comRotulo: boolean) {
   return comRotulo
-    ? "flex items-center gap-4 rounded-lg p-3 text-ink hover:bg-mist xl:w-full"
+    ? "flex items-center gap-4 rounded-lg p-3 text-ink hover:bg-mist w-full"
     : "flex h-10 w-10 items-center justify-center rounded-lg text-ink hover:bg-mist";
 }
 
@@ -248,7 +248,7 @@ function BotaoDoConsole({ chave, rotulo, caminho, ativo, lateral }: { chave: Bot
       aria-current={ativo ? "page" : undefined}
       className={
         lateral
-          ? `flex items-center gap-4 rounded-lg p-3 hover:bg-mist xl:w-full ${ativo ? "font-bold" : ""}`
+          ? `flex items-center gap-4 rounded-lg p-3 hover:bg-mist w-full ${ativo ? "font-bold" : ""}`
           : "flex h-full flex-1 items-center justify-center"
       }
     >
@@ -266,7 +266,7 @@ function BotaoDoConsole({ chave, rotulo, caminho, ativo, lateral }: { chave: Bot
           <span aria-hidden className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-green" />
         ) : null}
       </span>
-      {lateral ? <span className="hidden text-[15px] xl:inline">{rotulo}</span> : null}
+      {lateral ? <span className="hidden whitespace-nowrap text-[15px] group-hover/lateral:inline group-focus-within/lateral:inline">{rotulo}</span> : null}
     </Link>
   );
 }
@@ -296,10 +296,13 @@ export function ConsoleDoApp() {
       </nav>
       <nav
         aria-label="Navegação principal"
-        className="fixed inset-y-0 left-0 z-20 hidden w-[72px] flex-col border-r border-line bg-white px-3 py-6 lg:flex xl:w-[244px]"
+        // Sempre só os ícones (72 px); ao passar o ponteiro — ou ao entrar
+        // pelo teclado — abre com os nomes por cima do conteúdo, sem empurrar
+        // a página, e fecha ao sair.
+        className="group/lateral fixed inset-y-0 left-0 z-30 hidden w-[72px] flex-col overflow-hidden border-r border-line bg-white px-3 py-6 transition-[width,box-shadow] duration-150 focus-within:w-[244px] focus-within:shadow-card hover:w-[244px] hover:shadow-card motion-reduce:transition-none lg:flex"
       >
         {/* A logo como é, na cor e na forma de sempre — só menor na lateral estreita. */}
-        <Link href="/" className="mb-6 flex h-10 items-center px-1 text-[15px] xl:text-xl" aria-label="Início">
+        <Link href="/" className="mb-6 flex h-10 items-center whitespace-nowrap px-1 text-[15px] group-hover/lateral:text-xl group-focus-within/lateral:text-xl" aria-label="Início">
           <Marca />
         </Link>
         <div className="flex flex-col gap-1">

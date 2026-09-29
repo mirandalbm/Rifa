@@ -49,7 +49,8 @@ import { montarRegulamento } from "@shared/regulamento";
 import { enderecoDa } from "../services/orgs";
 import { consultarCep } from "../services/cep";
 import { chavesVapid, inscrever, cancelarInscricao } from "../services/push";
-import { templatePublicado, logo as logoDaMarca } from "../services/template";
+import { templatePublicado, logo as logoDaMarca, apoio as logoDeApoio } from "../services/template";
+import { colunaAoVivo } from "../services/aoVivo";
 import {
   perfilPublico,
   capaDoPerfil,
@@ -726,6 +727,18 @@ publicRouter.get("/template", async (_req, res, next) => {
 publicRouter.get("/marca/logo", async (_req, res, next) => {
   try {
     const f = await logoDaMarca();
+    if (!f) return res.status(404).json({ message: "Sem logo." });
+    res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+    res.type(f.mime).send(f.bytes);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** Logo de apoio do rodapé (a plataforma envia em Aparência). */
+publicRouter.get("/marca/apoio/:id", async (req, res, next) => {
+  try {
+    const f = await logoDeApoio(req.params.id);
     if (!f) return res.status(404).json({ message: "Sem logo." });
     res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
     res.type(f.mime).send(f.bytes);
@@ -1777,6 +1790,20 @@ publicRouter.get("/campaigns/:slug/premios", async (req, res, next) => {
         ...contagem,
       })),
     });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * A coluna ao vivo da vitrine (tablet e computador): o próximo sorteio, os
+ * últimos ganhadores e quem está jogando agora — só dado real, nome curto,
+ * nunca telefone (`services/aoVivo.ts`).
+ */
+publicRouter.get("/vitrine/ao-vivo", async (_req, res, next) => {
+  try {
+    res.setHeader("Cache-Control", "no-store");
+    res.json(await colunaAoVivo());
   } catch (err) {
     next(err);
   }

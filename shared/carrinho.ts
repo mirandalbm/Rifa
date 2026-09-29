@@ -236,3 +236,8 @@ export function situacaoDoCarrinho(status: string[]): "pending" | "paid" | "expi
   if (status.some((s) => s === "paid" || s === "refunded")) return "paid";
   return "expired";
 }
+
+/** Quantos bilhetes há no carrinho (o número do console): cada cartela posta conta um; rifa só com quantidade, um. */
+export function bilhetesNoCarrinho(itens: ItemDoCarrinho[]): number {
+  return itens.reduce((n, i) => n + (i.numeros ? (bilhetesDoItem(i.bilhetes, i.numeros)?.length ?? 1) : 1), 0);
+}

@@ -300,7 +300,8 @@ Como no Instagram, com as nossas cores (verde no lugar do vermelho e do rosa).
   também. Nada de ícone de traço reto no console. O que ainda não existe (`pronto: false`) aparece
   mesmo assim e leva a "Em breve" (`EM_BREVE`) — o app em desenvolvimento
   mostra a forma final. Botão aceso com traço mais grosso **e**
-  `aria-current`, nunca só a cor; o número do carrinho vai no rótulo.
+  `aria-current`, nunca só a cor; o número do carrinho vai no rótulo e
+  conta os **bilhetes**, não as rifas (`bilhetesNoCarrinho()`).
 - **O trevo avisa com um ponto verde** (padrão) ou cheio, na cor que a
   plataforma escolher (`avisoDoTrevo` em `ConfigPlataforma`, cartão "Topo
   do app" em Aparência, `PUT /admin/app`, 403 para organizador no `npm run
@@ -1174,7 +1175,8 @@ barra, `IconeMais` em `Icones.tsx`, que junta a cartela ao carrinho) e o
   `shared/carrinho.ts`, `juntarNoCarrinho()` no aparelho — na página e na
   janela do "+"). O carrinho segue com **um item por rifa** (cada rifa é um
   pedido, com todos os números), e os bilhetes ficam separados em
-  `bilhetes` só para mostrar: o carrinho lista cada rifa com cada bilhete,
+  `bilhetes` só para mostrar: o carrinho lista cada rifa (numa faixa no
+  topo, com foto, título, preço e lixeira) com cada bilhete embaixo,
   tira um bilhete sozinho (`tirarBilhete()`) e soma rifas e bilhetes no
   total. `bilhetesDoItem()` só aceita bilhetes que, juntos e na ordem, são
   exatamente os `numeros`. Bilhete com número que já está no carrinho não

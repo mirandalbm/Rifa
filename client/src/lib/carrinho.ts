@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from "react";
-import { CARRINHO_MAX_ITENS, juntarCartela, limparCarrinho, tirarBilhete, type ItemDoCarrinho } from "@shared/carrinho";
+import { CARRINHO_MAX_ITENS, bilhetesNoCarrinho, juntarCartela, limparCarrinho, tirarBilhete, type ItemDoCarrinho } from "@shared/carrinho";
 
 /**
  * O carrinho fica neste aparelho, como a região e o tema. Guarda rifa e
@@ -131,3 +131,5 @@ function assinar(avisar: () => void) {
 export function useCarrinho(): ItemDoCarrinho[] {
   return useSyncExternalStore(assinar, lerCarrinho, () => []);
 }
+
+export { bilhetesNoCarrinho };

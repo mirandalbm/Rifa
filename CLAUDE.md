@@ -1015,7 +1015,10 @@ pedido, cotas e valor, e o cliente só pelo ID (`Cliente C-XXXXXXXX`).
   telefone. Nenhum outro comentário é fixado — sem ganhador, nada fica no
   topo. O fixo é o **parabéns automático**; se o ganhador comentou na rifa,
   o comentário dele (o mais novo) vai logo abaixo do parabéns e sai da
-  lista, para não aparecer duas vezes.
+  lista, para não aparecer duas vezes. **Embaixo da rifa fica só o fixo**
+  e o "Ver os N comentários" (`aoAbrirPainel`); a conversa inteira e o
+  campo de comentar moram no `PainelDeComentarios`, que abre sozinho
+  quando se chega por `#comentarios`.
 - **A cota surpresa é o presente animado** no canto de baixo à direita da
   publicação, na página da rifa (`CotaSurpresa`, `canto` do `Carrossel`,
   que sobe acima do som no vídeo). Só existe com cota premiada — é opcional

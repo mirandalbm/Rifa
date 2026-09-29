@@ -406,7 +406,20 @@ function Presentear({ slug }: { slug: string }) {
  * responde com o selo "organização" e **pede** a remoção — quem decide é a
  * plataforma, porque comentário pode ser denúncia.
  */
-export function Comentarios({ slug, dentroDoPainel }: { slug: string; dentroDoPainel?: boolean }) {
+export function Comentarios({
+  slug,
+  dentroDoPainel,
+  aoAbrirPainel,
+}: {
+  slug: string;
+  dentroDoPainel?: boolean;
+  /**
+   * Na página da rifa, embaixo da compra, fica só o fixo (o parabéns a quem
+   * levou a cota premiada) e o atalho para o painel — a conversa inteira
+   * mora no painel, como no Instagram. Sem ganhador, nada é fixado.
+   */
+  aoAbrirPainel?: () => void;
+}) {
   const qc = useQueryClient();
   const chave = [`/api/public/campaigns/${slug}/comentarios`];
   const { data } = useQuery<Lista>({ queryKey: chave });
@@ -427,7 +440,10 @@ export function Comentarios({ slug, dentroDoPainel }: { slug: string; dentroDoPa
     }
   }, [carregou, dentroDoPainel]);
 
-  const total = data?.lista.reduce((n, c) => n + 1 + c.respostas.length, 0) ?? 0;
+  // O comentário do ganhador sobe para baixo do parabéns, mas continua contando.
+  const total =
+    (data?.lista.reduce((n, c) => n + 1 + c.respostas.length, 0) ?? 0) +
+    (data?.premiados ?? []).reduce((n, p) => n + (p.comentario ? 1 + p.comentario.respostas.length : 0), 0);
 
   return (
     // Tamanho e fonte do Instagram: 14 px na fonte do sistema do aparelho, 12 px nos detalhes.
@@ -481,6 +497,24 @@ export function Comentarios({ slug, dentroDoPainel }: { slug: string; dentroDoPa
         </ul>
       ) : null}
 
+      {aoAbrirPainel ? (
+        <button
+          type="button"
+          onClick={aoAbrirPainel}
+          className="text-[14px] font-semibold text-muted hover:text-ink"
+        >
+          {total > 0 ? (
+            <>
+              Ver {total === 1 ? "o comentário" : <>os <span className="tnum">{total}</span> comentários</>}
+            </>
+          ) : (
+            "Comentar"
+          )}
+        </button>
+      ) : null}
+
+      {aoAbrirPainel ? null : (
+      <>
       <ul className="space-y-5">
         {data?.lista.map((c) => {
           const aberta = abertas.has(c.id);
@@ -575,6 +609,8 @@ export function Comentarios({ slug, dentroDoPainel }: { slug: string; dentroDoPa
           </>
         )}
       </div>
+      </>
+      )}
     </section>
   );
 }

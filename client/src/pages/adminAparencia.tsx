@@ -12,6 +12,7 @@ import {
   FUNDO,
   RAIOS,
   TIPOS_DE_BLOCO,
+  APOIOS_MAX,
   BLOCO_REPETE,
   type TipoDeBloco,
   contraste,
@@ -84,6 +85,21 @@ export function AdminAparencia() {
       setT((atual) => (atual ? { ...atual, identidade: { ...atual.identidade, logo: novo.identidade.logo } } : novo));
       setMsg({ ok: true, texto: "Logo enviada para o rascunho." });
       recarregar();
+    },
+    onError: (e: Error) => setMsg({ ok: false, texto: e.message }),
+  });
+
+  // Logo de apoio do rodapé: o servidor reprocessa e devolve o endereço; o
+  // nome e o link entram no rascunho, conferidos ao publicar.
+  const enviarApoio = useMutation({
+    mutationFn: async (dataUrl: string) =>
+      (await apiRequest("PUT", "/api/admin/template/apoio", { dataUrl })).json() as Promise<{ id: string; imagem: string }>,
+    onSuccess: (a) => {
+      setSujo(true);
+      setT((atual) =>
+        atual ? { ...atual, apoios: [...(atual.apoios ?? []), { id: a.id, imagem: a.imagem, nome: "", link: null }] } : atual,
+      );
+      setMsg({ ok: true, texto: "Logo enviado. Dê o nome e o link, salve e publique." });
     },
     onError: (e: Error) => setMsg({ ok: false, texto: e.message }),
   });
@@ -362,6 +378,69 @@ export function AdminAparencia() {
                   value={t.textos.jogoResponsavel}
                   onChange={(e) => mudar({ ...t, textos: { ...t.textos, jogoResponsavel: e.target.value } })}
                   className="mt-1 w-full rounded-md border border-line-2 px-3 py-2"
+                />
+              </div>
+            </div>
+          </Card>
+
+          <Card title="Logos do rodapé">
+            <div className="space-y-3 p-4 text-sm">
+              <p className="text-xs text-muted">
+                Aparecem no rodapé do tablet e do computador — casas de apoio, ONGs, órgãos públicos. Cada logo é um
+                botão: o link é um caminho do site (/ajuda) ou um endereço https. O nome é o texto alternativo da
+                imagem. No máximo <span className="tnum">{APOIOS_MAX}</span>.
+              </p>
+              {(t.apoios ?? []).map((a, i) => (
+                <div key={a.id} className="grid grid-cols-1 items-end gap-2 rounded-lg border border-line p-2 sm:grid-cols-[auto_minmax(0,1fr)_minmax(0,1fr)_auto]">
+                  <img src={a.imagem} alt="" className="h-10 w-auto max-w-[120px] object-contain" />
+                  <div className="min-w-0">
+                    <label htmlFor={`apoio-nome-${a.id}`} className="label-xs">Nome</label>
+                    <input
+                      id={`apoio-nome-${a.id}`}
+                      maxLength={60}
+                      value={a.nome}
+                      onChange={(e) => mudar({ ...t, apoios: (t.apoios ?? []).map((x, j) => (j === i ? { ...x, nome: e.target.value } : x)) })}
+                      className="mt-1 w-full rounded-md border border-line-2 px-3 py-2"
+                    />
+                  </div>
+                  <div className="min-w-0">
+                    <label htmlFor={`apoio-link-${a.id}`} className="label-xs">Link (opcional)</label>
+                    <input
+                      id={`apoio-link-${a.id}`}
+                      maxLength={300}
+                      placeholder="https://…"
+                      value={a.link ?? ""}
+                      onChange={(e) =>
+                        mudar({ ...t, apoios: (t.apoios ?? []).map((x, j) => (j === i ? { ...x, link: e.target.value || null } : x)) })
+                      }
+                      className="mt-1 w-full rounded-md border border-line-2 px-3 py-2"
+                    />
+                  </div>
+                  <Button
+                    variant="ghost"
+                    aria-label={`Tirar o logo ${a.nome || i + 1}`}
+                    onClick={() => mudar({ ...t, apoios: (t.apoios ?? []).filter((_, j) => j !== i) })}
+                  >
+                    Tirar
+                  </Button>
+                </div>
+              ))}
+              <div>
+                <label htmlFor="apoio-arquivo" className="label-xs">Adicionar logo (PNG, JPG ou WebP, até 2 MB)</label>
+                <input
+                  id="apoio-arquivo"
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  disabled={(t.apoios?.length ?? 0) >= APOIOS_MAX || enviarApoio.isPending}
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    e.target.value = "";
+                    if (!f) return;
+                    const r = new FileReader();
+                    r.onload = () => enviarApoio.mutate(String(r.result));
+                    r.readAsDataURL(f);
+                  }}
+                  className="mt-1 block w-full text-sm"
                 />
               </div>
             </div>

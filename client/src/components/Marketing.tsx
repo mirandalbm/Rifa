@@ -69,7 +69,7 @@ function AvisoDeCookies() {
     <div
       role="dialog"
       aria-label="Aviso de cookies"
-      className="fixed inset-x-0 bottom-[calc(var(--acima-do-console)+0.5rem)] z-30 px-3 lg:bottom-4 lg:left-[72px] xl:left-[244px]"
+      className="fixed inset-x-0 bottom-[calc(var(--acima-do-console)+0.5rem)] z-30 px-3 lg:bottom-4 lg:left-[72px]"
       style={{ ["--acima-do-console" as string]: acimaDoConsole }}
     >
       <div className="mx-auto max-w-3xl rounded-xl border border-line bg-white p-4 text-sm shadow-lg">

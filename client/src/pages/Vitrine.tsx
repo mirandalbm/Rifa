@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { CalendarClock, MapPin, Plus } from "lucide-react";
+import { MapPin, Plus } from "lucide-react";
 import { UFS, ufValida } from "@shared/endereco";
 import { lerRegiao, gravarRegiao, regiaoEfetiva, type EscolhaDeRegiao } from "@/lib/regiao";
 import { useSession } from "@/lib/session";
@@ -17,7 +17,7 @@ import { temStoryNovo } from "@shared/vitrine";
 import { InstalarApp } from "@/components/InstalarApp";
 import { Patrocinadas } from "@/components/Patrocinadas";
 import type { Bloco } from "@shared/template";
-import { formatBRL } from "@shared/format";
+import { ColunaAoVivo } from "@/components/ColunaAoVivo";
 
 /** Vitrine multi-rifas: todas as campanhas no ar, banner na frente. */
 export default function Vitrine() {
@@ -68,11 +68,8 @@ export default function Vitrine() {
         </select>
       </div>
   );
-  const gradeDeRifas = (lista: RifaDoFeed[] | undefined) => (
-    <div className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      {lista?.map((c) => <CartaoDoFeed key={c.id} rifa={c} />)}
-    </div>
-  );
+  // Uma rifa por vez, em todas as larguras, com rolagem infinita.
+  const gradeDeRifas = (lista: RifaDoFeed[] | undefined) => <FeedInfinito lista={lista ?? []} />;
 
   const blocos = comPatrocinadas(template.blocos).filter((b) => b.ligado);
   // A fileira de stories ocupa o lugar do primeiro bloco "seguidos" ou
@@ -81,9 +78,13 @@ export default function Vitrine() {
   const lugarDosStories = blocos.find((b) => b.tipo === "seguidos" || b.tipo === "estados")?.id;
 
   return (
-    <PublicShell larga>
+    <PublicShell vitrine rodape>
       {/* Título da página para leitor de tela (a vitrine abre direto nos banners). */}
       <h1 className="sr-only">Rifas no ar</h1>
+      {/* Tablet e computador: o feed no centro e, à direita, a coluna ao vivo
+          (tela do sorteio, ganhadores, jogando agora). O celular é só o feed. */}
+      <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_280px] lg:grid-cols-[minmax(0,1fr)_340px]">
+      <div className="min-w-0 md:px-3 md:pb-8 md:pt-3">
       {blocos.map((b) => {
           switch (b.tipo) {
             case "regiao":
@@ -92,9 +93,8 @@ export default function Vitrine() {
               // No computador, o banner divide a faixa com os sorteios mais
               // próximos (bento); no celular, só o banner, como sempre.
               return (
-                <div key={b.id} className="lg:mb-3 lg:grid lg:grid-cols-[2fr_1fr] lg:items-stretch lg:gap-4">
+                <div key={b.id} className="md:mb-3">
                   <BannersVitrine />
-                  <SorteiosChegando rifas={data} />
                 </div>
               );
             case "seguidos":
@@ -128,6 +128,9 @@ export default function Vitrine() {
               return null;
           }
         })}
+      </div>
+      <ColunaAoVivo />
+      </div>
       <InstalarApp />
     </PublicShell>
   );
@@ -145,52 +148,43 @@ function comPatrocinadas(blocos: Bloco[]): Bloco[] {
   return i < 0 ? [...blocos, novo] : [...blocos.slice(0, i), novo, ...blocos.slice(i)];
 }
 
+/** Quantas rifas entram de cada vez no feed (a próxima leva vem ao chegar perto do fim). */
+const LEVA_DO_FEED = 4;
+
 /**
- * O cartão ao lado do banner no computador: as rifas à venda com o sorteio
- * mais perto (amarelo = espera e prêmio). Só aparece a partir de `lg` — no
- * celular o feed já traz as mesmas rifas.
+ * O feed de uma rifa por vez, com rolagem infinita: mostra uma leva e, quando
+ * a pessoa chega perto do fim, a próxima. As rifas já vieram do servidor (a
+ * lista é uma só); aqui só se evita montar dezenas de carrosséis de uma vez.
  */
-function SorteiosChegando({ rifas }: { rifas: RifaDoFeed[] | undefined }) {
-  const agora = Date.now();
-  const proximas = (rifas ?? [])
-    .filter((r) => r.vende !== false && r.drawAt && new Date(r.drawAt).getTime() > agora)
-    .sort((a, b) => new Date(a.drawAt!).getTime() - new Date(b.drawAt!).getTime())
-    .slice(0, 4);
-  if (proximas.length === 0) return null;
-  const faltam = (iso: string) => {
-    const dias = Math.ceil((new Date(iso).getTime() - agora) / 86_400_000);
-    return dias <= 1 ? "amanhã ou hoje" : `em ${dias} dias`;
-  };
+function FeedInfinito({ lista }: { lista: RifaDoFeed[] }) {
+  const [mostrando, setMostrando] = useState(LEVA_DO_FEED);
+  const fim = useRef<HTMLDivElement>(null);
+  const tem = mostrando < lista.length;
+  useEffect(() => {
+    if (!tem || !fim.current) return;
+    const obs = new IntersectionObserver(
+      (e) => {
+        if (e.some((x) => x.isIntersecting)) setMostrando((n) => n + LEVA_DO_FEED);
+      },
+      { rootMargin: "800px 0px" },
+    );
+    obs.observe(fim.current);
+    return () => obs.disconnect();
+  }, [tem, mostrando]);
   return (
-    <section aria-label="Sorteios chegando" className="hidden rounded-xl border border-yellow bg-yellow-soft p-4 lg:block">
-      <h2 className="flex items-center gap-2 font-display text-base font-bold text-yellow-deep">
-        <CalendarClock size={18} aria-hidden />
-        Sorteios chegando
-      </h2>
-      <ul className="mt-3 space-y-2">
-        {proximas.map((r) => (
-          <li key={r.id}>
-            <Link
-              href={r.organizacao ? `/o/${r.organizacao.slug}/r/${r.slug}` : `/r/${r.slug}`}
-              className="flex items-center gap-3 rounded-lg bg-white p-2 hover:bg-mist"
-            >
-              <span
-                aria-hidden
-                className="h-12 w-12 shrink-0 rounded-md bg-mist-2 bg-cover bg-center"
-                style={r.banner ? { backgroundImage: `url(${r.banner})` } : { background: "linear-gradient(145deg,#0B1F14,#00873E)" }}
-              />
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-bold">{r.prizeTitle}</span>
-                <span className="block text-xs text-muted">
-                  <span className="tnum">{new Date(r.drawAt!).toLocaleDateString("pt-BR")}</span> · {faltam(r.drawAt!)}
-                </span>
-              </span>
-              <span className="tnum shrink-0 text-sm font-bold text-green-deep">{formatBRL(r.priceCents)}</span>
-            </Link>
-          </li>
-        ))}
-      </ul>
-    </section>
+    <div className="mt-3 space-y-6 md:space-y-8">
+      {lista.slice(0, mostrando).map((c) => (
+        <CartaoDoFeed key={c.id} rifa={c} />
+      ))}
+      {tem ? (
+        <div ref={fim} className="py-4 text-center">
+          {/* Sem rolagem (ou sem IntersectionObserver), o botão faz o mesmo. */}
+          <button type="button" onClick={() => setMostrando((n) => n + LEVA_DO_FEED)} className="text-sm font-semibold text-marca hover:underline">
+            Ver mais rifas
+          </button>
+        </div>
+      ) : null}
+    </div>
   );
 }
 

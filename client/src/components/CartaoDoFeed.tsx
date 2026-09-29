@@ -69,7 +69,7 @@ export function CartaoDoFeed({ rifa: c, origem = "vitrine" }: { rifa: RifaDoFeed
   };
 
   return (
-    <article className="-mx-4 overflow-hidden bg-white sm:mx-0">
+    <article className="-mx-4 overflow-hidden bg-white sm:mx-0 sm:rounded-2xl sm:border sm:border-line">
       {/* O topo fica fora da imagem nos formatos do feed e por cima dela no
           vertical (9:16), como no reels — quem decide é o formato da primeira peça. */}
       <Carrossel

@@ -218,6 +218,20 @@
     transform-origin: 4px 11px;
     transition: transform 0.35s ease-out;
   }
+  /* Item novo na coluna ao vivo (ganhador, compra): entra no topo e desce
+     os outros. Com "menos movimento", só aparece. */
+  @keyframes entra-no-topo {
+    from { opacity: 0; transform: translateY(-6px); }
+    to { opacity: 1; transform: none; }
+  }
+  .entra-no-topo {
+    animation: entra-no-topo 0.35s ease-out both;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .entra-no-topo {
+      animation: none;
+    }
+  }
   @keyframes presente-revela {
     0% { transform: scale(0.4); opacity: 0; }
     60% { transform: scale(1.12); opacity: 1; }

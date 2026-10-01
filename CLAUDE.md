@@ -93,6 +93,7 @@ arquitetura.
 | bilhete | `server/services/ticketFormat.ts` (puro) e `ticket.ts` (dados) |
 | ponte com a maquininha | `client/src/lib/pos.ts`, `android/`, `docs/MAQUININHAS.md` |
 | teste de carga | `scripts/load-test.ts` |
+| relógios (expiração, lembretes, limpezas) e a trava de cada um | `server/jobs/index.ts` (`withLock`), `poolDasTravas` em `server/db.ts`, `scripts/relogios-test.ts` |
 | limites de antifraude | `shared/antifraude.ts` (regras) e `server/services/antifraude.ts` |
 | isolamento entre organizadores | `server/services/orgs.ts` e `scripts/isolation-test.ts` |
 | rateio da venda | `shared/pricing.ts` (`splitOrder`) |
@@ -163,6 +164,14 @@ arquitetura.
 - Fila (BullMQ): os três relógios rodam com `setInterval` no processo,
   protegidos por trava de aplicação do Postgres — com várias réplicas só uma
   executa. Serve bem; a fila entra quando houver trabalho pesado de verdade.
+  **A trava pega a conexão de `poolDasTravas`, nunca do `pool` comum**
+  (`withLock()` em `server/jobs/index.ts`): a trava é de sessão e fica presa
+  enquanto o relógio trabalha pelo `pool`. No mesmo pool, os ~12 relógios
+  que disparam juntos a cada 15 min pegavam as 10 conexões só para as
+  travas e esperavam para sempre pela 11ª — a produção parou de responder
+  toda rota com banco ("Carregando rifas…" no aparelho). E o `pool` tem
+  prazo para conseguir conexão (`connectionTimeoutMillis`): sem conexão, a
+  requisição falha em vez de esperar sem fim. `npm run relogios` prova.
 - A Fase 4 fechou: carga (`npm run load`), antifraude (`/admin/antifraude`),
   exportações (`/admin/exportacoes`) e multi-organizador
   (`/admin/organizacoes`, provado por `npm run isolation`).

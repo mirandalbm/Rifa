@@ -84,6 +84,7 @@ jobs:
       # A ordem importa: o antifraude limita pedidos por IP (60 em 10 min) e
       # tudo aqui sai do mesmo IP. O teste de carga afrouxa esse limite só
       # enquanto roda, então vai por último.
+      - run: npm run relogios
       - run: npm run isolation
       - run: npm run refund
       - run: npm run chamados

@@ -18,6 +18,7 @@
     "admin:create": "tsx scripts/create-admin.ts",
     "load": "tsx scripts/load-test.ts",
     "isolation": "tsx scripts/isolation-test.ts",
+    "relogios": "tsx scripts/relogios-test.ts",
     "refund": "tsx scripts/refund-test.ts",
     "chamados": "tsx scripts/chamados-test.ts",
     "conta": "tsx scripts/conta-test.ts",

@@ -1,3 +1,4 @@
+import type pg from "pg";
 import { and, eq, sql, gt, lt } from "drizzle-orm";
 import { db } from "../db";
 import { commissions, orders, buyers, campaigns, carrinhoPedidos } from "@shared/schema";
@@ -17,15 +18,19 @@ import { lancarMensalidades } from "../services/billing";
 import { releaseExpired } from "../services/quotas";
 import { paymentProviderByName } from "../payments";
 import { log } from "../vite";
-import { pool } from "../db";
+import { poolDasTravas } from "../db";
 
 /**
  * Trava de aplicação no Postgres: com duas réplicas, os dois processos
  * acordam no mesmo minuto e o mesmo job roda duas vezes. A trava é do banco,
  * então não importa quantos processos existam — só um passa.
+ *
+ * A conexão da trava vem de `poolDasTravas`, nunca do `pool` comum: ela fica
+ * presa enquanto `fn` usa o comum, e dividir o mesmo pool travava o servidor
+ * inteiro quando muitos relógios disparavam juntos (`npm run relogios`).
  */
-async function withLock(key: number, fn: () => Promise<void>) {
-  const client = await pool.connect();
+export async function withLock(key: number, fn: () => Promise<void>, travas: pg.Pool = poolDasTravas) {
+  const client = await travas.connect();
   try {
     const { rows } = await client.query("SELECT pg_try_advisory_lock($1) AS locked", [key]);
     if (!rows[0]?.locked) return;

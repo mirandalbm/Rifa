@@ -2,6 +2,7 @@ import { Link, useLocation } from "wouter";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Bookmark,
+  Gift,
   ChevronRight,
   HelpCircle,
   LayoutDashboard,
@@ -54,6 +55,8 @@ export default function PerfilDoUsuario() {
     queryKey: ["/api/public/conta/perfil"],
     enabled: conta,
   });
+  // O item "Bônus" só existe com o programa ligado pela plataforma (nasce desligado).
+  const { data: bonus } = useQuery<{ ligado: boolean; saldo?: number }>({ queryKey: ["/api/public/bonus"], enabled: conta });
   const pendencias = usePendencias();
   const nome = sessao?.user?.name ?? perfil?.nomeReal ?? sessao?.buyer?.name ?? null;
 
@@ -102,6 +105,14 @@ export default function PerfilDoUsuario() {
             <Item href="/minhas-compras" icone={Ticket} rotulo="Meus bilhetes" detalhe="As rifas em que você está jogando" />
             {conta ? (
               <>
+                {bonus?.ligado ? (
+                  <Item
+                    href="/minhas-compras?aba=bonus"
+                    icone={Gift}
+                    rotulo="Bônus"
+                    detalhe={bonus.saldo ? `${bonus.saldo} cota(s) de bônus` : "Metas, indicação e cotas grátis"}
+                  />
+                ) : null}
                 <Item href="/minhas-compras?aba=reembolsos" icone={ReceiptText} rotulo="Reembolsos" />
                 <Item href="/minhas-compras?aba=salvos" icone={Bookmark} rotulo="Salvos" />
                 <Item href="/minhas-compras?aba=conta" icone={UserRound} rotulo="Minha conta" detalhe="Apelido, foto, senha e verificação" />

@@ -9,7 +9,7 @@
  * - Conta excluída (LGPD) perde apelido e foto; o perfil some (404).
  */
 import sharp from "sharp";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 import { db } from "../db";
 import { buyers, compradorFotos } from "@shared/schema";
 import { nomeRealPublico, validarApelido } from "@shared/perfilApostador";
@@ -139,4 +139,52 @@ export async function fotoDoApostador(apelido: string) {
     .innerJoin(compradorFotos, eq(compradorFotos.buyerId, buyers.id))
     .where(and(eq(buyers.apelido, apelido.toLowerCase()), isNull(buyers.excluidoEm)));
   return f ?? null;
+}
+
+
+/* ------------------------------------------------------------------ *
+ * Quem também joga a mesma rifa
+ * ------------------------------------------------------------------ */
+
+export const QUEM_JOGA_MAX = 6;
+const CACHE_QUEM_JOGA_MS = 15_000;
+const cacheQuemJoga = new Map<string, { em: number; v: { pessoas: { apelido: string; foto: string | null }[]; mais: boolean } }>();
+
+/**
+ * Mini-perfis de quem comprou (pago) esta rifa **e** abriu o perfil público
+ * (`buyers.perfil_publico`, nasce desligado — participar de rifa é dado
+ * pessoal, LGPD). Só apelido e foto; nunca nome, telefone, CPF, id ou quantas
+ * cotas. A consulta parte de quem abriu o perfil (poucos, índice parcial) e
+ * confere a compra com `EXISTS` — nunca varre os pedidos da rifa. Pede uma
+ * pessoa a mais que o máximo só para saber se há "e outras", sem contar
+ * ninguém. Rascunho, demonstração, rifa travada e organização arquivada ou
+ * banida não mostram ninguém.
+ */
+export async function quemTambemJoga(slug: string) {
+  const cache = cacheQuemJoga.get(slug);
+  if (cache && Date.now() - cache.em < CACHE_QUEM_JOGA_MS) return cache.v;
+  const r = await db.execute(sql`
+    select b.apelido, b.foto_em
+      from campaigns c
+      join organizations o on o.id = c.organization_id
+      join buyers b on b.perfil_publico and b.apelido is not null and b.excluido_em is null
+     where c.slug = ${slug}
+       and c.status in ('published','closed','drawn')
+       and not c.demonstracao and c.travada_em is null
+       and o.archived_at is null and o.banida_em is null
+       and exists (select 1 from orders ord where ord.buyer_id = b.id and ord.campaign_id = c.id and ord.status = 'paid')
+     order by b.apelido
+     limit ${QUEM_JOGA_MAX + 1}`);
+  const linhas = r.rows as { apelido: string; foto_em: string | Date | null }[];
+  const v = {
+    // `foto_em` vem de SQL cru: timestamp sem fuso, em UTC.
+    pessoas: linhas.slice(0, QUEM_JOGA_MAX).map((l) => ({
+      apelido: l.apelido,
+      foto: urlDaFotoDoApostador(l.apelido, l.foto_em ? new Date(l.foto_em instanceof Date ? l.foto_em : `${String(l.foto_em).replace(" ", "T")}Z`) : null),
+    })),
+    mais: linhas.length > QUEM_JOGA_MAX,
+  };
+  cacheQuemJoga.set(slug, { em: Date.now(), v });
+  if (cacheQuemJoga.size > 500) cacheQuemJoga.clear();
+  return v;
 }

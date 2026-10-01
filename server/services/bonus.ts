@@ -213,9 +213,20 @@ async function progressoDe(buyerId: string) {
         where o.buyer_id = ${buyerId}::uuid and o.status = 'paid' and o.method <> 'bonus') as rifas_compradas,
       (select count(*)::int from indicacoes i
         where i.indicador_id = ${buyerId}::uuid and i.status = 'confirmada') as indicacoes,
-      (select count(*)::int from bonus_visitas v where v.indicador_id = ${buyerId}::uuid) as visitas`);
+      (select count(*)::int from bonus_visitas v where v.indicador_id = ${buyerId}::uuid) as visitas,
+      -- Seguir só conta para conta com senha (o CPF único entre contas segura a
+      -- fazenda de contas) e para organização que ainda está de pé.
+      (select count(*)::int from seguidores sg
+         join buyers b on b.id = sg.buyer_id and b.password_hash is not null and b.excluido_em is null
+         join organizations o on o.id = sg.organization_id and o.archived_at is null and o.banida_em is null
+        where sg.buyer_id = ${buyerId}::uuid) as organizacoes_seguidas`);
   const p = r.rows[0] as Record<TipoDeMeta, number>;
-  return { rifas_compradas: Number(p.rifas_compradas), indicacoes: Number(p.indicacoes), visitas: Number(p.visitas) };
+  return {
+    rifas_compradas: Number(p.rifas_compradas),
+    indicacoes: Number(p.indicacoes),
+    visitas: Number(p.visitas),
+    organizacoes_seguidas: Number(p.organizacoes_seguidas),
+  };
 }
 
 async function metasAtivas(): Promise<Meta[]> {

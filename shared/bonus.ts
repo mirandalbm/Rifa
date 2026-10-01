@@ -16,7 +16,7 @@
  * vezes, e o resgate é um `UPDATE` condicional no saldo.
  */
 
-export type TipoDeMeta = "rifas_compradas" | "indicacoes" | "visitas";
+export type TipoDeMeta = "rifas_compradas" | "indicacoes" | "visitas" | "organizacoes_seguidas";
 
 export const TIPOS_DE_META: Record<TipoDeMeta, { nome: string; descreve: (alvo: number) => string }> = {
   rifas_compradas: {
@@ -30,6 +30,10 @@ export const TIPOS_DE_META: Record<TipoDeMeta, { nome: string; descreve: (alvo: 
   visitas: {
     nome: "Trazer visitas",
     descreve: (n) => `Traga ${n} visita${n === 1 ? "" : "s"} nova${n === 1 ? "" : "s"} pelo seu link`,
+  },
+  organizacoes_seguidas: {
+    nome: "Seguir organizações",
+    descreve: (n) => (n === 1 ? "Siga 1 organização que faz rifa" : `Siga ${n} organizações que fazem rifa`),
   },
 };
 
@@ -80,6 +84,7 @@ export interface Progresso {
   rifas_compradas: number;
   indicacoes: number;
   visitas: number;
+  organizacoes_seguidas: number;
 }
 
 /** Quanto falta em cada meta, e se já foi alcançada. */

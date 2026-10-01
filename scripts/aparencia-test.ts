@@ -6,6 +6,7 @@
  *
  *   npm run aparencia      (com `npm run dev` no ar e o seed aplicado)
  */
+import sharp from "sharp";
 import "dotenv/config";
 import { baseUrl } from "./base-url";
 import { eq, inArray, notInArray, sql } from "drizzle-orm";
@@ -109,6 +110,14 @@ async function main() {
     checa("publica", r.status === 201 && Boolean(versaoRoxa));
     r = await anon.req("GET", "/api/public/template");
     checa("depois de publicar, a plataforma toda vê", r.json?.template?.identidade?.nome === "Rifa Roxa" && r.json?.versao === versaoRoxa);
+    // O app instalado segue o template publicado: nome e cor, sem logo ainda.
+    const m1 = await anon.req("GET", "/manifest.webmanifest");
+    checa(
+      "o manifesto do app tem o nome e a cor do template publicado",
+      m1.status === 200 && m1.json?.name === "Rifa Roxa" && m1.json?.theme_color === "#6d28d9",
+      `${m1.json?.name} ${m1.json?.theme_color}`,
+    );
+    checa("e sem logo usa os ícones de fábrica", m1.json?.icons?.[0]?.src === "/icons/icon-192.png", m1.json?.icons?.[0]?.src);
     checa(
       "e as redes sociais do rodapé vão junto",
       r.json?.template?.redes?.length === 1 && r.json.template.redes[0].rede === "instagram",
@@ -168,6 +177,31 @@ async function main() {
     checa("logo entra no rascunho", r.status === 200 && Boolean(logo?.startsWith("/api/public/marca/logo")), logo);
     const arq = await anon.req("GET", logo ?? "/api/public/marca/logo");
     checa("e é servida reprocessada em WebP", arq.status === 200 && arq.tipo.startsWith("image/webp"), arq.tipo);
+
+    // Rascunho não muda o app de ninguém; publicado, o manifesto passa a usar a logo.
+    const m2 = await anon.req("GET", "/manifest.webmanifest");
+    checa("com a logo só no rascunho, o manifesto não muda", m2.json?.icons?.[0]?.src === "/icons/icon-192.png", m2.json?.icons?.[0]?.src);
+    await admin.req("POST", "/api/admin/template/publicar");
+    const m3 = await anon.req("GET", "/manifest.webmanifest");
+    const icones: { src: string; sizes: string; purpose: string }[] = m3.json?.icons ?? [];
+    checa(
+      "publicada, o manifesto aponta para os três ícones da logo",
+      icones.length === 3 && icones.every((i) => i.src.startsWith("/api/public/marca/icone/") && /\?v=\d+$/.test(i.src)),
+      JSON.stringify(icones.map((i) => i.src)),
+    );
+    for (const i of icones) {
+      const png = await fetch(URL + i.src);
+      const buf = Buffer.from(await png.arrayBuffer());
+      const meta = await sharp(buf).metadata();
+      const lado = Number(i.sizes.split("x")[0]);
+      checa(
+        `o ícone ${i.purpose} ${i.sizes} é um PNG quadrado do tamanho dito`,
+        png.status === 200 && meta.format === "png" && meta.width === lado && meta.height === lado,
+        `${png.status} ${meta.format} ${meta.width}x${meta.height}`,
+      );
+    }
+    const estranho = await fetch(`${URL}/api/public/marca/icone/9999`);
+    checa("tamanho que não existe é 404", estranho.status === 404, `HTTP ${estranho.status}`);
   } finally {
     // Devolve o estado de antes.
     await db.delete(templateVersoes).where(

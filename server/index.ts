@@ -13,6 +13,7 @@ import { webhookRouter } from "./routes/webhooks";
 import { setupAuth } from "./auth";
 import { startJobs } from "./jobs";
 import { LocalDiskStorage, storage } from "./services/storage";
+import { manifestDaPlataforma } from "./services/template";
 import { setupVite, serveStatic, log } from "./vite";
 
 const app = express();
@@ -39,6 +40,20 @@ app.use((_req, res, next) => {
 
 // O webhook precisa do corpo cru para validar assinatura: vem antes do JSON.
 app.use("/api/webhooks", express.raw({ type: "*/*" }), webhookRouter);
+
+// O manifesto do app instalado segue o template publicado (nome, cor, logo).
+// Antes do arquivo estático e do Vite; se o banco falhar, segue para o
+// arquivo de fábrica em `client/public` — instalar o app nunca quebra.
+app.get("/manifest.webmanifest", async (_req, res, next) => {
+  try {
+    res.setHeader("Cache-Control", "public, max-age=300");
+    res.type("application/manifest+json").send(JSON.stringify(await manifestDaPlataforma()));
+  } catch (err) {
+    console.error("[manifest] usei o arquivo de fábrica:", (err as Error).message);
+    res.removeHeader("Cache-Control");
+    next();
+  }
+});
 
 // Mídia enviada em desenvolvimento (em produção o R2 serve direto).
 app.use(

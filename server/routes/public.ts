@@ -49,7 +49,14 @@ import { montarRegulamento } from "@shared/regulamento";
 import { enderecoDa } from "../services/orgs";
 import { consultarCep } from "../services/cep";
 import { chavesVapid, inscrever, cancelarInscricao } from "../services/push";
-import { templatePublicado, logo as logoDaMarca, apoio as logoDeApoio } from "../services/template";
+import {
+  templatePublicado,
+  logo as logoDaMarca,
+  apoio as logoDeApoio,
+  iconeDaMarca,
+  TAMANHOS_DE_ICONE,
+  type TamanhoDoIcone,
+} from "../services/template";
 import { colunaAoVivo } from "../services/aoVivo";
 import {
   perfilPublico,
@@ -730,6 +737,24 @@ publicRouter.get("/marca/logo", async (_req, res, next) => {
     if (!f) return res.status(404).json({ message: "Sem logo." });
     res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
     res.type(f.mime).send(f.bytes);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * O ícone do app instalado, feito da logo (`/manifest.webmanifest`). O
+ * endereço leva a versão da logo (`?v=`), então pode ficar guardado por um ano.
+ * Sem logo, 404 — o manifesto aponta para os ícones de fábrica.
+ */
+publicRouter.get("/marca/icone/:tamanho", async (req, res, next) => {
+  try {
+    const tamanho = req.params.tamanho as TamanhoDoIcone;
+    if (!TAMANHOS_DE_ICONE.includes(tamanho)) return res.status(404).json({ message: "Sem ícone." });
+    const png = await iconeDaMarca(tamanho);
+    if (!png) return res.status(404).json({ message: "Sem logo." });
+    res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+    res.type("image/png").send(png);
   } catch (err) {
     next(err);
   }

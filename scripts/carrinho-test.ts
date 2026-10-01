@@ -21,6 +21,7 @@ import { buyers, campaignStats, campaigns, carrinhoPedidos, orders, organization
 import { priceOrder } from "../shared/pricing";
 import { refundByChargeId, refundOrder } from "../server/services/orders";
 import { releaseExpired } from "../server/services/quotas";
+import { extratoDa } from "../server/services/billing";
 
 const URL = baseUrl();
 let falhas = 0;
@@ -68,7 +69,15 @@ async function main() {
   // Duas promotoras: a do seed e uma desta prova (o banco do CI tem só uma).
   const [daSeed] = await db.select().from(organizations).where(eq(organizations.slug, "rifas-sao-jose"));
   if (!daSeed) throw new Error("Nenhuma organização no banco. Rode `npm run db:seed`.");
-  const [segunda] = await db.insert(organizations).values({ name: "Promotora do carrinho", slug: ORG_SLUG }).returning();
+  // A segunda tem carteira no Asaas e cobra comissão: o Pix dela é dividido
+  // na origem, e a taxa da plataforma nasce retida. A do seed fica sem
+  // carteira (e cobrando também) para a taxa dela seguir devida no livro.
+  const [segunda] = await db
+    .insert(organizations)
+    .values({ name: "Promotora do carrinho", slug: ORG_SLUG, billingMode: "comissao", platformFeePct: 10, asaasWalletId: "7bafd95a-e783-4a62-9be1-23999af742c6" })
+    .returning();
+  const cobrancaDaSeed = { billingMode: daSeed.billingMode, platformFeePct: daSeed.platformFeePct, asaasWalletId: daSeed.asaasWalletId };
+  await db.update(organizations).set({ billingMode: "comissao", platformFeePct: 10, asaasWalletId: null }).where(eq(organizations.id, daSeed.id));
   const orgs = [daSeed, segunda];
 
   const nova = async (i: number, org: string, total: number, preco: number) => {
@@ -221,6 +230,14 @@ async function main() {
     checa("repetir o aviso não conta a venda de novo", (await statsDe(a.id)).soldCount === vendidasA && vendidasA === 4, `${vendidasA}`);
     r = await req("GET", `/api/public/carrinho/pedidos/${codigo}`);
     checa("a consulta mostra pago", r.json?.status === "paid");
+    // A taxa da plataforma: devida pela promotora sem carteira, já retida
+    // na que entrou no split — a mesma cobrança, dois lançamentos diferentes.
+    const taxas = await db.select().from(platformCharges).where(inArray(platformCharges.orderId, pagos.map((o) => o.id)));
+    const taxaDe = (campanha: string) => taxas.find((t) => t.orderId === pagos.find((o) => o.campaignId === campanha)?.id);
+    checa("sem carteira, a taxa fica em aberto no livro", taxaDe(a.id)?.status === "aberta", taxaDe(a.id)?.status ?? "sem lançamento");
+    checa("com carteira, o Pix já dividiu: a taxa nasce retida, não devida", taxaDe(b.id)?.status === "retida" && Boolean(taxaDe(b.id)?.paidAt), taxaDe(b.id)?.status ?? "sem lançamento");
+    const extrato = await extratoDa(segunda.id);
+    checa("o extrato da promotora com carteira não tem nada em aberto", extrato.totais.abertoCents === 0 && extrato.totais.retidaCents === (taxaDe(b.id)?.amountCents ?? -1), JSON.stringify(extrato.totais));
 
     console.log("\n  vencido:");
     const [outro] = await db
@@ -255,6 +272,7 @@ async function main() {
     checa("o estorno da cobrança inteira desfaz o que sobrou, sem dobrar", feitos.length === 1 && fimB.status === "refunded", `${feitos.length}`);
     checa("as vendas voltam a zero nas duas rifas", (await statsDe(a.id)).soldCount === 0 && (await statsDe(b.id)).soldCount === 0);
   } finally {
+    await db.update(organizations).set(cobrancaDaSeed).where(eq(organizations.id, daSeed.id));
     await limpar();
   }
 

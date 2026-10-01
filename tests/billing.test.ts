@@ -7,6 +7,7 @@ import {
   competenciaAnterior,
   FREE_PLAN,
   MAX_PLATFORM_PCT,
+  lancamentoDaTaxa,
 } from "../shared/billing";
 import { splitOrder } from "../shared/pricing";
 
@@ -92,5 +93,25 @@ describe("contrato de cobrança da plataforma", () => {
     expect(competenciaDe(new Date(2026, 0, 1))).toBe("2026-01");
     expect(competenciaAnterior(new Date(2026, 0, 3))).toBe("2025-12");
     expect(competenciaAnterior(new Date(2026, 8, 1))).toBe("2026-08");
+  });
+});
+
+describe("taxa da venda e o split do Pix", () => {
+  const base = { organizationId: "org", orderId: "pedido", amountCents: 500, pct: 10 };
+
+  it("sem split, a taxa nasce devida (aberta)", () => {
+    const v = lancamentoDaTaxa(base)!;
+    expect(v).toMatchObject({ kind: "venda", amountCents: 500, pct: 10 });
+    expect(v).not.toHaveProperty("status");
+    expect(v).not.toHaveProperty("paidAt");
+  });
+
+  it("com o Pix dividido na origem, a taxa nasce retida — cobrar de novo seria cobrar duas vezes", () => {
+    const agora = new Date("2026-10-01T12:00:00Z");
+    expect(lancamentoDaTaxa({ ...base, retidaNoSplit: true }, agora)).toMatchObject({ status: "retida", paidAt: agora });
+  });
+
+  it("taxa zero não lança nada, com ou sem split", () => {
+    expect(lancamentoDaTaxa({ ...base, amountCents: 0, retidaNoSplit: true })).toBeNull();
   });
 });

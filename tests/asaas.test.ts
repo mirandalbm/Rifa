@@ -114,6 +114,8 @@ describe("Asaas — conversa com a API (fetch de mentira)", () => {
       chargeId: "pay_1",
       copyPaste: "000201PIX",
       qr: "data:image/png;base64,AAA",
+      // Com split, a taxa já ficou retida: o pedido nasce marcado.
+      splitAplicado: true,
     });
   });
 
@@ -124,10 +126,11 @@ describe("Asaas — conversa com a API (fetch de mentira)", () => {
       if (url.endsWith("/payments")) return { status: 200, json: { id: "pay_2" } };
       return { status: 200, json: { payload: "PIX" } };
     };
-    await cobrar(new AsaasProvider());
+    const pix = await cobrar(new AsaasProvider());
     const cliente = pedidos.find((p) => p.url.endsWith("/customers") && p.method === "POST")!.body;
     expect(cliente).toMatchObject({ name: "Maria Silva", cpfCnpj: "52998224725", notificationDisabled: true });
     expect(pedidos.find((p) => p.url.endsWith("/payments"))!.body.split).toBeUndefined();
+    expect(pix.splitAplicado).toBe(false);
   });
 
   it("sem CPF, nem chama a API", async () => {

@@ -206,6 +206,10 @@ async function main() {
     r = await anon.req("GET", "/api/public/stories");
     checa("perfil arquivado sai da fileira", !(r.json ?? []).some((o: any) => o.slug === VIZINHA));
     await db.update(organizations).set({ archivedAt: null }).where(eq(organizations.id, vizinha.id));
+    await db.update(organizations).set({ banidaEm: new Date() }).where(eq(organizations.id, vizinha.id));
+    r = await anon.req("GET", "/api/public/stories");
+    checa("perfil banido sai da fileira (o anel não leva a um 404)", !(r.json ?? []).some((o: any) => o.slug === VIZINHA));
+    await db.update(organizations).set({ banidaEm: null }).where(eq(organizations.id, vizinha.id));
 
     r = await marina.req("GET", "/api/admin/stories");
     checa("o painel da organizadora lista só os dela", r.json?.some((s: any) => s.id === s1) && !r.json?.some((s: any) => s.id === sVizinha));

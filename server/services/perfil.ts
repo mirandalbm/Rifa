@@ -391,6 +391,8 @@ export async function perfisComStory(buyerId: string | null) {
     .where(
       and(
         isNull(organizations.archivedAt),
+        // Banida some da vitrine (o perfil dela dá 404): o anel não pode levar a um 404.
+        isNull(organizations.banidaEm),
         or(
           sql`exists (select 1 from ${stories} s
                where s.organization_id = "organizations"."id" and s.expira_em > now())`,

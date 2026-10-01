@@ -32,6 +32,7 @@
     "seguranca": "tsx scripts/seguranca-test.ts",
     "verificacao": "tsx scripts/verificacao-test.ts",
     "publicacao": "tsx scripts/publicacao-test.ts",
+    "mensagens": "tsx scripts/mensagens-test.ts",
     "carrinho": "tsx scripts/carrinho-test.ts",
     "presente": "tsx scripts/presente-test.ts",
     "resultados": "tsx scripts/resultados-test.ts",

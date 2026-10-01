@@ -20,7 +20,8 @@ import Carrinho from "@/pages/Carrinho";
 import CarrinhoPix from "@/pages/CarrinhoPix";
 import Notificacoes from "@/pages/Notificacoes";
 import PerfilDoUsuario from "@/pages/PerfilDoUsuario";
-import { Buscar, Mensagens } from "@/pages/EmBreve";
+import { Buscar } from "@/pages/EmBreve";
+import Mensagens from "@/pages/Mensagens";
 import Reels from "@/pages/Reels";
 import Usuario from "@/pages/Usuario";
 import Login from "@/pages/Login";
@@ -155,6 +156,7 @@ export default function App() {
           <Route path="/perfil" component={PerfilDoUsuario} />
           <Route path="/reels" component={Reels} />
           <Route path="/mensagens" component={Mensagens} />
+          <Route path="/mensagens/:id" component={Mensagens} />
           <Route path="/buscar" component={Buscar} />
           <Route path="/u/:apelido" component={Usuario} />
           <Route path="/minhas-compras" component={MinhasCotas} />

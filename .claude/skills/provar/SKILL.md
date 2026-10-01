@@ -40,7 +40,8 @@ Pelo caminho que mudou (a mesma tabela "Onde mexer" do `CLAUDE.md`):
 | comentários, perfil do apostador | `comentarios` |
 | segurança do organizador | `seguranca` |
 | verificação (selo) | `verificacao` |
-| publicação, carrinho | `publicacao`, `carrinho` |
+| publicação, carrinho, Reels | `publicacao`, `carrinho` |
+| mensagens | `mensagens`, `isolation` |
 | presente | `presente` |
 | painel de resultados | `resultados` |
 | afiliados, fiscal, guarda da comissão | `afiliados`, `fiscal`, `guarda` |

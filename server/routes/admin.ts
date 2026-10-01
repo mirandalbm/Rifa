@@ -224,6 +224,7 @@ import {
 } from "@shared/plataforma";
 import { estadoWhatsApp, criarModelosFaltantes, enviarTeste } from "../services/whatsappSetup";
 import { senhaInvalida } from "@shared/senha";
+import { conversasDenunciadasAbertas, decidirDenunciaDeConversa, detalheDaDenunciaDeConversa, listarDenunciasDeConversa } from "../services/mensagens";
 import { EXPORTS, exportInfo, exportFilename, CSV_BOM } from "@shared/exports";
 
 export const adminRouter = Router();
@@ -669,6 +670,42 @@ adminRouter.post("/denuncias/:id/decidir", async (req, res, next) => {
       resposta: req.body?.resposta ?? null,
     });
     res.json(await decidirDenuncia(req, req.params.id, { acao: req.body?.acao, resposta: req.body?.resposta }));
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * Conversas denunciadas: só a plataforma. A fila não traz texto; o detalhe
+ * traz só o trecho que foi anexado à denúncia — e a leitura entra em
+ * `audit_log` antes de o texto sair.
+ */
+adminRouter.get("/mensagens/denuncias", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    res.json(await listarDenunciasDeConversa(req.query.status ? String(req.query.status) : undefined));
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.get("/mensagens/denuncias/:id", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    await audit(req, "mensagens.denuncia.ler", "mensagem_denuncia", req.params.id, {});
+    res.json(await detalheDaDenunciaDeConversa(req.params.id));
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.post("/mensagens/denuncias/:id/decidir", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    await audit(req, `mensagens.denuncia.${String(req.body?.decisao ?? "")}`, "mensagem_denuncia", req.params.id, {
+      resposta: req.body?.resposta ?? null,
+    });
+    res.json(await decidirDenunciaDeConversa(req, req.params.id, { decisao: req.body?.decisao, resposta: req.body?.resposta }));
   } catch (err) {
     next(err);
   }
@@ -2213,8 +2250,9 @@ adminRouter.put("/app", async (req, res, next) => {
       avisoDoTrevo: req.body?.avisoDoTrevo,
       publicarApostador: typeof req.body?.publicarApostador === "boolean" ? req.body.publicarApostador : undefined,
       reelsLigado: typeof req.body?.reelsLigado === "boolean" ? req.body.reelsLigado : undefined,
+      mensagensLigado: typeof req.body?.mensagensLigado === "boolean" ? req.body.mensagensLigado : undefined,
     });
-    const app = { avisoDoTrevo: salva.avisoDoTrevo, publicarApostador: salva.publicarApostador, reelsLigado: salva.reelsLigado };
+    const app = { avisoDoTrevo: salva.avisoDoTrevo, publicarApostador: salva.publicarApostador, reelsLigado: salva.reelsLigado, mensagensLigado: salva.mensagensLigado };
     await audit(req, "plataforma.app", "settings", "plataforma", app);
     res.json(app);
   } catch (err) {
@@ -2323,7 +2361,7 @@ adminRouter.get("/chamados/pendentes", async (req, res, next) => {
       total: await chamadosAbertos(req),
       disputas: orgOf(req) ? 0 : await disputasAbertas(),
       solicitacoes: orgOf(req) ? 0 : await solicitacoesEmAnalise(req),
-      denuncias: orgOf(req) ? 0 : await denunciasAbertas(),
+      denuncias: orgOf(req) ? 0 : (await denunciasAbertas()) + (await conversasDenunciadasAbertas()),
       verificacoes: orgOf(req) ? 0 : await verificacoesPendentes(),
     });
   } catch (err) {

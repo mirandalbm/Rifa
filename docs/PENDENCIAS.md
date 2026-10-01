@@ -455,10 +455,16 @@ Na ordem de entrega do plano:
   desligado). Ficou para depois: áudio/música, reações rápidas com emoji
   (emoji é vantagem de verificado), aba "Friends" (aqui é "Seguindo") e o
   selo "ao vivo". Sem transcode/pôster ainda (Cloudflare Stream).
-- [ ] **[código]** Botões do console ainda "Em breve", cada um planejado
-  com você antes: **Mensagens** (conversas entre amigos e sobre rifas comentadas; online à
-  esquerda e não lidas depois; o organizador só vê o que é dele) e
-  **Buscar** (últimas publicações, com a tabela do que aparece ligada pela
+- [x] **Mensagens** (caixa de um para um entre apostador, organização e
+  afiliado): pronta, atrás do interruptor `mensagensLigado` (Aparência →
+  Topo do app, nasce desligado). Ficou para depois: indicador "online" (só
+  com dado real), grupos, foto e vídeo na conversa, aviso ao painel da
+  organização e do afiliado (o apostador recebe push e trevo), entrada
+  para o afiliado pelo perfil (hoje se acha pelo código) e a fila de
+  conversas denunciadas na Caixa de entrada (hoje soma no contador de
+  denúncias e fica em Atendimento → Denúncias).
+- [ ] **[código]** Botão do console ainda "Em breve", planejado com você
+  antes: **Buscar** (últimas publicações, com a tabela do que aparece ligada pela
   plataforma).
 - [ ] **[código]** Selo "ao vivo" no story (anel com a transmissão), junto
   com a etapa do Reels.

@@ -109,6 +109,7 @@ arquitetura.
 | guarda da comissão pela plataforma (etapa 12) | `guardaComissao` e `percentualDoPromotor()` em `shared/plataforma.ts`, `createOrder`/`settleOrderAsPaid` em `server/services/orders.ts`, `scripts/guarda-test.ts` |
 | indicação, bônus e metas (etapa 13) | `shared/bonus.ts` (regras), `server/services/bonus.ts`, `resgatarCotasDeBonus()` em `server/services/orders.ts`, `client/src/lib/indicacao.ts`, `client/src/pages/adminBonus.tsx`, `client/src/components/BonusDoComprador.tsx`, `scripts/bonus-test.ts` |
 | Reels (tela cheia, vídeo em pé, interruptor da plataforma) | `shared/reels.ts` (regras, lote), `GET /api/public/reels` em `server/routes/public.ts`, `reelsLigado` em `shared/plataforma.ts`, `client/src/pages/Reels.tsx`, `vertical` em `BarraDeAcoes`, `scripts/publicacao-test.ts`, `tests/reels.test.ts` |
+| Mensagens (caixa de um para um: apostador, organização e afiliado) | `shared/mensagens.ts` (regras puras), `server/services/mensagens.ts`, rotas `/mensagens/*` em `server/routes/public.ts` e `/mensagens/denuncias*` em `server/routes/admin.ts`, `mensagensLigado` em `shared/plataforma.ts`, `client/src/pages/Mensagens.tsx`, `ConversasDenunciadas.tsx`, `BotaoMensagem.tsx`, `scripts/mensagens-test.ts`, `tests/mensagens.test.ts` |
 | rifas patrocinadas por clique (etapa 15): pacote, fila, tabela e números | `shared/patrocinio.ts` (regras, preço, previsão da fila), `server/services/patrocinio.ts`, `client/src/pages/adminPatrocinio.tsx`, `client/src/components/Patrocinadas.tsx`, `scripts/patrocinio-test.ts` |
 | marketing e tráfego pago (etapa 16): pixels, aviso de cookies, UTM, compra pelo servidor | `shared/marketing.ts` (regras e corpos das APIs), `server/services/marketing.ts`, `client/src/lib/marketing.ts`, `client/src/components/Marketing.tsx`, `client/src/pages/adminMarketing.tsx`, `scripts/marketing-test.ts` |
 | plano da próxima fase (vitrine, contas, afiliados, marketing) | `docs/PLANO-FASE5.md` |
@@ -1450,6 +1451,52 @@ estorno.
   O recorte é `assertCampaignInScope` (o vizinho é 404, no `npm run
   isolation`).
 - `npm run publicacao` prova tudo isso contra a API de verdade.
+
+## Mensagens — o que não pode afrouxar
+
+Caixa de entrada geral, como a DM do Instagram, de **um para um** entre
+apostador (conta com apelido), organização e afiliado. Uma rifa entra na
+conversa como cartão (o compartilhar da publicação), nunca como link no texto.
+
+- **Nasce desligada** (`mensagensLigado`, Aparência → Topo do app, `PUT
+  /admin/app`, 403 para organizador). Desligada, toda rota `/mensagens/*`
+  é 404 e o botão do console é "Em breve".
+- **O par é único pelo índice** (`uq_conversa_par`, em ordem canônica:
+  `ordenarPar()`): `INSERT … ON CONFLICT DO NOTHING`, nunca um `SELECT` antes.
+  Escrever trava a conversa (`FOR UPDATE`) e confere bloqueio, encerramento
+  e pedido com a linha travada; mensagem, prévia e contador de não lidas
+  andam na mesma transação. **Nunca `COUNT(*)`** para o número do console.
+- **Quem conversa** (`minhaIdentidade()`): organização (sessão de
+  organizador), afiliado **ativo** (sessão de afiliado) ou apostador com conta
+  e apelido. O administrador geral e o cambista não conversam (401).
+- **Conversa de outro é 404**, nunca 403: o apostador só alcança as dele, a
+  organização as da organização da sessão. `npm run mensagens` e `npm run
+  isolation` provam.
+- **Pedido de mensagem**: quem não tem vínculo manda **uma** mensagem e
+  espera. Só o apostador que **segue** a organização conversa direto com
+  ela. Quem recebeu aceita, recusa ou responde (responder é aceitar);
+  responder o pedido é um `UPDATE` condicional (`situacao = 'pedido'`).
+- **A mesma régua dos comentários**: sem link e sem telefone
+  (`problemaNaMensagem()`). **Emoji vale para todos** — conversa privada.
+- **Achar alguém é por nome exato** (`@apelido`, endereço da organização ou
+  código do afiliado), com limite; nunca lista. Nada de telefone, CPF ou
+  e-mail em nenhuma resposta: o apostador é o apelido, a organização o nome
+  público.
+- **Limites** (`hit`): conversas novas por dia, mensagens por janela, buscas
+  e denúncias — o erro de preenchimento sai antes de contar.
+- **Denúncia leva só o trecho**: as últimas 30 mensagens, gravadas na hora
+  (`mensagem_denuncias.trecho`). A plataforma **nunca lê a conversa
+  inteira**; a fila não traz texto; a leitura do trecho entra em `audit_log`
+  **antes** de sair; organização não vê nem decide (403). Uma aberta por
+  conversa e lado (índice parcial). Procedente **encerra** a conversa na
+  mesma transação, e dois cliques são uma decisão e um 409.
+- **Varredura do Pix por fora** (`pedePagamentoPorFora()`) em mensagem de
+  **organização e afiliado** (a conversa privada é o canal do golpe): acendeu,
+  vira denúncia automática com o trecho; não barra a mensagem e nunca derruba
+  o envio (`emSegundoPlano`).
+- **Aviso sem conteúdo**: o apostador recebe push e trevo "Nova mensagem" (no
+  máximo um por conversa a cada 30 min, pela chave); o texto nunca vai no push.
+- `npm run mensagens` prova tudo isso contra a API de verdade.
 
 ## Reels — o que não pode afrouxar
 

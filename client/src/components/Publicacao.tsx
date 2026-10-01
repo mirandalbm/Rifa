@@ -2,7 +2,8 @@ import { Icone, IconeAviao, IconeComentar, IconeMais, IconeRepublicar, IconeSaco
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link, useLocation } from "wouter";
 import { Check } from "lucide-react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Janela } from "@/components/Janela";
 import { Button, Card } from "@/components/bits";
 import { FOLHA, SeloVerificado } from "@/components/SeloVerificado";
 import { FotoDoPerfil } from "@/components/Seguir";
@@ -385,6 +386,9 @@ export function BarraDeAcoes({
   const carrinho = useCarrinho();
   const naSacola = carrinho.some((x) => x.slug === slug);
   const [escolhendo, setEscolhendo] = useState(false);
+  const [compartilhando, setCompartilhando] = useState(false);
+  // Com as mensagens ligadas, compartilhar pergunta o caminho (mensagem ou link).
+  const { data: app } = useQuery<{ mensagensLigado?: boolean }>({ queryKey: ["/api/public/app"], staleTime: 60_000 });
 
   const acao = useMutation({
     mutationFn: async (v: { acao: Acao; ligar: boolean }) =>
@@ -459,7 +463,7 @@ export function BarraDeAcoes({
           <IconeRepublicar className={i.republiquei ? "text-marca" : ""} />
           <span className="tnum text-[15px] font-medium">{contadorCurto(i.republicacoes)}</span>
         </button>
-        <button type="button" className={botao} aria-label={`Compartilhar (${i.compartilhamentos})`} onClick={() => void compartilhar()}>
+        <button type="button" className={botao} aria-label={`Compartilhar (${i.compartilhamentos})`} onClick={() => (app?.mensagensLigado ? setCompartilhando(true) : void compartilhar())}>
           <IconeAviao />
           <span className="tnum text-[15px] font-medium">{contadorCurto(i.compartilhamentos)}</span>
         </button>
@@ -489,6 +493,31 @@ export function BarraDeAcoes({
         <p className="pt-1 text-xs text-muted" role="status">
           {aviso}
         </p>
+      ) : null}
+      {compartilhando ? (
+        <Janela onFechar={() => setCompartilhando(false)} rotulo="Compartilhar" className="p-4">
+          <h2 className="font-display text-lg font-extrabold">Compartilhar</h2>
+          <div className="mt-3 space-y-2">
+            <Link
+              href={`/mensagens?rifa=${encodeURIComponent(slug)}`}
+              className="block rounded-lg border border-line px-4 py-3 text-sm font-semibold hover:bg-mist"
+            >
+              Enviar por mensagem
+              <span className="block text-xs font-normal text-muted">A rifa vai como cartão numa conversa.</span>
+            </Link>
+            <button
+              type="button"
+              onClick={() => {
+                setCompartilhando(false);
+                void compartilhar();
+              }}
+              className="block w-full rounded-lg border border-line px-4 py-3 text-left text-sm font-semibold hover:bg-mist"
+            >
+              Compartilhar o link
+              <span className="block text-xs font-normal text-muted">Pelo menu do aparelho ou copiando.</span>
+            </button>
+          </div>
+        </Janela>
       ) : null}
       {escolhendo ? (
         <EscolherBilhete

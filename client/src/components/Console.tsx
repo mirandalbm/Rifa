@@ -16,6 +16,7 @@ import {
   type BotaoDoConsole,
 } from "@shared/console";
 import { useSession } from "@/lib/session";
+import { rotuloDasMensagens } from "@shared/mensagens";
 import { bilhetesNoCarrinho, useCarrinho } from "@/lib/carrinho";
 import { IconeTrevo } from "@/components/Publicacao";
 import { FotoDoApostador } from "@/components/PerfilDoApostador";
@@ -30,12 +31,13 @@ interface ConfigDoApp {
   avisoDoTrevo: AvisoDoTrevo;
   publicarApostador: boolean;
   reelsLigado: boolean;
+  mensagensLigado: boolean;
 }
 
 /** Como o trevo avisa e se o apostador publica (escolhas da plataforma). */
 export function useConfigDoApp(): ConfigDoApp {
   const { data } = useQuery<ConfigDoApp>({ queryKey: ["/api/public/app"], staleTime: 60_000 });
-  return data ?? { avisoDoTrevo: AVISO_DO_TREVO_PADRAO, publicarApostador: false, reelsLigado: false };
+  return data ?? { avisoDoTrevo: AVISO_DO_TREVO_PADRAO, publicarApostador: false, reelsLigado: false, mensagensLigado: false };
 }
 
 /** Os ícones do console, no traço suave da barra de ações (`Icones.tsx`). */
@@ -214,18 +216,33 @@ export function usePendencias(): string[] {
   return pendenciasDaConta({ conta, confirmado: Boolean(sessao?.buyer?.confirmado), apelido: data.apelido });
 }
 
+/** O número de não lidas do botão Mensagens: só pergunta com a caixa ligada e com conta. */
+function useMensagensNaoLidas(ativo: boolean) {
+  const { mensagensLigado } = useConfigDoApp();
+  const { data: sessao } = useSession();
+  const { data } = useQuery<{ naoLidas: number }>({
+    queryKey: ["/api/public/mensagens/resumo"],
+    refetchInterval: 30_000,
+    enabled: ativo && mensagensLigado && Boolean(sessao?.buyer || sessao?.user),
+  });
+  return mensagensLigado ? (data?.naoLidas ?? 0) : 0;
+}
+
 function BotaoDoConsole({ chave, rotulo, caminho, ativo, lateral }: { chave: BotaoDoConsole; rotulo: string; caminho: string; ativo: boolean; lateral: boolean }) {
   // O número do carrinho conta os bilhetes (cada cartela posta é um); a
   // rifa que só tem quantidade conta como um.
   const itens = bilhetesNoCarrinho(useCarrinho());
   const pendencias = usePendencias().length;
+  const naoLidas = useMensagensNaoLidas(chave === "mensagens");
   const Icone = chave === "perfil" ? null : ICONE[chave];
   const nome =
     chave === "carrinho" && itens
       ? `${rotulo}: ${itens} bilhete(s)`
       : chave === "perfil" && pendencias
         ? `${rotulo}: ${pendencias} pendência(s) na conta`
-        : rotulo;
+        : chave === "mensagens" && naoLidas
+          ? rotuloDasMensagens(naoLidas)
+          : rotulo;
   const icone: ReactNode = Icone ? (
     <Icone aceso={ativo} tamanho={26} />
   ) : (
@@ -253,6 +270,14 @@ function BotaoDoConsole({ chave, rotulo, caminho, ativo, lateral }: { chave: Bot
             className="tnum absolute -right-2 -top-1.5 min-w-[18px] rounded-full border-2 border-white bg-marca px-1 text-center text-[10px] font-bold leading-[14px] text-white"
           >
             {itens > 9 ? "9+" : itens}
+          </span>
+        ) : null}
+        {chave === "mensagens" && naoLidas ? (
+          <span
+            aria-hidden
+            className="tnum absolute -right-2 -top-1.5 min-w-[18px] rounded-full border-2 border-white bg-marca px-1 text-center text-[10px] font-bold leading-[14px] text-white"
+          >
+            {naoLidas > 9 ? "9+" : naoLidas}
           </span>
         ) : null}
         {chave === "perfil" && pendencias ? (

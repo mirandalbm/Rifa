@@ -178,6 +178,7 @@ async function papeis(): Promise<{ papeis: Record<string, Papel>; carrinho: stri
         },
         rotas: [
           "/admin",
+          "/admin/caixa",
           "/admin/organizacoes",
           "/admin/bonus",
           "/admin/fiscal",

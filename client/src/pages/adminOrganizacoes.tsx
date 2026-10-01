@@ -227,14 +227,16 @@ export function AdminOrganizacoes() {
             <Empty>Carregando…</Empty>
           ) : orgs?.length ? (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[560px] text-sm">
+              {/* 480 px: no tablet, com o menu de 260 px ao lado, sobram ~510 px
+                  para o cartão — com 560 a tabela rolava e cortava os botões. */}
+              <table className="w-full min-w-[480px] text-sm">
                 <thead>
                   <tr className="border-b border-line text-left">
-                    <th className="px-4 py-2 font-medium text-muted">Organização</th>
-                    <th className="px-4 py-2 font-medium text-muted">Rifas</th>
-                    <th className="px-4 py-2 font-medium text-muted">Pessoas</th>
-                    <th className="px-4 py-2 font-medium text-muted">Situação</th>
-                    <th className="px-4 py-2" />
+                    <th className="px-3 py-2 font-medium text-muted lg:px-4">Organização</th>
+                    <th className="px-3 py-2 font-medium text-muted lg:px-4">Rifas</th>
+                    <th className="px-3 py-2 font-medium text-muted lg:px-4">Pessoas</th>
+                    <th className="px-3 py-2 font-medium text-muted lg:px-4">Situação</th>
+                    <th className="px-3 py-2 lg:px-4" />
                   </tr>
                 </thead>
                 <tbody>
@@ -527,7 +529,7 @@ function LinhaOrganizacao({
   return (
     <>
       <tr className="border-b border-line align-top last:border-0">
-        <td className="px-4 py-3">
+        <td className="px-3 py-3 lg:px-4">
           <button
             type="button"
             onClick={alternarAberta}
@@ -541,8 +543,8 @@ function LinhaOrganizacao({
             {o.cidade ? ` · ${cidadeUf(o.cidade, o.uf)}` : ""}
           </span>
         </td>
-        <td className="tnum px-4 py-3">{o.campanhas}</td>
-        <td className="tnum px-4 py-3">
+        <td className="tnum px-3 py-3 lg:px-4">{o.campanhas}</td>
+        <td className="tnum px-3 py-3 lg:px-4">
           <Link
             href={`/admin/usuarios?organizacao=${o.id}`}
             className="text-green-deep underline"
@@ -550,7 +552,7 @@ function LinhaOrganizacao({
             {o.pessoas}
           </Link>
         </td>
-        <td className="px-4 py-3">
+        <td className="px-3 py-3 lg:px-4">
           {o.banidaEm ? (
             <Pill status="expired">banida</Pill>
           ) : o.archivedAt ? (
@@ -567,8 +569,10 @@ function LinhaOrganizacao({
             />
           </span>
         </td>
-        <td className="px-4 py-3 text-right">
-          <div className="flex flex-wrap justify-end gap-2">{acoes}</div>
+        <td className="px-3 py-3 text-right lg:px-4">
+          {/* No tablet (menu de 260 px ao lado) os três botões não cabem lado a
+              lado: empilham; no computador voltam a uma linha. */}
+          <div className="flex flex-wrap justify-end gap-2 max-lg:flex-col max-lg:items-end max-lg:[&>button]:px-2.5">{acoes}</div>
         </td>
       </tr>
       {aberta ? (

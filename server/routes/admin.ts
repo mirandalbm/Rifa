@@ -949,7 +949,7 @@ adminRouter.put(
       if (!store.verify(key, exp, sig)) {
         return res.status(403).json({ message: "Link de envio inválido ou expirado." });
       }
-      await store.write(key, req.body as Buffer);
+      await store.write(key, req.body as Buffer, String(req.headers["content-type"] ?? ""));
       res.json({ stored: key, bytes: (req.body as Buffer).length });
     } catch (err) {
       next(err);

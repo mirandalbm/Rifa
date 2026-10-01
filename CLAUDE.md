@@ -84,6 +84,7 @@ arquitetura.
 | sorteio | `server/services/draw.ts` |
 | segundo fator | `server/services/totp.ts` |
 | variantes de imagem | `server/services/images.ts` |
+| onde a mídia é guardada e a cópia de segurança | `server/services/storage.ts` (`LocalDiskStorage`, `CopiaS3`, `sincronizarCopia`), `/uploads` em `server/index.ts`, `tests/backup.test.ts` |
 | mensagens e modelos | `server/notifications/` |
 | cotas premiadas | `shared/premiadas.ts` (números escolhidos), `server/routes/admin.ts` (sorteio e escolha), `services/orders.ts` (revelação), `premiados` em `listarComentarios()` (o comentário fixo de quem levou), `client/src/components/CotaSurpresa.tsx` (o presente na publicação, que revela) |
 | cadastro/cupom/kit do afiliado | `server/routes/public.ts`, `server/routes/affiliate.ts` |
@@ -540,6 +541,20 @@ recusa com 413 antes da régua do serviço — foi assim que a troca de foto
 do perfil falhava no celular. E a foto do perfil sai reduzida do aparelho
 (`lerFoto()` em `client/src/lib/anexo.ts`), com a rotação do EXIF; o
 servidor reprocessa de todo jeito. O 413 responde em português.
+
+**A mídia mora no volume, com cópia fora dele.** Em produção o disco só
+vale se `UPLOAD_DIR` for o volume (no Railway, `/data`): fora dele, tudo
+sumia a cada publicação, e `storage()` agora recusa produção sem
+`UPLOAD_DIR`. Com `BACKUP_S3_BUCKET` (e as chaves `BACKUP_S3_*`), cada
+arquivo gravado vai também para um bucket S3 — R2, bucket do Railway —
+**na hora** (`LocalDiskStorage.write`); a falha da cópia vai ao log e não
+derruba o envio. O que sumir do disco volta sozinho da cópia: na leitura
+(`comCopia`) e em `/uploads` (antes do 404). Remover tira dos dois, senão
+voltaria. O que já estava no disco quando a cópia foi ligada sobe ao subir
+o servidor (`sincronizarCopia`, trava 811013). `tests/backup.test.ts`
+prova com uma cópia de mentira. Foto do perfil, capa, banner, story, logo,
+foto do ganhador e documentos ficam no **Postgres** — o backup deles é o
+do banco.
 
 A **chave do arquivo** também volta do navegador na confirmação do envio, e
 só vale a que o passo 1 gerou para aquela rifa e aquele papel

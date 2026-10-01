@@ -74,10 +74,166 @@ export function chaveDaCampanha(key: string, campaignId: string, role: string): 
  * Desenvolvimento: disco local
  * ------------------------------------------------------------------ */
 
+/* ------------------------------------------------------------------ *
+ * Cópia de segurança: cada arquivo gravado no disco vai também para um
+ * bucket S3 (Cloudflare R2, bucket do Railway, AWS…). Foi o que faltou
+ * quando o disco do servidor apontava para fora do volume: as fotos e os
+ * vídeos sumiam a cada publicação, sem cópia em lugar nenhum.
+ * ------------------------------------------------------------------ */
+
+/** O que a cópia precisa saber fazer — a prova injeta uma de mentira. */
+export interface Copia {
+  readonly nome: string;
+  guardar(key: string, body: Buffer, contentType: string): Promise<void>;
+  /** O arquivo da cópia, ou nulo se ela não tem. */
+  buscar(key: string): Promise<Buffer | null>;
+  existe(key: string): Promise<boolean>;
+  apagar(key: string): Promise<void>;
+}
+
+const MIME_BY_EXT: Record<string, string> = {
+  ".jpg": "image/jpeg",
+  ".png": "image/png",
+  ".webp": "image/webp",
+  ".avif": "image/avif",
+  ".mp4": "video/mp4",
+  ".mov": "video/quicktime",
+};
+const mimeDaChave = (key: string) => MIME_BY_EXT[path.extname(key).toLowerCase()] ?? "application/octet-stream";
+
+export class CopiaS3 implements Copia {
+  readonly nome = "s3";
+  private client: S3Client;
+  constructor(private bucket: string) {
+    this.client = new S3Client({
+      region: process.env.BACKUP_S3_REGION || "auto",
+      endpoint: process.env.BACKUP_S3_ENDPOINT || undefined,
+      // Bucket do Railway e MinIO usam o caminho (`/bucket/chave`); o R2 aceita os dois.
+      forcePathStyle: process.env.BACKUP_S3_PATH_STYLE === "true",
+      credentials: {
+        accessKeyId: process.env.BACKUP_S3_ACCESS_KEY_ID ?? "",
+        secretAccessKey: process.env.BACKUP_S3_SECRET_ACCESS_KEY ?? "",
+      },
+    });
+  }
+
+  async guardar(key: string, body: Buffer, contentType: string) {
+    await this.client.send(new PutObjectCommand({ Bucket: this.bucket, Key: key, Body: body, ContentType: contentType }));
+  }
+
+  async buscar(key: string) {
+    try {
+      const res = await this.client.send(new GetObjectCommand({ Bucket: this.bucket, Key: key }));
+      const chunks: Buffer[] = [];
+      for await (const chunk of res.Body as AsyncIterable<Uint8Array>) chunks.push(Buffer.from(chunk));
+      return Buffer.concat(chunks);
+    } catch (e) {
+      const nome = (e as { name?: string }).name;
+      if (nome === "NoSuchKey" || nome === "NotFound") return null;
+      throw e;
+    }
+  }
+
+  async existe(key: string) {
+    try {
+      await this.client.send(new HeadObjectCommand({ Bucket: this.bucket, Key: key }));
+      return true;
+    } catch (e) {
+      const nome = (e as { name?: string }).name;
+      if (nome === "NotFound" || nome === "NoSuchKey") return false;
+      throw e;
+    }
+  }
+
+  async apagar(key: string) {
+    await this.client.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: key }));
+  }
+}
+
+/** A cópia configurada pelo ambiente (`BACKUP_S3_BUCKET` e as chaves), ou nenhuma. */
+export function copiaDoAmbiente(): Copia | null {
+  const bucket = process.env.BACKUP_S3_BUCKET;
+  return bucket ? new CopiaS3(bucket) : null;
+}
+
+const naoExiste = (e: unknown) => (e as NodeJS.ErrnoException)?.code === "ENOENT";
+
 export class LocalDiskStorage implements Storage {
   readonly name = "local";
-  private root = path.resolve(process.cwd(), process.env.UPLOAD_DIR ?? "uploads");
+  private root: string;
   private secret = process.env.SESSION_SECRET ?? "dev-secret-nao-use-em-producao";
+
+  constructor(
+    private copia: Copia | null = null,
+    root = path.resolve(process.cwd(), process.env.UPLOAD_DIR ?? "uploads"),
+  ) {
+    this.root = root;
+  }
+
+  get temCopia() {
+    return this.copia !== null;
+  }
+
+  /**
+   * O arquivo sumiu do disco (volume trocado, disco apagado): traz da cópia
+   * e grava de novo, para a próxima leitura nem passar por aqui. Sem cópia,
+   * ou sem o arquivo nela, devolve falso.
+   */
+  async restaurar(key: string): Promise<boolean> {
+    if (!this.copia) return false;
+    const corpo = await this.copia.buscar(key);
+    if (!corpo) return false;
+    const file = this.pathFor(key);
+    await fs.mkdir(path.dirname(file), { recursive: true });
+    await fs.writeFile(file, corpo);
+    return true;
+  }
+
+  /** Lê do disco; se não estiver lá, tenta a cópia uma vez. */
+  private async comCopia<T>(key: string, ler: () => Promise<T>): Promise<T> {
+    try {
+      return await ler();
+    } catch (e) {
+      if (naoExiste(e) && (await this.restaurar(key))) return ler();
+      throw e;
+    }
+  }
+
+  /**
+   * Põe na cópia o que está no disco e ainda não tem cópia (o que foi
+   * enviado antes de a cópia ser ligada). Devolve quantos foram copiados.
+   */
+  async sincronizarCopia(): Promise<number> {
+    if (!this.copia) return 0;
+    let copiados = 0;
+    const andar = async (dir: string): Promise<void> => {
+      let itens: import("node:fs").Dirent[];
+      try {
+        itens = await fs.readdir(dir, { withFileTypes: true });
+      } catch (e) {
+        if (naoExiste(e)) return;
+        throw e;
+      }
+      for (const item of itens) {
+        const cheio = path.join(dir, item.name);
+        if (item.isDirectory()) {
+          if (item.name !== "lost+found") await andar(cheio);
+          continue;
+        }
+        const key = path.relative(this.root, cheio).split(path.sep).join("/");
+        if (await this.copia!.existe(key)) continue;
+        await this.copia!.guardar(key, await fs.readFile(cheio), mimeDaChave(key));
+        copiados++;
+      }
+    };
+    await andar(this.root);
+    return copiados;
+  }
+
+  /** Caminho no disco, para servir o arquivo. */
+  caminho(key: string) {
+    return this.pathFor(key);
+  }
 
   private pathFor(key: string) {
     const safe = key.replace(/\.\./g, "").replace(/^\/+/, "");
@@ -106,23 +262,35 @@ export class LocalDiskStorage implements Storage {
     };
   }
 
-  async write(key: string, body: Buffer) {
+  /**
+   * Grava no disco e, com cópia configurada, no bucket — na hora, a cada
+   * envio. Falha da cópia não derruba o envio (o arquivo está no disco), mas
+   * vai para o log, que é onde se descobre que a cópia parou.
+   */
+  async write(key: string, body: Buffer, contentType?: string) {
     const file = this.pathFor(key);
     await fs.mkdir(path.dirname(file), { recursive: true });
     await fs.writeFile(file, body);
+    if (this.copia) {
+      try {
+        await this.copia.guardar(key, body, contentType || mimeDaChave(key));
+      } catch (e) {
+        console.error(`[backup] não guardei a cópia de ${key}:`, (e as Error).message);
+      }
+    }
   }
 
   async readAll(key: string) {
-    return fs.readFile(this.pathFor(key));
+    return this.comCopia(key, () => fs.readFile(this.pathFor(key)));
   }
 
   async size(key: string) {
-    return (await fs.stat(this.pathFor(key))).size;
+    return this.comCopia(key, async () => (await fs.stat(this.pathFor(key))).size);
   }
 
   reader(key: string): RangeReader {
     return async (offset, length) => {
-      const handle = await fs.open(this.pathFor(key), "r");
+      const handle = await this.comCopia(key, () => fs.open(this.pathFor(key), "r"));
       try {
         const buf = Buffer.alloc(length);
         const { bytesRead } = await handle.read(buf, 0, length, offset);
@@ -135,6 +303,8 @@ export class LocalDiskStorage implements Storage {
 
   async remove(key: string) {
     await fs.rm(this.pathFor(key), { force: true });
+    // A mídia recusada ou removida sai da cópia também: senão voltaria sozinha.
+    if (this.copia) await this.copia.apagar(key).catch(() => {});
   }
 
   publicUrl(key: string) {
@@ -245,11 +415,16 @@ function required(name: string): string {
 
 let cached: Storage | null = null;
 
+/**
+ * Em produção o disco só serve se for o volume (`UPLOAD_DIR` apontando para
+ * ele): fora do volume, tudo some a cada publicação. A cópia (`BACKUP_S3_*`)
+ * é o que protege do volume perdido.
+ */
 export function storage(): Storage {
   if (cached) return cached;
-  cached = process.env.R2_BUCKET ? new R2Storage() : new LocalDiskStorage();
-  if (cached.name === "local" && process.env.NODE_ENV === "production") {
-    throw new Error("Configure o R2 em produção: disco local não serve.");
+  if (process.env.R2_BUCKET) return (cached = new R2Storage());
+  if (process.env.NODE_ENV === "production" && !process.env.UPLOAD_DIR) {
+    throw new Error("Configure UPLOAD_DIR (o volume) ou o R2 em produção: o disco do contêiner é apagado a cada publicação.");
   }
-  return cached;
+  return (cached = new LocalDiskStorage(copiaDoAmbiente()));
 }

@@ -85,7 +85,7 @@ export function Card({
   children: ReactNode;
 }) {
   return (
-    <section className="overflow-hidden rounded-xl border border-line bg-white">
+    <section className="cartao overflow-hidden rounded-xl border border-line bg-white">
       {title ? (
         <header className="flex items-center justify-between gap-3 border-b border-line px-4 py-3">
           <h2 className="font-display text-sm font-bold">{title}</h2>
@@ -111,7 +111,7 @@ export function Kpi({
 }) {
   return (
     <div
-      className={`rounded-lg border p-3 ${
+      className={`cartao rounded-lg border p-3 ${
         highlight ? "border-transparent bg-green-soft" : "border-line bg-white"
       }`}
     >

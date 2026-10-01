@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { RodapeDaPlataforma } from "@/components/RodapeDaPlataforma";
 import { Marketing, useTemMarketing } from "@/components/Marketing";
@@ -7,8 +7,19 @@ import { ALTURA_DO_CONSOLE, BotaoPublicar, ConsoleDoApp, TrevoDeAvisos, acimaDoC
 import { reabrirAviso, useEscolha } from "@/lib/marketing";
 import {
   Banknote,
+  Bell,
   Building2,
+  ChevronDown,
+  ChevronsLeft,
+  ChevronsRight,
   Circle,
+  CircleDollarSign,
+  Inbox,
+  Menu,
+  Search,
+  SlidersHorizontal,
+  TrendingUp,
+  UsersRound,
   Download,
   HandCoins,
   KeyRound,
@@ -19,8 +30,6 @@ import {
   LogOut,
   Megaphone,
   Palette,
-  PanelLeftClose,
-  PanelLeftOpen,
   Percent,
   Receipt,
   MessagesSquare,
@@ -41,7 +50,7 @@ import {
   Rocket,
   Target,
 } from "lucide-react";
-import type { SectionKey } from "@shared/access";
+import { menuDe, type IconeDoGrupo, type Section, type SectionKey } from "@shared/access";
 import { useSession, useLogout } from "@/lib/session";
 import { TemaCiclo } from "@/components/TemaToggle";
 import { Marca } from "@/components/Marca";
@@ -142,12 +151,12 @@ function telaLarga(): boolean {
 }
 
 /**
- * Aberto ou recolhido. No computador, lembra a última escolha. No celular
- * começa sempre recolhido: aberto, o menu cobre a tela, e abrir cada página
- * com a tela coberta seria pior que não ter menu.
+ * Aberto (260 px, com os nomes) ou recolhido (72 px, só os ícones — e abre
+ * com os nomes por cima do conteúdo ao passar o ponteiro). Lembrado no
+ * aparelho. No celular não existe recolhido: o menu fica fora da tela e
+ * entra por cima quando o botão do topo o chama.
  */
 function menuInicial(): boolean {
-  if (!telaLarga()) return false;
   try {
     const guardado = localStorage.getItem(CHAVE_MENU);
     return guardado === null ? true : guardado === "1";
@@ -156,13 +165,102 @@ function menuInicial(): boolean {
   }
 }
 
+/** O desenho de cada item "pai" do menu em grupos (`MENUS` em shared/access.ts). */
+const ICONE_DO_GRUPO: Record<IconeDoGrupo, LucideIcon> = {
+  caixa: Inbox,
+  visaoGeral: LayoutDashboard,
+  rifas: Ticket,
+  dinheiro: CircleDollarSign,
+  pessoas: Users,
+  crescimento: TrendingUp,
+  plataforma: SlidersHorizontal,
+  equipe: UsersRound,
+};
+
+const NOME_DO_PAPEL: Partial<Record<string, string>> = {
+  admin: "Administrador geral",
+  organizer: "Organizador",
+  affiliate: "Afiliado",
+  cambista: "Cambista",
+};
+
+/** Sem acento e em minúsculas, para a busca do painel não depender de acento. */
+const simples = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+
 /**
- * Casca dos painéis. O menu vem da sessão — não há lista fixa no cliente.
+ * A busca única do topo: encontra uma tela do painel pelo nome e leva até
+ * ela. Enter abre a primeira; Esc limpa. É só o atalho das telas — pedido,
+ * organização e cliente continuam nas telas deles (`docs/PENDENCIAS.md`).
+ */
+function BuscaDoPainel({ secoes }: { secoes: Section[] }) {
+  const [, navegar] = useLocation();
+  const [texto, setTexto] = useState("");
+  const termo = simples(texto.trim());
+  const achados = termo ? secoes.filter((s) => simples(s.label).includes(termo)).slice(0, 6) : [];
+  const ir = (caminho: string) => {
+    setTexto("");
+    navegar(caminho);
+  };
+  return (
+    <form
+      role="search"
+      className="relative min-w-0 flex-1"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (achados[0]) ir(achados[0].path);
+      }}
+    >
+      <label htmlFor="busca-do-painel" className="sr-only">
+        Buscar no painel
+      </label>
+      <Search size={18} aria-hidden className="pointer-events-none absolute left-0 top-1/2 -translate-y-1/2 text-muted" />
+      <input
+        id="busca-do-painel"
+        type="search"
+        value={texto}
+        onChange={(e) => setTexto(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Escape") setTexto("");
+        }}
+        placeholder="Buscar no painel"
+        autoComplete="off"
+        className="w-full border-0 bg-transparent py-2 pl-7 pr-2 text-sm text-ink placeholder:text-muted focus:outline-none"
+      />
+      {termo ? (
+        <ul
+          aria-label="Telas encontradas"
+          className="cartao absolute left-0 top-full z-30 mt-1 w-72 max-w-[calc(100vw-2rem)] rounded-lg border border-line bg-white py-1 text-sm"
+        >
+          {achados.length === 0 ? (
+            <li className="px-3 py-2 text-muted">Nenhuma tela com esse nome.</li>
+          ) : (
+            achados.map((s) => (
+              <li key={s.key}>
+                <button type="button" onClick={() => ir(s.path)} className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-mist">
+                  {s.label}
+                  <span className="ml-auto font-mono text-[11px] text-muted">{s.path}</span>
+                </button>
+              </li>
+            ))
+          )}
+        </ul>
+      ) : null}
+    </form>
+  );
+}
+
+/**
+ * Casca dos painéis, no padrão do kit Materialize: menu lateral de 260 px com
+ * os itens em grupos (subtítulo em letras pequenas, item pai que abre os
+ * filhos, o aceso numa pílula verde), barra de cima de 64 px com a busca, o
+ * tema, o aviso do atendimento e a conta; o conteúdo sobre um fundo neutro;
+ * o rodapé com o © e os atalhos.
  *
- * O menu fica sempre na lateral esquerda, em qualquer tela. Recolhido, mostra
- * só os ícones (o nome aparece ao segurar/passar o mouse e é lido pelo leitor
- * de tela); aberto, ícone e nome. No celular, aberto passa por cima do
- * conteúdo e fecha ao escolher uma página.
+ * O menu vem da sessão (`sections`); a ordem e a hierarquia vêm de
+ * `menuDe()` em shared/access.ts — não há lista fixa no cliente. Recolhido
+ * (72 px), só os ícones dos itens de cima; ao passar o ponteiro (ou entrar
+ * pelo teclado) abre com os nomes por cima do conteúdo e fecha ao sair. No
+ * celular, o menu entra por cima e fecha ao escolher uma página.
  */
 export function PanelShell({
   children,
@@ -175,11 +273,29 @@ export function PanelShell({
   const [location] = useLocation();
   const logout = useLogout();
   const [aberto, setAberto] = useState(menuInicial);
+  const [noCelular, setNoCelular] = useState(false);
   const nomeDaMarca = useTemplate().identidade.nome;
+  const secoes = session?.sections ?? [];
+  const menu = useMemo(() => (session ? menuDe(session.role, session.sections) : []), [session]);
+
+  // O item pai da tela atual já nasce aberto; os outros abrem no toque.
+  const paiDe = (caminho: string) => {
+    for (const g of menu) for (const i of g.itens) if ("filhos" in i && i.filhos.some((f) => secoes.find((s) => s.key === f)?.path === caminho)) return i.rotulo;
+    return null;
+  };
+  const [abertos, setAbertos] = useState<string[]>(() => {
+    const p = paiDe(location);
+    return p ? [p] : [];
+  });
+  useEffect(() => {
+    const p = paiDe(location);
+    if (p) setAbertos((lista) => (lista.includes(p) ? lista : [...lista, p]));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location, menu]);
 
   // Chamado de reembolso tem prazo: o contador no menu é o aviso que o
   // organizador vê sem precisar abrir o Atendimento.
-  const temAtendimento = Boolean(session?.sections.some((s) => s.key === "adminAtendimento"));
+  const temAtendimento = secoes.some((s) => s.key === "adminAtendimento");
   const { data: pendentes } = useQuery<{ total: number; disputas?: number; solicitacoes?: number; denuncias?: number; verificacoes?: number }>({
     queryKey: ["/api/admin/chamados/pendentes"],
     enabled: temAtendimento,
@@ -193,141 +309,249 @@ export function PanelShell({
         : pendentes?.total) ||
       undefined,
   };
+  const pendenciasNoMenu = Object.values(contador).reduce<number>((s, n) => s + (n ?? 0), 0);
+  const caminhoDoAtendimento = secoes.find((s) => s.key === "adminAtendimento")?.path;
+
+  // O menu da conta (um <details>) fecha ao clicar fora ou no Esc, como um
+  // menu de verdade — senão ficaria aberto por cima do conteúdo.
+  const menuDaConta = useRef<HTMLDetailsElement>(null);
+  useEffect(() => {
+    const fechar = (e: MouseEvent | KeyboardEvent) => {
+      const d = menuDaConta.current;
+      if (!d?.open) return;
+      if (e instanceof KeyboardEvent ? e.key === "Escape" : !d.contains(e.target as Node)) d.open = false;
+    };
+    document.addEventListener("click", fechar);
+    document.addEventListener("keydown", fechar);
+    return () => {
+      document.removeEventListener("click", fechar);
+      document.removeEventListener("keydown", fechar);
+    };
+  }, []);
 
   const alternar = () => {
     const novo = !aberto;
     setAberto(novo);
-    if (telaLarga()) {
-      try {
-        localStorage.setItem(CHAVE_MENU, novo ? "1" : "0");
-      } catch {
-        // armazenamento bloqueado: vale só nesta visita
-      }
+    try {
+      localStorage.setItem(CHAVE_MENU, novo ? "1" : "0");
+    } catch {
+      // armazenamento bloqueado: vale só nesta visita
     }
   };
-  const aoNavegar = () => {
-    if (!telaLarga()) setAberto(false);
+  const aoNavegar = () => setNoCelular(false);
+  const abrirOuFechar = (rotulo: string) =>
+    setAbertos((lista) => (lista.includes(rotulo) ? lista.filter((r) => r !== rotulo) : [...lista, rotulo]));
+
+  // Com os nomes: aberto no computador, ou o menu do celular. Recolhido, os
+  // nomes só aparecem quando o ponteiro (ou o foco) abre o menu por cima.
+  const nomes = aberto ? "" : "max-md:inline hidden group-hover/menu:inline group-focus-within/menu:inline";
+  const bloco = aberto ? "" : "max-md:block hidden group-hover/menu:block group-focus-within/menu:block";
+  const badge = (n: number, classe = "") => (
+    <span aria-hidden className={`tnum rounded-full bg-red px-1.5 text-[11px] font-semibold leading-[18px] text-branco ${classe}`}>
+      {n > 99 ? "99+" : n}
+    </span>
+  );
+  const rotuloCom = (label: string, n?: number) => (n ? `${label} (${n} pendente${n > 1 ? "s" : ""})` : label);
+
+  const itemSolto = (s: Section, filho = false) => {
+    const Icone = ICONE[s.key] ?? Circle;
+    const ativo = location === s.path;
+    const n = contador[s.key];
+    return (
+      <li key={s.key}>
+        <Link
+          href={s.path}
+          onClick={aoNavegar}
+          aria-label={rotuloCom(s.label, n)}
+          aria-current={ativo ? "page" : undefined}
+          className={`relative flex h-[42px] items-center gap-2 rounded-lg pr-3 text-[15px] ${filho ? "pl-5" : "pl-3"} ${
+            ativo ? "bg-green font-semibold text-on-green shadow-aceso" : "text-ink-2 hover:bg-mist-2"
+          }`}
+        >
+          {filho ? (
+            <span aria-hidden className={`mx-2 h-2 w-2 shrink-0 rounded-full ${ativo ? "bg-branco" : "bg-muted"}`} />
+          ) : (
+            <Icone size={22} className="shrink-0" aria-hidden />
+          )}
+          <span className={`truncate ${nomes}`}>{s.label}</span>
+          {n ? badge(n, aberto ? "ml-auto" : `ml-auto ${nomes}`) : null}
+          {n && !aberto && !filho ? badge(n, "absolute right-1 top-1 group-hover/menu:hidden group-focus-within/menu:hidden") : null}
+        </Link>
+      </li>
+    );
   };
 
-  const item = (ativo: boolean) =>
-    `flex items-center gap-3 rounded-md px-2.5 py-2 text-sm ${
-      ativo ? "bg-green font-semibold text-on-green" : "text-ink-2 hover:bg-mist-2"
-    } ${aberto ? "" : "justify-center"}`;
-
   return (
-    <div className="min-h-screen bg-white">
-      {aberto ? (
+    <div className="painel min-h-screen bg-painel text-ink">
+      {noCelular ? (
         <button
           type="button"
           aria-label="Fechar menu"
-          onClick={() => setAberto(false)}
-          className="fixed inset-0 z-30 bg-black/30 md:hidden"
+          onClick={() => setNoCelular(false)}
+          className="fixed inset-0 z-30 bg-black/40 md:hidden"
         />
       ) : null}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex flex-col border-r border-line bg-mist transition-[width] duration-200 ${
-          aberto ? "w-[220px]" : "w-14"
-        }`}
+        className={`group/menu fixed inset-y-0 left-0 z-40 flex w-[260px] flex-col bg-painel transition-[width,transform] duration-150 motion-reduce:transition-none max-md:shadow-papel ${
+          noCelular ? "" : "max-md:-translate-x-full"
+        } ${aberto ? "md:w-[260px]" : "md:w-[72px] md:hover:w-[260px] md:hover:shadow-papel md:focus-within:w-[260px] md:focus-within:shadow-papel"}`}
         style={{ paddingTop: "env(safe-area-inset-top)", paddingBottom: "env(safe-area-inset-bottom)" }}
         aria-label="Menu do painel"
       >
-        <div className={`flex items-center gap-2 px-2 pb-2 pt-3 ${aberto ? "justify-between" : "flex-col"}`}>
-          <Link
-            href="/"
-            title="Ir para as rifas"
-            className="min-w-[24px] px-1 text-center font-display text-lg font-extrabold tracking-tight"
-          >
+        <div className="flex h-16 shrink-0 items-center gap-2 overflow-hidden px-5">
+          <Link href="/" title="Ir para as rifas" className="min-w-0 whitespace-nowrap text-lg">
             {aberto ? (
               <Marca />
             ) : (
               <>
-                {(nomeDaMarca || "r").charAt(0)}<span className="text-marca">.</span>
+                <span className={`hidden group-hover/menu:inline group-focus-within/menu:inline max-md:inline`}>
+                  <Marca />
+                </span>
+                <span className="font-display text-xl font-extrabold tracking-tight group-hover/menu:hidden group-focus-within/menu:hidden max-md:hidden">
+                  {(nomeDaMarca || "r").charAt(0)}<span className="text-marca">.</span>
+                </span>
               </>
             )}
           </Link>
           <button
             type="button"
-            onClick={alternar}
+            onClick={() => (telaLarga() ? alternar() : setNoCelular(false))}
             aria-expanded={aberto}
             aria-label={aberto ? "Recolher menu" : "Abrir menu"}
             title={aberto ? "Recolher menu" : "Abrir menu"}
-            className="rounded-md p-1.5 text-ink-2 hover:bg-mist-2"
+            className={`ml-auto rounded-md p-1.5 text-muted hover:bg-mist-2 hover:text-ink ${nomes}`}
           >
-            {aberto ? <PanelLeftClose size={18} /> : <PanelLeftOpen size={18} />}
+            {aberto ? <ChevronsLeft size={20} aria-hidden /> : <ChevronsRight size={20} aria-hidden />}
           </button>
         </div>
 
-        <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-2 py-1">
-          {session?.sections.map((s) => {
-            const Icone = ICONE[s.key] ?? Circle;
-            const ativo = location === s.path;
-            const n = contador[s.key];
-            const rotulo = n ? `${s.label} (${n} pendente${n > 1 ? "s" : ""})` : s.label;
-            return (
-              <Link
-                key={s.key}
-                href={s.path}
-                onClick={aoNavegar}
-                title={aberto ? undefined : rotulo}
-                aria-label={rotulo}
-                aria-current={ativo ? "page" : undefined}
-                className={`relative ${item(ativo)}`}
-              >
-                <Icone size={18} className="shrink-0" aria-hidden />
-                {aberto ? <span className="truncate">{s.label}</span> : null}
-                {n ? (
-                  <span
-                    aria-hidden
-                    className={`tnum rounded-full bg-yellow px-1.5 text-[11px] font-semibold leading-[18px] text-on-yellow ${
-                      aberto ? "ml-auto" : "absolute -right-0.5 -top-0.5"
-                    }`}
-                  >
-                    {n > 99 ? "99+" : n}
-                  </span>
-                ) : null}
-              </Link>
-            );
-          })}
+        <nav className="flex-1 overflow-y-auto overflow-x-hidden px-3 pb-2">
+          {menu.map((g, gi) => (
+            <div key={g.titulo ?? gi}>
+              {g.titulo ? (
+                <p className="flex h-[34px] items-center gap-4 pt-3 text-[11px] uppercase tracking-[0.1em] text-muted">
+                  <span aria-hidden className="h-px w-4 shrink-0 bg-line-2" />
+                  <span className={nomes}>{g.titulo}</span>
+                </p>
+              ) : null}
+              <ul className="space-y-1.5">
+                {g.itens.map((i) => {
+                  if ("secao" in i) {
+                    const s = secoes.find((x) => x.key === i.secao);
+                    return s ? itemSolto(s) : null;
+                  }
+                  const Icone = ICONE_DO_GRUPO[i.icone];
+                  const filhos = i.filhos.map((f) => secoes.find((x) => x.key === f)).filter((x): x is Section => Boolean(x));
+                  const estaAberto = abertos.includes(i.rotulo);
+                  const temAtivo = filhos.some((f) => f.path === location);
+                  const n = filhos.reduce((soma, f) => soma + (contador[f.key] ?? 0), 0);
+                  return (
+                    <li key={i.rotulo}>
+                      <button
+                        type="button"
+                        onClick={() => abrirOuFechar(i.rotulo)}
+                        aria-expanded={estaAberto}
+                        aria-label={rotuloCom(i.rotulo, n || undefined)}
+                        className={`relative flex h-[42px] w-full items-center gap-2 rounded-lg pl-3 pr-2 text-left text-[15px] text-ink-2 hover:bg-mist-2 ${
+                          temAtivo && !estaAberto ? "bg-mist-2" : ""
+                        }`}
+                      >
+                        <Icone size={22} className="shrink-0" aria-hidden />
+                        <span className={`truncate ${nomes}`}>{i.rotulo}</span>
+                        {n ? badge(n, `ml-auto ${nomes}`) : null}
+                        {n && !aberto ? badge(n, "absolute right-1 top-1 group-hover/menu:hidden group-focus-within/menu:hidden") : null}
+                        <ChevronDown
+                          size={18}
+                          aria-hidden
+                          className={`shrink-0 text-muted transition-transform motion-reduce:transition-none ${n ? "" : "ml-auto"} ${estaAberto ? "" : "-rotate-90"} ${nomes}`}
+                        />
+                      </button>
+                      {estaAberto ? <ul className={`mt-1.5 space-y-1.5 ${bloco}`}>{filhos.map((f) => itemSolto(f, true))}</ul> : null}
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ))}
         </nav>
 
-        <div className="border-t border-line px-2 py-2">
-          {aberto ? (
-            <p className="truncate px-2.5 pb-1 font-mono text-[11px] text-muted">
-              {session?.user?.name}
-            </p>
-          ) : null}
-          <Link
-            href="/conta/senha"
-            onClick={aoNavegar}
-            title={aberto ? undefined : "Trocar senha"}
-            aria-label="Trocar senha"
-            className={item(location === "/conta/senha")}
-          >
-            <KeyRound size={18} className="shrink-0" aria-hidden />
-            {aberto ? <span>Trocar senha</span> : null}
-          </Link>
-          <TemaCiclo compacto={!aberto} className={`${item(false)} w-full`} />
-          <button
-            type="button"
-            onClick={() => logout.mutate()}
-            title={aberto ? undefined : "Sair"}
-            aria-label="Sair"
-            className={`${item(false)} w-full`}
-          >
-            <LogOut size={18} className="shrink-0" aria-hidden />
-            {aberto ? <span>Sair</span> : null}
-          </button>
+        <div className="flex h-16 shrink-0 items-center gap-3 overflow-hidden border-t border-line px-4">
+          <span aria-hidden className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-green-soft text-sm font-semibold text-green-deep">
+            {(session?.user?.name || "?").charAt(0).toUpperCase()}
+          </span>
+          <span className={`min-w-0 ${nomes}`}>
+            <span className="block truncate text-sm font-medium">{session?.user?.name}</span>
+            <span className="block truncate text-[11px] text-muted">{session?.organizacao?.nome ?? NOME_DO_PAPEL[session?.role ?? ""] ?? ""}</span>
+          </span>
         </div>
       </aside>
 
-      {/* O conteúdo abre espaço para o menu: recolhido em qualquer tela; aberto
-          só no computador — no celular o menu aberto passa por cima. */}
-      <div className={`min-w-0 pl-14 ${aberto ? "md:pl-[220px]" : ""}`}>
-        <header className="border-b border-line px-4 py-4 md:px-5">
-          <h1 className="font-display text-xl font-bold">{title}</h1>
+      {/* O conteúdo abre espaço para o menu no tablet e no computador; no
+          celular o menu passa por cima. */}
+      <div className={`flex min-h-screen min-w-0 flex-col ${aberto ? "md:pl-[260px]" : "md:pl-[72px]"}`}>
+        <header className="sticky top-0 z-20 flex h-16 items-center gap-3 bg-painel/95 px-4 md:px-6">
+          <button
+            type="button"
+            onClick={() => setNoCelular(true)}
+            aria-label="Abrir menu"
+            className="-ml-1 rounded-md p-1.5 text-ink-2 hover:bg-mist-2 md:hidden"
+          >
+            <Menu size={22} aria-hidden />
+          </button>
+          <BuscaDoPainel secoes={secoes} />
+          <TemaCiclo compacto className="rounded-md p-1.5 text-ink-2 hover:bg-mist-2" />
+          {caminhoDoAtendimento ? (
+            <Link
+              href={caminhoDoAtendimento}
+              aria-label={pendenciasNoMenu ? `Atendimento: ${pendenciasNoMenu} pendente${pendenciasNoMenu > 1 ? "s" : ""}` : "Atendimento: nada pendente"}
+              className="relative rounded-md p-1.5 text-ink-2 hover:bg-mist-2"
+            >
+              <Bell size={20} aria-hidden />
+              {pendenciasNoMenu ? <span aria-hidden className="absolute right-1 top-1 h-2 w-2 rounded-full bg-red" /> : null}
+            </Link>
+          ) : null}
+          <details ref={menuDaConta} className="relative">
+            <summary
+              aria-label={`Conta de ${session?.user?.name ?? ""}`}
+              className="flex h-9 w-9 cursor-pointer list-none items-center justify-center rounded-full bg-green text-sm font-semibold text-on-green [&::-webkit-details-marker]:hidden"
+            >
+              <span aria-hidden>{(session?.user?.name || "?").charAt(0).toUpperCase()}</span>
+            </summary>
+            <div className="cartao absolute right-0 top-full z-30 mt-2 w-60 rounded-lg border border-line bg-white py-1 text-sm">
+              <p className="truncate px-3 pb-2 pt-1 text-xs text-muted">
+                <span className="block truncate font-medium text-ink">{session?.user?.name}</span>
+                {session?.user?.email}
+              </p>
+              <Link href="/" className="flex items-center gap-2 px-3 py-2 hover:bg-mist">
+                <Store size={16} aria-hidden /> Ir para as rifas
+              </Link>
+              <Link href="/conta/senha" className="flex items-center gap-2 px-3 py-2 hover:bg-mist">
+                <KeyRound size={16} aria-hidden /> Trocar senha
+              </Link>
+              <button type="button" onClick={() => logout.mutate()} className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-mist">
+                <LogOut size={16} aria-hidden /> Sair
+              </button>
+            </div>
+          </details>
         </header>
-        <main className="px-4 py-5 md:px-5">{children}</main>
+        <main className="flex-1 px-4 pb-6 pt-2 md:px-6">
+          <h1 className="mb-5 text-xl font-medium">{title}</h1>
+          {children}
+        </main>
+        <footer className="flex h-14 flex-wrap items-center justify-between gap-x-6 gap-y-1 px-4 text-xs text-muted md:px-6">
+          <span>
+            © <span className="tnum">{new Date().getFullYear()}</span> {nomeDaMarca} · {NOME_DO_PAPEL[session?.role ?? ""] ?? "Painel"}
+          </span>
+          <span className="flex gap-4">
+            <Link href="/ajuda" className="text-green-deep hover:underline">
+              Ajuda
+            </Link>
+            <Link href="/" className="text-green-deep hover:underline">
+              Rifas
+            </Link>
+          </span>
+        </footer>
       </div>
     </div>
   );

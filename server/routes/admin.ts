@@ -120,7 +120,7 @@ import {
   OrgScopeError,
 } from "../services/orgs";
 import { isUniqueViolation } from "../pgError";
-import { destaqueDa, salvarPerfil, urlDaCapa, urlDaFoto } from "../services/perfil";
+import { destaqueDa, midiasDas, salvarPerfil, urlDaCapa, urlDaFoto } from "../services/perfil";
 import { resultados as resultadosDoPainel } from "../services/resultados";
 import {
   decidirPedidoDeColaborador,
@@ -395,7 +395,14 @@ adminRouter.get("/campaigns", async (req, res, next) => {
       .leftJoin(campaignStats, eq(campaignStats.campaignId, campaigns.id))
       .where(org ? eq(campaigns.organizationId, org) : sql`TRUE`)
       .orderBy(desc(campaigns.createdAt));
-    res.json(rows);
+    // A capa da grade de rifas do painel: o banner, senão a primeira foto.
+    const midias = await midiasDas(rows.map((r) => r.campaign.id));
+    res.json(
+      rows.map((r) => ({
+        ...r,
+        capa: midias.get(r.campaign.id)?.find((m) => m.role !== "video")?.url ?? null,
+      })),
+    );
   } catch (err) {
     next(err);
   }

@@ -9,7 +9,9 @@ import { PagamentosCard } from "@/components/PagamentosCard";
 import { ComissaoCard } from "@/components/ComissaoCard";
 import { ReembolsoCard } from "@/components/ReembolsoCard";
 import { PanelShell } from "@/components/AppShell";
-import { Card, Kpi, Money, Pill, Button, Empty, Progress } from "@/components/bits";
+import { Card, Money, Pill, Button, Empty, Progress } from "@/components/bits";
+import { AlternarVisao, CabecalhoDaTabela, CartaoDoPainel, Estatistica } from "@/components/painel";
+import { Banknote, ChevronRight, Clock, Image as ImagemIcone, LayoutGrid, List, MoreVertical, Percent, Ticket } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useSession } from "@/lib/session";
 import { MediaManager } from "@/components/MediaManager";
@@ -50,22 +52,6 @@ interface AdminOverview {
   ultimasVendas?: { code: number; prizeTitle: string; quantity: number; amountCents: number; paidAt: string; cambista: boolean }[];
 }
 
-/**
- * O cartão da grade do painel (bento): a etiqueta presa na borda de cima diz
- * o que é o cartão antes de ler o conteúdo.
- */
-function Bento({ rotulo, className = "", tom, children }: { rotulo: string; className?: string; tom?: "green" | "yellow"; children: React.ReactNode }) {
-  const fundo = tom === "green" ? "border-green bg-green-soft" : tom === "yellow" ? "border-yellow bg-yellow-soft" : "border-line bg-white";
-  return (
-    <section aria-label={rotulo} className={`relative mt-2 min-w-0 rounded-xl border ${fundo} px-4 pb-4 pt-5 ${className}`}>
-      <span className="absolute -top-2.5 left-3 rounded-full border border-line bg-white px-2 font-mono text-[10px] uppercase tracking-widest text-muted">
-        {rotulo}
-      </span>
-      {children}
-    </section>
-  );
-}
-
 const quandoFoi = (iso: string) => {
   const min = Math.max(1, Math.round((Date.now() - new Date(iso).getTime()) / 60_000));
   if (min < 60) return `há ${min} min`;
@@ -79,7 +65,7 @@ function RevenueChart({ data }: { data: { day: string; cents: number }[] }) {
   const peak = data.reduce((a, b) => (b.cents > a.cents ? b : a));
 
   return (
-    <div className="flex h-36 items-end gap-1 px-4 pb-3 pt-4">
+    <div className="flex h-52 items-end gap-1 px-5 pb-5 pt-2">
       {data.map((d) => (
         <div key={d.day} className="flex h-full flex-1 flex-col items-center justify-end gap-1">
           <span className="tnum text-[9px]">
@@ -102,128 +88,140 @@ export function AdminPainel() {
   const p = data?.pendencias;
   const afazer = p
     ? [
-        p.telefonePendente ? { texto: "Confirmar o telefone da organização (exigido para publicar)", href: "/admin/configuracoes" } : null,
-        p.chamadosAbertos ? { texto: `${p.chamadosAbertos} pedido(s) de reembolso esperando resposta`, href: "/admin/atendimento" } : null,
+        p.telefonePendente ? { texto: "Confirmar o telefone da organização", apoio: "exigido para publicar", href: "/admin/configuracoes", tom: "yellow" as const } : null,
+        p.chamadosAbertos ? { texto: "Reembolsos esperando resposta", apoio: `${p.chamadosAbertos} chamado(s)`, href: "/admin/atendimento", tom: "red" as const } : null,
         p.rascunhosSemAutorizacao
-          ? { texto: `${p.rascunhosSemAutorizacao} rascunho(s) sem autorização SPA/MF`, href: "/admin/campanhas" }
+          ? { texto: "Rascunhos sem autorização SPA/MF", apoio: `${p.rascunhosSemAutorizacao} rifa(s)`, href: "/admin/campanhas", tom: "yellow" as const }
           : null,
-        p.pedidosEsperandoPix ? { texto: `${p.pedidosEsperandoPix} pedido(s) esperando o Pix`, href: "/admin/pedidos" } : null,
-      ].filter((x): x is { texto: string; href: string } => Boolean(x))
+        p.pedidosEsperandoPix ? { texto: "Pedidos esperando o Pix", apoio: `${p.pedidosEsperandoPix} pedido(s)`, href: "/admin/pedidos", tom: "yellow" as const } : null,
+      ].filter((x): x is { texto: string; apoio: string; href: string; tom: "yellow" | "red" } => Boolean(x))
     : [];
   const prox = data?.proximoSorteio;
   const faltam = prox ? Math.max(0, Math.ceil((new Date(prox.drawAt).getTime() - Date.now()) / 86_400_000)) : 0;
+  const TOM_DA_PENDENCIA = { yellow: "bg-yellow-soft text-yellow-deep", red: "bg-red-soft text-red" };
 
   return (
     <PanelShell title="Painel">
       {!data ? (
         <Empty>Carregando…</Empty>
       ) : (
-        // Grade bento: no computador, 4 colunas com a receita em destaque
-        // (2×2); no tablet, 2; no celular, uma, na ordem do que importa.
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Bento rotulo="Receita paga" tom="green" className="sm:col-span-2 lg:row-span-2">
-            <p className="tnum font-mono text-3xl font-bold text-green-deep">{formatBRL(data.revenueCents)}</p>
-            <p className="mt-1 text-xs text-muted">
-              Por dia, nos últimos <span className="tnum">14</span> dias
-            </p>
-            <div className="-mx-4">
+        // No padrão do kit: a fila de estatísticas em cima, o gráfico com o
+        // que falta ao lado, e as últimas vendas numa tabela embaixo.
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <Estatistica icone={Banknote} tom="green" valor={formatBRL(data.revenueCents)} rotulo="Receita paga" dica={<>últimos <span className="tnum">14</span> dias</>} />
+            <Estatistica
+              icone={Ticket}
+              tom="azul"
+              valor={groupNumber(data.soldCount)}
+              rotulo="Cotas vendidas"
+              dica={<>de <span className="tnum">{groupNumber(data.publishedQuotas)}</span> publicadas · <span className="tnum">{groupNumber(data.reservedCount)}</span> reservadas</>}
+            />
+            <Estatistica
+              icone={Percent}
+              tom="yellow"
+              valor={formatBRL(data.commissionToPayCents)}
+              rotulo="Comissão a pagar"
+              dica={<><span className="tnum">{data.commissionAffiliates}</span> afiliado(s)</>}
+              href="/admin/financeiro"
+            />
+            <Estatistica
+              icone={Clock}
+              tom="red"
+              valor={prox ? new Date(prox.drawAt).toLocaleDateString("pt-BR") : "—"}
+              rotulo={prox ? `Próximo sorteio · ${faltam <= 1 ? "amanhã ou hoje" : `em ${faltam} dias`}` : "Próximo sorteio"}
+              dica={prox ? prox.prizeTitle : "Nenhuma rifa no ar com sorteio marcado"}
+              href={prox ? `/r/${prox.slug}` : undefined}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+            <CartaoDoPainel titulo="Receita dos últimos 14 dias" subtitulo="Venda paga, por dia, no fuso de São Paulo" className="lg:col-span-2">
               <RevenueChart data={data.daily} />
-            </div>
-          </Bento>
-          <Bento rotulo="Cotas vendidas">
-            <p className="tnum font-mono text-2xl font-bold">{groupNumber(data.soldCount)}</p>
-            <p className="mt-1 text-xs text-muted">
-              de <span className="tnum">{groupNumber(data.publishedQuotas)}</span> publicadas ·{" "}
-              <span className="tnum">{groupNumber(data.reservedCount)}</span> reservadas
-            </p>
-          </Bento>
-          <Bento rotulo="Comissão a pagar">
-            <p className="tnum font-mono text-2xl font-bold">{formatBRL(data.commissionToPayCents)}</p>
-            <p className="mt-1 text-xs text-muted">
-              <span className="tnum">{data.commissionAffiliates}</span> afiliado(s)
-            </p>
-          </Bento>
-          <Bento rotulo="Próximo sorteio" tom="yellow" className="sm:col-span-2">
-            {prox ? (
-              <Link href={`/r/${prox.slug}`} className="block space-y-2 hover:opacity-90">
-                <p className="flex flex-wrap items-baseline justify-between gap-x-2">
-                  <span className="min-w-0 truncate font-display text-base font-bold">{prox.prizeTitle}</span>
-                  <span className="tnum shrink-0 text-sm font-semibold text-yellow-deep">
-                    {new Date(prox.drawAt).toLocaleDateString("pt-BR")} · {faltam <= 1 ? "amanhã ou hoje" : `em ${faltam} dias`}
-                  </span>
+            </CartaoDoPainel>
+            <CartaoDoPainel titulo="O que falta" subtitulo="Resolva antes de vender">
+              {afazer.length === 0 ? (
+                <p className="flex items-center gap-2 px-5 pb-5 text-sm">
+                  <span className="shrink-0"><Pill status="paid">em dia</Pill></span> Nada esperando por você agora.
                 </p>
-                <Progress value={prox.soldCount} total={prox.totalQuotas} tone="yellow" />
-                <p className="tnum text-xs text-yellow-deep">
-                  {groupNumber(prox.soldCount)} de {groupNumber(prox.totalQuotas)} cotas vendidas
-                </p>
-              </Link>
-            ) : (
-              <p className="text-sm text-yellow-deep">Nenhuma rifa no ar com sorteio marcado.</p>
-            )}
-          </Bento>
-          <Bento rotulo="O que falta" className="sm:col-span-2">
-            {afazer.length === 0 ? (
-              <p className="flex items-center gap-2 text-sm">
-                <span className="shrink-0"><Pill status="paid">em dia</Pill></span> Nada esperando por você agora.
-              </p>
-            ) : (
-              <ul className="space-y-2 text-sm">
-                {afazer.map((a) => (
-                  <li key={a.href + a.texto}>
-                    <Link href={a.href} className="flex items-center gap-2 rounded-md px-1 py-1 hover:bg-mist">
-                      <span className="shrink-0"><Pill status="pending">pendente</Pill></span>
-                      <span className="flex-1">{a.texto}</span>
-                      <span aria-hidden className="text-muted">→</span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Bento>
-          <Bento rotulo="Últimas vendas" className="sm:col-span-2 lg:row-span-2">
-            {!data.ultimasVendas?.length ? (
-              <Empty>Nenhuma venda paga ainda.</Empty>
-            ) : (
-              <ul className="-mx-4 divide-y divide-line">
-                {data.ultimasVendas.map((v) => (
-                  <li key={v.code} className="flex items-center gap-3 px-4 py-2 text-sm">
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate font-semibold">{v.prizeTitle}</span>
-                      <span className="block text-xs text-muted">
-                        <span className="tnum">#{v.code}</span> · <span className="tnum">{v.quantity}</span> cota(s) ·{" "}
-                        {quandoFoi(v.paidAt)}
-                        {v.cambista ? " · cambista" : ""}
+              ) : (
+                <ul className="pb-3">
+                  {afazer.map((a) => (
+                    <li key={a.href + a.texto}>
+                      <Link href={a.href} className="flex items-center gap-3 px-5 py-2.5 text-sm hover:bg-mist">
+                        <span aria-hidden className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${TOM_DA_PENDENCIA[a.tom]}`}>
+                          <ChevronRight size={18} />
+                        </span>
+                        <span className="min-w-0">
+                          <span className="block truncate font-medium">{a.texto}</span>
+                          <span className="block text-xs text-muted">{a.apoio}</span>
+                        </span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {prox ? (
+                <div className="border-t border-line px-5 py-4">
+                  <p className="mb-2 flex items-baseline justify-between gap-2 text-xs text-muted">
+                    <span className="truncate">{prox.prizeTitle}</span>
+                    <span className="tnum shrink-0">{groupNumber(prox.soldCount)} de {groupNumber(prox.totalQuotas)}</span>
+                  </p>
+                  <Progress value={prox.soldCount} total={prox.totalQuotas} tone="yellow" />
+                </div>
+              ) : null}
+            </CartaoDoPainel>
+          </div>
+
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+            <CartaoDoPainel titulo="Últimas vendas" subtitulo="Sem nome nem telefone — quem é o cliente é regra da titularidade" className="lg:col-span-2">
+              {!data.ultimasVendas?.length ? (
+                <Empty>Nenhuma venda paga ainda.</Empty>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[520px] text-sm">
+                    <CabecalhoDaTabela colunas={["Pedido", "Rifa", "Cotas", "Quando", "Canal", "Valor"]} />
+                    <tbody>
+                      {data.ultimasVendas.map((v) => (
+                        <tr key={v.code} className="border-t border-line">
+                          <td className="tnum px-4 py-3 font-medium text-green-deep">#{v.code}</td>
+                          <td className="max-w-[260px] truncate px-4 py-3">{v.prizeTitle}</td>
+                          <td className="tnum px-4 py-3">{v.quantity}</td>
+                          <td className="px-4 py-3 text-muted">{quandoFoi(v.paidAt)}</td>
+                          <td className="px-4 py-3"><Pill status={v.cambista ? "pending" : "paid"}>{v.cambista ? "cambista" : "site"}</Pill></td>
+                          <td className="px-4 py-3"><Money cents={v.amountCents} className="font-medium" /></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </CartaoDoPainel>
+            <CartaoDoPainel titulo="Top afiliados" subtitulo="Quem mais vendeu pelo link">
+              {data.topAffiliates.length === 0 ? (
+                <p className="px-5 pb-5 text-sm text-muted">Nenhum afiliado ainda.</p>
+              ) : (
+                <ul className="divide-y divide-line pb-2">
+                  {data.topAffiliates.map((a, i) => (
+                    <li key={a.code} className="flex items-center gap-3 px-5 py-2.5 text-sm">
+                      <span
+                        className={`tnum flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-[11px] font-semibold ${
+                          i === 0 ? "bg-yellow-soft text-yellow-deep" : "bg-mist-2 text-muted"
+                        }`}
+                      >
+                        {i + 1}
                       </span>
-                    </span>
-                    <Money cents={v.amountCents} className="shrink-0 font-semibold text-green-deep" />
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Bento>
-          <Bento rotulo="Top afiliados" className="sm:col-span-2">
-            {data.topAffiliates.length === 0 ? (
-              <p className="text-sm text-muted">Nenhum afiliado ainda.</p>
-            ) : (
-              <ul className="-mx-4 divide-y divide-line">
-                {data.topAffiliates.map((a, i) => (
-                  <li key={a.code} className="flex items-center gap-3 px-4 py-2 text-sm">
-                    <span
-                      className={`tnum flex h-5 w-5 items-center justify-center rounded text-[10px] ${
-                        i === 0 ? "bg-yellow text-on-yellow" : "bg-mist-2 text-muted"
-                      }`}
-                    >
-                      {i + 1}
-                    </span>
-                    <span className="flex-1">
-                      {a.name} · <span className="tnum text-muted">{a.code}</span>
-                    </span>
-                    <Money cents={a.cents} className="text-ink-2" />
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Bento>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate font-medium">{a.name}</span>
+                        <span className="tnum block text-xs text-muted">{a.code}</span>
+                      </span>
+                      <Money cents={a.cents} className="shrink-0 text-ink-2" />
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </CartaoDoPainel>
+          </div>
         </div>
       )}
     </PanelShell>
@@ -246,6 +244,28 @@ interface CampaignRow {
   stats: { soldCount: number; reservedCount?: number; revenueCents: number } | null;
   /** Pedidos de mudança esperando a plataforma: "edicao", "adiamento". */
   emAnalise?: string[] | null;
+  /** O banner (ou a primeira foto) — a capa da grade de rifas. */
+  capa?: string | null;
+}
+
+const CHAVE_VISAO = "rifa.rifas.visao";
+type VisaoDasRifas = "grade" | "lista";
+function visaoInicial(): VisaoDasRifas {
+  try {
+    return localStorage.getItem(CHAVE_VISAO) === "lista" ? "lista" : "grade";
+  } catch {
+    return "grade";
+  }
+}
+
+/** A situação da rifa em texto, para o selo da capa (nunca só a cor). */
+function situacaoDaRifa(c: CampaignRow["campaign"], emAnalise?: string[] | null): { status: string; texto: string }[] {
+  const selos = [{ status: c.status, texto: c.status === "published" ? "No ar" : c.status === "draft" ? "Rascunho" : c.status === "drawn" ? "Sorteada" : "Encerrada" }];
+  if (c.demonstracao) selos.push({ status: "pending", texto: "Demonstração" });
+  if (c.travadaEm) selos.push({ status: "expired", texto: "Travada" });
+  if (emAnalise?.includes("edicao")) selos.push({ status: "pending", texto: "Edição em análise" });
+  if (emAnalise?.includes("adiamento")) selos.push({ status: "pending", texto: "Adiamento em análise" });
+  return selos;
 }
 
 const PRESETS = [1_000, 10_000, 100_000, 1_000_000];
@@ -265,6 +285,8 @@ export function AdminCampanhas() {
   });
   const [open, setOpen] = useState(false);
   const [mediaFor, setMediaFor] = useState<string | null>(null);
+  // Grade de capas ou lista, lembrado no aparelho.
+  const [visao, setVisao] = useState<VisaoDasRifas>(visaoInicial);
   const [form, setForm] = useState({
     title: "",
     slug: "",
@@ -329,13 +351,13 @@ export function AdminCampanhas() {
   const digits = String(form.totalQuotas).length;
 
   return (
-    <PanelShell title="Campanhas">
+    <PanelShell title="Rifas">
       <div className="mb-4 flex items-center justify-between">
         <p className="text-sm text-muted">
-          <span className="tnum">{data?.length ?? 0}</span> campanha(s)
+          <span className="tnum">{data?.length ?? 0}</span> rifa(s)
         </p>
         <Button onClick={() => setOpen((v) => !v)}>
-          {open ? "Fechar" : "Nova campanha"}
+          {open ? "Fechar" : "Nova rifa"}
         </Button>
       </div>
 
@@ -536,153 +558,208 @@ export function AdminCampanhas() {
         </div>
       ) : null}
 
-      <div className="mt-3">
-        <Card>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[640px] text-sm">
-              <thead>
-                <tr className="bg-mist">
-                  {["Campanha", "Cota", "Progresso", "Arrecadado", "Sorteio", "Status", ""].map(
-                    (h) => (
-                      <th key={h} className="label-xs px-3 py-2 text-left">
-                        {h}
-                      </th>
-                    ),
-                  )}
-                </tr>
-              </thead>
-              <tbody>
-                {data?.map(({ campaign, stats, emAnalise }) => (
-                  <tr key={campaign.id} className="border-t border-line">
-                    <td className="px-3 py-2 font-medium">{campaign.prizeTitle}</td>
-                    <td className="px-3 py-2">
-                      <Money cents={campaign.priceCents} />
-                    </td>
-                    <td className="min-w-[130px] px-3 py-2">
-                      <Progress value={stats?.soldCount ?? 0} total={campaign.totalQuotas} />
-                      <span className="label-xs">
-                        {groupNumber(stats?.soldCount ?? 0)}/{groupNumber(campaign.totalQuotas)}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2">
-                      <Money cents={stats?.revenueCents ?? 0} />
-                    </td>
-                    <td className="tnum px-3 py-2">
-                      {campaign.drawAt
-                        ? new Date(campaign.drawAt).toLocaleDateString("pt-BR")
-                        : "—"}
-                      {campaign.adiamentos ? (
-                        <span className="block text-[11px] text-muted">
-                          adiado{campaign.drawAtOriginal
-                            ? ` (era ${new Date(campaign.drawAtOriginal).toLocaleDateString("pt-BR")})`
-                            : ""}
+      {/* As ações de cada rifa, as mesmas na grade e na lista. */}
+      {(() => {
+        const acoesDa = ({ campaign, stats }: CampaignRow) => {
+          const lista: { rotulo: string; aoClicar: () => void; primario?: boolean; perigo?: boolean; ocupado?: boolean }[] = [
+            { rotulo: mediaFor === campaign.id ? "Fechar edição" : "Editar", aoClicar: () => setMediaFor(mediaFor === campaign.id ? null : campaign.id) },
+          ];
+          if (campaign.status === "draft") lista.push({ rotulo: "Publicar", primario: true, aoClicar: () => publish.mutate(campaign.id) });
+          if (daPlataforma && campaign.travadaEm)
+            lista.push({
+              rotulo: "Destravar",
+              ocupado: destravar.isPending,
+              aoClicar: () => {
+                if (window.confirm(`Destravar "${campaign.title}"? As vendas voltam e ela volta à vitrine.\nMotivo da trava: ${campaign.travadaMotivo ?? "—"}`)) destravar.mutate(campaign.id);
+              },
+            });
+          if (daPlataforma && campaign.status === "published" && !stats?.soldCount)
+            lista.push({
+              rotulo: "Tirar do ar",
+              ocupado: tirar.isPending,
+              aoClicar: () => {
+                if (window.confirm(`Tirar "${campaign.title}" do ar? Ela volta a rascunho e sai da vitrine.`)) tirar.mutate(campaign.id);
+              },
+            });
+          if (daPlataforma && (campaign.demonstracao ? Boolean(campaign.authorizationCode) : !stats?.soldCount))
+            lista.push({
+              rotulo: campaign.demonstracao ? "Desmarcar teste" : "Marcar como teste",
+              ocupado: teste.isPending,
+              aoClicar: () => {
+                const ligar = !campaign.demonstracao;
+                const aviso = ligar
+                  ? `Marcar "${campaign.title}" como teste? Fica na vitrine com a marca "Demonstração" e não vende.`
+                  : `Desmarcar "${campaign.title}"? Ela volta a vender normalmente.`;
+                if (window.confirm(aviso)) teste.mutate({ id: campaign.id, ligado: ligar });
+              },
+            });
+          if (podeExcluir({ status: campaign.status, vendidas: (stats?.soldCount ?? 0) + (stats?.reservedCount ?? 0), demonstracao: campaign.demonstracao }))
+            lista.push({
+              rotulo: "Excluir",
+              perigo: true,
+              ocupado: excluir.isPending,
+              aoClicar: () => {
+                if (window.confirm(`Apagar "${campaign.title}" de vez? Some a rifa, o sorteio, as mídias e os pedidos não pagos. Não tem volta.`)) excluir.mutate(campaign.id);
+              },
+            });
+          return lista;
+        };
+        const botao = (a: ReturnType<typeof acoesDa>[number]) => (
+          <Button
+            key={a.rotulo}
+            variant={a.primario ? "primary" : "ghost"}
+            className={`whitespace-nowrap px-2 py-1 text-xs ${a.perigo ? "text-red" : ""}`}
+            disabled={a.ocupado}
+            onClick={a.aoClicar}
+          >
+            {a.rotulo}
+          </Button>
+        );
+        return (
+          <div className="mt-3 space-y-3">
+            <div className="flex items-center justify-end">
+              <AlternarVisao
+                visao={visao}
+                aoMudar={(v) => {
+                  setVisao(v as VisaoDasRifas);
+                  try {
+                    localStorage.setItem(CHAVE_VISAO, v);
+                  } catch {
+                    // armazenamento bloqueado: vale só nesta visita
+                  }
+                }}
+                opcoes={[
+                  { valor: "grade", rotulo: "Grade de capas", icone: LayoutGrid },
+                  { valor: "lista", rotulo: "Lista", icone: List },
+                ]}
+              />
+            </div>
+
+            {data?.length === 0 ? (
+              <Card>
+                <Empty>Nenhuma campanha criada.</Empty>
+              </Card>
+            ) : visao === "grade" ? (
+              <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="Rifas em grade">
+                {data?.map((linha) => {
+                  const { campaign, stats, emAnalise, capa } = linha;
+                  const acoes = acoesDa(linha);
+                  const [principal, segunda, ...resto] = acoes;
+                  const vendidas = stats?.soldCount ?? 0;
+                  return (
+                    <li key={campaign.id} className={`cartao min-w-0 overflow-hidden rounded-xl border border-line bg-white ${mediaFor === campaign.id ? "ring-2 ring-green" : ""}`}>
+                      <div className="relative aspect-[16/9] bg-mist-2">
+                        {capa ? (
+                          <img src={capa} alt="" className="h-full w-full object-cover" loading="lazy" />
+                        ) : (
+                          <span className="flex h-full w-full items-center justify-center text-muted" aria-hidden>
+                            <ImagemIcone size={28} />
+                          </span>
+                        )}
+                        <span className="absolute left-2 top-2 flex flex-wrap gap-1">
+                          {situacaoDaRifa(campaign, emAnalise).map((sel) => (
+                            <Pill key={sel.texto} status={sel.status}>
+                              {sel.texto}
+                            </Pill>
+                          ))}
                         </span>
-                      ) : null}
-                    </td>
-                    <td className="px-3 py-2">
-                      <span className="flex flex-wrap gap-1">
-                        <Pill status={campaign.status} />
-                        {campaign.demonstracao ? <Pill status="pending">teste</Pill> : null}
-                        {campaign.travadaEm ? <Pill status="expired">travada</Pill> : null}
-                        {emAnalise?.includes("edicao") ? <Pill status="pending">edição em análise</Pill> : null}
-                        {emAnalise?.includes("adiamento") ? <Pill status="pending">adiamento em análise</Pill> : null}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2">
-                      <span className="flex gap-1">
-                        <Button
-                          variant="ghost"
-                          className="px-2 py-1 text-xs"
-                          onClick={() =>
-                            setMediaFor(mediaFor === campaign.id ? null : campaign.id)
-                          }
-                        >
-                          Editar
-                        </Button>
-                        {campaign.status === "draft" ? (
-                          <Button
-                            className="px-2 py-1 text-xs"
-                            onClick={() => publish.mutate(campaign.id)}
-                          >
-                            Publicar
-                          </Button>
-                        ) : null}
-                        {daPlataforma && campaign.travadaEm ? (
-                          <Button
-                            variant="ghost"
-                            className="px-2 py-1 text-xs"
-                            disabled={destravar.isPending}
-                            onClick={() => {
-                              if (window.confirm(`Destravar "${campaign.title}"? As vendas voltam e ela volta à vitrine.\nMotivo da trava: ${campaign.travadaMotivo ?? "—"}`)) {
-                                destravar.mutate(campaign.id);
-                              }
-                            }}
-                          >
-                            Destravar
-                          </Button>
-                        ) : null}
-                        {daPlataforma && campaign.status === "published" && !(stats?.soldCount) ? (
-                          <Button
-                            variant="ghost"
-                            className="px-2 py-1 text-xs"
-                            disabled={tirar.isPending}
-                            onClick={() => {
-                              if (window.confirm(`Tirar "${campaign.title}" do ar? Ela volta a rascunho e sai da vitrine.`)) {
-                                tirar.mutate(campaign.id);
-                              }
-                            }}
-                          >
-                            Tirar do ar
-                          </Button>
-                        ) : null}
-                        {daPlataforma && (campaign.demonstracao ? Boolean(campaign.authorizationCode) : !(stats?.soldCount)) ? (
-                          <Button
-                            variant="ghost"
-                            className="px-2 py-1 text-xs"
-                            disabled={teste.isPending}
-                            onClick={() => {
-                              const ligar = !campaign.demonstracao;
-                              const aviso = ligar
-                                ? `Marcar "${campaign.title}" como teste? Fica na vitrine com a marca "Demonstração" e não vende.`
-                                : `Desmarcar "${campaign.title}"? Ela volta a vender normalmente.`;
-                              if (window.confirm(aviso)) teste.mutate({ id: campaign.id, ligado: ligar });
-                            }}
-                          >
-                            {campaign.demonstracao ? "Desmarcar teste" : "Marcar como teste"}
-                          </Button>
-                        ) : null}
-                        {podeExcluir({
-                          status: campaign.status,
-                          vendidas: (stats?.soldCount ?? 0) + (stats?.reservedCount ?? 0),
-                          demonstracao: campaign.demonstracao,
-                        }) ? (
-                          <Button
-                            variant="ghost"
-                            className="px-2 py-1 text-xs text-red"
-                            disabled={excluir.isPending}
-                            onClick={() => {
-                              if (
-                                window.confirm(
-                                  `Apagar "${campaign.title}" de vez? Some a rifa, o sorteio, as mídias e os pedidos não pagos. Não tem volta.`,
-                                )
-                              ) {
-                                excluir.mutate(campaign.id);
-                              }
-                            }}
-                          >
-                            Excluir
-                          </Button>
-                        ) : null}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                      </div>
+                      <div className="space-y-2 p-4">
+                        <p className="truncate font-medium" title={campaign.prizeTitle}>{campaign.prizeTitle}</p>
+                        <p className="text-xs text-muted">
+                          <Money cents={campaign.priceCents} /> a cota · <span className="tnum">{groupNumber(campaign.totalQuotas)}</span> cotas
+                        </p>
+                        <Progress value={vendidas} total={campaign.totalQuotas} />
+                        <p className="tnum text-xs text-muted">
+                          {groupNumber(vendidas)} de {groupNumber(campaign.totalQuotas)} · <Money cents={stats?.revenueCents ?? 0} />
+                        </p>
+                        <p className="tnum text-xs">
+                          {campaign.drawAt ? (
+                            <span className={campaign.status === "published" ? "font-medium text-green-deep" : "text-muted"}>
+                              Sorteio {new Date(campaign.drawAt).toLocaleDateString("pt-BR")}
+                              {campaign.adiamentos ? ` (adiado${campaign.drawAtOriginal ? `, era ${new Date(campaign.drawAtOriginal).toLocaleDateString("pt-BR")}` : ""})` : ""}
+                            </span>
+                          ) : (
+                            <span className="text-muted">Sem data de sorteio</span>
+                          )}
+                        </p>
+                        <div className="flex flex-wrap items-center gap-1 pt-1">
+                          {botao(principal)}
+                          {segunda ? botao(segunda) : null}
+                          {resto.length ? (
+                            <details className="relative ml-auto">
+                              <summary aria-label={`Mais ações de ${campaign.title}`} className="flex h-8 w-8 cursor-pointer list-none items-center justify-center rounded-md text-muted hover:bg-mist [&::-webkit-details-marker]:hidden">
+                                <MoreVertical size={18} aria-hidden />
+                              </summary>
+                              <div className="cartao absolute right-0 top-full z-20 mt-1 flex w-48 flex-col rounded-lg border border-line bg-white py-1 text-sm">
+                                {resto.map((a) => (
+                                  <button key={a.rotulo} type="button" disabled={a.ocupado} onClick={a.aoClicar} className={`px-3 py-2 text-left hover:bg-mist ${a.perigo ? "text-red" : ""}`}>
+                                    {a.rotulo}
+                                  </button>
+                                ))}
+                              </div>
+                            </details>
+                          ) : null}
+                        </div>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              <Card>
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[640px] text-sm">
+                    <CabecalhoDaTabela colunas={["Campanha", "Cota", "Progresso", "Arrecadado", "Sorteio", "Status", ""]} />
+                    <tbody>
+                      {data?.map((linha) => {
+                        const { campaign, stats, emAnalise } = linha;
+                        return (
+                          <tr key={campaign.id} className="border-t border-line">
+                            <td className="px-4 py-3 font-medium">{campaign.prizeTitle}</td>
+                            <td className="px-4 py-3">
+                              <Money cents={campaign.priceCents} />
+                            </td>
+                            <td className="min-w-[130px] px-4 py-3">
+                              <Progress value={stats?.soldCount ?? 0} total={campaign.totalQuotas} />
+                              <span className="label-xs">
+                                {groupNumber(stats?.soldCount ?? 0)}/{groupNumber(campaign.totalQuotas)}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3">
+                              <Money cents={stats?.revenueCents ?? 0} />
+                            </td>
+                            <td className="tnum px-4 py-3">
+                              {campaign.drawAt ? new Date(campaign.drawAt).toLocaleDateString("pt-BR") : "—"}
+                              {campaign.adiamentos ? (
+                                <span className="block text-[11px] text-muted">
+                                  adiado{campaign.drawAtOriginal ? ` (era ${new Date(campaign.drawAtOriginal).toLocaleDateString("pt-BR")})` : ""}
+                                </span>
+                              ) : null}
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className="flex flex-wrap gap-1">
+                                {situacaoDaRifa(campaign, emAnalise).map((sel) => (
+                                  <Pill key={sel.texto} status={sel.status}>
+                                    {sel.texto}
+                                  </Pill>
+                                ))}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className="flex flex-wrap gap-1">{acoesDa(linha).map(botao)}</span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </Card>
+            )}
           </div>
-          {data?.length === 0 ? <Empty>Nenhuma campanha criada.</Empty> : null}
-        </Card>
-      </div>
+        );
+      })()}
     </PanelShell>
   );
 }

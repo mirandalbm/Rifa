@@ -3,7 +3,7 @@
 Lista viva do que falta para a rifa vender em produção. Atualizada a cada
 etapa — quem fechar um item marca aqui no mesmo PR.
 
-Última atualização: 28/09/2026 (revisão de erros e de segurança; versões).
+Última atualização: 01/10/2026 (painéis no padrão Materialize).
 
 Legenda: **[você]** depende do responsável pela conta (cadastro, documento,
 senha); **[código]** é trabalho no repositório.
@@ -26,6 +26,18 @@ senha); **[código]** é trabalho no repositório.
 - [x] Integração no código, modelos criados pelo painel, token e IDs no
   Railway. 7 de 8 modelos aceitos pela Meta; falta só o `codigo_acesso`
   (depende da verificação acima).
+
+## 1b. Painéis (padrão Materialize)
+
+- [x] Casca dos três painéis no padrão do kit (menu em grupos, barra de
+  cima, cartões "papel"), Painel e Rifas em grade de capas (#80).
+- [ ] **[código]** Caixa de entrada unificada: uma lista só com disputas,
+  edições de rifa, denúncias, verificações, cadastros fiscais e telefones por
+  aprovar (hoje cada tipo é uma aba do Atendimento).
+- [ ] **[código]** A busca do painel achar pedido (pelo código), organização
+  e cliente (pelo ID) — hoje só acha a tela pelo nome.
+- [ ] **[código]** O gráfico da receita como linha com área (o do kit); hoje
+  são as barras por dia.
 
 ## 2. Para a rifa vender
 

@@ -57,6 +57,13 @@
      */
     --marca: var(--marca-claro, #00873e);
 
+    /*
+     * Painéis no padrão do kit (Materialize): o fundo da página é um cinza
+     * neutro e o cartão é "papel" — branco, cantos de 10 px e esta sombra.
+     */
+    --painel: #f7f7f9;
+    --sombra-papel: 0 3px 1px -2px rgba(76, 78, 100, 0.2), 0 2px 2px 0 rgba(76, 78, 100, 0.14), 0 1px 5px 0 rgba(76, 78, 100, 0.12);
+
     color-scheme: light;
   }
 
@@ -106,6 +113,9 @@
 
       --marca: var(--marca-escuro, #5dd394);
 
+      --painel: #0a100d;
+      --sombra-papel: 0 3px 1px -2px rgba(0, 0, 0, 0.4), 0 2px 2px 0 rgba(0, 0, 0, 0.3), 0 1px 5px 0 rgba(0, 0, 0, 0.26);
+
       color-scheme: dark;
     }
   }
@@ -144,6 +154,9 @@
     --quadro-escolhido-texto: #0e1712;
 
     --marca: var(--marca-escuro, #5dd394);
+
+    --painel: #0a100d;
+    --sombra-papel: 0 3px 1px -2px rgba(0, 0, 0, 0.4), 0 2px 2px 0 rgba(0, 0, 0, 0.3), 0 1px 5px 0 rgba(0, 0, 0, 0.26);
 
     color-scheme: dark;
   }
@@ -314,6 +327,23 @@
 @layer components {
   .label-xs {
     @apply font-mono text-[11px] uppercase tracking-[0.12em] text-muted;
+  }
+
+  /*
+   * Os painéis (organizador, plataforma, afiliado, cambista) seguem o kit
+   * Materialize: fonte Inter em tudo — inclusive nos títulos, que na loja são
+   * Bricolage —, fundo neutro e cartão "papel" (sem borda, cantos de 10 px,
+   * a sombra do kit). A loja não muda: as regras só valem dentro de `.painel`.
+   */
+  .painel,
+  .painel :is(h1, h2, h3, h4) {
+    font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
+    letter-spacing: 0;
+  }
+  .painel .cartao {
+    border-color: transparent;
+    border-radius: 10px;
+    box-shadow: var(--sombra-papel);
   }
 }
 

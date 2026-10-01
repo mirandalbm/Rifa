@@ -196,7 +196,7 @@ export function AfiliadoLinks() {
                   <a
                     href={l.qr}
                     download={`qr-${l.slug}.png`}
-                    className="block text-center text-[11px] text-green-deep underline"
+                    className="flex min-h-6 items-center justify-center text-[11px] text-green-deep underline"
                   >
                     baixar
                   </a>
@@ -570,7 +570,7 @@ export function AfiliadoOrganizacoes() {
                         onClick={() => {
                           if (window.confirm(`Sair de ${o.nome}? O que você já ganhou continua seu.`)) sair.mutate(o.slug);
                         }}
-                        className="text-xs text-red underline"
+                        className="inline-flex min-h-6 items-center text-xs text-red underline"
                       >
                         sair desta organização
                       </button>

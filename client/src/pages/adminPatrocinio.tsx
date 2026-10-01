@@ -1577,7 +1577,7 @@ function ConfigCard({ config }: { config: Config }) {
                 <button
                   type="button"
                   onClick={() => setFaixas(faixas.filter((_, j) => j !== i))}
-                  className="text-xs text-red underline"
+                  className="inline-flex min-h-6 items-center text-xs text-red underline"
                 >
                   tirar
                 </button>
@@ -1590,7 +1590,7 @@ function ConfigCard({ config }: { config: Config }) {
               onClick={() =>
                 setFaixas([...faixas, { aPartirDe: "", descontoPct: "" }])
               }
-              className="mt-1 text-xs underline"
+              className="mt-1 inline-flex min-h-6 items-center text-xs underline"
             >
               + faixa
             </button>

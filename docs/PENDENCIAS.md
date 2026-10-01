@@ -36,8 +36,6 @@ senha); **[código]** é trabalho no repositório.
   aprovar (hoje cada tipo é uma aba do Atendimento).
 - [ ] **[código]** A busca do painel achar pedido (pelo código), organização
   e cliente (pelo ID) — hoje só acha a tela pelo nome.
-- [ ] **[código]** O gráfico da receita como linha com área (o do kit); hoje
-  são as barras por dia.
 
 ## 2. Para a rifa vender
 

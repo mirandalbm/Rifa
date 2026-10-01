@@ -297,14 +297,47 @@ adminRouter.get("/overview", async (req, res, next) => {
           : sql`${commissions.status} in ('pending','available')`,
       );
 
+    // Por dia, no fuso de São Paulo (o relatório de Resultados usa a mesma
+    // régua): 30 dias para o gráfico e as séries dos widgets.
     const daily = await db.execute(sql`
-      SELECT date_trunc('day', o.paid_at) AS day,
-             coalesce(sum(o.amount_cents), 0)::int AS cents
+      SELECT to_char(o.paid_at AT TIME ZONE 'America/Sao_Paulo', 'YYYY-MM-DD') AS day,
+             coalesce(sum(o.amount_cents), 0)::int AS cents,
+             coalesce(sum(o.quantity), 0)::int AS cotas
       FROM orders o
       JOIN campaigns c ON c.id = o.campaign_id
-      WHERE o.status = 'paid' AND o.paid_at > now() - interval '14 days'
+      WHERE o.status = 'paid' AND o.paid_at > now() - interval '30 days'
         ${daCampanha}
       GROUP BY 1 ORDER BY 1
+    `);
+
+    // Os widgets do painel: hoje, o mês, por canal (site ou cambista) e por
+    // estado de quem comprou — tudo venda paga, com o mesmo recorte.
+    const [periodos] = (
+      await db.execute(sql`
+        SELECT
+          coalesce(sum(o.amount_cents) FILTER (WHERE (o.paid_at AT TIME ZONE 'America/Sao_Paulo')::date = (now() AT TIME ZONE 'America/Sao_Paulo')::date), 0)::int AS "hojeCents",
+          coalesce(sum(o.quantity) FILTER (WHERE (o.paid_at AT TIME ZONE 'America/Sao_Paulo')::date = (now() AT TIME ZONE 'America/Sao_Paulo')::date), 0)::int AS "hojeCotas",
+          coalesce(sum(o.amount_cents) FILTER (WHERE date_trunc('month', o.paid_at AT TIME ZONE 'America/Sao_Paulo') = date_trunc('month', now() AT TIME ZONE 'America/Sao_Paulo')), 0)::int AS "mesCents",
+          count(*) FILTER (WHERE o.paid_at > now() - interval '30 days' AND o.seller_id IS NULL)::int AS "siteVendas",
+          count(*) FILTER (WHERE o.paid_at > now() - interval '30 days' AND o.seller_id IS NOT NULL)::int AS "cambistaVendas",
+          coalesce(sum(o.amount_cents) FILTER (WHERE o.paid_at > now() - interval '30 days' AND o.seller_id IS NULL), 0)::int AS "siteCents",
+          coalesce(sum(o.amount_cents) FILTER (WHERE o.paid_at > now() - interval '30 days' AND o.seller_id IS NOT NULL), 0)::int AS "cambistaCents"
+        FROM orders o
+        JOIN campaigns c ON c.id = o.campaign_id
+        WHERE o.status = 'paid' ${daCampanha}
+      `)
+    ).rows as {
+      hojeCents: number; hojeCotas: number; mesCents: number;
+      siteVendas: number; cambistaVendas: number; siteCents: number; cambistaCents: number;
+    }[];
+    const porEstado = await db.execute(sql`
+      SELECT coalesce(nullif(b.uf, ''), '—') AS uf, coalesce(sum(o.amount_cents), 0)::int AS cents, count(*)::int AS pedidos
+      FROM orders o
+      JOIN campaigns c ON c.id = o.campaign_id
+      LEFT JOIN buyers b ON b.id = o.buyer_id
+      WHERE o.status = 'paid' AND o.paid_at > now() - interval '30 days' ${daCampanha}
+      GROUP BY 1 ORDER BY cents DESC
+      LIMIT 6
     `);
 
     const topAffiliates = await db.execute(sql`
@@ -324,8 +357,8 @@ adminRouter.get("/overview", async (req, res, next) => {
     // últimas vendas. Mesmo recorte; a venda sai sem nome nem telefone
     // (quem é o cliente é regra da titularidade — aqui basta o pedido).
     const proximo = await db.execute(sql`
-      SELECT c.slug, c.prize_title AS "prizeTitle", (c.draw_at AT TIME ZONE 'UTC') AS "drawAt", c.total_quotas AS "totalQuotas",
-             coalesce(s.sold_count, 0)::int AS "soldCount"
+      SELECT c.id, c.slug, c.prize_title AS "prizeTitle", (c.draw_at AT TIME ZONE 'UTC') AS "drawAt", c.total_quotas AS "totalQuotas",
+             c.price_cents AS "priceCents", coalesce(s.sold_count, 0)::int AS "soldCount"
       FROM campaigns c
       LEFT JOIN campaign_stats s ON s.campaign_id = c.id
       WHERE c.status = 'published' AND c.draw_at > now() AND NOT c.demonstracao
@@ -357,8 +390,16 @@ adminRouter.get("/overview", async (req, res, next) => {
       LIMIT 6
     `);
 
+    const prox = proximo.rows[0] as { slug: string; id?: string } | undefined;
     res.json({
-      proximoSorteio: proximo.rows[0] ?? null,
+      proximoSorteio: prox ? { ...prox, capa: prox.id ? ((await midiasDas([prox.id])).get(prox.id)?.find((m) => m.role !== "video")?.url ?? null) : null } : null,
+      hoje: { cents: periodos.hojeCents, cotas: periodos.hojeCotas },
+      mesCents: periodos.mesCents,
+      canais: {
+        site: { vendas: periodos.siteVendas, cents: periodos.siteCents },
+        cambista: { vendas: periodos.cambistaVendas, cents: periodos.cambistaCents },
+      },
+      porEstado: porEstado.rows,
       pendencias: { ...pend, telefonePendente },
       ultimasVendas: ultimas.rows,
       revenueCents: totals.revenueCents,

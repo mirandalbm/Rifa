@@ -468,6 +468,12 @@ O verde da marca entra no lugar do roxo do kit; o significado das cores
   kit (`--sombra-papel`). `Card`, `Kpi`, `Estatistica` e `CartaoDoPainel`
   levam a classe; na loja ela não faz nada. O escuro redefine os dois tokens
   (`tests/tema.test.ts` cobra).
+- **O Painel usa os widgets dos painéis prontos do kit** (eCommerce e
+  Analytics), cada um ligado a um dado nosso em `GET /api/admin/overview`
+  (hoje, mês, canais site/cambista, por estado de quem comprou, série de 30
+  dias no fuso de São Paulo, a capa do próximo sorteio) — tudo venda paga,
+  com o recorte de `orgOf` em cada consulta. Sparkline e barras por dia da
+  semana levam a lista de valores no `aria-label`; nada é simulado.
 - **Rifas em grade de capas** (`AdminCampanhas`): a capa vem do servidor
   (`capa` na lista: o banner, senão a primeira foto — nunca o vídeo), a
   situação vai em texto na pílula sobre a capa, e as mesmas ações da lista

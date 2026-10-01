@@ -135,3 +135,80 @@ export function AlternarVisao({
     </div>
   );
 }
+
+/**
+ * Gráfico pequeno dentro do cartão de estatística (o "sparkline" do kit):
+ * barras ou linha com área, sem eixo — o número ao lado é que diz o valor;
+ * a lista de pontos vai no `aria-label` para o leitor de tela.
+ */
+export function Sparkline({
+  pontos,
+  tipo = "linha",
+  cor = "var(--green)",
+  largura = 120,
+  altura = 48,
+  rotulo,
+  cheio = false,
+}: {
+  pontos: number[];
+  tipo?: "linha" | "barras";
+  cor?: string;
+  largura?: number;
+  altura?: number;
+  rotulo: string;
+  /** Ocupa a largura do cartão (esticando o desenho), em vez da largura fixa. */
+  cheio?: boolean;
+}) {
+  const classe = cheio ? "block h-auto w-full overflow-visible" : "shrink-0 overflow-visible";
+  const ratio = cheio ? { preserveAspectRatio: "none" as const } : {};
+  const max = Math.max(...pontos, 1);
+  const n = Math.max(pontos.length, 1);
+  if (tipo === "barras") {
+    const passo = largura / n;
+    return (
+      <svg width={largura} height={altura} viewBox={`0 0 ${largura} ${altura}`} role="img" aria-label={rotulo} className={classe} {...ratio}>
+        {pontos.map((p, i) => {
+          const h = Math.max(3, Math.round((p / max) * (altura - 4)));
+          return <rect key={i} x={i * passo + passo * 0.2} y={altura - h} width={passo * 0.6} height={h} rx={2} fill={cor} opacity={p === max ? 1 : 0.45} />;
+        })}
+      </svg>
+    );
+  }
+  const passo = n > 1 ? largura / (n - 1) : 0;
+  const y = (p: number) => altura - 4 - (p / max) * (altura - 8);
+  const d = pontos.map((p, i) => `${i === 0 ? "M" : "L"}${(i * passo).toFixed(1)},${y(p).toFixed(1)}`).join(" ");
+  return (
+    <svg width={largura} height={altura} viewBox={`0 0 ${largura} ${altura}`} role="img" aria-label={rotulo} className={classe} {...ratio}>
+      {n > 1 ? <path d={`${d} L${largura},${altura} L0,${altura} Z`} fill={cor} opacity={0.12} /> : null}
+      <path d={n > 1 ? d : `M0,${y(pontos[0] ?? 0)} L${largura},${y(pontos[0] ?? 0)}`} fill="none" stroke={cor} strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+/** Lista de barras horizontais com rótulo e valor (o "Sales by Country" do kit). */
+export function BarrasHorizontais({
+  linhas,
+  cores = ["bg-green", "bg-azul", "bg-yellow", "bg-green-deep", "bg-red", "bg-muted"],
+}: {
+  linhas: { rotulo: string; valor: number; texto: string }[];
+  cores?: string[];
+}) {
+  const max = Math.max(...linhas.map((l) => l.valor), 1);
+  return (
+    <ul className="space-y-3">
+      {linhas.map((l, i) => (
+        <li key={l.rotulo} className="flex items-center gap-3 text-sm">
+          <span className="w-8 shrink-0 text-xs font-medium text-ink-2">{l.rotulo}</span>
+          <span className="h-5 min-w-0 flex-1 overflow-hidden rounded bg-mist-2">
+            <span
+              className={`tnum flex h-full items-center justify-end rounded pr-2 text-[11px] font-semibold text-branco ${cores[i % cores.length]}`}
+              style={{ width: `${Math.max(10, Math.round((l.valor / max) * 100))}%` }}
+            >
+              {l.texto}
+            </span>
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+}

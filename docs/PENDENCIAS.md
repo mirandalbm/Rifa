@@ -34,8 +34,9 @@ senha); **[código]** é trabalho no repositório.
 - [x] Caixa de entrada unificada (`/admin/caixa`): uma lista só com disputas,
   reembolsos, edições e adiamentos, denúncias, selos, cadastros fiscais e
   telefones por aprovar; decidir continua na tela de cada tipo.
-- [ ] **[código]** A busca do painel achar pedido (pelo código), organização
-  e cliente (pelo ID) — hoje só acha a tela pelo nome.
+- [x] A busca do painel acha pedido (pelo código), cliente (pelo ID) e,
+  para a plataforma, organização (pelo nome), além da tela — dentro do
+  recorte, sem nome nem telefone de comprador, e abre a tela já no item.
 
 - [ ] **[código]** **Por último:** uma coluna à direita do painel para o
   **Chatbase AI**, que interage com o sistema e auxilia o **administrador

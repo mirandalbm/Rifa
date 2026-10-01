@@ -51,6 +51,7 @@ import {
   Target,
 } from "lucide-react";
 import { menuDe, type IconeDoGrupo, type Section, type SectionKey } from "@shared/access";
+import { BUSCA_MAX, NOME_DO_TIPO, interpretarBusca, type AchadoDaBusca } from "@shared/busca";
 import { useSession, useLogout } from "@/lib/session";
 import { TemaCiclo } from "@/components/TemaToggle";
 import { Marca } from "@/components/Marca";
@@ -189,15 +190,36 @@ const NOME_DO_PAPEL: Partial<Record<string, string>> = {
 const simples = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
 /**
- * A busca única do topo: encontra uma tela do painel pelo nome e leva até
- * ela. Enter abre a primeira; Esc limpa. É só o atalho das telas — pedido,
- * organização e cliente continuam nas telas deles (`docs/PENDENCIAS.md`).
+ * A busca única do topo: encontra uma tela do painel pelo nome e, pelo
+ * servidor, o pedido pelo código, o cliente pelo ID e (para a plataforma) a
+ * organização pelo nome — `GET /api/admin/busca`, com o recorte da sessão.
+ * Enter abre o primeiro achado; Esc limpa. O que vem do servidor espera o
+ * dedo parar (300 ms) para não consultar a cada letra.
  */
 function BuscaDoPainel({ secoes }: { secoes: Section[] }) {
   const [, navegar] = useLocation();
   const [texto, setTexto] = useState("");
   const termo = simples(texto.trim());
-  const achados = termo ? secoes.filter((s) => simples(s.label).includes(termo)).slice(0, 6) : [];
+  const telas = termo ? secoes.filter((s) => simples(s.label).includes(termo)).slice(0, 6) : [];
+
+  const [parado, setParado] = useState("");
+  useEffect(() => {
+    const t = setTimeout(() => setParado(texto.trim()), 300);
+    return () => clearTimeout(t);
+  }, [texto]);
+  const consulta = interpretarBusca(parado);
+  const { data: achados, isFetching } = useQuery<AchadoDaBusca[]>({
+    queryKey: ["/api/admin/busca", { q: parado }],
+    enabled: consulta !== null,
+    staleTime: 10_000,
+  });
+  const doServidor = consulta && achados ? achados : [];
+
+  const itens: { chave: string; rotulo: string; detalhe: string; caminho: string }[] = [
+    ...telas.map((s) => ({ chave: `tela:${s.key}`, rotulo: s.label, detalhe: s.path, caminho: s.path })),
+    ...doServidor.map((a) => ({ chave: `${a.tipo}:${a.caminho}`, rotulo: a.rotulo, detalhe: `${NOME_DO_TIPO[a.tipo]} · ${a.detalhe}`, caminho: a.caminho })),
+  ];
+  const esperando = consulta !== null && (isFetching || parado !== texto.trim());
   const ir = (caminho: string) => {
     setTexto("");
     navegar(caminho);
@@ -208,7 +230,7 @@ function BuscaDoPainel({ secoes }: { secoes: Section[] }) {
       className="relative min-w-0 flex-1"
       onSubmit={(e) => {
         e.preventDefault();
-        if (achados[0]) ir(achados[0].path);
+        if (itens[0]) ir(itens[0].caminho);
       }}
     >
       <label htmlFor="busca-do-painel" className="sr-only">
@@ -223,23 +245,24 @@ function BuscaDoPainel({ secoes }: { secoes: Section[] }) {
         onKeyDown={(e) => {
           if (e.key === "Escape") setTexto("");
         }}
-        placeholder="Buscar no painel"
+        placeholder="Tela, pedido, cliente ou organização"
         autoComplete="off"
+        maxLength={BUSCA_MAX}
         className="w-full border-0 bg-transparent py-2 pl-7 pr-2 text-sm text-ink placeholder:text-muted focus:outline-none"
       />
       {termo ? (
         <ul
-          aria-label="Telas encontradas"
-          className="cartao absolute left-0 top-full z-30 mt-1 w-72 max-w-[calc(100vw-2rem)] rounded-lg border border-line bg-white py-1 text-sm"
+          aria-label="Resultados da busca"
+          className="cartao absolute left-0 top-full z-30 mt-1 w-80 max-w-[calc(100vw-2rem)] rounded-lg border border-line bg-white py-1 text-sm"
         >
-          {achados.length === 0 ? (
-            <li className="px-3 py-2 text-muted">Nenhuma tela com esse nome.</li>
+          {itens.length === 0 ? (
+            <li className="px-3 py-2 text-muted">{esperando ? "Procurando…" : "Nada com esse nome, código ou ID."}</li>
           ) : (
-            achados.map((s) => (
-              <li key={s.key}>
-                <button type="button" onClick={() => ir(s.path)} className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-mist">
-                  {s.label}
-                  <span className="ml-auto font-mono text-[11px] text-muted">{s.path}</span>
+            itens.map((i) => (
+              <li key={i.chave}>
+                <button type="button" onClick={() => ir(i.caminho)} className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-mist">
+                  <span className="min-w-0 truncate">{i.rotulo}</span>
+                  <span className="tnum ml-auto shrink-0 truncate text-[11px] text-muted">{i.detalhe}</span>
                 </button>
               </li>
             ))

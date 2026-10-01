@@ -1,7 +1,7 @@
 import { LegendaCard } from "@/components/Publicacao";
 import { SeloVerificado } from "@/components/SeloVerificado";
 import { useState } from "react";
-import { Link } from "wouter";
+import { Link, useSearch } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { TrocarSenha } from "@/components/TrocarSenha";
 import { WhatsAppCard } from "@/components/WhatsAppCard";
@@ -880,19 +880,34 @@ export function AdminCampanhas() {
 /* ------------------------------ pedidos ------------------------------ */
 
 export function AdminPedidos() {
+  // A busca do painel chega com `?codigo=` (um pedido) ou `?cliente=` (o ID):
+  // a lista fica só com eles e o filtro aparece em texto, com o "ver todos".
+  const busca = new URLSearchParams(useSearch());
+  const codigo = busca.get("codigo");
+  const cliente = busca.get("cliente");
   const { data } = useQuery<
     {
       order: { code: number; status: string; quantity: number; amountCents: number; createdAt: string };
       buyer: { name: string; phone: string | null; codigo: string | null; completo: boolean };
       campaign: { title: string };
     }[]
-  >({ queryKey: ["/api/admin/orders"] });
+  >({ queryKey: ["/api/admin/orders", { codigo: codigo ?? undefined, cliente: cliente ?? undefined }] });
   return (
     <PanelShell title="Pedidos">
       <p className="mb-3 text-xs text-muted">
         Reembolso não se faz por aqui: o comprador pede em "Minhas cotas", com o print do
         bilhete, e a organização decide em Atendimento.
       </p>
+      {codigo || cliente ? (
+        <p className="mb-3 flex flex-wrap items-center gap-2 text-sm">
+          <span>
+            Mostrando {codigo ? <>o pedido <span className="tnum font-medium">#{codigo}</span></> : <>os pedidos do cliente <span className="tnum font-medium">{cliente}</span></>}.
+          </span>
+          <Link href="/admin/pedidos" className="inline-flex min-h-6 items-center text-green-deep underline">
+            Ver todos
+          </Link>
+        </p>
+      ) : null}
       <Card>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[620px] text-sm">
@@ -934,7 +949,7 @@ export function AdminPedidos() {
             </tbody>
           </table>
         </div>
-        {data?.length === 0 ? <Empty>Nenhum pedido ainda.</Empty> : null}
+        {data?.length === 0 ? <Empty>{codigo || cliente ? "Nenhum pedido com esse código ou ID aqui." : "Nenhum pedido ainda."}</Empty> : null}
       </Card>
     </PanelShell>
   );

@@ -15,6 +15,12 @@ import { db } from "../db";
 import { buyers, campaigns, orders, organizations } from "@shared/schema";
 import { ACHADOS_MAX, caminhoDoAchado, interpretarBusca, type AchadoDaBusca } from "@shared/busca";
 
+const ROTULO_DO_PAPEL: Record<string, string> = {
+  organizer: "organizador",
+  affiliate: "afiliado",
+  cambista: "cambista",
+};
+
 const SITUACAO_DO_PEDIDO: Record<string, string> = {
   paid: "pago",
   pending: "pendente",
@@ -75,10 +81,46 @@ export async function buscarNoPainel(organizationId: string | null, texto: strin
     ];
   }
 
+  const padrao = `%${escaparLike(consulta.texto)}%`;
+
+  // Gente da casa — usuário, afiliado, cambista — por nome, e-mail ou código,
+  // no recorte: a plataforma alcança todos; a organização, os usuários dela
+  // (organizadores e cambistas) e os afiliados com vínculo com ela. Comprador
+  // nunca entra aqui (`users` não tem comprador).
+  const pessoas = await db.execute<{
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+    codigo: string | null;
+    organizacao: string | null;
+  }>(sql`
+    SELECT u.id, u.name, u.email, u.role::text AS role, a.code AS codigo, o.name AS organizacao
+      FROM users u
+      LEFT JOIN affiliates a ON a.user_id = u.id
+      LEFT JOIN organizations o ON o.id = u.organization_id
+     WHERE (u.name ILIKE ${padrao} OR u.email ILIKE ${padrao} OR a.code ILIKE ${padrao})
+       AND u.role::text <> 'admin'
+       ${
+         organizationId
+           ? sql`AND (u.organization_id = ${organizationId}::uuid
+                   OR EXISTS (SELECT 1 FROM afiliado_vinculos v
+                               WHERE v.affiliate_id = a.id AND v.organization_id = ${organizationId}::uuid))`
+           : sql``
+       }
+     ORDER BY u.name
+     LIMIT ${ACHADOS_MAX}
+  `);
+  const achadosPessoas: AchadoDaBusca[] = pessoas.rows.map((u) => ({
+    tipo: "pessoa",
+    rotulo: u.name,
+    detalhe: [ROTULO_DO_PAPEL[u.role] ?? u.role, u.codigo, u.organizacao].filter(Boolean).join(" · "),
+    caminho: caminhoDoAchado({ tipo: "pessoa", papel: u.role, codigo: u.codigo, email: u.email }),
+  }));
+
   // Organização é só da plataforma: o organizador só tem a dele, e a tela
   // dela já está no menu.
-  if (organizationId) return [];
-  const padrao = `%${escaparLike(consulta.texto)}%`;
+  if (organizationId) return achadosPessoas;
   const achadas = await db
     .select({
       id: organizations.id,
@@ -93,7 +135,7 @@ export async function buscarNoPainel(organizationId: string | null, texto: strin
     // As ativas primeiro, depois por nome.
     .orderBy(desc(isNull(organizations.archivedAt)), organizations.name)
     .limit(ACHADOS_MAX);
-  return achadas.map((o) => ({
+  const achadasOrgs: AchadoDaBusca[] = achadas.map((o) => ({
     tipo: "organizacao" as const,
     rotulo: o.name,
     detalhe: [o.cidade && o.uf ? `${o.cidade}/${o.uf}` : `/o/${o.slug}`, o.arquivada ? "arquivada" : null]
@@ -101,4 +143,5 @@ export async function buscarNoPainel(organizationId: string | null, texto: strin
       .join(" · "),
     caminho: caminhoDoAchado({ tipo: "organizacao", id: o.id }),
   }));
+  return [...achadasOrgs, ...achadosPessoas].slice(0, ACHADOS_MAX);
 }

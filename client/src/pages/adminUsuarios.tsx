@@ -38,6 +38,15 @@ const PAPEL: Record<Usuario["role"], string> = {
   cambista: "cambista",
 };
 
+/** Lê `?q=` da barra: a busca do painel manda para cá com o e-mail da pessoa. */
+function buscaDaUrl(): string {
+  try {
+    return new URLSearchParams(window.location.search).get("q") ?? "";
+  } catch {
+    return "";
+  }
+}
+
 /** Lê `?organizacao=` da barra: a tela de organizações manda para cá. */
 function organizacaoDaUrl(): string {
   try {
@@ -61,7 +70,7 @@ export function AdminUsuarios() {
 
   const [organizacao, setOrganizacao] = useState(organizacaoDaUrl);
   const [papel, setPapel] = useState("");
-  const [busca, setBusca] = useState("");
+  const [busca, setBusca] = useState(buscaDaUrl);
   const [aberto, setAberto] = useState<string | null>(null);
   const [senhaDe, setSenhaDe] = useState<Usuario | null>(null);
   const [senha, setSenha] = useState("");

@@ -37,6 +37,8 @@ senha); **[código]** é trabalho no repositório.
 - [x] A busca do painel acha pedido (pelo código), cliente (pelo ID) e,
   para a plataforma, organização (pelo nome), além da tela — dentro do
   recorte, sem nome nem telefone de comprador, e abre a tela já no item.
+  Também acha gente da casa (usuário, afiliado, cambista) por nome, e-mail
+  ou código, no mesmo recorte.
 
 - [ ] **[código]** **Por último:** uma coluna à direita do painel para o
   **Chatbase AI**, que interage com o sistema e auxilia o **administrador

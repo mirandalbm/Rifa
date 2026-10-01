@@ -472,7 +472,8 @@ O verde da marca entra no lugar do roxo do kit; o significado das cores
 - **A barra de cima tem a busca única do painel** (`BuscaDoPainel`: acha a
   tela pelo nome e, pelo servidor, o **pedido pelo código** (8 dígitos),
   o **cliente pelo ID** (`C-XXXXXXXX`) e, só para a plataforma, a
-  **organização pelo nome**; Enter abre o primeiro achado), o tema, o
+  **organização pelo nome**, e a **gente da casa** — usuário, afiliado e
+  cambista — por nome, e-mail ou código; Enter abre o primeiro achado), o tema, o
   **sino de avisos** e a conta, os dois num `<details>` que fecha fora e no
   Esc. **O sino lista os comentários de apostador nas rifas do recorte**
   (`GET /api/admin/avisos`, `avisosDoPainel()` em `server/services/avisos.ts`;
@@ -490,9 +491,14 @@ O verde da marca entra no lugar do roxo do kit; o significado das cores
   existe. **Nome e telefone de comprador não entram na busca nem saem
   dela**: o pedido vem com a rifa e a situação, o cliente só com o ID e
   quantos pedidos tem no recorte; quem decide se o nome aparece é a lista de
-  pedidos, pela titularidade. O achado abre a tela já no item
+  pedidos, pela titularidade. **Gente da casa é só da casa**: a consulta
+  nunca toca `buyers`, o recorte é o de `orgOf` (a plataforma alcança todos
+  menos o administrador geral; a organização, os usuários dela e os
+  afiliados com vínculo com ela), e nada sai além de nome, papel, código e
+  organização — nunca telefone nem hash. O achado abre a tela já no item
   (`caminhoDoAchado()`: `/admin/pedidos?codigo=`, `?cliente=`,
-  `/admin/organizacoes?aberta=`), e `/orders` filtra pelos dois parâmetros
+  `/admin/organizacoes?aberta=`, `/admin/afiliados?q=` e
+  `/admin/usuarios?q=`), e `/orders` filtra pelos dois parâmetros
   com o mesmo recorte. `npm run isolation` confere o conteúdo.
 - **As regras visuais só valem dentro de `.painel`** (`index.css`): Inter
   nos títulos também (a loja segue com a Bricolage), fundo `--painel`

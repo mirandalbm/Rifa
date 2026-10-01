@@ -523,13 +523,14 @@ export function PanelShell({
                 <span className="block truncate font-medium text-ink">{session?.user?.name}</span>
                 {session?.user?.email}
               </p>
-              <Link href="/" className="flex items-center gap-2 px-3 py-2 hover:bg-mist">
+              {/* O rótulo também no aria-label: fechado, o <details> esconde o texto. */}
+              <Link href="/" aria-label="Ir para as rifas" className="flex items-center gap-2 px-3 py-2 hover:bg-mist">
                 <Store size={16} aria-hidden /> Ir para as rifas
               </Link>
-              <Link href="/conta/senha" className="flex items-center gap-2 px-3 py-2 hover:bg-mist">
+              <Link href="/conta/senha" aria-label="Trocar senha" className="flex items-center gap-2 px-3 py-2 hover:bg-mist">
                 <KeyRound size={16} aria-hidden /> Trocar senha
               </Link>
-              <button type="button" onClick={() => logout.mutate()} className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-mist">
+              <button type="button" aria-label="Sair" onClick={() => logout.mutate()} className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-mist">
                 <LogOut size={16} aria-hidden /> Sair
               </button>
             </div>
@@ -544,10 +545,10 @@ export function PanelShell({
             © <span className="tnum">{new Date().getFullYear()}</span> {nomeDaMarca} · {NOME_DO_PAPEL[session?.role ?? ""] ?? "Painel"}
           </span>
           <span className="flex gap-4">
-            <Link href="/ajuda" className="text-green-deep hover:underline">
+            <Link href="/ajuda" className="inline-flex min-h-6 items-center text-green-deep hover:underline">
               Ajuda
             </Link>
-            <Link href="/" className="text-green-deep hover:underline">
+            <Link href="/" className="inline-flex min-h-6 items-center text-green-deep hover:underline">
               Rifas
             </Link>
           </span>

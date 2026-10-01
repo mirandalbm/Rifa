@@ -460,6 +460,8 @@ async function rotasDaPlataforma(eu: Lado) {
     ["POST criar modelos do WhatsApp", "/api/admin/whatsapp/modelos", { method: "POST" }],
     ["POST teste do WhatsApp", "/api/admin/whatsapp/teste", { method: "POST", body: '{"telefone":"11999999999"}' }],
     ["POST decidir disputa de reembolso", "/api/admin/chamados/00000000-0000-0000-0000-000000000000/disputa/decidir", { method: "POST", body: '{"resultado":"procedente","decisao":"xxxxxxxxxxxx"}' }],
+    ["PUT configuração do banner pago", "/api/admin/banner-pago/config", { method: "PUT", body: '{"ligado":true}' }],
+    ["POST decisão de banner pago", "/api/admin/banner-pago/pedidos/00000000-0000-4000-8000-000000000000/decisao", { method: "POST", body: '{"aprovar":true}' }],
     ["PUT configuração do patrocínio", "/api/admin/patrocinio/config", { method: "PUT", body: '{"ligado":true}' }],
     ["POST ajuste de saldo de patrocínio", "/api/admin/patrocinio/ajustes", { method: "POST", body: "{}" }],
     ["POST decisão de reembolso de patrocínio", "/api/admin/patrocinio/reembolsos/00000000-0000-4000-8000-000000000000/decisao", { method: "POST", body: "{}" }],

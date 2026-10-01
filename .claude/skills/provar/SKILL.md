@@ -46,7 +46,7 @@ Pelo caminho que mudou (a mesma tabela "Onde mexer" do `CLAUDE.md`):
 | presente | `presente` |
 | painel de resultados | `resultados` |
 | afiliados, fiscal, guarda da comissão | `afiliados`, `fiscal`, `guarda` |
-| bônus, patrocínio, marketing | `bonus`, `patrocinio`, `marketing` |
+| bônus, patrocínio, banner pago, marketing | `bonus`, `patrocinio`, `banner`, `marketing` |
 | editar, adiar, excluir rifa | `solicitacoes` |
 | qualquer tela (client/) | `telas` (60 telas × 390/820/1440; não pode reprovar) |
 

@@ -217,6 +217,13 @@ import {
   responderReembolso,
 } from "../services/patrocinio";
 import {
+  arteDoPedido,
+  cancelarBanner,
+  comprarBanner,
+  decidirBanner,
+  painelDoBannerPago,
+} from "../services/bannerPago";
+import {
   PROVEDORES_PIX,
   NOME_PROVEDOR,
   CREDENCIAIS_PROVEDOR,
@@ -3599,6 +3606,86 @@ adminRouter.put("/bonus/metas/:id", async (req, res, next) => {
     const m = await alterarMeta(req.params.id, req.body);
     await audit(req, "bonus.meta.alterar", "bonus_meta", m.id, m);
     res.json(m);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/* ---------------- banner pago na vitrine ---------------- */
+
+/**
+ * A mesma tela, dois recortes: a organização vê os pedidos e o saldo dela; a
+ * plataforma vê todos. Desligado, a organização recebe 404 (o produto não
+ * existe para ela).
+ */
+adminRouter.get("/banner-pago", async (req, res, next) => {
+  try {
+    res.json(await painelDoBannerPago(req));
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.post("/banner-pago/pedidos", async (req, res, next) => {
+  try {
+    const p = await comprarBanner(req, {
+      campaignId: req.body?.campaignId,
+      titulo: req.body?.titulo,
+      imagem: req.body?.imagem,
+      dias: req.body?.dias,
+    });
+    await audit(req, "banner.pedido", "banner_pedido", p.id, {
+      campaignId: p.campaignId,
+      dias: p.dias,
+      valorPagoCents: p.valorPagoCents,
+    });
+    res.status(201).json(p);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** A arte do pedido, para conferir antes de aprovar: dono ou plataforma (o do vizinho é 404). */
+adminRouter.get("/banner-pago/pedidos/:id/imagem", async (req, res, next) => {
+  try {
+    const a = await arteDoPedido(req, req.params.id);
+    if (!a) return res.status(404).json({ message: "Pedido não encontrado." });
+    res.setHeader("Cache-Control", "private, no-store");
+    res.type(a.mime).send(a.bytes);
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.post("/banner-pago/pedidos/:id/cancelar", async (req, res, next) => {
+  try {
+    const p = await cancelarBanner(req, req.params.id);
+    await audit(req, "banner.cancelar", "banner_pedido", p.id, { valorPagoCents: p.valorPagoCents });
+    res.json(p);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** Aprovar ou recusar a arte: só a plataforma. A decisão fica na auditoria antes de a resposta sair. */
+adminRouter.post("/banner-pago/pedidos/:id/decisao", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    const p = await decidirBanner(req, req.params.id, { aprovar: req.body?.aprovar, motivo: req.body?.motivo });
+    await audit(req, `banner.${p.status}`, "banner_pedido", p.id, { organizacao: p.organizationId, motivo: p.motivo });
+    res.json(p);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** Preço do dia, prazo e vagas (só a plataforma). O resto da configuração fica como está. */
+adminRouter.put("/banner-pago/config", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    const salva = await setPlataforma({ bannerPago: req.body });
+    await audit(req, "banner.config", "settings", "plataforma", { ...salva.bannerPago });
+    res.json(salva.bannerPago);
   } catch (err) {
     next(err);
   }

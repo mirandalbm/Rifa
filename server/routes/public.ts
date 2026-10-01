@@ -76,6 +76,7 @@ import { publicUrl } from "../services/urls";
 import { cartByCode, createCartOrder, createOrder, orderByCode, ordersByPhone, OrderError, resgatarCotasDeBonus } from "../services/orders";
 import { estadoDoBonus, registrarVisita } from "../services/bonus";
 import { meuCodigoDePresente, presentePublico } from "../services/presente";
+import { bannersPagosNoAr, imagemDoBannerPago } from "../services/bannerPago";
 import { patrocinadasNoAr, registrarClique, registrarExibicoes } from "../services/patrocinio";
 import { pixelsPublicos } from "../services/marketing";
 import { ehRobo } from "@shared/patrocinio";
@@ -439,7 +440,8 @@ async function cartoesDoFeed(req: Request, rows: LinhaDaVitrine[], uf: string | 
 
 publicRouter.get("/banners", async (_req, res, next) => {
   try {
-    res.json(await bannersNoAr());
+    // Os da plataforma primeiro; os pagos vêm depois, marcados como patrocinados.
+    res.json([...(await bannersNoAr()), ...(await bannersPagosNoAr())]);
   } catch (err) {
     next(err);
   }
@@ -451,6 +453,18 @@ publicRouter.get("/banners/:id/imagem", async (req, res, next) => {
     if (!b) return res.status(404).json({ message: "Banner não encontrado." });
     // O endereço leva a data (?v=): trocar a imagem troca o endereço.
     res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+    res.type(b.mime).send(b.bytes);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** A arte de banner pago, só enquanto ele está no ar (some junto com a rifa). */
+publicRouter.get("/banners-pagos/:id/imagem", async (req, res, next) => {
+  try {
+    const b = await imagemDoBannerPago(req.params.id);
+    if (!b) return res.status(404).json({ message: "Banner não encontrado." });
+    res.setHeader("Cache-Control", "public, max-age=300");
     res.type(b.mime).send(b.bytes);
   } catch (err) {
     next(err);

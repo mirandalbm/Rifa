@@ -1756,6 +1756,50 @@ export const plataformaBanners = pgTable("plataforma_banners", {
 });
 
 /**
+ * Banner pago na vitrine (`shared/bannerPago.ts`): a organização compra dias
+ * de topo para uma rifa dela. A arte fica no banco (1200×600 WebP), o valor
+ * sai do saldo pelo livro na hora do pedido, e a plataforma aprova a arte. O
+ * relógio da compra só começa quando o banner pega uma vaga (`inicio`).
+ * Um pedido em aberto por rifa — o índice parcial decide, nunca um SELECT.
+ */
+export const bannerPedidos = pgTable(
+  "banner_pedidos",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    campaignId: uuid("campaign_id")
+      .notNull()
+      .references(() => campaigns.id, { onDelete: "restrict" }),
+    titulo: text("titulo").notNull(),
+    mime: text("mime").notNull(),
+    bytes: bytea("bytes").notNull(),
+    dias: integer("dias").notNull(),
+    /** O preço do dia fotografado na compra: mudar a tabela não mexe no que já foi pago. */
+    precoDiaCents: integer("preco_dia_cents").notNull(),
+    valorPagoCents: integer("valor_pago_cents").notNull(),
+    /** em_analise | aprovado | no_ar | encerrado | recusado | cancelado */
+    status: text("status").notNull().default("em_analise"),
+    motivo: text("motivo"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    aprovadoEm: timestamp("aprovado_em"),
+    inicio: timestamp("inicio"),
+    fim: timestamp("fim"),
+    encerradoEm: timestamp("encerrado_em"),
+    /** O que voltou ao saldo (recusa, cancelamento ou dias não usados). */
+    devolvidoCents: integer("devolvido_cents").notNull().default(0),
+  },
+  (t) => [
+    uniqueIndex("uq_banner_pedido_aberto_por_rifa")
+      .on(t.campaignId)
+      .where(sql`${t.status} in ('em_analise','aprovado','no_ar')`),
+    index("ix_banner_pedidos_status").on(t.status, t.aprovadoEm),
+    index("ix_banner_pedidos_org").on(t.organizationId, t.createdAt),
+  ],
+);
+
+/**
  * Stories do organizador: uma imagem 9:16 que some em 24 h (`expira_em`).
  * Aparece para quem segue, no topo da vitrine, e acende o anel da foto no
  * perfil. O relógio apaga os vencidos — a tabela não cresce.

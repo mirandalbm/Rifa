@@ -12,6 +12,7 @@ import { completarRegioesPendentes } from "../services/contaComprador";
 import { apagarStoriesVencidos } from "../services/vitrine";
 import { apagarNotificacoesAntigas } from "../services/notificacoes";
 import { encerrarAnunciosForaDoAr } from "../services/patrocinio";
+import { encerrarBannersPagos } from "../services/bannerPago";
 import { enviarEventosPendentes } from "../services/marketing";
 import { migrarAfiliadosAntigos } from "../services/afiliados";
 import { lancarMensalidades } from "../services/billing";
@@ -58,6 +59,7 @@ const LOCK_CIDADES = 811_007;
 const LOCK_PUSH_SORTEIO = 811_008;
 const LOCK_REGIOES = 811_009;
 const LOCK_ANUNCIOS = 811_403;
+const LOCK_BANNERS = 811_404;
 const LOCK_MARKETING = 811_501;
 const LOCK_COPIA = 811_013;
 
@@ -287,6 +289,21 @@ export function startJobs() {
       });
     } catch (err) {
       console.error("[jobs] anúncios de rifa fora do ar:", err);
+    }
+  }, releaseMs).unref();
+
+  // Banner pago: encerra o vencido e o da rifa que saiu do ar (devolve os dias
+  // não usados) e preenche as vagas.
+  setInterval(async () => {
+    try {
+      await withLock(LOCK_BANNERS, async () => {
+        const r = await encerrarBannersPagos();
+        if (r.venceram + r.devolvidos + r.promovidos > 0) {
+          log(`banners pagos: ${r.venceram} venceram, ${r.devolvidos} devolvidos ao saldo, ${r.promovidos} entraram no ar`, "jobs");
+        }
+      });
+    } catch (err) {
+      console.error("[jobs] banners pagos:", err);
     }
   }, releaseMs).unref();
 

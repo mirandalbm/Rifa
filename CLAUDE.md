@@ -112,6 +112,7 @@ arquitetura.
 | Buscar (grade das publicações e busca por texto, interruptor e tabela da plataforma) | `shared/buscar.ts` (regras e tabela), `server/services/buscar.ts`, `GET /api/public/buscar` em `server/routes/public.ts`, `buscarLigado`/`buscarTipos` em `shared/plataforma.ts`, `client/src/pages/Buscar.tsx`, cartão em `client/src/components/TopoDoAppCard.tsx`, `scripts/buscar-test.ts`, `tests/buscar.test.ts` |
 | Mensagens (caixa de um para um: apostador, organização e afiliado) | `shared/mensagens.ts` (regras puras), `server/services/mensagens.ts`, rotas `/mensagens/*` em `server/routes/public.ts` e `/mensagens/denuncias*` em `server/routes/admin.ts`, `mensagensLigado` em `shared/plataforma.ts`, `client/src/pages/Mensagens.tsx`, `ConversasDenunciadas.tsx`, `BotaoMensagem.tsx`, `scripts/mensagens-test.ts`, `tests/mensagens.test.ts` |
 | rifas patrocinadas por clique (etapa 15): pacote, fila, tabela e números | `shared/patrocinio.ts` (regras, preço, previsão da fila), `server/services/patrocinio.ts`, `client/src/pages/adminPatrocinio.tsx`, `client/src/components/Patrocinadas.tsx`, `scripts/patrocinio-test.ts` |
+| banner pago na vitrine (dias de topo, arte aprovada, vagas, devolução dos dias não usados) | `shared/bannerPago.ts` (regras e config), `server/services/bannerPago.ts`, rotas `/banner-pago*` em `server/routes/admin.ts`, `/banners` e `/banners-pagos/:id/imagem` em `server/routes/public.ts`, `bannerPago` em `shared/plataforma.ts`, `client/src/pages/adminBannerPago.tsx`, `client/src/components/BannersVitrine.tsx`, relógio em `server/jobs/index.ts`, `scripts/banner-pago-test.ts`, `tests/bannerPago.test.ts` |
 | marketing e tráfego pago (etapa 16): pixels, aviso de cookies, UTM, compra pelo servidor | `shared/marketing.ts` (regras e corpos das APIs), `server/services/marketing.ts`, `client/src/lib/marketing.ts`, `client/src/components/Marketing.tsx`, `client/src/pages/adminMarketing.tsx`, `scripts/marketing-test.ts` |
 | plano da próxima fase (vitrine, contas, afiliados, marketing) | `docs/PLANO-FASE5.md` |
 | conta do apostador (senha, confirmação, exclusão) | `shared/contaComprador.ts`, `server/services/contaComprador.ts`, `scripts/conta-test.ts` |
@@ -2078,6 +2079,59 @@ aí o próximo entra sozinho.
   (`comPatrocinadas()` na vitrine); no construtor ele pode mudar de lugar
   ou ser desligado.
 - `npm run patrocinio` prova tudo isso contra a API de verdade.
+
+## Banner pago na vitrine — o que não pode afrouxar
+
+A organização compra **dias de topo** para uma rifa dela: o banner entra no
+carrossel de cima da vitrine, ao lado dos da plataforma, e leva à rifa. Preço
+do dia, mínimo e máximo de dias, vagas e segundos na tela são da plataforma
+(Banner na vitrine, `PUT /admin/banner-pago/config`, 403 para organizador).
+
+- **Nasce desligado** (`bannerPago.ligado`). Desligado, a organização recebe
+  404 em toda rota do produto e a vitrine não mostra banner pago; a
+  plataforma vê a tela para poder ligar. Quem compra é a **organização**, com
+  o saldo dela: a plataforma não compra pelo organizador (403).
+- **O saldo anda pelo livro, na mesma transação do pedido** (`lancar()` de
+  `services/patrocinio.ts`, chave única): pedido (`banner:<id>`), devolução da
+  recusa ou do cancelamento (`banner-devolucao:<id>`) e dias não usados
+  (`banner-sobra:<id>`) lançam **uma vez só**, e o saldo nunca fica negativo —
+  sem saldo, o pedido também não fica. O preço do dia é fotografado no
+  pedido (`preco_dia_cents`): mudar a tabela não mexe no que já foi pago.
+- **Uma rifa, um pedido em aberto** (`uq_banner_pedido_aberto_por_rifa`,
+  índice parcial em `em_analise`/`aprovado`/`no_ar`): quem decide é o índice,
+  nunca um `SELECT` antes; a violação derruba a transação inteira, débito
+  junto. Dois pedidos ao mesmo tempo, um 201 e um 409.
+- **A plataforma aprova a arte antes de ir ao ar** (Caixa de entrada, tipo
+  "Banner pago"): propaganda enganosa no topo da vitrine é golpe com a
+  vitrine inteira de testemunha. Decidir é `UPDATE` condicional
+  (`em_analise`, com o pedido travado): dois cliques, uma decisão e um 409.
+  Recusa exige motivo (a organização o lê) e devolve tudo. A organização só
+  cancela enquanto está em análise; depois de aprovado, não há cancelamento.
+- **O relógio de dias só começa quando o banner pega a vaga**
+  (`promoverBannersPagos()`: trava de transação 811104, conta e promove
+  juntos, `FOR UPDATE SKIP LOCKED`, do aprovado mais antigo). Aprovado com
+  vaga livre entra na hora; sem vaga, espera na fila (calculada, nunca
+  guardada). Os banners da plataforma não ocupam vaga paga.
+- **A janela vale mesmo antes do relógio**: a vitrine só mostra `no_ar` com
+  `inicio ≤ agora < fim`, rifa publicada e não travada, organização nem
+  arquivada nem banida; a arte pública (`/banners-pagos/:id/imagem`) segue
+  a mesma regra. O relógio (`encerrarBannersPagos`, trava 811404) encerra o
+  vencido (sem devolver) e o que perdeu a rifa ou a promotora: **devolve os
+  dias não usados** (`sobraDoBanner()`: o dia que começou conta inteiro, o
+  gasto arredonda para baixo, gasto + sobra = valor pago, nunca mais que
+  isso) e depois preenche as vagas. Pedido em análise ou aprovado que nem
+  chegou a aparecer volta inteiro.
+- **Propaganda se identifica**: o cartão leva "Patrocinado" em texto, no
+  canto. A arte é reprocessada (WebP 1200×600) e fica no banco; o título é o
+  texto alternativo.
+- **Rifa com banner pago não se apaga** (422, FK `restrict` e checagem em
+  `excluirRifa`): dinheiro envolvido.
+- **Recorte**: o pedido, a arte e o cancelamento do vizinho são 404; decidir
+  e configurar são da plataforma (403, no `npm run isolation`); a
+  organização vê o saldo e os pedidos dela, sem o nome das outras.
+- `npm run banner` prova tudo isso contra a API de verdade e devolve o
+  estado de antes. A tabela nova (`banner_pedidos`) sobe com o `db:push`
+  **antes** do código.
 
 ## Marketing e tráfego pago — o que não pode afrouxar
 

@@ -53,6 +53,7 @@ import { AdminFiscal } from "@/pages/adminFiscal";
 import { AdminCaixa } from "@/pages/adminCaixa";
 import { AdminBonus } from "@/pages/adminBonus";
 import { AdminPatrocinio } from "@/pages/adminPatrocinio";
+import { AdminBannerPago } from "@/pages/adminBannerPago";
 import { AdminMarketing } from "@/pages/adminMarketing";
 import { AfiliadoDados } from "@/pages/afiliadoDados";
 import ReciboPage from "@/pages/Recibo";
@@ -293,6 +294,11 @@ export default function App() {
           <Route path="/admin/patrocinio">
             <Guarded requires="organizer">
               <AdminPatrocinio />
+            </Guarded>
+          </Route>
+          <Route path="/admin/banner-pago">
+            <Guarded requires="organizer">
+              <AdminBannerPago />
             </Guarded>
           </Route>
           <Route path="/admin/marketing">

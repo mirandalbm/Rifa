@@ -470,12 +470,13 @@ export async function excluirRifa(campaignId: string) {
                  WHERE o.campaign_id = ${campaignId}::uuid) AS cobrou,
         EXISTS (SELECT 1 FROM chamados ch JOIN orders o ON o.id = ch.order_id
                  WHERE o.campaign_id = ${campaignId}::uuid) AS chamado,
-        EXISTS (SELECT 1 FROM patrocinio_anuncios WHERE campaign_id = ${campaignId}::uuid) AS anuncio
+        EXISTS (SELECT 1 FROM patrocinio_anuncios WHERE campaign_id = ${campaignId}::uuid)
+          OR EXISTS (SELECT 1 FROM banner_pedidos WHERE campaign_id = ${campaignId}::uuid) AS anuncio
     `);
     const f = r.rows[0] as Record<"vendeu" | "reservando" | "cota" | "sorteada" | "cobrou" | "chamado" | "anuncio", boolean>;
     if (f.vendeu || f.cobrou) throw new CampaignRuleError("Esta rifa teve venda paga: não pode ser apagada. Com comprador, o caminho é o estorno.");
     if (f.chamado) throw new CampaignRuleError("Esta rifa tem chamado de reembolso: não pode ser apagada.");
-    if (f.anuncio) throw new CampaignRuleError("Esta rifa teve anúncio patrocinado: não pode ser apagada.");
+    if (f.anuncio) throw new CampaignRuleError("Esta rifa teve anúncio ou banner pago: não pode ser apagada.");
     if (f.sorteada) throw new CampaignRuleError("Esta rifa já foi sorteada: não pode ser apagada.");
     if (!c.demonstracao) {
       if (c.status !== "draft" && c.status !== "published") {

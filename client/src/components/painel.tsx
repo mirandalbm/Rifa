@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { Key, ReactNode } from "react";
 import { Link } from "wouter";
 import type { LucideIcon } from "lucide-react";
 
@@ -210,5 +210,88 @@ export function BarrasHorizontais({
         </li>
       ))}
     </ul>
+  );
+}
+
+/**
+ * A lista longa do painel: **cartão por linha no celular, tabela a partir de
+ * `sm`** (639 px). Uma tabela de cinco colunas num celular de 390 px rola
+ * para o lado ou espreme o texto; o cartão conta a mesma linha de cima para
+ * baixo. Só um dos dois fica na tela (o outro é `display: none`, então o
+ * leitor de tela também lê uma vez só).
+ */
+export function TabelaOuCartoes<T>({
+  itens,
+  chave,
+  colunas,
+  cartao,
+  aria,
+}: {
+  itens: T[];
+  chave: (i: T) => Key;
+  /** `direita` alinha número e dinheiro, como no kit. */
+  colunas: { titulo: string; celula: (i: T) => ReactNode; direita?: boolean }[];
+  /** A linha contada de cima para baixo, para o celular. */
+  cartao: (i: T) => ReactNode;
+  aria: string;
+}) {
+  return (
+    <>
+      <ul aria-label={aria} className="divide-y divide-line sm:hidden">
+        {itens.map((i) => (
+          <li key={chave(i)} className="px-4 py-3">
+            {cartao(i)}
+          </li>
+        ))}
+      </ul>
+      <div className="hidden overflow-x-auto sm:block">
+        <table aria-label={aria} className="w-full text-sm">
+          <CabecalhoDaTabela colunas={colunas.map((c) => c.titulo)} />
+          <tbody>
+            {itens.map((i) => (
+              <tr key={chave(i)} className="border-t border-line">
+                {colunas.map((c) => (
+                  <td key={c.titulo} className={`px-4 py-3 ${c.direita ? "text-right" : ""}`}>
+                    {c.celula(i)}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </>
+  );
+}
+
+/** "Ver mais" no pé da lista paginada: some quando o servidor não mandou o próximo cursor. */
+export function VerMais({
+  temMais,
+  carregando,
+  aoPedir,
+  mostradas,
+}: {
+  temMais: boolean;
+  carregando: boolean;
+  aoPedir: () => void;
+  mostradas: number;
+}) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line px-4 py-3 text-xs text-muted">
+      <span>
+        <span className="tnum">{mostradas}</span> mostrad{mostradas === 1 ? "a" : "as"}
+        {temMais ? "" : " — é tudo"}
+      </span>
+      {temMais ? (
+        <button
+          type="button"
+          onClick={aoPedir}
+          disabled={carregando}
+          className="inline-flex min-h-9 items-center rounded-md border-2 border-green px-4 text-sm font-semibold text-green-deep hover:bg-green-soft disabled:opacity-50"
+        >
+          {carregando ? "Carregando…" : "Ver mais"}
+        </button>
+      ) : null}
+    </div>
   );
 }

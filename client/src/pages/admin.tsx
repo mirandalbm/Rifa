@@ -10,7 +10,8 @@ import { ComissaoCard } from "@/components/ComissaoCard";
 import { ReembolsoCard } from "@/components/ReembolsoCard";
 import { PanelShell } from "@/components/AppShell";
 import { Card, Money, Pill, Button, Empty, Progress } from "@/components/bits";
-import { AlternarVisao, BarrasHorizontais, CabecalhoDaTabela, CartaoDoPainel, Estatistica, Sparkline } from "@/components/painel";
+import { AlternarVisao, BarrasHorizontais, CabecalhoDaTabela, CartaoDoPainel, Estatistica, Sparkline, TabelaOuCartoes, VerMais } from "@/components/painel";
+import { useListaPaginada } from "@/lib/paginada";
 import { ChevronRight, Image as ImagemIcone, LayoutGrid, List, MoreVertical, Percent, Ticket } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useSession } from "@/lib/session";
@@ -879,19 +880,48 @@ export function AdminCampanhas() {
 
 /* ------------------------------ pedidos ------------------------------ */
 
+interface LinhaDePedido {
+  order: { code: number; status: string; quantity: number; amountCents: number; createdAt: string };
+  buyer: { name: string; phone: string | null; codigo: string | null; completo: boolean };
+  campaign: { title: string };
+}
+
+/** Cliente da plataforma: só o ID. Do cambista: completo (`shared/titularidade.ts`). */
+function Comprador({ r }: { r: LinhaDePedido }) {
+  return (
+    <>
+      {r.buyer.name}
+      {r.buyer.completo && r.buyer.phone ? (
+        <span className="tnum block text-[11px] text-muted">{maskPhone(r.buyer.phone)}</span>
+      ) : null}
+    </>
+  );
+}
+
+function BilheteDoPedido({ codigo }: { codigo: number }) {
+  return (
+    <a
+      href={`/bilhete/${codigo}`}
+      target="_blank"
+      rel="noreferrer"
+      className="inline-flex min-h-6 items-center text-xs text-green-deep underline"
+    >
+      bilhete
+    </a>
+  );
+}
+
 export function AdminPedidos() {
   // A busca do painel chega com `?codigo=` (um pedido) ou `?cliente=` (o ID):
   // a lista fica só com eles e o filtro aparece em texto, com o "ver todos".
   const busca = new URLSearchParams(useSearch());
   const codigo = busca.get("codigo");
   const cliente = busca.get("cliente");
-  const { data } = useQuery<
-    {
-      order: { code: number; status: string; quantity: number; amountCents: number; createdAt: string };
-      buyer: { name: string; phone: string | null; codigo: string | null; completo: boolean };
-      campaign: { title: string };
-    }[]
-  >({ queryKey: ["/api/admin/orders", { codigo: codigo ?? undefined, cliente: cliente ?? undefined }] });
+  const { paginas, hasNextPage, fetchNextPage, isFetchingNextPage, isLoading } = useListaPaginada<LinhaDePedido[]>(
+    "/api/admin/orders",
+    { codigo, cliente },
+  );
+  const linhas = paginas.flat();
   return (
     <PanelShell title="Pedidos">
       <p className="mb-3 text-xs text-muted">
@@ -909,47 +939,41 @@ export function AdminPedidos() {
         </p>
       ) : null}
       <Card>
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[620px] text-sm">
-            <thead>
-              <tr className="bg-mist">
-                {["Pedido", "Rifa", "Comprador", "Cotas", "Valor", "Status", ""].map((h) => (
-                  <th key={h} className="label-xs px-3 py-2 text-left">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {data?.map((row) => (
-                <tr key={row.order.code} className="border-t border-line">
-                  <td className="tnum px-3 py-2">#{row.order.code}</td>
-                  <td className="px-3 py-2">{row.campaign.title}</td>
-                  <td className="px-3 py-2">
-                    {row.buyer.name}
-                    {/* Cliente da plataforma: só o ID. Do cambista: completo. */}
-                    {row.buyer.completo && row.buyer.phone ? (
-                      <span className="tnum block text-[11px] text-muted">{maskPhone(row.buyer.phone)}</span>
-                    ) : null}
-                  </td>
-                  <td className="tnum px-3 py-2">{row.order.quantity}</td>
-                  <td className="px-3 py-2"><Money cents={row.order.amountCents} /></td>
-                  <td className="px-3 py-2"><Pill status={row.order.status} /></td>
-                  <td className="px-3 py-2">
-                    <a
-                      href={`/bilhete/${row.order.code}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-xs text-green-deep underline"
-                    >
-                      bilhete
-                    </a>
-
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        {data?.length === 0 ? <Empty>{codigo || cliente ? "Nenhum pedido com esse código ou ID aqui." : "Nenhum pedido ainda."}</Empty> : null}
+        <TabelaOuCartoes
+          aria="Pedidos"
+          itens={linhas}
+          chave={(r) => r.order.code}
+          colunas={[
+            { titulo: "Pedido", celula: (r) => <span className="tnum">#{r.order.code}</span> },
+            { titulo: "Rifa", celula: (r) => r.campaign.title },
+            { titulo: "Comprador", celula: (r) => <Comprador r={r} /> },
+            { titulo: "Cotas", celula: (r) => <span className="tnum">{r.order.quantity}</span> },
+            { titulo: "Valor", celula: (r) => <Money cents={r.order.amountCents} /> },
+            { titulo: "Status", celula: (r) => <Pill status={r.order.status} /> },
+            { titulo: "", celula: (r) => <BilheteDoPedido codigo={r.order.code} /> },
+          ]}
+          cartao={(r) => (
+            <div className="space-y-1">
+              <div className="flex items-start justify-between gap-3">
+                <span className="tnum font-medium">#{r.order.code}</span>
+                <Pill status={r.order.status} />
+              </div>
+              <p className="min-w-0 truncate">{r.campaign.title}</p>
+              <p className="text-sm">
+                <Comprador r={r} />
+              </p>
+              <div className="flex items-center justify-between gap-3 text-sm">
+                <span className="tnum text-muted">{r.order.quantity} cota{r.order.quantity === 1 ? "" : "s"}</span>
+                <Money cents={r.order.amountCents} />
+              </div>
+              <BilheteDoPedido codigo={r.order.code} />
+            </div>
+          )}
+        />
+        {!isLoading && linhas.length === 0 ? <Empty>{codigo || cliente ? "Nenhum pedido com esse código ou ID aqui." : "Nenhum pedido ainda."}</Empty> : null}
+        {linhas.length ? (
+          <VerMais temMais={Boolean(hasNextPage)} carregando={isFetchingNextPage} aoPedir={() => fetchNextPage()} mostradas={linhas.length} />
+        ) : null}
       </Card>
     </PanelShell>
   );

@@ -509,7 +509,7 @@ async function conteudoDasListas(eu: Lado, vizinho: Lado) {
     slugs.join(", ") || "vazia",
   );
 
-  const pedidos = await (await pedir(eu.cookie, "/api/admin/orders")).json();
+  const pedidos = await (await pedir(eu.cookie, "/api/admin/orders?limite=100")).json();
   const codigos = (pedidos as { order: { code: number } }[]).map((r) => r.order.code);
   checa(
     "a lista de pedidos não traz o do vizinho",
@@ -538,6 +538,21 @@ async function conteudoDasListas(eu: Lado, vizinho: Lado) {
     meuCliente.length === 1 && meuCliente[0].rotulo === `Cliente ${meuId}` && !JSON.stringify(meuCliente).includes(`Cliente ${eu.nome}`),
     JSON.stringify(meuCliente),
   );
+  // Paginação por chave: a página de 1 traz o cursor, a seguinte começa
+  // depois dela, e nenhuma das duas alcança o pedido do vizinho.
+  const p1 = await pedir(eu.cookie, "/api/admin/orders?limite=1");
+  const cursor = p1.headers.get("x-proximo");
+  const linha1 = (await p1.json()) as { order: { code: number } }[];
+  const p2 = cursor ? await pedir(eu.cookie, `/api/admin/orders?limite=1&antes=${encodeURIComponent(cursor)}`) : null;
+  const linha2 = p2 ? ((await p2.json()) as { order: { code: number } }[]) : [];
+  checa(
+    "a lista de pedidos pagina por chave: duas páginas, sem repetir e sem o vizinho",
+    linha1.length === 1 && Boolean(cursor) && linha2.length === 1 && linha1[0].order.code !== linha2[0].order.code &&
+      ![linha1[0], linha2[0]].some((l) => l.order.code === vizinho.orderCode),
+    `${linha1.length} + ${linha2.length}, cursor ${cursor ? "sim" : "não"}`,
+  );
+  const lixo = (await (await pedir(eu.cookie, "/api/admin/orders?limite=1&antes=%27%3B%20drop%20table%20orders")).json()) as unknown[];
+  checa("cursor fora do formato vira primeira página, não erro", Array.isArray(lixo) && lixo.length === 1);
   const filtrado = (await (await pedir(eu.cookie, `/api/admin/orders?codigo=${vizinho.orderCode}`)).json()) as unknown[];
   checa("a lista de pedidos filtrada pelo código do vizinho vem vazia", filtrado.length === 0);
   const porCliente = (await (await pedir(eu.cookie, `/api/admin/orders?cliente=${idDoVizinho}`)).json()) as unknown[];
@@ -633,7 +648,7 @@ async function conteudoDasListas(eu: Lado, vizinho: Lado) {
 
   // De quem é o cliente: o da plataforma aparece só pelo ID; o do cambista,
   // completo — na lista de pedidos e nas exportações.
-  const meusPedidos = (await (await pedir(eu.cookie, "/api/admin/orders")).json()) as {
+  const meusPedidos = (await (await pedir(eu.cookie, "/api/admin/orders?limite=100")).json()) as {
     order: { code: number };
     buyer: { name: string; phone: string | null };
   }[];
@@ -674,7 +689,7 @@ async function conteudoDasListas(eu: Lado, vizinho: Lado) {
       claimedAt: new Date(),
     })
     .returning();
-  const comGanhador = (await (await pedir(eu.cookie, "/api/admin/orders")).json()) as {
+  const comGanhador = (await (await pedir(eu.cookie, "/api/admin/orders?limite=100")).json()) as {
     order: { code: number };
     buyer: { name: string; phone: string | null };
   }[];

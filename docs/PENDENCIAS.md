@@ -435,8 +435,9 @@ Na ordem de entrega do plano:
   do scrypt, clique patrocinado mais difícil de forjar e rotas públicas de
   rascunho.
 - [ ] **[código]** Pendências da revisão das versões (P1 a P14 em
-  `docs/VERSOES.md`): tablet da página da rifa e do perfil, um componente
-  só para as seis janelas, tabelas do painel no celular.
+  `docs/VERSOES.md`; P5 e P10 — tabelas do painel no celular e a paginação
+  de Pedidos e Cobrança — já saíram): tablet da página da rifa, um
+  componente só para as seis janelas, `Campo`, `h1` padrão, ícones.
 - [x] Cobrança com Asaas: nas vendas com split, a taxa da plataforma já
   retida na origem nasce "retida no split" (`platform_charges.status =
   retida`) e não entra no "em aberto" nem na baixa — a Cobrança mostra a

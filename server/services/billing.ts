@@ -15,6 +15,7 @@
 import { and, eq, sql, desc, isNull } from "drizzle-orm";
 import { db } from "../db";
 import { organizations, platformCharges, orders, campaigns, presenteCreditos } from "@shared/schema";
+import { PAGINA_PADRAO, cortarPagina, type CursorDaLista } from "@shared/paginacao";
 import {
   validateBillingPlan,
   platformPctFor,
@@ -165,8 +166,11 @@ export async function lancarMensalidades(agora = new Date()): Promise<number> {
  * ------------------------------------------------------------------ */
 
 /** O extrato de uma organização: o que ela deve e o que já pagou. */
-export async function extratoDa(organizationId: string, limite = 100) {
-  const linhas = await db
+export async function extratoDa(
+  organizationId: string,
+  { limite = PAGINA_PADRAO, antes = null }: { limite?: number; antes?: CursorDaLista | null } = {},
+) {
+  const doExtrato = await db
     .select({
       charge: platformCharges,
       orderCode: orders.code,
@@ -175,9 +179,21 @@ export async function extratoDa(organizationId: string, limite = 100) {
     .from(platformCharges)
     .leftJoin(orders, eq(orders.id, platformCharges.orderId))
     .leftJoin(campaigns, eq(campaigns.id, orders.campaignId))
-    .where(eq(platformCharges.organizationId, organizationId))
-    .orderBy(desc(platformCharges.createdAt))
-    .limit(limite);
+    .where(
+      and(
+        eq(platformCharges.organizationId, organizationId),
+        // Por chave, como em Pedidos: sem OFFSET (`shared/paginacao.ts`).
+        antes
+          ? sql`(${platformCharges.createdAt}, ${platformCharges.id}) < (${antes.criadoEm.toISOString()}::timestamp, ${antes.id}::uuid)`
+          : sql`true`,
+      ),
+    )
+    .orderBy(desc(platformCharges.createdAt), desc(platformCharges.id))
+    .limit(limite + 1);
+  const { itens: linhas, proximo } = cortarPagina(
+    doExtrato.map((l) => ({ ...l, criadoEm: l.charge.createdAt, id: l.charge.id })),
+    limite,
+  );
 
   const [totais] = await db
     .select({
@@ -197,7 +213,12 @@ export async function extratoDa(organizationId: string, limite = 100) {
     .from(presenteCreditos)
     .where(eq(presenteCreditos.organizationId, organizationId));
 
-  return { linhas, totais, creditos };
+  return {
+    linhas: linhas.map(({ criadoEm: _c, id: _i, ...linha }) => linha),
+    proximo,
+    totais,
+    creditos,
+  };
 }
 
 /** A carteira da plataforma: quanto cada organização deve. */

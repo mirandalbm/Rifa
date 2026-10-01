@@ -2,6 +2,8 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { PanelShell } from "@/components/AppShell";
 import { Card, Button, Pill, Empty, Money, Kpi } from "@/components/bits";
+import { TabelaOuCartoes, VerMais } from "@/components/painel";
+import { useListaPaginada } from "@/lib/paginada";
 import { apiRequest } from "@/lib/queryClient";
 import { useSession } from "@/lib/session";
 import { formatBRL } from "@shared/format";
@@ -54,6 +56,30 @@ interface Extrato {
  * dele — cobrar sem mostrar de onde veio cada lançamento seria indefensável,
  * e é a primeira coisa que um cliente pede quando desconfia da fatura.
  */
+type LinhaDoExtrato = Extrato["linhas"][number];
+
+function DeOndeVeio({ l }: { l: LinhaDoExtrato }) {
+  return l.charge.kind === "mensalidade" ? (
+    <>
+      Mensalidade <span className="tnum text-muted">{l.charge.competencia}</span>
+    </>
+  ) : (
+    <>
+      Venda do pedido <span className="tnum">{l.orderCode}</span>
+      {l.charge.pct ? <span className="tnum text-muted"> · {l.charge.pct}%</span> : null}
+      {l.campanha ? <span className="block text-[11px] text-muted">{l.campanha}</span> : null}
+    </>
+  );
+}
+
+function SituacaoDaTaxa({ status }: { status: string }) {
+  return (
+    <Pill status={status === "aberta" ? "reserved" : status === "cancelada" ? "closed" : "active"}>
+      {ROTULO_DA_TAXA[status] ?? status}
+    </Pill>
+  );
+}
+
 /** O status da taxa em texto: "retida no split" é a que o Pix já dividiu — nada a pagar. */
 const ROTULO_DA_TAXA: Record<string, string> = {
   aberta: "em aberto",
@@ -323,7 +349,11 @@ function Linha({
 /* ---------------- o lado do organizador ---------------- */
 
 function MinhaConta() {
-  const { data } = useQuery<Extrato>({ queryKey: ["/api/admin/cobranca/extrato"] });
+  // O extrato anda por chave: a primeira página traz o contrato e os totais
+  // (que valem para a conta toda), "Ver mais" traz os lançamentos seguintes.
+  const { paginas, hasNextPage, fetchNextPage, isFetchingNextPage } = useListaPaginada<Extrato>("/api/admin/cobranca/extrato");
+  const data = paginas[0];
+  const lancamentos = paginas.flatMap((p) => p.linhas);
 
   return (
     <PanelShell title="Cobrança">
@@ -355,53 +385,35 @@ function MinhaConta() {
       </div>
 
       <Card title="Lançamentos">
-        {data?.linhas.length ? (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-line text-left">
-                <th className="px-4 py-2 font-medium text-muted">Quando</th>
-                <th className="px-4 py-2 font-medium text-muted">De onde veio</th>
-                <th className="px-4 py-2 text-right font-medium text-muted">Valor</th>
-                <th className="px-4 py-2 font-medium text-muted">Situação</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.linhas.map((l) => (
-                <tr key={l.charge.id} className="border-b border-line last:border-0">
-                  <td className="tnum px-4 py-3 text-muted">
-                    {new Date(l.charge.createdAt).toLocaleDateString("pt-BR")}
-                  </td>
-                  <td className="px-4 py-3">
-                    {l.charge.kind === "mensalidade" ? (
-                      <>
-                        Mensalidade{" "}
-                        <span className="tnum text-muted">{l.charge.competencia}</span>
-                      </>
-                    ) : (
-                      <>
-                        Venda do pedido{" "}
-                        <span className="tnum">{l.orderCode}</span>
-                        {l.charge.pct ? (
-                          <span className="tnum text-muted"> · {l.charge.pct}%</span>
-                        ) : null}
-                        {l.campanha ? (
-                          <span className="block text-[11px] text-muted">{l.campanha}</span>
-                        ) : null}
-                      </>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-right">
+        {lancamentos.length ? (
+          <>
+            <TabelaOuCartoes
+              aria="Lançamentos de cobrança"
+              itens={lancamentos}
+              chave={(l) => l.charge.id}
+              colunas={[
+                { titulo: "Quando", celula: (l) => <span className="tnum text-muted">{new Date(l.charge.createdAt).toLocaleDateString("pt-BR")}</span> },
+                { titulo: "De onde veio", celula: (l) => <DeOndeVeio l={l} /> },
+                { titulo: "Valor", direita: true, celula: (l) => <Money cents={l.charge.amountCents} /> },
+                { titulo: "Situação", celula: (l) => <SituacaoDaTaxa status={l.charge.status} /> },
+              ]}
+              cartao={(l) => (
+                <div className="space-y-1">
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="tnum text-xs text-muted">{new Date(l.charge.createdAt).toLocaleDateString("pt-BR")}</span>
+                    <SituacaoDaTaxa status={l.charge.status} />
+                  </div>
+                  <p className="text-sm">
+                    <DeOndeVeio l={l} />
+                  </p>
+                  <p className="text-right text-sm">
                     <Money cents={l.charge.amountCents} />
-                  </td>
-                  <td className="px-4 py-3">
-                    <Pill status={l.charge.status === "aberta" ? "reserved" : l.charge.status === "cancelada" ? "closed" : "active"}>
-                      {ROTULO_DA_TAXA[l.charge.status] ?? l.charge.status}
-                    </Pill>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                  </p>
+                </div>
+              )}
+            />
+            <VerMais temMais={Boolean(hasNextPage)} carregando={isFetchingNextPage} aoPedir={() => fetchNextPage()} mostradas={lancamentos.length} />
+          </>
         ) : (
           <Empty>Nenhuma cobrança até agora.</Empty>
         )}

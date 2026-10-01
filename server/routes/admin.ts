@@ -124,6 +124,7 @@ import { caixaDeEntrada } from "../services/caixa";
 import { buscarNoPainel } from "../services/busca";
 import { avisosDoPainel, marcarAvisosVistos } from "../services/avisos";
 import { BUSCA_MAX, ID_DO_CLIENTE_VALIDO } from "@shared/busca";
+import { cortarPagina, lerCursor, limiteDaPagina } from "@shared/paginacao";
 import { destaqueDa, midiasDas, salvarPerfil, urlDaCapa, urlDaFoto } from "../services/perfil";
 import { resultados as resultadosDoPainel } from "../services/resultados";
 import {
@@ -1209,6 +1210,8 @@ adminRouter.get("/orders", async (req, res, next) => {
     // (o ID): a lista fica só com eles, dentro do mesmo recorte.
     const codigo = /^\d{8}$/.test(String(req.query.codigo ?? "")) ? Number(req.query.codigo) : null;
     const cliente = ID_DO_CLIENTE_VALIDO.test(String(req.query.cliente ?? "")) ? String(req.query.cliente) : null;
+    const limite = limiteDaPagina(req.query.limite);
+    const antes = lerCursor(req.query.antes);
     // Cliente da plataforma aparece só pelo ID; o do cambista, e o ganhador,
     // com nome e telefone (`shared/titularidade.ts`).
     const visivel = clienteVisivelSql(orgOf(req), "orders");
@@ -1231,12 +1234,22 @@ adminRouter.get("/orders", async (req, res, next) => {
           status ? sql`${orders.status} = ${status}` : sql`true`,
           codigo ? eq(orders.code, codigo) : sql`true`,
           cliente ? eq(buyers.codigo, cliente) : sql`true`,
+          // Paginação por chave: a próxima página começa depois da última
+          // linha vista (`shared/paginacao.ts`), sem OFFSET.
+          antes ? sql`(${orders.createdAt}, ${orders.id}) < (${antes.criadoEm.toISOString()}::timestamp, ${antes.id}::uuid)` : sql`true`,
           escopoDaCampanha(req),
         ),
       )
-      .orderBy(desc(orders.createdAt))
-      .limit(200);
-    res.json(rows);
+      .orderBy(desc(orders.createdAt), desc(orders.id))
+      .limit(limite + 1);
+    // Uma linha a mais diz que há próxima página; o cursor vai no cabeçalho
+    // para o corpo continuar sendo a lista, como sempre foi.
+    const { itens, proximo } = cortarPagina(
+      rows.map((r) => ({ ...r, criadoEm: r.order.createdAt, id: r.order.id })),
+      limite,
+    );
+    if (proximo) res.setHeader("X-Proximo", proximo);
+    res.json(itens.map(({ criadoEm: _c, id: _i, ...linha }) => linha));
   } catch (err) {
     next(err);
   }
@@ -2719,10 +2732,15 @@ adminRouter.get("/cobranca/extrato", async (req, res, next) => {
       return res.status(400).json({ message: "Escolha a organização." });
     }
 
+    const { proximo, ...extrato } = await extratoDa(alvo, {
+      limite: limiteDaPagina(req.query.limite),
+      antes: lerCursor(req.query.antes),
+    });
+    if (proximo) res.setHeader("X-Proximo", proximo);
     res.json({
       plano: await planOfOrganization(alvo),
       rotulos: BILLING_LABEL,
-      ...(await extratoDa(alvo)),
+      ...extrato,
     });
   } catch (err) {
     next(err);

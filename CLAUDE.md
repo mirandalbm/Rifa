@@ -140,6 +140,7 @@ arquitetura.
 | avisos do painel (o sino: comentários novos nas rifas, pendências do atendimento) | `shared/avisos.ts`, `server/services/avisos.ts`, `GET /api/admin/avisos` em `server/routes/admin.ts`, o `<details>` do sino em `PanelShell` (`client/src/components/AppShell.tsx`), `tests/avisos.test.ts`, `scripts/isolation-test.ts` |
 | busca do painel (tela, pedido pelo código, cliente pelo ID, organização pelo nome) | `shared/busca.ts` (`interpretarBusca`, `caminhoDoAchado`), `server/services/busca.ts`, `GET /api/admin/busca` e os filtros `?codigo=`/`?cliente=` de `/orders` em `server/routes/admin.ts`, `BuscaDoPainel` em `client/src/components/AppShell.tsx`, `tests/busca.test.ts`, `scripts/isolation-test.ts` |
 | caixa de entrada da plataforma (tudo que espera decisão, numa lista) | `shared/caixa.ts` (ordem e destino), `server/services/caixa.ts`, `client/src/pages/adminCaixa.tsx`, `tests/caixa.test.ts` |
+| lista longa do painel (paginação por chave, cartão no celular e tabela a partir de `sm`) | `shared/paginacao.ts`, `/orders` e `/cobranca/extrato` em `server/routes/admin.ts`, `extratoDa()` em `server/services/billing.ts`, `client/src/lib/paginada.ts`, `TabelaOuCartoes`/`VerMais` em `client/src/components/painel.tsx`, `tests/paginacao.test.ts` |
 | casca dos painéis (menu lateral em grupos, barra de cima, busca, conta, rodapé) e as peças do kit | `MENUS`/`menuDe()` em `shared/access.ts`, `PanelShell` em `client/src/components/AppShell.tsx`, `client/src/components/painel.tsx` (`Estatistica`, `CartaoDoPainel`, `CabecalhoDaTabela`, `AlternarVisao`), `.painel`/`.cartao` em `client/src/index.css`, `tests/menu.test.ts` |
 | remodelagem do web e dos painéis: inventário do que existe e lista de conferência | `docs/REMODELAGEM.md` |
 | vitrine no tablet e no computador: coluna ao vivo (tela do sorteio, ganhadores, jogando agora), tela flutuante e rodapé com logos | `shared/aoVivo.ts` (regras), `server/services/aoVivo.ts`, `client/src/components/ColunaAoVivo.tsx`, `client/src/components/RodapeDaPlataforma.tsx`, `validarApoios()` em `shared/template.ts`, `tests/aoVivo.test.ts`, `scripts/vitrine-test.ts` |
@@ -512,6 +513,19 @@ O verde da marca entra no lugar do roxo do kit; o significado das cores
   **Sem dado pessoal na lista**: organização, código do afiliado ou apelido —
   nunca telefone, CPF ou nome de comprador. Decidir segue na tela de cada
   tipo, onde a auditoria já é gravada.
+- **Lista longa do painel anda por chave e muda de forma no celular.**
+  Pedidos e os lançamentos da Cobrança vêm 25 por vez (`limite`, no máximo
+  100) e a página seguinte começa depois da última linha vista (`antes`,
+  cursor `<criado em>|<id>` de `shared/paginacao.ts`) — **nunca `OFFSET`**,
+  que repetiria linha quando entra venda nova no topo. O servidor pede uma
+  linha a mais para saber se há próxima (sem `COUNT(*)`) e manda o cursor
+  no cabeçalho `X-Proximo`; cursor fora do formato vira primeira página,
+  nunca erro nem SQL. O recorte (`orgOf`) é o mesmo em toda página
+  (`npm run isolation` confere). Na tela, `useListaPaginada()`
+  (`client/src/lib/paginada.ts`) e `TabelaOuCartoes` + `VerMais`
+  (`client/src/components/painel.tsx`): **cartão por linha abaixo de `sm`,
+  tabela a partir dele**; lista nova de painel usa os dois, não uma tabela
+  de cinco colunas espremida num celular.
 - **Rifas em grade de capas** (`AdminCampanhas`): a capa vem do servidor
   (`capa` na lista: o banner, senão a primeira foto — nunca o vídeo), a
   situação vai em texto na pílula sobre a capa, e as mesmas ações da lista

@@ -1,5 +1,6 @@
-import type { Key, ReactNode } from "react";
+import { useEffect, useRef, useState, type Key, type ReactNode } from "react";
 import { Link } from "wouter";
+import { abaDoTeclado, abaInicial } from "@shared/abas";
 import type { LucideIcon } from "lucide-react";
 
 /**
@@ -292,6 +293,110 @@ export function VerMais({
           {carregando ? "Carregando…" : "Ver mais"}
         </button>
       ) : null}
+    </div>
+  );
+}
+
+/**
+ * Abas de uma tela de painel com muito cartão (Configurações, a edição da
+ * rifa): em vez de uma pilha de dez cartões, uma aba por assunto — como as
+ * "Account Settings" do kit.
+ *
+ * - **A aba vai na URL** (`?aba=`): recarregar ou mandar o link abre a mesma
+ *   aba; sem o parâmetro, a primeira.
+ * - **Âncora abre a aba dela**: `#verificacao` num link antigo cai na aba
+ *   que tem aquele cartão e rola até ele (`ancoras`).
+ * - Teclado como em toda lista de abas: setas, Home e End; só a aba ativa
+ *   entra na ordem do Tab (`tabIndex`), o painel em si recebe o foco depois.
+ * - Só a aba aberta é montada: cartão de outra aba não busca dado à toa.
+ */
+export function Abas({
+  abas,
+  rotulo,
+  ancoras = {},
+  parametro = "aba",
+  naUrl = true,
+}: {
+  abas: { id: string; titulo: string; conteudo: ReactNode }[];
+  /** O nome da lista de abas, para o leitor de tela. */
+  rotulo: string;
+  /** `{ "verificacao": "perfil" }`: a âncora e a aba que a contém. */
+  ancoras?: Record<string, string>;
+  parametro?: string;
+  /** Falso num painel que abre e fecha dentro da tela (a edição da rifa): sem URL para lembrar. */
+  naUrl?: boolean;
+}) {
+  const ids = abas.map((a) => a.id);
+  const inicial = () =>
+    typeof window === "undefined" || !naUrl
+      ? ids[0]
+      : abaInicial(ids, { search: window.location.search, hash: window.location.hash }, ancoras, parametro);
+  const [ativa, setAtiva] = useState(inicial);
+  const botoes = useRef<Record<string, HTMLButtonElement | null>>({});
+
+  // A âncora de um link antigo: rola até o cartão assim que a aba monta.
+  useEffect(() => {
+    const ancora = naUrl ? window.location.hash.replace(/^#/, "") : "";
+    if (!ancora || ancoras[ancora] !== ativa) return;
+    const t = setTimeout(() => document.getElementById(ancora)?.scrollIntoView({ block: "start" }), 50);
+    return () => clearTimeout(t);
+    // só na primeira montagem da aba pedida
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const abrir = (id: string, foco = false) => {
+    setAtiva(id);
+    if (naUrl) {
+      const url = new URL(window.location.href);
+      if (id === ids[0]) url.searchParams.delete(parametro);
+      else url.searchParams.set(parametro, id);
+      url.hash = "";
+      window.history.replaceState(null, "", url);
+    }
+    if (foco) botoes.current[id]?.focus();
+  };
+
+  const noTeclado = (e: React.KeyboardEvent, i: number) => {
+    const alvo = abaDoTeclado(e.key, i, ids.length);
+    if (alvo === null) return;
+    e.preventDefault();
+    abrir(ids[alvo], true);
+  };
+
+  const atual = abas.find((a) => a.id === ativa) ?? abas[0];
+  return (
+    <div>
+      <div className="relative mb-3 overflow-x-auto">
+        <div role="tablist" aria-label={rotulo} className="flex min-w-max gap-1 border-b border-line">
+          {abas.map((a, i) => {
+            const aceso = a.id === atual.id;
+            return (
+              <button
+                key={a.id}
+                ref={(el) => {
+                  botoes.current[a.id] = el;
+                }}
+                id={`aba-${a.id}`}
+                type="button"
+                role="tab"
+                aria-selected={aceso}
+                aria-controls={`painel-${a.id}`}
+                tabIndex={aceso ? 0 : -1}
+                onClick={() => abrir(a.id)}
+                onKeyDown={(e) => noTeclado(e, i)}
+                className={`-mb-px inline-flex min-h-10 items-center whitespace-nowrap border-b-2 px-4 text-sm font-medium ${
+                  aceso ? "border-green text-green-deep" : "border-transparent text-ink-2 hover:text-ink"
+                }`}
+              >
+                {a.titulo}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+      <div role="tabpanel" id={`painel-${atual.id}`} aria-labelledby={`aba-${atual.id}`} tabIndex={0} className="focus:outline-none">
+        {atual.conteudo}
+      </div>
     </div>
   );
 }

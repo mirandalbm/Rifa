@@ -10,7 +10,7 @@ import { ComissaoCard } from "@/components/ComissaoCard";
 import { ReembolsoCard } from "@/components/ReembolsoCard";
 import { PanelShell } from "@/components/AppShell";
 import { Card, Money, Pill, Button, Empty, Progress } from "@/components/bits";
-import { AlternarVisao, BarrasHorizontais, CabecalhoDaTabela, CartaoDoPainel, Estatistica, Sparkline, TabelaOuCartoes, VerMais } from "@/components/painel";
+import { AlternarVisao, BarrasHorizontais, CabecalhoDaTabela, CartaoDoPainel, Estatistica, Sparkline, TabelaOuCartoes, VerMais, Abas } from "@/components/painel";
 import { useListaPaginada } from "@/lib/paginada";
 import { ChevronRight, Image as ImagemIcone, LayoutGrid, List, MoreVertical, Percent, Ticket } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
@@ -629,46 +629,76 @@ export function AdminCampanhas() {
       ) : null}
 
       {mediaFor ? (
-        <div className="mt-3 space-y-3">
+        <div className="mt-3">
           {(() => {
             const linha = data?.find((r) => r.campaign.id === mediaFor);
             const c = linha?.campaign;
             const vendidas = linha?.stats?.soldCount ?? 0;
-            return c ? (
-              <>
-                <EditarRifaCard
-                  rifa={c}
-                  daPlataforma={daPlataforma}
-                  edicaoEmAnalise={Boolean(linha?.emAnalise?.includes("edicao"))}
-                />
-                {c.status === "published" && !c.demonstracao && vendidas < c.totalQuotas ? (
-                  <AdiarSorteioCard
-                    rifa={c}
-                    vendidas={vendidas}
-                    adiamentoEmAnalise={Boolean(linha?.emAnalise?.includes("adiamento"))}
-                  />
-                ) : null}
-                {c.status !== "draft" ? (
-                  <Card title="Divulgação">
-                    <div className="p-4">
-                      <EnderecoCurto alvo={{ tipo: "rifa", id: c.id }} rotulo="Endereço curto da rifa" />
-                    </div>
-                  </Card>
-                ) : null}
-                <DadosLegaisCard campanha={c} />
-                <TransmissaoCard campanha={c} />
-                <LegendaCard campanha={c} />
-              </>
-            ) : null;
+            if (!c) return null;
+            // Uma aba por assunto da rifa; trocar de rifa volta à primeira
+            // (a `key` remonta). A aba vai na URL (`?aba=`).
+            return (
+              <Abas
+                key={c.id}
+                naUrl={false}
+                rotulo={`Edição de ${c.title}`}
+                abas={[
+                  {
+                    id: "rifa",
+                    titulo: "A rifa",
+                    conteudo: (
+                      <div className="space-y-3">
+                        <EditarRifaCard
+                          rifa={c}
+                          daPlataforma={daPlataforma}
+                          edicaoEmAnalise={Boolean(linha?.emAnalise?.includes("edicao"))}
+                        />
+                        {c.status === "published" && !c.demonstracao && vendidas < c.totalQuotas ? (
+                          <AdiarSorteioCard
+                            rifa={c}
+                            vendidas={vendidas}
+                            adiamentoEmAnalise={Boolean(linha?.emAnalise?.includes("adiamento"))}
+                          />
+                        ) : null}
+                        {c.status !== "draft" ? (
+                          <Card title="Divulgação">
+                            <div className="p-4">
+                              <EnderecoCurto alvo={{ tipo: "rifa", id: c.id }} rotulo="Endereço curto da rifa" />
+                            </div>
+                          </Card>
+                        ) : null}
+                      </div>
+                    ),
+                  },
+                  {
+                    id: "autorizacao",
+                    titulo: "Autorização e sorteio",
+                    conteudo: (
+                      <div className="space-y-3">
+                        <DadosLegaisCard campanha={c} />
+                        <TransmissaoCard campanha={c} />
+                      </div>
+                    ),
+                  },
+                  {
+                    id: "publicacao",
+                    titulo: "Publicação",
+                    conteudo: (
+                      <div className="space-y-3">
+                        <MediaManager campaignId={c.id} />
+                        <LegendaCard campanha={c} />
+                      </div>
+                    ),
+                  },
+                  {
+                    id: "vendas",
+                    titulo: "Pacotes e cotas premiadas",
+                    conteudo: <CampaignExtras campaignId={c.id} totalQuotas={c.totalQuotas ?? 1000} rascunho={c.status === "draft"} />,
+                  },
+                ]}
+              />
+            );
           })()}
-          <MediaManager campaignId={mediaFor} />
-          <CampaignExtras
-            campaignId={mediaFor}
-            totalQuotas={
-              data?.find((c) => c.campaign.id === mediaFor)?.campaign.totalQuotas ?? 1000
-            }
-            rascunho={data?.find((c) => c.campaign.id === mediaFor)?.campaign.status === "draft"}
-          />
         </div>
       ) : null}
 
@@ -2097,45 +2127,74 @@ export function AdminConfiguracoes() {
 
   return (
     <PanelShell title="Configurações">
-      <div className="mb-3 grid gap-3 lg:grid-cols-2">
-        <PaymentMethodsCard />
-        <OrganizerCard />
-        <EnderecoDaOrganizacaoCard />
-        <PerfilPublicoCard />
-        <TelefoneDoOrganizadorCard />
-      </div>
-      {plataforma ? <CoresDoSeloCard /> : <VerificacaoDaOrganizacaoCard />}
-      <div className="mb-3 grid gap-3 lg:grid-cols-2">
-        <TwoFactorCard />
-        <TrocarSenha />
-      </div>
-      {plataforma ? (
-        <div className="mb-3 grid gap-3 lg:grid-cols-2">
-          <PagamentosCard />
-          <WhatsAppCard />
-        </div>
-      ) : (
-        <div className="mb-3 grid gap-3 lg:grid-cols-2">
-          <ComissaoCard />
-          <ReembolsoCard />
-        </div>
-      )}
-      {plataforma ? (
-      <Card title="Trilha de auditoria" right={<span className="label-xs">últimas 200 ações</span>}>
-        <ul className="divide-y divide-line">
-          {data?.map((a) => (
-            <li key={a.id} className="flex items-center gap-3 px-4 py-2 text-sm">
-              <span className="tnum text-[11px] text-muted">
-                {new Date(a.createdAt).toLocaleString("pt-BR")}
-              </span>
-              <span className="tnum flex-1">{a.action}</span>
-              <span className="label-xs">{a.actorRole}</span>
-            </li>
-          ))}
-        </ul>
-        {data?.length === 0 ? <Empty>Nenhuma ação registrada.</Empty> : null}
-      </Card>
-      ) : null}
+      {/* Uma aba por assunto, em vez de uma pilha de doze cartões. */}
+      <Abas
+        rotulo="Assuntos das configurações"
+        ancoras={{ verificacao: "organizacao" }}
+        abas={[
+          {
+            id: "conta",
+            titulo: "Conta e segurança",
+            conteudo: (
+              <div className="space-y-3">
+                <div className="grid gap-3 lg:grid-cols-2">
+                  <TwoFactorCard />
+                  <TrocarSenha />
+                </div>
+                <TelefoneDoOrganizadorCard />
+                {plataforma ? (
+                  <Card title="Trilha de auditoria" right={<span className="label-xs">últimas 200 ações</span>}>
+                    <ul className="divide-y divide-line">
+                      {data?.map((a) => (
+                        <li key={a.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2 text-sm">
+                          <span className="tnum text-[11px] text-muted">{new Date(a.createdAt).toLocaleString("pt-BR")}</span>
+                          <span className="tnum min-w-0 flex-1 break-words">{a.action}</span>
+                          <span className="label-xs">{a.actorRole}</span>
+                        </li>
+                      ))}
+                    </ul>
+                    {data?.length === 0 ? <Empty>Nenhuma ação registrada.</Empty> : null}
+                  </Card>
+                ) : null}
+              </div>
+            ),
+          },
+          {
+            id: "organizacao",
+            titulo: "Organização e perfil",
+            conteudo: (
+              <div className="space-y-3">
+                <div className="grid gap-3 lg:grid-cols-2">
+                  <OrganizerCard />
+                  <EnderecoDaOrganizacaoCard />
+                </div>
+                <PerfilPublicoCard />
+                {plataforma ? <CoresDoSeloCard /> : <VerificacaoDaOrganizacaoCard />}
+              </div>
+            ),
+          },
+          {
+            id: "vendas",
+            titulo: "Vendas e pagamentos",
+            conteudo: (
+              <div className="grid gap-3 lg:grid-cols-2">
+                <PaymentMethodsCard />
+                {plataforma ? (
+                  <>
+                    <PagamentosCard />
+                    <WhatsAppCard />
+                  </>
+                ) : (
+                  <>
+                    <ComissaoCard />
+                    <ReembolsoCard />
+                  </>
+                )}
+              </div>
+            ),
+          },
+        ]}
+      />
     </PanelShell>
   );
 }

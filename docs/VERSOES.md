@@ -177,7 +177,7 @@ cima com a busca, o tema, o sino e a conta.
 | Rota | Arquivo | Celular | Tablet | Computador |
 |---|---|---|---|---|
 | `/admin` | `pages/admin.tsx` (`AdminPainel`) | os widgets do kit empilhados: boas-vindas, cotas, comissão, próximo sorteio, canais, vendas do mês, atividade, rifas no ar, por estado, dia da semana, o que falta, top afiliados | 2 por linha (boas-vindas, sorteio, atividade e rifas no ar ocupam as 2) | 4 colunas: boas-vindas e sorteio com 2, atividade e rifas no ar com 2, o resto com 1 |
-| `/admin/campanhas` | `admin.tsx` (`AdminCampanhas`) | formulário; rifas em grade de capas (1 por linha) ou lista rolando no cartão | formulário em 2 colunas; grade 2 por linha | grade 4 por linha a partir de `xl` ([P5](#pendências) na lista) |
+| `/admin/campanhas` | `admin.tsx` (`AdminCampanhas`) | formulário; rifas em grade de capas (1 por linha) ou lista rolando no cartão; edição da rifa em quatro abas | formulário em 2 colunas; grade 2 por linha | grade 4 por linha a partir de `xl` ([P5](#pendências) na lista) |
 | `/admin/pedidos` | `admin.tsx` (`AdminPedidos`) | cartão por pedido (`TabelaOuCartoes`), 25 por vez e "Ver mais" | tabela, 25 por vez e "Ver mais" | igual ao tablet |
 | `/admin/resultados` | `pages/adminResultados.tsx` | números 2 por linha | 3 por linha | 6 por linha (`xl`); gráfico e tabelas em 2 colunas |
 | `/admin/stories` | `pages/adminStories.tsx` | formulário; stories 2 por linha | stories 3 por linha | formulário e stories lado a lado |
@@ -192,7 +192,7 @@ cima com a busca, o tema, o sino e a conta.
 | `/admin/patrocinio` | `pages/adminPatrocinio.tsx` | empilhado | formulários em 2 colunas | cartões em 2 colunas |
 | `/admin/marketing` | `pages/adminMarketing.tsx` | empilhado | igual | 2 colunas |
 | `/admin/exportacoes` | `pages/adminExportacoes.tsx` | 1 coluna | 2 colunas | 2 colunas |
-| `/admin/configuracoes` | `admin.tsx` (`AdminConfiguracoes`) | empilhado | igual | cartões em 2 colunas |
+| `/admin/configuracoes` | `admin.tsx` (`AdminConfiguracoes`) | três abas (a faixa rola para o lado); cartões empilhados dentro | igual | três abas; cartões em 2 colunas dentro de cada |
 | `/admin/organizacoes` (plataforma) | `pages/adminOrganizacoes.tsx` | empilhado | detalhes em 2 e 3 colunas | lista e cartão de 340 px lado a lado |
 | `/admin/bonus` (plataforma) | `pages/adminBonus.tsx` | empilhado | igual | 2 colunas |
 | `/admin/fiscal` (plataforma) | `pages/adminFiscal.tsx` | lista | detalhe em 2 colunas | igual |
@@ -329,3 +329,4 @@ ou `leva N`. O teste confere o formato, a numeração e o limite da leva.
 | 21 | 2026-10-01 | #83 | Painéis · sino da barra de cima | O sino vira um menu de avisos: os comentários novos de apostador nas rifas do painel (quem, rifa, trecho, há quanto tempo), cada um abrindo a publicação nos comentários, e no topo as pendências do atendimento; abrir marca como visto e o número vai no rótulo | Vale igual: o menu tem 320 px e cabe nas três larguras — a conferir na leva. Conferido na leva 2: o menu cabe nas três larguras — nada a arrumar | leva 2 |
 | 22 | 2026-10-01 | #84 | Painel · Cobrança | A taxa já retida no split do Pix aparece como "retida no split" (pílula) e soma no "Já pago" com a nota do valor retido; a carteira da plataforma mostra o retido embaixo do pago de cada organização | Vale igual: a mesma pílula e os mesmos números nas três larguras. Conferido na leva 2: nada a arrumar | leva 2 |
 | 23 | 2026-10-01 | #86 | Painéis · Pedidos e Cobrança | A lista de Pedidos e os lançamentos da Cobrança viram um cartão por linha (data, situação, de onde veio, valor), 25 por vez e "Ver mais" no pé — Pedidos tinha 11.600 px de altura e Cobrança 15.000, hoje 4.100 e 3.500 com 25 linhas | Tablet e computador: a mesma tabela de antes (a partir de 640 px), também 25 por vez e "Ver mais" | aguardando leva |
+| 24 | 2026-10-01 | #87 | Painéis · Configurações e edição da rifa | Configurações deixa de ser uma pilha de 12 cartões e ganha três abas (Conta e segurança · Organização e perfil · Vendas e pagamentos), e a edição de cada rifa ganha quatro (A rifa · Autorização e sorteio · Publicação · Pacotes e cotas premiadas); a aba aberta vai no endereço (`?aba=`) e o link antigo `#verificacao` abre a aba certa. No celular as abas rolam para o lado dentro da faixa | Tablet e computador: a mesma faixa de abas, com os cartões em 2 colunas dentro de cada aba — a conferir na leva | aguardando leva |

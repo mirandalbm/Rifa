@@ -304,10 +304,15 @@ Na ordem de entrega do plano:
   → Stories, anel aceso na vitrine e no perfil), estados com rifa no ar
   (círculos e `/estado/UF`) e feed em formato de publicação (4:5, perfil no
   topo, selo "Autorizada SPA/MF").
-- [ ] **[código]** Vitrine, o que ficou para depois: bandeira de cada
-  estado nos círculos (hoje a sigla), story em vídeo, e o organizador
-  **pagar** por mais tempo de banner no topo (depende do Pix da plataforma,
-  junto com as rifas patrocinadas).
+- [x] ~~Bandeira de cada estado nos círculos~~: os círculos de estado saíram
+  da fileira do topo (a fileira é de stories) e a página `/estado/UF` não os
+  usa. Item encerrado, sem código.
+- [ ] **[código]** Vitrine, o que ficou para depois: **story em vídeo** (hoje
+  só imagem; pede envio de vídeo, medição de duração e limite no servidor, e
+  se junta ao pôster/transcode da seção "O que ainda não existe") e o
+  organizador **pagar** por mais tempo de banner no topo (o saldo e o Pix da
+  plataforma já existem, nas rifas patrocinadas; falta decidir o preço e a
+  regra — é decisão de produto).
 - [ ] **[você]** Subir os banners da plataforma (Aparência → Banners da
   vitrine) e orientar as organizações a postarem stories.
 - [x] Painel de resultados do organizador (painel → Resultados): receita,

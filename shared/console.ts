@@ -130,6 +130,8 @@ export interface ContaParaPendencias {
   conta: boolean;
   confirmado: boolean;
   apelido: string | null | undefined;
+  /** Conta criada pelo Google: o que ainda falta ("CPF", "telefone"). */
+  falta?: string[];
 }
 
 /**
@@ -141,6 +143,8 @@ export function pendenciasDaConta(c: ContaParaPendencias | null | undefined): st
   if (!c?.conta) return [];
   const falta: string[] = [];
   if (!c.apelido) falta.push("Escolha seu apelido para comentar e republicar");
-  if (!c.confirmado) falta.push("Confirme seu telefone pelo WhatsApp");
+  if (c.falta?.includes("CPF")) falta.push("Informe seu CPF para comprar e pedir reembolso");
+  if (c.falta?.includes("telefone")) falta.push("Informe e confirme seu telefone pelo WhatsApp");
+  else if (!c.confirmado) falta.push("Confirme seu telefone pelo WhatsApp");
   return falta;
 }

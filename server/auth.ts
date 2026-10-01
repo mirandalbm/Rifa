@@ -59,6 +59,8 @@ declare module "express-session" {
       /** Telefone provado pelo código do WhatsApp (nesta sessão ou antes). */
       confirmado?: boolean;
     };
+    /** Tentativa de entrar (ou ligar) com o Google em andamento: state, nonce e verificador do PKCE. */
+    google?: { state: string; nonce: string; verifier: string; modo: "entrar" | "ligar"; volta: string; buyerId?: string; expiraEm: number };
     /** Código de acesso pendente: guardado na sessão, nunca no banco. */
     otp?: { phone: string; codeHash: string; expiresAt: number; attempts: number };
     /** Código que prova o telefone do organizador (separado do do comprador). */

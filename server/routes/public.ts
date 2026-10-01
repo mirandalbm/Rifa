@@ -139,6 +139,9 @@ import {
   definirPerfilPublico,
   trocarCep,
 } from "../services/contaComprador";
+import { ehTelefoneProvisorio } from "@shared/google";
+import { concluirGoogle, desligarGoogle, googleDisponivel, iniciarGoogle } from "../services/google";
+import { completarCpf, confirmarTelefone, pedirCodigoDoTelefone } from "../services/contaCompleta";
 
 export const publicRouter = Router();
 
@@ -1656,7 +1659,7 @@ publicRouter.get("/my-quotas", async (req, res, next) => {
     res.json({
       orders: visiveis,
       comprasAntigasOcultas: (todas?.n ?? 0) > visiveis.length,
-      phone,
+      phone: ehTelefoneProvisorio(phone) ? "" : phone,
       cliente: buyerId ? await garantirCodigoCliente(buyerId) : null,
       reembolso: (await getPlataforma()).estornoManual,
       taxaReembolsoPct: (await getPlataforma()).taxaReembolsoPct,
@@ -1673,6 +1676,73 @@ function erroDeConta(err: unknown, res: import("express").Response, next: import
   if (err instanceof ContaError) return res.status(err.status).json({ message: err.message });
   next(err);
 }
+
+/* ---- Entrar com o Google e completar a conta ---- */
+
+publicRouter.get("/conta/google/disponivel", (_req, res) => {
+  res.json({ ligado: googleDisponivel() });
+});
+
+const comecarGoogle = (modo: "entrar" | "ligar"): import("express").RequestHandler => (req, res) => {
+  try {
+    res.redirect(iniciarGoogle(req, modo, req.query.volta));
+  } catch (err) {
+    const msg = err instanceof ContaError ? err.message : "Não deu para entrar com o Google.";
+    res.redirect(`/entrar?erro=${encodeURIComponent(msg)}`);
+  }
+};
+publicRouter.get("/conta/google/entrar", comecarGoogle("entrar"));
+publicRouter.get("/conta/google/ligar", comecarGoogle("ligar"));
+
+publicRouter.get("/conta/google/retorno", async (req, res) => {
+  try {
+    if (req.query.error) throw new ContaError("Você cancelou a entrada com o Google.");
+    const r = await concluirGoogle(req, String(req.query.state ?? ""), String(req.query.code ?? ""));
+    res.redirect(r.volta);
+  } catch (err) {
+    const msg = err instanceof ContaError ? err.message : "Não deu para entrar com o Google.";
+    if (!(err instanceof ContaError)) console.error("[google]", err);
+    res.redirect(`/entrar?erro=${encodeURIComponent(msg)}`);
+  }
+});
+
+publicRouter.post("/conta/cpf", async (req, res, next) => {
+  try {
+    await completarCpf(req, String(req.body?.cpf ?? ""));
+    res.json({ ok: true });
+  } catch (err) {
+    erroDeConta(err, res, next);
+  }
+});
+
+publicRouter.post("/conta/telefone/codigo", async (req, res, next) => {
+  try {
+    const code = await pedirCodigoDoTelefone(req, String(req.body?.telefone ?? ""));
+    const echo =
+      notificationProvider().name === "console" && process.env.NODE_ENV !== "production" ? { devCode: code } : {};
+    res.json({ sent: true, ...echo });
+  } catch (err) {
+    erroDeConta(err, res, next);
+  }
+});
+
+publicRouter.post("/conta/telefone/confirmar", async (req, res, next) => {
+  try {
+    await confirmarTelefone(req, String(req.body?.codigo ?? ""));
+    res.json({ ok: true });
+  } catch (err) {
+    erroDeConta(err, res, next);
+  }
+});
+
+publicRouter.delete("/conta/google", async (req, res, next) => {
+  try {
+    await desligarGoogle(compradorDaSessao(req).id);
+    res.json({ ok: true });
+  } catch (err) {
+    erroDeConta(err, res, next);
+  }
+});
 
 publicRouter.post("/conta", async (req, res, next) => {
   try {

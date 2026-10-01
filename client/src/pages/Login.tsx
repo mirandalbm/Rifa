@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
+import { BotaoGoogle } from "@/components/BotaoGoogle";
 import { Marca } from "@/components/Marca";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/bits";
@@ -264,7 +265,8 @@ function ApostadorForm() {
   const [senha, setSenha] = useState("");
   const [lembrar, setLembrar] = useState(true);
   const [verSenha, setVerSenha] = useState(false);
-  const [erro, setErro] = useState<string | null>(null);
+  // A volta do Google traz o motivo da recusa em ?erro= (e-mail que já tem conta, por exemplo).
+  const [erro, setErro] = useState<string | null>(() => new URLSearchParams(window.location.search).get("erro"));
 
   const entrar = useMutation({
     mutationFn: () =>
@@ -284,6 +286,7 @@ function ApostadorForm() {
       <p className="mt-4 text-sm text-muted">
         Entre para jogar em qualquer rifa e acompanhar suas cotas.
       </p>
+      <BotaoGoogle volta={voltaSegura(new URLSearchParams(window.location.search).get("volta"))} />
       <form
         className="mt-4 space-y-3"
         onSubmit={(e) => {

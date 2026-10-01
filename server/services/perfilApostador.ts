@@ -8,6 +8,7 @@
  *   arquivo enviado nunca é servido como veio.
  * - Conta excluída (LGPD) perde apelido e foto; o perfil some (404).
  */
+import { faltaNaContaGoogle } from "@shared/google";
 import sharp from "sharp";
 import { and, eq, isNull, sql } from "drizzle-orm";
 import { db } from "../db";
@@ -48,7 +49,7 @@ async function processarFoto(dataUrl: string) {
 
 async function contaDe(buyerId: string) {
   const [b] = await db
-    .select({ id: buyers.id, nome: buyers.name, apelido: buyers.apelido, fotoEm: buyers.fotoEm, conta: buyers.passwordHash, verificadoEm: buyers.verificadoEm })
+    .select({ id: buyers.id, nome: buyers.name, apelido: buyers.apelido, fotoEm: buyers.fotoEm, conta: buyers.passwordHash, verificadoEm: buyers.verificadoEm, cpf: buyers.cpf, phone: buyers.phone })
     .from(buyers)
     .where(and(eq(buyers.id, buyerId), isNull(buyers.excluidoEm)));
   if (!b?.conta) throw new PerfilApostadorError("Entre na sua conta.", 401);
@@ -62,6 +63,7 @@ export async function meuPerfilPublico(buyerId: string) {
     foto: urlDaFotoDoApostador(b.apelido, b.fotoEm),
     nomeReal: nomeRealPublico(b.nome),
     verificado: Boolean(b.verificadoEm),
+    falta: faltaNaContaGoogle({ cpf: b.cpf, phone: b.phone }),
   };
 }
 

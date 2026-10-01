@@ -48,6 +48,7 @@ Pelo caminho que mudou (a mesma tabela "Onde mexer" do `CLAUDE.md`):
 | afiliados, fiscal, guarda da comissão | `afiliados`, `fiscal`, `guarda` |
 | bônus, patrocínio, banner pago, marketing | `bonus`, `patrocinio`, `banner`, `marketing` |
 | editar, adiar, excluir rifa | `solicitacoes` |
+| conta do apostador, login com Google | `conta`, `google` (o servidor sobe com `GOOGLE_PROVA=1`) |
 | qualquer tela (client/) | `telas` (60 telas × 390/820/1440; não pode reprovar) |
 
 Na dúvida entre duas áreas, rode as duas. `isolation` é barata: rode sempre

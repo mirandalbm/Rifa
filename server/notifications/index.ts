@@ -37,6 +37,8 @@ export interface NotifyParams {
 }
 
 export async function notify(input: NotifyParams): Promise<boolean> {
+  // Marcador de telefone ("pendente:…", "removido:…") não é número: nada sai.
+  if (/[a-z]/i.test(input.to)) return false;
   const to = normalizePhone(input.to);
   if (to.length < 10) return false;
 

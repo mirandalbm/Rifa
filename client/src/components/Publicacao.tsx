@@ -63,7 +63,8 @@ const FAIXA_DO_PERFIL = 56;
  * vai **acima** da imagem nos três formatos do feed e **por cima** dela no
  * vertical, como no reels (`perfilPorCima`). Com `perfilSobreNaWeb` (o
  * feed), do tablet em diante ele vai por cima em todos os formatos e a
- * imagem ganha cantos arredondados; o celular segue como está.
+ * imagem ganha cantos arredondados e nunca passa de 85% da altura da tela
+ * (corta ao centro, como o vertical); o celular segue como está.
  */
 export function Carrossel({
   pecas,
@@ -109,7 +110,7 @@ export function Carrossel({
       {/* No vertical, a caixa não passa da altura da tela (computador, tablet deitado). */}
       <div
         className={`relative overflow-hidden bg-mist-2 ${caixa} ${porCima ? "max-h-[85svh] w-full" : ""} ${limitarNoTablet ? "md:max-h-[85svh] lg:max-h-none" : ""} ${
-          perfilSobreNaWeb ? "md:rounded-2xl" : ""
+          perfilSobreNaWeb ? "md:max-h-[85svh] md:rounded-2xl" : ""
         }`}
       >
         <div

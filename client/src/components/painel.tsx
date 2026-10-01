@@ -215,10 +215,11 @@ export function BarrasHorizontais({
 }
 
 /**
- * A lista longa do painel: **cartão por linha no celular, tabela a partir de
- * `sm`** (639 px). Uma tabela de cinco colunas num celular de 390 px rola
- * para o lado ou espreme o texto; o cartão conta a mesma linha de cima para
- * baixo. Só um dos dois fica na tela (o outro é `display: none`, então o
+ * A lista longa do painel: **cartão por linha até o tablet, tabela a partir
+ * de `xl`** (1280 px). Com o menu de 260 px aberto, o tablet (820 px) deixa só
+ * ~510 px para a lista: uma tabela de seis colunas corta a Situação e a ação
+ * (foi o que a leva 3 achou), e no celular rola para o lado ou espreme o
+ * texto; o cartão conta a mesma linha de cima para baixo. Só um dos dois fica na tela (o outro é `display: none`, então o
  * leitor de tela também lê uma vez só).
  */
 export function TabelaOuCartoes<T>({
@@ -238,14 +239,14 @@ export function TabelaOuCartoes<T>({
 }) {
   return (
     <>
-      <ul aria-label={aria} className="divide-y divide-line sm:hidden">
+      <ul aria-label={aria} className="divide-y divide-line xl:hidden">
         {itens.map((i) => (
           <li key={chave(i)} className="px-4 py-3">
             {cartao(i)}
           </li>
         ))}
       </ul>
-      <div className="hidden overflow-x-auto sm:block">
+      <div className="hidden overflow-x-auto xl:block">
         <table aria-label={aria} className="w-full text-sm">
           <CabecalhoDaTabela colunas={colunas.map((c) => c.titulo)} />
           <tbody>

@@ -542,8 +542,8 @@ O verde da marca entra no lugar do roxo do kit; o significado das cores
   nunca erro nem SQL. O recorte (`orgOf`) é o mesmo em toda página
   (`npm run isolation` confere). Na tela, `useListaPaginada()`
   (`client/src/lib/paginada.ts`) e `TabelaOuCartoes` + `VerMais`
-  (`client/src/components/painel.tsx`): **cartão por linha abaixo de `sm`,
-  tabela a partir dele**; lista nova de painel usa os dois, não uma tabela
+  (`client/src/components/painel.tsx`): **cartão por linha até o tablet,
+  tabela a partir de `xl`** (com o menu aberto, o tablet deixa ~510 px); lista nova de painel usa os dois, não uma tabela
   de cinco colunas espremida num celular.
 - **Tela com muito cartão tem abas, não pilha.** `Abas` (`painel.tsx`)
   é uma aba por assunto — Configurações (Conta e segurança · Organização e
@@ -726,7 +726,7 @@ plataforma ligar, o apostador pelo `@apelido` exato.
 - **Nunca** telefone, CPF, e-mail, nome real, id ou preço na resposta.
 - `npm run buscar` prova tudo isso contra a API de verdade.
 
-## Mensagens — o que não pode afrouxar
+## Mensagens de WhatsApp — o que não pode afrouxar
 
 - Todo envio precisa de `dedupeKey`. Sem ela, o job de lembrete manda a mesma
   mensagem a cada minuto.

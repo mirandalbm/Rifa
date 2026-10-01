@@ -145,7 +145,7 @@ function Buscar() {
 
       {rifas.length ? (
         <section aria-label={buscando ? "Rifas encontradas" : "Publicações mais novas"}>
-          <ul className="grid grid-cols-3 gap-0.5 sm:gap-1 lg:grid-cols-4 xl:grid-cols-6">
+          <ul className="grid grid-cols-3 gap-0.5 sm:gap-1 md:grid-cols-4 xl:grid-cols-6">
             {rifas.map((r) => (
               <li key={r.slug} className="min-w-0">
                 <Link href={r.caminho} className="group relative block aspect-square overflow-hidden bg-mist-2" aria-label={`${r.premio}, de ${r.organizacao}`}>

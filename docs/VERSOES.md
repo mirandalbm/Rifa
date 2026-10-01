@@ -280,7 +280,7 @@ qualquer mudança.
 |---|---|---|---|
 | P1 | O tablet é o celular esticado na página da rifa: foto 4:5 com 768 px de largura (o perfil saiu daqui na leva 2: rifas em 2 colunas do tablet em diante) | `Rifa.tsx` | tablet |
 | P2 | Seis janelas feitas à mão, com comportamentos diferentes: só 3 fecham no Esc e travam a rolagem; fundo `bg-black/50` numa e `/30` noutra. Alvo: um componente `Janela` com a regra 14 | `Comentarios.tsx`, `Stories.tsx`, `EscolherBilhete.tsx`, `Seguranca.tsx`, `Perfil.tsx`, `MinhasCotas.tsx` | todas |
-| P3 | `h1` em 9 combinações de classe. Padrão: `font-display text-xl font-extrabold` | várias | todas |
+| P3 | ~~`h1` em 9 combinações de classe~~ **Feito**: o padrão `font-display text-xl font-extrabold` vale em todas as telas; sobram só dois tamanhos de propósito (o título do cartão com `line-clamp` e o do banner da rifa, `text-2xl`) e os modificadores de posição | várias | todas |
 | P4 | A classe do campo de digitar repetida mais de 80 vezes. Alvo: um componente `Campo` (rótulo + campo + erro) | várias | todas |
 | P6 | "Nova venda" do cambista ocupa a largura toda no computador | `cambista.tsx` | computador |
 | P7 | O degradê de "sem foto" (`#0B1F14` → `#00873E`) repetido em 3 telas. Alvo: uma classe | `Publicacao.tsx`, `Rifa.tsx`, `Vitrine.tsx` | todas |

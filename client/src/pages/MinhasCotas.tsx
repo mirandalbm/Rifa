@@ -91,7 +91,7 @@ export default function MinhasCotas() {
 
   return (
     <PublicShell>
-      <h1 className="font-display text-2xl font-extrabold">Minhas compras</h1>
+      <h1 className="font-display text-xl font-extrabold">Minhas compras</h1>
       <p className="mt-1 text-sm text-muted">
         Suas cotas em cada rifa, com a segunda via do bilhete.
       </p>

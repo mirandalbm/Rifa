@@ -99,7 +99,7 @@ export default function CriarConta() {
       <Link href="/" className="text-2xl">
         <Marca />
       </Link>
-      <h1 className="mt-4 font-display text-xl font-bold">Criar conta</h1>
+      <h1 className="mt-4 font-display text-xl font-extrabold">Criar conta</h1>
       <p className="mt-1 text-sm text-muted">
         Uma conta para jogar em qualquer rifa e acompanhar tudo o que você comprou.
       </p>

@@ -85,7 +85,7 @@ export default function Notificacoes() {
         >
           <ArrowLeft size={22} aria-hidden />
         </button>
-        <h1 className="flex-1 font-display text-xl font-bold">Notificações</h1>
+        <h1 className="flex-1 font-display text-xl font-extrabold">Notificações</h1>
         <Link href="/minhas-compras" className="rounded-md p-1 hover:bg-mist" aria-label="Ligar avisos no celular">
           <Bell size={20} aria-hidden />
         </Link>

@@ -55,7 +55,7 @@ export default function CadastroAfiliado() {
 
   return (
     <div className="mx-auto flex min-h-screen max-w-sm flex-col justify-center px-5">
-      <h1 className="font-display text-2xl font-extrabold">Seja afiliado</h1>
+      <h1 className="font-display text-xl font-extrabold">Seja afiliado</h1>
       <p className="mt-1 text-sm text-muted">
         Divulgue as rifas com o seu link e receba comissão por venda paga, direto no Pix.
       </p>

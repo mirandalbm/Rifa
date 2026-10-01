@@ -49,7 +49,7 @@ export default function CarrinhoPix() {
   return (
     <PublicShell>
       <div className="flex items-center justify-between">
-        <h1 className="font-display text-xl font-bold">Carrinho</h1>
+        <h1 className="font-display text-xl font-extrabold">Carrinho</h1>
         <span className="tnum text-xs text-muted">#{data.codigo}</span>
       </div>
 

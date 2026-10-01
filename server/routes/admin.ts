@@ -3384,6 +3384,7 @@ adminRouter.post("/stories", async (req, res, next) => {
     if (!org) return res.status(400).json({ message: "Diga de qual organização é o story." });
     const novo = await postarStory(org, {
       imagem: req.body?.imagem,
+      video: req.body?.video,
       legenda: req.body?.legenda,
       campaignId: req.body?.campaignId,
     });

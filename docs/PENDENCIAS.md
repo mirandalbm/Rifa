@@ -344,12 +344,13 @@ Na ordem de entrega do plano:
 - [x] ~~Bandeira de cada estado nos círculos~~: os círculos de estado saíram
   da fileira do topo (a fileira é de stories) e a página `/estado/UF` não os
   usa. Item encerrado, sem código.
-- [ ] **[código]** Vitrine, o que ficou para depois: **story em vídeo** (hoje
-  só imagem; pede envio de vídeo, medição de duração e limite no servidor, e
-  se junta ao pôster/transcode da seção "O que ainda não existe") e o
-  organizador **pagar** por mais tempo de banner no topo (o saldo e o Pix da
-  plataforma já existem, nas rifas patrocinadas; falta decidir o preço e a
-  regra — é decisão de produto).
+- [x] ~~**Story em vídeo**~~: até 30 s, 15 MB, em pé, MP4/MOV, medido no
+  servidor e sem transcode (seção Vitrine do `CLAUDE.md`). Pôster e
+  recompressão seguem no item do Cloudflare Stream.
+- [ ] **[código]** Vitrine, o que ficou para depois: o organizador **pagar** por
+  mais tempo de banner no topo (pacote de dias, pago do saldo da plataforma
+  que já existe nas rifas patrocinadas; arte enviada pela organização e
+  aprovada pela plataforma; preço e vagas editáveis no painel).
 - [ ] **[você]** Subir os banners da plataforma (Aparência → Banners da
   vitrine) e orientar as organizações a postarem stories.
 - [x] Painel de resultados do organizador (painel → Resultados): receita,

@@ -97,6 +97,39 @@ export const LEGENDA_MAX = 150;
 export const STORY_TAMANHO = { largura: 1080, altura: 1920 } as const;
 /** Quanto tempo cada story fica na tela antes de passar sozinho. */
 export const STORY_SEGUNDOS = 6;
+/** Story em vídeo: curto, em pé e sem transcode — o arquivo vai como veio. */
+export const STORY_VIDEO_MAX_SEGUNDOS = 30;
+export const STORY_VIDEO_MAX_BYTES = 15 * 1024 * 1024;
+/** Mais largo que isto não é "em pé" (a mesma régua do reels). */
+export const STORY_VIDEO_PROPORCAO_MAX = 0.85;
+export const STORY_VIDEO_MIMES = ["video/mp4", "video/quicktime"] as const;
+
+/**
+ * O que impede este vídeo de virar story, ou `null` se serve. Duração e
+ * medidas vêm do servidor (lidas do arquivo), nunca do navegador: o limite
+ * é promessa de tela. Sem medida de largura e altura, não entra — como no
+ * reels, vídeo que não sabemos medir não se promete em pé.
+ */
+export function problemaNoVideoDoStory(
+  bytes: number,
+  segundos: number,
+  medidas: { width: number; height: number } | null,
+): string | null {
+  if (bytes > STORY_VIDEO_MAX_BYTES) {
+    return `O vídeo passa de ${STORY_VIDEO_MAX_BYTES / 1024 / 1024} MB. Exporte mais leve (o story não é recomprimido).`;
+  }
+  if (!Number.isFinite(segundos) || segundos <= 0) return "Não consegui medir a duração do vídeo.";
+  if (segundos > STORY_VIDEO_MAX_SEGUNDOS) {
+    return `O vídeo passa de ${STORY_VIDEO_MAX_SEGUNDOS} segundos.`;
+  }
+  if (!medidas || medidas.width <= 0 || medidas.height <= 0) {
+    return "Não consegui medir o tamanho do vídeo. Envie em MP4 ou MOV.";
+  }
+  if (medidas.width / medidas.height > STORY_VIDEO_PROPORCAO_MAX) {
+    return "O story em vídeo precisa estar em pé (9 por 16).";
+  }
+  return null;
+}
 
 export function validarLegenda(bruta: unknown): string | null {
   if (bruta === null || bruta === undefined) return null;

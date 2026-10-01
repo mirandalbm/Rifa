@@ -95,7 +95,6 @@ app.use(
     "/api/admin/template/logo",
     "/api/admin/banners",
     "/api/admin/banners/:id",
-    "/api/admin/stories",
     "/api/admin/campaigns/:id/foto-ganhador",
     "/api/admin/template/apoio",
     // Foto do perfil do apostador e do afiliado: foto de celular passa de
@@ -106,6 +105,8 @@ app.use(
   ],
   express.json({ limit: "8mb" }),
 );
+// Story em vídeo: até 15 MB em base64 (sem transcode, o arquivo vai como veio).
+app.use("/api/admin/stories", express.json({ limit: "22mb" }));
 // O perfil pode levar foto e capa juntas (até 5 MB cada, em base64).
 app.use("/api/admin/organizacoes/:id/perfil", express.json({ limit: "16mb" }));
 // Documento do cadastro fiscal: até 6 MB, em base64.

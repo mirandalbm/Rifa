@@ -1795,6 +1795,19 @@ desconto na primeira compra — **pago pela plataforma**.
 - **Story vive 24 h** (`expira_em`). Vencido some da rota **na hora** (lista
   e imagem conferem a data), e o relógio tira do banco (`apagarStoriesVencidos`,
   trava 811010). Organização arquivada: a imagem também some.
+- **Story em vídeo vai como veio, medido no servidor** (`postarStory` com
+  `video`, `lerVideoDoStory()`; régua em `problemaNoVideoDoStory()` de
+  `shared/vitrine.ts`): MP4 ou MOV (WebM não, porque não sabemos medir), até
+  **30 s**, **15 MB** e **em pé** (proporção ≤ 0,85, a régua do reels). Duração
+  e medidas saem do container (`probeVideoDuration`/`probeVideoDimensions`),
+  nunca do que o navegador diz; sem medida, não entra. **Sem transcode e sem
+  pôster** — isso é o Cloudflare Stream, que entra no mesmo lugar. O arquivo
+  fica no banco, como a imagem, e sai em `/stories/:id/imagem` **com `Range`
+  (206)**: o Safari não toca vídeo sem ele. O visualizador deixa o vídeo
+  mandar no tempo (barra pelo `timeupdate`, passa no `ended`), segurar pausa,
+  o som tem botão (se o navegador barrar o som, toca mudo). O corpo de
+  `POST /admin/stories` aceita 22 MB (base64 de 15 MB). `npm run vitrine`
+  prova (45 s, deitado, pesado, não-vídeo, WebM, 206, 416).
 - **Story leva só para rifa da própria organização**, e já pública. Apagar
   confere o dono **antes** do `DELETE` — o do vizinho é 404.
 - **O "visto" do story fica no aparelho** (`client/src/lib/stories.ts`),

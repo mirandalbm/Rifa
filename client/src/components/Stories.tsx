@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { X } from "lucide-react";
+import { Volume2, VolumeX, X } from "lucide-react";
 import { FotoDoPerfil } from "@/components/Seguir";
 import { marcarVisto, vistoAte } from "@/lib/stories";
 import { marcarOrigem } from "@/lib/origem";
@@ -9,6 +9,8 @@ import { STORY_SEGUNDOS, temStoryNovo } from "@shared/vitrine";
 
 interface Story {
   id: string;
+  tipo: "imagem" | "video";
+  /** O endereço do arquivo: imagem ou vídeo, conforme `tipo`. */
   imagem: string;
   legenda: string | null;
   criadoEm: string;
@@ -84,6 +86,8 @@ export function VisualizadorDeStories({ slug, onFechar }: { slug: string; onFech
   const [i, setI] = useState<number | null>(null);
   const [pausado, setPausado] = useState(false);
   const [progresso, setProgresso] = useState(0);
+  const [mudo, setMudo] = useState(false);
+  const video = useRef<HTMLVideoElement>(null);
   const inicio = useRef(0);
   const acumulado = useRef(0);
   const lista = data?.stories ?? [];
@@ -109,7 +113,8 @@ export function VisualizadorDeStories({ slug, onFechar }: { slug: string; onFech
 
   // Relógio do story: anda enquanto não está pausado.
   useEffect(() => {
-    if (!atual || pausado) return;
+    // Vídeo: quem manda no tempo é o próprio vídeo (progresso e fim abaixo).
+    if (!atual || atual.tipo === "video" || pausado) return;
     inicio.current = performance.now();
     let quadro = 0;
     const passo = () => {
@@ -125,6 +130,19 @@ export function VisualizadorDeStories({ slug, onFechar }: { slug: string; onFech
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [atual, pausado]);
+
+  // Segurar pausa o vídeo também; solto, ele segue de onde parou.
+  useEffect(() => {
+    const v = video.current;
+    if (!v) return;
+    if (pausado) v.pause();
+    else v.play().catch(() => {
+      // O navegador não deixou tocar com som: toca mudo, e o botão devolve o som.
+      v.muted = true;
+      setMudo(true);
+      v.play().catch(() => undefined);
+    });
+  }, [pausado, atual]);
 
   useEffect(() => {
     const tecla = (e: KeyboardEvent) => {
@@ -149,7 +167,26 @@ export function VisualizadorDeStories({ slug, onFechar }: { slug: string; onFech
         <p className="text-sm text-branco/70">Carregando…</p>
       ) : (
         <div className="relative h-full max-h-[100dvh] w-full max-w-[min(100vw,56.25dvh)]">
-          <img src={atual.imagem} alt={atual.legenda ?? `Story de ${data.nome}`} className="h-full w-full select-none object-contain" draggable={false} />
+          {atual.tipo === "video" ? (
+            <video
+              ref={video}
+              key={atual.id}
+              src={atual.imagem}
+              aria-label={atual.legenda ?? `Story em vídeo de ${data.nome}`}
+              className="h-full w-full select-none object-contain"
+              autoPlay
+              playsInline
+              muted={mudo}
+              onTimeUpdate={(e) => {
+                const v = e.currentTarget;
+                if (v.duration > 0) setProgresso(v.currentTime / v.duration);
+              }}
+              onEnded={proximo}
+              onError={proximo}
+            />
+          ) : (
+            <img src={atual.imagem} alt={atual.legenda ?? `Story de ${data.nome}`} className="h-full w-full select-none object-contain" draggable={false} />
+          )}
 
           {/* Toque: esquerda volta, direita avança; segurar pausa. */}
           <div className="absolute inset-0 flex" onPointerDown={() => setPausado(true)} onPointerUp={() => setPausado(false)} onPointerLeave={() => setPausado(false)}>
@@ -171,7 +208,18 @@ export function VisualizadorDeStories({ slug, onFechar }: { slug: string; onFech
                 <span className="truncate text-sm font-semibold">{data.nome}</span>
               </Link>
               <span className="tnum shrink-0 text-xs text-branco/70">{tempoAtras(atual.criadoEm)}</span>
-              <button type="button" onClick={onFechar} aria-label="Fechar stories" className="ml-auto rounded-full p-1.5 hover:bg-branco/10">
+              {atual.tipo === "video" ? (
+                <button
+                  type="button"
+                  onClick={() => setMudo((m) => !m)}
+                  aria-label={mudo ? "Ligar o som" : "Desligar o som"}
+                  aria-pressed={!mudo}
+                  className="ml-auto rounded-full p-1.5 hover:bg-branco/10"
+                >
+                  {mudo ? <VolumeX size={22} aria-hidden /> : <Volume2 size={22} aria-hidden />}
+                </button>
+              ) : null}
+              <button type="button" onClick={onFechar} aria-label="Fechar stories" className={`${atual.tipo === "video" ? "" : "ml-auto "} rounded-full p-1.5 hover:bg-branco/10`}>
                 <X size={22} aria-hidden />
               </button>
             </div>

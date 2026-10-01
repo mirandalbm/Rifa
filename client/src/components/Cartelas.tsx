@@ -6,8 +6,11 @@ import { formatBRL, formatQuota, quotaDigits } from "@shared/format";
 import { corDaCasa, letraDoQuadro } from "@/lib/quadro";
 import { priceOrder, type PricingPackage } from "@shared/pricing";
 
-/** Quantas cartelas aparecem por pacote. */
-export const CARTELAS_NA_TELA = 3;
+/**
+ * Quantas cartelas aparecem por pacote: quatro, para fechar o quadrado de
+ * 2 × 2 do tablet (com três sobrava uma lacuna).
+ */
+export const CARTELAS_NA_TELA = 4;
 
 async function buscar(slug: string, quantidade: number, cartelas: number): Promise<number[][]> {
   const res = await apiRequest(
@@ -15,6 +18,54 @@ async function buscar(slug: string, quantidade: number, cartelas: number): Promi
     `/api/public/campaigns/${slug}/cartelas?quantidade=${quantidade}&cartelas=${cartelas}`,
   );
   return ((await res.json()) as { cartelas: number[][] }).cartelas;
+}
+
+/**
+ * As cartelas de cada pacote já vêm buscadas: a página da rifa pede as de
+ * todos os tamanhos assim que abre (`preCarregarCartelas`), e tocar no +25
+ * mostra as dele na hora, sem "Sorteando…". É só sugestão — o número que
+ * alguém levar nesse meio-tempo a compra recusa (409) e a cartela é trocada
+ * —, mas a sugestão guardada vale pouco tempo, para não envelhecer na tela.
+ */
+const VALIDADE_MS = 60_000;
+const guardadas = new Map<string, { em: number; valor?: number[][]; promessa: Promise<number[][]> }>();
+const chave = (slug: string, quantidade: number) => `${slug}:${quantidade}`;
+
+function sugeridas(slug: string, quantidade: number): Promise<number[][]> {
+  const k = chave(slug, quantidade);
+  const g = guardadas.get(k);
+  if (g && Date.now() - g.em < VALIDADE_MS) return g.promessa;
+  const nova = { em: Date.now(), promessa: buscar(slug, quantidade, CARTELAS_NA_TELA) } as {
+    em: number;
+    valor?: number[][];
+    promessa: Promise<number[][]>;
+  };
+  nova.promessa.then(
+    (v) => (nova.valor = v),
+    () => guardadas.delete(k),
+  );
+  guardadas.set(k, nova);
+  return nova.promessa;
+}
+
+/** As já chegadas, para desenhar sem esperar. */
+function jaChegadas(slug: string, quantidade: number): number[][] | null {
+  const g = guardadas.get(chave(slug, quantidade));
+  return g?.valor && Date.now() - g.em < VALIDADE_MS ? g.valor : null;
+}
+
+/**
+ * A sugestão mostrada sai da guarda e outra já é buscada para a próxima
+ * vez: voltar ao pacote não repete a cartela que foi para o carrinho.
+ */
+function renovar(slug: string, quantidade: number) {
+  guardadas.delete(chave(slug, quantidade));
+  void sugeridas(slug, quantidade).catch(() => {});
+}
+
+/** Busca, em paralelo, as cartelas dos pacotes que a rifa oferece. */
+export function preCarregarCartelas(slug: string, quantidades: number[]) {
+  for (const q of new Set(quantidades)) void sugeridas(slug, q).catch(() => {});
 }
 
 /**
@@ -60,18 +111,28 @@ export function Cartelas({
   /** Números que a cartela sorteada no lugar deve evitar (os que já estão no carrinho). */
   evitar?: () => number[];
 }) {
-  const [cartelas, setCartelas] = useState<number[][] | null>(null);
+  const [cartelas, setCartelas] = useState<number[][] | null>(() => jaChegadas(slug, quantidade));
   const [erro, setErro] = useState<string | null>(null);
   const [trocando, setTrocando] = useState<number | null>(null);
   const [aviso, setAviso] = useState<{ i: number; ok: boolean; texto: string } | null>(null);
 
   useEffect(() => {
     let vivo = true;
-    setCartelas(null);
     setErro(null);
-    buscar(slug, quantidade, CARTELAS_NA_TELA)
-      .then((c) => vivo && setCartelas(c))
-      .catch((e: Error) => vivo && setErro(e.message));
+    const ja = jaChegadas(slug, quantidade);
+    if (ja) {
+      setCartelas(ja);
+      renovar(slug, quantidade);
+    } else {
+      setCartelas(null);
+      sugeridas(slug, quantidade)
+        .then((c) => {
+          if (!vivo) return;
+          setCartelas(c);
+          renovar(slug, quantidade);
+        })
+        .catch((e: Error) => vivo && setErro(e.message));
+    }
     return () => {
       vivo = false;
     };
@@ -113,13 +174,23 @@ export function Cartelas({
   const preco = priceOrder({ quantity: quantidade, unitCents, packages });
 
   if (erro) return <p className="mt-3 rounded-md bg-red-soft px-3 py-2 text-sm text-red">{erro}</p>;
-  if (!cartelas) return <p className="mt-3 py-4 text-center text-sm text-muted">Sorteando suas cartelas…</p>;
+  if (!cartelas) {
+    // O lugar das cartelas já desenhado: a tela não pula quando elas chegam.
+    return (
+      <div role="status" aria-live="polite" className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-1">
+        <span className="sr-only">Sorteando suas cartelas…</span>
+        {Array.from({ length: CARTELAS_NA_TELA }, (_, i) => (
+          <div key={i} aria-hidden className="h-[13.5rem] animate-pulse rounded-xl border border-line bg-mist motion-reduce:animate-none" />
+        ))}
+      </div>
+    );
+  }
   if (cartelas.length === 0) {
     return <p className="mt-3 py-4 text-center text-sm text-muted">Não há números livres suficientes para este pacote.</p>;
   }
 
   return (
-    <section aria-label={`Cartelas de ${quantidade} números`} className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
+    <section aria-label={`Cartelas de ${quantidade} números`} className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-1">
       {cartelas.map((numeros, i) => {
         const marcada = escolhida?.join() === numeros.join();
         return (

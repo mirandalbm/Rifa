@@ -17,6 +17,7 @@ import {
 } from "@shared/console";
 import { useSession } from "@/lib/session";
 import { rotuloDasMensagens } from "@shared/mensagens";
+import { CONFIG_BUSCA_PADRAO, type ConfigBusca } from "@shared/buscar";
 import { bilhetesNoCarrinho, useCarrinho } from "@/lib/carrinho";
 import { IconeTrevo } from "@/components/Publicacao";
 import { FotoDoApostador } from "@/components/PerfilDoApostador";
@@ -32,12 +33,14 @@ interface ConfigDoApp {
   publicarApostador: boolean;
   reelsLigado: boolean;
   mensagensLigado: boolean;
+  buscarLigado: boolean;
+  buscarTipos: ConfigBusca;
 }
 
 /** Como o trevo avisa e se o apostador publica (escolhas da plataforma). */
 export function useConfigDoApp(): ConfigDoApp {
   const { data } = useQuery<ConfigDoApp>({ queryKey: ["/api/public/app"], staleTime: 60_000 });
-  return data ?? { avisoDoTrevo: AVISO_DO_TREVO_PADRAO, publicarApostador: false, reelsLigado: false, mensagensLigado: false };
+  return data ?? { avisoDoTrevo: AVISO_DO_TREVO_PADRAO, publicarApostador: false, reelsLigado: false, mensagensLigado: false, buscarLigado: false, buscarTipos: CONFIG_BUSCA_PADRAO };
 }
 
 /** Os ícones do console, no traço suave da barra de ações (`Icones.tsx`). */

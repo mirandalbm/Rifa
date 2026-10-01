@@ -20,7 +20,7 @@ import Carrinho from "@/pages/Carrinho";
 import CarrinhoPix from "@/pages/CarrinhoPix";
 import Notificacoes from "@/pages/Notificacoes";
 import PerfilDoUsuario from "@/pages/PerfilDoUsuario";
-import { Buscar } from "@/pages/EmBreve";
+import Buscar from "@/pages/Buscar";
 import Mensagens from "@/pages/Mensagens";
 import Reels from "@/pages/Reels";
 import Usuario from "@/pages/Usuario";

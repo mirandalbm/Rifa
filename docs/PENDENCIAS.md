@@ -463,9 +463,12 @@ Na ordem de entrega do plano:
   para o afiliado pelo perfil (hoje se acha pelo código) e a fila de
   conversas denunciadas na Caixa de entrada (hoje soma no contador de
   denúncias e fica em Atendimento → Denúncias).
-- [ ] **[código]** Botão do console ainda "Em breve", planejado com você
-  antes: **Buscar** (últimas publicações, com a tabela do que aparece ligada pela
-  plataforma).
+- [x] **Buscar** (grade das publicações mais novas e busca por texto):
+  pronto, atrás do interruptor `buscarLigado` e da tabela do que aparece
+  (`buscarTipos`: rifas, organizações e apostadores; apostador nasce
+  desligado). Ficou para depois: ordenar por popularidade, hashtags,
+  busca por região e índice de texto no banco (hoje é `LIKE` sem acento,
+  suficiente para a escala de agora; com milhares de rifas, `pg_trgm`).
 - [ ] **[código]** Selo "ao vivo" no story (anel com a transmissão), junto
   com a etapa do Reels.
 - [ ] **[código]** Perfil do usuário: os bilhetes como publicações privadas

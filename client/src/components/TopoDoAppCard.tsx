@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { TIPOS_DA_BUSCA, type ConfigBusca, type TipoDaBusca } from "@shared/buscar";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button, Card } from "@/components/bits";
 import { IconeTrevo } from "@/components/Publicacao";
@@ -36,16 +37,20 @@ export function TopoDoAppCard() {
   const [publicar, setPublicar] = useState(atual.publicarApostador);
   const [reels, setReels] = useState(atual.reelsLigado);
   const [mensagens, setMensagens] = useState(atual.mensagensLigado);
+  const [buscar, setBuscar] = useState(atual.buscarLigado);
+  const [tipos, setTipos] = useState<ConfigBusca>(atual.buscarTipos);
   const [msg, setMsg] = useState<{ ok: boolean; texto: string } | null>(null);
   useEffect(() => {
     setAviso(atual.avisoDoTrevo);
     setPublicar(atual.publicarApostador);
     setReels(atual.reelsLigado);
     setMensagens(atual.mensagensLigado);
-  }, [atual.avisoDoTrevo, atual.publicarApostador, atual.reelsLigado, atual.mensagensLigado]);
+    setBuscar(atual.buscarLigado);
+    setTipos(atual.buscarTipos);
+  }, [atual.avisoDoTrevo, atual.publicarApostador, atual.reelsLigado, atual.mensagensLigado, atual.buscarLigado, atual.buscarTipos]);
 
   const salvar = useMutation({
-    mutationFn: () => apiRequest("PUT", "/api/admin/app", { avisoDoTrevo: aviso, publicarApostador: publicar, reelsLigado: reels, mensagensLigado: mensagens }),
+    mutationFn: () => apiRequest("PUT", "/api/admin/app", { avisoDoTrevo: aviso, publicarApostador: publicar, reelsLigado: reels, mensagensLigado: mensagens, buscarLigado: buscar, buscarTipos: tipos }),
     onSuccess: () => {
       setMsg({ ok: true, texto: "Topo do app salvo." });
       qc.invalidateQueries({ queryKey: ["/api/public/app"] });
@@ -131,6 +136,27 @@ export function TopoDoAppCard() {
               </span>
             </span>
           </label>
+          <fieldset className="space-y-2">
+            <label className="flex items-start gap-2">
+              <input type="checkbox" checked={buscar} onChange={(e) => { setMsg(null); setBuscar(e.target.checked); }} className="mt-1 h-5 w-5" />
+              <span>
+                <span className="font-semibold">Buscar aberto ao público</span>
+                <span className="block text-xs text-muted">
+                  Desligado, o botão Buscar do console mostra "Em breve". Ligado, mostra a grade das publicações mais novas e a busca.
+                </span>
+              </span>
+            </label>
+            <div className="ml-7 space-y-1.5 rounded-md border border-line p-3">
+              <legend className="label-xs">O que a busca mostra</legend>
+              {(Object.entries(TIPOS_DA_BUSCA) as [TipoDaBusca, string][]).map(([k, rotulo]) => (
+                <label key={k} className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" checked={tipos[k]} onChange={(e) => { setMsg(null); setTipos({ ...tipos, [k]: e.target.checked }); }} className="h-4 w-4" />
+                  {rotulo}
+                </label>
+              ))}
+              <p className="text-xs text-muted">Perfil de apostador é pessoa, não vitrine: nasce desligado e só aparece pelo @apelido exato.</p>
+            </div>
+          </fieldset>
           {msg ? (
             <p className={`rounded-md px-3 py-2 ${msg.ok ? "bg-green-soft text-green-deep" : "bg-red-soft text-red"}`}>{msg.texto}</p>
           ) : null}

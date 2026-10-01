@@ -111,13 +111,13 @@ export function Kpi({
 }) {
   return (
     <div
-      className={`cartao rounded-lg border p-3 ${
+      className={`cartao min-w-0 rounded-lg border p-3 ${
         highlight ? "border-transparent bg-green-soft" : "border-line bg-white"
       }`}
     >
       <p className="label-xs">{label}</p>
       <p
-        className={`tnum mt-1 text-2xl leading-tight ${highlight ? "text-green-deep" : "text-ink"}`}
+        className={`tnum mt-1 break-words text-2xl leading-tight ${highlight ? "text-green-deep" : "text-ink"}`}
       >
         {value}
       </p>

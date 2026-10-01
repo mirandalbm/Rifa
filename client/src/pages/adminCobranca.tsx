@@ -357,7 +357,7 @@ function MinhaConta() {
 
   return (
     <PanelShell title="Cobrança">
-      <div className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-4">
+      <div className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-3 xl:grid-cols-4">
         <Kpi
           label="Seu contrato"
           value={data ? BILLING_LABEL[data.plano.mode] : "—"}

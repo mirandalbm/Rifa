@@ -6,7 +6,7 @@
  * comprador) — o contador só anda quando a linha entrou de verdade, na mesma
  * transação. Dois toques em "Seguir" não viram dois seguidores.
  */
-import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import sharp from "sharp";
 import { rifaAVenda } from "@shared/carrinho";
 import { getPaymentMethods } from "./settings";
@@ -37,6 +37,7 @@ import { cidadeUf } from "@shared/endereco";
 import { withUrls } from "./media";
 import { MAX_CARROSSEL, formatoDoVideo } from "@shared/publicacao";
 import { minhasMarcas } from "./publicacao";
+import { transmissoesNoAr } from "./aoVivo";
 import { avaliarMetas } from "./bonus";
 import { emSegundoPlano } from "./push";
 import { urlDaFotoDoGanhador } from "./ganhador";
@@ -241,6 +242,7 @@ export async function perfilPublico(slug: string, buyerId?: string | null) {
     foto: urlDaFoto(org.slug, foto?.updatedAt),
     capa: urlDaCapa(org.slug, capa?.updatedAt),
     ultimoStory: ultimo?.em ?? null,
+    aoVivo: (await transmissoesNoAr([org.id])).get(org.id) ?? null,
     destaque: destaqueDa(org),
     links: org.links ?? [],
     local: cidadeUf(org.cidade, org.uf),
@@ -371,8 +373,13 @@ export async function perfisComStory(buyerId: string | null) {
     ? sql<boolean>`exists (select 1 from ${seguidores} f
          where f.organization_id = "organizations"."id" and f.buyer_id = ${buyerId}::uuid)`
     : sql<boolean>`false`;
+  // Quem está transmitindo o sorteio agora entra na fileira mesmo sem story
+  // (o selo "ao vivo"): dado real, a regra é `transmissaoNoAr()`.
+  const aoVivo = await transmissoesNoAr();
+  const idsAoVivo = [...aoVivo.keys()];
   const linhas = await db
     .select({
+      id: organizations.id,
       slug: organizations.slug,
       nome: organizations.name,
       foto: organizacaoFotos.updatedAt,
@@ -384,15 +391,21 @@ export async function perfisComStory(buyerId: string | null) {
     .where(
       and(
         isNull(organizations.archivedAt),
-        sql`exists (select 1 from ${stories} s
-             where s.organization_id = "organizations"."id" and s.expira_em > now())`,
+        // Banida some da vitrine (o perfil dela dá 404): o anel não pode levar a um 404.
+        isNull(organizations.banidaEm),
+        or(
+          sql`exists (select 1 from ${stories} s
+               where s.organization_id = "organizations"."id" and s.expira_em > now())`,
+          idsAoVivo.length ? inArray(organizations.id, idsAoVivo) : undefined,
+        ),
       ),
     )
     .limit(60);
   return linhas
-    .filter((l) => l.ultimoStory)
+    .filter((l) => l.ultimoStory || aoVivo.has(l.id))
     .sort(
       (a, b) =>
+        Number(aoVivo.has(b.id)) - Number(aoVivo.has(a.id)) ||
         Number(b.seguindo) - Number(a.seguindo) ||
         (b.ultimoStory?.getTime() ?? 0) - (a.ultimoStory?.getTime() ?? 0),
     )
@@ -402,6 +415,7 @@ export async function perfisComStory(buyerId: string | null) {
       foto: urlDaFoto(l.slug, l.foto),
       ultimoStory: l.ultimoStory,
       seguindo: Boolean(l.seguindo),
+      aoVivo: aoVivo.get(l.id) ?? null,
     }));
 }
 

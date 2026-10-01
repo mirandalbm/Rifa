@@ -9,11 +9,11 @@
  * ficam de fora — a vitrine também não as mostra.
  */
 import { createHash } from "node:crypto";
-import { and, asc, desc, eq, gt, isNotNull, isNull } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, isNotNull, isNull, lte } from "drizzle-orm";
 import { db } from "../db";
 import { buyers, campaigns, draws, orders, organizations, prizedQuotas } from "@shared/schema";
 import { formatQuota } from "@shared/format";
-import { GANHADORES_NA_COLUNA, JOGANDO_NA_COLUNA, nomeCurto, videoDaTransmissao } from "@shared/aoVivo";
+import { DURACAO_DA_TRANSMISSAO_MS, GANHADORES_NA_COLUNA, JOGANDO_NA_COLUNA, nomeCurto, transmissaoNoAr, videoDaTransmissao } from "@shared/aoVivo";
 
 /** Rifa que a vitrine mostra: publicada, de verdade, de promotora no ar. */
 const rifaDaVitrine = and(
@@ -32,10 +32,45 @@ function chave(tipo: string, id: string): string {
 }
 
 /**
- * Até 3 h depois do horário a rifa segue como "o próximo sorteio": é o tempo
- * da transmissão. Sorteada, sai (o resultado vai para os ganhadores).
+ * Quais organizações têm uma transmissão no ar agora (o selo "ao vivo" do
+ * story e do perfil): `transmissaoNoAr()` decide, aqui só a consulta. Rifa
+ * de verdade (a mesma régua da vitrine), publicada, não sorteada, com link
+ * de transmissão e na janela do sorteio. Sem `orgIds`, todas.
  */
-const DURACAO_DA_TRANSMISSAO_MS = 3 * 3_600_000;
+export async function transmissoesNoAr(orgIds?: string[]) {
+  const agora = Date.now();
+  const linhas = await db
+    .select({
+      orgId: campaigns.organizationId,
+      slug: campaigns.slug,
+      premio: campaigns.prizeTitle,
+      drawAt: campaigns.drawAt,
+      transmissaoUrl: campaigns.transmissaoUrl,
+    })
+    .from(campaigns)
+    .innerJoin(organizations, eq(organizations.id, campaigns.organizationId))
+    .leftJoin(draws, and(eq(draws.campaignId, campaigns.id), isNotNull(draws.executedAt)))
+    .where(
+      and(
+        eq(campaigns.status, "published"),
+        rifaDaVitrine,
+        isNull(draws.id),
+        isNotNull(campaigns.transmissaoUrl),
+        lte(campaigns.drawAt, new Date(agora)),
+        gt(campaigns.drawAt, new Date(agora - DURACAO_DA_TRANSMISSAO_MS)),
+        orgIds ? inArray(campaigns.organizationId, orgIds) : undefined,
+      ),
+    )
+    .orderBy(asc(campaigns.drawAt));
+  const porOrg = new Map<string, { slug: string; premio: string }>();
+  for (const l of linhas) {
+    if (!l.orgId || porOrg.has(l.orgId)) continue;
+    if (transmissaoNoAr({ drawAt: l.drawAt, sorteada: false, transmissaoUrl: l.transmissaoUrl }, agora)) {
+      porOrg.set(l.orgId, { slug: l.slug, premio: l.premio });
+    }
+  }
+  return porOrg;
+}
 
 async function proximoSorteio() {
   const [r] = await db

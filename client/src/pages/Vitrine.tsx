@@ -10,7 +10,7 @@ import { PublicShell } from "@/components/AppShell";
 import { Empty } from "@/components/bits";
 import { BannersVitrine } from "@/components/BannersVitrine";
 import { CartaoDoFeed, type RifaDoFeed } from "@/components/CartaoDoFeed";
-import { FotoComStory, VisualizadorDeStories, useVistos } from "@/components/Stories";
+import { FotoComStory, VisualizadorDeStories, useVistos, type AoVivoDaOrg } from "@/components/Stories";
 import { FotoDoPerfil } from "@/components/Seguir";
 import { vistoAte } from "@/lib/stories";
 import { temStoryNovo } from "@shared/vitrine";
@@ -203,7 +203,7 @@ function StoriesDaVitrine() {
   const { data: sessao } = useSession();
   const [aberto, setAberto] = useState<string | null>(null);
   const { data = [] } = useQuery<
-    { slug: string; nome: string; foto: string | null; ultimoStory: string; seguindo: boolean }[]
+    { slug: string; nome: string; foto: string | null; ultimoStory: string | null; seguindo: boolean; aoVivo: AoVivoDaOrg | null }[]
   >({ queryKey: ["/api/public/stories"], staleTime: 60_000 });
   const organizador = sessao?.role === "organizer";
   // "Seu story" com a foto da própria organização, como no Instagram.
@@ -214,7 +214,7 @@ function StoriesDaVitrine() {
     staleTime: 60_000,
   });
   if (data.length === 0 && !organizador) return null;
-  const visto = (o: { slug: string; ultimoStory: string }) => (temStoryNovo(o.ultimoStory, vistoAte(o.slug)) ? 0 : 1);
+  const visto = (o: { slug: string; ultimoStory: string | null; aoVivo: AoVivoDaOrg | null }) => (o.aoVivo ? -1 : temStoryNovo(o.ultimoStory, vistoAte(o.slug)) ? 0 : 1);
   // Estável: mantém a ordem do servidor (seguidos, mais novo) dentro de cada faixa.
   const ordem = [...data].sort((a, b) => visto(a) - visto(b));
   return (
@@ -244,6 +244,7 @@ function StoriesDaVitrine() {
                 nome={o.nome}
                 foto={o.foto}
                 ultimoStory={o.ultimoStory}
+                aoVivo={o.aoVivo}
                 tamanho={FOTO_DO_STORY}
                 onAbrir={() => setAberto(o.slug)}
               />
@@ -254,7 +255,9 @@ function StoriesDaVitrine() {
           </li>
         ))}
       </ul>
-      {aberto ? <VisualizadorDeStories slug={aberto} onFechar={() => setAberto(null)} /> : null}
+      {aberto ? (
+        <VisualizadorDeStories slug={aberto} aoVivo={data.find((o) => o.slug === aberto)?.aoVivo ?? null} onFechar={() => setAberto(null)} />
+      ) : null}
     </nav>
   );
 }

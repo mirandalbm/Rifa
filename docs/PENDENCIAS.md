@@ -242,7 +242,13 @@ código só depois do plano combinado com ele.
   recorte de `orgOf` vale para a IA como para a pessoa; nada de dado
   pessoal de comprador no contexto; ação que mexe em dinheiro, estorno,
   publicação ou exclusão pede confirmação da pessoa e entra em `audit_log`
-  como feita pela IA; a cobrança do uso usa o saldo da plataforma.
+  como feita pela IA.
+- **Cobrança da IA: fora do saldo.** O saldo do patrocínio (e o livro
+  `patrocinio_lancamentos`) **não** paga a IA e não é tocado por ela. A IA é
+  paga **por fora**, de dois jeitos: **assinatura** (plano recorrente) ou
+  **compra de créditos avulsos**. O modelo de cobrança (provedor, planos,
+  preço do crédito, o que consome crédito) é decisão de produto e entra no
+  plano da IA; o administrador master não paga.
 
 ## 4. Limpeza no GitHub
 

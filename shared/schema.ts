@@ -336,6 +336,8 @@ export const buyers = pgTable(
     uniqueIndex("uq_buyers_phone").on(t.phone),
     uniqueIndex("uq_buyers_apelido").on(t.apelido).where(sql`apelido is not null`),
     uniqueIndex("uq_buyers_codigo").on(t.codigo),
+    // "Quem também joga": parte dos poucos que abriram o perfil (opt-in), não de todos os compradores da rifa.
+    index("ix_buyers_perfil_publico").on(t.apelido).where(sql`perfil_publico and apelido is not null and excluido_em is null`),
     uniqueIndex("uq_buyers_codigo_indicacao").on(t.codigoIndicacao),
     // CPF e e-mail entram como forma de login só entre contas: comprador sem
     // conta pode repetir (a mesma pessoa com dois telefones, digitação antiga).

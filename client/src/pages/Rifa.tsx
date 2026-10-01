@@ -1,5 +1,6 @@
 import { BarraDeAcoes, Carrossel, Legenda, type Interacoes, type Peca } from "@/components/Publicacao";
 import { SeloVerificado } from "@/components/SeloVerificado";
+import { QuemTambemJoga } from "@/components/QuemTambemJoga";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams, useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -421,6 +422,7 @@ export default function Rifa() {
           <Legenda autor={data.organizacao?.nome ?? ""} texto={campaign.legenda} />
         </div>
       ) : null}
+      <QuemTambemJoga slug={slug} />
 
       </div>
 

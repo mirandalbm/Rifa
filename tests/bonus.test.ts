@@ -6,6 +6,7 @@ import {
   progressoDasMetas,
   validarMeta,
   RESGATE_MAX,
+  TIPOS_DE_META,
   type Meta,
 } from "@shared/bonus";
 
@@ -40,11 +41,25 @@ describe("progressoDasMetas", () => {
     { id: "c", titulo: "C", tipo: "visitas", alvo: 10, recompensa: 1, ativa: false },
   ];
   it("conta até o alvo e esconde a desligada", () => {
-    const p = progressoDasMetas(metas, { indicacoes: 7, rifas_compradas: 1, visitas: 50 });
+    const p = progressoDasMetas(metas, { indicacoes: 7, rifas_compradas: 1, visitas: 50, organizacoes_seguidas: 0 });
     expect(p.map((m) => [m.id, m.feito, m.alcancada])).toEqual([
       ["a", 5, true],
       ["b", 1, false],
     ]);
+  });
+});
+
+describe("meta de seguir organizações", () => {
+  it("é um tipo conhecido, com texto no singular e no plural", () => {
+    expect(validarMeta({ titulo: "Siga", tipo: "organizacoes_seguidas", alvo: 3, recompensa: 1 }).tipo).toBe("organizacoes_seguidas");
+    expect(TIPOS_DE_META.organizacoes_seguidas.descreve(1)).toBe("Siga 1 organização que faz rifa");
+    expect(TIPOS_DE_META.organizacoes_seguidas.descreve(3)).toBe("Siga 3 organizações que fazem rifa");
+  });
+  it("conta até o alvo, como as outras", () => {
+    const metas: Meta[] = [{ id: "s", titulo: "S", tipo: "organizacoes_seguidas", alvo: 3, recompensa: 1, ativa: true }];
+    const base = { indicacoes: 0, rifas_compradas: 0, visitas: 0 };
+    expect(progressoDasMetas(metas, { ...base, organizacoes_seguidas: 2 })[0]).toMatchObject({ feito: 2, alcancada: false });
+    expect(progressoDasMetas(metas, { ...base, organizacoes_seguidas: 9 })[0]).toMatchObject({ feito: 3, alcancada: true });
   });
 });
 

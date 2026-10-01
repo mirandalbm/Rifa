@@ -834,9 +834,10 @@ function MinhaConta({ aoSair }: { aoSair: () => void }) {
             className="mt-1"
           />
           <span>
-            Aparecer em "seguido por…" nos perfis que eu sigo
+            Aparecer em "seguido por…" e em "quem também joga" nas rifas
             <span className="block text-xs text-muted">
-              Só o primeiro nome. Desligado, você conta como seguidor, mas ninguém vê quem é.
+              Em "seguido por…" vai só o primeiro nome; em "quem também joga" vão seu apelido e sua foto (precisa de apelido). Desligado,
+              você conta como seguidor e participante, mas ninguém vê quem é.
             </span>
           </span>
         </label>

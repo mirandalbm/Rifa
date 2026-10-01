@@ -37,6 +37,8 @@ import { cidadeUf } from "@shared/endereco";
 import { withUrls } from "./media";
 import { MAX_CARROSSEL, formatoDoVideo } from "@shared/publicacao";
 import { minhasMarcas } from "./publicacao";
+import { avaliarMetas } from "./bonus";
+import { emSegundoPlano } from "./push";
 import { urlDaFotoDoGanhador } from "./ganhador";
 
 export class PerfilError extends Error {
@@ -275,7 +277,7 @@ export async function perfilPublico(slug: string, buyerId?: string | null) {
 
 export async function seguir(slug: string, buyerId: string) {
   const org = await organizacaoPublica(slug);
-  await db.transaction(async (tx) => {
+  const novo = await db.transaction(async (tx) => {
     const entrou = await tx
       .insert(seguidores)
       .values({ organizationId: org.id, buyerId, sino: true })
@@ -287,7 +289,11 @@ export async function seguir(slug: string, buyerId: string) {
         .set({ seguidoresCount: sql`${organizations.seguidoresCount} + 1` })
         .where(eq(organizations.id, org.id));
     }
+    return entrou.length > 0;
   });
+  // A meta "Seguir organizações" (bônus): fora da transação e sem derrubar o
+  // seguir. Idempotente pela chave da meta, então repetir não credita de novo.
+  if (novo) emSegundoPlano(avaliarMetas(buyerId), "metas de bônus ao seguir");
   return estadoDoSeguir(org.id, buyerId);
 }
 

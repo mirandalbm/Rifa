@@ -299,8 +299,11 @@ Na ordem de entrega do plano:
   "seguido por" só de quem liga o perfil público, destaques (rifas
   sorteadas) e grade com carrossel. A rifa abre dentro do perfil e tem
   seguir/sino. A vitrine mostra os perfis seguidos no topo.
-- [ ] **[código]** Ainda do perfil, depende de outras etapas: item "Bônus" do menu (gamificação) e "seguidores da mesma
-  rifa".
+- [x] ~~Item "Bônus" do menu do perfil e "seguidores da mesma rifa"~~: o
+  item aparece em `/perfil` com o programa ligado; a meta "Siga N
+  organizações" entra nas metas do Bônus; e a página da rifa mostra "quem
+  também joga" (compra paga + perfil público, só apelido e foto). A regra da
+  recompensa por seguir segue sendo cota grátis, **desligada até o advogado**.
 - [ ] **[você]** Cada organização pôr foto e bio em Configurações → Perfil
   público.
 - [x] Notificações no celular (Web Push): rifa nova de quem a pessoa segue

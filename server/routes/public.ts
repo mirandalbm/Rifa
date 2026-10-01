@@ -1,6 +1,6 @@
 import { conferirRecibo } from "../services/recibos";
 import { denunciar } from "../services/seguranca";
-import { fotoDoApostador, meuPerfilPublico, perfilPublicoDoApostador, salvarPerfilPublico } from "../services/perfilApostador";
+import { fotoDoApostador, meuPerfilPublico, perfilPublicoDoApostador, quemTambemJoga, salvarPerfilPublico } from "../services/perfilApostador";
 import { apagarComentario, comentar, curtirComentario, listarComentarios } from "../services/comentarios";
 import { marcarTodasLidas, naoLidas, notificacoesDe } from "../services/notificacoes";
 import { aderir, pedirColaboracao, termoPublico } from "../services/afiliados";
@@ -689,6 +689,15 @@ publicRouter.get("/seguindo", async (req, res, next) => {
 });
 
 /* ---------------- comentários na publicação ---------------- */
+
+/** Mini-perfis de quem joga a mesma rifa e abriu o perfil público (só apelido e foto). */
+publicRouter.get("/campaigns/:slug/quem-joga", async (req, res, next) => {
+  try {
+    res.json(await quemTambemJoga(req.params.slug));
+  } catch (err) {
+    next(err);
+  }
+});
 
 publicRouter.get("/campaigns/:slug/comentarios", async (req, res, next) => {
   try {

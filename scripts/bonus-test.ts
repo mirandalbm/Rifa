@@ -194,6 +194,21 @@ async function main() {
     const [propria] = await db.select().from(indicacoes).where(eq(indicacoes.indicadoId, (await db.select().from(buyers).where(eq(buyers.phone, TEL.indicador)))[0].id));
     checa("autoindicação não conta", r.status === 201 && !propria);
 
+    // "Quem também joga": comprou (pago) e abriu o perfil público; só apelido e foto.
+    console.log("  — quem também joga");
+    await fetch(`${URL}/api/dev/pay/${r.json?.code}`, { method: "POST" });
+    await db.update(buyers).set({ apelido: "bia.joga", perfilPublico: true }).where(eq(buyers.phone, TEL.indicado));
+    const publico = new Cliente();
+    r = await publico.req("GET", `/api/public/campaigns/${naoAceita.slug}/quem-joga`);
+    checa("aparece quem comprou e abriu o perfil, só com apelido e foto", r.status === 200 && r.json?.pessoas?.length === 1 && r.json.pessoas[0].apelido === "bia.joga" && r.json.mais === false, JSON.stringify(r.json));
+    checa("a resposta não traz nome, telefone, CPF nem id", Object.keys(r.json.pessoas[0]).sort().join() === "apelido,foto" && !/Bia|Ana|1195555|529\.?982/.test(JSON.stringify(r.json)), JSON.stringify(r.json));
+    checa("quem comprou mas não abriu o perfil (Ana) não aparece", !JSON.stringify(r.json).includes("ana"));
+    r = await publico.req("GET", `/api/public/campaigns/${aceita.slug}/quem-joga`);
+    checa("rifa em que ninguém público comprou vem vazia", r.status === 200 && r.json?.pessoas?.length === 0 && r.json?.mais === false, JSON.stringify(r.json));
+    r = await publico.req("GET", "/api/public/campaigns/nao-existe/quem-joga");
+    checa("rifa inexistente vem vazia, sem erro", r.status === 200 && r.json?.pessoas?.length === 0);
+    await db.update(buyers).set({ apelido: null, perfilPublico: false }).where(eq(buyers.phone, TEL.indicado));
+
     // Resgate.
     r = await ana.req("POST", "/api/public/bonus/resgatar", { campaignId: naoAceita.id, quantidade: 1 });
     checa("rifa que o regulamento não prevê: 409", r.status === 409 && /regulamento/.test(r.json?.message ?? ""), r.json?.message);
@@ -230,6 +245,33 @@ async function main() {
     r = await new Cliente().req("GET", `/api/public/campaigns/${aceita.slug}/regulamento`);
     const reg = JSON.stringify(r.json ?? "");
     checa("o regulamento da rifa traz a cláusula", /cotas de bônus/.test(reg), `HTTP ${r.status}`);
+
+    // Meta "Seguir organizações": só conta para conta com senha (o CPF único
+    // entre contas segura a fazenda de contas), credita uma vez e o bônus fica.
+    console.log("  — meta de seguir");
+    r = await admin.req("POST", "/api/admin/bonus/metas", { titulo: "Teste bônus seguir", tipo: "organizacoes_seguidas", alvo: 1, recompensa: 1 });
+    checa("a plataforma cria a meta de seguir", r.status === 201, `HTTP ${r.status} ${r.json?.message ?? ""}`);
+    const esperar = () => new Promise((ok) => setTimeout(ok, 700));
+    const antesDeSeguir = await saldo(TEL.indicador);
+    r = await ana.req("POST", `/api/public/o/${SLUG}/seguir`);
+    await esperar();
+    checa("sem conta com senha, seguir não credita a meta", r.status === 200 && (await saldo(TEL.indicador)) === antesDeSeguir, String(await saldo(TEL.indicador)));
+    await ana.req("DELETE", `/api/public/o/${SLUG}/seguir`);
+    await db.update(buyers).set({ passwordHash: "hash-de-teste" }).where(eq(buyers.phone, TEL.indicador));
+    r = await ana.req("POST", `/api/public/o/${SLUG}/seguir`);
+    await esperar();
+    checa("conta com senha que segue: a meta credita 1 cota", r.status === 200 && (await saldo(TEL.indicador)) === antesDeSeguir + 1, String(await saldo(TEL.indicador)));
+    await ana.req("POST", `/api/public/o/${SLUG}/seguir`);
+    await ana.req("DELETE", `/api/public/o/${SLUG}/seguir`);
+    await ana.req("POST", `/api/public/o/${SLUG}/seguir`);
+    await esperar();
+    checa("seguir, largar e seguir de novo não credita outra vez", (await saldo(TEL.indicador)) === antesDeSeguir + 1, String(await saldo(TEL.indicador)));
+    r = await ana.req("GET", "/api/public/bonus");
+    const metaSeguir = (r.json?.metas ?? []).find((m: any) => m.tipo === "organizacoes_seguidas");
+    checa("a tela mostra o progresso da meta de seguir", metaSeguir?.alcancada === true && metaSeguir?.feito === 1 && /Siga 1 organização/.test(metaSeguir?.descricao ?? ""), JSON.stringify(metaSeguir));
+    await db.execute(sql`delete from seguidores where buyer_id = (select id from buyers where phone = ${TEL.indicador})`);
+    await db.execute(sql`update organizations set seguidores_count = 0 where id = ${org.id}::uuid`);
+    await db.update(buyers).set({ passwordHash: null }).where(eq(buyers.phone, TEL.indicador));
 
     // Desligado: nada se resgata e nada acumula.
     await admin.req("PUT", "/api/admin/bonus/config", { bonusLigado: false });

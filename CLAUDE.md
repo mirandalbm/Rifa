@@ -1301,6 +1301,18 @@ pedido, cotas e valor, e o cliente só pelo ID (`Cliente C-XXXXXXXX`).
   recolhidas e a barra de reações; no feed, os comentários sobem num painel
   por cima da vitrine. Tamanho e fonte do Instagram: 14 px na fonte do
   sistema do aparelho (`font-instagram`), 12 px nos detalhes.
+- **"Quem também joga" na página da rifa** (`QuemTambemJoga`, `GET
+  /campaigns/:slug/quem-joga`, `quemTambemJoga()`): até 6 mini-perfis (foto e
+  `@apelido`, que levam a `/u/<apelido>`) de quem tem **compra paga** naquela
+  rifa **e** abriu o perfil público (`buyers.perfil_publico`, nasce
+  desligado — participar de rifa é dado pessoal, LGPD; o texto da opção em
+  Minha conta diz isso). Só apelido e foto: **nunca** nome, telefone, CPF, id
+  nem quantas cotas. A consulta parte de quem abriu o perfil (índice parcial
+  `ix_buyers_perfil_publico`) e confere a compra com `EXISTS` — nunca varre
+  os pedidos da rifa — e pede uma pessoa a mais só para saber se há "e outras
+  pessoas", **sem número** (nada de contar quem não abriu o perfil). Rascunho,
+  demonstração, rifa travada e promotora arquivada ou banida vêm vazios; sem
+  ninguém, a faixa não existe. Guardada 15 s no servidor.
 - **O apelido é o nome de usuário** (`validarApelido()`: minúsculas,
   números, ponto e sublinhado; sem telefone; reservados recusados), único
   entre contas pelo índice parcial `uq_buyers_apelido`. O perfil
@@ -2001,6 +2013,18 @@ desconto na primeira compra — **pago pela plataforma**.
   comissão e sem taxa, porque não entrou dinheiro. O saldo sai num `UPDATE`
   condicional na mesma transação que reserva: sem cota livre, nada sai.
   Fecha 2 horas antes do sorteio. **Cota de bônus não tem reembolso.**
+- **Seguir também é meta** ("Siga N organizações", `organizacoes_seguidas`):
+  conta o que a pessoa segue **hoje**, só para **conta com senha** (o CPF
+  único entre contas é o que segura a fazenda de contas) e só organização
+  nem arquivada nem banida (`progressoDe()`). O aviso sai do próprio seguir
+  (`seguir()`, fora da transação, `emSegundoPlano`, só quando o seguir
+  entrou) e a chave da meta (`meta:<id>:<pessoa>`) garante um crédito só:
+  seguir, largar e seguir de novo não paga outra vez, e **largar depois não
+  tira o bônus** (diferente da indicação, aqui não há dinheiro de volta a
+  desfazer). Como toda cota grátis, só vale com o programa ligado.
+- **O item "Bônus" do menu do perfil** (`/perfil`) só aparece para conta
+  quando o programa está ligado, e leva à aba Bônus de Minhas compras
+  (`?aba=bonus`), com o saldo no detalhe.
 - **Desligado, nada acumula e nada se resgata**; o saldo de cada um fica.
 - `npm run bonus` prova tudo isso contra a API de verdade.
 

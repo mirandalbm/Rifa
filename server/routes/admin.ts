@@ -223,6 +223,7 @@ import {
   EXIGE_CPF,
 } from "@shared/plataforma";
 import { estadoWhatsApp, criarModelosFaltantes, enviarTeste } from "../services/whatsappSetup";
+import { validarConfigBusca } from "@shared/buscar";
 import { senhaInvalida } from "@shared/senha";
 import { conversasDenunciadasAbertas, decidirDenunciaDeConversa, detalheDaDenunciaDeConversa, listarDenunciasDeConversa } from "../services/mensagens";
 import { EXPORTS, exportInfo, exportFilename, CSV_BOM } from "@shared/exports";
@@ -2251,8 +2252,10 @@ adminRouter.put("/app", async (req, res, next) => {
       publicarApostador: typeof req.body?.publicarApostador === "boolean" ? req.body.publicarApostador : undefined,
       reelsLigado: typeof req.body?.reelsLigado === "boolean" ? req.body.reelsLigado : undefined,
       mensagensLigado: typeof req.body?.mensagensLigado === "boolean" ? req.body.mensagensLigado : undefined,
+      buscarLigado: typeof req.body?.buscarLigado === "boolean" ? req.body.buscarLigado : undefined,
+      buscarTipos: req.body?.buscarTipos && typeof req.body.buscarTipos === "object" ? validarConfigBusca(req.body.buscarTipos) : undefined,
     });
-    const app = { avisoDoTrevo: salva.avisoDoTrevo, publicarApostador: salva.publicarApostador, reelsLigado: salva.reelsLigado, mensagensLigado: salva.mensagensLigado };
+    const app = { avisoDoTrevo: salva.avisoDoTrevo, publicarApostador: salva.publicarApostador, reelsLigado: salva.reelsLigado, mensagensLigado: salva.mensagensLigado, buscarLigado: salva.buscarLigado, buscarTipos: salva.buscarTipos };
     await audit(req, "plataforma.app", "settings", "plataforma", app);
     res.json(app);
   } catch (err) {

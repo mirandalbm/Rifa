@@ -8,6 +8,7 @@
  * Provedor do Pix
  * ------------------------------------------------------------------ */
 
+import { CONFIG_BUSCA_PADRAO, validarConfigBusca, type ConfigBusca } from "./buscar";
 import { AVISO_DO_TREVO_PADRAO, validarAvisoDoTrevo, type AvisoDoTrevo } from "./console";
 import { CONFIG_PRESENTE_PADRAO, validarConfigPresente, type ConfigPresente } from "./presente";
 import { TAXA_REEMBOLSO_MAX_PCT, TAXA_REEMBOLSO_PADRAO_PCT } from "./reembolso";
@@ -120,6 +121,10 @@ export interface ConfigPlataforma {
   reelsLigado: boolean;
   /** A caixa de mensagens (conversa de um para um). Nasce desligada, como o Reels. */
   mensagensLigado: boolean;
+  /** A tela Buscar (grade das publicações e busca). Nasce desligada, como o Reels. */
+  buscarLigado: boolean;
+  /** Quais tipos de resultado a busca mostra (a tabela da plataforma). */
+  buscarTipos: ConfigBusca;
 }
 
 export const CONFIG_PADRAO: ConfigPlataforma = {
@@ -139,6 +144,8 @@ export const CONFIG_PADRAO: ConfigPlataforma = {
   publicarApostador: false,
   reelsLigado: false,
   mensagensLigado: false,
+  buscarLigado: false,
+  buscarTipos: CONFIG_BUSCA_PADRAO,
 };
 
 /** Só as chaves conhecidas: isto vem do corpo da requisição. */
@@ -172,6 +179,8 @@ export function validarConfigPlataforma(entrada: Partial<ConfigPlataforma>): Con
     publicarApostador: entrada.publicarApostador === true,
     reelsLigado: entrada.reelsLigado === true,
     mensagensLigado: entrada.mensagensLigado === true,
+    buscarLigado: entrada.buscarLigado === true,
+    buscarTipos: validarConfigBusca(entrada.buscarTipos),
   };
 }
 

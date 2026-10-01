@@ -42,6 +42,7 @@ Pelo caminho que mudou (a mesma tabela "Onde mexer" do `CLAUDE.md`):
 | verificação (selo) | `verificacao` |
 | publicação, carrinho, Reels | `publicacao`, `carrinho` |
 | mensagens | `mensagens`, `isolation` |
+| buscar | `buscar` |
 | presente | `presente` |
 | painel de resultados | `resultados` |
 | afiliados, fiscal, guarda da comissão | `afiliados`, `fiscal`, `guarda` |

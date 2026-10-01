@@ -100,6 +100,7 @@ import { paymentSummary } from "@shared/payments";
 import { activePaymentProvider } from "../payments";
 import { EXIGE_CPF, type ProvedorPix } from "@shared/plataforma";
 import { getPlataforma } from "../services/settings";
+import { buscar } from "../services/buscar";
 import {
   acharDestino,
   bloquear as bloquearConversa,
@@ -283,6 +284,22 @@ publicRouter.post("/mensagens/conversas/:id/denuncia", async (req, res, next) =>
   try {
     await exigirMensagensLigadas();
     res.status(201).json(await denunciarConversa(req, req.params.id, req.body ?? {}));
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * Buscar: a grade das publicações mais novas e a busca por texto (rifas,
+ * organizações e, se a plataforma ligar, o @apelido exato). Desligada, a
+ * resposta é só `{ ligado: false }`. Nunca telefone, CPF ou e-mail.
+ */
+publicRouter.get("/buscar", async (req, res, next) => {
+  try {
+    const r = await buscar(req, { q: req.query.q, depois: req.query.depois });
+    if ("proximo" in r && r.proximo) res.setHeader("X-Proximo", r.proximo);
+    res.setHeader("Cache-Control", "private, no-store");
+    res.json(r);
   } catch (err) {
     next(err);
   }
@@ -740,7 +757,7 @@ publicRouter.get("/app", async (_req, res, next) => {
   try {
     const p = await getPlataforma();
     res.setHeader("Cache-Control", "public, max-age=60");
-    res.json({ avisoDoTrevo: p.avisoDoTrevo, publicarApostador: p.publicarApostador, reelsLigado: p.reelsLigado, mensagensLigado: p.mensagensLigado });
+    res.json({ avisoDoTrevo: p.avisoDoTrevo, publicarApostador: p.publicarApostador, reelsLigado: p.reelsLigado, mensagensLigado: p.mensagensLigado, buscarLigado: p.buscarLigado, buscarTipos: p.buscarTipos });
   } catch (err) {
     next(err);
   }

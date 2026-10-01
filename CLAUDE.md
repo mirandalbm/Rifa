@@ -109,6 +109,7 @@ arquitetura.
 | guarda da comissão pela plataforma (etapa 12) | `guardaComissao` e `percentualDoPromotor()` em `shared/plataforma.ts`, `createOrder`/`settleOrderAsPaid` em `server/services/orders.ts`, `scripts/guarda-test.ts` |
 | indicação, bônus e metas (etapa 13) | `shared/bonus.ts` (regras), `server/services/bonus.ts`, `resgatarCotasDeBonus()` em `server/services/orders.ts`, `client/src/lib/indicacao.ts`, `client/src/pages/adminBonus.tsx`, `client/src/components/BonusDoComprador.tsx`, `scripts/bonus-test.ts` |
 | Reels (tela cheia, vídeo em pé, interruptor da plataforma) | `shared/reels.ts` (regras, lote), `GET /api/public/reels` em `server/routes/public.ts`, `reelsLigado` em `shared/plataforma.ts`, `client/src/pages/Reels.tsx`, `vertical` em `BarraDeAcoes`, `scripts/publicacao-test.ts`, `tests/reels.test.ts` |
+| Buscar (grade das publicações e busca por texto, interruptor e tabela da plataforma) | `shared/buscar.ts` (regras e tabela), `server/services/buscar.ts`, `GET /api/public/buscar` em `server/routes/public.ts`, `buscarLigado`/`buscarTipos` em `shared/plataforma.ts`, `client/src/pages/Buscar.tsx`, cartão em `client/src/components/TopoDoAppCard.tsx`, `scripts/buscar-test.ts`, `tests/buscar.test.ts` |
 | Mensagens (caixa de um para um: apostador, organização e afiliado) | `shared/mensagens.ts` (regras puras), `server/services/mensagens.ts`, rotas `/mensagens/*` em `server/routes/public.ts` e `/mensagens/denuncias*` em `server/routes/admin.ts`, `mensagensLigado` em `shared/plataforma.ts`, `client/src/pages/Mensagens.tsx`, `ConversasDenunciadas.tsx`, `BotaoMensagem.tsx`, `scripts/mensagens-test.ts`, `tests/mensagens.test.ts` |
 | rifas patrocinadas por clique (etapa 15): pacote, fila, tabela e números | `shared/patrocinio.ts` (regras, preço, previsão da fila), `server/services/patrocinio.ts`, `client/src/pages/adminPatrocinio.tsx`, `client/src/components/Patrocinadas.tsx`, `scripts/patrocinio-test.ts` |
 | marketing e tráfego pago (etapa 16): pixels, aviso de cookies, UTM, compra pelo servidor | `shared/marketing.ts` (regras e corpos das APIs), `server/services/marketing.ts`, `client/src/lib/marketing.ts`, `client/src/components/Marketing.tsx`, `client/src/pages/adminMarketing.tsx`, `scripts/marketing-test.ts` |
@@ -695,6 +696,35 @@ plataforma analisa** (Atendimento → Rifas, com conversa dos dois lados).
   não-quebrável.
 - Se mudar o layout, rode `tests/ticket.test.ts`: linha larga demais estoura
   na bobina e só se descobre na hora de imprimir.
+
+## Buscar — o que não pode afrouxar
+
+A tela Buscar do console: o campo no topo e, embaixo, a grade das
+publicações mais novas (a capa de cada rifa). Com texto, acha rifas (título,
+prêmio e nome da organização), organizações (nome ou endereço) e, se a
+plataforma ligar, o apostador pelo `@apelido` exato.
+
+- **Nasce desligada** (`buscarLigado`, Aparência → Topo do app, `PUT
+  /admin/app`, 403 para organizador). Desligada, `/api/public/buscar` devolve
+  só `{ ligado: false }` e o botão é "Em breve".
+- **A tabela é da plataforma** (`buscarTipos`, `validarConfigBusca()`): quais
+  tipos entram. **Apostador nasce desligado** — é pessoa, não vitrine — e,
+  ligado, só aparece pelo apelido **exato** (nunca lista aproximada), com
+  apelido e foto e nada mais.
+- **Só o que a vitrine mostraria**: rifa no ar, não travada, não
+  demonstração, de organização nem arquivada nem banida. A capa é a primeira
+  imagem (o banner, senão a primeira foto) — nunca o vídeo.
+- **Grade por chave** (`publicada em` + id, `shared/paginacao.ts`): nada de
+  `OFFSET`, nada de `COUNT(*)`, linha a mais para saber se há próxima. Cursor
+  fora do formato vira primeira página. Ordem: as mais novas primeiro, sem
+  dado de popularidade.
+- **O texto é dado, nunca SQL**: parâmetro, `%` e `_` viram letras
+  (`escaparCuringa`), sem acento e sem diferença de maiúscula dos dois lados.
+  Texto de menos de 2 letras não busca.
+- **Limite por aparelho** (`hit`, 60 por minuto): o campo digita e a grade
+  pagina, mas varrer a base por tentativa se barra (429).
+- **Nunca** telefone, CPF, e-mail, nome real, id ou preço na resposta.
+- `npm run buscar` prova tudo isso contra a API de verdade.
 
 ## Mensagens — o que não pode afrouxar
 

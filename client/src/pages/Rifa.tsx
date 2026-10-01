@@ -394,11 +394,11 @@ export default function Rifa() {
       {/* O carrossel da publicação (fotos e vídeos, até 10 com o banner),
           as ações e a legenda — como no feed. */}
       {carrossel.length ? (
-        // No tablet, a foto 4:5 na largura toda (768 px) passava da tela:
-        // fica numa coluna de 480 px no meio, com cantos, como no feed.
-        <div className="-mx-4 mt-3 md:mx-auto md:max-w-[480px] md:overflow-hidden md:rounded-xl lg:mx-0 lg:max-w-none">
+        // No tablet a imagem vai até a borda; a altura é que não passa de 85% da tela.
+        <div className="-mx-4 mt-3 lg:mx-0 lg:overflow-hidden lg:rounded-xl">
           <Carrossel
             pecas={carrossel}
+            limitarNoTablet
             titulo={campaign.prizeTitle}
             canto={premios && premios.total > 0 ? <CotaSurpresa slug={slug} premios={premios} /> : null}
           />
@@ -410,7 +410,7 @@ export default function Rifa() {
         </div>
       ) : null}
       {campaign.interacoes ? (
-        <div className="-mx-4 md:mx-auto md:max-w-[480px] lg:mx-0 lg:max-w-none">
+        <div className="-mx-4 lg:mx-0">
           <BarraDeAcoes
             slug={campaign.slug}
             titulo={campaign.prizeTitle}

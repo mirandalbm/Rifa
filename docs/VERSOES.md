@@ -151,7 +151,7 @@ celular, na largura da casca.
 | Rota | Arquivo | Casca | Celular | Tablet | Computador |
 |---|---|---|---|---|---|
 | `/` | `pages/Vitrine.tsx` | larga | stories, banners, estados, patrocinadas e feed em 1 coluna | feed em 2 colunas | banner com "Sorteios chegando" ao lado; feed em 3 colunas |
-| `/r/:rifa`, `/o/:org/r/:rifa` | `pages/Rifa.tsx` | larga | publicação, compra, resto | carrossel, ações e legenda numa coluna de 480 px no meio; a compra embaixo, na largura toda | 2 colunas: publicação à esquerda; compra à direita, fixa e com rolagem própria, total e Pix no pé |
+| `/r/:rifa`, `/o/:org/r/:rifa` | `pages/Rifa.tsx` | larga | publicação, compra, resto | imagem até a borda, com altura de no máximo 85% da tela; a compra embaixo, na largura toda | 2 colunas: publicação à esquerda; compra à direita, fixa e com rolagem própria, total e Pix no pé |
 | `/o/:org` | `pages/Perfil.tsx` | larga | capa 3:1 de ponta a ponta, cartão do perfil, rifas em 1 coluna | capa com cantos; rifas em 2 colunas em fluxo (`columns`, sem buraco entre formatos) | capa 4:1; cartão de 320 px fixo à esquerda; rifas em 2 colunas em fluxo |
 | `/estado/:uf` | `pages/Estado.tsx` | larga | feed em 1 coluna | 2 colunas | 3 colunas |
 | `/u/:apelido` | `pages/Usuario.tsx` | larga | feed em 1 coluna | 2 colunas | 3 colunas |
@@ -280,7 +280,7 @@ qualquer mudança.
 
 | # | O quê | Onde | Versão |
 |---|---|---|---|
-| P1 | ~~O tablet é o celular esticado na página da rifa~~ **Feito**: do tablet até o computador, o carrossel, as ações e a legenda ficam numa coluna de 480 px no meio, com cantos, como no feed | `Rifa.tsx` | tablet |
+| P1 | ~~O tablet é o celular esticado na página da rifa~~ **Feito**: no tablet a imagem vai até a borda e a altura não passa de 85% da tela (corta ao centro); do computador em diante, a coluna da esquerda de sempre | `Rifa.tsx`, `Publicacao.tsx` (`limitarNoTablet`) | tablet |
 | P2 | ~~Seis janelas feitas à mão~~ **Feito**: o componente `Janela` (regra 14) serve Comentários, escolha de bilhete, denúncia, Criar, cota surpresa, folhas do perfil e pedido de reembolso | `Janela.tsx` | todas |
 | P3 | ~~`h1` em 9 combinações de classe~~ **Feito**: o padrão `font-display text-xl font-extrabold` vale em todas as telas; sobram só dois tamanhos de propósito (o título do cartão com `line-clamp` e o do banner da rifa, `text-2xl`) e os modificadores de posição | várias | todas |
 | P4 | ~~A classe do campo de digitar repetida mais de 80 vezes~~ **Feito**: a classe `.campo` (`index.css`) no lugar da lista repetida, e o componente `Campo` (`bits.tsx`: rótulo, campo, dica e erro ligados pelo `id`, `aria-invalid` com erro) para formulário novo — o pedido de reembolso já usa. `tests/pecas.test.ts` barra a lista copiada de volta | várias | todas |

@@ -1821,8 +1821,11 @@ desconto na primeira compra — **pago pela plataforma**.
   A mesma ordem vale no perfil. **Do tablet em diante não há faixa branca
   em cima**: o perfil (foto, nome, cidade e "Seguir") vai por cima da
   imagem em todos os formatos, com a sombra do reels, e a imagem tem os
-  quatro cantos arredondados (`perfilSobreNaWeb` no `Carrossel`, só por
-  classes `md:` — o celular não muda). O "1/8" desce para baixo do perfil.
+  quatro cantos arredondados e **nunca passa de 85% da altura da tela**,
+  em todos os formatos (`md:max-h-[85svh]`: a imagem corta ao centro, como o
+  vertical — a publicação cabe inteira na janela, sem rolar para ver a
+  foto) (`perfilSobreNaWeb` no `Carrossel`, só por classes `md:` — o celular
+  não muda). O "1/8" desce para baixo do perfil.
   **Não há selo de vendidas sobre a imagem**, em nenhuma largura: o
   progresso já está no cartão da rifa logo abaixo, e dois contadores na
   mesma tela eram repetição. Depois do toque em "Seguir", o botão vira

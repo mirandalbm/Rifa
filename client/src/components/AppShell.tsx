@@ -139,6 +139,7 @@ const ICONE: Partial<Record<SectionKey, LucideIcon>> = {
   adminAntifraude: ShieldAlert,
   adminAparencia: Palette,
   adminFiscal: FileCheck2,
+  adminCaixa: Inbox,
   adminBonus: Gift,
   adminPatrocinio: Rocket,
   adminMarketing: Target,

@@ -31,9 +31,9 @@ senha); **[código]** é trabalho no repositório.
 
 - [x] Casca dos três painéis no padrão do kit (menu em grupos, barra de
   cima, cartões "papel"), Painel e Rifas em grade de capas (#80).
-- [ ] **[código]** Caixa de entrada unificada: uma lista só com disputas,
-  edições de rifa, denúncias, verificações, cadastros fiscais e telefones por
-  aprovar (hoje cada tipo é uma aba do Atendimento).
+- [x] Caixa de entrada unificada (`/admin/caixa`): uma lista só com disputas,
+  reembolsos, edições e adiamentos, denúncias, selos, cadastros fiscais e
+  telefones por aprovar; decidir continua na tela de cada tipo.
 - [ ] **[código]** A busca do painel achar pedido (pelo código), organização
   e cliente (pelo ID) — hoje só acha a tela pelo nome.
 

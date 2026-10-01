@@ -10,7 +10,7 @@ import type { LucideIcon } from "lucide-react";
  * subtítulo, e a tabela com o cabeçalho cinza.
  *
  * As cores seguem o significado de sempre (verde = dinheiro que entrou,
- * amarelo = espera, vermelho = erro); o azul é o neutro de contagem.
+ * azul = espera e prêmio, vermelho = erro); o tom `azul` é o mesmo azul, para contagem.
  */
 
 const TOM = {

@@ -261,7 +261,7 @@ function ConteudoDaTela({ proximo, agora, qualidade }: { proximo: AoVivo["proxim
   ];
   return (
     <div className="flex h-full flex-col justify-between p-3 text-branco">
-      <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-[#F5C518]">
+      <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-[#8cc2ff]">
         <Radio size={13} aria-hidden /> {falta.aoVivo ? "Sorteio agora" : "Próximo sorteio"}
       </p>
       {falta.aoVivo ? (

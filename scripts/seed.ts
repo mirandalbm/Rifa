@@ -40,7 +40,7 @@ function placeholder(params: {
       <stop offset="0%" stop-color="${from}"/><stop offset="100%" stop-color="${to}"/>
     </linearGradient></defs>
     <rect width="${w}" height="${h}" fill="url(#g)"/>
-    <circle cx="${w * 0.84}" cy="${h * 0.22}" r="${h * 0.3}" fill="#FFC700" fill-opacity="0.14"/>
+    <circle cx="${w * 0.84}" cy="${h * 0.22}" r="${h * 0.3}" fill="#0A6FD6" fill-opacity="0.14"/>
     <circle cx="${w * 0.2}" cy="${h * 0.85}" r="${h * 0.22}" fill="#ffffff" fill-opacity="0.05"/>
     <text x="${w * 0.5}" y="${h * 0.52}" text-anchor="middle" font-family="Helvetica,Arial,sans-serif" font-size="${h * 0.07}" font-weight="700" fill="#ffffff" fill-opacity="0.28">${label}</text>
     <text x="${w * 0.5}" y="${h * 0.63}" text-anchor="middle" font-family="Helvetica,Arial,sans-serif" font-size="${h * 0.04}" fill="#ffffff" fill-opacity="0.22">${sub}</text>
@@ -57,7 +57,7 @@ const FORMATO_DO_BANNER = [
 const PALETTES = [
   { from: "#0B1F14", to: "#00873E" },
   { from: "#123D24", to: "#12B45C" },
-  { from: "#6B4B00", to: "#FFC700" },
+  { from: "#06305F", to: "#0A6FD6" },
 ];
 
 async function main() {

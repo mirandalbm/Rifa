@@ -221,8 +221,8 @@ export function decisaoDoRosto(similaridade: number | null): "verificado" | "man
 /**
  * As 12 cores que o administrador geral pode dar ao selo. Todas têm
  * contraste ≥ 3:1 com o fundo dos **dois** temas e com o sinal branco
- * dentro do trevo (`tests/verificacao.test.ts` confere). Vermelho e
- * amarelo ficam de fora: são erro e espera na paleta da plataforma.
+ * dentro do trevo (`tests/verificacao.test.ts` confere). O vermelho
+ * fica de fora: é o erro na paleta da plataforma.
  */
 export const PALETA_DO_SELO = {
   verde: { nome: "Verde", hex: "#16a34a" },

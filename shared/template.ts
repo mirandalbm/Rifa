@@ -10,7 +10,7 @@ import { validarLinkDoBanner } from "./vitrine";
  * que entra passa por `validarTemplate()`, que só guarda chaves conhecidas.
  *
  * A cor de marca é **marca**, não significado: logo, links, item ativo do
- * menu. Verde de dinheiro, amarelo de espera e vermelho de erro não mudam
+ * menu. Verde de dinheiro, azul de espera e vermelho de erro não mudam
  * com o template (CLAUDE.md, Convenções).
  */
 

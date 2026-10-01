@@ -251,7 +251,7 @@ export function PerfilPublicoForm({
         {problemaCor ? <p className="mt-1 text-[11px] text-red">{problemaCor}</p> : null}
         <p className="text-[11px] text-muted">
           Vale no botão Seguir, nos links e nos destaques do perfil. Precisa aparecer no fundo claro e no
-          escuro. Verde do dinheiro, amarelo e vermelho não mudam.
+          escuro. Verde do dinheiro, azul de espera e vermelho de erro não mudam.
         </p>
       </fieldset>
 

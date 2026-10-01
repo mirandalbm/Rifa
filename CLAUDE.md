@@ -160,9 +160,15 @@ arquitetura.
 - Todo número que o usuário lê (cota, real, prazo, percentual) usa a classe
   `tnum` — DM Mono com algarismo tabular.
 - Estado nunca é comunicado só por cor: use `<Pill>`, que traz rótulo em texto.
-- Paleta: branco de fundo; verde = dinheiro que entrou; amarelo = espera e
-  prêmio; vermelho = erro. Cor sem significado é ruído. O tema escuro troca
-  os tons, nunca o significado (seção "Tema claro e escuro").
+- Paleta: **claro é branco, azul e verde; escuro é preto, verde e azul.**
+  Verde = dinheiro que entrou; azul = espera e prêmio; vermelho = erro.
+  **Amarelo não faz parte do padrão** — não entra em tela, em cor de
+  componente nem em arte nova. Os tokens `--yellow*` e as classes
+  `bg-yellow-soft`/`text-yellow-deep`/`text-on-yellow` **ficaram com o nome
+  de antes e hoje são o azul** (não renomeie: são 190 usos); a regra é que o
+  valor deles nunca volta a ser amarelo (`tests/tema.test.ts` confere). Cor
+  sem significado é ruído. O tema escuro troca os tons, nunca o significado
+  (seção "Tema claro e escuro").
 
 ## O que ainda não existe
 
@@ -380,7 +386,7 @@ arquitetura.
   rolagem, e as rifas em 2 colunas ao lado.
 - **Painel do organizador em grade bento** (`Bento` em
   `client/src/pages/admin.tsx`, etiqueta presa na borda): receita com o
-  gráfico em 2×2, cotas, comissão, próximo sorteio (amarelo), o que falta
+  gráfico em 2×2, cotas, comissão, próximo sorteio (azul), o que falta
   (telefone, reembolsos, rascunho sem autorização, Pix esperando) e as
   últimas vendas. Tudo vem de `/api/admin/overview`, com o recorte de
   `orgOf` em cada consulta; a venda sai **sem** nome nem telefone (quem é
@@ -456,7 +462,7 @@ Os três painéis (plataforma e organizador, afiliado, cambista) seguem o kit
 Materialize (Figma, comprado): menu lateral de 260 px com os itens em
 grupos, barra de cima de 64 px, fundo neutro, cartão "papel" e fonte Inter.
 O verde da marca entra no lugar do roxo do kit; o significado das cores
-(verde = dinheiro, amarelo = espera, vermelho = erro) não muda.
+(verde = dinheiro, azul = espera, vermelho = erro) não muda.
 
 - **A ordem e a hierarquia do menu moram em `MENUS` (`shared/access.ts`);
   quem libera continua sendo a matriz.** `menuDe(role, sections)` monta o
@@ -1175,7 +1181,7 @@ pedido, cotas e valor, e o cliente só pelo ID (`Cliente C-XXXXXXXX`).
   (`bg-white`, `text-ink`, `text-green-deep`…), que leem as variáveis de
   `index.css`. Hex no componente fica igual nos dois temas — só vale para o
   que é igual de propósito: banner sobre foto (`text-branco`), texto sobre
-  amarelo (`text-on-yellow`) e o bilhete, que é papel e sai sempre branco.
+  azul cheio (`text-on-yellow`, hoje branco) e o bilhete, que é papel e sai sempre branco.
 - **Os nomes ficaram, o papel também.** No escuro, `white` é a superfície e
   `ink` o texto; os `-deep` são cor de **texto** (clareiam) e os `-soft` são
   fundo de aviso (escurecem). Por isso `bg-green-deep` não é usado: no
@@ -1220,7 +1226,7 @@ pedido, cotas e valor, e o cliente só pelo ID (`Cliente C-XXXXXXXX`).
   script do organizador chega à tela.
 - **A cor de destaque vale só dentro do perfil** e na faixa da promotora na
   página da rifa (`<DestaqueOrg>`, classe `.destaque-org`, que troca
-  `--marca`). Cabeçalho, vitrine e o significado das cores (verde, amarelo,
+  `--marca`). Cabeçalho, vitrine e o significado das cores (verde, azul,
   vermelho) não mudam. Contraste ≥ 3:1 nos **dois** temas, conferido no
   servidor (`validarDestaque()`); é isso que deixa o botão Seguir usar
   `bg-marca text-white` sem ficar ilegível.
@@ -1294,7 +1300,7 @@ pedido, cotas e valor, e o cliente só pelo ID (`Cliente C-XXXXXXXX`).
 - **O comentário fixo é só o de quem levou cota premiada** (`premiados`
   em `listarComentarios()`): fica no topo, marcado "Fixado", com 🏆, o
   prêmio e a cota — no estilo dos outros comentários, **sem destaque
-  amarelo**. Só pedido **pago** (o estorno devolve a cota premiada e o
+  de cor**. Só pedido **pago** (o estorno devolve a cota premiada e o
   fixo some junto) e só o número já reclamado — antes da compra, o número
   nunca sai (invariante das mensagens). Nome como no comentário, nunca
   telefone. Nenhum outro comentário é fixado — sem ganhador, nada fica no
@@ -1308,7 +1314,7 @@ pedido, cotas e valor, e o cliente só pelo ID (`Cliente C-XXXXXXXX`).
   publicação, logo abaixo do contador "1/5", na página da rifa
   (`CotaSurpresa`, `canto` do `Carrossel`) — embaixo fica o som do vídeo. Só existe com cota premiada — é opcional
   da organização ou da plataforma; sem nenhuma, o presente não aparece. O
-  aviso amarelo "Cotas premiadas" saiu da página: o presente o substitui.
+  aviso "Cotas premiadas" (que era amarelo) saiu da página: o presente o substitui.
   Aberto, mostra cada prêmio em segredo ("?") e o número já reclamado com
   quem levou — os mesmos `premiados` do topo dos comentários, que já são
   públicos; o número em jogo nunca sai. **Abre sozinho** quando aparece

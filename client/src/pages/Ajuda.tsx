@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Search } from "lucide-react";
 import { PublicShell } from "@/components/AppShell";
@@ -23,6 +23,17 @@ export default function Ajuda() {
     [checkout],
   );
   const achadas = buscarNaAjuda(perguntas, termo);
+
+  // Atalho do rodapé (`/ajuda#reembolso`): abre a resposta e leva até ela.
+  useEffect(() => {
+    const id = decodeURIComponent(window.location.hash.slice(1));
+    if (!id) return;
+    const el = document.getElementById(id);
+    if (el instanceof HTMLDetailsElement) {
+      el.open = true;
+      el.scrollIntoView({ block: "center" });
+    }
+  }, []);
   const temas = [...new Set(achadas.map((p) => p.tema))];
 
   return (

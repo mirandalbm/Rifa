@@ -68,6 +68,7 @@ async function main() {
       ...TEMPLATE_PADRAO,
       identidade: { ...TEMPLATE_PADRAO.identidade, nome: "Rifa Roxa", cor: { claro: "#6d28d9", escuro: "#c4b5fd" }, fonte: "poppins", raio: "redondo" },
       textos: { ...TEMPLATE_PADRAO.textos, rodape: "CNPJ 00.000.000/0001-00" },
+      redes: [{ rede: "instagram", link: "https://www.instagram.com/rifa.br" }],
     };
     r = await admin.req("PUT", "/api/admin/template/rascunho", {
       ...roxo,
@@ -80,6 +81,17 @@ async function main() {
       blocos: roxo.blocos.map((b) => (b.tipo === "rifas" ? { ...b, ligado: false } : b)),
     });
     checa("desligar o feed de rifas: recusa", r.status === 400, r.json?.message);
+
+    r = await admin.req("PUT", "/api/admin/template/rascunho", {
+      ...roxo,
+      redes: [{ rede: "instagram", link: "https://golpe.com/instagram.com/rifa" }],
+    });
+    checa("rede social com endereço de outro lugar: recusa", r.status === 400 && /próprio Instagram/.test(r.json?.message ?? ""), r.json?.message);
+    r = await admin.req("PUT", "/api/admin/template/rascunho", {
+      ...roxo,
+      redes: [{ rede: "youtube", link: "javascript:alert(1)" }],
+    });
+    checa("rede social que não é https: recusa", r.status === 400, r.json?.message);
 
     r = await admin.req("PUT", "/api/admin/template/rascunho", { ...roxo, extra: "<script>" });
     checa("salva o rascunho (sem guardar chave estranha)", r.status === 200 && r.json?.extra === undefined, `HTTP ${r.status}`);
@@ -96,6 +108,11 @@ async function main() {
     checa("publica", r.status === 201 && Boolean(versaoRoxa));
     r = await anon.req("GET", "/api/public/template");
     checa("depois de publicar, a plataforma toda vê", r.json?.template?.identidade?.nome === "Rifa Roxa" && r.json?.versao === versaoRoxa);
+    checa(
+      "e as redes sociais do rodapé vão junto",
+      r.json?.template?.redes?.length === 1 && r.json.template.redes[0].rede === "instagram",
+      JSON.stringify(r.json?.template?.redes),
+    );
 
     await admin.req("PUT", "/api/admin/template/rascunho", { ...roxo, identidade: { ...roxo.identidade, nome: "Rifa Verde" } });
     await admin.req("POST", "/api/admin/template/publicar");

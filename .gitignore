@@ -11,3 +11,7 @@ uploads
 
 # Capturas do npm run telas
 capturas
+
+# Claude Code local configuration and skills
+.agents/
+.claude/

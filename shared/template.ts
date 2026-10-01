@@ -72,6 +72,11 @@ export interface Template {
    * `https:` — a régua do banner.
    */
   apoios?: Apoio[];
+  /**
+   * Redes sociais da plataforma, no canto esquerdo do rodapé, cada uma um
+   * botão redondo. Só as redes da lista e só o endereço oficial de cada uma.
+   */
+  redes?: RedeSocial[];
 }
 
 export interface Apoio {
@@ -79,6 +84,63 @@ export interface Apoio {
   nome: string;
   imagem: string;
   link: string | null;
+}
+
+/**
+ * As redes que o rodapé sabe desenhar, com o domínio que cada uma aceita:
+ * o botão "Instagram" não pode levar a outro lugar — o link sai na tela de
+ * todo apostador com a cara da plataforma.
+ */
+export const REDES_DO_RODAPE = {
+  instagram: { nome: "Instagram", dominio: /(^|\.)instagram\.com$/ },
+  whatsapp: { nome: "WhatsApp", dominio: /(^|\.)(wa\.me|whatsapp\.com)$/ },
+  youtube: { nome: "YouTube", dominio: /(^|\.)(youtube\.com|youtu\.be)$/ },
+  facebook: { nome: "Facebook", dominio: /(^|\.)(facebook\.com|fb\.com)$/ },
+  tiktok: { nome: "TikTok", dominio: /(^|\.)tiktok\.com$/ },
+  x: { nome: "X", dominio: /(^|\.)(x\.com|twitter\.com)$/ },
+  telegram: { nome: "Telegram", dominio: /(^|\.)(t\.me|telegram\.me)$/ },
+} as const;
+export type Rede = keyof typeof REDES_DO_RODAPE;
+
+export interface RedeSocial {
+  rede: Rede;
+  link: string;
+}
+
+/**
+ * As redes do rodapé: uma por rede, `https:` sem usuário/senha e no domínio
+ * da própria rede. Ordem preservada (é a ordem dos botões).
+ */
+export function validarRedes(bruto: unknown): RedeSocial[] {
+  if (bruto === undefined || bruto === null) return [];
+  if (!Array.isArray(bruto)) throw new TemplateInvalido("As redes sociais precisam ser uma lista.");
+  if (bruto.length > Object.keys(REDES_DO_RODAPE).length) throw new TemplateInvalido("Redes sociais demais.");
+  const vistas = new Set<string>();
+  return bruto.map((r: any, i: number) => {
+    const n = i + 1;
+    if (!r || typeof r.rede !== "string" || !Object.hasOwn(REDES_DO_RODAPE, r.rede)) {
+      throw new TemplateInvalido(`Rede ${n}: escolha uma rede da lista.`);
+    }
+    const rede = r.rede as Rede;
+    const { nome, dominio } = REDES_DO_RODAPE[rede];
+    if (vistas.has(rede)) throw new TemplateInvalido(`${nome} aparece duas vezes.`);
+    vistas.add(rede);
+    const bruta = typeof r.link === "string" ? r.link.trim() : "";
+    if (!bruta) throw new TemplateInvalido(`${nome}: informe o endereço.`);
+    if (bruta.length > 300) throw new TemplateInvalido(`${nome}: endereço longo demais.`);
+    let u: URL;
+    try {
+      u = new URL(/^[a-z][a-z0-9+.-]*:/i.test(bruta) ? bruta : `https://${bruta}`);
+    } catch {
+      throw new TemplateInvalido(`${nome}: endereço inválido.`);
+    }
+    if (u.protocol !== "https:") throw new TemplateInvalido(`${nome}: só endereços https.`);
+    if (u.username || u.password) throw new TemplateInvalido(`${nome}: endereço inválido.`);
+    if (!dominio.test(u.hostname.toLowerCase())) {
+      throw new TemplateInvalido(`${nome}: o endereço precisa ser do próprio ${nome}.`);
+    }
+    return { rede, link: u.toString() };
+  });
 }
 
 export const APOIOS_MAX = 12;
@@ -134,6 +196,7 @@ export const TEMPLATE_PADRAO: Template = {
     jogoResponsavel: "Jogue com responsabilidade. Proibido para menores de 18 anos.",
   },
   apoios: [],
+  redes: [],
 };
 
 /* ------------------------------------------------------------------ *
@@ -244,6 +307,7 @@ export function validarTemplate(entrada: unknown): Template {
       jogoResponsavel: texto(e.textos?.jogoResponsavel, 200, "O aviso de jogo responsável"),
     },
     apoios: validarApoios(e.apoios),
+    redes: validarRedes(e.redes),
   };
 }
 

@@ -139,6 +139,7 @@ arquitetura.
 | topo e console do app (os 6 botões da base, a lateral no computador, o trevo e a publicação) | `shared/console.ts` (botões, aviso do trevo, quem publica), `client/src/components/Console.tsx`, `PublicShell` em `client/src/components/AppShell.tsx`, `client/src/pages/PerfilDoUsuario.tsx`, `client/src/pages/EmBreve.tsx`, `client/src/components/TopoDoAppCard.tsx`, `tests/console.test.ts` |
 | remodelagem do web e dos painéis: inventário do que existe e lista de conferência | `docs/REMODELAGEM.md` |
 | vitrine no tablet e no computador: coluna ao vivo (tela do sorteio, ganhadores, jogando agora), tela flutuante e rodapé com logos | `shared/aoVivo.ts` (regras), `server/services/aoVivo.ts`, `client/src/components/ColunaAoVivo.tsx`, `client/src/components/RodapeDaPlataforma.tsx`, `validarApoios()` em `shared/template.ts`, `tests/aoVivo.test.ts`, `scripts/vitrine-test.ts` |
+| rodapé da plataforma: colunas de links, redes sociais e espaço de apoio | `shared/rodape.ts` (colunas), `validarRedes()`/`REDES_DO_RODAPE` em `shared/template.ts`, `client/src/components/RodapeDaPlataforma.tsx`, cartão "Redes sociais do rodapé" em `client/src/pages/adminAparencia.tsx`, `tests/rodape.test.ts` |
 | app instalável (PWA) | `client/public/sw.js`, `client/public/manifest.webmanifest`, `client/src/lib/pwa.ts` |
 | segurança: onde mora cada defesa, lista de conferência de rota nova e as revisões | `docs/SEGURANCA.md` |
 | versões (celular, tablet, computador): registro das mudanças do celular, levas, mapa das telas e auditoria | `docs/VERSOES.md` (guia, mapa e registro — **anote no mesmo PR**), `scripts/telas.ts` (`npm run telas`), `tests/versoes.test.ts` |
@@ -307,14 +308,37 @@ arquitetura.
   qualidade fica na engrenagem do próprio player. Botão sem efeito seria
   mentira na tela.
 - **Rodapé da plataforma** (`RodapeDaPlataforma`, só tablet e computador;
-  no celular isso mora em `/perfil`): texto livre do template, links,
-  pagamento (Pix pela plataforma), 18+ com o aviso de jogo responsável e a
-  **faixa de logos de apoio** — até 12 (`APOIOS_MAX`), cadastrados só pela
-  plataforma em Aparência ("Logos do rodapé", `PUT /admin/template/apoio`,
-  403 no `npm run isolation`). A imagem é reprocessada (WebP, até 96 px de
-  altura) e guardada em `plataforma_arquivos`; o nome é o texto
-  alternativo; o link é caminho do site ou `https:` (`validarApoios()`, a
-  régua do banner). Entra no ar ao publicar o template.
+  no celular isso mora em `/perfil`), no desenho de rodapé de produto:
+  **à esquerda** a logo, o texto de apresentação do template e, embaixo do
+  texto, as **redes sociais em botão redondo**; **no meio** o espaço de
+  apoio (as logos, com o atalho da central de ajuda); **à direita quatro
+  colunas** com o título em negrito (Plataforma, Rifas, Ajuda, Legal); no
+  pé, o © e o 18+ com o aviso de jogo responsável, o Pix e os cookies. No
+  tablet as colunas ficam ao lado da logo e o apoio desce para uma linha
+  própria.
+  - **As colunas moram em `shared/rodape.ts`** (`COLUNAS_DO_RODAPE`), e
+    `tests/rodape.test.ts` confere que cada caminho existe no `App.tsx` e
+    que cada atalho `/ajuda#pergunta` aponta para uma pergunta de
+    `shared/ajuda.ts` (a página abre a resposta e rola até ela). Página que
+    ainda não existe (Termos de uso, Privacidade) é `emBreve`: texto com o
+    rótulo "Em breve", nunca link que cai em 404 — ao criar a página, tire
+    a marca.
+  - **Redes sociais** (`redes` no template, `validarRedes()`, cartão
+    "Redes sociais do rodapé" em Aparência): uma por rede da lista
+    (`REDES_DO_RODAPE`), só `https:` sem usuário/senha **e no domínio da
+    própria rede** — o botão "Instagram" não pode levar a outro lugar, o
+    link sai na tela de todo apostador. Saem com `rel="noopener noreferrer
+    nofollow"` e rótulo "(abre em outra aba)"; o nome vai no `aria-label`,
+    o ícone sozinho não diz qual rede é. Entra no ar ao publicar o template.
+  - **Projetos que apoiamos** (título do espaço do meio): faixa de logos
+    **redondas, em fileira** (círculo de 56 px, a logo inteira dentro, sem
+    cortar), até 12 (`APOIOS_MAX`), cadastrados só
+    pela plataforma em Aparência ("Logos do rodapé", `PUT
+    /admin/template/apoio`, 403 no `npm run isolation`). A imagem é
+    reprocessada (WebP, até 96 px de altura) e guardada em
+    `plataforma_arquivos`; o nome é o texto alternativo; o link é caminho do
+    site ou `https:` (`validarApoios()`, a régua do banner). Entra no ar ao
+    publicar o template.
 - **Perfil da organização**: capa 4:1; abaixo, o cartão do perfil (foto,
   contadores, ações, bio, links, destaques) numa coluna de 320 px fixa na
   rolagem, e as rifas em 2 colunas ao lado.

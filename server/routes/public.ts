@@ -481,7 +481,22 @@ publicRouter.get("/stories/:id/imagem", async (req, res, next) => {
     const s = await imagemDoStory(req.params.id);
     if (!s) return res.status(404).json({ message: "Story não encontrado." });
     res.setHeader("Cache-Control", "public, max-age=3600");
-    res.type(s.mime).send(s.bytes);
+    res.type(s.mime);
+    // Vídeo pede `Range` (o Safari não toca sem 206); imagem vai inteira.
+    const faixa = s.mime.startsWith("video/") ? /^bytes=(\d*)-(\d*)$/.exec(String(req.headers.range ?? "")) : null;
+    res.setHeader("Accept-Ranges", s.mime.startsWith("video/") ? "bytes" : "none");
+    if (!faixa) return void res.send(s.bytes);
+    const total = s.bytes.length;
+    let ini = faixa[1] ? Number(faixa[1]) : total - Number(faixa[2] || 0);
+    let fim = faixa[1] && faixa[2] ? Number(faixa[2]) : total - 1;
+    ini = Math.max(0, ini);
+    fim = Math.min(fim, total - 1);
+    if (!(ini <= fim)) {
+      res.setHeader("Content-Range", `bytes */${total}`);
+      return void res.status(416).end();
+    }
+    res.status(206).setHeader("Content-Range", `bytes ${ini}-${fim}/${total}`);
+    res.send(s.bytes.subarray(ini, fim + 1));
   } catch (err) {
     next(err);
   }

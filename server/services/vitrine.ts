@@ -21,6 +21,8 @@ import {
   BANNER_TAMANHO,
   STORIES_MAX,
   STORY_TAMANHO,
+  STORY_VIDEO_MAX_BYTES,
+  problemaNoVideoDoStory,
   bannerNoAr,
   estadosComRifa,
   expiraEm,
@@ -28,6 +30,7 @@ import {
   validarLegenda,
 } from "@shared/vitrine";
 import { urlDaFoto } from "./perfil";
+import { bufferReader, probeVideoDimensions, probeVideoDuration, UnreadableMediaError } from "./probe";
 
 export class VitrineError extends Error {
   constructor(message: string, readonly status = 400) {
@@ -188,6 +191,7 @@ const campoDoStory = {
   id: stories.id,
   organizationId: stories.organizationId,
   legenda: stories.legenda,
+  mime: stories.mime,
   createdAt: stories.createdAt,
   expiraEm: stories.expiraEm,
   rifaSlug: campaigns.slug,
@@ -199,6 +203,7 @@ type LinhaDoStory = {
   id: string;
   organizationId: string;
   legenda: string | null;
+  mime: string;
   createdAt: Date;
   expiraEm: Date;
   rifaSlug: string | null;
@@ -212,7 +217,7 @@ function publico(s: LinhaDoStory) {
     s.rifaSlug && s.rifaStatus && s.rifaStatus !== "draft"
       ? { slug: s.rifaSlug, premio: s.rifaPremio ?? "" }
       : null;
-  return { id: s.id, imagem: urlDoStory(s.id), legenda: s.legenda, criadoEm: s.createdAt, expiraEm: s.expiraEm, rifa };
+  return { id: s.id, tipo: s.mime.startsWith("video/") ? ("video" as const) : ("imagem" as const), imagem: urlDoStory(s.id), legenda: s.legenda, criadoEm: s.createdAt, expiraEm: s.expiraEm, rifa };
 }
 
 /** Stories no ar de uma organização (painel, com recorte já conferido). */
@@ -227,14 +232,39 @@ export async function storiesDaOrganizacao(orgId: string | null) {
   return linhas.map((s) => ({ ...publico(s), organizacao: s.organizacao }));
 }
 
+/** Confere o vídeo do story pelo conteúdo: MP4/MOV, curto, em pé e leve. */
+async function lerVideoDoStory(dataUrl: unknown): Promise<{ bytes: Buffer; mime: string }> {
+  const m = /^data:(video\/(?:mp4|quicktime));base64,([A-Za-z0-9+/=]+)$/i.exec(String(dataUrl ?? ""));
+  if (!m) throw new VitrineError("Envie o vídeo em MP4 ou MOV.");
+  const bytes = Buffer.from(m[2], "base64");
+  if (bytes.length > STORY_VIDEO_MAX_BYTES) {
+    throw new VitrineError(problemaNoVideoDoStory(bytes.length, 1, null) ?? "O vídeo é grande demais.");
+  }
+  const leitor = bufferReader(bytes);
+  try {
+    const segundos = await probeVideoDuration(leitor, bytes.length);
+    const medidas = await probeVideoDimensions(leitor, bytes.length);
+    const problema = problemaNoVideoDoStory(bytes.length, segundos, medidas);
+    if (problema) throw new VitrineError(problema);
+  } catch (e) {
+    if (e instanceof UnreadableMediaError) throw new VitrineError(e.message);
+    throw e;
+  }
+  return { bytes, mime: m[1].toLowerCase() === "video/quicktime" ? "video/quicktime" : "video/mp4" };
+}
+
 export async function postarStory(
   orgId: string,
-  entrada: { imagem?: unknown; legenda?: unknown; campaignId?: unknown },
+  entrada: { imagem?: unknown; video?: unknown; legenda?: unknown; campaignId?: unknown },
 ) {
   const legenda = regra(() => validarLegenda(entrada.legenda));
   const campaignId =
     typeof entrada.campaignId === "string" && entrada.campaignId ? entrada.campaignId : null;
-  const bytes = await processar(entrada.imagem, STORY_TAMANHO.largura, STORY_TAMANHO.altura);
+  // Vídeo ou imagem, nunca os dois. O vídeo vai como veio (sem transcode);
+  // a duração e as medidas saem do arquivo, não do que o navegador disser.
+  const video = entrada.video ? await lerVideoDoStory(entrada.video) : null;
+  const bytes = video ? video.bytes : await processar(entrada.imagem, STORY_TAMANHO.largura, STORY_TAMANHO.altura);
+  const mime = video ? video.mime : "image/webp";
 
   return db.transaction(async (tx) => {
     const [org] = await tx
@@ -267,7 +297,7 @@ export async function postarStory(
     }
     const [novo] = await tx
       .insert(stories)
-      .values({ organizationId: orgId, legenda, campaignId, mime: "image/webp", bytes, createdAt: agora, expiraEm: expiraEm(agora) })
+      .values({ organizationId: orgId, legenda, campaignId, mime, bytes, createdAt: agora, expiraEm: expiraEm(agora) })
       .returning({ id: stories.id });
     return novo;
   });

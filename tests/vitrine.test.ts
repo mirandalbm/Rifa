@@ -9,6 +9,9 @@ import {
   validarLegenda,
   validarLinkDoBanner,
   LEGENDA_MAX,
+  STORY_VIDEO_MAX_BYTES,
+  STORY_VIDEO_MAX_SEGUNDOS,
+  problemaNoVideoDoStory,
 } from "../shared/vitrine";
 import { TEMPLATE_PADRAO, validarTemplate } from "../shared/template";
 
@@ -110,5 +113,24 @@ describe("blocos novos no template", () => {
   it("bloco que não é texto entra uma vez só", () => {
     const dobrado = { ...TEMPLATE_PADRAO, blocos: [...TEMPLATE_PADRAO.blocos, { id: "banners-2", tipo: "banners", ligado: true }] };
     expect(() => validarTemplate(dobrado)).toThrow(/uma vez/);
+  });
+});
+
+describe("story em vídeo", () => {
+  const emPe = { width: 1080, height: 1920 };
+  it("aceita vídeo em pé, curto e leve", () => {
+    expect(problemaNoVideoDoStory(5_000_000, 12, emPe)).toBeNull();
+    expect(problemaNoVideoDoStory(STORY_VIDEO_MAX_BYTES, STORY_VIDEO_MAX_SEGUNDOS, emPe)).toBeNull();
+  });
+  it("recusa o que passa do tempo, do peso ou não está em pé", () => {
+    expect(problemaNoVideoDoStory(1_000, STORY_VIDEO_MAX_SEGUNDOS + 1, emPe)).toMatch(/segundos/);
+    expect(problemaNoVideoDoStory(STORY_VIDEO_MAX_BYTES + 1, 10, emPe)).toMatch(/MB/);
+    expect(problemaNoVideoDoStory(1_000, 10, { width: 1920, height: 1080 })).toMatch(/em pé/);
+    expect(problemaNoVideoDoStory(1_000, 10, { width: 1080, height: 1080 })).toMatch(/em pé/);
+  });
+  it("sem medida não entra (não se promete o que não se mediu)", () => {
+    expect(problemaNoVideoDoStory(1_000, 10, null)).toMatch(/medir/);
+    expect(problemaNoVideoDoStory(1_000, 0, emPe)).toMatch(/duração/);
+    expect(problemaNoVideoDoStory(1_000, NaN, emPe)).toMatch(/duração/);
   });
 });

@@ -5,10 +5,18 @@ import { PanelShell } from "@/components/AppShell";
 import { Button, Card, Empty } from "@/components/bits";
 import { apiRequest } from "@/lib/queryClient";
 import { useSession } from "@/lib/session";
-import { LEGENDA_MAX, STORIES_MAX, STORY_HORAS, validarLegenda } from "@shared/vitrine";
+import {
+  LEGENDA_MAX,
+  STORIES_MAX,
+  STORY_HORAS,
+  STORY_VIDEO_MAX_BYTES,
+  STORY_VIDEO_MAX_SEGUNDOS,
+  validarLegenda,
+} from "@shared/vitrine";
 
 interface StoryNoPainel {
   id: string;
+  tipo: "imagem" | "video";
   imagem: string;
   legenda: string | null;
   criadoEm: string;
@@ -44,7 +52,8 @@ export function AdminStories() {
     enabled: plataforma,
   });
 
-  const [imagem, setImagem] = useState<string | null>(null);
+  // A peça escolhida (imagem ou vídeo), já em data URL.
+  const [peca, setPeca] = useState<{ url: string; video: boolean } | null>(null);
   const [legenda, setLegenda] = useState("");
   const [campaignId, setCampaignId] = useState("");
   const [organizacaoId, setOrganizacaoId] = useState("");
@@ -61,13 +70,13 @@ export function AdminStories() {
   const postar = useMutation({
     mutationFn: () =>
       apiRequest("POST", "/api/admin/stories", {
-        imagem,
+        ...(peca?.video ? { video: peca.url } : { imagem: peca?.url }),
         legenda,
         campaignId: campaignId || null,
         ...(plataforma ? { organizacaoId } : {}),
       }),
     onSuccess: () => {
-      setImagem(null);
+      setPeca(null);
       setLegenda("");
       setCampaignId("");
       setMsg({ ok: true, texto: "Story publicado. Quem segue já vê o anel aceso." });
@@ -102,22 +111,30 @@ export function AdminStories() {
           >
             <div className="flex items-start gap-3">
               <div className="aspect-[9/16] w-28 shrink-0 overflow-hidden rounded-md border border-line bg-mist-2">
-                {imagem ? <img src={imagem} alt="" className="h-full w-full object-cover" /> : null}
+                {peca?.video ? (
+                  <video src={peca.url} muted playsInline loop autoPlay aria-label="Prévia do vídeo" className="h-full w-full object-cover" />
+                ) : peca ? (
+                  <img src={peca.url} alt="" className="h-full w-full object-cover" />
+                ) : null}
               </div>
               <div className="space-y-2">
                 <label className="inline-block cursor-pointer rounded-md border border-line-2 px-3 py-1.5 text-xs font-semibold hover:bg-mist">
-                  {imagem ? "Trocar imagem" : "Escolher imagem"}
+                  {peca ? "Trocar" : "Escolher imagem ou vídeo"}
                   <input
                     type="file"
-                    accept="image/jpeg,image/png,image/webp"
+                    accept="image/jpeg,image/png,image/webp,video/mp4,video/quicktime"
                     className="sr-only"
                     onChange={(e) => {
                       const f = e.target.files?.[0];
                       setMsg(null);
                       if (!f) return;
-                      if (f.size > IMAGEM_MAX) return setMsg({ ok: false, texto: "A imagem passa de 5 MB." });
+                      const video = f.type.startsWith("video/");
+                      if (video && f.size > STORY_VIDEO_MAX_BYTES) {
+                        return setMsg({ ok: false, texto: `O vídeo passa de ${STORY_VIDEO_MAX_BYTES / 1024 / 1024} MB. Exporte mais leve: o story não é recomprimido.` });
+                      }
+                      if (!video && f.size > IMAGEM_MAX) return setMsg({ ok: false, texto: "A imagem passa de 5 MB." });
                       const r = new FileReader();
-                      r.onload = () => setImagem(String(r.result));
+                      r.onload = () => setPeca({ url: String(r.result), video });
                       r.readAsDataURL(f);
                     }}
                   />
@@ -125,7 +142,8 @@ export function AdminStories() {
                 <p className="text-[11px] text-muted">
                   Em pé (9 por 16, recortada em <span className="tnum">1080 × 1920</span>). Some em{" "}
                   <span className="tnum">{STORY_HORAS}</span> h. Até <span className="tnum">{STORIES_MAX}</span> no ar. JPG,
-                  PNG ou WebP até 5 MB.
+                  PNG ou WebP até 5 MB. Vídeo em pé, MP4 ou MOV, até <span className="tnum">{STORY_VIDEO_MAX_SEGUNDOS}</span> s e{" "}
+                  <span className="tnum">{STORY_VIDEO_MAX_BYTES / 1024 / 1024}</span> MB — vai como foi gravado, sem recompressão.
                 </p>
               </div>
             </div>
@@ -190,7 +208,7 @@ export function AdminStories() {
             ) : null}
             <Button
               type="submit"
-              disabled={!imagem || Boolean(problema) || postar.isPending || (plataforma && !organizacaoId)}
+              disabled={!peca || Boolean(problema) || postar.isPending || (plataforma && !organizacaoId)}
             >
               {postar.isPending ? "Publicando…" : "Publicar story"}
             </Button>
@@ -206,7 +224,11 @@ export function AdminStories() {
             {lista.map((s) => (
               <li key={s.id} className="space-y-1 text-xs">
                 <div className="relative aspect-[9/16] overflow-hidden rounded-md border border-line bg-mist-2">
-                  <img src={s.imagem} alt={s.legenda ?? "Story"} className="h-full w-full object-cover" />
+                  {s.tipo === "video" ? (
+                    <video src={s.imagem} muted playsInline preload="metadata" aria-label={s.legenda ?? "Story em vídeo"} className="h-full w-full object-cover" />
+                  ) : (
+                    <img src={s.imagem} alt={s.legenda ?? "Story"} className="h-full w-full object-cover" />
+                  )}
                   <button
                     type="button"
                     aria-label="Apagar este story"
@@ -221,7 +243,10 @@ export function AdminStories() {
                 {plataforma ? <p className="truncate font-semibold">{s.organizacao}</p> : null}
                 {s.legenda ? <p className="line-clamp-2 text-ink-2">{s.legenda}</p> : null}
                 {s.rifa ? <p className="truncate text-muted">→ {s.rifa.premio}</p> : null}
-                <p className="tnum text-muted">{faltam(s.expiraEm)}</p>
+                <p className="tnum text-muted">
+                  {s.tipo === "video" ? "Vídeo · " : ""}
+                  {faltam(s.expiraEm)}
+                </p>
               </li>
             ))}
           </ul>

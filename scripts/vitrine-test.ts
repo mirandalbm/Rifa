@@ -45,6 +45,27 @@ async function imagem(cor: string, largura = 800, altura = 800) {
   return `data:image/jpeg;base64,${b.toString("base64")}`;
 }
 
+/* MP4 sintético: o servidor mede duração e tamanho pelo container, não pelo conteúdo. */
+function caixa(tipo: string, conteudo: Buffer) {
+  const h = Buffer.alloc(8);
+  h.writeUInt32BE(conteudo.length + 8, 0);
+  h.write(tipo, 4, "ascii");
+  return Buffer.concat([h, conteudo]);
+}
+function mp4(segundos: number, largura: number, altura: number, extra = 2048) {
+  const mvhd = Buffer.alloc(100);
+  mvhd.writeUInt32BE(1000, 12);
+  mvhd.writeUInt32BE(Math.round(segundos * 1000), 16);
+  const tkhd = Buffer.alloc(84);
+  tkhd.writeInt32BE(0x10000, 40);
+  tkhd.writeInt32BE(0x10000, 56);
+  tkhd.writeUInt32BE(largura * 65536, 76);
+  tkhd.writeUInt32BE(altura * 65536, 80);
+  const moov = caixa("moov", Buffer.concat([caixa("mvhd", mvhd), caixa("trak", caixa("tkhd", tkhd))]));
+  const arquivo = Buffer.concat([caixa("ftyp", Buffer.from("isomiso2avc1mp41", "ascii")), moov, caixa("mdat", Buffer.alloc(extra, 7))]);
+  return { arquivo, url: `data:video/mp4;base64,${arquivo.toString("base64")}` };
+}
+
 async function medir(caminho: string) {
   const r = await fetch(URL + caminho);
   if (r.status !== 200) return { status: r.status, tipo: "", largura: 0, altura: 0 };
@@ -192,6 +213,38 @@ async function main() {
     checa("apagar story da vizinha: 404", r.status === 404, `HTTP ${r.status}`);
     const [aindaLa] = await db.select({ id: stories.id }).from(stories).where(eq(stories.id, sVizinha));
     checa("e ele continua lá", Boolean(aindaLa));
+
+    // Story em vídeo: sem transcode, mas medido no servidor.
+    console.log("  — story em vídeo");
+    const bom = mp4(12, 1080, 1920);
+    r = await marina.req("POST", "/api/admin/stories", { video: bom.url, legenda: "Bastidores" });
+    const sVideo = r.json?.id as string;
+    checa("organizadora posta story em vídeo (MP4 em pé de 12 s)", r.status === 201 && Boolean(sVideo), `HTTP ${r.status} ${r.json?.message ?? ""}`);
+    r = await marina.req("POST", "/api/admin/stories", { video: mp4(45, 1080, 1920).url });
+    checa("vídeo de 45 s é recusado (limite medido no servidor)", r.status === 400 && /segundos/.test(r.json?.message ?? ""), r.json?.message);
+    r = await marina.req("POST", "/api/admin/stories", { video: mp4(10, 1920, 1080).url });
+    checa("vídeo deitado é recusado", r.status === 400 && /em pé/.test(r.json?.message ?? ""), r.json?.message);
+    r = await marina.req("POST", "/api/admin/stories", { video: mp4(10, 1080, 1920, 16 * 1024 * 1024).url });
+    checa("vídeo acima do peso é recusado", r.status === 400 && /MB/.test(r.json?.message ?? ""), `HTTP ${r.status} ${r.json?.message ?? ""}`);
+    r = await marina.req("POST", "/api/admin/stories", { video: "data:video/mp4;base64," + Buffer.from("isto não é um vídeo").toString("base64") });
+    checa("arquivo que não é vídeo é recusado", r.status === 400, r.json?.message);
+    r = await marina.req("POST", "/api/admin/stories", { video: "data:video/webm;base64,AAAA" });
+    checa("WebM é recusado (não sabemos medir)", r.status === 400, r.json?.message);
+
+    r = await anon.req("GET", `/api/public/o/${org.slug}/stories`);
+    const meuVideo = r.json?.stories?.find((x: any) => x.id === sVideo);
+    checa("o perfil lista o vídeo como tipo \"video\"", meuVideo?.tipo === "video" && meu?.tipo === "imagem", `${meuVideo?.tipo}/${meu?.tipo}`);
+    const inteiro = await fetch(URL + meuVideo.imagem);
+    checa("o vídeo sai inteiro, como foi enviado", inteiro.status === 200 && inteiro.headers.get("content-type") === "video/mp4" && Buffer.from(await inteiro.arrayBuffer()).equals(bom.arquivo));
+    const faixa = await fetch(URL + meuVideo.imagem, { headers: { Range: "bytes=0-99" } });
+    checa("pede faixa e recebe 206 (o Safari exige)", faixa.status === 206 && faixa.headers.get("content-range") === `bytes 0-99/${bom.arquivo.length}` && (await faixa.arrayBuffer()).byteLength === 100, `HTTP ${faixa.status} ${faixa.headers.get("content-range")}`);
+    const fora = await fetch(URL + meuVideo.imagem, { headers: { Range: `bytes=${bom.arquivo.length + 5}-` } });
+    checa("faixa fora do arquivo: 416", fora.status === 416, `HTTP ${fora.status}`);
+    r = await marina.req("GET", "/api/admin/stories");
+    checa("o painel marca o vídeo", r.json?.find((x: any) => x.id === sVideo)?.tipo === "video");
+    await marina.req("DELETE", `/api/admin/stories/${sVideo}`);
+    const sumiuVideo = await fetch(URL + meuVideo.imagem);
+    checa("apagado, o vídeo some na hora", sumiuVideo.status === 404, `HTTP ${sumiuVideo.status}`);
 
     // Limite: completa até o máximo e tenta dois a mais ao mesmo tempo.
     const noAr = (await marina.req("GET", "/api/admin/stories")).json.length as number;

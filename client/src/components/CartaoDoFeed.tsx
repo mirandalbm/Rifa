@@ -102,16 +102,7 @@ export function CartaoDoFeed({ rifa: c, origem = "vitrine" }: { rifa: RifaDoFeed
               )
             : undefined
         }
-      >
-        <span
-          // Na web, no mesmo padrão do "1/8" do carrossel (cor e fonte).
-          className={`tnum absolute left-2 top-2 rounded px-2 py-[2px] font-mono text-[10px] md:rounded-full md:bg-black/60 md:py-[1px] md:text-[11px] md:text-branco ${
-            retaFinal ? "bg-yellow text-on-yellow" : "bg-branco text-[#0b1f14]"
-          }`}
-        >
-          {retaFinal ? "reta final" : `${pct}% vendida`}
-        </span>
-      </Carrossel>
+      />
 
       {/* Só a rifa vai dentro do cartão, logo abaixo da imagem e acima das ações. */}
       <Link href={href} onClick={() => marcarOrigem(origem)} className="mx-3 mt-3 block rounded-xl border border-line p-3 hover:bg-mist">

@@ -86,7 +86,7 @@ export function Carrossel({
   perfil?: (sobreImagem: boolean) => ReactNode;
   /** Do tablet em diante (`md`), o perfil vai por cima da imagem em qualquer formato. */
   perfilSobreNaWeb?: boolean;
-  /** O que vai por cima da imagem (o selo de vendidas), abaixo do perfil quando ele está por cima. */
+  /** O que vai por cima da imagem, abaixo do perfil quando ele está por cima. */
   children?: ReactNode;
   /** Botão no canto de cima à direita, abaixo do contador (a cota surpresa). */
   canto?: ReactNode;

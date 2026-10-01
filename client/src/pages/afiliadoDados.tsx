@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { PanelShell } from "@/components/AppShell";
 import { Button, Card, Pill } from "@/components/bits";
 import { apiRequest } from "@/lib/queryClient";
-import { lerImagem } from "@/lib/anexo";
+import { lerFoto } from "@/lib/anexo";
 import { VerificacaoCard } from "@/components/Verificacao";
 import { maskCpf } from "@shared/format";
 import { UFS, maskCep } from "@shared/endereco";
@@ -269,7 +269,7 @@ function FotoDoAfiliado() {
             if (!f) return;
             if (verificado && !window.confirm("Trocar a foto tira o selo de verificado até a nova ser conferida. Trocar?")) return;
             try {
-              salvar.mutate(await lerImagem(f));
+              salvar.mutate(await lerFoto(f, 1080));
             } catch (err) {
               setErro((err as Error).message);
             }

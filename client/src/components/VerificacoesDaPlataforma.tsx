@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, Card, Empty, Pill } from "@/components/bits";
+import { MestreDetalhe } from "@/components/painel";
 import { SeloVerificado } from "@/components/SeloVerificado";
 import { apiRequest } from "@/lib/queryClient";
 import { maskCpf } from "@shared/format";
@@ -82,44 +83,43 @@ export function VerificacoesDaPlataforma() {
           </button>
         ))}
       </div>
-      <div className="grid gap-3 xl:grid-cols-[minmax(0,0.8fr)_minmax(0,1.4fr)]">
-        <Card title="Verificações">
-          {data?.length ? (
-            <ul className="divide-y divide-line">
-              {data.map((v) => (
-                <li key={v.id}>
-                  <button
-                    type="button"
-                    onClick={() => setAberto(v.id)}
-                    className={`w-full px-4 py-3 text-left hover:bg-mist ${aberto === v.id ? "bg-mist" : ""}`}
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <span className="flex items-center gap-1.5 text-sm font-semibold">
-                        <SeloVerificado sujeito={v.sujeito} tamanho={14} />
-                        {v.nome}
-                      </span>
-                      <Pill status={PILL_VERIFICACAO[v.status]}>{STATUS_VERIFICACAO[v.status]}</Pill>
-                    </div>
-                    <p className="text-xs text-muted">
-                      {NOME_SUJEITO[v.sujeito]} · {v.identificador}
-                      {v.enviadoEm ? ` · enviado em ${new Date(v.enviadoEm).toLocaleString("pt-BR")}` : ""}
-                    </p>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <Empty>Nenhuma verificação aqui.</Empty>
-          )}
-        </Card>
-        {aberto ? (
-          <DetalheDaVerificacao key={aberto} id={aberto} />
-        ) : (
-          <Card>
-            <Empty>Escolha uma verificação para conferir os documentos e a foto.</Empty>
+      <MestreDetalhe
+        aberto={aberto}
+        aoFechar={() => setAberto(null)}
+        vazio="Escolha uma verificação para conferir os documentos e a foto."
+        lista={
+          <Card title="Verificações">
+            {data?.length ? (
+              <ul className="divide-y divide-line">
+                {data.map((v) => (
+                  <li key={v.id}>
+                    <button
+                      type="button"
+                      onClick={() => setAberto(v.id)}
+                      className={`w-full px-4 py-3 text-left hover:bg-mist ${aberto === v.id ? "bg-mist" : ""}`}
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span className="flex items-center gap-1.5 text-sm font-semibold">
+                          <SeloVerificado sujeito={v.sujeito} tamanho={14} />
+                          {v.nome}
+                        </span>
+                        <Pill status={PILL_VERIFICACAO[v.status]}>{STATUS_VERIFICACAO[v.status]}</Pill>
+                      </div>
+                      <p className="text-xs text-muted">
+                        {NOME_SUJEITO[v.sujeito]} · {v.identificador}
+                        {v.enviadoEm ? ` · enviado em ${new Date(v.enviadoEm).toLocaleString("pt-BR")}` : ""}
+                      </p>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <Empty>Nenhuma verificação aqui.</Empty>
+            )}
           </Card>
-        )}
-      </div>
+        }
+        detalhe={aberto ? <DetalheDaVerificacao key={aberto} id={aberto} /> : null}
+      />
     </>
   );
 }

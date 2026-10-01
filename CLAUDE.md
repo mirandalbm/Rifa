@@ -140,6 +140,7 @@ arquitetura.
 | avisos do painel (o sino: comentários novos nas rifas, pendências do atendimento) | `shared/avisos.ts`, `server/services/avisos.ts`, `GET /api/admin/avisos` em `server/routes/admin.ts`, o `<details>` do sino em `PanelShell` (`client/src/components/AppShell.tsx`), `tests/avisos.test.ts`, `scripts/isolation-test.ts` |
 | busca do painel (tela, pedido pelo código, cliente pelo ID, organização pelo nome) | `shared/busca.ts` (`interpretarBusca`, `caminhoDoAchado`), `server/services/busca.ts`, `GET /api/admin/busca` e os filtros `?codigo=`/`?cliente=` de `/orders` em `server/routes/admin.ts`, `BuscaDoPainel` em `client/src/components/AppShell.tsx`, `tests/busca.test.ts`, `scripts/isolation-test.ts` |
 | caixa de entrada da plataforma (tudo que espera decisão, numa lista) | `shared/caixa.ts` (ordem e destino), `server/services/caixa.ts`, `client/src/pages/adminCaixa.tsx`, `tests/caixa.test.ts` |
+| lista e item aberto do Atendimento (chamados, pedidos de mudança, denúncias, verificações) | `MestreDetalhe` em `client/src/components/painel.tsx`, `client/src/pages/adminAtendimento.tsx`, `SolicitacoesDeRifa.tsx`, `VerificacoesDaPlataforma.tsx`, `Seguranca.tsx` (`DenunciasDaPlataforma`) |
 | abas de uma tela de painel (Configurações, edição da rifa), aba na URL e âncora | `Abas` em `client/src/components/painel.tsx`, `shared/abas.ts` (`abaInicial`, `abaDoTeclado`), `AdminConfiguracoes` e a edição em `AdminCampanhas` (`client/src/pages/admin.tsx`), `tests/abas.test.ts` |
 | lista longa do painel (paginação por chave, cartão no celular e tabela a partir de `sm`) | `shared/paginacao.ts`, `/orders` e `/cobranca/extrato` em `server/routes/admin.ts`, `extratoDa()` em `server/services/billing.ts`, `client/src/lib/paginada.ts`, `TabelaOuCartoes`/`VerMais` em `client/src/components/painel.tsx`, `tests/paginacao.test.ts` |
 | casca dos painéis (menu lateral em grupos, barra de cima, busca, conta, rodapé) e as peças do kit | `MENUS`/`menuDe()` em `shared/access.ts`, `PanelShell` em `client/src/components/AppShell.tsx`, `client/src/components/painel.tsx` (`Estatistica`, `CartaoDoPainel`, `CabecalhoDaTabela`, `AlternarVisao`), `.painel`/`.cartao` em `client/src/index.css`, `tests/menu.test.ts` |
@@ -545,6 +546,17 @@ O verde da marca entra no lugar do roxo do kit; o significado das cores
   cartão de outra aba não buscar dado à toa. Cartão novo entra na aba do
   assunto dele; não abra aba nova para um cartão só. Aba nova que ganha
   âncora de link entra em `ancoras`.
+- **O Atendimento é lista e item aberto, não duas colunas coladas.**
+  `MestreDetalhe` (`painel.tsx`) serve os quatro (chamados, pedidos de
+  mudança em rifa, denúncias, verificações): de `xl` (1280 px) a lista e o
+  item rolam cada um no seu lugar e o item fica fixo sob a barra de cima;
+  abaixo disso é **uma coisa por vez** — abriu um item, a lista dá lugar a
+  ele, com "Voltar para a lista" no alto (o foco vai para o botão e a página
+  sobe). Esc fecha o item, menos dentro de campo de texto (não perde o
+  rascunho da resposta). O `aoFechar` das telas é função nova a cada
+  desenho e **não entra na lista do efeito**: a lista que se atualiza sozinha
+  subiria a página e tomaria o foco de quem responde. Tela nova de "lista e
+  detalhe" usa o componente; não monte o grid à mão.
 - **Rifas em grade de capas** (`AdminCampanhas`): a capa vem do servidor
   (`capa` na lista: o banner, senão a primeira foto — nunca o vídeo), a
   situação vai em texto na pílula sobre a capa, e as mesmas ações da lista

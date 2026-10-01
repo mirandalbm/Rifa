@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, Card, Empty, Pill } from "@/components/bits";
+import { MestreDetalhe } from "@/components/painel";
 import { Conversa, type Mensagem } from "@/components/Conversa";
 import { apiRequest } from "@/lib/queryClient";
 import { groupNumber } from "@shared/format";
@@ -110,56 +111,58 @@ export function SolicitacoesDeRifa({ daPlataforma }: { daPlataforma: boolean }) 
         ))}
       </div>
 
-      <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
-        <Card title="Pedidos de mudança em rifa">
-          {lista?.length ? (
-            <ul className="divide-y divide-line">
-              {lista.map((s) => (
-                <li key={s.id}>
-                  <button
-                    type="button"
-                    onClick={() => setAberto(s.id)}
-                    className={`w-full px-4 py-3 text-left hover:bg-mist ${aberto === s.id ? "bg-mist" : ""}`}
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <span className="tnum text-sm font-semibold">{s.protocolo}</span>
-                      <StatusPill s={s.status} />
-                    </div>
-                    <p className="mt-1 text-sm font-medium">{NOME_TIPO_SOLICITACAO[s.tipo]}</p>
-                    <p className="text-xs text-muted">
-                      {s.rifa}
-                      {daPlataforma ? ` · ${s.organizacao}` : ""} ·{" "}
-                      <span className="tnum">{new Date(s.createdAt).toLocaleDateString("pt-BR")}</span>
-                    </p>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <Empty>Nenhum pedido aqui.</Empty>
-          )}
-        </Card>
-
-        {aberto ? (
-          <DetalheDaSolicitacao
-            id={aberto}
-            daPlataforma={daPlataforma}
-            aoMudar={() => {
-              qc.invalidateQueries({ queryKey: ["/api/admin/solicitacoes"] });
-              qc.invalidateQueries({ queryKey: ["/api/admin/campaigns"] });
-              qc.invalidateQueries({ queryKey: ["/api/admin/chamados/pendentes"] });
-            }}
-          />
-        ) : (
-          <Card>
-            <Empty>
-              {daPlataforma
-                ? "Escolha um pedido para ver o que muda, conversar com a organização e decidir."
-                : "Escolha um pedido para acompanhar a análise e conversar com a plataforma."}
-            </Empty>
+      <MestreDetalhe
+        aberto={aberto}
+        aoFechar={() => setAberto(null)}
+        vazio={
+          daPlataforma
+            ? "Escolha um pedido para ver o que muda, conversar com a organização e decidir."
+            : "Escolha um pedido para acompanhar a análise e conversar com a plataforma."
+        }
+        lista={
+          <Card title="Pedidos de mudança em rifa">
+            {lista?.length ? (
+              <ul className="divide-y divide-line">
+                {lista.map((s) => (
+                  <li key={s.id}>
+                    <button
+                      type="button"
+                      onClick={() => setAberto(s.id)}
+                      className={`w-full px-4 py-3 text-left hover:bg-mist ${aberto === s.id ? "bg-mist" : ""}`}
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span className="tnum text-sm font-semibold">{s.protocolo}</span>
+                        <StatusPill s={s.status} />
+                      </div>
+                      <p className="mt-1 text-sm font-medium">{NOME_TIPO_SOLICITACAO[s.tipo]}</p>
+                      <p className="text-xs text-muted">
+                        {s.rifa}
+                        {daPlataforma ? ` · ${s.organizacao}` : ""} ·{" "}
+                        <span className="tnum">{new Date(s.createdAt).toLocaleDateString("pt-BR")}</span>
+                      </p>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <Empty>Nenhum pedido aqui.</Empty>
+            )}
           </Card>
-        )}
-      </div>
+        }
+        detalhe={
+          aberto ? (
+            <DetalheDaSolicitacao
+              id={aberto}
+              daPlataforma={daPlataforma}
+              aoMudar={() => {
+                qc.invalidateQueries({ queryKey: ["/api/admin/solicitacoes"] });
+                qc.invalidateQueries({ queryKey: ["/api/admin/campaigns"] });
+                qc.invalidateQueries({ queryKey: ["/api/admin/chamados/pendentes"] });
+              }}
+            />
+          ) : null
+        }
+      />
     </>
   );
 }

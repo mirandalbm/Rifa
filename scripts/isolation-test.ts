@@ -189,6 +189,13 @@ async function montarLado(marca: string, indice: number): Promise<Lado> {
     })
     .onConflictDoNothing();
 
+  // Um comentário do comprador na rifa deste lado: o sino do painel do
+  // vizinho não pode listá-lo.
+  await db
+    .insert(comentarios)
+    .values({ campaignId: campanha.id, organizationId: org.id, autor: "comprador", buyerId: comprador.id, texto: `comentário na rifa ${marca}` })
+    .onConflictDoNothing();
+
   // Um pedido de reembolso por lado, com o print: é o dado mais sensível da
   // organização (CPF, chave Pix, foto do bilhete).
   const protocolo = `RB-20260926-90000${indice}`;
@@ -535,6 +542,16 @@ async function conteudoDasListas(eu: Lado, vizinho: Lado) {
   checa("a lista de pedidos filtrada pelo código do vizinho vem vazia", filtrado.length === 0);
   const porCliente = (await (await pedir(eu.cookie, `/api/admin/orders?cliente=${idDoVizinho}`)).json()) as unknown[];
   checa("a lista de pedidos filtrada pelo cliente do vizinho vem vazia", porCliente.length === 0);
+
+  // O sino do painel: só os comentários das minhas rifas, e pelo apelido ou
+  // primeiro nome — nunca telefone.
+  const avisos = (await (await pedir(eu.cookie, "/api/admin/avisos")).json()) as { trecho: string; quem: string; rifa: { slug: string } }[];
+  checa(
+    "o sino lista o comentário da minha rifa e não o do vizinho",
+    avisos.some((a) => a.trecho === `comentário na rifa ${eu.nome}`) && !avisos.some((a) => a.trecho === `comentário na rifa ${vizinho.nome}`),
+    `${avisos.length} aviso(s)`,
+  );
+  checa("o sino não traz telefone", !JSON.stringify(avisos).includes("11960000"));
 
   const painel = await (await pedir(eu.cookie, "/api/admin/overview")).json();
   const meu = 5000 * (eu.nome === "norte" ? 1 : 2);

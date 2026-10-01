@@ -1,6 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { RodapeDaPlataforma } from "@/components/RodapeDaPlataforma";
 import { Marketing, useTemMarketing } from "@/components/Marketing";
 import { ALTURA_DO_CONSOLE, BotaoPublicar, ConsoleDoApp, TrevoDeAvisos, acimaDoConsole } from "@/components/Console";
@@ -52,6 +52,9 @@ import {
 } from "lucide-react";
 import { menuDe, type IconeDoGrupo, type Section, type SectionKey } from "@shared/access";
 import { BUSCA_MAX, NOME_DO_TIPO, interpretarBusca, type AchadoDaBusca } from "@shared/busca";
+import { caminhoDoAviso, naoLidos, rotuloDoSino, type AvisoDoPainel } from "@shared/avisos";
+import { quandoPublicou } from "@shared/publicacao";
+import { apiRequest } from "@/lib/queryClient";
 import { useSession, useLogout } from "@/lib/session";
 import { TemaCiclo } from "@/components/TemaToggle";
 import { Marca } from "@/components/Marca";
@@ -336,14 +339,29 @@ export function PanelShell({
   const pendenciasNoMenu = Object.values(contador).reduce<number>((s, n) => s + (n ?? 0), 0);
   const caminhoDoAtendimento = secoes.find((s) => s.key === "adminAtendimento")?.path;
 
-  // O menu da conta (um <details>) fecha ao clicar fora ou no Esc, como um
-  // menu de verdade — senão ficaria aberto por cima do conteúdo.
+  // Os avisos do sino: os últimos comentários de apostador nas rifas do
+  // recorte. Abrir o sino marca tudo como visto; o número vai no rótulo.
+  const qc = useQueryClient();
+  const { data: avisos } = useQuery<AvisoDoPainel[]>({
+    queryKey: ["/api/admin/avisos"],
+    refetchInterval: 60_000,
+  });
+  const novos = naoLidos(avisos ?? []);
+  const verAvisos = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/admin/avisos/vistos"),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/admin/avisos"] }),
+  });
+
+  // O menu da conta e o sino (dois <details>) fecham ao clicar fora ou no
+  // Esc, como um menu de verdade — senão ficariam abertos por cima do conteúdo.
   const menuDaConta = useRef<HTMLDetailsElement>(null);
+  const sino = useRef<HTMLDetailsElement>(null);
   useEffect(() => {
     const fechar = (e: MouseEvent | KeyboardEvent) => {
-      const d = menuDaConta.current;
-      if (!d?.open) return;
-      if (e instanceof KeyboardEvent ? e.key === "Escape" : !d.contains(e.target as Node)) d.open = false;
+      for (const d of [menuDaConta.current, sino.current]) {
+        if (!d?.open) continue;
+        if (e instanceof KeyboardEvent ? e.key === "Escape" : !d.contains(e.target as Node)) d.open = false;
+      }
     };
     document.addEventListener("click", fechar);
     document.addEventListener("keydown", fechar);
@@ -525,16 +543,51 @@ export function PanelShell({
           </button>
           <BuscaDoPainel secoes={secoes} />
           <TemaCiclo compacto className="rounded-md p-1.5 text-ink-2 hover:bg-mist-2" />
-          {caminhoDoAtendimento ? (
-            <Link
-              href={caminhoDoAtendimento}
-              aria-label={pendenciasNoMenu ? `Atendimento: ${pendenciasNoMenu} pendente${pendenciasNoMenu > 1 ? "s" : ""}` : "Atendimento: nada pendente"}
-              className="relative rounded-md p-1.5 text-ink-2 hover:bg-mist-2"
+          <details
+            ref={sino}
+            className="relative"
+            onToggle={(e) => {
+              if ((e.currentTarget as HTMLDetailsElement).open && novos) verAvisos.mutate();
+            }}
+          >
+            <summary
+              aria-label={rotuloDoSino(novos, pendenciasNoMenu)}
+              className="relative flex cursor-pointer list-none rounded-md p-1.5 text-ink-2 hover:bg-mist-2 [&::-webkit-details-marker]:hidden"
             >
               <Bell size={20} aria-hidden />
-              {pendenciasNoMenu ? <span aria-hidden className="absolute right-1 top-1 h-2 w-2 rounded-full bg-red" /> : null}
-            </Link>
-          ) : null}
+              {novos || pendenciasNoMenu ? (
+                <span aria-hidden className={`absolute right-1 top-1 h-2 w-2 rounded-full ${pendenciasNoMenu ? "bg-red" : "bg-green"}`} />
+              ) : null}
+            </summary>
+            <div className="cartao absolute right-0 top-full z-30 mt-1 w-80 max-w-[calc(100vw-2rem)] rounded-lg border border-line bg-white py-1 text-sm">
+              <p className="px-3 py-2 text-xs font-medium uppercase tracking-[0.1em] text-ink-2">Avisos</p>
+              {caminhoDoAtendimento && pendenciasNoMenu ? (
+                <Link href={caminhoDoAtendimento} aria-label={`Atendimento: ${pendenciasNoMenu} pendente${pendenciasNoMenu > 1 ? "s" : ""}`} className="block border-b border-line px-3 py-2 hover:bg-mist">
+                  <span className="tnum font-medium">{pendenciasNoMenu}</span> pendente{pendenciasNoMenu > 1 ? "s" : ""} no atendimento
+                </Link>
+              ) : null}
+              {avisos && avisos.length === 0 ? <p className="px-3 py-2 text-muted">Nenhum comentário ainda.</p> : null}
+              <ul aria-label="Comentários novos nas suas rifas" className="max-h-80 overflow-y-auto">
+                {avisos?.map((a) => (
+                  <li key={a.id}>
+                    <Link
+                      href={caminhoDoAviso(a)}
+                      // O menu fechado esconde o texto do leitor de tela: o nome vai no rótulo.
+                      aria-label={`${a.lido ? "" : "Novo: "}${a.quem} em ${a.rifa.titulo}: ${a.trecho}`}
+                      className={`block px-3 py-2 hover:bg-mist ${a.lido ? "" : "bg-green-soft"}`}
+                    >
+                      <span className="block truncate">
+                        <span className="font-medium">{a.quem}</span> em {a.rifa.titulo}
+                        {a.lido ? null : <span className="sr-only"> (novo)</span>}
+                      </span>
+                      <span className="block truncate text-muted">{a.trecho}</span>
+                      <span className="block text-[11px] text-muted">{quandoPublicou(a.createdAt)}</span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </details>
           <details ref={menuDaConta} className="relative">
             <summary
               aria-label={`Conta de ${session?.user?.name ?? ""}`}

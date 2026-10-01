@@ -122,6 +122,7 @@ import {
 import { isUniqueViolation } from "../pgError";
 import { caixaDeEntrada } from "../services/caixa";
 import { buscarNoPainel } from "../services/busca";
+import { avisosDoPainel, marcarAvisosVistos } from "../services/avisos";
 import { BUSCA_MAX, ID_DO_CLIENTE_VALIDO } from "@shared/busca";
 import { destaqueDa, midiasDas, salvarPerfil, urlDaCapa, urlDaFoto } from "../services/perfil";
 import { resultados as resultadosDoPainel } from "../services/resultados";
@@ -2311,6 +2312,25 @@ adminRouter.get("/chamados/pendentes", async (req, res, next) => {
       denuncias: orgOf(req) ? 0 : await denunciasAbertas(),
       verificacoes: orgOf(req) ? 0 : await verificacoesPendentes(),
     });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/* ---------------- avisos do painel (o sino) ---------------- */
+
+adminRouter.get("/avisos", async (req, res, next) => {
+  try {
+    res.json(await avisosDoPainel(req));
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.post("/avisos/vistos", async (req, res, next) => {
+  try {
+    await marcarAvisosVistos(req);
+    res.status(204).end();
   } catch (err) {
     next(err);
   }

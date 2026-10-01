@@ -107,8 +107,9 @@ senha); **[código]** é trabalho no repositório.
   topo (era o coração) com a central de avisos (`/notificacoes`).
 - [x] Comentários na publicação da rifa (apostador com conta; a organização
   responde e modera) e o organizador vendo a plataforma pelo próprio perfil.
-- [ ] Aviso ao organizador de comentário novo (hoje ele vê no próprio perfil;
-  falta o trevo de avisos no painel).
+- [x] Aviso ao organizador de comentário novo: o sino do painel lista os
+  comentários de apostador nas rifas dele (e as pendências do atendimento),
+  com o número no rótulo; abrir marca como visto.
 - [x] Comentários como no Instagram (apelido, foto, curtidas, respostas
   recolhidas, reações) e perfil do apostador `/u/<apelido>` com o primeiro e
   o último nome reais. A organização pede a remoção de comentário; a

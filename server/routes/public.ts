@@ -101,6 +101,19 @@ import { activePaymentProvider } from "../payments";
 import { EXIGE_CPF, type ProvedorPix } from "@shared/plataforma";
 import { getPlataforma } from "../services/settings";
 import {
+  acharDestino,
+  bloquear as bloquearConversa,
+  denunciarConversa,
+  enviar as enviarMensagem,
+  exigirMensagensLigadas,
+  iniciarConversa,
+  lerConversa,
+  listarConversas,
+  marcarLida,
+  resumoDasMensagens,
+  responderPedido,
+} from "../services/mensagens";
+import {
   abrirChamado,
   anexoPara,
   chamadoDoComprador,
@@ -170,6 +183,110 @@ publicRouter.get("/campaigns", async (req, res, next) => {
 });
 
 type LinhaDaVitrine = Awaited<ReturnType<typeof listPublicCampaigns>>[number] & { uf?: string | null; cidade?: string | null };
+
+/* ------------- Mensagens (conversa de um para um) ------------- */
+
+/**
+ * Tudo aqui passa por `exigirMensagensLigadas()` (desligada, 404) e por
+ * `minhaIdentidade()` (sem conta, 401). A conversa que não é da sessão é
+ * 404 — nunca 403, que entregaria que o id existe.
+ */
+publicRouter.get("/mensagens/resumo", async (req, res) => {
+  // O número do botão do console: sem sessão ou desligado, é zero — nunca erro.
+  try {
+    await exigirMensagensLigadas();
+    res.setHeader("Cache-Control", "private, no-store");
+    res.json(await resumoDasMensagens(req, req.query.como));
+  } catch {
+    res.json({ naoLidas: 0 });
+  }
+});
+
+publicRouter.get("/mensagens/destino", async (req, res, next) => {
+  try {
+    await exigirMensagensLigadas();
+    res.setHeader("Cache-Control", "private, no-store");
+    res.json(await acharDestino(req, req.query.q, req.query.como));
+  } catch (err) {
+    next(err);
+  }
+});
+
+publicRouter.get("/mensagens/conversas", async (req, res, next) => {
+  try {
+    await exigirMensagensLigadas();
+    const r = await listarConversas(req, { aba: req.query.aba, depois: req.query.depois, limite: req.query.limite, como: req.query.como });
+    if (r.proximo) res.setHeader("X-Proximo", r.proximo);
+    res.setHeader("Cache-Control", "private, no-store");
+    res.json(r);
+  } catch (err) {
+    next(err);
+  }
+});
+
+publicRouter.post("/mensagens/conversas", async (req, res, next) => {
+  try {
+    await exigirMensagensLigadas();
+    res.status(201).json(await iniciarConversa(req, req.body ?? {}));
+  } catch (err) {
+    next(err);
+  }
+});
+
+publicRouter.get("/mensagens/conversas/:id", async (req, res, next) => {
+  try {
+    await exigirMensagensLigadas();
+    res.setHeader("Cache-Control", "private, no-store");
+    res.json(await lerConversa(req, req.params.id, { antes: req.query.antes, como: req.query.como }));
+  } catch (err) {
+    next(err);
+  }
+});
+
+publicRouter.post("/mensagens/conversas/:id/mensagens", async (req, res, next) => {
+  try {
+    await exigirMensagensLigadas();
+    res.status(201).json(await enviarMensagem(req, req.params.id, req.body ?? {}));
+  } catch (err) {
+    next(err);
+  }
+});
+
+publicRouter.post("/mensagens/conversas/:id/lida", async (req, res, next) => {
+  try {
+    await exigirMensagensLigadas();
+    res.json(await marcarLida(req, req.params.id, req.body?.como));
+  } catch (err) {
+    next(err);
+  }
+});
+
+publicRouter.post("/mensagens/conversas/:id/pedido", async (req, res, next) => {
+  try {
+    await exigirMensagensLigadas();
+    res.json(await responderPedido(req, req.params.id, req.body?.acao, req.body?.como));
+  } catch (err) {
+    next(err);
+  }
+});
+
+publicRouter.put("/mensagens/conversas/:id/bloqueio", async (req, res, next) => {
+  try {
+    await exigirMensagensLigadas();
+    res.json(await bloquearConversa(req, req.params.id, req.body?.ligar === true, req.body?.como));
+  } catch (err) {
+    next(err);
+  }
+});
+
+publicRouter.post("/mensagens/conversas/:id/denuncia", async (req, res, next) => {
+  try {
+    await exigirMensagensLigadas();
+    res.status(201).json(await denunciarConversa(req, req.params.id, req.body ?? {}));
+  } catch (err) {
+    next(err);
+  }
+});
 
 /**
  * Reels: as rifas no ar que têm um vídeo em pé de até 3 minutos, na ordem da
@@ -623,7 +740,7 @@ publicRouter.get("/app", async (_req, res, next) => {
   try {
     const p = await getPlataforma();
     res.setHeader("Cache-Control", "public, max-age=60");
-    res.json({ avisoDoTrevo: p.avisoDoTrevo, publicarApostador: p.publicarApostador, reelsLigado: p.reelsLigado });
+    res.json({ avisoDoTrevo: p.avisoDoTrevo, publicarApostador: p.publicarApostador, reelsLigado: p.reelsLigado, mensagensLigado: p.mensagensLigado });
   } catch (err) {
     next(err);
   }

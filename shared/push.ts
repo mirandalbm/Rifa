@@ -66,7 +66,8 @@ export type TipoAviso =
   | "resultado"
   | "reembolso"
   | "comentario"
-  | "verificacao";
+  | "verificacao"
+  | "mensagem";
 
 export interface MensagemPush {
   title: string;
@@ -86,6 +87,7 @@ export const VALIDADE_S: Record<TipoAviso, number> = {
   verificacao: 3 * 24 * 3600,
   resultado: 24 * 3600,
   reembolso: 3 * 24 * 3600,
+  mensagem: 24 * 3600,
 };
 
 export const JANELAS_DO_SORTEIO = [

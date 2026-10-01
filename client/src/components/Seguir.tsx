@@ -1,4 +1,5 @@
 import { useLocation } from "wouter";
+import { BotaoMensagem } from "@/components/BotaoMensagem";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Bell, BellOff } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
@@ -73,6 +74,7 @@ export function SeguirBotoes({ slug, compacto = false }: { slug: string; compact
       >
         {seguindo ? "Seguindo" : "Seguir"}
       </button>
+      <BotaoMensagem para={slug} compacto={compacto} />
       {seguindo ? (
         <button
           type="button"

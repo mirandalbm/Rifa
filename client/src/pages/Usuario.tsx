@@ -6,6 +6,7 @@ import { PublicShell } from "@/components/AppShell";
 import { Empty } from "@/components/bits";
 import { FotoDoApostador } from "@/components/PerfilDoApostador";
 import { SeloVerificado } from "@/components/SeloVerificado";
+import { BotaoMensagem } from "@/components/BotaoMensagem";
 
 interface PerfilDoApostador {
   apelido: string;
@@ -45,6 +46,7 @@ export default function Usuario() {
               </p>
             ) : null}
           </div>
+          <BotaoMensagem para={`@${data.apelido}`} />
         </section>
       ) : null}
       {data ? <Republicacoes apelido={data.apelido} /> : null}

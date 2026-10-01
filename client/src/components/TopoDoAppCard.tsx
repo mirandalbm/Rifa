@@ -35,15 +35,17 @@ export function TopoDoAppCard() {
   const [aviso, setAviso] = useState<AvisoDoTrevo>(atual.avisoDoTrevo);
   const [publicar, setPublicar] = useState(atual.publicarApostador);
   const [reels, setReels] = useState(atual.reelsLigado);
+  const [mensagens, setMensagens] = useState(atual.mensagensLigado);
   const [msg, setMsg] = useState<{ ok: boolean; texto: string } | null>(null);
   useEffect(() => {
     setAviso(atual.avisoDoTrevo);
     setPublicar(atual.publicarApostador);
     setReels(atual.reelsLigado);
-  }, [atual.avisoDoTrevo, atual.publicarApostador, atual.reelsLigado]);
+    setMensagens(atual.mensagensLigado);
+  }, [atual.avisoDoTrevo, atual.publicarApostador, atual.reelsLigado, atual.mensagensLigado]);
 
   const salvar = useMutation({
-    mutationFn: () => apiRequest("PUT", "/api/admin/app", { avisoDoTrevo: aviso, publicarApostador: publicar, reelsLigado: reels }),
+    mutationFn: () => apiRequest("PUT", "/api/admin/app", { avisoDoTrevo: aviso, publicarApostador: publicar, reelsLigado: reels, mensagensLigado: mensagens }),
     onSuccess: () => {
       setMsg({ ok: true, texto: "Topo do app salvo." });
       qc.invalidateQueries({ queryKey: ["/api/public/app"] });
@@ -116,6 +118,16 @@ export function TopoDoAppCard() {
               <span className="font-semibold">Reels aberto ao público</span>
               <span className="block text-xs text-muted">
                 Desligado, o botão Reels do console mostra "Em breve". Ligado, mostra os vídeos em pé de até 3 minutos das rifas no ar.
+              </span>
+            </span>
+          </label>
+          <label className="flex items-start gap-2">
+            <input type="checkbox" checked={mensagens} onChange={(e) => { setMsg(null); setMensagens(e.target.checked); }} className="mt-1 h-5 w-5" />
+            <span>
+              <span className="font-semibold">Mensagens abertas ao público</span>
+              <span className="block text-xs text-muted">
+                Desligado, o botão Mensagens do console mostra "Em breve". Ligado, apostadores, organizações e afiliados conversam
+                um com um.
               </span>
             </span>
           </label>

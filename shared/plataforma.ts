@@ -118,6 +118,8 @@ export interface ConfigPlataforma {
    * desligada: desligada, o botão do console segue levando a "Em breve".
    */
   reelsLigado: boolean;
+  /** A caixa de mensagens (conversa de um para um). Nasce desligada, como o Reels. */
+  mensagensLigado: boolean;
 }
 
 export const CONFIG_PADRAO: ConfigPlataforma = {
@@ -136,6 +138,7 @@ export const CONFIG_PADRAO: ConfigPlataforma = {
   avisoDoTrevo: AVISO_DO_TREVO_PADRAO,
   publicarApostador: false,
   reelsLigado: false,
+  mensagensLigado: false,
 };
 
 /** Só as chaves conhecidas: isto vem do corpo da requisição. */
@@ -168,6 +171,7 @@ export function validarConfigPlataforma(entrada: Partial<ConfigPlataforma>): Con
     avisoDoTrevo: validarAvisoDoTrevo(entrada.avisoDoTrevo),
     publicarApostador: entrada.publicarApostador === true,
     reelsLigado: entrada.reelsLigado === true,
+    mensagensLigado: entrada.mensagensLigado === true,
   };
 }
 

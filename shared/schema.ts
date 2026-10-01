@@ -2348,3 +2348,86 @@ export const verificacaoDocumentos = pgTable(
   },
   (t) => [uniqueIndex("uq_verificacao_documento_tipo").on(t.verificacaoId, t.tipo)],
 );
+
+/**
+ * Mensagens: a conversa de um par (um para um). O par entra em ordem
+ * canônica (`a` é o menor de "tipo:id"), então o índice único é a defesa
+ * contra duas conversas do mesmo par. Os contadores de não lidas andam na
+ * mesma transação da mensagem — nada de `COUNT(*)`.
+ */
+export const conversas = pgTable(
+  "conversas",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    aTipo: text("a_tipo").notNull(),
+    aId: uuid("a_id").notNull(),
+    bTipo: text("b_tipo").notNull(),
+    bId: uuid("b_id").notNull(),
+    /** `pedido`, `aceita` ou `recusada`. */
+    situacao: text("situacao").notNull().default("pedido"),
+    /** Quem abriu a conversa: `a` ou `b`. */
+    iniciadaPor: text("iniciada_por").notNull(),
+    /** Quem bloqueou, se alguém: `a` ou `b`. */
+    bloqueadaPor: text("bloqueada_por"),
+    /** Encerrada pela plataforma (denúncia procedente): ninguém mais escreve. */
+    encerradaEm: timestamp("encerrada_em"),
+    naoLidasA: integer("nao_lidas_a").notNull().default(0),
+    naoLidasB: integer("nao_lidas_b").notNull().default(0),
+    previa: text("previa"),
+    ultimaEm: timestamp("ultima_em").notNull().defaultNow(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("uq_conversa_par").on(t.aTipo, t.aId, t.bTipo, t.bId),
+    index("idx_conversas_a").on(t.aTipo, t.aId, t.ultimaEm),
+    index("idx_conversas_b").on(t.bTipo, t.bId, t.ultimaEm),
+  ],
+);
+
+export const mensagens = pgTable(
+  "mensagens",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    conversaId: uuid("conversa_id")
+      .notNull()
+      .references(() => conversas.id, { onDelete: "cascade" }),
+    /** Quem escreveu: `a` ou `b`. */
+    de: text("de").notNull(),
+    texto: text("texto").notNull(),
+    /** A rifa compartilhada no cartão (opcional). */
+    campaignId: uuid("campaign_id").references(() => campaigns.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [index("idx_mensagens_conversa").on(t.conversaId, t.createdAt, t.id)],
+);
+
+/**
+ * Denúncia de conversa. A plataforma só lê o `trecho` — as últimas
+ * mensagens gravadas na hora da denúncia —, nunca a conversa inteira. Uma
+ * aberta por conversa e lado (`uq_denuncia_conversa_aberta`).
+ */
+export const mensagemDenuncias = pgTable(
+  "mensagem_denuncias",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    protocolo: text("protocolo").notNull(),
+    conversaId: uuid("conversa_id")
+      .notNull()
+      .references(() => conversas.id, { onDelete: "cascade" }),
+    /** Quem denunciou: `a`, `b` ou `automatica` (a varredura do Pix por fora). */
+    lado: text("lado").notNull(),
+    motivo: text("motivo").notNull(),
+    texto: text("texto"),
+    trecho: jsonb("trecho").$type<{ de: string; texto: string; em: string }[]>().notNull(),
+    status: text("status").notNull().default("aberta"),
+    decisao: text("decisao"),
+    decididaPor: uuid("decidida_por"),
+    decididaEm: timestamp("decidida_em"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("uq_mensagem_denuncia_protocolo").on(t.protocolo),
+    uniqueIndex("uq_denuncia_conversa_aberta").on(t.conversaId, t.lado).where(sql`status = 'aberta'`),
+    index("idx_mensagem_denuncias_status").on(t.status, t.createdAt),
+  ],
+);

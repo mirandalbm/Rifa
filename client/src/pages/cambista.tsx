@@ -168,7 +168,7 @@ export function CambistaVenda() {
                 id="campanha"
                 value={escolhida.id}
                 onChange={(e) => setCampanha(e.target.value)}
-                className="mt-1 w-full rounded-md border border-line-2 px-3 py-2 text-sm"
+                className="campo text-sm"
               >
                 {data?.campanhas.map((c) => (
                   <option key={c.id} value={c.id}>
@@ -215,7 +215,7 @@ export function CambistaVenda() {
                   id="nome"
                   value={comprador.name}
                   onChange={(e) => setComprador({ ...comprador, name: e.target.value })}
-                  className="mt-1 w-full rounded-md border border-line-2 px-3 py-2 text-sm"
+                  className="campo text-sm"
                 />
               </div>
               <div>
@@ -225,7 +225,7 @@ export function CambistaVenda() {
                   inputMode="tel"
                   value={comprador.phone}
                   onChange={(e) => setComprador({ ...comprador, phone: e.target.value })}
-                  className="tnum mt-1 w-full rounded-md border border-line-2 px-3 py-2 text-sm"
+                  className="campo tnum text-sm"
                 />
               </div>
               <div>
@@ -235,7 +235,7 @@ export function CambistaVenda() {
                   inputMode="numeric"
                   value={comprador.cpf}
                   onChange={(e) => setComprador({ ...comprador, cpf: e.target.value })}
-                  className="tnum mt-1 w-full rounded-md border border-line-2 px-3 py-2 text-sm"
+                  className="campo tnum text-sm"
                 />
               </div>
             </div>

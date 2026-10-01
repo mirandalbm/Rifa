@@ -325,7 +325,7 @@ export function AdminOrganizacoes() {
                     autoComplete="current-password"
                     value={confirma.password}
                     onChange={(e) => setConfirma({ ...confirma, password: e.target.value })}
-                    className="mt-1 w-full rounded-md border border-line-2 px-3 py-2 text-sm"
+                    className="campo text-sm"
                   />
                 </div>
                 <div>
@@ -341,7 +341,7 @@ export function AdminOrganizacoes() {
                     onChange={(e) =>
                       setConfirma({ ...confirma, code: e.target.value.replace(/\D/g, "") })
                     }
-                    className="tnum mt-1 w-full rounded-md border border-line-2 px-3 py-2 text-sm"
+                    className="campo tnum text-sm"
                   />
                 </div>
                 <div className="flex gap-2">
@@ -394,7 +394,7 @@ export function AdminOrganizacoes() {
                       autoComplete={auto}
                       value={acesso[campo]}
                       onChange={(e) => setAcesso({ ...acesso, [campo]: e.target.value })}
-                      className="mt-1 w-full rounded-md border border-line-2 px-3 py-2 text-sm"
+                      className="campo text-sm"
                     />
                   </div>
                 ))}
@@ -436,7 +436,7 @@ export function AdminOrganizacoes() {
                       autoComplete="off"
                       value={nova[campo]}
                       onChange={(e) => setNova({ ...nova, [campo]: e.target.value })}
-                      className="mt-1 w-full rounded-md border border-line-2 px-3 py-2 text-sm"
+                      className="campo text-sm"
                     />
                   </div>
                 ))}
@@ -692,7 +692,7 @@ function PagamentoDaOrganizacao({ o }: { o: Organizacao }) {
           }}
           placeholder="00000000-0000-0000-0000-000000000000"
           autoComplete="off"
-          className="tnum mt-1 w-full rounded-md border border-line-2 bg-white px-3 py-2 text-sm"
+          className="campo tnum text-sm"
         />
         <p className={`mt-1 text-[11px] ${carteiraOk ? "text-muted" : "text-red"}`}>
           {carteiraOk
@@ -750,7 +750,7 @@ function PagamentoDaOrganizacao({ o }: { o: Organizacao }) {
             setAviso(e.target.value);
           }}
           placeholder="vazio: os organizadores"
-          className="tnum mt-1 w-full rounded-md border border-line-2 bg-white px-3 py-2 text-sm"
+          className="campo tnum text-sm"
         />
         {avisoOk ? null : <p className="mt-1 text-[11px] text-red">Informe DDD e número.</p>}
       </div>

@@ -813,7 +813,7 @@ function PedirReembolso({ saldoCents }: { saldoCents: number }) {
             value={valor}
             onChange={(e) => setValor(e.target.value)}
             inputMode="decimal"
-            className="tnum mt-1 w-full rounded-md border border-line-2 px-3 py-2"
+            className="campo tnum"
           />
         </label>
         <label className="block">
@@ -822,7 +822,7 @@ function PedirReembolso({ saldoCents }: { saldoCents: number }) {
             value={chavePix}
             onChange={(e) => setChavePix(e.target.value)}
             maxLength={140}
-            className="mt-1 w-full rounded-md border border-line-2 px-3 py-2"
+            className="campo"
           />
         </label>
       </div>
@@ -833,7 +833,7 @@ function PedirReembolso({ saldoCents }: { saldoCents: number }) {
           onChange={(e) => setMotivo(e.target.value)}
           rows={3}
           maxLength={1000}
-          className="mt-1 w-full rounded-md border border-line-2 px-3 py-2"
+          className="campo"
         />
       </label>
       <p className="text-xs text-muted">
@@ -988,7 +988,7 @@ function ConversaDoReembolso({
                 value={retido}
                 onChange={(ev) => setRetido(ev.target.value)}
                 inputMode="decimal"
-                className="tnum mt-1 w-full rounded-md border border-line-2 px-3 py-2"
+                className="campo tnum"
               />
             </label>
             <label className="block">
@@ -996,7 +996,7 @@ function ConversaDoReembolso({
               <input
                 value={explicacao}
                 onChange={(ev) => setExplicacao(ev.target.value)}
-                className="mt-1 w-full rounded-md border border-line-2 px-3 py-2"
+                className="campo"
               />
             </label>
           </div>
@@ -1151,7 +1151,7 @@ function NovoAnuncio({
                 <input
                   value={cidade}
                   onChange={(e) => setCidade(e.target.value)}
-                  className="mt-1 w-full rounded-md border border-line-2 px-3 py-2"
+                  className="campo"
                 />
               </label>
             ) : null}
@@ -1699,7 +1699,7 @@ function SaldosCard({
               onChange={(e) => setAjuste({ ...ajuste, valor: e.target.value })}
               placeholder="-10,00 ou 50,00"
               inputMode="decimal"
-              className="tnum mt-1 w-full rounded-md border border-line-2 px-3 py-2"
+              className="campo tnum"
             />
           </label>
           <label>
@@ -1709,7 +1709,7 @@ function SaldosCard({
               onChange={(e) =>
                 setAjuste({ ...ajuste, descricao: e.target.value })
               }
-              className="mt-1 w-full rounded-md border border-line-2 px-3 py-2"
+              className="campo"
             />
           </label>
         </div>

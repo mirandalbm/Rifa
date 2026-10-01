@@ -361,7 +361,7 @@ export function AfiliadoSaques() {
                 value={pixKey}
                 onChange={(e) => setPixKey(e.target.value)}
                 placeholder="e-mail, CPF, telefone ou chave aleatória"
-                className="mt-1 w-full rounded-md border border-line-2 px-3 py-2 text-sm"
+                className="campo text-sm"
               />
             </div>
             <div>
@@ -374,7 +374,7 @@ export function AfiliadoSaques() {
                 autoComplete="current-password"
                 value={senhaPix}
                 onChange={(e) => setSenhaPix(e.target.value)}
-                className="mt-1 w-full rounded-md border border-line-2 px-3 py-2 text-sm"
+                className="campo text-sm"
               />
             </div>
             {avisoPix ? (

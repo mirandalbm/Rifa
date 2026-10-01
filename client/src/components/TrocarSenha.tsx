@@ -80,7 +80,7 @@ export function TrocarSenha() {
                 setOk(false);
                 setForm({ ...form, [campo]: e.target.value });
               }}
-              className="mt-1 w-full rounded-md border border-line-2 px-3 py-2 text-sm"
+              className="campo text-sm"
             />
           </div>
         ))}

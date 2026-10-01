@@ -246,7 +246,7 @@ export function CampaignExtras({
                   value={escolhidos}
                   placeholder={`ex.: 7, 2376, ${Math.min(totalQuotas, 99999)}`}
                   onChange={(e) => setEscolhidos(e.target.value.replace(/[^\d,;\s]/g, ""))}
-                  className="tnum mt-1 w-full rounded-md border border-line-2 px-3 py-2 text-sm"
+                  className="campo tnum text-sm"
                 />
               </div>
               <Button

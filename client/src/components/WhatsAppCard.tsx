@@ -214,7 +214,7 @@ export function WhatsAppCard() {
                   value={telefone}
                   onChange={(e) => setTelefone(e.target.value)}
                   placeholder="41 98765-4321"
-                  className="tnum mt-1 w-full rounded-md border border-line-2 px-3 py-2 text-sm"
+                  className="campo tnum text-sm"
                 />
               </div>
               <Button

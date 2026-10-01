@@ -91,7 +91,7 @@ export function AfiliadoDados() {
           setMsg(null);
           mudar(e.target.value);
         }}
-        className="mt-1 w-full rounded-md border border-line-2 px-3 py-2 text-sm"
+        className="campo text-sm"
         {...extra}
       />
     </label>
@@ -129,7 +129,7 @@ export function AfiliadoDados() {
           >
             {campo("Nome completo (como no documento)", f.nomeCompleto, (v) => setF({ ...f, nomeCompleto: v }))}
             <div className="grid gap-2 sm:grid-cols-2">
-              {campo("CPF", f.cpf, (v) => setF({ ...f, cpf: maskCpf(v) }), { inputMode: "numeric", className: "tnum mt-1 w-full rounded-md border border-line-2 px-3 py-2 text-sm" })}
+              {campo("CPF", f.cpf, (v) => setF({ ...f, cpf: maskCpf(v) }), { inputMode: "numeric", className: "campo tnum text-sm" })}
               {campo("RG", f.rg, (v) => setF({ ...f, rg: v }))}
             </div>
             {campo("Nascimento", f.nascimento, (v) => setF({ ...f, nascimento: v }), { type: "date" })}

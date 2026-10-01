@@ -249,7 +249,7 @@ function DetalheDaVerificacao({ id }: { id: string }) {
                 onChange={(e) => setMotivo(e.target.value)}
                 rows={2}
                 maxLength={500}
-                className="mt-1 w-full rounded-md border border-line-2 px-3 py-2"
+                className="campo"
               />
             </label>
             <div className="flex flex-wrap gap-2">

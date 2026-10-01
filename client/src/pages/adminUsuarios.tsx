@@ -175,7 +175,7 @@ export function AdminUsuarios() {
             id="f-busca"
             value={busca}
             onChange={(e) => setBusca(e.target.value)}
-            className="mt-1 w-full rounded-md border border-line-2 px-3 py-2 text-sm"
+            className="campo text-sm"
           />
         </div>
       </div>
@@ -253,7 +253,7 @@ export function AdminUsuarios() {
                   autoComplete="new-password"
                   value={senha}
                   onChange={(e) => setSenha(e.target.value)}
-                  className="mt-1 w-full rounded-md border border-line-2 px-3 py-2 text-sm"
+                  className="campo text-sm"
                 />
               </div>
               {problemaSenha ? <p className="text-xs text-red">{problemaSenha}</p> : null}

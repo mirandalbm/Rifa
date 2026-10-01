@@ -104,7 +104,7 @@ export function TelefoneDoOrganizadorCard() {
               value={telefone}
               placeholder={e.telefone ? maskPhone(e.telefone) : "(11) 91234-5678"}
               onChange={(ev) => setTelefone(ev.target.value)}
-              className="tnum mt-1 w-full rounded-md border border-line-2 px-3 py-2"
+              className="campo tnum"
             />
           </div>
           <Button type="submit" disabled={pedir.isPending || telefone.replace(/\D/g, "").length < 10}>
@@ -300,7 +300,7 @@ export function Denunciar({
               maxLength={1000}
               value={texto}
               onChange={(e) => setTexto(e.target.value)}
-              className="mt-1 w-full rounded-md border border-line-2 px-3 py-2"
+              className="campo"
             />
           </div>
           <p className="text-[11px] text-muted">A organização nunca fica sabendo quem denunciou.</p>

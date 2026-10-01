@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { cloneElement, isValidElement, useId, type ReactElement, type ReactNode } from "react";
 import { formatBRL, percent } from "@shared/format";
 
 export function Money({ cents, className = "" }: { cents: number; className?: string }) {
@@ -151,5 +151,55 @@ export function Button({
     >
       {children}
     </button>
+  );
+}
+
+/**
+ * Rótulo + campo + dica + erro, ligados pelo `id` (o rótulo é sempre visível:
+ * placeholder não é rótulo — regra de `docs/VERSOES.md`). O campo vem como
+ * filho (`<input>`, `<select>`, `<textarea>`) e recebe aqui o `id`, a classe
+ * `.campo` se não tiver, o `aria-describedby` e o `aria-invalid` com erro.
+ */
+export function Campo({
+  rotulo,
+  dica,
+  erro,
+  className = "",
+  children,
+}: {
+  rotulo: ReactNode;
+  dica?: ReactNode;
+  erro?: string | null;
+  className?: string;
+  children: ReactElement<Record<string, unknown>>;
+}) {
+  const base = useId();
+  const id = (isValidElement(children) && (children.props.id as string | undefined)) || `${base}-campo`;
+  const idDica = dica ? `${base}-dica` : undefined;
+  const idErro = erro ? `${base}-erro` : undefined;
+  const classeDoFilho = String(children.props.className ?? "");
+  const campo = cloneElement(children, {
+    id,
+    className: /\bcampo\b/.test(classeDoFilho) ? classeDoFilho : `campo text-sm ${classeDoFilho}`.trim(),
+    "aria-describedby": [idDica, idErro].filter(Boolean).join(" ") || undefined,
+    "aria-invalid": erro ? true : undefined,
+  });
+  return (
+    <div className={className}>
+      <label htmlFor={id} className="label-xs">
+        {rotulo}
+      </label>
+      {campo}
+      {dica ? (
+        <p id={idDica} className="mt-1 text-xs text-muted">
+          {dica}
+        </p>
+      ) : null}
+      {erro ? (
+        <p id={idErro} role="alert" className="mt-1 text-xs text-red">
+          {erro}
+        </p>
+      ) : null}
+    </div>
   );
 }

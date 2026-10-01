@@ -167,7 +167,7 @@ export function AdminAparencia() {
                   value={id.nome}
                   maxLength={40}
                   onChange={(e) => mudarId({ nome: e.target.value })}
-                  className="mt-1 w-full rounded-md border border-line-2 px-3 py-2"
+                  className="campo"
                 />
               </div>
               <div>
@@ -385,7 +385,7 @@ export function AdminAparencia() {
                   maxLength={300}
                   value={t.textos.rodape}
                   onChange={(e) => mudar({ ...t, textos: { ...t.textos, rodape: e.target.value } })}
-                  className="mt-1 w-full rounded-md border border-line-2 px-3 py-2"
+                  className="campo"
                 />
               </div>
               <div>
@@ -395,7 +395,7 @@ export function AdminAparencia() {
                   maxLength={200}
                   value={t.textos.jogoResponsavel}
                   onChange={(e) => mudar({ ...t, textos: { ...t.textos, jogoResponsavel: e.target.value } })}
-                  className="mt-1 w-full rounded-md border border-line-2 px-3 py-2"
+                  className="campo"
                 />
               </div>
             </div>
@@ -439,7 +439,7 @@ export function AdminAparencia() {
                         const ordem = Object.keys(REDES_DO_RODAPE);
                         mudar({ ...t, redes: todas.sort((a, b) => ordem.indexOf(a.rede) - ordem.indexOf(b.rede)) });
                       }}
-                      className="mt-1 w-full rounded-md border border-line-2 px-3 py-2"
+                      className="campo"
                     />
                   </div>
                 ))}
@@ -464,7 +464,7 @@ export function AdminAparencia() {
                       maxLength={60}
                       value={a.nome}
                       onChange={(e) => mudar({ ...t, apoios: (t.apoios ?? []).map((x, j) => (j === i ? { ...x, nome: e.target.value } : x)) })}
-                      className="mt-1 w-full rounded-md border border-line-2 px-3 py-2"
+                      className="campo"
                     />
                   </div>
                   <div className="min-w-0">
@@ -477,7 +477,7 @@ export function AdminAparencia() {
                       onChange={(e) =>
                         mudar({ ...t, apoios: (t.apoios ?? []).map((x, j) => (j === i ? { ...x, link: e.target.value || null } : x)) })
                       }
-                      className="mt-1 w-full rounded-md border border-line-2 px-3 py-2"
+                      className="campo"
                     />
                   </div>
                   <Button

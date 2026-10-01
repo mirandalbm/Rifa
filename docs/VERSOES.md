@@ -135,7 +135,7 @@ Limite da leva: **10** mudanças aguardando.
     partir de `sm`; fecha no Esc e no toque no fundo; trava a rolagem de
     trás; `role="dialog"` e `aria-modal`. É o componente `Janela`
     (`client/src/components/Janela.tsx`) — tela nova não monta o fundo à
-    mão (`tests/janela.test.ts` confere). O visualizador de stories é tela
+    mão (`tests/pecas.test.ts` confere). O visualizador de stories é tela
     cheia preta, outra coisa, e segue à parte.
 15. **Tabela larga no celular rola dentro do cartão**, nunca a página.
 16. **O que aparece ao passar o mouse aparece também no toque e no foco** —
@@ -283,7 +283,7 @@ qualquer mudança.
 | P1 | O tablet é o celular esticado na página da rifa: foto 4:5 com 768 px de largura (o perfil saiu daqui na leva 2: rifas em 2 colunas do tablet em diante) | `Rifa.tsx` | tablet |
 | P2 | ~~Seis janelas feitas à mão~~ **Feito**: o componente `Janela` (regra 14) serve Comentários, escolha de bilhete, denúncia, Criar, cota surpresa, folhas do perfil e pedido de reembolso | `Janela.tsx` | todas |
 | P3 | ~~`h1` em 9 combinações de classe~~ **Feito**: o padrão `font-display text-xl font-extrabold` vale em todas as telas; sobram só dois tamanhos de propósito (o título do cartão com `line-clamp` e o do banner da rifa, `text-2xl`) e os modificadores de posição | várias | todas |
-| P4 | A classe do campo de digitar repetida mais de 80 vezes. Alvo: um componente `Campo` (rótulo + campo + erro) | várias | todas |
+| P4 | ~~A classe do campo de digitar repetida mais de 80 vezes~~ **Feito**: a classe `.campo` (`index.css`) no lugar da lista repetida, e o componente `Campo` (`bits.tsx`: rótulo, campo, dica e erro ligados pelo `id`, `aria-invalid` com erro) para formulário novo — o pedido de reembolso já usa. `tests/pecas.test.ts` barra a lista copiada de volta | várias | todas |
 | P6 | "Nova venda" do cambista ocupa a largura toda no computador | `cambista.tsx` | computador |
 | P7 | O degradê de "sem foto" (`#0B1F14` → `#00873E`) repetido em 3 telas. Alvo: uma classe | `Publicacao.tsx`, `Rifa.tsx`, `Vitrine.tsx` | todas |
 | P8 | A janela de comentários sobe de baixo também no computador | `Comentarios.tsx` | computador |

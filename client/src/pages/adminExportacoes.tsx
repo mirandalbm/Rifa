@@ -98,7 +98,7 @@ export function AdminExportacoes() {
               id="exp-campanha"
               value={campanha}
               onChange={(e) => setCampanha(e.target.value)}
-              className="mt-1 w-full rounded-md border border-line-2 px-3 py-2 text-sm"
+              className="campo text-sm"
             >
               <option value="">todas as rifas</option>
               {campanhas?.map((c) => (

@@ -128,7 +128,7 @@ export function DadosLegaisCard({ campanha }: { campanha: Campanha }) {
                 setMsg(null);
                 setCodigo(e.target.value);
               }}
-              className="tnum mt-1 w-full rounded-md border border-line-2 px-3 py-2 disabled:bg-mist"
+              className="campo tnum disabled:bg-mist"
             />
           </div>
           <div>
@@ -144,7 +144,7 @@ export function DadosLegaisCard({ campanha }: { campanha: Campanha }) {
                 setMsg(null);
                 setData(e.target.value);
               }}
-              className="tnum mt-1 w-full rounded-md border border-line-2 px-3 py-2 disabled:bg-mist"
+              className="campo tnum disabled:bg-mist"
             />
           </div>
         </div>
@@ -203,7 +203,7 @@ export function DadosLegaisCard({ campanha }: { campanha: Campanha }) {
               setMsg(null);
               setExtra(e.target.value);
             }}
-            className="mt-1 w-full rounded-md border border-line-2 px-3 py-2 disabled:bg-mist"
+            className="campo disabled:bg-mist"
           />
           <label className="mt-2 flex items-start gap-2 text-sm">
             <input

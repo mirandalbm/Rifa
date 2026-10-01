@@ -198,7 +198,7 @@ export function AdminAntifraude() {
                     id="bloqueio-valor"
                     value={bloqueio.value}
                     onChange={(e) => setBloqueio({ ...bloqueio, value: e.target.value })}
-                    className="tnum mt-1 w-full rounded-md border border-line-2 px-3 py-2 text-sm"
+                    className="campo tnum text-sm"
                   />
                 </div>
                 <Button

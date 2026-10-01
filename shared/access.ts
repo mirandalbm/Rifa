@@ -70,6 +70,7 @@ export type SectionKey =
   | "adminCaixa"
   | "adminBonus"
   | "adminPatrocinio"
+  | "adminBannerPago"
   | "adminMarketing"
   | "adminFinanceiro"
   | "adminSorteios"
@@ -125,6 +126,7 @@ export const SECTIONS: Section[] = [
   { key: "adminStories", path: "/admin/stories", label: "Stories", requires: "organizer", nav: true },
   // Rifas patrocinadas por clique (etapa 15): saldo e rifas da organização; a plataforma configura.
   { key: "adminPatrocinio", path: "/admin/patrocinio", label: "Patrocínio", requires: "organizer", nav: true },
+  { key: "adminBannerPago", path: "/admin/banner-pago", label: "Banner na vitrine", requires: "organizer", nav: true },
   // Pixels, chaves e vendas por campanha (etapa 16).
   { key: "adminMarketing", path: "/admin/marketing", label: "Marketing", requires: "organizer", nav: true },
   { key: "adminAfiliados", path: "/admin/afiliados", label: "Afiliados", requires: "organizer", nav: true },
@@ -228,7 +230,7 @@ const MENU_DO_MASTER: GrupoDoMenu[] = [
       { rotulo: "Rifas", icone: "rifas", filhos: ["adminCampanhas", "adminSorteios", "adminStories"] },
       { rotulo: "Vendas e dinheiro", icone: "dinheiro", filhos: ["adminPedidos", "adminFinanceiro", "adminCobranca", "adminExportacoes"] },
       { rotulo: "Pessoas", icone: "pessoas", filhos: ["adminOrganizacoes", "adminUsuarios", "adminAfiliados", "adminCambistas", "adminFiscal"] },
-      { rotulo: "Crescimento", icone: "crescimento", filhos: ["adminMarketing", "adminPatrocinio", "adminBonus"] },
+      { rotulo: "Crescimento", icone: "crescimento", filhos: ["adminMarketing", "adminPatrocinio", "adminBannerPago", "adminBonus"] },
       { rotulo: "Plataforma", icone: "plataforma", filhos: ["adminAparencia", "adminConfiguracoes"] },
     ],
   },
@@ -248,7 +250,7 @@ const MENU_DO_ORGANIZADOR: GrupoDoMenu[] = [
     titulo: "Equipe e crescimento",
     itens: [
       { rotulo: "Equipe", icone: "equipe", filhos: ["adminAfiliados", "adminCambistas", "adminUsuarios"] },
-      { rotulo: "Crescimento", icone: "crescimento", filhos: ["adminMarketing", "adminPatrocinio"] },
+      { rotulo: "Crescimento", icone: "crescimento", filhos: ["adminMarketing", "adminPatrocinio", "adminBannerPago"] },
       { secao: "adminConfiguracoes" },
     ],
   },

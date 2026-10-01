@@ -28,7 +28,7 @@ describe("configuração da plataforma", () => {
 
   it("não guarda chave que não existe", () => {
     const c = validarConfigPlataforma({ estornoManual: true, extra: 1 } as never);
-    expect(Object.keys(c).sort()).toEqual(["avisoDoTrevo", "bonusLigado", "bonusPorIndicacao", "buscarLigado", "buscarTipos", "coresDoSelo", "estornoManual", "exigirCadastroFiscal", "guardaComissao", "marketingPixels", "mensagensLigado", "patrocinio", "patrocinioReembolso", "presente", "provedorPix", "publicarApostador", "reelsLigado", "taxaReembolsoPct"]);
+    expect(Object.keys(c).sort()).toEqual(["avisoDoTrevo", "bannerPago", "bonusLigado", "bonusPorIndicacao", "buscarLigado", "buscarTipos", "coresDoSelo", "estornoManual", "exigirCadastroFiscal", "guardaComissao", "marketingPixels", "mensagensLigado", "patrocinio", "patrocinioReembolso", "presente", "provedorPix", "publicarApostador", "reelsLigado", "taxaReembolsoPct"]);
   });
 });
 

@@ -53,7 +53,7 @@ function regra<T>(f: () => T): T {
   }
 }
 
-async function processar(dataUrl: unknown, largura: number, altura: number): Promise<Buffer> {
+export async function processar(dataUrl: unknown, largura: number, altura: number): Promise<Buffer> {
   const m = /^data:(image\/(png|jpeg|webp));base64,([A-Za-z0-9+/=]+)$/i.exec(String(dataUrl ?? ""));
   if (!m) throw new VitrineError("Envie uma imagem em JPG, PNG ou WebP.");
   const bruto = Buffer.from(m[3], "base64");

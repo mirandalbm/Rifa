@@ -108,6 +108,7 @@ jobs:
       - run: npm run guarda
       - run: npm run bonus
       - run: npm run patrocinio
+      - run: npm run banner
       - run: npm run marketing
       - run: npm run load
 

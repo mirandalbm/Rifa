@@ -347,10 +347,12 @@ Na ordem de entrega do plano:
 - [x] ~~**Story em vídeo**~~: até 30 s, 15 MB, em pé, MP4/MOV, medido no
   servidor e sem transcode (seção Vitrine do `CLAUDE.md`). Pôster e
   recompressão seguem no item do Cloudflare Stream.
-- [ ] **[código]** Vitrine, o que ficou para depois: o organizador **pagar** por
-  mais tempo de banner no topo (pacote de dias, pago do saldo da plataforma
-  que já existe nas rifas patrocinadas; arte enviada pela organização e
-  aprovada pela plataforma; preço e vagas editáveis no painel).
+- [x] ~~Banner pago~~: pacote de dias pago do saldo do patrocínio, arte
+  aprovada pela plataforma, vagas e preço editáveis, dias não usados devolvidos
+  (seção "Banner pago na vitrine" do `CLAUDE.md`). Nasce desligado.
+- [ ] **[você]** Banner pago: definir o **preço do dia** e as **vagas** em
+  Banner na vitrine e ligar o produto quando quiser vender (roda `db:push`
+  antes: tabela `banner_pedidos`).
 - [ ] **[você]** Subir os banners da plataforma (Aparência → Banners da
   vitrine) e orientar as organizações a postarem stories.
 - [x] Painel de resultados do organizador (painel → Resultados): receita,

@@ -94,6 +94,7 @@ app.use(
     "/api/admin/campaigns/:id/legal",
     "/api/admin/template/logo",
     "/api/admin/banners",
+    "/api/admin/banner-pago/pedidos",
     "/api/admin/banners/:id",
     "/api/admin/campaigns/:id/foto-ganhador",
     "/api/admin/template/apoio",

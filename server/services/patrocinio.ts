@@ -73,7 +73,7 @@ const uuidValido = (id: unknown): id is string => typeof id === "string" && /^[0
 
 
 /** Credita (ou debita) o saldo pelo livro. Só mexe no saldo se a chave for nova; nunca deixa negativo. */
-async function lancar(
+export async function lancar(
   tx: Tx,
   p: { organizationId: string; valorCents: number; motivo: string; chave: string; descricao?: string; userId?: string | null },
 ) {

@@ -9,7 +9,7 @@ import { ordenarCaixa, type PendenciaDaCaixa } from "@shared/caixa";
  * afiliado ou apelido — nunca telefone, CPF ou nome de comprador.
  */
 export async function caixaDeEntrada(): Promise<PendenciaDaCaixa[]> {
-  const [chamados, solicitacoes, denuncias, verificacoes, fiscais, telefones] = await Promise.all([
+  const [chamados, solicitacoes, denuncias, verificacoes, fiscais, telefones, banners] = await Promise.all([
     db.execute(sql`
       SELECT ch.id, ch.disputa, ch.created_at AS desde, o.name AS org, ch.protocolo, ord.code AS pedido
         FROM chamados ch
@@ -51,6 +51,13 @@ export async function caixaDeEntrada(): Promise<PendenciaDaCaixa[]> {
        WHERE o.telefone_aprovado_em IS NULL AND o.telefone_confirmado_em IS NOT NULL
          AND o.archived_at IS NULL AND o.banida_em IS NULL
        ORDER BY o.telefone_confirmado_em LIMIT 200`),
+    db.execute(sql`
+      SELECT b.id, b.created_at AS desde, o.name AS org, c.title AS rifa, b.dias
+        FROM banner_pedidos b
+        JOIN organizations o ON o.id = b.organization_id
+        JOIN campaigns c ON c.id = b.campaign_id
+       WHERE b.status = 'em_analise'
+       ORDER BY b.created_at LIMIT 200`),
   ]);
 
   const iso = (d: unknown) => new Date(d as string | Date).toISOString();
@@ -90,6 +97,9 @@ export async function caixaDeEntrada(): Promise<PendenciaDaCaixa[]> {
   }
   for (const r of telefones.rows as any[]) {
     linhas.push({ chave: `telefone:${r.id}`, tipo: "telefone", quem: r.org, oQue: "Telefone provado pelo WhatsApp — espera aprovação para publicar", desde: iso(r.desde) });
+  }
+  for (const r of banners.rows as any[]) {
+    linhas.push({ chave: `banner:${r.id}`, tipo: "banner", quem: r.org, oQue: `Arte de banner pago esperando aprovação — rifa ${r.rifa}, ${r.dias} dia(s)`, desde: iso(r.desde) });
   }
   return ordenarCaixa(linhas);
 }

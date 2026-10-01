@@ -47,6 +47,7 @@ import {
   IdCard,
   FileCheck2,
   Gift,
+  GalleryHorizontal,
   Rocket,
   Target,
 } from "lucide-react";
@@ -146,6 +147,7 @@ const ICONE: Partial<Record<SectionKey, LucideIcon>> = {
   adminCaixa: Inbox,
   adminBonus: Gift,
   adminPatrocinio: Rocket,
+  adminBannerPago: GalleryHorizontal,
   adminMarketing: Target,
 };
 

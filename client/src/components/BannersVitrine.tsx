@@ -9,6 +9,8 @@ interface BannerNoAr {
   link: string | null;
   segundos: number;
   imagem: string;
+  /** Banner pago por uma organização: propaganda se identifica, em texto. */
+  patrocinado?: boolean;
 }
 
 /**
@@ -60,7 +62,7 @@ export function BannersVitrine() {
         {banners.map((b, i) => (
           <div
             key={b.id}
-            className="aspect-[2/1] w-full shrink-0 snap-center bg-mist-2"
+            className="relative aspect-[2/1] w-full shrink-0 snap-center bg-mist-2"
             aria-roledescription="slide"
             aria-label={`${i + 1} de ${banners.length}`}
           >
@@ -72,6 +74,11 @@ export function BannersVitrine() {
                 className="h-full w-full object-cover"
               />
             </Destino>
+            {b.patrocinado ? (
+              <span className="pointer-events-none absolute left-2 top-2 rounded bg-black/60 px-1.5 py-0.5 text-[11px] font-semibold text-branco">
+                Patrocinado
+              </span>
+            ) : null}
           </div>
         ))}
       </div>

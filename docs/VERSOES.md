@@ -178,7 +178,7 @@ cima com a busca, o tema, o sino e a conta.
 |---|---|---|---|---|
 | `/admin` | `pages/admin.tsx` (`AdminPainel`) | os widgets do kit empilhados: boas-vindas, cotas, comissão, próximo sorteio, canais, vendas do mês, atividade, rifas no ar, por estado, dia da semana, o que falta, top afiliados | 2 por linha (boas-vindas, sorteio, atividade e rifas no ar ocupam as 2) | 4 colunas: boas-vindas e sorteio com 2, atividade e rifas no ar com 2, o resto com 1 |
 | `/admin/campanhas` | `admin.tsx` (`AdminCampanhas`) | formulário; rifas em grade de capas (1 por linha) ou lista rolando no cartão | formulário em 2 colunas; grade 2 por linha | grade 4 por linha a partir de `xl` ([P5](#pendências) na lista) |
-| `/admin/pedidos` | `admin.tsx` (`AdminPedidos`) | tabela rolando no cartão ([P5](#pendências), [P10](#pendências)) | tabela | tabela |
+| `/admin/pedidos` | `admin.tsx` (`AdminPedidos`) | cartão por pedido (`TabelaOuCartoes`), 25 por vez e "Ver mais" | tabela, 25 por vez e "Ver mais" | igual ao tablet |
 | `/admin/resultados` | `pages/adminResultados.tsx` | números 2 por linha | 3 por linha | 6 por linha (`xl`); gráfico e tabelas em 2 colunas |
 | `/admin/stories` | `pages/adminStories.tsx` | formulário; stories 2 por linha | stories 3 por linha | formulário e stories lado a lado |
 | `/admin/caixa` (plataforma) | `pages/adminCaixa.tsx` | filtros rolando; tabela rolando no cartão ([P5](#pendências)) | tabela | tabela |
@@ -187,7 +187,7 @@ cima com a busca, o tema, o sino e a conta.
 | `/admin/cambistas` | `pages/adminCambistas.tsx` | empilhado | igual | 2 colunas |
 | `/admin/financeiro` | `admin.tsx` (`AdminFinanceiro`) | empilhado | igual | 2 colunas |
 | `/admin/sorteios` | `admin.tsx` (`AdminSorteios`) | lista | igual | igual |
-| `/admin/cobranca` | `pages/adminCobranca.tsx` | números empilhados; lista longa ([P10](#pendências)) | números 3 ou 4 por linha | igual ao tablet |
+| `/admin/cobranca` | `pages/adminCobranca.tsx` | números empilhados; lançamentos em cartões, 25 por vez e "Ver mais" | números 3 ou 4 por linha; tabela de lançamentos | igual ao tablet |
 | `/admin/usuarios` | `pages/adminUsuarios.tsx` | lista | detalhes em 3 colunas | igual |
 | `/admin/patrocinio` | `pages/adminPatrocinio.tsx` | empilhado | formulários em 2 colunas | cartões em 2 colunas |
 | `/admin/marketing` | `pages/adminMarketing.tsx` | empilhado | igual | 2 colunas |
@@ -282,12 +282,10 @@ qualquer mudança.
 | P2 | Seis janelas feitas à mão, com comportamentos diferentes: só 3 fecham no Esc e travam a rolagem; fundo `bg-black/50` numa e `/30` noutra. Alvo: um componente `Janela` com a regra 14 | `Comentarios.tsx`, `Stories.tsx`, `EscolherBilhete.tsx`, `Seguranca.tsx`, `Perfil.tsx`, `MinhasCotas.tsx` | todas |
 | P3 | `h1` em 9 combinações de classe. Padrão: `font-display text-xl font-extrabold` | várias | todas |
 | P4 | A classe do campo de digitar repetida mais de 80 vezes. Alvo: um componente `Campo` (rótulo + campo + erro) | várias | todas |
-| P5 | Tabelas do painel (campanhas, cobrança, pedidos) apertadas no celular. Alvo: cartão por linha no celular, tabela a partir de `sm` | `admin.tsx`, `adminCobranca.tsx` | celular |
 | P6 | "Nova venda" do cambista ocupa a largura toda no computador | `cambista.tsx` | computador |
 | P7 | O degradê de "sem foto" (`#0B1F14` → `#00873E`) repetido em 3 telas. Alvo: uma classe | `Publicacao.tsx`, `Rifa.tsx`, `Vitrine.tsx` | todas |
 | P8 | A janela de comentários sobe de baixo também no computador | `Comentarios.tsx` | computador |
 | P9 | 49 dos 51 componentes de `components/ui` não são usados (só `toaster` e `tooltip`) | `components/ui/` | — |
-| P10 | Pedidos (11.599 px) e Cobrança (15.079 px) sem paginação no celular | `admin.tsx`, `adminCobranca.tsx` | celular |
 | P11 | Ícones do lucide (traço 2) e os desenhados à mão (traço 1,75) misturados | `components/` | todas |
 | P12 | Botões do topo com 24 a 28 px de altura; o recomendado para toque é 36 px ou mais | `AppShell.tsx` | celular |
 | P13 | Grades antigas sem `grid-cols-1` (regra 4) — hoje não estouram, mas estourariam com um texto maior | várias | todas |
@@ -330,3 +328,4 @@ ou `leva N`. O teste confere o formato, a numeração e o limite da leva.
 | 20 | 2026-10-01 | #82 | Painéis · busca da barra de cima; Pedidos; Organizações | A busca acha, além da tela, o pedido pelo código, o cliente pelo ID e (plataforma) a organização pelo nome, numa lista só com o tipo em texto; Pedidos abre filtrado pelo pedido ou pelo cliente, com "Ver todos"; Organizações abre já na organização achada | Vale igual: a lista da busca tem 320 px e cabe nas três larguras — a conferir na leva. Conferido na leva 2: a lista cabe nas três larguras; em Organizações a tabela no tablet rolava e cortava os botões de ação — a largura mínima baixou de 560 para 480 px | leva 2 |
 | 21 | 2026-10-01 | #83 | Painéis · sino da barra de cima | O sino vira um menu de avisos: os comentários novos de apostador nas rifas do painel (quem, rifa, trecho, há quanto tempo), cada um abrindo a publicação nos comentários, e no topo as pendências do atendimento; abrir marca como visto e o número vai no rótulo | Vale igual: o menu tem 320 px e cabe nas três larguras — a conferir na leva. Conferido na leva 2: o menu cabe nas três larguras — nada a arrumar | leva 2 |
 | 22 | 2026-10-01 | #84 | Painel · Cobrança | A taxa já retida no split do Pix aparece como "retida no split" (pílula) e soma no "Já pago" com a nota do valor retido; a carteira da plataforma mostra o retido embaixo do pago de cada organização | Vale igual: a mesma pílula e os mesmos números nas três larguras. Conferido na leva 2: nada a arrumar | leva 2 |
+| 23 | 2026-10-01 | #86 | Painéis · Pedidos e Cobrança | A lista de Pedidos e os lançamentos da Cobrança viram um cartão por linha (data, situação, de onde veio, valor), 25 por vez e "Ver mais" no pé — Pedidos tinha 11.600 px de altura e Cobrança 15.000, hoje 4.100 e 3.500 com 25 linhas | Tablet e computador: a mesma tabela de antes (a partir de 640 px), também 25 por vez e "Ver mais" | aguardando leva |

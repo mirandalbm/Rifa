@@ -66,13 +66,28 @@ app.use(
     "/api/admin/banners/:id",
     "/api/admin/stories",
     "/api/admin/campaigns/:id/foto-ganhador",
+    "/api/admin/template/apoio",
+    // Foto do perfil do apostador e do afiliado: foto de celular passa de
+    // 1 MB fácil, e o limite geral recusava com 413 antes de chegar à régua
+    // de 5 MB do serviço.
+    "/api/public/conta/perfil",
+    "/api/affiliate/foto",
   ],
   express.json({ limit: "8mb" }),
 );
 // O perfil pode levar foto e capa juntas (até 5 MB cada, em base64).
 app.use("/api/admin/organizacoes/:id/perfil", express.json({ limit: "16mb" }));
 // Documento do cadastro fiscal: até 6 MB, em base64.
-app.use("/api/affiliate/fiscal/documentos/:tipo", express.json({ limit: "10mb" }));
+app.use(
+  [
+    "/api/affiliate/fiscal/documentos/:tipo",
+    // Documentos da verificação (até 6 MB): foto do documento tirada no celular.
+    "/api/public/conta/verificacao/documentos/:tipo",
+    "/api/affiliate/verificacao/documentos/:tipo",
+    "/api/admin/organizacoes/:id/verificacao/documentos/:tipo",
+  ],
+  express.json({ limit: "10mb" }),
+);
 app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: false }));
 
@@ -104,6 +119,10 @@ app.use((req, res, next) => {
       });
     }
     const status = err.status ?? err.statusCode ?? 500;
+    // O corpo passou do limite da rota: a mensagem do Express vem em inglês.
+    if (status === 413) {
+      return res.status(413).json({ message: "O arquivo é grande demais. Escolha uma imagem menor." });
+    }
     if (status >= 500) {
       // Erro inesperado: o detalhe (SQL, caminho de arquivo, pilha) vai para o
       // log, nunca para o navegador. Erro de regra (4xx) já vem em português.

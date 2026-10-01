@@ -21,3 +21,29 @@ export function lerImagem(arquivo: File): Promise<string> {
     leitor.readAsDataURL(arquivo);
   });
 }
+
+/**
+ * Lê a foto do perfil (ou a capa) já reduzida no aparelho: a foto da câmera
+ * do celular tem 3 a 12 MB e passaria dos limites do envio, mas o servidor
+ * guarda no máximo 1500 px. Aqui ela sai em JPEG com o lado maior em `lado`
+ * px, com a rotação do EXIF aplicada. O servidor reprocessa de todo jeito
+ * (e é ele quem decide). Se o navegador não souber abrir o arquivo (HEIC no
+ * Chrome, por exemplo), manda como veio e o servidor responde.
+ */
+export async function lerFoto(arquivo: File, lado = 1600): Promise<string> {
+  if (!arquivo.type.startsWith("image/") && arquivo.type !== "") throw new Error("Escolha uma imagem (JPG, PNG ou WebP).");
+  try {
+    const bitmap = await createImageBitmap(arquivo, { imageOrientation: "from-image" });
+    const escala = Math.min(1, lado / Math.max(bitmap.width, bitmap.height));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(bitmap.width * escala));
+    canvas.height = Math.max(1, Math.round(bitmap.height * escala));
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("sem canvas");
+    ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    bitmap.close?.();
+    return canvas.toDataURL("image/jpeg", 0.88);
+  } catch {
+    return lerImagem(arquivo);
+  }
+}

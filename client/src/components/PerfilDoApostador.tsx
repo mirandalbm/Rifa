@@ -3,7 +3,7 @@ import { Link } from "wouter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, Card } from "@/components/bits";
 import { apiRequest } from "@/lib/queryClient";
-import { lerImagem } from "@/lib/anexo";
+import { lerFoto } from "@/lib/anexo";
 import { APELIDO_MAX, validarApelido } from "@shared/perfilApostador";
 import { SeloVerificado } from "@/components/SeloVerificado";
 
@@ -130,7 +130,7 @@ export function EditarPerfilPublico({ compacto, aoSalvar }: { compacto?: boolean
                 return;
               }
               try {
-                salvar.mutate({ foto: await lerImagem(f) });
+                salvar.mutate({ foto: await lerFoto(f, 1080) });
               } catch (err) {
                 setErro((err as Error).message);
               }

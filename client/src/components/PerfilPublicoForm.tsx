@@ -5,6 +5,7 @@ import { useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/bits";
 import { FotoDoPerfil } from "@/components/Seguir";
 import { apiRequest } from "@/lib/queryClient";
+import { lerFoto } from "@/lib/anexo";
 import {
   BIO_MAX,
   LINKS_MAX,
@@ -92,18 +93,23 @@ export function PerfilPublicoForm({
     onError: (e: Error) => setMsg({ ok: false, texto: e.message }),
   });
 
-  function lerImagem(arquivo: File | undefined, oQue: string, guardar: (d: string) => void) {
+  // A foto do celular vem grande: reduzida no aparelho (a foto fica em 400
+  // px e a capa em 1500 no servidor), não esbarra no limite de 5 MB.
+  async function lerImagem(arquivo: File | undefined, oQue: string, guardar: (d: string) => void) {
     setMsg(null);
     if (!arquivo) return;
-    if (arquivo.size > FOTO_MAX_BYTES) {
-      setMsg({ ok: false, texto: `A ${oQue} passa de 5 MB.` });
-      return;
+    try {
+      const d = await lerFoto(arquivo, oQue === "capa" ? 2000 : 1080);
+      if (d.length * 0.75 > FOTO_MAX_BYTES) {
+        setMsg({ ok: false, texto: `A ${oQue} passa de 5 MB.` });
+        return;
+      }
+      guardar(d);
+    } catch (e) {
+      setMsg({ ok: false, texto: (e as Error).message });
     }
-    const leitor = new FileReader();
-    leitor.onload = () => guardar(String(leitor.result));
-    leitor.readAsDataURL(arquivo);
   }
-  const escolherArquivo = (a: File | undefined) => lerImagem(a, "foto", setFoto);
+  const escolherArquivo = (a: File | undefined) => void lerImagem(a, "foto", setFoto);
 
   const mostrada = foto === undefined ? fotoAtual : foto;
   const capaMostrada = capa === undefined ? capaAtual : capa;
@@ -137,7 +143,7 @@ export function PerfilPublicoForm({
               type="file"
               accept="image/jpeg,image/png,image/webp"
               className="sr-only"
-              onChange={(e) => lerImagem(e.target.files?.[0], "capa", setCapa)}
+              onChange={(e) => void lerImagem(e.target.files?.[0], "capa", setCapa)}
             />
           </label>
           {capaMostrada ? (

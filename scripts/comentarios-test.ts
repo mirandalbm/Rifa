@@ -9,6 +9,8 @@
  */
 import "dotenv/config";
 import { baseUrl } from "./base-url";
+import { randomBytes } from "node:crypto";
+import sharp from "sharp";
 import { eq, inArray, sql } from "drizzle-orm";
 import { db, pool } from "../server/db";
 import { buyers, campaignStats, campaigns, comentarios, notificacoes, prizedQuotas, users } from "../shared/schema";
@@ -116,6 +118,17 @@ async function main() {
     r = await bruno.req("PUT", "/api/public/conta/perfil", { apelido: "ana.comenta" });
     checa("apelido de outra pessoa: 409", r.status === 409, `HTTP ${r.status}`);
     r = await bruno.req("PUT", "/api/public/conta/perfil", { apelido: "bruno_comenta" });
+    // Foto do tamanho da câmera do celular (mais de 1 MB): o limite geral do
+    // corpo recusava com 413 antes de chegar à régua de 5 MB do serviço.
+    const fotoGrande = await sharp(randomBytes(1400 * 1400 * 3), { raw: { width: 1400, height: 1400, channels: 3 } })
+      .jpeg({ quality: 95 })
+      .toBuffer();
+    r = await bruno.req("PUT", "/api/public/conta/perfil", { foto: `data:image/jpeg;base64,${fotoGrande.toString("base64")}` });
+    checa(
+      `foto de celular (${(fotoGrande.length / 1024 / 1024).toFixed(1)} MB) é aceita`,
+      fotoGrande.length > 1024 * 1024 && r.status === 200 && Boolean(r.json?.foto),
+      `HTTP ${r.status} ${r.json?.message ?? ""}`,
+    );
     r = await anon.req("GET", "/api/public/u/ana.comenta");
     checa("o perfil público mostra apelido e primeiro e último nome, sem telefone",
       r.status === 200 && r.json?.nomeReal === "Ana Comenta" && !JSON.stringify(r.json).includes(PESSOAS[0].telefone),

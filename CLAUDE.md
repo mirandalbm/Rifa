@@ -516,6 +516,14 @@ valor vindo do cliente: o limite (3 min reels, 15 min feed) é promessa de
 tela e forjar um campo JSON é trivial. Se for aceitar um container novo (WebM, por exemplo), implemente
 a medição junto — sem medir, não entra na lista de mimes.
 
+**Foto de celular passa de 1 MB.** O limite geral do corpo JSON é 1 MB;
+rota que recebe imagem em base64 entra na lista de limite maior em
+`server/index.ts` (8 MB para foto, 10 MB para documento), senão o Express
+recusa com 413 antes da régua do serviço — foi assim que a troca de foto
+do perfil falhava no celular. E a foto do perfil sai reduzida do aparelho
+(`lerFoto()` em `client/src/lib/anexo.ts`), com a rotação do EXIF; o
+servidor reprocessa de todo jeito. O 413 responde em português.
+
 A **chave do arquivo** também volta do navegador na confirmação do envio, e
 só vale a que o passo 1 gerou para aquela rifa e aquele papel
 (`chaveDaCampanha()` em `storage.ts`), conferida antes de tudo — a recusa da
@@ -1175,8 +1183,7 @@ estorno.
   o que é em pé de tela (abaixo de 0,65) vira vertical.
 - **O perfil vai acima nos formatos do feed e por cima no vertical**
   (`perfilPorCima()`), como no reels: sombra em cima, texto branco e
-  "Seguir" com contorno; o selo de vendidas e o "1/8" descem para baixo
-  dele. O 9:16 não passa de 85% da altura da tela (computador, tablet
+  "Seguir" com contorno; o "1/8" desce para baixo dele. O 9:16 não passa de 85% da altura da tela (computador, tablet
   deitado). A regra mora no `Carrossel` (`perfil`), não em cada tela.
 - **Vídeo até 3 min é reels, até 15 min é feed** (`formatoDoVideo()`), pela
   duração medida no servidor; mais que isso é recusado. Reels toca sozinho,
@@ -1479,9 +1486,10 @@ desconto na primeira compra — **pago pela plataforma**.
   em cima**: o perfil (foto, nome, cidade e "Seguir") vai por cima da
   imagem em todos os formatos, com a sombra do reels, e a imagem tem os
   quatro cantos arredondados (`perfilSobreNaWeb` no `Carrossel`, só por
-  classes `md:` — o celular não muda). O selo de vendidas e o "1/8" descem
-  para baixo do perfil, e o selo segue o padrão do "1/8" (fundo escuro,
-  texto branco, mesma fonte). Depois do toque em "Seguir", o botão vira
+  classes `md:` — o celular não muda). O "1/8" desce para baixo do perfil.
+  **Não há selo de vendidas sobre a imagem**, em nenhuma largura: o
+  progresso já está no cartão da rifa logo abaixo, e dois contadores na
+  mesma tela eram repetição. Depois do toque em "Seguir", o botão vira
   "Seguindo" com ✓; quem já seguia continua sem botão.
 - **Imagem nunca é servida como veio**: banner 1200×600 e story 1080×1920,
   WebP, sem metadados, no banco (até o R2 entrar).

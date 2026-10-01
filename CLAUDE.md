@@ -230,6 +230,14 @@ arquitetura.
   "consultar e gravar".
 - **Cartelas não repetem número entre si**, e `npm run load` confere que a
   sugestão só traz número livre, inclusive na reta final.
+- **Quatro cartelas por pacote** (`CARTELAS_NA_TELA`): fecham o 2 × 2 do
+  tablet. **E chegam antes do toque**: a página da rifa busca, em paralelo,
+  as de todos os pacotes ao abrir (`preCarregarCartelas()`), e trocar de
+  pacote mostra as dele na hora. A sugestão guardada vale 60 s e sai da
+  guarda quando aparece (`renovar()` já busca a próxima) — voltar ao pacote
+  não repete a cartela que foi para o carrinho. Enquanto não chega, o lugar
+  das cartelas já fica desenhado, sem a tela pular. Segue sendo só
+  sugestão: o número levado nesse meio-tempo a compra recusa (409).
 - **O mapa pagina de 100 em 100** sobre o bitmap de 1.000 do servidor e
   mostra o número inteiro (`formatQuota`). Cortar dígito fazia o bloco 2
   parecer o bloco 1.

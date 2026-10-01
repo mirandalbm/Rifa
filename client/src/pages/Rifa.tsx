@@ -33,7 +33,7 @@ import { SeguirBotoes, FotoDoPerfil } from "@/components/Seguir";
 import { SorteioCard } from "@/components/SorteioCard";
 import { Comentarios, PainelDeComentarios } from "@/components/Comentarios";
 import { BotaoDenunciar, SoValePelaPlataforma } from "@/components/Seguranca";
-import { Cartelas } from "@/components/Cartelas";
+import { Cartelas, preCarregarCartelas } from "@/components/Cartelas";
 import { CotaSurpresa, type PremiosDaRifa } from "@/components/CotaSurpresa";
 import { avisoDaJuntada, juntarNoCarrinho, lerCarrinho } from "@/lib/carrinho";
 
@@ -272,6 +272,12 @@ export default function Rifa() {
         : (pacotes.find((p) => p.highlight && cabe(p.quantity)) ?? pacotes.find((p) => cabe(p.quantity)))?.quantity;
       if (inicial) setPacote(inicial);
       else setShowMap(true);
+      // As cartelas de todos os tamanhos já vêm agora: tocar noutro pacote
+      // mostra as dele na hora, sem esperar o sorteio.
+      preCarregarCartelas(
+        slug,
+        [inicial ?? 0, ...pacotes.map((p) => p.quantity)].filter(cabe),
+      );
     }
     if (q.has("pacote") || q.has("comprar")) {
       setTimeout(() => document.getElementById("comprar")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);

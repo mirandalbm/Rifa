@@ -2,7 +2,9 @@ import { useState } from "react";
 import { Link } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { PanelShell } from "@/components/AppShell";
-import { Card, Kpi, Money, Pill, Button, Empty } from "@/components/bits";
+import { Card, Money, Pill, Button, Empty } from "@/components/bits";
+import { Estatistica } from "@/components/painel";
+import { Banknote, MousePointerClick, Percent, ShoppingBag } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { formatBRL } from "@shared/format";
 
@@ -58,12 +60,14 @@ export function AfiliadoPainel() {
         <Empty>Carregando…</Empty>
       ) : (
         <div className="space-y-4">
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <Kpi label="Cliques" value={String(data.clicks)} />
-            <Kpi
-              label="Vendas"
-              value={String(data.sales)}
-              hint={
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <Estatistica icone={MousePointerClick} tom="azul" valor={String(data.clicks)} rotulo="Cliques no link" />
+            <Estatistica
+              icone={ShoppingBag}
+              tom="azul"
+              valor={String(data.sales)}
+              rotulo="Vendas pelo link"
+              dica={
                 <>
                   conversão de{" "}
                   <span className="tnum">
@@ -72,18 +76,17 @@ export function AfiliadoPainel() {
                 </>
               }
             />
-            <Kpi label="Receita gerada" value={formatBRL(data.revenueCents)} />
-            <Kpi
-              label="Comissão"
-              value={formatBRL(
-                data.commission.pendingCents + data.commission.availableCents,
-              )}
-              hint={
+            <Estatistica icone={Banknote} tom="green" valor={formatBRL(data.revenueCents)} rotulo="Receita gerada" />
+            <Estatistica
+              icone={Percent}
+              tom="yellow"
+              valor={formatBRL(data.commission.pendingCents + data.commission.availableCents)}
+              rotulo="Comissão"
+              dica={
                 <>
                   <span className="tnum">{formatBRL(data.commission.availableCents)}</span> já liberados
                 </>
               }
-              highlight
             />
           </div>
 

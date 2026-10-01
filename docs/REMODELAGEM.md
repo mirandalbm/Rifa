@@ -40,7 +40,7 @@ cada item precisa ter um lugar novo — ou uma decisão explícita de sair.
 
 | Tela (rota) | Arquivo | O que tem |
 |---|---|---|
-| Painel (`/admin`) | `pages/admin.tsx` | grade bento: receita com gráfico, cotas, comissão, próximo sorteio, o que falta, últimas vendas |
+| Painel (`/admin`) | `pages/admin.tsx` | padrão Materialize: estatísticas (receita, cotas, comissão, próximo sorteio), gráfico, o que falta, últimas vendas, top afiliados |
 | Campanhas (`/admin/campanhas`) | `pages/admin.tsx` | Nova campanha; por rifa: mídia (`MediaManager`), dados legais (`DadosLegaisCard`), legenda (`LegendaCard`), transmissão (`TransmissaoCard`), editar e adiar (`EditarRifaCard`, `AdiarSorteioCard`), cotas premiadas, demonstração, tirar do ar, excluir, links curtos |
 | Pedidos (`/admin/pedidos`) | `pages/admin.tsx` | lista com recorte e titularidade do cliente |
 | Resultados (`/admin/resultados`) | `pages/adminResultados.tsx` | Receita por dia, Por canal, Rifas que mais vendem |

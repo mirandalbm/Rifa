@@ -168,10 +168,16 @@ celular, na largura da casca.
 
 ### Painel do organizador e da plataforma
 
+A casca é a mesma nas três larguras (`PanelShell`, padrão Materialize): no
+celular o menu entra por cima pelo botão do topo; no tablet e no computador
+fica ao lado, com 260 px ou recolhido em 72 px (abre com os nomes ao passar
+o ponteiro). O título da tela vai dentro do conteúdo, abaixo da barra de
+cima com a busca, o tema, o sino e a conta.
+
 | Rota | Arquivo | Celular | Tablet | Computador |
 |---|---|---|---|---|
-| `/admin` | `pages/admin.tsx` (`AdminPainel`) | grade bento em 1 coluna | 2 colunas | 4 colunas; receita com o gráfico em 2×2 |
-| `/admin/campanhas` | `admin.tsx` (`AdminCampanhas`) | formulário e lista | formulário em 2 colunas | igual ao tablet ([P5](#pendências)) |
+| `/admin` | `pages/admin.tsx` (`AdminPainel`) | os widgets do kit empilhados: boas-vindas, cotas, comissão, próximo sorteio, canais, vendas do mês, atividade, rifas no ar, por estado, dia da semana, o que falta, top afiliados | 2 por linha (boas-vindas, sorteio, atividade e rifas no ar ocupam as 2) | 4 colunas: boas-vindas e sorteio com 2, atividade e rifas no ar com 2, o resto com 1 |
+| `/admin/campanhas` | `admin.tsx` (`AdminCampanhas`) | formulário; rifas em grade de capas (1 por linha) ou lista rolando no cartão | formulário em 2 colunas; grade 2 por linha | grade 4 por linha a partir de `xl` ([P5](#pendências) na lista) |
 | `/admin/pedidos` | `admin.tsx` (`AdminPedidos`) | tabela rolando no cartão ([P5](#pendências), [P10](#pendências)) | tabela | tabela |
 | `/admin/resultados` | `pages/adminResultados.tsx` | números 2 por linha | 3 por linha | 6 por linha (`xl`); gráfico e tabelas em 2 colunas |
 | `/admin/stories` | `pages/adminStories.tsx` | formulário; stories 2 por linha | stories 3 por linha | formulário e stories lado a lado |
@@ -197,7 +203,7 @@ celular, na largura da casca.
 
 | Rota | Arquivo | Celular | Tablet | Computador |
 |---|---|---|---|---|
-| `/afiliado` | `pages/afiliado.tsx` | empilhado | números 2 por linha | números 4 por linha; 2 colunas |
+| `/afiliado` | `pages/afiliado.tsx` | estatísticas empilhadas | estatísticas 2 por linha | 4 por linha; 2 colunas |
 | `/afiliado/links` | `pages/afiliado.tsx` | link e material empilhados | QR de 132 px ao lado do texto | igual |
 | `/afiliado/organizacoes`, `/afiliado/comissoes` | `pages/afiliado.tsx` | lista | igual | igual |
 | `/afiliado/saques` | `pages/afiliado.tsx` | empilhado | igual | 2 colunas |
@@ -317,3 +323,4 @@ ou `leva N`. O teste confere o formato, a numeração e o limite da leva.
 | 15 | 2026-09-29 | #70 | Vitrine e fotos do perfil | O selo de vendidas ("0% vendida", "reta final") sai de cima da imagem do feed — o progresso já está no cartão da rifa logo abaixo; a foto do perfil (apostador, afiliado, organização e capa) é reduzida no aparelho antes de enviar, e as rotas de foto e de documento aceitam o tamanho da foto do celular | Vale igual: o selo sai também no tablet e no computador | aguardando leva |
 | 16 | 2026-10-01 | #72 | Rifa · cartelas | Quatro cartelas por pacote (eram três), já buscadas para todos os pacotes quando a página abre: tocar noutro pacote mostra as cartelas na hora; enquanto chegam, o lugar delas já fica desenhado | Tablet: as quatro fecham o quadrado 2 × 2 (com três sobrava uma lacuna); no computador seguem numa coluna na lateral da compra | aguardando leva |
 | 17 | 2026-10-01 | #79 | Painéis · alvos de toque | Links e botões pequenos dos painéis ganham área de toque de 24 px, sem mudar o desenho: "Compartilhar este perfil", "ver perfil", "conferir de novo", "tirar", "+ faixa", "baixar" (QR do afiliado), "sair desta organização", a caixa "Mostrar" e os botões Subir/Descer dos blocos da Aparência. As colunas dos gráficos por dia (Resultados e Patrocínio) ficam como estão: são 31 num celular, e o mesmo dado está na tabela ao lado | Vale igual — o arranjo não muda | aguardando leva |
+| 18 | 2026-10-01 | #80 | Painéis · casca, Painel e Rifas | Casca no padrão Materialize: o menu lateral sai da tela e entra por cima pelo botão do topo (era uma régua fixa de 56 px com ícones); barra de cima com a busca do painel, o tema, o sino e a conta; itens do menu em grupos (o master abre pela Caixa de entrada); fundo neutro e cartões "papel" com a fonte Inter. O Painel vira os widgets dos painéis prontos do kit (boas-vindas com o dia, cotas e comissão, próximo sorteio em destaque com a capa, canais site/cambista, vendas do mês, atividade, rifas no ar, vendas por estado, dia da semana, o que falta, top afiliados) empilhados; Rifas ganha a grade de capas (1 por linha) com o botão grade/lista | Tablet e computador: menu de 260 px ao lado (recolhido em 72 px, abre ao passar o ponteiro); estatísticas 2 e 4 por linha; grade 2 e 4 por linha — conferido em 820 e 1440 | aguardando leva |

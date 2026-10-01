@@ -180,3 +180,115 @@ export const API_SCOPES: { prefix: string; requires: Role }[] = [
   // prédio; o escopo da organização diz em que sala.
   { prefix: "/api/admin", requires: "organizer" },
 ];
+
+/* ------------------------------ menu em grupos ------------------------------ */
+
+/**
+ * O menu lateral dos painéis, no padrão do kit (Materialize): seções com um
+ * subtítulo em letras pequenas, itens soltos e itens "pai" que abrem os
+ * filhos. A matriz acima continua sendo quem diz o que cada papel alcança —
+ * aqui só se arruma a ordem e a hierarquia do que a sessão já liberou:
+ * `menuDe()` monta o menu a partir das seções da sessão, e o que a sessão
+ * não trouxe não aparece, esteja ou não listado aqui.
+ *
+ * O ícone de cada item pai é um nome fixo (desenhado em `AppShell.tsx`); o
+ * dos itens soltos sai da seção.
+ */
+export type IconeDoGrupo =
+  | "caixa"
+  | "visaoGeral"
+  | "rifas"
+  | "dinheiro"
+  | "pessoas"
+  | "crescimento"
+  | "plataforma"
+  | "equipe";
+
+export type ItemDoMenu =
+  | { secao: SectionKey }
+  | { rotulo: string; icone: IconeDoGrupo; filhos: SectionKey[] };
+
+export interface GrupoDoMenu {
+  /** O subtítulo da seção; sem ele, os itens vêm colados no topo (ou no grupo anterior). */
+  titulo?: string;
+  itens: ItemDoMenu[];
+}
+
+const MENU_DO_MASTER: GrupoDoMenu[] = [
+  // A caixa de entrada vem primeiro: é onde a plataforma decide o que só ela
+  // decide (disputas, edições de rifa, denúncias, verificações, cadastros).
+  { itens: [{ rotulo: "Caixa de entrada", icone: "caixa", filhos: ["adminAtendimento", "adminAntifraude"] }] },
+  {
+    titulo: "Painel",
+    itens: [
+      { rotulo: "Visão geral", icone: "visaoGeral", filhos: ["adminPainel", "adminResultados"] },
+      { rotulo: "Rifas", icone: "rifas", filhos: ["adminCampanhas", "adminSorteios", "adminStories"] },
+      { rotulo: "Vendas e dinheiro", icone: "dinheiro", filhos: ["adminPedidos", "adminFinanceiro", "adminCobranca", "adminExportacoes"] },
+      { rotulo: "Pessoas", icone: "pessoas", filhos: ["adminOrganizacoes", "adminUsuarios", "adminAfiliados", "adminCambistas", "adminFiscal"] },
+      { rotulo: "Crescimento", icone: "crescimento", filhos: ["adminMarketing", "adminPatrocinio", "adminBonus"] },
+      { rotulo: "Plataforma", icone: "plataforma", filhos: ["adminAparencia", "adminConfiguracoes"] },
+    ],
+  },
+];
+
+const MENU_DO_ORGANIZADOR: GrupoDoMenu[] = [
+  { itens: [{ secao: "adminPainel" }, { secao: "adminAtendimento" }] },
+  {
+    titulo: "Rifas",
+    itens: [{ rotulo: "Rifas", icone: "rifas", filhos: ["adminCampanhas", "adminSorteios", "adminStories"] }, { secao: "adminResultados" }],
+  },
+  {
+    titulo: "Vendas",
+    itens: [{ secao: "adminPedidos" }, { secao: "adminFinanceiro" }, { secao: "adminCobranca" }, { secao: "adminExportacoes" }],
+  },
+  {
+    titulo: "Equipe e crescimento",
+    itens: [
+      { rotulo: "Equipe", icone: "equipe", filhos: ["adminAfiliados", "adminCambistas", "adminUsuarios"] },
+      { rotulo: "Crescimento", icone: "crescimento", filhos: ["adminMarketing", "adminPatrocinio"] },
+      { secao: "adminConfiguracoes" },
+    ],
+  },
+];
+
+const MENU_DO_AFILIADO: GrupoDoMenu[] = [
+  { itens: [{ secao: "afiliadoPainel" }, { secao: "afiliadoLinks" }, { secao: "afiliadoOrganizacoes" }] },
+  { titulo: "Dinheiro", itens: [{ secao: "afiliadoComissoes" }, { secao: "afiliadoSaques" }, { secao: "afiliadoDados" }] },
+];
+
+const MENU_DO_CAMBISTA: GrupoDoMenu[] = [
+  { itens: [{ secao: "cambistaVenda" }, { secao: "cambistaVendas" }, { secao: "cambistaAcerto" }] },
+];
+
+export const MENUS: Partial<Record<Role, GrupoDoMenu[]>> = {
+  admin: MENU_DO_MASTER,
+  organizer: MENU_DO_ORGANIZADOR,
+  affiliate: MENU_DO_AFILIADO,
+  cambista: MENU_DO_CAMBISTA,
+};
+
+/** As chaves de seção que um menu cita, na ordem em que aparecem. */
+export function secoesDoMenu(grupos: GrupoDoMenu[]): SectionKey[] {
+  return grupos.flatMap((g) => g.itens.flatMap((i) => ("secao" in i ? [i.secao] : i.filhos)));
+}
+
+/**
+ * O menu de um papel, só com o que a sessão liberou (`sections`). Item pai
+ * sem filho liberado some; grupo sem item some. Seção liberada que nenhum
+ * menu cita entra no fim, solta — melhor um item fora de lugar do que uma
+ * tela que a sessão alcança e o menu esconde.
+ */
+export function menuDe(role: Role, sections: Pick<Section, "key">[]): GrupoDoMenu[] {
+  const liberadas = new Set(sections.map((s) => s.key));
+  const grupos = (MENUS[role] ?? [])
+    .map((g) => ({
+      ...g,
+      itens: g.itens
+        .map((i) => ("secao" in i ? i : { ...i, filhos: i.filhos.filter((f) => liberadas.has(f)) }))
+        .filter((i) => ("secao" in i ? liberadas.has(i.secao) : i.filhos.length > 0)),
+    }))
+    .filter((g) => g.itens.length > 0);
+  const citadas = new Set(secoesDoMenu(grupos));
+  const soltas = sections.filter((s) => !citadas.has(s.key)).map((s) => ({ secao: s.key }));
+  return soltas.length ? [...grupos, { itens: soltas }] : grupos;
+}

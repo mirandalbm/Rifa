@@ -137,6 +137,7 @@ arquitetura.
 | carrinho (várias rifas, separadas por organização), o Pix único do carrinho e o comprar da publicação | `shared/carrinho.ts` (regras e split), `server/services/carrinho.ts`, `createCartOrder()` em `server/services/orders.ts`, `client/src/pages/CarrinhoPix.tsx`, `client/src/components/EscolherBilhete.tsx` (a janela do "+"), `scripts/carrinho-test.ts`, `client/src/lib/carrinho.ts`, `client/src/pages/Carrinho.tsx`, `BarraDeAcoes` em `client/src/components/Publicacao.tsx`, `scripts/publicacao-test.ts` |
 | presente pelos comentários (desconto de primeira compra pago pela plataforma) | `shared/presente.ts` (regras), `server/services/presente.ts`, `prepararPedido`/`settleOrderAsPaid` em `server/services/orders.ts`, `Presentear` em `client/src/components/Comentarios.tsx`, `AvisoDePresente` em `client/src/pages/Rifa.tsx`, cartão Presente em `client/src/pages/adminBonus.tsx`, `scripts/presente-test.ts` |
 | topo e console do app (os 6 botões da base, a lateral no computador, o trevo e a publicação) | `shared/console.ts` (botões, aviso do trevo, quem publica), `client/src/components/Console.tsx`, `PublicShell` em `client/src/components/AppShell.tsx`, `client/src/pages/PerfilDoUsuario.tsx`, `client/src/pages/EmBreve.tsx`, `client/src/components/TopoDoAppCard.tsx`, `tests/console.test.ts` |
+| casca dos painéis (menu lateral em grupos, barra de cima, busca, conta, rodapé) e as peças do kit | `MENUS`/`menuDe()` em `shared/access.ts`, `PanelShell` em `client/src/components/AppShell.tsx`, `client/src/components/painel.tsx` (`Estatistica`, `CartaoDoPainel`, `CabecalhoDaTabela`, `AlternarVisao`), `.painel`/`.cartao` em `client/src/index.css`, `tests/menu.test.ts` |
 | remodelagem do web e dos painéis: inventário do que existe e lista de conferência | `docs/REMODELAGEM.md` |
 | vitrine no tablet e no computador: coluna ao vivo (tela do sorteio, ganhadores, jogando agora), tela flutuante e rodapé com logos | `shared/aoVivo.ts` (regras), `server/services/aoVivo.ts`, `client/src/components/ColunaAoVivo.tsx`, `client/src/components/RodapeDaPlataforma.tsx`, `validarApoios()` em `shared/template.ts`, `tests/aoVivo.test.ts`, `scripts/vitrine-test.ts` |
 | rodapé da plataforma: colunas de links, redes sociais e espaço de apoio | `shared/rodape.ts` (colunas), `validarRedes()`/`REDES_DO_RODAPE` em `shared/template.ts`, `client/src/components/RodapeDaPlataforma.tsx`, cartão "Redes sociais do rodapé" em `client/src/pages/adminAparencia.tsx`, `preencherRodapeComExemplo()` em `server/services/template.ts`, `tests/rodape.test.ts` |
@@ -433,6 +434,51 @@ Como no Instagram, com as nossas cores (verde no lugar do vermelho e do rosa).
 - **O "18+", a ajuda, o tema e os cookies moram em `/perfil`**; não há mais
   faixa fixa de rodapé. O texto livre do rodapé (template) segue no fim da
   página.
+
+## Painéis no padrão Materialize — o que não pode afrouxar
+
+Os três painéis (plataforma e organizador, afiliado, cambista) seguem o kit
+Materialize (Figma, comprado): menu lateral de 260 px com os itens em
+grupos, barra de cima de 64 px, fundo neutro, cartão "papel" e fonte Inter.
+O verde da marca entra no lugar do roxo do kit; o significado das cores
+(verde = dinheiro, amarelo = espera, vermelho = erro) não muda.
+
+- **A ordem e a hierarquia do menu moram em `MENUS` (`shared/access.ts`);
+  quem libera continua sendo a matriz.** `menuDe(role, sections)` monta o
+  menu só com o que a sessão trouxe: item pai sem filho liberado some; seção
+  liberada que o menu não cita entra solta no fim — tela que a sessão
+  alcança nunca fica escondida. `tests/menu.test.ts` confere que cada papel
+  tem cada seção uma vez só, e que o master abre pela **Caixa de entrada**
+  (Atendimento, Antifraude) seguida dos seis grupos: Visão geral, Rifas,
+  Vendas e dinheiro, Pessoas, Crescimento, Plataforma.
+- **Casca uma só, três larguras.** Computador e tablet: menu de 260 px, ou
+  recolhido em 72 px (lembrado em `rifa.menu.aberto`) que abre com os nomes
+  **por cima** do conteúdo ao passar o ponteiro ou entrar pelo teclado.
+  Celular: o menu fica fora da tela e entra por cima pelo botão do topo,
+  fechando ao escolher a página. O item aceso é a pílula verde com
+  `aria-current`; o contador de pendências vai no rótulo, nunca só na bolinha.
+- **A barra de cima tem a busca única do painel** (`BuscaDoPainel`: acha a
+  tela pelo nome, Enter abre a primeira), o tema, o sino do atendimento (com
+  o número no rótulo) e a conta num `<details>` que fecha fora e no Esc.
+  Pedido, organização e cliente ainda não entram na busca
+  (`docs/PENDENCIAS.md`).
+- **As regras visuais só valem dentro de `.painel`** (`index.css`): Inter
+  nos títulos também (a loja segue com a Bricolage), fundo `--painel`
+  (`bg-painel`) e o cartão `.cartao` sem borda, cantos de 10 px e a sombra do
+  kit (`--sombra-papel`). `Card`, `Kpi`, `Estatistica` e `CartaoDoPainel`
+  levam a classe; na loja ela não faz nada. O escuro redefine os dois tokens
+  (`tests/tema.test.ts` cobra).
+- **O Painel usa os widgets dos painéis prontos do kit** (eCommerce e
+  Analytics), cada um ligado a um dado nosso em `GET /api/admin/overview`
+  (hoje, mês, canais site/cambista, por estado de quem comprou, série de 30
+  dias no fuso de São Paulo, a capa do próximo sorteio) — tudo venda paga,
+  com o recorte de `orgOf` em cada consulta. Sparkline e barras por dia da
+  semana levam a lista de valores no `aria-label`; nada é simulado.
+- **Rifas em grade de capas** (`AdminCampanhas`): a capa vem do servidor
+  (`capa` na lista: o banner, senão a primeira foto — nunca o vídeo), a
+  situação vai em texto na pílula sobre a capa, e as mesmas ações da lista
+  ficam no cartão (duas à mostra, o resto no "⋮"). Grade ou lista é
+  escolha do aparelho (`rifa.rifas.visao`), com `aria-pressed`.
 
 ## Versões — o que não pode afrouxar
 

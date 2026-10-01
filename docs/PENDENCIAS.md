@@ -31,11 +31,23 @@ senha); **[código]** é trabalho no repositório.
 
 - [x] Casca dos três painéis no padrão do kit (menu em grupos, barra de
   cima, cartões "papel"), Painel e Rifas em grade de capas (#80).
-- [ ] **[código]** Caixa de entrada unificada: uma lista só com disputas,
-  edições de rifa, denúncias, verificações, cadastros fiscais e telefones por
-  aprovar (hoje cada tipo é uma aba do Atendimento).
+- [x] Caixa de entrada unificada (`/admin/caixa`): uma lista só com disputas,
+  reembolsos, edições e adiamentos, denúncias, selos, cadastros fiscais e
+  telefones por aprovar; decidir continua na tela de cada tipo.
 - [ ] **[código]** A busca do painel achar pedido (pelo código), organização
   e cliente (pelo ID) — hoje só acha a tela pelo nome.
+
+- [ ] **[código]** **Por último:** uma coluna à direita do painel para o
+  **Chatbase AI**, que interage com o sistema e auxilia o **administrador
+  master** e o **organizador** (só esses dois painéis; afiliado e cambista
+  ficam de fora). Fica por último, depois de a casca e as telas estarem
+  fechadas. Pontos a decidir quando chegar a hora: a coluna entra na casca
+  (`PanelShell`) como o painel de comentários entra na vitrine — recolhida
+  por padrão, aberta pelo botão da barra de cima, por cima do conteúdo no
+  celular; e **o que a IA enxerga e faz passa pelo mesmo recorte do painel**
+  (`orgOf`): o organizador só alcança a organização dele, e nenhuma ação sai
+  sem a confirmação de quem está logado, com auditoria. Dado pessoal de
+  comprador (telefone, CPF) nunca vai para o contexto da IA.
 
 ## 2. Para a rifa vender
 

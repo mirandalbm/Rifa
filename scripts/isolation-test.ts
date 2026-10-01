@@ -460,6 +460,7 @@ async function rotasDaPlataforma(eu: Lado) {
     ["PUT configuração do bônus", "/api/admin/bonus/config", { method: "PUT", body: '{"bonusLigado":true}' }],
     ["POST meta de bônus", "/api/admin/bonus/metas", { method: "POST", body: "{}" }],
     ["PUT meta de bônus", "/api/admin/bonus/metas/00000000-0000-0000-0000-000000000000", { method: "PUT", body: "{}" }],
+    ["GET caixa de entrada", "/api/admin/caixa-de-entrada", {}],
     ["GET denúncias", "/api/admin/denuncias", {}],
     ["GET denúncia", "/api/admin/denuncias/00000000-0000-0000-0000-000000000000", {}],
     ["POST decidir denúncia", "/api/admin/denuncias/00000000-0000-0000-0000-000000000000/decidir", { method: "POST", body: '{"acao":"banir","resposta":"xxxxxxxxxxxx"}' }],

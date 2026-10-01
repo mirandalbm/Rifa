@@ -137,6 +137,7 @@ arquitetura.
 | carrinho (várias rifas, separadas por organização), o Pix único do carrinho e o comprar da publicação | `shared/carrinho.ts` (regras e split), `server/services/carrinho.ts`, `createCartOrder()` em `server/services/orders.ts`, `client/src/pages/CarrinhoPix.tsx`, `client/src/components/EscolherBilhete.tsx` (a janela do "+"), `scripts/carrinho-test.ts`, `client/src/lib/carrinho.ts`, `client/src/pages/Carrinho.tsx`, `BarraDeAcoes` em `client/src/components/Publicacao.tsx`, `scripts/publicacao-test.ts` |
 | presente pelos comentários (desconto de primeira compra pago pela plataforma) | `shared/presente.ts` (regras), `server/services/presente.ts`, `prepararPedido`/`settleOrderAsPaid` em `server/services/orders.ts`, `Presentear` em `client/src/components/Comentarios.tsx`, `AvisoDePresente` em `client/src/pages/Rifa.tsx`, cartão Presente em `client/src/pages/adminBonus.tsx`, `scripts/presente-test.ts` |
 | topo e console do app (os 6 botões da base, a lateral no computador, o trevo e a publicação) | `shared/console.ts` (botões, aviso do trevo, quem publica), `client/src/components/Console.tsx`, `PublicShell` em `client/src/components/AppShell.tsx`, `client/src/pages/PerfilDoUsuario.tsx`, `client/src/pages/EmBreve.tsx`, `client/src/components/TopoDoAppCard.tsx`, `tests/console.test.ts` |
+| caixa de entrada da plataforma (tudo que espera decisão, numa lista) | `shared/caixa.ts` (ordem e destino), `server/services/caixa.ts`, `client/src/pages/adminCaixa.tsx`, `tests/caixa.test.ts` |
 | casca dos painéis (menu lateral em grupos, barra de cima, busca, conta, rodapé) e as peças do kit | `MENUS`/`menuDe()` em `shared/access.ts`, `PanelShell` em `client/src/components/AppShell.tsx`, `client/src/components/painel.tsx` (`Estatistica`, `CartaoDoPainel`, `CabecalhoDaTabela`, `AlternarVisao`), `.painel`/`.cartao` em `client/src/index.css`, `tests/menu.test.ts` |
 | remodelagem do web e dos painéis: inventário do que existe e lista de conferência | `docs/REMODELAGEM.md` |
 | vitrine no tablet e no computador: coluna ao vivo (tela do sorteio, ganhadores, jogando agora), tela flutuante e rodapé com logos | `shared/aoVivo.ts` (regras), `server/services/aoVivo.ts`, `client/src/components/ColunaAoVivo.tsx`, `client/src/components/RodapeDaPlataforma.tsx`, `validarApoios()` em `shared/template.ts`, `tests/aoVivo.test.ts`, `scripts/vitrine-test.ts` |
@@ -161,6 +162,13 @@ arquitetura.
 - Política de conteúdo (CSP) completa: hoje só `frame-ancestors`. Os pixels
   de marketing pedem a lista de origens — o caminho é começar em modo
   relatório. O que mais ficou para depois está em `docs/SEGURANCA.md`.
+
+- **Chatbase AI nos painéis** (a última peça do plano dos painéis): uma
+  coluna à direita para o administrador master e o organizador, com uma IA que
+  interage com o sistema e os auxilia. Ainda não existe; as regras de
+  recorte e de confirmação estão em `docs/PENDENCIAS.md` (seção 1b). Quando
+  entrar, vale o recorte de `orgOf` e nada de dado pessoal de comprador no
+  contexto.
 
 - Pôster extraído do vídeo e transcode: hoje servimos o arquivo original. A
   medição e os limites já existem; falta o processamento. Cloudflare Stream
@@ -449,7 +457,7 @@ O verde da marca entra no lugar do roxo do kit; o significado das cores
   liberada que o menu não cita entra solta no fim — tela que a sessão
   alcança nunca fica escondida. `tests/menu.test.ts` confere que cada papel
   tem cada seção uma vez só, e que o master abre pela **Caixa de entrada**
-  (Atendimento, Antifraude) seguida dos seis grupos: Visão geral, Rifas,
+  (Tudo, Atendimento, Antifraude) seguida dos seis grupos: Visão geral, Rifas,
   Vendas e dinheiro, Pessoas, Crescimento, Plataforma.
 - **Casca uma só, três larguras.** Computador e tablet: menu de 260 px, ou
   recolhido em 72 px (lembrado em `rifa.menu.aberto`) que abre com os nomes
@@ -474,6 +482,14 @@ O verde da marca entra no lugar do roxo do kit; o significado das cores
   dias no fuso de São Paulo, a capa do próximo sorteio) — tudo venda paga,
   com o recorte de `orgOf` em cada consulta. Sparkline e barras por dia da
   semana levam a lista de valores no `aria-label`; nada é simulado.
+- **A Caixa de entrada reúne, não decide** (`/admin/caixa`, só a plataforma:
+  403 para organizador, no `npm run isolation`). `caixaDeEntrada()` junta as
+  cinco filas (chamados e disputas, pedidos de mudança de rifa, denúncias,
+  verificações, cadastros fiscais) e os telefones por aprovar; a ordem e o
+  destino de cada tipo moram em `shared/caixa.ts` (`tests/caixa.test.ts`).
+  **Sem dado pessoal na lista**: organização, código do afiliado ou apelido —
+  nunca telefone, CPF ou nome de comprador. Decidir segue na tela de cada
+  tipo, onde a auditoria já é gravada.
 - **Rifas em grade de capas** (`AdminCampanhas`): a capa vem do servidor
   (`capa` na lista: o banner, senão a primeira foto — nunca o vídeo), a
   situação vai em texto na pílula sobre a capa, e as mesmas ações da lista

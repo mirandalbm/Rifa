@@ -120,6 +120,7 @@ import {
   OrgScopeError,
 } from "../services/orgs";
 import { isUniqueViolation } from "../pgError";
+import { caixaDeEntrada } from "../services/caixa";
 import { destaqueDa, midiasDas, salvarPerfil, urlDaCapa, urlDaFoto } from "../services/perfil";
 import { resultados as resultadosDoPainel } from "../services/resultados";
 import {
@@ -3728,6 +3729,16 @@ adminRouter.post("/verificacoes/:id/decidir", async (req, res, next) => {
  * recebe 403. Toda leitura de dado ou documento entra na auditoria **antes**
  * de o dado sair (se a auditoria falhar, nada sai).
  */
+/** A caixa de entrada: o que espera decisão, de todas as filas. Só a plataforma. */
+adminRouter.get("/caixa-de-entrada", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    res.json(await caixaDeEntrada());
+  } catch (err) {
+    next(err);
+  }
+});
+
 adminRouter.get("/fiscal", async (req, res, next) => {
   try {
     requirePlatformAdmin(req);

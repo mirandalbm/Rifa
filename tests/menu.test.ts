@@ -20,7 +20,7 @@ describe("menu dos painéis em grupos", () => {
     const menu = MENUS.admin!;
     const pais = menu.flatMap((g) => g.itens).filter((i) => "rotulo" in i).map((i) => ("rotulo" in i ? i.rotulo : ""));
     expect(pais).toEqual(["Caixa de entrada", "Visão geral", "Rifas", "Vendas e dinheiro", "Pessoas", "Crescimento", "Plataforma"]);
-    expect(("filhos" in menu[0].itens[0] && menu[0].itens[0].filhos) || []).toEqual(["adminAtendimento", "adminAntifraude"]);
+    expect(("filhos" in menu[0].itens[0] && menu[0].itens[0].filhos) || []).toEqual(["adminCaixa", "adminAtendimento", "adminAntifraude"]);
   });
 
   it("menuDe só mostra o que a sessão liberou: o organizador não ganha os filhos da plataforma", () => {

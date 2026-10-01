@@ -213,6 +213,43 @@ senha); **[código]** é trabalho no repositório.
   corrigidas, com prova. Registro e o que ficou para depois em
   `docs/SEGURANCA.md`.
 
+## 3b. Decisões de produto (1º/10/2026)
+
+Respostas do dono do produto, para quem for implementar. Cada item vira
+código só depois do plano combinado com ele.
+
+- **Console (Reels → Mensagens → Buscar):** planejar nesta ordem, da
+  esquerda para a direita, uma tela por vez.
+- **Banner pago:** é receita da plataforma. **Preço e regra de tempo no topo
+  são editáveis no painel do administrador** (como a tabela do patrocínio),
+  nunca fixos no código. Usa o saldo e o Pix da plataforma que já existem.
+- **Story em vídeo:** aceitar vídeo curto **sem transcode**, já preparado
+  para a forma final (medição de duração no servidor, limite, formato e
+  pôster no mesmo lugar em que o Cloudflare Stream entrar depois).
+- **Login com Google:** uma das últimas implementações. Falta decidir se a
+  conta nova exige CPF e telefone como o cadastro de hoje.
+- **Bônus no perfil e "seguidores da mesma rifa":** o incentivo é por
+  **seguir**. A invariante do bônus continua: cota grátis só com o
+  regulamento prevendo e o advogado confirmando; o interruptor nasce
+  desligado. Se a recompensa por seguir for outra coisa que não cota, a
+  regra é decidida junto com o advogado antes de ligar.
+- **Chatbase AI nos painéis:** é **receita da plataforma** — o uso é **pago**
+  para organizador e afiliado e **gratuito para o administrador master**
+  (propriedade da empresa). Todas as telas seguem **livres no uso manual**;
+  só a IA é cobrada. Alcance: afiliado — gestão e edição das publicações;
+  organizador — tudo, inclusive lançar uma campanha com passo a passo e
+  gestão e edição de publicações; master — tudo. Regras que não mudam: o
+  recorte de `orgOf` vale para a IA como para a pessoa; nada de dado
+  pessoal de comprador no contexto; ação que mexe em dinheiro, estorno,
+  publicação ou exclusão pede confirmação da pessoa e entra em `audit_log`
+  como feita pela IA.
+- **Cobrança da IA: fora do saldo.** O saldo do patrocínio (e o livro
+  `patrocinio_lancamentos`) **não** paga a IA e não é tocado por ela. A IA é
+  paga **por fora**, de dois jeitos: **assinatura** (plano recorrente) ou
+  **compra de créditos avulsos**. O modelo de cobrança (provedor, planos,
+  preço do crédito, o que consome crédito) é decisão de produto e entra no
+  plano da IA; o administrador master não paga.
+
 ## 4. Limpeza no GitHub
 
 - [ ] **[você]** Apagar as branches antigas (o assistente não tem permissão):

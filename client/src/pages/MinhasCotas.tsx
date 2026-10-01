@@ -725,7 +725,7 @@ function Salvos() {
     return <Empty>Nada salvo ainda. Toque no marcador embaixo de uma publicação para guardar a rifa aqui.</Empty>;
   }
   return (
-    <div className="mt-3 grid gap-4 sm:grid-cols-2">
+    <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
       {data.map((r) => (
         <CartaoDoFeed key={r.id} rifa={r} />
       ))}
@@ -791,7 +791,7 @@ function MinhaConta({ aoSair }: { aoSair: () => void }) {
         </Card>
       )}
       <Card title="Meus dados">
-        <dl className="grid gap-3 p-4 text-sm sm:grid-cols-2">
+        <dl className="grid grid-cols-1 gap-3 p-4 text-sm sm:grid-cols-2">
           <div>
             <dt className="label-xs">Nome</dt>
             <dd>{data.nome}</dd>

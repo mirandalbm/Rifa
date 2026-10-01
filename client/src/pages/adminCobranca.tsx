@@ -128,7 +128,7 @@ function Carteira() {
         <p className="mb-3 rounded-md bg-red-soft px-3 py-2 text-sm text-red">{erro}</p>
       ) : null}
 
-      <div className="mb-3 grid gap-3 sm:grid-cols-3">
+      <div className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
         <Kpi label="A receber" value={formatBRL(total)} hint="somando todas" highlight={total > 0} />
         <Kpi label="Organizações cobrando" value={String(cobrando)} />
         <Kpi
@@ -357,7 +357,7 @@ function MinhaConta() {
 
   return (
     <PanelShell title="Cobrança">
-      <div className="mb-3 grid gap-3 sm:grid-cols-4">
+      <div className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-4">
         <Kpi
           label="Seu contrato"
           value={data ? BILLING_LABEL[data.plano.mode] : "—"}

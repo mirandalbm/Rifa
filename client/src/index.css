@@ -335,6 +335,12 @@
    * quem usa (`text-sm`), e a regra dos 16 px no celular continua valendo.
    * Com rótulo e erro, use o componente `Campo` (`components/bits.tsx`).
    */
+  /* O fundo de quem ainda não tem foto (rifa sem banner, peça sem imagem):
+   * um verde-escuro em degradê, igual nos dois temas — o texto é branco. */
+  .sem-foto {
+    background: linear-gradient(145deg, #0b1f14, #0d3a22 58%, #00873e);
+  }
+
   .campo {
     @apply mt-1 w-full rounded-md border border-line-2 px-3 py-2;
   }

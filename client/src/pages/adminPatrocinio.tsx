@@ -550,7 +550,7 @@ function DaOrganizacaoView({ dados }: { dados: DaOrg }) {
           ["Conversão do clique", pct(dados.totais.conversaoPct)],
         ]}
       />
-      <div className="grid gap-3 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
         <GastoReceita serie={dados.serie} />
         <Funil t={dados.totais} />
       </div>
@@ -607,7 +607,7 @@ function DaOrganizacaoView({ dados }: { dados: DaOrg }) {
         </p>
       </Card>
 
-      <div className="grid gap-3 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
         <NovoAnuncio
           dados={dados}
           aoComprar={() => {
@@ -627,7 +627,7 @@ function DaOrganizacaoView({ dados }: { dados: DaOrg }) {
         />
       </div>
 
-      <div className="grid gap-3 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
         <PorEstado estados={dados.porEstado} />
         <Card title="Extrato do saldo">
           {dados.extrato.length ? (
@@ -806,7 +806,7 @@ function PedirReembolso({ saldoCents }: { saldoCents: number }) {
       }}
     >
       <Aviso msg={msg} />
-      <div className="grid gap-2 sm:grid-cols-[10rem_1fr]">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-[10rem_1fr]">
         <label className="block">
           <span className="label-xs">Valor (R$)</span>
           <input
@@ -981,7 +981,7 @@ function ConversaDoReembolso({
       {plataforma && r.status === "aberto" ? (
         <div className="space-y-2 rounded-md border border-line p-3">
           <span className="label-xs">Decisão</span>
-          <div className="grid gap-2 sm:grid-cols-[10rem_1fr]">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-[10rem_1fr]">
             <label className="block">
               <span className="text-xs">Retido pela plataforma (R$)</span>
               <input
@@ -1351,11 +1351,11 @@ function DaPlataformaView({ dados }: { dados: DaPlataforma }) {
         podePedir={false}
         saldoCents={0}
       />
-      <div className="grid gap-3 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
         <ConfigCard config={dados.config} />
         <SaldosCard organizacoes={dados.organizacoes} />
       </div>
-      <div className="grid gap-3 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
         <GastoReceita serie={dados.serie} />
         <PorEstado estados={dados.porEstado} />
       </div>

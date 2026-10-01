@@ -134,7 +134,7 @@ export function WhatsAppCard() {
 
         {data?.configurado ? (
           <>
-            <dl className="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-3">
+            <dl className="grid grid-cols-1 gap-x-6 gap-y-1 text-sm sm:grid-cols-3">
               <div>
                 <dt className="label-xs">Número</dt>
                 <dd className="tnum">{data.numero ?? "—"}</dd>

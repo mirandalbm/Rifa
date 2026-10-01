@@ -90,7 +90,7 @@ export function AfiliadoPainel() {
             />
           </div>
 
-          <div className="grid gap-3 lg:grid-cols-[1.5fr_1fr]">
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1.5fr_1fr]">
             <Card title="Vendas por dia" right={<span className="label-xs">últimos 14 dias</span>}>
               <SalesChart data={data.daily} />
             </Card>
@@ -188,7 +188,7 @@ export function AfiliadoLinks() {
                 </p>
               ) : null}
 
-              <div className="grid gap-3 sm:grid-cols-[132px_1fr]">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-[132px_1fr]">
                 <div className="space-y-1">
                   <span className="label-xs">QR do seu link</span>
                   <img
@@ -346,7 +346,7 @@ export function AfiliadoSaques() {
 
   return (
     <PanelShell title="Saques">
-      <div className="grid gap-3 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
         <Card title="Chave Pix">
           <div className="space-y-3 p-4">
             <p className="text-sm text-muted">

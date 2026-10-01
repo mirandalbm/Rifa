@@ -142,8 +142,10 @@ export function CambistaVenda() {
 
   return (
     <PanelShell title="Nova venda">
+      {/* No computador, a venda numa coluna de leitura: o cambista olha o total e o botão, não a largura toda. */}
+      <div className="mx-auto w-full max-w-2xl">
       {data ? (
-        <div className="mb-3 grid gap-2 sm:grid-cols-3">
+        <div className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
           <Kpi label="Vendas hoje" value={String(data.hoje.vendas)} />
           <Kpi label="Cotas hoje" value={groupNumber(data.hoje.cotas)} />
           <Kpi
@@ -374,6 +376,7 @@ export function CambistaVenda() {
           </div>
         </Card>
       ) : null}
+      </div>
     </PanelShell>
   );
 }

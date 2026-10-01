@@ -507,7 +507,7 @@ export function AdminCampanhas() {
               </div>
             ) : null}
 
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
                 <label htmlFor="titulo" className="label-xs">Título</label>
                 <input
@@ -573,7 +573,7 @@ export function AdminCampanhas() {
               </p>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
                 <label htmlFor="preco" className="label-xs">Preço da cota (centavos)</label>
                 <input
@@ -1115,7 +1115,7 @@ export function AdminAfiliados() {
         <CouponsCard affiliates={data ?? []} />
       </div>
 
-      <div className="grid gap-3 lg:grid-cols-[1fr_1.6fr]">
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1fr_1.6fr]">
         <Card title="Novo afiliado">
           <div className="space-y-3 p-4">
             {(["name", "email", "password", "code"] as const).map((field) => (
@@ -1467,7 +1467,7 @@ export function AdminFinanceiro() {
         </Button>
       </div>
 
-      <div className="grid gap-3 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
         <Card title="Comissão por afiliado">
           <ul className="divide-y divide-line">
             {data?.perAffiliate.map((a) => (
@@ -2153,7 +2153,7 @@ export function AdminConfiguracoes() {
             titulo: "Conta e segurança",
             conteudo: (
               <div className="space-y-3">
-                <div className="grid gap-3 lg:grid-cols-2">
+                <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
                   <TwoFactorCard />
                   <TrocarSenha />
                 </div>
@@ -2180,7 +2180,7 @@ export function AdminConfiguracoes() {
             titulo: "Organização e perfil",
             conteudo: (
               <div className="space-y-3">
-                <div className="grid gap-3 lg:grid-cols-2">
+                <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
                   <OrganizerCard />
                   <EnderecoDaOrganizacaoCard />
                 </div>
@@ -2193,7 +2193,7 @@ export function AdminConfiguracoes() {
             id: "vendas",
             titulo: "Vendas e pagamentos",
             conteudo: (
-              <div className="grid gap-3 lg:grid-cols-2">
+              <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
                 <PaymentMethodsCard />
                 {plataforma ? (
                   <>

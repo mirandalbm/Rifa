@@ -118,7 +118,7 @@ export function AfiliadoDados() {
         cada consulta fica registrada. Mudar a conta ou um documento depois de aprovado volta para a análise.
       </p>
 
-      <div className="grid gap-3 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
         <Card title="Dados">
           <form
             className="space-y-3 p-4"
@@ -128,12 +128,12 @@ export function AfiliadoDados() {
             }}
           >
             {campo("Nome completo (como no documento)", f.nomeCompleto, (v) => setF({ ...f, nomeCompleto: v }))}
-            <div className="grid gap-2 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               {campo("CPF", f.cpf, (v) => setF({ ...f, cpf: maskCpf(v) }), { inputMode: "numeric", className: "campo tnum text-sm" })}
               {campo("RG", f.rg, (v) => setF({ ...f, rg: v }))}
             </div>
             {campo("Nascimento", f.nascimento, (v) => setF({ ...f, nascimento: v }), { type: "date" })}
-            <div className="grid gap-2 sm:grid-cols-[1fr_2fr]">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_2fr]">
               {campo("CEP", f.endereco.cep, (v) => end("cep")(maskCep(v)), { inputMode: "numeric" })}
               {campo("Rua", f.endereco.logradouro, end("logradouro"))}
             </div>

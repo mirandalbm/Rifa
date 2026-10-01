@@ -114,7 +114,7 @@ export function AdminResultados() {
             <GraficoPorDia dias={data.porDia} />
           </Card>
 
-          <div className="grid gap-3 lg:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
             <Card title="Por canal">
               {data.canais.length === 0 ? (
                 <Empty>Nenhuma venda paga no período.</Empty>

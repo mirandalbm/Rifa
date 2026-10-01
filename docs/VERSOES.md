@@ -284,14 +284,14 @@ qualquer mudança.
 | P2 | ~~Seis janelas feitas à mão~~ **Feito**: o componente `Janela` (regra 14) serve Comentários, escolha de bilhete, denúncia, Criar, cota surpresa, folhas do perfil e pedido de reembolso | `Janela.tsx` | todas |
 | P3 | ~~`h1` em 9 combinações de classe~~ **Feito**: o padrão `font-display text-xl font-extrabold` vale em todas as telas; sobram só dois tamanhos de propósito (o título do cartão com `line-clamp` e o do banner da rifa, `text-2xl`) e os modificadores de posição | várias | todas |
 | P4 | ~~A classe do campo de digitar repetida mais de 80 vezes~~ **Feito**: a classe `.campo` (`index.css`) no lugar da lista repetida, e o componente `Campo` (`bits.tsx`: rótulo, campo, dica e erro ligados pelo `id`, `aria-invalid` com erro) para formulário novo — o pedido de reembolso já usa. `tests/pecas.test.ts` barra a lista copiada de volta | várias | todas |
-| P6 | "Nova venda" do cambista ocupa a largura toda no computador | `cambista.tsx` | computador |
-| P7 | O degradê de "sem foto" (`#0B1F14` → `#00873E`) repetido em 3 telas. Alvo: uma classe | `Publicacao.tsx`, `Rifa.tsx`, `Vitrine.tsx` | todas |
-| P8 | A janela de comentários sobe de baixo também no computador | `Comentarios.tsx` | computador |
+| P6 | ~~"Nova venda" do cambista ocupa a largura toda no computador~~ **Feito**: a venda fica numa coluna de 672 px centrada | `cambista.tsx` | computador |
+| P7 | ~~O degradê de "sem foto" repetido~~ **Feito**: classe `.sem-foto` (`index.css`), usada na publicação e na página da rifa; `tests/pecas.test.ts` barra a cópia | `index.css` | todas |
+| P8 | ~~A janela de comentários sobe de baixo também no computador~~ **Feito**: `Janela` com `centralizarEm="lg"` — embaixo no celular e no tablet, como no Instagram, no centro só no computador | `Comentarios.tsx`, `Janela.tsx` | computador |
 | P9 | 49 dos 51 componentes de `components/ui` não são usados (só `toaster` e `tooltip`) | `components/ui/` | — |
 | P11 | Ícones do lucide (traço 2) e os desenhados à mão (traço 1,75) misturados | `components/` | todas |
-| P12 | Botões do topo com 24 a 28 px de altura; o recomendado para toque é 36 px ou mais | `AppShell.tsx` | celular |
-| P13 | Grades antigas sem `grid-cols-1` (regra 4) — hoje não estouram, mas estourariam com um texto maior | várias | todas |
-| P14 | Topo da loja apertado no celular: "Minhas cotas" quebra em duas linhas em 390 px com a marca padrão, e aperta mais com marca longa. Forçar uma linha estouraria a página; pede decisão (ícone no lugar do texto, ou levar para o menu) | `AppShell.tsx` (`PublicShell`) | celular |
+| P12 | ~~Botões do topo com 24 a 28 px de altura~~ **Resolvida pelo topo novo**: o topo ficou só com a publicação e o trevo, em botões de 40 px (`Console.tsx`) | `Console.tsx` | celular |
+| P13 | ~~Grades antigas sem `grid-cols-1`~~ **Feito**: 59 grades ganharam a coluna do celular; `tests/pecas.test.ts` barra grade nova sem ela | várias | todas |
+| P14 | ~~Topo da loja apertado no celular ("Minhas cotas" quebrava)~~ **Resolvida pelo topo novo**: "Minhas cotas", carrinho e Entrar saíram do topo para o console de baixo e o perfil | `AppShell.tsx` | celular |
 
 ## Levas
 

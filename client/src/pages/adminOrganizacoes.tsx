@@ -221,7 +221,7 @@ export function AdminOrganizacoes() {
         ))}
       </div>
 
-      <div className="grid gap-3 lg:grid-cols-[1fr_340px]">
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1fr_340px]">
         <Card title={situacao === "ativas" ? "Promotores" : "Arquivadas"}>
           {isLoading ? (
             <Empty>Carregando…</Empty>
@@ -578,7 +578,7 @@ function LinhaOrganizacao({
       {aberta ? (
         <tr className="border-b border-line bg-mist">
           <td colSpan={5} className="px-4 py-3">
-            <dl className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-3">
+            <dl className="grid grid-cols-1 gap-x-6 gap-y-2 text-sm sm:grid-cols-3">
               <Dado rotulo="CNPJ" valor={o.cnpj} tnum />
               <Dado rotulo="Contato" valor={o.contato} />
               <Dado rotulo="Cidade/UF" valor={cidadeUf(o.cidade, o.uf)} />
@@ -678,7 +678,7 @@ function PagamentoDaOrganizacao({ o }: { o: Organizacao }) {
   });
 
   return (
-    <div className="mt-4 grid gap-3 border-t border-line pt-3 sm:grid-cols-2">
+    <div className="mt-4 grid grid-cols-1 gap-3 border-t border-line pt-3 sm:grid-cols-2">
       <div>
         <label htmlFor={`carteira-${o.id}`} className="label-xs">
           Carteira Asaas (walletId)

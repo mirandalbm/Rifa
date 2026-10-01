@@ -455,7 +455,7 @@ function DetalheDaDenuncia({ id }: { id: string }) {
             {aviso.texto}
           </p>
         ) : null}
-        <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-2">
+        <dl className="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2">
           <div>
             <dt className="label-xs">Organização</dt>
             <dd>

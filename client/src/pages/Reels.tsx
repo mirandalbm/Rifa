@@ -237,8 +237,8 @@ function Quadro({
               )}
             </svg>
           </button>
-          <span className="text-branco [&_button]:text-branco">
-            <BotaoDenunciar rifa={c.slug} />
+          <span className="text-branco">
+            <BotaoDenunciar rifa={c.slug} soIcone />
           </span>
         </div>
 

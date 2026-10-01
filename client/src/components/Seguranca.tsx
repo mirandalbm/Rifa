@@ -203,11 +203,14 @@ export function BotaoDenunciar({
   organizacao,
   comentario,
   comoLink,
+  soIcone,
 }: {
   rifa?: string;
   organizacao?: string;
   comentario?: string;
   comoLink?: boolean;
+  /** Só a bandeira, com o nome no rótulo (coluna estreita do Reels). */
+  soIcone?: boolean;
 }) {
   const [aberto, setAberto] = useState(false);
   return (
@@ -215,14 +218,17 @@ export function BotaoDenunciar({
       <button
         type="button"
         onClick={() => setAberto(true)}
+        aria-label={soIcone ? "Denunciar" : undefined}
         className={
-          comoLink
+          soIcone
+            ? "flex h-9 w-9 items-center justify-center rounded-full bg-black/50"
+            : comoLink
             ? "font-semibold underline"
             : "inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-muted hover:bg-mist hover:text-ink"
         }
       >
-        {comoLink ? null : <Flag size={14} aria-hidden />}
-        Denunciar
+        {comoLink ? null : <Flag size={soIcone ? 18 : 14} aria-hidden />}
+        {soIcone ? null : "Denunciar"}
       </button>
       {aberto ? (
         <Denunciar rifa={rifa} organizacao={organizacao} comentario={comentario} onFechar={() => setAberto(false)} />

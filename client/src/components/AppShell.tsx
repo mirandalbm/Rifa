@@ -614,7 +614,7 @@ export function PanelShell({
           </details>
         </header>
         <main className="flex-1 px-4 pb-6 pt-2 md:px-6">
-          <h1 className="mb-5 text-xl font-medium">{title}</h1>
+          <h1 className="mb-5 font-display text-xl font-extrabold">{title}</h1>
           {children}
         </main>
         <footer className="flex h-14 flex-wrap items-center justify-between gap-x-6 gap-y-1 px-4 text-xs text-muted md:px-6">

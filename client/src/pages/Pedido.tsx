@@ -75,7 +75,7 @@ export default function Pedido() {
   return (
     <PublicShell>
       <div className="flex items-center justify-between">
-        <h1 className="font-display text-xl font-bold">{order.campaign.title}</h1>
+        <h1 className="font-display text-xl font-extrabold">{order.campaign.title}</h1>
         <span className="tnum text-xs text-muted">pedido #{order.code}</span>
       </div>
 

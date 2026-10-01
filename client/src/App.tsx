@@ -101,7 +101,7 @@ function GuardedConta({ children }: { children: ReactNode }) {
 function NotFound() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-2 px-5 text-center">
-      <h1 className="font-display text-2xl font-extrabold">Página não encontrada</h1>
+      <h1 className="font-display text-xl font-extrabold">Página não encontrada</h1>
       <a href="/" className="text-sm text-green-deep underline">
         voltar para as rifas
       </a>

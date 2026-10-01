@@ -19,7 +19,7 @@ export function EmBreve({ tela }: { tela: keyof typeof EM_BREVE }) {
         <span className="flex h-20 w-20 items-center justify-center rounded-full border-2 border-ink">
           <Icone tamanho={40} />
         </span>
-        <h1 className="mt-4 font-display text-2xl font-extrabold">{titulo}</h1>
+        <h1 className="mt-4 font-display text-xl font-extrabold">{titulo}</h1>
         <p className="mt-1 inline-block rounded-full bg-yellow-soft px-3 py-0.5 text-xs font-semibold text-yellow-deep">Em breve</p>
         <p className="mt-3 max-w-sm text-sm text-ink-2">{texto}</p>
       </section>

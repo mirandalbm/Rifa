@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from "react";
+import { Janela } from "@/components/Janela";
 import { createPortal } from "react-dom";
 import { Link, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
@@ -144,40 +145,31 @@ function MenuCriar({ quem, onFechar }: { quem: NonNullable<ReturnType<typeof que
           ]
         : [{ rotulo: "Publicar", detalhe: "Em breve" }];
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center" onClick={onFechar}>
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label="Criar"
-        onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-md rounded-t-xl bg-white p-4 sm:rounded-xl"
-        style={{ paddingBottom: "calc(1rem + env(safe-area-inset-bottom))" }}
-      >
-        <div className="mb-2 flex items-center justify-between">
-          <h2 className="font-display text-base font-bold">Criar</h2>
-          <button type="button" onClick={onFechar} aria-label="Fechar" className="rounded-md p-1 text-muted hover:text-ink">
-            <X size={18} aria-hidden />
-          </button>
-        </div>
-        <ul className="divide-y divide-line">
-          {opcoes.map((o) => (
-            <li key={o.rotulo}>
-              {o.href ? (
-                <button type="button" onClick={() => ir(o.href!)} className="block w-full py-3 text-left hover:bg-mist">
-                  <span className="block text-sm font-semibold">{o.rotulo}</span>
-                  <span className="block text-xs text-muted">{o.detalhe}</span>
-                </button>
-              ) : (
-                <div className="py-3 opacity-70">
-                  <span className="block text-sm font-semibold">{o.rotulo}</span>
-                  <span className="block text-xs text-muted">{o.detalhe}</span>
-                </div>
-              )}
-            </li>
-          ))}
-        </ul>
+    <Janela onFechar={onFechar} rotulo="Criar" className="p-4" style={{ paddingBottom: "calc(1rem + env(safe-area-inset-bottom))" }}>
+      <div className="mb-2 flex items-center justify-between">
+        <h2 className="font-display text-base font-bold">Criar</h2>
+        <button type="button" onClick={onFechar} aria-label="Fechar" className="rounded-md p-1 text-muted hover:text-ink">
+          <X size={18} aria-hidden />
+        </button>
       </div>
-    </div>
+      <ul className="divide-y divide-line">
+        {opcoes.map((o) => (
+          <li key={o.rotulo}>
+            {o.href ? (
+              <button type="button" onClick={() => ir(o.href!)} className="block w-full py-3 text-left hover:bg-mist">
+                <span className="block text-sm font-semibold">{o.rotulo}</span>
+                <span className="block text-xs text-muted">{o.detalhe}</span>
+              </button>
+            ) : (
+              <div className="py-3 opacity-70">
+                <span className="block text-sm font-semibold">{o.rotulo}</span>
+                <span className="block text-xs text-muted">{o.detalhe}</span>
+              </div>
+            )}
+          </li>
+        ))}
+      </ul>
+    </Janela>
   );
 }
 

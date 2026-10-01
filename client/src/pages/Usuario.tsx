@@ -30,7 +30,7 @@ export default function Usuario() {
         <section className="flex flex-col items-center gap-3 py-6 text-center">
           <FotoDoApostador nome={data.apelido} foto={data.foto} tamanho={112} />
           <div>
-            <h1 className="flex items-center justify-center gap-1.5 font-display text-xl font-bold">
+            <h1 className="flex items-center justify-center gap-1.5 font-display text-xl font-extrabold">
               @{data.apelido}
               {data.verificado ? <SeloVerificado sujeito="apostador" tamanho={20} /> : null}
             </h1>

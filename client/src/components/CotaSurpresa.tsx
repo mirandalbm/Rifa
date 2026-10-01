@@ -1,4 +1,5 @@
 import { useEffect, useId, useState } from "react";
+import { Janela } from "@/components/Janela";
 import { useQuery } from "@tanstack/react-query";
 import { X } from "lucide-react";
 import { IconePresente } from "@/components/Icones";
@@ -106,67 +107,59 @@ export function CotaSurpresa({ slug, premios }: { slug: string; premios: Premios
       </button>
 
       {aberta ? (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center" onClick={() => setAberta(false)}>
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby={titulo}
-            onClick={(e) => e.stopPropagation()}
-            className="max-h-[85vh] w-full overflow-y-auto rounded-t-2xl bg-white p-4 shadow-card sm:max-w-md sm:rounded-2xl"
-          >
-            <header className="flex items-start gap-3">
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center text-ink">
-                <IconePresente tamanho={30} aberto={destaque.length > 0} />
-              </span>
-              <div className="min-w-0 flex-1">
-                <h2 id={titulo} className="font-display text-lg font-extrabold leading-tight">
-                  {destaque.length ? "Cota surpresa revelada!" : "Cota surpresa"}
-                </h2>
-                <p className="tnum text-xs text-muted">
-                  {emJogo} de {premios.total} em jogo
-                </p>
-              </div>
-              <button type="button" onClick={() => setAberta(false)} aria-label="Fechar" className="rounded-md p-1 hover:bg-mist">
-                <X size={22} aria-hidden />
-              </button>
-            </header>
+        <Janela onFechar={() => setAberta(false)} rotuloPor={titulo} className="p-4">
+          <header className="flex items-start gap-3">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center text-ink">
+              <IconePresente tamanho={30} aberto={destaque.length > 0} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <h2 id={titulo} className="font-display text-lg font-extrabold leading-tight">
+                {destaque.length ? "Cota surpresa revelada!" : "Cota surpresa"}
+              </h2>
+              <p className="tnum text-xs text-muted">
+                {emJogo} de {premios.total} em jogo
+              </p>
+            </div>
+            <button type="button" onClick={() => setAberta(false)} aria-label="Fechar" className="rounded-md p-1 hover:bg-mist">
+              <X size={22} aria-hidden />
+            </button>
+          </header>
 
-            <ul className="mt-4 space-y-2">
-              {reveladas.map((r) => (
-                <li
-                  key={r.numero}
-                  className={`flex items-center gap-3 rounded-xl border px-3 py-2 ${destaque.includes(r.numero) ? "presente-revela border-yellow" : "border-line"}`}
-                >
-                  <span className={`tnum quadro ${corDaCasa(r.numero)} w-14 shrink-0 text-[13px]`}>{r.cota}</span>
+          <ul className="mt-4 space-y-2">
+            {reveladas.map((r) => (
+              <li
+                key={r.numero}
+                className={`flex items-center gap-3 rounded-xl border px-3 py-2 ${destaque.includes(r.numero) ? "presente-revela border-yellow" : "border-line"}`}
+              >
+                <span className={`tnum quadro ${corDaCasa(r.numero)} w-14 shrink-0 text-[13px]`}>{r.cota}</span>
+                <span className="min-w-0 flex-1 text-sm">
+                  <span className="block font-semibold">🏆 {r.premio}</span>
+                  <span className="block text-xs text-muted">Saiu para {r.nome}</span>
+                </span>
+              </li>
+            ))}
+            {premios.premios
+              .filter((p) => p.restantes > 0)
+              .map((p) => (
+                <li key={p.label} className="flex items-center gap-3 rounded-xl border border-line px-3 py-2">
+                  <span aria-hidden className="quadro w-14 shrink-0 border-dashed border-line-2 bg-mist text-lg text-muted">
+                    ?
+                  </span>
                   <span className="min-w-0 flex-1 text-sm">
-                    <span className="block font-semibold">🏆 {r.premio}</span>
-                    <span className="block text-xs text-muted">Saiu para {r.nome}</span>
+                    <span className="block font-semibold">{p.label}</span>
+                    <span className="tnum block text-xs text-muted">
+                      {p.restantes === 1 ? "Número em segredo" : `${p.restantes} números em segredo`}
+                    </span>
                   </span>
                 </li>
               ))}
-              {premios.premios
-                .filter((p) => p.restantes > 0)
-                .map((p) => (
-                  <li key={p.label} className="flex items-center gap-3 rounded-xl border border-line px-3 py-2">
-                    <span aria-hidden className="quadro w-14 shrink-0 border-dashed border-line-2 bg-mist text-lg text-muted">
-                      ?
-                    </span>
-                    <span className="min-w-0 flex-1 text-sm">
-                      <span className="block font-semibold">{p.label}</span>
-                      <span className="tnum block text-xs text-muted">
-                        {p.restantes === 1 ? "Número em segredo" : `${p.restantes} números em segredo`}
-                      </span>
-                    </span>
-                  </li>
-                ))}
-            </ul>
+          </ul>
 
-            <p className="mt-4 text-xs text-muted">
-              Os números premiados são secretos até a compra. Se um número seu for premiado, ele aparece aqui na hora
-              que você paga, e você fica em destaque no topo dos comentários.
-            </p>
-          </div>
-        </div>
+          <p className="mt-4 text-xs text-muted">
+            Os números premiados são secretos até a compra. Se um número seu for premiado, ele aparece aqui na hora
+            que você paga, e você fica em destaque no topo dos comentários.
+          </p>
+        </Janela>
       ) : null}
     </>
   );

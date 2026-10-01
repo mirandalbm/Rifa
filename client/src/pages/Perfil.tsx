@@ -1,4 +1,5 @@
 import { SeloVerificado } from "@/components/SeloVerificado";
+import { Janela } from "@/components/Janela";
 import { BarraDeAcoes, Carrossel, Legenda, type Interacoes, type Peca } from "@/components/Publicacao";
 import { PainelDeComentarios } from "@/components/Comentarios";
 import { useEffect, useState, type ReactNode } from "react";
@@ -454,23 +455,15 @@ function ItemMenu({
 
 function Folha({ titulo, fechar, children }: { titulo: string; fechar: () => void; children: ReactNode }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center" onClick={fechar}>
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label={titulo}
-        onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-md rounded-t-xl bg-white p-4 sm:rounded-xl"
-      >
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="font-display text-base font-bold">{titulo}</h2>
-          <button type="button" onClick={fechar} aria-label="Fechar" className="text-muted hover:text-ink">
-            <X size={18} aria-hidden />
-          </button>
-        </div>
-        {children}
+    <Janela onFechar={fechar} rotulo={titulo} className="p-4">
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="font-display text-base font-bold">{titulo}</h2>
+        <button type="button" onClick={fechar} aria-label="Fechar" className="text-muted hover:text-ink">
+          <X size={18} aria-hidden />
+        </button>
       </div>
-    </div>
+      {children}
+    </Janela>
   );
 }
 

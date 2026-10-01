@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Janela } from "@/components/Janela";
 import { Link } from "wouter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Flag, ShieldAlert, X } from "lucide-react";
@@ -256,68 +257,60 @@ export function Denunciar({
   });
   const temConta = Boolean(sessao?.buyer?.conta);
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center" onClick={onFechar}>
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label="Denunciar"
-        className="w-full max-w-md rounded-t-2xl bg-white p-4 sm:rounded-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="mb-2 flex items-center justify-between">
-          <h2 className="font-display text-lg font-bold">Denunciar</h2>
-          <button type="button" onClick={onFechar} aria-label="Fechar" className="rounded-md p-1 hover:bg-mist">
-            <X size={20} aria-hidden />
-          </button>
-        </div>
-        {!temConta ? (
-          <p className="text-sm">
-            <Link href="/entrar" className="font-semibold text-marca">
-              Entre na sua conta
-            </Link>{" "}
-            para denunciar. A organização nunca fica sabendo quem denunciou.
-          </p>
-        ) : aviso?.ok ? (
-          <p className="rounded-md bg-green-soft px-3 py-2 text-sm text-green-deep">{aviso.texto}</p>
-        ) : (
-          <form
-            className="space-y-3 text-sm"
-            onSubmit={(e) => {
-              e.preventDefault();
-              enviar.mutate();
-            }}
-          >
-            <fieldset className="space-y-1">
-              <legend className="label-xs mb-1">O que aconteceu?</legend>
-              {(Object.keys(MOTIVOS_DE_DENUNCIA) as MotivoDeDenuncia[]).map((m) => (
-                <label key={m} className="flex items-start gap-2">
-                  <input type="radio" name="motivo" checked={motivo === m} onChange={() => setMotivo(m)} className="mt-1" />
-                  {MOTIVOS_DE_DENUNCIA[m]}
-                </label>
-              ))}
-            </fieldset>
-            <div>
-              <label htmlFor="den-texto" className="label-xs">
-                Conte o que viu (opcional)
-              </label>
-              <textarea
-                id="den-texto"
-                rows={3}
-                maxLength={1000}
-                value={texto}
-                onChange={(e) => setTexto(e.target.value)}
-                className="mt-1 w-full rounded-md border border-line-2 px-3 py-2"
-              />
-            </div>
-            <p className="text-[11px] text-muted">A organização nunca fica sabendo quem denunciou.</p>
-            {aviso ? <p className="text-xs text-red">{aviso.texto}</p> : null}
-            <Button type="submit" disabled={enviar.isPending}>
-              Enviar denúncia
-            </Button>
-          </form>
-        )}
+    <Janela onFechar={onFechar} rotulo="Denunciar" className="p-4">
+      <div className="mb-2 flex items-center justify-between">
+        <h2 className="font-display text-lg font-extrabold">Denunciar</h2>
+        <button type="button" onClick={onFechar} aria-label="Fechar" className="rounded-md p-1 hover:bg-mist">
+          <X size={20} aria-hidden />
+        </button>
       </div>
-    </div>
+      {!temConta ? (
+        <p className="text-sm">
+          <Link href="/entrar" className="font-semibold text-marca">
+            Entre na sua conta
+          </Link>{" "}
+          para denunciar. A organização nunca fica sabendo quem denunciou.
+        </p>
+      ) : aviso?.ok ? (
+        <p className="rounded-md bg-green-soft px-3 py-2 text-sm text-green-deep">{aviso.texto}</p>
+      ) : (
+        <form
+          className="space-y-3 text-sm"
+          onSubmit={(e) => {
+            e.preventDefault();
+            enviar.mutate();
+          }}
+        >
+          <fieldset className="space-y-1">
+            <legend className="label-xs mb-1">O que aconteceu?</legend>
+            {(Object.keys(MOTIVOS_DE_DENUNCIA) as MotivoDeDenuncia[]).map((m) => (
+              <label key={m} className="flex items-start gap-2">
+                <input type="radio" name="motivo" checked={motivo === m} onChange={() => setMotivo(m)} className="mt-1" />
+                {MOTIVOS_DE_DENUNCIA[m]}
+              </label>
+            ))}
+          </fieldset>
+          <div>
+            <label htmlFor="den-texto" className="label-xs">
+              Conte o que viu (opcional)
+            </label>
+            <textarea
+              id="den-texto"
+              rows={3}
+              maxLength={1000}
+              value={texto}
+              onChange={(e) => setTexto(e.target.value)}
+              className="mt-1 w-full rounded-md border border-line-2 px-3 py-2"
+            />
+          </div>
+          <p className="text-[11px] text-muted">A organização nunca fica sabendo quem denunciou.</p>
+          {aviso ? <p className="text-xs text-red">{aviso.texto}</p> : null}
+          <Button type="submit" disabled={enviar.isPending}>
+            Enviar denúncia
+          </Button>
+        </form>
+      )}
+    </Janela>
   );
 }
 

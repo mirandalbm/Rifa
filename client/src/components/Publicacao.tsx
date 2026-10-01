@@ -72,6 +72,7 @@ export function Carrossel({
   aoAbrir,
   perfil,
   perfilSobreNaWeb = false,
+  limitarNoTablet = false,
   canto,
   children,
 }: {
@@ -86,6 +87,8 @@ export function Carrossel({
   perfil?: (sobreImagem: boolean) => ReactNode;
   /** Do tablet em diante (`md`), o perfil vai por cima da imagem em qualquer formato. */
   perfilSobreNaWeb?: boolean;
+  /** No tablet a imagem vai até a borda, mas não passa de 85% da altura da tela (corta ao centro). */
+  limitarNoTablet?: boolean;
   /** O que vai por cima da imagem, abaixo do perfil quando ele está por cima. */
   children?: ReactNode;
   /** Botão no canto de cima à direita, abaixo do contador (a cota surpresa). */
@@ -104,7 +107,7 @@ export function Carrossel({
       {perfil && !porCima ? web ? <div className="md:hidden">{perfil(false)}</div> : perfil(false) : null}
       {/* No vertical, a caixa não passa da altura da tela (computador, tablet deitado). */}
       <div
-        className={`relative overflow-hidden bg-mist-2 ${caixa} ${porCima ? "max-h-[85svh] w-full" : ""} ${
+        className={`relative overflow-hidden bg-mist-2 ${caixa} ${porCima ? "max-h-[85svh] w-full" : ""} ${limitarNoTablet ? "md:max-h-[85svh] lg:max-h-none" : ""} ${
           perfilSobreNaWeb ? "md:rounded-2xl" : ""
         }`}
       >

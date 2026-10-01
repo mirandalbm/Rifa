@@ -394,9 +394,11 @@ export default function Rifa() {
       {/* O carrossel da publicação (fotos e vídeos, até 10 com o banner),
           as ações e a legenda — como no feed. */}
       {carrossel.length ? (
+        // No tablet a imagem vai até a borda; a altura é que não passa de 85% da tela.
         <div className="-mx-4 mt-3 lg:mx-0 lg:overflow-hidden lg:rounded-xl">
           <Carrossel
             pecas={carrossel}
+            limitarNoTablet
             titulo={campaign.prizeTitle}
             canto={premios && premios.total > 0 ? <CotaSurpresa slug={slug} premios={premios} /> : null}
           />

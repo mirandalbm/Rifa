@@ -151,7 +151,7 @@ celular, na largura da casca.
 | Rota | Arquivo | Casca | Celular | Tablet | Computador |
 |---|---|---|---|---|---|
 | `/` | `pages/Vitrine.tsx` | larga | stories, banners, estados, patrocinadas e feed em 1 coluna | feed em 2 colunas | banner com "Sorteios chegando" ao lado; feed em 3 colunas |
-| `/r/:rifa`, `/o/:org/r/:rifa` | `pages/Rifa.tsx` | larga | publicação, compra, resto | igual, em 768 ([P1](#pendências)) | 2 colunas: publicação à esquerda; compra à direita, fixa e com rolagem própria, total e Pix no pé |
+| `/r/:rifa`, `/o/:org/r/:rifa` | `pages/Rifa.tsx` | larga | publicação, compra, resto | imagem até a borda, com altura de no máximo 85% da tela; a compra embaixo, na largura toda | 2 colunas: publicação à esquerda; compra à direita, fixa e com rolagem própria, total e Pix no pé |
 | `/o/:org` | `pages/Perfil.tsx` | larga | capa 3:1 de ponta a ponta, cartão do perfil, rifas em 1 coluna | capa com cantos; rifas em 2 colunas em fluxo (`columns`, sem buraco entre formatos) | capa 4:1; cartão de 320 px fixo à esquerda; rifas em 2 colunas em fluxo |
 | `/estado/:uf` | `pages/Estado.tsx` | larga | feed em 1 coluna | 2 colunas | 3 colunas |
 | `/u/:apelido` | `pages/Usuario.tsx` | larga | feed em 1 coluna | 2 colunas | 3 colunas |
@@ -280,15 +280,15 @@ qualquer mudança.
 
 | # | O quê | Onde | Versão |
 |---|---|---|---|
-| P1 | O tablet é o celular esticado na página da rifa: foto 4:5 com 768 px de largura (o perfil saiu daqui na leva 2: rifas em 2 colunas do tablet em diante) | `Rifa.tsx` | tablet |
+| P1 | ~~O tablet é o celular esticado na página da rifa~~ **Feito**: no tablet a imagem vai até a borda e a altura não passa de 85% da tela (corta ao centro); do computador em diante, a coluna da esquerda de sempre | `Rifa.tsx`, `Publicacao.tsx` (`limitarNoTablet`) | tablet |
 | P2 | ~~Seis janelas feitas à mão~~ **Feito**: o componente `Janela` (regra 14) serve Comentários, escolha de bilhete, denúncia, Criar, cota surpresa, folhas do perfil e pedido de reembolso | `Janela.tsx` | todas |
 | P3 | ~~`h1` em 9 combinações de classe~~ **Feito**: o padrão `font-display text-xl font-extrabold` vale em todas as telas; sobram só dois tamanhos de propósito (o título do cartão com `line-clamp` e o do banner da rifa, `text-2xl`) e os modificadores de posição | várias | todas |
 | P4 | ~~A classe do campo de digitar repetida mais de 80 vezes~~ **Feito**: a classe `.campo` (`index.css`) no lugar da lista repetida, e o componente `Campo` (`bits.tsx`: rótulo, campo, dica e erro ligados pelo `id`, `aria-invalid` com erro) para formulário novo — o pedido de reembolso já usa. `tests/pecas.test.ts` barra a lista copiada de volta | várias | todas |
 | P6 | ~~"Nova venda" do cambista ocupa a largura toda no computador~~ **Feito**: a venda fica numa coluna de 672 px centrada | `cambista.tsx` | computador |
 | P7 | ~~O degradê de "sem foto" repetido~~ **Feito**: classe `.sem-foto` (`index.css`), usada na publicação e na página da rifa; `tests/pecas.test.ts` barra a cópia | `index.css` | todas |
 | P8 | ~~A janela de comentários sobe de baixo também no computador~~ **Feito**: `Janela` com `centralizarEm="lg"` — embaixo no celular e no tablet, como no Instagram, no centro só no computador | `Comentarios.tsx`, `Janela.tsx` | computador |
-| P9 | 49 dos 51 componentes de `components/ui` não são usados (só `toaster` e `tooltip`) | `components/ui/` | — |
-| P11 | Ícones do lucide (traço 2) e os desenhados à mão (traço 1,75) misturados | `components/` | todas |
+| P9 | ~~48 dos 51 componentes de `components/ui` sem uso~~ **Feito**: sobraram só `toast`, `toaster` e `tooltip`; os outros saíram com o `use-mobile` e os 33 pacotes que só eles usavam (Radix, recharts, vaul, cmdk…) | `components/ui/`, `package.json` | — |
+| P11 | ~~Ícones do lucide (traço 2) e os desenhados à mão (traço 1,75) misturados~~ **Feito**: o traço padrão do lucide passa a 1,75 pelo `index.css` (`svg.lucide[stroke-width="2"]`); quem pede outro traço de propósito mantém o dele | `index.css` | todas |
 | P12 | ~~Botões do topo com 24 a 28 px de altura~~ **Resolvida pelo topo novo**: o topo ficou só com a publicação e o trevo, em botões de 40 px (`Console.tsx`) | `Console.tsx` | celular |
 | P13 | ~~Grades antigas sem `grid-cols-1`~~ **Feito**: 59 grades ganharam a coluna do celular; `tests/pecas.test.ts` barra grade nova sem ela | várias | todas |
 | P14 | ~~Topo da loja apertado no celular ("Minhas cotas" quebrava)~~ **Resolvida pelo topo novo**: "Minhas cotas", carrinho e Entrar saíram do topo para o console de baixo e o perfil | `AppShell.tsx` | celular |

@@ -468,8 +468,8 @@ Na ordem de entrega do plano:
 - [x] **Reels** (tela cheia, vídeo em pé de até 3 min, ações na lateral):
   pronto, atrás do interruptor `reelsLigado` (Aparência → Topo do app, nasce
   desligado). Ficou para depois: áudio/música, reações rápidas com emoji
-  (emoji é vantagem de verificado), aba "Friends" (aqui é "Seguindo") e o
-  selo "ao vivo". Pôster pronto (`ffmpeg` local); sem transcode ainda (Cloudflare Stream).
+  (emoji é vantagem de verificado) e aba "Friends" (aqui é "Seguindo").
+  Pôster pronto (`ffmpeg` local); sem transcode ainda (Cloudflare Stream).
 - [x] **Mensagens** (caixa de um para um entre apostador, organização e
   afiliado): pronta, atrás do interruptor `mensagensLigado` (Aparência →
   Topo do app, nasce desligado). Ficou para depois: indicador "online" (só
@@ -484,8 +484,11 @@ Na ordem de entrega do plano:
   desligado). Ficou para depois: ordenar por popularidade, hashtags,
   busca por região e índice de texto no banco (hoje é `LIKE` sem acento,
   suficiente para a escala de agora; com milhares de rifas, `pg_trgm`).
-- [ ] **[código]** Selo "ao vivo" no story (anel com a transmissão), junto
-  com a etapa do Reels.
+- [x] **Selo "ao vivo" no story** (anel com a transmissão): pronto. Acende
+  quando a rifa tem link de transmissão, a hora do sorteio chegou e o sorteio
+  não foi feito (janela de 3 h); só dado real. Ficou para depois: "ao vivo"
+  declarado pela organização fora do sorteio (hoje só a transmissão do
+  sorteio) e contador de espectadores (só com dado real do provedor).
 - [ ] **[código]** Perfil do usuário: os bilhetes como publicações privadas
   (uma por compra ou carrossel), com data, hora, prêmio e números.
 - [ ] **[código]** Ferramentas de publicação: as do Instagram adaptadas à
@@ -510,6 +513,12 @@ Na ordem de entrega do plano:
   `VIDEO_PROCESSOR`). Depende de **conta e credencial do Cloudflare Stream**.
   Também falta o pôster dos vídeos enviados antes desta mudança (não há
   preenchimento retroativo).
+- [ ] **[código]** Pôster, para depois: (1) no bucket, o vídeo é lido inteiro
+  na memória (até 200 MB) e não há limite de `ffmpeg` simultâneos — sob muitos
+  envios seguidos é pico de CPU e RAM no processo web; baixar o teto ou limitar
+  a concorrência. (2) `excluirRifa` apaga as linhas, mas não os arquivos do
+  storage (já era assim para vídeo e variantes; agora inclui o pôster) — limpar
+  `storageKey`, `posterKey` e variantes antes do `DELETE`.
 - [x] Revisão completa das telas, com prints: `npm run telas` (60 telas,
   seis papéis, 390/820/1440 px) e o guia `docs/VERSOES.md` — regras entre as
   versões, mapa de cada tela e o registro das mudanças do celular (leva a

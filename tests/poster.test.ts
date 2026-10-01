@@ -30,6 +30,16 @@ describe("regras do pôster", () => {
     expect(args.indexOf("-ss")).toBeLessThan(args.indexOf("-i"));
   });
 
+  it("só o demuxer de MP4/MOV e só arquivo local, antes da entrada", () => {
+    const args = argsDoPoster("/tmp/v.mp4", 0);
+    const i = args.indexOf("-i");
+    expect(args[args.indexOf("-protocol_whitelist") + 1]).toBe("file");
+    expect(args[args.indexOf("-f") + 1]).toBe("mov");
+    // As duas opções valem para a entrada, então vêm antes do `-i`.
+    expect(args.indexOf("-protocol_whitelist")).toBeLessThan(i);
+    expect(args.indexOf("-f")).toBeLessThan(i);
+  });
+
   it("instante negativo vira zero", () => {
     expect(argsDoPoster("x", -3)[argsDoPoster("x", -3).indexOf("-ss") + 1]).toBe("0");
   });

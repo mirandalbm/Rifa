@@ -37,6 +37,11 @@ export function argsDoPoster(arquivo: string, instanteS: number): string[] {
     "-v", "error",
     "-nostdin",
     "-ss", String(Math.max(0, instanteS)),
+    // Defesa em profundidade: só o demuxer de MP4/MOV e só arquivo local. Sem isso o
+    // formato é adivinhado pelo conteúdo, e uma playlist (HLS) ou um `concat` disfarçado
+    // de vídeo poderia fazer o ffmpeg ler outro arquivo ou abrir uma conexão.
+    "-protocol_whitelist", "file",
+    "-f", "mov",
     "-i", arquivo,
     "-frames:v", "1",
     "-vf", `scale='min(${POSTER_LARGURA_MAX},iw)':-2`,

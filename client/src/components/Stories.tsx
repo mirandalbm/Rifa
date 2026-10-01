@@ -35,6 +35,12 @@ export function useVistos() {
   }, []);
 }
 
+/** A transmissão do sorteio no ar agora (o servidor decide: `transmissaoNoAr()`). */
+export interface AoVivoDaOrg {
+  slug: string;
+  premio: string;
+}
+
 /**
  * A foto do perfil com o anel de story: grosso e na cor de marca quando há
  * story que a pessoa ainda não viu; fino e cinza quando já viu tudo; sem
@@ -47,6 +53,7 @@ export function FotoComStory({
   ultimoStory,
   tamanho,
   onAbrir,
+  aoVivo = null,
 }: {
   slug: string;
   nome: string;
@@ -54,21 +61,55 @@ export function FotoComStory({
   ultimoStory: string | null;
   tamanho: number;
   onAbrir: () => void;
+  /** Transmissão no ar: o anel ganha o selo "AO VIVO" (texto, não só cor). */
+  aoVivo?: AoVivoDaOrg | null;
 }) {
   useVistos();
-  if (!ultimoStory) return <FotoDoPerfil nome={nome} foto={foto} tamanho={tamanho} />;
+  if (!ultimoStory && !aoVivo) return <FotoDoPerfil nome={nome} foto={foto} tamanho={tamanho} />;
   const novo = temStoryNovo(ultimoStory, vistoAte(slug));
+  const anel = `block w-fit shrink-0 rounded-full p-[2px] ${aoVivo || novo ? "border-[3px] border-marca" : "border border-line-2"}`;
+  const miolo = (
+    <>
+      <span className="block rounded-full bg-white p-[2px]">
+        <FotoDoPerfil nome={nome} foto={foto} tamanho={tamanho} />
+      </span>
+      {aoVivo ? <SeloAoVivo /> : null}
+    </>
+  );
+  if (aoVivo && !ultimoStory) {
+    // Sem story, o anel leva direto à transmissão, na página da rifa.
+    return (
+      <Link
+        href={`/o/${slug}/r/${aoVivo.slug}`}
+        onClick={() => marcarOrigem("story")}
+        aria-label={`Assistir ao vivo: sorteio de ${nome}`}
+        className={`relative ${anel}`}
+      >
+        {miolo}
+      </Link>
+    );
+  }
   return (
     <button
       type="button"
       onClick={onAbrir}
-      aria-label={`Ver stories de ${nome}${novo ? " (novo)" : ""}`}
-      className={`block w-fit shrink-0 rounded-full p-[2px] ${novo ? "border-[3px] border-marca" : "border border-line-2"}`}
+      aria-label={`Ver stories de ${nome}${aoVivo ? " (ao vivo agora)" : ""}${novo ? " (novo)" : ""}`}
+      className={`relative ${anel}`}
     >
-      <span className="block rounded-full bg-white p-[2px]">
-        <FotoDoPerfil nome={nome} foto={foto} tamanho={tamanho} />
-      </span>
+      {miolo}
     </button>
+  );
+}
+
+/** O selo em texto, preso à borda de baixo do anel. Cor de superfície invertida: lê nos dois temas. */
+function SeloAoVivo() {
+  return (
+    <span
+      aria-hidden
+      className="absolute -bottom-1 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-ink px-1.5 py-px text-[10px] font-bold uppercase leading-tight tracking-wide text-white"
+    >
+      Ao vivo
+    </span>
   );
 }
 
@@ -82,7 +123,15 @@ const tempoAtras = (iso: string) => {
  * toque na direita avança, na esquerda volta, segurar pausa. Começa no
  * primeiro que a pessoa ainda não viu. Fundo preto nos dois temas: é foto.
  */
-export function VisualizadorDeStories({ slug, onFechar }: { slug: string; onFechar: () => void }) {
+export function VisualizadorDeStories({
+  slug,
+  onFechar,
+  aoVivo = null,
+}: {
+  slug: string;
+  onFechar: () => void;
+  aoVivo?: AoVivoDaOrg | null;
+}) {
   const { data, isError } = useQuery<StoriesDoPerfil>({ queryKey: [`/api/public/o/${slug}/stories`], staleTime: 0 });
   const [i, setI] = useState<number | null>(null);
   const [pausado, setPausado] = useState(false);
@@ -227,8 +276,20 @@ export function VisualizadorDeStories({ slug, onFechar }: { slug: string; onFech
             </div>
           </div>
 
-          {atual.legenda || atual.rifa ? (
+          {atual.legenda || atual.rifa || aoVivo ? (
             <div className="absolute inset-x-0 bottom-0 space-y-3 bg-gradient-to-t from-black/70 to-transparent px-4 pb-6 pt-12 text-branco">
+              {aoVivo ? (
+                <Link
+                  href={`/o/${data.slug}/r/${aoVivo.slug}`}
+                  onClick={() => {
+                    marcarOrigem("story");
+                    onFechar();
+                  }}
+                  className="block rounded-md border border-branco px-4 py-2.5 text-center text-sm font-semibold text-branco"
+                >
+                  Ao vivo agora: assistir ao sorteio de {aoVivo.premio}
+                </Link>
+              ) : null}
               {atual.legenda ? <p className="text-sm">{atual.legenda}</p> : null}
               {atual.rifa ? (
                 <Link

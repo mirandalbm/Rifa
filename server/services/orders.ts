@@ -578,6 +578,7 @@ export async function createOrder(
   // Se o provedor recusar (CPF rejeitado, fora do ar), as cotas voltam na
   // hora em vez de ficarem presas até a reserva vencer.
   let charge: Awaited<ReturnType<NonNullable<typeof provider>["createPixCharge"]>>;
+  const parte = await parteDaOrganizacao(campaign.organizationId, comissaoGuardada ? attribution.comissaoPct : 0);
   try {
     charge = await provider!.createPixCharge({
     orderCode: order.code,
@@ -589,7 +590,7 @@ export async function createOrder(
       cpf: buyer.cpf ?? input.buyer.cpf ?? undefined,
     },
     expiresAt,
-    split: await splitDaOrganizacao(campaign.organizationId, comissaoGuardada ? attribution.comissaoPct : 0),
+    split: splitDaParte(parte),
     });
   } catch (err) {
     await devolverReserva(order.id).catch((e) =>
@@ -608,6 +609,7 @@ export async function createOrder(
     .set({
       pspProvider: charge.provider,
       pspChargeId: charge.chargeId,
+      taxaRetidaNoSplit: taxaFicouRetida(charge, parte),
       pixQr: charge.qr,
       pixCopyPaste: charge.copyPaste,
     })
@@ -643,12 +645,23 @@ async function parteDaOrganizacao(organizationId: string, comissaoGuardadaPct = 
   return {
     walletId: org?.walletId ?? null,
     percentual: percentualDoPromotor(platformPctFor(plano), comissaoGuardadaPct),
+    /** A taxa da plataforma na emissão: sem taxa, o split não retém nada. */
+    taxaPct: platformPctFor(plano),
   };
 }
 
+/**
+ * O pedido nasce "taxa retida no split" só quando o provedor dividiu o Pix
+ * **e** havia taxa a reter na emissão: com plano grátis o split manda tudo
+ * para a promotora, e marcar retida esconderia uma taxa que o contrato
+ * passasse a cobrar antes do pagamento.
+ */
+function taxaFicouRetida(charge: { splitAplicado?: boolean }, parte: { walletId: string | null; taxaPct: number }) {
+  return Boolean(charge.splitAplicado) && parte.walletId !== null && parte.taxaPct > 0;
+}
+
 /** O split do pedido avulso: a parte do promotor cai direto na carteira da organização. */
-async function splitDaOrganizacao(organizationId: string, comissaoGuardadaPct = 0) {
-  const parte = await parteDaOrganizacao(organizationId, comissaoGuardadaPct);
+function splitDaParte(parte: { walletId: string | null; percentual: number }) {
   return parte.walletId ? [{ walletId: parte.walletId, percentual: parte.percentual }] : undefined;
 }
 
@@ -768,14 +781,16 @@ export async function createCartOrder(input: CarrinhoCheckoutInput, ctx: CreateO
     );
 
   let charge: Awaited<ReturnType<typeof provider.createPixCharge>>;
+  let partes: { amountCents: number; walletId: string | null; percentual: number; taxaPct: number }[] = [];
+  let split: { walletId: string; percentual: number }[] = [];
   try {
-    const partes = await Promise.all(
+    partes = await Promise.all(
       preparos.map(async (p) => ({
         amountCents: p.price.totalCents,
         ...(await parteDaOrganizacao(p.campaign.organizationId, p.comissaoGuardada ? p.attribution.comissaoPct : 0)),
       })),
     );
-    const split = splitDoCarrinho(partes.map((x) => ({ walletId: x.walletId, amountCents: x.amountCents, percentualDoPromotor: x.percentual })));
+    split = splitDoCarrinho(partes.map((x) => ({ walletId: x.walletId, amountCents: x.amountCents, percentualDoPromotor: x.percentual })));
     charge = await provider.createPixCharge({
       orderCode: carrinho.codigo,
       amountCents: total,
@@ -799,6 +814,19 @@ export async function createCartOrder(input: CarrinhoCheckoutInput, ctx: CreateO
   };
   const [comCobranca] = await db.update(carrinhoPedidos).set(cobranca).where(eq(carrinhoPedidos.id, carrinho.id)).returning();
   await db.update(orders).set(cobranca).where(eq(orders.carrinhoId, carrinho.id));
+  // No carrinho o split é por carteira: a taxa só ficou retida nos pedidos
+  // das promotoras que de fato entraram nele — as que `splitDoCarrinho()`
+  // manteve (uma parte pequena demais arredonda a zero e fica de fora). Sem
+  // carteira, a parte fica na conta da plataforma e a taxa segue devida.
+  if (charge.splitAplicado) {
+    const noSplit = new Set(split.map((x) => x.walletId));
+    const retidos = pedidos
+      .filter((_, i) => partes[i] && partes[i].walletId && noSplit.has(partes[i].walletId!) && taxaFicouRetida(charge, partes[i]))
+      .map((x) => x.order.id);
+    if (retidos.length) {
+      await db.update(orders).set({ taxaRetidaNoSplit: true }).where(inArray(orders.id, retidos));
+    }
+  }
 
   for (const p of preparos) {
     if (shouldEnterEndgame(p.stats, p.campaign.totalQuotas)) {
@@ -933,6 +961,9 @@ async function settleOrderAsPaid(order: typeof orders.$inferSelect) {
         orderId: order.id,
         amountCents: rateio.platformFeeCents,
         pct: rateio.platformPct,
+        // Pix dividido na origem: a taxa já está com a plataforma.
+        retidaNoSplit: updated.taxaRetidaNoSplit,
+        paidAt,
       });
     }
 

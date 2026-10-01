@@ -116,3 +116,24 @@ export function competenciaDe(data: Date): string {
 export function competenciaAnterior(data: Date): string {
   return competenciaDe(new Date(data.getFullYear(), data.getMonth() - 1, 1));
 }
+
+/**
+ * O lançamento da taxa de uma venda paga. Com o Pix dividido na origem
+ * (split do Asaas), a plataforma já ficou com a taxa: a linha existe para
+ * o extrato fechar, mas nasce `retida` — listá-la como `aberta` cobraria a
+ * mesma taxa duas vezes. Devolve `null` quando não há o que lançar.
+ */
+export function lancamentoDaTaxa(
+  params: { organizationId: string; orderId: string; amountCents: number; pct: number; retidaNoSplit?: boolean },
+  agora = new Date(),
+) {
+  if (params.amountCents <= 0) return null;
+  return {
+    organizationId: params.organizationId,
+    kind: "venda" as const,
+    orderId: params.orderId,
+    amountCents: params.amountCents,
+    pct: params.pct,
+    ...(params.retidaNoSplit ? { status: "retida" as const, paidAt: agora } : {}),
+  };
+}

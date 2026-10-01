@@ -12,6 +12,12 @@ export interface PixCharge {
   /** Código copia e cola (payload EMV). */
   copyPaste: string;
   expiresAt: Date;
+  /**
+   * O provedor dividiu na origem: a parte da plataforma já ficou retida e
+   * a da promotora caiu na carteira dela. Quem honra o split (Asaas) diz
+   * `true`; quem ignora deixa em branco, e a taxa segue no livro como devida.
+   */
+  splitAplicado?: boolean;
 }
 
 export interface WebhookResult {

@@ -39,6 +39,8 @@ export const chargeStatus = pgEnum("charge_status", [
   "aberta",
   "paga",
   "cancelada",
+  /** Já ficou com a plataforma no split do Pix (Asaas): nada a cobrar. */
+  "retida",
 ]);
 
 export const userRole = pgEnum("user_role", [
@@ -650,6 +652,14 @@ export const orders = pgTable(
     presenteDe: uuid("presente_de"),
     pspProvider: text("psp_provider"),
     pspChargeId: text("psp_charge_id"),
+    /**
+     * O Pix deste pedido foi dividido na origem (split do Asaas para a
+     * carteira da promotora): a taxa da plataforma já ficou retida, e o
+     * lançamento em `platform_charges` nasce `retida`, nunca `aberta`.
+     * Decidido quando o Pix é gerado — a carteira cadastrada depois não
+     * muda o Pix que já saiu.
+     */
+    taxaRetidaNoSplit: boolean("taxa_retida_no_split").notNull().default(false),
     pixQr: text("pix_qr"),
     pixCopyPaste: text("pix_copy_paste"),
     expiresAt: timestamp("expires_at"),

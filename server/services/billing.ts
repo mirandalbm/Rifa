@@ -22,6 +22,7 @@ import {
   competenciaAnterior,
   type BillingPlan,
   type BillingMode,
+  lancamentoDaTaxa,
 } from "@shared/billing";
 
 export class BillingError extends Error {
@@ -96,20 +97,20 @@ export async function lancarTaxaDaVenda(
     orderId: string;
     amountCents: number;
     pct: number;
+    /**
+     * O Pix foi dividido na origem (split do Asaas): a plataforma já ficou
+     * com a taxa. O lançamento existe para o extrato fechar, mas nasce
+     * `retida` — listá-lo como `aberta` cobraria a mesma taxa duas vezes.
+     */
+    retidaNoSplit?: boolean;
+    /** A hora do pagamento, para a taxa retida constar paga no mesmo instante. */
+    paidAt?: Date;
   },
 ) {
-  if (params.amountCents <= 0) return;
+  const valores = lancamentoDaTaxa(params, params.paidAt);
+  if (!valores) return;
 
-  await tx
-    .insert(platformCharges)
-    .values({
-      organizationId: params.organizationId,
-      kind: "venda",
-      orderId: params.orderId,
-      amountCents: params.amountCents,
-      pct: params.pct,
-    })
-    .onConflictDoNothing();
+  await tx.insert(platformCharges).values(valores).onConflictDoNothing();
 }
 
 /* ------------------------------------------------------------------ *
@@ -182,6 +183,7 @@ export async function extratoDa(organizationId: string, limite = 100) {
     .select({
       abertoCents: sql<number>`coalesce(sum(${platformCharges.amountCents}) FILTER (WHERE ${platformCharges.status} = 'aberta'), 0)::int`,
       pagoCents: sql<number>`coalesce(sum(${platformCharges.amountCents}) FILTER (WHERE ${platformCharges.status} = 'paga'), 0)::int`,
+      retidaCents: sql<number>`coalesce(sum(${platformCharges.amountCents}) FILTER (WHERE ${platformCharges.status} = 'retida'), 0)::int`,
     })
     .from(platformCharges)
     .where(eq(platformCharges.organizationId, organizationId));
@@ -210,6 +212,7 @@ export async function carteiraDaPlataforma() {
       active: organizations.active,
       abertoCents: sql<number>`coalesce(sum(${platformCharges.amountCents}) FILTER (WHERE ${platformCharges.status} = 'aberta'), 0)::int`,
       pagoCents: sql<number>`coalesce(sum(${platformCharges.amountCents}) FILTER (WHERE ${platformCharges.status} = 'paga'), 0)::int`,
+      retidaCents: sql<number>`coalesce(sum(${platformCharges.amountCents}) FILTER (WHERE ${platformCharges.status} = 'retida'), 0)::int`,
       lancamentos: sql<number>`count(${platformCharges.id})::int`,
       // Subconsulta: somar no mesmo GROUP BY multiplicaria as linhas.
       creditoCents: sql<number>`(select coalesce(sum(pc.amount_cents), 0)::int from presente_creditos pc where pc.organization_id = "organizations"."id" and pc.status = 'devido')`,

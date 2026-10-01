@@ -169,6 +169,7 @@ export class AsaasProvider implements PaymentProvider {
       qr: qr.encodedImage ? `data:image/png;base64,${qr.encodedImage}` : "",
       copyPaste: qr.payload,
       expiresAt: params.expiresAt,
+      splitAplicado: Boolean(params.split?.length),
     };
   }
 

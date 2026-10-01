@@ -21,6 +21,7 @@ interface LinhaCarteira {
   active: boolean;
   abertoCents: number;
   pagoCents: number;
+  retidaCents: number;
   lancamentos: number;
   /** O que a plataforma deve à organização: a parte dela nos presentes. */
   creditoCents: number;
@@ -28,7 +29,7 @@ interface LinhaCarteira {
 
 interface Extrato {
   plano: BillingPlan;
-  totais: { abertoCents: number; pagoCents: number };
+  totais: { abertoCents: number; pagoCents: number; retidaCents: number };
   creditos: { devidoCents: number; pagoCents: number };
   linhas: {
     charge: {
@@ -53,6 +54,14 @@ interface Extrato {
  * dele — cobrar sem mostrar de onde veio cada lançamento seria indefensável,
  * e é a primeira coisa que um cliente pede quando desconfia da fatura.
  */
+/** O status da taxa em texto: "retida no split" é a que o Pix já dividiu — nada a pagar. */
+const ROTULO_DA_TAXA: Record<string, string> = {
+  aberta: "em aberto",
+  paga: "paga",
+  retida: "retida no split",
+  cancelada: "cancelada",
+};
+
 export function AdminCobranca() {
   const { data: sessao } = useSession();
   const daPlataforma = sessao?.role === "admin";
@@ -215,6 +224,11 @@ function Linha({
         </td>
         <td className="px-4 py-3 text-right text-muted">
           <Money cents={org.pagoCents} />
+          {org.retidaCents > 0 ? (
+            <span className="block text-[11px]">
+              retida no split: <Money cents={org.retidaCents} />
+            </span>
+          ) : null}
         </td>
         <td className="px-4 py-3 text-right">
           <div className="flex justify-end gap-2 whitespace-nowrap">
@@ -326,7 +340,11 @@ function MinhaConta() {
           }
         />
         <Kpi label="Em aberto" value={formatBRL(data?.totais.abertoCents ?? 0)} />
-        <Kpi label="Já pago" value={formatBRL(data?.totais.pagoCents ?? 0)} />
+        <Kpi
+          label="Já pago"
+          value={formatBRL((data?.totais.pagoCents ?? 0) + (data?.totais.retidaCents ?? 0))}
+          hint={data?.totais.retidaCents ? `${formatBRL(data.totais.retidaCents)} retidos no split do Pix, sem nada a pagar` : undefined}
+        />
         {data?.creditos.devidoCents ? (
           <Kpi
             label="A receber da plataforma"
@@ -376,8 +394,8 @@ function MinhaConta() {
                     <Money cents={l.charge.amountCents} />
                   </td>
                   <td className="px-4 py-3">
-                    <Pill status={l.charge.status === "paga" ? "active" : "reserved"}>
-                      {l.charge.status === "paga" ? "paga" : "em aberto"}
+                    <Pill status={l.charge.status === "aberta" ? "reserved" : l.charge.status === "cancelada" ? "closed" : "active"}>
+                      {ROTULO_DA_TAXA[l.charge.status] ?? l.charge.status}
                     </Pill>
                   </td>
                 </tr>

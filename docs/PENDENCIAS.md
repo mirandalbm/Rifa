@@ -437,10 +437,16 @@ Na ordem de entrega do plano:
 - [ ] **[código]** Pendências da revisão das versões (P1 a P14 em
   `docs/VERSOES.md`): tablet da página da rifa e do perfil, um componente
   só para as seis janelas, tabelas do painel no celular.
-- [ ] **[código]** Cobrança com Asaas: nas vendas com split, a taxa da
-  plataforma já fica retida na origem, mas a tela de Cobrança ainda a lista
-  como devida pela organização. Até marcar essas taxas como "recebidas no
-  split", **não cobre de novo** a taxa de organização com carteira Asaas.
+- [x] Cobrança com Asaas: nas vendas com split, a taxa da plataforma já
+  retida na origem nasce "retida no split" (`platform_charges.status =
+  retida`) e não entra no "em aberto" nem na baixa — a Cobrança mostra a
+  linha e o total retido. Vale para o pedido avulso e, no carrinho, só para
+  as promotoras que de fato entraram no split, e só com taxa no contrato na
+  hora de gerar o Pix.
+- [ ] **[você]** Se já houve venda com split do Asaas **antes** desta
+  mudança, as taxas dessas vendas seguem "em aberto" no livro (não dá para
+  reconstruir pelo código: a carteira pode ter sido cadastrada depois).
+  Conferir na Cobrança e dar baixa à mão nessas linhas antes de cobrar.
 
 ## Feito
 

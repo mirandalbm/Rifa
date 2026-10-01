@@ -881,6 +881,24 @@ promotor. **A ordem é sempre esta, e a plataforma sai primeiro.**
 - **A taxa é lançada dentro da transação que confirma o pagamento**, junto com
   a comissão. Fora dela, sobreviveria a um rollback e cobraria por uma venda
   que não aconteceu.
+- **Pix dividido na origem não é cobrado de novo.** Quando o provedor honra
+  o split (Asaas, `splitAplicado` em `PixCharge`), a plataforma já ficou
+  com a taxa no próprio Pix: o pedido nasce marcado
+  (`orders.taxa_retida_no_split`, decidido quando o Pix é gerado — carteira
+  cadastrada depois não muda o Pix que já saiu) e o lançamento em
+  `platform_charges` nasce `retida` (`lancarTaxaDaVenda(..., retidaNoSplit)`),
+  nunca `aberta`. O lançamento existe para o extrato fechar; "em aberto" e
+  "dar baixa" só olham `aberta`; o estorno cancela a retida como as outras
+  (o Asaas desfaz o split junto). A marca só vale com **taxa no contrato na
+  emissão** (`taxaFicouRetida()`): com plano grátis o split manda tudo para
+  a promotora, e marcar retida esconderia a taxa que o contrato passasse a
+  cobrar. No carrinho a marca é por pedido e pelas carteiras que
+  `splitDoCarrinho()` de fato manteve — a parte pequena demais arredonda a
+  zero e fica fora. Provedor sem split (dev imita o Asaas; Mercado Pago
+  ignora) deixa a taxa devida no livro. O valor novo do enum sobe com o
+  `db:push` **antes** do código: sem ele o `INSERT` falha dentro da
+  transação que confirma o Pix. `npm run carrinho` prova os dois lados na
+  mesma cobrança.
 - **Os dois índices únicos de `platform_charges` são a defesa contra cobrar
   duas vezes**, e cada um pega um jeito diferente de dobrar: `uq_charge_order`
   contra o webhook chamado de novo, `uq_charge_competencia` contra o relógio

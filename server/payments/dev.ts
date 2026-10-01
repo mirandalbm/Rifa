@@ -22,6 +22,7 @@ export class DevPaymentProvider implements PaymentProvider {
     amountCents: number;
     description: string;
     expiresAt: Date;
+    split?: { walletId: string; percentual: number }[];
   }): Promise<PixCharge> {
     const chargeId = randomUUID();
     const fingerprint = createHash("sha256")
@@ -35,6 +36,9 @@ export class DevPaymentProvider implements PaymentProvider {
       qr: "",
       copyPaste: `00020126580014BR.GOV.BCB.PIX0136${fingerprint}5204000053039865802BR6009SAO PAULO62070503***DEV`,
       expiresAt: params.expiresAt,
+      // Imita o Asaas: com carteira no split, a taxa já fica retida — é
+      // assim que `npm run carrinho` prova o lançamento `retida` sem credencial.
+      splitAplicado: Boolean(params.split?.length),
     };
   }
 

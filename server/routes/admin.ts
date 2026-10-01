@@ -121,6 +121,8 @@ import {
 } from "../services/orgs";
 import { isUniqueViolation } from "../pgError";
 import { caixaDeEntrada } from "../services/caixa";
+import { buscarNoPainel } from "../services/busca";
+import { BUSCA_MAX, ID_DO_CLIENTE_VALIDO } from "@shared/busca";
 import { destaqueDa, midiasDas, salvarPerfil, urlDaCapa, urlDaFoto } from "../services/perfil";
 import { resultados as resultadosDoPainel } from "../services/resultados";
 import {
@@ -1185,9 +1187,27 @@ adminRouter.delete("/prized/:prizedId", async (req, res, next) => {
 
 /* ---------------- pedidos ---------------- */
 
+/**
+ * A busca da barra de cima: pedido pelo código, cliente pelo ID e, para a
+ * plataforma, organização pelo nome. O recorte é o de `orgOf`; o que não é
+ * da sessão volta como lista vazia (`server/services/busca.ts`).
+ */
+adminRouter.get("/busca", async (req, res, next) => {
+  try {
+    const q = String(req.query.q ?? "").slice(0, BUSCA_MAX);
+    res.json(await buscarNoPainel(orgOf(req), q));
+  } catch (err) {
+    next(err);
+  }
+});
+
 adminRouter.get("/orders", async (req, res, next) => {
   try {
     const status = req.query.status ? String(req.query.status) : null;
+    // A busca do painel chega aqui com `?codigo=` (o pedido) ou `?cliente=`
+    // (o ID): a lista fica só com eles, dentro do mesmo recorte.
+    const codigo = /^\d{8}$/.test(String(req.query.codigo ?? "")) ? Number(req.query.codigo) : null;
+    const cliente = ID_DO_CLIENTE_VALIDO.test(String(req.query.cliente ?? "")) ? String(req.query.cliente) : null;
     // Cliente da plataforma aparece só pelo ID; o do cambista, e o ganhador,
     // com nome e telefone (`shared/titularidade.ts`).
     const visivel = clienteVisivelSql(orgOf(req), "orders");
@@ -1208,6 +1228,8 @@ adminRouter.get("/orders", async (req, res, next) => {
       .where(
         and(
           status ? sql`${orders.status} = ${status}` : sql`true`,
+          codigo ? eq(orders.code, codigo) : sql`true`,
+          cliente ? eq(buyers.codigo, cliente) : sql`true`,
           escopoDaCampanha(req),
         ),
       )

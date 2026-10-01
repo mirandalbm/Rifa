@@ -137,6 +137,7 @@ arquitetura.
 | carrinho (várias rifas, separadas por organização), o Pix único do carrinho e o comprar da publicação | `shared/carrinho.ts` (regras e split), `server/services/carrinho.ts`, `createCartOrder()` em `server/services/orders.ts`, `client/src/pages/CarrinhoPix.tsx`, `client/src/components/EscolherBilhete.tsx` (a janela do "+"), `scripts/carrinho-test.ts`, `client/src/lib/carrinho.ts`, `client/src/pages/Carrinho.tsx`, `BarraDeAcoes` em `client/src/components/Publicacao.tsx`, `scripts/publicacao-test.ts` |
 | presente pelos comentários (desconto de primeira compra pago pela plataforma) | `shared/presente.ts` (regras), `server/services/presente.ts`, `prepararPedido`/`settleOrderAsPaid` em `server/services/orders.ts`, `Presentear` em `client/src/components/Comentarios.tsx`, `AvisoDePresente` em `client/src/pages/Rifa.tsx`, cartão Presente em `client/src/pages/adminBonus.tsx`, `scripts/presente-test.ts` |
 | topo e console do app (os 6 botões da base, a lateral no computador, o trevo e a publicação) | `shared/console.ts` (botões, aviso do trevo, quem publica), `client/src/components/Console.tsx`, `PublicShell` em `client/src/components/AppShell.tsx`, `client/src/pages/PerfilDoUsuario.tsx`, `client/src/pages/EmBreve.tsx`, `client/src/components/TopoDoAppCard.tsx`, `tests/console.test.ts` |
+| busca do painel (tela, pedido pelo código, cliente pelo ID, organização pelo nome) | `shared/busca.ts` (`interpretarBusca`, `caminhoDoAchado`), `server/services/busca.ts`, `GET /api/admin/busca` e os filtros `?codigo=`/`?cliente=` de `/orders` em `server/routes/admin.ts`, `BuscaDoPainel` em `client/src/components/AppShell.tsx`, `tests/busca.test.ts`, `scripts/isolation-test.ts` |
 | caixa de entrada da plataforma (tudo que espera decisão, numa lista) | `shared/caixa.ts` (ordem e destino), `server/services/caixa.ts`, `client/src/pages/adminCaixa.tsx`, `tests/caixa.test.ts` |
 | casca dos painéis (menu lateral em grupos, barra de cima, busca, conta, rodapé) e as peças do kit | `MENUS`/`menuDe()` em `shared/access.ts`, `PanelShell` em `client/src/components/AppShell.tsx`, `client/src/components/painel.tsx` (`Estatistica`, `CartaoDoPainel`, `CabecalhoDaTabela`, `AlternarVisao`), `.painel`/`.cartao` em `client/src/index.css`, `tests/menu.test.ts` |
 | remodelagem do web e dos painéis: inventário do que existe e lista de conferência | `docs/REMODELAGEM.md` |
@@ -466,10 +467,21 @@ O verde da marca entra no lugar do roxo do kit; o significado das cores
   fechando ao escolher a página. O item aceso é a pílula verde com
   `aria-current`; o contador de pendências vai no rótulo, nunca só na bolinha.
 - **A barra de cima tem a busca única do painel** (`BuscaDoPainel`: acha a
-  tela pelo nome, Enter abre a primeira), o tema, o sino do atendimento (com
-  o número no rótulo) e a conta num `<details>` que fecha fora e no Esc.
-  Pedido, organização e cliente ainda não entram na busca
-  (`docs/PENDENCIAS.md`).
+  tela pelo nome e, pelo servidor, o **pedido pelo código** (8 dígitos),
+  o **cliente pelo ID** (`C-XXXXXXXX`) e, só para a plataforma, a
+  **organização pelo nome**; Enter abre o primeiro achado), o tema, o sino
+  do atendimento (com o número no rótulo) e a conta num `<details>` que
+  fecha fora e no Esc. Quem lê o texto é `interpretarBusca()` em
+  `shared/busca.ts` (a tela e o servidor leem igual); `GET /api/admin/busca`
+  (`buscarNoPainel()`) corre dentro do recorte de `orgOf` e devolve **lista
+  vazia** para o que é do vizinho — nunca 403, que entregaria que o código
+  existe. **Nome e telefone de comprador não entram na busca nem saem
+  dela**: o pedido vem com a rifa e a situação, o cliente só com o ID e
+  quantos pedidos tem no recorte; quem decide se o nome aparece é a lista de
+  pedidos, pela titularidade. O achado abre a tela já no item
+  (`caminhoDoAchado()`: `/admin/pedidos?codigo=`, `?cliente=`,
+  `/admin/organizacoes?aberta=`), e `/orders` filtra pelos dois parâmetros
+  com o mesmo recorte. `npm run isolation` confere o conteúdo.
 - **As regras visuais só valem dentro de `.painel`** (`index.css`): Inter
   nos títulos também (a loja segue com a Bricolage), fundo `--painel`
   (`bg-painel`) e o cartão `.cartao` sem borda, cantos de 10 px e a sombra do

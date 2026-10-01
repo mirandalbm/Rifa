@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { AprovarTelefone } from "@/components/Seguranca";
-import { Link } from "wouter";
+import { Link, useSearch } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { PRAZO_ESTORNO_MIN, PRAZO_ESTORNO_MAX, telefoneDeAvisoValido } from "@shared/chamados";
 import { maskPhone } from "@shared/format";
@@ -94,13 +94,22 @@ const COBRANCA: Record<string, string> = {
  */
 export function AdminOrganizacoes() {
   const qc = useQueryClient();
-  const [situacao, setSituacao] = useState<Situacao>("ativas");
+  // A busca do painel manda `?aberta=<id>`: a tela abre já naquela
+  // organização, e na lista das arquivadas se for o caso.
+  const pedida = new URLSearchParams(useSearch()).get("aberta");
+  const { data: todas } = useQuery<Organizacao[]>({
+    queryKey: ["/api/admin/organizacoes", { situacao: "todas" }],
+    enabled: Boolean(pedida),
+  });
+  const pedidaArquivada = Boolean(pedida && todas?.find((o) => o.id === pedida)?.archivedAt);
+  const [situacaoEscolhida, setSituacao] = useState<Situacao | null>(null);
+  const situacao: Situacao = situacaoEscolhida ?? (pedidaArquivada ? "arquivadas" : "ativas");
   const { data: orgs, isLoading } = useQuery<Organizacao[]>({
     queryKey: ["/api/admin/organizacoes", { situacao }],
   });
 
   const [nova, setNova] = useState(VAZIA);
-  const [aberta, setAberta] = useState<string | null>(null);
+  const [aberta, setAberta] = useState<string | null>(pedida);
   const [acessoPara, setAcessoPara] = useState<Organizacao | null>(null);
   const [acesso, setAcesso] = useState(ACESSO_VAZIO);
   const [arquivar, setArquivar] = useState<Organizacao | null>(null);

@@ -129,8 +129,9 @@ async function montarLado(marca: string, indice: number): Promise<Lado> {
 
   const [comprador] = await db
     .insert(buyers)
-    .values({ name: `Cliente ${marca}`, phone: `1196000000${indice}` })
-    .onConflictDoUpdate({ target: buyers.phone, set: { name: `Cliente ${marca}` } })
+    // O ID do cliente (`C-…`) é o que a busca do painel procura.
+    .values({ name: `Cliente ${marca}`, phone: `1196000000${indice}`, codigo: `C-ABCDEFG${indice + 1}` })
+    .onConflictDoUpdate({ target: buyers.phone, set: { name: `Cliente ${marca}`, codigo: `C-ABCDEFG${indice + 1}` } })
     .returning();
 
   const orderCode = 92_000_000 + indice;
@@ -508,6 +509,32 @@ async function conteudoDasListas(eu: Lado, vizinho: Lado) {
     !codigos.includes(vizinho.orderCode),
     `${codigos.length} pedido(s)`,
   );
+
+  // A busca do painel: o pedido e o cliente do vizinho não existem para mim
+  // (lista vazia, não 403); os meus aparecem sem nome de comprador; e
+  // organização só a plataforma acha.
+  const buscar = async (q: string) => (await (await pedir(eu.cookie, `/api/admin/busca?q=${encodeURIComponent(q)}`)).json()) as { tipo: string; rotulo: string }[];
+  const idDoVizinho = `C-ABCDEFG${vizinho.nome === "norte" ? 2 : 3}`;
+  const meuId = `C-ABCDEFG${eu.nome === "norte" ? 2 : 3}`;
+  checa("a busca não acha o pedido do vizinho", (await buscar(String(vizinho.orderCode))).length === 0);
+  checa("a busca não acha o cliente do vizinho", (await buscar(idDoVizinho)).length === 0);
+  checa("a busca não acha organização para o organizador", (await buscar("Organização")).length === 0);
+  const meuPedido = await buscar(`#${eu.orderCode}`);
+  checa(
+    "a busca acha o meu pedido, sem nome do comprador",
+    meuPedido.length === 1 && meuPedido[0].tipo === "pedido" && !JSON.stringify(meuPedido).includes(`Cliente ${eu.nome}`),
+    JSON.stringify(meuPedido),
+  );
+  const meuCliente = await buscar(meuId.toLowerCase());
+  checa(
+    "a busca acha o meu cliente pelo ID, sem nome",
+    meuCliente.length === 1 && meuCliente[0].rotulo === `Cliente ${meuId}` && !JSON.stringify(meuCliente).includes(`Cliente ${eu.nome}`),
+    JSON.stringify(meuCliente),
+  );
+  const filtrado = (await (await pedir(eu.cookie, `/api/admin/orders?codigo=${vizinho.orderCode}`)).json()) as unknown[];
+  checa("a lista de pedidos filtrada pelo código do vizinho vem vazia", filtrado.length === 0);
+  const porCliente = (await (await pedir(eu.cookie, `/api/admin/orders?cliente=${idDoVizinho}`)).json()) as unknown[];
+  checa("a lista de pedidos filtrada pelo cliente do vizinho vem vazia", porCliente.length === 0);
 
   const painel = await (await pedir(eu.cookie, "/api/admin/overview")).json();
   const meu = 5000 * (eu.nome === "norte" ? 1 : 2);

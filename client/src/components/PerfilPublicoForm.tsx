@@ -310,7 +310,7 @@ export function PerfilPublicoForm({
         <Button type="submit" disabled={Boolean(problema) || salvar.isPending}>
           {salvar.isPending ? "Salvando…" : "Salvar perfil"}
         </Button>
-        <Link href={`/o/${slug}`} className="text-sm text-green-deep underline">
+        <Link href={`/o/${slug}`} className="inline-flex min-h-6 items-center text-sm text-green-deep underline">
           ver perfil
         </Link>
       </div>

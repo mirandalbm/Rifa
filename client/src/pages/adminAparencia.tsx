@@ -279,16 +279,17 @@ export function AdminAparencia() {
                   <div className="flex items-center gap-2">
                     <input
                       type="checkbox"
+                      className="h-6 w-6 shrink-0 sm:h-auto sm:w-auto"
                       checked={b.ligado}
                       aria-label={`Mostrar ${TIPOS_DE_BLOCO[b.tipo]}`}
                       onChange={(e) => mudarBloco(i, { ligado: e.target.checked })}
                     />
                     <span className="flex-1 font-semibold">{TIPOS_DE_BLOCO[b.tipo]}</span>
                     <Pill status={b.ligado ? "active" : "pending"}>{b.ligado ? "ligado" : "desligado"}</Pill>
-                    <button type="button" aria-label="Subir" disabled={i === 0} onClick={() => mover(i, -1)} className="rounded p-1 hover:bg-mist disabled:opacity-30">
+                    <button type="button" aria-label="Subir" disabled={i === 0} onClick={() => mover(i, -1)} className="rounded p-1.5 hover:bg-mist disabled:opacity-30">
                       <ArrowUp size={15} aria-hidden />
                     </button>
-                    <button type="button" aria-label="Descer" disabled={i === t.blocos.length - 1} onClick={() => mover(i, 1)} className="rounded p-1 hover:bg-mist disabled:opacity-30">
+                    <button type="button" aria-label="Descer" disabled={i === t.blocos.length - 1} onClick={() => mover(i, 1)} className="rounded p-1.5 hover:bg-mist disabled:opacity-30">
                       <ArrowDown size={15} aria-hidden />
                     </button>
                     {b.tipo === "texto" ? (

@@ -190,7 +190,7 @@ export default function PerfilPage() {
                 <button
                   type="button"
                   onClick={() => setPainel("compartilhar")}
-                  className="mx-auto flex h-7 items-center justify-center text-ink hover:text-marca"
+                  className="mx-auto flex h-7 min-w-6 items-center justify-center text-ink hover:text-marca"
                   aria-label="Compartilhar este perfil"
                 >
                   <Share2 size={20} aria-hidden />

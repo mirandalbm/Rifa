@@ -103,7 +103,7 @@ export function WhatsAppCard() {
         <button
           type="button"
           onClick={() => refetch()}
-          className="text-xs text-green-deep underline"
+          className="inline-flex min-h-6 items-center text-xs text-green-deep underline"
           disabled={isFetching}
         >
           {isFetching ? "conferindo…" : "conferir de novo"}

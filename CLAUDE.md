@@ -140,6 +140,7 @@ arquitetura.
 | avisos do painel (o sino: comentários novos nas rifas, pendências do atendimento) | `shared/avisos.ts`, `server/services/avisos.ts`, `GET /api/admin/avisos` em `server/routes/admin.ts`, o `<details>` do sino em `PanelShell` (`client/src/components/AppShell.tsx`), `tests/avisos.test.ts`, `scripts/isolation-test.ts` |
 | busca do painel (tela, pedido pelo código, cliente pelo ID, organização pelo nome) | `shared/busca.ts` (`interpretarBusca`, `caminhoDoAchado`), `server/services/busca.ts`, `GET /api/admin/busca` e os filtros `?codigo=`/`?cliente=` de `/orders` em `server/routes/admin.ts`, `BuscaDoPainel` em `client/src/components/AppShell.tsx`, `tests/busca.test.ts`, `scripts/isolation-test.ts` |
 | caixa de entrada da plataforma (tudo que espera decisão, numa lista) | `shared/caixa.ts` (ordem e destino), `server/services/caixa.ts`, `client/src/pages/adminCaixa.tsx`, `tests/caixa.test.ts` |
+| abas de uma tela de painel (Configurações, edição da rifa), aba na URL e âncora | `Abas` em `client/src/components/painel.tsx`, `shared/abas.ts` (`abaInicial`, `abaDoTeclado`), `AdminConfiguracoes` e a edição em `AdminCampanhas` (`client/src/pages/admin.tsx`), `tests/abas.test.ts` |
 | lista longa do painel (paginação por chave, cartão no celular e tabela a partir de `sm`) | `shared/paginacao.ts`, `/orders` e `/cobranca/extrato` em `server/routes/admin.ts`, `extratoDa()` em `server/services/billing.ts`, `client/src/lib/paginada.ts`, `TabelaOuCartoes`/`VerMais` em `client/src/components/painel.tsx`, `tests/paginacao.test.ts` |
 | casca dos painéis (menu lateral em grupos, barra de cima, busca, conta, rodapé) e as peças do kit | `MENUS`/`menuDe()` em `shared/access.ts`, `PanelShell` em `client/src/components/AppShell.tsx`, `client/src/components/painel.tsx` (`Estatistica`, `CartaoDoPainel`, `CabecalhoDaTabela`, `AlternarVisao`), `.painel`/`.cartao` em `client/src/index.css`, `tests/menu.test.ts` |
 | remodelagem do web e dos painéis: inventário do que existe e lista de conferência | `docs/REMODELAGEM.md` |
@@ -526,6 +527,18 @@ O verde da marca entra no lugar do roxo do kit; o significado das cores
   (`client/src/components/painel.tsx`): **cartão por linha abaixo de `sm`,
   tabela a partir dele**; lista nova de painel usa os dois, não uma tabela
   de cinco colunas espremida num celular.
+- **Tela com muito cartão tem abas, não pilha.** `Abas` (`painel.tsx`)
+  é uma aba por assunto — Configurações (Conta e segurança · Organização e
+  perfil · Vendas e pagamentos) e a edição de cada rifa (A rifa ·
+  Autorização e sorteio · Publicação · Pacotes e cotas premiadas). A aba
+  aberta vai na URL (`?aba=`) e, com a âncora de um link antigo
+  (`#verificacao`), abre a aba que tem aquele cartão e rola até ele
+  (`abaInicial()` em `shared/abas.ts`: a URL vence, depois a âncora, depois
+  a primeira — valor desconhecido nunca dá tela vazia). Teclado de lista de
+  abas (setas, Home, End; só a ativa no Tab) e só a aba aberta monta, para
+  cartão de outra aba não buscar dado à toa. Cartão novo entra na aba do
+  assunto dele; não abra aba nova para um cartão só. Aba nova que ganha
+  âncora de link entra em `ancoras`.
 - **Rifas em grade de capas** (`AdminCampanhas`): a capa vem do servidor
   (`capa` na lista: o banner, senão a primeira foto — nunca o vídeo), a
   situação vai em texto na pílula sobre a capa, e as mesmas ações da lista

@@ -133,8 +133,10 @@ Limite da leva: **10** mudanças aguardando.
     escuro" do `CLAUDE.md`). Topo e faixa de baixo opacos.
 14. **Janela** (sobre a tela): sobe de baixo no celular e fica centrada a
     partir de `sm`; fecha no Esc e no toque no fundo; trava a rolagem de
-    trás; `role="dialog"` e `aria-modal`. Hoje 3 das 6 seguem tudo
-    ([P2](#pendências)).
+    trás; `role="dialog"` e `aria-modal`. É o componente `Janela`
+    (`client/src/components/Janela.tsx`) — tela nova não monta o fundo à
+    mão (`tests/janela.test.ts` confere). O visualizador de stories é tela
+    cheia preta, outra coisa, e segue à parte.
 15. **Tabela larga no celular rola dentro do cartão**, nunca a página.
 16. **O que aparece ao passar o mouse aparece também no toque e no foco** —
     o celular não tem mouse. O gráfico de barras tem a tabela equivalente.
@@ -279,7 +281,7 @@ qualquer mudança.
 | # | O quê | Onde | Versão |
 |---|---|---|---|
 | P1 | O tablet é o celular esticado na página da rifa: foto 4:5 com 768 px de largura (o perfil saiu daqui na leva 2: rifas em 2 colunas do tablet em diante) | `Rifa.tsx` | tablet |
-| P2 | Seis janelas feitas à mão, com comportamentos diferentes: só 3 fecham no Esc e travam a rolagem; fundo `bg-black/50` numa e `/30` noutra. Alvo: um componente `Janela` com a regra 14 | `Comentarios.tsx`, `Stories.tsx`, `EscolherBilhete.tsx`, `Seguranca.tsx`, `Perfil.tsx`, `MinhasCotas.tsx` | todas |
+| P2 | ~~Seis janelas feitas à mão~~ **Feito**: o componente `Janela` (regra 14) serve Comentários, escolha de bilhete, denúncia, Criar, cota surpresa, folhas do perfil e pedido de reembolso | `Janela.tsx` | todas |
 | P3 | ~~`h1` em 9 combinações de classe~~ **Feito**: o padrão `font-display text-xl font-extrabold` vale em todas as telas; sobram só dois tamanhos de propósito (o título do cartão com `line-clamp` e o do banner da rifa, `text-2xl`) e os modificadores de posição | várias | todas |
 | P4 | A classe do campo de digitar repetida mais de 80 vezes. Alvo: um componente `Campo` (rótulo + campo + erro) | várias | todas |
 | P6 | "Nova venda" do cambista ocupa a largura toda no computador | `cambista.tsx` | computador |

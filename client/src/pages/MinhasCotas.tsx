@@ -1,4 +1,5 @@
 import { CartaoDoFeed, type RifaDoFeed } from "@/components/CartaoDoFeed";
+import { Janela } from "@/components/Janela";
 import { useEffect, useState } from "react";
 import { Link, useSearch } from "wouter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -407,132 +408,125 @@ function PedirReembolso({
   const pronto = motivo.trim().length >= 10 && cpfValido(cpf) && Boolean(anexo);
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="titulo-reembolso"
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/30 p-4 sm:items-center"
-    >
-      <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-lg bg-white p-4 shadow-lg">
-        <h2 id="titulo-reembolso" className="font-display text-lg font-bold">
-          Pedir reembolso
-        </h2>
-        <p className="mt-1 text-xs text-muted">
-          {row.campaign.title} · pedido <span className="tnum">#{row.order.code}</span> ·{" "}
-          <Money cents={row.order.amountCents} />
-        </p>
-        {(() => {
-          // O mesmo cálculo que o servidor grava ao receber o pedido.
-          const c = calcularReembolso({
-            pagoCents: row.order.amountCents,
-            vendaOnline: !row.order.sellerId && (row.order.method ?? "pix_online") === "pix_online",
-            compradoEm: new Date(row.order.paidAt ?? row.order.createdAt),
-            pedidoEm: new Date(),
-            taxaPct,
-          });
-          return (
-            <div className="mt-2 rounded-md border border-line bg-mist px-3 py-2 text-sm">
-              <p>
-                Você recebe <strong className="tnum">{formatBRL(c.devolverCents)}</strong>
-                {c.taxaCents > 0 ? (
-                  <>
-                    {" "}
-                    (taxa administrativa de <span className="tnum">{c.taxaPct}%</span>:{" "}
-                    <span className="tnum">{formatBRL(c.taxaCents)}</span>)
-                  </>
-                ) : null}
-              </p>
-              <p className="text-xs text-muted">{NOME_TIPO_REEMBOLSO[c.tipo]}</p>
-            </div>
-          );
-        })()}
-        <p className="mt-2 rounded-md bg-yellow-soft px-3 py-2 text-xs text-yellow-deep">
-          A organização da rifa analisa cada pedido. Aprovado, você recebe o protocolo e o prazo de
-          devolução aqui. Com Pix, o valor volta para a mesma conta que pagou.
-        </p>
+    <Janela onFechar={fechar} rotuloPor="titulo-reembolso" className="p-4">
+      <h2 id="titulo-reembolso" className="font-display text-lg font-bold">
+        Pedir reembolso
+      </h2>
+      <p className="mt-1 text-xs text-muted">
+        {row.campaign.title} · pedido <span className="tnum">#{row.order.code}</span> ·{" "}
+        <Money cents={row.order.amountCents} />
+      </p>
+      {(() => {
+        // O mesmo cálculo que o servidor grava ao receber o pedido.
+        const c = calcularReembolso({
+          pagoCents: row.order.amountCents,
+          vendaOnline: !row.order.sellerId && (row.order.method ?? "pix_online") === "pix_online",
+          compradoEm: new Date(row.order.paidAt ?? row.order.createdAt),
+          pedidoEm: new Date(),
+          taxaPct,
+        });
+        return (
+          <div className="mt-2 rounded-md border border-line bg-mist px-3 py-2 text-sm">
+            <p>
+              Você recebe <strong className="tnum">{formatBRL(c.devolverCents)}</strong>
+              {c.taxaCents > 0 ? (
+                <>
+                  {" "}
+                  (taxa administrativa de <span className="tnum">{c.taxaPct}%</span>:{" "}
+                  <span className="tnum">{formatBRL(c.taxaCents)}</span>)
+                </>
+              ) : null}
+            </p>
+            <p className="text-xs text-muted">{NOME_TIPO_REEMBOLSO[c.tipo]}</p>
+          </div>
+        );
+      })()}
+      <p className="mt-2 rounded-md bg-yellow-soft px-3 py-2 text-xs text-yellow-deep">
+        A organização da rifa analisa cada pedido. Aprovado, você recebe o protocolo e o prazo de
+        devolução aqui. Com Pix, o valor volta para a mesma conta que pagou.
+      </p>
 
-        <form
-          className="mt-3 space-y-3"
-          onSubmit={(e) => {
-            e.preventDefault();
-            setErro(null);
-            abrir.mutate();
-          }}
-        >
-          <div>
-            <label htmlFor="motivo" className="label-xs">
-              Motivo
-            </label>
-            <textarea
-              id="motivo"
-              rows={3}
-              maxLength={1000}
-              value={motivo}
-              onChange={(e) => setMotivo(e.target.value)}
-              className="mt-1 w-full rounded-md border border-line-2 px-3 py-2 text-sm"
-            />
-          </div>
-          <div>
-            <label htmlFor="cpf" className="label-xs">
-              CPF de quem comprou
-            </label>
-            <input
-              id="cpf"
-              inputMode="numeric"
-              value={cpf}
-              onChange={(e) => setCpf(maskCpf(e.target.value))}
-              className="tnum mt-1 w-full rounded-md border border-line-2 px-3 py-2 text-sm"
-            />
-          </div>
-          <div>
-            <label htmlFor="pix" className="label-xs">
-              Chave Pix (opcional — só se a compra não foi por Pix)
-            </label>
-            <input
-              id="pix"
-              maxLength={140}
-              value={pixChave}
-              onChange={(e) => setPixChave(e.target.value)}
-              className="mt-1 w-full rounded-md border border-line-2 px-3 py-2 text-sm"
-            />
-          </div>
-          <div>
-            <label htmlFor="print" className="label-xs">
-              Print do bilhete ou do comprovante
-            </label>
-            <input
-              id="print"
-              type="file"
-              accept="image/*"
-              className="mt-1 block text-xs"
-              onChange={async (e) => {
-                const f = e.target.files?.[0];
-                if (!f) return setAnexo(null);
-                try {
-                  setAnexo(await lerImagem(f));
-                  setErro(null);
-                } catch (err) {
-                  setErro((err as Error).message);
-                  e.target.value = "";
-                }
-              }}
-            />
-            {anexo ? <img src={anexo} alt="Prévia do print" className="mt-2 max-h-40 rounded-md border border-line" /> : null}
-          </div>
+      <form
+        className="mt-3 space-y-3"
+        onSubmit={(e) => {
+          e.preventDefault();
+          setErro(null);
+          abrir.mutate();
+        }}
+      >
+        <div>
+          <label htmlFor="motivo" className="label-xs">
+            Motivo
+          </label>
+          <textarea
+            id="motivo"
+            rows={3}
+            maxLength={1000}
+            value={motivo}
+            onChange={(e) => setMotivo(e.target.value)}
+            className="mt-1 w-full rounded-md border border-line-2 px-3 py-2 text-sm"
+          />
+        </div>
+        <div>
+          <label htmlFor="cpf" className="label-xs">
+            CPF de quem comprou
+          </label>
+          <input
+            id="cpf"
+            inputMode="numeric"
+            value={cpf}
+            onChange={(e) => setCpf(maskCpf(e.target.value))}
+            className="tnum mt-1 w-full rounded-md border border-line-2 px-3 py-2 text-sm"
+          />
+        </div>
+        <div>
+          <label htmlFor="pix" className="label-xs">
+            Chave Pix (opcional — só se a compra não foi por Pix)
+          </label>
+          <input
+            id="pix"
+            maxLength={140}
+            value={pixChave}
+            onChange={(e) => setPixChave(e.target.value)}
+            className="mt-1 w-full rounded-md border border-line-2 px-3 py-2 text-sm"
+          />
+        </div>
+        <div>
+          <label htmlFor="print" className="label-xs">
+            Print do bilhete ou do comprovante
+          </label>
+          <input
+            id="print"
+            type="file"
+            accept="image/*"
+            className="mt-1 block text-xs"
+            onChange={async (e) => {
+              const f = e.target.files?.[0];
+              if (!f) return setAnexo(null);
+              try {
+                setAnexo(await lerImagem(f));
+                setErro(null);
+              } catch (err) {
+                setErro((err as Error).message);
+                e.target.value = "";
+              }
+            }}
+          />
+          {anexo ? <img src={anexo} alt="Prévia do print" className="mt-2 max-h-40 rounded-md border border-line" /> : null}
+        </div>
 
-          {erro ? <p className="rounded-md bg-red-soft px-3 py-2 text-sm text-red">{erro}</p> : null}
+        {erro ? <p className="rounded-md bg-red-soft px-3 py-2 text-sm text-red">{erro}</p> : null}
 
-          <div className="flex gap-2">
-            <Button type="submit" disabled={!pronto || abrir.isPending}>
-              {abrir.isPending ? "Enviando…" : "Enviar pedido"}
-            </Button>
-            <Button type="button" variant="ghost" onClick={fechar}>
-              Cancelar
-            </Button>
-          </div>
-        </form>
-      </div>
-    </div>
+        <div className="flex gap-2">
+          <Button type="submit" disabled={!pronto || abrir.isPending}>
+            {abrir.isPending ? "Enviando…" : "Enviar pedido"}
+          </Button>
+          <Button type="button" variant="ghost" onClick={fechar}>
+            Cancelar
+          </Button>
+        </div>
+      </form>
+    </Janela>
   );
 }
 

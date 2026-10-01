@@ -6,6 +6,7 @@ import { Button, Pill } from "@/components/bits";
 import { apiRequest } from "@/lib/queryClient";
 import { EditarPerfilPublico, FotoDoApostador } from "@/components/PerfilDoApostador";
 import { COMENTARIO_MAX, EMOJI_SO_VERIFICADO, problemaNoComentario, temEmoji } from "@shared/comentarios";
+import { Janela } from "@/components/Janela";
 import { SeloVerificado } from "@/components/SeloVerificado";
 import { REACOES } from "@shared/perfilApostador";
 import { textoDoPresente } from "@shared/presente";
@@ -620,41 +621,23 @@ export function Comentarios({
  * Instagram. Fecha pelo X, pelo fundo ou pelo Esc.
  */
 export function PainelDeComentarios({ slug, onFechar }: { slug: string; onFechar: () => void }) {
-  useEffect(() => {
-    const esc = (e: KeyboardEvent) => e.key === "Escape" && onFechar();
-    window.addEventListener("keydown", esc);
-    const antes = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      window.removeEventListener("keydown", esc);
-      document.body.style.overflow = antes;
-    };
-  }, [onFechar]);
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50" onClick={onFechar}>
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label="Comentários"
-        className="flex max-h-[85vh] w-full max-w-lg flex-col rounded-t-3xl bg-white"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="relative border-b border-line py-3 text-center">
-          <span aria-hidden className="mx-auto mb-2 block h-1 w-10 rounded-full bg-line-2" />
-          <h2 className="font-semibold">Comentários</h2>
-          <button
-            type="button"
-            onClick={onFechar}
-            aria-label="Fechar comentários"
-            className="absolute right-3 top-3 rounded-md p-1 hover:bg-mist"
-          >
-            <X size={20} aria-hidden />
-          </button>
-        </div>
-        <div className="overflow-y-auto px-4 pt-4">
-          <Comentarios slug={slug} dentroDoPainel />
-        </div>
+    <Janela onFechar={onFechar} rotulo="Comentários" sempreEmbaixo rolar={false} className="flex max-h-[85vh] flex-col !rounded-t-3xl sm:!rounded-b-none">
+      <div className="relative border-b border-line py-3 text-center">
+        <span aria-hidden className="mx-auto mb-2 block h-1 w-10 rounded-full bg-line-2" />
+        <h2 className="font-semibold">Comentários</h2>
+        <button
+          type="button"
+          onClick={onFechar}
+          aria-label="Fechar comentários"
+          className="absolute right-3 top-3 rounded-md p-1 hover:bg-mist"
+        >
+          <X size={20} aria-hidden />
+        </button>
       </div>
-    </div>
+      <div className="overflow-y-auto px-4 pt-4">
+        <Comentarios slug={slug} dentroDoPainel />
+      </div>
+    </Janela>
   );
 }

@@ -425,14 +425,19 @@ function Conversa({ id }: { id: string }) {
           type="button"
           onClick={() => bloquear.mutate(!c.bloqueadaPorMim)}
           disabled={bloquear.isPending || (c.bloqueada && !c.bloqueadaPorMim) || c.encerrada}
-          className="inline-flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs text-ink-2 hover:bg-mist disabled:opacity-40"
+          className="inline-flex h-9 w-9 shrink-0 items-center justify-center gap-1.5 rounded-md text-xs text-ink-2 hover:bg-mist disabled:opacity-40 sm:w-auto sm:px-2"
         >
-          <Ban size={15} aria-hidden />
-          {c.bloqueadaPorMim ? "Desbloquear" : "Bloquear"}
+          <Ban size={16} aria-hidden />
+          {/* No celular só o ícone: o nome de quem fala é o que precisa de espaço. */}
+          <span className="sr-only sm:not-sr-only">{c.bloqueadaPorMim ? "Desbloquear" : "Bloquear"}</span>
         </button>
-        <button type="button" onClick={() => setDenunciando(true)} className="inline-flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs text-ink-2 hover:bg-mist">
-          <Flag size={15} aria-hidden />
-          Denunciar
+        <button
+          type="button"
+          onClick={() => setDenunciando(true)}
+          className="inline-flex h-9 w-9 shrink-0 items-center justify-center gap-1.5 rounded-md text-xs text-ink-2 hover:bg-mist sm:w-auto sm:px-2"
+        >
+          <Flag size={16} aria-hidden />
+          <span className="sr-only sm:not-sr-only">Denunciar</span>
         </button>
       </header>
 

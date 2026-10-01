@@ -2205,15 +2205,16 @@ adminRouter.get("/plataforma", async (req, res, next) => {
   }
 });
 
-/** O topo do app: estilo e cor do aviso no trevo, e o interruptor da publicação do apostador. Só a plataforma. */
+/** O topo do app: estilo e cor do aviso no trevo e os interruptores (publicação do apostador, Reels). Só a plataforma. */
 adminRouter.put("/app", async (req, res, next) => {
   try {
     requirePlatformAdmin(req);
     const salva = await setPlataforma({
       avisoDoTrevo: req.body?.avisoDoTrevo,
       publicarApostador: typeof req.body?.publicarApostador === "boolean" ? req.body.publicarApostador : undefined,
+      reelsLigado: typeof req.body?.reelsLigado === "boolean" ? req.body.reelsLigado : undefined,
     });
-    const app = { avisoDoTrevo: salva.avisoDoTrevo, publicarApostador: salva.publicarApostador };
+    const app = { avisoDoTrevo: salva.avisoDoTrevo, publicarApostador: salva.publicarApostador, reelsLigado: salva.reelsLigado };
     await audit(req, "plataforma.app", "settings", "plataforma", app);
     res.json(app);
   } catch (err) {

@@ -108,6 +108,7 @@ arquitetura.
 | cadastro fiscal do afiliado, cofre e recibo | `shared/fiscal.ts` (regras), `server/services/cofre.ts`, `server/services/fiscal.ts`, `server/services/recibos.ts`, `client/src/pages/afiliadoDados.tsx`, `adminFiscal.tsx`, `Recibo.tsx`, `scripts/fiscal-test.ts` |
 | guarda da comissão pela plataforma (etapa 12) | `guardaComissao` e `percentualDoPromotor()` em `shared/plataforma.ts`, `createOrder`/`settleOrderAsPaid` em `server/services/orders.ts`, `scripts/guarda-test.ts` |
 | indicação, bônus e metas (etapa 13) | `shared/bonus.ts` (regras), `server/services/bonus.ts`, `resgatarCotasDeBonus()` em `server/services/orders.ts`, `client/src/lib/indicacao.ts`, `client/src/pages/adminBonus.tsx`, `client/src/components/BonusDoComprador.tsx`, `scripts/bonus-test.ts` |
+| Reels (tela cheia, vídeo em pé, interruptor da plataforma) | `shared/reels.ts` (regras, lote), `GET /api/public/reels` em `server/routes/public.ts`, `reelsLigado` em `shared/plataforma.ts`, `client/src/pages/Reels.tsx`, `vertical` em `BarraDeAcoes`, `scripts/publicacao-test.ts`, `tests/reels.test.ts` |
 | rifas patrocinadas por clique (etapa 15): pacote, fila, tabela e números | `shared/patrocinio.ts` (regras, preço, previsão da fila), `server/services/patrocinio.ts`, `client/src/pages/adminPatrocinio.tsx`, `client/src/components/Patrocinadas.tsx`, `scripts/patrocinio-test.ts` |
 | marketing e tráfego pago (etapa 16): pixels, aviso de cookies, UTM, compra pelo servidor | `shared/marketing.ts` (regras e corpos das APIs), `server/services/marketing.ts`, `client/src/lib/marketing.ts`, `client/src/components/Marketing.tsx`, `client/src/pages/adminMarketing.tsx`, `scripts/marketing-test.ts` |
 | plano da próxima fase (vitrine, contas, afiliados, marketing) | `docs/PLANO-FASE5.md` |
@@ -1449,6 +1450,24 @@ estorno.
   O recorte é `assertCampaignInScope` (o vizinho é 404, no `npm run
   isolation`).
 - `npm run publicacao` prova tudo isso contra a API de verdade.
+
+## Reels — o que não pode afrouxar
+
+- **Nasce desligado** (`reelsLigado`, Aparência → Topo do app, `PUT
+  /admin/app`, 403 para organizador). Desligado, `/api/public/reels` devolve
+  lista vazia e `/reels` é a tela "Em breve".
+- **Só rifa no ar com vídeo em pé de até 3 min**, medido no servidor
+  (`videoDoReels()`: formato "reels" e proporção ≤ 0,85 — vídeo deitado ou
+  sem medida não entra). Demonstração, rifa travada e rascunho ficam de fora.
+- **Lote depois do último id visto** (`loteDepoisDe()`, parâmetro `depois`),
+  nunca por número de página nem `OFFSET`: rifa nova no topo não repete nem
+  pula item. Região ordena (`ordenarPorProximidade`), nunca esconde.
+- **"Seguindo" pede conta** (`precisaEntrar`) e filtra por `seguidores`.
+- **É o mesmo cartão e as mesmas ações da vitrine**: curtir, comentar,
+  republicar, compartilhar, "+" e comprar passam pelas rotas de sempre.
+  Nada reserva cota aqui; comprar leva à compra rápida (`?comprar=1`).
+- Sem prova social inventada: nada de contador "assistindo agora".
+- `npm run publicacao` prova a rota e o interruptor contra a API de verdade.
 
 ## Carrinho e comprar — o que não pode afrouxar
 

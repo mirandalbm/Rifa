@@ -29,12 +29,13 @@ export const acimaDoConsole = `calc(${ALTURA_DO_CONSOLE} + env(safe-area-inset-b
 interface ConfigDoApp {
   avisoDoTrevo: AvisoDoTrevo;
   publicarApostador: boolean;
+  reelsLigado: boolean;
 }
 
 /** Como o trevo avisa e se o apostador publica (escolhas da plataforma). */
 export function useConfigDoApp(): ConfigDoApp {
   const { data } = useQuery<ConfigDoApp>({ queryKey: ["/api/public/app"], staleTime: 60_000 });
-  return data ?? { avisoDoTrevo: AVISO_DO_TREVO_PADRAO, publicarApostador: false };
+  return data ?? { avisoDoTrevo: AVISO_DO_TREVO_PADRAO, publicarApostador: false, reelsLigado: false };
 }
 
 /** Os ícones do console, no traço suave da barra de ações (`Icones.tsx`). */

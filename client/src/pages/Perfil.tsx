@@ -305,18 +305,23 @@ export default function PerfilPage() {
 
       </div>
 
-      {/* Grade: uma rifa por linha no celular, duas no computador */}
+      {/* Uma rifa por linha no celular; do tablet em diante, duas colunas em
+          fluxo (`columns`), não grade: cada publicação tem a altura do seu
+          formato (4:5, 9:16…), e a grade deixava um buraco do tamanho da
+          peça mais alta ao lado de cada peça mais baixa. */}
       <section
         aria-label="Rifas no ar"
-        className="mt-5 space-y-4 border-t border-line pt-4 lg:grid lg:grid-cols-2 lg:gap-6 lg:space-y-0 lg:border-t-0 lg:pt-0"
+        className="mt-5 border-t border-line pt-4 md:columns-2 md:gap-4 lg:gap-6 lg:border-t-0 lg:pt-0"
       >
         {p.rifas.length === 0 ? (
-          <div className="lg:col-span-2">
+          <div className="[column-span:all]">
             <Empty>Nenhuma rifa no ar agora.</Empty>
           </div>
         ) : null}
         {p.rifas.map((r) => (
-          <CartaoDaRifa key={r.id} org={p.slug} nome={p.nome} rifa={r} />
+          <div key={r.id} className="mb-4 break-inside-avoid lg:mb-6">
+            <CartaoDaRifa org={p.slug} nome={p.nome} rifa={r} />
+          </div>
         ))}
       </section>
       </div>

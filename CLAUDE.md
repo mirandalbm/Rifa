@@ -163,6 +163,13 @@ arquitetura.
   de marketing pedem a lista de origens — o caminho é começar em modo
   relatório. O que mais ficou para depois está em `docs/SEGURANCA.md`.
 
+- **Chatbase AI nos painéis** (a última peça do plano dos painéis): uma
+  coluna à direita para o administrador master e o organizador, com uma IA que
+  interage com o sistema e os auxilia. Ainda não existe; as regras de
+  recorte e de confirmação estão em `docs/PENDENCIAS.md` (seção 1b). Quando
+  entrar, vale o recorte de `orgOf` e nada de dado pessoal de comprador no
+  contexto.
+
 - Pôster extraído do vídeo e transcode: hoje servimos o arquivo original. A
   medição e os limites já existem; falta o processamento. Cloudflare Stream
   resolve os dois de fábrica.

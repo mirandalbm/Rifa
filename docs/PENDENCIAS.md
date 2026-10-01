@@ -37,6 +37,18 @@ senha); **[código]** é trabalho no repositório.
 - [ ] **[código]** A busca do painel achar pedido (pelo código), organização
   e cliente (pelo ID) — hoje só acha a tela pelo nome.
 
+- [ ] **[código]** **Por último:** uma coluna à direita do painel para o
+  **Chatbase AI**, que interage com o sistema e auxilia o **administrador
+  master** e o **organizador** (só esses dois painéis; afiliado e cambista
+  ficam de fora). Fica por último, depois de a casca e as telas estarem
+  fechadas. Pontos a decidir quando chegar a hora: a coluna entra na casca
+  (`PanelShell`) como o painel de comentários entra na vitrine — recolhida
+  por padrão, aberta pelo botão da barra de cima, por cima do conteúdo no
+  celular; e **o que a IA enxerga e faz passa pelo mesmo recorte do painel**
+  (`orgOf`): o organizador só alcança a organização dele, e nenhuma ação sai
+  sem a confirmação de quem está logado, com auditoria. Dado pessoal de
+  comprador (telefone, CPF) nunca vai para o contexto da IA.
+
 ## 2. Para a rifa vender
 
 - [ ] **[você]** Pagamento: escolher **Mercado Pago** ou **Asaas** (os dois

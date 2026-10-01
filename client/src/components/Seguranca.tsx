@@ -3,6 +3,7 @@ import { Link } from "wouter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Flag, ShieldAlert, X } from "lucide-react";
 import { Button, Card, Empty, Pill } from "@/components/bits";
+import { MestreDetalhe } from "@/components/painel";
 import { apiRequest } from "@/lib/queryClient";
 import { useSession } from "@/lib/session";
 import { maskPhone } from "@shared/format";
@@ -383,40 +384,41 @@ export function DenunciasDaPlataforma() {
           </button>
         ))}
       </div>
-      <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
-        <Card title="Denúncias">
-          {data?.length ? (
-            <ul className="divide-y divide-line">
-              {data.map((d) => (
-                <li key={d.id}>
-                  <button
-                    type="button"
-                    onClick={() => setAberto(d.id)}
-                    className={`w-full px-4 py-3 text-left hover:bg-mist ${aberto === d.id ? "bg-mist" : ""}`}
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <span className="tnum text-sm font-semibold">{d.protocolo}</span>
-                      <Pill status={PILL_DENUNCIA[d.status]}>{NOME_STATUS_DENUNCIA[d.status]}</Pill>
-                    </div>
-                    <p className="mt-1 text-sm">{MOTIVOS_DE_DENUNCIA[d.motivo] ?? d.motivo}</p>
-                    <p className="text-xs text-muted">
-                      {d.organizacao}
-                      {d.rifa ? ` · ${d.rifa}` : ""} · {d.origem === "automatica" ? "automática" : "apostador"}
-                    </p>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <Empty>Nenhuma denúncia aqui.</Empty>
-          )}
-        </Card>
-        {aberto ? <DetalheDaDenuncia id={aberto} /> : (
-          <Card>
-            <Empty>Escolha uma denúncia para ver a evidência e decidir.</Empty>
+      <MestreDetalhe
+        aberto={aberto}
+        aoFechar={() => setAberto(null)}
+        vazio="Escolha uma denúncia para ver a evidência e decidir."
+        lista={
+          <Card title="Denúncias">
+            {data?.length ? (
+              <ul className="divide-y divide-line">
+                {data.map((d) => (
+                  <li key={d.id}>
+                    <button
+                      type="button"
+                      onClick={() => setAberto(d.id)}
+                      className={`w-full px-4 py-3 text-left hover:bg-mist ${aberto === d.id ? "bg-mist" : ""}`}
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span className="tnum text-sm font-semibold">{d.protocolo}</span>
+                        <Pill status={PILL_DENUNCIA[d.status]}>{NOME_STATUS_DENUNCIA[d.status]}</Pill>
+                      </div>
+                      <p className="mt-1 text-sm">{MOTIVOS_DE_DENUNCIA[d.motivo] ?? d.motivo}</p>
+                      <p className="text-xs text-muted">
+                        {d.organizacao}
+                        {d.rifa ? ` · ${d.rifa}` : ""} · {d.origem === "automatica" ? "automática" : "apostador"}
+                      </p>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <Empty>Nenhuma denúncia aqui.</Empty>
+            )}
           </Card>
-        )}
-      </div>
+        }
+        detalhe={aberto ? <DetalheDaDenuncia id={aberto} /> : null}
+      />
     </>
   );
 }

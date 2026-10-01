@@ -400,3 +400,82 @@ export function Abas({
     </div>
   );
 }
+
+/**
+ * Lista à esquerda e o item aberto à direita — o Atendimento (chamados,
+ * pedidos de mudança, denúncias, verificações), como a caixa de e-mail do kit.
+ *
+ * - **Tela larga (`xl`, 1280 px)**: os dois lado a lado; a lista e o item
+ *   rolam cada um no seu lugar, e o item fica fixo sob a barra de cima — a
+ *   conversa não some quando a lista é longa.
+ * - **Abaixo disso**: uma coisa por vez. Abriu um item, a lista dá lugar a
+ *   ele com um "Voltar" no alto (o foco vai para o botão e a página sobe);
+ *   antes, o item abria **embaixo** de uma lista que podia ter metros.
+ * - **Esc fecha o item** (menos dentro de campo de texto — não perde o
+ *   rascunho da resposta).
+ */
+export function MestreDetalhe({
+  lista,
+  detalhe,
+  aberto,
+  aoFechar,
+  vazio,
+  voltar = "Voltar para a lista",
+}: {
+  /** O `<Card>` com a lista (cada tela escolhe o título e as linhas). */
+  lista: ReactNode;
+  /** O item aberto; só é montado com `aberto`. */
+  detalhe: ReactNode;
+  aberto: string | null;
+  aoFechar: () => void;
+  /** O que a coluna da direita diz enquanto nada está aberto (só em tela larga). */
+  vazio: string;
+  voltar?: string;
+}) {
+  const botaoVoltar = useRef<HTMLButtonElement>(null);
+  // O `aoFechar` das telas é uma função nova a cada desenho: se entrasse na
+  // lista do efeito, a lista que se atualiza sozinha (a cada 30 s) subiria a
+  // página e tomaria o foco de quem está respondendo.
+  const fechar = useRef(aoFechar);
+  fechar.current = aoFechar;
+
+  useEffect(() => {
+    if (!aberto) return;
+    // Abaixo de `xl` o item ocupa a tela: sobe a página e leva o foco ao "Voltar".
+    if (!window.matchMedia("(min-width: 1280px)").matches) {
+      window.scrollTo({ top: 0 });
+      botaoVoltar.current?.focus();
+    }
+    const noEsc = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      const alvo = e.target as HTMLElement | null;
+      if (alvo && /^(INPUT|TEXTAREA|SELECT)$/.test(alvo.tagName)) return;
+      fechar.current();
+    };
+    document.addEventListener("keydown", noEsc);
+    return () => document.removeEventListener("keydown", noEsc);
+  }, [aberto]);
+
+  return (
+    <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] xl:items-start">
+      <div className={`min-w-0 xl:max-h-[calc(100vh-9rem)] xl:overflow-y-auto ${aberto ? "hidden xl:block" : ""}`}>{lista}</div>
+      {aberto ? (
+        <div className="min-w-0 space-y-3 xl:sticky xl:top-20 xl:max-h-[calc(100vh-6rem)] xl:space-y-0 xl:overflow-y-auto">
+          <button
+            ref={botaoVoltar}
+            type="button"
+            onClick={aoFechar}
+            className="inline-flex min-h-9 items-center gap-1 rounded-md px-2 text-sm font-medium text-green-deep hover:bg-green-soft xl:hidden"
+          >
+            <span aria-hidden>←</span> {voltar}
+          </button>
+          {detalhe}
+        </div>
+      ) : (
+        <div className="hidden min-w-0 xl:block">
+          <div className="cartao rounded-xl border border-line bg-white px-4 py-10 text-center text-sm text-muted">{vazio}</div>
+        </div>
+      )}
+    </div>
+  );
+}

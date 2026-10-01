@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { PanelShell } from "@/components/AppShell";
 import { Card, Button, Pill, Empty, Money } from "@/components/bits";
+import { MestreDetalhe } from "@/components/painel";
 import { Conversa, type Mensagem } from "@/components/Conversa";
 import { SolicitacoesDeRifa } from "@/components/SolicitacoesDeRifa";
 import { DenunciasDaPlataforma } from "@/components/Seguranca";
@@ -243,50 +244,52 @@ export function AdminAtendimento() {
         ))}
       </div>
 
-      <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
-        <Card title="Chamados">
-          {lista?.length ? (
-            <ul className="divide-y divide-line">
-              {lista.map((c) => (
-                <li key={c.id}>
-                  <button
-                    type="button"
-                    onClick={() => setAberto(c.id)}
-                    className={`w-full px-4 py-3 text-left hover:bg-mist ${aberto === c.id ? "bg-mist" : ""}`}
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <span className="tnum text-sm font-semibold">{c.protocolo}</span>
-                      <StatusPill s={c.status} disputa={c.disputa} />
-                    </div>
-                    <p className="mt-1 text-sm">
-                      {c.nome} <span className="tnum text-xs text-muted">· {c.cliente ?? "sem ID"}</span>
-                    </p>
-                    <p className="text-xs text-muted">
-                      {c.rifa} · pedido <span className="tnum">#{c.pedido}</span> ·{" "}
-                      <span className="tnum">{formatBRL(c.valorCents)}</span>
-                    </p>
-                    {c.status === "aprovado" ? <Prazo ate={c.prazoEstornoAte} /> : null}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <Empty>Nenhum chamado aqui.</Empty>
-          )}
-        </Card>
-
-        {aberto ? (
-          <DetalheChamado
-            id={aberto}
-            daPlataforma={daPlataforma}
-            aoMudar={() => qc.invalidateQueries({ queryKey: ["/api/admin/chamados"] })}
-          />
-        ) : (
-          <Card>
-            <Empty>Escolha um chamado para ver a conversa e decidir.</Empty>
+      <MestreDetalhe
+        aberto={aberto}
+        aoFechar={() => setAberto(null)}
+        vazio="Escolha um chamado para ver a conversa e decidir."
+        lista={
+          <Card title="Chamados">
+            {lista?.length ? (
+              <ul className="divide-y divide-line">
+                {lista.map((c) => (
+                  <li key={c.id}>
+                    <button
+                      type="button"
+                      onClick={() => setAberto(c.id)}
+                      className={`w-full px-4 py-3 text-left hover:bg-mist ${aberto === c.id ? "bg-mist" : ""}`}
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span className="tnum text-sm font-semibold">{c.protocolo}</span>
+                        <StatusPill s={c.status} disputa={c.disputa} />
+                      </div>
+                      <p className="mt-1 text-sm">
+                        {c.nome} <span className="tnum text-xs text-muted">· {c.cliente ?? "sem ID"}</span>
+                      </p>
+                      <p className="text-xs text-muted">
+                        {c.rifa} · pedido <span className="tnum">#{c.pedido}</span> ·{" "}
+                        <span className="tnum">{formatBRL(c.valorCents)}</span>
+                      </p>
+                      {c.status === "aprovado" ? <Prazo ate={c.prazoEstornoAte} /> : null}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <Empty>Nenhum chamado aqui.</Empty>
+            )}
           </Card>
-        )}
-      </div>
+        }
+        detalhe={
+          aberto ? (
+            <DetalheChamado
+              id={aberto}
+              daPlataforma={daPlataforma}
+              aoMudar={() => qc.invalidateQueries({ queryKey: ["/api/admin/chamados"] })}
+            />
+          ) : null
+        }
+      />
     </PanelShell>
   );
 }

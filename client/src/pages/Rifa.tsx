@@ -702,7 +702,7 @@ export default function Rifa() {
                     id="nome"
                     value={buyer.name}
                     onChange={(e) => setBuyer({ ...buyer, name: e.target.value })}
-                    className="mt-1 w-full rounded-md border border-line-2 px-3 py-2 text-sm"
+                    className="campo text-sm"
                   />
                 </div>
                 <div>
@@ -714,7 +714,7 @@ export default function Rifa() {
                     value={buyer.phone}
                     inputMode="tel"
                     onChange={(e) => setBuyer({ ...buyer, phone: e.target.value })}
-                    className="tnum mt-1 w-full rounded-md border border-line-2 px-3 py-2 text-sm"
+                    className="campo tnum text-sm"
                   />
                 </div>
               </>
@@ -731,7 +731,7 @@ export default function Rifa() {
                   autoComplete="off"
                   placeholder="000.000.000-00"
                   onChange={(e) => setBuyer({ ...buyer, cpf: maskCpf(e.target.value) })}
-                  className="tnum mt-1 w-full rounded-md border border-line-2 px-3 py-2 text-sm"
+                  className="campo tnum text-sm"
                 />
                 {buyer.cpf.replace(/\D/g, "").length === 11 && !cpfOk ? (
                   <p className="mt-1 text-[11px] text-red">CPF inválido. Confira os números.</p>
@@ -750,7 +750,7 @@ export default function Rifa() {
                 id="cupom"
                 value={buyer.coupon}
                 onChange={(e) => setBuyer({ ...buyer, coupon: e.target.value.toUpperCase() })}
-                className="tnum mt-1 w-full rounded-md border border-line-2 px-3 py-2 text-sm"
+                className="campo tnum text-sm"
               />
             </div>
 

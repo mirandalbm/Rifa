@@ -131,7 +131,7 @@ export function VerificacaoCard({
           setMsg(null);
           mudar(e.target.value);
         }}
-        className="mt-1 w-full rounded-md border border-line-2 px-3 py-2 text-sm"
+        className="campo text-sm"
         {...extraProps}
       />
     </label>
@@ -189,13 +189,13 @@ export function VerificacaoCard({
               {pessoa ? null : (
                 <>
                   {campo("Razão social (como no cartão CNPJ)", org.razaoSocial, (v) => setOrg({ ...org, razaoSocial: v }))}
-                  {campo("CNPJ", org.cnpj, (v) => setOrg({ ...org, cnpj: v }), { inputMode: "numeric", className: "tnum mt-1 w-full rounded-md border border-line-2 px-3 py-2 text-sm" })}
+                  {campo("CNPJ", org.cnpj, (v) => setOrg({ ...org, cnpj: v }), { inputMode: "numeric", className: "campo tnum text-sm" })}
                   <p className="label-xs pt-2">Dono ou sócio responsável</p>
                 </>
               )}
               {campo("Nome completo (como no documento)", id.nomeCompleto, (v) => setId({ ...id, nomeCompleto: v }))}
               <div className="grid gap-2 sm:grid-cols-2">
-                {campo("CPF", id.cpf, (v) => setId({ ...id, cpf: maskCpf(v) }), { inputMode: "numeric", className: "tnum mt-1 w-full rounded-md border border-line-2 px-3 py-2 text-sm" })}
+                {campo("CPF", id.cpf, (v) => setId({ ...id, cpf: maskCpf(v) }), { inputMode: "numeric", className: "campo tnum text-sm" })}
                 {campo("RG", id.rg, (v) => setId({ ...id, rg: v }))}
               </div>
               {campo("Nascimento", id.nascimento, (v) => setId({ ...id, nascimento: v }), { type: "date" })}

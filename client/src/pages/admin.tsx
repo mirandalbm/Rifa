@@ -491,7 +491,7 @@ export function AdminCampanhas() {
                   id="promotora"
                   value={form.organizationId}
                   onChange={(e) => setForm({ ...form, organizationId: e.target.value })}
-                  className="mt-1 w-full rounded-md border border-line-2 px-3 py-2 text-sm"
+                  className="campo text-sm"
                 >
                   <option value="">escolha…</option>
                   {organizacoes?.map((o) => (
@@ -525,7 +525,7 @@ export function AdminCampanhas() {
                         .replace(/(^-|-$)/g, ""),
                     })
                   }
-                  className="mt-1 w-full rounded-md border border-line-2 px-3 py-2 text-sm"
+                  className="campo text-sm"
                 />
               </div>
               <div>
@@ -534,7 +534,7 @@ export function AdminCampanhas() {
                   id="premio"
                   value={form.prizeTitle}
                   onChange={(e) => setForm({ ...form, prizeTitle: e.target.value })}
-                  className="mt-1 w-full rounded-md border border-line-2 px-3 py-2 text-sm"
+                  className="campo text-sm"
                 />
               </div>
             </div>
@@ -581,7 +581,7 @@ export function AdminCampanhas() {
                   type="number"
                   value={form.priceCents}
                   onChange={(e) => setForm({ ...form, priceCents: Number(e.target.value) })}
-                  className="tnum mt-1 w-full rounded-md border border-line-2 px-3 py-2 text-sm"
+                  className="campo tnum text-sm"
                 />
                 <p className="mt-1 text-[11px] text-muted">
                   {formatBRL(form.priceCents)} por cota · arrecadação potencial{" "}
@@ -597,7 +597,7 @@ export function AdminCampanhas() {
                   onChange={(e) =>
                     setForm({ ...form, commissionPctDefault: Number(e.target.value) })
                   }
-                  className="tnum mt-1 w-full rounded-md border border-line-2 px-3 py-2 text-sm"
+                  className="campo tnum text-sm"
                 />
               </div>
             </div>
@@ -1133,7 +1133,7 @@ export function AdminAfiliados() {
                       [field]: field === "code" ? e.target.value.toUpperCase() : e.target.value,
                     })
                   }
-                  className="mt-1 w-full rounded-md border border-line-2 px-3 py-2 text-sm"
+                  className="campo text-sm"
                 />
               </div>
             ))}
@@ -1285,7 +1285,7 @@ function TermoAfiliadoCard() {
               setMsg(null);
               setExtra(e.target.value);
             }}
-            className="mt-1 w-full rounded-md border border-line-2 px-3 py-2"
+            className="campo"
           />
         </div>
         {atual ? (
@@ -1585,7 +1585,7 @@ export function AdminSorteios() {
               id="campanha"
               value={selected ?? ""}
               onChange={(e) => setSelected(e.target.value)}
-              className="mt-1 w-full rounded-md border border-line-2 px-3 py-2 text-sm"
+              className="campo text-sm"
             >
               <option value="">selecione</option>
               {live.map((c) => (
@@ -1602,7 +1602,7 @@ export function AdminSorteios() {
               id="concurso"
               value={contest}
               onChange={(e) => setContest(e.target.value.replace(/\D/g, ""))}
-              className="tnum mt-1 w-full rounded-md border border-line-2 px-3 py-2 text-sm"
+              className="campo tnum text-sm"
             />
           </div>
 
@@ -2042,7 +2042,7 @@ function OrganizerCard() {
               id={`org-${campo}`}
               value={valor(campo)}
               onChange={(e) => setForm({ ...form, [campo]: e.target.value })}
-              className="mt-1 w-full rounded-md border border-line-2 px-3 py-2 text-sm"
+              className="campo text-sm"
             />
           </div>
         ))}

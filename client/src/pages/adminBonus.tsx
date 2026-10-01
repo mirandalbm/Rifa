@@ -221,7 +221,7 @@ export function AdminBonus() {
                 value={nova.titulo}
                 onChange={(e) => setNova({ ...nova, titulo: e.target.value })}
                 placeholder="Ex.: Fã de rifas"
-                className="mt-1 w-full rounded-md border border-line-2 px-3 py-2"
+                className="campo"
               />
             </label>
             <label className="block">
@@ -229,7 +229,7 @@ export function AdminBonus() {
               <select
                 value={nova.tipo}
                 onChange={(e) => setNova({ ...nova, tipo: e.target.value as TipoDeMeta })}
-                className="mt-1 w-full rounded-md border border-line-2 px-3 py-2"
+                className="campo"
               >
                 {(Object.keys(TIPOS_DE_META) as TipoDeMeta[]).map((t) => (
                   <option key={t} value={t}>
@@ -246,7 +246,7 @@ export function AdminBonus() {
                   min={1}
                   value={nova.alvo}
                   onChange={(e) => setNova({ ...nova, alvo: e.target.value })}
-                  className="tnum mt-1 w-full rounded-md border border-line-2 px-3 py-2"
+                  className="campo tnum"
                 />
               </label>
               <label className="block">
@@ -257,7 +257,7 @@ export function AdminBonus() {
                   max={RESGATE_MAX}
                   value={nova.recompensa}
                   onChange={(e) => setNova({ ...nova, recompensa: e.target.value })}
-                  className="tnum mt-1 w-full rounded-md border border-line-2 px-3 py-2"
+                  className="campo tnum"
                 />
               </label>
             </div>

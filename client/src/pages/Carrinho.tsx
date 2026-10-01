@@ -325,7 +325,7 @@ function PagarCarrinho({ itens, total }: { itens: Item[]; total: number }) {
               id="carrinho-nome"
               value={dados.name}
               onChange={(e) => setDados({ ...dados, name: e.target.value })}
-              className="mt-1 w-full rounded-md border border-line-2 bg-white px-3 py-2 text-sm"
+              className="campo text-sm"
             />
           </div>
           <div>
@@ -337,7 +337,7 @@ function PagarCarrinho({ itens, total }: { itens: Item[]; total: number }) {
               value={dados.phone}
               inputMode="tel"
               onChange={(e) => setDados({ ...dados, phone: e.target.value })}
-              className="tnum mt-1 w-full rounded-md border border-line-2 bg-white px-3 py-2 text-sm"
+              className="campo tnum text-sm"
             />
           </div>
         </>
@@ -354,7 +354,7 @@ function PagarCarrinho({ itens, total }: { itens: Item[]; total: number }) {
             autoComplete="off"
             placeholder="000.000.000-00"
             onChange={(e) => setDados({ ...dados, cpf: maskCpf(e.target.value) })}
-            className="tnum mt-1 w-full rounded-md border border-line-2 bg-white px-3 py-2 text-sm"
+            className="campo tnum text-sm"
           />
           {dados.cpf.replace(/\D/g, "").length === 11 && !cpfOk ? (
             <p className="mt-1 text-[11px] text-red">CPF inválido. Confira os números.</p>

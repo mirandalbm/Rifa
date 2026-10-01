@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Link, useSearch } from "wouter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { PublicShell } from "@/components/AppShell";
-import { Button, Card, Money, Pill, Empty } from "@/components/bits";
+import { Button, Campo, Card, Money, Pill, Empty } from "@/components/bits";
 import { Conversa, type Mensagem } from "@/components/Conversa";
 import { BonusDoComprador, type EstadoBonus } from "@/components/BonusDoComprador";
 import { apiRequest, ApiError } from "@/lib/queryClient";
@@ -168,7 +168,7 @@ function Entrar({
             inputMode="tel"
             disabled={step === "code" || Boolean(telefoneFixo)}
             onChange={(e) => setPhone(e.target.value)}
-            className="tnum mt-1 w-full rounded-md border border-line-2 px-3 py-2 text-sm disabled:bg-mist"
+            className="campo tnum text-sm disabled:bg-mist"
           />
         </div>
 
@@ -183,7 +183,7 @@ function Entrar({
               inputMode="numeric"
               maxLength={6}
               onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
-              className="tnum mt-1 w-full rounded-md border border-line-2 px-3 py-2 text-lg tracking-[0.3em]"
+              className="campo tnum text-lg tracking-[0.3em]"
             />
             {devCode ? (
               <p className="tnum mt-1 text-[11px] text-yellow-deep">
@@ -454,43 +454,20 @@ function PedirReembolso({
           abrir.mutate();
         }}
       >
-        <div>
-          <label htmlFor="motivo" className="label-xs">
-            Motivo
-          </label>
-          <textarea
-            id="motivo"
-            rows={3}
-            maxLength={1000}
-            value={motivo}
-            onChange={(e) => setMotivo(e.target.value)}
-            className="mt-1 w-full rounded-md border border-line-2 px-3 py-2 text-sm"
-          />
-        </div>
-        <div>
-          <label htmlFor="cpf" className="label-xs">
-            CPF de quem comprou
-          </label>
+        <Campo rotulo="Motivo" dica="Conte o que aconteceu, com pelo menos 10 caracteres.">
+          <textarea rows={3} maxLength={1000} value={motivo} onChange={(e) => setMotivo(e.target.value)} />
+        </Campo>
+        <Campo rotulo="CPF de quem comprou">
           <input
-            id="cpf"
             inputMode="numeric"
             value={cpf}
             onChange={(e) => setCpf(maskCpf(e.target.value))}
-            className="tnum mt-1 w-full rounded-md border border-line-2 px-3 py-2 text-sm"
+            className="campo tnum text-sm"
           />
-        </div>
-        <div>
-          <label htmlFor="pix" className="label-xs">
-            Chave Pix (opcional — só se a compra não foi por Pix)
-          </label>
-          <input
-            id="pix"
-            maxLength={140}
-            value={pixChave}
-            onChange={(e) => setPixChave(e.target.value)}
-            className="mt-1 w-full rounded-md border border-line-2 px-3 py-2 text-sm"
-          />
-        </div>
+        </Campo>
+        <Campo rotulo="Chave Pix (opcional — só se a compra não foi por Pix)">
+          <input maxLength={140} value={pixChave} onChange={(e) => setPixChave(e.target.value)} />
+        </Campo>
         <div>
           <label htmlFor="print" className="label-xs">
             Print do bilhete ou do comprovante
@@ -699,7 +676,7 @@ function Disputa({
                   onChange={(e) => setMotivo(e.target.value)}
                   rows={4}
                   maxLength={1000}
-                  className="mt-1 w-full rounded-md border border-line-2 px-3 py-2 text-sm"
+                  className="campo text-sm"
                 />
               </label>
               {erro ? <p className="text-xs text-red">{erro}</p> : null}
@@ -891,7 +868,7 @@ function MinhaConta({ aoSair }: { aoSair: () => void }) {
                 autoComplete="current-password"
                 value={atual}
                 onChange={(e) => setAtual(e.target.value)}
-                className="mt-1 w-full rounded-md border border-line-2 px-3 py-2 text-sm"
+                className="campo text-sm"
               />
             </div>
           ) : null}
@@ -905,7 +882,7 @@ function MinhaConta({ aoSair }: { aoSair: () => void }) {
               autoComplete="new-password"
               value={nova}
               onChange={(e) => setNova(e.target.value)}
-              className="mt-1 w-full rounded-md border border-line-2 px-3 py-2 text-sm"
+              className="campo text-sm"
             />
           </div>
           <Button type="submit" disabled={trocar.isPending || nova.length < 8 || (pedeAtual && !atual)}>

@@ -88,7 +88,7 @@ export default function CriarConta() {
           setF({ ...f, [id]: valor });
           if (id === "cep") void conferirCep(valor);
         }}
-        className="mt-1 w-full rounded-md border border-line-2 px-3 py-2 text-sm"
+        className="campo text-sm"
         {...extra}
       />
     </div>
@@ -123,11 +123,11 @@ export default function CriarConta() {
           É como você aparece nos comentários e no seu perfil (letras, números, ponto e sublinhado).
         </p>
         {campo("telefone", "WhatsApp com DDD", { inputMode: "tel", autoComplete: "tel" })}
-        {campo("cpf", "CPF", { inputMode: "numeric", className: "tnum mt-1 w-full rounded-md border border-line-2 px-3 py-2 text-sm" })}
+        {campo("cpf", "CPF", { inputMode: "numeric", className: "campo tnum text-sm" })}
         {f.cpf.replace(/\D/g, "").length === 11 && !cpfValido(f.cpf) ? (
           <p className="-mt-2 text-xs text-red">CPF inválido.</p>
         ) : null}
-        {campo("cep", "CEP", { inputMode: "numeric", autoComplete: "postal-code", className: "tnum mt-1 w-full rounded-md border border-line-2 px-3 py-2 text-sm" })}
+        {campo("cep", "CEP", { inputMode: "numeric", autoComplete: "postal-code", className: "campo tnum text-sm" })}
         <p className="-mt-2 text-xs text-muted">
           {lugar ?? "Para mostrar primeiro as rifas perto de você."}
         </p>

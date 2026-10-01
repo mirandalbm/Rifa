@@ -330,6 +330,19 @@
   }
 
   /*
+   * O campo de digitar (input, select, textarea): uma classe só, em vez da
+   * mesma lista repetida em cada formulário. O tamanho da letra fica com
+   * quem usa (`text-sm`), e a regra dos 16 px no celular continua valendo.
+   * Com rótulo e erro, use o componente `Campo` (`components/bits.tsx`).
+   */
+  .campo {
+    @apply mt-1 w-full rounded-md border border-line-2 px-3 py-2;
+  }
+  .campo[aria-invalid="true"] {
+    @apply border-red;
+  }
+
+  /*
    * Os painéis (organizador, plataforma, afiliado, cambista) seguem o kit
    * Materialize: fonte Inter em tudo — inclusive nos títulos, que na loja são
    * Bricolage —, fundo neutro e cartão "papel" (sem borda, cantos de 10 px,

@@ -109,7 +109,7 @@ function ConfigCard({ dados }: { dados: Painel }) {
                 value={pixels[c] ?? ""}
                 onChange={(e) => setPixels({ ...pixels, [c]: e.target.value })}
                 placeholder={exemploDoPixel(c)}
-                className="tnum mt-1 w-full rounded-md border border-line-2 px-3 py-2"
+                className="campo tnum"
               />
             </label>
           ))}
@@ -131,7 +131,7 @@ function ConfigCard({ dados }: { dados: Painel }) {
                     value={chaves[c] ?? ""}
                     onChange={(e) => setChaves({ ...chaves, [c]: e.target.value })}
                     placeholder={dados.credenciais[c] ? "•••••••• (guardada — digite para trocar)" : "não configurada"}
-                    className="mt-1 w-full rounded-md border border-line-2 px-3 py-2"
+                    className="campo"
                   />
                 </label>
                 {dados.credenciais[c] ? (

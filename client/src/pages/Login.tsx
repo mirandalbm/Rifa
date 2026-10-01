@@ -98,7 +98,7 @@ function PainelForm() {
             inputMode="email"
             value={form.email}
             onChange={(e) => setForm({ ...form, email: e.target.value })}
-            className="mt-1 w-full rounded-md border border-line-2 px-3 py-2 text-sm"
+            className="campo text-sm"
           />
         </div>
         <div>
@@ -141,7 +141,7 @@ function PainelForm() {
               onChange={(e) =>
                 setForm({ ...form, token: e.target.value.replace(/\D/g, "") })
               }
-              className="tnum mt-1 w-full rounded-md border border-line-2 px-3 py-2 text-lg tracking-[0.3em]"
+              className="campo tnum text-lg tracking-[0.3em]"
             />
           </div>
         ) : null}
@@ -302,7 +302,7 @@ function ApostadorForm() {
             autoComplete="username"
             value={identificador}
             onChange={(e) => setIdentificador(e.target.value)}
-            className="mt-1 w-full rounded-md border border-line-2 px-3 py-2 text-sm"
+            className="campo text-sm"
           />
         </div>
         <div>

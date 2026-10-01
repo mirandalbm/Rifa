@@ -556,11 +556,11 @@ function PedidoDeColaborador({ slug, nome }: { slug: string; nome: string }) {
       </p>
       <div>
         <label htmlFor="colab-cidade" className="label-xs">Cidade onde você vende</label>
-        <input id="colab-cidade" value={cidade} maxLength={80} onChange={(e) => setCidade(e.target.value)} className="mt-1 w-full rounded-md border border-line-2 px-3 py-2" />
+        <input id="colab-cidade" value={cidade} maxLength={80} onChange={(e) => setCidade(e.target.value)} className="campo" />
       </div>
       <div>
         <label htmlFor="colab-msg" className="label-xs">Conte um pouco (opcional)</label>
-        <textarea id="colab-msg" rows={3} maxLength={500} value={mensagem} onChange={(e) => setMensagem(e.target.value)} className="mt-1 w-full rounded-md border border-line-2 px-3 py-2" />
+        <textarea id="colab-msg" rows={3} maxLength={500} value={mensagem} onChange={(e) => setMensagem(e.target.value)} className="campo" />
       </div>
       {msg ? <p className="rounded-md bg-red-soft px-3 py-2 text-red">{msg.texto}</p> : null}
       <Button type="submit" disabled={cidade.trim().length < 2 || pedir.isPending}>

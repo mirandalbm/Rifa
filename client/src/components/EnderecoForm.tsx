@@ -115,7 +115,7 @@ export function EnderecoForm({
         id={`end-${organizacaoId}-${id}`}
         value={f[id]}
         onChange={(e) => muda(id, e.target.value)}
-        className="mt-1 w-full rounded-md border border-line-2 px-3 py-2 text-sm"
+        className="campo text-sm"
         {...extra}
       />
     </div>
@@ -144,7 +144,7 @@ export function EnderecoForm({
             const d = soDigitosCep(cep);
             if (d.length === 8 && cepValido(d)) void buscarCep(d);
           }}
-          className="tnum mt-1 w-full rounded-md border border-line-2 px-3 py-2 text-sm"
+          className="campo tnum text-sm"
         />
       </div>
       <div className="col-span-3 flex items-end pb-2 text-xs text-muted sm:col-span-4">

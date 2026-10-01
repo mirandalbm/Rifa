@@ -12,7 +12,7 @@ import { marcarOrigem } from "@/lib/origem";
 import { ABAS_DO_REELS, type AbaDoReels } from "@shared/reels";
 import type { RifaDoFeed } from "@/components/CartaoDoFeed";
 
-type ItemDoReels = RifaDoFeed & { reels: string | null };
+type ItemDoReels = RifaDoFeed & { reels: string | null; reelsPoster?: string | null };
 interface Pagina {
   ligado: boolean;
   precisaEntrar?: boolean;
@@ -186,6 +186,7 @@ function Quadro({
           <video
             ref={video}
             src={c.reels}
+            poster={c.reelsPoster ?? undefined}
             playsInline
             loop
             muted={mudo}

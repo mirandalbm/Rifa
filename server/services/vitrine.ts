@@ -30,6 +30,8 @@ import {
   validarLegenda,
 } from "@shared/vitrine";
 import { urlDaFoto } from "./perfil";
+import { comArquivoTemporario, processadorDeVideo } from "./videoProcessor";
+import { emSegundoPlano } from "./push";
 import { bufferReader, probeVideoDimensions, probeVideoDuration, UnreadableMediaError } from "./probe";
 
 export class VitrineError extends Error {
@@ -186,12 +188,14 @@ export async function imagemDoBanner(id: string) {
  * ------------------------------------------------------------------ */
 
 const urlDoStory = (id: string) => `/api/public/stories/${id}/imagem`;
+const urlDoPosterDoStory = (id: string) => `/api/public/stories/${id}/poster`;
 
 const campoDoStory = {
   id: stories.id,
   organizationId: stories.organizationId,
   legenda: stories.legenda,
   mime: stories.mime,
+  temPoster: sql<boolean>`${stories.poster} is not null`,
   createdAt: stories.createdAt,
   expiraEm: stories.expiraEm,
   rifaSlug: campaigns.slug,
@@ -204,6 +208,7 @@ type LinhaDoStory = {
   organizationId: string;
   legenda: string | null;
   mime: string;
+  temPoster: boolean;
   createdAt: Date;
   expiraEm: Date;
   rifaSlug: string | null;
@@ -217,7 +222,7 @@ function publico(s: LinhaDoStory) {
     s.rifaSlug && s.rifaStatus && s.rifaStatus !== "draft"
       ? { slug: s.rifaSlug, premio: s.rifaPremio ?? "" }
       : null;
-  return { id: s.id, tipo: s.mime.startsWith("video/") ? ("video" as const) : ("imagem" as const), imagem: urlDoStory(s.id), legenda: s.legenda, criadoEm: s.createdAt, expiraEm: s.expiraEm, rifa };
+  return { id: s.id, tipo: s.mime.startsWith("video/") ? ("video" as const) : ("imagem" as const), imagem: urlDoStory(s.id), poster: s.mime.startsWith("video/") && s.temPoster ? urlDoPosterDoStory(s.id) : null, legenda: s.legenda, criadoEm: s.createdAt, expiraEm: s.expiraEm, rifa };
 }
 
 /** Stories no ar de uma organização (painel, com recorte já conferido). */
@@ -300,7 +305,23 @@ export async function postarStory(
       .values({ organizationId: orgId, legenda, campaignId, mime, bytes, createdAt: agora, expiraEm: expiraEm(agora) })
       .returning({ id: stories.id });
     return novo;
+  }).then((novo) => {
+    // O pôster vem depois, em segundo plano: a resposta não espera o ffmpeg e,
+    // sem ele (ou se falhar), o story fica como estava — vídeo sem pôster.
+    if (video) emSegundoPlano(gerarPosterDoStory(novo.id, video.bytes, video.mime), "pôster do story");
+    return novo;
   });
+}
+
+/** Tira o pôster do vídeo do story e o grava junto dele. Sem quadro, não grava nada. */
+export async function gerarPosterDoStory(id: string, bytes: Buffer, mime: string) {
+  const poster = await comArquivoTemporario(bytes, mime === "video/quicktime" ? ".mov" : ".mp4", (arquivo) =>
+    processadorDeVideo().gerarPoster(arquivo),
+  );
+  if (!poster) return false;
+  // Story apagado ou vencido no meio do caminho: o UPDATE não acha linha e some sozinho.
+  const r = await db.update(stories).set({ poster }).where(and(eq(stories.id, id), isNull(stories.poster))).returning({ id: stories.id });
+  return r.length > 0;
 }
 
 /** Dono do story (para conferir o recorte **antes** de apagar). */
@@ -355,6 +376,17 @@ export async function imagemDoStory(id: string) {
     .where(eq(stories.id, id));
   if (!s || s.arquivada || s.expiraEm <= new Date()) return null;
   return s;
+}
+
+/** O pôster do vídeo, só enquanto o story está no ar (a mesma regra da imagem). */
+export async function posterDoStory(id: string) {
+  const [s] = await db
+    .select({ poster: stories.poster, expiraEm: stories.expiraEm, arquivada: organizations.archivedAt })
+    .from(stories)
+    .innerJoin(organizations, eq(organizations.id, stories.organizationId))
+    .where(eq(stories.id, id));
+  if (!s || !s.poster || s.arquivada || s.expiraEm <= new Date()) return null;
+  return s.poster;
 }
 
 /** Relógio: apaga o que venceu. */

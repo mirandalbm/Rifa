@@ -303,6 +303,7 @@ export default function Rifa() {
     .map((m) => ({
       role: m.role,
       url: m.url,
+      poster: m.poster,
       srcSet: m.srcSetWebp,
       lqip: m.lqip,
       alt: m.altText,

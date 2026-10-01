@@ -1821,6 +1821,8 @@ export const stories = pgTable(
     campaignId: uuid("campaign_id").references(() => campaigns.id, { onDelete: "set null" }),
     mime: text("mime").notNull(),
     bytes: bytea("bytes").notNull(),
+    /** Pôster do vídeo (WebP), tirado em segundo plano. Nulo sem ffmpeg ou em imagem. */
+    poster: bytea("poster"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     expiraEm: timestamp("expira_em").notNull(),
   },

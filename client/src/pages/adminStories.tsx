@@ -17,6 +17,7 @@ import {
 interface StoryNoPainel {
   id: string;
   tipo: "imagem" | "video";
+  poster?: string | null;
   imagem: string;
   legenda: string | null;
   criadoEm: string;
@@ -225,7 +226,7 @@ export function AdminStories() {
               <li key={s.id} className="space-y-1 text-xs">
                 <div className="relative aspect-[9/16] overflow-hidden rounded-md border border-line bg-mist-2">
                   {s.tipo === "video" ? (
-                    <video src={s.imagem} muted playsInline preload="metadata" aria-label={s.legenda ?? "Story em vídeo"} className="h-full w-full object-cover" />
+                    <video src={s.imagem} poster={s.poster ?? undefined} muted playsInline preload="metadata" aria-label={s.legenda ?? "Story em vídeo"} className="h-full w-full object-cover" />
                   ) : (
                     <img src={s.imagem} alt={s.legenda ?? "Story"} className="h-full w-full object-cover" />
                   )}

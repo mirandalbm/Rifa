@@ -225,7 +225,8 @@ código só depois do plano combinado com ele.
   nunca fixos no código. Usa o saldo e o Pix da plataforma que já existem.
 - **Story em vídeo:** aceitar vídeo curto **sem transcode**, já preparado
   para a forma final (medição de duração no servidor, limite, formato e
-  pôster no mesmo lugar em que o Cloudflare Stream entrar depois).
+  pôster no mesmo lugar em que o Cloudflare Stream entrar depois). O pôster
+  já foi feito; falta só o transcode.
 - **Login com Google:** feito (ver o fim da seção 5). A conta nasce
   incompleta e pede CPF e telefone antes de comprar; o e-mail do Google
   nunca liga sozinho a uma conta que já existe.
@@ -349,8 +350,9 @@ Na ordem de entrega do plano:
   da fileira do topo (a fileira é de stories) e a página `/estado/UF` não os
   usa. Item encerrado, sem código.
 - [x] ~~**Story em vídeo**~~: até 30 s, 15 MB, em pé, MP4/MOV, medido no
-  servidor e sem transcode (seção Vitrine do `CLAUDE.md`). Pôster e
-  recompressão seguem no item do Cloudflare Stream.
+  servidor e sem transcode (seção Vitrine do `CLAUDE.md`). O pôster saiu
+  depois (item "Pôster dos vídeos" da seção 6); a recompressão segue no item
+  do Cloudflare Stream.
 - [x] ~~Banner pago~~: pacote de dias pago do saldo do patrocínio, arte
   aprovada pela plataforma, vagas e preço editáveis, dias não usados devolvidos
   (seção "Banner pago na vitrine" do `CLAUDE.md`). Nasce desligado.
@@ -467,7 +469,7 @@ Na ordem de entrega do plano:
   pronto, atrás do interruptor `reelsLigado` (Aparência → Topo do app, nasce
   desligado). Ficou para depois: áudio/música, reações rápidas com emoji
   (emoji é vantagem de verificado), aba "Friends" (aqui é "Seguindo") e o
-  selo "ao vivo". Sem transcode/pôster ainda (Cloudflare Stream).
+  selo "ao vivo". Pôster pronto (`ffmpeg` local); sem transcode ainda (Cloudflare Stream).
 - [x] **Mensagens** (caixa de um para um entre apostador, organização e
   afiliado): pronta, atrás do interruptor `mensagensLigado` (Aparência →
   Topo do app, nasce desligado). Ficou para depois: indicador "online" (só
@@ -497,8 +499,17 @@ Na ordem de entrega do plano:
   classe do SDK da Stone (a do PagBank está pronta).
 - [ ] **[código]** Compilar o APK das maquininhas — precisa de máquina com o
   Android SDK.
-- [ ] **[código]** Pôster e transcode dos vídeos das rifas (Cloudflare Stream
-  resolve os dois).
+- [x] **Pôster dos vídeos** (rifa, reels e story): o quadro sai em segundo
+  plano pelo `ffmpeg` local, se o servidor o tiver, e degrada para "sem
+  pôster" sem ele (seção "Pôster do vídeo" do `CLAUDE.md`, `npm run
+  poster`). **Falta no ambiente**: instalar o `ffmpeg` na imagem de
+  produção (ou `FFMPEG_PATH`); sem ele o pôster simplesmente não sai.
+- [ ] **[código]** Transcode dos vídeos (recompressão e HLS) pelo Cloudflare
+  Stream: ponto de encaixe pronto em `server/services/videoProcessor.ts`
+  (implementar `ProcessadorDeVideo` com a conta e o token, escolher por
+  `VIDEO_PROCESSOR`). Depende de **conta e credencial do Cloudflare Stream**.
+  Também falta o pôster dos vídeos enviados antes desta mudança (não há
+  preenchimento retroativo).
 - [x] Revisão completa das telas, com prints: `npm run telas` (60 telas,
   seis papéis, 390/820/1440 px) e o guia `docs/VERSOES.md` — regras entre as
   versões, mapa de cada tela e o registro das mudanças do celular (leva a

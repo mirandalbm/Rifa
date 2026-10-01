@@ -138,7 +138,7 @@ export function EditarRifaCard({
           </p>
         ) : null}
 
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Campo id={`ed-titulo-${rifa.id}`} rotulo="Título">
             <input
               id={`ed-titulo-${rifa.id}`}
@@ -172,7 +172,7 @@ export function EditarRifaCard({
           />
         </Campo>
 
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <Campo
             id={`ed-total-${rifa.id}`}
             rotulo="Total de cotas"
@@ -214,7 +214,7 @@ export function EditarRifaCard({
           </Campo>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <Campo id={`ed-min-${rifa.id}`} rotulo="Mínimo por pedido">
             <input
               id={`ed-min-${rifa.id}`}
@@ -337,7 +337,7 @@ export function AdiarSorteioCard({
           O adiamento passa por <b>análise da plataforma</b>. Confira antes se a sua autorização
           SPA/MF permite a nova data. Aprovado, quem comprou é avisado e os números continuam valendo.
         </p>
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Campo
             id={`adiar-data-${rifa.id}`}
             rotulo="Nova data do sorteio"

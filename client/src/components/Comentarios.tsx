@@ -622,9 +622,9 @@ export function Comentarios({
  */
 export function PainelDeComentarios({ slug, onFechar }: { slug: string; onFechar: () => void }) {
   return (
-    <Janela onFechar={onFechar} rotulo="Comentários" sempreEmbaixo rolar={false} className="flex max-h-[85vh] flex-col !rounded-t-3xl sm:!rounded-b-none">
+    <Janela onFechar={onFechar} rotulo="Comentários" centralizarEm="lg" largura="max-w-lg" rolar={false} className="flex max-h-[85vh] flex-col">
       <div className="relative border-b border-line py-3 text-center">
-        <span aria-hidden className="mx-auto mb-2 block h-1 w-10 rounded-full bg-line-2" />
+        <span aria-hidden className="mx-auto mb-2 block h-1 w-10 rounded-full bg-line-2 lg:hidden" />
         <h2 className="font-semibold">Comentários</h2>
         <button
           type="button"

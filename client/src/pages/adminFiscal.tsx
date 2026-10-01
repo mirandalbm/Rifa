@@ -83,7 +83,7 @@ function Conferencia({ affiliateId, emAnalise }: { affiliateId: string; emAnalis
   return (
     <div className="mt-3 space-y-3 rounded-md border border-line bg-mist p-3 text-sm">
       {d ? (
-        <dl className="grid gap-2 sm:grid-cols-2">
+        <dl className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           <Item rotulo="Nome" valor={d.nomeCompleto} />
           <Item rotulo="CPF" valor={maskCpf(d.cpf)} tnum />
           <Item rotulo="RG" valor={d.rg} tnum />

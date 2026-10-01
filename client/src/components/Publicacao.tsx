@@ -183,8 +183,7 @@ export function Carrossel({
 function SemImagem({ titulo }: { titulo: string }) {
   return (
     <span
-      className="flex h-full w-full items-end p-4 font-display text-2xl font-extrabold leading-tight text-branco"
-      style={{ background: "linear-gradient(145deg,#0B1F14,#0d3a22 60%,#00873E)" }}
+      className="sem-foto flex h-full w-full items-end p-4 font-display text-2xl font-extrabold leading-tight text-branco"
     >
       {titulo}
     </span>

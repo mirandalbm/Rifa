@@ -177,7 +177,7 @@ export function VerificacaoCard({
       </Card>
 
       {mostrarFormulario ? (
-        <div className="grid gap-3 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
           <Card title={pessoa ? "Seus dados" : "Dados da organização"}>
             <form
               className="space-y-3 p-4"
@@ -194,7 +194,7 @@ export function VerificacaoCard({
                 </>
               )}
               {campo("Nome completo (como no documento)", id.nomeCompleto, (v) => setId({ ...id, nomeCompleto: v }))}
-              <div className="grid gap-2 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 {campo("CPF", id.cpf, (v) => setId({ ...id, cpf: maskCpf(v) }), { inputMode: "numeric", className: "campo tnum text-sm" })}
                 {campo("RG", id.rg, (v) => setId({ ...id, rg: v }))}
               </div>

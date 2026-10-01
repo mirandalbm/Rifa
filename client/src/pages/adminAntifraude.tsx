@@ -95,7 +95,7 @@ export function AdminAntifraude() {
         <p className="mb-3 rounded-md bg-red-soft px-3 py-2 text-sm text-red">{erro}</p>
       ) : null}
 
-      <div className="mb-3 grid gap-3 sm:grid-cols-3">
+      <div className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
         {/* Sem destaque verde: na paleta, verde é dinheiro que entrou.
             Recusa não é receita — pintar de verde faria o número ser lido
             como venda. */}
@@ -114,7 +114,7 @@ export function AdminAntifraude() {
         />
       </div>
 
-      <div className="grid gap-3 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
         <Card title="Limites">
           <div className="space-y-3 p-4">
             <p className="text-xs text-muted">

@@ -20,7 +20,7 @@ export function Janela({
   rotulo,
   rotuloPor,
   largura = "sm:max-w-md",
-  sempreEmbaixo = false,
+  centralizarEm = "sm",
   rolar = true,
   className = "",
   style,
@@ -31,8 +31,12 @@ export function Janela({
   rotuloPor?: string;
   /** A largura a partir de `sm`, como classe do Tailwind. */
   largura?: string;
-  /** Não centraliza no tablet: a janela continua colada embaixo (comentários). */
-  sempreEmbaixo?: boolean;
+  /**
+   * A partir de que largura a janela sai de baixo e fica no centro: `sm`
+   * (padrão) ou `lg` — os comentários seguem colados embaixo no tablet,
+   * como no Instagram, e ficam no centro só no computador.
+   */
+  centralizarEm?: "sm" | "lg";
   /** `false` quando o conteúdo tem a rolagem dele (cabeçalho fixo e lista). */
   rolar?: boolean;
   className?: string;
@@ -63,7 +67,7 @@ export function Janela({
 
   return (
     <div
-      className={`fixed inset-0 z-50 flex items-end justify-center bg-black/50 ${sempreEmbaixo ? "" : "sm:items-center"}`}
+      className={`fixed inset-0 z-50 flex items-end justify-center bg-black/50 ${centralizarEm === "lg" ? "lg:items-center" : "sm:items-center"}`}
       onClick={() => fechar.current()}
     >
       <div
@@ -76,7 +80,7 @@ export function Janela({
         onClick={(e) => e.stopPropagation()}
         style={style}
         className={`max-h-[90vh] w-full rounded-t-2xl bg-white shadow-card outline-none ${
-          sempreEmbaixo ? "max-w-lg" : `${largura} sm:rounded-2xl`
+          centralizarEm === "lg" ? `${largura} lg:rounded-2xl` : `${largura} sm:rounded-2xl`
         } ${rolar ? "overflow-y-auto" : ""} ${className}`}
       >
         {children}

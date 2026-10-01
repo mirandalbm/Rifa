@@ -345,7 +345,7 @@ function FragmentoUsuario({
       {aberto ? (
         <tr className="bg-mist">
           <td colSpan={7} className="px-3 py-3">
-            <dl className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-3">
+            <dl className="grid grid-cols-1 gap-x-6 gap-y-2 text-sm sm:grid-cols-3">
               <Dado rotulo="WhatsApp" valor={u.phone} tnum />
               <Dado rotulo="Criado em" valor={new Date(u.createdAt).toLocaleString("pt-BR")} tnum />
               {u.codigo ? <Dado rotulo="Código" valor={u.codigo} tnum /> : null}

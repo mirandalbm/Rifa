@@ -35,3 +35,24 @@ describe("campo de digitar (P4 de docs/VERSOES.md)", () => {
     expect(readFileSync("client/src/index.css", "utf8")).toMatch(/\.campo \{\s*@apply mt-1 w-full rounded-md border border-line-2 px-3 py-2;/);
   });
 });
+
+describe("grade começa em grid-cols-1 (regra 4 de docs/VERSOES.md)", () => {
+  it("toda grade com coluna por largura declara a coluna do celular", () => {
+    const semBase: string[] = [];
+    for (const p of arquivos("client/src")) {
+      for (const m of readFileSync(p, "utf8").matchAll(/className=(?:"([^"]*)"|\{`([^`$]*))/g)) {
+        const toks = (m[1] ?? m[2]).split(/\s+/);
+        if (!toks.includes("grid")) continue;
+        const porLargura = toks.some((t) => /^[a-z0-9]+:grid-cols-/.test(t));
+        const base = toks.some((t) => /^grid-cols-/.test(t));
+        if (porLargura && !base) semBase.push(`${p}: ${toks.join(" ")}`);
+      }
+    }
+    expect(semBase).toEqual([]);
+  });
+
+  it("o degradê de quem não tem foto mora só na classe .sem-foto", () => {
+    const copias = arquivos("client/src").filter((p) => /linear-gradient\([^)]*#0B1F14/i.test(readFileSync(p, "utf8")));
+    expect(copias).toEqual([]);
+  });
+});

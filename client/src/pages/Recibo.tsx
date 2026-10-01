@@ -36,7 +36,7 @@ export default function ReciboPage() {
                 {data.autentico ? <CheckCircle2 size={18} aria-hidden /> : <XCircle size={18} aria-hidden />}
                 {data.autentico ? "Recibo autêntico, emitido pela plataforma." : "Este recibo não confere: não foi emitido assim."}
               </p>
-              <dl className="grid gap-2 sm:grid-cols-2">
+              <dl className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 <div>
                   <dt className="label-xs">Código</dt>
                   <dd className="tnum">{data.codigo}</dd>

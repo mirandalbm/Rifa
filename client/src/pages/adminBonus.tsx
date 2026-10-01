@@ -77,7 +77,7 @@ export function AdminBonus() {
       {msg ? (
         <p className={`mb-3 rounded-md px-3 py-2 text-sm ${msg.ok ? "bg-green-soft text-green-deep" : "bg-red-soft text-red"}`}>{msg.texto}</p>
       ) : null}
-      <div className="grid gap-3 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
         <Card title="Programa" right={<Pill status={data?.config.bonusLigado ? "active" : "draft"}>{data?.config.bonusLigado ? "ligado" : "desligado"}</Pill>}>
           <div className="space-y-3 p-4 text-sm">
             <label className="flex items-start gap-2">

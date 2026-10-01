@@ -41,7 +41,7 @@ export function AdminMarketing() {
         <Empty>Carregando…</Empty>
       ) : (
         <div className="space-y-3">
-          <div className="grid gap-3 lg:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
             <ConfigCard dados={data} />
             <EnviosCard dados={data} />
           </div>
@@ -101,7 +101,7 @@ function ConfigCard({ dados }: { dados: Painel }) {
           Informe só o número de cada pixel — o sistema monta o código. Sem nenhum pixel, nada carrega e o aviso de
           cookies não aparece.
         </p>
-        <div className="grid gap-2 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           {CAMPOS_DE_PIXEL.map((c) => (
             <label key={c} className="block">
               <span className="label-xs">{nomeDoPixel(c)}</span>
@@ -122,7 +122,7 @@ function ConfigCard({ dados }: { dados: Painel }) {
           </p>
           <ul className="mt-2 space-y-2">
             {CAMPOS_DE_CREDENCIAL.map((c) => (
-              <li key={c} className="grid gap-2 sm:grid-cols-[1fr_auto] sm:items-end">
+              <li key={c} className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto] sm:items-end">
                 <label className="block">
                   <span className="text-xs">{NOME_DA_CREDENCIAL[c]}</span>
                   <input

@@ -85,7 +85,7 @@ export function AdminCambistas() {
         onCriar={(p) => setForm({ ...form, name: p.nome, phone: p.telefone })}
       />
 
-      <div className="grid gap-3 lg:grid-cols-[1.4fr_1fr]">
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1.4fr_1fr]">
         <Card
           title="A receber dos cambistas"
           right={<span className="tnum text-sm text-green-deep">{formatBRL(totalAberto)}</span>}

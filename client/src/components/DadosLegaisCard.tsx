@@ -113,7 +113,7 @@ export function DadosLegaisCard({ campanha }: { campanha: Campanha }) {
           página da rifa, e o certificado fica disponível para o apostador conferir.
         </p>
 
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
             <label htmlFor={`aut-${campanha.id}`} className="label-xs">
               Nº do certificado de autorização SPA/MF

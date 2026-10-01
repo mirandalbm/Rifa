@@ -362,12 +362,8 @@ export default function Rifa() {
       ) : null}
       {/* Banner, vídeo e fotos: a propaganda vem antes de tudo. */}
       <div
-        className="relative -mx-4 flex min-h-[150px] flex-col justify-end overflow-hidden p-4 text-branco lg:mx-0 lg:rounded-xl"
-        style={{
-          background: banner
-            ? `center/cover url(${banner.url})`
-            : "linear-gradient(150deg,#0B1F14,#0d3a22 55%,#00873E)",
-        }}
+        className={`relative -mx-4 flex min-h-[150px] flex-col justify-end overflow-hidden p-4 text-branco lg:mx-0 lg:rounded-xl ${banner ? "" : "sem-foto"}`}
+        style={banner ? { background: `center/cover url(${banner.url})` } : undefined}
       >
         {/* Véu: a foto do prêmio é imprevisível, o texto precisa ler em cima de qualquer uma. */}
         <div

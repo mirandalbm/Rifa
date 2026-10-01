@@ -91,7 +91,7 @@ export function AdminStories() {
 
   return (
     <PanelShell title="Stories">
-      <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)]">
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)]">
         <Card title="Novo story">
           <form
             className="space-y-3 p-4 text-sm"

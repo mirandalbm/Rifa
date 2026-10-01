@@ -159,7 +159,7 @@ export function AdminAparencia() {
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_440px]">
         <div className="space-y-3">
           <Card title="Identidade">
-            <div className="grid gap-4 p-4 text-sm sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 p-4 text-sm sm:grid-cols-2">
               <div>
                 <label htmlFor="tpl-nome" className="label-xs">Nome da plataforma</label>
                 <input
@@ -304,7 +304,7 @@ export function AdminAparencia() {
                     ) : null}
                   </div>
                   {b.tipo === "rifas" || b.tipo === "texto" || b.tipo === "ajuda" ? (
-                    <div className="grid gap-2 pl-6 sm:grid-cols-[1fr_auto]">
+                    <div className="grid grid-cols-1 gap-2 pl-6 sm:grid-cols-[1fr_auto]">
                       <input
                         value={b.titulo ?? ""}
                         placeholder="Título (opcional)"

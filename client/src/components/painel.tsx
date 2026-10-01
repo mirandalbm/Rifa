@@ -457,7 +457,7 @@ export function MestreDetalhe({
   }, [aberto]);
 
   return (
-    <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] xl:items-start">
+    <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] xl:items-start">
       <div className={`min-w-0 xl:max-h-[calc(100vh-9rem)] xl:overflow-y-auto ${aberto ? "hidden xl:block" : ""}`}>{lista}</div>
       {aberto ? (
         <div className="min-w-0 space-y-3 xl:sticky xl:top-20 xl:max-h-[calc(100vh-6rem)] xl:space-y-0 xl:overflow-y-auto">

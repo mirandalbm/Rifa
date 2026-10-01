@@ -91,6 +91,21 @@ export function AdminAparencia() {
     onError: (e: Error) => setMsg({ ok: false, texto: e.message }),
   });
 
+  // Exemplo no rodapé: só o rascunho; publicar continua sendo escolha da plataforma.
+  const preencherExemplo = useMutation({
+    mutationFn: async () => (await apiRequest("POST", "/api/admin/template/exemplo-rodape")).json() as Promise<Template>,
+    onSuccess: (novo) => {
+      setT(novo);
+      setSujo(false);
+      setMsg({
+        ok: true,
+        texto: "Rodapé de exemplo no rascunho — veja na pré-visualização e troque pelo material de verdade antes de publicar.",
+      });
+      recarregar();
+    },
+    onError: (e: Error) => setMsg({ ok: false, texto: e.message }),
+  });
+
   // Logo de apoio do rodapé: o servidor reprocessa e devolve o endereço; o
   // nome e o link entram no rascunho, conferidos ao publicar.
   const enviarApoio = useMutation({
@@ -382,6 +397,21 @@ export function AdminAparencia() {
                   className="mt-1 w-full rounded-md border border-line-2 px-3 py-2"
                 />
               </div>
+            </div>
+          </Card>
+
+          <Card title="Rodapé de exemplo">
+            <div className="space-y-3 p-4 text-sm">
+              <p className="text-xs text-muted">
+                Ainda sem as redes e os logos de verdade? Preenche o <strong>rascunho</strong> com exemplo — quatro
+                ícones neutros, redes sociais e um texto de apresentação — para você ver o rodapé pronto na
+                pré-visualização. Só preenche o que está vazio e <strong>não publica</strong>. Troque tudo pelo
+                material real antes de publicar: "Projetos que apoiamos" com apoiador inventado seria falso para quem
+                olha.
+              </p>
+              <Button variant="ghost" disabled={preencherExemplo.isPending} onClick={() => preencherExemplo.mutate()}>
+                {preencherExemplo.isPending ? "Preenchendo…" : "Preencher o rascunho com exemplo"}
+              </Button>
             </div>
           </Card>
 

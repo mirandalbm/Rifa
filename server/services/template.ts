@@ -165,6 +165,77 @@ export async function salvarApoio(dataUrl: unknown): Promise<{ id: string; image
   return { id, imagem: `/api/public/marca/apoio/${id}?v=${agora.getTime()}` };
 }
 
+/**
+ * Quatro ícones neutros (coração, mão, folha, casa) em azul e verde — a
+ * paleta do sistema, sem marca de ninguém. Servem só para ver o rodapé
+ * preenchido antes de ter os logos de verdade.
+ */
+const ICONES_DE_EXEMPLO: { nome: string; cor: string; desenho: string }[] = [
+  {
+    nome: "Exemplo: casa de apoio",
+    cor: "#0b6fb8",
+    desenho: '<path d="M48 22 20 46h8v26h40V46h8z" fill="#fff"/><rect x="42" y="52" width="12" height="20" fill="#0b6fb8"/>',
+  },
+  {
+    nome: "Exemplo: projeto ambiental",
+    cor: "#00873e",
+    desenho:
+      '<path d="M48 18c18 6 26 22 20 40-14 4-30-2-34-22 0-8 6-14 14-18z" fill="#fff"/><path d="M40 70c2-14 8-24 18-34" stroke="#00873e" stroke-width="4" fill="none"/>',
+  },
+  {
+    nome: "Exemplo: projeto de saúde",
+    cor: "#0b6fb8",
+    desenho: '<path d="M40 22h16v18h18v16H56v18H40V56H22V40h18z" fill="#fff"/>',
+  },
+  {
+    nome: "Exemplo: ação social",
+    cor: "#00873e",
+    desenho:
+      '<path d="M48 72C22 54 18 38 28 28c8-8 18-4 20 4 2-8 12-12 20-4 10 10 6 26-20 44z" fill="#fff"/>',
+  },
+];
+
+/**
+ * Preenche o **rascunho** do rodapé com exemplo — redes, logos e o texto de
+ * apresentação — para ver o desenho antes de ter o material de verdade.
+ *
+ * - Só preenche o que está vazio: nunca sobrescreve o que a plataforma já
+ *   cadastrou, e rodar de novo não duplica nada.
+ * - Não publica. O exemplo só chega ao público se a plataforma publicar —
+ *   e a tela avisa para trocar antes: "Projetos que apoiamos" com apoiador
+ *   inventado seria uma afirmação falsa para quem olha.
+ * - Os links das redes são a raiz do domínio de cada rede (nunca uma conta
+ *   de alguém), e os logos levam "Exemplo" no nome (é o texto alternativo).
+ */
+export async function preencherRodapeComExemplo(): Promise<{ template: Template; ids: string[] }> {
+  const t = await rascunho();
+  const ids: string[] = [];
+  const apoios = [...(t.apoios ?? [])];
+  if (apoios.length === 0) {
+    for (const ic of ICONES_DE_EXEMPLO) {
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96"><circle cx="48" cy="48" r="46" fill="${ic.cor}"/>${ic.desenho}</svg>`;
+      const png = await sharp(Buffer.from(svg)).png().toBuffer();
+      const a = await salvarApoio(`data:image/png;base64,${png.toString("base64")}`);
+      ids.push(a.id);
+      apoios.push({ id: a.id, nome: ic.nome, imagem: a.imagem, link: null });
+    }
+  }
+  const redes =
+    (t.redes ?? []).length > 0
+      ? t.redes!
+      : [
+          { rede: "instagram" as const, link: "https://www.instagram.com/" },
+          { rede: "whatsapp" as const, link: "https://wa.me/" },
+          { rede: "youtube" as const, link: "https://www.youtube.com/" },
+          { rede: "facebook" as const, link: "https://www.facebook.com/" },
+        ];
+  const rodape =
+    t.textos.rodape ||
+    "Texto de exemplo: apresente aqui a plataforma e a promotora. Troque pelo texto oficial em Aparência.";
+  const template = await salvarRascunho({ ...t, apoios, redes, textos: { ...t.textos, rodape } });
+  return { template, ids };
+}
+
 export async function apoio(id: string) {
   if (!/^[a-z0-9-]{8,40}$/.test(id)) return null;
   const [f] = await db.select().from(plataformaArquivos).where(eq(plataformaArquivos.chave, `apoio:${id}`));

@@ -181,6 +181,7 @@ import {
   restaurar,
   salvarLogo,
   salvarApoio,
+  preencherRodapeComExemplo,
   salvarRascunho,
   templatePublicado,
   versoes as versoesDoTemplate,
@@ -2912,6 +2913,18 @@ adminRouter.put("/template/apoio", async (req, res, next) => {
   try {
     requirePlatformAdmin(req);
     res.status(201).json(await salvarApoio(req.body?.dataUrl));
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** Preenche o rascunho do rodapé com exemplo (redes, logos e texto). Não publica. */
+adminRouter.post("/template/exemplo-rodape", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    const { template, ids } = await preencherRodapeComExemplo();
+    await audit(req, "template.exemplo_rodape", "template", "rascunho", { logosCriados: ids.length });
+    res.json(template);
   } catch (err) {
     next(err);
   }

@@ -43,6 +43,7 @@ async function main() {
 
   // Guarda o estado de antes, para devolver no fim.
   const versoesAntes = (await db.select({ id: templateVersoes.id }).from(templateVersoes)).map((v) => v.id);
+  const exemploIds: string[] = [];
   const [rascunhoAntes] = await db.select().from(appSettings).where(eq(appSettings.key, "template.rascunho"));
   const [logoAntes] = await db.select().from(plataformaArquivos).where(eq(plataformaArquivos.chave, "logo"));
 
@@ -127,6 +128,39 @@ async function main() {
     checa("o histórico guarda as três publicações", (r.json?.versoes?.length ?? 0) >= Math.min(20, versoesAntes.length + 3));
     checa("e o rascunho acompanhou a restauração", r.json?.rascunho?.identidade?.nome === "Rifa Roxa");
 
+    // Rodapé de exemplo: só o rascunho, só o que está vazio, e nada vai ao ar.
+    r = await marina.req("POST", "/api/admin/template/exemplo-rodape");
+    checa("organizador não preenche o rodapé de exemplo (403)", r.status === 403, `HTTP ${r.status}`);
+    await admin.req("PUT", "/api/admin/template/rascunho", {
+      ...roxo,
+      redes: [],
+      apoios: [],
+      textos: { ...roxo.textos, rodape: "" },
+    });
+    const noArAntes = JSON.stringify((await anon.req("GET", "/api/public/template")).json?.template);
+    r = await admin.req("POST", "/api/admin/template/exemplo-rodape");
+    const ex = r.json;
+    for (const a of ex?.apoios ?? []) exemploIds.push(String(a.id));
+    checa(
+      "preenche o rascunho com exemplo: 4 logos, 4 redes e o texto",
+      r.status === 200 && ex?.apoios?.length === 4 && ex?.redes?.length === 4 && /exemplo/i.test(ex?.textos?.rodape ?? ""),
+      `HTTP ${r.status} ${ex?.apoios?.length}/${ex?.redes?.length}`,
+    );
+    checa("os logos de exemplo se dizem exemplo", (ex?.apoios ?? []).every((a: any) => /^Exemplo/.test(a.nome)));
+    checa(
+      "as redes de exemplo são a raiz do domínio, nunca a conta de alguém",
+      (ex?.redes ?? []).every((x: any) => new globalThis.URL(x.link).pathname === "/"),
+      JSON.stringify(ex?.redes),
+    );
+    const primeiro = await anon.req("GET", ex?.apoios?.[0]?.imagem ?? "/");
+    checa("e a imagem do logo é servida em WebP", primeiro.status === 200 && primeiro.tipo.startsWith("image/webp"), primeiro.tipo);
+    checa(
+      "nada foi ao ar: o publicado segue igual",
+      JSON.stringify((await anon.req("GET", "/api/public/template")).json?.template) === noArAntes,
+    );
+    r = await admin.req("POST", "/api/admin/template/exemplo-rodape");
+    checa("rodar de novo não duplica nem sobrescreve", r.json?.apoios?.length === 4 && r.json?.redes?.length === 4 && r.json?.apoios?.[0]?.id === ex?.apoios?.[0]?.id);
+
     r = await admin.req("PUT", "/api/admin/template/logo", { dataUrl: "data:text/html;base64,PHNjcmlwdD4=" });
     checa("logo que não é imagem: recusa", r.status === 400, `HTTP ${r.status}`);
     r = await admin.req("PUT", "/api/admin/template/logo", { dataUrl: PNG });
@@ -143,6 +177,9 @@ async function main() {
       await db.update(appSettings).set({ value: rascunhoAntes.value }).where(eq(appSettings.key, "template.rascunho"));
     } else {
       await db.delete(appSettings).where(eq(appSettings.key, "template.rascunho"));
+    }
+    if (exemploIds.length) {
+      await db.delete(plataformaArquivos).where(inArray(plataformaArquivos.chave, exemploIds.map((i) => `apoio:${i}`)));
     }
     if (logoAntes) {
       await db.update(plataformaArquivos).set({ bytes: logoAntes.bytes, mime: logoAntes.mime }).where(eq(plataformaArquivos.chave, "logo"));

@@ -139,7 +139,7 @@ arquitetura.
 | topo e console do app (os 6 botões da base, a lateral no computador, o trevo e a publicação) | `shared/console.ts` (botões, aviso do trevo, quem publica), `client/src/components/Console.tsx`, `PublicShell` em `client/src/components/AppShell.tsx`, `client/src/pages/PerfilDoUsuario.tsx`, `client/src/pages/EmBreve.tsx`, `client/src/components/TopoDoAppCard.tsx`, `tests/console.test.ts` |
 | remodelagem do web e dos painéis: inventário do que existe e lista de conferência | `docs/REMODELAGEM.md` |
 | vitrine no tablet e no computador: coluna ao vivo (tela do sorteio, ganhadores, jogando agora), tela flutuante e rodapé com logos | `shared/aoVivo.ts` (regras), `server/services/aoVivo.ts`, `client/src/components/ColunaAoVivo.tsx`, `client/src/components/RodapeDaPlataforma.tsx`, `validarApoios()` em `shared/template.ts`, `tests/aoVivo.test.ts`, `scripts/vitrine-test.ts` |
-| rodapé da plataforma: colunas de links, redes sociais e espaço de apoio | `shared/rodape.ts` (colunas), `validarRedes()`/`REDES_DO_RODAPE` em `shared/template.ts`, `client/src/components/RodapeDaPlataforma.tsx`, cartão "Redes sociais do rodapé" em `client/src/pages/adminAparencia.tsx`, `tests/rodape.test.ts` |
+| rodapé da plataforma: colunas de links, redes sociais e espaço de apoio | `shared/rodape.ts` (colunas), `validarRedes()`/`REDES_DO_RODAPE` em `shared/template.ts`, `client/src/components/RodapeDaPlataforma.tsx`, cartão "Redes sociais do rodapé" em `client/src/pages/adminAparencia.tsx`, `preencherRodapeComExemplo()` em `server/services/template.ts`, `tests/rodape.test.ts` |
 | app instalável (PWA) | `client/public/sw.js`, `client/public/manifest.webmanifest`, `client/src/lib/pwa.ts` |
 | automação do Claude no projeto: `/provar` (escolhe as provas pela área mexida), `/pr-check` (o rito do PR: docs, capturas, rascunho, mesclagem) e o agente `revisor-de-invariantes` (lê o diff contra as invariantes) | `.claude/skills/provar/SKILL.md`, `.claude/skills/pr-check/SKILL.md`, `.claude/agents/revisor-de-invariantes.md`. **Invariante nova ou regra de PR nova entra nos três** — o `.gitignore` libera só estes (o resto de `.claude/skills` é instalado por `npx skills add`, com o `skills-lock.json`) |
 | segurança: onde mora cada defesa, lista de conferência de rota nova e as revisões | `docs/SEGURANCA.md` |
@@ -331,6 +331,17 @@ arquitetura.
     link sai na tela de todo apostador. Saem com `rel="noopener noreferrer
     nofollow"` e rótulo "(abre em outra aba)"; o nome vai no `aria-label`,
     o ícone sozinho não diz qual rede é. Entra no ar ao publicar o template.
+  - **Rodapé de exemplo** (`preencherRodapeComExemplo()`, `POST
+    /admin/template/exemplo-rodape`, botão em Aparência; 403 para
+    organizador, no `npm run isolation`): preenche o **rascunho** com quatro
+    ícones neutros, redes sociais e um texto de apresentação, para ver o
+    rodapé pronto antes do material de verdade. **Só o que está vazio**
+    (nunca sobrescreve, rodar de novo não duplica) e **nunca publica**: o
+    exemplo só vai ao público se a plataforma publicar, e "Projetos que
+    apoiamos" com apoiador inventado seria afirmação falsa para quem olha —
+    por isso os logos levam "Exemplo" no nome e as redes apontam para a raiz
+    do domínio, nunca para a conta de alguém. A tela avisa para trocar antes
+    de publicar. `npm run aparencia` prova.
   - **Projetos que apoiamos** (título do espaço do meio): faixa de logos
     **redondas, em fileira** (círculo de 56 px, a logo inteira dentro, sem
     cortar), até 12 (`APOIOS_MAX`), cadastrados só

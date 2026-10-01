@@ -19,6 +19,7 @@ import { releaseExpired } from "../services/quotas";
 import { paymentProviderByName } from "../payments";
 import { log } from "../vite";
 import { poolDasTravas } from "../db";
+import { LocalDiskStorage, storage } from "../services/storage";
 
 /**
  * Trava de aplicação no Postgres: com duas réplicas, os dois processos
@@ -58,6 +59,7 @@ const LOCK_PUSH_SORTEIO = 811_008;
 const LOCK_REGIOES = 811_009;
 const LOCK_ANUNCIOS = 811_403;
 const LOCK_MARKETING = 811_501;
+const LOCK_COPIA = 811_013;
 
 /** Quantos minutos antes de a reserva cair o lembrete é enviado. */
 const LEMBRETE_MINUTOS = Number(process.env.REMINDER_MINUTES_BEFORE ?? 5);
@@ -220,6 +222,21 @@ export function startJobs() {
       console.error("[jobs] cidades antigas:", err);
     }
   }, 5_000).unref();
+
+  // Cópia de segurança da mídia: o que já estava no disco quando a cópia foi
+  // ligada sobe uma vez, ao subir o servidor (o que chega depois sobe na hora).
+  setTimeout(async () => {
+    try {
+      const store = storage();
+      if (!(store instanceof LocalDiskStorage) || !store.temCopia) return;
+      await withLock(LOCK_COPIA, async () => {
+        const n = await store.sincronizarCopia();
+        if (n > 0) log(`${n} arquivo(s) de mídia copiados para o backup`, "jobs");
+      });
+    } catch (err) {
+      console.error("[jobs] cópia de segurança da mídia:", err);
+    }
+  }, 30_000).unref();
 
   // Afiliado de antes dos vínculos (organização no usuário): cria o vínculo,
   // e a organização dos cupons e saques antigos. Idempotente.

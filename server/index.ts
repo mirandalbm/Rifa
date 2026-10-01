@@ -12,6 +12,7 @@ import { registerRoutes } from "./routes";
 import { webhookRouter } from "./routes/webhooks";
 import { setupAuth } from "./auth";
 import { startJobs } from "./jobs";
+import { LocalDiskStorage, storage } from "./services/storage";
 import { setupVite, serveStatic, log } from "./vite";
 
 const app = express();
@@ -50,6 +51,21 @@ app.use(
 // Arquivo que não existe é 404 — nunca a página do app. Sem isto o curinga
 // da SPA respondia 200 com HTML, a imagem quebrava na tela e o log não
 // mostrava nada (foi assim que o disco apagado a cada deploy passou calado).
+// Antes do 404: com cópia de segurança (`BACKUP_S3_*`), o arquivo que sumiu
+// do disco volta da cópia, fica gravado de novo e é servido na hora.
+app.use("/uploads", async (req, res, next) => {
+  try {
+    const store = storage();
+    if (!(store instanceof LocalDiskStorage) || !store.temCopia || req.method !== "GET") return next();
+    const key = decodeURIComponent(req.path.replace(/^\/+/, ""));
+    if (!key || key.includes("..") || !(await store.restaurar(key))) return next();
+    res.setHeader("Cache-Control", "public, max-age=3600");
+    res.sendFile(store.caminho(key));
+  } catch (err) {
+    console.error("[backup] não restaurei da cópia:", (err as Error).message);
+    next();
+  }
+});
 app.use("/uploads", (_req, res) => {
   res.status(404).end();
 });

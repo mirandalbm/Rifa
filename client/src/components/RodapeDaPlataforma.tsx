@@ -3,7 +3,14 @@ import { Facebook, Instagram, LifeBuoy, MessageCircle, Music2, Send, Twitter, Yo
 import { useTemplate } from "@/lib/template";
 import { Marca } from "@/components/Marca";
 import { PreferenciaDeCookies } from "@/components/AppShell";
-import { COLUNAS_DO_RODAPE } from "@shared/rodape";
+import {
+  APOIOS_DE_EXEMPLO,
+  COLUNAS_DO_RODAPE,
+  REDES_DE_EXEMPLO,
+  TEXTO_DE_EXEMPLO,
+  rodapeEmModoExemplo,
+  type IconeDeApoio,
+} from "@shared/rodape";
 import { REDES_DO_RODAPE, type Rede } from "@shared/template";
 
 const ICONE_DA_REDE: Record<Rede, LucideIcon> = {
@@ -14,6 +21,24 @@ const ICONE_DA_REDE: Record<Rede, LucideIcon> = {
   tiktok: Music2,
   x: Twitter,
   telegram: Send,
+};
+
+/** O desenho de cada ícone neutro do exemplo, em branco sobre o círculo colorido. */
+const DESENHO_DO_EXEMPLO: Record<IconeDeApoio, JSX.Element> = {
+  casa: (
+    <>
+      <path d="M48 22 20 46h8v26h40V46h8z" fill="#fff" />
+      <rect x="42" y="52" width="12" height="20" fill="currentColor" />
+    </>
+  ),
+  folha: (
+    <>
+      <path d="M48 18c18 6 26 22 20 40-14 4-30-2-34-22 0-8 6-14 14-18z" fill="#fff" />
+      <path d="M40 70c2-14 8-24 18-34" stroke="currentColor" strokeWidth="4" fill="none" />
+    </>
+  ),
+  cruz: <path d="M40 22h16v18h18v16H56v18H40V56H22V40h18z" fill="#fff" />,
+  coracao: <path d="M48 72C22 54 18 38 28 28c8-8 18-4 20 4 2-8 12-12 20-4 10 10 6 26-20 44z" fill="#fff" />,
 };
 
 /**
@@ -34,7 +59,9 @@ const ICONE_DA_REDE: Record<Rede, LucideIcon> = {
 export function RodapeDaPlataforma() {
   const t = useTemplate();
   const apoios = t.apoios ?? [];
-  const redes = t.redes ?? [];
+  const exemplo = rodapeEmModoExemplo(t.redes ?? [], apoios);
+  const redes = exemplo ? REDES_DE_EXEMPLO : (t.redes ?? []);
+  const textoDeApresentacao = t.textos.rodape || (exemplo ? TEXTO_DE_EXEMPLO : "");
   const ano = new Date().getFullYear();
   return (
     <footer className="hidden border-t border-line bg-mist md:block">
@@ -43,8 +70,8 @@ export function RodapeDaPlataforma() {
           <Link href="/" className="text-lg" aria-label="Início">
             <Marca />
           </Link>
-          {t.textos.rodape ? (
-            <p className="mt-3 whitespace-pre-line text-xs leading-relaxed text-ink-2">{t.textos.rodape}</p>
+          {textoDeApresentacao ? (
+            <p className="mt-3 whitespace-pre-line text-xs leading-relaxed text-ink-2">{textoDeApresentacao}</p>
           ) : null}
           {redes.length ? (
             <ul aria-label="Redes sociais" className="mt-4 flex flex-wrap gap-2">
@@ -72,7 +99,28 @@ export function RodapeDaPlataforma() {
 
         <div className="min-w-0 md:col-span-2 md:row-start-2 lg:col-span-1 lg:col-start-2 lg:row-start-1">
           <section aria-label="Apoio">
-            {apoios.length ? (
+            {exemplo ? (
+              <>
+                <h2 className="flex items-center gap-2 font-display text-sm font-bold">
+                  Projetos que apoiamos
+                  <span className="rounded-full border border-line-2 px-1.5 py-px text-[10px] font-semibold text-muted">
+                    Exemplo
+                  </span>
+                </h2>
+                <ul className="mt-3 flex flex-row flex-wrap items-center gap-2.5">
+                  {APOIOS_DE_EXEMPLO.map((a) => (
+                    <li key={a.id}>
+                      <span className="block h-14 w-14 overflow-hidden rounded-full border border-line-2 bg-white" title={a.nome}>
+                        <svg viewBox="0 0 96 96" role="img" aria-label={a.nome} className="h-full w-full" style={{ color: a.cor }}>
+                          <circle cx="48" cy="48" r="46" fill="currentColor" />
+                          {DESENHO_DO_EXEMPLO[a.id]}
+                        </svg>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            ) : apoios.length ? (
               <>
                 <h2 className="font-display text-sm font-bold">Projetos que apoiamos</h2>
                 <ul className="mt-3 flex flex-row flex-wrap items-center gap-2.5">
@@ -106,7 +154,7 @@ export function RodapeDaPlataforma() {
             ) : null}
             <Link
               href="/ajuda"
-              className={`${apoios.length ? "mt-4" : ""} inline-flex items-center gap-2 rounded-lg border border-line-2 bg-white px-3 py-2 text-xs font-semibold text-ink hover:border-marca hover:text-marca`}
+              className={`${exemplo || apoios.length ? "mt-4" : ""} inline-flex items-center gap-2 rounded-lg border border-line-2 bg-white px-3 py-2 text-xs font-semibold text-ink hover:border-marca hover:text-marca`}
             >
               <LifeBuoy size={14} aria-hidden />
               Central de ajuda

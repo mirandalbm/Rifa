@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
-import { COLUNAS_DO_RODAPE } from "../shared/rodape";
+import { APOIOS_DE_EXEMPLO, COLUNAS_DO_RODAPE, REDES_DE_EXEMPLO, rodapeEmModoExemplo } from "../shared/rodape";
 import { perguntasDaAjuda } from "../shared/ajuda";
 import { REDES_DO_RODAPE, TEMPLATE_PADRAO, TemplateInvalido, validarRedes, validarTemplate } from "../shared/template";
 
@@ -69,5 +69,24 @@ describe("colunas do rodapé", () => {
         if (ancora) expect(ajuda.has(ancora), `${l.rotulo} → #${ancora}`).toBe(true);
       }
     }
+  });
+});
+
+describe("rodapé de exemplo (fase de construção)", () => {
+  it("as redes de exemplo passam na régua do servidor e são a raiz do domínio", () => {
+    const r = validarRedes(REDES_DE_EXEMPLO);
+    expect(r).toHaveLength(REDES_DE_EXEMPLO.length);
+    for (const x of r) expect(new URL(x.link).pathname).toBe("/");
+  });
+
+  it("os ícones de exemplo se dizem exemplo e não repetem", () => {
+    expect(APOIOS_DE_EXEMPLO.every((a) => /^Exemplo/.test(a.nome))).toBe(true);
+    expect(new Set(APOIOS_DE_EXEMPLO.map((a) => a.id)).size).toBe(APOIOS_DE_EXEMPLO.length);
+  });
+
+  it("só aparece com o rodapé inteiro vazio: qualquer cadastro real o desliga", () => {
+    expect(rodapeEmModoExemplo([], [])).toBe(true);
+    expect(rodapeEmModoExemplo([{ rede: "x" }], [])).toBe(false);
+    expect(rodapeEmModoExemplo([], [{ id: "a" }])).toBe(false);
   });
 });

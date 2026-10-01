@@ -342,6 +342,14 @@ arquitetura.
     por isso os logos levam "Exemplo" no nome e as redes apontam para a raiz
     do domínio, nunca para a conta de alguém. A tela avisa para trocar antes
     de publicar. `npm run aparencia` prova.
+  - **Exemplo no código** (`rodapeEmModoExemplo()`, `REDES_DE_EXEMPLO`,
+    `APOIOS_DE_EXEMPLO` em `shared/rodape.ts`): na fase de construção, com o
+    rodapé **inteiro vazio** (nenhuma rede e nenhum logo cadastrados), o
+    componente mostra ícones neutros marcados "Exemplo", as redes (página
+    inicial de cada uma) e um texto de apresentação. Vem do código, **não
+    grava nada no banco** e some sozinho no primeiro cadastro real. No
+    lançamento, cadastre o material em Aparência e, se quiser, apague o
+    exemplo daqui. `tests/rodape.test.ts` prova.
   - **Projetos que apoiamos** (título do espaço do meio): faixa de logos
     **redondas, em fileira** (círculo de 56 px, a logo inteira dentro, sem
     cortar), até 12 (`APOIOS_MAX`), cadastrados só

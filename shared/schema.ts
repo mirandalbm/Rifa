@@ -256,6 +256,8 @@ export const users = pgTable(
     passwordHash: text("password_hash").notNull(),
     totpSecret: text("totp_secret"),
     active: boolean("active").notNull().default(true),
+    /** Quando abriu o sino do painel pela última vez: o que veio depois conta como novo. */
+    avisosVistosEm: timestamp("avisos_vistos_em"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (t) => [uniqueIndex("uq_users_email").on(t.email)],

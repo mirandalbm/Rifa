@@ -137,6 +137,7 @@ arquitetura.
 | carrinho (várias rifas, separadas por organização), o Pix único do carrinho e o comprar da publicação | `shared/carrinho.ts` (regras e split), `server/services/carrinho.ts`, `createCartOrder()` em `server/services/orders.ts`, `client/src/pages/CarrinhoPix.tsx`, `client/src/components/EscolherBilhete.tsx` (a janela do "+"), `scripts/carrinho-test.ts`, `client/src/lib/carrinho.ts`, `client/src/pages/Carrinho.tsx`, `BarraDeAcoes` em `client/src/components/Publicacao.tsx`, `scripts/publicacao-test.ts` |
 | presente pelos comentários (desconto de primeira compra pago pela plataforma) | `shared/presente.ts` (regras), `server/services/presente.ts`, `prepararPedido`/`settleOrderAsPaid` em `server/services/orders.ts`, `Presentear` em `client/src/components/Comentarios.tsx`, `AvisoDePresente` em `client/src/pages/Rifa.tsx`, cartão Presente em `client/src/pages/adminBonus.tsx`, `scripts/presente-test.ts` |
 | topo e console do app (os 6 botões da base, a lateral no computador, o trevo e a publicação) | `shared/console.ts` (botões, aviso do trevo, quem publica), `client/src/components/Console.tsx`, `PublicShell` em `client/src/components/AppShell.tsx`, `client/src/pages/PerfilDoUsuario.tsx`, `client/src/pages/EmBreve.tsx`, `client/src/components/TopoDoAppCard.tsx`, `tests/console.test.ts` |
+| avisos do painel (o sino: comentários novos nas rifas, pendências do atendimento) | `shared/avisos.ts`, `server/services/avisos.ts`, `GET /api/admin/avisos` em `server/routes/admin.ts`, o `<details>` do sino em `PanelShell` (`client/src/components/AppShell.tsx`), `tests/avisos.test.ts`, `scripts/isolation-test.ts` |
 | busca do painel (tela, pedido pelo código, cliente pelo ID, organização pelo nome) | `shared/busca.ts` (`interpretarBusca`, `caminhoDoAchado`), `server/services/busca.ts`, `GET /api/admin/busca` e os filtros `?codigo=`/`?cliente=` de `/orders` em `server/routes/admin.ts`, `BuscaDoPainel` em `client/src/components/AppShell.tsx`, `tests/busca.test.ts`, `scripts/isolation-test.ts` |
 | caixa de entrada da plataforma (tudo que espera decisão, numa lista) | `shared/caixa.ts` (ordem e destino), `server/services/caixa.ts`, `client/src/pages/adminCaixa.tsx`, `tests/caixa.test.ts` |
 | casca dos painéis (menu lateral em grupos, barra de cima, busca, conta, rodapé) e as peças do kit | `MENUS`/`menuDe()` em `shared/access.ts`, `PanelShell` em `client/src/components/AppShell.tsx`, `client/src/components/painel.tsx` (`Estatistica`, `CartaoDoPainel`, `CabecalhoDaTabela`, `AlternarVisao`), `.painel`/`.cartao` em `client/src/index.css`, `tests/menu.test.ts` |
@@ -469,9 +470,18 @@ O verde da marca entra no lugar do roxo do kit; o significado das cores
 - **A barra de cima tem a busca única do painel** (`BuscaDoPainel`: acha a
   tela pelo nome e, pelo servidor, o **pedido pelo código** (8 dígitos),
   o **cliente pelo ID** (`C-XXXXXXXX`) e, só para a plataforma, a
-  **organização pelo nome**; Enter abre o primeiro achado), o tema, o sino
-  do atendimento (com o número no rótulo) e a conta num `<details>` que
-  fecha fora e no Esc. Quem lê o texto é `interpretarBusca()` em
+  **organização pelo nome**; Enter abre o primeiro achado), o tema, o
+  **sino de avisos** e a conta, os dois num `<details>` que fecha fora e no
+  Esc. **O sino lista os comentários de apostador nas rifas do recorte**
+  (`GET /api/admin/avisos`, `avisosDoPainel()` em `server/services/avisos.ts`;
+  só plataforma e organizador — o afiliado também tem organização nula na
+  conta e nulo abriria todas) e, em cima, as pendências do atendimento.
+  "Visto" é por pessoa (`users.avisos_vistos_em`, `POST /avisos/vistos` ao
+  abrir o sino); o que chega depois volta a contar, e o número vai no
+  rótulo (`rotuloDoSino()` em `shared/avisos.ts`), nunca só na bolinha.
+  Cada aviso leva apelido ou primeiro nome e inicial — nunca telefone — e
+  abre a publicação já nos comentários (`caminhoDoAviso()`). `npm run
+  isolation` confere que o comentário do vizinho não aparece. Quem lê o texto é `interpretarBusca()` em
   `shared/busca.ts` (a tela e o servidor leem igual); `GET /api/admin/busca`
   (`buscarNoPainel()`) corre dentro do recorte de `orgOf` e devolve **lista
   vazia** para o que é do vizinho — nunca 403, que entregaria que o código

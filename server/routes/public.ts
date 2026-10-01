@@ -18,6 +18,7 @@ import { itensDoCarrinho } from "../services/carrinho";
 import { rifaAVenda, situacaoDoCarrinho } from "@shared/carrinho";
 import { buyerPorApelido, compartilhar, idsDaLista, marcar, minhasMarcas } from "../services/publicacao";
 import { ACOES, type Acao } from "@shared/publicacao";
+import { abaDoReels, limiteDoLote, loteDepoisDe, videoDoReels } from "@shared/reels";
 import { VerificacaoError } from "../services/verificacao";
 import { Router, type Request, type Response } from "express";
 import { createHash, randomBytes } from "node:crypto";
@@ -169,6 +170,57 @@ publicRouter.get("/campaigns", async (req, res, next) => {
 });
 
 type LinhaDaVitrine = Awaited<ReturnType<typeof listPublicCampaigns>>[number] & { uf?: string | null; cidade?: string | null };
+
+/**
+ * Reels: as rifas no ar que têm um vídeo em pé de até 3 minutos, na ordem da
+ * vitrine (a região de quem olha primeiro, nunca escondendo), em lotes. O
+ * lote seguinte vem **depois do último id visto** (`depois`), nunca por
+ * número de página. Cada item é o mesmo cartão do feed, com `reels` dizendo
+ * qual vídeo mostrar. Desligada pela plataforma, a lista vem vazia. Demonstração
+ * e rifa travada ficam de fora (a vitrine já tira a travada).
+ *
+ * A aba "Seguindo" só tem quem a pessoa segue e pede conta.
+ */
+publicRouter.get("/reels", async (req, res, next) => {
+  try {
+    const config = await getPlataforma();
+    if (!config.reelsLigado) return res.json({ ligado: false, itens: [], proximo: null });
+    const aba = abaDoReels(req.query.aba);
+    const buyerId = req.session.buyer?.id;
+    if (aba === "seguindo" && !buyerId) return res.json({ ligado: true, precisaEntrar: true, itens: [], proximo: null });
+    const uf = typeof req.query.uf === "string" && ufValida(req.query.uf.toUpperCase()) ? req.query.uf.toUpperCase() : null;
+    const cidade = typeof req.query.cidade === "string" ? req.query.cidade.slice(0, 120) : null;
+    const depois = typeof req.query.depois === "string" && /^[0-9a-f-]{36}$/i.test(req.query.depois) ? req.query.depois : null;
+
+    let todas = (await listPublicCampaigns()).filter((r) => !r.campaign.demonstracao);
+    if (aba === "seguindo") {
+      const sigo = new Set(
+        (await db.select({ org: seguidores.organizationId }).from(seguidores).where(eq(seguidores.buyerId, buyerId!))).map((x) => x.org),
+      );
+      todas = todas.filter((r) => sigo.has(r.campaign.organizationId));
+    }
+    const midias = await midiasDas(todas.map((r) => r.campaign.id));
+    const comVideo = todas.filter((r) => videoDoReels((midias.get(r.campaign.id) ?? []).map(pecaPublica)));
+    const ordenadas = ordenarPorProximidade(
+      comVideo.map((r) => ({ ...r, uf: r.organizacao?.uf ?? null, cidade: r.organizacao?.cidade ?? null })),
+      { uf, cidade },
+    );
+    const lote = loteDepoisDe(
+      ordenadas.map((r) => ({ id: r.campaign.id, linha: r })),
+      depois,
+      limiteDoLote(req.query.limite),
+    );
+    const cartoes = await cartoesDoFeed(req, lote.itens.map((x) => x.linha), uf, cidade);
+    res.setHeader("Cache-Control", "private, no-store");
+    res.json({
+      ligado: true,
+      itens: cartoes.map((c) => ({ ...c, reels: videoDoReels(c.midias)?.url ?? null })),
+      proximo: lote.proximo,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
 
 /**
  * O cartão do feed de cada rifa: carrossel, legenda, a barra de ações (os
@@ -571,7 +623,7 @@ publicRouter.get("/app", async (_req, res, next) => {
   try {
     const p = await getPlataforma();
     res.setHeader("Cache-Control", "public, max-age=60");
-    res.json({ avisoDoTrevo: p.avisoDoTrevo, publicarApostador: p.publicarApostador });
+    res.json({ avisoDoTrevo: p.avisoDoTrevo, publicarApostador: p.publicarApostador, reelsLigado: p.reelsLigado });
   } catch (err) {
     next(err);
   }

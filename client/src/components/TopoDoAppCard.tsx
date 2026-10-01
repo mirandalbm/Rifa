@@ -34,14 +34,16 @@ export function TopoDoAppCard() {
   const atual = useConfigDoApp();
   const [aviso, setAviso] = useState<AvisoDoTrevo>(atual.avisoDoTrevo);
   const [publicar, setPublicar] = useState(atual.publicarApostador);
+  const [reels, setReels] = useState(atual.reelsLigado);
   const [msg, setMsg] = useState<{ ok: boolean; texto: string } | null>(null);
   useEffect(() => {
     setAviso(atual.avisoDoTrevo);
     setPublicar(atual.publicarApostador);
-  }, [atual.avisoDoTrevo, atual.publicarApostador]);
+    setReels(atual.reelsLigado);
+  }, [atual.avisoDoTrevo, atual.publicarApostador, atual.reelsLigado]);
 
   const salvar = useMutation({
-    mutationFn: () => apiRequest("PUT", "/api/admin/app", { avisoDoTrevo: aviso, publicarApostador: publicar }),
+    mutationFn: () => apiRequest("PUT", "/api/admin/app", { avisoDoTrevo: aviso, publicarApostador: publicar, reelsLigado: reels }),
     onSuccess: () => {
       setMsg({ ok: true, texto: "Topo do app salvo." });
       qc.invalidateQueries({ queryKey: ["/api/public/app"] });
@@ -105,6 +107,15 @@ export function TopoDoAppCard() {
               <span className="block text-xs text-muted">
                 Desligado, só a organização e o influenciador veem a varinha de publicar. Ligado, o apostador com conta vê — por
                 enquanto com "Em breve".
+              </span>
+            </span>
+          </label>
+          <label className="flex items-start gap-2">
+            <input type="checkbox" checked={reels} onChange={(e) => { setMsg(null); setReels(e.target.checked); }} className="mt-1 h-5 w-5" />
+            <span>
+              <span className="font-semibold">Reels aberto ao público</span>
+              <span className="block text-xs text-muted">
+                Desligado, o botão Reels do console mostra "Em breve". Ligado, mostra os vídeos em pé de até 3 minutos das rifas no ar.
               </span>
             </span>
           </label>

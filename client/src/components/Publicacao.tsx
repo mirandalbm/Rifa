@@ -362,9 +362,12 @@ export function BarraDeAcoes({
   aoComentar,
   vende = false,
   aoComprar,
+  vertical = false,
 }: {
   slug: string;
   titulo: string;
+  /** Coluna à direita do vídeo (Reels): ícones brancos com o contador embaixo. */
+  vertical?: boolean;
   /** Endereço da rifa, para compartilhar e comprar. */
   caminho: string;
   interacoes: Interacoes;
@@ -424,12 +427,14 @@ export function BarraDeAcoes({
     }
   }
 
-  const botao = "flex items-center gap-1.5 rounded-md py-1 pr-1 hover:opacity-70 disabled:opacity-50";
+  const botao = vertical
+    ? "flex flex-col items-center gap-0.5 rounded-md p-1 hover:opacity-70 disabled:opacity-50"
+    : "flex items-center gap-1.5 rounded-md py-1 pr-1 hover:opacity-70 disabled:opacity-50";
   return (
     // `barra-de-acoes`: em cartão estreito (a vitrine em 3 colunas no
     // computador, celular pequeno) a barra aperta pela largura dela mesma.
-    <div className="barra-de-acoes px-3 pt-2">
-      <div className="flex items-center gap-4">
+    <div className={vertical ? "barra-de-acoes text-branco" : "barra-de-acoes px-3 pt-2"}>
+      <div className={vertical ? "flex flex-col items-center gap-4" : "flex items-center gap-4"}>
         <button
           type="button"
           className={botao}
@@ -462,7 +467,7 @@ export function BarraDeAcoes({
           <>
             <button
               type="button"
-              className={`${botao} ml-auto`}
+              className={vertical ? botao : `${botao} ml-auto`}
               aria-haspopup="dialog"
               aria-label={naSacola ? "No carrinho — escolher os números de novo" : "Escolher os números e pôr no carrinho"}
               onClick={() => setEscolhendo(true)}

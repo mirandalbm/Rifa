@@ -450,9 +450,13 @@ Na ordem de entrega do plano:
 
 ## 6. Código, para depois
 
+- [x] **Reels** (tela cheia, vídeo em pé de até 3 min, ações na lateral):
+  pronto, atrás do interruptor `reelsLigado` (Aparência → Topo do app, nasce
+  desligado). Ficou para depois: áudio/música, reações rápidas com emoji
+  (emoji é vantagem de verificado), aba "Friends" (aqui é "Seguindo") e o
+  selo "ao vivo". Sem transcode/pôster ainda (Cloudflare Stream).
 - [ ] **[código]** Botões do console ainda "Em breve", cada um planejado
-  com você antes: **Reels** (tela cheia, com carrinho e compra rápida),
-  **Mensagens** (conversas entre amigos e sobre rifas comentadas; online à
+  com você antes: **Mensagens** (conversas entre amigos e sobre rifas comentadas; online à
   esquerda e não lidas depois; o organizador só vê o que é dele) e
   **Buscar** (últimas publicações, com a tabela do que aparece ligada pela
   plataforma).

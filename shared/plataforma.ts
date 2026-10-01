@@ -113,6 +113,11 @@ export interface ConfigPlataforma {
    * organização e o influenciador publicam.
    */
   publicarApostador: boolean;
+  /**
+   * A tela Reels (tela cheia vertical com os vídeos das rifas). Nasce
+   * desligada: desligada, o botão do console segue levando a "Em breve".
+   */
+  reelsLigado: boolean;
 }
 
 export const CONFIG_PADRAO: ConfigPlataforma = {
@@ -130,6 +135,7 @@ export const CONFIG_PADRAO: ConfigPlataforma = {
   presente: CONFIG_PRESENTE_PADRAO,
   avisoDoTrevo: AVISO_DO_TREVO_PADRAO,
   publicarApostador: false,
+  reelsLigado: false,
 };
 
 /** Só as chaves conhecidas: isto vem do corpo da requisição. */
@@ -161,6 +167,7 @@ export function validarConfigPlataforma(entrada: Partial<ConfigPlataforma>): Con
     presente: validarConfigPresente(entrada.presente),
     avisoDoTrevo: validarAvisoDoTrevo(entrada.avisoDoTrevo),
     publicarApostador: entrada.publicarApostador === true,
+    reelsLigado: entrada.reelsLigado === true,
   };
 }
 

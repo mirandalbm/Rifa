@@ -221,6 +221,38 @@ async function main() {
     checa("o banner ainda cabe (é a décima peça)", r.status === 200, `HTTP ${r.status} ${r.json?.message ?? ""}`);
     r = await marina.req("POST", `/api/admin/campaigns/${rifa.id}/media/upload-url`, { role: "video", filename: "v.mp4", mime: "video/mp4", bytes: 3 * 1024 * 1024 * 1024 });
     checa("vídeo acima de 2 GB é recusado antes do envio (422)", r.status === 422, `HTTP ${r.status} ${r.json?.message ?? ""}`);
+
+    console.log("\n  reels:");
+    const admin = new Cliente();
+    await admin.req("POST", "/api/auth/login", { email: "admin@rifa.br", password: "admin123" });
+    const antes = (await anon.req("GET", "/api/public/app")).json?.reelsLigado === true;
+    const ajustar = (ligado: boolean) => admin.req("PUT", "/api/admin/app", { avisoDoTrevo: { estilo: "ponto", cor: "verde" }, publicarApostador: false, reelsLigado: ligado });
+    try {
+      await ajustar(false);
+      r = await anon.req("GET", "/api/public/reels");
+      checa("desligado, a lista vem vazia", r.status === 200 && r.json?.ligado === false && r.json.itens.length === 0);
+      r = await marina.req("PUT", "/api/admin/app", { reelsLigado: true });
+      checa("organizador não liga o Reels (403)", r.status === 403, `HTTP ${r.status}`);
+      await db.insert(campaignMedia).values([
+        { campaignId: rifa.id, role: "video", position: 20, storageKey: "teste/reels-em-pe", mime: "video/mp4", width: 720, height: 1280, durationS: 30, status: "ready" },
+        { campaignId: rascunho.id, role: "video", position: 20, storageKey: "teste/reels-rascunho", mime: "video/mp4", width: 720, height: 1280, durationS: 30, status: "ready" },
+      ]);
+      await ajustar(true);
+      r = await anon.req("GET", "/api/public/reels?limite=50");
+      const meu = r.json?.itens?.find((c: { slug: string }) => c.slug === SLUG);
+      checa("ligado, a rifa com vídeo em pé aparece, com o vídeo escolhido", r.status === 200 && r.json?.ligado === true && Boolean(meu?.reels), JSON.stringify(r.json?.itens?.map((c: { slug: string }) => c.slug)));
+      checa("rascunho não aparece", !r.json?.itens?.some((c: { slug: string }) => c.slug === RASCUNHO));
+      await db.update(campaignMedia).set({ width: 1280, height: 720 }).where(eq(campaignMedia.storageKey, "teste/reels-em-pe"));
+      r = await anon.req("GET", "/api/public/reels?limite=50");
+      checa("vídeo deitado não é reels", !r.json?.itens?.some((c: { slug: string }) => c.slug === SLUG));
+      r = await anon.req("GET", "/api/public/reels?aba=seguindo");
+      checa("a aba Seguindo pede conta", r.status === 200 && r.json?.precisaEntrar === true && r.json.itens.length === 0);
+      r = await anon.req("GET", "/api/public/reels?limite=1");
+      checa("o lote respeita o limite", (r.json?.itens?.length ?? 0) <= 1);
+    } finally {
+      await ajustar(antes);
+      await db.delete(campaignMedia).where(sql`storage_key like 'teste/reels-%'`);
+    }
   } finally {
     await limpar();
   }

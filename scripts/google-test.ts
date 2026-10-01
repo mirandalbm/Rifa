@@ -37,7 +37,11 @@ class Cliente {
     const sc = r.headers.get("set-cookie");
     if (sc) this.cookie = sc.split(";")[0];
     const tipo = r.headers.get("content-type") ?? "";
-    return { status: r.status, local: r.headers.get("location") ?? "", json: tipo.includes("json") ? await r.json() : null };
+    // O corpo só termina depois que a sessão foi gravada (o express-session segura o fim da
+    // resposta até salvar); o `fetch` resolve já nos cabeçalhos. Sem ler o corpo, a próxima
+    // chamada corria com a gravação da sessão.
+    const json = tipo.includes("json") ? await r.json() : (await r.arrayBuffer(), null);
+    return { status: r.status, local: r.headers.get("location") ?? "", json };
   }
 
   /** Faz a viagem inteira: ir → (Google de mentira) → voltar. Devolve para onde o navegador cairia. */
@@ -46,7 +50,9 @@ class Cliente {
     if (!ida.local.includes("/retorno")) return ida.local; // recusou já na ida
     const u = new globalThis.URL(ida.local, URL);
     const plantou = await this.req("POST", "/api/dev/google", claims);
-    if (plantou.status !== 200) throw new Error("O servidor não está com GOOGLE_PROVA=1.");
+    if (plantou.status !== 200) {
+      throw new Error(`Não deu para plantar os claims (HTTP ${plantou.status} ${JSON.stringify(plantou.json)}, ida: ${caminho} → ${ida.local}). O servidor precisa de GOOGLE_PROVA=1.`);
+    }
     const state = stateErrado ? "estado-forjado" : u.searchParams.get("state");
     const volta = await this.req("GET", `/api/public/conta/google/retorno?state=${state}&code=prova`);
     return volta.local;

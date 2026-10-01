@@ -10,6 +10,7 @@ import { STORY_SEGUNDOS, temStoryNovo } from "@shared/vitrine";
 interface Story {
   id: string;
   tipo: "imagem" | "video";
+  poster?: string | null;
   /** O endereço do arquivo: imagem ou vídeo, conforme `tipo`. */
   imagem: string;
   legenda: string | null;
@@ -221,6 +222,7 @@ export function VisualizadorDeStories({
               ref={video}
               key={atual.id}
               src={atual.imagem}
+              poster={atual.poster ?? undefined}
               aria-label={atual.legenda ?? `Story em vídeo de ${data.nome}`}
               className="h-full w-full select-none object-contain"
               autoPlay

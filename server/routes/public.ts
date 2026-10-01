@@ -11,6 +11,7 @@ import {
   imagemDoBanner,
   imagemDoStory,
   storiesDoPerfil,
+  posterDoStory,
 } from "../services/vitrine";
 import { montarRotasDaVerificacao } from "./verificacaoRotas";
 import { midiasDas, pecaPublica } from "../services/perfil";
@@ -352,7 +353,10 @@ publicRouter.get("/reels", async (req, res, next) => {
     res.setHeader("Cache-Control", "private, no-store");
     res.json({
       ligado: true,
-      itens: cartoes.map((c) => ({ ...c, reels: videoDoReels(c.midias)?.url ?? null })),
+      itens: cartoes.map((c) => {
+        const v = videoDoReels(c.midias);
+        return { ...c, reels: v?.url ?? null, reelsPoster: v?.poster ?? null };
+      }),
       proximo: lote.proximo,
     });
   } catch (err) {
@@ -487,6 +491,17 @@ publicRouter.get("/o/:slug/stories", async (req, res, next) => {
   try {
     res.setHeader("Cache-Control", "no-store");
     res.json(await storiesDoPerfil(req.params.slug));
+  } catch (err) {
+    next(err);
+  }
+});
+
+publicRouter.get("/stories/:id/poster", async (req, res, next) => {
+  try {
+    const poster = await posterDoStory(req.params.id);
+    if (!poster) return res.status(404).json({ message: "Pôster não encontrado." });
+    res.setHeader("Cache-Control", "public, max-age=3600");
+    res.type("image/webp").send(poster);
   } catch (err) {
     next(err);
   }
@@ -1135,7 +1150,7 @@ publicRouter.get("/campaigns/:slug", async (req, res, next) => {
           srcSetAvif: withUrl.srcSetAvif,
           srcSetWebp: withUrl.srcSetWebp,
           lqip: m.lqip,
-          poster: m.posterKey,
+          poster: withUrl.posterUrl,
           durationS: m.durationS,
           altText: m.altText,
           width: m.width,

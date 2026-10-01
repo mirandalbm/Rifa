@@ -84,6 +84,7 @@ arquitetura.
 | sorteio | `server/services/draw.ts` |
 | segundo fator | `server/services/totp.ts` |
 | variantes de imagem | `server/services/images.ts` |
+| pôster do vídeo (rifa, reels e story) e o ponto de encaixe do Cloudflare Stream | `shared/poster.ts` (regras e comando), `server/services/videoProcessor.ts` (`ProcessadorDeVideo`, `FfmpegLocal`), `gerarPosterDaMidia()` em `server/services/media.ts`, `gerarPosterDoStory()` em `server/services/vitrine.ts`, `poster` em `Publicacao.tsx`/`Reels.tsx`/`Stories.tsx`, `scripts/poster-test.ts`, `tests/poster.test.ts` |
 | onde a mídia é guardada e a cópia de segurança | `server/services/storage.ts` (`LocalDiskStorage`, `CopiaS3`, `sincronizarCopia`), `/uploads` em `server/index.ts`, `tests/backup.test.ts` |
 | mensagens e modelos | `server/notifications/` |
 | cotas premiadas | `shared/premiadas.ts` (números escolhidos), `server/routes/admin.ts` (sorteio e escolha), `services/orders.ts` (revelação), `premiados` em `listarComentarios()` (o comentário fixo de quem levou), `client/src/components/CotaSurpresa.tsx` (o presente na publicação, que revela) |
@@ -189,9 +190,11 @@ arquitetura.
   entrar, vale o recorte de `orgOf` e nada de dado pessoal de comprador no
   contexto.
 
-- Pôster extraído do vídeo e transcode: hoje servimos o arquivo original. A
-  medição e os limites já existem; falta o processamento. Cloudflare Stream
-  resolve os dois de fábrica.
+- **Transcode do vídeo** (recompressão, HLS): hoje servimos o arquivo
+  original. O pôster já existe (seção Mídia); o transcode é trabalho pesado
+  e não roda no processo web. O Cloudflare Stream resolve de fábrica e tem o
+  ponto de encaixe marcado em `server/services/videoProcessor.ts` — falta a
+  conta e o token.
 - Fila (BullMQ): os três relógios rodam com `setInterval` no processo,
   protegidos por trava de aplicação do Postgres — com várias réplicas só uma
   executa. Serve bem; a fila entra quando houver trabalho pesado de verdade.
@@ -779,6 +782,43 @@ mídia apaga o objeto da chave, e a chave de outra organização aparece no
 endereço público da imagem dela. A imagem é aberta com teto de 40
 megapixels (medido pelo cabeçalho antes de abrir): um PNG pequeno pode
 dizer 16.000 × 16.000 e derrubar o processo. `npm run isolation` prova.
+
+## Pôster do vídeo — o que não pode afrouxar
+
+O quadro que aparece antes do play (`poster` do `<video>`) do vídeo da
+rifa, do reels e do story. Quem faz é um **processador de vídeo**
+(`ProcessadorDeVideo` em `server/services/videoProcessor.ts`): hoje o
+`ffmpeg` local, se estiver instalado; amanhã o Cloudflare Stream, no ponto de
+encaixe marcado no mesmo arquivo (`VIDEO_PROCESSOR`).
+
+- **Degrada, nunca quebra.** Sem `ffmpeg`, com vídeo que ele não abre, com
+  prazo estourado (20 s) ou saída maior que 8 MB, o resultado é "sem pôster"
+  (`null`): o envio da mídia, a publicação e o story seguem iguais, e o
+  `<video>` mostra o primeiro quadro como sempre mostrou. `gerarPoster()`
+  nunca lança.
+- **Só em segundo plano** (`emSegundoPlano`): o envio responde 201 sem esperar
+  o processo, e o pôster aparece depois (`UPDATE … poster_key IS NULL`). Mídia
+  apagada no meio do caminho: o pôster recém-gravado é apagado também.
+- **O pôster é nosso, nunca do navegador.** A chave
+  (`chaveDoPoster()`, `campanhas/<rifa>/poster-<uuid>.webp`) é gerada aqui e
+  não passa por `chaveDaCampanha()` — confirmar essa chave como mídia dá 400.
+  `posterKey`/`poster` no corpo do envio são ignorados. Vale a regra da
+  mídia: nenhuma medida ou valor vem do cliente.
+- **Um quadro só, WebP, até 720 px de largura**, tirado a 0,5 s (o primeiro
+  quadro costuma ser preto) ou, em vídeo curto demais, do primeiro de
+  verdade; o `ffmpeg` aplica a rotação do vídeo. Reprocessado pelo `sharp`:
+  sem metadados.
+- **Onde mora**: rifa — `campaign_media.poster_key` no armazenamento (volume
+  e cópia, como a mídia; `removeMedia` apaga junto), exposto como `poster`
+  (`posterUrl` em `withUrls`, `pecaPublica` para feed, perfil e Reels, e
+  `reelsPoster` no lote do Reels). Story — `stories.poster` no banco, como o
+  vídeo. A coluna é nova: **`db:push` antes do código**.
+- **Vídeo grande fora do disco local** (bucket) acima de 200 MB não é baixado
+  só para tirar o quadro: fica sem pôster até o Stream entrar.
+- **Ficou fora**: transcode/HLS e o pôster de vídeo antigo (enviado antes
+  desta mudança). `npm run poster` prova (com `ffmpeg` e sem; `FFMPEG_PATH`
+  apontando para o vazio nos dois lados prova o caminho sem ele) e
+  `tests/poster.test.ts` cobre as regras e as falhas do processo.
 
 ## Antifraude — o que não pode afrouxar
 
@@ -1815,8 +1855,10 @@ desconto na primeira compra — **pago pela plataforma**.
   `shared/vitrine.ts`): MP4 ou MOV (WebM não, porque não sabemos medir), até
   **30 s**, **15 MB** e **em pé** (proporção ≤ 0,85, a régua do reels). Duração
   e medidas saem do container (`probeVideoDuration`/`probeVideoDimensions`),
-  nunca do que o navegador diz; sem medida, não entra. **Sem transcode e sem
-  pôster** — isso é o Cloudflare Stream, que entra no mesmo lugar. O arquivo
+  nunca do que o navegador diz; sem medida, não entra. **Sem transcode** — isso
+  é o Cloudflare Stream, que entra no mesmo lugar; o pôster sai em segundo
+  plano (`gerarPosterDoStory()`, coluna `stories.poster`, rota
+  `/stories/:id/poster` com a regra da imagem: vencido some). O arquivo
   fica no banco, como a imagem, e sai em `/stories/:id/imagem` **com `Range`
   (206)**: o Safari não toca vídeo sem ele. O visualizador deixa o vídeo
   mandar no tempo (barra pelo `timeupdate`, passa no `ended`), segurar pausa,

@@ -8,10 +8,14 @@
  * tela. Por isso a duração é MEDIDA aqui, lendo o arquivo já armazenado, e
  * não aceita o que o navegador informou.
  */
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import { db } from "../db";
 import { campaignMedia, MAX_PHOTOS, MAX_VIDEO_SECONDS } from "@shared/schema";
-import { storage, mediaKey, chaveDaCampanha, type UploadTicket } from "./storage";
+import { randomUUID } from "node:crypto";
+import { storage, mediaKey, chaveDaCampanha, LocalDiskStorage, type UploadTicket } from "./storage";
+import { comArquivoTemporario, processadorDeVideo } from "./videoProcessor";
+import { emSegundoPlano } from "./push";
+import { POSTER_BAIXAR_ATE_BYTES, chaveDoPoster, posterPublico } from "@shared/poster";
 import { probeImage, probeVideoDimensions, probeVideoDuration, UnreadableMediaError } from "./probe";
 import { processImage, srcSet, removeVariants, type ImageVariant } from "./images";
 import { MAX_CARROSSEL, duracao, formatoDoVideo } from "@shared/publicacao";
@@ -268,7 +272,54 @@ async function ingest(params: {
     })
     .returning();
 
+  // O pôster vem depois, em segundo plano: a resposta não espera o ffmpeg e a
+  // falha dele (ou a falta dele) deixa o vídeo como está, sem pôster.
+  if (params.role === "video") {
+    emSegundoPlano(gerarPosterDaMidia(created.id, params.campaignId, params.storageKey, size), "pôster do vídeo");
+  }
+
   return withUrls(created);
+}
+
+/**
+ * Tira o pôster do vídeo já armazenado e o grava junto da mídia (`posterKey`).
+ * Nunca lança para quem chamou a ingestão — mas aqui dentro erro é erro, e
+ * quem chama (`emSegundoPlano`) o leva ao log. Sem processador ou sem
+ * quadro, não grava nada.
+ *
+ * Disco local: o `ffmpeg` lê o arquivo onde ele está. Bucket: baixa para um
+ * temporário, só até `POSTER_BAIXAR_ATE_BYTES` — acima disso fica sem pôster
+ * (é o caso que o Cloudflare Stream resolve, no ponto de encaixe).
+ */
+export async function gerarPosterDaMidia(mediaId: string, campaignId: string, storageKey: string, bytes: number) {
+  const store = storage();
+  const gerar = async (arquivo: string) => processadorDeVideo().gerarPoster(arquivo);
+  let poster: Buffer | null;
+  if (store instanceof LocalDiskStorage) {
+    await store.size(storageKey); // traz da cópia se o disco perdeu o arquivo
+    poster = await gerar(store.caminho(storageKey));
+  } else if (bytes <= POSTER_BAIXAR_ATE_BYTES) {
+    const ext = storageKey.slice(storageKey.lastIndexOf("."));
+    poster = await comArquivoTemporario(await store.readAll(storageKey), ext, gerar);
+  } else {
+    poster = null;
+  }
+  if (!poster) return null;
+
+  const chave = chaveDoPoster(campaignId, randomUUID());
+  await store.write(chave, poster, "image/webp");
+  // Só entra se a mídia ainda existe e ainda não tem pôster: removida no
+  // meio do caminho, o pôster recém-gravado é lixo e sai.
+  const [gravado] = await db
+    .update(campaignMedia)
+    .set({ posterKey: chave })
+    .where(and(eq(campaignMedia.id, mediaId), isNull(campaignMedia.posterKey)))
+    .returning({ id: campaignMedia.id });
+  if (!gravado) {
+    await store.remove(chave).catch(() => {});
+    return null;
+  }
+  return chave;
 }
 
 export async function removeMedia(mediaId: string) {
@@ -280,6 +331,7 @@ export async function removeMedia(mediaId: string) {
 
   // Mídia fora da campanha não tem por que continuar custando armazenamento.
   await storage().remove(removed.storageKey).catch(() => {});
+  if (removed.posterKey) await storage().remove(removed.posterKey).catch(() => {});
   await removeVariants(removed.variants);
   return removed;
 }
@@ -302,6 +354,8 @@ export function withUrls(m: MediaRow) {
   return {
     ...m,
     url: url(m.storageKey),
+    // Só vídeo tem pôster; sem ele (sem ffmpeg, falha), `null`.
+    posterUrl: posterPublico(m.posterKey ? url(m.posterKey) : null),
     srcSetAvif: srcSet(m.variants, "avif", url),
     srcSetWebp: srcSet(m.variants, "webp", url),
   };

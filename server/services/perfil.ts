@@ -101,6 +101,8 @@ export function pecaPublica(m: ReturnType<typeof withUrls>) {
   return {
     role: m.role,
     url: m.url,
+    // O quadro do vídeo antes do play (nulo sem ffmpeg ou em foto).
+    poster: m.posterUrl,
     srcSet: m.srcSetWebp,
     lqip: m.lqip,
     alt: m.altText,

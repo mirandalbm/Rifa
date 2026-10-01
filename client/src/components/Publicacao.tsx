@@ -28,6 +28,8 @@ import {
 export interface Peca {
   role: "banner" | "photo" | "video";
   url: string;
+  /** O quadro do vídeo antes do play (nulo sem ffmpeg no servidor). */
+  poster?: string | null;
   srcSet?: string | null;
   lqip?: string | null;
   alt?: string | null;
@@ -254,6 +256,7 @@ function VideoDaPublicacao({ peca }: { peca: Peca }) {
       <video
         ref={video}
         src={peca.url}
+        poster={peca.poster ?? undefined}
         playsInline
         muted={mudo}
         preload="metadata"

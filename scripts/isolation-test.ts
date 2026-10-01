@@ -525,7 +525,17 @@ async function conteudoDasListas(eu: Lado, vizinho: Lado) {
   const meuId = `C-ABCDEFG${eu.nome === "norte" ? 2 : 3}`;
   checa("a busca não acha o pedido do vizinho", (await buscar(String(vizinho.orderCode))).length === 0);
   checa("a busca não acha o cliente do vizinho", (await buscar(idDoVizinho)).length === 0);
-  checa("a busca não acha organização para o organizador", (await buscar("Organização")).length === 0);
+  checa("a busca não acha organização para o organizador", (await buscar("Organização")).filter((a) => a.tipo === "organizacao").length === 0);
+  // Gente da casa: o cambista e o organizador da própria organização
+  // aparecem; os do vizinho não, nem por nome, nem por e-mail, nem por código.
+  const pessoaDo = async (q: string) => (await buscar(q)).filter((a) => a.tipo === "pessoa");
+  const meusNomes = await pessoaDo(`Cambista ${eu.nome}`);
+  checa("a busca acha o cambista da minha organização, pelo nome", meusNomes.length === 1 && meusNomes[0].rotulo === `Cambista ${eu.nome}`, JSON.stringify(meusNomes));
+  checa("…e pelo e-mail", (await pessoaDo(`iso-cambista-${eu.nome}@`)).length === 1);
+  checa("…mas não o do vizinho, por nome", (await pessoaDo(`Cambista ${vizinho.nome}`)).length === 0);
+  checa("…nem por e-mail", (await pessoaDo(`iso-cambista-${vizinho.nome}@`)).length === 0);
+  checa("…nem o organizador do vizinho", (await pessoaDo(`Organizador ${vizinho.nome}`)).length === 0);
+  checa("a busca de gente não traz telefone nem hash", !JSON.stringify(meusNomes).match(/1196|password|hash|phone/i));
   const meuPedido = await buscar(`#${eu.orderCode}`);
   checa(
     "a busca acha o meu pedido, sem nome do comprador",

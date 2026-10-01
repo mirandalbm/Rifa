@@ -1031,6 +1031,11 @@ export function AdminAfiliados() {
       vinculo?: { id: string; status: string; commissionPct: number | null; aceiteVersao: number | null; termoVersaoAtual: number | null };
     }[]
   >({ queryKey: ["/api/admin/affiliates"] });
+  // A busca do painel chega com `?q=` (o código do afiliado): a lista fica
+  // só com ele — o recorte já veio do servidor, aqui só se estreita.
+  const filtro = (new URLSearchParams(useSearch()).get("q") ?? "").trim().toLowerCase();
+  const doFiltro = (r: NonNullable<typeof data>[number]) =>
+    !filtro || [r.affiliate.code, r.user.name, r.user.email].some((t) => t.toLowerCase().includes(filtro));
   // O que a organização decide é o vínculo; a plataforma, a conta.
   const statusDe = (r: NonNullable<typeof data>[number]) =>
     r.vinculo ? r.vinculo.status : r.affiliate.status === "active" ? "aprovado" : r.affiliate.status === "blocked" ? "recusado" : "pendente";
@@ -1149,8 +1154,18 @@ export function AdminAfiliados() {
         </Card>
 
         <Card title={daOrganizacao ? "Afiliados desta organização" : "Afiliados da plataforma"}>
+          {filtro ? (
+            <p className="flex flex-wrap items-center gap-2 border-b border-line px-4 py-2 text-sm">
+              <span>
+                Mostrando <span className="tnum font-medium">{filtro}</span>.
+              </span>
+              <Link href="/admin/afiliados" className="inline-flex min-h-6 items-center text-green-deep underline">
+                Ver todos
+              </Link>
+            </p>
+          ) : null}
           <ul className="divide-y divide-line">
-            {data?.map((row) => {
+            {data?.filter(doFiltro).map((row) => {
               const st = statusDe(row);
               const semAceite =
                 row.vinculo?.termoVersaoAtual && (row.vinculo.aceiteVersao ?? 0) < row.vinculo.termoVersaoAtual;
@@ -1188,6 +1203,7 @@ export function AdminAfiliados() {
             })}
           </ul>
           {data?.length === 0 ? <Empty>Nenhum afiliado cadastrado.</Empty> : null}
+          {data?.length && !data.filter(doFiltro).length ? <Empty>Nenhum afiliado com esse código, nome ou e-mail.</Empty> : null}
         </Card>
       </div>
     </PanelShell>

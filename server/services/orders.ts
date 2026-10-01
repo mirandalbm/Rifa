@@ -13,6 +13,7 @@ import { randomInt } from "node:crypto";
 import { and, eq, inArray, sql, desc, or, lte } from "drizzle-orm";
 import type { Titularidade } from "@shared/contaComprador";
 import { garantirCodigoCliente } from "./codigoCliente";
+import { MSG_COMPLETE, faltaNaContaGoogle } from "@shared/google";
 import { db } from "../db";
 import {
   campaigns,
@@ -274,6 +275,8 @@ async function prepararPedido(
   if (ctx.contaId && !ctx.sellerId) {
     const [conta] = await db.select().from(buyers).where(eq(buyers.id, ctx.contaId));
     if (!conta || conta.excluidoEm) throw new OrderError("Entre de novo na sua conta.", 401);
+    // Conta criada pelo Google nasce sem CPF e sem telefone: completa antes de comprar.
+    if (faltaNaContaGoogle(conta).length) throw new OrderError(MSG_COMPLETE, 409);
     input = {
       ...input,
       buyer: {
@@ -704,8 +707,9 @@ export async function createCartOrder(input: CarrinhoCheckoutInput, ctx: CreateO
   // Dentro da conta, quem compra é a conta — o telefone do antifraude também.
   let telefone = input.buyer.phone;
   if (ctx.contaId) {
-    const [conta] = await db.select({ phone: buyers.phone, excluidoEm: buyers.excluidoEm }).from(buyers).where(eq(buyers.id, ctx.contaId));
+    const [conta] = await db.select({ phone: buyers.phone, cpf: buyers.cpf, excluidoEm: buyers.excluidoEm }).from(buyers).where(eq(buyers.id, ctx.contaId));
     if (!conta || conta.excluidoEm) throw new OrderError("Entre de novo na sua conta.", 401);
+    if (faltaNaContaGoogle(conta).length) throw new OrderError(MSG_COMPLETE, 409);
     telefone = conta.phone;
   }
 

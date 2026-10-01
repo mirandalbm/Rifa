@@ -1,3 +1,4 @@
+import { BotaoGoogle } from "@/components/BotaoGoogle";
 import { useState } from "react";
 import { Marca } from "@/components/Marca";
 import { Link, useLocation } from "wouter";
@@ -103,6 +104,8 @@ export default function CriarConta() {
       <p className="mt-1 text-sm text-muted">
         Uma conta para jogar em qualquer rifa e acompanhar tudo o que você comprou.
       </p>
+
+      <BotaoGoogle />
 
       <form
         className="mt-5 space-y-3"

@@ -1,3 +1,4 @@
+import { ehTelefoneProvisorio } from "@shared/google";
 import { Router } from "express";
 import passport from "passport";
 import { eq } from "drizzle-orm";
@@ -37,7 +38,8 @@ authRouter.get("/me", async (req, res, next) => {
     user: req.user ? { name: req.user.name, email: req.user.email } : null,
     buyer: req.session.buyer?.phone
       ? {
-          phone: req.session.buyer.phone,
+          phone: ehTelefoneProvisorio(req.session.buyer.phone) ? "" : req.session.buyer.phone,
+          telefoneProvisorio: ehTelefoneProvisorio(req.session.buyer.phone),
           name: req.session.buyer.name,
           conta: Boolean(req.session.buyer.id),
           confirmado: req.session.buyer.confirmado === true,

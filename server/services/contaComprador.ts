@@ -21,6 +21,7 @@ import {
   type CadastroComprador,
 } from "@shared/contaComprador";
 import { senhaInvalida } from "@shared/senha";
+import { ehContaSoGoogle, ehTelefoneProvisorio, faltaNaContaGoogle } from "@shared/google";
 import { hashPassword, verifyPassword } from "../auth";
 import { isUniqueViolation } from "../pgError";
 import { guardLogin, hit, identify } from "./antifraude";
@@ -259,11 +260,14 @@ export async function dadosDaConta(buyerId: string) {
   if (!c || c.excluidoEm) throw new ContaError("Conta não encontrada.", 404);
   return {
     nome: c.name,
-    telefone: c.phone,
+    telefone: ehTelefoneProvisorio(c.phone) ? null : c.phone,
     cpf: c.cpf,
     email: c.email,
     codigo: c.codigo,
-    temSenha: Boolean(c.passwordHash),
+    temSenha: Boolean(c.passwordHash) && !ehContaSoGoogle(c.passwordHash),
+    google: Boolean(c.googleSub),
+    soGoogle: ehContaSoGoogle(c.passwordHash),
+    falta: faltaNaContaGoogle(c),
     telefoneConfirmado: Boolean(c.telefoneConfirmadoEm),
     perfilPublico: c.perfilPublico,
     cep: c.cep,
@@ -383,7 +387,10 @@ export async function excluirConta(req: Request, senha: string) {
 
   // Quem entrou pelo código do WhatsApp já provou o telefone; quem entrou
   // pela senha confirma com ela.
-  if (sessao.confirmado !== true) {
+  if (ehContaSoGoogle(c.passwordHash)) {
+    // Sem senha para conferir: a pessoa digita a palavra, para não ser um toque sem querer.
+    if (senha.trim().toUpperCase() !== "EXCLUIR") throw new ContaError('Digite EXCLUIR para confirmar.', 401);
+  } else if (sessao.confirmado !== true) {
     if (!c.passwordHash || !(await verifyPassword(senha, c.passwordHash))) {
       throw new ContaError("A senha não confere.", 401);
     }
@@ -414,6 +421,7 @@ export async function excluirConta(req: Request, senha: string) {
         cidade: null,
         uf: null,
         passwordHash: null,
+        googleSub: null,
         telefoneConfirmadoEm: null,
         // O perfil público some junto: apelido e foto são dado pessoal.
         apelido: null,

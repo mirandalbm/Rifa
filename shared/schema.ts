@@ -330,10 +330,13 @@ export const buyers = pgTable(
      * comentários leem daqui sem juntar a tabela do cofre.
      */
     verificadoEm: timestamp("verificado_em"),
+    /** Identificador (`sub`) da conta Google ligada. Único: uma conta Google, um apostador. */
+    googleSub: text("google_sub"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (t) => [
     uniqueIndex("uq_buyers_phone").on(t.phone),
+    uniqueIndex("uq_buyers_google_sub").on(t.googleSub).where(sql`google_sub is not null`),
     uniqueIndex("uq_buyers_apelido").on(t.apelido).where(sql`apelido is not null`),
     uniqueIndex("uq_buyers_codigo").on(t.codigo),
     // "Quem também joga": parte dos poucos que abriram o perfil (opt-in), não de todos os compradores da rifa.

@@ -214,9 +214,9 @@ function AvatarDoConsole() {
 export function usePendencias(): string[] {
   const { data: sessao } = useSession();
   const conta = Boolean(sessao?.buyer?.conta);
-  const { data } = useQuery<{ apelido: string | null }>({ queryKey: ["/api/public/conta/perfil"], enabled: conta });
+  const { data } = useQuery<{ apelido: string | null; falta?: string[] }>({ queryKey: ["/api/public/conta/perfil"], enabled: conta });
   if (!conta || !data) return [];
-  return pendenciasDaConta({ conta, confirmado: Boolean(sessao?.buyer?.confirmado), apelido: data.apelido });
+  return pendenciasDaConta({ conta, confirmado: Boolean(sessao?.buyer?.confirmado), apelido: data.apelido, falta: data.falta });
 }
 
 /** O número de não lidas do botão Mensagens: só pergunta com a caixa ligada e com conta. */

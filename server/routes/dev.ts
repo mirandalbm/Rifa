@@ -4,6 +4,7 @@ import { db } from "../db";
 import { orders, patrocinioRecargas } from "@shared/schema";
 import { markOrderPaid } from "../services/orders";
 import { confirmarRecarga } from "../services/patrocinio";
+import { plantarClaimsDeProva } from "../services/google";
 
 /**
  * Atalhos de desenvolvimento. Existem para o fluxo rodar de ponta a ponta
@@ -16,6 +17,13 @@ devRouter.use((_req, res, next) => {
     return res.status(404).json({ message: "Não disponível." });
   }
   next();
+});
+
+/** Prova do login com o Google: planta os claims na tentativa em andamento (só com GOOGLE_PROVA=1). */
+devRouter.post("/google", (req, res) => {
+  const { sub, email, nome } = req.body ?? {};
+  const ok = plantarClaimsDeProva(req, { sub: String(sub), email: String(email), nome: String(nome ?? "Pessoa") });
+  res.status(ok ? 200 : 409).json({ ok });
 });
 
 /** Simula o Pix compensado do pedido. */

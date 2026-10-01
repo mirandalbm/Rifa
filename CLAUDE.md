@@ -116,6 +116,7 @@ arquitetura.
 | marketing e tráfego pago (etapa 16): pixels, aviso de cookies, UTM, compra pelo servidor | `shared/marketing.ts` (regras e corpos das APIs), `server/services/marketing.ts`, `client/src/lib/marketing.ts`, `client/src/components/Marketing.tsx`, `client/src/pages/adminMarketing.tsx`, `scripts/marketing-test.ts` |
 | plano da próxima fase (vitrine, contas, afiliados, marketing) | `docs/PLANO-FASE5.md` |
 | conta do apostador (senha, confirmação, exclusão) | `shared/contaComprador.ts`, `server/services/contaComprador.ts`, `scripts/conta-test.ts` |
+| login com Google, completar CPF e telefone, ligar o Google | `shared/google.ts` (regras, claims, volta segura), `server/services/google.ts`, `server/services/contaCompleta.ts`, rotas `/conta/google/*`, `/conta/cpf` e `/conta/telefone/*` em `server/routes/public.ts`, `client/src/components/BotaoGoogle.tsx`, `CompletarConta`/`GoogleCard` em `client/src/pages/MinhasCotas.tsx`, `scripts/google-test.ts`, `tests/google.test.ts` |
 | de quem é o cliente (o que o organizador vê) | `shared/titularidade.ts` (regra) e `server/services/titularidade.ts` (SQL) |
 | autorização SPA/MF e data do sorteio | `shared/campanhaLegal.ts`, `salvarDadosLegais()` em `server/services/campaigns.ts`, `client/src/components/DadosLegaisCard.tsx` |
 | endereço do organizador e ordem da vitrine por região | `shared/endereco.ts` (regra), `salvarEndereco()` em `server/services/orgs.ts`, `server/services/cep.ts`, `client/src/components/EnderecoForm.tsx` |
@@ -2103,6 +2104,53 @@ aí o próximo entra sozinho.
   (`comPatrocinadas()` na vitrine); no construtor ele pode mudar de lugar
   ou ser desligado.
 - `npm run patrocinio` prova tudo isso contra a API de verdade.
+
+## Login com Google — o que não pode afrouxar
+
+O Google prova **nome e e-mail confirmado** — nada mais. Por isso a conta
+que nasce dele é incompleta, e o e-mail dele **nunca liga sozinho** a uma
+conta que já existe.
+
+- **Sem as chaves, sem botão** (`GOOGLE_CLIENT_ID` e `GOOGLE_CLIENT_SECRET`;
+  `GET /conta/google/disponivel`). Sem interruptor no painel: quem liga é a
+  configuração. `GOOGLE_PROVA=1` (só fora de produção) troca o Google por
+  claims entregues a `/api/dev/google` — é o que `npm run google` usa, e o
+  servidor da prova sobe com ele.
+- **Código de autorização com PKCE, state e nonce** guardados na sessão
+  (`req.session.google`, 10 min). `state` errado, vencido ou repetido é
+  recusado; o id_token é conferido na assinatura (RS256, chaves do Google)
+  e em emissor, cliente, validade, nonce e `email_verified`
+  (`claimsDoToken()`). Nada de biblioteca nova.
+- **A volta é caminho do próprio site** (`caminhoDeVolta()`): `//outro.com`,
+  `https://…` e quebra de linha viram `/perfil` — senão o login seria um
+  redirecionador aberto.
+- **E-mail do Google em conta com senha: recusa** (409 → "entre com a senha
+  e ligue o Google em Minha conta"). O e-mail das contas não é confirmado:
+  ligar por ele deixaria quem cadastrou o e-mail de outra pessoa tomar a
+  conta dela. Ligar é **de dentro da conta** (`/conta/google/ligar`, a
+  sessão que pediu é a que volta), e o mesmo Google não vale em duas contas
+  (`uq_buyers_google_sub`, o índice decide).
+- **A conta nasce incompleta, e só se completa por provas.** O telefone é
+  um marcador (`pendente:<id>`, como `removido:<id>`; `phone` é chave única
+  e obrigatória), nunca um número: `notify()` recusa qualquer telefone com
+  letra, e a tela não o mostra. A senha é a marca `!google`, que não é hash
+  válido — nenhuma senha confere, mas a conta continua sendo "conta" (CPF e
+  e-mail únicos, comentar, bônus).
+- **O portão da compra é do servidor.** `createOrder` e o carrinho recusam
+  (409 "Complete sua conta…") conta sem CPF ou com telefone provisório —
+  antes de qualquer gravação. A tela só avisa (`pendenciasDaConta()`, o
+  ponto no perfil e o cartão "Complete sua conta").
+- **CPF entra uma vez** (`POST /conta/cpf`: só com o campo vazio, `UPDATE`
+  condicional; repetido entre contas é 409 pelo índice). **Telefone entra
+  pelo código do WhatsApp neste número** (`/conta/telefone/codigo` e
+  `/confirmar`, o mesmo antifraude e a mesma sessão de código do "Minhas
+  cotas"); número que já é de outro cadastro é recusado antes de enviar, e
+  provar o número derruba as outras sessões da conta.
+- **Excluir pede a palavra EXCLUIR** (não há senha) e apaga também o
+  vínculo com o Google; o mesmo Google depois começa conta nova. Conta só
+  do Google não desliga o Google (ficaria sem acesso).
+- Limite por aparelho nas voltas (`hit`, 20 em 10 min): o retorno cria
+  conta. `npm run google` prova tudo isso contra a API de verdade.
 
 ## Banner pago na vitrine — o que não pode afrouxar
 

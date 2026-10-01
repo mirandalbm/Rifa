@@ -703,7 +703,10 @@ function Disputa({
 
 interface DadosConta {
   nome: string;
-  telefone: string;
+  telefone: string | null;
+  google: boolean;
+  soGoogle: boolean;
+  falta: string[];
   cpf: string | null;
   email: string | null;
   codigo: string | null;
@@ -730,6 +733,154 @@ function Salvos() {
         <CartaoDoFeed key={r.id} rifa={r} />
       ))}
     </div>
+  );
+}
+
+/** Conta criada pelo Google: CPF e telefone provado antes de comprar, comentar e pedir reembolso. */
+function CompletarConta({ dados }: { dados: DadosConta }) {
+  const qc = useQueryClient();
+  const [cpf, setCpf] = useState("");
+  const [telefone, setTelefone] = useState("");
+  const [codigo, setCodigo] = useState("");
+  const [enviado, setEnviado] = useState(false);
+  const [msg, setMsg] = useState<{ ok: boolean; texto: string } | null>(null);
+  const atualizar = () => {
+    qc.invalidateQueries({ queryKey: ["/api/public/conta"] });
+    qc.invalidateQueries({ queryKey: ["/api/public/conta/perfil"] });
+    qc.invalidateQueries({ queryKey: ["/api/auth/me"] });
+  };
+  const erro = (e: Error) => setMsg({ ok: false, texto: e.message });
+  const salvarCpf = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/public/conta/cpf", { cpf }),
+    onSuccess: () => {
+      setMsg({ ok: true, texto: "CPF salvo." });
+      atualizar();
+    },
+    onError: erro,
+  });
+  const pedir = useMutation({
+    mutationFn: async () => (await apiRequest("POST", "/api/public/conta/telefone/codigo", { telefone })).json(),
+    onSuccess: (r: { devCode?: string }) => {
+      setEnviado(true);
+      setMsg({ ok: true, texto: r.devCode ? `Código (desenvolvimento): ${r.devCode}` : "Enviamos um código pelo WhatsApp." });
+    },
+    onError: erro,
+  });
+  const confirmar = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/public/conta/telefone/confirmar", { codigo }),
+    onSuccess: () => {
+      setEnviado(false);
+      setCodigo("");
+      setMsg({ ok: true, texto: "Telefone confirmado." });
+      atualizar();
+    },
+    onError: erro,
+  });
+  return (
+    <Card title="Complete sua conta">
+      <div className="space-y-4 p-4 text-sm">
+        <p className="text-muted">
+          Você entrou pelo Google. Para comprar, comentar e pedir reembolso, falta: {dados.falta.join(" e ")}.
+        </p>
+        {dados.falta.includes("CPF") ? (
+          <form
+            className="flex flex-wrap items-end gap-2"
+            onSubmit={(e) => {
+              e.preventDefault();
+              salvarCpf.mutate();
+            }}
+          >
+            <label className="block">
+              <span className="label-xs">CPF</span>
+              <input className="campo tnum" inputMode="numeric" autoComplete="off" value={cpf} onChange={(e) => setCpf(e.target.value)} />
+            </label>
+            <Button type="submit" disabled={salvarCpf.isPending || cpf.replace(/\D/g, "").length !== 11}>
+              Salvar CPF
+            </Button>
+          </form>
+        ) : null}
+        {dados.falta.includes("telefone") ? (
+          <div className="space-y-2">
+            <form
+              className="flex flex-wrap items-end gap-2"
+              onSubmit={(e) => {
+                e.preventDefault();
+                pedir.mutate();
+              }}
+            >
+              <label className="block">
+                <span className="label-xs">WhatsApp (com DDD)</span>
+                <input className="campo tnum" inputMode="tel" autoComplete="tel" value={telefone} onChange={(e) => setTelefone(e.target.value)} />
+              </label>
+              <Button type="submit" disabled={pedir.isPending || telefone.replace(/\D/g, "").length < 10}>
+                {enviado ? "Enviar de novo" : "Enviar código"}
+              </Button>
+            </form>
+            {enviado ? (
+              <form
+                className="flex flex-wrap items-end gap-2"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  confirmar.mutate();
+                }}
+              >
+                <label className="block">
+                  <span className="label-xs">Código recebido</span>
+                  <input className="campo tnum" inputMode="numeric" autoComplete="one-time-code" value={codigo} onChange={(e) => setCodigo(e.target.value)} />
+                </label>
+                <Button type="submit" disabled={confirmar.isPending || codigo.length < 6}>
+                  Confirmar telefone
+                </Button>
+              </form>
+            ) : null}
+          </div>
+        ) : null}
+        {msg ? (
+          <p role="status" className={msg.ok ? "text-green-deep" : "text-red"}>
+            {msg.texto}
+          </p>
+        ) : null}
+      </div>
+    </Card>
+  );
+}
+
+/** Ligar ou desligar o Google de uma conta que já existe (nunca por e-mail, só de dentro dela). */
+function GoogleCard({ dados }: { dados: DadosConta }) {
+  const qc = useQueryClient();
+  const { data: disp } = useQuery<{ ligado: boolean }>({ queryKey: ["/api/public/conta/google/disponivel"] });
+  const [msg, setMsg] = useState<string | null>(null);
+  const desligar = useMutation({
+    mutationFn: () => apiRequest("DELETE", "/api/public/conta/google"),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/public/conta"] }),
+    onError: (e: Error) => setMsg(e.message),
+  });
+  if (!disp?.ligado) return null;
+  return (
+    <Card title="Entrar com o Google">
+      <div className="space-y-2 p-4 text-sm">
+        {dados.google ? (
+          <>
+            <p>
+              <Pill status="paid">ligado</Pill> Você pode entrar com o Google nesta conta.
+            </p>
+            {dados.soGoogle ? null : (
+              <Button variant="ghost" onClick={() => desligar.mutate()} disabled={desligar.isPending}>
+                Desligar o Google
+              </Button>
+            )}
+          </>
+        ) : (
+          <>
+            <p className="text-muted">Ligue sua conta Google para entrar sem digitar a senha.</p>
+            <a className="inline-flex items-center justify-center rounded-md border-2 border-green bg-white px-4 py-2 text-sm font-semibold text-green-deep hover:bg-green-soft" href="/api/public/conta/google/ligar?volta=/minhas-cotas%3Faba%3Dconta">
+              Ligar o Google
+            </a>
+          </>
+        )}
+        {msg ? <p role="alert" className="text-red">{msg}</p> : null}
+      </div>
+    </Card>
   );
 }
 
@@ -775,11 +926,13 @@ function MinhaConta({ aoSair }: { aoSair: () => void }) {
 
   if (!data) return <Empty>Carregando…</Empty>;
   const pedeAtual = data.temSenha && !data.sessaoConfirmada;
+  const semSenhaMasConta = data.soGoogle;
 
   return (
     <div className="mt-3 space-y-3">
+      {data.falta.length ? <CompletarConta dados={data} /> : null}
       <PerfilPublicoCard />
-      {data.temSenha ? (
+      {data.temSenha || semSenhaMasConta ? (
         <VerificacaoCard
           base="/api/public/conta/verificacao"
           sujeito="apostador"
@@ -803,7 +956,7 @@ function MinhaConta({ aoSair }: { aoSair: () => void }) {
           <div>
             <dt className="label-xs">WhatsApp</dt>
             <dd className="tnum">
-              {maskPhone(data.telefone)}{" "}
+              {data.telefone ? maskPhone(data.telefone) : "—"}{" "}
               <Pill status={data.telefoneConfirmado ? "paid" : "pending"}>
                 {data.telefoneConfirmado ? "confirmado" : "não confirmado"}
               </Pill>
@@ -819,6 +972,8 @@ function MinhaConta({ aoSair }: { aoSair: () => void }) {
           </div>
         </dl>
       </Card>
+
+      <GoogleCard dados={data} />
 
       <MinhaRegiaoCard dados={data} />
 
@@ -906,11 +1061,11 @@ function MinhaConta({ aoSair }: { aoSair: () => void }) {
           </p>
           {confirmaExcluir ? (
             <>
-              {!data.sessaoConfirmada ? (
+              {data.soGoogle || !data.sessaoConfirmada ? (
                 <input
-                  type="password"
-                  aria-label="Senha para confirmar"
-                  placeholder="sua senha, para confirmar"
+                  type={data.soGoogle ? "text" : "password"}
+                  aria-label={data.soGoogle ? "Digite EXCLUIR para confirmar" : "Senha para confirmar"}
+                  placeholder={data.soGoogle ? "digite EXCLUIR para confirmar" : "sua senha, para confirmar"}
                   value={senhaExcluir}
                   onChange={(e) => setSenhaExcluir(e.target.value)}
                   className="w-full rounded-md border border-line-2 px-3 py-2 text-sm"
@@ -919,7 +1074,7 @@ function MinhaConta({ aoSair }: { aoSair: () => void }) {
               <div className="flex gap-2">
                 <Button
                   onClick={() => excluir.mutate()}
-                  disabled={excluir.isPending || (!data.sessaoConfirmada && !senhaExcluir)}
+                  disabled={excluir.isPending || ((data.soGoogle || !data.sessaoConfirmada) && !senhaExcluir)}
                   className="bg-red hover:brightness-95"
                 >
                   Excluir definitivamente

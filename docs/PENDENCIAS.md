@@ -226,8 +226,9 @@ código só depois do plano combinado com ele.
 - **Story em vídeo:** aceitar vídeo curto **sem transcode**, já preparado
   para a forma final (medição de duração no servidor, limite, formato e
   pôster no mesmo lugar em que o Cloudflare Stream entrar depois).
-- **Login com Google:** uma das últimas implementações. Falta decidir se a
-  conta nova exige CPF e telefone como o cadastro de hoje.
+- **Login com Google:** feito (ver o fim da seção 5). A conta nasce
+  incompleta e pede CPF e telefone antes de comprar; o e-mail do Google
+  nunca liga sozinho a uma conta que já existe.
 - **Bônus no perfil e "seguidores da mesma rifa":** o incentivo é por
   **seguir**. A invariante do bônus continua: cota grátis só com o
   regulamento prevendo e o advogado confirmando; o interruptor nasce
@@ -447,12 +448,18 @@ Na ordem de entrega do plano:
   vídeo do feed até 15 min), curtir com o trevo, comentar, republicar,
   compartilhar e salvar com contadores, legenda da organização, "• Autor"
   nos comentários e apelido obrigatório no cadastro.
-- [ ] **[código]** Login com Google.
+- [x] Login com Google: entra, completa CPF e telefone depois e liga o
+  Google a uma conta que já existe, de dentro dela (`npm run google`).
 - [ ] **[você]** Advogado: regra de reembolso (arrependimento × corte de
   2 h), cota grátis de bônus no regulamento.
 - [ ] **[você]** Contador: guarda da comissão pela plataforma e RPA/nota
   dos afiliados.
-- [ ] **[você]** Cliente OAuth do Google.
+- [ ] **[você]** Cliente OAuth do Google (console.cloud.google.com → APIs e
+  serviços → Credenciais → ID do cliente OAuth, tipo "Aplicativo da Web"):
+  URI de redirecionamento autorizada
+  `<PUBLIC_BASE_URL>/api/public/conta/google/retorno`; depois, no Railway,
+  `GOOGLE_CLIENT_ID` e `GOOGLE_CLIENT_SECRET`. Sem as duas o botão não
+  aparece. Nunca ponha `GOOGLE_PROVA` em produção (só vale fora dela).
 
 ## 6. Código, para depois
 

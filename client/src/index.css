@@ -290,6 +290,12 @@
     background-color: var(--white);
     color: var(--ink);
   }
+  /* Um traço só nos ícones: os do lucide nascem com 2 e os nossos
+   * (`Icones.tsx`) têm 1,75. Só o valor padrão muda — quem pede outro traço
+   * de propósito (o envio em negrito do comentário) continua com o dele. */
+  svg.lucide[stroke-width="2"] {
+    stroke-width: 1.75;
+  }
   ::placeholder {
     color: var(--muted);
     opacity: 1;

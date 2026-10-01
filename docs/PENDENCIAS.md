@@ -294,8 +294,11 @@ Na ordem de entrega do plano:
   no perfil e na faixa da promotora dentro da rifa.
 - [ ] **[você]** Cada organização subir capa, escolher a cor e cadastrar os
   links (Instagram, WhatsApp, site) no perfil público.
-- [ ] **[código]** O nome e o ícone do app instalado (manifest) ainda são
-  fixos ("rifa.br"): o template muda o site, não o ícone já instalado.
+- [x] O nome e o ícone do app instalado seguem o template publicado
+  (`/manifest.webmanifest` montado em `shared/manifest.ts`: nome, cor de
+  marca e, com logo, três ícones feitos dela). Quem já instalou recebe o
+  novo nome e ícone quando o sistema atualiza o manifesto (o Android, em
+  geral, em até um dia; o iPhone só ao reinstalar).
 - [x] Vitrine: banners da plataforma (até 5, janela de datas, tempo por
   banner, em Aparência), stories do organizador (24 h, até 10 no ar, painel
   → Stories, anel aceso na vitrine e no perfil), estados com rifa no ar

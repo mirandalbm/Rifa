@@ -16,6 +16,7 @@ import { randomUUID } from "node:crypto";
 import { desc, eq } from "drizzle-orm";
 import sharp from "sharp";
 import { db } from "../db";
+import { montarManifest } from "@shared/manifest";
 import { appSettings, plataformaArquivos, templateVersoes, users } from "@shared/schema";
 import {
   TEMPLATE_PADRAO,
@@ -245,4 +246,54 @@ export async function apoio(id: string) {
 export async function logo() {
   const [f] = await db.select().from(plataformaArquivos).where(eq(plataformaArquivos.chave, "logo"));
   return f ?? null;
+}
+
+/**
+ * O manifesto do app instalado, do template **publicado** (nome e cor de
+ * marca) e da logo, se houver. Nada aqui é do rascunho: o aparelho de quem
+ * instalou só muda quando a plataforma publica.
+ */
+export async function manifestDaPlataforma() {
+  const { template } = await templatePublicado();
+  const [f] = await db
+    .select({ updatedAt: plataformaArquivos.updatedAt })
+    .from(plataformaArquivos)
+    .where(eq(plataformaArquivos.chave, "logo"));
+  return montarManifest({
+    nome: template.identidade.nome,
+    cor: template.identidade.cor.claro,
+    // A logo só vale se o template publicado a usa (o endereço dela está lá).
+    logoVersao: f && template.identidade.logo ? String(f.updatedAt.getTime()) : null,
+  });
+}
+
+const ICONES = { "192": { lado: 192, miolo: 0.74 }, "512": { lado: 512, miolo: 0.74 }, maskable: { lado: 512, miolo: 0.5 } } as const;
+export type TamanhoDoIcone = keyof typeof ICONES;
+export const TAMANHOS_DE_ICONE = Object.keys(ICONES) as TamanhoDoIcone[];
+const feitos = new Map<string, Buffer>();
+
+/**
+ * O ícone do app: a logo centralizada num quadrado branco. O "maskable" deixa
+ * a logo dentro da zona segura (metade do lado), porque o sistema recorta o
+ * ícone em círculo ou gota. A logo é larga e baixa (96 px de altura): cabe
+ * pela largura. O resultado fica em memória, por versão da logo.
+ */
+export async function iconeDaMarca(tamanho: TamanhoDoIcone): Promise<Buffer | null> {
+  const f = await logo();
+  if (!f) return null;
+  const chave = `${tamanho}:${f.updatedAt.getTime()}`;
+  const guardado = feitos.get(chave);
+  if (guardado) return guardado;
+  const { lado, miolo } = ICONES[tamanho];
+  const caixa = Math.round(lado * miolo);
+  const dentro = await sharp(f.bytes)
+    .resize({ width: caixa, height: caixa, fit: "inside", kernel: "lanczos3" })
+    .toBuffer();
+  const png = await sharp({ create: { width: lado, height: lado, channels: 4, background: "#ffffff" } })
+    .composite([{ input: dentro, gravity: "centre" }])
+    .png()
+    .toBuffer();
+  if (feitos.size > 12) feitos.clear();
+  feitos.set(chave, png);
+  return png;
 }

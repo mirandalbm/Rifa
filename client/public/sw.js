@@ -12,8 +12,8 @@
  * Notificações (Web Push): o servidor manda título, texto, endereço e
  * etiqueta (`shared/push.ts`). Tocar abre o endereço — sempre interno.
  */
-const VERSAO = "rifa-v2";
-const CASCA = ["/", "/manifest.webmanifest", "/icons/icon-192.png", "/icons/icon-512.png"];
+const VERSAO = "rifa-v3";
+const CASCA = ["/", "/icons/icon-192.png", "/icons/icon-512.png"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(

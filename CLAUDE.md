@@ -149,7 +149,7 @@ arquitetura.
 | remodelagem do web e dos painéis: inventário do que existe e lista de conferência | `docs/REMODELAGEM.md` |
 | vitrine no tablet e no computador: coluna ao vivo (tela do sorteio, ganhadores, jogando agora), tela flutuante e rodapé com logos | `shared/aoVivo.ts` (regras), `server/services/aoVivo.ts`, `client/src/components/ColunaAoVivo.tsx`, `client/src/components/RodapeDaPlataforma.tsx`, `validarApoios()` em `shared/template.ts`, `tests/aoVivo.test.ts`, `scripts/vitrine-test.ts` |
 | rodapé da plataforma: colunas de links, redes sociais e espaço de apoio | `shared/rodape.ts` (colunas), `validarRedes()`/`REDES_DO_RODAPE` em `shared/template.ts`, `client/src/components/RodapeDaPlataforma.tsx`, cartão "Redes sociais do rodapé" em `client/src/pages/adminAparencia.tsx`, `preencherRodapeComExemplo()` em `server/services/template.ts`, `tests/rodape.test.ts` |
-| app instalável (PWA) | `client/public/sw.js`, `client/public/manifest.webmanifest`, `client/src/lib/pwa.ts` |
+| app instalável (PWA): casca, nome e ícone | `client/public/sw.js`, `shared/manifest.ts` (o manifesto montado), `manifestDaPlataforma()`/`iconeDaMarca()` em `server/services/template.ts`, `client/public/manifest.webmanifest` (o de fábrica, se o banco falhar), `client/src/lib/pwa.ts`, `tests/manifest.test.ts`, `scripts/aparencia-test.ts` |
 | automação do Claude no projeto: `/provar` (escolhe as provas pela área mexida), `/pr-check` (o rito do PR: docs, capturas, rascunho, mesclagem) e o agente `revisor-de-invariantes` (lê o diff contra as invariantes) | `.claude/skills/provar/SKILL.md`, `.claude/skills/pr-check/SKILL.md`, `.claude/agents/revisor-de-invariantes.md`. **Invariante nova ou regra de PR nova entra nos três** — o `.gitignore` libera só estes (o resto de `.claude/skills` é instalado por `npx skills add`, com o `skills-lock.json`) |
 | segurança: onde mora cada defesa, lista de conferência de rota nova e as revisões | `docs/SEGURANCA.md` |
 | versões (celular, tablet, computador): registro das mudanças do celular, levas, mapa das telas e auditoria | `docs/VERSOES.md` (guia, mapa e registro — **anote no mesmo PR**), `scripts/telas.ts` (`npm run telas`), `tests/versoes.test.ts` |
@@ -878,6 +878,15 @@ tem atrás.
   como livre. Sem rede, a API falha e a tela diz isso.
 - Mudou a casca (`sw.js`)? Troque `VERSAO` lá dentro, senão o celular segue
   com a antiga.
+- **O nome e o ícone seguem o template publicado, nunca o rascunho.**
+  `GET /manifest.webmanifest` é montado por `montarManifest()`: nome limpo
+  (até 40 letras, curto até 12), cor de marca `#rrggbb` e, com logo no
+  template publicado, os três ícones (`/api/public/marca/icone/192|512|maskable`,
+  a logo centralizada em quadrado branco; o "maskable" deixa a logo na zona
+  segura). Os ícones ficam em `/api/`, fora do cache do service worker, com
+  `?v=` da data da logo. Se o banco falhar, a rota cai no arquivo de fábrica
+  — instalar o app nunca quebra. O manifesto **não** entra na casca do
+  `sw.js`: guardado lá, o nome novo nunca chegaria. `npm run aparencia` prova.
 
 ## Provedor do Pix e estorno — o que não pode afrouxar
 

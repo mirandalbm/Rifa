@@ -264,7 +264,7 @@ export function AdminAparencia() {
                 </div>
               </fieldset>
               <p className="text-xs text-muted sm:col-span-2">
-                A cor de marca vale para logo, links e destaques. Verde de dinheiro, amarelo de espera e
+                A cor de marca vale para logo, links e destaques. Verde de dinheiro, azul de espera e
                 vermelho de erro não mudam — são significado, não enfeite.
               </p>
             </div>

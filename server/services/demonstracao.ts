@@ -38,7 +38,7 @@ const DESTAQUES = [
 
 const NO_AR = [
   { slug: "demonstracao-moto-pop-110i", titulo: "Honda Pop 110i 0 km", cotas: 100_000, preco: 199, de: "#0B1F14", para: "#00873E" },
-  { slug: "demonstracao-pix-5-mil", titulo: "Pix de R$ 5.000", cotas: 50_000, preco: 99, de: "#6B4B00", para: "#FFC700" },
+  { slug: "demonstracao-pix-5-mil", titulo: "Pix de R$ 5.000", cotas: 50_000, preco: 99, de: "#06305F", para: "#0A6FD6" },
   { slug: "demonstracao-smart-tv-55", titulo: "Smart TV 55\" 4K", cotas: 20_000, preco: 149, de: "#1e1b4b", para: "#6d28d9" },
 ] as const;
 
@@ -53,7 +53,7 @@ function svg(w: number, h: number, de: string, para: string, texto: string, sub:
     <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="${de}"/><stop offset="1" stop-color="${para}"/></linearGradient></defs>
     <rect width="${w}" height="${h}" fill="url(#g)"/>
-    <circle cx="${w * 0.84}" cy="${h * 0.22}" r="${h * 0.3}" fill="#FFC700" fill-opacity=".16"/>
+    <circle cx="${w * 0.84}" cy="${h * 0.22}" r="${h * 0.3}" fill="#0A6FD6" fill-opacity=".16"/>
     <text x="${w / 2}" y="${h * 0.5}" text-anchor="middle" font-family="Helvetica,Arial,sans-serif"
       font-size="${h * 0.09}" font-weight="700" fill="#fff" fill-opacity=".9">${xml(texto)}</text>
     <text x="${w / 2}" y="${h * 0.62}" text-anchor="middle" font-family="Helvetica,Arial,sans-serif"
@@ -226,7 +226,7 @@ export async function situacaoDaDemonstracao() {
 
 const PALETA = [
   { de: "#0B1F14", para: "#00873E" },
-  { de: "#6B4B00", para: "#FFC700" },
+  { de: "#06305F", para: "#0A6FD6" },
   { de: "#1e1b4b", para: "#6d28d9" },
   { de: "#4c1d95", para: "#db2777" },
 ] as const;

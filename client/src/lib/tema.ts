@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
  * pessoa fica no aparelho — é conveniência, e sumir só devolve o automático.
  *
  * As cores são variáveis (`client/src/index.css`): o escuro troca os tons,
- * nunca o significado. Verde continua sendo dinheiro que entrou; amarelo,
+ * nunca o significado. Verde continua sendo dinheiro que entrou; azul,
  * espera e prêmio; vermelho, erro.
  *
  * O `index.html` aplica a escolha guardada antes do primeiro desenho, com a

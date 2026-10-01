@@ -30,7 +30,7 @@ describe("tokens do tema", () => {
     expect(escuroEscolhido).toEqual(escuroSistema);
   });
 
-  it("o texto sobre o amarelo e sobre o verde não muda: o fundo deles também não escurece", () => {
+  it("o texto sobre o azul cheio e sobre o verde não muda: o fundo deles também não escurece", () => {
     expect(escuroSistema["--on-yellow"]).toBe(claro["--on-yellow"]);
     expect(escuroSistema["--on-green"]).toBe(claro["--on-green"]);
   });
@@ -95,5 +95,34 @@ describe("escolha do tema", () => {
     expect(proximoTema("automatico")).toBe("claro");
     expect(proximoTema("claro")).toBe("escuro");
     expect(proximoTema("escuro")).toBe("automatico");
+  });
+});
+
+describe("paleta: o amarelo não faz parte do padrão", () => {
+  const claro = variaveis(bloco(":root {"));
+  const escuro = variaveis(bloco(':root:not([data-tema="claro"])'));
+
+  /** Matiz (0–360) de um `#rrggbb`. */
+  function matiz(hex: string): number {
+    const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
+    const max = Math.max(r, g, b);
+    const d = max - Math.min(r, g, b);
+    if (d === 0) return 0;
+    const h = max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+    return (h * 60 + 360) % 360;
+  }
+
+  it("os tokens que herdaram o nome `yellow` são azuis nos dois temas", () => {
+    for (const tema of [claro, escuro]) {
+      for (const token of ["--yellow", "--yellow-deep", "--yellow-soft"]) {
+        const h = matiz(tema[token]);
+        expect(h, `${token} ${tema[token]}`).toBeGreaterThan(190);
+        expect(h, `${token} ${tema[token]}`).toBeLessThan(250);
+      }
+    }
+  });
+
+  it("o texto sobre o azul cheio é branco", () => {
+    expect(claro["--on-yellow"].toLowerCase()).toBe("#ffffff");
   });
 });

@@ -24,15 +24,18 @@
     --green-soft: #e6f5ec;
     --on-green: #ffffff;
 
-    --yellow: #ffc700;
-    --yellow-deep: #9a6c00;
-    --yellow-soft: #fff6d6;
+    /* Espera e prêmio: o azul da paleta (claro: branco, azul e verde). Os
+     * nomes `yellow` ficaram (as classes são as mesmas em todas as telas);
+     * o papel agora é do azul. */
+    --yellow: #0a6fd6;
+    --yellow-deep: #0a5fb8;
+    --yellow-soft: #e6f1fc;
 
     --red: #b3372a;
     --red-soft: #fbe9e6;
 
-    /* Texto sobre o amarelo: o amarelo é o mesmo nos dois temas. */
-    --on-yellow: #3b2a00;
+    /* Texto sobre o azul cheio: o azul é o mesmo nos dois temas. */
+    --on-yellow: #ffffff;
 
     /* O "+" do carrinho na barra da publicação (azul, como pediu o produto). */
     --azul: #0a6fd6;
@@ -94,14 +97,14 @@
       --green-soft: #12301f;
       --on-green: #ffffff;
 
-      --yellow: #f5c518;
-      --yellow-deep: #f2cc5b;
-      --yellow-soft: #2d2610;
+      --yellow: #0a6fd6;
+      --yellow-deep: #8cc2ff;
+      --yellow-soft: #10243c;
 
       --red: #f08577;
       --red-soft: #3a1b17;
 
-      --on-yellow: #3b2a00;
+      --on-yellow: #ffffff;
 
       --azul: #5aa9ff;
       --mais: var(--green-deep);
@@ -136,14 +139,14 @@
     --green-soft: #12301f;
     --on-green: #ffffff;
 
-    --yellow: #f5c518;
-    --yellow-deep: #f2cc5b;
-    --yellow-soft: #2d2610;
+    --yellow: #0a6fd6;
+    --yellow-deep: #8cc2ff;
+    --yellow-soft: #10243c;
 
     --red: #f08577;
     --red-soft: #3a1b17;
 
-    --on-yellow: #3b2a00;
+    --on-yellow: #ffffff;
 
     --azul: #5aa9ff;
     --mais: var(--green-deep);

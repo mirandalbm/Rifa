@@ -14,6 +14,8 @@ import {
   TIPOS_DE_BLOCO,
   APOIOS_MAX,
   BLOCO_REPETE,
+  REDES_DO_RODAPE,
+  type Rede,
   type TipoDeBloco,
   contraste,
   corValida,
@@ -379,6 +381,37 @@ export function AdminAparencia() {
                   onChange={(e) => mudar({ ...t, textos: { ...t.textos, jogoResponsavel: e.target.value } })}
                   className="mt-1 w-full rounded-md border border-line-2 px-3 py-2"
                 />
+              </div>
+            </div>
+          </Card>
+
+          <Card title="Redes sociais do rodapé">
+            <div className="space-y-3 p-4 text-sm">
+              <p className="text-xs text-muted">
+                Cada rede vira um botão redondo embaixo do texto de apresentação, no rodapé do tablet e do
+                computador. Deixe em branco a que não usar. O endereço precisa ser da própria rede (https).
+              </p>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                {(Object.keys(REDES_DO_RODAPE) as Rede[]).map((rede) => (
+                  <div key={rede} className="min-w-0">
+                    <label htmlFor={`rede-${rede}`} className="label-xs">{REDES_DO_RODAPE[rede].nome}</label>
+                    <input
+                      id={`rede-${rede}`}
+                      maxLength={300}
+                      placeholder="https://…"
+                      value={(t.redes ?? []).find((r) => r.rede === rede)?.link ?? ""}
+                      onChange={(e) => {
+                        const link = e.target.value;
+                        const outras = (t.redes ?? []).filter((r) => r.rede !== rede);
+                        const todas = link.trim() ? [...outras, { rede, link }] : outras;
+                        // A ordem dos botões é a da lista, não a de quem foi digitado primeiro.
+                        const ordem = Object.keys(REDES_DO_RODAPE);
+                        mudar({ ...t, redes: todas.sort((a, b) => ordem.indexOf(a.rede) - ordem.indexOf(b.rede)) });
+                      }}
+                      className="mt-1 w-full rounded-md border border-line-2 px-3 py-2"
+                    />
+                  </div>
+                ))}
               </div>
             </div>
           </Card>

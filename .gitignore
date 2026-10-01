@@ -12,6 +12,13 @@ uploads
 # Capturas do npm run telas
 capturas
 
-# Claude Code local configuration and skills
+# Claude Code. O que é do projeto vai para o repositório: agentes
+# (.claude/agents), skills próprias (liberadas uma a uma abaixo) e
+# configurações compartilhadas (.claude/settings.json). O que o
+# `npx skills add` instala (.agents/ e os atalhos em .claude/skills) não:
+# o skills-lock.json diz o que reinstalar.
 .agents/
-.claude/
+.claude/skills/*
+!.claude/skills/pr-check/
+!.claude/skills/provar/
+.claude/settings.local.json

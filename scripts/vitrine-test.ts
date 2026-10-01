@@ -389,6 +389,46 @@ async function main() {
     checa("remover tira da vitrine e o perfil some (404)", r.status === 200 && semDemo && perfilDemo.status === 404, `HTTP ${r.status} · perfil ${perfilDemo.status}`);
     if (demoAntes) await admin.req("POST", "/api/admin/demonstracao");
 
+    console.log("\n  selo ao vivo no story (só com transmissão de verdade):");
+    const LINK = "https://www.youtube.com/watch?v=dQw4w9WgXcQ";
+    const daVizinhaRifa = (campos: Partial<typeof campaigns.$inferInsert>) =>
+      db.update(campaigns).set(campos).where(eq(campaigns.id, rifaVizinha.id));
+    // Sem story no ar, para provar que o selo traz o perfil para a fileira sozinho.
+    await db.delete(stories).where(eq(stories.organizationId, vizinha.id));
+    const naFileira = async () => {
+      const f = await anon.req("GET", "/api/public/stories");
+      return (f.json ?? []).find((o: any) => o.slug === VIZINHA);
+    };
+    const minutos = (n: number) => new Date(Date.now() + n * 60_000);
+    // Os blocos de antes tiraram a rifa do ar e mexeram na marca de teste: volta ao ponto de partida.
+    await daVizinhaRifa({ status: "published", demonstracao: false, travadaEm: null, drawAt: minutos(-10), transmissaoUrl: null });
+    checa("hora do sorteio sem link de transmissão: sem selo e fora da fileira", !(await naFileira()));
+    await daVizinhaRifa({ transmissaoUrl: LINK });
+    const item = await naFileira();
+    checa(
+      "com link e na hora: entra na fileira com o selo, mesmo sem story",
+      item?.aoVivo?.slug === "vitrine-teste-vizinha-no-ar" && item?.ultimoStory === null,
+      JSON.stringify(item?.aoVivo),
+    );
+    checa("o endereço da transmissão não sai na fileira", !JSON.stringify(item).includes("youtube"));
+    r = await anon.req("GET", `/api/public/o/${VIZINHA}`);
+    checa("o perfil traz o ao vivo", r.status === 200 && r.json?.aoVivo?.slug === "vitrine-teste-vizinha-no-ar", `HTTP ${r.status}`);
+    await daVizinhaRifa({ drawAt: minutos(30) });
+    checa("antes da hora: sem selo", !(await naFileira()));
+    await daVizinhaRifa({ drawAt: minutos(-4 * 60) });
+    checa("janela da transmissão fechada (3 h): sem selo", !(await naFileira()));
+    await daVizinhaRifa({ drawAt: minutos(-10), transmissaoUrl: "http://inseguro.example/ao-vivo" });
+    checa("link que não é https: sem selo", !(await naFileira()));
+    await daVizinhaRifa({ transmissaoUrl: LINK, demonstracao: true });
+    checa("rifa de demonstração: sem selo", !(await naFileira()));
+    await daVizinhaRifa({ demonstracao: false, travadaEm: new Date() });
+    checa("rifa travada: sem selo", !(await naFileira()));
+    await daVizinhaRifa({ travadaEm: null, status: "draft" });
+    checa("rascunho: sem selo", !(await naFileira()));
+    await daVizinhaRifa({ status: "published" });
+    checa("voltou ao normal: o selo acende de novo", Boolean((await naFileira())?.aoVivo));
+    await daVizinhaRifa({ drawAt: new Date(Date.now() + 7 * 86_400_000), transmissaoUrl: null });
+
     console.log("\n  coluna ao vivo (tablet e computador):");
     await new Promise((ok) => setTimeout(ok, 5_200)); // a coluna é guardada por 5 s
     r = await anon.req("GET", "/api/public/vitrine/ao-vivo");

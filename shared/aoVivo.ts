@@ -13,6 +13,29 @@
 
 import { transmissaoValida } from "./sorteio";
 
+/**
+ * Até 3 h depois do horário a rifa segue como "o próximo sorteio": é o tempo
+ * da transmissão. Sorteada, sai (o resultado vai para os ganhadores).
+ */
+export const DURACAO_DA_TRANSMISSAO_MS = 3 * 3_600_000;
+
+/**
+ * O selo "ao vivo" do story e do perfil: a transmissão está no ar quando a
+ * rifa tem **link de transmissão cadastrado**, a hora do sorteio já chegou, a
+ * janela da transmissão não fechou e o sorteio ainda não foi feito. Só dado
+ * real: sem link, o selo não acende (não há o que assistir) — e nada de
+ * contador de espectadores.
+ */
+export function transmissaoNoAr(
+  r: { drawAt: string | Date | null | undefined; sorteada: boolean; transmissaoUrl: unknown },
+  agora: number = Date.now(),
+): boolean {
+  if (r.sorteada || !r.drawAt || !transmissaoValida(r.transmissaoUrl)) return false;
+  const quando = new Date(r.drawAt).getTime();
+  if (!Number.isFinite(quando)) return false;
+  return quando <= agora && agora < quando + DURACAO_DA_TRANSMISSAO_MS;
+}
+
 /** No máximo tantos ganhadores e tantas compras na coluna. */
 export const GANHADORES_NA_COLUNA = 5;
 export const JOGANDO_NA_COLUNA = 12;

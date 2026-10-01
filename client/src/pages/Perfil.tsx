@@ -14,7 +14,7 @@ import { useSession } from "@/lib/session";
 import { SeguirBotoes, FotoDoPerfil } from "@/components/Seguir";
 import { Denunciar } from "@/components/Seguranca";
 import { DestaqueOrg, LinksDoPerfil } from "@/components/DestaqueOrg";
-import { FotoComStory, VisualizadorDeStories } from "@/components/Stories";
+import { FotoComStory, VisualizadorDeStories, type AoVivoDaOrg } from "@/components/Stories";
 import { marcarOrigem } from "@/lib/origem";
 import { groupNumber, percent } from "@shared/format";
 import {
@@ -57,6 +57,7 @@ interface Perfil {
   foto: string | null;
   capa: string | null;
   ultimoStory: string | null;
+  aoVivo: AoVivoDaOrg | null;
   destaque: CorDeDestaque | null;
   links: LinkDoPerfil[];
   local: string | null;
@@ -158,6 +159,7 @@ export default function PerfilPage() {
             nome={p.nome}
             foto={p.foto}
             ultimoStory={p.ultimoStory}
+            aoVivo={p.aoVivo}
             tamanho={84}
             onAbrir={() => setStories(true)}
           />
@@ -404,7 +406,7 @@ export default function PerfilPage() {
           </p>
         </Folha>
       ) : null}
-      {stories ? <VisualizadorDeStories slug={p.slug} onFechar={() => setStories(false)} /> : null}
+      {stories ? <VisualizadorDeStories slug={p.slug} aoVivo={p.aoVivo} onFechar={() => setStories(false)} /> : null}
       </DestaqueOrg>
     </PublicShell>
   );

@@ -152,6 +152,7 @@ arquitetura.
 | janela sobre a tela (sobe de baixo, Esc, fundo, rolagem travada) | `client/src/components/Janela.tsx`, regra 14 de `docs/VERSOES.md`, `tests/pecas.test.ts` |
 | casca dos painéis (menu lateral em grupos, barra de cima, busca, conta, rodapé) e as peças do kit | `MENUS`/`menuDe()` em `shared/access.ts`, `PanelShell` em `client/src/components/AppShell.tsx`, `client/src/components/painel.tsx` (`Estatistica`, `CartaoDoPainel`, `CabecalhoDaTabela`, `AlternarVisao`), `.painel`/`.cartao` em `client/src/index.css`, `tests/menu.test.ts` |
 | remodelagem do web e dos painéis: inventário do que existe e lista de conferência | `docs/REMODELAGEM.md` |
+| selo "ao vivo" no story (anel com a transmissão do sorteio) | `transmissaoNoAr()` em `shared/aoVivo.ts` (regra), `transmissoesNoAr()` em `server/services/aoVivo.ts`, `perfisComStory()` e `perfilPublico()` em `server/services/perfil.ts`, `FotoComStory`/`VisualizadorDeStories` em `client/src/components/Stories.tsx`, `tests/seloAoVivo.test.ts`, `scripts/vitrine-test.ts` |
 | vitrine no tablet e no computador: coluna ao vivo (tela do sorteio, ganhadores, jogando agora), tela flutuante e rodapé com logos | `shared/aoVivo.ts` (regras), `server/services/aoVivo.ts`, `client/src/components/ColunaAoVivo.tsx`, `client/src/components/RodapeDaPlataforma.tsx`, `validarApoios()` em `shared/template.ts`, `tests/aoVivo.test.ts`, `scripts/vitrine-test.ts` |
 | rodapé da plataforma: colunas de links, redes sociais e espaço de apoio | `shared/rodape.ts` (colunas), `validarRedes()`/`REDES_DO_RODAPE` em `shared/template.ts`, `client/src/components/RodapeDaPlataforma.tsx`, cartão "Redes sociais do rodapé" em `client/src/pages/adminAparencia.tsx`, `preencherRodapeComExemplo()` em `server/services/template.ts`, `tests/rodape.test.ts` |
 | app instalável (PWA): casca, nome e ícone | `client/public/sw.js`, `shared/manifest.ts` (o manifesto montado), `manifestDaPlataforma()`/`iconeDaMarca()` em `server/services/template.ts`, `client/public/manifest.webmanifest` (o de fábrica, se o banco falhar), `client/src/lib/pwa.ts`, `tests/manifest.test.ts`, `scripts/aparencia-test.ts` |
@@ -456,7 +457,7 @@ Como no Instagram, com as nossas cores (verde no lugar do vermelho e do rosa).
 - **"Seu story" é o "+" na foto do próprio perfil** (o organizador, na
   vitrine, é levado ao perfil dele, então é ali que ele está), e na fileira
   de stories vai com a foto da organização, não a inicial. O selo "ao vivo"
-  no story fica para a etapa do Reels.
+  do story é a seção "Selo ao vivo no story" (abaixo).
 - **O "18+", a ajuda, o tema e os cookies moram em `/perfil`**; não há mais
   faixa fixa de rodapé. O texto livre do rodapé (template) segue no fim da
   página.
@@ -1863,6 +1864,31 @@ desconto na primeira compra — **pago pela plataforma**.
   (`"organizations"."id"`): o drizzle deixa a coluna sem prefixo dentro do
   template `sql`, e `id` vira o da tabela de dentro. E `timestamp` lido por SQL cru
   volta como texto sem fuso — é UTC, converta (`ultimoStorySql`).
+
+## Selo "ao vivo" no story — o que não pode afrouxar
+
+O anel do perfil (na fileira de stories da vitrine e na foto do perfil da
+organização) ganha o selo **"AO VIVO"** quando há transmissão de sorteio no ar.
+
+- **Só dado real, e a fonte é a própria rifa.** `transmissaoNoAr()`
+  (`shared/aoVivo.ts`) acende quando a rifa tem **`transmissaoUrl` válida
+  (https)**, a hora do sorteio (`drawAt`) já chegou, a janela de 3 h da
+  transmissão (`DURACAO_DA_TRANSMISSAO_MS`, a mesma da coluna ao vivo) não
+  fechou e o sorteio ainda não foi feito. Sem link, não acende: não há o que
+  assistir. Nada de botão da organização para "ficar ao vivo" nem contador de
+  espectadores — o selo só diz o que a rifa já declara.
+- **A régua de vitrine vale**: rifa publicada, nem demonstração nem travada,
+  promotora nem arquivada nem banida (`rifaDaVitrine`, a mesma da coluna ao
+  vivo). `transmissoesNoAr()` é só a consulta; a regra é a função pura.
+- **O perfil ao vivo entra na fileira mesmo sem story** (o selo é a razão) e
+  vem na frente. Sem story, o anel leva direto à rifa; com story, abre os
+  stories e o visualizador ganha o botão "Ao vivo agora: assistir ao
+  sorteio". O endereço da transmissão **nunca** sai nessas rotas: só o
+  `slug` da rifa e o prêmio.
+- **Estado nunca só por cor**: o selo é texto ("Ao vivo") e o rótulo do botão
+  diz "ao vivo agora". Sem vermelho (é erro) e sem amarelo.
+- `npm run vitrine` prova (sem link, antes da hora, janela fechada, link não
+  https, demonstração, travada, rascunho) e `tests/seloAoVivo.test.ts` cobre a regra.
 
 ## Painel de resultados — o que não pode afrouxar
 

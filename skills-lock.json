@@ -37,6 +37,12 @@
       "skillPath": "skills/claude-api/SKILL.md",
       "computedHash": "c351e9b459b5306fd5caaf6c99ebcda9e9dc3fee77eb10d0a1007b0f4bd02124"
     },
+    "claude-automation-recommender": {
+      "source": "anthropics/claude-plugins-official",
+      "sourceType": "github",
+      "skillPath": "plugins/claude-code-setup/skills/claude-automation-recommender/SKILL.md",
+      "computedHash": "d8d53f9b67da49216256ed79ed38057ef1ee760bd499cf413107ae7504aedafd"
+    },
     "diagnosing-superpowers": {
       "source": "obra/superpowers",
       "sourceType": "github",

@@ -550,12 +550,13 @@ Na ordem de entrega do plano:
   `VIDEO_PROCESSOR`). Depende de **conta e credencial do Cloudflare Stream**.
   Também falta o pôster dos vídeos enviados antes desta mudança (não há
   preenchimento retroativo).
-- [ ] **[código]** Pôster, para depois: (1) no bucket, o vídeo é lido inteiro
-  na memória (até 200 MB) e não há limite de `ffmpeg` simultâneos — sob muitos
-  envios seguidos é pico de CPU e RAM no processo web; baixar o teto ou limitar
-  a concorrência. (2) `excluirRifa` apaga as linhas, mas não os arquivos do
-  storage (já era assim para vídeo e variantes; agora inclui o pôster) — limpar
-  `storageKey`, `posterKey` e variantes antes do `DELETE`.
+- [x] Pôster, extras: **feitos.** O vídeo do bucket vem **em pedaços** de 4 MB
+  para o arquivo temporário (a memória do processo web não guarda o vídeo
+  inteiro); o `ffmpeg` roda no máximo 2 por vez (`FFMPEG_MAX_SIMULTANEOS`, 1 a
+  8) e o resto espera a vez; `excluirRifa` apaga também os arquivos do
+  armazenamento (original, pôster e variantes) depois que a transação fecha.
+  Ficou: mídia enviada e nunca confirmada (sem linha no banco) não tem como
+  ser achada para limpar.
 - [x] Revisão completa das telas, com prints: `npm run telas` (60 telas,
   seis papéis, 390/820/1440 px) e o guia `docs/VERSOES.md` — regras entre as
   versões, mapa de cada tela e o registro das mudanças do celular (leva a

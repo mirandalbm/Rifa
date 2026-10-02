@@ -81,6 +81,50 @@ function rodar(bin: string, args: string[], prazoMs: number): Promise<Buffer | n
   });
 }
 
+/**
+ * Quantos `ffmpeg` rodam ao mesmo tempo no processo web. Cada um é CPU e RAM
+ * de verdade: com muitos envios seguidos, sem fila, o site para de responder.
+ * O resto espera a vez (o pôster é em segundo plano, esperar não custa nada).
+ */
+export function limiteDeFfmpeg(env = process.env.FFMPEG_MAX_SIMULTANEOS): number {
+  const n = Number(env);
+  return Number.isInteger(n) && n >= 1 && n <= 8 ? n : 2;
+}
+
+/** Semáforo mínimo: `rodar(fn)` só começa quando há vaga, na ordem de chegada. */
+export class Vagas {
+  private emUso = 0;
+  private fila: (() => void)[] = [];
+  constructor(private max: number) {}
+  get usando() {
+    return this.emUso;
+  }
+  get esperando() {
+    return this.fila.length;
+  }
+  async rodar<T>(fn: () => Promise<T>): Promise<T> {
+    if (this.emUso >= this.max) await new Promise<void>((livre) => this.fila.push(livre));
+    else this.emUso++;
+    try {
+      return await fn();
+    } finally {
+      const proximo = this.fila.shift();
+      if (proximo) proximo(); // a vaga passa direto para o próximo da fila
+      else this.emUso--;
+    }
+  }
+}
+
+const vagasDoFfmpeg = new Vagas(limiteDeFfmpeg());
+/**
+ * Vagas para trazer o vídeo do bucket ao disco temporário: o semáforo do
+ * `ffmpeg` limita CPU, este limita o disco (sem ele, N envios deixavam N
+ * arquivos de até 200 MB no `tmpdir` esperando a vez). Fica seguro de aninhar
+ * porque é outra instância: quem tem vaga de download só espera a do `ffmpeg`.
+ */
+const vagasDoDownload = new Vagas(limiteDeFfmpeg());
+export const comVagaDeDownload = <T>(fn: () => Promise<T>) => vagasDoDownload.rodar(fn);
+
 export class FfmpegLocal implements ProcessadorDeVideo {
   readonly nome = "ffmpeg";
   constructor(
@@ -88,7 +132,11 @@ export class FfmpegLocal implements ProcessadorDeVideo {
     private prazoMs = POSTER_PRAZO_MS,
   ) {}
 
-  async gerarPoster(arquivo: string): Promise<Buffer | null> {
+  gerarPoster(arquivo: string): Promise<Buffer | null> {
+    return vagasDoFfmpeg.rodar(() => this.gerar(arquivo));
+  }
+
+  private async gerar(arquivo: string): Promise<Buffer | null> {
     try {
       for (const instante of POSTER_INSTANTES_S) {
         const jpeg = await rodar(this.bin, argsDoPoster(arquivo, instante), this.prazoMs);
@@ -125,6 +173,37 @@ export function processadorDeVideo(): ProcessadorDeVideo {
 /** Só para teste: troca o processador (e volta ao padrão com `null`). */
 export function trocarProcessadorDeVideo(p: ProcessadorDeVideo | null) {
   escolhido = p;
+}
+
+/**
+ * Traz o objeto do armazenamento para um arquivo temporário **em pedaços**
+ * (`PEDACO_BYTES` por vez), entrega o caminho a `fn` e apaga no fim: a memória
+ * do processo web fica em um pedaço, não no vídeo inteiro.
+ */
+export const PEDACO_BYTES = 4 * 1024 * 1024;
+export async function comArquivoTemporarioEmPedacos<T>(
+  tamanho: number,
+  ler: (offset: number, length: number) => Promise<Buffer>,
+  ext: string,
+  fn: (arquivo: string) => Promise<T>,
+): Promise<T> {
+  const pasta = await fs.mkdtemp(path.join(os.tmpdir(), "rifa-video-"));
+  const arquivo = path.join(pasta, `entrada${ext}`);
+  try {
+    const f = await fs.open(arquivo, "w");
+    try {
+      for (let offset = 0; offset < tamanho; offset += PEDACO_BYTES) {
+        const pedaco = await ler(offset, Math.min(PEDACO_BYTES, tamanho - offset));
+        if (pedaco.length === 0) break;
+        await f.write(pedaco);
+      }
+    } finally {
+      await f.close();
+    }
+    return await fn(arquivo);
+  } finally {
+    await fs.rm(pasta, { recursive: true, force: true }).catch(() => {});
+  }
 }
 
 /** Grava `bytes` num arquivo temporário, entrega o caminho a `fn` e apaga no fim. */

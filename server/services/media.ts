@@ -13,7 +13,7 @@ import { db } from "../db";
 import { campaignMedia, MAX_PHOTOS, MAX_VIDEO_SECONDS } from "@shared/schema";
 import { randomUUID } from "node:crypto";
 import { storage, mediaKey, chaveDaCampanha, LocalDiskStorage, type UploadTicket } from "./storage";
-import { comArquivoTemporario, processadorDeVideo } from "./videoProcessor";
+import { comArquivoTemporarioEmPedacos, comVagaDeDownload, processadorDeVideo } from "./videoProcessor";
 import { emSegundoPlano } from "./push";
 import { POSTER_BAIXAR_ATE_BYTES, chaveDoPoster, posterPublico } from "@shared/poster";
 import { probeImage, probeVideoDimensions, probeVideoDuration, UnreadableMediaError } from "./probe";
@@ -302,7 +302,8 @@ export async function gerarPosterDaMidia(mediaId: string, campaignId: string, st
     poster = await gerar(store.caminho(storageKey));
   } else if (bytes <= POSTER_BAIXAR_ATE_BYTES) {
     const ext = storageKey.slice(storageKey.lastIndexOf("."));
-    poster = await comArquivoTemporario(await store.readAll(storageKey), ext, gerar);
+    // Em pedaços: o vídeo do bucket nunca vem inteiro para a memória do processo web.
+    poster = await comVagaDeDownload(() => comArquivoTemporarioEmPedacos(bytes, store.reader(storageKey), ext, gerar));
   } else {
     poster = null;
   }
@@ -322,6 +323,25 @@ export async function gerarPosterDaMidia(mediaId: string, campaignId: string, st
     return null;
   }
   return chave;
+}
+
+/** Apaga do armazenamento (e da cópia) o original, o pôster e as variantes de uma mídia. Nunca lança. */
+export async function apagarArquivosDeMidias(
+  linhas: { storageKey: string; posterKey: string | null; variants: MediaRow["variants"] }[],
+) {
+  try {
+    const store = storage();
+    await Promise.all(
+      linhas.map(async (m) => {
+        await store.remove(m.storageKey).catch(() => {});
+        if (m.posterKey) await store.remove(m.posterKey).catch(() => {});
+        await removeVariants(m.variants);
+      }),
+    );
+  } catch (e) {
+    // A linha já foi embora: falha de armazenamento vai ao log, não vira erro para quem apagou.
+    console.error("[midia] não apaguei os arquivos:", (e as Error).message);
+  }
 }
 
 export async function removeMedia(mediaId: string) {

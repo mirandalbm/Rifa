@@ -17,9 +17,13 @@ import "dotenv/config";
 import { baseUrl } from "./base-url";
 import { eq, like, sql } from "drizzle-orm";
 import { db, pool } from "../server/db";
+import { promises as fs } from "node:fs";
+import { randomUUID } from "node:crypto";
+import { LocalDiskStorage, storage } from "../server/services/storage";
 import {
   affiliates,
   buyers,
+  campaignMedia,
   campaignStats,
   campaigns,
   campanhaSolicitacoes,
@@ -110,7 +114,26 @@ async function main() {
     checa("organizador apaga o próprio rascunho", r.status === 200 && !some1, `HTTP ${r.status} ${r.json?.message ?? ""}`);
 
     const noArSemVenda = await rifa("no-ar-sem-venda", "published");
+    // Os arquivos da mídia (original, pôster e variante) também saem do armazenamento.
+    const arm = storage() as LocalDiskStorage;
+    const sufixo = randomUUID();
+    const chaveOriginal = `campanhas/${noArSemVenda.id}/video-${sufixo}.mp4`;
+    const chavePoster = `campanhas/${noArSemVenda.id}/poster-${sufixo}.webp`;
+    const chaveVariante = `campanhas/${noArSemVenda.id}/photo-${sufixo}.jpg.w400.webp`;
+    for (const k of [chaveOriginal, chavePoster, chaveVariante]) await arm.write(k, Buffer.from("x"), "application/octet-stream");
+    await db.insert(campaignMedia).values({
+      campaignId: noArSemVenda.id,
+      role: "video",
+      storageKey: chaveOriginal,
+      posterKey: chavePoster,
+      variants: [{ width: 400, format: "webp", key: chaveVariante, bytes: 1 }],
+      mime: "video/mp4",
+      status: "ready",
+    });
+    const existe = async (k: string) => fs.access(arm.caminho(k)).then(() => true, () => false);
+    checa("os arquivos da mídia existem antes de apagar a rifa", (await Promise.all([chaveOriginal, chavePoster, chaveVariante].map(existe))).every(Boolean));
     r = await marina.req("DELETE", `/api/admin/campaigns/${noArSemVenda.id}`);
+    checa("apagar a rifa leva os arquivos: original, pôster e variantes", (await Promise.all([chaveOriginal, chavePoster, chaveVariante].map(existe))).every((x) => !x));
     const [some2] = await db.select().from(campaigns).where(eq(campaigns.id, noArSemVenda.id));
     checa("rifa no ar sem nenhuma cota vendida sai de vez", r.status === 200 && !some2, `HTTP ${r.status} ${r.json?.message ?? ""}`);
 

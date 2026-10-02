@@ -17,6 +17,7 @@ import {
 } from "@shared/campanhaLegal";
 import { REGULAMENTO_EXTRA_MAX } from "@shared/regulamento";
 import { transmissaoValida } from "@shared/sorteio";
+import { problemaNoBonusMax } from "@shared/bonus";
 
 interface Campanha {
   id: string;
@@ -26,6 +27,7 @@ interface Campanha {
   authorizationFileKey?: string | null;
   regulamentoExtra?: string | null;
   aceitaCotaBonus?: boolean;
+  bonusMaxCotas?: number;
   minimoVendidoPct?: number;
   modoSorteio?: string;
   totalQuotas?: number;
@@ -71,6 +73,7 @@ export function DadosLegaisCard({ campanha }: { campanha: Campanha }) {
   const [arquivo, setArquivo] = useState<{ dataUrl: string; nome: string } | null>(null);
   const [extra, setExtra] = useState(campanha.regulamentoExtra ?? "");
   const [bonus, setBonus] = useState(Boolean(campanha.aceitaCotaBonus));
+  const [bonusMax, setBonusMax] = useState(campanha.bonusMaxCotas ? String(campanha.bonusMaxCotas) : "");
   const [minimo, setMinimo] = useState(String(campanha.minimoVendidoPct ?? 0));
   const [modo, setModo] = useState<ModoDoSorteio>((campanha.modoSorteio as ModoDoSorteio) ?? "data");
   const [msg, setMsg] = useState<{ ok: boolean; texto: string } | null>(null);
@@ -81,10 +84,11 @@ export function DadosLegaisCard({ campanha }: { campanha: Campanha }) {
     setArquivo(null);
     setExtra(campanha.regulamentoExtra ?? "");
     setBonus(Boolean(campanha.aceitaCotaBonus));
+    setBonusMax(campanha.bonusMaxCotas ? String(campanha.bonusMaxCotas) : "");
     setMinimo(String(campanha.minimoVendidoPct ?? 0));
     setModo((campanha.modoSorteio as ModoDoSorteio) ?? "data");
     setMsg(null);
-  }, [campanha.id, campanha.authorizationCode, campanha.drawAt, campanha.regulamentoExtra, campanha.aceitaCotaBonus, campanha.minimoVendidoPct, campanha.modoSorteio]);
+  }, [campanha.id, campanha.authorizationCode, campanha.drawAt, campanha.regulamentoExtra, campanha.aceitaCotaBonus, campanha.bonusMaxCotas, campanha.minimoVendidoPct, campanha.modoSorteio]);
 
   const { data: pendencias } = useQuery<{ blockers: string[] }>({
     queryKey: [`/api/admin/campaigns/${campanha.id}/blockers`],
@@ -96,9 +100,11 @@ export function DadosLegaisCard({ campanha }: { campanha: Campanha }) {
   const minimoDigitado = minimo.trim() === "" ? 0 : Number(minimo);
   // Nos modos de rifa cheia o mínimo é 100%; com a promotora completando, não há mínimo.
   const minimoPct = modo === "data" ? minimoDigitado : minimoDoModo(modo, minimoDigitado);
+  const bonusMaxNum = bonus ? (bonusMax.trim() === "" ? NaN : Number(bonusMax)) : 0;
   const problema =
     problemaNosDadosLegais({ authorizationCode: codigo.trim() ? codigo : null, drawAt }, new Date()) ??
-    problemaNoMinimoVendido(minimoPct);
+    problemaNoMinimoVendido(minimoPct) ??
+    problemaNoBonusMax(bonus, bonusMaxNum, campanha.totalQuotas ?? Number.MAX_SAFE_INTEGER);
 
   const salvar = useMutation({
     mutationFn: () =>
@@ -108,6 +114,7 @@ export function DadosLegaisCard({ campanha }: { campanha: Campanha }) {
         certificado: arquivo,
         regulamentoExtra: extra,
         aceitaCotaBonus: bonus,
+        bonusMaxCotas: bonusMaxNum,
         minimoVendidoPct: minimoPct,
         modoSorteio: modo,
       }),
@@ -210,7 +217,7 @@ export function DadosLegaisCard({ campanha }: { campanha: Campanha }) {
 
         {modo === "data" ? (
         <div>
-          <label htmlFor={`minimo-${campanha.id}`} className="label-xs">
+          <label htmlFor={`minimo-${campanha.id}`} className="label-xs block">
             Mínimo de cotas vendidas para sortear (%)
           </label>
           <input
@@ -314,6 +321,31 @@ export function DadosLegaisCard({ campanha }: { campanha: Campanha }) {
               </span>
             </span>
           </label>
+          {bonus ? (
+            <div className="ml-6 mt-2">
+              <label htmlFor={`bonus-max-${campanha.id}`} className="label-xs block">
+                Quantas cotas de bônus a autorização prevê
+              </label>
+              <input
+                id={`bonus-max-${campanha.id}`}
+                type="number"
+                inputMode="numeric"
+                min={1}
+                max={campanha.totalQuotas ?? undefined}
+                value={bonusMax}
+                disabled={!rascunho}
+                onChange={(e) => {
+                  setMsg(null);
+                  setBonusMax(e.target.value);
+                }}
+                className="campo tnum max-w-[12rem] disabled:bg-mist"
+              />
+              <p className="mt-1 text-[11px] text-muted">
+                O resgate para quando chega a esse número. Cota de bônus não conta para o mínimo de cotas vendidas
+                (na rifa cheia, conta para completá-la).
+              </p>
+            </div>
+          ) : null}
           <p className="text-[11px] text-muted">
             O resto do regulamento (promotora, autorização, prêmios, numeração, sorteio, entrega e
             reembolso) é montado sozinho dos dados da rifa.

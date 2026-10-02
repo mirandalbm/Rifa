@@ -144,7 +144,7 @@ async function papeis(): Promise<{ papeis: Record<string, Papel>; carrinho: stri
           corpo: { identificador: APOSTADOR.telefone, senha: APOSTADOR.senha },
           criar: { url: "/api/public/conta", corpo: APOSTADOR },
         },
-        rotas: ["/", "/perfil", "/perfil/bilhetes", "/minhas-cotas", "/minhas-cotas?aba=conta", "/notificacoes", "/publicar", `/u/${APOSTADOR.apelido}`, ...so(r, `/r/${r}`)],
+        rotas: ["/", "/perfil", "/perfil/bilhetes", "/minhas-cotas", "/minhas-cotas?aba=conta", "/notificacoes", "/mensagens", "/publicar", `/u/${APOSTADOR.apelido}`, ...so(r, `/r/${r}`)],
       },
       organizador: {
         login: { url: "/api/auth/login", corpo: { email: "marina@rifassaojose.br", password: "organizador123" } },
@@ -249,7 +249,14 @@ function medir() {
   const semNome: string[] = [];
   const soPlaceholder: string[] = [];
   /** Fora da árvore de acessibilidade de propósito (a foto que repete o link do título). */
-  const escondido = (el: Element) => Boolean(el.closest("[aria-hidden=true]"));
+  const escondido = (el: Element) => {
+    if (el.closest("[aria-hidden=true]")) return true;
+    // Conteúdo de `<details>` fechado (o menu "⋮"): não aparece nem é
+    // anunciado até abrir, e o Chromium devolve `innerText` vazio dele. O
+    // `summary` é o que está à mostra.
+    const d = el.closest("details:not([open])");
+    return Boolean(d && !el.closest("summary"));
+  };
   for (const el of document.querySelectorAll(
     "button, a[href], [role=button], input:not([type=hidden]), select, textarea",
   )) {

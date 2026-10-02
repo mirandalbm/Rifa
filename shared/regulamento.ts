@@ -47,6 +47,7 @@ export interface DadosDoRegulamento {
     regulamentoExtra: string | null;
     /** Aceita cotas de bônus do programa de indicação (etapa 13). */
     aceitaCotaBonus?: boolean;
+    bonusMaxCotas?: number;
     /** Mínimo de cotas vendidas (%) para o sorteio acontecer; 0 ou ausente = sem mínimo. */
     minimoVendidoPct?: number;
     /** Como a rifa chega ao sorteio (`MODOS_DO_SORTEIO`); ausente = na data marcada. */
@@ -130,7 +131,7 @@ export function montarRegulamento(d: DadosDoRegulamento): Secao[] {
         `Só participa a cota paga. A reserva não paga em ${rifa.reservationTtlMin} minutos é desfeita e os números voltam a ficar livres.`,
         "Cada número é vendido uma única vez.",
         "Só vale bilhete pago pela plataforma. Pagamento feito por fora (Pix ou transferência direto à promotora ou a terceiros) não gera cota nem participa do sorteio, e pedir pagamento por fora leva ao banimento da promotora.",
-        ...(rifa.aceitaCotaBonus ? [clausulaDoBonus()] : []),
+        ...(rifa.aceitaCotaBonus ? [clausulaDoBonus(rifa.bonusMaxCotas ?? 0)] : []),
       ],
     },
     {

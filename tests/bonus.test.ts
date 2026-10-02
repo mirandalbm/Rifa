@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   bloqueioDoResgate,
+  clausulaDoBonus,
+  problemaNoBonusMax,
+  vendidasParaOMinimo,
   codigoDeIndicacaoValido,
   gerarCodigoDeIndicacao,
   progressoDasMetas,
@@ -84,4 +87,42 @@ describe("bloqueioDoResgate", () => {
     expect(bloqueioDoResgate({ ...base, quantidade: 0 })).toMatch(/1 a/);
   });
   it("rifa fora do ar", () => expect(bloqueioDoResgate({ ...base, statusRifa: "drawn" })).toMatch(/não está vendendo/));
+});
+
+describe("quantidade de cotas de bônus da autorização", () => {
+  it("aceitar exige a quantidade, entre 1 e o total da rifa", () => {
+    expect(problemaNoBonusMax(true, undefined, 1000)).toMatch(/quantas/);
+    expect(problemaNoBonusMax(true, 0, 1000)).toMatch(/quantas/);
+    expect(problemaNoBonusMax(true, 2.5, 1000)).toMatch(/quantas/);
+    expect(problemaNoBonusMax(true, 1001, 1000)).toMatch(/total/);
+    expect(problemaNoBonusMax(true, 1000, 1000)).toBeNull();
+    expect(problemaNoBonusMax(true, 1, 1000)).toBeNull();
+  });
+  it("sem cota de bônus, a quantidade é zero", () => {
+    expect(problemaNoBonusMax(false, 0, 1000)).toBeNull();
+    expect(problemaNoBonusMax(false, undefined, 1000)).toBeNull();
+    expect(problemaNoBonusMax(false, 5, 1000)).toMatch(/0/);
+  });
+  it("a cláusula diz quantas, como se ganha e o que não vale", () => {
+    const c = clausulaDoBonus(1);
+    expect(c).toMatch(/até 1 cota de bônus/);
+    expect(clausulaDoBonus(40)).toMatch(/até 40 cotas de bônus/);
+    expect(c).toMatch(/indica/);
+    expect(c).toMatch(/igualdade/);
+    expect(c).toMatch(/não têm reembolso nem valor em dinheiro/);
+    expect(c).toMatch(/2 horas antes do sorteio/);
+  });
+  it("rifa publicada antes da quantidade (0) segue a cláusula antiga, sem número", () => {
+    const c = clausulaDoBonus(0);
+    expect(c).not.toMatch(/até 0/);
+    expect(c).toMatch(/aceita cotas de bônus/);
+  });
+  it("o mínimo conta só as pagas, salvo na rifa cheia", () => {
+    expect(vendidasParaOMinimo(500, 30, "data")).toBe(470);
+    expect(vendidasParaOMinimo(500, 30, null)).toBe(470);
+    expect(vendidasParaOMinimo(1000, 30, "cheia_com_data")).toBe(1000);
+    // O "quando completar" marca a data contando tudo: o sorteio também conta.
+    expect(vendidasParaOMinimo(1000, 30, "quando_completar")).toBe(1000);
+    expect(vendidasParaOMinimo(10, 30, "data")).toBe(0);
+  });
 });

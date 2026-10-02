@@ -2385,6 +2385,25 @@ organização) ganha o selo **"AO VIVO"** quando há transmissão de sorteio no 
   em rifa com `aceita_cota_bonus`, marcada em `PUT /campaigns/:id/legal`,
   que **trava ao publicar** e põe a cláusula no regulamento
   (`clausulaDoBonus()`).
+- **A quantidade é a da autorização** (`campaigns.bonus_max_cotas`,
+  `problemaNoBonusMax()`): aceitar cota grátis exige dizer quantas (1 até o
+  total da rifa), desmarcar zera, e as duas travam ao publicar (fora do
+  `PATCH`; rifa marcada sem quantidade, ou com mais do que o total de agora,
+  não publica). O resgate soma em `campaign_stats.bonus_count` com o teto
+  **no próprio `UPDATE`**, na transação que debita o saldo e **depois da
+  reserva** (a ordem da venda: cota, depois contadores — na inversa, resgate
+  e venda se travavam): três resgates na última cota grátis dão um 201 e dois
+  409, e o saldo de quem perdeu não sai. Rifa publicada antes desta regra
+  (quantidade 0) segue a cláusula e o resgate de antes, sem teto. Resgate que vence sem
+  confirmar (o sorteio veio no meio) devolve o saldo e o teto
+  (`resgate-vencido:<pedido>` no livro, em `releaseExpired`).
+- **Cota grátis não conta para o mínimo de vendidas**
+  (`vendidasParaOMinimo()`: `sold_count − bonus_count`) — senão a promotora
+  inflaria a venda dando cota. **Na rifa cheia conta** (`cheia_com_data` e
+  `quando_completar`), porque o número já tem dono e sem ela a rifa cheia
+  com bônus nunca sortearia. A cláusula diz a
+  quantidade, como se ganha, que concorre igual (inclusive às premiadas), que
+  fecha 2 horas antes e que não vira dinheiro, reembolso nem transferência.
 - **Livro-razão com chave única** (`bonus_lancamentos.chave`): a mesma
   indicação, meta ou resgate nunca lança duas vezes; o saldo
   (`buyers.bonus_saldo`) só anda quando a linha entrou, na mesma transação.

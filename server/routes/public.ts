@@ -1362,6 +1362,7 @@ publicRouter.get("/campaigns/:slug/regulamento", async (req, res, next) => {
           drawSeedHash: c.drawSeedHash,
           regulamentoExtra: c.regulamentoExtra,
           aceitaCotaBonus: c.aceitaCotaBonus,
+          bonusMaxCotas: c.bonusMaxCotas,
           minimoVendidoPct: c.minimoVendidoPct,
           modoSorteio: c.modoSorteio,
         },

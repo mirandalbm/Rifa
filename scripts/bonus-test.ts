@@ -114,6 +114,7 @@ async function main() {
         authorizationCode: "SPA-BONUS",
         authorizationFileKey: "certificado-teste",
         aceitaCotaBonus: aceita,
+        bonusMaxCotas: aceita ? 50 : 0,
       })
       .returning();
     await db.insert(campaignStats).values({ campaignId: c.id });
@@ -225,6 +226,27 @@ async function main() {
     const semComissao = await db.select().from(commissions).where(eq(commissions.orderId, pb.id));
     checa("sem comissão", semComissao.length === 0);
     checa("o saldo desce", (await saldo(TEL.indicador)) === 1);
+    checa("o contador de bônus da rifa anda junto", statsDepois.bonusCount === statsAntes.bonusCount + 2, String(statsDepois.bonusCount));
+
+    // Teto da autorização: com 1 cota grátis sobrando, três resgates ao mesmo
+    // tempo dão um 201 e dois 409, e o saldo de quem perdeu não sai.
+    const saldoAntesDoTeto = await saldo(TEL.indicador);
+    await db.update(buyers).set({ bonusSaldo: saldoAntesDoTeto + 3 }).where(eq(buyers.phone, TEL.indicador));
+    await db.update(campaigns).set({ bonusMaxCotas: statsDepois.bonusCount + 1 }).where(eq(campaigns.id, aceita.id));
+    const tres = await Promise.all(
+      [1, 2, 3].map(() => ana.req("POST", "/api/public/bonus/resgatar", { campaignId: aceita.id, quantidade: 1 })),
+    );
+    const [statsTeto] = await db.select().from(campaignStats).where(eq(campaignStats.campaignId, aceita.id));
+    checa(
+      "na última cota grátis, três resgates juntos: um 201 e dois 409",
+      tres.filter((x) => x.status === 201).length === 1 && tres.filter((x) => x.status === 409).length === 2,
+      tres.map((x) => x.status).join(","),
+    );
+    checa("o teto não passa e só um saldo sai", statsTeto.bonusCount === statsDepois.bonusCount + 1 && (await saldo(TEL.indicador)) === saldoAntesDoTeto + 2, `${statsTeto.bonusCount} ${await saldo(TEL.indicador)}`);
+    r = await ana.req("POST", "/api/public/bonus/resgatar", { campaignId: aceita.id, quantidade: 1 });
+    checa("esgotado: 409 com o motivo", r.status === 409 && /acabaram/.test(r.json?.message ?? ""), r.json?.message);
+    await db.update(buyers).set({ bonusSaldo: saldoAntesDoTeto }).where(eq(buyers.phone, TEL.indicador));
+    await db.update(campaigns).set({ bonusMaxCotas: 50 }).where(eq(campaigns.id, aceita.id));
 
     // Cota de bônus não tem reembolso.
     const print = "data:image/png;base64," + (await sharp({ create: { width: 200, height: 300, channels: 3, background: "#fff" } }).png().toBuffer()).toString("base64");
@@ -245,6 +267,26 @@ async function main() {
     r = await new Cliente().req("GET", `/api/public/campaigns/${aceita.slug}/regulamento`);
     const reg = JSON.stringify(r.json ?? "");
     checa("o regulamento da rifa traz a cláusula", /cotas de bônus/.test(reg), `HTTP ${r.status}`);
+    checa("a cláusula diz a quantidade e que não conta para o mínimo", /até 50 cotas de bônus/.test(reg) && /mínimo de cotas vendidas/.test(reg), reg.slice(0, 200));
+
+    // Rascunho: aceitar cota de bônus exige dizer quantas a autorização prevê.
+    const [rascunho] = await db
+      .insert(campaigns)
+      .values({ organizationId: org.id, slug: "bonus-rascunho", title: "Rascunho", prizeTitle: "Moto", totalQuotas: 1000, priceCents: 500 })
+      .returning();
+    await db.insert(campaignStats).values({ campaignId: rascunho.id });
+    r = await orgC.req("PUT", `/api/admin/campaigns/${rascunho.id}/legal`, { aceitaCotaBonus: true });
+    checa("aceitar sem a quantidade: 422", r.status === 422 && /quantas/.test(r.json?.message ?? ""), r.json?.message);
+    r = await orgC.req("PUT", `/api/admin/campaigns/${rascunho.id}/legal`, { aceitaCotaBonus: true, bonusMaxCotas: 1001 });
+    checa("mais que o total da rifa: 422", r.status === 422, r.json?.message);
+    r = await orgC.req("PUT", `/api/admin/campaigns/${rascunho.id}/legal`, { aceitaCotaBonus: true, bonusMaxCotas: 30 });
+    checa("com a quantidade: salva", r.status === 200 && r.json?.bonusMaxCotas === 30 && r.json?.aceitaCotaBonus === true, `HTTP ${r.status} ${r.json?.message ?? ""}`);
+    r = await orgC.req("PATCH", `/api/admin/campaigns/${rascunho.id}`, { bonusMaxCotas: 999 });
+    const [aindaTrinta] = await db.select({ m: campaigns.bonusMaxCotas }).from(campaigns).where(eq(campaigns.id, rascunho.id));
+    checa("o PATCH genérico não mexe na quantidade", aindaTrinta.m === 30, String(aindaTrinta.m));
+    r = await orgC.req("PUT", `/api/admin/campaigns/${rascunho.id}/legal`, { aceitaCotaBonus: false });
+    const [zerada] = await db.select({ m: campaigns.bonusMaxCotas }).from(campaigns).where(eq(campaigns.id, rascunho.id));
+    checa("desmarcar zera a quantidade", r.status === 200 && zerada.m === 0, `HTTP ${r.status} ${zerada.m}`);
 
     // Meta "Seguir organizações": só conta para conta com senha (o CPF único
     // entre contas segura a fazenda de contas), credita uma vez e o bônus fica.

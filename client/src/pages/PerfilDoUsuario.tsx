@@ -2,6 +2,7 @@ import { Link, useLocation } from "wouter";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Bookmark,
+  FileText,
   Gift,
   ChevronRight,
   HelpCircle,
@@ -14,6 +15,7 @@ import {
   Ticket,
   UserPlus,
   UserRound,
+  ShieldCheck,
   type LucideIcon,
 } from "lucide-react";
 import { PreferenciaDeCookies, PublicShell } from "@/components/AppShell";
@@ -125,6 +127,8 @@ export default function PerfilDoUsuario() {
         {sessao?.user ? <Item href={sessao.home} icone={LayoutDashboard} rotulo="Meu painel" /> : null}
         {sessao?.organizacao ? <Item href={`/o/${sessao.organizacao.slug}`} icone={Store} rotulo="Meu perfil público" detalhe={sessao.organizacao.nome} /> : null}
         <Item href="/ajuda" icone={HelpCircle} rotulo="Central de ajuda" />
+        <Item href="/termos" icone={FileText} rotulo="Termos de uso" />
+        <Item href="/privacidade" icone={ShieldCheck} rotulo="Política de privacidade" detalhe="Que dados guardamos, para quê, e os seus direitos" />
       </ul>
 
       <section className="mt-6 space-y-3">

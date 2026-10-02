@@ -1,0 +1,104 @@
+import { describe, it, expect } from "vitest";
+import {
+  EMPRESA_VAZIA,
+  faltaNaEmpresa,
+  formatarCnpj,
+  montarPrivacidade,
+  montarTermosDeUso,
+  validarDadosDaEmpresa,
+  type DadosDosTermos,
+} from "../shared/legal";
+import { regraDoReembolso } from "../shared/reembolso";
+import { TEMPLATE_PADRAO, TemplateInvalido, validarTemplate } from "../shared/template";
+
+const empresa = {
+  razaoSocial: "Rifas Brasil Tecnologia Ltda.",
+  cnpj: "11.222.333/0001-81",
+  endereco: "Av. Paulista, 1000 — São Paulo/SP",
+  contato: "Contato@Rifas.com.br",
+  encarregadoNome: "Ana Souza",
+  encarregadoContato: "dpo@rifas.com.br",
+};
+const base: DadosDosTermos = {
+  plataforma: "rifa.br",
+  empresa: validarDadosDaEmpresa(empresa),
+  reembolso: { aceita: true, taxaPct: 10 },
+};
+const texto = (s: { titulo: string; itens: string[] }[]) => s.flatMap((x) => [x.titulo, ...x.itens]).join("\n");
+
+describe("dados da empresa", () => {
+  it("normaliza: CNPJ em dígitos, e-mail minúsculo", () => {
+    const e = validarDadosDaEmpresa(empresa);
+    expect(e.cnpj).toBe("11222333000181");
+    expect(e.contato).toBe("contato@rifas.com.br");
+    expect(formatarCnpj(e.cnpj)).toBe("11.222.333/0001-81");
+    expect(faltaNaEmpresa(e)).toEqual([]);
+  });
+  it("vazio é permitido, e a tela diz o que falta", () => {
+    expect(validarDadosDaEmpresa(undefined)).toEqual(EMPRESA_VAZIA);
+    expect(faltaNaEmpresa(EMPRESA_VAZIA)).toHaveLength(5);
+  });
+  it("recusa CNPJ com dígito errado, e-mail estranho e chave que não é texto", () => {
+    expect(() => validarDadosDaEmpresa({ cnpj: "11.222.333/0001-82" })).toThrow(/CNPJ/);
+    expect(() => validarDadosDaEmpresa({ contato: "nao-e-email" })).toThrow(/E-mail de contato/);
+    expect(() => validarDadosDaEmpresa({ encarregadoContato: "a@b" })).toThrow(/encarregado/);
+    expect(() => validarDadosDaEmpresa({ razaoSocial: 5 })).toThrow();
+  });
+  it("só guarda as chaves conhecidas", () => {
+    const e = validarDadosDaEmpresa({ ...empresa, script: "<b>x</b>" }) as unknown as Record<string, unknown>;
+    expect(Object.keys(e).sort()).toEqual(Object.keys(EMPRESA_VAZIA).sort());
+  });
+  it("entra no template, e o template com CNPJ errado é recusado", () => {
+    expect(validarTemplate({ ...TEMPLATE_PADRAO, legal: empresa }).legal?.cnpj).toBe("11222333000181");
+    expect(() => validarTemplate({ ...TEMPLATE_PADRAO, legal: { cnpj: "123" } })).toThrow(TemplateInvalido);
+    expect(validarTemplate({ ...TEMPLATE_PADRAO, legal: undefined }).legal).toEqual(EMPRESA_VAZIA);
+  });
+});
+
+describe("termos de uso", () => {
+  it("identifica a empresa e a promotora, e diz que só vale bilhete pago pela plataforma", () => {
+    const t = texto(montarTermosDeUso(base));
+    expect(t).toContain("Rifas Brasil Tecnologia Ltda., CNPJ 11.222.333/0001-81, com sede em Av. Paulista");
+    expect(t).toContain("Lei 5.768/71");
+    expect(t).toContain("Só vale bilhete pago pela plataforma");
+    expect(t).toMatch(/maiores de 18 anos/);
+  });
+  it("a regra de reembolso é a mesma da tela de compra", () => {
+    expect(texto(montarTermosDeUso(base))).toContain(regraDoReembolso(10));
+    const sem = texto(montarTermosDeUso({ ...base, reembolso: { aceita: false, taxaPct: 10 } }));
+    expect(sem).toContain("art. 49");
+    expect(sem).toContain("fale com a promotora da rifa");
+    expect(sem).not.toContain(regraDoReembolso(10));
+  });
+  it("sem os dados da empresa, diz que ainda não foram publicados — nunca inventa", () => {
+    const t = texto(montarTermosDeUso({ ...base, empresa: EMPRESA_VAZIA }));
+    expect(t).toContain("ainda não foram publicados");
+    expect(t).not.toContain("CNPJ 1");
+  });
+});
+
+describe("política de privacidade", () => {
+  it("traz o encarregado, os direitos e a ANPD", () => {
+    const t = texto(montarPrivacidade(base));
+    expect(t).toContain("Ana Souza, pelo e-mail dpo@rifas.com.br");
+    expect(t).toContain("art. 18");
+    expect(t).toContain("ANPD");
+  });
+  it("sem encarregado, diz que será publicado; com o e-mail da empresa, manda para ele", () => {
+    expect(texto(montarPrivacidade({ ...base, empresa: EMPRESA_VAZIA }))).toContain("será publicado nesta página");
+    const semEncarregado = { ...base.empresa, encarregadoNome: "", encarregadoContato: "" };
+    expect(texto(montarPrivacidade({ ...base, empresa: semEncarregado }))).toContain("pelo e-mail contato@rifas.com.br");
+  });
+  it("diz o que fica público mesmo sem o perfil público: jogando agora, ganhador e a consulta do pedido", () => {
+    const t = texto(montarPrivacidade(base));
+    expect(t).toContain("jogando agora");
+    expect(t).toContain("código do pedido");
+    expect(t).toContain("O afiliado vê só o primeiro nome");
+  });
+  it("diz o que nunca é público e que a biometria depende da autorização", () => {
+    const t = texto(montarPrivacidade(base));
+    expect(t).toContain("Telefone, CPF e e-mail nunca são públicos");
+    expect(t).toContain("art. 11");
+    expect(t).toMatch(/Nunca vendemos dados pessoais/);
+  });
+});

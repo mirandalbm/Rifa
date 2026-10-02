@@ -128,6 +128,7 @@ arquitetura.
 | endereço curto (`/c/…`) e cliques nos links do perfil (`/l/…`) | `server/services/links.ts`, `client/src/components/LinksCurtos.tsx`, rotas em `server/routes/index.ts`, `scripts/perfil-test.ts` |
 | white label do organizador (capa, cor de destaque, links) | `validarDestaque()`/`validarLinks()` em `shared/perfil.ts`, `salvarPerfil()` em `server/services/perfil.ts`, `client/src/components/DestaqueOrg.tsx`, `client/src/components/PerfilPublicoForm.tsx` |
 | notificações no celular (Web Push) | `shared/push.ts` (regras), `server/services/push.ts`, `client/public/sw.js`, `client/src/lib/push.ts`, `scripts/push-test.ts` |
+| Termos de uso e Política de privacidade (texto montado das regras, dados da empresa e encarregado) | `shared/legal.ts` (`montarTermosDeUso`, `montarPrivacidade`, `validarDadosDaEmpresa`), `legal` em `shared/template.ts`, `client/src/pages/Legal.tsx` (`/termos`, `/privacidade`), cartão "Dados da empresa" em `client/src/pages/adminAparencia.tsx`, `tests/legal.test.ts` |
 | regulamento, central de ajuda, transmissão, conferência do sorteio e a regra da aproximação (número não vendido) | `shared/regulamento.ts`, `shared/ajuda.ts`, `shared/sorteio.ts` (`contempladoPorAproximacao`), o sorteio em `POST /campaigns/:id/draw` (`server/routes/admin.ts`), `client/src/components/SorteioCard.tsx`, `scripts/transparencia-test.ts` |
 | vitrine: banners, stories, estados e feed | `shared/vitrine.ts` (regras), `server/services/vitrine.ts`, `client/src/components/BannersVitrine.tsx`, `Stories.tsx`, `EstadosVitrine.tsx`, `CartaoDoFeed.tsx`, `client/src/pages/adminStories.tsx`, `scripts/vitrine-test.ts` |
 | painel de resultados, origem da venda e foto do ganhador | `shared/resultados.ts` (regras), `server/services/resultados.ts`, `client/src/lib/origem.ts`, `client/src/pages/adminResultados.tsx`, `server/services/ganhador.ts`, `scripts/resultados-test.ts` |
@@ -361,9 +362,9 @@ arquitetura.
     `tests/rodape.test.ts` confere que cada caminho existe no `App.tsx` e
     que cada atalho `/ajuda#pergunta` aponta para uma pergunta de
     `shared/ajuda.ts` (a página abre a resposta e rola até ela). Página que
-    ainda não existe (Termos de uso, Privacidade) é `emBreve`: texto com o
-    rótulo "Em breve", nunca link que cai em 404 — ao criar a página, tire
-    a marca.
+    ainda não existe é `emBreve`: texto com o rótulo "Em breve", nunca link
+    que cai em 404 — ao criar a página, tire a marca (Termos de uso e
+    Privacidade já saíram dela: seção "Termos de uso e Privacidade").
   - **Redes sociais** (`redes` no template, `validarRedes()`, cartão
     "Redes sociais do rodapé" em Aparência): uma por rede da lista
     (`REDES_DO_RODAPE`), só `https:` sem usuário/senha **e no domínio da
@@ -2157,6 +2158,30 @@ desconto na primeira compra — **pago pela plataforma**.
 - **A ajuda responde com a regra em vigor** (`perguntasDaAjuda()` recebe a
   taxa de reembolso configurada): pergunta nova vai para `shared/ajuda.ts`,
   com `id` único.
+
+## Termos de uso e Privacidade — o que não pode afrouxar
+
+- **Montados das regras, não escritos à parte** (`montarTermosDeUso()`,
+  `montarPrivacidade()` em `shared/legal.ts`, como o regulamento e a ajuda):
+  a regra de reembolso é `regraDoReembolso()` com a taxa em vigor (desligado o
+  reembolso pela conta, o texto diz o art. 49 do CDC e manda à ajuda), e cada
+  frase descreve o que o sistema já faz. **Regra nova que toque comprador,
+  dado pessoal ou compartilhamento muda o texto no mesmo PR** — e sobe
+  `VIGENCIA_DOS_TERMOS`. Termo que promete o que o sistema não faz é pior
+  que termo nenhum.
+- **Os dados da empresa são da plataforma** (`legal` no template:
+  razão social, CNPJ com dígito conferido, endereço, e-mail e o encarregado
+  de dados — `validarDadosDaEmpresa()`, só as chaves conhecidas; cartão
+  "Dados da empresa" em Aparência, 403 para organizador como o resto do
+  template) e entram no ar ao publicar. Decreto 7.962/2013, art. 2º; LGPD,
+  art. 41, § 1º. **Faltando, a página diz que ainda não foram publicados —
+  nunca inventa** — e Aparência lista o que falta (`faltaNaEmpresa()`).
+- **Uma página, dois textos** (`client/src/pages/Legal.tsx`): `/termos` e
+  `/privacidade`, coluna de leitura, data de vigência e o link de uma para a
+  outra. Saem do rodapé (coluna Legal), do `/perfil` e de Criar conta ("Ao
+  criar a conta, você declara ter 18 anos ou mais e concorda…").
+- `tests/legal.test.ts` prova a régua dos dados, a regra de reembolso igual à
+  da compra e o texto sem empresa cadastrada.
 
 ## Construtor de templates — o que não pode afrouxar
 

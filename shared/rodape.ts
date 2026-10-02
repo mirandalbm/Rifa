@@ -57,8 +57,8 @@ export const COLUNAS_DO_RODAPE: ColunaDoRodape[] = [
       { rotulo: "A rifa é legal?", para: "/ajuda#rifa-legal" },
       { rotulo: "Como o sorteio é feito", para: "/ajuda#como-sorteia" },
       { rotulo: "Cuidado com Pix por fora", para: "/ajuda#pix-por-fora" },
-      { rotulo: "Termos de uso", emBreve: true },
-      { rotulo: "Privacidade", emBreve: true },
+      { rotulo: "Termos de uso", para: "/termos" },
+      { rotulo: "Privacidade", para: "/privacidade" },
     ],
   },
 ];

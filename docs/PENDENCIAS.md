@@ -449,6 +449,26 @@ Na ordem de entrega do plano:
   segue com o selo, sem consentimento gravado: a fila mostra "Sem
   autorização da foto"; decidir se pede a todos que autorizem de novo. Falta o advogado ler o
   texto (`textoDoConsentimentoBiometrico()` em `shared/verificacao.ts`).
+- [x] Termos de uso e Política de privacidade (`/termos`, `/privacidade`),
+  montados das regras do sistema (`shared/legal.ts`), no rodapé, no perfil
+  e no Criar conta (`tests/legal.test.ts`).
+- [ ] **[você]** Em Aparência → "Dados da empresa": razão social, CNPJ,
+  endereço, e-mail de contato e o **encarregado de dados** (nome e e-mail),
+  e publicar o template. Sem isso as páginas dizem que os dados ainda não
+  foram publicados (Decreto 7.962/2013 e LGPD, art. 41, pedem os dois).
+- [ ] Devolução do Pix que chega tarde (reserva vencida ou depois do
+  sorteio): hoje só vai ao log (`settleOrderAsPaid`, `markOrderPaid`). Os
+  Termos mandam a pessoa falar com a plataforma; falta uma fila no painel
+  para a plataforma ver e devolver.
+- [ ] Prazo de guarda e limpeza de `fraud_events` e `fraud_blocks` (recusas
+  com telefone mascarado e bloqueios): hoje não há relógio que apague. A
+  Privacidade diz "enquanto for necessário à segurança" — definir o prazo
+  com o advogado e criar a limpeza.
+- [ ] O estorno não desfaz a meta "rifas compradas" do bônus (só a
+  indicação): decidir se desfaz; os Termos hoje falam só da indicação.
+- [ ] **[você]** O advogado ler os Termos de uso e a Privacidade
+  (`montarTermosDeUso()`/`montarPrivacidade()`), em especial: foro, CVV no
+  jogo responsável, prazos de guarda e a lista de quem recebe dados.
 - [ ] **[você]** Cada organização publicar o termo de adesão de afiliado
   (Afiliados → Termo) — quem já publicou vê o aviso para publicar a versão
   seguinte com o texto novo — e o advogado revisar o texto-base.

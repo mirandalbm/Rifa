@@ -56,4 +56,12 @@ describe("política de conteúdo (modo relatório)", () => {
     expect(resumoDoRelatorioCsp({ "effective-directive": "script-src", "blocked-uri": "inline" })).toEqual({ diretiva: "script-src", origem: "inline" });
     expect(resumoDoRelatorioCsp(null)).toBeNull();
   });
+
+  it("quebra de linha na diretiva não escreve linha falsa no log", () => {
+    const r = resumoDoRelatorioCsp({ "effective-directive": "x\n[pagamento] confirmado", "blocked-uri": "inline" });
+    expect(r?.diretiva).toBe("x");
+    const s = resumoDoRelatorioCsp({ "effective-directive": "script-src\r[x]", "blocked-uri": "eval" });
+    expect(s?.diretiva).toBe("script-src");
+    expect(JSON.stringify(s)).not.toMatch(/[\r\n\[\]]/);
+  });
 });

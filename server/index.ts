@@ -18,6 +18,7 @@ import { manifestDaPlataforma } from "./services/template";
 import { setupVite, serveStatic, log } from "./vite";
 import { montarCsp, hashesDosScriptsEmLinha, ROTA_DO_RELATORIO_CSP } from "@shared/csp";
 import { registrarRelatorioCsp } from "./services/csp";
+import { hit, identify } from "./services/antifraude";
 
 
 const app = express();
@@ -63,10 +64,15 @@ app.use((_req, res, next) => {
 app.post(
   ROTA_DO_RELATORIO_CSP,
   express.json({ type: ["application/csp-report", "application/reports+json", "application/json"], limit: "16kb" }),
-  (req, res) => {
+  async (req, res) => {
     try {
-      const corpo = Array.isArray(req.body) ? req.body.map((x: { body?: unknown }) => x?.body ?? x) : [req.body];
-      for (const c of corpo.slice(0, 20)) registrarRelatorioCsp(c);
+      // Limite por IP: a rota é aberta, e girar pares (diretiva, origem)
+      // inventados encheria o log.
+      const limite = await hit(`csp:${identify(req).ipHash ?? "?"}`, 10, 30);
+      if (!limite.excedeu) {
+        const corpo = Array.isArray(req.body) ? req.body.map((x: { body?: unknown }) => x?.body ?? x) : [req.body];
+        for (const c of corpo.slice(0, 20)) registrarRelatorioCsp(c);
+      }
     } catch {
       // relatório malformado: nada a registrar
     }

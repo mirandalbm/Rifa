@@ -625,21 +625,29 @@ export async function registrarClique(
     return false;
   }
   const ipHash = prova.ipHash ?? null;
+  // Sem IP não há como contar o teto: não cobra (com `trust proxy` não acontece).
+  if (!ipHash) {
+    await somarNoDia(db, chave, ufDeQuem, { barrados: 1 });
+    return false;
+  }
   const cobrou = await db.transaction(async (tx) => {
+    // Duas travas: a do par anúncio + aparelho (24 h por aparelho) e a do par
+    // anúncio + IP (o teto por IP). Sem a segunda, dez cliques do mesmo IP com
+    // aparelhos diferentes contariam "2" juntos e cobrariam todos. Sempre nesta
+    // ordem, para duas transações nunca se esperarem em ordens trocadas.
     await tx.execute(sql`select pg_advisory_xact_lock(811402, hashtext(${anuncioId} || ${visitanteHash}))`);
+    await tx.execute(sql`select pg_advisory_xact_lock(811405, hashtext(${anuncioId} || ${ipHash}))`);
     const recente = await tx.execute(sql`
       select 1 from patrocinio_cliques
        where anuncio_id = ${anuncioId}::uuid and visitante_hash = ${visitanteHash}
          and created_at > now() - make_interval(hours => ${JANELA_DO_CLIQUE_HORAS})
        limit 1`);
     if (recente.rows.length) return false;
-    if (ipHash) {
-      const doIp = await tx.execute(sql`
-        select count(*)::int as n from patrocinio_cliques
-         where anuncio_id = ${anuncioId}::uuid and ip_hash = ${ipHash}
-           and created_at > now() - make_interval(hours => ${JANELA_DO_CLIQUE_HORAS})`);
-      if (Number((doIp.rows[0] as { n: number }).n) >= CLIQUES_POR_IP) return false;
-    }
+    const doIp = await tx.execute(sql`
+      select count(*)::int as n from patrocinio_cliques
+       where anuncio_id = ${anuncioId}::uuid and ip_hash = ${ipHash}
+         and created_at > now() - make_interval(hours => ${JANELA_DO_CLIQUE_HORAS})`);
+    if (Number((doIp.rows[0] as { n: number }).n) >= CLIQUES_POR_IP) return false;
     const [g] = await tx
       .update(patrocinioAnuncios)
       .set({

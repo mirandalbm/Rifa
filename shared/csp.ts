@@ -83,7 +83,12 @@ export function resumoDoRelatorioCsp(corpo: unknown): { diretiva: string; origem
     | Record<string, unknown>
     | undefined;
   if (!r || typeof r !== "object") return null;
-  const diretiva = String(r["effective-directive"] ?? r["violated-directive"] ?? "").split(" ")[0].slice(0, 40);
+  // Só letras e hífen: o valor vem de quem quiser postar, e uma quebra de linha
+  // aqui escreveria uma linha falsa no log.
+  const diretiva = String(r["effective-directive"] ?? r["violated-directive"] ?? "")
+    .split(/\s/)[0]
+    .replace(/[^a-z-]/gi, "")
+    .slice(0, 40);
   const bloqueado = String(r["blocked-uri"] ?? "").slice(0, 300);
   if (!diretiva) return null;
   let origem = bloqueado;

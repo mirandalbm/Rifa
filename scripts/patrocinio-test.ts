@@ -23,10 +23,12 @@
 import "dotenv/config";
 import { baseUrl } from "./base-url";
 import { eq, inArray, sql } from "drizzle-orm";
+import { comprovanteDaExibicao } from "../server/services/ticketDoClique";
+import { hashValue } from "../server/services/antifraude";
 import { db, pool } from "../server/db";
 import { hashPassword } from "../server/auth";
 import { appSettings, campaignStats, campaigns, orders, organizations, patrocinioAnuncios, patrocinioRecargas, users } from "../shared/schema";
-import { encerrarAnunciosForaDoAr } from "../server/services/patrocinio";
+import { CLIQUES_POR_IP, encerrarAnunciosForaDoAr } from "../server/services/patrocinio";
 
 const URL = baseUrl();
 let falhas = 0;
@@ -395,6 +397,39 @@ async function main() {
       "a plataforma vê o total e o saldo de todas",
       r.json?.totais?.cliques >= 4 && r.json?.vendidoCents >= 90 + 1800 + 90 && r.json.organizacoes.some((o: any) => o.id === A.id && o.saldoCents === 110),
     );
+
+    // Teto por IP sob corrida: dez cliques do mesmo IP, cada um de um aparelho
+    // com comprovante válido, ao mesmo tempo — só CLIQUES_POR_IP cobram. O
+    // comprovante é assinado aqui com a mesma chave do servidor (o mesmo
+    // `SESSION_SECRET`), como se cada aparelho tivesse recebido a lista.
+    const [corrida] = await db
+      .insert(patrocinioAnuncios)
+      .values({
+        organizationId: A.id,
+        campaignId: rA.id,
+        alcance: "nacional",
+        segmento: "prova-teto-por-ip",
+        cliquesComprados: 20,
+        precoCliqueCents: 30,
+        valorPagoCents: 600,
+        filaDesde: new Date(),
+      })
+      .returning();
+    const quando = Date.now() - 2_000;
+    await db.execute(sql`delete from rate_events where bucket like 'patrocinio-clique:%'`);
+    await Promise.all(
+      Array.from({ length: 10 }, (_, i) => {
+        const aparelho = `corrida-ip-${i}`;
+        const comprovante = comprovanteDaExibicao(corrida.id, hashValue(aparelho), quando);
+        return new Cliente(aparelho).req("POST", `/api/public/patrocinadas/${corrida.id}/clique`, { uf: "SP", comprovante });
+      }),
+    );
+    checa(
+      `dez cliques do mesmo IP ao mesmo tempo: só ${CLIQUES_POR_IP} cobram`,
+      (await anuncio(corrida.id)).cliquesUsados === CLIQUES_POR_IP,
+      String((await anuncio(corrida.id)).cliquesUsados),
+    );
+    await db.delete(patrocinioAnuncios).where(eq(patrocinioAnuncios.id, corrida.id));
 
     // Rifa fora do ar: o anúncio para e o que sobrou volta ao saldo como crédito.
     await db.update(campaigns).set({ status: "closed" }).where(eq(campaigns.id, rB.id));

@@ -100,8 +100,12 @@ export const getQueryFn: <T>(options: {
       }
     }
     
+    // O aparelho vai também nas leituras: a lista de patrocinadas assina o
+    // comprovante de exibição para ele, e sem o cabeçalho nenhum clique seria cobrado.
+    const aparelho = deviceId();
     const res = await fetch(url, {
       credentials: "include",
+      headers: aparelho ? { "x-device-id": aparelho } : undefined,
     });
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {

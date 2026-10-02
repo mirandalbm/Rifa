@@ -197,6 +197,8 @@ arquitetura.
   `tests/csp.test.ts` confere os pixels e os players. Passa a valer quando o
   log de produção ficar limpo, com os pixels ligados. O script do tema entra
   pelo hash do `index.html` construído — nunca `'unsafe-inline'` em script.
+  A rota do relatório é aberta: tem `hit` por IP e a diretiva só leva
+  letras e hífen (sem isso, uma quebra de linha escrevia linha falsa no log).
   O que mais ficou para depois está em `docs/SEGURANCA.md`.
 
 - **Chatbase AI nos painéis**: a conversa (pelo nosso servidor), a coluna, a
@@ -1094,8 +1096,13 @@ tem atrás.
   também). O de antes, em claro, entra e é selado ao subir o servidor
   (`cifrarSegredosDoSegundoFator`, trava 811015, `UPDATE` condicional). Sem
   `COFRE_CHAVE` o novo é guardado em claro com aviso — trancar o segundo
-  fator seria pior. Selado que não abre é "código incorreto", nunca 500.
-  `npm run senha` prova.
+  fator seria pior (é a única exceção ao "não existe modo sem cifrar" do
+  cofre). Selado que não abre é "código incorreto", nunca 500 — por isso
+  **trocar a `COFRE_CHAVE` tranca fora quem tem segundo fator**, como perde
+  os documentos fiscais: desligue o segundo fator (ou migre) antes.
+  `npm run senha` prova. Cada hash de senha usa 64 MiB e uma das threads do
+  libuv (que também servem o disco): se o login sob rajada pesar no Railway,
+  suba `UV_THREADPOOL_SIZE`.
 - **Cambista e afiliado passam pela mesma régua de senha** (`senhaInvalida`)
   do resto do painel.
 
@@ -2647,8 +2654,14 @@ aí o próximo entra sozinho.
   (HMAC de anúncio + aparelho + hora), e o clique vale de 1 s a 30 min
   depois — id inventado, comprovante de outro aparelho ou clique na hora vão
   para barrados. E **no máximo `CLIQUES_POR_IP` (3) por IP** por anúncio em
-  24 h (`patrocinio_cliques.ip_hash`, que sobe com o `db:push`): o teto erra
-  para o lado do patrocinador.
+  24 h (`patrocinio_cliques.ip_hash`, que sobe com o `db:push` **antes** do
+  código — sem a coluna o `INSERT` do clique falha), contado sob a trava do
+  par anúncio + IP (811405, depois da do aparelho): sem ela, dez cliques do
+  mesmo IP com aparelhos diferentes contavam juntos e cobravam nove. Sem IP,
+  não cobra. O teto erra para o lado do patrocinador. **A leitura da lista
+  leva o aparelho**: `getQueryFn` manda o `x-device-id` como o `apiRequest`
+  (`tests/aparelhoNaLeitura.test.ts`) — sem ele o comprovante saía nulo e
+  nenhum clique de verdade era cobrado.
 - **Números para provar que vale a pena**: `patrocinio_diario` (por
   anúncio, dia de São Paulo e UF de quem olhou) guarda exibições, cliques,
   barrados e gasto — sem `COUNT(*)` no painel. A **venda atribuída** é do

@@ -170,6 +170,10 @@ async function main() {
     const convOrgAna = r.json?.id as string;
     r = await ana.req("POST", `/api/public/mensagens/conversas/${convOrgAna}/mensagens`, { texto: "Pode responder quando puder." });
     checa("quem segue a organização conversa direto, sem pedido", r.status === 201, `HTTP ${r.status} ${r.json?.message ?? ""}`);
+    r = await marina.req("GET", "/api/public/mensagens/resumo?como=organizacao");
+    checa("o painel da organização conta as mensagens não lidas", r.status === 200 && r.json?.naoLidas >= 2, JSON.stringify(r.json));
+    r = await vizinha.req("GET", "/api/public/mensagens/resumo?como=organizacao");
+    checa("e a organização vizinha não conta as dela", r.status === 200 && r.json?.naoLidas === 0, JSON.stringify(r.json));
     r = await marina.req("POST", `/api/public/mensagens/conversas/${convOrgAna}/mensagens`, { texto: "Oi Ana, claro!" });
     checa("a organização responde pelo painel", r.status === 201, `HTTP ${r.status} ${r.json?.message ?? ""}`);
     r = await marina.req("GET", `/api/public/mensagens/conversas/${convOrgAna}`);
@@ -230,6 +234,13 @@ async function main() {
     r = await admin.req("GET", "/api/admin/mensagens/denuncias?status=aberta");
     const item = r.json?.find((d: { protocolo: string }) => d.protocolo === protocolo);
     checa("a fila da plataforma não traz o texto das mensagens", r.status === 200 && Boolean(item) && !JSON.stringify(r.json).includes("Oi Bia, tudo bem"), `HTTP ${r.status}`);
+    r = await admin.req("GET", "/api/admin/caixa-de-entrada");
+    const naCaixa = (r.json as { tipo: string; chave: string; quem: string; oQue: string }[] | undefined)?.find((x) => x.chave === `conversa:${item?.id}`);
+    checa("a conversa denunciada aparece na Caixa de entrada", r.status === 200 && naCaixa?.tipo === "conversa", `HTTP ${r.status}`);
+    checa(
+      "e a Caixa não traz texto da conversa, nome nem telefone",
+      Boolean(naCaixa) && !JSON.stringify(naCaixa).includes("Oi Bia") && !/11974440/.test(JSON.stringify(naCaixa)) && naCaixa!.oQue.includes(protocolo ?? "?"),
+    );
     const lerAntes = Number((await db.execute(sql`select count(*)::int as n from audit_log where action = 'mensagens.denuncia.ler'`)).rows[0].n);
     r = await admin.req("GET", `/api/admin/mensagens/denuncias/${item?.id}`);
     const lerDepois = Number((await db.execute(sql`select count(*)::int as n from audit_log where action = 'mensagens.denuncia.ler'`)).rows[0].n);

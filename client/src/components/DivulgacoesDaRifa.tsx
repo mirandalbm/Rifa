@@ -1,11 +1,14 @@
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
+import { BotaoMensagem } from "@/components/BotaoMensagem";
 
 interface Divulgacao {
   id: string;
   autor: "afiliado" | "apostador";
   quem: string;
   apelido: string | null;
+  /** Código público do afiliado (já está no link dele); apostador não tem. */
+  codigo: string | null;
   legenda: string;
   criadaEm: string;
   link: string;
@@ -51,9 +54,13 @@ export function DivulgacoesDaRifa({ slug }: { slug: string }) {
               ) : null}
               {d.legenda ? <p className="mt-2 whitespace-pre-line break-words">{d.legenda}</p> : null}
               {d.autor === "afiliado" ? (
-                <a href={d.link} className="mt-2 inline-block text-xs font-semibold text-green-deep underline">
-                  Comprar pelo link de {d.quem}
-                </a>
+                <div className="mt-2 flex flex-wrap items-center gap-3">
+                  <a href={d.link} className="inline-block text-xs font-semibold text-green-deep underline">
+                    Comprar pelo link de {d.quem}
+                  </a>
+                  {/* A entrada para conversar com o afiliado: ele não tem perfil, mas tem o código. */}
+                  {d.codigo ? <BotaoMensagem para={d.codigo} compacto /> : null}
+                </div>
               ) : null}
             </li>
           );

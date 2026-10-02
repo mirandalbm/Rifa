@@ -239,6 +239,7 @@ async function main() {
     r = await new Cliente().req("GET", `/api/public/campaigns/${a1.slug}/divulgacoes`);
     const publica = r.json?.[0];
     checa("no ar, aparece na página da rifa com o link do afiliado", r.json?.length === 1 && publica?.link === `/r/${a1.slug}?ref=${codigo}` && publica.midias.length === 1);
+    checa("a peça do afiliado traz o código dele (a entrada para a mensagem)", publica?.codigo === codigo, String(publica?.codigo));
     checa("a página pública não traz telefone, e-mail nem id de afiliado", !/telefone|email|phone|affiliateId|buyerId/i.test(JSON.stringify(r.json)));
 
     // Nada da rifa mudou.
@@ -327,6 +328,7 @@ async function main() {
     checa("a A aprova", r.status === 200 && r.json?.status === "publicada");
     r = await new Cliente().req("GET", `/api/public/campaigns/${a1.slug}/divulgacoes`);
     checa("aparece na rifa com o apelido, sem link de afiliado", r.json?.some((x: any) => x.autor === "apostador" && x.link === `/r/${a1.slug}`));
+    checa("o apostador não expõe código de afiliado", r.json?.filter((x: any) => x.autor === "apostador").every((x: any) => x.codigo === null));
     r = await afiliada.req("DELETE", `/api/affiliate/divulgacoes/${idAp}`);
     checa("a afiliada não retira a peça do apostador (404)", r.status === 404, `HTTP ${r.status}`);
     const [aindaNoAr] = await db.select({ status: divulgacoes.status }).from(divulgacoes).where(eq(divulgacoes.id, idAp));

@@ -15,6 +15,12 @@ describe("caixa de entrada", () => {
     expect(ordem).toEqual(["disputa", "denuncia", "edicao", "reembolso", "fiscal"]);
   });
 
+  it("conversa denunciada entra com disputa e denúncia, na frente do resto", () => {
+    const ordem = ordenarCaixa([l("fiscal", "2026-10-01T10:00:00Z"), l("conversa", "2026-10-01T11:00:00Z"), l("disputa", "2026-10-01T12:00:00Z")]).map((x) => x.tipo);
+    expect(ordem).toEqual(["conversa", "disputa", "fiscal"]);
+    expect(destinoDaPendencia({ tipo: "conversa" })).toBe("/admin/atendimento?aba=denuncias");
+  });
+
   it("não mexe na lista de entrada", () => {
     const entrada = [l("fiscal", "b"), l("disputa", "a")];
     ordenarCaixa(entrada);

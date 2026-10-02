@@ -349,6 +349,15 @@ export function PanelShell({
     refetchInterval: 60_000,
   });
   const novos = naoLidos(avisos ?? []);
+  // As mensagens um para um da organização e do afiliado: o apostador tem o
+  // número no console; aqui o painel ganha o dele (a caixa continua em /mensagens).
+  const comoNasMensagens = session?.role === "organizer" ? "organizacao" : session?.role === "affiliate" ? "afiliado" : null;
+  const { data: resumoMensagens } = useQuery<{ naoLidas: number }>({
+    queryKey: [`/api/public/mensagens/resumo?como=${comoNasMensagens}`],
+    enabled: comoNasMensagens !== null,
+    refetchInterval: 60_000,
+  });
+  const mensagensNovas = comoNasMensagens ? (resumoMensagens?.naoLidas ?? 0) : 0;
   const verAvisos = useMutation({
     mutationFn: () => apiRequest("POST", "/api/admin/avisos/vistos"),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/admin/avisos"] }),
@@ -553,11 +562,11 @@ export function PanelShell({
             }}
           >
             <summary
-              aria-label={rotuloDoSino(novos, pendenciasNoMenu)}
+              aria-label={rotuloDoSino(novos, pendenciasNoMenu, mensagensNovas)}
               className="relative flex cursor-pointer list-none rounded-md p-1.5 text-ink-2 hover:bg-mist-2 [&::-webkit-details-marker]:hidden"
             >
               <Bell size={20} aria-hidden />
-              {novos || pendenciasNoMenu ? (
+              {novos || pendenciasNoMenu || mensagensNovas ? (
                 <span aria-hidden className={`absolute right-1 top-1 h-2 w-2 rounded-full ${pendenciasNoMenu ? "bg-red" : "bg-green"}`} />
               ) : null}
             </summary>
@@ -566,6 +575,11 @@ export function PanelShell({
               {caminhoDoAtendimento && pendenciasNoMenu ? (
                 <Link href={caminhoDoAtendimento} aria-label={`Atendimento: ${pendenciasNoMenu} pendente${pendenciasNoMenu > 1 ? "s" : ""}`} className="block border-b border-line px-3 py-2 hover:bg-mist">
                   <span className="tnum font-medium">{pendenciasNoMenu}</span> pendente{pendenciasNoMenu > 1 ? "s" : ""} no atendimento
+                </Link>
+              ) : null}
+              {mensagensNovas ? (
+                <Link href="/mensagens" aria-label={`Mensagens: ${mensagensNovas} não lida${mensagensNovas > 1 ? "s" : ""}`} className="block border-b border-line px-3 py-2 hover:bg-mist">
+                  <span className="tnum font-medium">{mensagensNovas}</span> {mensagensNovas > 1 ? "mensagens" : "mensagem"} não lida{mensagensNovas > 1 ? "s" : ""}
                 </Link>
               ) : null}
               {avisos && avisos.length === 0 ? <p className="px-3 py-2 text-muted">Nenhum comentário ainda.</p> : null}

@@ -111,7 +111,7 @@ arquitetura.
 | indicação, bônus e metas (etapa 13) | `shared/bonus.ts` (regras), `server/services/bonus.ts`, `resgatarCotasDeBonus()` em `server/services/orders.ts`, `client/src/lib/indicacao.ts`, `client/src/pages/adminBonus.tsx`, `client/src/components/BonusDoComprador.tsx`, `scripts/bonus-test.ts` |
 | Reels (tela cheia, vídeo em pé, interruptor da plataforma) | `shared/reels.ts` (regras, lote), `GET /api/public/reels` em `server/routes/public.ts`, `reelsLigado` em `shared/plataforma.ts`, `client/src/pages/Reels.tsx`, `vertical` em `BarraDeAcoes`, `scripts/publicacao-test.ts`, `tests/reels.test.ts` |
 | Buscar (grade das publicações e busca por texto, interruptor e tabela da plataforma) | `shared/buscar.ts` (regras e tabela), `server/services/buscar.ts`, `GET /api/public/buscar` em `server/routes/public.ts`, `buscarLigado`/`buscarTipos` em `shared/plataforma.ts`, `client/src/pages/Buscar.tsx`, cartão em `client/src/components/TopoDoAppCard.tsx`, `scripts/buscar-test.ts`, `tests/buscar.test.ts` |
-| Mensagens (caixa de um para um: apostador, organização e afiliado) | `shared/mensagens.ts` (regras puras), `server/services/mensagens.ts`, rotas `/mensagens/*` em `server/routes/public.ts` e `/mensagens/denuncias*` em `server/routes/admin.ts`, `mensagensLigado` em `shared/plataforma.ts`, `client/src/pages/Mensagens.tsx`, `ConversasDenunciadas.tsx`, `BotaoMensagem.tsx`, `scripts/mensagens-test.ts`, `tests/mensagens.test.ts` |
+| Mensagens (caixa de um para um: apostador, organização e afiliado) | `shared/mensagens.ts` (regras puras), `server/services/mensagens.ts`, rotas `/mensagens/*` em `server/routes/public.ts` e `/mensagens/denuncias*` em `server/routes/admin.ts`, `mensagensLigado` em `shared/plataforma.ts`, `client/src/pages/Mensagens.tsx`, `ConversasDenunciadas.tsx`, `BotaoMensagem.tsx` (também na peça do afiliado em `DivulgacoesDaRifa.tsx`), o número não lido do painel em `PanelShell` (`client/src/components/AppShell.tsx`, `rotuloDoSino()` em `shared/avisos.ts`), `scripts/mensagens-test.ts`, `tests/mensagens.test.ts` |
 | rifas patrocinadas por clique (etapa 15): pacote, fila, tabela e números | `shared/patrocinio.ts` (regras, preço, previsão da fila), `server/services/patrocinio.ts`, `client/src/pages/adminPatrocinio.tsx`, `client/src/components/Patrocinadas.tsx`, `scripts/patrocinio-test.ts` |
 | banner pago na vitrine (dias de topo, arte aprovada, vagas, devolução dos dias não usados) | `shared/bannerPago.ts` (regras e config), `server/services/bannerPago.ts`, rotas `/banner-pago*` em `server/routes/admin.ts`, `/banners` e `/banners-pagos/:id/imagem` em `server/routes/public.ts`, `bannerPago` em `shared/plataforma.ts`, `client/src/pages/adminBannerPago.tsx`, `client/src/components/BannersVitrine.tsx`, relógio em `server/jobs/index.ts`, `scripts/banner-pago-test.ts`, `tests/bannerPago.test.ts` |
 | marketing e tráfego pago (etapa 16): pixels, aviso de cookies, UTM, compra pelo servidor | `shared/marketing.ts` (regras e corpos das APIs), `server/services/marketing.ts`, `client/src/lib/marketing.ts`, `client/src/components/Marketing.tsx`, `client/src/pages/adminMarketing.tsx`, `scripts/marketing-test.ts` |
@@ -535,8 +535,9 @@ O verde da marca entra no lugar do roxo do kit; o significado das cores
   semana levam a lista de valores no `aria-label`; nada é simulado.
 - **A Caixa de entrada reúne, não decide** (`/admin/caixa`, só a plataforma:
   403 para organizador, no `npm run isolation`). `caixaDeEntrada()` junta as
-  cinco filas (chamados e disputas, pedidos de mudança de rifa, denúncias,
-  verificações, cadastros fiscais) e os telefones por aprovar; a ordem e o
+  filas (chamados e disputas, pedidos de mudança de rifa, denúncias, conversas
+  denunciadas, verificações, cadastros fiscais, banner pago) e os telefones
+  por aprovar; a ordem e o
   destino de cada tipo moram em `shared/caixa.ts` (`tests/caixa.test.ts`).
   **Sem dado pessoal na lista**: organização, código do afiliado ou apelido —
   nunca telefone, CPF ou nome de comprador. Decidir segue na tela de cada
@@ -1656,6 +1657,17 @@ conversa como cartão (o compartilhar da publicação), nunca como link no texto
   o envio (`emSegundoPlano`).
 - **Aviso sem conteúdo**: o apostador recebe push e trevo "Nova mensagem" (no
   máximo um por conversa a cada 30 min, pela chave); o texto nunca vai no push.
+- **O painel conta, não entrega**: o sino da organização e do afiliado mostra
+  "N mensagens não lidas" (a mesma `/mensagens/resumo` do console, pela
+  identidade da sessão do painel) e leva à caixa; o administrador geral não
+  conversa e vê zero. Sem texto no sino.
+- **Entrar em conversa com o afiliado** é pelo botão "Mensagem" da peça dele
+  na página da rifa (o código dele já é público no link); vale o pedido de
+  mensagem de sempre, e o código nunca vem de apostador.
+- **Conversa denunciada na Caixa** (tipo `conversa`): protocolo, motivo e os
+  dois lados só pelo tipo ("apostador e organização") — nunca texto, nome ou
+  telefone; o trecho continua só na tela da denúncia, com a auditoria antes.
+  `npm run mensagens` prova.
 - `npm run mensagens` prova tudo isso contra a API de verdade.
 
 ## Reels — o que não pode afrouxar

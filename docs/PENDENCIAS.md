@@ -472,12 +472,16 @@ Na ordem de entrega do plano:
   Pôster pronto (`ffmpeg` local); sem transcode ainda (Cloudflare Stream).
 - [x] **Mensagens** (caixa de um para um entre apostador, organização e
   afiliado): pronta, atrás do interruptor `mensagensLigado` (Aparência →
-  Topo do app, nasce desligado). Ficou para depois: indicador "online" (só
-  com dado real), grupos, foto e vídeo na conversa, aviso ao painel da
-  organização e do afiliado (o apostador recebe push e trevo), entrada
-  para o afiliado pelo perfil (hoje se acha pelo código) e a fila de
-  conversas denunciadas na Caixa de entrada (hoje soma no contador de
-  denúncias e fica em Atendimento → Denúncias).
+  Topo do app, nasce desligado). **Mensagens v2, parte 1 feita:** o painel
+  da organização e do afiliado conta as não lidas no sino; a peça do
+  afiliado na página da rifa tem o botão "Mensagem" (a entrada para
+  conversar com ele, que não tem perfil); e a conversa denunciada entra na
+  Caixa de entrada da plataforma (tipo "Conversa denunciada", sem texto).
+- [ ] **[código]** Mensagens v2, parte 2 (precisa de decisão de produto
+  antes, por mexer com privacidade e moderação): indicador "online" (só
+  com dado real e com a pessoa podendo desligar), grupos e foto/vídeo na
+  conversa (mídia privada precisa de limite, varredura e denúncia com o
+  trecho).
 - [x] **Buscar** (grade das publicações mais novas e busca por texto):
   pronto, atrás do interruptor `buscarLigado` e da tabela do que aparece
   (`buscarTipos`: rifas, organizações e apostadores; apostador nasce

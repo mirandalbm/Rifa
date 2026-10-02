@@ -579,6 +579,7 @@ export async function divulgacoesDaRifa(slug: string) {
       autor: l.autor,
       quem: l.autor === "afiliado" ? nomeCurto(l.nomeAfiliado) : `@${l.apelido}`,
       apelido: l.autor === "apostador" ? l.apelido : null,
+      codigo: l.autor === "afiliado" ? l.codigo : null,
       legenda: l.legenda,
       criadaEm: l.criadaEm,
       // O link de quem divulga (só afiliado): a compra por ele paga a comissão dele.

@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import { db } from "../db";
 import { ordenarCaixa, type PendenciaDaCaixa } from "@shared/caixa";
+import { MOTIVOS_DA_DENUNCIA_DE_MENSAGEM } from "@shared/mensagens";
 
 /**
  * A caixa de entrada da plataforma: o que espera decisão, de todas as filas,
@@ -9,7 +10,7 @@ import { ordenarCaixa, type PendenciaDaCaixa } from "@shared/caixa";
  * afiliado ou apelido — nunca telefone, CPF ou nome de comprador.
  */
 export async function caixaDeEntrada(): Promise<PendenciaDaCaixa[]> {
-  const [chamados, solicitacoes, denuncias, verificacoes, fiscais, telefones, banners] = await Promise.all([
+  const [chamados, solicitacoes, denuncias, verificacoes, fiscais, telefones, banners, conversas] = await Promise.all([
     db.execute(sql`
       SELECT ch.id, ch.disputa, ch.created_at AS desde, o.name AS org, ch.protocolo, ord.code AS pedido
         FROM chamados ch
@@ -58,6 +59,14 @@ export async function caixaDeEntrada(): Promise<PendenciaDaCaixa[]> {
         JOIN campaigns c ON c.id = b.campaign_id
        WHERE b.status = 'em_analise'
        ORDER BY b.created_at LIMIT 200`),
+    // Só o que identifica o caso: nunca o texto da conversa (a plataforma lê o trecho
+    // na tela da denúncia, com a auditoria gravada antes) e nenhum nome de pessoa.
+    db.execute(sql`
+      SELECT d.id, d.created_at AS desde, d.protocolo, d.motivo, d.lado, c.a_tipo, c.b_tipo
+        FROM mensagem_denuncias d
+        JOIN conversas c ON c.id = d.conversa_id
+       WHERE d.status = 'aberta'
+       ORDER BY d.created_at LIMIT 200`),
   ]);
 
   const iso = (d: unknown) => new Date(d as string | Date).toISOString();
@@ -100,6 +109,17 @@ export async function caixaDeEntrada(): Promise<PendenciaDaCaixa[]> {
   }
   for (const r of banners.rows as any[]) {
     linhas.push({ chave: `banner:${r.id}`, tipo: "banner", quem: r.org, oQue: `Arte de banner pago esperando aprovação — rifa ${r.rifa}, ${r.dias} dia(s)`, desde: iso(r.desde) });
+  }
+  const PARTE: Record<string, string> = { comprador: "apostador", organizacao: "organização", afiliado: "afiliado" };
+  for (const r of conversas.rows as any[]) {
+    const motivo = MOTIVOS_DA_DENUNCIA_DE_MENSAGEM[r.motivo as keyof typeof MOTIVOS_DA_DENUNCIA_DE_MENSAGEM] ?? r.motivo;
+    linhas.push({
+      chave: `conversa:${r.id}`,
+      tipo: "conversa",
+      quem: `${PARTE[r.a_tipo] ?? "—"} e ${PARTE[r.b_tipo] ?? "—"}`,
+      oQue: `${r.lado === "automatica" ? "Varredura automática" : "Denúncia"} em conversa — ${motivo} (${r.protocolo})`,
+      desde: iso(r.desde),
+    });
   }
   return ordenarCaixa(linhas);
 }

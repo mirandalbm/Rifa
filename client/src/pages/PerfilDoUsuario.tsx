@@ -103,7 +103,7 @@ export default function PerfilDoUsuario() {
         ) : null}
         {sessao?.buyer ? (
           <>
-            <Item href="/minhas-compras" icone={Ticket} rotulo="Meus bilhetes" detalhe="As rifas em que você está jogando" />
+            <Item href="/minhas-compras" icone={Ticket} rotulo="Minhas compras" detalhe="As rifas em que você está jogando" />
             {conta ? (
               <>
                 <Item href="/perfil/bilhetes" icone={Lock} rotulo="Meus bilhetes privados" detalhe="Cada compra como publicação, só para você" />

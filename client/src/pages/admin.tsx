@@ -1224,7 +1224,10 @@ export function AdminAfiliados() {
  */
 function TermoAfiliadoCard() {
   const qc = useQueryClient();
-  const { data } = useQuery<{ termo: { versao: number; comissaoPct: number; textoExtra: string; texto: string; createdAt: string } | null }>({
+  const { data } = useQuery<{
+    termo: { versao: number; comissaoPct: number; textoExtra: string; texto: string; createdAt: string } | null;
+    desatualizado?: boolean;
+  }>({
     queryKey: ["/api/admin/termo-afiliado"],
   });
   const atual = data?.termo ?? null;
@@ -1245,7 +1248,8 @@ function TermoAfiliadoCard() {
     },
     onError: (e: Error) => setMsg({ ok: false, texto: e.message }),
   });
-  const mudou = !atual || valorPct !== atual.comissaoPct || valorExtra.trim() !== atual.textoExtra;
+  const desatualizado = Boolean(data?.desatualizado);
+  const mudou = !atual || desatualizado || valorPct !== atual.comissaoPct || valorExtra.trim() !== atual.textoExtra;
 
   return (
     <Card
@@ -1262,8 +1266,8 @@ function TermoAfiliadoCard() {
     >
       <div className="space-y-3 p-4 text-sm">
         <p className="text-muted">
-          O afiliado lê e aceita antes de divulgar suas rifas. Quem paga, quando, estorno e autoindicação o sistema
-          escreve; aqui entram o percentual e as regras da organização.
+          O afiliado lê e aceita antes de divulgar suas rifas. Quem paga, quando, estorno, autoindicação, regras de
+          divulgação, dados pessoais e tributos o sistema escreve; aqui entram o percentual e as regras da organização.
         </p>
         <label className="flex items-center gap-2">
           <span className="label-xs">Comissão</span>
@@ -1301,6 +1305,12 @@ function TermoAfiliadoCard() {
         ) : null}
         {ver && atual ? (
           <pre className="max-h-64 overflow-y-auto whitespace-pre-wrap rounded bg-mist p-3 font-sans text-xs text-ink-2">{atual.texto}</pre>
+        ) : null}
+        {desatualizado ? (
+          <p role="note" className="rounded-md bg-yellow-soft px-3 py-2 text-xs text-yellow-deep">
+            O texto do termo mudou (cláusulas da plataforma ou dados da organização). A versão em vigor segue valendo
+            para quem já aceitou; publique a versão seguinte para as próximas rifas usarem o texto novo.
+          </p>
         ) : null}
         {msg ? (
           <p className={`rounded-md px-3 py-2 ${msg.ok ? "bg-green-soft text-green-deep" : "bg-red-soft text-red"}`}>{msg.texto}</p>

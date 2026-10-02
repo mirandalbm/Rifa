@@ -132,7 +132,7 @@ import {
   decidirVinculo,
   pedidosDeColaborador,
   publicarTermo,
-  termoAtual,
+  termoAtual, termoDoPainel,
   vinculosDaOrganizacao,
 } from "../services/afiliados";
 import { salvarFotoDoGanhador } from "../services/ganhador";
@@ -3635,7 +3635,7 @@ adminRouter.get("/termo-afiliado", async (req, res, next) => {
   try {
     const org = organizacaoDoPedido(req);
     if (!org) return res.status(400).json({ message: "Escolha a organização." });
-    res.json({ termo: await termoAtual(org) });
+    res.json(await termoDoPainel(org));
   } catch (err) {
     next(err);
   }

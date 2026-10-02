@@ -2301,6 +2301,17 @@ organização) ganha o selo **"AO VIVO"** quando há transmissão de sorteio no 
   padrão da rifa).
 - **O aceite é prova**: guarda a cópia do texto, a versão, IP e aparelho em
   hash. Aceitar olhando uma versão que já mudou é 409 — lê de novo.
+- **O texto-base é da plataforma** (`montarTermo()`, cláusulas numeradas):
+  parceria autônoma sem vínculo de emprego nem exclusividade, 18+, quem paga
+  (inclusive a comissão guardada pela plataforma), quanto, quando, venda paga,
+  autoindicação, **como divulgar** (identificar como publicidade; sem prometer
+  ganho, sem omitir preço, data e autorização, sem menores, sem spam, sem Pix
+  por fora), descumprimento, **dados pessoais** (só o primeiro nome, nada fora
+  da plataforma), tributos e recibo, versões e saída. A organização só soma as
+  regras dela. Mudar o texto-base **não reescreve** versão publicada (o aceite
+  é prova daquele texto): `termoDoPainel()` compara o texto em vigor com o de
+  hoje e o painel avisa (`desatualizado`), para a organização publicar a
+  versão seguinte. `npm run afiliados` prova.
 - **Cupom é da organização** (`coupons.organization_id`): não vale na rifa
   de outra, e só a dona apaga. Conferir pelo afiliado deixaria uma
   organização mexer no cupom da outra, porque o afiliado é das duas.

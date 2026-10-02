@@ -23,7 +23,7 @@ import {
   publicacaoSalvos,
 } from "@shared/schema";
 import { limparLegenda, problemaNaLegenda, type Acao } from "@shared/publicacao";
-import { identify } from "./antifraude";
+import { hit, identify } from "./antifraude";
 import { emSegundoPlano } from "./push";
 import { varrerTextoDoOrganizador } from "./seguranca";
 
@@ -99,6 +99,8 @@ export async function marcar(req: Request, slug: string, acao: Acao, ligar: bool
 /** Compartilhou: conta uma vez por pessoa (ou aparelho), e devolve o contador. */
 export async function compartilhar(req: Request, slug: string) {
   const rifa = await publicacao(slug);
+  // O aparelho vem do cabeçalho (falsificável): quem segura é o limite por IP.
+  if ((await hit(`compartilhar:${identify(req).ipHash ?? "sem-origem"}`, 10, 30)).excedeu) return { ...(await contadores(rifa.id)) };
   const quem = req.session.buyer?.id ? `comprador:${req.session.buyer.id}` : identify(req).deviceHash ?? identify(req).ipHash;
   if (quem) {
     await db.transaction(async (tx) => {

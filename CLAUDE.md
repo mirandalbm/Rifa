@@ -792,6 +792,13 @@ prova com uma cópia de mentira. Foto do perfil, capa, banner, story, logo,
 foto do ganhador e documentos ficam no **Postgres** — o backup deles é o
 do banco.
 
+**O envio ao disco leva o teto na assinatura.** A URL assinada do passo 1
+(`LocalDiskStorage.sign(key, exp, maxBytes)`) inclui os bytes declarados, e
+`/media/raw` confere a assinatura **antes** de ler o corpo e só aceita aquele
+tamanho: sem isso, dois envios de 2 GB em paralelo estouravam a memória.
+`/uploads` só restaura da cópia chave no formato que geramos
+(`chaveRestauravel()`), senão cada nome pedido virava uma chamada ao S3.
+
 A **chave do arquivo** também volta do navegador na confirmação do envio, e
 só vale a que o passo 1 gerou para aquela rifa e aquele papel
 (`chaveDaCampanha()` em `storage.ts`), conferida antes de tudo — a recusa da

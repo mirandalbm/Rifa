@@ -83,7 +83,7 @@ async function limpar() {
     await db.execute(sql`delete from orders where buyer_id = ${id}`);
     await db.execute(sql`delete from buyers where id = ${id}`);
   }
-  await db.execute(sql`delete from rate_events where bucket like 'google:%' or bucket like 'otp%' or bucket like 'order:%' or bucket like 'login:%'`);
+  await db.execute(sql`delete from rate_events where bucket like 'google:%' or bucket like 'otp%' or bucket like 'order:%' or bucket like 'login:%' or bucket like 'conta-cpf%'`);
   if (rifaId) await db.execute(sql`delete from campaigns where id = ${rifaId}`);
 }
 
@@ -178,6 +178,10 @@ async function main() {
     checa("CPF livre: salvo", r.status === 200);
     r = await a.req("POST", "/api/public/conta/cpf", { cpf: CPF_A });
     checa("CPF já informado não se troca (409)", r.status === 409);
+    // Palpite de CPF tem limite por conta: o "já existe" revelaria quem é apostador.
+    const codigos: number[] = [];
+    for (let i = 0; i < 4; i++) codigos.push((await a.req("POST", "/api/public/conta/cpf", { cpf: CPF_OUTRO })).status);
+    checa("palpite de CPF tem limite por conta (429 depois de 5)", codigos.includes(429), codigos.join());
     const semSessao = await new Cliente().req("POST", "/api/public/conta/cpf", { cpf: CPF_A });
     checa("sem conta: 401", semSessao.status === 401);
 

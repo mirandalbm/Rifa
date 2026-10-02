@@ -456,6 +456,8 @@ publicRouter.get("/reels", async (req, res, next) => {
   try {
     const config = await getPlataforma();
     if (!config.reelsLigado) return res.json({ ligado: false, itens: [], proximo: null });
+    // A rota lê todas as rifas e as mídias delas: sem limite, poucos clientes em laço saturam o banco.
+    if ((await hit(`reels:${identify(req).ipHash ?? "sem-origem"}`, 1, 60)).excedeu) return res.status(429).json({ message: "Muitos pedidos seguidos. Espere um pouco." });
     const aba = abaDoReels(req.query.aba);
     const buyerId = req.session.buyer?.id;
     if (aba === "seguindo" && !buyerId) return res.json({ ligado: true, precisaEntrar: true, itens: [], proximo: null });

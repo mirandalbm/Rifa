@@ -128,6 +128,8 @@ export async function requestUpload(params: {
   return storage().presignUpload({
     key: mediaKey(params.campaignId, params.role, params.mime),
     contentType: params.mime,
+    // O que o passo 1 prometeu (já conferido contra o teto da regra) é o teto do corpo do envio.
+    maxBytes: params.bytes,
   });
 }
 

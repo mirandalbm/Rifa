@@ -5,7 +5,7 @@
  * uma URL assinada e envia direto para o R2. Em desenvolvimento o disco
  * local faz o mesmo papel, para o fluxo rodar sem nuvem nenhuma.
  */
-import { createHmac, randomUUID } from "node:crypto";
+import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { S3Client, GetObjectCommand, PutObjectCommand, DeleteObjectCommand, HeadObjectCommand } from "@aws-sdk/client-s3";
@@ -24,7 +24,7 @@ export interface UploadTicket {
 
 export interface Storage {
   readonly name: string;
-  presignUpload(params: { key: string; contentType: string }): Promise<UploadTicket>;
+  presignUpload(params: { key: string; contentType: string; maxBytes: number }): Promise<UploadTicket>;
   size(key: string): Promise<number>;
   reader(key: string): RangeReader;
   readAll(key: string): Promise<Buffer>;
@@ -63,6 +63,15 @@ export function mediaKey(campaignId: string, role: string, mime: string): string
  * aparecem nos endereços públicos das imagens) — e a recusa da mídia apaga
  * o objeto da chave. Era apagar o banner do vizinho.
  */
+/**
+ * Só chave no formato que nós geramos (`campanhas/<rifa>/<papel>-<uuid>[.ext]`)
+ * volta da cópia pela rota pública `/uploads`: o resto é 404 direto, sem
+ * perguntar ao bucket (um robô pedindo mil nomes viraria mil chamadas ao S3).
+ */
+export function chaveRestauravel(key: string): boolean {
+  return /^campanhas\/[0-9a-f-]{36}\/[a-z]+-[0-9a-f-]{36}(\.[a-z0-9]{2,5})?$/.test(key);
+}
+
 export function chaveDaCampanha(key: string, campaignId: string, role: string): boolean {
   const exts = Object.values(EXT_BY_MIME).map((e) => e.slice(1)).join("|");
   const re = new RegExp(`^campanhas/([0-9a-f-]{36})/([a-z]+)-[0-9a-f-]{36}(\\.(${exts}))?$`);
@@ -241,20 +250,23 @@ export class LocalDiskStorage implements Storage {
   }
 
   /** Assinatura própria, para a rota de recepção aceitar só o que prometemos. */
-  sign(key: string, expiresAt: number): string {
-    return createHmac("sha256", this.secret).update(`${key}:${expiresAt}`).digest("hex");
+  sign(key: string, expiresAt: number, maxBytes: number): string {
+    return createHmac("sha256", this.secret).update(`${key}:${expiresAt}:${maxBytes}`).digest("hex");
   }
 
-  verify(key: string, expiresAt: number, signature: string): boolean {
-    if (Date.now() > expiresAt) return false;
-    return this.sign(key, expiresAt) === signature;
+  /** O teto de bytes entra na assinatura: o corpo do envio nunca passa do que o passo 1 prometeu. */
+  verify(key: string, expiresAt: number, maxBytes: number, signature: string): boolean {
+    if (Date.now() > expiresAt || !Number.isInteger(maxBytes) || maxBytes <= 0) return false;
+    const esperada = Buffer.from(this.sign(key, expiresAt, maxBytes));
+    const recebida = Buffer.from(String(signature));
+    return esperada.length === recebida.length && timingSafeEqual(esperada, recebida);
   }
 
-  async presignUpload({ key, contentType }: { key: string; contentType: string }) {
+  async presignUpload({ key, contentType, maxBytes }: { key: string; contentType: string; maxBytes: number }) {
     const expiresAt = Date.now() + 15 * 60_000;
-    const sig = this.sign(key, expiresAt);
+    const sig = this.sign(key, expiresAt, maxBytes);
     return {
-      url: `/api/admin/media/raw?key=${encodeURIComponent(key)}&exp=${expiresAt}&sig=${sig}`,
+      url: `/api/admin/media/raw?key=${encodeURIComponent(key)}&exp=${expiresAt}&max=${maxBytes}&sig=${sig}`,
       method: "PUT" as const,
       headers: { "Content-Type": contentType },
       storageKey: key,
@@ -333,7 +345,7 @@ export class R2Storage implements Storage {
     });
   }
 
-  async presignUpload({ key, contentType }: { key: string; contentType: string }) {
+  async presignUpload({ key, contentType }: { key: string; contentType: string; maxBytes: number }) {
     const url = await getSignedUrl(
       this.client,
       new PutObjectCommand({ Bucket: this.bucket, Key: key, ContentType: contentType }),

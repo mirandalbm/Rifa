@@ -8,7 +8,7 @@ elas.
 Este repositório é **público**. Falha encontrada é corrigida antes de ser
 descrita aqui; o detalhe de como explorar não entra no repositório.
 
-Última revisão completa: 28/09/2026 (abaixo).
+Última revisão: 02/10/2026, da superfície criada depois da de 28/09 (abaixo); a última completa foi a de 28/09/2026.
 
 ## Quem ataca o quê
 
@@ -30,7 +30,7 @@ descrita aqui; o detalhe de como explorar não entra no repositório.
 | Troca e redefinição de senha derrubam as outras sessões (painel e apostador) | `encerrarSessoesDoUsuario`, `encerrarOutrasSessoes` | — |
 | Segundo fator do painel (TOTP); obrigatório para arquivar organização | `server/services/totp.ts`, `server/routes/admin.ts` | `tests/totp.test.ts` |
 | Recorte por organização | `orgOf`, `assertCampaignInScope`, `assertAffiliateInScope`, `assertUserInScope` | `npm run isolation` |
-| Arquivo: tipo conferido pelo conteúdo, reprocessado (sharp, teto de 40 MP), nunca servido como veio; chave de mídia gerada pelo servidor e conferida na volta | `server/services/media.ts`, `storage.ts`, `probe.ts` | `tests/midia.test.ts`, `npm run isolation` |
+| Arquivo: tipo conferido pelo conteúdo, reprocessado (sharp, teto de 40 MP), nunca servido como veio; chave de mídia gerada pelo servidor e conferida na volta; envio ao disco com assinatura que leva o **teto de bytes** (conferida antes de ler o corpo) e `/uploads` só restaura chave no formato que geramos | `server/services/media.ts`, `storage.ts`, `probe.ts` | `tests/midia.test.ts`, `npm run isolation` |
 | Pagamento: webhook assinado (tempo constante), status pela API, idempotente | `server/routes/webhooks.ts`, `server/payments/` | `tests/mercadopago.test.ts`, `tests/asaas.test.ts` |
 | Antifraude: limites antes do primeiro `INSERT` e a reserva em aberto de novo na transação | `server/services/antifraude.ts`, `orders.ts` | `npm run load` |
 | Endereço vindo de usuário: só `https:`, nunca vira redirecionamento aberto | `shared/perfil.ts`, `shared/vitrine.ts`, `server/services/links.ts` | `npm run perfil` |
@@ -59,6 +59,9 @@ descrita aqui; o detalhe de como explorar não entra no repositório.
 - [ ] **Endereço vindo do usuário:** só `https:`, sem usuário e senha na URL.
 - [ ] **Dinheiro:** ação que muda valor ou para onde o dinheiro vai pede
   senha (e segundo fator no painel, quando couber) e grava auditoria.
+- [ ] **Rota pública pesada** (lê várias rifas ou grava por requisição) tem
+  limite por **IP** (`hit` com `ipHash`): o `x-device-id` vem do cliente e muda
+  a cada pedido, então sozinho não limita nada.
 - [ ] **Dado pessoal** não sai em rota pública (primeiro nome; telefone e CPF
   mascarados) e não vai inteiro para o log.
 
@@ -75,6 +78,39 @@ npm run telas                      # telas: nome dos controles, estouro, erros
 O CI roda as 25 provas contra a API a cada PR (`.github/workflows/ci.yml`).
 
 ## Revisões
+
+### 02/10/2026
+
+Escopo: o que nasceu depois da revisão de 28/09 — mensagens (foto, presença e
+grupos), divulgação de terceiros, bilhetes privados, login com Google, banner
+pago, Buscar, Reels, pôster do vídeo (execução do `ffmpeg`) e `/uploads` com a
+cópia no S3. Revisão por leitura do código, mais as provas da API e o
+`npm audit` (nenhuma vulnerabilidade conhecida).
+
+**Corrigido nesta revisão:**
+
+| Gravidade | O quê | Onde (e prova) |
+|---|---|---|
+| Média | O envio de mídia ao disco aceitava corpo de até 2 GB sem teto ligado à assinatura: dois envios em paralelo estouravam a memória do processo | `admin.ts` (`/media/raw`), `storage.ts` (`sign`/`verify` com o teto), `media.ts` (`tests/envioDeMidia.test.ts`) |
+| Média | Completar o CPF da conta do Google não tinha limite: o "já existe" revelava quem é apostador e o dígito verificador era a única prova | `contaCompleta.ts` (`npm run google`) |
+| Baixa | Os limites do Buscar e de "compartilhar" usavam o identificador do aparelho (cabeçalho do cliente): um valor novo por pedido os contornava; agora é por IP | `buscar.ts`, `publicacao.ts` |
+| Baixa | `/uploads` perguntava ao bucket de cópia por qualquer nome, sem limite | `index.ts`, `storage.ts` (`chaveRestauravel`, `tests/envioDeMidia.test.ts`) |
+| Baixa | `/reels` lia todas as rifas e mídias a cada pedido, sem limite | `public.ts` (`npm run publicacao`) |
+| Baixa | O afiliado aparecia com o nome civil completo na conversa (o código dele é público) | `mensagens.ts` (`nomeCurto`) |
+| Baixa | A decisão de denúncia de conversa gravava na auditoria o texto da ação vindo solto do corpo | `admin.ts` |
+
+**Conferido e sem achados:** recorte e 404 em mensagens, grupos, fotos e
+banner pago; `UPDATE` condicional nas decisões; compra paga conferida dentro
+da transação; Google (state, nonce, PKCE, assinatura, volta só para o próprio
+site); bilhetes privados; Buscar (curinga escapado, parâmetro, sem `OFFSET`);
+o `ffmpeg` (sem shell, protocolos limitados, prazo, saída com teto) e nenhum
+`sql.raw` com entrada de usuário.
+
+**Sem correção nesta revisão** (as de 28/09 seguem valendo):
+
+- Sem limite de `ffmpeg` simultâneos: a entrada tem teto (10 mídias por rifa,
+  5 stories por organização), então fica anotado, não corrigido.
+- O identificador do aparelho continua vindo do cliente; o que segura é o IP.
 
 ### 28/09/2026
 

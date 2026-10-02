@@ -12,7 +12,7 @@ import { registerRoutes } from "./routes";
 import { webhookRouter } from "./routes/webhooks";
 import { setupAuth } from "./auth";
 import { startJobs } from "./jobs";
-import { LocalDiskStorage, storage } from "./services/storage";
+import { LocalDiskStorage, chaveRestauravel, storage } from "./services/storage";
 import { manifestDaPlataforma } from "./services/template";
 import { setupVite, serveStatic, log } from "./vite";
 
@@ -73,7 +73,7 @@ app.use("/uploads", async (req, res, next) => {
     const store = storage();
     if (!(store instanceof LocalDiskStorage) || !store.temCopia || req.method !== "GET") return next();
     const key = decodeURIComponent(req.path.replace(/^\/+/, ""));
-    if (!key || key.includes("..") || !(await store.restaurar(key))) return next();
+    if (!key || key.includes("..") || !chaveRestauravel(key) || !(await store.restaurar(key))) return next();
     res.setHeader("Cache-Control", "public, max-age=3600");
     res.sendFile(store.caminho(key));
   } catch (err) {

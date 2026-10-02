@@ -313,7 +313,7 @@ function AcoesParaOChatbase() {
   return (
     <details className="rounded-lg border border-line p-3">
       <summary className="cursor-pointer text-sm font-semibold">
-        Ações do assistente ({ACOES_DA_IA.length}): cadastre no Chatbase
+        Ações do assistente (<span className="tnum">{ACOES_DA_IA.length}</span>): cadastre no Chatbase
       </summary>
       <p className="mt-2 text-xs text-muted">
         No Chatbase, em Actions, crie cada uma como ação do tipo "Client", com o

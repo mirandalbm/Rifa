@@ -89,6 +89,12 @@ describe("central de ajuda", () => {
     expect(texto(base)).not.toMatch(/cotas de bônus/);
     expect(texto({ ...base, rifa: { ...base.rifa, aceitaCotaBonus: true } })).toMatch(/cotas de bônus/);
   });
+
+  it("a cláusula do bônus diz a quantidade autorizada", () => {
+    const t = texto({ ...base, rifa: { ...base.rifa, aceitaCotaBonus: true, bonusMaxCotas: 120 } });
+    expect(t).toMatch(/até 120 cotas de bônus/);
+    expect(t).toMatch(/não contam para o mínimo de cotas vendidas/);
+  });
 });
 
 describe("regra da aproximação", () => {

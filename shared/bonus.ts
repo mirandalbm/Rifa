@@ -124,7 +124,44 @@ export function bloqueioDoResgate(p: {
   return null;
 }
 
-/** A cláusula do regulamento, quando a rifa aceita cotas de bônus. */
-export function clausulaDoBonus(): string {
-  return "Esta rifa aceita cotas de bônus do programa de indicação da plataforma: o participante que as resgata recebe cotas sem pagar, sorteadas entre os números livres, que concorrem em igualdade com as cotas pagas. As cotas de bônus não têm reembolso nem valor em dinheiro.";
+/**
+ * O que está errado na quantidade de cotas de bônus da rifa, ou `null`.
+ * Aceitar cota grátis exige dizer quantas (é o que a autorização aprova);
+ * não aceitar exige zero.
+ */
+export function problemaNoBonusMax(aceita: boolean, max: unknown, totalCotas: number): string | null {
+  if (!aceita) return max === 0 || max === undefined || max === null ? null : "Sem cota de bônus, a quantidade é 0.";
+  if (typeof max !== "number" || !Number.isInteger(max) || max < 1) {
+    return "Diga quantas cotas de bônus a autorização prevê (pelo menos 1).";
+  }
+  if (max > totalCotas) return `As cotas de bônus não passam do total da rifa (${totalCotas}).`;
+  return null;
+}
+
+/**
+ * A cláusula do regulamento, quando a rifa aceita cotas de bônus. Diz a
+ * quantidade autorizada, como se ganha, que concorre igual, que não vira
+ * dinheiro nem reembolso e que não conta para o mínimo de cotas vendidas.
+ */
+export function clausulaDoBonus(maxCotas: number): string {
+  const n = Math.max(0, Math.floor(maxCotas));
+  return (
+    `Esta rifa distribui até ${n} cota${n === 1 ? "" : "s"} de bônus, sem custo, pelo programa de indicação e metas da plataforma ` +
+    "(indicar quem faça a primeira compra paga, comprar em rifas diferentes, trazer visitas pelo link e seguir organizações). " +
+    "Quem resgata recebe números sorteados entre os livres, que concorrem em igualdade com as cotas pagas, inclusive às cotas premiadas. " +
+    "O resgate fecha 2 horas antes do sorteio e acaba quando a quantidade autorizada se esgota. " +
+    "As cotas de bônus não têm reembolso nem valor em dinheiro, não podem ser transferidas e não contam para o mínimo de cotas vendidas para o sorteio " +
+    "(na rifa sorteada só quando cheia, contam para completá-la, porque o número já tem dono)."
+  );
+}
+
+/**
+ * Cotas que contam para o mínimo do sorteio. No mínimo em percentual, só as
+ * pagas (as de bônus ficam de fora: cota grátis não pode inflar a venda). Na
+ * rifa cheia (`cheia_com_data`), todas as distribuídas: o número de bônus já
+ * tem dono, e sem ele a rifa cheia com bônus nunca sortearia.
+ */
+export function vendidasParaOMinimo(soldCount: number, bonusCount: number, modoSorteio?: string | null): number {
+  if (modoSorteio === "cheia_com_data") return Math.max(0, soldCount);
+  return Math.max(0, soldCount - Math.max(0, bonusCount));
 }

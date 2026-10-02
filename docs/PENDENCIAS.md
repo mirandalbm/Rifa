@@ -519,7 +519,9 @@ Na ordem de entrega do plano:
   (`regraDoReembolso()` e `avisoDePrazoCurto()` em `shared/reembolso.ts`) —
   se o aviso ao lado do Pix basta ou se pede uma caixa de "li e concordo";
   se a taxa depois dos 7 dias (até 10%) pode existir — e a cota grátis de
-  bônus no regulamento.
+  bônus no regulamento (a cláusula, `clausulaDoBonus()`, já diz a quantidade
+  autorizada e que a cota grátis não conta para o mínimo de vendidas; falta
+  ele confirmar que o plano de operação da SPA/MF prevê a distribuição).
 - [ ] **[lançamento]** Validação contábil: guarda da comissão pela plataforma
   e RPA/nota dos afiliados.
 - [ ] **[você]** Cliente OAuth do Google (console.cloud.google.com → APIs e

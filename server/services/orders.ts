@@ -1683,6 +1683,20 @@ export async function resgatarCotasDeBonus(buyerId: string, campaignId: string, 
 
   const resgatar = (code: number) =>
     db.transaction(async (tx) => {
+      // O teto da autorização decide no próprio UPDATE: dois resgates na
+      // última cota grátis, um passa e o outro recebe 409 (nunca um SELECT antes).
+      const dentroDoTeto = (
+        await tx.execute(sql`
+          UPDATE campaign_stats s SET bonus_count = s.bonus_count + ${quantidade}
+            FROM campaigns c
+           WHERE s.campaign_id = ${campaign.id}::uuid AND c.id = s.campaign_id
+             AND s.bonus_count + ${quantidade} <= c.bonus_max_cotas
+          RETURNING s.bonus_count
+        `)
+      ).rows;
+      if (!dentroDoTeto.length) {
+        throw new OrderError("As cotas de bônus desta rifa acabaram (ou restam menos do que você pediu).", 409);
+      }
       const [debitado] = await tx
         .update(buyers)
         .set({ bonusSaldo: sql`${buyers.bonusSaldo} - ${quantidade}` })

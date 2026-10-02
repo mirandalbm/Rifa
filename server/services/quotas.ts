@@ -12,7 +12,7 @@
 import { randomInt } from "node:crypto";
 import { sql, and, eq, lt, inArray } from "drizzle-orm";
 import { db } from "../db";
-import { quotaAlloc, campaignStats, freePool, orders } from "@shared/schema";
+import { quotaAlloc, campaignStats, freePool, orders, buyers, bonusLancamentos } from "@shared/schema";
 
 /** Acima disto a amostragem aleatória colide demais e o pool assume. */
 export const ENDGAME_THRESHOLD = 0.85;
@@ -407,7 +407,43 @@ export async function releaseExpired(now = new Date()): Promise<Expiradas> {
       .update(orders)
       .set({ status: "expired" })
       .where(and(inArray(orders.id, orderIds), eq(orders.status, "pending")))
-      .returning({ provider: orders.pspProvider, chargeId: orders.pspChargeId });
+      .returning({
+        id: orders.id,
+        provider: orders.pspProvider,
+        chargeId: orders.pspChargeId,
+        method: orders.method,
+        buyerId: orders.buyerId,
+        campaignId: orders.campaignId,
+        quantity: orders.quantity,
+      });
+
+    // Resgate de bônus que venceu sem confirmar (o sorteio veio no meio): a
+    // cota grátis volta para o teto da rifa e o saldo para a pessoa, uma vez
+    // só (chave do lançamento). Senão o bônus sumiria dos dois lados.
+    for (const v of vencidos) {
+      if (v.method !== "bonus") continue;
+      const [devolvido] = await tx
+        .insert(bonusLancamentos)
+        .values({
+          buyerId: v.buyerId,
+          quantidade: v.quantity,
+          motivo: "resgate_vencido",
+          chave: `resgate-vencido:${v.id}`,
+          descricao: "Resgate não confirmado: as cotas de bônus voltaram ao saldo",
+          orderId: v.id,
+        })
+        .onConflictDoNothing()
+        .returning({ id: bonusLancamentos.id });
+      if (!devolvido) continue;
+      await tx
+        .update(buyers)
+        .set({ bonusSaldo: sql`${buyers.bonusSaldo} + ${v.quantity}` })
+        .where(eq(buyers.id, v.buyerId));
+      await tx
+        .update(campaignStats)
+        .set({ bonusCount: sql`greatest(0, ${campaignStats.bonusCount} - ${v.quantity})` })
+        .where(eq(campaignStats.campaignId, v.campaignId));
+    }
 
     // O carrinho num Pix só tem uma cobrança para vários pedidos: cancela uma vez.
     const cobrancas = new Map<string, { provider: string; chargeId: string }>();

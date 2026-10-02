@@ -32,6 +32,7 @@ import {
   type ModoDoSorteio,
   tipoDoCertificado,
 } from "@shared/campanhaLegal";
+import { problemaNoBonusMax } from "@shared/bonus";
 
 export class CampaignRuleError extends Error {
   constructor(message: string) {
@@ -55,8 +56,9 @@ const LOCKED_AFTER_PUBLISH = [
   "minimoVendidoPct",
   "authorizationFileKey",
   "drawAt",
-  // Cota de bônus é cláusula do regulamento aprovado.
+  // Cota de bônus é cláusula do regulamento aprovado, com a quantidade.
   "aceitaCotaBonus",
+  "bonusMaxCotas",
 ] as const;
 
 export function assertEditable(
@@ -131,6 +133,11 @@ export async function publishBlockers(campaignId: string): Promise<string[]> {
     blockers.push(
       "Informe o certificado de autorização da SPA/MF: a autorização é da campanha, não da plataforma.",
     );
+  }
+  // Rifa marcada para cota de bônus antes desta regra não tem a quantidade:
+  // o regulamento sairia sem o número que a autorização aprova.
+  if (campaign.aceitaCotaBonus && campaign.bonusMaxCotas < 1) {
+    blockers.push("Diga quantas cotas de bônus a autorização prevê (Autorização e sorteio).");
   }
   if (campaign.authorizationCode && !campaign.authorizationFileKey) {
     blockers.push("Anexe o arquivo do certificado de autorização (PDF ou imagem).");
@@ -310,6 +317,8 @@ export async function salvarDadosLegais(
     regulamentoExtra?: unknown;
     /** Cota de bônus prevista no regulamento (etapa 13). Trava ao publicar. */
     aceitaCotaBonus?: boolean;
+    /** Quantas cotas de bônus a autorização prevê. Trava ao publicar. */
+    bonusMaxCotas?: unknown;
     /** Mínimo de cotas vendidas (%) para sortear. Trava ao publicar. */
     minimoVendidoPct?: unknown;
     /** Como a rifa chega ao sorteio (`MODOS_DO_SORTEIO`). Trava ao publicar. */
@@ -331,6 +340,17 @@ export async function salvarDadosLegais(
 
   if (entrada.minimoVendidoPct !== undefined) {
     const p = problemaNoMinimoVendido(entrada.minimoVendidoPct);
+    if (p) throw new CampaignRuleError(p);
+  }
+  // Aceitar cota de bônus exige a quantidade da autorização; desligar zera.
+  const aceitaBonus = entrada.aceitaCotaBonus ?? campaign.aceitaCotaBonus;
+  const bonusMax = !aceitaBonus
+    ? 0
+    : entrada.bonusMaxCotas !== undefined
+      ? entrada.bonusMaxCotas
+      : campaign.bonusMaxCotas;
+  if (entrada.aceitaCotaBonus !== undefined || entrada.bonusMaxCotas !== undefined) {
+    const p = problemaNoBonusMax(aceitaBonus, bonusMax, campaign.totalQuotas);
     if (p) throw new CampaignRuleError(p);
   }
   if (entrada.modoSorteio !== undefined && !modoValido(entrada.modoSorteio)) {
@@ -369,6 +389,9 @@ export async function salvarDadosLegais(
     if (drawAt !== undefined) mudancas.drawAt = drawAt;
     if (regulamentoExtra !== undefined) mudancas.regulamentoExtra = regulamentoExtra;
     if (entrada.aceitaCotaBonus !== undefined) mudancas.aceitaCotaBonus = entrada.aceitaCotaBonus;
+    if (entrada.aceitaCotaBonus !== undefined || entrada.bonusMaxCotas !== undefined) {
+      mudancas.bonusMaxCotas = bonusMax as number;
+    }
     if (entrada.modoSorteio !== undefined || entrada.minimoVendidoPct !== undefined) {
       mudancas.modoSorteio = modo;
       mudancas.minimoVendidoPct = minimoDoModo(modo, minimoPedido);

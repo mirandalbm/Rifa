@@ -423,6 +423,12 @@ export const campaigns = pgTable(
      */
     aceitaCotaBonus: boolean("aceita_cota_bonus").notNull().default(false),
     /**
+     * Quantas cotas de bônus (grátis) a autorização prevê para esta rifa.
+     * O resgate nunca passa disso (`campaign_stats.bonus_count`, teto no
+     * `UPDATE`). 0 com `aceitaCotaBonus` desligado. Trava ao publicar.
+     */
+    bonusMaxCotas: integer("bonus_max_cotas").notNull().default(0),
+    /**
      * Mínimo de cotas vendidas (percentual do total) para o sorteio acontecer,
      * pela autorização. 0 = sem mínimo. Entra por `salvarDadosLegais()` e
      * trava ao publicar; o sorteio recusa (409) abaixo dele.
@@ -589,6 +595,12 @@ export const campaignStats = pgTable("campaign_stats", {
     .references(() => campaigns.id, { onDelete: "cascade" }),
   soldCount: integer("sold_count").notNull().default(0),
   reservedCount: integer("reserved_count").notNull().default(0),
+  /**
+   * Cotas de bônus (grátis) já resgatadas. Anda na transação do resgate, com
+   * o teto de `campaigns.bonus_max_cotas` no próprio `UPDATE`. Estão dentro
+   * de `sold_count`; o mínimo para sortear conta só as pagas (sold − bônus).
+   */
+  bonusCount: integer("bonus_count").notNull().default(0),
   revenueCents: bigint("revenue_cents", { mode: "number" }).notNull().default(0),
   /** Acima de 85% vendido a amostragem aleatória colide demais: usa free_pool. */
   endgame: boolean("endgame").notNull().default(false),
@@ -1669,6 +1681,7 @@ export const insertCampaignSchema = createInsertSchema(campaigns, {
     regulamentoExtra: true,
     // Cota de bônus é cláusula do regulamento: só por PUT /legal (etapa 13).
     aceitaCotaBonus: true,
+    bonusMaxCotas: true,
     // O mínimo para sortear é dado legal: só pela rota `/legal`, que trava ao publicar.
     minimoVendidoPct: true,
     modoSorteio: true,

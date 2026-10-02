@@ -200,6 +200,7 @@ import {
 } from "../services/template";
 import { contempladoPorAproximacao, transmissaoValida } from "@shared/sorteio";
 import { cotasMinimasParaSortear, minimoAtingido } from "@shared/campanhaLegal";
+import { vendidasParaOMinimo } from "@shared/bonus";
 import { avisarRifaNova, avisarResultado, emSegundoPlano } from "../services/push";
 import {
   anexoPara,
@@ -867,11 +868,13 @@ adminRouter.put("/campaigns/:id/legal", async (req, res, next) => {
       certificado: cert?.dataUrl ? { dataUrl: String(cert.dataUrl), nome: cert.nome ? String(cert.nome) : undefined } : null,
       regulamentoExtra: req.body?.regulamentoExtra,
       aceitaCotaBonus: req.body?.aceitaCotaBonus === undefined ? undefined : req.body.aceitaCotaBonus === true,
+      bonusMaxCotas: req.body?.bonusMaxCotas,
       minimoVendidoPct: req.body?.minimoVendidoPct,
       modoSorteio: req.body?.modoSorteio,
     });
     await audit(req, "campaign.legal", "campaign", campaign.id, {
       aceitaCotaBonus: atualizada.aceitaCotaBonus,
+      bonusMaxCotas: atualizada.bonusMaxCotas,
       minimoVendidoPct: atualizada.minimoVendidoPct,
       modoSorteio: atualizada.modoSorteio,
       authorizationCode: atualizada.authorizationCode,
@@ -883,6 +886,8 @@ adminRouter.put("/campaigns/:id/legal", async (req, res, next) => {
       drawAt: atualizada.drawAt,
       temCertificado: Boolean(atualizada.authorizationFileKey),
       regulamentoExtra: atualizada.regulamentoExtra,
+      aceitaCotaBonus: atualizada.aceitaCotaBonus,
+      bonusMaxCotas: atualizada.bonusMaxCotas,
       minimoVendidoPct: atualizada.minimoVendidoPct,
       modoSorteio: atualizada.modoSorteio,
     });
@@ -3258,9 +3263,14 @@ adminRouter.post("/campaigns/:id/draw", async (req, res, next) => {
         // Mínimo de cotas vendidas da autorização: abaixo dele o sorteio não roda.
         const minimo = cotasMinimasParaSortear(campaign.totalQuotas, campaign.minimoVendidoPct);
         if (minimo > 0) {
-          const vendidas = Number(
-            (await tx.execute(sql`SELECT sold_count FROM campaign_stats WHERE campaign_id = ${campaign.id}`)).rows[0]
-              ?.sold_count ?? 0,
+          // Cota de bônus não conta para o mínimo (salvo na rifa cheia): shared/bonus.ts.
+          const st = (
+            await tx.execute(sql`SELECT sold_count, bonus_count FROM campaign_stats WHERE campaign_id = ${campaign.id}`)
+          ).rows[0];
+          const vendidas = vendidasParaOMinimo(
+            Number(st?.sold_count ?? 0),
+            Number(st?.bonus_count ?? 0),
+            campaign.modoSorteio,
           );
           if (!minimoAtingido(vendidas, campaign.totalQuotas, campaign.minimoVendidoPct)) {
             throw new SorteioRecusado(

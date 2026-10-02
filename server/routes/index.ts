@@ -6,6 +6,7 @@ import { publicRouter } from "./public";
 import { affiliateRouter } from "./affiliate";
 import { sellerRouter } from "./seller";
 import { adminRouter } from "./admin";
+import { iaRouter } from "./ia";
 import { devRouter } from "./dev";
 import { clicarLinkDoPerfil, resolverLinkCurto } from "../services/links";
 
@@ -20,6 +21,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use("/api/affiliate", requireRole("affiliate"), requireAffiliateAccount, affiliateRouter);
   app.use("/api/seller", requireRole("cambista"), requireAffiliateAccount, sellerRouter);
   app.use("/api/admin", requireRole("organizer"), adminRouter);
+  // O assistente de IA: master, organizador e afiliado (o guard é do próprio router).
+  app.use("/api/ia", iaRouter);
   app.use("/api/dev", devRouter);
 
   // Endereço curto e links do perfil: redirecionam só para destino guardado

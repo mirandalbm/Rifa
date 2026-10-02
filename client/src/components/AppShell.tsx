@@ -58,7 +58,7 @@ import { quandoPublicou } from "@shared/publicacao";
 import { apiRequest } from "@/lib/queryClient";
 import { useSession, useLogout } from "@/lib/session";
 import { TemaCiclo } from "@/components/TemaToggle";
-import { AssistenteDoPainel } from "@/components/AssistenteDoPainel";
+import { BotaoDoAssistente, ColunaDoAssistente, useAssistente } from "@/components/AssistenteDoPainel";
 import { papelTemIA } from "@shared/ia";
 import { Marca } from "@/components/Marca";
 import { useTemplate } from "@/lib/template";
@@ -308,6 +308,7 @@ export function PanelShell({
   const nomeDaMarca = useTemplate().identidade.nome;
   const secoes = session?.sections ?? [];
   const menu = useMemo(() => (session ? menuDe(session.role, session.sections) : []), [session]);
+  const assistente = useAssistente(papelTemIA(session?.role));
 
   // O item pai da tela atual já nasce aberto; os outros abrem no toque.
   const paiDe = (caminho: string) => {
@@ -544,7 +545,9 @@ export function PanelShell({
 
       {/* O conteúdo abre espaço para o menu no tablet e no computador; no
           celular o menu passa por cima. */}
-      <div className={`flex min-h-screen min-w-0 flex-col ${aberto ? "md:pl-[260px]" : "md:pl-[72px]"}`}>
+      <div
+        className={`flex min-h-screen min-w-0 flex-col ${aberto ? "md:pl-[260px]" : "md:pl-[72px]"} ${assistente.aberto ? "lg:pr-[380px]" : ""}`}
+      >
         <header className="sticky top-0 z-20 flex h-16 items-center gap-3 bg-painel/95 px-4 md:px-6">
           <button
             type="button"
@@ -556,7 +559,7 @@ export function PanelShell({
           </button>
           <BuscaDoPainel secoes={secoes} />
           <TemaCiclo compacto className="rounded-md p-1.5 text-ink-2 hover:bg-mist-2" />
-          {papelTemIA(session?.role) ? <AssistenteDoPainel /> : null}
+          {assistente.ligado ? <BotaoDoAssistente aberto={assistente.aberto} onAlternar={assistente.alternar} /> : null}
           <details
             ref={sino}
             className="relative"
@@ -650,6 +653,7 @@ export function PanelShell({
           </span>
         </footer>
       </div>
+      {assistente.aberto ? <ColunaDoAssistente onFechar={assistente.fechar} /> : null}
     </div>
   );
 }

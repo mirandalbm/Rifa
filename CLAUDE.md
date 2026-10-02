@@ -160,7 +160,7 @@ arquitetura.
 | rodapé da plataforma: colunas de links, redes sociais e espaço de apoio | `shared/rodape.ts` (colunas), `validarRedes()`/`REDES_DO_RODAPE` em `shared/template.ts`, `client/src/components/RodapeDaPlataforma.tsx`, cartão "Redes sociais do rodapé" em `client/src/pages/adminAparencia.tsx`, `preencherRodapeComExemplo()` em `server/services/template.ts`, `tests/rodape.test.ts` |
 | app instalável (PWA): casca, nome e ícone | `client/public/sw.js`, `shared/manifest.ts` (o manifesto montado), `manifestDaPlataforma()`/`iconeDaMarca()` em `server/services/template.ts`, `client/public/manifest.webmanifest` (o de fábrica, se o banco falhar), `client/src/lib/pwa.ts`, `tests/manifest.test.ts`, `scripts/aparencia-test.ts` |
 | automação do Claude no projeto: `/provar` (escolhe as provas pela área mexida), `/pr-check` (o rito do PR: docs, capturas, rascunho, mesclagem) e o agente `revisor-de-invariantes` (lê o diff contra as invariantes) | `.claude/skills/provar/SKILL.md`, `.claude/skills/pr-check/SKILL.md`, `.claude/agents/revisor-de-invariantes.md`. **Invariante nova ou regra de PR nova entra nos três** — o `.gitignore` libera só estes (o resto de `.claude/skills` é instalado por `npx skills add`, com o `skills-lock.json`) |
-| assistente de IA nos painéis (Chatbase): botão, sessão e configuração | `shared/ia.ts` (regras, papéis, `SessaoDaIA`), `server/services/iaIdentidade.ts` (segredo e hash, sem banco), `server/services/ia.ts` (`sessaoDaIA`), rotas `/ia/*` em `server/routes/admin.ts`, `assistenteIA` em `shared/plataforma.ts`, `client/src/lib/assistente.ts` (carrega, desmonta e o ciclo entre telas), `client/src/components/AssistenteDoPainel.tsx` (botão na barra de cima de `PanelShell`), `AssistenteIACard.tsx` (Aparência), `scripts/ia-test.ts`, `tests/ia.test.ts`, `tests/assistente.test.ts` |
+| assistente de IA nos painéis (Chatbase): conversa pelo servidor, coluna, uso e configuração | `shared/ia.ts` (regras, papéis, titular, barreira de dado pessoal), `server/services/chatbase.ts` (cliente da API v2), `server/services/ia.ts` (conversa e uso), `server/routes/ia.ts` (`/api/ia/*`), `/ia/config` em `server/routes/admin.ts`, `assistenteIA` em `shared/plataforma.ts`, `ia_conversas`/`ia_uso` em `shared/schema.ts`, `client/src/lib/assistente.ts` (coluna aberta lembrada), `client/src/components/AssistenteDoPainel.tsx` (botão e coluna, em `PanelShell`), `AssistenteIACard.tsx` (Aparência), `scripts/ia-test.ts`, `tests/ia.test.ts`, `tests/chatbase.test.ts`, `tests/assistente.test.ts` |
 | segurança: onde mora cada defesa, lista de conferência de rota nova e as revisões | `docs/SEGURANCA.md` |
 | versões (celular, tablet, computador): registro das mudanças do celular, levas, mapa das telas e auditoria | `docs/VERSOES.md` (guia, mapa e registro — **anote no mesmo PR**), `scripts/telas.ts` (`npm run telas`), `tests/versoes.test.ts` |
 
@@ -186,13 +186,12 @@ arquitetura.
   de marketing pedem a lista de origens — o caminho é começar em modo
   relatório. O que mais ficou para depois está em `docs/SEGURANCA.md`.
 
-- **Chatbase AI nos painéis**: a primeira fatia existe (seção "Assistente de
-  IA"): o botão, a sessão com identidade verificada e a configuração da
-  plataforma. **Ainda não existem**: a cobrança do organizador (assinatura ou
-  créditos), as ações do assistente no sistema (custom actions: lançar rifa,
-  editar publicação, com confirmação e auditoria) e a coluna fixa — o Chatbase
-  abre uma janela flutuante, não uma coluna. As regras de recorte e de
-  confirmação estão em `docs/PENDENCIAS.md` (seção 1b).
+- **Chatbase AI nos painéis**: a conversa (pelo nosso servidor), a coluna e a
+  medição do uso existem (seção "Assistente de IA"). **Ainda não existem**: a
+  cobrança (assinatura mensal com franquia de créditos e créditos avulsos, por
+  Pix da plataforma — decidido, falta fazer) e as ações do assistente no
+  sistema (com confirmação e auditoria). As regras estão em
+  `docs/PENDENCIAS.md` (seção 1b).
 
 - **Transcode do vídeo** (recompressão, HLS): hoje servimos o arquivo
   original. O pôster já existe (seção Mídia); o transcode é trabalho pesado
@@ -2471,60 +2470,56 @@ do dia, mínimo e máximo de dias, vagas e segundos na tela são da plataforma
 
 ## Assistente de IA (Chatbase) — o que não pode afrouxar
 
-Um assistente nos painéis do **administrador master** e do **organizador**
-(cambista nunca; o afiliado entra depois, com a cobrança). Hoje: o botão, a
-sessão e a configuração.
+Um assistente numa **coluna à direita** dos painéis do **administrador master**
+(gratuito), do **organizador** e do **afiliado** (pagos, cada um no próprio
+login). Cambista e apostador não têm.
 
-- **Nasce desligado**, e só a plataforma configura (`PUT /admin/ia/config`,
-  403 para organizador, no `npm run isolation`): liga, o id do agente e
-  `paraOrganizador`. **O organizador tem interruptor à parte, também
-  desligado**: o uso dele é pago e a cobrança ainda não existe — ligar antes
-  seria uso de graça. Master é gratuito (a empresa é a dona).
-- **Identidade verificada pelo servidor.** O navegador se identifica no
-  Chatbase com `user_id` + `user_hash`; o hash (HMAC-SHA256 do id com
-  `CHATBASE_IDENTITY_SECRET`) **só nasce em `server/services/iaIdentidade.ts`**
-  e o segredo nunca sai do servidor nem aparece em resposta. Sem o segredo (16+
-  caracteres) a plataforma não consegue ligar (409): não existe modo "sem
-  verificação". `iaIdentidade.ts` não toca o banco de propósito — a prova das
-  regras roda sem `DATABASE_URL`.
-- **Só o `user_id` é verificado.** O `user_metadata` (papel e organização)
-  viaja pelo navegador e a pessoa pode reescrevê-lo: é **contexto para o
-  modelo, nunca prova**. Quando as ações do assistente existirem, papel e
-  organização saem do `user_id` verificado (consultando `users`), jamais da
-  metadata.
-- **Só o necessário vai para o Chatbase**: um identificador opaco
-  (`rifa-u-<id>`), o papel e, no organizador, o nome da organização
-  (`metadadosDaIA()`). **Nunca** nome de pessoa, e-mail, telefone, CPF ou dado
-  de comprador. `GET /admin/ia/sessao` é `no-store`; quem não tem direito
-  recebe `{ ligado: false }` (e afiliado e cambista, 403, como em toda rota
-  `/admin`).
-- **O script do Chatbase roda na página do painel.** É código de terceiro com a
-  sessão de quem está nela: enxerga o que a tela mostra e alcança `/api/admin/*`
-  pela mesma origem. Não há SRI (o arquivo é uma URL viva) e a política de
-  conteúdo é só `frame-ancestors`. **Risco aceito e documentado** em
-  `docs/SEGURANCA.md`; "nenhum dado pessoal vai para ele" vale só para o que
-  nós enviamos. Isolar em iframe perderia a identidade verificada (a
-  documentação do Chatbase só a prevê no script); um assistente próprio
-  resolveria, e é a alternativa se o risco deixar de valer.
-- **O id do agente vai numa tag `<script>`**: só `[A-Za-z0-9_-]{8,64}`
-  (`AGENTE_ID_RE`) — campo livre ali seria script de terceiro na tela do
-  painel. O agente é um só para os dois papéis: restrinja os domínios
-  permitidos no próprio Chatbase ao endereço do Railway.
-- **O script só carrega depois de um toque** (`abrirAssistente()`). **Entre as
-  telas do painel o assistente fica** (cada tela monta a própria casca, e
-  `criarCiclo()` só remove quando ninguém monta de novo em 400 ms); **ao sair do
-  painel ou da conta tudo é desmontado** (`removerAssistente()`, que também
-  manda `resetUser` ao Chatbase): a vitrine pública nunca mostra o balão, nem
-  com a identidade de quem estava no painel. Script que ainda estava a caminho
-  quando o painel foi deixado é desmontado ao chegar (`geracao`).
+- **A conversa passa pelo nosso servidor.** O navegador fala só com
+  `/api/ia/*`; o servidor fala com a API v2 do Chatbase
+  (`server/services/chatbase.ts`) com `CHATBASE_API_KEY`, que **nunca sai dele**
+  (nem em resposta, nem em log, nem na URL). **Nenhum script do Chatbase roda no
+  painel** — o widget da primeira versão saiu justamente por isso (código de
+  terceiro com a sessão do master). `CHATBASE_API_URL` troca o endereço **só
+  fora de produção** (`baseDoChatbase()`), para a prova.
+- **Nasce desligado**, e só a plataforma configura (`PUT /admin/ia/config`, 403
+  para organizador, no `npm run isolation`): liga, o id do agente e os
+  interruptores `paraOrganizador` e `paraAfiliado`, **também desligados** — o
+  uso deles é pago e a cobrança ainda não existe. Sem a chave no servidor a
+  plataforma não liga (409).
+- **Quem fala e quem responde pelo uso saem da sessão**, nunca do corpo:
+  `titularDaIA()` — plataforma (master), a organização do organizador ou o
+  cadastro do afiliado (**ativo**, a mesma porta das Mensagens). Quem não tem
+  direito recebe `{ ligado: false }` na sessão e 404 nas outras rotas (para ele
+  o assistente não existe); cambista, 403; sem login, 401. `no-store` em tudo.
+- **Dado pessoal de cliente nunca sai para a IA**: `problemaNaMensagemDaIA()`
+  barra telefone, CPF (10 dígitos ou mais) e e-mail **antes** de qualquer coisa
+  sair (422); o código do pedido (8 dígitos) e o ID do cliente passam. O
+  identificador que vai ao Chatbase é opaco (`rifa-u-<id>`).
+- **O uso é contado por mensagem**, pelo que o Chatbase diz ter gasto
+  (`usage.credits`, inteiro, fração para cima): uma linha em `ia_uso` por
+  resposta, **chave única pela mensagem** (`ON CONFLICT DO NOTHING`), com o
+  titular, gravada na mesma transação que guarda a conversa da pessoa
+  (`ia_conversas`, só o id; o texto mora no Chatbase e o histórico é lido pela
+  API). Erro do Chatbase (créditos da plataforma esgotados, chave recusada,
+  prazo de 60 s) volta em português e **não grava uso**. É daqui que a
+  cobrança vai debitar.
+- **Limite por pessoa** (`hit`, 20 mensagens em 5 min), contado **depois** do
+  erro de preenchimento, como no comentário.
+- **A coluna**: no computador fica à direita e o conteúdo abre espaço
+  (`lg:pr-[380px]`); no celular e no tablet, por cima da tela. Aberta ou fechada
+  fica no aparelho (`rifa.assistente.aberto`), então segue aberta ao trocar de
+  tela do painel. Esc fecha, menos dentro do campo; a mensagem que falhou volta
+  ao campo. O texto da resposta é texto puro (`whitespace-pre-wrap`), nunca HTML.
 - **O que a IA fizer no sistema vai passar pelo recorte de `orgOf`** e, quando
   mexer em dinheiro, estorno, publicação ou exclusão, pedir confirmação da
-  pessoa e entrar em `audit_log` como feita pela IA — ainda não existe, e é a
-  fatia seguinte. O saldo do patrocínio não paga a IA.
-- `npm run ia` prova (com `CHATBASE_IDENTITY_SECRET` no servidor e no script;
-  inclui afiliado e cambista) e `tests/ia.test.ts` e `tests/assistente.test.ts`
-  cobrem as regras e o ciclo. **O carregamento do script no navegador não tem
-  prova automática** (o `vitest` roda sem DOM): conferido à mão.
+  pessoa e entrar em `audit_log` como feita pela IA — ainda não existe (as
+  "client actions" do Chatbase chegam como `tool-call` e hoje são ignoradas). O
+  saldo do patrocínio não paga a IA.
+- As tabelas `ia_conversas` e `ia_uso` sobem com o `db:push` **antes** do código.
+- `npm run ia` prova (com `CHATBASE_API_KEY` e `CHATBASE_API_URL` apontando para
+  o Chatbase de mentira que a própria prova sobe, no servidor e no script) e
+  `tests/ia.test.ts`, `tests/chatbase.test.ts` e `tests/assistente.test.ts`
+  cobrem as regras, o cliente da API e a coluna.
 
 ## Marketing e tráfego pago — o que não pode afrouxar
 

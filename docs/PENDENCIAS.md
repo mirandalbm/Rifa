@@ -40,33 +40,32 @@ senha); **[código]** é trabalho no repositório.
   Também acha gente da casa (usuário, afiliado, cambista) por nome, e-mail
   ou código, no mesmo recorte.
 
-- [x] **[código]** Chatbase AI, **primeira fatia**: botão na barra de cima
-  do painel, sessão com identidade verificada (`CHATBASE_IDENTITY_SECRET`) e
-  configuração da plataforma (Aparência → Assistente de IA), desligado de
-  fábrica e com interruptor à parte para o organizador. **Falta no ambiente**:
-  conta e agente no Chatbase, o id do agente em Aparência e o segredo de
-  verificação no Railway.
-- [ ] **[código]** Chatbase AI, **o resto**: cobrança do organizador
-  (assinatura ou créditos, fora do saldo do patrocínio), as ações do
-  assistente no sistema (custom actions com confirmação e `audit_log`) e,
-  se der, a coluna fixa (o Chatbase abre uma janela flutuante; coluna de
-  verdade pede o iframe deles ou um assistente próprio). O plano original
-  continua valendo: só o master e o organizador (afiliado e cambista ficam de
-  fora), recolhido por padrão e aberto pelo botão da barra de cima;
-  e **o que a IA enxerga e faz passa pelo mesmo recorte do painel**
-  (`orgOf`): o organizador só alcança a organização dele, e nenhuma ação sai
-  sem a confirmação de quem está logado, com auditoria. Dado pessoal de
-  comprador (telefone, CPF) nunca vai para o contexto da IA.
-
+- [x] **[código]** Chatbase AI, **pelo servidor**: a conversa passa pelo nosso
+  servidor (API v2 do Chatbase, `CHATBASE_API_KEY` só no servidor), numa coluna
+  à direita do painel do master, do organizador e do afiliado; telefone, CPF e
+  e-mail barrados antes de sair; uso contado por mensagem (`ia_uso`, pelos
+  créditos que o Chatbase informa). Nasce desligado; organizador e afiliado têm
+  interruptores à parte, desligados até a cobrança. O widget da primeira fatia
+  (script de terceiro no painel) saiu.
+- [ ] **[código]** Chatbase AI, **cobrança** (decidida): **assinatura mensal com
+  franquia de créditos** e **créditos avulsos**, pagos por **Pix da plataforma**
+  (sem split, como a recarga do patrocínio; a assinatura renova com um Pix novo
+  por mês, sem débito automático). Preço da assinatura, franquia e preço do
+  crédito definidos pela plataforma no painel. Cada mensagem debita o que o
+  Chatbase informa (`ia_uso`); sem franquia nem crédito, o servidor recusa
+  antes de falar com o Chatbase. Titular: a organização (todos os organizadores
+  dela) ou o afiliado (no login dele, com os mesmos direitos do organizador no
+  recorte dele). O master não paga. Fora do saldo do patrocínio.
+- [ ] **[código]** Chatbase AI, **ações** no sistema (as "client actions" do
+  Chatbase): no recorte de `orgOf` (afiliado: as publicações dele), com
+  confirmação para dinheiro, estorno, publicação e exclusão, e `audit_log` como
+  feita pela IA.
 - [ ] **[você]** Chatbase: criar a conta e o agente (treinado com a ajuda do
-  painel), copiar o **id do agente** (aparece no script de incorporação) e o
-  **segredo de verificação de identidade** (Configurações do agente →
-  Identity verification). O segredo vai só no Railway
-  (`CHATBASE_IDENTITY_SECRET`); o id vai em Aparência → Assistente de IA, e só
-  então liga. O organizador só depois da cobrança. No agente, **restrinja os
-  domínios permitidos** ao endereço do Railway (o id do agente chega ao
-  navegador). **Decida** se aceita o script do Chatbase na página do painel
-  (risco aceito em `docs/SEGURANCA.md`) ou prefere um assistente próprio.
+  painel), copiar o **id do agente** e criar uma **chave da API** (Settings →
+  API keys). A chave vai só no Railway (`CHATBASE_API_KEY`); o id vai em
+  Aparência → Assistente de IA, e só então liga. Organizador e afiliado só
+  depois da cobrança. O plano do Chatbase precisa ter créditos de mensagem para
+  o uso de todos (a plataforma paga o Chatbase e cobra de quem usa).
 
 ## 2. Para a rifa vender
 
@@ -261,9 +260,10 @@ código só depois do plano combinado com ele.
 - **Chatbase AI nos painéis:** é **receita da plataforma** — o uso é **pago**
   para organizador e afiliado e **gratuito para o administrador master**
   (propriedade da empresa). Todas as telas seguem **livres no uso manual**;
-  só a IA é cobrada. **Hoje só o master e o organizador (este desligado) têm o
-  botão; o afiliado entra junto com a cobrança.** Alcance: afiliado — gestão e
-  edição das publicações;
+  só a IA é cobrada. **Hoje o master, o organizador e o afiliado têm a coluna
+  (os dois últimos desligados até a cobrança); o afiliado tem os mesmos
+  direitos do organizador, no recorte do login dele.** Alcance: afiliado —
+  gestão e edição das publicações;
   organizador — tudo, inclusive lançar uma campanha com passo a passo e
   gestão e edição de publicações; master — tudo. Regras que não mudam: o
   recorte de `orgOf` vale para a IA como para a pessoa; nada de dado

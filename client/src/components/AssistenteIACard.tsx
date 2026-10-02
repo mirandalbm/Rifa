@@ -6,16 +6,17 @@ import { apiRequest } from "@/lib/queryClient";
 
 interface Retorno {
   config: ConfigIA;
-  segredoNoAmbiente: boolean;
+  chaveNoAmbiente: boolean;
 }
 
-/** O assistente de IA nos painéis: escolha da plataforma (liga, id do agente e liberação para o organizador). */
+/** O assistente de IA nos painéis: escolha da plataforma (liga, id do agente e liberação para organizador e afiliado). */
 export function AssistenteIACard() {
   const qc = useQueryClient();
   const { data } = useQuery<Retorno>({ queryKey: ["/api/admin/ia/config"] });
   const [ligado, setLigado] = useState(false);
   const [agenteId, setAgenteId] = useState("");
   const [paraOrganizador, setParaOrganizador] = useState(false);
+  const [paraAfiliado, setParaAfiliado] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; texto: string } | null>(null);
 
   useEffect(() => {
@@ -23,14 +24,15 @@ export function AssistenteIACard() {
     setLigado(data.config.ligado);
     setAgenteId(data.config.agenteId);
     setParaOrganizador(data.config.paraOrganizador);
+    setParaAfiliado(data.config.paraAfiliado);
   }, [data]);
 
   const salvar = useMutation({
-    mutationFn: async () => (await apiRequest("PUT", "/api/admin/ia/config", { ligado, agenteId, paraOrganizador })).json(),
+    mutationFn: async () => (await apiRequest("PUT", "/api/admin/ia/config", { ligado, agenteId, paraOrganizador, paraAfiliado })).json(),
     onSuccess: () => {
       setMsg({ ok: true, texto: "Assistente salvo." });
       qc.invalidateQueries({ queryKey: ["/api/admin/ia/config"] });
-      qc.invalidateQueries({ queryKey: ["/api/admin/ia/sessao"] });
+      qc.invalidateQueries({ queryKey: ["/api/ia/sessao"] });
     },
     onError: (e: Error) => setMsg({ ok: false, texto: e.message }),
   });
@@ -41,14 +43,14 @@ export function AssistenteIACard() {
       <Card title="Assistente de IA (Chatbase)">
         <div className="space-y-4 p-4 text-sm">
           <p className="text-xs text-muted">
-            Um assistente no painel do administrador master e, se você liberar, do organizador. A identidade de quem fala é
-            verificada pelo servidor e nós não enviamos dado pessoal de comprador a ele. Atenção: o script do Chatbase roda na
-            página do painel e enxerga o que ela mostra.
+            Um assistente numa coluna à direita do painel do administrador master e, se você liberar, do organizador e do
+            afiliado. A conversa passa pelo nosso servidor, que conta os créditos de cada mensagem e barra telefone, CPF e
+            e-mail de clientes; nenhum script do Chatbase roda no painel.
           </p>
-          <p className={`text-xs ${data?.segredoNoAmbiente ? "text-green-deep" : "text-red"}`}>
-            {data?.segredoNoAmbiente
-              ? "O segredo de verificação (CHATBASE_IDENTITY_SECRET) está configurado no servidor."
-              : "Falta o segredo de verificação (CHATBASE_IDENTITY_SECRET) no servidor: sem ele o assistente não liga."}
+          <p className={`text-xs ${data?.chaveNoAmbiente ? "text-green-deep" : "text-red"}`}>
+            {data?.chaveNoAmbiente
+              ? "A chave da API do Chatbase (CHATBASE_API_KEY) está configurada no servidor."
+              : "Falta a chave da API do Chatbase (CHATBASE_API_KEY) no servidor: sem ela o assistente não liga."}
           </p>
           <div>
             <label htmlFor="ia-agente" className="label-xs">Id do agente no Chatbase</label>
@@ -80,6 +82,15 @@ export function AssistenteIACard() {
               <span className="font-semibold">Liberar para o organizador</span>
               <span className="block text-xs text-muted">
                 O uso do organizador é pago; a cobrança ainda não existe. Deixe desligado até ela entrar.
+              </span>
+            </span>
+          </label>
+          <label className="flex items-start gap-2">
+            <input type="checkbox" disabled={!data} checked={paraAfiliado} onChange={(e) => { setMsg(null); setParaAfiliado(e.target.checked); }} className="mt-1 h-5 w-5" />
+            <span>
+              <span className="font-semibold">Liberar para o afiliado</span>
+              <span className="block text-xs text-muted">
+                O uso do afiliado também é pago, no login dele; a cobrança ainda não existe. Deixe desligado até ela entrar.
               </span>
             </span>
           </label>

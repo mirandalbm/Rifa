@@ -2657,3 +2657,40 @@ export const divulgacoes = pgTable(
     index("idx_divulgacoes_rifa").on(t.campaignId, t.status, t.createdAt),
   ],
 );
+
+/* ------------------------------------------------------------------ *
+ * Assistente de IA (Chatbase) — conversa e uso
+ * ------------------------------------------------------------------ */
+
+/**
+ * A conversa de cada pessoa com o assistente: só o id da conversa no Chatbase
+ * (o texto mora lá e é lido pela API quando a coluna abre). Uma por pessoa;
+ * "Nova conversa" apaga a linha.
+ */
+export const iaConversas = pgTable("ia_conversas", {
+  userId: uuid("user_id")
+    .primaryKey()
+    .references(() => users.id, { onDelete: "cascade" }),
+  conversationId: text("conversation_id").notNull(),
+  atualizadaEm: timestamp("atualizada_em").notNull().defaultNow(),
+});
+
+/**
+ * O uso do assistente, mensagem a mensagem: os créditos que o Chatbase diz ter
+ * gasto. Chave única pela mensagem — a mesma resposta nunca conta duas vezes.
+ * `titular` é quem responde pelo uso (plataforma, organização ou afiliado); a
+ * cobrança debita daqui.
+ */
+export const iaUso = pgTable(
+  "ia_uso",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    mensagemId: text("mensagem_id").notNull(),
+    titularTipo: text("titular_tipo").notNull(),
+    titularId: uuid("titular_id"),
+    userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+    creditos: integer("creditos").notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("uq_ia_uso_mensagem").on(t.mensagemId), index("idx_ia_uso_titular").on(t.titularTipo, t.titularId, t.createdAt)],
+);

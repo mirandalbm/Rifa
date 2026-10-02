@@ -59,8 +59,10 @@ jobs:
       PUBLIC_BASE_URL: http://localhost:5000
       # Só fora de produção: a prova do login com o Google entrega os claims no lugar do Google.
       GOOGLE_PROVA: "1"
-      # Só para a prova do assistente de IA (`npm run ia`): o segredo que verifica a identidade no Chatbase.
-      CHATBASE_IDENTITY_SECRET: ci-segredo-do-assistente-1234
+      # Só para a prova do assistente de IA (`npm run ia`): a chave de teste e o Chatbase de mentira
+      # que a própria prova sobe nesta porta (o servidor só aceita trocar o endereço fora de produção).
+      CHATBASE_API_KEY: ci-chave-do-assistente-1234
+      CHATBASE_API_URL: http://127.0.0.1:5099/api/v2
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

@@ -186,6 +186,12 @@ export const organizations = pgTable(
      * hora do pagamento. Escolha da organização.
      */
     liberacaoComissao: commissionRelease("liberacao_comissao").notNull().default("apos_sorteio"),
+    /**
+     * Como o afiliado (influenciador) publica com o material desta
+     * organização: `autorizacao` (padrão — nada vai ao ar sem ela) ou
+     * `direta`. Ver `shared/divulgacao.ts`.
+     */
+    divulgacaoAfiliado: text("divulgacao_afiliado").notNull().default("autorizacao"),
     /** Saldo para rifas patrocinadas (etapa 15), em centavos. Anda com o livro, na mesma transação. */
     patrocinioSaldoCents: integer("patrocinio_saldo_cents").notNull().default(0),
     /**
@@ -2480,5 +2486,50 @@ export const mensagemDenuncias = pgTable(
     uniqueIndex("uq_mensagem_denuncia_protocolo").on(t.protocolo),
     uniqueIndex("uq_denuncia_conversa_aberta").on(t.conversaId, t.lado).where(sql`status = 'aberta'`),
     index("idx_mensagem_denuncias_status").on(t.status, t.createdAt),
+  ],
+);
+
+/**
+ * Divulgação de terceiros: a peça do afiliado (influenciador) ou do apostador
+ * sobre a rifa de uma organização. Não altera a rifa — é uma legenda própria
+ * e, para o afiliado, a escolha de mídias que a organização já publicou.
+ * `em_analise` espera a organização; a decisão é `UPDATE` condicional com a
+ * linha travada. Um pedido em análise por autor e rifa (índices parciais).
+ * Regras em `shared/divulgacao.ts`.
+ */
+export const divulgacoes = pgTable(
+  "divulgacoes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    campaignId: uuid("campaign_id")
+      .notNull()
+      .references(() => campaigns.id, { onDelete: "cascade" }),
+    /** Da dona da rifa: é o recorte de quem decide. */
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    /** `afiliado` | `apostador`. */
+    autor: text("autor").notNull(),
+    affiliateId: uuid("affiliate_id").references(() => affiliates.id, { onDelete: "cascade" }),
+    buyerId: uuid("buyer_id").references(() => buyers.id, { onDelete: "cascade" }),
+    legenda: text("legenda").notNull().default(""),
+    /** Ids de `campaign_media` da própria rifa (só afiliado). */
+    midiaIds: jsonb("midia_ids").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+    /** `em_analise` | `publicada` | `recusada` | `removida`. */
+    status: text("status").notNull(),
+    motivo: text("motivo"),
+    decididoEm: timestamp("decidido_em"),
+    decididoPor: uuid("decidido_por"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("uq_divulgacao_afiliado_em_analise")
+      .on(t.campaignId, t.affiliateId)
+      .where(sql`status = 'em_analise' and affiliate_id is not null`),
+    uniqueIndex("uq_divulgacao_apostador_em_analise")
+      .on(t.campaignId, t.buyerId)
+      .where(sql`status = 'em_analise' and buyer_id is not null`),
+    index("idx_divulgacoes_org").on(t.organizationId, t.status, t.createdAt),
+    index("idx_divulgacoes_rifa").on(t.campaignId, t.status, t.createdAt),
   ],
 );

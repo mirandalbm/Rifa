@@ -32,6 +32,7 @@ import {
   stories,
   campanhaSolicitacoes,
   comentarios,
+  divulgacoes,
 } from "../shared/schema";
 import { hashPassword } from "../server/auth";
 import { mediaKey, storage } from "../server/services/storage";
@@ -257,7 +258,14 @@ async function alcancaOVizinho(eu: Lado, vizinho: Lado) {
     .insert(comentarios)
     .values({ campaignId: c, organizationId: vizinho.orgId, autor: "organizacao", texto: "comentário do vizinho" })
     .returning({ id: comentarios.id });
+  // Uma divulgação de terceiro esperando o vizinho: decidir pelo id dele tem de dar 404.
+  const [divulgacaoDoVizinho] = await db
+    .insert(divulgacoes)
+    .values({ campaignId: c, organizationId: vizinho.orgId, autor: "apostador", legenda: "divulgação do vizinho", status: "em_analise" })
+    .returning({ id: divulgacoes.id });
   const tentativas: [string, string, RequestInit][] = [
+    ["POST aprovar divulgação do vizinho", `/api/admin/divulgacoes/${divulgacaoDoVizinho.id}`, { method: "POST", body: '{"acao":"aprovar"}' }],
+    ["POST recusar divulgação do vizinho", `/api/admin/divulgacoes/${divulgacaoDoVizinho.id}`, { method: "POST", body: '{"acao":"recusar","motivo":"invadido"}' }],
     ["DELETE comentário na rifa do vizinho", `/api/public/comentarios/${comentarioDoVizinho.id}`, { method: "DELETE" }],
     ["GET telefone do vizinho", `/api/admin/organizacoes/${vizinho.orgId}/telefone`, {}],
     ["POST código no telefone do vizinho", `/api/admin/organizacoes/${vizinho.orgId}/telefone`, { method: "POST", body: '{"telefone":"11999998888"}' }],
@@ -325,6 +333,23 @@ async function alcancaOVizinho(eu: Lado, vizinho: Lado) {
     .where(eq(comentarios.id, comentarioDoVizinho.id));
   checa("o comentário do vizinho continua no ar", Boolean(comentarioAinda) && !comentarioAinda.removidoEm);
   await db.delete(comentarios).where(eq(comentarios.id, comentarioDoVizinho.id));
+  const [divulgacaoAinda] = await db.select({ status: divulgacoes.status }).from(divulgacoes).where(eq(divulgacoes.id, divulgacaoDoVizinho.id));
+  checa("a divulgação do vizinho continua esperando", divulgacaoAinda?.status === "em_analise", divulgacaoAinda?.status);
+  const minhasDivulgacoes = (await (await pedir(eu.cookie, "/api/admin/divulgacoes")).json()) as { id: string }[];
+  checa("a fila de divulgações não traz a do vizinho", !minhasDivulgacoes.some((x) => x.id === divulgacaoDoVizinho.id));
+  // O modo de divulgação do vizinho: o corpo e a query não trocam a organização do organizador.
+  const [modoAntes] = await db.select({ m: organizations.divulgacaoAfiliado }).from(organizations).where(eq(organizations.id, vizinho.orgId));
+  const alvo = modoAntes?.m === "direta" ? "autorizacao" : "direta";
+  const troca = await pedir(eu.cookie, `/api/admin/divulgacoes/config?organizacao=${vizinho.orgId}`, {
+    method: "PUT",
+    body: JSON.stringify({ modo: alvo, organizacaoId: vizinho.orgId }),
+  });
+  const [modoDepois] = await db.select({ m: organizations.divulgacaoAfiliado }).from(organizations).where(eq(organizations.id, vizinho.orgId));
+  const [meuModo] = await db.select({ m: organizations.divulgacaoAfiliado }).from(organizations).where(eq(organizations.id, eu.orgId));
+  checa("o modo de divulgação do vizinho não muda", modoDepois?.m === modoAntes?.m, `${modoAntes?.m} → ${modoDepois?.m}`);
+  checa("o pedido vale só para a própria organização", troca.status === 200 && meuModo?.m === alvo, `HTTP ${troca.status}`);
+  await db.update(organizations).set({ divulgacaoAfiliado: "autorizacao" }).where(eq(organizations.id, eu.orgId));
+  await db.delete(divulgacoes).where(eq(divulgacoes.id, divulgacaoDoVizinho.id));
   const [aindaLa] = await db.select({ id: stories.id }).from(stories).where(eq(stories.id, storyDoVizinho.id));
   checa("o story do vizinho continua no ar", Boolean(aindaLa));
   const meus = (await (await pedir(eu.cookie, "/api/admin/stories")).json()) as { id: string }[];

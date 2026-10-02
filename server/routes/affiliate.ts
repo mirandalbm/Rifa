@@ -21,6 +21,7 @@ import { cadastroAprovado, documento, estadoFiscal, salvarDadosFiscais, salvarDo
 import { pdfDoRecibo, reciboPorCodigo } from "../services/recibos";
 import { urlDeConferencia } from "../services/urls";
 import { aderir, comissaoNaRifa, organizacoesDoAfiliado, sair } from "../services/afiliados";
+import { minhasDoAfiliado, publicarComoAfiliado, retirarPropria, rifasParaDivulgar } from "../services/divulgacao";
 import { guardLogin, identify } from "../services/antifraude";
 import QRCode from "qrcode";
 import { affiliateId, verifyPassword } from "../auth";
@@ -512,6 +513,43 @@ affiliateRouter.get("/recibos/:codigo/pdf", async (req, res, next) => {
     res.setHeader("Cache-Control", "no-store");
     res.setHeader("Content-Disposition", `attachment; filename="recibo-${r.codigo}.pdf"`);
     res.type("application/pdf").send(pdf);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/* ---------------- divulgação com o material da organização ---------------- */
+
+/** As rifas que ele pode divulgar agora (vínculo aprovado e termo aceito) e as mídias de cada uma. */
+affiliateRouter.get("/divulgacoes/rifas", async (req, res, next) => {
+  try {
+    res.json(await rifasParaDivulgar(affiliateId(req)));
+  } catch (err) {
+    next(err);
+  }
+});
+
+affiliateRouter.get("/divulgacoes", async (req, res, next) => {
+  try {
+    res.json(await minhasDoAfiliado(affiliateId(req)));
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** Nasce publicada ou esperando a organização, conforme o modo que ela escolheu. */
+affiliateRouter.post("/divulgacoes", async (req, res, next) => {
+  try {
+    res.status(201).json(await publicarComoAfiliado(affiliateId(req), req.body ?? {}));
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** Retirar a própria peça. A de outro afiliado é 404. */
+affiliateRouter.delete("/divulgacoes/:id", async (req, res, next) => {
+  try {
+    res.json(await retirarPropria({ affiliateId: affiliateId(req) }, req.params.id));
   } catch (err) {
     next(err);
   }

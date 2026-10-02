@@ -1,6 +1,7 @@
 import { BarraDeAcoes, Carrossel, Legenda, type Interacoes, type Peca } from "@/components/Publicacao";
 import { SeloVerificado } from "@/components/SeloVerificado";
 import { QuemTambemJoga } from "@/components/QuemTambemJoga";
+import { DivulgacoesDaRifa } from "@/components/DivulgacoesDaRifa";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams, useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -424,6 +425,7 @@ export default function Rifa() {
         </div>
       ) : null}
       <QuemTambemJoga slug={slug} />
+      <DivulgacoesDaRifa slug={slug} />
 
       </div>
 

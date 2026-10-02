@@ -160,6 +160,7 @@ celular, na largura da casca.
 | `/pedido/:codigo` | `pages/Pedido.tsx` | 768 | coluna | igual | igual |
 | `/minhas-cotas`, `/minhas-compras` | `pages/MinhasCotas.tsx` | 768 | coluna com abas | igual | igual |
 | `/notificacoes` | `pages/Notificacoes.tsx` | 768 | coluna | igual | igual |
+| `/publicar` | `pages/Publicar.tsx` | 768 | coluna | igual | igual |
 | `/perfil/bilhetes` | `pages/MeusBilhetes.tsx` | 768 | coluna: um cartão de publicação por bilhete pago (capa, prêmio, data e hora, números), "Ver mais bilhetes" no pé | igual | igual |
 | `/perfil` | `pages/PerfilDoUsuario.tsx` | 768 | foto e nome, menu da conta (bilhetes, reembolsos, conta, painel, ajuda), tema, cookies e o "18+" | igual | igual |
 | `/reels` | `pages/Reels.tsx` (desligado: `EmBreve`) | 768 | Tela cheia, um vídeo em pé por vez, ações na lateral | igual, coluna de 480 px centrada | igual |
@@ -212,6 +213,7 @@ cima com a busca, o tema, o sino e a conta.
 |---|---|---|---|---|
 | `/afiliado` | `pages/afiliado.tsx` | estatísticas empilhadas | estatísticas 2 por linha | 4 por linha; 2 colunas |
 | `/afiliado/links` | `pages/afiliado.tsx` | link e material empilhados | QR de 132 px ao lado do texto | igual |
+| `/afiliado/divulgar` | `pages/afiliadoDivulgar.tsx` | cartões empilhados; mídias em 3 por linha | mídias em 5 por linha | 2 colunas (nova divulgação e minhas) |
 | `/afiliado/organizacoes`, `/afiliado/comissoes` | `pages/afiliado.tsx` | lista | igual | igual |
 | `/afiliado/saques` | `pages/afiliado.tsx` | empilhado | igual | 2 colunas |
 | `/afiliado/dados` | `pages/afiliadoDados.tsx` | campos em 1 e 2 colunas | campos em 2 e 3 colunas | cartões em 2 colunas |
@@ -349,3 +351,4 @@ ou `leva N`. O teste confere o formato, a numeração e o limite da leva.
 | 34 | 2026-10-01 | #108 | Selo "ao vivo" no story | Quando a rifa está na hora do sorteio com link de transmissão, o anel da foto (fileira de stories da vitrine e perfil da organização) ganha o selo de texto "AO VIVO" embaixo; o perfil ao vivo entra na frente da fileira mesmo sem story e leva à rifa; com story, o visualizador ganha o botão "Ao vivo agora: assistir ao sorteio" | Ainda não conferido em tablet e computador | aguardando leva |
 | 35 | 2026-10-01 | #109 | Rifa, Reels e Stories · vídeo | O vídeo da publicação, o do Reels e o do story mostram o quadro de pôster antes de tocar (em vez de ficar preto ou vazio enquanto carrega), quando o servidor consegue tirá-lo; sem ele, igual a antes | Vale igual (mesmo `<video>`); a conferir na leva | aguardando leva |
 | 36 | 2026-10-01 | #111 | Perfil · bilhetes privados | O menu de `/perfil` ganha "Meus bilhetes privados" (só com conta): cada compra paga vira uma publicação só sua, com a capa da rifa, o prêmio, a data e a hora da compra, os números em casas azuis e verdes e a situação em texto; 10 por vez e "Ver mais bilhetes" | Ainda não conferido em tablet e computador | aguardando leva |
+| 37 | 2026-10-02 | #110 | Criar · divulgação de terceiros | O menu Criar ganha, para a organização, "Divulgações de terceiros"; o influenciador (afiliado) ganha a tela "Divulgar" (escolher a rifa e até 5 mídias dela, escrever a legenda, ver as próprias com a situação em texto); o apostador, com a opção ligada, a tela "Publicar" (rifa em que comprou e um texto); em Afiliados a organização escolhe o modo (direto ou só depois da autorização) e autoriza as peças em cartão; na página da rifa, abaixo de "quem também joga", a seção "Divulgações" | Ainda não conferido em tablet e computador | aguardando leva |

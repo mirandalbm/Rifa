@@ -493,10 +493,26 @@ Na ordem de entrega do plano:
   (uma por compra ou carrossel), com data, hora, prêmio e números.
   Feito em `/perfil/bilhetes` (`npm run bilhetes`): um cartão por compra
   paga, só para a própria conta.
-- [ ] **[código]** Ferramentas de publicação: as do Instagram adaptadas à
-  criação de rifa (organização); para o influenciador, criar e republicar
-  com o material da organização, com publicação direta ou só depois da
-  autorização dela; e a publicação do apostador (hoje atrás do interruptor).
+- [x] **Ferramentas de publicação** (primeiro passo): o menu Criar da
+  organização reúne rifa, story, legenda e as **divulgações de terceiros**;
+  o afiliado publica com o material da organização (mídias da rifa e legenda
+  própria, só com vínculo aprovado e termo aceito), em modo **direto** ou
+  **só depois da autorização**, escolhido pela organização (padrão:
+  autorização); o apostador publica um texto sobre rifa em que comprou,
+  atrás do interruptor `publicarApostador`, sempre com autorização. Seção
+  "Divulgação de terceiros" do `CLAUDE.md`, `npm run divulgacao`.
+- [ ] **[produto]** Ferramentas de publicação, o que ficou para depois:
+  (1) o influenciador **enviar mídia própria** (foto e vídeo dele, com as
+  medidas do servidor) e **republicar** a peça da organização com legenda
+  dele no feed — hoje a divulgação aparece numa seção da página da rifa,
+  não no feed da vitrine nem no perfil do afiliado; (2) a peça do apostador
+  com **imagem**; (3) avisos (push e trevo) para a organização quando chega
+  peça nova e para quem publicou quando é decidida (hoje o contador da fila
+  e o motivo na tela do autor são o aviso); (4) editar a peça depois de
+  enviada (hoje retira e envia outra); (5) ferramentas do Instagram ainda
+  sem equivalente: reels pela organização, agendar publicação, enquete e
+  figurinhas no story; (6) a plataforma poder decidir sem escolher a
+  organização no modo (hoje a tela só mostra a fila).
 - [ ] **[código]** Remodelagem do web e dos painéis, depois do app
   (`docs/REMODELAGEM.md`: inventário e lista de conferência).
 

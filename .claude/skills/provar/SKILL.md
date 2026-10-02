@@ -48,6 +48,7 @@ Pelo caminho que mudou (a mesma tabela "Onde mexer" do `CLAUDE.md`):
 | presente | `presente` |
 | painel de resultados | `resultados` |
 | afiliados, fiscal, guarda da comissão | `afiliados`, `fiscal`, `guarda` |
+| divulgação de terceiros (afiliado influenciador, publicação do apostador, menu Criar) | `divulgacao`, `afiliados`, `seguranca`, `isolation` |
 | bônus, patrocínio, banner pago, marketing | `bonus`, `patrocinio`, `banner`, `marketing` |
 | editar, adiar, excluir rifa | `solicitacoes` |
 | conta do apostador, login com Google | `conta`, `google` (o servidor sobe com `GOOGLE_PROVA=1`) |

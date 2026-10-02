@@ -141,6 +141,7 @@ arquitetura.
 | perfil verificado (selo de trevo): documentos, foto, fila e cores | `shared/verificacao.ts` (regras e paleta), `server/services/verificacao.ts`, `server/services/rosto.ts` (comparador), `server/routes/verificacaoRotas.ts`, `client/src/components/Verificacao.tsx`, `SeloVerificado.tsx`, `VerificacoesDaPlataforma.tsx`, `CoresDoSelo.tsx`, `scripts/verificacao-test.ts` |
 | formato da publicação (retrato 4:5, quadrado 1:1, paisagem 1,91:1, vertical 9:16) e o perfil acima ou por cima | `formatoDaPeca()`/`formatoDoCarrossel()`/`perfilPorCima()` em `shared/publicacao.ts`, `probeVideoDimensions()` em `server/services/probe.ts`, `Carrossel` em `client/src/components/Publicacao.tsx`, `tests/publicacao.test.ts` |
 | publicação da rifa: carrossel de até 10 (reels e vídeos), barra de ações (trevo, comentar, republicar, compartilhar, "+" do carrinho, comprar) e legenda | `shared/publicacao.ts` (regras), `server/services/publicacao.ts`, `server/services/media.ts` (limites), `client/src/components/Publicacao.tsx`, `scripts/publicacao-test.ts` |
+| divulgação de terceiros: o afiliado (influenciador) publica com o material da organização, direto ou só depois da autorização dela, e o apostador publica um texto (atrás de `publicarApostador`); o menu Criar | `shared/divulgacao.ts` (regras), `server/services/divulgacao.ts`, rotas `/divulgacoes*` em `server/routes/affiliate.ts` (afiliado), `public.ts` (apostador e página da rifa) e `admin.ts` (modo e fila), `modoDaOrganizacao`/`divulgacaoAfiliado` em `organizations`, `MenuCriar` em `client/src/components/Console.tsx`, `client/src/pages/afiliadoDivulgar.tsx`, `Publicar.tsx`, `client/src/components/DivulgacoesDaOrganizacao.tsx`, `DivulgacoesDaRifa.tsx`, `tests/divulgacao.test.ts`, `scripts/divulgacao-test.ts` |
 | carrinho (várias rifas, separadas por organização), o Pix único do carrinho e o comprar da publicação | `shared/carrinho.ts` (regras e split), `server/services/carrinho.ts`, `createCartOrder()` em `server/services/orders.ts`, `client/src/pages/CarrinhoPix.tsx`, `client/src/components/EscolherBilhete.tsx` (a janela do "+"), `scripts/carrinho-test.ts`, `client/src/lib/carrinho.ts`, `client/src/pages/Carrinho.tsx`, `BarraDeAcoes` em `client/src/components/Publicacao.tsx`, `scripts/publicacao-test.ts` |
 | presente pelos comentários (desconto de primeira compra pago pela plataforma) | `shared/presente.ts` (regras), `server/services/presente.ts`, `prepararPedido`/`settleOrderAsPaid` em `server/services/orders.ts`, `Presentear` em `client/src/components/Comentarios.tsx`, `AvisoDePresente` em `client/src/pages/Rifa.tsx`, cartão Presente em `client/src/pages/adminBonus.tsx`, `scripts/presente-test.ts` |
 | topo e console do app (os 6 botões da base, a lateral no computador, o trevo e a publicação) | `shared/console.ts` (botões, aviso do trevo, quem publica), `client/src/components/Console.tsx`, `PublicShell` em `client/src/components/AppShell.tsx`, `client/src/pages/PerfilDoUsuario.tsx`, `client/src/pages/EmBreve.tsx`, `client/src/components/TopoDoAppCard.tsx`, `tests/console.test.ts` |
@@ -449,10 +450,11 @@ Como no Instagram, com as nossas cores (verde no lugar do vermelho e do rosa).
 - **A logo não muda** — nem na lateral do computador, onde só fica menor.
   É o último item do sistema a mudar.
 - **Quem vê a publicação** (`quemPublica()`): organização e plataforma
-  (Criar: rifa, story, legenda), afiliado como influenciador (kit e, em
-  breve, publicar com o material da organização) e o apostador só com o
-  interruptor `publicarApostador` (nasce desligado). Sem conta, não
-  aparece. O menu vai para o `body` (portal): dentro do topo, o console
+  (Criar: rifa, story, legenda e as divulgações de terceiros para
+  autorizar), afiliado como influenciador (kit e publicar com o material
+  da organização, `/afiliado/divulgar`) e o apostador só com o interruptor
+  `publicarApostador` (nasce desligado; `/publicar`). Sem conta, não
+  aparece. As regras de terceiros estão em "Divulgação de terceiros". O menu vai para o `body` (portal): dentro do topo, o console
   passaria por cima.
 - **Ponto na foto do perfil = conta incompleta** (`pendenciasDaConta()`:
   apelido faltando, telefone não confirmado), só para quem tem conta. O
@@ -1558,6 +1560,57 @@ estorno.
   O recorte é `assertCampaignInScope` (o vizinho é 404, no `npm run
   isolation`).
 - `npm run publicacao` prova tudo isso contra a API de verdade.
+
+## Divulgação de terceiros — o que não pode afrouxar
+
+O afiliado (influenciador) e o apostador publicam **sobre a rifa de uma
+organização**, nunca a rifa em si. A peça (`divulgacoes`) é uma legenda
+própria e, para o afiliado, a escolha de mídias que a organização já
+publicou, com o link dele (`/r/<rifa>?ref=<código>`).
+
+- **Não toca a rifa.** Preço, cotas, prêmio e autorização SPA/MF não passam
+  por aqui; o afiliado escolhe `campaign_media` **da própria rifa, já
+  prontas** (id conferido contra a rifa) — nada do navegador vira arquivo, e
+  as medidas e limites da mídia seguem sendo os do envio da organização.
+- **O afiliado só divulga onde recebe**: `comissaoNaRifa()` (afiliado ativo,
+  vínculo aprovado com a **dona** da rifa e, se a rifa foi publicada com
+  termo, o aceite **daquela versão**) — 403 sem isso. A régua vale de novo
+  **na aprovação** (409 se o vínculo mudou) e **na leitura pública**: perdeu
+  o vínculo ou o aceite, a peça some da página sem apagar nada.
+- **O modo é da organização** (`organizations.divulgacao_afiliado`):
+  `autorizacao` (padrão — nada vai ao ar sem ela) ou `direta`. Só a dona
+  muda (o recorte é `organizacaoDoPedido`; a plataforma escolhe a
+  organização). **O apostador sempre passa pela fila**, em qualquer modo.
+- **Rifa que aceita peça nova**: publicada, não demonstração, não travada,
+  organização ativa, não arquivada nem banida (`rifaParaDivulgar`).
+- **O texto passa pela régua da legenda** (sem link e sem telefone, 422) e
+  pela varredura `pedePagamentoPorFora()`: pedido de Pix por fora é
+  **recusado** (422) e vira denúncia automática (`emSegundoPlano`, evidência
+  "texto de terceiro (afiliado <código>), recusado e não publicado"). A
+  denúncia tem a organização como alvo porque a rifa é dela, mas a evidência
+  diz que o texto não é dela e nunca foi ao ar; quem decide é a plataforma.
+  A tentativa recusada **conta no limite diário** (`hit()` antes de recusar).
+  Peça de terceiro nunca nasce sem isto.
+- **Decidir é `UPDATE` condicional com a linha travada** (`FOR UPDATE`,
+  `decidir()`): aprovar/recusar parte de `em_analise`, retirar de
+  `publicada` — dois cliques, uma decisão, um 409. Recusar e retirar pedem
+  motivo (quem publicou o lê). O pedido do vizinho é **404** (`orgOf`),
+  conferido antes de tudo; o afiliado não decide (403, é rota de painel).
+- **Um em análise por autor e rifa** pelos índices parciais
+  (`uq_divulgacao_afiliado_em_analise`, `uq_divulgacao_apostador_em_analise`)
+  — nunca um `SELECT` antes — e `hit()` de 10 por dia por pessoa, depois do
+  erro de preenchimento.
+- **O apostador** só com o interruptor `publicarApostador` ligado (desligado:
+  404 em toda rota e as peças dele saem do ar), só com **conta e apelido**,
+  só **texto**, só sobre rifa em que tem **compra paga** — conferida de novo
+  na leitura pública: estornou, a peça sai do ar.
+- **Sem dado pessoal em lugar nenhum**: a fila e a página pública trazem
+  nome curto e código (afiliado) ou `@apelido` (apostador) — nunca telefone,
+  CPF, e-mail ou id de pessoa.
+- A tabela nova sobe com o `db:push` **antes** do código, e a coluna
+  `organizations.divulgacao_afiliado` também.
+- `npm run divulgacao` prova tudo isso contra a API de verdade
+  (`npm run isolation` confere o recorte).
 
 ## Mensagens — o que não pode afrouxar
 

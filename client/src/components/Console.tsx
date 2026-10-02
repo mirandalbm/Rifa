@@ -142,14 +142,15 @@ function MenuCriar({ quem, onFechar }: { quem: NonNullable<ReturnType<typeof que
           { rotulo: "Rifa", detalhe: "Cadastrar uma rifa nova, com fotos, vídeos e cotas premiadas", href: "/admin/campanhas" },
           { rotulo: "Story", detalhe: "Uma imagem que fica 24 horas no topo da vitrine", href: "/admin/stories" },
           { rotulo: "Legenda", detalhe: "O texto embaixo da publicação de uma rifa no ar", href: "/admin/campanhas" },
+          { rotulo: "Divulgações de terceiros", detalhe: "Autorizar o que influenciadores e apostadores publicam com a sua rifa", href: "/admin/afiliados" },
           { rotulo: "Reels e mais ferramentas", detalhe: "Em breve" },
         ]
       : quem === "influenciador"
         ? [
             { rotulo: "Meus links e materiais", detalhe: "O kit de divulgação das organizações", href: "/afiliado/links" },
-            { rotulo: "Publicar com o material da organização", detalhe: "Em breve" },
+            { rotulo: "Publicar com o material da organização", detalhe: "Escolher as mídias de uma rifa e escrever a sua legenda", href: "/afiliado/divulgar" },
           ]
-        : [{ rotulo: "Publicar", detalhe: "Em breve" }];
+        : [{ rotulo: "Publicar sobre uma rifa", detalhe: "Um texto sobre uma rifa em que você comprou, depois da autorização da organização", href: "/publicar" }];
   return (
     <Janela onFechar={onFechar} rotulo="Criar" className="p-4" style={{ paddingBottom: "calc(1rem + env(safe-area-inset-bottom))" }}>
       <div className="mb-2 flex items-center justify-between">

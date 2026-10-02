@@ -170,9 +170,9 @@ senha); **[código]** é trabalho no repositório.
   (formulários e textos seguem na coluna estreita).
 - [ ] **[você]** Conferir o vídeo no celular (som e "Assistir novamente"): o
   banco de testes não tem vídeo, então não saiu captura dele.
-- [ ] **[você]** Advogado e contador: o desconto do presente pago pela
-  plataforma (promoção comercial, nota da plataforma) antes de ligar o
-  presente em Bônus → Presente.
+- [ ] **[ligar]** Presente (desconto pago pela plataforma): ligar em Bônus →
+  Presente quando a validação jurídica e contábil (promoção comercial, nota
+  da plataforma) estiver em ordem — já combinado, não bloqueia o código.
 - [ ] **[você]** Antes de aprovar um adiamento, conferir se a autorização
   SPA/MF da rifa cobre a nova data (a plataforma não tem como checar isso
   sozinha).
@@ -321,7 +321,7 @@ Na ordem de entrega do plano:
   compra) e transmissão do sorteio (link da live/vídeo na página da rifa).
   Depois do sorteio a página mostra o número, a Federal e a semente, e o
   botão "Conferir o sorteio" refaz a conta no aparelho de quem olha.
-- [ ] **[você]** Advogado revisar o regulamento-modelo
+- [ ] **[lançamento]** Revisão jurídica do regulamento-modelo
   (`shared/regulamento.ts`): prazo de entrega (30 dias), prescrição do
   prêmio (180 dias) e o que acontece quando o número sorteado não foi
   vendido — hoje o texto remete ao que a autorização de cada rifa diz.
@@ -395,14 +395,15 @@ Na ordem de entrega do plano:
   desligado** (Configurações → Pagamentos → "A plataforma guarda a comissão
   dos afiliados"): a comissão da venda online com afiliado sai do split da
   organização, só libera depois do sorteio e é paga pela plataforma.
-- [ ] **[você]** Ligar a guarda da comissão depois de o contador confirmar o
-  modelo (a plataforma segurando dinheiro de terceiro até o sorteio; RPA ou
+- [ ] **[ligar]** Guarda da comissão: ligar quando o modelo contábil estiver
+  validado (combinado, não bloqueia o código) (a plataforma segurando dinheiro de terceiro até o sorteio; RPA ou
   nota do afiliado).
 - [x] Indicação, bônus e metas, **atrás de um interruptor desligado**
   (menu Bônus da plataforma): link de indicação, visitas novas, metas e
   cotas grátis de bônus, resgatadas só em rifa cujo regulamento as prevê.
-- [ ] **[você]** Ligar o programa de bônus depois de o advogado confirmar a
-  cota grátis no regulamento aprovado pela SPA/MF; as organizações marcam
+- [ ] **[ligar]** Programa de bônus: ligar quando a cota grátis estiver
+  validada no regulamento aprovado pela SPA/MF (combinado, não bloqueia o
+  código); as organizações marcam
   "aceitar cotas de bônus" nos dados legais de cada rifa, antes de publicar.
 - [x] Disputa de reembolso no administrador geral: o comprador leva à
   plataforma o chamado recusado (até 7 dias) ou sem resposta da organização
@@ -452,10 +453,10 @@ Na ordem de entrega do plano:
   nos comentários e apelido obrigatório no cadastro.
 - [x] Login com Google: entra, completa CPF e telefone depois e liga o
   Google a uma conta que já existe, de dentro dela (`npm run google`).
-- [ ] **[você]** Advogado: regra de reembolso (arrependimento × corte de
-  2 h), cota grátis de bônus no regulamento.
-- [ ] **[você]** Contador: guarda da comissão pela plataforma e RPA/nota
-  dos afiliados.
+- [ ] **[lançamento]** Validação jurídica: regra de reembolso (arrependimento ×
+  corte de 2 h) e cota grátis de bônus no regulamento.
+- [ ] **[lançamento]** Validação contábil: guarda da comissão pela plataforma
+  e RPA/nota dos afiliados.
 - [ ] **[você]** Cliente OAuth do Google (console.cloud.google.com → APIs e
   serviços → Credenciais → ID do cliente OAuth, tipo "Aplicativo da Web"):
   URI de redirecionamento autorizada

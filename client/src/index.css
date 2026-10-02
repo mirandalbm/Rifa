@@ -186,6 +186,29 @@
   }
 
   /*
+   * O cartão de estatística do painel aperta pela largura dele (container
+   * query): com a coluna do assistente aberta, ou num computador de 1024 px,
+   * ele fica com ~170 px e o valor saía cortado ("R$ 0…"). Estreito, o ícone
+   * sobe e o valor ganha a largura toda.
+   */
+  .estatistica {
+    container-type: inline-size;
+  }
+  .estatistica-miolo {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: 1rem;
+  }
+  @container (max-width: 220px) {
+    .estatistica-miolo {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.5rem;
+    }
+  }
+
+  /*
    * A casa quadrada do número (mapa, cartela, janela do "+" e carrinho).
    * Duas cores alternadas dão o contraste do quadriculado; o estado nunca
    * vai só na cor: o escolhido leva ✓ e `aria-pressed`, o vendido é cinza

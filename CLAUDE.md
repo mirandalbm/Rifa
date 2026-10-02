@@ -531,6 +531,12 @@ O verde da marca entra no lugar do roxo do kit; o significado das cores
   kit (`--sombra-papel`). `Card`, `Kpi`, `Estatistica` e `CartaoDoPainel`
   levam a classe; na loja ela não faz nada. O escuro redefine os dois tokens
   (`tests/tema.test.ts` cobra).
+- **Cartão estreito não corta número.** O `Estatistica` aperta pela largura
+  dele (`.estatistica`, container query de até 220 px no `index.css`): o ícone
+  sobe e o valor ganha a largura toda, com a fonte acompanhando o cartão
+  (`cqi`); o "Vendas do mês" faz o mesmo. Com a coluna do assistente aberta,
+  ou num computador de 1024 px, o cartão fica com ~170 px e o dinheiro saía
+  "R$ 0…".
 - **O Painel usa os widgets dos painéis prontos do kit** (eCommerce e
   Analytics), cada um ligado a um dado nosso em `GET /api/admin/overview`
   (hoje, mês, canais site/cambista, por estado de quem comprou, série de 30

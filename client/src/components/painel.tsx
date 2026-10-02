@@ -37,19 +37,27 @@ export function Estatistica({
   dica?: ReactNode;
   href?: string;
 }) {
+  // Estreito (a coluna do assistente aberta, um computador de 1024 px), o
+  // ícone sobe e o valor ganha a largura toda (`.estatistica` no index.css);
+  // a fonte do valor acompanha o cartão, para o dinheiro não sair cortado.
   const miolo = (
-    <>
+    <span className="estatistica-miolo">
       <span aria-hidden className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${TOM[tom]}`}>
         <Icone size={22} />
       </span>
-      <span className="min-w-0">
-        <span className="tnum block truncate text-xl font-medium leading-8 text-ink">{valor}</span>
+      <span className="min-w-0 max-w-full">
+        <span
+          className="tnum block truncate font-medium leading-8 text-ink [font-size:clamp(1rem,13cqi,1.25rem)]"
+          title={typeof valor === "string" ? valor : undefined}
+        >
+          {valor}
+        </span>
         <span className="block text-xs leading-4 text-muted">{rotulo}</span>
         {dica ? <span className="block text-[11px] leading-4 text-muted">{dica}</span> : null}
       </span>
-    </>
+    </span>
   );
-  const classe = "cartao flex min-w-0 items-center gap-4 rounded-xl border border-line bg-white px-5 py-4";
+  const classe = "cartao estatistica block min-w-0 rounded-xl border border-line bg-white px-5 py-4";
   return href ? (
     <Link href={href} className={`${classe} hover:bg-mist`} aria-label={`${rotulo}: ${typeof valor === "string" ? valor : ""}`}>
       {miolo}

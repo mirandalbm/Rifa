@@ -2696,7 +2696,12 @@ export const iaUso = pgTable(
     milicreditos: integer("milicreditos"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
-  (t) => [uniqueIndex("uq_ia_uso_mensagem").on(t.mensagemId), index("idx_ia_uso_titular").on(t.titularTipo, t.titularId, t.createdAt)],
+  (t) => [
+    uniqueIndex("uq_ia_uso_mensagem").on(t.mensagemId),
+    index("idx_ia_uso_titular").on(t.titularTipo, t.titularId, t.createdAt),
+    // O relatório da plataforma lê por período, de todos os titulares.
+    index("idx_ia_uso_data").on(t.createdAt),
+  ],
 );
 
 /**
@@ -2787,6 +2792,7 @@ export const iaPagamentos = pgTable(
     uniqueIndex("uq_ia_pagamento_codigo").on(t.codigo),
     uniqueIndex("uq_ia_pagamento_charge").on(t.chargeId),
     index("idx_ia_pagamentos_titular").on(t.titularTipo, t.titularId, t.createdAt),
+    index("idx_ia_pagamentos_paga_em").on(t.pagaEm),
   ],
 );
 

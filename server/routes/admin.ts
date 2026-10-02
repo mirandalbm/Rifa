@@ -240,6 +240,7 @@ import { estadoWhatsApp, criarModelosFaltantes, enviarTeste } from "../services/
 import { validarConfigBusca } from "@shared/buscar";
 import { validarConfigIA } from "@shared/ia";
 import { configDaIA } from "../services/ia";
+import { CobrancaIAError, ajustarCreditosIA, extratoDaIA, relatorioDaIA } from "../services/iaCobranca";
 import { chaveDoChatbase } from "../services/chatbase";
 import { senhaInvalida } from "@shared/senha";
 import { conversasDenunciadasAbertas, decidirDenunciaDeConversa, detalheDaDenunciaDeConversa, fotoDaDenuncia, listarDenunciasDeConversa } from "../services/mensagens";
@@ -3826,6 +3827,44 @@ adminRouter.put("/ia/config", async (req, res, next) => {
     await audit(req, "ia.config", "settings", "plataforma", { ...salva.assistenteIA });
     res.json({ config: salva.assistenteIA, chaveNoAmbiente: chaveDoChatbase() !== null });
   } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * Uso e receita do assistente, por quem paga, e o ajuste de crédito
+ * (cortesia ou correção). Só a plataforma (403 para organizador, no `npm run
+ * isolation`); as regras moram em `services/iaCobranca.ts`.
+ */
+adminRouter.get("/ia/relatorio", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    res.set("Cache-Control", "no-store");
+    res.json(await relatorioDaIA(req.query.dias));
+  } catch (err) {
+    if (err instanceof CobrancaIAError) return res.status(err.status).json({ message: err.message });
+    next(err);
+  }
+});
+
+adminRouter.get("/ia/lancamentos", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    res.set("Cache-Control", "no-store");
+    res.json(await extratoDaIA(req.query.tipo, req.query.titular));
+  } catch (err) {
+    if (err instanceof CobrancaIAError) return res.status(err.status).json({ message: err.message });
+    next(err);
+  }
+});
+
+adminRouter.post("/ia/ajustes", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    const feito = await ajustarCreditosIA({ id: req.user!.id, role: req.user!.role, ip: req.ip }, req.body ?? {});
+    res.status(feito.repetido ? 200 : 201).json(feito);
+  } catch (err) {
+    if (err instanceof CobrancaIAError) return res.status(err.status).json({ message: err.message });
     next(err);
   }
 });

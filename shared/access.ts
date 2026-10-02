@@ -66,6 +66,7 @@ export type SectionKey =
   | "afiliadoOrganizacoes"
   | "adminResultados"
   | "afiliadoDados"
+  | "afiliadoDivulgar"
   | "adminFiscal"
   | "adminCaixa"
   | "adminBonus"
@@ -103,6 +104,8 @@ export const SECTIONS: Section[] = [
   { key: "afiliadoLinks", path: "/afiliado/links", label: "Meus links", requires: "affiliate", nav: true },
   // O afiliado é avulso: adere às organizações que quiser, com o termo de cada uma.
   { key: "afiliadoOrganizacoes", path: "/afiliado/organizacoes", label: "Organizações", requires: "affiliate", nav: true },
+  // Publicar com o material da organização (influenciador): direto ou só depois da autorização dela.
+  { key: "afiliadoDivulgar", path: "/afiliado/divulgar", label: "Divulgar", requires: "affiliate", nav: true },
   { key: "afiliadoComissoes", path: "/afiliado/comissoes", label: "Comissões", requires: "affiliate", nav: true },
   { key: "afiliadoSaques", path: "/afiliado/saques", label: "Saques", requires: "affiliate", nav: true },
   // Cadastro fiscal: quem recebe a comissão. Cifrado; o organizador nunca vê.
@@ -257,7 +260,7 @@ const MENU_DO_ORGANIZADOR: GrupoDoMenu[] = [
 ];
 
 const MENU_DO_AFILIADO: GrupoDoMenu[] = [
-  { itens: [{ secao: "afiliadoPainel" }, { secao: "afiliadoLinks" }, { secao: "afiliadoOrganizacoes" }] },
+  { itens: [{ secao: "afiliadoPainel" }, { secao: "afiliadoLinks" }, { secao: "afiliadoDivulgar" }, { secao: "afiliadoOrganizacoes" }] },
   { titulo: "Dinheiro", itens: [{ secao: "afiliadoComissoes" }, { secao: "afiliadoSaques" }, { secao: "afiliadoDados" }] },
 ];
 

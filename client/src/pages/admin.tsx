@@ -1,4 +1,5 @@
 import { LegendaCard } from "@/components/Publicacao";
+import { DivulgacoesDaOrganizacao } from "@/components/DivulgacoesDaOrganizacao";
 import { SeloVerificado } from "@/components/SeloVerificado";
 import { useState } from "react";
 import { Link, useSearch } from "wouter";
@@ -1067,6 +1068,9 @@ export function AdminAfiliados() {
           <TermoAfiliadoCard />
         </div>
       ) : null}
+      <div className="mb-3">
+        <DivulgacoesDaOrganizacao daOrganizacao={daOrganizacao} />
+      </div>
       {pending.length > 0 ? (
         <div className="mb-3">
           <Card

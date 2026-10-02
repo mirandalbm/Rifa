@@ -1,0 +1,93 @@
+import { describe, expect, it } from "vitest";
+import {
+  DE_PARA_DA_DECISAO,
+  DIVULGACAO_MIDIAS_MAX,
+  MODO_PADRAO,
+  linkDaDivulgacao,
+  statusInicial,
+  validarDecisao,
+  validarDivulgacao,
+  validarModo,
+} from "../shared/divulgacao";
+import { quemPublica } from "../shared/console";
+
+const ID = "11111111-1111-4111-8111-111111111111";
+
+describe("modo de divulgação do afiliado", () => {
+  it("nasce pedindo autorização", () => {
+    expect(MODO_PADRAO).toBe("autorizacao");
+  });
+  it("só aceita os dois modos conhecidos", () => {
+    expect(validarModo("direta")).toBe("direta");
+    expect(validarModo("autorizacao")).toBe("autorizacao");
+    expect(() => validarModo("qualquer")).toThrow();
+    expect(() => validarModo(undefined)).toThrow();
+  });
+});
+
+describe("situação inicial", () => {
+  it("afiliado vai direto só no modo direto", () => {
+    expect(statusInicial("afiliado", "direta")).toBe("publicada");
+    expect(statusInicial("afiliado", "autorizacao")).toBe("em_analise");
+  });
+  it("apostador espera a organização em qualquer modo", () => {
+    expect(statusInicial("apostador", "direta")).toBe("em_analise");
+    expect(statusInicial("apostador", "autorizacao")).toBe("em_analise");
+  });
+});
+
+describe("validarDivulgacao", () => {
+  it("recusa link e telefone na legenda, de qualquer autor", () => {
+    expect(() => validarDivulgacao("afiliado", { legenda: "Compre em https://exemplo.com" })).toThrow();
+    expect(() => validarDivulgacao("afiliado", { legenda: "Chama 11 98888-7777" })).toThrow();
+    expect(() => validarDivulgacao("apostador", { legenda: "Visita www.site.com.br agora" })).toThrow();
+  });
+  it("afiliado precisa de legenda ou de mídia", () => {
+    expect(() => validarDivulgacao("afiliado", { legenda: "  " })).toThrow();
+    expect(validarDivulgacao("afiliado", { legenda: "", midias: [ID] }).midias).toEqual([ID]);
+    expect(validarDivulgacao("afiliado", { legenda: "Bora?" }).legenda).toBe("Bora?");
+  });
+  it("apostador publica só texto", () => {
+    expect(() => validarDivulgacao("apostador", { legenda: "Ótima rifa", midias: [ID] })).toThrow();
+    expect(() => validarDivulgacao("apostador", { legenda: "a" })).toThrow();
+    expect(validarDivulgacao("apostador", { legenda: "Ótima rifa" })).toEqual({ legenda: "Ótima rifa", midias: [] });
+  });
+  it("mídia só por id, sem repetir e com teto", () => {
+    expect(() => validarDivulgacao("afiliado", { legenda: "x ok", midias: ["../../etc"] })).toThrow();
+    expect(validarDivulgacao("afiliado", { legenda: "x ok", midias: [ID, ID] }).midias).toHaveLength(1);
+    const muitas = Array.from({ length: DIVULGACAO_MIDIAS_MAX + 1 }, (_, i) => `11111111-1111-4111-8111-${String(i).padStart(12, "0")}`);
+    expect(() => validarDivulgacao("afiliado", { legenda: "x ok", midias: muitas })).toThrow();
+  });
+  it("ignora chave desconhecida (preço, status, organização)", () => {
+    const v = validarDivulgacao("afiliado", { legenda: "Bora", priceCents: 1, status: "publicada", organizationId: ID });
+    expect(Object.keys(v).sort()).toEqual(["legenda", "midias"]);
+  });
+});
+
+describe("decisão", () => {
+  it("aprovar e recusar partem de em análise; retirar, de no ar", () => {
+    expect(DE_PARA_DA_DECISAO.aprovar).toEqual({ de: "em_analise", para: "publicada" });
+    expect(DE_PARA_DA_DECISAO.recusar.de).toBe("em_analise");
+    expect(DE_PARA_DA_DECISAO.remover).toEqual({ de: "publicada", para: "removida" });
+  });
+  it("recusar e retirar pedem motivo; aprovar não", () => {
+    expect(validarDecisao({ acao: "aprovar" })).toEqual({ acao: "aprovar", motivo: null });
+    expect(() => validarDecisao({ acao: "recusar" })).toThrow();
+    expect(validarDecisao({ acao: "recusar", motivo: "Fora do tom" }).motivo).toBe("Fora do tom");
+    expect(() => validarDecisao({ acao: "apagar" })).toThrow();
+  });
+});
+
+describe("link da divulgação", () => {
+  it("leva o código do afiliado; o do apostador é a rifa limpa", () => {
+    expect(linkDaDivulgacao("rifa-x", "JOAO7")).toBe("/r/rifa-x?ref=JOAO7");
+    expect(linkDaDivulgacao("rifa-x", null)).toBe("/r/rifa-x");
+  });
+});
+
+describe("quem vê o menu Criar", () => {
+  it("o apostador só aparece com o interruptor ligado", () => {
+    expect(quemPublica({ role: null, apostador: true }, false)).toBeNull();
+    expect(quemPublica({ role: null, apostador: true }, true)).toBe("apostador");
+  });
+});

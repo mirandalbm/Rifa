@@ -4,6 +4,13 @@ import { fotoDoApostador, meuPerfilPublico, perfilPublicoDoApostador, quemTambem
 import { apagarComentario, comentar, curtirComentario, listarComentarios } from "../services/comentarios";
 import { marcarTodasLidas, naoLidas, notificacoesDe } from "../services/notificacoes";
 import { aderir, pedirColaboracao, termoPublico } from "../services/afiliados";
+import {
+  divulgacoesDaRifa,
+  minhasDoApostador,
+  publicarComoApostador,
+  retirarPropriaDoApostador,
+  rifasDoApostador,
+} from "../services/divulgacao";
 import { fotoDoGanhador, urlDaFotoDoGanhador } from "../services/ganhador";
 import {
   bannersNoAr,
@@ -2311,6 +2318,52 @@ publicRouter.get("/campaigns/:slug/ranking", async (req, res, next) => {
         quotas: r.quotas,
       })),
     );
+  } catch (err) {
+    next(err);
+  }
+});
+
+/* ---------------- divulgação de terceiros (afiliado e apostador) ---------------- */
+
+/** As divulgações no ar da rifa (só nome curto ou apelido; nunca telefone). */
+publicRouter.get("/campaigns/:slug/divulgacoes", async (req, res, next) => {
+  try {
+    res.json(await divulgacoesDaRifa(req.params.slug));
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** Do apostador: 404 com o interruptor `publicarApostador` desligado. */
+publicRouter.get("/divulgacoes/rifas", async (req, res, next) => {
+  try {
+    res.setHeader("Cache-Control", "private, no-store");
+    res.json(await rifasDoApostador(req));
+  } catch (err) {
+    next(err);
+  }
+});
+
+publicRouter.get("/divulgacoes/minhas", async (req, res, next) => {
+  try {
+    res.setHeader("Cache-Control", "private, no-store");
+    res.json(await minhasDoApostador(req));
+  } catch (err) {
+    next(err);
+  }
+});
+
+publicRouter.post("/divulgacoes", async (req, res, next) => {
+  try {
+    res.status(201).json(await publicarComoApostador(req, req.body ?? {}));
+  } catch (err) {
+    next(err);
+  }
+});
+
+publicRouter.delete("/divulgacoes/:id", async (req, res, next) => {
+  try {
+    res.json(await retirarPropriaDoApostador(req, req.params.id));
   } catch (err) {
     next(err);
   }

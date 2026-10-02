@@ -19,6 +19,8 @@ import MinhasCotas from "@/pages/MinhasCotas";
 import Carrinho from "@/pages/Carrinho";
 import CarrinhoPix from "@/pages/CarrinhoPix";
 import Notificacoes from "@/pages/Notificacoes";
+import Publicar from "@/pages/Publicar";
+import { AfiliadoDivulgar } from "@/pages/afiliadoDivulgar";
 import PerfilDoUsuario from "@/pages/PerfilDoUsuario";
 import Buscar from "@/pages/Buscar";
 import Mensagens from "@/pages/Mensagens";
@@ -154,6 +156,7 @@ export default function App() {
           <Route path="/carrinho" component={Carrinho} />
           <Route path="/carrinho/pix/:codigo" component={CarrinhoPix} />
           <Route path="/notificacoes" component={Notificacoes} />
+          <Route path="/publicar" component={Publicar} />
           <Route path="/perfil" component={PerfilDoUsuario} />
           <Route path="/reels" component={Reels} />
           <Route path="/mensagens" component={Mensagens} />
@@ -176,6 +179,11 @@ export default function App() {
           <Route path="/afiliado/links">
             <Guarded requires="affiliate">
               <AfiliadoLinks />
+            </Guarded>
+          </Route>
+          <Route path="/afiliado/divulgar">
+            <Guarded requires="affiliate">
+              <AfiliadoDivulgar />
             </Guarded>
           </Route>
           <Route path="/afiliado/organizacoes">

@@ -136,6 +136,13 @@ import {
   vinculosDaOrganizacao,
 } from "../services/afiliados";
 import { salvarFotoDoGanhador } from "../services/ganhador";
+import {
+  decidir as decidirDivulgacao,
+  listarDaOrganizacao as listarDivulgacoesDaOrganizacao,
+  modoDaOrganizacao,
+  pendentesDaOrganizacao,
+  salvarModo as salvarModoDeDivulgacao,
+} from "../services/divulgacao";
 import { cliquesDosLinks, linkCurtoDaRifa, linkCurtoDoPerfil } from "../services/links";
 import {
   cancelarSolicitacao,
@@ -3509,6 +3516,50 @@ adminRouter.post("/colaboradores/pedidos/:id", async (req, res, next) => {
     await decidirPedidoDeColaborador(orgOf(req), req.params.id, req.body?.status);
     await audit(req, "colaborador.pedido", "pedido_colaborador", req.params.id, { status: req.body?.status });
     res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/* ---------------- divulgação de terceiros (influenciador e apostador) ---------------- */
+
+/** Como o afiliado publica com o material desta organização, e quantas peças esperam. */
+adminRouter.get("/divulgacoes/config", async (req, res, next) => {
+  try {
+    const org = organizacaoDoPedido(req);
+    res.json({ modo: org ? await modoDaOrganizacao(org) : null, porOrganizacao: !org, pendentes: await pendentesDaOrganizacao(req) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.put("/divulgacoes/config", async (req, res, next) => {
+  try {
+    const org = organizacaoDoPedido(req);
+    if (!org) return res.status(400).json({ message: "Escolha a organização." });
+    const r = await salvarModoDeDivulgacao(org, req.body);
+    await audit(req, "divulgacao.modo", "organization", org, { modo: r.modo });
+    res.json(r);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** A fila, no recorte de `orgOf`: a organização vê só a dela. */
+adminRouter.get("/divulgacoes", async (req, res, next) => {
+  try {
+    res.json(await listarDivulgacoesDaOrganizacao(req, req.query.status));
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** Aprovar, recusar ou retirar — uma decisão por peça (o segundo clique é 409). O do vizinho é 404. */
+adminRouter.post("/divulgacoes/:id", async (req, res, next) => {
+  try {
+    const r = await decidirDivulgacao(req, req.params.id, req.body);
+    await audit(req, `divulgacao.${r.acao}`, "divulgacao", req.params.id, { campaignId: r.campaignId });
+    res.json({ id: r.id, status: r.status });
   } catch (err) {
     next(err);
   }

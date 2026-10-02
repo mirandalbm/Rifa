@@ -39,6 +39,7 @@
     "presente": "tsx scripts/presente-test.ts",
     "resultados": "tsx scripts/resultados-test.ts",
     "afiliados": "tsx scripts/afiliados-test.ts",
+    "divulgacao": "tsx scripts/divulgacao-test.ts",
     "fiscal": "tsx scripts/fiscal-test.ts",
     "disputa": "tsx scripts/disputa-test.ts",
     "guarda": "tsx scripts/guarda-test.ts",

@@ -25,6 +25,8 @@ import {
 } from "@shared/schema";
 import {
   DEFAULT_LIMITS,
+  GUARDA_DAS_RECUSAS_DIAS,
+  GUARDA_DO_BLOQUEIO_VENCIDO_DIAS,
   WINDOWS,
   validateLimits,
   type AntiFraudLimits,
@@ -528,6 +530,25 @@ export async function purgeRateEvents(): Promise<number> {
     .where(sql`${rateEvents.createdAt} < now() - interval '2 hours'`)
     .returning({ id: rateEvents.id });
   return rows.length;
+}
+
+/**
+ * A guarda do antifraude (`GUARDA_DAS_RECUSAS_DIAS`, `GUARDA_DO_BLOQUEIO_VENCIDO_DIAS`):
+ * recusa velha e bloqueio que venceu há tempo saem do banco. Bloqueio sem
+ * prazo nunca sai sozinho — é decisão de uma pessoa.
+ */
+export async function purgarGuardaDoAntifraude(): Promise<{ recusas: number; bloqueios: number }> {
+  const recusas = await db
+    .delete(fraudEvents)
+    .where(sql`${fraudEvents.createdAt} < now() - make_interval(days => ${GUARDA_DAS_RECUSAS_DIAS})`)
+    .returning({ id: fraudEvents.id });
+  const bloqueios = await db
+    .delete(fraudBlocks)
+    .where(
+      sql`${fraudBlocks.expiresAt} IS NOT NULL AND ${fraudBlocks.expiresAt} < now() - make_interval(days => ${GUARDA_DO_BLOQUEIO_VENCIDO_DIAS})`,
+    )
+    .returning({ id: fraudBlocks.id });
+  return { recusas: recusas.length, bloqueios: bloqueios.length };
 }
 
 /** Painel: o que foi barrado, agrupado por regra. */

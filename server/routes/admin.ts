@@ -1,3 +1,4 @@
+import { devolverPixTardio, listarPixTardios, resolverPixTardio } from "../services/pixTardio";
 import { numerosPremiados } from "@shared/premiadas";
 import express, { Router, type Request, type Response as Resposta } from "express";
 import {
@@ -660,6 +661,36 @@ adminRouter.post("/organizacoes/:id/telefone/aprovar", async (req, res, next) =>
     requirePlatformAdmin(req);
     await audit(req, "organizacao.telefone.aprovado", "organization", req.params.id, {});
     res.json(await aprovarTelefone(req, req.params.id));
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * Pix que chegou tarde (reserva vencida ou rifa já sorteada): a fila de
+ * devolução. Só a plataforma — o dinheiro passou pela conta dela (403 para
+ * organizador, no `npm run isolation`).
+ */
+adminRouter.get("/pix-tardios", async (req, res, next) => {
+  try {
+    res.setHeader("Cache-Control", "no-store");
+    res.json(await listarPixTardios(req));
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.post("/pix-tardios/:id/devolver", async (req, res, next) => {
+  try {
+    res.json(await devolverPixTardio(req, req.params.id));
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.post("/pix-tardios/:id/resolver", async (req, res, next) => {
+  try {
+    res.json(await resolverPixTardio(req, req.params.id, req.body?.observacao));
   } catch (err) {
     next(err);
   }

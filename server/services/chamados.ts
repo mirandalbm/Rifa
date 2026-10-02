@@ -712,7 +712,7 @@ export async function executarEstorno(req: Request, id: string) {
       if (provider.refund) {
         // Sem valor, o provedor devolve a cobrança inteira. No carrinho num
         // Pix só a cobrança é de várias rifas: o valor vai sempre explícito.
-        await provider.refund(pedido.pspChargeId, devolver < pago || pedido.carrinhoId ? devolver : undefined);
+        await provider.refund(pedido.pspChargeId, devolver < pago || pedido.carrinhoId ? devolver : undefined, `pedido-${pedido.id}`);
         forma = pedido.pspProvider;
       }
     }

@@ -154,18 +154,18 @@ export async function confirmarIndicacao(tx: Tx, order: { id: string; buyerId: s
  * (na mesma transação do estorno). Sem isso, comprar pelo próprio link com
  * outro telefone e pedir o dinheiro de volta renderia cota grátis.
  */
-export async function estornarIndicacao(tx: Tx, orderId: string) {
+export async function estornarIndicacao(tx: Tx, orderId: string): Promise<string | null> {
   const [ind] = await tx
     .update(indicacoes)
     .set({ status: "estornada" })
     .where(and(eq(indicacoes.orderId, orderId), eq(indicacoes.status, "confirmada")))
     .returning({ indicadorId: indicacoes.indicadorId, indicadoId: indicacoes.indicadoId });
-  if (!ind) return;
+  if (!ind) return null;
   const [credito] = await tx
     .select({ quantidade: bonusLancamentos.quantidade })
     .from(bonusLancamentos)
     .where(eq(bonusLancamentos.chave, `indicacao:${ind.indicadoId}`));
-  if (!credito) return;
+  if (!credito) return ind.indicadorId;
   await creditar(tx, {
     buyerId: ind.indicadorId,
     quantidade: -credito.quantidade,
@@ -174,6 +174,7 @@ export async function estornarIndicacao(tx: Tx, orderId: string) {
     descricao: "Indicação estornada",
     orderId,
   });
+  return ind.indicadorId;
 }
 
 /**
@@ -206,8 +207,8 @@ export async function registrarVisita(codigo: unknown, aparelhoHash: string | nu
 }
 
 /** Quanto a pessoa já fez de cada tipo de meta. */
-async function progressoDe(buyerId: string) {
-  const r = await db.execute(sql`
+async function progressoDe(buyerId: string, ex: Executor = db) {
+  const r = await ex.execute(sql`
     select
       (select count(distinct o.campaign_id)::int from orders o
         where o.buyer_id = ${buyerId}::uuid and o.status = 'paid' and o.method <> 'bonus') as rifas_compradas,
@@ -245,18 +246,108 @@ export async function avaliarMetas(buyerId: string) {
   const alcancadas = progressoDasMetas(metas, await progressoDe(buyerId)).filter((m) => m.alcancada);
   let creditadas = 0;
   for (const m of alcancadas) {
-    const ok = await db.transaction((tx) =>
-      creditar(tx, {
+    const ok = await db.transaction(async (tx) => {
+      await travarMetasDe(tx, buyerId);
+      // O progresso lido acima pode ter caído (um estorno no meio): confere
+      // de novo com a pessoa travada, senão a meta desfeita pagaria outra volta.
+      const agora = await progressoDe(buyerId, tx);
+      if (agora[m.tipo as TipoDeMeta] < m.alvo) return false;
+      // Meta desfeita por estorno pode ser alcançada de novo: cada volta tem a
+      // própria chave (a primeira é a de sempre), e a mesma volta nunca paga duas vezes.
+      const { desfeitas } = await ciclosDaMeta(tx, m.id, buyerId);
+      return creditar(tx, {
         buyerId,
         quantidade: m.recompensa,
         motivo: "meta",
-        chave: `meta:${m.id}:${buyerId}`,
+        chave: chaveDaMeta(m.id, buyerId, desfeitas),
         descricao: `Meta alcançada: ${m.titulo}`,
-      }),
-    );
+      });
+    });
     if (ok) creditadas++;
   }
   return creditadas;
+}
+
+/** Metas que o estorno desfaz: as que dependem de compra paga. Seguir e visitas não voltam atrás. */
+const METAS_QUE_O_ESTORNO_DESFAZ = ["rifas_compradas", "indicacoes"] as const;
+
+function chaveDaMeta(metaId: string, buyerId: string, desfeitas: number) {
+  return desfeitas === 0 ? `meta:${metaId}:${buyerId}` : `meta:${metaId}:${buyerId}:${desfeitas + 1}`;
+}
+
+/**
+ * Trava as metas da pessoa: creditar e desfazer não se cruzam. A trava é a
+ * própria linha do comprador (a mesma que `creditar` atualiza), não uma trava
+ * à parte. No estorno, quem comprou e quem indicou já foram travados juntos
+ * (`travarPessoasDoEstorno`), e travar de novo a linha que já é sua não espera.
+ */
+async function travarMetasDe(tx: Tx, buyerId: string) {
+  await tx.execute(sql`select 1 from buyers where id = ${buyerId}::uuid for update`);
+}
+
+/**
+ * O estorno mexe no saldo de duas pessoas (quem comprou e quem indicou):
+ * trava as duas de uma vez, na ordem do id, antes de creditar qualquer uma.
+ * Dois estornos cruzados (A indicou B e B indicou A) travando cada um na sua
+ * ordem se esperariam para sempre. Devolve quem indicou, se houver.
+ */
+export async function travarPessoasDoEstorno(tx: Tx, orderId: string, buyerId: string) {
+  const [ind] = await tx
+    .select({ indicadorId: indicacoes.indicadorId })
+    .from(indicacoes)
+    .where(eq(indicacoes.orderId, orderId));
+  const ids = [...new Set([buyerId, ind?.indicadorId].filter(Boolean) as string[])].sort();
+  await tx.execute(sql`select 1 from buyers where id in (${sql.join(ids.map((i) => sql`${i}::uuid`), sql`, `)}) order by id for update`);
+}
+
+/** Quantas vezes a meta foi paga e quantas foi desfeita, e quanto valeu o último pagamento. */
+async function ciclosDaMeta(tx: Tx, metaId: string, buyerId: string) {
+  const r = await tx.execute(sql`
+    select
+      count(*) filter (where chave = ${`meta:${metaId}:${buyerId}`} or chave like ${`meta:${metaId}:${buyerId}:%`})::int as pagas,
+      count(*) filter (where chave like ${`estorno-meta:${metaId}:${buyerId}:%`})::int as desfeitas,
+      (select quantidade from bonus_lancamentos
+        where chave = ${`meta:${metaId}:${buyerId}`} or chave like ${`meta:${metaId}:${buyerId}:%`}
+        order by created_at desc limit 1) as ultima
+      from bonus_lancamentos
+     where buyer_id = ${buyerId}::uuid`);
+  const x = r.rows[0] as { pagas: number; desfeitas: number; ultima: number | null };
+  return { pagas: Number(x.pagas), desfeitas: Number(x.desfeitas), ultima: x.ultima === null ? null : Number(x.ultima) };
+}
+
+/**
+ * Estorno de uma compra paga: a meta de compra (ou de indicação, para quem
+ * indicou) que deixou de estar cumprida perde o bônus, na transação do
+ * estorno — senão comprar, ganhar a meta e pedir o dinheiro de volta
+ * renderia cota grátis. Só desfaz o que foi pago e ainda não foi desfeito;
+ * alcançar a meta de novo paga de novo (`chaveDaMeta`). O saldo pode ficar
+ * negativo: é dívida, como no estorno da indicação.
+ */
+export async function desfazerMetasNoEstorno(tx: Tx, pessoas: (string | null | undefined)[]) {
+  const unicas = [...new Set(pessoas.filter(Boolean) as string[])];
+  if (!unicas.length) return;
+  const metas = (await tx
+    .select()
+    .from(bonusMetas)
+    .where(sql`${bonusMetas.tipo} in ('rifas_compradas', 'indicacoes')`)) as Meta[];
+  if (!metas.length) return;
+  for (const buyerId of unicas) {
+    await travarMetasDe(tx, buyerId);
+    const progresso = await progressoDe(buyerId, tx);
+    for (const m of metas) {
+      if (!METAS_QUE_O_ESTORNO_DESFAZ.includes(m.tipo as (typeof METAS_QUE_O_ESTORNO_DESFAZ)[number])) continue;
+      if (progresso[m.tipo] >= m.alvo) continue;
+      const { pagas, desfeitas, ultima } = await ciclosDaMeta(tx, m.id, buyerId);
+      if (pagas <= desfeitas || !ultima) continue;
+      await creditar(tx, {
+        buyerId,
+        quantidade: -ultima,
+        motivo: "estorno_meta",
+        chave: `estorno-meta:${m.id}:${buyerId}:${desfeitas + 1}`,
+        descricao: `Meta desfeita pelo estorno: ${m.titulo}`,
+      });
+    }
+  }
 }
 
 /** A tela "Bônus" do comprador. */

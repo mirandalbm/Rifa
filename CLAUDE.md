@@ -101,6 +101,7 @@ arquitetura.
 | isolamento entre organizadores | `server/services/orgs.ts` e `scripts/isolation-test.ts` |
 | rateio da venda | `shared/pricing.ts` (`splitOrder`) |
 | estorno | `server/services/orders.ts` (`refundOrder`) e `scripts/refund-test.ts` |
+| Pix que chegou tarde (reserva vencida ou depois do sorteio): fila de devolução | `shared/pixTardio.ts`, `server/services/pixTardio.ts`, `/pix-tardios*` em `server/routes/admin.ts`, `client/src/components/PixTardios.tsx` (em Pedidos), tipo `pix_tardio` em `shared/caixa.ts`, `scripts/pix-tardio-test.ts` |
 | pedido de reembolso (chamado) | `shared/chamados.ts`, `server/services/chamados.ts`, `client/src/pages/adminAtendimento.tsx`, `scripts/chamados-test.ts` |
 | disputa de reembolso (palavra final da plataforma) | `bloqueioDaDisputa()` em `shared/chamados.ts`, `abrirDisputa()`/`decidirDisputa()` em `server/services/chamados.ts`, `scripts/disputa-test.ts` |
 | contrato de cobrança da plataforma | `shared/billing.ts` e `server/services/billing.ts` |
@@ -955,6 +956,12 @@ Por isso o limite mais apertado é o de reserva em aberto
   celular põe um bairro inteiro atrás do mesmo IP — apertar aqui derruba
   comprador de verdade. Quem mede é a bancada, e ela afrouxa **só** este
   limite enquanto roda, devolvendo a configuração de antes no fim.
+- **O registro de recusa e o bloqueio vencido têm prazo** (a Privacidade
+  diz os dois): `fraud_events` sai com `GUARDA_DAS_RECUSAS_DIAS` (180) e o
+  bloqueio com prazo sai `GUARDA_DO_BLOQUEIO_VENCIDO_DIAS` (30) depois de
+  vencer (`purgarGuardaDoAntifraude()`, no relógio de limpeza); o bloqueio
+  sem prazo fica até a plataforma tirar. Mudou o prazo, o texto acompanha
+  (lê das mesmas constantes). `npm run pix-tardio` prova.
 - **`rate_events` é lixo com data.** O relógio limpa o que passou de 2 horas
   (`purgeRateEvents`, trava de aplicação 811004). Sem isso a tabela só cresce.
 - **A reserva em aberto é conferida de novo dentro da transação que grava o
@@ -1188,6 +1195,40 @@ comissão paga por venda que voltou, ou número que some do estoque.
   chamado volta a aprovado e nada é desfeito. Venda do cambista não tem
   provedor: o sistema registra e o dinheiro volta pelo caixa
   (`formaDevolucao = manual`).
+
+## Pix que chegou tarde — o que não pode afrouxar
+
+O provedor confirmou o Pix, mas o pedido já não podia virar cota: a reserva
+tinha vencido (os números voltaram ao estoque) ou a rifa já tinha sido
+sorteada (o quadro está congelado). É dinheiro sem bilhete, e volta para
+quem pagou.
+
+- **Fila, não log** (`pix_tardios`, `server/services/pixTardio.ts`): uma
+  linha por pedido (índice único `uq_pix_tardio_pedido`, `ON CONFLICT DO
+  NOTHING` — o webhook repetido não duplica), com o valor, a cobrança e o
+  provedor do pedido. `registrarPixTardio()` **nunca lança**: quem chama é
+  o webhook, e falhar aqui não vira 500 para o provedor. Entra por
+  `markOrderPaid`/`marcarCarrinhoPago` (pedido `expired`) e por
+  `settleOrderAsPaid` (rifa sorteada, valor acima de zero).
+- **Só a plataforma vê e resolve** (403 para organizador, no `npm run
+  isolation`): o dinheiro passou pela conta dela. Cartão "Pix a devolver"
+  em Pedidos e o tipo `pix_tardio` na Caixa de entrada. **Sem nome nem
+  telefone** de quem pagou: o pedido basta para achar a cobrança.
+- **Devolver é `UPDATE` condicional** (`pendente` → `devolvendo`) antes de
+  chamar o provedor, **com o valor explícito** (no carrinho a cobrança é de
+  várias rifas) **e a chave do caso** (`refund(..., chave)`: no Mercado Pago a
+  idempotência leva a chave, senão duas devoluções da mesma cobrança com o
+  mesmo valor virariam uma só — o estorno do chamado passa a chave do
+  pedido): dois cliques, uma devolução e um 409. O que se sabe **antes** de
+  chamar (sem cobrança, provedor que não devolve pelo sistema) volta a
+  `pendente`: nada saiu. **Erro depois de chamar** (prazo, rede) pode ter
+  devolvido: o caso **fica em `devolvendo`**, com o motivo, sem botão de
+  devolver, e só fecha por **resolver** (de `pendente` ou `devolvendo`,
+  observação obrigatória) depois de conferir no provedor. Voltar a
+  `pendente` seria a segunda devolução no próximo clique. A troca de
+  situação e o `audit_log` vão na mesma transação.
+- Os Termos dizem que o valor volta por esta fila. `npm run pix-tardio`
+  prova. A tabela sobe com o `db:push` **antes** do código.
 
 ## Reembolso por chamado — o que não pode afrouxar
 
@@ -2013,7 +2054,8 @@ promotora para a carteira dela **no mesmo pagamento**
   não entra — a parte dela fica na conta da plataforma, como no avulso.
 - **O Pix pago confirma todos** (`markOrderPaid` acha os pedidos pela
   cobrança e passa cada um por `settleOrderAsPaid`, idempotente). Pedido
-  que já tinha vencido não reabre: vai para o log, é dinheiro sem cota.
+  que já tinha vencido não reabre: vai para a fila de devolução (seção
+  "Pix que chegou tarde"), é dinheiro sem cota.
 - **Estorno de um pedido nunca devolve a cobrança inteira**: o valor vai
   sempre explícito ao provedor quando o pedido é de carrinho
   (`executarEstorno`). O aviso "estornada" do provedor só chega quando a
@@ -2118,8 +2160,8 @@ desconto na primeira compra — **pago pela plataforma**.
   sorteio espera (409)** — o Pix pago depois ficaria fora do quadro. A
   confirmação do pagamento (`settleOrderAsPaid`) e o estorno (`refundOrder`)
   leem o sorteio **dentro** da transação deles com a mesma linha travada
-  (`FOR SHARE`): Pix que chega depois do sorteio não vira cota (vai ao log,
-  para devolver), e o estorno nunca solta a cota que o sorteio está
+  (`FOR SHARE`): Pix que chega depois do sorteio não vira cota (vai à fila
+  de devolução, seção "Pix que chegou tarde"), e o estorno nunca solta a cota que o sorteio está
   escolhendo. Aviso do ganhador, push do resultado, coluna ao vivo e o
   relatório de prestação de contas ("Número contemplado" e a regra) usam o
   contemplado. Sorteio de antes da
@@ -2452,7 +2494,9 @@ organização) ganha o selo **"AO VIVO"** quando há transmissão de sorteio no 
   não publica). O resgate soma em `campaign_stats.bonus_count` com o teto
   **no próprio `UPDATE`**, na transação que debita o saldo e **depois da
   reserva** (a ordem da venda: cota, depois contadores — na inversa, resgate
-  e venda se travavam): três resgates na última cota grátis dão um 201 e dois
+  e venda se travavam), e **o saldo sai por último**, depois dos contadores
+  (a ordem do estorno: cota e contadores, depois a pessoa — na inversa, o
+  resgate e o estorno de um pedido da mesma pessoa se travavam): três resgates na última cota grátis dão um 201 e dois
   409, e o saldo de quem perdeu não sai. Rifa publicada antes desta regra
   (quantidade 0) segue a cláusula e o resgate de antes, sem teto. Resgate que vence sem
   confirmar (o sorteio veio no meio) devolve o saldo e o teto
@@ -2474,6 +2518,19 @@ organização) ganha o selo **"AO VIVO"** quando há transmissão de sorteio no 
   (`estornarIndicacao`) — senão comprar pelo próprio link com outro número e
   pedir o dinheiro de volta renderia cota grátis. O saldo pode ficar
   negativo: é dívida, e o resgate trava.
+- **O estorno desfaz a meta que deixou de ser cumprida** — "rifas
+  compradas" de quem comprou e "indicações" de quem indicou
+  (`desfazerMetasNoEstorno()`, na transação do estorno). **Quem comprou e
+  quem indicou são travados juntos, na ordem do id**
+  (`travarPessoasDoEstorno()`), antes de mexer em qualquer saldo — dois
+  estornos cruzados (A indicou B, B indicou A) se esperariam para sempre. E
+  `avaliarMetas` relê o progresso **com a pessoa travada** antes de pagar:
+  lido antes, um estorno no meio faria a meta desfeita pagar outra volta.
+  Vale também para meta desativada (o bônus veio da compra estornada). Só tira se o progresso caiu abaixo do
+  alvo e a meta foi paga mais vezes do que desfeita; alcançar de novo paga
+  de novo, numa volta nova da chave (`meta:<id>:<pessoa>:<n>`, e
+  `estorno-meta:<id>:<pessoa>:<n>`). Visitas e seguir não voltam atrás —
+  não há dinheiro a desfazer.
 - **O código do link não é o ID do cliente**: o ID prova identidade no
   reembolso e não sai em link público.
 - **Visita conta uma vez por aparelho** (hash, índice único) e no máximo

@@ -4,7 +4,7 @@ import { db } from "../db";
 import { commissions, orders, buyers, campaigns, carrinhoPedidos } from "@shared/schema";
 import { notify } from "../notifications";
 import { publicUrl } from "../services/urls";
-import { purgeRateEvents } from "../services/antifraude";
+import { purgarGuardaDoAntifraude, purgeRateEvents } from "../services/antifraude";
 import { preencherCodigosDeCliente } from "../services/codigoCliente";
 import { separarCidadesAntigas } from "../services/orgs";
 import { avisarSorteiosChegando } from "../services/push";
@@ -358,6 +358,10 @@ export function startJobs() {
       await withLock(LOCK_LIMPEZA, async () => {
         const apagados = await purgeRateEvents();
         if (apagados > 0) log(`${apagados} registro(s) de ritmo limpos`, "jobs");
+        const guarda = await purgarGuardaDoAntifraude();
+        if (guarda.recusas + guarda.bloqueios > 0) {
+          log(`${guarda.recusas} recusa(s) e ${guarda.bloqueios} bloqueio(s) vencido(s) saíram da guarda do antifraude`, "jobs");
+        }
       });
     } catch (err) {
       console.error("[jobs] limpeza do antifraude:", err);

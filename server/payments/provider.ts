@@ -47,9 +47,12 @@ export interface PaymentProvider {
   verifyWebhook(headers: Record<string, unknown>, rawBody: string): Promise<WebhookResult>;
   /**
    * Devolve pelo provedor. `amountCents` ausente = valor inteiro; presente =
-   * devolução parcial (reembolso com taxa administrativa retida).
+   * devolução parcial (reembolso com taxa administrativa retida). `chave`
+   * identifica esta devolução (o pedido ou o caso da fila): no carrinho num
+   * Pix só, duas devoluções da mesma cobrança com o mesmo valor são duas
+   * devoluções, não a repetição de uma.
    */
-  refund?(chargeId: string, amountCents?: number): Promise<void>;
+  refund?(chargeId: string, amountCents?: number, chave?: string): Promise<void>;
   /** Cancela a cobrança de uma reserva que expirou (QR que vale o dia todo). */
   cancelCharge?(chargeId: string): Promise<void>;
 }

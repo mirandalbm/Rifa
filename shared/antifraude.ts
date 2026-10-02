@@ -145,3 +145,17 @@ export function validateLimits(
 
   return limits;
 }
+
+/**
+ * Por quanto tempo o antifraude guarda o que não é mais contagem de ritmo
+ * (a Política de privacidade diz estes números — mudou aqui, mude lá):
+ *
+ * - as recusas (`fraud_events`: regra, motivo, telefone mascarado, hash de IP
+ *   e aparelho) servem para entender um ataque e responder a quem foi
+ *   barrado; depois de 180 dias, saem;
+ * - o bloqueio com prazo (`fraud_blocks.expires_at`) que já venceu sai 30 dias
+ *   depois de vencer. Bloqueio sem prazo é decisão do administrador e fica
+ *   até ele desbloquear.
+ */
+export const GUARDA_DAS_RECUSAS_DIAS = 180;
+export const GUARDA_DO_BLOQUEIO_VENCIDO_DIAS = 30;

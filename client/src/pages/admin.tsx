@@ -16,6 +16,7 @@ import { useListaPaginada } from "@/lib/paginada";
 import { ChevronRight, Image as ImagemIcone, LayoutGrid, List, MoreVertical, Percent, Ticket } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useSession } from "@/lib/session";
+import { PixTardios } from "@/components/PixTardios";
 import { MediaManager } from "@/components/MediaManager";
 import { CampaignExtras } from "@/components/CampaignExtras";
 import { DadosLegaisCard, TransmissaoCard } from "@/components/DadosLegaisCard";
@@ -955,8 +956,10 @@ export function AdminPedidos() {
     { codigo, cliente },
   );
   const linhas = paginas.flat();
+  const { data: sessao } = useSession();
   return (
     <PanelShell title="Pedidos">
+      {sessao?.role === "admin" && !codigo && !cliente ? <PixTardios /> : null}
       <p className="mb-3 text-xs text-muted">
         Reembolso não se faz por aqui: o comprador pede em "Minhas cotas", com o print do
         bilhete, e a organização decide em Atendimento.

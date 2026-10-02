@@ -17,6 +17,7 @@ export const TIPOS_DA_CAIXA = {
   fiscal: { rotulo: "Cadastro fiscal", tom: "yellow" },
   telefone: { rotulo: "Telefone", tom: "green" },
   banner: { rotulo: "Banner pago", tom: "yellow" },
+  pix_tardio: { rotulo: "Pix a devolver", tom: "red" },
 } as const;
 
 export type TipoDaCaixa = keyof typeof TIPOS_DA_CAIXA;
@@ -54,6 +55,8 @@ export function destinoDaPendencia(p: Pick<PendenciaDaCaixa, "tipo">): string {
       return "/admin/organizacoes";
     case "banner":
       return "/admin/banner-pago";
+    case "pix_tardio":
+      return "/admin/pedidos#pix-tardio";
   }
 }
 
@@ -70,6 +73,7 @@ const PESO: Record<TipoDaCaixa, number> = {
   fiscal: 2,
   telefone: 2,
   banner: 2,
+  pix_tardio: 0,
 };
 
 export function ordenarCaixa<T extends Pick<PendenciaDaCaixa, "tipo" | "desde">>(linhas: T[]): T[] {

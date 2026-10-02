@@ -1,4 +1,5 @@
 import { validarLinkDoBanner } from "./vitrine";
+import { EMPRESA_VAZIA, validarDadosDaEmpresa, type DadosDaEmpresa } from "./legal";
 
 /**
  * Construtor de templates: a aparência da plataforma, editada pelo
@@ -77,6 +78,12 @@ export interface Template {
    * botão redondo. Só as redes da lista e só o endereço oficial de cada uma.
    */
   redes?: RedeSocial[];
+  /**
+   * Quem opera a plataforma: razão social, CNPJ, endereço, contato e o
+   * encarregado de dados — saem nos Termos de uso e na Privacidade
+   * (`shared/legal.ts`). Decreto 7.962/2013, art. 2º; LGPD, art. 41.
+   */
+  legal?: DadosDaEmpresa;
 }
 
 export interface Apoio {
@@ -197,6 +204,7 @@ export const TEMPLATE_PADRAO: Template = {
   },
   apoios: [],
   redes: [],
+  legal: { ...EMPRESA_VAZIA },
 };
 
 /* ------------------------------------------------------------------ *
@@ -308,7 +316,16 @@ export function validarTemplate(entrada: unknown): Template {
     },
     apoios: validarApoios(e.apoios),
     redes: validarRedes(e.redes),
+    legal: dadosDaEmpresa(e.legal),
   };
+}
+
+function dadosDaEmpresa(bruto: unknown): DadosDaEmpresa {
+  try {
+    return validarDadosDaEmpresa(bruto);
+  } catch (err) {
+    throw new TemplateInvalido((err as Error).message);
+  }
 }
 
 /** Template guardado de uma versão antiga: completa o que faltar com o padrão. */

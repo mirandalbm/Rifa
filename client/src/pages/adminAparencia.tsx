@@ -8,6 +8,7 @@ import { PanelShell } from "@/components/AppShell";
 import { Button, Card, Pill } from "@/components/bits";
 import { BannersCard } from "@/components/BannersCard";
 import { apiRequest } from "@/lib/queryClient";
+import { EMPRESA_VAZIA, faltaNaEmpresa, formatarCnpj } from "@shared/legal";
 import {
   CONTRASTE_MIN,
   FONTES,
@@ -143,6 +144,7 @@ export function AdminAparencia() {
     setT(novo);
   };
   const id = t.identidade;
+  const empresa = t.legal ?? EMPRESA_VAZIA;
   const mudarId = (p: Partial<Template["identidade"]>) => mudar({ ...t, identidade: { ...id, ...p } });
   const mudarBloco = (i: number, p: Partial<Bloco>) =>
     mudar({ ...t, blocos: t.blocos.map((b, j) => (j === i ? { ...b, ...p } : b)) });
@@ -402,6 +404,47 @@ export function AdminAparencia() {
                   className="campo"
                 />
               </div>
+            </div>
+          </Card>
+
+          <Card title="Dados da empresa (Termos e Privacidade)">
+            <div className="space-y-3 p-4 text-sm">
+              <p className="text-xs text-muted">
+                Saem nos <a href="/termos" className="underline">Termos de uso</a> e na{" "}
+                <a href="/privacidade" className="underline">Política de privacidade</a>: quem vende pela internet
+                precisa se identificar (Decreto 7.962/2013), e o encarregado de dados precisa ter nome e contato
+                públicos (LGPD, art. 41). Entram no ar ao publicar o template.
+              </p>
+              {faltaNaEmpresa(empresa).length ? (
+                <p className="rounded-md bg-yellow-soft px-3 py-2 text-xs text-yellow-deep">
+                  Falta preencher antes de lançar: {faltaNaEmpresa(empresa).join(", ")}.
+                </p>
+              ) : null}
+              {(
+                [
+                  ["razaoSocial", "Razão social", 150, "organization"],
+                  ["cnpj", "CNPJ", 20, "off"],
+                  ["endereco", "Endereço da sede", 200, "street-address"],
+                  ["contato", "E-mail de contato", 120, "email"],
+                  ["encarregadoNome", "Encarregado de dados (nome)", 120, "off"],
+                  ["encarregadoContato", "Encarregado de dados (e-mail)", 120, "email"],
+                ] as const
+              ).map(([chave, rotulo, max, auto]) => (
+                <div key={chave}>
+                  <label htmlFor={`tpl-legal-${chave}`} className="label-xs">
+                    {rotulo}
+                  </label>
+                  <input
+                    id={`tpl-legal-${chave}`}
+                    maxLength={max}
+                    autoComplete={auto}
+                    inputMode={chave === "cnpj" ? "numeric" : undefined}
+                    value={chave === "cnpj" ? formatarCnpj(empresa.cnpj) : empresa[chave]}
+                    onChange={(e) => mudar({ ...t, legal: { ...empresa, [chave]: chave === "cnpj" ? e.target.value.replace(/\D/g, "").slice(0, 14) : e.target.value } })}
+                    className="campo"
+                  />
+                </div>
+              ))}
             </div>
           </Card>
 

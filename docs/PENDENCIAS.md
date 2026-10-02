@@ -449,6 +449,16 @@ Na ordem de entrega do plano:
   segue com o selo, sem consentimento gravado: a fila mostra "Sem
   autorização da foto"; decidir se pede a todos que autorizem de novo. Falta o advogado ler o
   texto (`textoDoConsentimentoBiometrico()` em `shared/verificacao.ts`).
+- [x] Termos de uso e Política de privacidade (`/termos`, `/privacidade`),
+  montados das regras do sistema (`shared/legal.ts`), no rodapé, no perfil
+  e no Criar conta (`tests/legal.test.ts`).
+- [ ] **[você]** Em Aparência → "Dados da empresa": razão social, CNPJ,
+  endereço, e-mail de contato e o **encarregado de dados** (nome e e-mail),
+  e publicar o template. Sem isso as páginas dizem que os dados ainda não
+  foram publicados (Decreto 7.962/2013 e LGPD, art. 41, pedem os dois).
+- [ ] **[você]** O advogado ler os Termos de uso e a Privacidade
+  (`montarTermosDeUso()`/`montarPrivacidade()`), em especial: foro, CVV no
+  jogo responsável, prazos de guarda e a lista de quem recebe dados.
 - [ ] **[você]** Cada organização publicar o termo de adesão de afiliado
   (Afiliados → Termo) — quem já publicou vê o aviso para publicar a versão
   seguinte com o texto novo — e o advogado revisar o texto-base.

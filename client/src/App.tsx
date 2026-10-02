@@ -14,6 +14,7 @@ import Perfil from "@/pages/Perfil";
 import { AplicarTemplate } from "@/lib/template";
 import Regulamento from "@/pages/Regulamento";
 import Ajuda from "@/pages/Ajuda";
+import { Privacidade, TermosDeUso } from "@/pages/Legal";
 import Pedido from "@/pages/Pedido";
 import MinhasCotas from "@/pages/MinhasCotas";
 import Carrinho from "@/pages/Carrinho";
@@ -148,6 +149,8 @@ export default function App() {
           <Route path="/r/:slug/regulamento" component={Regulamento} />
           <Route path="/o/:org/r/:slug/regulamento" component={Regulamento} />
           <Route path="/ajuda" component={Ajuda} />
+          <Route path="/termos" component={TermosDeUso} />
+          <Route path="/privacidade" component={Privacidade} />
           <Route path="/estado/:uf" component={EstadoPage} />
           <Route path="/r/:slug" component={Rifa} />
           <Route path="/o/:org/r/:slug" component={Rifa} />

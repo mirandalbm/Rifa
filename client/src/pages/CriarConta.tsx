@@ -175,6 +175,18 @@ export default function CriarConta() {
         </Button>
 
         <p className="text-xs text-muted">
+          Ao criar a conta, você declara ter 18 anos ou mais e concorda com os{" "}
+          <Link href="/termos" className="text-green-deep underline">
+            Termos de uso
+          </Link>
+          . O que fazemos com os seus dados está na{" "}
+          <Link href="/privacidade" className="text-green-deep underline">
+            Política de privacidade
+          </Link>
+          .
+        </p>
+
+        <p className="text-xs text-muted">
           Já comprou antes com este WhatsApp? As compras antigas aparecem na conta depois que você
           confirmar o telefone pelo código do WhatsApp — é o que impede outra pessoa de ver o que é
           seu.

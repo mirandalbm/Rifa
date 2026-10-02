@@ -119,6 +119,8 @@ async function papeis(): Promise<{ papeis: Record<string, Papel>; carrinho: stri
           ...so(o, `/o/${o}`),
           ...so(r && o, `/o/${o}/r/${r}/regulamento`),
           "/ajuda",
+          "/termos",
+          "/privacidade",
           ...so(uf, `/estado/${uf}`),
           ...so(pedido, `/pedido/${pedido}`, `/bilhete/${pedido}`),
           "/minhas-cotas",

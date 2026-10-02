@@ -92,7 +92,14 @@ senha); **[código]** é trabalho no repositório.
 - [ ] **[você]** Cloudflare R2: criar o bucket e gerar as chaves. O volume
   resolve para uma réplica; com várias, ou muito tráfego de imagem, o R2
   entra (basta `R2_BUCKET` e as chaves — o código já escolhe sozinho).
-- [ ] **[você]** Domínio próprio apontado para o Railway.
+- [x] **Endereço público = o domínio do Railway** (`rifa-production-d8a4.up.railway.app`).
+  Decisão do dono: **nenhum domínio próprio por enquanto** — todo endereço de
+  retorno e de webhook (`PUBLIC_BASE_URL`, o retorno do Google, os webhooks do
+  Mercado Pago, do Asaas e da Meta) usa esse e só esse. O Railway tem um
+  domínio personalizado (`loterianacional.com.br`) ligado ao serviço que o dono
+  **não comprou**: **[você]** remover do serviço para não haver dois endereços
+  disputando o mesmo site. Quando um domínio próprio existir, troca-se
+  `PUBLIC_BASE_URL` e os endereços cadastrados nos provedores, nesta ordem.
 - [x] Excluir rifa pelo painel (Campanhas → Excluir): rascunho, rifa no ar
   sem nenhuma cota vendida, ou rifa marcada como teste. Apaga a rifa, o
   sorteio, as mídias e os pedidos não pagos; com venda, não se apaga (o

@@ -107,6 +107,8 @@ jobs:
       - run: npm run relogios
       - run: npm run isolation
       - run: npm run refund
+      - run: npm run pix-tardio
+      - run: npm run senha
       - run: npm run chamados
       - run: npm run conta
       - run: npm run bilhetes

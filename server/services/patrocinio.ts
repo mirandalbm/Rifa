@@ -20,6 +20,7 @@
  * ar. Quando um gasta o último clique, o próximo passa a estar no ar na
  * consulta seguinte — ninguém precisa apertar botão.
  */
+import { comprovanteConfere } from "./ticketDoClique";
 import { randomInt, randomUUID } from "node:crypto";
 import type { Request } from "express";
 import { and, desc, eq, sql } from "drizzle-orm";
@@ -594,7 +595,20 @@ export async function registrarExibicoes(ids: unknown, uf: unknown) {
  * neste anúncio nas últimas 24 h e ainda há clique no pacote. Clique
  * recusado entra em "barrados" — o patrocinador vê que não pagou por ele.
  */
-export async function registrarClique(anuncioId: string, visitanteHash: string | null, userAgent: string | undefined, uf: unknown) {
+/**
+ * Um IP cobra no máximo isto por anúncio em 24 h. A operadora põe um bairro
+ * atrás do mesmo IP, então o teto erra para o lado do patrocinador: pode
+ * deixar de cobrar um clique de verdade, nunca cobra um forjado a mais.
+ */
+export const CLIQUES_POR_IP = 3;
+
+export async function registrarClique(
+  anuncioId: string,
+  visitanteHash: string | null,
+  userAgent: string | undefined,
+  uf: unknown,
+  prova: { comprovante?: unknown; ipHash?: string | null } = {},
+) {
   const cfg = await getPlataforma();
   if (!uuidValido(anuncioId)) return false;
   const [a] = await db
@@ -604,18 +618,36 @@ export async function registrarClique(anuncioId: string, visitanteHash: string |
   if (!a) return false;
   const chave = { anuncioId: a.id, organizationId: a.organizationId };
   const ufDeQuem = typeof uf === "string" ? uf.toUpperCase() : null;
-  if (!visitanteHash || ehRobo(userAgent)) {
+  // Sem aparelho, robô ou sem o comprovante da exibição (o anúncio mostrado
+  // a este aparelho, há pouco): não cobra — vai para os barrados.
+  if (!visitanteHash || ehRobo(userAgent) || !comprovanteConfere(prova.comprovante, a.id, visitanteHash)) {
+    await somarNoDia(db, chave, ufDeQuem, { barrados: 1 });
+    return false;
+  }
+  const ipHash = prova.ipHash ?? null;
+  // Sem IP não há como contar o teto: não cobra (com `trust proxy` não acontece).
+  if (!ipHash) {
     await somarNoDia(db, chave, ufDeQuem, { barrados: 1 });
     return false;
   }
   const cobrou = await db.transaction(async (tx) => {
+    // Duas travas: a do par anúncio + aparelho (24 h por aparelho) e a do par
+    // anúncio + IP (o teto por IP). Sem a segunda, dez cliques do mesmo IP com
+    // aparelhos diferentes contariam "2" juntos e cobrariam todos. Sempre nesta
+    // ordem, para duas transações nunca se esperarem em ordens trocadas.
     await tx.execute(sql`select pg_advisory_xact_lock(811402, hashtext(${anuncioId} || ${visitanteHash}))`);
+    await tx.execute(sql`select pg_advisory_xact_lock(811405, hashtext(${anuncioId} || ${ipHash}))`);
     const recente = await tx.execute(sql`
       select 1 from patrocinio_cliques
        where anuncio_id = ${anuncioId}::uuid and visitante_hash = ${visitanteHash}
          and created_at > now() - make_interval(hours => ${JANELA_DO_CLIQUE_HORAS})
        limit 1`);
     if (recente.rows.length) return false;
+    const doIp = await tx.execute(sql`
+      select count(*)::int as n from patrocinio_cliques
+       where anuncio_id = ${anuncioId}::uuid and ip_hash = ${ipHash}
+         and created_at > now() - make_interval(hours => ${JANELA_DO_CLIQUE_HORAS})`);
+    if (Number((doIp.rows[0] as { n: number }).n) >= CLIQUES_POR_IP) return false;
     const [g] = await tx
       .update(patrocinioAnuncios)
       .set({
@@ -646,6 +678,7 @@ export async function registrarClique(anuncioId: string, visitanteHash: string |
       organizationId: a.organizationId,
       campaignId: a.campaignId,
       visitanteHash,
+      ipHash,
       valorCents,
       uf: ufDeQuem && ufValida(ufDeQuem) ? ufDeQuem : null,
     });

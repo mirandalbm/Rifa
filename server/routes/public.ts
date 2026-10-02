@@ -89,6 +89,7 @@ import { estadoDoBonus, registrarVisita } from "../services/bonus";
 import { meuCodigoDePresente, presentePublico } from "../services/presente";
 import { bannersPagosNoAr, imagemDoBannerPago } from "../services/bannerPago";
 import { patrocinadasNoAr, registrarClique, registrarExibicoes } from "../services/patrocinio";
+import { comprovanteDaExibicao } from "../services/ticketDoClique";
 import { pixelsPublicos } from "../services/marketing";
 import { ehRobo } from "@shared/patrocinio";
 import {
@@ -1448,7 +1449,8 @@ publicRouter.get("/campaigns/:slug/foto-ganhador", async (req, res, next) => {
 publicRouter.get("/campaigns/:slug/blocks/:block", async (req, res, next) => {
   try {
     const found = await campaignBySlug(req.params.slug);
-    if (!found) return res.status(404).json({ message: "Rifa não encontrada." });
+    // Rascunho não é público: nem o número dele sai (404, igual a inexistente).
+    if (!found || found.campaign.status === "draft") return res.status(404).json({ message: "Rifa não encontrada." });
 
     const block = Number(req.params.block);
     const maxBlock = Math.ceil(found.campaign.totalQuotas / BLOCK_SIZE) - 1;
@@ -1500,7 +1502,8 @@ publicRouter.get("/campaigns/:slug/cartelas", async (req, res, next) => {
 publicRouter.get("/campaigns/:slug/numbers/:number", async (req, res, next) => {
   try {
     const found = await campaignBySlug(req.params.slug);
-    if (!found) return res.status(404).json({ message: "Rifa não encontrada." });
+    // Rascunho não é público: nem o número dele sai (404, igual a inexistente).
+    if (!found || found.campaign.status === "draft") return res.status(404).json({ message: "Rifa não encontrada." });
 
     const number = Number(req.params.number);
     if (!Number.isInteger(number) || number < 1 || number > found.campaign.totalQuotas) {
@@ -2176,7 +2179,11 @@ publicRouter.get("/marketing", async (req, res, next) => {
 publicRouter.get("/patrocinadas", async (req, res, next) => {
   try {
     res.setHeader("Cache-Control", "no-store");
-    res.json(await patrocinadasNoAr(req.query.uf, req.query.cidade));
+    // Cada anúncio leva o comprovante da exibição para este aparelho: é o que o
+    // clique precisa apresentar para ser cobrado (`ticketDoClique.ts`).
+    const aparelho = identify(req).deviceHash;
+    const lista = await patrocinadasNoAr(req.query.uf, req.query.cidade);
+    res.json(lista.map((p) => ({ ...p, comprovante: aparelho ? comprovanteDaExibicao(p.id, aparelho) : null })));
   } catch (err) {
     next(err);
   }
@@ -2202,7 +2209,12 @@ publicRouter.post("/patrocinadas/:id/clique", async (req, res, next) => {
   try {
     const id = identify(req);
     const limite = await hit(`patrocinio-clique:${id.ipHash ?? "?"}`, 10, 120);
-    if (!limite.excedeu) await registrarClique(req.params.id, id.deviceHash, req.get("user-agent"), req.body?.uf);
+    if (!limite.excedeu) {
+      await registrarClique(req.params.id, id.deviceHash, req.get("user-agent"), req.body?.uf, {
+        comprovante: req.body?.comprovante,
+        ipHash: id.ipHash,
+      });
+    }
     res.status(204).end();
   } catch (err) {
     next(err);
@@ -2269,7 +2281,8 @@ publicRouter.post("/tickets/:code/printed", async (req, res, next) => {
 publicRouter.get("/campaigns/:slug/premios", async (req, res, next) => {
   try {
     const found = await campaignBySlug(req.params.slug);
-    if (!found) return res.status(404).json({ message: "Rifa não encontrada." });
+    // Rascunho não é público: nem o número dele sai (404, igual a inexistente).
+    if (!found || found.campaign.status === "draft") return res.status(404).json({ message: "Rifa não encontrada." });
 
     const rows = await db
       .select()
@@ -2315,7 +2328,8 @@ publicRouter.get("/vitrine/ao-vivo", async (_req, res, next) => {
 publicRouter.get("/campaigns/:slug/ultimas-compras", async (req, res, next) => {
   try {
     const found = await campaignBySlug(req.params.slug);
-    if (!found) return res.status(404).json({ message: "Rifa não encontrada." });
+    // Rascunho não é público: nem o número dele sai (404, igual a inexistente).
+    if (!found || found.campaign.status === "draft") return res.status(404).json({ message: "Rifa não encontrada." });
 
     const rows = await db
       .select({
@@ -2459,7 +2473,8 @@ function* codigosDeAfiliado(name: string): Generator<string> {
 publicRouter.get("/campaigns/:slug/ranking", async (req, res, next) => {
   try {
     const found = await campaignBySlug(req.params.slug);
-    if (!found) return res.status(404).json({ message: "Rifa não encontrada." });
+    // Rascunho não é público: nem o número dele sai (404, igual a inexistente).
+    if (!found || found.campaign.status === "draft") return res.status(404).json({ message: "Rifa não encontrada." });
 
     const rows = await db.execute(sql`
       SELECT b.name, b.phone, sum(o.quantity)::int AS quotas

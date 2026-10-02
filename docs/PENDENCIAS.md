@@ -686,14 +686,17 @@ Na ordem de entrega do plano:
   seis papéis, 390/820/1440 px) e o guia `docs/VERSOES.md` — regras entre as
   versões, mapa de cada tela e o registro das mudanças do celular (leva a
   cada 10).
-- [ ] **[código]** Segurança, para depois (`docs/SEGURANCA.md`): política de
+- [x] **[código]** Segurança, para depois (`docs/SEGURANCA.md`): política de
   conteúdo (CSP) em modo relatório, segredo do segundo fator no cofre, custo
-  do scrypt, clique patrocinado mais difícil de forjar e rotas públicas de
-  rascunho.
-- [ ] **[código]** Pendências da revisão das versões (P1 a P14 em
-  `docs/VERSOES.md`; P5 e P10 — tabelas do painel no celular e a paginação
-  de Pedidos e Cobrança — já saíram): tablet da página da rifa, um
-  componente só para as seis janelas, `Campo`, `h1` padrão, ícones.
+  do scrypt (a senha antiga é refeita no login), clique patrocinado só com o
+  comprovante da exibição e com teto por IP, e rotas públicas de rascunho em
+  404 (`npm run senha`, `npm run patrocinio`). **Falta no ambiente**:
+  `db:push` (coluna `patrocinio_cliques.ip_hash`) **antes** do código.
+- [ ] **[você]** Depois de uma ou duas semanas no ar, com os pixels ligados,
+  olhar o log de produção (`[csp]`): o que aparecer ali e for nosso entra na
+  lista (`shared/csp.ts`); limpo, a política passa de relatório a valendo.
+- [x] **[código]** Pendências da revisão das versões (P1 a P14 em
+  `docs/VERSOES.md`): todas feitas ou resolvidas pelo topo novo.
 - [x] Cobrança com Asaas: nas vendas com split, a taxa da plataforma já
   retida na origem nasce "retida no split" (`platform_charges.status =
   retida`) e não entra no "em aberto" nem na baixa — a Cobrança mostra a

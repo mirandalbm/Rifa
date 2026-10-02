@@ -5,6 +5,7 @@
 import "dotenv/config";
 
 import express, { type Request, Response, NextFunction } from "express";
+import fs from "node:fs";
 import path from "node:path";
 import { ZodError } from "zod";
 import { mensagemDeValidacao } from "@shared/zodPt";
@@ -15,6 +16,10 @@ import { startJobs } from "./jobs";
 import { LocalDiskStorage, chaveRestauravel, storage } from "./services/storage";
 import { manifestDaPlataforma } from "./services/template";
 import { setupVite, serveStatic, log } from "./vite";
+import { montarCsp, hashesDosScriptsEmLinha, ROTA_DO_RELATORIO_CSP } from "@shared/csp";
+import { registrarRelatorioCsp } from "./services/csp";
+import { hit, identify } from "./services/antifraude";
+
 
 const app = express();
 app.disable("x-powered-by");
@@ -25,10 +30,26 @@ app.disable("x-powered-by");
 // no Referer para sites externos. Iframe só do próprio site: é a
 // pré-visualização do construtor de templates (/admin/aparencia).
 const producao = process.env.NODE_ENV === "production";
+// Política de conteúdo em modo relatório, só em produção (em desenvolvimento
+// o Vite injeta scripts próprios e os relatórios seriam ruído). O hash do
+// script do tema sai do `index.html` construído.
+const cspRelatorio = producao
+  ? montarCsp({
+      hashesDeScript: (() => {
+        try {
+          return hashesDosScriptsEmLinha(fs.readFileSync(path.resolve(import.meta.dirname, "public", "index.html"), "utf8"));
+        } catch {
+          return [];
+        }
+      })(),
+      midiaPublica: process.env.R2_PUBLIC_URL,
+    })
+  : null;
 app.use((_req, res, next) => {
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("X-Frame-Options", "SAMEORIGIN");
   res.setHeader("Content-Security-Policy", "frame-ancestors 'self'");
+  if (cspRelatorio) res.setHeader("Content-Security-Policy-Report-Only", cspRelatorio);
   res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
   // Em produção o site é só HTTPS: o navegador passa a recusar a versão sem
   // cadeado (quem estiver no meio do caminho não rebaixa para HTTP e lê o
@@ -37,6 +58,27 @@ app.use((_req, res, next) => {
   if (producao) res.setHeader("Strict-Transport-Security", "max-age=15552000");
   next();
 });
+
+// Relatório da política de conteúdo: o navegador manda sem sessão, com tipo
+// próprio. Corpo pequeno, 204 sempre, e o log agrupa (`services/csp.ts`).
+app.post(
+  ROTA_DO_RELATORIO_CSP,
+  express.json({ type: ["application/csp-report", "application/reports+json", "application/json"], limit: "16kb" }),
+  async (req, res) => {
+    try {
+      // Limite por IP: a rota é aberta, e girar pares (diretiva, origem)
+      // inventados encheria o log.
+      const limite = await hit(`csp:${identify(req).ipHash ?? "?"}`, 10, 30);
+      if (!limite.excedeu) {
+        const corpo = Array.isArray(req.body) ? req.body.map((x: { body?: unknown }) => x?.body ?? x) : [req.body];
+        for (const c of corpo.slice(0, 20)) registrarRelatorioCsp(c);
+      }
+    } catch {
+      // relatório malformado: nada a registrar
+    }
+    res.status(204).end();
+  },
+);
 
 // O webhook precisa do corpo cru para validar assinatura: vem antes do JSON.
 app.use("/api/webhooks", express.raw({ type: "*/*" }), webhookRouter);

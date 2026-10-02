@@ -3,34 +3,41 @@ import session from "express-session";
 import connectPg from "connect-pg-simple";
 import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
-import { randomBytes, scrypt, timingSafeEqual, randomInt } from "node:crypto";
-import { promisify } from "node:util";
+import { randomInt } from "node:crypto";
 import { eq, sql } from "drizzle-orm";
 import { db } from "./db";
 import { users, affiliates, organizations } from "@shared/schema";
 import { type Role, roleSatisfies } from "@shared/access";
-import { verifyTotp } from "./services/totp";
+import { codigoConfere } from "./services/segundoFator";
+import { hashCodigo, hashPassword, senhaPedeNovoHash, verifyPassword } from "./services/hashSenha";
 
-const scryptAsync = promisify(scrypt);
 
 /* ------------------------------------------------------------------ *
  * Senha — scrypt do próprio node, sem dependência extra
+ * (`services/hashSenha.ts`, sem banco, para o teste alcançar)
  * ------------------------------------------------------------------ */
 
-export async function hashPassword(plain: string): Promise<string> {
-  const salt = randomBytes(16).toString("hex");
-  const derived = (await scryptAsync(plain, salt, 64)) as Buffer;
-  return `${salt}:${derived.toString("hex")}`;
+export { CUSTO_DA_SENHA, hashCodigo, hashPassword, senhaPedeNovoHash, verifyPassword } from "./services/hashSenha";
+
+/**
+ * Refaz o hash antigo com o custo de agora, depois do login certo (a senha
+ * está na mão só nesse momento). `UPDATE` condicional ao hash lido: se a
+ * senha mudou no meio, fica a nova. Falha só vai ao log — o login já passou.
+ */
+export async function refazerHashSeAntigo(tabela: "users" | "buyers", id: string, senha: string, guardado: string) {
+  if (!senhaPedeNovoHash(guardado)) return;
+  try {
+    const novo = await hashPassword(senha);
+    if (tabela === "users") {
+      await db.execute(sql`UPDATE users SET password_hash = ${novo} WHERE id = ${id}::uuid AND password_hash = ${guardado}`);
+    } else {
+      await db.execute(sql`UPDATE buyers SET password_hash = ${novo} WHERE id = ${id}::uuid AND password_hash = ${guardado}`);
+    }
+  } catch (e) {
+    console.error("[senha] não refiz o hash antigo:", e);
+  }
 }
 
-export async function verifyPassword(plain: string, stored: string): Promise<boolean> {
-  const [salt, key] = stored.split(":");
-  if (!salt || !key) return false;
-  const derived = (await scryptAsync(plain, salt, 64)) as Buffer;
-  const expected = Buffer.from(key, "hex");
-  if (expected.length !== derived.length) return false;
-  return timingSafeEqual(derived, expected);
-}
 
 /**
  * Derruba as sessões do painel de um usuário (menos a de quem pediu, se
@@ -188,13 +195,15 @@ export function setupAuth(app: Express) {
               code: "totp_required",
             } as never);
           }
-          if (!verifyTotp(user.totpSecret, token)) {
+          if (!codigoConfere(user.totpSecret, token)) {
             return done(null, false, {
               message: "Código do autenticador incorreto ou expirado.",
               code: "totp_invalid",
             } as never);
           }
         }
+
+        await refazerHashSeAntigo("users", user.id, password, user.passwordHash);
 
         const sessionUser: SessionUser = {
           id: user.id,
@@ -339,7 +348,7 @@ export async function issueOtp(req: Request, phone: string): Promise<string> {
   const code = String(randomInt(0, 1_000_000)).padStart(6, "0");
   req.session.otp = {
     phone,
-    codeHash: await hashPassword(code),
+    codeHash: await hashCodigo(code),
     expiresAt: Date.now() + OTP_TTL_MS,
     attempts: 0,
   };

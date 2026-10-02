@@ -110,3 +110,26 @@ export function assinaturaConfere(texto: string, assinatura: string): boolean {
   const dada = Buffer.from(assinatura, "hex");
   return esperada.length === dada.length && timingSafeEqual(esperada, dada);
 }
+
+/**
+ * Texto curto selado numa coluna de texto (o segredo do segundo fator):
+ * `cofre:v1:<iv>.<tag>.<dados>`, em base64. O prefixo separa o selado do
+ * guardado em claro antes desta regra, que continua sendo lido até a
+ * migração (`cifrarSegredosDoSegundoFator`) passar por ele.
+ */
+const PREFIXO_SELADO = "cofre:v1:";
+
+export const estaSelado = (s: string) => s.startsWith(PREFIXO_SELADO);
+
+export function selarTexto(texto: string): string {
+  const x = cifrar(Buffer.from(texto, "utf8"));
+  return `${PREFIXO_SELADO}${x.iv.toString("base64")}.${x.tag.toString("base64")}.${x.dados.toString("base64")}`;
+}
+
+export function abrirTexto(selado: string): string {
+  if (!estaSelado(selado)) throw new CofreError("O dado guardado não está selado.");
+  const partes = selado.slice(PREFIXO_SELADO.length).split(".");
+  if (partes.length !== 3) throw new CofreError("O dado guardado não confere (adulterado ou chave errada).");
+  const [iv, tag, dados] = partes.map((p) => Buffer.from(p, "base64"));
+  return decifrar({ iv, tag, dados, versao: "v1" }).toString("utf8");
+}

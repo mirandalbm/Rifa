@@ -23,10 +23,12 @@
 import "dotenv/config";
 import { baseUrl } from "./base-url";
 import { eq, inArray, sql } from "drizzle-orm";
+import { comprovanteDaExibicao } from "../server/services/ticketDoClique";
+import { hashValue } from "../server/services/antifraude";
 import { db, pool } from "../server/db";
 import { hashPassword } from "../server/auth";
 import { appSettings, campaignStats, campaigns, orders, organizations, patrocinioAnuncios, patrocinioRecargas, users } from "../shared/schema";
-import { encerrarAnunciosForaDoAr } from "../server/services/patrocinio";
+import { CLIQUES_POR_IP, encerrarAnunciosForaDoAr } from "../server/services/patrocinio";
 
 const URL = baseUrl();
 let falhas = 0;
@@ -136,7 +138,25 @@ async function main() {
   const [rA, rB] = rifas;
   const [orgA, orgB] = clientes;
   const admin = await new Cliente().entrar("admin@rifa.br", "admin123");
-  const clique = (id: string, c: Cliente, uf = "SP") => c.req("POST", `/api/public/patrocinadas/${id}/clique`, { uf });
+  // O clique cobra só com o comprovante da exibição: a lista pedida por este
+  // aparelho, pelo menos 1 s antes (`ticketDoClique.ts`).
+  const esperar = (ms: number) => new Promise((ok) => setTimeout(ok, ms));
+  // A lista de uma região mostra um anúncio por rifa (o da cidade, senão o do
+  // estado, senão o nacional): o nacional de A, com o estadual de A no ar, só
+  // aparece para quem olha sem região — é de lá que vem o comprovante dele.
+  const comprovanteDe = async (id: string, c: Cliente, uf: string) => {
+    for (const q of [`?uf=${uf}`, ""]) {
+      const lista = ((await c.req("GET", `/api/public/patrocinadas${q}`)).json ?? []) as { id: string; comprovante: string | null }[];
+      const achado = lista.find((x) => x.id === id);
+      if (achado) return achado.comprovante;
+    }
+    return null;
+  };
+  const clique = async (id: string, c: Cliente, uf = "SP") => {
+    const comprovante = await comprovanteDe(id, c, uf);
+    await esperar(1_100);
+    return c.req("POST", `/api/public/patrocinadas/${id}/clique`, { uf, comprovante });
+  };
   const vitrine = async (q = "") => ((await new Cliente().req("GET", `/api/public/patrocinadas${q}`)).json ?? []) as { id: string; campaignId: string }[];
   const comprar = (c: Cliente, corpo: Record<string, unknown>) => c.req("POST", "/api/admin/patrocinio/anuncios", corpo);
   const TABELA = {
@@ -310,8 +330,23 @@ async function main() {
     await new Cliente("aparelho-x").req("POST", "/api/public/patrocinadas/exibicoes", { ids: [nA, eA], uf: "SP" });
     await new Cliente("aparelho-y", "Googlebot/2.1 (+http://www.google.com/bot.html)").req("POST", "/api/public/patrocinadas/exibicoes", { ids: [nA], uf: "SP" });
 
+    // Clique sem o comprovante da exibição não cobra: sem nenhum, com o de
+    // outro aparelho, com um inventado e com o recém-emitido (menos de 1 s).
+    const forjador = new Cliente("aparelho-forjado");
+    await forjador.req("POST", `/api/public/patrocinadas/${nA}/clique`, { uf: "SP" });
+    const deOutro = await comprovanteDe(nA, new Cliente("aparelho-outro"), "SP");
+    await esperar(1_100);
+    await forjador.req("POST", `/api/public/patrocinadas/${nA}/clique`, { uf: "SP", comprovante: deOutro });
+    await forjador.req("POST", `/api/public/patrocinadas/${nA}/clique`, { uf: "SP", comprovante: `${Date.now() - 5_000}.${"0".repeat(32)}` });
+    const naHora = await comprovanteDe(nA, forjador, "SP");
+    await forjador.req("POST", `/api/public/patrocinadas/${nA}/clique`, { uf: "SP", comprovante: naHora });
+    checa("sem o comprovante da exibição (ausente, de outro aparelho, inventado ou na hora) não gasta", (await anuncio(nA)).cliquesUsados === 0, String((await anuncio(nA)).cliquesUsados));
+    checa("a lista traz o comprovante de cada anúncio", typeof deOutro === "string" && /^\d+\.[0-9a-f]{32}$/.test(deOutro ?? ""), String(deOutro));
+
     // Cliques no anúncio nacional de A (3 comprados).
     await clique(nA, new Cliente("aparelho-1"));
+    const [comIp] = (await db.execute(sql`select ip_hash from patrocinio_cliques where anuncio_id = ${nA}::uuid limit 1`)).rows as { ip_hash: string | null }[];
+    checa("o clique cobrado guarda o IP em hash (para o teto por IP)", Boolean(comIp?.ip_hash) && !String(comIp?.ip_hash).includes("127.0.0.1"));
     checa("clique gasta um do pacote", (await anuncio(nA)).cliquesUsados === 1);
     await Promise.all([clique(nA, new Cliente("aparelho-1")), clique(nA, new Cliente("aparelho-1"))]);
     checa("o mesmo aparelho em 24 h não gasta de novo", (await anuncio(nA)).cliquesUsados === 1);
@@ -362,6 +397,39 @@ async function main() {
       "a plataforma vê o total e o saldo de todas",
       r.json?.totais?.cliques >= 4 && r.json?.vendidoCents >= 90 + 1800 + 90 && r.json.organizacoes.some((o: any) => o.id === A.id && o.saldoCents === 110),
     );
+
+    // Teto por IP sob corrida: dez cliques do mesmo IP, cada um de um aparelho
+    // com comprovante válido, ao mesmo tempo — só CLIQUES_POR_IP cobram. O
+    // comprovante é assinado aqui com a mesma chave do servidor (o mesmo
+    // `SESSION_SECRET`), como se cada aparelho tivesse recebido a lista.
+    const [corrida] = await db
+      .insert(patrocinioAnuncios)
+      .values({
+        organizationId: A.id,
+        campaignId: rA.id,
+        alcance: "nacional",
+        segmento: "prova-teto-por-ip",
+        cliquesComprados: 20,
+        precoCliqueCents: 30,
+        valorPagoCents: 600,
+        filaDesde: new Date(),
+      })
+      .returning();
+    const quando = Date.now() - 2_000;
+    await db.execute(sql`delete from rate_events where bucket like 'patrocinio-clique:%'`);
+    await Promise.all(
+      Array.from({ length: 10 }, (_, i) => {
+        const aparelho = `corrida-ip-${i}`;
+        const comprovante = comprovanteDaExibicao(corrida.id, hashValue(aparelho), quando);
+        return new Cliente(aparelho).req("POST", `/api/public/patrocinadas/${corrida.id}/clique`, { uf: "SP", comprovante });
+      }),
+    );
+    checa(
+      `dez cliques do mesmo IP ao mesmo tempo: só ${CLIQUES_POR_IP} cobram`,
+      (await anuncio(corrida.id)).cliquesUsados === CLIQUES_POR_IP,
+      String((await anuncio(corrida.id)).cliquesUsados),
+    );
+    await db.delete(patrocinioAnuncios).where(eq(patrocinioAnuncios.id, corrida.id));
 
     // Rifa fora do ar: o anúncio para e o que sobrou volta ao saldo como crédito.
     await db.update(campaigns).set({ status: "closed" }).where(eq(campaigns.id, rB.id));

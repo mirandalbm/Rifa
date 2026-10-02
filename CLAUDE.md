@@ -82,7 +82,9 @@ arquitetura.
 | trocar o provedor de pagamento | `server/payments/` — implemente `PaymentProvider`; a escolha é do painel (`shared/plataforma.ts`) |
 | regras de publicação e mídia | `server/services/campaigns.ts`, `server/routes/admin.ts` |
 | sorteio | `server/services/draw.ts` |
-| segundo fator | `server/services/totp.ts` |
+| segundo fator (e o segredo selado no cofre) | `server/services/totp.ts`, `server/services/segundoFator.ts`, `scripts/senha-test.ts` |
+| hash da senha (custo do scrypt, refazer a antiga no login) | `server/services/hashSenha.ts`, `refazerHashSeAntigo()` em `server/auth.ts`, `tests/hashSenha.test.ts` |
+| política de conteúdo (CSP, modo relatório) | `shared/csp.ts`, `server/services/csp.ts`, `server/index.ts`, `tests/csp.test.ts` |
 | variantes de imagem | `server/services/images.ts` |
 | pôster do vídeo (rifa, reels e story), o `ffmpeg` local e o Cloudflare Stream | `shared/poster.ts` (regras e comando), `server/services/videoProcessor.ts` (`ProcessadorDeVideo`, `FfmpegLocal`), `gerarPosterDaMidia()` em `server/services/media.ts`, `gerarPosterDoStory()` em `server/services/vitrine.ts`, `poster` em `Publicacao.tsx`/`Reels.tsx`/`Stories.tsx`, `scripts/poster-test.ts`, `tests/poster.test.ts`, `tests/cloudflareStream.test.ts` |
 | entrega do vídeo em HLS pelo Cloudflare Stream (guardar, tocar, apagar) | `shared/stream.ts` (regras), `publicar()`/`apagarDoStream()` em `server/services/videoProcessor.ts`, `gerarPosterDaMidia()`/`removeMedia()` em `server/services/media.ts`, `stream_uid`/`stream_hls` em `campaign_media`, `server/services/streamPendentes.ts` (vídeo sem dono, relógio), `client/src/lib/hls.ts` (`useVideoHls`), `scripts/poster-test.ts`, `tests/stream.test.ts`, `tests/cloudflareStream.test.ts` |
@@ -187,9 +189,17 @@ arquitetura.
 
 ## O que ainda não existe
 
-- Política de conteúdo (CSP) completa: hoje só `frame-ancestors`. Os pixels
-  de marketing pedem a lista de origens — o caminho é começar em modo
-  relatório. O que mais ficou para depois está em `docs/SEGURANCA.md`.
+- Política de conteúdo (CSP) **valendo**: hoje ela está em **modo
+  relatório** (`Content-Security-Policy-Report-Only`, só em produção,
+  `montarCsp()` em `shared/csp.ts`): avisa em `/api/csp-relatorio`, o log
+  agrupa (`[csp]`, diretiva e origem por hora) e nada é bloqueado. Origem
+  nova no código (pixel, player, CDN) entra na lista no mesmo PR —
+  `tests/csp.test.ts` confere os pixels e os players. Passa a valer quando o
+  log de produção ficar limpo, com os pixels ligados. O script do tema entra
+  pelo hash do `index.html` construído — nunca `'unsafe-inline'` em script.
+  A rota do relatório é aberta: tem `hit` por IP e a diretiva só leva
+  letras e hífen (sem isso, uma quebra de linha escrevia linha falsa no log).
+  O que mais ficou para depois está em `docs/SEGURANCA.md`.
 
 - **Chatbase AI nos painéis**: a conversa (pelo nosso servidor), a coluna, a
   medição do uso, a cobrança (com o relatório e o ajuste de crédito da
@@ -1033,6 +1043,11 @@ tem atrás.
 - **404, não 403, para o dado do vizinho.** "Existe, mas não é sua" já entrega
   que o id é válido — dá para varrer a plataforma contando rifa alheia. 403
   fica só para rota que é da plataforma e todo mundo sabe que existe.
+- **Rascunho não existe para o público.** Toda rota pública por `slug` responde
+  404 (igual a inexistente) para rifa em rascunho — página, regulamento,
+  mapa de números, número, prêmios, ranking e últimas compras. Responder "só
+  números" já entrega que a rifa existe e quanto ela tem. Rota pública nova
+  por `slug` confere o `status`; `npm run senha` prova as de números.
 - **Rota com id de filho confere o pai.** `/media/:id` e `/prized/:id` não
   trazem a campanha no caminho; sem buscar o dono antes, o id do vizinho
   apaga o banner dele. E a conferência vem **antes** do `DELETE`, senão a
@@ -1068,6 +1083,26 @@ tem atrás.
 - **A conta do afiliado é da plataforma** — inclusive a do afiliado antigo,
   que ainda tem a organização no usuário: a organização não redefine a
   senha nem desliga (403, no `npm run isolation`). Ele trabalha para várias.
+- **O hash da senha leva o custo** (`s2$N$r$p$sal$chave`, `CUSTO_DA_SENHA`
+  em `server/services/hashSenha.ts`: N = 2¹⁶, r = 8, p = 2). A senha do
+  formato antigo (`sal:chave`, custo padrão do Node) continua entrando e é
+  refeita no login certo (`refazerHashSeAntigo`, `UPDATE` condicional ao hash
+  lido — painel e conta do apostador). Subir o custo de novo é mudar a
+  constante: nenhuma senha deixa de valer. Custo fora da faixa no hash
+  guardado é recusado sem calcular. O código do WhatsApp (6 dígitos, minutos
+  de vida) fica no custo leve (`hashCodigo`) — quem protege é o limite.
+- **O segredo do segundo fator fica selado no cofre**
+  (`server/services/segundoFator.ts`: `cofre:v1:…`; o pendente da sessão
+  também). O de antes, em claro, entra e é selado ao subir o servidor
+  (`cifrarSegredosDoSegundoFator`, trava 811015, `UPDATE` condicional). Sem
+  `COFRE_CHAVE` o novo é guardado em claro com aviso — trancar o segundo
+  fator seria pior (é a única exceção ao "não existe modo sem cifrar" do
+  cofre). Selado que não abre é "código incorreto", nunca 500 — por isso
+  **trocar a `COFRE_CHAVE` tranca fora quem tem segundo fator**, como perde
+  os documentos fiscais: desligue o segundo fator (ou migre) antes.
+  `npm run senha` prova. Cada hash de senha usa 64 MiB e uma das threads do
+  libuv (que também servem o disco): se o login sob rajada pesar no Railway,
+  suba `UV_THREADPOOL_SIZE`.
 - **Cambista e afiliado passam pela mesma régua de senha** (`senhaInvalida`)
   do resto do painel.
 
@@ -2614,6 +2649,19 @@ aí o próximo entra sozinho.
   trava do par (811402); robô (`ehRobo`), aparelho sem identificação e
   anúncio esgotado vão para **barrados** — o patrocinador vê o que não
   pagou. A rota responde 204 sempre, para não ensinar o que conta.
+  **Só cobra com o comprovante da exibição** (`ticketDoClique.ts`): a lista
+  `/patrocinadas` assina, para o aparelho que pediu, cada anúncio que mostrou
+  (HMAC de anúncio + aparelho + hora), e o clique vale de 1 s a 30 min
+  depois — id inventado, comprovante de outro aparelho ou clique na hora vão
+  para barrados. E **no máximo `CLIQUES_POR_IP` (3) por IP** por anúncio em
+  24 h (`patrocinio_cliques.ip_hash`, que sobe com o `db:push` **antes** do
+  código — sem a coluna o `INSERT` do clique falha), contado sob a trava do
+  par anúncio + IP (811405, depois da do aparelho): sem ela, dez cliques do
+  mesmo IP com aparelhos diferentes contavam juntos e cobravam nove. Sem IP,
+  não cobra. O teto erra para o lado do patrocinador. **A leitura da lista
+  leva o aparelho**: `getQueryFn` manda o `x-device-id` como o `apiRequest`
+  (`tests/aparelhoNaLeitura.test.ts`) — sem ele o comprovante saía nulo e
+  nenhum clique de verdade era cobrado.
 - **Números para provar que vale a pena**: `patrocinio_diario` (por
   anúncio, dia de São Paulo e UF de quem olhou) guarda exibições, cliques,
   barrados e gasto — sem `COUNT(*)` no painel. A **venda atribuída** é do

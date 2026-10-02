@@ -29,7 +29,7 @@ import {
 } from "@shared/seguranca";
 import { normalizePhone } from "@shared/format";
 import { nomeRealPublico } from "@shared/perfilApostador";
-import { hashPassword, verifyPassword } from "../auth";
+import { hashCodigo, verifyPassword } from "../auth";
 import { isUniqueViolation } from "../pgError";
 import { notify, notificationProvider } from "../notifications";
 import { guardOtp, hit, identify } from "./antifraude";
@@ -95,7 +95,7 @@ export async function pedirCodigoDoTelefone(req: Request, orgId: string, telefon
   req.session.otpOrganizador = {
     orgId,
     phone,
-    codeHash: await hashPassword(codigo),
+    codeHash: await hashCodigo(codigo),
     expiresAt: Date.now() + OTP_TTL_MS,
     attempts: 0,
   };

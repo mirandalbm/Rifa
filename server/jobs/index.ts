@@ -5,6 +5,7 @@ import { commissions, orders, buyers, campaigns, carrinhoPedidos } from "@shared
 import { notify } from "../notifications";
 import { publicUrl } from "../services/urls";
 import { purgarGuardaDoAntifraude, purgeRateEvents } from "../services/antifraude";
+import { cifrarSegredosDoSegundoFator } from "../services/segundoFator";
 import { preencherCodigosDeCliente } from "../services/codigoCliente";
 import { separarCidadesAntigas } from "../services/orgs";
 import { avisarSorteiosChegando } from "../services/push";
@@ -67,6 +68,7 @@ const LOCK_MARKETING = 811_501;
 const LOCK_COPIA = 811_013;
 const LOCK_IA_FRANQUIA = 811_701;
 const LOCK_STREAM = 811_014;
+const LOCK_SEGUNDO_FATOR = 811_015;
 
 /** Quantos minutos antes de a reserva cair o lembrete é enviado. */
 const LEMBRETE_MINUTOS = Number(process.env.REMINDER_MINUTES_BEFORE ?? 5);
@@ -244,6 +246,19 @@ export function startJobs() {
       console.error("[jobs] cópia de segurança da mídia:", err);
     }
   }, 30_000).unref();
+
+  // Segredo do segundo fator guardado em claro antes do cofre: sela uma vez,
+  // ao subir o servidor (o novo já nasce selado).
+  setTimeout(async () => {
+    try {
+      await withLock(LOCK_SEGUNDO_FATOR, async () => {
+        const n = await cifrarSegredosDoSegundoFator();
+        if (n > 0) log(`${n} segredo(s) do segundo fator selado(s) no cofre`, "jobs");
+      });
+    } catch (err) {
+      console.error("[jobs] segredos do segundo fator:", err);
+    }
+  }, 4_000).unref();
 
   // Afiliado de antes dos vínculos (organização no usuário): cria o vínculo,
   // e a organização dos cupons e saques antigos. Idempotente.

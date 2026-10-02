@@ -78,7 +78,7 @@ function AutorizacaoDaFoto({ base, c }: { base: string; c: NonNullable<Estado["c
       <h3 id="titulo-autorizacao-foto" className="text-sm font-semibold">
         Autorização para comparar a foto (dado biométrico)
       </h3>
-      {c.dadoEm ? (
+      {c.dadoEm && c.chaveDada === c.chave ? (
         <>
           <p className="mt-1 text-xs text-muted">
             Você autorizou em <span className="tnum">{new Date(c.dadoEm).toLocaleDateString("pt-BR")}</span>. Pode revogar a
@@ -97,6 +97,12 @@ function AutorizacaoDaFoto({ base, c }: { base: string; c: NonNullable<Estado["c
         </>
       ) : (
         <>
+          {c.dadoEm ? (
+            <p className="mt-1 text-xs text-muted">
+              O texto mudou desde a sua autorização (por exemplo, a comparação passou a ser feita por um serviço de
+              reconhecimento facial). Leia e autorize de novo para a foto voltar a ser comparada.
+            </p>
+          ) : null}
           <div className="mt-2 rounded-md bg-mist px-3 py-2">
             <TextoDaAutorizacao texto={c.texto} />
           </div>
@@ -181,7 +187,6 @@ export function VerificacaoCard({
   } catch (e) {
     problema = (e as Error).message;
   }
-  if (!problema && pessoa && !consentimento) problema = "Marque a autorização da comparação da foto.";
 
   const recarregar = () => qc.invalidateQueries({ queryKey: [base] });
   const salvar = useMutation({
@@ -311,7 +316,7 @@ export function VerificacaoCard({
                 </label>
                 {campo("Chave Pix", pix.chave, (v) => setPix({ ...pix, chave: v }))}
               </div>
-              {pessoa ? (
+              {pessoa && !data?.dados ? (
                 <fieldset className="rounded-md border border-line bg-mist px-3 py-2">
                   <legend className="px-1 text-xs font-semibold">Autorização para comparar a foto (dado biométrico)</legend>
                   {data?.consentimento ? <TextoDaAutorizacao texto={data.consentimento.texto} /> : null}

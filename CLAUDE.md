@@ -1637,13 +1637,24 @@ estorno.
   ligado —, guarda, opcional, como revogar) vem do servidor com a chave
   (`chaveDoConsentimento()`: versão e modo), e a chave volta no pedido:
   texto diferente do lido é 409. Gravado na verificação
-  (`consentimento_biometrico_em`, a chave e o SHA-256 do texto) e na
-  auditoria. Sem ele falta "a sua autorização" (`faltaNaVerificacao`), o
-  comparador **nem é chamado** (e o `UPDATE` exige o consentimento) e a
-  plataforma não aprova a foto (409). **Revogar** (`DELETE …/consentimento`)
-  apaga a prova e tira o selo na mesma transação; autorizar de novo
-  (`POST …/consentimento`) volta para a análise da foto sem mexer nos dados.
-  Subir a versão do texto exige o consentimento de novo.
+  (`consentimento_biometrico_em`, a chave e o SHA-256 do texto) e, **na
+  mesma transação e só quando mudou**, na auditoria (com a chave e o hash;
+  o ator do apostador é ele, nunca a sessão de painel do mesmo navegador).
+  **Não é condição para salvar os dados** (quem revogou corrige a conta sem
+  consentir de novo): sem ele falta "a sua autorização"
+  (`faltaNaVerificacao`), a plataforma não aprova a foto (409) e aprovar só
+  os documentos deixa a verificação parada (`incompleto`), não na fila da
+  foto. **O comparador automático exige a chave do texto que cita o serviço
+  de fora** (`chaveDoConsentimento({automatico: true})`, também no
+  `UPDATE`, junto com a data do consentimento lido): quem autorizou só a
+  comparação por uma pessoa nunca tem a foto enviada, e a tela pede a
+  autorização de novo. **Revogar** (`DELETE …/consentimento`) apaga a prova
+  e tira o selo na mesma transação — `foto_divergente` e `recusado` ficam
+  como estão; autorizar de novo (`POST …/consentimento`, limite por pessoa)
+  só reabre a análise de quem estava `incompleto`, nunca a decisão da
+  plataforma, e o mesmo texto de novo não grava nada. A fila mostra "Sem
+  autorização da foto". Verificado de antes do consentimento gravado segue
+  verificado; subir a versão do texto exige o consentimento de novo.
 - **Trocar ou tirar a foto apaga o selo na transação que troca a foto**
   (`fotoMudouNaTransacao`); mexer em dado ou documento derruba a aprovação
   dos documentos. O selo público (`buyers.verificado_em`,

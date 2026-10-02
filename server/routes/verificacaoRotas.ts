@@ -1,8 +1,7 @@
 import type { Request, Router } from "express";
 import type { Sujeito } from "@shared/verificacao";
-import { db } from "../db";
-import { auditLog } from "@shared/schema";
 import {
+  type AtorDaVerificacao,
   autorizarComparacao,
   documentoDoDono,
   revogarComparacao,
@@ -22,6 +21,16 @@ export function montarRotasDaVerificacao(
   sujeito: Sujeito,
   idDe: (req: Request) => string | Promise<string>,
 ) {
+  /**
+   * Quem age, para a auditoria — pelo sujeito, nunca pela presença de
+   * `req.user`: o mesmo navegador pode ter a sessão do painel e a do
+   * comprador, e a autorização do apostador é dele.
+   */
+  const ator = (req: Request, id: string): AtorDaVerificacao =>
+    sujeito === "apostador"
+      ? { id, role: "apostador", ip: req.ip ?? null }
+      : { id: req.user?.id ?? null, role: req.user?.role ?? sujeito, ip: req.ip ?? null };
+
   router.get(caminho, async (req, res, next) => {
     try {
       res.setHeader("Cache-Control", "no-store");
@@ -34,8 +43,7 @@ export function montarRotasDaVerificacao(
   router.put(caminho, async (req, res, next) => {
     try {
       const id = await idDe(req);
-      await salvarDadosDaVerificacao(sujeito, id, req.body);
-      if (req.body?.consentimentoFoto === true) await auditar(req, id, "verificacao.consentimento.dado");
+      await salvarDadosDaVerificacao(sujeito, id, req.body, ator(req, id));
       res.json(await estadoDaVerificacao(sujeito, id, true));
     } catch (err) {
       next(err);
@@ -43,26 +51,14 @@ export function montarRotasDaVerificacao(
   });
 
   /**
-   * Autorizar e revogar a comparação da foto (consentimento biométrico).
-   * Cada um entra na auditoria com quem e quando; a prova do texto fica na
-   * própria verificação (chave e SHA-256 do texto lido).
+   * Autorizar e revogar a comparação da foto (consentimento biométrico). A
+   * prova (chave e SHA-256 do texto lido) e a auditoria entram na mesma
+   * transação, e só quando algo mudou.
    */
-  const auditar = (req: Request, id: string, action: string) =>
-    db.insert(auditLog).values({
-      actorId: req.user?.id ?? (sujeito === "apostador" ? id : null),
-      actorRole: req.user?.role ?? sujeito,
-      action,
-      entity: `verificacao_${sujeito}`,
-      entityId: id,
-      ip: req.ip,
-    });
-
   router.post(`${caminho}/consentimento`, async (req, res, next) => {
     try {
       const id = await idDe(req);
-      const estado = await autorizarComparacao(sujeito, id, req.body);
-      await auditar(req, id, "verificacao.consentimento.dado");
-      res.json(estado);
+      res.json(await autorizarComparacao(sujeito, id, req.body, ator(req, id)));
     } catch (err) {
       next(err);
     }
@@ -71,9 +67,7 @@ export function montarRotasDaVerificacao(
   router.delete(`${caminho}/consentimento`, async (req, res, next) => {
     try {
       const id = await idDe(req);
-      const estado = await revogarComparacao(sujeito, id);
-      await auditar(req, id, "verificacao.consentimento.revogado");
-      res.json(estado);
+      res.json(await revogarComparacao(sujeito, id, ator(req, id)));
     } catch (err) {
       next(err);
     }

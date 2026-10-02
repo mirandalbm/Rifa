@@ -130,7 +130,8 @@ describe("consentimento biométrico", () => {
     expect(t).toMatch(/só para confirmar que o perfil é meu/);
     expect(t).toMatch(/LGPD, art\. 11/);
     expect(t).toMatch(/uma pessoa da plataforma/);
-    expect(t).toMatch(/cifradas/);
+    expect(t).toMatch(/foto comparada é a que já aparece no meu perfil/);
+    expect(t).toMatch(/documentos ficam cifrados/);
     expect(t).toMatch(/opcional/);
     expect(t).toMatch(/revogar/);
   });

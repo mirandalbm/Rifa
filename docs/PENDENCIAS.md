@@ -444,7 +444,10 @@ Na ordem de entrega do plano:
 - [x] Consentimento biométrico da verificação: texto destacado (finalidade,
   quem compara, guarda, opcional, revogação), gravado com a data e o
   SHA-256 do texto lido, revogável na própria tela (o selo sai), e a foto
-  não é comparada sem ele (`npm run verificacao`). Falta o advogado ler o
+  não é comparada sem ele — nem pelo serviço automático sem o texto que o
+  cita (`npm run verificacao`). Quem foi verificado antes desta versão
+  segue com o selo, sem consentimento gravado: a fila mostra "Sem
+  autorização da foto"; decidir se pede a todos que autorizem de novo. Falta o advogado ler o
   texto (`textoDoConsentimentoBiometrico()` em `shared/verificacao.ts`).
 - [ ] **[você]** Cada organização publicar o termo de adesão de afiliado
   (Afiliados → Termo) — quem já publicou vê o aviso para publicar a versão

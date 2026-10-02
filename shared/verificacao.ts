@@ -211,7 +211,7 @@ export function faltaNaVerificacao(
  * impressão (SHA-256) do texto exato que a pessoa viu: é a prova que a lei
  * pede de quem trata o dado (art. 8º, § 2º).
  */
-export const CONSENTIMENTO_BIOMETRICO_VERSAO = 1;
+export const CONSENTIMENTO_BIOMETRICO_VERSAO = 2;
 
 /**
  * O texto que a pessoa lê e autoriza, destacado do resto da tela: para quê,
@@ -225,7 +225,7 @@ export function textoDoConsentimentoBiometrico(o: { automatico: boolean }): stri
     o.automatico
       ? "A comparação é feita por um serviço de reconhecimento facial (Amazon Rekognition), que recebe as duas imagens, devolve só o grau de semelhança e não as guarda; abaixo do limite, uma pessoa da plataforma compara."
       : "A comparação é feita por uma pessoa da plataforma, olhando as duas imagens lado a lado.",
-    "As imagens ficam cifradas e só a plataforma as abre, com registro de cada acesso. Guardamos o resultado (verificado ou não, e o grau de semelhança) enquanto a verificação existir.",
+    "A foto comparada é a que já aparece no meu perfil. Os documentos ficam cifrados e só a plataforma os abre, com registro de cada acesso. Guardamos o resultado (verificado ou não, e o grau de semelhança) enquanto a verificação existir.",
     "A verificação é opcional: sem ela eu compro e comento normalmente.",
     "Posso revogar esta autorização a qualquer momento nesta mesma tela. Ao revogar, o selo sai e a foto deixa de ser comparada; ao excluir a conta, a verificação é apagada.",
   ];

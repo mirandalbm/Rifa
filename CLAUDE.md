@@ -133,6 +133,7 @@ arquitetura.
 | aparência da plataforma (construtor de templates) | `shared/template.ts` (regras), `server/services/template.ts`, `client/src/lib/template.ts`, `client/src/pages/adminAparencia.tsx`, `scripts/aparencia-test.ts` |
 | tema claro e escuro | `client/src/index.css` (variáveis), `client/src/lib/tema.ts`, `client/src/components/TemaToggle.tsx`, `tests/tema.test.ts` |
 | comentários na publicação da rifa | `shared/comentarios.ts` (regras), `server/services/comentarios.ts`, `client/src/components/Comentarios.tsx`, `scripts/comentarios-test.ts` |
+| bilhetes do apostador como publicações privadas (`/perfil/bilhetes`) | `shared/bilhetes.ts` (regras), `server/services/bilhetes.ts`, `GET /conta/bilhetes` em `server/routes/public.ts`, `client/src/components/BilheteComoPublicacao.tsx`, `client/src/pages/MeusBilhetes.tsx`, `scripts/bilhetes-test.ts`, `tests/bilhetes.test.ts` |
 | perfil do apostador (apelido, foto, `/u/<apelido>`) e curtidas | `shared/perfilApostador.ts`, `server/services/perfilApostador.ts`, `client/src/components/PerfilDoApostador.tsx`, `client/src/pages/Usuario.tsx`, `scripts/comentarios-test.ts` |
 | segurança do organizador: telefone aprovado, denúncias, rifa travada, banimento | `shared/seguranca.ts` (regras e varredura), `server/services/seguranca.ts`, `client/src/components/Seguranca.tsx`, `scripts/seguranca-test.ts` |
 | visão do organizador (só o próprio perfil) | `VisaoDoOrganizador` em `client/src/App.tsx`, `organizacao` em `GET /api/auth/me` |
@@ -1429,6 +1430,27 @@ pedido, cotas e valor, e o cliente só pelo ID (`Cliente C-XXXXXXXX`).
 - **A resposta da organização avisa o apostador** (push e trevo de avisos,
   `comentario`), fora da transação.
 - `npm run comentarios` prova tudo isso contra a API de verdade.
+
+## Bilhetes privados — o que não pode afrouxar
+
+Em `/perfil/bilhetes`, quem tem conta vê cada compra **paga** como uma
+publicação (o `Carrossel` e o topo do feed, sem as ações sociais): capa da
+rifa, prêmio, data e hora (fuso de São Paulo), números e situação do sorteio.
+
+- **Só a própria pessoa.** `GET /conta/bilhetes` decide pela sessão (nada
+  vem da URL): 401 sem conta com senha, `no-store`, e não existe rota por id
+  nem versão pública — nunca em `/u/<apelido>`.
+- **Só pedido pago e visível pela regra da conta** (`pedidoVisivel()`, aqui
+  em SQL em `visivelNaConta()`): compra de cambista ou de outro telefone só
+  entra com a prova (CPF vinculado ou telefone provado). Pendente, vencido e
+  estornado não entram (conservador: o que não vale mais fica em Minhas
+  compras, com a situação).
+- **Por chave, sem `OFFSET` e sem `COUNT(*)`** (`shared/paginacao.ts`,
+  `X-Proximo`); o total de números é `orders.quantity`, e o cartão mostra no
+  máximo `NUMEROS_NO_CARTAO`, com link para o bilhete inteiro.
+- **Nunca** telefone, CPF, nome, ID de cliente nem número de cota premiada
+  em jogo: só a que **este** pedido já reclamou (a revelação).
+- `npm run bilhetes` prova tudo isso contra a API de verdade.
 
 ## Segurança contra organizador fraudulento — o que não pode afrouxar
 

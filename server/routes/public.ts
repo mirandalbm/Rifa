@@ -81,6 +81,9 @@ import {
 } from "../services/perfil";
 import QRCode from "qrcode";
 import { publicUrl } from "../services/urls";
+import { BilheteError, bilhetesDaConta } from "../services/bilhetes";
+import { BILHETES_PAGINA } from "@shared/bilhetes";
+import { limiteDaPagina, lerCursor } from "@shared/paginacao";
 import { cartByCode, createCartOrder, createOrder, orderByCode, ordersByPhone, OrderError, resgatarCotasDeBonus } from "../services/orders";
 import { estadoDoBonus, registrarVisita } from "../services/bonus";
 import { meuCodigoDePresente, presentePublico } from "../services/presente";
@@ -882,6 +885,27 @@ publicRouter.get("/conta/salvos", async (req, res, next) => {
     const ordem = new Map(ids.map((x, i) => [x, i]));
     res.json(await cartoesDoFeed(req, linhas.sort((a, b) => ordem.get(a.campaign.id)! - ordem.get(b.campaign.id)!)));
   } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * Os bilhetes da conta como publicações privadas: só a própria pessoa (a
+ * sessão decide, nada vem da URL), só pedido pago e visível pela regra da
+ * conta. Por chave (`antes`/`X-Proximo`), sem `OFFSET`. Dado pessoal: nunca
+ * entra em cache.
+ */
+publicRouter.get("/conta/bilhetes", async (req, res, next) => {
+  try {
+    res.setHeader("Cache-Control", "no-store");
+    const { itens, proximo } = await bilhetesDaConta(req.session.buyer?.id, await titularidadeDaSessao(req), {
+      limite: limiteDaPagina(req.query.limite, BILHETES_PAGINA),
+      antes: lerCursor(req.query.antes),
+    });
+    if (proximo) res.setHeader("X-Proximo", proximo);
+    res.json(itens);
+  } catch (err) {
+    if (err instanceof BilheteError) return res.status(err.status).json({ message: err.message });
     next(err);
   }
 });

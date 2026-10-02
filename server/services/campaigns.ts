@@ -12,6 +12,7 @@ import {
   campaignStats,
   organizacaoFotos,
   organizations,
+  sorteiosOficiais,
   MIN_QUOTAS,
   MAX_QUOTAS,
   MAX_PHOTOS,
@@ -152,8 +153,32 @@ export async function publishBlockers(campaignId: string): Promise<string[]> {
   } else if (campaign.drawAt.getTime() <= Date.now()) {
     blockers.push("A data do sorteio já passou: defina uma data futura.");
   }
+  if (campaign.sorteioOficialId) {
+    const p = await problemaDoSorteioOficial(db, campaign.sorteioOficialId, campaign.drawAt, false);
+    if (p) blockers.push(p);
+  }
 
   return blockers;
+}
+
+/** O sorteio oficial em que a rifa está ainda aceita a publicação? */
+async function problemaDoSorteioOficial(
+  conexao: Pick<typeof db, "select">,
+  sorteioId: string,
+  drawAt: Date | null,
+  travar: boolean,
+): Promise<string | null> {
+  const consulta = conexao
+    .select({ sorteioEm: sorteiosOficiais.sorteioEm, canceladoEm: sorteiosOficiais.canceladoEm, resultadoEm: sorteiosOficiais.resultadoEm })
+    .from(sorteiosOficiais)
+    .where(eq(sorteiosOficiais.id, sorteioId));
+  const [s] = travar ? await consulta.for("share") : await consulta;
+  if (!s || s.canceladoEm) return "O sorteio oficial desta rifa foi cancelado: escolha outro no calendário.";
+  if (s.resultadoEm) return "O sorteio oficial desta rifa já aconteceu: escolha outro no calendário.";
+  if (!drawAt || s.sorteioEm.getTime() !== drawAt.getTime()) {
+    return "A data da rifa não é a do sorteio oficial: escolha o sorteio de novo no calendário.";
+  }
+  return null;
 }
 
 /**
@@ -167,14 +192,26 @@ export async function publishCampaign(campaignId: string): Promise<Campaign> {
   }
 
   return db.transaction(async (tx) => {
+    // A ordem das travas é sempre sorteio oficial → rifa (a mesma de integrar
+    // e de mudar o sorteio): primeiro o sorteio em que a rifa está, depois a
+    // própria rifa (`FOR UPDATE`) — integrar ou mudar a data no meio espera,
+    // e o que mudou antes desta trava aparece na conferência abaixo.
+    const [lida] = await tx.select({ sorteioOficialId: campaigns.sorteioOficialId }).from(campaigns).where(eq(campaigns.id, campaignId));
+    if (lida?.sorteioOficialId) {
+      await tx.select({ id: sorteiosOficiais.id }).from(sorteiosOficiais).where(eq(sorteiosOficiais.id, lida.sorteioOficialId)).for("share");
+    }
     const [campaign] = await tx
       .select()
       .from(campaigns)
-      .where(eq(campaigns.id, campaignId));
+      .where(eq(campaigns.id, campaignId))
+      .for("update");
 
     if (!campaign) throw new CampaignRuleError("Campanha não encontrada.");
     if (campaign.status !== "draft") {
       throw new CampaignRuleError("Esta campanha já foi publicada.");
+    }
+    if (campaign.sorteioOficialId !== (lida?.sorteioOficialId ?? null)) {
+      throw new CampaignRuleError("O sorteio oficial da rifa mudou agora mesmo. Confira o calendário e publique de novo.");
     }
     assertQuotaRange(campaign.totalQuotas);
 
@@ -188,6 +225,14 @@ export async function publishCampaign(campaignId: string): Promise<Campaign> {
     `);
     if ((org.rows[0] as { archived_at: Date | null } | undefined)?.archived_at) {
       throw new CampaignRuleError("A organização desta rifa está arquivada.");
+    }
+
+    // Integrada a um sorteio oficial: o sorteio fica travado (`FOR SHARE`) até
+    // o fim — a plataforma não muda a data dele nem o cancela no meio — e a
+    // data da rifa tem de ser a do concurso.
+    if (campaign.sorteioOficialId) {
+      const p = await problemaDoSorteioOficial(tx, campaign.sorteioOficialId, campaign.drawAt, true);
+      if (p) throw new CampaignRuleError(p);
     }
 
     const { seed, seedHash } = commitSeed();
@@ -212,8 +257,9 @@ export async function publishCampaign(campaignId: string): Promise<Campaign> {
     const [updated] = await tx
       .update(campaigns)
       .set({ status: "published", publishedAt: new Date(), drawSeedHash: seedHash, termoId: termo?.id ?? null })
-      .where(eq(campaigns.id, campaignId))
+      .where(and(eq(campaigns.id, campaignId), eq(campaigns.status, "draft")))
       .returning();
+    if (!updated) throw new CampaignRuleError("Esta campanha já foi publicada.");
 
     return updated;
   });
@@ -334,6 +380,22 @@ export async function salvarDadosLegais(
     );
   }
 
+  // Integrada a um sorteio oficial, a data é a do concurso (o calendário a
+  // acerta) e a rifa precisa ter data: tirar do sorteio vem antes.
+  if (campaign.sorteioOficialId) {
+    const dataPedida = entrada.drawAt === undefined ? undefined : entrada.drawAt ? new Date(entrada.drawAt).getTime() : null;
+    if (dataPedida !== undefined && dataPedida !== (campaign.drawAt?.getTime() ?? null)) {
+      throw new CampaignRuleError(
+        "Esta rifa está num sorteio oficial: a data é a do concurso. Para outra data, tire a rifa do sorteio no calendário.",
+      );
+    }
+    if (entrada.modoSorteio === "quando_completar") {
+      throw new CampaignRuleError(
+        "Rifa num sorteio oficial tem a data do concurso: para sortear quando completar, tire-a do sorteio no calendário.",
+      );
+    }
+  }
+
   const codigo =
     entrada.authorizationCode === undefined ? undefined : entrada.authorizationCode?.trim() || null;
   const drawAt =
@@ -405,14 +467,20 @@ export async function salvarDadosLegais(
 
     // O status entra no WHERE: publicar ao mesmo tempo não deixa a data
     // mudar depois de a campanha ir ao ar.
+    // A data e o modo dependem do sorteio oficial lido lá em cima: se a rifa
+    // entrou (ou saiu) de um sorteio no meio, nada é gravado.
+    const mexeNaData = mudancas.drawAt !== undefined || mudancas.modoSorteio !== undefined;
+    const mesmoSorteio = campaign.sorteioOficialId
+      ? eq(campaigns.sorteioOficialId, campaign.sorteioOficialId)
+      : isNull(campaigns.sorteioOficialId);
     const [atualizada] = await tx
       .update(campaigns)
       .set(mudancas)
-      .where(and(eq(campaigns.id, campaign.id), eq(campaigns.status, "draft")))
+      .where(and(eq(campaigns.id, campaign.id), eq(campaigns.status, "draft"), mexeNaData ? mesmoSorteio : undefined))
       .returning();
     if (!atualizada) {
       throw new CampaignRuleError(
-        "Autorização e data do sorteio travam ao publicar: quem comprou comprou aquela data.",
+        "A rifa mudou enquanto você salvava (publicada, ou integrada a um sorteio oficial). Abra de novo e confira: autorização e data travam ao publicar.",
       );
     }
     return atualizada;

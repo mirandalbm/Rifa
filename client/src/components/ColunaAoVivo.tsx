@@ -324,7 +324,7 @@ function ConteudoDaTela({
       ) : (
         <div className="flex justify-center gap-2" role="timer" aria-label={`Faltam ${falta.dias} dias, ${falta.horas} horas e ${falta.minutos} minutos`}>
           {casas.map(([n, rotulo]) => (
-            <span key={rotulo} className="min-w-[3.25rem] rounded-lg bg-white/10 px-1.5 py-1 text-center">
+            <span key={rotulo} className="min-w-[3.25rem] rounded-lg bg-branco/10 px-1.5 py-1 text-center">
               <span className="tnum block text-xl font-bold leading-tight">{String(n).padStart(2, "0")}</span>
               <span className="block text-[10px] text-branco/70">{rotulo}</span>
             </span>

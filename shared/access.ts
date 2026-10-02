@@ -75,6 +75,7 @@ export type SectionKey =
   | "adminMarketing"
   | "adminFinanceiro"
   | "adminSorteios"
+  | "adminSorteiosOficiais"
   | "adminCobranca"
   | "adminOrganizacoes"
   | "adminAntifraude"
@@ -139,6 +140,9 @@ export const SECTIONS: Section[] = [
   { key: "adminUsuarios", path: "/admin/usuarios", label: "Usuários", requires: "organizer", nav: true },
   { key: "adminFinanceiro", path: "/admin/financeiro", label: "Financeiro", requires: "organizer", nav: true },
   { key: "adminSorteios", path: "/admin/sorteios", label: "Sorteios", requires: "organizer", nav: true },
+  // O calendário dos sorteios oficiais: a plataforma cadastra e lança o resultado;
+  // a organização integra a rifa em rascunho num concurso.
+  { key: "adminSorteiosOficiais", path: "/admin/sorteios-oficiais", label: "Sorteios oficiais", requires: "organizer", nav: true },
   { key: "adminExportacoes", path: "/admin/exportacoes", label: "Exportações", requires: "organizer", nav: true },
   // Mesma tela, dois lados: a plataforma vê a carteira de clientes; o
   // organizador vê a conta dele. Cobrar sem mostrar a conta seria indefensável.
@@ -230,7 +234,7 @@ const MENU_DO_MASTER: GrupoDoMenu[] = [
     titulo: "Painel",
     itens: [
       { rotulo: "Visão geral", icone: "visaoGeral", filhos: ["adminPainel", "adminResultados"] },
-      { rotulo: "Rifas", icone: "rifas", filhos: ["adminCampanhas", "adminSorteios", "adminStories"] },
+      { rotulo: "Rifas", icone: "rifas", filhos: ["adminCampanhas", "adminSorteios", "adminSorteiosOficiais", "adminStories"] },
       { rotulo: "Vendas e dinheiro", icone: "dinheiro", filhos: ["adminPedidos", "adminFinanceiro", "adminCobranca", "adminExportacoes"] },
       { rotulo: "Pessoas", icone: "pessoas", filhos: ["adminOrganizacoes", "adminUsuarios", "adminAfiliados", "adminCambistas", "adminFiscal"] },
       { rotulo: "Crescimento", icone: "crescimento", filhos: ["adminMarketing", "adminPatrocinio", "adminBannerPago", "adminBonus"] },
@@ -243,7 +247,7 @@ const MENU_DO_ORGANIZADOR: GrupoDoMenu[] = [
   { itens: [{ secao: "adminPainel" }, { secao: "adminAtendimento" }] },
   {
     titulo: "Rifas",
-    itens: [{ rotulo: "Rifas", icone: "rifas", filhos: ["adminCampanhas", "adminSorteios", "adminStories"] }, { secao: "adminResultados" }],
+    itens: [{ rotulo: "Rifas", icone: "rifas", filhos: ["adminCampanhas", "adminSorteios", "adminSorteiosOficiais", "adminStories"] }, { secao: "adminResultados" }],
   },
   {
     titulo: "Vendas",

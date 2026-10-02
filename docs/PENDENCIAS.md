@@ -573,6 +573,20 @@ Na ordem de entrega do plano:
 
 ## 6. Código, para depois
 
+- [ ] **Sorteios oficiais** (o calendário da plataforma, a tela do sorteio no
+  celular). **Fase 1 feita:** o master cadastra, muda, cancela e lança o
+  resultado oficial (Federal, Mega-Sena, Quina, Lotofácil, cada dia na cor da
+  loteria); a organização integra a rifa em rascunho pelo calendário — por
+  enquanto só nos sorteios da Federal (a data vira a do concurso e
+  trava ao publicar); selo na rifa; a tela do sorteio no celular mostra só o
+  sorteio oficial, com a fileira das rifas integradas. **Falta:** fase 2 — o
+  resultado lançado sortear sozinho cada rifa integrada (com as regras da
+  rifa), o sorteio de rifa pela Mega-Sena, Quina e Lotofácil (hoje o sorteio
+  da rifa usa os 5 prêmios da Federal — regulamento e conferência pública
+  mudam junto; até lá essas loterias não recebem rifa), conferir as cores de
+  `CORES_DA_CAIXA` contra o manual de identidade visual das Loterias Caixa e o pedido de troca de sorteio oficial depois de publicar (hoje
+  o adiamento aprovado tira a rifa do sorteio); fase 3 — comentários próprios
+  do sorteio oficial (a tela do celular está sem comentários até lá).
 - [x] **Reels** (tela cheia, vídeo em pé de até 3 min, ações na lateral):
   pronto, atrás do interruptor `reelsLigado` (Aparência → Topo do app, nasce
   desligado). **v2 feito:** o som escolhido fica lembrado no aparelho (cai

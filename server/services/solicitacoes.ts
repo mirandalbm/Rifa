@@ -435,6 +435,9 @@ export async function decidirSolicitacao(
             drawAt: s.drawAtNovo,
             drawAtOriginal: c.drawAtOriginal ?? c.drawAt,
             adiamentos: sql`${campaigns.adiamentos} + 1`,
+            // Integrada a um sorteio oficial, a data era a do concurso: a nova
+            // data, autorizada pela plataforma, tira a rifa daquele sorteio.
+            sorteioOficialId: null,
           })
           .where(eq(campaigns.id, c.id));
         // A comissão que esperava o sorteio passa a esperar o novo.

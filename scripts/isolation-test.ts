@@ -295,6 +295,7 @@ async function alcancaOVizinho(eu: Lado, vizinho: Lado) {
     // Corpo válido de propósito: um 400 de validação esconderia a falta do recorte.
     ["PUT endereço do vizinho", `/api/admin/organizacoes/${vizinho.orgId}/endereco`, { method: "PUT", body: ENDERECO_VALIDO }],
     ["PUT transmissão do vizinho", `/api/admin/campaigns/${c}/transmissao`, { method: "PUT", body: '{"url":"https://youtube.com/live/invadido"}' }],
+    ["PUT sorteio oficial da rifa do vizinho", `/api/admin/campaigns/${c}/sorteio-oficial`, { method: "PUT", body: '{"sorteioOficialId":null}' }],
     ["PUT legenda do vizinho", `/api/admin/campaigns/${c}/legenda`, { method: "PUT", body: '{"legenda":"legenda invadida"}' }],
     ["PUT perfil público do vizinho", `/api/admin/organizacoes/${vizinho.orgId}/perfil`, { method: "PUT", body: '{"bio":"perfil invadido"}' }],
     ["DELETE story do vizinho", `/api/admin/stories/${storyDoVizinho.id}`, { method: "DELETE" }],
@@ -576,6 +577,10 @@ async function rotasDaPlataforma(eu: Lado) {
     ["GET trecho de grupo denunciado", "/api/admin/mensagens/grupos/denuncias/00000000-0000-0000-0000-000000000000", {}],
     ["POST decidir grupo denunciado", "/api/admin/mensagens/grupos/denuncias/00000000-0000-0000-0000-000000000000/decidir", { method: "POST", body: '{"decisao":"improcedente"}' }],
     ["PUT topo do app (aviso do trevo)", "/api/admin/app", { method: "PUT", body: '{"avisoDoTrevo":{"estilo":"cheio","cor":"rosa"},"publicarApostador":true}' }],
+    ["POST sorteio oficial (calendário da plataforma)", "/api/admin/sorteios-oficiais", { method: "POST", body: '{"loteria":"federal","concurso":1,"sorteioEm":"2099-01-01T22:00:00Z"}' }],
+    ["PATCH sorteio oficial", "/api/admin/sorteios-oficiais/00000000-0000-0000-0000-000000000000", { method: "PATCH", body: '{"titulo":"x"}' }],
+    ["POST cancelar sorteio oficial", "/api/admin/sorteios-oficiais/00000000-0000-0000-0000-000000000000/cancelar", { method: "POST" }],
+    ["POST resultado do sorteio oficial", "/api/admin/sorteios-oficiais/00000000-0000-0000-0000-000000000000/resultado", { method: "POST", body: '{"numeros":[]}' }],
     ["GET cadastros fiscais", "/api/admin/fiscal", {}],
     ["GET cadastro fiscal", "/api/admin/fiscal/00000000-0000-0000-0000-000000000000", {}],
     ["GET documento fiscal", "/api/admin/fiscal/00000000-0000-0000-0000-000000000000/documentos/identidade_frente", {}],
@@ -584,6 +589,41 @@ async function rotasDaPlataforma(eu: Lado) {
   for (const [nome, caminho, init] of tentativas) {
     const res = await pedir(eu.cookie, caminho, init);
     checa(nome, res.status === 403, `HTTP ${res.status}`);
+  }
+}
+
+/**
+ * As duas rifas no mesmo sorteio oficial: o calendário de cada organização
+ * traz só a dela, e nunca a contagem do concurso.
+ */
+async function calendarioDosSorteios(eu: Lado, vizinho: Lado) {
+  const [s] = (
+    await db.execute(sql`
+      INSERT INTO sorteios_oficiais (loteria, concurso, sorteio_em, titulo)
+      VALUES ('federal', 99999, now() + interval '30 days', 'isolamento-prova')
+      ON CONFLICT (loteria, concurso) DO UPDATE SET titulo = 'isolamento-prova'
+      RETURNING id
+    `)
+  ).rows as { id: string }[];
+  try {
+    await db.execute(sql`UPDATE campaigns SET sorteio_oficial_id = ${s.id}::uuid WHERE id IN (${eu.campaignId}::uuid, ${vizinho.campaignId}::uuid)`);
+    for (const [lado, outro] of [[eu, vizinho], [vizinho, eu]] as const) {
+      const lista = (await (await pedir(lado.cookie, "/api/admin/sorteios-oficiais")).json()) as {
+        id: string;
+        rifas: { id: string }[];
+        publicadas?: number;
+      }[];
+      const doConcurso = lista.find((x) => x.id === s.id);
+      const ids = (doConcurso?.rifas ?? []).map((r) => r.id);
+      checa(
+        `calendário de ${lado.slug}: traz a própria rifa e não a de ${outro.slug}`,
+        ids.includes(lado.campaignId) && !ids.includes(outro.campaignId) && doConcurso?.publicadas === undefined,
+        ids.join(", ") || "vazio",
+      );
+    }
+  } finally {
+    await db.execute(sql`UPDATE campaigns SET sorteio_oficial_id = NULL WHERE sorteio_oficial_id = ${s.id}::uuid`);
+    await db.execute(sql`DELETE FROM sorteios_oficiais WHERE id = ${s.id}::uuid`);
   }
 }
 
@@ -861,6 +901,9 @@ async function main() {
 
     console.log("\n  e o mesmo pelo outro lado:");
     await conteudoDasListas(sul, norte);
+
+    console.log("\n  calendário dos sorteios oficiais (só as rifas da própria organização):");
+    await calendarioDosSorteios(norte, sul);
   } finally {
     await limpar([norte, sul]);
   }

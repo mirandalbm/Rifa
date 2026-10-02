@@ -16,13 +16,19 @@ import { ehTelefoneProvisorio } from "@shared/google";
 import { checkOtp, issueOtp } from "../auth";
 import { isUniqueViolation } from "../pgError";
 import { notify } from "../notifications";
-import { guardOtp, guardOtpVerify, identify } from "./antifraude";
+import { guardOtp, guardOtpVerify, hit, identify } from "./antifraude";
 import { ContaError, compradorDaSessao, encerrarOutrasSessoes } from "./contaComprador";
 
 export async function completarCpf(req: Request, bruto: string) {
   const sessao = compradorDaSessao(req);
   const cpf = String(bruto ?? "").replace(/\D/g, "");
   if (!cpfValido(cpf)) throw new ContaError("CPF inválido.");
+  // Conta o palpite antes de gravar: o "já existe" revela quem é apostador, e o
+  // dígito verificador é a única prova do CPF (sem limite, dava para varrer CPFs).
+  const id = identify(req);
+  if ((await hit(`conta-cpf:${sessao.id}`, 24 * 60, 5)).excedeu || (await hit(`conta-cpf-ip:${id.ipHash ?? "sem-origem"}`, 60, 20)).excedeu) {
+    throw new ContaError("Muitas tentativas de CPF. Tente mais tarde.", 429);
+  }
   try {
     const [c] = await db
       .update(buyers)
@@ -32,7 +38,7 @@ export async function completarCpf(req: Request, bruto: string) {
     if (!c) throw new ContaError("O CPF desta conta já foi informado.", 409);
   } catch (err) {
     if (isUniqueViolation(err, "uq_buyers_conta_cpf")) {
-      throw new ContaError("Já existe uma conta com este CPF. Entre nela com a senha.", 409);
+      throw new ContaError("Não foi possível usar este CPF. Se ele já é seu, entre na conta com a senha.", 409);
     }
     throw err;
   }

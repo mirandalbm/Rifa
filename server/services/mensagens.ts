@@ -69,6 +69,7 @@ import { hit } from "./antifraude";
 import { avisar, emSegundoPlano } from "./push";
 import { getPlataforma } from "./settings";
 import { urlDaFoto } from "./perfil";
+import { nomeCurto } from "@shared/aoVivo";
 import { urlDaFotoDoApostador } from "./perfilApostador";
 
 export class MensagemError extends Error {
@@ -192,7 +193,8 @@ async function perfisDe(lista: Participante[]): Promise<Map<string, PerfilNaConv
     for (const a of linhas) {
       mapa.set(`afiliado:${a.id}`, {
         tipo: "afiliado",
-        nome: a.nome,
+        // O código do afiliado é público: o nome civil completo dele não pode sair na resposta.
+        nome: nomeCurto(a.nome),
         foto: null,
         href: null,
         verificado: Boolean(a.verificadoEm),

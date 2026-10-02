@@ -154,7 +154,7 @@ export async function buscar(req: Request, q: { q?: unknown; depois?: unknown; o
   const tipos: ConfigBusca = config.buscarTipos;
 
   const id = identify(req);
-  const limite = await hit(`busca:${id.deviceHash ?? id.ipHash ?? "sem-origem"}`, 1, BUSCAS_POR_MINUTO);
+  const limite = await hit(`busca:${id.ipHash ?? "sem-origem"}`, 1, BUSCAS_POR_MINUTO);
   if (limite.excedeu) throw new BuscaError("Muitas buscas seguidas. Espere um minuto.", 429);
 
   const termo = interpretarTermo(q.q);

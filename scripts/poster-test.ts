@@ -184,6 +184,15 @@ async function main() {
       return marina.req("POST", `/api/admin/campaigns/${rifa.id}/media`, { role: "video", storageKey: t.json.storageKey, mime: "video/mp4", ...corpoExtra });
     };
 
+    // O teto de bytes vai na assinatura: corpo maior que o prometido, ou teto adulterado, não entra.
+    {
+      const pequeno = Buffer.from("0123456789");
+      const tk = await marina.req("POST", `/api/admin/campaigns/${rifa.id}/media/upload-url`, { role: "video", filename: "v.mp4", mime: "video/mp4", bytes: pequeno.length });
+      const grande = Buffer.alloc(pequeno.length + 1000, 1);
+      checa("envio com mais bytes do que o prometido é recusado (413)", (await marina.enviar(tk.json.url, grande, "video/mp4")) === 413);
+      checa("teto adulterado na URL invalida a assinatura (403)", (await marina.enviar(String(tk.json.url).replace(/max=\d+/, "max=2000000000"), grande, "video/mp4")) === 403);
+      checa("o tamanho prometido passa (200)", (await marina.enviar(tk.json.url, pequeno, "video/mp4")) === 200);
+    }
     r = await subir(falso, { posterKey: "campanhas/outra/poster-forjado.webp", poster: "https://exemplo.com/x.webp", width: 1, height: 1 });
     const idFalsa = r.json?.id as string;
     checa("vídeo que o ffmpeg não abre entra normalmente (201)", r.status === 201 && !!idFalsa, `HTTP ${r.status} ${r.json?.message ?? ""}`);

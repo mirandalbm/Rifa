@@ -733,6 +733,8 @@ adminRouter.get("/mensagens/denuncias/:id/fotos/:fotoId", async (req, res, next)
 adminRouter.post("/mensagens/denuncias/:id/decidir", async (req, res, next) => {
   try {
     requirePlatformAdmin(req);
+    // Só decisão conhecida entra na auditoria: o texto da ação não vem solto do corpo.
+    if (req.body?.decisao !== "procedente" && req.body?.decisao !== "improcedente") return res.status(400).json({ message: "Escolha: procedente ou improcedente." });
     await audit(req, `mensagens.denuncia.${String(req.body?.decisao ?? "")}`, "mensagem_denuncia", req.params.id, {
       resposta: req.body?.resposta ?? null,
     });
@@ -1092,7 +1094,18 @@ adminRouter.post("/campaigns/:id/media/upload-url", async (req, res, next) => {
  */
 adminRouter.put(
   "/media/raw",
-  express.raw({ type: "*/*", limit: "2gb" }),
+  // A assinatura (com o teto de bytes dentro) é conferida ANTES de ler o corpo, e o
+  // leitor só aceita o que o passo 1 prometeu: sem isso, dois envios de 2 GB
+  // em paralelo estouravam a memória do processo.
+  (req, res, next) => {
+    const store = storage();
+    if (!(store instanceof LocalDiskStorage)) return res.status(404).json({ message: "Envie direto para o armazenamento." });
+    const max = Number(req.query.max ?? 0);
+    if (!store.verify(String(req.query.key ?? ""), Number(req.query.exp ?? 0), max, String(req.query.sig ?? ""))) {
+      return res.status(403).json({ message: "Link de envio inválido ou expirado." });
+    }
+    express.raw({ type: "*/*", limit: max })(req, res, next);
+  },
   async (req, res, next) => {
     try {
       const store = storage();
@@ -1100,11 +1113,6 @@ adminRouter.put(
         return res.status(404).json({ message: "Envie direto para o armazenamento." });
       }
       const key = String(req.query.key ?? "");
-      const exp = Number(req.query.exp ?? 0);
-      const sig = String(req.query.sig ?? "");
-      if (!store.verify(key, exp, sig)) {
-        return res.status(403).json({ message: "Link de envio inválido ou expirado." });
-      }
       await store.write(key, req.body as Buffer, String(req.headers["content-type"] ?? ""));
       res.json({ stored: key, bytes: (req.body as Buffer).length });
     } catch (err) {

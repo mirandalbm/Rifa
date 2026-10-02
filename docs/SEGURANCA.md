@@ -26,9 +26,9 @@ descrita aqui; o detalhe de como explorar não entra no repositório.
 | Controle | Onde | Prova |
 |---|---|---|
 | Sessão: cookie `httpOnly`, `SameSite=Lax`, `Secure` em produção; sessão nova a cada entrada | `server/auth.ts`, `server/services/contaComprador.ts` | — |
-| Senha: scrypt, régua única (`shared/senha.ts`), força bruta contada por conta e por IP (`guardLogin`) | `server/auth.ts`, `server/routes/auth.ts` | `tests/senha.test.ts` |
+| Senha: scrypt com custo próprio (N = 2¹⁶, r = 8, p = 2, guardado no hash `s2$…`; a senha antiga entra e é refeita no login), régua única (`shared/senha.ts`), força bruta contada por conta e por IP (`guardLogin`) | `server/services/hashSenha.ts`, `server/auth.ts`, `server/routes/auth.ts` | `tests/senha.test.ts`, `tests/hashSenha.test.ts`, `npm run senha` |
 | Troca e redefinição de senha derrubam as outras sessões (painel e apostador) | `encerrarSessoesDoUsuario`, `encerrarOutrasSessoes` | — |
-| Segundo fator do painel (TOTP); obrigatório para arquivar organização | `server/services/totp.ts`, `server/routes/admin.ts` | `tests/totp.test.ts` |
+| Segundo fator do painel (TOTP); obrigatório para arquivar organização. O segredo fica **selado no cofre** (`cofre:v1:…`, também o pendente na sessão); o de antes, em claro, entra e é selado ao subir o servidor; o selado adulterado é "código incorreto", nunca 500 | `server/services/totp.ts`, `server/services/segundoFator.ts`, `server/routes/admin.ts` | `tests/totp.test.ts`, `tests/segundoFator.test.ts`, `npm run senha` |
 | Recorte por organização | `orgOf`, `assertCampaignInScope`, `assertAffiliateInScope`, `assertUserInScope` | `npm run isolation` |
 | Arquivo: tipo conferido pelo conteúdo, reprocessado (sharp, teto de 40 MP), nunca servido como veio; chave de mídia gerada pelo servidor e conferida na volta; envio ao disco com assinatura que leva o **teto de bytes** (conferida antes de ler o corpo) e `/uploads` só restaura chave no formato que geramos | `server/services/media.ts`, `storage.ts`, `probe.ts` | `tests/midia.test.ts`, `npm run isolation` |
 | Vídeo enviado a terceiro (Cloudflare Stream, só com `VIDEO_PROCESSOR=cloudflare-stream`): token só no cabeçalho, endereço do quadro só `https` em `*.cloudflarestream.com`, vídeo apagado do Stream no `finally`, prazo e teto de 3 envios, nunca lança | `server/services/videoProcessor.ts` | `tests/cloudflareStream.test.ts` |
@@ -41,6 +41,9 @@ descrita aqui; o detalhe de como explorar não entra no repositório.
 | Endereço vindo de usuário: só `https:`, nunca vira redirecionamento aberto | `shared/perfil.ts`, `shared/vitrine.ts`, `server/services/links.ts` | `npm run perfil` |
 | Push só para serviço conhecido (contra SSRF) | `shared/push.ts` | `tests/push.test.ts` |
 | Cabeçalhos: `nosniff`, `X-Frame-Options`, `frame-ancestors`, `Referrer-Policy`; HSTS em produção | `server/index.ts` | — |
+| Política de conteúdo (CSP) **em modo relatório**, só em produção: a lista do que o sistema carrega (pixels, fontes, Stream, players), o script do tema pelo hash, `object-src 'none'`; os relatórios vão ao log agrupados (diretiva e origem, nunca a URL) | `shared/csp.ts`, `server/services/csp.ts`, `server/index.ts` | `tests/csp.test.ts` |
+| Clique patrocinado: cobra só com o comprovante da exibição (HMAC por anúncio e aparelho, de 1 s a 30 min) e no máximo 3 por IP por anúncio em 24 h | `server/services/ticketDoClique.ts`, `registrarClique` em `server/services/patrocinio.ts` | `tests/ticketDoClique.test.ts`, `npm run patrocinio` |
+| Rascunho não responde em rota pública (mapa, número, prêmios, ranking, últimas compras): 404, igual a inexistente | `server/routes/public.ts` | `npm run senha` |
 | Segredos obrigatórios em produção (`SESSION_SECRET`, `COFRE_CHAVE`, R2); o seed se recusa em produção | `server/auth.ts`, `cofre.ts`, `storage.ts`, `scripts/seed.ts` | — |
 | Log: método, caminho sem a query, status e tempo; recusa de login com o e-mail mascarado | `server/index.ts`, `server/routes/auth.ts` | — |
 | Dependências sem vulnerabilidade conhecida | `package-lock.json` | `npm audit` |
@@ -158,12 +161,10 @@ worker). As 25 provas da API, 180 capturas de tela, o log do servidor e o
 - `setPlataforma` lê e grava sem trava: dois cartões salvos ao mesmo tempo
   podem perder um (último a gravar vence). Já existia; o cartão do assistente é
   só mais um escritor.
-- Sem política de conteúdo (CSP) completa — só `frame-ancestors`. Os pixels
-  de marketing pedem a lista das origens; o caminho é começar em modo
-  relatório.
-- Clique em rifa patrocinada: quem controla muitos IPs consegue gastar o
-  pacote de outro organizador (o barrado conta por IP e aparelho).
-- As rotas públicas de ocupação, prêmios e ranking respondem também para rifa
-  em rascunho (só números, sem dado pessoal).
-- O segredo do segundo fator fica no banco sem cifra (pode ir para o cofre).
-- A senha usa o scrypt com o custo padrão do Node (N = 16.384).
+- A política de conteúdo (CSP) está **em modo relatório**: avisa, não
+  bloqueia. Passa a valer de verdade quando o log de produção (`[csp]`)
+  ficar só com o que a lista já tem — inclusive com os pixels ligados.
+- Clique em rifa patrocinada: quem controla muitos IPs **e** pede a lista como
+  cada aparelho ainda consegue gastar o pacote de outro organizador (o
+  comprovante e o teto por IP encarecem, não impedem). O passo seguinte seria
+  exigir um tempo mínimo de página ou a conta.

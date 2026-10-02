@@ -2298,6 +2298,8 @@ export const patrocinioCliques = pgTable(
     organizationId: uuid("organization_id").notNull(),
     campaignId: uuid("campaign_id").notNull(),
     visitanteHash: text("visitante_hash").notNull(),
+    /** IP em hash: um IP cobra no máximo `CLIQUES_POR_IP` por anúncio em 24 h. */
+    ipHash: text("ip_hash"),
     /** O que este clique gastou do pacote (`gastoAte`): a soma é o valor pago. */
     valorCents: integer("valor_cents").notNull(),
     uf: text("uf"),
@@ -2305,6 +2307,7 @@ export const patrocinioCliques = pgTable(
   },
   (t) => [
     index("idx_patrocinio_clique_visitante").on(t.anuncioId, t.visitanteHash, t.createdAt),
+    index("idx_patrocinio_clique_ip").on(t.anuncioId, t.ipHash, t.createdAt),
     index("idx_patrocinio_clique_atribuicao").on(t.visitanteHash, t.campaignId, t.createdAt),
   ],
 );

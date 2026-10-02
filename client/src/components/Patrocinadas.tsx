@@ -23,12 +23,12 @@ export function Patrocinadas({
   /** Região de quem olha: decide as filas (cidade, estado, Brasil). */
   regiao: { uf: string; cidade: string | null } | null;
 }) {
-  const { data } = useQuery<{ id: string; campaignId: string }[]>({
+  const { data } = useQuery<{ id: string; campaignId: string; comprovante: string | null }[]>({
     queryKey: ["/api/public/patrocinadas", regiao ? { uf: regiao.uf, cidade: regiao.cidade ?? undefined } : undefined],
     staleTime: 60_000,
   });
   const porId = new Map((rifas ?? []).map((r) => [r.id, r]));
-  const lista = (data ?? []).map((p) => ({ p, r: porId.get(p.campaignId) })).filter((x) => x.r) as { p: { id: string }; r: RifaDoFeed }[];
+  const lista = (data ?? []).map((p) => ({ p, r: porId.get(p.campaignId) })).filter((x) => x.r) as { p: { id: string; comprovante: string | null }; r: RifaDoFeed }[];
   const ids = lista.map((x) => x.p.id).join(",");
 
   // Exibição: uma vez por anúncio nesta aba — recarregar a vitrine não infla o número do patrocinador.
@@ -47,10 +47,11 @@ export function Patrocinadas({
 
   if (!lista.length) return null;
 
-  const clicou = (id: string) => {
+  const clicou = (id: string, comprovante: string | null) => {
     marcarOrigem("patrocinada");
     // A navegação é dentro do app: o aviso segue mesmo com a página trocando.
-    apiRequest("POST", `/api/public/patrocinadas/${id}/clique`, { uf: regiao?.uf }).catch(() => {});
+    // O comprovante é o da exibição a este aparelho: sem ele, o clique não é cobrado.
+    apiRequest("POST", `/api/public/patrocinadas/${id}/clique`, { uf: regiao?.uf, comprovante }).catch(() => {});
   };
 
   return (
@@ -61,7 +62,7 @@ export function Patrocinadas({
           <li key={p.id} className="w-60 shrink-0 snap-start">
             <Link
               href={r.organizacao ? `/o/${r.organizacao.slug}/r/${r.slug}` : `/r/${r.slug}`}
-              onClick={() => clicou(p.id)}
+              onClick={() => clicou(p.id, p.comprovante)}
               className="block overflow-hidden rounded-xl border border-line bg-white hover:border-line-2"
             >
               <div className="relative aspect-[2/1] bg-mist-2">

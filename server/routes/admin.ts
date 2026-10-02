@@ -91,7 +91,8 @@ import {
   getPlataforma,
   setPlataforma,
 } from "../services/settings";
-import { generateSecret, verifyTotp, otpauthUrl } from "../services/totp";
+import { generateSecret, otpauthUrl } from "../services/totp";
+import { codigoConfere, guardarSegredo } from "../services/segundoFator";
 import { buildExport, ExportError, toCsvLine } from "../services/exports";
 import { refundOrder } from "../services/orders";
 import {
@@ -2305,7 +2306,7 @@ adminRouter.post("/organizacoes/:id/arquivar", async (req, res, next) => {
     if (!(await verifyPassword(String(req.body?.password ?? ""), eu.passwordHash))) {
       return res.status(401).json({ message: "Senha incorreta." });
     }
-    if (!verifyTotp(eu.totpSecret, String(req.body?.code ?? ""))) {
+    if (!codigoConfere(eu.totpSecret, String(req.body?.code ?? ""))) {
       return res.status(401).json({ message: "Código do autenticador incorreto." });
     }
 
@@ -3435,7 +3436,8 @@ adminRouter.post("/2fa/setup", async (req, res, next) => {
       return res.status(409).json({ message: "O segundo fator já está ativo." });
     }
     const secret = generateSecret();
-    req.session.pendingTotpSecret = secret;
+    // Na sessão (que mora no banco) também vai selado.
+    req.session.pendingTotpSecret = guardarSegredo(secret);
     const otpauth = otpauthUrl({ secret, account: user.email });
     res.json({
       secret,
@@ -3450,15 +3452,15 @@ adminRouter.post("/2fa/setup", async (req, res, next) => {
 
 adminRouter.post("/2fa/enable", async (req, res, next) => {
   try {
-    const secret = req.session.pendingTotpSecret;
-    if (!secret) {
+    const pendente = req.session.pendingTotpSecret;
+    if (!pendente) {
       return res.status(409).json({ message: "Comece de novo: gere o QR Code." });
     }
-    if (!verifyTotp(secret, String(req.body?.code ?? ""))) {
+    if (!codigoConfere(pendente, String(req.body?.code ?? ""))) {
       return res.status(401).json({ message: "Código incorreto. Confira o aplicativo." });
     }
 
-    await db.update(users).set({ totpSecret: secret }).where(eq(users.id, req.user!.id));
+    await db.update(users).set({ totpSecret: pendente }).where(eq(users.id, req.user!.id));
     delete req.session.pendingTotpSecret;
     await audit(req, "admin.2fa.enable", "user", req.user!.id);
     res.json({ enabled: true });
@@ -3477,7 +3479,7 @@ adminRouter.post("/2fa/disable", async (req, res, next) => {
     if (!(await verifyPassword(password, user.passwordHash))) {
       return res.status(401).json({ message: "Senha incorreta." });
     }
-    if (!verifyTotp(user.totpSecret, String(req.body?.code ?? ""))) {
+    if (!codigoConfere(user.totpSecret, String(req.body?.code ?? ""))) {
       return res.status(401).json({ message: "Código incorreto." });
     }
 

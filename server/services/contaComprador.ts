@@ -22,7 +22,7 @@ import {
 } from "@shared/contaComprador";
 import { senhaInvalida } from "@shared/senha";
 import { ehContaSoGoogle, ehTelefoneProvisorio, faltaNaContaGoogle } from "@shared/google";
-import { hashPassword, verifyPassword } from "../auth";
+import { hashPassword, refazerHashSeAntigo, verifyPassword } from "../auth";
 import { isUniqueViolation } from "../pgError";
 import { guardLogin, hit, identify } from "./antifraude";
 import { consultarCep } from "./cep";
@@ -220,6 +220,7 @@ export async function entrarNaConta(
 
   for (const c of candidatos) {
     if (c.passwordHash && (await verifyPassword(senha, c.passwordHash))) {
+      await refazerHashSeAntigo("buyers", c.id, senha, c.passwordHash);
       await entrarComoComprador(req, c, Boolean(c.telefoneConfirmadoEm), lembrar);
       return c;
     }

@@ -21,6 +21,7 @@
     "relogios": "tsx scripts/relogios-test.ts",
     "refund": "tsx scripts/refund-test.ts",
     "pix-tardio": "tsx scripts/pix-tardio-test.ts",
+    "senha": "tsx scripts/senha-test.ts",
     "chamados": "tsx scripts/chamados-test.ts",
     "conta": "tsx scripts/conta-test.ts",
     "bilhetes": "tsx scripts/bilhetes-test.ts",

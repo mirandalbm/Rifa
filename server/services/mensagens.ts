@@ -257,6 +257,7 @@ export async function minhaPresenca(req: Request, como?: unknown) {
 export async function definirPresenca(req: Request, mostrar: unknown, como?: unknown) {
   const eu = await minhaIdentidade(req, como);
   if (typeof mostrar !== "boolean") throw new MensagemError("Escolha mostrar ou esconder.", 400);
+  if ((await hit(`mensagem-presenca:${eu.tipo}:${eu.id}`, 10, 30)).excedeu) throw new MensagemError("Muitas mudanças seguidas. Tente em alguns minutos.", 429);
   await db
     .insert(mensagensPresenca)
     .values({ tipo: eu.tipo, id: eu.id, mostrar })
@@ -270,7 +271,7 @@ export async function definirPresenca(req: Request, mostrar: unknown, como?: unk
  * pouco. O resultado é só "sim": quem esconde e quem está fora são iguais
  * para quem olha, e o horário nunca sai.
  */
-async function onlineDosParceiros(eu: Participante, itens: { chave: string; parceiro: Participante; situacao: SituacaoDaConversa }[]) {
+async function onlineDosParceiros(eu: Participante, itens: { chave: string; parceiro: Participante; situacao: SituacaoDaConversa; bloqueada: boolean; encerrada: boolean }[]) {
   const online = new Set<string>();
   if (itens.length === 0) return online;
   const todos = [eu, ...itens.map((i) => i.parceiro)];
@@ -283,7 +284,7 @@ async function onlineDosParceiros(eu: Participante, itens: { chave: string; parc
   const agora = new Date();
   for (const i of itens) {
     const ele = por.get(`${i.parceiro.tipo}:${i.parceiro.id}`);
-    if (podeVerOnline({ euMostro, eleMostra: ele?.mostrar === true, situacao: i.situacao }) && estaOnline(ele?.ultimaEm, agora)) {
+    if (podeVerOnline({ euMostro, eleMostra: ele?.mostrar === true, situacao: i.situacao, bloqueada: i.bloqueada, encerrada: i.encerrada }) && estaOnline(ele?.ultimaEm, agora)) {
       online.add(i.chave);
     }
   }
@@ -352,7 +353,7 @@ export async function listarConversas(req: Request, q: { aba?: unknown; depois?:
   const { itens, proximo } = cortarPagina(linhas.map((c) => ({ ...c, criadoEm: c.ultimaEm })), limite);
 
   const perfis = await perfisDe(itens.map((c) => parceiro(c, lado(c, eu)!)));
-  const online = await onlineDosParceiros(eu, itens.map((c) => ({ chave: c.id, parceiro: parceiro(c, lado(c, eu)!), situacao: c.situacao as SituacaoDaConversa })));
+  const online = await onlineDosParceiros(eu, itens.map((c) => ({ chave: c.id, parceiro: parceiro(c, lado(c, eu)!), situacao: c.situacao as SituacaoDaConversa, bloqueada: Boolean(c.bloqueadaPor), encerrada: Boolean(c.encerradaEm) })));
   return {
     itens: itens.map((c) => {
       const l = lado(c, eu)!;
@@ -664,7 +665,7 @@ export async function lerConversa(req: Request, conversaId: string, q: { antes?:
   const { itens, proximo } = cortarPagina(linhas, PAGINA_DE_MENSAGENS);
   const com = perfilOu(await perfisDe([parceiro(c, l)]), parceiro(c, l));
   const impedimento = problemaParaEnviar(estadoDe(c), l);
-  const online = await onlineDosParceiros(eu, [{ chave: c.id, parceiro: parceiro(c, l), situacao: c.situacao as SituacaoDaConversa }]);
+  const online = await onlineDosParceiros(eu, [{ chave: c.id, parceiro: parceiro(c, l), situacao: c.situacao as SituacaoDaConversa, bloqueada: Boolean(c.bloqueadaPor), encerrada: Boolean(c.encerradaEm) }]);
   return {
     conversa: {
       id: c.id,

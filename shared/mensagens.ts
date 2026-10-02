@@ -155,8 +155,15 @@ export function estaOnline(ultimaEm: Date | null | undefined, agora: Date = new 
  * esconder seria de mão única. Sem conversa aceita, nada aparece (pedido de
  * mensagem não entrega a presença de quem recebeu).
  */
-export function podeVerOnline(x: { euMostro: boolean; eleMostra: boolean; situacao: SituacaoDaConversa }): boolean {
-  return x.euMostro && x.eleMostra && x.situacao === "aceita";
+export function podeVerOnline(x: {
+  euMostro: boolean;
+  eleMostra: boolean;
+  situacao: SituacaoDaConversa;
+  /** Quem bloqueou cortou o contato: a presença dele também some para o outro lado. */
+  bloqueada?: boolean;
+  encerrada?: boolean;
+}): boolean {
+  return x.euMostro && x.eleMostra && x.situacao === "aceita" && !x.bloqueada && !x.encerrada;
 }
 
 /** O rótulo em texto: o estado nunca vai só na bolinha. */

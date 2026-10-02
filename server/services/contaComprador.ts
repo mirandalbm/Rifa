@@ -431,6 +431,13 @@ export async function excluirConta(req: Request, senha: string) {
       })
       .where(eq(buyers.id, c.id));
     await tx.delete(compradorFotos).where(eq(compradorFotos.buyerId, c.id));
+    // Fotos privadas enviadas em conversas e a presença: `conversas` não tem chave para o comprador.
+    await tx.execute(sql`
+      DELETE FROM mensagem_imagens WHERE mensagem_id IN (
+        SELECT m.id FROM mensagens m JOIN conversas cv ON cv.id = m.conversa_id
+        WHERE (cv.a_tipo = 'comprador' AND cv.a_id = ${c.id} AND m.de = 'a')
+           OR (cv.b_tipo = 'comprador' AND cv.b_id = ${c.id} AND m.de = 'b'))`);
+    await tx.execute(sql`DELETE FROM mensagens_presenca WHERE tipo = 'comprador' AND id = ${c.id}`);
     // Documentos da verificação são o dado mais sensível que existe aqui.
     await tx.delete(verificacoes).where(and(eq(verificacoes.sujeito, "apostador"), eq(verificacoes.sujeitoId, c.id)));
     await tx

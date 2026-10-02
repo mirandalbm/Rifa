@@ -2461,7 +2461,7 @@ export const mensagens = pgTable(
 /**
  * A foto de uma mensagem (só apostador envia). Fica no banco, reprocessada
  * (JPEG, sem metadados) e é servida só a quem está na conversa — e à plataforma,
- * se a mensagem está no trecho de uma denúncia aberta, com a leitura auditada.
+ * se a mensagem está no trecho de uma denúncia (aberta ou já decidida: o trecho é a prova), com a leitura auditada.
  */
 export const mensagemImagens = pgTable(
   "mensagem_imagens",

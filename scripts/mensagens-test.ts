@@ -56,7 +56,7 @@ const VIZINHA = "mensagens-teste-vizinha";
 const EMAIL_VIZINHA = "vizinha-mensagens@teste.br";
 
 async function limpar() {
-  await db.execute(sql`delete from rate_events where bucket like 'cadastro:%' or bucket like 'login:%' or bucket like 'mensagem:%' or bucket like 'conversa-nova:%' or bucket like 'msg-busca:%' or bucket like 'denuncia-conversa:%' or bucket like 'mensagem-foto:%'`);
+  await db.execute(sql`delete from rate_events where bucket like 'cadastro:%' or bucket like 'login:%' or bucket like 'mensagem:%' or bucket like 'conversa-nova:%' or bucket like 'msg-busca:%' or bucket like 'denuncia-conversa:%' or bucket like 'mensagem-foto:%' or bucket like 'mensagem-presenca:%'`);
   const ids = await db.select({ id: buyers.id }).from(buyers).where(inArray(buyers.phone, PESSOAS.map((p) => p.telefone)));
   const b = ids.map((x) => x.id);
   if (b.length) {
@@ -258,6 +258,13 @@ async function main() {
     checa("os dois mostrando, em conversa aceita: online agora", r.json?.conversa?.online === true);
     r = await bia.req("GET", "/api/public/mensagens/conversas");
     checa("a lista traz o mesmo indicador", r.json?.itens?.find((i: { id: string }) => i.id === conv)?.online === true);
+    await ana.req("PUT", "/api/public/mensagens/presenca", { mostrar: true });
+    await bia.req("PUT", "/api/public/mensagens/presenca", { mostrar: true });
+    await bia.req("PUT", `/api/public/mensagens/conversas/${conv}/bloqueio`, { ligar: true });
+    await bia.req("GET", `/api/public/mensagens/conversas/${conv}`);
+    r = await ana.req("GET", `/api/public/mensagens/conversas/${conv}`);
+    checa("quem bloqueou some: a presença não vaza para o bloqueado", r.json?.conversa?.online === false);
+    await bia.req("PUT", `/api/public/mensagens/conversas/${conv}/bloqueio`, { ligar: false });
     r = await ana.req("GET", `/api/public/mensagens/conversas/${conv}`);
     checa("a resposta nunca traz horário de última vez", !/ultim|visto/i.test(JSON.stringify(r.json?.conversa ?? {})));
     await ana.req("PUT", "/api/public/mensagens/presenca", { mostrar: false });

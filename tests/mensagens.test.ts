@@ -96,5 +96,7 @@ describe("mensagens — regras puras", () => {
     expect(podeVerOnline({ ...ok, euMostro: false })).toBe(false);
     expect(podeVerOnline({ ...ok, eleMostra: false })).toBe(false);
     expect(podeVerOnline({ ...ok, situacao: "pedido" as never })).toBe(false);
+    expect(podeVerOnline({ ...ok, bloqueada: true })).toBe(false);
+    expect(podeVerOnline({ ...ok, encerrada: true })).toBe(false);
   });
 });

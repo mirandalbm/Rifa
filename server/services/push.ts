@@ -42,6 +42,7 @@ import {
   mensagemReembolso,
   mensagemResultado,
   mensagemSorteioAdiado,
+  mensagemSorteioMarcado,
   mensagemRifaNova,
   mensagemSorteioChegando,
   type MensagemPush,
@@ -282,6 +283,32 @@ export async function avisarAdiamento(campaignId: string) {
       orgSlug: r.org.slug,
       slug: r.campaign.slug,
       novaData: r.campaign.drawAt.toLocaleString("pt-BR", {
+        timeZone: "America/Sao_Paulo",
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+    }),
+  );
+}
+
+/** "Quando completar": a última cota foi paga e o sorteio ganhou data. Uma vez por rifa (a chave). */
+export async function avisarSorteioMarcado(campaignId: string) {
+  const r = await rifaComDona(campaignId);
+  if (!r?.campaign.drawAt) return 0;
+  const publico = [...(await seguidoresComSino(r.org.id)), ...(await participantes(campaignId))];
+  return avisar(
+    publico,
+    "sorteio_marcado",
+    // A data na chave: se a rifa deixar de estar cheia (estorno) e encher de novo, avisa a nova data.
+    `${r.campaign.id}:${r.campaign.drawAt.getTime()}`,
+    mensagemSorteioMarcado({
+      premio: r.campaign.prizeTitle,
+      orgSlug: r.org.slug,
+      slug: r.campaign.slug,
+      data: r.campaign.drawAt.toLocaleString("pt-BR", {
         timeZone: "America/Sao_Paulo",
         day: "2-digit",
         month: "2-digit",

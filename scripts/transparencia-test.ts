@@ -12,6 +12,7 @@ import { db, pool } from "../server/db";
 import { buyers, campaignStats, campaigns, draws, orders, organizations, quotaAlloc } from "../shared/schema";
 import { commitSeed, drawNumber } from "../server/services/draw";
 import { conferirSorteio } from "../shared/sorteio";
+import { refundOrder } from "../server/services/orders";
 
 const URL = baseUrl();
 let falhas = 0;
@@ -253,6 +254,84 @@ async function main() {
     await db.update(campaignStats).set({ soldCount: 300 }).where(eq(campaignStats.campaignId, comMinimo.c.id));
     r = await admin.req("POST", `/api/admin/campaigns/${comMinimo.c.id}/draw`, { federalContest: 6002, federalPrizes: ["1", "2", "3", "4", "5"] });
     checa("atingido o mínimo, sorteia", r.status === 200 && r.json?.winnerNumber !== undefined, `HTTP ${r.status}`);
+
+    // ---- modos do sorteio: rifa cheia ----
+    console.log("\n  modos do sorteio (rifa cheia):");
+    const cheia = await novaRifa("cheia-data", "draft");
+    r = await marina.req("PUT", `/api/admin/campaigns/${cheia.c.id}/legal`, { modoSorteio: "cheia_com_data", minimoVendidoPct: 10 });
+    checa("rifa cheia com data: o mínimo vira 100%", r.status === 200 && r.json?.modoSorteio === "cheia_com_data" && r.json?.minimoVendidoPct === 100, `HTTP ${r.status} ${r.json?.minimoVendidoPct}`);
+    r = await marina.req("PUT", `/api/admin/campaigns/${cheia.c.id}/legal`, { modoSorteio: "inventado" });
+    checa("modo desconhecido: recusa (422)", r.status === 422, `HTTP ${r.status}`);
+    await db.update(campaigns).set({ status: "published", publishedAt: new Date() }).where(eq(campaigns.id, cheia.c.id));
+    await vender(cheia.c.id, [1, 2, 3]);
+    await db.update(campaignStats).set({ soldCount: 999 }).where(eq(campaignStats.campaignId, cheia.c.id));
+    r = await admin.req("POST", `/api/admin/campaigns/${cheia.c.id}/draw`, { federalContest: 6003, federalPrizes: ["1", "2", "3", "4", "5"] });
+    checa("rifa cheia com data e 999 de 1000: o sorteio não roda (409)", r.status === 409 && String(r.json?.message).includes("999 de 1000"), `HTTP ${r.status}`);
+
+    // Quando completar: sem data; a última cota paga marca o sorteio na próxima Federal.
+    const completar = await novaRifa("completar", "draft");
+    await db.update(campaigns).set({ totalQuotas: 10 }).where(eq(campaigns.id, completar.c.id));
+    r = await marina.req("PUT", `/api/admin/campaigns/${completar.c.id}/legal`, { modoSorteio: "quando_completar" });
+    const [semData] = await db.select().from(campaigns).where(eq(campaigns.id, completar.c.id));
+    checa("quando completar: a data some e o mínimo é 100%", r.status === 200 && semData.drawAt === null && semData.minimoVendidoPct === 100, `HTTP ${r.status}`);
+    const bloqueios = await marina.req("GET", `/api/admin/campaigns/${completar.c.id}/blockers`);
+    checa("…e publicar não pede data do sorteio", !JSON.stringify(bloqueios.json?.blockers ?? []).includes("data do sorteio"), JSON.stringify(bloqueios.json?.blockers));
+    await db.update(campaigns).set({ status: "published", publishedAt: new Date() }).where(eq(campaigns.id, completar.c.id));
+    const regC = JSON.stringify((await anon.req("GET", `/api/public/campaigns/${completar.c.slug}/regulamento`)).json?.secoes ?? []);
+    checa("o regulamento diz que sorteia quando completar", regC.includes("não tem data marcada") && regC.includes("rifa cheia"));
+    await vender(completar.c.id, [1, 2, 3, 4, 5, 6, 7, 8, 9]);
+    await db.update(campaignStats).set({ soldCount: 9 }).where(eq(campaignStats.campaignId, completar.c.id));
+    const [ultimo] = await db
+      .insert(orders)
+      .values({ code: codigo++, campaignId: completar.c.id, buyerId: comprador.id, quantity: 1, amountCents: 500, pspChargeId: `ultimo-${codigo}` })
+      .returning();
+    await db.insert(quotaAlloc).values({ campaignId: completar.c.id, number: 10, status: "reserved", orderId: ultimo.id, reservedUntil: new Date(Date.now() + 600_000) });
+    await db.update(campaignStats).set({ reservedCount: 1 }).where(eq(campaignStats.campaignId, completar.c.id));
+    let [antes] = await db.select({ drawAt: campaigns.drawAt }).from(campaigns).where(eq(campaigns.id, completar.c.id));
+    checa("com 9 de 10, segue sem data", antes.drawAt === null);
+    await anon.req("POST", `/api/dev/pay/${ultimo.code}`);
+    [antes] = await db.select({ drawAt: campaigns.drawAt }).from(campaigns).where(eq(campaigns.id, completar.c.id));
+    const marcada = antes.drawAt ? new Date(antes.drawAt) : null;
+    checa(
+      "a última cota paga marca o sorteio: quarta ou sábado, 19h de Brasília, com 24 h de folga",
+      !!marcada && [3, 6].includes(marcada.getUTCDay()) && marcada.getUTCHours() === 22 && marcada.getTime() - Date.now() >= 23.9 * 3600_000,
+      marcada?.toISOString(),
+    );
+    const paginaC = (await anon.req("GET", `/api/public/campaigns/${completar.c.slug}`)).json;
+    checa("a página da rifa mostra a data marcada", paginaC?.campaign?.drawAt && paginaC?.campaign?.modoSorteio === "quando_completar");
+
+    // Estorno depois de cheia: a data cai; encheu de novo, marca de novo.
+    await refundOrder(ultimo.id);
+    [antes] = await db.select({ drawAt: campaigns.drawAt }).from(campaigns).where(eq(campaigns.id, completar.c.id));
+    checa("estorno deixa a rifa não cheia: a data marcada cai", antes.drawAt === null);
+    const [denovo] = await db
+      .insert(orders)
+      .values({ code: codigo++, campaignId: completar.c.id, buyerId: comprador.id, quantity: 1, amountCents: 500, pspChargeId: `denovo-${codigo}` })
+      .returning();
+    await db.insert(quotaAlloc).values({ campaignId: completar.c.id, number: 10, status: "reserved", orderId: denovo.id, reservedUntil: new Date(Date.now() + 600_000) });
+    await db.update(campaignStats).set({ reservedCount: 1 }).where(eq(campaignStats.campaignId, completar.c.id));
+    await anon.req("POST", `/api/dev/pay/${denovo.code}`);
+    [antes] = await db.select({ drawAt: campaigns.drawAt }).from(campaigns).where(eq(campaigns.id, completar.c.id));
+    checa("encheu de novo: o sorteio é marcado de novo", antes.drawAt !== null);
+
+    // A promotora completa: número não vendido é dela, sem aproximação.
+    const promotora = await novaRifa("promotora", "draft");
+    r = await marina.req("PUT", `/api/admin/campaigns/${promotora.c.id}/legal`, { modoSorteio: "promotora_completa", minimoVendidoPct: 50 });
+    checa("a promotora completa: sem mínimo", r.status === 200 && r.json?.minimoVendidoPct === 0, `${r.json?.minimoVendidoPct}`);
+    await db.update(campaigns).set({ status: "published", publishedAt: new Date() }).where(eq(campaigns.id, promotora.c.id));
+    let premiosP = ["10001", "20002", "30003", "40004", "50005"];
+    let nP = drawNumber({ seed: promotora.seed, federalPrizes: premiosP, totalQuotas: 1000 });
+    for (let i = 0; nP < 10 || nP > 990; i++) {
+      premiosP = [String(70000 + i), "20002", "30003", "40004", "50005"];
+      nP = drawNumber({ seed: promotora.seed, federalPrizes: premiosP, totalQuotas: 1000 });
+    }
+    await vender(promotora.c.id, [nP + 1, nP - 1]);
+    r = await admin.req("POST", `/api/admin/campaigns/${promotora.c.id}/draw`, { federalContest: 6004, federalPrizes: premiosP });
+    checa("sorteado não vendido: fica com a promotora, sem aproximação",
+      r.status === 200 && r.json?.winnerNumber === nP && r.json?.winnerOrderId === null && r.json?.ficouComPromotora === true,
+      `${nP} → ${r.json?.winnerNumber}`);
+    r = await anon.req("GET", `/api/public/campaigns/${promotora.c.slug}/sorteio`);
+    checa("a página diz que o prêmio ficou com a promotora", r.json?.ficouComPromotora === true && r.json?.semContemplado === false);
 
     const reg2 = await anon.req("GET", `/api/public/campaigns/${s1.rifa.c.slug}/regulamento`);
     const t2 = JSON.stringify(reg2.json?.secoes ?? []);

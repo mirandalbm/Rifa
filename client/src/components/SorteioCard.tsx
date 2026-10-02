@@ -16,6 +16,7 @@ interface Sorteio {
   contemplado?: string | null;
   aproximacao?: boolean;
   semContemplado?: boolean;
+  ficouComPromotora?: boolean;
   federalContest?: number | null;
   federalPrizes?: string[] | null;
   seed?: string;
@@ -102,6 +103,10 @@ export function SorteioCard({ slug }: { slug: string }) {
               <p className="tnum font-display text-2xl font-extrabold text-green-deep">{data.contemplado}</p>
               <p className="text-xs text-muted">O número sorteado não foi vendido. {REGRA_DA_APROXIMACAO}</p>
             </div>
+          ) : data.ficouComPromotora ? (
+            <p className="mt-2 text-xs text-muted">
+              O número sorteado não foi vendido e era da promotora, como diz o regulamento: o prêmio fica com ela.
+            </p>
           ) : data.semContemplado ? (
             <p className="mt-2 text-xs text-muted">Nenhuma cota foi paga nesta rifa: o sorteio não tem contemplado.</p>
           ) : null}

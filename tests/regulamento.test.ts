@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { REGRA_DA_APROXIMACAO, contempladoPorAproximacao } from "../shared/sorteio";
-import { cotasMinimasParaSortear, minimoAtingido, problemaNoMinimoVendido } from "../shared/campanhaLegal";
+import { cotasMinimasParaSortear, minimoAtingido, minimoDoModo, modoSemData, modoValido, problemaNoMinimoVendido, proximaExtracaoFederal } from "../shared/campanhaLegal";
 import { montarRegulamento, validarRegulamentoExtra, REGULAMENTO_EXTRA_MAX, type DadosDoRegulamento } from "../shared/regulamento";
 
 const base: DadosDoRegulamento = {
@@ -131,5 +131,40 @@ describe("mínimo de cotas vendidas para sortear", () => {
     expect(t).toContain("pelo menos 40% das cotas vendidas e pagas (4.000 cotas)");
     expect(t).toContain("adiado");
     expect(texto(base)).not.toContain("pelo menos");
+  });
+});
+
+describe("modos do sorteio (rifa cheia)", () => {
+  it("só os quatro modos conhecidos", () => {
+    for (const m of ["data", "cheia_com_data", "quando_completar", "promotora_completa"]) expect(modoValido(m)).toBe(true);
+    for (const m of ["", "cheia", null, 1]) expect(modoValido(m)).toBe(false);
+  });
+  it("rifa cheia exige 100%, a promotora completando não tem mínimo, na data vale o escolhido", () => {
+    expect(minimoDoModo("cheia_com_data", 10)).toBe(100);
+    expect(minimoDoModo("quando_completar", 0)).toBe(100);
+    expect(minimoDoModo("promotora_completa", 40)).toBe(0);
+    expect(minimoDoModo("data", 40)).toBe(40);
+    expect(modoSemData("quando_completar")).toBe(true);
+    expect(modoSemData("data")).toBe(false);
+  });
+  it("a próxima extração da Federal é quarta ou sábado às 19h de Brasília, com 24 h de folga", () => {
+    // segunda 2026-10-05 10:00 UTC → quarta 07/10 22:00 UTC
+    expect(proximaExtracaoFederal(new Date("2026-10-05T10:00:00Z")).toISOString()).toBe("2026-10-07T22:00:00.000Z");
+    // quarta 07/10 às 21:00 UTC (falta 1 h): pula para sábado 10/10
+    expect(proximaExtracaoFederal(new Date("2026-10-07T21:00:00Z")).toISOString()).toBe("2026-10-10T22:00:00.000Z");
+    // sábado 10/10 23:00 UTC → quarta 14/10
+    expect(proximaExtracaoFederal(new Date("2026-10-10T23:00:00Z")).toISOString()).toBe("2026-10-14T22:00:00.000Z");
+  });
+  it("regulamento de cada modo", () => {
+    const de = (modo: string, drawAt: string | null = base.rifa.drawAt as string) =>
+      montarRegulamento({ ...base, rifa: { ...base.rifa, modoSorteio: modo, drawAt } }).flatMap((x) => x.itens).join("\n");
+    expect(de("cheia_com_data")).toContain("todas as cotas vendidas e pagas (rifa cheia)");
+    const completar = de("quando_completar", null);
+    expect(completar).toContain("não tem data marcada");
+    expect(completar).toContain("quartas e sábados");
+    const promotora = de("promotora_completa");
+    expect(promotora).toContain("ficam com a promotora");
+    expect(promotora).not.toContain(REGRA_DA_APROXIMACAO);
+    expect(de("data")).toContain(REGRA_DA_APROXIMACAO);
   });
 });

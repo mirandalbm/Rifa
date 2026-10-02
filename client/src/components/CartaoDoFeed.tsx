@@ -127,7 +127,7 @@ export function CartaoDoFeed({ rifa: c, origem = "vitrine" }: { rifa: RifaDoFeed
                 ? "vendas encerradas"
                 : c.drawAt
                   ? `sorteio ${new Date(c.drawAt).toLocaleDateString("pt-BR")}`
-                  : "sorteio a definir"}
+                  : "sorteio quando completar"}
             </span>
           </div>
           <Progress value={c.soldCount} total={c.totalQuotas} tone={retaFinal ? "yellow" : "green"} />

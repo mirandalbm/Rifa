@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { SORTEIO_SEM_DATA } from "@shared/campanhaLegal";
 import { eq, and, sql, desc, inArray } from "drizzle-orm";
 import { db } from "../db";
 import {
@@ -131,7 +132,9 @@ affiliateRouter.get("/commissions", async (req, res, next) => {
       .orderBy(desc(commissions.createdAt))
       .limit(200);
 
-    res.json(rows);
+    // Comissão que espera um sorteio ainda sem data ("quando completar"): sem
+    // data na tela, em vez da data provisória.
+    res.json(rows.map((r) => (r.availableAt && r.availableAt >= SORTEIO_SEM_DATA ? { ...r, availableAt: null } : r)));
   } catch (err) {
     next(err);
   }

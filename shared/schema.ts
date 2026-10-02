@@ -429,6 +429,12 @@ export const campaigns = pgTable(
      */
     minimoVendidoPct: integer("minimo_vendido_pct").notNull().default(0),
     /**
+     * Como a rifa chega ao sorteio (`MODOS_DO_SORTEIO` em
+     * `shared/campanhaLegal.ts`): na data, cheia com data, quando completar
+     * ou a promotora fica com as não vendidas. Dado legal: trava ao publicar.
+     */
+    modoSorteio: text("modo_sorteio").notNull().default("data"),
+    /**
      * Rifa de demonstração (perfil de exemplo): aparece na vitrine com a
      * marca "Demonstração" e nunca vende — `createOrder` recusa.
      */
@@ -1665,6 +1671,7 @@ export const insertCampaignSchema = createInsertSchema(campaigns, {
     aceitaCotaBonus: true,
     // O mínimo para sortear é dado legal: só pela rota `/legal`, que trava ao publicar.
     minimoVendidoPct: true,
+    modoSorteio: true,
     termoId: true,
     transmissaoUrl: true,
     // Rifa de teste tem rota própria (`marcarDemonstracao`), que confere

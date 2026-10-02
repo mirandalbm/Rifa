@@ -868,10 +868,12 @@ adminRouter.put("/campaigns/:id/legal", async (req, res, next) => {
       regulamentoExtra: req.body?.regulamentoExtra,
       aceitaCotaBonus: req.body?.aceitaCotaBonus === undefined ? undefined : req.body.aceitaCotaBonus === true,
       minimoVendidoPct: req.body?.minimoVendidoPct,
+      modoSorteio: req.body?.modoSorteio,
     });
     await audit(req, "campaign.legal", "campaign", campaign.id, {
       aceitaCotaBonus: atualizada.aceitaCotaBonus,
       minimoVendidoPct: atualizada.minimoVendidoPct,
+      modoSorteio: atualizada.modoSorteio,
       authorizationCode: atualizada.authorizationCode,
       drawAt: atualizada.drawAt,
       certificado: Boolean(cert?.dataUrl),
@@ -882,6 +884,7 @@ adminRouter.put("/campaigns/:id/legal", async (req, res, next) => {
       temCertificado: Boolean(atualizada.authorizationFileKey),
       regulamentoExtra: atualizada.regulamentoExtra,
       minimoVendidoPct: atualizada.minimoVendidoPct,
+      modoSorteio: atualizada.modoSorteio,
     });
   } catch (err) {
     if (err instanceof CampaignRuleError) return res.status(422).json({ message: err.message });
@@ -3290,9 +3293,12 @@ adminRouter.post("/campaigns/:id/draw", async (req, res, next) => {
             `)
           ).rows[0] as { number: number; orderId: string } | undefined;
         const exato = await pago(sql`q.number = ${resultNumber}`, "asc");
-        const acima = exato ? undefined : await pago(sql`q.number > ${resultNumber}`, "asc");
-        const abaixo = exato || acima ? undefined : await pago(sql`q.number < ${resultNumber}`, "desc");
-        const winnerNumber = contempladoPorAproximacao({
+        // "A promotora completa": as cotas não vendidas são dela, então o número
+        // sorteado sempre tem dono — não vendido, o prêmio fica com a promotora.
+        const promotoraCompleta = campaign.modoSorteio === "promotora_completa";
+        const acima = exato || promotoraCompleta ? undefined : await pago(sql`q.number > ${resultNumber}`, "asc");
+        const abaixo = exato || acima || promotoraCompleta ? undefined : await pago(sql`q.number < ${resultNumber}`, "desc");
+        const winnerNumber = promotoraCompleta ? resultNumber : contempladoPorAproximacao({
           sorteado: resultNumber,
           sorteadoVendido: Boolean(exato),
           acima: acima?.number ?? null,
@@ -3358,6 +3364,7 @@ adminRouter.post("/campaigns/:id/draw", async (req, res, next) => {
       soldToWinner: Boolean(winner?.status === "paid"),
       // Contemplado pela regra da aproximação (o sorteado não estava vendido).
       aproximacao: updated.winnerNumber !== null && updated.winnerNumber !== resultNumber,
+      ficouComPromotora: campaign.modoSorteio === "promotora_completa" && !updated.winnerOrderId,
     });
   } catch (err) {
     next(err);

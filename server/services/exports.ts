@@ -15,6 +15,7 @@
 import { sql, type SQL } from "drizzle-orm";
 import { db } from "../db";
 import { REGRA_DA_APROXIMACAO } from "@shared/sorteio";
+import { SORTEIO_SEM_DATA } from "@shared/campanhaLegal";
 import {
   csvRow,
   csvMoney,
@@ -475,7 +476,8 @@ function comissoes(escopo: ExportScope): ExportStream {
             `${k.pct}%`,
             csvMoney(k.amount_cents),
             SITUACAO_COMISSAO[k.status] ?? k.status,
-            csvDate(k.available_at),
+            // Sorteio ainda sem data ("quando completar"): diz isso, não a data provisória.
+            String(k.available_at ?? "").startsWith(String(SORTEIO_SEM_DATA.getUTCFullYear())) ? "quando o sorteio for marcado" : csvDate(k.available_at),
             csvDate(k.pago_em),
           ];
         }

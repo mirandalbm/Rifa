@@ -1271,6 +1271,8 @@ publicRouter.get("/campaigns/:slug", async (req, res, next) => {
         maxPerOrder: found.campaign.maxPerOrder,
         reservationTtlMin: found.campaign.reservationTtlMin,
         drawAt: found.campaign.drawAt,
+        // Como a rifa chega ao sorteio: sem data, a tela diz "quando completar".
+        modoSorteio: found.campaign.modoSorteio,
         drawSeedHash: found.campaign.drawSeedHash,
         // Sorteio adiado: a página diz, com a data que valia antes.
         adiamentos: found.campaign.adiamentos,
@@ -1361,6 +1363,7 @@ publicRouter.get("/campaigns/:slug/regulamento", async (req, res, next) => {
           regulamentoExtra: c.regulamentoExtra,
           aceitaCotaBonus: c.aceitaCotaBonus,
           minimoVendidoPct: c.minimoVendidoPct,
+          modoSorteio: c.modoSorteio,
         },
         promotora: {
           nome: org?.name ?? "—",
@@ -1408,7 +1411,9 @@ publicRouter.get("/campaigns/:slug/sorteio", async (req, res, next) => {
             // Sorteio de antes da regra não tem a coluna: vale o sorteado.
             contemplado: d!.winnerNumber !== null ? formatQuota(d!.winnerNumber, c.totalQuotas) : null,
             aproximacao: d!.winnerNumber !== null && d!.winnerNumber !== d!.resultNumber,
-            semContemplado: d!.winnerOrderId === null,
+            // "A promotora completa": o número sorteado não vendido era dela.
+            ficouComPromotora: c.modoSorteio === "promotora_completa" && d!.winnerOrderId === null,
+            semContemplado: d!.winnerOrderId === null && c.modoSorteio !== "promotora_completa",
             federalContest: d!.federalContest,
             federalPrizes: d!.federalPrizes,
             // A semente só sai depois: antes, quem a tivesse calcularia o número.

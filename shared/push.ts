@@ -63,6 +63,7 @@ export type TipoAviso =
   | "rifa_nova"
   | "sorteio_chegando"
   | "sorteio_adiado"
+  | "sorteio_marcado"
   | "resultado"
   | "reembolso"
   | "comentario"
@@ -83,6 +84,7 @@ export const VALIDADE_S: Record<TipoAviso, number> = {
   rifa_nova: 24 * 3600,
   sorteio_chegando: 3600,
   sorteio_adiado: 3 * 24 * 3600,
+  sorteio_marcado: 24 * 3600,
   comentario: 24 * 3600,
   verificacao: 3 * 24 * 3600,
   resultado: 24 * 3600,
@@ -130,6 +132,16 @@ export function mensagemSorteioChegando(r: {
   return {
     title: `Sorteio ${r.quando}`,
     body: `${r.premio} — ainda dá para garantir seus números.`,
+    url: `/o/${r.orgSlug}/r/${r.slug}`,
+    tag: `sorteio:${r.slug}`,
+  };
+}
+
+/** "Quando completar": a rifa encheu e o sorteio ganhou data. */
+export function mensagemSorteioMarcado(r: { premio: string; orgSlug: string; slug: string; data: string }): MensagemPush {
+  return {
+    title: "Rifa completa: sorteio marcado",
+    body: `${r.premio} — todas as cotas foram vendidas. Sorteio em ${r.data}, pela Loteria Federal.`,
     url: `/o/${r.orgSlug}/r/${r.slug}`,
     tag: `sorteio:${r.slug}`,
   };

@@ -503,7 +503,7 @@ function CartaoDaRifa({ org, nome, rifa }: { org: string; nome: string; rifa: Ri
               ? "vendas encerradas"
               : rifa.drawAt
                 ? `sorteio ${new Date(rifa.drawAt).toLocaleDateString("pt-BR")}`
-                : "sorteio a definir"}
+                : "sorteio quando completar"}
           </span>
         </p>
       </Link>

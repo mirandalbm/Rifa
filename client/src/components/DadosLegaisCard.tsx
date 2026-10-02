@@ -5,7 +5,13 @@ import { apiRequest } from "@/lib/queryClient";
 import {
   CERTIFICADO_MAX_BYTES,
   CERTIFICADO_MIMES,
+  EXPLICACAO_DO_MODO,
+  MODOS_DO_SORTEIO,
+  ROTULO_DO_MODO,
   cotasMinimasParaSortear,
+  minimoDoModo,
+  modoSemData,
+  type ModoDoSorteio,
   problemaNoMinimoVendido,
   problemaNosDadosLegais,
 } from "@shared/campanhaLegal";
@@ -21,6 +27,7 @@ interface Campanha {
   regulamentoExtra?: string | null;
   aceitaCotaBonus?: boolean;
   minimoVendidoPct?: number;
+  modoSorteio?: string;
   totalQuotas?: number;
   transmissaoUrl?: string | null;
   slug?: string;
@@ -65,6 +72,7 @@ export function DadosLegaisCard({ campanha }: { campanha: Campanha }) {
   const [extra, setExtra] = useState(campanha.regulamentoExtra ?? "");
   const [bonus, setBonus] = useState(Boolean(campanha.aceitaCotaBonus));
   const [minimo, setMinimo] = useState(String(campanha.minimoVendidoPct ?? 0));
+  const [modo, setModo] = useState<ModoDoSorteio>((campanha.modoSorteio as ModoDoSorteio) ?? "data");
   const [msg, setMsg] = useState<{ ok: boolean; texto: string } | null>(null);
 
   useEffect(() => {
@@ -74,16 +82,20 @@ export function DadosLegaisCard({ campanha }: { campanha: Campanha }) {
     setExtra(campanha.regulamentoExtra ?? "");
     setBonus(Boolean(campanha.aceitaCotaBonus));
     setMinimo(String(campanha.minimoVendidoPct ?? 0));
+    setModo((campanha.modoSorteio as ModoDoSorteio) ?? "data");
     setMsg(null);
-  }, [campanha.id, campanha.authorizationCode, campanha.drawAt, campanha.regulamentoExtra, campanha.aceitaCotaBonus, campanha.minimoVendidoPct]);
+  }, [campanha.id, campanha.authorizationCode, campanha.drawAt, campanha.regulamentoExtra, campanha.aceitaCotaBonus, campanha.minimoVendidoPct, campanha.modoSorteio]);
 
   const { data: pendencias } = useQuery<{ blockers: string[] }>({
     queryKey: [`/api/admin/campaigns/${campanha.id}/blockers`],
     enabled: rascunho,
   });
 
-  const drawAt = data ? new Date(data) : null;
-  const minimoPct = minimo.trim() === "" ? 0 : Number(minimo);
+  const semData = modoSemData(modo);
+  const drawAt = data && !semData ? new Date(data) : null;
+  const minimoDigitado = minimo.trim() === "" ? 0 : Number(minimo);
+  // Nos modos de rifa cheia o mínimo é 100%; com a promotora completando, não há mínimo.
+  const minimoPct = modo === "data" ? minimoDigitado : minimoDoModo(modo, minimoDigitado);
   const problema =
     problemaNosDadosLegais({ authorizationCode: codigo.trim() ? codigo : null, drawAt }, new Date()) ??
     problemaNoMinimoVendido(minimoPct);
@@ -97,6 +109,7 @@ export function DadosLegaisCard({ campanha }: { campanha: Campanha }) {
         regulamentoExtra: extra,
         aceitaCotaBonus: bonus,
         minimoVendidoPct: minimoPct,
+        modoSorteio: modo,
       }),
     onSuccess: () => {
       setArquivo(null);
@@ -142,20 +155,60 @@ export function DadosLegaisCard({ campanha }: { campanha: Campanha }) {
             <label htmlFor={`sorteio-${campanha.id}`} className="label-xs">
               Data e hora do sorteio
             </label>
-            <input
-              id={`sorteio-${campanha.id}`}
-              type="datetime-local"
-              value={data}
-              disabled={!rascunho}
-              onChange={(e) => {
-                setMsg(null);
-                setData(e.target.value);
-              }}
-              className="campo tnum disabled:bg-mist"
-            />
+            {semData ? (
+              <p id={`sorteio-${campanha.id}`} className="mt-1 rounded-md bg-mist px-3 py-2 text-xs text-muted">
+                {campanha.drawAt
+                  ? `Marcado para ${new Date(campanha.drawAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}.`
+                  : "Sem data: é marcada sozinha quando a última cota for paga, na próxima extração da Loteria Federal."}
+              </p>
+            ) : (
+              <input
+                id={`sorteio-${campanha.id}`}
+                type="datetime-local"
+                value={data}
+                disabled={!rascunho}
+                onChange={(e) => {
+                  setMsg(null);
+                  setData(e.target.value);
+                }}
+                className="campo tnum disabled:bg-mist"
+              />
+            )}
           </div>
         </div>
 
+        <fieldset>
+          <legend className="label-xs">Como a rifa chega ao sorteio</legend>
+          <div className="mt-1 grid grid-cols-1 gap-2 sm:grid-cols-2">
+            {MODOS_DO_SORTEIO.map((m) => (
+              <label
+                key={m}
+                className={`flex min-w-0 cursor-pointer items-start gap-2 rounded-md border px-3 py-2 ${
+                  modo === m ? "border-green bg-green-soft" : "border-line"
+                } ${!rascunho ? "cursor-default opacity-80" : ""}`}
+              >
+                <input
+                  type="radio"
+                  name={`modo-${campanha.id}`}
+                  value={m}
+                  checked={modo === m}
+                  disabled={!rascunho}
+                  onChange={() => {
+                    setMsg(null);
+                    setModo(m);
+                  }}
+                  className="mt-1 h-4 w-4 accent-[var(--green)]"
+                />
+                <span className="min-w-0">
+                  <span className="block text-sm font-semibold">{ROTULO_DO_MODO[m]}</span>
+                  <span className="block text-xs text-muted">{EXPLICACAO_DO_MODO[m]}</span>
+                </span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+
+        {modo === "data" ? (
         <div>
           <label htmlFor={`minimo-${campanha.id}`} className="label-xs">
             Mínimo de cotas vendidas para sortear (%)
@@ -184,6 +237,7 @@ export function DadosLegaisCard({ campanha }: { campanha: Campanha }) {
               : "0 = sem mínimo. Use o que a autorização da SPA/MF prevê; entra no regulamento e trava ao publicar."}
           </p>
         </div>
+        ) : null}
 
         <div>
           <label htmlFor={`cert-${campanha.id}`} className="label-xs">

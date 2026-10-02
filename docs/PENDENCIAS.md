@@ -485,9 +485,14 @@ Na ordem de entrega do plano:
   desligado por padrão, recíproco, só em conversa aceita, nunca "visto por
   último"). Sobem com o `db:push` **antes** do código: `mensagem_imagens` e
   `mensagens_presenca`.
-- [ ] **[código]** Mensagens v2, parte 2B: grupos (só quem tem compra paga
-  na rifa, com limite de participantes e moderação por trecho) e vídeo na
-  conversa (precisa de transcode; fica com o Cloudflare Stream).
+- [x] **Mensagens v2, parte 2B — grupos da rifa:** feito. Até 50 apostadores
+  com compra paga na rifa, só texto, denúncia com trecho e decisão da
+  plataforma que encerra o grupo (Caixa de entrada, tipo "Grupo denunciado").
+  Sobem com o `db:push` **antes** do código: `grupos`, `grupo_membros`,
+  `grupo_mensagens` e `grupo_denuncias`. Ficou para depois: moderador do
+  grupo, aviso no celular e foto em grupo.
+- [ ] **[código]** Vídeo na conversa (precisa de transcode; fica com o
+  Cloudflare Stream, ver o item de vídeo).
 - [x] **Buscar** (grade das publicações mais novas e busca por texto):
   pronto, atrás do interruptor `buscarLigado` e da tabela do que aparece
   (`buscarTipos`: rifas, organizações e apostadores; apostador nasce

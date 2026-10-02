@@ -111,7 +111,7 @@ arquitetura.
 | indicação, bônus e metas (etapa 13) | `shared/bonus.ts` (regras), `server/services/bonus.ts`, `resgatarCotasDeBonus()` em `server/services/orders.ts`, `client/src/lib/indicacao.ts`, `client/src/pages/adminBonus.tsx`, `client/src/components/BonusDoComprador.tsx`, `scripts/bonus-test.ts` |
 | Reels (tela cheia, vídeo em pé, interruptor da plataforma) | `shared/reels.ts` (regras, lote), `GET /api/public/reels` em `server/routes/public.ts`, `reelsLigado` em `shared/plataforma.ts`, `client/src/pages/Reels.tsx`, o som lembrado em `client/src/lib/reelsSom.ts`, `vertical` em `BarraDeAcoes`, `scripts/publicacao-test.ts`, `tests/reels.test.ts` |
 | Buscar (grade das publicações e busca por texto, interruptor e tabela da plataforma) | `shared/buscar.ts` (regras e tabela), `server/services/buscar.ts`, `GET /api/public/buscar` em `server/routes/public.ts`, `buscarLigado`/`buscarTipos` em `shared/plataforma.ts`, `client/src/pages/Buscar.tsx`, cartão em `client/src/components/TopoDoAppCard.tsx`, `scripts/buscar-test.ts`, `tests/buscar.test.ts` |
-| Mensagens (caixa de um para um: apostador, organização e afiliado) | `shared/mensagens.ts` (regras puras), `server/services/mensagens.ts`, rotas `/mensagens/*` em `server/routes/public.ts` e `/mensagens/denuncias*` em `server/routes/admin.ts`, `mensagensLigado` em `shared/plataforma.ts`, `client/src/pages/Mensagens.tsx` (foto e "online agora"), `ConversasDenunciadas.tsx`, `BotaoMensagem.tsx` (também na peça do afiliado em `DivulgacoesDaRifa.tsx`), o número não lido do painel em `PanelShell` (`client/src/components/AppShell.tsx`, `rotuloDoSino()` em `shared/avisos.ts`), `scripts/mensagens-test.ts`, `tests/mensagens.test.ts` |
+| Mensagens (caixa de um para um: apostador, organização e afiliado) | `shared/mensagens.ts` (regras puras), `server/services/mensagens.ts`, rotas `/mensagens/*` em `server/routes/public.ts` e `/mensagens/denuncias*` em `server/routes/admin.ts`, `mensagensLigado` em `shared/plataforma.ts`, `client/src/pages/Mensagens.tsx` (foto e "online agora"), grupos da rifa (`shared/grupos.ts`, `server/services/grupos.ts`, `client/src/components/Grupos.tsx`, `GruposDenunciadosDaPlataforma` em `ConversasDenunciadas.tsx`, `scripts/grupos-test.ts`, `tests/grupos.test.ts`), `ConversasDenunciadas.tsx`, `BotaoMensagem.tsx` (também na peça do afiliado em `DivulgacoesDaRifa.tsx`), o número não lido do painel em `PanelShell` (`client/src/components/AppShell.tsx`, `rotuloDoSino()` em `shared/avisos.ts`), `scripts/mensagens-test.ts`, `tests/mensagens.test.ts` |
 | rifas patrocinadas por clique (etapa 15): pacote, fila, tabela e números | `shared/patrocinio.ts` (regras, preço, previsão da fila), `server/services/patrocinio.ts`, `client/src/pages/adminPatrocinio.tsx`, `client/src/components/Patrocinadas.tsx`, `scripts/patrocinio-test.ts` |
 | banner pago na vitrine (dias de topo, arte aprovada, vagas, devolução dos dias não usados) | `shared/bannerPago.ts` (regras e config), `server/services/bannerPago.ts`, rotas `/banner-pago*` em `server/routes/admin.ts`, `/banners` e `/banners-pagos/:id/imagem` em `server/routes/public.ts`, `bannerPago` em `shared/plataforma.ts`, `client/src/pages/adminBannerPago.tsx`, `client/src/components/BannersVitrine.tsx`, relógio em `server/jobs/index.ts`, `scripts/banner-pago-test.ts`, `tests/bannerPago.test.ts` |
 | marketing e tráfego pago (etapa 16): pixels, aviso de cookies, UTM, compra pelo servidor | `shared/marketing.ts` (regras e corpos das APIs), `server/services/marketing.ts`, `client/src/lib/marketing.ts`, `client/src/components/Marketing.tsx`, `client/src/pages/adminMarketing.tsx`, `scripts/marketing-test.ts` |
@@ -1685,6 +1685,44 @@ conversa como cartão (o compartilhar da publicação), nunca como link no texto
   "visto por último" nem horário: o `online` é o mesmo booleano para quem
   esconde e para quem está fora (janela de 120 s, escrita no máximo uma vez
   por minuto). O estado vai em texto ("Online agora"), não só na bolinha.
+- **Grupos da rifa** (`grupos`, `grupo_membros`, `grupo_mensagens`,
+  `grupo_denuncias`; regras em `shared/grupos.ts`, serviço em
+  `server/services/grupos.ts`): conversa de **até 50 apostadores com compra
+  paga naquela rifa**, atrás do mesmo interruptor `mensagensLigado`. **Só
+  apostador com conta e apelido** — organização e afiliado não entram (403/401):
+  a conversa privada deles já é o canal do golpe, e num grupo ele alcançaria
+  cinquenta pessoas de uma vez. **Só texto**, na régua das mensagens (sem link
+  e sem telefone, também no nome do grupo); sem foto.
+  - **Entrar é a chave (grupo, pessoa)**: `INSERT … ON CONFLICT DO NOTHING` e o
+    contador `membros_count` só anda quando a linha entrou, com teto no próprio
+    `UPDATE` (`membros_count < 50`), com o grupo travado (`FOR UPDATE`) — duas
+    entradas na última vaga: uma 200 e uma 409, e a perdedora não vira membro.
+    Nunca um `SELECT` de vagas antes. Sair e excluir a conta (LGPD) descem o
+    contador na mesma transação; o que a pessoa escreveu fica, sem apelido.
+  - **A compra paga é conferida na transação** que cria, entra e escreve
+    (`exists` em `orders`, `status = 'paid'`). Estornou: segue **lendo**, não
+    escreve (409, com o motivo na tela). Um grupo aberto por criador e rifa
+    (índice parcial `uq_grupo_por_criador_e_rifa`); a rifa precisa ser a que
+    aceita divulgação (publicada, não demonstração, não travada, organização
+    no ar).
+  - **Grupo de que não sou membro é 404**, ler, escrever, sair e denunciar. A
+    lista "grupos desta rifa" (só nome e quantos são, só para apostador logado)
+    é a vitrine para entrar; quem não comprou vê os grupos e o motivo de não
+    participar. Nunca nome real, telefone, CPF ou id de pessoa: só `@apelido`.
+  - **Limites** (`hit`, o erro de preenchimento sai antes): 3 grupos novos por
+    dia, 20 entradas por dia, 20 mensagens a cada 5 min, denúncias por dia.
+    **Sem push**: um grupo de 50 viraria 50 avisos por mensagem; o número de
+    não lidas anda no contador do console (`naoLidasDeGrupos()` soma em
+    `resumoDasMensagens`) e na aba "Grupos".
+  - **Denúncia leva só o trecho** (30 mensagens, gravadas na hora, só
+    apelido); a plataforma nunca lê o grupo inteiro; a fila e a Caixa (tipo
+    `grupo`) não trazem texto; a leitura do trecho entra em `audit_log`
+    **antes** de sair; organização não vê nem decide (403, no `npm run
+    isolation`). Uma aberta por grupo e pessoa; decidir é `UPDATE` condicional
+    (`aberta`) e procedente encerra o grupo na mesma transação.
+  - Fica de fora: moderador do grupo (quem cria não remove ninguém — a
+    plataforma encerra), foto/vídeo em grupo e aviso no celular.
+  - `npm run grupos` prova tudo isso contra a API de verdade.
 - **Aviso sem conteúdo**: o apostador recebe push e trevo "Nova mensagem" (no
   máximo um por conversa a cada 30 min, pela chave); o texto nunca vai no push.
 - **O painel conta, não entrega**: o sino da organização e do afiliado mostra

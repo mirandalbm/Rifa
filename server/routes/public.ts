@@ -130,6 +130,17 @@ import {
   responderPedido,
 } from "../services/mensagens";
 import {
+  criarGrupo,
+  denunciarGrupo,
+  entrarNoGrupo,
+  escreverNoGrupo,
+  gruposDaRifa,
+  lerGrupo,
+  marcarGrupoLido,
+  meusGrupos,
+  sairDoGrupo,
+} from "../services/grupos";
+import {
   abrirChamado,
   anexoPara,
   chamadoDoComprador,
@@ -286,6 +297,80 @@ publicRouter.get("/mensagens/conversas/:id/fotos/:fotoId", async (req, res, next
 });
 
 /** "Mostrar quando estou online": nasce desligado; quem esconde também não vê o dos outros. */
+/* Grupos da rifa: só apostador com conta e compra paga na rifa (regras em shared/grupos.ts). */
+publicRouter.get("/mensagens/grupos", async (req, res, next) => {
+  try {
+    res.setHeader("Cache-Control", "private, no-store");
+    const r = await meusGrupos(req, { depois: req.query.depois, limite: req.query.limite });
+    if (r.proximo) res.setHeader("X-Proximo", r.proximo);
+    res.json(r.itens);
+  } catch (err) {
+    next(err);
+  }
+});
+publicRouter.post("/mensagens/grupos", async (req, res, next) => {
+  try {
+    res.status(201).json(await criarGrupo(req, { rifa: req.body?.rifa, nome: req.body?.nome }));
+  } catch (err) {
+    next(err);
+  }
+});
+publicRouter.get("/mensagens/grupos/rifa/:slug", async (req, res, next) => {
+  try {
+    res.setHeader("Cache-Control", "private, no-store");
+    const r = await gruposDaRifa(req, req.params.slug, { depois: req.query.depois, limite: req.query.limite });
+    if (r.proximo) res.setHeader("X-Proximo", r.proximo);
+    res.json({ podeParticipar: r.podeParticipar, itens: r.itens });
+  } catch (err) {
+    next(err);
+  }
+});
+publicRouter.get("/mensagens/grupos/:id", async (req, res, next) => {
+  try {
+    res.setHeader("Cache-Control", "private, no-store");
+    const r = await lerGrupo(req, req.params.id, { antes: req.query.antes });
+    if (r.proximo) res.setHeader("X-Proximo", r.proximo);
+    res.json({ grupo: r.grupo, pessoas: r.pessoas, itens: r.itens });
+  } catch (err) {
+    next(err);
+  }
+});
+publicRouter.post("/mensagens/grupos/:id/entrar", async (req, res, next) => {
+  try {
+    res.json(await entrarNoGrupo(req, req.params.id));
+  } catch (err) {
+    next(err);
+  }
+});
+publicRouter.post("/mensagens/grupos/:id/sair", async (req, res, next) => {
+  try {
+    res.json(await sairDoGrupo(req, req.params.id));
+  } catch (err) {
+    next(err);
+  }
+});
+publicRouter.post("/mensagens/grupos/:id/mensagens", async (req, res, next) => {
+  try {
+    res.status(201).json(await escreverNoGrupo(req, req.params.id, { texto: req.body?.texto }));
+  } catch (err) {
+    next(err);
+  }
+});
+publicRouter.post("/mensagens/grupos/:id/lida", async (req, res, next) => {
+  try {
+    res.json(await marcarGrupoLido(req, req.params.id));
+  } catch (err) {
+    next(err);
+  }
+});
+publicRouter.post("/mensagens/grupos/:id/denuncia", async (req, res, next) => {
+  try {
+    res.status(201).json(await denunciarGrupo(req, req.params.id, { motivo: req.body?.motivo, texto: req.body?.texto }));
+  } catch (err) {
+    next(err);
+  }
+});
+
 publicRouter.get("/mensagens/presenca", async (req, res, next) => {
   try {
     await exigirMensagensLigadas();

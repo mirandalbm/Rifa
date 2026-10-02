@@ -35,6 +35,7 @@
     "publicacao": "tsx scripts/publicacao-test.ts",
     "poster": "tsx scripts/poster-test.ts",
     "mensagens": "tsx scripts/mensagens-test.ts",
+    "grupos": "tsx scripts/grupos-test.ts",
     "buscar": "tsx scripts/buscar-test.ts",
     "carrinho": "tsx scripts/carrinho-test.ts",
     "presente": "tsx scripts/presente-test.ts",

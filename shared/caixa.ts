@@ -12,6 +12,7 @@ export const TIPOS_DA_CAIXA = {
   adiamento: { rotulo: "Adiamento", tom: "yellow" },
   denuncia: { rotulo: "Denúncia", tom: "red" },
   conversa: { rotulo: "Conversa denunciada", tom: "red" },
+  grupo: { rotulo: "Grupo denunciado", tom: "red" },
   verificacao: { rotulo: "Verificação", tom: "yellow" },
   fiscal: { rotulo: "Cadastro fiscal", tom: "yellow" },
   telefone: { rotulo: "Telefone", tom: "green" },
@@ -43,6 +44,7 @@ export function destinoDaPendencia(p: Pick<PendenciaDaCaixa, "tipo">): string {
       return "/admin/atendimento?aba=rifas";
     case "denuncia":
     case "conversa":
+    case "grupo":
       return "/admin/atendimento?aba=denuncias";
     case "verificacao":
       return "/admin/atendimento?aba=verificacoes";
@@ -60,6 +62,7 @@ const PESO: Record<TipoDaCaixa, number> = {
   disputa: 0,
   denuncia: 0,
   conversa: 0,
+  grupo: 0,
   reembolso: 1,
   edicao: 1,
   adiamento: 1,

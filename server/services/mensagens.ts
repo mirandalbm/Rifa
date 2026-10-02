@@ -69,6 +69,7 @@ import { avisar, emSegundoPlano } from "./push";
 import { getPlataforma } from "./settings";
 import { urlDaFoto } from "./perfil";
 import { urlDaFotoDoApostador } from "./perfilApostador";
+import { naoLidasDeGrupos } from "./grupos";
 
 export class MensagemError extends Error {
   constructor(message: string, readonly status = 400) {
@@ -323,7 +324,9 @@ export async function resumoDasMensagens(req: Request, como?: unknown) {
     })
     .from(conversas)
     .where(souDono(eu));
-  return { naoLidas: r?.total ?? 0 };
+  // As mensagens de grupo contam no mesmo número do console (só apostador está em grupo).
+  const doGrupo = eu.tipo === "comprador" ? await naoLidasDeGrupos(eu.id) : 0;
+  return { naoLidas: (r?.total ?? 0) + doGrupo };
 }
 
 export async function listarConversas(req: Request, q: { aba?: unknown; depois?: unknown; limite?: unknown; como?: unknown }) {

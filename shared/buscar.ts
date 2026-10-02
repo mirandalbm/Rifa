@@ -10,9 +10,13 @@
  *   entram. Apostador nasce desligado — é pessoa, não vitrine.
  * - **Só o que a vitrine mostraria**: rifa no ar, não travada, não
  *   demonstração, de organização nem arquivada nem banida.
- * - **Sem texto, as mais novas primeiro**, paginadas por chave (nada de
- *   `OFFSET`); a região ordena na vitrine, aqui não há ordem por popularidade.
+ * - **Por padrão, as mais novas primeiro**, paginadas por chave (nada de
+ *   `OFFSET`). A pessoa pode escolher "Mais curtidas" (o contador real da
+ *   publicação, nunca um número inventado, e sem mostrar o número) e filtrar
+ *   por **estado**: aqui o filtro é escolha explícita dela, como em
+ *   `/estado/UF` — a vitrine, que ordena sozinha, continua sem esconder nada.
  */
+import { ufValida, type UF } from "./endereco";
 
 export const TIPOS_DA_BUSCA = {
   rifas: "Rifas (título, prêmio e organização)",
@@ -68,3 +72,36 @@ export const escaparCuringa = (s: string) => s.replace(/[\\%_]/g, (c) => `\\${c}
 
 /** A busca está ligada e tem algum tipo de resultado a mostrar? */
 export const algumTipoLigado = (c: ConfigBusca) => c.rifas || c.organizacoes || c.apostadores;
+
+/* ------------------------------------------------------------------ *
+ * Ordem e estado (escolhas da pessoa, vindas da URL: só valor conhecido)
+ * ------------------------------------------------------------------ */
+
+export const ORDENS_DA_BUSCA = { novas: "Mais novas", curtidas: "Mais curtidas" } as const;
+export type OrdemDaBusca = keyof typeof ORDENS_DA_BUSCA;
+
+/** Qualquer coisa fora da lista é a ordem de sempre (as mais novas). */
+export function interpretarOrdem(bruto: unknown): OrdemDaBusca {
+  return bruto === "curtidas" ? "curtidas" : "novas";
+}
+
+/** A UF pedida (`sp` ou `SP`), ou `null`: valor fora da lista não filtra. */
+export function interpretarEstado(bruto: unknown): UF | null {
+  if (typeof bruto !== "string") return null;
+  const uf = bruto.trim().toUpperCase();
+  return ufValida(uf) ? uf : null;
+}
+
+/**
+ * O cursor de "Mais curtidas" é `<curtidas>|<id>`: o par decide a ordem
+ * (curtidas empatam o tempo todo). Vem da URL: só o formato exato vale, o
+ * resto é a primeira página — nunca erro nem SQL.
+ */
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+export const fazerCursorDeCurtidas = (curtidas: number, id: string) => `${curtidas}|${id}`;
+export function lerCursorDeCurtidas(texto: unknown): { curtidas: number; id: string } | null {
+  if (typeof texto !== "string") return null;
+  const [n, id, ...resto] = texto.split("|");
+  if (resto.length || !n || !id || !/^\d{1,9}$/.test(n) || !UUID.test(id)) return null;
+  return { curtidas: Number(n), id };
+}

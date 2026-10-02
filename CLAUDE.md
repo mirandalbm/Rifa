@@ -109,7 +109,7 @@ arquitetura.
 | cadastro fiscal do afiliado, cofre e recibo | `shared/fiscal.ts` (regras), `server/services/cofre.ts`, `server/services/fiscal.ts`, `server/services/recibos.ts`, `client/src/pages/afiliadoDados.tsx`, `adminFiscal.tsx`, `Recibo.tsx`, `scripts/fiscal-test.ts` |
 | guarda da comissão pela plataforma (etapa 12) | `guardaComissao` e `percentualDoPromotor()` em `shared/plataforma.ts`, `createOrder`/`settleOrderAsPaid` em `server/services/orders.ts`, `scripts/guarda-test.ts` |
 | indicação, bônus e metas (etapa 13) | `shared/bonus.ts` (regras), `server/services/bonus.ts`, `resgatarCotasDeBonus()` em `server/services/orders.ts`, `client/src/lib/indicacao.ts`, `client/src/pages/adminBonus.tsx`, `client/src/components/BonusDoComprador.tsx`, `scripts/bonus-test.ts` |
-| Reels (tela cheia, vídeo em pé, interruptor da plataforma) | `shared/reels.ts` (regras, lote), `GET /api/public/reels` em `server/routes/public.ts`, `reelsLigado` em `shared/plataforma.ts`, `client/src/pages/Reels.tsx`, `vertical` em `BarraDeAcoes`, `scripts/publicacao-test.ts`, `tests/reels.test.ts` |
+| Reels (tela cheia, vídeo em pé, interruptor da plataforma) | `shared/reels.ts` (regras, lote), `GET /api/public/reels` em `server/routes/public.ts`, `reelsLigado` em `shared/plataforma.ts`, `client/src/pages/Reels.tsx`, o som lembrado em `client/src/lib/reelsSom.ts`, `vertical` em `BarraDeAcoes`, `scripts/publicacao-test.ts`, `tests/reels.test.ts` |
 | Buscar (grade das publicações e busca por texto, interruptor e tabela da plataforma) | `shared/buscar.ts` (regras e tabela), `server/services/buscar.ts`, `GET /api/public/buscar` em `server/routes/public.ts`, `buscarLigado`/`buscarTipos` em `shared/plataforma.ts`, `client/src/pages/Buscar.tsx`, cartão em `client/src/components/TopoDoAppCard.tsx`, `scripts/buscar-test.ts`, `tests/buscar.test.ts` |
 | Mensagens (caixa de um para um: apostador, organização e afiliado) | `shared/mensagens.ts` (regras puras), `server/services/mensagens.ts`, rotas `/mensagens/*` em `server/routes/public.ts` e `/mensagens/denuncias*` em `server/routes/admin.ts`, `mensagensLigado` em `shared/plataforma.ts`, `client/src/pages/Mensagens.tsx`, `ConversasDenunciadas.tsx`, `BotaoMensagem.tsx` (também na peça do afiliado em `DivulgacoesDaRifa.tsx`), o número não lido do painel em `PanelShell` (`client/src/components/AppShell.tsx`, `rotuloDoSino()` em `shared/avisos.ts`), `scripts/mensagens-test.ts`, `tests/mensagens.test.ts` |
 | rifas patrocinadas por clique (etapa 15): pacote, fila, tabela e números | `shared/patrocinio.ts` (regras, preço, previsão da fila), `server/services/patrocinio.ts`, `client/src/pages/adminPatrocinio.tsx`, `client/src/components/Patrocinadas.tsx`, `scripts/patrocinio-test.ts` |
@@ -726,8 +726,18 @@ plataforma ligar, o apostador pelo `@apelido` exato.
   imagem (o banner, senão a primeira foto) — nunca o vídeo.
 - **Grade por chave** (`publicada em` + id, `shared/paginacao.ts`): nada de
   `OFFSET`, nada de `COUNT(*)`, linha a mais para saber se há próxima. Cursor
-  fora do formato vira primeira página. Ordem: as mais novas primeiro, sem
-  dado de popularidade.
+  fora do formato vira primeira página. Ordem padrão: as mais novas primeiro.
+- **A pessoa escolhe a ordem e o estado** (`ordem` e `estado` na URL, só valor
+  conhecido: `interpretarOrdem()`/`interpretarEstado()`). **"Mais curtidas"** usa
+  o contador real da publicação (`campaigns.curtidas_count`), com cursor
+  próprio `<curtidas>|<id>` (o par decide, as curtidas empatam o tempo todo) e
+  **sem nunca devolver o número**. O **estado** filtra pela UF da organização
+  — aqui o filtro é escolha explícita, como em `/estado/UF` (restringe só a
+  grade de rifas; a organização achada pelo texto não é filtrada); a vitrine,
+  que ordena sozinha, segue sem esconder nada. Como o contador muda entre uma
+  página e outra, uma rifa pode repetir ou pular ao rolar em "Mais curtidas". Cursor de uma ordem na outra é
+  primeira página. Ficou de fora: hashtags e o índice `pg_trgm` (pede a
+  extensão no banco, ver `docs/PENDENCIAS.md`).
 - **O texto é dado, nunca SQL**: parâmetro, `%` e `_` viram letras
   (`escaparCuringa`), sem acento e sem diferença de maiúscula dos dois lados.
   Texto de menos de 2 letras não busca.
@@ -1686,6 +1696,11 @@ conversa como cartão (o compartilhar da publicação), nunca como link no texto
   republicar, compartilhar, "+" e comprar passam pelas rotas de sempre.
   Nada reserva cota aqui; comprar leva à compra rápida (`?comprar=1`).
 - Sem prova social inventada: nada de contador "assistindo agora".
+- **O som é escolha da pessoa e fica no aparelho** (`client/src/lib/reelsSom.ts`,
+  `rifa.reels.som`): quem ligou o som ouve no reel seguinte e na próxima visita.
+  O navegador pode barrar o som sem toque; aí o reel **toca mudo** e a escolha
+  guardada fica como estava (botão de som com `aria-pressed`). Nada de música
+  nem trilha: sem biblioteca licenciada, o som é o do próprio vídeo.
 - `npm run publicacao` prova a rota e o interruptor contra a API de verdade.
 
 ## Carrinho e comprar — o que não pode afrouxar

@@ -9,6 +9,7 @@ import { EmBreve } from "@/pages/EmBreve";
 import { useConfigDoApp } from "@/components/Console";
 import { Money } from "@/components/bits";
 import { marcarOrigem } from "@/lib/origem";
+import { guardarSomDosReels, lerSomDosReels } from "@/lib/reelsSom";
 import { ABAS_DO_REELS, type AbaDoReels } from "@shared/reels";
 import type { RifaDoFeed } from "@/components/CartaoDoFeed";
 
@@ -38,7 +39,8 @@ export default function ReelsPagina() {
 function Reels() {
   const [, navegar] = useLocation();
   const [aba, setAba] = useState<AbaDoReels>("reels");
-  const [mudo, setMudo] = useState(true);
+  // O som lembrado no aparelho; sem toque, o navegador pode barrar e o reel cai para mudo.
+  const [mudo, setMudo] = useState(() => !lerSomDosReels());
   const [comentando, setComentando] = useState<string | null>(null);
 
   const lista = useInfiniteQuery<Pagina>({
@@ -125,7 +127,11 @@ function Reels() {
             key={c.id}
             rifa={c}
             mudo={mudo}
-            aoSom={() => setMudo((m) => !m)}
+            aoSom={() => {
+              guardarSomDosReels(mudo);
+              setMudo(!mudo);
+            }}
+            aoBarrado={() => setMudo(true)}
             aoComentar={() => setComentando(c.slug)}
             marca={i === Math.max(0, itens.length - 2) ? fim : undefined}
           />
@@ -141,12 +147,15 @@ function Quadro({
   rifa: c,
   mudo,
   aoSom,
+  aoBarrado,
   aoComentar,
   marca,
 }: {
   rifa: ItemDoReels;
   mudo: boolean;
   aoSom: () => void;
+  /** O navegador barrou o som sem toque: o reel passa a tocar mudo. */
+  aoBarrado: () => void;
   aoComentar: () => void;
   marca?: React.RefObject<HTMLDivElement>;
 }) {
@@ -160,7 +169,16 @@ function Quadro({
     if (!v || typeof IntersectionObserver === "undefined") return;
     const olho = new IntersectionObserver(
       ([e]) => {
-        if (e.isIntersecting && e.intersectionRatio >= 0.6) v.play().catch(() => {});
+        if (e.isIntersecting && e.intersectionRatio >= 0.6) {
+          v.play().catch(() => {
+            // Sem som o navegador deixa tocar: tenta de novo mudo e avisa a tela.
+            if (!v.muted) {
+              v.muted = true;
+              aoBarrado();
+              v.play().catch(() => {});
+            }
+          });
+        }
         else {
           v.pause();
           v.currentTime = 0;

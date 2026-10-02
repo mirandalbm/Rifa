@@ -467,8 +467,10 @@ Na ordem de entrega do plano:
 
 - [x] **Reels** (tela cheia, vídeo em pé de até 3 min, ações na lateral):
   pronto, atrás do interruptor `reelsLigado` (Aparência → Topo do app, nasce
-  desligado). Ficou para depois: áudio/música, reações rápidas com emoji
-  (emoji é vantagem de verificado) e aba "Friends" (aqui é "Seguindo").
+  desligado). **v2 feito:** o som escolhido fica lembrado no aparelho (cai
+  para mudo se o navegador barrar). Ficou para depois: música/trilha (exige
+  biblioteca licenciada), reações rápidas com emoji (hoje emoji é vantagem
+  de verificado: decisão de produto) e aba "Friends" (aqui é "Seguindo").
   Pôster pronto (`ffmpeg` local); sem transcode ainda (Cloudflare Stream).
 - [x] **Mensagens** (caixa de um para um entre apostador, organização e
   afiliado): pronta, atrás do interruptor `mensagensLigado` (Aparência →
@@ -485,9 +487,12 @@ Na ordem de entrega do plano:
 - [x] **Buscar** (grade das publicações mais novas e busca por texto):
   pronto, atrás do interruptor `buscarLigado` e da tabela do que aparece
   (`buscarTipos`: rifas, organizações e apostadores; apostador nasce
-  desligado). Ficou para depois: ordenar por popularidade, hashtags,
-  busca por região e índice de texto no banco (hoje é `LIKE` sem acento,
-  suficiente para a escala de agora; com milhares de rifas, `pg_trgm`).
+  desligado). **v2 feito:** a pessoa escolhe "Mais novas" ou "Mais curtidas"
+  (contador real, sem mostrar o número) e filtra por estado. Ficou para
+  depois: hashtags e o índice de texto no banco (hoje é `LIKE` sem acento,
+  suficiente para a escala de agora; com milhares de rifas, `pg_trgm`:
+  pede `CREATE EXTENSION pg_trgm` no Postgres de produção e um índice
+  `gin` sobre o texto sem acento).
 - [x] **Selo "ao vivo" no story** (anel com a transmissão): pronto. Acende
   quando a rifa tem link de transmissão, a hora do sorteio chegou e o sorteio
   não foi feito (janela de 3 h); só dado real. Ficou para depois: "ao vivo"

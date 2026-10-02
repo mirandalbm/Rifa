@@ -311,7 +311,7 @@ publicRouter.post("/mensagens/conversas/:id/denuncia", async (req, res, next) =>
  */
 publicRouter.get("/buscar", async (req, res, next) => {
   try {
-    const r = await buscar(req, { q: req.query.q, depois: req.query.depois });
+    const r = await buscar(req, { q: req.query.q, depois: req.query.depois, ordem: req.query.ordem, estado: req.query.estado });
     if ("proximo" in r && r.proximo) res.setHeader("X-Proximo", r.proximo);
     res.setHeader("Cache-Control", "private, no-store");
     res.json(r);

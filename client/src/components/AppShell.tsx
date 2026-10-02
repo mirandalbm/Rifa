@@ -653,7 +653,7 @@ export function PanelShell({
           </span>
         </footer>
       </div>
-      {assistente.aberto ? <ColunaDoAssistente onFechar={assistente.fechar} /> : null}
+      {assistente.aberto ? <ColunaDoAssistente onFechar={assistente.fechar} cobrado={assistente.cobrado} /> : null}
     </div>
   );
 }

@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
+import { CONFIG_COBRANCA_IA_PADRAO } from "../shared/iaCobranca";
 import {
   CONFIG_IA_PADRAO,
+  configIAGuardada,
   milicreditosUsados,
   idDaIA,
   papelTemIA,
@@ -11,17 +13,35 @@ import {
   validarConfigIA,
 } from "../shared/ia";
 
-const LIGADA = { ligado: true, agenteId: "agente_abc-123", paraOrganizador: false, paraAfiliado: false };
+const COBRANCA = { assinaturaCents: 4990, franquiaCreditos: 500, pacotes: [] };
+const LIGADA = { ligado: true, agenteId: "agente_abc-123", paraOrganizador: false, paraAfiliado: false, cobranca: COBRANCA };
 
 describe("assistente de IA: configuração", () => {
   it("nasce desligada, sem agente e sem liberar organizador nem afiliado", () => {
-    expect(CONFIG_IA_PADRAO).toEqual({ ligado: false, agenteId: "", paraOrganizador: false, paraAfiliado: false });
+    expect(CONFIG_IA_PADRAO).toEqual({ ligado: false, agenteId: "", paraOrganizador: false, paraAfiliado: false, cobranca: CONFIG_COBRANCA_IA_PADRAO });
     expect(validarConfigIA(undefined)).toEqual(CONFIG_IA_PADRAO);
   });
 
   it("só guarda as chaves conhecidas", () => {
     const c = validarConfigIA({ ...LIGADA, extra: "x", chave: "y" });
-    expect(Object.keys(c).sort()).toEqual(["agenteId", "ligado", "paraAfiliado", "paraOrganizador"]);
+    expect(Object.keys(c).sort()).toEqual(["agenteId", "cobranca", "ligado", "paraAfiliado", "paraOrganizador"]);
+  });
+
+  it("organizador e afiliado só são liberados com a cobrança definida (eles pagam)", () => {
+    const semPreco = { ...LIGADA, cobranca: undefined };
+    expect(() => validarConfigIA({ ...semPreco, paraOrganizador: true })).toThrow(/preço da assinatura/);
+    expect(() => validarConfigIA({ ...semPreco, paraAfiliado: true })).toThrow(/preço da assinatura/);
+    expect(validarConfigIA({ ...LIGADA, paraOrganizador: true, paraAfiliado: true }).paraAfiliado).toBe(true);
+    // Só o master: sem preço, tudo bem.
+    expect(validarConfigIA(semPreco).ligado).toBe(true);
+  });
+
+  it("o que está guardado e não passa mais na régua perde só a liberação, nunca a configuração toda", () => {
+    const antiga = { ligado: true, agenteId: "agente_abc-123", paraOrganizador: true, paraAfiliado: true };
+    const lida = configIAGuardada(antiga);
+    expect(lida).toMatchObject({ ligado: true, agenteId: "agente_abc-123", paraOrganizador: false, paraAfiliado: false });
+    expect(configIAGuardada({ ligado: true, agenteId: "../x" })).toEqual(CONFIG_IA_PADRAO);
+    expect(configIAGuardada({ ...LIGADA, paraOrganizador: true })).toMatchObject({ paraOrganizador: true });
   });
 
   it("o id do agente vai no caminho da API: só letras, números, _ e -", () => {

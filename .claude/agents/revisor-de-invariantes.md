@@ -63,7 +63,12 @@ Procure, nesta ordem, o que é **grave**:
     `null`, nunca 0) ou com erro do Chatbase; id da conversa gravado sem ser
     condicional ao lido; cambista ou afiliado
     inativo conversando; ação do assistente sem `orgOf`, sem confirmação ou sem
-    `audit_log` como feita pela IA.
+    `audit_log` como feita pela IA. Na cobrança ("Cobrança do assistente"):
+    preço ou créditos vindos do corpo; titular do Pix fora da sessão; mensagem
+    saindo para o Chatbase sem `exigirSaldo`; mudança de saldo sem linha no
+    livro (chave única) ou fora da transação com a conta travada; débito fora
+    da transação do uso; Pix creditado sem o `UPDATE` condicional
+    `pendente → paga`; CPF/CNPJ do pagador guardado.
 
 Só depois, o que é menor: mensagem de interface fora do português, número
 sem `tnum`, estado só por cor, cor fixa em vez de variável do tema.

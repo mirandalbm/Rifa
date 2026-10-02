@@ -5,6 +5,7 @@ import { webhookEvents } from "@shared/schema";
 import { paymentProviderByName, PROVEDORES_CONHECIDOS } from "../payments";
 import { markOrderPaid, refundByChargeId } from "../services/orders";
 import { confirmarRecarga } from "../services/patrocinio";
+import { avisarEstornoDaIA, confirmarPagamentoIA } from "../services/iaCobranca";
 
 export const webhookRouter = Router();
 
@@ -47,15 +48,17 @@ webhookRouter.post("/:provider", async (req, res) => {
     if (event.event === "ignored" || !event.chargeId) {
       // Nada a fazer; o evento fica gravado para não ser reprocessado.
     } else if (event.event === "paid") {
-      // Recarga de patrocínio (etapa 15) não é pedido: credita o saldo.
-      if (!(await confirmarRecarga(event.chargeId))) await markOrderPaid(event.chargeId);
+      // Recarga de patrocínio (etapa 15) e Pix do assistente não são pedido: creditam o saldo de cada um.
+      if (!(await confirmarPagamentoIA(event.chargeId)) && !(await confirmarRecarga(event.chargeId))) {
+        await markOrderPaid(event.chargeId);
+      }
     }
 
     // Estorno desfaz tudo que o pagamento criou: cota de volta ao estoque,
     // comissão revertida, taxa da plataforma cancelada. Antes disto o evento
     // era gravado e ignorado — a venda sumia do caixa mas a comissão era
     // liberada normalmente pelo relógio, que só olha a carência.
-    if (event.event === "refunded" && event.chargeId) {
+    if (event.event === "refunded" && event.chargeId && !(await avisarEstornoDaIA(event.chargeId))) {
       // No carrinho num Pix só, a cobrança é de vários pedidos: todos voltam.
       for (const r of await refundByChargeId(event.chargeId)) {
         if (r.comissaoJaPagaCents > 0) {

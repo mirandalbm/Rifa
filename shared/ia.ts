@@ -11,9 +11,10 @@
  * Quem tem: o **administrador master** (gratuito), o **organizador** e o
  * **afiliado** (pagos — cada um no próprio login e no próprio recorte). Nasce
  * desligado, e organizador e afiliado têm interruptores à parte, também
- * desligados, até a cobrança existir.
+ * desligados — e só ligam com a cobrança definida (`shared/iaCobranca.ts`).
  */
 import type { Role } from "./access";
+import { CONFIG_COBRANCA_IA_PADRAO, cobrancaPronta, validarConfigCobrancaIA, type ConfigCobrancaIA } from "./iaCobranca";
 
 export interface ConfigIA {
   /** Sem isto o botão não existe e o servidor não conversa. */
@@ -24,9 +25,17 @@ export interface ConfigIA {
   paraOrganizador: boolean;
   /** O afiliado também vê o assistente. Nasce desligado (uso pago). */
   paraAfiliado: boolean;
+  /** Preço da assinatura, franquia e pacotes avulsos (organizador e afiliado pagam). */
+  cobranca: ConfigCobrancaIA;
 }
 
-export const CONFIG_IA_PADRAO: ConfigIA = { ligado: false, agenteId: "", paraOrganizador: false, paraAfiliado: false };
+export const CONFIG_IA_PADRAO: ConfigIA = {
+  ligado: false,
+  agenteId: "",
+  paraOrganizador: false,
+  paraAfiliado: false,
+  cobranca: CONFIG_COBRANCA_IA_PADRAO,
+};
 
 /** O id do agente vai no caminho da URL da API: só letras, números, `_` e `-`. */
 export const AGENTE_ID_RE = /^[A-Za-z0-9_-]{8,64}$/;
@@ -44,7 +53,32 @@ export function validarConfigIA(entrada: unknown): ConfigIA {
   }
   const ligado = e.ligado === true;
   if (ligado && !agenteId) throw erro("Informe o id do agente do Chatbase antes de ligar o assistente.");
-  return { ligado, agenteId, paraOrganizador: e.paraOrganizador === true, paraAfiliado: e.paraAfiliado === true };
+  const cobranca = validarConfigCobrancaIA(e.cobranca);
+  const paraOrganizador = e.paraOrganizador === true;
+  const paraAfiliado = e.paraAfiliado === true;
+  // Organizador e afiliado pagam: sem preço e franquia, não há como cobrar.
+  if ((paraOrganizador || paraAfiliado) && !cobrancaPronta(cobranca)) {
+    throw erro("Defina o preço da assinatura e a franquia antes de liberar o assistente para organizador ou afiliado.");
+  }
+  return { ligado, agenteId, paraOrganizador, paraAfiliado, cobranca };
+}
+
+/**
+ * Leitura do que está guardado: configuração que não passa mais na régua (a
+ * liberação de organizador ou afiliado gravada antes de a cobrança existir)
+ * perde só a liberação — nunca derruba a configuração inteira da plataforma.
+ */
+export function configIAGuardada(entrada: unknown): ConfigIA {
+  try {
+    return validarConfigIA(entrada);
+  } catch {
+    try {
+      const e = entrada && typeof entrada === "object" ? (entrada as Record<string, unknown>) : {};
+      return validarConfigIA({ ...e, paraOrganizador: false, paraAfiliado: false });
+    } catch {
+      return CONFIG_IA_PADRAO;
+    }
+  }
 }
 
 /** Os papéis que podem ter o assistente. Cambista e apostador, nunca. */
@@ -161,4 +195,6 @@ export interface MensagemDaIA {
 
 export interface SessaoDaIA {
   ligado: boolean;
+  /** Quem fala paga (organização ou afiliado): a coluna mostra o plano e o saldo. */
+  cobrado: boolean;
 }

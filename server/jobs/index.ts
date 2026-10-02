@@ -13,6 +13,7 @@ import { apagarStoriesVencidos } from "../services/vitrine";
 import { apagarNotificacoesAntigas } from "../services/notificacoes";
 import { encerrarAnunciosForaDoAr } from "../services/patrocinio";
 import { encerrarBannersPagos } from "../services/bannerPago";
+import { vencerFranquias } from "../services/iaCobranca";
 import { enviarEventosPendentes } from "../services/marketing";
 import { migrarAfiliadosAntigos } from "../services/afiliados";
 import { lancarMensalidades } from "../services/billing";
@@ -62,6 +63,7 @@ const LOCK_ANUNCIOS = 811_403;
 const LOCK_BANNERS = 811_404;
 const LOCK_MARKETING = 811_501;
 const LOCK_COPIA = 811_013;
+const LOCK_IA_FRANQUIA = 811_701;
 
 /** Quantos minutos antes de a reserva cair o lembrete é enviado. */
 const LEMBRETE_MINUTOS = Number(process.env.REMINDER_MINUTES_BEFORE ?? 5);
@@ -304,6 +306,18 @@ export function startJobs() {
       });
     } catch (err) {
       console.error("[jobs] banners pagos:", err);
+    }
+  }, releaseMs).unref();
+
+  // Assistente de IA: a franquia de ciclo vencido sai pelo livro (uma vez por ciclo).
+  setInterval(async () => {
+    try {
+      await withLock(LOCK_IA_FRANQUIA, async () => {
+        const n = await vencerFranquias();
+        if (n > 0) log(`${n} franquia(s) do assistente vencida(s)`, "jobs");
+      });
+    } catch (err) {
+      console.error("[jobs] franquia do assistente:", err);
     }
   }, releaseMs).unref();
 

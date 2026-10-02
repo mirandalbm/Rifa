@@ -47,15 +47,16 @@ senha); **[código]** é trabalho no repositório.
   créditos que o Chatbase informa). Nasce desligado; organizador e afiliado têm
   interruptores à parte, desligados até a cobrança. O widget da primeira fatia
   (script de terceiro no painel) saiu.
-- [ ] **[código]** Chatbase AI, **cobrança** (decidida): **assinatura mensal com
-  franquia de créditos** e **créditos avulsos**, pagos por **Pix da plataforma**
-  (sem split, como a recarga do patrocínio; a assinatura renova com um Pix novo
-  por mês, sem débito automático). Preço da assinatura, franquia e preço do
-  crédito definidos pela plataforma no painel. Cada mensagem debita o que o
-  Chatbase informa (`ia_uso`); sem franquia nem crédito, o servidor recusa
-  antes de falar com o Chatbase. Titular: a organização (todos os organizadores
-  dela) ou o afiliado (no login dele, com os mesmos direitos do organizador no
-  recorte dele). O master não paga. Fora do saldo do patrocínio.
+- [x] **[código]** Chatbase AI, **cobrança**: **assinatura mensal com franquia
+  de créditos** (ciclo de 30 dias; renovar antes estende e soma) e **pacotes
+  avulsos** (não vencem; só com a assinatura ativa), pagos por **Pix da
+  plataforma** sem split. Preços em Aparência → Assistente de IA. Cada mensagem
+  debita o que o Chatbase informa, franquia primeiro; sem assinatura ou sem
+  saldo, 402 antes de falar com o Chatbase. Titular: a organização ou o
+  afiliado; o master não paga. O plano e o Pix ficam na própria coluna.
+- [ ] **[código]** Chatbase AI, **ajuste de crédito pela plataforma** (cortesia,
+  e devolver crédito de Pix estornado no provedor — hoje o estorno vai só ao
+  log) e um relatório de uso e receita da IA para a plataforma.
 - [ ] **[código]** Chatbase AI, **ações** no sistema (as "client actions" do
   Chatbase): no recorte de `orgOf` (afiliado: as publicações dele), com
   confirmação para dinheiro, estorno, publicação e exclusão, e `audit_log` como
@@ -63,8 +64,9 @@ senha); **[código]** é trabalho no repositório.
 - [ ] **[você]** Chatbase: criar a conta e o agente (treinado com a ajuda do
   painel), copiar o **id do agente** e criar uma **chave da API** (Settings →
   API keys). A chave vai só no Railway (`CHATBASE_API_KEY`); o id vai em
-  Aparência → Assistente de IA, e só então liga. Organizador e afiliado só
-  depois da cobrança. O plano do Chatbase precisa ter créditos de mensagem para
+  Aparência → Assistente de IA, e só então liga. Para liberar organizador e
+  afiliado, defina ali o **preço da assinatura, a franquia e os pacotes**
+  (pense no custo do crédito no seu plano do Chatbase). O plano do Chatbase precisa ter créditos de mensagem para
   o uso de todos (a plataforma paga o Chatbase e cobra de quem usa).
 
 ## 2. Para a rifa vender

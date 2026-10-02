@@ -55,7 +55,7 @@ Pelo caminho que mudou (a mesma tabela "Onde mexer" do `CLAUDE.md`):
 | afiliados, fiscal, guarda da comissão | `afiliados`, `fiscal`, `guarda` |
 | divulgação de terceiros (afiliado influenciador, publicação do apostador, menu Criar) | `divulgacao`, `afiliados`, `seguranca`, `isolation` |
 | bônus, patrocínio, banner pago, marketing | `bonus`, `patrocinio`, `banner`, `marketing` |
-| assistente de IA (`shared/ia.ts`, `services/ia.ts`, `services/chatbase.ts`, `routes/ia.ts`, a coluna em `AssistenteDoPainel.tsx`, o cache em `lib/session.ts`) | `tests/ia.test.ts`, `tests/chatbase.test.ts`, `tests/assistente.test.ts`, `ia` (com `CHATBASE_API_KEY` e `CHATBASE_API_URL=http://127.0.0.1:5099/api/v2` no servidor e no script), `isolation`; mexeu na coluna, `telas` |
+| assistente de IA (`shared/ia.ts`, `services/ia.ts`, `services/chatbase.ts`, `routes/ia.ts`, a coluna em `AssistenteDoPainel.tsx`, o cache em `lib/session.ts`, a cobrança em `iaCobranca.ts` e `PlanoDoAssistente.tsx`) | `tests/ia.test.ts`, `tests/iaCobranca.test.ts`, `tests/chatbase.test.ts`, `tests/assistente.test.ts`, `ia` (com `CHATBASE_API_KEY` e `CHATBASE_API_URL=http://127.0.0.1:5099/api/v2` no servidor e no script), `isolation`; mexeu na coluna, `telas` |
 | editar, adiar, excluir rifa | `solicitacoes` |
 | conta do apostador, login com Google | `conta`, `google` (o servidor sobe com `GOOGLE_PROVA=1`) |
 | qualquer tela (client/) | `telas` (60 telas × 390/820/1440; não pode reprovar) |

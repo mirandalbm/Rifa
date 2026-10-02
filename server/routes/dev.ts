@@ -1,9 +1,10 @@
 import { Router } from "express";
 import { eq } from "drizzle-orm";
 import { db } from "../db";
-import { orders, patrocinioRecargas } from "@shared/schema";
+import { iaPagamentos, orders, patrocinioRecargas } from "@shared/schema";
 import { markOrderPaid } from "../services/orders";
 import { confirmarRecarga } from "../services/patrocinio";
+import { confirmarPagamentoIA } from "../services/iaCobranca";
 import { plantarClaimsDeProva } from "../services/google";
 
 /**
@@ -37,6 +38,17 @@ devRouter.post("/pay/:code", async (req, res, next) => {
       return res.status(404).json({ message: "Pedido sem cobrança." });
     }
     res.json(await markOrderPaid(order.pspChargeId));
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** Simula o Pix compensado do assistente (assinatura ou pacote). */
+devRouter.post("/ia-pagamento/:codigo", async (req, res, next) => {
+  try {
+    const [r] = await db.select().from(iaPagamentos).where(eq(iaPagamentos.codigo, Number(req.params.codigo)));
+    if (!r?.chargeId) return res.status(404).json({ message: "Pagamento sem cobrança." });
+    res.json({ ok: await confirmarPagamentoIA(r.chargeId) });
   } catch (err) {
     next(err);
   }

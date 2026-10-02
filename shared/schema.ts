@@ -2881,3 +2881,30 @@ export const iaLancamentos = pgTable(
   },
   (t) => [uniqueIndex("uq_ia_lancamento_chave").on(t.chave), index("idx_ia_lancamentos_titular").on(t.titularTipo, t.titularId, t.createdAt)],
 );
+
+/**
+ * Pix que chegou tarde: o pagamento foi confirmado pelo provedor, mas o
+ * pedido já não podia virar cota (reserva vencida, ou rifa já sorteada). É
+ * dinheiro que entrou sem bilhete — fica numa fila para a plataforma
+ * devolver. Um por pedido (o webhook repetido não duplica).
+ */
+export const pixTardios = pgTable(
+  "pix_tardios",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orderId: uuid("order_id").notNull(),
+    provider: text("provider"),
+    chargeId: text("charge_id"),
+    valorCents: integer("valor_cents").notNull(),
+    /** reserva_vencida | depois_do_sorteio */
+    motivo: text("motivo").notNull(),
+    /** pendente | devolvendo | devolvido | resolvido */
+    status: text("status").notNull().default("pendente"),
+    erro: text("erro"),
+    observacao: text("observacao"),
+    resolvidoPor: uuid("resolvido_por"),
+    resolvidoEm: timestamp("resolvido_em"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("uq_pix_tardio_pedido").on(t.orderId), index("idx_pix_tardios_status").on(t.status, t.createdAt)],
+);

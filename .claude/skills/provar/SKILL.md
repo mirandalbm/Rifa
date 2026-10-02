@@ -32,8 +32,8 @@ Pelo caminho que mudou (a mesma tabela "Onde mexer" do `CLAUDE.md`):
 | Mexeu em | Roda |
 |---|---|
 | reserva, alocação, cartelas (`services/quotas.ts`) | `load` |
-| pedido, preço, webhook (`services/orders.ts`) | `load`, `refund` |
-| estorno | `refund`, `presente` |
+| pedido, preço, webhook (`services/orders.ts`) | `load`, `refund`, `pix-tardio` |
+| estorno | `refund`, `presente`, `bonus` |
 | chamado de reembolso, disputa | `chamados`, `disputa` |
 | **rota nova ou nova consulta do painel** (qualquer `routes/admin.ts`) | `isolation` — rota que não aparece lá é rota que ninguém provou |
 | relógios (`jobs/`, `db.ts`) | `relogios` |

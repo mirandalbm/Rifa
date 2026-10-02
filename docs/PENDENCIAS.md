@@ -456,16 +456,23 @@ Na ordem de entrega do plano:
   endereço, e-mail de contato e o **encarregado de dados** (nome e e-mail),
   e publicar o template. Sem isso as páginas dizem que os dados ainda não
   foram publicados (Decreto 7.962/2013 e LGPD, art. 41, pedem os dois).
-- [ ] Devolução do Pix que chega tarde (reserva vencida ou depois do
-  sorteio): hoje só vai ao log (`settleOrderAsPaid`, `markOrderPaid`). Os
-  Termos mandam a pessoa falar com a plataforma; falta uma fila no painel
-  para a plataforma ver e devolver.
-- [ ] Prazo de guarda e limpeza de `fraud_events` e `fraud_blocks` (recusas
-  com telefone mascarado e bloqueios): hoje não há relógio que apague. A
-  Privacidade diz "enquanto for necessário à segurança" — definir o prazo
-  com o advogado e criar a limpeza.
-- [ ] O estorno não desfaz a meta "rifas compradas" do bônus (só a
-  indicação): decidir se desfaz; os Termos hoje falam só da indicação.
+- [x] Devolução do Pix que chega tarde (reserva vencida ou depois do
+  sorteio): o pagamento entra na fila `pix_tardios` (um por pedido), que a
+  plataforma vê em Pedidos ("Pix a devolver") e na Caixa de entrada, e
+  resolve devolvendo pelo provedor (valor explícito) ou marcando como
+  resolvido por fora, com observação e auditoria (`npm run pix-tardio`).
+  **Falta no ambiente**: `db:push` (tabela `pix_tardios`) **antes** do
+  código.
+- [x] Guarda de `fraud_events` e `fraud_blocks`: recusas saem com 180 dias e
+  o bloqueio com prazo sai 30 dias depois de vencer (o sem prazo fica até a
+  plataforma retirar) — relógio de limpeza, `purgarGuardaDoAntifraude()`. A
+  Privacidade diz os dois prazos. **[você]** O advogado confirmar os prazos
+  (`GUARDA_DAS_RECUSAS_DIAS`, `GUARDA_DO_BLOQUEIO_VENCIDO_DIAS` em
+  `shared/antifraude.ts`).
+- [x] O estorno desfaz as metas "rifas compradas" (de quem comprou) e
+  "indicações" (de quem indicou) quando a meta deixa de ser cumprida;
+  alcançar de novo paga de novo (`desfazerMetasNoEstorno()`, `npm run
+  bonus`). Visitas e seguir não voltam atrás.
 - [ ] **[você]** O advogado ler os Termos de uso e a Privacidade
   (`montarTermosDeUso()`/`montarPrivacidade()`), em especial: foro, CVV no
   jogo responsável, prazos de guarda e a lista de quem recebe dados.

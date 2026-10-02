@@ -70,7 +70,8 @@ import { notify } from "../notifications";
 import { publicUrl } from "./urls";
 import { formatBRL, formatQuota, cpfValido } from "@shared/format";
 import { isUniqueViolation } from "../pgError";
-import { avaliarMetas, confirmarIndicacao, estornarIndicacao, registrarIndicacao } from "./bonus";
+import { avaliarMetas, confirmarIndicacao, desfazerMetasNoEstorno, estornarIndicacao, registrarIndicacao, travarPessoasDoEstorno } from "./bonus";
+import { registrarPixTardio } from "./pixTardio";
 import { anuncioDaVenda } from "./patrocinio";
 import { cancelarCreditoDoPresente, lancarCreditoDoPresente, presenteDoPedido } from "./presente";
 import { bloqueioDoResgate } from "@shared/bonus";
@@ -904,18 +905,19 @@ async function settleOrderAsPaid(order: typeof orders.$inferSelect) {
   const paidAt = new Date();
 
   let marcouSorteio = false;
+  let depoisDoSorteio = false;
   const result = await db.transaction(async (tx) => {
     // Rifa já sorteada não confirma pedido: o quadro está congelado e o
     // contemplado já foi escolhido. A linha do sorteio travada (`FOR SHARE`)
     // faz o sorteio em andamento esperar esta confirmação, ou esta esperar
-    // o sorteio. O Pix pago tarde vai para o log, como o pedido vencido.
+    // o sorteio. O Pix pago tarde vai para a fila de devolução (`pix_tardios`).
     const sorteada = (
       await tx.execute(sql`
         SELECT executed_at FROM draws WHERE campaign_id = ${order.campaignId} FOR SHARE
       `)
     ).rows[0]?.executed_at;
     if (sorteada) {
-      console.error(`[pedido] Pix do pedido ${order.code} confirmado depois do sorteio da rifa: não vira cota — devolver o dinheiro.`);
+      depoisDoSorteio = true;
       return null;
     }
 
@@ -1057,7 +1059,11 @@ async function settleOrderAsPaid(order: typeof orders.$inferSelect) {
     return { order: updated, numbers, prizes, indicadorId };
   });
 
-  if (!result) return null;
+  if (!result) {
+    // Dinheiro que entrou sem cota: vai para a fila de devolução da plataforma.
+    if (depoisDoSorteio && order.amountCents > 0) await registrarPixTardio(order, "depois_do_sorteio");
+    return null;
+  }
 
   // A rifa encheu e o sorteio ganhou data: avisa quem comprou e quem segue (fora da transação).
   if (marcouSorteio) emSegundoPlano(avisarSorteioMarcado(order.campaignId), "sorteio marcado");
@@ -1092,6 +1098,8 @@ export async function markOrderPaid(chargeId: string) {
   const [order] = achados;
   if (order.status === "paid") return { order, alreadyPaid: true, prizes: [] as string[] };
   if (order.status !== "pending") {
+    // Reserva vencida (ou cancelada) e o Pix chegou mesmo assim: dinheiro sem cota.
+    if (order.status === "expired") await registrarPixTardio(order, "reserva_vencida");
     throw new OrderError(`Pedido ${order.code} está ${order.status}.`, 409);
   }
 
@@ -1120,9 +1128,7 @@ async function marcarCarrinhoPago(pedidos: (typeof orders.$inferSelect)[]) {
   let pagos = 0;
   for (const order of pedidos) {
     if (order.status !== "pending") {
-      if (order.status !== "paid") {
-        console.error(`[carrinho] Pix pago com o pedido ${order.code} ${order.status}: devolver ${order.amountCents} centavos.`);
-      }
+      if (order.status === "expired") await registrarPixTardio(order, "reserva_vencida");
       continue;
     }
     const r = await settleOrderAsPaid(order);
@@ -1562,8 +1568,13 @@ export async function refundOrder(orderId: string): Promise<RefundResult | null>
       .filter((c) => c.status === "paid")
       .reduce((soma, c) => soma + c.amountCents, 0);
 
-    // Bônus da indicação que este pedido confirmou sai junto (etapa 13).
-    await estornarIndicacao(tx, order.id);
+    // Bônus da indicação que este pedido confirmou sai junto (etapa 13), e a
+    // meta de compra (de quem comprou) ou de indicação (de quem indicou) que
+    // deixou de estar cumprida.
+    // As duas pessoas travadas juntas, na ordem do id, antes de mexer no saldo.
+    await travarPessoasDoEstorno(tx, order.id, order.buyerId);
+    const indicador = await estornarIndicacao(tx, order.id);
+    await desfazerMetasNoEstorno(tx, [order.buyerId, indicador]);
     // E o crédito do presente que a plataforma devia à promotora.
     await cancelarCreditoDoPresente(tx, order.id);
 
@@ -1683,13 +1694,6 @@ export async function resgatarCotasDeBonus(buyerId: string, campaignId: string, 
 
   const resgatar = (code: number) =>
     db.transaction(async (tx) => {
-      const [debitado] = await tx
-        .update(buyers)
-        .set({ bonusSaldo: sql`${buyers.bonusSaldo} - ${quantidade}` })
-        .where(and(eq(buyers.id, buyerId), sql`${buyers.bonusSaldo} >= ${quantidade}`))
-        .returning({ id: buyers.id });
-      if (!debitado) throw new OrderError("Saldo de bônus insuficiente.", 409);
-
       const [created] = await tx
         .insert(orders)
         .values({
@@ -1733,7 +1737,18 @@ export async function resgatarCotasDeBonus(buyerId: string, campaignId: string, 
         throw new OrderError("As cotas de bônus desta rifa acabaram (ou restam menos do que você pediu).", 409);
       }
 
-      // O saldo já saiu acima; o lançamento é o registro (chave do pedido).
+      // O saldo sai por último, num UPDATE condicional (sem saldo, a transação
+      // cai inteira e a reserva volta). Por último porque é a ordem do estorno
+      // e da venda: cota e contadores, depois a pessoa — na ordem inversa, um
+      // resgate e o estorno de um pedido da mesma pessoa se travavam.
+      const [debitado] = await tx
+        .update(buyers)
+        .set({ bonusSaldo: sql`${buyers.bonusSaldo} - ${quantidade}` })
+        .where(and(eq(buyers.id, buyerId), sql`${buyers.bonusSaldo} >= ${quantidade}`))
+        .returning({ id: buyers.id });
+      if (!debitado) throw new OrderError("Saldo de bônus insuficiente.", 409);
+
+      // O lançamento é o registro (chave do pedido).
       await tx.insert(bonusLancamentosTabela).values({
         buyerId,
         quantidade: -quantidade,

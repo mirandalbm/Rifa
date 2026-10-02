@@ -315,6 +315,51 @@ async function main() {
     await db.execute(sql`update organizations set seguidores_count = 0 where id = ${org.id}::uuid`);
     await db.update(buyers).set({ passwordHash: null }).where(eq(buyers.phone, TEL.indicador));
 
+    // Estorno desfaz as metas que dependiam da compra: a de compras de quem
+    // comprou e a de indicações de quem indicou. Alcançar de novo paga de novo
+    // (outra volta da meta); estorno que não derruba a meta não tira nada.
+    console.log("  — metas desfeitas pelo estorno");
+    r = await admin.req("POST", "/api/admin/bonus/metas", { titulo: "Teste bônus compras", tipo: "rifas_compradas", alvo: 1, recompensa: 1 });
+    checa("a plataforma cria a meta de compras", r.status === 201, `HTTP ${r.status} ${r.json?.message ?? ""}`);
+    r = await admin.req("POST", "/api/admin/bonus/metas", { titulo: "Teste bônus indicações", tipo: "indicacoes", alvo: 1, recompensa: 3 });
+    checa("a plataforma cria a meta de indicações", r.status === 201, `HTTP ${r.status} ${r.json?.message ?? ""}`);
+    const TEL_CAIO = "11955551003";
+    const anaAntes = await saldo(TEL.indicador);
+    const comprarCaio = async (campaignId: string, indicacao?: string) => {
+      const c = await new Cliente(`aparelho-caio-${Math.random()}`).req("POST", "/api/public/orders", {
+        campaignId,
+        quantity: 1,
+        buyer: { name: "Caio Indicado", phone: TEL_CAIO },
+        ...(indicacao ? { indicacao } : {}),
+      });
+      if (c.status !== 201) throw new Error(`compra do Caio: HTTP ${c.status} ${c.json?.message ?? ""}`);
+      await fetch(`${URL}/api/dev/pay/${c.json.code}`, { method: "POST" });
+      const [o] = await db.select().from(orders).where(eq(orders.code, c.json.code));
+      return o;
+    };
+    const primeira = await comprarCaio(naoAceita.id, codigo);
+    checa("pago: a meta de compras credita quem comprou", (await saldo(TEL_CAIO)) === 1, String(await saldo(TEL_CAIO)));
+    // Ana: +2 da indicação, +3 da meta de indicações, +1 da meta de compras (ela já tinha compra paga).
+    checa("pago: quem indicou ganha a indicação e a meta de indicações", (await saldo(TEL.indicador)) === anaAntes + 6, `${await saldo(TEL.indicador)} vs ${anaAntes + 6}`);
+    await refundOrder(primeira.id);
+    checa("estorno: a meta de compras sai de quem comprou", (await saldo(TEL_CAIO)) === 0, String(await saldo(TEL_CAIO)));
+    checa("estorno: a indicação e a meta de indicações saem de quem indicou (a de compras dela fica)", (await saldo(TEL.indicador)) === anaAntes + 1, `${await saldo(TEL.indicador)} vs ${anaAntes + 1}`);
+    await refundOrder(primeira.id);
+    checa("estornar de novo não tira outra vez", (await saldo(TEL_CAIO)) === 0 && (await saldo(TEL.indicador)) === anaAntes + 1);
+    const segunda = await comprarCaio(naoAceita.id);
+    checa("alcançou de novo: a meta paga de novo", (await saldo(TEL_CAIO)) === 1, String(await saldo(TEL_CAIO)));
+    await fetch(`${URL}/api/dev/pay/${segunda.code}`, { method: "POST" });
+    checa("o webhook repetido não paga a mesma volta duas vezes", (await saldo(TEL_CAIO)) === 1, String(await saldo(TEL_CAIO)));
+    await comprarCaio(aceita.id);
+    await refundOrder(segunda.id);
+    checa("estorno que não derruba a meta (ainda tem compra paga) não tira nada", (await saldo(TEL_CAIO)) === 1, String(await saldo(TEL_CAIO)));
+    const livroCaio = (await db.execute(sql`select motivo, quantidade, chave from bonus_lancamentos where buyer_id = (select id from buyers where phone = ${TEL_CAIO}) order by created_at`)).rows as { motivo: string; quantidade: number; chave: string }[];
+    checa(
+      "o livro tem meta, estorno da meta e a segunda volta, cada uma com a sua chave",
+      livroCaio.map((l) => `${l.motivo}:${l.quantidade}`).join(",") === "meta:1,estorno_meta:-1,meta:1" && new Set(livroCaio.map((l) => l.chave)).size === 3,
+      livroCaio.map((l) => `${l.motivo}:${l.quantidade}:${l.chave.split(":")[0]}`).join(","),
+    );
+
     // Desligado: nada se resgata e nada acumula.
     await admin.req("PUT", "/api/admin/bonus/config", { bonusLigado: false });
     await db.update(buyers).set({ bonusSaldo: 5 }).where(eq(buyers.phone, TEL.indicador));

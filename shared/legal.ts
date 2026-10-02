@@ -13,6 +13,7 @@
  *
  * Puro: o servidor valida, a tela mostra, o teste confere.
  */
+import { GUARDA_DAS_RECUSAS_DIAS, GUARDA_DO_BLOQUEIO_VENCIDO_DIAS } from "./antifraude";
 import { cnpjValido } from "./format";
 import { regraDoReembolso } from "./reembolso";
 import type { Secao } from "./regulamento";
@@ -169,7 +170,7 @@ export function montarTermosDeUso(d: DadosDosTermos): Secao[] {
     {
       titulo: "6. Bônus, indicação e presentes",
       itens: [
-        "Cota de bônus, indicação e presente só existem quando a plataforma os liga, e a cota grátis só vale em rifa cujo regulamento a prevê, na quantidade autorizada. Não viram dinheiro, não têm reembolso e não podem ser transferidos. Autoindicação não conta, e o estorno da compra do indicado desfaz o bônus da indicação.",
+        "Cota de bônus, indicação e presente só existem quando a plataforma os liga, e a cota grátis só vale em rifa cujo regulamento a prevê, na quantidade autorizada. Não viram dinheiro, não têm reembolso e não podem ser transferidos. Autoindicação não conta, e o estorno de uma compra desfaz o bônus que ela rendeu: o da indicação e o das metas de compras e de indicações que deixarem de ser cumpridas.",
       ],
     },
     {
@@ -188,7 +189,7 @@ export function montarTermosDeUso(d: DadosDosTermos): Secao[] {
     {
       titulo: "9. Responsabilidade e funcionamento",
       itens: [
-        `A plataforma mantém o sistema no ar com o cuidado devido, mas pode ter interrupções para manutenção ou por falha de terceiros (provedor do Pix, WhatsApp, internet). Pague dentro do prazo da reserva: se a confirmação do Pix chegar depois de a reserva vencer, ou depois do sorteio, os números não ficam garantidos e você tem direito à devolução do valor — fale com a plataforma ${canal(d.empresa)}.`,
+        `A plataforma mantém o sistema no ar com o cuidado devido, mas pode ter interrupções para manutenção ou por falha de terceiros (provedor do Pix, WhatsApp, internet). Pague dentro do prazo da reserva: se a confirmação do Pix chegar depois de a reserva vencer, ou depois do sorteio, os números não ficam garantidos e o valor é devolvido: o pagamento entra numa fila que a plataforma confere e devolve para a mesma conta que pagou — pelo provedor do Pix, sempre que ele permitir. Se demorar, fale com a plataforma ${canal(d.empresa)}.`,
         "Nada nestes termos afasta os seus direitos de consumidor.",
       ],
     },
@@ -244,7 +245,7 @@ export function montarPrivacidade(d: DadosDosTermos): Secao[] {
     {
       titulo: "5. Por quanto tempo",
       itens: [
-        "Compras, bilhetes, recibos e o registro do sorteio: pelo prazo que a lei de rifas, a lei fiscal e o Código de Defesa do Consumidor exigem, mesmo depois de excluída a conta. Avisos da central: 90 dias. Contagem de tentativas para os limites de antifraude: 2 horas; o registro das recusas e dos bloqueios fica enquanto for necessário à segurança da plataforma.",
+        `Compras, bilhetes, recibos e o registro do sorteio: pelo prazo que a lei de rifas, a lei fiscal e o Código de Defesa do Consumidor exigem, mesmo depois de excluída a conta. Avisos da central: 90 dias. Contagem de tentativas para os limites de antifraude: 2 horas; o registro das recusas (com o telefone mascarado e o aparelho em hash): ${GUARDA_DAS_RECUSAS_DIAS} dias; o bloqueio com prazo sai ${GUARDA_DO_BLOQUEIO_VENCIDO_DIAS} dias depois de vencer, e o bloqueio sem prazo fica até a plataforma retirá-lo.`,
         "Ao excluir a conta, nome, telefone, CPF, e-mail, senha, apelido, foto e verificação saem; o que precisa ficar por lei fica sem identificar você.",
       ],
     },

@@ -1,3 +1,4 @@
+import { formatBRL } from "@shared/format";
 import { sql } from "drizzle-orm";
 import { db } from "../db";
 import { ordenarCaixa, type PendenciaDaCaixa } from "@shared/caixa";
@@ -11,7 +12,7 @@ import { MOTIVOS_DA_DENUNCIA_DE_GRUPO } from "@shared/grupos";
  * afiliado ou apelido — nunca telefone, CPF ou nome de comprador.
  */
 export async function caixaDeEntrada(): Promise<PendenciaDaCaixa[]> {
-  const [chamados, solicitacoes, denuncias, verificacoes, fiscais, telefones, banners, conversas, gruposDenunciados] = await Promise.all([
+  const [chamados, solicitacoes, denuncias, verificacoes, fiscais, telefones, banners, conversas, gruposDenunciados, pixTardios] = await Promise.all([
     db.execute(sql`
       SELECT ch.id, ch.disputa, ch.created_at AS desde, o.name AS org, ch.protocolo, ord.code AS pedido
         FROM chamados ch
@@ -76,6 +77,15 @@ export async function caixaDeEntrada(): Promise<PendenciaDaCaixa[]> {
         JOIN campaigns c ON c.id = g.campaign_id
        WHERE d.status = 'aberta'
        ORDER BY d.created_at LIMIT 200`),
+    // Pix que chegou tarde: o pedido e a rifa — nunca o nome de quem pagou.
+    db.execute(sql`
+      SELECT p.id, p.created_at AS desde, p.motivo, p.valor_cents, o.code AS pedido, org.name AS org
+        FROM pix_tardios p
+        JOIN orders o ON o.id = p.order_id
+        JOIN campaigns c ON c.id = o.campaign_id
+        LEFT JOIN organizations org ON org.id = c.organization_id
+       WHERE p.status IN ('pendente', 'devolvendo')
+       ORDER BY p.created_at LIMIT 200`),
   ]);
 
   const iso = (d: unknown) => new Date(d as string | Date).toISOString();
@@ -115,6 +125,15 @@ export async function caixaDeEntrada(): Promise<PendenciaDaCaixa[]> {
   }
   for (const r of telefones.rows as any[]) {
     linhas.push({ chave: `telefone:${r.id}`, tipo: "telefone", quem: r.org, oQue: "Telefone provado pelo WhatsApp — espera aprovação para publicar", desde: iso(r.desde) });
+  }
+  for (const r of pixTardios.rows as any[]) {
+    linhas.push({
+      chave: `pix_tardio:${r.id}`,
+      tipo: "pix_tardio",
+      quem: r.org ?? "Plataforma",
+      oQue: `Pix pago ${r.motivo === "depois_do_sorteio" ? "depois do sorteio" : "com a reserva vencida"} — pedido ${r.pedido}, ${formatBRL(Number(r.valor_cents))} a devolver`,
+      desde: iso(r.desde),
+    });
   }
   for (const r of banners.rows as any[]) {
     linhas.push({ chave: `banner:${r.id}`, tipo: "banner", quem: r.org, oQue: `Arte de banner pago esperando aprovação — rifa ${r.rifa}, ${r.dias} dia(s)`, desde: iso(r.desde) });

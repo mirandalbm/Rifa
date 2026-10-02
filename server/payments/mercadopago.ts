@@ -211,14 +211,16 @@ export class MercadoPagoProvider implements PaymentProvider {
     };
   }
 
-  async refund(chargeId: string, amountCents?: number): Promise<void> {
+  async refund(chargeId: string, amountCents?: number, chave?: string): Promise<void> {
     const res = await fetch(`${API}/v1/payments/${chargeId}/refunds`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${this.token}`,
-        // Chave fixa por cobrança e valor: repetir a chamada (rede caiu no
-        // meio) não devolve duas vezes.
-        "X-Idempotency-Key": `estorno-${chargeId}-${amountCents ?? "total"}`,
+        // Chave fixa por devolução (quem chama diz qual: o pedido ou o caso
+        // da fila) e valor: repetir a chamada (rede caiu no meio) não devolve
+        // duas vezes, e duas devoluções da mesma cobrança do carrinho com o
+        // mesmo valor não viram uma só.
+        "X-Idempotency-Key": `estorno-${chargeId}-${chave ?? "cobranca"}-${amountCents ?? "total"}`,
         ...(amountCents !== undefined ? { "Content-Type": "application/json" } : {}),
       },
       ...(amountCents !== undefined

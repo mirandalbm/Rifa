@@ -98,6 +98,7 @@ jobs:
       - run: npm run refund
       - run: npm run chamados
       - run: npm run conta
+      - run: npm run bilhetes
       - run: npm run perfil
       - run: npm run push
       - run: npm run transparencia

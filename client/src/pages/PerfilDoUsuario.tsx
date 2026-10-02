@@ -8,6 +8,7 @@ import {
   LayoutDashboard,
   LogIn,
   LogOut,
+  Lock,
   ReceiptText,
   Store,
   Ticket,
@@ -42,7 +43,7 @@ function Item({ href, icone: Icone, rotulo, detalhe }: { href: string; icone: Lu
  * O botão de perfil do console: quem é você e o menu da conta — compras
  * (os bilhetes), reembolsos, conta, painel, ajuda, tema e cookies — e o
  * aviso de jogo responsável (o "18+" mora aqui, não mais numa faixa fixa).
- * A tela que mostra os bilhetes como publicações vem na etapa do perfil.
+ * Os bilhetes como publicações privadas moram em `/perfil/bilhetes`.
  */
 export default function PerfilDoUsuario() {
   const qc = useQueryClient();
@@ -105,6 +106,7 @@ export default function PerfilDoUsuario() {
             <Item href="/minhas-compras" icone={Ticket} rotulo="Meus bilhetes" detalhe="As rifas em que você está jogando" />
             {conta ? (
               <>
+                <Item href="/perfil/bilhetes" icone={Lock} rotulo="Meus bilhetes privados" detalhe="Cada compra como publicação, só para você" />
                 {bonus?.ligado ? (
                   <Item
                     href="/minhas-compras?aba=bonus"

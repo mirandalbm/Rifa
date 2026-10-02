@@ -22,6 +22,7 @@
     "refund": "tsx scripts/refund-test.ts",
     "chamados": "tsx scripts/chamados-test.ts",
     "conta": "tsx scripts/conta-test.ts",
+    "bilhetes": "tsx scripts/bilhetes-test.ts",
     "perfil": "tsx scripts/perfil-test.ts",
     "push": "tsx scripts/push-test.ts",
     "transparencia": "tsx scripts/transparencia-test.ts",

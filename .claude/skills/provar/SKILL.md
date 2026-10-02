@@ -33,6 +33,7 @@ Pelo caminho que mudou (a mesma tabela "Onde mexer" do `CLAUDE.md`):
 | **rota nova ou nova consulta do painel** (qualquer `routes/admin.ts`) | `isolation` — rota que não aparece lá é rota que ninguém provou |
 | relógios (`jobs/`, `db.ts`) | `relogios` |
 | conta do apostador | `conta` |
+| bilhetes como publicações privadas (`/perfil/bilhetes`) | `bilhetes`, `conta` |
 | perfil do organizador, seguir, links curtos | `perfil` |
 | push, central de avisos | `push` |
 | regulamento, sorteio, transmissão | `transparencia` |

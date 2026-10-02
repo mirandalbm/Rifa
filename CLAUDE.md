@@ -380,6 +380,17 @@ arquitetura.
     topo, à esquerda da logo (`BotaoDoSorteio`, só no celular), abre a mesma
     tela. Aberta, é diálogo (`role="dialog"`, `aria-modal`, foco no
     "Voltar ao início", Esc fecha) e a página de baixo não rola.
+  - **A faixa do estado no Início do celular**: à esquerda, o seletor de
+    estado mostra **só a sigla** (BR para todo o Brasil) e, aberto, a lista
+    traz o nome de cada estado — o `<select>` de verdade fica por cima,
+    transparente (o toque, o teclado e o leitor de tela são dele, com o
+    rótulo "Rifas perto de"); à direita, a **contagem do próximo sorteio**
+    (`ContagemDoSorteio`, a cara da tela do sorteio: fundo escuro e as casas
+    d/h/m/s), que é botão e abre a tela do sorteio. O tempo vai no
+    `aria-label`; sem sorteio marcado, "Ganhadores". **É só do celular**:
+    do tablet em diante o seletor segue o de antes ("Rifas perto de" e o
+    nome do estado) e a contagem não existe — lá a tela do sorteio principal
+    é a coluna ao vivo, já definida.
   - **O voltar do aparelho fecha** (`#sorteio`, `useSorteioDoInicio()`):
     abrir empurra a marca no histórico, fechar a tira; chegar com
     `#sorteio` abre direto.

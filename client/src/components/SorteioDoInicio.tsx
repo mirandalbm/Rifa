@@ -293,3 +293,64 @@ export function BotaoDoSorteio({ onAbrir }: { onAbrir: () => void }) {
     </button>
   );
 }
+
+/**
+ * A contagem do próximo sorteio na faixa de cima do Início (à direita do
+ * estado), com a cara da tela do sorteio: fundo escuro e as casas de dias,
+ * horas, minutos e segundos. É botão: abre a tela do sorteio, à esquerda do
+ * Início. Só no celular — do tablet em diante a coluna ao vivo já mostra a
+ * contagem.
+ */
+export function ContagemDoSorteio({ onAbrir }: { onAbrir: () => void }) {
+  const { data } = useQuery<AoVivo>({
+    queryKey: ["/api/public/vitrine/ao-vivo"],
+    refetchInterval: ATUALIZA_MS,
+    refetchIntervalInBackground: false,
+  });
+  const [agora, setAgora] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setAgora(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+  const proximo = data?.proximo ?? null;
+  const falta = proximo ? faltaParaOSorteio(proximo.drawAt, agora) : null;
+
+  const casas: [number, string][] = falta
+    ? [
+        [falta.dias, "d"],
+        [falta.horas, "h"],
+        [falta.minutos, "m"],
+        [falta.segundos, "s"],
+      ]
+    : [];
+  const rotulo = !proximo
+    ? "Nenhum sorteio marcado: ver os últimos ganhadores"
+    : falta?.aoVivo
+      ? `Sorteio ao vivo agora: ${proximo.prizeTitle}. Abrir a tela do sorteio`
+      : `Próximo sorteio em ${falta?.dias} dias, ${falta?.horas} horas e ${falta?.minutos} minutos: ${proximo.prizeTitle}. Abrir a tela do sorteio`;
+
+  return (
+    <button
+      type="button"
+      onClick={onAbrir}
+      aria-label={rotulo}
+      className="ml-auto flex h-9 min-w-0 items-center gap-1.5 rounded-md border border-line-2 bg-[#0B1F14] px-2 text-branco md:hidden"
+    >
+      <Radio size={14} aria-hidden className="shrink-0 text-[#8cc2ff]" />
+      {!proximo ? (
+        <span className="truncate text-xs font-semibold">Ganhadores</span>
+      ) : falta?.aoVivo ? (
+        <span className="truncate text-xs font-bold uppercase tracking-wide">Ao vivo</span>
+      ) : (
+        <span aria-hidden className="flex items-center gap-1">
+          {casas.map(([n, u]) => (
+            <span key={u} className="rounded bg-branco/10 px-1 py-0.5 text-xs leading-none">
+              <span className="tnum font-bold">{String(n).padStart(2, "0")}</span>
+              <span className="text-[10px] text-branco/70">{u}</span>
+            </span>
+          ))}
+        </span>
+      )}
+    </button>
+  );
+}

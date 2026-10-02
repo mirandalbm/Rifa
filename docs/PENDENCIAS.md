@@ -544,10 +544,14 @@ Na ordem de entrega do plano:
   pôster" sem ele (seção "Pôster do vídeo" do `CLAUDE.md`, `npm run
   poster`). **Falta no ambiente**: instalar o `ffmpeg` na imagem de
   produção (ou `FFMPEG_PATH`); sem ele o pôster simplesmente não sai.
-- [ ] **[código]** Transcode dos vídeos (recompressão e HLS) pelo Cloudflare
-  Stream: ponto de encaixe pronto em `server/services/videoProcessor.ts`
-  (implementar `ProcessadorDeVideo` com a conta e o token, escolher por
-  `VIDEO_PROCESSOR`). Depende de **conta e credencial do Cloudflare Stream**.
+- [x] **[código]** Pôster pelo Cloudflare Stream (`CloudflareStream` em
+  `server/services/videoProcessor.ts`, `VIDEO_PROCESSOR=cloudflare-stream`,
+  `ffmpeg` de reserva). **Falta no ambiente**: ativar o Stream na conta e pôr
+  `CLOUDFLARE_ACCOUNT_ID` e `CLOUDFLARE_STREAM_TOKEN` (token com permissão de
+  edição no Stream) no Railway.
+- [ ] **[código]** Entrega em HLS pelo Stream (guardar o `uid`, tocar pelo
+  Stream com `hls.js`, URL assinada) e vídeo nas conversas: depende do item
+  acima em produção, e muda o que se guarda por mídia.
   Também falta o pôster dos vídeos enviados antes desta mudança (não há
   preenchimento retroativo).
 - [x] Pôster, extras: **feitos.** O vídeo do bucket vem **em pedaços** de 4 MB

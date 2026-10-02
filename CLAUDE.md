@@ -84,7 +84,7 @@ arquitetura.
 | sorteio | `server/services/draw.ts` |
 | segundo fator | `server/services/totp.ts` |
 | variantes de imagem | `server/services/images.ts` |
-| pôster do vídeo (rifa, reels e story) e o ponto de encaixe do Cloudflare Stream | `shared/poster.ts` (regras e comando), `server/services/videoProcessor.ts` (`ProcessadorDeVideo`, `FfmpegLocal`), `gerarPosterDaMidia()` em `server/services/media.ts`, `gerarPosterDoStory()` em `server/services/vitrine.ts`, `poster` em `Publicacao.tsx`/`Reels.tsx`/`Stories.tsx`, `scripts/poster-test.ts`, `tests/poster.test.ts` |
+| pôster do vídeo (rifa, reels e story), o `ffmpeg` local e o Cloudflare Stream | `shared/poster.ts` (regras e comando), `server/services/videoProcessor.ts` (`ProcessadorDeVideo`, `FfmpegLocal`), `gerarPosterDaMidia()` em `server/services/media.ts`, `gerarPosterDoStory()` em `server/services/vitrine.ts`, `poster` em `Publicacao.tsx`/`Reels.tsx`/`Stories.tsx`, `scripts/poster-test.ts`, `tests/poster.test.ts`, `tests/cloudflareStream.test.ts` |
 | onde a mídia é guardada e a cópia de segurança | `server/services/storage.ts` (`LocalDiskStorage`, `CopiaS3`, `sincronizarCopia`), `/uploads` em `server/index.ts`, `tests/backup.test.ts` |
 | mensagens e modelos | `server/notifications/` |
 | cotas premiadas | `shared/premiadas.ts` (números escolhidos), `server/routes/admin.ts` (sorteio e escolha), `services/orders.ts` (revelação), `premiados` em `listarComentarios()` (o comentário fixo de quem levou), `client/src/components/CotaSurpresa.tsx` (o presente na publicação, que revela) |
@@ -194,9 +194,9 @@ arquitetura.
 
 - **Transcode do vídeo** (recompressão, HLS): hoje servimos o arquivo
   original. O pôster já existe (seção Mídia); o transcode é trabalho pesado
-  e não roda no processo web. O Cloudflare Stream resolve de fábrica e tem o
-  ponto de encaixe marcado em `server/services/videoProcessor.ts` — falta a
-  conta e o token.
+  e não roda no processo web. O Cloudflare Stream resolve de fábrica: o
+  `CloudflareStream` em `server/services/videoProcessor.ts` já tira o pôster
+  por ele (seção Pôster). Falta a **entrega** (guardar o `uid`, tocar em HLS).
 - Fila (BullMQ): os três relógios rodam com `setInterval` no processo,
   protegidos por trava de aplicação do Postgres — com várias réplicas só uma
   executa. Serve bem; a fila entra quando houver trabalho pesado de verdade.
@@ -812,8 +812,22 @@ dizer 16.000 × 16.000 e derrubar o processo. `npm run isolation` prova.
 O quadro que aparece antes do play (`poster` do `<video>`) do vídeo da
 rifa, do reels e do story. Quem faz é um **processador de vídeo**
 (`ProcessadorDeVideo` em `server/services/videoProcessor.ts`): hoje o
-`ffmpeg` local, se estiver instalado; amanhã o Cloudflare Stream, no ponto de
-encaixe marcado no mesmo arquivo (`VIDEO_PROCESSOR`).
+`ffmpeg` local, se estiver instalado, ou o Cloudflare Stream
+(`VIDEO_PROCESSOR=cloudflare-stream`).
+
+- **Cloudflare Stream** (`CloudflareStream`, com `CLOUDFLARE_ACCOUNT_ID` e
+  `CLOUDFLARE_STREAM_TOKEN`; sem as duas, cai no `ffmpeg` local com aviso no
+  log): envia o arquivo temporário (`openAsBlob`, sem pôr o vídeo na memória;
+  até 200 MB), espera `readyToStream`, busca o quadro (`time=0.5s`,
+  `width=720`) e **apaga o vídeo do Stream no `finally`**, dê certo ou não — o
+  Stream cobra por minuto guardado, e hoje ele só serve para o pôster. O
+  endereço do quadro vem da resposta e só vale `https` em
+  `*.cloudflarestream.com`. O token só vai no cabeçalho, nunca na URL nem no
+  log. Falhou, vence o prazo (120 s) ou deu erro: `ComReserva` tenta o
+  `ffmpeg` local; sem ele, "sem pôster". Teto próprio de 3 envios ao mesmo
+  tempo. O vídeo sai do nosso servidor para a Cloudflare enquanto dura o
+  processamento — é decisão de privacidade, ligada só pela variável.
+  `tests/cloudflareStream.test.ts` prova com um Stream de mentira.
 
 - **Degrada, nunca quebra.** Sem `ffmpeg`, com vídeo que ele não abre, com
   prazo estourado (20 s) ou saída maior que 8 MB, o resultado é "sem pôster"

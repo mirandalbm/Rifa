@@ -38,7 +38,7 @@ Pelo caminho que mudou (a mesma tabela "Onde mexer" do `CLAUDE.md`):
 | push, central de avisos | `push` |
 | regulamento, sorteio, transmissão | `transparencia` |
 | aparência, template, rodapé, banners, stories, vitrine | `aparencia`, `vitrine` |
-| vídeo: pôster, processador (`videoProcessor.ts`, `media.ts`) | `poster` (com e sem `ffmpeg`), `vitrine`, `publicacao` |
+| vídeo: pôster, processador (`videoProcessor.ts`, `media.ts`) | `poster` (com e sem `ffmpeg`), `tests/cloudflareStream.test.ts`, `vitrine`, `publicacao` |
 | comentários, perfil do apostador | `comentarios` |
 | segurança do organizador | `seguranca` |
 | verificação (selo) | `verificacao` |

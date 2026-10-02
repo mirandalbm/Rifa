@@ -7,16 +7,17 @@
  * `<video>` mostra o primeiro quadro como sempre mostrou. Nunca lança: o
  * envio da mídia e a publicação não dependem deste arquivo.
  *
- * PONTO DE ENCAIXE — Cloudflare Stream: o dia em que houver conta e token,
- * uma classe nova implementa `ProcessadorDeVideo` (envia o vídeo, devolve o
- * pôster gerado por eles e, depois, o HLS transcodificado) e entra em
- * `processadorDeVideo()` pela variável `VIDEO_PROCESSOR`. Nada fora deste
- * arquivo precisa mudar. Transcode (recompressão/HLS) NÃO existe aqui: é
- * trabalho pesado de verdade e é do Stream; o `ffmpeg` do processo web não
- * deve fazê-lo.
+ * Cloudflare Stream (`VIDEO_PROCESSOR=cloudflare-stream`, com
+ * `CLOUDFLARE_ACCOUNT_ID` e `CLOUDFLARE_STREAM_TOKEN`): `CloudflareStream`
+ * envia o vídeo, espera o Stream processar, busca o quadro dele e **apaga o
+ * vídeo do Stream** — hoje ele serve só para tirar o pôster sem `ffmpeg` no
+ * processo web (o Stream cobra por minuto guardado). Se o Stream falhar, o
+ * `ffmpeg` local tenta (`ComReserva`). A entrega em HLS (guardar o `uid` e
+ * tocar pelo Stream) é o passo seguinte e NÃO existe aqui: o `ffmpeg` do
+ * processo web não deve fazer transcode.
  */
 import { spawn } from "node:child_process";
-import { promises as fs } from "node:fs";
+import { promises as fs, openAsBlob } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import sharp from "sharp";
@@ -151,19 +152,155 @@ export class FfmpegLocal implements ProcessadorDeVideo {
   }
 }
 
+export interface OpcoesDoStream {
+  accountId: string;
+  token: string;
+  /** Injetável para teste; o padrão é o `fetch` do Node. */
+  fetch?: typeof fetch;
+  /** Prazo total (envio + processamento + quadro). */
+  prazoMs?: number;
+  /** Intervalo entre as consultas de "já ficou pronto?". */
+  intervaloMs?: number;
+  /** Largura do quadro pedido ao Stream. */
+  largura?: number;
+}
+
+/** O Stream aceita até 200 MB no envio simples; acima disso é "sem pôster". */
+export const STREAM_ENVIO_MAX_BYTES = 200 * 1024 * 1024;
+const API_DO_STREAM = "https://api.cloudflare.com/client/v4/accounts";
+const vagasDoStream = new Vagas(3);
+
+/**
+ * Pôster pelo Cloudflare Stream. Rede, não CPU: não passa pela fila do
+ * `ffmpeg`, mas tem teto próprio (3 envios ao mesmo tempo). **Nunca lança** e
+ * **sempre apaga** o vídeo do Stream no fim, dê certo ou não — o token vem do
+ * ambiente e nunca aparece no log.
+ */
+export class CloudflareStream implements ProcessadorDeVideo {
+  readonly nome = "cloudflare-stream";
+  private f: typeof fetch;
+  private prazoMs: number;
+  private intervaloMs: number;
+  private largura: number;
+  constructor(private o: OpcoesDoStream) {
+    this.f = o.fetch ?? fetch;
+    this.prazoMs = o.prazoMs ?? 120_000;
+    this.intervaloMs = o.intervaloMs ?? 2_000;
+    this.largura = o.largura ?? 720;
+  }
+
+  gerarPoster(arquivo: string): Promise<Buffer | null> {
+    return vagasDoStream.rodar(() => this.gerar(arquivo));
+  }
+
+  private get base() {
+    return `${API_DO_STREAM}/${encodeURIComponent(this.o.accountId)}/stream`;
+  }
+  private get auth() {
+    return { Authorization: `Bearer ${this.o.token}` };
+  }
+
+  private async gerar(arquivo: string): Promise<Buffer | null> {
+    const fim = Date.now() + this.prazoMs;
+    const restante = () => Math.max(1_000, fim - Date.now());
+    let uid: string | null = null;
+    try {
+      const { size } = await fs.stat(arquivo);
+      if (size === 0 || size > STREAM_ENVIO_MAX_BYTES) return null;
+      // `openAsBlob` lê do disco sob demanda: o vídeo não entra inteiro na memória.
+      const corpo = new FormData();
+      corpo.append("file", await openAsBlob(arquivo), "video");
+      corpo.append("requireSignedURLs", "false");
+      const envio = await this.f(this.base, {
+        method: "POST",
+        headers: this.auth,
+        body: corpo,
+        signal: AbortSignal.timeout(restante()),
+      });
+      const j = (await envio.json().catch(() => null)) as { success?: boolean; result?: { uid?: string } } | null;
+      uid = typeof j?.result?.uid === "string" ? j.result.uid : null;
+      if (!envio.ok || !j?.success || !uid) return null;
+
+      let miniatura: string | null = null;
+      while (Date.now() < fim) {
+        const r = await this.f(`${this.base}/${uid}`, { headers: this.auth, signal: AbortSignal.timeout(restante()) });
+        const d = (await r.json().catch(() => null)) as {
+          result?: { status?: { state?: string }; readyToStream?: boolean; thumbnail?: string };
+        } | null;
+        const estado = d?.result?.status?.state;
+        if (estado === "error") return null;
+        if (r.ok && d?.result?.readyToStream && typeof d.result.thumbnail === "string") {
+          miniatura = d.result.thumbnail;
+          break;
+        }
+        await new Promise((ok) => setTimeout(ok, this.intervaloMs));
+      }
+      if (!miniatura) return null;
+
+      // O endereço vem da resposta do Stream: só vale https e no domínio dele.
+      const url = new URL(miniatura);
+      if (url.protocol !== "https:" || !/(^|\.)cloudflarestream\.com$/.test(url.hostname)) return null;
+      url.searchParams.set("time", `${POSTER_INSTANTES_S[0]}s`);
+      url.searchParams.set("width", String(this.largura));
+      url.searchParams.set("fit", "scale-down");
+      const q = await this.f(url, { signal: AbortSignal.timeout(restante()) });
+      if (!q.ok) return null;
+      const bytes = Buffer.from(await q.arrayBuffer());
+      if (bytes.length === 0 || bytes.length > POSTER_SAIDA_MAX_BYTES) return null;
+      return await sharp(bytes, { limitInputPixels: 40_000_000 }).webp({ quality: POSTER_QUALIDADE }).toBuffer();
+    } catch {
+      return null;
+    } finally {
+      if (uid) await this.apagar(uid);
+    }
+  }
+
+  private async apagar(uid: string) {
+    try {
+      const r = await this.f(`${this.base}/${uid}`, { method: "DELETE", headers: this.auth, signal: AbortSignal.timeout(15_000) });
+      if (!r.ok && r.status !== 404) console.warn(`[video] Stream: não consegui apagar o vídeo ${uid} (HTTP ${r.status}).`);
+    } catch {
+      console.warn(`[video] Stream: não consegui apagar o vídeo ${uid}.`);
+    }
+  }
+}
+
+/** Tenta o principal; se não der pôster, tenta o reserva. */
+export class ComReserva implements ProcessadorDeVideo {
+  constructor(
+    private principal: ProcessadorDeVideo,
+    private reserva: ProcessadorDeVideo,
+  ) {}
+  get nome() {
+    return `${this.principal.nome}+${this.reserva.nome}`;
+  }
+  async gerarPoster(arquivo: string): Promise<Buffer | null> {
+    const a = await this.principal.gerarPoster(arquivo).catch(() => null);
+    return a ?? this.reserva.gerarPoster(arquivo).catch(() => null);
+  }
+}
+
 let escolhido: ProcessadorDeVideo | null = null;
 
 /**
- * O processador em uso. `VIDEO_PROCESSOR=nenhum` desliga; o padrão é o
- * `ffmpeg` local, que degrada sozinho se o programa não existir.
+ * O processador em uso. `VIDEO_PROCESSOR=nenhum` desliga; `cloudflare-stream`
+ * usa o Stream (com o `ffmpeg` de reserva); o padrão é o `ffmpeg` local, que
+ * degrada sozinho se o programa não existir.
  */
 export function processadorDeVideo(): ProcessadorDeVideo {
   if (escolhido) return escolhido;
   const quer = (process.env.VIDEO_PROCESSOR ?? "ffmpeg").toLowerCase();
   if (quer === "nenhum") escolhido = new SemProcessador();
-  else {
-    // "cloudflare-stream" ainda não existe (ver o ponto de encaixe acima):
-    // sem credencial, cai no local em vez de falhar.
+  else if (quer === "cloudflare-stream") {
+    const accountId = process.env.CLOUDFLARE_ACCOUNT_ID?.trim();
+    const token = process.env.CLOUDFLARE_STREAM_TOKEN?.trim();
+    if (accountId && token) escolhido = new ComReserva(new CloudflareStream({ accountId, token }), new FfmpegLocal());
+    else {
+      // Sem credencial, cai no local em vez de falhar.
+      console.warn("[video] cloudflare-stream pede CLOUDFLARE_ACCOUNT_ID e CLOUDFLARE_STREAM_TOKEN; usando o ffmpeg local.");
+      escolhido = new FfmpegLocal();
+    }
+  } else {
     if (quer !== "ffmpeg") console.warn(`[video] VIDEO_PROCESSOR="${quer}" não existe; usando o ffmpeg local.`);
     escolhido = new FfmpegLocal();
   }

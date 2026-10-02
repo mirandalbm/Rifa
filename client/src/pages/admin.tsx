@@ -201,8 +201,10 @@ export function AdminPainel() {
           </CartaoDoPainel>
           {/* Vendas do mês com a linha dos 30 dias. */}
           <CartaoDoPainel titulo="Vendas do mês" subtitulo="Receita paga neste mês">
-            <div className="px-5 pb-5">
-              <p className="tnum text-2xl font-medium text-green-deep">{formatBRL(data.mesCents ?? 0)}</p>
+            {/* O valor encolhe com o cartão (consulta de contêiner): com a coluna do assistente aberta, ou perto de 1024 px
+                com o menu aberto, o cartão fica estreito e o valor saía cortado. Dinheiro não se corta. */}
+            <div className="px-5 pb-5 [container-type:inline-size]">
+              <p className="tnum whitespace-nowrap font-medium text-green-deep [font-size:clamp(1.125rem,13cqi,1.5rem)]">{formatBRL(data.mesCents ?? 0)}</p>
               <div className="mt-3">
                 <Sparkline cheio pontos={trinta.map((d) => d.valor)} largura={240} altura={56} rotulo={`Receita dos últimos 30 dias, por dia: ${trinta.map((d) => formatBRL(d.valor)).join(", ")}`} />
               </div>

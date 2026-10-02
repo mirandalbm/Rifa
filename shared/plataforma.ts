@@ -129,7 +129,7 @@ export interface ConfigPlataforma {
   buscarTipos: ConfigBusca;
   /** Banner pago na vitrine: preço do dia, prazo e vagas. Nasce desligado. */
   bannerPago: ConfigBannerPago;
-  /** O assistente de IA (Chatbase) nos painéis do master e do organizador. Nasce desligado. */
+  /** O assistente de IA (Chatbase) nos painéis do master, do organizador e do afiliado. Nasce desligado. */
   assistenteIA: ConfigIA;
 }
 

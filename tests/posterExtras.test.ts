@@ -4,7 +4,7 @@ import { PEDACO_BYTES, Vagas, comArquivoTemporarioEmPedacos, limiteDeFfmpeg } fr
 
 describe("ffmpeg: limite de execuções simultâneas", () => {
   it("o padrão é 2 e o valor do ambiente só vale se for razoável", () => {
-    expect(limiteDeFfmpeg(undefined)).toBe(2);
+    expect(limiteDeFfmpeg("")).toBe(2);
     expect(limiteDeFfmpeg("4")).toBe(4);
     expect(limiteDeFfmpeg("0")).toBe(2);
     expect(limiteDeFfmpeg("999")).toBe(2);

@@ -109,6 +109,8 @@ O seed imprime as credenciais no fim:
 | `WHATSAPP_WABA_ID` | com WhatsApp | — (ID da conta do WhatsApp Business: o painel lista e cria os modelos) |
 | `WHATSAPP_LANGUAGE` | não | `pt_BR` |
 | `REMINDER_MINUTES_BEFORE` | não | `5` (lembrete antes de a reserva cair) |
+| `CHATBASE_API_KEY` | com o assistente de IA | — (chave da API do Chatbase; só no servidor) |
+| `CHATBASE_API_URL` | não | o do Chatbase (só fora de produção: a prova `npm run ia` aponta para um de mentira) |
 | `PORT` | não | `5000` |
 
 ## Publicar no Railway

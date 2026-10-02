@@ -461,6 +461,38 @@ async function bilhetesSoDaConta(eu: Lado) {
   checa("e sem dado nenhum", !/"itens"/.test(corpo), corpo.slice(0, 80));
 }
 
+/**
+ * O assistente de IA (`/api/ia/*`): a conversa é da sessão — nenhuma rota
+ * recebe id de ninguém. Visitante 401, cambista 403; o organizador, com o
+ * assistente desligado (o padrão), não alcança nada (404) e nada sai para o
+ * Chatbase. A conversa de uma organização contra a outra é provada em
+ * `npm run ia`, que sobe o Chatbase de mentira.
+ */
+async function assistenteDeIA(eu: Lado) {
+  const rotas: [string, string, RequestInit][] = [
+    ["GET sessão do assistente", "/api/ia/sessao", {}],
+    ["GET conversa do assistente", "/api/ia/conversa", {}],
+    ["DELETE conversa do assistente", "/api/ia/conversa", { method: "DELETE" }],
+    ["POST mensagem ao assistente", "/api/ia/mensagens", { method: "POST", body: '{"texto":"oi"}' }],
+  ];
+  for (const [nome, caminho, init] of rotas) {
+    const anon = await fetch(`${URL}${caminho}`, { ...init, headers: { "Content-Type": "application/json" } });
+    checa(`${nome}: visitante 401`, anon.status === 401, `HTTP ${anon.status}`);
+  }
+  const cambista = await entrar(`iso-cambista-${eu.slug.replace(/^iso-/, "")}@rifa.teste`, eu.senha);
+  for (const [nome, caminho, init] of rotas) {
+    const res = await pedir(cambista, caminho, init);
+    checa(`${nome}: cambista 403`, res.status === 403, `HTTP ${res.status}`);
+  }
+  const sessao = await pedir(eu.cookie, "/api/ia/sessao");
+  const corpo = await sessao.json().catch(() => null);
+  checa("sessão do assistente do organizador: desligado", sessao.status === 200 && corpo?.ligado === false, JSON.stringify(corpo));
+  for (const [nome, caminho, init] of rotas.slice(1)) {
+    const res = await pedir(eu.cookie, caminho, init);
+    checa(`${nome}: organizador sem o assistente, 404`, res.status === 404, `HTTP ${res.status}`);
+  }
+}
+
 /** Estas existem, mas não são do organizador: 403. */
 async function rotasDaPlataforma(eu: Lado) {
   const tentativas: [string, string, RequestInit][] = [
@@ -806,6 +838,9 @@ async function main() {
 
     console.log("\n  bilhetes privados do apostador (espera 401):");
     await bilhetesSoDaConta(norte);
+
+    console.log("\n  assistente de IA (a conversa é da sessão):");
+    await assistenteDeIA(norte);
 
     console.log("\n  rotas da plataforma (espera 403):");
     await rotasDaPlataforma(norte);

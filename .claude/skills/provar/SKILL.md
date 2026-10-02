@@ -21,7 +21,7 @@ env -u DATABASE_URL node_modules/.bin/vitest run
 O `vitest` roda **sem `DATABASE_URL`**, como no job de tipos e testes do CI:
 teste que importa `server/db.ts` (direto ou por um serviço) passa no seu
 terminal, onde a variável existe, e quebra lá. Regra pura vai em `shared/` ou
-num módulo de servidor sem banco (como `iaIdentidade.ts`).
+num módulo de servidor sem banco (como `server/services/chatbase.ts`).
 
 Falhou, pare e conserte: nada abaixo vale com o tipo quebrado.
 
@@ -55,7 +55,7 @@ Pelo caminho que mudou (a mesma tabela "Onde mexer" do `CLAUDE.md`):
 | afiliados, fiscal, guarda da comissão | `afiliados`, `fiscal`, `guarda` |
 | divulgação de terceiros (afiliado influenciador, publicação do apostador, menu Criar) | `divulgacao`, `afiliados`, `seguranca`, `isolation` |
 | bônus, patrocínio, banner pago, marketing | `bonus`, `patrocinio`, `banner`, `marketing` |
-| assistente de IA (`shared/ia.ts`, `services/ia.ts`) | `tests/ia.test.ts`, `ia` (com `CHATBASE_IDENTITY_SECRET` no servidor), `isolation` |
+| assistente de IA (`shared/ia.ts`, `services/ia.ts`, `services/chatbase.ts`, `routes/ia.ts`, a coluna em `AssistenteDoPainel.tsx`, o cache em `lib/session.ts`) | `tests/ia.test.ts`, `tests/chatbase.test.ts`, `tests/assistente.test.ts`, `ia` (com `CHATBASE_API_KEY` e `CHATBASE_API_URL=http://127.0.0.1:5099/api/v2` no servidor e no script), `isolation`; mexeu na coluna, `telas` |
 | editar, adiar, excluir rifa | `solicitacoes` |
 | conta do apostador, login com Google | `conta`, `google` (o servidor sobe com `GOOGLE_PROVA=1`) |
 | qualquer tela (client/) | `telas` (60 telas × 390/820/1440; não pode reprovar) |

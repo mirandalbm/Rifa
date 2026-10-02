@@ -1,6 +1,18 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { Role, Section } from "@shared/access";
 import { apiRequest } from "./queryClient";
+import { definirAssistenteAberto } from "./assistente";
+
+/**
+ * O que é da pessoa e não pode passar para quem entrar em seguida na mesma
+ * aba: a conversa com o assistente sai do cache (não basta invalidar — a tela
+ * mostraria a de quem saiu até a nova chegar), e a coluna fecha.
+ */
+function esquecerAssistente(qc: ReturnType<typeof useQueryClient>, fecharColuna: boolean) {
+  qc.removeQueries({ queryKey: ["/api/ia/conversa"] });
+  qc.removeQueries({ queryKey: ["/api/ia/sessao"] });
+  if (fecharColuna) definirAssistenteAberto(false);
+}
 
 export interface SessionInfo {
   role: Role;
@@ -37,7 +49,10 @@ export function useLogin() {
       const res = await apiRequest("POST", "/api/auth/login", creds);
       return (await res.json()) as SessionInfo;
     },
-    onSuccess: () => qc.invalidateQueries(),
+    onSuccess: () => {
+      esquecerAssistente(qc, false);
+      return qc.invalidateQueries();
+    },
   });
 }
 
@@ -47,6 +62,9 @@ export function useLogout() {
     mutationFn: async () => {
       await apiRequest("POST", "/api/auth/logout");
     },
-    onSuccess: () => qc.invalidateQueries(),
+    onSuccess: () => {
+      esquecerAssistente(qc, true);
+      return qc.invalidateQueries();
+    },
   });
 }

@@ -22,11 +22,17 @@ import {
   BUSCA_ORGANIZACOES_MAX,
   BUSCA_PAGINA,
   escaparCuringa,
+  fazerCursorDeCurtidas,
+  interpretarEstado,
+  interpretarOrdem,
   interpretarTermo,
+  lerCursorDeCurtidas,
   type ConfigBusca,
+  type OrdemDaBusca,
   type TermoDaBusca,
 } from "@shared/buscar";
-import { cortarPagina, fazerCursor, lerCursor } from "@shared/paginacao";
+import { cortarPagina, lerCursor } from "@shared/paginacao";
+import type { UF } from "@shared/endereco";
 import { hit, identify } from "./antifraude";
 import { getPlataforma } from "./settings";
 import { midiasDas, urlDaFoto } from "./perfil";
@@ -47,7 +53,7 @@ const contem = (coluna: unknown, texto: string) => sql`${semAcentoSql(coluna)} l
 
 const orgVisivel = and(isNull(organizations.archivedAt), isNull(organizations.banidaEm))!;
 
-async function rifasDaGrade(termo: TermoDaBusca | null, depois: unknown) {
+async function rifasDaGrade(termo: TermoDaBusca | null, depois: unknown, ordem: OrdemDaBusca, estado: UF | null) {
   const filtros: SQL[] = [
     eq(campaigns.status, "published"),
     isNull(campaigns.travadaEm),
@@ -58,14 +64,23 @@ async function rifasDaGrade(termo: TermoDaBusca | null, depois: unknown) {
   if (termo) {
     filtros.push(or(contem(campaigns.title, termo.texto), contem(campaigns.prizeTitle, termo.texto), contem(organizations.name, termo.texto))!);
   }
-  const cursor = lerCursor(depois);
-  if (cursor) {
-    filtros.push(
-      or(
-        lt(campaigns.publishedAt, cursor.criadoEm),
-        and(eq(campaigns.publishedAt, cursor.criadoEm), lt(campaigns.id, cursor.id)),
-      )!,
-    );
+  if (estado) filtros.push(eq(organizations.uf, estado));
+  const porCurtidas = ordem === "curtidas";
+  if (porCurtidas) {
+    const c = lerCursorDeCurtidas(depois);
+    if (c) {
+      filtros.push(or(lt(campaigns.curtidasCount, c.curtidas), and(eq(campaigns.curtidasCount, c.curtidas), lt(campaigns.id, c.id)))!);
+    }
+  } else {
+    const cursor = lerCursor(depois);
+    if (cursor) {
+      filtros.push(
+        or(
+          lt(campaigns.publishedAt, cursor.criadoEm),
+          and(eq(campaigns.publishedAt, cursor.criadoEm), lt(campaigns.id, cursor.id)),
+        )!,
+      );
+    }
   }
   const linhas = await db
     .select({
@@ -73,18 +88,20 @@ async function rifasDaGrade(termo: TermoDaBusca | null, depois: unknown) {
       slug: campaigns.slug,
       premio: campaigns.prizeTitle,
       publicadaEm: campaigns.publishedAt,
+      curtidas: campaigns.curtidasCount,
       orgNome: organizations.name,
       orgSlug: organizations.slug,
     })
     .from(campaigns)
     .innerJoin(organizations, eq(organizations.id, campaigns.organizationId))
     .where(and(...filtros))
-    .orderBy(desc(campaigns.publishedAt), desc(campaigns.id))
+    .orderBy(...(porCurtidas ? [desc(campaigns.curtidasCount), desc(campaigns.id)] : [desc(campaigns.publishedAt), desc(campaigns.id)]))
     .limit(BUSCA_PAGINA + 1);
-  const { itens, proximo } = cortarPagina(
-    linhas.map((l) => ({ ...l, criadoEm: l.publicadaEm! })),
-    BUSCA_PAGINA,
-  );
+  const temMais = linhas.length > BUSCA_PAGINA;
+  const itens = linhas.slice(0, BUSCA_PAGINA);
+  const ultima = itens[itens.length - 1];
+  // O cursor é o da última linha MOSTRADA; sem COUNT(*) — uma linha a mais diz se há próxima.
+  const proximo = temMais && ultima ? (porCurtidas ? fazerCursorDeCurtidas(ultima.curtidas, ultima.id) : `${ultima.publicadaEm!.toISOString()}|${ultima.id}`) : null;
   // A capa é a primeira imagem da publicação (o banner, senão a primeira foto) — nunca o vídeo.
   const midias = await midiasDas(itens.map((i) => i.id));
   return {
@@ -129,7 +146,7 @@ async function apostadorPeloApelido(termo: TermoDaBusca) {
   return [{ apelido: b.apelido, caminho: `/u/${b.apelido}`, foto: urlDaFotoDoApostador(b.apelido, b.fotoEm), verificado: Boolean(b.verificadoEm) }];
 }
 
-export async function buscar(req: Request, q: { q?: unknown; depois?: unknown }) {
+export async function buscar(req: Request, q: { q?: unknown; depois?: unknown; ordem?: unknown; estado?: unknown }) {
   const config = await getPlataforma();
   if (!config.buscarLigado) return { ligado: false as const };
   const tipos: ConfigBusca = config.buscarTipos;
@@ -139,17 +156,22 @@ export async function buscar(req: Request, q: { q?: unknown; depois?: unknown })
   if (limite.excedeu) throw new BuscaError("Muitas buscas seguidas. Espere um minuto.", 429);
 
   const termo = interpretarTermo(q.q);
-  const primeiraPagina = !lerCursor(q.depois);
+  const ordem = interpretarOrdem(q.ordem);
+  const estado = interpretarEstado(q.estado);
+  // Cursor fora do formato (de qualquer das duas ordens) é a primeira página.
+  const primeiraPagina = !(ordem === "curtidas" ? lerCursorDeCurtidas(q.depois) : lerCursor(q.depois));
   const comTexto = typeof q.q === "string" && q.q.trim().length > 0;
   // Texto curto demais não busca (e não devolve a grade como se tivesse buscado).
   if (comTexto && !termo) return { ligado: true as const, tipos, curto: true, rifas: [], organizacoes: [], apostadores: [], proximo: null };
 
-  const rifas = tipos.rifas ? await rifasDaGrade(termo, q.depois) : { itens: [], proximo: null };
+  const rifas = tipos.rifas ? await rifasDaGrade(termo, q.depois, ordem, estado) : { itens: [], proximo: null };
   const organizacoes = termo && primeiraPagina && tipos.organizacoes && !termo.apelido ? await organizacoesDoTexto(termo) : [];
   const apostadores = termo && primeiraPagina && tipos.apostadores ? await apostadorPeloApelido(termo) : [];
   return {
     ligado: true as const,
     tipos,
+    ordem,
+    estado,
     curto: false,
     rifas: rifas.itens,
     organizacoes,

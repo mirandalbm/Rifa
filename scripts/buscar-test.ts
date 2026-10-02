@@ -140,6 +140,41 @@ async function main() {
     r = await anon.req("GET", "/api/public/buscar?depois=lixo' or 1=1 --");
     checa("cursor fora do formato vira primeira página, nunca erro", r.status === 200 && r.json.rifas.length === BUSCA_PAGINA);
 
+    console.log("\n  ordem por curtidas e filtro por estado:");
+    // Contadores reais da publicação: dois empatados no topo e um logo abaixo.
+    await db.update(campaigns).set({ curtidasCount: 900_001 }).where(inArray(campaigns.slug, [`${P}-moto`, `${P}-lote-05`]));
+    await db.update(campaigns).set({ curtidasCount: 900_000 }).where(eq(campaigns.slug, `${P}-acento`));
+    r = await anon.req("GET", "/api/public/buscar?ordem=curtidas");
+    const porCurtidas = (r.json?.rifas ?? []).map((x: { slug: string }) => x.slug);
+    checa("\"Mais curtidas\" põe as mais curtidas na frente, o empate pelo id", [`${P}-moto`, `${P}-lote-05`].every((s) => porCurtidas.slice(0, 2).includes(s)) && porCurtidas[2] === `${P}-acento`, porCurtidas.slice(0, 4).join(", "));
+    checa("a resposta nunca traz o número de curtidas", !/curtida/i.test(JSON.stringify(r.json?.rifas ?? [])));
+    const todasCurtidas: string[] = [...porCurtidas];
+    let proxCurtidas: string | null = r.json?.proximo;
+    let pagCurtidas = 1;
+    while (proxCurtidas && pagCurtidas < 10) {
+      const p = await anon.req("GET", `/api/public/buscar?ordem=curtidas&depois=${encodeURIComponent(proxCurtidas)}`);
+      todasCurtidas.push(...p.json.rifas.map((x: { slug: string }) => x.slug));
+      proxCurtidas = p.json.proximo;
+      pagCurtidas++;
+    }
+    checa("andar por todas as páginas por curtidas não repete nem pula rifa", new Set(todasCurtidas).size === todasCurtidas.length && todas.every((s) => todasCurtidas.includes(s)), `${todasCurtidas.length} itens em ${pagCurtidas} páginas`);
+    r = await anon.req("GET", "/api/public/buscar?ordem=curtidas&depois=lixo' or 1=1 --");
+    checa("cursor de curtidas fora do formato vira primeira página, nunca erro", r.status === 200 && r.json.rifas.length === BUSCA_PAGINA);
+    r = await anon.req("GET", `/api/public/buscar?ordem=curtidas&depois=${encodeURIComponent("2026-10-01T00:00:00.000Z|00000000-0000-0000-0000-000000000000")}`);
+    checa("cursor da outra ordem também vira primeira página", r.status === 200 && r.json.rifas.length === BUSCA_PAGINA);
+    r = await anon.req("GET", "/api/public/buscar?ordem=popularidade-inventada");
+    checa("ordem desconhecida é a de sempre (as mais novas)", r.status === 200 && r.json.ordem === "novas");
+    r = await anon.req("GET", "/api/public/buscar?estado=BA");
+    checa("o estado filtra pela organização da rifa", r.status === 200 && r.json.rifas.some((x: { slug: string }) => x.slug === `${P}-da-vizinha`) && !r.json.rifas.some((x: { slug: string }) => x.slug === `${P}-moto`), JSON.stringify(r.json?.rifas?.map((x: { slug: string }) => x.slug)));
+    r = await anon.req("GET", "/api/public/buscar?estado=ba");
+    checa("a sigla vale em minúscula", r.json?.rifas?.some((x: { slug: string }) => x.slug === `${P}-da-vizinha`));
+    r = await anon.req("GET", "/api/public/buscar?estado=XX%27%20or%201=1");
+    checa("estado fora da lista não filtra (e não é SQL)", r.status === 200 && r.json.estado === null && r.json.rifas.length === BUSCA_PAGINA);
+    r = await anon.req("GET", "/api/public/buscar?estado=PE");
+    checa("organização arquivada segue fora mesmo com o estado dela", !r.json?.rifas?.some((x: { slug: string }) => x.slug === `${P}-da-arquivada`));
+    r = await anon.req("GET", "/api/public/buscar?estado=BA&ordem=curtidas&q=buscatestevizinha");
+    checa("estado, ordem e texto juntos", r.json?.rifas?.length === 1 && r.json.rifas[0].slug === `${P}-da-vizinha`);
+
     console.log("\n  a busca por texto:");
     r = await anon.req("GET", "/api/public/buscar?q=buscatestemoto");
     checa("acha pelo título", r.json?.rifas?.some((x: { slug: string }) => x.slug === `${P}-moto`) && r.json.rifas.length === 1, JSON.stringify(r.json?.rifas?.map((x: { slug: string }) => x.slug)));

@@ -13,6 +13,8 @@ import { regraDoReembolso } from "./reembolso";
 import { REGRA_DA_APROXIMACAO } from "./sorteio";
 import { cotasMinimasParaSortear } from "./campanhaLegal";
 
+const DIAS_DA_FEDERAL_TEXTO = "quartas e sábados, às 19h de Brasília";
+
 export const REGULAMENTO_EXTRA_MAX = 3000;
 
 /** Dias para o ganhador receber o prêmio depois do sorteio. */
@@ -47,6 +49,8 @@ export interface DadosDoRegulamento {
     aceitaCotaBonus?: boolean;
     /** Mínimo de cotas vendidas (%) para o sorteio acontecer; 0 ou ausente = sem mínimo. */
     minimoVendidoPct?: number;
+    /** Como a rifa chega ao sorteio (`MODOS_DO_SORTEIO`); ausente = na data marcada. */
+    modoSorteio?: string;
   };
   promotora: {
     nome: string;
@@ -132,19 +136,29 @@ export function montarRegulamento(d: DadosDoRegulamento): Secao[] {
     {
       titulo: "5. Apuração",
       itens: [
-        quando
-          ? `O sorteio acontece em ${quando}, com os 5 prêmios da extração da Loteria Federal dessa data.`
-          : "A data do sorteio é informada antes da publicação.",
+        rifa.modoSorteio === "quando_completar" && !quando
+          ? `O sorteio não tem data marcada: acontece na primeira extração da Loteria Federal (${DIAS_DA_FEDERAL_TEXTO}) pelo menos 24 horas depois de a última cota ser paga, com os 5 prêmios dessa extração. A data é informada na página da rifa e avisada a quem comprou.`
+          : quando
+            ? `O sorteio acontece em ${quando}, com os 5 prêmios da extração da Loteria Federal dessa data.`
+            : "A data do sorteio é informada antes da publicação.",
         "O número vencedor é calculado a partir dos 5 prêmios da Loteria Federal e de uma semente secreta, cujo resumo (hash SHA-256) foi publicado antes da primeira venda. Depois do sorteio a semente é publicada, e qualquer pessoa pode refazer a conta na página da rifa.",
         ...(rifa.drawSeedHash ? [`Resumo da semente publicado: ${rifa.drawSeedHash}.`] : []),
-        ...(rifa.minimoVendidoPct && rifa.minimoVendidoPct > 0
-          ? [
-              `O sorteio só é realizado com pelo menos ${rifa.minimoVendidoPct}% das cotas vendidas e pagas (${groupNumber(
-                cotasMinimasParaSortear(rifa.totalQuotas, rifa.minimoVendidoPct),
-              )} cotas). Se o mínimo não for atingido até a data, o sorteio é adiado para nova data, informada na página da rifa e avisada a quem comprou.`,
-            ]
-          : []),
-        REGRA_DA_APROXIMACAO,
+        ...(rifa.modoSorteio === "quando_completar"
+          ? ["O sorteio só é realizado com todas as cotas vendidas e pagas (rifa cheia)."]
+          : rifa.modoSorteio === "cheia_com_data"
+            ? [
+                "O sorteio só é realizado com todas as cotas vendidas e pagas (rifa cheia). Se a rifa não completar até a data, o sorteio é adiado para nova data, informada na página da rifa e avisada a quem comprou.",
+              ]
+            : rifa.minimoVendidoPct && rifa.minimoVendidoPct > 0
+              ? [
+                  `O sorteio só é realizado com pelo menos ${rifa.minimoVendidoPct}% das cotas vendidas e pagas (${groupNumber(
+                    cotasMinimasParaSortear(rifa.totalQuotas, rifa.minimoVendidoPct),
+                  )} cotas). Se o mínimo não for atingido até a data, o sorteio é adiado para nova data, informada na página da rifa e avisada a quem comprou.`,
+                ]
+              : []),
+        rifa.modoSorteio === "promotora_completa"
+          ? "As cotas não vendidas até o sorteio ficam com a promotora. Se o número sorteado for uma delas, não há ganhador entre os participantes e o prêmio permanece com a promotora."
+          : REGRA_DA_APROXIMACAO,
       ],
     },
     {

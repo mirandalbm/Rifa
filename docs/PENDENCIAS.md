@@ -371,6 +371,13 @@ Na ordem de entrega do plano:
   regulamento); abaixo dele o sorteio não roda e a promotora pede o
   adiamento. **Falta no ambiente**: `db:push` (coluna
   `campaigns.minimo_vendido_pct`) antes do código.
+- [x] **[código]** Rifa cheia: a promotora escolhe o modo do sorteio nos
+  dados legais — na data (com o mínimo dela), cheia na data, cheia com
+  sorteio quando completar (a data é marcada sozinha na próxima Federal) ou a
+  promotora fica com as cotas não vendidas. **Falta no ambiente**: `db:push`
+  (coluna `campaigns.modo_sorteio`). **Para o advogado**: confirmar que o
+  plano de operação aceita o modo "a promotora completa" (o prêmio pode não
+  ser entregue a participante).
 - [ ] **[lançamento]** Prêmio em dinheiro e itens proibidos (Decreto
   70.951/72, art. 10: remédio, arma, munição, explosivo, fogos, bebida
   alcoólica, tabaco): o cadastro do prêmio é texto livre e as cotas

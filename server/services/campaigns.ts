@@ -24,8 +24,12 @@ import { commitSeed } from "./draw";
 import { validarRegulamentoExtra } from "@shared/regulamento";
 import {
   CERTIFICADO_MAX_BYTES,
+  minimoDoModo,
+  modoSemData,
+  modoValido,
   problemaNoMinimoVendido,
   problemaNosDadosLegais,
+  type ModoDoSorteio,
   tipoDoCertificado,
 } from "@shared/campanhaLegal";
 
@@ -46,6 +50,9 @@ const LOCKED_AFTER_PUBLISH = [
   "slug",
   // Quem comprou comprou aquela autorização e aquela data.
   "authorizationCode",
+  // E aquela regra de sorteio: o modo (rifa cheia, a promotora completa…) e o mínimo.
+  "modoSorteio",
+  "minimoVendidoPct",
   "authorizationFileKey",
   "drawAt",
   // Cota de bônus é cláusula do regulamento aprovado.
@@ -128,7 +135,9 @@ export async function publishBlockers(campaignId: string): Promise<string[]> {
   if (campaign.authorizationCode && !campaign.authorizationFileKey) {
     blockers.push("Anexe o arquivo do certificado de autorização (PDF ou imagem).");
   }
-  if (!campaign.drawAt) {
+  if (modoSemData(campaign.modoSorteio as ModoDoSorteio)) {
+    // "Quando completar": a data é marcada sozinha quando a última cota é paga.
+  } else if (!campaign.drawAt) {
     blockers.push("Defina a data do sorteio.");
   } else if (campaign.drawAt.getTime() <= Date.now()) {
     blockers.push("A data do sorteio já passou: defina uma data futura.");
@@ -303,6 +312,8 @@ export async function salvarDadosLegais(
     aceitaCotaBonus?: boolean;
     /** Mínimo de cotas vendidas (%) para sortear. Trava ao publicar. */
     minimoVendidoPct?: unknown;
+    /** Como a rifa chega ao sorteio (`MODOS_DO_SORTEIO`). Trava ao publicar. */
+    modoSorteio?: unknown;
   },
 ): Promise<Campaign> {
   if (campaign.status !== "draft") {
@@ -322,6 +333,14 @@ export async function salvarDadosLegais(
     const p = problemaNoMinimoVendido(entrada.minimoVendidoPct);
     if (p) throw new CampaignRuleError(p);
   }
+  if (entrada.modoSorteio !== undefined && !modoValido(entrada.modoSorteio)) {
+    throw new CampaignRuleError("Modo do sorteio desconhecido.");
+  }
+  // O modo manda no mínimo e na data: rifa cheia exige 100%, "quando completar"
+  // não tem data (é marcada ao completar) e a promotora que completa não tem mínimo.
+  const modo = (entrada.modoSorteio ?? campaign.modoSorteio) as ModoDoSorteio;
+  const minimoPedido =
+    entrada.minimoVendidoPct !== undefined ? (entrada.minimoVendidoPct as number) : campaign.minimoVendidoPct;
 
   let regulamentoExtra: string | null | undefined;
   if (entrada.regulamentoExtra !== undefined) {
@@ -350,7 +369,11 @@ export async function salvarDadosLegais(
     if (drawAt !== undefined) mudancas.drawAt = drawAt;
     if (regulamentoExtra !== undefined) mudancas.regulamentoExtra = regulamentoExtra;
     if (entrada.aceitaCotaBonus !== undefined) mudancas.aceitaCotaBonus = entrada.aceitaCotaBonus;
-    if (entrada.minimoVendidoPct !== undefined) mudancas.minimoVendidoPct = entrada.minimoVendidoPct as number;
+    if (entrada.modoSorteio !== undefined || entrada.minimoVendidoPct !== undefined) {
+      mudancas.modoSorteio = modo;
+      mudancas.minimoVendidoPct = minimoDoModo(modo, minimoPedido);
+    }
+    if (modoSemData(modo)) mudancas.drawAt = null;
     if (arquivo) mudancas.authorizationFileKey = CERTIFICADO_NO_BANCO;
     if (Object.keys(mudancas).length === 0) throw new CampaignRuleError("Nada para salvar.");
 

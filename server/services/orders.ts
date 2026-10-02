@@ -4,6 +4,8 @@
  * O front nunca envia preço — envia campanha e quantidade (ou os números
  * escolhidos). O total é sempre recalculado aqui, em centavos inteiros.
  */
+import { avisarSorteioMarcado, emSegundoPlano } from "./push";
+import { SORTEIO_SEM_DATA, proximaExtracaoFederal } from "@shared/campanhaLegal";
 import { comissaoNaRifa, cupomValeNaRifa } from "./afiliados";
 import type { Campaign } from "@shared/schema";
 import { validarOrigem } from "@shared/resultados";
@@ -901,6 +903,7 @@ async function settleOrderAsPaid(order: typeof orders.$inferSelect) {
 
   const paidAt = new Date();
 
+  let marcouSorteio = false;
   const result = await db.transaction(async (tx) => {
     // Rifa já sorteada não confirma pedido: o quadro está congelado e o
     // contemplado já foi escolhido. A linha do sorteio travada (`FOR SHARE`)
@@ -930,6 +933,35 @@ async function settleOrderAsPaid(order: typeof orders.$inferSelect) {
       orderId: order.id,
       amountCents: order.amountCents,
     });
+
+    // "Rifa cheia, sorteio quando completar": a última cota paga marca o sorteio
+    // para a próxima extração da Federal (com 24 h de folga). Condicional no
+    // `UPDATE`: só uma confirmação marca, e só com a rifa de fato cheia.
+    let sorteioMarcado: Date | null = null;
+    if (campaign?.modoSorteio === "quando_completar" && !campaign.drawAt) {
+      const proxima = proximaExtracaoFederal(paidAt);
+      const marcada = (
+        await tx.execute(sql`
+          UPDATE campaigns c SET draw_at = ${proxima}
+            FROM campaign_stats s
+           WHERE c.id = ${order.campaignId}::uuid AND s.campaign_id = c.id
+             AND c.draw_at IS NULL AND s.sold_count >= c.total_quotas
+          RETURNING c.draw_at
+        `)
+      ).rows;
+      if (marcada.length) {
+        sorteioMarcado = proxima;
+        marcouSorteio = true;
+        // A comissão que esperava um sorteio sem data passa a esperar este, sem
+        // nunca encurtar a carência do estorno.
+        await tx.execute(sql`
+          UPDATE commissions c SET available_at = GREATEST(${proxima}::timestamp, o.paid_at + make_interval(days => ${REFUND_WINDOW_DAYS}))
+            FROM orders o
+           WHERE c.order_id = o.id AND o.campaign_id = ${order.campaignId}::uuid
+             AND c.status = 'pending' AND c.available_at >= ${SORTEIO_SEM_DATA}
+        `);
+      }
+    }
 
     const prizes = numbers.length
       ? await tx
@@ -1001,7 +1033,10 @@ async function settleOrderAsPaid(order: typeof orders.$inferSelect) {
           ...comissaoInicial(
             liberacao,
             paidAt,
-            commissionAvailableAt(paidAt, REFUND_WINDOW_DAYS, campaign?.drawAt),
+            // Sorteio ainda sem data ("quando completar"): a comissão espera por ele.
+            campaign?.modoSorteio === "quando_completar" && !campaign.drawAt && !sorteioMarcado
+              ? SORTEIO_SEM_DATA
+              : commissionAvailableAt(paidAt, REFUND_WINDOW_DAYS, sorteioMarcado ?? campaign?.drawAt),
             order.comissaoGuardada,
           ),
         })
@@ -1023,6 +1058,9 @@ async function settleOrderAsPaid(order: typeof orders.$inferSelect) {
   });
 
   if (!result) return null;
+
+  // A rifa encheu e o sorteio ganhou data: avisa quem comprou e quem segue (fora da transação).
+  if (marcouSorteio) emSegundoPlano(avisarSorteioMarcado(order.campaignId), "sorteio marcado");
 
   // Metas: depois da transação e sem derrubar o pagamento (a venda já aconteceu).
   if (bonus.bonusLigado) {
@@ -1462,6 +1500,29 @@ export async function refundOrder(orderId: string): Promise<RefundResult | null>
           orderId: order.id,
           amountCents: order.amountCents,
         });
+
+    // "Quando completar": a rifa que tinha enchido voltou a ter cota livre. A
+    // data marcada cai (o regulamento promete sortear só com a rifa cheia) e a
+    // comissão volta a esperar a próxima marcação — que acontece de novo
+    // quando a rifa encher.
+    if (liberadas.length && campaign?.modoSorteio === "quando_completar") {
+      const desmarcada = (
+        await tx.execute(sql`
+          UPDATE campaigns c SET draw_at = NULL
+            FROM campaign_stats s
+           WHERE c.id = ${order.campaignId}::uuid AND s.campaign_id = c.id
+             AND c.status = 'published' AND c.draw_at IS NOT NULL
+             AND s.sold_count < c.total_quotas
+          RETURNING c.id
+        `)
+      ).rows;
+      if (desmarcada.length) {
+        await tx.execute(sql`
+          UPDATE commissions SET available_at = ${SORTEIO_SEM_DATA}
+           WHERE status = 'pending' AND campaign_id = ${order.campaignId}::uuid
+        `);
+      }
+    }
 
     // A cota premiada que este pedido reclamou volta a valer — o prêmio não
     // foi pago por quem estornou.

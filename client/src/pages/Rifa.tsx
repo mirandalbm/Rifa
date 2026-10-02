@@ -383,7 +383,7 @@ export default function Rifa() {
         <p className="relative font-mono text-[11px] uppercase tracking-widest text-yellow">
           {campaign.drawAt
             ? `Sorteio ${new Date(campaign.drawAt).toLocaleDateString("pt-BR")} · Loteria Federal`
-            : "Sorteio a definir"}
+            : "Sorteio quando completar · Loteria Federal"}
         </p>
         {campaign.adiamentos && campaign.drawAtOriginal ? (
           <p className="relative mt-1 text-xs text-branco">

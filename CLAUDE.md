@@ -2089,6 +2089,21 @@ desconto na primeira compra — **pago pela plataforma**.
   Abaixo dele o sorteio recusa (409, dentro da mesma transação, contando
   `campaign_stats.sold_count`) e a promotora pede o adiamento (seção "Editar
   e adiar rifa publicada"). `npm run transparencia` prova.
+- **Como a rifa chega ao sorteio é escolha da promotora** (`campaigns.modo_sorteio`,
+  `MODOS_DO_SORTEIO` em `shared/campanhaLegal.ts`, nos dados legais; trava ao
+  publicar, fora do `PATCH`, e entra no regulamento): **na data** (o mínimo
+  que ela definir), **rifa cheia na data** (mínimo 100%; não completou, pede
+  o adiamento), **rifa cheia, sorteio quando completar** (sem data: a última
+  cota paga, em `settleOrderAsPaid`, marca `draw_at` para a próxima extração
+  da Federal — quarta ou sábado, 19h de Brasília, com 24 h de folga,
+  `proximaExtracaoFederal()` — num `UPDATE` condicional; push
+  `sorteio_marcado`; a comissão de quem vendeu antes espera a data com a data
+  provisória `SORTEIO_SEM_DATA` e passa a esperar a marcada, sem encurtar a
+  carência; estorno que deixa a rifa não cheia **desmarca** a data e a
+  comissão volta a esperar — encheu de novo, marca de novo e avisa de novo)
+  e **a promotora completa** (sem mínimo; o número sorteado não
+  vendido é dela e o prêmio fica com ela — sem aproximação). `npm run
+  transparencia` prova os três.
 - **A conferência roda no aparelho de quem olha** (`conferirSorteio()`, com
   WebCrypto): a mesma conta de `drawNumber()`. Mudou uma, mude a outra —
   `tests/sorteio.test.ts` compara as duas em 300 casos.

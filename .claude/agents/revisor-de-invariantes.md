@@ -72,7 +72,11 @@ Procure, nesta ordem, o que é **grave**:
     débito; rodadas sem teto. Na cobrança ("Cobrança do assistente"):
     preço ou créditos vindos do corpo; titular do Pix fora da sessão; mensagem
     saindo para o Chatbase sem `exigirSaldo`; mudança de saldo sem linha no
-    livro (chave única) ou fora da transação com a conta travada; débito fora
+    livro (chave única) ou fora da transação com a conta travada; ajuste de
+    crédito alcançável por quem não é a plataforma, sem motivo, sem auditoria
+    na mesma transação, sem chave de idempotência, mexendo na franquia ou
+    deixando o avulso negativo; relatório ou extrato com e-mail, telefone ou
+    nome de pessoa; débito fora
     da transação do uso; Pix creditado sem o `UPDATE` condicional
     `pendente → paga`; CPF/CNPJ do pagador guardado.
 

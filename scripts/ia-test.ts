@@ -30,10 +30,11 @@
  */
 import "dotenv/config";
 import http from "node:http";
+import { randomUUID } from "node:crypto";
 import { eq, inArray, like } from "drizzle-orm";
 import { baseUrl } from "./base-url";
 import { db, pool } from "../server/db";
-import { affiliates, iaContas, iaConversas, iaLancamentos, iaPagamentos, iaUso, organizations, rateEvents, users } from "../shared/schema";
+import { affiliates, auditLog, iaContas, iaConversas, iaLancamentos, iaPagamentos, iaUso, organizations, rateEvents, users } from "../shared/schema";
 import { estornarPagamentoIA, vencerFranquias } from "../server/services/iaCobranca";
 import { MS_DO_CICLO } from "../shared/iaCobranca";
 import { hashPassword } from "../server/auth";
@@ -442,6 +443,64 @@ async function main() {
     r = await sergio.req("POST", "/api/ia/mensagens", { texto: "oi" });
     checa("o cambista segue sem assistente, mesmo com tudo liberado (403)", r.status === 403, `HTTP ${r.status}`);
     checa("a configuração não vaza para a vitrine", !(await anon.req("GET", "/api/public/app")).texto.includes(AGENTE));
+
+    console.log("\nRelatório e ajuste de crédito pela plataforma");
+    const [slugMarina] = await db.select({ slug: organizations.slug }).from(organizations).where(eq(organizations.id, uMarina.org!));
+    const [codJoao] = await db.select({ code: affiliates.code }).from(affiliates).where(eq(affiliates.id, afJoao.id));
+    for (const [quem, c] of [["organizador", marina], ["afiliado", joao]] as const) {
+      r = await c.req("GET", "/api/admin/ia/relatorio");
+      checa(`o ${quem} não lê o relatório (403)`, r.status === 403, `HTTP ${r.status}`);
+      r = await c.req("POST", "/api/admin/ia/ajustes", { titularTipo: "organizacao", titular: slugMarina.slug, creditos: 1000, motivo: "tentando se dar crédito", idempotencia: randomUUID() });
+      checa(`o ${quem} não se dá crédito (403)`, r.status === 403, `HTTP ${r.status}`);
+    }
+    r = await admin.req("GET", "/api/admin/ia/relatorio?dias=30");
+    const linhaDe = (tipo: string, titular: string) => (r.json?.linhas ?? []).find((l: any) => l.titularTipo === tipo && l.titular === titular);
+    const lM = linhaDe("organizacao", slugMarina.slug);
+    const lV = linhaDe("organizacao", VIZINHA.slug);
+    const lJ = linhaDe("afiliado", codJoao.code);
+    const pagos = await db.select().from(iaPagamentos).where(eq(iaPagamentos.status, "paga"));
+    const recebido = (id: string) => pagos.filter((x) => x.titularId === id).reduce((t, x) => t + x.valorCents, 0);
+    checa(
+      "o relatório traz cada conta com a receita dos Pix pagos dela",
+      r.status === 200 && lM?.receitaCents === recebido(uMarina.org!) && lV?.receitaCents === recebido(orgVizinha.id) && lJ?.receitaCents === recebido(afJoao.id),
+      JSON.stringify([lM?.receitaCents, lV?.receitaCents, lJ?.receitaCents]),
+    );
+    checa("…as mensagens e os créditos que cada uma usou", lV?.mensagens === 1 && lV?.creditosUsados === 2 && lJ?.mensagens === 1 && lM?.mensagens >= 1);
+    checa("…e o uso do master à parte, como custo", r.json?.totais?.creditosDaPlataforma > 0 && !(r.json?.linhas ?? []).some((l: any) => l.titularTipo === "plataforma"));
+    checa("com poucas contas, a lista não vem cortada", r.json?.cortada === false);
+    checa("o relatório não traz e-mail nem telefone de ninguém", !/@|marina@|joao@/.test(r.texto) && r.cache.includes("no-store"));
+
+    const chaveDoAjuste = randomUUID();
+    const ajuste = { titularTipo: "organizacao", titular: VIZINHA.slug, creditos: 5, motivo: "Cortesia de boas-vindas", idempotencia: chaveDoAjuste };
+    const antesDoAjuste = await contaDe(orgVizinha.id);
+    const dois = await Promise.all([admin.req("POST", "/api/admin/ia/ajustes", ajuste), admin.req("POST", "/api/admin/ia/ajustes", ajuste)]);
+    let doAjuste = (await livroDe(orgVizinha.id)).filter((l) => l.motivo === "ajuste");
+    checa(
+      "o mesmo ajuste enviado duas vezes ao mesmo tempo lança uma vez só",
+      dois.map((x) => x.status).sort().join(",") === "200,201" && doAjuste.length === 1 && (await contaDe(orgVizinha.id))!.avulsoMilicreditos - antesDoAjuste!.avulsoMilicreditos === 5000,
+      dois.map((x) => x.status).join(","),
+    );
+    r = await admin.req("POST", "/api/admin/ia/ajustes", { ...ajuste, creditos: 50 });
+    checa("a mesma identificação com outro valor não é repetição: 409, nada muda", r.status === 409 && (await livroDe(orgVizinha.id)).filter((l) => l.motivo === "ajuste").length === 1, `HTTP ${r.status}`);
+    r = await admin.req("POST", "/api/admin/ia/ajustes", { ...ajuste, titularTipo: "afiliado", titular: codJoao.code });
+    checa("…nem em outra conta: 409", r.status === 409, `HTTP ${r.status}`);
+    const aud = await db.select().from(auditLog).where(eq(auditLog.action, "ia.ajuste"));
+    checa("o ajuste fica na auditoria uma vez, com motivo e o autor", aud.filter((a) => (a.diff as any)?.chave === chaveDoAjuste).length === 1 && aud.some((a) => (a.diff as any)?.motivo === "Cortesia de boas-vindas"));
+    r = await admin.req("POST", "/api/admin/ia/ajustes", { ...ajuste, creditos: -100, idempotencia: randomUUID(), motivo: "Correção grande demais" });
+    checa("a correção não tira mais avulso do que a conta tem (409) e nada muda", r.status === 409 && (await contaDe(orgVizinha.id))!.avulsoMilicreditos - antesDoAjuste!.avulsoMilicreditos === 5000, `HTTP ${r.status}`);
+    r = await admin.req("POST", "/api/admin/ia/ajustes", { ...ajuste, creditos: -5, idempotencia: randomUUID(), motivo: "Corrigindo a cortesia" });
+    checa("a correção dentro do saldo entra", r.status === 201 && (await contaDe(orgVizinha.id))!.avulsoMilicreditos === antesDoAjuste!.avulsoMilicreditos, `HTTP ${r.status}`);
+    r = await admin.req("POST", "/api/admin/ia/ajustes", { ...ajuste, titular: "nao-existe-essa-org", idempotencia: randomUUID() });
+    checa("organização que não existe: 404", r.status === 404, `HTTP ${r.status}`);
+    r = await admin.req("POST", "/api/admin/ia/ajustes", { ...ajuste, creditos: 0, idempotencia: randomUUID() });
+    checa("ajuste de zero crédito: 400", r.status === 400, `HTTP ${r.status}`);
+    r = await admin.req("POST", "/api/admin/ia/ajustes", { titularTipo: "afiliado", titular: codJoao.code.toLowerCase(), creditos: 3, motivo: "Cortesia do afiliado", idempotencia: randomUUID() });
+    checa("o afiliado recebe pelo código (sem diferença de maiúscula)", r.status === 201 && (await livroDe(afJoao.id)).some((l) => l.motivo === "ajuste" && l.avulsoMilicreditos === 3000), `HTTP ${r.status}`);
+    r = await admin.req("GET", `/api/admin/ia/lancamentos?tipo=organizacao&titular=${VIZINHA.slug}`);
+    doAjuste = (r.json?.lancamentos ?? []).filter((l: any) => l.motivo === "ajuste");
+    checa("o extrato mostra os ajustes com o motivo, o mais novo primeiro", r.status === 200 && doAjuste.length === 2 && doAjuste[0].avulsoCreditos === -5 && /Corrigindo a cortesia/.test(doAjuste[0].descricao));
+    r = await marina.req("GET", `/api/admin/ia/lancamentos?tipo=organizacao&titular=${VIZINHA.slug}`);
+    checa("o organizador não lê o extrato de ninguém (403)", r.status === 403, `HTTP ${r.status}`);
 
     await admin.req("PUT", "/api/admin/ia/config", { ligado: false, agenteId: AGENTE, paraOrganizador: true, paraAfiliado: true, cobranca: COBRANCA });
     r = await marina.req("GET", "/api/ia/sessao");

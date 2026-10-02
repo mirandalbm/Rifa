@@ -161,7 +161,7 @@ arquitetura.
 | app instalável (PWA): casca, nome e ícone | `client/public/sw.js`, `shared/manifest.ts` (o manifesto montado), `manifestDaPlataforma()`/`iconeDaMarca()` em `server/services/template.ts`, `client/public/manifest.webmanifest` (o de fábrica, se o banco falhar), `client/src/lib/pwa.ts`, `tests/manifest.test.ts`, `scripts/aparencia-test.ts` |
 | automação do Claude no projeto: `/provar` (escolhe as provas pela área mexida), `/pr-check` (o rito do PR: docs, capturas, rascunho, mesclagem) e o agente `revisor-de-invariantes` (lê o diff contra as invariantes) | `.claude/skills/provar/SKILL.md`, `.claude/skills/pr-check/SKILL.md`, `.claude/agents/revisor-de-invariantes.md`. **Invariante nova ou regra de PR nova entra nos três** — o `.gitignore` libera só estes (o resto de `.claude/skills` é instalado por `npx skills add`, com o `skills-lock.json`) |
 | assistente de IA nos painéis (Chatbase): conversa pelo servidor, coluna, uso e configuração | `shared/ia.ts` (regras, papéis, titular, barreira de dado pessoal), `server/services/chatbase.ts` (cliente da API v2), `server/services/ia.ts` (conversa e uso), `server/routes/ia.ts` (`/api/ia/*`), `/ia/config` em `server/routes/admin.ts`, `assistenteIA` em `shared/plataforma.ts`, `ia_conversas`/`ia_uso` em `shared/schema.ts`, `client/src/lib/assistente.ts` (coluna aberta lembrada), `client/src/components/AssistenteDoPainel.tsx` (botão e coluna, em `PanelShell`), `AssistenteIACard.tsx` (Aparência), `scripts/ia-test.ts`, `tests/ia.test.ts`, `tests/chatbase.test.ts`, `tests/assistente.test.ts` |
-| cobrança do assistente de IA (assinatura com franquia, pacotes avulsos, Pix da plataforma, débito por mensagem, vencimento) | `shared/iaCobranca.ts` (regras), `server/services/iaCobranca.ts` (conta, livro, Pix, débito), `ia_contas`/`ia_pagamentos`/`ia_lancamentos` em `shared/schema.ts`, `/api/ia/conta` e `/api/ia/pagamentos` em `server/routes/ia.ts`, `confirmarPagamentoIA` no webhook, relógio em `server/jobs/index.ts`, `client/src/components/PlanoDoAssistente.tsx` (o plano na coluna), preços em `AssistenteIACard.tsx`, `scripts/ia-test.ts`, `tests/iaCobranca.test.ts` |
+| cobrança do assistente de IA (assinatura com franquia, pacotes avulsos, Pix da plataforma, débito por mensagem, vencimento, relatório e ajuste de crédito da plataforma) | `shared/iaCobranca.ts` (regras), `server/services/iaCobranca.ts` (conta, livro, Pix, débito, `ajustarCreditosIA`, `relatorioDaIA`, `extratoDaIA`), `/ia/relatorio`, `/ia/lancamentos` e `/ia/ajustes` em `server/routes/admin.ts`, `client/src/components/UsoDoAssistenteCard.tsx` (em Aparência), `ia_contas`/`ia_pagamentos`/`ia_lancamentos` em `shared/schema.ts`, `/api/ia/conta` e `/api/ia/pagamentos` em `server/routes/ia.ts`, `confirmarPagamentoIA` no webhook, relógio em `server/jobs/index.ts`, `client/src/components/PlanoDoAssistente.tsx` (o plano na coluna), preços em `AssistenteIACard.tsx`, `scripts/ia-test.ts`, `tests/iaCobranca.test.ts` |
 | ações do assistente de IA no sistema (consultar, publicar, legenda, excluir, estorno; confirmação e auditoria) | `shared/iaAcoes.ts` (catálogo, entrada, barreira do resultado), `server/services/iaAcoes.ts` (o que cada ação faz, no recorte), `tratarChamadas`/`seguirComAcoes`/`decidirAcaoDaIA` em `server/services/ia.ts`, `enviarResultado` em `server/services/chatbase.ts`, `ia_acoes` em `shared/schema.ts`, `/api/ia/acoes/:id/confirmar\|recusar` em `server/routes/ia.ts`, `CartaoDaAcao` em `AssistenteDoPainel.tsx`, a lista para o Chatbase em `AssistenteIACard.tsx`, `scripts/ia-acoes-test.ts`, `tests/iaAcoes.test.ts` |
 | segurança: onde mora cada defesa, lista de conferência de rota nova e as revisões | `docs/SEGURANCA.md` |
 | versões (celular, tablet, computador): registro das mudanças do celular, levas, mapa das telas e auditoria | `docs/VERSOES.md` (guia, mapa e registro — **anote no mesmo PR**), `scripts/telas.ts` (`npm run telas`), `tests/versoes.test.ts` |
@@ -189,10 +189,11 @@ arquitetura.
   relatório. O que mais ficou para depois está em `docs/SEGURANCA.md`.
 
 - **Chatbase AI nos painéis**: a conversa (pelo nosso servidor), a coluna, a
-  medição do uso, a cobrança e as ações no sistema existem (seções "Assistente
-  de IA", "Cobrança do assistente" e "Ações do assistente"). **Ainda não
-  existe**: o ajuste de crédito pela plataforma (cortesia). As regras estão em
-  `docs/PENDENCIAS.md` (seção 1b).
+  medição do uso, a cobrança (com o relatório e o ajuste de crédito da
+  plataforma) e as ações no sistema existem (seções "Assistente de IA",
+  "Cobrança do assistente" e "Ações do assistente"). O Pix do assistente que
+  vence sem pagar não é cancelado no provedor; se for pago tarde, credita
+  normalmente (`docs/PENDENCIAS.md`, seção 1b).
 
 - **Transcode do vídeo** (recompressão, HLS): hoje servimos o arquivo
   original. O pôster já existe (seção Mídia); o transcode é trabalho pesado
@@ -2607,15 +2608,42 @@ patrocínio). Regras puras em `shared/iaCobranca.ts`; o resto em
   créditos que deu** (`estornarPagamentoIA`): `UPDATE` condicional `paga` →
   `estornada` e o débito `estorno:<id>` no livro (franquia primeiro, o que já
   foi gasto vira dívida no avulso), com a conta travada; o estorno de pedido
-  segue pelo caminho de sempre quando a cobrança não é do assistente. O ajuste
-  de crédito pela plataforma (cortesia) ainda não existe. A configuração
+  segue pelo caminho de sempre quando a cobrança não é do assistente. A configuração
   guardada que não passe mais na régua perde as liberações (e, se for a
   cobrança, os preços), mantém o assistente do master e avisa no log.
+- **Ajuste de crédito é só da plataforma** (`POST /admin/ia/ajustes`,
+  `ajustarCreditosIA()`; 403 para organizador e afiliado, no `npm run
+  isolation`): cortesia (para mais) ou correção (para menos), **sempre no
+  avulso** (não vence; a franquia é o que a assinatura comprou), com **motivo
+  obrigatório** (`validarAjusteIA()`). A conta é escolhida pelo identificador
+  público (endereço da organização ou código do afiliado), nunca pelo id cru.
+  A correção **nunca deixa o avulso negativo** (`problemaNoAjuste()`, 409):
+  dívida só nasce do uso. Livro (`ajuste:<id da tela>`, chave única), conta
+  travada e `audit_log` (`ia.ajuste`, com motivo e autor) na **mesma
+  transação**; a tela gera a identificação a cada mudança no formulário,
+  então dois cliques (ou reenviar depois de a rede cair) são um lançamento só
+  (o segundo responde 200 "repetido"), e a mesma identificação com outro
+  valor ou em outra conta é engano, não repetição (409).
+- **O relatório é da plataforma** (`GET /admin/ia/relatorio`,
+  `relatorioDaIA()`, 7/30/90 dias, `no-store`): por quem paga, mensagens,
+  créditos usados, receita dos Pix pagos e o saldo de agora; o uso do master
+  aparece à parte, como custo. **Sem dado de pessoa**: o nome público da
+  organização ou o código do afiliado — nunca e-mail, telefone ou nome de
+  quem conversou. O extrato de uma conta (`GET /admin/ia/lancamentos`) traz
+  os 50 lançamentos mais novos. A lista mostra as 200 contas de mais receita
+  e uso e **diz quando cortou** (`cortada`, pela linha a mais — relatório que
+  omite linha calado não serve); os totais contam todas, numa passada por
+  tabela pelos índices de data (`idx_ia_uso_data`, `idx_ia_pagamentos_paga_em`,
+  que sobem com o `db:push`). O estornado é o dos Pix pagos no período que
+  depois voltaram. A tela é o cartão "Uso e receita do assistente" em
+  Aparência (`UsoDoAssistenteCard.tsx`).
 - As tabelas `ia_contas`, `ia_pagamentos` e `ia_lancamentos` sobem com o
   `db:push` **antes** do código.
 - `npm run ia` prova tudo isso contra a API de verdade (o Pix pago pelo atalho
   de desenvolvimento `/api/dev/ia-pagamento/:codigo`, a mesma confirmação do
-  webhook); `npm run isolation` confere `/api/ia/conta` e `/api/ia/pagamentos`;
+  webhook), inclusive o relatório por conta e o ajuste enviado duas vezes ao
+  mesmo tempo; `npm run isolation` confere `/api/ia/conta`,
+  `/api/ia/pagamentos` e as três rotas da plataforma;
   `tests/iaCobranca.test.ts` cobre as regras.
 
 ## Ações do assistente — o que não pode afrouxar

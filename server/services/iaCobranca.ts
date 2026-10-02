@@ -12,6 +12,8 @@ import { randomInt } from "node:crypto";
 import { and, desc, eq, gt, lte, ne, sql } from "drizzle-orm";
 import { db } from "../db";
 import {
+  affiliates,
+  auditLog,
   iaContas,
   iaLancamentos,
   iaPagamentos,
@@ -31,8 +33,14 @@ import {
   documentoDoPagador,
   emMilicreditos,
   franquiaValida,
+  periodoDoRelatorio,
+  problemaNoAjuste,
   problemaNoSaldo,
+  validarAjusteIA,
   type ConfigCobrancaIA,
+  type LancamentoIAPublico,
+  type LinhaDoRelatorioIA,
+  type RelatorioIA,
   type ContaIA,
   type PagamentoIAPublico,
   type ResumoCobrancaIA,
@@ -518,4 +526,239 @@ export async function vencerFranquias(limite = 500): Promise<number> {
     });
   }
   return n;
+}
+
+/* ---------------- ajuste da plataforma, relatório e extrato ---------------- */
+
+/** Quem pediu o ajuste ou o relatório: só a plataforma (a rota confere o papel). */
+export interface Autor {
+  id: string;
+  role: string;
+  ip?: string;
+}
+
+/**
+ * O titular pelo identificador público: o endereço da organização ou o código
+ * do afiliado. Não existe? 404 — o identificador veio do formulário.
+ */
+async function titularPeloIdentificador(tipo: "organizacao" | "afiliado", ident: string): Promise<{ pagante: Pagante; nome: string }> {
+  if (tipo === "organizacao") {
+    const [o] = await db
+      .select({ id: organizations.id, nome: organizations.name })
+      .from(organizations)
+      .where(eq(organizations.slug, ident.toLowerCase()));
+    if (!o) throw new CobrancaIAError("Organização não encontrada por esse endereço.", 404);
+    return { pagante: { tipo, id: o.id }, nome: o.nome };
+  }
+  const [a] = await db
+    .select({ id: affiliates.id, code: affiliates.code })
+    .from(affiliates)
+    .where(sql`upper(${affiliates.code}) = upper(${ident})`);
+  if (!a) throw new CobrancaIAError("Afiliado não encontrado por esse código.", 404);
+  return { pagante: { tipo, id: a.id }, nome: a.code };
+}
+
+/**
+ * Ajuste de crédito pela plataforma (cortesia ou correção). Entra no avulso,
+ * que não vence; a correção para menos nunca deixa o avulso negativo. Livro,
+ * conta travada e auditoria na mesma transação, e a chave (`ajuste:<id da
+ * tela>`) faz do mesmo ajuste enviado duas vezes um lançamento só.
+ */
+export async function ajustarCreditosIA(
+  autor: Autor,
+  corpo: unknown,
+): Promise<{ repetido: boolean; conta: { franquiaCreditos: number; avulsoCreditos: number; cicloAte: string | null } }> {
+  const v = validarAjusteIA(corpo);
+  if (!v.ok) throw new CobrancaIAError(v.erro, 400);
+  const a = v.valor;
+  const { pagante: p, nome } = await titularPeloIdentificador(a.titularTipo, a.titular);
+  const mili = emMilicreditos(a.creditos);
+  let repetido = false;
+  const conta = await db.transaction(async (tx) => {
+    const agora = new Date();
+    const atual = await vencerFranquia(tx, p, await travarConta(tx, p), agora);
+    // O mesmo ajuste chegando de novo (dois cliques) não é conferido de novo: com a conta travada,
+    // a linha do primeiro já está no livro, e quem decide é a chave única.
+    const [ja] = await tx
+      .select({ titularTipo: iaLancamentos.titularTipo, titularId: iaLancamentos.titularId, avulso: iaLancamentos.avulsoMilicreditos })
+      .from(iaLancamentos)
+      .where(eq(iaLancamentos.chave, `ajuste:${a.idempotencia}`));
+    if (ja) {
+      // A identificação é de um ajuste só: em outra conta ou com outro valor, não é repetição — é engano.
+      if (ja.titularTipo !== p.tipo || ja.titularId !== p.id || ja.avulso !== mili) {
+        throw new CobrancaIAError("Essa identificação já foi usada em outro ajuste. Recarregue a tela e lance de novo.", 409);
+      }
+      repetido = true;
+      return lerConta(tx, p);
+    }
+    const problema = problemaNoAjuste(atual, mili);
+    if (problema) throw new CobrancaIAError(problema, 409);
+    const entrou = await lancar(tx, p, {
+      franquia: 0,
+      avulso: mili,
+      motivo: "ajuste",
+      chave: `ajuste:${a.idempotencia}`,
+      descricao: `Ajuste da plataforma (${a.creditos > 0 ? "cortesia" : "correção"}): ${a.motivo}`,
+    });
+    repetido = !entrou;
+    if (entrou) {
+      // A auditoria anda com o lançamento: rollback de um leva o outro.
+      await tx.insert(auditLog).values({
+        actorId: autor.id,
+        actorRole: autor.role,
+        action: "ia.ajuste",
+        entity: a.titularTipo,
+        entityId: p.id,
+        diff: { titular: nome, creditos: a.creditos, motivo: a.motivo, chave: a.idempotencia } as never,
+        ip: autor.ip,
+      });
+    }
+    return lerConta(tx, p);
+  });
+  return {
+    repetido,
+    conta: {
+      franquiaCreditos: creditosParaTela(franquiaValida(conta, new Date())),
+      avulsoCreditos: creditosParaTela(conta.avulso),
+      cicloAte: conta.cicloAte ? conta.cicloAte.toISOString() : null,
+    },
+  };
+}
+
+/** As contas que o relatório mostra (as de mais receita e uso); passou disso, ele diz que cortou. */
+export const LINHAS_DO_RELATORIO = 200;
+
+const iso = (v: unknown) =>
+  v instanceof Date ? v.toISOString() : v ? new Date(`${String(v).replace(" ", "T")}Z`).toISOString() : null;
+const num = (v: unknown) => Number(v ?? 0);
+
+/**
+ * Uso e receita do assistente no período, por quem paga: mensagens, créditos
+ * consumidos (em milésimos somados, arredondados só na tela), Pix pagos e o
+ * saldo de agora. Só nome público da organização ou código do afiliado —
+ * nunca dado de pessoa. O uso do master entra à parte, como custo.
+ */
+export async function relatorioDaIA(diasBrutos: unknown): Promise<RelatorioIA> {
+  const dias = periodoDoRelatorio(diasBrutos);
+  // `created_at` e `paga_em` guardam UTC sem fuso: a comparação também é em UTC.
+  const desde = sql`((now() AT TIME ZONE 'UTC') - (${dias} || ' days')::interval)`;
+  const r = await db.execute(sql`
+    WITH uso AS (
+      SELECT titular_tipo, titular_id, COUNT(*) AS mensagens,
+             COUNT(*) FILTER (WHERE milicreditos IS NULL) AS sem_medida,
+             COALESCE(SUM(milicreditos), 0) AS mili
+      FROM ia_uso WHERE created_at >= ${desde} AND titular_id IS NOT NULL
+      GROUP BY 1, 2
+    ),
+    rec AS (
+      SELECT titular_tipo, titular_id, COALESCE(SUM(valor_cents), 0) AS receita, COUNT(*) AS pix
+      FROM ia_pagamentos WHERE status = 'paga' AND paga_em >= ${desde}
+      GROUP BY 1, 2
+    ),
+    chaves AS (
+      SELECT titular_tipo, titular_id FROM uso
+      UNION SELECT titular_tipo, titular_id FROM rec
+      UNION SELECT titular_tipo, titular_id FROM ia_contas
+    )
+    SELECT k.titular_tipo, k.titular_id,
+           COALESCE(u.mensagens, 0) AS mensagens, COALESCE(u.sem_medida, 0) AS sem_medida, COALESCE(u.mili, 0) AS mili,
+           COALESCE(r.receita, 0) AS receita, COALESCE(r.pix, 0) AS pix,
+           c.franquia_milicreditos, c.avulso_milicreditos, c.ciclo_ate,
+           o.slug AS org_slug, o.name AS org_nome, a.code AS af_code
+    FROM chaves k
+    LEFT JOIN uso u ON u.titular_tipo = k.titular_tipo AND u.titular_id = k.titular_id
+    LEFT JOIN rec r ON r.titular_tipo = k.titular_tipo AND r.titular_id = k.titular_id
+    LEFT JOIN ia_contas c ON c.titular_tipo = k.titular_tipo AND c.titular_id = k.titular_id
+    LEFT JOIN organizations o ON k.titular_tipo = 'organizacao' AND o.id = k.titular_id
+    LEFT JOIN affiliates a ON k.titular_tipo = 'afiliado' AND a.id = k.titular_id
+    ORDER BY COALESCE(r.receita, 0) DESC, COALESCE(u.mili, 0) DESC
+    LIMIT ${LINHAS_DO_RELATORIO + 1}
+  `);
+  // Uma passada em cada tabela (pelo índice da data), com os filtros dentro da soma.
+  const tot = await db.execute(sql`
+    SELECT p.receita, p.pix, p.estornados, u.mensagens, u.sem_medida, u.mili, u.mili_plataforma,
+           (SELECT COUNT(*) FROM ia_contas WHERE ciclo_ate > (now() AT TIME ZONE 'UTC')) AS ativas
+    FROM (
+      SELECT COALESCE(SUM(valor_cents) FILTER (WHERE status = 'paga'), 0) AS receita,
+             COUNT(*) FILTER (WHERE status = 'paga') AS pix,
+             COALESCE(SUM(valor_cents) FILTER (WHERE status = 'estornada'), 0) AS estornados
+      FROM ia_pagamentos WHERE paga_em >= ${desde}
+    ) p, (
+      SELECT COUNT(*) AS mensagens,
+             COUNT(*) FILTER (WHERE milicreditos IS NULL) AS sem_medida,
+             COALESCE(SUM(milicreditos), 0) AS mili,
+             COALESCE(SUM(milicreditos) FILTER (WHERE titular_tipo = 'plataforma'), 0) AS mili_plataforma
+      FROM ia_uso WHERE created_at >= ${desde}
+    ) u
+  `);
+  const agora = new Date();
+  const linhas: LinhaDoRelatorioIA[] = (r.rows as Record<string, unknown>[])
+    .map((x) => {
+      const tipo = x.titular_tipo === "afiliado" ? "afiliado" : "organizacao";
+      const titular = String((tipo === "afiliado" ? x.af_code : x.org_slug) ?? "");
+      const cicloAte = iso(x.ciclo_ate);
+      const conta: ContaIA = {
+        franquia: num(x.franquia_milicreditos),
+        avulso: num(x.avulso_milicreditos),
+        cicloAte: cicloAte ? new Date(cicloAte) : null,
+      };
+      return {
+        titularTipo: tipo,
+        titular,
+        nome: String((tipo === "afiliado" ? x.af_code : x.org_nome) ?? "—"),
+        mensagens: num(x.mensagens),
+        semMedida: num(x.sem_medida),
+        creditosUsados: creditosParaTela(num(x.mili)),
+        receitaCents: num(x.receita),
+        pixPagos: num(x.pix),
+        ativa: cicloAtivo(conta, agora),
+        cicloAte,
+        franquiaCreditos: creditosParaTela(franquiaValida(conta, agora)),
+        avulsoCreditos: creditosParaTela(conta.avulso),
+      } satisfies LinhaDoRelatorioIA;
+    })
+    // Titular apagado (organização ou afiliado que não existe mais) não tem como ser ajustado nem lido.
+    .filter((l) => l.titular !== "");
+  const t = (tot.rows[0] ?? {}) as Record<string, unknown>;
+  // Pediu uma linha a mais só para saber se a lista foi cortada (sem COUNT de tudo).
+  const cortada = linhas.length > LINHAS_DO_RELATORIO;
+  return {
+    dias,
+    cortada,
+    totais: {
+      receitaCents: num(t.receita),
+      pixPagos: num(t.pix),
+      estornadosCents: num(t.estornados),
+      mensagens: num(t.mensagens),
+      semMedida: num(t.sem_medida),
+      creditosUsados: creditosParaTela(num(t.mili)),
+      creditosDaPlataforma: creditosParaTela(num(t.mili_plataforma)),
+      contasAtivas: num(t.ativas),
+    },
+    linhas: linhas.slice(0, LINHAS_DO_RELATORIO),
+  };
+}
+
+/** O livro de uma conta (os 50 lançamentos mais novos), pelo identificador público. */
+export async function extratoDaIA(tipoBruto: unknown, identBruto: unknown): Promise<{ nome: string; lancamentos: LancamentoIAPublico[] }> {
+  const tipo = tipoBruto === "afiliado" ? "afiliado" : tipoBruto === "organizacao" ? "organizacao" : null;
+  const ident = typeof identBruto === "string" ? identBruto.trim() : "";
+  if (!tipo || !/^[A-Za-z0-9_-]{2,64}$/.test(ident)) throw new CobrancaIAError("Informe a organização ou o afiliado.", 400);
+  const { pagante: p, nome } = await titularPeloIdentificador(tipo, ident);
+  const linhas = await db
+    .select()
+    .from(iaLancamentos)
+    .where(and(eq(iaLancamentos.titularTipo, p.tipo), eq(iaLancamentos.titularId, p.id)))
+    .orderBy(desc(iaLancamentos.createdAt), desc(iaLancamentos.id))
+    .limit(50);
+  return {
+    nome,
+    lancamentos: linhas.map((l) => ({
+      motivo: l.motivo,
+      franquiaCreditos: creditosParaTela(l.franquiaMilicreditos),
+      avulsoCreditos: creditosParaTela(l.avulsoMilicreditos),
+      descricao: l.descricao,
+      criadoEm: l.createdAt.toISOString(),
+    })),
+  };
 }

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  AJUSTE_IA_MAX_CREDITOS,
   CONFIG_COBRANCA_IA_PADRAO,
   CONTA_IA_VAZIA,
   IA_CODIGO_MAX,
@@ -13,7 +14,10 @@ import {
   documentoDoPagador,
   emMilicreditos,
   franquiaValida,
+  periodoDoRelatorio,
+  problemaNoAjuste,
   problemaNoSaldo,
+  validarAjusteIA,
   validarConfigCobrancaIA,
 } from "../shared/iaCobranca";
 import { CARRINHO_CODIGO_MAX, CARRINHO_CODIGO_MIN } from "../shared/carrinho";
@@ -226,5 +230,41 @@ describe("cobrança da IA: ciclo, saldo e débito", () => {
     expect(documentoDoPagador("12.345.678/0001-90")).toBe("12345678000190");
     expect(documentoDoPagador("123")).toBeNull();
     expect(documentoDoPagador(12345678909)).toBeNull();
+  });
+});
+
+describe("ajuste de crédito pela plataforma", () => {
+  const base = { titularTipo: "organizacao", titular: "rifas-sao-jose", creditos: 50, motivo: "Cortesia de boas-vindas", idempotencia: "4f6d2c1e-8a7b-4c3d-9e2f-1a2b3c4d5e6f" };
+
+  it("aceita cortesia e correção, e normaliza o motivo e a chave", () => {
+    const v = validarAjusteIA({ ...base, creditos: "-10", motivo: "  corrigir   cobrança  ", idempotencia: base.idempotencia.toUpperCase() });
+    expect(v).toEqual({ ok: true, valor: { ...base, creditos: -10, motivo: "corrigir cobrança" } });
+  });
+
+  it("recusa o que não é ajuste", () => {
+    expect(validarAjusteIA({ ...base, titularTipo: "plataforma" }).ok).toBe(false);
+    expect(validarAjusteIA({ ...base, titular: "a b" }).ok).toBe(false);
+    expect(validarAjusteIA({ ...base, creditos: 0 }).ok).toBe(false);
+    expect(validarAjusteIA({ ...base, creditos: 1.5 }).ok).toBe(false);
+    expect(validarAjusteIA({ ...base, creditos: AJUSTE_IA_MAX_CREDITOS + 1 }).ok).toBe(false);
+    expect(validarAjusteIA({ ...base, motivo: "ok" }).ok).toBe(false);
+    expect(validarAjusteIA({ ...base, idempotencia: "1" }).ok).toBe(false);
+    expect(validarAjusteIA(null).ok).toBe(false);
+  });
+
+  it("a correção nunca deixa o avulso negativo; a cortesia sempre entra", () => {
+    const conta = { franquia: 5000, avulso: 3000, cicloAte: null };
+    expect(problemaNoAjuste(conta, 10_000)).toBeNull();
+    expect(problemaNoAjuste(conta, -3000)).toBeNull();
+    expect(problemaNoAjuste(conta, -3001)).toMatch(/3 crédito/);
+    // A franquia não entra na conta da correção: é o que a assinatura comprou.
+    expect(problemaNoAjuste({ ...conta, avulso: -2000 }, -1000)).toMatch(/0 crédito/);
+  });
+
+  it("o período do relatório é um dos conhecidos, senão 30", () => {
+    expect(periodoDoRelatorio("7")).toBe(7);
+    expect(periodoDoRelatorio(90)).toBe(90);
+    expect(periodoDoRelatorio("365")).toBe(30);
+    expect(periodoDoRelatorio(undefined)).toBe(30);
   });
 });

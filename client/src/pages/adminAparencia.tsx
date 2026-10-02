@@ -1,5 +1,6 @@
 import { TopoDoAppCard } from "@/components/TopoDoAppCard";
 import { AssistenteIACard } from "@/components/AssistenteIACard";
+import { UsoDoAssistenteCard } from "@/components/UsoDoAssistenteCard";
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowDown, ArrowUp, Monitor, Smartphone, Trash2 } from "lucide-react";
@@ -376,6 +377,7 @@ export function AdminAparencia() {
           {/* Fora do template: vale na hora, sem publicar versão. */}
           <TopoDoAppCard />
           <AssistenteIACard />
+          <UsoDoAssistenteCard />
 
           <Card title="Textos do rodapé">
             <div className="space-y-3 p-4 text-sm">

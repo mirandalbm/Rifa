@@ -479,11 +479,15 @@ Na ordem de entrega do plano:
   afiliado na página da rifa tem o botão "Mensagem" (a entrada para
   conversar com ele, que não tem perfil); e a conversa denunciada entra na
   Caixa de entrada da plataforma (tipo "Conversa denunciada", sem texto).
-- [ ] **[código]** Mensagens v2, parte 2 (precisa de decisão de produto
-  antes, por mexer com privacidade e moderação): indicador "online" (só
-  com dado real e com a pessoa podendo desligar), grupos e foto/vídeo na
-  conversa (mídia privada precisa de limite, varredura e denúncia com o
-  trecho).
+  **Parte 2A feita:** foto na conversa (só o apostador envia; JPEG
+  reprocessado, 5 MB, 20 por dia; a plataforma só vê a foto que está no
+  trecho de uma denúncia, pela rota com auditoria) e "online agora" (opcional,
+  desligado por padrão, recíproco, só em conversa aceita, nunca "visto por
+  último"). Sobem com o `db:push` **antes** do código: `mensagem_imagens` e
+  `mensagens_presenca`.
+- [ ] **[código]** Mensagens v2, parte 2B: grupos (só quem tem compra paga
+  na rifa, com limite de participantes e moderação por trecho) e vídeo na
+  conversa (precisa de transcode; fica com o Cloudflare Stream).
 - [x] **Buscar** (grade das publicações mais novas e busca por texto):
   pronto, atrás do interruptor `buscarLigado` e da tabela do que aparece
   (`buscarTipos`: rifas, organizações e apostadores; apostador nasce

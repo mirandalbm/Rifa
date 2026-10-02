@@ -111,7 +111,7 @@ arquitetura.
 | indicação, bônus e metas (etapa 13) | `shared/bonus.ts` (regras), `server/services/bonus.ts`, `resgatarCotasDeBonus()` em `server/services/orders.ts`, `client/src/lib/indicacao.ts`, `client/src/pages/adminBonus.tsx`, `client/src/components/BonusDoComprador.tsx`, `scripts/bonus-test.ts` |
 | Reels (tela cheia, vídeo em pé, interruptor da plataforma) | `shared/reels.ts` (regras, lote), `GET /api/public/reels` em `server/routes/public.ts`, `reelsLigado` em `shared/plataforma.ts`, `client/src/pages/Reels.tsx`, o som lembrado em `client/src/lib/reelsSom.ts`, `vertical` em `BarraDeAcoes`, `scripts/publicacao-test.ts`, `tests/reels.test.ts` |
 | Buscar (grade das publicações e busca por texto, interruptor e tabela da plataforma) | `shared/buscar.ts` (regras e tabela), `server/services/buscar.ts`, `GET /api/public/buscar` em `server/routes/public.ts`, `buscarLigado`/`buscarTipos` em `shared/plataforma.ts`, `client/src/pages/Buscar.tsx`, cartão em `client/src/components/TopoDoAppCard.tsx`, `scripts/buscar-test.ts`, `tests/buscar.test.ts` |
-| Mensagens (caixa de um para um: apostador, organização e afiliado) | `shared/mensagens.ts` (regras puras), `server/services/mensagens.ts`, rotas `/mensagens/*` em `server/routes/public.ts` e `/mensagens/denuncias*` em `server/routes/admin.ts`, `mensagensLigado` em `shared/plataforma.ts`, `client/src/pages/Mensagens.tsx`, `ConversasDenunciadas.tsx`, `BotaoMensagem.tsx` (também na peça do afiliado em `DivulgacoesDaRifa.tsx`), o número não lido do painel em `PanelShell` (`client/src/components/AppShell.tsx`, `rotuloDoSino()` em `shared/avisos.ts`), `scripts/mensagens-test.ts`, `tests/mensagens.test.ts` |
+| Mensagens (caixa de um para um: apostador, organização e afiliado) | `shared/mensagens.ts` (regras puras), `server/services/mensagens.ts`, rotas `/mensagens/*` em `server/routes/public.ts` e `/mensagens/denuncias*` em `server/routes/admin.ts`, `mensagensLigado` em `shared/plataforma.ts`, `client/src/pages/Mensagens.tsx` (foto e "online agora"), `ConversasDenunciadas.tsx`, `BotaoMensagem.tsx` (também na peça do afiliado em `DivulgacoesDaRifa.tsx`), o número não lido do painel em `PanelShell` (`client/src/components/AppShell.tsx`, `rotuloDoSino()` em `shared/avisos.ts`), `scripts/mensagens-test.ts`, `tests/mensagens.test.ts` |
 | rifas patrocinadas por clique (etapa 15): pacote, fila, tabela e números | `shared/patrocinio.ts` (regras, preço, previsão da fila), `server/services/patrocinio.ts`, `client/src/pages/adminPatrocinio.tsx`, `client/src/components/Patrocinadas.tsx`, `scripts/patrocinio-test.ts` |
 | banner pago na vitrine (dias de topo, arte aprovada, vagas, devolução dos dias não usados) | `shared/bannerPago.ts` (regras e config), `server/services/bannerPago.ts`, rotas `/banner-pago*` em `server/routes/admin.ts`, `/banners` e `/banners-pagos/:id/imagem` em `server/routes/public.ts`, `bannerPago` em `shared/plataforma.ts`, `client/src/pages/adminBannerPago.tsx`, `client/src/components/BannersVitrine.tsx`, relógio em `server/jobs/index.ts`, `scripts/banner-pago-test.ts`, `tests/bannerPago.test.ts` |
 | marketing e tráfego pago (etapa 16): pixels, aviso de cookies, UTM, compra pelo servidor | `shared/marketing.ts` (regras e corpos das APIs), `server/services/marketing.ts`, `client/src/lib/marketing.ts`, `client/src/components/Marketing.tsx`, `client/src/pages/adminMarketing.tsx`, `scripts/marketing-test.ts` |
@@ -1668,6 +1668,23 @@ conversa como cartão (o compartilhar da publicação), nunca como link no texto
   **organização e afiliado** (a conversa privada é o canal do golpe): acendeu,
   vira denúncia automática com o trecho; não barra a mensagem e nunca derruba
   o envio (`emSegundoPlano`).
+- **Foto na conversa** (`mensagem_imagens`): **só o apostador envia**
+  (`podeEnviarImagem()`) — a varredura do Pix por fora só lê texto e a
+  conversa da organização e do afiliado é o canal do golpe; foto lá seria o
+  Pix em imagem. JPEG de até 1600 px reprocessado pelo `sharp` (sem
+  metadados, teto de 40 MP, 5 MB), no Postgres, 20 por dia (`hit` antes de
+  abrir a imagem). Só quem está na conversa a abre (404 para o resto,
+  `no-store`, `nosniff`). A denúncia leva só o **id** da foto no trecho; a
+  plataforma a abre por `GET /admin/mensagens/denuncias/:id/fotos/:fotoId`
+  **só se o id está naquele trecho**, e a abertura entra em `audit_log`
+  antes de sair. Recorte provado em `npm run isolation` (403).
+- **"Online agora"** (`mensagens_presenca`): **só dado real e só opt-in**
+  (`mostrar` nasce `false`, "Mostrar quando estou online" na lista). Aparece
+  só quando **os dois** mostram (`podeVerOnline()`: quem esconde também não
+  vê) e a conversa foi **aceita** — pedido não revela presença. Nunca
+  "visto por último" nem horário: o `online` é o mesmo booleano para quem
+  esconde e para quem está fora (janela de 120 s, escrita no máximo uma vez
+  por minuto). O estado vai em texto ("Online agora"), não só na bolinha.
 - **Aviso sem conteúdo**: o apostador recebe push e trevo "Nova mensagem" (no
   máximo um por conversa a cada 30 min, pela chave); o texto nunca vai no push.
 - **O painel conta, não entrega**: o sino da organização e do afiliado mostra

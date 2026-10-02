@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   MENSAGEM_MAX,
+  estaOnline,
+  podeEnviarImagem,
+  podeVerOnline,
+  ONLINE_JANELA_S,
   ordenarPar,
   previaDoTexto,
   problemaNaMensagem,
@@ -71,5 +75,28 @@ describe("mensagens — regras puras", () => {
     expect(rotuloDasMensagens(1)).toBe("Mensagens, 1 não lida");
     expect(rotuloDasMensagens(3)).toBe("Mensagens, 3 não lidas");
     expect(rotuloDasMensagens(500)).toBe("Mensagens, mais de 99 não lidas");
+  });
+
+  it("só o apostador envia foto", () => {
+    expect(podeEnviarImagem("comprador")).toBe(true);
+    expect(podeEnviarImagem("organizacao")).toBe(false);
+    expect(podeEnviarImagem("afiliado")).toBe(false);
+  });
+
+  it("online agora: janela curta, e nunca horário", () => {
+    const agora = new Date("2026-01-01T12:00:00Z");
+    expect(estaOnline(new Date(agora.getTime() - (ONLINE_JANELA_S - 5) * 1000), agora)).toBe(true);
+    expect(estaOnline(new Date(agora.getTime() - (ONLINE_JANELA_S + 5) * 1000), agora)).toBe(false);
+    expect(estaOnline(null, agora)).toBe(false);
+  });
+
+  it("online é recíproco e só em conversa aceita", () => {
+    const ok = { euMostro: true, eleMostra: true, situacao: "aceita" as const };
+    expect(podeVerOnline(ok)).toBe(true);
+    expect(podeVerOnline({ ...ok, euMostro: false })).toBe(false);
+    expect(podeVerOnline({ ...ok, eleMostra: false })).toBe(false);
+    expect(podeVerOnline({ ...ok, situacao: "pedido" as never })).toBe(false);
+    expect(podeVerOnline({ ...ok, bloqueada: true })).toBe(false);
+    expect(podeVerOnline({ ...ok, encerrada: true })).toBe(false);
   });
 });

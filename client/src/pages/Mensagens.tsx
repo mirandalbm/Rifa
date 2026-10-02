@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link, useLocation, useRoute } from "wouter";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Ban, Flag, Send } from "lucide-react";
+import { ArrowLeft, Ban, Flag, ImagePlus, Send } from "lucide-react";
 import { PublicShell } from "@/components/AppShell";
 import { Janela } from "@/components/Janela";
 import { FotoDoPerfil } from "@/components/Seguir";
@@ -11,9 +11,11 @@ import { useConfigDoApp } from "@/components/Console";
 import { Empty, Pill } from "@/components/bits";
 import { apiRequest } from "@/lib/queryClient";
 import { useSession } from "@/lib/session";
+import { lerFoto } from "@/lib/anexo";
 import {
   MENSAGEM_MAX,
   MOTIVOS_DA_DENUNCIA_DE_MENSAGEM,
+  ROTULO_ONLINE,
   type MotivoDaDenunciaDeMensagem,
   type TipoDeParticipante,
 } from "@shared/mensagens";
@@ -29,6 +31,8 @@ interface Perfil {
 interface ItemDaLista {
   id: string;
   com: Perfil;
+  /** Só `true` quando eu também mostro o meu, a conversa foi aceita e a pessoa está na caixa. */
+  online: boolean;
   previa: string | null;
   ultimaEm: string;
   naoLidas: number;
@@ -45,6 +49,8 @@ interface Mensagem {
   minha: boolean;
   texto: string;
   em: string;
+  /** Endereço da foto (só quem está na conversa a abre). */
+  foto: string | null;
   rifa: { slug: string; titulo: string; caminho: string } | null;
 }
 interface PaginaDaConversa {
@@ -57,6 +63,8 @@ interface PaginaDaConversa {
     bloqueada: boolean;
     encerrada: boolean;
     podeEnviar: boolean;
+    online: boolean;
+    podeEnviarFoto: boolean;
     impedimento: string | null;
     naoLidas: number;
   };
@@ -120,6 +128,48 @@ export default function MensagensPagina() {
  * A lista
  * ------------------------------------------------------------------ */
 
+/** A bolinha com o texto ao lado: o estado nunca vai só na cor. */
+function OnlineAgora() {
+  return (
+    <span className="ml-1">
+      {" · "}
+      <span aria-hidden className="mr-1 inline-block h-2 w-2 rounded-full bg-green align-middle" />
+      {ROTULO_ONLINE}
+    </span>
+  );
+}
+
+/**
+ * "Mostrar quando estou online": nasce desligado. Quem esconde também não vê
+ * o dos outros (como no Instagram), e nunca aparece o horário — só "online agora".
+ */
+function MostrarOnline() {
+  const qc = useQueryClient();
+  const { data } = useQuery<{ mostrar: boolean }>({ queryKey: ["/api/public/mensagens/presenca"] });
+  const alternar = useMutation({
+    mutationFn: (mostrar: boolean) => apiRequest("PUT", "/api/public/mensagens/presenca", { mostrar }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["/api/public/mensagens/presenca"] });
+      qc.invalidateQueries({ queryKey: ["/api/public/mensagens/conversas"] });
+    },
+  });
+  return (
+    <label className="flex cursor-pointer items-start gap-2 border-b border-line px-4 py-2 text-xs text-ink-2">
+      <input
+        type="checkbox"
+        className="mt-0.5 h-4 w-4"
+        checked={data?.mostrar === true}
+        disabled={!data || alternar.isPending}
+        onChange={(e) => alternar.mutate(e.target.checked)}
+      />
+      <span>
+        <span className="font-semibold text-ink">Mostrar quando estou online</span>
+        <span className="block text-muted">Só aparece "{ROTULO_ONLINE}" para quem também mostra o dele, nas conversas aceitas. Nunca o horário.</span>
+      </span>
+    </label>
+  );
+}
+
 function ListaDeConversas({ ativa }: { ativa: string | null }) {
   const [aba, setAba] = useState<"conversas" | "pedidos">("conversas");
   const lista = useInfiniteQuery<PaginaDaLista>({
@@ -147,6 +197,7 @@ function ListaDeConversas({ ativa }: { ativa: string | null }) {
         <h1 className="font-display text-lg font-extrabold">Mensagens</h1>
         <NovaConversaBotao />
       </div>
+      <MostrarOnline />
       <div role="tablist" aria-label="Caixa" className="flex gap-1 border-b border-line px-3 py-2">
         {(["conversas", "pedidos"] as const).map((a) => (
           <button
@@ -186,6 +237,7 @@ function ListaDeConversas({ ativa }: { ativa: string | null }) {
                 </span>
                 <span className="text-[11px] text-muted">
                   {ROTULO_DO_TIPO[c.com.tipo]}
+                  {c.online ? <OnlineAgora /> : null}
                   {c.bloqueada ? " · bloqueada" : ""}
                   {c.situacao === "pedido" && c.euIniciei ? " · pedido enviado" : ""}
                 </span>
@@ -383,6 +435,18 @@ function Conversa({ id }: { id: string }) {
     },
     onError: (e: Error) => setErro(e.message),
   });
+  const enviarFoto = useMutation({
+    mutationFn: async (arquivo: File) => {
+      const imagem = await lerFoto(arquivo);
+      return apiRequest("POST", `/api/public/mensagens/conversas/${id}/mensagens`, { imagem });
+    },
+    onSuccess: () => {
+      setErro(null);
+      invalidar();
+    },
+    onError: (e: Error) => setErro(e.message),
+  });
+  const escolherFoto = useRef<HTMLInputElement>(null);
   const pedido = useMutation({
     mutationFn: (acao: "aceitar" | "recusar") => apiRequest("POST", `/api/public/mensagens/conversas/${id}/pedido`, { acao }),
     onSuccess: invalidar,
@@ -418,6 +482,7 @@ function Conversa({ id }: { id: string }) {
           </p>
           <p className="text-xs text-muted">
             {ROTULO_DO_TIPO[c.com.tipo]}
+            {c.online ? <OnlineAgora /> : null}
             {c.encerrada ? " · encerrada pela plataforma" : c.bloqueada ? " · bloqueada" : ""}
           </p>
         </div>
@@ -478,6 +543,11 @@ function Conversa({ id }: { id: string }) {
                   Rifa · {m.rifa.titulo}
                 </Link>
               ) : null}
+              {m.foto ? (
+                <a href={m.foto} target="_blank" rel="noopener noreferrer" aria-label="Abrir a foto (abre em outra aba)" className="mb-1 block">
+                  <img src={m.foto} alt="Foto enviada na conversa" loading="lazy" className="max-h-72 w-full rounded-lg object-cover" />
+                </a>
+              ) : null}
               {m.texto ? <p className="whitespace-pre-wrap break-words">{m.texto}</p> : null}
               <p className={`tnum mt-0.5 text-right text-[10px] ${m.minha ? "text-white/80" : "text-muted"}`}>{hora(m.em)}</p>
             </div>
@@ -494,6 +564,32 @@ function Conversa({ id }: { id: string }) {
             if (texto.trim()) enviar.mutate();
           }}
         >
+          {c.podeEnviarFoto ? (
+            <>
+              <input
+                ref={escolherFoto}
+                type="file"
+                accept="image/*"
+                className="sr-only"
+                tabIndex={-1}
+                aria-hidden
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  e.target.value = "";
+                  if (f) enviarFoto.mutate(f);
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => escolherFoto.current?.click()}
+                disabled={enviarFoto.isPending}
+                aria-label={enviarFoto.isPending ? "Enviando a foto…" : "Enviar uma foto"}
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-line-2 text-ink-2 hover:bg-mist disabled:opacity-50"
+              >
+                <ImagePlus size={18} aria-hidden />
+              </button>
+            </>
+          ) : null}
           <div className="min-w-0 flex-1">
             <label htmlFor="msg-resposta" className="sr-only">
               Mensagem

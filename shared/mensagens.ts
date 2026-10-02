@@ -116,3 +116,55 @@ export function rotuloDasMensagens(naoLidas: number): string {
   if (naoLidas <= 0) return "Mensagens";
   return `Mensagens, ${naoLidas > 99 ? "mais de 99" : naoLidas} não lida${naoLidas === 1 ? "" : "s"}`;
 }
+
+/* ------------------------------------------------------------------ *
+ * Foto na conversa e "online"
+ * ------------------------------------------------------------------ */
+
+/** A foto enviada, já decodificada: o servidor a reprocessa de qualquer jeito. */
+export const IMAGEM_MAX_BYTES = 5 * 1024 * 1024;
+/** Fotos por pessoa por dia (`hit`): a foto custa banco e não passa pela varredura de texto. */
+export const IMAGENS_POR_DIA = 20;
+
+/**
+ * Só o apostador manda foto. A varredura do "Pix por fora" lê texto, não
+ * imagem — e a conversa de organização e afiliado é o canal do golpe (uma chave
+ * ou um QR num print). Organização e afiliado seguem só com texto e cartão de rifa.
+ */
+export function podeEnviarImagem(tipo: TipoDeParticipante): boolean {
+  return tipo === "comprador";
+}
+
+/** O que a prévia da conversa mostra quando a mensagem é só uma foto. */
+export const PREVIA_DA_FOTO = "Enviou uma foto";
+
+/** "Online agora" é atividade na caixa nos últimos 2 minutos. Nunca "visto por último". */
+export const ONLINE_JANELA_S = 120;
+/** A presença só é regravada de minuto em minuto: ler a caixa não vira uma escrita por toque. */
+export const PRESENCA_PASSO_S = 60;
+
+export function estaOnline(ultimaEm: Date | null | undefined, agora: Date = new Date()): boolean {
+  if (!ultimaEm) return false;
+  const ms = agora.getTime() - ultimaEm.getTime();
+  return ms >= 0 && ms <= ONLINE_JANELA_S * 1000;
+}
+
+/**
+ * Reciprocidade, como no Instagram: só vê se o outro está online quem também
+ * mostra o próprio. Quem esconde o seu não vê o dos outros — senão a opção de
+ * esconder seria de mão única. Sem conversa aceita, nada aparece (pedido de
+ * mensagem não entrega a presença de quem recebeu).
+ */
+export function podeVerOnline(x: {
+  euMostro: boolean;
+  eleMostra: boolean;
+  situacao: SituacaoDaConversa;
+  /** Quem bloqueou cortou o contato: a presença dele também some para o outro lado. */
+  bloqueada?: boolean;
+  encerrada?: boolean;
+}): boolean {
+  return x.euMostro && x.eleMostra && x.situacao === "aceita" && !x.bloqueada && !x.encerrada;
+}
+
+/** O rótulo em texto: o estado nunca vai só na bolinha. */
+export const ROTULO_ONLINE = "Online agora";

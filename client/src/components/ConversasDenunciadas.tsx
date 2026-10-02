@@ -23,7 +23,7 @@ interface Detalhe {
   decisao: string | null;
   encerrada: boolean;
   partes: { a: { nome: string; tipo: string }; b: { nome: string; tipo: string } };
-  trecho: { de: string; texto: string; em: string }[];
+  trecho: { de: string; texto: string; em: string; imagem?: string }[];
 }
 
 const SITUACAO: Record<string, { rotulo: string; pill: string }> = {
@@ -95,7 +95,20 @@ function DetalheDaConversa({ id }: { id: string }) {
           <li key={i} className="rounded-md bg-white px-3 py-2">
             <span className="text-xs font-semibold">{nome(m.de)}</span>
             <span className="tnum ml-2 text-[11px] text-muted">{new Date(m.em).toLocaleString("pt-BR")}</span>
-            <p className="whitespace-pre-wrap break-words">{m.texto || "(cartão de rifa)"}</p>
+            {m.imagem ? (
+              <p className="text-xs">
+                [foto]{" "}
+                <a
+                  href={`/api/admin/mensagens/denuncias/${id}/fotos/${m.imagem}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-semibold text-green-deep underline"
+                >
+                  Abrir a foto (abre em outra aba; fica na auditoria)
+                </a>
+              </p>
+            ) : null}
+            {m.texto || !m.imagem ? <p className="whitespace-pre-wrap break-words">{m.texto || "(cartão de rifa)"}</p> : null}
           </li>
         ))}
       </ul>

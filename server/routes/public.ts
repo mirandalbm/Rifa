@@ -116,13 +116,16 @@ import { buscar } from "../services/buscar";
 import {
   acharDestino,
   bloquear as bloquearConversa,
+  definirPresenca,
   denunciarConversa,
   enviar as enviarMensagem,
   exigirMensagensLigadas,
+  fotoDaConversa,
   iniciarConversa,
   lerConversa,
   listarConversas,
   marcarLida,
+  minhaPresenca,
   resumoDasMensagens,
   responderPedido,
 } from "../services/mensagens";
@@ -263,6 +266,40 @@ publicRouter.post("/mensagens/conversas/:id/mensagens", async (req, res, next) =
   try {
     await exigirMensagensLigadas();
     res.status(201).json(await enviarMensagem(req, req.params.id, req.body ?? {}));
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** A foto de uma mensagem: só quem está na conversa; nunca guardada em cache. */
+publicRouter.get("/mensagens/conversas/:id/fotos/:fotoId", async (req, res, next) => {
+  try {
+    await exigirMensagensLigadas();
+    const bytes = await fotoDaConversa(req, req.params.id, req.params.fotoId, req.query.como);
+    res.setHeader("Content-Type", "image/jpeg");
+    res.setHeader("Cache-Control", "private, no-store");
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.send(bytes);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** "Mostrar quando estou online": nasce desligado; quem esconde também não vê o dos outros. */
+publicRouter.get("/mensagens/presenca", async (req, res, next) => {
+  try {
+    await exigirMensagensLigadas();
+    res.setHeader("Cache-Control", "private, no-store");
+    res.json(await minhaPresenca(req, req.query.como));
+  } catch (err) {
+    next(err);
+  }
+});
+
+publicRouter.put("/mensagens/presenca", async (req, res, next) => {
+  try {
+    await exigirMensagensLigadas();
+    res.json(await definirPresenca(req, req.body?.mostrar, req.body?.como));
   } catch (err) {
     next(err);
   }

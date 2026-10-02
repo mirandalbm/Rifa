@@ -1,7 +1,11 @@
 import type { Request, Router } from "express";
 import type { Sujeito } from "@shared/verificacao";
+import { db } from "../db";
+import { auditLog } from "@shared/schema";
 import {
+  autorizarComparacao,
   documentoDoDono,
+  revogarComparacao,
   estadoDaVerificacao,
   salvarDadosDaVerificacao,
   salvarDocumentoDaVerificacao,
@@ -31,7 +35,45 @@ export function montarRotasDaVerificacao(
     try {
       const id = await idDe(req);
       await salvarDadosDaVerificacao(sujeito, id, req.body);
+      if (req.body?.consentimentoFoto === true) await auditar(req, id, "verificacao.consentimento.dado");
       res.json(await estadoDaVerificacao(sujeito, id, true));
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  /**
+   * Autorizar e revogar a comparação da foto (consentimento biométrico).
+   * Cada um entra na auditoria com quem e quando; a prova do texto fica na
+   * própria verificação (chave e SHA-256 do texto lido).
+   */
+  const auditar = (req: Request, id: string, action: string) =>
+    db.insert(auditLog).values({
+      actorId: req.user?.id ?? (sujeito === "apostador" ? id : null),
+      actorRole: req.user?.role ?? sujeito,
+      action,
+      entity: `verificacao_${sujeito}`,
+      entityId: id,
+      ip: req.ip,
+    });
+
+  router.post(`${caminho}/consentimento`, async (req, res, next) => {
+    try {
+      const id = await idDe(req);
+      const estado = await autorizarComparacao(sujeito, id, req.body);
+      await auditar(req, id, "verificacao.consentimento.dado");
+      res.json(estado);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.delete(`${caminho}/consentimento`, async (req, res, next) => {
+    try {
+      const id = await idDe(req);
+      const estado = await revogarComparacao(sujeito, id);
+      await auditar(req, id, "verificacao.consentimento.revogado");
+      res.json(estado);
     } catch (err) {
       next(err);
     }

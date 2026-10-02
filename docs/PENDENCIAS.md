@@ -441,6 +441,11 @@ Na ordem de entrega do plano:
   (publicidade identificada, sem promessa de ganho, sem menores, sem Pix por
   fora), descumprimento, LGPD, tributos e recibo. O painel avisa quando o
   termo em vigor ficou atrás do texto de hoje (`npm run afiliados`).
+- [x] Consentimento biométrico da verificação: texto destacado (finalidade,
+  quem compara, guarda, opcional, revogação), gravado com a data e o
+  SHA-256 do texto lido, revogável na própria tela (o selo sai), e a foto
+  não é comparada sem ele (`npm run verificacao`). Falta o advogado ler o
+  texto (`textoDoConsentimentoBiometrico()` em `shared/verificacao.ts`).
 - [ ] **[você]** Cada organização publicar o termo de adesão de afiliado
   (Afiliados → Termo) — quem já publicou vê o aviso para publicar a versão
   seguinte com o texto novo — e o advogado revisar o texto-base.

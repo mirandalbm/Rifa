@@ -8,6 +8,9 @@ import {
   validarCoresDoSelo,
   validarDadosDaVerificacao,
   validarPix,
+  CONSENTIMENTO_BIOMETRICO_VERSAO,
+  chaveDoConsentimento,
+  textoDoConsentimentoBiometrico,
 } from "@shared/verificacao";
 import { CONTRASTE_MIN, FUNDO, contraste } from "@shared/template";
 import { cnpjValido } from "@shared/format";
@@ -98,6 +101,10 @@ describe("dados da verificação", () => {
     expect(faltaNaVerificacao("apostador", { temDados: true, documentos: docs, temFoto: false })[0]).toMatch(/foto/);
     expect(faltaNaVerificacao("organizacao", { temDados: true, documentos: docs, temFoto: false })).toHaveLength(2);
     expect(faltaNaVerificacao("organizacao", { temDados: true, documentos: [...docs, "cartao_cnpj", "comprovante_endereco"], temFoto: false })).toEqual([]);
+    // Pessoa sem a autorização da comparação: falta; organização não compara foto.
+    expect(faltaNaVerificacao("apostador", { temDados: true, documentos: docs, temFoto: true, temConsentimento: false })[0]).toMatch(/autorização/);
+    expect(faltaNaVerificacao("apostador", { temDados: true, documentos: docs, temFoto: true, temConsentimento: true })).toEqual([]);
+    expect(faltaNaVerificacao("organizacao", { temDados: true, documentos: [...docs, "cartao_cnpj", "comprovante_endereco"], temFoto: false, temConsentimento: false })).toEqual([]);
   });
 });
 
@@ -114,5 +121,26 @@ describe("emoji é de perfil verificado", () => {
     expect(temEmoji("que prêmio 🔥")).toBe(true);
     expect(temEmoji("❤️")).toBe(true);
     expect(temEmoji("Boa sorte a todos! :) 100%")).toBe(false);
+  });
+});
+
+describe("consentimento biométrico", () => {
+  it("o texto diz para quê, quem compara, guarda, que é opcional e como revogar", () => {
+    const t = textoDoConsentimentoBiometrico({ automatico: false }).join(" ");
+    expect(t).toMatch(/só para confirmar que o perfil é meu/);
+    expect(t).toMatch(/LGPD, art\. 11/);
+    expect(t).toMatch(/uma pessoa da plataforma/);
+    expect(t).toMatch(/cifradas/);
+    expect(t).toMatch(/opcional/);
+    expect(t).toMatch(/revogar/);
+  });
+  it("com o comparador automático, diz qual serviço recebe a imagem", () => {
+    const t = textoDoConsentimentoBiometrico({ automatico: true }).join(" ");
+    expect(t).toMatch(/Amazon Rekognition/);
+    expect(t).toMatch(/não as guarda/);
+  });
+  it("a chave muda com a versão e o modo: o servidor recusa texto diferente do lido", () => {
+    expect(chaveDoConsentimento({ automatico: false })).toBe(`${CONSENTIMENTO_BIOMETRICO_VERSAO}:manual`);
+    expect(chaveDoConsentimento({ automatico: true })).not.toBe(chaveDoConsentimento({ automatico: false }));
   });
 });

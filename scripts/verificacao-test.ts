@@ -15,7 +15,7 @@ import { db, pool } from "../server/db";
 import { hashPassword } from "../server/auth";
 import { affiliates, auditLog, buyers, campaignStats, campaigns, organizations, users, verificacoes } from "../shared/schema";
 import { compararAutomaticamente } from "../server/services/verificacao";
-import { CORES_DO_SELO_PADRAO } from "../shared/verificacao";
+import { CORES_DO_SELO_PADRAO, chaveDoConsentimento } from "../shared/verificacao";
 
 const URL = baseUrl();
 let falhas = 0;
@@ -74,6 +74,8 @@ const dadosPessoa = (p: { nome: string; cpf: string }) => ({
   conta: { banco: "260", agencia: "0001", conta: "1234567-8", tipo: "corrente" },
   pix: { tipo: "cpf", chave: p.cpf },
   consentimentoFoto: true,
+  // O servidor da prova não liga o comparador automático: o texto é o manual.
+  consentimentoChave: chaveDoConsentimento({ automatico: false }),
 });
 
 async function limpar(orgId: string) {
@@ -233,6 +235,40 @@ async function main() {
     const [lida] = await db.select().from(verificacoes).where(eq(verificacoes.id, linha.id));
     checa("semelhança alta: verifica sozinho, e registra que foi automático",
       certo === "verificado" && Boolean(comSelo.v) && lida.fotoConferidaPor === "automatico" && lida.fotoSimilaridade === 97);
+
+    console.log("\n  consentimento biométrico (gravado, revogável):");
+    checa(
+      "o consentimento fica gravado: data, chave do texto e SHA-256 do texto lido",
+      Boolean(lida.consentimentoBiometricoEm) && lida.consentimentoBiometricoChave === "1:manual" && /^[0-9a-f]{64}$/.test(lida.consentimentoBiometricoHash ?? ""),
+      `${lida.consentimentoBiometricoChave} ${lida.consentimentoBiometricoHash}`,
+    );
+    r = await carla.req("GET", V);
+    checa("a tela recebe o texto em vigor e a data do consentimento", Array.isArray(r.json?.consentimento?.texto) && r.json.consentimento.texto.length >= 4 && Boolean(r.json.consentimento.dadoEm));
+    r = await carla.req("PUT", V, { ...dadosPessoa(PESSOAS[0]), consentimentoChave: "0:manual" });
+    checa("autorizar olhando um texto que mudou: 409", r.status === 409 && /mudou/.test(r.json?.message ?? ""), r.json?.message);
+    const auditAntes = (await db.select().from(auditLog).where(eq(auditLog.action, "verificacao.consentimento.revogado"))).length;
+    r = await carla.req("DELETE", `${V}/consentimento`);
+    const [revogada] = await db.select().from(verificacoes).where(eq(verificacoes.id, linha.id));
+    const [semSeloRevogado] = await db.select({ v: buyers.verificadoEm }).from(buyers).where(eq(buyers.id, carlaB.id));
+    checa(
+      "revogar: o selo sai na mesma transação, a prova some e falta a autorização",
+      r.status === 200 && r.json?.status === "incompleto" && !semSeloRevogado.v && !revogada.consentimentoBiometricoEm && r.json.falta.some((f: string) => /autorização/.test(f)),
+      `HTTP ${r.status} ${r.json?.status}`,
+    );
+    const auditDepois = (await db.select().from(auditLog).where(eq(auditLog.action, "verificacao.consentimento.revogado"))).length;
+    checa("a revogação entra na auditoria", auditDepois === auditAntes + 1);
+    // Mesmo se a linha estiver na fila da foto, sem autorização a imagem não sai para o comparador.
+    await db.update(verificacoes).set({ status: "foto_em_analise" }).where(eq(verificacoes.id, linha.id));
+    let chamadasSem = 0;
+    const semAutorizacao = await compararAutomaticamente(linha.id, { nome: "teste", comparar: async () => (chamadasSem++, 99) });
+    checa("sem autorização, o comparador nem é chamado", semAutorizacao === "manual" && chamadasSem === 0);
+    const [fotoAgora] = await db.select({ v: verificacoes.fotoVersao }).from(verificacoes).where(eq(verificacoes.id, linha.id));
+    r = await admin.req("POST", `/api/admin/verificacoes/${linha.id}/decidir`, { acao: "aprovar", fotoVersao: fotoAgora.v?.getTime() });
+    checa("nem a plataforma aprova a foto sem a autorização: 409", r.status === 409 && /autorizou/.test(r.json?.message ?? ""), r.json?.message);
+    r = await carla.req("POST", `${V}/consentimento`, { consentimentoFoto: true, consentimentoChave: "1:manual" });
+    checa("autorizar de novo, sem mexer nos dados: volta para a análise da foto", r.status === 200 && r.json?.status === "foto_em_analise" && Boolean(r.json?.consentimento?.dadoEm), `HTTP ${r.status} ${r.json?.status} ${r.json?.message ?? ""}`);
+    const deNovo = await compararAutomaticamente(linha.id, { nome: "teste", comparar: async () => 97 });
+    checa("e com a autorização o comparador verifica de novo", deNovo === "verificado");
 
     console.log("\n  foto de outra pessoa, e o mesmo CPF:");
     r = await diego.req("PUT", V, dadosPessoa(PESSOAS[0]));

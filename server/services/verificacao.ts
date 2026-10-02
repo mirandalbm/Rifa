@@ -15,7 +15,8 @@
  * - Mexer em dado ou documento volta tudo para a análise.
  */
 import type { Request } from "express";
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { createHash } from "node:crypto";
+import { and, eq, inArray, isNotNull, sql } from "drizzle-orm";
 import { db } from "../db";
 import {
   afiliadoDocumentos,
@@ -30,10 +31,12 @@ import {
 import {
   DOCUMENTOS_DO_SUJEITO,
   DOCUMENTO_VERIFICACAO_MAX_BYTES,
+  chaveDoConsentimento,
   comparaFoto,
   cpfDaVerificacao,
   decisaoDoRosto,
   faltaNaVerificacao,
+  textoDoConsentimentoBiometrico,
   validarDadosDaVerificacao,
   type DadosVerificacao,
   type StatusVerificacao,
@@ -124,6 +127,7 @@ async function recalcularNaTransacao(tx: Tx, sujeito: Sujeito, id: string, causa
       status: verificacoes.status,
       temDados: sql<boolean>`${verificacoes.dados} is not null`,
       documentosAprovadosEm: verificacoes.documentosAprovadosEm,
+      consentimentoEm: verificacoes.consentimentoBiometricoEm,
     })
     .from(verificacoes)
     .where(and(eq(verificacoes.sujeito, sujeito), eq(verificacoes.sujeitoId, id)))
@@ -133,7 +137,12 @@ async function recalcularNaTransacao(tx: Tx, sujeito: Sujeito, id: string, causa
     await tx.select({ tipo: verificacaoDocumentos.tipo }).from(verificacaoDocumentos).where(eq(verificacaoDocumentos.verificacaoId, v.id))
   ).map((d) => d.tipo);
   const foto = await versaoDaFoto(tx, sujeito, id);
-  const falta = faltaNaVerificacao(sujeito, { temDados: v.temDados, documentos: docs, temFoto: Boolean(foto) });
+  const falta = faltaNaVerificacao(sujeito, {
+    temDados: v.temDados,
+    documentos: docs,
+    temFoto: Boolean(foto),
+    temConsentimento: Boolean(v.consentimentoEm),
+  });
   const agora = new Date();
 
   let novo: StatusVerificacao;
@@ -200,11 +209,45 @@ async function linhaDe(sujeito: Sujeito, id: string) {
   return v;
 }
 
-export async function salvarDadosDaVerificacao(sujeito: Sujeito, id: string, bruto: unknown) {
-  // A foto do rosto é dado biométrico (LGPD, art. 11): comparar só com o consentimento dado na tela.
-  if (comparaFoto(sujeito) && (bruto as { consentimentoFoto?: unknown } | null)?.consentimentoFoto !== true) {
+/** O texto do consentimento em vigor agora, com a chave e a impressão. */
+function consentimentoEmVigor() {
+  const modo = { automatico: Boolean(comparadorAtivo()) };
+  const texto = textoDoConsentimentoBiometrico(modo);
+  return {
+    texto,
+    chave: chaveDoConsentimento(modo),
+    hash: createHash("sha256").update(texto.join("\n")).digest("hex"),
+  };
+}
+
+/**
+ * Confere a autorização que a tela mandou: marcada e com a chave do texto
+ * que está em vigor (o texto mudou desde que a pessoa leu → 409, lê de novo).
+ */
+function consentimentoConferido(bruto: unknown) {
+  const b = (bruto ?? {}) as { consentimentoFoto?: unknown; consentimentoChave?: unknown };
+  if (b.consentimentoFoto !== true) {
     throw new VerificacaoError("Para verificar, autorize a comparação da foto do perfil com a do documento.");
   }
+  const atual = consentimentoEmVigor();
+  if (b.consentimentoChave !== atual.chave) {
+    throw new VerificacaoError("O texto da autorização mudou desde que você leu. Leia de novo e autorize.", 409);
+  }
+  return atual;
+}
+
+/** Grava o consentimento (na transação de quem chama): é a prova. */
+function gravarConsentimento(c: { chave: string; hash: string }, agora = new Date()) {
+  return {
+    consentimentoBiometricoEm: agora,
+    consentimentoBiometricoChave: c.chave,
+    consentimentoBiometricoHash: c.hash,
+  };
+}
+
+export async function salvarDadosDaVerificacao(sujeito: Sujeito, id: string, bruto: unknown) {
+  // A foto do rosto é dado biométrico (LGPD, art. 11): comparar só com o consentimento dado na tela.
+  const consentimento = comparaFoto(sujeito) ? consentimentoConferido(bruto) : null;
   let dados: DadosVerificacao;
   try {
     dados = validarDadosDaVerificacao(sujeito, bruto);
@@ -224,7 +267,14 @@ export async function salvarDadosDaVerificacao(sujeito: Sujeito, id: string, bru
     await db.transaction(async (tx) => {
       await tx
         .update(verificacoes)
-        .set({ dados: c.dados, iv: c.iv, tag: c.tag, chaveVersao: c.versao, cpfImpressao: impressaoDoCpf(cpfDaVerificacao(dados)) })
+        .set({
+          dados: c.dados,
+          iv: c.iv,
+          tag: c.tag,
+          chaveVersao: c.versao,
+          cpfImpressao: impressaoDoCpf(cpfDaVerificacao(dados)),
+          ...(consentimento ? gravarConsentimento(consentimento) : {}),
+        })
         .where(eq(verificacoes.id, v.id));
       await recalcularNaTransacao(tx, sujeito, id, "documentos");
     });
@@ -236,6 +286,47 @@ export async function salvarDadosDaVerificacao(sujeito: Sujeito, id: string, bru
     throw e;
   }
   return estadoDaVerificacao(sujeito, id, false);
+}
+
+/**
+ * Autorizar (de novo) a comparação sem mexer nos dados — quem revogou, ou
+ * quem verificou antes de o consentimento ser gravado. Grava a prova e
+ * recalcula: com os documentos já aprovados, volta para a análise da foto.
+ */
+export async function autorizarComparacao(sujeito: Sujeito, id: string, bruto: unknown) {
+  if (!comparaFoto(sujeito)) throw new VerificacaoError("Esta verificação não compara foto.", 400);
+  const consentimento = consentimentoConferido(bruto);
+  const v = await linhaDe(sujeito, id);
+  const status = await db.transaction(async (tx) => {
+    await tx.update(verificacoes).set(gravarConsentimento(consentimento)).where(eq(verificacoes.id, v.id));
+    return recalcularNaTransacao(tx, sujeito, id, "foto");
+  });
+  depoisDaFoto(sujeito, id, status);
+  return estadoDaVerificacao(sujeito, id, true);
+}
+
+/**
+ * Revogar a autorização (LGPD, art. 8º, § 5º): a prova do consentimento sai,
+ * a foto deixa de ser comparada e o selo cai na mesma transação. Os dados e
+ * os documentos ficam (servem à verificação de identidade); excluir a conta
+ * apaga tudo.
+ */
+export async function revogarComparacao(sujeito: Sujeito, id: string) {
+  if (!comparaFoto(sujeito)) throw new VerificacaoError("Esta verificação não compara foto.", 400);
+  const [v] = await db
+    .select({ id: verificacoes.id })
+    .from(verificacoes)
+    .where(and(eq(verificacoes.sujeito, sujeito), eq(verificacoes.sujeitoId, id)));
+  if (v) {
+    await db.transaction(async (tx) => {
+      await tx
+        .update(verificacoes)
+        .set({ consentimentoBiometricoEm: null, consentimentoBiometricoChave: null, consentimentoBiometricoHash: null })
+        .where(eq(verificacoes.id, v.id));
+      await recalcularNaTransacao(tx, sujeito, id, "foto");
+    });
+  }
+  return estadoDaVerificacao(sujeito, id, true);
 }
 
 export async function salvarDocumentoDaVerificacao(sujeito: Sujeito, id: string, tipo: string, dataUrl: unknown) {
@@ -320,7 +411,24 @@ export async function estadoDaVerificacao(sujeito: Sujeito, id: string, comDados
     temFoto,
     dados,
     documentos,
-    falta: faltaNaVerificacao(sujeito, { temDados: Boolean(v?.dados), documentos: documentos.map((d) => d.tipo), temFoto }),
+    falta: faltaNaVerificacao(sujeito, {
+      temDados: Boolean(v?.dados),
+      documentos: documentos.map((d) => d.tipo),
+      temFoto,
+      temConsentimento: Boolean(v?.consentimentoBiometricoEm),
+    }),
+    /** O texto a autorizar (com a chave que volta no pedido) e o consentimento gravado. */
+    consentimento: comparaFoto(sujeito)
+      ? (() => {
+          const atual = consentimentoEmVigor();
+          return {
+            texto: atual.texto,
+            chave: atual.chave,
+            dadoEm: v?.consentimentoBiometricoEm ?? null,
+            chaveDada: v?.consentimentoBiometricoChave ?? null,
+          };
+        })()
+      : null,
   };
 }
 
@@ -352,6 +460,8 @@ export async function compararAutomaticamente(
   if (!comparador) return "sem_comparador";
   const [v] = await db.select().from(verificacoes).where(eq(verificacoes.id, verificacaoId));
   if (!v || v.status !== "foto_em_analise" || !v.fotoVersao) return "manual";
+  // Sem autorização gravada, a imagem não sai para o comparador (LGPD, art. 11).
+  if (!v.consentimentoBiometricoEm) return "manual";
   const sujeito = v.sujeito as Sujeito;
   const foto = await bytesDaFoto(sujeito, v.sujeitoId);
   let doc: { mime: string; bytes: Buffer } | null = null;
@@ -379,7 +489,14 @@ export async function compararAutomaticamente(
           ? { status: "verificado", fotoConferidaPor: "automatico", fotoSimilaridade: similaridade, verificadoEm: agora, decididoEm: agora, updatedAt: agora }
           : { fotoSimilaridade: similaridade, updatedAt: agora },
       )
-      .where(and(eq(verificacoes.id, v.id), eq(verificacoes.status, "foto_em_analise"), eq(verificacoes.fotoVersao, v.fotoVersao!)))
+      .where(
+        and(
+          eq(verificacoes.id, v.id),
+          eq(verificacoes.status, "foto_em_analise"),
+          eq(verificacoes.fotoVersao, v.fotoVersao!),
+          isNotNull(verificacoes.consentimentoBiometricoEm),
+        ),
+      )
       .returning({ id: verificacoes.id });
     if (u && decisao === "verificado") await espelhar(tx, sujeito, v.sujeitoId, agora);
     return Boolean(u);
@@ -461,6 +578,8 @@ export async function detalheDaVerificacao(id: string) {
     fotoVersao: fotoVersao?.getTime() ?? null,
     similaridade: v.fotoSimilaridade,
     comparadorAutomatico: comparadorAtivo()?.nome ?? null,
+    /** Quando a pessoa autorizou a comparação (nulo: não autorizou ou revogou). */
+    consentimentoEm: v.consentimentoBiometricoEm,
     dados: v.dados && v.iv && v.tag && v.chaveVersao ? decifrarJson<DadosVerificacao>({ dados: v.dados, iv: v.iv, tag: v.tag, versao: v.chaveVersao }) : null,
     documentos,
   };
@@ -514,7 +633,11 @@ export async function decidirVerificacao(
 
   const resultado = await db.transaction(async (tx) => {
     const [v] = await tx
-      .select({ status: verificacoes.status, documentosAprovadosEm: verificacoes.documentosAprovadosEm })
+      .select({
+        status: verificacoes.status,
+        documentosAprovadosEm: verificacoes.documentosAprovadosEm,
+        consentimentoEm: verificacoes.consentimentoBiometricoEm,
+      })
       .from(verificacoes)
       .where(eq(verificacoes.id, id))
       .for("update");
@@ -524,6 +647,8 @@ export async function decidirVerificacao(
     const foto = await versaoDaFoto(tx, sujeito, v0.sujeitoId);
     if (comparaFoto(sujeito) && (acao === "aprovar" || acao === "foto_divergente")) {
       if (!foto) throw new VerificacaoError("O perfil ficou sem foto. Espere a pessoa pôr uma.", 409);
+      // Comparar exige a autorização gravada (pode ter sido revogada enquanto a tela estava aberta).
+      if (!v.consentimentoEm) throw new VerificacaoError("A pessoa não autorizou (ou revogou) a comparação da foto.", 409);
       if (Number(entrada.fotoVersao) !== foto.getTime()) {
         throw new VerificacaoError("A foto do perfil mudou enquanto você olhava. Confira de novo.", 409);
       }

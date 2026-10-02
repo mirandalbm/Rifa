@@ -1630,7 +1630,20 @@ estorno.
   apostador verifica com o CPF da própria conta (409 se outro).
 - **Pessoa compara a foto do perfil com a frente do documento** (que por
   isso vai como imagem, nunca PDF); organização não compara (a foto é a
-  marca). Consentimento biométrico marcado na tela, conferido no servidor.
+  marca).
+- **Consentimento biométrico é prova, destacado e revogável** (LGPD, arts.
+  8º e 11, I). O texto (`textoDoConsentimentoBiometrico()`: para quê, quem
+  compara — e o Amazon Rekognition quando o comparador automático está
+  ligado —, guarda, opcional, como revogar) vem do servidor com a chave
+  (`chaveDoConsentimento()`: versão e modo), e a chave volta no pedido:
+  texto diferente do lido é 409. Gravado na verificação
+  (`consentimento_biometrico_em`, a chave e o SHA-256 do texto) e na
+  auditoria. Sem ele falta "a sua autorização" (`faltaNaVerificacao`), o
+  comparador **nem é chamado** (e o `UPDATE` exige o consentimento) e a
+  plataforma não aprova a foto (409). **Revogar** (`DELETE …/consentimento`)
+  apaga a prova e tira o selo na mesma transação; autorizar de novo
+  (`POST …/consentimento`) volta para a análise da foto sem mexer nos dados.
+  Subir a versão do texto exige o consentimento de novo.
 - **Trocar ou tirar a foto apaga o selo na transação que troca a foto**
   (`fotoMudouNaTransacao`); mexer em dado ou documento derruba a aprovação
   dos documentos. O selo público (`buyers.verificado_em`,

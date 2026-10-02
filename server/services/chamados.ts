@@ -51,7 +51,7 @@ import { publicUrl } from "./urls";
 import { isUniqueViolation } from "../pgError";
 import { getPlataforma } from "./settings";
 import { hit } from "./antifraude";
-import { refundOrder } from "./orders";
+import { adiadoEmSql, refundOrder } from "./orders";
 import { orgOf } from "./orgs";
 import { paymentProviderByName } from "../payments";
 import { avisarDisputa, avisarReembolso, emSegundoPlano } from "./push";
@@ -135,6 +135,7 @@ export async function abrirChamado(
       order: orders,
       campaignStatus: campaigns.status,
       sorteioEm: campaigns.drawAt,
+      adiadoEm: adiadoEmSql,
       organizationId: campaigns.organizationId,
       cpf: buyers.cpf,
       telefoneConfirmadoEm: buyers.telefoneConfirmadoEm,
@@ -177,6 +178,7 @@ export async function abrirChamado(
     compradoEm: linha.order.paidAt ?? linha.order.createdAt,
     pedidoEm: agora,
     taxaPct: plataforma.taxaReembolsoPct,
+    adiadoEm: linha.adiadoEm,
   });
 
   // Erro de preenchimento (print faltando, arquivo que não é imagem) não

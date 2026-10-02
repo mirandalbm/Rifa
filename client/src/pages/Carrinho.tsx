@@ -16,6 +16,7 @@ import { lerOrigem } from "@/lib/origem";
 import { lerIndicacao } from "@/lib/indicacao";
 import { consentiu, lerUtm } from "@/lib/marketing";
 import { regraDoReembolso } from "@shared/reembolso";
+import { AvisoDePrazo } from "@/components/AvisoDePrazo";
 import { SO_VALE_PELA_PLATAFORMA } from "@shared/seguranca";
 
 interface Item {
@@ -32,6 +33,8 @@ interface Item {
   totalQuotas: number;
   vende: boolean;
   status: string;
+  drawAt: string | null;
+  modoSorteio?: string;
   capa: { url: string; lqip?: string | null; role: string } | null;
   organizacao: { slug: string; nome: string; foto: string | null; verificada: boolean };
 }
@@ -364,7 +367,16 @@ function PagarCarrinho({ itens, total }: { itens: Item[]; total: number }) {
         </div>
       ) : null}
       <p className="text-[11px] text-muted">{SO_VALE_PELA_PLATAFORMA}</p>
-      {checkout?.reembolso?.aceita ? <p className="text-[11px] text-muted">{regraDoReembolso(checkout.reembolso.taxaPct)}</p> : null}
+      {checkout?.reembolso?.aceita ? (
+        <>
+          {itens
+            .filter((i) => i.vende)
+            .map((i) => (
+              <AvisoDePrazo key={i.slug} sorteioEm={i.drawAt} modoSorteio={i.modoSorteio} rifa={i.prizeTitle} />
+            ))}
+          <p className="text-[11px] text-muted">{regraDoReembolso(checkout.reembolso.taxaPct)}</p>
+        </>
+      ) : null}
       <p className="text-[11px] text-muted">
         Ao comprar, você aceita o regulamento de cada rifa:{" "}
         {itens.map((i, n) => (

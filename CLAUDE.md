@@ -1215,6 +1215,26 @@ botão, é **chamado** — com dono, prova, conversa e protocolo.
   fica gravado no chamado (`tipoReembolso`, `taxaCents`, `devolverCents`):
   mudar a taxa no painel não muda o que já foi prometido. A regra aparece
   **antes da compra** (`regraDoReembolso()`, na tela da rifa).
+- **O arrependimento acaba no que vier primeiro: 7 dias ou o fechamento**
+  (2 horas antes do sorteio, `prazoDoArrependimento()`). O bilhete é a
+  participação num sorteio com data marcada; feito o sorteio, o serviço foi
+  prestado. Como o prazo pode ficar menor que 7 dias, **a tela diz a data e
+  a hora exatas antes do Pix** (`avisoDePrazoCurto()`, `AvisoDePrazo` na
+  página da rifa e no carrinho, uma linha por rifa que vende; na rifa
+  "quando completar" ainda sem data, o aviso diz que o prazo pode encurtar
+  ao encher) — CDC, arts. 6º, III, e
+  31; Decreto 7.962/2013. A regra, o regulamento (item 7) e a ajuda
+  (`prazo-de-desistir`) dizem o mesmo texto.
+- **Sorteio adiado depois da compra devolve tudo** (tipo `adiamento`),
+  online ou cambista, mesmo depois dos 7 dias, até o fechamento da data
+  nova: quem comprou, comprou a rifa da data antiga. A data que separa é a
+  aprovação do último adiamento (`adiadoEmSql`, `max(decidido_em)` dos
+  pedidos de adiamento aprovados — sem coluna nova), lida no servidor ao
+  abrir o chamado e em "Minhas compras" (a prévia da tela usa a mesma
+  conta). **O chamado com taxa já aberto ou aprovado** passa a devolver
+  tudo na mesma transação que aprova o adiamento — senão a promessa valeria
+  só para quem pedisse depois. A data marcada pela rifa "quando completar"
+  (ou desmarcada pelo estorno) não é adiamento.
 - **Devolução parcial é pelo provedor, com o valor explícito.**
   `refund(chargeId, amountCents)`; sem valor é devolução total. A chave de
   idempotência do Mercado Pago leva o valor, para a repetição não dobrar.

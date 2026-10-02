@@ -6,8 +6,24 @@
  * | Quando o pedido é feito                                   | Devolve | Taxa        |
  * |-----------------------------------------------------------|---------|-------------|
  * | Compra online, até 7 dias da compra, antes do sorteio     | 100%    | nenhuma     |
+ * | Sorteio adiado depois da compra (online ou cambista)      | 100%    | nenhuma     |
  * | Depois de 7 dias, ou compra presencial (cambista)         | ≥ 90%   | até 10%     |
  * | A menos de 2 horas do sorteio, ou depois dele             | —       | não abre    |
+ *
+ * **O arrependimento acaba no que vier primeiro: 7 dias ou o fechamento dos
+ * pedidos, 2 horas antes do sorteio.** O bilhete é a participação num sorteio
+ * com data marcada; feito o sorteio, o serviço foi prestado (quem perdeu não
+ * pode desistir depois de saber). Como o prazo pode ficar menor que 7 dias, a
+ * tela avisa **antes da compra**, com a data e a hora exatas
+ * (`avisoDePrazoCurto()`), ao lado do botão do Pix — CDC, arts. 6º, III, e
+ * 31; Decreto 7.962/2013, art. 5º.
+ *
+ * **Adiamento muda o que foi comprado**: quem pagou antes de a plataforma
+ * aprovar a data nova pode desistir com devolução integral, por qualquer
+ * canal, até o fechamento da data nova — e o chamado que já estava aberto
+ * passa a devolver tudo, na mesma transação da aprovação
+ * (`server/services/solicitacoes.ts`). A data marcada pela rifa "quando
+ * completar" não é adiamento.
  *
  * A taxa é administrativa, da plataforma, e o administrador geral a escolhe
  * entre 0% e 10% (limite que o Idec e a jurisprudência aceitam). O modelo é
@@ -22,10 +38,11 @@ export const CORTE_ANTES_DO_SORTEIO_MS = 2 * 60 * 60 * 1000;
 export const TAXA_REEMBOLSO_MAX_PCT = 10;
 export const TAXA_REEMBOLSO_PADRAO_PCT = 10;
 
-export type TipoReembolso = "arrependimento" | "com_taxa";
+export type TipoReembolso = "arrependimento" | "adiamento" | "com_taxa";
 
 export const NOME_TIPO_REEMBOLSO: Record<TipoReembolso, string> = {
   arrependimento: "arrependimento (até 7 dias) — devolução integral",
+  adiamento: "sorteio adiado depois da compra — devolução integral",
   com_taxa: "depois de 7 dias ou compra presencial — com taxa administrativa",
 };
 
@@ -47,16 +64,35 @@ export function calcularReembolso(p: {
   compradoEm: Date;
   pedidoEm: Date;
   taxaPct: number;
+  /** Quando a plataforma aprovou o último adiamento do sorteio, se houve. */
+  adiadoEm?: Date | null;
 }): CalculoReembolso {
-  const dentroDos7Dias =
-    p.pedidoEm.getTime() - p.compradoEm.getTime() <= DIAS_ARREPENDIMENTO * 86_400_000;
+  if (p.adiadoEm && p.compradoEm.getTime() < p.adiadoEm.getTime()) {
+    return {
+      tipo: "adiamento",
+      taxaPct: 0,
+      taxaCents: 0,
+      devolverCents: p.pagoCents,
+    };
+  }
+  const dentroDos7Dias = p.pedidoEm.getTime() - p.compradoEm.getTime() <= DIAS_ARREPENDIMENTO * 86_400_000;
   if (p.vendaOnline && dentroDos7Dias) {
-    return { tipo: "arrependimento", taxaPct: 0, taxaCents: 0, devolverCents: p.pagoCents };
+    return {
+      tipo: "arrependimento",
+      taxaPct: 0,
+      taxaCents: 0,
+      devolverCents: p.pagoCents,
+    };
   }
   const pct = Math.min(TAXA_REEMBOLSO_MAX_PCT, Math.max(0, Math.round(p.taxaPct)));
   // A taxa arredonda para baixo: o centavo que sobra fica com o consumidor.
   const taxaCents = Math.floor((p.pagoCents * pct) / 100);
-  return { tipo: "com_taxa", taxaPct: pct, taxaCents, devolverCents: p.pagoCents - taxaCents };
+  return {
+    tipo: "com_taxa",
+    taxaPct: pct,
+    taxaCents,
+    devolverCents: p.pagoCents - taxaCents,
+  };
 }
 
 /** O pedido de reembolso ainda pode ser aberto, olhando só o relógio do sorteio. */
@@ -65,14 +101,72 @@ export function fechadoPeloSorteio(sorteioEm: Date | null | undefined, agora: Da
   return agora.getTime() >= sorteioEm.getTime() - CORTE_ANTES_DO_SORTEIO_MS;
 }
 
+/**
+ * Até quando quem compra agora pode desistir com devolução integral: 7 dias
+ * ou o fechamento dos pedidos (2 horas antes do sorteio), o que vier
+ * primeiro. Sem data de sorteio, 7 dias.
+ */
+export function prazoDoArrependimento(compradoEm: Date, sorteioEm: Date | null | undefined): Date {
+  const seteDias = compradoEm.getTime() + DIAS_ARREPENDIMENTO * 86_400_000;
+  if (!sorteioEm) return new Date(seteDias);
+  return new Date(Math.min(seteDias, sorteioEm.getTime() - CORTE_ANTES_DO_SORTEIO_MS));
+}
+
+/** "10/10/2026 às 17:00", no fuso de São Paulo. */
+function dataEHoraSP(d: Date): string {
+  const partes = new Intl.DateTimeFormat("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(d);
+  const v = (t: string) => partes.find((x) => x.type === t)?.value ?? "";
+  return `${v("day")}/${v("month")}/${v("year")} às ${v("hour")}:${v("minute")}`;
+}
+
+/**
+ * O aviso ao lado do Pix quando o prazo de desistir fica menor que 7 dias
+ * (o sorteio está perto). `null` quando valem os 7 dias inteiros.
+ */
+export function avisoDePrazoCurto(
+  agora: Date,
+  sorteioEm: Date | null | undefined,
+  modoSorteio?: string | null,
+): string | null {
+  // Sem data, mas marcada quando encher: a data pode cair em poucos dias.
+  if (!sorteioEm && modoSorteio === "quando_completar") {
+    return (
+      "Atenção: esta rifa é sorteada quando completar. Ao encher, o sorteio é marcado para a próxima extração " +
+      "da Loteria Federal (de 1 a 4 dias depois) e os pedidos de reembolso fecham 2 horas antes dele: " +
+      `o prazo para desistir pode ficar menor que ${DIAS_ARREPENDIMENTO} dias.`
+    );
+  }
+  if (!sorteioEm) return null;
+  const prazo = prazoDoArrependimento(agora, sorteioEm);
+  if (prazo.getTime() >= agora.getTime() + DIAS_ARREPENDIMENTO * 86_400_000) return null;
+  if (prazo.getTime() <= agora.getTime()) {
+    return "Os pedidos de reembolso desta rifa já fecharam (2 horas antes do sorteio): esta compra não poderá ser desfeita.";
+  }
+  return (
+    `Atenção: o sorteio é em ${dataEHoraSP(sorteioEm)}. ` +
+    `Você pode desistir desta compra com devolução integral até ${dataEHoraSP(prazo)} ` +
+    `(2 horas antes do sorteio), antes dos ${DIAS_ARREPENDIMENTO} dias.`
+  );
+}
+
 /** O texto que o comprador lê antes de comprar. */
 export function regraDoReembolso(taxaPct: number): string {
   const pct = Math.min(TAXA_REEMBOLSO_MAX_PCT, Math.max(0, Math.round(taxaPct)));
   return (
-    `Reembolso: compra online pode ser cancelada com devolução integral em até ${DIAS_ARREPENDIMENTO} dias. ` +
+    `Reembolso: compra online pode ser desfeita com devolução integral em até ${DIAS_ARREPENDIMENTO} dias, ` +
+    `desde que antes do fechamento dos pedidos, 2 horas antes do sorteio — o que vier primeiro. ` +
     (pct > 0
       ? `Depois disso, ou em compra com cambista, é retida taxa administrativa de ${pct}%. `
       : `Depois disso, ou em compra com cambista, também sem taxa. `) +
-    `Os pedidos fecham 2 horas antes do sorteio; depois do sorteio não há reembolso.`
+    `Se a plataforma aprovar o adiamento do sorteio depois da sua compra, a devolução é integral até 2 horas antes da nova data. ` +
+    `Feito o sorteio, a participação foi prestada e não há reembolso.`
   );
 }

@@ -44,6 +44,8 @@ interface OrderRow {
     totalQuotas: number;
     status: string;
     drawAt?: string | null;
+    /** Último adiamento aprovado: quem pagou antes recebe tudo de volta. */
+    adiadoEm?: string | null;
     prizeTitle?: string;
   };
   organizador?: { nome: string | null; slug: string | null };
@@ -424,6 +426,7 @@ function PedirReembolso({
           compradoEm: new Date(row.order.paidAt ?? row.order.createdAt),
           pedidoEm: new Date(),
           taxaPct,
+          adiadoEm: row.campaign.adiadoEm ? new Date(row.campaign.adiadoEm) : null,
         });
         return (
           <div className="mt-2 rounded-md border border-line bg-mist px-3 py-2 text-sm">

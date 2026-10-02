@@ -372,11 +372,19 @@ async function main() {
     const estornoAntes = (await getPlataforma()).estornoManual;
     await setPlataforma({ estornoManual: true });
     const [pedidoPago] = await db
-      .select({ id: orders.id, buyerId: orders.buyerId, amount: orders.amountCents })
+      .select({ id: orders.id, buyerId: orders.buyerId, amount: orders.amountCents, status: orders.status })
       .from(orders)
       .innerJoin(campaigns, eq(campaigns.id, orders.campaignId))
-      .where(and(eq(campaigns.organizationId, uMarina.org!), eq(orders.status, "paid")))
+      // Qualquer pedido dela sem chamado em andamento: a prova só cancela, nunca estorna de verdade
+      // (o estorno em si é o `npm run chamados`), e as provas de antes podem ter estornado os pagos.
+      .where(
+        and(
+          eq(campaigns.organizationId, uMarina.org!),
+          sql`NOT EXISTS (SELECT 1 FROM chamados ch WHERE ch.order_id = ${orders.id} AND (ch.status IN ('aberto', 'aprovado') OR ch.disputa = 'aberta'))`,
+        ),
+      )
       .limit(1);
+    if (!pedidoPago) throw new Error("Nenhum pedido da Marina sem chamado em andamento para a prova do estorno.");
     const PROTOCOLO = "RB-20261002-990001";
     await db.delete(chamados).where(eq(chamados.protocolo, PROTOCOLO));
     const [ch] = await db
@@ -399,7 +407,7 @@ async function main() {
       r = await marina.req("POST", `/api/ia/acoes/${pe.id}/recusar`);
       const [depois] = await db.select({ status: chamados.status }).from(chamados).where(eq(chamados.id, ch.id));
       const [pedidoDepois] = await db.select({ status: orders.status }).from(orders).where(eq(orders.id, pedidoPago.id));
-      checa("cancelado: o chamado segue aprovado e o pedido segue pago", r.status === 200 && depois.status === "aprovado" && pedidoDepois.status === "paid");
+      checa("cancelado: o chamado segue aprovado e o pedido não muda", r.status === 200 && depois.status === "aprovado" && pedidoDepois.status === pedidoPago.status);
     } finally {
       await db.delete(chamados).where(eq(chamados.id, ch.id));
       await setPlataforma({ estornoManual: estornoAntes });

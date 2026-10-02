@@ -237,6 +237,7 @@ export async function resumoDaCobranca(
         eq(iaPagamentos.titularId, p.id),
         eq(iaPagamentos.status, "pendente"),
         gt(iaPagamentos.expiresAt, agora),
+        sql`${iaPagamentos.chargeId} IS NOT NULL`,
       ),
     )
     .orderBy(desc(iaPagamentos.createdAt))
@@ -317,25 +318,6 @@ export async function pedirPagamento(
     descricao = `Pacote de ${cfg.pacotes[i].creditos} créditos do assistente`;
   }
 
-  // O mesmo pedido ainda em aberto: devolve o Pix que já existe.
-  const agora = new Date();
-  const [aberto] = await db
-    .select()
-    .from(iaPagamentos)
-    .where(
-      and(
-        eq(iaPagamentos.titularTipo, p.tipo),
-        eq(iaPagamentos.titularId, p.id),
-        eq(iaPagamentos.status, "pendente"),
-        eq(iaPagamentos.tipo, tipo),
-        eq(iaPagamentos.valorCents, valorCents),
-        eq(iaPagamentos.milicreditos, milicreditos),
-        gt(iaPagamentos.expiresAt, new Date(agora.getTime() + 5 * 60_000)),
-      ),
-    )
-    .limit(1);
-  if (aberto?.chargeId) return publico(aberto);
-
   const limite = await hit(`ia-pix:${userId}`, 60, IA_PIX_POR_HORA);
   if (limite.excedeu)
     throw new CobrancaIAError(
@@ -364,52 +346,69 @@ export async function pedirPagamento(
     );
   }
 
+  const agora = new Date();
   const expiresAt = new Date(agora.getTime() + IA_PIX_MINUTOS * 60_000);
-  for (let tentativa = 0; tentativa < 5; tentativa++) {
-    const codigo = randomInt(IA_CODIGO_MIN, IA_CODIGO_MAX);
-    let linha;
-    try {
-      [linha] = await db
+  // Reaproveitar o Pix em aberto e criar a linha nova acontecem sob a trava do
+  // titular: dois cliques (ou dois organizadores) ao mesmo tempo não geram duas
+  // cobranças — o segundo encontra a linha do primeiro.
+  const escolha = await db.transaction(async (tx) => {
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${`ia-pix:${p.tipo}:${p.id}`}))`);
+    const [aberto] = await tx
+      .select()
+      .from(iaPagamentos)
+      .where(
+        and(
+          eq(iaPagamentos.titularTipo, p.tipo),
+          eq(iaPagamentos.titularId, p.id),
+          eq(iaPagamentos.status, "pendente"),
+          eq(iaPagamentos.tipo, tipo),
+          eq(iaPagamentos.valorCents, valorCents),
+          eq(iaPagamentos.milicreditos, milicreditos),
+          gt(iaPagamentos.expiresAt, new Date(agora.getTime() + 5 * 60_000)),
+        ),
+      )
+      .orderBy(desc(iaPagamentos.createdAt))
+      .limit(1);
+    if (aberto) return { existente: aberto };
+    for (let tentativa = 0; tentativa < 5; tentativa++) {
+      const codigo = randomInt(IA_CODIGO_MIN, IA_CODIGO_MAX);
+      const [linha] = await tx
         .insert(iaPagamentos)
-        .values({
-          titularTipo: p.tipo,
-          titularId: p.id,
-          userId,
-          tipo,
-          codigo,
-          valorCents,
-          milicreditos,
-          expiresAt,
-        })
+        .values({ titularTipo: p.tipo, titularId: p.id, userId, tipo, codigo, valorCents, milicreditos, expiresAt })
+        .onConflictDoNothing({ target: iaPagamentos.codigo })
         .returning();
-    } catch (err) {
-      if (isUniqueViolation(err, "uq_ia_pagamento_codigo")) continue;
-      throw err;
+      if (linha) return { nova: linha };
     }
+    return {};
+  });
+  if (escolha.existente) {
+    // Ainda sem cobrança: o outro pedido está gerando o Pix agora.
+    if (!escolha.existente.chargeId) throw new CobrancaIAError("O Pix está sendo gerado. Tente de novo em instantes.", 409);
+    return publico(escolha.existente);
+  }
+  const linha = escolha.nova;
+  if (!linha) throw new CobrancaIAError("Não foi possível gerar o Pix. Tente de novo.", 500);
+  let charge;
+  try {
     // Chamada externa fora de transação; sem split: o dinheiro é da plataforma.
-    const charge = await provider.createPixCharge({
-      orderCode: codigo,
+    charge = await provider.createPixCharge({
+      orderCode: linha.codigo,
       amountCents: valorCents,
       description: descricao,
       payer: { name: nome, phone: u?.phone ?? "", cpf: documento ?? undefined },
       expiresAt,
     });
-    const [comPix] = await db
-      .update(iaPagamentos)
-      .set({
-        provider: charge.provider,
-        chargeId: charge.chargeId,
-        pixQr: charge.qr,
-        pixCopyPaste: charge.copyPaste,
-      })
-      .where(eq(iaPagamentos.id, linha.id))
-      .returning();
-    return publico(comPix);
+  } catch (err) {
+    // O provedor recusou: a linha sem Pix sairia na tela como "esperando o Pix" para sempre.
+    await db.delete(iaPagamentos).where(and(eq(iaPagamentos.id, linha.id), sql`${iaPagamentos.chargeId} IS NULL`));
+    throw err;
   }
-  throw new CobrancaIAError(
-    "Não foi possível gerar o Pix. Tente de novo.",
-    500,
-  );
+  const [comPix] = await db
+    .update(iaPagamentos)
+    .set({ provider: charge.provider, chargeId: charge.chargeId, pixQr: charge.qr, pixCopyPaste: charge.copyPaste })
+    .where(eq(iaPagamentos.id, linha.id))
+    .returning();
+  return publico(comPix);
 }
 
 /**
@@ -461,16 +460,38 @@ export async function confirmarPagamentoIA(chargeId: string): Promise<boolean> {
   return true;
 }
 
-/** Estorno de um Pix do assistente não tira créditos sozinho: vai ao log para a plataforma decidir. */
-export async function avisarEstornoDaIA(chargeId: string): Promise<boolean> {
-  const [r] = await db
-    .select({ codigo: iaPagamentos.codigo })
-    .from(iaPagamentos)
-    .where(eq(iaPagamentos.chargeId, chargeId));
+/**
+ * Estorno de um Pix do assistente no provedor (contestação, devolução): o
+ * pagamento vira `estornada` e os créditos que ele deu saem pelo livro
+ * (`estorno:<id>`, franquia primeiro, depois o avulso), com a conta travada.
+ * O que já foi gasto vira dívida no avulso — a próxima mensagem é recusada.
+ * Devolve `true` se a cobrança era do assistente (o webhook não procura pedido).
+ */
+export async function estornarPagamentoIA(chargeId: string): Promise<boolean> {
+  const [r] = await db.select().from(iaPagamentos).where(eq(iaPagamentos.chargeId, chargeId));
   if (!r) return false;
-  console.warn(
-    `[ia] o Pix ${r.codigo} do assistente foi estornado no provedor; os créditos dele continuam na conta — ajuste pela plataforma.`,
-  );
+  const p: Pagante = { tipo: r.titularTipo === "afiliado" ? "afiliado" : "organizacao", id: r.titularId };
+  let agiu = false;
+  await db.transaction(async (tx) => {
+    const [estornada] = await tx
+      .update(iaPagamentos)
+      .set({ status: "estornada" })
+      .where(and(eq(iaPagamentos.id, r.id), eq(iaPagamentos.status, "paga")))
+      .returning({ id: iaPagamentos.id });
+    if (!estornada) return;
+    const agora = new Date();
+    const conta = await vencerFranquia(tx, p, await travarConta(tx, p), agora);
+    const d = debitar(conta, r.milicreditos, agora);
+    await lancar(tx, p, {
+      franquia: -d.daFranquia,
+      avulso: -d.doAvulso,
+      motivo: "estorno",
+      chave: `estorno:${r.id}`,
+      descricao: `Pix ${r.codigo} estornado no provedor`,
+    });
+    agiu = true;
+  });
+  if (agiu) console.warn(`[ia] o Pix ${r.codigo} do assistente foi estornado no provedor; os créditos dele saíram da conta.`);
   return true;
 }
 

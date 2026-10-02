@@ -107,6 +107,8 @@ export async function pagarIA(req: Request, corpo: Record<string, unknown>): Pro
 
 /** Leituras do histórico por pessoa, na janela: cada uma vira chamada ao Chatbase com a chave da plataforma. */
 export const IA_LEITURAS_POR_JANELA = 30;
+/** Mensagens por quem paga (organização ou afiliado), na mesma janela: limita a dívida de mensagens em paralelo. */
+export const IA_MENSAGENS_POR_PAGANTE = 40;
 
 /** A conversa da pessoa **com o agente de agora**. A de outro agente (trocado em Aparência) é esquecida. */
 async function conversaDe(c: Contexto): Promise<string | null> {
@@ -171,6 +173,11 @@ export async function conversarComIA(
   if (quemPaga) await exigirSaldo(quemPaga);
   const limite = await hit(`ia:${c.userId}`, IA_JANELA_MIN, IA_MENSAGENS_POR_JANELA);
   if (limite.excedeu) throw new IAError("Muitas mensagens em pouco tempo. Espere alguns minutos.", 429);
+  // Também por quem paga: com vários organizadores, o limite por pessoa sozinho deixaria a dívida crescer N vezes.
+  if (quemPaga) {
+    const doPagante = await hit(`ia-pagante:${quemPaga.tipo}:${quemPaga.id}`, IA_JANELA_MIN, IA_MENSAGENS_POR_PAGANTE);
+    if (doPagante.excedeu) throw new IAError("Muitas mensagens da sua conta em pouco tempo. Espere alguns minutos.", 429);
+  }
 
   const mensagem = (texto as string).trim();
   let lida = await conversaDe(c);

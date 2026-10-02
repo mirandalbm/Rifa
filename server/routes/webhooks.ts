@@ -5,7 +5,7 @@ import { webhookEvents } from "@shared/schema";
 import { paymentProviderByName, PROVEDORES_CONHECIDOS } from "../payments";
 import { markOrderPaid, refundByChargeId } from "../services/orders";
 import { confirmarRecarga } from "../services/patrocinio";
-import { avisarEstornoDaIA, confirmarPagamentoIA } from "../services/iaCobranca";
+import { estornarPagamentoIA, confirmarPagamentoIA } from "../services/iaCobranca";
 
 export const webhookRouter = Router();
 
@@ -58,7 +58,7 @@ webhookRouter.post("/:provider", async (req, res) => {
     // comissão revertida, taxa da plataforma cancelada. Antes disto o evento
     // era gravado e ignorado — a venda sumia do caixa mas a comissão era
     // liberada normalmente pelo relógio, que só olha a carência.
-    if (event.event === "refunded" && event.chargeId && !(await avisarEstornoDaIA(event.chargeId))) {
+    if (event.event === "refunded" && event.chargeId && !(await estornarPagamentoIA(event.chargeId))) {
       // No carrinho num Pix só, a cobrança é de vários pedidos: todos voltam.
       for (const r of await refundByChargeId(event.chargeId)) {
         if (r.comissaoJaPagaCents > 0) {

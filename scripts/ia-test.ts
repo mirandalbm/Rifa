@@ -34,7 +34,7 @@ import { eq, inArray, like } from "drizzle-orm";
 import { baseUrl } from "./base-url";
 import { db, pool } from "../server/db";
 import { affiliates, iaContas, iaConversas, iaLancamentos, iaPagamentos, iaUso, organizations, rateEvents, users } from "../shared/schema";
-import { vencerFranquias } from "../server/services/iaCobranca";
+import { estornarPagamentoIA, vencerFranquias } from "../server/services/iaCobranca";
 import { MS_DO_CICLO } from "../shared/iaCobranca";
 import { hashPassword } from "../server/auth";
 
@@ -175,7 +175,7 @@ async function main() {
     await db.delete(iaLancamentos).where(inArray(iaLancamentos.titularId, titulares));
     await db.delete(iaPagamentos).where(inArray(iaPagamentos.titularId, titulares));
     await db.delete(iaContas).where(inArray(iaContas.titularId, titulares));
-    for (const b of ["ia:%", "ia-ler:%", "ia-pix:%"]) await db.delete(rateEvents).where(like(rateEvents.bucket, b));
+    for (const b of ["ia:%", "ia-ler:%", "ia-pix:%", "ia-pagante:%"]) await db.delete(rateEvents).where(like(rateEvents.bucket, b));
   };
   const contaDe = async (id: string) => (await db.select().from(iaContas).where(eq(iaContas.titularId, id)))[0];
   const livroDe = async (id: string) => db.select().from(iaLancamentos).where(eq(iaLancamentos.titularId, id));
@@ -375,6 +375,26 @@ async function main() {
     conta = await contaDe(uMarina.org!);
     checa("renovar antes do fim estende o ciclo por mais 30 dias e soma a franquia", p.confirmacao.json?.ok === true && (conta?.cicloAte?.getTime() ?? 0) - cicloPrimeiro === MS_DO_CICLO && conta?.franquiaMilicreditos === 5000, String(conta?.cicloAte));
 
+    console.log("\nPix estornado no provedor tira os créditos");
+    const [pacotePago] = await db.select().from(iaPagamentos).where(eq(iaPagamentos.titularId, uMarina.org!)).then((l) => l.filter((x) => x.tipo === "avulso"));
+    const antesDoEstorno = await contaDe(uMarina.org!);
+    checa("a cobrança do assistente é reconhecida pelo estorno", (await estornarPagamentoIA(pacotePago.chargeId!)) === true);
+    await estornarPagamentoIA(pacotePago.chargeId!);
+    conta = await contaDe(uMarina.org!);
+    livro = await livroDe(uMarina.org!);
+    const [estornado] = await db.select().from(iaPagamentos).where(eq(iaPagamentos.id, pacotePago.id));
+    checa(
+      "o pagamento fica estornado e os créditos saem uma vez só (franquia primeiro)",
+      estornado.status === "estornada" &&
+        livro.filter((l) => l.motivo === "estorno").length === 1 &&
+        (antesDoEstorno!.franquiaMilicreditos + antesDoEstorno!.avulsoMilicreditos) - (conta!.franquiaMilicreditos + conta!.avulsoMilicreditos) === 10_000,
+      `${conta?.franquiaMilicreditos}/${conta?.avulsoMilicreditos}`,
+    );
+    checa("um Pix que não é do assistente segue para o estorno de pedido", (await estornarPagamentoIA("cobranca-que-nao-existe")) === false);
+    // Devolve o pacote para as contas de baixo seguirem.
+    await db.update(iaContas).set({ franquiaMilicreditos: antesDoEstorno!.franquiaMilicreditos, avulsoMilicreditos: antesDoEstorno!.avulsoMilicreditos }).where(eq(iaContas.titularId, uMarina.org!));
+    await db.delete(iaLancamentos).where(eq(iaLancamentos.chave, `estorno:${pacotePago.id}`));
+
     console.log("\nA franquia vence pelo livro");
     await db.update(iaContas).set({ cicloAte: new Date(Date.now() - 1000) }).where(eq(iaContas.titularId, uMarina.org!));
     n = recebidos.length;
@@ -391,7 +411,14 @@ async function main() {
     checa("a organização vizinha não usa a assinatura da outra (402)", r.status === 402, `HTTP ${r.status}`);
     r = await vizinha.req("GET", "/api/ia/conta");
     checa("…e o plano dela não mostra nada da outra", r.json?.ativa === false && r.json?.pendente === null && r.json?.avulsoCreditos === 0);
-    await pagar(vizinha, { tipo: "assinatura" });
+    const juntos = await Promise.all([1, 2, 3].map(() => vizinha.req("POST", "/api/ia/pagamentos", { tipo: "assinatura" })));
+    const pendentes = await db.select().from(iaPagamentos).where(eq(iaPagamentos.titularId, orgVizinha.id));
+    checa(
+      "três pedidos de Pix ao mesmo tempo geram uma cobrança só",
+      pendentes.length === 1 && juntos.every((x) => (x.status === 201 && x.json?.codigo === pendentes[0].codigo) || x.status === 409),
+      juntos.map((x) => x.status).join(","),
+    );
+    await vizinha.req("POST", `/api/dev/ia-pagamento/${pendentes[0].codigo}`);
     r = await vizinha.req("POST", "/api/ia/mensagens", { texto: "Segredo da vizinha" });
     checa("a organização vizinha conversa com a assinatura dela", r.status === 200, `HTTP ${r.status}`);
     uso = await usoDe(uVizinha.id);

@@ -151,8 +151,8 @@ worker). As 25 provas da API, 180 capturas de tela, o log do servidor e o
   a conversa agora passa pelo servidor.
 - Cobrança do assistente: o custo só é sabido depois da resposta, então
   mensagens em paralelo com o último crédito deixam o avulso negativo (a dívida
-  de uma janela, limitada pelo limite de mensagens); e o estorno de um Pix do
-  assistente no provedor não tira os créditos sozinho (vai ao log).
+  de uma janela, limitada pelo limite de mensagens por pessoa e por quem paga);
+  o Pix pago tarde (depois de a tela dar por vencido) credita normalmente.
 - `setPlataforma` lê e grava sem trava: dois cartões salvos ao mesmo tempo
   podem perder um (último a gravar vence). Já existia; o cartão do assistente é
   só mais um escritor.

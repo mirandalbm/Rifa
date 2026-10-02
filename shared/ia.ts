@@ -72,11 +72,17 @@ export function configIAGuardada(entrada: unknown): ConfigIA {
   try {
     return validarConfigIA(entrada);
   } catch {
+    const e = entrada && typeof entrada === "object" ? (entrada as Record<string, unknown>) : {};
+    console.warn("[ia] a configuração guardada do assistente não passa mais na régua; organizador e afiliado ficam desligados até a plataforma salvar de novo.");
     try {
-      const e = entrada && typeof entrada === "object" ? (entrada as Record<string, unknown>) : {};
       return validarConfigIA({ ...e, paraOrganizador: false, paraAfiliado: false });
     } catch {
-      return CONFIG_IA_PADRAO;
+      // A cobrança guardada é que não passa: mantém o assistente do master (ligado e agente) e zera o resto.
+      try {
+        return validarConfigIA({ ligado: e.ligado, agenteId: e.agenteId });
+      } catch {
+        return CONFIG_IA_PADRAO;
+      }
     }
   }
 }
@@ -178,11 +184,14 @@ export function textoDasPartes(partes: unknown): string {
  * cobrança, sobre a soma. Valor ausente ou inválido vira `null` ("sem
  * medida"), nunca zero: zero seria uso de graça sem ninguém saber.
  */
+export const MILICREDITOS_MAX_POR_MENSAGEM = 1_000_000_000;
+
 export function milicreditosUsados(v: unknown): number | null {
   if (typeof v !== "number" && typeof v !== "string") return null;
   if (typeof v === "string" && v.trim() === "") return null;
   const n = Number(v);
-  return Number.isFinite(n) && n >= 0 ? Math.round(n * 1000) : null;
+  // Acima de um milhão de créditos numa resposta não é medida, é defeito: fica "sem medida" (o log avisa).
+  return Number.isFinite(n) && n >= 0 && n <= MILICREDITOS_MAX_POR_MENSAGEM / 1000 ? Math.round(n * 1000) : null;
 }
 
 export interface MensagemDaIA {

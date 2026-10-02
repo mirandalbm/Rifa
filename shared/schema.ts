@@ -2712,9 +2712,9 @@ export const iaContas = pgTable(
     /** organizacao | afiliado */
     titularTipo: text("titular_tipo").notNull(),
     titularId: uuid("titular_id").notNull(),
-    franquiaMilicreditos: integer("franquia_milicreditos").notNull().default(0),
+    franquiaMilicreditos: bigint("franquia_milicreditos", { mode: "number" }).notNull().default(0),
     /** Pode ficar negativo por uma mensagem (o custo só é sabido depois): é dívida. */
-    avulsoMilicreditos: integer("avulso_milicreditos").notNull().default(0),
+    avulsoMilicreditos: bigint("avulso_milicreditos", { mode: "number" }).notNull().default(0),
     cicloAte: timestamp("ciclo_ate"),
     atualizadaEm: timestamp("atualizada_em").notNull().defaultNow(),
   },
@@ -2736,8 +2736,8 @@ export const iaPagamentos = pgTable(
     codigo: integer("codigo").notNull(),
     valorCents: integer("valor_cents").notNull(),
     /** O que o Pix dá, fotografado no pedido: mudar a tabela não mexe no que já foi cobrado. */
-    milicreditos: integer("milicreditos").notNull(),
-    /** pendente | paga */
+    milicreditos: bigint("milicreditos", { mode: "number" }).notNull(),
+    /** pendente | paga | estornada */
     status: text("status").notNull().default("pendente"),
     provider: text("provider"),
     chargeId: text("charge_id"),
@@ -2766,9 +2766,9 @@ export const iaLancamentos = pgTable(
     titularTipo: text("titular_tipo").notNull(),
     titularId: uuid("titular_id").notNull(),
     /** Positivo entra, negativo sai. Em milésimos de crédito. */
-    franquiaMilicreditos: integer("franquia_milicreditos").notNull().default(0),
-    avulsoMilicreditos: integer("avulso_milicreditos").notNull().default(0),
-    /** assinatura | avulso | uso | vencimento */
+    franquiaMilicreditos: bigint("franquia_milicreditos", { mode: "number" }).notNull().default(0),
+    avulsoMilicreditos: bigint("avulso_milicreditos", { mode: "number" }).notNull().default(0),
+    /** assinatura | avulso | uso | vencimento | estorno */
     motivo: text("motivo").notNull(),
     chave: text("chave").notNull(),
     descricao: text("descricao"),

@@ -42,6 +42,9 @@ describe("assistente de IA: configuração", () => {
     expect(lida).toMatchObject({ ligado: true, agenteId: "agente_abc-123", paraOrganizador: false, paraAfiliado: false });
     expect(configIAGuardada({ ligado: true, agenteId: "../x" })).toEqual(CONFIG_IA_PADRAO);
     expect(configIAGuardada({ ...LIGADA, paraOrganizador: true })).toMatchObject({ paraOrganizador: true });
+    // A cobrança guardada é que não passa: o assistente do master continua ligado, com o agente.
+    const quebrada = { ...LIGADA, paraOrganizador: true, cobranca: { assinaturaCents: 4990, franquiaCreditos: 0 } };
+    expect(configIAGuardada(quebrada)).toMatchObject({ ligado: true, agenteId: "agente_abc-123", paraOrganizador: false, cobranca: CONFIG_COBRANCA_IA_PADRAO });
   });
 
   it("o id do agente vai no caminho da API: só letras, números, _ e -", () => {
@@ -172,6 +175,9 @@ describe("assistente de IA: o que pode sair para o Chatbase", () => {
     expect(milicreditosUsados(2)).toBe(2000);
     expect(milicreditosUsados(0.5)).toBe(500);
     expect(milicreditosUsados("1.25")).toBe(1250);
+    // Um milhão de créditos numa resposta não é medida, é defeito: fica "sem medida".
+    expect(milicreditosUsados(1_000_000)).toBe(1_000_000_000);
+    expect(milicreditosUsados(1_000_001)).toBeNull();
     expect(milicreditosUsados(0)).toBe(0);
     for (const ruim of [undefined, null, "", "x", -1, Number.NaN, {}]) expect(milicreditosUsados(ruim)).toBeNull();
   });

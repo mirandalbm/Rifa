@@ -54,9 +54,11 @@ senha); **[código]** é trabalho no repositório.
   debita o que o Chatbase informa, franquia primeiro; sem assinatura ou sem
   saldo, 402 antes de falar com o Chatbase. Titular: a organização ou o
   afiliado; o master não paga. O plano e o Pix ficam na própria coluna.
-- [ ] **[código]** Chatbase AI, **ajuste de crédito pela plataforma** (cortesia,
-  e devolver crédito de Pix estornado no provedor — hoje o estorno vai só ao
-  log) e um relatório de uso e receita da IA para a plataforma.
+- [ ] **[código]** Chatbase AI, **ajuste de crédito pela plataforma** (cortesia)
+  e um relatório de uso e receita da IA para a plataforma. O Pix estornado no
+  provedor já tira os créditos sozinho. O Pix vencido não é cancelado no
+  provedor (no Asaas o QR vale até o fim do dia); se for pago tarde, credita
+  normalmente.
 - [ ] **[código]** Chatbase AI, **ações** no sistema (as "client actions" do
   Chatbase): no recorte de `orgOf` (afiliado: as publicações dele), com
   confirmação para dinheiro, estorno, publicação e exclusão, e `audit_log` como

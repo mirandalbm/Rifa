@@ -2570,8 +2570,11 @@ patrocínio). Regras puras em `shared/iaCobranca.ts`; o resto em
   CPF/CNPJ do pagador (vai só para o Pix, não fica guardado; a organização usa
   o CNPJ cadastrado). Valor e créditos são **fotografados** no pagamento
   (`ia_pagamentos`): mudar a tabela não mexe no que já foi cobrado. O mesmo Pix
-  em aberto é devolvido em vez de gerar outro, e há limite de 10 Pix por hora
-  por pessoa (`hit`). O código fica numa faixa própria (`IA_CODIGO_MIN`, 10
+  em aberto é devolvido em vez de gerar outro — procurar e criar a linha
+  acontecem **sob a trava do titular** (`pg_advisory_xact_lock`), então dois
+  cliques ou dois organizadores ao mesmo tempo geram uma cobrança só; o
+  provedor que recusa o Pix leva a linha junto (não fica "esperando o Pix"
+  vazio). Limite de 10 Pix por hora por pessoa (`hit`). O código fica numa faixa própria (`IA_CODIGO_MIN`, 10
   dígitos), fora do pedido, do carrinho e da recarga.
 - **O pacote só com a assinatura ativa** (409): crédito que não pode ser usado
   seria dinheiro preso. O preço por crédito **nunca sobe** no pacote maior
@@ -2589,7 +2592,11 @@ patrocínio). Regras puras em `shared/iaCobranca.ts`; o resto em
   milésimos: **primeiro a franquia, depois o avulso** (`debitar()`). O custo só
   é sabido depois da resposta, então **o avulso pode ficar negativo por uma
   mensagem** — é dívida, a próxima é recusada e o pacote seguinte paga primeiro
-  a dívida. Uso sem medida (`null`) não debita (o log já avisou).
+  a dívida. Uso sem medida (`null`) não debita (o log já avisou); custo acima
+  de um milhão de créditos numa resposta é defeito e fica sem medida. A dívida
+  de mensagens em paralelo é limitada também **por quem paga** (`hit`
+  `ia-pagante:…`, 40 em 5 min), não só por pessoa. Os saldos são `bigint`
+  (renovação e pacote somam sem teto).
 - **O ciclo é de 30 dias** (`DIAS_DO_CICLO`). Renovar com o ciclo em curso
   **estende** por mais 30 dias e **soma** a franquia (quem renova antes não
   perde o que pagou); com o ciclo vencido, começa do zero. A franquia que sobrou
@@ -2598,9 +2605,14 @@ patrocínio). Regras puras em `shared/iaCobranca.ts`; o resto em
 - **Cada titular tem a própria conta**, tirada da sessão: a organização
   (qualquer organizador dela) ou o cadastro do afiliado. Nada vem de id na URL.
 - **O webhook olha o assistente antes da recarga e do pedido**
-  (`confirmarPagamentoIA`). **Estorno de um Pix do assistente não tira crédito
-  sozinho**: vai ao log (`avisarEstornoDaIA`) e a plataforma decide — o ajuste
-  de crédito pela plataforma ainda não existe.
+  (`confirmarPagamentoIA`). **Pix do assistente estornado no provedor tira os
+  créditos que deu** (`estornarPagamentoIA`): `UPDATE` condicional `paga` →
+  `estornada` e o débito `estorno:<id>` no livro (franquia primeiro, o que já
+  foi gasto vira dívida no avulso), com a conta travada; o estorno de pedido
+  segue pelo caminho de sempre quando a cobrança não é do assistente. O ajuste
+  de crédito pela plataforma (cortesia) ainda não existe. A configuração
+  guardada que não passe mais na régua perde as liberações (e, se for a
+  cobrança, os preços), mantém o assistente do master e avisa no log.
 - As tabelas `ia_contas`, `ia_pagamentos` e `ia_lancamentos` sobem com o
   `db:push` **antes** do código.
 - `npm run ia` prova tudo isso contra a API de verdade (o Pix pago pelo atalho

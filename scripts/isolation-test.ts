@@ -337,6 +337,18 @@ async function alcancaOVizinho(eu: Lado, vizinho: Lado) {
   checa("a divulgação do vizinho continua esperando", divulgacaoAinda?.status === "em_analise", divulgacaoAinda?.status);
   const minhasDivulgacoes = (await (await pedir(eu.cookie, "/api/admin/divulgacoes")).json()) as { id: string }[];
   checa("a fila de divulgações não traz a do vizinho", !minhasDivulgacoes.some((x) => x.id === divulgacaoDoVizinho.id));
+  // O modo de divulgação do vizinho: o corpo e a query não trocam a organização do organizador.
+  const [modoAntes] = await db.select({ m: organizations.divulgacaoAfiliado }).from(organizations).where(eq(organizations.id, vizinho.orgId));
+  const alvo = modoAntes?.m === "direta" ? "autorizacao" : "direta";
+  const troca = await pedir(eu.cookie, `/api/admin/divulgacoes/config?organizacao=${vizinho.orgId}`, {
+    method: "PUT",
+    body: JSON.stringify({ modo: alvo, organizacaoId: vizinho.orgId }),
+  });
+  const [modoDepois] = await db.select({ m: organizations.divulgacaoAfiliado }).from(organizations).where(eq(organizations.id, vizinho.orgId));
+  const [meuModo] = await db.select({ m: organizations.divulgacaoAfiliado }).from(organizations).where(eq(organizations.id, eu.orgId));
+  checa("o modo de divulgação do vizinho não muda", modoDepois?.m === modoAntes?.m, `${modoAntes?.m} → ${modoDepois?.m}`);
+  checa("o pedido vale só para a própria organização", troca.status === 200 && meuModo?.m === alvo, `HTTP ${troca.status}`);
+  await db.update(organizations).set({ divulgacaoAfiliado: "autorizacao" }).where(eq(organizations.id, eu.orgId));
   await db.delete(divulgacoes).where(eq(divulgacoes.id, divulgacaoDoVizinho.id));
   const [aindaLa] = await db.select({ id: stories.id }).from(stories).where(eq(stories.id, storyDoVizinho.id));
   checa("o story do vizinho continua no ar", Boolean(aindaLa));

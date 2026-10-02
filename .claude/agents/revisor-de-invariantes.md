@@ -47,6 +47,12 @@ Procure, nesta ordem, o que é **grave**:
    autorização SPA/MF depois de publicar (invariantes 7 e 9).
 10. **Segredo e chave**: credencial no código ou em log; trava de relógio no
     pool comum em vez de `poolDasTravas`.
+11. **Texto e peça de terceiro** (seção "Divulgação de terceiros"): afiliado
+    que divulga sem `comissaoNaRifa()` aprovada; peça de apostador sem compra
+    **paga** (na criação e na leitura pública); decisão sem `UPDATE`
+    condicional com a linha travada; `hit()` depois de recusar o texto (a
+    tentativa barrada precisa contar); denúncia automática que acusa a
+    organização por texto que ela não escreveu sem dizer quem escreveu.
 
 Só depois, o que é menor: mensagem de interface fora do português, número
 sem `tnum`, estado só por cor, cor fixa em vez de variável do tema.

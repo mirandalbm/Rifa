@@ -25,7 +25,7 @@ import { and, eq, inArray, sql } from "drizzle-orm";
 import { db, pool } from "../server/db";
 import { hashPassword } from "../server/auth";
 import { publishCampaign } from "../server/services/campaigns";
-import { affiliates, campaignMedia, campaignStats, campaigns, denuncias, divulgacoes, organizations, users } from "../shared/schema";
+import { affiliates, campaignMedia, campaignStats, campaigns, denuncias, divulgacoes, orders, organizations, users } from "../shared/schema";
 
 const URL = baseUrl();
 let falhas = 0;
@@ -327,6 +327,15 @@ async function main() {
     checa("a A aprova", r.status === 200 && r.json?.status === "publicada");
     r = await new Cliente().req("GET", `/api/public/campaigns/${a1.slug}/divulgacoes`);
     checa("aparece na rifa com o apelido, sem link de afiliado", r.json?.some((x: any) => x.autor === "apostador" && x.link === `/r/${a1.slug}`));
+    r = await afiliada.req("DELETE", `/api/affiliate/divulgacoes/${idAp}`);
+    checa("a afiliada não retira a peça do apostador (404)", r.status === 404, `HTTP ${r.status}`);
+    const [aindaNoAr] = await db.select({ status: divulgacoes.status }).from(divulgacoes).where(eq(divulgacoes.id, idAp));
+    checa("a peça do apostador segue no ar", aindaNoAr?.status === "publicada", aindaNoAr?.status);
+    // O estorno desfaz a compra: quem não joga mais não divulga.
+    await db.update(orders).set({ status: "refunded" }).where(eq(orders.code, compra.json.code));
+    r = await new Cliente().req("GET", `/api/public/campaigns/${a1.slug}/divulgacoes`);
+    checa("compra estornada: a peça do apostador sai da página", !r.json?.some((x: any) => x.autor === "apostador"));
+    await db.update(orders).set({ status: "paid" }).where(eq(orders.code, compra.json.code));
     await ajustarApostador(false);
     r = await new Cliente().req("GET", `/api/public/campaigns/${a1.slug}/divulgacoes`);
     checa("desligar o interruptor tira as do apostador do ar", !r.json?.some((x: any) => x.autor === "apostador"));

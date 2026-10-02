@@ -21,6 +21,7 @@ import type { Request } from "express";
 import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { db } from "../db";
 import {
+  afiliadoVinculos,
   affiliates,
   buyers,
   campaignMedia,
@@ -118,7 +119,7 @@ function barrarPixPorFora(legenda: string, rifa: { id: string; organizationId: s
     varrerTextoDoOrganizador({
       organizationId: rifa.organizationId,
       campaignId: rifa.id,
-      onde: `divulgação de ${quem}`,
+      onde: `texto de terceiro (${quem}), recusado e não publicado`,
       texto: legenda,
     }),
     "varredura",
@@ -162,9 +163,10 @@ export async function publicarComoAfiliado(affiliateId: string, entrada: Record<
   if (!recebe) {
     throw new DivulgacaoError("Para divulgar esta rifa você precisa de vínculo aprovado com a organização e do aceite do termo dela.", 403);
   }
-  barrarPixPorFora(dados.legenda, rifa, `afiliado ${a.code}`);
+  // Conta a tentativa antes de recusar: quem insiste com o mesmo texto estoura o limite.
   const limite = await hit(`divulgacao:afiliado:${affiliateId}`, 24 * 60, DIVULGACOES_POR_DIA);
   if (limite.excedeu) throw new DivulgacaoError("Muitas divulgações hoje. Tente amanhã.", 429);
+  barrarPixPorFora(dados.legenda, rifa, `afiliado ${a.code}`);
 
   // As mídias são da própria rifa, já prontas: nada do cliente vira arquivo.
   if (dados.midias.length) {
@@ -191,6 +193,21 @@ export async function publicarComoAfiliado(affiliateId: string, entrada: Record<
 
 /** As rifas que este afiliado pode divulgar agora, com as mídias que ele pode escolher. */
 export async function rifasParaDivulgar(affiliateId: string) {
+  // Só as organizações onde o afiliado pode ter vínculo (aprovado, ou a antiga
+  // do usuário): o resto nem entra na conferência rifa a rifa de `comissaoNaRifa`.
+  const orgs = new Set<string>();
+  const vinculadas = await db
+    .select({ org: afiliadoVinculos.organizationId })
+    .from(afiliadoVinculos)
+    .where(and(eq(afiliadoVinculos.affiliateId, affiliateId), eq(afiliadoVinculos.status, "aprovado")));
+  for (const v of vinculadas) orgs.add(v.org);
+  const [dono] = await db
+    .select({ org: users.organizationId })
+    .from(affiliates)
+    .innerJoin(users, eq(users.id, affiliates.userId))
+    .where(eq(affiliates.id, affiliateId));
+  if (dono?.org) orgs.add(dono.org);
+  if (orgs.size === 0) return [];
   const rifas = await db
     .select({
       id: campaigns.id,
@@ -209,6 +226,7 @@ export async function rifasParaDivulgar(affiliateId: string) {
         eq(campaigns.status, "published"),
         eq(campaigns.demonstracao, false),
         isNull(campaigns.travadaEm),
+        inArray(campaigns.organizationId, [...orgs]),
         eq(organizations.active, true),
         isNull(organizations.archivedAt),
         isNull(organizations.banidaEm),
@@ -272,6 +290,7 @@ export async function rifasDoApostador(req: Request) {
         eq(campaigns.status, "published"),
         eq(campaigns.demonstracao, false),
         isNull(campaigns.travadaEm),
+        eq(organizations.active, true),
         isNull(organizations.archivedAt),
         isNull(organizations.banidaEm),
       ),
@@ -290,9 +309,9 @@ export async function publicarComoApostador(req: Request, entrada: Record<string
     .where(and(eq(orders.buyerId, b.id), eq(orders.campaignId, rifa.id), eq(orders.status, "paid")))
     .limit(1);
   if (!joga) throw new DivulgacaoError("Só quem comprou esta rifa publica sobre ela.", 403);
-  barrarPixPorFora(dados.legenda, rifa, `apostador @${b.apelido}`);
   const limite = await hit(`divulgacao:apostador:${b.id}`, 24 * 60, DIVULGACOES_POR_DIA);
   if (limite.excedeu) throw new DivulgacaoError("Muitas divulgações hoje. Tente amanhã.", 429);
+  barrarPixPorFora(dados.legenda, rifa, `apostador @${b.apelido}`);
   const d = await gravar({
     campaignId: rifa.id,
     organizationId: rifa.organizationId,
@@ -508,6 +527,7 @@ export async function divulgacoesDaRifa(slug: string) {
         eq(campaigns.status, "published"),
         eq(campaigns.demonstracao, false),
         isNull(campaigns.travadaEm),
+        eq(organizations.active, true),
         isNull(organizations.archivedAt),
         isNull(organizations.banidaEm),
       ),
@@ -527,6 +547,11 @@ export async function divulgacoesDaRifa(slug: string) {
       nomeAfiliado: users.name,
       apelido: buyers.apelido,
       excluido: buyers.excluidoEm,
+      // O estorno desfaz a compra: a peça de quem não joga mais sai do ar (sem apagar nada).
+      compraPaga: sql<boolean>`exists (
+        select 1 from orders o
+         where o.buyer_id = ${divulgacoes.buyerId} and o.campaign_id = ${divulgacoes.campaignId} and o.status = 'paid'
+      )`,
     })
     .from(divulgacoes)
     .leftJoin(affiliates, eq(affiliates.id, divulgacoes.affiliateId))
@@ -548,7 +573,7 @@ export async function divulgacoesDaRifa(slug: string) {
     if (l.autor === "afiliado") {
       if (!l.affiliateId || !l.codigo || l.afiliadoAtivo !== "active") continue;
       if (!(await comissaoNaRifa(db, l.affiliateId, c)).recebe) continue;
-    } else if (!apostadorLigado || !l.apelido || l.excluido) continue;
+    } else if (!apostadorLigado || !l.apelido || l.excluido || !l.compraPaga) continue;
     saida.push({
       id: l.id,
       autor: l.autor,

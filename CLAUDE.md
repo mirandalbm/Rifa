@@ -1564,9 +1564,11 @@ publicou, com o link dele (`/r/<rifa>?ref=<código>`).
 - **O texto passa pela régua da legenda** (sem link e sem telefone, 422) e
   pela varredura `pedePagamentoPorFora()`: pedido de Pix por fora é
   **recusado** (422) e vira denúncia automática (`emSegundoPlano`, evidência
-  "divulgação de afiliado <código>"). A denúncia tem a organização como
-  alvo porque a rifa é dela; quem decide é a plataforma, que lê a
-  evidência. Peça de terceiro nunca nasce sem isto.
+  "texto de terceiro (afiliado <código>), recusado e não publicado"). A
+  denúncia tem a organização como alvo porque a rifa é dela, mas a evidência
+  diz que o texto não é dela e nunca foi ao ar; quem decide é a plataforma.
+  A tentativa recusada **conta no limite diário** (`hit()` antes de recusar).
+  Peça de terceiro nunca nasce sem isto.
 - **Decidir é `UPDATE` condicional com a linha travada** (`FOR UPDATE`,
   `decidir()`): aprovar/recusar parte de `em_analise`, retirar de
   `publicada` — dois cliques, uma decisão, um 409. Recusar e retirar pedem
@@ -1578,7 +1580,8 @@ publicou, com o link dele (`/r/<rifa>?ref=<código>`).
   erro de preenchimento.
 - **O apostador** só com o interruptor `publicarApostador` ligado (desligado:
   404 em toda rota e as peças dele saem do ar), só com **conta e apelido**,
-  só **texto**, só sobre rifa em que tem **compra paga**.
+  só **texto**, só sobre rifa em que tem **compra paga** — conferida de novo
+  na leitura pública: estornou, a peça sai do ar.
 - **Sem dado pessoal em lugar nenhum**: a fila e a página pública trazem
   nome curto e código (afiliado) ou `@apelido` (apostador) — nunca telefone,
   CPF, e-mail ou id de pessoa.

@@ -1360,6 +1360,7 @@ publicRouter.get("/campaigns/:slug/regulamento", async (req, res, next) => {
           drawSeedHash: c.drawSeedHash,
           regulamentoExtra: c.regulamentoExtra,
           aceitaCotaBonus: c.aceitaCotaBonus,
+          minimoVendidoPct: c.minimoVendidoPct,
         },
         promotora: {
           nome: org?.name ?? "—",

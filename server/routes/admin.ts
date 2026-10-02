@@ -199,6 +199,7 @@ import {
   versoes as versoesDoTemplate,
 } from "../services/template";
 import { contempladoPorAproximacao, transmissaoValida } from "@shared/sorteio";
+import { cotasMinimasParaSortear, minimoAtingido } from "@shared/campanhaLegal";
 import { avisarRifaNova, avisarResultado, emSegundoPlano } from "../services/push";
 import {
   anexoPara,
@@ -866,9 +867,11 @@ adminRouter.put("/campaigns/:id/legal", async (req, res, next) => {
       certificado: cert?.dataUrl ? { dataUrl: String(cert.dataUrl), nome: cert.nome ? String(cert.nome) : undefined } : null,
       regulamentoExtra: req.body?.regulamentoExtra,
       aceitaCotaBonus: req.body?.aceitaCotaBonus === undefined ? undefined : req.body.aceitaCotaBonus === true,
+      minimoVendidoPct: req.body?.minimoVendidoPct,
     });
     await audit(req, "campaign.legal", "campaign", campaign.id, {
       aceitaCotaBonus: atualizada.aceitaCotaBonus,
+      minimoVendidoPct: atualizada.minimoVendidoPct,
       authorizationCode: atualizada.authorizationCode,
       drawAt: atualizada.drawAt,
       certificado: Boolean(cert?.dataUrl),
@@ -878,6 +881,7 @@ adminRouter.put("/campaigns/:id/legal", async (req, res, next) => {
       drawAt: atualizada.drawAt,
       temCertificado: Boolean(atualizada.authorizationFileKey),
       regulamentoExtra: atualizada.regulamentoExtra,
+      minimoVendidoPct: atualizada.minimoVendidoPct,
     });
   } catch (err) {
     if (err instanceof CampaignRuleError) return res.status(422).json({ message: err.message });
@@ -3248,6 +3252,19 @@ adminRouter.post("/campaigns/:id/draw", async (req, res, next) => {
           `)
         ).rows;
         if (!publicada.length) throw new SorteioRecusado("Só rifa publicada é sorteada.");
+        // Mínimo de cotas vendidas da autorização: abaixo dele o sorteio não roda.
+        const minimo = cotasMinimasParaSortear(campaign.totalQuotas, campaign.minimoVendidoPct);
+        if (minimo > 0) {
+          const vendidas = Number(
+            (await tx.execute(sql`SELECT sold_count FROM campaign_stats WHERE campaign_id = ${campaign.id}`)).rows[0]
+              ?.sold_count ?? 0,
+          );
+          if (!minimoAtingido(vendidas, campaign.totalQuotas, campaign.minimoVendidoPct)) {
+            throw new SorteioRecusado(
+              `O mínimo para sortear não foi atingido: ${vendidas} de ${minimo} cotas vendidas (${campaign.minimoVendidoPct}%). Peça o adiamento da data do sorteio.`,
+            );
+          }
+        }
         // Reserva esperando pagamento ainda pode virar cota paga: sortear agora
         // deixaria o Pix pago depois fora do quadro. Espera pagar ou vencer.
         const reserva = (

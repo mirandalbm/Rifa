@@ -11,6 +11,7 @@ import { clausulaDoBonus } from "./bonus";
 import { formatBRL, formatQuota, groupNumber } from "./format";
 import { regraDoReembolso } from "./reembolso";
 import { REGRA_DA_APROXIMACAO } from "./sorteio";
+import { cotasMinimasParaSortear } from "./campanhaLegal";
 
 export const REGULAMENTO_EXTRA_MAX = 3000;
 
@@ -44,6 +45,8 @@ export interface DadosDoRegulamento {
     regulamentoExtra: string | null;
     /** Aceita cotas de bônus do programa de indicação (etapa 13). */
     aceitaCotaBonus?: boolean;
+    /** Mínimo de cotas vendidas (%) para o sorteio acontecer; 0 ou ausente = sem mínimo. */
+    minimoVendidoPct?: number;
   };
   promotora: {
     nome: string;
@@ -134,6 +137,13 @@ export function montarRegulamento(d: DadosDoRegulamento): Secao[] {
           : "A data do sorteio é informada antes da publicação.",
         "O número vencedor é calculado a partir dos 5 prêmios da Loteria Federal e de uma semente secreta, cujo resumo (hash SHA-256) foi publicado antes da primeira venda. Depois do sorteio a semente é publicada, e qualquer pessoa pode refazer a conta na página da rifa.",
         ...(rifa.drawSeedHash ? [`Resumo da semente publicado: ${rifa.drawSeedHash}.`] : []),
+        ...(rifa.minimoVendidoPct && rifa.minimoVendidoPct > 0
+          ? [
+              `O sorteio só é realizado com pelo menos ${rifa.minimoVendidoPct}% das cotas vendidas e pagas (${groupNumber(
+                cotasMinimasParaSortear(rifa.totalQuotas, rifa.minimoVendidoPct),
+              )} cotas). Se o mínimo não for atingido até a data, o sorteio é adiado para nova data, informada na página da rifa e avisada a quem comprou.`,
+            ]
+          : []),
         REGRA_DA_APROXIMACAO,
       ],
     },

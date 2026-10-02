@@ -2081,6 +2081,14 @@ desconto na primeira compra — **pago pela plataforma**.
   coluna não tem `winnerNumber`: vale o sorteado. O prêmio prescrito em 180
   dias vai ao Tesouro Nacional — está no regulamento. `npm run
   transparencia` prova.
+- **Mínimo de cotas vendidas para sortear** (`campaigns.minimo_vendido_pct`,
+  0 = sem mínimo): a promotora define o percentual da autorização nos dados
+  legais (`PUT /campaigns/:id/legal`, `problemaNoMinimoVendido()`), ele
+  **trava ao publicar** (fora do `PATCH` genérico) e entra no regulamento
+  com o número de cotas (`cotasMinimasParaSortear()`, arredonda para cima).
+  Abaixo dele o sorteio recusa (409, dentro da mesma transação, contando
+  `campaign_stats.sold_count`) e a promotora pede o adiamento (seção "Editar
+  e adiar rifa publicada"). `npm run transparencia` prova.
 - **A conferência roda no aparelho de quem olha** (`conferirSorteio()`, com
   WebCrypto): a mesma conta de `drawNumber()`. Mudou uma, mude a outra —
   `tests/sorteio.test.ts` compara as duas em 300 casos.

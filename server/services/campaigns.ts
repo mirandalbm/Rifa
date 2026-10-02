@@ -24,6 +24,7 @@ import { commitSeed } from "./draw";
 import { validarRegulamentoExtra } from "@shared/regulamento";
 import {
   CERTIFICADO_MAX_BYTES,
+  problemaNoMinimoVendido,
   problemaNosDadosLegais,
   tipoDoCertificado,
 } from "@shared/campanhaLegal";
@@ -300,6 +301,8 @@ export async function salvarDadosLegais(
     regulamentoExtra?: unknown;
     /** Cota de bônus prevista no regulamento (etapa 13). Trava ao publicar. */
     aceitaCotaBonus?: boolean;
+    /** Mínimo de cotas vendidas (%) para sortear. Trava ao publicar. */
+    minimoVendidoPct?: unknown;
   },
 ): Promise<Campaign> {
   if (campaign.status !== "draft") {
@@ -314,6 +317,11 @@ export async function salvarDadosLegais(
     entrada.drawAt === undefined ? undefined : entrada.drawAt ? new Date(entrada.drawAt) : null;
   const problema = problemaNosDadosLegais({ authorizationCode: codigo, drawAt }, new Date());
   if (problema) throw new CampaignRuleError(problema);
+
+  if (entrada.minimoVendidoPct !== undefined) {
+    const p = problemaNoMinimoVendido(entrada.minimoVendidoPct);
+    if (p) throw new CampaignRuleError(p);
+  }
 
   let regulamentoExtra: string | null | undefined;
   if (entrada.regulamentoExtra !== undefined) {
@@ -342,6 +350,7 @@ export async function salvarDadosLegais(
     if (drawAt !== undefined) mudancas.drawAt = drawAt;
     if (regulamentoExtra !== undefined) mudancas.regulamentoExtra = regulamentoExtra;
     if (entrada.aceitaCotaBonus !== undefined) mudancas.aceitaCotaBonus = entrada.aceitaCotaBonus;
+    if (entrada.minimoVendidoPct !== undefined) mudancas.minimoVendidoPct = entrada.minimoVendidoPct as number;
     if (arquivo) mudancas.authorizationFileKey = CERTIFICADO_NO_BANCO;
     if (Object.keys(mudancas).length === 0) throw new CampaignRuleError("Nada para salvar.");
 

@@ -366,6 +366,11 @@ Na ordem de entrega do plano:
   e mostrado na página da rifa). **Falta no ambiente**: `db:push` (coluna
   `draws.winner_number`) antes do código. Fica para o advogado só conferir
   o texto final.
+- [x] **[código]** Mínimo de cotas vendidas para sortear, definido pela
+  promotora nos dados legais (% do total, trava ao publicar, entra no
+  regulamento); abaixo dele o sorteio não roda e a promotora pede o
+  adiamento. **Falta no ambiente**: `db:push` (coluna
+  `campaigns.minimo_vendido_pct`) antes do código.
 - [ ] **[lançamento]** Prêmio em dinheiro e itens proibidos (Decreto
   70.951/72, art. 10: remédio, arma, munição, explosivo, fogos, bebida
   alcoólica, tabaco): o cadastro do prêmio é texto livre e as cotas

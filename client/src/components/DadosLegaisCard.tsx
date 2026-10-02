@@ -5,6 +5,8 @@ import { apiRequest } from "@/lib/queryClient";
 import {
   CERTIFICADO_MAX_BYTES,
   CERTIFICADO_MIMES,
+  cotasMinimasParaSortear,
+  problemaNoMinimoVendido,
   problemaNosDadosLegais,
 } from "@shared/campanhaLegal";
 import { REGULAMENTO_EXTRA_MAX } from "@shared/regulamento";
@@ -18,6 +20,8 @@ interface Campanha {
   authorizationFileKey?: string | null;
   regulamentoExtra?: string | null;
   aceitaCotaBonus?: boolean;
+  minimoVendidoPct?: number;
+  totalQuotas?: number;
   transmissaoUrl?: string | null;
   slug?: string;
 }
@@ -60,6 +64,7 @@ export function DadosLegaisCard({ campanha }: { campanha: Campanha }) {
   const [arquivo, setArquivo] = useState<{ dataUrl: string; nome: string } | null>(null);
   const [extra, setExtra] = useState(campanha.regulamentoExtra ?? "");
   const [bonus, setBonus] = useState(Boolean(campanha.aceitaCotaBonus));
+  const [minimo, setMinimo] = useState(String(campanha.minimoVendidoPct ?? 0));
   const [msg, setMsg] = useState<{ ok: boolean; texto: string } | null>(null);
 
   useEffect(() => {
@@ -68,8 +73,9 @@ export function DadosLegaisCard({ campanha }: { campanha: Campanha }) {
     setArquivo(null);
     setExtra(campanha.regulamentoExtra ?? "");
     setBonus(Boolean(campanha.aceitaCotaBonus));
+    setMinimo(String(campanha.minimoVendidoPct ?? 0));
     setMsg(null);
-  }, [campanha.id, campanha.authorizationCode, campanha.drawAt, campanha.regulamentoExtra, campanha.aceitaCotaBonus]);
+  }, [campanha.id, campanha.authorizationCode, campanha.drawAt, campanha.regulamentoExtra, campanha.aceitaCotaBonus, campanha.minimoVendidoPct]);
 
   const { data: pendencias } = useQuery<{ blockers: string[] }>({
     queryKey: [`/api/admin/campaigns/${campanha.id}/blockers`],
@@ -77,10 +83,10 @@ export function DadosLegaisCard({ campanha }: { campanha: Campanha }) {
   });
 
   const drawAt = data ? new Date(data) : null;
-  const problema = problemaNosDadosLegais(
-    { authorizationCode: codigo.trim() ? codigo : null, drawAt },
-    new Date(),
-  );
+  const minimoPct = minimo.trim() === "" ? 0 : Number(minimo);
+  const problema =
+    problemaNosDadosLegais({ authorizationCode: codigo.trim() ? codigo : null, drawAt }, new Date()) ??
+    problemaNoMinimoVendido(minimoPct);
 
   const salvar = useMutation({
     mutationFn: () =>
@@ -90,6 +96,7 @@ export function DadosLegaisCard({ campanha }: { campanha: Campanha }) {
         certificado: arquivo,
         regulamentoExtra: extra,
         aceitaCotaBonus: bonus,
+        minimoVendidoPct: minimoPct,
       }),
     onSuccess: () => {
       setArquivo(null);
@@ -147,6 +154,35 @@ export function DadosLegaisCard({ campanha }: { campanha: Campanha }) {
               className="campo tnum disabled:bg-mist"
             />
           </div>
+        </div>
+
+        <div>
+          <label htmlFor={`minimo-${campanha.id}`} className="label-xs">
+            Mínimo de cotas vendidas para sortear (%)
+          </label>
+          <input
+            id={`minimo-${campanha.id}`}
+            type="number"
+            inputMode="numeric"
+            min={0}
+            max={100}
+            step={1}
+            value={minimo}
+            disabled={!rascunho}
+            onChange={(e) => {
+              setMsg(null);
+              setMinimo(e.target.value);
+            }}
+            className="campo tnum max-w-[10rem] disabled:bg-mist"
+            aria-describedby={`minimo-dica-${campanha.id}`}
+          />
+          <p id={`minimo-dica-${campanha.id}`} className="mt-1 text-xs text-muted">
+            {minimoPct > 0 && !problemaNoMinimoVendido(minimoPct)
+              ? `O sorteio só roda com ${minimoPct}%${
+                  campanha.totalQuotas ? ` (${cotasMinimasParaSortear(campanha.totalQuotas, minimoPct).toLocaleString("pt-BR")} cotas)` : ""
+                } vendido. Abaixo disso, peça o adiamento da data. Entra no regulamento e trava ao publicar.`
+              : "0 = sem mínimo. Use o que a autorização da SPA/MF prevê; entra no regulamento e trava ao publicar."}
+          </p>
         </div>
 
         <div>

@@ -423,6 +423,12 @@ export const campaigns = pgTable(
      */
     aceitaCotaBonus: boolean("aceita_cota_bonus").notNull().default(false),
     /**
+     * Mínimo de cotas vendidas (percentual do total) para o sorteio acontecer,
+     * pela autorização. 0 = sem mínimo. Entra por `salvarDadosLegais()` e
+     * trava ao publicar; o sorteio recusa (409) abaixo dele.
+     */
+    minimoVendidoPct: integer("minimo_vendido_pct").notNull().default(0),
+    /**
      * Rifa de demonstração (perfil de exemplo): aparece na vitrine com a
      * marca "Demonstração" e nunca vende — `createOrder` recusa.
      */
@@ -1657,6 +1663,8 @@ export const insertCampaignSchema = createInsertSchema(campaigns, {
     regulamentoExtra: true,
     // Cota de bônus é cláusula do regulamento: só por PUT /legal (etapa 13).
     aceitaCotaBonus: true,
+    // O mínimo para sortear é dado legal: só pela rota `/legal`, que trava ao publicar.
+    minimoVendidoPct: true,
     termoId: true,
     transmissaoUrl: true,
     // Rifa de teste tem rota própria (`marcarDemonstracao`), que confere

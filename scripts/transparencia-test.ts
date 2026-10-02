@@ -232,6 +232,28 @@ async function main() {
       `HTTP ${relatorio.status}`,
     );
 
+    // Mínimo de cotas vendidas: entra pelos dados legais, trava ao publicar e o sorteio respeita.
+    console.log("\n  mínimo de cotas vendidas para sortear:");
+    const comMinimo = await novaRifa("minimo", "draft");
+    r = await marina.req("PUT", `/api/admin/campaigns/${comMinimo.c.id}/legal`, { minimoVendidoPct: 150 });
+    checa("mínimo acima de 100%: recusa (422)", r.status === 422, `HTTP ${r.status}`);
+    r = await marina.req("PUT", `/api/admin/campaigns/${comMinimo.c.id}/legal`, { minimoVendidoPct: 30 });
+    checa("organizador define 30% no rascunho", r.status === 200 && r.json?.minimoVendidoPct === 30, `HTTP ${r.status}`);
+    await db.update(campaigns).set({ status: "published", publishedAt: new Date() }).where(eq(campaigns.id, comMinimo.c.id));
+    r = await marina.req("PUT", `/api/admin/campaigns/${comMinimo.c.id}/legal`, { minimoVendidoPct: 1 });
+    checa("publicada: o mínimo não muda mais (422)", r.status === 422, `HTTP ${r.status}`);
+    const regMin = JSON.stringify((await anon.req("GET", `/api/public/campaigns/${comMinimo.c.slug}/regulamento`)).json?.secoes ?? []);
+    checa("o regulamento traz o mínimo e o adiamento", regMin.includes("pelo menos 30%") && regMin.includes("(300 cotas)") && regMin.includes("adiado"));
+    await vender(comMinimo.c.id, [10, 20]);
+    await db.update(campaignStats).set({ soldCount: 2 }).where(eq(campaignStats.campaignId, comMinimo.c.id));
+    r = await admin.req("POST", `/api/admin/campaigns/${comMinimo.c.id}/draw`, { federalContest: 6002, federalPrizes: ["1", "2", "3", "4", "5"] });
+    const [semSorteio] = await db.select({ status: campaigns.status }).from(campaigns).where(eq(campaigns.id, comMinimo.c.id));
+    checa("abaixo do mínimo o sorteio não roda (409) e a rifa segue publicada",
+      r.status === 409 && String(r.json?.message).includes("2 de 300") && semSorteio.status === "published", `HTTP ${r.status} ${r.json?.message ?? ""}`);
+    await db.update(campaignStats).set({ soldCount: 300 }).where(eq(campaignStats.campaignId, comMinimo.c.id));
+    r = await admin.req("POST", `/api/admin/campaigns/${comMinimo.c.id}/draw`, { federalContest: 6002, federalPrizes: ["1", "2", "3", "4", "5"] });
+    checa("atingido o mínimo, sorteia", r.status === 200 && r.json?.winnerNumber !== undefined, `HTTP ${r.status}`);
+
     const reg2 = await anon.req("GET", `/api/public/campaigns/${s1.rifa.c.slug}/regulamento`);
     const t2 = JSON.stringify(reg2.json?.secoes ?? []);
     checa("o regulamento traz a aproximação e o Tesouro", t2.includes("imediatamente acima") && t2.includes("Tesouro Nacional"));

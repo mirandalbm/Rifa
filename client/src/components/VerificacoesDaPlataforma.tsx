@@ -27,6 +27,7 @@ interface Linha {
   nome: string;
   identificador: string;
   similaridade: number | null;
+  semAutorizacao: boolean;
 }
 
 interface Detalhe {
@@ -103,7 +104,10 @@ export function VerificacoesDaPlataforma() {
                           <SeloVerificado sujeito={v.sujeito} tamanho={14} />
                           {v.nome}
                         </span>
-                        <Pill status={PILL_VERIFICACAO[v.status]}>{STATUS_VERIFICACAO[v.status]}</Pill>
+                        <span className="flex flex-wrap items-center gap-1">
+                          {v.semAutorizacao ? <Pill status="neutral">Sem autorização da foto</Pill> : null}
+                          <Pill status={PILL_VERIFICACAO[v.status]}>{STATUS_VERIFICACAO[v.status]}</Pill>
+                        </span>
                       </div>
                       <p className="text-xs text-muted">
                         {NOME_SUJEITO[v.sujeito]} · {v.identificador}

@@ -2416,6 +2416,15 @@ export const verificacoes = pgTable(
     /** `automatico` (comparador) ou o id de quem conferiu. */
     fotoConferidaPor: text("foto_conferida_por"),
     fotoSimilaridade: integer("foto_similaridade"),
+    /**
+     * Consentimento biométrico (LGPD, art. 11, I): quando foi dado, a chave
+     * do texto (versão e modo) e o SHA-256 do texto exato que a pessoa leu —
+     * a prova é de quem trata o dado (art. 8º, § 2º). Nulo = sem autorização
+     * (nunca deu, ou revogou): a foto não é comparada e o selo não sai.
+     */
+    consentimentoBiometricoEm: timestamp("consentimento_biometrico_em"),
+    consentimentoBiometricoChave: text("consentimento_biometrico_chave"),
+    consentimentoBiometricoHash: text("consentimento_biometrico_hash"),
     verificadoEm: timestamp("verificado_em"),
     decididoEm: timestamp("decidido_em"),
     decididoPor: uuid("decidido_por"),

@@ -187,7 +187,7 @@ export const cpfDaVerificacao = (d: DadosVerificacao) => ("responsavel" in d ? d
 /** O que falta para ir à análise: dados, documentos obrigatórios e — pessoa — a foto do perfil. */
 export function faltaNaVerificacao(
   sujeito: Sujeito,
-  e: { temDados: boolean; documentos: string[]; temFoto: boolean },
+  e: { temDados: boolean; documentos: string[]; temFoto: boolean; temConsentimento?: boolean },
 ): string[] {
   const falta: string[] = [];
   if (!e.temDados) falta.push("seus dados");
@@ -196,7 +196,44 @@ export function faltaNaVerificacao(
     if (!e.documentos.includes(tipo)) falta.push(DOCUMENTOS_VERIFICACAO[tipo].toLowerCase());
   }
   if (comparaFoto(sujeito) && !e.temFoto) falta.push("uma foto sua no perfil (é ela que comparamos com o documento)");
+  if (comparaFoto(sujeito) && e.temConsentimento === false) {
+    falta.push("a sua autorização para comparar a foto do perfil com a do documento");
+  }
   return falta;
+}
+
+/* ------------------------------------------------------------------ *
+ * Consentimento biométrico (LGPD, arts. 8º, 9º e 11, I)
+ * ------------------------------------------------------------------ */
+
+/**
+ * Sobe quando o texto muda. O consentimento gravado guarda a versão e a
+ * impressão (SHA-256) do texto exato que a pessoa viu: é a prova que a lei
+ * pede de quem trata o dado (art. 8º, § 2º).
+ */
+export const CONSENTIMENTO_BIOMETRICO_VERSAO = 2;
+
+/**
+ * O texto que a pessoa lê e autoriza, destacado do resto da tela: para quê,
+ * o quê, quem compara, por quanto tempo, que é opcional e como revogar. Muda
+ * com o comparador automático (`automatico`): se ele está ligado, a pessoa
+ * precisa saber que um serviço de fora processa a imagem.
+ */
+export function textoDoConsentimentoBiometrico(o: { automatico: boolean }): string[] {
+  return [
+    "Autorizo a plataforma a comparar a foto do meu perfil com a foto do meu documento de identidade, só para confirmar que o perfil é meu e dar o selo de perfil verificado. A comparação usa dado biométrico (LGPD, art. 11).",
+    o.automatico
+      ? "A comparação é feita por um serviço de reconhecimento facial (Amazon Rekognition), que recebe as duas imagens, devolve só o grau de semelhança e não as guarda; abaixo do limite, uma pessoa da plataforma compara."
+      : "A comparação é feita por uma pessoa da plataforma, olhando as duas imagens lado a lado.",
+    "A foto comparada é a que já aparece no meu perfil. Os documentos ficam cifrados e só a plataforma os abre, com registro de cada acesso. Guardamos o resultado (verificado ou não, e o grau de semelhança) enquanto a verificação existir.",
+    "A verificação é opcional: sem ela eu compro e comento normalmente.",
+    "Posso revogar esta autorização a qualquer momento nesta mesma tela. Ao revogar, o selo sai e a foto deixa de ser comparada; ao excluir a conta, a verificação é apagada.",
+  ];
+}
+
+/** A chave do texto mostrado: a versão e o modo. A tela devolve a mesma chave ao autorizar. */
+export function chaveDoConsentimento(o: { automatico: boolean }): string {
+  return `${CONSENTIMENTO_BIOMETRICO_VERSAO}:${o.automatico ? "automatico" : "manual"}`;
 }
 
 /* ------------------------------------------------------------------ *

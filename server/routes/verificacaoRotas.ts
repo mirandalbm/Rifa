@@ -1,7 +1,10 @@
 import type { Request, Router } from "express";
 import type { Sujeito } from "@shared/verificacao";
 import {
+  type AtorDaVerificacao,
+  autorizarComparacao,
   documentoDoDono,
+  revogarComparacao,
   estadoDaVerificacao,
   salvarDadosDaVerificacao,
   salvarDocumentoDaVerificacao,
@@ -18,6 +21,16 @@ export function montarRotasDaVerificacao(
   sujeito: Sujeito,
   idDe: (req: Request) => string | Promise<string>,
 ) {
+  /**
+   * Quem age, para a auditoria — pelo sujeito, nunca pela presença de
+   * `req.user`: o mesmo navegador pode ter a sessão do painel e a do
+   * comprador, e a autorização do apostador é dele.
+   */
+  const ator = (req: Request, id: string): AtorDaVerificacao =>
+    sujeito === "apostador"
+      ? { id, role: "apostador", ip: req.ip ?? null }
+      : { id: req.user?.id ?? null, role: req.user?.role ?? sujeito, ip: req.ip ?? null };
+
   router.get(caminho, async (req, res, next) => {
     try {
       res.setHeader("Cache-Control", "no-store");
@@ -30,8 +43,31 @@ export function montarRotasDaVerificacao(
   router.put(caminho, async (req, res, next) => {
     try {
       const id = await idDe(req);
-      await salvarDadosDaVerificacao(sujeito, id, req.body);
+      await salvarDadosDaVerificacao(sujeito, id, req.body, ator(req, id));
       res.json(await estadoDaVerificacao(sujeito, id, true));
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  /**
+   * Autorizar e revogar a comparação da foto (consentimento biométrico). A
+   * prova (chave e SHA-256 do texto lido) e a auditoria entram na mesma
+   * transação, e só quando algo mudou.
+   */
+  router.post(`${caminho}/consentimento`, async (req, res, next) => {
+    try {
+      const id = await idDe(req);
+      res.json(await autorizarComparacao(sujeito, id, req.body, ator(req, id)));
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.delete(`${caminho}/consentimento`, async (req, res, next) => {
+    try {
+      const id = await idDe(req);
+      res.json(await revogarComparacao(sujeito, id, ator(req, id)));
     } catch (err) {
       next(err);
     }

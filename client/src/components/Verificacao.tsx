@@ -34,6 +34,90 @@ interface Estado {
   dados: DadosPessoa | DadosOrganizacao | null;
   documentos: { tipo: string; mime: string; tamanho: number; createdAt: string }[];
   falta: string[];
+  /** Consentimento biométrico: o texto em vigor (com a chave) e o que foi dado. Nulo para organização. */
+  consentimento: { texto: string[]; chave: string; dadoEm: string | null; chaveDada: string | null } | null;
+}
+
+/**
+ * O texto da autorização, destacado do resto do formulário (LGPD, art. 11:
+ * consentimento específico e destacado). O texto vem do servidor, e a chave
+ * dele volta no pedido — o servidor recusa se o texto mudou.
+ */
+function TextoDaAutorizacao({ texto }: { texto: string[] }) {
+  return (
+    <div className="space-y-1.5 text-xs text-ink-2">
+      {texto.map((p) => (
+        <p key={p}>{p}</p>
+      ))}
+    </div>
+  );
+}
+
+/** Autorizar de novo ou revogar, fora do formulário dos dados. */
+function AutorizacaoDaFoto({ base, c }: { base: string; c: NonNullable<Estado["consentimento"]> }) {
+  const qc = useQueryClient();
+  const [marcado, setMarcado] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+  const feito = () => {
+    setErro(null);
+    setMarcado(false);
+    qc.invalidateQueries({ queryKey: [base] });
+  };
+  const autorizar = useMutation({
+    mutationFn: () => apiRequest("POST", `${base}/consentimento`, { consentimentoFoto: true, consentimentoChave: c.chave }),
+    onSuccess: feito,
+    onError: (e: Error) => setErro(e.message),
+  });
+  const revogar = useMutation({
+    mutationFn: () => apiRequest("DELETE", `${base}/consentimento`),
+    onSuccess: feito,
+    onError: (e: Error) => setErro(e.message),
+  });
+  return (
+    <section aria-labelledby="titulo-autorizacao-foto" className="rounded-md border border-line p-3">
+      <h3 id="titulo-autorizacao-foto" className="text-sm font-semibold">
+        Autorização para comparar a foto (dado biométrico)
+      </h3>
+      {c.dadoEm && c.chaveDada === c.chave ? (
+        <>
+          <p className="mt-1 text-xs text-muted">
+            Você autorizou em <span className="tnum">{new Date(c.dadoEm).toLocaleDateString("pt-BR")}</span>. Pode revogar a
+            qualquer momento: o selo sai e a foto deixa de ser comparada.
+          </p>
+          <Button
+            variant="ghost"
+            className="mt-2"
+            disabled={revogar.isPending}
+            onClick={() => {
+              if (window.confirm("Revogar a autorização? O selo de verificado sai e a foto deixa de ser comparada.")) revogar.mutate();
+            }}
+          >
+            Revogar autorização
+          </Button>
+        </>
+      ) : (
+        <>
+          {c.dadoEm ? (
+            <p className="mt-1 text-xs text-muted">
+              O texto mudou desde a sua autorização (por exemplo, a comparação passou a ser feita por um serviço de
+              reconhecimento facial). Leia e autorize de novo para a foto voltar a ser comparada.
+            </p>
+          ) : null}
+          <div className="mt-2 rounded-md bg-mist px-3 py-2">
+            <TextoDaAutorizacao texto={c.texto} />
+          </div>
+          <label className="mt-2 flex items-start gap-2 text-xs">
+            <input type="checkbox" checked={marcado} onChange={(e) => setMarcado(e.target.checked)} className="mt-0.5" />
+            <span>Li e autorizo a comparação da foto do meu perfil com a do meu documento.</span>
+          </label>
+          <Button className="mt-2" disabled={!marcado || autorizar.isPending} onClick={() => autorizar.mutate()}>
+            Autorizar
+          </Button>
+        </>
+      )}
+      {erro ? <p className="mt-2 text-xs text-red">{erro}</p> : null}
+    </section>
+  );
 }
 
 const identificacaoVazia = { nomeCompleto: "", cpf: "", rg: "", nascimento: "" };
@@ -94,14 +178,15 @@ export function VerificacaoCard({
     if (carregou && window.location.hash === "#verificacao") document.getElementById("verificacao")?.scrollIntoView({ block: "start" });
   }, [carregou]);
 
-  const corpo = pessoa ? { ...id, conta, pix, consentimentoFoto: consentimento } : { ...org, responsavel: id, conta, pix };
+  const corpo = pessoa
+    ? { ...id, conta, pix, consentimentoFoto: consentimento, consentimentoChave: data?.consentimento?.chave }
+    : { ...org, responsavel: id, conta, pix };
   let problema: string | null = null;
   try {
     validarDadosDaVerificacao(sujeito, corpo);
   } catch (e) {
     problema = (e as Error).message;
   }
-  if (!problema && pessoa && !consentimento) problema = "Marque a autorização da comparação da foto.";
 
   const recarregar = () => qc.invalidateQueries({ queryKey: [base] });
   const salvar = useMutation({
@@ -161,6 +246,7 @@ export function VerificacaoCard({
           ) : null}
           {data?.falta.length && !verificado ? <p className="text-muted">Falta: {data.falta.join("; ")}.</p> : null}
           {pessoa && (!data?.temFoto || status === "foto_divergente") && foto ? <div>{foto}</div> : null}
+          {pessoa && data?.dados && data.consentimento ? <AutorizacaoDaFoto base={base} c={data.consentimento} /> : null}
           <p className="text-xs text-muted">
             {pessoa
               ? "É opcional: sem verificar, você continua comprando e comentando (sem emojis). "
@@ -230,15 +316,15 @@ export function VerificacaoCard({
                 </label>
                 {campo("Chave Pix", pix.chave, (v) => setPix({ ...pix, chave: v }))}
               </div>
-              {pessoa ? (
-                <label className="flex items-start gap-2 rounded-md bg-mist px-3 py-2 text-xs">
-                  <input type="checkbox" checked={consentimento} onChange={(e) => setConsentimento(e.target.checked)} className="mt-0.5" />
-                  <span>
-                    Autorizo a plataforma a comparar a foto do meu perfil com a foto do meu documento, só para verificar que o
-                    perfil é meu (dado biométrico, LGPD art. 11). A comparação pode ser feita por uma pessoa da plataforma ou
-                    por um serviço de reconhecimento facial que não guarda as imagens.
-                  </span>
-                </label>
+              {pessoa && !data?.dados ? (
+                <fieldset className="rounded-md border border-line bg-mist px-3 py-2">
+                  <legend className="px-1 text-xs font-semibold">Autorização para comparar a foto (dado biométrico)</legend>
+                  {data?.consentimento ? <TextoDaAutorizacao texto={data.consentimento.texto} /> : null}
+                  <label className="mt-2 flex items-start gap-2 text-xs">
+                    <input type="checkbox" checked={consentimento} onChange={(e) => setConsentimento(e.target.checked)} className="mt-0.5" />
+                    <span>Li e autorizo a comparação da foto do meu perfil com a do meu documento.</span>
+                  </label>
+                </fieldset>
               ) : null}
               {problema && id.nomeCompleto ? <p className="text-xs text-red">{problema}</p> : null}
               {msg ? (

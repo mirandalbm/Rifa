@@ -15,8 +15,13 @@ Com argumento (`/provar estorno`), usa a área dita.
 
 ```bash
 node_modules/.bin/tsc --noEmit -p .
-node_modules/.bin/vitest run
+env -u DATABASE_URL node_modules/.bin/vitest run
 ```
+
+O `vitest` roda **sem `DATABASE_URL`**, como no job de tipos e testes do CI:
+teste que importa `server/db.ts` (direto ou por um serviço) passa no seu
+terminal, onde a variável existe, e quebra lá. Regra pura vai em `shared/` ou
+num módulo de servidor sem banco (como `iaIdentidade.ts`).
 
 Falhou, pare e conserte: nada abaixo vale com o tipo quebrado.
 

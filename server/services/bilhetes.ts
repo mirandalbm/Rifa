@@ -96,14 +96,17 @@ export async function bilhetesDaConta(
 
   const ids = itens.map((i) => i.id);
   // Os primeiros números de cada pedido (o teto do cartão), numa consulta só.
+  // LATERAL com LIMIT: cada pedido lê só os primeiros números, não a janela inteira.
   const numeros = await db.execute<{ order_id: string; number: number }>(sql`
-    select order_id, number from (
-      select order_id, number,
-             row_number() over (partition by order_id order by number) as n
-        from quota_alloc
-       where order_id in (${sql.join(ids.map((x) => sql`${x}::uuid`), sql`, `)})
-    ) q where n <= ${NUMEROS_NO_CARTAO}
-    order by order_id, number
+    select p.id as order_id, q.number
+      from (values ${sql.join(ids.map((x) => sql`(${x}::uuid)`), sql`, `)}) as p(id)
+      cross join lateral (
+        select number from quota_alloc
+         where order_id = p.id
+         order by number
+         limit ${NUMEROS_NO_CARTAO}
+      ) q
+     order by p.id, q.number
   `);
   const dosPedidos = new Map<string, number[]>();
   for (const r of numeros.rows) {

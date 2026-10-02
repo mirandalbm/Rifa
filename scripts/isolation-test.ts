@@ -427,6 +427,15 @@ async function enderecoProprio(eu: Lado, vizinho: Lado) {
   );
 }
 
+/** Os bilhetes privados são da conta do apostador: sessão de painel não vale. */
+async function bilhetesSoDaConta(eu: Lado) {
+  const res = await pedir(eu.cookie, "/api/public/conta/bilhetes");
+  const corpo = await res.text();
+  checa("sessão de organizador não lê os bilhetes de apostador (401)", res.status === 401, `HTTP ${res.status}`);
+  checa("a recusa vem sem cache", (res.headers.get("cache-control") ?? "").includes("no-store"));
+  checa("e sem dado nenhum", !/"itens"/.test(corpo), corpo.slice(0, 80));
+}
+
 /** Estas existem, mas não são do organizador: 403. */
 async function rotasDaPlataforma(eu: Lado) {
   const tentativas: [string, string, RequestInit][] = [
@@ -763,6 +772,9 @@ async function main() {
 
     console.log("\n  conta do afiliado antigo da própria organização (espera 403):");
     await contaDoAfiliadoAntigo(norte);
+
+    console.log("\n  bilhetes privados do apostador (espera 401):");
+    await bilhetesSoDaConta(norte);
 
     console.log("\n  rotas da plataforma (espera 403):");
     await rotasDaPlataforma(norte);

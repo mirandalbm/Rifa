@@ -31,7 +31,7 @@ import {
   type OrdemDaBusca,
   type TermoDaBusca,
 } from "@shared/buscar";
-import { cortarPagina, lerCursor } from "@shared/paginacao";
+import { cortarPagina, fazerCursor, lerCursor } from "@shared/paginacao";
 import type { UF } from "@shared/endereco";
 import { hit, identify } from "./antifraude";
 import { getPlataforma } from "./settings";
@@ -97,11 +97,13 @@ async function rifasDaGrade(termo: TermoDaBusca | null, depois: unknown, ordem: 
     .where(and(...filtros))
     .orderBy(...(porCurtidas ? [desc(campaigns.curtidasCount), desc(campaigns.id)] : [desc(campaigns.publishedAt), desc(campaigns.id)]))
     .limit(BUSCA_PAGINA + 1);
+  // O contador de curtidas muda entre uma página e outra: uma rifa pode repetir ou pular
+  // ao rolar em "Mais curtidas" (inerente à ordem por contador; nunca vaza dado).
   const temMais = linhas.length > BUSCA_PAGINA;
   const itens = linhas.slice(0, BUSCA_PAGINA);
   const ultima = itens[itens.length - 1];
   // O cursor é o da última linha MOSTRADA; sem COUNT(*) — uma linha a mais diz se há próxima.
-  const proximo = temMais && ultima ? (porCurtidas ? fazerCursorDeCurtidas(ultima.curtidas, ultima.id) : `${ultima.publicadaEm!.toISOString()}|${ultima.id}`) : null;
+  const proximo = temMais && ultima ? (porCurtidas ? fazerCursorDeCurtidas(ultima.curtidas, ultima.id) : fazerCursor(ultima.publicadaEm!, ultima.id)) : null;
   // A capa é a primeira imagem da publicação (o banner, senão a primeira foto) — nunca o vídeo.
   const midias = await midiasDas(itens.map((i) => i.id));
   return {

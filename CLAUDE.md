@@ -732,8 +732,10 @@ plataforma ligar, o apostador pelo `@apelido` exato.
   o contador real da publicação (`campaigns.curtidas_count`), com cursor
   próprio `<curtidas>|<id>` (o par decide, as curtidas empatam o tempo todo) e
   **sem nunca devolver o número**. O **estado** filtra pela UF da organização
-  — aqui o filtro é escolha explícita, como em `/estado/UF`; a vitrine, que
-  ordena sozinha, segue sem esconder nada. Cursor de uma ordem na outra é
+  — aqui o filtro é escolha explícita, como em `/estado/UF` (restringe só a
+  grade de rifas; a organização achada pelo texto não é filtrada); a vitrine,
+  que ordena sozinha, segue sem esconder nada. Como o contador muda entre uma
+  página e outra, uma rifa pode repetir ou pular ao rolar em "Mais curtidas". Cursor de uma ordem na outra é
   primeira página. Ficou de fora: hashtags e o índice `pg_trgm` (pede a
   extensão no banco, ver `docs/PENDENCIAS.md`).
 - **O texto é dado, nunca SQL**: parâmetro, `%` e `_` viram letras

@@ -304,7 +304,10 @@ arquitetura.
   rolagem e com rolagem própria, e o total com o Pix no pé dela. O DOM segue
   a ordem do celular — publicação, compra, resto — e a grade só reposiciona
   (`lg:col-start`/`lg:row-start`); inverter a ordem no DOM mudaria o
-  celular e a leitura de tela.
+  celular e a leitura de tela. Seção que cresce
+  com o uso (as "Divulgações" de terceiros) entra **depois** da compra no DOM
+  — no celular e no tablet ela não empurra a compra para baixo —, e no
+  computador a grade a põe na coluna da publicação.
 - **Vitrine: uma rifa por vez, em todas as larguras**, com rolagem
   infinita (`FeedInfinito`: leva de 4, a próxima ao chegar perto do fim, e
   "Ver mais rifas" de reserva). No tablet e no computador o cartão tem

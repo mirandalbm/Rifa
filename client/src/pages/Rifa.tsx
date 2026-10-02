@@ -425,7 +425,6 @@ export default function Rifa() {
         </div>
       ) : null}
       <QuemTambemJoga slug={slug} />
-      <DivulgacoesDaRifa slug={slug} />
 
       </div>
 
@@ -826,6 +825,9 @@ export default function Rifa() {
       </aside>
 
       <div className="space-y-4 pt-4 lg:col-start-1 lg:row-start-2">
+      {/* As divulgações de terceiros ficam depois da compra no celular e no tablet (a lista
+          cresce e empurraria a compra para baixo); no computador seguem na coluna da publicação. */}
+      <DivulgacoesDaRifa slug={slug} />
       {ultimas && ultimas.length > 0 ? (
         <Card title="Últimas compras">
           <ul className="divide-y divide-line">

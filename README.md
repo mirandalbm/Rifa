@@ -139,7 +139,7 @@ enche de `relation "quota_alloc" does not exist`.
    |---|---|
    | `DATABASE_URL` | `${{Postgres.DATABASE_URL}}` (referência ao banco do passo 2) |
    | `SESSION_SECRET` | um valor longo e aleatório (veja o comando no `.env.example`) |
-   | `PUBLIC_BASE_URL` | o endereço público, ex.: `https://rifa.exemplo.com.br` |
+   | `PUBLIC_BASE_URL` | o endereço público: o domínio do Railway (`https://<serviço>.up.railway.app`), sem barra no fim |
    | `PAYMENT_PROVIDER` | `mercadopago` |
    | `MP_ACCESS_TOKEN`, `MP_WEBHOOK_SECRET` | do painel do Mercado Pago |
    | `ASAAS_API_KEY`, `ASAAS_WEBHOOK_TOKEN` | do painel do Asaas, se for usar o Asaas |

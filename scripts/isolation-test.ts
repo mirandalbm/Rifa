@@ -474,6 +474,8 @@ async function assistenteDeIA(eu: Lado) {
     ["GET conversa do assistente", "/api/ia/conversa", {}],
     ["DELETE conversa do assistente", "/api/ia/conversa", { method: "DELETE" }],
     ["POST mensagem ao assistente", "/api/ia/mensagens", { method: "POST", body: '{"texto":"oi"}' }],
+    ["GET plano do assistente", "/api/ia/conta", {}],
+    ["POST Pix do assistente", "/api/ia/pagamentos", { method: "POST", body: '{"tipo":"assinatura"}' }],
   ];
   for (const [nome, caminho, init] of rotas) {
     const anon = await fetch(`${URL}${caminho}`, { ...init, headers: { "Content-Type": "application/json" } });

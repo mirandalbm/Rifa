@@ -161,6 +161,7 @@ arquitetura.
 | app instalável (PWA): casca, nome e ícone | `client/public/sw.js`, `shared/manifest.ts` (o manifesto montado), `manifestDaPlataforma()`/`iconeDaMarca()` em `server/services/template.ts`, `client/public/manifest.webmanifest` (o de fábrica, se o banco falhar), `client/src/lib/pwa.ts`, `tests/manifest.test.ts`, `scripts/aparencia-test.ts` |
 | automação do Claude no projeto: `/provar` (escolhe as provas pela área mexida), `/pr-check` (o rito do PR: docs, capturas, rascunho, mesclagem) e o agente `revisor-de-invariantes` (lê o diff contra as invariantes) | `.claude/skills/provar/SKILL.md`, `.claude/skills/pr-check/SKILL.md`, `.claude/agents/revisor-de-invariantes.md`. **Invariante nova ou regra de PR nova entra nos três** — o `.gitignore` libera só estes (o resto de `.claude/skills` é instalado por `npx skills add`, com o `skills-lock.json`) |
 | assistente de IA nos painéis (Chatbase): conversa pelo servidor, coluna, uso e configuração | `shared/ia.ts` (regras, papéis, titular, barreira de dado pessoal), `server/services/chatbase.ts` (cliente da API v2), `server/services/ia.ts` (conversa e uso), `server/routes/ia.ts` (`/api/ia/*`), `/ia/config` em `server/routes/admin.ts`, `assistenteIA` em `shared/plataforma.ts`, `ia_conversas`/`ia_uso` em `shared/schema.ts`, `client/src/lib/assistente.ts` (coluna aberta lembrada), `client/src/components/AssistenteDoPainel.tsx` (botão e coluna, em `PanelShell`), `AssistenteIACard.tsx` (Aparência), `scripts/ia-test.ts`, `tests/ia.test.ts`, `tests/chatbase.test.ts`, `tests/assistente.test.ts` |
+| cobrança do assistente de IA (assinatura com franquia, pacotes avulsos, Pix da plataforma, débito por mensagem, vencimento) | `shared/iaCobranca.ts` (regras), `server/services/iaCobranca.ts` (conta, livro, Pix, débito), `ia_contas`/`ia_pagamentos`/`ia_lancamentos` em `shared/schema.ts`, `/api/ia/conta` e `/api/ia/pagamentos` em `server/routes/ia.ts`, `confirmarPagamentoIA` no webhook, relógio em `server/jobs/index.ts`, `client/src/components/PlanoDoAssistente.tsx` (o plano na coluna), preços em `AssistenteIACard.tsx`, `scripts/ia-test.ts`, `tests/iaCobranca.test.ts` |
 | segurança: onde mora cada defesa, lista de conferência de rota nova e as revisões | `docs/SEGURANCA.md` |
 | versões (celular, tablet, computador): registro das mudanças do celular, levas, mapa das telas e auditoria | `docs/VERSOES.md` (guia, mapa e registro — **anote no mesmo PR**), `scripts/telas.ts` (`npm run telas`), `tests/versoes.test.ts` |
 
@@ -186,12 +187,12 @@ arquitetura.
   de marketing pedem a lista de origens — o caminho é começar em modo
   relatório. O que mais ficou para depois está em `docs/SEGURANCA.md`.
 
-- **Chatbase AI nos painéis**: a conversa (pelo nosso servidor), a coluna e a
-  medição do uso existem (seção "Assistente de IA"). **Ainda não existem**: a
-  cobrança (assinatura mensal com franquia de créditos e créditos avulsos, por
-  Pix da plataforma — decidido, falta fazer) e as ações do assistente no
-  sistema (com confirmação e auditoria). As regras estão em
-  `docs/PENDENCIAS.md` (seção 1b).
+- **Chatbase AI nos painéis**: a conversa (pelo nosso servidor), a coluna, a
+  medição do uso e a cobrança existem (seções "Assistente de IA" e "Cobrança do
+  assistente"). **Ainda não existem**: as ações do assistente no sistema (com
+  confirmação e auditoria) e o ajuste de crédito pela plataforma (cortesia,
+  devolução de Pix estornado). As regras estão em `docs/PENDENCIAS.md` (seção
+  1b).
 
 - **Transcode do vídeo** (recompressão, HLS): hoje servimos o arquivo
   original. O pôster já existe (seção Mídia); o transcode é trabalho pesado
@@ -2488,10 +2489,12 @@ login). Cambista e apostador não têm.
   terceiro com a sessão do master). `CHATBASE_API_URL` troca o endereço **só
   fora de produção** (`baseDoChatbase()`), para a prova.
 - **Nasce desligado**, e só a plataforma configura (`PUT /admin/ia/config`, 403
-  para organizador, no `npm run isolation`): liga, o id do agente e os
-  interruptores `paraOrganizador` e `paraAfiliado`, **também desligados** — o
-  uso deles é pago e a cobrança ainda não existe. Sem a chave no servidor a
-  plataforma não liga (409).
+  para organizador, no `npm run isolation`): liga, o id do agente, os
+  interruptores `paraOrganizador` e `paraAfiliado`, **também desligados**, e os
+  preços (`cobranca`). Organizador e afiliado pagam: **sem preço e franquia,
+  não se liberam** (400). Sem a chave no servidor a plataforma não liga (409).
+  Configuração guardada que não passe mais na régua perde só a liberação
+  (`configIAGuardada()`) — nunca derruba a configuração inteira da plataforma.
 - **Quem fala e quem responde pelo uso saem da sessão**, nunca do corpo:
   `titularDaIA()` — plataforma (master), a organização do organizador ou o
   cadastro do afiliado (**ativo**, a mesma porta das Mensagens). Quem não tem
@@ -2553,6 +2556,69 @@ login). Cambista e apostador não têm.
   organizador sem o assistente (404) em cada rota `/api/ia/*`;
   `tests/ia.test.ts`, `tests/chatbase.test.ts` e `tests/assistente.test.ts`
   cobrem as regras, o cliente da API e a coluna.
+
+## Cobrança do assistente — o que não pode afrouxar
+
+O organizador (pela organização) e o afiliado (no próprio login) pagam o
+assistente; o master não. **Assinatura mensal com franquia de créditos** e
+**pacotes avulsos**, por **Pix da plataforma, sem split** (como a recarga do
+patrocínio). Regras puras em `shared/iaCobranca.ts`; o resto em
+`server/services/iaCobranca.ts`.
+
+- **O preço é da tabela, nunca do corpo.** `POST /api/ia/pagamentos` recebe o
+  tipo (`assinatura` ou `avulso`), o índice do pacote e, se o provedor pedir, o
+  CPF/CNPJ do pagador (vai só para o Pix, não fica guardado; a organização usa
+  o CNPJ cadastrado). Valor e créditos são **fotografados** no pagamento
+  (`ia_pagamentos`): mudar a tabela não mexe no que já foi cobrado. O mesmo Pix
+  em aberto é devolvido em vez de gerar outro — procurar e criar a linha
+  acontecem **sob a trava do titular** (`pg_advisory_xact_lock`), então dois
+  cliques ou dois organizadores ao mesmo tempo geram uma cobrança só; o
+  provedor que recusa o Pix leva a linha junto (não fica "esperando o Pix"
+  vazio). Limite de 10 Pix por hora por pessoa (`hit`). O código fica numa faixa própria (`IA_CODIGO_MIN`, 10
+  dígitos), fora do pedido, do carrinho e da recarga.
+- **O pacote só com a assinatura ativa** (409): crédito que não pode ser usado
+  seria dinheiro preso. O preço por crédito **nunca sobe** no pacote maior
+  (`validarConfigCobrancaIA`).
+- **Sem assinatura ativa ou sem saldo, 402 antes de qualquer coisa sair para o
+  Chatbase** (`exigirSaldo`, depois do erro de preenchimento e antes do `hit`).
+  A coluna troca a conversa pelo plano.
+- **A conta anda pelo livro** (`ia_lancamentos`, chave única) **e a conta junto**
+  (`ia_contas`, uma linha por titular criada com `ON CONFLICT DO NOTHING` e
+  travada com `FOR UPDATE`), na mesma transação: pagamento (`pagamento:<id>`),
+  cada mensagem (`uso:<mensagem>`) e o vencimento (`vencimento:…:<ciclo>`)
+  lançam **uma vez só**. O Pix pago é `UPDATE` condicional (`pendente` →
+  `paga`): o webhook repetido não credita de novo.
+- **Débito na transação que grava o uso**, pelo que o Chatbase informou em
+  milésimos: **primeiro a franquia, depois o avulso** (`debitar()`). O custo só
+  é sabido depois da resposta, então **o avulso pode ficar negativo por uma
+  mensagem** — é dívida, a próxima é recusada e o pacote seguinte paga primeiro
+  a dívida. Uso sem medida (`null`) não debita (o log já avisou); custo acima
+  de um milhão de créditos numa resposta é defeito e fica sem medida. A dívida
+  de mensagens em paralelo é limitada também **por quem paga** (`hit`
+  `ia-pagante:…`, 40 em 5 min), não só por pessoa. Os saldos são `bigint`
+  (renovação e pacote somam sem teto).
+- **O ciclo é de 30 dias** (`DIAS_DO_CICLO`). Renovar com o ciclo em curso
+  **estende** por mais 30 dias e **soma** a franquia (quem renova antes não
+  perde o que pagou); com o ciclo vencido, começa do zero. A franquia que sobrou
+  **vence pelo livro** (relógio `vencerFranquias`, trava 811701, e também na
+  hora de debitar ou creditar); o avulso não vence.
+- **Cada titular tem a própria conta**, tirada da sessão: a organização
+  (qualquer organizador dela) ou o cadastro do afiliado. Nada vem de id na URL.
+- **O webhook olha o assistente antes da recarga e do pedido**
+  (`confirmarPagamentoIA`). **Pix do assistente estornado no provedor tira os
+  créditos que deu** (`estornarPagamentoIA`): `UPDATE` condicional `paga` →
+  `estornada` e o débito `estorno:<id>` no livro (franquia primeiro, o que já
+  foi gasto vira dívida no avulso), com a conta travada; o estorno de pedido
+  segue pelo caminho de sempre quando a cobrança não é do assistente. O ajuste
+  de crédito pela plataforma (cortesia) ainda não existe. A configuração
+  guardada que não passe mais na régua perde as liberações (e, se for a
+  cobrança, os preços), mantém o assistente do master e avisa no log.
+- As tabelas `ia_contas`, `ia_pagamentos` e `ia_lancamentos` sobem com o
+  `db:push` **antes** do código.
+- `npm run ia` prova tudo isso contra a API de verdade (o Pix pago pelo atalho
+  de desenvolvimento `/api/dev/ia-pagamento/:codigo`, a mesma confirmação do
+  webhook); `npm run isolation` confere `/api/ia/conta` e `/api/ia/pagamentos`;
+  `tests/iaCobranca.test.ts` cobre as regras.
 
 ## Marketing e tráfego pago — o que não pode afrouxar
 

@@ -13,7 +13,7 @@ import { AVISO_DO_TREVO_PADRAO, validarAvisoDoTrevo, type AvisoDoTrevo } from ".
 import { CONFIG_PRESENTE_PADRAO, validarConfigPresente, type ConfigPresente } from "./presente";
 import { TAXA_REEMBOLSO_MAX_PCT, TAXA_REEMBOLSO_PADRAO_PCT } from "./reembolso";
 import { BONUS_POR_INDICACAO_MAX, BONUS_POR_INDICACAO_PADRAO } from "./bonus";
-import { CONFIG_IA_PADRAO, validarConfigIA, type ConfigIA } from "./ia";
+import { CONFIG_IA_PADRAO, configIAGuardada, type ConfigIA } from "./ia";
 import { CONFIG_BANNER_PAGO_PADRAO, validarConfigBannerPago, type ConfigBannerPago } from "./bannerPago";
 import { CONFIG_PATROCINIO_PADRAO, validarConfigPatrocinio, type ConfigPatrocinio } from "./patrocinio";
 import { validarPixels, type Pixels } from "./marketing";
@@ -190,7 +190,7 @@ export function validarConfigPlataforma(entrada: Partial<ConfigPlataforma>): Con
     buscarLigado: entrada.buscarLigado === true,
     buscarTipos: validarConfigBusca(entrada.buscarTipos),
     bannerPago: validarConfigBannerPago(entrada.bannerPago),
-    assistenteIA: validarConfigIA(entrada.assistenteIA),
+    assistenteIA: configIAGuardada(entrada.assistenteIA),
   };
 }
 

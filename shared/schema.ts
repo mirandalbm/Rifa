@@ -2698,3 +2698,81 @@ export const iaUso = pgTable(
   },
   (t) => [uniqueIndex("uq_ia_uso_mensagem").on(t.mensagemId), index("idx_ia_uso_titular").on(t.titularTipo, t.titularId, t.createdAt)],
 );
+
+/**
+ * A conta de quem paga o assistente (organização ou afiliado — o master não
+ * paga): franquia do ciclo e créditos avulsos, em milésimos de crédito, como
+ * o uso. Uma linha por titular (a chave decide; criada com `ON CONFLICT DO
+ * NOTHING`). Toda mudança anda com uma linha em `ia_lancamentos`, na mesma
+ * transação. Regras em `shared/iaCobranca.ts`.
+ */
+export const iaContas = pgTable(
+  "ia_contas",
+  {
+    /** organizacao | afiliado */
+    titularTipo: text("titular_tipo").notNull(),
+    titularId: uuid("titular_id").notNull(),
+    franquiaMilicreditos: bigint("franquia_milicreditos", { mode: "number" }).notNull().default(0),
+    /** Pode ficar negativo por uma mensagem (o custo só é sabido depois): é dívida. */
+    avulsoMilicreditos: bigint("avulso_milicreditos", { mode: "number" }).notNull().default(0),
+    cicloAte: timestamp("ciclo_ate"),
+    atualizadaEm: timestamp("atualizada_em").notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.titularTipo, t.titularId] })],
+);
+
+/** Pix da assinatura ou de um pacote avulso, pago à plataforma (sem split). */
+export const iaPagamentos = pgTable(
+  "ia_pagamentos",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    titularTipo: text("titular_tipo").notNull(),
+    titularId: uuid("titular_id").notNull(),
+    /** Quem pediu o Pix (auditoria). */
+    userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+    /** assinatura | avulso */
+    tipo: text("tipo").notNull(),
+    /** Faixa própria (`IA_CODIGO_MIN`), fora da dos pedidos, do carrinho e da recarga. */
+    codigo: integer("codigo").notNull(),
+    valorCents: integer("valor_cents").notNull(),
+    /** O que o Pix dá, fotografado no pedido: mudar a tabela não mexe no que já foi cobrado. */
+    milicreditos: bigint("milicreditos", { mode: "number" }).notNull(),
+    /** pendente | paga | estornada */
+    status: text("status").notNull().default("pendente"),
+    provider: text("provider"),
+    chargeId: text("charge_id"),
+    pixQr: text("pix_qr"),
+    pixCopyPaste: text("pix_copy_paste"),
+    expiresAt: timestamp("expires_at"),
+    pagaEm: timestamp("paga_em"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("uq_ia_pagamento_codigo").on(t.codigo),
+    uniqueIndex("uq_ia_pagamento_charge").on(t.chargeId),
+    index("idx_ia_pagamentos_titular").on(t.titularTipo, t.titularId, t.createdAt),
+  ],
+);
+
+/**
+ * Livro da conta do assistente: assinatura e pacote pagos, cada mensagem
+ * debitada e a franquia vencida. A `chave` é única — o webhook repetido não
+ * credita duas vezes e a mesma mensagem não debita duas vezes.
+ */
+export const iaLancamentos = pgTable(
+  "ia_lancamentos",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    titularTipo: text("titular_tipo").notNull(),
+    titularId: uuid("titular_id").notNull(),
+    /** Positivo entra, negativo sai. Em milésimos de crédito. */
+    franquiaMilicreditos: bigint("franquia_milicreditos", { mode: "number" }).notNull().default(0),
+    avulsoMilicreditos: bigint("avulso_milicreditos", { mode: "number" }).notNull().default(0),
+    /** assinatura | avulso | uso | vencimento | estorno */
+    motivo: text("motivo").notNull(),
+    chave: text("chave").notNull(),
+    descricao: text("descricao"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("uq_ia_lancamento_chave").on(t.chave), index("idx_ia_lancamentos_titular").on(t.titularTipo, t.titularId, t.createdAt)],
+);

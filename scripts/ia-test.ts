@@ -15,7 +15,13 @@
  * - cada pessoa só vê a própria conversa, inclusive entre duas organizações;
  *   créditos esgotados do Chatbase viram aviso, sem uso gravado;
  * - conversa de outro agente (trocado em Aparência) ou apagada no Chatbase é
- *   esquecida e o assistente segue, em vez de travar.
+ *   esquecida e o assistente segue, em vez de travar;
+ * - a cobrança: sem preço não libera organizador nem afiliado; sem assinatura,
+ *   402 e nada sai para o Chatbase; o valor do Pix é da tabela, nunca do
+ *   corpo; o Pix pago credita uma vez só; cada mensagem debita a franquia e
+ *   depois o avulso (que pode ficar devendo uma mensagem); pacote só com a
+ *   assinatura; renovar antes estende o ciclo; a franquia vence pelo livro;
+ *   cada organização e cada afiliado têm a própria conta; o master não paga.
  *
  * Devolve a configuração de antes e apaga o que criou.
  *
@@ -27,7 +33,9 @@ import http from "node:http";
 import { eq, inArray, like } from "drizzle-orm";
 import { baseUrl } from "./base-url";
 import { db, pool } from "../server/db";
-import { affiliates, iaConversas, iaUso, organizations, rateEvents, users } from "../shared/schema";
+import { affiliates, iaContas, iaConversas, iaLancamentos, iaPagamentos, iaUso, organizations, rateEvents, users } from "../shared/schema";
+import { estornarPagamentoIA, vencerFranquias } from "../server/services/iaCobranca";
+import { MS_DO_CICLO } from "../shared/iaCobranca";
 import { hashPassword } from "../server/auth";
 
 const URL_DO_SITE = baseUrl();
@@ -35,6 +43,8 @@ const CHAVE = process.env.CHATBASE_API_KEY?.trim() ?? "";
 const FALSO = process.env.CHATBASE_API_URL?.trim() ?? "";
 const AGENTE = "agente-de-teste-123";
 const OUTRO_AGENTE = "agente-novo-456789";
+/** 5 créditos por ciclo; cada resposta do Chatbase de mentira custa 2. */
+const COBRANCA = { assinaturaCents: 4990, franquiaCreditos: 5, pacotes: [{ creditos: 10, precoCents: 1000 }, { creditos: 50, precoCents: 4000 }] };
 const VIZINHA = { slug: "ia-teste-vizinha", email: "ia-vizinha@rifa.teste", senha: "ia-vizinha-123" };
 let falhas = 0;
 const checa = (n: string, ok: boolean, d = "") => {
@@ -158,10 +168,22 @@ async function main() {
   const vizinha = new Cliente();
   await entrar(vizinha, VIZINHA.email, VIZINHA.senha);
   const ids = [uAdmin.id, uMarina.id, uJoao.id, uVizinha.id];
+  const titulares = [uMarina.org!, orgVizinha.id, afJoao.id];
   const limpar = async () => {
     await db.delete(iaUso).where(inArray(iaUso.userId, ids));
     await db.delete(iaConversas).where(inArray(iaConversas.userId, ids));
-    await db.delete(rateEvents).where(like(rateEvents.bucket, "ia:%"));
+    await db.delete(iaLancamentos).where(inArray(iaLancamentos.titularId, titulares));
+    await db.delete(iaPagamentos).where(inArray(iaPagamentos.titularId, titulares));
+    await db.delete(iaContas).where(inArray(iaContas.titularId, titulares));
+    for (const b of ["ia:%", "ia-ler:%", "ia-pix:%", "ia-pagante:%"]) await db.delete(rateEvents).where(like(rateEvents.bucket, b));
+  };
+  const contaDe = async (id: string) => (await db.select().from(iaContas).where(eq(iaContas.titularId, id)))[0];
+  const livroDe = async (id: string) => db.select().from(iaLancamentos).where(eq(iaLancamentos.titularId, id));
+  /** Gera o Pix e o dá por pago pelo atalho de desenvolvimento (o webhook usa a mesma confirmação). */
+  const pagar = async (c: Cliente, corpo: Record<string, unknown>) => {
+    const p = await c.req("POST", "/api/ia/pagamentos", corpo);
+    const ok = p.status === 201 ? await c.req("POST", `/api/dev/ia-pagamento/${p.json.codigo}`) : p;
+    return { pix: p, confirmacao: ok };
   };
   await limpar();
 
@@ -269,34 +291,159 @@ async function main() {
     checa("créditos esgotados no Chatbase viram aviso (503), em português", r.status === 503 && /sem créditos/.test(r.json?.message ?? ""), `HTTP ${r.status} ${r.texto.slice(0, 80)}`);
     checa("…sem uso gravado", (await usoDe(uAdmin.id)).length === usoAntes);
 
-    console.log("\nOrganizador e afiliado, cada um no seu");
+    console.log("\nCobrança: sem preço, não libera");
     r = await admin.req("PUT", "/api/admin/ia/config", { ligado: true, agenteId: AGENTE, paraOrganizador: true, paraAfiliado: true });
-    checa("a plataforma libera organizador e afiliado", r.status === 200 && r.json?.config?.paraOrganizador === true && r.json?.config?.paraAfiliado === true);
+    checa("liberar organizador e afiliado sem preço da assinatura: 400", r.status === 400 && /preço da assinatura/.test(r.json?.message ?? ""), `HTTP ${r.status}`);
+    r = await admin.req("PUT", "/api/admin/ia/config", {
+      ligado: true, agenteId: AGENTE, paraOrganizador: true, paraAfiliado: true,
+      cobranca: { ...COBRANCA, pacotes: [{ creditos: 10, precoCents: 1000 }, { creditos: 20, precoCents: 2500 }] },
+    });
+    checa("crédito mais caro no pacote maior: 400", r.status === 400, `HTTP ${r.status}`);
+    r = await admin.req("PUT", "/api/admin/ia/config", { ligado: true, agenteId: AGENTE, paraOrganizador: true, paraAfiliado: true, cobranca: COBRANCA });
+    checa("com preço e franquia, a plataforma libera organizador e afiliado", r.status === 200 && r.json?.config?.paraOrganizador === true && r.json?.config?.cobranca?.assinaturaCents === 4990, r.texto.slice(0, 120));
+    r = await marina.req("GET", "/api/ia/sessao");
+    checa("o organizador tem o assistente, cobrado", r.json?.ligado === true && r.json?.cobrado === true);
+    r = await admin.req("GET", "/api/ia/sessao");
+    checa("o master tem o assistente sem cobrança", r.json?.ligado === true && r.json?.cobrado === false);
+
+    console.log("\nSem assinatura, nada sai para o Chatbase");
+    n = recebidos.length;
+    r = await marina.req("POST", "/api/ia/mensagens", { texto: "Quanto vendi hoje?" });
+    checa("sem assinatura: 402", r.status === 402 && /Assine/.test(r.json?.message ?? ""), `HTTP ${r.status}`);
+    checa("…nada foi ao Chatbase e nada foi gravado", recebidos.length === n && (await usoDe(uMarina.id)).length === 0);
+    r = await marina.req("GET", "/api/ia/conta");
+    checa("o plano mostra a assinatura inativa e o preço", r.status === 200 && r.json?.ativa === false && r.json?.preco?.assinaturaCents === 4990 && /no-store/.test(r.cache), r.texto.slice(0, 120));
+    r = await marina.req("POST", "/api/ia/pagamentos", { tipo: "avulso", pacote: 0 });
+    checa("pacote avulso sem assinatura: 409", r.status === 409, `HTTP ${r.status}`);
+    r = await marina.req("POST", "/api/ia/pagamentos", { tipo: "presente" });
+    checa("tipo desconhecido: 400", r.status === 400, `HTTP ${r.status}`);
+    r = await admin.req("POST", "/api/ia/pagamentos", { tipo: "assinatura" });
+    checa("o master não paga (400)", r.status === 400, `HTTP ${r.status}`);
+    r = await sergio.req("POST", "/api/ia/pagamentos", { tipo: "assinatura" });
+    checa("o cambista não paga nem vê (403)", r.status === 403, `HTTP ${r.status}`);
+
+    console.log("\nO Pix da assinatura");
+    r = await marina.req("POST", "/api/ia/pagamentos", { tipo: "assinatura", valorCents: 1, milicreditos: 99_999_000 });
+    const pix = r.json;
+    checa("o valor e os créditos saem da tabela, nunca do corpo", r.status === 201 && pix?.valorCents === 4990 && pix?.creditos === 5 && pix?.codigo >= 1_000_000_000 && !!pix?.pixCopyPaste, r.texto.slice(0, 160));
+    r = await marina.req("POST", "/api/ia/pagamentos", { tipo: "assinatura" });
+    checa("pedir de novo devolve o mesmo Pix em aberto", r.json?.codigo === pix?.codigo);
+    r = await marina.req("GET", "/api/ia/conta");
+    checa("o plano mostra o Pix em aberto", r.json?.pendente?.codigo === pix?.codigo && r.json?.pendente?.status === "pendente");
+    await marina.req("POST", `/api/dev/ia-pagamento/${pix.codigo}`);
+    await marina.req("POST", `/api/dev/ia-pagamento/${pix.codigo}`);
+    let livro = await livroDe(uMarina.org!);
+    checa("o Pix pago credita uma vez só", livro.filter((l) => l.motivo === "assinatura").length === 1, `${livro.length} lançamento(s)`);
+    let conta = await contaDe(uMarina.org!);
+    const cicloPrimeiro = conta?.cicloAte?.getTime() ?? 0;
+    checa("a franquia entra e o ciclo é de 30 dias", conta?.franquiaMilicreditos === 5000 && conta?.avulsoMilicreditos === 0 && Math.abs(cicloPrimeiro - Date.now() - MS_DO_CICLO) < 60_000);
+    r = await marina.req("GET", "/api/ia/conta");
+    checa("o plano mostra a assinatura ativa, sem Pix em aberto", r.json?.ativa === true && r.json?.franquiaCreditos === 5 && r.json?.pendente === null);
+
+    console.log("\nCada mensagem debita: franquia, depois avulso");
     r = await marina.req("POST", "/api/ia/mensagens", { texto: "Quanto vendi hoje?" });
     checa("o organizador conversa", r.status === 200, `HTTP ${r.status}`);
     uso = await usoDe(uMarina.id);
     checa("o uso dele é da organização dele", uso.length === 1 && uso[0].titularTipo === "organizacao" && uso[0].titularId === uMarina.org);
-    r = await joao.req("POST", "/api/ia/mensagens", { texto: "Como divulgo melhor?" });
-    checa("o afiliado conversa", r.status === 200, `HTTP ${r.status}`);
-    uso = await usoDe(uJoao.id);
-    checa("o uso dele é do cadastro de afiliado dele", uso.length === 1 && uso[0].titularTipo === "afiliado" && uso[0].titularId === afJoao.id);
-    r = await marina.req("GET", "/api/ia/conversa");
-    const daMarina = (r.json?.mensagens ?? []).map((m: any) => m.texto).join("|");
-    checa("cada um vê só a própria conversa", daMarina.includes("Quanto vendi hoje?") && !daMarina.includes("Como lanço") && !daMarina.includes("Como divulgo"), daMarina.slice(0, 120));
+    await marina.req("POST", "/api/ia/mensagens", { texto: "E ontem?" });
+    conta = await contaDe(uMarina.org!);
+    checa("duas mensagens: 4 dos 5 créditos da franquia", conta?.franquiaMilicreditos === 1000 && conta?.avulsoMilicreditos === 0);
+    r = await marina.req("POST", "/api/ia/mensagens", { texto: "E a semana?" });
+    conta = await contaDe(uMarina.org!);
+    checa("a terceira passa (havia saldo) e o avulso fica devendo o resto", r.status === 200 && conta?.franquiaMilicreditos === 0 && conta?.avulsoMilicreditos === -1000);
+    n = recebidos.length;
+    r = await marina.req("POST", "/api/ia/mensagens", { texto: "E o mês?" });
+    checa("sem saldo: 402, e nada vai ao Chatbase", r.status === 402 && /acabaram/.test(r.json?.message ?? "") && recebidos.length === n, `HTTP ${r.status}`);
+    livro = await livroDe(uMarina.org!);
+    const somaUso = (await usoDe(uMarina.id)).reduce((t, u) => t + (u.milicreditos ?? 0), 0);
+    const debitos = livro.filter((l) => l.motivo === "uso").reduce((t, l) => t - l.franquiaMilicreditos - l.avulsoMilicreditos, 0);
+    checa("o livro debita exatamente o uso gravado", debitos === somaUso && somaUso === 6000, `${debitos} / ${somaUso}`);
+    const somaLivro = livro.reduce((t, l) => ({ f: t.f + l.franquiaMilicreditos, a: t.a + l.avulsoMilicreditos }), { f: 0, a: 0 });
+    checa("o livro fecha com a conta", somaLivro.f === conta?.franquiaMilicreditos && somaLivro.a === conta?.avulsoMilicreditos);
+
+    console.log("\nPacote avulso e renovação");
+    let p = await pagar(marina, { tipo: "avulso", pacote: 0 });
+    checa("com a assinatura ativa, o pacote sai pelo preço da tabela", p.pix.status === 201 && p.pix.json?.valorCents === 1000 && p.confirmacao.json?.ok === true, `HTTP ${p.pix.status}`);
+    conta = await contaDe(uMarina.org!);
+    checa("o pacote paga a dívida e sobra o resto", conta?.avulsoMilicreditos === 9000);
+    r = await marina.req("POST", "/api/ia/pagamentos", { tipo: "avulso", pacote: 7 });
+    checa("pacote inexistente: 400", r.status === 400, `HTTP ${r.status}`);
+    r = await marina.req("POST", "/api/ia/mensagens", { texto: "E agora?" });
+    conta = await contaDe(uMarina.org!);
+    checa("sem franquia, a mensagem sai do avulso", r.status === 200 && conta?.avulsoMilicreditos === 7000 && conta?.franquiaMilicreditos === 0);
+    p = await pagar(marina, { tipo: "assinatura" });
+    conta = await contaDe(uMarina.org!);
+    checa("renovar antes do fim estende o ciclo por mais 30 dias e soma a franquia", p.confirmacao.json?.ok === true && (conta?.cicloAte?.getTime() ?? 0) - cicloPrimeiro === MS_DO_CICLO && conta?.franquiaMilicreditos === 5000, String(conta?.cicloAte));
+
+    console.log("\nPix estornado no provedor tira os créditos");
+    const [pacotePago] = await db.select().from(iaPagamentos).where(eq(iaPagamentos.titularId, uMarina.org!)).then((l) => l.filter((x) => x.tipo === "avulso"));
+    const antesDoEstorno = await contaDe(uMarina.org!);
+    checa("a cobrança do assistente é reconhecida pelo estorno", (await estornarPagamentoIA(pacotePago.chargeId!)) === true);
+    await estornarPagamentoIA(pacotePago.chargeId!);
+    conta = await contaDe(uMarina.org!);
+    livro = await livroDe(uMarina.org!);
+    const [estornado] = await db.select().from(iaPagamentos).where(eq(iaPagamentos.id, pacotePago.id));
+    checa(
+      "o pagamento fica estornado e os créditos saem uma vez só (franquia primeiro)",
+      estornado.status === "estornada" &&
+        livro.filter((l) => l.motivo === "estorno").length === 1 &&
+        (antesDoEstorno!.franquiaMilicreditos + antesDoEstorno!.avulsoMilicreditos) - (conta!.franquiaMilicreditos + conta!.avulsoMilicreditos) === 10_000,
+      `${conta?.franquiaMilicreditos}/${conta?.avulsoMilicreditos}`,
+    );
+    checa("um Pix que não é do assistente segue para o estorno de pedido", (await estornarPagamentoIA("cobranca-que-nao-existe")) === false);
+    // Devolve o pacote para as contas de baixo seguirem.
+    await db.update(iaContas).set({ franquiaMilicreditos: antesDoEstorno!.franquiaMilicreditos, avulsoMilicreditos: antesDoEstorno!.avulsoMilicreditos }).where(eq(iaContas.titularId, uMarina.org!));
+    await db.delete(iaLancamentos).where(eq(iaLancamentos.chave, `estorno:${pacotePago.id}`));
+
+    console.log("\nA franquia vence pelo livro");
+    await db.update(iaContas).set({ cicloAte: new Date(Date.now() - 1000) }).where(eq(iaContas.titularId, uMarina.org!));
+    n = recebidos.length;
+    r = await marina.req("POST", "/api/ia/mensagens", { texto: "venceu?" });
+    checa("ciclo vencido: 402, mesmo com avulso sobrando", r.status === 402 && recebidos.length === n, `HTTP ${r.status}`);
+    await vencerFranquias();
+    await vencerFranquias();
+    conta = await contaDe(uMarina.org!);
+    livro = await livroDe(uMarina.org!);
+    checa("o relógio zera a franquia vencida uma vez só, e o avulso fica", conta?.franquiaMilicreditos === 0 && conta?.avulsoMilicreditos === 7000 && livro.filter((l) => l.motivo === "vencimento").length === 1);
+
+    console.log("\nCada titular com a própria conta");
     r = await vizinha.req("POST", "/api/ia/mensagens", { texto: "Segredo da vizinha" });
-    checa("a organização vizinha conversa", r.status === 200, `HTTP ${r.status}`);
+    checa("a organização vizinha não usa a assinatura da outra (402)", r.status === 402, `HTTP ${r.status}`);
+    r = await vizinha.req("GET", "/api/ia/conta");
+    checa("…e o plano dela não mostra nada da outra", r.json?.ativa === false && r.json?.pendente === null && r.json?.avulsoCreditos === 0);
+    const juntos = await Promise.all([1, 2, 3].map(() => vizinha.req("POST", "/api/ia/pagamentos", { tipo: "assinatura" })));
+    const pendentes = await db.select().from(iaPagamentos).where(eq(iaPagamentos.titularId, orgVizinha.id));
+    checa(
+      "três pedidos de Pix ao mesmo tempo geram uma cobrança só",
+      pendentes.length === 1 && juntos.every((x) => (x.status === 201 && x.json?.codigo === pendentes[0].codigo) || x.status === 409),
+      juntos.map((x) => x.status).join(","),
+    );
+    await vizinha.req("POST", `/api/dev/ia-pagamento/${pendentes[0].codigo}`);
+    r = await vizinha.req("POST", "/api/ia/mensagens", { texto: "Segredo da vizinha" });
+    checa("a organização vizinha conversa com a assinatura dela", r.status === 200, `HTTP ${r.status}`);
     uso = await usoDe(uVizinha.id);
     checa("o uso dela é da organização dela", uso.length === 1 && uso[0].titularTipo === "organizacao" && uso[0].titularId === orgVizinha.id);
+    checa("…e o débito sai da conta dela", (await contaDe(orgVizinha.id))?.franquiaMilicreditos === 3000 && (await contaDe(uMarina.org!))?.avulsoMilicreditos === 7000);
     r = await marina.req("GET", "/api/ia/conversa");
-    checa("a conversa da vizinha não aparece para a outra organização", !r.texto.includes("Segredo da vizinha"));
+    const daMarina = (r.json?.mensagens ?? []).map((m: any) => m.texto).join("|");
+    checa("cada um vê só a própria conversa", daMarina.includes("Quanto vendi hoje?") && !daMarina.includes("Como lanço") && !daMarina.includes("Segredo da vizinha"), daMarina.slice(0, 120));
     r = await vizinha.req("GET", "/api/ia/conversa");
     const daVizinha = (r.json?.mensagens ?? []).map((m: any) => m.texto).join("|");
     checa("…e a vizinha não vê a de ninguém", daVizinha.includes("Segredo da vizinha") && !daVizinha.includes("Quanto vendi") && !daVizinha.includes("Como lanço"), daVizinha.slice(0, 120));
+    r = await joao.req("POST", "/api/ia/mensagens", { texto: "Como divulgo melhor?" });
+    checa("o afiliado sem assinatura própria: 402", r.status === 402, `HTTP ${r.status}`);
+    p = await pagar(joao, { tipo: "assinatura" });
+    checa("o afiliado assina no login dele", p.pix.status === 201 && p.confirmacao.json?.ok === true, `HTTP ${p.pix.status}`);
+    r = await joao.req("POST", "/api/ia/mensagens", { texto: "Como divulgo melhor?" });
+    checa("o afiliado conversa", r.status === 200, `HTTP ${r.status}`);
+    uso = await usoDe(uJoao.id);
+    checa("o uso e o débito são do cadastro de afiliado dele", uso.length === 1 && uso[0].titularTipo === "afiliado" && uso[0].titularId === afJoao.id && (await contaDe(afJoao.id))?.franquiaMilicreditos === 3000);
+    checa("o master conversou o tempo todo sem conta nenhuma", (await db.select().from(iaContas).where(eq(iaContas.titularTipo, "plataforma"))).length === 0);
     r = await sergio.req("POST", "/api/ia/mensagens", { texto: "oi" });
     checa("o cambista segue sem assistente, mesmo com tudo liberado (403)", r.status === 403, `HTTP ${r.status}`);
     checa("a configuração não vaza para a vitrine", !(await anon.req("GET", "/api/public/app")).texto.includes(AGENTE));
 
-    await admin.req("PUT", "/api/admin/ia/config", { ligado: false, agenteId: AGENTE, paraOrganizador: true, paraAfiliado: true });
+    await admin.req("PUT", "/api/admin/ia/config", { ligado: false, agenteId: AGENTE, paraOrganizador: true, paraAfiliado: true, cobranca: COBRANCA });
     r = await marina.req("GET", "/api/ia/sessao");
     checa("desligado de novo, o organizador perde o assistente", r.json?.ligado === false);
   } finally {

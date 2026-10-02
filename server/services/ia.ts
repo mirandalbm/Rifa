@@ -29,6 +29,8 @@ import {
 import { getPlataforma } from "./settings";
 import { hit } from "./antifraude";
 import { ChatbaseError, ClienteChatbase, baseDoChatbase, chaveDoChatbase } from "./chatbase";
+import { CobrancaIAError, debitarUso, exigirSaldo, pagante, pedirPagamento, resumoDaCobranca } from "./iaCobranca";
+import type { PagamentoIAPublico, ResumoCobrancaIA } from "@shared/iaCobranca";
 
 export class IAError extends Error {
   constructor(
@@ -85,11 +87,28 @@ async function exigirContexto(req: Request): Promise<Contexto> {
 }
 
 export async function sessaoDaIA(req: Request): Promise<SessaoDaIA> {
-  return { ligado: (await contextoDe(req)) !== null };
+  const c = await contextoDe(req);
+  return { ligado: c !== null, cobrado: c !== null && pagante(c.titular) !== null };
+}
+
+/** O plano de quem paga (organização ou afiliado): situação, saldo, preços e o Pix em aberto. */
+export async function contaDaIA(req: Request): Promise<ResumoCobrancaIA> {
+  const c = await exigirContexto(req);
+  return resumoDaCobranca(pagante(c.titular), c.config.cobranca);
+}
+
+/** Gera o Pix da assinatura ou de um pacote. O master não paga (400). */
+export async function pagarIA(req: Request, corpo: Record<string, unknown>): Promise<PagamentoIAPublico> {
+  const c = await exigirContexto(req);
+  const p = pagante(c.titular);
+  if (!p) throw new IAError("O assistente da plataforma não é cobrado.", 400);
+  return pedirPagamento(p, c.userId, c.config.cobranca, corpo ?? {});
 }
 
 /** Leituras do histórico por pessoa, na janela: cada uma vira chamada ao Chatbase com a chave da plataforma. */
 export const IA_LEITURAS_POR_JANELA = 30;
+/** Mensagens por quem paga (organização ou afiliado), na mesma janela: limita a dívida de mensagens em paralelo. */
+export const IA_MENSAGENS_POR_PAGANTE = 40;
 
 /** A conversa da pessoa **com o agente de agora**. A de outro agente (trocado em Aparência) é esquecida. */
 async function conversaDe(c: Contexto): Promise<string | null> {
@@ -149,8 +168,16 @@ export async function conversarComIA(
   const c = await exigirContexto(req);
   const problema = problemaNaMensagemDaIA(texto);
   if (problema) throw new IAError(problema, 422);
+  // Quem paga precisa de assinatura ativa e saldo — antes de qualquer coisa sair para o Chatbase.
+  const quemPaga = pagante(c.titular);
+  if (quemPaga) await exigirSaldo(quemPaga);
   const limite = await hit(`ia:${c.userId}`, IA_JANELA_MIN, IA_MENSAGENS_POR_JANELA);
   if (limite.excedeu) throw new IAError("Muitas mensagens em pouco tempo. Espere alguns minutos.", 429);
+  // Também por quem paga: com vários organizadores, o limite por pessoa sozinho deixaria a dívida crescer N vezes.
+  if (quemPaga) {
+    const doPagante = await hit(`ia-pagante:${quemPaga.tipo}:${quemPaga.id}`, IA_JANELA_MIN, IA_MENSAGENS_POR_PAGANTE);
+    if (doPagante.excedeu) throw new IAError("Muitas mensagens da sua conta em pouco tempo. Espere alguns minutos.", 429);
+  }
 
   const mensagem = (texto as string).trim();
   let lida = await conversaDe(c);
@@ -193,6 +220,8 @@ export async function conversarComIA(
         milicreditos: resposta.milicreditos,
       })
       .onConflictDoNothing({ target: iaUso.mensagemId });
+    // O débito anda com o uso: a mesma mensagem nunca debita duas vezes (chave `uso:<id>`).
+    if (quemPaga) await debitarUso(tx, quemPaga, resposta.id, resposta.milicreditos);
   });
 
   return {

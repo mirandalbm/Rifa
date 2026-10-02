@@ -33,6 +33,7 @@ descrita aqui; o detalhe de como explorar não entra no repositório.
 | Arquivo: tipo conferido pelo conteúdo, reprocessado (sharp, teto de 40 MP), nunca servido como veio; chave de mídia gerada pelo servidor e conferida na volta; envio ao disco com assinatura que leva o **teto de bytes** (conferida antes de ler o corpo) e `/uploads` só restaura chave no formato que geramos | `server/services/media.ts`, `storage.ts`, `probe.ts` | `tests/midia.test.ts`, `npm run isolation` |
 | Vídeo enviado a terceiro (Cloudflare Stream, só com `VIDEO_PROCESSOR=cloudflare-stream`): token só no cabeçalho, endereço do quadro só `https` em `*.cloudflarestream.com`, vídeo apagado do Stream no `finally`, prazo e teto de 3 envios, nunca lança | `server/services/videoProcessor.ts` | `tests/cloudflareStream.test.ts` |
 | Assistente de IA (Chatbase): a conversa passa pelo nosso servidor (nenhum script de terceiro no painel), chave da API só no servidor (nunca em resposta, log ou URL), endereço da API fixo em produção, titular e papel tirados da sessão, telefone/CPF/e-mail barrados antes de sair (texto normalizado: traço Unicode, invisível, largura cheia), uso gravado por mensagem em milésimos com chave única, id da conversa gravado condicional ao lido, limite por pessoa na mensagem e na leitura, conversa fora do cache no login e no logout, configuração só da plataforma | `server/services/chatbase.ts`, `ia.ts`, `server/routes/ia.ts`, `shared/ia.ts` | `tests/ia.test.ts`, `tests/chatbase.test.ts`, `npm run ia` (com o Chatbase de mentira), `npm run isolation` |
+| Cobrança do assistente: preço da tabela (nunca do corpo) fotografado no Pix, titular da sessão, 402 antes de sair para o Chatbase, livro com chave única e conta travada na mesma transação, Pix pago por `UPDATE` condicional, débito na transação do uso, CPF/CNPJ do pagador não guardado, limite de Pix por pessoa | `shared/iaCobranca.ts`, `server/services/iaCobranca.ts`, `server/routes/ia.ts`, `server/routes/webhooks.ts` | `tests/iaCobranca.test.ts`, `npm run ia`, `npm run isolation` |
 | Pagamento: webhook assinado (tempo constante), status pela API, idempotente | `server/routes/webhooks.ts`, `server/payments/` | `tests/mercadopago.test.ts`, `tests/asaas.test.ts` |
 | Antifraude: limites antes do primeiro `INSERT` e a reserva em aberto de novo na transação | `server/services/antifraude.ts`, `orders.ts` | `npm run load` |
 | Endereço vindo de usuário: só `https:`, nunca vira redirecionamento aberto | `shared/perfil.ts`, `shared/vitrine.ts`, `server/services/links.ts` | `npm run perfil` |
@@ -148,6 +149,10 @@ worker). As 25 provas da API, 180 capturas de tela, o log do servidor e o
   cliente digitado à mão passa — o aviso na coluna pede o código do pedido ou o
   ID do cliente. O script de terceiro no painel, aceito na primeira versão, saiu:
   a conversa agora passa pelo servidor.
+- Cobrança do assistente: o custo só é sabido depois da resposta, então
+  mensagens em paralelo com o último crédito deixam o avulso negativo (a dívida
+  de uma janela, limitada pelo limite de mensagens por pessoa e por quem paga);
+  o Pix pago tarde (depois de a tela dar por vencido) credita normalmente.
 - `setPlataforma` lê e grava sem trava: dois cartões salvos ao mesmo tempo
   podem perder um (último a gravar vence). Já existia; o cartão do assistente é
   só mais um escritor.

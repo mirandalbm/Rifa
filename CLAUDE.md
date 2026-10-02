@@ -1720,6 +1720,12 @@ conversa como cartão (o compartilhar da publicação), nunca como link no texto
     **antes** de sair; organização não vê nem decide (403, no `npm run
     isolation`). Uma aberta por grupo e pessoa; decidir é `UPDATE` condicional
     (`aberta`) e procedente encerra o grupo na mesma transação.
+  - **Rifa travada ou promotora banida fecha o grupo** para novas mensagens
+    (409): o mesmo corte da compra. O último a sair **fecha** o grupo (vazio,
+    ele travaria o criador e ocuparia a lista). A denúncia guarda o apelido
+    no trecho como prova da moderação — a retenção é de propósito (excluir a
+    conta tira a pessoa do grupo e mascara as mensagens na leitura, mas a prova
+    de uma denúncia aberta não se apaga).
   - Fica de fora: moderador do grupo (quem cria não remove ninguém — a
     plataforma encerra), foto/vídeo em grupo e aviso no celular.
   - `npm run grupos` prova tudo isso contra a API de verdade.

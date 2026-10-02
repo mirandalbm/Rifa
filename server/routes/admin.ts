@@ -765,6 +765,8 @@ adminRouter.get("/mensagens/grupos/denuncias/:id", async (req, res, next) => {
 adminRouter.post("/mensagens/grupos/denuncias/:id/decidir", async (req, res, next) => {
   try {
     requirePlatformAdmin(req);
+    // Só decisão conhecida entra na auditoria: o texto da ação não vem solto do corpo.
+    if (req.body?.decisao !== "procedente" && req.body?.decisao !== "improcedente") return res.status(400).json({ message: "Escolha: procedente ou improcedente." });
     await audit(req, `mensagens.grupo.denuncia.${String(req.body?.decisao ?? "")}`, "grupo_denuncia", req.params.id, {
       resposta: req.body?.resposta ?? null,
     });

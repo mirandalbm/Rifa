@@ -22,6 +22,7 @@ import {
   buyers,
   campaigns,
   conversas,
+  grupoMembros,
   mensagemDenuncias,
   mensagemImagens,
   mensagens,
@@ -69,7 +70,6 @@ import { avisar, emSegundoPlano } from "./push";
 import { getPlataforma } from "./settings";
 import { urlDaFoto } from "./perfil";
 import { urlDaFotoDoApostador } from "./perfilApostador";
-import { naoLidasDeGrupos } from "./grupos";
 
 export class MensagemError extends Error {
   constructor(message: string, readonly status = 400) {
@@ -325,7 +325,11 @@ export async function resumoDasMensagens(req: Request, como?: unknown) {
     .from(conversas)
     .where(souDono(eu));
   // As mensagens de grupo contam no mesmo número do console (só apostador está em grupo).
-  const doGrupo = eu.tipo === "comprador" ? await naoLidasDeGrupos(eu.id) : 0;
+  // (A conta mora aqui, e não em `grupos.ts`, para os dois módulos não se importarem em ciclo.)
+  const doGrupo =
+    eu.tipo === "comprador"
+      ? ((await db.select({ n: sql<number>`coalesce(sum(${grupoMembros.naoLidas}), 0)::int` }).from(grupoMembros).where(eq(grupoMembros.buyerId, eu.id)))[0]?.n ?? 0)
+      : 0;
   return { naoLidas: (r?.total ?? 0) + doGrupo };
 }
 

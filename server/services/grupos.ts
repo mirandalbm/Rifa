@@ -144,9 +144,15 @@ export async function sairDoGrupo(req: Request, id: string) {
   const eu = await apostador(req);
   if (!UUID.test(id)) throw new MensagemError("Grupo não encontrado.", 404);
   await db.transaction(async (tx) => {
+    // Trava o grupo como entrar e escrever: o contador não se cruza com outra entrada.
+    await tx.execute(sql`select 1 from grupos where id = ${id} for update`);
     const saiu = await tx.delete(grupoMembros).where(and(eq(grupoMembros.grupoId, id), eq(grupoMembros.buyerId, eu))).returning({ b: grupoMembros.buyerId });
     if (saiu.length === 0) throw new MensagemError("Grupo não encontrado.", 404);
-    await tx.update(grupos).set({ membrosCount: sql`greatest(${grupos.membrosCount} - 1, 0)` }).where(eq(grupos.id, id));
+    // Sem ninguém, o grupo fecha: vazio, ele travaria o criador (um aberto por rifa) e ocuparia a lista.
+    await tx
+      .update(grupos)
+      .set({ membrosCount: sql`greatest(${grupos.membrosCount} - 1, 0)`, encerradaEm: sql`case when ${grupos.membrosCount} <= 1 then now() else ${grupos.encerradaEm} end` })
+      .where(eq(grupos.id, id));
   });
   return { ok: true };
 }
@@ -295,12 +301,18 @@ export async function escreverNoGrupo(req: Request, id: string, entrada: { texto
   return db.transaction(async (tx) => {
     // Trava o grupo: o encerramento da plataforma e esta mensagem não se cruzam.
     const r = await tx.execute(sql`
-      select g.id, g.campaign_id, g.encerrada_em from grupos g
+      select g.id, g.campaign_id, g.encerrada_em,
+             (c.status = 'published' and c.travada_em is null and o.active = true and o.archived_at is null and o.banida_em is null) as rifa_no_ar
+        from grupos g
         join grupo_membros m on m.grupo_id = g.id and m.buyer_id = ${eu}
+        join campaigns c on c.id = g.campaign_id
+        join organizations o on o.id = c.organization_id
        where g.id = ${UUID.test(id) ? id : "00000000-0000-0000-0000-000000000000"}
        for update of g`);
-    const g = r.rows[0] as { id: string; campaign_id: string; encerrada_em: string | null } | undefined;
+    const g = r.rows[0] as { id: string; campaign_id: string; encerrada_em: string | null; rifa_no_ar: boolean } | undefined;
     if (!g) throw new MensagemError("Grupo não encontrado.", 404);
+    // Rifa travada ou promotora banida: o grupo dela fecha junto (o mesmo golpe, o mesmo corte).
+    if (!g.rifa_no_ar) throw new MensagemError("Esta rifa não está mais no ar: o grupo dela está fechado para novas mensagens.", 409);
     const [{ paga }] = (await tx.execute(sql`select ${compraPagaSql(eu, g.campaign_id)} as paga`)).rows as { paga: boolean }[];
     const impedimento = problemaParaEscreverNoGrupo({ encerrado: Boolean(g.encerrada_em), souMembro: true, compraPaga: paga });
     if (impedimento) throw new MensagemError(impedimento, 409);
@@ -320,15 +332,6 @@ export async function marcarGrupoLido(req: Request, id: string) {
   await meuGrupo(eu, id);
   await db.update(grupoMembros).set({ naoLidas: 0 }).where(and(eq(grupoMembros.grupoId, id), eq(grupoMembros.buyerId, eu)));
   return { ok: true };
-}
-
-/** Quantas mensagens de grupo esperam leitura: soma no contador do console. */
-export async function naoLidasDeGrupos(buyerId: string): Promise<number> {
-  const [r] = await db
-    .select({ n: sql<number>`coalesce(sum(${grupoMembros.naoLidas}), 0)::int` })
-    .from(grupoMembros)
-    .where(eq(grupoMembros.buyerId, buyerId));
-  return r?.n ?? 0;
 }
 
 /* ------------------------------------------------------------------ *

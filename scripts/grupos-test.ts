@@ -226,6 +226,12 @@ async function main() {
     r = await bia.req("GET", `/api/public/mensagens/grupos/${grupo}`);
     checa("depois de sair, o grupo é 404", r.status === 404);
 
+    console.log("\n  rifa travada fecha o grupo:");
+    await db.update(campaigns).set({ travadaEm: new Date() }).where(eq(campaigns.id, rifa.id));
+    r = await ana.req("POST", `/api/public/mensagens/grupos/${grupo}/mensagens`, { texto: "Ainda dá?" });
+    checa("rifa travada: o grupo não aceita mensagem (409)", r.status === 409 && /não está mais no ar/.test(r.json?.message ?? ""), `HTTP ${r.status}`);
+    await db.update(campaigns).set({ travadaEm: null }).where(eq(campaigns.id, rifa.id));
+
     console.log("\n  denúncia e plataforma:");
     r = await caio.req("POST", `/api/public/mensagens/grupos/${grupo}/mensagens`, { texto: "Pessoal, topam trocar número premiado?" });
     r = await caio.req("POST", `/api/public/mensagens/grupos/${grupo}/denuncia`, { motivo: "golpe", texto: "Estranho." });
@@ -251,6 +257,8 @@ async function main() {
     checa("organização não lê o detalhe (403)", r.status === 403);
     r = await admin.req("POST", `/api/admin/mensagens/grupos/denuncias/${item?.id}/decidir`, { decisao: "procedente" });
     checa("procedente pede explicação (400)", r.status === 400);
+    r = await admin.req("POST", `/api/admin/mensagens/grupos/denuncias/${item?.id}/decidir`, { decisao: "qualquer coisa", resposta: "x" });
+    checa("decisão desconhecida: 400, sem auditoria solta", r.status === 400);
     const duas = await Promise.all([1, 2].map(() => admin.req("POST", `/api/admin/mensagens/grupos/denuncias/${item?.id}/decidir`, { decisao: "procedente", resposta: "Combinação de golpe." })));
     checa("dois cliques, uma decisão (200 e 409)", duas.map((d) => d.status).sort().join() === "200,409", duas.map((d) => d.status).join());
     r = await ana.req("POST", `/api/public/mensagens/grupos/${grupo}/mensagens`, { texto: "Alguém aí?" });
@@ -259,6 +267,15 @@ async function main() {
     checa("grupo encerrado: ninguém entra (409)", r.status === 409);
     r = await ana.req("POST", "/api/public/mensagens/grupos", { rifa: RIFA, nome: "Novo depois do encerramento" });
     checa("quem teve o grupo encerrado pode criar outro", r.status === 201);
+
+    console.log("\n  sair do grupo vazio:");
+    r = await duda.req("POST", "/api/public/mensagens/grupos", { rifa: RIFA_B, nome: "Grupo da Duda" });
+    const solitario = r.json?.id as string;
+    r = await duda.req("POST", `/api/public/mensagens/grupos/${solitario}/sair`, {});
+    const [vazio] = (await db.execute(sql`select encerrada_em from grupos where id = ${solitario}`)).rows as { encerrada_em: string | null }[];
+    checa("o último a sair fecha o grupo", r.status === 200 && vazio.encerrada_em !== null);
+    r = await duda.req("POST", "/api/public/mensagens/grupos", { rifa: RIFA_B, nome: "Outro da Duda" });
+    checa("e o criador pode abrir outro", r.status === 201);
 
     console.log("\n  a lista anda por chave:");
     r = await ana.req("GET", "/api/public/mensagens/grupos?limite=1");

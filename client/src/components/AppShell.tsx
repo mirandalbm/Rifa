@@ -85,8 +85,11 @@ export function PublicShell({
   larga,
   vitrine,
   rodape,
+  antesDaMarca,
 }: {
   children: ReactNode;
+  /** No topo do celular, à esquerda da logo (o botão do sorteio no Início). */
+  antesDaMarca?: ReactNode;
   larga?: boolean;
   /** A vitrine ocupa a largura toda do tablet em diante (feed e coluna ao vivo). */
   vitrine?: boolean;
@@ -101,9 +104,12 @@ export function PublicShell({
     <div className="min-h-screen bg-white lg:pl-[72px]">
       <header className="sticky top-0 z-20 border-b border-line bg-white lg:hidden">
         <div className={`mx-auto flex ${largura} items-center justify-between px-4 py-2`}>
-          <Link href="/" className="text-lg">
-            <Marca />
-          </Link>
+          <div className="flex items-center gap-1">
+            {antesDaMarca}
+            <Link href="/" className="text-lg">
+              <Marca />
+            </Link>
+          </div>
           <nav aria-label="Criar e avisos" className="flex items-center gap-1">
             <BotaoPublicar />
             <TrevoDeAvisos />

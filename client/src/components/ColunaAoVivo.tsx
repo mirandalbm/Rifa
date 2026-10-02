@@ -15,7 +15,7 @@ import {
 } from "@shared/aoVivo";
 
 /** O que `GET /api/public/vitrine/ao-vivo` devolve — já recortado no servidor. */
-interface AoVivo {
+export interface AoVivo {
   proximo: {
     slug: string;
     organizacao: { slug: string; nome: string };
@@ -44,7 +44,7 @@ interface AoVivo {
 }
 
 /** De quanto em quanto tempo a coluna se atualiza (o servidor guarda 5 s). */
-const ATUALIZA_MS = 15_000;
+export const ATUALIZA_MS = 15_000;
 
 const haQuanto = (iso: string) => {
   const min = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60_000));
@@ -135,19 +135,50 @@ function TelaDoSorteio({
   );
 }
 
-/** Liga e desliga a tela cheia de um elemento, sabendo quando o navegador sai sozinho (Esc). */
+/**
+ * A tela do próximo sorteio sem a coluna: contagem, transmissão e a barra
+ * (qualidade e tela cheia). É a do Início no celular (`SorteioDoInicio`).
+ */
+export function TelaDoProximoSorteio({ proximo }: { proximo: AoVivo["proximo"] }) {
+  const [agora, setAgora] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setAgora(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+  const [qualidade, setQualidade] = useState<QualidadeDoVideo>("auto");
+  // O título vai embaixo do vídeo, como no YouTube: dentro da tela, só a contagem.
+  return <Tela proximo={proximo} agora={agora} qualidade={qualidade} onQualidade={setQualidade} semTitulo />;
+}
+
+/**
+ * Liga e desliga a tela cheia de um elemento, sabendo quando o navegador sai
+ * sozinho (Esc). Onde o navegador não põe um elemento qualquer em tela cheia
+ * (o Safari do iPhone só deixa o `<video>`), a tela ocupa a janela inteira
+ * por cima de tudo (`falsa`) — sai pelo mesmo botão ou pelo Esc.
+ */
 function useTelaCheia(ref: RefObject<HTMLElement | null>) {
   const [cheia, setCheia] = useState(false);
+  const [falsa, setFalsa] = useState(false);
   useEffect(() => {
     const mudou = () => setCheia(document.fullscreenElement === ref.current && ref.current !== null);
     document.addEventListener("fullscreenchange", mudou);
     return () => document.removeEventListener("fullscreenchange", mudou);
   }, [ref]);
+  useEffect(() => {
+    if (!falsa) return;
+    const esc = (e: KeyboardEvent) => e.key === "Escape" && setFalsa(false);
+    window.addEventListener("keydown", esc);
+    return () => window.removeEventListener("keydown", esc);
+  }, [falsa]);
   const alternar = () => {
-    if (document.fullscreenElement) void document.exitFullscreen?.().catch(() => {});
-    else void ref.current?.requestFullscreen?.().catch(() => {});
+    if (falsa) return setFalsa(false);
+    if (document.fullscreenElement) return void document.exitFullscreen?.().catch(() => {});
+    if (document.fullscreenEnabled && ref.current?.requestFullscreen) {
+      return void ref.current.requestFullscreen().catch(() => setFalsa(true));
+    }
+    setFalsa(true);
   };
-  return { cheia, alternar, disponivel: typeof document !== "undefined" && document.fullscreenEnabled !== false };
+  return { cheia: cheia || falsa, falsa, alternar, disponivel: true };
 }
 
 /**
@@ -162,22 +193,25 @@ function Tela({
   qualidade,
   onQualidade,
   onFlutuar,
+  semTitulo,
 }: {
   proximo: AoVivo["proximo"];
   agora: number;
   qualidade: QualidadeDoVideo;
   onQualidade: (q: QualidadeDoVideo) => void;
   onFlutuar?: () => void;
+  /** O título fica fora da tela (no Início do celular, embaixo do vídeo). */
+  semTitulo?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
-  const { cheia, alternar, disponivel } = useTelaCheia(ref);
+  const { cheia, falsa, alternar, disponivel } = useTelaCheia(ref);
   const aoVivo = proximo ? faltaParaOSorteio(proximo.drawAt, agora).aoVivo : false;
   const comQualidade = aoVivo && aceitaQualidade(proximo?.video);
 
   return (
-    <div ref={ref} className="flex h-full w-full flex-col bg-[#0B1F14]">
+    <div ref={ref} className={`flex w-full flex-col bg-[#0B1F14] ${falsa ? "fixed inset-0 z-[80] h-[100dvh]" : "h-full"}`}>
       <div className={`min-h-0 ${cheia ? "flex-1" : "aspect-video"}`}>
-        <ConteudoDaTela proximo={proximo} agora={agora} qualidade={qualidade} />
+        <ConteudoDaTela proximo={proximo} agora={agora} qualidade={qualidade} semTitulo={semTitulo && !cheia} />
       </div>
       {proximo ? (
         <div className="flex h-9 shrink-0 items-center justify-end gap-1 bg-black/40 pl-1.5 pr-4 text-branco">
@@ -222,7 +256,17 @@ function Tela({
 }
 
 /** Contagem até o sorteio; na hora, a transmissão (ou o link dela). */
-function ConteudoDaTela({ proximo, agora, qualidade }: { proximo: AoVivo["proximo"]; agora: number; qualidade: QualidadeDoVideo }) {
+function ConteudoDaTela({
+  proximo,
+  agora,
+  qualidade,
+  semTitulo,
+}: {
+  proximo: AoVivo["proximo"];
+  agora: number;
+  qualidade: QualidadeDoVideo;
+  semTitulo?: boolean;
+}) {
   if (!proximo) {
     return (
       <div className="flex h-full items-center justify-center p-4 text-center text-sm text-branco/80">
@@ -287,12 +331,16 @@ function ConteudoDaTela({ proximo, agora, qualidade }: { proximo: AoVivo["proxim
           ))}
         </div>
       )}
-      <Link href={href} className="block truncate text-sm font-semibold hover:underline">
-        {proximo.prizeTitle}
-        <span className="block truncate text-[11px] font-normal text-branco/70">
-          {proximo.organizacao.nome} · <span className="tnum">{hora}</span>
-        </span>
-      </Link>
+      {semTitulo ? (
+        <span aria-hidden />
+      ) : (
+        <Link href={href} className="block truncate text-sm font-semibold hover:underline">
+          {proximo.prizeTitle}
+          <span className="block truncate text-[11px] font-normal text-branco/70">
+            {proximo.organizacao.nome} · <span className="tnum">{hora}</span>
+          </span>
+        </Link>
+      )}
     </div>
   );
 }
@@ -385,7 +433,7 @@ function TelaFlutuante({ children, onFechar }: { children: ReactNode; onFechar: 
 
 /* ------------------------------ as filas ------------------------------ */
 
-function Ganhadores({ lista }: { lista: AoVivo["ganhadores"] | undefined }) {
+export function Ganhadores({ lista }: { lista: AoVivo["ganhadores"] | undefined }) {
   return (
     <section aria-label="Últimos ganhadores" className="shrink-0 rounded-xl border border-line p-3">
       <h2 className="flex items-center gap-1.5 font-display text-sm font-bold">

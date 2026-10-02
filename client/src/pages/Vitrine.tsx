@@ -18,10 +18,12 @@ import { InstalarApp } from "@/components/InstalarApp";
 import { Patrocinadas } from "@/components/Patrocinadas";
 import type { Bloco } from "@shared/template";
 import { ColunaAoVivo } from "@/components/ColunaAoVivo";
+import { BotaoDoSorteio, SorteioDoInicio, useSorteioDoInicio } from "@/components/SorteioDoInicio";
 
 /** Vitrine multi-rifas: todas as campanhas no ar, banner na frente. */
 export default function Vitrine() {
   const template = useTemplate();
+  const sorteio = useSorteioDoInicio();
   const { data: sessao } = useSession();
   const naConta = Boolean(sessao?.buyer?.conta);
   // Com conta, a região vem do CEP do cadastro — sem ninguém precisar
@@ -78,7 +80,7 @@ export default function Vitrine() {
   const lugarDosStories = blocos.find((b) => b.tipo === "seguidos" || b.tipo === "estados")?.id;
 
   return (
-    <PublicShell vitrine rodape>
+    <PublicShell vitrine rodape antesDaMarca={<BotaoDoSorteio onAbrir={sorteio.abrir} />}>
       {/* Título da página para leitor de tela (a vitrine abre direto nos banners). */}
       <h1 className="sr-only">Rifas no ar</h1>
       {/* Tablet e computador: o feed no centro e, à direita, a coluna ao vivo
@@ -132,6 +134,8 @@ export default function Vitrine() {
       <ColunaAoVivo />
       </div>
       <InstalarApp />
+      {/* Celular: a tela do sorteio à esquerda do Início (deslizar para a direita). */}
+      <SorteioDoInicio aberto={sorteio.aberto} abrir={sorteio.abrir} fechar={sorteio.fechar} />
     </PublicShell>
   );
 }

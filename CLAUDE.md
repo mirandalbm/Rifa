@@ -161,6 +161,7 @@ arquitetura.
 | casca dos painéis (menu lateral em grupos, barra de cima, busca, conta, rodapé) e as peças do kit | `MENUS`/`menuDe()` em `shared/access.ts`, `PanelShell` em `client/src/components/AppShell.tsx`, `client/src/components/painel.tsx` (`Estatistica`, `CartaoDoPainel`, `CabecalhoDaTabela`, `AlternarVisao`), `.painel`/`.cartao` em `client/src/index.css`, `tests/menu.test.ts` |
 | remodelagem do web e dos painéis: inventário do que existe e lista de conferência | `docs/REMODELAGEM.md` |
 | selo "ao vivo" no story (anel com a transmissão do sorteio) | `transmissaoNoAr()` em `shared/aoVivo.ts` (regra), `transmissoesNoAr()` em `server/services/aoVivo.ts`, `perfisComStory()` e `perfilPublico()` em `server/services/perfil.ts`, `FotoComStory`/`VisualizadorDeStories` em `client/src/components/Stories.tsx`, `tests/seloAoVivo.test.ts`, `scripts/vitrine-test.ts` |
+| tela do sorteio no Início do celular (deslizar para a direita, vídeo e comentários como no YouTube) | `client/src/components/SorteioDoInicio.tsx` (`useSorteioDoInicio`, `BotaoDoSorteio`), a regra do gesto em `client/src/lib/deslizar.ts`, `TelaDoProximoSorteio` em `client/src/components/ColunaAoVivo.tsx`, `antesDaMarca` em `PublicShell`, `tests/deslizar.test.ts` |
 | vitrine no tablet e no computador: coluna ao vivo (tela do sorteio, ganhadores, jogando agora), tela flutuante e rodapé com logos | `shared/aoVivo.ts` (regras), `server/services/aoVivo.ts`, `client/src/components/ColunaAoVivo.tsx`, `client/src/components/RodapeDaPlataforma.tsx`, `validarApoios()` em `shared/template.ts`, `tests/aoVivo.test.ts`, `scripts/vitrine-test.ts` |
 | rodapé da plataforma: colunas de links, redes sociais e espaço de apoio | `shared/rodape.ts` (colunas), `validarRedes()`/`REDES_DO_RODAPE` em `shared/template.ts`, `client/src/components/RodapeDaPlataforma.tsx`, cartão "Redes sociais do rodapé" em `client/src/pages/adminAparencia.tsx`, `preencherRodapeComExemplo()` em `server/services/template.ts`, `tests/rodape.test.ts` |
 | app instalável (PWA): casca, nome e ícone | `client/public/sw.js`, `shared/manifest.ts` (o manifesto montado), `manifestDaPlataforma()`/`iconeDaMarca()` em `server/services/template.ts`, `client/public/manifest.webmanifest` (o de fábrica, se o banco falhar), `client/src/lib/pwa.ts`, `tests/manifest.test.ts`, `scripts/aparencia-test.ts` |
@@ -360,6 +361,32 @@ arquitetura.
   desde 2019, e a Twitch e o Facebook não têm o parâmetro — neles a
   qualidade fica na engrenagem do próprio player. Botão sem efeito seria
   mentira na tela.
+- **No celular, o sorteio mora à esquerda do Início** (`SorteioDoInicio`,
+  abaixo de `md` — onde a coluna ao vivo não existe): deslizar o dedo para a
+  direita no Início abre a tela do sorteio principal, **como no YouTube** —
+  o vídeo parado no alto (a mesma `TelaDoProximoSorteio` da coluna: contagem,
+  transmissão, qualidade e tela cheia), o título embaixo e os **comentários
+  da rifa abertos** (`Comentarios`, o mesmo campo e as mesmas regras). O mesmo
+  dado da coluna (`/vitrine/ao-vivo`), buscado só com a tela aberta. Sem
+  sorteio marcado, os últimos ganhadores.
+  - **O gesto não rouba o de ninguém** (`toquePodeAbrir()` em
+    `client/src/lib/deslizar.ts`): carrossel, banners e stories que ainda
+    podem voltar ficam com o toque (na primeira peça, voltar não faz nada lá e
+    o gesto abre o sorteio, como no Instagram); campo de digitar, janela
+    aberta (`aria-modal`) e `data-sem-gesto` ficam fora. É de lado só com
+    `|dy| ≤ dx × 0,5` e abre a partir de `DISTANCIA_PARA_ABRIR`; o painel
+    acompanha o dedo, e deslizar de volta fecha. `tests/deslizar.test.ts`.
+  - **Gesto nunca é o único caminho** (WCAG 2.5.1): o botão do sorteio no
+    topo, à esquerda da logo (`BotaoDoSorteio`, só no celular), abre a mesma
+    tela. Aberta, é diálogo (`role="dialog"`, `aria-modal`, foco no
+    "Voltar ao início", Esc fecha) e a página de baixo não rola.
+  - **O voltar do aparelho fecha** (`#sorteio`, `useSorteioDoInicio()`):
+    abrir empurra a marca no histórico, fechar a tira; chegar com
+    `#sorteio` abre direto.
+  - **Tela cheia no iPhone**: o Safari só põe o `<video>` em tela cheia, e a
+    transmissão é um `iframe` — sem a tela cheia do navegador, a tela ocupa a
+    janela por cima de tudo (`falsa` em `useTelaCheia`), e sai pelo mesmo
+    botão ou pelo Esc. Vale também para a coluna.
 - **Rodapé da plataforma** (`RodapeDaPlataforma`, só tablet e computador;
   no celular isso mora em `/perfil`), no desenho de rodapé de produto:
   **à esquerda** a logo, o texto de apresentação do template e, embaixo do

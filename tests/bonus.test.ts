@@ -112,10 +112,17 @@ describe("quantidade de cotas de bônus da autorização", () => {
     expect(c).toMatch(/não têm reembolso nem valor em dinheiro/);
     expect(c).toMatch(/2 horas antes do sorteio/);
   });
+  it("rifa publicada antes da quantidade (0) segue a cláusula antiga, sem número", () => {
+    const c = clausulaDoBonus(0);
+    expect(c).not.toMatch(/até 0/);
+    expect(c).toMatch(/aceita cotas de bônus/);
+  });
   it("o mínimo conta só as pagas, salvo na rifa cheia", () => {
     expect(vendidasParaOMinimo(500, 30, "data")).toBe(470);
     expect(vendidasParaOMinimo(500, 30, null)).toBe(470);
     expect(vendidasParaOMinimo(1000, 30, "cheia_com_data")).toBe(1000);
+    // O "quando completar" marca a data contando tudo: o sorteio também conta.
+    expect(vendidasParaOMinimo(1000, 30, "quando_completar")).toBe(1000);
     expect(vendidasParaOMinimo(10, 30, "data")).toBe(0);
   });
 });

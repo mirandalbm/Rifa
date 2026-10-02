@@ -145,6 +145,12 @@ export function problemaNoBonusMax(aceita: boolean, max: unknown, totalCotas: nu
  */
 export function clausulaDoBonus(maxCotas: number): string {
   const n = Math.max(0, Math.floor(maxCotas));
+  // Rifa publicada antes da quantidade existir (0): segue a cláusula com que
+  // foi publicada, sem número e sem teto — mudar agora mudaria o regulamento
+  // de quem já comprou.
+  if (n === 0) {
+    return "Esta rifa aceita cotas de bônus do programa de indicação da plataforma: o participante que as resgata recebe cotas sem pagar, sorteadas entre os números livres, que concorrem em igualdade com as cotas pagas. As cotas de bônus não têm reembolso nem valor em dinheiro.";
+  }
   return (
     `Esta rifa distribui até ${n} cota${n === 1 ? "" : "s"} de bônus, sem custo, pelo programa de indicação e metas da plataforma ` +
     "(indicar quem faça a primeira compra paga, comprar em rifas diferentes, trazer visitas pelo link e seguir organizações). " +
@@ -158,10 +164,12 @@ export function clausulaDoBonus(maxCotas: number): string {
 /**
  * Cotas que contam para o mínimo do sorteio. No mínimo em percentual, só as
  * pagas (as de bônus ficam de fora: cota grátis não pode inflar a venda). Na
- * rifa cheia (`cheia_com_data`), todas as distribuídas: o número de bônus já
- * tem dono, e sem ele a rifa cheia com bônus nunca sortearia.
+ * rifa cheia (`cheia_com_data` e `quando_completar`), todas as distribuídas:
+ * o número de bônus já tem dono, e sem ele a rifa cheia com bônus nunca
+ * sortearia (o "quando completar" marca a data contando o `sold_count` inteiro).
  */
 export function vendidasParaOMinimo(soldCount: number, bonusCount: number, modoSorteio?: string | null): number {
-  if (modoSorteio === "cheia_com_data") return Math.max(0, soldCount);
+  // Os dois modos de rifa cheia: a última cota (paga ou grátis) é a que enche.
+  if (modoSorteio === "cheia_com_data" || modoSorteio === "quando_completar") return Math.max(0, soldCount);
   return Math.max(0, soldCount - Math.max(0, bonusCount));
 }

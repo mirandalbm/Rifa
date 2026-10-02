@@ -136,8 +136,11 @@ export async function publishBlockers(campaignId: string): Promise<string[]> {
   }
   // Rifa marcada para cota de bônus antes desta regra não tem a quantidade:
   // o regulamento sairia sem o número que a autorização aprova.
-  if (campaign.aceitaCotaBonus && campaign.bonusMaxCotas < 1) {
-    blockers.push("Diga quantas cotas de bônus a autorização prevê (Autorização e sorteio).");
+  // Também confere contra o total de agora: o PATCH do rascunho pode ter
+  // diminuído o total depois de salvar a quantidade.
+  if (campaign.aceitaCotaBonus) {
+    const p = problemaNoBonusMax(true, campaign.bonusMaxCotas, campaign.totalQuotas);
+    if (p) blockers.push(`${p} (Autorização e sorteio)`);
   }
   if (campaign.authorizationCode && !campaign.authorizationFileKey) {
     blockers.push("Anexe o arquivo do certificado de autorização (PDF ou imagem).");

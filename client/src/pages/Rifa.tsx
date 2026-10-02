@@ -27,7 +27,7 @@ import { DestaqueOrg } from "@/components/DestaqueOrg";
 import { lerOrigem } from "@/lib/origem";
 import { lerIndicacao } from "@/lib/indicacao";
 import { textoDoPresente } from "@shared/presente";
-import { Gift } from "lucide-react";
+import { Gift, Radio } from "lucide-react";
 import { consentiu, definirOrganizacaoDaPagina, lerUtm } from "@/lib/marketing";
 import { useRastreio } from "@/components/Marketing";
 import { embaralharPagina } from "@/lib/embaralhar";
@@ -60,6 +60,8 @@ interface CampaignDetail {
     /** Como a rifa chega ao sorteio (`MODOS_DO_SORTEIO`). */
     modoSorteio?: string;
     authorizationCode: string | null;
+    /** O sorteio oficial da plataforma em que a rifa está (o selo). */
+    sorteioOficial?: { id: string; selo: string; loteriaNome: string } | null;
     temCertificado?: boolean;
     demonstracao?: boolean;
     travada?: boolean;
@@ -385,9 +387,20 @@ export default function Rifa() {
         />
         <p className="relative font-mono text-[11px] uppercase tracking-widest text-yellow">
           {campaign.drawAt
-            ? `Sorteio ${new Date(campaign.drawAt).toLocaleDateString("pt-BR")} · Loteria Federal`
+            ? `Sorteio ${new Date(campaign.drawAt).toLocaleDateString("pt-BR")} · ${campaign.sorteioOficial?.loteriaNome ?? "Loteria Federal"}`
             : "Sorteio quando completar · Loteria Federal"}
         </p>
+        {campaign.sorteioOficial ? (
+          // Selo do sorteio oficial: a rifa entra no sorteio que a plataforma transmite.
+          <p className="relative mt-1.5 flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center gap-1 rounded-full bg-branco/15 px-2 py-0.5 text-[11px] font-bold text-branco">
+              <Radio size={12} aria-hidden /> {campaign.sorteioOficial.selo}
+            </span>
+            <Link href="/#sorteio" className="text-[11px] font-semibold text-branco underline md:hidden">
+              Ver o sorteio
+            </Link>
+          </p>
+        ) : null}
         {campaign.adiamentos && campaign.drawAtOriginal ? (
           <p className="relative mt-1 text-xs text-branco">
             Sorteio adiado — a data era{" "}

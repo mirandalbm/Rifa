@@ -382,6 +382,37 @@ export const affiliates = pgTable(
 );
 
 /* ------------------------------------------------------------------ *
+ * Sorteios oficiais (calendário da plataforma)
+ * ------------------------------------------------------------------ */
+
+/**
+ * Os concursos das loterias da Caixa que a plataforma põe no calendário
+ * (shared/sorteiosOficiais.ts). As organizações integram as rifas neles; a
+ * tela do sorteio no Início do celular transmite só estes. O resultado é o
+ * oficial, lançado pela plataforma, e fica guardado para sempre.
+ */
+export const sorteiosOficiais = pgTable(
+  "sorteios_oficiais",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /** `federal`, `mega_sena`, `quina` ou `lotofacil` (`LOTERIAS`). */
+    loteria: text("loteria").notNull(),
+    concurso: integer("concurso").notNull(),
+    sorteioEm: timestamp("sorteio_em").notNull(),
+    titulo: text("titulo"),
+    transmissaoUrl: text("transmissao_url"),
+    /** Os números oficiais, no formato da loteria (`validarResultado`). */
+    resultado: jsonb("resultado").$type<string[]>(),
+    resultadoEm: timestamp("resultado_em"),
+    canceladoEm: timestamp("cancelado_em"),
+    criadoPor: uuid("criado_por"),
+    criadoEm: timestamp("criado_em").notNull().defaultNow(),
+  },
+  // O mesmo concurso não entra duas vezes: o índice decide, não um SELECT antes.
+  (t) => [uniqueIndex("uq_sorteio_oficial_concurso").on(t.loteria, t.concurso), index("idx_sorteios_oficiais_data").on(t.sorteioEm)],
+);
+
+/* ------------------------------------------------------------------ *
  * Campanhas (multi-rifas)
  * ------------------------------------------------------------------ */
 
@@ -482,6 +513,12 @@ export const campaigns = pgTable(
      * versão. Nulo: a organização não tinha termo.
      */
     termoId: uuid("termo_id"),
+    /**
+     * O sorteio oficial da plataforma em que a rifa está integrada
+     * (`sorteios_oficiais`): a data da rifa é a do concurso. Escolhido pelo
+     * calendário do painel só no rascunho e trava ao publicar; fora do PATCH.
+     */
+    sorteioOficialId: uuid("sorteio_oficial_id").references(() => sorteiosOficiais.id, { onDelete: "restrict" }),
     featured: boolean("featured").notNull().default(false),
     sortWeight: integer("sort_weight").notNull().default(0),
     publishedAt: timestamp("published_at"),
@@ -492,6 +529,8 @@ export const campaigns = pgTable(
     index("idx_campaigns_status").on(t.status, t.sortWeight),
     // Todo painel de organizador filtra por aqui.
     index("idx_campaigns_org").on(t.organizationId),
+    // A fileira das rifas de um sorteio oficial (tela do sorteio no celular).
+    index("idx_campaigns_sorteio_oficial").on(t.sorteioOficialId),
   ],
 );
 
@@ -1686,6 +1725,8 @@ export const insertCampaignSchema = createInsertSchema(campaigns, {
     minimoVendidoPct: true,
     modoSorteio: true,
     termoId: true,
+    // Integrar a um sorteio oficial é pelo calendário (`integrarAoSorteioOficial`), que acerta a data junto.
+    sorteioOficialId: true,
     transmissaoUrl: true,
     // Rifa de teste tem rota própria (`marcarDemonstracao`), que confere
     // venda e autorização; pelo formulário genérico, desmarcar faria a

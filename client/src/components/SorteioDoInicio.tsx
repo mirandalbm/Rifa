@@ -4,18 +4,16 @@ import { useQuery } from "@tanstack/react-query";
 import { ChevronLeft, Radio } from "lucide-react";
 import {
   ATUALIZA_MS,
-  Ganhadores,
   TelaDoProximoSorteio,
   type AoVivo,
 } from "@/components/ColunaAoVivo";
-import { Comentarios } from "@/components/Comentarios";
 import {
   direcaoDoArrasto,
   resultadoDoGesto,
   toquePodeAbrir,
   type ElementoDoToque,
 } from "@/lib/deslizar";
-import { faltaParaOSorteio } from "@shared/aoVivo";
+import { faltaParaOSorteio, type VideoDaTransmissao } from "@shared/aoVivo";
 
 /** Onde a tela vale: abaixo de `md`, onde a vitrine não tem a coluna ao vivo. */
 const NO_CELULAR = "(max-width: 767px)";
@@ -47,6 +45,9 @@ export function useSorteioDoInicio() {
     if (empurrou.current && window.location.hash === MARCA) {
       empurrou.current = false;
       window.history.back();
+    } else if (window.location.hash === MARCA) {
+      // Chegou com #sorteio (o "Ver o sorteio" da rifa): tira a marca sem voltar de página.
+      window.history.replaceState(window.history.state, "", window.location.pathname + window.location.search);
     }
     setAberto(false);
   }, []);
@@ -102,9 +103,10 @@ export function SorteioDoInicio({
       toque.current = {
         x: t.clientX,
         y: t.clientY,
-        // Aberto, o toque de dentro só fecha; fechado, vale a régua de quem rola de lado.
+        // Aberto, o toque de dentro só fecha — menos na fileira das rifas, que
+        // rola de lado, e nos campos; fechado, vale a régua de quem rola de lado.
         podeAbrir: aberto
-          ? true
+          ? !(e.target instanceof Element && e.target.closest("[data-sem-gesto], input, textarea, select"))
           : toquePodeAbrir(
               alvo,
               (el) => getComputedStyle(el as unknown as Element).overflowX,
@@ -196,6 +198,30 @@ export function SorteioDoInicio({
   );
 }
 
+/** O sorteio oficial da tela (GET /api/public/sorteio-oficial). */
+export interface SorteioOficialDaTela {
+  sorteio: {
+    id: string;
+    nome: string;
+    loteriaNome: string;
+    concurso: number;
+    sorteioEm: string;
+    resultado: string[] | null;
+    situacao: "agendado" | "com_resultado" | "cancelado";
+    selo: string;
+    video: VideoDaTransmissao | null;
+    rifas: {
+      slug: string;
+      premio: string;
+      capa: string | null;
+      organizacao: { slug: string; nome: string };
+      numeroContemplado: number | null;
+    }[];
+  } | null;
+}
+
+const CHAVE_DO_SORTEIO = ["/api/public/sorteio-oficial"];
+
 function ConteudoDoSorteio({
   fechar,
   voltar,
@@ -205,23 +231,27 @@ function ConteudoDoSorteio({
   voltar: React.RefObject<HTMLButtonElement>;
   previa?: boolean;
 }) {
-  const { data, isLoading } = useQuery<AoVivo>({
-    queryKey: ["/api/public/vitrine/ao-vivo"],
+  const { data, isLoading } = useQuery<SorteioOficialDaTela>({
+    queryKey: CHAVE_DO_SORTEIO,
     refetchInterval: previa ? false : ATUALIZA_MS,
     refetchIntervalInBackground: false,
   });
-  const proximo = data?.proximo ?? null;
-  const hora = proximo
-    ? new Date(proximo.drawAt).toLocaleString("pt-BR", {
+  const s = data?.sorteio ?? null;
+  const hora = s
+    ? new Date(s.sorteioEm).toLocaleString("pt-BR", {
         day: "2-digit",
         month: "2-digit",
         hour: "2-digit",
         minute: "2-digit",
       })
     : null;
-  const aoVivo = proximo
-    ? faltaParaOSorteio(proximo.drawAt, Date.now()).aoVivo
-    : false;
+  const comResultado = s?.situacao === "com_resultado";
+  const aoVivo = s && !comResultado ? faltaParaOSorteio(s.sorteioEm, Date.now()).aoVivo : false;
+  // A mesma tela da coluna ao vivo: contagem e, na hora, a transmissão.
+  const naTela: AoVivo["proximo"] =
+    s && !comResultado
+      ? { slug: "", organizacao: { slug: "", nome: "" }, prizeTitle: s.nome, drawAt: s.sorteioEm, video: s.video }
+      : null;
 
   return (
     <>
@@ -236,43 +266,69 @@ function ConteudoDoSorteio({
         </button>
         <h2 className="ml-auto flex items-center gap-1.5 pr-2 text-sm font-bold">
           <Radio size={16} aria-hidden className="text-marca" />
-          {aoVivo ? "Sorteio ao vivo" : "Próximo sorteio"}
+          {comResultado ? "Resultado oficial" : aoVivo ? "Sorteio ao vivo" : "Sorteio oficial"}
         </h2>
       </header>
-      {/* O vídeo fica parado no alto; o que rola é a conversa. */}
+      {/* O vídeo fica parado no alto; o que rola é o resto. */}
       <div className="shrink-0">
-        <TelaDoProximoSorteio proximo={proximo} />
+        {comResultado && s?.resultado ? (
+          <div className="flex aspect-video w-full flex-col items-center justify-center gap-3 bg-[#0B1F14] p-4 text-branco">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-[#8cc2ff]">
+              Resultado oficial · {s.loteriaNome}
+            </p>
+            <p className="tnum flex flex-wrap justify-center gap-1.5" aria-label={`Números: ${s.resultado.join(", ")}`}>
+              {s.resultado.map((n, i) => (
+                <span key={i} className="rounded-lg bg-branco/10 px-2 py-1 text-lg font-bold">
+                  {n}
+                </span>
+              ))}
+            </p>
+          </div>
+        ) : (
+          <TelaDoProximoSorteio proximo={naTela} />
+        )}
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-8 pt-3">
-        {isLoading ? <p className="text-sm text-muted">Carregando…</p> : null}
-        {proximo ? (
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-8 pt-3">
+        {isLoading ? <p className="px-4 text-sm text-muted">Carregando…</p> : null}
+        {s ? (
           <>
-            <Link
-              href={`/o/${proximo.organizacao.slug}/r/${proximo.slug}`}
-              className="block rounded-lg hover:bg-mist"
-            >
-              <span className="block font-display text-lg font-bold leading-tight">
-                {proximo.prizeTitle}
-              </span>
-              <span className="block text-sm text-muted">
-                {proximo.organizacao.nome} · sorteio{" "}
-                <span className="tnum">{hora}</span>
-              </span>
-            </Link>
-            <div className="mt-4 border-t border-line pt-3">
-              <h3 className="mb-2 text-sm font-bold">Comentários</h3>
-              {previa ? null : (
-                <Comentarios slug={proximo.slug} dentroDoPainel />
-              )}
+            <div className="px-4">
+              <p className="font-display text-lg font-bold leading-tight">{s.nome}</p>
+              <p className="text-sm text-muted">
+                {s.loteriaNome} · concurso <span className="tnum">{s.concurso}</span> · <span className="tnum">{hora}</span>
+              </p>
             </div>
+            <section aria-label="Rifas neste sorteio" className="mt-4 border-t border-line pt-3">
+              <h3 className="mb-2 px-4 text-sm font-bold">
+                Rifas neste sorteio <span className="tnum font-normal text-muted">({s.rifas.length})</span>
+              </h3>
+              {s.rifas.length ? (
+                // Linha horizontal: quem comprou acha a rifa dela no sorteio.
+                <ul className="flex snap-x scroll-px-4 gap-3 overflow-x-auto px-4 pb-2" data-sem-gesto>
+                  {s.rifas.map((r) => (
+                    <li key={r.slug} className="w-36 shrink-0 snap-start">
+                      <Link href={`/o/${r.organizacao.slug}/r/${r.slug}`} className="block rounded-lg hover:bg-mist">
+                        <span className="block aspect-square overflow-hidden rounded-lg bg-mist-2">
+                          {r.capa ? <img src={r.capa} alt="" loading="lazy" className="h-full w-full object-cover" /> : null}
+                        </span>
+                        <span className="mt-1 block truncate text-sm font-semibold">{r.premio}</span>
+                        <span className="block truncate text-xs text-muted">{r.organizacao.nome}</span>
+                        {r.numeroContemplado !== null ? (
+                          <span className="block text-xs text-green-deep">
+                            Contemplado: <span className="tnum font-bold">{r.numeroContemplado}</span>
+                          </span>
+                        ) : null}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="px-4 text-sm text-muted">Nenhuma rifa integrada a este sorteio ainda.</p>
+              )}
+            </section>
           </>
         ) : !isLoading ? (
-          <div className="space-y-3">
-            <p className="text-sm text-muted">
-              Nenhum sorteio marcado agora. Os últimos ganhadores:
-            </p>
-            <Ganhadores lista={data?.ganhadores} />
-          </div>
+          <p className="px-4 text-sm text-muted">Nenhum sorteio oficial marcado agora.</p>
         ) : null}
       </div>
     </>
@@ -302,8 +358,8 @@ export function BotaoDoSorteio({ onAbrir }: { onAbrir: () => void }) {
  * contagem.
  */
 export function ContagemDoSorteio({ onAbrir }: { onAbrir: () => void }) {
-  const { data } = useQuery<AoVivo>({
-    queryKey: ["/api/public/vitrine/ao-vivo"],
+  const { data } = useQuery<SorteioOficialDaTela>({
+    queryKey: CHAVE_DO_SORTEIO,
     refetchInterval: ATUALIZA_MS,
     refetchIntervalInBackground: false,
   });
@@ -312,7 +368,9 @@ export function ContagemDoSorteio({ onAbrir }: { onAbrir: () => void }) {
     const t = setInterval(() => setAgora(Date.now()), 1000);
     return () => clearInterval(t);
   }, []);
-  const proximo = data?.proximo ?? null;
+  const oficial = data?.sorteio ?? null;
+  // Com resultado lançado, não há o que contar: o botão leva ao resultado.
+  const proximo = oficial && oficial.situacao !== "com_resultado" ? { prizeTitle: oficial.nome, drawAt: oficial.sorteioEm } : null;
   const falta = proximo ? faltaParaOSorteio(proximo.drawAt, agora) : null;
 
   const casas: [number, string][] = falta
@@ -324,7 +382,9 @@ export function ContagemDoSorteio({ onAbrir }: { onAbrir: () => void }) {
       ]
     : [];
   const rotulo = !proximo
-    ? "Nenhum sorteio marcado: ver os últimos ganhadores"
+    ? oficial
+      ? `Resultado oficial: ${oficial.nome}. Abrir a tela do sorteio`
+      : "Nenhum sorteio oficial marcado. Abrir a tela do sorteio"
     : falta?.aoVivo
       ? `Sorteio ao vivo agora: ${proximo.prizeTitle}. Abrir a tela do sorteio`
       : `Próximo sorteio em ${falta?.dias} dias, ${falta?.horas} horas e ${falta?.minutos} minutos: ${proximo.prizeTitle}. Abrir a tela do sorteio`;
@@ -338,7 +398,7 @@ export function ContagemDoSorteio({ onAbrir }: { onAbrir: () => void }) {
     >
       <Radio size={14} aria-hidden className="shrink-0 text-[#8cc2ff]" />
       {!proximo ? (
-        <span className="truncate text-xs font-semibold">Ganhadores</span>
+        <span className="truncate text-xs font-semibold">{oficial ? "Resultado" : "Sorteios"}</span>
       ) : falta?.aoVivo ? (
         <span className="truncate text-xs font-bold uppercase tracking-wide">Ao vivo</span>
       ) : (

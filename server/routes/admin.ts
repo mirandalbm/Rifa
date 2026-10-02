@@ -1,3 +1,4 @@
+import { calendario, cancelarSorteioOficial, criarSorteioOficial, editarSorteioOficial, integrarAoSorteioOficial, lancarResultado } from "../services/sorteiosOficiais";
 import { devolverPixTardio, listarPixTardios, resolverPixTardio } from "../services/pixTardio";
 import { numerosPremiados } from "@shared/premiadas";
 import express, { Router, type Request, type Response as Resposta } from "express";
@@ -3511,6 +3512,88 @@ adminRouter.get("/audit", async (req, res, next) => {
  * 403 (rota da plataforma). O corpo leva a imagem em base64: as rotas estão
  * na lista de 8 MB do `server/index.ts`.
  */
+/* ---------------- sorteios oficiais (calendário da plataforma) ---------------- */
+
+// O calendário: a plataforma vê tudo; a organização, o que aceita rifa e as dela.
+adminRouter.get("/sorteios-oficiais", async (req, res, next) => {
+  try {
+    res.json(await calendario(orgOf(req)));
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.post("/sorteios-oficiais", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    const novo = await criarSorteioOficial(req.body, req.user?.id);
+    await audit(req, "sorteio_oficial.criar", "sorteio_oficial", novo.id, {
+      loteria: novo.loteria,
+      concurso: novo.concurso,
+      sorteioEm: novo.sorteioEm,
+    });
+    res.status(201).json(novo);
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.patch("/sorteios-oficiais/:id", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    const s = await editarSorteioOficial(req.params.id, req.body);
+    await audit(req, "sorteio_oficial.editar", "sorteio_oficial", s.id, {
+      loteria: s.loteria,
+      concurso: s.concurso,
+      sorteioEm: s.sorteioEm,
+      titulo: s.titulo,
+      transmissaoUrl: s.transmissaoUrl,
+    });
+    res.json(s);
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.post("/sorteios-oficiais/:id/cancelar", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    const s = await cancelarSorteioOficial(req.params.id);
+    await audit(req, "sorteio_oficial.cancelar", "sorteio_oficial", s.id);
+    res.json(s);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// O resultado oficial da Caixa, uma vez só e só depois da hora do sorteio.
+adminRouter.post("/sorteios-oficiais/:id/resultado", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    const s = await lancarResultado(req.params.id, req.body?.numeros);
+    await audit(req, "sorteio_oficial.resultado", "sorteio_oficial", s.id, { resultado: s.resultado });
+    res.json(s);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Integrar a rifa (em rascunho) num sorteio oficial do calendário, ou tirar (null).
+adminRouter.put("/campaigns/:id/sorteio-oficial", async (req, res, next) => {
+  try {
+    const c = await assertCampaignInScope(req, req.params.id);
+    const id = req.body?.sorteioOficialId;
+    if (id !== null && (typeof id !== "string" || !/^[0-9a-f-]{36}$/i.test(id))) {
+      return res.status(400).json({ message: "Escolha um sorteio do calendário." });
+    }
+    const r = await integrarAoSorteioOficial(c, id);
+    await audit(req, "campaign.sorteio_oficial", "campaign", c.id, { sorteioOficialId: id });
+    res.json({ id: r.id, sorteioOficialId: r.sorteioOficialId, drawAt: r.drawAt });
+  } catch (err) {
+    next(err);
+  }
+});
+
 adminRouter.get("/banners", async (req, res, next) => {
   try {
     requirePlatformAdmin(req);

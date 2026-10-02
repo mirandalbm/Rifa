@@ -1,3 +1,4 @@
+import { seloDaRifa, sorteioOficialDaTela } from "../services/sorteiosOficiais";
 import { conferirRecibo } from "../services/recibos";
 import { denunciar } from "../services/seguranca";
 import { fotoDoApostador, meuPerfilPublico, perfilPublicoDoApostador, quemTambemJoga, salvarPerfilPublico } from "../services/perfilApostador";
@@ -1294,6 +1295,8 @@ publicRouter.get("/campaigns/:slug", async (req, res, next) => {
         transmissaoUrl: found.campaign.transmissaoUrl,
         status: found.campaign.status,
         demonstracao: found.campaign.demonstracao,
+        // O sorteio oficial da plataforma em que a rifa está: o selo da página.
+        sorteioOficial: await seloDaRifa(found.campaign.sorteioOficialId),
       },
       stats: {
         soldCount: found.stats?.soldCount ?? 0,
@@ -2315,6 +2318,19 @@ publicRouter.get("/campaigns/:slug/premios", async (req, res, next) => {
  * últimos ganhadores e quem está jogando agora — só dado real, nome curto,
  * nunca telefone (`services/aoVivo.ts`).
  */
+/**
+ * O sorteio oficial da tela do Início no celular: o próximo da plataforma (ou
+ * o último com resultado) e a fileira das rifas integradas. Público.
+ */
+publicRouter.get("/sorteio-oficial", async (_req, res, next) => {
+  try {
+    res.setHeader("Cache-Control", "no-store");
+    res.json(await sorteioOficialDaTela());
+  } catch (err) {
+    next(err);
+  }
+});
+
 publicRouter.get("/vitrine/ao-vivo", async (_req, res, next) => {
   try {
     res.setHeader("Cache-Control", "no-store");

@@ -52,6 +52,7 @@ import { AdminOrganizacoes } from "@/pages/adminOrganizacoes";
 import { AdminUsuarios } from "@/pages/adminUsuarios";
 import { AdminAtendimento } from "@/pages/adminAtendimento";
 import { AdminStories } from "@/pages/adminStories";
+import { AdminSorteiosOficiais } from "@/pages/adminSorteiosOficiais";
 import { AdminResultados } from "@/pages/adminResultados";
 import { AdminFiscal } from "@/pages/adminFiscal";
 import { AdminCaixa } from "@/pages/adminCaixa";
@@ -248,6 +249,11 @@ export default function App() {
           <Route path="/admin/resultados">
             <Guarded requires="organizer">
               <AdminResultados />
+            </Guarded>
+          </Route>
+          <Route path="/admin/sorteios-oficiais">
+            <Guarded requires="organizer">
+              <AdminSorteiosOficiais />
             </Guarded>
           </Route>
           <Route path="/admin/stories">

@@ -2664,22 +2664,26 @@ export const divulgacoes = pgTable(
 
 /**
  * A conversa de cada pessoa com o assistente: só o id da conversa no Chatbase
- * (o texto mora lá e é lido pela API quando a coluna abre). Uma por pessoa;
- * "Nova conversa" apaga a linha.
+ * (o texto mora lá e é lido pela API quando a coluna abre) e o agente dela —
+ * trocar o agente em Aparência faz a conversa velha ser esquecida, em vez de
+ * travar o assistente. Uma por pessoa; "Nova conversa" apaga a linha.
  */
 export const iaConversas = pgTable("ia_conversas", {
   userId: uuid("user_id")
     .primaryKey()
     .references(() => users.id, { onDelete: "cascade" }),
+  agenteId: text("agente_id").notNull(),
   conversationId: text("conversation_id").notNull(),
   atualizadaEm: timestamp("atualizada_em").notNull().defaultNow(),
 });
 
 /**
  * O uso do assistente, mensagem a mensagem: os créditos que o Chatbase diz ter
- * gasto. Chave única pela mensagem — a mesma resposta nunca conta duas vezes.
- * `titular` é quem responde pelo uso (plataforma, organização ou afiliado); a
- * cobrança debita daqui.
+ * gasto, em **milésimos** (exato; quem arredonda é a cobrança, sobre a soma).
+ * Nulo = o Chatbase não informou ("sem medida", com aviso no log). Chave única
+ * pela mensagem — a mesma resposta nunca conta duas vezes. `titular` é quem
+ * responde pelo uso (plataforma, organização ou afiliado); a cobrança debita
+ * daqui.
  */
 export const iaUso = pgTable(
   "ia_uso",
@@ -2689,7 +2693,7 @@ export const iaUso = pgTable(
     titularTipo: text("titular_tipo").notNull(),
     titularId: uuid("titular_id"),
     userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
-    creditos: integer("creditos").notNull(),
+    milicreditos: integer("milicreditos"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (t) => [uniqueIndex("uq_ia_uso_mensagem").on(t.mensagemId), index("idx_ia_uso_titular").on(t.titularTipo, t.titularId, t.createdAt)],

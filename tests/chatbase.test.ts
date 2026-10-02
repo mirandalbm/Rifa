@@ -34,7 +34,7 @@ describe("cliente do Chatbase: enviar", () => {
     const s = falso(() => json(RESPOSTA));
     const c = new ClienteChatbase({ chave: CHAVE, fetch: s.f });
     const r = await c.enviar({ agenteId: "agente_abc-123", mensagem: "oi", userId: "rifa-u-1" });
-    expect(r).toEqual({ id: "msg_1", texto: "Olá! Como posso ajudar?", conversationId: "conv_1", creditos: 2 });
+    expect(r).toEqual({ id: "msg_1", texto: "Olá! Como posso ajudar?", conversationId: "conv_1", milicreditos: 2000 });
     expect(s.chamadas).toHaveLength(1);
     expect(s.chamadas[0].url).toBe(`${CHATBASE_API_PADRAO}/agents/agente_abc-123/chat`);
     expect(s.chamadas[0].metodo).toBe("POST");
@@ -47,6 +47,28 @@ describe("cliente do Chatbase: enviar", () => {
     const s = falso(() => json(RESPOSTA));
     await new ClienteChatbase({ chave: CHAVE, fetch: s.f }).enviar({ agenteId: "agente_abc-123", mensagem: "e agora?", conversationId: "conv_1", userId: "rifa-u-1" });
     expect(s.chamadas[0].corpo.conversationId).toBe("conv_1");
+  });
+
+  it("resposta sem os créditos: segue, mas fica 'sem medida' (null) e avisa no log", async () => {
+    const semUso = JSON.parse(JSON.stringify(RESPOSTA));
+    delete semUso.data.metadata.usage;
+    const s = falso(() => json(semUso));
+    const avisos: string[] = [];
+    const original = console.warn;
+    console.warn = (m: string) => avisos.push(String(m));
+    try {
+      const r = await new ClienteChatbase({ chave: CHAVE, fetch: s.f }).enviar({ agenteId: "agente_abc-123", mensagem: "oi", userId: "u" });
+      expect(r.milicreditos).toBeNull();
+    } finally {
+      console.warn = original;
+    }
+    expect(avisos.some((a) => a.includes("sem usage.credits"))).toBe(true);
+    expect(avisos.join(" ")).not.toContain(CHAVE);
+  });
+
+  it("o 404 do Chatbase vem marcado (agente ou conversa que não existe mais)", async () => {
+    const s = falso(() => json({ error: { code: "NOT_FOUND" } }, 404));
+    await expect(new ClienteChatbase({ chave: CHAVE, fetch: s.f }).enviar({ agenteId: "agente_abc-123", mensagem: "oi", conversationId: "velha", userId: "u" })).rejects.toMatchObject({ http: 404, status: 503 });
   });
 
   it("resposta sem id ou sem conversa é erro (nada é contado à toa)", async () => {

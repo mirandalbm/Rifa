@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   CONFIG_IA_PADRAO,
-  creditosUsados,
+  milicreditosUsados,
   idDaIA,
   papelTemIA,
   problemaNaMensagemDaIA,
@@ -81,6 +81,10 @@ describe("assistente de IA: o que pode sair para o Chatbase", () => {
     for (const t of [
       "o cliente 11 98765-4321 pagou?",
       "telefone (11) 3456-7890",
+      "(11)98765-4321",
+      "+55 11 98765-4321",
+      "fone 11 9 8765-4321",
+      "11987654321",
       "CPF 123.456.789-09",
       "cpf 12345678909",
       "mande para ana@exemplo.com",
@@ -89,13 +93,37 @@ describe("assistente de IA: o que pode sair para o Chatbase", () => {
     }
   });
 
-  it("deixa passar código de pedido, ID de cliente, valores e datas", () => {
+  it("não se engana com disfarce: traço do Word, vírgula, sublinhado, invisível, largura cheia", () => {
+    for (const t of [
+      "o cliente (11) 98765–4321 pagou?", // meia-risca
+      "CPF 123.456.789–09",
+      "123,456,789-09",
+      "11_98765_4321",
+      "11\u200B98765\u200B4321", // espaço de largura zero
+      "１１９８７６５４３２１", // dígitos de largura cheia
+    ]) {
+      expect(problemaNaMensagemDaIA(t), t).toMatch(/telefone, CPF ou e-mail/);
+    }
+  });
+
+  it("barra o celular sem DDD escrito com separador", () => {
+    expect(problemaNaMensagemDaIA("liga no 98765-4321")).toMatch(/telefone/);
+    expect(problemaNaMensagemDaIA("liga no 98765 4321")).toMatch(/telefone/);
+  });
+
+  it("deixa passar código de pedido e de carrinho, ID de cliente, valores, datas, horas e cotas", () => {
     for (const t of [
       "o pedido 48291734 foi pago?",
+      "pedidos 48291734 12345678",
       "cliente C-7K2M9QXR pediu reembolso",
       "a rifa vende R$ 1.000.000,00?",
       "sorteio em 12/10/2026 às 19h",
+      "sorteio 12/10/2026 19:00",
+      "2026-10-12 19:00",
       "carrinho 123456789",
+      "cotas 0001 0002 0003",
+      "cotas 2001-3000",
+      "meta de 100000 cotas",
     ]) {
       expect(problemaNaMensagemDaIA(t), t).toBeNull();
     }
@@ -120,11 +148,11 @@ describe("assistente de IA: o que pode sair para o Chatbase", () => {
     expect(textoDasPartes("nada")).toBe("");
   });
 
-  it("créditos: inteiro, nunca negativo, fração para cima", () => {
-    expect(creditosUsados(2)).toBe(2);
-    expect(creditosUsados(1.2)).toBe(2);
-    expect(creditosUsados(-3)).toBe(0);
-    expect(creditosUsados("x")).toBe(0);
-    expect(creditosUsados(undefined)).toBe(0);
+  it("créditos em milésimos, exatos; ausente ou inválido é 'sem medida', nunca zero", () => {
+    expect(milicreditosUsados(2)).toBe(2000);
+    expect(milicreditosUsados(0.5)).toBe(500);
+    expect(milicreditosUsados("1.25")).toBe(1250);
+    expect(milicreditosUsados(0)).toBe(0);
+    for (const ruim of [undefined, null, "", "x", -1, Number.NaN, {}]) expect(milicreditosUsados(ruim)).toBeNull();
   });
 });

@@ -110,11 +110,11 @@ senha); **[código]** é trabalho no repositório.
 - [x] **Endereço público = o domínio do Railway** (`rifa-production-d8a4.up.railway.app`).
   Decisão do dono: **nenhum domínio próprio por enquanto** — todo endereço de
   retorno e de webhook (`PUBLIC_BASE_URL`, o retorno do Google, os webhooks do
-  Mercado Pago, do Asaas e da Meta) usa esse e só esse. O Railway tem um
-  domínio personalizado (`loterianacional.com.br`) ligado ao serviço que o dono
-  **não comprou**: **[você]** remover do serviço para não haver dois endereços
-  disputando o mesmo site. Quando um domínio próprio existir, troca-se
-  `PUBLIC_BASE_URL` e os endereços cadastrados nos provedores, nesta ordem.
+  Mercado Pago, do Asaas e da Meta) usa esse e só esse. O domínio personalizado
+  que estava ligado ao serviço sem ter sido comprado foi removido pelo dono
+  (conferido no Railway em 02/10/2026). Quando um domínio próprio existir,
+  troca-se `PUBLIC_BASE_URL` e os endereços cadastrados nos provedores, nesta
+  ordem.
 - [x] Excluir rifa pelo painel (Campanhas → Excluir): rascunho, rifa no ar
   sem nenhuma cota vendida, ou rifa marcada como teste. Apaga a rifa, o
   sorteio, as mídias e os pedidos não pagos; com venda, não se apaga (o

@@ -59,7 +59,9 @@ Procure, nesta ordem, o que é **grave**:
     `CHATBASE_API_URL` aceito em produção; texto saindo para o Chatbase sem
     `problemaNaMensagemDaIA()` (telefone, CPF, e-mail); titular ou papel lidos
     do corpo em vez da sessão (`titularDaIA`); uso gravado fora da transação,
-    sem a chave única da mensagem ou com erro do Chatbase; cambista ou afiliado
+    sem a chave única da mensagem, arredondado (é em milésimos exatos; ausente é
+    `null`, nunca 0) ou com erro do Chatbase; id da conversa gravado sem ser
+    condicional ao lido; cambista ou afiliado
     inativo conversando; ação do assistente sem `orgOf`, sem confirmação ou sem
     `audit_log` como feita pela IA.
 

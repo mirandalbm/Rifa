@@ -2492,24 +2492,48 @@ login). Cambista e apostador não têm.
   direito recebe `{ ligado: false }` na sessão e 404 nas outras rotas (para ele
   o assistente não existe); cambista, 403; sem login, 401. `no-store` em tudo.
 - **Dado pessoal de cliente nunca sai para a IA**: `problemaNaMensagemDaIA()`
-  barra telefone, CPF (10 dígitos ou mais) e e-mail **antes** de qualquer coisa
-  sair (422); o código do pedido (8 dígitos) e o ID do cliente passam. O
+  barra **antes** de qualquer coisa sair (422) o e-mail, o CPF (3+3+3+2, com ou
+  sem separador), o telefone com DDD (com ou sem +55), o celular sem DDD com
+  separador (`9XXXX-XXXX`) e 10 dígitos seguidos. O texto é normalizado antes
+  (`normalizarParaChecar()`: largura cheia, caractere invisível e traço Unicode
+  — o disfarce de quem cola do Word). Passam data, hora, o código do pedido (8)
+  e do carrinho (9), o ID do cliente e números de cota; o fixo sem DDD
+  (`XXXX-XXXX`) passa de propósito, porque confunde com faixa de cotas. O
   identificador que vai ao Chatbase é opaco (`rifa-u-<id>`).
 - **O uso é contado por mensagem**, pelo que o Chatbase diz ter gasto
-  (`usage.credits`, inteiro, fração para cima): uma linha em `ia_uso` por
-  resposta, **chave única pela mensagem** (`ON CONFLICT DO NOTHING`), com o
-  titular, gravada na mesma transação que guarda a conversa da pessoa
-  (`ia_conversas`, só o id; o texto mora no Chatbase e o histórico é lido pela
-  API). Erro do Chatbase (créditos da plataforma esgotados, chave recusada,
+  (`usage.credits`), **em milésimos exatos** (`milicreditos`; nada se arredonda
+  aqui — quem arredonda é a cobrança, sobre a soma). Sem o campo, a linha fica
+  com `null` ("sem medida") e o log avisa: zero seria uso de graça sem ninguém
+  saber. Uma linha em `ia_uso` por resposta, **chave única pela mensagem**
+  (`ON CONFLICT DO NOTHING`), com o titular, na mesma transação que guarda a
+  conversa. Erro do Chatbase (créditos da plataforma esgotados, chave recusada,
   prazo de 60 s) volta em português e **não grava uso**. É daqui que a
   cobrança vai debitar.
-- **Limite por pessoa** (`hit`, 20 mensagens em 5 min), contado **depois** do
-  erro de preenchimento, como no comentário.
+- **A conversa guardada** (`ia_conversas`: só o id e o agente; o texto mora no
+  Chatbase e o histórico é lido pela API) **nunca trava o assistente**: a de
+  outro agente (trocado em Aparência) é esquecida; a que o Chatbase não conhece
+  mais (404) é esquecida e a mensagem recomeça sozinha, uma vez. Gravar o id é
+  **condicional ao que foi lido** antes de falar com o Chatbase (`UPDATE … WHERE
+  conversation_id = <lido>`, ou `INSERT … ON CONFLICT DO NOTHING`): outra aba ou
+  "Nova conversa" no meio do caminho decidem pela linha, não pelo último a
+  gravar.
+- **Limite por pessoa** (`hit`): 20 mensagens e 30 leituras do histórico em 5
+  min (cada leitura é uma chamada ao Chatbase com a chave da plataforma),
+  contado **depois** do erro de preenchimento, como no comentário.
 - **A coluna**: no computador fica à direita e o conteúdo abre espaço
-  (`lg:pr-[380px]`); no celular e no tablet, por cima da tela. Aberta ou fechada
-  fica no aparelho (`rifa.assistente.aberto`), então segue aberta ao trocar de
-  tela do painel. Esc fecha, menos dentro do campo; a mensagem que falhou volta
-  ao campo. O texto da resposta é texto puro (`whitespace-pre-wrap`), nunca HTML.
+  (`lg:pr-[380px]`); no celular e no tablet, por cima da tela, **como diálogo**
+  (`role="dialog"`, `aria-modal`, o Tab não sai). Aberta ou fechada fica no
+  aparelho (`rifa.assistente.aberto`), então segue aberta ao trocar de tela do
+  painel. Abrir leva o foco para dentro (o campo no computador; a coluna no
+  celular, para não abrir o teclado sozinho) e fechar o devolve ao botão. **Esc
+  só fecha com o foco dentro da coluna** e fora do campo — não fecha junto com
+  a janela, o sino ou o Atendimento. A mensagem que falhou volta ao campo sem
+  apagar o que já foi digitado. O texto da resposta é texto puro
+  (`whitespace-pre-wrap`), nunca HTML. **Login e logout tiram a conversa do
+  cache** (`esquecerAssistente()` em `client/src/lib/session.ts`; o logout fecha
+  a coluna): quem entra em seguida na mesma aba não vê a conversa de quem saiu.
+  Com erro na leitura, nada da conversa aparece e "Nova conversa" fica
+  disponível.
 - **O que a IA fizer no sistema vai passar pelo recorte de `orgOf`** e, quando
   mexer em dinheiro, estorno, publicação ou exclusão, pedir confirmação da
   pessoa e entrar em `audit_log` como feita pela IA — ainda não existe (as
@@ -2517,7 +2541,10 @@ login). Cambista e apostador não têm.
   saldo do patrocínio não paga a IA.
 - As tabelas `ia_conversas` e `ia_uso` sobem com o `db:push` **antes** do código.
 - `npm run ia` prova (com `CHATBASE_API_KEY` e `CHATBASE_API_URL` apontando para
-  o Chatbase de mentira que a própria prova sobe, no servidor e no script) e
+  o Chatbase de mentira que a própria prova sobe, no servidor e no script),
+  inclusive entre duas organizações, o agente trocado e a conversa apagada no
+  Chatbase; `npm run isolation` confere visitante (401), cambista (403) e o
+  organizador sem o assistente (404) em cada rota `/api/ia/*`;
   `tests/ia.test.ts`, `tests/chatbase.test.ts` e `tests/assistente.test.ts`
   cobrem as regras, o cliente da API e a coluna.
 

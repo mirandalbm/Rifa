@@ -12,8 +12,10 @@
  * - o uso é gravado por mensagem, com o titular certo (plataforma,
  *   organização, afiliado) e sem contar duas vezes;
  * - telefone, CPF e e-mail de cliente são barrados antes de sair;
- * - cada pessoa só vê a própria conversa; créditos esgotados do Chatbase
- *   viram aviso, sem uso gravado.
+ * - cada pessoa só vê a própria conversa, inclusive entre duas organizações;
+ *   créditos esgotados do Chatbase viram aviso, sem uso gravado;
+ * - conversa de outro agente (trocado em Aparência) ou apagada no Chatbase é
+ *   esquecida e o assistente segue, em vez de travar.
  *
  * Devolve a configuração de antes e apaga o que criou.
  *
@@ -25,12 +27,15 @@ import http from "node:http";
 import { eq, inArray, like } from "drizzle-orm";
 import { baseUrl } from "./base-url";
 import { db, pool } from "../server/db";
-import { affiliates, iaConversas, iaUso, rateEvents, users } from "../shared/schema";
+import { affiliates, iaConversas, iaUso, organizations, rateEvents, users } from "../shared/schema";
+import { hashPassword } from "../server/auth";
 
 const URL_DO_SITE = baseUrl();
 const CHAVE = process.env.CHATBASE_API_KEY?.trim() ?? "";
 const FALSO = process.env.CHATBASE_API_URL?.trim() ?? "";
 const AGENTE = "agente-de-teste-123";
+const OUTRO_AGENTE = "agente-novo-456789";
+const VIZINHA = { slug: "ia-teste-vizinha", email: "ia-vizinha@rifa.teste", senha: "ia-vizinha-123" };
 let falhas = 0;
 const checa = (n: string, ok: boolean, d = "") => {
   console.log(`  ${ok ? "✓" : "✗"} ${n}${d ? ` (${d})` : ""}`);
@@ -88,6 +93,8 @@ function subirFalso(): Promise<http.Server> {
       const chat = caminho.match(/^\/agents\/([^/]+)\/chat$/);
       if (req.method === "POST" && chat) {
         if (String(corpo?.message ?? "").includes("sem-credito")) return responder(402, { error: { code: "CHAT_CREDITS_EXHAUSTED" } });
+        // Conversa que o Chatbase não conhece (apagada lá, ou de outro agente): 404, como a API faz.
+        if (corpo?.conversationId && !conversas.has(corpo.conversationId)) return responder(404, { error: { code: "NOT_FOUND" } });
         seq++;
         const conv = corpo?.conversationId ?? `conv_${seq}`;
         const lista = conversas.get(conv) ?? [];
@@ -102,7 +109,11 @@ function subirFalso(): Promise<http.Server> {
         });
       }
       const msgs = caminho.match(/^\/agents\/([^/]+)\/conversations\/([^/?]+)\/messages/);
-      if (req.method === "GET" && msgs) return responder(200, { data: conversas.get(decodeURIComponent(msgs[2])) ?? [], pagination: { hasMore: false } });
+      if (req.method === "GET" && msgs) {
+        const lista = conversas.get(decodeURIComponent(msgs[2]));
+        if (!lista) return responder(404, { error: { code: "NOT_FOUND" } });
+        return responder(200, { data: lista, pagination: { hasMore: false } });
+      }
       responder(404, { error: { code: "NOT_FOUND" } });
     });
   });
@@ -133,7 +144,20 @@ async function main() {
   const [uMarina] = await db.select({ id: users.id, org: users.organizationId }).from(users).where(eq(users.email, "marina@rifassaojose.br"));
   const [uJoao] = await db.select({ id: users.id }).from(users).where(eq(users.email, "joao@rifa.br"));
   const [afJoao] = await db.select({ id: affiliates.id }).from(affiliates).where(eq(affiliates.userId, uJoao.id));
-  const ids = [uAdmin.id, uMarina.id, uJoao.id];
+  // Uma segunda organização, para provar que uma não vê a conversa da outra.
+  const [orgVizinha] = await db
+    .insert(organizations)
+    .values({ slug: VIZINHA.slug, name: "Vizinha da IA", cidade: "Salvador", uf: "BA" })
+    .onConflictDoUpdate({ target: organizations.slug, set: { active: true, archivedAt: null } })
+    .returning({ id: organizations.id });
+  const [uVizinha] = await db
+    .insert(users)
+    .values({ role: "organizer", organizationId: orgVizinha.id, name: "Org Vizinha da IA", email: VIZINHA.email, passwordHash: await hashPassword(VIZINHA.senha) })
+    .onConflictDoUpdate({ target: users.email, set: { organizationId: orgVizinha.id, active: true } })
+    .returning({ id: users.id });
+  const vizinha = new Cliente();
+  await entrar(vizinha, VIZINHA.email, VIZINHA.senha);
+  const ids = [uAdmin.id, uMarina.id, uJoao.id, uVizinha.id];
   const limpar = async () => {
     await db.delete(iaUso).where(inArray(iaUso.userId, ids));
     await db.delete(iaConversas).where(inArray(iaConversas.userId, ids));
@@ -192,7 +216,7 @@ async function main() {
     const segunda = recebidos[n];
     checa("a segunda continua a mesma conversa", r.status === 200 && typeof segunda?.corpo?.conversationId === "string");
     let uso = await usoDe(uAdmin.id);
-    checa("o uso é gravado por mensagem, como da plataforma", uso.length === 2 && uso.every((u) => u.titularTipo === "plataforma" && u.titularId === null) && uso.reduce((s, u) => s + u.creditos, 0) === 4, JSON.stringify(uso.map((u) => [u.titularTipo, u.creditos])));
+    checa("o uso é gravado por mensagem, como da plataforma, em milésimos exatos", uso.length === 2 && uso.every((u) => u.titularTipo === "plataforma" && u.titularId === null) && uso.reduce((s, u) => s + (u.milicreditos ?? 0), 0) === 4000, JSON.stringify(uso.map((u) => [u.titularTipo, u.milicreditos])));
     r = await admin.req("GET", "/api/ia/conversa");
     const hist = r.json?.mensagens ?? [];
     checa("o histórico vem do Chatbase, na ordem", r.status === 200 && hist.length === 4 && hist[0].papel === "voce" && hist[1].papel === "assistente" && hist[2].texto === "E para publicar?", JSON.stringify(hist.map((m: any) => m.papel)));
@@ -216,6 +240,29 @@ async function main() {
     await admin.req("POST", "/api/ia/mensagens", { texto: "recomeçando" });
     checa("…e a próxima mensagem abre outra conversa no Chatbase", recebidos[n]?.corpo?.conversationId === undefined);
 
+    console.log("\nConversa que não existe mais não trava o assistente");
+    let [linha] = await db.select().from(iaConversas).where(eq(iaConversas.userId, uAdmin.id));
+    checa("a conversa guardada sabe de que agente é", linha?.agenteId === AGENTE);
+    conversas.delete(linha!.conversationId); // apagada no Chatbase
+    r = await admin.req("GET", "/api/ia/conversa");
+    checa("histórico de conversa apagada no Chatbase: lista vazia, não erro", r.status === 200 && r.json?.mensagens?.length === 0, `HTTP ${r.status}`);
+    checa("…e a conversa é esquecida", (await db.select().from(iaConversas).where(eq(iaConversas.userId, uAdmin.id))).length === 0);
+    await admin.req("POST", "/api/ia/mensagens", { texto: "de novo" });
+    [linha] = await db.select().from(iaConversas).where(eq(iaConversas.userId, uAdmin.id));
+    conversas.delete(linha!.conversationId);
+    n = recebidos.length;
+    r = await admin.req("POST", "/api/ia/mensagens", { texto: "e agora?" });
+    checa("mensagem para conversa apagada: recomeça sozinha e responde", r.status === 200 && recebidos.length - n === 2 && recebidos[n + 1]?.corpo?.conversationId === undefined, `HTTP ${r.status}, ${recebidos.length - n} chamada(s)`);
+    r = await admin.req("PUT", "/api/admin/ia/config", { ligado: true, agenteId: OUTRO_AGENTE, paraOrganizador: false, paraAfiliado: false });
+    n = recebidos.length;
+    r = await admin.req("GET", "/api/ia/conversa");
+    checa("agente trocado em Aparência: a conversa do agente velho é esquecida", r.status === 200 && r.json?.mensagens?.length === 0 && recebidos.length === n, `HTTP ${r.status}`);
+    r = await admin.req("POST", "/api/ia/mensagens", { texto: "oi, agente novo" });
+    checa("…e a próxima mensagem vai ao agente novo, em conversa nova", r.status === 200 && recebidos[n]?.caminho === `/agents/${OUTRO_AGENTE}/chat` && recebidos[n]?.corpo?.conversationId === undefined);
+    [linha] = await db.select().from(iaConversas).where(eq(iaConversas.userId, uAdmin.id));
+    checa("…e a conversa guardada é do agente novo", linha?.agenteId === OUTRO_AGENTE);
+    await admin.req("PUT", "/api/admin/ia/config", { ligado: true, agenteId: AGENTE, paraOrganizador: false, paraAfiliado: false });
+
     n = recebidos.length;
     const usoAntes = (await usoDe(uAdmin.id)).length;
     r = await admin.req("POST", "/api/ia/mensagens", { texto: "sem-credito" });
@@ -236,6 +283,15 @@ async function main() {
     r = await marina.req("GET", "/api/ia/conversa");
     const daMarina = (r.json?.mensagens ?? []).map((m: any) => m.texto).join("|");
     checa("cada um vê só a própria conversa", daMarina.includes("Quanto vendi hoje?") && !daMarina.includes("Como lanço") && !daMarina.includes("Como divulgo"), daMarina.slice(0, 120));
+    r = await vizinha.req("POST", "/api/ia/mensagens", { texto: "Segredo da vizinha" });
+    checa("a organização vizinha conversa", r.status === 200, `HTTP ${r.status}`);
+    uso = await usoDe(uVizinha.id);
+    checa("o uso dela é da organização dela", uso.length === 1 && uso[0].titularTipo === "organizacao" && uso[0].titularId === orgVizinha.id);
+    r = await marina.req("GET", "/api/ia/conversa");
+    checa("a conversa da vizinha não aparece para a outra organização", !r.texto.includes("Segredo da vizinha"));
+    r = await vizinha.req("GET", "/api/ia/conversa");
+    const daVizinha = (r.json?.mensagens ?? []).map((m: any) => m.texto).join("|");
+    checa("…e a vizinha não vê a de ninguém", daVizinha.includes("Segredo da vizinha") && !daVizinha.includes("Quanto vendi") && !daVizinha.includes("Como lanço"), daVizinha.slice(0, 120));
     r = await sergio.req("POST", "/api/ia/mensagens", { texto: "oi" });
     checa("o cambista segue sem assistente, mesmo com tudo liberado (403)", r.status === 403, `HTTP ${r.status}`);
     checa("a configuração não vaza para a vitrine", !(await anon.req("GET", "/api/public/app")).texto.includes(AGENTE));

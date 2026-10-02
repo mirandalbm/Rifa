@@ -10,7 +10,7 @@
  * O texto da conversa não é guardado aqui: mora no Chatbase e é lido pela API
  * quando a coluna abre. Daqui só sai o id da conversa de cada pessoa.
  */
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import type { Request } from "express";
 import { db } from "../db";
 import { affiliates, iaConversas, iaUso } from "@shared/schema";
@@ -28,7 +28,7 @@ import {
 } from "@shared/ia";
 import { getPlataforma } from "./settings";
 import { hit } from "./antifraude";
-import { ClienteChatbase, baseDoChatbase, chaveDoChatbase } from "./chatbase";
+import { ChatbaseError, ClienteChatbase, baseDoChatbase, chaveDoChatbase } from "./chatbase";
 
 export class IAError extends Error {
   constructor(
@@ -88,17 +88,46 @@ export async function sessaoDaIA(req: Request): Promise<SessaoDaIA> {
   return { ligado: (await contextoDe(req)) !== null };
 }
 
-async function conversaDe(userId: string): Promise<string | null> {
-  const [c] = await db.select({ id: iaConversas.conversationId }).from(iaConversas).where(eq(iaConversas.userId, userId));
-  return c?.id ?? null;
+/** Leituras do histórico por pessoa, na janela: cada uma vira chamada ao Chatbase com a chave da plataforma. */
+export const IA_LEITURAS_POR_JANELA = 30;
+
+/** A conversa da pessoa **com o agente de agora**. A de outro agente (trocado em Aparência) é esquecida. */
+async function conversaDe(c: Contexto): Promise<string | null> {
+  const [linha] = await db
+    .select({ id: iaConversas.conversationId, agente: iaConversas.agenteId })
+    .from(iaConversas)
+    .where(eq(iaConversas.userId, c.userId));
+  if (!linha) return null;
+  if (linha.agente === c.config.agenteId) return linha.id;
+  await esquecerConversa(c.userId, linha.id);
+  return null;
 }
 
-/** As mensagens da conversa atual (lidas do Chatbase). Sem conversa, lista vazia. */
+/** Apaga a linha só se ainda for aquela conversa (outra aba pode ter começado outra). */
+async function esquecerConversa(userId: string, conversationId: string) {
+  await db.delete(iaConversas).where(and(eq(iaConversas.userId, userId), eq(iaConversas.conversationId, conversationId)));
+}
+
+const naoExisteMais = (e: unknown) => e instanceof ChatbaseError && e.http === 404;
+
+/**
+ * As mensagens da conversa atual (lidas do Chatbase). Sem conversa, lista
+ * vazia. Conversa que o Chatbase não conhece mais (apagada lá) é esquecida, em
+ * vez de travar a coluna com erro. Ler tem limite, como escrever.
+ */
 export async function historicoDaIA(req: Request): Promise<MensagemDaIA[]> {
   const c = await exigirContexto(req);
-  const conversationId = await conversaDe(c.userId);
+  const limite = await hit(`ia-ler:${c.userId}`, IA_JANELA_MIN, IA_LEITURAS_POR_JANELA);
+  if (limite.excedeu) throw new IAError("Muitas leituras em pouco tempo. Espere alguns minutos.", 429);
+  const conversationId = await conversaDe(c);
   if (!conversationId) return [];
-  return cliente(c.chave).mensagens({ agenteId: c.config.agenteId, conversationId, limite: 50 });
+  try {
+    return await cliente(c.chave).mensagens({ agenteId: c.config.agenteId, conversationId, limite: 50 });
+  } catch (e) {
+    if (!naoExisteMais(e)) throw e;
+    await esquecerConversa(c.userId, conversationId);
+    return [];
+  }
 }
 
 /** Esquece a conversa: a próxima mensagem começa outra no Chatbase. */
@@ -113,39 +142,63 @@ export async function novaConversaDaIA(req: Request): Promise<void> {
  * o uso numa transação. O erro de preenchimento sai antes de contar, como no
  * comentário; a recusa por excesso conta, senão quem insiste nunca estoura.
  */
-export async function conversarComIA(req: Request, texto: unknown): Promise<{ mensagem: MensagemDaIA; creditos: number }> {
+export async function conversarComIA(
+  req: Request,
+  texto: unknown,
+): Promise<{ mensagem: MensagemDaIA; creditos: number | null }> {
   const c = await exigirContexto(req);
   const problema = problemaNaMensagemDaIA(texto);
   if (problema) throw new IAError(problema, 422);
   const limite = await hit(`ia:${c.userId}`, IA_JANELA_MIN, IA_MENSAGENS_POR_JANELA);
   if (limite.excedeu) throw new IAError("Muitas mensagens em pouco tempo. Espere alguns minutos.", 429);
 
-  const conversationId = await conversaDe(c.userId);
-  const r = await cliente(c.chave).enviar({
-    agenteId: c.config.agenteId,
-    mensagem: (texto as string).trim(),
-    conversationId,
-    userId: idDaIA(c.userId),
-  });
+  const mensagem = (texto as string).trim();
+  let lida = await conversaDe(c);
+  const enviar = (conversationId: string | null) =>
+    cliente(c.chave).enviar({ agenteId: c.config.agenteId, mensagem, conversationId, userId: idDaIA(c.userId) });
+  let r;
+  try {
+    r = await enviar(lida);
+  } catch (e) {
+    // A conversa guardada não existe mais no Chatbase: esquece e começa outra, uma vez.
+    if (!lida || !naoExisteMais(e)) throw e;
+    await esquecerConversa(c.userId, lida);
+    lida = null;
+    r = await enviar(null);
+  }
+  const resposta = r;
 
   await db.transaction(async (tx) => {
-    await tx
-      .insert(iaConversas)
-      .values({ userId: c.userId, conversationId: r.conversationId, atualizadaEm: new Date() })
-      .onConflictDoUpdate({ target: iaConversas.userId, set: { conversationId: r.conversationId, atualizadaEm: new Date() } });
+    // Gravar o id da conversa é condicional ao que foi lido antes de falar com o
+    // Chatbase (até 60 s): outra aba pode ter começado outra conversa, e "Nova
+    // conversa" pode ter apagado a linha nesse meio-tempo. Quem decide é a linha.
+    if (lida) {
+      await tx
+        .update(iaConversas)
+        .set({ conversationId: resposta.conversationId, atualizadaEm: new Date() })
+        .where(and(eq(iaConversas.userId, c.userId), eq(iaConversas.conversationId, lida)));
+    } else {
+      await tx
+        .insert(iaConversas)
+        .values({ userId: c.userId, agenteId: c.config.agenteId, conversationId: resposta.conversationId, atualizadaEm: new Date() })
+        .onConflictDoNothing({ target: iaConversas.userId });
+    }
     await tx
       .insert(iaUso)
       .values({
-        mensagemId: r.id,
+        mensagemId: resposta.id,
         titularTipo: c.titular.tipo,
         titularId: c.titular.tipo === "plataforma" ? null : c.titular.id,
         userId: c.userId,
-        creditos: r.creditos,
+        milicreditos: resposta.milicreditos,
       })
       .onConflictDoNothing({ target: iaUso.mensagemId });
   });
 
-  return { mensagem: { id: r.id, papel: "assistente", texto: r.texto, criadoEm: Date.now() }, creditos: r.creditos };
+  return {
+    mensagem: { id: resposta.id, papel: "assistente", texto: resposta.texto, criadoEm: Date.now() },
+    creditos: resposta.milicreditos === null ? null : resposta.milicreditos / 1000,
+  };
 }
 
 /** Para a plataforma ver na configuração: há chave do Chatbase no servidor? (nunca o valor). */

@@ -86,20 +86,43 @@ export const MENSAGEM_IA_MAX = 2000;
 export const IA_MENSAGENS_POR_JANELA = 20;
 export const IA_JANELA_MIN = 5;
 
+/**
+ * Desfaz o disfarce antes de procurar número: dígito de largura cheia (NFKC),
+ * caractere invisível (`\p{Cf}`, como o espaço de largura zero) e qualquer
+ * traço Unicode (meia-risca do Word, sinal de menos) viram o traço comum.
+ */
+export function normalizarParaChecar(t: string): string {
+  return t
+    .normalize("NFKC")
+    .replace(/\p{Cf}/gu, "")
+    .replace(/[\p{Pd}\u2212]/gu, "-");
+}
+
+/** Separador entre blocos de dígitos (depois de normalizar). A barra e os dois-pontos ficam de fora: são data e hora. */
+const SEP = "[\\s.,_-]";
 const EMAIL = /[^\s@]+@[^\s@]+\.[^\s@]+/;
-/** CPF ou telefone com DDD: 10 dígitos ou mais, com ou sem separadores. O código do pedido (8) passa. */
-const NUMERO_PESSOAL = /(\d[\s.()/-]*){10,}/;
+/** CPF: 3+3+3+2 dígitos, com ou sem separador. */
+const CPF = new RegExp(`(?<!\\d)\\d{3}${SEP}?\\d{3}${SEP}?\\d{3}${SEP}?\\d{2}(?!\\d)`);
+/** Telefone com DDD (fixo ou celular), com ou sem +55. */
+const TELEFONE_COM_DDD = new RegExp(`(?<!\\d)(?:\\+?55${SEP}?)?\\(?\\d{2}\\)?${SEP}?(?:9${SEP}?)?\\d{4}${SEP}?\\d{4}(?!\\d)`);
+/** Celular sem DDD escrito com separador (9XXXX-XXXX). Sem separador, 9 dígitos é o código do carrinho. */
+const CELULAR_SEM_DDD = new RegExp(`(?<!\\d)9\\d{4}${SEP}\\d{4}(?!\\d)`);
+/** 10 dígitos seguidos ou mais: telefone ou CPF sem separador, conta. O pedido (8) e o carrinho (9) passam. */
+const DIGITOS_DEMAIS = /\d{10,}/;
 
 /**
  * O que barra a mensagem antes de ela sair para o Chatbase. Dado pessoal de
  * cliente (telefone, CPF, e-mail) **nunca** vai para a IA — para falar de um
  * pedido ou de um cliente, o código do pedido ou o ID do cliente bastam.
+ * Data, hora, códigos de pedido e números de cota passam. O telefone fixo
+ * sem DDD (XXXX-XXXX) passa também: confunde com faixa de cotas ("2001-3000").
  */
 export function problemaNaMensagemDaIA(texto: unknown): string | null {
   const t = typeof texto === "string" ? texto.trim() : "";
   if (!t) return "Escreva a mensagem.";
   if (t.length > MENSAGEM_IA_MAX) return `A mensagem passa de ${MENSAGEM_IA_MAX} caracteres.`;
-  if (EMAIL.test(t) || NUMERO_PESSOAL.test(t)) {
+  const n = normalizarParaChecar(t);
+  if (EMAIL.test(n) || CPF.test(n) || TELEFONE_COM_DDD.test(n) || CELULAR_SEM_DDD.test(n) || DIGITOS_DEMAIS.test(n)) {
     return "Não envie telefone, CPF ou e-mail ao assistente — dado pessoal de cliente não sai da plataforma. Use o código do pedido ou o ID do cliente.";
   }
   return null;
@@ -115,10 +138,17 @@ export function textoDasPartes(partes: unknown): string {
     .trim();
 }
 
-/** Créditos de uma resposta: inteiro, nunca negativo; fração arredonda para cima (a conta é da plataforma). */
-export function creditosUsados(v: unknown): number {
+/**
+ * Créditos de uma resposta, em **milésimos** (inteiro, exato): 2 créditos =
+ * 2000, meio crédito = 500. Nada é arredondado aqui — quem arredonda é a
+ * cobrança, sobre a soma. Valor ausente ou inválido vira `null` ("sem
+ * medida"), nunca zero: zero seria uso de graça sem ninguém saber.
+ */
+export function milicreditosUsados(v: unknown): number | null {
+  if (typeof v !== "number" && typeof v !== "string") return null;
+  if (typeof v === "string" && v.trim() === "") return null;
   const n = Number(v);
-  return Number.isFinite(n) && n > 0 ? Math.ceil(n) : 0;
+  return Number.isFinite(n) && n >= 0 ? Math.round(n * 1000) : null;
 }
 
 export interface MensagemDaIA {

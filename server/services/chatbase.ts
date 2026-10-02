@@ -6,7 +6,7 @@
  * prova (`npm run ia`) troca o Chatbase por um de mentira. Em produção o
  * endereço é sempre o do Chatbase.
  */
-import { creditosUsados, textoDasPartes, type MensagemDaIA } from "@shared/ia";
+import { milicreditosUsados, textoDasPartes, type MensagemDaIA } from "@shared/ia";
 
 export const CHATBASE_API_PADRAO = "https://www.chatbase.co/api/v2";
 
@@ -14,6 +14,8 @@ export class ChatbaseError extends Error {
   constructor(
     message: string,
     readonly status = 502,
+    /** O HTTP que o Chatbase respondeu (404 = agente ou conversa não existe mais). */
+    readonly http?: number,
   ) {
     super(message);
     this.name = "ChatbaseError";
@@ -39,7 +41,8 @@ export interface RespostaDoChatbase {
   id: string;
   texto: string;
   conversationId: string;
-  creditos: number;
+  /** Milésimos de crédito; `null` quando o Chatbase não informou. */
+  milicreditos: number | null;
 }
 
 export interface OpcoesDoCliente {
@@ -93,7 +96,7 @@ export class ClienteChatbase {
     }
     if (r.status === 404) {
       console.warn("[ia] Chatbase: agente ou conversa não encontrado.");
-      throw new ChatbaseError("O assistente não foi encontrado. Avise o suporte.", 503);
+      throw new ChatbaseError("O assistente não foi encontrado. Avise o suporte.", 503, 404);
     }
     console.warn(`[ia] Chatbase respondeu HTTP ${r.status}${codigo ? ` (${codigo})` : ""}.`);
     throw new ChatbaseError("O assistente não respondeu. Tente de novo.", 502);
@@ -110,7 +113,9 @@ export class ClienteChatbase {
     const conversationId = typeof d?.metadata?.conversationId === "string" ? d.metadata.conversationId : "";
     const id = typeof d?.id === "string" ? d.id : "";
     if (!d || !id || !conversationId) throw new ChatbaseError("O assistente respondeu num formato inesperado. Tente de novo.", 502);
-    return { id, texto: textoDasPartes(d.parts), conversationId, creditos: creditosUsados(d.metadata?.usage?.credits) };
+    const milicreditos = milicreditosUsados(d.metadata?.usage?.credits);
+    if (milicreditos === null) console.warn(`[ia] Chatbase respondeu a mensagem ${id} sem usage.credits — fica sem medida.`);
+    return { id, texto: textoDasPartes(d.parts), conversationId, milicreditos };
   }
 
   /** As mensagens mais recentes de uma conversa, na ordem em que aconteceram. */

@@ -26,6 +26,7 @@ import {
   quotaAlloc,
   appSettings,
   chamados,
+  campanhaSolicitacoes,
 } from "../shared/schema";
 import { hashPassword } from "../server/auth";
 
@@ -323,6 +324,34 @@ async function main() {
       `${doJoao.tipoReembolso} ${doJoao.devolverCents}/${doJoao.taxaCents}`,
     );
 
+    // Sorteio adiado depois da compra: quem pagou antes (há 10 dias, fora do
+    // arrependimento) recebe tudo de volta.
+    const adiadaCompra = await mk(93000019, camp.id, outro.id, 10);
+    await db.insert(campanhaSolicitacoes).values({
+      protocolo: "RS-20260101-993001",
+      campaignId: camp.id,
+      organizationId: org.id,
+      tipo: "adiamento",
+      status: "aprovada",
+      motivo: "Prova do reembolso no adiamento",
+      decididoEm: new Date(Date.now() - 86_400_000),
+    });
+    r = await j.req("GET", "/api/public/my-quotas");
+    const linhaAdiada = (r.json?.orders ?? []).find((x: { order: { code: number } }) => x.order.code === 93000019);
+    checa("Minhas compras traz a data do adiamento", Boolean(linhaAdiada?.campaign?.adiadoEm), JSON.stringify(linhaAdiada?.campaign?.adiadoEm));
+    r = await j.req("POST", "/api/public/chamados", {
+      ...pedido,
+      orderCode: adiadaCompra.code,
+      cpf: "111.444.777-35",
+    });
+    checa("pedido de quem comprou antes do adiamento: 201", r.status === 201, r.json?.message);
+    const [doAdiado] = r.json?.id ? await db.select().from(chamados).where(eq(chamados.id, r.json.id)) : [];
+    checa(
+      "comprou antes do adiamento: devolução integral, sem taxa",
+      doAdiado?.tipoReembolso === "adiamento" && doAdiado.taxaCents === 0 && doAdiado.devolverCents === 1500,
+      `${doAdiado?.tipoReembolso} ${doAdiado?.devolverCents}/${doAdiado?.taxaCents}`,
+    );
+
     // A organização
     const o = new Cliente();
     const login = await o.req("POST", "/api/auth/login", {
@@ -336,7 +365,8 @@ async function main() {
       .where(eq(notifications.template, "chamado_novo"));
     checa(
       "com número da organização, só ele recebe",
-      avisos.length === 2 && avisos.some((a) => a.to === "11955550009"),
+      // Três chamados: o primeiro (antes do número próprio) e os dois de João.
+      avisos.length === 3 && avisos.filter((a) => a.to === "11955550009").length === 2,
       avisos.map((a) => a.to).join(", "),
     );
     r = await o.req("PUT", "/api/admin/reembolso", {
@@ -360,7 +390,7 @@ async function main() {
     const pend = await o.req("GET", "/api/admin/chamados/pendentes");
     checa(
       "contador de pendentes",
-      pend.json.total === 2,
+      pend.json.total === 3,
       String(pend.json.total),
     );
     const det = await o.req("GET", `/api/admin/chamados/${chamadoId}`);

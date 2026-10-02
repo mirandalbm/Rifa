@@ -22,6 +22,7 @@ import {
 } from "@shared/format";
 import { priceOrder } from "@shared/pricing";
 import { regraDoReembolso } from "@shared/reembolso";
+import { AvisoDePrazo } from "@/components/AvisoDePrazo";
 import { DestaqueOrg } from "@/components/DestaqueOrg";
 import { lerOrigem } from "@/lib/origem";
 import { lerIndicacao } from "@/lib/indicacao";
@@ -767,7 +768,10 @@ export default function Rifa() {
               A reserva vale por {campaign.reservationTtlMin} minutos. Pagou, o número é seu.
             </p>
             {checkout?.reembolso?.aceita ? (
-              <p className="text-[11px] text-muted">{regraDoReembolso(checkout.reembolso.taxaPct)}</p>
+              <>
+                <AvisoDePrazo sorteioEm={campaign.drawAt} />
+                <p className="text-[11px] text-muted">{regraDoReembolso(checkout.reembolso.taxaPct)}</p>
+              </>
             ) : null}
             <p className="text-[11px] text-muted">
               Ao comprar, você aceita o{" "}
@@ -955,3 +959,4 @@ function AvisoDePresente({ naConta, volta }: { naConta: boolean; volta: string }
     </div>
   );
 }
+

@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { calcularReembolso, fechadoPeloSorteio, regraDoReembolso } from "@shared/reembolso";
+import {
+  avisoDePrazoCurto,
+  calcularReembolso,
+  fechadoPeloSorteio,
+  prazoDoArrependimento,
+  regraDoReembolso,
+} from "@shared/reembolso";
 import { bloqueioDoReembolso } from "@shared/chamados";
 import { validarConfigPlataforma } from "@shared/plataforma";
 
@@ -59,7 +65,62 @@ describe("configuração da taxa", () => {
     expect(() => validarConfigPlataforma({ taxaReembolsoPct: 11 })).toThrow(/0 a 10/);
     expect(() => validarConfigPlataforma({ taxaReembolsoPct: 30 })).toThrow();
   });
-  it("o texto antes da compra diz a taxa", () => {
-    expect(regraDoReembolso(10)).toMatch(/7 dias.*10%.*2 horas/);
+  it("o texto antes da compra diz a taxa, o que vier primeiro e o adiamento", () => {
+    const t = regraDoReembolso(10);
+    expect(t).toMatch(/7 dias.*2 horas antes do sorteio.*o que vier primeiro.*10%/);
+    expect(t).toMatch(/adiado depois da sua compra.*integral/);
+    expect(t).toMatch(/Feito o sorteio.*não há reembolso/);
+  });
+});
+
+describe("arrependimento: 7 dias ou o fechamento, o que vier primeiro", () => {
+  const sorteio = new Date("2026-10-10T20:00:00Z");
+  it("longe do sorteio valem os 7 dias, e não há aviso", () => {
+    const agora = new Date("2026-09-20T12:00:00Z");
+    expect(prazoDoArrependimento(agora, sorteio).getTime()).toBe(agora.getTime() + 7 * dia);
+    expect(avisoDePrazoCurto(agora, sorteio)).toBeNull();
+    expect(avisoDePrazoCurto(agora, null)).toBeNull();
+    expect(prazoDoArrependimento(agora, null).getTime()).toBe(agora.getTime() + 7 * dia);
+  });
+  it("perto do sorteio o prazo acaba no fechamento, com data e hora de São Paulo", () => {
+    const agora = new Date("2026-10-08T12:00:00Z");
+    expect(prazoDoArrependimento(agora, sorteio).toISOString()).toBe("2026-10-10T18:00:00.000Z");
+    const aviso = avisoDePrazoCurto(agora, sorteio)!;
+    expect(aviso).toContain("10/10/2026 às 17:00"); // sorteio, 20h UTC = 17h em São Paulo
+    expect(aviso).toContain("10/10/2026 às 15:00"); // fechamento
+    expect(aviso).toMatch(/antes dos 7 dias/);
+  });
+  it("na fronteira dos 7 dias exatos, sem aviso", () => {
+    const agora = new Date(sorteio.getTime() - 2 * 3_600_000 - 7 * dia);
+    expect(avisoDePrazoCurto(agora, sorteio)).toBeNull();
+    expect(avisoDePrazoCurto(new Date(agora.getTime() + 1), sorteio)).not.toBeNull();
+  });
+  it("já fechado: diz que a compra não poderá ser desfeita", () => {
+    expect(avisoDePrazoCurto(new Date("2026-10-10T19:00:00Z"), sorteio)).toMatch(/já fecharam/);
+  });
+});
+
+describe("sorteio adiado depois da compra", () => {
+  const adiadoEm = new Date(compra.getTime() + 10 * dia);
+  const tarde = new Date(compra.getTime() + 20 * dia);
+  it("quem pagou antes do adiamento recebe tudo, mesmo depois de 7 dias", () => {
+    expect(calcularReembolso({ ...base, pedidoEm: tarde, adiadoEm })).toEqual({
+      tipo: "adiamento",
+      taxaPct: 0,
+      taxaCents: 0,
+      devolverCents: 10_000,
+    });
+  });
+  it("vale também para a compra com cambista", () => {
+    expect(calcularReembolso({ ...base, vendaOnline: false, pedidoEm: tarde, adiadoEm }).tipo).toBe("adiamento");
+  });
+  it("quem comprou depois do adiamento segue a regra comum", () => {
+    const depois = { ...base, compradoEm: new Date(adiadoEm.getTime() + 1) };
+    expect(calcularReembolso({ ...depois, pedidoEm: new Date(adiadoEm.getTime() + 2 * dia), adiadoEm }).tipo).toBe(
+      "arrependimento",
+    );
+    expect(calcularReembolso({ ...depois, pedidoEm: new Date(tarde.getTime() + 10 * dia), adiadoEm }).tipo).toBe(
+      "com_taxa",
+    );
   });
 });

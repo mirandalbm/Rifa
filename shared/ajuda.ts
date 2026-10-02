@@ -119,6 +119,18 @@ export function perguntasDaAjuda(p: { taxaReembolsoPct: number; aceitaReembolso:
         : ["No momento a plataforma não recebe pedidos de reembolso pelo site. Fale com a promotora da rifa."],
     },
     {
+      id: "prazo-de-desistir",
+      tema: "reembolso",
+      pergunta: "Por que meu prazo para desistir é menor que 7 dias?",
+      resposta: !p.aceitaReembolso
+        ? ["No momento a plataforma não recebe pedidos de reembolso pelo site. Fale com a promotora da rifa."]
+        : [
+            "O bilhete é a participação num sorteio com data marcada. Os pedidos de reembolso fecham 2 horas antes do sorteio, para o quadro de números estar parado quando o número sair — e, feito o sorteio, a participação já foi prestada.",
+            "Por isso, quem compra a menos de 7 dias do sorteio pode desistir até o fechamento, e não por 7 dias inteiros. A data e a hora exatas aparecem antes do Pix, ao lado do botão de pagar.",
+            "Se o sorteio for adiado depois da sua compra, você pode pedir a devolução integral até 2 horas antes da nova data, mesmo que já tenham passado 7 dias.",
+          ],
+    },
+    {
       id: "ser-organizador",
       tema: "organizador",
       pergunta: "Quero organizar uma rifa aqui.",

@@ -1364,6 +1364,16 @@ export async function orderByCode(code: number) {
   return { ...row, numbers: numbers.map((n) => n.number), prizes };
 }
 
+/**
+ * Quando a plataforma aprovou o último adiamento do sorteio da rifa (nulo se
+ * nunca houve). É a data que separa quem comprou a rifa da data antiga.
+ */
+export const adiadoEmSql = sql<Date | null>`(
+  SELECT max(s.decidido_em) FROM campanha_solicitacoes s
+   WHERE s.campaign_id = "campaigns"."id" AND s.tipo = 'adiamento' AND s.status = 'aprovada'
+)`.mapWith((v) => (v instanceof Date ? v : v ? new Date(`${String(v).replace(" ", "T")}Z`) : null));
+// (Coluna `timestamp` sem fuso guarda UTC; em SQL cru o driver devolve texto.)
+
 /** "Minhas cotas": tudo que um telefone comprou, sem senha. */
 /**
  * As compras do telefone que a sessão pode ver — a regra é
@@ -1384,6 +1394,9 @@ export async function ordersByPhone(
         status: campaigns.status,
         drawAt: campaigns.drawAt,
         prizeTitle: campaigns.prizeTitle,
+        // Quem pagou antes do último adiamento tem devolução integral
+        // (`calcularReembolso` em shared/reembolso.ts).
+        adiadoEm: adiadoEmSql,
       },
       // "Minhas compras" agrupa por rifa com o perfil do organizador.
       organizador: { nome: organizations.name, slug: organizations.slug },
@@ -1407,6 +1420,7 @@ export async function ordersByPhone(
     )
     .groupBy(
       orders.id,
+      campaigns.id,
       campaigns.title,
       campaigns.slug,
       campaigns.totalQuotas,

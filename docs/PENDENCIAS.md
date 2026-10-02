@@ -511,8 +511,15 @@ Na ordem de entrega do plano:
   nos comentários e apelido obrigatório no cadastro.
 - [x] Login com Google: entra, completa CPF e telefone depois e liga o
   Google a uma conta que já existe, de dentro dela (`npm run google`).
-- [ ] **[lançamento]** Validação jurídica: regra de reembolso (arrependimento ×
-  corte de 2 h) e cota grátis de bônus no regulamento.
+- [x] Reembolso: o arrependimento acaba no que vier primeiro (7 dias ou o
+  fechamento, 2 h antes do sorteio), com a data e a hora exatas antes do Pix
+  quando o prazo fica menor; sorteio adiado depois da compra devolve tudo
+  (`npm run chamados`).
+- [ ] **[lançamento]** Validação jurídica: o texto do reembolso
+  (`regraDoReembolso()` e `avisoDePrazoCurto()` em `shared/reembolso.ts`) —
+  se o aviso ao lado do Pix basta ou se pede uma caixa de "li e concordo";
+  se a taxa depois dos 7 dias (até 10%) pode existir — e a cota grátis de
+  bônus no regulamento.
 - [ ] **[lançamento]** Validação contábil: guarda da comissão pela plataforma
   e RPA/nota dos afiliados.
 - [ ] **[você]** Cliente OAuth do Google (console.cloud.google.com → APIs e

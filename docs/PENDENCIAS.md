@@ -357,10 +357,25 @@ Na ordem de entrega do plano:
   compra) e transmissão do sorteio (link da live/vídeo na página da rifa).
   Depois do sorteio a página mostra o número, a Federal e a semente, e o
   botão "Conferir o sorteio" refaz a conta no aparelho de quem olha.
-- [ ] **[lançamento]** Revisão jurídica do regulamento-modelo
-  (`shared/regulamento.ts`): prazo de entrega (30 dias), prescrição do
-  prêmio (180 dias) e o que acontece quando o número sorteado não foi
-  vendido — hoje o texto remete ao que a autorização de cada rifa diz.
+- [x] **[código]** Regulamento-modelo (`shared/regulamento.ts`) alinhado ao
+  dos sorteios autorizados: entrega em até 30 dias, prescrição em 180 dias
+  com o valor recolhido ao Tesouro Nacional (Lei 5.768/71, Decreto
+  70.951/72) e **regra da aproximação** — número sorteado não vendido passa
+  ao vendido e pago imediatamente acima, senão ao imediatamente abaixo
+  (`contempladoPorAproximacao()`, `draws.winner_number`, aplicado no sorteio
+  e mostrado na página da rifa). **Falta no ambiente**: `db:push` (coluna
+  `draws.winner_number`) antes do código. Fica para o advogado só conferir
+  o texto final.
+- [x] **[código]** Mínimo de cotas vendidas para sortear, definido pela
+  promotora nos dados legais (% do total, trava ao publicar, entra no
+  regulamento); abaixo dele o sorteio não roda e a promotora pede o
+  adiamento. **Falta no ambiente**: `db:push` (coluna
+  `campaigns.minimo_vendido_pct`) antes do código.
+- [ ] **[lançamento]** Prêmio em dinheiro e itens proibidos (Decreto
+  70.951/72, art. 10: remédio, arma, munição, explosivo, fogos, bebida
+  alcoólica, tabaco): o cadastro do prêmio é texto livre e as cotas
+  premiadas aceitam "R$ … no Pix". Confirmar com o advogado o que o plano de
+  operação permite antes de travar no código.
 - [x] Construtor de templates da plataforma (Painel → Aparência): nome,
   logo, cor de marca nos dois temas (com conferência de contraste), fonte,
   cantos, tela inicial em blocos (ligar, ordenar, título, bloco de texto),

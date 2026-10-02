@@ -902,6 +902,20 @@ async function settleOrderAsPaid(order: typeof orders.$inferSelect) {
   const paidAt = new Date();
 
   const result = await db.transaction(async (tx) => {
+    // Rifa já sorteada não confirma pedido: o quadro está congelado e o
+    // contemplado já foi escolhido. A linha do sorteio travada (`FOR SHARE`)
+    // faz o sorteio em andamento esperar esta confirmação, ou esta esperar
+    // o sorteio. O Pix pago tarde vai para o log, como o pedido vencido.
+    const sorteada = (
+      await tx.execute(sql`
+        SELECT executed_at FROM draws WHERE campaign_id = ${order.campaignId} FOR SHARE
+      `)
+    ).rows[0]?.executed_at;
+    if (sorteada) {
+      console.error(`[pedido] Pix do pedido ${order.code} confirmado depois do sorteio da rifa: não vira cota — devolver o dinheiro.`);
+      return null;
+    }
+
     const [updated] = await tx
       .update(orders)
       .set({ status: "paid", paidAt })
@@ -1419,14 +1433,19 @@ export async function refundOrder(orderId: string): Promise<RefundResult | null>
     .from(campaigns)
     .where(eq(campaigns.id, order.campaignId));
 
-  // O sorteio congela o quadro. Basta ter sido executado uma vez.
-  const [draw] = await db
-    .select({ executedAt: draws.executedAt })
-    .from(draws)
-    .where(eq(draws.campaignId, order.campaignId));
-  const jaSorteada = Boolean(draw?.executedAt);
-
   return db.transaction(async (tx) => {
+    // O sorteio congela o quadro. Basta ter sido executado uma vez. Lido aqui
+    // dentro, com a linha do sorteio travada (`FOR SHARE`): o sorteio em
+    // andamento espera este estorno, ou este espera o sorteio — nunca os dois
+    // decidindo sobre a mesma cota ao mesmo tempo.
+    const jaSorteada = Boolean(
+      (
+        await tx.execute(sql`
+          SELECT executed_at FROM draws WHERE campaign_id = ${order.campaignId} FOR SHARE
+        `)
+      ).rows[0]?.executed_at,
+    );
+
     const [atualizado] = await tx
       .update(orders)
       .set({ status: "refunded" })

@@ -49,3 +49,29 @@ export function tipoDoCertificado(bytes: Uint8Array): "pdf" | "imagem" | null {
   if (String.fromCharCode(...bytes.slice(8, 12)) === "WEBP") return "imagem";
   return null;
 }
+
+/**
+ * Mínimo de cotas vendidas para o sorteio acontecer, em percentual do total,
+ * definido pela promotora conforme a autorização (0 = sem mínimo). Trava ao
+ * publicar, como a data: quem comprou comprou sabendo a regra. Não atingido
+ * na data, o sorteio não roda e a promotora pede o adiamento.
+ */
+export const MINIMO_VENDIDO_MAX_PCT = 100;
+
+/** Inteiro de 0 a 100, ou o problema. */
+export function problemaNoMinimoVendido(pct: unknown): string | null {
+  if (typeof pct !== "number" || !Number.isInteger(pct)) return "O mínimo de cotas vendidas é um percentual inteiro.";
+  if (pct < 0 || pct > MINIMO_VENDIDO_MAX_PCT) return "O mínimo de cotas vendidas vai de 0% a 100%.";
+  return null;
+}
+
+/** Quantas cotas pagas o mínimo exige (arredonda para cima: 1,2 cota vira 2). */
+export function cotasMinimasParaSortear(totalCotas: number, pct: number): number {
+  if (pct <= 0) return 0;
+  return Math.ceil((totalCotas * pct) / 100);
+}
+
+/** O mínimo foi atingido? Sem mínimo, sempre. */
+export function minimoAtingido(vendidas: number, totalCotas: number, pct: number): boolean {
+  return vendidas >= cotasMinimasParaSortear(totalCotas, pct);
+}

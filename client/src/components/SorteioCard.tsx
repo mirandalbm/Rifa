@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { CheckCircle2, PlayCircle, XCircle } from "lucide-react";
 import { Button, Card } from "@/components/bits";
-import { conferirSorteio, type Conferencia } from "@shared/sorteio";
+import { REGRA_DA_APROXIMACAO, conferirSorteio, type Conferencia } from "@shared/sorteio";
 
 interface Sorteio {
   drawAt: string | null;
@@ -12,6 +12,10 @@ interface Sorteio {
   realizado: boolean;
   resultNumber?: number;
   numero?: string;
+  /** O número que levou: o sorteado ou, se ele não foi vendido, o mais próximo vendido. */
+  contemplado?: string | null;
+  aproximacao?: boolean;
+  semContemplado?: boolean;
   federalContest?: number | null;
   federalPrizes?: string[] | null;
   seed?: string;
@@ -92,6 +96,15 @@ export function SorteioCard({ slug }: { slug: string }) {
             {data.federalContest ? `Loteria Federal, concurso ${data.federalContest}` : "Loteria Federal"}
             {data.executedAt ? ` · ${new Date(data.executedAt).toLocaleDateString("pt-BR")}` : ""}
           </p>
+          {data.aproximacao && data.contemplado ? (
+            <div className="mt-3 rounded-md bg-mist px-3 py-2">
+              <p className="label-xs">número contemplado</p>
+              <p className="tnum font-display text-2xl font-extrabold text-green-deep">{data.contemplado}</p>
+              <p className="text-xs text-muted">O número sorteado não foi vendido. {REGRA_DA_APROXIMACAO}</p>
+            </div>
+          ) : data.semContemplado ? (
+            <p className="mt-2 text-xs text-muted">Nenhuma cota foi paga nesta rifa: o sorteio não tem contemplado.</p>
+          ) : null}
         </div>
         {video ? (
           <a

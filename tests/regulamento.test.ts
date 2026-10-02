@@ -1,4 +1,6 @@
 import { describe, it, expect } from "vitest";
+import { REGRA_DA_APROXIMACAO, contempladoPorAproximacao } from "../shared/sorteio";
+import { cotasMinimasParaSortear, minimoAtingido, problemaNoMinimoVendido } from "../shared/campanhaLegal";
 import { montarRegulamento, validarRegulamentoExtra, REGULAMENTO_EXTRA_MAX, type DadosDoRegulamento } from "../shared/regulamento";
 
 const base: DadosDoRegulamento = {
@@ -50,6 +52,15 @@ describe("regulamento da rifa", () => {
     expect(montarRegulamento(base).some((x) => x.titulo.includes("Disposições"))).toBe(false);
   });
 
+  it("número não vendido segue a regra da aproximação, e o prêmio prescrito vai ao Tesouro", () => {
+    const t = texto(base);
+    expect(t).toContain(REGRA_DA_APROXIMACAO);
+    expect(t).not.toContain("a promotora informa o procedimento");
+    expect(t).toContain("prescreve em 180 dias");
+    expect(t).toContain("recolhido ao Tesouro Nacional");
+    expect(t).toContain("em até 30 dias após o sorteio");
+  });
+
   it("texto da promotora tem limite e vira nulo quando vazio", () => {
     expect(validarRegulamentoExtra("  \n\n  ")).toBeNull();
     expect(() => validarRegulamentoExtra("a".repeat(REGULAMENTO_EXTRA_MAX + 1))).toThrow(/3000/);
@@ -77,5 +88,48 @@ describe("central de ajuda", () => {
   it("cota de bônus só entra no regulamento da rifa que a aceita", () => {
     expect(texto(base)).not.toMatch(/cotas de bônus/);
     expect(texto({ ...base, rifa: { ...base.rifa, aceitaCotaBonus: true } })).toMatch(/cotas de bônus/);
+  });
+});
+
+describe("regra da aproximação", () => {
+  it("o sorteado vendido leva", () => {
+    expect(contempladoPorAproximacao({ sorteado: 50, sorteadoVendido: true, acima: 51, abaixo: 49 })).toBe(50);
+  });
+  it("não vendido: o imediatamente acima, antes do abaixo", () => {
+    expect(contempladoPorAproximacao({ sorteado: 50, sorteadoVendido: false, acima: 57, abaixo: 49 })).toBe(57);
+  });
+  it("sem nenhum acima, o imediatamente abaixo", () => {
+    expect(contempladoPorAproximacao({ sorteado: 1000, sorteadoVendido: false, acima: null, abaixo: 998 })).toBe(998);
+  });
+  it("nenhuma cota paga: sem contemplado", () => {
+    expect(contempladoPorAproximacao({ sorteado: 7, sorteadoVendido: false, acima: null, abaixo: null })).toBeNull();
+  });
+  it("número do lado errado não vale (defesa contra consulta trocada)", () => {
+    expect(contempladoPorAproximacao({ sorteado: 50, sorteadoVendido: false, acima: 40, abaixo: 60 })).toBeNull();
+  });
+});
+
+describe("mínimo de cotas vendidas para sortear", () => {
+  it("arredonda para cima e 0 é sem mínimo", () => {
+    expect(cotasMinimasParaSortear(1000, 0)).toBe(0);
+    expect(cotasMinimasParaSortear(1000, 50)).toBe(500);
+    expect(cotasMinimasParaSortear(10, 33)).toBe(4);
+    expect(cotasMinimasParaSortear(1_000_000, 100)).toBe(1_000_000);
+  });
+  it("atingido só com as cotas exigidas", () => {
+    expect(minimoAtingido(499, 1000, 50)).toBe(false);
+    expect(minimoAtingido(500, 1000, 50)).toBe(true);
+    expect(minimoAtingido(0, 1000, 0)).toBe(true);
+  });
+  it("só inteiro de 0 a 100", () => {
+    expect(problemaNoMinimoVendido(0)).toBeNull();
+    expect(problemaNoMinimoVendido(100)).toBeNull();
+    for (const ruim of [-1, 101, 12.5, "50", null, Number.NaN]) expect(problemaNoMinimoVendido(ruim)).not.toBeNull();
+  });
+  it("entra no regulamento com o número de cotas; sem mínimo, não aparece", () => {
+    const t = montarRegulamento({ ...base, rifa: { ...base.rifa, minimoVendidoPct: 40 } }).flatMap((x) => x.itens).join("\n");
+    expect(t).toContain("pelo menos 40% das cotas vendidas e pagas (4.000 cotas)");
+    expect(t).toContain("adiado");
+    expect(texto(base)).not.toContain("pelo menos");
   });
 });

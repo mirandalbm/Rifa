@@ -308,7 +308,9 @@ export async function avisarResultado(campaignId: string) {
       premio: r.campaign.prizeTitle,
       orgSlug: r.org.slug,
       slug: r.campaign.slug,
-      numero: formatQuota(d.resultNumber, r.campaign.totalQuotas),
+      // Com contemplado, o número que levou (o sorteado, ou o da aproximação); sem
+      // nenhuma cota paga, o número sorteado.
+      numero: formatQuota(d.winnerOrderId ? (d.winnerNumber ?? d.resultNumber) : d.resultNumber, r.campaign.totalQuotas),
     }),
   );
 }

@@ -9,7 +9,7 @@
  * ficam de fora — a vitrine também não as mostra.
  */
 import { createHash } from "node:crypto";
-import { and, asc, desc, eq, gt, inArray, isNotNull, isNull, lte } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, isNotNull, isNull, lte, sql } from "drizzle-orm";
 import { db } from "../db";
 import { buyers, campaigns, draws, orders, organizations, prizedQuotas } from "@shared/schema";
 import { formatQuota } from "@shared/format";
@@ -110,7 +110,8 @@ async function ultimosGanhadores() {
     .select({
       id: draws.id,
       em: draws.executedAt,
-      numero: draws.resultNumber,
+      // O número que levou: o contemplado (aproximação), ou o sorteado nos antigos.
+      numero: sql<number>`coalesce(${draws.winnerNumber}, ${draws.resultNumber})`,
       totalQuotas: campaigns.totalQuotas,
       premio: campaigns.prizeTitle,
       slug: campaigns.slug,

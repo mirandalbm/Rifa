@@ -1556,7 +1556,7 @@ export function AdminSorteios() {
   const [selected, setSelected] = useState<string | null>(null);
   const [contest, setContest] = useState("");
   const [prizes, setPrizes] = useState(["", "", "", "", ""]);
-  const [result, setResult] = useState<{ resultNumber: number; seed: string } | null>(null);
+  const [result, setResult] = useState<{ resultNumber: number; winnerNumber: number | null; aproximacao?: boolean; seed: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const run = useMutation({
@@ -1565,7 +1565,7 @@ export function AdminSorteios() {
         federalContest: Number(contest),
         federalPrizes: prizes,
       });
-      return (await res.json()) as { resultNumber: number; seed: string };
+      return (await res.json()) as { resultNumber: number; winnerNumber: number | null; aproximacao?: boolean; seed: string };
     },
     onSuccess: (r) => {
       setResult(r);
@@ -1652,6 +1652,13 @@ export function AdminSorteios() {
               <p className="font-display text-lg font-bold">
                 Número sorteado: {groupNumber(result.resultNumber)}
               </p>
+              {result.aproximacao && result.winnerNumber !== null ? (
+                <p className="tnum mt-1">
+                  Não foi vendido. Contemplado pela regra da aproximação: {groupNumber(result.winnerNumber)}
+                </p>
+              ) : result.winnerNumber === null ? (
+                <p className="mt-1">Nenhuma cota paga: o sorteio não tem contemplado.</p>
+              ) : null}
               <p className="tnum mt-1 break-all text-[11px]">semente: {result.seed}</p>
             </div>
           ) : null}

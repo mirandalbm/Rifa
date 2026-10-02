@@ -69,7 +69,8 @@ export function mediaKey(campaignId: string, role: string, mime: string): string
  * perguntar ao bucket (um robô pedindo mil nomes viraria mil chamadas ao S3).
  */
 export function chaveRestauravel(key: string): boolean {
-  return /^campanhas\/[0-9a-f-]{36}\/[a-z]+-[0-9a-f-]{36}(\.[a-z0-9]{2,5})?$/.test(key);
+  // Inclui as variantes de imagem (`….jpg.w800.avif`), que são o que a vitrine serve.
+  return /^campanhas\/[0-9a-f-]{36}\/[a-z]+-[0-9a-f-]{36}(\.[a-z0-9]{2,5})?(\.w\d{2,4}\.(avif|webp))?$/.test(key);
 }
 
 export function chaveDaCampanha(key: string, campaignId: string, role: string): boolean {

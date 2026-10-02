@@ -31,6 +31,13 @@ describe("/uploads só restaura chave no formato que nós geramos", () => {
     expect(chaveRestauravel("campanhas/00000000-0000-0000-0000-000000000000/photo-11111111-1111-1111-1111-111111111111.jpg")).toBe(true);
     expect(chaveRestauravel("campanhas/00000000-0000-0000-0000-000000000000/poster-11111111-1111-1111-1111-111111111111.webp")).toBe(true);
   });
+  it("aceita as variantes de imagem e a mídia sem extensão", () => {
+    const base = "campanhas/00000000-0000-0000-0000-000000000000/photo-11111111-1111-1111-1111-111111111111";
+    expect(chaveRestauravel(`${base}.jpg.w800.avif`)).toBe(true);
+    expect(chaveRestauravel(`${base}.png.w1600.webp`)).toBe(true);
+    expect(chaveRestauravel(base)).toBe(true);
+    expect(chaveRestauravel(`${base}.jpg.w800.exe`)).toBe(false);
+  });
   it("recusa o resto sem perguntar ao bucket", () => {
     expect(chaveRestauravel("x")).toBe(false);
     expect(chaveRestauravel("../etc/passwd")).toBe(false);

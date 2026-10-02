@@ -2496,6 +2496,93 @@ export const mensagensPresenca = pgTable(
 );
 
 /**
+ * Grupo de uma rifa: conversa de até `GRUPO_MAX_MEMBROS` apostadores com compra
+ * paga naquela rifa. Um grupo aberto por criador e rifa (índice parcial). O
+ * contador de membros anda na mesma transação da entrada/saída, com teto.
+ */
+export const grupos = pgTable(
+  "grupos",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    campaignId: uuid("campaign_id")
+      .notNull()
+      .references(() => campaigns.id, { onDelete: "cascade" }),
+    criadorId: uuid("criador_id")
+      .notNull()
+      .references(() => buyers.id, { onDelete: "cascade" }),
+    nome: text("nome").notNull(),
+    membrosCount: integer("membros_count").notNull().default(0),
+    previa: text("previa").notNull().default(""),
+    ultimaEm: timestamp("ultima_em").notNull().defaultNow(),
+    encerradaEm: timestamp("encerrada_em"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("uq_grupo_por_criador_e_rifa").on(t.campaignId, t.criadorId).where(sql`encerrada_em is null`),
+    index("idx_grupos_rifa").on(t.campaignId, t.createdAt, t.id),
+  ],
+);
+
+export const grupoMembros = pgTable(
+  "grupo_membros",
+  {
+    grupoId: uuid("grupo_id")
+      .notNull()
+      .references(() => grupos.id, { onDelete: "cascade" }),
+    buyerId: uuid("buyer_id")
+      .notNull()
+      .references(() => buyers.id, { onDelete: "cascade" }),
+    naoLidas: integer("nao_lidas").notNull().default(0),
+    entrouEm: timestamp("entrou_em").notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.grupoId, t.buyerId] }), index("idx_grupo_membros_pessoa").on(t.buyerId, t.entrouEm)],
+);
+
+export const grupoMensagens = pgTable(
+  "grupo_mensagens",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    grupoId: uuid("grupo_id")
+      .notNull()
+      .references(() => grupos.id, { onDelete: "cascade" }),
+    buyerId: uuid("buyer_id")
+      .notNull()
+      .references(() => buyers.id, { onDelete: "cascade" }),
+    texto: text("texto").notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [index("idx_grupo_mensagens").on(t.grupoId, t.createdAt, t.id)],
+);
+
+/** Denúncia de grupo: a plataforma lê só o `trecho` (as últimas mensagens, gravadas na hora). */
+export const grupoDenuncias = pgTable(
+  "grupo_denuncias",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    protocolo: text("protocolo").notNull(),
+    grupoId: uuid("grupo_id")
+      .notNull()
+      .references(() => grupos.id, { onDelete: "cascade" }),
+    buyerId: uuid("buyer_id")
+      .notNull()
+      .references(() => buyers.id, { onDelete: "cascade" }),
+    motivo: text("motivo").notNull(),
+    texto: text("texto"),
+    trecho: jsonb("trecho").$type<{ de: string; texto: string; em: string }[]>().notNull(),
+    status: text("status").notNull().default("aberta"),
+    decisao: text("decisao"),
+    decididaPor: uuid("decidida_por"),
+    decididaEm: timestamp("decidida_em"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("uq_grupo_denuncia_protocolo").on(t.protocolo),
+    uniqueIndex("uq_grupo_denuncia_aberta").on(t.grupoId, t.buyerId).where(sql`status = 'aberta'`),
+    index("idx_grupo_denuncias_status").on(t.status, t.createdAt),
+  ],
+);
+
+/**
  * Denúncia de conversa. A plataforma só lê o `trecho` — as últimas
  * mensagens gravadas na hora da denúncia —, nunca a conversa inteira. Uma
  * aberta por conversa e lado (`uq_denuncia_conversa_aberta`).

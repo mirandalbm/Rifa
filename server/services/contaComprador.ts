@@ -438,6 +438,9 @@ export async function excluirConta(req: Request, senha: string) {
         WHERE (cv.a_tipo = 'comprador' AND cv.a_id = ${c.id} AND m.de = 'a')
            OR (cv.b_tipo = 'comprador' AND cv.b_id = ${c.id} AND m.de = 'b'))`);
     await tx.execute(sql`DELETE FROM mensagens_presenca WHERE tipo = 'comprador' AND id = ${c.id}`);
+    // Sai dos grupos (o contador acompanha); o que escreveu fica, sem apelido.
+    await tx.execute(sql`UPDATE grupos SET membros_count = greatest(membros_count - 1, 0) WHERE id IN (SELECT grupo_id FROM grupo_membros WHERE buyer_id = ${c.id})`);
+    await tx.execute(sql`DELETE FROM grupo_membros WHERE buyer_id = ${c.id}`);
     // Documentos da verificação são o dado mais sensível que existe aqui.
     await tx.delete(verificacoes).where(and(eq(verificacoes.sujeito, "apostador"), eq(verificacoes.sujeitoId, c.id)));
     await tx

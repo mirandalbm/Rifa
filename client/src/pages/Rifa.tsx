@@ -2,6 +2,7 @@ import { BarraDeAcoes, Carrossel, Legenda, type Interacoes, type Peca } from "@/
 import { SeloVerificado } from "@/components/SeloVerificado";
 import { QuemTambemJoga } from "@/components/QuemTambemJoga";
 import { DivulgacoesDaRifa } from "@/components/DivulgacoesDaRifa";
+import { GruposDaRifa } from "@/components/Grupos";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams, useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -828,6 +829,7 @@ export default function Rifa() {
       {/* As divulgações de terceiros ficam depois da compra no celular e no tablet (a lista
           cresce e empurraria a compra para baixo); no computador seguem na coluna da publicação. */}
       <DivulgacoesDaRifa slug={slug} />
+      <GruposDaRifa slug={slug} />
       {ultimas && ultimas.length > 0 ? (
         <Card title="Últimas compras">
           <ul className="divide-y divide-line">

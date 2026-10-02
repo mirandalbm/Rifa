@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import { db } from "../db";
 import { ordenarCaixa, type PendenciaDaCaixa } from "@shared/caixa";
 import { MOTIVOS_DA_DENUNCIA_DE_MENSAGEM } from "@shared/mensagens";
+import { MOTIVOS_DA_DENUNCIA_DE_GRUPO } from "@shared/grupos";
 
 /**
  * A caixa de entrada da plataforma: o que espera decisão, de todas as filas,
@@ -10,7 +11,7 @@ import { MOTIVOS_DA_DENUNCIA_DE_MENSAGEM } from "@shared/mensagens";
  * afiliado ou apelido — nunca telefone, CPF ou nome de comprador.
  */
 export async function caixaDeEntrada(): Promise<PendenciaDaCaixa[]> {
-  const [chamados, solicitacoes, denuncias, verificacoes, fiscais, telefones, banners, conversas] = await Promise.all([
+  const [chamados, solicitacoes, denuncias, verificacoes, fiscais, telefones, banners, conversas, gruposDenunciados] = await Promise.all([
     db.execute(sql`
       SELECT ch.id, ch.disputa, ch.created_at AS desde, o.name AS org, ch.protocolo, ord.code AS pedido
         FROM chamados ch
@@ -67,6 +68,14 @@ export async function caixaDeEntrada(): Promise<PendenciaDaCaixa[]> {
         JOIN conversas c ON c.id = d.conversa_id
        WHERE d.status = 'aberta'
        ORDER BY d.created_at LIMIT 200`),
+    // Grupo: o nome do grupo e a rifa; o trecho só na tela da denúncia.
+    db.execute(sql`
+      SELECT d.id, d.created_at AS desde, d.protocolo, d.motivo, c.title AS rifa
+        FROM grupo_denuncias d
+        JOIN grupos g ON g.id = d.grupo_id
+        JOIN campaigns c ON c.id = g.campaign_id
+       WHERE d.status = 'aberta'
+       ORDER BY d.created_at LIMIT 200`),
   ]);
 
   const iso = (d: unknown) => new Date(d as string | Date).toISOString();
@@ -120,6 +129,10 @@ export async function caixaDeEntrada(): Promise<PendenciaDaCaixa[]> {
       oQue: `${r.lado === "automatica" ? "Varredura automática" : "Denúncia"} em conversa — ${motivo} (${r.protocolo})`,
       desde: iso(r.desde),
     });
+  }
+  for (const r of gruposDenunciados.rows as any[]) {
+    const motivo = MOTIVOS_DA_DENUNCIA_DE_GRUPO[r.motivo as keyof typeof MOTIVOS_DA_DENUNCIA_DE_GRUPO] ?? r.motivo;
+    linhas.push({ chave: `grupo:${r.id}`, tipo: "grupo", quem: `grupo da rifa ${r.rifa}`, oQue: `Denúncia em grupo — ${motivo} (${r.protocolo})`, desde: iso(r.desde) });
   }
   return ordenarCaixa(linhas);
 }

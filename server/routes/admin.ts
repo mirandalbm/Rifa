@@ -240,6 +240,7 @@ import { estadoWhatsApp, criarModelosFaltantes, enviarTeste } from "../services/
 import { validarConfigBusca } from "@shared/buscar";
 import { senhaInvalida } from "@shared/senha";
 import { conversasDenunciadasAbertas, decidirDenunciaDeConversa, detalheDaDenunciaDeConversa, fotoDaDenuncia, listarDenunciasDeConversa } from "../services/mensagens";
+import { decidirDenunciaDeGrupo, detalheDaDenunciaDeGrupo, listarDenunciasDeGrupo } from "../services/grupos";
 import { EXPORTS, exportInfo, exportFilename, CSV_BOM } from "@shared/exports";
 
 export const adminRouter = Router();
@@ -736,6 +737,40 @@ adminRouter.post("/mensagens/denuncias/:id/decidir", async (req, res, next) => {
       resposta: req.body?.resposta ?? null,
     });
     res.json(await decidirDenunciaDeConversa(req, req.params.id, { decisao: req.body?.decisao, resposta: req.body?.resposta }));
+  } catch (err) {
+    next(err);
+  }
+});
+
+/* Grupos denunciados: a plataforma lê só o trecho, e a leitura é auditada antes. */
+adminRouter.get("/mensagens/grupos/denuncias", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    res.json(await listarDenunciasDeGrupo(req.query.status ? String(req.query.status) : undefined));
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.get("/mensagens/grupos/denuncias/:id", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    await audit(req, "mensagens.grupo.denuncia.ler", "grupo_denuncia", req.params.id, {});
+    res.json(await detalheDaDenunciaDeGrupo(req.params.id));
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.post("/mensagens/grupos/denuncias/:id/decidir", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    // Só decisão conhecida entra na auditoria: o texto da ação não vem solto do corpo.
+    if (req.body?.decisao !== "procedente" && req.body?.decisao !== "improcedente") return res.status(400).json({ message: "Escolha: procedente ou improcedente." });
+    await audit(req, `mensagens.grupo.denuncia.${String(req.body?.decisao ?? "")}`, "grupo_denuncia", req.params.id, {
+      resposta: req.body?.resposta ?? null,
+    });
+    res.json(await decidirDenunciaDeGrupo(req, req.params.id, { decisao: req.body?.decisao, resposta: req.body?.resposta }));
   } catch (err) {
     next(err);
   }

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { Link, useLocation, useRoute } from "wouter";
+import { Link, useLocation, useRoute, useSearch } from "wouter";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Ban, Flag, ImagePlus, Send } from "lucide-react";
 import { PublicShell } from "@/components/AppShell";
@@ -12,6 +12,7 @@ import { Empty, Pill } from "@/components/bits";
 import { apiRequest } from "@/lib/queryClient";
 import { useSession } from "@/lib/session";
 import { lerFoto } from "@/lib/anexo";
+import { GrupoAberto, ListaDeGrupos } from "@/components/Grupos";
 import {
   MENSAGEM_MAX,
   MOTIVOS_DA_DENUNCIA_DE_MENSAGEM,
@@ -94,6 +95,7 @@ export default function MensagensPagina() {
   const { mensagensLigado } = useConfigDoApp();
   const { data: sessao, isLoading } = useSession();
   const [, parametros] = useRoute<{ id: string }>("/mensagens/:id");
+  const grupo = new URLSearchParams(useSearch()).get("grupo");
   if (!mensagensLigado) return <EmBreve tela="mensagens" />;
   const temConta = Boolean(sessao?.buyer || (sessao?.user && (sessao.role === "organizer" || sessao.role === "affiliate")));
   if (!isLoading && !temConta) {
@@ -110,14 +112,15 @@ export default function MensagensPagina() {
     );
   }
   const aberta = parametros?.id && parametros.id !== "nova" ? parametros.id : null;
+  const grupoAberto = !aberta && grupo && /^[0-9a-f-]{36}$/i.test(grupo) ? grupo : null;
   return (
     <PublicShell larga>
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[340px_minmax(0,1fr)]">
-        <div className={aberta ? "hidden min-w-0 lg:block" : "min-w-0"}>
-          <ListaDeConversas ativa={aberta} />
+        <div className={aberta || grupoAberto ? "hidden min-w-0 lg:block" : "min-w-0"}>
+          <ListaDeConversas ativa={aberta} grupoAtivo={grupoAberto} />
         </div>
-        <div className={aberta ? "min-w-0" : "hidden min-w-0 lg:block"}>
-          {aberta ? <Conversa id={aberta} /> : <p className="hidden rounded-xl border border-line p-8 text-center text-sm text-muted lg:block">Escolha uma conversa ou comece uma nova.</p>}
+        <div className={aberta || grupoAberto ? "min-w-0" : "hidden min-w-0 lg:block"}>
+          {grupoAberto ? <GrupoAberto id={grupoAberto} /> : aberta ? <Conversa id={aberta} /> : <p className="hidden rounded-xl border border-line p-8 text-center text-sm text-muted lg:block">Escolha uma conversa ou comece uma nova.</p>}
         </div>
       </div>
     </PublicShell>
@@ -170,8 +173,8 @@ function MostrarOnline() {
   );
 }
 
-function ListaDeConversas({ ativa }: { ativa: string | null }) {
-  const [aba, setAba] = useState<"conversas" | "pedidos">("conversas");
+function ListaDeConversas({ ativa, grupoAtivo }: { ativa: string | null; grupoAtivo: string | null }) {
+  const [aba, setAba] = useState<"conversas" | "pedidos" | "grupos">(grupoAtivo ? "grupos" : "conversas");
   const lista = useInfiniteQuery<PaginaDaLista>({
     queryKey: ["/api/public/mensagens/conversas", aba],
     initialPageParam: "",
@@ -199,7 +202,7 @@ function ListaDeConversas({ ativa }: { ativa: string | null }) {
       </div>
       <MostrarOnline />
       <div role="tablist" aria-label="Caixa" className="flex gap-1 border-b border-line px-3 py-2">
-        {(["conversas", "pedidos"] as const).map((a) => (
+        {(["conversas", "pedidos", "grupos"] as const).map((a) => (
           <button
             key={a}
             type="button"
@@ -208,16 +211,17 @@ function ListaDeConversas({ ativa }: { ativa: string | null }) {
             onClick={() => setAba(a)}
             className={aba === a ? "rounded-md bg-green px-3 py-1.5 text-sm font-semibold text-on-green" : "rounded-md px-3 py-1.5 text-sm text-ink-2 hover:bg-mist-2"}
           >
-            {a === "conversas" ? "Conversas" : temPedido ? "Pedidos (novos)" : "Pedidos"}
+            {a === "conversas" ? "Conversas" : a === "grupos" ? "Grupos" : temPedido ? "Pedidos (novos)" : "Pedidos"}
           </button>
         ))}
       </div>
-      {lista.isLoading ? <Empty>Carregando…</Empty> : null}
-      {lista.isError ? <Empty>Não foi possível carregar as conversas.</Empty> : null}
-      {!lista.isLoading && !lista.isError && itens.length === 0 ? (
+      {aba === "grupos" ? <ListaDeGrupos ativo={grupoAtivo} /> : null}
+      {aba !== "grupos" && lista.isLoading ? <Empty>Carregando…</Empty> : null}
+      {aba !== "grupos" && lista.isError ? <Empty>Não foi possível carregar as conversas.</Empty> : null}
+      {aba !== "grupos" && !lista.isLoading && !lista.isError && itens.length === 0 ? (
         <Empty>{aba === "pedidos" ? "Nenhum pedido de mensagem." : "Nenhuma conversa ainda. Use \"Nova\" para começar."}</Empty>
       ) : null}
-      <ul className="divide-y divide-line">
+      <ul className={aba === "grupos" ? "hidden" : "divide-y divide-line"}>
         {itens.map((c) => (
           <li key={c.id}>
             <Link
@@ -252,7 +256,7 @@ function ListaDeConversas({ ativa }: { ativa: string | null }) {
           </li>
         ))}
       </ul>
-      {lista.hasNextPage ? (
+      {aba !== "grupos" && lista.hasNextPage ? (
         <div className="p-3 text-center">
           <button type="button" onClick={() => void lista.fetchNextPage()} disabled={lista.isFetchingNextPage} className="rounded-md px-4 py-2 text-sm font-semibold text-ink-2 hover:bg-mist-2">
             {lista.isFetchingNextPage ? "Carregando…" : "Ver mais"}

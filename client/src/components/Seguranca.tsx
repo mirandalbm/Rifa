@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ConversasDenunciadasDaPlataforma } from "@/components/ConversasDenunciadas";
+import { ConversasDenunciadasDaPlataforma, GruposDenunciadosDaPlataforma } from "@/components/ConversasDenunciadas";
 import { Janela } from "@/components/Janela";
 import { Link } from "wouter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -420,6 +420,7 @@ export function DenunciasDaPlataforma() {
         detalhe={aberto ? <DetalheDaDenuncia id={aberto} /> : null}
       />
       <ConversasDenunciadasDaPlataforma />
+      <GruposDenunciadosDaPlataforma />
     </>
   );
 }

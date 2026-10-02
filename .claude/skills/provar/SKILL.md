@@ -43,7 +43,7 @@ Pelo caminho que mudou (a mesma tabela "Onde mexer" do `CLAUDE.md`):
 | segurança do organizador | `seguranca` |
 | verificação (selo) | `verificacao` |
 | publicação, carrinho, Reels | `publicacao`, `carrinho` |
-| mensagens | `mensagens`, `isolation` |
+| mensagens e grupos | `mensagens`, `grupos`, `isolation` |
 | buscar | `buscar` |
 | presente | `presente` |
 | painel de resultados | `resultados` |

@@ -22,6 +22,7 @@ import {
   buyers,
   campaigns,
   conversas,
+  grupoMembros,
   mensagemDenuncias,
   mensagemImagens,
   mensagens,
@@ -323,7 +324,13 @@ export async function resumoDasMensagens(req: Request, como?: unknown) {
     })
     .from(conversas)
     .where(souDono(eu));
-  return { naoLidas: r?.total ?? 0 };
+  // As mensagens de grupo contam no mesmo número do console (só apostador está em grupo).
+  // (A conta mora aqui, e não em `grupos.ts`, para os dois módulos não se importarem em ciclo.)
+  const doGrupo =
+    eu.tipo === "comprador"
+      ? ((await db.select({ n: sql<number>`coalesce(sum(${grupoMembros.naoLidas}), 0)::int` }).from(grupoMembros).where(eq(grupoMembros.buyerId, eu.id)))[0]?.n ?? 0)
+      : 0;
+  return { naoLidas: (r?.total ?? 0) + doGrupo };
 }
 
 export async function listarConversas(req: Request, q: { aba?: unknown; depois?: unknown; limite?: unknown; como?: unknown }) {

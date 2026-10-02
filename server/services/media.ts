@@ -13,7 +13,7 @@ import { db } from "../db";
 import { campaignMedia, MAX_PHOTOS, MAX_VIDEO_SECONDS } from "@shared/schema";
 import { randomUUID } from "node:crypto";
 import { storage, mediaKey, chaveDaCampanha, LocalDiskStorage, type UploadTicket } from "./storage";
-import { comArquivoTemporarioEmPedacos, processadorDeVideo } from "./videoProcessor";
+import { comArquivoTemporarioEmPedacos, comVagaDeDownload, processadorDeVideo } from "./videoProcessor";
 import { emSegundoPlano } from "./push";
 import { POSTER_BAIXAR_ATE_BYTES, chaveDoPoster, posterPublico } from "@shared/poster";
 import { probeImage, probeVideoDimensions, probeVideoDuration, UnreadableMediaError } from "./probe";
@@ -303,7 +303,7 @@ export async function gerarPosterDaMidia(mediaId: string, campaignId: string, st
   } else if (bytes <= POSTER_BAIXAR_ATE_BYTES) {
     const ext = storageKey.slice(storageKey.lastIndexOf("."));
     // Em pedaços: o vídeo do bucket nunca vem inteiro para a memória do processo web.
-    poster = await comArquivoTemporarioEmPedacos(bytes, store.reader(storageKey), ext, gerar);
+    poster = await comVagaDeDownload(() => comArquivoTemporarioEmPedacos(bytes, store.reader(storageKey), ext, gerar));
   } else {
     poster = null;
   }
@@ -329,11 +329,18 @@ export async function gerarPosterDaMidia(mediaId: string, campaignId: string, st
 export async function apagarArquivosDeMidias(
   linhas: { storageKey: string; posterKey: string | null; variants: MediaRow["variants"] }[],
 ) {
-  const store = storage();
-  for (const m of linhas) {
-    await store.remove(m.storageKey).catch(() => {});
-    if (m.posterKey) await store.remove(m.posterKey).catch(() => {});
-    await removeVariants(m.variants);
+  try {
+    const store = storage();
+    await Promise.all(
+      linhas.map(async (m) => {
+        await store.remove(m.storageKey).catch(() => {});
+        if (m.posterKey) await store.remove(m.posterKey).catch(() => {});
+        await removeVariants(m.variants);
+      }),
+    );
+  } catch (e) {
+    // A linha já foi embora: falha de armazenamento vai ao log, não vira erro para quem apagou.
+    console.error("[midia] não apaguei os arquivos:", (e as Error).message);
   }
 }
 

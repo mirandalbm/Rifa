@@ -494,10 +494,14 @@ export async function excluirRifa(campaignId: string) {
     `);
     // As linhas somem pela cascata; os arquivos não. Guarda o que apagar do armazenamento
     // e só apaga depois que a transação fechou (rollback não pode deixar mídia sem arquivo).
-    const midias = await tx
-      .select({ storageKey: campaignMedia.storageKey, posterKey: campaignMedia.posterKey, variants: campaignMedia.variants })
-      .from(campaignMedia)
-      .where(eq(campaignMedia.campaignId, campaignId));
+    // `FOR UPDATE`: o pôster que está sendo gravado em segundo plano espera, e o `UPDATE`
+    // dele já não acha a mídia — sem isso o arquivo dele ficava órfão.
+    const midias = (
+      await tx.execute(sql`
+        SELECT storage_key AS "storageKey", poster_key AS "posterKey", variants
+          FROM campaign_media WHERE campaign_id = ${campaignId}::uuid FOR UPDATE
+      `)
+    ).rows as { storageKey: string; posterKey: string | null; variants: Parameters<typeof apagarArquivosDeMidias>[0][number]["variants"] }[];
     await tx.execute(sql`DELETE FROM campaigns WHERE id = ${campaignId}::uuid`);
     return { ok: true, midias };
   }).then(async ({ ok, midias }) => {

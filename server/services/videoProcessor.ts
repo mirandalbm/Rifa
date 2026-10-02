@@ -116,6 +116,14 @@ export class Vagas {
 }
 
 const vagasDoFfmpeg = new Vagas(limiteDeFfmpeg());
+/**
+ * Vagas para trazer o vídeo do bucket ao disco temporário: o semáforo do
+ * `ffmpeg` limita CPU, este limita o disco (sem ele, N envios deixavam N
+ * arquivos de até 200 MB no `tmpdir` esperando a vez). Fica seguro de aninhar
+ * porque é outra instância: quem tem vaga de download só espera a do `ffmpeg`.
+ */
+const vagasDoDownload = new Vagas(limiteDeFfmpeg());
+export const comVagaDeDownload = <T>(fn: () => Promise<T>) => vagasDoDownload.rodar(fn);
 
 export class FfmpegLocal implements ProcessadorDeVideo {
   readonly nome = "ffmpeg";

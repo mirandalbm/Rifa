@@ -226,6 +226,21 @@ async function main() {
     const [aceite] = await db.execute(sql`select texto, versao from termo_aceites where versao = 1 limit 1`).then((x) => x.rows as { texto: string; versao: number }[]);
     checa("o aceite guarda a cópia do texto", Boolean(aceite?.texto?.includes("12% sobre o valor pago")));
 
+    // O texto-base mudou (simulado: a versão em vigor com texto antigo): o
+    // painel avisa e a organização publica a seguinte, sem mexer na antiga.
+    r = await orgA.req("GET", "/api/admin/termo-afiliado");
+    checa("termo recém-publicado não está desatualizado", r.json?.desatualizado === false, JSON.stringify(r.json?.desatualizado));
+    await db.execute(sql`update organizacao_termos set texto = 'TERMO ANTIGO' where versao = 2 and organization_id = ${A.id}::uuid`);
+    r = await orgA.req("GET", "/api/admin/termo-afiliado");
+    checa("texto antigo em vigor: o painel avisa", r.json?.desatualizado === true && r.json?.termo?.versao === 2, JSON.stringify(r.json?.desatualizado));
+    r = await orgA.req("POST", "/api/admin/termo-afiliado", { comissaoPct: 15, textoExtra: "" });
+    checa("publicar a v3 com o mesmo percentual é aceito", r.status === 201 && r.json?.versao === 3, `HTTP ${r.status} ${r.json?.message ?? ""}`);
+    checa("a v3 traz as cláusulas novas", /identificada como publicidade/.test(r.json?.texto ?? "") && /LGPD/.test(r.json?.texto ?? ""));
+    r = await orgA.req("GET", "/api/admin/termo-afiliado");
+    checa("e o aviso some", r.json?.desatualizado === false);
+    const [v2] = await db.execute(sql`select texto from organizacao_termos where versao = 2 and organization_id = ${A.id}::uuid`).then((x) => x.rows as { texto: string }[]);
+    checa("a v2 não foi reescrita", v2?.texto === "TERMO ANTIGO");
+
     // Cupom da A na rifa da B.
     r = await orgA.req("POST", "/api/admin/coupons", { code: "AFTESTEA", discountPct: 5, affiliateId: aff.id });
     checa("a A cria cupom para a afiliada", r.status === 201, `HTTP ${r.status} ${r.json?.message ?? ""}`);

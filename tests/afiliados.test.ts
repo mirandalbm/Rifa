@@ -32,6 +32,23 @@ describe("termo de adesão", () => {
     expect(t).toContain("Proibido divulgar em grupo de apostas.");
   });
 
+  it("o texto-base cobre a natureza, a divulgação, os dados pessoais e os tributos", () => {
+    const t = montarTermo({ organizacao: { nome: "Rifas X", cnpj: null }, versao: 1, comissaoPct: 10, liberacao: "apos_sorteio", textoExtra: "" });
+    expect(t).toMatch(/sem vínculo de emprego|Não há vínculo de emprego/);
+    expect(t).toMatch(/18 anos ou mais/);
+    expect(t).toMatch(/identificada como publicidade/);
+    expect(t).toMatch(/prometer ganho/);
+    expect(t).toMatch(/menores de 18 anos/);
+    expect(t).toMatch(/pagamento fora da plataforma/);
+    expect(t).toMatch(/LGPD/);
+    expect(t).toMatch(/só o primeiro nome/);
+    expect(t).toMatch(/tributos/);
+    expect(t).toMatch(/plataforma guarda a comissão/);
+    // As cláusulas vêm numeradas em ordem, sem pular.
+    const numeros = [...t.matchAll(/^(\d+)\. /gm)].map((m) => Number(m[1]));
+    expect(numeros).toEqual(numeros.map((_, i) => i + 1));
+  });
+
   it("liberação imediata avisa do risco de estorno depois do saque", () => {
     const t = montarTermo({ organizacao: { nome: "Y", cnpj: null }, versao: 1, comissaoPct: 5, liberacao: "imediata", textoExtra: "" });
     expect(t).toContain("confirmação do pagamento");

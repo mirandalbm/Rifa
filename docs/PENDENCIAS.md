@@ -436,9 +436,14 @@ Na ordem de entrega do plano:
   do texto, IP e aparelho; cupom e saque por organização; "Seja um
   colaborador" dentro do app (pedido vai para Cambistas). O link sem vínculo
   deixou de dar comissão na rifa de outra organização.
+- [x] Texto-base do termo de adesão completo (`montarTermo()`): natureza
+  (parceria autônoma, sem vínculo de emprego), regras de divulgação
+  (publicidade identificada, sem promessa de ganho, sem menores, sem Pix por
+  fora), descumprimento, LGPD, tributos e recibo. O painel avisa quando o
+  termo em vigor ficou atrás do texto de hoje (`npm run afiliados`).
 - [ ] **[você]** Cada organização publicar o termo de adesão de afiliado
-  (Afiliados → Termo) e o advogado revisar o texto-base (`montarTermo()` em
-  `shared/afiliados.ts`).
+  (Afiliados → Termo) — quem já publicou vê o aviso para publicar a versão
+  seguinte com o texto novo — e o advogado revisar o texto-base.
 - [x] Cadastro fiscal do afiliado (Meus dados): nome, CPF, RG, nascimento,
   endereço, conta e três documentos, cifrados (AES-256-GCM) e conferidos só
   pela plataforma (Cadastros fiscais), com cada leitura na auditoria.

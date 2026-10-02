@@ -60,13 +60,18 @@ export function montarTermo(d: {
   const linhas = [
     `TERMO DE ADESÃO DE AFILIADO — ${promotora} — versão ${d.versao}`,
     "",
-    `1. Quem paga. A comissão é paga por ${promotora}, promotora das rifas, sobre as vendas feitas pelo link ou cupom do afiliado.`,
-    `2. Quanto. ${d.comissaoPct}% sobre o valor pago pelo comprador, depois da taxa da plataforma e já com descontos de pacote e cupom.`,
-    `3. Quando. ${quando} (${NOME_LIBERACAO[d.liberacao]}.)`,
-    "4. Só venda paga conta. Pedido não pago, cancelado ou estornado não gera comissão; estorno desfaz a comissão daquela venda.",
-    "5. Autoindicação é proibida: a compra feita pelo próprio afiliado não gera comissão.",
-    "6. Esta versão vale para as rifas publicadas enquanto ela estiver em vigor, até o sorteio de cada uma. Versão nova vale só para rifas publicadas depois e precisa de novo aceite.",
-    "7. O afiliado pode sair a qualquer momento, sem perder o que já ganhou.",
+    `1. O que é. Parceria comercial autônoma para divulgar as rifas de ${promotora} pelo link ou cupom do afiliado. Não há vínculo de emprego, subordinação, horário, meta obrigatória nem exclusividade: o afiliado pode divulgar outras organizações. Ele não fala em nome da promotora nem da plataforma além da divulgação, e declara ter 18 anos ou mais.`,
+    `2. Quem paga. A comissão é paga por ${promotora}, promotora das rifas, sobre as vendas feitas pelo link ou cupom do afiliado. Quando a plataforma guarda a comissão da venda online (opção da plataforma), quem paga essa comissão é a plataforma, sempre depois do sorteio, com o mesmo percentual.`,
+    `3. Quanto. ${d.comissaoPct}% sobre o valor pago pelo comprador, depois da taxa da plataforma e já com descontos de pacote e cupom.`,
+    `4. Quando. ${quando} (${NOME_LIBERACAO[d.liberacao]}.)`,
+    "5. Só venda paga conta. Pedido não pago, cancelado ou estornado não gera comissão; estorno desfaz a comissão daquela venda.",
+    "6. Autoindicação é proibida: a compra feita pelo próprio afiliado não gera comissão.",
+    "7. Como divulgar. A divulgação usa o link e o material da plataforma e é identificada como publicidade (por exemplo, \"#publi\"). É proibido: prometer ganho ou chance maior do que a real; omitir o preço da cota, a data do sorteio ou o número da autorização SPA/MF; divulgar para menores de 18 anos ou em ambiente voltado a eles; enviar mensagem a quem não pediu (spam); usar a marca de terceiros; e pedir pagamento fora da plataforma (Pix, depósito ou dinheiro) — só vale bilhete pago pela plataforma.",
+    "8. Descumprimento. Divulgação que desrespeite o item 7, o regulamento da rifa ou a lei permite à promotora desfazer o vínculo e não pagar a comissão das vendas ligadas à infração, e à plataforma suspender a conta do afiliado. Venda fraudada (compra falsa, estorno combinado) não gera comissão.",
+    "9. Dados pessoais (LGPD). O afiliado vê só o primeiro nome de quem comprou pelo link dele. Não pode guardar, compartilhar nem usar esse dado fora da plataforma, nem pedir CPF, telefone ou dados de pagamento aos compradores.",
+    "10. Tributos e recibo. O afiliado responde pelos tributos sobre o que recebe. Cada pagamento sai com recibo ou nota fiscal, conforme o cadastro fiscal dele na plataforma.",
+    "11. Versões. Esta versão vale para as rifas publicadas enquanto ela estiver em vigor, até o sorteio de cada uma. Versão nova vale só para rifas publicadas depois e precisa de novo aceite. O aceite fica registrado com a cópia deste texto, a versão e a data.",
+    "12. Saída. O afiliado pode sair a qualquer momento, sem perder o que já ganhou de vendas pagas e não estornadas.",
   ];
   if (d.textoExtra) linhas.push("", "Regras da organização:", d.textoExtra);
   return linhas.join("\n");

@@ -64,6 +64,31 @@ export async function termoAtual(orgId: string, banco: Banco = db) {
 }
 
 /**
+ * O termo em vigor e se ele está atrás do texto de hoje: o texto-base da
+ * plataforma mudou, ou o nome, o CNPJ ou a liberação da organização. A
+ * versão publicada não muda sozinha (o aceite é prova daquele texto); o
+ * painel avisa e a organização publica a versão seguinte.
+ */
+export async function termoDoPainel(orgId: string) {
+  const termo = await termoAtual(orgId);
+  if (!termo) return { termo: null, desatualizado: false };
+  const [org] = await db
+    .select({ nome: organizations.name, cnpj: organizations.cnpj, liberacao: organizations.liberacaoComissao })
+    .from(organizations)
+    .where(eq(organizations.id, orgId));
+  const hoje = org
+    ? montarTermo({
+        organizacao: { nome: org.nome, cnpj: org.cnpj },
+        versao: termo.versao,
+        comissaoPct: termo.comissaoPct,
+        liberacao: org.liberacao as LiberacaoComissao,
+        textoExtra: termo.textoExtra,
+      })
+    : termo.texto;
+  return { termo, desatualizado: hoje !== termo.texto };
+}
+
+/**
  * Publica uma versão nova. Nunca edita a anterior: rifa publicada com a v1
  * segue com a v1 até o sorteio, e o afiliado precisa aceitar a v2 para as
  * rifas novas.

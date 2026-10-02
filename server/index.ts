@@ -90,6 +90,7 @@ app.use("/uploads", (_req, res) => {
 app.use(
   [
     "/api/public/chamados",
+    "/api/public/mensagens/conversas/:id/mensagens",
     "/api/admin/chamados",
     "/api/admin/campaigns/:id/legal",
     "/api/admin/template/logo",

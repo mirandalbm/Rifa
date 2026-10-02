@@ -525,6 +525,7 @@ async function rotasDaPlataforma(eu: Lado) {
     ["PUT cores do selo", "/api/admin/selos", { method: "PUT", body: '{"cores":{"apostador":"laranja"}}' }],
     ["GET conversas denunciadas (Mensagens)", "/api/admin/mensagens/denuncias", {}],
     ["GET trecho de conversa denunciada", "/api/admin/mensagens/denuncias/00000000-0000-0000-0000-000000000000", {}],
+    ["GET foto de conversa denunciada", "/api/admin/mensagens/denuncias/00000000-0000-0000-0000-000000000000/fotos/00000000-0000-0000-0000-000000000000", {}],
     ["POST decidir conversa denunciada", "/api/admin/mensagens/denuncias/00000000-0000-0000-0000-000000000000/decidir", { method: "POST", body: '{"decisao":"improcedente"}' }],
     ["PUT topo do app (aviso do trevo)", "/api/admin/app", { method: "PUT", body: '{"avisoDoTrevo":{"estilo":"cheio","cor":"rosa"},"publicarApostador":true}' }],
     ["GET cadastros fiscais", "/api/admin/fiscal", {}],

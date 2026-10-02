@@ -239,7 +239,7 @@ import {
 import { estadoWhatsApp, criarModelosFaltantes, enviarTeste } from "../services/whatsappSetup";
 import { validarConfigBusca } from "@shared/buscar";
 import { senhaInvalida } from "@shared/senha";
-import { conversasDenunciadasAbertas, decidirDenunciaDeConversa, detalheDaDenunciaDeConversa, listarDenunciasDeConversa } from "../services/mensagens";
+import { conversasDenunciadasAbertas, decidirDenunciaDeConversa, detalheDaDenunciaDeConversa, fotoDaDenuncia, listarDenunciasDeConversa } from "../services/mensagens";
 import { EXPORTS, exportInfo, exportFilename, CSV_BOM } from "@shared/exports";
 
 export const adminRouter = Router();
@@ -709,6 +709,21 @@ adminRouter.get("/mensagens/denuncias/:id", async (req, res, next) => {
     requirePlatformAdmin(req);
     await audit(req, "mensagens.denuncia.ler", "mensagem_denuncia", req.params.id, {});
     res.json(await detalheDaDenunciaDeConversa(req.params.id));
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** A foto de uma mensagem denunciada: só se está no trecho da denúncia; a leitura é auditada antes. */
+adminRouter.get("/mensagens/denuncias/:id/fotos/:fotoId", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    await audit(req, "mensagens.denuncia.foto", "mensagem_denuncia", req.params.id, { fotoId: req.params.fotoId });
+    const bytes = await fotoDaDenuncia(req.params.id, req.params.fotoId);
+    res.setHeader("Content-Type", "image/jpeg");
+    res.setHeader("Cache-Control", "private, no-store");
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.send(bytes);
   } catch (err) {
     next(err);
   }

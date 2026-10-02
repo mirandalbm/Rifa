@@ -2459,6 +2459,43 @@ export const mensagens = pgTable(
 );
 
 /**
+ * A foto de uma mensagem (só apostador envia). Fica no banco, reprocessada
+ * (JPEG, sem metadados) e é servida só a quem está na conversa — e à plataforma,
+ * se a mensagem está no trecho de uma denúncia aberta, com a leitura auditada.
+ */
+export const mensagemImagens = pgTable(
+  "mensagem_imagens",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    mensagemId: uuid("mensagem_id")
+      .notNull()
+      .references(() => mensagens.id, { onDelete: "cascade" }),
+    conversaId: uuid("conversa_id")
+      .notNull()
+      .references(() => conversas.id, { onDelete: "cascade" }),
+    bytes: bytea("bytes").notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("uq_mensagem_imagem_por_mensagem").on(t.mensagemId), index("idx_mensagem_imagens_conversa").on(t.conversaId)],
+);
+
+/**
+ * Presença na caixa de mensagens, por participante (apostador, organização ou
+ * afiliado). `mostrar` nasce desligado: quem não liga não aparece nem vê os
+ * outros. `ultima_em` é só "esteve na caixa há pouco" — nunca sai como horário.
+ */
+export const mensagensPresenca = pgTable(
+  "mensagens_presenca",
+  {
+    tipo: text("tipo").notNull(),
+    id: uuid("id").notNull(),
+    mostrar: boolean("mostrar").notNull().default(false),
+    ultimaEm: timestamp("ultima_em").notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.tipo, t.id] })],
+);
+
+/**
  * Denúncia de conversa. A plataforma só lê o `trecho` — as últimas
  * mensagens gravadas na hora da denúncia —, nunca a conversa inteira. Uma
  * aberta por conversa e lado (`uq_denuncia_conversa_aberta`).
@@ -2475,7 +2512,7 @@ export const mensagemDenuncias = pgTable(
     lado: text("lado").notNull(),
     motivo: text("motivo").notNull(),
     texto: text("texto"),
-    trecho: jsonb("trecho").$type<{ de: string; texto: string; em: string }[]>().notNull(),
+    trecho: jsonb("trecho").$type<{ de: string; texto: string; em: string; imagem?: string }[]>().notNull(),
     status: text("status").notNull().default("aberta"),
     decisao: text("decisao"),
     decididaPor: uuid("decidida_por"),

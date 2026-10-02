@@ -13,6 +13,7 @@ import { eq, inArray, sql } from "drizzle-orm";
 import { db, pool } from "../server/db";
 import { auditLog, buyers, campaigns, conversas, organizations, seguidores, users } from "../shared/schema";
 import { hashPassword } from "../server/auth";
+import sharp from "sharp";
 
 const URL = baseUrl();
 let falhas = 0;
@@ -55,7 +56,7 @@ const VIZINHA = "mensagens-teste-vizinha";
 const EMAIL_VIZINHA = "vizinha-mensagens@teste.br";
 
 async function limpar() {
-  await db.execute(sql`delete from rate_events where bucket like 'cadastro:%' or bucket like 'login:%' or bucket like 'mensagem:%' or bucket like 'conversa-nova:%' or bucket like 'msg-busca:%' or bucket like 'denuncia-conversa:%'`);
+  await db.execute(sql`delete from rate_events where bucket like 'cadastro:%' or bucket like 'login:%' or bucket like 'mensagem:%' or bucket like 'conversa-nova:%' or bucket like 'msg-busca:%' or bucket like 'denuncia-conversa:%' or bucket like 'mensagem-foto:%'`);
   const ids = await db.select({ id: buyers.id }).from(buyers).where(inArray(buyers.phone, PESSOAS.map((p) => p.telefone)));
   const b = ids.map((x) => x.id);
   if (b.length) {
@@ -221,6 +222,47 @@ async function main() {
     r = await bia.req("PUT", `/api/public/mensagens/conversas/${conv}/bloqueio`, { ligar: false });
     checa("quem bloqueou desbloqueia", r.status === 200);
 
+    console.log("\n  foto na conversa e online agora:");
+    const png = await sharp({ create: { width: 64, height: 48, channels: 3, background: "#2255cc" } }).png().toBuffer();
+    const fotoUrl = `data:image/png;base64,${png.toString("base64")}`;
+    r = await ana.req("POST", `/api/public/mensagens/conversas/${conv}/mensagens`, { imagem: fotoUrl });
+    checa("o apostador envia uma foto sozinha (201)", r.status === 201, JSON.stringify(r.json).slice(0, 120));
+    r = await ana.req("POST", `/api/public/mensagens/conversas/${conv}/mensagens`, { imagem: "data:text/plain;base64,aGVsbG8=" });
+    checa("o que não é imagem é recusado (400)", r.status === 400, `HTTP ${r.status}`);
+    r = await bia.req("GET", `/api/public/mensagens/conversas/${conv}`);
+    const comFoto = r.json?.itens?.find((m: { foto: string | null }) => m.foto);
+    checa("a outra ponta vê a foto na conversa e a prévia diz 'Enviou uma foto'", Boolean(comFoto));
+    const rf = await fetch(URL + comFoto.foto, { headers: { Cookie: bia.cookie } });
+    const bytes = Buffer.from(await rf.arrayBuffer());
+    const meta = await sharp(bytes).metadata();
+    checa("a foto sai como JPEG, sem cache e sem adivinhar tipo", rf.status === 200 && meta.format === "jpeg" && /no-store/.test(rf.headers.get("cache-control") ?? "") && rf.headers.get("x-content-type-options") === "nosniff");
+    const rc = await fetch(URL + comFoto.foto, { headers: { Cookie: caio.cookie } });
+    checa("quem não está na conversa recebe 404", rc.status === 404, `HTTP ${rc.status}`);
+    const rs = await fetch(URL + comFoto.foto);
+    checa("sem sessão, a foto não abre", rs.status === 401 || rs.status === 404, `HTTP ${rs.status}`);
+    r = await marina.req("POST", `/api/public/mensagens/conversas/${convOrgCaio}/mensagens`, { imagem: fotoUrl });
+    checa("a organização não envia foto (403)", r.status === 403, `HTTP ${r.status}`);
+
+    r = await ana.req("GET", "/api/public/mensagens/presenca");
+    checa("mostrar quando estou online nasce desligado", r.json?.mostrar === false);
+    await ana.req("GET", `/api/public/mensagens/conversas/${conv}`);
+    r = await bia.req("GET", `/api/public/mensagens/conversas/${conv}`);
+    checa("sem os dois mostrando, ninguém aparece online", r.json?.conversa?.online === false);
+    await ana.req("PUT", "/api/public/mensagens/presenca", { mostrar: true });
+    await ana.req("GET", `/api/public/mensagens/conversas/${conv}`);
+    r = await bia.req("GET", `/api/public/mensagens/conversas/${conv}`);
+    checa("só um mostrando: continua escondido (reciprocidade)", r.json?.conversa?.online === false);
+    await bia.req("PUT", "/api/public/mensagens/presenca", { mostrar: true });
+    await ana.req("GET", `/api/public/mensagens/conversas/${conv}`);
+    r = await bia.req("GET", `/api/public/mensagens/conversas/${conv}`);
+    checa("os dois mostrando, em conversa aceita: online agora", r.json?.conversa?.online === true);
+    r = await bia.req("GET", "/api/public/mensagens/conversas");
+    checa("a lista traz o mesmo indicador", r.json?.itens?.find((i: { id: string }) => i.id === conv)?.online === true);
+    r = await ana.req("GET", `/api/public/mensagens/conversas/${conv}`);
+    checa("a resposta nunca traz horário de última vez", !/ultim|visto/i.test(JSON.stringify(r.json?.conversa ?? {})));
+    await ana.req("PUT", "/api/public/mensagens/presenca", { mostrar: false });
+    await bia.req("PUT", "/api/public/mensagens/presenca", { mostrar: false });
+
     console.log("\n  denúncia e moderação:");
     r = await bia.req("POST", `/api/public/mensagens/conversas/${conv}/denuncia`, { motivo: "spam", texto: "Insiste com propaganda." });
     const protocolo = r.json?.protocolo as string;
@@ -248,6 +290,16 @@ async function main() {
     checa("o detalhe nunca traz telefone", !JSON.stringify(r.json).includes("11974440001") && !JSON.stringify(r.json).includes("11974440002"));
     r = await marina.req("GET", `/api/admin/mensagens/denuncias/${item?.id}`);
     checa("organização não lê o detalhe (403)", r.status === 403);
+    const fotoNoTrecho = (await admin.req("GET", `/api/admin/mensagens/denuncias/${item?.id}`)).json?.trecho?.find((t: { imagem?: string }) => t.imagem)?.imagem as string | undefined;
+    checa("a foto entra no trecho só pelo id", Boolean(fotoNoTrecho));
+    const fAntes = Number((await db.execute(sql`select count(*)::int as n from audit_log where action = 'mensagens.denuncia.foto'`)).rows[0].n);
+    const rfa = await fetch(`${URL}/api/admin/mensagens/denuncias/${item?.id}/fotos/${fotoNoTrecho}`, { headers: { Cookie: admin.cookie } });
+    const fDepois = Number((await db.execute(sql`select count(*)::int as n from audit_log where action = 'mensagens.denuncia.foto'`)).rows[0].n);
+    checa("a plataforma abre a foto do trecho e a abertura entra na auditoria", rfa.status === 200 && fDepois === fAntes + 1 && /no-store/.test(rfa.headers.get("cache-control") ?? ""));
+    const rfo = await fetch(`${URL}/api/admin/mensagens/denuncias/${item?.id}/fotos/${fotoNoTrecho}`, { headers: { Cookie: marina.cookie } });
+    checa("organização não abre a foto (403)", rfo.status === 403);
+    const rfx = await fetch(`${URL}/api/admin/mensagens/denuncias/${item?.id}/fotos/00000000-0000-0000-0000-000000000000`, { headers: { Cookie: admin.cookie } });
+    checa("foto fora do trecho: 404", rfx.status === 404);
     r = await admin.req("POST", `/api/admin/mensagens/denuncias/${item?.id}/decidir`, { decisao: "procedente" });
     checa("procedente pede explicação (400)", r.status === 400);
     const duas = await Promise.all([1, 2].map(() => admin.req("POST", `/api/admin/mensagens/denuncias/${item?.id}/decidir`, { decisao: "procedente", resposta: "Propaganda insistente." })));

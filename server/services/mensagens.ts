@@ -13,6 +13,7 @@
  *   antes na rota.
  */
 import { randomInt } from "node:crypto";
+import sharp from "sharp";
 import type { Request } from "express";
 import { and, desc, eq, inArray, lt, or, sql } from "drizzle-orm";
 import { db } from "../db";
@@ -22,7 +23,9 @@ import {
   campaigns,
   conversas,
   mensagemDenuncias,
+  mensagemImagens,
   mensagens,
+  mensagensPresenca,
   organizacaoFotos,
   organizations,
   seguidores,
@@ -30,17 +33,24 @@ import {
 } from "@shared/schema";
 import {
   CONVERSAS_NOVAS_POR_DIA,
+  IMAGEM_MAX_BYTES,
+  IMAGENS_POR_DIA,
   JANELA_DE_MENSAGENS_MIN,
   MENSAGENS_POR_JANELA,
   MOTIVOS_DA_DENUNCIA_DE_MENSAGEM,
   PAGINA_DE_CONVERSAS,
   PAGINA_DE_MENSAGENS,
+  PRESENCA_PASSO_S,
+  PREVIA_DA_FOTO,
   TRECHO_DA_DENUNCIA,
   decisaoValida,
+  estaOnline,
   limparMensagem,
   motivoDaMensagemValido,
   ordenarPar,
   outroLado,
+  podeEnviarImagem,
+  podeVerOnline,
   previaDoTexto,
   problemaNaMensagem,
   problemaParaEnviar,
@@ -223,6 +233,81 @@ const estadoDe = (c: Conversa) => ({
 });
 
 /* ------------------------------------------------------------------ *
+ * Presença ("online agora") e foto
+ * ------------------------------------------------------------------ */
+
+/**
+ * Marca que a pessoa esteve na caixa agora. Regrava só de minuto em minuto
+ * (`WHERE ultima_em < agora - passo`): ler a caixa não vira uma escrita por
+ * toque. `mostrar` nasce desligado e esta função nunca o liga.
+ */
+async function tocarPresenca(eu: Participante) {
+  await db.execute(sql`
+    INSERT INTO mensagens_presenca (tipo, id, mostrar, ultima_em) VALUES (${eu.tipo}, ${eu.id}, false, now())
+    ON CONFLICT (tipo, id) DO UPDATE SET ultima_em = now()
+    WHERE mensagens_presenca.ultima_em < now() - make_interval(secs => ${PRESENCA_PASSO_S})`);
+}
+
+export async function minhaPresenca(req: Request, como?: unknown) {
+  const eu = await minhaIdentidade(req, como);
+  const [p] = await db.select({ mostrar: mensagensPresenca.mostrar }).from(mensagensPresenca).where(and(eq(mensagensPresenca.tipo, eu.tipo), eq(mensagensPresenca.id, eu.id)));
+  return { mostrar: p?.mostrar === true };
+}
+
+export async function definirPresenca(req: Request, mostrar: unknown, como?: unknown) {
+  const eu = await minhaIdentidade(req, como);
+  if (typeof mostrar !== "boolean") throw new MensagemError("Escolha mostrar ou esconder.", 400);
+  await db
+    .insert(mensagensPresenca)
+    .values({ tipo: eu.tipo, id: eu.id, mostrar })
+    .onConflictDoUpdate({ target: [mensagensPresenca.tipo, mensagensPresenca.id], set: { mostrar } });
+  return { mostrar };
+}
+
+/**
+ * Quem, entre os parceiros, está online para mim agora. Só entra se eu
+ * também mostro o meu, a conversa foi aceita e a pessoa esteve na caixa há
+ * pouco. O resultado é só "sim": quem esconde e quem está fora são iguais
+ * para quem olha, e o horário nunca sai.
+ */
+async function onlineDosParceiros(eu: Participante, itens: { chave: string; parceiro: Participante; situacao: SituacaoDaConversa }[]) {
+  const online = new Set<string>();
+  if (itens.length === 0) return online;
+  const todos = [eu, ...itens.map((i) => i.parceiro)];
+  const linhas = await db
+    .select()
+    .from(mensagensPresenca)
+    .where(or(...todos.map((p) => and(eq(mensagensPresenca.tipo, p.tipo), eq(mensagensPresenca.id, p.id))))!);
+  const por = new Map(linhas.map((l) => [`${l.tipo}:${l.id}`, l]));
+  const euMostro = por.get(`${eu.tipo}:${eu.id}`)?.mostrar === true;
+  const agora = new Date();
+  for (const i of itens) {
+    const ele = por.get(`${i.parceiro.tipo}:${i.parceiro.id}`);
+    if (podeVerOnline({ euMostro, eleMostra: ele?.mostrar === true, situacao: i.situacao }) && estaOnline(ele?.ultimaEm, agora)) {
+      online.add(i.chave);
+    }
+  }
+  return online;
+}
+
+/** A foto vira JPEG de até 1600 px, sem metadados (nem localização); o resto é recusado. */
+export async function processarFoto(dataUrl: unknown): Promise<Buffer> {
+  const m = /^data:(image\/[a-z0-9.+-]+);base64,([A-Za-z0-9+/=]+)$/i.exec(typeof dataUrl === "string" ? dataUrl : "");
+  if (!m) throw new MensagemError("Envie uma foto (JPG ou PNG).", 400);
+  const bruto = Buffer.from(m[2], "base64");
+  if (bruto.length > IMAGEM_MAX_BYTES) throw new MensagemError("A foto passa de 5 MB. Envie uma menor.", 413);
+  try {
+    return await sharp(bruto, { limitInputPixels: 40_000_000 })
+      .rotate()
+      .resize({ width: 1600, height: 1600, fit: "inside", withoutEnlargement: true })
+      .jpeg({ quality: 80, mozjpeg: true })
+      .toBuffer();
+  } catch {
+    throw new MensagemError("Não consegui ler essa foto. Envie em JPG ou PNG.", 400);
+  }
+}
+
+/* ------------------------------------------------------------------ *
  * Lista
  * ------------------------------------------------------------------ */
 
@@ -242,6 +327,7 @@ export async function resumoDasMensagens(req: Request, como?: unknown) {
 
 export async function listarConversas(req: Request, q: { aba?: unknown; depois?: unknown; limite?: unknown; como?: unknown }) {
   const eu = await minhaIdentidade(req, q.como);
+  await tocarPresenca(eu);
   const pedidos = q.aba === "pedidos";
   const limite = limiteDaPagina(q.limite, PAGINA_DE_CONVERSAS);
   const cursor = lerCursor(q.depois);
@@ -266,12 +352,14 @@ export async function listarConversas(req: Request, q: { aba?: unknown; depois?:
   const { itens, proximo } = cortarPagina(linhas.map((c) => ({ ...c, criadoEm: c.ultimaEm })), limite);
 
   const perfis = await perfisDe(itens.map((c) => parceiro(c, lado(c, eu)!)));
+  const online = await onlineDosParceiros(eu, itens.map((c) => ({ chave: c.id, parceiro: parceiro(c, lado(c, eu)!), situacao: c.situacao as SituacaoDaConversa })));
   return {
     itens: itens.map((c) => {
       const l = lado(c, eu)!;
       return {
         id: c.id,
         com: perfilOu(perfis, parceiro(c, l)),
+        online: online.has(c.id),
         previa: c.previa,
         ultimaEm: c.ultimaEm.toISOString(),
         naoLidas: l === "a" ? c.naoLidasA : c.naoLidasB,
@@ -334,13 +422,14 @@ async function rifaDoCartao(slug: unknown) {
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 /** Grava a mensagem e move a conversa: prévia, hora, não lidas e situação. */
-async function gravar(tx: Tx, c: Conversa, eu: Lado, texto: string, campaignId: string | null) {
+async function gravar(tx: Tx, c: Conversa, eu: Lado, texto: string, campaignId: string | null, foto: Buffer | null = null) {
   const [m] = await tx.insert(mensagens).values({ conversaId: c.id, de: eu, texto, campaignId }).returning();
+  if (foto) await tx.insert(mensagemImagens).values({ mensagemId: m.id, conversaId: c.id, bytes: foto });
   const outro = outroLado(eu);
   await tx
     .update(conversas)
     .set({
-      previa: campaignId && !texto ? "Compartilhou uma rifa" : previaDoTexto(texto),
+      previa: foto && !texto ? PREVIA_DA_FOTO : campaignId && !texto ? "Compartilhou uma rifa" : previaDoTexto(texto),
       ultimaEm: m.createdAt,
       situacao: situacaoDepoisDeEnviar(estadoDe(c), eu),
       ...(outro === "a" ? { naoLidasA: sql`${conversas.naoLidasA} + 1` } : { naoLidasB: sql`${conversas.naoLidasB} + 1` }),
@@ -350,10 +439,10 @@ async function gravar(tx: Tx, c: Conversa, eu: Lado, texto: string, campaignId: 
   return m;
 }
 
-function textoDaMensagem(entrada: { texto?: unknown; rifa?: unknown }) {
-  // O cartão da rifa pode ir sozinho; o texto, quando vem, passa pela régua.
+function textoDaMensagem(entrada: { texto?: unknown; rifa?: unknown; imagem?: unknown }) {
+  // O cartão da rifa e a foto podem ir sozinhos; o texto, quando vem, passa pela régua.
   const semTexto = typeof entrada.texto !== "string" || !entrada.texto.trim();
-  if (semTexto && entrada.rifa) return "";
+  if (semTexto && (entrada.rifa || entrada.imagem)) return "";
   const p = problemaNaMensagem(entrada.texto);
   if (p) throw new MensagemError(p, 400);
   return limparMensagem(String(entrada.texto));
@@ -399,12 +488,14 @@ const protocolo = () => {
 
 async function trechoDa(conversaId: string) {
   const linhas = await db
-    .select({ de: mensagens.de, texto: mensagens.texto, em: mensagens.createdAt })
+    .select({ de: mensagens.de, texto: mensagens.texto, em: mensagens.createdAt, imagem: mensagemImagens.id })
     .from(mensagens)
+    .leftJoin(mensagemImagens, eq(mensagemImagens.mensagemId, mensagens.id))
     .where(eq(mensagens.conversaId, conversaId))
     .orderBy(desc(mensagens.createdAt), desc(mensagens.id))
     .limit(TRECHO_DA_DENUNCIA);
-  return linhas.reverse().map((m) => ({ de: m.de, texto: m.texto, em: m.em.toISOString() }));
+  // A foto entra no trecho só pelo id: a plataforma a abre pela rota auditada.
+  return linhas.reverse().map((m) => ({ de: m.de, texto: m.texto, em: m.em.toISOString(), ...(m.imagem ? { imagem: m.imagem } : {}) }));
 }
 
 async function denunciaAutomatica(conversaId: string, trecho: string, _msgId: string) {
@@ -491,12 +582,22 @@ export async function iniciarConversa(
   return { id: resultado.c.id };
 }
 
-export async function enviar(req: Request, conversaId: string, entrada: { texto?: unknown; rifa?: unknown; como?: unknown }) {
+export async function enviar(req: Request, conversaId: string, entrada: { texto?: unknown; rifa?: unknown; imagem?: unknown; como?: unknown }) {
   const eu = await minhaIdentidade(req, entrada.como);
   await minhaConversa(eu, conversaId); // 404 antes de qualquer outra coisa
   const texto = textoDaMensagem(entrada);
   const campaignId = await rifaDoCartao(entrada.rifa);
   await limiteDeMensagens(eu);
+  let foto: Buffer | null = null;
+  if (entrada.imagem !== undefined && entrada.imagem !== null && entrada.imagem !== "") {
+    if (!podeEnviarImagem(eu.tipo)) throw new MensagemError("Só apostadores enviam foto. Escreva a mensagem em texto.", 403);
+    // Conta a tentativa antes de abrir a imagem: foto custa banco e processador.
+    if ((await hit(`mensagem-foto:${eu.tipo}:${eu.id}`, 24 * 60, IMAGENS_POR_DIA)).excedeu) {
+      throw new MensagemError("Muitas fotos hoje. Tente amanhã.", 429);
+    }
+    foto = await processarFoto(entrada.imagem);
+  }
+  if (!texto && !campaignId && !foto) throw new MensagemError("Escreva uma mensagem.", 400);
 
   const r = await db.transaction(async (tx) => {
     const [c] = await tx.select().from(conversas).where(eq(conversas.id, conversaId)).for("update");
@@ -504,11 +605,25 @@ export async function enviar(req: Request, conversaId: string, entrada: { texto?
     if (!c || !l) throw new MensagemError("Conversa não encontrada.", 404);
     const problema = problemaParaEnviar(estadoDe(c), l);
     if (problema) throw new MensagemError(problema, 409);
-    const m = await gravar(tx, c, l, texto, campaignId);
+    const m = await gravar(tx, c, l, texto, campaignId, foto);
     return { c, l, m };
   });
+  await tocarPresenca(eu);
   aposEnviar(r.c, r.l, eu, texto, r.m.id);
   return { id: r.m.id };
+}
+
+/** A foto de uma mensagem, só para quem está na conversa (404 para o resto). */
+export async function fotoDaConversa(req: Request, conversaId: string, fotoId: string, como?: unknown) {
+  const eu = await minhaIdentidade(req, como);
+  const { c } = await minhaConversa(eu, conversaId);
+  if (!UUID.test(fotoId)) throw new MensagemError("Foto não encontrada.", 404);
+  const [f] = await db
+    .select({ bytes: mensagemImagens.bytes })
+    .from(mensagemImagens)
+    .where(and(eq(mensagemImagens.id, fotoId), eq(mensagemImagens.conversaId, c.id)));
+  if (!f) throw new MensagemError("Foto não encontrada.", 404);
+  return f.bytes;
 }
 
 /* ------------------------------------------------------------------ *
@@ -518,6 +633,7 @@ export async function enviar(req: Request, conversaId: string, entrada: { texto?
 export async function lerConversa(req: Request, conversaId: string, q: { antes?: unknown; como?: unknown }) {
   const eu = await minhaIdentidade(req, q.como);
   const { c, l } = await minhaConversa(eu, conversaId);
+  await tocarPresenca(eu);
   const cursor = lerCursor(q.antes);
   const filtros = [eq(mensagens.conversaId, c.id)];
   if (cursor) {
@@ -537,19 +653,25 @@ export async function lerConversa(req: Request, conversaId: string, q: { antes?:
       rifaSlug: campaigns.slug,
       rifaTitulo: campaigns.prizeTitle,
       rifaOrg: sql<string | null>`(select slug from organizations where id = ${campaigns.organizationId})`,
+      fotoId: mensagemImagens.id,
     })
     .from(mensagens)
     .leftJoin(campaigns, eq(campaigns.id, mensagens.campaignId))
+    .leftJoin(mensagemImagens, eq(mensagemImagens.mensagemId, mensagens.id))
     .where(and(...filtros))
     .orderBy(desc(mensagens.createdAt), desc(mensagens.id))
     .limit(PAGINA_DE_MENSAGENS + 1);
   const { itens, proximo } = cortarPagina(linhas, PAGINA_DE_MENSAGENS);
   const com = perfilOu(await perfisDe([parceiro(c, l)]), parceiro(c, l));
   const impedimento = problemaParaEnviar(estadoDe(c), l);
+  const online = await onlineDosParceiros(eu, [{ chave: c.id, parceiro: parceiro(c, l), situacao: c.situacao as SituacaoDaConversa }]);
   return {
     conversa: {
       id: c.id,
       com,
+      online: online.has(c.id),
+      // Foto: só o apostador manda; a tela só mostra o botão a quem pode.
+      podeEnviarFoto: podeEnviarImagem(eu.tipo),
       situacao: c.situacao,
       euIniciei: c.iniciadaPor === l,
       bloqueadaPorMim: c.bloqueadaPor === l,
@@ -565,6 +687,7 @@ export async function lerConversa(req: Request, conversaId: string, q: { antes?:
       minha: m.de === l,
       texto: m.texto,
       em: m.criadoEm.toISOString(),
+      foto: m.fotoId ? `/api/public/mensagens/conversas/${c.id}/fotos/${m.fotoId}` : null,
       rifa: m.rifaSlug ? { slug: m.rifaSlug, titulo: m.rifaTitulo!, caminho: m.rifaOrg ? `/o/${m.rifaOrg}/r/${m.rifaSlug}` : `/r/${m.rifaSlug}` } : null,
     })),
     proximo,
@@ -672,6 +795,23 @@ export async function listarDenunciasDeConversa(status?: string) {
     criadaEm: d.createdAt.toISOString(),
     partes: [perfilOu(perfis, { tipo: d.c.aTipo as TipoDeParticipante, id: d.c.aId }), perfilOu(perfis, { tipo: d.c.bTipo as TipoDeParticipante, id: d.c.bId })].map((p) => ({ tipo: p.tipo, nome: p.nome })),
   }));
+}
+
+/**
+ * A foto de uma mensagem denunciada, para a plataforma: só se o id está no
+ * trecho gravado na denúncia (a plataforma nunca navega pela conversa). A
+ * rota grava a auditoria antes de chamar.
+ */
+export async function fotoDaDenuncia(denunciaId: string, fotoId: string) {
+  if (!UUID.test(denunciaId) || !UUID.test(fotoId)) throw new MensagemError("Foto não encontrada.", 404);
+  const [d] = await db.select({ trecho: mensagemDenuncias.trecho, conversaId: mensagemDenuncias.conversaId }).from(mensagemDenuncias).where(eq(mensagemDenuncias.id, denunciaId));
+  if (!d || !d.trecho.some((t) => t.imagem === fotoId)) throw new MensagemError("Foto não encontrada.", 404);
+  const [f] = await db
+    .select({ bytes: mensagemImagens.bytes })
+    .from(mensagemImagens)
+    .where(and(eq(mensagemImagens.id, fotoId), eq(mensagemImagens.conversaId, d.conversaId)));
+  if (!f) throw new MensagemError("Foto não encontrada.", 404);
+  return f.bytes;
 }
 
 /** O detalhe com o trecho. A rota grava a auditoria antes de chamar. */

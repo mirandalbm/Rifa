@@ -54,6 +54,11 @@ const COBRANCA = { assinaturaCents: 4990, franquiaCreditos: 500, pacotes: [] };
 const VIZINHA = { slug: "ia-acoes-vizinha", email: "ia-acoes-vizinha@rifa.teste", senha: "ia-acoes-vizinha-123" };
 const SLUG_MARINA = "ia-acao-rascunho-marina";
 const SLUG_VIZINHA = "ia-acao-rascunho-vizinha";
+/** A rifa e o comprador do pedido de teste (o seed do CI não tem pedido da Marina). */
+const SLUG_PEDIDO = "ia-acao-pedido-marina";
+const FONE_PROVA = "11960009901";
+const NOME_PROVA = "Comprador Prova Assistente";
+const PROTOCOLO = "RB-20261002-990001";
 let falhas = 0;
 const checa = (n: string, ok: boolean, d = "") => {
   console.log(`  ${ok ? "✓" : "✗"} ${n}${d ? ` (${d})` : ""}`);
@@ -208,7 +213,10 @@ async function main() {
     await db.delete(iaLancamentos).where(inArray(iaLancamentos.titularId, titulares));
     await db.delete(iaPagamentos).where(inArray(iaPagamentos.titularId, titulares));
     await db.delete(iaContas).where(inArray(iaContas.titularId, titulares));
-    await db.delete(campaigns).where(inArray(campaigns.slug, [SLUG_MARINA, SLUG_VIZINHA]));
+    await db.delete(chamados).where(eq(chamados.protocolo, PROTOCOLO));
+    // Os pedidos de teste saem junto com a rifa (cascata); o comprador depois.
+    await db.delete(campaigns).where(inArray(campaigns.slug, [SLUG_MARINA, SLUG_VIZINHA, SLUG_PEDIDO]));
+    await db.delete(buyers).where(eq(buyers.phone, FONE_PROVA));
     for (const b of ["ia:%", "ia-ler:%", "ia-pix:%", "ia-pagante:%"]) await db.delete(rateEvents).where(like(rateEvents.bucket, b));
   };
   await limpar();
@@ -248,13 +256,15 @@ async function main() {
     const doAdmin = (saida?.data ?? []).map((x: any) => x.slug);
     checa("a plataforma lista de todas, com a organização", doAdmin.includes(SLUG_MARINA) && doAdmin.includes(SLUG_VIZINHA) && (saida?.data ?? []).every((x: any) => typeof x.organizacao === "string"));
 
-    const [pedidoM] = await db
-      .select({ code: orders.code, nome: buyers.name, phone: buyers.phone })
-      .from(orders)
-      .innerJoin(campaigns, eq(campaigns.id, orders.campaignId))
-      .innerJoin(buyers, eq(buyers.id, orders.buyerId))
-      .where(eq(campaigns.organizationId, uMarina.org!))
-      .limit(1);
+    // Um pedido vencido numa rifa só da prova: não mexe em cota nem no contador de nenhuma rifa de verdade.
+    const [rifaPedido] = await novaRifa(uMarina.org!, SLUG_PEDIDO, "Rifa do pedido de teste (prova da IA)");
+    const [comprador] = await db.insert(buyers).values({ name: NOME_PROVA, phone: FONE_PROVA }).returning({ id: buyers.id });
+    const codigoDoPedido = 99_000_000 + Math.floor(Math.random() * 900_000);
+    const [pedidoTeste] = await db
+      .insert(orders)
+      .values({ code: codigoDoPedido, campaignId: rifaPedido.id, buyerId: comprador.id, quantity: 2, amountCents: 1000, status: "expired" })
+      .returning({ id: orders.id, buyerId: orders.buyerId, amount: orders.amountCents, status: orders.status });
+    const pedidoM = { code: codigoDoPedido, nome: NOME_PROVA, phone: FONE_PROVA };
     if (pedidoM) {
       r = await marina.req("POST", "/api/ia/mensagens", { texto: `acao consultar_pedido {"codigo":"${pedidoM.code}"}` });
       saida = ultimoResultado();
@@ -371,21 +381,7 @@ async function main() {
     await zerarLimites();
     const estornoAntes = (await getPlataforma()).estornoManual;
     await setPlataforma({ estornoManual: true });
-    const [pedidoPago] = await db
-      .select({ id: orders.id, buyerId: orders.buyerId, amount: orders.amountCents, status: orders.status })
-      .from(orders)
-      .innerJoin(campaigns, eq(campaigns.id, orders.campaignId))
-      // Qualquer pedido dela sem chamado em andamento: a prova só cancela, nunca estorna de verdade
-      // (o estorno em si é o `npm run chamados`), e as provas de antes podem ter estornado os pagos.
-      .where(
-        and(
-          eq(campaigns.organizationId, uMarina.org!),
-          sql`NOT EXISTS (SELECT 1 FROM chamados ch WHERE ch.order_id = ${orders.id} AND (ch.status IN ('aberto', 'aprovado') OR ch.disputa = 'aberta'))`,
-        ),
-      )
-      .limit(1);
-    if (!pedidoPago) throw new Error("Nenhum pedido da Marina sem chamado em andamento para a prova do estorno.");
-    const PROTOCOLO = "RB-20261002-990001";
+    const pedidoPago = pedidoTeste;
     await db.delete(chamados).where(eq(chamados.protocolo, PROTOCOLO));
     const [ch] = await db
       .insert(chamados)

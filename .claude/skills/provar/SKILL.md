@@ -50,6 +50,7 @@ Pelo caminho que mudou (a mesma tabela "Onde mexer" do `CLAUDE.md`):
 | afiliados, fiscal, guarda da comissão | `afiliados`, `fiscal`, `guarda` |
 | divulgação de terceiros (afiliado influenciador, publicação do apostador, menu Criar) | `divulgacao`, `afiliados`, `seguranca`, `isolation` |
 | bônus, patrocínio, banner pago, marketing | `bonus`, `patrocinio`, `banner`, `marketing` |
+| assistente de IA (`shared/ia.ts`, `services/ia.ts`) | `tests/ia.test.ts`, `ia` (com `CHATBASE_IDENTITY_SECRET` no servidor), `isolation` |
 | editar, adiar, excluir rifa | `solicitacoes` |
 | conta do apostador, login com Google | `conta`, `google` (o servidor sobe com `GOOGLE_PROVA=1`) |
 | qualquer tela (client/) | `telas` (60 telas × 390/820/1440; não pode reprovar) |

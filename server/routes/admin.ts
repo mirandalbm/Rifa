@@ -238,6 +238,8 @@ import {
 } from "@shared/plataforma";
 import { estadoWhatsApp, criarModelosFaltantes, enviarTeste } from "../services/whatsappSetup";
 import { validarConfigBusca } from "@shared/buscar";
+import { validarConfigIA } from "@shared/ia";
+import { configDaIA, segredoDaIA, sessaoDaIA } from "../services/ia";
 import { senhaInvalida } from "@shared/senha";
 import { conversasDenunciadasAbertas, decidirDenunciaDeConversa, detalheDaDenunciaDeConversa, fotoDaDenuncia, listarDenunciasDeConversa } from "../services/mensagens";
 import { decidirDenunciaDeGrupo, detalheDaDenunciaDeGrupo, listarDenunciasDeGrupo } from "../services/grupos";
@@ -3795,6 +3797,43 @@ adminRouter.put("/banner-pago/config", async (req, res, next) => {
     const salva = await setPlataforma({ bannerPago: req.body });
     await audit(req, "banner.config", "settings", "plataforma", { ...salva.bannerPago });
     res.json(salva.bannerPago);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/* ---------------- assistente de IA (Chatbase) ---------------- */
+
+/** A sessão do assistente: só master e organizador, e só se a plataforma ligou. Nunca devolve o segredo. */
+adminRouter.get("/ia/sessao", async (req, res, next) => {
+  try {
+    res.set("Cache-Control", "no-store");
+    res.json(await sessaoDaIA({ id: req.user!.id, role: req.user!.role, organizationId: orgOf(req) }));
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** A configuração do assistente (só a plataforma): liga, id do agente e a liberação para o organizador. */
+adminRouter.get("/ia/config", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    res.json(await configDaIA());
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.put("/ia/config", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    const candidata = validarConfigIA(req.body);
+    if (candidata.ligado && !segredoDaIA()) {
+      return res.status(409).json({ message: "Falta CHATBASE_IDENTITY_SECRET no servidor: sem ele a identidade do usuário não é verificada." });
+    }
+    const salva = await setPlataforma({ assistenteIA: candidata });
+    await audit(req, "ia.config", "settings", "plataforma", { ...salva.assistenteIA });
+    res.json({ config: salva.assistenteIA, segredoNoAmbiente: segredoDaIA() !== null });
   } catch (err) {
     next(err);
   }

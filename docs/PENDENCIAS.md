@@ -40,17 +40,30 @@ senha); **[código]** é trabalho no repositório.
   Também acha gente da casa (usuário, afiliado, cambista) por nome, e-mail
   ou código, no mesmo recorte.
 
-- [ ] **[código]** **Por último:** uma coluna à direita do painel para o
-  **Chatbase AI**, que interage com o sistema e auxilia o **administrador
-  master** e o **organizador** (só esses dois painéis; afiliado e cambista
-  ficam de fora). Fica por último, depois de a casca e as telas estarem
-  fechadas. Pontos a decidir quando chegar a hora: a coluna entra na casca
-  (`PanelShell`) como o painel de comentários entra na vitrine — recolhida
-  por padrão, aberta pelo botão da barra de cima, por cima do conteúdo no
-  celular; e **o que a IA enxerga e faz passa pelo mesmo recorte do painel**
+- [x] **[código]** Chatbase AI, **primeira fatia**: botão na barra de cima
+  do painel, sessão com identidade verificada (`CHATBASE_IDENTITY_SECRET`) e
+  configuração da plataforma (Aparência → Assistente de IA), desligado de
+  fábrica e com interruptor à parte para o organizador. **Falta no ambiente**:
+  conta e agente no Chatbase, o id do agente em Aparência e o segredo de
+  verificação no Railway.
+- [ ] **[código]** Chatbase AI, **o resto**: cobrança do organizador
+  (assinatura ou créditos, fora do saldo do patrocínio), as ações do
+  assistente no sistema (custom actions com confirmação e `audit_log`) e,
+  se der, a coluna fixa (o Chatbase abre uma janela flutuante; coluna de
+  verdade pede o iframe deles ou um assistente próprio). O plano original
+  continua valendo: só o master e o organizador (afiliado e cambista ficam de
+  fora), recolhido por padrão e aberto pelo botão da barra de cima;
+  e **o que a IA enxerga e faz passa pelo mesmo recorte do painel**
   (`orgOf`): o organizador só alcança a organização dele, e nenhuma ação sai
   sem a confirmação de quem está logado, com auditoria. Dado pessoal de
   comprador (telefone, CPF) nunca vai para o contexto da IA.
+
+- [ ] **[você]** Chatbase: criar a conta e o agente (treinado com a ajuda do
+  painel), copiar o **id do agente** (aparece no script de incorporação) e o
+  **segredo de verificação de identidade** (Configurações do agente →
+  Identity verification). O segredo vai só no Railway
+  (`CHATBASE_IDENTITY_SECRET`); o id vai em Aparência → Assistente de IA, e só
+  então liga. O organizador só depois da cobrança.
 
 ## 2. Para a rifa vender
 

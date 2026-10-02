@@ -19,6 +19,7 @@ import {
   type Campaign,
 } from "@shared/schema";
 import { termoAtual } from "./afiliados";
+import { apagarArquivosDeMidias } from "./media";
 import { commitSeed } from "./draw";
 import { validarRegulamentoExtra } from "@shared/regulamento";
 import {
@@ -491,7 +492,16 @@ export async function excluirRifa(campaignId: string) {
       DELETE FROM indicacoes WHERE status = 'pendente'
          AND order_id IN (SELECT id FROM orders WHERE campaign_id = ${campaignId}::uuid)
     `);
+    // As linhas somem pela cascata; os arquivos não. Guarda o que apagar do armazenamento
+    // e só apaga depois que a transação fechou (rollback não pode deixar mídia sem arquivo).
+    const midias = await tx
+      .select({ storageKey: campaignMedia.storageKey, posterKey: campaignMedia.posterKey, variants: campaignMedia.variants })
+      .from(campaignMedia)
+      .where(eq(campaignMedia.campaignId, campaignId));
     await tx.execute(sql`DELETE FROM campaigns WHERE id = ${campaignId}::uuid`);
-    return { ok: true };
+    return { ok: true, midias };
+  }).then(async ({ ok, midias }) => {
+    await apagarArquivosDeMidias(midias);
+    return { ok };
   });
 }

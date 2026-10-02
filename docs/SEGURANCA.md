@@ -108,8 +108,7 @@ o `ffmpeg` (sem shell, protocolos limitados, prazo, saída com teto) e nenhum
 
 **Sem correção nesta revisão** (as de 28/09 seguem valendo):
 
-- Sem limite de `ffmpeg` simultâneos: a entrada tem teto (10 mídias por rifa,
-  5 stories por organização), então fica anotado, não corrigido.
+- `ffmpeg` simultâneos: limitado a 2 (fila) desde o PR dos extras do pôster.
 - O identificador do aparelho continua vindo do cliente; o que segura é o IP.
 
 ### 28/09/2026

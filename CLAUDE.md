@@ -839,6 +839,13 @@ encaixe marcado no mesmo arquivo (`VIDEO_PROCESSOR`).
   vídeo. A coluna é nova: **`db:push` antes do código**.
 - **Vídeo grande fora do disco local** (bucket) acima de 200 MB não é baixado
   só para tirar o quadro: fica sem pôster até o Stream entrar.
+- **Fila e memória**: o `ffmpeg` roda no máximo 2 ao mesmo tempo
+  (`limiteDeFfmpeg()`, `FFMPEG_MAX_SIMULTANEOS`; o resto espera a vez, na
+  ordem), e o vídeo do bucket vai para o arquivo temporário **em pedaços**
+  (`comArquivoTemporarioEmPedacos()`, 4 MB por vez) — nunca inteiro na memória.
+  `excluirRifa()` apaga do armazenamento o original, o pôster e as variantes
+  (`apagarArquivosDeMidias()`), só **depois** de a transação fechar: rollback
+  não pode deixar mídia sem arquivo.
 - **Ficou fora**: transcode/HLS e o pôster de vídeo antigo (enviado antes
   desta mudança). `npm run poster` prova (com `ffmpeg` e sem; `FFMPEG_PATH`
   apontando para o vazio nos dois lados prova o caminho sem ele) e

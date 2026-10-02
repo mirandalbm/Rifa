@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { CONFIG_IA_PADRAO, idDaIA, metadadosDaIA, quemTemIA, validarConfigIA } from "../shared/ia";
-import { hashDaIA, segredoDaIA } from "../server/services/ia";
+import { hashDaIA, segredoDaIA } from "../server/services/iaIdentidade";
 import crypto from "node:crypto";
 
 const LIGADA = { ligado: true, agenteId: "agente_abc-123", paraOrganizador: false };

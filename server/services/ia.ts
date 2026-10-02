@@ -3,26 +3,17 @@
  *
  * O navegador carrega o script do Chatbase e se identifica com `user_id` +
  * `user_hash`. O hash (HMAC-SHA256 do id com o segredo de verificação) **só
- * nasce aqui**: o segredo vem de `CHATBASE_IDENTITY_SECRET` e nunca sai do
- * servidor — com ele, qualquer um se passaria por outro usuário nas ações.
- * Sem o segredo, o assistente não liga (não existe modo "sem verificação").
+ * nasce no servidor** (`iaIdentidade.ts`): o segredo vem de
+ * `CHATBASE_IDENTITY_SECRET` e nunca sai dele. Sem o segredo, o assistente não
+ * liga (não existe modo "sem verificação").
  */
-import crypto from "node:crypto";
 import { eq } from "drizzle-orm";
 import { db } from "../db";
 import { organizations } from "@shared/schema";
 import { idDaIA, metadadosDaIA, quemTemIA, type ConfigIA } from "@shared/ia";
 import type { Role } from "@shared/access";
 import { getPlataforma } from "./settings";
-
-export function segredoDaIA(env = process.env.CHATBASE_IDENTITY_SECRET): string | null {
-  const s = env?.trim();
-  return s && s.length >= 16 ? s : null;
-}
-
-export function hashDaIA(userId: string, segredo: string): string {
-  return crypto.createHmac("sha256", segredo).update(userId).digest("hex");
-}
+import { hashDaIA, segredoDaIA } from "./iaIdentidade";
 
 export interface SessaoDaIA {
   ligado: boolean;

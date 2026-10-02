@@ -239,7 +239,8 @@ import {
 import { estadoWhatsApp, criarModelosFaltantes, enviarTeste } from "../services/whatsappSetup";
 import { validarConfigBusca } from "@shared/buscar";
 import { validarConfigIA } from "@shared/ia";
-import { configDaIA, segredoDaIA, sessaoDaIA } from "../services/ia";
+import { configDaIA, sessaoDaIA } from "../services/ia";
+import { segredoDaIA } from "../services/iaIdentidade";
 import { senhaInvalida } from "@shared/senha";
 import { conversasDenunciadasAbertas, decidirDenunciaDeConversa, detalheDaDenunciaDeConversa, fotoDaDenuncia, listarDenunciasDeConversa } from "../services/mensagens";
 import { decidirDenunciaDeGrupo, detalheDaDenunciaDeGrupo, listarDenunciasDeGrupo } from "../services/grupos";

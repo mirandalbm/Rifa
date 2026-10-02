@@ -9,10 +9,14 @@
  */
 import crypto from "node:crypto";
 
-export function segredoDaIA(env = process.env.CHATBASE_IDENTITY_SECRET): string | null {
-  const s = env?.trim();
+/** O segredo só vale com 16 caracteres ou mais (sem espaços nas pontas). Puro: não lê o ambiente. */
+export function segredoValido(valor: string | null | undefined): string | null {
+  const s = valor?.trim();
   return s && s.length >= 16 ? s : null;
 }
+
+/** O segredo do ambiente, ou `null` — sem ele o assistente não liga. */
+export const segredoDaIA = (): string | null => segredoValido(process.env.CHATBASE_IDENTITY_SECRET);
 
 /** HMAC-SHA256 do id com o segredo, em hexadecimal — o `user_hash` do Chatbase. */
 export function hashDaIA(userId: string, segredo: string): string {

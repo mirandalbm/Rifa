@@ -10,18 +10,10 @@
 import { eq } from "drizzle-orm";
 import { db } from "../db";
 import { organizations } from "@shared/schema";
-import { idDaIA, metadadosDaIA, quemTemIA, type ConfigIA } from "@shared/ia";
+import { idDaIA, metadadosDaIA, quemTemIA, type ConfigIA, type SessaoDaIA } from "@shared/ia";
 import type { Role } from "@shared/access";
 import { getPlataforma } from "./settings";
 import { hashDaIA, segredoDaIA } from "./iaIdentidade";
-
-export interface SessaoDaIA {
-  ligado: boolean;
-  agenteId?: string;
-  userId?: string;
-  userHash?: string;
-  metadata?: Record<string, string>;
-}
 
 /** O que a plataforma vê ao configurar: a configuração e se o segredo está no ambiente (nunca o valor). */
 export async function configDaIA(): Promise<{ config: ConfigIA; segredoNoAmbiente: boolean }> {

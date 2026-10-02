@@ -160,7 +160,7 @@ arquitetura.
 | rodapé da plataforma: colunas de links, redes sociais e espaço de apoio | `shared/rodape.ts` (colunas), `validarRedes()`/`REDES_DO_RODAPE` em `shared/template.ts`, `client/src/components/RodapeDaPlataforma.tsx`, cartão "Redes sociais do rodapé" em `client/src/pages/adminAparencia.tsx`, `preencherRodapeComExemplo()` em `server/services/template.ts`, `tests/rodape.test.ts` |
 | app instalável (PWA): casca, nome e ícone | `client/public/sw.js`, `shared/manifest.ts` (o manifesto montado), `manifestDaPlataforma()`/`iconeDaMarca()` em `server/services/template.ts`, `client/public/manifest.webmanifest` (o de fábrica, se o banco falhar), `client/src/lib/pwa.ts`, `tests/manifest.test.ts`, `scripts/aparencia-test.ts` |
 | automação do Claude no projeto: `/provar` (escolhe as provas pela área mexida), `/pr-check` (o rito do PR: docs, capturas, rascunho, mesclagem) e o agente `revisor-de-invariantes` (lê o diff contra as invariantes) | `.claude/skills/provar/SKILL.md`, `.claude/skills/pr-check/SKILL.md`, `.claude/agents/revisor-de-invariantes.md`. **Invariante nova ou regra de PR nova entra nos três** — o `.gitignore` libera só estes (o resto de `.claude/skills` é instalado por `npx skills add`, com o `skills-lock.json`) |
-| assistente de IA nos painéis (Chatbase): botão, sessão e configuração | `shared/ia.ts` (regras), `server/services/ia.ts` (`sessaoDaIA`, hash), rotas `/ia/*` em `server/routes/admin.ts`, `assistenteIA` em `shared/plataforma.ts`, `client/src/lib/assistente.ts`, `client/src/components/AssistenteDoPainel.tsx` (botão na barra de cima de `PanelShell`), `AssistenteIACard.tsx` (Aparência), `scripts/ia-test.ts`, `tests/ia.test.ts` |
+| assistente de IA nos painéis (Chatbase): botão, sessão e configuração | `shared/ia.ts` (regras, papéis, `SessaoDaIA`), `server/services/iaIdentidade.ts` (segredo e hash, sem banco), `server/services/ia.ts` (`sessaoDaIA`), rotas `/ia/*` em `server/routes/admin.ts`, `assistenteIA` em `shared/plataforma.ts`, `client/src/lib/assistente.ts` (carrega, desmonta e o ciclo entre telas), `client/src/components/AssistenteDoPainel.tsx` (botão na barra de cima de `PanelShell`), `AssistenteIACard.tsx` (Aparência), `scripts/ia-test.ts`, `tests/ia.test.ts`, `tests/assistente.test.ts` |
 | segurança: onde mora cada defesa, lista de conferência de rota nova e as revisões | `docs/SEGURANCA.md` |
 | versões (celular, tablet, computador): registro das mudanças do celular, levas, mapa das telas e auditoria | `docs/VERSOES.md` (guia, mapa e registro — **anote no mesmo PR**), `scripts/telas.ts` (`npm run telas`), `tests/versoes.test.ts` |
 
@@ -2472,7 +2472,8 @@ do dia, mínimo e máximo de dias, vagas e segundos na tela são da plataforma
 ## Assistente de IA (Chatbase) — o que não pode afrouxar
 
 Um assistente nos painéis do **administrador master** e do **organizador**
-(afiliado e cambista ficam de fora). Hoje: o botão, a sessão e a configuração.
+(cambista nunca; o afiliado entra depois, com a cobrança). Hoje: o botão, a
+sessão e a configuração.
 
 - **Nasce desligado**, e só a plataforma configura (`PUT /admin/ia/config`,
   403 para organizador, no `npm run isolation`): liga, o id do agente e
@@ -2481,28 +2482,49 @@ Um assistente nos painéis do **administrador master** e do **organizador**
   seria uso de graça. Master é gratuito (a empresa é a dona).
 - **Identidade verificada pelo servidor.** O navegador se identifica no
   Chatbase com `user_id` + `user_hash`; o hash (HMAC-SHA256 do id com
-  `CHATBASE_IDENTITY_SECRET`) **só nasce em `server/services/ia.ts`** e o
-  segredo nunca sai do servidor nem aparece em resposta. Sem o segredo (16+
+  `CHATBASE_IDENTITY_SECRET`) **só nasce em `server/services/iaIdentidade.ts`**
+  e o segredo nunca sai do servidor nem aparece em resposta. Sem o segredo (16+
   caracteres) a plataforma não consegue ligar (409): não existe modo "sem
-  verificação" — com o hash errado o Chatbase tira o id das ações, mas com o
-  segredo vazado qualquer um se passa por outro usuário.
+  verificação". `iaIdentidade.ts` não toca o banco de propósito — a prova das
+  regras roda sem `DATABASE_URL`.
+- **Só o `user_id` é verificado.** O `user_metadata` (papel e organização)
+  viaja pelo navegador e a pessoa pode reescrevê-lo: é **contexto para o
+  modelo, nunca prova**. Quando as ações do assistente existirem, papel e
+  organização saem do `user_id` verificado (consultando `users`), jamais da
+  metadata.
 - **Só o necessário vai para o Chatbase**: um identificador opaco
   (`rifa-u-<id>`), o papel e, no organizador, o nome da organização
   (`metadadosDaIA()`). **Nunca** nome de pessoa, e-mail, telefone, CPF ou dado
-  de comprador. `GET /admin/ia/sessao` é `no-store` e devolve `{ ligado: false }`
-  a quem não tem direito (nunca erro que diga que existe).
+  de comprador. `GET /admin/ia/sessao` é `no-store`; quem não tem direito
+  recebe `{ ligado: false }` (e afiliado e cambista, 403, como em toda rota
+  `/admin`).
+- **O script do Chatbase roda na página do painel.** É código de terceiro com a
+  sessão de quem está nela: enxerga o que a tela mostra e alcança `/api/admin/*`
+  pela mesma origem. Não há SRI (o arquivo é uma URL viva) e a política de
+  conteúdo é só `frame-ancestors`. **Risco aceito e documentado** em
+  `docs/SEGURANCA.md`; "nenhum dado pessoal vai para ele" vale só para o que
+  nós enviamos. Isolar em iframe perderia a identidade verificada (a
+  documentação do Chatbase só a prevê no script); um assistente próprio
+  resolveria, e é a alternativa se o risco deixar de valer.
 - **O id do agente vai numa tag `<script>`**: só `[A-Za-z0-9_-]{8,64}`
   (`AGENTE_ID_RE`) — campo livre ali seria script de terceiro na tela do
-  painel.
-- **O script do Chatbase só carrega depois de um toque** (`abrirAssistente()`)
-  e **ao sair do painel tudo é desmontado** (`removerAssistente()`): a vitrine
-  pública nunca mostra o balão, nem com a identidade de quem estava no painel.
+  painel. O agente é um só para os dois papéis: restrinja os domínios
+  permitidos no próprio Chatbase ao endereço do Railway.
+- **O script só carrega depois de um toque** (`abrirAssistente()`). **Entre as
+  telas do painel o assistente fica** (cada tela monta a própria casca, e
+  `criarCiclo()` só remove quando ninguém monta de novo em 400 ms); **ao sair do
+  painel ou da conta tudo é desmontado** (`removerAssistente()`, que também
+  manda `resetUser` ao Chatbase): a vitrine pública nunca mostra o balão, nem
+  com a identidade de quem estava no painel. Script que ainda estava a caminho
+  quando o painel foi deixado é desmontado ao chegar (`geracao`).
 - **O que a IA fizer no sistema vai passar pelo recorte de `orgOf`** e, quando
   mexer em dinheiro, estorno, publicação ou exclusão, pedir confirmação da
   pessoa e entrar em `audit_log` como feita pela IA — ainda não existe, e é a
   fatia seguinte. O saldo do patrocínio não paga a IA.
-- `npm run ia` prova (com `CHATBASE_IDENTITY_SECRET` no servidor e no script)
-  e `tests/ia.test.ts` cobre as regras.
+- `npm run ia` prova (com `CHATBASE_IDENTITY_SECRET` no servidor e no script;
+  inclui afiliado e cambista) e `tests/ia.test.ts` e `tests/assistente.test.ts`
+  cobrem as regras e o ciclo. **O carregamento do script no navegador não tem
+  prova automática** (o `vitest` roda sem DOM): conferido à mão.
 
 ## Marketing e tráfego pago — o que não pode afrouxar
 

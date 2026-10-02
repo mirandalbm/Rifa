@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { CONFIG_IA_PADRAO, idDaIA, metadadosDaIA, quemTemIA, validarConfigIA } from "../shared/ia";
-import { hashDaIA, segredoDaIA } from "../server/services/iaIdentidade";
+import { hashDaIA, segredoValido } from "../server/services/iaIdentidade";
 import crypto from "node:crypto";
 
 const LIGADA = { ligado: true, agenteId: "agente_abc-123", paraOrganizador: false };
@@ -73,9 +73,10 @@ describe("assistente de IA: o que sai para o Chatbase", () => {
   });
 
   it("segredo ausente ou curto demais não conta", () => {
-    expect(segredoDaIA(undefined)).toBeNull();
-    expect(segredoDaIA("   ")).toBeNull();
-    expect(segredoDaIA("curto")).toBeNull();
-    expect(segredoDaIA(" segredo-de-verificacao-1234 ")).toBe("segredo-de-verificacao-1234");
+    expect(segredoValido(undefined)).toBeNull();
+    expect(segredoValido(null)).toBeNull();
+    expect(segredoValido("   ")).toBeNull();
+    expect(segredoValido("curto")).toBeNull();
+    expect(segredoValido(" segredo-de-verificacao-1234 ")).toBe("segredo-de-verificacao-1234");
   });
 });

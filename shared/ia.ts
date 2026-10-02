@@ -44,12 +44,29 @@ export function validarConfigIA(entrada: unknown): ConfigIA {
   return { ligado, agenteId, paraOrganizador: e.paraOrganizador === true };
 }
 
+/**
+ * Os papéis que podem ter o assistente: o master e o organizador. Afiliado e
+ * cambista ficam de fora (o afiliado entra depois, junto com a cobrança).
+ */
+export const PAPEIS_COM_IA: readonly Role[] = ["admin", "organizer"];
+
+export function papelTemIA(role: Role | undefined): boolean {
+  return role !== undefined && PAPEIS_COM_IA.includes(role);
+}
+
 /** Quem enxerga o assistente: o master sempre (com a IA ligada); o organizador só se a plataforma liberar. */
 export function quemTemIA(role: Role | undefined, config: ConfigIA): boolean {
-  if (!config.ligado || !config.agenteId) return false;
-  if (role === "admin") return true;
-  if (role === "organizer") return config.paraOrganizador;
-  return false;
+  if (!config.ligado || !config.agenteId || !papelTemIA(role)) return false;
+  return role === "admin" ? true : config.paraOrganizador;
+}
+
+/** O que o servidor entrega ao navegador e o navegador entrega ao Chatbase. */
+export interface SessaoDaIA {
+  ligado: boolean;
+  agenteId?: string;
+  userId?: string;
+  userHash?: string;
+  metadata?: Record<string, string>;
 }
 
 /** O identificador que o Chatbase conhece: opaco, nunca e-mail nem nome. */

@@ -48,11 +48,19 @@ async function main() {
   if (SEGREDO.length < 16) throw new Error("Defina CHATBASE_IDENTITY_SECRET (16+ caracteres) no servidor e aqui, com o mesmo valor.");
   const admin = new Cliente();
   const marina = new Cliente();
+  const joao = new Cliente();
+  const sergio = new Cliente();
   const anon = new Cliente();
   let r = await admin.req("POST", "/api/auth/login", { email: "admin@rifa.br", password: "admin123" });
   if (r.status !== 200) throw new Error(`login do administrador: HTTP ${r.status}`);
   r = await marina.req("POST", "/api/auth/login", { email: "marina@rifassaojose.br", password: "organizador123" });
   if (r.status !== 200) throw new Error(`login da organizadora: HTTP ${r.status}`);
+  const nomeDaOrganizacao = (await marina.req("GET", "/api/auth/me")).json?.organizacao?.nome;
+  if (!nomeDaOrganizacao) throw new Error("a organizadora não tem organização na sessão");
+  r = await joao.req("POST", "/api/auth/login", { email: "joao@rifa.br", password: "joao123" });
+  if (r.status !== 200) throw new Error(`login do afiliado: HTTP ${r.status}`);
+  r = await sergio.req("POST", "/api/auth/login", { email: "sergio@rifa.br", password: "cambista123" });
+  if (r.status !== 200) throw new Error(`login do cambista: HTTP ${r.status}`);
 
   const antes = (await admin.req("GET", "/api/admin/ia/config")).json?.config;
 
@@ -81,6 +89,9 @@ async function main() {
     r = await admin.req("PUT", "/api/admin/ia/config", { ligado: false, agenteId: '"><script>alert(1)</script>' });
     checa("id do agente com tag é recusado", r.status === 400, `HTTP ${r.status}`);
 
+    // Afiliado e cambista nunca recebem sessão — nem com o assistente ligado para todos.
+    // (Verificado adiante, com tudo ligado.)
+
     // Liga só para o master.
     r = await admin.req("PUT", "/api/admin/ia/config", { ligado: true, agenteId: AGENTE, paraOrganizador: false });
     checa("a plataforma liga", r.status === 200 && r.json?.config?.ligado === true && r.json?.segredoNoAmbiente === true, `HTTP ${r.status} ${r.texto.slice(0, 120)}`);
@@ -102,7 +113,13 @@ async function main() {
     const so = r.json;
     checa("o organizador recebe a sessão dele", r.status === 200 && so?.ligado === true && so?.userId !== s?.userId);
     checa("o hash dele confere", so?.userHash === crypto.createHmac("sha256", SEGREDO).update(so?.userId ?? "").digest("hex"));
-    checa("o contexto dele leva só o papel e o nome da organização", so?.metadata?.papel === "organizador" && Object.keys(so?.metadata ?? {}).sort().join() === "organizacao,papel", JSON.stringify(so?.metadata));
+    checa("o contexto dele leva só o papel e o nome da organização dele", so?.metadata?.papel === "organizador" && so?.metadata?.organizacao === nomeDaOrganizacao && Object.keys(so?.metadata ?? {}).sort().join() === "organizacao,papel", JSON.stringify(so?.metadata));
+    r = await joao.req("GET", "/api/admin/ia/sessao");
+    checa("o afiliado não recebe sessão (403)", r.status === 403 && !r.texto.includes("userHash"), `HTTP ${r.status}`);
+    r = await sergio.req("GET", "/api/admin/ia/sessao");
+    checa("o cambista não recebe sessão (403)", r.status === 403 && !r.texto.includes("userHash"), `HTTP ${r.status}`);
+    r = await joao.req("GET", "/api/admin/ia/config");
+    checa("o afiliado não lê a configuração (403)", r.status === 403, `HTTP ${r.status}`);
     checa("a configuração não vaza para a vitrine", !(await anon.req("GET", "/api/public/app")).texto.includes(AGENTE));
 
     // Desligar derruba tudo na hora.

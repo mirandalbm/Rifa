@@ -1,21 +1,24 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Sparkles } from "lucide-react";
-import { abrirAssistente, fecharAssistente, removerAssistente, type SessaoDoAssistente } from "@/lib/assistente";
+import type { SessaoDaIA } from "@shared/ia";
+import { abrirAssistente, assistenteAberto, cicloDoPainel, fecharAssistente } from "@/lib/assistente";
 
 /**
  * O botão do assistente de IA na barra de cima do painel (master e
  * organizador). Só existe se a plataforma ligou e o servidor entregou a
- * sessão; o script do Chatbase só carrega no primeiro toque. Ao sair do
- * painel, o assistente é desmontado por inteiro.
+ * sessão; o script do Chatbase só carrega no primeiro toque. O assistente
+ * segue aberto ao trocar de tela do painel e é desmontado por inteiro ao sair
+ * do painel ou da conta (`cicloDoPainel`).
  */
 export function AssistenteDoPainel() {
-  const { data } = useQuery<SessaoDoAssistente>({ queryKey: ["/api/admin/ia/sessao"], staleTime: 5 * 60_000 });
-  const [aberto, setAberto] = useState(false);
-  const agente = useRef<string | undefined>(undefined);
-  agente.current = data?.agenteId;
+  const { data } = useQuery<SessaoDaIA>({ queryKey: ["/api/admin/ia/sessao"], staleTime: 5 * 60_000 });
+  const [aberto, setAberto] = useState(assistenteAberto);
 
-  useEffect(() => () => removerAssistente(agente.current), []);
+  useEffect(() => {
+    cicloDoPainel.montou();
+    return () => cicloDoPainel.desmontou();
+  }, []);
 
   if (!data?.ligado) return null;
   return (

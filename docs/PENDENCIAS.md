@@ -63,7 +63,10 @@ senha); **[código]** é trabalho no repositório.
   **segredo de verificação de identidade** (Configurações do agente →
   Identity verification). O segredo vai só no Railway
   (`CHATBASE_IDENTITY_SECRET`); o id vai em Aparência → Assistente de IA, e só
-  então liga. O organizador só depois da cobrança.
+  então liga. O organizador só depois da cobrança. No agente, **restrinja os
+  domínios permitidos** ao endereço do Railway (o id do agente chega ao
+  navegador). **Decida** se aceita o script do Chatbase na página do painel
+  (risco aceito em `docs/SEGURANCA.md`) ou prefere um assistente próprio.
 
 ## 2. Para a rifa vender
 
@@ -258,7 +261,9 @@ código só depois do plano combinado com ele.
 - **Chatbase AI nos painéis:** é **receita da plataforma** — o uso é **pago**
   para organizador e afiliado e **gratuito para o administrador master**
   (propriedade da empresa). Todas as telas seguem **livres no uso manual**;
-  só a IA é cobrada. Alcance: afiliado — gestão e edição das publicações;
+  só a IA é cobrada. **Hoje só o master e o organizador (este desligado) têm o
+  botão; o afiliado entra junto com a cobrança.** Alcance: afiliado — gestão e
+  edição das publicações;
   organizador — tudo, inclusive lançar uma campanha com passo a passo e
   gestão e edição de publicações; master — tudo. Regras que não mudam: o
   recorte de `orgOf` vale para a IA como para a pessoa; nada de dado

@@ -42,7 +42,8 @@ export function AssistenteIACard() {
         <div className="space-y-4 p-4 text-sm">
           <p className="text-xs text-muted">
             Um assistente no painel do administrador master e, se você liberar, do organizador. A identidade de quem fala é
-            verificada pelo servidor; nenhum dado pessoal de comprador vai para ele.
+            verificada pelo servidor e nós não enviamos dado pessoal de comprador a ele. Atenção: o script do Chatbase roda na
+            página do painel e enxerga o que ela mostra.
           </p>
           <p className={`text-xs ${data?.segredoNoAmbiente ? "text-green-deep" : "text-red"}`}>
             {data?.segredoNoAmbiente
@@ -61,19 +62,20 @@ export function AssistenteIACard() {
               }}
               autoComplete="off"
               spellCheck={false}
+              disabled={!data}
               aria-invalid={idInvalido}
             />
             {idInvalido ? <p className="mt-1 text-xs text-red">De 8 a 64 caracteres: letras, números, _ e -.</p> : null}
           </div>
           <label className="flex items-start gap-2">
-            <input type="checkbox" checked={ligado} onChange={(e) => { setMsg(null); setLigado(e.target.checked); }} className="mt-1 h-5 w-5" />
+            <input type="checkbox" disabled={!data} checked={ligado} onChange={(e) => { setMsg(null); setLigado(e.target.checked); }} className="mt-1 h-5 w-5" />
             <span>
               <span className="font-semibold">Assistente ligado</span>
               <span className="block text-xs text-muted">Desligado, o botão não aparece em painel nenhum.</span>
             </span>
           </label>
           <label className="flex items-start gap-2">
-            <input type="checkbox" checked={paraOrganizador} onChange={(e) => { setMsg(null); setParaOrganizador(e.target.checked); }} className="mt-1 h-5 w-5" />
+            <input type="checkbox" disabled={!data} checked={paraOrganizador} onChange={(e) => { setMsg(null); setParaOrganizador(e.target.checked); }} className="mt-1 h-5 w-5" />
             <span>
               <span className="font-semibold">Liberar para o organizador</span>
               <span className="block text-xs text-muted">
@@ -82,7 +84,7 @@ export function AssistenteIACard() {
             </span>
           </label>
           <div className="flex items-center gap-3">
-            <Button disabled={salvar.isPending || idInvalido} onClick={() => salvar.mutate()}>
+            <Button disabled={!data || salvar.isPending || idInvalido} onClick={() => salvar.mutate()}>
               Salvar
             </Button>
             {msg ? (

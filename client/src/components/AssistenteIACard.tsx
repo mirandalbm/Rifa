@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AGENTE_ID_RE, type ConfigIA } from "@shared/ia";
 import { DIAS_DO_CICLO, MAX_PACOTES } from "@shared/iaCobranca";
 import { Button, Campo, Card } from "@/components/bits";
+import { ACOES_DA_IA } from "@shared/iaAcoes";
 import { apiRequest } from "@/lib/queryClient";
 
 const reais = (cents: number) => (cents / 100).toFixed(2).replace(".", ",");
@@ -279,6 +280,7 @@ export function AssistenteIACard() {
               ) : null}
             </div>
           </fieldset>
+          <AcoesParaOChatbase />
           <div className="flex items-center gap-3">
             <Button
               disabled={!data || salvar.isPending || idInvalido}
@@ -298,5 +300,62 @@ export function AssistenteIACard() {
         </div>
       </Card>
     </div>
+  );
+}
+
+/**
+ * As ações que o assistente sabe pedir, para a plataforma cadastrar no
+ * Chatbase (Actions → Custom action, tipo "Client"), com o mesmo nome e os
+ * mesmos parâmetros. Quem executa é o nosso servidor; o que grava pede a
+ * confirmação de quem conversa.
+ */
+function AcoesParaOChatbase() {
+  return (
+    <details className="rounded-lg border border-line p-3">
+      <summary className="cursor-pointer text-sm font-semibold">
+        Ações do assistente ({ACOES_DA_IA.length}): cadastre no Chatbase
+      </summary>
+      <p className="mt-2 text-xs text-muted">
+        No Chatbase, em Actions, crie cada uma como ação do tipo "Client", com o
+        nome e os parâmetros abaixo. Nosso servidor executa no recorte de quem
+        conversa; o que grava só acontece depois de a pessoa confirmar na
+        coluna, e entra na auditoria como feito pelo assistente. Ação sem
+        cadastro lá simplesmente não é pedida.
+      </p>
+      <ul className="mt-3 space-y-3">
+        {ACOES_DA_IA.map((a) => (
+          <li key={a.nome} className="space-y-1 border-t border-line pt-2">
+            <p className="flex flex-wrap items-center gap-2">
+              <code className="break-all rounded bg-mist px-1.5 py-0.5 text-xs">
+                {a.nome}
+              </code>
+              <span className="text-xs text-muted">
+                {a.quem
+                  .map((q) =>
+                    q === "plataforma"
+                      ? "plataforma"
+                      : q === "organizacao"
+                        ? "organizador"
+                        : "afiliado",
+                  )
+                  .join(", ")}
+                {a.grava ? " · pede confirmação" : " · só consulta"}
+              </span>
+            </p>
+            <p className="text-xs">{a.descricao}</p>
+            {a.parametros.length ? (
+              <ul className="ml-4 list-disc text-xs text-muted">
+                {a.parametros.map((p) => (
+                  <li key={p.nome}>
+                    <code>{p.nome}</code> ({p.tipo === "number" ? "número" : "texto"}
+                    {p.obrigatorio ? ", obrigatório" : ", opcional"}): {p.descricao}
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </li>
+        ))}
+      </ul>
+    </details>
   );
 }

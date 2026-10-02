@@ -162,6 +162,7 @@ arquitetura.
 | automação do Claude no projeto: `/provar` (escolhe as provas pela área mexida), `/pr-check` (o rito do PR: docs, capturas, rascunho, mesclagem) e o agente `revisor-de-invariantes` (lê o diff contra as invariantes) | `.claude/skills/provar/SKILL.md`, `.claude/skills/pr-check/SKILL.md`, `.claude/agents/revisor-de-invariantes.md`. **Invariante nova ou regra de PR nova entra nos três** — o `.gitignore` libera só estes (o resto de `.claude/skills` é instalado por `npx skills add`, com o `skills-lock.json`) |
 | assistente de IA nos painéis (Chatbase): conversa pelo servidor, coluna, uso e configuração | `shared/ia.ts` (regras, papéis, titular, barreira de dado pessoal), `server/services/chatbase.ts` (cliente da API v2), `server/services/ia.ts` (conversa e uso), `server/routes/ia.ts` (`/api/ia/*`), `/ia/config` em `server/routes/admin.ts`, `assistenteIA` em `shared/plataforma.ts`, `ia_conversas`/`ia_uso` em `shared/schema.ts`, `client/src/lib/assistente.ts` (coluna aberta lembrada), `client/src/components/AssistenteDoPainel.tsx` (botão e coluna, em `PanelShell`), `AssistenteIACard.tsx` (Aparência), `scripts/ia-test.ts`, `tests/ia.test.ts`, `tests/chatbase.test.ts`, `tests/assistente.test.ts` |
 | cobrança do assistente de IA (assinatura com franquia, pacotes avulsos, Pix da plataforma, débito por mensagem, vencimento) | `shared/iaCobranca.ts` (regras), `server/services/iaCobranca.ts` (conta, livro, Pix, débito), `ia_contas`/`ia_pagamentos`/`ia_lancamentos` em `shared/schema.ts`, `/api/ia/conta` e `/api/ia/pagamentos` em `server/routes/ia.ts`, `confirmarPagamentoIA` no webhook, relógio em `server/jobs/index.ts`, `client/src/components/PlanoDoAssistente.tsx` (o plano na coluna), preços em `AssistenteIACard.tsx`, `scripts/ia-test.ts`, `tests/iaCobranca.test.ts` |
+| ações do assistente de IA no sistema (consultar, publicar, legenda, excluir, estorno; confirmação e auditoria) | `shared/iaAcoes.ts` (catálogo, entrada, barreira do resultado), `server/services/iaAcoes.ts` (o que cada ação faz, no recorte), `tratarChamadas`/`seguirComAcoes`/`decidirAcaoDaIA` em `server/services/ia.ts`, `enviarResultado` em `server/services/chatbase.ts`, `ia_acoes` em `shared/schema.ts`, `/api/ia/acoes/:id/confirmar\|recusar` em `server/routes/ia.ts`, `CartaoDaAcao` em `AssistenteDoPainel.tsx`, a lista para o Chatbase em `AssistenteIACard.tsx`, `scripts/ia-acoes-test.ts`, `tests/iaAcoes.test.ts` |
 | segurança: onde mora cada defesa, lista de conferência de rota nova e as revisões | `docs/SEGURANCA.md` |
 | versões (celular, tablet, computador): registro das mudanças do celular, levas, mapa das telas e auditoria | `docs/VERSOES.md` (guia, mapa e registro — **anote no mesmo PR**), `scripts/telas.ts` (`npm run telas`), `tests/versoes.test.ts` |
 
@@ -188,11 +189,10 @@ arquitetura.
   relatório. O que mais ficou para depois está em `docs/SEGURANCA.md`.
 
 - **Chatbase AI nos painéis**: a conversa (pelo nosso servidor), a coluna, a
-  medição do uso e a cobrança existem (seções "Assistente de IA" e "Cobrança do
-  assistente"). **Ainda não existem**: as ações do assistente no sistema (com
-  confirmação e auditoria) e o ajuste de crédito pela plataforma (cortesia,
-  devolução de Pix estornado). As regras estão em `docs/PENDENCIAS.md` (seção
-  1b).
+  medição do uso, a cobrança e as ações no sistema existem (seções "Assistente
+  de IA", "Cobrança do assistente" e "Ações do assistente"). **Ainda não
+  existe**: o ajuste de crédito pela plataforma (cortesia). As regras estão em
+  `docs/PENDENCIAS.md` (seção 1b).
 
 - **Transcode do vídeo** (recompressão, HLS): hoje servimos o arquivo
   original. O pôster já existe (seção Mídia); o transcode é trabalho pesado
@@ -2543,11 +2543,9 @@ login). Cambista e apostador não têm.
   a coluna): quem entra em seguida na mesma aba não vê a conversa de quem saiu.
   Com erro na leitura, nada da conversa aparece e "Nova conversa" fica
   disponível.
-- **O que a IA fizer no sistema vai passar pelo recorte de `orgOf`** e, quando
-  mexer em dinheiro, estorno, publicação ou exclusão, pedir confirmação da
-  pessoa e entrar em `audit_log` como feita pela IA — ainda não existe (as
-  "client actions" do Chatbase chegam como `tool-call` e hoje são ignoradas). O
-  saldo do patrocínio não paga a IA.
+- **O que a IA faz no sistema** são as ações da seção "Ações do assistente"
+  (abaixo): recorte de `orgOf`, confirmação da pessoa para o que grava e
+  `audit_log` como feita pela IA. O saldo do patrocínio não paga a IA.
 - As tabelas `ia_conversas` e `ia_uso` sobem com o `db:push` **antes** do código.
 - `npm run ia` prova (com `CHATBASE_API_KEY` e `CHATBASE_API_URL` apontando para
   o Chatbase de mentira que a própria prova sobe, no servidor e no script),
@@ -2619,6 +2617,56 @@ patrocínio). Regras puras em `shared/iaCobranca.ts`; o resto em
   de desenvolvimento `/api/dev/ia-pagamento/:codigo`, a mesma confirmação do
   webhook); `npm run isolation` confere `/api/ia/conta` e `/api/ia/pagamentos`;
   `tests/iaCobranca.test.ts` cobre as regras.
+
+## Ações do assistente — o que não pode afrouxar
+
+O assistente faz coisas no painel pelas "client actions" da API v2 do
+Chatbase: a resposta traz partes `tool-call` (nome e entrada), o nosso
+servidor executa e devolve o resultado (`tool-result`), e o agente continua.
+O catálogo mora em `shared/iaAcoes.ts` (`ACOES_DA_IA`) e cada ação é
+cadastrada no Chatbase (tipo "Client") com o mesmo nome — a lista está em
+Aparência → Assistente de IA.
+
+- **A entrada vem da IA, e a IA lê o que qualquer um escreve**: é dado,
+  nunca instrução. `validarEntrada()` trata como corpo de requisição (só as
+  chaves conhecidas, no formato); ação desconhecida, de outro papel ou com
+  entrada errada volta como erro para o agente, sem executar.
+- **O recorte é o da sessão** (`orgOf(req)`; o afiliado só pelo cadastro
+  dele): a rifa, o pedido e o chamado do vizinho "não existem". O afiliado só
+  consulta (`minhas_comissoes`); nenhuma ação que grava é dele.
+- **Ler é na hora; gravar só com confirmação.** Publicar, trocar a legenda,
+  apagar a rifa e estornar (o chamado já aprovado, pelo protocolo) viram uma
+  linha `pendente` em `ia_acoes`; a coluna mostra o **resumo montado pelo
+  servidor** com os dados de verdade (`prepararGravacao()`), nunca o texto da
+  IA, e nada muda até o Confirmar. O que já se sabe que vai falhar (rifa do
+  vizinho, publicação sem banner ou autorização, legenda com telefone, chamado
+  não aprovado) falha antes de pedir confirmação.
+- **Confirmar é `UPDATE` condicional** (`pendente` → `executando`, dentro de
+  `ACAO_PENDENTE_MIN`): dois cliques, uma execução e um 409. Só quem conversava
+  decide (a de outra pessoa é 404), e a execução usa a **sessão de quem
+  confirmou** — o alvo passa de novo pelo recorte.
+- **Gravar passa pelos mesmos serviços das rotas** (`publishCampaign`,
+  `salvarLegenda`, `excluirRifa`, `executarEstorno`): não existe segundo
+  caminho com regra diferente. E entra em `audit_log` com a mesma ação da rota
+  e `viaIA: true` (e o id da ação). Estornar continua sendo só o do chamado
+  aprovado — a IA não abre botão solto de estorno.
+- **A pendente vence**: escrever outra mensagem, "Nova conversa", trocar o
+  agente ou passar do prazo. O agente recebe o resultado "não confirmado" e
+  ninguém confirma depois (409).
+- **Uma confirmação de cada vez**: duas gravações na mesma resposta, a segunda
+  é recusada. E as rodadas de ação por mensagem têm teto
+  (`RODADAS_DE_ACAO_MAX`): cada uma é outra chamada paga ao Chatbase.
+- **Nada de dado pessoal no resultado**: o resultado é montado sem nome,
+  telefone e CPF de comprador, e cada texto dele ainda passa pela barreira da
+  mensagem (`resultadoSemDadoPessoal()`); o que parecer dado pessoal é retido.
+- **Cada resposta do Chatbase é uso e débito**, inclusive a que segue uma
+  ação (`gravarResposta()`); confirmar exige saldo e conta no limite como uma
+  mensagem.
+- A tabela `ia_acoes` sobe com o `db:push` **antes** do código.
+- `npm run ia-acoes` prova tudo isso contra a API de verdade (com o Chatbase de
+  mentira que pede ações); `npm run isolation` confere visitante, cambista e
+  organizador sem o assistente nas rotas de confirmar e recusar;
+  `tests/iaAcoes.test.ts` cobre as regras.
 
 ## Marketing e tráfego pago — o que não pode afrouxar
 

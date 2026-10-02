@@ -27,7 +27,7 @@ cada passo já foi esquecido uma vez.
    - `docs/PENDENCIAS.md`: atualize no mesmo PR que fechar um item.
 4. **Revisão**: se mexeu em dinheiro, cota, estorno, rota do painel,
    antifraude, dado de comprador ou o assistente de IA (a chave, o que sai
-   para o Chatbase, o uso contado), chame o agente `revisor-de-invariantes`
+   para o Chatbase, o uso contado, as ações que ele executa), chame o agente `revisor-de-invariantes`
    antes de abrir o PR.
 5. **Capturas** de qualquer mudança visível (claro e escuro; celular, tablet
    e computador conforme o caso) — mande ao usuário com `SendUserFile`. Em

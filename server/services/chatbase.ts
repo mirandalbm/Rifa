@@ -7,6 +7,7 @@
  * endereço é sempre o do Chatbase.
  */
 import { milicreditosUsados, textoDasPartes, type MensagemDaIA } from "@shared/ia";
+import { chamadasDasPartes, type ChamadaDeAcao, type SaidaDaAcao } from "@shared/iaAcoes";
 
 export const CHATBASE_API_PADRAO = "https://www.chatbase.co/api/v2";
 
@@ -43,6 +44,8 @@ export interface RespostaDoChatbase {
   conversationId: string;
   /** Milésimos de crédito; `null` quando o Chatbase não informou. */
   milicreditos: number | null;
+  /** As ações que o agente pediu nesta resposta ("client actions"); vazio na resposta comum. */
+  chamadas: ChamadaDeAcao[];
 }
 
 export interface OpcoesDoCliente {
@@ -102,9 +105,13 @@ export class ClienteChatbase {
     throw new ChatbaseError("O assistente não respondeu. Tente de novo.", 502);
   }
 
-  /** Uma mensagem, resposta inteira (sem streaming). */
-  async enviar(p: { agenteId: string; mensagem: string; conversationId?: string | null; userId: string }): Promise<RespostaDoChatbase> {
-    const corpo: Record<string, unknown> = { message: p.mensagem, stream: false, userId: p.userId };
+  /**
+   * Uma mensagem, resposta inteira (sem streaming). Sem `mensagem` (só com a
+   * conversa), o agente continua a partir do resultado de uma ação.
+   */
+  async enviar(p: { agenteId: string; mensagem?: string | null; conversationId?: string | null; userId: string }): Promise<RespostaDoChatbase> {
+    const corpo: Record<string, unknown> = { stream: false, userId: p.userId };
+    if (p.mensagem) corpo.message = p.mensagem;
     if (p.conversationId) corpo.conversationId = p.conversationId;
     const j = (await this.pedir(`/agents/${encodeURIComponent(p.agenteId)}/chat`, { method: "POST", body: JSON.stringify(corpo) })) as {
       data?: { id?: unknown; parts?: unknown; metadata?: { conversationId?: unknown; usage?: { credits?: unknown } } };
@@ -115,7 +122,15 @@ export class ClienteChatbase {
     if (!d || !id || !conversationId) throw new ChatbaseError("O assistente respondeu num formato inesperado. Tente de novo.", 502);
     const milicreditos = milicreditosUsados(d.metadata?.usage?.credits);
     if (milicreditos === null) console.warn(`[ia] Chatbase respondeu a mensagem ${id} sem usage.credits — fica sem medida.`);
-    return { id, texto: textoDasPartes(d.parts), conversationId, milicreditos };
+    return { id, texto: textoDasPartes(d.parts), conversationId, milicreditos, chamadas: chamadasDasPartes(d.parts) };
+  }
+
+  /** O resultado de uma ação pedida pelo agente; depois, `enviar` sem mensagem para ele continuar. */
+  async enviarResultado(p: { agenteId: string; conversationId: string; toolCallId: string; saida: SaidaDaAcao }): Promise<void> {
+    await this.pedir(
+      `/agents/${encodeURIComponent(p.agenteId)}/conversations/${encodeURIComponent(p.conversationId)}/tool-result`,
+      { method: "POST", body: JSON.stringify({ toolCallId: p.toolCallId, output: p.saida }) },
+    );
   }
 
   /** As mensagens mais recentes de uma conversa, na ordem em que aconteceram. */

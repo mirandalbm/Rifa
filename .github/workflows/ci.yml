@@ -128,6 +128,7 @@ jobs:
       - run: npm run google
       - run: npm run marketing
       - run: npm run ia
+      - run: npm run ia-acoes
       - run: npm run load
 
       - name: Log do servidor

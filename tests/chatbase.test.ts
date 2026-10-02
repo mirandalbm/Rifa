@@ -34,7 +34,7 @@ describe("cliente do Chatbase: enviar", () => {
     const s = falso(() => json(RESPOSTA));
     const c = new ClienteChatbase({ chave: CHAVE, fetch: s.f });
     const r = await c.enviar({ agenteId: "agente_abc-123", mensagem: "oi", userId: "rifa-u-1" });
-    expect(r).toEqual({ id: "msg_1", texto: "Olá! Como posso ajudar?", conversationId: "conv_1", milicreditos: 2000 });
+    expect(r).toEqual({ id: "msg_1", texto: "Olá! Como posso ajudar?", conversationId: "conv_1", milicreditos: 2000, chamadas: [] });
     expect(s.chamadas).toHaveLength(1);
     expect(s.chamadas[0].url).toBe(`${CHATBASE_API_PADRAO}/agents/agente_abc-123/chat`);
     expect(s.chamadas[0].metodo).toBe("POST");
@@ -101,6 +101,42 @@ describe("cliente do Chatbase: enviar", () => {
     const demora = ((_: unknown, init?: RequestInit) =>
       new Promise((_r, rejeita) => init?.signal?.addEventListener("abort", () => rejeita(Object.assign(new Error("tempo"), { name: "TimeoutError" }))))) as unknown as typeof fetch;
     await expect(new ClienteChatbase({ chave: CHAVE, fetch: demora, prazoMs: 30 }).enviar({ agenteId: "agente_abc-123", mensagem: "oi", userId: "u" })).rejects.toMatchObject({ status: 504 });
+  });
+});
+
+describe("cliente do Chatbase: ações (client actions)", () => {
+  it("lê as partes tool-call da resposta, ao lado do texto", async () => {
+    const comAcao = JSON.parse(JSON.stringify(RESPOSTA));
+    comAcao.data.parts = [
+      { type: "text", text: "Vou conferir." },
+      { type: "tool-call", toolCallId: "call_1", toolName: "consultar_pedido", input: { codigo: "12345678" } },
+      { type: "tool-call", toolName: "sem_id" },
+    ];
+    comAcao.data.metadata.finishReason = "tool-calls";
+    const s = falso(() => json(comAcao));
+    const r = await new ClienteChatbase({ chave: CHAVE, fetch: s.f }).enviar({ agenteId: "agente_abc-123", mensagem: "pedido?", userId: "u" });
+    expect(r.texto).toBe("Vou conferir.");
+    expect(r.chamadas).toEqual([{ toolCallId: "call_1", nome: "consultar_pedido", entrada: { codigo: "12345678" } }]);
+  });
+
+  it("sem mensagem, só continua a conversa (depois de um resultado)", async () => {
+    const s = falso(() => json(RESPOSTA));
+    await new ClienteChatbase({ chave: CHAVE, fetch: s.f }).enviar({ agenteId: "agente_abc-123", conversationId: "conv_1", userId: "u" });
+    expect(s.chamadas[0].corpo).toEqual({ stream: false, userId: "u", conversationId: "conv_1" });
+  });
+
+  it("manda o resultado da ação para a conversa, com a chave só no cabeçalho", async () => {
+    const s = falso(() => json({ data: { ok: true } }));
+    await new ClienteChatbase({ chave: CHAVE, fetch: s.f }).enviarResultado({
+      agenteId: "agente_abc-123",
+      conversationId: "conv 1",
+      toolCallId: "call_1",
+      saida: { status: "success", data: { pago: true } },
+    });
+    expect(s.chamadas[0].url).toBe(`${CHATBASE_API_PADRAO}/agents/agente_abc-123/conversations/conv%201/tool-result`);
+    expect(s.chamadas[0].metodo).toBe("POST");
+    expect(s.chamadas[0].auth).toBe(`Bearer ${CHAVE}`);
+    expect(s.chamadas[0].corpo).toEqual({ toolCallId: "call_1", output: { status: "success", data: { pago: true } } });
   });
 });
 

@@ -59,10 +59,15 @@ senha); **[código]** é trabalho no repositório.
   provedor já tira os créditos sozinho. O Pix vencido não é cancelado no
   provedor (no Asaas o QR vale até o fim do dia); se for pago tarde, credita
   normalmente.
-- [ ] **[código]** Chatbase AI, **ações** no sistema (as "client actions" do
-  Chatbase): no recorte de `orgOf` (afiliado: as publicações dele), com
-  confirmação para dinheiro, estorno, publicação e exclusão, e `audit_log` como
-  feita pela IA.
+- [x] **[código]** Chatbase AI, **ações** no sistema (as "client actions" do
+  Chatbase): consultar rifas, vendas, pedido e pendências (e, para o afiliado,
+  as comissões) na hora; publicar, trocar a legenda, apagar a rifa e estornar
+  um chamado aprovado só depois de a pessoa confirmar na coluna. No recorte de
+  `orgOf`, pelos mesmos serviços das rotas e com `audit_log` como feita pela IA.
+- [ ] **[você]** Chatbase: em Actions, cadastrar cada ação da lista de
+  Aparência → Assistente de IA ("Ações do assistente") como ação do tipo
+  **Client**, com o mesmo nome e os mesmos parâmetros. Ação não cadastrada lá
+  simplesmente não é pedida.
 - [ ] **[você]** Chatbase: criar a conta e o agente (treinado com a ajuda do
   painel), copiar o **id do agente** e criar uma **chave da API** (Settings →
   API keys). A chave vai só no Railway (`CHATBASE_API_KEY`); o id vai em

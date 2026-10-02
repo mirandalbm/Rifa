@@ -2,7 +2,7 @@ import { Router, type NextFunction, type Request, type Response } from "express"
 import { currentRole } from "../auth";
 import { papelTemIA } from "@shared/ia";
 import { ChatbaseError } from "../services/chatbase";
-import { IAError, contaDaIA, conversarComIA, historicoDaIA, novaConversaDaIA, pagarIA, sessaoDaIA } from "../services/ia";
+import { IAError, contaDaIA, conversarComIA, decidirAcaoDaIA, historicoDaIA, novaConversaDaIA, pagarIA, sessaoDaIA } from "../services/ia";
 import { CobrancaIAError } from "../services/iaCobranca";
 
 /**
@@ -36,7 +36,7 @@ iaRouter.get("/sessao", async (req, res, next) => {
 
 iaRouter.get("/conversa", async (req, res, next) => {
   try {
-    res.json({ mensagens: await historicoDaIA(req) });
+    res.json(await historicoDaIA(req));
   } catch (err) {
     responderErro(err, res, next);
   }
@@ -54,6 +54,26 @@ iaRouter.delete("/conversa", async (req, res, next) => {
 iaRouter.post("/mensagens", async (req, res, next) => {
   try {
     res.json(await conversarComIA(req, req.body?.texto));
+  } catch (err) {
+    responderErro(err, res, next);
+  }
+});
+
+/**
+ * A pessoa confirma ou recusa a ação que o assistente pediu (publicar, legenda,
+ * excluir, estorno). Só quem conversava decide; a de outra pessoa é 404.
+ */
+iaRouter.post("/acoes/:id/confirmar", async (req, res, next) => {
+  try {
+    res.json(await decidirAcaoDaIA(req, req.params.id, true));
+  } catch (err) {
+    responderErro(err, res, next);
+  }
+});
+
+iaRouter.post("/acoes/:id/recusar", async (req, res, next) => {
+  try {
+    res.json(await decidirAcaoDaIA(req, req.params.id, false));
   } catch (err) {
     responderErro(err, res, next);
   }

@@ -489,8 +489,10 @@ Na ordem de entrega do plano:
   não foi feito (janela de 3 h); só dado real. Ficou para depois: "ao vivo"
   declarado pela organização fora do sorteio (hoje só a transmissão do
   sorteio) e contador de espectadores (só com dado real do provedor).
-- [ ] **[código]** Perfil do usuário: os bilhetes como publicações privadas
+- [x] **[código]** Perfil do usuário: os bilhetes como publicações privadas
   (uma por compra ou carrossel), com data, hora, prêmio e números.
+  Feito em `/perfil/bilhetes` (`npm run bilhetes`): um cartão por compra
+  paga, só para a própria conta.
 - [ ] **[código]** Ferramentas de publicação: as do Instagram adaptadas à
   criação de rifa (organização); para o influenciador, criar e republicar
   com o material da organização, com publicação direta ou só depois da

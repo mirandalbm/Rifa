@@ -58,6 +58,8 @@ import { quandoPublicou } from "@shared/publicacao";
 import { apiRequest } from "@/lib/queryClient";
 import { useSession, useLogout } from "@/lib/session";
 import { TemaCiclo } from "@/components/TemaToggle";
+import { AssistenteDoPainel } from "@/components/AssistenteDoPainel";
+import { papelTemIA } from "@shared/ia";
 import { Marca } from "@/components/Marca";
 import { useTemplate } from "@/lib/template";
 
@@ -554,6 +556,7 @@ export function PanelShell({
           </button>
           <BuscaDoPainel secoes={secoes} />
           <TemaCiclo compacto className="rounded-md p-1.5 text-ink-2 hover:bg-mist-2" />
+          {papelTemIA(session?.role) ? <AssistenteDoPainel /> : null}
           <details
             ref={sino}
             className="relative"

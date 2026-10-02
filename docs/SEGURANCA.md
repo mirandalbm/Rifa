@@ -32,6 +32,7 @@ descrita aqui; o detalhe de como explorar não entra no repositório.
 | Recorte por organização | `orgOf`, `assertCampaignInScope`, `assertAffiliateInScope`, `assertUserInScope` | `npm run isolation` |
 | Arquivo: tipo conferido pelo conteúdo, reprocessado (sharp, teto de 40 MP), nunca servido como veio; chave de mídia gerada pelo servidor e conferida na volta; envio ao disco com assinatura que leva o **teto de bytes** (conferida antes de ler o corpo) e `/uploads` só restaura chave no formato que geramos | `server/services/media.ts`, `storage.ts`, `probe.ts` | `tests/midia.test.ts`, `npm run isolation` |
 | Vídeo enviado a terceiro (Cloudflare Stream, só com `VIDEO_PROCESSOR=cloudflare-stream`): token só no cabeçalho, endereço do quadro só `https` em `*.cloudflarestream.com`, vídeo apagado do Stream no `finally`, prazo e teto de 3 envios, nunca lança | `server/services/videoProcessor.ts` | `tests/cloudflareStream.test.ts` |
+| Assistente de IA (Chatbase): identidade verificada por HMAC no servidor (segredo só no ambiente, nunca em resposta), id do agente validado antes de ir numa tag `<script>`, só identificador opaco e papel saem (nada pessoal), script só depois do toque, desmontado ao sair do painel ou da conta (`resetUser`) e mantido entre as telas, configuração só da plataforma; **o script roda na página do painel (risco aceito, abaixo)** | `server/services/iaIdentidade.ts`, `ia.ts`, `shared/ia.ts`, `client/src/lib/assistente.ts` | `tests/ia.test.ts`, `tests/assistente.test.ts` (o ciclo), `npm run ia` (inclui afiliado e cambista), `npm run isolation`; o carregamento no navegador é conferido à mão |
 | Pagamento: webhook assinado (tempo constante), status pela API, idempotente | `server/routes/webhooks.ts`, `server/payments/` | `tests/mercadopago.test.ts`, `tests/asaas.test.ts` |
 | Antifraude: limites antes do primeiro `INSERT` e a reserva em aberto de novo na transação | `server/services/antifraude.ts`, `orders.ts` | `npm run load` |
 | Endereço vindo de usuário: só `https:`, nunca vira redirecionamento aberto | `shared/perfil.ts`, `shared/vitrine.ts`, `server/services/links.ts` | `npm run perfil` |
@@ -142,6 +143,19 @@ worker). As 25 provas da API, 180 capturas de tela, o log do servidor e o
   contorna trocando o identificador; quem segura é o limite por IP.
 - O bloqueio por excesso de tentativas de entrada pode ser usado para trancar
   uma conta por 15 minutos.
+- **Assistente de IA (Chatbase): script de terceiro na página do painel.** Com
+  o assistente ligado, `embed.min.js` (sem SRI, URL viva) roda com a sessão do
+  master ou do organizador: se o Chatbase for comprometido, o script lê o que a
+  tela mostra e chama `/api/admin/*` pela mesma origem (trocar o provedor do
+  Pix, exportar compradores). Mitigações: nasce desligado, só carrega depois de
+  um toque, só nos painéis do master e do organizador, e o organizador tem
+  interruptor próprio. O iframe isolaria o script mas perderia a identidade
+  verificada; um assistente próprio elimina o terceiro. Decisão do dono.
+- Assistente de IA: o `user_metadata` (papel e organização) não é assinado — só
+  o `user_id` é. As ações do assistente, quando vierem, decidem pelo `user_id`.
+- `setPlataforma` lê e grava sem trava: dois cartões salvos ao mesmo tempo
+  podem perder um (último a gravar vence). Já existia; o cartão do assistente é
+  só mais um escritor.
 - Sem política de conteúdo (CSP) completa — só `frame-ancestors`. Os pixels
   de marketing pedem a lista das origens; o caminho é começar em modo
   relatório.

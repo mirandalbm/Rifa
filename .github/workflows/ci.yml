@@ -59,6 +59,8 @@ jobs:
       PUBLIC_BASE_URL: http://localhost:5000
       # Só fora de produção: a prova do login com o Google entrega os claims no lugar do Google.
       GOOGLE_PROVA: "1"
+      # Só para a prova do assistente de IA (`npm run ia`): o segredo que verifica a identidade no Chatbase.
+      CHATBASE_IDENTITY_SECRET: ci-segredo-do-assistente-1234
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -123,6 +125,7 @@ jobs:
       - run: npm run banner
       - run: npm run google
       - run: npm run marketing
+      - run: npm run ia
       - run: npm run load
 
       - name: Log do servidor

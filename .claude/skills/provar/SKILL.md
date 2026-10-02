@@ -15,8 +15,13 @@ Com argumento (`/provar estorno`), usa a área dita.
 
 ```bash
 node_modules/.bin/tsc --noEmit -p .
-node_modules/.bin/vitest run
+env -u DATABASE_URL node_modules/.bin/vitest run
 ```
+
+O `vitest` roda **sem `DATABASE_URL`**, como no job de tipos e testes do CI:
+teste que importa `server/db.ts` (direto ou por um serviço) passa no seu
+terminal, onde a variável existe, e quebra lá. Regra pura vai em `shared/` ou
+num módulo de servidor sem banco (como `iaIdentidade.ts`).
 
 Falhou, pare e conserte: nada abaixo vale com o tipo quebrado.
 
@@ -50,6 +55,7 @@ Pelo caminho que mudou (a mesma tabela "Onde mexer" do `CLAUDE.md`):
 | afiliados, fiscal, guarda da comissão | `afiliados`, `fiscal`, `guarda` |
 | divulgação de terceiros (afiliado influenciador, publicação do apostador, menu Criar) | `divulgacao`, `afiliados`, `seguranca`, `isolation` |
 | bônus, patrocínio, banner pago, marketing | `bonus`, `patrocinio`, `banner`, `marketing` |
+| assistente de IA (`shared/ia.ts`, `services/ia.ts`) | `tests/ia.test.ts`, `ia` (com `CHATBASE_IDENTITY_SECRET` no servidor), `isolation` |
 | editar, adiar, excluir rifa | `solicitacoes` |
 | conta do apostador, login com Google | `conta`, `google` (o servidor sobe com `GOOGLE_PROVA=1`) |
 | qualquer tela (client/) | `telas` (60 telas × 390/820/1440; não pode reprovar) |

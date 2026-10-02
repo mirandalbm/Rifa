@@ -26,8 +26,9 @@ cada passo já foi esquecido uma vez.
      Mudança só de tablet/computador (classes `md:`/`lg:`) não vira linha.
    - `docs/PENDENCIAS.md`: atualize no mesmo PR que fechar um item.
 4. **Revisão**: se mexeu em dinheiro, cota, estorno, rota do painel,
-   antifraude ou dado de comprador, chame o agente `revisor-de-invariantes`
-   antes de abrir o PR.
+   antifraude, dado de comprador ou o assistente de IA (identidade, segredo,
+   o que sai para o Chatbase), chame o agente `revisor-de-invariantes` antes
+   de abrir o PR.
 5. **Capturas** de qualquer mudança visível (claro e escuro; celular, tablet
    e computador conforme o caso) — mande ao usuário com `SendUserFile`. Em
    rodapé e telas fixas, esconda a faixa "Baixe o app" na captura.

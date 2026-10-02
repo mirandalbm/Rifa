@@ -54,6 +54,15 @@ Procure, nesta ordem, o que é **grave**:
     tentativa barrada precisa contar); denúncia automática que acusa a
     organização por texto que ela não escreveu sem dizer quem escreveu.
 
+12. **Assistente de IA** (seção "Assistente de IA"): segredo
+    `CHATBASE_IDENTITY_SECRET` em resposta, log ou cliente; hash gerado fora
+    de `iaIdentidade.ts`; papel ou organização lidos da `user_metadata` em vez
+    do `user_id` verificado; dado pessoal de comprador (ou nome, e-mail,
+    telefone da pessoa) indo ao Chatbase; id do agente sem a validação
+    `AGENTE_ID_RE`; script carregado sem toque, ou que sobra na vitrine
+    pública; afiliado ou cambista recebendo sessão; ação do assistente sem
+    `orgOf`, sem confirmação ou sem `audit_log` como feita pela IA.
+
 Só depois, o que é menor: mensagem de interface fora do português, número
 sem `tnum`, estado só por cor, cor fixa em vez de variável do tema.
 

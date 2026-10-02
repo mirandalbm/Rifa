@@ -34,6 +34,7 @@ interface Item {
   vende: boolean;
   status: string;
   drawAt: string | null;
+  modoSorteio?: string;
   capa: { url: string; lqip?: string | null; role: string } | null;
   organizacao: { slug: string; nome: string; foto: string | null; verificada: boolean };
 }
@@ -368,9 +369,11 @@ function PagarCarrinho({ itens, total }: { itens: Item[]; total: number }) {
       <p className="text-[11px] text-muted">{SO_VALE_PELA_PLATAFORMA}</p>
       {checkout?.reembolso?.aceita ? (
         <>
-          {itens.map((i) => (
-            <AvisoDePrazo key={i.slug} sorteioEm={i.drawAt} rifa={i.prizeTitle} />
-          ))}
+          {itens
+            .filter((i) => i.vende)
+            .map((i) => (
+              <AvisoDePrazo key={i.slug} sorteioEm={i.drawAt} modoSorteio={i.modoSorteio} rifa={i.prizeTitle} />
+            ))}
           <p className="text-[11px] text-muted">{regraDoReembolso(checkout.reembolso.taxaPct)}</p>
         </>
       ) : null}

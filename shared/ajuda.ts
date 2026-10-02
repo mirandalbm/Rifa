@@ -126,8 +126,8 @@ export function perguntasDaAjuda(p: { taxaReembolsoPct: number; aceitaReembolso:
         ? ["No momento a plataforma não recebe pedidos de reembolso pelo site. Fale com a promotora da rifa."]
         : [
             "O bilhete é a participação num sorteio com data marcada. Os pedidos de reembolso fecham 2 horas antes do sorteio, para o quadro de números estar parado quando o número sair — e, feito o sorteio, a participação já foi prestada.",
-            "Por isso, quem compra a menos de 7 dias do sorteio pode desistir até o fechamento, e não por 7 dias inteiros. A data e a hora exatas aparecem antes do Pix, ao lado do botão de pagar.",
-            "Se o sorteio for adiado depois da sua compra, você pode pedir a devolução integral até 2 horas antes da nova data, mesmo que já tenham passado 7 dias.",
+            "Por isso, quem compra a menos de 7 dias do sorteio pode desistir até o fechamento, e não por 7 dias inteiros. A data e a hora exatas aparecem antes do Pix, ao lado do botão de pagar. Na rifa sorteada quando completar, o sorteio é marcado ao encher, para a próxima extração da Loteria Federal, e o fechamento vem junto.",
+            "Se a plataforma aprovar o adiamento do sorteio depois da sua compra, você pode pedir a devolução integral até 2 horas antes da nova data, mesmo que já tenham passado 7 dias (compra com cambista: com o telefone confirmado na sua conta). O pedido que já estava aberto passa a devolver tudo.",
           ],
     },
     {

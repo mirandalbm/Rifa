@@ -57,6 +57,8 @@ interface CampaignDetail {
     drawSeedHash: string | null;
     adiamentos?: number;
     drawAtOriginal?: string | null;
+    /** Como a rifa chega ao sorteio (`MODOS_DO_SORTEIO`). */
+    modoSorteio?: string;
     authorizationCode: string | null;
     temCertificado?: boolean;
     demonstracao?: boolean;
@@ -769,7 +771,7 @@ export default function Rifa() {
             </p>
             {checkout?.reembolso?.aceita ? (
               <>
-                <AvisoDePrazo sorteioEm={campaign.drawAt} />
+                <AvisoDePrazo sorteioEm={campaign.drawAt} modoSorteio={campaign.modoSorteio} />
                 <p className="text-[11px] text-muted">{regraDoReembolso(checkout.reembolso.taxaPct)}</p>
               </>
             ) : null}
@@ -959,4 +961,3 @@ function AvisoDePresente({ naConta, volta }: { naConta: boolean; volta: string }
     </div>
   );
 }
-

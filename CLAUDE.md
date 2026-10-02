@@ -1220,7 +1220,9 @@ botão, é **chamado** — com dono, prova, conversa e protocolo.
   participação num sorteio com data marcada; feito o sorteio, o serviço foi
   prestado. Como o prazo pode ficar menor que 7 dias, **a tela diz a data e
   a hora exatas antes do Pix** (`avisoDePrazoCurto()`, `AvisoDePrazo` na
-  página da rifa e no carrinho, uma linha por rifa) — CDC, arts. 6º, III, e
+  página da rifa e no carrinho, uma linha por rifa que vende; na rifa
+  "quando completar" ainda sem data, o aviso diz que o prazo pode encurtar
+  ao encher) — CDC, arts. 6º, III, e
   31; Decreto 7.962/2013. A regra, o regulamento (item 7) e a ajuda
   (`prazo-de-desistir`) dizem o mesmo texto.
 - **Sorteio adiado depois da compra devolve tudo** (tipo `adiamento`),
@@ -1229,7 +1231,10 @@ botão, é **chamado** — com dono, prova, conversa e protocolo.
   aprovação do último adiamento (`adiadoEmSql`, `max(decidido_em)` dos
   pedidos de adiamento aprovados — sem coluna nova), lida no servidor ao
   abrir o chamado e em "Minhas compras" (a prévia da tela usa a mesma
-  conta).
+  conta). **O chamado com taxa já aberto ou aprovado** passa a devolver
+  tudo na mesma transação que aprova o adiamento — senão a promessa valeria
+  só para quem pedisse depois. A data marcada pela rifa "quando completar"
+  (ou desmarcada pelo estorno) não é adiamento.
 - **Devolução parcial é pelo provedor, com o valor explícito.**
   `refund(chargeId, amountCents)`; sem valor é devolução total. A chave de
   idempotência do Mercado Pago leva o valor, para a repetição não dobrar.

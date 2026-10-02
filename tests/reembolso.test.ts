@@ -68,7 +68,7 @@ describe("configuração da taxa", () => {
   it("o texto antes da compra diz a taxa, o que vier primeiro e o adiamento", () => {
     const t = regraDoReembolso(10);
     expect(t).toMatch(/7 dias.*2 horas antes do sorteio.*o que vier primeiro.*10%/);
-    expect(t).toMatch(/adiado depois da sua compra.*integral/);
+    expect(t).toMatch(/aprovar o adiamento do sorteio depois da sua compra.*integral/);
     expect(t).toMatch(/Feito o sorteio.*não há reembolso/);
   });
 });
@@ -94,6 +94,11 @@ describe("arrependimento: 7 dias ou o fechamento, o que vier primeiro", () => {
     const agora = new Date(sorteio.getTime() - 2 * 3_600_000 - 7 * dia);
     expect(avisoDePrazoCurto(agora, sorteio)).toBeNull();
     expect(avisoDePrazoCurto(new Date(agora.getTime() + 1), sorteio)).not.toBeNull();
+  });
+  it("rifa sorteada quando completar, ainda sem data: avisa que o prazo pode encurtar", () => {
+    const agora = new Date("2026-10-01T12:00:00Z");
+    expect(avisoDePrazoCurto(agora, null, "quando_completar")).toMatch(/quando completar.*menor que 7 dias/);
+    expect(avisoDePrazoCurto(agora, null, "data")).toBeNull();
   });
   it("já fechado: diz que a compra não poderá ser desfeita", () => {
     expect(avisoDePrazoCurto(new Date("2026-10-10T19:00:00Z"), sorteio)).toMatch(/já fecharam/);

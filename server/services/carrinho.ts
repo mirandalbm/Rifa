@@ -72,6 +72,7 @@ export async function itensDoCarrinho(bruto: unknown) {
       vende,
       status: c.status,
       drawAt: c.drawAt,
+      modoSorteio: c.modoSorteio,
       soldCount,
       totalQuotas: c.totalQuotas,
       capa: capa ? { url: capa.url, lqip: capa.lqip, role: capa.role } : null,

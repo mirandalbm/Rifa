@@ -444,6 +444,19 @@ export async function decidirSolicitacao(
              AND available_at < ${s.drawAtNovo}
              AND order_id IN (SELECT id FROM orders WHERE campaign_id = ${c.id}::uuid)
         `);
+        // Quem comprou antes do adiamento pode desistir com devolução integral
+        // (shared/reembolso.ts). O chamado que já estava aberto ou aprovado,
+        // com taxa, passa a devolver tudo — senão a promessa do texto valeria
+        // só para quem pedisse depois.
+        await tx.execute(sql`
+          UPDATE chamados ch
+             SET tipo_reembolso = 'adiamento', taxa_pct = 0, taxa_cents = 0, devolver_cents = o.amount_cents
+            FROM orders o
+           WHERE o.id = ch.order_id
+             AND o.campaign_id = ${c.id}::uuid
+             AND ch.status IN ('aberto', 'aprovado')
+             AND ch.tipo_reembolso = 'com_taxa'
+        `);
       }
     }
 

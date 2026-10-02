@@ -27,6 +27,7 @@ import {
   campaignStats,
   campaigns,
   campanhaSolicitacoes,
+  chamados,
   commissions,
   orders,
   users,
@@ -63,6 +64,7 @@ const DIA = 86_400_000;
 async function limpar() {
   const minhas = sql`(select id from campaigns where slug like ${PREFIXO + "%"})`;
   await db.execute(sql`delete from commissions where campaign_id in ${minhas}`);
+  await db.execute(sql`delete from chamados where order_id in (select id from orders where campaign_id in ${minhas})`);
   await db.execute(sql`delete from quota_alloc where campaign_id in ${minhas}`);
   await db.execute(sql`delete from orders where campaign_id in ${minhas}`);
   await db.delete(campaigns).where(like(campaigns.slug, `${PREFIXO}%`));
@@ -288,6 +290,21 @@ async function main() {
     const [dataIgual] = await db.select({ drawAt: campaigns.drawAt }).from(campaigns).where(eq(campaigns.id, comVenda.id));
     checa("pedido de adiamento: 202 e a data ainda não muda",
       r.status === 202 && dataIgual.drawAt?.getTime() === antes.getTime(), `HTTP ${r.status} ${r.json?.message ?? ""}`);
+    // Chamado com taxa aberto antes do adiamento: passa a devolver tudo.
+    const [chamadoComTaxa] = await db
+      .insert(chamados)
+      .values({
+        protocolo: `RB-20260101-${String(Math.floor(Math.random() * 900_000) + 100_000)}`,
+        organizationId: orgId,
+        orderId: pago.id,
+        buyerId: comprador.id,
+        motivo: "Prova do adiamento com chamado aberto",
+        tipoReembolso: "com_taxa",
+        taxaPct: 10,
+        taxaCents: 50,
+        devolverCents: 450,
+      })
+      .returning();
     r = await admin.req("POST", `/api/admin/solicitacoes/${pedidoAdiamento}/decidir`, { aprovar: true, resposta: "Aprovado." });
     const [adiada] = await db.select().from(campaigns).where(eq(campaigns.id, comVenda.id));
     const [com] = await db.select().from(commissions).where(eq(commissions.orderId, pago.id));
@@ -296,6 +313,12 @@ async function main() {
         adiada.drawAtOriginal?.getTime() === antes.getTime() && adiada.adiamentos === 1,
       `HTTP ${r.status} ${r.json?.message ?? ""}`);
     checa("a comissão que esperava o sorteio passa a esperar a data nova", com.availableAt.getTime() === nova.getTime());
+    const [chAdiado] = await db.select().from(chamados).where(eq(chamados.id, chamadoComTaxa.id));
+    checa(
+      "o chamado com taxa aberto antes do adiamento passa a devolver tudo",
+      chAdiado.tipoReembolso === "adiamento" && chAdiado.taxaCents === 0 && chAdiado.devolverCents === 500,
+      `${chAdiado.tipoReembolso} ${chAdiado.devolverCents}/${chAdiado.taxaCents}`,
+    );
     r = await fetch(`${URL}/api/public/campaigns/${comVenda.slug}`).then(async (x) => ({ status: x.status, json: await x.json() }));
     checa("a página da rifa mostra o adiamento e a data de antes",
       r.json?.campaign?.adiamentos === 1 && new Date(r.json?.campaign?.drawAtOriginal).getTime() === antes.getTime(),

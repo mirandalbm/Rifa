@@ -20,7 +20,10 @@
  *
  * **Adiamento muda o que foi comprado**: quem pagou antes de a plataforma
  * aprovar a data nova pode desistir com devolução integral, por qualquer
- * canal, até o fechamento da data nova.
+ * canal, até o fechamento da data nova — e o chamado que já estava aberto
+ * passa a devolver tudo, na mesma transação da aprovação
+ * (`server/services/solicitacoes.ts`). A data marcada pela rifa "quando
+ * completar" não é adiamento.
  *
  * A taxa é administrativa, da plataforma, e o administrador geral a escolhe
  * entre 0% e 10% (limite que o Idec e a jurisprudência aceitam). O modelo é
@@ -128,7 +131,19 @@ function dataEHoraSP(d: Date): string {
  * O aviso ao lado do Pix quando o prazo de desistir fica menor que 7 dias
  * (o sorteio está perto). `null` quando valem os 7 dias inteiros.
  */
-export function avisoDePrazoCurto(agora: Date, sorteioEm: Date | null | undefined): string | null {
+export function avisoDePrazoCurto(
+  agora: Date,
+  sorteioEm: Date | null | undefined,
+  modoSorteio?: string | null,
+): string | null {
+  // Sem data, mas marcada quando encher: a data pode cair em poucos dias.
+  if (!sorteioEm && modoSorteio === "quando_completar") {
+    return (
+      "Atenção: esta rifa é sorteada quando completar. Ao encher, o sorteio é marcado para a próxima extração " +
+      "da Loteria Federal (de 1 a 4 dias depois) e os pedidos de reembolso fecham 2 horas antes dele: " +
+      `o prazo para desistir pode ficar menor que ${DIAS_ARREPENDIMENTO} dias.`
+    );
+  }
   if (!sorteioEm) return null;
   const prazo = prazoDoArrependimento(agora, sorteioEm);
   if (prazo.getTime() >= agora.getTime() + DIAS_ARREPENDIMENTO * 86_400_000) return null;
@@ -151,7 +166,7 @@ export function regraDoReembolso(taxaPct: number): string {
     (pct > 0
       ? `Depois disso, ou em compra com cambista, é retida taxa administrativa de ${pct}%. `
       : `Depois disso, ou em compra com cambista, também sem taxa. `) +
-    `Se o sorteio for adiado depois da sua compra, a devolução é integral até 2 horas antes da nova data. ` +
+    `Se a plataforma aprovar o adiamento do sorteio depois da sua compra, a devolução é integral até 2 horas antes da nova data. ` +
     `Feito o sorteio, a participação foi prestada e não há reembolso.`
   );
 }

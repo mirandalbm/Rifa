@@ -67,6 +67,7 @@ describe("termos de uso", () => {
     expect(texto(montarTermosDeUso(base))).toContain(regraDoReembolso(10));
     const sem = texto(montarTermosDeUso({ ...base, reembolso: { aceita: false, taxaPct: 10 } }));
     expect(sem).toContain("art. 49");
+    expect(sem).toContain("fale com a promotora da rifa");
     expect(sem).not.toContain(regraDoReembolso(10));
   });
   it("sem os dados da empresa, diz que ainda não foram publicados — nunca inventa", () => {
@@ -83,8 +84,16 @@ describe("política de privacidade", () => {
     expect(t).toContain("art. 18");
     expect(t).toContain("ANPD");
   });
-  it("sem encarregado, aponta a central de ajuda", () => {
+  it("sem encarregado, diz que será publicado; com o e-mail da empresa, manda para ele", () => {
     expect(texto(montarPrivacidade({ ...base, empresa: EMPRESA_VAZIA }))).toContain("será publicado nesta página");
+    const semEncarregado = { ...base.empresa, encarregadoNome: "", encarregadoContato: "" };
+    expect(texto(montarPrivacidade({ ...base, empresa: semEncarregado }))).toContain("pelo e-mail contato@rifas.com.br");
+  });
+  it("diz o que fica público mesmo sem o perfil público: jogando agora, ganhador e a consulta do pedido", () => {
+    const t = texto(montarPrivacidade(base));
+    expect(t).toContain("jogando agora");
+    expect(t).toContain("código do pedido");
+    expect(t).toContain("O afiliado vê só o primeiro nome");
   });
   it("diz o que nunca é público e que a biometria depende da autorização", () => {
     const t = texto(montarPrivacidade(base));

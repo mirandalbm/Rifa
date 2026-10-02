@@ -456,6 +456,16 @@ Na ordem de entrega do plano:
   endereço, e-mail de contato e o **encarregado de dados** (nome e e-mail),
   e publicar o template. Sem isso as páginas dizem que os dados ainda não
   foram publicados (Decreto 7.962/2013 e LGPD, art. 41, pedem os dois).
+- [ ] Devolução do Pix que chega tarde (reserva vencida ou depois do
+  sorteio): hoje só vai ao log (`settleOrderAsPaid`, `markOrderPaid`). Os
+  Termos mandam a pessoa falar com a plataforma; falta uma fila no painel
+  para a plataforma ver e devolver.
+- [ ] Prazo de guarda e limpeza de `fraud_events` e `fraud_blocks` (recusas
+  com telefone mascarado e bloqueios): hoje não há relógio que apague. A
+  Privacidade diz "enquanto for necessário à segurança" — definir o prazo
+  com o advogado e criar a limpeza.
+- [ ] O estorno não desfaz a meta "rifas compradas" do bônus (só a
+  indicação): decidir se desfaz; os Termos hoje falam só da indicação.
 - [ ] **[você]** O advogado ler os Termos de uso e a Privacidade
   (`montarTermosDeUso()`/`montarPrivacidade()`), em especial: foro, CVV no
   jogo responsável, prazos de guarda e a lista de quem recebe dados.

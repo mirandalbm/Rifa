@@ -10,11 +10,13 @@ import type { Secao } from "@shared/regulamento";
  * sistema aplica (`shared/legal.ts`), com os dados da empresa publicados no
  * template e a regra de reembolso em vigor. Texto de leitura: coluna estreita.
  */
-function useDados(): DadosDosTermos {
+function useDados(): DadosDosTermos | null {
   const t = useTemplate();
-  const { data: checkout } = useQuery<{ reembolso?: { aceita: boolean; taxaPct: number } }>({
+  const { data: checkout, isLoading } = useQuery<{ reembolso?: { aceita: boolean; taxaPct: number } }>({
     queryKey: ["/api/public/checkout"],
   });
+  // A regra de reembolso depende da configuração: não mostra uma versão e troca pela outra.
+  if (isLoading) return null;
   return {
     plataforma: t.identidade.nome,
     empresa: t.legal ?? EMPRESA_VAZIA,
@@ -22,7 +24,7 @@ function useDados(): DadosDosTermos {
   };
 }
 
-function Documento({ titulo, secoes, outro }: { titulo: string; secoes: Secao[]; outro: { href: string; rotulo: string } }) {
+function Documento({ titulo, secoes, outro }: { titulo: string; secoes: Secao[] | null; outro: { href: string; rotulo: string } }) {
   const [a, m, d] = VIGENCIA_DOS_TERMOS.split("-");
   return (
     <PublicShell>
@@ -37,8 +39,9 @@ function Documento({ titulo, secoes, outro }: { titulo: string; secoes: Secao[];
           Central de ajuda
         </Link>
       </p>
+      {secoes ? null : <p className="mt-4 text-sm text-muted">Carregando…</p>}
       <article className="mt-4 space-y-5 text-sm leading-relaxed [overflow-wrap:anywhere]">
-        {secoes.map((s) => (
+        {(secoes ?? []).map((s) => (
           <section key={s.titulo}>
             <h2 className="font-display text-base font-bold">{s.titulo}</h2>
             {s.itens.map((i) => (
@@ -55,10 +58,10 @@ function Documento({ titulo, secoes, outro }: { titulo: string; secoes: Secao[];
 
 export function TermosDeUso() {
   const dados = useDados();
-  return <Documento titulo="Termos de uso" secoes={montarTermosDeUso(dados)} outro={{ href: "/privacidade", rotulo: "Política de privacidade" }} />;
+  return <Documento titulo="Termos de uso" secoes={dados && montarTermosDeUso(dados)} outro={{ href: "/privacidade", rotulo: "Política de privacidade" }} />;
 }
 
 export function Privacidade() {
   const dados = useDados();
-  return <Documento titulo="Política de privacidade" secoes={montarPrivacidade(dados)} outro={{ href: "/termos", rotulo: "Termos de uso" }} />;
+  return <Documento titulo="Política de privacidade" secoes={dados && montarPrivacidade(dados)} outro={{ href: "/termos", rotulo: "Termos de uso" }} />;
 }

@@ -14,6 +14,7 @@ import { apagarNotificacoesAntigas } from "../services/notificacoes";
 import { encerrarAnunciosForaDoAr } from "../services/patrocinio";
 import { encerrarBannersPagos } from "../services/bannerPago";
 import { vencerFranquias } from "../services/iaCobranca";
+import { destravarAcoesPresas } from "../services/ia";
 import { enviarEventosPendentes } from "../services/marketing";
 import { migrarAfiliadosAntigos } from "../services/afiliados";
 import { lancarMensalidades } from "../services/billing";
@@ -315,6 +316,8 @@ export function startJobs() {
       await withLock(LOCK_IA_FRANQUIA, async () => {
         const n = await vencerFranquias();
         if (n > 0) log(`${n} franquia(s) do assistente vencida(s)`, "jobs");
+        const presas = await destravarAcoesPresas();
+        if (presas > 0) log(`${presas} ação(ões) do assistente interrompida(s)`, "jobs");
       });
     } catch (err) {
       console.error("[jobs] franquia do assistente:", err);

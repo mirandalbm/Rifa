@@ -466,7 +466,8 @@ async function bilhetesSoDaConta(eu: Lado) {
  * recebe id de ninguém. Visitante 401, cambista 403; o organizador, com o
  * assistente desligado (o padrão), não alcança nada (404) e nada sai para o
  * Chatbase. A conversa de uma organização contra a outra é provada em
- * `npm run ia`, que sobe o Chatbase de mentira.
+ * `npm run ia`, que sobe o Chatbase de mentira; as ações (o recorte de cada
+ * uma e a confirmação de outra pessoa, 404) em `npm run ia-acoes`.
  */
 async function assistenteDeIA(eu: Lado) {
   const rotas: [string, string, RequestInit][] = [
@@ -476,6 +477,8 @@ async function assistenteDeIA(eu: Lado) {
     ["POST mensagem ao assistente", "/api/ia/mensagens", { method: "POST", body: '{"texto":"oi"}' }],
     ["GET plano do assistente", "/api/ia/conta", {}],
     ["POST Pix do assistente", "/api/ia/pagamentos", { method: "POST", body: '{"tipo":"assinatura"}' }],
+    ["POST confirmar ação do assistente", "/api/ia/acoes/00000000-0000-4000-8000-000000000000/confirmar", { method: "POST" }],
+    ["POST recusar ação do assistente", "/api/ia/acoes/00000000-0000-4000-8000-000000000000/recusar", { method: "POST" }],
   ];
   for (const [nome, caminho, init] of rotas) {
     const anon = await fetch(`${URL}${caminho}`, { ...init, headers: { "Content-Type": "application/json" } });

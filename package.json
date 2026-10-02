@@ -49,6 +49,7 @@
     "patrocinio": "tsx scripts/patrocinio-test.ts",
     "banner": "tsx scripts/banner-pago-test.ts",
     "ia": "tsx scripts/ia-test.ts",
+    "ia-acoes": "tsx scripts/ia-acoes-test.ts",
     "google": "tsx scripts/google-test.ts",
     "marketing": "tsx scripts/marketing-test.ts",
     "telas": "tsx scripts/telas.ts"

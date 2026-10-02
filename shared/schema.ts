@@ -2700,6 +2700,42 @@ export const iaUso = pgTable(
 );
 
 /**
+ * Cada ação que o assistente pediu ("client action" do Chatbase): quem
+ * conversava, a entrada que a IA mandou (dado, nunca instrução) e o que
+ * aconteceu. Ler executa na hora (`executada`); gravar nasce `pendente` e só
+ * a pessoa confirma — `UPDATE` condicional (`pendente` → `executando`), então
+ * dois cliques são uma execução. A chave (conversa, chamada) impede a mesma
+ * chamada de entrar duas vezes. Regras em `shared/iaAcoes.ts`.
+ */
+export const iaAcoes = pgTable(
+  "ia_acoes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    titularTipo: text("titular_tipo").notNull(),
+    titularId: uuid("titular_id"),
+    agenteId: text("agente_id").notNull(),
+    conversationId: text("conversation_id").notNull(),
+    toolCallId: text("tool_call_id").notNull(),
+    nome: text("nome").notNull(),
+    entrada: jsonb("entrada"),
+    /** O que a pessoa leu para confirmar, montado pelo servidor. */
+    resumo: text("resumo"),
+    /** pendente | executando | executada | falhou | recusada | expirada | recusada_pelo_sistema */
+    status: text("status").notNull(),
+    resultado: jsonb("resultado"),
+    criadaEm: timestamp("criada_em").notNull().defaultNow(),
+    decididaEm: timestamp("decidida_em"),
+  },
+  (t) => [
+    uniqueIndex("uq_ia_acao_chamada").on(t.conversationId, t.toolCallId),
+    index("idx_ia_acoes_pessoa").on(t.userId, t.status, t.criadaEm),
+  ],
+);
+
+/**
  * A conta de quem paga o assistente (organização ou afiliado — o master não
  * paga): franquia do ciclo e créditos avulsos, em milésimos de crédito, como
  * o uso. Uma linha por titular (a chave decide; criada com `ON CONFLICT DO

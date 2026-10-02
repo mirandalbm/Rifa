@@ -62,8 +62,14 @@ Procure, nesta ordem, o que é **grave**:
     sem a chave única da mensagem, arredondado (é em milésimos exatos; ausente é
     `null`, nunca 0) ou com erro do Chatbase; id da conversa gravado sem ser
     condicional ao lido; cambista ou afiliado
-    inativo conversando; ação do assistente sem `orgOf`, sem confirmação ou sem
-    `audit_log` como feita pela IA. Na cobrança ("Cobrança do assistente"):
+    inativo conversando. Nas ações ("Ações do assistente"): entrada da IA
+    usada sem `validarEntrada()`; ação sem o recorte da sessão (`orgOf`);
+    gravação executada sem a confirmação da pessoa, fora do `UPDATE`
+    condicional (`pendente` → `executando`), por outro caminho que não o serviço
+    da rota, ou sem `audit_log` com `viaIA`; resumo da confirmação montado com
+    texto da IA; resultado saindo para o Chatbase sem `resultadoSemDadoPessoal`
+    ou com nome/telefone/CPF de comprador; resposta de continuação sem uso e
+    débito; rodadas sem teto. Na cobrança ("Cobrança do assistente"):
     preço ou créditos vindos do corpo; titular do Pix fora da sessão; mensagem
     saindo para o Chatbase sem `exigirSaldo`; mudança de saldo sem linha no
     livro (chave única) ou fora da transação com a conta travada; débito fora

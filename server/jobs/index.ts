@@ -15,6 +15,7 @@ import { encerrarAnunciosForaDoAr } from "../services/patrocinio";
 import { encerrarBannersPagos } from "../services/bannerPago";
 import { vencerFranquias } from "../services/iaCobranca";
 import { destravarAcoesPresas } from "../services/ia";
+import { limparStreamPendente } from "../services/streamPendentes";
 import { enviarEventosPendentes } from "../services/marketing";
 import { migrarAfiliadosAntigos } from "../services/afiliados";
 import { lancarMensalidades } from "../services/billing";
@@ -65,6 +66,7 @@ const LOCK_BANNERS = 811_404;
 const LOCK_MARKETING = 811_501;
 const LOCK_COPIA = 811_013;
 const LOCK_IA_FRANQUIA = 811_701;
+const LOCK_STREAM = 811_014;
 
 /** Quantos minutos antes de a reserva cair o lembrete é enviado. */
 const LEMBRETE_MINUTOS = Number(process.env.REMINDER_MINUTES_BEFORE ?? 5);
@@ -321,6 +323,19 @@ export function startJobs() {
       });
     } catch (err) {
       console.error("[jobs] franquia do assistente:", err);
+    }
+  }, releaseMs).unref();
+
+  // Vídeo esquecido no Cloudflare Stream (processo que caiu no meio, DELETE
+  // que falhou): o que passou da folga sem dono é apagado lá.
+  setInterval(async () => {
+    try {
+      await withLock(LOCK_STREAM, async () => {
+        const r = await limparStreamPendente();
+        if (r.apagados + r.falhas > 0) log(`Stream: ${r.apagados} vídeo(s) sem dono apagado(s), ${r.falhas} para tentar de novo`, "jobs");
+      });
+    } catch (err) {
+      console.error("[jobs] vídeos do Stream:", err);
     }
   }, releaseMs).unref();
 

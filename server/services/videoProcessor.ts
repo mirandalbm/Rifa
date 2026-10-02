@@ -10,11 +10,14 @@
  * Cloudflare Stream (`VIDEO_PROCESSOR=cloudflare-stream`, com
  * `CLOUDFLARE_ACCOUNT_ID` e `CLOUDFLARE_STREAM_TOKEN`): `CloudflareStream`
  * envia o vídeo, espera o Stream processar, busca o quadro dele e **apaga o
- * vídeo do Stream** — hoje ele serve só para tirar o pôster sem `ffmpeg` no
- * processo web (o Stream cobra por minuto guardado). Se o Stream falhar, o
- * `ffmpeg` local tenta (`ComReserva`). A entrega em HLS (guardar o `uid` e
- * tocar pelo Stream) é o passo seguinte e NÃO existe aqui: o `ffmpeg` do
- * processo web não deve fazer transcode.
+ * vídeo do Stream** — para tirar o pôster sem `ffmpeg` no processo web (o
+ * Stream cobra por minuto guardado). Se o Stream falhar, o `ffmpeg` local
+ * tenta (`ComReserva`).
+ *
+ * Entrega em HLS (`CLOUDFLARE_STREAM_ENTREGA=hls`, `entregaHlsLigada()`): o
+ * vídeo da rifa **fica** no Stream (`publicar()`), e a mídia guarda o `uid` e o
+ * endereço do HLS conferido (`hlsDoStream()`). Apagar a mídia apaga no Stream
+ * (`apagarDoStream()`). O `ffmpeg` do processo web nunca faz transcode.
  */
 import { spawn } from "node:child_process";
 import { promises as fs, openAsBlob } from "node:fs";
@@ -28,6 +31,19 @@ import {
   POSTER_SAIDA_MAX_BYTES,
   argsDoPoster,
 } from "@shared/poster";
+import { hlsDoStream, uidValido } from "@shared/stream";
+
+/** O vídeo guardado no Stream para tocar em HLS. */
+export interface VideoNoStream {
+  uid: string;
+  hls: string;
+}
+
+/** O que sai de `publicar()`: o pôster (ou nulo) e, se o vídeo ficou no Stream, onde ele está. */
+export interface VideoPublicado {
+  poster: Buffer | null;
+  stream: VideoNoStream | null;
+}
 
 export interface ProcessadorDeVideo {
   readonly nome: string;
@@ -36,6 +52,42 @@ export interface ProcessadorDeVideo {
    * sem o programa, vídeo ilegível ou prazo estourado. **Nunca lança.**
    */
   gerarPoster(arquivo: string): Promise<Buffer | null>;
+  /**
+   * Pôster **e** entrega: só quem guarda o vídeo (o Stream) implementa. Nunca
+   * lança; sem entrega, `stream` é `null` e nada fica guardado fora.
+   */
+  publicar?(arquivo: string): Promise<VideoPublicado>;
+}
+
+/**
+ * O que acontece no banco quando um vídeo entra no Stream ou sai dele
+ * (`server/services/streamPendentes.ts` liga). Daqui não se fala com o banco:
+ * o processador continua testável sem ele. Falha do gancho só vai ao log.
+ */
+export interface GanchosDoStream {
+  enviado(uid: string): Promise<void>;
+  apagado(uid: string): Promise<void>;
+}
+let ganchos: GanchosDoStream | null = null;
+export function ligarGanchosDoStream(g: GanchosDoStream | null) {
+  ganchos = g;
+}
+async function gancho(nome: keyof GanchosDoStream, uid: string) {
+  try {
+    await ganchos?.[nome](uid);
+  } catch (e) {
+    console.warn(`[video] Stream: o registro do vídeo ${uid} falhou (${nome}): ${(e as Error).message}`);
+  }
+}
+
+/** `publicar()` de quem tem; o pôster sozinho de quem não tem. Nunca lança. */
+export async function publicarVideo(p: ProcessadorDeVideo, arquivo: string): Promise<VideoPublicado> {
+  try {
+    if (p.publicar) return await p.publicar(arquivo);
+    return { poster: await p.gerarPoster(arquivo), stream: null };
+  } catch {
+    return { poster: null, stream: null };
+  }
 }
 
 /** Sem processador: o vídeo vai como veio. É o que se tinha antes. */
@@ -157,17 +209,34 @@ export interface OpcoesDoStream {
   token: string;
   /** Injetável para teste; o padrão é o `fetch` do Node. */
   fetch?: typeof fetch;
-  /** Prazo total (envio + processamento + quadro). */
+  /** Prazo total (envio + processamento + quadro) só do pôster. */
   prazoMs?: number;
+  /**
+   * Prazo da entrega (`publicar`): o vídeo de feed tem até 15 min e o Stream
+   * demora mais para deixá-lo pronto. Passou, o vídeo sai do Stream.
+   */
+  prazoEntregaMs?: number;
   /** Intervalo entre as consultas de "já ficou pronto?". */
   intervaloMs?: number;
   /** Largura do quadro pedido ao Stream. */
   largura?: number;
+  /** Endereço da API (`baseDaCloudflare()`); injetável para teste. */
+  api?: string;
 }
 
 /** O Stream aceita até 200 MB no envio simples; acima disso é "sem pôster". */
 export const STREAM_ENVIO_MAX_BYTES = 200 * 1024 * 1024;
-const API_DO_STREAM = "https://api.cloudflare.com/client/v4/accounts";
+const API_DA_CLOUDFLARE = "https://api.cloudflare.com/client/v4";
+
+/**
+ * O endereço da API. Fora de produção, `CLOUDFLARE_API_URL` aponta para outro
+ * — é como a prova (`npm run poster`) sobe um Stream de mentira. Em produção é
+ * sempre o da Cloudflare: o token não vai para endereço que veio do ambiente.
+ */
+export function baseDaCloudflare(env: NodeJS.ProcessEnv = process.env): string {
+  if (env.NODE_ENV === "production") return API_DA_CLOUDFLARE;
+  return env.CLOUDFLARE_API_URL?.trim().replace(/\/+$/, "") || API_DA_CLOUDFLARE;
+}
 const vagasDoStream = new Vagas(3);
 
 /**
@@ -180,33 +249,52 @@ export class CloudflareStream implements ProcessadorDeVideo {
   readonly nome = "cloudflare-stream";
   private f: typeof fetch;
   private prazoMs: number;
+  private prazoEntregaMs: number;
   private intervaloMs: number;
   private largura: number;
   constructor(private o: OpcoesDoStream) {
     this.f = o.fetch ?? fetch;
     this.prazoMs = o.prazoMs ?? 120_000;
+    this.prazoEntregaMs = o.prazoEntregaMs ?? o.prazoMs ?? 600_000;
     this.intervaloMs = o.intervaloMs ?? 2_000;
     this.largura = o.largura ?? 720;
   }
 
   gerarPoster(arquivo: string): Promise<Buffer | null> {
-    return vagasDoStream.rodar(() => this.gerar(arquivo));
+    return vagasDoStream.rodar(() => this.processar(arquivo, false)).then((r) => r.poster);
+  }
+
+  /** Envia, tira o pôster e **deixa o vídeo no Stream** para tocar em HLS. */
+  publicar(arquivo: string): Promise<VideoPublicado> {
+    return vagasDoStream.rodar(() => this.processar(arquivo, true));
+  }
+
+  /** Apaga um vídeo guardado (a mídia saiu). `true` se o Stream confirmou (ou já não tinha). Nunca lança. */
+  apagar(uid: string): Promise<boolean> {
+    return uidValido(uid) ? this.remover(uid) : Promise.resolve(false);
   }
 
   private get base() {
-    return `${API_DO_STREAM}/${encodeURIComponent(this.o.accountId)}/stream`;
+    return `${this.o.api ?? baseDaCloudflare()}/accounts/${encodeURIComponent(this.o.accountId)}/stream`;
   }
   private get auth() {
     return { Authorization: `Bearer ${this.o.token}` };
   }
 
-  private async gerar(arquivo: string): Promise<Buffer | null> {
-    const fim = Date.now() + this.prazoMs;
+  /**
+   * O caminho inteiro. Com `guardar`, o vídeo só fica no Stream se ele
+   * devolveu um HLS conferido; qualquer outra saída (erro, prazo, endereço
+   * estranho) apaga no `finally`, como no pôster.
+   */
+  private async processar(arquivo: string, guardar: boolean): Promise<VideoPublicado> {
+    const fim = Date.now() + (guardar ? this.prazoEntregaMs : this.prazoMs);
     const restante = () => Math.max(1_000, fim - Date.now());
+    const nada: VideoPublicado = { poster: null, stream: null };
     let uid: string | null = null;
+    let guardado: VideoNoStream | null = null;
     try {
       const { size } = await fs.stat(arquivo);
-      if (size === 0 || size > STREAM_ENVIO_MAX_BYTES) return null;
+      if (size === 0 || size > STREAM_ENVIO_MAX_BYTES) return nada;
       // `openAsBlob` lê do disco sob demanda: o vídeo não entra inteiro na memória.
       const corpo = new FormData();
       corpo.append("file", await openAsBlob(arquivo), "video");
@@ -218,26 +306,42 @@ export class CloudflareStream implements ProcessadorDeVideo {
         signal: AbortSignal.timeout(restante()),
       });
       const j = (await envio.json().catch(() => null)) as { success?: boolean; result?: { uid?: string } } | null;
-      uid = typeof j?.result?.uid === "string" ? j.result.uid : null;
-      if (!envio.ok || !j?.success || !uid) return null;
+      // O uid vira caminho de URL (consulta e DELETE): só o formato do Stream.
+      uid = uidValido(j?.result?.uid) ? j!.result!.uid! : null;
+      if (!envio.ok || !j?.success || !uid) return nada;
+      // Antes de qualquer espera: se o processo cair daqui em diante, o relógio acha o vídeo.
+      await gancho("enviado", uid);
 
       let miniatura: string | null = null;
+      let hls: string | null = null;
       while (Date.now() < fim) {
         const r = await this.f(`${this.base}/${uid}`, { headers: this.auth, signal: AbortSignal.timeout(restante()) });
         const d = (await r.json().catch(() => null)) as {
-          result?: { status?: { state?: string }; readyToStream?: boolean; thumbnail?: string };
+          result?: { status?: { state?: string }; readyToStream?: boolean; thumbnail?: string; playback?: { hls?: string } };
         } | null;
         const estado = d?.result?.status?.state;
-        if (estado === "error") return null;
-        if (r.ok && d?.result?.readyToStream && typeof d.result.thumbnail === "string") {
-          miniatura = d.result.thumbnail;
+        if (estado === "error") return nada;
+        if (r.ok && d?.result?.readyToStream) {
+          miniatura = typeof d.result.thumbnail === "string" ? d.result.thumbnail : null;
+          hls = hlsDoStream(d.result.playback?.hls, uid);
           break;
         }
         await new Promise((ok) => setTimeout(ok, this.intervaloMs));
       }
-      if (!miniatura) return null;
+      if (guardar && hls) guardado = { uid, hls };
+      const poster = miniatura ? await this.quadro(miniatura, restante) : null;
+      return { poster, stream: guardado };
+    } catch {
+      return { poster: null, stream: guardado };
+    } finally {
+      // Só fica no Stream o que vai ser tocado; o resto sai na hora.
+      if (uid && !guardado) await this.remover(uid);
+    }
+  }
 
-      // O endereço vem da resposta do Stream: só vale https e no domínio dele.
+  /** O quadro do Stream, em WebP. O endereço vem da resposta: só https e no domínio dele. */
+  private async quadro(miniatura: string, restante: () => number): Promise<Buffer | null> {
+    try {
       const url = new URL(miniatura);
       if (url.protocol !== "https:" || !/(^|\.)cloudflarestream\.com$/.test(url.hostname)) return null;
       url.searchParams.set("time", `${POSTER_INSTANTES_S[0]}s`);
@@ -250,18 +354,21 @@ export class CloudflareStream implements ProcessadorDeVideo {
       return await sharp(bytes, { limitInputPixels: 40_000_000 }).webp({ quality: POSTER_QUALIDADE }).toBuffer();
     } catch {
       return null;
-    } finally {
-      if (uid) await this.apagar(uid);
     }
   }
 
-  private async apagar(uid: string) {
+  private async remover(uid: string): Promise<boolean> {
     try {
       const r = await this.f(`${this.base}/${uid}`, { method: "DELETE", headers: this.auth, signal: AbortSignal.timeout(15_000) });
-      if (!r.ok && r.status !== 404) console.warn(`[video] Stream: não consegui apagar o vídeo ${uid} (HTTP ${r.status}).`);
+      if (r.ok || r.status === 404) {
+        await gancho("apagado", uid);
+        return true;
+      }
+      console.warn(`[video] Stream: não consegui apagar o vídeo ${uid} (HTTP ${r.status}); o relógio tenta de novo.`);
     } catch {
-      console.warn(`[video] Stream: não consegui apagar o vídeo ${uid}.`);
+      console.warn(`[video] Stream: não consegui apagar o vídeo ${uid}; o relógio tenta de novo.`);
     }
+    return false;
   }
 }
 
@@ -278,9 +385,42 @@ export class ComReserva implements ProcessadorDeVideo {
     const a = await this.principal.gerarPoster(arquivo).catch(() => null);
     return a ?? this.reserva.gerarPoster(arquivo).catch(() => null);
   }
+  /** A entrega é do principal; o pôster que ele não deu, o reserva tenta. */
+  async publicar(arquivo: string): Promise<VideoPublicado> {
+    const a = await publicarVideo(this.principal, arquivo);
+    return a.poster ? a : { ...a, poster: await this.reserva.gerarPoster(arquivo).catch(() => null) };
+  }
 }
 
 let escolhido: ProcessadorDeVideo | null = null;
+let streamEscolhido: CloudflareStream | null | undefined;
+
+/**
+ * O Stream configurado (para apagar o vídeo guardado), ou `null` sem
+ * credencial. Independe do processador em uso: quem desligou a entrega ainda
+ * precisa apagar o que ficou guardado antes.
+ */
+export function streamConfigurado(): CloudflareStream | null {
+  if (streamEscolhido !== undefined) return streamEscolhido;
+  const accountId = process.env.CLOUDFLARE_ACCOUNT_ID?.trim();
+  const token = process.env.CLOUDFLARE_STREAM_TOKEN?.trim();
+  streamEscolhido = accountId && token ? new CloudflareStream({ accountId, token }) : null;
+  return streamEscolhido;
+}
+
+/**
+ * Apaga o vídeo guardado no Stream. Sem credencial, só avisa no log (o vídeo
+ * ficou lá, anotado para o relógio). `true` se o Stream confirmou. Nunca lança.
+ */
+export async function apagarDoStream(uid: string | null | undefined): Promise<boolean> {
+  if (!uid) return false;
+  const s = streamConfigurado();
+  if (!s) {
+    console.warn(`[video] Stream: o vídeo ${uid} ficou no Stream (sem CLOUDFLARE_ACCOUNT_ID/CLOUDFLARE_STREAM_TOKEN para apagar).`);
+    return false;
+  }
+  return s.apagar(uid);
+}
 
 /**
  * O processador em uso. `VIDEO_PROCESSOR=nenhum` desliga; `cloudflare-stream`
@@ -294,7 +434,7 @@ export function processadorDeVideo(): ProcessadorDeVideo {
   else if (quer === "cloudflare-stream") {
     const accountId = process.env.CLOUDFLARE_ACCOUNT_ID?.trim();
     const token = process.env.CLOUDFLARE_STREAM_TOKEN?.trim();
-    if (accountId && token) escolhido = new ComReserva(new CloudflareStream({ accountId, token }), new FfmpegLocal());
+    if (accountId && token) escolhido = new ComReserva(streamConfigurado()!, new FfmpegLocal());
     else {
       // Sem credencial, cai no local em vez de falhar.
       console.warn("[video] cloudflare-stream pede CLOUDFLARE_ACCOUNT_ID e CLOUDFLARE_STREAM_TOKEN; usando o ffmpeg local.");
@@ -310,6 +450,7 @@ export function processadorDeVideo(): ProcessadorDeVideo {
 /** Só para teste: troca o processador (e volta ao padrão com `null`). */
 export function trocarProcessadorDeVideo(p: ProcessadorDeVideo | null) {
   escolhido = p;
+  streamEscolhido = undefined;
 }
 
 /**

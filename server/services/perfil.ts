@@ -103,6 +103,8 @@ export function pecaPublica(m: ReturnType<typeof withUrls>) {
     url: m.url,
     // O quadro do vídeo antes do play (nulo sem ffmpeg ou em foto).
     poster: m.posterUrl,
+    // O HLS do Cloudflare Stream, quando a entrega está ligada; a tela volta ao `url` se falhar.
+    hls: m.hls,
     srcSet: m.srcSetWebp,
     lqip: m.lqip,
     alt: m.altText,

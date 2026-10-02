@@ -498,10 +498,10 @@ export async function excluirRifa(campaignId: string) {
     // dele já não acha a mídia — sem isso o arquivo dele ficava órfão.
     const midias = (
       await tx.execute(sql`
-        SELECT storage_key AS "storageKey", poster_key AS "posterKey", variants
+        SELECT storage_key AS "storageKey", poster_key AS "posterKey", stream_uid AS "streamUid", variants
           FROM campaign_media WHERE campaign_id = ${campaignId}::uuid FOR UPDATE
       `)
-    ).rows as { storageKey: string; posterKey: string | null; variants: Parameters<typeof apagarArquivosDeMidias>[0][number]["variants"] }[];
+    ).rows as { storageKey: string; posterKey: string | null; streamUid: string | null; variants: Parameters<typeof apagarArquivosDeMidias>[0][number]["variants"] }[];
     await tx.execute(sql`DELETE FROM campaigns WHERE id = ${campaignId}::uuid`);
     return { ok: true, midias };
   }).then(async ({ ok, midias }) => {

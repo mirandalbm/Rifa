@@ -10,9 +10,19 @@
  * Confere também: a chave do pôster nunca vem do navegador, apagar a mídia
  * apaga o pôster, o pôster do story some quando o story vence, e a rota
  * pública só serve pôster de story no ar.
+ *
+ * Entrega em HLS (com `VIDEO_PROCESSOR=cloudflare-stream`,
+ * `CLOUDFLARE_STREAM_ENTREGA=hls`, `CLOUDFLARE_ACCOUNT_ID`,
+ * `CLOUDFLARE_STREAM_TOKEN` e `CLOUDFLARE_API_URL=http://127.0.0.1:<porta>/client/v4`,
+ * os mesmos no servidor e aqui): a prova sobe um Stream de mentira nessa porta
+ * e confere que o vídeo da rifa fica nele com o HLS conferido, que a tela
+ * recebe o HLS (e nunca o `uid`), que HLS estranho apaga o vídeo e que apagar
+ * a mídia ou a rifa apaga no Stream. Sem essas variáveis, a parte é pulada.
  */
 import "dotenv/config";
 import { spawnSync } from "node:child_process";
+import http from "node:http";
+import { randomBytes } from "node:crypto";
 import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -20,7 +30,9 @@ import { eq, inArray, sql } from "drizzle-orm";
 import sharp from "sharp";
 import { baseUrl } from "./base-url";
 import { db, pool } from "../server/db";
-import { campaignMedia, campaignStats, campaigns, organizations, stories, users } from "../shared/schema";
+import { campaignMedia, campaignStats, campaigns, organizations, stories, streamPendentes, users } from "../shared/schema";
+import { limparStreamPendente } from "../server/services/streamPendentes";
+import { entregaHlsLigada } from "../shared/stream";
 
 const URL = baseUrl();
 let falhas = 0;
@@ -82,6 +94,52 @@ async function mp4Real(pasta: string, largura = 1080, altura = 1920) {
   return fs.readFile(f);
 }
 
+/* ---------- Stream de mentira (só com a entrega ligada e o endereço trocado) ---------- */
+const API_FALSA = process.env.CLOUDFLARE_API_URL?.trim() ?? "";
+const comEntrega = entregaHlsLigada(process.env) && /^http:\/\/127\.0\.0\.1:\d+\//.test(API_FALSA);
+const stream = {
+  modo: "normal" as "normal" | "estranho",
+  apagarFalha: false,
+  criados: [] as string[],
+  apagados: [] as string[],
+  semToken: 0,
+};
+const hlsDe = (uid: string) => `https://customer-prova.cloudflarestream.com/${uid}/manifest/video.m3u8`;
+function subirStreamFalso(): Promise<http.Server> {
+  const porta = Number(new globalThis.URL(API_FALSA).port);
+  const servidor = http.createServer((req, res) => {
+    const partes: Buffer[] = [];
+    req.on("data", (b) => partes.push(b));
+    req.on("end", () => {
+      if (req.headers.authorization !== `Bearer ${process.env.CLOUDFLARE_STREAM_TOKEN?.trim()}`) stream.semToken++;
+      const m = /\/accounts\/[^/]+\/stream(?:\/([a-f0-9]{32}))?$/.exec(req.url ?? "");
+      const json = (corpo: unknown, status = 200) => {
+        res.writeHead(status, { "Content-Type": "application/json" });
+        res.end(JSON.stringify(corpo));
+      };
+      if (!m) return json({ success: false }, 404);
+      const uid = m[1];
+      if (req.method === "POST" && !uid) {
+        const novo = randomBytes(16).toString("hex");
+        stream.criados.push(novo);
+        return json({ success: true, result: { uid: novo } });
+      }
+      if (req.method === "DELETE" && uid) {
+        if (stream.apagarFalha) return json({ success: false }, 503);
+        stream.apagados.push(uid);
+        return json({ success: true });
+      }
+      if (req.method === "GET" && uid) {
+        // Sem `thumbnail`: o pôster cai no ffmpeg (a reserva), e a prova não sai para a internet.
+        const hls = stream.modo === "estranho" ? "https://evil.example.com/x.m3u8" : hlsDe(uid);
+        return json({ success: true, result: { readyToStream: true, status: { state: "ready" }, playback: { hls } } });
+      }
+      json({ success: false }, 400);
+    });
+  });
+  return new Promise((ok) => servidor.listen(porta, "127.0.0.1", () => ok(servidor)));
+}
+
 async function limpar() {
   await db.execute(sql`delete from campaigns where slug = ${SLUG}`);
 }
@@ -98,6 +156,7 @@ async function esperaPor<T>(f: () => Promise<T | null | undefined | false>, ms =
 
 async function main() {
   console.log(`\n=== pôster dos vídeos (${temFfmpeg ? "com ffmpeg" : "sem ffmpeg: só a degradação"}) ===\n`);
+  const falso_stream = comEntrega ? await subirStreamFalso() : null;
   await limpar();
   const pasta = await fs.mkdtemp(path.join(os.tmpdir(), "poster-prova-"));
   const marina = new Cliente();
@@ -243,11 +302,96 @@ async function main() {
       checa("vídeo de 0,2 s: o pôster sai do primeiro quadro", !!chaveCurta);
       if (idCurto) await marina.req("DELETE", `/api/admin/media/${idCurto}`);
     }
+
+    /* ----------------------------- entrega em HLS ----------------------------- */
+    if (!comEntrega) {
+      console.log("\n  entrega em HLS: pulada (sem CLOUDFLARE_STREAM_ENTREGA=hls e CLOUDFLARE_API_URL local)");
+    } else {
+      console.log("\n  entrega em HLS pelo Stream (de mentira):");
+      const daMidia = async (id: string) =>
+        (await db.select({ uid: campaignMedia.streamUid, hls: campaignMedia.streamHls, poster: campaignMedia.posterKey }).from(campaignMedia).where(eq(campaignMedia.id, id)))[0];
+
+      stream.modo = "normal";
+      r = await subir(falso, { streamUid: "a".repeat(32), streamHls: "https://evil.example.com/x.m3u8", hls: "https://evil.example.com/y.m3u8" });
+      const id = r.json?.id as string;
+      checa("o envio sai sem esperar o Stream (201)", r.status === 201 && !!id, `HTTP ${r.status}`);
+      checa("…e o uid e o HLS mandados pelo navegador são ignorados", !r.json?.hls && !r.json?.streamUid && !r.json?.streamHls);
+      const linha = id ? await esperaPor(async () => (await daMidia(id))?.uid ? daMidia(id) : null) : null;
+      checa("o vídeo fica no Stream: a mídia guarda o uid", !!linha?.uid && stream.criados.includes(linha.uid), String(linha?.uid));
+      checa("…e o HLS conferido do próprio vídeo", linha?.hls === hlsDe(linha?.uid ?? ""), String(linha?.hls));
+      checa("…sem apagar no Stream", !stream.apagados.includes(linha?.uid ?? ""));
+      const naLista = async (uid: string) => (await db.select().from(streamPendentes).where(eq(streamPendentes.uid, uid))).length > 0;
+      checa("…e, com dono, sai da lista do relógio", !!linha?.uid && !(await naLista(linha.uid)));
+      if (linha?.uid) {
+        pub = await anon.req("GET", `/api/public/campaigns/${SLUG}`);
+        const peca = pub.json?.media?.find((m: any) => m.role === "video");
+        checa("a página pública traz o HLS (e o original de reserva)", peca?.hls === linha.hls && typeof peca?.url === "string", String(peca?.hls));
+        const perfil = await anon.req("GET", `/api/public/o/${slugOrg}`);
+        const doPerfil = (perfil.json?.rifas ?? []).find((x: any) => x.slug === SLUG)?.midias?.find((m: any) => m.role === "video");
+        checa("o perfil e o feed (pecaPublica) também", doPerfil?.hls === linha.hls, String(doPerfil?.hls));
+        const painel = await marina.req("GET", `/api/admin/campaigns/${rifa.id}/media`);
+        const tudo = JSON.stringify([pub.json, perfil.json, painel.json]);
+        checa("o campo `streamUid` nunca sai numa resposta (só dentro do endereço do HLS)", !tudo.includes('"streamUid"') && !tudo.includes(`/${linha.uid}"`) && painel.status === 200);
+        r = await marina.req("DELETE", `/api/admin/media/${id}`);
+        checa("apagar a mídia apaga o vídeo no Stream", r.status === 200 && stream.apagados.includes(linha.uid));
+      }
+
+      // HLS fora do próprio vídeo: o servidor não guarda e apaga na hora.
+      stream.modo = "estranho";
+      const antes = stream.criados.length;
+      r = await subir(falso);
+      const idEstranho = r.json?.id as string;
+      const uidEstranho = await esperaPor(async () => (stream.criados.length > antes ? stream.criados[antes] : null));
+      const apagou = uidEstranho ? await esperaPor(async () => stream.apagados.includes(uidEstranho)) : null;
+      checa("HLS fora do próprio vídeo: o Stream apaga e a mídia fica sem entrega", !!apagou && !(await daMidia(idEstranho))?.uid);
+      if (idEstranho) await marina.req("DELETE", `/api/admin/media/${idEstranho}`);
+
+      // O DELETE que falha não esquece o vídeo: o relógio tenta de novo.
+      stream.modo = "normal";
+      r = await subir(falso);
+      const idFalha = r.json?.id as string;
+      const uidFalha = idFalha ? (await esperaPor(async () => (await daMidia(idFalha))?.uid))! : null;
+      stream.apagarFalha = true;
+      await marina.req("DELETE", `/api/admin/media/${idFalha}`);
+      stream.apagarFalha = false;
+      checa("DELETE recusado pelo Stream: o vídeo fica anotado para o relógio", !!uidFalha && !stream.apagados.includes(uidFalha) && (await naLista(uidFalha)));
+      // Vídeo de um processo que caiu no meio (enviado, nunca gravado) e um com dono.
+      const orfao = randomBytes(16).toString("hex");
+      const velho = new Date(Date.now() - 2 * 3600_000);
+      await db.insert(streamPendentes).values({ uid: orfao, criadoEm: velho });
+      if (uidFalha) await db.update(streamPendentes).set({ criadoEm: velho }).where(eq(streamPendentes.uid, uidFalha));
+      r = await subir(falso);
+      const idDono = r.json?.id as string;
+      const uidDono = idDono ? (await esperaPor(async () => (await daMidia(idDono))?.uid))! : null;
+      if (uidDono) await db.insert(streamPendentes).values({ uid: uidDono, criadoEm: velho }).onConflictDoNothing();
+      const recente = randomBytes(16).toString("hex");
+      await db.insert(streamPendentes).values({ uid: recente });
+      const rodada = await limparStreamPendente();
+      checa(
+        "o relógio apaga no Stream o órfão e o DELETE que falhou",
+        stream.apagados.includes(orfao) && !!uidFalha && stream.apagados.includes(uidFalha) && !(await naLista(orfao)),
+        JSON.stringify(rodada),
+      );
+      checa("…tira da lista o que tem dono, sem apagar", !!uidDono && !stream.apagados.includes(uidDono) && !(await naLista(uidDono)));
+      checa("…e espera a folga do envio em andamento", !stream.apagados.includes(recente) && (await naLista(recente)));
+      await db.delete(streamPendentes).where(eq(streamPendentes.uid, recente));
+      if (idDono) await marina.req("DELETE", `/api/admin/media/${idDono}`);
+
+      // Apagar a rifa (sem venda) leva o vídeo guardado junto.
+      stream.modo = "normal";
+      r = await subir(falso);
+      const idDaRifa = r.json?.id as string;
+      const uidDaRifa = idDaRifa ? (await esperaPor(async () => (await daMidia(idDaRifa))?.uid))! : null;
+      r = await marina.req("DELETE", `/api/admin/campaigns/${rifa.id}`);
+      checa("excluir a rifa apaga no Stream o vídeo guardado", r.status === 200 && !!uidDaRifa && stream.apagados.includes(uidDaRifa), `HTTP ${r.status}`);
+      checa("todo pedido ao Stream levou o token no cabeçalho", stream.semToken === 0, String(stream.semToken));
+    }
   } finally {
     for (const id of storiesCriados) await marina.req("DELETE", `/api/admin/stories/${id}`).catch(() => {});
     if (storiesCriados.length) await db.delete(stories).where(inArray(stories.id, storiesCriados));
     await limpar();
     await fs.rm(pasta, { recursive: true, force: true });
+    falso_stream?.close();
   }
 
   console.log(falhas ? `\n✗ ${falhas} verificação(ões) falharam\n` : "\n✓ tudo certo\n");

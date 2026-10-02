@@ -72,6 +72,7 @@ interface CampaignDetail {
     srcSetWebp: string | null;
     lqip: string | null;
     poster: string | null;
+    hls?: string | null;
     durationS: number | null;
     width?: number | null;
     height?: number | null;
@@ -306,6 +307,7 @@ export default function Rifa() {
       role: m.role,
       url: m.url,
       poster: m.poster,
+      hls: m.hls,
       srcSet: m.srcSetWebp,
       lqip: m.lqip,
       alt: m.altText,

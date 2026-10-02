@@ -10,6 +10,7 @@ import { FotoDoPerfil } from "@/components/Seguir";
 import { useSession } from "@/lib/session";
 import { apiRequest } from "@/lib/queryClient";
 import { useCarrinho } from "@/lib/carrinho";
+import { useVideoHls } from "@/lib/hls";
 import { EscolherBilhete } from "@/components/EscolherBilhete";
 import {
   LEGENDA_MAX,
@@ -30,6 +31,8 @@ export interface Peca {
   url: string;
   /** O quadro do vídeo antes do play (nulo sem ffmpeg no servidor). */
   poster?: string | null;
+  /** O HLS do Cloudflare Stream (entrega ligada); sem ele, ou se falhar, toca o `url`. */
+  hls?: string | null;
   srcSet?: string | null;
   lqip?: string | null;
   alt?: string | null;
@@ -220,6 +223,7 @@ function VideoDaPublicacao({ peca }: { peca: Peca }) {
   const [mudo, setMudo] = useState(true);
   const [acabou, setAcabou] = useState(false);
   const [tocando, setTocando] = useState(false);
+  useVideoHls(video, peca.url, peca.hls);
 
   // O reels toca sozinho (mudo) quando aparece na tela e para quando sai.
   useEffect(() => {
@@ -255,7 +259,6 @@ function VideoDaPublicacao({ peca }: { peca: Peca }) {
     <>
       <video
         ref={video}
-        src={peca.url}
         poster={peca.poster ?? undefined}
         playsInline
         muted={mudo}

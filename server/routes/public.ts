@@ -489,7 +489,7 @@ publicRouter.get("/reels", async (req, res, next) => {
       ligado: true,
       itens: cartoes.map((c) => {
         const v = videoDoReels(c.midias);
-        return { ...c, reels: v?.url ?? null, reelsPoster: v?.poster ?? null };
+        return { ...c, reels: v?.url ?? null, reelsPoster: v?.poster ?? null, reelsHls: v?.hls ?? null };
       }),
       proximo: lote.proximo,
     });
@@ -1306,6 +1306,7 @@ publicRouter.get("/campaigns/:slug", async (req, res, next) => {
           srcSetWebp: withUrl.srcSetWebp,
           lqip: m.lqip,
           poster: withUrl.posterUrl,
+          hls: withUrl.hls,
           durationS: m.durationS,
           altText: m.altText,
           width: m.width,

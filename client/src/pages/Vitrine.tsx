@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { MapPin, Plus } from "lucide-react";
+import { ChevronDown, MapPin, Plus } from "lucide-react";
 import { UFS, ufValida } from "@shared/endereco";
 import { lerRegiao, gravarRegiao, regiaoEfetiva, type EscolhaDeRegiao } from "@/lib/regiao";
 import { useSession } from "@/lib/session";
@@ -18,7 +18,7 @@ import { InstalarApp } from "@/components/InstalarApp";
 import { Patrocinadas } from "@/components/Patrocinadas";
 import type { Bloco } from "@shared/template";
 import { ColunaAoVivo } from "@/components/ColunaAoVivo";
-import { BotaoDoSorteio, SorteioDoInicio, useSorteioDoInicio } from "@/components/SorteioDoInicio";
+import { BotaoDoSorteio, ContagemDoSorteio, SorteioDoInicio, useSorteioDoInicio } from "@/components/SorteioDoInicio";
 
 /** Vitrine multi-rifas: todas as campanhas no ar, banner na frente. */
 export default function Vitrine() {
@@ -44,9 +44,24 @@ export default function Vitrine() {
 
   // Cada bloco da tela inicial vem do template (ordem, ligado, título).
   const blocoRegiao = (
-      <div className="flex items-center gap-2 pb-1">
-        <MapPin size={16} aria-hidden className="shrink-0 text-muted" />
-        <label htmlFor="vitrine-uf" className="text-sm text-ink-2">
+    <div className="flex items-center gap-2 pb-1">
+      {/* Celular: o select mostra só a sigla; aberto, a lista traz o nome de
+          cada estado. O select de verdade fica por cima, transparente: o toque
+          e o leitor de tela são dele. Do tablet em diante, o de antes. */}
+      <MapPin size={16} aria-hidden className="hidden shrink-0 text-muted md:block" />
+      <label htmlFor="vitrine-uf" className="hidden text-sm text-ink-2 md:block">
+        Rifas perto de
+      </label>
+      <div className="relative shrink-0 rounded-md focus-within:ring-2 focus-within:ring-marca md:min-w-0 md:focus-within:ring-0">
+        <span
+          aria-hidden
+          className="pointer-events-none flex h-9 items-center gap-1 rounded-md border border-line-2 bg-white pl-2 pr-1.5 text-sm font-bold md:hidden"
+        >
+          <MapPin size={15} className="text-muted" />
+          <span className="tnum">{escolha === "todos" ? "BR" : (regiao?.uf ?? "BR")}</span>
+          <ChevronDown size={14} className="text-muted" />
+        </span>
+        <label htmlFor="vitrine-uf" className="sr-only md:hidden">
           Rifas perto de
         </label>
         <select
@@ -59,7 +74,7 @@ export default function Vitrine() {
             if (conta?.uf === uf) return escolher(null);
             if (ufValida(uf)) escolher({ uf, cidade: null });
           }}
-          className="min-w-0 flex-1 rounded-md border border-line-2 bg-white px-2 py-1.5 text-sm font-semibold sm:flex-none"
+          className="absolute inset-0 h-full w-full cursor-pointer opacity-0 md:static md:h-auto md:w-auto md:cursor-auto md:rounded-md md:border md:border-line-2 md:bg-white md:px-2 md:py-1.5 md:text-sm md:font-semibold md:opacity-100"
         >
           <option value="">Todo o Brasil</option>
           {Object.entries(UFS).map(([sigla, nome]) => (
@@ -69,6 +84,9 @@ export default function Vitrine() {
           ))}
         </select>
       </div>
+      {/* À direita, a contagem do sorteio: abre a tela do sorteio (celular). */}
+      <ContagemDoSorteio onAbrir={sorteio.abrir} />
+    </div>
   );
   // Uma rifa por vez, em todas as larguras, com rolagem infinita.
   const gradeDeRifas = (lista: RifaDoFeed[] | undefined) => <FeedInfinito lista={lista ?? []} />;

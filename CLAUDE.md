@@ -128,7 +128,7 @@ arquitetura.
 | endereço curto (`/c/…`) e cliques nos links do perfil (`/l/…`) | `server/services/links.ts`, `client/src/components/LinksCurtos.tsx`, rotas em `server/routes/index.ts`, `scripts/perfil-test.ts` |
 | white label do organizador (capa, cor de destaque, links) | `validarDestaque()`/`validarLinks()` em `shared/perfil.ts`, `salvarPerfil()` em `server/services/perfil.ts`, `client/src/components/DestaqueOrg.tsx`, `client/src/components/PerfilPublicoForm.tsx` |
 | notificações no celular (Web Push) | `shared/push.ts` (regras), `server/services/push.ts`, `client/public/sw.js`, `client/src/lib/push.ts`, `scripts/push-test.ts` |
-| regulamento, central de ajuda, transmissão e conferência do sorteio | `shared/regulamento.ts`, `shared/ajuda.ts`, `shared/sorteio.ts`, `client/src/components/SorteioCard.tsx`, `scripts/transparencia-test.ts` |
+| regulamento, central de ajuda, transmissão, conferência do sorteio e a regra da aproximação (número não vendido) | `shared/regulamento.ts`, `shared/ajuda.ts`, `shared/sorteio.ts` (`contempladoPorAproximacao`), o sorteio em `POST /campaigns/:id/draw` (`server/routes/admin.ts`), `client/src/components/SorteioCard.tsx`, `scripts/transparencia-test.ts` |
 | vitrine: banners, stories, estados e feed | `shared/vitrine.ts` (regras), `server/services/vitrine.ts`, `client/src/components/BannersVitrine.tsx`, `Stories.tsx`, `EstadosVitrine.tsx`, `CartaoDoFeed.tsx`, `client/src/pages/adminStories.tsx`, `scripts/vitrine-test.ts` |
 | painel de resultados, origem da venda e foto do ganhador | `shared/resultados.ts` (regras), `server/services/resultados.ts`, `client/src/lib/origem.ts`, `client/src/pages/adminResultados.tsx`, `server/services/ganhador.ts`, `scripts/resultados-test.ts` |
 | aparência da plataforma (construtor de templates) | `shared/template.ts` (regras), `server/services/template.ts`, `client/src/lib/template.ts`, `client/src/pages/adminAparencia.tsx`, `scripts/aparencia-test.ts` |
@@ -2062,6 +2062,25 @@ desconto na primeira compra — **pago pela plataforma**.
 - **A semente não sai antes do sorteio** — nem na página da rifa, nem no
   regulamento, nem em `/sorteio`. Antes, só o hash. `npm run transparencia`
   procura a semente em todas as respostas.
+- **Número sorteado não vendido: regra da aproximação**
+  (`contempladoPorAproximacao()` e `REGRA_DA_APROXIMACAO` em
+  `shared/sorteio.ts`, a mesma frase no regulamento e na tela): o prêmio vai
+  ao número **vendido e pago** imediatamente acima; sem nenhum acima, ao
+  imediatamente abaixo. O sorteio grava os dois (`resultNumber`, o sorteado,
+  que a conferência pública refaz; e `winnerNumber`, o contemplado) numa
+  transação com a linha de `draws` travada (`FOR UPDATE`): dois cliques, um
+  sorteio e um 409; só rifa publicada. **Com cota reservada esperando Pix, o
+  sorteio espera (409)** — o Pix pago depois ficaria fora do quadro. A
+  confirmação do pagamento (`settleOrderAsPaid`) e o estorno (`refundOrder`)
+  leem o sorteio **dentro** da transação deles com a mesma linha travada
+  (`FOR SHARE`): Pix que chega depois do sorteio não vira cota (vai ao log,
+  para devolver), e o estorno nunca solta a cota que o sorteio está
+  escolhendo. Aviso do ganhador, push do resultado, coluna ao vivo e o
+  relatório de prestação de contas ("Número contemplado" e a regra) usam o
+  contemplado. Sorteio de antes da
+  coluna não tem `winnerNumber`: vale o sorteado. O prêmio prescrito em 180
+  dias vai ao Tesouro Nacional — está no regulamento. `npm run
+  transparencia` prova.
 - **A conferência roda no aparelho de quem olha** (`conferirSorteio()`, com
   WebCrypto): a mesma conta de `drawNumber()`. Mudou uma, mude a outra —
   `tests/sorteio.test.ts` compara as duas em 300 casos.

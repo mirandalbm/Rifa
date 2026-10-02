@@ -9,7 +9,7 @@ import "dotenv/config";
 import { baseUrl } from "./base-url";
 import { eq, sql } from "drizzle-orm";
 import { db, pool } from "../server/db";
-import { campaignStats, campaigns, draws, organizations } from "../shared/schema";
+import { buyers, campaignStats, campaigns, draws, orders, organizations, quotaAlloc } from "../shared/schema";
 import { commitSeed, drawNumber } from "../server/services/draw";
 import { conferirSorteio } from "../shared/sorteio";
 
@@ -37,8 +37,11 @@ class Cliente {
 
 const PREFIXO = "transp-teste";
 
+const FONE_TESTE = "11960007788";
+
 async function limpar() {
   await db.execute(sql`delete from campaigns where slug like ${`${PREFIXO}%`}`);
+  await db.execute(sql`delete from buyers where phone = ${FONE_TESTE}`);
 }
 
 async function main() {
@@ -139,6 +142,99 @@ async function main() {
     checa("link da live salvo mesmo com a rifa publicada", r.status === 200, `HTTP ${r.status}`);
     r = await anon.req("GET", `/api/public/campaigns/${publicada.c.slug}/sorteio`);
     checa("e aparece para o apostador", r.json?.transmissaoUrl === "https://youtube.com/live/teste");
+
+    // ---- número não vendido: regra da aproximação, pela rota de verdade ----
+    console.log("\n  regra da aproximação (sorteio pela rota):");
+    const admin = new Cliente();
+    r = await admin.req("POST", "/api/auth/login", { email: "admin@rifa.br", password: "admin123" });
+    if (r.status !== 200) throw new Error(`login da plataforma: HTTP ${r.status}`);
+    const [comprador] = await db.insert(buyers).values({ name: "Teste Aproximação", phone: FONE_TESTE }).returning();
+    let codigo = 90_100_000 + Math.floor(Math.random() * 100_000);
+    const vender = async (campaignId: string, numeros: number[]) => {
+      for (const n of numeros) {
+        const [o] = await db
+          .insert(orders)
+          .values({ code: codigo++, campaignId, buyerId: comprador.id, quantity: 1, amountCents: 500, status: "paid", paidAt: new Date() })
+          .returning();
+        await db.insert(quotaAlloc).values({ campaignId, number: n, status: "paid", orderId: o.id });
+      }
+    };
+    // Escolhe os 5 prêmios para o número cair longe das pontas (dá para vender acima e abaixo).
+    const sortear = async (sufixo: string, vendidos: (n: number) => number[], reservados: (n: number) => number[] = () => []) => {
+      const rifa = await novaRifa(sufixo, "published");
+      let premios = ["10001", "20002", "30003", "40004", "50005"];
+      let n = drawNumber({ seed: rifa.seed, federalPrizes: premios, totalQuotas: 1000 });
+      for (let i = 0; n < 10 || n > 990; i++) {
+        premios = [String(60000 + i), "20002", "30003", "40004", "50005"];
+        n = drawNumber({ seed: rifa.seed, federalPrizes: premios, totalQuotas: 1000 });
+      }
+      await vender(rifa.c.id, vendidos(n));
+      for (const x of reservados(n)) {
+        const [o] = await db.insert(orders).values({ code: codigo++, campaignId: rifa.c.id, buyerId: comprador.id, quantity: 1, amountCents: 500 }).returning();
+        await db.insert(quotaAlloc).values({ campaignId: rifa.c.id, number: x, status: "reserved", orderId: o.id, reservedUntil: new Date(Date.now() + 600_000) });
+      }
+      const resp = await admin.req("POST", `/api/admin/campaigns/${rifa.c.id}/draw`, { federalContest: 6001, federalPrizes: premios });
+      return { rifa, n, resp, premios };
+    };
+
+    let s1 = await sortear("vendido", (n) => [n, n + 1]);
+    checa("número sorteado vendido: ele mesmo leva", s1.resp.status === 200 && s1.resp.json?.winnerNumber === s1.n && s1.resp.json?.aproximacao === false, `${s1.n} → ${s1.resp.json?.winnerNumber}`);
+
+    s1 = await sortear("acima", (n) => [n - 2, n + 3, n + 7]);
+    checa("não vendido: leva o vendido imediatamente acima", s1.resp.json?.winnerNumber === s1.n + 3 && s1.resp.json?.aproximacao === true, `${s1.n} → ${s1.resp.json?.winnerNumber}`);
+    checa("…com o pedido dele como ganhador", Boolean(s1.resp.json?.winnerOrderId));
+    r = await anon.req("GET", `/api/public/campaigns/${s1.rifa.c.slug}/sorteio`);
+    checa("a página pública mostra o sorteado e o contemplado",
+      r.json?.numero === String(s1.n).padStart(4, "0") && r.json?.contemplado === String(s1.n + 3).padStart(4, "0") && r.json?.aproximacao === true,
+      `${r.json?.numero} / ${r.json?.contemplado}`);
+    const conf2 = await conferirSorteio({ seed: r.json.seed, seedHash: r.json.seedHash, federalPrizes: r.json.federalPrizes, totalQuotas: 1000, resultNumber: r.json.resultNumber });
+    checa("e a conferência pública segue fechando com o sorteado", conf2.hashConfere && conf2.numeroConfere);
+    r = await admin.req("POST", `/api/admin/campaigns/${s1.rifa.c.id}/draw`, { federalContest: 6001, federalPrizes: ["1", "2", "3", "4", "5"] });
+    checa("sortear de novo: 409, e o resultado não muda", r.status === 409, `HTTP ${r.status}`);
+
+    s1 = await sortear("abaixo", (n) => [n - 4, n - 1]);
+    checa("nenhum acima: leva o vendido imediatamente abaixo", s1.resp.json?.winnerNumber === s1.n - 1, `${s1.n} → ${s1.resp.json?.winnerNumber}`);
+
+    s1 = await sortear("nenhum", () => []);
+    checa("nenhuma cota paga: sorteio sem contemplado", s1.resp.status === 200 && s1.resp.json?.winnerNumber === null && s1.resp.json?.winnerOrderId === null);
+
+    // Reserva não paga não conta para a aproximação.
+    // Reserva esperando Pix: o sorteio espera (409) — o Pix pago depois ficaria fora do quadro.
+    s1 = await sortear("reserva", (n) => [n - 6], (n) => [n + 2]);
+    checa("com cota reservada esperando pagamento, o sorteio espera (409)", s1.resp.status === 409, `HTTP ${s1.resp.status} ${s1.resp.json?.message ?? ""}`);
+    const [aindaPublicada] = await db.select({ status: campaigns.status }).from(campaigns).where(eq(campaigns.id, s1.rifa.c.id));
+    checa("…e a rifa segue publicada, sem nada gravado", aindaPublicada.status === "published");
+    await db.execute(sql`delete from quota_alloc where campaign_id = ${s1.rifa.c.id} and status = 'reserved'`);
+    const premios = (await db.select().from(draws).where(eq(draws.campaignId, s1.rifa.c.id)))[0];
+    void premios;
+    r = await admin.req("POST", `/api/admin/campaigns/${s1.rifa.c.id}/draw`, { federalContest: 6001, federalPrizes: s1.premios });
+    checa("reserva vencida: sorteia, e só cota paga entra na aproximação", r.json?.winnerNumber === s1.n - 6, `${s1.n} → ${r.json?.winnerNumber}`);
+
+    // Pix que chega depois do sorteio não vira cota.
+    const [atrasado] = await db
+      .insert(orders)
+      .values({ code: codigo++, campaignId: s1.rifa.c.id, buyerId: comprador.id, quantity: 1, amountCents: 500, pspChargeId: `atrasado-${codigo}` })
+      .returning();
+    await anon.req("POST", `/api/dev/pay/${atrasado.code}`);
+    const [depoisDoPix] = await db.select({ status: orders.status }).from(orders).where(eq(orders.id, atrasado.id));
+    checa("Pix confirmado depois do sorteio não vira pedido pago", depoisDoPix.status === "pending", depoisDoPix.status);
+
+    const rascunhoSorteio = await novaRifa("rascunho-sorteio", "draft");
+    r = await admin.req("POST", `/api/admin/campaigns/${rascunhoSorteio.c.id}/draw`, { federalContest: 6001, federalPrizes: ["1", "2", "3", "4", "5"] });
+    checa("rascunho não é sorteado (409)", r.status === 409, `HTTP ${r.status}`);
+
+    // O relatório de prestação de contas diz o contemplado.
+    const relatorio = await fetch(URL + `/api/admin/exportacoes/sorteio?campanha=${s1.rifa.c.id}`, { headers: { Cookie: admin.cookie } });
+    const csv = await relatorio.text();
+    checa(
+      "o relatório do sorteio traz o número contemplado e a regra",
+      relatorio.status === 200 && csv.includes("Número contemplado") && csv.includes(String(s1.n - 6)) && csv.includes("imediatamente acima"),
+      `HTTP ${relatorio.status}`,
+    );
+
+    const reg2 = await anon.req("GET", `/api/public/campaigns/${s1.rifa.c.slug}/regulamento`);
+    const t2 = JSON.stringify(reg2.json?.secoes ?? []);
+    checa("o regulamento traz a aproximação e o Tesouro", t2.includes("imediatamente acima") && t2.includes("Tesouro Nacional"));
   } finally {
     await limpar();
   }

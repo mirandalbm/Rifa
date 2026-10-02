@@ -10,6 +10,7 @@
 import { clausulaDoBonus } from "./bonus";
 import { formatBRL, formatQuota, groupNumber } from "./format";
 import { regraDoReembolso } from "./reembolso";
+import { REGRA_DA_APROXIMACAO } from "./sorteio";
 
 export const REGULAMENTO_EXTRA_MAX = 3000;
 
@@ -133,14 +134,14 @@ export function montarRegulamento(d: DadosDoRegulamento): Secao[] {
           : "A data do sorteio é informada antes da publicação.",
         "O número vencedor é calculado a partir dos 5 prêmios da Loteria Federal e de uma semente secreta, cujo resumo (hash SHA-256) foi publicado antes da primeira venda. Depois do sorteio a semente é publicada, e qualquer pessoa pode refazer a conta na página da rifa.",
         ...(rifa.drawSeedHash ? [`Resumo da semente publicado: ${rifa.drawSeedHash}.`] : []),
-        "Se o número sorteado não tiver sido vendido, a promotora informa o procedimento na página da rifa, conforme a autorização.",
+        REGRA_DA_APROXIMACAO,
       ],
     },
     {
       titulo: "6. Entrega do prêmio",
       itens: [
         `O ganhador é avisado pelo WhatsApp do cadastro e recebe o prêmio da promotora em até ${PRAZO_ENTREGA_DIAS} dias após o sorteio, sem nenhum custo.`,
-        `O direito ao prêmio prescreve em ${PRESCRICAO_DIAS} dias contados da data da apuração.`,
+        `O direito ao prêmio prescreve em ${PRESCRICAO_DIAS} dias contados da data da apuração; o prêmio não reclamado nesse prazo tem o valor recolhido ao Tesouro Nacional, nos termos da Lei nº 5.768/1971 e do Decreto nº 70.951/1972.`,
       ],
     },
     {

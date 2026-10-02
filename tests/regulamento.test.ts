@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { REGRA_DA_APROXIMACAO, contempladoPorAproximacao } from "../shared/sorteio";
 import { montarRegulamento, validarRegulamentoExtra, REGULAMENTO_EXTRA_MAX, type DadosDoRegulamento } from "../shared/regulamento";
 
 const base: DadosDoRegulamento = {
@@ -50,6 +51,15 @@ describe("regulamento da rifa", () => {
     expect(montarRegulamento(base).some((x) => x.titulo.includes("Disposições"))).toBe(false);
   });
 
+  it("número não vendido segue a regra da aproximação, e o prêmio prescrito vai ao Tesouro", () => {
+    const t = texto(base);
+    expect(t).toContain(REGRA_DA_APROXIMACAO);
+    expect(t).not.toContain("a promotora informa o procedimento");
+    expect(t).toContain("prescreve em 180 dias");
+    expect(t).toContain("recolhido ao Tesouro Nacional");
+    expect(t).toContain("em até 30 dias após o sorteio");
+  });
+
   it("texto da promotora tem limite e vira nulo quando vazio", () => {
     expect(validarRegulamentoExtra("  \n\n  ")).toBeNull();
     expect(() => validarRegulamentoExtra("a".repeat(REGULAMENTO_EXTRA_MAX + 1))).toThrow(/3000/);
@@ -77,5 +87,23 @@ describe("central de ajuda", () => {
   it("cota de bônus só entra no regulamento da rifa que a aceita", () => {
     expect(texto(base)).not.toMatch(/cotas de bônus/);
     expect(texto({ ...base, rifa: { ...base.rifa, aceitaCotaBonus: true } })).toMatch(/cotas de bônus/);
+  });
+});
+
+describe("regra da aproximação", () => {
+  it("o sorteado vendido leva", () => {
+    expect(contempladoPorAproximacao({ sorteado: 50, sorteadoVendido: true, acima: 51, abaixo: 49 })).toBe(50);
+  });
+  it("não vendido: o imediatamente acima, antes do abaixo", () => {
+    expect(contempladoPorAproximacao({ sorteado: 50, sorteadoVendido: false, acima: 57, abaixo: 49 })).toBe(57);
+  });
+  it("sem nenhum acima, o imediatamente abaixo", () => {
+    expect(contempladoPorAproximacao({ sorteado: 1000, sorteadoVendido: false, acima: null, abaixo: 998 })).toBe(998);
+  });
+  it("nenhuma cota paga: sem contemplado", () => {
+    expect(contempladoPorAproximacao({ sorteado: 7, sorteadoVendido: false, acima: null, abaixo: null })).toBeNull();
+  });
+  it("número do lado errado não vale (defesa contra consulta trocada)", () => {
+    expect(contempladoPorAproximacao({ sorteado: 50, sorteadoVendido: false, acima: 40, abaixo: 60 })).toBeNull();
   });
 });

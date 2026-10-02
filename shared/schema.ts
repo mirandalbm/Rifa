@@ -836,6 +836,12 @@ export const draws = pgTable("draws", {
   seed: text("seed").notNull(),
   seedHash: text("seed_hash").notNull(),
   resultNumber: integer("result_number"),
+  /**
+   * O número contemplado: o sorteado, se foi vendido e pago, ou o mais
+   * próximo pela regra da aproximação (`contempladoPorAproximacao`). Nulo
+   * só se nenhuma cota foi paga.
+   */
+  winnerNumber: integer("winner_number"),
   winnerOrderId: uuid("winner_order_id").references(() => orders.id),
   evidenceUrl: text("evidence_url"),
   executedAt: timestamp("executed_at"),

@@ -14,6 +14,7 @@
  */
 import { sql, type SQL } from "drizzle-orm";
 import { db } from "../db";
+import { REGRA_DA_APROXIMACAO } from "@shared/sorteio";
 import {
   csvRow,
   csvMoney,
@@ -583,6 +584,7 @@ interface LinhaSorteio {
   federal_contest: number | null;
   federal_prizes: string[] | null;
   result_number: number | null;
+  winner_number: number | null;
   executed_at: string | null;
   evidence_url: string | null;
   vencedor: string | null;
@@ -611,7 +613,7 @@ function sorteio(escopo: ExportScope): ExportStream {
         SELECT c.slug, c.title, c.prize_title, c.total_quotas, c.price_cents,
                c.authorization_code,
                d.seed, d.seed_hash, d.federal_contest, d.federal_prizes,
-               d.result_number, d.executed_at, d.evidence_url,
+               d.result_number, d.winner_number, d.executed_at, d.evidence_url,
                b.name AS vencedor, b.phone AS vencedor_telefone,
                o.code AS pedido,
                st.sold_count AS vendidas
@@ -667,6 +669,14 @@ function sorteio(escopo: ExportScope): ExportStream {
 
       yield ["Sorteio realizado em", csvDate(d.executed_at)];
       yield ["Número sorteado", d.result_number];
+      // O pedido vencedor é o do contemplado: se o sorteado não foi vendido, o
+      // relatório diz qual número levou e por qual regra.
+      if (d.winner_number !== null && d.winner_number !== d.result_number) {
+        yield ["Número contemplado", d.winner_number];
+        yield ["Regra aplicada", REGRA_DA_APROXIMACAO];
+      } else if (d.executed_at && d.pedido === null) {
+        yield ["Número contemplado", "Nenhuma cota paga: sorteio sem contemplado"];
+      }
       yield ["Pedido vencedor", d.pedido];
       yield ["Ganhador", d.vencedor];
       // O telefone inteiro do ganhador não entra: o arquivo circula, e o

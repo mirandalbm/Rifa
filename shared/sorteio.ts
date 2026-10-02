@@ -85,3 +85,26 @@ export function transmissaoValida(url: unknown): url is string {
     return false;
   }
 }
+
+/**
+ * Regra da aproximação (a dos sorteios autorizados pela SPA/MF): se o número
+ * sorteado não foi vendido e pago, o prêmio vai para o número vendido e pago
+ * **imediatamente acima**; não havendo nenhum acima, para o **imediatamente
+ * abaixo**. Quem consulta o banco devolve o mais próximo de cada lado (ou
+ * nulo); a decisão mora aqui, para a tela, o regulamento e o teste lerem igual.
+ */
+export function contempladoPorAproximacao(p: {
+  sorteado: number;
+  sorteadoVendido: boolean;
+  acima: number | null;
+  abaixo: number | null;
+}): number | null {
+  if (p.sorteadoVendido) return p.sorteado;
+  if (p.acima !== null && p.acima > p.sorteado) return p.acima;
+  if (p.abaixo !== null && p.abaixo < p.sorteado) return p.abaixo;
+  return null;
+}
+
+/** O texto da regra, igual no regulamento e na tela do resultado. */
+export const REGRA_DA_APROXIMACAO =
+  "Se o número sorteado não tiver sido vendido e pago, o prêmio vai para o número vendido e pago imediatamente acima; se não houver nenhum acima, para o imediatamente abaixo.";

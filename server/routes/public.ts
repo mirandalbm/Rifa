@@ -1403,6 +1403,11 @@ publicRouter.get("/campaigns/:slug/sorteio", async (req, res, next) => {
         ? {
             resultNumber: d!.resultNumber,
             numero: formatQuota(d!.resultNumber!, c.totalQuotas),
+            // O contemplado: o sorteado, ou o mais próximo vendido (regra da aproximação).
+            // Sorteio de antes da regra não tem a coluna: vale o sorteado.
+            contemplado: d!.winnerNumber !== null ? formatQuota(d!.winnerNumber, c.totalQuotas) : null,
+            aproximacao: d!.winnerNumber !== null && d!.winnerNumber !== d!.resultNumber,
+            semContemplado: d!.winnerOrderId === null,
             federalContest: d!.federalContest,
             federalPrizes: d!.federalPrizes,
             // A semente só sai depois: antes, quem a tivesse calcularia o número.

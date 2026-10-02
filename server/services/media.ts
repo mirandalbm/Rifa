@@ -13,7 +13,15 @@ import { db } from "../db";
 import { campaignMedia, MAX_PHOTOS, MAX_VIDEO_SECONDS } from "@shared/schema";
 import { randomUUID } from "node:crypto";
 import { storage, mediaKey, chaveDaCampanha, LocalDiskStorage, type UploadTicket } from "./storage";
-import { comArquivoTemporarioEmPedacos, comVagaDeDownload, processadorDeVideo } from "./videoProcessor";
+import { apagarNoStream, esquecerDoStream } from "./streamPendentes";
+import {
+  comArquivoTemporarioEmPedacos,
+  comVagaDeDownload,
+  processadorDeVideo,
+  publicarVideo,
+  type VideoPublicado,
+} from "./videoProcessor";
+import { entregaHlsLigada } from "@shared/stream";
 import { emSegundoPlano } from "./push";
 import { POSTER_BAIXAR_ATE_BYTES, chaveDoPoster, posterPublico } from "@shared/poster";
 import { probeImage, probeVideoDimensions, probeVideoDuration, UnreadableMediaError } from "./probe";
@@ -290,44 +298,66 @@ async function ingest(params: {
  * quadro, não grava nada.
  *
  * Disco local: o `ffmpeg` lê o arquivo onde ele está. Bucket: baixa para um
- * temporário, só até `POSTER_BAIXAR_ATE_BYTES` — acima disso fica sem pôster
- * (é o caso que o Cloudflare Stream resolve, no ponto de encaixe).
+ * temporário, só até `POSTER_BAIXAR_ATE_BYTES` — acima disso fica sem pôster.
+ *
+ * Com a entrega em HLS ligada (`entregaHlsLigada()`), o mesmo passo deixa o
+ * vídeo no Cloudflare Stream e grava o `uid` e o HLS junto do pôster. A mídia
+ * removida no meio do caminho leva os dois: o pôster sai do armazenamento e o
+ * vídeo, do Stream.
  */
 export async function gerarPosterDaMidia(mediaId: string, campaignId: string, storageKey: string, bytes: number) {
   const store = storage();
-  const gerar = async (arquivo: string) => processadorDeVideo().gerarPoster(arquivo);
-  let poster: Buffer | null;
+  const entregar = entregaHlsLigada(process.env);
+  const gerar = async (arquivo: string): Promise<VideoPublicado> =>
+    entregar ? publicarVideo(processadorDeVideo(), arquivo) : { poster: await processadorDeVideo().gerarPoster(arquivo), stream: null };
+  let saida: VideoPublicado;
   if (store instanceof LocalDiskStorage) {
     await store.size(storageKey); // traz da cópia se o disco perdeu o arquivo
-    poster = await gerar(store.caminho(storageKey));
+    saida = await gerar(store.caminho(storageKey));
   } else if (bytes <= POSTER_BAIXAR_ATE_BYTES) {
     const ext = storageKey.slice(storageKey.lastIndexOf("."));
     // Em pedaços: o vídeo do bucket nunca vem inteiro para a memória do processo web.
-    poster = await comVagaDeDownload(() => comArquivoTemporarioEmPedacos(bytes, store.reader(storageKey), ext, gerar));
+    saida = await comVagaDeDownload(() => comArquivoTemporarioEmPedacos(bytes, store.reader(storageKey), ext, gerar));
   } else {
-    poster = null;
+    saida = { poster: null, stream: null };
   }
-  if (!poster) return null;
+  const { poster, stream } = saida;
+  if (!poster && !stream) return null;
 
-  const chave = chaveDoPoster(campaignId, randomUUID());
-  await store.write(chave, poster, "image/webp");
-  // Só entra se a mídia ainda existe e ainda não tem pôster: removida no
-  // meio do caminho, o pôster recém-gravado é lixo e sai.
-  const [gravado] = await db
-    .update(campaignMedia)
-    .set({ posterKey: chave })
-    .where(and(eq(campaignMedia.id, mediaId), isNull(campaignMedia.posterKey)))
-    .returning({ id: campaignMedia.id });
-  if (!gravado) {
-    await store.remove(chave).catch(() => {});
-    return null;
+  let chave: string | null = null;
+  try {
+    if (poster) {
+      chave = chaveDoPoster(campaignId, randomUUID());
+      await store.write(chave, poster, "image/webp");
+    }
+    // Só entra se a mídia ainda existe e ainda não passou por aqui: removida no
+    // meio do caminho, o que foi gerado é lixo e sai.
+    const [gravado] = await db
+      .update(campaignMedia)
+      .set({ posterKey: chave, streamUid: stream?.uid ?? null, streamHls: stream?.hls ?? null })
+      .where(and(eq(campaignMedia.id, mediaId), isNull(campaignMedia.posterKey), isNull(campaignMedia.streamUid)))
+      .returning({ id: campaignMedia.id });
+    if (gravado) {
+      // Agora o vídeo tem dono (a mídia): sai da lista do relógio.
+      if (stream) await esquecerDoStream(stream.uid).catch(() => {});
+      return chave;
+    }
+  } catch (e) {
+    await descartar(chave, stream?.uid);
+    throw e;
   }
-  return chave;
+  await descartar(chave, stream?.uid);
+  return null;
+}
+
+async function descartar(posterKey: string | null, streamUid: string | null | undefined) {
+  if (posterKey) await storage().remove(posterKey).catch(() => {});
+  await apagarNoStream(streamUid);
 }
 
 /** Apaga do armazenamento (e da cópia) o original, o pôster e as variantes de uma mídia. Nunca lança. */
 export async function apagarArquivosDeMidias(
-  linhas: { storageKey: string; posterKey: string | null; variants: MediaRow["variants"] }[],
+  linhas: { storageKey: string; posterKey: string | null; streamUid?: string | null; variants: MediaRow["variants"] }[],
 ) {
   try {
     const store = storage();
@@ -335,6 +365,7 @@ export async function apagarArquivosDeMidias(
       linhas.map(async (m) => {
         await store.remove(m.storageKey).catch(() => {});
         if (m.posterKey) await store.remove(m.posterKey).catch(() => {});
+        await apagarNoStream(m.streamUid);
         await removeVariants(m.variants);
       }),
     );
@@ -354,6 +385,8 @@ export async function removeMedia(mediaId: string) {
   // Mídia fora da campanha não tem por que continuar custando armazenamento.
   await storage().remove(removed.storageKey).catch(() => {});
   if (removed.posterKey) await storage().remove(removed.posterKey).catch(() => {});
+  // O vídeo guardado no Stream cobra por minuto: sai junto.
+  await apagarNoStream(removed.streamUid);
   await removeVariants(removed.variants);
   return removed;
 }
@@ -370,14 +403,18 @@ export async function listMedia(campaignId: string) {
 type MediaRow = typeof campaignMedia.$inferSelect;
 
 /** Endereços prontos para o `<img>`: original, srcset por formato e o blur. */
-export function withUrls(m: MediaRow) {
+export function withUrls(linha: MediaRow) {
   const store = storage();
   const url = (key: string) => store.publicUrl(key);
+  // O `uid` do Stream é só do servidor (apagar); a tela recebe o endereço do HLS.
+  const { streamUid: _uid, ...m } = linha;
   return {
     ...m,
     url: url(m.storageKey),
     // Só vídeo tem pôster; sem ele (sem ffmpeg, falha), `null`.
     posterUrl: posterPublico(m.posterKey ? url(m.posterKey) : null),
+    // O HLS do Stream (já conferido ao gravar); sem entrega, `null` e a tela toca o original.
+    hls: m.role === "video" ? m.streamHls ?? null : null,
     srcSetAvif: srcSet(m.variants, "avif", url),
     srcSetWebp: srcSet(m.variants, "webp", url),
   };

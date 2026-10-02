@@ -508,7 +508,8 @@ Na ordem de entrega do plano:
   para mudo se o navegador barrar). Ficou para depois: música/trilha (exige
   biblioteca licenciada), reações rápidas com emoji (hoje emoji é vantagem
   de verificado: decisão de produto) e aba "Friends" (aqui é "Seguindo").
-  Pôster pronto (`ffmpeg` local); sem transcode ainda (Cloudflare Stream).
+  Pôster pronto (`ffmpeg` local); HLS pelo Cloudflare Stream quando a
+  entrega estiver ligada (`reelsHls`).
 - [x] **Mensagens** (caixa de um para um entre apostador, organização e
   afiliado): pronta, atrás do interruptor `mensagensLigado` (Aparência →
   Topo do app, nasce desligado). **Mensagens v2, parte 1 feita:** o painel
@@ -585,9 +586,22 @@ Na ordem de entrega do plano:
   `ffmpeg` de reserva). **Falta no ambiente**: ativar o Stream na conta e pôr
   `CLOUDFLARE_ACCOUNT_ID` e `CLOUDFLARE_STREAM_TOKEN` (token com permissão de
   edição no Stream) no Railway.
-- [ ] **[código]** Entrega em HLS pelo Stream (guardar o `uid`, tocar pelo
-  Stream com `hls.js`, URL assinada) e vídeo nas conversas: depende do item
-  acima em produção, e muda o que se guarda por mídia.
+- [x] **[código]** Entrega em HLS pelo Stream: o vídeo da rifa fica no
+  Stream (`uid` e HLS conferido em `campaign_media`), a tela toca por HLS
+  nativo ou `hls.js` e volta ao original, apagar a mídia ou a rifa apaga no
+  Stream (seção "Entrega em HLS" do `CLAUDE.md`, `npm run poster`).
+  **Falta no ambiente**: `db:push` (colunas `stream_uid`, `stream_hls` e a
+  tabela `stream_pendentes`) **antes** do código; e, para ligar, `VIDEO_PROCESSOR=cloudflare-stream` e
+  `CLOUDFLARE_STREAM_ENTREGA=hls` com as credenciais do item acima (o Stream
+  cobra por minuto guardado). Ficou de fora: story em vídeo, vídeo nas
+  conversas e enviar ao Stream o vídeo de antes.
+- [ ] **[código]** Custo de entrega do Stream: hoje o HLS é público
+  (`requireSignedURLs=false`, sem `allowedOrigins`) — outro site pode tocar o
+  `.m3u8` e a plataforma paga os minutos entregues; e o vídeo de rifa que saiu
+  do ar segue tocável enquanto a mídia existir. Antes de restringir por
+  origem, conferir no Stream se o HLS nativo do iPhone (que pode não mandar
+  `Origin`) continua tocando; a outra saída é URL assinada (token por
+  visualização).
   Também falta o pôster dos vídeos enviados antes desta mudança (não há
   preenchimento retroativo).
 - [x] Pôster, extras: **feitos.** O vídeo do bucket vem **em pedaços** de 4 MB

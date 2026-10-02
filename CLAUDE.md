@@ -85,6 +85,7 @@ arquitetura.
 | segundo fator | `server/services/totp.ts` |
 | variantes de imagem | `server/services/images.ts` |
 | pôster do vídeo (rifa, reels e story), o `ffmpeg` local e o Cloudflare Stream | `shared/poster.ts` (regras e comando), `server/services/videoProcessor.ts` (`ProcessadorDeVideo`, `FfmpegLocal`), `gerarPosterDaMidia()` em `server/services/media.ts`, `gerarPosterDoStory()` em `server/services/vitrine.ts`, `poster` em `Publicacao.tsx`/`Reels.tsx`/`Stories.tsx`, `scripts/poster-test.ts`, `tests/poster.test.ts`, `tests/cloudflareStream.test.ts` |
+| entrega do vídeo em HLS pelo Cloudflare Stream (guardar, tocar, apagar) | `shared/stream.ts` (regras), `publicar()`/`apagarDoStream()` em `server/services/videoProcessor.ts`, `gerarPosterDaMidia()`/`removeMedia()` em `server/services/media.ts`, `stream_uid`/`stream_hls` em `campaign_media`, `server/services/streamPendentes.ts` (vídeo sem dono, relógio), `client/src/lib/hls.ts` (`useVideoHls`), `scripts/poster-test.ts`, `tests/stream.test.ts`, `tests/cloudflareStream.test.ts` |
 | onde a mídia é guardada e a cópia de segurança | `server/services/storage.ts` (`LocalDiskStorage`, `CopiaS3`, `sincronizarCopia`), `/uploads` em `server/index.ts`, `tests/backup.test.ts` |
 | mensagens e modelos | `server/notifications/` |
 | cotas premiadas | `shared/premiadas.ts` (números escolhidos), `server/routes/admin.ts` (sorteio e escolha), `services/orders.ts` (revelação), `premiados` em `listarComentarios()` (o comentário fixo de quem levou), `client/src/components/CotaSurpresa.tsx` (o presente na publicação, que revela) |
@@ -195,11 +196,11 @@ arquitetura.
   vence sem pagar não é cancelado no provedor; se for pago tarde, credita
   normalmente (`docs/PENDENCIAS.md`, seção 1b).
 
-- **Transcode do vídeo** (recompressão, HLS): hoje servimos o arquivo
-  original. O pôster já existe (seção Mídia); o transcode é trabalho pesado
-  e não roda no processo web. O Cloudflare Stream resolve de fábrica: o
-  `CloudflareStream` em `server/services/videoProcessor.ts` já tira o pôster
-  por ele (seção Pôster). Falta a **entrega** (guardar o `uid`, tocar em HLS).
+- **Transcode do vídeo** fora do Stream: o processo web nunca recomprime.
+  Com a entrega ligada (`CLOUDFLARE_STREAM_ENTREGA=hls`), o vídeo **da rifa**
+  toca em HLS pelo Stream (seção "Entrega em HLS"); sem ela, e no story,
+  servimos o arquivo original. Vídeo enviado antes de ligar a entrega segue
+  no original (não há envio retroativo ao Stream).
 - Fila (BullMQ): os três relógios rodam com `setInterval` no processo,
   protegidos por trava de aplicação do Postgres — com várias réplicas só uma
   executa. Serve bem; a fila entra quando houver trabalho pesado de verdade.
@@ -869,10 +870,66 @@ rifa, do reels e do story. Quem faz é um **processador de vídeo**
   `excluirRifa()` apaga do armazenamento o original, o pôster e as variantes
   (`apagarArquivosDeMidias()`), só **depois** de a transação fechar: rollback
   não pode deixar mídia sem arquivo.
-- **Ficou fora**: transcode/HLS e o pôster de vídeo antigo (enviado antes
-  desta mudança). `npm run poster` prova (com `ffmpeg` e sem; `FFMPEG_PATH`
+- **Ficou fora**: o pôster de vídeo antigo (enviado antes desta mudança). A
+  entrega em HLS é a seção abaixo. `npm run poster` prova (com `ffmpeg` e sem; `FFMPEG_PATH`
   apontando para o vazio nos dois lados prova o caminho sem ele) e
   `tests/poster.test.ts` cobre as regras e as falhas do processo.
+
+## Entrega em HLS — o que não pode afrouxar
+
+Com `VIDEO_PROCESSOR=cloudflare-stream` **e** `CLOUDFLARE_STREAM_ENTREGA=hls`
+(`entregaHlsLigada()` em `shared/stream.ts`), o vídeo da rifa **fica** no
+Stream e a tela toca o HLS dele; sem a escolha, o Stream só tira o pôster e
+apaga o vídeo, como antes. Guardar cobra por minuto: é decisão de custo, por
+isso é variável à parte.
+
+- **O mesmo passo do pôster** (`gerarPosterDaMidia()` → `publicar()` em
+  `CloudflareStream`), em segundo plano: o envio responde 201 sem esperar, e
+  o HLS aparece depois. O pôster que o Stream não der, o `ffmpeg` tenta
+  (`ComReserva.publicar`).
+- **Só fica no Stream o que vai tocar.** O vídeo fica se o Stream devolveu um
+  HLS conferido; qualquer outra saída (erro, prazo de 10 min da entrega —
+  `prazoEntregaMs`, o vídeo de feed demora —, HLS estranho) apaga no
+  `finally`.
+- **Nenhum vídeo esquecido lá** (o Stream cobra por minuto guardado): todo
+  envio é anotado em `stream_pendentes` **antes** de qualquer espera (gancho
+  `enviado`, `server/services/streamPendentes.ts`), e sai da lista quando o
+  Stream confirma o DELETE ou quando a mídia guarda o `uid`. Apagar uma mídia
+  anota antes de pedir o DELETE. O relógio (`limparStreamPendente`, trava
+  811014) apaga no Stream o que passou de 30 min sem dono — o processo que
+  caiu no meio, o DELETE que falhou — e tira da lista o que tem dono. O `uid` só vale no formato do Stream (`uidValido()`: 32 hex) —
+  ele vira caminho da consulta e do `DELETE`.
+- **O HLS é conferido, nunca aceito** (`hlsDoStream()`): `https`,
+  `customer-<código>.cloudflarestream.com`, caminho
+  `/<o mesmo uid>/manifest/video.m3u8`, sem usuário, porta, consulta nem
+  âncora. O endereço sai na tela de todo apostador. **Nada vem do navegador**:
+  `streamUid`/`streamHls`/`hls` no corpo do envio são ignorados.
+- **Gravar é `UPDATE` condicional** (mídia existe e ainda sem pôster nem
+  `uid`), junto do pôster. Mídia removida no meio: o pôster sai do
+  armazenamento e o vídeo, do Stream. `removeMedia` e `excluirRifa()`
+  (`apagarArquivosDeMidias()`, depois da transação, com as linhas travadas
+  `FOR UPDATE`) apagam no Stream (`apagarDoStream()`, nunca lança; sem
+  credencial, avisa no log que o vídeo ficou lá).
+- **O campo `streamUid` não sai em resposta** (`withUrls()` o tira); a tela
+  recebe `hls` (`pecaPublica`, a página da rifa, `reelsHls` no Reels) e
+  sempre o `url` original de reserva. O `uid` está dentro do endereço do HLS
+  — não é segredo: apagar exige o token.
+- **A tela volta ao original** (`useVideoHls()` em `client/src/lib/hls.ts`,
+  regra em `fonteDoVideo()`): HLS nativo (Safari, iPhone) ou hls.js (versão
+  `light`, baixada só quando precisa e que só busca os pedaços do vídeo no
+  play — o `preload="metadata"` segue valendo); erro fatal ou sem como tocar,
+  `src` = original, no ponto em que estava.
+- **Endereço da API**: `CLOUDFLARE_API_URL` só fora de produção
+  (`baseDaCloudflare()`), para a prova; o token só no cabeçalho.
+- Ficou fora: story em vídeo (vive 24 h, fica no banco), vídeo nas conversas,
+  URL assinada e `allowedOrigins` do Stream (o vídeo da rifa já é público; o
+  HLS de uma rifa que sai do ar segue tocável enquanto a mídia existir, como o
+  original em `/uploads`) — `docs/PENDENCIAS.md`.
+- As colunas `campaign_media.stream_uid` e `stream_hls` e a tabela
+  `stream_pendentes` sobem com o `db:push`
+  **antes** do código. `npm run poster` prova com um Stream de mentira (com as
+  variáveis da entrega, como no CI) e `tests/stream.test.ts` e
+  `tests/cloudflareStream.test.ts` cobrem as regras.
 
 ## Antifraude — o que não pode afrouxar
 

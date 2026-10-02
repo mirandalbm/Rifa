@@ -79,6 +79,14 @@ Procure, nesta ordem, o que é **grave**:
     nome de pessoa; débito fora
     da transação do uso; Pix creditado sem o `UPDATE` condicional
     `pendente → paga`; CPF/CNPJ do pagador guardado.
+13. **Mídia e vídeo no Stream** ("Pôster do vídeo" e "Entrega em HLS"):
+    medida, chave, `uid` ou endereço de HLS vindos do navegador; `uid` usado em
+    URL sem `uidValido()`; HLS ou quadro do Stream usados sem conferência
+    (`hlsDoStream()`, domínio do Stream); `uid` saindo numa resposta; caminho
+    que apaga a mídia (ou a rifa) sem apagar o vídeo guardado no Stream, ou que
+    deixa o vídeo lá quando a gravação não entrou; falha do processador que
+    derrube o envio; token fora do cabeçalho ou `CLOUDFLARE_API_URL` valendo em
+    produção.
 
 Só depois, o que é menor: mensagem de interface fora do português, número
 sem `tnum`, estado só por cor, cor fixa em vez de variável do tema.

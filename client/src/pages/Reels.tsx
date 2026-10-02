@@ -10,10 +10,11 @@ import { useConfigDoApp } from "@/components/Console";
 import { Money } from "@/components/bits";
 import { marcarOrigem } from "@/lib/origem";
 import { guardarSomDosReels, lerSomDosReels } from "@/lib/reelsSom";
+import { useVideoHls } from "@/lib/hls";
 import { ABAS_DO_REELS, type AbaDoReels } from "@shared/reels";
 import type { RifaDoFeed } from "@/components/CartaoDoFeed";
 
-type ItemDoReels = RifaDoFeed & { reels: string | null; reelsPoster?: string | null };
+type ItemDoReels = RifaDoFeed & { reels: string | null; reelsPoster?: string | null; reelsHls?: string | null };
 interface Pagina {
   ligado: boolean;
   precisaEntrar?: boolean;
@@ -162,6 +163,7 @@ function Quadro({
   const [, navegar] = useLocation();
   const video = useRef<HTMLVideoElement>(null);
   const [tocando, setTocando] = useState(false);
+  useVideoHls(video, c.reels, c.reelsHls);
   const caminho = c.organizacao ? `/o/${c.organizacao.slug}/r/${c.slug}` : `/r/${c.slug}`;
 
   useEffect(() => {
@@ -203,7 +205,6 @@ function Quadro({
         {c.reels ? (
           <video
             ref={video}
-            src={c.reels}
             poster={c.reelsPoster ?? undefined}
             playsInline
             loop

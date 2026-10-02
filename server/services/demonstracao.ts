@@ -25,6 +25,7 @@ import {
   organizations,
 } from "@shared/schema";
 import { salvarPerfil } from "./perfil";
+import { apagarNoStream } from "./streamPendentes";
 import { salvarFotoDoGanhador } from "./ganhador";
 import { archiveOrganization, OrgScopeError, restoreOrganization } from "./orgs";
 import { postarStory, VitrineError } from "./vitrine";
@@ -234,7 +235,9 @@ const PALETA = [
 /** As fotos da publicação de uma rifa de teste: banner e três fotos em SVG. */
 async function midiaDeExemplo(campaignId: string, titulo: string, i: number) {
   const c = PALETA[i % PALETA.length];
-  await db.delete(campaignMedia).where(eq(campaignMedia.campaignId, campaignId));
+  const saiu = await db.delete(campaignMedia).where(eq(campaignMedia.campaignId, campaignId)).returning({ streamUid: campaignMedia.streamUid });
+  // O vídeo que estava no Stream sai junto (cobra por minuto guardado).
+  for (const m of saiu) await apagarNoStream(m.streamUid);
   await db.insert(campaignMedia).values([
     { campaignId, role: "banner", position: 0, storageKey: svg(1600, 900, c.de, c.para, titulo, "rifa de teste"), mime: "image/svg+xml", status: "ready" },
     ...[1, 2, 3].map((n) => ({

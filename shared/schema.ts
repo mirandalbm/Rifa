@@ -493,6 +493,13 @@ export const campaignMedia = pgTable(
     /** Medida no servidor com ffprobe. Vídeo acima de 60 s é recusado. */
     durationS: integer("duration_s"),
     posterKey: text("poster_key"),
+    /**
+     * O vídeo guardado no Cloudflare Stream para tocar em HLS (entrega
+     * ligada): o `uid` (para apagar) e o endereço do HLS conferido por
+     * `hlsDoStream()`. Nulos sem entrega — a tela toca o original.
+     */
+    streamUid: text("stream_uid"),
+    streamHls: text("stream_hls"),
     /** Variantes responsivas geradas na ingestão (AVIF/WebP em 400/800/1600). */
     variants: jsonb("variants").$type<
       { width: number; format: "avif" | "webp"; key: string; bytes: number }[]
@@ -2712,6 +2719,19 @@ export const iaUso = pgTable(
  * dois cliques são uma execução. A chave (conversa, chamada) impede a mesma
  * chamada de entrar duas vezes. Regras em `shared/iaAcoes.ts`.
  */
+/**
+ * Vídeos que estão no Cloudflare Stream sem dono garantido: entram no envio
+ * (antes de qualquer espera) e ao pedir para apagar, e saem quando o Stream
+ * confirma o DELETE ou quando a mídia guarda o `uid`. O relógio
+ * (`limparStreamPendente`) apaga o que ficou sem dono — o processo que caiu no
+ * meio ou o DELETE que falhou —, porque o Stream cobra por minuto guardado.
+ */
+export const streamPendentes = pgTable("stream_pendentes", {
+  uid: text("uid").primaryKey(),
+  criadoEm: timestamp("criado_em").notNull().defaultNow(),
+  tentativas: integer("tentativas").notNull().default(0),
+});
+
 export const iaAcoes = pgTable(
   "ia_acoes",
   {

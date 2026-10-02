@@ -7,13 +7,18 @@ import {
   CloudflareStream,
   ComReserva,
   STREAM_ENVIO_MAX_BYTES,
+  baseDaCloudflare,
+  ligarGanchosDoStream,
   processadorDeVideo,
+  publicarVideo,
   trocarProcessadorDeVideo,
   type ProcessadorDeVideo,
 } from "../server/services/videoProcessor";
 
 const TOKEN = "token-secreto-de-teste";
-const THUMB = "https://customer-abc123.cloudflarestream.com/UID1/thumbnails/thumbnail.jpg";
+const UID = "0123456789abcdef0123456789abcdef";
+const THUMB = `https://customer-abc123.cloudflarestream.com/${UID}/thumbnails/thumbnail.jpg`;
+const HLS = `https://customer-abc123.cloudflarestream.com/${UID}/manifest/video.m3u8`;
 
 async function quadro() {
   return sharp({ create: { width: 1280, height: 720, channels: 3, background: "#2255aa" } }).jpeg().toBuffer();
@@ -28,16 +33,18 @@ async function arquivoDeVideo(bytes = 2048) {
 }
 
 /** Um Stream de mentira: guarda as chamadas e responde como a API. */
-function streamFalso(opcoes: { prontoNaConsulta?: number; estado?: string; falhaNoEnvio?: boolean; miniatura?: string } = {}) {
+function streamFalso(
+  opcoes: { prontoNaConsulta?: number; estado?: string; falhaNoEnvio?: boolean; miniatura?: string; hls?: string; uid?: string; quadroFalha?: boolean } = {},
+) {
   const chamadas: { metodo: string; url: string; auth: string | null }[] = [];
   let consultas = 0;
   const f = (async (entrada: RequestInfo | URL, init?: RequestInit) => {
     const url = String(entrada);
     const metodo = init?.method ?? "GET";
     chamadas.push({ metodo, url, auth: new Headers(init?.headers).get("authorization") });
-    if (url.includes("thumbnails")) return new Response(await quadro(), { status: 200 });
+    if (url.includes("thumbnails")) return opcoes.quadroFalha ? new Response("x", { status: 500 }) : new Response(await quadro(), { status: 200 });
     if (metodo === "POST") {
-      return opcoes.falhaNoEnvio ? resp({ success: false }, 400) : resp({ success: true, result: { uid: "UID1" } });
+      return opcoes.falhaNoEnvio ? resp({ success: false }, 400) : resp({ success: true, result: { uid: opcoes.uid ?? UID } });
     }
     if (metodo === "DELETE") return resp({ success: true });
     consultas++;
@@ -48,6 +55,7 @@ function streamFalso(opcoes: { prontoNaConsulta?: number; estado?: string; falha
         status: { state: opcoes.estado ?? (pronto ? "ready" : "inprogress") },
         readyToStream: pronto && opcoes.estado !== "error",
         thumbnail: opcoes.miniatura ?? THUMB,
+        playback: { hls: opcoes.hls ?? HLS },
       },
     });
   }) as typeof fetch;
@@ -122,8 +130,103 @@ describe("Cloudflare Stream: pôster", () => {
     await fs.rm(pasta, { recursive: true, force: true });
   });
 
+  it("uid fora do formato do Stream não vira caminho de URL: sem pôster e sem consulta", async () => {
+    const { arq, pasta } = await arquivoDeVideo();
+    const s = streamFalso({ uid: "../../outra-conta" });
+    expect(await novo(s.f).gerarPoster(arq)).toBeNull();
+    expect(s.chamadas.map((c) => c.metodo)).toEqual(["POST"]);
+    await fs.rm(pasta, { recursive: true, force: true });
+  });
+
   it("acima do teto do envio simples nem sai da máquina", async () => {
     expect(STREAM_ENVIO_MAX_BYTES).toBe(200 * 1024 * 1024);
+  });
+});
+
+describe("Cloudflare Stream: entrega em HLS", () => {
+  it("publicar deixa o vídeo no Stream e devolve o uid, o HLS e o pôster", async () => {
+    const { arq, pasta } = await arquivoDeVideo();
+    const s = streamFalso({ prontoNaConsulta: 2 });
+    const r = await novo(s.f).publicar(arq);
+    expect(r.stream).toEqual({ uid: UID, hls: HLS });
+    expect(r.poster).not.toBeNull();
+    expect(s.chamadas.some((c) => c.metodo === "DELETE")).toBe(false);
+    await fs.rm(pasta, { recursive: true, force: true });
+  });
+
+  it("sem pôster do Stream o vídeo fica do mesmo jeito (o pôster é do reserva)", async () => {
+    const { arq, pasta } = await arquivoDeVideo();
+    const s = streamFalso({ quadroFalha: true });
+    const r = await novo(s.f).publicar(arq);
+    expect(r).toEqual({ poster: null, stream: { uid: UID, hls: HLS } });
+    const b = Buffer.from("quadro do ffmpeg");
+    const reserva: ProcessadorDeVideo = { nome: "ffmpeg", gerarPoster: async () => b };
+    const c = await new ComReserva(novo(streamFalso({ quadroFalha: true }).f), reserva).publicar(arq);
+    expect(c).toEqual({ poster: b, stream: { uid: UID, hls: HLS } });
+    await fs.rm(pasta, { recursive: true, force: true });
+  });
+
+  it("HLS fora do próprio vídeo, erro ou prazo: o vídeo sai do Stream e não há entrega", async () => {
+    const { arq, pasta } = await arquivoDeVideo();
+    for (const [opcoes, extra] of [
+      [{ hls: "https://evil.example.com/x.m3u8" }, {}],
+      [{ hls: HLS.replace(UID, "f".repeat(32)) }, {}],
+      [{ hls: `${HLS}?token=1` }, {}],
+      [{ estado: "error" }, {}],
+      [{ prontoNaConsulta: 9999 }, { prazoMs: 80 }],
+    ] as const) {
+      const s = streamFalso(opcoes);
+      const r = await novo(s.f, extra).publicar(arq);
+      expect(r.stream).toBeNull();
+      expect(s.chamadas.filter((c) => c.metodo === "DELETE")).toHaveLength(1);
+    }
+    await fs.rm(pasta, { recursive: true, force: true });
+  });
+
+  it("apagar só aceita uid do Stream, leva o token no cabeçalho e nunca lança", async () => {
+    const s = streamFalso();
+    expect(await novo(s.f).apagar(UID)).toBe(true);
+    expect(s.chamadas).toEqual([{ metodo: "DELETE", url: `https://api.cloudflare.com/client/v4/accounts/conta1/stream/${UID}`, auth: `Bearer ${TOKEN}` }]);
+    s.chamadas.length = 0;
+    await novo(s.f).apagar("../x");
+    expect(s.chamadas).toHaveLength(0);
+    const cai = (async () => {
+      throw new Error("rede");
+    }) as unknown as typeof fetch;
+    await expect(novo(cai).apagar(UID)).resolves.toBe(false);
+  });
+
+  it("os ganchos anotam o envio antes da espera e esquecem só o que o Stream apagou", async () => {
+    const { arq, pasta } = await arquivoDeVideo();
+    const eventos: string[] = [];
+    ligarGanchosDoStream({ enviado: async (u) => void eventos.push(`enviado:${u}`), apagado: async (u) => void eventos.push(`apagado:${u}`) });
+    try {
+      await novo(streamFalso().f).publicar(arq);
+      expect(eventos).toEqual([`enviado:${UID}`]);
+      eventos.length = 0;
+      await novo(streamFalso().f).gerarPoster(arq);
+      expect(eventos).toEqual([`enviado:${UID}`, `apagado:${UID}`]);
+      eventos.length = 0;
+      const falhaNoDelete = (async (e: RequestInfo | URL, init?: RequestInit) =>
+        init?.method === "DELETE" ? new Response("x", { status: 503 }) : streamFalso().f(e, init)) as typeof fetch;
+      await novo(falhaNoDelete).gerarPoster(arq);
+      expect(eventos).toEqual([`enviado:${UID}`]);
+    } finally {
+      ligarGanchosDoStream(null);
+      await fs.rm(pasta, { recursive: true, force: true });
+    }
+  });
+
+  it("publicarVideo: quem não guarda vídeo devolve só o pôster", async () => {
+    const b = Buffer.from("p");
+    expect(await publicarVideo({ nome: "x", gerarPoster: async () => b }, "a")).toEqual({ poster: b, stream: null });
+    expect(await publicarVideo({ nome: "x", gerarPoster: async () => { throw new Error("x"); } }, "a")).toEqual({ poster: null, stream: null });
+  });
+
+  it("o endereço da API só muda fora de produção", () => {
+    expect(baseDaCloudflare({ NODE_ENV: "production", CLOUDFLARE_API_URL: "http://127.0.0.1:1" })).toBe("https://api.cloudflare.com/client/v4");
+    expect(baseDaCloudflare({ NODE_ENV: "development", CLOUDFLARE_API_URL: "http://127.0.0.1:1/client/v4/" })).toBe("http://127.0.0.1:1/client/v4");
+    expect(baseDaCloudflare({})).toBe("https://api.cloudflare.com/client/v4");
   });
 });
 

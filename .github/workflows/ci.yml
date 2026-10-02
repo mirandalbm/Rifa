@@ -63,6 +63,13 @@ jobs:
       # que a própria prova sobe nesta porta (o servidor só aceita trocar o endereço fora de produção).
       CHATBASE_API_KEY: ci-chave-do-assistente-1234
       CHATBASE_API_URL: http://127.0.0.1:5099/api/v2
+      # Só para a entrega do vídeo em HLS (`npm run poster`): o Stream de mentira que a
+      # prova sobe nesta porta. Fora dela ninguém escuta ali, e o pôster cai no ffmpeg.
+      VIDEO_PROCESSOR: cloudflare-stream
+      CLOUDFLARE_STREAM_ENTREGA: hls
+      CLOUDFLARE_ACCOUNT_ID: ci
+      CLOUDFLARE_STREAM_TOKEN: ci-token-do-stream
+      CLOUDFLARE_API_URL: http://127.0.0.1:5098/client/v4
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

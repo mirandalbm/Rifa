@@ -216,8 +216,10 @@ async function main() {
     checa("…e fica sem pôster (404 no pôster)", r.status === 404, `HTTP ${r.status}`);
     const painelFalso = (await marina.req("GET", "/api/admin/stories")).json?.find((s: any) => s.id === idFalso);
     checa("…com `poster: null` no JSON, e o vídeo segue servido", painelFalso?.poster === null && painelFalso?.tipo === "video");
-    const inteiro = await fetch(URL + painelFalso.imagem);
+    // O público lê pela rota pública; o painel, pela dele (que também serve o story agendado).
+    const inteiro = await fetch(`${URL}/api/public/stories/${idFalso}/imagem`);
     checa("o vídeo original continua saindo inteiro", inteiro.status === 200 && Buffer.from(await inteiro.arrayBuffer()).equals(falso));
+    checa("o painel lê o vídeo pela porta dele", painelFalso.imagem === `/api/admin/stories/${idFalso}/imagem`, String(painelFalso.imagem));
 
     if (real) {
       r = await marina.req("POST", "/api/admin/stories", { video: dataUrl(real), legenda: "Com pôster" });
@@ -238,7 +240,8 @@ async function main() {
       const noPerfil = (await anon.req("GET", `/api/public/o/${slugOrg}/stories`)).json?.stories?.find((s: any) => s.id === id);
       checa("o perfil público traz o endereço do pôster", noPerfil?.poster === `/api/public/stories/${id}/poster`, String(noPerfil?.poster));
       const img = (await marina.req("GET", "/api/admin/stories")).json?.find((s: any) => s.id === id);
-      checa("o painel também", img?.poster === `/api/public/stories/${id}/poster`);
+      checa("o painel também, pela porta dele", img?.poster === `/api/admin/stories/${id}/poster`, String(img?.poster));
+      checa("…e a porta do painel serve o pôster à dona", (await marina.req("GET", img.poster)).status === 200);
       const doBanco = await db.select({ p: sql<number>`octet_length(${stories.poster})` }).from(stories).where(eq(stories.id, id));
       checa("o pôster fica no banco, junto do story", Number(doBanco[0]?.p) > 100);
 

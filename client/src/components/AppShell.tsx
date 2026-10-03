@@ -355,8 +355,12 @@ export function PanelShell({
   // Os avisos do sino: os últimos comentários de apostador nas rifas do
   // recorte. Abrir o sino marca tudo como visto; o número vai no rótulo.
   const qc = useQueryClient();
+  // Só a plataforma e a organização têm comentários no sino (o afiliado e o
+  // cambista não alcançam /api/admin): para eles, nem pede.
+  const temComentarios = session?.role === "admin" || session?.role === "organizer";
   const { data: avisos } = useQuery<AvisoDoPainel[]>({
     queryKey: ["/api/admin/avisos"],
+    enabled: temComentarios,
     refetchInterval: 60_000,
   });
   const novos = naoLidos(avisos ?? []);
@@ -629,6 +633,10 @@ export function PanelShell({
                 </Link>
               ) : null}
               {avisos && avisos.length === 0 ? <p className="px-3 py-2 text-muted">Nenhum comentário ainda.</p> : null}
+              {/* Sem comentários no sino (afiliado, cambista) e sem nada a avisar: o menu diz, em vez de abrir vazio. */}
+              {!temComentarios && !(pendenciasNoMenu || mensagensNovas || paraAutorizar || decididas) ? (
+                <p className="px-3 py-2 text-muted">Nada novo por aqui.</p>
+              ) : null}
               <ul aria-label="Comentários novos nas suas rifas" className="max-h-80 overflow-y-auto">
                 {avisos?.map((a) => (
                   <li key={a.id}>

@@ -408,8 +408,10 @@ export default function Rifa() {
       {/* O carrossel da publicação (fotos e vídeos, até 10 com o banner),
           as ações e a legenda — como no feed. */}
       {carrossel.length ? (
-        // No tablet a imagem vai até a borda; a altura é que não passa de 85% da tela.
-        <div className="-mx-4 mt-3 lg:mx-0 lg:overflow-hidden lg:rounded-xl">
+        // No celular a imagem vai até a borda; do tablet em diante fica na coluna,
+        // com os cantos arredondados, como no feed e alinhada com o banner da
+        // entidade beneficiada. A altura não passa de 85% da tela.
+        <div className="-mx-4 mt-3 md:mx-0 md:overflow-hidden md:rounded-xl">
           <Carrossel
             pecas={carrossel}
             limitarNoTablet
@@ -424,7 +426,7 @@ export default function Rifa() {
         </div>
       ) : null}
       {campaign.interacoes ? (
-        <div className="-mx-4 lg:mx-0">
+        <div className="-mx-4 md:mx-0">
           <BarraDeAcoes
             slug={campaign.slug}
             titulo={campaign.prizeTitle}

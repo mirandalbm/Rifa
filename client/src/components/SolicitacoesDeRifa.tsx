@@ -34,6 +34,8 @@ interface Detalhe {
     alteracoes: Alteracoes | null;
     drawAtAtual: string | null;
     drawAtNovo: string | null;
+    /** Adiamento para um sorteio oficial do calendário: o selo dele. */
+    sorteioOficialNovo?: { selo: string } | null;
     motivo: string | null;
     decisao: string | null;
     decididoEm: string | null;
@@ -287,6 +289,12 @@ function DetalheDaSolicitacao({
               De <span className="tnum">{quando(s.drawAtAtual)}</span> para{" "}
               <b className="tnum">{quando(s.drawAtNovo)}</b>
             </p>
+            {s.sorteioOficialNovo ? (
+              <p className="mt-1 text-xs">
+                No sorteio oficial: <b>{s.sorteioOficialNovo.selo}</b>. Aprovado, a rifa passa a integrá-lo e é
+                sorteada pelo resultado dele.
+              </p>
+            ) : null}
           </div>
         ) : (
           <div className="overflow-x-auto rounded-md border border-line">

@@ -21,6 +21,7 @@ import { enviarEventosPendentes } from "../services/marketing";
 import { migrarAfiliadosAntigos } from "../services/afiliados";
 import { lancarMensalidades } from "../services/billing";
 import { releaseExpired } from "../services/quotas";
+import { sortearRifasPendentesDosSorteiosOficiais } from "../services/sortear";
 import { paymentProviderByName } from "../payments";
 import { log } from "../vite";
 import { poolDasTravas } from "../db";
@@ -69,6 +70,7 @@ const LOCK_COPIA = 811_013;
 const LOCK_IA_FRANQUIA = 811_701;
 const LOCK_STREAM = 811_014;
 const LOCK_SEGUNDO_FATOR = 811_015;
+const LOCK_SORTEIO_OFICIAL = 811_016;
 
 /** Quantos minutos antes de a reserva cair o lembrete é enviado. */
 const LEMBRETE_MINUTOS = Number(process.env.REMINDER_MINUTES_BEFORE ?? 5);
@@ -298,6 +300,20 @@ export function startJobs() {
       console.error("[jobs] central de avisos:", err);
     }
   }, 60 * 60_000).unref();
+
+  // Rifa integrada a um sorteio oficial com resultado que ainda não sorteou
+  // (reserva esperando Pix, mínimo, processo que caiu no meio): tenta de novo.
+  // Cada sorteio trava a própria linha: duas réplicas, um sorteio.
+  setInterval(async () => {
+    try {
+      await withLock(LOCK_SORTEIO_OFICIAL, async () => {
+        const r = await sortearRifasPendentesDosSorteiosOficiais();
+        if (r.sorteadas > 0) log(`${r.sorteadas} rifa(s) sorteada(s) pelo resultado oficial`, "jobs");
+      });
+    } catch (err) {
+      console.error("[jobs] sorteio das rifas dos sorteios oficiais:", err);
+    }
+  }, 5 * 60_000).unref();
 
   // Anúncio patrocinado de rifa que saiu do ar: encerra e devolve ao saldo
   // o que não foi gasto (condicional: duas réplicas, um reembolso).

@@ -12,6 +12,7 @@
  * prova de que não escolhemos a semente depois de ver o resultado.
  */
 import { createHash, createHmac, randomBytes } from "node:crypto";
+import { entropiaDoSorteio } from "@shared/sorteio";
 
 export interface SeedCommitment {
   seed: string;
@@ -38,17 +39,22 @@ export function verifySeed(seed: string, publishedHash: string): boolean {
  */
 export function drawNumber(params: {
   seed: string;
+  /** O resultado oficial: os 5 prêmios da Federal ou as dezenas da loteria. */
   federalPrizes: string[];
   totalQuotas: number;
+  /** A loteria do resultado; nulo é a Federal (`entropiaDoSorteio`). */
+  loteria?: string | null;
 }): number {
   const { seed, federalPrizes, totalQuotas } = params;
 
-  if (federalPrizes.length !== 5) {
-    throw Object.assign(new Error("São necessários os 5 prêmios do concurso federal."), { status: 400 });
+  let publicEntropy: string;
+  try {
+    publicEntropy = entropiaDoSorteio(federalPrizes, params.loteria);
+  } catch (e) {
+    throw Object.assign(new Error((e as Error).message), { status: 400 });
   }
   if (totalQuotas < 1) throw Object.assign(new Error("Total de cotas inválido."), { status: 400 });
 
-  const publicEntropy = federalPrizes.map((p) => p.trim()).join("-");
   const total = BigInt(totalQuotas);
   const range = 1n << 64n;
   const limit = (range / total) * total;

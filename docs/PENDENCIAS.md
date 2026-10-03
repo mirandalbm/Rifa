@@ -576,17 +576,21 @@ Na ordem de entrega do plano:
 - [ ] **Sorteios oficiais** (o calendário da plataforma, a tela do sorteio no
   celular). **Fase 1 feita:** o master cadastra, muda, cancela e lança o
   resultado oficial (Federal, Mega-Sena, Quina, Lotofácil, cada dia na cor da
-  loteria); a organização integra a rifa em rascunho pelo calendário — por
-  enquanto só nos sorteios da Federal (a data vira a do concurso e
-  trava ao publicar); selo na rifa; a tela do sorteio no celular mostra só o
-  sorteio oficial, com a fileira das rifas integradas. **Falta:** fase 2 — o
-  resultado lançado sortear sozinho cada rifa integrada (com as regras da
-  rifa), o sorteio de rifa pela Mega-Sena, Quina e Lotofácil (hoje o sorteio
-  da rifa usa os 5 prêmios da Federal — regulamento e conferência pública
-  mudam junto; até lá essas loterias não recebem rifa), conferir as cores de
-  `CORES_DA_CAIXA` contra o manual de identidade visual das Loterias Caixa e o pedido de troca de sorteio oficial depois de publicar (hoje
-  o adiamento aprovado tira a rifa do sorteio); fase 3 — comentários próprios
-  do sorteio oficial (a tela do celular está sem comentários até lá).
+  loteria); a organização integra a rifa em rascunho pelo calendário (a data
+  vira a do concurso e trava ao publicar); selo na rifa; a tela do sorteio no
+  celular mostra só o sorteio oficial, com a fileira das rifas integradas.
+  **Fase 2 feita:** lançar o resultado sorteia sozinha cada rifa publicada
+  integrada, com as regras dela (mínimo, aproximação, a promotora completa);
+  a que não pode (mínimo, reserva esperando Pix) guarda o motivo e o relógio
+  tenta de novo; as quatro loterias recebem rifa (o número sai do resultado
+  da loteria, e o regulamento e a conferência pública dizem qual); e o
+  adiamento pode levar a rifa publicada para outro sorteio oficial, só com
+  a aprovação da plataforma. **Falta:** fase 3 — comentários próprios do
+  sorteio oficial (a tela do celular está sem comentários até lá); conferir
+  as cores de `CORES_DA_CAIXA` contra o manual de identidade visual das
+  Loterias Caixa; e o advogado confirmar que a autorização SPA/MF da rifa
+  aceita apuração pela Mega-Sena, Quina ou Lotofácil (hoje a plataforma
+  deixa a organização escolher — a autorização é dela, invariante 9).
 - [x] **Reels** (tela cheia, vídeo em pé de até 3 min, ações na lateral):
   pronto, atrás do interruptor `reelsLigado` (Aparência → Topo do app, nasce
   desligado). **v2 feito:** o som escolhido fica lembrado no aparelho (cai

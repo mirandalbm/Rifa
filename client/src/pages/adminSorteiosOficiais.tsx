@@ -17,6 +17,8 @@ interface RifaNoSorteio {
   titulo: string;
   premio: string;
   status: string;
+  /** Lançado o resultado, por que esta rifa ainda não sorteou (o relógio tenta de novo). */
+  esperando?: string | null;
   organizacao?: string;
 }
 
@@ -442,9 +444,12 @@ function CartaoDoSorteio({ s, plataforma }: { s: SorteioNoCalendario; plataforma
         {lancando ? (
           <LancarResultado
             s={s}
-            aoLancar={() => {
+            aoLancar={(r) => {
               setLancando(false);
-              setMsg({ ok: true, texto: "Resultado oficial lançado." });
+              const partes = ["Resultado oficial lançado."];
+              if (r.sorteadas) partes.push(`${r.sorteadas} rifa(s) sorteada(s).`);
+              if (r.esperando) partes.push(`${r.esperando} rifa(s) ainda não puderam sortear — o motivo aparece na rifa, e o sistema tenta de novo a cada 5 minutos.`);
+              setMsg({ ok: true, texto: partes.join(" ") });
               recarregar();
             }}
           />
@@ -484,6 +489,11 @@ function RifaIntegrada({
           {r.organizacao ? ` · ${r.organizacao}` : ""}
         </span>
       </span>
+      {r.esperando ? (
+        <span className="order-last w-full text-xs text-yellow-deep" role="status">
+          Ainda não sorteou: {r.esperando}
+        </span>
+      ) : null}
       <span className="flex items-center gap-2">
         <Pill status={r.status} />
         {r.status === "draft" && !plataforma ? (
@@ -492,6 +502,11 @@ function RifaIntegrada({
           </Button>
         ) : null}
       </span>
+      {r.status === "published" && !plataforma && !r.esperando ? (
+        <span className="order-last w-full text-xs text-muted">
+          Publicada: para trocar de sorteio, peça o adiamento na edição da rifa (a plataforma analisa).
+        </span>
+      ) : null}
     </li>
   );
 }
@@ -539,13 +554,22 @@ function Integrar({ s, aoMudar, aoErro }: { s: SorteioNoCalendario; aoMudar: (te
   );
 }
 
-function LancarResultado({ s, aoLancar }: { s: SorteioNoCalendario; aoLancar: () => void }) {
+function LancarResultado({
+  s,
+  aoLancar,
+}: {
+  s: SorteioNoCalendario;
+  aoLancar: (rifas: { sorteadas: number; esperando: number }) => void;
+}) {
   const L = LOTERIAS[s.loteria];
   const [numeros, setNumeros] = useState<string[]>(() => Array.from({ length: L.quantos }, () => ""));
   const [erro, setErro] = useState<string | null>(null);
   const lancar = useMutation({
-    mutationFn: () => apiRequest("POST", `/api/admin/sorteios-oficiais/${s.id}/resultado`, { numeros }),
-    onSuccess: aoLancar,
+    mutationFn: async () =>
+      (await (await apiRequest("POST", `/api/admin/sorteios-oficiais/${s.id}/resultado`, { numeros })).json()) as {
+        rifas: { sorteadas: number; esperando: number };
+      },
+    onSuccess: (r) => aoLancar(r.rifas),
     onError: (e: Error) => setErro(e.message),
   });
   const largura = L.tipo === "bilhete" ? 5 : 2;
@@ -554,7 +578,7 @@ function LancarResultado({ s, aoLancar }: { s: SorteioNoCalendario; aoLancar: ()
       className="space-y-2 rounded-md border border-line p-3"
       onSubmit={(e) => {
         e.preventDefault();
-        if (window.confirm("Conferiu os números com o resultado oficial da Caixa? O resultado não muda depois de lançado.")) lancar.mutate();
+        if (window.confirm("Conferiu os números com o resultado oficial da Caixa? O resultado não muda depois de lançado, e as rifas publicadas neste sorteio são sorteadas na hora.")) lancar.mutate();
       }}
     >
       <fieldset>

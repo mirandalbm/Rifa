@@ -157,7 +157,11 @@ const FOLGA_DO_AGORA_MS = 60_000;
  */
 export function publicacaoDoStory(bruta: unknown, agora: Date = new Date()): Date {
   if (bruta === undefined || bruta === null || bruta === "") return agora;
-  if (typeof bruta !== "string") throw new Error("Data de publicação inválida.");
+  // Só o instante completo, com o fuso (o que a tela manda): "10/05/2026" seria
+  // lido no formato americano, e uma data sem hora viraria meia-noite em UTC.
+  if (typeof bruta !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d{1,3})?)?(Z|[+-]\d{2}:\d{2})$/.test(bruta)) {
+    throw new Error("Data de publicação inválida.");
+  }
   const d = new Date(bruta);
   if (Number.isNaN(d.getTime())) throw new Error("Data de publicação inválida.");
   if (d.getTime() < agora.getTime() - FOLGA_DO_AGORA_MS) throw new Error("Escolha uma hora que ainda não passou.");

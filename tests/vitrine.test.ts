@@ -157,5 +157,8 @@ describe("publicacaoDoStory (agendar)", () => {
   it("texto que não é data, ou outro tipo, é recusado", () => {
     expect(() => publicacaoDoStory("amanhã", agora)).toThrow();
     expect(() => publicacaoDoStory(123, agora)).toThrow();
+    expect(() => publicacaoDoStory("10/05/2026", agora)).toThrow();
+    expect(() => publicacaoDoStory("2026-10-05", agora)).toThrow();
+    expect(publicacaoDoStory("2026-10-04T09:30-03:00", agora).toISOString()).toBe("2026-10-04T12:30:00.000Z");
   });
 });

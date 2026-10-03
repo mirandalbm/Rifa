@@ -86,7 +86,7 @@ arquitetura.
 | hash da senha (custo do scrypt, refazer a antiga no login) | `server/services/hashSenha.ts`, `refazerHashSeAntigo()` em `server/auth.ts`, `tests/hashSenha.test.ts` |
 | política de conteúdo (CSP, modo relatório) | `shared/csp.ts`, `server/services/csp.ts`, `server/index.ts`, `tests/csp.test.ts` |
 | variantes de imagem | `server/services/images.ts` |
-| pôster do vídeo (rifa, reels e story), o `ffmpeg` local e o Cloudflare Stream | `shared/poster.ts` (regras e comando), `server/services/videoProcessor.ts` (`ProcessadorDeVideo`, `FfmpegLocal`), `gerarPosterDaMidia()` em `server/services/media.ts`, `gerarPosterDoStory()` em `server/services/vitrine.ts`, `poster` em `Publicacao.tsx`/`Reels.tsx`/`Stories.tsx`, `scripts/poster-test.ts`, `tests/poster.test.ts`, `tests/cloudflareStream.test.ts` |
+| pôster do vídeo (rifa, reels e story), o `ffmpeg` local e o Cloudflare Stream | `shared/poster.ts` (regras e comando), `server/services/videoProcessor.ts` (`ProcessadorDeVideo`, `FfmpegLocal`), `gerarPosterDaMidia()` em `server/services/media.ts`, o dos vídeos de antes em `server/services/posterRetroativo.ts` (relógio), `gerarPosterDoStory()` em `server/services/vitrine.ts`, `poster` em `Publicacao.tsx`/`Reels.tsx`/`Stories.tsx`, `scripts/poster-test.ts`, `tests/poster.test.ts`, `tests/cloudflareStream.test.ts` |
 | entrega do vídeo em HLS pelo Cloudflare Stream (guardar, tocar, apagar) | `shared/stream.ts` (regras), `publicar()`/`apagarDoStream()` em `server/services/videoProcessor.ts`, `gerarPosterDaMidia()`/`removeMedia()` em `server/services/media.ts`, `stream_uid`/`stream_hls`/`stream_assinado` em `campaign_media`, `server/services/streamPendentes.ts` (vídeo sem dono e a marca dos vídeos de antes, relógio), `client/src/lib/hls.ts` (`useVideoHls`), `scripts/poster-test.ts`, `tests/stream.test.ts`, `tests/streamAssinatura.test.ts`, `tests/cloudflareStream.test.ts` |
 | onde a mídia é guardada e a cópia de segurança | `server/services/storage.ts` (`LocalDiskStorage`, `CopiaS3`, `sincronizarCopia`), `/uploads` em `server/index.ts`, `tests/backup.test.ts` |
 | mensagens e modelos | `server/notifications/` |
@@ -214,7 +214,8 @@ arquitetura.
   Com a entrega ligada (`CLOUDFLARE_STREAM_ENTREGA=hls`), o vídeo **da rifa**
   toca em HLS pelo Stream (seção "Entrega em HLS"); sem ela, e no story,
   servimos o arquivo original. Vídeo enviado antes de ligar a entrega segue
-  no original (não há envio retroativo ao Stream).
+  no original (não há envio retroativo ao Stream; o pôster retroativo só tira
+  o quadro).
 - Fila (BullMQ): os três relógios rodam com `setInterval` no processo,
   protegidos por trava de aplicação do Postgres — com várias réplicas só uma
   executa. Serve bem; a fila entra quando houver trabalho pesado de verdade.
@@ -926,8 +927,18 @@ rifa, do reels e do story. Quem faz é um **processador de vídeo**
   `excluirRifa()` apaga do armazenamento o original, o pôster e as variantes
   (`apagarArquivosDeMidias()`), só **depois** de a transação fechar: rollback
   não pode deixar mídia sem arquivo.
-- **Ficou fora**: o pôster de vídeo antigo (enviado antes desta mudança). A
-  entrega em HLS é a seção abaixo. `npm run poster` prova (com `ffmpeg` e sem; `FFMPEG_PATH`
+- **O vídeo de antes ganha o pôster pelo relógio** (`posterDosVideosAntigos()`
+  em `server/services/posterRetroativo.ts`, trava 811017): o vídeo sem pôster
+  nem `uid` passa pelo mesmo `gerarPosterDaMidia()` do envio (mesmo `UPDATE`
+  condicional), **só o pôster** (`soPoster`) — o vídeo nunca fica guardado no
+  Stream por aqui: rifa encerrada, rascunho ou promotora arquivada seriam
+  minutos cobrados sem ninguém assistir. Só vídeo com mais de 1 h
+  (`FOLGA_DO_ENVIO_MIN`: o envio recente ainda pode estar no segundo plano),
+  4 por volta, um de cada vez, **andando por chave sem recomeçar** — cada
+  vídeo é tentado no máximo uma vez por processo e por réplica (o cursor é da
+  memória), e de novo a cada deploy. Sem tamanho guardado, o do bucket não é
+  baixado. Mídia apagada no meio da volta: o original que a leitura trouxe da
+  cópia sai de novo. A entrega em HLS é a seção abaixo. `npm run poster` prova (com `ffmpeg` e sem; `FFMPEG_PATH`
   apontando para o vazio nos dois lados prova o caminho sem ele) e
   `tests/poster.test.ts` cobre as regras e as falhas do processo.
 

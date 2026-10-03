@@ -17,6 +17,7 @@ import { encerrarBannersPagos } from "../services/bannerPago";
 import { vencerFranquias } from "../services/iaCobranca";
 import { destravarAcoesPresas } from "../services/ia";
 import { assinarVideosDoStream, limparStreamPendente } from "../services/streamPendentes";
+import { posterDosVideosAntigos } from "../services/posterRetroativo";
 import { enviarEventosPendentes } from "../services/marketing";
 import { migrarAfiliadosAntigos } from "../services/afiliados";
 import { lancarMensalidades } from "../services/billing";
@@ -71,6 +72,7 @@ const LOCK_IA_FRANQUIA = 811_701;
 const LOCK_STREAM = 811_014;
 const LOCK_SEGUNDO_FATOR = 811_015;
 const LOCK_SORTEIO_OFICIAL = 811_016;
+const LOCK_POSTER_ANTIGO = 811_017;
 
 /** Quantos minutos antes de a reserva cair o lembrete é enviado. */
 const LEMBRETE_MINUTOS = Number(process.env.REMINDER_MINUTES_BEFORE ?? 5);
@@ -354,6 +356,19 @@ export function startJobs() {
       });
     } catch (err) {
       console.error("[jobs] franquia do assistente:", err);
+    }
+  }, releaseMs).unref();
+
+  // Pôster dos vídeos de antes do pôster (ou cujo pôster falhou no envio):
+  // poucos por volta, cada um uma vez por processo.
+  setInterval(async () => {
+    try {
+      await withLock(LOCK_POSTER_ANTIGO, async () => {
+        const r = await posterDosVideosAntigos();
+        if (r.gerados + r.semPoster > 0) log(`Pôster retroativo: ${r.gerados} gerado(s), ${r.semPoster} sem pôster`, "jobs");
+      });
+    } catch (err) {
+      console.error("[jobs] pôster retroativo:", err);
     }
   }, releaseMs).unref();
 

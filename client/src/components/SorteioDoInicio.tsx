@@ -23,7 +23,7 @@ const MARCA = "#sorteio";
 /**
  * A tela do sorteio principal no Início, só no celular (do tablet em diante a
  * coluna ao vivo já está ao lado do feed). Mora à esquerda da vitrine: abre
- * ao deslizar o dedo para a direita, ou pelo botão do topo, e fecha ao
+ * ao deslizar o dedo para a direita, ou pela contagem da faixa do estado, e fecha ao
  * deslizar de volta, pelo "Voltar" ou pelo voltar do aparelho (`#sorteio`).
  * Como no YouTube: o vídeo em cima (com tela cheia), a fileira das rifas
  * integradas e os comentários do sorteio oficial abertos embaixo. O mesmo dado da coluna ao vivo (`/vitrine/ao-vivo`), só
@@ -222,6 +222,8 @@ export interface SorteioOficialDaTela {
 }
 
 const CHAVE_DO_SORTEIO = ["/api/public/sorteio-oficial"];
+/** O mesmo dado da coluna ao vivo do tablet e do computador. */
+const CHAVE_AO_VIVO = ["/api/public/vitrine/ao-vivo"];
 
 function ConteudoDoSorteio({
   fechar,
@@ -238,6 +240,15 @@ function ConteudoDoSorteio({
     refetchIntervalInBackground: false,
   });
   const s = data?.sorteio ?? null;
+  // Sem sorteio oficial, a tela mostra o próximo sorteio de rifa, como a
+  // coluna ao vivo do tablet e do computador.
+  const { data: dadosAoVivo } = useQuery<AoVivo>({
+    queryKey: CHAVE_AO_VIVO,
+    enabled: Boolean(data) && !s,
+    refetchInterval: previa ? false : ATUALIZA_MS,
+    refetchIntervalInBackground: false,
+  });
+  const daRifa = !s ? (dadosAoVivo?.proximo ?? null) : null;
   const hora = s
     ? new Date(s.sorteioEm).toLocaleString("pt-BR", {
         day: "2-digit",
@@ -252,7 +263,8 @@ function ConteudoDoSorteio({
   const naTela: AoVivo["proximo"] =
     s && !comResultado
       ? { slug: "", organizacao: { slug: "", nome: "" }, prizeTitle: s.nome, drawAt: s.sorteioEm, video: s.video }
-      : null;
+      : daRifa;
+  const aoVivoDaRifa = daRifa ? faltaParaOSorteio(daRifa.drawAt, Date.now()).aoVivo : false;
 
   return (
     <>
@@ -267,7 +279,7 @@ function ConteudoDoSorteio({
         </button>
         <h2 className="ml-auto flex items-center gap-1.5 pr-2 text-sm font-bold">
           <Radio size={16} aria-hidden className="text-marca" />
-          {comResultado ? "Resultado oficial" : aoVivo ? "Sorteio ao vivo" : "Sorteio oficial"}
+          {comResultado ? "Resultado oficial" : aoVivo || aoVivoDaRifa ? "Sorteio ao vivo" : s ? "Sorteio oficial" : "Próximo sorteio"}
         </h2>
       </header>
       {/* O vídeo fica parado no alto; o que rola é o resto. */}
@@ -333,26 +345,30 @@ function ConteudoDoSorteio({
               <Comentarios sorteioOficialId={s.id} />
             </div>
           </>
+        ) : daRifa ? (
+          <>
+            <div className="px-4">
+              <p className="font-display text-lg font-bold leading-tight">{daRifa.prizeTitle}</p>
+              <p className="text-sm text-muted">
+                {daRifa.organizacao.nome} · <span className="tnum">{new Date(daRifa.drawAt).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</span>
+              </p>
+              <Link
+                href={`/o/${daRifa.organizacao.slug}/r/${daRifa.slug}`}
+                className="mt-2 inline-block text-sm font-semibold text-marca underline"
+              >
+                Ver a rifa
+              </Link>
+            </div>
+            {/* Os comentários da rifa abertos, como no YouTube. */}
+            <div className="mt-3 border-t border-line px-4">
+              <Comentarios slug={daRifa.slug} />
+            </div>
+          </>
         ) : !isLoading ? (
-          <p className="px-4 text-sm text-muted">Nenhum sorteio oficial marcado agora.</p>
+          <p className="px-4 text-sm text-muted">Nenhum sorteio marcado agora.</p>
         ) : null}
       </div>
     </>
-  );
-}
-
-/** O caminho sem gesto para a mesma tela (acessibilidade: gesto nunca é o único jeito). */
-export function BotaoDoSorteio({ onAbrir }: { onAbrir: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onAbrir}
-      aria-label="Sorteio ao vivo (ou deslize para a direita)"
-      title="Sorteio ao vivo"
-      className="rounded-full p-2 text-ink hover:bg-mist md:hidden"
-    >
-      <Radio size={22} aria-hidden />
-    </button>
   );
 }
 
@@ -375,8 +391,20 @@ export function ContagemDoSorteio({ onAbrir }: { onAbrir: () => void }) {
     return () => clearInterval(t);
   }, []);
   const oficial = data?.sorteio ?? null;
-  // Com resultado lançado, não há o que contar: o botão leva ao resultado.
-  const proximo = oficial && oficial.situacao !== "com_resultado" ? { prizeTitle: oficial.nome, drawAt: oficial.sorteioEm } : null;
+  const oficialMarcado = oficial && oficial.situacao !== "com_resultado" ? oficial : null;
+  // Sem sorteio oficial marcado, conta até o próximo sorteio de rifa — o mesmo
+  // da coluna ao vivo do tablet e do computador.
+  const { data: aoVivo } = useQuery<AoVivo>({
+    queryKey: CHAVE_AO_VIVO,
+    enabled: Boolean(data) && !oficialMarcado,
+    refetchInterval: ATUALIZA_MS,
+    refetchIntervalInBackground: false,
+  });
+  const proximo = oficialMarcado
+    ? { prizeTitle: oficialMarcado.nome, drawAt: oficialMarcado.sorteioEm }
+    : aoVivo?.proximo
+      ? { prizeTitle: aoVivo.proximo.prizeTitle, drawAt: aoVivo.proximo.drawAt }
+      : null;
   const falta = proximo ? faltaParaOSorteio(proximo.drawAt, agora) : null;
 
   const casas: [number, string][] = falta
@@ -390,7 +418,7 @@ export function ContagemDoSorteio({ onAbrir }: { onAbrir: () => void }) {
   const rotulo = !proximo
     ? oficial
       ? `Resultado oficial: ${oficial.nome}. Abrir a tela do sorteio`
-      : "Nenhum sorteio oficial marcado. Abrir a tela do sorteio"
+      : "Nenhum sorteio marcado. Abrir a tela do sorteio"
     : falta?.aoVivo
       ? `Sorteio ao vivo agora: ${proximo.prizeTitle}. Abrir a tela do sorteio`
       : `Próximo sorteio em ${falta?.dias} dias, ${falta?.horas} horas e ${falta?.minutos} minutos: ${proximo.prizeTitle}. Abrir a tela do sorteio`;
@@ -400,19 +428,19 @@ export function ContagemDoSorteio({ onAbrir }: { onAbrir: () => void }) {
       type="button"
       onClick={onAbrir}
       aria-label={rotulo}
-      className="ml-auto flex h-9 min-w-0 items-center gap-1.5 rounded-md border border-line-2 bg-[#0B1F14] px-2 text-branco md:hidden"
+      className="ml-auto flex h-11 min-w-0 shrink-0 items-center gap-2 rounded-lg border border-line-2 bg-[#0B1F14] px-3 text-branco md:hidden"
     >
-      <Radio size={14} aria-hidden className="shrink-0 text-[#8cc2ff]" />
+      <Radio size={16} aria-hidden className="shrink-0 text-[#8cc2ff]" />
       {!proximo ? (
-        <span className="truncate text-xs font-semibold">{oficial ? "Resultado" : "Sorteios"}</span>
+        <span className="truncate text-sm font-semibold">{oficial ? "Resultado" : "Sorteios"}</span>
       ) : falta?.aoVivo ? (
-        <span className="truncate text-xs font-bold uppercase tracking-wide">Ao vivo</span>
+        <span className="truncate text-sm font-bold uppercase tracking-wide">Ao vivo</span>
       ) : (
         <span aria-hidden className="flex items-center gap-1">
           {casas.map(([n, u]) => (
-            <span key={u} className="rounded bg-branco/10 px-1 py-0.5 text-xs leading-none">
+            <span key={u} className="rounded bg-branco/10 px-1.5 py-1 text-sm leading-none">
               <span className="tnum font-bold">{String(n).padStart(2, "0")}</span>
-              <span className="text-[10px] text-branco/70">{u}</span>
+              <span className="text-[11px] text-branco/70">{u}</span>
             </span>
           ))}
         </span>

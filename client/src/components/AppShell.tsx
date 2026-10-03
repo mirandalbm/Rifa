@@ -89,7 +89,7 @@ export function PublicShell({
   antesDaMarca,
 }: {
   children: ReactNode;
-  /** No topo do celular, à esquerda da logo (o botão do sorteio no Início). */
+  /** No topo do celular, à esquerda da logo (hoje nenhuma tela usa). */
   antesDaMarca?: ReactNode;
   larga?: boolean;
   /** A vitrine ocupa a largura toda do tablet em diante (feed e coluna ao vivo). */

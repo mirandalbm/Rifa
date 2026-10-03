@@ -162,7 +162,7 @@ arquitetura.
 | casca dos painéis (menu lateral em grupos, barra de cima, busca, conta, rodapé) e as peças do kit | `MENUS`/`menuDe()` em `shared/access.ts`, `PanelShell` em `client/src/components/AppShell.tsx`, `client/src/components/painel.tsx` (`Estatistica`, `CartaoDoPainel`, `CabecalhoDaTabela`, `AlternarVisao`), `.painel`/`.cartao` em `client/src/index.css`, `tests/menu.test.ts` |
 | remodelagem do web e dos painéis: inventário do que existe e lista de conferência | `docs/REMODELAGEM.md` |
 | selo "ao vivo" no story (anel com a transmissão do sorteio) | `transmissaoNoAr()` em `shared/aoVivo.ts` (regra), `transmissoesNoAr()` em `server/services/aoVivo.ts`, `perfisComStory()` e `perfilPublico()` em `server/services/perfil.ts`, `FotoComStory`/`VisualizadorDeStories` em `client/src/components/Stories.tsx`, `tests/seloAoVivo.test.ts`, `scripts/vitrine-test.ts` |
-| tela do sorteio no Início do celular (deslizar para a direita, vídeo e comentários como no YouTube) | `client/src/components/SorteioDoInicio.tsx` (`useSorteioDoInicio`, `BotaoDoSorteio`), a regra do gesto em `client/src/lib/deslizar.ts`, `TelaDoProximoSorteio` em `client/src/components/ColunaAoVivo.tsx`, `antesDaMarca` em `PublicShell`, `tests/deslizar.test.ts` |
+| tela do sorteio no Início do celular (deslizar para a direita, vídeo e comentários como no YouTube) | `client/src/components/SorteioDoInicio.tsx` (`useSorteioDoInicio`, `ContagemDoSorteio`), a regra do gesto em `client/src/lib/deslizar.ts`, `TelaDoProximoSorteio` em `client/src/components/ColunaAoVivo.tsx`, `antesDaMarca` em `PublicShell`, `tests/deslizar.test.ts` |
 | sorteios oficiais da plataforma (calendário, integrar a rifa, selo, resultado oficial, sorteio automático, outras loterias, troca pelo adiamento, a tela do celular) | `shared/sorteiosOficiais.ts` (regras e loterias), `server/services/sorteiosOficiais.ts`, `sortearRifasDoSorteioOficial()` em `server/services/sortear.ts` (e o relógio em `server/jobs/index.ts`), `pedirAdiamento()` com `sorteioOficialId` em `server/services/solicitacoes.ts`, os comentários em `server/services/sorteioComentarios.ts` (o componente `Comentarios` com `sorteioOficialId`, `scripts/sorteio-comentarios-test.ts`) e a denúncia deles (`shared/sorteioDenuncias.ts`, `ComentariosDoSorteioDenunciados` em `client/src/components/ConversasDenunciadas.tsx`, tipo `comentario_sorteio` em `shared/caixa.ts`, `tests/sorteioDenuncias.test.ts`), `/sorteios-oficiais*` e `PUT /campaigns/:id/sorteio-oficial` em `server/routes/admin.ts`, `GET /api/public/sorteio-oficial` em `server/routes/public.ts`, `client/src/pages/adminSorteiosOficiais.tsx`, `ConteudoDoSorteio`/`ContagemDoSorteio` em `client/src/components/SorteioDoInicio.tsx`, `scripts/sorteios-oficiais-test.ts`, `tests/sorteiosOficiais.test.ts` |
 | vitrine no tablet e no computador: coluna ao vivo (tela do sorteio, ganhadores, jogando agora), tela flutuante e rodapé com logos | `shared/aoVivo.ts` (regras), `server/services/aoVivo.ts`, `client/src/components/ColunaAoVivo.tsx`, `client/src/components/RodapeDaPlataforma.tsx`, `validarApoios()` em `shared/template.ts`, `tests/aoVivo.test.ts`, `scripts/vitrine-test.ts` |
 | rodapé da plataforma: colunas de links, redes sociais e espaço de apoio | `shared/rodape.ts` (colunas), `validarRedes()`/`REDES_DO_RODAPE` em `shared/template.ts`, `client/src/components/RodapeDaPlataforma.tsx`, cartão "Redes sociais do rodapé" em `client/src/pages/adminAparencia.tsx`, `preencherRodapeComExemplo()` em `server/services/template.ts`, `tests/rodape.test.ts` |
@@ -379,14 +379,19 @@ arquitetura.
     aberta (`aria-modal`) e `data-sem-gesto` ficam fora. É de lado só com
     `|dy| ≤ dx × 0,5` e abre a partir de `DISTANCIA_PARA_ABRIR`; o painel
     acompanha o dedo, e deslizar de volta fecha. `tests/deslizar.test.ts`.
-  - **Gesto nunca é o único caminho** (WCAG 2.5.1): o botão do sorteio no
-    topo, à esquerda da logo (`BotaoDoSorteio`, só no celular), abre a mesma
-    tela. Aberta, é diálogo (`role="dialog"`, `aria-modal`, foco no
+  - **Gesto nunca é o único caminho** (WCAG 2.5.1): a contagem da faixa do
+    estado (`ContagemDoSorteio`, abaixo) é botão e abre a mesma tela. **Não
+    há ícone à esquerda da logo** — saiu a pedido; o topo é a logo e o
+    trevo. Aberta, é diálogo (`role="dialog"`, `aria-modal`, foco no
     "Voltar ao início", Esc fecha) e a página de baixo não rola.
-  - **A tela do celular transmite só o sorteio oficial da plataforma**
+  - **A tela do celular transmite o sorteio oficial da plataforma**
     (seção "Sorteios oficiais"), com a fileira horizontal das rifas
-    integradas embaixo do vídeo e os comentários do sorteio oficial abertos
-    (seção "Sorteios oficiais"); a contagem da faixa do estado conta até ele.
+    integradas embaixo do vídeo e os comentários do sorteio oficial abertos;
+    a contagem da faixa do estado conta até ele. **Sem sorteio oficial
+    marcado, vale o mesmo da coluna ao vivo do tablet e do computador**: a
+    contagem e a tela vão ao próximo sorteio de rifa (`proximo` de
+    `/vitrine/ao-vivo`, buscado só nesse caso), com o prêmio, a promotora,
+    "Ver a rifa" e os comentários da rifa abertos.
   - **A faixa do estado no Início do celular**: à esquerda, o seletor de
     estado mostra **só a sigla** (BR para todo o Brasil) e, aberto, a lista
     traz o nome de cada estado — o `<select>` de verdade fica por cima,
@@ -394,7 +399,9 @@ arquitetura.
     rótulo "Rifas perto de"); à direita, a **contagem do próximo sorteio**
     (`ContagemDoSorteio`, a cara da tela do sorteio: fundo escuro e as casas
     d/h/m/s), que é botão e abre a tela do sorteio. O tempo vai no
-    `aria-label`; sem sorteio marcado, "Ganhadores". **É só do celular**:
+    `aria-label`; sem nenhum sorteio marcado (nem oficial nem de rifa),
+    "Sorteios". O botão tem 44 px de altura e as casas em 14 px, para a
+    contagem ler bem. **É só do celular**:
     do tablet em diante o seletor segue o de antes ("Rifas perto de" e o
     nome do estado) e a contagem não existe — lá a tela do sorteio principal
     é a coluna ao vivo, já definida.

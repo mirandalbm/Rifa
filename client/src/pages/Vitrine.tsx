@@ -18,7 +18,7 @@ import { InstalarApp } from "@/components/InstalarApp";
 import { Patrocinadas } from "@/components/Patrocinadas";
 import type { Bloco } from "@shared/template";
 import { ColunaAoVivo } from "@/components/ColunaAoVivo";
-import { BotaoDoSorteio, ContagemDoSorteio, SorteioDoInicio, useSorteioDoInicio } from "@/components/SorteioDoInicio";
+import { ContagemDoSorteio, SorteioDoInicio, useSorteioDoInicio } from "@/components/SorteioDoInicio";
 
 /** Vitrine multi-rifas: todas as campanhas no ar, banner na frente. */
 export default function Vitrine() {
@@ -98,7 +98,7 @@ export default function Vitrine() {
   const lugarDosStories = blocos.find((b) => b.tipo === "seguidos" || b.tipo === "estados")?.id;
 
   return (
-    <PublicShell vitrine rodape antesDaMarca={<BotaoDoSorteio onAbrir={sorteio.abrir} />}>
+    <PublicShell vitrine rodape>
       {/* Título da página para leitor de tela (a vitrine abre direto nos banners). */}
       <h1 className="sr-only">Rifas no ar</h1>
       {/* Tablet e computador: o feed no centro e, à direita, a coluna ao vivo

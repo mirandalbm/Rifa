@@ -21,7 +21,7 @@
  */
 import type { Request } from "express";
 import sharp from "sharp";
-import { and, asc, desc, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, isNull, lte, or, sql } from "drizzle-orm";
 import { db } from "../db";
 import {
   afiliadoVinculos,
@@ -51,6 +51,7 @@ import {
   validarFotos,
   validarModo,
   VAZIA_DO_AFILIADO,
+  agendaDaPeca,
   type AutorDaDivulgacao,
   type ModoDeDivulgacao,
   avisoDaDecisao,
@@ -66,6 +67,9 @@ import { varrerTextoDoOrganizador } from "./seguranca";
 import { getPlataforma } from "./settings";
 import { withUrls } from "./media";
 import { isUniqueViolation } from "../pgError";
+
+/** Peça agendada só aparece depois da hora; sem agenda, já. A mesma regra de `pecaNoArAgora()`, em SQL: mudou uma, mude a outra. */
+const noArAgora = () => or(isNull(divulgacoes.publicaEm), lte(divulgacoes.publicaEm, new Date()));
 
 export class DivulgacaoError extends Error {
   constructor(message: string, readonly status = 400) {
@@ -230,6 +234,7 @@ async function afiliadoOnline(affiliateId: string) {
 export async function publicarComoAfiliado(affiliateId: string, entrada: Record<string, unknown>) {
   const fotosBrutas = regra(() => validarFotos(entrada.fotos)) ?? [];
   const dados = regra(() => validarDivulgacao("afiliado", entrada, fotosBrutas.length));
+  const publicaEm = regra(() => agendaDaPeca(entrada.publicaEm)) ?? null;
   const a = await afiliadoOnline(affiliateId);
   const rifa = await rifaParaDivulgar(entrada.slug);
   // Vínculo aprovado e aceite da versão do termo da rifa: a mesma régua da comissão.
@@ -256,6 +261,7 @@ export async function publicarComoAfiliado(affiliateId: string, entrada: Record<
     midiaIds: dados.midias,
     status,
     decididoEm: status === "publicada" ? new Date() : null,
+    publicaEm,
   }, fotos);
   return { id: d.id, status: d.status, modo };
 }
@@ -371,6 +377,7 @@ export async function publicarComoApostador(req: Request, entrada: Record<string
   const b = await apostadorComConta(req);
   const dados = regra(() => validarDivulgacao("apostador", entrada));
   const fotosBrutas = regra(() => validarFotos(entrada.fotos)) ?? [];
+  const publicaEm = regra(() => agendaDaPeca(entrada.publicaEm)) ?? null;
   const rifa = await rifaParaDivulgar(entrada.slug);
   // Só fala da rifa quem joga nela: compra paga (a PK do pedido, não um palpite).
   const [joga] = await db
@@ -392,6 +399,7 @@ export async function publicarComoApostador(req: Request, entrada: Record<string
     midiaIds: [],
     // Sempre a organização antes de ir ao ar, qualquer que seja o modo dela.
     status: statusInicial("apostador", "direta"),
+    publicaEm,
   }, fotos);
   return { id: d.id, status: d.status };
 }
@@ -411,6 +419,7 @@ const colunasDaMinha = {
   criadaEm: divulgacoes.createdAt,
   editadaEm: divulgacoes.editadaEm,
   versao: divulgacoes.versao,
+  publicaEm: divulgacoes.publicaEm,
 };
 
 export async function minhasDoAfiliado(affiliateId: string) {
@@ -507,6 +516,8 @@ async function editarPropria(
   if (!/^[0-9a-f-]{36}$/i.test(id)) throw new DivulgacaoError("Divulgação não encontrada.", 404);
   // Sem `fotos` no corpo, ficam as que a peça tinha; lista vazia tira todas.
   const fotosBrutas = regra(() => validarFotos(entrada.fotos));
+  // Sem `publicaEm` no corpo, fica a agenda que estava; vazio tira a agenda.
+  const publicaEm = regra(() => agendaDaPeca(entrada.publicaEm));
   // A conferência de "peça vazia" do afiliado é feita abaixo, com as fotos e mídias que ficam.
   const dados = regra(() => validarDivulgacao(dono.autor, entrada, Number.MAX_SAFE_INTEGER));
   const doDono = dono.autor === "afiliado" ? eq(divulgacoes.affiliateId, dono.affiliateId) : eq(divulgacoes.buyerId, dono.buyerId);
@@ -575,6 +586,7 @@ async function editarPropria(
           : { motivo: null, decididoEm: status === "publicada" ? sql`now()` : null, decididoPor: null }),
         versao: sql`${divulgacoes.versao} + 1`,
         editadaEm: sql`now()`,
+        ...(publicaEm === undefined ? {} : { publicaEm }),
       })
       .where(and(eq(divulgacoes.id, id), doDono, eq(divulgacoes.status, atual.status), eq(divulgacoes.versao, partiuDe)))
       .returning({ id: divulgacoes.id, status: divulgacoes.status, versao: divulgacoes.versao });
@@ -646,6 +658,7 @@ export async function listarDaOrganizacao(req: Request, status?: unknown) {
       criadaEm: divulgacoes.createdAt,
       versao: divulgacoes.versao,
       editadaEm: divulgacoes.editadaEm,
+      publicaEm: divulgacoes.publicaEm,
       slug: campaigns.slug,
       rifa: campaigns.title,
       organizacao: organizations.name,
@@ -741,12 +754,12 @@ export async function decidir(req: Request, id: string, entrada: unknown) {
       // diferentes não escondem a decisão do sino dele.
       .set({ status: para, motivo, decididoEm: sql`now()`, decididoPor: req.user?.id ?? null })
       .where(and(eq(divulgacoes.id, id), eq(divulgacoes.status, de), eq(divulgacoes.versao, Number(linha.versao))))
-      .returning({ id: divulgacoes.id, status: divulgacoes.status, buyerId: divulgacoes.buyerId, versao: divulgacoes.versao });
+      .returning({ id: divulgacoes.id, status: divulgacoes.status, buyerId: divulgacoes.buyerId, versao: divulgacoes.versao, publicaEm: divulgacoes.publicaEm });
     if (!novo) throw new DivulgacaoError("Esta divulgação já foi decidida.", 409);
     // Recusada ou retirada não volta (não se edita): as fotos de quem publicou saem já,
     // na mesma transação — foto de pessoa não fica guardada sem uso.
     if (para === "recusada" || para === "removida") await tx.delete(divulgacaoFotos).where(eq(divulgacaoFotos.divulgacaoId, id));
-    return { id: novo.id, status: novo.status, buyerId: novo.buyerId, versao: novo.versao, motivo, acao, campaignId: linha.campaign_id };
+    return { id: novo.id, status: novo.status, buyerId: novo.buyerId, versao: novo.versao, publicaEm: novo.publicaEm, motivo, acao, campaignId: linha.campaign_id };
   });
   // Quem publicou fica sabendo, fora da transação: aviso nunca derruba a decisão.
   // Leva o que ESTA transação decidiu — reler a linha depois pegaria a retirada
@@ -758,6 +771,7 @@ export async function decidir(req: Request, id: string, entrada: unknown) {
         buyerId: decidida.buyerId,
         status: decidida.status as StatusDaDivulgacao,
         versao: decidida.versao,
+        publicaEm: decidida.publicaEm,
         motivo,
         campaignId: decidida.campaignId,
       }),
@@ -772,10 +786,10 @@ export async function decidir(req: Request, id: string, entrada: unknown) {
  * situação: a mesma decisão não avisa duas vezes; a da versão editada, sim). O afiliado não tem push — vê o número no sino
  * do painel (`decididasParaOAfiliado`). Sem telefone nem nome no aviso.
  */
-async function avisarAutorDaDecisao(d: { id: string; buyerId: string; status: StatusDaDivulgacao; versao: number; motivo: string | null; campaignId: string }) {
+async function avisarAutorDaDecisao(d: { id: string; buyerId: string; status: StatusDaDivulgacao; versao: number; publicaEm: Date | null; motivo: string | null; campaignId: string }) {
   const [c] = await db.select({ titulo: campaigns.title }).from(campaigns).where(eq(campaigns.id, d.campaignId));
   if (!c) return;
-  const texto = avisoDaDecisao(d.status, c.titulo, d.motivo);
+  const texto = avisoDaDecisao(d.status, c.titulo, d.motivo, d.publicaEm);
   if (!texto) return;
   // A versão na chave: editada e aprovada de novo é outra decisão, e avisa de novo.
   await avisar([d.buyerId], "divulgacao", `${d.id}:${d.versao}:${d.status}`, { ...texto, url: "/publicar", tag: `divulgacao-${d.id}` });
@@ -852,6 +866,7 @@ export async function divulgacoesDaRifa(slug: string) {
       midiaIds: divulgacoes.midiaIds,
       criadaEm: divulgacoes.createdAt,
       editadaEm: divulgacoes.editadaEm,
+      publicaEm: divulgacoes.publicaEm,
       affiliateId: divulgacoes.affiliateId,
       codigo: affiliates.code,
       afiliadoAtivo: affiliates.status,
@@ -868,8 +883,9 @@ export async function divulgacoesDaRifa(slug: string) {
     .leftJoin(affiliates, eq(affiliates.id, divulgacoes.affiliateId))
     .leftJoin(users, eq(users.id, affiliates.userId))
     .leftJoin(buyers, eq(buyers.id, divulgacoes.buyerId))
-    .where(and(eq(divulgacoes.campaignId, c.id), eq(divulgacoes.status, "publicada")))
-    .orderBy(desc(divulgacoes.createdAt))
+    // Agendada só depois da hora (a aprovação já veio antes: está `publicada`).
+    .where(and(eq(divulgacoes.campaignId, c.id), eq(divulgacoes.status, "publicada"), noArAgora()))
+    .orderBy(desc(sql`coalesce(${divulgacoes.publicaEm}, ${divulgacoes.createdAt})`))
     .limit(NA_PAGINA_DA_RIFA * 2);
 
   const ids = Array.from(new Set(linhas.flatMap((l) => l.midiaIds)));
@@ -893,7 +909,8 @@ export async function divulgacoesDaRifa(slug: string) {
       apelido: l.autor === "apostador" ? l.apelido : null,
       codigo: l.autor === "afiliado" ? l.codigo : null,
       legenda: l.legenda,
-      criadaEm: l.criadaEm,
+      // A hora que conta para quem lê é a de entrar no ar.
+      criadaEm: l.publicaEm ?? l.criadaEm,
       editada: Boolean(l.editadaEm),
       // As fotos do apostador saem só pela rota que confere de novo que a peça está no ar.
       fotos: (fotosPorPeca.get(l.id) ?? []).map((f) => `/api/public/divulgacoes/${l.id}/fotos/${f}`),
@@ -948,6 +965,7 @@ export async function fotoPublica(id: string, fotoId: string) {
       and(
         eq(divulgacoes.id, id),
         eq(divulgacoes.status, "publicada"),
+        noArAgora(),
         eq(campaigns.status, "published"),
         eq(campaigns.demonstracao, false),
         isNull(campaigns.travadaEm),

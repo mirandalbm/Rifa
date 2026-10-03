@@ -3,6 +3,7 @@
  * os estados com rifa no ar. Puro, sem banco: o servidor valida com isto e a
  * tela decide o que mostrar com isto — a regra não pode ter duas cópias.
  */
+import { instanteAgendado } from "./agenda";
 import { UFS, ufValida } from "./endereco";
 
 /* ------------------------------------------------------------------ *
@@ -146,29 +147,14 @@ export function expiraEm(publicaEm: Date): Date {
 
 /** Até quantos dias à frente a organização agenda um story. */
 export const STORY_AGENDA_MAX_DIAS = 7;
-/** Folga para o relógio do aparelho: "agora" que chega um minuto atrasado ainda é agora. */
-const FOLGA_DO_AGORA_MS = 60_000;
-
 /**
  * Quando o story entra no ar. Sem data, agora. Com data: um instante ISO
- * de agora até `STORY_AGENDA_MAX_DIAS` à frente — passado (além da folga)
- * ou longe demais é recusado. Até lá ele não aparece em lugar nenhum do
- * público, e as 24 h só começam quando ele entra.
+ * com fuso, de agora até `STORY_AGENDA_MAX_DIAS` à frente (`instanteAgendado`).
+ * Até lá ele não aparece em lugar nenhum do público, e as 24 h só começam
+ * quando ele entra.
  */
 export function publicacaoDoStory(bruta: unknown, agora: Date = new Date()): Date {
-  if (bruta === undefined || bruta === null || bruta === "") return agora;
-  // Só o instante completo, com o fuso (o que a tela manda): "10/05/2026" seria
-  // lido no formato americano, e uma data sem hora viraria meia-noite em UTC.
-  if (typeof bruta !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d{1,3})?)?(Z|[+-]\d{2}:\d{2})$/.test(bruta)) {
-    throw new Error("Data de publicação inválida.");
-  }
-  const d = new Date(bruta);
-  if (Number.isNaN(d.getTime())) throw new Error("Data de publicação inválida.");
-  if (d.getTime() < agora.getTime() - FOLGA_DO_AGORA_MS) throw new Error("Escolha uma hora que ainda não passou.");
-  if (d.getTime() > agora.getTime() + STORY_AGENDA_MAX_DIAS * 86_400_000) {
-    throw new Error(`Agende para no máximo ${STORY_AGENDA_MAX_DIAS} dias à frente.`);
-  }
-  return d.getTime() < agora.getTime() ? agora : d;
+  return instanteAgendado(bruta, STORY_AGENDA_MAX_DIAS, agora) ?? agora;
 }
 
 /**

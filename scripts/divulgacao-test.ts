@@ -415,6 +415,38 @@ async function main() {
       await afiliada.req("DELETE", `/api/affiliate/divulgacoes/${idFotoAf}`);
     }
 
+    // Agendar: no modo direto a peça nasce no ar, mas só aparece na rifa na hora marcada.
+    r = await peca(a1.slug, { legenda: "Amanhã cedo tem novidade", publicaEm: new Date(Date.now() - 3_600_000).toISOString() });
+    checa("agendar no passado: 422", r.status === 422, `HTTP ${r.status} ${r.json?.message ?? ""}`);
+    r = await peca(a1.slug, { legenda: "Amanhã cedo tem novidade", publicaEm: new Date(Date.now() + 31 * 86_400_000).toISOString() });
+    checa("agendar além de 30 dias: 422", r.status === 422, `HTTP ${r.status}`);
+    r = await peca(a1.slug, { legenda: "Amanhã cedo tem novidade", publicaEm: new Date(Date.now() + 3_600_000).toISOString() });
+    const idAgendada = r.json?.id as string;
+    checa("no modo direto, a peça agendada nasce no ar", r.status === 201 && r.json?.status === "publicada", `HTTP ${r.status} ${r.json?.message ?? ""}`);
+    {
+      const naPagina = async () => ((await anon.req("GET", `/api/public/campaigns/${a1.slug}/divulgacoes`)).json ?? []).some((x: any) => x.id === idAgendada);
+      checa("antes da hora, a peça não aparece na página da rifa", !(await naPagina()));
+      r = await afiliada.req("GET", "/api/affiliate/divulgacoes");
+      const minha = r.json?.find((x: any) => x.id === idAgendada);
+      checa("o afiliado vê a hora agendada", Boolean(minha?.publicaEm));
+      r = await orgA.req("GET", "/api/admin/divulgacoes");
+      checa("a organização vê a hora agendada na fila", Boolean(r.json?.find((x: any) => x.id === idAgendada)?.publicaEm));
+      // Chegou a hora: aparece sem nada a fazer.
+      await db.update(divulgacoes).set({ publicaEm: new Date(Date.now() - 1000) }).where(eq(divulgacoes.id, idAgendada));
+      checa("passada a hora, a peça aparece na página", await naPagina());
+      // Reagendar e tirar a agenda pela edição (sem `publicaEm`, a agenda fica).
+      let versao = (await afiliada.req("GET", "/api/affiliate/divulgacoes")).json?.find((x: any) => x.id === idAgendada)?.versao;
+      r = await afiliada.req("PATCH", `/api/affiliate/divulgacoes/${idAgendada}`, { legenda: "Novidade às 10h", publicaEm: new Date(Date.now() + 7_200_000).toISOString(), versao });
+      checa("reagendar pela edição tira da página até a hora nova", r.status === 200 && !(await naPagina()), `HTTP ${r.status} ${r.json?.message ?? ""}`);
+      versao = r.json?.versao;
+      r = await afiliada.req("PATCH", `/api/affiliate/divulgacoes/${idAgendada}`, { legenda: "Novidade às 10h, corrigida", versao });
+      checa("editar sem mandar a agenda mantém a agenda", r.status === 200 && !(await naPagina()), `HTTP ${r.status}`);
+      versao = r.json?.versao;
+      r = await afiliada.req("PATCH", `/api/affiliate/divulgacoes/${idAgendada}`, { legenda: "Agora mesmo", publicaEm: null, versao });
+      checa("tirar a agenda põe na página na hora", r.status === 200 && (await naPagina()), `HTTP ${r.status}`);
+      await afiliada.req("DELETE", `/api/affiliate/divulgacoes/${idAgendada}`);
+    }
+
     // Termo: rifa publicada com termo exige o aceite daquela versão.
     r = await orgA.req("POST", "/api/admin/termo-afiliado", { comissaoPct: 12, textoExtra: "" });
     const a2 = await novaRifa(A.id, "a2", "draft");

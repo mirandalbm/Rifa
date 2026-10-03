@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { PanelShell } from "@/components/AppShell";
 import { Button, Card, Campo, Empty, Pill } from "@/components/bits";
 import { FotosProprias, useFotosProprias } from "@/components/FotosProprias";
+import { CampoDeAgenda, aindaAgendado, paraCampoLocal, paraInstante, quandoCurto } from "@/components/CampoDeAgenda";
 import { apiRequest } from "@/lib/queryClient";
 import { DIVULGACAO_MIDIAS_MAX, STATUS_DA_DIVULGACAO, podeEditar, type ModoDeDivulgacao, type StatusDaDivulgacao } from "@shared/divulgacao";
 import { LEGENDA_MAX } from "@shared/publicacao";
@@ -27,6 +28,7 @@ interface Minha {
   editadaEm: string | null;
   versao: number;
   fotos: string[];
+  publicaEm: string | null;
 }
 
 export const PILL_DA_DIVULGACAO: Record<StatusDaDivulgacao, string> = {
@@ -58,24 +60,33 @@ export function AfiliadoDivulgar() {
   // Com foto própria, nem o modo direto põe no ar sem a organização.
   const direta = rifa?.modo === "direta" && fotos.quantas === 0;
 
+  // A hora de entrar na página da rifa: só vai ao servidor se a pessoa mexeu
+  // (na edição, a agenda que passou não é reenviada — seria "hora que já passou").
+  const [agenda, setAgenda] = useState("");
+  const [agendaMudou, setAgendaMudou] = useState(false);
+  const corpoDaAgenda = () => (agendaMudou ? { publicaEm: paraInstante(agenda) } : {});
   const limpar = () => {
     setLegenda("");
     setEscolhidas([]);
     setEditando(null);
     fotos.limpar();
+    setAgenda("");
+    setAgendaMudou(false);
   };
   const publicar = useMutation({
     mutationFn: () =>
       editando
-        ? apiRequest("PATCH", `/api/affiliate/divulgacoes/${editando.id}`, { legenda, midias: escolhidas, versao: editando.versao, ...fotos.corpo(true) })
-        : apiRequest("POST", "/api/affiliate/divulgacoes", { slug, legenda, midias: escolhidas, ...fotos.corpo(false) }),
+        ? apiRequest("PATCH", `/api/affiliate/divulgacoes/${editando.id}`, { legenda, midias: escolhidas, versao: editando.versao, ...fotos.corpo(true), ...corpoDaAgenda() })
+        : apiRequest("POST", "/api/affiliate/divulgacoes", { slug, legenda, midias: escolhidas, ...fotos.corpo(false), ...corpoDaAgenda() }),
     onSuccess: async (res) => {
       const j = (await res.json()) as { status: StatusDaDivulgacao };
       const editou = Boolean(editando);
       setMsg({
         ok: true,
         texto:
-          j.status === "publicada"
+          j.status === "publicada" && agenda && aindaAgendado(paraInstante(agenda))
+            ? `Publicada. Aparece na página da rifa em ${quandoCurto(paraInstante(agenda) as string)}.`
+            : j.status === "publicada"
             ? editou
               ? "Editada. A página da rifa já mostra a versão nova."
               : "Publicada. Já aparece na página da rifa."
@@ -97,6 +108,8 @@ export function AfiliadoDivulgar() {
     setLegenda(m.legenda);
     setEscolhidas(m.midias);
     fotos.carregar(m.fotos);
+    setAgenda(paraCampoLocal(m.publicaEm));
+    setAgendaMudou(false);
     setEditando({ id: m.id, versao: m.versao });
     setMsg(null);
     document.getElementById("nova-divulgacao")?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -188,6 +201,15 @@ export function AfiliadoDivulgar() {
                       editando={Boolean(editando)}
                       dica="Só fotos suas ou de quem autorizou, sem menores de 18 anos. A organização vê cada uma antes de publicar."
                     />
+                    <CampoDeAgenda
+                      id="divulgar-agenda"
+                      valor={agenda}
+                      aoMudar={(v) => {
+                        setAgenda(v);
+                        setAgendaMudou(true);
+                      }}
+                      dica="Vazio, aparece assim que estiver no ar. Com data (até 30 dias), aparece na página da rifa a partir dessa hora — a autorização da organização, quando houver, vem antes."
+                    />
                     <Campo rotulo="Legenda" dica={`Sem link e sem telefone, e sem pedir pagamento por fora. Até ${LEGENDA_MAX} caracteres.`}>
                       <textarea rows={4} maxLength={LEGENDA_MAX} value={legenda} onChange={(e) => setLegenda(e.target.value)} />
                     </Campo>
@@ -220,6 +242,11 @@ export function AfiliadoDivulgar() {
                     <Pill status={PILL_DA_DIVULGACAO[m.status]}>{STATUS_DA_DIVULGACAO[m.status]}</Pill>
                     <span className="font-semibold">{m.title}</span>
                     {m.editadaEm ? <span className="text-xs text-muted">Editada</span> : null}
+                    {aindaAgendado(m.publicaEm) ? (
+                      <span className="text-xs text-muted">
+                        Agendada: <span className="tnum">{quandoCurto(m.publicaEm as string)}</span>
+                      </span>
+                    ) : null}
                   </div>
                   {m.legenda ? <p className="line-clamp-3 break-words text-muted">{m.legenda}</p> : null}
                   {m.fotos.length ? (

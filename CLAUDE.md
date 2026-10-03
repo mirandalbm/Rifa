@@ -146,7 +146,7 @@ arquitetura.
 | perfil verificado (selo de trevo): documentos, foto, fila e cores | `shared/verificacao.ts` (regras e paleta), `server/services/verificacao.ts`, `server/services/rosto.ts` (comparador), `server/routes/verificacaoRotas.ts`, `client/src/components/Verificacao.tsx`, `SeloVerificado.tsx`, `VerificacoesDaPlataforma.tsx`, `CoresDoSelo.tsx`, `scripts/verificacao-test.ts` |
 | formato da publicação (retrato 4:5, quadrado 1:1, paisagem 1,91:1, vertical 9:16) e o perfil acima ou por cima | `formatoDaPeca()`/`formatoDoCarrossel()`/`perfilPorCima()` em `shared/publicacao.ts`, `probeVideoDimensions()` em `server/services/probe.ts`, `Carrossel` em `client/src/components/Publicacao.tsx`, `tests/publicacao.test.ts` |
 | publicação da rifa: carrossel de até 10 (reels e vídeos), barra de ações (trevo, comentar, republicar, compartilhar, "+" do carrinho, comprar) e legenda | `shared/publicacao.ts` (regras), `server/services/publicacao.ts`, `server/services/media.ts` (limites), `client/src/components/Publicacao.tsx`, `scripts/publicacao-test.ts` |
-| divulgação de terceiros: o afiliado (influenciador) publica com o material da organização e fotos dele, direto ou só depois da autorização dela (com foto, sempre depois), e o apostador publica texto e fotos (atrás de `publicarApostador`); o menu Criar | `shared/divulgacao.ts` (regras), `server/services/divulgacao.ts`, rotas `/divulgacoes*` em `server/routes/affiliate.ts` (afiliado), `public.ts` (apostador e página da rifa) e `admin.ts` (modo e fila), `modoDaOrganizacao`/`divulgacaoAfiliado` em `organizations`, `MenuCriar` em `client/src/components/Console.tsx`, `client/src/pages/afiliadoDivulgar.tsx`, `Publicar.tsx`, as fotos de quem publica em `client/src/components/FotosProprias.tsx`, `client/src/components/DivulgacoesDaOrganizacao.tsx`, `DivulgacoesDaRifa.tsx`, `tests/divulgacao.test.ts`, `scripts/divulgacao-test.ts` |
+| divulgação de terceiros: o afiliado (influenciador) publica com o material da organização e fotos dele, direto ou só depois da autorização dela (com foto, sempre depois), e o apostador publica texto e fotos (atrás de `publicarApostador`); o menu Criar | `shared/divulgacao.ts` (regras), `server/services/divulgacao.ts`, rotas `/divulgacoes*` em `server/routes/affiliate.ts` (afiliado), `public.ts` (apostador e página da rifa) e `admin.ts` (modo e fila), `modoDaOrganizacao`/`divulgacaoAfiliado` em `organizations`, `MenuCriar` em `client/src/components/Console.tsx`, `client/src/pages/afiliadoDivulgar.tsx`, `Publicar.tsx`, as fotos de quem publica em `client/src/components/FotosProprias.tsx`, a agenda em `shared/agenda.ts` e `client/src/components/CampoDeAgenda.tsx`, `client/src/components/DivulgacoesDaOrganizacao.tsx`, `DivulgacoesDaRifa.tsx`, `tests/divulgacao.test.ts`, `scripts/divulgacao-test.ts` |
 | carrinho (várias rifas, separadas por organização), o Pix único do carrinho e o comprar da publicação | `shared/carrinho.ts` (regras e split), `server/services/carrinho.ts`, `createCartOrder()` em `server/services/orders.ts`, `client/src/pages/CarrinhoPix.tsx`, `client/src/components/EscolherBilhete.tsx` (a janela do "+"), `scripts/carrinho-test.ts`, `client/src/lib/carrinho.ts`, `client/src/pages/Carrinho.tsx`, `BarraDeAcoes` em `client/src/components/Publicacao.tsx`, `scripts/publicacao-test.ts` |
 | presente pelos comentários (desconto de primeira compra pago pela plataforma) | `shared/presente.ts` (regras), `server/services/presente.ts`, `prepararPedido`/`settleOrderAsPaid` em `server/services/orders.ts`, `Presentear` em `client/src/components/Comentarios.tsx`, `AvisoDePresente` em `client/src/pages/Rifa.tsx`, cartão Presente em `client/src/pages/adminBonus.tsx`, `scripts/presente-test.ts` |
 | topo e console do app (os 6 botões da base, a lateral no computador, o trevo e a publicação) | `shared/console.ts` (botões, aviso do trevo, quem publica), `client/src/components/Console.tsx`, `PublicShell` em `client/src/components/AppShell.tsx`, `client/src/pages/PerfilDoUsuario.tsx`, `client/src/pages/EmBreve.tsx`, `client/src/components/TopoDoAppCard.tsx`, `tests/console.test.ts` |
@@ -2001,11 +2001,23 @@ publicou, com o link dele (`/r/<rifa>?ref=<código>`).
   dois `UPDATE` repetem situação e versão. O aviso ao apostador leva a versão
   na chave (`<id>:<versao>:<situação>`): a peça editada e aprovada de novo
   avisa de novo.
+- **Peça agendada** (`divulgacoes.publica_em`, `agendaDaPeca()` em
+  `shared/divulgacao.ts`, até `DIVULGACAO_AGENDA_MAX_DIAS`, 30): quem publica
+  escolhe a hora em que a peça entra na página da rifa. **Agendar não pula a
+  fila**: a peça só aparece se estiver `publicada` (aprovada, ou no ar pelo
+  modo direto) **e** passada a hora — a página e a foto pública filtram por
+  `noArAgora()` (sem agenda, ou `publica_em` já passou), comparando com o
+  relógio do processo. Sem relógio: na hora ela simplesmente passa a valer.
+  Na edição, sem `publicaEm` no corpo fica a agenda que estava; `null` tira
+  a agenda; a tela só manda o campo se a pessoa mexeu (a hora que passou não
+  volta como "hora que já passou"). A data é instante ISO com fuso
+  (`instanteAgendado()` em `shared/agenda.ts`, a mesma régua do story).
 - **A plataforma vê e decide a fila de todas** (organização nula no recorte),
   com o nome da organização em cada peça; o modo continua sendo da organização.
 - A tabela nova sobe com o `db:push` **antes** do código, e a coluna
   `organizations.divulgacao_afiliado` também, e `divulgacoes.versao` e
-  `editada_em`, e a tabela `divulgacao_fotos`.
+  `editada_em`, e a tabela `divulgacao_fotos`, e a coluna
+  `divulgacoes.publica_em`.
 - `npm run divulgacao` prova tudo isso contra a API de verdade
   (`npm run isolation` confere o recorte).
 

@@ -20,6 +20,7 @@
  *   só lê texto: a foto, quem lê é a organização).
  */
 import { LEGENDA_MAX, limparLegenda, problemaNaLegenda } from "./publicacao";
+import { instanteAgendado } from "./agenda";
 
 export const MODOS_DE_DIVULGACAO = {
   autorizacao: "Só depois da minha autorização",
@@ -65,6 +66,29 @@ export function validarFotos(v: unknown): string[] | null {
   }
   return v as string[];
 }
+/** Até quantos dias à frente quem publica agenda a peça. */
+export const DIVULGACAO_AGENDA_MAX_DIAS = 30;
+
+/**
+ * A hora em que a peça entra na página da rifa: ausente é `undefined` (na
+ * edição, fica a que estava); vazia é `null` (sem agenda: entra assim que
+ * estiver no ar); com data, até `DIVULGACAO_AGENDA_MAX_DIAS` à frente. A
+ * aprovação da organização continua valendo antes: agendar não pula a fila.
+ */
+export function agendaDaPeca(bruta: unknown, agora: Date = new Date()): Date | null | undefined {
+  if (bruta === undefined) return undefined;
+  return instanteAgendado(bruta, DIVULGACAO_AGENDA_MAX_DIAS, agora);
+}
+
+/**
+ * Aparece na página da rifa agora? (no ar e, se agendada, já passou da hora)
+ * A consulta do servidor é `noArAgora()` em `server/services/divulgacao.ts`,
+ * a mesma regra em SQL: mudou uma, mude a outra.
+ */
+export function pecaNoArAgora(status: StatusDaDivulgacao, publicaEm: Date | string | null, agora: Date = new Date()): boolean {
+  return status === "publicada" && (!publicaEm || new Date(publicaEm).getTime() <= agora.getTime());
+}
+
 /** Peças novas por pessoa por dia (conta a tentativa, depois do erro de preenchimento). */
 export const DIVULGACOES_POR_DIA = 10;
 export const MOTIVO_MAX = 300;
@@ -167,8 +191,19 @@ export function linkDaDivulgacao(slug: string, codigoDoAfiliado: string | null):
  * organização avisa: o que a própria pessoa retirou não vira aviso. O motivo
  * vai no corpo — quem escreveu precisa entender a recusa.
  */
-export function avisoDaDecisao(status: StatusDaDivulgacao, rifa: string, motivo: string | null): { title: string; body: string } | null {
+export function avisoDaDecisao(
+  status: StatusDaDivulgacao,
+  rifa: string,
+  motivo: string | null,
+  publicaEm: Date | string | null = null,
+  agora: Date = new Date(),
+): { title: string; body: string } | null {
   const comMotivo = (t: string) => (motivo ? `${t} Motivo: ${motivo}` : t);
+  if (status === "publicada" && !pecaNoArAgora(status, publicaEm, agora)) {
+    // Aprovada antes da hora agendada: dizer "está no ar" seria mentira até lá.
+    const quando = new Date(publicaEm as string | Date).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo" });
+    return { title: "Sua divulgação foi aprovada", body: `A organização aprovou a sua divulgação de ${rifa}. Ela aparece na página da rifa em ${quando}.` };
+  }
   if (status === "publicada") return { title: "Sua divulgação está no ar", body: `A organização aprovou a sua divulgação de ${rifa}.` };
   if (status === "recusada") return { title: "Divulgação recusada", body: comMotivo(`A organização recusou a sua divulgação de ${rifa}.`) };
   if (status === "removida") return { title: "Divulgação retirada", body: comMotivo(`A organização tirou do ar a sua divulgação de ${rifa}.`) };

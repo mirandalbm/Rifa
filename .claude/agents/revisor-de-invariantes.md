@@ -94,10 +94,12 @@ Procure, nesta ordem, o que é **grave**:
     deixa o vídeo lá quando a gravação não entrou; falha do processador que
     derrube o envio; token fora do cabeçalho ou `CLOUDFLARE_API_URL` valendo em
     produção.
-14. **Agendado** (story, e o que mais for agendado): leitura pública que
-    mostra antes da hora (story sem `storyNoAr()`, imagem ou pôster sem
-    conferir `publica_em`); a porta do painel sem o recorte antes; prazo
-    contado do envio em vez da hora de entrar no ar.
+14. **Agendado** (story, peça de divulgação, e o que mais for agendado):
+    leitura pública que mostra antes da hora (story sem `storyNoAr()`, peça
+    sem `noArAgora()`, imagem, pôster ou foto sem conferir `publica_em`);
+    agenda que pula a aprovação da organização; a porta do painel sem o
+    recorte antes; prazo contado do envio em vez da hora de entrar no ar;
+    data fora de `instanteAgendado()` (ISO com fuso).
 
 Só depois, o que é menor: mensagem de interface fora do português, número
 sem `tnum`, estado só por cor, cor fixa em vez de variável do tema.

@@ -1,4 +1,5 @@
 import { seloDaRifa, sorteioOficialDaTela } from "../services/sorteiosOficiais";
+import { bannerPublico, imagemPublica } from "../services/bannerDivulgacao";
 import { enviarComFaixa } from "../services/faixa";
 import { loteriaDoSorteio } from "@shared/sorteiosOficiais";
 import { conferirRecibo } from "../services/recibos";
@@ -1245,6 +1246,22 @@ publicRouter.get("/campaigns/:slug/certificado", async (req, res, next) => {
   }
 });
 
+// A imagem do banner de divulgação: só de rifa no ar (rascunho é 404) e de
+// promotora nem arquivada nem banida. O endereço leva `?v=` da troca.
+publicRouter.get("/campaigns/:slug/banner-divulgacao", async (req, res, next) => {
+  try {
+    const b = await imagemPublica(req.params.slug);
+    if (!b) return res.status(404).json({ message: "Sem banner." });
+    // `private` e curto: a rifa que sai do ar (ou a promotora arquivada) não
+    // pode seguir servida por um cache compartilhado.
+    res.setHeader("Cache-Control", "private, max-age=60");
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.type(b.mime).send(b.bytes);
+  } catch (err) {
+    next(err);
+  }
+});
+
 publicRouter.get("/campaigns/:slug", async (req, res, next) => {
   try {
     const found = await campaignBySlug(req.params.slug);
@@ -1278,6 +1295,8 @@ publicRouter.get("/campaigns/:slug", async (req, res, next) => {
         adiamentos: found.campaign.adiamentos,
         comentarios: found.campaign.comentariosCount,
         legenda: found.campaign.legenda,
+        // O banner de divulgação em cima da rifa (empresa, ONG), se houver.
+        bannerDivulgacao: await bannerPublico(found.campaign.id, found.campaign.slug),
         interacoes: {
           curtidas: found.campaign.curtidasCount,
           comentarios: found.campaign.comentariosCount,

@@ -1,4 +1,5 @@
 import { LegendaCard } from "@/components/Publicacao";
+import { BannerDivulgacaoCard } from "@/components/BannerDivulgacaoCard";
 import { DivulgacoesDaOrganizacao } from "@/components/DivulgacoesDaOrganizacao";
 import { SeloVerificado } from "@/components/SeloVerificado";
 import { useState } from "react";
@@ -695,6 +696,7 @@ export function AdminCampanhas() {
                     titulo: "Publicação",
                     conteudo: (
                       <div className="space-y-3">
+                        <BannerDivulgacaoCard campaignId={c.id} />
                         <MediaManager campaignId={c.id} />
                         <LegendaCard campanha={c} />
                       </div>

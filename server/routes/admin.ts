@@ -1,4 +1,11 @@
 import { calendario, cancelarSorteioOficial, criarSorteioOficial, editarSorteioOficial, integrarAoSorteioOficial, lancarResultado } from "../services/sorteiosOficiais";
+import {
+  BannerDivulgacaoError,
+  bannerDoPainel,
+  imagemDoPainel,
+  removerBannerDeDivulgacao,
+  salvarBannerDeDivulgacao,
+} from "../services/bannerDivulgacao";
 import { agendarPublicacao } from "../services/publicacaoAgendada";
 import { enviarComFaixa } from "../services/faixa";
 import { devolverPixTardio, listarPixTardios, resolverPixTardio } from "../services/pixTardio";
@@ -981,6 +988,61 @@ adminRouter.put("/campaigns/:id/legenda", async (req, res, next) => {
     const salva = await salvarLegenda(campaign.id, campaign.organizationId, req.body?.legenda ?? "");
     await audit(req, "campaign.legenda", "campaign", campaign.id, salva);
     res.json(salva);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Banner de divulgação em cima da rifa (empresa, ONG): muda a qualquer hora,
+// antes ou depois de publicar — não é termo da rifa. O vizinho é 404.
+adminRouter.get("/campaigns/:id/banner-divulgacao", async (req, res, next) => {
+  try {
+    const campaign = await assertCampaignInScope(req, req.params.id);
+    const b = await bannerDoPainel(campaign.id);
+    res.setHeader("Cache-Control", "no-store");
+    res.json(b ? { titulo: b.titulo, imagem: `/api/admin/campaigns/${campaign.id}/banner-divulgacao/imagem?v=${b.em.getTime()}` } : null);
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.get("/campaigns/:id/banner-divulgacao/imagem", async (req, res, next) => {
+  try {
+    const campaign = await assertCampaignInScope(req, req.params.id);
+    const b = await imagemDoPainel(campaign.id);
+    if (!b) return res.status(404).json({ message: "Sem banner." });
+    res.setHeader("Cache-Control", "private, no-store");
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.type(b.mime).send(b.bytes);
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.put("/campaigns/:id/banner-divulgacao", async (req, res, next) => {
+  try {
+    const campaign = await assertCampaignInScope(req, req.params.id);
+    const salvo = await salvarBannerDeDivulgacao(campaign.id, campaign.organizationId, {
+      imagem: req.body?.imagem,
+      titulo: req.body?.titulo,
+    });
+    await audit(req, "campaign.banner_divulgacao", "campaign", campaign.id, {
+      titulo: salvo.titulo,
+      imagemNova: req.body?.imagem !== undefined,
+    });
+    res.json({ titulo: salvo.titulo });
+  } catch (err) {
+    if (err instanceof BannerDivulgacaoError) return res.status(err.status).json({ message: err.message });
+    next(err);
+  }
+});
+
+adminRouter.delete("/campaigns/:id/banner-divulgacao", async (req, res, next) => {
+  try {
+    const campaign = await assertCampaignInScope(req, req.params.id);
+    await removerBannerDeDivulgacao(campaign.id);
+    await audit(req, "campaign.banner_divulgacao.remover", "campaign", campaign.id, {});
+    res.status(204).end();
   } catch (err) {
     next(err);
   }

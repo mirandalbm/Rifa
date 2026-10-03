@@ -163,6 +163,8 @@ app.use((req, res, next) =>
 app.use("/api/admin/stories", express.json({ limit: "22mb" }));
 // O perfil pode levar foto e capa juntas (até 5 MB cada, em base64).
 app.use("/api/admin/organizacoes/:id/perfil", express.json({ limit: "16mb" }));
+// O banner de divulgação da rifa: a imagem em base64 (até 5 MB) passa de 1 MB.
+app.use("/api/admin/campaigns/:id/banner-divulgacao", express.json({ limit: "8mb" }));
 // Documento do cadastro fiscal: até 6 MB, em base64.
 app.use(
   [

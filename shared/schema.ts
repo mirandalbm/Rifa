@@ -1350,6 +1350,23 @@ export const afiliadoFotos = pgTable("afiliado_fotos", {
 });
 
 /**
+ * O banner de divulgação em cima da rifa: uma imagem que a organização
+ * escolhe (a empresa dela, uma ONG que apoia) — não é a capa da rifa nem o
+ * prêmio, e muda a qualquer hora. Um por rifa; sem ele, nada aparece.
+ * Reprocessado em WebP 1200×400, no banco como a capa do perfil.
+ */
+export const campaignBannersDivulgacao = pgTable("campaign_banners_divulgacao", {
+  campaignId: uuid("campaign_id")
+    .primaryKey()
+    .references(() => campaigns.id, { onDelete: "cascade" }),
+  /** O texto alternativo da imagem (quem não enxerga lê isto). */
+  titulo: text("titulo").notNull(),
+  mime: text("mime").notNull(),
+  bytes: bytea("bytes").notNull(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+/**
  * Capa do perfil da organização. Mesma regra da foto: no banco, reprocessada
  * (1500×500, WebP, sem metadados) — o arquivo enviado nunca é servido como
  * veio.

@@ -1506,6 +1506,42 @@ export const sorteioComentarioCurtidas = pgTable(
   (t) => [primaryKey({ columns: [t.comentarioId, t.buyerId] })],
 );
 
+/**
+ * Denúncia de comentário do sorteio oficial. Não há organização dona: só a
+ * plataforma vê e decide. O `trecho` é o comentário (e, se for resposta, o de
+ * cima) gravado na hora — quem escreveu pode apagar depois, a prova fica.
+ * Uma aberta por comentário e pessoa (`uq_sorteio_denuncia_aberta`).
+ */
+export const sorteioComentarioDenuncias = pgTable(
+  "sorteio_comentario_denuncias",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    protocolo: text("protocolo").notNull(),
+    comentarioId: uuid("comentario_id")
+      .notNull()
+      .references(() => sorteioComentarios.id, { onDelete: "cascade" }),
+    sorteioOficialId: uuid("sorteio_oficial_id")
+      .notNull()
+      .references(() => sorteiosOficiais.id, { onDelete: "cascade" }),
+    buyerId: uuid("buyer_id")
+      .notNull()
+      .references(() => buyers.id, { onDelete: "cascade" }),
+    motivo: text("motivo").notNull(),
+    texto: text("texto"),
+    trecho: jsonb("trecho").$type<{ de: string; texto: string; em: string; denunciado: boolean }[]>().notNull(),
+    status: text("status").notNull().default("aberta"),
+    decisao: text("decisao"),
+    decididaPor: uuid("decidida_por"),
+    decididaEm: timestamp("decidida_em"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("uq_sorteio_denuncia_protocolo").on(t.protocolo),
+    uniqueIndex("uq_sorteio_denuncia_aberta").on(t.comentarioId, t.buyerId).where(sql`status = 'aberta'`),
+    index("idx_sorteio_denuncias_status").on(t.status, t.createdAt),
+  ],
+);
+
 /** Uma curtida por pessoa e comentário: a chave decide, não um `SELECT` antes. */
 export const comentarioCurtidas = pgTable(
   "comentario_curtidas",

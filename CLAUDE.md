@@ -162,7 +162,7 @@ arquitetura.
 | remodelagem do web e dos painéis: inventário do que existe e lista de conferência | `docs/REMODELAGEM.md` |
 | selo "ao vivo" no story (anel com a transmissão do sorteio) | `transmissaoNoAr()` em `shared/aoVivo.ts` (regra), `transmissoesNoAr()` em `server/services/aoVivo.ts`, `perfisComStory()` e `perfilPublico()` em `server/services/perfil.ts`, `FotoComStory`/`VisualizadorDeStories` em `client/src/components/Stories.tsx`, `tests/seloAoVivo.test.ts`, `scripts/vitrine-test.ts` |
 | tela do sorteio no Início do celular (deslizar para a direita, vídeo e comentários como no YouTube) | `client/src/components/SorteioDoInicio.tsx` (`useSorteioDoInicio`, `BotaoDoSorteio`), a regra do gesto em `client/src/lib/deslizar.ts`, `TelaDoProximoSorteio` em `client/src/components/ColunaAoVivo.tsx`, `antesDaMarca` em `PublicShell`, `tests/deslizar.test.ts` |
-| sorteios oficiais da plataforma (calendário, integrar a rifa, selo, resultado oficial, sorteio automático, outras loterias, troca pelo adiamento, a tela do celular) | `shared/sorteiosOficiais.ts` (regras e loterias), `server/services/sorteiosOficiais.ts`, `sortearRifasDoSorteioOficial()` em `server/services/sortear.ts` (e o relógio em `server/jobs/index.ts`), `pedirAdiamento()` com `sorteioOficialId` em `server/services/solicitacoes.ts`, os comentários em `server/services/sorteioComentarios.ts` (o componente `Comentarios` com `sorteioOficialId`, `scripts/sorteio-comentarios-test.ts`), `/sorteios-oficiais*` e `PUT /campaigns/:id/sorteio-oficial` em `server/routes/admin.ts`, `GET /api/public/sorteio-oficial` em `server/routes/public.ts`, `client/src/pages/adminSorteiosOficiais.tsx`, `ConteudoDoSorteio`/`ContagemDoSorteio` em `client/src/components/SorteioDoInicio.tsx`, `scripts/sorteios-oficiais-test.ts`, `tests/sorteiosOficiais.test.ts` |
+| sorteios oficiais da plataforma (calendário, integrar a rifa, selo, resultado oficial, sorteio automático, outras loterias, troca pelo adiamento, a tela do celular) | `shared/sorteiosOficiais.ts` (regras e loterias), `server/services/sorteiosOficiais.ts`, `sortearRifasDoSorteioOficial()` em `server/services/sortear.ts` (e o relógio em `server/jobs/index.ts`), `pedirAdiamento()` com `sorteioOficialId` em `server/services/solicitacoes.ts`, os comentários em `server/services/sorteioComentarios.ts` (o componente `Comentarios` com `sorteioOficialId`, `scripts/sorteio-comentarios-test.ts`) e a denúncia deles (`shared/sorteioDenuncias.ts`, `ComentariosDoSorteioDenunciados` em `client/src/components/ConversasDenunciadas.tsx`, tipo `comentario_sorteio` em `shared/caixa.ts`, `tests/sorteioDenuncias.test.ts`), `/sorteios-oficiais*` e `PUT /campaigns/:id/sorteio-oficial` em `server/routes/admin.ts`, `GET /api/public/sorteio-oficial` em `server/routes/public.ts`, `client/src/pages/adminSorteiosOficiais.tsx`, `ConteudoDoSorteio`/`ContagemDoSorteio` em `client/src/components/SorteioDoInicio.tsx`, `scripts/sorteios-oficiais-test.ts`, `tests/sorteiosOficiais.test.ts` |
 | vitrine no tablet e no computador: coluna ao vivo (tela do sorteio, ganhadores, jogando agora), tela flutuante e rodapé com logos | `shared/aoVivo.ts` (regras), `server/services/aoVivo.ts`, `client/src/components/ColunaAoVivo.tsx`, `client/src/components/RodapeDaPlataforma.tsx`, `validarApoios()` em `shared/template.ts`, `tests/aoVivo.test.ts`, `scripts/vitrine-test.ts` |
 | rodapé da plataforma: colunas de links, redes sociais e espaço de apoio | `shared/rodape.ts` (colunas), `validarRedes()`/`REDES_DO_RODAPE` em `shared/template.ts`, `client/src/components/RodapeDaPlataforma.tsx`, cartão "Redes sociais do rodapé" em `client/src/pages/adminAparencia.tsx`, `preencherRodapeComExemplo()` em `server/services/template.ts`, `tests/rodape.test.ts` |
 | app instalável (PWA): casca, nome e ícone | `client/public/sw.js`, `shared/manifest.ts` (o manifesto montado), `manifestDaPlataforma()`/`iconeDaMarca()` em `server/services/template.ts`, `client/public/manifest.webmanifest` (o de fábrica, se o banco falhar), `client/src/lib/pwa.ts`, `tests/manifest.test.ts`, `scripts/aparencia-test.ts` |
@@ -604,7 +604,8 @@ O verde da marca entra no lugar do roxo do kit; o significado das cores
 - **A Caixa de entrada reúne, não decide** (`/admin/caixa`, só a plataforma:
   403 para organizador, no `npm run isolation`). `caixaDeEntrada()` junta as
   filas (chamados e disputas, pedidos de mudança de rifa, denúncias, conversas
-  denunciadas, verificações, cadastros fiscais, banner pago) e os telefones
+  e grupos denunciados, comentários do sorteio oficial denunciados,
+  verificações, cadastros fiscais, banner pago, Pix a devolver) e os telefones
   por aprovar; a ordem e o
   destino de cada tipo moram em `shared/caixa.ts` (`tests/caixa.test.ts`).
   **Sem dado pessoal na lista**: organização, código do afiliado ou apelido —
@@ -2516,11 +2517,36 @@ coluna ao vivo segue como estava.
   todos). O componente da tela é o mesmo `Comentarios` da rifa, com
   `sorteioOficialId` (sem o presente, que é da rifa). `npm run
   sorteio-comentarios` prova.
+- **Denúncia de comentário do sorteio oficial** (`sorteio_comentario_denuncias`,
+  regras em `shared/sorteioDenuncias.ts`, serviço em
+  `server/services/sorteioComentarios.ts`, `POST
+  /sorteio-oficial/comentarios/:id/denuncia` e `/sorteios-oficiais/denuncias*`
+  em `server/routes/admin.ts`): **quem entrou e não escreveu denuncia**
+  ("Denunciar" ao lado de "Responder"; 401 sem conta, 409 o próprio, 404 o
+  apagado ou de sorteio cancelado). O motivo é da lista; o erro de
+  preenchimento sai antes do `hit` (`denuncia-sorteio:<id>`, 10 por dia).
+  **Uma aberta por comentário e pessoa** pelo índice parcial
+  `uq_sorteio_denuncia_aberta` — nunca um `SELECT` antes. O **trecho** (o
+  comentário e, se for resposta, o de cima, só com apelido) é gravado na hora:
+  quem escreveu pode apagar depois, a prova fica. **Só a plataforma vê e
+  decide** (403 para organizador, no `npm run isolation`): a fila e a Caixa
+  (tipo `comentario_sorteio`) não trazem texto; a leitura do trecho entra em
+  `audit_log` **antes** de sair. Decidir é `UPDATE` condicional (`aberta`):
+  dois cliques, uma decisão e um 409. **Procedente apaga o comentário** (o do
+  topo leva as respostas), desce o contador e fecha as outras denúncias
+  abertas do mesmo comentário, na mesma transação; exige explicação. **A
+  trava é do comentário antes da denúncia** (e o apagar também trava o
+  comentário antes das respostas): duas denúncias do mesmo comentário
+  decididas juntas esperam no comentário e dão 200 e 409 — na ordem inversa
+  eram deadlock e 500. A auditoria da decisão vai **dentro** da transação,
+  depois do `UPDATE`: só registra o que aconteceu.
+  Improcedente deixa o comentário no ar. Quem escreveu nunca sabe quem
+  denunciou. `npm run sorteio-comentarios` prova.
 - A tabela e as colunas (`campaigns.sorteio_oficial_id`,
   `sorteio_auto_motivo`, `sorteio_auto_em`, `draws.loteria`,
   `campanha_solicitacoes.sorteio_oficial_novo_id`,
-  `sorteios_oficiais.comentarios_count`, `sorteio_comentarios` e
-  `sorteio_comentario_curtidas`) sobem com o `db:push` **antes** do código. `npm run sorteios` prova tudo isso, e
+  `sorteios_oficiais.comentarios_count`, `sorteio_comentarios`,
+  `sorteio_comentario_curtidas` e `sorteio_comentario_denuncias`) sobem com o `db:push` **antes** do código. `npm run sorteios` prova tudo isso, e
   `npm run isolation` confere que o calendário de cada organização só traz
   as rifas dela.
 

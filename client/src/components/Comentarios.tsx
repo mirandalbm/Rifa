@@ -10,6 +10,7 @@ import { Janela } from "@/components/Janela";
 import { SeloVerificado } from "@/components/SeloVerificado";
 import { REACOES } from "@shared/perfilApostador";
 import { textoDoPresente } from "@shared/presente";
+import { MOTIVOS_DA_DENUNCIA_DE_COMENTARIO_DO_SORTEIO, type MotivoDaDenunciaDoSorteio } from "@shared/sorteioDenuncias";
 
 interface Comentario {
   id: string;
@@ -26,6 +27,8 @@ interface Comentario {
   podeApagar: boolean;
   podePedirRemocao: boolean;
   remocaoEmAnalise: boolean;
+  /** Só no sorteio oficial: quem entrou e não escreveu denuncia à plataforma. */
+  podeDenunciar?: boolean;
 }
 
 interface Lista {
@@ -117,6 +120,7 @@ function Linha({
     onSuccess: aoMudar,
     onError: (e: Error) => window.alert(e.message),
   });
+  const [denunciando, setDenunciando] = useState(false);
 
   return (
     <div className={`flex gap-3 ${resposta ? "pl-12" : ""}`}>
@@ -167,7 +171,13 @@ function Linha({
             </button>
           ) : null}
           {c.remocaoEmAnalise ? <Pill status="pending">remoção em análise</Pill> : null}
+          {c.podeDenunciar ? (
+            <button type="button" className="hover:text-red" onClick={() => setDenunciando(true)}>
+              Denunciar
+            </button>
+          ) : null}
         </p>
+        {denunciando ? <DenunciarComentarioDoSorteio id={c.id} rota={rota} aoFechar={() => setDenunciando(false)} /> : null}
       </div>
       <button
         type="button"
@@ -181,6 +191,65 @@ function Linha({
         {curtido.n ? <span className="tnum text-[12px]">{curtido.n}</span> : null}
       </button>
     </div>
+  );
+}
+
+/**
+ * Denunciar um comentário do sorteio oficial: só a plataforma vê. Quem
+ * escreveu nunca fica sabendo quem denunciou.
+ */
+function DenunciarComentarioDoSorteio({ id, rota, aoFechar }: { id: string; rota: string; aoFechar: () => void }) {
+  const [motivo, setMotivo] = useState<MotivoDaDenunciaDoSorteio>("pix_fora");
+  const [texto, setTexto] = useState("");
+  const [aviso, setAviso] = useState<{ ok: boolean; texto: string } | null>(null);
+  const enviar = useMutation({
+    mutationFn: async () => (await (await apiRequest("POST", `${rota}/${id}/denuncia`, { motivo, texto })).json()) as { protocolo: string },
+    onSuccess: (r) => setAviso({ ok: true, texto: `Denúncia registrada — protocolo ${r.protocolo}. A plataforma vai analisar.` }),
+    onError: (e: Error) => setAviso({ ok: false, texto: e.message }),
+  });
+  return (
+    <Janela onFechar={aoFechar} rotulo="Denunciar comentário" className="p-4">
+      <div className="mb-2 flex items-center justify-between">
+        <h2 className="font-display text-lg font-extrabold">Denunciar comentário</h2>
+        <button type="button" onClick={aoFechar} aria-label="Fechar" className="rounded-md p-1 hover:bg-mist">
+          <X size={20} aria-hidden />
+        </button>
+      </div>
+      {aviso?.ok ? (
+        <p role="status" className="rounded-md bg-green-soft px-3 py-2 text-sm text-green-deep">
+          {aviso.texto}
+        </p>
+      ) : (
+        <form
+          className="space-y-3 text-sm"
+          onSubmit={(e) => {
+            e.preventDefault();
+            enviar.mutate();
+          }}
+        >
+          <fieldset className="space-y-1">
+            <legend className="label-xs mb-1">O que aconteceu?</legend>
+            {(Object.keys(MOTIVOS_DA_DENUNCIA_DE_COMENTARIO_DO_SORTEIO) as MotivoDaDenunciaDoSorteio[]).map((m) => (
+              <label key={m} className="flex items-start gap-2">
+                <input type="radio" name={`motivo-${id}`} checked={motivo === m} onChange={() => setMotivo(m)} className="mt-1" />
+                {MOTIVOS_DA_DENUNCIA_DE_COMENTARIO_DO_SORTEIO[m]}
+              </label>
+            ))}
+          </fieldset>
+          <div>
+            <label htmlFor={`denuncia-texto-${id}`} className="label-xs">
+              Conte o que viu (opcional)
+            </label>
+            <textarea id={`denuncia-texto-${id}`} rows={3} maxLength={1000} value={texto} onChange={(e) => setTexto(e.target.value)} className="campo" />
+          </div>
+          <p className="text-[11px] text-muted">Só a plataforma vê a denúncia. Quem escreveu nunca fica sabendo quem denunciou.</p>
+          {aviso ? <p className="text-xs text-red">{aviso.texto}</p> : null}
+          <Button type="submit" disabled={enviar.isPending}>
+            Enviar denúncia
+          </Button>
+        </form>
+      )}
+    </Janela>
   );
 }
 

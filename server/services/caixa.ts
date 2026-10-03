@@ -4,6 +4,8 @@ import { db } from "../db";
 import { ordenarCaixa, type PendenciaDaCaixa } from "@shared/caixa";
 import { MOTIVOS_DA_DENUNCIA_DE_MENSAGEM } from "@shared/mensagens";
 import { MOTIVOS_DA_DENUNCIA_DE_GRUPO } from "@shared/grupos";
+import { MOTIVOS_DA_DENUNCIA_DE_COMENTARIO_DO_SORTEIO } from "@shared/sorteioDenuncias";
+import { LOTERIAS } from "@shared/sorteiosOficiais";
 
 /**
  * A caixa de entrada da plataforma: o que espera decisão, de todas as filas,
@@ -12,7 +14,7 @@ import { MOTIVOS_DA_DENUNCIA_DE_GRUPO } from "@shared/grupos";
  * afiliado ou apelido — nunca telefone, CPF ou nome de comprador.
  */
 export async function caixaDeEntrada(): Promise<PendenciaDaCaixa[]> {
-  const [chamados, solicitacoes, denuncias, verificacoes, fiscais, telefones, banners, conversas, gruposDenunciados, pixTardios] = await Promise.all([
+  const [chamados, solicitacoes, denuncias, verificacoes, fiscais, telefones, banners, conversas, gruposDenunciados, pixTardios, comentariosDoSorteio] = await Promise.all([
     db.execute(sql`
       SELECT ch.id, ch.disputa, ch.created_at AS desde, o.name AS org, ch.protocolo, ord.code AS pedido
         FROM chamados ch
@@ -86,6 +88,13 @@ export async function caixaDeEntrada(): Promise<PendenciaDaCaixa[]> {
         LEFT JOIN organizations org ON org.id = c.organization_id
        WHERE p.status IN ('pendente', 'devolvendo')
        ORDER BY p.created_at LIMIT 200`),
+    // Comentário do sorteio oficial: a loteria e o concurso; o trecho só na tela da denúncia.
+    db.execute(sql`
+      SELECT d.id, d.created_at AS desde, d.protocolo, d.motivo, s.loteria, s.concurso
+        FROM sorteio_comentario_denuncias d
+        JOIN sorteios_oficiais s ON s.id = d.sorteio_oficial_id
+       WHERE d.status = 'aberta'
+       ORDER BY d.created_at LIMIT 200`),
   ]);
 
   const iso = (d: unknown) => new Date(d as string | Date).toISOString();
@@ -152,6 +161,17 @@ export async function caixaDeEntrada(): Promise<PendenciaDaCaixa[]> {
   for (const r of gruposDenunciados.rows as any[]) {
     const motivo = MOTIVOS_DA_DENUNCIA_DE_GRUPO[r.motivo as keyof typeof MOTIVOS_DA_DENUNCIA_DE_GRUPO] ?? r.motivo;
     linhas.push({ chave: `grupo:${r.id}`, tipo: "grupo", quem: `grupo da rifa ${r.rifa}`, oQue: `Denúncia em grupo — ${motivo} (${r.protocolo})`, desde: iso(r.desde) });
+  }
+  for (const r of comentariosDoSorteio.rows as any[]) {
+    const motivo = MOTIVOS_DA_DENUNCIA_DE_COMENTARIO_DO_SORTEIO[r.motivo as keyof typeof MOTIVOS_DA_DENUNCIA_DE_COMENTARIO_DO_SORTEIO] ?? r.motivo;
+    const loteria = LOTERIAS[r.loteria as keyof typeof LOTERIAS]?.nome ?? r.loteria;
+    linhas.push({
+      chave: `comentario_sorteio:${r.id}`,
+      tipo: "comentario_sorteio",
+      quem: `sorteio ${loteria} ${r.concurso}`,
+      oQue: `Denúncia de comentário — ${motivo} (${r.protocolo})`,
+      desde: iso(r.desde),
+    });
   }
   return ordenarCaixa(linhas);
 }

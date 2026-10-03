@@ -588,8 +588,10 @@ Na ordem de entrega do plano:
   a aprovação da plataforma. **Fase 3 feita:** os comentários do sorteio
   oficial, embaixo do vídeo na tela do celular (todo mundo lê; conta com
   apelido escreve; emoji só verificado; a plataforma modera pelo
-  calendário). **Falta:** denúncia de comentário do sorteio pelo apostador
-  (hoje só a plataforma apaga, olhando a lista); conferir as cores de `CORES_DA_CAIXA` contra o manual de identidade visual das
+  calendário). **Denúncia feita:** o apostador com conta denuncia o
+  comentário do sorteio ("Denunciar"), a plataforma decide em Atendimento →
+  Denúncias e na Caixa de entrada, e procedente apaga o comentário.
+  **Falta:** conferir as cores de `CORES_DA_CAIXA` contra o manual de identidade visual das
   Loterias Caixa; e o advogado confirmar que a autorização SPA/MF da rifa
   aceita apuração pela Mega-Sena, Quina ou Lotofácil (hoje a plataforma
   deixa a organização escolher — a autorização é dela, invariante 9).

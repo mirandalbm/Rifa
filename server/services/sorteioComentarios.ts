@@ -15,7 +15,8 @@
 import type { Request } from "express";
 import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { db } from "../db";
-import { buyers, sorteioComentarioCurtidas, sorteioComentarios, sorteiosOficiais } from "@shared/schema";
+import { randomInt } from "node:crypto";
+import { auditLog, buyers, sorteioComentarioCurtidas, sorteioComentarioDenuncias, sorteioComentarios, sorteiosOficiais } from "@shared/schema";
 import {
   COMENTARIOS_POR_JANELA,
   EMOJI_SO_VERIFICADO,
@@ -25,6 +26,14 @@ import {
   problemaNoComentario,
   temEmoji,
 } from "@shared/comentarios";
+import { DENUNCIAS_POR_DIA, DENUNCIA_TEXTO_MAX } from "@shared/seguranca";
+import {
+  MOTIVOS_DA_DENUNCIA_DE_COMENTARIO_DO_SORTEIO,
+  motivoDoSorteioValido,
+  problemaNaDecisao,
+  problemaParaDenunciar,
+} from "@shared/sorteioDenuncias";
+import { isUniqueViolation } from "../pgError";
 import { hit } from "./antifraude";
 import { urlDaFotoDoApostador } from "./perfilApostador";
 import { ComentarioError } from "./comentarios";
@@ -90,6 +99,8 @@ export async function listarComentariosDoSorteio(req: Request, sorteioId: string
       meu,
       // Quem escreveu e a plataforma apagam; não há organização dona.
       podeApagar: meu || plataforma,
+      // Denuncia quem entrou e não escreveu (a plataforma apaga direto).
+      podeDenunciar: Boolean(meuBuyer) && !meu && !plataforma,
       podePedirRemocao: false,
       remocaoEmAnalise: false,
     };
@@ -221,6 +232,9 @@ export async function apagarComentarioDoSorteio(req: Request, id: string) {
   const pode = c && (daPlataforma(req) || (buyerId && c.buyerId === buyerId));
   if (!pode) throw new ComentarioError("Comentário não encontrado.", 404);
   const apagados = await db.transaction(async (tx) => {
+    // Trava o comentário antes das respostas: a mesma ordem da decisão da
+    // denúncia, para as duas nunca se esperarem em ciclo.
+    await tx.execute(sql`SELECT id FROM sorteio_comentarios WHERE id = ${c.id}::uuid FOR UPDATE`);
     const alvo = c.parentId
       ? [c.id]
       : [
@@ -246,4 +260,268 @@ export async function apagarComentarioDoSorteio(req: Request, id: string) {
     return feitos.length;
   });
   return { apagados };
+}
+
+/* ------------------------------------------------------------------ *
+ * Denúncia: o apostador denuncia, só a plataforma vê e decide
+ * ------------------------------------------------------------------ */
+
+const protocolo = () => {
+  const d = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date()).replace(/-/g, "");
+  return `DS-${d}-${String(randomInt(0, 1_000_000)).padStart(6, "0")}`;
+};
+
+const nomeDoMotivo = (m: string) =>
+  MOTIVOS_DA_DENUNCIA_DE_COMENTARIO_DO_SORTEIO[m as keyof typeof MOTIVOS_DA_DENUNCIA_DE_COMENTARIO_DO_SORTEIO] ?? m;
+
+/** O comentário (e o de cima, se for resposta), gravado na hora: só apelido, nunca telefone. */
+async function trechoDoComentario(c: { id: string; parentId: string | null }) {
+  const ids = c.parentId ? [c.parentId, c.id] : [c.id];
+  const linhas = await db
+    .select({
+      id: sorteioComentarios.id,
+      texto: sorteioComentarios.texto,
+      em: sorteioComentarios.createdAt,
+      apelido: buyers.apelido,
+      nome: buyers.name,
+    })
+    .from(sorteioComentarios)
+    .leftJoin(buyers, eq(buyers.id, sorteioComentarios.buyerId))
+    .where(inArray(sorteioComentarios.id, ids));
+  return ids
+    .map((id) => linhas.find((l) => l.id === id))
+    .filter((l): l is (typeof linhas)[number] => Boolean(l))
+    .map((l) => ({
+      de: l.apelido ?? (l.nome ? nomeNoComentario(l.nome) : "conta removida"),
+      texto: l.texto,
+      em: l.em.toISOString(),
+      denunciado: l.id === c.id,
+    }));
+}
+
+/**
+ * O apostador com conta denuncia um comentário no ar de um sorteio não
+ * cancelado (senão, 404). O próprio, não (409). Erro de preenchimento sai
+ * antes de contar a tentativa; uma aberta por comentário e pessoa, pelo índice.
+ */
+export async function denunciarComentarioDoSorteio(req: Request, id: string, entrada: { motivo?: unknown; texto?: unknown }) {
+  const buyerId = req.session.buyer?.id ?? null;
+  const semConta = problemaParaDenunciar({
+    temConta: Boolean(buyerId),
+    meu: false,
+  });
+  if (semConta) throw new ComentarioError(semConta, 401);
+  if (!UUID.test(id)) throw new ComentarioError("Comentário não encontrado.", 404);
+  const [c] = await db
+    .select({
+      id: sorteioComentarios.id,
+      parentId: sorteioComentarios.parentId,
+      buyerId: sorteioComentarios.buyerId,
+      sorteioOficialId: sorteioComentarios.sorteioOficialId,
+    })
+    .from(sorteioComentarios)
+    .innerJoin(sorteiosOficiais, eq(sorteiosOficiais.id, sorteioComentarios.sorteioOficialId))
+    .where(and(eq(sorteioComentarios.id, id), isNull(sorteioComentarios.removidoEm), isNull(sorteiosOficiais.canceladoEm)));
+  if (!c) throw new ComentarioError("Comentário não encontrado.", 404);
+  const proprio = problemaParaDenunciar({
+    temConta: true,
+    meu: c.buyerId === buyerId,
+  });
+  if (proprio) throw new ComentarioError(proprio, 409);
+  const motivo = entrada.motivo;
+  if (!motivoDoSorteioValido(motivo)) throw new ComentarioError("Escolha o motivo da denúncia.", 400);
+  const texto = typeof entrada.texto === "string" ? entrada.texto.trim().slice(0, DENUNCIA_TEXTO_MAX) : "";
+  if ((await hit(`denuncia-sorteio:${buyerId}`, 24 * 60, DENUNCIAS_POR_DIA)).excedeu) {
+    throw new ComentarioError("Muitas denúncias hoje. Tente amanhã.", 429);
+  }
+  const trecho = await trechoDoComentario(c);
+  for (let i = 0; i < 5; i++) {
+    try {
+      const [d] = await db.transaction(async (tx) => {
+        // Apagado entre a leitura e a gravação, não vira pendência inútil na fila.
+        const vivo = (await tx.execute(sql`SELECT id FROM sorteio_comentarios WHERE id = ${c.id}::uuid AND removido_em IS NULL FOR SHARE`))
+          .rows;
+        if (!vivo.length) throw new ComentarioError("Comentário não encontrado.", 404);
+        return tx
+          .insert(sorteioComentarioDenuncias)
+          .values({
+            protocolo: protocolo(),
+            comentarioId: c.id,
+            sorteioOficialId: c.sorteioOficialId,
+            buyerId: buyerId!,
+            motivo,
+            texto: texto || null,
+            trecho,
+          })
+          .returning({ protocolo: sorteioComentarioDenuncias.protocolo });
+      });
+      return { protocolo: d.protocolo };
+    } catch (err) {
+      if (isUniqueViolation(err, "uq_sorteio_denuncia_aberta")) {
+        throw new ComentarioError("Você já denunciou este comentário. A plataforma vai analisar.", 409);
+      }
+      if (!isUniqueViolation(err, "uq_sorteio_denuncia_protocolo")) throw err;
+    }
+  }
+  throw new ComentarioError("Não consegui registrar. Tente de novo.", 500);
+}
+
+/** A fila (só a plataforma): sem texto do comentário nem de quem denunciou. */
+export async function listarDenunciasDoSorteio(status?: string) {
+  const linhas = await db
+    .select({
+      id: sorteioComentarioDenuncias.id,
+      protocolo: sorteioComentarioDenuncias.protocolo,
+      motivo: sorteioComentarioDenuncias.motivo,
+      status: sorteioComentarioDenuncias.status,
+      createdAt: sorteioComentarioDenuncias.createdAt,
+      sorteio: sorteiosOficiais.titulo,
+      loteria: sorteiosOficiais.loteria,
+      concurso: sorteiosOficiais.concurso,
+    })
+    .from(sorteioComentarioDenuncias)
+    .innerJoin(sorteiosOficiais, eq(sorteiosOficiais.id, sorteioComentarioDenuncias.sorteioOficialId))
+    .where(status ? eq(sorteioComentarioDenuncias.status, status) : undefined)
+    .orderBy(desc(sorteioComentarioDenuncias.createdAt))
+    .limit(100);
+  return linhas.map((d) => ({
+    id: d.id,
+    protocolo: d.protocolo,
+    motivoTexto: nomeDoMotivo(d.motivo),
+    status: d.status,
+    criadaEm: d.createdAt.toISOString(),
+    sorteio: d.sorteio,
+    loteria: d.loteria,
+    concurso: d.concurso,
+  }));
+}
+
+/** O detalhe com o trecho. A rota grava a auditoria antes de chamar. */
+export async function detalheDaDenunciaDoSorteio(id: string) {
+  if (!UUID.test(id)) throw new ComentarioError("Denúncia não encontrada.", 404);
+  const [d] = await db
+    .select({
+      d: sorteioComentarioDenuncias,
+      sorteio: sorteiosOficiais.titulo,
+      removidoEm: sorteioComentarios.removidoEm,
+      denunciou: buyers.apelido,
+    })
+    .from(sorteioComentarioDenuncias)
+    .innerJoin(sorteiosOficiais, eq(sorteiosOficiais.id, sorteioComentarioDenuncias.sorteioOficialId))
+    .innerJoin(sorteioComentarios, eq(sorteioComentarios.id, sorteioComentarioDenuncias.comentarioId))
+    .leftJoin(buyers, eq(buyers.id, sorteioComentarioDenuncias.buyerId))
+    .where(eq(sorteioComentarioDenuncias.id, id));
+  if (!d) throw new ComentarioError("Denúncia não encontrada.", 404);
+  return {
+    id: d.d.id,
+    protocolo: d.d.protocolo,
+    motivoTexto: nomeDoMotivo(d.d.motivo),
+    denunciou: d.denunciou ?? "conta sem apelido",
+    texto: d.d.texto,
+    status: d.d.status,
+    decisao: d.d.decisao,
+    criadaEm: d.d.createdAt.toISOString(),
+    sorteio: d.sorteio,
+    comentarioApagado: Boolean(d.removidoEm),
+    trecho: d.d.trecho,
+  };
+}
+
+/**
+ * Decidir é `UPDATE` condicional (`aberta`): dois cliques, uma decisão e um
+ * 409. Procedente apaga o comentário (o do topo leva as respostas), desce o
+ * contador e encerra as outras denúncias abertas do mesmo comentário — tudo
+ * na mesma transação, com a auditoria. O comentário já apagado por quem
+ * escreveu só fecha a fila.
+ *
+ * Ordem das travas: **o comentário antes da denúncia**. Duas denúncias do
+ * mesmo comentário decididas ao mesmo tempo esperam no comentário; a segunda
+ * entra, acha a dela já fechada pela primeira e dá 409 — travar a denúncia
+ * antes faria as duas se esperarem para sempre (deadlock, 500).
+ */
+export async function decidirDenunciaDoSorteio(req: Request, id: string, entrada: { decisao?: unknown; resposta?: unknown }) {
+  if (!UUID.test(id)) throw new ComentarioError("Denúncia não encontrada.", 404);
+  const resposta = typeof entrada.resposta === "string" ? entrada.resposta.trim().slice(0, 1000) : "";
+  const problema = problemaNaDecisao(entrada.decisao, resposta);
+  if (problema) throw new ComentarioError(problema, 400);
+  const decisao = entrada.decisao as string;
+  return db.transaction(async (tx) => {
+    const agora = new Date();
+    const [alvoDaDenuncia] = await tx
+      .select({ comentarioId: sorteioComentarioDenuncias.comentarioId })
+      .from(sorteioComentarioDenuncias)
+      .where(eq(sorteioComentarioDenuncias.id, id));
+    if (!alvoDaDenuncia) throw new ComentarioError("Denúncia não encontrada.", 404);
+    const [c] = (
+      await tx.execute(sql`
+        SELECT id, parent_id, sorteio_oficial_id FROM sorteio_comentarios WHERE id = ${alvoDaDenuncia.comentarioId}::uuid FOR UPDATE
+      `)
+    ).rows as {
+      id: string;
+      parent_id: string | null;
+      sorteio_oficial_id: string;
+    }[];
+    const [d] = await tx
+      .update(sorteioComentarioDenuncias)
+      .set({
+        status: decisao,
+        decisao: resposta || null,
+        decididaPor: req.user!.id,
+        decididaEm: agora,
+      })
+      .where(and(eq(sorteioComentarioDenuncias.id, id), eq(sorteioComentarioDenuncias.status, "aberta")))
+      .returning({ comentarioId: sorteioComentarioDenuncias.comentarioId });
+    if (!d) throw new ComentarioError("Esta denúncia já foi decidida ou não existe.", 409);
+    let apagados = 0;
+    if (decisao === "procedente") {
+      if (c) {
+        const alvo = c.parent_id
+          ? [c.id]
+          : [
+              c.id,
+              ...(
+                await tx
+                  .select({ id: sorteioComentarios.id })
+                  .from(sorteioComentarios)
+                  .where(and(eq(sorteioComentarios.parentId, c.id), isNull(sorteioComentarios.removidoEm)))
+              ).map((r) => r.id),
+            ];
+        const feitos = await tx
+          .update(sorteioComentarios)
+          .set({ removidoEm: agora, removidoPor: req.user!.id })
+          .where(and(inArray(sorteioComentarios.id, alvo), isNull(sorteioComentarios.removidoEm)))
+          .returning({ id: sorteioComentarios.id });
+        apagados = feitos.length;
+        if (apagados) {
+          await tx
+            .update(sorteiosOficiais)
+            .set({
+              comentariosCount: sql`greatest(${sorteiosOficiais.comentariosCount} - ${apagados}, 0)`,
+            })
+            .where(eq(sorteiosOficiais.id, c.sorteio_oficial_id));
+        }
+      }
+      // As outras denúncias abertas do mesmo comentário saem da fila junto.
+      await tx
+        .update(sorteioComentarioDenuncias)
+        .set({
+          status: "procedente",
+          decisao: resposta,
+          decididaPor: req.user!.id,
+          decididaEm: agora,
+        })
+        .where(and(eq(sorteioComentarioDenuncias.comentarioId, d.comentarioId), eq(sorteioComentarioDenuncias.status, "aberta")));
+    }
+    // A auditoria só registra a decisão que aconteceu, na mesma transação.
+    await tx.insert(auditLog).values({
+      actorId: req.user?.id ?? null,
+      actorRole: req.user?.role ?? null,
+      action: `sorteio.comentario.denuncia.${decisao}`,
+      entity: "sorteio_comentario_denuncia",
+      entityId: id,
+      diff: { resposta: resposta || null, apagados },
+      ip: req.ip,
+    });
+    return { status: decisao, apagados };
+  });
 }

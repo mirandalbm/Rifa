@@ -248,6 +248,7 @@ import { chaveDoChatbase } from "../services/chatbase";
 import { senhaInvalida } from "@shared/senha";
 import { conversasDenunciadasAbertas, decidirDenunciaDeConversa, detalheDaDenunciaDeConversa, fotoDaDenuncia, listarDenunciasDeConversa } from "../services/mensagens";
 import { decidirDenunciaDeGrupo, detalheDaDenunciaDeGrupo, listarDenunciasDeGrupo } from "../services/grupos";
+import { decidirDenunciaDoSorteio, detalheDaDenunciaDoSorteio, listarDenunciasDoSorteio } from "../services/sorteioComentarios";
 import { EXPORTS, exportInfo, exportFilename, CSV_BOM } from "@shared/exports";
 
 export const adminRouter = Router();
@@ -812,6 +813,36 @@ adminRouter.post("/mensagens/grupos/denuncias/:id/decidir", async (req, res, nex
       resposta: req.body?.resposta ?? null,
     });
     res.json(await decidirDenunciaDeGrupo(req, req.params.id, { decisao: req.body?.decisao, resposta: req.body?.resposta }));
+  } catch (err) {
+    next(err);
+  }
+});
+
+/* Comentários do sorteio oficial denunciados: só a plataforma; a leitura do trecho é auditada antes. */
+adminRouter.get("/sorteios-oficiais/denuncias", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    res.json(await listarDenunciasDoSorteio(req.query.status ? String(req.query.status) : undefined));
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.get("/sorteios-oficiais/denuncias/:id", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    await audit(req, "sorteio.comentario.denuncia.ler", "sorteio_comentario_denuncia", req.params.id, {});
+    res.json(await detalheDaDenunciaDoSorteio(req.params.id));
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.post("/sorteios-oficiais/denuncias/:id/decidir", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    // A auditoria vai na transação da decisão: só registra o que aconteceu.
+    res.json(await decidirDenunciaDoSorteio(req, req.params.id, { decisao: req.body?.decisao, resposta: req.body?.resposta }));
   } catch (err) {
     next(err);
   }

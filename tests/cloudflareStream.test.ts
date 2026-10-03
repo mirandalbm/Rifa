@@ -34,15 +34,18 @@ async function arquivoDeVideo(bytes = 2048) {
 
 /** Um Stream de mentira: guarda as chamadas e responde como a API. */
 function streamFalso(
-  opcoes: { prontoNaConsulta?: number; estado?: string; falhaNoEnvio?: boolean; miniatura?: string; hls?: string; uid?: string; quadroFalha?: boolean } = {},
+  opcoes: { prontoNaConsulta?: number; estado?: string; falhaNoEnvio?: boolean; miniatura?: string; hls?: string; uid?: string; quadroFalha?: boolean; marcarFalha?: boolean } = {},
 ) {
-  const chamadas: { metodo: string; url: string; auth: string | null }[] = [];
+  const chamadas: { metodo: string; url: string; auth: string | null; corpo?: string }[] = [];
   let consultas = 0;
   const f = (async (entrada: RequestInfo | URL, init?: RequestInit) => {
     const url = String(entrada);
     const metodo = init?.method ?? "GET";
-    chamadas.push({ metodo, url, auth: new Headers(init?.headers).get("authorization") });
+    chamadas.push({ metodo, url, auth: new Headers(init?.headers).get("authorization"), corpo: typeof init?.body === "string" ? init.body : undefined });
     if (url.includes("thumbnails")) return opcoes.quadroFalha ? new Response("x", { status: 500 }) : new Response(await quadro(), { status: 200 });
+    if (metodo === "POST" && /\/stream\/[a-f0-9]{32}$/.test(url)) {
+      return opcoes.marcarFalha ? resp({ success: false }, 500) : resp({ success: true, result: { requireSignedURLs: true } });
+    }
     if (metodo === "POST") {
       return opcoes.falhaNoEnvio ? resp({ success: false }, 400) : resp({ success: true, result: { uid: opcoes.uid ?? UID } });
     }
@@ -148,21 +151,54 @@ describe("Cloudflare Stream: entrega em HLS", () => {
     const { arq, pasta } = await arquivoDeVideo();
     const s = streamFalso({ prontoNaConsulta: 2 });
     const r = await novo(s.f).publicar(arq);
-    expect(r.stream).toEqual({ uid: UID, hls: HLS });
+    expect(r.stream).toEqual({ uid: UID, hls: HLS, assinado: false });
     expect(r.poster).not.toBeNull();
     expect(s.chamadas.some((c) => c.metodo === "DELETE")).toBe(false);
     await fs.rm(pasta, { recursive: true, force: true });
+  });
+
+  it("com a URL assinada: marca requireSignedURLs depois do pôster e guarda como assinado", async () => {
+    const { arq, pasta } = await arquivoDeVideo();
+    const s = streamFalso();
+    const r = await novo(s.f, { assinar: true }).publicar(arq);
+    expect(r.stream).toEqual({ uid: UID, hls: HLS, assinado: true });
+    expect(r.poster).not.toBeNull();
+    const iQuadro = s.chamadas.findIndex((c) => c.url.includes("thumbnails"));
+    const iMarca = s.chamadas.findIndex((c) => c.metodo === "POST" && c.url.endsWith(`/stream/${UID}`));
+    expect(iMarca).toBeGreaterThan(iQuadro);
+    expect(JSON.parse(s.chamadas[iMarca].corpo!)).toEqual({ uid: UID, requireSignedURLs: true });
+    expect(s.chamadas[iMarca].auth).toBe(`Bearer ${TOKEN}`);
+    expect(s.chamadas.some((c) => c.metodo === "DELETE")).toBe(false);
+    await fs.rm(pasta, { recursive: true, force: true });
+  });
+
+  it("com a URL assinada, não conseguir marcar tira o vídeo do Stream: nada fica aberto", async () => {
+    const { arq, pasta } = await arquivoDeVideo();
+    const s = streamFalso({ marcarFalha: true });
+    const r = await novo(s.f, { assinar: true }).publicar(arq);
+    expect(r.stream).toBeNull();
+    expect(r.poster).not.toBeNull();
+    expect(s.chamadas.some((c) => c.metodo === "DELETE" && c.url.endsWith(UID))).toBe(true);
+    await fs.rm(pasta, { recursive: true, force: true });
+  });
+
+  it("exigirAssinatura só aceita uid do Stream e nunca lança", async () => {
+    const s = streamFalso();
+    expect(await novo(s.f).exigirAssinatura("../x")).toBe(false);
+    expect(s.chamadas).toHaveLength(0);
+    const caindo = (async () => { throw new Error("rede"); }) as typeof fetch;
+    expect(await novo(caindo).exigirAssinatura(UID)).toBe(false);
   });
 
   it("sem pôster do Stream o vídeo fica do mesmo jeito (o pôster é do reserva)", async () => {
     const { arq, pasta } = await arquivoDeVideo();
     const s = streamFalso({ quadroFalha: true });
     const r = await novo(s.f).publicar(arq);
-    expect(r).toEqual({ poster: null, stream: { uid: UID, hls: HLS } });
+    expect(r).toEqual({ poster: null, stream: { uid: UID, hls: HLS, assinado: false } });
     const b = Buffer.from("quadro do ffmpeg");
     const reserva: ProcessadorDeVideo = { nome: "ffmpeg", gerarPoster: async () => b };
     const c = await new ComReserva(novo(streamFalso({ quadroFalha: true }).f), reserva).publicar(arq);
-    expect(c).toEqual({ poster: b, stream: { uid: UID, hls: HLS } });
+    expect(c).toEqual({ poster: b, stream: { uid: UID, hls: HLS, assinado: false } });
     await fs.rm(pasta, { recursive: true, force: true });
   });
 

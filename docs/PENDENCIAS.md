@@ -689,14 +689,20 @@ Na ordem de entrega do plano:
   `CLOUDFLARE_STREAM_ENTREGA=hls` com as credenciais do item acima (o Stream
   cobra por minuto guardado). Ficou de fora: story em vídeo e enviar ao
   Stream o vídeo de antes (vídeo nas Mensagens não haverá).
-- [ ] **[código]** Custo de entrega do Stream: hoje o HLS é público
-  (`requireSignedURLs=false`, sem `allowedOrigins`) — outro site pode tocar o
-  `.m3u8` e a plataforma paga os minutos entregues; e o vídeo de rifa que saiu
-  do ar segue tocável enquanto a mídia existir. Antes de restringir por
-  origem, conferir no Stream se o HLS nativo do iPhone (que pode não mandar
-  `Origin`) continua tocando; a outra saída é URL assinada (token por
-  visualização).
-  Também falta o pôster dos vídeos enviados antes desta mudança (não há
+- [x] **[código]** Custo de entrega do Stream: **URL assinada** (seção
+  "Entrega em HLS" do `CLAUDE.md`): o vídeo guardado é marcado
+  `requireSignedURLs`, a tela recebe o HLS com um token de 4 h assinado no
+  servidor e a rifa que sai do ar para de tocar quando os tokens vencem; o
+  relógio marca os vídeos de antes. **Falta no ambiente**: `db:push` (coluna
+  `campaign_media.stream_assinado`) **antes** do código; criar a chave de
+  assinatura na conta (`POST
+  /accounts/<conta>/stream/keys` com o token do Stream — a resposta traz `id`
+  e `jwk`) e pôr `CLOUDFLARE_STREAM_CHAVE_ID` (o `id`) e
+  `CLOUDFLARE_STREAM_CHAVE_JWK` (o `jwk`, como veio) no Railway. **Guarde o
+  `jwk`: a Cloudflare não mostra de novo.** Sem as duas, o HLS segue aberto.
+  Ficou de fora `allowedOrigins` (o HLS nativo do iPhone pode não mandar
+  `Origin`; a assinatura já fecha o custo).
+- [ ] **[código]** Pôster dos vídeos enviados antes do pôster existir (não há
   preenchimento retroativo).
 - [x] Pôster, extras: **feitos.** O vídeo do bucket vem **em pedaços** de 4 MB
   para o arquivo temporário (a memória do processo web não guarda o vídeo

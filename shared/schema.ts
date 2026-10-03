@@ -566,6 +566,11 @@ export const campaignMedia = pgTable(
      */
     streamUid: text("stream_uid"),
     streamHls: text("stream_hls"),
+    /**
+     * O vídeo do Stream foi marcado `requireSignedURLs`: só toca com token
+     * (`hlsParaATela()`). Marcado no envio, ou pelo relógio nos de antes.
+     */
+    streamAssinado: boolean("stream_assinado").notNull().default(false),
     /** Variantes responsivas geradas na ingestão (AVIF/WebP em 400/800/1600). */
     variants: jsonb("variants").$type<
       { width: number; format: "avif" | "webp"; key: string; bytes: number }[]

@@ -11,6 +11,7 @@ import { db } from "../db";
 import { streamPendentes } from "@shared/schema";
 import { uidValido } from "@shared/stream";
 import { apagarDoStream, ligarGanchosDoStream, streamConfigurado } from "./videoProcessor";
+import { chaveDoStream } from "./streamAssinatura";
 
 /** Folga para o envio em andamento (a entrega espera até 10 min o Stream). */
 export const STREAM_PENDENTE_MIN = 30;
@@ -61,6 +62,52 @@ export async function limparStreamPendente(): Promise<{ donos: number; apagados:
       r.falhas++;
       await db.execute(sql`UPDATE stream_pendentes SET tentativas = tentativas + 1 WHERE uid = ${l.uid}`);
     }
+  }
+  return r;
+}
+
+const ASSINAR_POR_RODADA = 20;
+
+/**
+ * Onde a volta parou (`created_at` como texto e id). Anda por chave, não pela
+ * primeira página: o vídeo que o Stream não marca (sumiu de lá, `uid` fora do
+ * formato) não segura a fila — fica para a próxima volta, depois de todos.
+ */
+let cursorDaAssinatura: { em: string; id: string } | null = null;
+
+/** Só para a prova: recomeça a volta do começo. */
+export function recomecarAssinatura() {
+  cursorDaAssinatura = null;
+}
+
+/**
+ * Os vídeos guardados antes de a URL assinada ser ligada continuam abertos no
+ * Stream. Com a chave no ambiente, o relógio marca cada um `requireSignedURLs`
+ * e só então a mídia passa a dar o endereço com token (`stream_assinado` no
+ * mesmo `UPDATE`, condicional ao `uid` lido: a mídia trocada no meio não leva
+ * a marca). Sem chave ou sem credencial, não faz nada. Nunca lança por vídeo.
+ */
+export async function assinarVideosDoStream(): Promise<{ assinados: number; falhas: number }> {
+  const r = { assinados: 0, falhas: 0 };
+  const s = streamConfigurado();
+  if (!s || !chaveDoStream()) return r;
+  const c = cursorDaAssinatura;
+  const linhas = (
+    await db.execute(sql`
+      SELECT id, stream_uid AS uid, created_at::text AS em FROM campaign_media
+       WHERE stream_uid IS NOT NULL AND NOT stream_assinado
+         ${c ? sql`AND (created_at, id) > (${c.em}::timestamp, ${c.id})` : sql``}
+       ORDER BY created_at, id
+       LIMIT ${ASSINAR_POR_RODADA}
+    `)
+  ).rows as { id: string; uid: string; em: string }[];
+  // Chegou ao fim: a próxima volta recomeça (e tenta de novo o que falhou).
+  cursorDaAssinatura = linhas.length < ASSINAR_POR_RODADA ? null : { em: linhas[linhas.length - 1].em, id: linhas[linhas.length - 1].id };
+  for (const l of linhas) {
+    if (await s.exigirAssinatura(l.uid)) {
+      const u = await db.execute(sql`UPDATE campaign_media SET stream_assinado = true WHERE id = ${l.id} AND stream_uid = ${l.uid}`);
+      if (u.rowCount) r.assinados++;
+    } else r.falhas++;
   }
   return r;
 }

@@ -22,7 +22,7 @@
 import "dotenv/config";
 import { spawnSync } from "node:child_process";
 import http from "node:http";
-import { randomBytes } from "node:crypto";
+import { generateKeyPairSync, randomBytes } from "node:crypto";
 import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -31,7 +31,9 @@ import sharp from "sharp";
 import { baseUrl } from "./base-url";
 import { db, pool } from "../server/db";
 import { campaignMedia, campaignStats, campaigns, organizations, stories, streamPendentes, users } from "../shared/schema";
-import { limparStreamPendente } from "../server/services/streamPendentes";
+import { assinarVideosDoStream, limparStreamPendente, recomecarAssinatura } from "../server/services/streamPendentes";
+import { lerChaveDoStream, trocarChaveDoStream } from "../server/services/streamAssinatura";
+import { withUrls } from "../server/services/media";
 import { entregaHlsLigada } from "../shared/stream";
 
 const URL = baseUrl();
@@ -102,6 +104,8 @@ const stream = {
   apagarFalha: false,
   criados: [] as string[],
   apagados: [] as string[],
+  marcados: [] as string[],
+  marcarFalha: false,
   semToken: 0,
 };
 const hlsDe = (uid: string) => `https://customer-prova.cloudflarestream.com/${uid}/manifest/video.m3u8`;
@@ -123,6 +127,16 @@ function subirStreamFalso(): Promise<http.Server> {
         const novo = randomBytes(16).toString("hex");
         stream.criados.push(novo);
         return json({ success: true, result: { uid: novo } });
+      }
+      if (req.method === "POST" && uid) {
+        // URL assinada: o vídeo passa a pedir token.
+        let corpo: any = null;
+        try {
+          corpo = JSON.parse(Buffer.concat(partes).toString("utf8"));
+        } catch {}
+        if (stream.marcarFalha || corpo?.uid !== uid || corpo?.requireSignedURLs !== true) return json({ success: false }, 500);
+        stream.marcados.push(uid);
+        return json({ success: true, result: { uid, requireSignedURLs: true } });
       }
       if (req.method === "DELETE" && uid) {
         if (stream.apagarFalha) return json({ success: false }, 503);
@@ -376,6 +390,53 @@ async function main() {
       checa("…e espera a folga do envio em andamento", !stream.apagados.includes(recente) && (await naLista(recente)));
       await db.delete(streamPendentes).where(eq(streamPendentes.uid, recente));
       if (idDono) await marina.req("DELETE", `/api/admin/media/${idDono}`);
+
+      // URL assinada ligada depois: o relógio marca os vídeos de antes, e só
+      // então a mídia passa a dar o endereço com token. A chave fica só neste
+      // processo (o servidor da prova não tem): lá, o vídeo marcado toca o original.
+      stream.modo = "normal";
+      r = await subir(falso);
+      const idAss = r.json?.id as string;
+      const uidAss = idAss ? (await esperaPor(async () => (await daMidia(idAss))?.uid))! : null;
+      const assinadoDe = async (mid: string) =>
+        (await db.select({ a: campaignMedia.streamAssinado }).from(campaignMedia).where(eq(campaignMedia.id, mid)))[0]?.a;
+      checa("sem chave, o vídeo fica aberto (stream_assinado falso)", !!uidAss && (await assinadoDe(idAss)) === false);
+      checa("…e o relógio não marca nada", (await assinarVideosDoStream()).assinados === 0 && stream.marcados.length === 0);
+      const { privateKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
+      const chave = lerChaveDoStream({
+        CLOUDFLARE_STREAM_CHAVE_ID: randomBytes(16).toString("hex"),
+        CLOUDFLARE_STREAM_CHAVE_JWK: Buffer.from(JSON.stringify(privateKey.export({ format: "jwk" }))).toString("base64"),
+      });
+      trocarChaveDoStream(chave);
+      try {
+        stream.marcarFalha = true;
+        recomecarAssinatura();
+        const falhou = await assinarVideosDoStream();
+        stream.marcarFalha = false;
+        recomecarAssinatura();
+        checa("Stream recusou a marca: a mídia segue aberta, para a próxima volta", falhou.falhas >= 1 && (await assinadoDe(idAss)) === false);
+        const rodadaAss = await assinarVideosDoStream();
+        checa("com a chave, o relógio marca requireSignedURLs no Stream e na mídia", !!uidAss && stream.marcados.includes(uidAss) && (await assinadoDe(idAss)) === true, JSON.stringify(rodadaAss));
+        const marcadosAntes = stream.marcados.length;
+        await assinarVideosDoStream();
+        checa("…uma vez só", stream.marcados.length === marcadosAntes);
+        const linhaAss = (await db.select().from(campaignMedia).where(eq(campaignMedia.id, idAss)))[0];
+        const comToken = withUrls(linhaAss) as any;
+        checa(
+          "com a chave, a tela recebe o HLS com o token no lugar do uid",
+          typeof comToken.hls === "string" && !comToken.hls.includes(uidAss!) && /\/[\w-]+\.[\w-]+\.[\w-]+\/manifest\/video\.m3u8$/.test(comToken.hls) && !("streamAssinado" in comToken),
+          String(comToken.hls),
+        );
+        if (!process.env.CLOUDFLARE_STREAM_CHAVE_JWK) {
+          pub = await anon.req("GET", `/api/public/campaigns/${SLUG}`);
+          const pecaAss = pub.json?.media?.find((m: any) => m.url === comToken.url);
+          checa("servidor sem chave: o vídeo marcado vai sem HLS e toca o original", pecaAss && !pecaAss.hls && typeof pecaAss.url === "string", JSON.stringify(pecaAss?.hls));
+        }
+      } finally {
+        trocarChaveDoStream(undefined);
+      }
+      if (idAss) await marina.req("DELETE", `/api/admin/media/${idAss}`);
+      checa("apagar a mídia assinada apaga no Stream", !!uidAss && stream.apagados.includes(uidAss));
 
       // Apagar a rifa (sem venda) leva o vídeo guardado junto.
       stream.modo = "normal";

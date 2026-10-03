@@ -16,7 +16,7 @@ import { encerrarAnunciosForaDoAr } from "../services/patrocinio";
 import { encerrarBannersPagos } from "../services/bannerPago";
 import { vencerFranquias } from "../services/iaCobranca";
 import { destravarAcoesPresas } from "../services/ia";
-import { limparStreamPendente } from "../services/streamPendentes";
+import { assinarVideosDoStream, limparStreamPendente } from "../services/streamPendentes";
 import { enviarEventosPendentes } from "../services/marketing";
 import { migrarAfiliadosAntigos } from "../services/afiliados";
 import { lancarMensalidades } from "../services/billing";
@@ -362,8 +362,20 @@ export function startJobs() {
   setInterval(async () => {
     try {
       await withLock(LOCK_STREAM, async () => {
-        const r = await limparStreamPendente();
-        if (r.apagados + r.falhas > 0) log(`Stream: ${r.apagados} vídeo(s) sem dono apagado(s), ${r.falhas} para tentar de novo`, "jobs");
+        try {
+          const r = await limparStreamPendente();
+          if (r.apagados + r.falhas > 0) log(`Stream: ${r.apagados} vídeo(s) sem dono apagado(s), ${r.falhas} para tentar de novo`, "jobs");
+        } catch (err) {
+          console.error("[jobs] vídeos do Stream:", err);
+        }
+        // URL assinada ligada depois: os vídeos de antes passam a pedir token.
+        // `try` próprio: a limpeza que falha não segura a marca, nem o contrário.
+        try {
+          const a = await assinarVideosDoStream();
+          if (a.assinados + a.falhas > 0) log(`Stream: ${a.assinados} vídeo(s) passaram a pedir URL assinada, ${a.falhas} para tentar de novo`, "jobs");
+        } catch (err) {
+          console.error("[jobs] URL assinada do Stream:", err);
+        }
       });
     } catch (err) {
       console.error("[jobs] vídeos do Stream:", err);

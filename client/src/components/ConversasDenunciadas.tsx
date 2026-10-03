@@ -234,3 +234,120 @@ function DetalheDoGrupo({ id }: { id: string }) {
     </div>
   );
 }
+
+interface LinhaSorteio {
+  id: string;
+  protocolo: string;
+  motivoTexto: string;
+  status: string;
+  criadaEm: string;
+  sorteio: string;
+}
+interface DetalheSorteio {
+  id: string;
+  protocolo: string;
+  motivoTexto: string;
+  denunciou: string;
+  texto: string | null;
+  status: string;
+  decisao: string | null;
+  sorteio: string;
+  comentarioApagado: boolean;
+  trecho: { de: string; texto: string; em: string; denunciado: boolean }[];
+}
+
+const SITUACAO_DO_SORTEIO: Record<string, { rotulo: string; pill: string }> = {
+  aberta: { rotulo: "em análise", pill: "pending" },
+  procedente: { rotulo: "comentário apagado", pill: "expired" },
+  improcedente: { rotulo: "improcedente", pill: "draft" },
+};
+
+/**
+ * Comentários do sorteio oficial denunciados: a fila sem texto; o trecho (o
+ * comentário guardado na hora, e o de cima se for resposta) só ao abrir, com a
+ * auditoria gravada antes. Procedente apaga o comentário.
+ */
+export function ComentariosDoSorteioDenunciados() {
+  const [aberta, setAberta] = useState<string | null>(null);
+  const { data } = useQuery<LinhaSorteio[]>({ queryKey: ["/api/admin/sorteios-oficiais/denuncias", { status: "aberta" }], refetchInterval: 30_000 });
+  return (
+    <div className="mt-4">
+      <Card title="Comentários do sorteio oficial denunciados">
+        {data?.length ? (
+          <ul className="divide-y divide-line">
+            {data.map((d) => (
+              <li key={d.id}>
+                <button type="button" onClick={() => setAberta(aberta === d.id ? null : d.id)} aria-expanded={aberta === d.id} className="w-full px-4 py-3 text-left hover:bg-mist">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="tnum text-sm font-semibold">{d.protocolo}</span>
+                    <Pill status={SITUACAO_DO_SORTEIO[d.status]?.pill ?? "draft"}>{SITUACAO_DO_SORTEIO[d.status]?.rotulo ?? d.status}</Pill>
+                  </div>
+                  <p className="mt-1 text-sm">{d.motivoTexto}</p>
+                  <p className="text-xs text-muted">{d.sorteio}</p>
+                </button>
+                {aberta === d.id ? <DetalheDoComentarioDoSorteio id={d.id} /> : null}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <Empty>Nenhum comentário do sorteio em análise.</Empty>
+        )}
+      </Card>
+    </div>
+  );
+}
+
+function DetalheDoComentarioDoSorteio({ id }: { id: string }) {
+  const qc = useQueryClient();
+  const { data: d } = useQuery<DetalheSorteio>({ queryKey: [`/api/admin/sorteios-oficiais/denuncias/${id}`], staleTime: 0, gcTime: 0 });
+  const [resposta, setResposta] = useState("");
+  const [aviso, setAviso] = useState<{ ok: boolean; texto: string } | null>(null);
+  const decidir = useMutation({
+    mutationFn: (decisao: "procedente" | "improcedente") => apiRequest("POST", `/api/admin/sorteios-oficiais/denuncias/${id}/decidir`, { decisao, resposta }),
+    onSuccess: (_r, decisao) => {
+      setAviso({ ok: true, texto: decisao === "procedente" ? "Comentário apagado (com as respostas, se era do topo)." : "Denúncia encerrada como improcedente." });
+      qc.invalidateQueries({ queryKey: ["/api/admin/sorteios-oficiais/denuncias"] });
+      qc.invalidateQueries({ queryKey: ["/api/admin/caixa-de-entrada"] });
+      qc.invalidateQueries({ queryKey: ["/api/admin/sorteios-oficiais"] });
+    },
+    onError: (e: Error) => setAviso({ ok: false, texto: e.message }),
+  });
+  if (!d) return <p className="px-4 pb-4 text-sm text-muted">Carregando o trecho…</p>;
+  return (
+    <div className="space-y-3 border-t border-line bg-mist px-4 py-4 text-sm">
+      {d.texto ? <p className="rounded-md bg-white p-3">{d.texto}</p> : null}
+      <p className="text-xs text-muted">
+        Denunciou: @{d.denunciou}. O comentário, guardado na hora da denúncia{d.comentarioApagado ? " — quem escreveu (ou a plataforma) já o apagou" : ""}.
+      </p>
+      <ul className="space-y-1.5">
+        {d.trecho.map((m, i) => (
+          <li key={i} className={`rounded-md bg-white px-3 py-2 ${m.denunciado ? "border-l-4 border-red" : ""}`}>
+            <span className="text-xs font-semibold">@{m.de}</span>
+            <span className="tnum ml-2 text-[11px] text-muted">{new Date(m.em).toLocaleString("pt-BR")}</span>
+            {m.denunciado ? <span className="ml-2 text-[11px] font-semibold text-red">denunciado</span> : <span className="ml-2 text-[11px] text-muted">respondido</span>}
+            <p className="whitespace-pre-wrap break-words">{m.texto}</p>
+          </li>
+        ))}
+      </ul>
+      {d.status === "aberta" ? (
+        <div className="space-y-2">
+          <label htmlFor={`decisao-sorteio-${id}`} className="label-xs">
+            Explicação (obrigatória para apagar o comentário)
+          </label>
+          <textarea id={`decisao-sorteio-${id}`} className="campo w-full" rows={2} maxLength={1000} value={resposta} onChange={(e) => setResposta(e.target.value)} />
+          <div className="flex flex-wrap gap-2">
+            <button type="button" disabled={decidir.isPending} onClick={() => decidir.mutate("procedente")} className="rounded-md bg-green px-3 py-1.5 text-sm font-semibold text-on-green disabled:opacity-50">
+              Procedente: apagar o comentário
+            </button>
+            <button type="button" disabled={decidir.isPending} onClick={() => decidir.mutate("improcedente")} className="rounded-md border border-line bg-white px-3 py-1.5 text-sm font-semibold">
+              Improcedente
+            </button>
+          </div>
+        </div>
+      ) : (
+        <p className="text-xs text-muted">Decidida{d.decisao ? `: ${d.decisao}` : "."}</p>
+      )}
+      {aviso ? <p role="status" className={`rounded-md px-3 py-2 ${aviso.ok ? "bg-green-soft text-green-deep" : "bg-red-soft text-red"}`}>{aviso.texto}</p> : null}
+    </div>
+  );
+}

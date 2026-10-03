@@ -8,6 +8,7 @@ import {
   apagarComentarioDoSorteio,
   comentarNoSorteio,
   curtirComentarioDoSorteio,
+  denunciarComentarioDoSorteio,
   listarComentariosDoSorteio,
 } from "../services/sorteioComentarios";
 import { marcarTodasLidas, naoLidas, notificacoesDe } from "../services/notificacoes";
@@ -2365,6 +2366,14 @@ publicRouter.post("/sorteio-oficial/:id/comentarios", async (req, res, next) => 
 publicRouter.delete("/sorteio-oficial/comentarios/:id", async (req, res, next) => {
   try {
     res.json(await apagarComentarioDoSorteio(req, req.params.id));
+  } catch (err) {
+    next(err);
+  }
+});
+
+publicRouter.post("/sorteio-oficial/comentarios/:id/denuncia", async (req, res, next) => {
+  try {
+    res.status(201).json(await denunciarComentarioDoSorteio(req, req.params.id, { motivo: req.body?.motivo, texto: req.body?.texto }));
   } catch (err) {
     next(err);
   }

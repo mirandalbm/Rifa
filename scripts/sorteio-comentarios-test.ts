@@ -5,14 +5,18 @@
  * chave (cinco toques, uma curtida); apaga só quem escreveu e a plataforma
  * (organizador e outro apostador: 404); dois cliques, um desconto; o contador
  * anda junto; sorteio cancelado não tem comentários; telefone nunca sai.
+ * Denúncia: só com conta, nunca do próprio comentário, uma aberta por pessoa e
+ * comentário; só a plataforma lê (com auditoria) e decide — dois cliques, uma
+ * decisão; procedente apaga o comentário e desce o contador; a Caixa de
+ * entrada mostra a pendência sem o texto.
  *
  *   npm run sorteio-comentarios      (com `npm run dev` no ar e o seed aplicado)
  */
 import "dotenv/config";
-import { eq, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { baseUrl } from "./base-url";
 import { db, pool } from "../server/db";
-import { buyers, sorteioComentarios, sorteiosOficiais } from "../shared/schema";
+import { auditLog, buyers, sorteioComentarioDenuncias, sorteioComentarios, sorteiosOficiais } from "../shared/schema";
 
 const URL = baseUrl();
 let falhas = 0;
@@ -40,10 +44,13 @@ const TITULO = "Prova dos comentários do sorteio";
 const PESSOAS = [
   { nome: "Carla Sorteio Comenta", telefone: "11976661101", cpf: "11144477735" },
   { nome: "Diego Sorteio Comenta", telefone: "11976661102", cpf: "86288366757" },
+  { nome: "Elisa Sorteio Comenta", telefone: "11976661103", cpf: "52998224725" },
 ];
 
 async function limpar() {
-  await db.execute(sql`delete from rate_events where bucket like 'comentario:%' or bucket like 'cadastro:%' or bucket like 'login:comprador:%'`);
+  await db.execute(
+    sql`delete from rate_events where bucket like 'comentario:%' or bucket like 'cadastro:%' or bucket like 'login:comprador:%' or bucket like 'denuncia-sorteio:%'`,
+  );
   await db.execute(sql`delete from sorteios_oficiais where titulo like ${TITULO + "%"}`);
   for (const p of PESSOAS) await db.execute(sql`delete from buyers where phone = ${p.telefone}`);
 }
@@ -71,8 +78,8 @@ async function main() {
     .values({ loteria: "federal", concurso: concurso + 1, sorteioEm: new Date(Date.now() + 4 * 86_400_000), titulo: `${TITULO} cancelado`, canceladoEm: new Date() })
     .returning();
 
-  const [carla, diego, anon] = [new Cliente(), new Cliente(), new Cliente()];
-  for (const [c, p] of [[carla, PESSOAS[0]], [diego, PESSOAS[1]]] as const) {
+  const [carla, diego, elisa, anon] = [new Cliente(), new Cliente(), new Cliente(), new Cliente()];
+  for (const [c, p] of [[carla, PESSOAS[0]], [diego, PESSOAS[1]], [elisa, PESSOAS[2]]] as const) {
     const cr = await c.req("POST", "/api/public/conta", {
       apelido: "tsts" + Math.random().toString(36).replace(/[^a-z]/g, "").slice(0, 10) + "x",
       ...p,
@@ -148,6 +155,124 @@ async function main() {
     checa("o do topo leva as respostas e o contador volta a zero", (await contador()) === 0, String(await contador()));
     r = await anon.req("GET", caminho);
     checa("apagado some da lista", r.json?.lista?.length === 0);
+
+    // --- denúncia ---
+    r = await carla.req("POST", caminho, { texto: "Resultado antes de todo mundo, me procura" });
+    const alvo = r.json?.id as string;
+    r = await carla.req("POST", caminho, { texto: "Outro comentário que fica" });
+    const fica = r.json?.id as string;
+    r = await diego.req("POST", caminho, { texto: "Concordo", respostaA: alvo });
+    const respostaDoAlvo = r.json?.id as string;
+    checa("três comentários novos no contador", (await contador()) === 3, String(await contador()));
+    const den = (id: string) => `/api/public/sorteio-oficial/comentarios/${id}/denuncia`;
+
+    r = await diego.req("GET", caminho);
+    const doAlvo = r.json?.lista?.find((c: any) => c.id === alvo);
+    checa("a lista oferece denunciar a quem não escreveu", doAlvo?.podeDenunciar === true && doAlvo.respostas?.[0]?.podeDenunciar === false);
+    r = await anon.req("POST", den(alvo), { motivo: "golpe" });
+    checa("sem conta não denuncia (401)", r.status === 401, `HTTP ${r.status}`);
+    r = await carla.req("POST", den(alvo), { motivo: "golpe" });
+    checa("o próprio comentário não se denuncia (409)", r.status === 409, r.json?.message);
+    r = await diego.req("POST", den(alvo), { motivo: "inventado" });
+    checa("motivo fora da lista: 400", r.status === 400, r.json?.message);
+    r = await diego.req("POST", den("nada"), { motivo: "golpe" });
+    checa("id inválido: 404", r.status === 404, `HTTP ${r.status}`);
+    const [d1, d2] = await Promise.all([
+      diego.req("POST", den(alvo), { motivo: "golpe", texto: "promete resultado antes" }),
+      diego.req("POST", den(alvo), { motivo: "golpe" }),
+    ]);
+    checa("duas ao mesmo tempo: uma entra (201) e a outra é 409", [d1.status, d2.status].sort().join(",") === "201,409", `${d1.status}/${d2.status}`);
+    const protocoloDS = (d1.status === 201 ? d1 : d2).json?.protocolo as string;
+    checa("protocolo DS-", /^DS-\d{8}-\d{6}$/.test(protocoloDS ?? ""), protocoloDS);
+    r = await diego.req("POST", den(fica), { motivo: "spam" });
+    checa("outro comentário, outra denúncia (201)", r.status === 201, `HTTP ${r.status}`);
+    const protocoloFica = r.json?.protocolo as string;
+
+    // A plataforma só: o organizador não vê nem decide.
+    r = await marina.req("GET", "/api/admin/sorteios-oficiais/denuncias");
+    checa("organizador não vê a fila (403)", r.status === 403, `HTTP ${r.status}`);
+    r = await admin.req("GET", "/api/admin/sorteios-oficiais/denuncias?status=aberta");
+    const linhaAlvo = r.json?.find((x: any) => x.protocolo === protocoloDS);
+    const linhaFica = r.json?.find((x: any) => x.protocolo === protocoloFica);
+    checa(
+      "a fila traz protocolo e motivo, sem o texto do comentário",
+      Boolean(linhaAlvo && linhaFica) && !JSON.stringify(r.json).includes("Resultado antes de todo mundo"),
+    );
+    r = await admin.req("GET", "/api/admin/caixa-de-entrada");
+    const naCaixa = (r.json ?? []).find((l: any) => l.chave === `comentario_sorteio:${linhaAlvo?.id}`);
+    checa(
+      "a Caixa de entrada mostra a pendência, sem o texto",
+      naCaixa?.tipo === "comentario_sorteio" && !JSON.stringify(r.json).includes("Resultado antes de todo mundo"),
+      naCaixa?.oQue,
+    );
+    r = await marina.req("POST", `/api/admin/sorteios-oficiais/denuncias/${linhaAlvo.id}/decidir`, { decisao: "improcedente" });
+    checa("organizador não decide (403)", r.status === 403, `HTTP ${r.status}`);
+
+    r = await admin.req("GET", `/api/admin/sorteios-oficiais/denuncias/${linhaAlvo.id}`);
+    const [lido] = await db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(auditLog)
+      .where(and(eq(auditLog.action, "sorteio.comentario.denuncia.ler"), eq(auditLog.entityId, linhaAlvo.id)));
+    checa(
+      "o detalhe traz o trecho guardado, e a leitura entra na auditoria",
+      r.json?.trecho?.[0]?.texto === "Resultado antes de todo mundo, me procura" && r.json.trecho[0].denunciado === true && lido.n === 1,
+    );
+    checa("o detalhe não traz telefone nem CPF", !PESSOAS.some((p) => JSON.stringify(r.json).includes(p.telefone) || JSON.stringify(r.json).includes(p.cpf)));
+    r = await admin.req("POST", `/api/admin/sorteios-oficiais/denuncias/${linhaAlvo.id}/decidir`, { decisao: "procedente" });
+    checa("procedente sem explicação: 400", r.status === 400, r.json?.message);
+
+    const [p1, p2] = await Promise.all([
+      admin.req("POST", `/api/admin/sorteios-oficiais/denuncias/${linhaAlvo.id}/decidir`, { decisao: "procedente", resposta: "Promete resultado antes do sorteio." }),
+      admin.req("POST", `/api/admin/sorteios-oficiais/denuncias/${linhaAlvo.id}/decidir`, { decisao: "improcedente" }),
+    ]);
+    checa("dois cliques: uma decisão e um 409", [p1.status, p2.status].sort().join(",") === "200,409", `${p1.status}/${p2.status}`);
+    const venceu = p1.status === 200 ? "procedente" : "improcedente";
+    if (venceu === "procedente") {
+      const [a] = await db.select({ r: sorteioComentarios.removidoEm }).from(sorteioComentarios).where(eq(sorteioComentarios.id, alvo));
+      const [b] = await db.select({ r: sorteioComentarios.removidoEm }).from(sorteioComentarios).where(eq(sorteioComentarios.id, respostaDoAlvo));
+      checa("procedente apaga o comentário e a resposta dele", Boolean(a.r && b.r));
+      checa("o contador desce junto (de 3 para 1)", (await contador()) === 1, String(await contador()));
+    } else {
+      checa("improcedente venceu a corrida: o comentário fica", (await contador()) === 3, String(await contador()));
+    }
+    r = await diego.req("POST", den(alvo), { motivo: "golpe" });
+    checa(venceu === "procedente" ? "comentário apagado não se denuncia mais (404)" : "decidida, pode denunciar de novo (201)", r.status === (venceu === "procedente" ? 404 : 201), `HTTP ${r.status}`);
+
+    r = await admin.req("POST", `/api/admin/sorteios-oficiais/denuncias/${linhaFica.id}/decidir`, { decisao: "improcedente" });
+    const [fc] = await db.select({ r: sorteioComentarios.removidoEm }).from(sorteioComentarios).where(eq(sorteioComentarios.id, fica));
+    checa("improcedente deixa o comentário no ar", r.status === 200 && !fc.r, `HTTP ${r.status}`);
+    // Duas denúncias do mesmo comentário, decididas ao mesmo tempo: 200 e 409, nunca 500.
+    r = await diego.req("POST", caminho, { texto: "Mais um comentário para a prova" });
+    const duplo = r.json?.id as string;
+    const e1 = await carla.req("POST", den(duplo), { motivo: "spam" });
+    const e2 = await elisa.req("POST", den(duplo), { motivo: "spam" });
+    checa("duas pessoas denunciam o mesmo comentário (201 e 201)", e1.status === 201 && e2.status === 201, `${e1.status}/${e2.status}`);
+    const ids = (
+      await db
+        .select({ id: sorteioComentarioDenuncias.id })
+        .from(sorteioComentarioDenuncias)
+        .where(and(eq(sorteioComentarioDenuncias.comentarioId, duplo), eq(sorteioComentarioDenuncias.status, "aberta")))
+    ).map((x) => x.id);
+    const [q1, q2] = await Promise.all(
+      ids.map((i) => admin.req("POST", `/api/admin/sorteios-oficiais/denuncias/${i}/decidir`, { decisao: "procedente", resposta: "Spam." })),
+    );
+    checa("as duas procedentes ao mesmo tempo: 200 e 409, sem 500", [q1.status, q2.status].sort().join(",") === "200,409", `${q1.status}/${q2.status}`);
+    const abertas = await db
+      .select({ id: sorteioComentarioDenuncias.id })
+      .from(sorteioComentarioDenuncias)
+      .where(and(eq(sorteioComentarioDenuncias.comentarioId, duplo), eq(sorteioComentarioDenuncias.status, "aberta")));
+    checa("procedente fecha as outras denúncias do mesmo comentário", abertas.length === 0, String(abertas.length));
+    const decididas = await db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(auditLog)
+      .where(and(eq(auditLog.action, "sorteio.comentario.denuncia.procedente"), inArray(auditLog.entityId, ids)));
+    checa("a auditoria registra só a decisão que aconteceu (1, não 2)", decididas[0].n === 1, String(decididas[0].n));
+
+    r = await admin.req("GET", "/api/admin/caixa-de-entrada");
+    checa(
+      "decididas saem da Caixa",
+      !(r.json ?? []).some((l: any) => l.chave === `comentario_sorteio:${linhaAlvo.id}` || l.chave === `comentario_sorteio:${linhaFica.id}`),
+    );
   } finally {
     await limpar();
   }

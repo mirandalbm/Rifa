@@ -57,7 +57,7 @@ Pelo caminho que mudou (a mesma tabela "Onde mexer" do `CLAUDE.md`):
 | divulgação de terceiros (afiliado influenciador, publicação do apostador, menu Criar) | `divulgacao`, `afiliados`, `seguranca`, `isolation` |
 | bônus, patrocínio, banner pago, marketing | `bonus`, `patrocinio`, `banner`, `marketing` |
 | sorteios oficiais (calendário, integrar a rifa, resultado oficial, sorteio automático, outras loterias, tela do sorteio) e o sorteio da rifa (`server/services/sortear.ts`) | `sorteios`, `transparencia`, `solicitacoes`, `isolation` |
-| comentários do sorteio oficial (`server/services/sorteioComentarios.ts`, o `Comentarios` com `sorteioOficialId`) | `sorteio-comentarios`, `comentarios` |
+| comentários do sorteio oficial e a denúncia deles (`server/services/sorteioComentarios.ts`, `shared/sorteioDenuncias.ts`, o `Comentarios` com `sorteioOficialId`, `ComentariosDoSorteioDenunciados`) | `sorteio-comentarios`, `comentarios`, `isolation` |
 | assistente de IA (`shared/ia.ts`, `services/ia.ts`, `services/chatbase.ts`, `routes/ia.ts`, a coluna em `AssistenteDoPainel.tsx`, o cache em `lib/session.ts`, a cobrança em `iaCobranca.ts`, `PlanoDoAssistente.tsx` e o relatório e ajuste em `UsoDoAssistenteCard.tsx`, as ações em `iaAcoes.ts`) | `tests/ia.test.ts`, `tests/iaCobranca.test.ts`, `tests/iaAcoes.test.ts`, `tests/chatbase.test.ts`, `tests/assistente.test.ts`, `ia` e `ia-acoes` (com `CHATBASE_API_KEY` e `CHATBASE_API_URL=http://127.0.0.1:5099/api/v2` no servidor e no script), `isolation`; mexeu na coluna, `telas` |
 | editar, adiar, excluir rifa | `solicitacoes` |
 | conta do apostador, login com Google | `conta`, `google` (o servidor sobe com `GOOGLE_PROVA=1`) |

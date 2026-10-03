@@ -127,6 +127,7 @@ arquitetura.
 | endereço do organizador e ordem da vitrine por região | `shared/endereco.ts` (regra), `salvarEndereco()` em `server/services/orgs.ts`, `server/services/cep.ts`, `client/src/components/EnderecoForm.tsx` |
 | perfil do organizador, seguir e sino | `shared/perfil.ts` (regras), `server/services/perfil.ts`, `client/src/pages/Perfil.tsx`, `client/src/components/Seguir.tsx`, `scripts/perfil-test.ts` |
 | perfil de demonstração (organização de exemplo, sem rifa à venda) | `server/services/demonstracao.ts`, card em `client/src/pages/adminOrganizacoes.tsx` |
+| publicação agendada da rifa (o relógio publica pela `publishCampaign()`) | `instanteAgendado()`/`problemaNaAgendaDaRifa()` em `shared/agenda.ts`, `server/services/publicacaoAgendada.ts`, `PUT /campaigns/:id/agendar-publicacao` em `server/routes/admin.ts`, relógio em `server/jobs/index.ts` (trava 811018), `client/src/components/AgendarPublicacaoCard.tsx`, `scripts/agenda-rifa-test.ts`, `tests/agenda.test.ts` |
 | editar, adiar e excluir rifa (pedido analisado pela plataforma) | `shared/solicitacoes.ts` (regras), `server/services/solicitacoes.ts`, `excluirRifa()` em `server/services/campaigns.ts`, `client/src/components/EditarRifa.tsx`, `client/src/components/SolicitacoesDeRifa.tsx`, `scripts/solicitacoes-test.ts` |
 | endereço curto (`/c/…`) e cliques nos links do perfil (`/l/…`) | `server/services/links.ts`, `client/src/components/LinksCurtos.tsx`, rotas em `server/routes/index.ts`, `scripts/perfil-test.ts` |
 | white label do organizador (capa, cor de destaque, links) | `validarDestaque()`/`validarLinks()` em `shared/perfil.ts`, `salvarPerfil()` em `server/services/perfil.ts`, `client/src/components/DestaqueOrg.tsx`, `client/src/components/PerfilPublicoForm.tsx` |
@@ -718,6 +719,47 @@ registro estão em `docs/VERSOES.md`.
   descarta a semente ainda não usada; publicar de novo sorteia outra. Com
   comprador, o caminho é o estorno. Só a plataforma (403 no `npm run
   isolation`).
+
+## Publicação agendada da rifa — o que não pode afrouxar
+
+A organização escolhe a hora em que o rascunho vai ao ar (cartão
+"Publicação agendada" na aba "A rifa"); na hora, o relógio publica.
+
+- **Só existe um jeito de publicar**: o relógio (`publicarAgendadas()`,
+  trava 811018, a cada minuto) chama a mesma `publishCampaign()` do botão —
+  confere de novo autorização, telefone aprovado, mídia, sorteio oficial e
+  promotora, sorteia a semente e **trava ali** o total, a autorização e a
+  data (invariantes 7 e 9). Nada é conferido só no agendamento: o que
+  passou ao agendar pode faltar na hora, e o que faltava pode ter chegado.
+  Na hora, o relógio confere também o que a porta do painel conferiria: a
+  **organização suspensa** não publica pelo relógio (`conferirNaHora()`) e
+  a **1 hora antes do sorteio** vale de novo contra a data de agora — a data
+  pode ter mudado depois de agendar.
+- **Agendar é só no rascunho**, no recorte (`assertCampaignInScope`: a do
+  vizinho é 404, no `npm run isolation`), por `PUT
+  /campaigns/:id/agendar-publicacao` — fora do `PATCH` genérico. A hora
+  passa por `instanteAgendado()` (ISO com fuso, nunca no passado, até
+  `RIFA_AGENDA_MAX_DIAS`, 30) e por `problemaNaAgendaDaRifa()`: **pelo
+  menos 1 hora antes do sorteio**. A resposta traz o que ainda falta
+  (`publishBlockers`) para a tela avisar, mas não barra.
+- **Quem pega a linha é um `UPDATE` condicional** (`publicar_em` igual ao
+  lido, rascunho): duas voltas ou duas réplicas, uma publicação e uma
+  semente. Faltou algo na hora: **não publica**, a agenda sai e o motivo
+  fica em `publicacao_agendada_falha` (o painel mostra, com o selo "Agendada
+  não publicou") — não fica tentando a cada minuto. **Erro do banco também
+  vira falha** (com o log), nunca volta à fila sozinho: repetido, seguraria
+  todas as agendadas atrás dele. A falha só é gravada no rascunho que segue
+  sem agenda nova — a hora remarcada no meio vence.
+- **A auditoria diz quem agendou**: `campaign.publish` com o ator `sistema`
+  (sem pessoa) e quem agendou no `diff` (`agendadoPor`, de
+  `publicar_agendado_por`); a falha entra como
+  `campaign.publish.agendada.falhou`. Publicada, avisa quem segue (push
+  `rifa nova`, `emSegundoPlano`), como o botão.
+- **Publicar à mão limpa a agenda** (o `UPDATE` final de
+  `publishCampaign()`), e tirar a agenda é o mesmo `PUT` com `null`.
+- As colunas `campaigns.publicar_em`, `publicar_agendado_por` e
+  `publicacao_agendada_falha` sobem com o `db:push` **antes** do código.
+- `npm run agenda-rifa` prova tudo isso contra a API de verdade.
 
 ## Editar e adiar rifa publicada — o que não pode afrouxar
 

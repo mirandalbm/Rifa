@@ -1,4 +1,5 @@
 import type pg from "pg";
+import { publicarAgendadas } from "../services/publicacaoAgendada";
 import { and, eq, sql, gt, lt } from "drizzle-orm";
 import { db } from "../db";
 import { commissions, orders, buyers, campaigns, carrinhoPedidos } from "@shared/schema";
@@ -73,6 +74,7 @@ const LOCK_STREAM = 811_014;
 const LOCK_SEGUNDO_FATOR = 811_015;
 const LOCK_SORTEIO_OFICIAL = 811_016;
 const LOCK_POSTER_ANTIGO = 811_017;
+const LOCK_PUBLICACAO_AGENDADA = 811_018;
 
 /** Quantos minutos antes de a reserva cair o lembrete é enviado. */
 const LEMBRETE_MINUTOS = Number(process.env.REMINDER_MINUTES_BEFORE ?? 5);
@@ -302,6 +304,20 @@ export function startJobs() {
       console.error("[jobs] central de avisos:", err);
     }
   }, 60 * 60_000).unref();
+
+  // Rifa com publicação agendada: na hora, a mesma publicação da mão (confere
+  // tudo de novo). Cada rifa é tomada num UPDATE condicional: duas réplicas,
+  // uma publicação.
+  setInterval(async () => {
+    try {
+      await withLock(LOCK_PUBLICACAO_AGENDADA, async () => {
+        const r = await publicarAgendadas();
+        if (r.publicadas || r.falharam) log(`publicação agendada: ${r.publicadas} no ar, ${r.falharam} sem publicar`, "jobs");
+      });
+    } catch (err) {
+      console.error("[jobs] publicação agendada:", err);
+    }
+  }, 60_000).unref();
 
   // Rifa integrada a um sorteio oficial com resultado que ainda não sorteou
   // (reserva esperando Pix, mínimo, processo que caiu no meio): tenta de novo.

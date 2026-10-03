@@ -13,6 +13,8 @@ interface Divulgacao {
   criadaEm: string;
   /** Quem publicou corrigiu depois (a organização autorizou a versão nova). */
   editada: boolean;
+  /** Fotos do próprio apostador (autorizadas pela organização). */
+  fotos: string[];
   link: string;
   midias: { role: string; url: string; poster: string | null; srcSet: string | null; alt: string | null }[];
 }
@@ -33,6 +35,7 @@ export function DivulgacoesDaRifa({ slug }: { slug: string }) {
       <ul className="mt-2 space-y-3">
         {data.map((d) => {
           const imagens = d.midias.map((m) => (m.role === "video" ? m.poster : m.url)).filter((u): u is string => Boolean(u));
+          const fotos = d.fotos ?? [];
           return (
             <li key={d.id} className="rounded-xl border border-line p-3 text-sm">
               <p className="text-xs text-muted">
@@ -51,6 +54,15 @@ export function DivulgacoesDaRifa({ slug }: { slug: string }) {
                   {imagens.map((u, i) => (
                     <li key={`${u}-${i}`} className="shrink-0">
                       <img src={u} alt={d.midias[i]?.alt ?? "Imagem da rifa"} loading="lazy" className="h-24 w-24 rounded-lg object-cover" />
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+              {fotos.length ? (
+                <ul className="mt-2 flex gap-2 overflow-x-auto">
+                  {fotos.map((u, i) => (
+                    <li key={u} className="shrink-0">
+                      <img src={u} alt={`Foto ${i + 1} de ${d.quem}`} loading="lazy" className="h-24 w-24 rounded-lg object-cover" />
                     </li>
                   ))}
                 </ul>

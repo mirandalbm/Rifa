@@ -18,6 +18,8 @@ interface Linha {
   criadaEm: string;
   versao: number;
   editadaEm: string | null;
+  /** As fotos do apostador: a organização vê cada uma antes de autorizar. */
+  fotos: string[];
 }
 
 const PILL_DA_DIVULGACAO: Record<StatusDaDivulgacao, string> = {
@@ -124,6 +126,17 @@ export function DivulgacoesDaOrganizacao({ daOrganizacao }: { daOrganizacao: boo
               </div>
               {l.legenda ? <p className="whitespace-pre-line break-words">{l.legenda}</p> : null}
               {l.midias ? <p className="tnum text-xs text-muted">{l.midias} mídia(s) da rifa</p> : null}
+              {l.fotos.length ? (
+                <ul aria-label="Fotos de quem publicou" className="flex flex-wrap gap-2">
+                  {l.fotos.map((f, i) => (
+                    <li key={f}>
+                      <a href={f} target="_blank" rel="noreferrer" aria-label={`Abrir a foto ${i + 1} em outra aba`}>
+                        <img src={f} alt={`Foto ${i + 1} de ${l.quem}`} loading="lazy" className="h-20 w-20 rounded-md object-cover" />
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
               {l.motivo ? <p className="text-xs text-muted">Motivo: {l.motivo}</p> : null}
               {l.status === "em_analise" ? (
                 <div className="flex flex-wrap gap-2">

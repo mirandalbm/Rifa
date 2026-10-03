@@ -19,7 +19,7 @@ import { regraDoReembolso } from "./reembolso";
 import type { Secao } from "./regulamento";
 
 /** Data em que esta redação passou a valer. Sobe junto com qualquer mudança de texto. */
-export const VIGENCIA_DOS_TERMOS = "2026-10-02";
+export const VIGENCIA_DOS_TERMOS = "2026-10-03";
 
 export interface DadosDaEmpresa {
   razaoSocial: string;
@@ -239,6 +239,7 @@ export function montarPrivacidade(d: DadosDosTermos): Secao[] {
       itens: [
         "Nos comentários, o seu apelido ou o primeiro nome com a inicial. No seu perfil (/u/apelido), apelido, foto e o primeiro e o último nome.",
         "Quando a compra é paga, o primeiro nome com a inicial e a cidade/UF do cadastro podem aparecer em \"jogando agora\" na vitrine; o ganhador (do sorteio ou de cota premiada) aparece da mesma forma, no comentário fixo da rifa e, se a promotora publicar, na foto do resultado. Quem tem o código do pedido vê o nome de quem comprou ao consultá-lo — guarde o código com você.",
+        "Se você publicar sobre uma rifa (quando a plataforma liga essa opção), o texto e as fotos que você enviar aparecem na página da rifa com o seu apelido, depois que a organização autorizar; sai do ar se você retirar, se a compra for estornada ou se a organização retirar. As fotos de uma publicação recusada ou retirada são apagadas na hora.",
         "Só se você ligar o perfil público: aparecer em \"Quem também joga\" e em \"Seguido por\". Nasce desligado. Telefone, CPF e e-mail nunca são públicos.",
       ],
     },
@@ -246,7 +247,7 @@ export function montarPrivacidade(d: DadosDosTermos): Secao[] {
       titulo: "5. Por quanto tempo",
       itens: [
         `Compras, bilhetes, recibos e o registro do sorteio: pelo prazo que a lei de rifas, a lei fiscal e o Código de Defesa do Consumidor exigem, mesmo depois de excluída a conta. Avisos da central: 90 dias. Contagem de tentativas para os limites de antifraude: 2 horas; o registro das recusas (com o telefone mascarado e o aparelho em hash): ${GUARDA_DAS_RECUSAS_DIAS} dias; o bloqueio com prazo sai ${GUARDA_DO_BLOQUEIO_VENCIDO_DIAS} dias depois de vencer, e o bloqueio sem prazo fica até a plataforma retirá-lo.`,
-        "Ao excluir a conta, nome, telefone, CPF, e-mail, senha, apelido, foto e verificação saem; o que precisa ficar por lei fica sem identificar você.",
+        "Ao excluir a conta, nome, telefone, CPF, e-mail, senha, apelido, foto, as fotos das suas publicações e a verificação saem; o que precisa ficar por lei fica sem identificar você.",
       ],
     },
     {

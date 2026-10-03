@@ -1925,8 +1925,28 @@ publicou, com o link dele (`/r/<rifa>?ref=<código>`).
   erro de preenchimento.
 - **O apostador** só com o interruptor `publicarApostador` ligado (desligado:
   404 em toda rota e as peças dele saem do ar), só com **conta e apelido**,
-  só **texto**, só sobre rifa em que tem **compra paga** — conferida de novo
-  na leitura pública: estornou, a peça sai do ar.
+  **texto e até `DIVULGACAO_FOTOS_MAX` (4) fotos dele** (nunca mídia da rifa),
+  só sobre rifa em que tem **compra paga** — conferida de novo na leitura
+  pública: estornou, a peça sai do ar.
+- **As fotos do apostador** (`divulgacao_fotos`, no banco): JPEG de até
+  1600 px reprocessado pelo `sharp` (sem metadados, teto de 40 MP, 3 MB cada — PNG, JPG ou WebP; SVG não),
+  **todas processadas antes da transação** que grava a peça (recusa não deixa
+  peça pela metade). A varredura do Pix por fora só lê texto — **quem lê a
+  foto é a organização**, e a peça do apostador sempre passa pela fila. Três
+  portas, nunca o arquivo solto: a pública (`/api/public/divulgacoes/:id/fotos/:f`)
+  só serve a peça que a página da rifa mostra agora (no ar, compra paga,
+  interruptor ligado — saiu do ar, a foto some); a do painel, no recorte de
+  `orgOf` (a do vizinho é 404, no `npm run isolation`); e a do autor
+  (`/minhas/…`, `no-store`). Na edição, sem `fotos` no corpo ficam as que a
+  peça tinha; a lista troca todas, na transação do `UPDATE` que confere a
+  versão. **Recusada ou retirada (pela organização ou por quem publicou), as
+  fotos são apagadas na mesma transação** — a Privacidade diz isso. Excluir a
+  conta (LGPD) apaga as fotos. O afiliado não manda foto própria (422). Só o
+  `POST` da peça e o `PATCH` da edição aceitam 18 MB (a tela reduz a foto
+  antes, `lerFoto()`); o resto de `/api/public/divulgacoes*` segue em 1 MB. As
+  três portas respondem `private` (a pública com 60 s, as outras `no-store`).
+  O 413 genérico do Express só troca a mensagem do corpo grande demais
+  (`entity.too.large`): o 413 da régua da foto chega com o próprio texto.
 - **Sem dado pessoal em lugar nenhum**: a fila e a página pública trazem
   nome curto e código (afiliado) ou `@apelido` (apostador) — nunca telefone,
   CPF, e-mail ou id de pessoa.
@@ -1968,7 +1988,7 @@ publicou, com o link dele (`/r/<rifa>?ref=<código>`).
   com o nome da organização em cada peça; o modo continua sendo da organização.
 - A tabela nova sobe com o `db:push` **antes** do código, e a coluna
   `organizations.divulgacao_afiliado` também, e `divulgacoes.versao` e
-  `editada_em`.
+  `editada_em`, e a tabela `divulgacao_fotos`.
 - `npm run divulgacao` prova tudo isso contra a API de verdade
   (`npm run isolation` confere o recorte).
 

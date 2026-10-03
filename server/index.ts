@@ -149,6 +149,16 @@ app.use(
   ],
   express.json({ limit: "8mb" }),
 );
+// A peça do apostador leva até 4 fotos de 3 MB (a tela já reduz a foto do
+// celular). Só o POST da peça e o PATCH da edição: o resto de
+// `/api/public/divulgacoes*` segue no limite de 1 MB.
+const corpoDaPecaComFotos = express.json({ limit: "18mb" });
+app.use((req, res, next) =>
+  (req.method === "POST" && req.path === "/api/public/divulgacoes") ||
+  (req.method === "PATCH" && /^\/api\/public\/divulgacoes\/[0-9a-f-]{36}$/i.test(req.path))
+    ? corpoDaPecaComFotos(req, res, next)
+    : next(),
+);
 // Story em vídeo: até 15 MB em base64 (sem transcode, o arquivo vai como veio).
 app.use("/api/admin/stories", express.json({ limit: "22mb" }));
 // O perfil pode levar foto e capa juntas (até 5 MB cada, em base64).
@@ -196,7 +206,8 @@ app.use((req, res, next) => {
     }
     const status = err.status ?? err.statusCode ?? 500;
     // O corpo passou do limite da rota: a mensagem do Express vem em inglês.
-    if (status === 413) {
+    // O 413 da régua de um serviço já vem em português e diz o que passou.
+    if (status === 413 && err.type === "entity.too.large") {
       return res.status(413).json({ message: "O arquivo é grande demais. Escolha uma imagem menor." });
     }
     if (status >= 500) {

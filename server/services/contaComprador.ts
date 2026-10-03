@@ -439,6 +439,8 @@ export async function excluirConta(req: Request, senha: string) {
         WHERE (cv.a_tipo = 'comprador' AND cv.a_id = ${c.id} AND m.de = 'a')
            OR (cv.b_tipo = 'comprador' AND cv.b_id = ${c.id} AND m.de = 'b'))`);
     await tx.execute(sql`DELETE FROM mensagens_presenca WHERE tipo = 'comprador' AND id = ${c.id}`);
+    // As fotos das peças que a pessoa publicou sobre rifas (o texto fica, sem apelido, e sai do ar).
+    await tx.execute(sql`DELETE FROM divulgacao_fotos WHERE divulgacao_id IN (SELECT id FROM divulgacoes WHERE buyer_id = ${c.id})`);
     // Sai dos grupos (o contador acompanha); o que escreveu fica, sem apelido.
     await tx.execute(sql`UPDATE grupos SET membros_count = greatest(membros_count - 1, 0) WHERE id IN (SELECT grupo_id FROM grupo_membros WHERE buyer_id = ${c.id})`);
     await tx.execute(sql`DELETE FROM grupo_membros WHERE buyer_id = ${c.id}`);

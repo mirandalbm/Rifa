@@ -33,6 +33,7 @@ import {
   campanhaSolicitacoes,
   comentarios,
   divulgacoes,
+  divulgacaoFotos,
   sorteiosOficiais,
   sorteioComentarios,
 } from "../shared/schema";
@@ -754,6 +755,15 @@ async function conteudoDasListas(eu: Lado, vizinho: Lado) {
       body: JSON.stringify({ acao: "aprovar", versao: 0 }),
     });
     checa("aprovar a peça do vizinho, com a versão certa: 404", decidirDoVizinho.status === 404, `HTTP ${decidirDoVizinho.status}`);
+    // A foto da peça do vizinho, pela porta do painel: 404 (nem existe para mim).
+    const [fotoDoVizinho] = await db
+      .insert(divulgacaoFotos)
+      .values({ divulgacaoId: pecaDoVizinho.id, posicao: 0, bytes: Buffer.from([0xff, 0xd8, 0xff]) })
+      .returning({ id: divulgacaoFotos.id });
+    const abrirFoto = await pedir(eu.cookie, `/api/admin/divulgacoes/${pecaDoVizinho.id}/fotos/${fotoDoVizinho.id}`);
+    checa("a foto da peça do vizinho: 404", abrirFoto.status === 404, `HTTP ${abrirFoto.status}`);
+    const abrirPublica = await pedir("", `/api/public/divulgacoes/${pecaDoVizinho.id}/fotos/${fotoDoVizinho.id}`);
+    checa("a foto da peça em análise não é pública: 404", abrirPublica.status === 404, `HTTP ${abrirPublica.status}`);
     const depoisDoSino = (await (await pedir(eu.cookie, "/api/admin/chamados/pendentes")).json()) as { divulgacoes?: number };
     checa(
       "a peça esperando o vizinho não entra no número do meu sino",

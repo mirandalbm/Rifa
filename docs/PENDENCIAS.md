@@ -629,11 +629,13 @@ Na ordem de entrega do plano:
   pronto, atrás do interruptor `buscarLigado` e da tabela do que aparece
   (`buscarTipos`: rifas, organizações e apostadores; apostador nasce
   desligado). **v2 feito:** a pessoa escolhe "Mais novas" ou "Mais curtidas"
-  (contador real, sem mostrar o número) e filtra por estado. Ficou para
-  depois: hashtags e o índice de texto no banco (hoje é `LIKE` sem acento,
-  suficiente para a escala de agora; com milhares de rifas, `pg_trgm`:
-  pede `CREATE EXTENSION pg_trgm` no Postgres de produção e um índice
-  `gin` sobre o texto sem acento).
+  (contador real, sem mostrar o número) e filtra por estado. **Índice de
+  texto feito** (`pg_trgm`: título, prêmio, nome e endereço da
+  organização). **Falta no ambiente**: o `npm run db:push` agora cria a
+  extensão `pg_trgm` antes do schema — o usuário do banco no Railway precisa
+  poder criar extensão (o padrão do Postgres do Railway pode); se não puder,
+  rodar `CREATE EXTENSION pg_trgm` uma vez como dono do banco. Ficou para
+  depois: hashtags.
 - [x] **Selo "ao vivo" no story** (anel com a transmissão): pronto. Acende
   quando a rifa tem link de transmissão, a hora do sorteio chegou e o sorteio
   não foi feito (janela de 3 h); só dado real. Ficou para depois: "ao vivo"

@@ -14,8 +14,9 @@
  *   pagina chamam muito, e varrer a base por tentativa é o que se barra.
  */
 import type { Request } from "express";
-import { and, desc, eq, isNotNull, isNull, lt, or, sql, type SQL } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull, isNull, lt, or, sql, type SQL } from "drizzle-orm";
 import { db } from "../db";
+import { ACENTOS_DE, ACENTOS_PARA } from "@shared/semAcentoSql";
 import { buyers, campaigns, organizacaoFotos, organizations } from "@shared/schema";
 import {
   BUSCAS_POR_MINUTO,
@@ -47,13 +48,22 @@ export class BuscaError extends Error {
 
 /** O texto da coluna sem acento e minúsculo — o mesmo tratamento do texto digitado. */
 const semAcentoSql = (coluna: SQL | unknown) =>
-  sql`translate(lower(${coluna}), 'áàâãäéèêëíìîïóòôõöúùûüç', 'aaaaaeeeeiiiiooooouuuuc')`;
+  sql`translate(lower(${coluna}), ${sql.raw(`'${ACENTOS_DE}'`)}, ${sql.raw(`'${ACENTOS_PARA}'`)})`;
 
 const contem = (coluna: unknown, texto: string) => sql`${semAcentoSql(coluna)} like ${`%${escaparCuringa(texto)}%`} escape '\\'`;
 
+/**
+ * Teto das organizações cujo nome bate com o texto, na grade de rifas: o
+ * texto curto ("rifa") bateria em quase todas, e a lista vai inteira na
+ * consulta das rifas. Passou disso, o texto já é genérico demais para o nome
+ * da organização distinguir alguma coisa; título e prêmio seguem valendo.
+ */
+const ORGANIZACOES_DO_TEXTO_MAX = 200;
+
 const orgVisivel = and(isNull(organizations.archivedAt), isNull(organizations.banidaEm))!;
 
-async function rifasDaGrade(termo: TermoDaBusca | null, depois: unknown, ordem: OrdemDaBusca, estado: UF | null) {
+/** A consulta da grade, montada (sem rodar): a mesma para a tela e para o `EXPLAIN` da prova. */
+async function consultaDaGrade(termo: TermoDaBusca | null, depois: unknown, ordem: OrdemDaBusca, estado: UF | null) {
   const filtros: SQL[] = [
     eq(campaigns.status, "published"),
     isNull(campaigns.travadaEm),
@@ -62,7 +72,27 @@ async function rifasDaGrade(termo: TermoDaBusca | null, depois: unknown, ordem: 
     orgVisivel,
   ];
   if (termo) {
-    filtros.push(or(contem(campaigns.title, termo.texto), contem(campaigns.prizeTitle, termo.texto), contem(organizations.name, termo.texto))!);
+    // Em dois passos, para cada passo usar o seu índice de trigrama: as
+    // organizações pelo nome (poucas linhas), e as rifas por título, prêmio
+    // ou dona (`idx_campaigns_org`). Um `OR` com coluna das duas tabelas do
+    // `JOIN` obrigaria o Postgres a ler a tabela de rifas inteira.
+    // Ordem fixa (a mesma lista em toda página do cursor) e só quem tem rifa
+    // que a grade mostraria: organização sem rifa no ar não gasta vaga do teto.
+    const donas = await db
+      .select({ id: organizations.id })
+      .from(organizations)
+      .where(
+        and(
+          orgVisivel,
+          contem(organizations.name, termo.texto),
+          sql`exists (select 1 from ${campaigns} where ${campaigns.organizationId} = "organizations"."id" and ${campaigns.status} = 'published' and ${campaigns.travadaEm} is null and ${campaigns.demonstracao} = false)`,
+        ),
+      )
+      .orderBy(organizations.id)
+      .limit(ORGANIZACOES_DO_TEXTO_MAX);
+    const porTexto = [contem(campaigns.title, termo.texto), contem(campaigns.prizeTitle, termo.texto)];
+    if (donas.length) porTexto.push(inArray(campaigns.organizationId, donas.map((d) => d.id)));
+    filtros.push(or(...porTexto)!);
   }
   if (estado) filtros.push(eq(organizations.uf, estado));
   const porCurtidas = ordem === "curtidas";
@@ -82,7 +112,7 @@ async function rifasDaGrade(termo: TermoDaBusca | null, depois: unknown, ordem: 
       );
     }
   }
-  const linhas = await db
+  const consulta = db
     .select({
       id: campaigns.id,
       slug: campaigns.slug,
@@ -97,6 +127,24 @@ async function rifasDaGrade(termo: TermoDaBusca | null, depois: unknown, ordem: 
     .where(and(...filtros))
     .orderBy(...(porCurtidas ? [desc(campaigns.curtidasCount), desc(campaigns.id)] : [desc(campaigns.publishedAt), desc(campaigns.id)]))
     .limit(BUSCA_PAGINA + 1);
+  return { consulta, porCurtidas };
+}
+
+/**
+ * Só para a prova: o SQL da grade para um texto, como a tela o roda. A prova
+ * (`npm run buscar`) põe milhares de rifas numa transação que volta, roda o
+ * `EXPLAIN` deste SQL e confere que os índices de trigrama servem a ele.
+ */
+export async function sqlDaGrade(texto: string): Promise<{ sql: string; params: unknown[] }> {
+  const termo = interpretarTermo(texto);
+  if (!termo) throw new BuscaError("Texto curto demais para buscar.");
+  const { consulta } = await consultaDaGrade(termo, null, "novas", null);
+  return consulta.toSQL();
+}
+
+async function rifasDaGrade(termo: TermoDaBusca | null, depois: unknown, ordem: OrdemDaBusca, estado: UF | null) {
+  const { consulta, porCurtidas } = await consultaDaGrade(termo, depois, ordem, estado);
+  const linhas = await consulta;
   // O contador de curtidas muda entre uma página e outra: uma rifa pode repetir ou pular
   // ao rolar em "Mais curtidas" (inerente à ordem por contador; nunca vaza dado).
   const temMais = linhas.length > BUSCA_PAGINA;

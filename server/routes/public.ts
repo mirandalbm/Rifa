@@ -15,6 +15,7 @@ import { marcarTodasLidas, naoLidas, notificacoesDe } from "../services/notifica
 import { aderir, pedirColaboracao, termoPublico } from "../services/afiliados";
 import {
   divulgacoesDaRifa,
+  editarComoApostador,
   minhasDoApostador,
   publicarComoApostador,
   retirarPropriaDoApostador,
@@ -2604,6 +2605,15 @@ publicRouter.get("/divulgacoes/minhas", async (req, res, next) => {
 publicRouter.post("/divulgacoes", async (req, res, next) => {
   try {
     res.status(201).json(await publicarComoApostador(req, req.body ?? {}));
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** Corrigir o próprio texto: volta para a autorização da organização. A de outra pessoa é 404. */
+publicRouter.patch("/divulgacoes/:id", async (req, res, next) => {
+  try {
+    res.json(await editarComoApostador(req, req.params.id, req.body ?? {}));
   } catch (err) {
     next(err);
   }

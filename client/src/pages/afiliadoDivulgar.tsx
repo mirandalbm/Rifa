@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { PanelShell } from "@/components/AppShell";
 import { Button, Card, Campo, Empty, Pill } from "@/components/bits";
 import { apiRequest } from "@/lib/queryClient";
-import { DIVULGACAO_MIDIAS_MAX, STATUS_DA_DIVULGACAO, type ModoDeDivulgacao, type StatusDaDivulgacao } from "@shared/divulgacao";
+import { DIVULGACAO_MIDIAS_MAX, STATUS_DA_DIVULGACAO, podeEditar, type ModoDeDivulgacao, type StatusDaDivulgacao } from "@shared/divulgacao";
 import { LEGENDA_MAX } from "@shared/publicacao";
 
 interface RifaParaDivulgar {
@@ -23,6 +23,8 @@ interface Minha {
   status: StatusDaDivulgacao;
   motivo: string | null;
   criadaEm: string;
+  editadaEm: string | null;
+  versao: number;
 }
 
 export const PILL_DA_DIVULGACAO: Record<StatusDaDivulgacao, string> = {
@@ -46,22 +48,51 @@ export function AfiliadoDivulgar() {
   const [legenda, setLegenda] = useState("");
   const [escolhidas, setEscolhidas] = useState<string[]>([]);
   const [msg, setMsg] = useState<{ ok: boolean; texto: string } | null>(null);
+  // A peça que está sendo corrigida (nulo: peça nova).
+  const [editando, setEditando] = useState<{ id: string; versao: number } | null>(null);
   const rifa = rifas.find((r) => r.slug === slug) ?? null;
 
+  const limpar = () => {
+    setLegenda("");
+    setEscolhidas([]);
+    setEditando(null);
+  };
   const publicar = useMutation({
-    mutationFn: () => apiRequest("POST", "/api/affiliate/divulgacoes", { slug, legenda, midias: escolhidas }),
+    mutationFn: () =>
+      editando
+        ? apiRequest("PATCH", `/api/affiliate/divulgacoes/${editando.id}`, { legenda, midias: escolhidas, versao: editando.versao })
+        : apiRequest("POST", "/api/affiliate/divulgacoes", { slug, legenda, midias: escolhidas }),
     onSuccess: async (res) => {
       const j = (await res.json()) as { status: StatusDaDivulgacao };
+      const editou = Boolean(editando);
       setMsg({
         ok: true,
-        texto: j.status === "publicada" ? "Publicada. Já aparece na página da rifa." : "Enviada. Aparece na rifa quando a organização autorizar.",
+        texto:
+          j.status === "publicada"
+            ? editou
+              ? "Editada. A página da rifa já mostra a versão nova."
+              : "Publicada. Já aparece na página da rifa."
+            : editou
+              ? "Editada. Volta para a página da rifa quando a organização autorizar."
+              : "Enviada. Aparece na rifa quando a organização autorizar.",
       });
-      setLegenda("");
-      setEscolhidas([]);
+      limpar();
       qc.invalidateQueries({ queryKey: ["/api/affiliate/divulgacoes"] });
     },
     onError: (e: Error) => setMsg({ ok: false, texto: e.message }),
   });
+  const editar = (m: Minha) => {
+    if (!rifas.some((r) => r.slug === m.slug)) {
+      setMsg({ ok: false, texto: "Esta rifa não está mais disponível para você divulgar." });
+      return;
+    }
+    setSlug(m.slug);
+    setLegenda(m.legenda);
+    setEscolhidas(m.midias);
+    setEditando({ id: m.id, versao: m.versao });
+    setMsg(null);
+    document.getElementById("nova-divulgacao")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
   const retirar = useMutation({
     mutationFn: (id: string) => apiRequest("DELETE", `/api/affiliate/divulgacoes/${id}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/affiliate/divulgacoes"] }),
@@ -77,8 +108,8 @@ export function AfiliadoDivulgar() {
         ele paga a sua comissão. Não dá para mudar preço, cotas nem prêmio — só divulgar.
       </p>
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1.3fr_1fr]">
-        <Card title="Nova divulgação">
-          <div className="space-y-3 p-4 text-sm">
+        <Card title={editando ? "Editar divulgação" : "Nova divulgação"}>
+          <div id="nova-divulgacao" className="space-y-3 p-4 text-sm">
             {isLoading ? null : rifas.length === 0 ? (
               <p className="text-muted">
                 Nenhuma rifa disponível. Para divulgar é preciso vínculo aprovado com a organização e o aceite do termo
@@ -89,6 +120,7 @@ export function AfiliadoDivulgar() {
                 <Campo rotulo="Rifa">
                   <select
                     value={slug}
+                    disabled={Boolean(editando)}
                     onChange={(e) => {
                       setSlug(e.target.value);
                       setEscolhidas([]);
@@ -107,8 +139,10 @@ export function AfiliadoDivulgar() {
                   <>
                     <p className="text-xs text-muted">
                       {rifa.modo === "direta"
-                        ? `${rifa.organizacao} deixa você publicar direto: a peça vai ao ar na hora.`
-                        : `${rifa.organizacao} autoriza antes: a peça só vai ao ar depois da aprovação.`}
+                        ? `${rifa.organizacao} deixa você publicar direto: a peça vai ao ar na hora${editando ? ", e a edição também" : ""}.`
+                        : editando
+                          ? `${rifa.organizacao} autoriza antes: a peça editada sai da página da rifa até a nova aprovação.`
+                          : `${rifa.organizacao} autoriza antes: a peça só vai ao ar depois da aprovação.`}
                     </p>
                     <fieldset>
                       <legend className="label-xs">
@@ -141,9 +175,16 @@ export function AfiliadoDivulgar() {
                       <textarea rows={4} maxLength={LEGENDA_MAX} value={legenda} onChange={(e) => setLegenda(e.target.value)} />
                     </Campo>
                     {msg ? <p role="status" className={`rounded-md px-3 py-2 ${msg.ok ? "bg-green-soft text-green-deep" : "bg-red-soft text-red"}`}>{msg.texto}</p> : null}
-                    <Button disabled={publicar.isPending || (!legenda.trim() && escolhidas.length === 0)} onClick={() => publicar.mutate()}>
-                      {rifa.modo === "direta" ? "Publicar" : "Enviar para autorização"}
-                    </Button>
+                    <div className="flex flex-wrap gap-2">
+                      <Button disabled={publicar.isPending || (!legenda.trim() && escolhidas.length === 0)} onClick={() => publicar.mutate()}>
+                        {editando ? "Salvar edição" : rifa.modo === "direta" ? "Publicar" : "Enviar para autorização"}
+                      </Button>
+                      {editando ? (
+                        <Button variant="ghost" onClick={limpar}>
+                          Cancelar edição
+                        </Button>
+                      ) : null}
+                    </div>
                   </>
                 ) : null}
               </>
@@ -161,13 +202,19 @@ export function AfiliadoDivulgar() {
                   <div className="flex flex-wrap items-center gap-2">
                     <Pill status={PILL_DA_DIVULGACAO[m.status]}>{STATUS_DA_DIVULGACAO[m.status]}</Pill>
                     <span className="font-semibold">{m.title}</span>
+                    {m.editadaEm ? <span className="text-xs text-muted">Editada</span> : null}
                   </div>
                   {m.legenda ? <p className="line-clamp-3 break-words text-muted">{m.legenda}</p> : null}
                   {m.motivo ? <p className="text-xs text-muted">Motivo: {m.motivo}</p> : null}
-                  {m.status === "em_analise" || m.status === "publicada" ? (
-                    <Button variant="ghost" className="px-3 py-1 text-xs" disabled={retirar.isPending} onClick={() => retirar.mutate(m.id)}>
-                      Retirar
-                    </Button>
+                  {podeEditar(m.status) ? (
+                    <div className="flex flex-wrap gap-2">
+                      <Button variant="ghost" className="px-3 py-1 text-xs" disabled={editando?.id === m.id} onClick={() => editar(m)}>
+                        Editar
+                      </Button>
+                      <Button variant="ghost" className="px-3 py-1 text-xs" disabled={retirar.isPending} onClick={() => retirar.mutate(m.id)}>
+                        Retirar
+                      </Button>
+                    </div>
                   ) : null}
                 </li>
               ))}

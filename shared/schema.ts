@@ -2863,6 +2863,14 @@ export const divulgacoes = pgTable(
     motivo: text("motivo"),
     decididoEm: timestamp("decidido_em"),
     decididoPor: uuid("decidido_por"),
+    /**
+     * Sobe a cada edição de quem publicou. A organização decide a versão que
+     * leu (`versao` no pedido): editada no meio, a decisão é 409 — nunca
+     * aprovar um texto que ninguém viu.
+     */
+    versao: integer("versao").notNull().default(0),
+    /** A última edição de quem publicou (o "Editada" na tela). */
+    editadaEm: timestamp("editada_em"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (t) => [

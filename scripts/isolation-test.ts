@@ -729,7 +729,12 @@ async function conteudoDasListas(eu: Lado, vizinho: Lado) {
   checa("o sino não traz telefone", !JSON.stringify(avisos).includes("11960000"));
   // O sino do afiliado (divulgações decididas) é só do afiliado: o organizador
   // não lê nem marca o "visto" de ninguém por essa porta.
-  for (const [metodo, caminho] of [["GET", "/api/affiliate/divulgacoes/novidades"], ["POST", "/api/affiliate/avisos/vistos"]] as const) {
+  for (const [metodo, caminho] of [
+    ["GET", "/api/affiliate/divulgacoes/novidades"],
+    ["POST", "/api/affiliate/avisos/vistos"],
+    // Editar é de quem publicou: o organizador não corrige a peça de afiliado por esta porta.
+    ["PATCH", "/api/affiliate/divulgacoes/00000000-0000-0000-0000-000000000000"],
+  ] as const) {
     const r = await pedir(eu.cookie, caminho, { method: metodo });
     checa(`${metodo} ${caminho}: organizador recusado (403)`, r.status === 403, `HTTP ${r.status}`);
     const v = await pedir("", caminho, { method: metodo });
@@ -743,6 +748,12 @@ async function conteudoDasListas(eu: Lado, vizinho: Lado) {
     .values({ campaignId: vizinho.campaignId, organizationId: vizinho.orgId, autor: "apostador", legenda: "peça do vizinho", status: "em_analise" })
     .returning({ id: divulgacoes.id });
   try {
+    // A peça do vizinho, decidida com a versão certa, continua não sendo minha.
+    const decidirDoVizinho = await pedir(eu.cookie, `/api/admin/divulgacoes/${pecaDoVizinho.id}`, {
+      method: "POST",
+      body: JSON.stringify({ acao: "aprovar", versao: 0 }),
+    });
+    checa("aprovar a peça do vizinho, com a versão certa: 404", decidirDoVizinho.status === 404, `HTTP ${decidirDoVizinho.status}`);
     const depoisDoSino = (await (await pedir(eu.cookie, "/api/admin/chamados/pendentes")).json()) as { divulgacoes?: number };
     checa(
       "a peça esperando o vizinho não entra no número do meu sino",

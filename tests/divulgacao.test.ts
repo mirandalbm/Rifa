@@ -6,6 +6,7 @@ import {
   linkDaDivulgacao,
   statusInicial,
   validarDecisao,
+  podeEditar,
   validarDivulgacao,
   validarModo,
 } from "../shared/divulgacao";
@@ -71,10 +72,26 @@ describe("decisão", () => {
     expect(DE_PARA_DA_DECISAO.remover).toEqual({ de: "publicada", para: "removida" });
   });
   it("recusar e retirar pedem motivo; aprovar não", () => {
-    expect(validarDecisao({ acao: "aprovar" })).toEqual({ acao: "aprovar", motivo: null });
+    expect(validarDecisao({ acao: "aprovar" })).toEqual({ acao: "aprovar", motivo: null, versao: null });
     expect(() => validarDecisao({ acao: "recusar" })).toThrow();
     expect(validarDecisao({ acao: "recusar", motivo: "Fora do tom" }).motivo).toBe("Fora do tom");
     expect(() => validarDecisao({ acao: "apagar" })).toThrow();
+  });
+});
+
+describe("edição", () => {
+  it("só edita o que ainda vale: em análise ou no ar", () => {
+    expect(podeEditar("em_analise")).toBe(true);
+    expect(podeEditar("publicada")).toBe(true);
+    expect(podeEditar("recusada")).toBe(false);
+    expect(podeEditar("removida")).toBe(false);
+  });
+  it("a decisão leva a versão lida, inteira e não negativa", () => {
+    expect(validarDecisao({ acao: "aprovar", versao: 3 }).versao).toBe(3);
+    expect(validarDecisao({ acao: "aprovar", versao: 0 }).versao).toBe(0);
+    expect(() => validarDecisao({ acao: "aprovar", versao: -1 })).toThrow();
+    expect(() => validarDecisao({ acao: "aprovar", versao: "2" })).toThrow();
+    expect(() => validarDecisao({ acao: "aprovar", versao: 1.5 })).toThrow();
   });
 });
 

@@ -52,7 +52,9 @@ Procure, nesta ordem, o que é **grave**:
     **paga** (na criação e na leitura pública); decisão sem `UPDATE`
     condicional com a linha travada; `hit()` depois de recusar o texto (a
     tentativa barrada precisa contar); denúncia automática que acusa a
-    organização por texto que ela não escreveu sem dizer quem escreveu.
+    organização por texto que ela não escreveu sem dizer quem escreveu;
+    edição que pula a régua da peça nova ou não volta para a fila; decisão ou
+    edição sem conferir a `versao` lida (aprovar um texto que ninguém viu).
 
 12. **Assistente de IA** (seção "Assistente de IA"): `CHATBASE_API_KEY` em
     resposta, log, URL ou cliente; script do Chatbase voltando ao painel;

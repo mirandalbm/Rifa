@@ -661,11 +661,16 @@ Na ordem de entrega do plano:
   com **imagem**; (3) ~~avisos para a organização quando chega peça nova e
   para quem publicou quando é decidida~~ — **feito**: o sino da organização
   conta a fila, o apostador recebe push e trevo e o afiliado vê o número no
-  sino do painel (seção "Divulgação de terceiros" do `CLAUDE.md`); (4) editar a peça depois de
-  enviada (hoje retira e envia outra); (5) ferramentas do Instagram ainda
+  sino do painel (seção "Divulgação de terceiros" do `CLAUDE.md`); (4) ~~editar a peça depois de
+  enviada~~ — **feito**: quem publicou corrige (legenda; o afiliado também as
+  mídias) e a peça volta para a fila, salvo o afiliado no modo direto; a
+  organização decide a versão que leu (`versao`, 409 se mudou). **Falta no
+  ambiente**: `db:push` (colunas `divulgacoes.versao` e `editada_em`)
+  **antes** do código; (5) ferramentas do Instagram ainda
   sem equivalente: reels pela organização, agendar publicação, enquete e
-  figurinhas no story; (6) a plataforma poder decidir sem escolher a
-  organização no modo (hoje a tela só mostra a fila).
+  figurinhas no story; (6) ~~a plataforma decidir sem escolher a
+  organização~~ — **feito**: a plataforma vê a fila de todas, com o nome da
+  organização, e decide qualquer peça (`npm run divulgacao` prova).
 - [ ] **[código]** Remodelagem do web e dos painéis, depois do app
   (`docs/REMODELAGEM.md`: inventário e lista de conferência).
 

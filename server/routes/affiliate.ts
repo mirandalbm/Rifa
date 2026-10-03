@@ -22,7 +22,7 @@ import { cadastroAprovado, documento, estadoFiscal, salvarDadosFiscais, salvarDo
 import { pdfDoRecibo, reciboPorCodigo } from "../services/recibos";
 import { urlDeConferencia } from "../services/urls";
 import { aderir, comissaoNaRifa, organizacoesDoAfiliado, sair } from "../services/afiliados";
-import { decididasParaOAfiliado, marcarVistoDoAfiliado, minhasDoAfiliado, publicarComoAfiliado, retirarPropria, rifasParaDivulgar } from "../services/divulgacao";
+import { decididasParaOAfiliado, editarComoAfiliado, marcarVistoDoAfiliado, minhasDoAfiliado, publicarComoAfiliado, retirarPropria, rifasParaDivulgar } from "../services/divulgacao";
 import { guardLogin, identify } from "../services/antifraude";
 import QRCode from "qrcode";
 import { affiliateId, verifyPassword } from "../auth";
@@ -568,6 +568,18 @@ affiliateRouter.post("/avisos/vistos", async (req, res, next) => {
   try {
     await marcarVistoDoAfiliado(req.user!.id);
     res.status(204).end();
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * Corrigir a própria peça (legenda e mídias da rifa). Volta para a fila da
+ * organização, salvo no modo direto. A de outro afiliado é 404.
+ */
+affiliateRouter.patch("/divulgacoes/:id", async (req, res, next) => {
+  try {
+    res.json(await editarComoAfiliado(affiliateId(req), req.params.id, req.body ?? {}));
   } catch (err) {
     next(err);
   }

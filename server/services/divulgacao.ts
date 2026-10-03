@@ -35,7 +35,9 @@ import {
   DE_PARA_DA_DECISAO,
   DIVULGACAO_MIDIAS_MAX,
   DIVULGACOES_POR_DIA,
+  EDICOES_POR_DIA,
   STATUS_DA_DIVULGACAO,
+  podeEditar,
   linkDaDivulgacao,
   statusInicial,
   validarDecisao,
@@ -80,8 +82,8 @@ function regra<T>(f: () => T): T {
  * não travada, de organização no ar. Rascunho, encerrada, travada, banida e
  * arquivada não recebem peça nova.
  */
-async function rifaParaDivulgar(slug: unknown) {
-  if (typeof slug !== "string" || !slug) throw new DivulgacaoError("Rifa não encontrada.", 404);
+async function rifaParaDivulgar(slug: unknown, porId?: string) {
+  if (!porId && (typeof slug !== "string" || !slug)) throw new DivulgacaoError("Rifa não encontrada.", 404);
   const [r] = await db
     .select({
       id: campaigns.id,
@@ -96,7 +98,7 @@ async function rifaParaDivulgar(slug: unknown) {
     .innerJoin(organizations, eq(organizations.id, campaigns.organizationId))
     .where(
       and(
-        eq(campaigns.slug, slug),
+        porId ? eq(campaigns.id, porId) : eq(campaigns.slug, slug as string),
         eq(campaigns.status, "published"),
         eq(campaigns.demonstracao, false),
         isNull(campaigns.travadaEm),
@@ -127,6 +129,16 @@ function barrarPixPorFora(legenda: string, rifa: { id: string; organizationId: s
     "varredura",
   );
   throw new DivulgacaoError("A legenda parece pedir pagamento por fora da plataforma. Só vale bilhete pago aqui.", 422);
+}
+
+/** As mídias são da própria rifa, já prontas: nada do cliente vira arquivo. */
+async function conferirMidias(campaignId: string, midias: string[]) {
+  if (!midias.length) return;
+  const ok = await db
+    .select({ id: campaignMedia.id })
+    .from(campaignMedia)
+    .where(and(eq(campaignMedia.campaignId, campaignId), eq(campaignMedia.status, "ready"), inArray(campaignMedia.id, midias)));
+  if (ok.length !== midias.length) throw new DivulgacaoError("Escolha só mídias desta rifa.", 422);
 }
 
 async function gravar(valores: typeof divulgacoes.$inferInsert) {
@@ -170,14 +182,7 @@ export async function publicarComoAfiliado(affiliateId: string, entrada: Record<
   if (limite.excedeu) throw new DivulgacaoError("Muitas divulgações hoje. Tente amanhã.", 429);
   barrarPixPorFora(dados.legenda, rifa, `afiliado ${a.code}`);
 
-  // As mídias são da própria rifa, já prontas: nada do cliente vira arquivo.
-  if (dados.midias.length) {
-    const ok = await db
-      .select({ id: campaignMedia.id })
-      .from(campaignMedia)
-      .where(and(eq(campaignMedia.campaignId, rifa.id), eq(campaignMedia.status, "ready"), inArray(campaignMedia.id, dados.midias)));
-    if (ok.length !== dados.midias.length) throw new DivulgacaoError("Escolha só mídias desta rifa.", 422);
-  }
+  await conferirMidias(rifa.id, dados.midias);
   const modo = validarModo(rifa.modo);
   const status = statusInicial("afiliado", modo);
   const d = await gravar({
@@ -340,6 +345,8 @@ const colunasDaMinha = {
   status: divulgacoes.status,
   motivo: divulgacoes.motivo,
   criadaEm: divulgacoes.createdAt,
+  editadaEm: divulgacoes.editadaEm,
+  versao: divulgacoes.versao,
 };
 
 export async function minhasDoAfiliado(affiliateId: string) {
@@ -385,6 +392,103 @@ export async function retirarPropriaDoApostador(req: Request, id: string) {
   return retirarPropria({ buyerId: b.id }, id);
 }
 
+/**
+ * Quem publicou corrige a própria peça (a legenda; o afiliado, também as
+ * mídias), em análise ou no ar. A mesma régua da peça nova: texto, Pix por
+ * fora, mídias da rifa, vínculo e termo do afiliado, compra paga do
+ * apostador. Depois de editada, a peça **volta para a fila** — salvo a do
+ * afiliado no modo direto da organização, que segue no ar. A edição sobe a
+ * `versao`: a organização que lia a versão antiga recebe 409 ao decidir.
+ *
+ * O `UPDATE` repete a situação e a versão lidas: duas edições ao mesmo tempo,
+ * ou a organização decidindo no meio, dão uma gravação e um 409. Peça de
+ * outra pessoa é 404.
+ */
+async function editarPropria(
+  dono: { autor: "afiliado"; affiliateId: string; quem: string } | { autor: "apostador"; buyerId: string; quem: string },
+  id: string,
+  entrada: Record<string, unknown>,
+) {
+  if (!/^[0-9a-f-]{36}$/i.test(id)) throw new DivulgacaoError("Divulgação não encontrada.", 404);
+  const dados = regra(() => validarDivulgacao(dono.autor, entrada));
+  const doDono = dono.autor === "afiliado" ? eq(divulgacoes.affiliateId, dono.affiliateId) : eq(divulgacoes.buyerId, dono.buyerId);
+  const [atual] = await db
+    .select({ campaignId: divulgacoes.campaignId, status: divulgacoes.status, versao: divulgacoes.versao })
+    .from(divulgacoes)
+    .where(and(eq(divulgacoes.id, id), doDono));
+  if (!atual) throw new DivulgacaoError("Divulgação não encontrada.", 404);
+  if (!podeEditar(atual.status as StatusDaDivulgacao)) {
+    throw new DivulgacaoError("Esta divulgação já terminou. Envie uma nova.", 409);
+  }
+  // A versão de onde a edição partiu (a tela manda): outra aba gravou no meio,
+  // esta não sobrescreve sem ler.
+  const partiuDe = Number.isInteger(entrada.versao) && (entrada.versao as number) >= 0 ? (entrada.versao as number) : atual.versao;
+  if (partiuDe !== atual.versao) throw new DivulgacaoError("A divulgação mudou enquanto você editava. Abra de novo.", 409);
+  let rifa: Awaited<ReturnType<typeof rifaParaDivulgar>>;
+  try {
+    rifa = await rifaParaDivulgar(null, atual.campaignId);
+  } catch {
+    throw new DivulgacaoError("A rifa não recebe mais divulgação.", 409);
+  }
+  if (dono.autor === "afiliado") {
+    if (!(await comissaoNaRifa(db, dono.affiliateId, rifa)).recebe) {
+      throw new DivulgacaoError("Para divulgar esta rifa você precisa de vínculo aprovado com a organização e do aceite do termo dela.", 403);
+    }
+  } else {
+    const [joga] = await db
+      .select({ id: orders.id })
+      .from(orders)
+      .where(and(eq(orders.buyerId, dono.buyerId), eq(orders.campaignId, rifa.id), eq(orders.status, "paid")))
+      .limit(1);
+    if (!joga) throw new DivulgacaoError("Só quem comprou esta rifa publica sobre ela.", 403);
+  }
+  // Conta a tentativa antes de recusar (o Pix por fora também conta), num balde só de edições.
+  const pessoa = dono.autor === "afiliado" ? dono.affiliateId : dono.buyerId;
+  const limite = await hit(`divulgacao-edicao:${dono.autor}:${pessoa}`, 24 * 60, EDICOES_POR_DIA);
+  if (limite.excedeu) throw new DivulgacaoError("Muitas edições hoje. Tente amanhã.", 429);
+  barrarPixPorFora(dados.legenda, rifa, dono.quem);
+  if (dono.autor === "afiliado") await conferirMidias(rifa.id, dados.midias);
+
+  // Afiliado no modo direto segue no ar; o resto volta a esperar a organização.
+  const status = dono.autor === "afiliado" ? statusInicial("afiliado", validarModo(rifa.modo)) : "em_analise";
+  try {
+    const [r] = await db
+      .update(divulgacoes)
+      .set({
+        legenda: dados.legenda,
+        midiaIds: dados.midias,
+        status,
+        motivo: null,
+        // Não é decisão da organização: nada disto acende o sino do afiliado.
+        decididoEm: status === "publicada" ? sql`now()` : null,
+        decididoPor: null,
+        versao: sql`${divulgacoes.versao} + 1`,
+        editadaEm: sql`now()`,
+      })
+      .where(and(eq(divulgacoes.id, id), doDono, eq(divulgacoes.status, atual.status), eq(divulgacoes.versao, partiuDe)))
+      .returning({ id: divulgacoes.id, status: divulgacoes.status, versao: divulgacoes.versao });
+    if (!r) throw new DivulgacaoError("A divulgação mudou enquanto você editava. Abra de novo.", 409);
+    return r;
+  } catch (err) {
+    // A peça no ar volta para a fila: se já há outra desta rifa esperando, o índice decide.
+    if (isUniqueViolation(err, "uq_divulgacao_afiliado_em_analise") || isUniqueViolation(err, "uq_divulgacao_apostador_em_analise")) {
+      throw new DivulgacaoError("Você já tem uma divulgação desta rifa esperando a organização. Edite aquela.", 409);
+    }
+    throw err;
+  }
+}
+
+export async function editarComoAfiliado(affiliateId: string, id: string, entrada: Record<string, unknown>) {
+  const a = await afiliadoOnline(affiliateId);
+  return editarPropria({ autor: "afiliado", affiliateId, quem: `afiliado ${a.code}` }, id, entrada);
+}
+
+export async function editarComoApostador(req: Request, id: string, entrada: Record<string, unknown>) {
+  await interruptorDoApostador();
+  const b = await apostadorComConta(req);
+  return editarPropria({ autor: "apostador", buyerId: b.id, quem: `apostador @${b.apelido}` }, id, entrada);
+}
+
 /* ------------------------------------------------------------------ *
  * Organização: o modo, a fila e a decisão
  * ------------------------------------------------------------------ */
@@ -423,6 +527,8 @@ export async function listarDaOrganizacao(req: Request, status?: unknown) {
       status: divulgacoes.status,
       motivo: divulgacoes.motivo,
       criadaEm: divulgacoes.createdAt,
+      versao: divulgacoes.versao,
+      editadaEm: divulgacoes.editadaEm,
       slug: campaigns.slug,
       rifa: campaigns.title,
       organizacao: organizations.name,
@@ -464,16 +570,21 @@ export async function pendentesDaOrganizacao(req: Request) {
  */
 export async function decidir(req: Request, id: string, entrada: unknown) {
   if (!/^[0-9a-f-]{36}$/i.test(id)) throw new DivulgacaoError("Divulgação não encontrada.", 404);
-  const { acao, motivo } = regra(() => validarDecisao(entrada));
+  const { acao, motivo, versao } = regra(() => validarDecisao(entrada));
   const { de, para } = DE_PARA_DA_DECISAO[acao];
   const org = orgOf(req);
   const decidida = await db.transaction(async (tx: Tx) => {
-    const r = await tx.execute(sql`select id, organization_id, campaign_id, autor, affiliate_id, status from divulgacoes where id = ${id} for update`);
+    const r = await tx.execute(sql`select id, organization_id, campaign_id, autor, affiliate_id, status, versao from divulgacoes where id = ${id} for update`);
     const linha = r.rows[0] as
-      | { id: string; organization_id: string; campaign_id: string; autor: string; affiliate_id: string | null; status: string }
+      | { id: string; organization_id: string; campaign_id: string; autor: string; affiliate_id: string | null; status: string; versao: number }
       | undefined;
     if (!linha || (org && linha.organization_id !== org)) throw new DivulgacaoError("Divulgação não encontrada.", 404);
     if (linha.status !== de) throw new DivulgacaoError("Esta divulgação já foi decidida.", 409);
+    // Quem publicou editou depois que a lista foi aberta: decidir agora seria
+    // aprovar (ou recusar) um texto que ninguém leu.
+    if (versao !== null && Number(linha.versao) !== versao) {
+      throw new DivulgacaoError("Quem publicou editou a divulgação. Leia de novo antes de decidir.", 409);
+    }
     if (acao === "aprovar") {
       // Aprovar põe no ar: a rifa e o vínculo precisam continuar valendo.
       const [c] = await tx
@@ -497,7 +608,7 @@ export async function decidir(req: Request, id: string, entrada: unknown) {
       // O relógio do banco, como o "visto" do afiliado: réplicas com relógios
       // diferentes não escondem a decisão do sino dele.
       .set({ status: para, motivo, decididoEm: sql`now()`, decididoPor: req.user?.id ?? null })
-      .where(and(eq(divulgacoes.id, id), eq(divulgacoes.status, de)))
+      .where(and(eq(divulgacoes.id, id), eq(divulgacoes.status, de), eq(divulgacoes.versao, Number(linha.versao))))
       .returning({ id: divulgacoes.id, status: divulgacoes.status, buyerId: divulgacoes.buyerId });
     if (!novo) throw new DivulgacaoError("Esta divulgação já foi decidida.", 409);
     return { id: novo.id, status: novo.status, buyerId: novo.buyerId, motivo, acao, campaignId: linha.campaign_id };
@@ -597,6 +708,7 @@ export async function divulgacoesDaRifa(slug: string) {
       legenda: divulgacoes.legenda,
       midiaIds: divulgacoes.midiaIds,
       criadaEm: divulgacoes.createdAt,
+      editadaEm: divulgacoes.editadaEm,
       affiliateId: divulgacoes.affiliateId,
       codigo: affiliates.code,
       afiliadoAtivo: affiliates.status,
@@ -638,6 +750,7 @@ export async function divulgacoesDaRifa(slug: string) {
       codigo: l.autor === "afiliado" ? l.codigo : null,
       legenda: l.legenda,
       criadaEm: l.criadaEm,
+      editada: Boolean(l.editadaEm),
       // O link de quem divulga (só afiliado): a compra por ele paga a comissão dele.
       link: linkDaDivulgacao(c.slug, l.autor === "afiliado" ? l.codigo : null),
       midias: l.midiaIds

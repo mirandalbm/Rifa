@@ -11,6 +11,8 @@ interface Divulgacao {
   codigo: string | null;
   legenda: string;
   criadaEm: string;
+  /** Quem publicou corrigiu depois (a organização autorizou a versão nova). */
+  editada: boolean;
   link: string;
   midias: { role: string; url: string; poster: string | null; srcSet: string | null; alt: string | null }[];
 }
@@ -42,6 +44,7 @@ export function DivulgacoesDaRifa({ slug }: { slug: string }) {
                 ) : (
                   <span className="font-semibold text-ink">{d.quem}</span>
                 )}
+                {d.editada ? " · Editada" : ""}
               </p>
               {imagens.length ? (
                 <ul className="mt-2 flex gap-2 overflow-x-auto">

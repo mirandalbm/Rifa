@@ -127,6 +127,7 @@ arquitetura.
 | endereço do organizador e ordem da vitrine por região | `shared/endereco.ts` (regra), `salvarEndereco()` em `server/services/orgs.ts`, `server/services/cep.ts`, `client/src/components/EnderecoForm.tsx` |
 | perfil do organizador, seguir e sino | `shared/perfil.ts` (regras), `server/services/perfil.ts`, `client/src/pages/Perfil.tsx`, `client/src/components/Seguir.tsx`, `scripts/perfil-test.ts` |
 | perfil de demonstração (organização de exemplo, sem rifa à venda) | `server/services/demonstracao.ts`, card em `client/src/pages/adminOrganizacoes.tsx` |
+| entidade beneficiada da rifa (ONG, fundação): o banner em cima da rifa e a tela dela | `shared/bannerDivulgacao.ts` (regras, `validarEntidade`), `server/services/bannerDivulgacao.ts`, `/campaigns/:id/banner-divulgacao` em `server/routes/admin.ts` e `/campaigns/:slug/banner-divulgacao` em `server/routes/public.ts`, `campaign_banners_divulgacao` em `shared/schema.ts`, `client/src/components/BannerDivulgacaoCard.tsx` (aba Publicação), `client/src/components/EntidadeBeneficiada.tsx` (banner e tela), `client/src/pages/Rifa.tsx`, `scripts/banner-divulgacao-test.ts` |
 | publicação agendada da rifa (o relógio publica pela `publishCampaign()`) | `instanteAgendado()`/`problemaNaAgendaDaRifa()` em `shared/agenda.ts`, `server/services/publicacaoAgendada.ts`, `PUT /campaigns/:id/agendar-publicacao` em `server/routes/admin.ts`, relógio em `server/jobs/index.ts` (trava 811018), `client/src/components/AgendarPublicacaoCard.tsx`, `scripts/agenda-rifa-test.ts`, `tests/agenda.test.ts` |
 | editar, adiar e excluir rifa (pedido analisado pela plataforma) | `shared/solicitacoes.ts` (regras), `server/services/solicitacoes.ts`, `excluirRifa()` em `server/services/campaigns.ts`, `client/src/components/EditarRifa.tsx`, `client/src/components/SolicitacoesDeRifa.tsx`, `scripts/solicitacoes-test.ts` |
 | endereço curto (`/c/…`) e cliques nos links do perfil (`/l/…`) | `server/services/links.ts`, `client/src/components/LinksCurtos.tsx`, rotas em `server/routes/index.ts`, `scripts/perfil-test.ts` |
@@ -735,6 +736,55 @@ registro estão em `docs/VERSOES.md`.
   descarta a semente ainda não usada; publicar de novo sorteia outra. Com
   comprador, o caminho é o estorno. Só a plataforma (403 no `npm run
   isolation`).
+
+## Entidade beneficiada da rifa — o que não pode afrouxar
+
+Quando o organizador destina a rifa (ou parte dela) a uma ONG, fundação ou
+outra organização, cadastra a **entidade beneficiada**
+(`campaign_banners_divulgacao`, uma por rifa; cartão "Entidade beneficiada"
+na aba Publicação): nome, o que ela faz (os dizeres e as realizações), site,
+redes e uma imagem. **Sem entidade beneficiada, nada aparece em cima da
+rifa.** O banner da rifa (`role banner`) não tem nada com isso: segue sendo a
+capa na vitrine, no feed e na busca e, na página da rifa, abre o carrossel.
+
+- **O banner da entidade** vai em cima da rifa, só a imagem, com os cantos
+  arredondados (3:1). **Tocado, abre a tela da entidade por cima da rifa**
+  (`EntidadeBeneficiada.tsx`): o X no alto ("Fechar e voltar à rifa"), a
+  imagem grande, o nome, o texto e, **na base, as redes e o site**. No
+  celular ocupa a tela; do tablet em diante fica no centro. É diálogo
+  (`role="dialog"`, `aria-modal`, foco no X, o Tab não sai dele, Esc fecha
+  só com o foco dentro, a rifa de trás não rola), e o foco volta ao banner
+  ao fechar. A data do sorteio, o selo e o
+  prêmio ficam como texto embaixo do banner.
+- **Muda a qualquer hora**, antes ou depois de publicar (não é termo da
+  rifa: fora de `LOCKED_AFTER_PUBLISH`), por `PUT
+  /campaigns/:id/banner-divulgacao` — fora do `PATCH`. O recorte é
+  `assertCampaignInScope` (o vizinho é 404 em ler, gravar, retirar e na
+  imagem do painel — no `npm run isolation`).
+- **Só chaves conhecidas** (`validarEntidade()` em
+  `shared/bannerDivulgacao.ts`): nome (3 a 80) e texto (10 a 2000) **sem
+  link e sem telefone** (o site e as redes têm campo próprio), com a
+  varredura do Pix por fora em segundo plano; site só `https:` de domínio de
+  verdade — nunca IP, nunca WhatsApp ou Telegram, nunca telefone no
+  endereço; cada rede **só no domínio dela** e só as de vitrine
+  (`REDES_DA_ENTIDADE`: Instagram, Facebook, YouTube, TikTok, X) — **WhatsApp
+  e Telegram ficam de fora**: conversa direta com quem recebe dinheiro é o
+  caminho do Pix por fora. Os links saem com `rel="noopener noreferrer
+  nofollow ugc"` e "(abre em outra aba)" no rótulo.
+- **As imagens nunca são servidas como vieram**: um envio só, reprocessado
+  (`sharp`, sem metadados, teto de 40 MP) em WebP — o banner 1200×400
+  cortado ao centro e a grande até 1200 px, inteira —, conferido **antes**
+  de gravar; só JPG, PNG ou WebP, até 5 MB (a rota aceita 8 MB de corpo). No
+  banco; sai da rifa pela cascata. Nada lê o que está desenhado na imagem:
+  quem a lê é a plataforma, pela denúncia (o mesmo da capa do perfil).
+- **Público só com a rifa no ar** (`GET
+  /campaigns/:slug/banner-divulgacao`, `?tam=grande` para a grande: rascunho
+  é 404, como toda rota por `slug`; promotora arquivada ou banida também, e
+  aí a página também não entrega nome, texto nem links da entidade).
+  O endereço leva `?v=` da troca, e o cache é `private` de 60 s — cache
+  compartilhado seguiria servindo a rifa que saiu do ar.
+- A tabela sobe com o `db:push` **antes** do código. `npm run
+  banner-divulgacao` prova tudo isso contra a API de verdade.
 
 ## Publicação agendada da rifa — o que não pode afrouxar
 

@@ -1350,6 +1350,30 @@ export const afiliadoFotos = pgTable("afiliado_fotos", {
 });
 
 /**
+ * A entidade beneficiada pela rifa (ONG, fundação, outra organização) e o
+ * banner dela em cima da rifa: só existe quando o organizador destina a rifa
+ * a alguém. Tocado, o banner abre a tela da entidade (imagem grande, texto,
+ * site e redes). Muda a qualquer hora. Uma por rifa; sem ela, nada aparece.
+ * As imagens saem de um envio só, reprocessadas em WebP: o banner 1200×400
+ * (corte ao centro) e a grande até 1200 px de lado, inteira.
+ */
+export const campaignBannersDivulgacao = pgTable("campaign_banners_divulgacao", {
+  campaignId: uuid("campaign_id")
+    .primaryKey()
+    .references(() => campaigns.id, { onDelete: "cascade" }),
+  /** O nome da entidade — também o texto alternativo do banner. */
+  nome: text("nome").notNull(),
+  /** O que a entidade diz de si e o que já fez. */
+  texto: text("texto").notNull(),
+  site: text("site"),
+  redes: jsonb("redes").$type<{ rede: string; link: string }[]>().notNull().default([]),
+  mime: text("mime").notNull(),
+  bytes: bytea("bytes").notNull(),
+  bytesGrande: bytea("bytes_grande").notNull(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+/**
  * Capa do perfil da organização. Mesma regra da foto: no banco, reprocessada
  * (1500×500, WebP, sem metadados) — o arquivo enviado nunca é servido como
  * veio.

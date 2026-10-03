@@ -1,4 +1,5 @@
 import { BarraDeAcoes, Carrossel, Legenda, type Interacoes, type Peca } from "@/components/Publicacao";
+import { BannerDaEntidade, type Entidade } from "@/components/EntidadeBeneficiada";
 import { SeloVerificado } from "@/components/SeloVerificado";
 import { QuemTambemJoga } from "@/components/QuemTambemJoga";
 import { DivulgacoesDaRifa } from "@/components/DivulgacoesDaRifa";
@@ -66,6 +67,8 @@ interface CampaignDetail {
     demonstracao?: boolean;
     travada?: boolean;
     legenda?: string | null;
+    /** A entidade beneficiada (ONG, fundação): o banner em cima da rifa e a tela dela. */
+    bannerDivulgacao?: Entidade | null;
     interacoes?: Interacoes;
   };
   stats: { soldCount: number; reservedCount: number };
@@ -303,11 +306,11 @@ export default function Rifa() {
   }
 
   const { campaign, stats, media, packages } = data;
-  const banner = media.find((m) => m.role === "banner");
-  // Fotos e vídeos na ordem em que entraram (a posição é comum aos dois).
+  // O banner da rifa abre o carrossel, como no feed; depois fotos e vídeos na
+  // ordem em que entraram (a posição é comum aos dois).
   const carrossel: Peca[] = media
-    .filter((m) => m.role !== "banner")
-    .sort((a, b) => a.position - b.position)
+    .slice()
+    .sort((a, b) => Number(b.role === "banner") - Number(a.role === "banner") || a.position - b.position)
     .map((m) => ({
       role: m.role,
       url: m.url,
@@ -371,46 +374,35 @@ export default function Rifa() {
           <SeguirBotoes slug={data.organizacao.slug} compacto />
         </DestaqueOrg>
       ) : null}
-      {/* Banner, vídeo e fotos: a propaganda vem antes de tudo. */}
-      <div
-        className={`relative -mx-4 flex min-h-[150px] flex-col justify-end overflow-hidden p-4 text-branco lg:mx-0 lg:rounded-xl ${banner ? "" : "sem-foto"}`}
-        style={banner ? { background: `center/cover url(${banner.url})` } : undefined}
-      >
-        {/* Véu: a foto do prêmio é imprevisível, o texto precisa ler em cima de qualquer uma. */}
-        <div
-          aria-hidden
-          className="absolute inset-0"
-          style={{
-            background:
-              "linear-gradient(to top, rgba(11,31,20,.88) 0%, rgba(11,31,20,.55) 45%, rgba(11,31,20,.15) 100%)",
-          }}
-        />
-        <p className="relative font-mono text-[11px] uppercase tracking-widest text-yellow">
+      {/* A entidade beneficiada (ONG, fundação): só quando há uma. O banner,
+          tocado, abre a tela dela por cima da rifa. */}
+      {campaign.bannerDivulgacao ? <BannerDaEntidade entidade={campaign.bannerDivulgacao} /> : null}
+      {/* A rifa: data do sorteio, selo do sorteio oficial, adiamento e o prêmio. */}
+      <div>
+        <p className="font-mono text-[11px] uppercase tracking-widest text-yellow-deep">
           {campaign.drawAt
             ? `Sorteio ${new Date(campaign.drawAt).toLocaleDateString("pt-BR")} · ${campaign.sorteioOficial?.loteriaNome ?? "Loteria Federal"}`
             : "Sorteio quando completar · Loteria Federal"}
         </p>
         {campaign.sorteioOficial ? (
           // Selo do sorteio oficial: a rifa entra no sorteio que a plataforma transmite.
-          <p className="relative mt-1.5 flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center gap-1 rounded-full bg-branco/15 px-2 py-0.5 text-[11px] font-bold text-branco">
+          <p className="mt-1.5 flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center gap-1 rounded-full bg-mist px-2 py-0.5 text-[11px] font-bold text-ink">
               <Radio size={12} aria-hidden /> {campaign.sorteioOficial.selo}
             </span>
-            <Link href="/#sorteio" className="inline-flex min-h-6 items-center text-[11px] font-semibold text-branco underline md:hidden">
+            <Link href="/#sorteio" className="inline-flex min-h-6 items-center text-[11px] font-semibold text-marca underline md:hidden">
               Ver o sorteio
             </Link>
           </p>
         ) : null}
         {campaign.adiamentos && campaign.drawAtOriginal ? (
-          <p className="relative mt-1 text-xs text-branco">
+          <p className="mt-1 text-xs text-ink-2">
             Sorteio adiado — a data era{" "}
             <span className="tnum">{new Date(campaign.drawAtOriginal).toLocaleDateString("pt-BR")}</span>. Seus
             números continuam valendo.
           </p>
         ) : null}
-        <h1 className="relative mt-1 font-display text-2xl font-extrabold leading-tight">
-          {campaign.prizeTitle}
-        </h1>
+        <h1 className="mt-1 font-display text-2xl font-extrabold leading-tight">{campaign.prizeTitle}</h1>
       </div>
 
       {/* O carrossel da publicação (fotos e vídeos, até 10 com o banner),

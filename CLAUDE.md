@@ -162,7 +162,7 @@ arquitetura.
 | remodelagem do web e dos painéis: inventário do que existe e lista de conferência | `docs/REMODELAGEM.md` |
 | selo "ao vivo" no story (anel com a transmissão do sorteio) | `transmissaoNoAr()` em `shared/aoVivo.ts` (regra), `transmissoesNoAr()` em `server/services/aoVivo.ts`, `perfisComStory()` e `perfilPublico()` em `server/services/perfil.ts`, `FotoComStory`/`VisualizadorDeStories` em `client/src/components/Stories.tsx`, `tests/seloAoVivo.test.ts`, `scripts/vitrine-test.ts` |
 | tela do sorteio no Início do celular (deslizar para a direita, vídeo e comentários como no YouTube) | `client/src/components/SorteioDoInicio.tsx` (`useSorteioDoInicio`, `BotaoDoSorteio`), a regra do gesto em `client/src/lib/deslizar.ts`, `TelaDoProximoSorteio` em `client/src/components/ColunaAoVivo.tsx`, `antesDaMarca` em `PublicShell`, `tests/deslizar.test.ts` |
-| sorteios oficiais da plataforma (calendário, integrar a rifa, selo, resultado oficial, sorteio automático, outras loterias, troca pelo adiamento, a tela do celular) | `shared/sorteiosOficiais.ts` (regras e loterias), `server/services/sorteiosOficiais.ts`, `sortearRifasDoSorteioOficial()` em `server/services/sortear.ts` (e o relógio em `server/jobs/index.ts`), `pedirAdiamento()` com `sorteioOficialId` em `server/services/solicitacoes.ts`, `/sorteios-oficiais*` e `PUT /campaigns/:id/sorteio-oficial` em `server/routes/admin.ts`, `GET /api/public/sorteio-oficial` em `server/routes/public.ts`, `client/src/pages/adminSorteiosOficiais.tsx`, `ConteudoDoSorteio`/`ContagemDoSorteio` em `client/src/components/SorteioDoInicio.tsx`, `scripts/sorteios-oficiais-test.ts`, `tests/sorteiosOficiais.test.ts` |
+| sorteios oficiais da plataforma (calendário, integrar a rifa, selo, resultado oficial, sorteio automático, outras loterias, troca pelo adiamento, a tela do celular) | `shared/sorteiosOficiais.ts` (regras e loterias), `server/services/sorteiosOficiais.ts`, `sortearRifasDoSorteioOficial()` em `server/services/sortear.ts` (e o relógio em `server/jobs/index.ts`), `pedirAdiamento()` com `sorteioOficialId` em `server/services/solicitacoes.ts`, os comentários em `server/services/sorteioComentarios.ts` (o componente `Comentarios` com `sorteioOficialId`, `scripts/sorteio-comentarios-test.ts`), `/sorteios-oficiais*` e `PUT /campaigns/:id/sorteio-oficial` em `server/routes/admin.ts`, `GET /api/public/sorteio-oficial` em `server/routes/public.ts`, `client/src/pages/adminSorteiosOficiais.tsx`, `ConteudoDoSorteio`/`ContagemDoSorteio` em `client/src/components/SorteioDoInicio.tsx`, `scripts/sorteios-oficiais-test.ts`, `tests/sorteiosOficiais.test.ts` |
 | vitrine no tablet e no computador: coluna ao vivo (tela do sorteio, ganhadores, jogando agora), tela flutuante e rodapé com logos | `shared/aoVivo.ts` (regras), `server/services/aoVivo.ts`, `client/src/components/ColunaAoVivo.tsx`, `client/src/components/RodapeDaPlataforma.tsx`, `validarApoios()` em `shared/template.ts`, `tests/aoVivo.test.ts`, `scripts/vitrine-test.ts` |
 | rodapé da plataforma: colunas de links, redes sociais e espaço de apoio | `shared/rodape.ts` (colunas), `validarRedes()`/`REDES_DO_RODAPE` em `shared/template.ts`, `client/src/components/RodapeDaPlataforma.tsx`, cartão "Redes sociais do rodapé" em `client/src/pages/adminAparencia.tsx`, `preencherRodapeComExemplo()` em `server/services/template.ts`, `tests/rodape.test.ts` |
 | app instalável (PWA): casca, nome e ícone | `client/public/sw.js`, `shared/manifest.ts` (o manifesto montado), `manifestDaPlataforma()`/`iconeDaMarca()` em `server/services/template.ts`, `client/public/manifest.webmanifest` (o de fábrica, se o banco falhar), `client/src/lib/pwa.ts`, `tests/manifest.test.ts`, `scripts/aparencia-test.ts` |
@@ -383,8 +383,8 @@ arquitetura.
     "Voltar ao início", Esc fecha) e a página de baixo não rola.
   - **A tela do celular transmite só o sorteio oficial da plataforma**
     (seção "Sorteios oficiais"), com a fileira horizontal das rifas
-    integradas embaixo do vídeo; a contagem da faixa do estado conta até ele.
-    Os comentários do sorteio oficial são a fase 3.
+    integradas embaixo do vídeo e os comentários do sorteio oficial abertos
+    (seção "Sorteios oficiais"); a contagem da faixa do estado conta até ele.
   - **A faixa do estado no Início do celular**: à esquerda, o seletor de
     estado mostra **só a sigla** (BR para todo o Brasil) e, aberto, a lista
     traz o nome de cada estado — o `<select>` de verdade fica por cima,
@@ -2496,11 +2496,31 @@ coluna ao vivo segue como estava.
   identidade visual e troque só ali.
 - **O selo vai na página da rifa** (`seloDoSorteioOficial()`: "Sorteio
   oficial · Federal 6012 · 02/12", com "Ver o sorteio" no celular).
-- Fica para a fase 3 (`docs/PENDENCIAS.md`): os comentários do sorteio
-  oficial. A tabela e as colunas (`campaigns.sorteio_oficial_id`,
+- **Comentários do sorteio oficial** (`sorteio_comentarios`,
+  `sorteio_comentario_curtidas`, `server/services/sorteioComentarios.ts`,
+  rotas `/sorteio-oficial/:id/comentarios` e `/sorteio-oficial/comentarios/:id`
+  em `server/routes/public.ts`), embaixo do vídeo na tela do celular, como no
+  YouTube: **todo mundo lê; escreve só conta com apelido** (401 sem conta,
+  409 sem apelido). **As regras dos comentários da rifa**: sem link e sem
+  telefone (`problemaNoComentario()`), **emoji só de perfil verificado**
+  (403), uma camada de resposta, curtida pela chave (comentário, pessoa) e o
+  mesmo limite por pessoa (o balde `comentario:comprador:<id>` é o da rifa:
+  comentar no sorteio não abre uma janela a mais). **Não há organização
+  dona**: apaga quem escreveu e a plataforma (o organizador é 404, como o
+  outro apostador), pelo `UPDATE` condicional — dois cliques, um desconto; o
+  do topo leva as respostas. O contador (`sorteios_oficiais.comentarios_count`)
+  anda na mesma transação, nunca `COUNT(*)`. Sorteio cancelado não tem
+  comentários (404). Nome é o apelido (ou o primeiro nome e a inicial) e a
+  foto do perfil — **nunca telefone nem CPF**. A plataforma modera pelo
+  calendário (o botão "Comentários (N)" abre a mesma lista, com "Apagar" em
+  todos). O componente da tela é o mesmo `Comentarios` da rifa, com
+  `sorteioOficialId` (sem o presente, que é da rifa). `npm run
+  sorteio-comentarios` prova.
+- A tabela e as colunas (`campaigns.sorteio_oficial_id`,
   `sorteio_auto_motivo`, `sorteio_auto_em`, `draws.loteria`,
-  `campanha_solicitacoes.sorteio_oficial_novo_id`) sobem com o `db:push`
-  **antes** do código. `npm run sorteios` prova tudo isso, e
+  `campanha_solicitacoes.sorteio_oficial_novo_id`,
+  `sorteios_oficiais.comentarios_count`, `sorteio_comentarios` e
+  `sorteio_comentario_curtidas`) sobem com o `db:push` **antes** do código. `npm run sorteios` prova tudo isso, e
   `npm run isolation` confere que o calendário de cada organização só traz
   as rifas dela.
 

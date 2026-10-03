@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { ChevronLeft, Radio } from "lucide-react";
+import { Comentarios } from "@/components/Comentarios";
 import {
   ATUALIZA_MS,
   TelaDoProximoSorteio,
@@ -24,8 +25,8 @@ const MARCA = "#sorteio";
  * coluna ao vivo já está ao lado do feed). Mora à esquerda da vitrine: abre
  * ao deslizar o dedo para a direita, ou pelo botão do topo, e fecha ao
  * deslizar de volta, pelo "Voltar" ou pelo voltar do aparelho (`#sorteio`).
- * Como no YouTube: o vídeo em cima (com tela cheia) e os comentários da rifa
- * abertos embaixo. O mesmo dado da coluna ao vivo (`/vitrine/ao-vivo`), só
+ * Como no YouTube: o vídeo em cima (com tela cheia), a fileira das rifas
+ * integradas e os comentários do sorteio oficial abertos embaixo. O mesmo dado da coluna ao vivo (`/vitrine/ao-vivo`), só
  * buscado com a tela aberta.
  */
 export function useSorteioDoInicio() {
@@ -326,6 +327,11 @@ function ConteudoDoSorteio({
                 <p className="px-4 text-sm text-muted">Nenhuma rifa integrada a este sorteio ainda.</p>
               )}
             </section>
+            {/* Como no YouTube: embaixo do vídeo, a conversa aberta. Todo mundo
+                lê; quem tem conta e apelido escreve (emoji só verificado). */}
+            <div className="border-t border-line px-4">
+              <Comentarios sorteioOficialId={s.id} />
+            </div>
           </>
         ) : !isLoading ? (
           <p className="px-4 text-sm text-muted">Nenhum sorteio oficial marcado agora.</p>

@@ -407,6 +407,8 @@ export const sorteiosOficiais = pgTable(
     canceladoEm: timestamp("cancelado_em"),
     criadoPor: uuid("criado_por"),
     criadoEm: timestamp("criado_em").notNull().defaultNow(),
+    /** Comentários no ar — anda na mesma transação que grava ou apaga (nunca `COUNT(*)`). */
+    comentariosCount: integer("comentarios_count").notNull().default(0),
   },
   // O mesmo concurso não entra duas vezes: o índice decide, não um SELECT antes.
   (t) => [uniqueIndex("uq_sorteio_oficial_concurso").on(t.loteria, t.concurso), index("idx_sorteios_oficiais_data").on(t.sorteioEm)],
@@ -1460,6 +1462,48 @@ export const comentarios = pgTable(
     index("idx_comentarios_rifa").on(t.campaignId, t.createdAt),
     index("idx_comentarios_parent").on(t.parentId),
   ],
+);
+
+/**
+ * Comentários do sorteio oficial da plataforma (a tela do sorteio no
+ * celular). Só apostador com conta e apelido escreve; quem não tem conta lê.
+ * As mesmas regras dos comentários da rifa (`shared/comentarios.ts`), sem
+ * organização dona: quem modera é a plataforma.
+ */
+export const sorteioComentarios = pgTable(
+  "sorteio_comentarios",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    sorteioOficialId: uuid("sorteio_oficial_id")
+      .notNull()
+      .references(() => sorteiosOficiais.id, { onDelete: "cascade" }),
+    parentId: uuid("parent_id"),
+    buyerId: uuid("buyer_id").references(() => buyers.id, { onDelete: "set null" }),
+    texto: text("texto").notNull(),
+    curtidas: integer("curtidas").notNull().default(0),
+    removidoEm: timestamp("removido_em"),
+    removidoPor: uuid("removido_por"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    index("idx_sorteio_comentarios").on(t.sorteioOficialId, t.createdAt),
+    index("idx_sorteio_comentarios_parent").on(t.parentId),
+  ],
+);
+
+/** Uma curtida por pessoa e comentário do sorteio: a chave decide. */
+export const sorteioComentarioCurtidas = pgTable(
+  "sorteio_comentario_curtidas",
+  {
+    comentarioId: uuid("comentario_id")
+      .notNull()
+      .references(() => sorteioComentarios.id, { onDelete: "cascade" }),
+    buyerId: uuid("buyer_id")
+      .notNull()
+      .references(() => buyers.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.comentarioId, t.buyerId] })],
 );
 
 /** Uma curtida por pessoa e comentário: a chave decide, não um `SELECT` antes. */

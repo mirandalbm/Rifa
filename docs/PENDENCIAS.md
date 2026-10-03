@@ -585,9 +585,11 @@ Na ordem de entrega do plano:
   tenta de novo; as quatro loterias recebem rifa (o número sai do resultado
   da loteria, e o regulamento e a conferência pública dizem qual); e o
   adiamento pode levar a rifa publicada para outro sorteio oficial, só com
-  a aprovação da plataforma. **Falta:** fase 3 — comentários próprios do
-  sorteio oficial (a tela do celular está sem comentários até lá); conferir
-  as cores de `CORES_DA_CAIXA` contra o manual de identidade visual das
+  a aprovação da plataforma. **Fase 3 feita:** os comentários do sorteio
+  oficial, embaixo do vídeo na tela do celular (todo mundo lê; conta com
+  apelido escreve; emoji só verificado; a plataforma modera pelo
+  calendário). **Falta:** denúncia de comentário do sorteio pelo apostador
+  (hoje só a plataforma apaga, olhando a lista); conferir as cores de `CORES_DA_CAIXA` contra o manual de identidade visual das
   Loterias Caixa; e o advogado confirmar que a autorização SPA/MF da rifa
   aceita apuração pela Mega-Sena, Quina ou Lotofácil (hoje a plataforma
   deixa a organização escolher — a autorização é dela, invariante 9).

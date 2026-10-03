@@ -4,6 +4,12 @@ import { conferirRecibo } from "../services/recibos";
 import { denunciar } from "../services/seguranca";
 import { fotoDoApostador, meuPerfilPublico, perfilPublicoDoApostador, quemTambemJoga, salvarPerfilPublico } from "../services/perfilApostador";
 import { apagarComentario, comentar, curtirComentario, listarComentarios } from "../services/comentarios";
+import {
+  apagarComentarioDoSorteio,
+  comentarNoSorteio,
+  curtirComentarioDoSorteio,
+  listarComentariosDoSorteio,
+} from "../services/sorteioComentarios";
 import { marcarTodasLidas, naoLidas, notificacoesDe } from "../services/notificacoes";
 import { aderir, pedirColaboracao, termoPublico } from "../services/afiliados";
 import {
@@ -2330,6 +2336,43 @@ publicRouter.get("/sorteio-oficial", async (_req, res, next) => {
   try {
     res.setHeader("Cache-Control", "no-store");
     res.json(await sorteioOficialDaTela());
+  } catch (err) {
+    next(err);
+  }
+});
+
+/*
+ * Comentários do sorteio oficial: todo mundo lê; escreve quem tem conta e
+ * apelido; apaga quem escreveu e a plataforma (services/sorteioComentarios.ts).
+ */
+publicRouter.get("/sorteio-oficial/:id/comentarios", async (req, res, next) => {
+  try {
+    res.setHeader("Cache-Control", "private, no-store");
+    res.json(await listarComentariosDoSorteio(req, req.params.id));
+  } catch (err) {
+    next(err);
+  }
+});
+
+publicRouter.post("/sorteio-oficial/:id/comentarios", async (req, res, next) => {
+  try {
+    res.status(201).json(await comentarNoSorteio(req, req.params.id, { texto: req.body?.texto, respostaA: req.body?.respostaA }));
+  } catch (err) {
+    next(err);
+  }
+});
+
+publicRouter.delete("/sorteio-oficial/comentarios/:id", async (req, res, next) => {
+  try {
+    res.json(await apagarComentarioDoSorteio(req, req.params.id));
+  } catch (err) {
+    next(err);
+  }
+});
+
+publicRouter.put("/sorteio-oficial/comentarios/:id/curtida", async (req, res, next) => {
+  try {
+    res.json(await curtirComentarioDoSorteio(req, req.params.id, req.body?.curtir === true));
   } catch (err) {
     next(err);
   }

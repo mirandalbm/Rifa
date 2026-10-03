@@ -51,6 +51,7 @@
     "patrocinio": "tsx scripts/patrocinio-test.ts",
     "banner": "tsx scripts/banner-pago-test.ts",
     "sorteios": "tsx scripts/sorteios-oficiais-test.ts",
+    "sorteio-comentarios": "tsx scripts/sorteio-comentarios-test.ts",
     "ia": "tsx scripts/ia-test.ts",
     "ia-acoes": "tsx scripts/ia-acoes-test.ts",
     "google": "tsx scripts/google-test.ts",

@@ -50,6 +50,7 @@ function paraTela(s: Linha) {
     resultado: s.resultado,
     resultadoEm: s.resultadoEm,
     situacao: situacaoDoSorteio(s),
+    comentarios: s.comentariosCount,
   };
 }
 

@@ -14,6 +14,10 @@ import {
   DIVULGACAO_FOTOS_MAX,
   validarDivulgacao,
   validarModo,
+  validarVideo,
+  problemaNoVideoDaDivulgacao,
+  DIVULGACAO_VIDEO_MAX_BYTES,
+  DIVULGACAO_VIDEO_MAX_SEGUNDOS,
 } from "../shared/divulgacao";
 import { quemPublica } from "../shared/console";
 
@@ -175,5 +179,37 @@ describe("agendar a peça", () => {
     expect(pecaNoArAgora("publicada", "2026-10-03T11:00:00Z", agora)).toBe(true);
     expect(pecaNoArAgora("publicada", "2026-10-03T13:00:00Z", agora)).toBe(false);
     expect(pecaNoArAgora("em_analise", null, agora)).toBe(false);
+  });
+});
+
+describe("vídeo próprio do afiliado", () => {
+  it("ausente mantém, vazio ou null tira, só MP4/MOV em data URL", () => {
+    expect(validarVideo(undefined)).toBeUndefined();
+    expect(validarVideo(null)).toBeNull();
+    expect(validarVideo("")).toBeNull();
+    expect(validarVideo("data:video/mp4;base64,AAAA")).toBe("data:video/mp4;base64,AAAA");
+    expect(validarVideo("data:video/quicktime;base64,AAAA")).toBe("data:video/quicktime;base64,AAAA");
+    expect(() => validarVideo("data:video/webm;base64,AAAA")).toThrow();
+    expect(() => validarVideo("https://outro.site/v.mp4")).toThrow();
+    expect(() => validarVideo(123)).toThrow();
+  });
+
+  it("mede no servidor: duração, tamanho e medidas; em pé ou deitado", () => {
+    const pe = { width: 1080, height: 1920 };
+    expect(problemaNoVideoDaDivulgacao(1000, 20, pe)).toBeNull();
+    expect(problemaNoVideoDaDivulgacao(1000, 20, { width: 1920, height: 1080 })).toBeNull();
+    expect(problemaNoVideoDaDivulgacao(1000, DIVULGACAO_VIDEO_MAX_SEGUNDOS + 1, pe)).toMatch(/segundos/);
+    expect(problemaNoVideoDaDivulgacao(DIVULGACAO_VIDEO_MAX_BYTES + 1, 10, pe)).toMatch(/MB/);
+    expect(problemaNoVideoDaDivulgacao(1000, 0, pe)).toMatch(/duração/);
+    expect(problemaNoVideoDaDivulgacao(1000, Number.NaN, pe)).toMatch(/duração/);
+    expect(problemaNoVideoDaDivulgacao(1000, 10, null)).toMatch(/tamanho/);
+  });
+
+  it("peça com vídeo próprio passa pela organização mesmo no modo direto", () => {
+    expect(statusInicial("afiliado", "direta", true)).toBe("em_analise");
+  });
+
+  it("o vídeo conta como conteúdo da peça do afiliado", () => {
+    expect(validarDivulgacao("afiliado", { legenda: "" }, 1).legenda).toBe("");
   });
 });

@@ -12,6 +12,7 @@ import {
   index,
   uniqueIndex,
   primaryKey,
+  real,
 } from "drizzle-orm/pg-core";
 import { relations, sql } from "drizzle-orm";
 import { customType } from "drizzle-orm/pg-core";
@@ -2953,6 +2954,29 @@ export const divulgacaoFotos = pgTable(
   },
   (t) => [uniqueIndex("uq_divulgacao_foto_posicao").on(t.divulgacaoId, t.posicao)],
 );
+
+/**
+ * O vídeo próprio do afiliado na peça de divulgação (um por peça, no lugar das
+ * fotos). Vai como veio (sem transcode), medido no servidor: duração e
+ * medidas saem do arquivo, nunca do navegador. A peça com vídeo sempre passa
+ * pela organização (a varredura do Pix por fora só lê texto). Recusada ou
+ * retirada, o vídeo sai na mesma transação. O pôster vem depois, em segundo
+ * plano, e fica nulo se não houver `ffmpeg`.
+ */
+export const divulgacaoVideos = pgTable("divulgacao_videos", {
+  divulgacaoId: uuid("divulgacao_id")
+    .primaryKey()
+    .references(() => divulgacoes.id, { onDelete: "cascade" }),
+  /** Muda a cada troca: o pôster só grava no vídeo que ele veio tirar. */
+  id: uuid("id").notNull().defaultRandom(),
+  mime: text("mime").notNull(),
+  bytes: bytea("bytes").notNull(),
+  segundos: real("segundos").notNull(),
+  largura: integer("largura").notNull(),
+  altura: integer("altura").notNull(),
+  poster: bytea("poster"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
 
 /* ------------------------------------------------------------------ *
  * Assistente de IA (Chatbase) — conversa e uso

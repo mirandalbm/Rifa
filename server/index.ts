@@ -150,15 +150,19 @@ app.use(
   express.json({ limit: "8mb" }),
 );
 // A peça do apostador e a do afiliado levam até 4 fotos de 3 MB (a tela já
-// reduz a foto do celular). Só o POST da peça e o PATCH da edição: o resto de
-// `/api/public/divulgacoes*` e `/api/affiliate/divulgacoes*` segue em 1 MB.
+// reduz a foto do celular); a do afiliado, no lugar das fotos, um vídeo de até
+// 15 MB (em base64, ~20 MB — foto ou vídeo, nunca os dois). Só o POST da peça e
+// o PATCH da edição: o resto de `/api/public/divulgacoes*` e
+// `/api/affiliate/divulgacoes*` segue em 1 MB.
 const corpoDaPecaComFotos = express.json({ limit: "18mb" });
-app.use((req, res, next) =>
-  (req.method === "POST" && /^\/api\/(public|affiliate)\/divulgacoes$/.test(req.path)) ||
-  (req.method === "PATCH" && /^\/api\/(public|affiliate)\/divulgacoes\/[0-9a-f-]{36}$/i.test(req.path))
-    ? corpoDaPecaComFotos(req, res, next)
-    : next(),
-);
+const corpoDaPecaComVideo = express.json({ limit: "22mb" });
+app.use((req, res, next) => {
+  const peca =
+    (req.method === "POST" && /^\/api\/(public|affiliate)\/divulgacoes$/.test(req.path)) ||
+    (req.method === "PATCH" && /^\/api\/(public|affiliate)\/divulgacoes\/[0-9a-f-]{36}$/i.test(req.path));
+  if (!peca) return next();
+  return req.path.startsWith("/api/affiliate/") ? corpoDaPecaComVideo(req, res, next) : corpoDaPecaComFotos(req, res, next);
+});
 // Story em vídeo: até 15 MB em base64 (sem transcode, o arquivo vai como veio).
 app.use("/api/admin/stories", express.json({ limit: "22mb" }));
 // O perfil pode levar foto e capa juntas (até 5 MB cada, em base64).

@@ -21,3 +21,35 @@ export function enviarComFaixa(req: Request, res: Response, bytes: Buffer, mime:
   res.status(206).setHeader("Content-Range", `bytes ${ini}-${fim}/${total}`);
   res.send(bytes.subarray(ini, fim + 1));
 }
+
+/** Um arquivo do banco lido aos pedaços: o tipo, o tamanho e como ler uma faixa. */
+export interface ArquivoEmFaixas {
+  mime: string;
+  total: number;
+  ler(ini: number, tamanho: number): Promise<Buffer>;
+}
+
+/**
+ * Como `enviarComFaixa`, mas lê do banco **só a faixa pedida**: o Safari pede
+ * o vídeo em vários pedaços por play, e trazer o arquivo inteiro do Postgres a
+ * cada pedaço multiplicaria a memória pelo número de visitas.
+ */
+export async function enviarFaixaDoBanco(req: Request, res: Response, a: ArquivoEmFaixas) {
+  res.type(a.mime);
+  const video = a.mime.startsWith("video/");
+  res.setHeader("Accept-Ranges", video ? "bytes" : "none");
+  const faixa = video ? /^bytes=(\d*)-(\d*)$/.exec(String(req.headers.range ?? "")) : null;
+  if (!faixa) return void res.send(await a.ler(0, a.total));
+  const total = a.total;
+  let ini = faixa[1] ? Number(faixa[1]) : total - Number(faixa[2] || 0);
+  let fim = faixa[1] && faixa[2] ? Number(faixa[2]) : total - 1;
+  ini = Math.max(0, ini);
+  fim = Math.min(fim, total - 1);
+  if (!(ini <= fim)) {
+    res.setHeader("Content-Range", `bytes */${total}`);
+    return void res.status(416).end();
+  }
+  const pedaco = await a.ler(ini, fim - ini + 1);
+  res.status(206).setHeader("Content-Range", `bytes ${ini}-${fim}/${total}`);
+  res.send(pedaco);
+}

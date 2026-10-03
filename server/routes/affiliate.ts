@@ -22,7 +22,8 @@ import { cadastroAprovado, documento, estadoFiscal, salvarDadosFiscais, salvarDo
 import { pdfDoRecibo, reciboPorCodigo } from "../services/recibos";
 import { urlDeConferencia } from "../services/urls";
 import { aderir, comissaoNaRifa, organizacoesDoAfiliado, sair } from "../services/afiliados";
-import { decididasParaOAfiliado, editarComoAfiliado, fotoDaPecaDoAfiliado, marcarVistoDoAfiliado, minhasDoAfiliado, publicarComoAfiliado, retirarPropria, rifasParaDivulgar } from "../services/divulgacao";
+import { decididasParaOAfiliado, editarComoAfiliado, fotoDaPecaDoAfiliado, videoDaPecaDoAfiliado, marcarVistoDoAfiliado, minhasDoAfiliado, publicarComoAfiliado, retirarPropria, rifasParaDivulgar } from "../services/divulgacao";
+import { enviarComFaixa, enviarFaixaDoBanco } from "../services/faixa";
 import { guardLogin, identify } from "../services/antifraude";
 import QRCode from "qrcode";
 import { affiliateId, verifyPassword } from "../auth";
@@ -596,6 +597,18 @@ affiliateRouter.get("/divulgacoes/:id/fotos/:fotoId", async (req, res, next) => 
     res.setHeader("Cache-Control", "private, no-store");
     res.setHeader("X-Content-Type-Options", "nosniff");
     res.type("image/jpeg").send(bytes);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** O vídeo próprio da peça (ou o pôster, `?poster=1`), para o afiliado que publicou. O de outro é 404; nunca em cache; com `Range`. */
+affiliateRouter.get("/divulgacoes/:id/video", async (req, res, next) => {
+  try {
+    const v = await videoDaPecaDoAfiliado(affiliateId(req), req.params.id, req.query.poster === "1");
+    res.setHeader("Cache-Control", "private, no-store");
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    await enviarFaixaDoBanco(req, res, v);
   } catch (err) {
     next(err);
   }

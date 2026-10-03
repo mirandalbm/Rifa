@@ -1,6 +1,7 @@
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { BotaoMensagem } from "@/components/BotaoMensagem";
+import { VideoDaDivulgacao, type VideoDaPeca } from "@/components/VideoProprio";
 
 interface Divulgacao {
   id: string;
@@ -15,6 +16,8 @@ interface Divulgacao {
   editada: boolean;
   /** Fotos de quem publicou (apostador ou afiliado), autorizadas pela organização. */
   fotos: string[];
+  /** O vídeo do afiliado (no lugar das fotos), autorizado pela organização. */
+  video: VideoDaPeca | null;
   link: string;
   midias: { role: string; url: string; poster: string | null; srcSet: string | null; alt: string | null }[];
 }
@@ -66,6 +69,11 @@ export function DivulgacoesDaRifa({ slug }: { slug: string }) {
                     </li>
                   ))}
                 </ul>
+              ) : null}
+              {d.video ? (
+                <div className="mt-2">
+                  <VideoDaDivulgacao video={d.video} rotulo={`Vídeo de ${d.quem}`} />
+                </div>
               ) : null}
               {d.legenda ? <p className="mt-2 whitespace-pre-line break-words">{d.legenda}</p> : null}
               {d.autor === "afiliado" ? (

@@ -1,6 +1,6 @@
 import { seloDaRifa, sorteioOficialDaTela } from "../services/sorteiosOficiais";
 import { bannerPublico, imagemPublica } from "../services/bannerDivulgacao";
-import { enviarComFaixa } from "../services/faixa";
+import { enviarComFaixa, enviarFaixaDoBanco } from "../services/faixa";
 import { loteriaDoSorteio } from "@shared/sorteiosOficiais";
 import { conferirRecibo } from "../services/recibos";
 import { denunciar } from "../services/seguranca";
@@ -20,6 +20,7 @@ import {
   editarComoApostador,
   fotoDoAutor,
   fotoPublica,
+  videoPublico,
   minhasDoApostador,
   publicarComoApostador,
   retirarPropriaDoApostador,
@@ -2639,6 +2640,18 @@ publicRouter.get("/divulgacoes/:id/fotos/:fotoId", async (req, res, next) => {
     res.setHeader("Cache-Control", "private, max-age=60");
     res.setHeader("X-Content-Type-Options", "nosniff");
     res.type("image/jpeg").send(bytes);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** O vídeo da peça no ar (ou o pôster, `?poster=1`), com a mesma régua da foto pública e com `Range`. */
+publicRouter.get("/divulgacoes/:id/video", async (req, res, next) => {
+  try {
+    const v = await videoPublico(req.params.id, req.query.poster === "1");
+    res.setHeader("Cache-Control", "private, max-age=60");
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    await enviarFaixaDoBanco(req, res, v);
   } catch (err) {
     next(err);
   }

@@ -727,6 +727,31 @@ async function conteudoDasListas(eu: Lado, vizinho: Lado) {
     `${avisos.length} aviso(s)`,
   );
   checa("o sino não traz telefone", !JSON.stringify(avisos).includes("11960000"));
+  // O sino do afiliado (divulgações decididas) é só do afiliado: o organizador
+  // não lê nem marca o "visto" de ninguém por essa porta.
+  for (const [metodo, caminho] of [["GET", "/api/affiliate/divulgacoes/novidades"], ["POST", "/api/affiliate/avisos/vistos"]] as const) {
+    const r = await pedir(eu.cookie, caminho, { method: metodo });
+    checa(`${metodo} ${caminho}: organizador recusado (403)`, r.status === 403, `HTTP ${r.status}`);
+    const v = await pedir("", caminho, { method: metodo });
+    checa(`${metodo} ${caminho}: visitante recusado (401)`, v.status === 401, `HTTP ${v.status}`);
+  }
+  // O número da fila de divulgações no sino é o da minha organização.
+  // Uma peça esperando a autorização do vizinho não entra no meu número.
+  const antesDoSino = (await (await pedir(eu.cookie, "/api/admin/chamados/pendentes")).json()) as { divulgacoes?: number };
+  const [pecaDoVizinho] = await db
+    .insert(divulgacoes)
+    .values({ campaignId: vizinho.campaignId, organizationId: vizinho.orgId, autor: "apostador", legenda: "peça do vizinho", status: "em_analise" })
+    .returning({ id: divulgacoes.id });
+  try {
+    const depoisDoSino = (await (await pedir(eu.cookie, "/api/admin/chamados/pendentes")).json()) as { divulgacoes?: number };
+    checa(
+      "a peça esperando o vizinho não entra no número do meu sino",
+      typeof antesDoSino.divulgacoes === "number" && depoisDoSino.divulgacoes === antesDoSino.divulgacoes,
+      `${antesDoSino.divulgacoes} → ${depoisDoSino.divulgacoes}`,
+    );
+  } finally {
+    await db.delete(divulgacoes).where(eq(divulgacoes.id, pecaDoVizinho.id));
+  }
 
   const painel = await (await pedir(eu.cookie, "/api/admin/overview")).json();
   const meu = 5000 * (eu.nome === "norte" ? 1 : 2);

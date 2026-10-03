@@ -68,6 +68,11 @@ export function validarDecisao(entrada: unknown): { acao: AcaoDaDecisao; motivo:
   if (motivo.length > MOTIVO_MAX) throw new Error(`O motivo passa de ${MOTIVO_MAX} caracteres.`);
   // Quem escreve a peça lê o motivo: recusar e retirar sem explicar é só silêncio.
   if ((acao === "recusar" || acao === "remover") && motivo.length < 3) throw new Error("Diga o motivo, para quem publicou entender.");
+  // O motivo vai no push e no trevo de quem publicou: a régua da legenda
+  // (sem link e sem telefone) vale aqui também — senão seria o canal do
+  // "chama no zap" escrito pela organização.
+  const problema = motivo ? problemaNaLegenda(motivo) : null;
+  if (problema) throw new Error(problema);
   return { acao, motivo: motivo || null };
 }
 
@@ -104,4 +109,18 @@ export function validarDivulgacao(autor: AutorDaDivulgacao, bruto: unknown): Ent
 /** O link da divulgação: a rifa com o código de quem divulga (só afiliado). */
 export function linkDaDivulgacao(slug: string, codigoDoAfiliado: string | null): string {
   return codigoDoAfiliado ? `/r/${slug}?ref=${encodeURIComponent(codigoDoAfiliado)}` : `/r/${slug}`;
+}
+
+/**
+ * O aviso a quem publicou quando a organização decide a peça (push e trevo do
+ * apostador; o afiliado vê o número no sino do painel). Só a decisão da
+ * organização avisa: o que a própria pessoa retirou não vira aviso. O motivo
+ * vai no corpo — quem escreveu precisa entender a recusa.
+ */
+export function avisoDaDecisao(status: StatusDaDivulgacao, rifa: string, motivo: string | null): { title: string; body: string } | null {
+  const comMotivo = (t: string) => (motivo ? `${t} Motivo: ${motivo}` : t);
+  if (status === "publicada") return { title: "Sua divulgação está no ar", body: `A organização aprovou a sua divulgação de ${rifa}.` };
+  if (status === "recusada") return { title: "Divulgação recusada", body: comMotivo(`A organização recusou a sua divulgação de ${rifa}.`) };
+  if (status === "removida") return { title: "Divulgação retirada", body: comMotivo(`A organização tirou do ar a sua divulgação de ${rifa}.`) };
+  return null;
 }

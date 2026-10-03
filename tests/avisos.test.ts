@@ -19,6 +19,8 @@ describe("avisos do painel", () => {
     expect(rotuloDoSino(0, 1)).toBe("Avisos: 1 pendente no atendimento");
     expect(rotuloDoSino(0, 0, 1)).toBe("Avisos: 1 mensagem não lida");
     expect(rotuloDoSino(2, 1, 3)).toBe("Avisos: 3 mensagens não lidas, 2 comentários novos, 1 pendente no atendimento");
+    expect(rotuloDoSino(0, 0, 0, { paraAutorizar: 2 })).toBe("Avisos: 2 divulgações para autorizar");
+    expect(rotuloDoSino(0, 0, 0, { decididas: 1 })).toBe("Avisos: 1 divulgação decidida");
   });
 
   it("o aviso abre a publicação já nos comentários", () => {

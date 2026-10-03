@@ -18,7 +18,7 @@
  *   texto, só de rifa em que tem compra paga, e sempre com autorização.
  */
 import type { Request } from "express";
-import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm";
 import { db } from "../db";
 import {
   afiliadoVinculos,
@@ -43,13 +43,15 @@ import {
   validarModo,
   type AutorDaDivulgacao,
   type ModoDeDivulgacao,
+  avisoDaDecisao,
+  type StatusDaDivulgacao,
 } from "@shared/divulgacao";
 import { pedePagamentoPorFora } from "@shared/seguranca";
 import { nomeCurto } from "@shared/aoVivo";
 import { orgOf } from "./orgs";
 import { hit } from "./antifraude";
 import { comissaoNaRifa } from "./afiliados";
-import { emSegundoPlano } from "./push";
+import { avisar, emSegundoPlano } from "./push";
 import { varrerTextoDoOrganizador } from "./seguranca";
 import { getPlataforma } from "./settings";
 import { withUrls } from "./media";
@@ -368,7 +370,9 @@ export async function retirarPropria(dono: { affiliateId: string } | { buyerId: 
   const dono_ = "affiliateId" in dono ? eq(divulgacoes.affiliateId, dono.affiliateId) : eq(divulgacoes.buyerId, dono.buyerId);
   const [r] = await db
     .update(divulgacoes)
-    .set({ status: "removida", decididoEm: new Date() })
+    // Quem retirou foi o próprio autor: `decidido_por` nulo — senão a peça que a
+    // organização tinha aprovado contaria como decisão dela no sino do afiliado.
+    .set({ status: "removida", decididoEm: new Date(), decididoPor: null })
     .where(and(eq(divulgacoes.id, id), dono_, inArray(divulgacoes.status, ["em_analise", "publicada"])))
     .returning({ id: divulgacoes.id });
   if (!r) throw new DivulgacaoError("Divulgação não encontrada.", 404);
@@ -463,7 +467,7 @@ export async function decidir(req: Request, id: string, entrada: unknown) {
   const { acao, motivo } = regra(() => validarDecisao(entrada));
   const { de, para } = DE_PARA_DA_DECISAO[acao];
   const org = orgOf(req);
-  return db.transaction(async (tx: Tx) => {
+  const decidida = await db.transaction(async (tx: Tx) => {
     const r = await tx.execute(sql`select id, organization_id, campaign_id, autor, affiliate_id, status from divulgacoes where id = ${id} for update`);
     const linha = r.rows[0] as
       | { id: string; organization_id: string; campaign_id: string; autor: string; affiliate_id: string | null; status: string }
@@ -490,12 +494,64 @@ export async function decidir(req: Request, id: string, entrada: unknown) {
     }
     const [novo] = await tx
       .update(divulgacoes)
-      .set({ status: para, motivo, decididoEm: new Date(), decididoPor: req.user?.id ?? null })
+      // O relógio do banco, como o "visto" do afiliado: réplicas com relógios
+      // diferentes não escondem a decisão do sino dele.
+      .set({ status: para, motivo, decididoEm: sql`now()`, decididoPor: req.user?.id ?? null })
       .where(and(eq(divulgacoes.id, id), eq(divulgacoes.status, de)))
-      .returning({ id: divulgacoes.id, status: divulgacoes.status });
+      .returning({ id: divulgacoes.id, status: divulgacoes.status, buyerId: divulgacoes.buyerId });
     if (!novo) throw new DivulgacaoError("Esta divulgação já foi decidida.", 409);
-    return { ...novo, acao, campaignId: linha.campaign_id };
+    return { id: novo.id, status: novo.status, buyerId: novo.buyerId, motivo, acao, campaignId: linha.campaign_id };
   });
+  // Quem publicou fica sabendo, fora da transação: aviso nunca derruba a decisão.
+  // Leva o que ESTA transação decidiu — reler a linha depois pegaria a retirada
+  // que o próprio autor fez logo em seguida e mandaria o aviso errado.
+  if (decidida.buyerId) {
+    emSegundoPlano(
+      avisarAutorDaDecisao({ id, buyerId: decidida.buyerId, status: decidida.status as StatusDaDivulgacao, motivo, campaignId: decidida.campaignId }),
+      "aviso da divulgação",
+    );
+  }
+  return { id: decidida.id, status: decidida.status, acao: decidida.acao, campaignId: decidida.campaignId };
+}
+
+/**
+ * O apostador recebe push e o aviso no trevo (a chave leva a situação: a mesma
+ * decisão não avisa duas vezes). O afiliado não tem push — vê o número no sino
+ * do painel (`decididasParaOAfiliado`). Sem telefone nem nome no aviso.
+ */
+async function avisarAutorDaDecisao(d: { id: string; buyerId: string; status: StatusDaDivulgacao; motivo: string | null; campaignId: string }) {
+  const [c] = await db.select({ titulo: campaigns.title }).from(campaigns).where(eq(campaigns.id, d.campaignId));
+  if (!c) return;
+  const texto = avisoDaDecisao(d.status, c.titulo, d.motivo);
+  if (!texto) return;
+  await avisar([d.buyerId], "divulgacao", `${d.id}:${d.status}`, { ...texto, url: "/publicar", tag: `divulgacao-${d.id}` });
+}
+
+/**
+ * Quantas peças do afiliado a organização decidiu desde a última vez que ele
+ * abriu o sino (`users.avisos_vistos_em`, o mesmo "visto" do painel). Só a
+ * decisão da organização (`decidido_por`), nunca o que ele mesmo retirou.
+ */
+export async function decididasParaOAfiliado(affiliateId: string, userId: string): Promise<number> {
+  const [r] = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(divulgacoes)
+    .innerJoin(users, eq(users.id, userId))
+    .where(
+      and(
+        eq(divulgacoes.affiliateId, affiliateId),
+        isNotNull(divulgacoes.decididoPor),
+        isNotNull(divulgacoes.decididoEm),
+        sql`${divulgacoes.decididoEm} > coalesce(${users.avisosVistosEm}, '-infinity'::timestamp)`,
+      ),
+    );
+  return r?.n ?? 0;
+}
+
+/** O afiliado abriu o sino: o que já foi decidido fica visto, para ele. */
+export async function marcarVistoDoAfiliado(userId: string) {
+  // O relógio do banco, o mesmo de `decidido_em`.
+  await db.update(users).set({ avisosVistosEm: sql`now()` }).where(eq(users.id, userId));
 }
 
 /* ------------------------------------------------------------------ *

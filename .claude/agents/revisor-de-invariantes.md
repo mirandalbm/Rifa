@@ -57,7 +57,9 @@ Procure, nesta ordem, o que é **grave**:
     edição sem conferir a `versao` lida (aprovar um texto que ninguém viu);
     foto de peça servida sem a régua da porta (pública só no ar, painel no
     recorte, autor só a dele) ou gravada sem reprocessar; foto que fica no banco depois de a peça ser
-    recusada ou retirada.
+    recusada ou retirada; peça com foto própria (do apostador ou do afiliado)
+    que vai ao ar sem passar pela organização, inclusive no modo direto e na
+    edição.
 
 12. **Assistente de IA** (seção "Assistente de IA"): `CHATBASE_API_KEY` em
     resposta, log, URL ou cliente; script do Chatbase voltando ao painel;

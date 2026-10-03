@@ -735,6 +735,8 @@ async function conteudoDasListas(eu: Lado, vizinho: Lado) {
     ["POST", "/api/affiliate/avisos/vistos"],
     // Editar é de quem publicou: o organizador não corrige a peça de afiliado por esta porta.
     ["PATCH", "/api/affiliate/divulgacoes/00000000-0000-0000-0000-000000000000"],
+    // A foto da peça do afiliado, pela porta dele, é só dele.
+    ["GET", "/api/affiliate/divulgacoes/00000000-0000-0000-0000-000000000000/fotos/00000000-0000-0000-0000-000000000000"],
   ] as const) {
     const r = await pedir(eu.cookie, caminho, { method: metodo });
     checa(`${metodo} ${caminho}: organizador recusado (403)`, r.status === 403, `HTTP ${r.status}`);

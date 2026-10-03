@@ -4,11 +4,11 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft } from "lucide-react";
 import { PublicShell } from "@/components/AppShell";
 import { Button, Campo, Pill } from "@/components/bits";
+import { FotosProprias, useFotosProprias } from "@/components/FotosProprias";
 import { apiRequest } from "@/lib/queryClient";
 import { useConfigDoApp } from "@/components/Console";
 import { useSession } from "@/lib/session";
 import { DIVULGACAO_FOTOS_MAX, STATUS_DA_DIVULGACAO, podeEditar, type StatusDaDivulgacao } from "@shared/divulgacao";
-import { lerFoto } from "@/lib/anexo";
 import { LEGENDA_MAX } from "@shared/publicacao";
 import { PILL_DA_DIVULGACAO } from "@/pages/afiliadoDivulgar";
 
@@ -42,41 +42,19 @@ export default function Publicar() {
   const [msg, setMsg] = useState<{ ok: boolean; texto: string } | null>(null);
   // O texto que está sendo corrigido (nulo: publicação nova).
   const [editando, setEditando] = useState<{ id: string; versao: number } | null>(null);
-  // As fotos escolhidas agora (já reduzidas no aparelho). Na edição, `fotosAtuais`
-  // são as da peça: só vão de novo se a pessoa trocar (`trocouFotos`).
-  const [fotos, setFotos] = useState<string[]>([]);
-  const [fotosAtuais, setFotosAtuais] = useState<string[]>([]);
-  const [trocouFotos, setTrocouFotos] = useState(false);
-
-  const escolherFotos = async (arquivos: FileList | null) => {
-    if (!arquivos) return;
-    try {
-      const lidas = await Promise.all(Array.from(arquivos).map((a) => lerFoto(a)));
-      setFotos((atual) => [...atual, ...lidas].slice(0, DIVULGACAO_FOTOS_MAX));
-      setTrocouFotos(true);
-      setFotosAtuais([]);
-    } catch (e) {
-      setMsg({ ok: false, texto: (e as Error).message });
-    }
-  };
+  // As fotos dele: na edição, as da peça só vão de novo se ele trocar.
+  const fotos = useFotosProprias((texto) => setMsg({ ok: false, texto }));
   const limpar = () => {
     setLegenda("");
     setEditando(null);
-    setFotos([]);
-    setFotosAtuais([]);
-    setTrocouFotos(false);
+    fotos.limpar();
   };
 
   const publicar = useMutation({
     mutationFn: () =>
       editando
-        ? apiRequest("PATCH", `/api/public/divulgacoes/${editando.id}`, {
-            legenda,
-            versao: editando.versao,
-            // Sem trocar, as fotos da peça ficam como estão.
-            ...(trocouFotos ? { fotos } : {}),
-          })
-        : apiRequest("POST", "/api/public/divulgacoes", { slug, legenda, fotos }),
+        ? apiRequest("PATCH", `/api/public/divulgacoes/${editando.id}`, { legenda, versao: editando.versao, ...fotos.corpo(true) })
+        : apiRequest("POST", "/api/public/divulgacoes", { slug, legenda, ...fotos.corpo(false) }),
     onSuccess: () => {
       setMsg({
         ok: true,
@@ -93,9 +71,7 @@ export default function Publicar() {
     setSlug(m.slug);
     setLegenda(m.legenda);
     setEditando({ id: m.id, versao: m.versao });
-    setFotos([]);
-    setFotosAtuais(m.fotos);
-    setTrocouFotos(false);
+    fotos.carregar(m.fotos);
     setMsg(null);
     document.getElementById("publicar-texto")?.focus();
   };
@@ -142,61 +118,7 @@ export default function Publicar() {
                 >
                   <textarea id="publicar-texto" rows={4} maxLength={LEGENDA_MAX} value={legenda} onChange={(e) => setLegenda(e.target.value)} />
                 </Campo>
-                <fieldset>
-                  <legend className="label-xs">
-                    Fotos (até <span className="tnum">{DIVULGACAO_FOTOS_MAX}</span>, opcional)
-                  </legend>
-                  {(trocouFotos ? fotos : fotosAtuais).length ? (
-                    <ul className="mt-1 flex flex-wrap gap-2">
-                      {(trocouFotos ? fotos : fotosAtuais).map((f, i) => (
-                        <li key={`${i}-${f.slice(-16)}`} className="relative">
-                          <img src={f} alt={`Foto ${i + 1}`} className="h-20 w-20 rounded-lg object-cover" />
-                          {trocouFotos ? (
-                            <button
-                              type="button"
-                              className="absolute right-1 top-1 rounded bg-white px-1.5 text-xs font-semibold text-ink"
-                              aria-label={`Tirar a foto ${i + 1}`}
-                              onClick={() => setFotos((atual) => atual.filter((_, j) => j !== i))}
-                            >
-                              ✕
-                            </button>
-                          ) : null}
-                        </li>
-                      ))}
-                    </ul>
-                  ) : null}
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {fotos.length < DIVULGACAO_FOTOS_MAX ? (
-                      <label className="inline-flex cursor-pointer items-center rounded-full border border-line px-3 py-1.5 text-xs font-semibold">
-                        {editando && !trocouFotos && fotosAtuais.length ? "Trocar as fotos" : "Escolher fotos"}
-                        <input
-                          type="file"
-                          accept="image/*"
-                          multiple
-                          className="sr-only"
-                          onChange={(e) => {
-                            void escolherFotos(e.target.files);
-                            e.target.value = "";
-                          }}
-                        />
-                      </label>
-                    ) : null}
-                    {editando && !trocouFotos && fotosAtuais.length ? (
-                      <Button
-                        variant="ghost"
-                        className="px-3 py-1 text-xs"
-                        onClick={() => {
-                          setTrocouFotos(true);
-                          setFotos([]);
-                          setFotosAtuais([]);
-                        }}
-                      >
-                        Tirar as fotos
-                      </Button>
-                    ) : null}
-                  </div>
-                  <p className="mt-1 text-xs text-muted">Só fotos suas. A organização vê cada uma antes de publicar.</p>
-                </fieldset>
+                <FotosProprias estado={fotos} editando={Boolean(editando)} dica="Só fotos suas. A organização vê cada uma antes de publicar." />
                 {msg ? <p role="status" className={`rounded-md px-3 py-2 ${msg.ok ? "bg-green-soft text-green-deep" : "bg-red-soft text-red"}`}>{msg.texto}</p> : null}
                 <div className="flex flex-wrap gap-2">
                   <Button disabled={publicar.isPending || !slug || legenda.trim().length < 3} onClick={() => publicar.mutate()}>

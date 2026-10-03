@@ -14,8 +14,10 @@
  *   recusado e vira denúncia automática (fora do fluxo, `emSegundoPlano`).
  * - Decidir é `UPDATE` condicional com a linha travada (`FOR UPDATE`): dois
  *   cliques, uma decisão, um 409. O pedido do vizinho é 404.
- * - O apostador só publica atrás do interruptor `publicarApostador`, só
- *   texto, só de rifa em que tem compra paga, e sempre com autorização.
+ * - O apostador só publica atrás do interruptor `publicarApostador`, texto e
+ *   fotos dele, só de rifa em que tem compra paga, e sempre com autorização.
+ * - Foto própria (do apostador ou do afiliado) sempre passa pela
+ *   organização: a varredura do Pix por fora só lê texto.
  */
 import type { Request } from "express";
 import sharp from "sharp";
@@ -48,6 +50,7 @@ import {
   validarDivulgacao,
   validarFotos,
   validarModo,
+  VAZIA_DO_AFILIADO,
   type AutorDaDivulgacao,
   type ModoDeDivulgacao,
   avisoDaDecisao,
@@ -147,7 +150,7 @@ async function conferirMidias(campaignId: string, midias: string[]) {
 }
 
 /**
- * A foto do apostador vira JPEG de até 1600 px, sem metadados (nem
+ * A foto própria (apostador ou afiliado) vira JPEG de até 1600 px, sem metadados (nem
  * localização), com teto de 40 MP medido antes de abrir. Todas são
  * processadas antes da transação: recusa não deixa peça pela metade.
  */
@@ -169,11 +172,6 @@ async function processarFotos(fotos: string[]): Promise<Buffer[]> {
     }
   }
   return saida;
-}
-
-/** O afiliado publica com as mídias da rifa; foto própria é só do apostador. */
-function semFotoDeAfiliado(entrada: Record<string, unknown>) {
-  if (entrada.fotos !== undefined) throw new DivulgacaoError("O afiliado publica com as mídias da rifa.", 422);
 }
 
 async function gravar(valores: typeof divulgacoes.$inferInsert, fotos: Buffer[] = []) {
@@ -230,8 +228,8 @@ async function afiliadoOnline(affiliateId: string) {
 }
 
 export async function publicarComoAfiliado(affiliateId: string, entrada: Record<string, unknown>) {
-  semFotoDeAfiliado(entrada);
-  const dados = regra(() => validarDivulgacao("afiliado", entrada));
+  const fotosBrutas = regra(() => validarFotos(entrada.fotos)) ?? [];
+  const dados = regra(() => validarDivulgacao("afiliado", entrada, fotosBrutas.length));
   const a = await afiliadoOnline(affiliateId);
   const rifa = await rifaParaDivulgar(entrada.slug);
   // Vínculo aprovado e aceite da versão do termo da rifa: a mesma régua da comissão.
@@ -245,8 +243,10 @@ export async function publicarComoAfiliado(affiliateId: string, entrada: Record<
   barrarPixPorFora(dados.legenda, rifa, `afiliado ${a.code}`);
 
   await conferirMidias(rifa.id, dados.midias);
+  const fotos = await processarFotos(fotosBrutas);
   const modo = validarModo(rifa.modo);
-  const status = statusInicial("afiliado", modo);
+  // Com foto própria, passa pela organização mesmo no modo direto.
+  const status = statusInicial("afiliado", modo, fotos.length > 0);
   const d = await gravar({
     campaignId: rifa.id,
     organizationId: rifa.organizationId,
@@ -256,7 +256,7 @@ export async function publicarComoAfiliado(affiliateId: string, entrada: Record<
     midiaIds: dados.midias,
     status,
     decididoEm: status === "publicada" ? new Date() : null,
-  });
+  }, fotos);
   return { id: d.id, status: d.status, modo };
 }
 
@@ -414,13 +414,28 @@ const colunasDaMinha = {
 };
 
 export async function minhasDoAfiliado(affiliateId: string) {
-  return db
+  const linhas = await db
     .select(colunasDaMinha)
     .from(divulgacoes)
     .innerJoin(campaigns, eq(campaigns.id, divulgacoes.campaignId))
     .where(eq(divulgacoes.affiliateId, affiliateId))
     .orderBy(desc(divulgacoes.createdAt))
     .limit(50);
+  const fotos = await fotosDasPecas(linhas.map((l) => l.id));
+  return linhas.map((l) => ({ ...l, fotos: (fotos.get(l.id) ?? []).map((f) => `/api/affiliate/divulgacoes/${l.id}/fotos/${f}`) }));
+}
+
+/** A foto da própria peça, para o afiliado que publicou. A de outro é 404. */
+export async function fotoDaPecaDoAfiliado(affiliateId: string, id: string, fotoId: string) {
+  if (!/^[0-9a-f-]{36}$/i.test(id)) throw new DivulgacaoError("Foto não encontrada.", 404);
+  // A porta fecha com a conta: afiliado bloqueado ou desligado não abre nada por aqui.
+  await afiliadoOnline(affiliateId);
+  const [d] = await db
+    .select({ id: divulgacoes.id })
+    .from(divulgacoes)
+    .where(and(eq(divulgacoes.id, id), eq(divulgacoes.affiliateId, affiliateId)));
+  if (!d) throw new DivulgacaoError("Foto não encontrada.", 404);
+  return bytesDaFoto(id, fotoId);
 }
 
 export async function minhasDoApostador(req: Request) {
@@ -490,10 +505,10 @@ async function editarPropria(
   entrada: Record<string, unknown>,
 ) {
   if (!/^[0-9a-f-]{36}$/i.test(id)) throw new DivulgacaoError("Divulgação não encontrada.", 404);
-  if (dono.autor === "afiliado") semFotoDeAfiliado(entrada);
-  const dados = regra(() => validarDivulgacao(dono.autor, entrada));
   // Sem `fotos` no corpo, ficam as que a peça tinha; lista vazia tira todas.
-  const fotosBrutas = dono.autor === "apostador" ? regra(() => validarFotos(entrada.fotos)) : null;
+  const fotosBrutas = regra(() => validarFotos(entrada.fotos));
+  // A conferência de "peça vazia" do afiliado é feita abaixo, com as fotos e mídias que ficam.
+  const dados = regra(() => validarDivulgacao(dono.autor, entrada, Number.MAX_SAFE_INTEGER));
   const doDono = dono.autor === "afiliado" ? eq(divulgacoes.affiliateId, dono.affiliateId) : eq(divulgacoes.buyerId, dono.buyerId);
   const [atual] = await db
     .select({ campaignId: divulgacoes.campaignId, status: divulgacoes.status, versao: divulgacoes.versao, midiaIds: divulgacoes.midiaIds })
@@ -534,12 +549,15 @@ async function editarPropria(
   barrarPixPorFora(dados.legenda, rifa, dono.quem);
   // Sem `midias` no corpo, ficam as que a peça já tinha (e passam pela conferência de novo).
   const midias = dono.autor === "afiliado" ? (Array.isArray(entrada.midias) ? dados.midias : atual.midiaIds) : [];
-  if (!dados.legenda && midias.length === 0) throw new DivulgacaoError("Escreva a legenda ou escolha ao menos uma mídia da rifa.", 422);
+  // Quantas fotos a peça terá depois da edição: as novas, ou as que já tinha.
+  const fotosDepois = fotosBrutas ? fotosBrutas.length : ((await fotosDasPecas([id])).get(id) ?? []).length;
+  if (dono.autor === "afiliado" && !dados.legenda && midias.length === 0 && fotosDepois === 0) throw new DivulgacaoError(VAZIA_DO_AFILIADO, 422);
   if (dono.autor === "afiliado") await conferirMidias(rifa.id, midias);
   const fotos = fotosBrutas ? await processarFotos(fotosBrutas) : null;
 
-  // Afiliado no modo direto segue no ar; o resto volta a esperar a organização.
-  const status = dono.autor === "afiliado" ? statusInicial("afiliado", validarModo(rifa.modo)) : "em_analise";
+  // Afiliado no modo direto e sem foto própria segue no ar; o resto volta a
+  // esperar a organização (a foto, quem lê é ela).
+  const status = dono.autor === "afiliado" ? statusInicial("afiliado", validarModo(rifa.modo), fotosDepois > 0) : "em_analise";
   try {
     return await db.transaction(async (tx: Tx) => {
     const [r] = await tx
@@ -896,36 +914,53 @@ export async function divulgacoesDaRifa(slug: string) {
 
 /**
  * A foto pública: só da peça que a página da rifa mostraria agora — a régua
- * de `divulgacoesDaRifa`, conferida para esta peça só (foto é do apostador):
- * no ar, rifa vendendo de verdade, promotora no ar, o interruptor ligado,
- * apostador com apelido, conta não excluída e compra paga naquela rifa.
- * Retirada, recusada, estornada ou com o interruptor desligado, some junto.
+ * de `divulgacoesDaRifa`, conferida para esta peça só: no ar, rifa vendendo
+ * de verdade, promotora no ar e a condição de quem publicou. Apostador: o
+ * interruptor ligado, apelido, conta não excluída e compra paga naquela rifa.
+ * Afiliado: conta ativa e vínculo e aceite valendo (`comissaoNaRifa`).
+ * Retirada, recusada, estornada, sem vínculo ou com o interruptor desligado,
+ * a foto some junto.
  */
 export async function fotoPublica(id: string, fotoId: string) {
   if (!/^[0-9a-f-]{36}$/i.test(id)) throw new DivulgacaoError("Foto não encontrada.", 404);
-  if (!(await getPlataforma()).publicarApostador) throw new DivulgacaoError("Foto não encontrada.", 404);
   const [d] = await db
-    .select({ id: divulgacoes.id })
+    .select({
+      autor: divulgacoes.autor,
+      affiliateId: divulgacoes.affiliateId,
+      afiliadoAtivo: affiliates.status,
+      campanha: {
+        id: campaigns.id,
+        organizationId: campaigns.organizationId,
+        termoId: campaigns.termoId,
+        commissionPctDefault: campaigns.commissionPctDefault,
+      },
+      apostadorOk: sql<boolean>`(
+        ${buyers.apelido} is not null and ${buyers.excluidoEm} is null
+        and exists (select 1 from orders o where o.buyer_id = ${divulgacoes.buyerId} and o.campaign_id = ${divulgacoes.campaignId} and o.status = 'paid')
+      )`,
+    })
     .from(divulgacoes)
     .innerJoin(campaigns, eq(campaigns.id, divulgacoes.campaignId))
     .innerJoin(organizations, eq(organizations.id, campaigns.organizationId))
-    .innerJoin(buyers, eq(buyers.id, divulgacoes.buyerId))
+    .leftJoin(buyers, eq(buyers.id, divulgacoes.buyerId))
+    .leftJoin(affiliates, eq(affiliates.id, divulgacoes.affiliateId))
     .where(
       and(
         eq(divulgacoes.id, id),
         eq(divulgacoes.status, "publicada"),
-        eq(divulgacoes.autor, "apostador"),
         eq(campaigns.status, "published"),
         eq(campaigns.demonstracao, false),
         isNull(campaigns.travadaEm),
         eq(organizations.active, true),
         isNull(organizations.archivedAt),
         isNull(organizations.banidaEm),
-        isNotNull(buyers.apelido),
-        isNull(buyers.excluidoEm),
-        sql`exists (select 1 from orders o where o.buyer_id = ${divulgacoes.buyerId} and o.campaign_id = ${divulgacoes.campaignId} and o.status = 'paid')`,
       ),
     );
   if (!d) throw new DivulgacaoError("Foto não encontrada.", 404);
+  if (d.autor === "apostador") {
+    if (!d.apostadorOk || !(await getPlataforma()).publicarApostador) throw new DivulgacaoError("Foto não encontrada.", 404);
+  } else if (!d.affiliateId || d.afiliadoAtivo !== "active" || !(await comissaoNaRifa(db, d.affiliateId, d.campanha)).recebe) {
+    throw new DivulgacaoError("Foto não encontrada.", 404);
+  }
   return bytesDaFoto(id, fotoId);
 }

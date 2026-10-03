@@ -11,7 +11,9 @@
  * - Afiliado: só com vínculo aprovado e, se a rifa tem termo, o aceite
  *   daquela versão (`comissaoNaRifa()`). A organização escolhe o modo:
  *   `autorizacao` (padrão, conservador: nada vai ao ar sem ela) ou
- *   `direta`.
+ *   `direta`. Com foto própria (até `DIVULGACAO_FOTOS_MAX`), a peça passa
+ *   pela organização **em qualquer modo**: a varredura do Pix por fora só lê
+ *   texto, e o Pix em imagem passaria direto.
  * - Apostador: só atrás do interruptor `publicarApostador`, texto e até
  *   `DIVULGACAO_FOTOS_MAX` fotos dele, só sobre rifa em que tem compra paga, e
  *   **sempre** com autorização da organização (a varredura do Pix por fora
@@ -44,13 +46,13 @@ export type AutorDaDivulgacao = "afiliado" | "apostador";
 
 /** Mídias da própria rifa que o afiliado pode escolher para a peça. */
 export const DIVULGACAO_MIDIAS_MAX = 5;
-/** Fotos do próprio apostador na peça dele (sempre com a autorização da organização). */
+/** Fotos próprias de quem publica (apostador ou afiliado), sempre com a autorização da organização. */
 export const DIVULGACAO_FOTOS_MAX = 4;
 /** Cada foto, antes de reprocessar (a tela já manda JPEG de 1600 px, bem abaixo disto). */
 export const DIVULGACAO_FOTO_MAX_BYTES = 3 * 1024 * 1024;
 
 /**
- * As fotos que o apostador manda: ausente é `null` (na edição, ficam as que a
+ * As fotos próprias que o autor manda: ausente é `null` (na edição, ficam as que a
  * peça tinha); lista vazia tira todas. Só `data:image/…;base64,…`, até
  * `DIVULGACAO_FOTOS_MAX`. O conteúdo é conferido ao reprocessar, no servidor.
  */
@@ -77,8 +79,12 @@ export function podeEditar(status: StatusDaDivulgacao): boolean {
   return status === "em_analise" || status === "publicada";
 }
 
-export function statusInicial(autor: AutorDaDivulgacao, modo: ModoDeDivulgacao): StatusDaDivulgacao {
-  return autor === "afiliado" && modo === "direta" ? "publicada" : "em_analise";
+/**
+ * Vai ao ar sem a organização só a peça do afiliado, no modo direto e **sem
+ * foto própria** — a foto, quem lê é a organização.
+ */
+export function statusInicial(autor: AutorDaDivulgacao, modo: ModoDeDivulgacao, temFotoPropria = false): StatusDaDivulgacao {
+  return autor === "afiliado" && modo === "direta" && !temFotoPropria ? "publicada" : "em_analise";
 }
 
 export type AcaoDaDecisao = "aprovar" | "recusar" | "remover";
@@ -117,6 +123,8 @@ export function versaoInformada(v: unknown): number | null {
   return v;
 }
 
+export const VAZIA_DO_AFILIADO = "Escreva a legenda, escolha uma mídia da rifa ou envie uma foto sua.";
+
 export interface EntradaDaDivulgacao {
   legenda: string;
   midias: string[];
@@ -125,10 +133,11 @@ export interface EntradaDaDivulgacao {
 /**
  * Confere o que o autor manda. Só chaves conhecidas. A legenda passa pela
  * régua da legenda da organização (sem link, sem telefone). O afiliado
- * precisa de legenda ou de ao menos uma mídia; o apostador, de legenda e
- * nunca de mídia (conteúdo de rifa alheia é da organização).
+ * precisa de legenda, de uma mídia da rifa ou de uma foto própria (`fotos`,
+ * quantas a peça terá); o apostador, de legenda e nunca de mídia da rifa
+ * (conteúdo de rifa alheia é da organização).
  */
-export function validarDivulgacao(autor: AutorDaDivulgacao, bruto: unknown): EntradaDaDivulgacao {
+export function validarDivulgacao(autor: AutorDaDivulgacao, bruto: unknown, fotos = 0): EntradaDaDivulgacao {
   const b = (bruto ?? {}) as Record<string, unknown>;
   const problema = problemaNaLegenda(b.legenda);
   if (problema) throw new Error(problema);
@@ -139,8 +148,8 @@ export function validarDivulgacao(autor: AutorDaDivulgacao, bruto: unknown): Ent
   if (autor === "apostador") {
     if (midias.length) throw new Error("O apostador publica só o texto.");
     if (legenda.length < 3) throw new Error("Escreva o que você quer dizer sobre a rifa.");
-  } else if (!legenda && midias.length === 0) {
-    throw new Error("Escreva a legenda ou escolha ao menos uma mídia da rifa.");
+  } else if (!legenda && midias.length === 0 && fotos === 0) {
+    throw new Error(VAZIA_DO_AFILIADO);
   }
   if (midias.length > DIVULGACAO_MIDIAS_MAX) throw new Error(`Escolha até ${DIVULGACAO_MIDIAS_MAX} mídias.`);
   if (legenda.length > LEGENDA_MAX) throw new Error(`A legenda passa de ${LEGENDA_MAX} caracteres.`);

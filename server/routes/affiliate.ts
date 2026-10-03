@@ -22,7 +22,7 @@ import { cadastroAprovado, documento, estadoFiscal, salvarDadosFiscais, salvarDo
 import { pdfDoRecibo, reciboPorCodigo } from "../services/recibos";
 import { urlDeConferencia } from "../services/urls";
 import { aderir, comissaoNaRifa, organizacoesDoAfiliado, sair } from "../services/afiliados";
-import { decididasParaOAfiliado, editarComoAfiliado, marcarVistoDoAfiliado, minhasDoAfiliado, publicarComoAfiliado, retirarPropria, rifasParaDivulgar } from "../services/divulgacao";
+import { decididasParaOAfiliado, editarComoAfiliado, fotoDaPecaDoAfiliado, marcarVistoDoAfiliado, minhasDoAfiliado, publicarComoAfiliado, retirarPropria, rifasParaDivulgar } from "../services/divulgacao";
 import { guardLogin, identify } from "../services/antifraude";
 import QRCode from "qrcode";
 import { affiliateId, verifyPassword } from "../auth";
@@ -540,7 +540,10 @@ affiliateRouter.get("/divulgacoes", async (req, res, next) => {
   }
 });
 
-/** Nasce publicada ou esperando a organização, conforme o modo que ela escolheu. */
+/**
+ * Nasce publicada ou esperando a organização, conforme o modo que ela
+ * escolheu — com foto própria, sempre esperando a organização.
+ */
 affiliateRouter.post("/divulgacoes", async (req, res, next) => {
   try {
     res.status(201).json(await publicarComoAfiliado(affiliateId(req), req.body ?? {}));
@@ -574,12 +577,25 @@ affiliateRouter.post("/avisos/vistos", async (req, res, next) => {
 });
 
 /**
- * Corrigir a própria peça (legenda e mídias da rifa). Volta para a fila da
- * organização, salvo no modo direto. A de outro afiliado é 404.
+ * Corrigir a própria peça (legenda, mídias da rifa e fotos próprias). Volta
+ * para a fila da organização, salvo no modo direto sem foto própria. A de
+ * outro afiliado é 404.
  */
 affiliateRouter.patch("/divulgacoes/:id", async (req, res, next) => {
   try {
     res.json(await editarComoAfiliado(affiliateId(req), req.params.id, req.body ?? {}));
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** A foto própria da peça, para o afiliado que publicou. A de outro é 404; nunca em cache. */
+affiliateRouter.get("/divulgacoes/:id/fotos/:fotoId", async (req, res, next) => {
+  try {
+    const bytes = await fotoDaPecaDoAfiliado(affiliateId(req), req.params.id, req.params.fotoId);
+    res.setHeader("Cache-Control", "private, no-store");
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.type("image/jpeg").send(bytes);
   } catch (err) {
     next(err);
   }

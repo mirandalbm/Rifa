@@ -13,7 +13,7 @@ interface Divulgacao {
   criadaEm: string;
   /** Quem publicou corrigiu depois (a organização autorizou a versão nova). */
   editada: boolean;
-  /** Fotos do próprio apostador (autorizadas pela organização). */
+  /** Fotos de quem publicou (apostador ou afiliado), autorizadas pela organização. */
   fotos: string[];
   link: string;
   midias: { role: string; url: string; poster: string | null; srcSet: string | null; alt: string | null }[];

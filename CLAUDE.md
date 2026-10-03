@@ -146,7 +146,7 @@ arquitetura.
 | perfil verificado (selo de trevo): documentos, foto, fila e cores | `shared/verificacao.ts` (regras e paleta), `server/services/verificacao.ts`, `server/services/rosto.ts` (comparador), `server/routes/verificacaoRotas.ts`, `client/src/components/Verificacao.tsx`, `SeloVerificado.tsx`, `VerificacoesDaPlataforma.tsx`, `CoresDoSelo.tsx`, `scripts/verificacao-test.ts` |
 | formato da publicação (retrato 4:5, quadrado 1:1, paisagem 1,91:1, vertical 9:16) e o perfil acima ou por cima | `formatoDaPeca()`/`formatoDoCarrossel()`/`perfilPorCima()` em `shared/publicacao.ts`, `probeVideoDimensions()` em `server/services/probe.ts`, `Carrossel` em `client/src/components/Publicacao.tsx`, `tests/publicacao.test.ts` |
 | publicação da rifa: carrossel de até 10 (reels e vídeos), barra de ações (trevo, comentar, republicar, compartilhar, "+" do carrinho, comprar) e legenda | `shared/publicacao.ts` (regras), `server/services/publicacao.ts`, `server/services/media.ts` (limites), `client/src/components/Publicacao.tsx`, `scripts/publicacao-test.ts` |
-| divulgação de terceiros: o afiliado (influenciador) publica com o material da organização, direto ou só depois da autorização dela, e o apostador publica um texto (atrás de `publicarApostador`); o menu Criar | `shared/divulgacao.ts` (regras), `server/services/divulgacao.ts`, rotas `/divulgacoes*` em `server/routes/affiliate.ts` (afiliado), `public.ts` (apostador e página da rifa) e `admin.ts` (modo e fila), `modoDaOrganizacao`/`divulgacaoAfiliado` em `organizations`, `MenuCriar` em `client/src/components/Console.tsx`, `client/src/pages/afiliadoDivulgar.tsx`, `Publicar.tsx`, `client/src/components/DivulgacoesDaOrganizacao.tsx`, `DivulgacoesDaRifa.tsx`, `tests/divulgacao.test.ts`, `scripts/divulgacao-test.ts` |
+| divulgação de terceiros: o afiliado (influenciador) publica com o material da organização e fotos dele, direto ou só depois da autorização dela (com foto, sempre depois), e o apostador publica texto e fotos (atrás de `publicarApostador`); o menu Criar | `shared/divulgacao.ts` (regras), `server/services/divulgacao.ts`, rotas `/divulgacoes*` em `server/routes/affiliate.ts` (afiliado), `public.ts` (apostador e página da rifa) e `admin.ts` (modo e fila), `modoDaOrganizacao`/`divulgacaoAfiliado` em `organizations`, `MenuCriar` em `client/src/components/Console.tsx`, `client/src/pages/afiliadoDivulgar.tsx`, `Publicar.tsx`, as fotos de quem publica em `client/src/components/FotosProprias.tsx`, `client/src/components/DivulgacoesDaOrganizacao.tsx`, `DivulgacoesDaRifa.tsx`, `tests/divulgacao.test.ts`, `scripts/divulgacao-test.ts` |
 | carrinho (várias rifas, separadas por organização), o Pix único do carrinho e o comprar da publicação | `shared/carrinho.ts` (regras e split), `server/services/carrinho.ts`, `createCartOrder()` em `server/services/orders.ts`, `client/src/pages/CarrinhoPix.tsx`, `client/src/components/EscolherBilhete.tsx` (a janela do "+"), `scripts/carrinho-test.ts`, `client/src/lib/carrinho.ts`, `client/src/pages/Carrinho.tsx`, `BarraDeAcoes` em `client/src/components/Publicacao.tsx`, `scripts/publicacao-test.ts` |
 | presente pelos comentários (desconto de primeira compra pago pela plataforma) | `shared/presente.ts` (regras), `server/services/presente.ts`, `prepararPedido`/`settleOrderAsPaid` em `server/services/orders.ts`, `Presentear` em `client/src/components/Comentarios.tsx`, `AvisoDePresente` em `client/src/pages/Rifa.tsx`, cartão Presente em `client/src/pages/adminBonus.tsx`, `scripts/presente-test.ts` |
 | topo e console do app (os 6 botões da base, a lateral no computador, o trevo e a publicação) | `shared/console.ts` (botões, aviso do trevo, quem publica), `client/src/components/Console.tsx`, `PublicShell` em `client/src/components/AppShell.tsx`, `client/src/pages/PerfilDoUsuario.tsx`, `client/src/pages/EmBreve.tsx`, `client/src/components/TopoDoAppCard.tsx`, `tests/console.test.ts` |
@@ -1893,8 +1893,10 @@ publicou, com o link dele (`/r/<rifa>?ref=<código>`).
 
 - **Não toca a rifa.** Preço, cotas, prêmio e autorização SPA/MF não passam
   por aqui; o afiliado escolhe `campaign_media` **da própria rifa, já
-  prontas** (id conferido contra a rifa) — nada do navegador vira arquivo, e
-  as medidas e limites da mídia seguem sendo os do envio da organização.
+  prontas** (id conferido contra a rifa) — nada do navegador vira mídia da
+  rifa, e as medidas e limites dela seguem sendo os do envio da organização.
+  A foto própria (do afiliado ou do apostador) é outra coisa: fica em
+  `divulgacao_fotos`, presa à peça (bullet "As fotos de quem publica").
 - **O afiliado só divulga onde recebe**: `comissaoNaRifa()` (afiliado ativo,
   vínculo aprovado com a **dona** da rifa e, se a rifa foi publicada com
   termo, o aceite **daquela versão**) — 403 sem isso. A régua vale de novo
@@ -1928,22 +1930,37 @@ publicou, com o link dele (`/r/<rifa>?ref=<código>`).
   **texto e até `DIVULGACAO_FOTOS_MAX` (4) fotos dele** (nunca mídia da rifa),
   só sobre rifa em que tem **compra paga** — conferida de novo na leitura
   pública: estornou, a peça sai do ar.
-- **As fotos do apostador** (`divulgacao_fotos`, no banco): JPEG de até
+- **O afiliado também manda até 4 fotos dele** (além das mídias da rifa), e
+  **a peça com foto própria passa pela organização em qualquer modo**
+  (`statusInicial(…, temFotoPropria)`): no modo direto, sem foto vai ao ar
+  na hora; com foto, espera. Na edição, a peça que **fica** com foto volta
+  para a fila mesmo no modo direto; tirar as fotos (`fotos: []`) devolve o
+  modo direto. A peça vazia (sem legenda, mídia nem foto) é 422. O termo do
+  afiliado (item 7) diz que a foto é dele ou de quem autorizou, nunca de
+  menor, e passa pela promotora. Perdeu o vínculo, a peça some da página
+  sem apagar nada (como a do texto); a foto sai do banco na recusa ou na
+  retirada — que o próprio afiliado faz a qualquer hora (a Privacidade diz
+  isso). A porta dele fecha com a conta (`afiliadoOnline`).
+- **As fotos de quem publica** (`divulgacao_fotos`, no banco): JPEG de até
   1600 px reprocessado pelo `sharp` (sem metadados, teto de 40 MP, 3 MB cada — PNG, JPG ou WebP; SVG não),
   **todas processadas antes da transação** que grava a peça (recusa não deixa
   peça pela metade). A varredura do Pix por fora só lê texto — **quem lê a
-  foto é a organização**, e a peça do apostador sempre passa pela fila. Três
+  foto é a organização**, e peça com foto sempre passa pela fila. Três
   portas, nunca o arquivo solto: a pública (`/api/public/divulgacoes/:id/fotos/:f`)
-  só serve a peça que a página da rifa mostra agora (no ar, compra paga,
-  interruptor ligado — saiu do ar, a foto some); a do painel, no recorte de
-  `orgOf` (a do vizinho é 404, no `npm run isolation`); e a do autor
-  (`/minhas/…`, `no-store`). Na edição, sem `fotos` no corpo ficam as que a
+  só serve a peça que a página da rifa mostra agora (no ar, rifa e promotora
+  no ar e a condição de quem publicou: o apostador com compra paga e o
+  interruptor ligado, o afiliado ativo com vínculo e aceite valendo — saiu
+  do ar, a foto some); a do painel, no recorte de `orgOf` (a do vizinho é
+  404, no `npm run isolation`); e a do autor (`/api/public/divulgacoes/minhas/…`
+  para o apostador, `/api/affiliate/divulgacoes/:id/fotos/:f` para o
+  afiliado, só a dele; `no-store`). Na edição, sem `fotos` no corpo ficam as que a
   peça tinha; a lista troca todas, na transação do `UPDATE` que confere a
   versão. **Recusada ou retirada (pela organização ou por quem publicou), as
   fotos são apagadas na mesma transação** — a Privacidade diz isso. Excluir a
-  conta (LGPD) apaga as fotos. O afiliado não manda foto própria (422). Só o
-  `POST` da peça e o `PATCH` da edição aceitam 18 MB (a tela reduz a foto
-  antes, `lerFoto()`); o resto de `/api/public/divulgacoes*` segue em 1 MB. As
+  conta (LGPD) apaga as fotos. Só o `POST` da peça e o `PATCH` da edição
+  (de `/api/public` e de `/api/affiliate`) aceitam 18 MB (a tela reduz a foto
+  antes, `lerFoto()`, no componente comum `FotosProprias`); o resto de
+  `/api/public/divulgacoes*` e `/api/affiliate/divulgacoes*` segue em 1 MB. As
   três portas respondem `private` (a pública com 60 s, as outras `no-store`).
   O 413 genérico do Express só troca a mensagem do corpo grande demais
   (`entity.too.large`): o 413 da régua da foto chega com o próprio texto.

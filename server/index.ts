@@ -149,13 +149,13 @@ app.use(
   ],
   express.json({ limit: "8mb" }),
 );
-// A peça do apostador leva até 4 fotos de 3 MB (a tela já reduz a foto do
-// celular). Só o POST da peça e o PATCH da edição: o resto de
-// `/api/public/divulgacoes*` segue no limite de 1 MB.
+// A peça do apostador e a do afiliado levam até 4 fotos de 3 MB (a tela já
+// reduz a foto do celular). Só o POST da peça e o PATCH da edição: o resto de
+// `/api/public/divulgacoes*` e `/api/affiliate/divulgacoes*` segue em 1 MB.
 const corpoDaPecaComFotos = express.json({ limit: "18mb" });
 app.use((req, res, next) =>
-  (req.method === "POST" && req.path === "/api/public/divulgacoes") ||
-  (req.method === "PATCH" && /^\/api\/public\/divulgacoes\/[0-9a-f-]{36}$/i.test(req.path))
+  (req.method === "POST" && /^\/api\/(public|affiliate)\/divulgacoes$/.test(req.path)) ||
+  (req.method === "PATCH" && /^\/api\/(public|affiliate)\/divulgacoes\/[0-9a-f-]{36}$/i.test(req.path))
     ? corpoDaPecaComFotos(req, res, next)
     : next(),
 );

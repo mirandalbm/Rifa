@@ -702,8 +702,12 @@ Na ordem de entrega do plano:
   `jwk`: a Cloudflare não mostra de novo.** Sem as duas, o HLS segue aberto.
   Ficou de fora `allowedOrigins` (o HLS nativo do iPhone pode não mandar
   `Origin`; a assinatura já fecha o custo).
-- [ ] **[código]** Pôster dos vídeos enviados antes do pôster existir (não há
-  preenchimento retroativo).
+- [x] **[código]** Pôster dos vídeos enviados antes do pôster existir: o
+  relógio gera (seção "Pôster do vídeo" do `CLAUDE.md`, `npm run poster`),
+  quatro por volta a cada 15 min, só o quadro. Fica de fora o envio
+  retroativo ao Stream (o vídeo de antes de ligar a entrega segue tocando o
+  original): se um dia for desejado, precisa de variável própria e só para
+  rifa no ar, senão o Stream cobra minutos de vídeo que ninguém assiste.
 - [x] Pôster, extras: **feitos.** O vídeo do bucket vem **em pedaços** de 4 MB
   para o arquivo temporário (a memória do processo web não guarda o vídeo
   inteiro); o `ffmpeg` roda no máximo 2 por vez (`FFMPEG_MAX_SIMULTANEOS`, 1 a

@@ -31,7 +31,9 @@ import sharp from "sharp";
 import { baseUrl } from "./base-url";
 import { db, pool } from "../server/db";
 import { campaignMedia, campaignStats, campaigns, organizations, stories, streamPendentes, users } from "../shared/schema";
-import { assinarVideosDoStream, limparStreamPendente, recomecarAssinatura } from "../server/services/streamPendentes";
+import { apagarNoStream, assinarVideosDoStream, limparStreamPendente, recomecarAssinatura } from "../server/services/streamPendentes";
+import { posterDosVideosAntigos, recomecarPosterRetroativo } from "../server/services/posterRetroativo";
+import { storage } from "../server/services/storage";
 import { lerChaveDoStream, trocarChaveDoStream } from "../server/services/streamAssinatura";
 import { withUrls } from "../server/services/media";
 import { entregaHlsLigada } from "../shared/stream";
@@ -315,6 +317,61 @@ async function main() {
       const chaveCurta = idCurto ? await esperaPor(async () => (await db.select({ k: campaignMedia.posterKey }).from(campaignMedia).where(eq(campaignMedia.id, idCurto)))[0]?.k) : null;
       checa("vídeo de 0,2 s: o pôster sai do primeiro quadro", !!chaveCurta);
       if (idCurto) await marina.req("DELETE", `/api/admin/media/${idCurto}`);
+
+      // Vídeo de antes do pôster: o relógio gera depois, pelo mesmo caminho do envio.
+      console.log("\n  pôster retroativo (vídeos de antes):");
+      const linhaDe = async (mid: string) =>
+        (await db.select({ k: campaignMedia.posterKey, uid: campaignMedia.streamUid }).from(campaignMedia).where(eq(campaignMedia.id, mid)))[0];
+      // `horas` nulo mantém a data do envio (no mundo real ela nunca muda).
+      const comoAntigo = async (mid: string, horas: number | null) => {
+        const antes = await linhaDe(mid);
+        await db
+          .update(campaignMedia)
+          .set({ posterKey: null, streamUid: null, streamHls: null, streamAssinado: false, ...(horas === null ? {} : { createdAt: new Date(Date.now() - horas * 3600_000) }) })
+          .where(eq(campaignMedia.id, mid));
+        // O que o envio tinha gerado sai, como se nunca tivesse existido.
+        if (antes?.k) await storage().remove(antes.k).catch(() => {});
+        await apagarNoStream(antes?.uid);
+      };
+      r = await subir(real);
+      const idVelho = r.json?.id as string;
+      r = await subir(real);
+      const idNovo = r.json?.id as string;
+      await esperaPor(async () => (await linhaDe(idVelho))?.k && (await linhaDe(idNovo))?.k);
+      await comoAntigo(idVelho, 48);
+      await comoAntigo(idNovo, 0);
+      // Começa logo antes deste vídeo: vídeo velho de outras rifas no banco não atrasa a prova.
+      const [{ em: emVelho }] = (await db.execute(sql`SELECT created_at::text AS em FROM campaign_media WHERE id = ${idVelho}`)).rows as { em: string }[];
+      const antesDoVelho = { em: emVelho, id: "00000000-0000-0000-0000-000000000000" };
+      recomecarPosterRetroativo(antesDoVelho);
+      // Pode haver vídeo velho de outras rifas antes dele: anda até ele (ou até o fim).
+      let volta = { gerados: 0, semPoster: 0 };
+      for (let i = 0; i < 20 && !(await linhaDe(idVelho))?.k; i++) {
+        volta = await posterDosVideosAntigos();
+        if (volta.gerados + volta.semPoster === 0) break;
+      }
+      const gerado = (await linhaDe(idVelho))?.k;
+      checa("o relógio gera o pôster do vídeo antigo", !!gerado && gerado.startsWith(`campanhas/${rifa.id}/poster-`), JSON.stringify(volta));
+      checa("…e não toca o envio recente (o segundo plano dele ainda pode estar rodando)", !(await linhaDe(idNovo))?.k);
+      // Mesmo com a entrega ligada: o retroativo só tira o quadro, nada fica guardado no Stream.
+      checa("…e não guarda o vídeo no Stream (rifa fora do ar seria custo sem ninguém assistir)", !(await linhaDe(idVelho))?.uid);
+      if (gerado) {
+        pub = await anon.req("GET", `/api/public/campaigns/${SLUG}`);
+        checa("a página pública passa a trazer o pôster", (pub.json?.media ?? []).some((m: any) => m.poster === `/uploads/${gerado}`));
+      }
+      await comoAntigo(idVelho, null);
+      for (let i = 0; i < 20; i++) {
+        volta = await posterDosVideosAntigos();
+        if (volta.gerados + volta.semPoster === 0) break;
+      }
+      checa("no mesmo processo, o vídeo já tentado não volta (o ffmpeg não refaz o que falhou)", !(await linhaDe(idVelho))?.k);
+      recomecarPosterRetroativo(antesDoVelho);
+      for (let i = 0; i < 20 && !(await linhaDe(idVelho))?.k; i++) {
+        volta = await posterDosVideosAntigos();
+        if (volta.gerados + volta.semPoster === 0) break;
+      }
+      checa("recomeçada a volta (o servidor reiniciou), ele é tentado de novo", !!(await linhaDe(idVelho))?.k);
+      for (const mid of [idVelho, idNovo]) if (mid) await marina.req("DELETE", `/api/admin/media/${mid}`);
     }
 
     /* ----------------------------- entrega em HLS ----------------------------- */

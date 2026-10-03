@@ -306,9 +306,17 @@ async function ingest(params: {
  * removida no meio do caminho leva os dois: o pôster sai do armazenamento e o
  * vídeo, do Stream.
  */
-export async function gerarPosterDaMidia(mediaId: string, campaignId: string, storageKey: string, bytes: number) {
+export async function gerarPosterDaMidia(
+  mediaId: string,
+  campaignId: string,
+  storageKey: string,
+  bytes: number,
+  // O pôster retroativo pede só o quadro: guardar no Stream o vídeo de uma
+  // rifa que talvez nem esteja no ar seria custo sem ninguém assistir.
+  opcoes: { soPoster?: boolean } = {},
+) {
   const store = storage();
-  const entregar = entregaHlsLigada(process.env);
+  const entregar = !opcoes.soPoster && entregaHlsLigada(process.env);
   const gerar = async (arquivo: string): Promise<VideoPublicado> =>
     entregar ? publicarVideo(processadorDeVideo(), arquivo) : { poster: await processadorDeVideo().gerarPoster(arquivo), stream: null };
   let saida: VideoPublicado;

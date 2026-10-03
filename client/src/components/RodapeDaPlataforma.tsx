@@ -13,7 +13,7 @@ import {
 } from "@shared/rodape";
 import { REDES_DO_RODAPE, type Rede } from "@shared/template";
 
-const ICONE_DA_REDE: Record<Rede, LucideIcon> = {
+export const ICONE_DA_REDE: Record<Rede, LucideIcon> = {
   instagram: Instagram,
   whatsapp: MessageCircle,
   youtube: Youtube,

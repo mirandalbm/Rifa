@@ -1000,7 +1000,17 @@ adminRouter.get("/campaigns/:id/banner-divulgacao", async (req, res, next) => {
     const campaign = await assertCampaignInScope(req, req.params.id);
     const b = await bannerDoPainel(campaign.id);
     res.setHeader("Cache-Control", "no-store");
-    res.json(b ? { titulo: b.titulo, imagem: `/api/admin/campaigns/${campaign.id}/banner-divulgacao/imagem?v=${b.em.getTime()}` } : null);
+    res.json(
+      b
+        ? {
+            nome: b.nome,
+            texto: b.texto,
+            site: b.site,
+            redes: b.redes,
+            imagem: `/api/admin/campaigns/${campaign.id}/banner-divulgacao/imagem?v=${b.em.getTime()}`,
+          }
+        : null,
+    );
   } catch (err) {
     next(err);
   }
@@ -1022,15 +1032,15 @@ adminRouter.get("/campaigns/:id/banner-divulgacao/imagem", async (req, res, next
 adminRouter.put("/campaigns/:id/banner-divulgacao", async (req, res, next) => {
   try {
     const campaign = await assertCampaignInScope(req, req.params.id);
-    const salvo = await salvarBannerDeDivulgacao(campaign.id, campaign.organizationId, {
-      imagem: req.body?.imagem,
-      titulo: req.body?.titulo,
-    });
+    const corpo = req.body && typeof req.body === "object" ? (req.body as Record<string, unknown>) : {};
+    const salvo = await salvarBannerDeDivulgacao(campaign.id, campaign.organizationId, corpo);
     await audit(req, "campaign.banner_divulgacao", "campaign", campaign.id, {
-      titulo: salvo.titulo,
-      imagemNova: req.body?.imagem !== undefined,
+      nome: salvo.nome,
+      site: salvo.site,
+      redes: salvo.redes.map((r) => r.rede),
+      imagemNova: corpo.imagem !== undefined,
     });
-    res.json({ titulo: salvo.titulo });
+    res.json(salvo);
   } catch (err) {
     if (err instanceof BannerDivulgacaoError) return res.status(err.status).json({ message: err.message });
     next(err);

@@ -1,8 +1,10 @@
 /**
- * Prova do banner de divulgação da rifa, contra a API de verdade:
- * - a organização grava, troca a descrição e retira, no recorte (o vizinho é 404);
- * - a imagem é reprocessada (WebP 1200×400) e a descrição segue a régua da
- *   legenda (sem link e sem telefone);
+ * Prova da entidade beneficiada pela rifa (o banner e a tela dela), contra a
+ * API de verdade:
+ * - a organização grava, muda e retira, no recorte (o vizinho é 404);
+ * - as imagens são reprocessadas (banner WebP 1200×400 e a grande inteira);
+ * - nome e texto sem link e sem telefone; site só https; cada rede só no
+ *   domínio dela, e WhatsApp fica de fora;
  * - o público só vê com a rifa no ar: rascunho e promotora arquivada são 404;
  * - muda depois de publicar (não é termo da rifa).
  */
@@ -85,7 +87,7 @@ async function novoRascunho(orgId: string, sufixo: string, opcoes: { semBanner?:
 
 
 async function main() {
-  console.log("\n=== banner de divulgação da rifa ===\n");
+  console.log("\n=== entidade beneficiada da rifa ===\n");
   await limpar();
   const orgs: { id: string }[] = [];
   const clientes: Cliente[] = [];
@@ -107,35 +109,63 @@ async function main() {
   const png = await sharp({ create: { width: 900, height: 900, channels: 3, background: "#1b6b3a" } }).png().toBuffer();
   const imagem = `data:image/png;base64,${png.toString("base64")}`;
 
+  const base = {
+    nome: "Instituto Esperança",
+    texto: "Atendemos 200 crianças no contraturno escolar desde 2012, com reforço, esporte e alimentação.",
+    site: "https://institutoesperanca.org.br",
+    redes: [
+      { rede: "instagram", link: "https://instagram.com/institutoesperanca" },
+      { rede: "youtube", link: "" },
+    ],
+  };
   try {
     const a1 = await novoRascunho(orgs[0].id, "a1");
     const rota = `/api/admin/campaigns/${a1.id}/banner-divulgacao`;
     const publico = `/api/public/campaigns/${a1.slug}/banner-divulgacao`;
 
     // ------------------------------------------------ recusas
-    let r = await orgA.req("PUT", rota, { titulo: "Instituto Esperança" });
-    checa("sem imagem e sem banner gravado: 422", r.status === 422, `HTTP ${r.status}`);
-    r = await orgA.req("PUT", rota, { titulo: "Ligue 11 98765-4321", imagem });
-    checa("descrição com telefone: 422", r.status === 422, `HTTP ${r.status} ${r.json?.message ?? ""}`);
-    r = await orgA.req("PUT", rota, { titulo: "ok", imagem });
-    checa("descrição curta demais: 422", r.status === 422, `HTTP ${r.status}`);
-    r = await orgA.req("PUT", rota, { titulo: "Instituto Esperança", imagem: "data:text/html;base64,PGgxPg==" });
+    let r = await orgA.req("PUT", rota, base);
+    checa("sem imagem e sem entidade gravada: 422", r.status === 422, `HTTP ${r.status}`);
+    const recusas: [string, Record<string, unknown>][] = [
+      ["nome com telefone", { ...base, nome: "Ligue 11 98765-4321" }],
+      ["texto com link", { ...base, texto: "Doe pelo site www.golpe.com.br e ajude a nossa causa" }],
+      ["texto curto demais", { ...base, texto: "Ajude" }],
+      ["site em http", { ...base, site: "http://institutoesperanca.org.br" }],
+      ["Instagram de outro domínio", { ...base, redes: [{ rede: "instagram", link: "https://golpe.com/x" }] }],
+      ["WhatsApp (fora da lista)", { ...base, redes: [{ rede: "whatsapp", link: "https://wa.me/5511987654321" }] }],
+      ["site que é WhatsApp", { ...base, site: "https://wa.me/5511987654321" }],
+      ["site que é Telegram", { ...base, site: "https://t.me/fulano" }],
+      ["site com telefone no endereço", { ...base, site: "https://exemplo.com.br/fale?tel=11987654321" }],
+      ["site que é IP", { ...base, site: "https://192.168.0.1" }],
+    ];
+    for (const [nome, corpo] of recusas) {
+      r = await orgA.req("PUT", rota, { ...corpo, imagem });
+      checa(`${nome}: 422`, r.status === 422, `HTTP ${r.status} ${r.json?.message ?? ""}`);
+    }
+    r = await orgA.req("PUT", rota, { ...base, imagem: "data:text/html;base64,PGgxPg==" });
     checa("o que não é imagem: 422", r.status === 422, `HTTP ${r.status}`);
-    r = await orgB.req("PUT", rota, { titulo: "Invasão", imagem });
+    r = await orgB.req("PUT", rota, { ...base, imagem });
     checa("a organização B não grava na rifa da A (404)", r.status === 404, `HTTP ${r.status}`);
-    r = await new Cliente().req("PUT", rota, { titulo: "Invasão", imagem });
+    r = await new Cliente().req("PUT", rota, { ...base, imagem });
     checa("sem sessão: recusado", r.status === 401 || r.status === 403, `HTTP ${r.status}`);
 
     // ------------------------------------------------ gravar no rascunho
-    r = await orgA.req("PUT", rota, { titulo: "Instituto Esperança", imagem });
-    checa("a organização grava o banner no rascunho", r.status === 200 && r.json?.titulo === "Instituto Esperança", `HTTP ${r.status} ${r.json?.message ?? ""}`);
+    r = await orgA.req("PUT", rota, { ...base, imagem, intrusa: "x" });
+    checa(
+      "a organização grava a entidade (rede vazia some, chave estranha ignorada)",
+      r.status === 200 && r.json?.nome === base.nome && r.json?.redes?.length === 1 && r.json?.intrusa === undefined,
+      `HTTP ${r.status} ${JSON.stringify(r.json)}`,
+    );
     r = await orgA.req("GET", rota);
-    checa("o painel vê a descrição e o endereço da imagem", r.status === 200 && r.json?.titulo === "Instituto Esperança" && /banner-divulgacao\/imagem/.test(r.json?.imagem ?? ""));
+    checa(
+      "o painel vê os dados e o endereço da imagem",
+      r.status === 200 && r.json?.texto === base.texto && r.json?.site === `${base.site}/` && /banner-divulgacao\/imagem/.test(r.json?.imagem ?? ""),
+    );
     const img = await fetch(URL + r.json.imagem, { headers: { Cookie: orgA.cookie } });
     const meta = await sharp(Buffer.from(await img.arrayBuffer())).metadata();
-    checa("a imagem é reprocessada: WebP 1200×400", img.status === 200 && meta.format === "webp" && meta.width === 1200 && meta.height === 400, `${img.status} ${meta.format} ${meta.width}x${meta.height}`);
+    checa("o banner é reprocessado: WebP 1200×400", img.status === 200 && meta.format === "webp" && meta.width === 1200 && meta.height === 400, `${img.status} ${meta.format} ${meta.width}x${meta.height}`);
     r = await orgB.req("GET", rota);
-    checa("a organização B não lê o banner da A (404)", r.status === 404, `HTTP ${r.status}`);
+    checa("a organização B não lê a entidade da A (404)", r.status === 404, `HTTP ${r.status}`);
     const imgB = await fetch(`${URL}${rota}/imagem`, { headers: { Cookie: orgB.cookie } });
     checa("nem a imagem pelo painel (404)", imgB.status === 404, `HTTP ${imgB.status}`);
     let p = await fetch(URL + publico);
@@ -144,26 +174,40 @@ async function main() {
     // ------------------------------------------------ no ar
     await db.update(campaigns).set({ status: "published", publishedAt: new Date() }).where(eq(campaigns.id, a1.id));
     let pag = await new Cliente().req("GET", `/api/public/campaigns/${a1.slug}`);
-    const url = pag.json?.campaign?.bannerDivulgacao?.url as string | undefined;
-    checa("publicada: a página traz o banner e a descrição", pag.status === 200 && Boolean(url) && pag.json.campaign.bannerDivulgacao.titulo === "Instituto Esperança", JSON.stringify(pag.json?.campaign?.bannerDivulgacao));
-    p = await fetch(URL + (url ?? publico));
-    checa("e a imagem pública abre (WebP)", p.status === 200 && (p.headers.get("content-type") ?? "").includes("webp"), `HTTP ${p.status}`);
-    r = await orgA.req("PUT", rota, { titulo: "ONG Amigos do Bairro" });
-    checa("depois de publicar, a descrição muda (não é termo da rifa)", r.status === 200, `HTTP ${r.status}`);
+    const e = pag.json?.campaign?.bannerDivulgacao;
+    checa(
+      "publicada: a página traz a entidade (nome, texto, site, redes e as duas imagens)",
+      pag.status === 200 && e?.nome === base.nome && e?.texto === base.texto && e?.site === `${base.site}/` && e?.redes?.[0]?.rede === "instagram" && Boolean(e?.url) && /tam=grande/.test(e?.urlGrande ?? ""),
+      JSON.stringify(e),
+    );
+    p = await fetch(URL + e.url);
+    checa("a imagem do banner abre (WebP, cache privado)", p.status === 200 && (p.headers.get("content-type") ?? "").includes("webp") && /private/.test(p.headers.get("cache-control") ?? ""), `HTTP ${p.status}`);
+    p = await fetch(URL + e.urlGrande);
+    const grande = await sharp(Buffer.from(await p.arrayBuffer())).metadata();
+    checa("a imagem grande vem inteira (900×900, sem corte)", p.status === 200 && grande.width === 900 && grande.height === 900, `${grande.width}x${grande.height}`);
+    r = await orgA.req("PUT", rota, { ...base, nome: "ONG Amigos do Bairro", site: "", redes: [] });
+    checa("depois de publicar, a entidade muda (não é termo da rifa)", r.status === 200, `HTTP ${r.status}`);
     pag = await new Cliente().req("GET", `/api/public/campaigns/${a1.slug}`);
-    checa("e a página mostra a nova", pag.json?.campaign?.bannerDivulgacao?.titulo === "ONG Amigos do Bairro");
+    checa(
+      "e a página mostra a nova (sem site e sem redes)",
+      pag.json?.campaign?.bannerDivulgacao?.nome === "ONG Amigos do Bairro" && pag.json.campaign.bannerDivulgacao.site === null && pag.json.campaign.bannerDivulgacao.redes.length === 0,
+    );
     await db.update(organizations).set({ archivedAt: new Date() }).where(eq(organizations.id, orgs[0].id));
     p = await fetch(URL + publico);
     checa("promotora arquivada: a imagem pública some (404)", p.status === 404, `HTTP ${p.status}`);
+    await db.update(organizations).set({ archivedAt: null, banidaEm: new Date() }).where(eq(organizations.id, orgs[0].id));
+    pag = await new Cliente().req("GET", `/api/public/campaigns/${a1.slug}`);
+    checa("promotora banida: a página não entrega a entidade", pag.status === 404 || pag.json?.campaign?.bannerDivulgacao === null, `HTTP ${pag.status}`);
+    await db.update(organizations).set({ banidaEm: null }).where(eq(organizations.id, orgs[0].id));
     await db.update(organizations).set({ archivedAt: null }).where(eq(organizations.id, orgs[0].id));
 
     // ------------------------------------------------ retirar
     r = await orgB.req("DELETE", rota);
-    checa("a organização B não retira o da A (404)", r.status === 404, `HTTP ${r.status}`);
+    checa("a organização B não retira a da A (404)", r.status === 404, `HTTP ${r.status}`);
     r = await orgA.req("DELETE", rota);
     pag = await new Cliente().req("GET", `/api/public/campaigns/${a1.slug}`);
     p = await fetch(URL + publico);
-    checa("retirado: a página fica sem banner e a imagem some", r.status === 204 && pag.json?.campaign?.bannerDivulgacao === null && p.status === 404, `HTTP ${r.status} ${p.status}`);
+    checa("retirada: a página fica sem entidade e a imagem some", r.status === 204 && pag.json?.campaign?.bannerDivulgacao === null && p.status === 404, `HTTP ${r.status} ${p.status}`);
   } finally {
     await limpar();
   }

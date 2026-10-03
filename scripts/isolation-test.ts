@@ -311,7 +311,7 @@ async function alcancaOVizinho(eu: Lado, vizinho: Lado) {
     ["PUT transmissão do vizinho", `/api/admin/campaigns/${c}/transmissao`, { method: "PUT", body: '{"url":"https://youtube.com/live/invadido"}' }],
     ["PUT sorteio oficial da rifa do vizinho", `/api/admin/campaigns/${c}/sorteio-oficial`, { method: "PUT", body: '{"sorteioOficialId":null}' }],
     ["PUT legenda do vizinho", `/api/admin/campaigns/${c}/legenda`, { method: "PUT", body: '{"legenda":"legenda invadida"}' }],
-    ["PUT banner de divulgação da rifa do vizinho", `/api/admin/campaigns/${c}/banner-divulgacao`, { method: "PUT", body: '{"titulo":"Banner invadido"}' }],
+    ["PUT banner de divulgação da rifa do vizinho", `/api/admin/campaigns/${c}/banner-divulgacao`, { method: "PUT", body: JSON.stringify({ nome: "Entidade invadida", texto: "Texto de quem não é dono desta rifa.", imagem: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=" }) }],
     ["DELETE banner de divulgação da rifa do vizinho", `/api/admin/campaigns/${c}/banner-divulgacao`, { method: "DELETE" }],
     ["GET banner de divulgação da rifa do vizinho pelo painel", `/api/admin/campaigns/${c}/banner-divulgacao`, {}],
     ["GET imagem do banner de divulgação do vizinho pelo painel", `/api/admin/campaigns/${c}/banner-divulgacao/imagem`, {}],

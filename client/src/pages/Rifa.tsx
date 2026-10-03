@@ -1,4 +1,5 @@
 import { BarraDeAcoes, Carrossel, Legenda, type Interacoes, type Peca } from "@/components/Publicacao";
+import { BannerDaEntidade, type Entidade } from "@/components/EntidadeBeneficiada";
 import { SeloVerificado } from "@/components/SeloVerificado";
 import { QuemTambemJoga } from "@/components/QuemTambemJoga";
 import { DivulgacoesDaRifa } from "@/components/DivulgacoesDaRifa";
@@ -66,8 +67,8 @@ interface CampaignDetail {
     demonstracao?: boolean;
     travada?: boolean;
     legenda?: string | null;
-    /** O banner de divulgação da organização em cima da rifa (empresa, ONG). */
-    bannerDivulgacao?: { url: string; titulo: string } | null;
+    /** A entidade beneficiada (ONG, fundação): o banner em cima da rifa e a tela dela. */
+    bannerDivulgacao?: Entidade | null;
     interacoes?: Interacoes;
   };
   stats: { soldCount: number; reservedCount: number };
@@ -373,18 +374,9 @@ export default function Rifa() {
           <SeguirBotoes slug={data.organizacao.slug} compacto />
         </DestaqueOrg>
       ) : null}
-      {/* O banner de divulgação: a imagem que a organização escolhe (a empresa
-          dela, uma ONG). Opcional e só imagem — cantos arredondados, sem
-          texto por cima; sem ele, nada aqui. */}
-      {campaign.bannerDivulgacao ? (
-        <img
-          src={campaign.bannerDivulgacao.url}
-          alt={campaign.bannerDivulgacao.titulo}
-          width={1200}
-          height={400}
-          className="mb-3 block aspect-[3/1] w-full rounded-xl object-cover"
-        />
-      ) : null}
+      {/* A entidade beneficiada (ONG, fundação): só quando há uma. O banner,
+          tocado, abre a tela dela por cima da rifa. */}
+      {campaign.bannerDivulgacao ? <BannerDaEntidade entidade={campaign.bannerDivulgacao} /> : null}
       {/* A rifa: data do sorteio, selo do sorteio oficial, adiamento e o prêmio. */}
       <div>
         <p className="font-mono text-[11px] uppercase tracking-widest text-yellow-deep">

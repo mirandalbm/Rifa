@@ -60,7 +60,7 @@ Pelo caminho que mudou (a mesma tabela "Onde mexer" do `CLAUDE.md`):
 | comentários do sorteio oficial e a denúncia deles (`server/services/sorteioComentarios.ts`, `shared/sorteioDenuncias.ts`, o `Comentarios` com `sorteioOficialId`, `ComentariosDoSorteioDenunciados`) | `sorteio-comentarios`, `comentarios`, `isolation` |
 | assistente de IA (`shared/ia.ts`, `services/ia.ts`, `services/chatbase.ts`, `routes/ia.ts`, a coluna em `AssistenteDoPainel.tsx`, o cache em `lib/session.ts`, a cobrança em `iaCobranca.ts`, `PlanoDoAssistente.tsx` e o relatório e ajuste em `UsoDoAssistenteCard.tsx`, as ações em `iaAcoes.ts`) | `tests/ia.test.ts`, `tests/iaCobranca.test.ts`, `tests/iaAcoes.test.ts`, `tests/chatbase.test.ts`, `tests/assistente.test.ts`, `ia` e `ia-acoes` (com `CHATBASE_API_KEY` e `CHATBASE_API_URL=http://127.0.0.1:5099/api/v2` no servidor e no script), `isolation`; mexeu na coluna, `telas` |
 | editar, adiar, excluir rifa | `solicitacoes` |
-| banner de divulgação da rifa (empresa, ONG) | `banner-divulgacao`, `isolation` |
+| entidade beneficiada da rifa (ONG, fundação: banner e tela) | `banner-divulgacao`, `isolation` |
 | publicação agendada da rifa (o relógio que publica) | `agenda-rifa`, `transparencia`, `isolation` |
 | conta do apostador, login com Google | `conta`, `google` (o servidor sobe com `GOOGLE_PROVA=1`) |
 | qualquer tela (client/) | `telas` (60 telas × 390/820/1440; não pode reprovar) |

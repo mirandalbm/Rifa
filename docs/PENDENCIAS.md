@@ -687,9 +687,9 @@ Na ordem de entrega do plano:
   do sorteio, o relógio publica pela `publishCampaign()` e, faltando algo, não
   publica e mostra o motivo; **falta no ambiente** o `db:push` das colunas
   `campaigns.publicar_em`, `publicar_agendado_por` e
-  `publicacao_agendada_falha` **antes** do código; **banner de divulgação
-  da rifa feito** — imagem da empresa ou de uma ONG em cima da rifa, editável
-  a qualquer hora; **falta no ambiente** o `db:push` da tabela
+  `publicacao_agendada_falha` **antes** do código; **entidade beneficiada
+  da rifa feita** — o banner da ONG ou fundação em cima da rifa e a tela dela
+  (imagem, texto, redes e site), editável a qualquer hora; **falta no ambiente** o `db:push` da tabela
   `campaign_banners_divulgacao` **antes** do código), enquete e figurinhas no story; (6) ~~a plataforma decidir sem escolher a
   organização~~ — **feito**: a plataforma vê a fila de todas, com o nome da
   organização, e decide qualquer peça (`npm run divulgacao` prova).

@@ -1,15 +1,17 @@
 /**
- * Banner de divulgação da rifa (regras em `shared/bannerDivulgacao.ts`): a
- * imagem que a organização põe em cima da rifa — a empresa dela, uma ONG.
- * Não é termo da rifa (prêmio, preço, autorização): muda a qualquer hora,
- * antes ou depois de publicar. O recorte é da rota (`assertCampaignInScope`).
+ * A entidade beneficiada pela rifa e o banner dela (regras em
+ * `shared/bannerDivulgacao.ts`): só existe quando o organizador destina a
+ * rifa a uma ONG, fundação ou outra organização. Não é termo da rifa
+ * (prêmio, preço, autorização): muda a qualquer hora, antes ou depois de
+ * publicar. O recorte é da rota (`assertCampaignInScope`).
  *
- * - A imagem nunca é servida como veio: reprocessada em WebP 1200×400, sem
- *   metadados, aberta com teto de 40 megapixels, conferida **antes** de gravar.
- * - O título é o texto alternativo, na régua da legenda, e passa pela
- *   varredura do Pix por fora. A imagem, quem lê é a plataforma pela denúncia.
- * - Público só com a rifa no ar (rascunho é 404, como toda rota por `slug`) e
- *   a promotora nem arquivada nem banida.
+ * - As imagens nunca são servidas como vieram: um envio só, reprocessado em
+ *   WebP (o banner 1200×400 e a grande até 1200 px), sem metadados, aberto
+ *   com teto de 40 megapixels, conferido **antes** de gravar.
+ * - Nome e texto na régua da legenda (sem link e sem telefone), com a
+ *   varredura do Pix por fora; site e redes em campo próprio, conferidos.
+ * - Público só com a rifa publicada ou sorteada (rascunho é 404, como toda
+ *   rota por `slug`) e a promotora nem arquivada nem banida.
  */
 import sharp from "sharp";
 import { and, eq, isNull, ne } from "drizzle-orm";
@@ -18,8 +20,11 @@ import { campaignBannersDivulgacao, campaigns, organizations } from "@shared/sch
 import {
   BANNER_DIVULGACAO_ALTURA,
   BANNER_DIVULGACAO_LARGURA,
-  problemaNoTituloDoBanner,
+  EntidadeInvalida,
+  IMAGEM_GRANDE_LADO,
   urlDoBannerDeDivulgacao,
+  validarEntidade,
+  type DadosDaEntidade,
 } from "@shared/bannerDivulgacao";
 import { emSegundoPlano } from "./push";
 import { varrerTextoDoOrganizador } from "./seguranca";
@@ -36,73 +41,95 @@ export class BannerDivulgacaoError extends Error {
   }
 }
 
-async function processarImagem(dataUrl: unknown): Promise<Buffer> {
+async function processarImagens(dataUrl: unknown): Promise<{ banner: Buffer; grande: Buffer }> {
   const m = typeof dataUrl === "string" ? /^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/i.exec(dataUrl) : null;
   if (!m) throw new BannerDivulgacaoError("Envie uma imagem em JPG, PNG ou WebP.");
   const bruto = Buffer.from(m[2], "base64");
   if (bruto.length > IMAGEM_MAX_BYTES) throw new BannerDivulgacaoError("A imagem passa de 5 MB.", 413);
   try {
-    return await sharp(bruto, { limitInputPixels: 40_000_000 })
-      .rotate()
-      .resize(BANNER_DIVULGACAO_LARGURA, BANNER_DIVULGACAO_ALTURA, { fit: "cover", position: "attention" })
-      .webp({ quality: 82 })
-      .toBuffer();
+    const abrir = () => sharp(bruto, { limitInputPixels: 40_000_000 }).rotate();
+    const [banner, grande] = await Promise.all([
+      abrir()
+        .resize(BANNER_DIVULGACAO_LARGURA, BANNER_DIVULGACAO_ALTURA, { fit: "cover", position: "attention" })
+        .webp({ quality: 82 })
+        .toBuffer(),
+      abrir()
+        .resize(IMAGEM_GRANDE_LADO, IMAGEM_GRANDE_LADO, { fit: "inside", withoutEnlargement: true })
+        .webp({ quality: 82 })
+        .toBuffer(),
+    ]);
+    return { banner, grande };
   } catch {
     throw new BannerDivulgacaoError("Não consegui ler essa imagem. Envie em JPG ou PNG.");
   }
 }
 
+function conferir(corpo: unknown): DadosDaEntidade {
+  try {
+    return validarEntidade(corpo);
+  } catch (e) {
+    if (e instanceof EntidadeInvalida) throw new BannerDivulgacaoError(e.message);
+    throw e;
+  }
+}
+
 /**
- * Grava (ou troca) o banner. Sem `imagem` no corpo, muda só o título do que
- * já existe; com imagem, troca os dois. Tudo é conferido antes de gravar.
+ * Grava (ou troca) a entidade. Sem `imagem` no corpo, muda só os dados do
+ * que já existe; com imagem, troca tudo. Tudo é conferido antes de gravar.
  */
 export async function salvarBannerDeDivulgacao(
   campaignId: string,
   organizationId: string | null,
-  corpo: { imagem?: unknown; titulo?: unknown },
+  corpo: Record<string, unknown>,
 ) {
-  const problema = problemaNoTituloDoBanner(corpo.titulo);
-  if (problema) throw new BannerDivulgacaoError(problema);
-  const titulo = String(corpo.titulo).trim().replace(/\s+/g, " ");
-  const bytes = corpo.imagem === undefined ? null : await processarImagem(corpo.imagem);
+  const dados = conferir(corpo);
+  const imagens = corpo.imagem === undefined ? null : await processarImagens(corpo.imagem);
 
   let linha;
-  if (bytes) {
+  if (imagens) {
+    const valores = { ...dados, mime: "image/webp", bytes: imagens.banner, bytesGrande: imagens.grande };
     [linha] = await db
       .insert(campaignBannersDivulgacao)
-      .values({ campaignId, titulo, mime: "image/webp", bytes })
-      .onConflictDoUpdate({
-        target: campaignBannersDivulgacao.campaignId,
-        set: { titulo, mime: "image/webp", bytes, updatedAt: new Date() },
-      })
-      .returning({ titulo: campaignBannersDivulgacao.titulo, em: campaignBannersDivulgacao.updatedAt });
+      .values({ campaignId, ...valores })
+      .onConflictDoUpdate({ target: campaignBannersDivulgacao.campaignId, set: { ...valores, updatedAt: new Date() } })
+      .returning({ nome: campaignBannersDivulgacao.nome });
   } else {
     [linha] = await db
       .update(campaignBannersDivulgacao)
-      .set({ titulo, updatedAt: new Date() })
+      .set({ ...dados, updatedAt: new Date() })
       .where(eq(campaignBannersDivulgacao.campaignId, campaignId))
-      .returning({ titulo: campaignBannersDivulgacao.titulo, em: campaignBannersDivulgacao.updatedAt });
-    if (!linha) throw new BannerDivulgacaoError("Escolha a imagem do banner.");
+      .returning({ nome: campaignBannersDivulgacao.nome });
+    if (!linha) throw new BannerDivulgacaoError("Escolha a imagem da entidade.");
   }
   if (organizationId) {
     emSegundoPlano(
-      varrerTextoDoOrganizador({ organizationId, campaignId, onde: "banner de divulgação da rifa", texto: titulo }),
+      varrerTextoDoOrganizador({
+        organizationId,
+        campaignId,
+        onde: "entidade beneficiada da rifa",
+        texto: `${dados.nome}\n${dados.texto}`,
+      }),
       "varredura",
     );
   }
-  return linha;
+  return { ...dados, nome: linha.nome };
 }
 
 export async function removerBannerDeDivulgacao(campaignId: string) {
   await db.delete(campaignBannersDivulgacao).where(eq(campaignBannersDivulgacao.campaignId, campaignId));
 }
 
-/** Para o painel (no recorte da rota): o título e a data, sem os bytes. */
+const dadosSemBytes = {
+  nome: campaignBannersDivulgacao.nome,
+  texto: campaignBannersDivulgacao.texto,
+  site: campaignBannersDivulgacao.site,
+  redes: campaignBannersDivulgacao.redes,
+  em: campaignBannersDivulgacao.updatedAt,
+};
+
+/** Para o painel (no recorte da rota): os dados e a data, sem os bytes. */
 export async function bannerDoPainel(campaignId: string) {
-  const [b] = await db
-    .select({ titulo: campaignBannersDivulgacao.titulo, em: campaignBannersDivulgacao.updatedAt })
-    .from(campaignBannersDivulgacao)
-    .where(eq(campaignBannersDivulgacao.campaignId, campaignId));
+  const [b] = await db.select(dadosSemBytes).from(campaignBannersDivulgacao).where(eq(campaignBannersDivulgacao.campaignId, campaignId));
   return b ?? null;
 }
 
@@ -114,27 +141,36 @@ export async function imagemDoPainel(campaignId: string) {
   return b ?? null;
 }
 
-/** A régua do público: rifa publicada ou já sorteada (nunca rascunho) e promotora nem arquivada nem banida. */
+/** A régua do público: rifa publicada ou já sorteada (nunca rascunho) e promotora no ar. */
 const noAr = (slug: string) =>
-  and(
-    eq(campaigns.slug, slug),
-    ne(campaigns.status, "draft"),
-    isNull(organizations.archivedAt),
-    isNull(organizations.banidaEm),
-  );
+  and(eq(campaigns.slug, slug), ne(campaigns.status, "draft"), isNull(organizations.archivedAt), isNull(organizations.banidaEm));
 
-/** O que a página da rifa recebe: o endereço e o texto alternativo, ou nada. */
+/** O que a página da rifa recebe (a rota já conferiu que ela não é rascunho). */
 export async function bannerPublico(campaignId: string, slug: string) {
+  // A mesma régua da imagem: promotora arquivada ou banida, a entidade não sai.
   const [b] = await db
-    .select({ titulo: campaignBannersDivulgacao.titulo, em: campaignBannersDivulgacao.updatedAt })
+    .select(dadosSemBytes)
     .from(campaignBannersDivulgacao)
-    .where(eq(campaignBannersDivulgacao.campaignId, campaignId));
-  return b ? { url: urlDoBannerDeDivulgacao(slug, b.em), titulo: b.titulo } : null;
+    .innerJoin(campaigns, eq(campaigns.id, campaignBannersDivulgacao.campaignId))
+    .innerJoin(organizations, eq(organizations.id, campaigns.organizationId))
+    .where(and(eq(campaignBannersDivulgacao.campaignId, campaignId), noAr(slug)));
+  if (!b) return null;
+  return {
+    nome: b.nome,
+    texto: b.texto,
+    site: b.site,
+    redes: b.redes,
+    url: urlDoBannerDeDivulgacao(slug, b.em),
+    urlGrande: urlDoBannerDeDivulgacao(slug, b.em, true),
+  };
 }
 
-export async function imagemPublica(slug: string) {
+export async function imagemPublica(slug: string, grande: boolean) {
   const [b] = await db
-    .select({ mime: campaignBannersDivulgacao.mime, bytes: campaignBannersDivulgacao.bytes })
+    .select({
+      mime: campaignBannersDivulgacao.mime,
+      bytes: grande ? campaignBannersDivulgacao.bytesGrande : campaignBannersDivulgacao.bytes,
+    })
     .from(campaignBannersDivulgacao)
     .innerJoin(campaigns, eq(campaigns.id, campaignBannersDivulgacao.campaignId))
     .innerJoin(organizations, eq(organizations.id, campaigns.organizationId))

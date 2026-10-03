@@ -2877,6 +2877,11 @@ export const divulgacoes = pgTable(
     versao: integer("versao").notNull().default(0),
     /** A última edição de quem publicou (o "Editada" na tela). */
     editadaEm: timestamp("editada_em"),
+    /**
+     * Agendada: a peça só aparece na página da rifa a partir daqui (e depois
+     * de aprovada). Nula: aparece assim que estiver no ar.
+     */
+    publicaEm: timestamp("publica_em"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (t) => [

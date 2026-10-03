@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  DIVULGACAO_AGENDA_MAX_DIAS,
+  agendaDaPeca,
+  pecaNoArAgora,
   DE_PARA_DA_DECISAO,
   DIVULGACAO_MIDIAS_MAX,
   MODO_PADRAO,
@@ -145,5 +148,26 @@ describe("aviso a quem publicou", () => {
     );
     expect(avisoDaDecisao("removida", "Moto 0 km", "acabou a parceria")?.body).toContain("tirou do ar");
     expect(avisoDaDecisao("em_analise", "Moto 0 km", null)).toBeNull();
+  });
+});
+
+describe("agendar a peça", () => {
+  const agora = new Date("2026-10-03T12:00:00.000Z");
+  it("ausente fica como estava; vazio tira a agenda", () => {
+    expect(agendaDaPeca(undefined, agora)).toBeUndefined();
+    expect(agendaDaPeca(null, agora)).toBeNull();
+    expect(agendaDaPeca("", agora)).toBeNull();
+  });
+  it("aceita só instante ISO com fuso, do agora até o limite", () => {
+    expect(agendaDaPeca("2026-10-10T09:00:00-03:00", agora)?.toISOString()).toBe("2026-10-10T12:00:00.000Z");
+    expect(() => agendaDaPeca("2026-10-10", agora)).toThrow();
+    expect(() => agendaDaPeca("2026-10-02T12:00:00Z", agora)).toThrow();
+    expect(() => agendaDaPeca(new Date(agora.getTime() + (DIVULGACAO_AGENDA_MAX_DIAS + 1) * 86_400_000).toISOString(), agora)).toThrow();
+  });
+  it("aparece só no ar e depois da hora", () => {
+    expect(pecaNoArAgora("publicada", null, agora)).toBe(true);
+    expect(pecaNoArAgora("publicada", "2026-10-03T11:00:00Z", agora)).toBe(true);
+    expect(pecaNoArAgora("publicada", "2026-10-03T13:00:00Z", agora)).toBe(false);
+    expect(pecaNoArAgora("em_analise", null, agora)).toBe(false);
   });
 });

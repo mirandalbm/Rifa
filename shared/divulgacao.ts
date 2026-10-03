@@ -20,6 +20,7 @@
  *   só lê texto: a foto, quem lê é a organização).
  */
 import { LEGENDA_MAX, limparLegenda, problemaNaLegenda } from "./publicacao";
+import { instanteAgendado } from "./agenda";
 
 export const MODOS_DE_DIVULGACAO = {
   autorizacao: "Só depois da minha autorização",
@@ -65,6 +66,25 @@ export function validarFotos(v: unknown): string[] | null {
   }
   return v as string[];
 }
+/** Até quantos dias à frente quem publica agenda a peça. */
+export const DIVULGACAO_AGENDA_MAX_DIAS = 30;
+
+/**
+ * A hora em que a peça entra na página da rifa: ausente é `undefined` (na
+ * edição, fica a que estava); vazia é `null` (sem agenda: entra assim que
+ * estiver no ar); com data, até `DIVULGACAO_AGENDA_MAX_DIAS` à frente. A
+ * aprovação da organização continua valendo antes: agendar não pula a fila.
+ */
+export function agendaDaPeca(bruta: unknown, agora: Date = new Date()): Date | null | undefined {
+  if (bruta === undefined) return undefined;
+  return instanteAgendado(bruta, DIVULGACAO_AGENDA_MAX_DIAS, agora);
+}
+
+/** Aparece na página da rifa agora? (no ar e, se agendada, já passou da hora) */
+export function pecaNoArAgora(status: StatusDaDivulgacao, publicaEm: Date | string | null, agora: Date = new Date()): boolean {
+  return status === "publicada" && (!publicaEm || new Date(publicaEm).getTime() <= agora.getTime());
+}
+
 /** Peças novas por pessoa por dia (conta a tentativa, depois do erro de preenchimento). */
 export const DIVULGACOES_POR_DIA = 10;
 export const MOTIVO_MAX = 300;

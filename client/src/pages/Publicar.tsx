@@ -5,6 +5,7 @@ import { ArrowLeft } from "lucide-react";
 import { PublicShell } from "@/components/AppShell";
 import { Button, Campo, Pill } from "@/components/bits";
 import { FotosProprias, useFotosProprias } from "@/components/FotosProprias";
+import { CampoDeAgenda, aindaAgendado, paraCampoLocal, paraInstante, quandoCurto } from "@/components/CampoDeAgenda";
 import { apiRequest } from "@/lib/queryClient";
 import { useConfigDoApp } from "@/components/Console";
 import { useSession } from "@/lib/session";
@@ -22,6 +23,7 @@ interface Minha {
   editadaEm: string | null;
   versao: number;
   fotos: string[];
+  publicaEm: string | null;
 }
 
 /**
@@ -44,17 +46,24 @@ export default function Publicar() {
   const [editando, setEditando] = useState<{ id: string; versao: number } | null>(null);
   // As fotos dele: na edição, as da peça só vão de novo se ele trocar.
   const fotos = useFotosProprias((texto) => setMsg({ ok: false, texto }));
+  // A hora de entrar na página da rifa: só vai ao servidor se a pessoa mexeu
+  // (na edição, a agenda que passou não é reenviada — seria "hora que já passou").
+  const [agenda, setAgenda] = useState("");
+  const [agendaMudou, setAgendaMudou] = useState(false);
+  const corpoDaAgenda = () => (agendaMudou ? { publicaEm: paraInstante(agenda) } : {});
   const limpar = () => {
     setLegenda("");
     setEditando(null);
     fotos.limpar();
+    setAgenda("");
+    setAgendaMudou(false);
   };
 
   const publicar = useMutation({
     mutationFn: () =>
       editando
-        ? apiRequest("PATCH", `/api/public/divulgacoes/${editando.id}`, { legenda, versao: editando.versao, ...fotos.corpo(true) })
-        : apiRequest("POST", "/api/public/divulgacoes", { slug, legenda, ...fotos.corpo(false) }),
+        ? apiRequest("PATCH", `/api/public/divulgacoes/${editando.id}`, { legenda, versao: editando.versao, ...fotos.corpo(true), ...corpoDaAgenda() })
+        : apiRequest("POST", "/api/public/divulgacoes", { slug, legenda, ...fotos.corpo(false), ...corpoDaAgenda() }),
     onSuccess: () => {
       setMsg({
         ok: true,
@@ -72,6 +81,8 @@ export default function Publicar() {
     setLegenda(m.legenda);
     setEditando({ id: m.id, versao: m.versao });
     fotos.carregar(m.fotos);
+    setAgenda(paraCampoLocal(m.publicaEm));
+    setAgendaMudou(false);
     setMsg(null);
     document.getElementById("publicar-texto")?.focus();
   };
@@ -119,6 +130,15 @@ export default function Publicar() {
                   <textarea id="publicar-texto" rows={4} maxLength={LEGENDA_MAX} value={legenda} onChange={(e) => setLegenda(e.target.value)} />
                 </Campo>
                 <FotosProprias estado={fotos} editando={Boolean(editando)} dica="Só fotos suas. A organização vê cada uma antes de publicar." />
+                <CampoDeAgenda
+                  id="publicar-agenda"
+                  valor={agenda}
+                  aoMudar={(v) => {
+                    setAgenda(v);
+                    setAgendaMudou(true);
+                  }}
+                  dica="Vazio, aparece assim que a organização autorizar. Com data (até 30 dias), aparece a partir dessa hora — e só se ela já tiver autorizado."
+                />
                 {msg ? <p role="status" className={`rounded-md px-3 py-2 ${msg.ok ? "bg-green-soft text-green-deep" : "bg-red-soft text-red"}`}>{msg.texto}</p> : null}
                 <div className="flex flex-wrap gap-2">
                   <Button disabled={publicar.isPending || !slug || legenda.trim().length < 3} onClick={() => publicar.mutate()}>
@@ -142,6 +162,11 @@ export default function Publicar() {
                         <Pill status={PILL_DA_DIVULGACAO[m.status]}>{STATUS_DA_DIVULGACAO[m.status]}</Pill>
                         <span className="font-semibold">{m.title}</span>
                         {m.editadaEm ? <span className="text-xs text-muted">Editada</span> : null}
+                        {aindaAgendado(m.publicaEm) ? (
+                          <span className="text-xs text-muted">
+                            Agendada: <span className="tnum">{quandoCurto(m.publicaEm as string)}</span>
+                          </span>
+                        ) : null}
                       </div>
                       <p className="break-words text-muted">{m.legenda}</p>
                       {m.fotos.length ? (

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { aindaAgendado, quandoCurto } from "@/components/CampoDeAgenda";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, Card, Campo, Pill } from "@/components/bits";
 import { apiRequest } from "@/lib/queryClient";
@@ -18,6 +19,8 @@ interface Linha {
   criadaEm: string;
   versao: number;
   editadaEm: string | null;
+  /** Agendada por quem publicou: aprovada, só aparece na rifa a partir daqui. */
+  publicaEm: string | null;
   /** As fotos de quem publicou (apostador ou afiliado): a organização vê cada uma antes de autorizar. */
   fotos: string[];
 }
@@ -123,6 +126,12 @@ export function DivulgacoesDaOrganizacao({ daOrganizacao }: { daOrganizacao: boo
                   {l.autor === "afiliado" ? "influenciador" : "apostador"} · {l.rifa}
                   {daOrganizacao ? "" : ` · ${l.organizacao}`}
                   {l.editadaEm ? " · editada" : ""}
+                  {aindaAgendado(l.publicaEm) ? (
+                    <>
+                      {" · agendada para "}
+                      <span className="tnum">{quandoCurto(l.publicaEm as string)}</span>
+                    </>
+                  ) : null}
                 </span>
               </div>
               {l.legenda ? <p className="whitespace-pre-line break-words">{l.legenda}</p> : null}

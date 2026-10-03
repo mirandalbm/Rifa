@@ -276,8 +276,8 @@ async function alcancaOVizinho(eu: Lado, vizinho: Lado) {
     .values({ campaignId: c, organizationId: vizinho.orgId, autor: "apostador", legenda: "divulgação do vizinho", status: "em_analise" })
     .returning({ id: divulgacoes.id });
   const tentativas: [string, string, RequestInit][] = [
-    ["POST aprovar divulgação do vizinho", `/api/admin/divulgacoes/${divulgacaoDoVizinho.id}`, { method: "POST", body: '{"acao":"aprovar"}' }],
-    ["POST recusar divulgação do vizinho", `/api/admin/divulgacoes/${divulgacaoDoVizinho.id}`, { method: "POST", body: '{"acao":"recusar","motivo":"invadido"}' }],
+    ["POST aprovar divulgação do vizinho", `/api/admin/divulgacoes/${divulgacaoDoVizinho.id}`, { method: "POST", body: '{"acao":"aprovar","versao":0}' }],
+    ["POST recusar divulgação do vizinho", `/api/admin/divulgacoes/${divulgacaoDoVizinho.id}`, { method: "POST", body: '{"acao":"recusar","motivo":"invadido","versao":0}' }],
     ["DELETE comentário na rifa do vizinho", `/api/public/comentarios/${comentarioDoVizinho.id}`, { method: "DELETE" }],
     ["DELETE comentário do sorteio oficial", `/api/public/sorteio-oficial/comentarios/${comentarioDoSorteio.id}`, { method: "DELETE" }],
     ["GET telefone do vizinho", `/api/admin/organizacoes/${vizinho.orgId}/telefone`, {}],

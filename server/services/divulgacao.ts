@@ -38,6 +38,7 @@ import {
   EDICOES_POR_DIA,
   STATUS_DA_DIVULGACAO,
   podeEditar,
+  versaoInformada,
   linkDaDivulgacao,
   statusInicial,
   validarDecisao,
@@ -413,7 +414,7 @@ async function editarPropria(
   const dados = regra(() => validarDivulgacao(dono.autor, entrada));
   const doDono = dono.autor === "afiliado" ? eq(divulgacoes.affiliateId, dono.affiliateId) : eq(divulgacoes.buyerId, dono.buyerId);
   const [atual] = await db
-    .select({ campaignId: divulgacoes.campaignId, status: divulgacoes.status, versao: divulgacoes.versao })
+    .select({ campaignId: divulgacoes.campaignId, status: divulgacoes.status, versao: divulgacoes.versao, midiaIds: divulgacoes.midiaIds })
     .from(divulgacoes)
     .where(and(eq(divulgacoes.id, id), doDono));
   if (!atual) throw new DivulgacaoError("Divulgação não encontrada.", 404);
@@ -422,13 +423,15 @@ async function editarPropria(
   }
   // A versão de onde a edição partiu (a tela manda): outra aba gravou no meio,
   // esta não sobrescreve sem ler.
-  const partiuDe = Number.isInteger(entrada.versao) && (entrada.versao as number) >= 0 ? (entrada.versao as number) : atual.versao;
+  const partiuDe = regra(() => versaoInformada(entrada.versao)) ?? atual.versao;
   if (partiuDe !== atual.versao) throw new DivulgacaoError("A divulgação mudou enquanto você editava. Abra de novo.", 409);
   let rifa: Awaited<ReturnType<typeof rifaParaDivulgar>>;
   try {
     rifa = await rifaParaDivulgar(null, atual.campaignId);
-  } catch {
-    throw new DivulgacaoError("A rifa não recebe mais divulgação.", 409);
+  } catch (err) {
+    // Só "a rifa não está mais apta" vira 409; erro de banco segue como erro.
+    if (err instanceof DivulgacaoError && err.status === 404) throw new DivulgacaoError("A rifa não recebe mais divulgação.", 409);
+    throw err;
   }
   if (dono.autor === "afiliado") {
     if (!(await comissaoNaRifa(db, dono.affiliateId, rifa)).recebe) {
@@ -447,7 +450,10 @@ async function editarPropria(
   const limite = await hit(`divulgacao-edicao:${dono.autor}:${pessoa}`, 24 * 60, EDICOES_POR_DIA);
   if (limite.excedeu) throw new DivulgacaoError("Muitas edições hoje. Tente amanhã.", 429);
   barrarPixPorFora(dados.legenda, rifa, dono.quem);
-  if (dono.autor === "afiliado") await conferirMidias(rifa.id, dados.midias);
+  // Sem `midias` no corpo, ficam as que a peça já tinha (e passam pela conferência de novo).
+  const midias = dono.autor === "afiliado" ? (Array.isArray(entrada.midias) ? dados.midias : atual.midiaIds) : [];
+  if (!dados.legenda && midias.length === 0) throw new DivulgacaoError("Escreva a legenda ou escolha ao menos uma mídia da rifa.", 422);
+  if (dono.autor === "afiliado") await conferirMidias(rifa.id, midias);
 
   // Afiliado no modo direto segue no ar; o resto volta a esperar a organização.
   const status = dono.autor === "afiliado" ? statusInicial("afiliado", validarModo(rifa.modo)) : "em_analise";
@@ -456,12 +462,15 @@ async function editarPropria(
       .update(divulgacoes)
       .set({
         legenda: dados.legenda,
-        midiaIds: dados.midias,
+        midiaIds: midias,
         status,
-        motivo: null,
-        // Não é decisão da organização: nada disto acende o sino do afiliado.
-        decididoEm: status === "publicada" ? sql`now()` : null,
-        decididoPor: null,
+        // Segue no ar (modo direto): a decisão que a colocou lá fica como está —
+        // a aprovação ainda não vista continua no sino do afiliado. Volta para a
+        // fila: a decisão antiga não vale mais, e a edição não é decisão da
+        // organização (nada disto acende o sino).
+        ...(status === atual.status
+          ? {}
+          : { motivo: null, decididoEm: status === "publicada" ? sql`now()` : null, decididoPor: null }),
         versao: sql`${divulgacoes.versao} + 1`,
         editadaEm: sql`now()`,
       })
@@ -582,7 +591,7 @@ export async function decidir(req: Request, id: string, entrada: unknown) {
     if (linha.status !== de) throw new DivulgacaoError("Esta divulgação já foi decidida.", 409);
     // Quem publicou editou depois que a lista foi aberta: decidir agora seria
     // aprovar (ou recusar) um texto que ninguém leu.
-    if (versao !== null && Number(linha.versao) !== versao) {
+    if (Number(linha.versao) !== versao) {
       throw new DivulgacaoError("Quem publicou editou a divulgação. Leia de novo antes de decidir.", 409);
     }
     if (acao === "aprovar") {
@@ -609,16 +618,23 @@ export async function decidir(req: Request, id: string, entrada: unknown) {
       // diferentes não escondem a decisão do sino dele.
       .set({ status: para, motivo, decididoEm: sql`now()`, decididoPor: req.user?.id ?? null })
       .where(and(eq(divulgacoes.id, id), eq(divulgacoes.status, de), eq(divulgacoes.versao, Number(linha.versao))))
-      .returning({ id: divulgacoes.id, status: divulgacoes.status, buyerId: divulgacoes.buyerId });
+      .returning({ id: divulgacoes.id, status: divulgacoes.status, buyerId: divulgacoes.buyerId, versao: divulgacoes.versao });
     if (!novo) throw new DivulgacaoError("Esta divulgação já foi decidida.", 409);
-    return { id: novo.id, status: novo.status, buyerId: novo.buyerId, motivo, acao, campaignId: linha.campaign_id };
+    return { id: novo.id, status: novo.status, buyerId: novo.buyerId, versao: novo.versao, motivo, acao, campaignId: linha.campaign_id };
   });
   // Quem publicou fica sabendo, fora da transação: aviso nunca derruba a decisão.
   // Leva o que ESTA transação decidiu — reler a linha depois pegaria a retirada
   // que o próprio autor fez logo em seguida e mandaria o aviso errado.
   if (decidida.buyerId) {
     emSegundoPlano(
-      avisarAutorDaDecisao({ id, buyerId: decidida.buyerId, status: decidida.status as StatusDaDivulgacao, motivo, campaignId: decidida.campaignId }),
+      avisarAutorDaDecisao({
+        id,
+        buyerId: decidida.buyerId,
+        status: decidida.status as StatusDaDivulgacao,
+        versao: decidida.versao,
+        motivo,
+        campaignId: decidida.campaignId,
+      }),
       "aviso da divulgação",
     );
   }
@@ -626,16 +642,17 @@ export async function decidir(req: Request, id: string, entrada: unknown) {
 }
 
 /**
- * O apostador recebe push e o aviso no trevo (a chave leva a situação: a mesma
- * decisão não avisa duas vezes). O afiliado não tem push — vê o número no sino
+ * O apostador recebe push e o aviso no trevo (a chave leva a versão e a
+ * situação: a mesma decisão não avisa duas vezes; a da versão editada, sim). O afiliado não tem push — vê o número no sino
  * do painel (`decididasParaOAfiliado`). Sem telefone nem nome no aviso.
  */
-async function avisarAutorDaDecisao(d: { id: string; buyerId: string; status: StatusDaDivulgacao; motivo: string | null; campaignId: string }) {
+async function avisarAutorDaDecisao(d: { id: string; buyerId: string; status: StatusDaDivulgacao; versao: number; motivo: string | null; campaignId: string }) {
   const [c] = await db.select({ titulo: campaigns.title }).from(campaigns).where(eq(campaigns.id, d.campaignId));
   if (!c) return;
   const texto = avisoDaDecisao(d.status, c.titulo, d.motivo);
   if (!texto) return;
-  await avisar([d.buyerId], "divulgacao", `${d.id}:${d.status}`, { ...texto, url: "/publicar", tag: `divulgacao-${d.id}` });
+  // A versão na chave: editada e aprovada de novo é outra decisão, e avisa de novo.
+  await avisar([d.buyerId], "divulgacao", `${d.id}:${d.versao}:${d.status}`, { ...texto, url: "/publicar", tag: `divulgacao-${d.id}` });
 }
 
 /**

@@ -141,7 +141,7 @@ export function AfiliadoDivulgar() {
                       {rifa.modo === "direta"
                         ? `${rifa.organizacao} deixa você publicar direto: a peça vai ao ar na hora${editando ? ", e a edição também" : ""}.`
                         : editando
-                          ? `${rifa.organizacao} autoriza antes: a peça editada sai da página da rifa até a nova aprovação.`
+                          ? `${rifa.organizacao} autoriza antes: a peça editada só aparece na rifa depois da nova aprovação.`
                           : `${rifa.organizacao} autoriza antes: a peça só vai ao ar depois da aprovação.`}
                     </p>
                     <fieldset>

@@ -1950,14 +1950,20 @@ publicou, com o link dele (`/r/<rifa>?ref=<código>`).
   afiliado, compra paga do apostador, o interruptor; um balde próprio de
   `hit` (`EDICOES_POR_DIA`, a tentativa conta). **Editada, volta para a fila**
   (sai da página da rifa até a organização ler de novo) — salvo o afiliado no
-  modo direto, que segue no ar. O índice de "uma em análise" decide se já há
-  outra esperando (409). A edição zera `decidido_por` (não acende o sino do
-  afiliado) e marca `editada_em` ("Editada" na lista, na fila e na página).
+  modo direto, que segue no ar (e aí a decisão que a pôs no ar fica como
+  está: a aprovação ainda não vista segue no sino do afiliado). O índice de
+  "uma em análise" decide se já há outra esperando (409). Voltando para a
+  fila, a edição zera `decidido_por` (não é decisão da organização). Marca
+  `editada_em` ("Editada" na lista, na fila e na página). Sem `midias` no
+  corpo, ficam as que a peça tinha.
 - **A organização decide a versão que leu.** `divulgacoes.versao` sobe a cada
-  edição; a fila devolve a versão e a decisão a manda de volta: editada no
-  meio, 409 — nunca aprovar um texto que ninguém viu. A edição também parte
-  de uma versão (a tela manda): duas abas na mesma versão dão um 200 e um 409.
-  Os dois `UPDATE` repetem situação e versão.
+  edição; a fila devolve a versão e a decisão a manda de volta — **obrigatória**
+  (`validarDecisao()`, 422 sem ela): editada no meio, 409 — nunca aprovar um
+  texto que ninguém viu. A edição também parte de uma versão (a tela manda;
+  formato errado é 422): duas abas na mesma versão dão um 200 e um 409. Os
+  dois `UPDATE` repetem situação e versão. O aviso ao apostador leva a versão
+  na chave (`<id>:<versao>:<situação>`): a peça editada e aprovada de novo
+  avisa de novo.
 - **A plataforma vê e decide a fila de todas** (organização nula no recorte),
   com o nome da organização em cada peça; o modo continua sendo da organização.
 - A tabela nova sobe com o `db:push` **antes** do código, e a coluna

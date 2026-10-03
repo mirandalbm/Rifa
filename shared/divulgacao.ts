@@ -70,7 +70,7 @@ export const DE_PARA_DA_DECISAO: Record<AcaoDaDecisao, { de: StatusDaDivulgacao;
   remover: { de: "publicada", para: "removida" },
 };
 
-export function validarDecisao(entrada: unknown): { acao: AcaoDaDecisao; motivo: string | null; versao: number | null } {
+export function validarDecisao(entrada: unknown): { acao: AcaoDaDecisao; motivo: string | null; versao: number } {
   const e = (entrada ?? {}) as Record<string, unknown>;
   const acao = e.acao;
   if (acao !== "aprovar" && acao !== "recusar" && acao !== "remover") throw new Error("Escolha aprovar, recusar ou retirar.");
@@ -83,10 +83,18 @@ export function validarDecisao(entrada: unknown): { acao: AcaoDaDecisao; motivo:
   // "chama no zap" escrito pela organização.
   const problema = motivo ? problemaNaLegenda(motivo) : null;
   if (problema) throw new Error(problema);
-  // A versão que a organização leu: a peça editada depois disso não é decidida às cegas.
-  const v = e.versao;
-  if (v !== undefined && v !== null && !(Number.isInteger(v) && (v as number) >= 0)) throw new Error("Versão inválida.");
-  return { acao, motivo: motivo || null, versao: typeof v === "number" ? v : null };
+  // A versão que a organização leu é obrigatória: sem ela, a peça editada
+  // depois que a lista abriu seria decidida às cegas.
+  const versao = versaoInformada(e.versao);
+  if (versao === null) throw new Error("Abra a lista de novo antes de decidir.");
+  return { acao, motivo: motivo || null, versao };
+}
+
+/** A versão que a tela leu: inteira e não negativa; ausente é `null`, formato errado é erro. */
+export function versaoInformada(v: unknown): number | null {
+  if (v === undefined || v === null) return null;
+  if (!(typeof v === "number" && Number.isInteger(v) && v >= 0)) throw new Error("Versão inválida.");
+  return v;
 }
 
 export interface EntradaDaDivulgacao {

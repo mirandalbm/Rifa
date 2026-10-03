@@ -72,9 +72,10 @@ describe("decisão", () => {
     expect(DE_PARA_DA_DECISAO.remover).toEqual({ de: "publicada", para: "removida" });
   });
   it("recusar e retirar pedem motivo; aprovar não", () => {
-    expect(validarDecisao({ acao: "aprovar" })).toEqual({ acao: "aprovar", motivo: null, versao: null });
-    expect(() => validarDecisao({ acao: "recusar" })).toThrow();
-    expect(validarDecisao({ acao: "recusar", motivo: "Fora do tom" }).motivo).toBe("Fora do tom");
+    expect(validarDecisao({ acao: "aprovar", versao: 0 })).toEqual({ acao: "aprovar", motivo: null, versao: 0 });
+    expect(() => validarDecisao({ acao: "aprovar" })).toThrow();
+    expect(() => validarDecisao({ acao: "recusar", versao: 0 })).toThrow();
+    expect(validarDecisao({ acao: "recusar", motivo: "Fora do tom", versao: 1 }).motivo).toBe("Fora do tom");
     expect(() => validarDecisao({ acao: "apagar" })).toThrow();
   });
 });

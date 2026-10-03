@@ -3,6 +3,7 @@ import { Link } from "wouter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { PanelShell } from "@/components/AppShell";
 import { Button, Card, Campo, Empty, Pill } from "@/components/bits";
+import { FotosProprias, useFotosProprias } from "@/components/FotosProprias";
 import { apiRequest } from "@/lib/queryClient";
 import { DIVULGACAO_MIDIAS_MAX, STATUS_DA_DIVULGACAO, podeEditar, type ModoDeDivulgacao, type StatusDaDivulgacao } from "@shared/divulgacao";
 import { LEGENDA_MAX } from "@shared/publicacao";
@@ -25,6 +26,7 @@ interface Minha {
   criadaEm: string;
   editadaEm: string | null;
   versao: number;
+  fotos: string[];
 }
 
 export const PILL_DA_DIVULGACAO: Record<StatusDaDivulgacao, string> = {
@@ -37,8 +39,9 @@ export const PILL_DA_DIVULGACAO: Record<StatusDaDivulgacao, string> = {
 /**
  * O influenciador publica com o material da organização: escolhe uma rifa
  * (só as de organização com vínculo aprovado e termo aceito), as mídias que
- * ela já publicou e escreve a legenda dele. A organização escolhe se a peça
- * vai direto ao ar ou só depois da autorização — a tela diz qual vale.
+ * ela já publicou, até 4 fotos dele e a legenda. A organização escolhe se a
+ * peça vai direto ao ar ou só depois da autorização — a tela diz qual vale.
+ * Com foto dele, a peça sempre passa pela organização.
  */
 export function AfiliadoDivulgar() {
   const qc = useQueryClient();
@@ -51,17 +54,21 @@ export function AfiliadoDivulgar() {
   // A peça que está sendo corrigida (nulo: peça nova).
   const [editando, setEditando] = useState<{ id: string; versao: number } | null>(null);
   const rifa = rifas.find((r) => r.slug === slug) ?? null;
+  const fotos = useFotosProprias((texto) => setMsg({ ok: false, texto }));
+  // Com foto própria, nem o modo direto põe no ar sem a organização.
+  const direta = rifa?.modo === "direta" && fotos.quantas === 0;
 
   const limpar = () => {
     setLegenda("");
     setEscolhidas([]);
     setEditando(null);
+    fotos.limpar();
   };
   const publicar = useMutation({
     mutationFn: () =>
       editando
-        ? apiRequest("PATCH", `/api/affiliate/divulgacoes/${editando.id}`, { legenda, midias: escolhidas, versao: editando.versao })
-        : apiRequest("POST", "/api/affiliate/divulgacoes", { slug, legenda, midias: escolhidas }),
+        ? apiRequest("PATCH", `/api/affiliate/divulgacoes/${editando.id}`, { legenda, midias: escolhidas, versao: editando.versao, ...fotos.corpo(true) })
+        : apiRequest("POST", "/api/affiliate/divulgacoes", { slug, legenda, midias: escolhidas, ...fotos.corpo(false) }),
     onSuccess: async (res) => {
       const j = (await res.json()) as { status: StatusDaDivulgacao };
       const editou = Boolean(editando);
@@ -89,6 +96,7 @@ export function AfiliadoDivulgar() {
     setSlug(m.slug);
     setLegenda(m.legenda);
     setEscolhidas(m.midias);
+    fotos.carregar(m.fotos);
     setEditando({ id: m.id, versao: m.versao });
     setMsg(null);
     document.getElementById("nova-divulgacao")?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -104,8 +112,9 @@ export function AfiliadoDivulgar() {
   return (
     <PanelShell title="Divulgar">
       <p className="mb-3 text-sm text-muted">
-        Publique com as fotos e os vídeos que a organização já pôs na rifa. A sua peça leva o seu link, e a compra por
-        ele paga a sua comissão. Não dá para mudar preço, cotas nem prêmio — só divulgar.
+        Publique com as fotos e os vídeos que a organização já pôs na rifa e, se quiser, com fotos suas. A sua peça
+        leva o seu link, e a compra por ele paga a sua comissão. Não dá para mudar preço, cotas nem prêmio — só
+        divulgar.
       </p>
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1.3fr_1fr]">
         <Card title={editando ? "Editar divulgação" : "Nova divulgação"}>
@@ -124,6 +133,7 @@ export function AfiliadoDivulgar() {
                     onChange={(e) => {
                       setSlug(e.target.value);
                       setEscolhidas([]);
+                      fotos.limpar();
                       setMsg(null);
                     }}
                   >
@@ -138,9 +148,11 @@ export function AfiliadoDivulgar() {
                 {rifa ? (
                   <>
                     <p className="text-xs text-muted">
-                      {rifa.modo === "direta"
+                      {direta
                         ? `${rifa.organizacao} deixa você publicar direto: a peça vai ao ar na hora${editando ? ", e a edição também" : ""}.`
-                        : editando
+                        : rifa.modo === "direta"
+                          ? `${rifa.organizacao} deixa você publicar direto, mas a peça com foto sua só vai ao ar depois da aprovação.`
+                          : editando
                           ? `${rifa.organizacao} autoriza antes: a peça editada só aparece na rifa depois da nova aprovação.`
                           : `${rifa.organizacao} autoriza antes: a peça só vai ao ar depois da aprovação.`}
                     </p>
@@ -171,13 +183,18 @@ export function AfiliadoDivulgar() {
                         })}
                       </ul>
                     </fieldset>
+                    <FotosProprias
+                      estado={fotos}
+                      editando={Boolean(editando)}
+                      dica="Só fotos suas ou de quem autorizou, sem menores de 18 anos. A organização vê cada uma antes de publicar."
+                    />
                     <Campo rotulo="Legenda" dica={`Sem link e sem telefone, e sem pedir pagamento por fora. Até ${LEGENDA_MAX} caracteres.`}>
                       <textarea rows={4} maxLength={LEGENDA_MAX} value={legenda} onChange={(e) => setLegenda(e.target.value)} />
                     </Campo>
                     {msg ? <p role="status" className={`rounded-md px-3 py-2 ${msg.ok ? "bg-green-soft text-green-deep" : "bg-red-soft text-red"}`}>{msg.texto}</p> : null}
                     <div className="flex flex-wrap gap-2">
-                      <Button disabled={publicar.isPending || (!legenda.trim() && escolhidas.length === 0)} onClick={() => publicar.mutate()}>
-                        {editando ? "Salvar edição" : rifa.modo === "direta" ? "Publicar" : "Enviar para autorização"}
+                      <Button disabled={publicar.isPending || (!legenda.trim() && escolhidas.length === 0 && fotos.quantas === 0)} onClick={() => publicar.mutate()}>
+                        {editando ? "Salvar edição" : direta ? "Publicar" : "Enviar para autorização"}
                       </Button>
                       {editando ? (
                         <Button variant="ghost" onClick={limpar}>
@@ -205,6 +222,15 @@ export function AfiliadoDivulgar() {
                     {m.editadaEm ? <span className="text-xs text-muted">Editada</span> : null}
                   </div>
                   {m.legenda ? <p className="line-clamp-3 break-words text-muted">{m.legenda}</p> : null}
+                  {m.fotos.length ? (
+                    <ul className="flex gap-2">
+                      {m.fotos.map((f, i) => (
+                        <li key={f}>
+                          <img src={f} alt={`Foto ${i + 1} da divulgação`} loading="lazy" className="h-14 w-14 rounded-md object-cover" />
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
                   {m.motivo ? <p className="text-xs text-muted">Motivo: {m.motivo}</p> : null}
                   {podeEditar(m.status) ? (
                     <div className="flex flex-wrap gap-2">

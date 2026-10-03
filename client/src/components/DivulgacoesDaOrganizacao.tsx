@@ -18,7 +18,7 @@ interface Linha {
   criadaEm: string;
   versao: number;
   editadaEm: string | null;
-  /** As fotos do apostador: a organização vê cada uma antes de autorizar. */
+  /** As fotos de quem publicou (apostador ou afiliado): a organização vê cada uma antes de autorizar. */
   fotos: string[];
 }
 
@@ -80,9 +80,10 @@ export function DivulgacoesDaOrganizacao({ daOrganizacao }: { daOrganizacao: boo
     >
       <div className="space-y-3 p-4 text-sm">
         <p className="text-muted">
-          Afiliados com vínculo aprovado publicam com as mídias das suas rifas; apostadores publicam só texto, sobre rifa
-          em que compraram, quando a plataforma liga essa opção. Nada altera a rifa, e texto com link, telefone ou
-          pedido de Pix por fora é barrado.
+          Afiliados com vínculo aprovado publicam com as mídias das suas rifas e fotos deles; apostadores publicam texto e
+          fotos, sobre rifa em que compraram, quando a plataforma liga essa opção. Peça com foto de quem publicou sempre
+          espera a sua autorização, mesmo no modo direto. Nada altera a rifa, e texto com link, telefone ou pedido de Pix
+          por fora é barrado.
         </p>
         {daOrganizacao ? (
           <fieldset>
@@ -102,7 +103,7 @@ export function DivulgacoesDaOrganizacao({ daOrganizacao }: { daOrganizacao: boo
               ))}
             </div>
             <p className="mt-1 text-xs text-muted">
-              No modo direto a peça do afiliado vai ao ar na hora (você pode retirar depois). A do apostador sempre espera
+              No modo direto a peça do afiliado vai ao ar na hora (você pode retirar depois), salvo a que leva foto dele. A do apostador sempre espera
               a sua autorização.
             </p>
           </fieldset>

@@ -214,8 +214,8 @@ async function main() {
     const [mediaDaB] = await db.select().from(campaignMedia).where(eq(campaignMedia.campaignId, b1.id));
     r = await peca(a1.slug, { midias: [mediaDaB.id] });
     checa("mídia de outra rifa: 422", r.status === 422, `HTTP ${r.status}`);
-    r = await peca(a1.slug, { fotos: [await pngDe("#15803d")] });
-    checa("o afiliado não manda foto própria (422)", r.status === 422, `HTTP ${r.status}`);
+    r = await peca(a1.slug, { fotos: Array(5).fill(await pngDe("#15803d")) });
+    checa("o afiliado manda no máximo 4 fotos próprias (422)", r.status === 422, `HTTP ${r.status}`);
     r = await peca(a1.slug, { midias: ["../../etc/passwd"] });
     checa("mídia que não é id: 422", r.status === 422, `HTTP ${r.status}`);
     r = await peca(a1.slug, { legenda: "" });
@@ -377,6 +377,43 @@ async function main() {
     checa("a retirada pela organização vira aviso no sino do afiliado", r.json?.decididas === 1, JSON.stringify(r.json));
     r = await afiliada.req("PATCH", `/api/affiliate/divulgacoes/${idDireta}`, { legenda: "Quero de volta" });
     checa("peça retirada não se edita (409): envia outra", r.status === 409, `HTTP ${r.status}`);
+
+    // Foto própria do afiliado: passa pela organização mesmo no modo direto
+    // (a varredura do Pix por fora só lê texto).
+    r = await peca(a1.slug, { legenda: "Eu com o prêmio na loja", fotos: [await pngDe("#1d4ed8")] });
+    checa("no modo direto, a peça com foto do afiliado espera a organização", r.status === 201 && r.json?.status === "em_analise", `HTTP ${r.status} ${r.json?.message ?? ""}`);
+    const idFotoAf = r.json?.id as string;
+    {
+      r = await afiliada.req("GET", "/api/affiliate/divulgacoes");
+      const minha = r.json?.find((x: any) => x.id === idFotoAf);
+      checa("o afiliado vê a foto da própria peça", minha?.fotos?.length === 1 && (await foto(afiliada, minha.fotos[0])).status === 200);
+      checa("sem sessão, a foto do afiliado não abre (401)", (await foto(null, minha.fotos[0])).status === 401);
+      r = await orgA.req("GET", "/api/admin/divulgacoes");
+      const naFila = r.json?.find((x: any) => x.id === idFotoAf);
+      checa("a organização vê a foto do afiliado antes de autorizar", naFila?.fotos?.length === 1 && (await foto(orgA, naFila.fotos[0])).status === 200);
+      checa("a B não abre a foto do afiliado na peça da A (404)", (await foto(orgB, naFila.fotos[0])).status === 404);
+      const publica = `/api/public/divulgacoes/${idFotoAf}/fotos/${naFila.fotos[0].split("/").pop()}`;
+      checa("em análise, a foto do afiliado não é pública (404)", (await foto(null, publica)).status === 404);
+      r = await dec(orgA, idFotoAf, { acao: "aprovar" });
+      checa("a A aprova a peça com a foto", r.status === 200 && r.json?.status === "publicada", `HTTP ${r.status} ${r.json?.message ?? ""}`);
+      checa("no ar, a foto do afiliado abre para qualquer um", (await foto(null, publica)).status === 200);
+      r = await anon.req("GET", `/api/public/campaigns/${a1.slug}/divulgacoes`);
+      checa("a página da rifa mostra a foto do afiliado", r.json?.find((x: any) => x.id === idFotoAf)?.fotos?.length === 1);
+      // Editar o texto e manter a foto: volta para a fila, mesmo no modo direto.
+      let versao = (await afiliada.req("GET", "/api/affiliate/divulgacoes")).json?.find((x: any) => x.id === idFotoAf)?.versao;
+      r = await afiliada.req("PATCH", `/api/affiliate/divulgacoes/${idFotoAf}`, { legenda: "Eu com o prêmio, corrigida", versao });
+      checa("editada com a foto, volta para a fila mesmo no modo direto", r.status === 200 && r.json?.status === "em_analise", `HTTP ${r.status} ${JSON.stringify(r.json)}`);
+      checa("fora do ar, a foto sai da página pública (404)", (await foto(null, publica)).status === 404);
+      // Tirar as fotos no modo direto: volta ao ar sem esperar.
+      r = await afiliada.req("PATCH", `/api/affiliate/divulgacoes/${idFotoAf}`, { legenda: "Agora sem foto", fotos: [], versao: r.json?.versao });
+      checa("sem foto, no modo direto, a edição volta ao ar", r.status === 200 && r.json?.status === "publicada", `HTTP ${r.status} ${JSON.stringify(r.json)}`);
+      const sobra = await db.select({ id: divulgacaoFotos.id }).from(divulgacaoFotos).where(eq(divulgacaoFotos.divulgacaoId, idFotoAf));
+      checa("as fotos tiradas saem do banco", sobra.length === 0, String(sobra.length));
+      versao = r.json?.versao;
+      r = await afiliada.req("PATCH", `/api/affiliate/divulgacoes/${idFotoAf}`, { legenda: "", fotos: [], versao });
+      checa("sem legenda, mídia nem foto: 422", r.status === 422, `HTTP ${r.status}`);
+      await afiliada.req("DELETE", `/api/affiliate/divulgacoes/${idFotoAf}`);
+    }
 
     // Termo: rifa publicada com termo exige o aceite daquela versão.
     r = await orgA.req("POST", "/api/admin/termo-afiliado", { comissaoPct: 12, textoExtra: "" });

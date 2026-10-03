@@ -240,6 +240,7 @@ export function montarPrivacidade(d: DadosDosTermos): Secao[] {
         "Nos comentários, o seu apelido ou o primeiro nome com a inicial. No seu perfil (/u/apelido), apelido, foto e o primeiro e o último nome.",
         "Quando a compra é paga, o primeiro nome com a inicial e a cidade/UF do cadastro podem aparecer em \"jogando agora\" na vitrine; o ganhador (do sorteio ou de cota premiada) aparece da mesma forma, no comentário fixo da rifa e, se a promotora publicar, na foto do resultado. Quem tem o código do pedido vê o nome de quem comprou ao consultá-lo — guarde o código com você.",
         "Se você publicar sobre uma rifa (quando a plataforma liga essa opção), o texto e as fotos que você enviar aparecem na página da rifa com o seu apelido, depois que a organização autorizar; sai do ar se você retirar, se a compra for estornada ou se a organização retirar. As fotos de uma publicação recusada ou retirada são apagadas na hora.",
+        "Se você é afiliado e publica sobre uma rifa, o texto e as fotos que você enviar aparecem na página da rifa com o seu nome curto e o seu código, depois que a organização autorizar (com foto, sempre depois); sai do ar se você retirar, se a organização retirar ou se você perder o vínculo com ela. As fotos saem do banco quando a publicação é recusada ou retirada — inclusive por você, a qualquer momento, em Divulgar.",
         "Só se você ligar o perfil público: aparecer em \"Quem também joga\" e em \"Seguido por\". Nasce desligado. Telefone, CPF e e-mail nunca são públicos.",
       ],
     },

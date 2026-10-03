@@ -33,6 +33,11 @@ describe("situação inicial", () => {
     expect(statusInicial("afiliado", "direta")).toBe("publicada");
     expect(statusInicial("afiliado", "autorizacao")).toBe("em_analise");
   });
+  it("com foto própria, o afiliado espera a organização mesmo no modo direto", () => {
+    expect(statusInicial("afiliado", "direta", true)).toBe("em_analise");
+    expect(statusInicial("afiliado", "autorizacao", true)).toBe("em_analise");
+    expect(statusInicial("afiliado", "direta", false)).toBe("publicada");
+  });
   it("apostador espera a organização em qualquer modo", () => {
     expect(statusInicial("apostador", "direta")).toBe("em_analise");
     expect(statusInicial("apostador", "autorizacao")).toBe("em_analise");
@@ -45,8 +50,9 @@ describe("validarDivulgacao", () => {
     expect(() => validarDivulgacao("afiliado", { legenda: "Chama 11 98888-7777" })).toThrow();
     expect(() => validarDivulgacao("apostador", { legenda: "Visita www.site.com.br agora" })).toThrow();
   });
-  it("afiliado precisa de legenda ou de mídia", () => {
+  it("afiliado precisa de legenda, mídia da rifa ou foto própria", () => {
     expect(() => validarDivulgacao("afiliado", { legenda: "  " })).toThrow();
+    expect(validarDivulgacao("afiliado", { legenda: "" }, 1)).toEqual({ legenda: "", midias: [] });
     expect(validarDivulgacao("afiliado", { legenda: "", midias: [ID] }).midias).toEqual([ID]);
     expect(validarDivulgacao("afiliado", { legenda: "Bora?" }).legenda).toBe("Bora?");
   });

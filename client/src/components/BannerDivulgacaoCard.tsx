@@ -107,26 +107,27 @@ export function BannerDivulgacaoCard({ campaignId }: { campaignId: string }) {
               </div>
             )}
             <div>
-              <label htmlFor={`entidade-img-${campaignId}`} className="label-xs">
+              {/* O botão é o rótulo (como em "Escolher fotos"): o campo nativo
+                  mostraria "Choose File" na língua do navegador. */}
+              <label className="relative inline-flex cursor-pointer items-center rounded-full border border-line px-3 py-1.5 text-xs font-semibold focus-within:ring-2 focus-within:ring-green">
                 {previa ? "Trocar a imagem" : "Escolher a imagem"}
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  className="sr-only"
+                  onChange={async (e) => {
+                    const f = e.target.files?.[0];
+                    e.target.value = "";
+                    if (!f) return;
+                    setMsg(null);
+                    try {
+                      setImagem(await lerFoto(f, 2400));
+                    } catch (err) {
+                      setMsg({ ok: false, texto: (err as Error).message });
+                    }
+                  }}
+                />
               </label>
-              <input
-                id={`entidade-img-${campaignId}`}
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                className="mt-1 block w-full text-sm"
-                onChange={async (e) => {
-                  const f = e.target.files?.[0];
-                  e.target.value = "";
-                  if (!f) return;
-                  setMsg(null);
-                  try {
-                    setImagem(await lerFoto(f, 2400));
-                  } catch (err) {
-                    setMsg({ ok: false, texto: (err as Error).message });
-                  }
-                }}
-              />
               <p className="mt-1 text-[11px] text-muted">
                 A mesma imagem vira o banner (largo, 3 por 1, cortado ao centro) e a imagem grande da tela da entidade.
                 Sem Pix, telefone ou link desenhado na imagem.

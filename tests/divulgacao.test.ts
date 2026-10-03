@@ -91,3 +91,15 @@ describe("quem vê o menu Criar", () => {
     expect(quemPublica({ role: null, apostador: true }, true)).toBe("apostador");
   });
 });
+
+describe("aviso a quem publicou", () => {
+  it("diz a decisão, com o motivo na recusa e na retirada", async () => {
+    const { avisoDaDecisao } = await import("../shared/divulgacao");
+    expect(avisoDaDecisao("publicada", "Moto 0 km", null)?.title).toBe("Sua divulgação está no ar");
+    expect(avisoDaDecisao("recusada", "Moto 0 km", "fala de preço errado")?.body).toBe(
+      "A organização recusou a sua divulgação de Moto 0 km. Motivo: fala de preço errado",
+    );
+    expect(avisoDaDecisao("removida", "Moto 0 km", "acabou a parceria")?.body).toContain("tirou do ar");
+    expect(avisoDaDecisao("em_analise", "Moto 0 km", null)).toBeNull();
+  });
+});

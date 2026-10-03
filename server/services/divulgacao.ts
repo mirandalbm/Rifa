@@ -18,7 +18,7 @@
  *   texto, só de rifa em que tem compra paga, e sempre com autorização.
  */
 import type { Request } from "express";
-import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm";
 import { db } from "../db";
 import {
   afiliadoVinculos,
@@ -43,13 +43,15 @@ import {
   validarModo,
   type AutorDaDivulgacao,
   type ModoDeDivulgacao,
+  avisoDaDecisao,
+  type StatusDaDivulgacao,
 } from "@shared/divulgacao";
 import { pedePagamentoPorFora } from "@shared/seguranca";
 import { nomeCurto } from "@shared/aoVivo";
 import { orgOf } from "./orgs";
 import { hit } from "./antifraude";
 import { comissaoNaRifa } from "./afiliados";
-import { emSegundoPlano } from "./push";
+import { avisar, emSegundoPlano } from "./push";
 import { varrerTextoDoOrganizador } from "./seguranca";
 import { getPlataforma } from "./settings";
 import { withUrls } from "./media";
@@ -368,7 +370,9 @@ export async function retirarPropria(dono: { affiliateId: string } | { buyerId: 
   const dono_ = "affiliateId" in dono ? eq(divulgacoes.affiliateId, dono.affiliateId) : eq(divulgacoes.buyerId, dono.buyerId);
   const [r] = await db
     .update(divulgacoes)
-    .set({ status: "removida", decididoEm: new Date() })
+    // Quem retirou foi o próprio autor: `decidido_por` nulo — senão a peça que a
+    // organização tinha aprovado contaria como decisão dela no sino do afiliado.
+    .set({ status: "removida", decididoEm: new Date(), decididoPor: null })
     .where(and(eq(divulgacoes.id, id), dono_, inArray(divulgacoes.status, ["em_analise", "publicada"])))
     .returning({ id: divulgacoes.id });
   if (!r) throw new DivulgacaoError("Divulgação não encontrada.", 404);
@@ -463,7 +467,7 @@ export async function decidir(req: Request, id: string, entrada: unknown) {
   const { acao, motivo } = regra(() => validarDecisao(entrada));
   const { de, para } = DE_PARA_DA_DECISAO[acao];
   const org = orgOf(req);
-  return db.transaction(async (tx: Tx) => {
+  const decidida = await db.transaction(async (tx: Tx) => {
     const r = await tx.execute(sql`select id, organization_id, campaign_id, autor, affiliate_id, status from divulgacoes where id = ${id} for update`);
     const linha = r.rows[0] as
       | { id: string; organization_id: string; campaign_id: string; autor: string; affiliate_id: string | null; status: string }
@@ -496,6 +500,52 @@ export async function decidir(req: Request, id: string, entrada: unknown) {
     if (!novo) throw new DivulgacaoError("Esta divulgação já foi decidida.", 409);
     return { ...novo, acao, campaignId: linha.campaign_id };
   });
+  // Quem publicou fica sabendo, fora da transação: aviso nunca derruba a decisão.
+  emSegundoPlano(avisarAutorDaDecisao(id), "aviso da divulgação");
+  return decidida;
+}
+
+/**
+ * O apostador recebe push e o aviso no trevo (a chave leva a situação: a mesma
+ * decisão não avisa duas vezes). O afiliado não tem push — vê o número no sino
+ * do painel (`decididasParaOAfiliado`). Sem telefone nem nome no aviso.
+ */
+async function avisarAutorDaDecisao(id: string) {
+  const [d] = await db
+    .select({ buyerId: divulgacoes.buyerId, status: divulgacoes.status, motivo: divulgacoes.motivo, titulo: campaigns.title })
+    .from(divulgacoes)
+    .innerJoin(campaigns, eq(campaigns.id, divulgacoes.campaignId))
+    .where(eq(divulgacoes.id, id));
+  if (!d?.buyerId) return;
+  const texto = avisoDaDecisao(d.status as StatusDaDivulgacao, d.titulo, d.motivo);
+  if (!texto) return;
+  await avisar([d.buyerId], "divulgacao", `${id}:${d.status}`, { ...texto, url: "/publicar", tag: `divulgacao-${id}` });
+}
+
+/**
+ * Quantas peças do afiliado a organização decidiu desde a última vez que ele
+ * abriu o sino (`users.avisos_vistos_em`, o mesmo "visto" do painel). Só a
+ * decisão da organização (`decidido_por`), nunca o que ele mesmo retirou.
+ */
+export async function decididasParaOAfiliado(affiliateId: string, userId: string): Promise<number> {
+  const [r] = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(divulgacoes)
+    .innerJoin(users, eq(users.id, userId))
+    .where(
+      and(
+        eq(divulgacoes.affiliateId, affiliateId),
+        isNotNull(divulgacoes.decididoPor),
+        isNotNull(divulgacoes.decididoEm),
+        sql`${divulgacoes.decididoEm} > coalesce(${users.avisosVistosEm}, '-infinity'::timestamp)`,
+      ),
+    );
+  return r?.n ?? 0;
+}
+
+/** O afiliado abriu o sino: o que já foi decidido fica visto, para ele. */
+export async function marcarVistoDoAfiliado(userId: string) {
+  await db.update(users).set({ avisosVistosEm: new Date() }).where(eq(users.id, userId));
 }
 
 /* ------------------------------------------------------------------ *

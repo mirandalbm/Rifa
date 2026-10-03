@@ -2518,6 +2518,9 @@ adminRouter.get("/chamados/pendentes", async (req, res, next) => {
       solicitacoes: orgOf(req) ? 0 : await solicitacoesEmAnalise(req),
       denuncias: orgOf(req) ? 0 : (await denunciasAbertas()) + (await conversasDenunciadasAbertas()),
       verificacoes: orgOf(req) ? 0 : await verificacoesPendentes(),
+      // As peças de afiliado e apostador esperando a autorização da organização.
+      // Só para ela: a plataforma não é quem autoriza no dia a dia.
+      divulgacoes: orgOf(req) ? await pendentesDaOrganizacao(req) : 0,
     });
   } catch (err) {
     next(err);

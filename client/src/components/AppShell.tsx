@@ -336,7 +336,7 @@ export function PanelShell({
   // Chamado de reembolso tem prazo: o contador no menu é o aviso que o
   // organizador vê sem precisar abrir o Atendimento.
   const temAtendimento = secoes.some((s) => s.key === "adminAtendimento");
-  const { data: pendentes } = useQuery<{ total: number; disputas?: number; solicitacoes?: number; denuncias?: number; verificacoes?: number }>({
+  const { data: pendentes } = useQuery<{ total: number; disputas?: number; solicitacoes?: number; denuncias?: number; verificacoes?: number; divulgacoes?: number }>({
     queryKey: ["/api/admin/chamados/pendentes"],
     enabled: temAtendimento,
     refetchInterval: 60_000,
@@ -369,9 +369,23 @@ export function PanelShell({
     refetchInterval: 60_000,
   });
   const mensagensNovas = comoNasMensagens ? (resumoMensagens?.naoLidas ?? 0) : 0;
+  // Divulgação de terceiros: a organização vê as peças esperando a autorização
+  // dela (na fila de Afiliados); o afiliado, as peças dele que a organização
+  // decidiu desde a última vez que abriu o sino (o motivo fica em Divulgar).
+  const souAfiliado = session?.role === "affiliate";
+  const paraAutorizar = session?.role === "organizer" ? (pendentes?.divulgacoes ?? 0) : 0;
+  const caminhoDaFila = secoes.find((s) => s.key === "adminAfiliados")?.path;
+  const { data: novidadesDoAfiliado } = useQuery<{ decididas: number }>({
+    queryKey: ["/api/affiliate/divulgacoes/novidades"],
+    enabled: souAfiliado,
+    refetchInterval: 60_000,
+  });
+  const decididas = souAfiliado ? (novidadesDoAfiliado?.decididas ?? 0) : 0;
   const verAvisos = useMutation({
-    mutationFn: () => apiRequest("POST", "/api/admin/avisos/vistos"),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/admin/avisos"] }),
+    // O afiliado não passa por /api/admin: o "visto" dele tem rota própria.
+    mutationFn: () => apiRequest("POST", souAfiliado ? "/api/affiliate/avisos/vistos" : "/api/admin/avisos/vistos"),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: [souAfiliado ? "/api/affiliate/divulgacoes/novidades" : "/api/admin/avisos"] }),
   });
 
   // O menu da conta e o sino (dois <details>) fecham ao clicar fora ou no
@@ -572,15 +586,15 @@ export function PanelShell({
             ref={sino}
             className="relative"
             onToggle={(e) => {
-              if ((e.currentTarget as HTMLDetailsElement).open && novos) verAvisos.mutate();
+              if ((e.currentTarget as HTMLDetailsElement).open && (novos || decididas)) verAvisos.mutate();
             }}
           >
             <summary
-              aria-label={rotuloDoSino(novos, pendenciasNoMenu, mensagensNovas)}
+              aria-label={rotuloDoSino(novos, pendenciasNoMenu, mensagensNovas, { paraAutorizar, decididas })}
               className="relative flex cursor-pointer list-none rounded-md p-1.5 text-ink-2 hover:bg-mist-2 [&::-webkit-details-marker]:hidden"
             >
               <Bell size={20} aria-hidden />
-              {novos || pendenciasNoMenu || mensagensNovas ? (
+              {novos || pendenciasNoMenu || mensagensNovas || paraAutorizar || decididas ? (
                 <span aria-hidden className={`absolute right-1 top-1 h-2 w-2 rounded-full ${pendenciasNoMenu ? "bg-red" : "bg-green"}`} />
               ) : null}
             </summary>
@@ -594,6 +608,24 @@ export function PanelShell({
               {mensagensNovas ? (
                 <Link href="/mensagens" aria-label={`Mensagens: ${mensagensNovas} não lida${mensagensNovas > 1 ? "s" : ""}`} className="block border-b border-line px-3 py-2 hover:bg-mist">
                   <span className="tnum font-medium">{mensagensNovas}</span> {mensagensNovas > 1 ? "mensagens" : "mensagem"} não lida{mensagensNovas > 1 ? "s" : ""}
+                </Link>
+              ) : null}
+              {caminhoDaFila && paraAutorizar ? (
+                <Link
+                  href={caminhoDaFila}
+                  aria-label={`Divulgações: ${paraAutorizar} esperando a sua autorização`}
+                  className="block border-b border-line px-3 py-2 hover:bg-mist"
+                >
+                  <span className="tnum font-medium">{paraAutorizar}</span> {paraAutorizar > 1 ? "divulgações esperando" : "divulgação esperando"} a sua autorização
+                </Link>
+              ) : null}
+              {decididas ? (
+                <Link
+                  href="/afiliado/divulgar"
+                  aria-label={`Divulgações: ${decididas} ${decididas > 1 ? "decididas" : "decidida"} pela organização`}
+                  className="block border-b border-line px-3 py-2 hover:bg-mist"
+                >
+                  <span className="tnum font-medium">{decididas}</span> {decididas > 1 ? "divulgações decididas" : "divulgação decidida"} pela organização
                 </Link>
               ) : null}
               {avisos && avisos.length === 0 ? <p className="px-3 py-2 text-muted">Nenhum comentário ainda.</p> : null}

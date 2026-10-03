@@ -656,9 +656,10 @@ Na ordem de entrega do plano:
   medidas do servidor) e **republicar** a peça da organização com legenda
   dele no feed — hoje a divulgação aparece numa seção da página da rifa,
   não no feed da vitrine nem no perfil do afiliado; (2) a peça do apostador
-  com **imagem**; (3) avisos (push e trevo) para a organização quando chega
-  peça nova e para quem publicou quando é decidida (hoje o contador da fila
-  e o motivo na tela do autor são o aviso); (4) editar a peça depois de
+  com **imagem**; (3) ~~avisos para a organização quando chega peça nova e
+  para quem publicou quando é decidida~~ — **feito**: o sino da organização
+  conta a fila, o apostador recebe push e trevo e o afiliado vê o número no
+  sino do painel (seção "Divulgação de terceiros" do `CLAUDE.md`); (4) editar a peça depois de
   enviada (hoje retira e envia outra); (5) ferramentas do Instagram ainda
   sem equivalente: reels pela organização, agendar publicação, enquete e
   figurinhas no story; (6) a plataforma poder decidir sem escolher a

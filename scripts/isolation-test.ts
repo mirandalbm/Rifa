@@ -727,6 +727,17 @@ async function conteudoDasListas(eu: Lado, vizinho: Lado) {
     `${avisos.length} aviso(s)`,
   );
   checa("o sino não traz telefone", !JSON.stringify(avisos).includes("11960000"));
+  // O sino do afiliado (divulgações decididas) é só do afiliado: o organizador
+  // não lê nem marca o "visto" de ninguém por essa porta.
+  for (const [metodo, caminho] of [["GET", "/api/affiliate/divulgacoes/novidades"], ["POST", "/api/affiliate/avisos/vistos"]] as const) {
+    const r = await pedir(eu.cookie, caminho, { method: metodo });
+    checa(`${metodo} ${caminho}: organizador recusado (403)`, r.status === 403, `HTTP ${r.status}`);
+    const v = await pedir("", caminho, { method: metodo });
+    checa(`${metodo} ${caminho}: visitante recusado (401)`, v.status === 401, `HTTP ${v.status}`);
+  }
+  // O número da fila de divulgações no sino é o da minha organização.
+  const pendDoSino = (await (await pedir(eu.cookie, "/api/admin/chamados/pendentes")).json()) as { divulgacoes?: number };
+  checa("o sino traz o número da fila de divulgações (só o recorte dela)", typeof pendDoSino.divulgacoes === "number");
 
   const painel = await (await pedir(eu.cookie, "/api/admin/overview")).json();
   const meu = 5000 * (eu.nome === "norte" ? 1 : 2);

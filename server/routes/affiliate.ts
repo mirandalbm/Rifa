@@ -22,7 +22,7 @@ import { cadastroAprovado, documento, estadoFiscal, salvarDadosFiscais, salvarDo
 import { pdfDoRecibo, reciboPorCodigo } from "../services/recibos";
 import { urlDeConferencia } from "../services/urls";
 import { aderir, comissaoNaRifa, organizacoesDoAfiliado, sair } from "../services/afiliados";
-import { minhasDoAfiliado, publicarComoAfiliado, retirarPropria, rifasParaDivulgar } from "../services/divulgacao";
+import { decididasParaOAfiliado, marcarVistoDoAfiliado, minhasDoAfiliado, publicarComoAfiliado, retirarPropria, rifasParaDivulgar } from "../services/divulgacao";
 import { guardLogin, identify } from "../services/antifraude";
 import QRCode from "qrcode";
 import { affiliateId, verifyPassword } from "../auth";
@@ -544,6 +544,30 @@ affiliateRouter.get("/divulgacoes", async (req, res, next) => {
 affiliateRouter.post("/divulgacoes", async (req, res, next) => {
   try {
     res.status(201).json(await publicarComoAfiliado(affiliateId(req), req.body ?? {}));
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * O sino do painel do afiliado: quantas peças dele a organização decidiu
+ * desde a última vez que ele abriu o sino. Só o número — o motivo fica na
+ * tela de Divulgar.
+ */
+affiliateRouter.get("/divulgacoes/novidades", async (req, res, next) => {
+  try {
+    res.setHeader("Cache-Control", "private, no-store");
+    res.json({ decididas: await decididasParaOAfiliado(affiliateId(req), req.user!.id) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** Abriu o sino: o que já foi decidido fica visto (para esta pessoa). */
+affiliateRouter.post("/avisos/vistos", async (req, res, next) => {
+  try {
+    await marcarVistoDoAfiliado(req.user!.id);
+    res.status(204).end();
   } catch (err) {
     next(err);
   }

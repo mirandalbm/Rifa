@@ -25,7 +25,7 @@ import { and, eq, inArray, sql } from "drizzle-orm";
 import { db, pool } from "../server/db";
 import { hashPassword } from "../server/auth";
 import { publishCampaign } from "../server/services/campaigns";
-import { affiliates, campaignMedia, campaignStats, campaigns, denuncias, divulgacoes, orders, organizations, users } from "../shared/schema";
+import { affiliates, campaignMedia, campaignStats, campaigns, denuncias, divulgacoes, notificacoes, orders, organizations, users } from "../shared/schema";
 
 const URL = baseUrl();
 let falhas = 0;
@@ -205,6 +205,14 @@ async function main() {
     r = await peca(a1.slug, { midias: [rifaA.midias[1].id] });
     const id2 = r.json?.id as string;
     checa("nova peça em análise", r.status === 201 && r.json?.status === "em_analise");
+    r = await orgA.req("GET", "/api/admin/chamados/pendentes");
+    checa("o sino da A conta a peça esperando a autorização dela", (r.json?.divulgacoes ?? 0) >= 1, JSON.stringify(r.json));
+    r = await orgB.req("GET", "/api/admin/chamados/pendentes");
+    checa("o sino da B não conta a peça da A", r.json?.divulgacoes === 0, JSON.stringify(r.json));
+    r = await afiliada.req("POST", "/api/affiliate/avisos/vistos");
+    checa("o afiliado marca o sino como visto (204)", r.status === 204, `HTTP ${r.status}`);
+    r = await afiliada.req("GET", "/api/affiliate/divulgacoes/novidades");
+    checa("antes da decisão, nada decidido para o afiliado", r.json?.decididas === 0, JSON.stringify(r.json));
     r = await orgB.req("GET", "/api/admin/divulgacoes");
     checa("a B não vê a fila da A", Array.isArray(r.json) && !r.json.some((x: any) => x.id === id2));
     r = await orgA.req("GET", "/api/admin/divulgacoes");
@@ -235,6 +243,11 @@ async function main() {
     }
     r = await orgA.req("POST", `/api/admin/divulgacoes/${id2}`, { acao: "aprovar" });
     checa("decidir de novo é 409", r.status === 409, `HTTP ${r.status}`);
+    r = await afiliada.req("GET", "/api/affiliate/divulgacoes/novidades");
+    checa("decidida pela organização, o sino do afiliado conta 1", r.json?.decididas === 1, JSON.stringify(r.json));
+    await afiliada.req("POST", "/api/affiliate/avisos/vistos");
+    r = await afiliada.req("GET", "/api/affiliate/divulgacoes/novidades");
+    checa("aberto o sino, volta a zero", r.json?.decididas === 0, JSON.stringify(r.json));
 
     r = await new Cliente().req("GET", `/api/public/campaigns/${a1.slug}/divulgacoes`);
     const publica = r.json?.[0];
@@ -263,12 +276,16 @@ async function main() {
     r = await peca(a1.slug, { legenda: "Essa vai direto pro ar" });
     checa("no modo direto a peça já nasce no ar", r.status === 201 && r.json?.status === "publicada", `HTTP ${r.status} ${r.json?.message ?? ""}`);
     const idDireta = r.json?.id as string;
+    r = await afiliada.req("GET", "/api/affiliate/divulgacoes/novidades");
+    checa("o que o afiliado retirou e o que nasceu no ar não viram aviso", r.json?.decididas === 0, JSON.stringify(r.json));
     r = await orgB.req("POST", `/api/admin/divulgacoes/${idDireta}`, { acao: "remover", motivo: "Não é minha" });
     checa("a B não retira a peça da A (404)", r.status === 404, `HTTP ${r.status}`);
     r = await orgA.req("POST", `/api/admin/divulgacoes/${idDireta}`, { acao: "remover", motivo: "Fora do combinado" });
-    checa("a A retira a peça no ar", r.status === 200 && r.json?.status === "removida");
+    checa("a A retira a peça no ar", r.status === 200 && r.json?.status === "removida", `HTTP ${r.status} ${JSON.stringify(r.json)}`);
     r = await afiliada.req("GET", "/api/affiliate/divulgacoes");
     checa("o afiliado lê o motivo da retirada", r.json?.some((x: any) => x.id === idDireta && x.motivo === "Fora do combinado"));
+    r = await afiliada.req("GET", "/api/affiliate/divulgacoes/novidades");
+    checa("a retirada pela organização vira aviso no sino do afiliado", r.json?.decididas === 1, JSON.stringify(r.json));
 
     // Termo: rifa publicada com termo exige o aceite daquela versão.
     r = await orgA.req("POST", "/api/admin/termo-afiliado", { comissaoPct: 12, textoExtra: "" });
@@ -326,6 +343,20 @@ async function main() {
     checa("a A vê pelo apelido — nunca pelo telefone", Boolean(filaAp) && filaAp.quem.startsWith("@") && !JSON.stringify(r.json).includes(TEL_APOSTADOR));
     r = await orgA.req("POST", `/api/admin/divulgacoes/${idAp}`, { acao: "aprovar" });
     checa("a A aprova", r.status === 200 && r.json?.status === "publicada");
+    {
+      // O aviso sai em segundo plano: espera um pouco pela central do apostador.
+      const [d] = await db.select({ buyerId: divulgacoes.buyerId }).from(divulgacoes).where(eq(divulgacoes.id, idAp));
+      let aviso: { titulo: string; corpo: string } | undefined;
+      for (let i = 0; i < 20 && !aviso; i++) {
+        [aviso] = await db
+          .select({ titulo: notificacoes.titulo, corpo: notificacoes.corpo })
+          .from(notificacoes)
+          .where(and(eq(notificacoes.buyerId, d.buyerId!), eq(notificacoes.tipo, "divulgacao")));
+        if (!aviso) await new Promise((ok) => setTimeout(ok, 250));
+      }
+      checa("o apostador recebe o aviso da aprovação no trevo", aviso?.titulo === "Sua divulgação está no ar", JSON.stringify(aviso));
+      checa("…sem telefone no aviso", !JSON.stringify(aviso ?? {}).includes(TEL_APOSTADOR));
+    }
     r = await new Cliente().req("GET", `/api/public/campaigns/${a1.slug}/divulgacoes`);
     checa("aparece na rifa com o apelido, sem link de afiliado", r.json?.some((x: any) => x.autor === "apostador" && x.link === `/r/${a1.slug}`));
     checa("o apostador não expõe código de afiliado", r.json?.filter((x: any) => x.autor === "apostador").every((x: any) => x.codigo === null));

@@ -105,3 +105,17 @@ export function validarDivulgacao(autor: AutorDaDivulgacao, bruto: unknown): Ent
 export function linkDaDivulgacao(slug: string, codigoDoAfiliado: string | null): string {
   return codigoDoAfiliado ? `/r/${slug}?ref=${encodeURIComponent(codigoDoAfiliado)}` : `/r/${slug}`;
 }
+
+/**
+ * O aviso a quem publicou quando a organização decide a peça (push e trevo do
+ * apostador; o afiliado vê o número no sino do painel). Só a decisão da
+ * organização avisa: o que a própria pessoa retirou não vira aviso. O motivo
+ * vai no corpo — quem escreveu precisa entender a recusa.
+ */
+export function avisoDaDecisao(status: StatusDaDivulgacao, rifa: string, motivo: string | null): { title: string; body: string } | null {
+  const comMotivo = (t: string) => (motivo ? `${t} Motivo: ${motivo}` : t);
+  if (status === "publicada") return { title: "Sua divulgação está no ar", body: `A organização aprovou a sua divulgação de ${rifa}.` };
+  if (status === "recusada") return { title: "Divulgação recusada", body: comMotivo(`A organização recusou a sua divulgação de ${rifa}.`) };
+  if (status === "removida") return { title: "Divulgação retirada", body: comMotivo(`A organização tirou do ar a sua divulgação de ${rifa}.`) };
+  return null;
+}

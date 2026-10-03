@@ -37,11 +37,19 @@ export function naoLidos(avisos: { lido: boolean }[]): number {
 }
 
 /** O rótulo do sino: o número vai em texto, nunca só na bolinha. */
-export function rotuloDoSino(novos: number, pendencias: number, mensagens = 0): string {
+export function rotuloDoSino(
+  novos: number,
+  pendencias: number,
+  mensagens = 0,
+  divulgacoes: { paraAutorizar?: number; decididas?: number } = {},
+): string {
   const partes: string[] = [];
+  const { paraAutorizar = 0, decididas = 0 } = divulgacoes;
   if (mensagens) partes.push(`${mensagens} ${mensagens > 1 ? "mensagens" : "mensagem"} não lida${mensagens > 1 ? "s" : ""}`);
   if (novos) partes.push(`${novos} comentário${novos > 1 ? "s" : ""} novo${novos > 1 ? "s" : ""}`);
   if (pendencias) partes.push(`${pendencias} pendente${pendencias > 1 ? "s" : ""} no atendimento`);
+  if (paraAutorizar) partes.push(`${paraAutorizar} ${paraAutorizar > 1 ? "divulgações" : "divulgação"} para autorizar`);
+  if (decididas) partes.push(`${decididas} ${decididas > 1 ? "divulgações decididas" : "divulgação decidida"}`);
   return partes.length ? `Avisos: ${partes.join(", ")}` : "Avisos: nada novo";
 }
 

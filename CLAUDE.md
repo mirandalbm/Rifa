@@ -1913,6 +1913,18 @@ publicou, com o link dele (`/r/<rifa>?ref=<código>`).
 - **Sem dado pessoal em lugar nenhum**: a fila e a página pública trazem
   nome curto e código (afiliado) ou `@apelido` (apostador) — nunca telefone,
   CPF, e-mail ou id de pessoa.
+- **Avisos**: a organização vê no sino quantas peças esperam a autorização
+  dela (`divulgacoes` em `/chamados/pendentes`, só no recorte dela — a
+  plataforma não conta: não é ela quem autoriza no dia a dia), com a linha que
+  leva à fila em Afiliados. Quem publicou fica sabendo da decisão **da
+  organização** (`decidido_por`): o apostador por push e trevo (`avisar()`,
+  tipo `divulgacao`, chave com a situação, fora da transação, motivo no
+  corpo); o afiliado, que não tem push, pelo número no sino do painel
+  (`GET /api/affiliate/divulgacoes/novidades`, o "visto" é o mesmo
+  `users.avisos_vistos_em`, marcado por `POST /api/affiliate/avisos/vistos`
+  — o afiliado não alcança `/api/admin`). O que a pessoa retirou sozinha
+  zera `decidido_por` e não vira aviso; a peça que nasce no ar (modo direto)
+  também não. Nada de telefone ou nome no aviso.
 - A tabela nova sobe com o `db:push` **antes** do código, e a coluna
   `organizations.divulgacao_afiliado` também.
 - `npm run divulgacao` prova tudo isso contra a API de verdade

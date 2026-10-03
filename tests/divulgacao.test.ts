@@ -7,6 +7,8 @@ import {
   statusInicial,
   validarDecisao,
   podeEditar,
+  validarFotos,
+  DIVULGACAO_FOTOS_MAX,
   validarDivulgacao,
   validarModo,
 } from "../shared/divulgacao";
@@ -93,6 +95,22 @@ describe("edição", () => {
     expect(() => validarDecisao({ acao: "aprovar", versao: -1 })).toThrow();
     expect(() => validarDecisao({ acao: "aprovar", versao: "2" })).toThrow();
     expect(() => validarDecisao({ acao: "aprovar", versao: 1.5 })).toThrow();
+  });
+});
+
+describe("fotos do apostador", () => {
+  const foto = "data:image/jpeg;base64,/9j/AAAA";
+  it("ausente é nulo (na edição, ficam as que tinha); vazia tira todas", () => {
+    expect(validarFotos(undefined)).toBeNull();
+    expect(validarFotos(null)).toBeNull();
+    expect(validarFotos([])).toEqual([]);
+  });
+  it("só imagem em base64, até o teto", () => {
+    expect(validarFotos([foto, foto])).toHaveLength(2);
+    expect(() => validarFotos(Array(DIVULGACAO_FOTOS_MAX + 1).fill(foto))).toThrow();
+    expect(() => validarFotos(["https://site/x.jpg"])).toThrow();
+    expect(() => validarFotos(["data:text/html;base64,PHNjcmlwdD4="])).toThrow();
+    expect(() => validarFotos("nao-e-lista")).toThrow();
   });
 });
 

@@ -16,6 +16,8 @@ import { aderir, pedirColaboracao, termoPublico } from "../services/afiliados";
 import {
   divulgacoesDaRifa,
   editarComoApostador,
+  fotoDoAutor,
+  fotoPublica,
   minhasDoApostador,
   publicarComoApostador,
   retirarPropriaDoApostador,
@@ -2605,6 +2607,31 @@ publicRouter.get("/divulgacoes/minhas", async (req, res, next) => {
 publicRouter.post("/divulgacoes", async (req, res, next) => {
   try {
     res.status(201).json(await publicarComoApostador(req, req.body ?? {}));
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** A foto da própria peça, para quem publicou. Nunca em cache. */
+publicRouter.get("/divulgacoes/minhas/:id/fotos/:fotoId", async (req, res, next) => {
+  try {
+    const bytes = await fotoDoAutor(req, req.params.id, req.params.fotoId);
+    res.setHeader("Cache-Control", "private, no-store");
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.type("image/jpeg").send(bytes);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** A foto da peça no ar (a mesma régua da página da rifa). Retirada, a foto some. */
+publicRouter.get("/divulgacoes/:id/fotos/:fotoId", async (req, res, next) => {
+  try {
+    const bytes = await fotoPublica(req.params.id, req.params.fotoId);
+    // Cache curto: a peça pode sair do ar (retirada, estorno, interruptor).
+    res.setHeader("Cache-Control", "public, max-age=60");
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.type("image/jpeg").send(bytes);
   } catch (err) {
     next(err);
   }

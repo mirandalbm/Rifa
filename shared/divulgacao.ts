@@ -12,9 +12,10 @@
  *   daquela versão (`comissaoNaRifa()`). A organização escolhe o modo:
  *   `autorizacao` (padrão, conservador: nada vai ao ar sem ela) ou
  *   `direta`.
- * - Apostador: só atrás do interruptor `publicarApostador`, só texto, só
- *   sobre rifa em que tem compra paga, e **sempre** com autorização da
- *   organização.
+ * - Apostador: só atrás do interruptor `publicarApostador`, texto e até
+ *   `DIVULGACAO_FOTOS_MAX` fotos dele, só sobre rifa em que tem compra paga, e
+ *   **sempre** com autorização da organização (a varredura do Pix por fora
+ *   só lê texto: a foto, quem lê é a organização).
  */
 import { LEGENDA_MAX, limparLegenda, problemaNaLegenda } from "./publicacao";
 
@@ -43,6 +44,25 @@ export type AutorDaDivulgacao = "afiliado" | "apostador";
 
 /** Mídias da própria rifa que o afiliado pode escolher para a peça. */
 export const DIVULGACAO_MIDIAS_MAX = 5;
+/** Fotos do próprio apostador na peça dele (sempre com a autorização da organização). */
+export const DIVULGACAO_FOTOS_MAX = 4;
+/** Cada foto, antes de reprocessar (a tela já reduz a foto do celular). */
+export const DIVULGACAO_FOTO_MAX_BYTES = 5 * 1024 * 1024;
+
+/**
+ * As fotos que o apostador manda: ausente é `null` (na edição, ficam as que a
+ * peça tinha); lista vazia tira todas. Só `data:image/…;base64,…`, até
+ * `DIVULGACAO_FOTOS_MAX`. O conteúdo é conferido ao reprocessar, no servidor.
+ */
+export function validarFotos(v: unknown): string[] | null {
+  if (v === undefined || v === null) return null;
+  if (!Array.isArray(v)) throw new Error("Fotos inválidas.");
+  if (v.length > DIVULGACAO_FOTOS_MAX) throw new Error(`Envie até ${DIVULGACAO_FOTOS_MAX} fotos.`);
+  for (const f of v) {
+    if (typeof f !== "string" || !/^data:image\/[a-z0-9.+-]+;base64,[A-Za-z0-9+/=]+$/i.test(f)) throw new Error("Envie fotos em JPG ou PNG.");
+  }
+  return v as string[];
+}
 /** Peças novas por pessoa por dia (conta a tentativa, depois do erro de preenchimento). */
 export const DIVULGACOES_POR_DIA = 10;
 export const MOTIVO_MAX = 300;

@@ -54,7 +54,9 @@ Procure, nesta ordem, o que é **grave**:
     tentativa barrada precisa contar); denúncia automática que acusa a
     organização por texto que ela não escreveu sem dizer quem escreveu;
     edição que pula a régua da peça nova ou não volta para a fila; decisão ou
-    edição sem conferir a `versao` lida (aprovar um texto que ninguém viu).
+    edição sem conferir a `versao` lida (aprovar um texto que ninguém viu);
+    foto de peça servida sem a régua da porta (pública só no ar, painel no
+    recorte, autor só a dele) ou gravada sem reprocessar.
 
 12. **Assistente de IA** (seção "Assistente de IA"): `CHATBASE_API_KEY` em
     resposta, log, URL ou cliente; script do Chatbase voltando ao painel;

@@ -25,7 +25,8 @@ import { and, eq, inArray, sql } from "drizzle-orm";
 import { db, pool } from "../server/db";
 import { hashPassword } from "../server/auth";
 import { publishCampaign } from "../server/services/campaigns";
-import { affiliates, campaignMedia, campaignStats, campaigns, denuncias, divulgacoes, notificacoes, orders, organizations, users } from "../shared/schema";
+import sharp from "sharp";
+import { affiliates, campaignMedia, campaignStats, campaigns, denuncias, divulgacaoFotos, divulgacoes, notificacoes, orders, organizations, users } from "../shared/schema";
 
 const URL = baseUrl();
 let falhas = 0;
@@ -33,6 +34,18 @@ const checa = (n: string, ok: boolean, d = "") => {
   console.log(`  ${ok ? "✓" : "✗"} ${n}${d ? ` (${d})` : ""}`);
   if (!ok) falhas++;
 };
+
+/** Lê uma foto (bytes), para conferir a porta que a serve. */
+async function foto(cliente: { cookie: string } | null, caminho: string) {
+  const r = await fetch(URL + caminho, { headers: cliente?.cookie ? { Cookie: cliente.cookie } : {} });
+  return { status: r.status, tipo: r.headers.get("content-type") ?? "", cache: r.headers.get("cache-control") ?? "" };
+}
+
+/** Uma foto de verdade (PNG pequeno), em data URL. */
+async function pngDe(cor: string) {
+  const b = await sharp({ create: { width: 40, height: 30, channels: 3, background: cor } }).png().toBuffer();
+  return `data:image/png;base64,${b.toString("base64")}`;
+}
 
 class Cliente {
   cookie = "";
@@ -201,6 +214,8 @@ async function main() {
     const [mediaDaB] = await db.select().from(campaignMedia).where(eq(campaignMedia.campaignId, b1.id));
     r = await peca(a1.slug, { midias: [mediaDaB.id] });
     checa("mídia de outra rifa: 422", r.status === 422, `HTTP ${r.status}`);
+    r = await peca(a1.slug, { fotos: [await pngDe("#15803d")] });
+    checa("o afiliado não manda foto própria (422)", r.status === 422, `HTTP ${r.status}`);
     r = await peca(a1.slug, { midias: ["../../etc/passwd"] });
     checa("mídia que não é id: 422", r.status === 422, `HTTP ${r.status}`);
     r = await peca(a1.slug, { legenda: "" });
@@ -409,9 +424,32 @@ async function main() {
     checa("link na publicação do apostador: 422", r.status === 422, `HTTP ${r.status}`);
     r = await pessoa.req("POST", "/api/public/divulgacoes", { slug: b1.slug, legenda: "Rifa boa" });
     checa("rifa em que não comprou: 403", r.status === 403, `HTTP ${r.status}`);
-    r = await pessoa.req("POST", "/api/public/divulgacoes", { slug: a1.slug, legenda: "Joguei e gostei, bora!" });
+    const fotoAzul = await pngDe("#1d4ed8");
+    const fotoVerde = await pngDe("#15803d");
+    r = await pessoa.req("POST", "/api/public/divulgacoes", { slug: a1.slug, legenda: "Muitas fotos", fotos: Array(5).fill(fotoAzul) });
+    checa("mais de 4 fotos: 422", r.status === 422, `HTTP ${r.status}`);
+    r = await pessoa.req("POST", "/api/public/divulgacoes", { slug: a1.slug, legenda: "Foto que não abre", fotos: ["data:image/png;base64,AAAA"] });
+    checa("foto que não abre: 422 e nada fica gravado", r.status === 422, `HTTP ${r.status}`);
+    r = await pessoa.req("POST", "/api/public/divulgacoes", { slug: a1.slug, legenda: "Joguei e gostei, bora!", fotos: [fotoAzul, fotoVerde] });
     checa("o apostador publica e espera a organização — mesmo no modo direto", r.status === 201 && r.json?.status === "em_analise", `HTTP ${r.status} ${r.json?.message ?? ""}`);
     const idAp = r.json?.id as string;
+    {
+      const gravadas = await db.select({ id: divulgacaoFotos.id }).from(divulgacaoFotos).where(eq(divulgacaoFotos.divulgacaoId, idAp));
+      checa("as duas fotos ficam com a peça", gravadas.length === 2, String(gravadas.length));
+      const minhas = (await pessoa.req("GET", "/api/public/divulgacoes/minhas")).json as any[];
+      const minha = minhas.find((x) => x.id === idAp);
+      checa("quem publicou vê as fotos dele", minha?.fotos?.length === 2);
+      const f = await foto(pessoa, minha.fotos[0]);
+      checa("…em JPEG reprocessado, sem cache", f.status === 200 && f.tipo.startsWith("image/jpeg") && f.cache.includes("no-store"), `${f.status} ${f.tipo} ${f.cache}`);
+      checa("sem conta, a foto do autor é 401", (await foto(null, minha.fotos[0])).status === 401);
+      const fila = (await orgA.req("GET", "/api/admin/divulgacoes?status=em_analise")).json as any[];
+      const naFila = fila.find((x) => x.id === idAp);
+      checa("a organização vê as fotos antes de autorizar", naFila?.fotos?.length === 2);
+      checa("…e abre cada uma", (await foto(orgA, naFila.fotos[0])).status === 200);
+      checa("a B não abre a foto da peça da A (404)", (await foto(orgB, naFila.fotos[0])).status === 404);
+      const publica = `/api/public/divulgacoes/${idAp}/fotos/${naFila.fotos[0].split("/").pop()}`;
+      checa("em análise, a foto não é pública (404)", (await foto(null, publica)).status === 404);
+    }
     r = await dec(orgB, idAp, { acao: "aprovar" });
     checa("a B não aprova a do apostador da A (404)", r.status === 404, `HTTP ${r.status}`);
     r = await orgA.req("GET", "/api/admin/divulgacoes?status=em_analise");
@@ -435,6 +473,12 @@ async function main() {
     }
     r = await new Cliente().req("GET", `/api/public/campaigns/${a1.slug}/divulgacoes`);
     checa("aparece na rifa com o apelido, sem link de afiliado", r.json?.some((x: any) => x.autor === "apostador" && x.link === `/r/${a1.slug}`));
+    {
+      const peca = r.json?.find((x: any) => x.id === idAp);
+      checa("no ar, a página mostra as duas fotos", peca?.fotos?.length === 2, JSON.stringify(peca?.fotos ?? null));
+      const f = await foto(null, peca.fotos[0]);
+      checa("…e a foto abre para qualquer um", f.status === 200 && f.tipo.startsWith("image/jpeg"), `${f.status} ${f.tipo}`);
+    }
     checa("o apostador não expõe código de afiliado", r.json?.filter((x: any) => x.autor === "apostador").every((x: any) => x.codigo === null));
     r = await afiliada.req("DELETE", `/api/affiliate/divulgacoes/${idAp}`);
     checa("a afiliada não retira a peça do apostador (404)", r.status === 404, `HTTP ${r.status}`);
@@ -458,6 +502,19 @@ async function main() {
         if (n < 2) await new Promise((ok) => setTimeout(ok, 250));
       }
       checa("a reaprovação da versão editada avisa o apostador de novo", n === 2, String(n));
+    }
+    {
+      // A edição sem `fotos` manteve as duas; mandar a lista troca todas, na mesma transação.
+      const antes = await db.select({ id: divulgacaoFotos.id }).from(divulgacaoFotos).where(eq(divulgacaoFotos.divulgacaoId, idAp));
+      checa("editar só o texto mantém as fotos", antes.length === 2, String(antes.length));
+      const versao = (await orgA.req("GET", "/api/admin/divulgacoes")).json.find((x: any) => x.id === idAp)?.versao;
+      r = await pessoa.req("PATCH", `/api/public/divulgacoes/${idAp}`, { legenda: "Agora com uma foto só", fotos: [fotoVerde], versao });
+      const depois = await db.select({ id: divulgacaoFotos.id }).from(divulgacaoFotos).where(eq(divulgacaoFotos.divulgacaoId, idAp));
+      checa("trocar as fotos deixa só as novas", r.status === 200 && depois.length === 1 && !antes.some((a) => a.id === depois[0].id), `HTTP ${r.status} ${depois.length}`);
+      const publicaAntiga = `/api/public/divulgacoes/${idAp}/fotos/${antes[0].id}`;
+      checa("a foto trocada não abre mais (404)", (await foto(null, publicaAntiga)).status === 404);
+      r = await dec(orgA, idAp, { acao: "aprovar" });
+      checa("a organização aprova a versão com a foto nova", r.status === 200, `HTTP ${r.status} ${r.json?.message ?? ""}`);
     }
     const [aindaNoAr] = await db.select({ status: divulgacoes.status }).from(divulgacoes).where(eq(divulgacoes.id, idAp));
     checa("a peça do apostador segue no ar", aindaNoAr?.status === "publicada", aindaNoAr?.status);

@@ -2885,6 +2885,26 @@ export const divulgacoes = pgTable(
   ],
 );
 
+/**
+ * As fotos da peça do apostador (até `DIVULGACAO_FOTOS_MAX`). Ficam no banco,
+ * reprocessadas (JPEG de até 1600 px, sem metadados), e saem só por três
+ * portas: a pública, com a peça no ar e visível; a do painel, no recorte da
+ * organização; e a do próprio autor.
+ */
+export const divulgacaoFotos = pgTable(
+  "divulgacao_fotos",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    divulgacaoId: uuid("divulgacao_id")
+      .notNull()
+      .references(() => divulgacoes.id, { onDelete: "cascade" }),
+    posicao: integer("posicao").notNull(),
+    bytes: bytea("bytes").notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("uq_divulgacao_foto_posicao").on(t.divulgacaoId, t.posicao)],
+);
+
 /* ------------------------------------------------------------------ *
  * Assistente de IA (Chatbase) — conversa e uso
  * ------------------------------------------------------------------ */

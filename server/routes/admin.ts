@@ -141,6 +141,7 @@ import {
 import { salvarFotoDoGanhador } from "../services/ganhador";
 import {
   decidir as decidirDivulgacao,
+  fotoDoPainel as fotoDaDivulgacao,
   listarDaOrganizacao as listarDivulgacoesDaOrganizacao,
   modoDaOrganizacao,
   pendentesDaOrganizacao,
@@ -3722,6 +3723,18 @@ adminRouter.put("/divulgacoes/config", async (req, res, next) => {
 adminRouter.get("/divulgacoes", async (req, res, next) => {
   try {
     res.json(await listarDivulgacoesDaOrganizacao(req, req.query.status));
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** A foto da peça do apostador, para quem autoriza (a do vizinho é 404). Nunca em cache. */
+adminRouter.get("/divulgacoes/:id/fotos/:fotoId", async (req, res, next) => {
+  try {
+    const bytes = await fotoDaDivulgacao(req, req.params.id, req.params.fotoId);
+    res.setHeader("Cache-Control", "private, no-store");
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.type("image/jpeg").send(bytes);
   } catch (err) {
     next(err);
   }

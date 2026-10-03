@@ -657,8 +657,10 @@ Na ordem de entrega do plano:
   (1) o influenciador **enviar mídia própria** (foto e vídeo dele, com as
   medidas do servidor) e **republicar** a peça da organização com legenda
   dele no feed — hoje a divulgação aparece numa seção da página da rifa,
-  não no feed da vitrine nem no perfil do afiliado; (2) a peça do apostador
-  com **imagem**; (3) ~~avisos para a organização quando chega peça nova e
+  não no feed da vitrine nem no perfil do afiliado; (2) ~~a peça do apostador
+  com **imagem**~~ — **feito**: texto e até 4 fotos dele, sempre pela fila da
+  organização; **falta no ambiente** o `db:push` (tabela `divulgacao_fotos`)
+  **antes** do código; (3) ~~avisos para a organização quando chega peça nova e
   para quem publicou quando é decidida~~ — **feito**: o sino da organização
   conta a fila, o apostador recebe push e trevo e o afiliado vê o número no
   sino do painel (seção "Divulgação de terceiros" do `CLAUDE.md`); (4) ~~editar a peça depois de

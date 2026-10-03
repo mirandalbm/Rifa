@@ -18,6 +18,7 @@
  *   texto, só de rifa em que tem compra paga, e sempre com autorização.
  */
 import type { Request } from "express";
+import sharp from "sharp";
 import { and, asc, desc, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm";
 import { db } from "../db";
 import {
@@ -26,6 +27,7 @@ import {
   buyers,
   campaignMedia,
   campaigns,
+  divulgacaoFotos,
   divulgacoes,
   orders,
   organizations,
@@ -33,6 +35,7 @@ import {
 } from "@shared/schema";
 import {
   DE_PARA_DA_DECISAO,
+  DIVULGACAO_FOTO_MAX_BYTES,
   DIVULGACAO_MIDIAS_MAX,
   DIVULGACOES_POR_DIA,
   EDICOES_POR_DIA,
@@ -43,6 +46,7 @@ import {
   statusInicial,
   validarDecisao,
   validarDivulgacao,
+  validarFotos,
   validarModo,
   type AutorDaDivulgacao,
   type ModoDeDivulgacao,
@@ -142,10 +146,43 @@ async function conferirMidias(campaignId: string, midias: string[]) {
   if (ok.length !== midias.length) throw new DivulgacaoError("Escolha só mídias desta rifa.", 422);
 }
 
-async function gravar(valores: typeof divulgacoes.$inferInsert) {
+/**
+ * A foto do apostador vira JPEG de até 1600 px, sem metadados (nem
+ * localização), com teto de 40 MP medido antes de abrir. Todas são
+ * processadas antes da transação: recusa não deixa peça pela metade.
+ */
+async function processarFotos(fotos: string[]): Promise<Buffer[]> {
+  const saida: Buffer[] = [];
+  for (const f of fotos) {
+    const bruto = Buffer.from(f.slice(f.indexOf(",") + 1), "base64");
+    if (bruto.length > DIVULGACAO_FOTO_MAX_BYTES) throw new DivulgacaoError("Uma das fotos passa de 5 MB. Envie uma menor.", 413);
+    try {
+      saida.push(
+        await sharp(bruto, { limitInputPixels: 40_000_000 })
+          .rotate()
+          .resize({ width: 1600, height: 1600, fit: "inside", withoutEnlargement: true })
+          .jpeg({ quality: 80, mozjpeg: true })
+          .toBuffer(),
+      );
+    } catch {
+      throw new DivulgacaoError("Não consegui ler uma das fotos. Envie em JPG ou PNG.", 422);
+    }
+  }
+  return saida;
+}
+
+/** O afiliado publica com as mídias da rifa; foto própria é só do apostador. */
+function semFotoDeAfiliado(entrada: Record<string, unknown>) {
+  if (entrada.fotos !== undefined) throw new DivulgacaoError("O afiliado publica com as mídias da rifa.", 422);
+}
+
+async function gravar(valores: typeof divulgacoes.$inferInsert, fotos: Buffer[] = []) {
   try {
-    const [d] = await db.insert(divulgacoes).values(valores).returning();
-    return d;
+    return await db.transaction(async (tx: Tx) => {
+      const [d] = await tx.insert(divulgacoes).values(valores).returning();
+      if (fotos.length) await tx.insert(divulgacaoFotos).values(fotos.map((bytes, posicao) => ({ divulgacaoId: d.id, posicao, bytes })));
+      return d;
+    });
   } catch (err) {
     // Quem decide é o índice: um pedido em análise por autor e rifa.
     if (isUniqueViolation(err, "uq_divulgacao_afiliado_em_analise") || isUniqueViolation(err, "uq_divulgacao_apostador_em_analise")) {
@@ -153,6 +190,29 @@ async function gravar(valores: typeof divulgacoes.$inferInsert) {
     }
     throw err;
   }
+}
+
+/** As fotos de cada peça, na ordem, só os ids (os bytes saem pelas rotas que conferem quem vê). */
+async function fotosDasPecas(ids: string[]): Promise<Map<string, string[]>> {
+  const por = new Map<string, string[]>();
+  if (!ids.length) return por;
+  const linhas = await db
+    .select({ id: divulgacaoFotos.id, divulgacaoId: divulgacaoFotos.divulgacaoId })
+    .from(divulgacaoFotos)
+    .where(inArray(divulgacaoFotos.divulgacaoId, ids))
+    .orderBy(asc(divulgacaoFotos.divulgacaoId), asc(divulgacaoFotos.posicao));
+  for (const l of linhas) por.set(l.divulgacaoId, [...(por.get(l.divulgacaoId) ?? []), l.id]);
+  return por;
+}
+
+async function bytesDaFoto(divulgacaoId: string, fotoId: string) {
+  if (!/^[0-9a-f-]{36}$/i.test(fotoId)) throw new DivulgacaoError("Foto não encontrada.", 404);
+  const [f] = await db
+    .select({ bytes: divulgacaoFotos.bytes })
+    .from(divulgacaoFotos)
+    .where(and(eq(divulgacaoFotos.id, fotoId), eq(divulgacaoFotos.divulgacaoId, divulgacaoId)));
+  if (!f) throw new DivulgacaoError("Foto não encontrada.", 404);
+  return f.bytes;
 }
 
 /* ------------------------------------------------------------------ *
@@ -170,6 +230,7 @@ async function afiliadoOnline(affiliateId: string) {
 }
 
 export async function publicarComoAfiliado(affiliateId: string, entrada: Record<string, unknown>) {
+  semFotoDeAfiliado(entrada);
   const dados = regra(() => validarDivulgacao("afiliado", entrada));
   const a = await afiliadoOnline(affiliateId);
   const rifa = await rifaParaDivulgar(entrada.slug);
@@ -309,6 +370,7 @@ export async function publicarComoApostador(req: Request, entrada: Record<string
   await interruptorDoApostador();
   const b = await apostadorComConta(req);
   const dados = regra(() => validarDivulgacao("apostador", entrada));
+  const fotosBrutas = regra(() => validarFotos(entrada.fotos)) ?? [];
   const rifa = await rifaParaDivulgar(entrada.slug);
   // Só fala da rifa quem joga nela: compra paga (a PK do pedido, não um palpite).
   const [joga] = await db
@@ -320,6 +382,7 @@ export async function publicarComoApostador(req: Request, entrada: Record<string
   const limite = await hit(`divulgacao:apostador:${b.id}`, 24 * 60, DIVULGACOES_POR_DIA);
   if (limite.excedeu) throw new DivulgacaoError("Muitas divulgações hoje. Tente amanhã.", 429);
   barrarPixPorFora(dados.legenda, rifa, `apostador @${b.apelido}`);
+  const fotos = await processarFotos(fotosBrutas);
   const d = await gravar({
     campaignId: rifa.id,
     organizationId: rifa.organizationId,
@@ -329,7 +392,7 @@ export async function publicarComoApostador(req: Request, entrada: Record<string
     midiaIds: [],
     // Sempre a organização antes de ir ao ar, qualquer que seja o modo dela.
     status: statusInicial("apostador", "direta"),
-  });
+  }, fotos);
   return { id: d.id, status: d.status };
 }
 
@@ -363,13 +426,25 @@ export async function minhasDoAfiliado(affiliateId: string) {
 export async function minhasDoApostador(req: Request) {
   await interruptorDoApostador();
   const b = await apostadorComConta(req);
-  return db
+  const linhas = await db
     .select(colunasDaMinha)
     .from(divulgacoes)
     .innerJoin(campaigns, eq(campaigns.id, divulgacoes.campaignId))
     .where(eq(divulgacoes.buyerId, b.id))
     .orderBy(desc(divulgacoes.createdAt))
     .limit(50);
+  const fotos = await fotosDasPecas(linhas.map((l) => l.id));
+  return linhas.map((l) => ({ ...l, fotos: (fotos.get(l.id) ?? []).map((f) => `/api/public/divulgacoes/minhas/${l.id}/fotos/${f}`) }));
+}
+
+/** A foto da própria peça, para quem publicou (em análise, recusada ou no ar). A de outra pessoa é 404. */
+export async function fotoDoAutor(req: Request, id: string, fotoId: string) {
+  await interruptorDoApostador();
+  const b = await apostadorComConta(req);
+  if (!/^[0-9a-f-]{36}$/i.test(id)) throw new DivulgacaoError("Foto não encontrada.", 404);
+  const [d] = await db.select({ id: divulgacoes.id }).from(divulgacoes).where(and(eq(divulgacoes.id, id), eq(divulgacoes.buyerId, b.id)));
+  if (!d) throw new DivulgacaoError("Foto não encontrada.", 404);
+  return bytesDaFoto(id, fotoId);
 }
 
 /** Quem escreveu retira a própria peça (em análise ou no ar). O de outra pessoa é 404. */
@@ -411,7 +486,10 @@ async function editarPropria(
   entrada: Record<string, unknown>,
 ) {
   if (!/^[0-9a-f-]{36}$/i.test(id)) throw new DivulgacaoError("Divulgação não encontrada.", 404);
+  if (dono.autor === "afiliado") semFotoDeAfiliado(entrada);
   const dados = regra(() => validarDivulgacao(dono.autor, entrada));
+  // Sem `fotos` no corpo, ficam as que a peça tinha; lista vazia tira todas.
+  const fotosBrutas = dono.autor === "apostador" ? regra(() => validarFotos(entrada.fotos)) : null;
   const doDono = dono.autor === "afiliado" ? eq(divulgacoes.affiliateId, dono.affiliateId) : eq(divulgacoes.buyerId, dono.buyerId);
   const [atual] = await db
     .select({ campaignId: divulgacoes.campaignId, status: divulgacoes.status, versao: divulgacoes.versao, midiaIds: divulgacoes.midiaIds })
@@ -454,11 +532,13 @@ async function editarPropria(
   const midias = dono.autor === "afiliado" ? (Array.isArray(entrada.midias) ? dados.midias : atual.midiaIds) : [];
   if (!dados.legenda && midias.length === 0) throw new DivulgacaoError("Escreva a legenda ou escolha ao menos uma mídia da rifa.", 422);
   if (dono.autor === "afiliado") await conferirMidias(rifa.id, midias);
+  const fotos = fotosBrutas ? await processarFotos(fotosBrutas) : null;
 
   // Afiliado no modo direto segue no ar; o resto volta a esperar a organização.
   const status = dono.autor === "afiliado" ? statusInicial("afiliado", validarModo(rifa.modo)) : "em_analise";
   try {
-    const [r] = await db
+    return await db.transaction(async (tx: Tx) => {
+    const [r] = await tx
       .update(divulgacoes)
       .set({
         legenda: dados.legenda,
@@ -477,7 +557,13 @@ async function editarPropria(
       .where(and(eq(divulgacoes.id, id), doDono, eq(divulgacoes.status, atual.status), eq(divulgacoes.versao, partiuDe)))
       .returning({ id: divulgacoes.id, status: divulgacoes.status, versao: divulgacoes.versao });
     if (!r) throw new DivulgacaoError("A divulgação mudou enquanto você editava. Abra de novo.", 409);
+    // As fotos trocam junto com a versão: na mesma transação, depois do `UPDATE` que confere a versão.
+    if (fotos) {
+      await tx.delete(divulgacaoFotos).where(eq(divulgacaoFotos.divulgacaoId, id));
+      if (fotos.length) await tx.insert(divulgacaoFotos).values(fotos.map((bytes, posicao) => ({ divulgacaoId: id, posicao, bytes })));
+    }
     return r;
+    });
   } catch (err) {
     // A peça no ar volta para a fila: se já há outra desta rifa esperando, o índice decide.
     if (isUniqueViolation(err, "uq_divulgacao_afiliado_em_analise") || isUniqueViolation(err, "uq_divulgacao_apostador_em_analise")) {
@@ -555,11 +641,26 @@ export async function listarDaOrganizacao(req: Request, status?: unknown) {
     // A que espera a organização vem primeiro.
     .orderBy(sql`(${divulgacoes.status} = 'em_analise') desc`, desc(divulgacoes.createdAt))
     .limit(100);
+  const fotos = await fotosDasPecas(linhas.map((l) => l.id));
   return linhas.map(({ nomeAfiliado, apelido, codigo, midiaIds, ...l }) => ({
     ...l,
     midias: midiaIds.length,
+    // A organização lê a foto antes de autorizar: a varredura do Pix por fora só lê texto.
+    fotos: (fotos.get(l.id) ?? []).map((f) => `/api/admin/divulgacoes/${l.id}/fotos/${f}`),
     quem: l.autor === "afiliado" ? `${nomeCurto(nomeAfiliado)} (${codigo})` : `@${apelido ?? "apostador"}`,
   }));
+}
+
+/** A foto de uma peça, para quem decide: no recorte da organização (a do vizinho é 404). */
+export async function fotoDoPainel(req: Request, id: string, fotoId: string) {
+  if (!/^[0-9a-f-]{36}$/i.test(id)) throw new DivulgacaoError("Foto não encontrada.", 404);
+  const org = orgOf(req);
+  const [d] = await db
+    .select({ id: divulgacoes.id })
+    .from(divulgacoes)
+    .where(and(eq(divulgacoes.id, id), org ? eq(divulgacoes.organizationId, org) : undefined));
+  if (!d) throw new DivulgacaoError("Foto não encontrada.", 404);
+  return bytesDaFoto(id, fotoId);
 }
 
 /** Quantas peças esperam a organização — para o aviso da tela, sem trazer a lista. */
@@ -751,6 +852,7 @@ export async function divulgacoesDaRifa(slug: string) {
     ? await db.select().from(campaignMedia).where(and(eq(campaignMedia.campaignId, c.id), eq(campaignMedia.status, "ready"), inArray(campaignMedia.id, ids)))
     : [];
   const porId = new Map(midias.map((m) => [m.id, m]));
+  const fotosPorPeca = await fotosDasPecas(linhas.map((l) => l.id));
 
   const saida = [];
   for (const l of linhas) {
@@ -768,6 +870,8 @@ export async function divulgacoesDaRifa(slug: string) {
       legenda: l.legenda,
       criadaEm: l.criadaEm,
       editada: Boolean(l.editadaEm),
+      // As fotos do apostador saem só pela rota que confere de novo que a peça está no ar.
+      fotos: (fotosPorPeca.get(l.id) ?? []).map((f) => `/api/public/divulgacoes/${l.id}/fotos/${f}`),
       // O link de quem divulga (só afiliado): a compra por ele paga a comissão dele.
       link: linkDaDivulgacao(c.slug, l.autor === "afiliado" ? l.codigo : null),
       midias: l.midiaIds
@@ -781,4 +885,20 @@ export async function divulgacoesDaRifa(slug: string) {
     });
   }
   return saida;
+}
+
+/**
+ * A foto pública: só da peça que a página da rifa mostra agora (no ar, rifa
+ * vendendo, apostador com compra paga e o interruptor ligado). Retirada,
+ * recusada, estornada ou com o interruptor desligado, a foto some junto.
+ */
+export async function fotoPublica(id: string, fotoId: string) {
+  if (!/^[0-9a-f-]{36}$/i.test(id)) throw new DivulgacaoError("Foto não encontrada.", 404);
+  const [d] = await db
+    .select({ slug: campaigns.slug })
+    .from(divulgacoes)
+    .innerJoin(campaigns, eq(campaigns.id, divulgacoes.campaignId))
+    .where(and(eq(divulgacoes.id, id), eq(divulgacoes.status, "publicada")));
+  if (!d || !(await divulgacoesDaRifa(d.slug)).some((x) => x.id === id)) throw new DivulgacaoError("Foto não encontrada.", 404);
+  return bytesDaFoto(id, fotoId);
 }

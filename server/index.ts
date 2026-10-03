@@ -149,6 +149,8 @@ app.use(
   ],
   express.json({ limit: "8mb" }),
 );
+// A peça do apostador leva até 4 fotos (a tela já reduz a foto do celular).
+app.use(["/api/public/divulgacoes", "/api/public/divulgacoes/:id"], express.json({ limit: "24mb" }));
 // Story em vídeo: até 15 MB em base64 (sem transcode, o arquivo vai como veio).
 app.use("/api/admin/stories", express.json({ limit: "22mb" }));
 // O perfil pode levar foto e capa juntas (até 5 MB cada, em base64).

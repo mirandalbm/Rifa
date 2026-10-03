@@ -622,8 +622,9 @@ Na ordem de entrega do plano:
   Sobem com o `db:push` **antes** do código: `grupos`, `grupo_membros`,
   `grupo_mensagens` e `grupo_denuncias`. Ficou para depois: moderador do
   grupo, aviso no celular e foto em grupo.
-- [ ] **[código]** Vídeo na conversa (precisa de transcode; fica com o
-  Cloudflare Stream, ver o item de vídeo).
+- [x] **Vídeo nas Mensagens: não haverá** (decisão de 03/10/2026). Nem na
+  conversa de um para um nem nos grupos: entre os participantes só texto e,
+  na conversa, a foto do apostador.
 - [x] **Buscar** (grade das publicações mais novas e busca por texto):
   pronto, atrás do interruptor `buscarLigado` e da tabela do que aparece
   (`buscarTipos`: rifas, organizações e apostadores; apostador nasce
@@ -686,8 +687,8 @@ Na ordem de entrega do plano:
   **Falta no ambiente**: `db:push` (colunas `stream_uid`, `stream_hls` e a
   tabela `stream_pendentes`) **antes** do código; e, para ligar, `VIDEO_PROCESSOR=cloudflare-stream` e
   `CLOUDFLARE_STREAM_ENTREGA=hls` com as credenciais do item acima (o Stream
-  cobra por minuto guardado). Ficou de fora: story em vídeo, vídeo nas
-  conversas e enviar ao Stream o vídeo de antes.
+  cobra por minuto guardado). Ficou de fora: story em vídeo e enviar ao
+  Stream o vídeo de antes (vídeo nas Mensagens não haverá).
 - [ ] **[código]** Custo de entrega do Stream: hoje o HLS é público
   (`requireSignedURLs=false`, sem `allowedOrigins`) — outro site pode tocar o
   `.m3u8` e a plataforma paga os minutos entregues; e o vídeo de rifa que saiu

@@ -21,7 +21,8 @@ import {
   publicarVideo,
   type VideoPublicado,
 } from "./videoProcessor";
-import { entregaHlsLigada } from "@shared/stream";
+import { entregaHlsLigada, hlsParaATela } from "@shared/stream";
+import { tokenDoStream } from "./streamAssinatura";
 import { emSegundoPlano } from "./push";
 import { POSTER_BAIXAR_ATE_BYTES, chaveDoPoster, posterPublico } from "@shared/poster";
 import { probeImage, probeVideoDimensions, probeVideoDuration, UnreadableMediaError } from "./probe";
@@ -334,7 +335,7 @@ export async function gerarPosterDaMidia(mediaId: string, campaignId: string, st
     // meio do caminho, o que foi gerado é lixo e sai.
     const [gravado] = await db
       .update(campaignMedia)
-      .set({ posterKey: chave, streamUid: stream?.uid ?? null, streamHls: stream?.hls ?? null })
+      .set({ posterKey: chave, streamUid: stream?.uid ?? null, streamHls: stream?.hls ?? null, streamAssinado: stream?.assinado ?? false })
       .where(and(eq(campaignMedia.id, mediaId), isNull(campaignMedia.posterKey), isNull(campaignMedia.streamUid)))
       .returning({ id: campaignMedia.id });
     if (gravado) {
@@ -407,14 +408,18 @@ export function withUrls(linha: MediaRow) {
   const store = storage();
   const url = (key: string) => store.publicUrl(key);
   // O `uid` do Stream é só do servidor (apagar); a tela recebe o endereço do HLS.
-  const { streamUid: _uid, ...m } = linha;
+  const { streamUid: uid, streamAssinado: assinado, ...m } = linha;
   return {
     ...m,
     url: url(m.storageKey),
     // Só vídeo tem pôster; sem ele (sem ffmpeg, falha), `null`.
     posterUrl: posterPublico(m.posterKey ? url(m.posterKey) : null),
     // O HLS do Stream (já conferido ao gravar); sem entrega, `null` e a tela toca o original.
-    hls: m.role === "video" ? m.streamHls ?? null : null,
+    // Assinado: o token (que vence) no lugar do `uid`; sem a chave, `null`.
+    hls:
+      m.role === "video"
+        ? hlsParaATela({ hls: m.streamHls ?? null, uid: uid ?? null, assinado, token: assinado ? tokenDoStream(uid) : null })
+        : null,
     srcSetAvif: srcSet(m.variants, "avif", url),
     srcSetWebp: srcSet(m.variants, "webp", url),
   };

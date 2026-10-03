@@ -87,7 +87,7 @@ arquitetura.
 | política de conteúdo (CSP, modo relatório) | `shared/csp.ts`, `server/services/csp.ts`, `server/index.ts`, `tests/csp.test.ts` |
 | variantes de imagem | `server/services/images.ts` |
 | pôster do vídeo (rifa, reels e story), o `ffmpeg` local e o Cloudflare Stream | `shared/poster.ts` (regras e comando), `server/services/videoProcessor.ts` (`ProcessadorDeVideo`, `FfmpegLocal`), `gerarPosterDaMidia()` em `server/services/media.ts`, `gerarPosterDoStory()` em `server/services/vitrine.ts`, `poster` em `Publicacao.tsx`/`Reels.tsx`/`Stories.tsx`, `scripts/poster-test.ts`, `tests/poster.test.ts`, `tests/cloudflareStream.test.ts` |
-| entrega do vídeo em HLS pelo Cloudflare Stream (guardar, tocar, apagar) | `shared/stream.ts` (regras), `publicar()`/`apagarDoStream()` em `server/services/videoProcessor.ts`, `gerarPosterDaMidia()`/`removeMedia()` em `server/services/media.ts`, `stream_uid`/`stream_hls` em `campaign_media`, `server/services/streamPendentes.ts` (vídeo sem dono, relógio), `client/src/lib/hls.ts` (`useVideoHls`), `scripts/poster-test.ts`, `tests/stream.test.ts`, `tests/cloudflareStream.test.ts` |
+| entrega do vídeo em HLS pelo Cloudflare Stream (guardar, tocar, apagar) | `shared/stream.ts` (regras), `publicar()`/`apagarDoStream()` em `server/services/videoProcessor.ts`, `gerarPosterDaMidia()`/`removeMedia()` em `server/services/media.ts`, `stream_uid`/`stream_hls`/`stream_assinado` em `campaign_media`, `server/services/streamPendentes.ts` (vídeo sem dono e a marca dos vídeos de antes, relógio), `client/src/lib/hls.ts` (`useVideoHls`), `scripts/poster-test.ts`, `tests/stream.test.ts`, `tests/streamAssinatura.test.ts`, `tests/cloudflareStream.test.ts` |
 | onde a mídia é guardada e a cópia de segurança | `server/services/storage.ts` (`LocalDiskStorage`, `CopiaS3`, `sincronizarCopia`), `/uploads` em `server/index.ts`, `tests/backup.test.ts` |
 | mensagens e modelos | `server/notifications/` |
 | cotas premiadas | `shared/premiadas.ts` (números escolhidos), `server/routes/admin.ts` (sorteio e escolha), `services/orders.ts` (revelação), `premiados` em `listarComentarios()` (o comentário fixo de quem levou), `client/src/components/CotaSurpresa.tsx` (o presente na publicação, que revela) |
@@ -977,14 +977,37 @@ isso é variável à parte.
   `src` = original, no ponto em que estava.
 - **Endereço da API**: `CLOUDFLARE_API_URL` só fora de produção
   (`baseDaCloudflare()`), para a prova; o token só no cabeçalho.
-- Ficou fora: story em vídeo (vive 24 h, fica no banco), URL assinada e `allowedOrigins` do Stream (o vídeo da rifa já é público; o
-  HLS de uma rifa que sai do ar segue tocável enquanto a mídia existir, como o
-  original em `/uploads`) — `docs/PENDENCIAS.md`.
-- As colunas `campaign_media.stream_uid` e `stream_hls` e a tabela
-  `stream_pendentes` sobem com o `db:push`
+- **URL assinada** (`server/services/streamAssinatura.ts`, com
+  `CLOUDFLARE_STREAM_CHAVE_ID` e `CLOUDFLARE_STREAM_CHAVE_JWK` — a chave de
+  assinatura do Stream, `POST /stream/keys`; sem as duas, tudo segue aberto
+  como antes): o HLS aberto deixava qualquer site tocar o `.m3u8` com a
+  plataforma pagando os minutos. Com a chave, o vídeo que fica no Stream é
+  marcado `requireSignedURLs` **depois** de tirar o pôster (o quadro também
+  passa a pedir token) e **antes** de a mídia guardá-lo; não conseguiu
+  marcar, **não fica** (sai no `finally`) — vídeo guardado aberto é o custo
+  que isto corta. A mídia guarda `stream_assinado`; a tela recebe o
+  endereço com um JWT RS256 no lugar do `uid` (`hlsParaATela()` em
+  `shared/stream.ts`, `sub` = o `uid`, vale 4 h, o mesmo token reaproveitado
+  em memória até faltar 1 h), assinado aqui — sem chamada à Cloudflare por
+  visualização. **Vídeo marcado sem chave no processo não vai com HLS**: a
+  tela toca o original, nunca um endereço que daria 401. Para o
+  público, o token sai só das rotas que já conferem a rifa no ar (o painel
+  da dona, pelo recorte, também recebe): a rifa que sai do ar para de tocar
+  no Stream para o público quando os tokens dados vencem. O vídeo
+  guardado antes da chave é marcado pelo relógio do Stream
+  (`assinarVideosDoStream()`, 20 por volta, andando por chave — o vídeo que
+  o Stream não marca fica para a volta seguinte e não segura a fila —, com
+  `try` próprio dentro da trava, e `UPDATE` condicional ao `uid` lido). O JWK é segredo: nunca vai a log, resposta ou URL.
+- Ficou fora: story em vídeo (vive 24 h, fica no banco) e `allowedOrigins`
+  do Stream (o HLS nativo do iPhone pode não mandar `Origin`; a URL assinada
+  já fecha o custo) — `docs/PENDENCIAS.md`.
+- As colunas `campaign_media.stream_uid`, `stream_hls` e `stream_assinado` e
+  a tabela `stream_pendentes` sobem com o `db:push`
   **antes** do código. `npm run poster` prova com um Stream de mentira (com as
-  variáveis da entrega, como no CI) e `tests/stream.test.ts` e
-  `tests/cloudflareStream.test.ts` cobrem as regras.
+  variáveis da entrega, como no CI; a URL assinada com uma chave criada pela
+  própria prova, só no processo dela) e `tests/stream.test.ts`,
+  `tests/streamAssinatura.test.ts` e `tests/cloudflareStream.test.ts` cobrem
+  as regras.
 
 ## Antifraude — o que não pode afrouxar
 

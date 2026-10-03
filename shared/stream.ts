@@ -59,3 +59,41 @@ export function fonteDoVideo(o: { hls: string | null | undefined; nativo: boolea
   if (o.mse) return "hls-js";
   return "original";
 }
+
+/**
+ * URL assinada (o custo da entrega). Com a chave de assinatura do Stream
+ * (`CLOUDFLARE_STREAM_CHAVE_ID` e `CLOUDFLARE_STREAM_CHAVE_JWK`), o vídeo
+ * guardado é marcado `requireSignedURLs` e o endereço do HLS leva um token
+ * (JWT RS256 assinado pelo nosso servidor, sem chamada ao Stream) no lugar do
+ * `uid`. O token vence: outro site não toca o vídeo à nossa custa, e a rifa
+ * que saiu do ar para de receber endereço novo — quem dá o token é a rota
+ * pública, que já confere a rifa.
+ */
+export const TOKEN_DO_STREAM_VALIDADE_S = 4 * 60 * 60;
+/** O token guardado em memória é reaproveitado até faltar isto para vencer. */
+export const TOKEN_DO_STREAM_FOLGA_S = 60 * 60;
+
+/** Um JWT: três partes em base64url, nada mais (vira caminho de URL). */
+export function tokenDoStreamValido(token: unknown): token is string {
+  return typeof token === "string" && token.length < 4096 && /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(token);
+}
+
+/** O mesmo endereço conferido por `hlsDoStream()`, com o token no lugar do `uid`. */
+export function hlsAssinado(hls: string, uid: string, token: string): string | null {
+  const conferido = hlsDoStream(hls, uid);
+  if (!conferido || !tokenDoStreamValido(token)) return null;
+  const u = new URL(conferido);
+  u.pathname = `/${token}/manifest/video.m3u8`;
+  return u.toString();
+}
+
+/**
+ * O endereço que a tela recebe. Vídeo marcado `requireSignedURLs` só toca com
+ * token: sem ele (a chave saiu do ambiente), `null` e a tela toca o original —
+ * um HLS que o Stream recusaria seria um erro na cara do apostador.
+ */
+export function hlsParaATela(o: { hls: string | null; uid: string | null; assinado: boolean; token: string | null }): string | null {
+  if (!o.hls || !o.uid) return null;
+  if (o.token) return hlsAssinado(o.hls, o.uid, o.token);
+  return o.assinado ? null : hlsDoStream(o.hls, o.uid);
+}

@@ -32,11 +32,14 @@ import {
   argsDoPoster,
 } from "@shared/poster";
 import { hlsDoStream, uidValido } from "@shared/stream";
+import { chaveDoStream } from "./streamAssinatura";
 
 /** O vídeo guardado no Stream para tocar em HLS. */
 export interface VideoNoStream {
   uid: string;
   hls: string;
+  /** Marcado `requireSignedURLs`: só toca com token (`tokenDoStream()`). */
+  assinado: boolean;
 }
 
 /** O que sai de `publicar()`: o pôster (ou nulo) e, se o vídeo ficou no Stream, onde ele está. */
@@ -220,6 +223,13 @@ export interface OpcoesDoStream {
   intervaloMs?: number;
   /** Largura do quadro pedido ao Stream. */
   largura?: number;
+  /**
+   * URL assinada ligada (há chave de assinatura): o vídeo que fica no Stream é
+   * marcado `requireSignedURLs` antes de a mídia guardá-lo. Sem conseguir
+   * marcar, ele não fica (sai no `finally`) — vídeo guardado aberto seria o
+   * custo que a assinatura existe para cortar.
+   */
+  assinar?: boolean;
   /** Endereço da API (`baseDaCloudflare()`); injetável para teste. */
   api?: string;
 }
@@ -267,6 +277,26 @@ export class CloudflareStream implements ProcessadorDeVideo {
   /** Envia, tira o pôster e **deixa o vídeo no Stream** para tocar em HLS. */
   publicar(arquivo: string): Promise<VideoPublicado> {
     return vagasDoStream.rodar(() => this.processar(arquivo, true));
+  }
+
+  /**
+   * Marca o vídeo `requireSignedURLs`: dali em diante só toca com token. `true`
+   * se o Stream confirmou. Nunca lança (o relógio usa nos vídeos de antes).
+   */
+  async exigirAssinatura(uid: string): Promise<boolean> {
+    if (!uidValido(uid)) return false;
+    try {
+      const r = await this.f(`${this.base}/${uid}`, {
+        method: "POST",
+        headers: { ...this.auth, "Content-Type": "application/json" },
+        body: JSON.stringify({ uid, requireSignedURLs: true }),
+        signal: AbortSignal.timeout(15_000),
+      });
+      const j = (await r.json().catch(() => null)) as { success?: boolean } | null;
+      return r.ok && j?.success === true;
+    } catch {
+      return false;
+    }
   }
 
   /** Apaga um vídeo guardado (a mídia saiu). `true` se o Stream confirmou (ou já não tinha). Nunca lança. */
@@ -328,8 +358,14 @@ export class CloudflareStream implements ProcessadorDeVideo {
         }
         await new Promise((ok) => setTimeout(ok, this.intervaloMs));
       }
-      if (guardar && hls) guardado = { uid, hls };
+      // O quadro sai antes de marcar o vídeo: com `requireSignedURLs`, a
+      // miniatura também pediria token.
       const poster = miniatura ? await this.quadro(miniatura, restante) : null;
+      if (guardar && hls) {
+        const assinado = this.o.assinar ? await this.exigirAssinatura(uid) : false;
+        // Com a assinatura ligada, vídeo que o Stream não marcou não fica guardado.
+        if (!this.o.assinar || assinado) guardado = { uid, hls, assinado };
+      }
       return { poster, stream: guardado };
     } catch {
       return { poster: null, stream: guardado };
@@ -404,7 +440,7 @@ export function streamConfigurado(): CloudflareStream | null {
   if (streamEscolhido !== undefined) return streamEscolhido;
   const accountId = process.env.CLOUDFLARE_ACCOUNT_ID?.trim();
   const token = process.env.CLOUDFLARE_STREAM_TOKEN?.trim();
-  streamEscolhido = accountId && token ? new CloudflareStream({ accountId, token }) : null;
+  streamEscolhido = accountId && token ? new CloudflareStream({ accountId, token, assinar: Boolean(chaveDoStream()) }) : null;
   return streamEscolhido;
 }
 

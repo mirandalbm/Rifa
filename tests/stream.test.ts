@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { entregaHlsLigada, fonteDoVideo, hlsDoStream, uidValido } from "../shared/stream";
+import { entregaHlsLigada, fonteDoVideo, hlsAssinado, hlsDoStream, hlsParaATela, tokenDoStreamValido, uidValido } from "../shared/stream";
 
 const UID = "0123456789abcdef0123456789abcdef";
 const HLS = `https://customer-abc123.cloudflarestream.com/${UID}/manifest/video.m3u8`;
@@ -44,5 +44,27 @@ describe("entrega em HLS: regras", () => {
     expect(fonteDoVideo({ hls: HLS, nativo: true, mse: true })).toBe("hls-nativo");
     expect(fonteDoVideo({ hls: HLS, nativo: false, mse: true })).toBe("hls-js");
     expect(fonteDoVideo({ hls: HLS, nativo: false, mse: false })).toBe("original");
+  });
+});
+
+describe("URL assinada: regras", () => {
+  const TOKEN = "eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ4In0.YXNzaW5hdHVyYQ";
+
+  it("token é um JWT em base64url, nada além", () => {
+    expect(tokenDoStreamValido(TOKEN)).toBe(true);
+    for (const t of ["", "a.b", "a.b.c.d", "a/b.c.d", "a.b.c?x=1", "a.b.c#x", "a.b. c", "x".repeat(5000) + ".a.b", null, 1]) expect(tokenDoStreamValido(t)).toBe(false);
+  });
+
+  it("o token entra no lugar do uid, no endereço conferido", () => {
+    expect(hlsAssinado(HLS, UID, TOKEN)).toBe(`https://customer-abc123.cloudflarestream.com/${TOKEN}/manifest/video.m3u8`);
+    expect(hlsAssinado(HLS, UID, "a/b.c.d")).toBeNull();
+    expect(hlsAssinado("https://outro.com/x/manifest/video.m3u8", UID, TOKEN)).toBeNull();
+  });
+
+  it("vídeo assinado sem token não vai à tela (toca o original); aberto segue como antes", () => {
+    expect(hlsParaATela({ hls: HLS, uid: UID, assinado: false, token: null })).toBe(HLS);
+    expect(hlsParaATela({ hls: HLS, uid: UID, assinado: true, token: null })).toBeNull();
+    expect(hlsParaATela({ hls: HLS, uid: UID, assinado: true, token: TOKEN })).toContain(`/${TOKEN}/manifest/`);
+    expect(hlsParaATela({ hls: null, uid: UID, assinado: false, token: null })).toBeNull();
   });
 });

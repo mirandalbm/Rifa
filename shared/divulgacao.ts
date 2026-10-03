@@ -80,7 +80,11 @@ export function agendaDaPeca(bruta: unknown, agora: Date = new Date()): Date | n
   return instanteAgendado(bruta, DIVULGACAO_AGENDA_MAX_DIAS, agora);
 }
 
-/** Aparece na página da rifa agora? (no ar e, se agendada, já passou da hora) */
+/**
+ * Aparece na página da rifa agora? (no ar e, se agendada, já passou da hora)
+ * A consulta do servidor é `noArAgora()` em `server/services/divulgacao.ts`,
+ * a mesma regra em SQL: mudou uma, mude a outra.
+ */
 export function pecaNoArAgora(status: StatusDaDivulgacao, publicaEm: Date | string | null, agora: Date = new Date()): boolean {
   return status === "publicada" && (!publicaEm || new Date(publicaEm).getTime() <= agora.getTime());
 }
@@ -187,8 +191,19 @@ export function linkDaDivulgacao(slug: string, codigoDoAfiliado: string | null):
  * organização avisa: o que a própria pessoa retirou não vira aviso. O motivo
  * vai no corpo — quem escreveu precisa entender a recusa.
  */
-export function avisoDaDecisao(status: StatusDaDivulgacao, rifa: string, motivo: string | null): { title: string; body: string } | null {
+export function avisoDaDecisao(
+  status: StatusDaDivulgacao,
+  rifa: string,
+  motivo: string | null,
+  publicaEm: Date | string | null = null,
+  agora: Date = new Date(),
+): { title: string; body: string } | null {
   const comMotivo = (t: string) => (motivo ? `${t} Motivo: ${motivo}` : t);
+  if (status === "publicada" && !pecaNoArAgora(status, publicaEm, agora)) {
+    // Aprovada antes da hora agendada: dizer "está no ar" seria mentira até lá.
+    const quando = new Date(publicaEm as string | Date).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo" });
+    return { title: "Sua divulgação foi aprovada", body: `A organização aprovou a sua divulgação de ${rifa}. Ela aparece na página da rifa em ${quando}.` };
+  }
   if (status === "publicada") return { title: "Sua divulgação está no ar", body: `A organização aprovou a sua divulgação de ${rifa}.` };
   if (status === "recusada") return { title: "Divulgação recusada", body: comMotivo(`A organização recusou a sua divulgação de ${rifa}.`) };
   if (status === "removida") return { title: "Divulgação retirada", body: comMotivo(`A organização tirou do ar a sua divulgação de ${rifa}.`) };

@@ -68,7 +68,7 @@ import { getPlataforma } from "./settings";
 import { withUrls } from "./media";
 import { isUniqueViolation } from "../pgError";
 
-/** Peça agendada só aparece depois da hora; sem agenda, já. */
+/** Peça agendada só aparece depois da hora; sem agenda, já. A mesma regra de `pecaNoArAgora()`, em SQL: mudou uma, mude a outra. */
 const noArAgora = () => or(isNull(divulgacoes.publicaEm), lte(divulgacoes.publicaEm, new Date()));
 
 export class DivulgacaoError extends Error {
@@ -754,12 +754,12 @@ export async function decidir(req: Request, id: string, entrada: unknown) {
       // diferentes não escondem a decisão do sino dele.
       .set({ status: para, motivo, decididoEm: sql`now()`, decididoPor: req.user?.id ?? null })
       .where(and(eq(divulgacoes.id, id), eq(divulgacoes.status, de), eq(divulgacoes.versao, Number(linha.versao))))
-      .returning({ id: divulgacoes.id, status: divulgacoes.status, buyerId: divulgacoes.buyerId, versao: divulgacoes.versao });
+      .returning({ id: divulgacoes.id, status: divulgacoes.status, buyerId: divulgacoes.buyerId, versao: divulgacoes.versao, publicaEm: divulgacoes.publicaEm });
     if (!novo) throw new DivulgacaoError("Esta divulgação já foi decidida.", 409);
     // Recusada ou retirada não volta (não se edita): as fotos de quem publicou saem já,
     // na mesma transação — foto de pessoa não fica guardada sem uso.
     if (para === "recusada" || para === "removida") await tx.delete(divulgacaoFotos).where(eq(divulgacaoFotos.divulgacaoId, id));
-    return { id: novo.id, status: novo.status, buyerId: novo.buyerId, versao: novo.versao, motivo, acao, campaignId: linha.campaign_id };
+    return { id: novo.id, status: novo.status, buyerId: novo.buyerId, versao: novo.versao, publicaEm: novo.publicaEm, motivo, acao, campaignId: linha.campaign_id };
   });
   // Quem publicou fica sabendo, fora da transação: aviso nunca derruba a decisão.
   // Leva o que ESTA transação decidiu — reler a linha depois pegaria a retirada
@@ -771,6 +771,7 @@ export async function decidir(req: Request, id: string, entrada: unknown) {
         buyerId: decidida.buyerId,
         status: decidida.status as StatusDaDivulgacao,
         versao: decidida.versao,
+        publicaEm: decidida.publicaEm,
         motivo,
         campaignId: decidida.campaignId,
       }),
@@ -785,10 +786,10 @@ export async function decidir(req: Request, id: string, entrada: unknown) {
  * situação: a mesma decisão não avisa duas vezes; a da versão editada, sim). O afiliado não tem push — vê o número no sino
  * do painel (`decididasParaOAfiliado`). Sem telefone nem nome no aviso.
  */
-async function avisarAutorDaDecisao(d: { id: string; buyerId: string; status: StatusDaDivulgacao; versao: number; motivo: string | null; campaignId: string }) {
+async function avisarAutorDaDecisao(d: { id: string; buyerId: string; status: StatusDaDivulgacao; versao: number; publicaEm: Date | null; motivo: string | null; campaignId: string }) {
   const [c] = await db.select({ titulo: campaigns.title }).from(campaigns).where(eq(campaigns.id, d.campaignId));
   if (!c) return;
-  const texto = avisoDaDecisao(d.status, c.titulo, d.motivo);
+  const texto = avisoDaDecisao(d.status, c.titulo, d.motivo, d.publicaEm);
   if (!texto) return;
   // A versão na chave: editada e aprovada de novo é outra decisão, e avisa de novo.
   await avisar([d.buyerId], "divulgacao", `${d.id}:${d.versao}:${d.status}`, { ...texto, url: "/publicar", tag: `divulgacao-${d.id}` });

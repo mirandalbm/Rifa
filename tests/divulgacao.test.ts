@@ -148,6 +148,12 @@ describe("aviso a quem publicou", () => {
     );
     expect(avisoDaDecisao("removida", "Moto 0 km", "acabou a parceria")?.body).toContain("tirou do ar");
     expect(avisoDaDecisao("em_analise", "Moto 0 km", null)).toBeNull();
+    // Aprovada antes da hora agendada: não diz "no ar", diz quando aparece (horário de Brasília).
+    const agendada = avisoDaDecisao("publicada", "Moto 0 km", null, "2026-10-04T13:00:00Z", new Date("2026-10-03T12:00:00Z"));
+    expect(agendada?.title).toBe("Sua divulgação foi aprovada");
+    expect(agendada?.body).toContain("04/10/2026");
+    expect(agendada?.body).toContain("10:00");
+    expect(avisoDaDecisao("publicada", "Moto 0 km", null, "2026-10-03T11:00:00Z", new Date("2026-10-03T12:00:00Z"))?.title).toBe("Sua divulgação está no ar");
   });
 });
 

@@ -54,7 +54,7 @@ Pelo caminho que mudou (a mesma tabela "Onde mexer" do `CLAUDE.md`):
 | presente | `presente` |
 | painel de resultados | `resultados` |
 | afiliados, fiscal, guarda da comissão | `afiliados`, `fiscal`, `guarda` |
-| divulgação de terceiros (afiliado influenciador, publicação do apostador, menu Criar, os avisos no sino e no trevo) | `divulgacao`, `afiliados`, `seguranca`, `isolation` |
+| divulgação de terceiros (afiliado influenciador, publicação do apostador, menu Criar, os avisos no sino e no trevo, editar a peça e a versão decidida) | `divulgacao`, `afiliados`, `seguranca`, `isolation` |
 | bônus, patrocínio, banner pago, marketing | `bonus`, `patrocinio`, `banner`, `marketing` |
 | sorteios oficiais (calendário, integrar a rifa, resultado oficial, sorteio automático, outras loterias, tela do sorteio) e o sorteio da rifa (`server/services/sortear.ts`) | `sorteios`, `transparencia`, `solicitacoes`, `isolation` |
 | comentários do sorteio oficial e a denúncia deles (`server/services/sorteioComentarios.ts`, `shared/sorteioDenuncias.ts`, o `Comentarios` com `sorteioOficialId`, `ComentariosDoSorteioDenunciados`) | `sorteio-comentarios`, `comentarios`, `isolation` |

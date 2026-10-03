@@ -145,6 +145,11 @@ async function main() {
     const afiliada = new Cliente();
     await afiliada.req("POST", "/api/auth/login", { email: EMAILS[2], password: SENHA });
     const [aff] = await db.select().from(affiliates).where(eq(affiliates.code, codigo));
+    // A decisão leva a versão lida (obrigatória): a prova manda a do banco, salvo quando testa outra.
+    const dec = async (c: Cliente, id: string, corpo: Record<string, unknown>) => {
+      const [d] = await db.select({ versao: divulgacoes.versao }).from(divulgacoes).where(eq(divulgacoes.id, id));
+      return c.req("POST", `/api/admin/divulgacoes/${id}`, { versao: d?.versao ?? 0, ...corpo });
+    };
     const peca = (slug: string, extra: Record<string, unknown> = {}) => afiliada.req("POST", "/api/affiliate/divulgacoes", { slug, legenda: "Bora participar dessa rifa!", ...extra });
 
     r = await peca(a1.slug);
@@ -218,20 +223,22 @@ async function main() {
     r = await orgA.req("GET", "/api/admin/divulgacoes");
     const naFila = r.json?.find((x: any) => x.id === id2);
     checa("a A vê, com o nome curto e o código — sem telefone nem e-mail", Boolean(naFila) && naFila.quem.includes(codigo) && !JSON.stringify(r.json).includes(TEL_AFILIADO) && !JSON.stringify(r.json).includes(EMAILS[2]));
-    r = await orgB.req("POST", `/api/admin/divulgacoes/${id2}`, { acao: "aprovar" });
+    r = await dec(orgB, id2, { acao: "aprovar" });
     checa("a B não aprova a peça da A (404)", r.status === 404, `HTTP ${r.status}`);
     r = await orgB.req("PUT", "/api/admin/divulgacoes/config", { modo: "direta" });
     r = await orgA.req("GET", "/api/admin/divulgacoes/config");
     checa("a B mexendo no modo dela não muda o da A", r.json?.modo === "autorizacao");
-    r = await afiliada.req("POST", `/api/admin/divulgacoes/${id2}`, { acao: "aprovar" });
+    r = await dec(afiliada, id2, { acao: "aprovar" });
     checa("o afiliado não decide a própria peça (403)", r.status === 403, `HTTP ${r.status}`);
-    r = await orgA.req("POST", `/api/admin/divulgacoes/${id2}`, { acao: "recusar" });
+    r = await orgA.req("POST", `/api/admin/divulgacoes/${id2}`, { acao: "aprovar" });
+    checa("decidir sem a versão lida é recusado (422)", r.status === 422, `HTTP ${r.status}`);
+    r = await dec(orgA, id2, { acao: "recusar" });
     checa("recusar sem motivo é recusado (422)", r.status === 422, `HTTP ${r.status}`);
 
     // Decisão dupla: um 200, um 409.
     const [d1, d2] = await Promise.all([
-      orgA.req("POST", `/api/admin/divulgacoes/${id2}`, { acao: "aprovar" }),
-      orgA.req("POST", `/api/admin/divulgacoes/${id2}`, { acao: "recusar", motivo: "Mudei de ideia" }),
+      dec(orgA, id2, { acao: "aprovar" }),
+      dec(orgA, id2, { acao: "recusar", motivo: "Mudei de ideia" }),
     ]);
     const codigos = [d1.status, d2.status].sort();
     checa("dois cliques, uma decisão: um 200 e um 409", codigos[0] === 200 && codigos[1] === 409, codigos.join(","));
@@ -241,7 +248,7 @@ async function main() {
     if (linha.status === "recusada") {
       await db.update(divulgacoes).set({ status: "publicada" }).where(eq(divulgacoes.id, id2));
     }
-    r = await orgA.req("POST", `/api/admin/divulgacoes/${id2}`, { acao: "aprovar" });
+    r = await dec(orgA, id2, { acao: "aprovar" });
     checa("decidir de novo é 409", r.status === 409, `HTTP ${r.status}`);
     r = await afiliada.req("GET", "/api/affiliate/divulgacoes/novidades");
     checa("decidida pela organização, o sino do afiliado conta 1", r.json?.decididas === 1, JSON.stringify(r.json));
@@ -254,6 +261,70 @@ async function main() {
     checa("no ar, aparece na página da rifa com o link do afiliado", r.json?.length === 1 && publica?.link === `/r/${a1.slug}?ref=${codigo}` && publica.midias.length === 1);
     checa("a peça do afiliado traz o código dele (a entrada para a mensagem)", publica?.codigo === codigo, String(publica?.codigo));
     checa("a página pública não traz telefone, e-mail nem id de afiliado", !/telefone|email|phone|affiliateId|buyerId/i.test(JSON.stringify(r.json)));
+
+    // Editar a peça no ar: volta para a fila (modo autorização) e a organização
+    // decide a versão que leu.
+    const midiaB1 = (await db.select({ id: campaignMedia.id }).from(campaignMedia).where(eq(campaignMedia.campaignId, b1.id)))[0]?.id;
+    r = await afiliada.req("PATCH", `/api/affiliate/divulgacoes/${id2}`, { legenda: "Corrigindo: chama no 84999998888" });
+    checa("editar com telefone: 422", r.status === 422, `HTTP ${r.status}`);
+    r = await afiliada.req("PATCH", `/api/affiliate/divulgacoes/${id2}`, { legenda: "Faz um pix direto pra mim que eu garanto" });
+    checa("editar pedindo Pix por fora: 422", r.status === 422, `HTTP ${r.status}`);
+    if (midiaB1) {
+      r = await afiliada.req("PATCH", `/api/affiliate/divulgacoes/${id2}`, { legenda: "ok", midias: [midiaB1] });
+      checa("editar com mídia de outra rifa: 422", r.status === 422, `HTTP ${r.status}`);
+    }
+    r = await orgA.req("PATCH", `/api/affiliate/divulgacoes/${id2}`, { legenda: "a organização não edita" });
+    checa("a organização não edita a peça do afiliado (403)", r.status === 403, `HTTP ${r.status}`);
+    r = await orgA.req("GET", "/api/admin/divulgacoes");
+    const versaoLida = r.json?.find((x: any) => x.id === id2)?.versao as number;
+    r = await afiliada.req("PATCH", `/api/affiliate/divulgacoes/${id2}`, { legenda: "Versão com número errado", versao: "3" });
+    checa("versão em formato errado na edição: 422", r.status === 422, `HTTP ${r.status}`);
+    const [antesDaEdicao] = await db.select({ midias: divulgacoes.midiaIds }).from(divulgacoes).where(eq(divulgacoes.id, id2));
+    // Sem `midias` no corpo: ficam as que a peça já tinha.
+    r = await afiliada.req("PATCH", `/api/affiliate/divulgacoes/${id2}`, { legenda: "Versão corrigida da minha divulgação" });
+    checa("a afiliada edita a peça no ar: volta para a autorização", r.status === 200 && r.json?.status === "em_analise", `HTTP ${r.status} ${JSON.stringify(r.json)}`);
+    const [depoisDaEdicao] = await db.select({ midias: divulgacoes.midiaIds }).from(divulgacoes).where(eq(divulgacoes.id, id2));
+    checa(
+      "editar só a legenda mantém as mídias escolhidas",
+      antesDaEdicao.midias.length > 0 && JSON.stringify(depoisDaEdicao.midias) === JSON.stringify(antesDaEdicao.midias),
+      JSON.stringify(depoisDaEdicao.midias),
+    );
+    r = await new Cliente().req("GET", `/api/public/campaigns/${a1.slug}/divulgacoes`);
+    checa("editada, sai da página da rifa até a nova aprovação", Array.isArray(r.json) && !r.json.some((x: any) => x.id === id2));
+    r = await orgA.req("GET", "/api/admin/chamados/pendentes");
+    checa("a peça editada volta a contar no sino da organização", (r.json?.divulgacoes ?? 0) >= 1, JSON.stringify(r.json));
+    r = await dec(orgA, id2, { acao: "aprovar", versao: versaoLida });
+    checa("aprovar a versão de antes da edição: 409", r.status === 409, `HTTP ${r.status} ${r.json?.message ?? ""}`);
+    // A plataforma vê a fila de todas as organizações, com o nome de cada uma, e decide.
+    r = await admin.req("GET", "/api/admin/divulgacoes?status=em_analise");
+    const naFilaDaPlataforma = r.json?.find((x: any) => x.id === id2);
+    checa(
+      "a plataforma vê a peça da A na fila de todas, com a organização e a versão nova",
+      Boolean(naFilaDaPlataforma) && naFilaDaPlataforma.organizacao === "Divulgação A" && naFilaDaPlataforma.versao === versaoLida + 1 && Boolean(naFilaDaPlataforma.editadaEm),
+      JSON.stringify(naFilaDaPlataforma ?? null),
+    );
+    r = await dec(admin, id2, { acao: "aprovar", versao: naFilaDaPlataforma?.versao });
+    checa("a plataforma aprova a versão que leu, sem escolher a organização", r.status === 200 && r.json?.status === "publicada", `HTTP ${r.status} ${r.json?.message ?? ""}`);
+    r = await new Cliente().req("GET", `/api/public/campaigns/${a1.slug}/divulgacoes`);
+    const editadaNoAr = r.json?.find((x: any) => x.id === id2);
+    checa("de volta à página, com o texto novo e a marca de editada", editadaNoAr?.legenda === "Versão corrigida da minha divulgação" && editadaNoAr?.editada === true, JSON.stringify(editadaNoAr ?? null));
+    {
+      // Duas edições ao mesmo tempo: uma grava, a outra é 409 (a versão decide).
+      // Duas abas abertas na mesma versão.
+      const vAberta = (await afiliada.req("GET", "/api/affiliate/divulgacoes")).json?.find((x: any) => x.id === id2)?.versao;
+      const [e1, e2] = await Promise.all([
+        afiliada.req("PATCH", `/api/affiliate/divulgacoes/${id2}`, { legenda: "Edição simultânea um", versao: vAberta }),
+        afiliada.req("PATCH", `/api/affiliate/divulgacoes/${id2}`, { legenda: "Edição simultânea dois", versao: vAberta }),
+      ]);
+      const cods = [e1.status, e2.status].sort();
+      checa("duas abas na mesma versão: um 200 e um 409", cods[0] === 200 && cods[1] === 409, cods.join(","));
+      const [v] = await db.select({ versao: divulgacoes.versao }).from(divulgacoes).where(eq(divulgacoes.id, id2));
+      checa("…e a versão subiu uma vez só", v?.versao === versaoLida + 2, String(v?.versao));
+      r = await admin.req("GET", "/api/admin/divulgacoes?status=em_analise");
+      const v2 = r.json?.find((x: any) => x.id === id2)?.versao;
+      r = await dec(orgA, id2, { acao: "aprovar", versao: v2 });
+      checa("a organização aprova a versão atual", r.status === 200, `HTTP ${r.status} ${r.json?.message ?? ""}`);
+    }
 
     // Nada da rifa mudou.
     const [depois] = await db.select().from(campaigns).where(eq(campaigns.id, a1.id));
@@ -276,16 +347,21 @@ async function main() {
     r = await peca(a1.slug, { legenda: "Essa vai direto pro ar" });
     checa("no modo direto a peça já nasce no ar", r.status === 201 && r.json?.status === "publicada", `HTTP ${r.status} ${r.json?.message ?? ""}`);
     const idDireta = r.json?.id as string;
+    r = await afiliada.req("PATCH", `/api/affiliate/divulgacoes/${idDireta}`, { legenda: "Direto pro ar, corrigida" });
+    checa("no modo direto, a peça editada segue no ar", r.status === 200 && r.json?.status === "publicada", `HTTP ${r.status} ${JSON.stringify(r.json)}`);
+    await afiliada.req("POST", "/api/affiliate/avisos/vistos");
     r = await afiliada.req("GET", "/api/affiliate/divulgacoes/novidades");
-    checa("o que o afiliado retirou e o que nasceu no ar não viram aviso", r.json?.decididas === 0, JSON.stringify(r.json));
-    r = await orgB.req("POST", `/api/admin/divulgacoes/${idDireta}`, { acao: "remover", motivo: "Não é minha" });
+    checa("o que o afiliado retirou, editou e o que nasceu no ar não viram aviso", r.json?.decididas === 0, JSON.stringify(r.json));
+    r = await dec(orgB, idDireta, { acao: "remover", motivo: "Não é minha" });
     checa("a B não retira a peça da A (404)", r.status === 404, `HTTP ${r.status}`);
-    r = await orgA.req("POST", `/api/admin/divulgacoes/${idDireta}`, { acao: "remover", motivo: "Fora do combinado" });
+    r = await dec(orgA, idDireta, { acao: "remover", motivo: "Fora do combinado" });
     checa("a A retira a peça no ar", r.status === 200 && r.json?.status === "removida", `HTTP ${r.status} ${JSON.stringify(r.json)}`);
     r = await afiliada.req("GET", "/api/affiliate/divulgacoes");
     checa("o afiliado lê o motivo da retirada", r.json?.some((x: any) => x.id === idDireta && x.motivo === "Fora do combinado"));
     r = await afiliada.req("GET", "/api/affiliate/divulgacoes/novidades");
     checa("a retirada pela organização vira aviso no sino do afiliado", r.json?.decididas === 1, JSON.stringify(r.json));
+    r = await afiliada.req("PATCH", `/api/affiliate/divulgacoes/${idDireta}`, { legenda: "Quero de volta" });
+    checa("peça retirada não se edita (409): envia outra", r.status === 409, `HTTP ${r.status}`);
 
     // Termo: rifa publicada com termo exige o aceite daquela versão.
     r = await orgA.req("POST", "/api/admin/termo-afiliado", { comissaoPct: 12, textoExtra: "" });
@@ -336,12 +412,12 @@ async function main() {
     r = await pessoa.req("POST", "/api/public/divulgacoes", { slug: a1.slug, legenda: "Joguei e gostei, bora!" });
     checa("o apostador publica e espera a organização — mesmo no modo direto", r.status === 201 && r.json?.status === "em_analise", `HTTP ${r.status} ${r.json?.message ?? ""}`);
     const idAp = r.json?.id as string;
-    r = await orgB.req("POST", `/api/admin/divulgacoes/${idAp}`, { acao: "aprovar" });
+    r = await dec(orgB, idAp, { acao: "aprovar" });
     checa("a B não aprova a do apostador da A (404)", r.status === 404, `HTTP ${r.status}`);
     r = await orgA.req("GET", "/api/admin/divulgacoes?status=em_analise");
     const filaAp = r.json?.find((x: any) => x.id === idAp);
     checa("a A vê pelo apelido — nunca pelo telefone", Boolean(filaAp) && filaAp.quem.startsWith("@") && !JSON.stringify(r.json).includes(TEL_APOSTADOR));
-    r = await orgA.req("POST", `/api/admin/divulgacoes/${idAp}`, { acao: "aprovar" });
+    r = await dec(orgA, idAp, { acao: "aprovar" });
     checa("a A aprova", r.status === 200 && r.json?.status === "publicada");
     {
       // O aviso sai em segundo plano: espera um pouco pela central do apostador.
@@ -362,6 +438,27 @@ async function main() {
     checa("o apostador não expõe código de afiliado", r.json?.filter((x: any) => x.autor === "apostador").every((x: any) => x.codigo === null));
     r = await afiliada.req("DELETE", `/api/affiliate/divulgacoes/${idAp}`);
     checa("a afiliada não retira a peça do apostador (404)", r.status === 404, `HTTP ${r.status}`);
+    r = await afiliada.req("PATCH", `/api/affiliate/divulgacoes/${idAp}`, { legenda: "não é minha" });
+    checa("a afiliada não edita a peça do apostador (404)", r.status === 404, `HTTP ${r.status}`);
+    r = await new Cliente().req("PATCH", `/api/public/divulgacoes/${idAp}`, { legenda: "sem conta" });
+    checa("sem conta, não edita (401)", r.status === 401, `HTTP ${r.status}`);
+    r = await pessoa.req("PATCH", `/api/public/divulgacoes/${idAp}`, { legenda: "Corrigi: joguei e gostei muito!", midias: [] });
+    checa("o apostador edita e volta para a autorização", r.status === 200 && r.json?.status === "em_analise", `HTTP ${r.status} ${JSON.stringify(r.json)}`);
+    r = await pessoa.req("PATCH", `/api/public/divulgacoes/${idAp}`, { legenda: "Mídia não", midias: ["00000000-0000-0000-0000-000000000000"] });
+    checa("o apostador não põe mídia na edição (422)", r.status === 422, `HTTP ${r.status}`);
+    r = await orgA.req("GET", "/api/admin/divulgacoes?status=em_analise");
+    r = await dec(orgA, idAp, { acao: "aprovar", versao: r.json?.find((x: any) => x.id === idAp)?.versao });
+    checa("a organização aprova a versão editada", r.status === 200 && r.json?.status === "publicada", `HTTP ${r.status} ${r.json?.message ?? ""}`);
+    {
+      // Aprovada de novo depois da edição é outra decisão: o apostador é avisado de novo.
+      const [d] = await db.select({ buyerId: divulgacoes.buyerId }).from(divulgacoes).where(eq(divulgacoes.id, idAp));
+      let n = 0;
+      for (let i = 0; i < 20 && n < 2; i++) {
+        n = (await db.select({ id: notificacoes.id }).from(notificacoes).where(and(eq(notificacoes.buyerId, d.buyerId!), eq(notificacoes.tipo, "divulgacao")))).length;
+        if (n < 2) await new Promise((ok) => setTimeout(ok, 250));
+      }
+      checa("a reaprovação da versão editada avisa o apostador de novo", n === 2, String(n));
+    }
     const [aindaNoAr] = await db.select({ status: divulgacoes.status }).from(divulgacoes).where(eq(divulgacoes.id, idAp));
     checa("a peça do apostador segue no ar", aindaNoAr?.status === "publicada", aindaNoAr?.status);
     // O estorno desfaz a compra: quem não joga mais não divulga.
@@ -372,6 +469,8 @@ async function main() {
     await ajustarApostador(false);
     r = await new Cliente().req("GET", `/api/public/campaigns/${a1.slug}/divulgacoes`);
     checa("desligar o interruptor tira as do apostador do ar", !r.json?.some((x: any) => x.autor === "apostador"));
+    r = await pessoa.req("PATCH", `/api/public/divulgacoes/${idAp}`, { legenda: "Interruptor desligado" });
+    checa("interruptor desligado: editar é 404", r.status === 404, `HTTP ${r.status}`);
     await ajustarApostador(true);
     r = await pessoa.req("DELETE", `/api/public/divulgacoes/${idAp}`);
     checa("o apostador retira a própria peça", r.status === 200);

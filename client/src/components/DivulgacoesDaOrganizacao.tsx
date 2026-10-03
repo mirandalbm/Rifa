@@ -16,6 +16,8 @@ interface Linha {
   status: StatusDaDivulgacao;
   motivo: string | null;
   criadaEm: string;
+  versao: number;
+  editadaEm: string | null;
 }
 
 const PILL_DA_DIVULGACAO: Record<StatusDaDivulgacao, string> = {
@@ -36,7 +38,7 @@ export function DivulgacoesDaOrganizacao({ daOrganizacao }: { daOrganizacao: boo
   const config = useQuery<{ modo: ModoDeDivulgacao | null; pendentes: number }>({ queryKey: ["/api/admin/divulgacoes/config"] });
   const fila = useQuery<Linha[]>({ queryKey: ["/api/admin/divulgacoes"] });
   const [msg, setMsg] = useState<{ ok: boolean; texto: string } | null>(null);
-  const [abrindo, setAbrindo] = useState<{ id: string; acao: Exclude<AcaoDaDecisao, "aprovar"> } | null>(null);
+  const [abrindo, setAbrindo] = useState<{ id: string; versao: number; acao: Exclude<AcaoDaDecisao, "aprovar"> } | null>(null);
   const [motivo, setMotivo] = useState("");
 
   const recarregar = () => {
@@ -52,8 +54,9 @@ export function DivulgacoesDaOrganizacao({ daOrganizacao }: { daOrganizacao: boo
     onError: (e: Error) => setMsg({ ok: false, texto: e.message }),
   });
   const decidir = useMutation({
-    mutationFn: (v: { id: string; acao: AcaoDaDecisao; motivo?: string }) =>
-      apiRequest("POST", `/api/admin/divulgacoes/${v.id}`, { acao: v.acao, motivo: v.motivo }),
+    // A versão lida vai junto: editada no meio, o servidor recusa e a lista recarrega.
+    mutationFn: (v: { id: string; versao: number; acao: AcaoDaDecisao; motivo?: string }) =>
+      apiRequest("POST", `/api/admin/divulgacoes/${v.id}`, { acao: v.acao, motivo: v.motivo, versao: v.versao }),
     onSuccess: () => {
       setAbrindo(null);
       setMotivo("");
@@ -116,6 +119,7 @@ export function DivulgacoesDaOrganizacao({ daOrganizacao }: { daOrganizacao: boo
                 <span className="text-xs text-muted">
                   {l.autor === "afiliado" ? "influenciador" : "apostador"} · {l.rifa}
                   {daOrganizacao ? "" : ` · ${l.organizacao}`}
+                  {l.editadaEm ? " · editada" : ""}
                 </span>
               </div>
               {l.legenda ? <p className="whitespace-pre-line break-words">{l.legenda}</p> : null}
@@ -123,15 +127,15 @@ export function DivulgacoesDaOrganizacao({ daOrganizacao }: { daOrganizacao: boo
               {l.motivo ? <p className="text-xs text-muted">Motivo: {l.motivo}</p> : null}
               {l.status === "em_analise" ? (
                 <div className="flex flex-wrap gap-2">
-                  <Button className="px-3 py-1 text-xs" disabled={decidir.isPending} onClick={() => decidir.mutate({ id: l.id, acao: "aprovar" })}>
+                  <Button className="px-3 py-1 text-xs" disabled={decidir.isPending} onClick={() => decidir.mutate({ id: l.id, versao: l.versao, acao: "aprovar" })}>
                     Aprovar
                   </Button>
-                  <Button variant="ghost" className="px-3 py-1 text-xs" onClick={() => setAbrindo({ id: l.id, acao: "recusar" })}>
+                  <Button variant="ghost" className="px-3 py-1 text-xs" onClick={() => setAbrindo({ id: l.id, versao: l.versao, acao: "recusar" })}>
                     Recusar
                   </Button>
                 </div>
               ) : l.status === "publicada" ? (
-                <Button variant="ghost" className="px-3 py-1 text-xs" onClick={() => setAbrindo({ id: l.id, acao: "remover" })}>
+                <Button variant="ghost" className="px-3 py-1 text-xs" onClick={() => setAbrindo({ id: l.id, versao: l.versao, acao: "remover" })}>
                   Retirar do ar
                 </Button>
               ) : null}
@@ -144,7 +148,7 @@ export function DivulgacoesDaOrganizacao({ daOrganizacao }: { daOrganizacao: boo
                     <Button
                       className="px-3 py-1 text-xs"
                       disabled={decidir.isPending || motivo.trim().length < 3}
-                      onClick={() => decidir.mutate({ id: l.id, acao: abrindo.acao, motivo })}
+                      onClick={() => decidir.mutate({ id: l.id, versao: abrindo.versao, acao: abrindo.acao, motivo })}
                     >
                       Confirmar
                     </Button>

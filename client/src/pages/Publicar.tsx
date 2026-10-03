@@ -7,7 +7,7 @@ import { Button, Campo, Pill } from "@/components/bits";
 import { apiRequest } from "@/lib/queryClient";
 import { useConfigDoApp } from "@/components/Console";
 import { useSession } from "@/lib/session";
-import { STATUS_DA_DIVULGACAO, type StatusDaDivulgacao } from "@shared/divulgacao";
+import { STATUS_DA_DIVULGACAO, podeEditar, type StatusDaDivulgacao } from "@shared/divulgacao";
 import { LEGENDA_MAX } from "@shared/publicacao";
 import { PILL_DA_DIVULGACAO } from "@/pages/afiliadoDivulgar";
 
@@ -18,6 +18,8 @@ interface Minha {
   legenda: string;
   status: StatusDaDivulgacao;
   motivo: string | null;
+  editadaEm: string | null;
+  versao: number;
 }
 
 /**
@@ -36,16 +38,34 @@ export default function Publicar() {
   const [slug, setSlug] = useState("");
   const [legenda, setLegenda] = useState("");
   const [msg, setMsg] = useState<{ ok: boolean; texto: string } | null>(null);
+  // O texto que está sendo corrigido (nulo: publicação nova).
+  const [editando, setEditando] = useState<{ id: string; versao: number } | null>(null);
 
   const publicar = useMutation({
-    mutationFn: () => apiRequest("POST", "/api/public/divulgacoes", { slug, legenda }),
+    mutationFn: () =>
+      editando
+        ? apiRequest("PATCH", `/api/public/divulgacoes/${editando.id}`, { legenda, versao: editando.versao })
+        : apiRequest("POST", "/api/public/divulgacoes", { slug, legenda }),
     onSuccess: () => {
-      setMsg({ ok: true, texto: "Enviada. Aparece na página da rifa quando a organização autorizar." });
+      setMsg({
+        ok: true,
+        texto: editando
+          ? "Editada. Volta para a página da rifa quando a organização autorizar."
+          : "Enviada. Aparece na página da rifa quando a organização autorizar.",
+      });
       setLegenda("");
+      setEditando(null);
       qc.invalidateQueries({ queryKey: ["/api/public/divulgacoes/minhas"] });
     },
     onError: (e: Error) => setMsg({ ok: false, texto: e.message }),
   });
+  const editar = (m: Minha) => {
+    setSlug(m.slug);
+    setLegenda(m.legenda);
+    setEditando({ id: m.id, versao: m.versao });
+    setMsg(null);
+    document.getElementById("publicar-texto")?.focus();
+  };
   const retirar = useMutation({
     mutationFn: (id: string) => apiRequest("DELETE", `/api/public/divulgacoes/${id}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/public/divulgacoes/minhas"] }),
@@ -74,7 +94,7 @@ export default function Publicar() {
             ) : (
               <>
                 <Campo rotulo="Rifa">
-                  <select value={slug} onChange={(e) => setSlug(e.target.value)}>
+                  <select value={slug} disabled={Boolean(editando)} onChange={(e) => setSlug(e.target.value)}>
                     <option value="">Escolha uma rifa</option>
                     {rifas.map((r) => (
                       <option key={r.slug} value={r.slug}>
@@ -83,13 +103,29 @@ export default function Publicar() {
                     ))}
                   </select>
                 </Campo>
-                <Campo rotulo="O que você quer dizer" dica={`Até ${LEGENDA_MAX} caracteres.`}>
-                  <textarea rows={4} maxLength={LEGENDA_MAX} value={legenda} onChange={(e) => setLegenda(e.target.value)} />
+                <Campo
+                  rotulo={editando ? "Corrija o seu texto" : "O que você quer dizer"}
+                  dica={editando ? "Depois de editada, a publicação sai da página da rifa até a organização ler de novo." : `Até ${LEGENDA_MAX} caracteres.`}
+                >
+                  <textarea id="publicar-texto" rows={4} maxLength={LEGENDA_MAX} value={legenda} onChange={(e) => setLegenda(e.target.value)} />
                 </Campo>
                 {msg ? <p role="status" className={`rounded-md px-3 py-2 ${msg.ok ? "bg-green-soft text-green-deep" : "bg-red-soft text-red"}`}>{msg.texto}</p> : null}
-                <Button disabled={publicar.isPending || !slug || legenda.trim().length < 3} onClick={() => publicar.mutate()}>
-                  Enviar para autorização
-                </Button>
+                <div className="flex flex-wrap gap-2">
+                  <Button disabled={publicar.isPending || !slug || legenda.trim().length < 3} onClick={() => publicar.mutate()}>
+                    {editando ? "Salvar edição" : "Enviar para autorização"}
+                  </Button>
+                  {editando ? (
+                    <Button
+                      variant="ghost"
+                      onClick={() => {
+                        setEditando(null);
+                        setLegenda("");
+                      }}
+                    >
+                      Cancelar edição
+                    </Button>
+                  ) : null}
+                </div>
               </>
             )}
             {minhas.length ? (
@@ -101,13 +137,19 @@ export default function Publicar() {
                       <div className="flex flex-wrap items-center gap-2">
                         <Pill status={PILL_DA_DIVULGACAO[m.status]}>{STATUS_DA_DIVULGACAO[m.status]}</Pill>
                         <span className="font-semibold">{m.title}</span>
+                        {m.editadaEm ? <span className="text-xs text-muted">Editada</span> : null}
                       </div>
                       <p className="break-words text-muted">{m.legenda}</p>
                       {m.motivo ? <p className="text-xs text-muted">Motivo: {m.motivo}</p> : null}
-                      {m.status === "em_analise" || m.status === "publicada" ? (
-                        <Button variant="ghost" className="px-3 py-1 text-xs" disabled={retirar.isPending} onClick={() => retirar.mutate(m.id)}>
-                          Retirar
-                        </Button>
+                      {podeEditar(m.status) ? (
+                        <div className="flex flex-wrap gap-2">
+                          <Button variant="ghost" className="px-3 py-1 text-xs" disabled={editando?.id === m.id} onClick={() => editar(m)}>
+                            Editar
+                          </Button>
+                          <Button variant="ghost" className="px-3 py-1 text-xs" disabled={retirar.isPending} onClick={() => retirar.mutate(m.id)}>
+                            Retirar
+                          </Button>
+                        </div>
                       ) : null}
                     </li>
                   ))}

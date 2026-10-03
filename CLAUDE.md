@@ -81,7 +81,7 @@ arquitetura.
 | mexer no fluxo do pedido | `server/services/orders.ts` |
 | trocar o provedor de pagamento | `server/payments/` — implemente `PaymentProvider`; a escolha é do painel (`shared/plataforma.ts`) |
 | regras de publicação e mídia | `server/services/campaigns.ts`, `server/routes/admin.ts` |
-| sorteio | `server/services/draw.ts` |
+| sorteio | `server/services/draw.ts` (a conta), `server/services/sortear.ts` (`executarSorteio`: travas, recusas, avisos — o botão do painel e o sorteio automático), `entropiaDoSorteio()` em `shared/sorteio.ts` |
 | segundo fator (e o segredo selado no cofre) | `server/services/totp.ts`, `server/services/segundoFator.ts`, `scripts/senha-test.ts` |
 | hash da senha (custo do scrypt, refazer a antiga no login) | `server/services/hashSenha.ts`, `refazerHashSeAntigo()` em `server/auth.ts`, `tests/hashSenha.test.ts` |
 | política de conteúdo (CSP, modo relatório) | `shared/csp.ts`, `server/services/csp.ts`, `server/index.ts`, `tests/csp.test.ts` |
@@ -162,7 +162,7 @@ arquitetura.
 | remodelagem do web e dos painéis: inventário do que existe e lista de conferência | `docs/REMODELAGEM.md` |
 | selo "ao vivo" no story (anel com a transmissão do sorteio) | `transmissaoNoAr()` em `shared/aoVivo.ts` (regra), `transmissoesNoAr()` em `server/services/aoVivo.ts`, `perfisComStory()` e `perfilPublico()` em `server/services/perfil.ts`, `FotoComStory`/`VisualizadorDeStories` em `client/src/components/Stories.tsx`, `tests/seloAoVivo.test.ts`, `scripts/vitrine-test.ts` |
 | tela do sorteio no Início do celular (deslizar para a direita, vídeo e comentários como no YouTube) | `client/src/components/SorteioDoInicio.tsx` (`useSorteioDoInicio`, `BotaoDoSorteio`), a regra do gesto em `client/src/lib/deslizar.ts`, `TelaDoProximoSorteio` em `client/src/components/ColunaAoVivo.tsx`, `antesDaMarca` em `PublicShell`, `tests/deslizar.test.ts` |
-| sorteios oficiais da plataforma (calendário, integrar a rifa, selo, resultado oficial, a tela do celular) | `shared/sorteiosOficiais.ts` (regras e loterias), `server/services/sorteiosOficiais.ts`, `/sorteios-oficiais*` e `PUT /campaigns/:id/sorteio-oficial` em `server/routes/admin.ts`, `GET /api/public/sorteio-oficial` em `server/routes/public.ts`, `client/src/pages/adminSorteiosOficiais.tsx`, `ConteudoDoSorteio`/`ContagemDoSorteio` em `client/src/components/SorteioDoInicio.tsx`, `scripts/sorteios-oficiais-test.ts`, `tests/sorteiosOficiais.test.ts` |
+| sorteios oficiais da plataforma (calendário, integrar a rifa, selo, resultado oficial, sorteio automático, outras loterias, troca pelo adiamento, a tela do celular) | `shared/sorteiosOficiais.ts` (regras e loterias), `server/services/sorteiosOficiais.ts`, `sortearRifasDoSorteioOficial()` em `server/services/sortear.ts` (e o relógio em `server/jobs/index.ts`), `pedirAdiamento()` com `sorteioOficialId` em `server/services/solicitacoes.ts`, `/sorteios-oficiais*` e `PUT /campaigns/:id/sorteio-oficial` em `server/routes/admin.ts`, `GET /api/public/sorteio-oficial` em `server/routes/public.ts`, `client/src/pages/adminSorteiosOficiais.tsx`, `ConteudoDoSorteio`/`ContagemDoSorteio` em `client/src/components/SorteioDoInicio.tsx`, `scripts/sorteios-oficiais-test.ts`, `tests/sorteiosOficiais.test.ts` |
 | vitrine no tablet e no computador: coluna ao vivo (tela do sorteio, ganhadores, jogando agora), tela flutuante e rodapé com logos | `shared/aoVivo.ts` (regras), `server/services/aoVivo.ts`, `client/src/components/ColunaAoVivo.tsx`, `client/src/components/RodapeDaPlataforma.tsx`, `validarApoios()` em `shared/template.ts`, `tests/aoVivo.test.ts`, `scripts/vitrine-test.ts` |
 | rodapé da plataforma: colunas de links, redes sociais e espaço de apoio | `shared/rodape.ts` (colunas), `validarRedes()`/`REDES_DO_RODAPE` em `shared/template.ts`, `client/src/components/RodapeDaPlataforma.tsx`, cartão "Redes sociais do rodapé" em `client/src/pages/adminAparencia.tsx`, `preencherRodapeComExemplo()` em `server/services/template.ts`, `tests/rodape.test.ts` |
 | app instalável (PWA): casca, nome e ícone | `client/public/sw.js`, `shared/manifest.ts` (o manifesto montado), `manifestDaPlataforma()`/`iconeDaMarca()` em `server/services/template.ts`, `client/public/manifest.webmanifest` (o de fábrica, se o banco falhar), `client/src/lib/pwa.ts`, `tests/manifest.test.ts`, `scripts/aparencia-test.ts` |
@@ -2416,11 +2416,44 @@ coluna ao vivo segue como estava.
   resultado, não entra; "quando completar" (sem data) também não. A rifa do
   vizinho é 404. `sorteioOficialId` está fora do `PATCH` genérico, e os
   dados legais recusam outra data enquanto a rifa estiver no sorteio.
-- **Por enquanto só a Federal recebe rifa** (`LOTERIAS_QUE_RECEBEM_RIFA`):
-  o sorteio da rifa sai dos 5 prêmios da Federal (`drawNumber`, regulamento,
-  conferência pública). Mega-Sena, Quina e Lotofácil ficam no calendário,
-  com a cor delas, e recebem rifa quando o sorteio por elas existir (fase 2).
-  Com rifa no sorteio, a loteria dele não muda (409).
+- **As quatro loterias recebem rifa** (`LOTERIAS_QUE_RECEBEM_RIFA`): o
+  número sai do resultado da loteria do sorteio (`entropiaDoSorteio()` em
+  `shared/sorteio.ts`, a mesma no servidor e na conferência do aparelho). **A
+  Federal segue a conta de sempre** ("p1-p2-p3-p4-p5", `draws.loteria`
+  nulo): todo sorteio já feito continua conferindo. As outras levam o nome
+  da loteria na frente das dezenas em ordem ("mega_sena:04-11-…"). O
+  regulamento (`sorteioOficial` em `montarRegulamento()`) e a página do
+  resultado (`loteriaDoSorteio()`) dizem a loteria e o concurso. Com rifa no
+  sorteio, a loteria dele não muda (409).
+- **O resultado lançado sorteia a rifa** (`sortearRifasDoSorteioOficial()`,
+  na rota do resultado, depois de gravá-lo): cada rifa publicada integrada
+  passa por `executarSorteio()` — o mesmo caminho do botão, com as regras da
+  rifa (mínimo, reserva esperando Pix, aproximação, a promotora completa).
+  A que não pode agora guarda o motivo (`campaigns.sorteio_auto_motivo`,
+  "Ainda não sorteou" no calendário) e o relógio
+  (`sortearRifasPendentesDosSorteiosOficiais`, trava 811016, a cada 5 min)
+  tenta de novo; uma rifa que falha não segura as outras. **Na rifa
+  integrada, o botão do painel usa o resultado oficial** e ignora o
+  formulário (`resultadoParaARifa()`); sem resultado lançado, 409 — a
+  promotora não digita a Caixa. A transação do sorteio trava o sorteio
+  oficial (`FOR SHARE`) antes da linha de `draws`, e o `UPDATE` da rifa
+  exige que ela siga naquele sorteio. Auditoria (`campaign.draw`) na mesma
+  transação, com `sistema` como ator quando foi o automático. **Passada a
+  hora do concurso, a rifa integrada não vende** (`createOrder`, 409 "As
+  vendas fecharam"): o resultado é público, e reserva nova adiaria o
+  sorteio automático sem fim (o ataque de bloqueio de estoque). Lançar o
+  resultado nunca responde 500 depois de gravado: falha ao sortear as rifas
+  vai ao log e o relógio cuida.
+- **Trocar de sorteio depois de publicar é adiamento** (`pedirAdiamento()`
+  com `sorteioOficialId`, campo "Sorteio oficial (opcional)" no Adiar): a
+  data nova é a do concurso, nunca a do formulário, e o pedido guarda o
+  sorteio (`campanha_solicitacoes.sorteio_oficial_novo_id`). A aprovação
+  trava o sorteio pedido (`FOR SHARE`, antes da rifa) e confere de novo —
+  cancelado, com resultado, a menos de 24 h ou com a data mudada desde o
+  pedido é 409 — e põe a rifa nele na mesma transação de sempre do
+  adiamento (comissão, reembolso integral, aviso). Pedir o mesmo sorteio em
+  que já está é 422. Com pedido em análise para um sorteio, loteria e
+  concurso dele não mudam (409) — a organização pediu aquele concurso.
 - **A ordem das travas é sempre sorteio oficial → rifa**: integrar (sorteio
   `FOR SHARE`, depois o `UPDATE` da rifa), mudar o sorteio (`FOR UPDATE`,
   depois os rascunhos) e publicar (o sorteio que a rifa tinha `FOR SHARE`,
@@ -2434,7 +2467,8 @@ coluna ao vivo segue como estava.
   travada na transação da publicação): cancelado, com resultado ou data
   diferente da do concurso não publica. Depois de publicada, a rifa não sai
   sozinha (409): **mudança só com a plataforma** — o adiamento aprovado tira
-  a rifa do sorteio na mesma transação que muda a data.
+  a rifa do sorteio (ou a põe no sorteio oficial pedido) na mesma transação
+  que muda a data.
 - **Com rifa publicada no sorteio, loteria, concurso e data não mudam e ele
   não é cancelado** (409): quem comprou comprou aquela data. Só o título e a
   transmissão — que mudam até o resultado, mesmo depois da hora (a data só é
@@ -2462,10 +2496,11 @@ coluna ao vivo segue como estava.
   identidade visual e troque só ali.
 - **O selo vai na página da rifa** (`seloDoSorteioOficial()`: "Sorteio
   oficial · Federal 6012 · 02/12", com "Ver o sorteio" no celular).
-- Fica para as fases 2 e 3 (`docs/PENDENCIAS.md`): o resultado sortear as
-  rifas sozinho, o sorteio de rifa pelas outras loterias e os comentários do
-  sorteio oficial. A tabela e a coluna `campaigns.sorteio_oficial_id` sobem
-  com o `db:push` **antes** do código. `npm run sorteios` prova tudo isso, e
+- Fica para a fase 3 (`docs/PENDENCIAS.md`): os comentários do sorteio
+  oficial. A tabela e as colunas (`campaigns.sorteio_oficial_id`,
+  `sorteio_auto_motivo`, `sorteio_auto_em`, `draws.loteria`,
+  `campanha_solicitacoes.sorteio_oficial_novo_id`) sobem com o `db:push`
+  **antes** do código. `npm run sorteios` prova tudo isso, e
   `npm run isolation` confere que o calendário de cada organização só traz
   as rifas dela.
 

@@ -12,6 +12,7 @@ import { formatBRL, formatQuota, groupNumber } from "./format";
 import { regraDoReembolso } from "./reembolso";
 import { REGRA_DA_APROXIMACAO } from "./sorteio";
 import { cotasMinimasParaSortear } from "./campanhaLegal";
+import { LOTERIAS, loteriaValida, resultadoDaLoteria } from "./sorteiosOficiais";
 
 const DIAS_DA_FEDERAL_TEXTO = "quartas e sábados, às 19h de Brasília";
 
@@ -52,6 +53,11 @@ export interface DadosDoRegulamento {
     minimoVendidoPct?: number;
     /** Como a rifa chega ao sorteio (`MODOS_DO_SORTEIO`); ausente = na data marcada. */
     modoSorteio?: string;
+    /**
+     * Integrada a um sorteio oficial da plataforma: a loteria e o concurso
+     * cujo resultado decide a rifa. Ausente = Loteria Federal da data.
+     */
+    sorteioOficial?: { loteria: string; concurso: number } | null;
   };
   promotora: {
     nome: string;
@@ -92,6 +98,7 @@ export function montarRegulamento(d: DadosDoRegulamento): Secao[] {
   const primeira = formatQuota(1, rifa.totalQuotas);
   const ultima = formatQuota(rifa.totalQuotas, rifa.totalQuotas);
   const quando = dataHora(rifa.drawAt);
+  const oficial = rifa.sorteioOficial && loteriaValida(rifa.sorteioOficial.loteria) ? rifa.sorteioOficial.loteria : null;
 
   const secoes: Secao[] = [
     {
@@ -139,10 +146,12 @@ export function montarRegulamento(d: DadosDoRegulamento): Secao[] {
       itens: [
         rifa.modoSorteio === "quando_completar" && !quando
           ? `O sorteio não tem data marcada: acontece na primeira extração da Loteria Federal (${DIAS_DA_FEDERAL_TEXTO}) pelo menos 24 horas depois de a última cota ser paga, com os 5 prêmios dessa extração. A data é informada na página da rifa e avisada a quem comprou.`
-          : quando
-            ? `O sorteio acontece em ${quando}, com os 5 prêmios da extração da Loteria Federal dessa data.`
-            : "A data do sorteio é informada antes da publicação.",
-        "O número vencedor é calculado a partir dos 5 prêmios da Loteria Federal e de uma semente secreta, cujo resumo (hash SHA-256) foi publicado antes da primeira venda. Depois do sorteio a semente é publicada, e qualquer pessoa pode refazer a conta na página da rifa.",
+          : quando && oficial
+            ? `O sorteio acontece em ${quando}, no sorteio oficial da plataforma: ${LOTERIAS[oficial].nome}, concurso ${rifa.sorteioOficial!.concurso}, com ${resultadoDaLoteria(oficial)} nesse concurso. Lançado o resultado oficial, a rifa é sorteada na hora.`
+            : quando
+              ? `O sorteio acontece em ${quando}, com os 5 prêmios da extração da Loteria Federal dessa data.`
+              : "A data do sorteio é informada antes da publicação.",
+        `O número vencedor é calculado a partir de ${oficial ? resultadoDaLoteria(oficial) : "os 5 prêmios da Loteria Federal"} e de uma semente secreta, cujo resumo (hash SHA-256) foi publicado antes da primeira venda. Depois do sorteio a semente é publicada, e qualquer pessoa pode refazer a conta na página da rifa.`,
         ...(rifa.drawSeedHash ? [`Resumo da semente publicado: ${rifa.drawSeedHash}.`] : []),
         ...(rifa.modoSorteio === "quando_completar"
           ? ["O sorteio só é realizado com todas as cotas vendidas e pagas (rifa cheia)."]

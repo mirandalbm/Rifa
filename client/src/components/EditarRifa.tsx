@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, Button, Pill } from "@/components/bits";
 import { apiRequest } from "@/lib/queryClient";
 import { formatBRL, groupNumber } from "@shared/format";
@@ -280,9 +280,20 @@ function paraCampoDeData(d: Date) {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
+/** O que o adiamento precisa de cada sorteio do calendário (`GET /sorteios-oficiais`). */
+interface SorteioDoCalendario {
+  id: string;
+  loteriaNome: string;
+  concurso: number;
+  sorteioEm: string;
+  problemaParaIntegrar: string | null;
+}
+
 /**
  * Adiar o sorteio por não atingir a meta. É pedido: a data só muda quando a
- * plataforma aprovar, e aí quem comprou e quem segue recebem o aviso.
+ * plataforma aprovar, e aí quem comprou e quem segue recebem o aviso. A data
+ * nova pode ser um sorteio oficial do calendário — é assim que a rifa
+ * publicada troca de sorteio oficial (sempre com a plataforma).
  */
 export function AdiarSorteioCard({
   rifa,
@@ -297,16 +308,24 @@ export function AdiarSorteioCard({
   const atual = rifa.drawAt ? new Date(rifa.drawAt) : null;
   const sugestao = new Date(Math.max(atual?.getTime() ?? 0, Date.now()) + 30 * 86_400_000);
   const [data, setData] = useState(paraCampoDeData(sugestao));
+  // Ou um sorteio oficial do calendário: aprovado, a rifa passa a integrá-lo.
+  const [oficial, setOficial] = useState("");
+  const { data: calendario = [] } = useQuery<SorteioDoCalendario[]>({ queryKey: ["/api/admin/sorteios-oficiais"] });
+  const oficiais = calendario.filter(
+    (s) => !s.problemaParaIntegrar && (!atual || new Date(s.sorteioEm).getTime() > atual.getTime()),
+  );
+  const escolhido = oficiais.find((s) => s.id === oficial);
   const [motivo, setMotivo] = useState("");
   const [aviso, setAviso] = useState<Aviso>(null);
   const pct = rifa.totalQuotas ? Math.floor((vendidas / rifa.totalQuotas) * 100) : 0;
 
   const pedir = useMutation({
     mutationFn: async () => {
-      const r = await apiRequest("POST", `/api/admin/campaigns/${rifa.id}/adiar`, {
-        novaData: new Date(data).toISOString(),
-        motivo,
-      });
+      const r = await apiRequest(
+        "POST",
+        `/api/admin/campaigns/${rifa.id}/adiar`,
+        escolhido ? { sorteioOficialId: escolhido.id, motivo } : { novaData: new Date(data).toISOString(), motivo },
+      );
       return (await r.json()) as { protocolo: string };
     },
     onSuccess: (r) => {
@@ -338,19 +357,47 @@ export function AdiarSorteioCard({
           SPA/MF permite a nova data. Aprovado, quem comprou é avisado e os números continuam valendo.
         </p>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Campo
-            id={`adiar-data-${rifa.id}`}
-            rotulo="Nova data do sorteio"
-            dica={`Pelo menos 24 horas à frente e até ${ADIAMENTO_MAX_DIAS} dias depois da data atual.`}
-          >
-            <input
+          {oficiais.length ? (
+            <Campo
+              id={`adiar-oficial-${rifa.id}`}
+              rotulo="Sorteio oficial (opcional)"
+              dica="Escolhido um sorteio do calendário, a data nova é a dele e a rifa passa a integrá-lo."
+            >
+              <select
+                id={`adiar-oficial-${rifa.id}`}
+                value={oficial}
+                onChange={(e) => setOficial(e.target.value)}
+                className={CAMPO}
+              >
+                <option value="">Outra data (sem sorteio oficial)</option>
+                {oficiais.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.loteriaNome} {s.concurso} · {new Date(s.sorteioEm).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}
+                  </option>
+                ))}
+              </select>
+            </Campo>
+          ) : null}
+          {escolhido ? (
+            <p className="self-end text-xs text-muted">
+              Nova data: <span className="tnum">{new Date(escolhido.sorteioEm).toLocaleString("pt-BR")}</span>, a do
+              sorteio oficial.
+            </p>
+          ) : (
+            <Campo
               id={`adiar-data-${rifa.id}`}
-              type="datetime-local"
-              value={data}
-              onChange={(e) => setData(e.target.value)}
-              className={`tnum ${CAMPO}`}
-            />
-          </Campo>
+              rotulo="Nova data do sorteio"
+              dica={`Pelo menos 24 horas à frente e até ${ADIAMENTO_MAX_DIAS} dias depois da data atual.`}
+            >
+              <input
+                id={`adiar-data-${rifa.id}`}
+                type="datetime-local"
+                value={data}
+                onChange={(e) => setData(e.target.value)}
+                className={`tnum ${CAMPO}`}
+              />
+            </Campo>
+          )}
         </div>
         <Campo id={`adiar-motivo-${rifa.id}`} rotulo="Motivo do adiamento" dica={`Pelo menos ${MOTIVO_MIN} caracteres.`}>
           <textarea
@@ -363,7 +410,7 @@ export function AdiarSorteioCard({
         </Campo>
         <Button
           onClick={() => pedir.mutate()}
-          disabled={pedir.isPending || adiamentoEmAnalise || motivo.trim().length < MOTIVO_MIN || !data}
+          disabled={pedir.isPending || adiamentoEmAnalise || motivo.trim().length < MOTIVO_MIN || (!escolhido && !data)}
         >
           Pedir adiamento
         </Button>

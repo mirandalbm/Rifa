@@ -301,6 +301,12 @@ async function prepararPedido(
   if (campaign.travadaEm) {
     throw new OrderError("As vendas desta rifa estão suspensas pela plataforma.", 409);
   }
+  // Rifa num sorteio oficial fecha na hora do concurso: depois dela o resultado
+  // da Caixa é público, e a rifa que espera (mínimo, reserva) só pode ver a
+  // reserva pagar ou vencer — senão reservas novas adiariam o sorteio sem fim.
+  if (campaign.sorteioOficialId && campaign.drawAt && campaign.drawAt.getTime() <= Date.now()) {
+    throw new OrderError("As vendas fecharam: o sorteio oficial desta rifa já aconteceu.", 409);
+  }
 
   // O administrador decide os meios aceitos; a checagem é aqui, não na tela.
   const meios = await getPaymentMethods();

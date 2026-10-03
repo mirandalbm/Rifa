@@ -189,22 +189,23 @@ export function situacaoDoSorteio(s: { canceladoEm: Date | string | null; result
   return "agendado";
 }
 
-/** A rifa pode entrar neste sorteio agora? Devolve o motivo, ou `null`. */
 /**
- * As loterias em que a rifa já pode entrar. O sorteio da rifa sai dos 5
- * prêmios da Federal (`drawNumber`, o regulamento e a conferência pública
- * dizem isso); as outras ficam no calendário, mas só recebem rifa quando o
- * sorteio por elas existir (fase 2, `docs/PENDENCIAS.md`).
+ * As loterias em que a rifa pode entrar. O número da rifa sai do resultado
+ * oficial da loteria do sorteio (`entropiaDoSorteio` em `shared/sorteio.ts`:
+ * os 5 prêmios da Federal ou as dezenas das outras), e o regulamento e a
+ * conferência pública dizem qual. Tirar uma daqui fecha a porta para rifa
+ * nova; a que já está integrada segue.
  */
-export const LOTERIAS_QUE_RECEBEM_RIFA: readonly Loteria[] = ["federal"];
+export const LOTERIAS_QUE_RECEBEM_RIFA: readonly Loteria[] = ["federal", "mega_sena", "quina", "lotofacil"];
 
+/** A rifa pode entrar neste sorteio agora? Devolve o motivo, ou `null`. */
 export function problemaParaIntegrar(
   s: { loteria: string; canceladoEm: Date | string | null; resultadoEm: Date | string | null; sorteioEm: Date | string },
   agora: Date,
 ): string | null {
   if (!(LOTERIAS_QUE_RECEBEM_RIFA as readonly string[]).includes(s.loteria)) {
     const nome = loteriaValida(s.loteria) ? LOTERIAS[s.loteria].nome : s.loteria;
-    return `Por enquanto as rifas entram só nos sorteios da Loteria Federal: o sorteio pela ${nome} ainda não está disponível.`;
+    return `As rifas não entram mais nos sorteios da ${nome}.`;
   }
   const situacao = situacaoDoSorteio(s);
   if (situacao === "cancelado") return "Este sorteio oficial foi cancelado.";
@@ -244,3 +245,23 @@ export function nomeDoSorteioOficial(s: { loteria: Loteria; concurso: number; ti
 
 /** Quantas rifas integradas a fileira da tela do sorteio traz, no máximo. */
 export const RIFAS_NA_FILEIRA = 30;
+
+/** "os 5 prêmios da Loteria Federal" / "as 6 dezenas da Mega-Sena" — o regulamento e a tela. */
+export function resultadoDaLoteria(l: Loteria): string {
+  const L = LOTERIAS[l];
+  return L.tipo === "bilhete" ? `os ${L.quantos} prêmios da ${L.nome}` : `as ${L.quantos} dezenas sorteadas da ${L.nome}`;
+}
+
+/**
+ * A loteria de um sorteio já feito, para a tela do resultado: nula (todo
+ * sorteio de antes da fase 2 e o de rifa fora do calendário) é a Federal.
+ */
+export function loteriaDoSorteio(loteria: string | null | undefined) {
+  const l: Loteria = loteriaValida(loteria) ? loteria : "federal";
+  const L = LOTERIAS[l];
+  return {
+    loteria: l,
+    loteriaNome: L.nome,
+    rotuloDoResultado: L.tipo === "bilhete" ? `${L.quantos} prêmios da ${L.curto}` : `${L.quantos} dezenas da ${L.nome}`,
+  };
+}

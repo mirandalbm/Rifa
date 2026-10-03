@@ -519,6 +519,13 @@ export const campaigns = pgTable(
      * calendário do painel só no rascunho e trava ao publicar; fora do PATCH.
      */
     sorteioOficialId: uuid("sorteio_oficial_id").references(() => sorteiosOficiais.id, { onDelete: "restrict" }),
+    /**
+     * Rifa integrada cujo sorteio automático (pelo resultado oficial) não
+     * pôde rodar: o motivo (mínimo não atingido, reserva esperando Pix) e
+     * quando foi a última tentativa. Some quando o sorteio sai.
+     */
+    sorteioAutoMotivo: text("sorteio_auto_motivo"),
+    sorteioAutoEm: timestamp("sorteio_auto_em"),
     featured: boolean("featured").notNull().default(false),
     sortWeight: integer("sort_weight").notNull().default(0),
     publishedAt: timestamp("published_at"),
@@ -894,8 +901,13 @@ export const draws = pgTable("draws", {
     .references(() => campaigns.id, { onDelete: "cascade" }),
   /** Concurso da Loteria Federal usado como entropia pública. */
   federalContest: integer("federal_contest"),
-  /** Os 5 prêmios do concurso, na ordem. */
+  /**
+   * O resultado oficial usado como entropia: os 5 prêmios da Federal, na
+   * ordem, ou as dezenas da loteria do sorteio oficial (`loteria`).
+   */
   federalPrizes: jsonb("federal_prizes").$type<string[]>(),
+  /** A loteria do resultado (`entropiaDoSorteio`); nulo é a Federal. */
+  loteria: text("loteria"),
   seed: text("seed").notNull(),
   seedHash: text("seed_hash").notNull(),
   resultNumber: integer("result_number"),
@@ -1126,6 +1138,11 @@ export const campanhaSolicitacoes = pgTable(
     /** Adiamento: a data que valia no pedido e a pedida. */
     drawAtAtual: timestamp("draw_at_atual"),
     drawAtNovo: timestamp("draw_at_novo"),
+    /**
+     * Adiamento para um sorteio oficial do calendário: a rifa passa a
+     * integrar este sorteio, e a data nova é a dele.
+     */
+    sorteioOficialNovoId: uuid("sorteio_oficial_novo_id").references(() => sorteiosOficiais.id, { onDelete: "restrict" }),
     /**
      * Remoção de comentário pedida pela organização. Comentário pode ser
      * denúncia contra ela mesma — por isso ela pede e a plataforma decide.
@@ -1727,6 +1744,8 @@ export const insertCampaignSchema = createInsertSchema(campaigns, {
     termoId: true,
     // Integrar a um sorteio oficial é pelo calendário (`integrarAoSorteioOficial`), que acerta a data junto.
     sorteioOficialId: true,
+    sorteioAutoMotivo: true,
+    sorteioAutoEm: true,
     transmissaoUrl: true,
     // Rifa de teste tem rota própria (`marcarDemonstracao`), que confere
     // venda e autorização; pelo formulário genérico, desmarcar faria a

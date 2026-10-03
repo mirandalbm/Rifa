@@ -85,6 +85,7 @@ export async function calendario(org: string | null) {
           title: campaigns.title,
           prizeTitle: campaigns.prizeTitle,
           status: campaigns.status,
+          sorteioAutoMotivo: campaigns.sorteioAutoMotivo,
           orgNome: organizations.name,
         })
         .from(campaigns)
@@ -105,6 +106,8 @@ export async function calendario(org: string | null) {
           titulo: r.title,
           premio: r.prizeTitle,
           status: r.status,
+          // Lançado o resultado, por que esta rifa ainda não sorteou.
+          esperando: r.status === "published" ? r.sorteioAutoMotivo : null,
           // A plataforma vê de quem é; a organização só vê as dela.
           organizacao: org ? undefined : r.orgNome,
         })),
@@ -158,12 +161,27 @@ export async function editarSorteioOficial(id: string, corpo: unknown) {
       dataPedida.getTime() !== atual.sorteioEm.getTime(),
     );
     if ("problema" in v) throw new SorteioOficialError(v.problema, 400);
-    // A loteria decide como a rifa é sorteada: com rifa no sorteio, não muda.
-    if (v.dados.loteria !== atual.loteria) {
-      const [{ n: comRifa }] = (
-        await tx.execute(sql`SELECT count(*)::int AS n FROM campaigns WHERE sorteio_oficial_id = ${id}::uuid`)
-      ).rows as { n: number }[];
-      if (Number(comRifa) > 0) throw new SorteioOficialError("Há rifa neste sorteio: a loteria não muda.", 409);
+    // A loteria decide como a rifa é sorteada: com rifa no sorteio — ou pedido
+    // de adiamento em análise para ele —, não muda. O concurso também não
+    // muda com pedido em análise: a organização pediu aquele concurso. (A
+    // data muda: a aprovação confere a data de novo e recusa.)
+    if (v.dados.loteria !== atual.loteria || v.dados.concurso !== atual.concurso) {
+      const [{ rifas, pedidos }] = (
+        await tx.execute(sql`
+          SELECT (SELECT count(*)::int FROM campaigns WHERE sorteio_oficial_id = ${id}::uuid) AS rifas,
+                 (SELECT count(*)::int FROM campanha_solicitacoes
+                   WHERE sorteio_oficial_novo_id = ${id}::uuid AND status = 'em_analise') AS pedidos
+        `)
+      ).rows as { rifas: number; pedidos: number }[];
+      if (v.dados.loteria !== atual.loteria && Number(rifas) > 0) {
+        throw new SorteioOficialError("Há rifa neste sorteio: a loteria não muda.", 409);
+      }
+      if (Number(pedidos) > 0) {
+        throw new SorteioOficialError(
+          "Há pedido de adiamento em análise para este sorteio: loteria e concurso não mudam até ele ser decidido.",
+          409,
+        );
+      }
     }
     const mudouOConcurso =
       v.dados.loteria !== atual.loteria ||

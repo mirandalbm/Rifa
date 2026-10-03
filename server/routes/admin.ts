@@ -56,7 +56,7 @@ import {
   certificadoDa,
 } from "../services/campaigns";
 import { clienteVisivelSql, nomeNoPainelSql, dadoNoPainelSql } from "../services/titularidade";
-import { drawNumber } from "../services/draw";
+import { executarSorteio, resultadoParaARifa, SorteioRecusado, sortearRifasDoSorteioOficial } from "../services/sortear";
 import {
   requestUpload,
   ingestUpload,
@@ -68,7 +68,7 @@ import { storage, LocalDiskStorage } from "../services/storage";
 import { encerrarSessoesDoUsuario, hashPassword, verifyPassword } from "../auth";
 import { notify } from "../notifications";
 import { publicUrl } from "../services/urls";
-import { formatQuota, normalizePhone } from "@shared/format";
+import { normalizePhone } from "@shared/format";
 import {
   getLimits,
   setLimits,
@@ -201,10 +201,8 @@ import {
   templatePublicado,
   versoes as versoesDoTemplate,
 } from "../services/template";
-import { contempladoPorAproximacao, transmissaoValida } from "@shared/sorteio";
-import { cotasMinimasParaSortear, minimoAtingido } from "@shared/campanhaLegal";
-import { vendidasParaOMinimo } from "@shared/bonus";
-import { avisarRifaNova, avisarResultado, emSegundoPlano } from "../services/push";
+import { transmissaoValida } from "@shared/sorteio";
+import { avisarRifaNova, emSegundoPlano } from "../services/push";
 import {
   anexoPara,
   chamadosAbertos,
@@ -616,11 +614,13 @@ adminRouter.post("/campaigns/:id/adiar", async (req, res, next) => {
     const pedido = await pedirAdiamento(req, campaign, {
       novaData: req.body?.novaData,
       motivo: req.body?.motivo,
+      sorteioOficialId: req.body?.sorteioOficialId,
     });
     await audit(req, "campaign.adiamento.pedido", "campaign", campaign.id, {
       protocolo: pedido.protocolo,
       de: pedido.drawAtAtual,
       para: pedido.drawAtNovo,
+      ...(pedido.sorteioOficialNovoId ? { sorteioOficialId: pedido.sorteioOficialNovoId } : {}),
     });
     res.status(202).json({ protocolo: pedido.protocolo, solicitacaoId: pedido.id });
   } catch (err) {
@@ -3226,9 +3226,6 @@ adminRouter.post("/template/versoes/:id/restaurar", async (req, res, next) => {
 
 /* ---------------- sorteio ---------------- */
 
-/** Recusa do sorteio dentro da transação: desfaz tudo e vira 409. */
-class SorteioRecusado extends Error {}
-
 adminRouter.get("/campaigns/:id/draw", async (req, res, next) => {
   try {
     await assertCampaignInScope(req, req.params.id);
@@ -3243,173 +3240,35 @@ adminRouter.get("/campaigns/:id/draw", async (req, res, next) => {
 });
 
 /**
- * Executa o sorteio com os 5 prêmios do concurso federal como entropia
- * pública. O hash da semente já estava publicado desde antes da 1ª venda.
+ * Executa o sorteio com o resultado oficial como entropia pública: os 5
+ * prêmios da Federal digitados aqui ou, na rifa integrada a um sorteio
+ * oficial, o resultado que a plataforma lançou (o corpo é ignorado). O hash
+ * da semente já estava publicado desde antes da 1ª venda. A conta, as
+ * travas e as recusas moram em `executarSorteio()` (services/sortear.ts).
  */
 adminRouter.post("/campaigns/:id/draw", async (req, res, next) => {
   try {
     await assertCampaignInScope(req, req.params.id);
-    const federalPrizes = (req.body?.federalPrizes ?? []) as string[];
-    const federalContest = Number(req.body?.federalContest);
-    if (federalPrizes.length !== 5 || !Number.isInteger(federalContest)) {
-      return res
-        .status(400)
-        .json({ message: "Informe o concurso e os 5 prêmios da Loteria Federal." });
-    }
-
     const [campaign] = await db
-      .select()
+      .select({ id: campaigns.id, status: campaigns.status, sorteioOficialId: campaigns.sorteioOficialId })
       .from(campaigns)
       .where(eq(campaigns.id, req.params.id));
     if (!campaign) return res.status(404).json({ message: "Campanha não encontrada." });
     if (campaign.status === "drawn") {
       return res.status(409).json({ message: "Esta campanha já foi sorteada." });
     }
-
-    const [draw] = await db.select().from(draws).where(eq(draws.campaignId, campaign.id));
-    if (!draw) return res.status(409).json({ message: "Campanha sem semente comprometida." });
-
-    const resultNumber = drawNumber({
-      seed: draw.seed,
-      federalPrizes,
-      totalQuotas: campaign.totalQuotas,
-    });
-
-    // Tudo numa transação, com a linha do sorteio travada (`FOR UPDATE`): dois
-    // cliques dão um sorteio e um 409, e o Pix confirmado ou o estorno em
-    // andamento (que travam a mesma linha com `FOR SHARE`) esperam — ou são
-    // esperados. Assim o quadro lido para a aproximação é o que fica gravado.
-    const feito = await db
-      .transaction(async (tx) => {
-        const linha = (
-          await tx.execute(sql`SELECT executed_at FROM draws WHERE id = ${draw.id} FOR UPDATE`)
-        ).rows[0];
-        if (linha?.executed_at) throw new SorteioRecusado("Esta campanha já foi sorteada.");
-        const publicada = (
-          await tx.execute(sql`
-            UPDATE campaigns SET status = 'drawn'
-             WHERE id = ${campaign.id} AND status = 'published'
-            RETURNING id
-          `)
-        ).rows;
-        if (!publicada.length) throw new SorteioRecusado("Só rifa publicada é sorteada.");
-        // Mínimo de cotas vendidas da autorização: abaixo dele o sorteio não roda.
-        const minimo = cotasMinimasParaSortear(campaign.totalQuotas, campaign.minimoVendidoPct);
-        if (minimo > 0) {
-          // Cota de bônus não conta para o mínimo (salvo na rifa cheia): shared/bonus.ts.
-          const st = (
-            await tx.execute(sql`SELECT sold_count, bonus_count FROM campaign_stats WHERE campaign_id = ${campaign.id}`)
-          ).rows[0];
-          const vendidas = vendidasParaOMinimo(
-            Number(st?.sold_count ?? 0),
-            Number(st?.bonus_count ?? 0),
-            campaign.modoSorteio,
-          );
-          if (!minimoAtingido(vendidas, campaign.totalQuotas, campaign.minimoVendidoPct)) {
-            throw new SorteioRecusado(
-              `O mínimo para sortear não foi atingido: ${vendidas} de ${minimo} cotas vendidas (${campaign.minimoVendidoPct}%). Peça o adiamento da data do sorteio.`,
-            );
-          }
-        }
-        // Reserva esperando pagamento ainda pode virar cota paga: sortear agora
-        // deixaria o Pix pago depois fora do quadro. Espera pagar ou vencer.
-        const reserva = (
-          await tx.execute(sql`
-            SELECT 1 FROM quota_alloc WHERE campaign_id = ${campaign.id} AND status = 'reserved' LIMIT 1
-          `)
-        ).rows;
-        if (reserva.length) {
-          throw new SorteioRecusado(
-            "Há cotas reservadas esperando pagamento. O sorteio espera elas serem pagas ou vencerem (o prazo da reserva da rifa).",
-          );
-        }
-        const pago = async (filtro: ReturnType<typeof sql>, ordem: "asc" | "desc") =>
-          (
-            await tx.execute(sql`
-              SELECT q.number, q.order_id AS "orderId"
-                FROM quota_alloc q
-                JOIN orders o ON o.id = q.order_id AND o.status = 'paid'
-               WHERE q.campaign_id = ${campaign.id} AND q.status = 'paid' AND ${filtro}
-               ORDER BY q.number ${ordem === "asc" ? sql`ASC` : sql`DESC`}
-               LIMIT 1
-                 FOR SHARE OF q, o
-            `)
-          ).rows[0] as { number: number; orderId: string } | undefined;
-        const exato = await pago(sql`q.number = ${resultNumber}`, "asc");
-        // "A promotora completa": as cotas não vendidas são dela, então o número
-        // sorteado sempre tem dono — não vendido, o prêmio fica com a promotora.
-        const promotoraCompleta = campaign.modoSorteio === "promotora_completa";
-        const acima = exato || promotoraCompleta ? undefined : await pago(sql`q.number > ${resultNumber}`, "asc");
-        const abaixo = exato || acima || promotoraCompleta ? undefined : await pago(sql`q.number < ${resultNumber}`, "desc");
-        const winnerNumber = promotoraCompleta ? resultNumber : contempladoPorAproximacao({
-          sorteado: resultNumber,
-          sorteadoVendido: Boolean(exato),
-          acima: acima?.number ?? null,
-          abaixo: abaixo?.number ?? null,
-        });
-        const vencedor = exato ?? acima ?? abaixo ?? null;
-        const [gravado] = await tx
-          .update(draws)
-          .set({
-            federalContest,
-            federalPrizes,
-            resultNumber,
-            winnerNumber,
-            winnerOrderId: vencedor?.orderId ?? null,
-            evidenceUrl: req.body?.evidenceUrl ? String(req.body.evidenceUrl) : null,
-            executedAt: new Date(),
-          })
-          .where(eq(draws.id, draw.id))
-          .returning();
-        return { gravado, vencedor };
-      })
-      .catch((e) => {
-        if (e instanceof SorteioRecusado) return e;
-        throw e;
-      });
-    if (feito instanceof SorteioRecusado) return res.status(409).json({ message: feito.message });
-    const updated = feito.gravado;
-    const winner = feito.vencedor ? { orderId: feito.vencedor.orderId, status: "paid" as const } : undefined;
-
-    await audit(req, "campaign.draw", "campaign", campaign.id, {
-      resultNumber,
-      winnerNumber: updated.winnerNumber,
-      federalContest,
-    });
-
-    // O ganhador é avisado na hora; os demais veem o resultado na página.
-    if (winner?.status === "paid") {
-      const [row] = await db
-        .select({ phone: buyers.phone })
-        .from(orders)
-        .innerJoin(buyers, eq(buyers.id, orders.buyerId))
-        .where(eq(orders.id, winner.orderId));
-      if (row?.phone) {
-        await notify({
-          to: row.phone,
-          template: "sorteio_realizado",
-          params: {
-            rifa: campaign.title,
-            numero: formatQuota(updated.winnerNumber ?? resultNumber, campaign.totalQuotas),
-            link: publicUrl(`/r/${campaign.slug}`),
-          },
-          dedupeKey: `draw:${draw.id}:ganhador`,
-        });
-      }
-    }
-
-    emSegundoPlano(avisarResultado(campaign.id), "resultado");
-
-    res.json({
-      ...updated,
-      // A semente é publicada agora: qualquer pessoa refaz a conta.
-      seed: draw.seed,
-      soldToWinner: Boolean(winner?.status === "paid"),
-      // Contemplado pela regra da aproximação (o sorteado não estava vendido).
-      aproximacao: updated.winnerNumber !== null && updated.winnerNumber !== resultNumber,
-      ficouComPromotora: campaign.modoSorteio === "promotora_completa" && !updated.winnerOrderId,
-    });
+    const resultado = await resultadoParaARifa(campaign, req.body ?? {});
+    const feito = await executarSorteio(
+      campaign.id,
+      resultado,
+      { id: req.user?.id, role: req.user?.role, ip: req.ip },
+      req.body?.evidenceUrl ? String(req.body.evidenceUrl).slice(0, 500) : null,
+    );
+    res.json(feito);
   } catch (err) {
+    if (err instanceof SorteioRecusado) {
+      return res.status((err as { status?: number }).status ?? 409).json({ message: err.message });
+    }
     next(err);
   }
 });
@@ -3567,12 +3426,20 @@ adminRouter.post("/sorteios-oficiais/:id/cancelar", async (req, res, next) => {
 });
 
 // O resultado oficial da Caixa, uma vez só e só depois da hora do sorteio.
+// Gravado o resultado, cada rifa publicada integrada a ele sorteia sozinha;
+// a que não pode agora guarda o motivo e o relógio tenta de novo.
 adminRouter.post("/sorteios-oficiais/:id/resultado", async (req, res, next) => {
   try {
     requirePlatformAdmin(req);
     const s = await lancarResultado(req.params.id, req.body?.numeros);
     await audit(req, "sorteio_oficial.resultado", "sorteio_oficial", s.id, { resultado: s.resultado });
-    res.json(s);
+    // O resultado já está gravado: falha aqui não vira 500 (o segundo clique
+    // daria 409 sem ninguém saber que gravou) — o relógio sorteia as rifas.
+    const rifas = await sortearRifasDoSorteioOficial(s.id).catch((e) => {
+      console.error("[sorteio oficial] sortear as rifas:", e);
+      return { sorteadas: 0, esperando: 0, falhou: true };
+    });
+    res.json({ ...s, rifas });
   } catch (err) {
     next(err);
   }

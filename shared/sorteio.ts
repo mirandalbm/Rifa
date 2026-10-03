@@ -10,6 +10,25 @@
  * Se mudar a conta do servidor, mude aqui: `tests/sorteio.test.ts` compara
  * as duas em centenas de casos e quebra na primeira diferença.
  */
+import { LOTERIAS, loteriaValida } from "./sorteiosOficiais";
+
+/**
+ * A entropia pública: o resultado oficial da loteria. Na Federal são os 5
+ * prêmios, "p1-p2-p3-p4-p5" — exatamente como sempre foi, para a conferência
+ * de todo sorteio já feito continuar batendo. Nas outras (rifa integrada a
+ * um sorteio oficial), as dezenas em ordem, com o nome da loteria na frente
+ * ("mega_sena:04-11-23-35-48-59"): o mesmo conjunto de dezenas em outra
+ * loteria nunca dá o mesmo número. Sem loteria (sorteio antigo) é Federal.
+ */
+export function entropiaDoSorteio(numeros: string[], loteria?: string | null): string {
+  const l = loteria && loteria !== "federal" ? loteria : "federal";
+  if (!loteriaValida(l)) throw new Error("Loteria desconhecida.");
+  if (numeros.length !== LOTERIAS[l].quantos) {
+    throw new Error(l === "federal" ? "São necessários os 5 prêmios do concurso." : `São necessárias as ${LOTERIAS[l].quantos} dezenas da ${LOTERIAS[l].nome}.`);
+  }
+  const junto = numeros.map((x) => x.trim()).join("-");
+  return l === "federal" ? junto : `${l}:${junto}`;
+}
 
 const texto = new TextEncoder();
 
@@ -29,10 +48,13 @@ export async function sha256Hex(valor: string): Promise<string> {
 
 export async function numeroDoSorteio(p: {
   seed: string;
+  /** O resultado oficial: os 5 prêmios da Federal ou as dezenas da loteria. */
   federalPrizes: string[];
   totalQuotas: number;
+  /** A loteria do resultado; nulo (sorteio antigo) é a Federal. */
+  loteria?: string | null;
 }): Promise<number> {
-  if (p.federalPrizes.length !== 5) throw new Error("São necessários os 5 prêmios do concurso.");
+  const entropia = entropiaDoSorteio(p.federalPrizes, p.loteria);
   const chave = await sutil().importKey(
     "raw",
     texto.encode(p.seed),
@@ -40,7 +62,6 @@ export async function numeroDoSorteio(p: {
     false,
     ["sign"],
   );
-  const entropia = p.federalPrizes.map((x) => x.trim()).join("-");
   const total = BigInt(p.totalQuotas);
   const limite = ((1n << 64n) / total) * total;
   for (let contador = 0; contador < 1000; contador++) {
@@ -66,6 +87,7 @@ export async function conferirSorteio(p: {
   federalPrizes: string[];
   totalQuotas: number;
   resultNumber: number;
+  loteria?: string | null;
 }): Promise<Conferencia> {
   const hashConfere = (await sha256Hex(p.seed)) === p.seedHash.toLowerCase();
   const numero = await numeroDoSorteio(p);

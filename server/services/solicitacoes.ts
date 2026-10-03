@@ -30,8 +30,11 @@ import {
   comentarios,
   draws,
   organizations,
+  sorteiosOficiais,
   type Campaign,
 } from "@shared/schema";
+import { problemaParaIntegrar } from "@shared/sorteiosOficiais";
+import { seloDaRifa } from "./sorteiosOficiais";
 import {
   CAMPOS_EDITAVEIS,
   MOTIVO_MAX,
@@ -114,6 +117,7 @@ async function registrar(
     tipo: TipoSolicitacao;
     alteracoes?: Alteracoes;
     drawAtNovo?: Date;
+    sorteioOficialNovoId?: string;
     comentarioId?: string;
     motivo: string | null;
   },
@@ -131,6 +135,7 @@ async function registrar(
             alteracoes: dados.alteracoes ?? null,
             drawAtAtual: dados.tipo === "adiamento" ? c.drawAt : null,
             drawAtNovo: dados.drawAtNovo ?? null,
+            sorteioOficialNovoId: dados.sorteioOficialNovoId ?? null,
             comentarioId: dados.comentarioId ?? null,
             motivo: dados.motivo,
             criadoPor: req.user!.id,
@@ -174,9 +179,33 @@ export async function pedirEdicao(req: Request, c: Campaign, entrada: Record<str
   return registrar(req, c, { tipo: "edicao", alteracoes, motivo });
 }
 
-/** Adiar o sorteio por não atingir a meta: vira pedido, a data não muda ainda. */
-export async function pedirAdiamento(req: Request, c: Campaign, entrada: { novaData?: unknown; motivo?: unknown }) {
-  const novaData = entrada.novaData ? new Date(String(entrada.novaData)) : null;
+/**
+ * Adiar o sorteio por não atingir a meta: vira pedido, a data não muda ainda.
+ * A nova data pode ser um sorteio oficial do calendário (`sorteioOficialId`):
+ * aprovado, a rifa passa a integrar aquele sorteio, com a data dele — é o
+ * único jeito de a rifa publicada trocar de sorteio oficial.
+ */
+export async function pedirAdiamento(
+  req: Request,
+  c: Campaign,
+  entrada: { novaData?: unknown; motivo?: unknown; sorteioOficialId?: unknown },
+) {
+  let novaData = entrada.novaData ? new Date(String(entrada.novaData)) : null;
+  let sorteioOficialNovoId: string | undefined;
+  if (entrada.sorteioOficialId !== undefined && entrada.sorteioOficialId !== null && entrada.sorteioOficialId !== "") {
+    const id = entrada.sorteioOficialId;
+    if (typeof id !== "string" || !/^[0-9a-f-]{36}$/i.test(id)) {
+      throw new SolicitacaoError("Escolha um sorteio do calendário.", 400);
+    }
+    const [s] = await db.select().from(sorteiosOficiais).where(eq(sorteiosOficiais.id, id));
+    if (!s) throw new SolicitacaoError("Sorteio oficial não encontrado.", 404);
+    if (s.id === c.sorteioOficialId) throw new SolicitacaoError("A rifa já está neste sorteio oficial.");
+    const problema = problemaParaIntegrar(s, new Date());
+    if (problema) throw new SolicitacaoError(problema);
+    // A data nova é a do concurso, nunca a que veio do formulário.
+    novaData = s.sorteioEm;
+    sorteioOficialNovoId = s.id;
+  }
   const motivo = String(entrada.motivo ?? "");
   const problema = problemaNoAdiamento({
     status: c.status,
@@ -189,7 +218,7 @@ export async function pedirAdiamento(req: Request, c: Campaign, entrada: { novaD
     agora: new Date(),
   });
   if (problema) throw new SolicitacaoError(problema);
-  return registrar(req, c, { tipo: "adiamento", drawAtNovo: novaData!, motivo: motivo.trim() });
+  return registrar(req, c, { tipo: "adiamento", drawAtNovo: novaData!, sorteioOficialNovoId, motivo: motivo.trim() });
 }
 
 /**
@@ -312,6 +341,8 @@ export async function detalheDaSolicitacao(req: Request, id: string) {
       alteracoes: s.alteracoes as Alteracoes | null,
       drawAtAtual: s.drawAtAtual,
       drawAtNovo: s.drawAtNovo,
+      // Adiamento para um sorteio oficial do calendário: qual (o selo).
+      sorteioOficialNovo: await seloDaRifa(s.sorteioOficialNovoId),
       motivo: s.motivo,
       decisao: s.decisao,
       decididoEm: s.decididoEm,
@@ -402,6 +433,23 @@ export async function decidirSolicitacao(
         .where(and(eq(comentarios.id, s.comentarioId!), isNull(comentarios.removidoEm)));
       if (ainda) await removerNaTransacao(tx, s.comentarioId!, req.user!.id);
     } else if (aprovar) {
+      // Adiamento para um sorteio oficial: o sorteio é travado antes da rifa
+      // (a ordem de sempre) e conferido de novo — cancelado, com resultado,
+      // em cima da hora ou com a data mudada desde o pedido, não entra.
+      if (s.tipo === "adiamento" && s.sorteioOficialNovoId) {
+        const [so] = await tx
+          .select()
+          .from(sorteiosOficiais)
+          .where(eq(sorteiosOficiais.id, s.sorteioOficialNovoId))
+          .for("share");
+        const problema = so ? problemaParaIntegrar(so, new Date()) : "Sorteio oficial não encontrado.";
+        if (!so || problema) {
+          throw new SolicitacaoError(`O sorteio oficial pedido não aceita mais a rifa: ${problema} Recuse o pedido.`, 409);
+        }
+        if (so.sorteioEm.getTime() !== s.drawAtNovo?.getTime()) {
+          throw new SolicitacaoError("A data do sorteio oficial pedido mudou desde o pedido. Recuse e peça de novo.", 409);
+        }
+      }
       const [c] = await tx.select().from(campaigns).where(eq(campaigns.id, s.campaignId)).for("update");
       const [d] = await tx.select({ executedAt: draws.executedAt }).from(draws).where(eq(draws.campaignId, c.id));
       if (c.status !== "published" || d?.executedAt) {
@@ -436,8 +484,11 @@ export async function decidirSolicitacao(
             drawAtOriginal: c.drawAtOriginal ?? c.drawAt,
             adiamentos: sql`${campaigns.adiamentos} + 1`,
             // Integrada a um sorteio oficial, a data era a do concurso: a nova
-            // data, autorizada pela plataforma, tira a rifa daquele sorteio.
-            sorteioOficialId: null,
+            // data, autorizada pela plataforma, tira a rifa daquele sorteio —
+            // ou a põe no sorteio oficial pedido, com a data dele.
+            sorteioOficialId: s.sorteioOficialNovoId ?? null,
+            sorteioAutoMotivo: null,
+            sorteioAutoEm: null,
           })
           .where(eq(campaigns.id, c.id));
         // A comissão que esperava o sorteio passa a esperar o novo.

@@ -57,8 +57,11 @@ describe("quando dá para integrar e lançar", () => {
     expect(problemaParaIntegrar({ ...base, sorteioEm: daqui(23) }, agora)).not.toBeNull();
     expect(problemaParaIntegrar({ ...base, canceladoEm: agora, sorteioEm: daqui(48) }, agora)).toMatch(/cancelado/);
     expect(problemaParaIntegrar({ ...base, resultadoEm: agora, sorteioEm: daqui(48) }, agora)).toMatch(/resultado/);
-    // O sorteio da rifa ainda sai da Federal: as outras loterias não recebem rifa.
-    expect(problemaParaIntegrar({ ...base, loteria: "mega_sena", sorteioEm: daqui(48) }, agora)).toMatch(/Federal/);
+    // Toda loteria do calendário recebe rifa (o sorteio sai do resultado dela).
+    for (const loteria of Object.keys(LOTERIAS)) {
+      expect(problemaParaIntegrar({ ...base, loteria, sorteioEm: daqui(48) }, agora), loteria).toBeNull();
+    }
+    expect(problemaParaIntegrar({ ...base, loteria: "dupla_sena", sorteioEm: daqui(48) }, agora)).not.toBeNull();
   });
   it("o resultado só depois da hora, uma vez", () => {
     expect(problemaParaLancarResultado({ ...base, sorteioEm: daqui(1) }, agora)).toMatch(/ainda não/);

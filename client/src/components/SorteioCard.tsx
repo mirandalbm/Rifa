@@ -18,7 +18,13 @@ interface Sorteio {
   semContemplado?: boolean;
   ficouComPromotora?: boolean;
   federalContest?: number | null;
+  /** O resultado oficial: os 5 prêmios da Federal ou as dezenas da loteria. */
   federalPrizes?: string[] | null;
+  /** A loteria do resultado (`federal`, `mega_sena`…) e o nome dela. */
+  loteria?: string;
+  loteriaNome?: string;
+  /** "5 prêmios da Federal" / "6 dezenas da Mega-Sena". */
+  rotuloDoResultado?: string;
   seed?: string;
   executedAt?: string;
   evidenceUrl?: string | null;
@@ -70,6 +76,7 @@ export function SorteioCard({ slug }: { slug: string }) {
           federalPrizes: data.federalPrizes!,
           totalQuotas: data.totalQuotas,
           resultNumber: data.resultNumber!,
+          loteria: data.loteria,
         }),
       );
     } catch (e) {
@@ -94,7 +101,8 @@ export function SorteioCard({ slug }: { slug: string }) {
           <p className="label-xs">número sorteado</p>
           <p className="tnum font-display text-4xl font-extrabold text-yellow-deep">{data.numero}</p>
           <p className="tnum text-xs text-muted">
-            {data.federalContest ? `Loteria Federal, concurso ${data.federalContest}` : "Loteria Federal"}
+            {data.loteriaNome ?? "Loteria Federal"}
+            {data.federalContest ? `, concurso ${data.federalContest}` : ""}
             {data.executedAt ? ` · ${new Date(data.executedAt).toLocaleDateString("pt-BR")}` : ""}
           </p>
           {data.aproximacao && data.contemplado ? (
@@ -126,7 +134,7 @@ export function SorteioCard({ slug }: { slug: string }) {
           <summary className="cursor-pointer text-xs font-semibold">Como conferir</summary>
           <dl className="mt-2 space-y-1 break-all text-xs">
             <div>
-              <dt className="label-xs">5 prêmios da Federal</dt>
+              <dt className="label-xs">{data.rotuloDoResultado ?? "5 prêmios da Federal"}</dt>
               <dd className="tnum">{data.federalPrizes?.join(" · ")}</dd>
             </div>
             <div>
@@ -139,7 +147,7 @@ export function SorteioCard({ slug }: { slug: string }) {
             </div>
           </dl>
           <p className="mt-2 text-[11px] text-muted">
-            SHA-256 da semente tem de dar o resumo. O número é HMAC-SHA256(semente, "prêmios:contador"),
+            SHA-256 da semente tem de dar o resumo. O número é HMAC-SHA256(semente, "resultado:contador"),
             reduzido ao total de cotas sem viés — a conta está no regulamento.
           </p>
         </details>

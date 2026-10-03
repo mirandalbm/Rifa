@@ -1,4 +1,5 @@
 import { seloDaRifa, sorteioOficialDaTela } from "../services/sorteiosOficiais";
+import { loteriaDoSorteio } from "@shared/sorteiosOficiais";
 import { conferirRecibo } from "../services/recibos";
 import { denunciar } from "../services/seguranca";
 import { fotoDoApostador, meuPerfilPublico, perfilPublicoDoApostador, quemTambemJoga, salvarPerfilPublico } from "../services/perfilApostador";
@@ -1369,6 +1370,7 @@ publicRouter.get("/campaigns/:slug/regulamento", async (req, res, next) => {
           bonusMaxCotas: c.bonusMaxCotas,
           minimoVendidoPct: c.minimoVendidoPct,
           modoSorteio: c.modoSorteio,
+          sorteioOficial: await seloDaRifa(c.sorteioOficialId),
         },
         promotora: {
           nome: org?.name ?? "—",
@@ -1421,6 +1423,8 @@ publicRouter.get("/campaigns/:slug/sorteio", async (req, res, next) => {
             semContemplado: d!.winnerOrderId === null && c.modoSorteio !== "promotora_completa",
             federalContest: d!.federalContest,
             federalPrizes: d!.federalPrizes,
+            // A loteria do resultado: a Federal (nula, sorteio de sempre) ou a do sorteio oficial.
+            ...loteriaDoSorteio(d!.loteria),
             // A semente só sai depois: antes, quem a tivesse calcularia o número.
             seed: d!.seed,
             executedAt: d!.executedAt,

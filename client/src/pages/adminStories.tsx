@@ -2,12 +2,13 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Trash2 } from "lucide-react";
 import { PanelShell } from "@/components/AppShell";
-import { Button, Card, Empty } from "@/components/bits";
+import { Button, Card, Empty, Pill } from "@/components/bits";
 import { apiRequest } from "@/lib/queryClient";
 import { useSession } from "@/lib/session";
 import {
   LEGENDA_MAX,
   STORIES_MAX,
+  STORY_AGENDA_MAX_DIAS,
   STORY_HORAS,
   STORY_VIDEO_MAX_BYTES,
   STORY_VIDEO_MAX_SEGUNDOS,
@@ -24,6 +25,8 @@ interface StoryNoPainel {
   expiraEm: string;
   rifa: { slug: string; premio: string } | null;
   organizacao: string;
+  /** Agendado: entra no ar nesta hora (antes disso só o painel vê). */
+  agendadoPara: string | null;
 }
 
 interface Campanha {
@@ -31,6 +34,8 @@ interface Campanha {
 }
 
 const IMAGEM_MAX = 5 * 1024 * 1024;
+
+const quando = (iso: string) => new Date(iso).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
 
 const faltam = (iso: string) => {
   const h = Math.max(0, (new Date(iso).getTime() - Date.now()) / 3_600_000);
@@ -58,6 +63,8 @@ export function AdminStories() {
   const [legenda, setLegenda] = useState("");
   const [campaignId, setCampaignId] = useState("");
   const [organizacaoId, setOrganizacaoId] = useState("");
+  // Vazio: publica agora. Preenchido: `datetime-local`, no fuso do aparelho.
+  const [publicaEm, setPublicaEm] = useState("");
   const [msg, setMsg] = useState<{ ok: boolean; texto: string } | null>(null);
 
   let problema: string | null = null;
@@ -74,13 +81,21 @@ export function AdminStories() {
         ...(peca?.video ? { video: peca.url } : { imagem: peca?.url }),
         legenda,
         campaignId: campaignId || null,
+        // O servidor recebe o instante (ISO, com o fuso), não o texto do campo.
+        ...(publicaEm ? { publicaEm: new Date(publicaEm).toISOString() } : {}),
         ...(plataforma ? { organizacaoId } : {}),
       }),
     onSuccess: () => {
       setPeca(null);
       setLegenda("");
       setCampaignId("");
-      setMsg({ ok: true, texto: "Story publicado. Quem segue já vê o anel aceso." });
+      setMsg({
+        ok: true,
+        texto: publicaEm
+          ? `Story agendado para ${quando(new Date(publicaEm).toISOString())}. Até lá, só você vê.`
+          : "Story publicado. Quem segue já vê o anel aceso.",
+      });
+      setPublicaEm("");
       recarregar();
     },
     onError: (e: Error) => setMsg({ ok: false, texto: e.message }),
@@ -204,6 +219,22 @@ export function AdminStories() {
               </select>
             </div>
 
+            <div>
+              <label htmlFor="story-quando" className="label-xs">Publicar em (opcional)</label>
+              <input
+                id="story-quando"
+                type="datetime-local"
+                value={publicaEm}
+                onChange={(e) => setPublicaEm(e.target.value)}
+                className="campo tnum mt-1"
+                aria-describedby="story-quando-dica"
+              />
+              <p id="story-quando-dica" className="mt-1 text-[11px] text-muted">
+                Vazio, vai ao ar agora. Agendado (até <span className="tnum">{STORY_AGENDA_MAX_DIAS}</span> dias à frente), entra
+                no ar sozinho na hora e as <span className="tnum">{STORY_HORAS}</span> h contam dali.
+              </p>
+            </div>
+
             {msg ? (
               <p className={`rounded-md px-3 py-2 ${msg.ok ? "bg-green-soft text-green-deep" : "bg-red-soft text-red"}`}>{msg.texto}</p>
             ) : null}
@@ -211,16 +242,16 @@ export function AdminStories() {
               type="submit"
               disabled={!peca || Boolean(problema) || postar.isPending || (plataforma && !organizacaoId)}
             >
-              {postar.isPending ? "Publicando…" : "Publicar story"}
+              {postar.isPending ? "Enviando…" : publicaEm ? "Agendar story" : "Publicar story"}
             </Button>
           </form>
         </Card>
 
         <Card
-          title="No ar agora"
+          title="No ar e agendados"
           right={<span className="tnum text-xs text-muted">{lista.length}</span>}
         >
-          {lista.length === 0 ? <Empty>Nenhum story no ar.</Empty> : null}
+          {lista.length === 0 ? <Empty>Nenhum story no ar nem agendado.</Empty> : null}
           <ul className="grid grid-cols-2 gap-3 p-4 sm:grid-cols-3">
             {lista.map((s) => (
               <li key={s.id} className="space-y-1 text-xs">
@@ -234,7 +265,7 @@ export function AdminStories() {
                     type="button"
                     aria-label="Apagar este story"
                     onClick={() => {
-                      if (window.confirm("Apagar este story? Ele some para todo mundo na hora.")) apagar.mutate(s.id);
+                      if (window.confirm(s.agendadoPara ? "Apagar este story agendado? Ele não vai mais ao ar." : "Apagar este story? Ele some para todo mundo na hora.")) apagar.mutate(s.id);
                     }}
                     className="absolute right-1 top-1 rounded-full bg-black/60 p-1.5 text-branco hover:bg-black/80"
                   >
@@ -244,10 +275,16 @@ export function AdminStories() {
                 {plataforma ? <p className="truncate font-semibold">{s.organizacao}</p> : null}
                 {s.legenda ? <p className="line-clamp-2 text-ink-2">{s.legenda}</p> : null}
                 {s.rifa ? <p className="truncate text-muted">→ {s.rifa.premio}</p> : null}
-                <p className="tnum text-muted">
-                  {s.tipo === "video" ? "Vídeo · " : ""}
-                  {faltam(s.expiraEm)}
-                </p>
+                {s.agendadoPara ? (
+                  <p>
+                    <Pill status="pending">Agendado</Pill> <span className="tnum text-muted">{quando(s.agendadoPara)}</span>
+                  </p>
+                ) : (
+                  <p className="tnum text-muted">
+                    {s.tipo === "video" ? "Vídeo · " : ""}
+                    {faltam(s.expiraEm)}
+                  </p>
+                )}
               </li>
             ))}
           </ul>

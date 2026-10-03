@@ -1,4 +1,5 @@
 import { calendario, cancelarSorteioOficial, criarSorteioOficial, editarSorteioOficial, integrarAoSorteioOficial, lancarResultado } from "../services/sorteiosOficiais";
+import { enviarComFaixa } from "../services/faixa";
 import { devolverPixTardio, listarPixTardios, resolverPixTardio } from "../services/pixTardio";
 import { numerosPremiados } from "@shared/premiadas";
 import express, { Router, type Request, type Response as Resposta } from "express";
@@ -190,6 +191,7 @@ import {
   ordenarBanners,
   postarStory,
   storiesDaOrganizacao,
+  arquivoDoStoryNoPainel,
 } from "../services/vitrine";
 import {
   publicar,
@@ -3575,12 +3577,31 @@ adminRouter.post("/stories", async (req, res, next) => {
       video: req.body?.video,
       legenda: req.body?.legenda,
       campaignId: req.body?.campaignId,
+      publicaEm: req.body?.publicaEm,
     });
-    await audit(req, "story.postar", "story", novo.id, { organizacao: org, rifa: req.body?.campaignId ?? null });
+    await audit(req, "story.postar", "story", novo.id, { organizacao: org, rifa: req.body?.campaignId ?? null, publicaEm: novo.publicaEm });
     if (typeof req.body?.legenda === "string") {
       emSegundoPlano(varrerTextoDoOrganizador({ organizationId: org, onde: "legenda de story", texto: req.body.legenda }), "varredura");
     }
     res.status(201).json(novo);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * A peça do story para o painel (o agendado inclusive). O recorte vem antes:
+ * o do vizinho é 404. Nunca em cache compartilhado.
+ */
+adminRouter.get("/stories/:id/:qual(imagem|poster)", async (req, res, next) => {
+  try {
+    const dono = await donoDoStory(req.params.id);
+    const org = orgOf(req);
+    if (!dono || (org && dono !== org)) return res.status(404).json({ message: "Story não encontrado." });
+    const a = await arquivoDoStoryNoPainel(req.params.id, req.params.qual as "imagem" | "poster");
+    if (!a) return res.status(404).json({ message: "Story não encontrado." });
+    res.setHeader("Cache-Control", "private, no-store");
+    enviarComFaixa(req, res, a.bytes, a.mime);
   } catch (err) {
     next(err);
   }

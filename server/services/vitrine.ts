@@ -26,6 +26,7 @@ import {
   bannerNoAr,
   estadosComRifa,
   expiraEm,
+  publicacaoDoStory,
   validarBanner,
   validarLegenda,
 } from "@shared/vitrine";
@@ -188,6 +189,12 @@ export async function imagemDoBanner(id: string) {
  * ------------------------------------------------------------------ */
 
 const urlDoStory = (id: string) => `/api/public/stories/${id}/imagem`;
+
+/**
+ * No ar agora: já entrou (`publica_em`) e ainda não venceu. Toda leitura
+ * pública passa por aqui — o agendado não aparece antes da hora.
+ */
+const storyNoAr = (agora = new Date()) => and(lte(stories.publicaEm, agora), gt(stories.expiraEm, agora));
 const urlDoPosterDoStory = (id: string) => `/api/public/stories/${id}/poster`;
 
 const campoDoStory = {
@@ -197,6 +204,7 @@ const campoDoStory = {
   mime: stories.mime,
   temPoster: sql<boolean>`${stories.poster} is not null`,
   createdAt: stories.createdAt,
+  publicaEm: stories.publicaEm,
   expiraEm: stories.expiraEm,
   rifaSlug: campaigns.slug,
   rifaPremio: campaigns.prizeTitle,
@@ -210,6 +218,7 @@ type LinhaDoStory = {
   mime: string;
   temPoster: boolean;
   createdAt: Date;
+  publicaEm: Date;
   expiraEm: Date;
   rifaSlug: string | null;
   rifaPremio: string | null;
@@ -222,10 +231,13 @@ function publico(s: LinhaDoStory) {
     s.rifaSlug && s.rifaStatus && s.rifaStatus !== "draft"
       ? { slug: s.rifaSlug, premio: s.rifaPremio ?? "" }
       : null;
-  return { id: s.id, tipo: s.mime.startsWith("video/") ? ("video" as const) : ("imagem" as const), imagem: urlDoStory(s.id), poster: s.mime.startsWith("video/") && s.temPoster ? urlDoPosterDoStory(s.id) : null, legenda: s.legenda, criadoEm: s.createdAt, expiraEm: s.expiraEm, rifa };
+  return { id: s.id, tipo: s.mime.startsWith("video/") ? ("video" as const) : ("imagem" as const), imagem: urlDoStory(s.id), poster: s.mime.startsWith("video/") && s.temPoster ? urlDoPosterDoStory(s.id) : null, legenda: s.legenda, criadoEm: s.publicaEm, expiraEm: s.expiraEm, rifa };
 }
 
-/** Stories no ar de uma organização (painel, com recorte já conferido). */
+/**
+ * Stories no ar e agendados de uma organização (painel, com recorte já
+ * conferido). O agendado vem com `agendadoPara`; o público não o vê.
+ */
 export async function storiesDaOrganizacao(orgId: string | null) {
   const linhas = await db
     .select({ ...campoDoStory, organizacao: organizations.name })
@@ -233,8 +245,19 @@ export async function storiesDaOrganizacao(orgId: string | null) {
     .innerJoin(organizations, eq(organizations.id, stories.organizationId))
     .leftJoin(campaigns, eq(campaigns.id, stories.campaignId))
     .where(and(gt(stories.expiraEm, new Date()), orgId ? eq(stories.organizationId, orgId) : undefined))
-    .orderBy(desc(stories.createdAt));
-  return linhas.map((s) => ({ ...publico(s), organizacao: s.organizacao }));
+    .orderBy(desc(stories.publicaEm));
+  const agora = new Date();
+  return linhas.map((s) => {
+    const p = publico(s);
+    // O painel lê a peça pela porta dele: a pública só abre depois da hora.
+    return {
+      ...p,
+      imagem: `/api/admin/stories/${s.id}/imagem`,
+      poster: p.poster ? `/api/admin/stories/${s.id}/poster` : null,
+      organizacao: s.organizacao,
+      agendadoPara: s.publicaEm > agora ? s.publicaEm : null,
+    };
+  });
 }
 
 /** Confere o vídeo do story pelo conteúdo: MP4/MOV, curto, em pé e leve. */
@@ -260,9 +283,11 @@ async function lerVideoDoStory(dataUrl: unknown): Promise<{ bytes: Buffer; mime:
 
 export async function postarStory(
   orgId: string,
-  entrada: { imagem?: unknown; video?: unknown; legenda?: unknown; campaignId?: unknown },
+  entrada: { imagem?: unknown; video?: unknown; legenda?: unknown; campaignId?: unknown; publicaEm?: unknown },
 ) {
   const legenda = regra(() => validarLegenda(entrada.legenda));
+  // Agendado: entra no ar na hora escolhida, e as 24 h contam dali.
+  const publicaEm = regra(() => publicacaoDoStory(entrada.publicaEm));
   const campaignId =
     typeof entrada.campaignId === "string" && entrada.campaignId ? entrada.campaignId : null;
   // Vídeo ou imagem, nunca os dois. O vídeo vai como veio (sem transcode);
@@ -298,12 +323,12 @@ export async function postarStory(
       .from(stories)
       .where(and(eq(stories.organizationId, orgId), gt(stories.expiraEm, agora)));
     if (n >= STORIES_MAX) {
-      throw new VitrineError(`No máximo ${STORIES_MAX} stories no ar. Apague um ou espere vencer.`, 409);
+      throw new VitrineError(`No máximo ${STORIES_MAX} stories no ar ou agendados. Apague um ou espere vencer.`, 409);
     }
     const [novo] = await tx
       .insert(stories)
-      .values({ organizationId: orgId, legenda, campaignId, mime, bytes, createdAt: agora, expiraEm: expiraEm(agora) })
-      .returning({ id: stories.id });
+      .values({ organizationId: orgId, legenda, campaignId, mime, bytes, createdAt: agora, publicaEm, expiraEm: expiraEm(publicaEm) })
+      .returning({ id: stories.id, publicaEm: stories.publicaEm });
     return novo;
   }).then((novo) => {
     // O pôster vem depois, em segundo plano: a resposta não espera o ffmpeg e,
@@ -346,8 +371,8 @@ export async function storiesDoPerfil(slug: string) {
     .select(campoDoStory)
     .from(stories)
     .leftJoin(campaigns, eq(campaigns.id, stories.campaignId))
-    .where(and(eq(stories.organizationId, org.id), gt(stories.expiraEm, new Date())))
-    .orderBy(asc(stories.createdAt));
+    .where(and(eq(stories.organizationId, org.id), storyNoAr()))
+    .orderBy(asc(stories.publicaEm));
   return {
     slug: org.slug,
     nome: org.nome,
@@ -360,9 +385,9 @@ export async function storiesDoPerfil(slug: string) {
 export async function ultimoStoryPorOrganizacao(orgIds: string[]) {
   if (orgIds.length === 0) return new Map<string, Date>();
   const linhas = await db
-    .select({ org: stories.organizationId, ultimo: sql<Date>`max(${stories.createdAt})` })
+    .select({ org: stories.organizationId, ultimo: sql<Date>`max(${stories.publicaEm})` })
     .from(stories)
-    .where(and(inArray(stories.organizationId, orgIds), gt(stories.expiraEm, new Date())))
+    .where(and(inArray(stories.organizationId, orgIds), storyNoAr()))
     .groupBy(stories.organizationId);
   return new Map(linhas.map((l) => [l.org, new Date(l.ultimo)]));
 }
@@ -370,22 +395,37 @@ export async function ultimoStoryPorOrganizacao(orgIds: string[]) {
 /** A imagem, só enquanto o story está no ar. */
 export async function imagemDoStory(id: string) {
   const [s] = await db
-    .select({ bytes: stories.bytes, mime: stories.mime, expiraEm: stories.expiraEm, arquivada: organizations.archivedAt })
+    .select({ bytes: stories.bytes, mime: stories.mime, publicaEm: stories.publicaEm, expiraEm: stories.expiraEm, arquivada: organizations.archivedAt })
     .from(stories)
     .innerJoin(organizations, eq(organizations.id, stories.organizationId))
     .where(eq(stories.id, id));
-  if (!s || s.arquivada || s.expiraEm <= new Date()) return null;
+  // O agendado também não sai antes da hora: o id está na lista do painel.
+  if (!s || s.arquivada || s.publicaEm > new Date() || s.expiraEm <= new Date()) return null;
   return s;
+}
+
+/**
+ * A peça do story para o painel da dona (o agendado inclusive, que o público
+ * ainda não vê). Quem chama confere o recorte antes (`donoDoStory`).
+ */
+export async function arquivoDoStoryNoPainel(id: string, qual: "imagem" | "poster") {
+  const [s] = await db
+    .select({ bytes: stories.bytes, mime: stories.mime, poster: stories.poster })
+    .from(stories)
+    .where(and(eq(stories.id, id), gt(stories.expiraEm, new Date())));
+  if (!s) return null;
+  if (qual === "poster") return s.poster ? { bytes: s.poster, mime: "image/webp" } : null;
+  return { bytes: s.bytes, mime: s.mime };
 }
 
 /** O pôster do vídeo, só enquanto o story está no ar (a mesma regra da imagem). */
 export async function posterDoStory(id: string) {
   const [s] = await db
-    .select({ poster: stories.poster, expiraEm: stories.expiraEm, arquivada: organizations.archivedAt })
+    .select({ poster: stories.poster, publicaEm: stories.publicaEm, expiraEm: stories.expiraEm, arquivada: organizations.archivedAt })
     .from(stories)
     .innerJoin(organizations, eq(organizations.id, stories.organizationId))
     .where(eq(stories.id, id));
-  if (!s || !s.poster || s.arquivada || s.expiraEm <= new Date()) return null;
+  if (!s || !s.poster || s.arquivada || s.publicaEm > new Date() || s.expiraEm <= new Date()) return null;
   return s.poster;
 }
 

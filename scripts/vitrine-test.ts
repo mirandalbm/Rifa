@@ -250,6 +250,40 @@ async function main() {
     const sumiuVideo = await fetch(URL + meuVideo.imagem);
     checa("apagado, o vídeo some na hora", sumiuVideo.status === 404, `HTTP ${sumiuVideo.status}`);
 
+    // Story agendado: o público não vê antes da hora; o painel vê, pela porta dele.
+    console.log("  — story agendado");
+    r = await marina.req("POST", "/api/admin/stories", { imagem: verde, publicaEm: new Date(Date.now() - 3_600_000).toISOString() });
+    checa("agendar no passado: 400", r.status === 400, `HTTP ${r.status} ${r.json?.message ?? ""}`);
+    r = await marina.req("POST", "/api/admin/stories", { imagem: verde, publicaEm: new Date(Date.now() + 8 * 86_400_000).toISOString() });
+    checa("agendar além de 7 dias: 400", r.status === 400, `HTTP ${r.status} ${r.json?.message ?? ""}`);
+    r = await marina.req("POST", "/api/admin/stories", { imagem: verde, publicaEm: "amanhã cedo" });
+    checa("data que não é data: 400", r.status === 400, `HTTP ${r.status}`);
+    const daquiUmaHora = new Date(Date.now() + 3_600_000);
+    r = await marina.req("POST", "/api/admin/stories", { imagem: verde, legenda: "Amanhã tem sorteio", publicaEm: daquiUmaHora.toISOString() });
+    const sAgendado = r.json?.id as string;
+    checa("organizadora agenda um story para daqui a 1 h", r.status === 201 && Boolean(sAgendado), `HTTP ${r.status} ${r.json?.message ?? ""}`);
+    const [linhaAgendada] = await db.select().from(stories).where(eq(stories.id, sAgendado));
+    checa(
+      "as 24 h contam da hora agendada",
+      linhaAgendada.expiraEm.getTime() - linhaAgendada.publicaEm.getTime() === 24 * 3_600_000 && Math.abs(linhaAgendada.publicaEm.getTime() - daquiUmaHora.getTime()) < 1000,
+    );
+    r = await anon.req("GET", `/api/public/o/${org.slug}/stories`);
+    checa("antes da hora, o perfil não mostra o story agendado", !r.json?.stories?.some((x: any) => x.id === sAgendado));
+    checa("antes da hora, a imagem pública é 404", (await medir(`/api/public/stories/${sAgendado}/imagem`)).status === 404);
+    r = await marina.req("GET", "/api/admin/stories");
+    const noPainel = r.json?.find((x: any) => x.id === sAgendado);
+    checa("o painel lista o agendado com a hora", Boolean(noPainel?.agendadoPara) && new Date(noPainel.agendadoPara).getTime() === linhaAgendada.publicaEm.getTime());
+    const pelaPorta = await marina.req("GET", noPainel.imagem);
+    checa("a dona vê a imagem do agendado pela porta do painel", pelaPorta.status === 200, `HTTP ${pelaPorta.status} ${noPainel.imagem}`);
+    const semSessao = await anon.req("GET", noPainel.imagem);
+    checa("sem sessão, a porta do painel recusa", semSessao.status === 401 || semSessao.status === 403, `HTTP ${semSessao.status}`);
+    // Chegou a hora: o mesmo story entra no ar, sem nada a fazer.
+    await db.update(stories).set({ publicaEm: new Date(Date.now() - 1000) }).where(eq(stories.id, sAgendado));
+    r = await anon.req("GET", `/api/public/o/${org.slug}/stories`);
+    checa("passada a hora, o story aparece no perfil", r.json?.stories?.some((x: any) => x.id === sAgendado));
+    checa("e a imagem pública abre", (await medir(`/api/public/stories/${sAgendado}/imagem`)).status === 200);
+    await marina.req("DELETE", `/api/admin/stories/${sAgendado}`);
+
     // Limite: completa até o máximo e tenta dois a mais ao mesmo tempo.
     const noAr = (await marina.req("GET", "/api/admin/stories")).json.length as number;
     for (let i = noAr; i < STORIES_MAX; i++) await marina.req("POST", "/api/admin/stories", { imagem: verde });

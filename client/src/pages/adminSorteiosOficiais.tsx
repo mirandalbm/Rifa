@@ -2,6 +2,8 @@ import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { PanelShell } from "@/components/AppShell";
+import { Comentarios } from "@/components/Comentarios";
+import { Janela } from "@/components/Janela";
 import { Button, Card, Campo, Empty, Pill } from "@/components/bits";
 import { apiRequest } from "@/lib/queryClient";
 import { useSession } from "@/lib/session";
@@ -36,6 +38,8 @@ interface SorteioNoCalendario {
   problemaParaIntegrar: string | null;
   rifas: RifaNoSorteio[];
   publicadas?: number;
+  /** Comentários no ar na tela do sorteio (a plataforma modera). */
+  comentarios: number;
 }
 
 interface Campanha {
@@ -338,6 +342,7 @@ function CartaoDoSorteio({ s, plataforma }: { s: SorteioNoCalendario; plataforma
   const [msg, setMsg] = useState<{ ok: boolean; texto: string } | null>(null);
   const [editando, setEditando] = useState(false);
   const [lancando, setLancando] = useState(false);
+  const [moderando, setModerando] = useState(false);
   const recarregar = () => {
     qc.invalidateQueries({ queryKey: ["/api/admin/sorteios-oficiais"] });
     qc.invalidateQueries({ queryKey: ["/api/admin/campaigns"] });
@@ -386,10 +391,18 @@ function CartaoDoSorteio({ s, plataforma }: { s: SorteioNoCalendario; plataforma
           </p>
         ) : null}
         {plataforma ? (
-          <p className="text-xs text-muted">
-            <span className="tnum">{s.publicadas ?? 0}</span> rifa(s) publicada(s) neste sorteio.
+          <p className="flex flex-wrap items-center gap-x-3 text-xs text-muted">
+            <span>
+              <span className="tnum">{s.publicadas ?? 0}</span> rifa(s) publicada(s) neste sorteio.
+            </span>
+            {s.situacao !== "cancelado" ? (
+              <button type="button" className="font-semibold text-marca hover:underline" onClick={() => setModerando(true)}>
+                Comentários (<span className="tnum">{s.comentarios}</span>)
+              </button>
+            ) : null}
           </p>
         ) : null}
+        {moderando ? <ComentariosDoSorteio s={s} onFechar={() => setModerando(false)} /> : null}
 
         {s.rifas.length ? (
           <div>
@@ -608,5 +621,23 @@ function LancarResultado({
         {lancar.isPending ? "Lançando…" : "Lançar resultado"}
       </Button>
     </form>
+  );
+}
+
+/**
+ * Os comentários da tela do sorteio, para a plataforma moderar: a mesma
+ * lista do apostador, com "Apagar" em todos (a sessão de plataforma).
+ */
+function ComentariosDoSorteio({ s, onFechar }: { s: SorteioNoCalendario; onFechar: () => void }) {
+  return (
+    <Janela onFechar={onFechar} rotulo={`Comentários de ${s.nome}`} centralizarEm="lg" largura="max-w-lg" rolar={false} className="flex max-h-[85vh] flex-col">
+      <div className="border-b border-line px-4 py-3">
+        <h2 className="font-semibold">Comentários · {s.nome}</h2>
+        <p className="text-xs text-muted">Quem escreveu e a plataforma apagam. O texto passa pela mesma régua dos comentários da rifa.</p>
+      </div>
+      <div className="overflow-y-auto px-4 pb-4">
+        <Comentarios sorteioOficialId={s.id} dentroDoPainel soModerar />
+      </div>
+    </Janela>
   );
 }

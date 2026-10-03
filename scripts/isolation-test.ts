@@ -33,6 +33,8 @@ import {
   campanhaSolicitacoes,
   comentarios,
   divulgacoes,
+  sorteiosOficiais,
+  sorteioComentarios,
 } from "../shared/schema";
 import { hashPassword } from "../server/auth";
 import { mediaKey, storage } from "../server/services/storage";
@@ -258,6 +260,16 @@ async function alcancaOVizinho(eu: Lado, vizinho: Lado) {
     .insert(comentarios)
     .values({ campaignId: c, organizationId: vizinho.orgId, autor: "organizacao", texto: "comentário do vizinho" })
     .returning({ id: comentarios.id });
+  // Um comentário no sorteio oficial da plataforma: o sorteio não é de
+  // organização nenhuma — moderar é da plataforma, o organizador recebe 404.
+  const [sorteioDaPlataforma] = await db
+    .insert(sorteiosOficiais)
+    .values({ loteria: "federal", concurso: 70_000 + Math.floor(Math.random() * 9_000), sorteioEm: new Date(Date.now() + 86_400_000), titulo: "Isolamento comentários" })
+    .returning({ id: sorteiosOficiais.id });
+  const [comentarioDoSorteio] = await db
+    .insert(sorteioComentarios)
+    .values({ sorteioOficialId: sorteioDaPlataforma.id, texto: "comentário no sorteio oficial" })
+    .returning({ id: sorteioComentarios.id });
   // Uma divulgação de terceiro esperando o vizinho: decidir pelo id dele tem de dar 404.
   const [divulgacaoDoVizinho] = await db
     .insert(divulgacoes)
@@ -267,6 +279,7 @@ async function alcancaOVizinho(eu: Lado, vizinho: Lado) {
     ["POST aprovar divulgação do vizinho", `/api/admin/divulgacoes/${divulgacaoDoVizinho.id}`, { method: "POST", body: '{"acao":"aprovar"}' }],
     ["POST recusar divulgação do vizinho", `/api/admin/divulgacoes/${divulgacaoDoVizinho.id}`, { method: "POST", body: '{"acao":"recusar","motivo":"invadido"}' }],
     ["DELETE comentário na rifa do vizinho", `/api/public/comentarios/${comentarioDoVizinho.id}`, { method: "DELETE" }],
+    ["DELETE comentário do sorteio oficial", `/api/public/sorteio-oficial/comentarios/${comentarioDoSorteio.id}`, { method: "DELETE" }],
     ["GET telefone do vizinho", `/api/admin/organizacoes/${vizinho.orgId}/telefone`, {}],
     ["POST código no telefone do vizinho", `/api/admin/organizacoes/${vizinho.orgId}/telefone`, { method: "POST", body: '{"telefone":"11999998888"}' }],
     ["POST confirmar telefone do vizinho", `/api/admin/organizacoes/${vizinho.orgId}/telefone/confirmar`, { method: "POST", body: '{"codigo":"123456"}' }],
@@ -334,6 +347,12 @@ async function alcancaOVizinho(eu: Lado, vizinho: Lado) {
     .where(eq(comentarios.id, comentarioDoVizinho.id));
   checa("o comentário do vizinho continua no ar", Boolean(comentarioAinda) && !comentarioAinda.removidoEm);
   await db.delete(comentarios).where(eq(comentarios.id, comentarioDoVizinho.id));
+  const [doSorteioAinda] = await db
+    .select({ removidoEm: sorteioComentarios.removidoEm })
+    .from(sorteioComentarios)
+    .where(eq(sorteioComentarios.id, comentarioDoSorteio.id));
+  checa("o comentário do sorteio oficial continua no ar", Boolean(doSorteioAinda) && !doSorteioAinda.removidoEm);
+  await db.delete(sorteiosOficiais).where(eq(sorteiosOficiais.id, sorteioDaPlataforma.id));
   const [divulgacaoAinda] = await db.select({ status: divulgacoes.status }).from(divulgacoes).where(eq(divulgacoes.id, divulgacaoDoVizinho.id));
   checa("a divulgação do vizinho continua esperando", divulgacaoAinda?.status === "em_analise", divulgacaoAinda?.status);
   const minhasDivulgacoes = (await (await pedir(eu.cookie, "/api/admin/divulgacoes")).json()) as { id: string }[];

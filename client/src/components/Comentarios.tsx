@@ -53,6 +53,10 @@ interface Premiado {
   comentario: (Comentario & { respostas: Comentario[] }) | null;
 }
 
+/** As rotas de cada comentário: o da rifa e o do sorteio oficial. */
+const ROTA_DO_COMENTARIO_DA_RIFA = "/api/public/comentarios";
+const ROTA_DO_COMENTARIO_DO_SORTEIO = "/api/public/sorteio-oficial/comentarios";
+
 const tempo = (iso: string) => {
   const min = Math.max(1, Math.round((Date.now() - new Date(iso).getTime()) / 60_000));
   if (min < 60) return `${min} min`;
@@ -85,19 +89,22 @@ function Linha({
   podeCurtir,
   aoResponder,
   aoMudar,
+  rota = ROTA_DO_COMENTARIO_DA_RIFA,
 }: {
   c: Comentario;
   resposta?: boolean;
   podeCurtir: boolean;
   aoResponder?: () => void;
   aoMudar: () => void;
+  /** Onde o comentário mora: o da rifa ou o do sorteio oficial. */
+  rota?: string;
 }) {
   const org = c.autor === "organizacao";
   const [curtido, setCurtido] = useState({ curti: c.curti, n: c.curtidas });
   useEffect(() => setCurtido({ curti: c.curti, n: c.curtidas }), [c.curti, c.curtidas]);
   const curtir = useMutation({
     mutationFn: async (valor: boolean) =>
-      (await (await apiRequest("PUT", `/api/public/comentarios/${c.id}/curtida`, { curtir: valor })).json()) as {
+      (await (await apiRequest("PUT", `${rota}/${c.id}/curtida`, { curtir: valor })).json()) as {
         curtidas: number;
         curti: boolean;
       },
@@ -106,7 +113,7 @@ function Linha({
     onError: () => setCurtido({ curti: c.curti, n: c.curtidas }),
   });
   const apagar = useMutation({
-    mutationFn: (motivo?: string) => apiRequest("DELETE", `/api/public/comentarios/${c.id}`, motivo ? { motivo } : undefined),
+    mutationFn: (motivo?: string) => apiRequest("DELETE", `${rota}/${c.id}`, motivo ? { motivo } : undefined),
     onSuccess: aoMudar,
     onError: (e: Error) => window.alert(e.message),
   });
@@ -183,6 +190,7 @@ function Linha({
  */
 function Escrever({
   slug,
+  rotaDaLista,
   respostaA,
   aoEnviar,
   rotulo,
@@ -190,7 +198,9 @@ function Escrever({
   podeUsarEmoji,
   comoOrganizacao,
 }: {
-  slug: string;
+  /** A rifa (o presente só existe nela); sem rifa, é o sorteio oficial. */
+  slug?: string;
+  rotaDaLista: string;
   respostaA: { id: string; nome: string } | null;
   aoEnviar: () => void;
   rotulo: string;
@@ -208,7 +218,7 @@ function Escrever({
   }, [foco]);
   const enviar = useMutation({
     mutationFn: () =>
-      apiRequest("POST", `/api/public/campaigns/${slug}/comentarios`, { texto, respostaA: respostaA?.id }),
+      apiRequest("POST", rotaDaLista, { texto, respostaA: respostaA?.id }),
     onSuccess: () => {
       setTexto("");
       setErro(null);
@@ -260,13 +270,13 @@ function Escrever({
           if (!enviar.isPending) enviar.mutate();
         }}
       >
-        <label htmlFor={`comentar-${slug}`} className="sr-only">
+        <label htmlFor={`comentar-${slug ?? "sorteio"}`} className="sr-only">
           {rotulo}
         </label>
         {/* O campo sutil do Instagram: pílula fina, com o envio dentro dela. */}
         <div className="flex min-w-0 flex-1 items-end rounded-full border border-line-2 bg-white py-1 pl-4 pr-1 focus-within:border-ink-2">
           <textarea
-            id={`comentar-${slug}`}
+            id={`comentar-${slug ?? "sorteio"}`}
             ref={campo}
             rows={1}
             maxLength={COMENTARIO_MAX}
@@ -298,10 +308,10 @@ function Escrever({
             </button>
           ) : null}
         </div>
-        {comoOrganizacao ? null : <BotaoDePresente aberto={presenteAberto} aoAlternar={() => setPresenteAberto((v) => !v)} />}
+        {comoOrganizacao || !slug ? null : <BotaoDePresente aberto={presenteAberto} aoAlternar={() => setPresenteAberto((v) => !v)} />}
       </form>
       {erro ? <p className="text-xs text-red">{erro}</p> : null}
-      {presenteAberto && !comoOrganizacao ? <Presentear slug={slug} /> : null}
+      {presenteAberto && !comoOrganizacao && slug ? <Presentear slug={slug} /> : null}
     </div>
   );
 }
@@ -409,10 +419,16 @@ function Presentear({ slug }: { slug: string }) {
  */
 export function Comentarios({
   slug,
+  sorteioOficialId,
   dentroDoPainel,
   aoAbrirPainel,
+  soModerar,
 }: {
-  slug: string;
+  /** A rifa. Sem ela, os comentários são do sorteio oficial (`sorteioOficialId`). */
+  slug?: string;
+  sorteioOficialId?: string;
+  /** A plataforma moderando pelo painel: a lista e o "Apagar", sem o campo de escrever. */
+  soModerar?: boolean;
   dentroDoPainel?: boolean;
   /**
    * Na página da rifa, embaixo da compra, fica só o fixo (o parabéns a quem
@@ -422,7 +438,11 @@ export function Comentarios({
   aoAbrirPainel?: () => void;
 }) {
   const qc = useQueryClient();
-  const chave = [`/api/public/campaigns/${slug}/comentarios`];
+  const rotaDaLista = sorteioOficialId
+    ? `/api/public/sorteio-oficial/${sorteioOficialId}/comentarios`
+    : `/api/public/campaigns/${slug}/comentarios`;
+  const rota = sorteioOficialId ? ROTA_DO_COMENTARIO_DO_SORTEIO : ROTA_DO_COMENTARIO_DA_RIFA;
+  const chave = [rotaDaLista];
   const { data } = useQuery<Lista>({ queryKey: chave });
   const [respondendo, setRespondendo] = useState<{ id: string; nome: string } | null>(null);
   const [abertas, setAbertas] = useState<Set<string>>(new Set());
@@ -430,6 +450,8 @@ export function Comentarios({
   const recarregar = () => {
     qc.invalidateQueries({ queryKey: chave });
     qc.invalidateQueries({ queryKey: ["/api/public/campaigns"] });
+    // No sorteio oficial, o contador do calendário da plataforma também muda.
+    if (sorteioOficialId) qc.invalidateQueries({ queryKey: ["/api/admin/sorteios-oficiais"] });
   };
 
   // Chegou pelo aviso ou pelo cartão do feed (#comentarios): rola até aqui
@@ -486,9 +508,9 @@ export function Comentarios({
                 </p>
                 {p.comentario ? (
                   <div className="mt-3 space-y-3">
-                    <Linha c={p.comentario} podeCurtir={Boolean(data.podeCurtir)} aoMudar={recarregar} />
+                    <Linha rota={rota} c={p.comentario} podeCurtir={Boolean(data.podeCurtir)} aoMudar={recarregar} />
                     {p.comentario.respostas.map((r) => (
-                      <Linha key={r.id} c={r} resposta podeCurtir={Boolean(data.podeCurtir)} aoMudar={recarregar} />
+                      <Linha rota={rota} key={r.id} c={r} resposta podeCurtir={Boolean(data.podeCurtir)} aoMudar={recarregar} />
                     ))}
                   </div>
                 ) : null}
@@ -522,11 +544,12 @@ export function Comentarios({
           return (
             <li key={c.id} className="space-y-3">
               <Linha
+                rota={rota}
                 c={c}
                 podeCurtir={Boolean(data.podeCurtir)}
                 aoMudar={recarregar}
                 aoResponder={
-                  data.podeComentar && !data.precisaApelido
+                  data.podeComentar && !data.precisaApelido && !soModerar
                     ? () => {
                         setRespondendo({ id: c.id, nome: c.nome });
                         setFoco((f) => f + 1);
@@ -556,7 +579,7 @@ export function Comentarios({
               ) : null}
               {aberta
                 ? c.respostas.map((r) => (
-                    <Linha key={r.id} c={r} resposta podeCurtir={Boolean(data.podeCurtir)} aoMudar={recarregar} />
+                    <Linha rota={rota} key={r.id} c={r} resposta podeCurtir={Boolean(data.podeCurtir)} aoMudar={recarregar} />
                   ))
                 : null}
             </li>
@@ -568,7 +591,7 @@ export function Comentarios({
       ) : null}
 
       <div className={`mt-4 ${dentroDoPainel ? "sticky bottom-0 bg-white pb-2" : ""}`}>
-        {!data ? null : !data.podeComentar ? (
+        {!data || soModerar ? null : !data.podeComentar ? (
           <p className="rounded-xl border border-line bg-mist px-3 py-2 text-sm">
             <Link href="/entrar" className="font-semibold text-marca">
               Entre na sua conta
@@ -595,7 +618,8 @@ export function Comentarios({
               </p>
             ) : null}
             <Escrever
-              slug={slug}
+              slug={sorteioOficialId ? undefined : slug}
+              rotaDaLista={rotaDaLista}
               respostaA={respondendo}
               foco={foco}
               podeUsarEmoji={Boolean(data.podeUsarEmoji)}

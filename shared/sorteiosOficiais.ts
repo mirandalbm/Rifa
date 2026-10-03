@@ -31,6 +31,8 @@ export const LOTERIAS = {
   federal: {
     nome: "Loteria Federal",
     curto: "Federal",
+    /** O nome que cabe no dia do calendário no tablet (abaixo de `lg`). */
+    sigla: "Fed.",
     /** Os 5 prêmios, cada um com 5 algarismos (00000 a 99999). */
     /** A cor do jogo nas Loterias Caixa (`CORES_DA_CAIXA`). */
     cor: CORES_DA_CAIXA.federal,
@@ -41,6 +43,8 @@ export const LOTERIAS = {
   mega_sena: {
     nome: "Mega-Sena",
     curto: "Mega-Sena",
+    /** O nome que cabe no dia do calendário no tablet (abaixo de `lg`). */
+    sigla: "Mega",
     /** A cor do jogo nas Loterias Caixa (`CORES_DA_CAIXA`). */
     cor: CORES_DA_CAIXA.mega_sena,
     quantos: 6,
@@ -52,6 +56,8 @@ export const LOTERIAS = {
   quina: {
     nome: "Quina",
     curto: "Quina",
+    /** O nome que cabe no dia do calendário no tablet (abaixo de `lg`). */
+    sigla: "Quina",
     /** A cor do jogo nas Loterias Caixa (`CORES_DA_CAIXA`). */
     cor: CORES_DA_CAIXA.quina,
     quantos: 5,
@@ -63,6 +69,8 @@ export const LOTERIAS = {
   lotofacil: {
     nome: "Lotofácil",
     curto: "Lotofácil",
+    /** O nome que cabe no dia do calendário no tablet (abaixo de `lg`). */
+    sigla: "Lotof.",
     /** A cor do jogo nas Loterias Caixa (`CORES_DA_CAIXA`). */
     cor: CORES_DA_CAIXA.lotofacil,
     quantos: 15,

@@ -219,10 +219,13 @@ function Calendario({
                     // O nome da loteria vai num selo branco: lê-se bem sobre qualquer cor da Caixa.
                     <span
                       key={s.id}
-                      className="hidden truncate rounded bg-white px-1 py-0.5 text-[11px] font-bold text-ink sm:block"
+                      className="hidden truncate rounded bg-white px-1 py-0.5 text-[11px] font-bold leading-tight text-ink sm:block"
                       style={{ boxShadow: `inset 3px 0 0 ${LOTERIAS[s.loteria]?.cor}` }}
                     >
-                      {LOTERIAS[s.loteria]?.curto} <span className="font-normal text-muted">{s.concurso}</span>
+                      {/* No tablet o dia é estreito: a sigla em cima e o concurso embaixo; do `lg` em diante, o nome e o concurso numa linha. */}
+                      <span className="block truncate lg:hidden">{LOTERIAS[s.loteria]?.sigla}</span>
+                      <span className="hidden lg:inline">{LOTERIAS[s.loteria]?.curto} </span>
+                      <span className="block font-normal text-muted lg:inline">{s.concurso}</span>
                     </span>
                   ))}
                   {doDia.length > 2 ? <span className="hidden text-[11px] font-semibold sm:block">+{doDia.length - 2}</span> : null}
@@ -289,7 +292,8 @@ function FormularioDoSorteio({
               ))}
             </select>
           </Campo>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {/* No computador o cadastro fica na coluna estreita (380 px): concurso e data um embaixo do outro. */}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-1">
             <Campo rotulo="Concurso">
               <input inputMode="numeric" value={concurso} onChange={(e) => setConcurso(e.target.value.replace(/\D/g, "").slice(0, 5))} required />
             </Campo>
@@ -396,7 +400,7 @@ function CartaoDoSorteio({ s, plataforma }: { s: SorteioNoCalendario; plataforma
               <span className="tnum">{s.publicadas ?? 0}</span> rifa(s) publicada(s) neste sorteio.
             </span>
             {s.situacao !== "cancelado" ? (
-              <button type="button" className="font-semibold text-marca hover:underline" onClick={() => setModerando(true)}>
+              <button type="button" className="inline-flex min-h-6 items-center font-semibold text-marca hover:underline" onClick={() => setModerando(true)}>
                 Comentários (<span className="tnum">{s.comentarios}</span>)
               </button>
             ) : null}

@@ -2490,7 +2490,8 @@ coluna ao vivo segue como estava.
   da loteria** (`CORES_DA_CAIXA` em `shared/sorteiosOficiais.ts`: Federal,
   Mega-Sena, Quina, Lotofácil). É a **única exceção à paleta**: cor de
   identidade de terceiro (a da Caixa, que o apostador já reconhece), nunca
-  estado, e sempre com o nome junto (no dia, no rótulo do botão e na
+  estado, e sempre com o nome junto (no dia — a sigla no tablet, `sigla` em
+  `LOTERIAS`, e o nome do `lg` em diante —, no rótulo do botão e na
   legenda). O número do dia vai em branco por cima — `tests/sorteiosOficiais.test.ts`
   exige ≥ 3:1. As cores saíram do padrão do site das Loterias Caixa (o site
   e o manual não abrem deste ambiente): confira contra o manual de

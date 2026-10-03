@@ -162,6 +162,7 @@ async function papeis(): Promise<{ papeis: Record<string, Papel>; carrinho: stri
           "/admin/cambistas",
           "/admin/financeiro",
           "/admin/sorteios",
+          "/admin/sorteios-oficiais",
           "/admin/cobranca",
           "/admin/usuarios",
           "/admin/patrocinio",
@@ -183,6 +184,8 @@ async function papeis(): Promise<{ papeis: Record<string, Papel>; carrinho: stri
         rotas: [
           "/admin",
           "/admin/caixa",
+          "/admin/pedidos",
+          "/admin/sorteios-oficiais",
           "/admin/organizacoes",
           "/admin/bonus",
           "/admin/banner-pago",

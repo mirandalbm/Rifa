@@ -396,7 +396,7 @@ export default function Rifa() {
             <span className="inline-flex items-center gap-1 rounded-full bg-branco/15 px-2 py-0.5 text-[11px] font-bold text-branco">
               <Radio size={12} aria-hidden /> {campaign.sorteioOficial.selo}
             </span>
-            <Link href="/#sorteio" className="text-[11px] font-semibold text-branco underline md:hidden">
+            <Link href="/#sorteio" className="inline-flex min-h-6 items-center text-[11px] font-semibold text-branco underline md:hidden">
               Ver o sorteio
             </Link>
           </p>

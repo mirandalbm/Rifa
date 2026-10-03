@@ -16,22 +16,26 @@ import {
 import { relations, sql } from "drizzle-orm";
 import { customType } from "drizzle-orm/pg-core";
 
-/** Bytes crus (o anexo do chamado). O driver `pg` entrega `Buffer`. */
 /**
  * Índice de trigrama (`pg_trgm`) sobre o texto sem acento e minúsculo — a
  * expressão da busca (`semAcentoSql`), letra por letra, senão o Postgres não
  * usa o índice. A extensão é criada antes do `db:push` (`scripts/extensoes.ts`).
+ * O nome leva a versão da expressão (`trgm()`): o `drizzle-kit` não compara a
+ * expressão de um índice, só o nome — mudar as letras sem mudar o nome deixaria
+ * o índice antigo no banco, sem servir.
  */
 const trigramaSemAcento = (coluna: unknown) =>
   sql`translate(lower(${coluna}), ${sql.raw(`'${ACENTOS_DE}'`)}, ${sql.raw(`'${ACENTOS_PARA}'`)}) gin_trgm_ops`;
+const trgm = (nome: string) => `${nome}_trgm_v${VERSAO_SEM_ACENTO}`;
 
+/** Bytes crus (o anexo do chamado). O driver `pg` entrega `Buffer`. */
 const bytea = customType<{ data: Buffer; driverData: Buffer }>({
   dataType() {
     return "bytea";
   },
 });
 import { createInsertSchema } from "drizzle-zod";
-import { ACENTOS_DE, ACENTOS_PARA } from "./semAcentoSql";
+import { ACENTOS_DE, ACENTOS_PARA, VERSAO_SEM_ACENTO } from "./semAcentoSql";
 import { z } from "zod";
 
 /* ------------------------------------------------------------------ *
@@ -254,8 +258,8 @@ export const organizations = pgTable(
   (t) => [
     uniqueIndex("uq_organizations_slug").on(t.slug),
     // A busca por texto (Buscar): nome e endereço da organização, sem acento.
-    index("idx_organizations_nome_trgm").using("gin", trigramaSemAcento(t.name)),
-    index("idx_organizations_slug_trgm").using("gin", trigramaSemAcento(t.slug)),
+    index(trgm("idx_organizations_nome")).using("gin", trigramaSemAcento(t.name)),
+    index(trgm("idx_organizations_slug")).using("gin", trigramaSemAcento(t.slug)),
   ],
 );
 
@@ -555,8 +559,8 @@ export const campaigns = pgTable(
     // A fileira das rifas de um sorteio oficial (tela do sorteio no celular).
     index("idx_campaigns_sorteio_oficial").on(t.sorteioOficialId),
     // A busca por texto (Buscar): título e prêmio, sem acento.
-    index("idx_campaigns_titulo_trgm").using("gin", trigramaSemAcento(t.title)),
-    index("idx_campaigns_premio_trgm").using("gin", trigramaSemAcento(t.prizeTitle)),
+    index(trgm("idx_campaigns_titulo")).using("gin", trigramaSemAcento(t.title)),
+    index(trgm("idx_campaigns_premio")).using("gin", trigramaSemAcento(t.prizeTitle)),
   ],
 );
 

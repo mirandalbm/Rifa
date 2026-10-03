@@ -76,10 +76,19 @@ async function consultaDaGrade(termo: TermoDaBusca | null, depois: unknown, orde
     // organizações pelo nome (poucas linhas), e as rifas por título, prêmio
     // ou dona (`idx_campaigns_org`). Um `OR` com coluna das duas tabelas do
     // `JOIN` obrigaria o Postgres a ler a tabela de rifas inteira.
+    // Ordem fixa (a mesma lista em toda página do cursor) e só quem tem rifa
+    // que a grade mostraria: organização sem rifa no ar não gasta vaga do teto.
     const donas = await db
       .select({ id: organizations.id })
       .from(organizations)
-      .where(and(orgVisivel, contem(organizations.name, termo.texto)))
+      .where(
+        and(
+          orgVisivel,
+          contem(organizations.name, termo.texto),
+          sql`exists (select 1 from ${campaigns} where ${campaigns.organizationId} = "organizations"."id" and ${campaigns.status} = 'published' and ${campaigns.travadaEm} is null and ${campaigns.demonstracao} = false)`,
+        ),
+      )
+      .orderBy(organizations.id)
       .limit(ORGANIZACOES_DO_TEXTO_MAX);
     const porTexto = [contem(campaigns.title, termo.texto), contem(campaigns.prizeTitle, termo.texto)];
     if (donas.length) porTexto.push(inArray(campaigns.organizationId, donas.map((d) => d.id)));

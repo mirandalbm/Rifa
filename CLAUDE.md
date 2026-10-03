@@ -811,11 +811,17 @@ plataforma ligar, o apostador pelo `@apelido` exato.
   sem acento: título e prêmio da rifa, nome e endereço da organização). **A
   expressão do índice e a da consulta moram num lugar só**
   (`ACENTOS_DE`/`ACENTOS_PARA` em `shared/semAcentoSql.ts`): uma letra
-  diferente e o Postgres volta a ler a tabela inteira, calado. A grade busca
-  em dois passos — as organizações pelo nome (até
-  `ORGANIZACOES_DO_TEXTO_MAX`, o texto genérico bateria em todas) e as rifas
-  por título, prêmio ou dona —, porque um `OR` com coluna das duas tabelas do
-  `JOIN` não usa índice. O `drizzle-kit` não cria extensão: o `npm run
+  diferente e o Postgres volta a ler a tabela inteira, calado. **Mudou uma
+  letra, suba `VERSAO_SEM_ACENTO`**: o nome do índice leva a versão
+  (`idx_*_trgm_v<n>`), porque o `drizzle-kit` só recria índice quando o nome
+  muda — não compara a expressão (`tests/semAcentoSql.test.ts` falha se as
+  letras mudarem sem a versão). A grade busca em dois passos — as
+  organizações pelo nome e as rifas por título, prêmio ou dona —, porque um
+  `OR` com coluna das duas tabelas do `JOIN` não usa índice. As donas têm
+  teto (`ORGANIZACOES_DO_TEXTO_MAX`, 200: o texto genérico bateria em todas),
+  ordem fixa (a mesma lista em toda página do cursor) e só contam as que têm
+  rifa que a grade mostraria; passado o teto, o nome da organização deixa de
+  achar rifa (título e prêmio seguem valendo). O `drizzle-kit` não cria extensão: o `npm run
   db:push` roda antes `scripts/extensoes.ts` (`CREATE EXTENSION IF NOT
   EXISTS pg_trgm`); sem ela, o push falha. `npm run buscar` prova o plano
   com 5 mil rifas sintéticas numa transação que volta (`sqlDaGrade()`).

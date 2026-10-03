@@ -15,6 +15,7 @@ import { db, pool } from "../server/db";
 import { buyers, campaignStats, campaigns, organizations, users } from "../shared/schema";
 import { BUSCA_PAGINA } from "../shared/buscar";
 import { sqlDaGrade } from "../server/services/buscar";
+import { VERSAO_SEM_ACENTO } from "../shared/semAcentoSql";
 
 const URL = baseUrl();
 let falhas = 0;
@@ -205,8 +206,11 @@ async function main() {
       // Postgres escolhe o plano de verdade, e a prova vê se o índice serve à
       // consulta que a tela roda (a expressão sem acento tem de ser a mesma).
       const { sql: textoSql, params } = await sqlDaGrade("zqxwuniquetrgm");
+      // O texto que bate no nome da organização da prova: a grade passa pelo ramo da dona.
+      const { sql: sqlDaDona, params: paramsDaDona } = await sqlDaGrade("vizinha buscavel");
       const cliente = await pool.connect();
       let plano = "";
+      let planoDaDona = "";
       try {
         await cliente.query("BEGIN");
         await cliente.query(
@@ -219,15 +223,23 @@ async function main() {
         );
         // Linha nova num índice GIN fica numa lista pendente até o VACUUM (em
         // produção, o autovacuum); limpa aqui, senão o custo estimado engana.
-        await cliente.query("SELECT gin_clean_pending_list('idx_campaigns_titulo_trgm'), gin_clean_pending_list('idx_campaigns_premio_trgm')");
+        await cliente.query(`SELECT gin_clean_pending_list('idx_campaigns_titulo_trgm_v${VERSAO_SEM_ACENTO}'), gin_clean_pending_list('idx_campaigns_premio_trgm_v${VERSAO_SEM_ACENTO}')`);
         await cliente.query("ANALYZE campaigns");
-        plano = (await cliente.query(`EXPLAIN ${textoSql}`, params as unknown[])).rows.map((l: Record<string, string>) => l["QUERY PLAN"]).join("\n");
+        const explicar = async (q: string, p: unknown[]) =>
+          (await cliente.query(`EXPLAIN ${q}`, p)).rows.map((l: Record<string, string>) => l["QUERY PLAN"]).join("\n");
+        plano = await explicar(textoSql, params as unknown[]);
+        planoDaDona = await explicar(sqlDaDona, paramsDaDona as unknown[]);
       } finally {
         await cliente.query("ROLLBACK").catch(() => {});
         cliente.release();
       }
       checa("com a tabela cheia, a busca usa o índice do título e do prêmio", plano.includes("idx_campaigns_titulo_trgm") && plano.includes("idx_campaigns_premio_trgm"), plano.split("\n").slice(0, 8).join(" | "));
       checa("…e não lê a tabela de rifas inteira", !/Seq Scan on campaigns/.test(plano));
+      checa(
+        "texto que bate na organização: a dona entra pela lista, sem ler a tabela de rifas inteira",
+        /organization_id = ANY|organization_id IN|idx_campaigns_org/.test(planoDaDona) && !/Seq Scan on campaigns/.test(planoDaDona),
+        planoDaDona.split("\n").slice(0, 10).join(" | "),
+      );
       const [{ n }] = (await db.execute(sql`select count(*)::int as n from campaigns where slug like 'trgm-prova-%'`)).rows as { n: number }[];
       checa("as rifas da prova não ficam no banco", n === 0);
     }

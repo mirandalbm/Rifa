@@ -977,8 +977,7 @@ isso é variável à parte.
   `src` = original, no ponto em que estava.
 - **Endereço da API**: `CLOUDFLARE_API_URL` só fora de produção
   (`baseDaCloudflare()`), para a prova; o token só no cabeçalho.
-- Ficou fora: story em vídeo (vive 24 h, fica no banco), vídeo nas conversas,
-  URL assinada e `allowedOrigins` do Stream (o vídeo da rifa já é público; o
+- Ficou fora: story em vídeo (vive 24 h, fica no banco), URL assinada e `allowedOrigins` do Stream (o vídeo da rifa já é público; o
   HLS de uma rifa que sai do ar segue tocável enquanto a mídia existir, como o
   original em `/uploads`) — `docs/PENDENCIAS.md`.
 - As colunas `campaign_media.stream_uid` e `stream_hls` e a tabela
@@ -1927,6 +1926,10 @@ conversa como cartão (o compartilhar da publicação), nunca como link no texto
   **organização e afiliado** (a conversa privada é o canal do golpe): acendeu,
   vira denúncia automática com o trecho; não barra a mensagem e nunca derruba
   o envio (`emSegundoPlano`).
+- **Vídeo nas Mensagens não existe e não vai existir** (decisão do produto,
+  03/10/2026): nem na conversa de um para um nem nos grupos. Entre os
+  participantes, só texto e — na conversa — a foto do apostador. Não abra
+  rota, tabela ou botão de vídeo aqui.
 - **Foto na conversa** (`mensagem_imagens`): **só o apostador envia**
   (`podeEnviarImagem()`) — a varredura do Pix por fora só lê texto e a
   conversa da organização e do afiliado é o canal do golpe; foto lá seria o
@@ -1986,7 +1989,7 @@ conversa como cartão (o compartilhar da publicação), nunca como link no texto
     conta tira a pessoa do grupo e mascara as mensagens na leitura, mas a prova
     de uma denúncia aberta não se apaga).
   - Fica de fora: moderador do grupo (quem cria não remove ninguém — a
-    plataforma encerra), foto/vídeo em grupo e aviso no celular.
+    plataforma encerra), foto em grupo e aviso no celular.
   - `npm run grupos` prova tudo isso contra a API de verdade.
 - **Aviso sem conteúdo**: o apostador recebe push e trevo "Nova mensagem" (no
   máximo um por conversa a cada 30 min, pela chave); o texto nunca vai no push.
@@ -2490,7 +2493,8 @@ coluna ao vivo segue como estava.
   da loteria** (`CORES_DA_CAIXA` em `shared/sorteiosOficiais.ts`: Federal,
   Mega-Sena, Quina, Lotofácil). É a **única exceção à paleta**: cor de
   identidade de terceiro (a da Caixa, que o apostador já reconhece), nunca
-  estado, e sempre com o nome junto (no dia, no rótulo do botão e na
+  estado, e sempre com o nome junto (no dia — a sigla no tablet, `sigla` em
+  `LOTERIAS`, e o nome do `lg` em diante —, no rótulo do botão e na
   legenda). O número do dia vai em branco por cima — `tests/sorteiosOficiais.test.ts`
   exige ≥ 3:1. As cores saíram do padrão do site das Loterias Caixa (o site
   e o manual não abrem deste ambiente): confira contra o manual de

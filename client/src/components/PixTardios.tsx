@@ -85,7 +85,9 @@ export function PixTardios() {
                 </div>
                 {c.erro ? <p className="mt-2 text-xs text-red">{c.erro}</p> : null}
                 {c.status === "pendente" || c.status === "devolvendo" ? (
-                  <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:items-end">
+                  // Botão, campo e botão lado a lado só a partir de `xl`: no tablet, com o
+                  // menu aberto, o campo ficava espremido entre os dois botões.
+                  <div className="mt-2 grid grid-cols-1 gap-2 xl:grid-cols-[auto_minmax(0,1fr)_auto] xl:items-end">
                     {c.status === "pendente" ? (
                       <Button disabled={devolver.isPending} onClick={() => devolver.mutate(c.id)}>
                         Devolver pelo provedor

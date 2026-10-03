@@ -263,7 +263,9 @@ export function VerificacaoCard({
       </Card>
 
       {mostrarFormulario ? (
-        <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+        // Minha conta do apostador é coluna estreita de propósito (texto de leitura):
+        // lá dados e documentos vão um embaixo do outro. No painel, lado a lado no computador.
+        <div className={`grid grid-cols-1 gap-3 ${sujeito === "apostador" ? "" : "lg:grid-cols-2"}`}>
           <Card title={pessoa ? "Seus dados" : "Dados da organização"}>
             <form
               className="space-y-3 p-4"

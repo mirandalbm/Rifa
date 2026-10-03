@@ -3,6 +3,10 @@ import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { ChevronLeft, Radio } from "lucide-react";
 import { Comentarios } from "@/components/Comentarios";
+import { FotoDoPerfil } from "@/components/Seguir";
+import { VisualizadorDeStories, useVistos } from "@/components/Stories";
+import { vistoAte } from "@/lib/stories";
+import { temStoryNovo } from "@shared/vitrine";
 import {
   ATUALIZA_MS,
   TelaDoProximoSorteio,
@@ -215,10 +219,19 @@ export interface SorteioOficialDaTela {
       slug: string;
       premio: string;
       capa: string | null;
-      organizacao: { slug: string; nome: string };
+      organizacao: OrganizacaoDoAvatar;
       numeroContemplado: number | null;
     }[];
   } | null;
+  /** Sem sorteio oficial: as rifas dos próximos sorteios, a mais próxima primeiro. */
+  proximas?: { slug: string; premio: string; organizacao: OrganizacaoDoAvatar }[];
+}
+
+interface OrganizacaoDoAvatar {
+  slug: string;
+  nome: string;
+  foto: string | null;
+  ultimoStory: string | null;
 }
 
 const CHAVE_DO_SORTEIO = ["/api/public/sorteio-oficial"];
@@ -249,6 +262,8 @@ function ConteudoDoSorteio({
     refetchIntervalInBackground: false,
   });
   const daRifa = !s ? (dadosAoVivo?.proximo ?? null) : null;
+  const proximas = data?.proximas ?? [];
+  const [stories, setStories] = useState<string | null>(null);
   const hora = s
     ? new Date(s.sorteioEm).toLocaleString("pt-BR", {
         day: "2-digit",
@@ -316,25 +331,7 @@ function ConteudoDoSorteio({
                 Rifas neste sorteio <span className="tnum font-normal text-muted">({s.rifas.length})</span>
               </h3>
               {s.rifas.length ? (
-                // Linha horizontal: quem comprou acha a rifa dela no sorteio.
-                <ul className="flex snap-x scroll-px-4 gap-3 overflow-x-auto px-4 pb-2" data-sem-gesto>
-                  {s.rifas.map((r) => (
-                    <li key={r.slug} className="w-36 shrink-0 snap-start">
-                      <Link href={`/o/${r.organizacao.slug}/r/${r.slug}`} className="block rounded-lg hover:bg-mist">
-                        <span className="block aspect-square overflow-hidden rounded-lg bg-mist-2">
-                          {r.capa ? <img src={r.capa} alt="" loading="lazy" className="h-full w-full object-cover" /> : null}
-                        </span>
-                        <span className="mt-1 block truncate text-sm font-semibold">{r.premio}</span>
-                        <span className="block truncate text-xs text-muted">{r.organizacao.nome}</span>
-                        {r.numeroContemplado !== null ? (
-                          <span className="block text-xs text-green-deep">
-                            Contemplado: <span className="tnum font-bold">{r.numeroContemplado}</span>
-                          </span>
-                        ) : null}
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
+                <FileiraDeAvatares rifas={s.rifas} aoAbrirStories={setStories} />
               ) : (
                 <p className="px-4 text-sm text-muted">Nenhuma rifa integrada a este sorteio ainda.</p>
               )}
@@ -345,32 +342,82 @@ function ConteudoDoSorteio({
               <Comentarios sorteioOficialId={s.id} />
             </div>
           </>
-        ) : daRifa ? (
-          <>
-            <div className="px-4">
-              <p className="font-display text-lg font-bold leading-tight">{daRifa.prizeTitle}</p>
-              <p className="text-sm text-muted">
-                {daRifa.organizacao.nome} · <span className="tnum">{new Date(daRifa.drawAt).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</span>
-              </p>
-              <Link
-                href={`/o/${daRifa.organizacao.slug}/r/${daRifa.slug}`}
-                className="mt-2 inline-block text-sm font-semibold text-marca underline"
-              >
-                Ver a rifa
-              </Link>
-            </div>
-            {/* Os comentários da rifa abertos, como no YouTube. */}
-            <div className="mt-3 border-t border-line px-4">
-              <Comentarios slug={daRifa.slug} />
-            </div>
-          </>
+        ) : proximas.length ? (
+          // Sem sorteio oficial: as rifas dos próximos sorteios como avatares,
+          // no modelo dos stories — nenhuma em detalhe.
+          <section aria-label="Rifas dos próximos sorteios" className="pt-1">
+            <h3 className="mb-2 px-4 text-sm font-bold">
+              Rifas dos próximos sorteios <span className="tnum font-normal text-muted">({proximas.length})</span>
+            </h3>
+            <FileiraDeAvatares rifas={proximas} aoAbrirStories={setStories} />
+          </section>
         ) : !isLoading ? (
           <p className="px-4 text-sm text-muted">Nenhum sorteio marcado agora.</p>
         ) : null}
       </div>
+      {stories ? <VisualizadorDeStories slug={stories} onFechar={() => setStories(null)} /> : null}
     </>
   );
 }
+
+/**
+ * A fileira das rifas como avatares, no modelo da fileira de stories da
+ * vitrine: a foto da organização com o anel. Dois alvos no mesmo círculo:
+ * **o anel (a borda) abre o story** da organização, **o meio abre a rifa**.
+ * Sem story no ar, não há anel e o círculo inteiro abre a rifa. Embaixo, só
+ * o nome da organização — a rifa não aparece em detalhe aqui.
+ */
+function FileiraDeAvatares({
+  rifas,
+  aoAbrirStories,
+}: {
+  rifas: { slug: string; premio: string; organizacao: OrganizacaoDoAvatar; numeroContemplado?: number | null }[];
+  aoAbrirStories: (slug: string) => void;
+}) {
+  useVistos();
+  return (
+    <ul className="flex snap-x scroll-px-4 gap-3 overflow-x-auto px-4 pb-2" data-sem-gesto>
+      {rifas.map((r) => {
+        const o = r.organizacao;
+        const rifa = `/o/${o.slug}/r/${r.slug}`;
+        const novo = o.ultimoStory ? temStoryNovo(o.ultimoStory, vistoAte(o.slug)) : false;
+        return (
+          <li key={r.slug} className="w-[86px] shrink-0 snap-start text-center">
+            <span className="relative mx-auto block" style={{ width: AVATAR + 2 * BORDA, height: AVATAR + 2 * BORDA }}>
+              {o.ultimoStory ? (
+                <button
+                  type="button"
+                  onClick={() => aoAbrirStories(o.slug)}
+                  aria-label={`Ver stories de ${o.nome}${novo ? " (novo)" : ""}`}
+                  className={`absolute inset-0 rounded-full ${novo ? "border-[3px] border-marca" : "border border-line-2"}`}
+                />
+              ) : null}
+              <Link
+                href={rifa}
+                aria-label={`Abrir a rifa ${r.premio}, de ${o.nome}`}
+                className="absolute block overflow-hidden rounded-full"
+                style={{ inset: BORDA }}
+              >
+                <FotoDoPerfil nome={o.nome} foto={o.foto} tamanho={AVATAR} />
+              </Link>
+            </span>
+            <span className="mt-1 block truncate text-xs text-ink-2">{o.nome}</span>
+            {r.numeroContemplado != null ? (
+              <span className="block text-[11px] text-green-deep">
+                Nº <span className="tnum font-bold">{r.numeroContemplado}</span>
+              </span>
+            ) : null}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+/** O círculo inteiro tem a largura do da fileira de stories da vitrine (86 px). */
+const AVATAR = 66;
+/** A borda que abre o story: o anel e o espaço até a foto, alvo de 10 px. */
+const BORDA = 10;
 
 /**
  * A contagem do próximo sorteio na faixa de cima do Início (à direita do

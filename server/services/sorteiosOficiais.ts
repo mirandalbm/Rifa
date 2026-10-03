@@ -11,7 +11,7 @@
  */
 import { and, asc, desc, eq, gt, inArray, isNotNull, isNull, ne, sql } from "drizzle-orm";
 import { db } from "../db";
-import { campaigns, draws, organizations, sorteiosOficiais, type Campaign } from "@shared/schema";
+import { campaigns, draws, organizacaoFotos, organizations, sorteiosOficiais, type Campaign } from "@shared/schema";
 import {
   LOTERIAS,
   RIFAS_NA_FILEIRA,
@@ -26,7 +26,7 @@ import {
 } from "@shared/sorteiosOficiais";
 import { DURACAO_DA_TRANSMISSAO_MS, videoDaTransmissao } from "@shared/aoVivo";
 import { isUniqueViolation } from "../pgError";
-import { midiasDas } from "./perfil";
+import { midiasDas, ultimoStorySql, urlDaFoto } from "./perfil";
 
 export class SorteioOficialError extends Error {
   constructor(message: string, readonly status = 422) {
@@ -373,7 +373,7 @@ export async function sorteioOficialDaTela() {
         .orderBy(desc(sorteiosOficiais.sorteioEm))
         .limit(1);
   const s = proximo ?? ultimo;
-  if (!s) return { sorteio: null };
+  if (!s) return { sorteio: null, proximas: await proximasRifas() };
 
   const rifas = await db
     .select({
@@ -382,9 +382,12 @@ export async function sorteioOficialDaTela() {
       premio: campaigns.prizeTitle,
       orgSlug: organizations.slug,
       orgNome: organizations.name,
+      orgFoto: organizacaoFotos.updatedAt,
+      ultimoStory: ultimoStorySql,
     })
     .from(campaigns)
     .innerJoin(organizations, eq(organizations.id, campaigns.organizationId))
+    .leftJoin(organizacaoFotos, eq(organizacaoFotos.organizationId, organizations.id))
     .where(
       and(
         eq(campaigns.sorteioOficialId, s.id),
@@ -412,6 +415,7 @@ export async function sorteioOficialDaTela() {
 
   const tela = paraTela(s);
   return {
+    proximas: [],
     sorteio: {
       ...tela,
       // O endereço da transmissão sai só como o vídeo conferido (serviço conhecido) ou link.
@@ -422,9 +426,55 @@ export async function sorteioOficialDaTela() {
         slug: r.slug,
         premio: r.premio,
         capa: capaDe(r.id),
-        organizacao: { slug: r.orgSlug, nome: r.orgNome },
+        organizacao: avatarDaOrganizacao(r),
         numeroContemplado: sorteadas.find((d) => d.campaignId === r.id)?.numero ?? null,
       })),
     },
   };
+}
+
+/**
+ * A organização como avatar da fileira (o modelo dos stories): nome, foto e
+ * o story no ar — o anel abre o story, o meio abre a rifa. Nada além do que
+ * o perfil público já mostra.
+ */
+function avatarDaOrganizacao(r: { orgSlug: string; orgNome: string; orgFoto: Date | null; ultimoStory: Date | null }) {
+  return { slug: r.orgSlug, nome: r.orgNome, foto: urlDaFoto(r.orgSlug, r.orgFoto), ultimoStory: r.ultimoStory };
+}
+
+/**
+ * Sem sorteio oficial no calendário, a tela do sorteio mostra as rifas dos
+ * próximos sorteios (a mesma régua da vitrine e da coluna ao vivo: publicada,
+ * de verdade, não sorteada, promotora no ar), a mais próxima primeiro — como
+ * avatares, sem o detalhe de nenhuma.
+ */
+async function proximasRifas() {
+  const rifas = await db
+    .select({
+      slug: campaigns.slug,
+      premio: campaigns.prizeTitle,
+      drawAt: campaigns.drawAt,
+      orgSlug: organizations.slug,
+      orgNome: organizations.name,
+      orgFoto: organizacaoFotos.updatedAt,
+      ultimoStory: ultimoStorySql,
+    })
+    .from(campaigns)
+    .innerJoin(organizations, eq(organizations.id, campaigns.organizationId))
+    .leftJoin(organizacaoFotos, eq(organizacaoFotos.organizationId, organizations.id))
+    .leftJoin(draws, and(eq(draws.campaignId, campaigns.id), isNotNull(draws.executedAt)))
+    .where(
+      and(
+        eq(campaigns.status, "published"),
+        eq(campaigns.demonstracao, false),
+        isNull(campaigns.travadaEm),
+        isNull(organizations.archivedAt),
+        isNull(organizations.banidaEm),
+        isNull(draws.id),
+        gt(campaigns.drawAt, new Date(Date.now() - DURACAO_DA_TRANSMISSAO_MS)),
+      ),
+    )
+    .orderBy(asc(campaigns.drawAt))
+    .limit(RIFAS_NA_FILEIRA);
+  return rifas.map((r) => ({ slug: r.slug, premio: r.premio, organizacao: avatarDaOrganizacao(r) }));
 }

@@ -122,7 +122,7 @@ export function pecaPublica(m: ReturnType<typeof withUrls>) {
  */
 // A referência à organização vai com o nome da tabela escrito: dentro da
 // subconsulta o drizzle a deixaria sem prefixo, e "id" viraria o do story.
-const ultimoStorySql = sql<Date | null>`(
+export const ultimoStorySql = sql<Date | null>`(
   select max(s.publica_em) from ${stories} s
    where s.organization_id = "organizations"."id" and s.publica_em <= now() and s.expira_em > now()
 )`.mapWith((v) => (v instanceof Date ? v : v ? new Date(`${String(v).replace(" ", "T")}Z`) : null));

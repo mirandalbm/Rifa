@@ -210,7 +210,7 @@ export function VisualizadorDeStories({
   });
 
   return (
-    <div role="dialog" aria-modal="true" aria-label={data ? `Stories de ${data.nome}` : "Stories"} className="fixed inset-0 z-50 flex items-center justify-center bg-black">
+    <div role="dialog" aria-modal="true" aria-label={data ? `Stories de ${data.nome}` : "Stories"} className="fixed inset-0 z-[70] flex items-center justify-center bg-black">
       {isError ? (
         <p className="text-sm text-branco">Não consegui abrir os stories.</p>
       ) : !data || !atual ? (

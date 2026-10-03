@@ -133,7 +133,7 @@ arquitetura.
 | notificações no celular (Web Push) | `shared/push.ts` (regras), `server/services/push.ts`, `client/public/sw.js`, `client/src/lib/push.ts`, `scripts/push-test.ts` |
 | Termos de uso e Política de privacidade (texto montado das regras, dados da empresa e encarregado) | `shared/legal.ts` (`montarTermosDeUso`, `montarPrivacidade`, `validarDadosDaEmpresa`), `legal` em `shared/template.ts`, `client/src/pages/Legal.tsx` (`/termos`, `/privacidade`), cartão "Dados da empresa" em `client/src/pages/adminAparencia.tsx`, `tests/legal.test.ts` |
 | regulamento, central de ajuda, transmissão, conferência do sorteio e a regra da aproximação (número não vendido) | `shared/regulamento.ts`, `shared/ajuda.ts`, `shared/sorteio.ts` (`contempladoPorAproximacao`), o sorteio em `POST /campaigns/:id/draw` (`server/routes/admin.ts`), `client/src/components/SorteioCard.tsx`, `scripts/transparencia-test.ts` |
-| vitrine: banners, stories, estados e feed | `shared/vitrine.ts` (regras), `server/services/vitrine.ts`, `client/src/components/BannersVitrine.tsx`, `Stories.tsx`, `EstadosVitrine.tsx`, `CartaoDoFeed.tsx`, `client/src/pages/adminStories.tsx`, `scripts/vitrine-test.ts` |
+| vitrine: banners, stories (inclusive o agendado), estados e feed | `shared/vitrine.ts` (regras), `server/services/vitrine.ts`, `server/services/faixa.ts` (`Range` do vídeo), `client/src/components/BannersVitrine.tsx`, `Stories.tsx`, `EstadosVitrine.tsx`, `CartaoDoFeed.tsx`, `client/src/pages/adminStories.tsx`, `scripts/vitrine-test.ts` |
 | painel de resultados, origem da venda e foto do ganhador | `shared/resultados.ts` (regras), `server/services/resultados.ts`, `client/src/lib/origem.ts`, `client/src/pages/adminResultados.tsx`, `server/services/ganhador.ts`, `scripts/resultados-test.ts` |
 | aparência da plataforma (construtor de templates) | `shared/template.ts` (regras), `server/services/template.ts`, `client/src/lib/template.ts`, `client/src/pages/adminAparencia.tsx`, `scripts/aparencia-test.ts` |
 | tema claro e escuro | `client/src/index.css` (variáveis), `client/src/lib/tema.ts`, `client/src/components/TemaToggle.tsx`, `tests/tema.test.ts` |
@@ -2470,6 +2470,18 @@ desconto na primeira compra — **pago pela plataforma**.
 - **Story vive 24 h** (`expira_em`). Vencido some da rota **na hora** (lista
   e imagem conferem a data), e o relógio tira do banco (`apagarStoriesVencidos`,
   trava 811010). Organização arquivada: a imagem também some.
+- **Story agendado** (`publica_em`, `publicacaoDoStory()` em
+  `shared/vitrine.ts`): a organização escolhe a hora (até
+  `STORY_AGENDA_MAX_DIAS`, 7, à frente; passado ou longe demais é 400) e as
+  24 h contam **dali** (`expira_em = publica_em + 24 h`). **Nada público vê o
+  agendado antes da hora**: toda leitura pública passa por `storyNoAr()`
+  (já entrou e não venceu) — perfil, fileira, anel (`ultimoStorySql`, o mais
+  novo por `publica_em`), imagem e pôster. Não há relógio: na hora ele
+  simplesmente passa a valer. O painel vê o agendado (com `agendadoPara`) pela
+  porta dele (`GET /admin/stories/:id/imagem|poster`, recorte por
+  `donoDoStory` antes — o do vizinho é 404, no `npm run isolation`;
+  `no-store`), porque a pública ainda dá 404. O agendado ocupa vaga do
+  `STORIES_MAX` (no ar ou agendados).
 - **Story em vídeo vai como veio, medido no servidor** (`postarStory` com
   `video`, `lerVideoDoStory()`; régua em `problemaNoVideoDoStory()` de
   `shared/vitrine.ts`): MP4 ou MOV (WebM não, porque não sabemos medir), até

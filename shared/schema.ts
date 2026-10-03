@@ -2018,7 +2018,8 @@ export const bannerPedidos = pgTable(
 );
 
 /**
- * Stories do organizador: uma imagem 9:16 que some em 24 h (`expira_em`).
+ * Stories do organizador: uma imagem 9:16 que entra no ar em `publica_em`
+ * (na hora ou agendado) e some 24 h depois (`expira_em`).
  * Aparece para quem segue, no topo da vitrine, e acende o anel da foto no
  * perfil. O relógio apaga os vencidos — a tabela não cresce.
  */
@@ -2037,6 +2038,11 @@ export const stories = pgTable(
     /** Pôster do vídeo (WebP), tirado em segundo plano. Nulo sem ffmpeg ou em imagem. */
     poster: bytea("poster"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
+    /**
+     * Quando entra no ar (agendado ou na hora). Antes disto o story não
+     * aparece no público; as 24 h de `expira_em` contam daqui.
+     */
+    publicaEm: timestamp("publica_em").notNull().defaultNow(),
     expiraEm: timestamp("expira_em").notNull(),
   },
   (t) => [index("ix_stories_org_expira").on(t.organizationId, t.expiraEm)],

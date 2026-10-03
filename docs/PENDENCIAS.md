@@ -674,8 +674,11 @@ Na ordem de entrega do plano:
   organização decide a versão que leu (`versao`, 409 se mudou). **Falta no
   ambiente**: `db:push` (colunas `divulgacoes.versao` e `editada_em`)
   **antes** do código; (5) ferramentas do Instagram ainda
-  sem equivalente: reels pela organização, agendar publicação, enquete e
-  figurinhas no story; (6) ~~a plataforma decidir sem escolher a
+  sem equivalente: reels pela organização, agendar publicação (**story
+  agendado feito**: até 7 dias, as 24 h contam da hora; **falta no
+  ambiente** o `db:push` da coluna `stories.publica_em` **antes** do código —
+  sem ela toda leitura de story falha; a peça de divulgação e a rifa
+  agendadas vêm nos próximos PRs), enquete e figurinhas no story; (6) ~~a plataforma decidir sem escolher a
   organização~~ — **feito**: a plataforma vê a fila de todas, com o nome da
   organização, e decide qualquer peça (`npm run divulgacao` prova).
 - [ ] **[código]** Remodelagem do web e dos painéis, depois do app

@@ -4,6 +4,8 @@ import {
   bannerNoAr,
   estadosComRifa,
   expiraEm,
+  publicacaoDoStory,
+  STORY_AGENDA_MAX_DIAS,
   temStoryNovo,
   validarBanner,
   validarLegenda,
@@ -132,5 +134,28 @@ describe("story em vídeo", () => {
     expect(problemaNoVideoDoStory(1_000, 10, null)).toMatch(/medir/);
     expect(problemaNoVideoDoStory(1_000, 0, emPe)).toMatch(/duração/);
     expect(problemaNoVideoDoStory(1_000, NaN, emPe)).toMatch(/duração/);
+  });
+});
+
+describe("publicacaoDoStory (agendar)", () => {
+  const agora = new Date("2026-10-03T12:00:00.000Z");
+  it("sem data, vai agora", () => {
+    expect(publicacaoDoStory(undefined, agora)).toBe(agora);
+    expect(publicacaoDoStory("", agora)).toBe(agora);
+    expect(publicacaoDoStory(null, agora)).toBe(agora);
+  });
+  it("agenda dentro da janela", () => {
+    expect(publicacaoDoStory("2026-10-04T09:30:00.000Z", agora).toISOString()).toBe("2026-10-04T09:30:00.000Z");
+  });
+  it("um minuto atrasado ainda é agora; passado de verdade é recusado", () => {
+    expect(publicacaoDoStory("2026-10-03T11:59:30.000Z", agora)).toBe(agora);
+    expect(() => publicacaoDoStory("2026-10-03T11:00:00.000Z", agora)).toThrow();
+  });
+  it(`mais de ${STORY_AGENDA_MAX_DIAS} dias à frente é recusado`, () => {
+    expect(() => publicacaoDoStory(new Date(agora.getTime() + (STORY_AGENDA_MAX_DIAS + 1) * 86_400_000).toISOString(), agora)).toThrow();
+  });
+  it("texto que não é data, ou outro tipo, é recusado", () => {
+    expect(() => publicacaoDoStory("amanhã", agora)).toThrow();
+    expect(() => publicacaoDoStory(123, agora)).toThrow();
   });
 });

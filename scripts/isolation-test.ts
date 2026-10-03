@@ -313,6 +313,9 @@ async function alcancaOVizinho(eu: Lado, vizinho: Lado) {
     ["PUT legenda do vizinho", `/api/admin/campaigns/${c}/legenda`, { method: "PUT", body: '{"legenda":"legenda invadida"}' }],
     ["PUT perfil público do vizinho", `/api/admin/organizacoes/${vizinho.orgId}/perfil`, { method: "PUT", body: '{"bio":"perfil invadido"}' }],
     ["DELETE story do vizinho", `/api/admin/stories/${storyDoVizinho.id}`, { method: "DELETE" }],
+    // A porta do painel serve o story agendado; a do vizinho não existe para mim.
+    ["GET imagem do story do vizinho pelo painel", `/api/admin/stories/${storyDoVizinho.id}/imagem`, {}],
+    ["GET pôster do story do vizinho pelo painel", `/api/admin/stories/${storyDoVizinho.id}/poster`, {}],
     ["PUT foto do ganhador do vizinho", `/api/admin/campaigns/${c}/foto-ganhador`, { method: "PUT", body: '{"foto":null}' }],
     ["POST endereço curto do perfil do vizinho", `/api/admin/organizacoes/${vizinho.orgId}/link-curto`, { method: "POST" }],
     ["GET cliques nos links do vizinho", `/api/admin/organizacoes/${vizinho.orgId}/links/cliques`, {}],

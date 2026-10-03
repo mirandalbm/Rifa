@@ -46,8 +46,8 @@ export type AutorDaDivulgacao = "afiliado" | "apostador";
 export const DIVULGACAO_MIDIAS_MAX = 5;
 /** Fotos do próprio apostador na peça dele (sempre com a autorização da organização). */
 export const DIVULGACAO_FOTOS_MAX = 4;
-/** Cada foto, antes de reprocessar (a tela já reduz a foto do celular). */
-export const DIVULGACAO_FOTO_MAX_BYTES = 5 * 1024 * 1024;
+/** Cada foto, antes de reprocessar (a tela já manda JPEG de 1600 px, bem abaixo disto). */
+export const DIVULGACAO_FOTO_MAX_BYTES = 3 * 1024 * 1024;
 
 /**
  * As fotos que o apostador manda: ausente é `null` (na edição, ficam as que a
@@ -59,7 +59,7 @@ export function validarFotos(v: unknown): string[] | null {
   if (!Array.isArray(v)) throw new Error("Fotos inválidas.");
   if (v.length > DIVULGACAO_FOTOS_MAX) throw new Error(`Envie até ${DIVULGACAO_FOTOS_MAX} fotos.`);
   for (const f of v) {
-    if (typeof f !== "string" || !/^data:image\/[a-z0-9.+-]+;base64,[A-Za-z0-9+/=]+$/i.test(f)) throw new Error("Envie fotos em JPG ou PNG.");
+    if (typeof f !== "string" || !/^data:image\/(jpeg|jpg|png|webp);base64,[A-Za-z0-9+/=]+$/i.test(f)) throw new Error("Envie fotos em JPG, PNG ou WebP.");
   }
   return v as string[];
 }

@@ -111,6 +111,8 @@ describe("fotos do apostador", () => {
     expect(() => validarFotos(["https://site/x.jpg"])).toThrow();
     expect(() => validarFotos(["data:text/html;base64,PHNjcmlwdD4="])).toThrow();
     expect(() => validarFotos("nao-e-lista")).toThrow();
+    expect(() => validarFotos(["data:image/svg+xml;base64,PHN2Zz4="])).toThrow();
+    expect(validarFotos(["data:image/png;base64,AAAA", "data:image/webp;base64,AAAA"])).toHaveLength(2);
   });
 });
 

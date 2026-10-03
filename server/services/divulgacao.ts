@@ -155,7 +155,7 @@ async function processarFotos(fotos: string[]): Promise<Buffer[]> {
   const saida: Buffer[] = [];
   for (const f of fotos) {
     const bruto = Buffer.from(f.slice(f.indexOf(",") + 1), "base64");
-    if (bruto.length > DIVULGACAO_FOTO_MAX_BYTES) throw new DivulgacaoError("Uma das fotos passa de 5 MB. Envie uma menor.", 413);
+    if (bruto.length > DIVULGACAO_FOTO_MAX_BYTES) throw new DivulgacaoError("Uma das fotos passa de 3 MB. Envie uma menor.", 413);
     try {
       saida.push(
         await sharp(bruto, { limitInputPixels: 40_000_000 })
@@ -451,14 +451,18 @@ export async function fotoDoAutor(req: Request, id: string, fotoId: string) {
 export async function retirarPropria(dono: { affiliateId: string } | { buyerId: string }, id: string) {
   if (!/^[0-9a-f-]{36}$/i.test(id)) throw new DivulgacaoError("Divulgação não encontrada.", 404);
   const dono_ = "affiliateId" in dono ? eq(divulgacoes.affiliateId, dono.affiliateId) : eq(divulgacoes.buyerId, dono.buyerId);
-  const [r] = await db
-    .update(divulgacoes)
-    // Quem retirou foi o próprio autor: `decidido_por` nulo — senão a peça que a
-    // organização tinha aprovado contaria como decisão dela no sino do afiliado.
-    .set({ status: "removida", decididoEm: new Date(), decididoPor: null })
-    .where(and(eq(divulgacoes.id, id), dono_, inArray(divulgacoes.status, ["em_analise", "publicada"])))
-    .returning({ id: divulgacoes.id });
-  if (!r) throw new DivulgacaoError("Divulgação não encontrada.", 404);
+  await db.transaction(async (tx: Tx) => {
+    const [r] = await tx
+      .update(divulgacoes)
+      // Quem retirou foi o próprio autor: `decidido_por` nulo — senão a peça que a
+      // organização tinha aprovado contaria como decisão dela no sino do afiliado.
+      .set({ status: "removida", decididoEm: new Date(), decididoPor: null })
+      .where(and(eq(divulgacoes.id, id), dono_, inArray(divulgacoes.status, ["em_analise", "publicada"])))
+      .returning({ id: divulgacoes.id });
+    if (!r) throw new DivulgacaoError("Divulgação não encontrada.", 404);
+    // Retirada não volta: as fotos saem junto.
+    await tx.delete(divulgacaoFotos).where(eq(divulgacaoFotos.divulgacaoId, id));
+  });
   return { ok: true };
 }
 
@@ -721,6 +725,9 @@ export async function decidir(req: Request, id: string, entrada: unknown) {
       .where(and(eq(divulgacoes.id, id), eq(divulgacoes.status, de), eq(divulgacoes.versao, Number(linha.versao))))
       .returning({ id: divulgacoes.id, status: divulgacoes.status, buyerId: divulgacoes.buyerId, versao: divulgacoes.versao });
     if (!novo) throw new DivulgacaoError("Esta divulgação já foi decidida.", 409);
+    // Recusada ou retirada não volta (não se edita): as fotos de quem publicou saem já,
+    // na mesma transação — foto de pessoa não fica guardada sem uso.
+    if (para === "recusada" || para === "removida") await tx.delete(divulgacaoFotos).where(eq(divulgacaoFotos.divulgacaoId, id));
     return { id: novo.id, status: novo.status, buyerId: novo.buyerId, versao: novo.versao, motivo, acao, campaignId: linha.campaign_id };
   });
   // Quem publicou fica sabendo, fora da transação: aviso nunca derruba a decisão.
@@ -888,17 +895,37 @@ export async function divulgacoesDaRifa(slug: string) {
 }
 
 /**
- * A foto pública: só da peça que a página da rifa mostra agora (no ar, rifa
- * vendendo, apostador com compra paga e o interruptor ligado). Retirada,
- * recusada, estornada ou com o interruptor desligado, a foto some junto.
+ * A foto pública: só da peça que a página da rifa mostraria agora — a régua
+ * de `divulgacoesDaRifa`, conferida para esta peça só (foto é do apostador):
+ * no ar, rifa vendendo de verdade, promotora no ar, o interruptor ligado,
+ * apostador com apelido, conta não excluída e compra paga naquela rifa.
+ * Retirada, recusada, estornada ou com o interruptor desligado, some junto.
  */
 export async function fotoPublica(id: string, fotoId: string) {
   if (!/^[0-9a-f-]{36}$/i.test(id)) throw new DivulgacaoError("Foto não encontrada.", 404);
+  if (!(await getPlataforma()).publicarApostador) throw new DivulgacaoError("Foto não encontrada.", 404);
   const [d] = await db
-    .select({ slug: campaigns.slug })
+    .select({ id: divulgacoes.id })
     .from(divulgacoes)
     .innerJoin(campaigns, eq(campaigns.id, divulgacoes.campaignId))
-    .where(and(eq(divulgacoes.id, id), eq(divulgacoes.status, "publicada")));
-  if (!d || !(await divulgacoesDaRifa(d.slug)).some((x) => x.id === id)) throw new DivulgacaoError("Foto não encontrada.", 404);
+    .innerJoin(organizations, eq(organizations.id, campaigns.organizationId))
+    .innerJoin(buyers, eq(buyers.id, divulgacoes.buyerId))
+    .where(
+      and(
+        eq(divulgacoes.id, id),
+        eq(divulgacoes.status, "publicada"),
+        eq(divulgacoes.autor, "apostador"),
+        eq(campaigns.status, "published"),
+        eq(campaigns.demonstracao, false),
+        isNull(campaigns.travadaEm),
+        eq(organizations.active, true),
+        isNull(organizations.archivedAt),
+        isNull(organizations.banidaEm),
+        isNotNull(buyers.apelido),
+        isNull(buyers.excluidoEm),
+        sql`exists (select 1 from orders o where o.buyer_id = ${divulgacoes.buyerId} and o.campaign_id = ${divulgacoes.campaignId} and o.status = 'paid')`,
+      ),
+    );
+  if (!d) throw new DivulgacaoError("Foto não encontrada.", 404);
   return bytesDaFoto(id, fotoId);
 }

@@ -428,6 +428,11 @@ async function main() {
     const fotoVerde = await pngDe("#15803d");
     r = await pessoa.req("POST", "/api/public/divulgacoes", { slug: a1.slug, legenda: "Muitas fotos", fotos: Array(5).fill(fotoAzul) });
     checa("mais de 4 fotos: 422", r.status === 422, `HTTP ${r.status}`);
+    {
+      const grande = `data:image/jpeg;base64,${Buffer.alloc(3 * 1024 * 1024 + 10, 7).toString("base64")}`;
+      r = await pessoa.req("POST", "/api/public/divulgacoes", { slug: a1.slug, legenda: "Foto pesada", fotos: [grande] });
+      checa("foto acima de 3 MB: 413 com o motivo", r.status === 413 && /3 MB/.test(r.json?.message ?? ""), `HTTP ${r.status} ${r.json?.message ?? ""}`);
+    }
     r = await pessoa.req("POST", "/api/public/divulgacoes", { slug: a1.slug, legenda: "Foto que não abre", fotos: ["data:image/png;base64,AAAA"] });
     checa("foto que não abre: 422 e nada fica gravado", r.status === 422, `HTTP ${r.status}`);
     r = await pessoa.req("POST", "/api/public/divulgacoes", { slug: a1.slug, legenda: "Joguei e gostei, bora!", fotos: [fotoAzul, fotoVerde] });
@@ -531,6 +536,10 @@ async function main() {
     await ajustarApostador(true);
     r = await pessoa.req("DELETE", `/api/public/divulgacoes/${idAp}`);
     checa("o apostador retira a própria peça", r.status === 200);
+    {
+      const sobra = await db.select({ id: divulgacaoFotos.id }).from(divulgacaoFotos).where(eq(divulgacaoFotos.divulgacaoId, idAp));
+      checa("retirada, as fotos saem junto", sobra.length === 0, String(sobra.length));
+    }
     r = await pessoa.req("DELETE", `/api/public/divulgacoes/${idAp}`);
     checa("retirar de novo: 404", r.status === 404, `HTTP ${r.status}`);
   } finally {

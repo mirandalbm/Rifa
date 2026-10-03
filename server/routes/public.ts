@@ -2628,8 +2628,9 @@ publicRouter.get("/divulgacoes/minhas/:id/fotos/:fotoId", async (req, res, next)
 publicRouter.get("/divulgacoes/:id/fotos/:fotoId", async (req, res, next) => {
   try {
     const bytes = await fotoPublica(req.params.id, req.params.fotoId);
-    // Cache curto: a peça pode sair do ar (retirada, estorno, interruptor).
-    res.setHeader("Cache-Control", "public, max-age=60");
+    // Cache curto e só no aparelho: a peça pode sair do ar (retirada, estorno,
+    // interruptor, conta excluída) e cache compartilhado seguiria servindo.
+    res.setHeader("Cache-Control", "private, max-age=60");
     res.setHeader("X-Content-Type-Options", "nosniff");
     res.type("image/jpeg").send(bytes);
   } catch (err) {

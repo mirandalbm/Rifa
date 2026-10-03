@@ -256,7 +256,15 @@ export async function publishCampaign(campaignId: string): Promise<Campaign> {
 
     const [updated] = await tx
       .update(campaigns)
-      .set({ status: "published", publishedAt: new Date(), drawSeedHash: seedHash, termoId: termo?.id ?? null })
+      // Publicou (à mão ou pelo relógio): a agenda e a falha anterior saem juntas.
+      .set({
+        status: "published",
+        publishedAt: new Date(),
+        drawSeedHash: seedHash,
+        termoId: termo?.id ?? null,
+        publicarEm: null,
+        publicacaoAgendadaFalha: null,
+      })
       .where(and(eq(campaigns.id, campaignId), eq(campaigns.status, "draft")))
       .returning();
     if (!updated) throw new CampaignRuleError("Esta campanha já foi publicada.");

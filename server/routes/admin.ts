@@ -1,4 +1,5 @@
 import { calendario, cancelarSorteioOficial, criarSorteioOficial, editarSorteioOficial, integrarAoSorteioOficial, lancarResultado } from "../services/sorteiosOficiais";
+import { agendarPublicacao } from "../services/publicacaoAgendada";
 import { enviarComFaixa } from "../services/faixa";
 import { devolverPixTardio, listarPixTardios, resolverPixTardio } from "../services/pixTardio";
 import { numerosPremiados } from "@shared/premiadas";
@@ -1102,6 +1103,27 @@ adminRouter.post("/campaigns/:id/publish", async (req, res, next) => {
     // resposta: a tela não espera os envios, e falha de push não desfaz nada.
     emSegundoPlano(avisarRifaNova(published.id), "rifa nova");
     res.json(published);
+  } catch (err) {
+    if (err instanceof CampaignRuleError) {
+      return res.status(422).json({ message: err.message });
+    }
+    next(err);
+  }
+});
+
+/**
+ * Agendar (ou tirar a agenda de) a publicação do rascunho. Na hora, o relógio
+ * publica pela mesma `publishCampaign()` — tudo é conferido de novo ali.
+ * Recorte de sempre: a rifa do vizinho é 404.
+ */
+adminRouter.put("/campaigns/:id/agendar-publicacao", async (req, res, next) => {
+  try {
+    await assertCampaignInScope(req, req.params.id);
+    const r = await agendarPublicacao(req.params.id, req.body?.publicarEm ?? null, req.user?.id ?? null);
+    await audit(req, r.publicarEm ? "campaign.publish.agendar" : "campaign.publish.desagendar", "campaign", req.params.id, {
+      publicarEm: r.publicarEm,
+    });
+    res.json(r);
   } catch (err) {
     if (err instanceof CampaignRuleError) {
       return res.status(422).json({ message: err.message });

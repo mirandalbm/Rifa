@@ -26,3 +26,19 @@ export function instanteAgendado(bruta: unknown, maxDias: number, agora: Date = 
   if (d.getTime() > agora.getTime() + maxDias * 86_400_000) throw new Error(`Agende para no máximo ${maxDias} dias à frente.`);
   return d.getTime() < agora.getTime() ? agora : d;
 }
+
+/** Até quantos dias à frente a organização agenda a publicação da rifa. */
+export const RIFA_AGENDA_MAX_DIAS = 30;
+
+/**
+ * O que impede agendar a publicação para esta hora, ou `null`. A rifa precisa
+ * ir ao ar antes do sorteio (com folga de uma hora para alguém comprar): o
+ * resto (autorização, telefone, mídia, sorteio oficial) é conferido na hora
+ * de publicar, pela mesma régua da publicação feita à mão.
+ */
+export function problemaNaAgendaDaRifa(publicarEm: Date, drawAt: Date | string | null): string | null {
+  if (drawAt && publicarEm.getTime() > new Date(drawAt).getTime() - 3_600_000) {
+    return "A rifa precisa ir ao ar pelo menos 1 hora antes do sorteio.";
+  }
+  return null;
+}

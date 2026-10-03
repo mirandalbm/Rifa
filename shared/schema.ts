@@ -521,6 +521,16 @@ export const campaigns = pgTable(
     travadaEm: timestamp("travada_em"),
     travadaMotivo: text("travada_motivo"),
     drawAtOriginal: timestamp("draw_at_original"),
+    /**
+     * Publicação agendada do rascunho: na hora, o relógio chama a mesma
+     * `publishCampaign()` (confere tudo de novo e trava total, autorização e
+     * semente ali). Rota própria (`agendarPublicacao`), fora do `PATCH`.
+     */
+    publicarEm: timestamp("publicar_em"),
+    /** Quem agendou (vai à auditoria da publicação feita pelo relógio). */
+    publicarAgendadoPor: uuid("publicar_agendado_por"),
+    /** Por que a publicação agendada não aconteceu (o painel mostra; some ao agendar de novo ou publicar). */
+    publicacaoAgendadaFalha: text("publicacao_agendada_falha"),
     /** Link da live ou do vídeo do sorteio. Muda a qualquer hora (só https). */
     transmissaoUrl: text("transmissao_url"),
     authorizationFileKey: text("authorization_file_key"),
@@ -1866,6 +1876,10 @@ export const insertCampaignSchema = createInsertSchema(campaigns, {
     compartilhamentosCount: true,
     travadaEm: true,
     travadaMotivo: true,
+    // Agendar a publicação tem rota própria (`agendarPublicacao`).
+    publicarEm: true,
+    publicarAgendadoPor: true,
+    publicacaoAgendadaFalha: true,
   });
 
 export const createOrderSchema = z.object({

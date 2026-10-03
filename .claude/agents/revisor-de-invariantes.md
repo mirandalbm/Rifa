@@ -94,12 +94,18 @@ Procure, nesta ordem, o que é **grave**:
     deixa o vídeo lá quando a gravação não entrou; falha do processador que
     derrube o envio; token fora do cabeçalho ou `CLOUDFLARE_API_URL` valendo em
     produção.
-14. **Agendado** (story, peça de divulgação, e o que mais for agendado):
+14. **Agendado** (story, peça de divulgação, publicação da rifa):
     leitura pública que mostra antes da hora (story sem `storyNoAr()`, peça
     sem `noArAgora()`, imagem, pôster ou foto sem conferir `publica_em`);
     agenda que pula a aprovação da organização; a porta do painel sem o
     recorte antes; prazo contado do envio em vez da hora de entrar no ar;
-    data fora de `instanteAgendado()` (ISO com fuso).
+    data fora de `instanteAgendado()` (ISO com fuso). Na rifa: publicar por
+    outro caminho que não `publishCampaign()` (que reconfere e trava total,
+    autorização e semente); o relógio tomar a linha sem o `UPDATE`
+    condicional ao `publicar_em` lido (duas réplicas, duas sementes);
+    falha (de regra ou do banco) que fica tentando a cada minuto ou segura a
+    fila; relógio que publica por organização suspensa ou sem reconferir a 1
+    hora antes do sorteio; agendar fora do recorte ou pelo `PATCH`.
 
 Só depois, o que é menor: mensagem de interface fora do português, número
 sem `tnum`, estado só por cor, cor fixa em vez de variável do tema.

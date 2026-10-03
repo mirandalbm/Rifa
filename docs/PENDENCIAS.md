@@ -683,7 +683,11 @@ Na ordem de entrega do plano:
   acenderia de novo como "novo" para quem já viu); **peça de divulgação agendada
   feita**: até 30 dias, só aparece aprovada e depois da hora; **falta no
   ambiente** o `db:push` da coluna `divulgacoes.publica_em` **antes** do
-  código; a rifa agendada vem no próximo PR), enquete e figurinhas no story; (6) ~~a plataforma decidir sem escolher a
+  código; **publicação agendada da rifa feita**: até 30 dias e 1 hora antes
+  do sorteio, o relógio publica pela `publishCampaign()` e, faltando algo, não
+  publica e mostra o motivo; **falta no ambiente** o `db:push` das colunas
+  `campaigns.publicar_em`, `publicar_agendado_por` e
+  `publicacao_agendada_falha` **antes** do código), enquete e figurinhas no story; (6) ~~a plataforma decidir sem escolher a
   organização~~ — **feito**: a plataforma vê a fila de todas, com o nome da
   organização, e decide qualquer peça (`npm run divulgacao` prova).
 - [ ] **[código]** Remodelagem do web e dos painéis, depois do app

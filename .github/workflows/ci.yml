@@ -128,6 +128,7 @@ jobs:
       - run: npm run resultados
       - run: npm run afiliados
       - run: npm run divulgacao
+      - run: npm run agenda-rifa
       - run: npm run fiscal
       - run: npm run disputa
       - run: npm run guarda

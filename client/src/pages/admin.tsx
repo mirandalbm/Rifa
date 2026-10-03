@@ -20,6 +20,7 @@ import { PixTardios } from "@/components/PixTardios";
 import { MediaManager } from "@/components/MediaManager";
 import { CampaignExtras } from "@/components/CampaignExtras";
 import { DadosLegaisCard, TransmissaoCard } from "@/components/DadosLegaisCard";
+import { AgendarPublicacaoCard } from "@/components/AgendarPublicacaoCard";
 import { EnderecoForm, type EnderecoParcial } from "@/components/EnderecoForm";
 import { PerfilPublicoForm } from "@/components/PerfilPublicoForm";
 import { EnderecoCurto } from "@/components/LinksCurtos";
@@ -358,6 +359,8 @@ interface CampaignRow {
     drawAtOriginal?: string | null;
     travadaEm?: string | null;
     travadaMotivo?: string | null;
+    publicarEm?: string | null;
+    publicacaoAgendadaFalha?: string | null;
   };
   stats: { soldCount: number; reservedCount?: number; revenueCents: number } | null;
   /** Pedidos de mudança esperando a plataforma: "edicao", "adiamento". */
@@ -381,6 +384,8 @@ function situacaoDaRifa(c: CampaignRow["campaign"], emAnalise?: string[] | null)
   const selos = [{ status: c.status, texto: c.status === "published" ? "No ar" : c.status === "draft" ? "Rascunho" : c.status === "drawn" ? "Sorteada" : "Encerrada" }];
   if (c.demonstracao) selos.push({ status: "pending", texto: "Demonstração" });
   if (c.travadaEm) selos.push({ status: "expired", texto: "Travada" });
+  if (c.status === "draft" && c.publicarEm) selos.push({ status: "pending", texto: "Publicação agendada" });
+  if (c.status === "draft" && c.publicacaoAgendadaFalha) selos.push({ status: "expired", texto: "Agendada não publicou" });
   if (emAnalise?.includes("edicao")) selos.push({ status: "pending", texto: "Edição em análise" });
   if (emAnalise?.includes("adiamento")) selos.push({ status: "pending", texto: "Adiamento em análise" });
   return selos;
@@ -657,6 +662,7 @@ export function AdminCampanhas() {
                           daPlataforma={daPlataforma}
                           edicaoEmAnalise={Boolean(linha?.emAnalise?.includes("edicao"))}
                         />
+                        <AgendarPublicacaoCard rifa={c} />
                         {c.status === "published" && !c.demonstracao && vendidas < c.totalQuotas ? (
                           <AdiarSorteioCard
                             rifa={c}

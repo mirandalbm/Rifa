@@ -17,12 +17,21 @@ import { relations, sql } from "drizzle-orm";
 import { customType } from "drizzle-orm/pg-core";
 
 /** Bytes crus (o anexo do chamado). O driver `pg` entrega `Buffer`. */
+/**
+ * Índice de trigrama (`pg_trgm`) sobre o texto sem acento e minúsculo — a
+ * expressão da busca (`semAcentoSql`), letra por letra, senão o Postgres não
+ * usa o índice. A extensão é criada antes do `db:push` (`scripts/extensoes.ts`).
+ */
+const trigramaSemAcento = (coluna: unknown) =>
+  sql`translate(lower(${coluna}), ${sql.raw(`'${ACENTOS_DE}'`)}, ${sql.raw(`'${ACENTOS_PARA}'`)}) gin_trgm_ops`;
+
 const bytea = customType<{ data: Buffer; driverData: Buffer }>({
   dataType() {
     return "bytea";
   },
 });
 import { createInsertSchema } from "drizzle-zod";
+import { ACENTOS_DE, ACENTOS_PARA } from "./semAcentoSql";
 import { z } from "zod";
 
 /* ------------------------------------------------------------------ *
@@ -242,7 +251,12 @@ export const organizations = pgTable(
     verificadaEm: timestamp("verificada_em"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
-  (t) => [uniqueIndex("uq_organizations_slug").on(t.slug)],
+  (t) => [
+    uniqueIndex("uq_organizations_slug").on(t.slug),
+    // A busca por texto (Buscar): nome e endereço da organização, sem acento.
+    index("idx_organizations_nome_trgm").using("gin", trigramaSemAcento(t.name)),
+    index("idx_organizations_slug_trgm").using("gin", trigramaSemAcento(t.slug)),
+  ],
 );
 
 export const users = pgTable(
@@ -540,6 +554,9 @@ export const campaigns = pgTable(
     index("idx_campaigns_org").on(t.organizationId),
     // A fileira das rifas de um sorteio oficial (tela do sorteio no celular).
     index("idx_campaigns_sorteio_oficial").on(t.sorteioOficialId),
+    // A busca por texto (Buscar): título e prêmio, sem acento.
+    index("idx_campaigns_titulo_trgm").using("gin", trigramaSemAcento(t.title)),
+    index("idx_campaigns_premio_trgm").using("gin", trigramaSemAcento(t.prizeTitle)),
   ],
 );
 

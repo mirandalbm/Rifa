@@ -50,7 +50,7 @@ Pelo caminho que mudou (a mesma tabela "Onde mexer" do `CLAUDE.md`):
 | verificação (selo) | `verificacao` |
 | publicação, carrinho, Reels | `publicacao`, `carrinho` |
 | mensagens e grupos | `mensagens`, `grupos`, `isolation` |
-| buscar | `buscar` |
+| buscar (e o índice de texto: `shared/semAcentoSql.ts`, `idx_*_trgm`, `scripts/extensoes.ts`) | `buscar` (o plano com 5 mil rifas numa transação que volta) |
 | presente | `presente` |
 | painel de resultados | `resultados` |
 | afiliados, fiscal, guarda da comissão | `afiliados`, `fiscal`, `guarda` |

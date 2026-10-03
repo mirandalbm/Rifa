@@ -14,6 +14,7 @@ import { eq, inArray, like, sql } from "drizzle-orm";
 import { db, pool } from "../server/db";
 import { buyers, campaignStats, campaigns, organizations, users } from "../shared/schema";
 import { BUSCA_PAGINA } from "../shared/buscar";
+import { sqlDaGrade } from "../server/services/buscar";
 
 const URL = baseUrl();
 let falhas = 0;
@@ -197,6 +198,39 @@ async function main() {
     r = await anon.req("GET", "/api/public/buscar?q=buscatestemoto");
     checa("a resposta nunca traz telefone, CPF ou e-mail", !/\d{8,}|@.*\.(com|br)/.test(JSON.stringify(r.json)), "");
     checa("cada rifa vem com o caminho, sem preço de tabela nem id", r.json?.rifas?.[0]?.caminho?.includes(`/r/${P}-moto`) && !("id" in r.json.rifas[0]));
+
+    console.log("\n  o índice de texto (pg_trgm):");
+    {
+      // 5 mil rifas sintéticas numa transação que volta: com a tabela cheia, o
+      // Postgres escolhe o plano de verdade, e a prova vê se o índice serve à
+      // consulta que a tela roda (a expressão sem acento tem de ser a mesma).
+      const { sql: textoSql, params } = await sqlDaGrade("zqxwuniquetrgm");
+      const cliente = await pool.connect();
+      let plano = "";
+      try {
+        await cliente.query("BEGIN");
+        await cliente.query(
+          `INSERT INTO campaigns
+             SELECT (jsonb_populate_record(null::campaigns, to_jsonb(c) || jsonb_build_object(
+               'id', gen_random_uuid(), 'slug', 'trgm-prova-' || g, 'title', 'Rifa de número ' || g, 'prize_title', 'Prêmio ' || g))).*
+               FROM campaigns c, generate_series(1, 5000) g
+              WHERE c.slug = $1`,
+          [`${P}-moto`],
+        );
+        // Linha nova num índice GIN fica numa lista pendente até o VACUUM (em
+        // produção, o autovacuum); limpa aqui, senão o custo estimado engana.
+        await cliente.query("SELECT gin_clean_pending_list('idx_campaigns_titulo_trgm'), gin_clean_pending_list('idx_campaigns_premio_trgm')");
+        await cliente.query("ANALYZE campaigns");
+        plano = (await cliente.query(`EXPLAIN ${textoSql}`, params as unknown[])).rows.map((l: Record<string, string>) => l["QUERY PLAN"]).join("\n");
+      } finally {
+        await cliente.query("ROLLBACK").catch(() => {});
+        cliente.release();
+      }
+      checa("com a tabela cheia, a busca usa o índice do título e do prêmio", plano.includes("idx_campaigns_titulo_trgm") && plano.includes("idx_campaigns_premio_trgm"), plano.split("\n").slice(0, 8).join(" | "));
+      checa("…e não lê a tabela de rifas inteira", !/Seq Scan on campaigns/.test(plano));
+      const [{ n }] = (await db.execute(sql`select count(*)::int as n from campaigns where slug like 'trgm-prova-%'`)).rows as { n: number }[];
+      checa("as rifas da prova não ficam no banco", n === 0);
+    }
 
     console.log("\n  o apostador (só com o tipo ligado, pelo @apelido exato):");
     const ana = new Cliente();

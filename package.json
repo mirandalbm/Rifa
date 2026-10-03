@@ -13,7 +13,7 @@
     "check": "tsc",
     "test": "vitest run",
     "test:watch": "vitest",
-    "db:push": "drizzle-kit push",
+    "db:push": "tsx scripts/extensoes.ts && drizzle-kit push",
     "db:seed": "tsx scripts/seed.ts",
     "admin:create": "tsx scripts/create-admin.ts",
     "load": "tsx scripts/load-test.ts",

@@ -114,7 +114,7 @@ arquitetura.
 | guarda da comissão pela plataforma (etapa 12) | `guardaComissao` e `percentualDoPromotor()` em `shared/plataforma.ts`, `createOrder`/`settleOrderAsPaid` em `server/services/orders.ts`, `scripts/guarda-test.ts` |
 | indicação, bônus e metas (etapa 13) | `shared/bonus.ts` (regras), `server/services/bonus.ts`, `resgatarCotasDeBonus()` em `server/services/orders.ts`, `client/src/lib/indicacao.ts`, `client/src/pages/adminBonus.tsx`, `client/src/components/BonusDoComprador.tsx`, `scripts/bonus-test.ts` |
 | Reels (tela cheia, vídeo em pé, interruptor da plataforma) | `shared/reels.ts` (regras, lote), `GET /api/public/reels` em `server/routes/public.ts`, `reelsLigado` em `shared/plataforma.ts`, `client/src/pages/Reels.tsx`, o som lembrado em `client/src/lib/reelsSom.ts`, `vertical` em `BarraDeAcoes`, `scripts/publicacao-test.ts`, `tests/reels.test.ts` |
-| Buscar (grade das publicações e busca por texto, interruptor e tabela da plataforma) | `shared/buscar.ts` (regras e tabela), `server/services/buscar.ts`, `GET /api/public/buscar` em `server/routes/public.ts`, `buscarLigado`/`buscarTipos` em `shared/plataforma.ts`, `client/src/pages/Buscar.tsx`, cartão em `client/src/components/TopoDoAppCard.tsx`, `scripts/buscar-test.ts`, `tests/buscar.test.ts` |
+| Buscar (grade das publicações e busca por texto, interruptor e tabela da plataforma) | `shared/buscar.ts` (regras e tabela), `server/services/buscar.ts`, o índice de texto (`shared/semAcentoSql.ts`, `idx_*_trgm` em `shared/schema.ts`, `scripts/extensoes.ts` no `db:push`), `GET /api/public/buscar` em `server/routes/public.ts`, `buscarLigado`/`buscarTipos` em `shared/plataforma.ts`, `client/src/pages/Buscar.tsx`, cartão em `client/src/components/TopoDoAppCard.tsx`, `scripts/buscar-test.ts`, `tests/buscar.test.ts` |
 | Mensagens (caixa de um para um: apostador, organização e afiliado) | `shared/mensagens.ts` (regras puras), `server/services/mensagens.ts`, rotas `/mensagens/*` em `server/routes/public.ts` e `/mensagens/denuncias*` em `server/routes/admin.ts`, `mensagensLigado` em `shared/plataforma.ts`, `client/src/pages/Mensagens.tsx` (foto e "online agora"), grupos da rifa (`shared/grupos.ts`, `server/services/grupos.ts`, `client/src/components/Grupos.tsx`, `GruposDenunciadosDaPlataforma` em `ConversasDenunciadas.tsx`, `scripts/grupos-test.ts`, `tests/grupos.test.ts`), `ConversasDenunciadas.tsx`, `BotaoMensagem.tsx` (também na peça do afiliado em `DivulgacoesDaRifa.tsx`), o número não lido do painel em `PanelShell` (`client/src/components/AppShell.tsx`, `rotuloDoSino()` em `shared/avisos.ts`), `scripts/mensagens-test.ts`, `tests/mensagens.test.ts` |
 | rifas patrocinadas por clique (etapa 15): pacote, fila, tabela e números | `shared/patrocinio.ts` (regras, preço, previsão da fila), `server/services/patrocinio.ts`, `client/src/pages/adminPatrocinio.tsx`, `client/src/components/Patrocinadas.tsx`, `scripts/patrocinio-test.ts` |
 | banner pago na vitrine (dias de topo, arte aprovada, vagas, devolução dos dias não usados) | `shared/bannerPago.ts` (regras e config), `server/services/bannerPago.ts`, rotas `/banner-pago*` em `server/routes/admin.ts`, `/banners` e `/banners-pagos/:id/imagem` em `server/routes/public.ts`, `bannerPago` em `shared/plataforma.ts`, `client/src/pages/adminBannerPago.tsx`, `client/src/components/BannersVitrine.tsx`, relógio em `server/jobs/index.ts`, `scripts/banner-pago-test.ts`, `tests/bannerPago.test.ts` |
@@ -806,8 +806,19 @@ plataforma ligar, o apostador pelo `@apelido` exato.
   grade de rifas; a organização achada pelo texto não é filtrada); a vitrine,
   que ordena sozinha, segue sem esconder nada. Como o contador muda entre uma
   página e outra, uma rifa pode repetir ou pular ao rolar em "Mais curtidas". Cursor de uma ordem na outra é
-  primeira página. Ficou de fora: hashtags e o índice `pg_trgm` (pede a
-  extensão no banco, ver `docs/PENDENCIAS.md`).
+  primeira página. Ficou de fora: hashtags.
+- **O texto tem índice** (`pg_trgm`, índice `gin` de trigrama sobre o texto
+  sem acento: título e prêmio da rifa, nome e endereço da organização). **A
+  expressão do índice e a da consulta moram num lugar só**
+  (`ACENTOS_DE`/`ACENTOS_PARA` em `shared/semAcentoSql.ts`): uma letra
+  diferente e o Postgres volta a ler a tabela inteira, calado. A grade busca
+  em dois passos — as organizações pelo nome (até
+  `ORGANIZACOES_DO_TEXTO_MAX`, o texto genérico bateria em todas) e as rifas
+  por título, prêmio ou dona —, porque um `OR` com coluna das duas tabelas do
+  `JOIN` não usa índice. O `drizzle-kit` não cria extensão: o `npm run
+  db:push` roda antes `scripts/extensoes.ts` (`CREATE EXTENSION IF NOT
+  EXISTS pg_trgm`); sem ela, o push falha. `npm run buscar` prova o plano
+  com 5 mil rifas sintéticas numa transação que volta (`sqlDaGrade()`).
 - **O texto é dado, nunca SQL**: parâmetro, `%` e `_` viram letras
   (`escaparCuringa`), sem acento e sem diferença de maiúscula dos dois lados.
   Texto de menos de 2 letras não busca.

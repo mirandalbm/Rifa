@@ -494,15 +494,24 @@ export async function decidir(req: Request, id: string, entrada: unknown) {
     }
     const [novo] = await tx
       .update(divulgacoes)
-      .set({ status: para, motivo, decididoEm: new Date(), decididoPor: req.user?.id ?? null })
+      // O relógio do banco, como o "visto" do afiliado: réplicas com relógios
+      // diferentes não escondem a decisão do sino dele.
+      .set({ status: para, motivo, decididoEm: sql`now()`, decididoPor: req.user?.id ?? null })
       .where(and(eq(divulgacoes.id, id), eq(divulgacoes.status, de)))
-      .returning({ id: divulgacoes.id, status: divulgacoes.status });
+      .returning({ id: divulgacoes.id, status: divulgacoes.status, buyerId: divulgacoes.buyerId });
     if (!novo) throw new DivulgacaoError("Esta divulgação já foi decidida.", 409);
-    return { ...novo, acao, campaignId: linha.campaign_id };
+    return { id: novo.id, status: novo.status, buyerId: novo.buyerId, motivo, acao, campaignId: linha.campaign_id };
   });
   // Quem publicou fica sabendo, fora da transação: aviso nunca derruba a decisão.
-  emSegundoPlano(avisarAutorDaDecisao(id), "aviso da divulgação");
-  return decidida;
+  // Leva o que ESTA transação decidiu — reler a linha depois pegaria a retirada
+  // que o próprio autor fez logo em seguida e mandaria o aviso errado.
+  if (decidida.buyerId) {
+    emSegundoPlano(
+      avisarAutorDaDecisao({ id, buyerId: decidida.buyerId, status: decidida.status as StatusDaDivulgacao, motivo, campaignId: decidida.campaignId }),
+      "aviso da divulgação",
+    );
+  }
+  return { id: decidida.id, status: decidida.status, acao: decidida.acao, campaignId: decidida.campaignId };
 }
 
 /**
@@ -510,16 +519,12 @@ export async function decidir(req: Request, id: string, entrada: unknown) {
  * decisão não avisa duas vezes). O afiliado não tem push — vê o número no sino
  * do painel (`decididasParaOAfiliado`). Sem telefone nem nome no aviso.
  */
-async function avisarAutorDaDecisao(id: string) {
-  const [d] = await db
-    .select({ buyerId: divulgacoes.buyerId, status: divulgacoes.status, motivo: divulgacoes.motivo, titulo: campaigns.title })
-    .from(divulgacoes)
-    .innerJoin(campaigns, eq(campaigns.id, divulgacoes.campaignId))
-    .where(eq(divulgacoes.id, id));
-  if (!d?.buyerId) return;
-  const texto = avisoDaDecisao(d.status as StatusDaDivulgacao, d.titulo, d.motivo);
+async function avisarAutorDaDecisao(d: { id: string; buyerId: string; status: StatusDaDivulgacao; motivo: string | null; campaignId: string }) {
+  const [c] = await db.select({ titulo: campaigns.title }).from(campaigns).where(eq(campaigns.id, d.campaignId));
+  if (!c) return;
+  const texto = avisoDaDecisao(d.status, c.titulo, d.motivo);
   if (!texto) return;
-  await avisar([d.buyerId], "divulgacao", `${id}:${d.status}`, { ...texto, url: "/publicar", tag: `divulgacao-${id}` });
+  await avisar([d.buyerId], "divulgacao", `${d.id}:${d.status}`, { ...texto, url: "/publicar", tag: `divulgacao-${d.id}` });
 }
 
 /**
@@ -545,7 +550,8 @@ export async function decididasParaOAfiliado(affiliateId: string, userId: string
 
 /** O afiliado abriu o sino: o que já foi decidido fica visto, para ele. */
 export async function marcarVistoDoAfiliado(userId: string) {
-  await db.update(users).set({ avisosVistosEm: new Date() }).where(eq(users.id, userId));
+  // O relógio do banco, o mesmo de `decidido_em`.
+  await db.update(users).set({ avisosVistosEm: sql`now()` }).where(eq(users.id, userId));
 }
 
 /* ------------------------------------------------------------------ *

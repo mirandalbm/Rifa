@@ -68,6 +68,11 @@ export function validarDecisao(entrada: unknown): { acao: AcaoDaDecisao; motivo:
   if (motivo.length > MOTIVO_MAX) throw new Error(`O motivo passa de ${MOTIVO_MAX} caracteres.`);
   // Quem escreve a peça lê o motivo: recusar e retirar sem explicar é só silêncio.
   if ((acao === "recusar" || acao === "remover") && motivo.length < 3) throw new Error("Diga o motivo, para quem publicou entender.");
+  // O motivo vai no push e no trevo de quem publicou: a régua da legenda
+  // (sem link e sem telefone) vale aqui também — senão seria o canal do
+  // "chama no zap" escrito pela organização.
+  const problema = motivo ? problemaNaLegenda(motivo) : null;
+  if (problema) throw new Error(problema);
   return { acao, motivo: motivo || null };
 }
 

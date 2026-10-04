@@ -43,7 +43,7 @@ export async function posterDosVideosAntigos(): Promise<{ gerados: number; semPo
     await db.execute(sql`
       SELECT id, campaign_id AS "campaignId", storage_key AS "storageKey", bytes, created_at::text AS em
         FROM campaign_media
-       WHERE role = 'video' AND status = 'ready'
+       WHERE role IN ('video', 'reels') AND status = 'ready'
          AND poster_key IS NULL AND stream_uid IS NULL
          AND created_at < now() - make_interval(mins => ${FOLGA_DO_ENVIO_MIN})
          ${c ? sql`AND (created_at, id) > (${c.em}::timestamp, ${c.id})` : sql``}

@@ -37,6 +37,7 @@ import {
   divulgacaoVideos,
   sorteiosOficiais,
   sorteioComentarios,
+  campaignMedia,
 } from "../shared/schema";
 import { hashPassword } from "../server/auth";
 import { mediaKey, storage } from "../server/services/storage";
@@ -412,6 +413,22 @@ async function midiaDoVizinho(eu: Lado, vizinho: Lado) {
       .then(() => true)
       .catch(() => false);
     checa("o arquivo do vizinho continua no armazenamento", aindaLa);
+
+    // O reels (o vídeo só do Reels) do vizinho: trocar a legenda e apagar são 404.
+    const [reels] = await db
+      .insert(campaignMedia)
+      .values({ campaignId: vizinho.campaignId, role: "reels", position: 0, storageKey: `teste/iso-reels-${vizinho.nome}`, mime: "video/mp4", width: 720, height: 1280, durationS: 20, legenda: "do vizinho", status: "ready" })
+      .returning();
+    try {
+      let res = await pedir(eu.cookie, `/api/admin/media/${reels.id}/legenda`, { method: "PUT", body: '{"legenda":"invadida"}' });
+      checa("PUT legenda do reels do vizinho é 404", res.status === 404, `HTTP ${res.status}`);
+      res = await pedir(eu.cookie, `/api/admin/media/${reels.id}`, { method: "DELETE" });
+      checa("DELETE reels do vizinho é 404", res.status === 404, `HTTP ${res.status}`);
+      const [depois] = await db.select().from(campaignMedia).where(eq(campaignMedia.id, reels.id));
+      checa("o reels do vizinho continua, com a legenda dele", depois?.legenda === "do vizinho");
+    } finally {
+      await db.delete(campaignMedia).where(eq(campaignMedia.id, reels.id));
+    }
   } finally {
     await storage().remove(chave).catch(() => {});
   }

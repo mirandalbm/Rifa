@@ -69,7 +69,11 @@ export const campaignStatus = pgEnum("campaign_status", [
   "closed",
   "drawn",
 ]);
-export const mediaRole = pgEnum("media_role", ["banner", "photo", "video"]);
+/**
+ * `reels`: vídeo que a organização publica **só no Reels** (fora do
+ * carrossel da rifa), em pé e de até 3 min, medido no servidor.
+ */
+export const mediaRole = pgEnum("media_role", ["banner", "photo", "video", "reels"]);
 export const mediaStatus = pgEnum("media_status", ["processing", "ready", "rejected"]);
 export const allocStatus = pgEnum("alloc_status", ["reserved", "paid"]);
 export const orderStatus = pgEnum("order_status", [
@@ -610,6 +614,8 @@ export const campaignMedia = pgTable(
     /** Miniatura de 20 px embutida, exibida borrada enquanto a foto carrega. */
     lqip: text("lqip"),
     altText: text("alt_text"),
+    /** A legenda do vídeo do Reels (só `reels`; a da rifa é `campaigns.legenda`). */
+    legenda: text("legenda"),
     bytes: bigint("bytes", { mode: "number" }),
     status: mediaStatus("status").notNull().default("processing"),
     createdAt: timestamp("created_at").notNull().defaultNow(),

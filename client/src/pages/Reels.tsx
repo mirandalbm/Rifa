@@ -14,7 +14,7 @@ import { useVideoHls } from "@/lib/hls";
 import { ABAS_DO_REELS, type AbaDoReels } from "@shared/reels";
 import type { RifaDoFeed } from "@/components/CartaoDoFeed";
 
-type ItemDoReels = RifaDoFeed & { reels: string | null; reelsPoster?: string | null; reelsHls?: string | null };
+type ItemDoReels = RifaDoFeed & { reelsId?: string; reels: string | null; reelsPoster?: string | null; reelsHls?: string | null };
 interface Pagina {
   ligado: boolean;
   precisaEntrar?: boolean;
@@ -125,7 +125,7 @@ function Reels() {
         ) : null}
         {itens.map((c, i) => (
           <Quadro
-            key={c.id}
+            key={c.reelsId ?? c.id}
             rifa={c}
             mudo={mudo}
             aoSom={() => {

@@ -11,7 +11,7 @@
  */
 import "dotenv/config";
 import { baseUrl } from "./base-url";
-import { eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { db, pool } from "../server/db";
 import { buyers, campaignMedia, campaignStats, campaigns, quotaAlloc, quotaPackages, users } from "../shared/schema";
 import { MAX_CARROSSEL } from "../shared/publicacao";
@@ -42,6 +42,35 @@ class Cliente {
     const tipo = r.headers.get("content-type") ?? "";
     return { status: r.status, json: tipo.includes("json") ? await r.json() : null };
   }
+}
+
+/* MP4 sintético: o servidor mede duração e tamanho pelo container. */
+function caixa(tipo: string, conteudo: Buffer) {
+  const h = Buffer.alloc(8);
+  h.writeUInt32BE(conteudo.length + 8, 0);
+  h.write(tipo, 4, "ascii");
+  return Buffer.concat([h, conteudo]);
+}
+function mp4(segundos: number, largura: number, altura: number) {
+  const mvhd = Buffer.alloc(100);
+  mvhd.writeUInt32BE(1000, 12);
+  mvhd.writeUInt32BE(Math.round(segundos * 1000), 16);
+  const tkhd = Buffer.alloc(84);
+  tkhd.writeInt32BE(0x10000, 40);
+  tkhd.writeInt32BE(0x10000, 56);
+  tkhd.writeUInt32BE(largura * 65536, 76);
+  tkhd.writeUInt32BE(altura * 65536, 80);
+  const moov = caixa("moov", Buffer.concat([caixa("mvhd", mvhd), caixa("trak", caixa("tkhd", tkhd))]));
+  return Buffer.concat([caixa("ftyp", Buffer.from("isomiso2avc1mp41", "ascii")), moov, caixa("mdat", Buffer.alloc(2048, 7))]);
+}
+
+/** O envio de verdade, nos três passos (URL assinada, o arquivo, a confirmação). */
+async function enviarReels(quem: Cliente, campanhaId: string, arquivo: Buffer, legenda: string) {
+  const t = await quem.req("POST", `/api/admin/campaigns/${campanhaId}/media/upload-url`, { role: "reels", filename: "r.mp4", mime: "video/mp4", bytes: arquivo.length });
+  if (t.status !== 200) return t;
+  const put = await fetch(URL + t.json.url, { method: "PUT", headers: { ...t.json.headers, Cookie: quem.cookie }, body: arquivo });
+  if (!put.ok) return { status: put.status, json: null };
+  return quem.req("POST", `/api/admin/campaigns/${campanhaId}/media`, { role: "reels", storageKey: t.json.storageKey, mime: "video/mp4", legenda });
 }
 
 /** CPF válido a partir de 9 dígitos — só desta prova. */
@@ -249,9 +278,78 @@ async function main() {
       checa("a aba Seguindo pede conta", r.status === 200 && r.json?.precisaEntrar === true && r.json.itens.length === 0);
       r = await anon.req("GET", "/api/public/reels?limite=1");
       checa("o lote respeita o limite", (r.json?.itens?.length ?? 0) <= 1);
+
+      console.log("\n  reels publicado pela organização:");
+      await db.update(campaignMedia).set({ width: 720, height: 1280 }).where(eq(campaignMedia.storageKey, "teste/reels-em-pe"));
+      r = await enviarReels(marina, rifa.id, mp4(20, 1920, 1080), "");
+      checa("vídeo deitado não entra no Reels (422)", r.status === 422 && /em pé/.test(r.json?.message ?? ""), `HTTP ${r.status} ${r.json?.message ?? ""}`);
+      r = await enviarReels(marina, rifa.id, mp4(240, 1080, 1920), "");
+      checa("4 minutos não entram no Reels (422)", r.status === 422, `HTTP ${r.status} ${r.json?.message ?? ""}`);
+      r = await enviarReels(marina, rifa.id, mp4(20, 1080, 1920), "Chama no 11 98888-7777");
+      checa("legenda com telefone é recusada (422)", r.status === 422, `HTTP ${r.status} ${r.json?.message ?? ""}`);
+      const recusados = await db.select({ id: campaignMedia.id }).from(campaignMedia).where(and(eq(campaignMedia.campaignId, rifa.id), eq(campaignMedia.role, "reels")));
+      checa("nada recusado ficou gravado", recusados.length === 0, String(recusados.length));
+      r = await enviarReels(marina, rifa.id, mp4(20, 1080, 1920), "Primeiro reels   da moto!");
+      const reels1 = r.json;
+      checa("reels em pé de 20 s entra, medido no servidor, com a legenda limpa", r.status === 201 && reels1?.role === "reels" && reels1?.durationS === 20 && reels1?.legenda === "Primeiro reels da moto!", `HTTP ${r.status} ${JSON.stringify(r.json)}`);
+      r = await enviarReels(marina, rifa.id, mp4(15, 1080, 1920), "Segundo reels");
+      const reels2 = r.json;
+      checa("o segundo também", r.status === 201, `HTTP ${r.status} ${r.json?.message ?? ""}`);
+      r = await anon.req("GET", `/api/public/campaigns/${SLUG}`);
+      checa("o reels não entra no carrossel da página da rifa", r.status === 200 && !(r.json?.media ?? []).some((m: { role: string }) => m.role === "reels"), JSON.stringify((r.json?.media ?? []).map((m: { role: string }) => m.role)));
+      r = await anon.req("GET", "/api/public/reels?limite=12");
+      const meus = (r.json?.itens ?? []).filter((c: { slug: string }) => c.slug === SLUG);
+      checa(
+        "cada vídeo é um item, do mais antigo ao mais novo (o do carrossel e os do Reels)",
+        meus.length === 3 && meus[1].reelsId === reels1?.id && meus[2].reelsId === reels2?.id && meus[0].id === rifa.id,
+        JSON.stringify(meus.map((c: { reelsId: string }) => c.reelsId)),
+      );
+      checa("a legenda do item é a do vídeo", meus[1]?.legenda === "Primeiro reels da moto!", meus[1]?.legenda);
+      r = await anon.req("GET", "/api/public/reels?limite=1");
+      const primeiro = r.json?.itens?.[0]?.reelsId;
+      r = await anon.req("GET", `/api/public/reels?limite=50&depois=${r.json?.proximo}`);
+      checa("o lote seguinte anda pela posição, sem repetir", Boolean(primeiro) && !(r.json?.itens ?? []).some((c: { reelsId: string }) => c.reelsId === primeiro));
+      r = await marina.req("POST", `/api/admin/campaigns/${rascunho.id}/media/upload-url`, { role: "reels", filename: "r.mp4", mime: "video/mp4", bytes: 2048 });
+      checa("com o carrossel cheio, o reels ainda cabe (não ocupa vaga dele)", r.status === 200, `HTTP ${r.status} ${r.json?.message ?? ""}`);
+      r = await marina.req("PUT", `/api/admin/media/${reels1?.id}/legenda`, { legenda: "veja em https://golpe.example" });
+      checa("trocar a legenda: link é 422", r.status === 422, `HTTP ${r.status}`);
+      r = await marina.req("PUT", `/api/admin/media/${reels1?.id}/legenda`, { legenda: "Legenda nova" });
+      checa("trocar a legenda", r.status === 200 && r.json?.legenda === "Legenda nova", JSON.stringify(r.json));
+      const [foto] = await db.select({ id: campaignMedia.id }).from(campaignMedia).where(and(eq(campaignMedia.campaignId, rifa.id), eq(campaignMedia.role, "video")));
+      r = await marina.req("PUT", `/api/admin/media/${foto?.id}/legenda`, { legenda: "x" });
+      checa("vídeo do carrossel não tem legenda própria (409)", r.status === 409, `HTTP ${r.status}`);
+      // O cursor no reels1 (o do meio: o reels2 vem depois); apagado o reels1, a fila não recomeça.
+      r = await anon.req("GET", "/api/public/reels?limite=50");
+      const todos = (r.json?.itens ?? []) as { reelsId: string }[];
+      const meio = await anon.req("GET", `/api/public/reels?limite=${todos.findIndex((c) => c.reelsId === reels1?.id) + 1}`);
+      await marina.req("DELETE", `/api/admin/media/${reels1?.id}`);
+      r = await anon.req("GET", `/api/public/reels?limite=50&depois=${encodeURIComponent(meio.json?.proximo ?? "")}`);
+      const seguintes = ((r.json?.itens ?? []) as { reelsId: string }[]).map((c) => c.reelsId);
+      checa(
+        "o último visto apagado não faz a fila recomeçar",
+        Boolean(meio.json?.proximo) && seguintes.includes(reels2?.id) && !seguintes.includes(todos[0]?.reelsId),
+        `${meio.json?.proximo} → ${JSON.stringify(seguintes)}`,
+      );
+      r = await marina.req("DELETE", `/api/admin/media/${reels2?.id}`);
+      r = await anon.req("GET", "/api/public/reels?limite=50");
+      checa("apagado, sai do Reels", !(r.json?.itens ?? []).some((c: { reelsId: string }) => c.reelsId === reels2?.id));
+
+      // A última vaga: dois envios ao mesmo tempo, um entra.
+      const jaTem = (await db.select({ id: campaignMedia.id }).from(campaignMedia).where(and(eq(campaignMedia.campaignId, rifa.id), eq(campaignMedia.role, "reels")))).length;
+      await db.insert(campaignMedia).values(
+        Array.from({ length: 9 - jaTem }, (_, i) => ({ campaignId: rifa.id, role: "reels" as const, position: 50 + i, storageKey: `teste/reels-cheio-${i}`, mime: "video/mp4", width: 720, height: 1280, durationS: 10, status: "ready" as const })),
+      );
+      const corrida = await Promise.all([enviarReels(marina, rifa.id, mp4(10, 1080, 1920), ""), enviarReels(marina, rifa.id, mp4(11, 1080, 1920), "")]);
+      const total = (await db.select({ id: campaignMedia.id }).from(campaignMedia).where(and(eq(campaignMedia.campaignId, rifa.id), eq(campaignMedia.role, "reels")))).length;
+      checa(
+        "na última vaga, dois envios ao mesmo tempo: um 201 e um 409, e a rifa fica com 10",
+        corrida.map((x) => x.status).sort().join(",") === "201,409" && total === 10,
+        `${corrida.map((x) => x.status)} total ${total}`,
+      );
     } finally {
       await ajustar(antes);
       await db.delete(campaignMedia).where(sql`storage_key like 'teste/reels-%'`);
+      await db.delete(campaignMedia).where(and(eq(campaignMedia.campaignId, rifa.id), eq(campaignMedia.role, "reels")));
     }
   } finally {
     await limpar();

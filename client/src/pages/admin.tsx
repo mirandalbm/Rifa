@@ -18,6 +18,7 @@ import { ChevronRight, Image as ImagemIcone, LayoutGrid, List, MoreVertical, Per
 import { apiRequest } from "@/lib/queryClient";
 import { useSession } from "@/lib/session";
 import { PixTardios } from "@/components/PixTardios";
+import { ReelsDaRifa } from "@/components/ReelsDaRifa";
 import { MediaManager } from "@/components/MediaManager";
 import { CampaignExtras } from "@/components/CampaignExtras";
 import { DadosLegaisCard, TransmissaoCard } from "@/components/DadosLegaisCard";
@@ -699,6 +700,7 @@ export function AdminCampanhas() {
                         <BannerDivulgacaoCard campaignId={c.id} />
                         <MediaManager campaignId={c.id} />
                         <LegendaCard campanha={c} />
+                        <ReelsDaRifa campaignId={c.id} />
                       </div>
                     ),
                   },

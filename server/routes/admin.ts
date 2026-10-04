@@ -180,6 +180,7 @@ import { emitirRecibo, pdfDoRecibo, reciboPorCodigo } from "../services/recibos"
 import { cadastrosFiscais, decidirCadastro, documento, estadoFiscal } from "../services/fiscal";
 import { montarRotasDaVerificacao } from "./verificacaoRotas";
 import { salvarLegenda } from "../services/publicacao";
+import { limparLegenda, problemaNaLegenda } from "@shared/publicacao";
 import {
   decidirVerificacao,
   detalheDaVerificacao,
@@ -1306,14 +1307,26 @@ adminRouter.put(
  */
 adminRouter.post("/campaigns/:id/media", async (req, res, next) => {
   try {
-    await assertCampaignInScope(req, req.params.id);
+    const campanha = await assertCampaignInScope(req, req.params.id);
     const created = await ingestUpload({
       campaignId: req.params.id,
       role: req.body?.role,
       storageKey: String(req.body?.storageKey ?? ""),
       altText: req.body?.altText ? String(req.body.altText) : undefined,
       mime: String(req.body?.mime ?? ""),
+      legenda: req.body?.legenda,
     });
+    if (created.legenda) {
+      emSegundoPlano(
+        varrerTextoDoOrganizador({
+          organizationId: campanha.organizationId,
+          campaignId: campanha.id,
+          onde: "legenda do reels",
+          texto: created.legenda,
+        }),
+        "varredura",
+      );
+    }
     await audit(req, "media.add", "campaign", req.params.id, {
       role: created.role,
       durationS: created.durationS,
@@ -1324,6 +1337,44 @@ adminRouter.post("/campaigns/:id/media", async (req, res, next) => {
     if (err instanceof MediaRuleError) {
       return res.status(err.status).json({ message: err.message });
     }
+    next(err);
+  }
+});
+
+/** Troca a legenda de um reels (a qualquer hora, como a legenda da publicação). */
+adminRouter.put("/media/:mediaId/legenda", async (req, res, next) => {
+  try {
+    const [midia] = await db
+      .select({ campaignId: campaignMedia.campaignId, role: campaignMedia.role })
+      .from(campaignMedia)
+      .where(eq(campaignMedia.id, req.params.mediaId));
+    if (!midia) return res.status(404).json({ message: "Mídia não encontrada." });
+    const campanha = await assertCampaignInScope(req, midia.campaignId);
+    if (midia.role !== "reels") return res.status(409).json({ message: "Só o reels tem legenda própria." });
+    const problema = problemaNaLegenda(req.body?.legenda);
+    if (problema) return res.status(422).json({ message: problema });
+    const legenda = limparLegenda(typeof req.body?.legenda === "string" ? req.body.legenda : "") || null;
+    const [gravada] = await db
+      .update(campaignMedia)
+      .set({ legenda })
+      .where(and(eq(campaignMedia.id, req.params.mediaId), eq(campaignMedia.role, "reels")))
+      .returning({ id: campaignMedia.id });
+    // Apagada entre a leitura e a gravação: nada mudou, nada se audita.
+    if (!gravada) return res.status(404).json({ message: "Mídia não encontrada." });
+    if (legenda) {
+      emSegundoPlano(
+        varrerTextoDoOrganizador({
+          organizationId: campanha.organizationId,
+          campaignId: campanha.id,
+          onde: "legenda do reels",
+          texto: legenda,
+        }),
+        "varredura",
+      );
+    }
+    await audit(req, "media.legenda", "campaign", campanha.id, { id: req.params.mediaId });
+    res.json({ legenda });
+  } catch (err) {
     next(err);
   }
 });

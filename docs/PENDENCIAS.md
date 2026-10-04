@@ -602,7 +602,9 @@ Na ordem de entrega do plano:
   biblioteca licenciada), reações rápidas com emoji (hoje emoji é vantagem
   de verificado: decisão de produto) e aba "Friends" (aqui é "Seguindo").
   Pôster pronto (`ffmpeg` local); HLS pelo Cloudflare Stream quando a
-  entrega estiver ligada (`reelsHls`).
+  entrega estiver ligada (`reelsHls`). **Reels pela organização feito:** o
+  vídeo só do Reels (papel `reels`, fora do carrossel), até 10 por rifa, cada
+  vídeo um item da tela.
 - [x] **Mensagens** (caixa de um para um entre apostador, organização e
   afiliado): pronta, atrás do interruptor `mensagensLigado` (Aparência →
   Topo do app, nasce desligado). **Mensagens v2, parte 1 feita:** o painel
@@ -679,7 +681,10 @@ Na ordem de entrega do plano:
   organização decide a versão que leu (`versao`, 409 se mudou). **Falta no
   ambiente**: `db:push` (colunas `divulgacoes.versao` e `editada_em`)
   **antes** do código; (5) ferramentas do Instagram ainda
-  sem equivalente: reels pela organização, agendar publicação (**story
+  sem equivalente: ~~reels pela organização~~ — **feito** (vídeo só do
+  Reels, fora do carrossel, com legenda própria, na aba Publicação; **falta no
+  ambiente** o `db:push` do valor `reels` em `media_role` e da coluna
+  `campaign_media.legenda` **antes** do código), agendar publicação (**story
   agendado feito**: até 7 dias, as 24 h contam da hora; **falta no
   ambiente** o `db:push` da coluna `stories.publica_em` **antes** do código —
   sem ela toda leitura de story falha; logo depois do push, uma vez,

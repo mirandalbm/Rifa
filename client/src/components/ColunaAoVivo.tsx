@@ -26,7 +26,7 @@ import {
   ultimasMensagens,
   type PreferenciaNaTelaCheia,
 } from "@/lib/comentariosNaTelaCheia";
-import { deitarATela, soltarATela } from "@/lib/telaCheia";
+import { deitarATela, deveGirarATela, ESTILO_DA_TELA_GIRADA, soltarATela } from "@/lib/telaCheia";
 
 /** O que `GET /api/public/vitrine/ao-vivo` devolve — já recortado no servidor. */
 export interface AoVivo {
@@ -185,7 +185,8 @@ export function TelaDoProximoSorteio({
  * sozinho (Esc). Onde o navegador não põe um elemento qualquer em tela cheia
  * (o Safari do iPhone só deixa o `<video>`), a tela ocupa a janela inteira
  * por cima de tudo (`falsa`) — sai pelo mesmo botão ou pelo Esc. Na tela
- * cheia de verdade, o celular deita (`deitarATela()`), como no YouTube.
+ * cheia de verdade, o celular deita (`deitarATela()`), como no YouTube; na
+ * falsa, com o aparelho em pé, a tela é desenhada deitada (`deveGirarATela()`).
  */
 function useTelaCheia(ref: RefObject<HTMLElement | null>) {
   const [cheia, setCheia] = useState(false);
@@ -249,7 +250,10 @@ function Tela({
   const { cheia, falsa, alternar, disponivel } = useTelaCheia(ref);
   // A transmissão entra 30 min antes da hora; com ela, a qualidade (onde o player aceita).
   const comQualidade = (proximo ? transmissaoAberta(proximo.drawAt, agora) : false) && aceitaQualidade(proximo?.video);
-  const deitado = useDeitado();
+  // No iPhone (tela cheia "falsa") com o aparelho em pé, a tela é desenhada deitada: conta como deitada.
+  const deitadoDeVerdade = useDeitado();
+  const girada = deveGirarATela(falsa, deitadoDeVerdade);
+  const deitado = deitadoDeVerdade || girada;
   const [pref, setPref] = useState<PreferenciaNaTelaCheia>(lerPreferencia);
   const [opcoes, setOpcoes] = useState(false);
   // "Comentar" na conversa por cima abre a conversa inteira ao lado, com o campo.
@@ -272,7 +276,11 @@ function Tela({
   const direcao = modo !== "lado" ? "" : ladoAoLado ? (pref.lado === "esquerda" ? "flex flex-row-reverse" : "flex flex-row") : "flex flex-col";
 
   return (
-    <div ref={ref} className={`flex w-full flex-col bg-[#0B1F14] ${falsa ? "fixed inset-0 z-[80] h-[100dvh]" : "h-full"}`}>
+    <div
+      ref={ref}
+      className={`flex flex-col bg-[#0B1F14] ${girada ? "z-[80]" : falsa ? "fixed inset-0 z-[80] h-[100dvh] w-full" : "h-full w-full"}`}
+      style={girada ? ESTILO_DA_TELA_GIRADA : undefined}
+    >
       <div className={`min-h-0 ${cheia ? "flex-1" : "aspect-video"} ${direcao}`}>
         <div className="relative h-full min-h-0 min-w-0 flex-1">
           <ConteudoDaTela proximo={proximo} agora={agora} qualidade={qualidade} semTitulo={semTitulo && !cheia} />

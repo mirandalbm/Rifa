@@ -18,6 +18,8 @@ import { CONFIG_BANNER_PAGO_PADRAO, validarConfigBannerPago, type ConfigBannerPa
 import { CONFIG_PATROCINIO_PADRAO, validarConfigPatrocinio, type ConfigPatrocinio } from "./patrocinio";
 import { validarPixels, type Pixels } from "./marketing";
 import { CORES_DO_SELO_PADRAO, validarCoresDoSelo, type CoresDoSelo } from "./verificacao";
+import { idDoCanal } from "./aoVivo";
+import { LOTERIAS, type Loteria } from "./sorteiosOficiais";
 
 export const PROVEDORES_PIX = ["mercadopago", "asaas"] as const;
 export type ProvedorPix = (typeof PROVEDORES_PIX)[number];
@@ -129,10 +131,15 @@ export interface ConfigPlataforma {
   buscarTipos: ConfigBusca;
   /**
    * O fundo da conversa por cima do vídeo, na tela cheia do sorteio, em % de
-   * opacidade. Nasce sólido (100), como o chat do YouTube e da Twitch, que não
-   * dão escolha a quem assiste; só a plataforma pode deixá-lo transparente.
+   * opacidade. Nasce sem fundo (0): só as mensagens na frente do vídeo; a
+   * escolha é da plataforma, nunca de quem assiste.
    */
   fundoDaConversaPct: number;
+  /**
+   * O canal oficial do YouTube de cada loteria (o id `UC…`): sem link colado
+   * no sorteio oficial, a tela toca a live que o canal estiver transmitindo.
+   */
+  canaisDasLoterias: CanaisDasLoterias;
   /** Banner pago na vitrine: preço do dia, prazo e vagas. Nasce desligado. */
   bannerPago: ConfigBannerPago;
   /** O assistente de IA (Chatbase) nos painéis do master, do organizador e do afiliado. Nasce desligado. */
@@ -155,6 +162,38 @@ export function validarFundoDaConversa(v: unknown): number {
     throw Object.assign(new Error("O fundo da conversa vai de 0% (sem fundo) a 100% (sólido)."), { status: 400 });
   }
   return n;
+}
+
+export type CanaisDasLoterias = Partial<Record<Loteria, string>>;
+
+/** O que vem do painel: só loterias conhecidas e cada canal pela régua de `idDoCanal()` (400). Vazio tira o canal. */
+export function validarCanaisDasLoterias(v: unknown): CanaisDasLoterias {
+  if (v === null || v === undefined) return {};
+  if (typeof v !== "object" || Array.isArray(v)) {
+    throw Object.assign(new Error("Canais das loterias em formato inválido."), { status: 400 });
+  }
+  const saida: CanaisDasLoterias = {};
+  for (const [chave, valor] of Object.entries(v as Record<string, unknown>)) {
+    if (!(chave in LOTERIAS)) throw Object.assign(new Error("Loteria desconhecida."), { status: 400 });
+    const id = idDoCanal(valor);
+    if (id) saida[chave as Loteria] = id;
+  }
+  return saida;
+}
+
+/** O guardado: o canal que não passe mais na régua sai, sem derrubar o resto. */
+function canaisGuardados(v: unknown): CanaisDasLoterias {
+  if (!v || typeof v !== "object" || Array.isArray(v)) return {};
+  const saida: CanaisDasLoterias = {};
+  for (const [chave, valor] of Object.entries(v as Record<string, unknown>)) {
+    try {
+      const id = chave in LOTERIAS ? idDoCanal(valor) : null;
+      if (id) saida[chave as Loteria] = id;
+    } catch {
+      // Canal estragado no banco: a loteria fica sem canal.
+    }
+  }
+  return saida;
 }
 
 /** O guardado que não passe mais na régua volta ao padrão (sem fundo), sem derrubar o resto. */
@@ -187,6 +226,7 @@ export const CONFIG_PADRAO: ConfigPlataforma = {
   buscarLigado: false,
   buscarTipos: CONFIG_BUSCA_PADRAO,
   fundoDaConversaPct: FUNDO_DA_CONVERSA_PADRAO_PCT,
+  canaisDasLoterias: {},
   bannerPago: CONFIG_BANNER_PAGO_PADRAO,
   assistenteIA: CONFIG_IA_PADRAO,
 };
@@ -225,6 +265,7 @@ export function validarConfigPlataforma(entrada: Partial<ConfigPlataforma>): Con
     buscarLigado: entrada.buscarLigado === true,
     buscarTipos: validarConfigBusca(entrada.buscarTipos),
     fundoDaConversaPct: fundoDaConversaGuardado(entrada.fundoDaConversaPct),
+    canaisDasLoterias: canaisGuardados(entrada.canaisDasLoterias),
     bannerPago: validarConfigBannerPago(entrada.bannerPago),
     assistenteIA: configIAGuardada(entrada.assistenteIA),
   };

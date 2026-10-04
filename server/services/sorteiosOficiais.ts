@@ -24,7 +24,8 @@ import {
   validarSorteioOficial,
   type Loteria,
 } from "@shared/sorteiosOficiais";
-import { DURACAO_DA_TRANSMISSAO_MS, videoDaTransmissao } from "@shared/aoVivo";
+import { DURACAO_DA_TRANSMISSAO_MS, videoDoSorteioOficial } from "@shared/aoVivo";
+import { getPlataforma } from "./settings";
 import { isUniqueViolation } from "../pgError";
 import { midiasDas, ultimoStorySql, urlDaFoto } from "./perfil";
 
@@ -414,13 +415,15 @@ export async function sorteioOficialDaTela() {
     : [];
 
   const tela = paraTela(s);
+  // Sem link colado no sorteio, a live do canal oficial da loteria (cadastrado uma vez).
+  const { canaisDasLoterias } = await getPlataforma();
   return {
     proximas: [],
     sorteio: {
       ...tela,
       // O endereço da transmissão sai só como o vídeo conferido (serviço conhecido) ou link.
       transmissaoUrl: undefined,
-      video: videoDaTransmissao(s.transmissaoUrl),
+      video: videoDoSorteioOficial(s.transmissaoUrl, canaisDasLoterias[tela.loteria]),
       selo: seloDoSorteioOficial({ loteria: tela.loteria, concurso: s.concurso, sorteioEm: s.sorteioEm }),
       rifas: rifas.map((r) => ({
         slug: r.slug,

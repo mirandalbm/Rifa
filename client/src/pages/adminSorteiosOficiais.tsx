@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { PanelShell } from "@/components/AppShell";
@@ -7,7 +7,7 @@ import { Janela } from "@/components/Janela";
 import { Button, Card, Campo, Empty, Pill } from "@/components/bits";
 import { apiRequest } from "@/lib/queryClient";
 import { useSession } from "@/lib/session";
-import { leituraDoLink } from "@shared/aoVivo";
+import { ANTECEDENCIA_DA_TRANSMISSAO_MS, leituraDoLink } from "@shared/aoVivo";
 import {
   LOTERIAS,
   ROTULO_DA_SITUACAO,
@@ -100,7 +100,12 @@ export function AdminSorteiosOficiais() {
       </Card>
       <div className="mt-3 grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,380px)_minmax(0,1fr)]">
         <div className="min-w-0 space-y-3">
-          {plataforma ? <NovoSorteio /> : (
+          {plataforma ? (
+            <>
+              <NovoSorteio />
+              <CanaisDasLoterias />
+            </>
+          ) : (
             <p className="px-1 text-xs text-muted">
               Escolha o sorteio da rifa em rascunho: a data da rifa passa a ser a do concurso e trava ao publicar. Depois de
               publicada, mudar só com a plataforma.
@@ -692,7 +697,89 @@ function ComoCopiarOLink() {
         <br />
         Não serve: o link do canal (<span className="tnum break-all">youtube.com/@caixa</span>) — ele só abre o YouTube.
       </p>
-      <p className="mt-2 text-muted">O vídeo começa sem som; quem assiste toca no player para ouvir. Dá para trocar o link até o resultado.</p>
+      <p className="mt-2 text-muted">
+        O vídeo começa sem som; quem assiste toca no player para ouvir. Dá para trocar o link até o resultado. Para não colar
+        link a cada sorteio, cadastre uma vez o canal da loteria no cartão "Canal oficial de cada loteria".
+      </p>
     </details>
+  );
+}
+
+/**
+ * O canal oficial do YouTube de cada loteria, cadastrado uma vez: sem link
+ * colado no sorteio, a tela toca a live que o canal estiver transmitindo, a
+ * partir de 30 min antes da hora. Só a plataforma (403 para organizador).
+ */
+function CanaisDasLoterias() {
+  const qc = useQueryClient();
+  const { data } = useQuery<{ canais: Partial<Record<Loteria, string>> }>({ queryKey: ["/api/admin/sorteios-oficiais/canais"] });
+  const [canais, setCanais] = useState<Partial<Record<Loteria, string>>>({});
+  const [msg, setMsg] = useState<{ ok: boolean; texto: string } | null>(null);
+  useEffect(() => {
+    if (data) setCanais(data.canais);
+  }, [data]);
+  const salvar = useMutation({
+    mutationFn: () => apiRequest("PUT", "/api/admin/sorteios-oficiais/canais", { canais }),
+    onSuccess: () => {
+      setMsg({ ok: true, texto: "Canais salvos. Sem link no sorteio, a tela toca a live do canal da loteria." });
+      qc.invalidateQueries({ queryKey: ["/api/admin/sorteios-oficiais/canais"] });
+    },
+    onError: (e: Error) => setMsg({ ok: false, texto: e.message }),
+  });
+  const minutos = Math.round(ANTECEDENCIA_DA_TRANSMISSAO_MS / 60_000);
+  return (
+    <Card title="Canal oficial de cada loteria">
+      <form
+        className="space-y-3 p-4"
+        onSubmit={(e) => {
+          e.preventDefault();
+          setMsg(null);
+          salvar.mutate();
+        }}
+      >
+        <p className="text-xs text-muted">
+          Cadastre uma vez o canal do YouTube que transmite cada loteria. Sem link colado no sorteio, a tela do sorteio toca a
+          live que o canal estiver transmitindo, a partir de <span className="tnum">{minutos}</span> minutos antes da hora. O link
+          colado no sorteio vale primeiro.
+        </p>
+        {(Object.keys(LOTERIAS) as Loteria[]).map((l) => (
+          <Campo key={l} rotulo={`Canal da ${LOTERIAS[l].nome} (opcional)`}>
+            <input
+              value={canais[l] ?? ""}
+              placeholder="UC… ou https://www.youtube.com/channel/UC…"
+              onChange={(e) => {
+                setMsg(null);
+                setCanais((c) => ({ ...c, [l]: e.target.value }));
+              }}
+              autoComplete="off"
+              spellCheck={false}
+            />
+          </Campo>
+        ))}
+        <details className="rounded-md border border-line px-3 py-2 text-xs">
+          <summary className="cursor-pointer font-semibold">Onde achar o id do canal?</summary>
+          <ol className="mt-2 list-decimal space-y-1 pl-4 text-muted">
+            <li>
+              No YouTube, abra o canal (o da Caixa é <strong className="text-ink">@caixa</strong>).
+            </li>
+            <li>
+              Toque em <strong className="text-ink">Mais sobre este canal</strong> → <strong className="text-ink">Compartilhar canal</strong> →{" "}
+              <strong className="text-ink">Copiar ID do canal</strong>.
+            </li>
+            <li>
+              Cole aqui: começa com <span className="tnum text-ink">UC</span> e tem <span className="tnum">24</span> caracteres. O endereço com @ não serve.
+            </li>
+          </ol>
+        </details>
+        <Button type="submit" disabled={salvar.isPending}>
+          {salvar.isPending ? "Salvando…" : "Salvar canais"}
+        </Button>
+        {msg ? (
+          <p role="status" className={`text-sm ${msg.ok ? "text-green-deep" : "text-red"}`}>
+            {msg.texto}
+          </p>
+        ) : null}
+      </form>
+    </Card>
   );
 }

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { Link } from "wouter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowUp, Gift, Heart, MessageCircle, X } from "lucide-react";
@@ -281,6 +281,8 @@ function Escrever({
   const [erro, setErro] = useState<string | null>(null);
   const [presenteAberto, setPresenteAberto] = useState(false);
   const campo = useRef<HTMLTextAreaElement>(null);
+  // Único na página: na tela cheia do sorteio a mesma conversa aparece duas vezes.
+  const idDoCampo = `comentar-${slug ?? "sorteio"}-${useId().replace(/:/g, "")}`;
   const formulario = useRef<HTMLFormElement>(null);
   useEffect(() => {
     if (foco) campo.current?.focus();
@@ -339,13 +341,13 @@ function Escrever({
           if (!enviar.isPending) enviar.mutate();
         }}
       >
-        <label htmlFor={`comentar-${slug ?? "sorteio"}`} className="sr-only">
+        <label htmlFor={idDoCampo} className="sr-only">
           {rotulo}
         </label>
         {/* O campo sutil do Instagram: pílula fina, com o envio dentro dela. */}
         <div className="flex min-w-0 flex-1 items-end rounded-full border border-line-2 bg-white py-1 pl-4 pr-1 focus-within:border-ink-2">
           <textarea
-            id={`comentar-${slug ?? "sorteio"}`}
+            id={idDoCampo}
             ref={campo}
             rows={1}
             maxLength={COMENTARIO_MAX}

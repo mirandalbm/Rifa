@@ -2,7 +2,8 @@ import { useEffect, useRef, useState, type PointerEvent as PE, type ReactNode, t
 import { createPortal } from "react-dom";
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { ExternalLink, Maximize, Minimize, PictureInPicture2, Radio, Settings, Trophy, Users, X } from "lucide-react";
+import { ExternalLink, Maximize, MessageCircle, Minimize, PictureInPicture2, Radio, Settings, Trophy, Users, X } from "lucide-react";
+import { Comentarios } from "@/components/Comentarios";
 import { acimaDoConsole } from "@/components/Console";
 import {
   QUALIDADES_DO_VIDEO,
@@ -13,6 +14,17 @@ import {
   type QualidadeDoVideo,
   type VideoDaTransmissao,
 } from "@shared/aoVivo";
+import {
+  FUNDOS_NA_TELA_CHEIA,
+  LADOS_NA_TELA_CHEIA,
+  MODOS_NA_TELA_CHEIA,
+  alfaDoFundo,
+  guardarPreferencia,
+  lerPreferencia,
+  modoNaTela,
+  ultimasMensagens,
+  type PreferenciaNaTelaCheia,
+} from "@/lib/comentariosNaTelaCheia";
 
 /** O que `GET /api/public/vitrine/ao-vivo` devolve — já recortado no servidor. */
 export interface AoVivo {
@@ -139,7 +151,14 @@ function TelaDoSorteio({
  * A tela do próximo sorteio sem a coluna: contagem, transmissão e a barra
  * (qualidade e tela cheia). É a do Início no celular (`SorteioDoInicio`).
  */
-export function TelaDoProximoSorteio({ proximo }: { proximo: AoVivo["proximo"] }) {
+export function TelaDoProximoSorteio({
+  proximo,
+  comentariosDoSorteio,
+}: {
+  proximo: AoVivo["proximo"];
+  /** O sorteio oficial: na tela cheia, os comentários dele vão ao lado ou por cima do vídeo. */
+  comentariosDoSorteio?: string;
+}) {
   const [agora, setAgora] = useState(() => Date.now());
   useEffect(() => {
     const t = setInterval(() => setAgora(Date.now()), 1000);
@@ -147,7 +166,16 @@ export function TelaDoProximoSorteio({ proximo }: { proximo: AoVivo["proximo"] }
   }, []);
   const [qualidade, setQualidade] = useState<QualidadeDoVideo>("auto");
   // O título vai embaixo do vídeo, como no YouTube: dentro da tela, só a contagem.
-  return <Tela proximo={proximo} agora={agora} qualidade={qualidade} onQualidade={setQualidade} semTitulo />;
+  return (
+    <Tela
+      proximo={proximo}
+      agora={agora}
+      qualidade={qualidade}
+      onQualidade={setQualidade}
+      semTitulo
+      comentariosDoSorteio={comentariosDoSorteio}
+    />
+  );
 }
 
 /**
@@ -194,6 +222,7 @@ function Tela({
   onQualidade,
   onFlutuar,
   semTitulo,
+  comentariosDoSorteio,
 }: {
   proximo: AoVivo["proximo"];
   agora: number;
@@ -202,16 +231,66 @@ function Tela({
   onFlutuar?: () => void;
   /** O título fica fora da tela (no Início do celular, embaixo do vídeo). */
   semTitulo?: boolean;
+  comentariosDoSorteio?: string;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const { cheia, falsa, alternar, disponivel } = useTelaCheia(ref);
   const aoVivo = proximo ? faltaParaOSorteio(proximo.drawAt, agora).aoVivo : false;
   const comQualidade = aoVivo && aceitaQualidade(proximo?.video);
+  const deitado = useDeitado();
+  const [pref, setPref] = useState<PreferenciaNaTelaCheia>(lerPreferencia);
+  const [opcoes, setOpcoes] = useState(false);
+  // "Comentar" na conversa por cima abre a conversa inteira ao lado, com o campo.
+  const [escrevendo, setEscrevendo] = useState(false);
+  useEffect(() => {
+    if (!cheia) {
+      setOpcoes(false);
+      setEscrevendo(false);
+    }
+  }, [cheia]);
+  const comComentarios = cheia && Boolean(comentariosDoSorteio);
+  const modo = comComentarios ? (escrevendo ? "lado" : modoNaTela(pref, deitado)) : "oculto";
+  const mudar = (p: Partial<PreferenciaNaTelaCheia>) => {
+    const nova = { ...pref, ...p };
+    setPref(nova);
+    guardarPreferencia(nova);
+  };
+  // Deitado, a conversa fica ao lado; em pé, embaixo — a tela não tem largura para dividir.
+  const ladoAoLado = modo === "lado" && deitado;
+  const direcao = modo !== "lado" ? "" : ladoAoLado ? (pref.lado === "esquerda" ? "flex flex-row-reverse" : "flex flex-row") : "flex flex-col";
 
   return (
     <div ref={ref} className={`flex w-full flex-col bg-[#0B1F14] ${falsa ? "fixed inset-0 z-[80] h-[100dvh]" : "h-full"}`}>
-      <div className={`min-h-0 ${cheia ? "flex-1" : "aspect-video"}`}>
-        <ConteudoDaTela proximo={proximo} agora={agora} qualidade={qualidade} semTitulo={semTitulo && !cheia} />
+      <div className={`min-h-0 ${cheia ? "flex-1" : "aspect-video"} ${direcao}`}>
+        <div className="relative h-full min-h-0 min-w-0 flex-1">
+          <ConteudoDaTela proximo={proximo} agora={agora} qualidade={qualidade} semTitulo={semTitulo && !cheia} />
+          {modo === "sobre" && comentariosDoSorteio ? (
+            <ConversaPorCima
+              sorteioOficialId={comentariosDoSorteio}
+              pref={pref}
+              onComentar={() => setEscrevendo(true)}
+            />
+          ) : null}
+        </div>
+        {modo === "lado" && comentariosDoSorteio ? (
+          <aside
+            aria-label="Comentários do sorteio"
+            className={`min-h-0 overflow-y-auto overscroll-contain bg-white px-3 text-ink ${
+              ladoAoLado ? "h-full w-[38%] min-w-[240px] max-w-[420px] shrink-0" : "h-[45%] shrink-0"
+            }`}
+          >
+            {escrevendo ? (
+              <button
+                type="button"
+                onClick={() => setEscrevendo(false)}
+                className="sticky top-0 z-10 -mx-3 flex w-[calc(100%+1.5rem)] items-center gap-1.5 border-b border-line bg-white px-3 py-2 text-sm font-semibold"
+              >
+                <X size={16} aria-hidden /> Voltar aos comentários por cima
+              </button>
+            ) : null}
+            <Comentarios sorteioOficialId={comentariosDoSorteio} dentroDoPainel />
+          </aside>
+        ) : null}
       </div>
       {proximo ? (
         <div className="flex h-9 shrink-0 items-center justify-end gap-1 bg-black/40 pl-1.5 pr-4 text-branco">
@@ -237,6 +316,22 @@ function Tela({
               <PictureInPicture2 size={16} aria-hidden />
             </button>
           ) : null}
+          {comComentarios ? (
+            <span className="relative">
+              <button
+                type="button"
+                onClick={() => setOpcoes((v) => !v)}
+                aria-label="Comentários na tela cheia: onde ficam"
+                title="Comentários"
+                aria-expanded={opcoes}
+                className="flex items-center gap-1 rounded p-1.5 text-[11px] hover:bg-white/20"
+              >
+                <MessageCircle size={16} aria-hidden />
+                <span>{modo === "oculto" ? "Comentários" : "Opções"}</span>
+              </button>
+              {opcoes ? <OpcoesDosComentarios pref={pref} onMudar={mudar} onFechar={() => setOpcoes(false)} /> : null}
+            </span>
+          ) : null}
           {disponivel ? (
             <button
               type="button"
@@ -251,6 +346,121 @@ function Tela({
           ) : null}
         </div>
       ) : null}
+    </div>
+  );
+}
+
+/** O celular deitado (largura maior que a altura). */
+function useDeitado() {
+  const consulta = "(orientation: landscape)";
+  const [deitado, setDeitado] = useState(() => typeof window !== "undefined" && window.matchMedia?.(consulta).matches === true);
+  useEffect(() => {
+    const m = window.matchMedia?.(consulta);
+    if (!m) return;
+    const mudou = () => setDeitado(m.matches);
+    m.addEventListener("change", mudou);
+    return () => m.removeEventListener("change", mudou);
+  }, []);
+  return deitado;
+}
+
+/**
+ * As últimas mensagens por cima do vídeo, como no chat da Twitch: só a
+ * leitura (nome e texto, nada além do que a lista embaixo já mostra), num
+ * canto, sobre o fundo escuro que a pessoa escolheu. Tocar em "Comentar"
+ * abre a conversa inteira ao lado, com o campo.
+ */
+function ConversaPorCima({
+  sorteioOficialId,
+  pref,
+  onComentar,
+}: {
+  sorteioOficialId: string;
+  pref: PreferenciaNaTelaCheia;
+  onComentar: () => void;
+}) {
+  const { data } = useQuery<{ lista: { id: string; nome: string; texto: string; createdAt: string; respostas: { id: string; nome: string; texto: string; createdAt: string }[] }[] }>({
+    queryKey: [`/api/public/sorteio-oficial/${sorteioOficialId}/comentarios`],
+    // Com a tela cheia aberta, a conversa anda sozinha.
+    refetchInterval: 10_000,
+    refetchIntervalInBackground: false,
+  });
+  const ultimas = ultimasMensagens(data?.lista ?? []);
+  return (
+    <section
+      aria-label="Últimos comentários"
+      className={`absolute bottom-[4.5rem] z-10 flex max-h-[55%] w-[70%] max-w-[360px] flex-col gap-1 rounded-lg p-2 font-instagram text-[14px] text-branco ${
+        pref.lado === "esquerda" ? "left-2" : "right-2"
+      }`}
+      style={{ backgroundColor: `rgba(0, 0, 0, ${alfaDoFundo(pref.fundo)})`, textShadow: "0 1px 2px rgba(0,0,0,0.8)" }}
+    >
+      <ol className="min-h-0 space-y-1 overflow-hidden" aria-live="polite">
+        {ultimas.length ? (
+          ultimas.map((m) => (
+            <li key={m.id} className="break-words leading-snug">
+              <span className="font-semibold">{m.nome}</span> {m.texto}
+            </li>
+          ))
+        ) : (
+          <li className="text-branco/80">Ainda sem comentários.</li>
+        )}
+      </ol>
+      <button
+        type="button"
+        onClick={onComentar}
+        className="mt-1 self-start rounded-full border border-branco/60 px-3 py-1 text-xs font-semibold hover:bg-white/20"
+      >
+        Comentar
+      </button>
+    </section>
+  );
+}
+
+/** Onde os comentários ficam na tela cheia, o fundo e o lado — guardado no aparelho. */
+function OpcoesDosComentarios({
+  pref,
+  onMudar,
+  onFechar,
+}: {
+  pref: PreferenciaNaTelaCheia;
+  onMudar: (p: Partial<PreferenciaNaTelaCheia>) => void;
+  onFechar: () => void;
+}) {
+  const caixa = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    caixa.current?.querySelector<HTMLInputElement>("input:checked")?.focus();
+  }, []);
+  const grupo = <T extends string>(legenda: string, nome: string, lista: readonly { valor: T; rotulo: string }[], valor: T, mudar: (v: T) => void) => (
+    <fieldset className="space-y-1">
+      <legend className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-branco/70">{legenda}</legend>
+      {lista.map((o) => (
+        <label key={o.valor} className="flex min-h-[28px] cursor-pointer items-center gap-2 text-[13px]">
+          <input type="radio" name={nome} value={o.valor} checked={valor === o.valor} onChange={() => mudar(o.valor)} className="accent-current" />
+          {o.rotulo}
+        </label>
+      ))}
+    </fieldset>
+  );
+  return (
+    <div
+      ref={caixa}
+      role="dialog"
+      aria-label="Comentários na tela cheia"
+      // Esc fecha só as opções, não a tela cheia.
+      onKeyDown={(e) => {
+        if (e.key === "Escape") {
+          e.stopPropagation();
+          onFechar();
+        }
+      }}
+      className="absolute bottom-full right-0 z-20 mb-2 max-h-[calc(100dvh-4rem)] w-64 max-w-[80vw] space-y-3 overflow-y-auto overscroll-contain rounded-lg bg-[#0B1F14] p-3 text-branco shadow-lg"
+    >
+      {grupo("Onde ficam", "comentarios-modo", MODOS_NA_TELA_CHEIA, pref.modo, (modo) => onMudar({ modo }))}
+      {grupo("Fundo por cima do vídeo", "comentarios-fundo", FUNDOS_NA_TELA_CHEIA, pref.fundo, (fundo) => onMudar({ fundo }))}
+      {grupo("Lado", "comentarios-lado", LADOS_NA_TELA_CHEIA, pref.lado, (lado) => onMudar({ lado }))}
+      <button type="button" onClick={onFechar} className="w-full rounded-md border border-branco/40 py-1.5 text-xs font-semibold hover:bg-white/20">
+        Pronto
+      </button>
     </div>
   );
 }

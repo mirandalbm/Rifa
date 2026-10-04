@@ -21,7 +21,12 @@ import {
 import { faltaParaOSorteio, type VideoDaTransmissao } from "@shared/aoVivo";
 
 /** Onde a tela vale: abaixo de `md`, onde a vitrine não tem a coluna ao vivo. */
-const NO_CELULAR = "(max-width: 767px)";
+/**
+ * O celular, em pé ou deitado: deitado ele passa de 768 px de largura, mas
+ * a altura fica baixa — sem isto, girar o aparelho com o vídeo em tela cheia
+ * escondia a tela do sorteio inteira. A mesma régua está na classe do painel.
+ */
+const NO_CELULAR = "(max-width: 767px), (max-height: 500px)";
 const MARCA = "#sorteio";
 
 /**
@@ -189,7 +194,7 @@ export function SorteioDoInicio({
       aria-modal={aberto ? "true" : undefined}
       aria-label="Sorteio"
       aria-hidden={!aberto}
-      className={`fixed inset-0 z-[60] flex flex-col bg-white md:hidden ${arrasto === null ? "transition-transform duration-200" : ""} ${visivel ? "" : "invisible"}`}
+      className={`fixed inset-0 z-[60] flex flex-col bg-white [@media(min-width:768px)_and_(min-height:501px)]:hidden ${arrasto === null ? "transition-transform duration-200" : ""} ${visivel ? "" : "invisible"}`}
       style={{
         transform:
           deslocamento === 0 ? undefined : `translateX(${deslocamento}px)`,
@@ -297,8 +302,11 @@ function ConteudoDoSorteio({
           {comResultado ? "Resultado oficial" : aoVivo || aoVivoDaRifa ? "Sorteio ao vivo" : s ? "Sorteio oficial" : "Próximo sorteio"}
         </h2>
       </header>
-      {/* O vídeo fica parado no alto; o que rola é o resto. */}
-      <div className="shrink-0">
+      {/* O vídeo fica parado no alto; o que rola é o resto. Com o celular
+          deitado, o 16:9 na largura toda passaria da altura da tela (e o
+          botão de tela cheia sumiria): o vídeo fica com 60% da altura, no centro. */}
+      <div className="shrink-0 bg-[#0B1F14]">
+        <div className="mx-auto w-full [@media(orientation:landscape)_and_(max-height:500px)]:max-w-[calc(60dvh*16/9)]">
         {comResultado && s?.resultado ? (
           <div className="flex aspect-video w-full flex-col items-center justify-center gap-3 bg-[#0B1F14] p-4 text-branco">
             <p className="text-[11px] font-semibold uppercase tracking-wide text-[#8cc2ff]">
@@ -313,8 +321,9 @@ function ConteudoDoSorteio({
             </p>
           </div>
         ) : (
-          <TelaDoProximoSorteio proximo={naTela} />
+          <TelaDoProximoSorteio proximo={naTela} comentariosDoSorteio={s?.id} />
         )}
+        </div>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-8 pt-3">
         {isLoading ? <p className="px-4 text-sm text-muted">Carregando…</p> : null}

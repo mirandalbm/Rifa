@@ -428,6 +428,26 @@ arquitetura.
     transmissão é um `iframe` — sem a tela cheia do navegador, a tela ocupa a
     janela por cima de tudo (`falsa` em `useTelaCheia`), e sai pelo mesmo
     botão ou pelo Esc. Vale também para a coluna.
+  - **Comentários na tela cheia, como o chat da Twitch** (só com sorteio
+    oficial, `comentariosDoSorteio` em `TelaDoProximoSorteio`; regras em
+    `client/src/lib/comentariosNaTelaCheia.ts`, `tests/comentariosNaTelaCheia.test.ts`):
+    **ao lado do vídeo** (deitado, o vídeo encolhe e a conversa inteira fica
+    numa faixa de 38%; em pé, embaixo) ou **por cima** (as últimas 6
+    mensagens num canto, só leitura, apelido e texto — nada além do que a
+    lista já mostra —, sobre fundo escuro de 45% a 80% e sombra no texto; o
+    "Comentar" abre a conversa inteira ao lado, com o campo). O botão
+    "Comentários"/"Opções" na barra abre as escolhas: onde ficam (automático
+    — ao lado deitado, por cima em pé —, ao lado, por cima, escondidos), o
+    fundo e o lado (direita ou esquerda), em rádios com legenda; Esc fecha só
+    as opções. A escolha fica no aparelho (`rifa.sorteio.comentarios`, só
+    valores conhecidos). É a mesma conversa, com as mesmas regras e as mesmas
+    rotas — por cima, a lista anda a cada 10 s.
+  - **O celular deitado continua sendo celular** (`NO_CELULAR`: até 767 px de
+    largura **ou** até 500 px de altura; a classe da tela segue a mesma
+    régua): antes, girar o aparelho passava de `md` e escondia a tela do
+    sorteio inteira, com o vídeo em tela cheia junto. Deitado e fora da tela
+    cheia, o vídeo fica com 60% da altura, no centro, para o botão de tela
+    cheia não sair da vista.
 - **Rodapé da plataforma** (`RodapeDaPlataforma`, só tablet e computador;
   no celular isso mora em `/perfil`), no desenho de rodapé de produto:
   **à esquerda** a logo, o texto de apresentação do template e, embaixo do

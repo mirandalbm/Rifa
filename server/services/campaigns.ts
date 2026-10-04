@@ -2,7 +2,7 @@
  * Regras de campanha. A mais importante: o total de cotas trava na
  * publicação — mudar depois alteraria a chance de quem já comprou.
  */
-import { and, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, ne, sql } from "drizzle-orm";
 import { db } from "../db";
 import sharp from "sharp";
 import {
@@ -323,7 +323,8 @@ export async function campaignBySlug(slug: string) {
     .select()
     .from(campaignMedia)
     .where(
-      and(eq(campaignMedia.campaignId, row.campaign.id), eq(campaignMedia.status, "ready")),
+      // O vídeo só do Reels não entra no carrossel da página da rifa.
+      and(eq(campaignMedia.campaignId, row.campaign.id), eq(campaignMedia.status, "ready"), ne(campaignMedia.role, "reels")),
     )
     .orderBy(campaignMedia.role, campaignMedia.position);
 

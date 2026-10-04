@@ -113,7 +113,7 @@ arquitetura.
 | cadastro fiscal do afiliado, cofre e recibo | `shared/fiscal.ts` (regras), `server/services/cofre.ts`, `server/services/fiscal.ts`, `server/services/recibos.ts`, `client/src/pages/afiliadoDados.tsx`, `adminFiscal.tsx`, `Recibo.tsx`, `scripts/fiscal-test.ts` |
 | guarda da comissão pela plataforma (etapa 12) | `guardaComissao` e `percentualDoPromotor()` em `shared/plataforma.ts`, `createOrder`/`settleOrderAsPaid` em `server/services/orders.ts`, `scripts/guarda-test.ts` |
 | indicação, bônus e metas (etapa 13) | `shared/bonus.ts` (regras), `server/services/bonus.ts`, `resgatarCotasDeBonus()` em `server/services/orders.ts`, `client/src/lib/indicacao.ts`, `client/src/pages/adminBonus.tsx`, `client/src/components/BonusDoComprador.tsx`, `scripts/bonus-test.ts` |
-| Reels (tela cheia, vídeo em pé, interruptor da plataforma) | `shared/reels.ts` (regras, lote), `GET /api/public/reels` em `server/routes/public.ts`, `reelsLigado` em `shared/plataforma.ts`, `client/src/pages/Reels.tsx`, o som lembrado em `client/src/lib/reelsSom.ts`, `vertical` em `BarraDeAcoes`, `scripts/publicacao-test.ts`, `tests/reels.test.ts` |
+| Reels (tela cheia, vídeo em pé, interruptor da plataforma, o vídeo só do Reels publicado pela organização) | `shared/reels.ts` (regras, lote, `videosDoReels`/`itensDoReels`), `client/src/components/ReelsDaRifa.tsx` (o cartão do painel), papel `reels` em `server/services/media.ts`, `GET /api/public/reels` em `server/routes/public.ts`, `reelsLigado` em `shared/plataforma.ts`, `client/src/pages/Reels.tsx`, o som lembrado em `client/src/lib/reelsSom.ts`, `vertical` em `BarraDeAcoes`, `scripts/publicacao-test.ts`, `tests/reels.test.ts` |
 | Buscar (grade das publicações e busca por texto, interruptor e tabela da plataforma) | `shared/buscar.ts` (regras e tabela), `server/services/buscar.ts`, o índice de texto (`shared/semAcentoSql.ts`, `idx_*_trgm` em `shared/schema.ts`, `scripts/extensoes.ts` no `db:push`), `GET /api/public/buscar` em `server/routes/public.ts`, `buscarLigado`/`buscarTipos` em `shared/plataforma.ts`, `client/src/pages/Buscar.tsx`, cartão em `client/src/components/TopoDoAppCard.tsx`, `scripts/buscar-test.ts`, `tests/buscar.test.ts` |
 | Mensagens (caixa de um para um: apostador, organização e afiliado) | `shared/mensagens.ts` (regras puras), `server/services/mensagens.ts`, rotas `/mensagens/*` em `server/routes/public.ts` e `/mensagens/denuncias*` em `server/routes/admin.ts`, `mensagensLigado` em `shared/plataforma.ts`, `client/src/pages/Mensagens.tsx` (foto e "online agora"), grupos da rifa (`shared/grupos.ts`, `server/services/grupos.ts`, `client/src/components/Grupos.tsx`, `GruposDenunciadosDaPlataforma` em `ConversasDenunciadas.tsx`, `scripts/grupos-test.ts`, `tests/grupos.test.ts`), `ConversasDenunciadas.tsx`, `BotaoMensagem.tsx` (também na peça do afiliado em `DivulgacoesDaRifa.tsx`), o número não lido do painel em `PanelShell` (`client/src/components/AppShell.tsx`, `rotuloDoSino()` em `shared/avisos.ts`), `scripts/mensagens-test.ts`, `tests/mensagens.test.ts` |
 | rifas patrocinadas por clique (etapa 15): pacote, fila, tabela e números | `shared/patrocinio.ts` (regras, preço, previsão da fila), `server/services/patrocinio.ts`, `client/src/pages/adminPatrocinio.tsx`, `client/src/components/Patrocinadas.tsx`, `scripts/patrocinio-test.ts` |
@@ -2300,9 +2300,10 @@ conversa como cartão (o compartilhar da publicação), nunca como link no texto
 - **Só rifa no ar com vídeo em pé de até 3 min**, medido no servidor
   (`videoDoReels()`: formato "reels" e proporção ≤ 0,85 — vídeo deitado ou
   sem medida não entra). Demonstração, rifa travada e rascunho ficam de fora.
-- **Lote depois do último id visto** (`loteDepoisDe()`, parâmetro `depois`),
-  nunca por número de página nem `OFFSET`: rifa nova no topo não repete nem
-  pula item. Região ordena (`ordenarPorProximidade`), nunca esconde.
+- **Lote depois do último visto** (`loteDoReels()`, parâmetro `depois` com a
+  rodada e a rifa — abaixo), nunca por número de página nem `OFFSET`: rifa
+  nova no topo não repete item. Região ordena (`ordenarPorProximidade`),
+  nunca esconde.
 - **"Seguindo" pede conta** (`precisaEntrar`) e filtra por `seguidores`.
 - **É o mesmo cartão e as mesmas ações da vitrine**: curtir, comentar,
   republicar, compartilhar, "+" e comprar passam pelas rotas de sempre.
@@ -2313,7 +2314,32 @@ conversa como cartão (o compartilhar da publicação), nunca como link no texto
   O navegador pode barrar o som sem toque; aí o reel **toca mudo** e a escolha
   guardada fica como estava (botão de som com `aria-pressed`). Nada de música
   nem trilha: sem biblioteca licenciada, o som é o do próprio vídeo.
-- `npm run publicacao` prova a rota e o interruptor contra a API de verdade.
+- **A organização publica vídeo só no Reels** (papel `reels` em
+  `campaign_media`, cartão "Reels da rifa" na aba Publicação,
+  `ReelsDaRifa.tsx`): **fora do carrossel** — toda leitura do carrossel
+  (`midiasDas`, a página da rifa, a divulgação) filtra o papel, e ele não
+  ocupa vaga do `MAX_CARROSSEL`. Até `REELS_POR_RIFA` (10) por rifa, **em pé
+  e até 3 min, medido no servidor** (`ingest`), com **legenda própria** na
+  régua da legenda (`problemaNaLegenda`, conferida dentro do `ingest`: a
+  recusa apaga o arquivo enviado, como toda mídia recusada) e a varredura do
+  Pix por fora. O teto é contado e gravado sob a trava da rifa
+  (`TRAVA_MIDIA`, 811105, a mesma do carrossel): dois envios na última vaga,
+  um 201 e um 409. O valor `reels` de `media_role` e a coluna
+  `campaign_media.legenda` sobem com o `db:push` **antes** do código. Trocar a legenda é `PUT /media/:id/legenda` (o dono pelo pai,
+  `assertCampaignInScope` — o do vizinho é 404, no `npm run isolation`; vídeo
+  do carrossel é 409). Pôster, HLS e apagar seguem o vídeo do carrossel
+  (`ehVideo()`).
+- **Cada vídeo é um item da tela** (`videosDoReels()`: os só do Reels e o do
+  carrossel que é reels e em pé, **do mais antigo ao mais novo** — o novo só
+  entra no fim), **um de cada rifa por rodada** (`itensDoReels()`). O lote
+  anda pela **posição** (`loteDoReels()`, cursor `<rodada>:<rifa>:<vídeo>`),
+  nunca pelo índice numa lista recalculada: o vídeo apagado ou a rifa que
+  saiu do ar não fazem a fila recomeçar, e o vídeo que subiu para o lugar do
+  apagado ainda entra — nunca repete (a rifa que saiu do ar pode pular um). `reelsId` é o vídeo (a chave na
+  tela); `id` segue sendo a rifa (curtir, comentar e comprar são dela).
+  A legenda do item é a do vídeo, senão a da rifa.
+- `npm run publicacao` prova a rota, o interruptor e o reels da organização
+  contra a API de verdade.
 
 ## Carrinho e comprar — o que não pode afrouxar
 

@@ -8,7 +8,7 @@
  * tela. Por isso a duração é MEDIDA aqui, lendo o arquivo já armazenado, e
  * não aceita o que o navegador informou.
  */
-import { and, eq, inArray, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import { db } from "../db";
 import { campaignMedia, MAX_PHOTOS, MAX_VIDEO_SECONDS } from "@shared/schema";
 import { randomUUID } from "node:crypto";
@@ -27,9 +27,10 @@ import { emSegundoPlano } from "./push";
 import { POSTER_BAIXAR_ATE_BYTES, chaveDoPoster, posterPublico } from "@shared/poster";
 import { probeImage, probeVideoDimensions, probeVideoDuration, UnreadableMediaError } from "./probe";
 import { processImage, srcSet, removeVariants, type ImageVariant } from "./images";
-import { MAX_CARROSSEL, duracao, formatoDoVideo } from "@shared/publicacao";
+import { MAX_CARROSSEL, duracao, formatoDoVideo, limparLegenda, problemaNaLegenda } from "@shared/publicacao";
+import { REELS_POR_RIFA, ehVideo, videoEmPe } from "@shared/reels";
 
-export type MediaRole = "banner" | "photo" | "video";
+export type MediaRole = "banner" | "photo" | "video" | "reels";
 
 export class MediaRuleError extends Error {
   constructor(message: string, readonly status = 422) {
@@ -69,11 +70,18 @@ export const RULES: Record<MediaRole, RoleRule> = {
     maxBytes: 2 * 1024 * 1024 * 1024,
     label: "vídeo do prêmio",
   },
+  // Só no Reels (fora do carrossel): em pé e até 3 min, medido no servidor.
+  reels: {
+    max: REELS_POR_RIFA,
+    mimes: ["video/mp4", "video/quicktime"],
+    maxBytes: 2 * 1024 * 1024 * 1024,
+    label: "vídeo do Reels",
+  },
 };
 
 /** Quantas peças daquele papel a campanha já tem. */
-async function countRole(campaignId: string, role: MediaRole): Promise<number> {
-  const rows = await db
+async function countRole(campaignId: string, role: MediaRole, q: Executor = db): Promise<number> {
+  const rows = await q
     .select({ id: campaignMedia.id })
     .from(campaignMedia)
     .where(and(eq(campaignMedia.campaignId, campaignId), eq(campaignMedia.role, role)));
@@ -85,18 +93,23 @@ async function countRole(campaignId: string, role: MediaRole): Promise<number> {
  * vaga que sobra é do banner). A posição também é comum aos dois — é a
  * ordem em que aparecem.
  */
-async function pecasDoCarrossel(campaignId: string): Promise<number> {
-  const rows = await db
+async function pecasDoCarrossel(campaignId: string, q: Executor = db): Promise<number> {
+  const rows = await q
     .select({ id: campaignMedia.id })
     .from(campaignMedia)
     .where(and(eq(campaignMedia.campaignId, campaignId), inArray(campaignMedia.role, ["photo", "video"])));
   return rows.length;
 }
 
-async function cabe(campaignId: string, role: MediaRole) {
-  if (role === "banner") return (await countRole(campaignId, role)) < 1;
-  return (await pecasDoCarrossel(campaignId)) < MAX_CARROSSEL - 1;
+async function cabe(campaignId: string, role: MediaRole, q: Executor = db) {
+  if (role === "banner") return (await countRole(campaignId, role, q)) < 1;
+  if (role === "reels") return (await countRole(campaignId, role, q)) < REELS_POR_RIFA;
+  return (await pecasDoCarrossel(campaignId, q)) < MAX_CARROSSEL - 1;
 }
+
+/** Contar e gravar sob a mesma trava por rifa: dois envios na última vaga, um entra. */
+const TRAVA_MIDIA = 811_105;
+type Executor = Pick<typeof db, "select">;
 
 /**
  * Passo 1: valida o que dá para validar antes do upload (papel livre, tipo e
@@ -116,7 +129,9 @@ export async function requestUpload(params: {
     throw new MediaRuleError(
       params.role === "banner"
         ? `Esta rifa já tem ${rule.label}. Remova o atual para enviar outro.`
-        : `O carrossel tem no máximo ${MAX_CARROSSEL} peças, contando o banner. Remova uma para enviar outra.`,
+        : params.role === "reels"
+          ? `Esta rifa já tem ${REELS_POR_RIFA} vídeos no Reels. Apague um para publicar outro.`
+          : `O carrossel tem no máximo ${MAX_CARROSSEL} peças, contando o banner. Remova uma para enviar outra.`,
       409,
     );
   }
@@ -152,6 +167,7 @@ export async function ingestUpload(params: {
   role: MediaRole;
   storageKey: string;
   altText?: string;
+  legenda?: unknown;
   mime: string;
 }) {
   // A chave vem do navegador: só vale a que o passo 1 gerou para esta rifa.
@@ -176,10 +192,20 @@ async function ingest(params: {
   role: MediaRole;
   storageKey: string;
   altText?: string;
+  legenda?: unknown;
   mime: string;
 }) {
   const rule = RULES[params.role];
   if (!rule) throw new MediaRuleError("Tipo de mídia inválido.", 400);
+
+  // A legenda é só do reels (o carrossel usa a da publicação), na régua da
+  // legenda — recusada aqui, o arquivo enviado sai junto (a limpeza acima).
+  let legenda: string | null = null;
+  if (params.role === "reels") {
+    const problema = problemaNaLegenda(params.legenda);
+    if (problema) throw new MediaRuleError(problema);
+    legenda = limparLegenda(typeof params.legenda === "string" ? params.legenda : "") || null;
+  }
 
   if (params.role === "photo" && !params.altText?.trim()) {
     throw new MediaRuleError("Descreva a foto no texto alternativo.", 400);
@@ -209,7 +235,20 @@ async function ingest(params: {
   let lqip: string | null = null;
 
   try {
-    if (params.role === "video") {
+    if (params.role === "reels") {
+      // Só no Reels: em pé e até 3 min — medido aqui, nunca o que o navegador disse.
+      const seconds = await probeVideoDuration(read, size);
+      if (formatoDoVideo(seconds) !== "reels") {
+        throw new MediaRuleError(`O vídeo tem ${duracao(seconds)} — no Reels o limite é ${duracao(180)}.`);
+      }
+      durationS = Math.round(seconds);
+      const dim = await probeVideoDimensions(read, size);
+      if (!dim || !videoEmPe({ largura: dim.width, altura: dim.height })) {
+        throw new MediaRuleError("O vídeo do Reels precisa estar em pé (9 por 16).");
+      }
+      width = dim.width;
+      height = dim.height;
+    } else if (params.role === "video") {
       const seconds = await probeVideoDuration(read, size);
       if (seconds > MAX_VIDEO_SECONDS || !formatoDoVideo(seconds)) {
         throw new MediaRuleError(
@@ -258,34 +297,43 @@ async function ingest(params: {
     throw err;
   }
 
-  // Conferido de novo aqui: dois envios ao mesmo tempo passaram pelo passo 1.
-  if (!(await cabe(params.campaignId, params.role))) {
-    throw new MediaRuleError(`O carrossel tem no máximo ${MAX_CARROSSEL} peças, contando o banner.`, 409);
-  }
-  const position = params.role === "banner" ? 0 : await pecasDoCarrossel(params.campaignId);
-
-  const [created] = await db
-    .insert(campaignMedia)
-    .values({
-      campaignId: params.campaignId,
-      role: params.role,
-      position,
-      storageKey: params.storageKey,
-      mime: params.mime,
-      width,
-      height,
-      durationS,
-      variants,
-      lqip,
-      altText: params.altText?.trim() || null,
-      bytes: size,
-      status: "ready",
-    })
-    .returning();
+  // Conferido de novo aqui, com a rifa travada: dois envios ao mesmo tempo
+  // passaram pelo passo 1, e contar fora da trava deixaria os dois entrarem.
+  const created = await db.transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(${TRAVA_MIDIA}, hashtext(${params.campaignId}))`);
+    if (!(await cabe(params.campaignId, params.role, tx))) {
+      throw new MediaRuleError(
+        params.role === "reels" ? `Esta rifa já tem ${REELS_POR_RIFA} vídeos no Reels.` : `O carrossel tem no máximo ${MAX_CARROSSEL} peças, contando o banner.`,
+        409,
+      );
+    }
+    const position =
+      params.role === "banner" ? 0 : params.role === "reels" ? await countRole(params.campaignId, "reels", tx) : await pecasDoCarrossel(params.campaignId, tx);
+    const [linha] = await tx
+      .insert(campaignMedia)
+      .values({
+        campaignId: params.campaignId,
+        role: params.role,
+        position,
+        storageKey: params.storageKey,
+        mime: params.mime,
+        width,
+        height,
+        durationS,
+        variants,
+        lqip,
+        altText: params.altText?.trim() || null,
+        legenda,
+        bytes: size,
+        status: "ready",
+      })
+      .returning();
+    return linha;
+  });
 
   // O pôster vem depois, em segundo plano: a resposta não espera o ffmpeg e a
   // falha dele (ou a falta dele) deixa o vídeo como está, sem pôster.
-  if (params.role === "video") {
+  if (ehVideo(params.role)) {
     emSegundoPlano(gerarPosterDaMidia(created.id, params.campaignId, params.storageKey, size), "pôster do vídeo");
   }
 
@@ -425,7 +473,7 @@ export function withUrls(linha: MediaRow) {
     // O HLS do Stream (já conferido ao gravar); sem entrega, `null` e a tela toca o original.
     // Assinado: o token (que vence) no lugar do `uid`; sem a chave, `null`.
     hls:
-      m.role === "video"
+      ehVideo(m.role)
         ? hlsParaATela({ hls: m.streamHls ?? null, uid: uid ?? null, assinado, token: assinado ? tokenDoStream(uid) : null })
         : null,
     srcSetAvif: srcSet(m.variants, "avif", url),

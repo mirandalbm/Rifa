@@ -21,7 +21,7 @@
  */
 import type { Request } from "express";
 import sharp from "sharp";
-import { and, asc, desc, eq, inArray, isNotNull, isNull, lte, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, isNull, lte, ne, or, sql, type SQL } from "drizzle-orm";
 import { db } from "../db";
 import {
   afiliadoVinculos,
@@ -155,7 +155,7 @@ async function conferirMidias(campaignId: string, midias: string[]) {
   const ok = await db
     .select({ id: campaignMedia.id })
     .from(campaignMedia)
-    .where(and(eq(campaignMedia.campaignId, campaignId), eq(campaignMedia.status, "ready"), inArray(campaignMedia.id, midias)));
+    .where(and(eq(campaignMedia.campaignId, campaignId), eq(campaignMedia.status, "ready"), ne(campaignMedia.role, "reels"), inArray(campaignMedia.id, midias)));
   if (ok.length !== midias.length) throw new DivulgacaoError("Escolha só mídias desta rifa.", 422);
 }
 
@@ -460,7 +460,7 @@ export async function rifasParaDivulgar(affiliateId: string) {
   const midias = await db
     .select()
     .from(campaignMedia)
-    .where(and(inArray(campaignMedia.campaignId, aptas.map((r) => r.id)), eq(campaignMedia.status, "ready")))
+    .where(and(inArray(campaignMedia.campaignId, aptas.map((r) => r.id)), eq(campaignMedia.status, "ready"), ne(campaignMedia.role, "reels")))
     .orderBy(asc(campaignMedia.position));
   return aptas.map((r) => ({
     slug: r.slug,

@@ -6,7 +6,7 @@
  * comprador) — o contador só anda quando a linha entrou de verdade, na mesma
  * transação. Dois toques em "Seguir" não viram dois seguidores.
  */
-import { and, asc, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, ne, or, sql } from "drizzle-orm";
 import sharp from "sharp";
 import { rifaAVenda } from "@shared/carrinho";
 import { getPaymentMethods } from "./settings";
@@ -83,7 +83,8 @@ export async function midiasDas(ids: string[]) {
   const linhas = await db
     .select()
     .from(campaignMedia)
-    .where(and(inArray(campaignMedia.campaignId, ids), eq(campaignMedia.status, "ready")))
+    // O vídeo só do Reels não é peça do carrossel (o Reels o lê por `reelsDas`).
+    .where(and(inArray(campaignMedia.campaignId, ids), eq(campaignMedia.status, "ready"), ne(campaignMedia.role, "reels")))
     .orderBy(asc(campaignMedia.position));
   linhas.sort((a, b) => Number(b.role === "banner") - Number(a.role === "banner") || a.position - b.position || +a.createdAt - +b.createdAt);
   for (const m of linhas) {
@@ -91,6 +92,26 @@ export async function midiasDas(ids: string[]) {
     if (lista.length >= MAX_CARROSSEL) continue;
     if (m.role === "banner" && lista.some((x) => x.role === "banner")) continue;
     lista.push(withUrls(m));
+    porRifa.set(m.campaignId, lista);
+  }
+  return porRifa;
+}
+
+/**
+ * Os vídeos só do Reels de cada rifa (papel `reels`, fora do carrossel), o
+ * mais novo primeiro, com a legenda própria e a data (a tela do Reels ordena).
+ */
+export async function reelsDas(ids: string[]) {
+  const porRifa = new Map<string, (ReturnType<typeof pecaPublica> & { id: string; legenda: string | null; criadaEm: Date })[]>();
+  if (ids.length === 0) return porRifa;
+  const linhas = await db
+    .select()
+    .from(campaignMedia)
+    .where(and(inArray(campaignMedia.campaignId, ids), eq(campaignMedia.status, "ready"), eq(campaignMedia.role, "reels")))
+    .orderBy(desc(campaignMedia.createdAt));
+  for (const m of linhas) {
+    const lista = porRifa.get(m.campaignId) ?? [];
+    lista.push({ ...pecaPublica(withUrls(m)), id: m.id, legenda: m.legenda, criadaEm: m.createdAt });
     porRifa.set(m.campaignId, lista);
   }
   return porRifa;
@@ -109,7 +130,7 @@ export function pecaPublica(m: ReturnType<typeof withUrls>) {
     lqip: m.lqip,
     alt: m.altText,
     durationS: m.durationS,
-    formato: m.role === "video" && m.durationS ? formatoDoVideo(m.durationS) : null,
+    formato: (m.role === "video" || m.role === "reels") && m.durationS ? formatoDoVideo(m.durationS) : null,
     // A proporção medida no servidor: a primeira peça define o formato do carrossel.
     largura: m.width,
     altura: m.height,

@@ -37,12 +37,12 @@ import {
   posterDoStory,
 } from "../services/vitrine";
 import { montarRotasDaVerificacao } from "./verificacaoRotas";
-import { midiasDas, pecaPublica } from "../services/perfil";
+import { midiasDas, pecaPublica, reelsDas } from "../services/perfil";
 import { itensDoCarrinho } from "../services/carrinho";
 import { rifaAVenda, situacaoDoCarrinho } from "@shared/carrinho";
 import { buyerPorApelido, compartilhar, idsDaLista, marcar, minhasMarcas } from "../services/publicacao";
 import { ACOES, type Acao } from "@shared/publicacao";
-import { abaDoReels, limiteDoLote, loteDepoisDe, videoDoReels } from "@shared/reels";
+import { abaDoReels, cursorDoReels, itensDoReels, limiteDoLote, loteDoReels, videosDoReels } from "@shared/reels";
 import { VerificacaoError } from "../services/verificacao";
 import { Router, type Request, type Response } from "express";
 import { createHash, randomBytes } from "node:crypto";
@@ -480,7 +480,7 @@ publicRouter.get("/reels", async (req, res, next) => {
     if (aba === "seguindo" && !buyerId) return res.json({ ligado: true, precisaEntrar: true, itens: [], proximo: null });
     const uf = typeof req.query.uf === "string" && ufValida(req.query.uf.toUpperCase()) ? req.query.uf.toUpperCase() : null;
     const cidade = typeof req.query.cidade === "string" ? req.query.cidade.slice(0, 120) : null;
-    const depois = typeof req.query.depois === "string" && /^[0-9a-f-]{36}$/i.test(req.query.depois) ? req.query.depois : null;
+    const depois = cursorDoReels(req.query.depois);
 
     let todas = (await listPublicCampaigns()).filter((r) => !r.campaign.demonstracao);
     if (aba === "seguindo") {
@@ -489,26 +489,37 @@ publicRouter.get("/reels", async (req, res, next) => {
       );
       todas = todas.filter((r) => sigo.has(r.campaign.organizationId));
     }
-    const midias = await midiasDas(todas.map((r) => r.campaign.id));
-    const comVideo = todas.filter((r) => videoDoReels((midias.get(r.campaign.id) ?? []).map(pecaPublica)));
+    // Cada vídeo é um item: os publicados só no Reels e o do carrossel que é
+    // reels e em pé, do mais antigo ao mais novo (o novo entra no fim da fila).
+    const ids = todas.map((r) => r.campaign.id);
+    const [midias, soReels] = await Promise.all([midiasDas(ids), reelsDas(ids)]);
+    const comVideo = todas
+      .map((r) => {
+        const doCarrossel = (midias.get(r.campaign.id) ?? []).map((m) => ({ ...pecaPublica(m), id: m.id, legenda: null as string | null, criadaEm: m.createdAt }));
+        return { ...r, videos: videosDoReels([...(soReels.get(r.campaign.id) ?? []), ...doCarrossel]) };
+      })
+      .filter((r) => r.videos.length > 0);
     const ordenadas = ordenarPorProximidade(
       comVideo.map((r) => ({ ...r, uf: r.organizacao?.uf ?? null, cidade: r.organizacao?.cidade ?? null })),
       { uf, cidade },
     );
-    const lote = loteDepoisDe(
-      ordenadas.map((r) => ({ id: r.campaign.id, linha: r })),
+    const lote = loteDoReels(
+      itensDoReels(ordenadas.map((r) => ({ chave: r.campaign.id, rifa: r, videos: r.videos }))),
       depois,
       limiteDoLote(req.query.limite),
     );
-    const cartoes = await cartoesDoFeed(req, lote.itens.map((x) => x.linha), uf, cidade);
+    const rifasDoLote = [...new Map(lote.itens.map((x) => [x.rifa.campaign.id, x.rifa])).values()];
+    const cartoes = new Map((await cartoesDoFeed(req, rifasDoLote, uf, cidade)).map((c) => [c.id, c]));
     res.setHeader("Cache-Control", "private, no-store");
     res.json({
       ligado: true,
-      itens: cartoes.map((c) => {
-        const v = videoDoReels(c.midias);
-        return { ...c, reels: v?.url ?? null, reelsPoster: v?.poster ?? null, reelsHls: v?.hls ?? null };
+      itens: lote.itens.flatMap(({ id, rifa, video }) => {
+        const c = cartoes.get(rifa.campaign.id);
+        if (!c) return [];
+        // `id` segue sendo a rifa (curtir, comentar e comprar são dela); `reelsId` é o vídeo.
+        return [{ ...c, reelsId: id, legenda: video.legenda ?? c.legenda, reels: video.url, reelsPoster: video.poster ?? null, reelsHls: video.hls ?? null }];
       }),
-      proximo: lote.proximo,
+    proximo: lote.proximo,
     });
   } catch (err) {
     next(err);

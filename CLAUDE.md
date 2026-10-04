@@ -431,6 +431,16 @@ arquitetura.
     transmissão é um `iframe` — sem a tela cheia do navegador, a tela ocupa a
     janela por cima de tudo (`falsa` em `useTelaCheia`), e sai pelo mesmo
     botão ou pelo Esc. Vale também para a coluna.
+  - **A tela cheia deita o celular, como o YouTube** (`deitarATela()` em
+    `client/src/lib/telaCheia.ts`, `screen.orientation.lock("landscape")`
+    logo depois da tela cheia do navegador — o Android aceita mesmo com a
+    rotação automática desligada); sair da tela cheia solta o giro
+    (`soltarATela()`), e só a tela que deitou solta (há duas montadas, a
+    coluna e a do Início). Onde não dá (computador, Safari do iPhone), nada
+    acontece e a tela segue o aparelho — nunca erro. A conversa por cima do
+    vídeo deixa o toque passar para o player (`pointer-events-none`; só o
+    "Comentar" pega o toque): o play, o som e a barra do YouTube ficam
+    alcançáveis. `tests/telaCheia.test.ts`.
   - **Comentários na tela cheia, como o chat da Twitch** (só com sorteio
     oficial, `comentariosDoSorteio` em `TelaDoProximoSorteio`; regras em
     `client/src/lib/comentariosNaTelaCheia.ts`, `tests/comentariosNaTelaCheia.test.ts`):

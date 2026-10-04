@@ -19,7 +19,7 @@ import { regraDoReembolso } from "./reembolso";
 import type { Secao } from "./regulamento";
 
 /** Data em que esta redação passou a valer. Sobe junto com qualquer mudança de texto. */
-export const VIGENCIA_DOS_TERMOS = "2026-10-03";
+export const VIGENCIA_DOS_TERMOS = "2026-10-04";
 
 export interface DadosDaEmpresa {
   razaoSocial: string;
@@ -222,6 +222,7 @@ export function montarPrivacidade(d: DadosDosTermos): Secao[] {
         "Compras e pagamentos (pedidos, números, valores, o identificador do Pix): vender, conferir o pagamento, devolver em caso de reembolso e prestar contas. Os dados do pagamento ficam com o provedor do Pix; a plataforma não guarda dados bancários de quem compra.",
         "Segurança e antifraude (endereço IP e identificador do aparelho em hash, telefone mascarado nas recusas, e tentativas de acesso): impedir golpe, bloqueio de estoque e uso indevido de contas. O registro de auditoria de algumas ações (entrar no painel, autorizar ou revogar a comparação de foto, por exemplo) guarda o IP de quem agiu. Base legal: legítimo interesse e prevenção à fraude.",
         "Comentários, mensagens e publicações: o que você escreve, para mostrar a quem deve ver e para moderar denúncias (a plataforma lê só o trecho denunciado).",
+        "Voto nas enquetes dos stories (só com conta): qual opção você escolheu, guardado só para contar um voto por pessoa e mostrar a você o resultado. A organização vê os totais de cada opção, nunca quem votou em quê; o voto sai com o story.",
         "Verificação de perfil (opcional): documentos, guardados cifrados, e — só com a sua autorização destacada — a comparação da foto do perfil com a do documento, que é dado biométrico (art. 11). A autorização pode ser revogada na própria tela.",
         "Origem da visita (de onde você chegou, campanha de anúncio): estatística de vendas; nunca decide preço nem comissão.",
       ],
@@ -248,7 +249,7 @@ export function montarPrivacidade(d: DadosDosTermos): Secao[] {
       titulo: "5. Por quanto tempo",
       itens: [
         `Compras, bilhetes, recibos e o registro do sorteio: pelo prazo que a lei de rifas, a lei fiscal e o Código de Defesa do Consumidor exigem, mesmo depois de excluída a conta. Avisos da central: 90 dias. Contagem de tentativas para os limites de antifraude: 2 horas; o registro das recusas (com o telefone mascarado e o aparelho em hash): ${GUARDA_DAS_RECUSAS_DIAS} dias; o bloqueio com prazo sai ${GUARDA_DO_BLOQUEIO_VENCIDO_DIAS} dias depois de vencer, e o bloqueio sem prazo fica até a plataforma retirá-lo.`,
-        "Ao excluir a conta, nome, telefone, CPF, e-mail, senha, apelido, foto, as fotos das suas publicações e a verificação saem; o que precisa ficar por lei fica sem identificar você.",
+        "Ao excluir a conta, nome, telefone, CPF, e-mail, senha, apelido, foto, as fotos das suas publicações e a verificação e os votos nas enquetes saem; o que precisa ficar por lei fica sem identificar você.",
       ],
     },
     {

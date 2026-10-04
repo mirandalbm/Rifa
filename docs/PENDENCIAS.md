@@ -700,7 +700,7 @@ Na ordem de entrega do plano:
   `publicacao_agendada_falha` **antes** do código; **entidade beneficiada
   da rifa feita** — o banner da ONG ou fundação em cima da rifa e a tela dela
   (imagem, texto, redes e site), editável a qualquer hora; **falta no ambiente** o `db:push` da tabela
-  `campaign_banners_divulgacao` **antes** do código), enquete e figurinhas no story; (6) ~~a plataforma decidir sem escolher a
+  `campaign_banners_divulgacao` **antes** do código), ~~enquete no story~~ — **feita** (vota quem tem conta, um voto por pessoa, a organização vê só os totais; **falta no ambiente** o `db:push` das tabelas `story_enquetes` e `story_votos` **antes** do código) — e figurinhas no story; (6) ~~a plataforma decidir sem escolher a
   organização~~ — **feito**: a plataforma vê a fila de todas, com o nome da
   organização, e decide qualquer peça (`npm run divulgacao` prova).
 - [ ] **[código]** Remodelagem do web e dos painéis, depois do app

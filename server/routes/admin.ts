@@ -3724,10 +3724,17 @@ adminRouter.post("/stories", async (req, res, next) => {
       legenda: req.body?.legenda,
       campaignId: req.body?.campaignId,
       publicaEm: req.body?.publicaEm,
+      enquete: req.body?.enquete,
     });
-    await audit(req, "story.postar", "story", novo.id, { organizacao: org, rifa: req.body?.campaignId ?? null, publicaEm: novo.publicaEm });
+    await audit(req, "story.postar", "story", novo.id, { organizacao: org, rifa: req.body?.campaignId ?? null, publicaEm: novo.publicaEm, enquete: Boolean(req.body?.enquete) });
     if (typeof req.body?.legenda === "string") {
       emSegundoPlano(varrerTextoDoOrganizador({ organizationId: org, onde: "legenda de story", texto: req.body.legenda }), "varredura");
+    }
+    // A enquete é texto da organização na tela de todo apostador: a mesma varredura do Pix por fora.
+    const enquete = req.body?.enquete as { pergunta?: unknown; opcoes?: unknown } | undefined;
+    if (enquete && typeof enquete.pergunta === "string") {
+      const texto = [enquete.pergunta, ...(Array.isArray(enquete.opcoes) ? enquete.opcoes.filter((o): o is string => typeof o === "string") : [])].join(" · ");
+      emSegundoPlano(varrerTextoDoOrganizador({ organizationId: org, onde: "enquete de story", texto }), "varredura");
     }
     res.status(201).json(novo);
   } catch (err) {

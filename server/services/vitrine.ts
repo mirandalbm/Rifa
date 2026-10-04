@@ -15,7 +15,11 @@ import {
   organizations,
   plataformaBanners,
   stories,
+  storyEnquetes,
+  storyVotos,
+  buyers,
 } from "@shared/schema";
+import { ENQUETE_VOTOS_POR_JANELA, opcaoValida, percentuais, validarEnquete } from "@shared/enqueteStory";
 import {
   BANNERS_MAX,
   BANNER_TAMANHO,
@@ -225,6 +229,46 @@ type LinhaDoStory = {
   rifaStatus: string | null;
 };
 
+type EnqueteNaTela = {
+  pergunta: string;
+  opcoes: string[];
+  /** A opção que quem olha escolheu; nula se ainda não votou (ou sem conta). */
+  meuVoto: number | null;
+  /** Só para quem já votou (e no painel): o percentual de cada opção, somando 100. */
+  percentuais: number[] | null;
+};
+
+/**
+ * As enquetes dos stories e o voto de quem olha. O resultado só vai para
+ * quem já votou — antes, a pessoa escolhe sem ver para onde a maioria foi.
+ */
+async function enquetesDos(ids: string[], buyerId: string | null) {
+  const porStory = new Map<string, EnqueteNaTela & { votos: number[] }>();
+  if (ids.length === 0) return porStory;
+  const linhas = await db.select().from(storyEnquetes).where(inArray(storyEnquetes.storyId, ids));
+  const meus = buyerId && linhas.length
+    ? new Map(
+        (
+          await db
+            .select({ storyId: storyVotos.storyId, opcao: storyVotos.opcao })
+            .from(storyVotos)
+            .where(and(eq(storyVotos.buyerId, buyerId), inArray(storyVotos.storyId, linhas.map((l) => l.storyId))))
+        ).map((v) => [v.storyId, v.opcao]),
+      )
+    : new Map<string, number>();
+  for (const l of linhas) {
+    const meuVoto = meus.get(l.storyId) ?? null;
+    porStory.set(l.storyId, {
+      pergunta: l.pergunta,
+      opcoes: l.opcoes,
+      meuVoto,
+      percentuais: meuVoto === null ? null : percentuais(l.votos),
+      votos: l.votos,
+    });
+  }
+  return porStory;
+}
+
 function publico(s: LinhaDoStory) {
   // A rifa só aparece enquanto é pública (publicada, encerrada ou sorteada).
   const rifa =
@@ -247,8 +291,10 @@ export async function storiesDaOrganizacao(orgId: string | null) {
     .where(and(gt(stories.expiraEm, new Date()), orgId ? eq(stories.organizationId, orgId) : undefined))
     .orderBy(desc(stories.publicaEm));
   const agora = new Date();
+  const enquetes = await enquetesDos(linhas.map((l) => l.id), null);
   return linhas.map((s) => {
     const p = publico(s);
+    const e = enquetes.get(s.id);
     // O painel lê a peça pela porta dele: a pública só abre depois da hora.
     return {
       ...p,
@@ -256,6 +302,8 @@ export async function storiesDaOrganizacao(orgId: string | null) {
       poster: p.poster ? `/api/admin/stories/${s.id}/poster` : null,
       organizacao: s.organizacao,
       agendadoPara: s.publicaEm > agora ? s.publicaEm : null,
+      // A organização vê os totais de cada opção — nunca quem votou em quê.
+      enquete: e ? { pergunta: e.pergunta, opcoes: e.opcoes, votos: e.votos, total: e.votos.reduce((a, b) => a + b, 0), percentuais: percentuais(e.votos) } : null,
     };
   });
 }
@@ -283,9 +331,10 @@ async function lerVideoDoStory(dataUrl: unknown): Promise<{ bytes: Buffer; mime:
 
 export async function postarStory(
   orgId: string,
-  entrada: { imagem?: unknown; video?: unknown; legenda?: unknown; campaignId?: unknown; publicaEm?: unknown },
+  entrada: { imagem?: unknown; video?: unknown; legenda?: unknown; campaignId?: unknown; publicaEm?: unknown; enquete?: unknown },
 ) {
   const legenda = regra(() => validarLegenda(entrada.legenda));
+  const enquete = regra(() => validarEnquete(entrada.enquete));
   // Agendado: entra no ar na hora escolhida, e as 24 h contam dali.
   const publicaEm = regra(() => publicacaoDoStory(entrada.publicaEm));
   const campaignId =
@@ -329,6 +378,9 @@ export async function postarStory(
       .insert(stories)
       .values({ organizationId: orgId, legenda, campaignId, mime, bytes, createdAt: agora, publicaEm, expiraEm: expiraEm(publicaEm) })
       .returning({ id: stories.id, publicaEm: stories.publicaEm });
+    if (enquete) {
+      await tx.insert(storyEnquetes).values({ storyId: novo.id, pergunta: enquete.pergunta, opcoes: enquete.opcoes, votos: enquete.opcoes.map(() => 0) });
+    }
     return novo;
   }).then((novo) => {
     // O pôster vem depois, em segundo plano: a resposta não espera o ffmpeg e,
@@ -360,12 +412,13 @@ export async function apagarStory(id: string) {
 }
 
 /** Stories no ar de um perfil público, do mais antigo ao mais novo. */
-export async function storiesDoPerfil(slug: string) {
+export async function storiesDoPerfil(slug: string, buyerId: string | null = null) {
   const [org] = await db
     .select({ id: organizations.id, slug: organizations.slug, nome: organizations.name, foto: organizacaoFotos.updatedAt })
     .from(organizations)
     .leftJoin(organizacaoFotos, eq(organizacaoFotos.organizationId, organizations.id))
-    .where(and(eq(organizations.slug, slug), isNull(organizations.archivedAt)));
+    // Banida também some: a fileira já a tira, e o anel não pode levar a um story morto.
+    .where(and(eq(organizations.slug, slug), isNull(organizations.archivedAt), isNull(organizations.banidaEm)));
   if (!org) throw new VitrineError("Perfil não encontrado.", 404);
   const linhas = await db
     .select(campoDoStory)
@@ -373,11 +426,15 @@ export async function storiesDoPerfil(slug: string) {
     .leftJoin(campaigns, eq(campaigns.id, stories.campaignId))
     .where(and(eq(stories.organizationId, org.id), storyNoAr()))
     .orderBy(asc(stories.publicaEm));
+  const enquetes = await enquetesDos(linhas.map((l) => l.id), buyerId);
   return {
     slug: org.slug,
     nome: org.nome,
     foto: urlDaFoto(org.slug, org.foto),
-    stories: linhas.map(publico),
+    stories: linhas.map((l) => {
+      const e = enquetes.get(l.id);
+      return { ...publico(l), enquete: e ? { pergunta: e.pergunta, opcoes: e.opcoes, meuVoto: e.meuVoto, percentuais: e.percentuais } : null };
+    }),
   };
 }
 
@@ -395,12 +452,12 @@ export async function ultimoStoryPorOrganizacao(orgIds: string[]) {
 /** A imagem, só enquanto o story está no ar. */
 export async function imagemDoStory(id: string) {
   const [s] = await db
-    .select({ bytes: stories.bytes, mime: stories.mime, publicaEm: stories.publicaEm, expiraEm: stories.expiraEm, arquivada: organizations.archivedAt })
+    .select({ bytes: stories.bytes, mime: stories.mime, publicaEm: stories.publicaEm, expiraEm: stories.expiraEm, arquivada: organizations.archivedAt, banida: organizations.banidaEm })
     .from(stories)
     .innerJoin(organizations, eq(organizations.id, stories.organizationId))
     .where(eq(stories.id, id));
   // O agendado também não sai antes da hora: o id está na lista do painel.
-  if (!s || s.arquivada || s.publicaEm > new Date() || s.expiraEm <= new Date()) return null;
+  if (!s || s.arquivada || s.banida || s.publicaEm > new Date() || s.expiraEm <= new Date()) return null;
   return s;
 }
 
@@ -421,13 +478,88 @@ export async function arquivoDoStoryNoPainel(id: string, qual: "imagem" | "poste
 /** O pôster do vídeo, só enquanto o story está no ar (a mesma regra da imagem). */
 export async function posterDoStory(id: string) {
   const [s] = await db
-    .select({ poster: stories.poster, publicaEm: stories.publicaEm, expiraEm: stories.expiraEm, arquivada: organizations.archivedAt })
+    .select({ poster: stories.poster, publicaEm: stories.publicaEm, expiraEm: stories.expiraEm, arquivada: organizations.archivedAt, banida: organizations.banidaEm })
     .from(stories)
     .innerJoin(organizations, eq(organizations.id, stories.organizationId))
     .where(eq(stories.id, id));
-  if (!s || !s.poster || s.arquivada || s.publicaEm > new Date() || s.expiraEm <= new Date()) return null;
+  if (!s || !s.poster || s.arquivada || s.banida || s.publicaEm > new Date() || s.expiraEm <= new Date()) return null;
   return s.poster;
 }
+
+/**
+ * A enquete que aceita voto agora: story no ar (`storyNoAr()`, a mesma régua
+ * da imagem) e promotora nem arquivada nem banida. Nula é "não existe" (404).
+ */
+async function enqueteNoAr(q: Pick<typeof db, "select">, storyId: string) {
+  const [s] = await q
+    .select({ opcoes: storyEnquetes.opcoes })
+    .from(storyEnquetes)
+    .innerJoin(stories, eq(stories.id, storyEnquetes.storyId))
+    .innerJoin(organizations, eq(organizations.id, stories.organizationId))
+    .where(and(eq(storyEnquetes.storyId, storyId), storyNoAr(), isNull(organizations.archivedAt), isNull(organizations.banidaEm)));
+  return s ?? null;
+}
+
+/**
+ * Confere o pedido de voto **antes** de contar no limite (erro de
+ * preenchimento não gasta tentativa): a enquete existe e está no ar, e a
+ * opção é dela. Devolve a opção já conferida.
+ */
+export async function conferirVoto(storyId: string, opcaoBruta: unknown) {
+  const s = await enqueteNoAr(db, storyId);
+  if (!s) throw new VitrineError("Enquete não encontrada.", 404);
+  const opcao = opcaoValida(opcaoBruta, s.opcoes.length);
+  if (opcao === null) throw new VitrineError("Escolha uma das opções da enquete.");
+  return opcao;
+}
+
+/**
+ * O voto na enquete do story. Só conta com senha (quem chama confere a
+ * sessão), só com o story no ar, uma vez por pessoa: a chave (story,
+ * pessoa) decide, e o total da opção anda na mesma transação só quando o
+ * voto entrou. Votar de novo não troca nem soma — devolve o que já estava.
+ * O story fica travado (`FOR SHARE`) do começo ao fim: apagado no meio, o
+ * voto não estoura a chave estrangeira — vira "não encontrada".
+ */
+export async function votarNaEnquete(storyId: string, buyerId: string, opcao: number) {
+  return db.transaction(async (tx) => {
+    const [travado] = await tx.select({ id: stories.id }).from(stories).where(eq(stories.id, storyId)).for("share");
+    const s = travado ? await enqueteNoAr(tx, storyId) : null;
+    if (!s) throw new VitrineError("Enquete não encontrada.", 404);
+    if (opcaoValida(opcao, s.opcoes.length) === null) throw new VitrineError("Escolha uma das opções da enquete.");
+    const [entrou] = await tx
+      .insert(storyVotos)
+      .values({ storyId, buyerId, opcao })
+      .onConflictDoNothing()
+      .returning({ opcao: storyVotos.opcao });
+    if (entrou) {
+      // `votos` é 1-based no Postgres: a opção 0 é votos[1].
+      await tx.execute(sql`update story_enquetes set votos[${opcao + 1}] = votos[${opcao + 1}] + 1 where story_id = ${storyId}`);
+    }
+    const [meu] = await tx
+      .select({ opcao: storyVotos.opcao })
+      .from(storyVotos)
+      .where(and(eq(storyVotos.storyId, storyId), eq(storyVotos.buyerId, buyerId)));
+    const [e] = await tx.select({ votos: storyEnquetes.votos }).from(storyEnquetes).where(eq(storyEnquetes.storyId, storyId));
+    return { novo: Boolean(entrou), meuVoto: meu.opcao, percentuais: percentuais(e.votos) };
+  });
+}
+
+/**
+ * Só conta com senha **e CPF** vota: o CPF único entre contas é o que segura
+ * a fazenda de votos (a conta só do Google, sem CPF ainda, completa a conta
+ * antes — como no presente).
+ */
+export async function contaQueVota(buyerId: string | undefined) {
+  if (!buyerId) return null;
+  const [b] = await db
+    .select({ conta: buyers.passwordHash, cpf: buyers.cpf, excluido: buyers.excluidoEm })
+    .from(buyers)
+    .where(eq(buyers.id, buyerId));
+  return b?.conta && b.cpf && !b.excluido ? buyerId : null;
+}
+
+export { ENQUETE_VOTOS_POR_JANELA };
 
 /** Relógio: apaga o que venceu. */
 export async function apagarStoriesVencidos() {

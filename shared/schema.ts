@@ -2094,6 +2094,40 @@ export const stories = pgTable(
 );
 
 /**
+ * Enquete do story (uma por story, opcional): a pergunta, de 2 a 4 opções e
+ * o total de votos de cada uma (`votos[i]`), que anda na mesma transação do
+ * voto — nunca `COUNT(*)`. Sai com o story.
+ */
+export const storyEnquetes = pgTable("story_enquetes", {
+  storyId: uuid("story_id")
+    .primaryKey()
+    .references(() => stories.id, { onDelete: "cascade" }),
+  pergunta: text("pergunta").notNull(),
+  opcoes: jsonb("opcoes").$type<string[]>().notNull(),
+  votos: integer("votos").array().notNull(),
+});
+
+/**
+ * O voto de cada pessoa (conta com senha) na enquete: a chave (story,
+ * pessoa) é o que faz ser um voto só — `ON CONFLICT DO NOTHING`. Fica só
+ * para contar uma vez; a organização vê os totais, nunca a linha.
+ */
+export const storyVotos = pgTable(
+  "story_votos",
+  {
+    storyId: uuid("story_id")
+      .notNull()
+      .references(() => stories.id, { onDelete: "cascade" }),
+    buyerId: uuid("buyer_id")
+      .notNull()
+      .references(() => buyers.id, { onDelete: "cascade" }),
+    opcao: integer("opcao").notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.storyId, t.buyerId] })],
+);
+
+/**
  * Foto do ganhador, depois do sorteio: vira a capa da rifa no perfil
  * (destaques) e aparece no resultado. Só entra com a rifa sorteada, e a
  * autorização de uso da imagem é do organizador com o ganhador. No banco,

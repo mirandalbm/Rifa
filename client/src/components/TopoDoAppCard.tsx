@@ -5,6 +5,7 @@ import { Button, Card } from "@/components/bits";
 import { IconeTrevo } from "@/components/Publicacao";
 import { useConfigDoApp } from "@/components/Console";
 import { apiRequest } from "@/lib/queryClient";
+import { FUNDOS_DA_CONVERSA_PCT } from "@shared/plataforma";
 import { CORES_DO_AVISO, ESTILOS_DO_AVISO, type AvisoDoTrevo, type CorDoAviso, type EstiloDoAviso } from "@shared/console";
 
 /** O trevo com aviso, como aparece no topo — para ver antes de salvar. */
@@ -38,6 +39,7 @@ export function TopoDoAppCard() {
   const [reels, setReels] = useState(atual.reelsLigado);
   const [mensagens, setMensagens] = useState(atual.mensagensLigado);
   const [buscar, setBuscar] = useState(atual.buscarLigado);
+  const [fundo, setFundo] = useState(atual.fundoDaConversaPct);
   const [tipos, setTipos] = useState<ConfigBusca>(atual.buscarTipos);
   const [msg, setMsg] = useState<{ ok: boolean; texto: string } | null>(null);
   useEffect(() => {
@@ -47,10 +49,11 @@ export function TopoDoAppCard() {
     setMensagens(atual.mensagensLigado);
     setBuscar(atual.buscarLigado);
     setTipos(atual.buscarTipos);
-  }, [atual.avisoDoTrevo, atual.publicarApostador, atual.reelsLigado, atual.mensagensLigado, atual.buscarLigado, atual.buscarTipos]);
+    setFundo(atual.fundoDaConversaPct);
+  }, [atual.avisoDoTrevo, atual.publicarApostador, atual.reelsLigado, atual.mensagensLigado, atual.buscarLigado, atual.buscarTipos, atual.fundoDaConversaPct]);
 
   const salvar = useMutation({
-    mutationFn: () => apiRequest("PUT", "/api/admin/app", { avisoDoTrevo: aviso, publicarApostador: publicar, reelsLigado: reels, mensagensLigado: mensagens, buscarLigado: buscar, buscarTipos: tipos }),
+    mutationFn: () => apiRequest("PUT", "/api/admin/app", { avisoDoTrevo: aviso, publicarApostador: publicar, reelsLigado: reels, mensagensLigado: mensagens, buscarLigado: buscar, buscarTipos: tipos, fundoDaConversaPct: fundo }),
     onSuccess: () => {
       setMsg({ ok: true, texto: "Topo do app salvo." });
       qc.invalidateQueries({ queryKey: ["/api/public/app"] });
@@ -157,6 +160,27 @@ export function TopoDoAppCard() {
               <p className="text-xs text-muted">Perfil de apostador é pessoa, não vitrine: nasce desligado e só aparece pelo @apelido exato.</p>
             </div>
           </fieldset>
+          <label className="block">
+            <span className="font-semibold">Fundo da conversa por cima do vídeo do sorteio</span>
+            <span className="mb-1.5 block text-xs text-muted">
+              Na tela cheia do sorteio oficial, quando os comentários ficam por cima do vídeo. Sólido é o padrão, como no YouTube
+              e na Twitch; com transparência, o vídeo aparece atrás das mensagens. Quem assiste não escolhe.
+            </span>
+            <select
+              value={fundo}
+              onChange={(e) => {
+                setMsg(null);
+                setFundo(Number(e.target.value));
+              }}
+              className="campo tnum w-auto"
+            >
+              {FUNDOS_DA_CONVERSA_PCT.map((p) => (
+                <option key={p} value={p}>
+                  {p === 0 ? "Sem fundo (padrão)" : p === 100 ? "Sólido (100%)" : `${p}% (vídeo aparece atrás)`}
+                </option>
+              ))}
+            </select>
+          </label>
           {msg ? (
             <p className={`rounded-md px-3 py-2 ${msg.ok ? "bg-green-soft text-green-deep" : "bg-red-soft text-red"}`}>{msg.texto}</p>
           ) : null}

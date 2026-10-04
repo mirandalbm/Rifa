@@ -251,6 +251,7 @@ import {
   NOME_PROVEDOR,
   CREDENCIAIS_PROVEDOR,
   EXIGE_CPF,
+  validarFundoDaConversa,
 } from "@shared/plataforma";
 import { estadoWhatsApp, criarModelosFaltantes, enviarTeste } from "../services/whatsappSetup";
 import { validarConfigBusca } from "@shared/buscar";
@@ -2555,8 +2556,9 @@ adminRouter.put("/app", async (req, res, next) => {
       mensagensLigado: typeof req.body?.mensagensLigado === "boolean" ? req.body.mensagensLigado : undefined,
       buscarLigado: typeof req.body?.buscarLigado === "boolean" ? req.body.buscarLigado : undefined,
       buscarTipos: req.body?.buscarTipos && typeof req.body.buscarTipos === "object" ? validarConfigBusca(req.body.buscarTipos) : undefined,
+      fundoDaConversaPct: req.body?.fundoDaConversaPct !== undefined ? validarFundoDaConversa(req.body.fundoDaConversaPct) : undefined,
     });
-    const app = { avisoDoTrevo: salva.avisoDoTrevo, publicarApostador: salva.publicarApostador, reelsLigado: salva.reelsLigado, mensagensLigado: salva.mensagensLigado, buscarLigado: salva.buscarLigado, buscarTipos: salva.buscarTipos };
+    const app = { avisoDoTrevo: salva.avisoDoTrevo, publicarApostador: salva.publicarApostador, reelsLigado: salva.reelsLigado, mensagensLigado: salva.mensagensLigado, buscarLigado: salva.buscarLigado, buscarTipos: salva.buscarTipos, fundoDaConversaPct: salva.fundoDaConversaPct };
     await audit(req, "plataforma.app", "settings", "plataforma", app);
     res.json(app);
   } catch (err) {

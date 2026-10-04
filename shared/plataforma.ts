@@ -127,10 +127,44 @@ export interface ConfigPlataforma {
   buscarLigado: boolean;
   /** Quais tipos de resultado a busca mostra (a tabela da plataforma). */
   buscarTipos: ConfigBusca;
+  /**
+   * O fundo da conversa por cima do vídeo, na tela cheia do sorteio, em % de
+   * opacidade. Nasce sólido (100), como o chat do YouTube e da Twitch, que não
+   * dão escolha a quem assiste; só a plataforma pode deixá-lo transparente.
+   */
+  fundoDaConversaPct: number;
   /** Banner pago na vitrine: preço do dia, prazo e vagas. Nasce desligado. */
   bannerPago: ConfigBannerPago;
   /** O assistente de IA (Chatbase) nos painéis do master, do organizador e do afiliado. Nasce desligado. */
   assistenteIA: ConfigIA;
+}
+
+/**
+ * O fundo da conversa por cima do vídeo: por padrão não há fundo (só as
+ * mensagens, com sombra no texto, como o chat sobre a live); a plataforma
+ * pode pôr um fundo escuro, de 0% (sem fundo) a 100% (sólido).
+ */
+export const FUNDO_DA_CONVERSA_PADRAO_PCT = 0;
+/** As escolhas que a tela da plataforma oferece. */
+export const FUNDOS_DA_CONVERSA_PCT = [0, 30, 50, 70, 90, 100] as const;
+
+/** A escolha que vem do painel: inteiro de 0 a 100, senão 400. */
+export function validarFundoDaConversa(v: unknown): number {
+  const n = typeof v === "number" ? v : Number.NaN;
+  if (!Number.isInteger(n) || n < 0 || n > 100) {
+    throw Object.assign(new Error("O fundo da conversa vai de 0% (sem fundo) a 100% (sólido)."), { status: 400 });
+  }
+  return n;
+}
+
+/** O guardado que não passe mais na régua volta ao padrão (sem fundo), sem derrubar o resto. */
+function fundoDaConversaGuardado(v: unknown): number {
+  if (v === undefined || v === null) return FUNDO_DA_CONVERSA_PADRAO_PCT;
+  try {
+    return validarFundoDaConversa(v);
+  } catch {
+    return FUNDO_DA_CONVERSA_PADRAO_PCT;
+  }
 }
 
 export const CONFIG_PADRAO: ConfigPlataforma = {
@@ -152,6 +186,7 @@ export const CONFIG_PADRAO: ConfigPlataforma = {
   mensagensLigado: false,
   buscarLigado: false,
   buscarTipos: CONFIG_BUSCA_PADRAO,
+  fundoDaConversaPct: FUNDO_DA_CONVERSA_PADRAO_PCT,
   bannerPago: CONFIG_BANNER_PAGO_PADRAO,
   assistenteIA: CONFIG_IA_PADRAO,
 };
@@ -189,6 +224,7 @@ export function validarConfigPlataforma(entrada: Partial<ConfigPlataforma>): Con
     mensagensLigado: entrada.mensagensLigado === true,
     buscarLigado: entrada.buscarLigado === true,
     buscarTipos: validarConfigBusca(entrada.buscarTipos),
+    fundoDaConversaPct: fundoDaConversaGuardado(entrada.fundoDaConversaPct),
     bannerPago: validarConfigBannerPago(entrada.bannerPago),
     assistenteIA: configIAGuardada(entrada.assistenteIA),
   };

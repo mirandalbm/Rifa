@@ -987,7 +987,7 @@ publicRouter.get("/app", async (_req, res, next) => {
   try {
     const p = await getPlataforma();
     res.setHeader("Cache-Control", "public, max-age=60");
-    res.json({ avisoDoTrevo: p.avisoDoTrevo, publicarApostador: p.publicarApostador, reelsLigado: p.reelsLigado, mensagensLigado: p.mensagensLigado, buscarLigado: p.buscarLigado, buscarTipos: p.buscarTipos });
+    res.json({ avisoDoTrevo: p.avisoDoTrevo, publicarApostador: p.publicarApostador, reelsLigado: p.reelsLigado, mensagensLigado: p.mensagensLigado, buscarLigado: p.buscarLigado, buscarTipos: p.buscarTipos, fundoDaConversaPct: p.fundoDaConversaPct });
   } catch (err) {
     next(err);
   }

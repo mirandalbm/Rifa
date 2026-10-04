@@ -434,13 +434,18 @@ arquitetura.
     **ao lado do vídeo** (deitado, o vídeo encolhe e a conversa inteira fica
     numa faixa de 38%; em pé, embaixo) ou **por cima** (as últimas 6
     mensagens num canto, só leitura, apelido e texto — nada além do que a
-    lista já mostra —, sobre fundo escuro de 45% a 80% e sombra no texto; o
-    "Comentar" abre a conversa inteira ao lado, com o campo). O botão
+    lista já mostra —, sobre fundo escuro e sombra no texto; o "Comentar"
+    abre a conversa inteira ao lado, com o campo). O botão
     "Comentários"/"Opções" na barra abre as escolhas: onde ficam (automático
-    — ao lado deitado, por cima em pé —, ao lado, por cima, escondidos), o
-    fundo e o lado (direita ou esquerda), em rádios com legenda; Esc fecha só
-    as opções. A escolha fica no aparelho (`rifa.sorteio.comentarios`, só
-    valores conhecidos). É a mesma conversa, com as mesmas regras e as mesmas
+    — ao lado deitado, por cima em pé —, ao lado, por cima, escondidos) e o
+    lado (direita ou esquerda), em rádios com legenda; Esc fecha só as
+    opções. A escolha fica no aparelho (`rifa.sorteio.comentarios`, só
+    valores conhecidos). **O fundo por cima do vídeo não é escolha de quem
+    assiste** (o YouTube e a Twitch não dão essa escolha): é **sólido** por
+    padrão, e só a plataforma pode deixá-lo transparente
+    (`fundoDaConversaPct` em `shared/plataforma.ts`, de 50% a 100%,
+    `validarFundoDaConversa()`; cartão "Topo do app" em Aparência, `PUT
+    /admin/app`, 403 para organizador; a tela lê por `GET /api/public/app`). É a mesma conversa, com as mesmas regras e as mesmas
     rotas — por cima, a lista anda a cada 10 s.
   - **O celular deitado continua sendo celular** (`NO_CELULAR`: até 767 px de
     largura **ou** até 500 px de altura; a classe da tela segue a mesma

@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Sabor `ton`: a volta do app de pagamento e do de impressão da Stone chega
+  por deeplink na MainActivity (singleTask, em `main`). Os esquemas são
+  nossos (`TerminalStone`); os hosts são os que a Stone usa na resposta.
+  O Android junta estes filtros aos da atividade declarada em `main`.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Android 11+: para `resolveActivity` enxergar os apps da Stone. -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="payment-app" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="printer-app" />
+        </intent>
+    </queries>
+
+    <application>
+        <activity android:name=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="rifapos-pagamento" android:host="pay-response" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="rifapos-impressao" android:host="print" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>

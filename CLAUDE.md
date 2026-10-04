@@ -96,7 +96,7 @@ arquitetura.
 | venda física e acerto | `server/routes/seller.ts`, `server/services/settlements.ts` |
 | meios de pagamento aceitos | `shared/payments.ts` (regras) e `services/settings.ts` |
 | bilhete | `server/services/ticketFormat.ts` (puro) e `ticket.ts` (dados) |
-| ponte com a maquininha | `client/src/lib/pos.ts`, `android/`, `docs/MAQUININHAS.md` |
+| ponte com a maquininha | `client/src/lib/pos.ts`, `android/`, `docs/MAQUININHAS.md`; Stone por deeplink em `android/app/src/ton/` e `RetornoDeApp.kt`, provada sem SDK por `npm run stone` |
 | teste de carga | `scripts/load-test.ts` |
 | relógios (expiração, lembretes, limpezas) e a trava de cada um | `server/jobs/index.ts` (`withLock`), `poolDasTravas` em `server/db.ts`, `scripts/relogios-test.ts` |
 | limites de antifraude | `shared/antifraude.ts` (regras) e `server/services/antifraude.ts` |
@@ -236,9 +236,11 @@ arquitetura.
   os promotores, com a administradora aparecendo no bilhete e na página da
   rifa. White label de domínio é trabalho de implantação (DNS e certificado),
   não de código deste repositório.
-- A integração da Stone no invólucro Android: `android/app/src/ton/` tem a
-  estrutura e dois pontos de encaixe marcados, sem nomes de classe
-  preenchidos. A do PagBank está escrita.
+- A integração da Stone no invólucro Android **testada no aparelho**:
+  `android/app/src/ton/` cobra e imprime por deeplink (sem a SDK da Stone),
+  provado só sem o Android SDK (`npm run stone`: classes mínimas do Android e
+  um app da Stone de mentira). A do PagBank está escrita. O que conferir na
+  primeira venda de teste está em `docs/MAQUININHAS.md`.
 - O APK nunca foi compilado: este repositório não tem Android SDK. O sabor
   `generico` foi escrito para compilar sem dependência de adquirente, mas
   isso ainda precisa ser confirmado numa máquina com o SDK.

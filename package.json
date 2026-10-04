@@ -58,7 +58,8 @@
     "ia-acoes": "tsx scripts/ia-acoes-test.ts",
     "google": "tsx scripts/google-test.ts",
     "marketing": "tsx scripts/marketing-test.ts",
-    "telas": "tsx scripts/telas.ts"
+    "telas": "tsx scripts/telas.ts",
+    "stone": "bash android/teste-sem-sdk/rodar.sh"
   },
   "dependencies": {
     "@aws-sdk/client-rekognition": "^3.1141.0",

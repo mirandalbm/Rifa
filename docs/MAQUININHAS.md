@@ -99,10 +99,16 @@ build por adquirente:
 - **`pagbank`** — `TerminalPlugPag.kt` escrito com as chamadas da SDK pública,
   incluindo o desenho do bilhete em bitmap de 384 px, porque a impressão livre
   do PlugPag imprime imagem e não texto.
-- **`ton`** — estrutura pronta com dois pontos de encaixe marcados, sem nomes
-  de classe preenchidos: a API da Stone muda entre versões, e método plausível
-  que compila e falha no balcão é pior do que método ausente que falha ao
-  compilar.
+- **`ton`** — **por deeplink**, sem a SDK da Stone (compila sem credencial):
+  `TerminalStone.kt` abre o app de pagamento da Stone (`payment-app://pay`) e
+  o de impressão (`printer-app://print`) que já vêm no POS Android, e recebe a
+  resposta por deeplink de volta na `MainActivity` (`singleTask`,
+  `RetornoDeApp`). Os esquemas de volta estão no `AndroidManifest.xml` do
+  sabor. **Nunca compilado no Android nem testado numa maquininha**: o
+  `android/teste-sem-sdk/rodar.sh` (`npm run stone`) compila o sabor contra
+  classes mínimas do Android e confere a montagem dos deeplinks e a leitura
+  das respostas contra um app da Stone de mentira — o resto é a venda de
+  teste (abaixo, "Stone por deeplink").
 
 ```bash
 cd android
@@ -121,6 +127,29 @@ Enquanto isso não acontece, o cambista já pode operar hoje: cobra no aparelho
 da adquirente pelo app dela e confirma a venda aqui. Fica tudo registrado
 igual, só sem o NSU preenchido automaticamente.
 
+## Stone por deeplink — o que conferir na primeira venda de teste
+
+O protocolo saiu da documentação de deeplink do POS Android da Stone e de um
+plugin aberto que já o usa no aparelho; nada disso rodou numa Ton ainda.
+Na primeira venda de teste, numa T3 Smart com a conta de homologação:
+
+1. `./gradlew assembleTonDebug` compila (o sabor não depende da SDK).
+2. Crédito à vista, débito, Pix e crédito parcelado: o app da Stone abre com
+   o valor certo (em centavos) e **não deixa editar**; aprovado, a tela do
+   cambista recebe o ATK como autorização.
+3. Cartão recusado: a mensagem da Stone aparece para o cambista (é
+   resultado, não exceção).
+4. O bilhete sai na bobina, uma linha por linha, e "sem papel" aparece em
+   português.
+5. Deixar a tela de pagamento da Stone aberta sem pagar: em 115 s a ponte
+   desiste com "Confira na Stone se a venda foi aprovada antes de cobrar de
+   novo" — **é o caso de cobrança dobrada**: confira na Stone antes de
+   repetir. Se a Stone demorar mais que isso de verdade, suba os prazos do
+   shim e de `TerminalStone` juntos.
+
+Se algum nome de parâmetro estiver diferente na versão do app da Stone do
+aparelho, o ajuste é só em `TerminalStone.kt` (e no teste sem SDK).
+
 ## Fontes
 
 - [PlugPagServiceWrapper (SDK Android da PagBank)](https://github.com/pagseguro/pagseguro-sdk-plugpagservicewrapper)
@@ -128,3 +157,5 @@ igual, só sem o NSU preenchido automaticamente.
 - [SDK Android da Stone](https://sdkandroid.stone.com.br/docs/o-que-e-a-sdk-android)
 - [Dúvidas frequentes POS Android — Stone](https://sdkandroid.stone.com.br/page/pos-android)
 - [Stone DevCenter](https://www.stone.com.br/devcenter)
+- [Deeplink do POS Android — Stone](https://sdkandroid.stone.com.br/page/deeplink) e [Pagamento por deeplink](https://sdkandroid.stone.com.br/reference/pagamento-deeplink)
+- [flutter_stone_payment](https://github.com/Luiz-Carlos-de-Lima/flutter_stone_payment) — plugin aberto que usa os mesmos deeplinks (nomes das respostas e da impressão)

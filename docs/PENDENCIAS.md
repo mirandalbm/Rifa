@@ -701,8 +701,10 @@ Na ordem de entrega do plano:
 - [ ] **[código]** Remodelagem do web e dos painéis, depois do app
   (`docs/REMODELAGEM.md`: inventário e lista de conferência).
 
-- [ ] **[código]** Maquininha Stone no invólucro Android: faltam os nomes de
-  classe do SDK da Stone (a do PagBank está pronta).
+- [x] **[código]** Maquininha Stone no invólucro Android: **feita por
+  deeplink** (sem a SDK da Stone, compila sem credencial), provada sem o
+  Android SDK (`npm run stone`). **Falta** compilar no Android e a venda de
+  teste numa Ton (lista em `docs/MAQUININHAS.md`, "Stone por deeplink").
 - [ ] **[código]** Compilar o APK das maquininhas — precisa de máquina com o
   Android SDK.
 - [x] **Pôster dos vídeos** (rifa, reels e story): o quadro sai em segundo

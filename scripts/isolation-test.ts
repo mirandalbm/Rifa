@@ -34,6 +34,7 @@ import {
   comentarios,
   divulgacoes,
   divulgacaoFotos,
+  divulgacaoVideos,
   sorteiosOficiais,
   sorteioComentarios,
 } from "../shared/schema";
@@ -774,6 +775,16 @@ async function conteudoDasListas(eu: Lado, vizinho: Lado) {
     checa("a foto da peça do vizinho: 404", abrirFoto.status === 404, `HTTP ${abrirFoto.status}`);
     const abrirPublica = await pedir("", `/api/public/divulgacoes/${pecaDoVizinho.id}/fotos/${fotoDoVizinho.id}`);
     checa("a foto da peça em análise não é pública: 404", abrirPublica.status === 404, `HTTP ${abrirPublica.status}`);
+    // O vídeo da peça do vizinho, pela porta do painel e pela pública (em análise): 404.
+    await db
+      .insert(divulgacaoVideos)
+      .values({ divulgacaoId: pecaDoVizinho.id, mime: "video/mp4", bytes: Buffer.from([0, 0, 0, 8]), segundos: 1, largura: 1080, altura: 1920 });
+    const abrirVideo = await pedir(eu.cookie, `/api/admin/divulgacoes/${pecaDoVizinho.id}/video`);
+    checa("o vídeo da peça do vizinho: 404", abrirVideo.status === 404, `HTTP ${abrirVideo.status}`);
+    const abrirPosterDoVizinho = await pedir(eu.cookie, `/api/admin/divulgacoes/${pecaDoVizinho.id}/video?poster=1`);
+    checa("o pôster do vídeo do vizinho: 404", abrirPosterDoVizinho.status === 404, `HTTP ${abrirPosterDoVizinho.status}`);
+    const videoPublico = await pedir("", `/api/public/divulgacoes/${pecaDoVizinho.id}/video`);
+    checa("o vídeo da peça em análise não é público: 404", videoPublico.status === 404, `HTTP ${videoPublico.status}`);
     const depoisDoSino = (await (await pedir(eu.cookie, "/api/admin/chamados/pendentes")).json()) as { divulgacoes?: number };
     checa(
       "a peça esperando o vizinho não entra no número do meu sino",

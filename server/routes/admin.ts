@@ -7,7 +7,7 @@ import {
   salvarBannerDeDivulgacao,
 } from "../services/bannerDivulgacao";
 import { agendarPublicacao } from "../services/publicacaoAgendada";
-import { enviarComFaixa } from "../services/faixa";
+import { enviarComFaixa, enviarFaixaDoBanco } from "../services/faixa";
 import { devolverPixTardio, listarPixTardios, resolverPixTardio } from "../services/pixTardio";
 import { numerosPremiados } from "@shared/premiadas";
 import express, { Router, type Request, type Response as Resposta } from "express";
@@ -151,6 +151,7 @@ import { salvarFotoDoGanhador } from "../services/ganhador";
 import {
   decidir as decidirDivulgacao,
   fotoDoPainel as fotoDaDivulgacao,
+  videoDoPainel as videoDaDivulgacao,
   listarDaOrganizacao as listarDivulgacoesDaOrganizacao,
   modoDaOrganizacao,
   pendentesDaOrganizacao,
@@ -3850,6 +3851,18 @@ adminRouter.get("/divulgacoes/:id/fotos/:fotoId", async (req, res, next) => {
     res.setHeader("Cache-Control", "private, no-store");
     res.setHeader("X-Content-Type-Options", "nosniff");
     res.type("image/jpeg").send(bytes);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** O vídeo do afiliado (ou o pôster, `?poster=1`), para quem autoriza (o do vizinho é 404). Nunca em cache; com `Range`. */
+adminRouter.get("/divulgacoes/:id/video", async (req, res, next) => {
+  try {
+    const v = await videoDaDivulgacao(req, req.params.id, req.query.poster === "1");
+    res.setHeader("Cache-Control", "private, no-store");
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    await enviarFaixaDoBanco(req, res, v);
   } catch (err) {
     next(err);
   }

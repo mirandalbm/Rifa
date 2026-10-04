@@ -2,6 +2,7 @@ import { useState } from "react";
 import { aindaAgendado, quandoCurto } from "@/components/CampoDeAgenda";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, Card, Campo, Pill } from "@/components/bits";
+import { VideoDaDivulgacao, type VideoDaPeca } from "@/components/VideoProprio";
 import { apiRequest } from "@/lib/queryClient";
 import { MODOS_DE_DIVULGACAO, STATUS_DA_DIVULGACAO, type AcaoDaDecisao, type ModoDeDivulgacao, type StatusDaDivulgacao } from "@shared/divulgacao";
 
@@ -23,6 +24,8 @@ interface Linha {
   publicaEm: string | null;
   /** As fotos de quem publicou (apostador ou afiliado): a organização vê cada uma antes de autorizar. */
   fotos: string[];
+  /** O vídeo do afiliado (no lugar das fotos): a organização assiste antes de autorizar. */
+  video: VideoDaPeca | null;
 }
 
 const PILL_DA_DIVULGACAO: Record<StatusDaDivulgacao, string> = {
@@ -83,9 +86,9 @@ export function DivulgacoesDaOrganizacao({ daOrganizacao }: { daOrganizacao: boo
     >
       <div className="space-y-3 p-4 text-sm">
         <p className="text-muted">
-          Afiliados com vínculo aprovado publicam com as mídias das suas rifas e fotos deles; apostadores publicam texto e
-          fotos, sobre rifa em que compraram, quando a plataforma liga essa opção. Peça com foto de quem publicou sempre
-          espera a sua autorização, mesmo no modo direto. Nada altera a rifa, e texto com link, telefone ou pedido de Pix
+          Afiliados com vínculo aprovado publicam com as mídias das suas rifas e fotos ou um vídeo deles; apostadores publicam
+          texto e fotos, sobre rifa em que compraram, quando a plataforma liga essa opção. Peça com foto ou vídeo de quem
+          publicou sempre espera a sua autorização, mesmo no modo direto. Nada altera a rifa, e texto com link, telefone ou pedido de Pix
           por fora é barrado.
         </p>
         {daOrganizacao ? (
@@ -106,7 +109,7 @@ export function DivulgacoesDaOrganizacao({ daOrganizacao }: { daOrganizacao: boo
               ))}
             </div>
             <p className="mt-1 text-xs text-muted">
-              No modo direto a peça do afiliado vai ao ar na hora (você pode retirar depois), salvo a que leva foto dele. A do apostador sempre espera
+              No modo direto a peça do afiliado vai ao ar na hora (você pode retirar depois), salvo a que leva foto ou vídeo dele. A do apostador sempre espera
               a sua autorização.
             </p>
           </fieldset>
@@ -147,6 +150,7 @@ export function DivulgacoesDaOrganizacao({ daOrganizacao }: { daOrganizacao: boo
                   ))}
                 </ul>
               ) : null}
+              {l.video ? <VideoDaDivulgacao video={l.video} rotulo={`Vídeo de ${l.quem}`} /> : null}
               {l.motivo ? <p className="text-xs text-muted">Motivo: {l.motivo}</p> : null}
               {l.status === "em_analise" ? (
                 <div className="flex flex-wrap gap-2">

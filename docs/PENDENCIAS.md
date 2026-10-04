@@ -656,9 +656,13 @@ Na ordem de entrega do plano:
 - [ ] **[produto]** Ferramentas de publicação, o que ficou para depois:
   (1) o influenciador **enviar mídia própria** — **feita a foto**: até 4
   fotos dele, e a peça com foto passa pela organização mesmo no modo direto
-  (sem tabela nova: a mesma `divulgacao_fotos`); **ficou de fora o vídeo
-  próprio** (precisaria do armazenamento e da medição da mídia da rifa, e o
-  Stream) e **republicar** a peça da organização com legenda dele no feed —
+  (sem tabela nova: a mesma `divulgacao_fotos`); **vídeo próprio feito**: um vídeo dele (MP4 ou MOV,
+  até 60 s e 15 MB, medido no servidor, foto ou vídeo — nunca os dois), sempre
+  pela organização, no banco como o story, com `Range` e pôster em segundo
+  plano; **falta no ambiente** o `db:push` da tabela `divulgacao_videos`
+  **antes** do código, e o termo do afiliado (item 7) mudou de novo — as
+  organizações publicam a versão seguinte; ficou para depois o vídeo pelo
+  Stream (HLS) e **republicar** a peça da organização com legenda dele no feed —
   hoje a divulgação aparece numa seção da página da rifa, não no feed da
   vitrine nem no perfil do afiliado. O texto-base do termo do afiliado ganhou
   a regra da foto própria (item 7): as organizações com termo publicado veem

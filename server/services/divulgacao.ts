@@ -16,8 +16,8 @@
  *   cliques, uma decisão, um 409. O pedido do vizinho é 404.
  * - O apostador só publica atrás do interruptor `publicarApostador`, texto e
  *   fotos dele, só de rifa em que tem compra paga, e sempre com autorização.
- * - Foto própria (do apostador ou do afiliado) sempre passa pela
- *   organização: a varredura do Pix por fora só lê texto.
+ * - Foto própria (do apostador ou do afiliado) e o vídeo próprio do afiliado
+ *   sempre passam pela organização: a varredura do Pix por fora só lê texto.
  */
 import type { Request } from "express";
 import sharp from "sharp";
@@ -30,6 +30,7 @@ import {
   campaignMedia,
   campaigns,
   divulgacaoFotos,
+  divulgacaoVideos,
   divulgacoes,
   orders,
   organizations,
@@ -49,6 +50,8 @@ import {
   validarDecisao,
   validarDivulgacao,
   validarFotos,
+  validarVideo,
+  problemaNoVideoDaDivulgacao,
   validarModo,
   VAZIA_DO_AFILIADO,
   agendaDaPeca,
@@ -67,6 +70,9 @@ import { varrerTextoDoOrganizador } from "./seguranca";
 import { getPlataforma } from "./settings";
 import { withUrls } from "./media";
 import { isUniqueViolation } from "../pgError";
+import { bufferReader, probeVideoDimensions, probeVideoDuration, UnreadableMediaError } from "./probe";
+import { comArquivoTemporario, FfmpegLocal } from "./videoProcessor";
+import type { ArquivoEmFaixas } from "./faixa";
 
 /** Peça agendada só aparece depois da hora; sem agenda, já. A mesma regra de `pecaNoArAgora()`, em SQL: mudou uma, mude a outra. */
 const noArAgora = () => or(isNull(divulgacoes.publicaEm), lte(divulgacoes.publicaEm, new Date()));
@@ -178,13 +184,92 @@ async function processarFotos(fotos: string[]): Promise<Buffer[]> {
   return saida;
 }
 
-async function gravar(valores: typeof divulgacoes.$inferInsert, fotos: Buffer[] = []) {
+type VideoLido = { bytes: Buffer; mime: string; segundos: number; largura: number; altura: number };
+
+/**
+ * O vídeo próprio do afiliado, conferido pelo conteúdo antes da transação:
+ * MP4 ou MOV, curto e leve, com duração e medidas lidas do arquivo — nunca do
+ * que o navegador disser. Vai como veio (sem transcode).
+ */
+async function lerVideo(dataUrl: string): Promise<VideoLido> {
+  const m = /^data:(video\/(?:mp4|quicktime));base64,([A-Za-z0-9+/=]+)$/i.exec(dataUrl);
+  if (!m) throw new DivulgacaoError("Envie o vídeo em MP4 ou MOV.", 422);
+  const bytes = Buffer.from(m[2], "base64");
+  const grande = problemaNoVideoDaDivulgacao(bytes.length, 1, { width: 1, height: 1 });
+  if (grande) throw new DivulgacaoError(grande, 413);
+  const leitor = bufferReader(bytes);
   try {
-    return await db.transaction(async (tx: Tx) => {
+    const segundos = await probeVideoDuration(leitor, bytes.length);
+    const medidas = await probeVideoDimensions(leitor, bytes.length);
+    const problema = problemaNoVideoDaDivulgacao(bytes.length, segundos, medidas);
+    if (problema || !medidas) throw new DivulgacaoError(problema ?? "Não consegui medir o vídeo.", 422);
+    return { bytes, mime: tipoDoArquivo(bytes), segundos, largura: medidas.width, altura: medidas.height };
+  } catch (e) {
+    if (e instanceof UnreadableMediaError) throw new DivulgacaoError(e.message, 422);
+    throw e;
+  }
+}
+
+/**
+ * O tipo sai do próprio arquivo (a marca do `ftyp`), não do que o navegador
+ * declarou: MOV servido como MP4 não toca em alguns navegadores.
+ */
+function tipoDoArquivo(bytes: Buffer): "video/mp4" | "video/quicktime" {
+  return bytes.length >= 12 && bytes.toString("ascii", 4, 8) === "ftyp" && bytes.toString("ascii", 8, 12) === "qt  " ? "video/quicktime" : "video/mp4";
+}
+
+/**
+ * O pôster do vídeo de pessoa sai só do `ffmpeg` local, nunca do Cloudflare
+ * Stream: mandar a imagem de quem publicou a um serviço de fora é decisão de
+ * privacidade que a Privacidade não cobre (o vídeo da rifa é material da
+ * organização). Com `VIDEO_PROCESSOR=nenhum`, não há pôster.
+ */
+let ffmpegDaPeca: FfmpegLocal | null = null;
+const processadorDaPeca = () =>
+  (process.env.VIDEO_PROCESSOR ?? "").toLowerCase() === "nenhum" ? null : (ffmpegDaPeca ??= new FfmpegLocal());
+
+/** Foto ou vídeo, nunca os dois: o corpo da peça fica dentro do limite, e a tela mostra um ou outro. */
+function umOuOutro(fotos: number, video: boolean) {
+  if (fotos > 0 && video) throw new DivulgacaoError("Envie fotos ou um vídeo — não os dois na mesma divulgação.", 422);
+}
+
+/**
+ * O pôster do vídeo, em segundo plano: sem `ffmpeg` (ou se falhar), o vídeo
+ * fica sem pôster. Só grava no vídeo que veio tirar (o `id` muda a cada
+ * troca) e se ainda não houver pôster: vídeo trocado ou peça apagada no meio,
+ * o `UPDATE` não acha a linha.
+ */
+async function gerarPosterDaPeca(divulgacaoId: string, videoId: string, v: VideoLido) {
+  const processador = processadorDaPeca();
+  if (!processador) return false;
+  const poster = await comArquivoTemporario(v.bytes, v.mime === "video/quicktime" ? ".mov" : ".mp4", (arquivo) => processador.gerarPoster(arquivo));
+  if (!poster) return false;
+  const r = await db
+    .update(divulgacaoVideos)
+    .set({ poster })
+    .where(and(eq(divulgacaoVideos.divulgacaoId, divulgacaoId), eq(divulgacaoVideos.id, videoId), isNull(divulgacaoVideos.poster)))
+    .returning({ id: divulgacaoVideos.id });
+  return r.length > 0;
+}
+
+async function gravarVideo(tx: Tx, divulgacaoId: string, v: VideoLido) {
+  const [linha] = await tx
+    .insert(divulgacaoVideos)
+    .values({ divulgacaoId, mime: v.mime, bytes: v.bytes, segundos: v.segundos, largura: v.largura, altura: v.altura })
+    .returning({ id: divulgacaoVideos.id });
+  return linha.id;
+}
+
+async function gravar(valores: typeof divulgacoes.$inferInsert, fotos: Buffer[] = [], video: VideoLido | null = null) {
+  try {
+    const r = await db.transaction(async (tx: Tx) => {
       const [d] = await tx.insert(divulgacoes).values(valores).returning();
       if (fotos.length) await tx.insert(divulgacaoFotos).values(fotos.map((bytes, posicao) => ({ divulgacaoId: d.id, posicao, bytes })));
-      return d;
+      const videoId = video ? await gravarVideo(tx, d.id, video) : null;
+      return { d, videoId };
     });
+    if (video && r.videoId) emSegundoPlano(gerarPosterDaPeca(r.d.id, r.videoId, video), "pôster da divulgação");
+    return r.d;
   } catch (err) {
     // Quem decide é o índice: um pedido em análise por autor e rifa.
     if (isUniqueViolation(err, "uq_divulgacao_afiliado_em_analise") || isUniqueViolation(err, "uq_divulgacao_apostador_em_analise")) {
@@ -205,6 +290,63 @@ async function fotosDasPecas(ids: string[]): Promise<Map<string, string[]>> {
     .orderBy(asc(divulgacaoFotos.divulgacaoId), asc(divulgacaoFotos.posicao));
   for (const l of linhas) por.set(l.divulgacaoId, [...(por.get(l.divulgacaoId) ?? []), l.id]);
   return por;
+}
+
+/** O vídeo de cada peça (só o que a tela precisa: se tem pôster e as medidas). */
+async function videosDasPecas(ids: string[]): Promise<Map<string, { poster: boolean; largura: number; altura: number; em: Date }>> {
+  const por = new Map<string, { poster: boolean; largura: number; altura: number; em: Date }>();
+  if (!ids.length) return por;
+  const linhas = await db
+    .select({
+      divulgacaoId: divulgacaoVideos.divulgacaoId,
+      poster: sql<boolean>`${divulgacaoVideos.poster} is not null`,
+      largura: divulgacaoVideos.largura,
+      altura: divulgacaoVideos.altura,
+      em: divulgacaoVideos.createdAt,
+    })
+    .from(divulgacaoVideos)
+    .where(inArray(divulgacaoVideos.divulgacaoId, ids));
+  for (const l of linhas) por.set(l.divulgacaoId, { poster: l.poster, largura: l.largura, altura: l.altura, em: l.em });
+  return por;
+}
+
+/** O vídeo da peça para a tela: o endereço (com `?v=` da troca), o pôster, se houver, e a proporção. */
+function videoParaATela(base: string, v: { poster: boolean; largura: number; altura: number; em: Date } | undefined) {
+  if (!v) return null;
+  const versao = new Date(v.em).getTime();
+  return { url: `${base}?v=${versao}`, poster: v.poster ? `${base}?poster=1&v=${versao}` : null, largura: v.largura, altura: v.altura };
+}
+
+/**
+ * O vídeo (ou o pôster) de uma peça, lido aos pedaços: o vídeo sai do banco só
+ * na faixa pedida (`substring` no Postgres), nunca inteiro a cada pedaço que o
+ * navegador pede. O pôster é pequeno e vai inteiro. Sem, 404.
+ */
+export async function arquivoDoVideo(divulgacaoId: string, poster: boolean): Promise<ArquivoEmFaixas> {
+  if (poster) {
+    const [v] = await db.select({ bytes: divulgacaoVideos.poster }).from(divulgacaoVideos).where(eq(divulgacaoVideos.divulgacaoId, divulgacaoId));
+    if (!v?.bytes) throw new DivulgacaoError("Vídeo não encontrado.", 404);
+    const bytes = v.bytes;
+    return { mime: "image/webp", total: bytes.length, ler: async (ini, tam) => bytes.subarray(ini, ini + tam) };
+  }
+  const [v] = await db
+    .select({ mime: divulgacaoVideos.mime, total: sql<number>`octet_length(${divulgacaoVideos.bytes})::int`, id: divulgacaoVideos.id })
+    .from(divulgacaoVideos)
+    .where(eq(divulgacaoVideos.divulgacaoId, divulgacaoId));
+  if (!v) throw new DivulgacaoError("Vídeo não encontrado.", 404);
+  return {
+    mime: v.mime,
+    total: Number(v.total),
+    ler: async (ini, tam) => {
+      // O mesmo vídeo que foi medido (o `id` muda se trocarem no meio): trocado, a faixa vem vazia.
+      const r = await db.execute(
+        sql`select substring(bytes from ${ini + 1} for ${tam}) as b from divulgacao_videos where divulgacao_id = ${divulgacaoId} and id = ${v.id}`,
+      );
+      const b = (r.rows[0] as { b?: Buffer } | undefined)?.b;
+      if (!b) throw new DivulgacaoError("Vídeo não encontrado.", 404);
+      return b;
+    },
+  };
 }
 
 async function bytesDaFoto(divulgacaoId: string, fotoId: string) {
@@ -233,7 +375,9 @@ async function afiliadoOnline(affiliateId: string) {
 
 export async function publicarComoAfiliado(affiliateId: string, entrada: Record<string, unknown>) {
   const fotosBrutas = regra(() => validarFotos(entrada.fotos)) ?? [];
-  const dados = regra(() => validarDivulgacao("afiliado", entrada, fotosBrutas.length));
+  const videoBruto = regra(() => validarVideo(entrada.video)) ?? null;
+  umOuOutro(fotosBrutas.length, Boolean(videoBruto));
+  const dados = regra(() => validarDivulgacao("afiliado", entrada, fotosBrutas.length + (videoBruto ? 1 : 0)));
   const publicaEm = regra(() => agendaDaPeca(entrada.publicaEm)) ?? null;
   const a = await afiliadoOnline(affiliateId);
   const rifa = await rifaParaDivulgar(entrada.slug);
@@ -242,6 +386,9 @@ export async function publicarComoAfiliado(affiliateId: string, entrada: Record<
   if (!recebe) {
     throw new DivulgacaoError("Para divulgar esta rifa você precisa de vínculo aprovado com a organização e do aceite do termo dela.", 403);
   }
+  // O vídeo é medido antes de contar: longo, pesado ou que não abre é erro de
+  // preenchimento, e não gasta o limite do dia (só lê o que veio, nada grava).
+  const video = videoBruto ? await lerVideo(videoBruto) : null;
   // Conta a tentativa antes de recusar: quem insiste com o mesmo texto estoura o limite.
   const limite = await hit(`divulgacao:afiliado:${affiliateId}`, 24 * 60, DIVULGACOES_POR_DIA);
   if (limite.excedeu) throw new DivulgacaoError("Muitas divulgações hoje. Tente amanhã.", 429);
@@ -250,8 +397,8 @@ export async function publicarComoAfiliado(affiliateId: string, entrada: Record<
   await conferirMidias(rifa.id, dados.midias);
   const fotos = await processarFotos(fotosBrutas);
   const modo = validarModo(rifa.modo);
-  // Com foto própria, passa pela organização mesmo no modo direto.
-  const status = statusInicial("afiliado", modo, fotos.length > 0);
+  // Com foto ou vídeo próprio, passa pela organização mesmo no modo direto.
+  const status = statusInicial("afiliado", modo, fotos.length > 0 || Boolean(video));
   const d = await gravar({
     campaignId: rifa.id,
     organizationId: rifa.organizationId,
@@ -262,7 +409,7 @@ export async function publicarComoAfiliado(affiliateId: string, entrada: Record<
     status,
     decididoEm: status === "publicada" ? new Date() : null,
     publicaEm,
-  }, fotos);
+  }, fotos, video);
   return { id: d.id, status: d.status, modo };
 }
 
@@ -376,6 +523,7 @@ export async function publicarComoApostador(req: Request, entrada: Record<string
   await interruptorDoApostador();
   const b = await apostadorComConta(req);
   const dados = regra(() => validarDivulgacao("apostador", entrada));
+  if (entrada.video !== undefined && entrada.video !== null) throw new DivulgacaoError("O apostador publica texto e fotos.", 422);
   const fotosBrutas = regra(() => validarFotos(entrada.fotos)) ?? [];
   const publicaEm = regra(() => agendaDaPeca(entrada.publicaEm)) ?? null;
   const rifa = await rifaParaDivulgar(entrada.slug);
@@ -431,7 +579,24 @@ export async function minhasDoAfiliado(affiliateId: string) {
     .orderBy(desc(divulgacoes.createdAt))
     .limit(50);
   const fotos = await fotosDasPecas(linhas.map((l) => l.id));
-  return linhas.map((l) => ({ ...l, fotos: (fotos.get(l.id) ?? []).map((f) => `/api/affiliate/divulgacoes/${l.id}/fotos/${f}`) }));
+  const videos = await videosDasPecas(linhas.map((l) => l.id));
+  return linhas.map((l) => ({
+    ...l,
+    fotos: (fotos.get(l.id) ?? []).map((f) => `/api/affiliate/divulgacoes/${l.id}/fotos/${f}`),
+    video: videoParaATela(`/api/affiliate/divulgacoes/${l.id}/video`, videos.get(l.id)),
+  }));
+}
+
+/** O vídeo (ou o pôster) da própria peça, para o afiliado que publicou. O de outro é 404. */
+export async function videoDaPecaDoAfiliado(affiliateId: string, id: string, poster: boolean) {
+  if (!/^[0-9a-f-]{36}$/i.test(id)) throw new DivulgacaoError("Vídeo não encontrado.", 404);
+  await afiliadoOnline(affiliateId);
+  const [d] = await db
+    .select({ id: divulgacoes.id })
+    .from(divulgacoes)
+    .where(and(eq(divulgacoes.id, id), eq(divulgacoes.affiliateId, affiliateId)));
+  if (!d) throw new DivulgacaoError("Vídeo não encontrado.", 404);
+  return arquivoDoVideo(id, poster);
 }
 
 /** A foto da própria peça, para o afiliado que publicou. A de outro é 404. */
@@ -484,8 +649,9 @@ export async function retirarPropria(dono: { affiliateId: string } | { buyerId: 
       .where(and(eq(divulgacoes.id, id), dono_, inArray(divulgacoes.status, ["em_analise", "publicada"])))
       .returning({ id: divulgacoes.id });
     if (!r) throw new DivulgacaoError("Divulgação não encontrada.", 404);
-    // Retirada não volta: as fotos saem junto.
+    // Retirada não volta: as fotos e o vídeo saem junto.
     await tx.delete(divulgacaoFotos).where(eq(divulgacaoFotos.divulgacaoId, id));
+    await tx.delete(divulgacaoVideos).where(eq(divulgacaoVideos.divulgacaoId, id));
   });
   return { ok: true };
 }
@@ -516,6 +682,9 @@ async function editarPropria(
   if (!/^[0-9a-f-]{36}$/i.test(id)) throw new DivulgacaoError("Divulgação não encontrada.", 404);
   // Sem `fotos` no corpo, ficam as que a peça tinha; lista vazia tira todas.
   const fotosBrutas = regra(() => validarFotos(entrada.fotos));
+  // Sem `video` no corpo, fica o que a peça tinha; `null` tira. Só o afiliado manda vídeo.
+  const videoBruto = regra(() => validarVideo(entrada.video));
+  if (dono.autor === "apostador" && videoBruto) throw new DivulgacaoError("O apostador publica texto e fotos.", 422);
   // Sem `publicaEm` no corpo, fica a agenda que estava; vazio tira a agenda.
   const publicaEm = regra(() => agendaDaPeca(entrada.publicaEm));
   // A conferência de "peça vazia" do afiliado é feita abaixo, com as fotos e mídias que ficam.
@@ -553,6 +722,8 @@ async function editarPropria(
       .limit(1);
     if (!joga) throw new DivulgacaoError("Só quem comprou esta rifa publica sobre ela.", 403);
   }
+  // O vídeo novo é medido antes de contar (erro de preenchimento não gasta o limite).
+  const video = videoBruto ? await lerVideo(videoBruto) : null;
   // Conta a tentativa antes de recusar (o Pix por fora também conta), num balde só de edições.
   const pessoa = dono.autor === "afiliado" ? dono.affiliateId : dono.buyerId;
   const limite = await hit(`divulgacao-edicao:${dono.autor}:${pessoa}`, 24 * 60, EDICOES_POR_DIA);
@@ -562,13 +733,16 @@ async function editarPropria(
   const midias = dono.autor === "afiliado" ? (Array.isArray(entrada.midias) ? dados.midias : atual.midiaIds) : [];
   // Quantas fotos a peça terá depois da edição: as novas, ou as que já tinha.
   const fotosDepois = fotosBrutas ? fotosBrutas.length : ((await fotosDasPecas([id])).get(id) ?? []).length;
-  if (dono.autor === "afiliado" && !dados.legenda && midias.length === 0 && fotosDepois === 0) throw new DivulgacaoError(VAZIA_DO_AFILIADO, 422);
+  // E se terá vídeo: o novo, nenhum (`null`) ou o que já tinha.
+  const videoDepois = videoBruto === undefined ? (await videosDasPecas([id])).has(id) : videoBruto !== null;
+  umOuOutro(fotosDepois, videoDepois);
+  if (dono.autor === "afiliado" && !dados.legenda && midias.length === 0 && fotosDepois === 0 && !videoDepois) throw new DivulgacaoError(VAZIA_DO_AFILIADO, 422);
   if (dono.autor === "afiliado") await conferirMidias(rifa.id, midias);
   const fotos = fotosBrutas ? await processarFotos(fotosBrutas) : null;
 
   // Afiliado no modo direto e sem foto própria segue no ar; o resto volta a
   // esperar a organização (a foto, quem lê é ela).
-  const status = dono.autor === "afiliado" ? statusInicial("afiliado", validarModo(rifa.modo), fotosDepois > 0) : "em_analise";
+  const status = dono.autor === "afiliado" ? statusInicial("afiliado", validarModo(rifa.modo), fotosDepois > 0 || videoDepois) : "em_analise";
   try {
     return await db.transaction(async (tx: Tx) => {
     const [r] = await tx
@@ -596,7 +770,16 @@ async function editarPropria(
       await tx.delete(divulgacaoFotos).where(eq(divulgacaoFotos.divulgacaoId, id));
       if (fotos.length) await tx.insert(divulgacaoFotos).values(fotos.map((bytes, posicao) => ({ divulgacaoId: id, posicao, bytes })));
     }
-    return r;
+    // O vídeo também: trocado (o novo ganha outro `id`) ou tirado.
+    let videoId: string | null = null;
+    if (videoBruto !== undefined) {
+      await tx.delete(divulgacaoVideos).where(eq(divulgacaoVideos.divulgacaoId, id));
+      if (video) videoId = await gravarVideo(tx, id, video);
+    }
+    return { ...r, videoId };
+    }).then(({ videoId, ...r }) => {
+      if (video && videoId) emSegundoPlano(gerarPosterDaPeca(id, videoId, video), "pôster da divulgação");
+      return r;
     });
   } catch (err) {
     // A peça no ar volta para a fila: se já há outra desta rifa esperando, o índice decide.
@@ -677,25 +860,37 @@ export async function listarDaOrganizacao(req: Request, status?: unknown) {
     .orderBy(sql`(${divulgacoes.status} = 'em_analise') desc`, desc(divulgacoes.createdAt))
     .limit(100);
   const fotos = await fotosDasPecas(linhas.map((l) => l.id));
+  const videos = await videosDasPecas(linhas.map((l) => l.id));
   return linhas.map(({ nomeAfiliado, apelido, codigo, midiaIds, ...l }) => ({
     ...l,
     midias: midiaIds.length,
-    // A organização lê a foto antes de autorizar: a varredura do Pix por fora só lê texto.
+    // A organização lê a foto e assiste ao vídeo antes de autorizar: a varredura do Pix por fora só lê texto.
     fotos: (fotos.get(l.id) ?? []).map((f) => `/api/admin/divulgacoes/${l.id}/fotos/${f}`),
+    video: videoParaATela(`/api/admin/divulgacoes/${l.id}/video`, videos.get(l.id)),
     quem: l.autor === "afiliado" ? `${nomeCurto(nomeAfiliado)} (${codigo})` : `@${apelido ?? "apostador"}`,
   }));
 }
 
 /** A foto de uma peça, para quem decide: no recorte da organização (a do vizinho é 404). */
 export async function fotoDoPainel(req: Request, id: string, fotoId: string) {
-  if (!/^[0-9a-f-]{36}$/i.test(id)) throw new DivulgacaoError("Foto não encontrada.", 404);
+  await pecaNoRecorte(req, id, "Foto não encontrada.");
+  return bytesDaFoto(id, fotoId);
+}
+
+/** O vídeo (ou o pôster) de uma peça, para quem decide: no recorte da organização (o do vizinho é 404). */
+export async function videoDoPainel(req: Request, id: string, poster: boolean) {
+  await pecaNoRecorte(req, id, "Vídeo não encontrado.");
+  return arquivoDoVideo(id, poster);
+}
+
+async function pecaNoRecorte(req: Request, id: string, naoAchou: string) {
+  if (!/^[0-9a-f-]{36}$/i.test(id)) throw new DivulgacaoError(naoAchou, 404);
   const org = orgOf(req);
   const [d] = await db
     .select({ id: divulgacoes.id })
     .from(divulgacoes)
     .where(and(eq(divulgacoes.id, id), org ? eq(divulgacoes.organizationId, org) : undefined));
-  if (!d) throw new DivulgacaoError("Foto não encontrada.", 404);
-  return bytesDaFoto(id, fotoId);
+  if (!d) throw new DivulgacaoError(naoAchou, 404);
 }
 
 /** Quantas peças esperam a organização — para o aviso da tela, sem trazer a lista. */
@@ -758,7 +953,10 @@ export async function decidir(req: Request, id: string, entrada: unknown) {
     if (!novo) throw new DivulgacaoError("Esta divulgação já foi decidida.", 409);
     // Recusada ou retirada não volta (não se edita): as fotos de quem publicou saem já,
     // na mesma transação — foto de pessoa não fica guardada sem uso.
-    if (para === "recusada" || para === "removida") await tx.delete(divulgacaoFotos).where(eq(divulgacaoFotos.divulgacaoId, id));
+    if (para === "recusada" || para === "removida") {
+      await tx.delete(divulgacaoFotos).where(eq(divulgacaoFotos.divulgacaoId, id));
+      await tx.delete(divulgacaoVideos).where(eq(divulgacaoVideos.divulgacaoId, id));
+    }
     return { id: novo.id, status: novo.status, buyerId: novo.buyerId, versao: novo.versao, publicaEm: novo.publicaEm, motivo, acao, campaignId: linha.campaign_id };
   });
   // Quem publicou fica sabendo, fora da transação: aviso nunca derruba a decisão.
@@ -894,6 +1092,7 @@ export async function divulgacoesDaRifa(slug: string) {
     : [];
   const porId = new Map(midias.map((m) => [m.id, m]));
   const fotosPorPeca = await fotosDasPecas(linhas.map((l) => l.id));
+  const videosPorPeca = await videosDasPecas(linhas.map((l) => l.id));
 
   const saida = [];
   for (const l of linhas) {
@@ -914,6 +1113,8 @@ export async function divulgacoesDaRifa(slug: string) {
       editada: Boolean(l.editadaEm),
       // As fotos do apostador saem só pela rota que confere de novo que a peça está no ar.
       fotos: (fotosPorPeca.get(l.id) ?? []).map((f) => `/api/public/divulgacoes/${l.id}/fotos/${f}`),
+      // O vídeo do afiliado, pela mesma porta conferida (`videoPublico`).
+      video: videoParaATela(`/api/public/divulgacoes/${l.id}/video`, videosPorPeca.get(l.id)),
       // O link de quem divulga (só afiliado): a compra por ele paga a comissão dele.
       link: linkDaDivulgacao(c.slug, l.autor === "afiliado" ? l.codigo : null),
       midias: l.midiaIds
@@ -939,7 +1140,18 @@ export async function divulgacoesDaRifa(slug: string) {
  * a foto some junto.
  */
 export async function fotoPublica(id: string, fotoId: string) {
-  if (!/^[0-9a-f-]{36}$/i.test(id)) throw new DivulgacaoError("Foto não encontrada.", 404);
+  await pecaPublica(id, "Foto não encontrada.");
+  return bytesDaFoto(id, fotoId);
+}
+
+/** O vídeo público (ou o pôster): a mesma régua da foto pública — só da peça que a página mostraria agora. */
+export async function videoPublico(id: string, poster: boolean) {
+  await pecaPublica(id, "Vídeo não encontrado.");
+  return arquivoDoVideo(id, poster);
+}
+
+async function pecaPublica(id: string, naoAchou: string) {
+  if (!/^[0-9a-f-]{36}$/i.test(id)) throw new DivulgacaoError(naoAchou, 404);
   const [d] = await db
     .select({
       autor: divulgacoes.autor,
@@ -974,11 +1186,10 @@ export async function fotoPublica(id: string, fotoId: string) {
         isNull(organizations.banidaEm),
       ),
     );
-  if (!d) throw new DivulgacaoError("Foto não encontrada.", 404);
+  if (!d) throw new DivulgacaoError(naoAchou, 404);
   if (d.autor === "apostador") {
-    if (!d.apostadorOk || !(await getPlataforma()).publicarApostador) throw new DivulgacaoError("Foto não encontrada.", 404);
+    if (!d.apostadorOk || !(await getPlataforma()).publicarApostador) throw new DivulgacaoError(naoAchou, 404);
   } else if (!d.affiliateId || d.afiliadoAtivo !== "active" || !(await comissaoNaRifa(db, d.affiliateId, d.campanha)).recebe) {
-    throw new DivulgacaoError("Foto não encontrada.", 404);
+    throw new DivulgacaoError(naoAchou, 404);
   }
-  return bytesDaFoto(id, fotoId);
 }

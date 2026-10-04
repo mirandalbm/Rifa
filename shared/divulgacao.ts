@@ -66,6 +66,40 @@ export function validarFotos(v: unknown): string[] | null {
   }
   return v as string[];
 }
+/**
+ * O vídeo próprio do afiliado (um por peça, no lugar das fotos — foto ou
+ * vídeo, nunca os dois: o corpo da peça fica dentro do limite). Vai como veio,
+ * sem transcode; duração e medidas saem do arquivo, no servidor. A peça com
+ * vídeo sempre passa pela organização. O apostador não manda vídeo.
+ */
+export const DIVULGACAO_VIDEO_MAX_SEGUNDOS = 60;
+export const DIVULGACAO_VIDEO_MAX_BYTES = 15 * 1024 * 1024;
+
+/**
+ * O vídeo que o autor manda: ausente é `undefined` (na edição, fica o que a
+ * peça tinha); `null` tira; senão só `data:video/mp4|quicktime;base64,…`. O
+ * conteúdo é medido no servidor (`problemaNoVideoDaDivulgacao`).
+ */
+export function validarVideo(v: unknown): string | null | undefined {
+  if (v === undefined) return undefined;
+  if (v === null || v === "") return null;
+  if (typeof v !== "string" || !/^data:video\/(mp4|quicktime);base64,[A-Za-z0-9+/=]+$/i.test(v)) throw new Error("Envie o vídeo em MP4 ou MOV.");
+  return v;
+}
+
+/**
+ * O que impede este vídeo de entrar na peça, ou `null` se serve. Em pé ou
+ * deitado, mas medido: vídeo que não sabemos medir não entra (a promessa de
+ * duração é do servidor, nunca do navegador).
+ */
+export function problemaNoVideoDaDivulgacao(bytes: number, segundos: number, medidas: { width: number; height: number } | null): string | null {
+  if (bytes > DIVULGACAO_VIDEO_MAX_BYTES) return `O vídeo passa de ${DIVULGACAO_VIDEO_MAX_BYTES / 1024 / 1024} MB. Exporte mais leve.`;
+  if (!Number.isFinite(segundos) || segundos <= 0) return "Não consegui medir a duração do vídeo.";
+  if (segundos > DIVULGACAO_VIDEO_MAX_SEGUNDOS) return `O vídeo passa de ${DIVULGACAO_VIDEO_MAX_SEGUNDOS} segundos.`;
+  if (!medidas || medidas.width <= 0 || medidas.height <= 0) return "Não consegui medir o tamanho do vídeo. Envie em MP4 ou MOV.";
+  return null;
+}
+
 /** Até quantos dias à frente quem publica agenda a peça. */
 export const DIVULGACAO_AGENDA_MAX_DIAS = 30;
 
@@ -105,10 +139,10 @@ export function podeEditar(status: StatusDaDivulgacao): boolean {
 
 /**
  * Vai ao ar sem a organização só a peça do afiliado, no modo direto e **sem
- * foto própria** — a foto, quem lê é a organização.
+ * foto nem vídeo próprio** — a imagem, quem lê é a organização.
  */
-export function statusInicial(autor: AutorDaDivulgacao, modo: ModoDeDivulgacao, temFotoPropria = false): StatusDaDivulgacao {
-  return autor === "afiliado" && modo === "direta" && !temFotoPropria ? "publicada" : "em_analise";
+export function statusInicial(autor: AutorDaDivulgacao, modo: ModoDeDivulgacao, temMidiaPropria = false): StatusDaDivulgacao {
+  return autor === "afiliado" && modo === "direta" && !temMidiaPropria ? "publicada" : "em_analise";
 }
 
 export type AcaoDaDecisao = "aprovar" | "recusar" | "remover";
@@ -147,7 +181,7 @@ export function versaoInformada(v: unknown): number | null {
   return v;
 }
 
-export const VAZIA_DO_AFILIADO = "Escreva a legenda, escolha uma mídia da rifa ou envie uma foto sua.";
+export const VAZIA_DO_AFILIADO = "Escreva a legenda, escolha uma mídia da rifa ou envie uma foto ou um vídeo seu.";
 
 export interface EntradaDaDivulgacao {
   legenda: string;
@@ -157,8 +191,8 @@ export interface EntradaDaDivulgacao {
 /**
  * Confere o que o autor manda. Só chaves conhecidas. A legenda passa pela
  * régua da legenda da organização (sem link, sem telefone). O afiliado
- * precisa de legenda, de uma mídia da rifa ou de uma foto própria (`fotos`,
- * quantas a peça terá); o apostador, de legenda e nunca de mídia da rifa
+ * precisa de legenda, de uma mídia da rifa ou de mídia própria (`fotos`,
+ * quantas fotos — ou o vídeo — a peça terá); o apostador, de legenda e nunca de mídia da rifa
  * (conteúdo de rifa alheia é da organização).
  */
 export function validarDivulgacao(autor: AutorDaDivulgacao, bruto: unknown, fotos = 0): EntradaDaDivulgacao {

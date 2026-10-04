@@ -15,7 +15,11 @@
  * - o afiliado só escolhe mídia da própria rifa;
  * - perder o vínculo tira a peça do ar;
  * - apostador: interruptor desligado = 404; ligado, só com compra paga, só
- *   texto e sempre com autorização.
+ *   texto e sempre com autorização;
+ * - vídeo próprio do afiliado: medido no servidor (longo, pesado ou que não
+ *   abre é recusado), foto ou vídeo (nunca os dois), sempre pela organização,
+ *   as três portas com `Range` e o recorte, e recusado ou retirado sai do banco;
+ *   o apostador não manda vídeo.
  *
  *   npm run divulgacao      (com `npm run dev` no ar e o seed aplicado)
  */
@@ -26,7 +30,7 @@ import { db, pool } from "../server/db";
 import { hashPassword } from "../server/auth";
 import { publishCampaign } from "../server/services/campaigns";
 import sharp from "sharp";
-import { affiliates, campaignMedia, campaignStats, campaigns, denuncias, divulgacaoFotos, divulgacoes, notificacoes, orders, organizations, users } from "../shared/schema";
+import { affiliates, campaignMedia, campaignStats, campaigns, denuncias, divulgacaoFotos, divulgacaoVideos, divulgacoes, notificacoes, orders, organizations, users } from "../shared/schema";
 
 const URL = baseUrl();
 let falhas = 0;
@@ -45,6 +49,33 @@ async function foto(cliente: { cookie: string } | null, caminho: string) {
 async function pngDe(cor: string) {
   const b = await sharp({ create: { width: 40, height: 30, channels: 3, background: cor } }).png().toBuffer();
   return `data:image/png;base64,${b.toString("base64")}`;
+}
+
+/* MP4 sintético: o servidor mede duração e tamanho pelo container (a mesma régua do story). */
+function caixa(tipo: string, conteudo: Buffer) {
+  const h = Buffer.alloc(8);
+  h.writeUInt32BE(conteudo.length + 8, 0);
+  h.write(tipo, 4, "ascii");
+  return Buffer.concat([h, conteudo]);
+}
+function mp4(segundos: number, largura: number, altura: number, extra = 2048) {
+  const mvhd = Buffer.alloc(100);
+  mvhd.writeUInt32BE(1000, 12);
+  mvhd.writeUInt32BE(Math.round(segundos * 1000), 16);
+  const tkhd = Buffer.alloc(84);
+  tkhd.writeInt32BE(0x10000, 40);
+  tkhd.writeInt32BE(0x10000, 56);
+  tkhd.writeUInt32BE(largura * 65536, 76);
+  tkhd.writeUInt32BE(altura * 65536, 80);
+  const moov = caixa("moov", Buffer.concat([caixa("mvhd", mvhd), caixa("trak", caixa("tkhd", tkhd))]));
+  const arquivo = Buffer.concat([caixa("ftyp", Buffer.from("isomiso2avc1mp41", "ascii")), moov, caixa("mdat", Buffer.alloc(extra, 7))]);
+  return { arquivo, url: `data:video/mp4;base64,${arquivo.toString("base64")}` };
+}
+
+/** Lê um vídeo com `Range`, para conferir o 206 (o Safari não toca sem ele). */
+async function faixa(cliente: { cookie: string } | null, caminho: string) {
+  const r = await fetch(URL + caminho, { headers: { Range: "bytes=0-9", ...(cliente?.cookie ? { Cookie: cliente.cookie } : {}) } });
+  return { status: r.status, tipo: r.headers.get("content-type") ?? "", faixa: r.headers.get("content-range") ?? "", bytes: Buffer.from(await r.arrayBuffer()).length };
 }
 
 class Cliente {
@@ -415,6 +446,89 @@ async function main() {
       await afiliada.req("DELETE", `/api/affiliate/divulgacoes/${idFotoAf}`);
     }
 
+    // Vídeo próprio do afiliado: medido no servidor, sempre pela organização,
+    // foto ou vídeo (nunca os dois), três portas com `Range`.
+    {
+      // Cada peça nova conta no limite do dia (10): o bloco do vídeo zera o balde antes e depois.
+      const zerarLimite = () => db.execute(sql`delete from rate_events where bucket like 'divulgacao%'`);
+      await zerarLimite();
+      const bom = mp4(20, 1080, 1920);
+      const contadas = async () => Number((await db.execute(sql`select count(*)::int as n from rate_events where bucket like 'divulgacao:afiliado:%'`)).rows[0]?.n ?? 0);
+      const antesDoLimite = await contadas();
+      r = await peca(a1.slug, { legenda: "Vídeo longo", video: mp4(75, 1080, 1920).url });
+      checa("vídeo de mais de 60 s: 422", r.status === 422, `HTTP ${r.status} ${r.json?.message ?? ""}`);
+      checa("o vídeo recusado na medida não gasta o limite do dia", (await contadas()) === antesDoLimite, `${antesDoLimite} → ${await contadas()}`);
+      r = await peca(a1.slug, { legenda: "Vídeo pesado", video: mp4(10, 1080, 1920, 16 * 1024 * 1024).url });
+      checa("vídeo de mais de 15 MB: 413", r.status === 413, `HTTP ${r.status} ${r.json?.message ?? ""}`);
+      r = await peca(a1.slug, { legenda: "Não é vídeo", video: "data:video/mp4;base64," + Buffer.from("isto não é um vídeo").toString("base64") });
+      checa("arquivo que não é vídeo: 422", r.status === 422, `HTTP ${r.status} ${r.json?.message ?? ""}`);
+      r = await peca(a1.slug, { legenda: "Formato errado", video: "data:video/webm;base64,AAAA" });
+      checa("WebM (não sabemos medir): 422", r.status === 422, `HTTP ${r.status}`);
+      r = await peca(a1.slug, { legenda: "Os dois", fotos: [await pngDe("#1d4ed8")], video: bom.url });
+      checa("foto e vídeo na mesma peça: 422", r.status === 422, `HTTP ${r.status} ${r.json?.message ?? ""}`);
+      r = await peca(a1.slug, { video: bom.url });
+      const idVid = r.json?.id as string;
+      checa("só com o vídeo, no modo direto, a peça espera a organização", r.status === 201 && r.json?.status === "em_analise", `HTTP ${r.status} ${r.json?.message ?? ""}`);
+      const [gravado] = await db.select().from(divulgacaoVideos).where(eq(divulgacaoVideos.divulgacaoId, idVid));
+      checa("o vídeo fica como veio, com a duração e as medidas lidas do arquivo", Boolean(gravado) && gravado.bytes.equals(bom.arquivo) && Math.round(gravado.segundos) === 20 && gravado.largura === 1080 && gravado.altura === 1920, JSON.stringify(gravado ? { s: gravado.segundos, w: gravado.largura, h: gravado.altura } : null));
+      r = await afiliada.req("GET", "/api/affiliate/divulgacoes");
+      const minha = r.json?.find((x: any) => x.id === idVid);
+      const doAutor = await faixa(afiliada, minha?.video?.url ?? "/x");
+      checa("o afiliado assiste ao próprio vídeo, com Range (206)", doAutor.status === 206 && doAutor.tipo.startsWith("video/mp4") && doAutor.faixa === `bytes 0-9/${bom.arquivo.length}` && doAutor.bytes === 10, JSON.stringify(doAutor));
+      checa("sem sessão, o vídeo do afiliado não abre (401)", (await faixa(null, minha?.video?.url ?? "/x")).status === 401);
+      r = await orgA.req("GET", "/api/admin/divulgacoes");
+      const naFila = r.json?.find((x: any) => x.id === idVid);
+      checa("a organização assiste ao vídeo antes de autorizar (206)", (await faixa(orgA, naFila?.video?.url ?? "/x")).status === 206, JSON.stringify(naFila?.video ?? null));
+      checa("a B não abre o vídeo da peça da A (404)", (await faixa(orgB, naFila?.video?.url ?? "/x")).status === 404);
+      const publico = `/api/public/divulgacoes/${idVid}/video`;
+      checa("em análise, o vídeo não é público (404)", (await faixa(null, publico)).status === 404);
+      checa("o pôster que não existe é 404 (sem ffmpeg ou ainda gerando)", [200, 404].includes((await foto(null, `${publico}?poster=1`)).status));
+      r = await dec(orgA, idVid, { acao: "aprovar" });
+      checa("a A aprova a peça com o vídeo", r.status === 200 && r.json?.status === "publicada", `HTTP ${r.status} ${r.json?.message ?? ""}`);
+      const meio = await fetch(URL + publico, { headers: { Range: "bytes=100-199" } });
+      const meioBytes = Buffer.from(await meio.arrayBuffer());
+      checa("a faixa do meio vem exata, lida só ela do banco", meio.status === 206 && meioBytes.equals(bom.arquivo.subarray(100, 200)), `HTTP ${meio.status} ${meioBytes.length}`);
+      const fora = await fetch(URL + publico, { headers: { Range: `bytes=${bom.arquivo.length + 10}-` } });
+      checa("faixa fora do arquivo: 416", fora.status === 416, `HTTP ${fora.status}`);
+      const pub = await faixa(null, publico);
+      checa("no ar, o vídeo abre para qualquer um, com Range", pub.status === 206 && pub.faixa === `bytes 0-9/${bom.arquivo.length}`, JSON.stringify(pub));
+      r = await anon.req("GET", `/api/public/campaigns/${a1.slug}/divulgacoes`);
+      const naPagina = r.json?.find((x: any) => x.id === idVid);
+      checa("a página da rifa mostra o vídeo com as medidas", naPagina?.video?.url?.startsWith(publico) && naPagina?.video?.largura === 1080 && naPagina?.video?.altura === 1920, JSON.stringify(naPagina?.video ?? null));
+      // Editar só o texto mantém o vídeo e volta para a fila, mesmo no modo direto.
+      let versao = (await afiliada.req("GET", "/api/affiliate/divulgacoes")).json?.find((x: any) => x.id === idVid)?.versao;
+      r = await afiliada.req("PATCH", `/api/affiliate/divulgacoes/${idVid}`, { legenda: "Com legenda agora", versao });
+      checa("editada com o vídeo, volta para a fila mesmo no modo direto", r.status === 200 && r.json?.status === "em_analise", `HTTP ${r.status} ${JSON.stringify(r.json)}`);
+      checa("editar só o texto mantém o vídeo", (await db.select({ id: divulgacaoVideos.id }).from(divulgacaoVideos).where(eq(divulgacaoVideos.divulgacaoId, idVid))).length === 1);
+      checa("fora do ar, o vídeo sai da página pública (404)", (await faixa(null, publico)).status === 404);
+      versao = r.json?.versao;
+      r = await afiliada.req("PATCH", `/api/affiliate/divulgacoes/${idVid}`, { fotos: [await pngDe("#15803d")], versao });
+      checa("pôr fotos mantendo o vídeo: 422", r.status === 422, `HTTP ${r.status}`);
+      // Trocar o vídeo: o novo ganha outro id (o pôster do antigo não grava nele).
+      const outro = mp4(30, 1920, 1080);
+      r = await afiliada.req("PATCH", `/api/affiliate/divulgacoes/${idVid}`, { legenda: "Vídeo novo", video: outro.url, versao });
+      const [trocado] = await db.select().from(divulgacaoVideos).where(eq(divulgacaoVideos.divulgacaoId, idVid));
+      checa("trocar o vídeo grava o novo (deitado vale)", r.status === 200 && Boolean(trocado) && trocado.bytes.equals(outro.arquivo) && trocado.id !== gravado?.id, `HTTP ${r.status}`);
+      // Recusar apaga o vídeo na mesma transação.
+      r = await dec(orgA, idVid, { acao: "recusar", motivo: "Vídeo fora do combinado" });
+      checa("a A recusa a peça com o vídeo", r.status === 200 && r.json?.status === "recusada", `HTTP ${r.status} ${r.json?.message ?? ""}`);
+      checa("recusada, o vídeo sai do banco", (await db.select({ id: divulgacaoVideos.id }).from(divulgacaoVideos).where(eq(divulgacaoVideos.divulgacaoId, idVid))).length === 0);
+      // Retirar pelo próprio afiliado também apaga.
+      r = await peca(a1.slug, { video: bom.url });
+      const idVid2 = r.json?.id as string;
+      checa("nova peça com vídeo", r.status === 201, `HTTP ${r.status} ${r.json?.message ?? ""}`);
+      r = await afiliada.req("DELETE", `/api/affiliate/divulgacoes/${idVid2}`);
+      checa("retirada pelo afiliado, o vídeo sai do banco", r.status === 200 && (await db.select({ id: divulgacaoVideos.id }).from(divulgacaoVideos).where(eq(divulgacaoVideos.divulgacaoId, idVid2))).length === 0, `HTTP ${r.status}`);
+      // Tirar o vídeo (`video: null`) de uma peça em análise deixa só o texto.
+      r = await peca(a1.slug, { legenda: "Com vídeo e texto", video: bom.url });
+      const idVid3 = r.json?.id as string;
+      r = await afiliada.req("PATCH", `/api/affiliate/divulgacoes/${idVid3}`, { legenda: "Só o texto agora", video: null, versao: 0 });
+      checa("tirar o vídeo (video: null) no modo direto volta ao ar sem esperar", r.status === 200 && r.json?.status === "publicada", `HTTP ${r.status} ${JSON.stringify(r.json)}`);
+      checa("o vídeo tirado sai do banco", (await db.select({ id: divulgacaoVideos.id }).from(divulgacaoVideos).where(eq(divulgacaoVideos.divulgacaoId, idVid3))).length === 0);
+      await afiliada.req("DELETE", `/api/affiliate/divulgacoes/${idVid3}`);
+      await zerarLimite();
+    }
+
     // Agendar: no modo direto a peça nasce no ar, mas só aparece na rifa na hora marcada.
     r = await peca(a1.slug, { legenda: "Amanhã cedo tem novidade", publicaEm: new Date(Date.now() - 3_600_000).toISOString() });
     checa("agendar no passado: 422", r.status === 422, `HTTP ${r.status} ${r.json?.message ?? ""}`);
@@ -495,6 +609,8 @@ async function main() {
     checa("rifa em que não comprou: 403", r.status === 403, `HTTP ${r.status}`);
     const fotoAzul = await pngDe("#1d4ed8");
     const fotoVerde = await pngDe("#15803d");
+    r = await pessoa.req("POST", "/api/public/divulgacoes", { slug: a1.slug, legenda: "Com vídeo", video: mp4(10, 1080, 1920).url });
+    checa("o apostador não manda vídeo (422)", r.status === 422, `HTTP ${r.status} ${r.json?.message ?? ""}`);
     r = await pessoa.req("POST", "/api/public/divulgacoes", { slug: a1.slug, legenda: "Muitas fotos", fotos: Array(5).fill(fotoAzul) });
     checa("mais de 4 fotos: 422", r.status === 422, `HTTP ${r.status}`);
     {

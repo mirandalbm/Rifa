@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { PanelShell } from "@/components/AppShell";
 import { Button, Card, Campo, Empty, Pill } from "@/components/bits";
 import { FotosProprias, useFotosProprias } from "@/components/FotosProprias";
+import { VideoDaDivulgacao, VideoProprio, useVideoProprio, type VideoDaPeca } from "@/components/VideoProprio";
 import { CampoDeAgenda, aindaAgendado, paraCampoLocal, paraInstante, quandoCurto } from "@/components/CampoDeAgenda";
 import { apiRequest } from "@/lib/queryClient";
 import { DIVULGACAO_MIDIAS_MAX, STATUS_DA_DIVULGACAO, podeEditar, type ModoDeDivulgacao, type StatusDaDivulgacao } from "@shared/divulgacao";
@@ -28,6 +29,7 @@ interface Minha {
   editadaEm: string | null;
   versao: number;
   fotos: string[];
+  video: VideoDaPeca | null;
   publicaEm: string | null;
 }
 
@@ -41,9 +43,9 @@ export const PILL_DA_DIVULGACAO: Record<StatusDaDivulgacao, string> = {
 /**
  * O influenciador publica com o material da organização: escolhe uma rifa
  * (só as de organização com vínculo aprovado e termo aceito), as mídias que
- * ela já publicou, até 4 fotos dele e a legenda. A organização escolhe se a
+ * ela já publicou, até 4 fotos dele ou um vídeo dele, e a legenda. A organização escolhe se a
  * peça vai direto ao ar ou só depois da autorização — a tela diz qual vale.
- * Com foto dele, a peça sempre passa pela organização.
+ * Com foto ou vídeo dele, a peça sempre passa pela organização.
  */
 export function AfiliadoDivulgar() {
   const qc = useQueryClient();
@@ -57,8 +59,9 @@ export function AfiliadoDivulgar() {
   const [editando, setEditando] = useState<{ id: string; versao: number } | null>(null);
   const rifa = rifas.find((r) => r.slug === slug) ?? null;
   const fotos = useFotosProprias((texto) => setMsg({ ok: false, texto }));
-  // Com foto própria, nem o modo direto põe no ar sem a organização.
-  const direta = rifa?.modo === "direta" && fotos.quantas === 0;
+  const video = useVideoProprio((texto) => setMsg({ ok: false, texto }));
+  // Com foto ou vídeo próprio, nem o modo direto põe no ar sem a organização.
+  const direta = rifa?.modo === "direta" && fotos.quantas === 0 && !video.tem;
 
   // A hora de entrar na página da rifa: só vai ao servidor se a pessoa mexeu
   // (na edição, a agenda que passou não é reenviada — seria "hora que já passou").
@@ -70,14 +73,15 @@ export function AfiliadoDivulgar() {
     setEscolhidas([]);
     setEditando(null);
     fotos.limpar();
+    video.limpar();
     setAgenda("");
     setAgendaMudou(false);
   };
   const publicar = useMutation({
     mutationFn: () =>
       editando
-        ? apiRequest("PATCH", `/api/affiliate/divulgacoes/${editando.id}`, { legenda, midias: escolhidas, versao: editando.versao, ...fotos.corpo(true), ...corpoDaAgenda() })
-        : apiRequest("POST", "/api/affiliate/divulgacoes", { slug, legenda, midias: escolhidas, ...fotos.corpo(false), ...corpoDaAgenda() }),
+        ? apiRequest("PATCH", `/api/affiliate/divulgacoes/${editando.id}`, { legenda, midias: escolhidas, versao: editando.versao, ...fotos.corpo(true), ...video.corpo(true), ...corpoDaAgenda() })
+        : apiRequest("POST", "/api/affiliate/divulgacoes", { slug, legenda, midias: escolhidas, ...fotos.corpo(false), ...video.corpo(false), ...corpoDaAgenda() }),
     onSuccess: async (res) => {
       const j = (await res.json()) as { status: StatusDaDivulgacao };
       const editou = Boolean(editando);
@@ -108,6 +112,7 @@ export function AfiliadoDivulgar() {
     setLegenda(m.legenda);
     setEscolhidas(m.midias);
     fotos.carregar(m.fotos);
+    video.carregar(m.video);
     setAgenda(paraCampoLocal(m.publicaEm));
     setAgendaMudou(false);
     setEditando({ id: m.id, versao: m.versao });
@@ -147,6 +152,7 @@ export function AfiliadoDivulgar() {
                       setSlug(e.target.value);
                       setEscolhidas([]);
                       fotos.limpar();
+                      video.limpar();
                       setMsg(null);
                     }}
                   >
@@ -164,7 +170,7 @@ export function AfiliadoDivulgar() {
                       {direta
                         ? `${rifa.organizacao} deixa você publicar direto: a peça vai ao ar na hora${editando ? ", e a edição também" : ""}.`
                         : rifa.modo === "direta"
-                          ? `${rifa.organizacao} deixa você publicar direto, mas a peça com foto sua só vai ao ar depois da aprovação.`
+                          ? `${rifa.organizacao} deixa você publicar direto, mas a peça com foto ou vídeo seu só vai ao ar depois da aprovação.`
                           : editando
                           ? `${rifa.organizacao} autoriza antes: a peça editada só aparece na rifa depois da nova aprovação.`
                           : `${rifa.organizacao} autoriza antes: a peça só vai ao ar depois da aprovação.`}
@@ -196,11 +202,22 @@ export function AfiliadoDivulgar() {
                         })}
                       </ul>
                     </fieldset>
-                    <FotosProprias
-                      estado={fotos}
-                      editando={Boolean(editando)}
-                      dica="Só fotos suas ou de quem autorizou, sem menores de 18 anos. A organização vê cada uma antes de publicar."
-                    />
+                    {/* Foto ou vídeo, nunca os dois na mesma peça: um some quando o outro está escolhido. */}
+                    {video.tem ? null : (
+                      <FotosProprias
+                        estado={fotos}
+                        editando={Boolean(editando)}
+                        dica="Só fotos suas ou de quem autorizou, sem menores de 18 anos. A organização vê cada uma antes de publicar."
+                      />
+                    )}
+                    {fotos.quantas > 0 ? (
+                      <p className="text-xs text-muted">Com fotos suas, a peça não leva vídeo seu — tire as fotos para enviar um vídeo.</p>
+                    ) : (
+                      <VideoProprio
+                        estado={video}
+                        dica="MP4 ou MOV, até 15 MB, em pé ou deitado. Só vídeo seu ou de quem autorizou, sem menores de 18 anos. A organização assiste antes de publicar."
+                      />
+                    )}
                     <CampoDeAgenda
                       id="divulgar-agenda"
                       valor={agenda}
@@ -215,7 +232,7 @@ export function AfiliadoDivulgar() {
                     </Campo>
                     {msg ? <p role="status" className={`rounded-md px-3 py-2 ${msg.ok ? "bg-green-soft text-green-deep" : "bg-red-soft text-red"}`}>{msg.texto}</p> : null}
                     <div className="flex flex-wrap gap-2">
-                      <Button disabled={publicar.isPending || (!legenda.trim() && escolhidas.length === 0 && fotos.quantas === 0)} onClick={() => publicar.mutate()}>
+                      <Button disabled={publicar.isPending || (!legenda.trim() && escolhidas.length === 0 && fotos.quantas === 0 && !video.tem)} onClick={() => publicar.mutate()}>
                         {editando ? "Salvar edição" : direta ? "Publicar" : "Enviar para autorização"}
                       </Button>
                       {editando ? (
@@ -258,6 +275,7 @@ export function AfiliadoDivulgar() {
                       ))}
                     </ul>
                   ) : null}
+                  {m.video ? <VideoDaDivulgacao video={m.video} rotulo={`Seu vídeo na divulgação de ${m.title}`} /> : null}
                   {m.motivo ? <p className="text-xs text-muted">Motivo: {m.motivo}</p> : null}
                   {podeEditar(m.status) ? (
                     <div className="flex flex-wrap gap-2">

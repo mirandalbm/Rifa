@@ -5,8 +5,9 @@
  * as últimas mensagens sobre um fundo escuro. Onde ficam e o lado são da
  * pessoa e ficam no aparelho (`rifa.sorteio.comentarios`), como o som do
  * Reels: perder só devolve o padrão. O fundo não é escolha de quem assiste
- * (o YouTube e a Twitch não dão): é sólido, e só a plataforma pode deixá-lo
- * transparente (`fundoDaConversaPct` em `shared/plataforma.ts`). É só
+ * (o YouTube e a Twitch não dão): por padrão não há fundo — só as
+ * mensagens, com sombra no texto —, e só a plataforma pode pôr um fundo
+ * escuro (`fundoDaConversaPct` em `shared/plataforma.ts`). É só
  * apresentação — os comentários são os mesmos de embaixo do vídeo, com as
  * mesmas regras.
  */
@@ -78,9 +79,9 @@ export function modoNaTela(p: PreferenciaNaTelaCheia, deitado: boolean): "lado" 
   return p.modo;
 }
 
-/** A opacidade do fundo da conversa por cima do vídeo, da escolha da plataforma (50 a 100%). */
+/** A opacidade do fundo da conversa por cima do vídeo, da escolha da plataforma (0 = sem fundo, 100 = sólido). */
 export function alfaDoFundo(pct: number): number {
-  return Number.isFinite(pct) ? Math.min(1, Math.max(0.5, pct / 100)) : 1;
+  return Number.isFinite(pct) ? Math.min(1, Math.max(0, pct / 100)) : 0;
 }
 
 interface ComentarioLido {

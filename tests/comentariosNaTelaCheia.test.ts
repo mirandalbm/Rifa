@@ -33,19 +33,21 @@ describe("comentários na tela cheia do sorteio", () => {
     expect(lerPreferenciaGuardada(JSON.stringify({ modo: "flutuante", lado: "cima" }))).toEqual(PREFERENCIA_PADRAO);
   });
 
-  it("o fundo é sólido por padrão e nunca fica abaixo de 50%", () => {
-    expect(alfaDoFundo(FUNDO_DA_CONVERSA_PADRAO_PCT)).toBe(1);
+  it("por padrão não há fundo: só as mensagens por cima do vídeo", () => {
+    expect(FUNDO_DA_CONVERSA_PADRAO_PCT).toBe(0);
+    expect(alfaDoFundo(FUNDO_DA_CONVERSA_PADRAO_PCT)).toBe(0);
     expect(alfaDoFundo(70)).toBe(0.7);
-    expect(alfaDoFundo(10)).toBe(0.5);
-    expect(alfaDoFundo(Number.NaN)).toBe(1);
+    expect(alfaDoFundo(100)).toBe(1);
+    expect(alfaDoFundo(-5)).toBe(0);
+    expect(alfaDoFundo(Number.NaN)).toBe(0);
   });
 
-  it("a plataforma escolhe de 50% a 100%; o guardado estragado volta ao sólido", () => {
+  it("a plataforma escolhe de 0% (sem fundo) a 100% (sólido); o guardado estragado volta ao sem fundo", () => {
     for (const p of FUNDOS_DA_CONVERSA_PCT) expect(validarFundoDaConversa(p)).toBe(p);
-    for (const ruim of [49, 101, 75.5, "90%", null]) expect(() => validarFundoDaConversa(ruim)).toThrow(/50% a 100%/);
-    expect(validarConfigPlataforma({}).fundoDaConversaPct).toBe(100);
+    for (const ruim of [-1, 101, 75.5, "90", "90%", null, true]) expect(() => validarFundoDaConversa(ruim)).toThrow(/0% \(sem fundo\) a 100%/);
+    expect(validarConfigPlataforma({}).fundoDaConversaPct).toBe(0);
     expect(validarConfigPlataforma({ fundoDaConversaPct: 80 }).fundoDaConversaPct).toBe(80);
-    expect(validarConfigPlataforma({ fundoDaConversaPct: 5 }).fundoDaConversaPct).toBe(100);
+    expect(validarConfigPlataforma({ fundoDaConversaPct: 500 }).fundoDaConversaPct).toBe(0);
   });
 
   it("as últimas mensagens juntam comentários e respostas, a mais nova no fim", () => {

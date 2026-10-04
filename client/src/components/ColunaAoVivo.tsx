@@ -366,7 +366,7 @@ function useDeitado() {
 /**
  * As últimas mensagens por cima do vídeo, como no chat da Twitch: só a
  * leitura (nome e texto, nada além do que a lista embaixo já mostra), num
- * canto, sobre o fundo escuro (sólido, salvo escolha da plataforma). Tocar em "Comentar"
+ * canto, sem fundo (salvo escolha da plataforma), com sombra no texto. Tocar em "Comentar"
  * abre a conversa inteira ao lado, com o campo.
  */
 function ConversaPorCima({
@@ -385,7 +385,7 @@ function ConversaPorCima({
     refetchIntervalInBackground: false,
   });
   const ultimas = ultimasMensagens(data?.lista ?? []);
-  // O fundo é escolha da plataforma (sólido por padrão), não de quem assiste.
+  // O fundo é escolha da plataforma (sem fundo por padrão), não de quem assiste.
   const { fundoDaConversaPct } = useConfigDoApp();
   return (
     <section
@@ -393,7 +393,8 @@ function ConversaPorCima({
       className={`absolute bottom-[4.5rem] z-10 flex max-h-[55%] w-[70%] max-w-[360px] flex-col gap-1 rounded-lg p-2 font-instagram text-[14px] text-branco ${
         pref.lado === "esquerda" ? "left-2" : "right-2"
       }`}
-      style={{ backgroundColor: `rgba(0, 0, 0, ${alfaDoFundo(fundoDaConversaPct)})`, textShadow: "0 1px 2px rgba(0,0,0,0.8)" }}
+      // Sem fundo, a sombra é o que faz o texto branco ler sobre qualquer quadro do vídeo.
+      style={{ backgroundColor: `rgba(0, 0, 0, ${alfaDoFundo(fundoDaConversaPct)})`, textShadow: "0 0 3px #000, 0 1px 2px #000, 0 0 8px rgba(0,0,0,0.9)" }}
     >
       <ol className="min-h-0 space-y-1 overflow-hidden" aria-live="polite">
         {ultimas.length ? (
@@ -409,7 +410,7 @@ function ConversaPorCima({
       <button
         type="button"
         onClick={onComentar}
-        className="mt-1 self-start rounded-full border border-branco/60 px-3 py-1 text-xs font-semibold hover:bg-white/20"
+        className="mt-1 self-start rounded-full border border-branco/70 bg-black/40 px-3 py-1 text-xs font-semibold hover:bg-black/60"
       >
         Comentar
       </button>
@@ -454,7 +455,7 @@ function OpcoesDosComentarios({
           onFechar();
         }
       }}
-      className="absolute bottom-full right-0 z-20 mb-2 max-h-[calc(100dvh-4rem)] w-64 max-w-[80vw] space-y-3 overflow-y-auto overscroll-contain rounded-lg bg-[#0B1F14] p-3 text-branco shadow-lg"
+      className="absolute bottom-full right-0 z-20 mb-2 max-h-[calc(100dvh-4rem)] w-64 max-w-[80vw] space-y-3 overflow-y-auto overscroll-contain rounded-lg bg-black/75 p-3 text-branco shadow-lg backdrop-blur-sm"
     >
       {grupo("Onde ficam", "comentarios-modo", MODOS_NA_TELA_CHEIA, pref.modo, (modo) => onMudar({ modo }))}
       {grupo("Lado", "comentarios-lado", LADOS_NA_TELA_CHEIA, pref.lado, (lado) => onMudar({ lado }))}

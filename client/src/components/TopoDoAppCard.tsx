@@ -176,7 +176,7 @@ export function TopoDoAppCard() {
             >
               {FUNDOS_DA_CONVERSA_PCT.map((p) => (
                 <option key={p} value={p}>
-                  {p === 100 ? "Sólido (padrão)" : `${p}% (vídeo aparece atrás)`}
+                  {p === 0 ? "Sem fundo (padrão)" : p === 100 ? "Sólido (100%)" : `${p}% (vídeo aparece atrás)`}
                 </option>
               ))}
             </select>

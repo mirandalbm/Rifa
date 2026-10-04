@@ -139,22 +139,25 @@ export interface ConfigPlataforma {
   assistenteIA: ConfigIA;
 }
 
-/** O fundo da conversa por cima do vídeo: sólido por padrão, nunca abaixo de 50% (o texto branco precisa ler). */
-export const FUNDO_DA_CONVERSA_PADRAO_PCT = 100;
-export const FUNDO_DA_CONVERSA_MIN_PCT = 50;
+/**
+ * O fundo da conversa por cima do vídeo: por padrão não há fundo (só as
+ * mensagens, com sombra no texto, como o chat sobre a live); a plataforma
+ * pode pôr um fundo escuro, de 0% (sem fundo) a 100% (sólido).
+ */
+export const FUNDO_DA_CONVERSA_PADRAO_PCT = 0;
 /** As escolhas que a tela da plataforma oferece. */
-export const FUNDOS_DA_CONVERSA_PCT = [100, 90, 80, 70, 60, 50] as const;
+export const FUNDOS_DA_CONVERSA_PCT = [0, 30, 50, 70, 90, 100] as const;
 
-/** A escolha que vem do painel: inteiro de 50 a 100, senão 400. */
+/** A escolha que vem do painel: inteiro de 0 a 100, senão 400. */
 export function validarFundoDaConversa(v: unknown): number {
-  const n = Number(v);
-  if (!Number.isInteger(n) || n < FUNDO_DA_CONVERSA_MIN_PCT || n > 100) {
-    throw Object.assign(new Error(`O fundo da conversa vai de ${FUNDO_DA_CONVERSA_MIN_PCT}% a 100% (sólido).`), { status: 400 });
+  const n = typeof v === "number" ? v : Number.NaN;
+  if (!Number.isInteger(n) || n < 0 || n > 100) {
+    throw Object.assign(new Error("O fundo da conversa vai de 0% (sem fundo) a 100% (sólido)."), { status: 400 });
   }
   return n;
 }
 
-/** O guardado que não passe mais na régua volta ao sólido, sem derrubar o resto. */
+/** O guardado que não passe mais na régua volta ao padrão (sem fundo), sem derrubar o resto. */
 function fundoDaConversaGuardado(v: unknown): number {
   if (v === undefined || v === null) return FUNDO_DA_CONVERSA_PADRAO_PCT;
   try {

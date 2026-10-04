@@ -382,7 +382,7 @@ function FileiraDeAvatares({
         const rifa = `/o/${o.slug}/r/${r.slug}`;
         const novo = o.ultimoStory ? temStoryNovo(o.ultimoStory, vistoAte(o.slug)) : false;
         return (
-          <li key={r.slug} className="w-[86px] shrink-0 snap-start text-center">
+          <li key={r.slug} className="shrink-0 snap-start text-center" style={{ width: AVATAR + 2 * BORDA }}>
             <span className="relative mx-auto block" style={{ width: AVATAR + 2 * BORDA, height: AVATAR + 2 * BORDA }}>
               {o.ultimoStory ? (
                 <button
@@ -414,8 +414,12 @@ function FileiraDeAvatares({
   );
 }
 
-/** O círculo inteiro tem a largura do da fileira de stories da vitrine (86 px). */
-const AVATAR = 66;
+/**
+ * A foto no tamanho da fileira de stories da home do Instagram no celular
+ * (~76 px — o Instagram não publica a medida; é a do app, medida na tela).
+ * Com o anel, o círculo inteiro tem 96 px.
+ */
+const AVATAR = 76;
 /** A borda que abre o story: o anel e o espaço até a foto, alvo de 10 px. */
 const BORDA = 10;
 

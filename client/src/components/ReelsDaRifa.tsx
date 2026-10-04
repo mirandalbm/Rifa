@@ -100,7 +100,8 @@ export function ReelsDaRifa({ campaignId }: { campaignId: string }) {
         {reels.length === 0 ? (
           <p className="rounded-md border border-dashed border-line-2 px-3 py-3 text-center text-xs text-muted">Nenhum vídeo no Reels ainda.</p>
         ) : (
-          <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          // Duas colunas só com espaço: no tablet, com o menu aberto, a legenda ficava uma palavra por linha (leva 8).
+          <ul className="grid grid-cols-1 gap-3 xl:grid-cols-2">
             {reels.map((r) => (
               <ItemDoReels key={r.id} reels={r} aoMudar={() => qc.invalidateQueries({ queryKey: [chave] })} />
             ))}

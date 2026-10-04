@@ -431,6 +431,16 @@ arquitetura.
     transmissão é um `iframe` — sem a tela cheia do navegador, a tela ocupa a
     janela por cima de tudo (`falsa` em `useTelaCheia`), e sai pelo mesmo
     botão ou pelo Esc. Vale também para a coluna.
+  - **A tela cheia deita o celular, como o YouTube** (`deitarATela()` em
+    `client/src/lib/telaCheia.ts`, `screen.orientation.lock("landscape")`
+    logo depois da tela cheia do navegador — o Android aceita mesmo com a
+    rotação automática desligada); sair da tela cheia solta o giro
+    (`soltarATela()`), e só a tela que deitou solta (há duas montadas, a
+    coluna e a do Início). Onde não dá (computador, Safari do iPhone), nada
+    acontece e a tela segue o aparelho — nunca erro. A conversa por cima do
+    vídeo deixa o toque passar para o player (`pointer-events-none`; só o
+    "Comentar" pega o toque): o play, o som e a barra do YouTube ficam
+    alcançáveis. `tests/telaCheia.test.ts`.
   - **Comentários na tela cheia, como o chat da Twitch** (só com sorteio
     oficial, `comentariosDoSorteio` em `TelaDoProximoSorteio`; regras em
     `client/src/lib/comentariosNaTelaCheia.ts`, `tests/comentariosNaTelaCheia.test.ts`):
@@ -2909,6 +2919,17 @@ coluna ao vivo segue como estava.
   exige ≥ 3:1. As cores saíram do padrão do site das Loterias Caixa (o site
   e o manual não abrem deste ambiente): confira contra o manual de
   identidade visual e troque só ali.
+- **O painel diz qual link colar** (`leituraDoLink()` em `shared/aoVivo.ts`,
+  a mesma regra da tela, `videoDaTransmissao()`): logo abaixo do campo da
+  transmissão, em texto, se o vídeo vai tocar dentro da tela ("Certo") ou
+  só abrir em outra aba — o link do canal (`youtube.com/@caixa`) é o erro
+  comum, e o aviso manda abrir a live e usar Compartilhar → Copiar link. O
+  "Qual link copiar?" traz o passo a passo e um exemplo. Testar o player
+  abrindo `youtube-nocookie.com/embed/…` direto no navegador dá "Erro 153"
+  (sem o site em volta não há `Referer`), e isso **não** quer dizer que o
+  canal bloqueou: o teste que vale é a tela do sorteio, que manda a origem
+  (`Referrer-Policy: strict-origin-when-cross-origin`).
+  `tests/leituraDoLink.test.ts`.
 - **O selo vai na página da rifa** (`seloDoSorteioOficial()`: "Sorteio
   oficial · Federal 6012 · 02/12", com "Ver o sorteio" no celular).
 - **Comentários do sorteio oficial** (`sorteio_comentarios`,

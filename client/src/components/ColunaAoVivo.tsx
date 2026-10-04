@@ -25,6 +25,7 @@ import {
   ultimasMensagens,
   type PreferenciaNaTelaCheia,
 } from "@/lib/comentariosNaTelaCheia";
+import { deitarATela, soltarATela } from "@/lib/telaCheia";
 
 /** O que `GET /api/public/vitrine/ao-vivo` devolve — já recortado no servidor. */
 export interface AoVivo {
@@ -182,13 +183,22 @@ export function TelaDoProximoSorteio({
  * Liga e desliga a tela cheia de um elemento, sabendo quando o navegador sai
  * sozinho (Esc). Onde o navegador não põe um elemento qualquer em tela cheia
  * (o Safari do iPhone só deixa o `<video>`), a tela ocupa a janela inteira
- * por cima de tudo (`falsa`) — sai pelo mesmo botão ou pelo Esc.
+ * por cima de tudo (`falsa`) — sai pelo mesmo botão ou pelo Esc. Na tela
+ * cheia de verdade, o celular deita (`deitarATela()`), como no YouTube.
  */
 function useTelaCheia(ref: RefObject<HTMLElement | null>) {
   const [cheia, setCheia] = useState(false);
   const [falsa, setFalsa] = useState(false);
   useEffect(() => {
-    const mudou = () => setCheia(document.fullscreenElement === ref.current && ref.current !== null);
+    // Há mais de uma tela montada (a coluna e a do Início): cada uma só solta o giro que ela mesma deitou.
+    let estava = false;
+    const mudou = () => {
+      const agora = document.fullscreenElement === ref.current && ref.current !== null;
+      setCheia(agora);
+      // Saiu da tela cheia (pelo botão, pelo Esc ou pelo voltar do aparelho): a tela volta a girar sozinha.
+      if (estava && !agora) soltarATela();
+      estava = agora;
+    };
     document.addEventListener("fullscreenchange", mudou);
     return () => document.removeEventListener("fullscreenchange", mudou);
   }, [ref]);
@@ -202,7 +212,8 @@ function useTelaCheia(ref: RefObject<HTMLElement | null>) {
     if (falsa) return setFalsa(false);
     if (document.fullscreenElement) return void document.exitFullscreen?.().catch(() => {});
     if (document.fullscreenEnabled && ref.current?.requestFullscreen) {
-      return void ref.current.requestFullscreen().catch(() => setFalsa(true));
+      // Como no YouTube: na tela cheia, o celular deita (onde o navegador deixa).
+      return void ref.current.requestFullscreen().then(() => deitarATela(), () => setFalsa(true));
     }
     setFalsa(true);
   };
@@ -391,7 +402,8 @@ function ConversaPorCima({
   return (
     <section
       aria-label="Últimos comentários"
-      className={`absolute bottom-[4.5rem] z-10 flex max-h-[55%] w-[70%] max-w-[360px] flex-col gap-1 rounded-lg p-2 font-instagram text-[14px] text-branco ${
+      // O toque passa para o player (play, som, barra do vídeo); só o "Comentar" pega o toque.
+      className={`pointer-events-none absolute bottom-[4.5rem] z-10 flex max-h-[55%] w-[70%] max-w-[360px] flex-col gap-1 rounded-lg p-2 font-instagram text-[14px] text-branco ${
         pref.lado === "esquerda" ? "left-2" : "right-2"
       }`}
       // Sem fundo, a sombra é o que faz o texto branco ler sobre qualquer quadro do vídeo.
@@ -411,7 +423,7 @@ function ConversaPorCima({
       <button
         type="button"
         onClick={onComentar}
-        className="mt-1 self-start rounded-full border border-branco/70 bg-black/40 px-3 py-1 text-xs font-semibold hover:bg-black/60"
+        className="pointer-events-auto mt-1 self-start rounded-full border border-branco/70 bg-black/40 px-3 py-1 text-xs font-semibold hover:bg-black/60"
       >
         Comentar
       </button>

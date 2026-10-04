@@ -252,7 +252,7 @@ export function AdminAntifraude() {
             id: "barrado",
             titulo: "O que foi barrado",
             conteudo: (
-              <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
+              <div className="grid grid-cols-1 items-start gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
                 <Card title="O que foi barrado" right={<span className="label-xs">7 dias</span>}>
                   {data?.resumo.length === 0 ? (
                     <Empty>Nada barrado na semana.</Empty>

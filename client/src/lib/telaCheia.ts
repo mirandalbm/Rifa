@@ -41,3 +41,25 @@ export function soltarATela(o: OrientacaoDaTela | undefined = orientacaoDoAparel
     // Nada travado: nada a soltar.
   }
 }
+
+/**
+ * No iPhone não há tela cheia de verdade nem giro pelo navegador: a tela
+ * ocupa a janela por cima de tudo (a "falsa"). Com o aparelho em pé, ela é
+ * desenhada deitada — girada 90° e com a largura e a altura trocadas —, como
+ * o YouTube faz: o vídeo 16:9 ocupa a tela inteira e é só virar o celular.
+ * Com o aparelho já deitado, nada a girar.
+ */
+export function deveGirarATela(falsa: boolean, deitado: boolean): boolean {
+  return falsa && !deitado;
+}
+
+/** O desenho da tela girada: ocupa a janela inteira, de lado. */
+export const ESTILO_DA_TELA_GIRADA = {
+  position: "fixed",
+  top: 0,
+  left: 0,
+  width: "100dvh",
+  height: "100dvw",
+  transformOrigin: "top left",
+  transform: "rotate(90deg) translateY(-100%)",
+} as const;

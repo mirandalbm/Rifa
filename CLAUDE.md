@@ -437,7 +437,12 @@ arquitetura.
     rotação automática desligada); sair da tela cheia solta o giro
     (`soltarATela()`), e só a tela que deitou solta (há duas montadas, a
     coluna e a do Início). Onde não dá (computador, Safari do iPhone), nada
-    acontece e a tela segue o aparelho — nunca erro. A conversa por cima do
+    acontece e a tela segue o aparelho — nunca erro. **No iPhone a tela é
+    desenhada deitada**: lá não há tela cheia de elemento nem giro pelo
+    navegador, então a tela cheia "falsa" com o aparelho em pé gira 90° por
+    CSS, com largura e altura trocadas (`deveGirarATela()` e
+    `ESTILO_DA_TELA_GIRADA` em `client/src/lib/telaCheia.ts`), e conta como
+    deitada para a conversa ao lado; aparelho já deitado não gira. A conversa por cima do
     vídeo deixa o toque passar para o player (`pointer-events-none`; só o
     "Comentar" pega o toque): o play, o som e a barra do YouTube ficam
     alcançáveis. `tests/telaCheia.test.ts`.

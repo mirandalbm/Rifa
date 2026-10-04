@@ -62,14 +62,20 @@ impressora — isso já está pronto no arquivo.
 
 ### Stone / Ton
 
-`TerminalStone.kt` tem a estrutura pronta e **dois pontos de encaixe
-marcados**, sem nomes de classe preenchidos. Foi decisão consciente: a API
-muda entre versões, e método plausível que compila e falha no balcão é pior
-do que método ausente que falha ao compilar. Copie as chamadas da
-documentação da versão que você baixar; a estrutura em volta — thread,
-tratamento de recusa, formato do resultado — já está pronta e é a mesma.
+`TerminalStone.kt` cobra e imprime **por deeplink**: abre o app de pagamento
+(`payment-app://pay`) e o de impressão (`printer-app://print`) da Stone, que
+já vêm no POS Android, e recebe a resposta por deeplink de volta (os esquemas
+estão em `app/src/ton/AndroidManifest.xml`; quem espera é `RetornoDeApp`, e a
+`MainActivity` entrega em `onNewIntent`). Não usa a SDK, então o sabor
+compila sem credencial da Stone.
 
-A impressão da Stone aceita texto direto, sem precisar virar imagem.
+**Ainda não foi compilado no Android nem testado numa maquininha.** O
+`teste-sem-sdk/rodar.sh` compila o sabor contra classes mínimas do Android e
+confere os deeplinks contra um app da Stone de mentira; a lista do que
+conferir na venda de teste está em `docs/MAQUININHAS.md`.
+
+A impressão da Stone aceita texto direto (uma linha por item), sem precisar
+virar imagem.
 
 ## O contrato da ponte
 

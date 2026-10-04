@@ -1,6 +1,7 @@
 package br.com.rifa.pos
 
 import android.annotation.SuppressLint
+import android.content.Intent
 import android.os.Bundle
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
@@ -66,6 +67,16 @@ class MainActivity : AppCompatActivity() {
         )
 
         webView.loadUrl(BuildConfig.APP_URL)
+    }
+
+    /**
+     * A volta do app da adquirente (pagamento ou impressão por deeplink): a
+     * atividade é `singleTask`, então o deeplink chega aqui, não numa tela
+     * nova. Quem está esperando (`RetornoDeApp`) recebe o endereço.
+     */
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        intent.data?.let { RetornoDeApp.entregar(it) }
     }
 
     private fun lerShim(): String =

@@ -17,6 +17,7 @@ import { marcarTodasLidas, naoLidas, notificacoesDe } from "../services/notifica
 import { aderir, pedirColaboracao, termoPublico } from "../services/afiliados";
 import {
   divulgacoesDaRifa,
+  divulgacoesDoFeed,
   editarComoApostador,
   fotoDoAutor,
   fotoPublica,
@@ -2587,6 +2588,20 @@ publicRouter.get("/campaigns/:slug/ranking", async (req, res, next) => {
 publicRouter.get("/campaigns/:slug/divulgacoes", async (req, res, next) => {
   try {
     res.json(await divulgacoesDaRifa(req.params.slug));
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * As divulgações do feed da vitrine (entram entre as rifas). Igual para todos
+ * (guardado alguns segundos no servidor); as fotos e o vídeo saem pelas portas
+ * que conferem de novo que a peça está no ar.
+ */
+publicRouter.get("/divulgacoes/feed", async (_req, res, next) => {
+  try {
+    res.setHeader("Cache-Control", "private, max-age=5");
+    res.json(await divulgacoesDoFeed());
   } catch (err) {
     next(err);
   }

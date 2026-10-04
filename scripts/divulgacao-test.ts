@@ -495,12 +495,26 @@ async function main() {
       r = await anon.req("GET", `/api/public/campaigns/${a1.slug}/divulgacoes`);
       const naPagina = r.json?.find((x: any) => x.id === idVid);
       checa("a página da rifa mostra o vídeo com as medidas", naPagina?.video?.url?.startsWith(publico) && naPagina?.video?.largura === 1080 && naPagina?.video?.altura === 1920, JSON.stringify(naPagina?.video ?? null));
+      // No feed da vitrine: a peça no ar entra (guardado 5 s no servidor), com a
+      // rifa e o link do afiliado — e nada de telefone, CPF ou e-mail.
+      await new Promise((ok) => setTimeout(ok, 5_200));
+      r = await anon.req("GET", "/api/public/divulgacoes/feed");
+      const noFeed = r.json?.find((x: any) => x.id === idVid);
+      checa(
+        "a peça no ar entra no feed da vitrine, com a rifa e o link do afiliado",
+        r.status === 200 && noFeed?.rifa?.slug === a1.slug && typeof noFeed?.link === "string" && noFeed.link.includes("?ref="),
+        JSON.stringify(noFeed ?? r.json?.message ?? null).slice(0, 200),
+      );
+      // Pelas chaves (o nome da rifa de exemplo, "iPhone", não conta).
+      checa("o feed não traz telefone, CPF nem e-mail", !/"(telefone|phone|cpf|e-?mail|buyerId|affiliateId)"\s*:/i.test(JSON.stringify(r.json ?? [])));
       // Editar só o texto mantém o vídeo e volta para a fila, mesmo no modo direto.
       let versao = (await afiliada.req("GET", "/api/affiliate/divulgacoes")).json?.find((x: any) => x.id === idVid)?.versao;
       r = await afiliada.req("PATCH", `/api/affiliate/divulgacoes/${idVid}`, { legenda: "Com legenda agora", versao });
       checa("editada com o vídeo, volta para a fila mesmo no modo direto", r.status === 200 && r.json?.status === "em_analise", `HTTP ${r.status} ${JSON.stringify(r.json)}`);
       checa("editar só o texto mantém o vídeo", (await db.select({ id: divulgacaoVideos.id }).from(divulgacaoVideos).where(eq(divulgacaoVideos.divulgacaoId, idVid))).length === 1);
       checa("fora do ar, o vídeo sai da página pública (404)", (await faixa(null, publico)).status === 404);
+      await new Promise((ok) => setTimeout(ok, 5_200));
+      checa("fora do ar, a peça sai do feed da vitrine", !((await anon.req("GET", "/api/public/divulgacoes/feed")).json ?? []).some((x: any) => x.id === idVid));
       versao = r.json?.versao;
       r = await afiliada.req("PATCH", `/api/affiliate/divulgacoes/${idVid}`, { fotos: [await pngDe("#15803d")], versao });
       checa("pôr fotos mantendo o vídeo: 422", r.status === 422, `HTTP ${r.status}`);

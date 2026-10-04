@@ -148,7 +148,7 @@ arquitetura.
 | perfil verificado (selo de trevo): documentos, foto, fila e cores | `shared/verificacao.ts` (regras e paleta), `server/services/verificacao.ts`, `server/services/rosto.ts` (comparador), `server/routes/verificacaoRotas.ts`, `client/src/components/Verificacao.tsx`, `SeloVerificado.tsx`, `VerificacoesDaPlataforma.tsx`, `CoresDoSelo.tsx`, `scripts/verificacao-test.ts` |
 | formato da publicação (retrato 4:5, quadrado 1:1, paisagem 1,91:1, vertical 9:16) e o perfil acima ou por cima | `formatoDaPeca()`/`formatoDoCarrossel()`/`perfilPorCima()` em `shared/publicacao.ts`, `probeVideoDimensions()` em `server/services/probe.ts`, `Carrossel` em `client/src/components/Publicacao.tsx`, `tests/publicacao.test.ts` |
 | publicação da rifa: carrossel de até 10 (reels e vídeos), barra de ações (trevo, comentar, republicar, compartilhar, "+" do carrinho, comprar) e legenda | `shared/publicacao.ts` (regras), `server/services/publicacao.ts`, `server/services/media.ts` (limites), `client/src/components/Publicacao.tsx`, `scripts/publicacao-test.ts` |
-| divulgação de terceiros: o afiliado (influenciador) publica com o material da organização e fotos dele, direto ou só depois da autorização dela (com foto, sempre depois), e o apostador publica texto e fotos (atrás de `publicarApostador`); o menu Criar | `shared/divulgacao.ts` (regras), `server/services/divulgacao.ts`, rotas `/divulgacoes*` em `server/routes/affiliate.ts` (afiliado), `public.ts` (apostador e página da rifa) e `admin.ts` (modo e fila), `modoDaOrganizacao`/`divulgacaoAfiliado` em `organizations`, `MenuCriar` em `client/src/components/Console.tsx`, `client/src/pages/afiliadoDivulgar.tsx`, `Publicar.tsx`, as fotos de quem publica em `client/src/components/FotosProprias.tsx`, o vídeo do afiliado em `client/src/components/VideoProprio.tsx` (`divulgacao_videos`), a agenda em `shared/agenda.ts` e `client/src/components/CampoDeAgenda.tsx`, `client/src/components/DivulgacoesDaOrganizacao.tsx`, `DivulgacoesDaRifa.tsx`, `tests/divulgacao.test.ts`, `scripts/divulgacao-test.ts` |
+| divulgação de terceiros: o afiliado (influenciador) publica com o material da organização e fotos dele, direto ou só depois da autorização dela (com foto, sempre depois), e o apostador publica texto e fotos (atrás de `publicarApostador`); o menu Criar | `shared/divulgacao.ts` (regras), `server/services/divulgacao.ts`, rotas `/divulgacoes*` em `server/routes/affiliate.ts` (afiliado), `public.ts` (apostador e página da rifa) e `admin.ts` (modo e fila), `modoDaOrganizacao`/`divulgacaoAfiliado` em `organizations`, `MenuCriar` em `client/src/components/Console.tsx`, `client/src/pages/afiliadoDivulgar.tsx`, `Publicar.tsx`, as fotos de quem publica em `client/src/components/FotosProprias.tsx`, o vídeo do afiliado em `client/src/components/VideoProprio.tsx` (`divulgacao_videos`), a agenda em `shared/agenda.ts` e `client/src/components/CampoDeAgenda.tsx`, `client/src/components/DivulgacoesDaOrganizacao.tsx`, `DivulgacoesDaRifa.tsx` (também `CartaoDeDivulgacao`, a peça no feed da vitrine, e `divulgacoesDoFeed()`/`intercalar()`), `tests/divulgacao.test.ts`, `scripts/divulgacao-test.ts` |
 | carrinho (várias rifas, separadas por organização), o Pix único do carrinho e o comprar da publicação | `shared/carrinho.ts` (regras e split), `server/services/carrinho.ts`, `createCartOrder()` em `server/services/orders.ts`, `client/src/pages/CarrinhoPix.tsx`, `client/src/components/EscolherBilhete.tsx` (a janela do "+"), `scripts/carrinho-test.ts`, `client/src/lib/carrinho.ts`, `client/src/pages/Carrinho.tsx`, `BarraDeAcoes` em `client/src/components/Publicacao.tsx`, `scripts/publicacao-test.ts` |
 | presente pelos comentários (desconto de primeira compra pago pela plataforma) | `shared/presente.ts` (regras), `server/services/presente.ts`, `prepararPedido`/`settleOrderAsPaid` em `server/services/orders.ts`, `Presentear` em `client/src/components/Comentarios.tsx`, `AvisoDePresente` em `client/src/pages/Rifa.tsx`, cartão Presente em `client/src/pages/adminBonus.tsx`, `scripts/presente-test.ts` |
 | topo e console do app (os 6 botões da base, a lateral no computador, o trevo e a publicação) | `shared/console.ts` (botões, aviso do trevo, quem publica), `client/src/components/Console.tsx`, `PublicShell` em `client/src/components/AppShell.tsx`, `client/src/pages/PerfilDoUsuario.tsx`, `client/src/pages/EmBreve.tsx`, `client/src/components/TopoDoAppCard.tsx`, `tests/console.test.ts` |
@@ -2096,6 +2096,21 @@ publicou, com o link dele (`/r/<rifa>?ref=<código>`).
   três portas respondem `private` (a pública com 60 s, as outras `no-store`).
   O 413 genérico do Express só troca a mensagem do corpo grande demais
   (`entity.too.large`): o 413 da régua da foto chega com o próprio texto.
+- **No feed da vitrine** (`GET /api/public/divulgacoes/feed`,
+  `divulgacoesDoFeed()`): as peças no ar mais novas de todas as rifas que a
+  vitrine mostraria (publicada, não demonstração, não travada, promotora no
+  ar), pela **mesma régua da página da rifa** (`pecasNoAr()`, a função é uma
+  só: vínculo e termo do afiliado, compra paga e interruptor do apostador,
+  agenda). A régua da rifa e o que dá para conferir de quem publicou vão
+  **na própria consulta, antes do `LIMIT`** (nada de trazer todas as rifas
+  para a memória, nem peças que não valem ocupando o lugar das que valem). Entra **uma a cada
+  `DIVULGACAO_A_CADA_RIFAS` (3) rifas** (`intercalar()`, puro): o feed segue
+  sendo de rifas, e a peça vai marcada **"Divulgação"** em texto, com quem
+  publicou e, embaixo, a rifa de que fala — que leva à página dela pelo link
+  do afiliado (a compra paga a comissão dele). Nada de preço no cartão: quem
+  vende é a página da rifa. É igual para todos e fica guardado 5 s no
+  servidor; as fotos e o vídeo saem pelas portas que conferem de novo que a
+  peça está no ar.
 - **Sem dado pessoal em lugar nenhum**: a fila e a página pública trazem
   nome curto e código (afiliado) ou `@apelido` (apostador) — nunca telefone,
   CPF, e-mail ou id de pessoa.

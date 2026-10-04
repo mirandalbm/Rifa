@@ -21,7 +21,7 @@
  */
 import type { Request } from "express";
 import sharp from "sharp";
-import { and, asc, desc, eq, inArray, isNotNull, isNull, lte, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, isNull, lte, or, sql, type SQL } from "drizzle-orm";
 import { db } from "../db";
 import {
   afiliadoVinculos,
@@ -1033,32 +1033,33 @@ const NA_PAGINA_DA_RIFA = 12;
  * somem. Sem telefone, e-mail ou CPF — nome curto e apelido.
  */
 export async function divulgacoesDaRifa(slug: string) {
-  const [c] = await db
-    .select({
-      id: campaigns.id,
-      slug: campaigns.slug,
-      organizationId: campaigns.organizationId,
-      termoId: campaigns.termoId,
-      commissionPctDefault: campaigns.commissionPctDefault,
-    })
-    .from(campaigns)
-    .innerJoin(organizations, eq(organizations.id, campaigns.organizationId))
-    .where(
-      and(
-        eq(campaigns.slug, slug),
-        eq(campaigns.status, "published"),
-        eq(campaigns.demonstracao, false),
-        isNull(campaigns.travadaEm),
-        eq(organizations.active, true),
-        isNull(organizations.archivedAt),
-        isNull(organizations.banidaEm),
-      ),
-    );
-  if (!c) return [];
+  return pecasNoAr(eq(campaigns.slug, slug), NA_PAGINA_DA_RIFA);
+}
+
+/**
+ * As peças no ar das rifas que passam no filtro, as mais novas primeiro. A
+ * régua da rifa (publicada, não demonstração, não travada, promotora no ar) e
+ * o que dá para conferir de quem publicou (afiliado ativo; apostador com o
+ * interruptor, apelido, conta e compra paga) vão na própria consulta, antes do
+ * `LIMIT` — senão as peças de quem não vale ocupariam o lugar das que valem.
+ * O vínculo e o termo do afiliado (`comissaoNaRifa`) são conferidos peça a
+ * peça: perdeu, a peça some. Sem telefone, e-mail ou CPF — nome curto e apelido.
+ */
+async function pecasNoAr(filtroDaRifa: SQL | undefined, limite: number) {
   const apostadorLigado = (await getPlataforma()).publicarApostador;
+  // O estorno desfaz a compra: a peça de quem não joga mais sai do ar (sem apagar nada).
+  const compraPaga = sql<boolean>`exists (
+    select 1 from orders o
+     where o.buyer_id = ${divulgacoes.buyerId} and o.campaign_id = ${divulgacoes.campaignId} and o.status = 'paid'
+  )`;
+  const quemVale = or(
+    and(eq(divulgacoes.autor, "afiliado"), eq(affiliates.status, "active"), isNotNull(affiliates.code)),
+    apostadorLigado ? and(eq(divulgacoes.autor, "apostador"), isNotNull(buyers.apelido), isNull(buyers.excluidoEm), compraPaga) : undefined,
+  );
   const linhas = await db
     .select({
       id: divulgacoes.id,
+      campaignId: divulgacoes.campaignId,
       autor: divulgacoes.autor,
       legenda: divulgacoes.legenda,
       midiaIds: divulgacoes.midiaIds,
@@ -1067,28 +1068,51 @@ export async function divulgacoesDaRifa(slug: string) {
       publicaEm: divulgacoes.publicaEm,
       affiliateId: divulgacoes.affiliateId,
       codigo: affiliates.code,
-      afiliadoAtivo: affiliates.status,
       nomeAfiliado: users.name,
       apelido: buyers.apelido,
-      excluido: buyers.excluidoEm,
-      // O estorno desfaz a compra: a peça de quem não joga mais sai do ar (sem apagar nada).
-      compraPaga: sql<boolean>`exists (
-        select 1 from orders o
-         where o.buyer_id = ${divulgacoes.buyerId} and o.campaign_id = ${divulgacoes.campaignId} and o.status = 'paid'
-      )`,
+      rifa: {
+        id: campaigns.id,
+        slug: campaigns.slug,
+        title: campaigns.title,
+        prizeTitle: campaigns.prizeTitle,
+        organizationId: campaigns.organizationId,
+        termoId: campaigns.termoId,
+        commissionPctDefault: campaigns.commissionPctDefault,
+      },
+      organizacao: organizations.name,
+      organizacaoSlug: organizations.slug,
     })
     .from(divulgacoes)
+    .innerJoin(campaigns, eq(campaigns.id, divulgacoes.campaignId))
+    .innerJoin(organizations, eq(organizations.id, campaigns.organizationId))
     .leftJoin(affiliates, eq(affiliates.id, divulgacoes.affiliateId))
     .leftJoin(users, eq(users.id, affiliates.userId))
     .leftJoin(buyers, eq(buyers.id, divulgacoes.buyerId))
-    // Agendada só depois da hora (a aprovação já veio antes: está `publicada`).
-    .where(and(eq(divulgacoes.campaignId, c.id), eq(divulgacoes.status, "publicada"), noArAgora()))
+    .where(
+      and(
+        filtroDaRifa,
+        eq(campaigns.status, "published"),
+        eq(campaigns.demonstracao, false),
+        isNull(campaigns.travadaEm),
+        eq(organizations.active, true),
+        isNull(organizations.archivedAt),
+        isNull(organizations.banidaEm),
+        // Agendada só depois da hora (a aprovação já veio antes: está `publicada`).
+        eq(divulgacoes.status, "publicada"),
+        noArAgora(),
+        quemVale,
+      ),
+    )
     .orderBy(desc(sql`coalesce(${divulgacoes.publicaEm}, ${divulgacoes.createdAt})`))
-    .limit(NA_PAGINA_DA_RIFA * 2);
+    .limit(limite * 2);
 
   const ids = Array.from(new Set(linhas.flatMap((l) => l.midiaIds)));
+  const rifasDasPecas = Array.from(new Set(linhas.map((l) => l.campaignId)));
   const midias = ids.length
-    ? await db.select().from(campaignMedia).where(and(eq(campaignMedia.campaignId, c.id), eq(campaignMedia.status, "ready"), inArray(campaignMedia.id, ids)))
+    ? await db
+        .select()
+        .from(campaignMedia)
+        .where(and(inArray(campaignMedia.campaignId, rifasDasPecas), eq(campaignMedia.status, "ready"), inArray(campaignMedia.id, ids)))
     : [];
   const porId = new Map(midias.map((m) => [m.id, m]));
   const fotosPorPeca = await fotosDasPecas(linhas.map((l) => l.id));
@@ -1096,11 +1120,9 @@ export async function divulgacoesDaRifa(slug: string) {
 
   const saida = [];
   for (const l of linhas) {
-    if (saida.length >= NA_PAGINA_DA_RIFA) break;
-    if (l.autor === "afiliado") {
-      if (!l.affiliateId || !l.codigo || l.afiliadoAtivo !== "active") continue;
-      if (!(await comissaoNaRifa(db, l.affiliateId, c)).recebe) continue;
-    } else if (!apostadorLigado || !l.apelido || l.excluido || !l.compraPaga) continue;
+    if (saida.length >= limite) break;
+    const c = l.rifa;
+    if (l.autor === "afiliado" && !(await comissaoNaRifa(db, l.affiliateId!, c)).recebe) continue;
     saida.push({
       id: l.id,
       autor: l.autor,
@@ -1111,15 +1133,17 @@ export async function divulgacoesDaRifa(slug: string) {
       // A hora que conta para quem lê é a de entrar no ar.
       criadaEm: l.publicaEm ?? l.criadaEm,
       editada: Boolean(l.editadaEm),
-      // As fotos do apostador saem só pela rota que confere de novo que a peça está no ar.
+      // As fotos de quem publicou saem só pela rota que confere de novo que a peça está no ar.
       fotos: (fotosPorPeca.get(l.id) ?? []).map((f) => `/api/public/divulgacoes/${l.id}/fotos/${f}`),
       // O vídeo do afiliado, pela mesma porta conferida (`videoPublico`).
       video: videoParaATela(`/api/public/divulgacoes/${l.id}/video`, videosPorPeca.get(l.id)),
       // O link de quem divulga (só afiliado): a compra por ele paga a comissão dele.
       link: linkDaDivulgacao(c.slug, l.autor === "afiliado" ? l.codigo : null),
+      // A rifa de que a peça fala (no feed, o cartão leva a ela). Nada de preço aqui: a página da rifa é que vende.
+      rifa: { slug: c.slug, titulo: c.title, premio: c.prizeTitle, organizacao: l.organizacao, organizacaoSlug: l.organizacaoSlug },
       midias: l.midiaIds
         .map((id) => porId.get(id))
-        .filter((m): m is NonNullable<typeof m> => Boolean(m))
+        .filter((m): m is NonNullable<typeof m> => Boolean(m) && m!.campaignId === c.id)
         .slice(0, DIVULGACAO_MIDIAS_MAX)
         .map((m) => {
           const u = withUrls(m);
@@ -1128,6 +1152,35 @@ export async function divulgacoesDaRifa(slug: string) {
     });
   }
   return saida;
+}
+
+/** Quantas peças o feed da vitrine traz (entra uma a cada `DIVULGACAO_A_CADA_RIFAS` rifas). */
+export const DIVULGACOES_NO_FEED = 10;
+/** O feed é igual para todos: guardado 5 s no servidor (como a coluna ao vivo). */
+const GUARDA_DO_FEED_MS = 5_000;
+let feedGuardado: { ate: number; valor: Promise<Awaited<ReturnType<typeof pecasNoAr>>> } | null = null;
+
+/**
+ * As divulgações do feed da vitrine: as peças no ar mais novas de todas as
+ * rifas que a vitrine mostraria, com a mesma régua da página da rifa (e sem
+ * demonstração, rifa travada nem promotora arquivada ou banida).
+ */
+export function divulgacoesDoFeed() {
+  const agora = Date.now();
+  if (feedGuardado && feedGuardado.ate > agora) return feedGuardado.valor;
+  // A régua da rifa vai na própria consulta: nada de trazer todas as rifas para a memória.
+  const valor = pecasNoAr(undefined, DIVULGACOES_NO_FEED);
+  feedGuardado = { ate: agora + GUARDA_DO_FEED_MS, valor };
+  // Falhou: não guarda o erro (a próxima visita tenta de novo).
+  valor.catch(() => {
+    if (feedGuardado?.valor === valor) feedGuardado = null;
+  });
+  return valor;
+}
+
+/** Para as provas: esquecer o feed guardado. */
+export function esquecerFeedDeDivulgacoes() {
+  feedGuardado = null;
 }
 
 /**

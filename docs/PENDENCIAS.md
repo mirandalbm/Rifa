@@ -663,8 +663,9 @@ Na ordem de entrega do plano:
   **antes** do código, e o termo do afiliado (item 7) mudou de novo — as
   organizações publicam a versão seguinte; ficou para depois o vídeo pelo
   Stream (HLS) e **republicar** a peça da organização com legenda dele no feed —
-  hoje a divulgação aparece numa seção da página da rifa, não no feed da
-  vitrine nem no perfil do afiliado. O texto-base do termo do afiliado ganhou
+  **feito**: a peça aprovada (do afiliado e do apostador) entra no feed da
+  vitrine, uma a cada 3 rifas, marcada "Divulgação" e levando à rifa pelo
+  link do afiliado; ficou de fora o perfil público do afiliado. O texto-base do termo do afiliado ganhou
   a regra da foto própria (item 7): as organizações com termo publicado veem
   o aviso de termo desatualizado e publicam a versão seguinte; (2) ~~a peça do apostador
   com **imagem**~~ — **feito**: texto e até 4 fotos dele, sempre pela fila da

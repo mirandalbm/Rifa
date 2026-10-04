@@ -703,8 +703,10 @@ Na ordem de entrega do plano:
   `campaign_banners_divulgacao` **antes** do código), ~~enquete no story~~ — **feita** (vota quem tem conta, um voto por pessoa, a organização vê só os totais; **falta no ambiente** o `db:push` das tabelas `story_enquetes` e `story_votos` **antes** do código) e ~~figurinhas no story~~ — **feitas** (contagem do sorteio, Comprar, texto e emoji, cada uma num ponto da tela; **falta no ambiente** o `db:push` da coluna `stories.figurinhas` **antes** do código); (6) ~~a plataforma decidir sem escolher a
   organização~~ — **feito**: a plataforma vê a fila de todas, com o nome da
   organização, e decide qualquer peça (`npm run divulgacao` prova).
-- [ ] **[código]** Remodelagem do web e dos painéis, depois do app
-  (`docs/REMODELAGEM.md`: inventário e lista de conferência).
+- [x] **[código]** Remodelagem do web e dos painéis, depois do app — **fechada**
+  (`docs/REMODELAGEM.md`, seção 5: cada tela do inventário com o destino
+  dela; as últimas telas em pilha — Aparência, Antifraude e a trilha de
+  auditoria — ganharam abas).
 
 - [x] **[código]** Maquininha Stone no invólucro Android: **feita por
   deeplink** (sem a SDK da Stone, compila sem credencial), provada sem o

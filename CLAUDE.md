@@ -647,8 +647,12 @@ O verde da marca entra no lugar do roxo do kit; o significado das cores
   de cinco colunas espremida num celular.
 - **Tela com muito cartão tem abas, não pilha.** `Abas` (`painel.tsx`)
   é uma aba por assunto — Configurações (Conta e segurança · Organização e
-  perfil · Vendas e pagamentos) e a edição de cada rifa (A rifa ·
-  Autorização e sorteio · Publicação · Pacotes e cotas premiadas). A aba
+  perfil · Vendas e pagamentos e, para a plataforma, Trilha de auditoria), a
+  edição de cada rifa (A rifa · Autorização e sorteio · Publicação · Pacotes e
+  cotas premiadas), Aparência (Identidade e tela inicial · Topo do app ·
+  Rodapé e empresa · Assistente de IA; a barra de salvar e publicar só nas
+  abas que mexem no template) e Antifraude (Limites · Bloqueios manuais · O
+  que foi barrado). A aba
   aberta vai na URL (`?aba=`) e, com a âncora de um link antigo
   (`#verificacao`), abre a aba que tem aquele cartão e rola até ele
   (`abaInicial()` em `shared/abas.ts`: a URL vence, depois a âncora, depois

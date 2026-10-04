@@ -9,6 +9,7 @@ import {
   QUALIDADES_DO_VIDEO,
   aceitaQualidade,
   faltaParaOSorteio,
+  transmissaoAberta,
   srcComQualidade,
   srcDaTwitch,
   type QualidadeDoVideo,
@@ -246,8 +247,8 @@ function Tela({
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const { cheia, falsa, alternar, disponivel } = useTelaCheia(ref);
-  const aoVivo = proximo ? faltaParaOSorteio(proximo.drawAt, agora).aoVivo : false;
-  const comQualidade = aoVivo && aceitaQualidade(proximo?.video);
+  // A transmissão entra 30 min antes da hora; com ela, a qualidade (onde o player aceita).
+  const comQualidade = (proximo ? transmissaoAberta(proximo.drawAt, agora) : false) && aceitaQualidade(proximo?.video);
   const deitado = useDeitado();
   const [pref, setPref] = useState<PreferenciaNaTelaCheia>(lerPreferencia);
   const [opcoes, setOpcoes] = useState(false);
@@ -502,7 +503,9 @@ function ConteudoDaTela({
   const href = `/o/${proximo.organizacao.slug}/r/${proximo.slug}`;
   const hora = new Date(proximo.drawAt).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 
-  if (falta.aoVivo && proximo.video && proximo.video.tipo !== "link") {
+  // A transmissão entra na tela 30 min antes da hora (a live começa antes da extração).
+  const aberta = transmissaoAberta(proximo.drawAt, agora);
+  if (aberta && proximo.video && proximo.video.tipo !== "link") {
     const src =
       proximo.video.tipo === "twitch" ? srcDaTwitch(proximo.video.canal, window.location.hostname) : srcComQualidade(proximo.video.src, qualidade);
     return (
@@ -532,7 +535,7 @@ function ConteudoDaTela({
       <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-[#8cc2ff]">
         <Radio size={13} aria-hidden /> {falta.aoVivo ? "Sorteio agora" : "Próximo sorteio"}
       </p>
-      {falta.aoVivo ? (
+      {falta.aoVivo || (aberta && proximo.video?.tipo === "link") ? (
         proximo.video?.tipo === "link" ? (
           <a
             href={proximo.video.href}

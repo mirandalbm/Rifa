@@ -626,6 +626,8 @@ async function rotasDaPlataforma(eu: Lado) {
     ["GET trecho de comentário do sorteio denunciado", "/api/admin/sorteios-oficiais/denuncias/00000000-0000-0000-0000-000000000000", {}],
     ["POST decidir comentário do sorteio denunciado", "/api/admin/sorteios-oficiais/denuncias/00000000-0000-0000-0000-000000000000/decidir", { method: "POST", body: '{"decisao":"improcedente"}' }],
     ["PUT topo do app (aviso do trevo)", "/api/admin/app", { method: "PUT", body: '{"avisoDoTrevo":{"estilo":"cheio","cor":"rosa"},"publicarApostador":true}' }],
+    ["GET canais das loterias", "/api/admin/sorteios-oficiais/canais", {}],
+    ["PUT canais das loterias", "/api/admin/sorteios-oficiais/canais", { method: "PUT", body: '{"canais":{}}' }],
     ["POST sorteio oficial (calendário da plataforma)", "/api/admin/sorteios-oficiais", { method: "POST", body: '{"loteria":"federal","concurso":1,"sorteioEm":"2099-01-01T22:00:00Z"}' }],
     ["PATCH sorteio oficial", "/api/admin/sorteios-oficiais/00000000-0000-0000-0000-000000000000", { method: "PATCH", body: '{"titulo":"x"}' }],
     ["POST cancelar sorteio oficial", "/api/admin/sorteios-oficiais/00000000-0000-0000-0000-000000000000/cancelar", { method: "POST" }],

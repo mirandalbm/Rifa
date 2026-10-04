@@ -252,6 +252,7 @@ import {
   CREDENCIAIS_PROVEDOR,
   EXIGE_CPF,
   validarFundoDaConversa,
+  validarCanaisDasLoterias,
 } from "@shared/plataforma";
 import { estadoWhatsApp, criarModelosFaltantes, enviarTeste } from "../services/whatsappSetup";
 import { validarConfigBusca } from "@shared/buscar";
@@ -3562,6 +3563,28 @@ adminRouter.get("/audit", async (req, res, next) => {
 adminRouter.get("/sorteios-oficiais", async (req, res, next) => {
   try {
     res.json(await calendario(orgOf(req)));
+  } catch (err) {
+    next(err);
+  }
+});
+
+// O canal oficial do YouTube de cada loteria: só a plataforma (é a tela de todo apostador).
+adminRouter.get("/sorteios-oficiais/canais", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    res.json({ canais: (await getPlataforma()).canaisDasLoterias });
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.put("/sorteios-oficiais/canais", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    const canais = validarCanaisDasLoterias(req.body?.canais);
+    const salva = await setPlataforma({ canaisDasLoterias: canais });
+    await audit(req, "sorteio_oficial.canais", "plataforma", undefined, { canais: salva.canaisDasLoterias });
+    res.json({ canais: salva.canaisDasLoterias });
   } catch (err) {
     next(err);
   }

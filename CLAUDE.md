@@ -2930,6 +2930,24 @@ coluna ao vivo segue como estava.
   canal bloqueou: o teste que vale é a tela do sorteio, que manda a origem
   (`Referrer-Policy: strict-origin-when-cross-origin`).
   `tests/leituraDoLink.test.ts`.
+- **A transmissão entra 30 min antes da hora** (`transmissaoAberta()` e
+  `ANTECEDENCIA_DA_TRANSMISSAO_MS` em `shared/aoVivo.ts`): a live da Caixa
+  começa antes da extração, e a tela do sorteio (a do celular e a coluna ao
+  vivo) troca a contagem pelo vídeo a partir daí. **A hora do sorteio
+  continua sendo a hora**: "Sorteio agora", o selo "ao vivo" do story e a
+  janela de 3 h contam dela.
+- **O canal oficial de cada loteria é cadastrado uma vez** (cartão "Canal
+  oficial de cada loteria" no calendário; `canaisDasLoterias` em
+  `shared/plataforma.ts`, `GET`/`PUT /admin/sorteios-oficiais/canais`, só a
+  plataforma — 403 para organizador, no `npm run isolation`): sem link
+  colado no sorteio, a tela toca a live que o canal estiver transmitindo
+  (`videoDoSorteioOficial()`: o link do sorteio vale primeiro; sem ele,
+  `videoDoCanal()`, `youtube-nocookie.com/embed/live_stream?channel=`, sem
+  som). Só entra o id do canal (`idDoCanal()`: `UC` + 22, ou o endereço
+  `youtube.com/channel/UC…`, de onde sai só o id) — o endereço com `@` não
+  diz o id e é recusado com a instrução de copiar o id. Canal estragado no
+  banco sai sem derrubar a configuração. Auditoria (`sorteio_oficial.canais`).
+  `tests/transmissaoDoCanal.test.ts`.
 - **O selo vai na página da rifa** (`seloDoSorteioOficial()`: "Sorteio
   oficial · Federal 6012 · 02/12", com "Ver o sorteio" no celular).
 - **Comentários do sorteio oficial** (`sorteio_comentarios`,

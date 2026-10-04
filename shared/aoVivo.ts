@@ -188,3 +188,71 @@ export function leituraDoLink(bruto: string): LeituraDoLink {
   }
   return { situacao: "aba", texto: "Este link não toca dentro da tela: vai abrir em outra aba." };
 }
+
+/**
+ * A transmissão entra na tela antes da hora do sorteio: a live da Caixa (e a
+ * de quem transmite) começa antes da extração, e quem abre a tela já vê o
+ * aquecimento. Até lá, a contagem. A hora do sorteio continua sendo a hora do
+ * sorteio — "Sorteio agora", o selo "ao vivo" do story e a janela de 3 h
+ * contam dela.
+ */
+export const ANTECEDENCIA_DA_TRANSMISSAO_MS = 30 * 60_000;
+
+/** A tela já mostra a transmissão (a partir de 30 min antes da hora do sorteio). */
+export function transmissaoAberta(drawAt: string | Date, agora: number = Date.now()): boolean {
+  const quando = new Date(drawAt).getTime();
+  return Number.isFinite(quando) && agora >= quando - ANTECEDENCIA_DA_TRANSMISSAO_MS;
+}
+
+/** O id de canal do YouTube: "UC" e 22 letras, números, "-" ou "_". */
+const ID_DE_CANAL = /^UC[\w-]{22}$/;
+
+/**
+ * O canal oficial de uma loteria, cadastrado uma vez pela plataforma: o
+ * próprio id (`UC…`) ou o endereço `youtube.com/channel/UC…`. O endereço com
+ * `@` (`youtube.com/@caixa`) não serve — ele não diz o id, e o player da live
+ * do canal só aceita o id. Vazio é "sem canal" (`null`); o resto é 400.
+ */
+export function idDoCanal(bruto: unknown): string | null {
+  if (bruto === null || bruto === undefined) return null;
+  if (typeof bruto !== "string") throw erroDoCanal();
+  const texto = bruto.trim();
+  if (!texto) return null;
+  if (ID_DE_CANAL.test(texto)) return texto;
+  try {
+    const u = new URL(texto);
+    const host = u.hostname.toLowerCase().replace(/^www\.|^m\./, "");
+    const m = /^\/channel\/(UC[\w-]{22})\/?(?:live\/?)?$/.exec(u.pathname);
+    if (u.protocol === "https:" && host === "youtube.com" && m) return m[1];
+  } catch {
+    // Não é endereço: cai na recusa.
+  }
+  throw erroDoCanal();
+}
+
+function erroDoCanal() {
+  return Object.assign(
+    new Error(
+      "O canal precisa ser o id do YouTube (começa com UC, 24 caracteres) ou o endereço youtube.com/channel/UC…. O endereço com @ não serve: no canal, Compartilhar canal → Copiar ID do canal.",
+    ),
+    { status: 400 },
+  );
+}
+
+/** O player da live que o canal estiver transmitindo agora (sem cookie, sem som). */
+export function videoDoCanal(id: string): VideoDaTransmissao {
+  return {
+    tipo: "embutido",
+    servico: "youtube",
+    src: `https://www.youtube-nocookie.com/embed/live_stream?channel=${encodeURIComponent(id)}&autoplay=1&mute=1&playsinline=1`,
+  };
+}
+
+/**
+ * O vídeo do sorteio oficial: o link colado no sorteio vale primeiro (a
+ * plataforma pode transmitir a própria live); sem ele, a live do canal da
+ * loteria, cadastrado uma vez.
+ */
+export function videoDoSorteioOficial(transmissaoUrl: unknown, canalDaLoteria: string | null | undefined): VideoDaTransmissao | null {
+  return videoDaTransmissao(transmissaoUrl) ?? (canalDaLoteria ? videoDoCanal(canalDaLoteria) : null);
+}

@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
+import { contraste } from "../shared/template";
 import {
+  CORES_DOS_NOMES,
   PREFERENCIA_PADRAO,
   alfaDoFundo,
+  corDoNome,
   lerPreferenciaGuardada,
   modoNaTela,
   ultimasMensagens,
@@ -62,5 +65,16 @@ describe("comentários na tela cheia do sorteio", () => {
     expect(ultimasMensagens(lista).map((m) => m.id)).toEqual(["a", "r1", "c", "r2", "b"]);
     expect(ultimasMensagens(lista, 2).map((m) => m.id)).toEqual(["r2", "b"]);
     expect(Object.keys(ultimasMensagens(lista)[0]).sort()).toEqual(["id", "nome", "texto"]);
+  });
+
+  it("cada pessoa tem uma cor, sempre a mesma, e todas leem sobre o preto", () => {
+    for (const c of CORES_DOS_NOMES) expect(contraste(c, "#000000"), c).toBeGreaterThanOrEqual(4.5);
+    expect(new Set(CORES_DOS_NOMES).size).toBe(CORES_DOS_NOMES.length);
+    expect(corDoNome("lia.captura")).toBe(corDoNome("lia.captura"));
+    const nomes = Array.from({ length: 200 }, (_, i) => `apostador${i}`);
+    const usadas = new Set(nomes.map(corDoNome));
+    // Duzentos apelidos espalham pela paleta inteira, não numa cor só.
+    expect(usadas.size).toBe(CORES_DOS_NOMES.length);
+    for (const n of ["", "@a", "Ana S."]) expect(CORES_DOS_NOMES).toContain(corDoNome(n));
   });
 });

@@ -84,6 +84,40 @@ export function alfaDoFundo(pct: number): number {
   return Number.isFinite(pct) ? Math.min(1, Math.max(0, pct / 100)) : 0;
 }
 
+/**
+ * A cor de cada pessoa na conversa por cima do vídeo, como no chat da
+ * Twitch: parece sorteada, mas sai do próprio apelido — a mesma pessoa tem
+ * sempre a mesma cor, e a conversa não troca de cor a cada 10 s. **É a
+ * exceção à paleta do sistema** (como as cores das loterias): vale só aqui,
+ * é identidade de quem escreve e nunca estado — por isso o vermelho puro
+ * (erro) fica de fora. Todas claras, com contraste ≥ 4,5:1 contra o preto da
+ * sombra — o teste confere.
+ */
+export const CORES_DOS_NOMES = [
+  "#FB923C", // laranja
+  "#F472B6", // rosa
+  "#C084FC", // lilás
+  "#FDE047", // amarelo
+  "#4ADE80", // verde
+  "#38BDF8", // celeste
+  "#22D3EE", // ciano
+  "#A3E635", // lima
+  "#FCA5A5", // coral
+  "#818CF8", // anil
+  "#2DD4BF", // turquesa
+  "#E879F9", // magenta
+] as const;
+
+export function corDoNome(nome: string): string {
+  // FNV-1a e a finalização do murmur3: apelidos parecidos caem em cores sem relação.
+  let h = 0x811c9dc5;
+  for (let i = 0; i < nome.length; i++) h = Math.imul(h ^ nome.charCodeAt(i), 0x01000193);
+  h = Math.imul(h ^ (h >>> 16), 0x85ebca6b);
+  h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35);
+  h ^= h >>> 16;
+  return CORES_DOS_NOMES[(h >>> 0) % CORES_DOS_NOMES.length];
+}
+
 interface ComentarioLido {
   id: string;
   nome: string;

@@ -190,6 +190,9 @@ arquitetura.
   valor deles nunca volta a ser amarelo (`tests/tema.test.ts` confere). Cor
   sem significado é ruído. O tema escuro troca os tons, nunca o significado
   (seção "Tema claro e escuro").
+  Exceções, só como identidade e nunca como estado: as cores das loterias
+  (seção "Sorteios oficiais") e a cor de cada pessoa na conversa por cima do
+  vídeo do sorteio (`CORES_DOS_NOMES`).
 
 ## O que ainda não existe
 
@@ -434,7 +437,12 @@ arquitetura.
     **ao lado do vídeo** (deitado, o vídeo encolhe e a conversa inteira fica
     numa faixa de 38%; em pé, embaixo) ou **por cima** (as últimas 6
     mensagens num canto, só leitura, apelido e texto — nada além do que a
-    lista já mostra —, **sem fundo** e com sombra no texto; o "Comentar"
+    lista já mostra —, **sem fundo** e com sombra no texto, **cada pessoa
+    numa cor**, como na Twitch: `corDoNome()` tira a cor do apelido (a mesma
+    pessoa, sempre a mesma cor) de `CORES_DOS_NOMES` — laranja, rosa, lilás,
+    amarelo, verde, azul… **a única exceção à paleta além das loterias**,
+    só ali, nunca estado e sem o vermelho de erro, todas com contraste ≥ 4,5:1
+    sobre o preto; o "Comentar"
     abre a conversa inteira ao lado, com o campo). O botão
     "Comentários"/"Opções" na barra abre as escolhas: onde ficam (automático
     — ao lado deitado, por cima em pé —, ao lado, por cima, escondidos) e o

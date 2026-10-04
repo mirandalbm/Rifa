@@ -18,6 +18,7 @@ import {
   LADOS_NA_TELA_CHEIA,
   MODOS_NA_TELA_CHEIA,
   alfaDoFundo,
+  corDoNome,
   guardarPreferencia,
   lerPreferencia,
   modoNaTela,
@@ -399,8 +400,8 @@ function ConversaPorCima({
       <ol className="min-h-0 space-y-1 overflow-hidden" aria-live="polite">
         {ultimas.length ? (
           ultimas.map((m) => (
-            <li key={m.id} className="break-words leading-snug">
-              <span className="font-semibold">{m.nome}</span> {m.texto}
+            <li key={m.id} className="break-words leading-snug" style={{ color: corDoNome(m.nome) }}>
+              <span className="font-bold">{m.nome}</span> {m.texto}
             </li>
           ))
         ) : (

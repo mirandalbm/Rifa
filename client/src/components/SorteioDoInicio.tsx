@@ -3,7 +3,7 @@ import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { ChevronLeft, Radio } from "lucide-react";
 import { Comentarios } from "@/components/Comentarios";
-import { FotoDoPerfil } from "@/components/Seguir";
+import { FOTO_COMO_NO_INSTAGRAM, FotoDoPerfil } from "@/components/Seguir";
 import { VisualizadorDeStories, useVistos } from "@/components/Stories";
 import { vistoAte } from "@/lib/stories";
 import { temStoryNovo } from "@shared/vitrine";
@@ -382,7 +382,7 @@ function FileiraDeAvatares({
         const rifa = `/o/${o.slug}/r/${r.slug}`;
         const novo = o.ultimoStory ? temStoryNovo(o.ultimoStory, vistoAte(o.slug)) : false;
         return (
-          <li key={r.slug} className="w-[86px] shrink-0 snap-start text-center">
+          <li key={r.slug} className="shrink-0 snap-start text-center" style={{ width: AVATAR + 2 * BORDA }}>
             <span className="relative mx-auto block" style={{ width: AVATAR + 2 * BORDA, height: AVATAR + 2 * BORDA }}>
               {o.ultimoStory ? (
                 <button
@@ -414,8 +414,8 @@ function FileiraDeAvatares({
   );
 }
 
-/** O círculo inteiro tem a largura do da fileira de stories da vitrine (86 px). */
-const AVATAR = 66;
+/** A foto como no Instagram (`FOTO_COMO_NO_INSTAGRAM`); com o anel, o círculo tem 96 px. */
+const AVATAR = FOTO_COMO_NO_INSTAGRAM;
 /** A borda que abre o story: o anel e o espaço até a foto, alvo de 10 px. */
 const BORDA = 10;
 

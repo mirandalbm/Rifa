@@ -399,7 +399,11 @@ arquitetura.
   - **Nenhuma rifa em detalhe na tela do sorteio**: a fileira é de
     **avatares no modelo dos stories** (`FileiraDeAvatares`: a foto da
     organização, o anel e o nome embaixo — nem prêmio, nem capa, nem os
-    comentários de uma rifa). Dois alvos no mesmo círculo: **o anel (a
+    comentários de uma rifa). A foto tem o tamanho da fileira de stories
+    da home do Instagram (`FOTO_COMO_NO_INSTAGRAM`, 76 px; o círculo com o
+    anel, 96) — o mesmo da foto e dos destaques do perfil da organização e
+    do perfil do apostador; o feed e a fileira de stories da vitrine têm o
+    tamanho deles. Dois alvos no mesmo círculo: **o anel (a
     borda, 10 px) abre o story** da organização e **o meio abre a página da
     rifa**; sem story no ar, não há anel e o círculo inteiro abre a rifa.
     Cada alvo tem o próprio rótulo ("Ver stories de…", "Abrir a rifa…"). O

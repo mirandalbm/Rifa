@@ -21,6 +21,7 @@ import {
 import { PreferenciaDeCookies, PublicShell } from "@/components/AppShell";
 import { usePendencias } from "@/components/Console";
 import { FotoDoApostador } from "@/components/PerfilDoApostador";
+import { FOTO_COMO_NO_INSTAGRAM } from "@/components/Seguir";
 import { TemaEscolha } from "@/components/TemaToggle";
 import { apiRequest } from "@/lib/queryClient";
 import { useLogout, useSession } from "@/lib/session";
@@ -73,7 +74,7 @@ export default function PerfilDoUsuario() {
   return (
     <PublicShell>
       <section className="flex items-center gap-4 py-2">
-        <FotoDoApostador nome={perfil?.apelido ?? nome ?? "?"} foto={perfil?.foto ?? null} tamanho={72} />
+        <FotoDoApostador nome={perfil?.apelido ?? nome ?? "?"} foto={perfil?.foto ?? null} tamanho={FOTO_COMO_NO_INSTAGRAM} />
         <div className="min-w-0">
           <h1 className="truncate font-display text-xl font-extrabold">{nome ?? "Visitante"}</h1>
           {perfil?.apelido ? <p className="truncate text-sm text-muted">@{perfil.apelido}</p> : null}

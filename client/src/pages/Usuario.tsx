@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { PublicShell } from "@/components/AppShell";
 import { Empty } from "@/components/bits";
 import { FotoDoApostador } from "@/components/PerfilDoApostador";
+import { FOTO_COMO_NO_INSTAGRAM } from "@/components/Seguir";
 import { SeloVerificado } from "@/components/SeloVerificado";
 import { BotaoMensagem } from "@/components/BotaoMensagem";
 
@@ -29,7 +30,7 @@ export default function Usuario() {
       {error ? <Empty>Perfil não encontrado.</Empty> : null}
       {data ? (
         <section className="flex flex-col items-center gap-3 py-6 text-center">
-          <FotoDoApostador nome={data.apelido} foto={data.foto} tamanho={112} />
+          <FotoDoApostador nome={data.apelido} foto={data.foto} tamanho={FOTO_COMO_NO_INSTAGRAM} />
           <div>
             <h1 className="flex items-center justify-center gap-1.5 font-display text-xl font-extrabold">
               @{data.apelido}

@@ -14,6 +14,7 @@ import {
   STORY_VIDEO_MAX_SEGUNDOS,
   validarLegenda,
 } from "@shared/vitrine";
+import { ENQUETE_OPCAO_MAX, ENQUETE_OPCOES_MAX, ENQUETE_OPCOES_MIN, ENQUETE_PERGUNTA_MAX, validarEnquete } from "@shared/enqueteStory";
 
 interface StoryNoPainel {
   id: string;
@@ -27,6 +28,8 @@ interface StoryNoPainel {
   organizacao: string;
   /** Agendado: entra no ar nesta hora (antes disso só o painel vê). */
   agendadoPara: string | null;
+  /** Os totais da enquete — nunca quem votou em quê. */
+  enquete: { pergunta: string; opcoes: string[]; votos: number[]; total: number; percentuais: number[] } | null;
 }
 
 interface Campanha {
@@ -66,12 +69,25 @@ export function AdminStories() {
   // Vazio: publica agora. Preenchido: `datetime-local`, no fuso do aparelho.
   const [publicaEm, setPublicaEm] = useState("");
   const [msg, setMsg] = useState<{ ok: boolean; texto: string } | null>(null);
+  // Enquete (opcional): a pergunta e de 2 a 4 opções.
+  const [comEnquete, setComEnquete] = useState(false);
+  const [pergunta, setPergunta] = useState("");
+  const [opcoes, setOpcoes] = useState<string[]>(["", ""]);
 
   let problema: string | null = null;
   try {
     validarLegenda(legenda);
   } catch (e) {
     problema = (e as Error).message;
+  }
+  // A mesma régua do servidor, só para avisar antes; quem decide é ele.
+  let problemaNaEnquete: string | null = null;
+  if (comEnquete) {
+    try {
+      validarEnquete({ pergunta, opcoes });
+    } catch (e) {
+      problemaNaEnquete = (e as Error).message;
+    }
   }
 
   const recarregar = () => qc.invalidateQueries({ queryKey: ["/api/admin/stories"] });
@@ -84,11 +100,15 @@ export function AdminStories() {
         // O servidor recebe o instante (ISO, com o fuso), não o texto do campo.
         ...(publicaEm ? { publicaEm: new Date(publicaEm).toISOString() } : {}),
         ...(plataforma ? { organizacaoId } : {}),
+        ...(comEnquete ? { enquete: { pergunta, opcoes } } : {}),
       }),
     onSuccess: () => {
       setPeca(null);
       setLegenda("");
       setCampaignId("");
+      setComEnquete(false);
+      setPergunta("");
+      setOpcoes(["", ""]);
       setMsg({
         ok: true,
         texto: publicaEm
@@ -235,12 +255,64 @@ export function AdminStories() {
               </p>
             </div>
 
+            <fieldset className="space-y-2 rounded-md border border-line p-3">
+              <legend className="px-1 label-xs">Enquete (opcional)</legend>
+              <label className="flex items-center gap-2">
+                <input type="checkbox" checked={comEnquete} onChange={(e) => setComEnquete(e.target.checked)} />
+                Pôr uma enquete no story
+              </label>
+              {comEnquete ? (
+                <>
+                  <div>
+                    <label htmlFor="story-pergunta" className="label-xs">Pergunta</label>
+                    <input
+                      id="story-pergunta"
+                      value={pergunta}
+                      maxLength={ENQUETE_PERGUNTA_MAX + 10}
+                      onChange={(e) => setPergunta(e.target.value)}
+                      className="campo mt-1"
+                    />
+                  </div>
+                  {opcoes.map((o, k) => (
+                    <div key={k} className="flex items-end gap-2">
+                      <div className="min-w-0 flex-1">
+                        <label htmlFor={`story-opcao-${k}`} className="label-xs">
+                          Opção <span className="tnum">{k + 1}</span>
+                        </label>
+                        <input
+                          id={`story-opcao-${k}`}
+                          value={o}
+                          maxLength={ENQUETE_OPCAO_MAX + 5}
+                          onChange={(e) => setOpcoes(opcoes.map((x, j) => (j === k ? e.target.value : x)))}
+                          className="campo mt-1"
+                        />
+                      </div>
+                      {opcoes.length > ENQUETE_OPCOES_MIN ? (
+                        <Button type="button" variant="ghost" className="px-2 py-1 text-xs" onClick={() => setOpcoes(opcoes.filter((_, j) => j !== k))} aria-label={`Tirar a opção ${k + 1}`}>
+                          Tirar
+                        </Button>
+                      ) : null}
+                    </div>
+                  ))}
+                  {opcoes.length < ENQUETE_OPCOES_MAX ? (
+                    <Button type="button" variant="ghost" className="px-2 py-1 text-xs" onClick={() => setOpcoes([...opcoes, ""])}>
+                      Mais uma opção
+                    </Button>
+                  ) : null}
+                  <p className="text-[11px] text-muted">
+                    Vota quem tem conta, um voto por pessoa. Quem votou vê o resultado; você vê os totais aqui, nunca quem votou em quê.
+                  </p>
+                  {problemaNaEnquete ? <p className="text-[11px] text-red">{problemaNaEnquete}</p> : null}
+                </>
+              ) : null}
+            </fieldset>
+
             {msg ? (
               <p className={`rounded-md px-3 py-2 ${msg.ok ? "bg-green-soft text-green-deep" : "bg-red-soft text-red"}`}>{msg.texto}</p>
             ) : null}
             <Button
               type="submit"
-              disabled={!peca || Boolean(problema) || postar.isPending || (plataforma && !organizacaoId)}
+              disabled={!peca || Boolean(problema) || Boolean(problemaNaEnquete) || postar.isPending || (plataforma && !organizacaoId)}
             >
               {postar.isPending ? "Enviando…" : publicaEm ? "Agendar story" : "Publicar story"}
             </Button>
@@ -275,6 +347,24 @@ export function AdminStories() {
                 {plataforma ? <p className="truncate font-semibold">{s.organizacao}</p> : null}
                 {s.legenda ? <p className="line-clamp-2 text-ink-2">{s.legenda}</p> : null}
                 {s.rifa ? <p className="truncate text-muted">→ {s.rifa.premio}</p> : null}
+                {s.enquete ? (
+                  <div className="rounded-md bg-mist px-2 py-1.5">
+                    <p className="font-semibold">{s.enquete.pergunta}</p>
+                    <ul className="mt-1 space-y-0.5">
+                      {s.enquete.opcoes.map((o, k) => (
+                        <li key={k} className="flex justify-between gap-2">
+                          <span className="min-w-0 truncate">{o}</span>
+                          <span className="tnum shrink-0">
+                            {s.enquete!.percentuais[k]}% · {s.enquete!.votos[k]}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                    <p className="tnum mt-1 text-muted">
+                      {s.enquete.total} {s.enquete.total === 1 ? "voto" : "votos"}
+                    </p>
+                  </div>
+                ) : null}
                 {s.agendadoPara ? (
                   <p>
                     <Pill status="pending">Agendado</Pill> <span className="tnum text-muted">{quando(s.agendadoPara)}</span>

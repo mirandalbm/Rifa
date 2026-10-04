@@ -9,10 +9,10 @@
  */
 import "dotenv/config";
 import { baseUrl } from "./base-url";
-import { eq, notInArray, sql } from "drizzle-orm";
+import { eq, inArray, notInArray, sql } from "drizzle-orm";
 import sharp from "sharp";
 import { db, pool } from "../server/db";
-import { campaignStats, campaigns, organizations, plataformaBanners, stories } from "../shared/schema";
+import { buyers, campaignStats, campaigns, organizations, plataformaBanners, stories, storyEnquetes } from "../shared/schema";
 import { apagarStoriesVencidos } from "../server/services/vitrine";
 import { BANNERS_MAX, STORIES_MAX } from "../shared/vitrine";
 
@@ -71,6 +71,28 @@ async function medir(caminho: string) {
   if (r.status !== 200) return { status: r.status, tipo: "", largura: 0, altura: 0 };
   const m = await sharp(Buffer.from(await r.arrayBuffer())).metadata();
   return { status: r.status, tipo: r.headers.get("content-type") ?? "", largura: m.width ?? 0, altura: m.height ?? 0 };
+}
+
+/** CPF válido a partir de 9 dígitos — só desta prova. */
+function cpf(base: string) {
+  const d = base.split("").map(Number);
+  for (const n of [9, 10]) {
+    const soma = d.slice(0, n).reduce((acc, x, i) => acc + x * (n + 1 - i), 0);
+    const r = (soma * 10) % 11;
+    d.push(r === 10 ? 0 : r);
+  }
+  return d.join("");
+}
+
+/** As contas que votam nas enquetes (apagadas no começo e no fim). */
+const VOTANTES = [
+  { nome: "Vera Vota Souza", telefone: "11972220001", cpf: cpf("572220101"), apelido: "vera.vota" },
+  { nome: "Vito Vota Lima", telefone: "11972220002", cpf: cpf("572220102"), apelido: "vito_vota" },
+];
+
+async function limparVotantes() {
+  await db.delete(buyers).where(inArray(buyers.phone, VOTANTES.map((v) => v.telefone)));
+  await db.execute(sql`delete from rate_events where bucket like 'enquete:%' or bucket like 'cadastro:%' or bucket like 'login:comprador:%'`);
 }
 
 async function limparVizinha() {
@@ -217,6 +239,67 @@ async function main() {
     checa("apagar story da vizinha: 404", r.status === 404, `HTTP ${r.status}`);
     const [aindaLa] = await db.select({ id: stories.id }).from(stories).where(eq(stories.id, sVizinha));
     checa("e ele continua lá", Boolean(aindaLa));
+
+    /* ---------------- enquete no story ---------------- */
+    console.log("  — enquete no story");
+    await limparVotantes();
+    const [vera, vito] = [new Cliente(), new Cliente()];
+    for (const [c, p] of [[vera, VOTANTES[0]], [vito, VOTANTES[1]]] as const) {
+      const cr = await c.req("POST", "/api/public/conta", { ...p, cep: "01310-100", senha: "senha-vota-1", lembrar: true });
+      if (cr.status >= 300) throw new Error(`conta: HTTP ${cr.status} ${cr.json?.message}`);
+    }
+    r = await marina.req("POST", "/api/admin/stories", { imagem: verde, enquete: { pergunta: "Qual prêmio?", opcoes: ["Moto", "moto"] } });
+    checa("enquete com opções repetidas: 400", r.status === 400, `HTTP ${r.status} ${r.json?.message ?? ""}`);
+    r = await marina.req("POST", "/api/admin/stories", { imagem: verde, enquete: { pergunta: "Chama no 11 98888-7777", opcoes: ["A", "B"] } });
+    checa("enquete com telefone: 400 (e nada fica)", r.status === 400, `HTTP ${r.status} ${r.json?.message ?? ""}`);
+    r = await marina.req("POST", "/api/admin/stories", { imagem: verde, enquete: { pergunta: "  Qual   o próximo prêmio? ", opcoes: ["Moto", "Carro", "Pix"] } });
+    const sE = r.json?.id as string;
+    checa("story com enquete é postado", r.status === 201 && Boolean(sE), `HTTP ${r.status} ${r.json?.message ?? ""}`);
+    r = await anon.req("GET", `/api/public/o/${org.slug}/stories`);
+    let comE = r.json?.stories?.find((x: any) => x.id === sE);
+    checa("o público vê a pergunta e as opções, sem resultado antes de votar", comE?.enquete?.pergunta === "Qual o próximo prêmio?" && comE.enquete.opcoes.length === 3 && comE.enquete.percentuais === null && comE.enquete.meuVoto === null, JSON.stringify(comE?.enquete));
+    r = await anon.req("POST", `/api/public/stories/${sE}/enquete`, { opcao: 0 });
+    checa("votar sem conta: 401", r.status === 401, `HTTP ${r.status}`);
+    r = await vera.req("POST", `/api/public/stories/${sE}/enquete`, { opcao: 3 });
+    checa("opção que não existe: 400", r.status === 400, `HTTP ${r.status}`);
+    r = await vera.req("POST", `/api/public/stories/${sE}/enquete`, { opcao: "0" });
+    checa("opção em texto: 400", r.status === 400, `HTTP ${r.status}`);
+    r = await vera.req("POST", "/api/public/stories/nada/enquete", { opcao: 0 });
+    checa("id fora do formato: 404 (nunca 500)", r.status === 404, `HTTP ${r.status}`);
+    const [{ n: tentativas }] = (await db.execute(sql`select count(*)::int as n from rate_events where bucket like 'enquete:%'`)).rows as { n: number }[];
+    checa("erro de preenchimento não gastou tentativa do limite", tentativas === 0, String(tentativas));
+    await db.update(buyers).set({ cpf: null }).where(eq(buyers.phone, VOTANTES[1].telefone));
+    r = await vito.req("POST", `/api/public/stories/${sE}/enquete`, { opcao: 0 });
+    checa("conta sem CPF não vota (401)", r.status === 401, `HTTP ${r.status}`);
+    await db.update(buyers).set({ cpf: VOTANTES[1].cpf }).where(eq(buyers.phone, VOTANTES[1].telefone));
+    // Cinco votos da mesma pessoa ao mesmo tempo: um voto só.
+    const rajada = await Promise.all(Array.from({ length: 5 }, () => vera.req("POST", `/api/public/stories/${sE}/enquete`, { opcao: 1 })));
+    checa("cinco votos da mesma pessoa ao mesmo tempo: um entrou", rajada.every((x) => x.status === 200) && rajada.filter((x) => x.json?.novo).length === 1, JSON.stringify(rajada.map((x) => [x.status, x.json?.novo])));
+    r = await vera.req("POST", `/api/public/stories/${sE}/enquete`, { opcao: 2 });
+    checa("votar de novo não troca o voto", r.status === 200 && r.json?.meuVoto === 1 && r.json?.novo === false, JSON.stringify(r.json));
+    r = await vito.req("POST", `/api/public/stories/${sE}/enquete`, { opcao: 0 });
+    checa("o resultado vem para quem votou, somando 100", r.status === 200 && JSON.stringify(r.json?.percentuais) === "[50,50,0]", JSON.stringify(r.json));
+    const [contagem] = await db.select({ votos: storyEnquetes.votos }).from(storyEnquetes).where(eq(storyEnquetes.storyId, sE));
+    checa("os totais andaram uma vez por pessoa", JSON.stringify(contagem?.votos) === "[1,1,0]", JSON.stringify(contagem?.votos));
+    r = await vera.req("GET", `/api/public/o/${org.slug}/stories`);
+    comE = r.json?.stories?.find((x: any) => x.id === sE);
+    checa("ao voltar, quem votou vê o próprio voto e o resultado", comE?.enquete?.meuVoto === 1 && JSON.stringify(comE.enquete.percentuais) === "[50,50,0]");
+    checa("o público nunca recebe quem votou nem os totais crus", !JSON.stringify(r.json).includes(VOTANTES[0].apelido) && comE?.enquete?.votos === undefined);
+    r = await marina.req("GET", "/api/admin/stories");
+    const enqueteNoPainel = r.json?.find((x: any) => x.id === sE);
+    checa("a organização vê os totais no painel", enqueteNoPainel?.enquete?.total === 2 && JSON.stringify(enqueteNoPainel.enquete.votos) === "[1,1,0]");
+    checa("e nunca quem votou", !JSON.stringify(enqueteNoPainel ?? {}).match(/vera|vito|buyer/i));
+    await db.update(organizations).set({ banidaEm: new Date() }).where(eq(organizations.slug, org.slug));
+    r = await anon.req("GET", `/api/public/o/${org.slug}/stories`);
+    const banidaStatus = r.status;
+    r = await vito.req("POST", `/api/public/stories/${sE}/enquete`, { opcao: 0 });
+    await db.update(organizations).set({ banidaEm: null }).where(eq(organizations.slug, org.slug));
+    checa("promotora banida: os stories e a enquete somem (404)", banidaStatus === 404 && r.status === 404, `${banidaStatus} ${r.status}`);
+    await db.update(stories).set({ expiraEm: new Date(Date.now() - 1000) }).where(eq(stories.id, sE));
+    r = await vito.req("POST", `/api/public/stories/${sE}/enquete`, { opcao: 0 });
+    checa("story vencido: a enquete some (404)", r.status === 404, `HTTP ${r.status}`);
+    await db.delete(stories).where(eq(stories.id, sE));
+    await limparVotantes();
 
     // Story em vídeo: sem transcode, mas medido no servidor.
     console.log("  — story em vídeo");

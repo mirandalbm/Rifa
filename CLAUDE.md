@@ -135,7 +135,7 @@ arquitetura.
 | notificações no celular (Web Push) | `shared/push.ts` (regras), `server/services/push.ts`, `client/public/sw.js`, `client/src/lib/push.ts`, `scripts/push-test.ts` |
 | Termos de uso e Política de privacidade (texto montado das regras, dados da empresa e encarregado) | `shared/legal.ts` (`montarTermosDeUso`, `montarPrivacidade`, `validarDadosDaEmpresa`), `legal` em `shared/template.ts`, `client/src/pages/Legal.tsx` (`/termos`, `/privacidade`), cartão "Dados da empresa" em `client/src/pages/adminAparencia.tsx`, `tests/legal.test.ts` |
 | regulamento, central de ajuda, transmissão, conferência do sorteio e a regra da aproximação (número não vendido) | `shared/regulamento.ts`, `shared/ajuda.ts`, `shared/sorteio.ts` (`contempladoPorAproximacao`), o sorteio em `POST /campaigns/:id/draw` (`server/routes/admin.ts`), `client/src/components/SorteioCard.tsx`, `scripts/transparencia-test.ts` |
-| vitrine: banners, stories (inclusive o agendado), estados e feed | `shared/vitrine.ts` (regras), `server/services/vitrine.ts`, `server/services/faixa.ts` (`Range` do vídeo), `client/src/components/BannersVitrine.tsx`, `Stories.tsx`, `EstadosVitrine.tsx`, `CartaoDoFeed.tsx`, `client/src/pages/adminStories.tsx`, `scripts/vitrine-test.ts` |
+| vitrine: banners, stories (inclusive o agendado e a enquete), estados e feed | `shared/vitrine.ts` (regras), `shared/enqueteStory.ts` (a enquete), `server/services/vitrine.ts`, `server/services/faixa.ts` (`Range` do vídeo), `client/src/components/BannersVitrine.tsx`, `Stories.tsx`, `EstadosVitrine.tsx`, `CartaoDoFeed.tsx`, `client/src/pages/adminStories.tsx`, `scripts/vitrine-test.ts` |
 | painel de resultados, origem da venda e foto do ganhador | `shared/resultados.ts` (regras), `server/services/resultados.ts`, `client/src/lib/origem.ts`, `client/src/pages/adminResultados.tsx`, `server/services/ganhador.ts`, `scripts/resultados-test.ts` |
 | aparência da plataforma (construtor de templates) | `shared/template.ts` (regras), `server/services/template.ts`, `client/src/lib/template.ts`, `client/src/pages/adminAparencia.tsx`, `scripts/aparencia-test.ts` |
 | tema claro e escuro | `client/src/index.css` (variáveis), `client/src/lib/tema.ts`, `client/src/components/TemaToggle.tsx`, `tests/tema.test.ts` |
@@ -2684,6 +2684,29 @@ desconto na primeira compra — **pago pela plataforma**.
   o som tem botão (se o navegador barrar o som, toca mudo). O corpo de
   `POST /admin/stories` aceita 22 MB (base64 de 15 MB). `npm run vitrine`
   prova (45 s, deitado, pesado, não-vídeo, WebM, 206, 416).
+- **Enquete no story** (`story_enquetes`, `story_votos`; regras em
+  `shared/enqueteStory.ts`, `votarNaEnquete()` em `server/services/vitrine.ts`,
+  `EnqueteNoStory` em `Stories.tsx`, quadro no Novo story de `adminStories.tsx`):
+  uma pergunta e de 2 a 4 opções diferentes, **sem link e sem telefone**
+  (`validarEnquete()`, a régua do comentário) e com a varredura do Pix por
+  fora. **Vota só conta com senha e CPF** (`contaQueVota()`, 401 sem eles — o
+  CPF único entre contas é o que segura a fazenda de votos), **um voto
+  por pessoa pela chave (story, pessoa)** — `ON CONFLICT DO NOTHING`, e o total
+  da opção (`votos[i]`) só anda quando o voto entrou, na mesma transação; votar
+  de novo não troca nem soma. A opção é conferida contra a enquete
+  (`conferirVoto()`, que lê a enquete no ar antes): o erro de preenchimento —
+  id fora do formato, enquete que não existe, opção que não é dela — sai antes
+  do `hit` (30 votos em 10 min por pessoa). O voto trava o story (`FOR SHARE`):
+  apagado no meio, vira 404, nunca 500. **O resultado (percentuais que somam 100, maior resto) só
+  vai para quem já votou**; a organização vê os totais no painel e **nunca
+  quem votou em quê**. Story agendado, vencido ou de promotora arquivada ou
+  banida não aceita voto (404, a régua `storyNoAr()`), e a promotora banida
+  some dos stories do perfil, da imagem e do pôster, como some da fileira. A
+  lista do visualizador não fica guardada ao fechar (`gcTime: 0`): quem entra
+  depois na mesma aba não vê o voto de outro. O voto sai com o story e com a exclusão da
+  conta (a Privacidade diz isso). As tabelas sobem com o `db:push` **antes**
+  do código. `npm run vitrine` prova (inclusive cinco votos simultâneos da
+  mesma pessoa: um entra).
 - **Story leva só para rifa da própria organização**, e já pública. Apagar
   confere o dono **antes** do `DELETE` — o do vizinho é 404.
 - **O "visto" do story fica no aparelho** (`client/src/lib/stories.ts`),

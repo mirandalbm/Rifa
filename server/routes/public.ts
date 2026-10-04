@@ -35,6 +35,10 @@ import {
   imagemDoStory,
   storiesDoPerfil,
   posterDoStory,
+  contaQueVota,
+  conferirVoto,
+  votarNaEnquete,
+  ENQUETE_VOTOS_POR_JANELA,
 } from "../services/vitrine";
 import { montarRotasDaVerificacao } from "./verificacaoRotas";
 import { midiasDas, pecaPublica, reelsDas } from "../services/perfil";
@@ -652,7 +656,29 @@ publicRouter.get("/estados", async (req, res, next) => {
 publicRouter.get("/o/:slug/stories", async (req, res, next) => {
   try {
     res.setHeader("Cache-Control", "no-store");
-    res.json(await storiesDoPerfil(req.params.slug));
+    // Com a sessão, cada enquete vem com o voto de quem olha (e o resultado, se já votou).
+    res.json(await storiesDoPerfil(req.params.slug, req.session.buyer?.id ?? null));
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * O voto na enquete do story: só conta com senha, um por pessoa (a chave
+ * decide). Erro de preenchimento sai antes de contar no limite.
+ */
+publicRouter.post("/stories/:id/enquete", async (req, res, next) => {
+  try {
+    res.setHeader("Cache-Control", "no-store");
+    const buyerId = await contaQueVota(req.session.buyer?.id);
+    if (!buyerId) return res.status(401).json({ message: "Entre na sua conta (com CPF) para votar." });
+    if (!/^[0-9a-f-]{36}$/i.test(req.params.id)) return res.status(404).json({ message: "Enquete não encontrada." });
+    // Erro de preenchimento (enquete que não existe, opção que não é dela) sai antes de contar.
+    const opcao = await conferirVoto(req.params.id, req.body?.opcao);
+    if ((await hit(`enquete:${buyerId}`, 10, ENQUETE_VOTOS_POR_JANELA)).excedeu) {
+      return res.status(429).json({ message: "Muitos votos seguidos. Espere um pouco." });
+    }
+    res.json(await votarNaEnquete(req.params.id, buyerId, opcao));
   } catch (err) {
     next(err);
   }

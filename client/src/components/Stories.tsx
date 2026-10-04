@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Volume2, VolumeX, X } from "lucide-react";
 import { FotoDoPerfil } from "@/components/Seguir";
 import { marcarVisto, vistoAte } from "@/lib/stories";
 import { marcarOrigem } from "@/lib/origem";
 import { STORY_SEGUNDOS, temStoryNovo } from "@shared/vitrine";
+import { ApiError, apiRequest } from "@/lib/queryClient";
 
 interface Story {
   id: string;
@@ -16,6 +17,15 @@ interface Story {
   legenda: string | null;
   criadoEm: string;
   rifa: { slug: string; premio: string } | null;
+  enquete?: EnqueteDoStory | null;
+}
+
+/** A enquete como a tela recebe: o resultado só vem para quem já votou. */
+interface EnqueteDoStory {
+  pergunta: string;
+  opcoes: string[];
+  meuVoto: number | null;
+  percentuais: number[] | null;
 }
 
 interface StoriesDoPerfil {
@@ -132,7 +142,9 @@ export function VisualizadorDeStories({
   onFechar: () => void;
   aoVivo?: AoVivoDaOrg | null;
 }) {
-  const { data, isError } = useQuery<StoriesDoPerfil>({ queryKey: [`/api/public/o/${slug}/stories`], staleTime: 0 });
+  // Sem guardar ao fechar: a lista traz o voto de quem olha, e quem entra
+  // depois na mesma aba não pode ver por um instante o resultado de outro.
+  const { data, isError } = useQuery<StoriesDoPerfil>({ queryKey: [`/api/public/o/${slug}/stories`], staleTime: 0, gcTime: 0 });
   const [i, setI] = useState<number | null>(null);
   const [pausado, setPausado] = useState(false);
   const [progresso, setProgresso] = useState(0);
@@ -245,6 +257,17 @@ export function VisualizadorDeStories({
             <button type="button" aria-label="Próximo story" className="h-full w-2/3 cursor-default" onClick={proximo} />
           </div>
 
+          {atual.enquete ? (
+            <EnqueteNoStory
+              key={atual.id}
+              storyId={atual.id}
+              enquete={atual.enquete}
+              chave={`/api/public/o/${slug}/stories`}
+              aoTocar={() => setPausado(true)}
+              aoSoltar={() => setPausado(false)}
+            />
+          ) : null}
+
           <div className="pointer-events-none absolute inset-x-0 top-0 bg-gradient-to-b from-black/60 to-transparent px-3 pb-8 pt-3">
             <div className="flex gap-1" aria-hidden>
               {lista.map((s, k) => (
@@ -307,6 +330,113 @@ export function VisualizadorDeStories({
           ) : null}
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * A enquete por cima do story, como a figurinha do Instagram: a pergunta e as
+ * opções. Toque numa opção vota (só com conta: sem ela, o convite para
+ * entrar); depois do voto, cada opção mostra o percentual, e a escolhida vem
+ * marcada com ✓ e "Seu voto" — nunca só pela cor. Enquanto o dedo está no
+ * cartão, o story fica parado.
+ */
+function EnqueteNoStory({
+  storyId,
+  enquete,
+  chave,
+  aoTocar,
+  aoSoltar,
+}: {
+  storyId: string;
+  enquete: EnqueteDoStory;
+  chave: string;
+  aoTocar: () => void;
+  aoSoltar: () => void;
+}) {
+  const qc = useQueryClient();
+  const [estado, setEstado] = useState(enquete);
+  const [enviando, setEnviando] = useState(false);
+  const [aviso, setAviso] = useState<"entrar" | string | null>(null);
+  const votou = estado.meuVoto !== null && estado.percentuais !== null;
+
+  async function votar(opcao: number) {
+    if (votou || enviando) return;
+    setEnviando(true);
+    setAviso(null);
+    try {
+      const r = (await (await apiRequest("POST", `/api/public/stories/${storyId}/enquete`, { opcao })).json()) as { meuVoto: number; percentuais: number[] };
+      setEstado({ ...estado, meuVoto: r.meuVoto, percentuais: r.percentuais });
+      // A lista guardada passa a ter o voto: voltar a este story não pede de novo.
+      qc.invalidateQueries({ queryKey: [chave] });
+    } catch (e) {
+      const erro = e as ApiError;
+      setAviso(erro.status === 401 ? "entrar" : erro.message);
+    } finally {
+      setEnviando(false);
+    }
+  }
+
+  return (
+    <div className="absolute inset-x-6 top-1/2 z-10 -translate-y-1/2">
+      <div
+        role="group"
+        aria-label={`Enquete: ${estado.pergunta}`}
+        className="rounded-2xl bg-branco p-4 text-[#0b1f14] shadow-lg"
+        onPointerDown={(e) => {
+          e.stopPropagation();
+          aoTocar();
+        }}
+        onPointerUp={(e) => {
+          e.stopPropagation();
+          aoSoltar();
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <p className="text-center text-base font-bold">{estado.pergunta}</p>
+        <ul className="mt-3 space-y-2">
+          {estado.opcoes.map((o, k) => {
+            const pct = estado.percentuais?.[k] ?? 0;
+            const minha = estado.meuVoto === k;
+            return (
+              <li key={k}>
+                <button
+                  type="button"
+                  disabled={votou || enviando}
+                  onClick={() => void votar(k)}
+                  aria-pressed={minha}
+                  aria-label={votou ? `${o}: ${pct}%${minha ? ", seu voto" : ""}` : `Votar em ${o}`}
+                  className={`relative flex min-h-11 w-full items-center overflow-hidden rounded-xl border px-3 py-2 text-left text-sm font-semibold ${
+                    minha ? "border-[#0b6b3a]" : "border-[#0b1f14]/20"
+                  } ${votou ? "cursor-default" : "hover:bg-[#0b1f14]/5"}`}
+                >
+                  {votou ? (
+                    <span aria-hidden className={`absolute inset-y-0 left-0 ${minha ? "bg-[#0b6b3a]/20" : "bg-[#0b1f14]/10"}`} style={{ width: `${pct}%` }} />
+                  ) : null}
+                  <span className="relative min-w-0 flex-1 truncate">
+                    {minha ? "✓ " : ""}
+                    {o}
+                  </span>
+                  {votou ? <span className="tnum relative ml-2 shrink-0">{pct}%</span> : null}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+        {votou ? <p className="mt-2 text-center text-xs text-[#0b1f14]/70">Seu voto: {estado.opcoes[estado.meuVoto!]}</p> : null}
+        {aviso === "entrar" ? (
+          <p className="mt-2 text-center text-xs">
+            <Link href={`/entrar?volta=${encodeURIComponent(window.location.pathname)}`} className="font-semibold underline">
+              Entre na sua conta
+            </Link>{" "}
+            para votar.
+          </p>
+        ) : aviso ? (
+          <p role="alert" className="mt-2 text-center text-xs text-[#b42318]">
+            {aviso}
+          </p>
+        ) : null}
+      </div>
     </div>
   );
 }

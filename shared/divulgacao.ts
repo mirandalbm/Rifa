@@ -123,6 +123,27 @@ export function pecaNoArAgora(status: StatusDaDivulgacao, publicaEm: Date | stri
   return status === "publicada" && (!publicaEm || new Date(publicaEm).getTime() <= agora.getTime());
 }
 
+/**
+ * No feed da vitrine, entra uma divulgação depois de cada tantas rifas: o feed
+ * continua sendo de rifas, e a peça de terceiro aparece marcada "Divulgação".
+ */
+export const DIVULGACAO_A_CADA_RIFAS = 3;
+
+/**
+ * Intercala as divulgações nas rifas: uma depois de cada `aCada` rifas, na
+ * ordem em que vieram; as que sobram ficam de fora (o feed não termina numa
+ * fila de divulgações). Puro, para a tela e o teste.
+ */
+export function intercalar<R, D>(rifas: R[], pecas: D[], aCada = DIVULGACAO_A_CADA_RIFAS): ({ tipo: "rifa"; item: R } | { tipo: "divulgacao"; item: D })[] {
+  const saida: ({ tipo: "rifa"; item: R } | { tipo: "divulgacao"; item: D })[] = [];
+  let p = 0;
+  rifas.forEach((r, i) => {
+    saida.push({ tipo: "rifa", item: r });
+    if ((i + 1) % aCada === 0 && p < pecas.length) saida.push({ tipo: "divulgacao", item: pecas[p++] });
+  });
+  return saida;
+}
+
 /** Peças novas por pessoa por dia (conta a tentativa, depois do erro de preenchimento). */
 export const DIVULGACOES_POR_DIA = 10;
 export const MOTIVO_MAX = 300;

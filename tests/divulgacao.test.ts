@@ -18,6 +18,8 @@ import {
   problemaNoVideoDaDivulgacao,
   DIVULGACAO_VIDEO_MAX_BYTES,
   DIVULGACAO_VIDEO_MAX_SEGUNDOS,
+  DIVULGACAO_A_CADA_RIFAS,
+  intercalar,
 } from "../shared/divulgacao";
 import { quemPublica } from "../shared/console";
 
@@ -211,5 +213,21 @@ describe("vídeo próprio do afiliado", () => {
 
   it("o vídeo conta como conteúdo da peça do afiliado", () => {
     expect(validarDivulgacao("afiliado", { legenda: "" }, 1).legenda).toBe("");
+  });
+});
+
+describe("divulgação no feed da vitrine", () => {
+  it("entra uma a cada N rifas, na ordem, e a que sobra fica de fora", () => {
+    const r = ["a", "b", "c", "d", "e", "f", "g"];
+    const tipos = intercalar(r, [1, 2, 3], 3).map((x) => (x.tipo === "rifa" ? x.item : `#${x.item}`));
+    expect(tipos).toEqual(["a", "b", "c", "#1", "d", "e", "f", "#2", "g"]);
+  });
+  it("sem divulgação, só rifas; sem rifas, nada", () => {
+    expect(intercalar(["a", "b", "c"], []).every((x) => x.tipo === "rifa")).toBe(true);
+    expect(intercalar([], [1, 2])).toEqual([]);
+  });
+  it("o padrão é uma a cada DIVULGACAO_A_CADA_RIFAS", () => {
+    const r = Array.from({ length: DIVULGACAO_A_CADA_RIFAS }, (_, i) => i);
+    expect(intercalar(r, ["x"]).at(-1)).toEqual({ tipo: "divulgacao", item: "x" });
   });
 });

@@ -10,6 +10,8 @@ import { PublicShell } from "@/components/AppShell";
 import { Empty } from "@/components/bits";
 import { BannersVitrine } from "@/components/BannersVitrine";
 import { CartaoDoFeed, type RifaDoFeed } from "@/components/CartaoDoFeed";
+import { CartaoDeDivulgacao, type Divulgacao } from "@/components/DivulgacoesDaRifa";
+import { intercalar } from "@shared/divulgacao";
 import { FotoComStory, VisualizadorDeStories, useVistos, type AoVivoDaOrg } from "@/components/Stories";
 import { FotoDoPerfil } from "@/components/Seguir";
 import { vistoAte } from "@/lib/stories";
@@ -89,13 +91,17 @@ export default function Vitrine() {
     </div>
   );
   // Uma rifa por vez, em todas as larguras, com rolagem infinita.
-  const gradeDeRifas = (lista: RifaDoFeed[] | undefined) => <FeedInfinito lista={lista ?? []} />;
+  // As divulgações entram só no primeiro bloco de rifas (dois blocos repetiriam as mesmas peças).
+  const gradeDeRifas = (lista: RifaDoFeed[] | undefined, comDivulgacoes: boolean) => (
+    <FeedInfinito lista={lista ?? []} comDivulgacoes={comDivulgacoes} />
+  );
 
   const blocos = comPatrocinadas(template.blocos).filter((b) => b.ligado);
   // A fileira de stories ocupa o lugar do primeiro bloco "seguidos" ou
   // "estados" do template (os estados deram lugar aos stories, como no
   // Instagram); o outro não repete a fileira.
   const lugarDosStories = blocos.find((b) => b.tipo === "seguidos" || b.tipo === "estados")?.id;
+  const primeiroDeRifas = blocos.find((b) => b.tipo === "rifas")?.id;
 
   return (
     <PublicShell vitrine rodape>
@@ -126,7 +132,7 @@ export default function Vitrine() {
                   {b.titulo ? <h2 className="mt-4 font-display text-lg font-bold">{b.titulo}</h2> : null}
                   {isLoading ? <p className="py-2 text-sm text-muted">Carregando rifas…</p> : null}
                   {!isLoading && (data?.length ?? 0) === 0 ? <Empty>Nenhuma rifa publicada ainda.</Empty> : null}
-                  {gradeDeRifas(b.quantidade ? data?.slice(0, b.quantidade) : data)}
+                  {gradeDeRifas(b.quantidade ? data?.slice(0, b.quantidade) : data, b.id === primeiroDeRifas)}
                 </section>
               );
             case "patrocinadas":
@@ -177,9 +183,13 @@ const LEVA_DO_FEED = 4;
  * O feed de uma rifa por vez, com rolagem infinita: mostra uma leva e, quando
  * a pessoa chega perto do fim, a próxima. As rifas já vieram do servidor (a
  * lista é uma só); aqui só se evita montar dezenas de carrosséis de uma vez.
+ * Entre as rifas entra, de tantas em tantas, uma divulgação de terceiro
+ * (afiliado ou apostador), marcada "Divulgação".
  */
-function FeedInfinito({ lista }: { lista: RifaDoFeed[] }) {
+function FeedInfinito({ lista, comDivulgacoes }: { lista: RifaDoFeed[]; comDivulgacoes: boolean }) {
   const [mostrando, setMostrando] = useState(LEVA_DO_FEED);
+  const { data: pecas = [] } = useQuery<Divulgacao[]>({ queryKey: ["/api/public/divulgacoes/feed"], staleTime: 30_000, enabled: comDivulgacoes });
+  const itens = intercalar(lista.slice(0, mostrando), comDivulgacoes ? pecas : []);
   const fim = useRef<HTMLDivElement>(null);
   const tem = mostrando < lista.length;
   useEffect(() => {
@@ -195,9 +205,9 @@ function FeedInfinito({ lista }: { lista: RifaDoFeed[] }) {
   }, [tem, mostrando]);
   return (
     <div className="mt-3 space-y-6 md:space-y-8">
-      {lista.slice(0, mostrando).map((c) => (
-        <CartaoDoFeed key={c.id} rifa={c} />
-      ))}
+      {itens.map((x) =>
+        x.tipo === "rifa" ? <CartaoDoFeed key={x.item.id} rifa={x.item} /> : <CartaoDeDivulgacao key={`d-${x.item.id}`} d={x.item} />,
+      )}
       {tem ? (
         <div ref={fim} className="py-4 text-center">
           {/* Sem rolagem (ou sem IntersectionObserver), o botão faz o mesmo. */}

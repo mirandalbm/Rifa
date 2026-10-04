@@ -11,6 +11,7 @@ import sharp from "sharp";
 import { db } from "../db";
 import {
   campaigns,
+  campaignStats,
   organizacaoFotos,
   organizations,
   plataformaBanners,
@@ -19,6 +20,9 @@ import {
   storyVotos,
   buyers,
 } from "@shared/schema";
+import { type Figurinha, type FigurinhaNaTela, validarFigurinhas } from "@shared/figurinhasStory";
+import { rifaAVenda } from "@shared/carrinho";
+import { getPaymentMethods } from "./settings";
 import { ENQUETE_VOTOS_POR_JANELA, opcaoValida, percentuais, validarEnquete } from "@shared/enqueteStory";
 import {
   BANNERS_MAX,
@@ -213,6 +217,14 @@ const campoDoStory = {
   rifaSlug: campaigns.slug,
   rifaPremio: campaigns.prizeTitle,
   rifaStatus: campaigns.status,
+  // O que as figurinhas precisam: a data do sorteio (contagem) e se a rifa
+  // vende agora (Comprar), pela mesma régua da página da rifa.
+  figurinhas: stories.figurinhas,
+  rifaDrawAt: campaigns.drawAt,
+  rifaDemonstracao: campaigns.demonstracao,
+  rifaTravada: sql<boolean>`${campaigns.travadaEm} is not null`,
+  rifaTotal: campaigns.totalQuotas,
+  rifaVendidas: campaignStats.soldCount,
 };
 
 type LinhaDoStory = {
@@ -227,7 +239,44 @@ type LinhaDoStory = {
   rifaSlug: string | null;
   rifaPremio: string | null;
   rifaStatus: string | null;
+  figurinhas: Figurinha[];
+  rifaDrawAt: Date | null;
+  rifaDemonstracao: boolean | null;
+  rifaTravada: boolean | null;
+  rifaTotal: number | null;
+  rifaVendidas: number | null;
 };
+
+/**
+ * As figurinhas como a tela as desenha. A contagem leva a data do sorteio de
+ * agora (o adiamento muda sozinho); o Comprar só sai enquanto a rifa vende —
+ * esgotada, travada ou sem Pix, a figurinha some. Sem rifa pública, as duas
+ * somem (o texto e o emoji ficam).
+ */
+function figurinhasNaTela(s: LinhaDoStory, pixOnline: boolean) {
+  const publica = Boolean(s.rifaSlug && s.rifaStatus && s.rifaStatus !== "draft");
+  const vende =
+    publica &&
+    rifaAVenda({
+      status: s.rifaStatus!,
+      demonstracao: s.rifaDemonstracao,
+      travada: s.rifaTravada,
+      soldCount: s.rifaVendidas ?? 0,
+      totalQuotas: s.rifaTotal ?? 0,
+      pixOnline,
+    });
+  return (s.figurinhas ?? []).flatMap((f): FigurinhaNaTela[] => {
+    if (f.tipo === "contagem") {
+      // Demonstração não tem sorteio de verdade (data longe), e a travada não
+      // vende: contar para nenhuma das duas seria anunciar o que não vai acontecer.
+      const conta = publica && !s.rifaDemonstracao && !s.rifaTravada;
+      return conta ? [{ tipo: "contagem", x: f.x, y: f.y, drawAt: s.rifaDrawAt, sorteada: s.rifaStatus === "drawn" }] : [];
+    }
+    if (f.tipo === "comprar") return vende ? [{ tipo: "comprar", x: f.x, y: f.y, slug: s.rifaSlug! }] : [];
+    if (f.tipo === "texto") return [{ tipo: "texto", x: f.x, y: f.y, texto: f.texto }];
+    return [{ tipo: "emoji", x: f.x, y: f.y, emoji: f.emoji }];
+  });
+}
 
 type EnqueteNaTela = {
   pergunta: string;
@@ -269,13 +318,13 @@ async function enquetesDos(ids: string[], buyerId: string | null) {
   return porStory;
 }
 
-function publico(s: LinhaDoStory) {
+function publico(s: LinhaDoStory, pixOnline: boolean) {
   // A rifa só aparece enquanto é pública (publicada, encerrada ou sorteada).
   const rifa =
     s.rifaSlug && s.rifaStatus && s.rifaStatus !== "draft"
       ? { slug: s.rifaSlug, premio: s.rifaPremio ?? "" }
       : null;
-  return { id: s.id, tipo: s.mime.startsWith("video/") ? ("video" as const) : ("imagem" as const), imagem: urlDoStory(s.id), poster: s.mime.startsWith("video/") && s.temPoster ? urlDoPosterDoStory(s.id) : null, legenda: s.legenda, criadoEm: s.publicaEm, expiraEm: s.expiraEm, rifa };
+  return { id: s.id, tipo: s.mime.startsWith("video/") ? ("video" as const) : ("imagem" as const), imagem: urlDoStory(s.id), poster: s.mime.startsWith("video/") && s.temPoster ? urlDoPosterDoStory(s.id) : null, legenda: s.legenda, criadoEm: s.publicaEm, expiraEm: s.expiraEm, rifa, figurinhas: figurinhasNaTela(s, pixOnline) };
 }
 
 /**
@@ -288,12 +337,14 @@ export async function storiesDaOrganizacao(orgId: string | null) {
     .from(stories)
     .innerJoin(organizations, eq(organizations.id, stories.organizationId))
     .leftJoin(campaigns, eq(campaigns.id, stories.campaignId))
+    .leftJoin(campaignStats, eq(campaignStats.campaignId, stories.campaignId))
     .where(and(gt(stories.expiraEm, new Date()), orgId ? eq(stories.organizationId, orgId) : undefined))
     .orderBy(desc(stories.publicaEm));
   const agora = new Date();
   const enquetes = await enquetesDos(linhas.map((l) => l.id), null);
+  const pixOnline = (await getPaymentMethods()).pix_online;
   return linhas.map((s) => {
-    const p = publico(s);
+    const p = publico(s, pixOnline);
     const e = enquetes.get(s.id);
     // O painel lê a peça pela porta dele: a pública só abre depois da hora.
     return {
@@ -302,6 +353,9 @@ export async function storiesDaOrganizacao(orgId: string | null) {
       poster: p.poster ? `/api/admin/stories/${s.id}/poster` : null,
       organizacao: s.organizacao,
       agendadoPara: s.publicaEm > agora ? s.publicaEm : null,
+      // A organização vê o que gravou, inclusive a figurinha que a tela
+      // esconde agora (o Comprar da rifa esgotada, por exemplo).
+      figurinhasGravadas: (s.figurinhas ?? []).map((f) => f.tipo),
       // A organização vê os totais de cada opção — nunca quem votou em quê.
       enquete: e ? { pergunta: e.pergunta, opcoes: e.opcoes, votos: e.votos, total: e.votos.reduce((a, b) => a + b, 0), percentuais: percentuais(e.votos) } : null,
     };
@@ -331,7 +385,15 @@ async function lerVideoDoStory(dataUrl: unknown): Promise<{ bytes: Buffer; mime:
 
 export async function postarStory(
   orgId: string,
-  entrada: { imagem?: unknown; video?: unknown; legenda?: unknown; campaignId?: unknown; publicaEm?: unknown; enquete?: unknown },
+  entrada: {
+    imagem?: unknown;
+    video?: unknown;
+    legenda?: unknown;
+    campaignId?: unknown;
+    publicaEm?: unknown;
+    enquete?: unknown;
+    figurinhas?: unknown;
+  },
 ) {
   const legenda = regra(() => validarLegenda(entrada.legenda));
   const enquete = regra(() => validarEnquete(entrada.enquete));
@@ -339,6 +401,8 @@ export async function postarStory(
   const publicaEm = regra(() => publicacaoDoStory(entrada.publicaEm));
   const campaignId =
     typeof entrada.campaignId === "string" && entrada.campaignId ? entrada.campaignId : null;
+  // A contagem e o Comprar são da rifa do story; a rifa é conferida na transação.
+  const figurinhas = regra(() => validarFigurinhas(entrada.figurinhas, { temRifa: Boolean(campaignId) }));
   // Vídeo ou imagem, nunca os dois. O vídeo vai como veio (sem transcode);
   // a duração e as medidas saem do arquivo, não do que o navegador disser.
   const video = entrada.video ? await lerVideoDoStory(entrada.video) : null;
@@ -376,8 +440,8 @@ export async function postarStory(
     }
     const [novo] = await tx
       .insert(stories)
-      .values({ organizationId: orgId, legenda, campaignId, mime, bytes, createdAt: agora, publicaEm, expiraEm: expiraEm(publicaEm) })
-      .returning({ id: stories.id, publicaEm: stories.publicaEm });
+      .values({ organizationId: orgId, legenda, campaignId, mime, bytes, figurinhas, createdAt: agora, publicaEm, expiraEm: expiraEm(publicaEm) })
+      .returning({ id: stories.id, publicaEm: stories.publicaEm, figurinhas: stories.figurinhas });
     if (enquete) {
       await tx.insert(storyEnquetes).values({ storyId: novo.id, pergunta: enquete.pergunta, opcoes: enquete.opcoes, votos: enquete.opcoes.map(() => 0) });
     }
@@ -424,16 +488,18 @@ export async function storiesDoPerfil(slug: string, buyerId: string | null = nul
     .select(campoDoStory)
     .from(stories)
     .leftJoin(campaigns, eq(campaigns.id, stories.campaignId))
+    .leftJoin(campaignStats, eq(campaignStats.campaignId, stories.campaignId))
     .where(and(eq(stories.organizationId, org.id), storyNoAr()))
     .orderBy(asc(stories.publicaEm));
   const enquetes = await enquetesDos(linhas.map((l) => l.id), buyerId);
+  const pixOnline = linhas.length ? (await getPaymentMethods()).pix_online : true;
   return {
     slug: org.slug,
     nome: org.nome,
     foto: urlDaFoto(org.slug, org.foto),
     stories: linhas.map((l) => {
       const e = enquetes.get(l.id);
-      return { ...publico(l), enquete: e ? { pergunta: e.pergunta, opcoes: e.opcoes, meuVoto: e.meuVoto, percentuais: e.percentuais } : null };
+      return { ...publico(l, pixOnline), enquete: e ? { pergunta: e.pergunta, opcoes: e.opcoes, meuVoto: e.meuVoto, percentuais: e.percentuais } : null };
     }),
   };
 }

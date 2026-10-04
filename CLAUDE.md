@@ -135,7 +135,7 @@ arquitetura.
 | notificações no celular (Web Push) | `shared/push.ts` (regras), `server/services/push.ts`, `client/public/sw.js`, `client/src/lib/push.ts`, `scripts/push-test.ts` |
 | Termos de uso e Política de privacidade (texto montado das regras, dados da empresa e encarregado) | `shared/legal.ts` (`montarTermosDeUso`, `montarPrivacidade`, `validarDadosDaEmpresa`), `legal` em `shared/template.ts`, `client/src/pages/Legal.tsx` (`/termos`, `/privacidade`), cartão "Dados da empresa" em `client/src/pages/adminAparencia.tsx`, `tests/legal.test.ts` |
 | regulamento, central de ajuda, transmissão, conferência do sorteio e a regra da aproximação (número não vendido) | `shared/regulamento.ts`, `shared/ajuda.ts`, `shared/sorteio.ts` (`contempladoPorAproximacao`), o sorteio em `POST /campaigns/:id/draw` (`server/routes/admin.ts`), `client/src/components/SorteioCard.tsx`, `scripts/transparencia-test.ts` |
-| vitrine: banners, stories (inclusive o agendado e a enquete), estados e feed | `shared/vitrine.ts` (regras), `shared/enqueteStory.ts` (a enquete), `server/services/vitrine.ts`, `server/services/faixa.ts` (`Range` do vídeo), `client/src/components/BannersVitrine.tsx`, `Stories.tsx`, `EstadosVitrine.tsx`, `CartaoDoFeed.tsx`, `client/src/pages/adminStories.tsx`, `scripts/vitrine-test.ts` |
+| vitrine: banners, stories (inclusive o agendado, a enquete e as figurinhas), estados e feed | `shared/vitrine.ts` (regras), `shared/enqueteStory.ts` (a enquete), `shared/figurinhasStory.ts` (as figurinhas), `server/services/vitrine.ts`, `server/services/faixa.ts` (`Range` do vídeo), `client/src/components/BannersVitrine.tsx`, `Stories.tsx`, `EstadosVitrine.tsx`, `CartaoDoFeed.tsx`, `client/src/pages/adminStories.tsx`, `scripts/vitrine-test.ts` |
 | painel de resultados, origem da venda e foto do ganhador | `shared/resultados.ts` (regras), `server/services/resultados.ts`, `client/src/lib/origem.ts`, `client/src/pages/adminResultados.tsx`, `server/services/ganhador.ts`, `scripts/resultados-test.ts` |
 | aparência da plataforma (construtor de templates) | `shared/template.ts` (regras), `server/services/template.ts`, `client/src/lib/template.ts`, `client/src/pages/adminAparencia.tsx`, `scripts/aparencia-test.ts` |
 | tema claro e escuro | `client/src/index.css` (variáveis), `client/src/lib/tema.ts`, `client/src/components/TemaToggle.tsx`, `tests/tema.test.ts` |
@@ -2707,6 +2707,26 @@ desconto na primeira compra — **pago pela plataforma**.
   conta (a Privacidade diz isso). As tabelas sobem com o `db:push` **antes**
   do código. `npm run vitrine` prova (inclusive cinco votos simultâneos da
   mesma pessoa: um entra).
+- **Figurinhas no story** (`stories.figurinhas`, regras em
+  `shared/figurinhasStory.ts`, `figurinhasNaTela()` em
+  `server/services/vitrine.ts`, `FigurinhasNoStory` em `Stories.tsx`, quadro no
+  Novo story de `adminStories.tsx`): até `FIGURINHAS_MAX` (4), cada uma num
+  ponto da tela (o centro, em fração, guardado entre 0,1 e 0,9). **Só dados,
+  nunca HTML** (`validarFigurinhas()` guarda só as chaves de cada tipo): a
+  **contagem do sorteio** e o **Comprar** (uma de cada, e só com rifa no
+  story); o **texto** (até 60, sem link e sem telefone, com a varredura do Pix
+  por fora); o **emoji**, só da lista fixa (`EMOJIS_DA_FIGURINHA`, com o nome
+  no `aria-label`). **Nada do navegador vira dado**: a data da contagem e o
+  endereço do Comprar saem da rifa na leitura — o adiamento muda a contagem
+  sozinho. **O Comprar só aparece enquanto a rifa vende** (`rifaAVenda()`, a
+  régua da página da rifa) e leva à compra rápida (`?comprar=1`) — não é
+  atalho, a compra passa pelo caminho de sempre. A contagem some na rifa de
+  demonstração e na travada (seria anunciar sorteio que não vai acontecer);
+  "quando completar" sem data diz isso em texto. O painel mostra o que foi
+  gravado (`figurinhasGravadas`), inclusive o Comprar escondido. Só o Comprar
+  pega o toque: texto, emoji e contagem deixam o toque passar o story. A
+  coluna sobe com o `db:push` **antes** do código (sem ela, toda leitura de
+  story dá 500). `npm run vitrine` prova.
 - **Story leva só para rifa da própria organização**, e já pública. Apagar
   confere o dono **antes** do `DELETE` — o do vizinho é 404.
 - **O "visto" do story fica no aparelho** (`client/src/lib/stories.ts`),

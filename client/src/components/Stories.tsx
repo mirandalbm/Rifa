@@ -7,6 +7,7 @@ import { marcarVisto, vistoAte } from "@/lib/stories";
 import { marcarOrigem } from "@/lib/origem";
 import { STORY_SEGUNDOS, temStoryNovo } from "@shared/vitrine";
 import { ApiError, apiRequest } from "@/lib/queryClient";
+import { type FigurinhaNaTela, nomeDoEmoji, textoDaContagem } from "@shared/figurinhasStory";
 
 interface Story {
   id: string;
@@ -18,6 +19,7 @@ interface Story {
   criadoEm: string;
   rifa: { slug: string; premio: string } | null;
   enquete?: EnqueteDoStory | null;
+  figurinhas?: FigurinhaNaTela[];
 }
 
 /** A enquete como a tela recebe: o resultado só vem para quem já votou. */
@@ -268,6 +270,18 @@ export function VisualizadorDeStories({
             />
           ) : null}
 
+          {atual.figurinhas?.length ? (
+            <FigurinhasNoStory
+              key={`f-${atual.id}`}
+              figurinhas={atual.figurinhas}
+              perfil={data.slug}
+              aoSair={() => {
+                marcarOrigem("story");
+                onFechar();
+              }}
+            />
+          ) : null}
+
           <div className="pointer-events-none absolute inset-x-0 top-0 bg-gradient-to-b from-black/60 to-transparent px-3 pb-8 pt-3">
             <div className="flex gap-1" aria-hidden>
               {lista.map((s, k) => (
@@ -438,5 +452,90 @@ function EnqueteNoStory({
         ) : null}
       </div>
     </div>
+  );
+}
+
+/** Re-desenha a cada segundo enquanto há o que contar. */
+function useAgora(ligado: boolean) {
+  const [agora, setAgora] = useState(() => new Date());
+  useEffect(() => {
+    if (!ligado) return;
+    const t = window.setInterval(() => setAgora(new Date()), 1000);
+    return () => window.clearInterval(t);
+  }, [ligado]);
+  return agora;
+}
+
+/**
+ * As figurinhas por cima do story, cada uma no ponto que a organização
+ * escolheu. Texto, emoji e contagem não pegam o toque (o toque segue
+ * passando o story); só o Comprar é botão. O estado vai em texto, nunca só
+ * na cor.
+ */
+function FigurinhasNoStory({ figurinhas, perfil, aoSair }: { figurinhas: FigurinhaNaTela[]; perfil: string; aoSair: () => void }) {
+  const contagem = figurinhas.find((f) => f.tipo === "contagem");
+  const agora = useAgora(Boolean(contagem && contagem.tipo === "contagem" && contagem.drawAt && !contagem.sorteada));
+  return (
+    <>
+      {figurinhas.map((f, k) => {
+        const lugar = { left: `${f.x * 100}%`, top: `${f.y * 100}%` };
+        const base = "absolute z-10 max-w-[80%] -translate-x-1/2 -translate-y-1/2";
+        if (f.tipo === "comprar") {
+          return (
+            <Link
+              key={k}
+              href={`/o/${perfil}/r/${f.slug}?comprar=1`}
+              onClick={aoSair}
+              style={lugar}
+              className={`${base} whitespace-nowrap rounded-full bg-[#0b6b3a] px-5 py-2.5 text-sm font-bold text-branco shadow-lg`}
+            >
+              Comprar
+            </Link>
+          );
+        }
+        if (f.tipo === "contagem") {
+          const c = textoDaContagem(f.drawAt, f.sorteada, agora);
+          return (
+            <div
+              key={k}
+              role="timer"
+              aria-label={c.texto}
+              style={lugar}
+              className={`${base} pointer-events-none rounded-xl bg-[#0b1f14]/85 px-3 py-2 text-center text-branco shadow-lg`}
+            >
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-branco/80" aria-hidden>
+                {c.partes ? "Sorteio em" : c.texto}
+              </p>
+              {c.partes ? (
+                <p className="tnum mt-0.5 flex gap-1.5 text-lg font-bold" aria-hidden>
+                  {c.partes.map((p) => (
+                    <span key={p.unidade}>
+                      {String(p.valor).padStart(2, "0")}
+                      <span className="text-xs font-semibold text-branco/70">{p.unidade}</span>
+                    </span>
+                  ))}
+                </p>
+              ) : null}
+            </div>
+          );
+        }
+        if (f.tipo === "texto") {
+          return (
+            <p
+              key={k}
+              style={lugar}
+              className={`${base} pointer-events-none rounded-lg bg-black/60 px-3 py-1.5 text-center text-base font-semibold text-branco`}
+            >
+              {f.texto}
+            </p>
+          );
+        }
+        return (
+          <span key={k} role="img" aria-label={nomeDoEmoji(f.emoji)} style={lugar} className={`${base} pointer-events-none text-5xl leading-none`}>
+            {f.emoji}
+          </span>
+        );
+      })}
+    </>
   );
 }

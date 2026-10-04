@@ -301,6 +301,56 @@ async function main() {
     await db.delete(stories).where(eq(stories.id, sE));
     await limparVotantes();
 
+    /* ---------------- figurinhas no story ---------------- */
+    console.log("  — figurinhas no story");
+    const rifaF = minhas[0]?.campaign;
+    const contarStories = async () =>
+      (await db.select({ n: sql<number>`count(*)::int` }).from(stories).where(eq(stories.organizationId, org.id)))[0].n;
+    const antesDasRecusas = await contarStories();
+    r = await marina.req("POST", "/api/admin/stories", { imagem: verde, figurinhas: [{ tipo: "contagem", x: 0.5, y: 0.2 }] });
+    checa("contagem sem rifa no story: 400", r.status === 400, `HTTP ${r.status} ${r.json?.message ?? ""}`);
+    r = await marina.req("POST", "/api/admin/stories", { imagem: verde, campaignId: rifaF?.id, figurinhas: [{ tipo: "texto", x: 0.5, y: 0.5, texto: "Chama no 11 98888-7777" }] });
+    checa("texto com telefone: 400", r.status === 400, `HTTP ${r.status} ${r.json?.message ?? ""}`);
+    r = await marina.req("POST", "/api/admin/stories", { imagem: verde, campaignId: rifaF?.id, figurinhas: [{ tipo: "emoji", x: 0.5, y: 0.5, emoji: "<script>" }] });
+    checa("emoji fora da lista: 400", r.status === 400, `HTTP ${r.status} ${r.json?.message ?? ""}`);
+    r = await marina.req("POST", "/api/admin/stories", { imagem: verde, campaignId: rifaF?.id, figurinhas: [{ tipo: "comprar", x: 0.5, y: 0.5 }, { tipo: "comprar", x: 0.5, y: 0.8 }] });
+    checa("dois botões Comprar: 400", r.status === 400, `HTTP ${r.status} ${r.json?.message ?? ""}`);
+    checa("as recusas não deixam story nenhum", (await contarStories()) === antesDasRecusas);
+    r = await marina.req("POST", "/api/admin/stories", {
+      imagem: verde,
+      campaignId: rifaF?.id,
+      figurinhas: [
+        { tipo: "contagem", x: 0.5, y: 0.2, drawAt: "2000-01-01" },
+        { tipo: "comprar", x: 0.5, y: 0.8, slug: "outra-rifa" },
+        { tipo: "texto", x: 0.25, y: 0.5, texto: "  Última   chance! " },
+        { tipo: "emoji", x: 3 / 4, y: 0.35, emoji: "🍀" },
+      ],
+    });
+    const sF = r.json?.id as string;
+    checa("story com as quatro figurinhas é postado", r.status === 201 && Boolean(sF), `HTTP ${r.status} ${r.json?.message ?? ""}`);
+    const [gravadas] = await db.select({ f: stories.figurinhas }).from(stories).where(eq(stories.id, sF));
+    checa("só as chaves de cada tipo ficam gravadas (nada de data ou endereço do navegador)", !JSON.stringify(gravadas?.f ?? []).match(/drawAt|slug|outra-rifa|2000/), JSON.stringify(gravadas?.f));
+    r = await anon.req("GET", `/api/public/o/${org.slug}/stories`);
+    let comF = r.json?.stories?.find((x: any) => x.id === sF);
+    const tipos = (comF?.figurinhas ?? []).map((f: any) => f.tipo).join(",");
+    checa("o público recebe as quatro, na ordem", tipos === "contagem,comprar,texto,emoji", tipos);
+    const contagemF = comF?.figurinhas?.find((f: any) => f.tipo === "contagem");
+    const [rifaDb] = await db.select({ drawAt: campaigns.drawAt, slug: campaigns.slug }).from(campaigns).where(eq(campaigns.id, rifaF.id));
+    checa("a contagem traz a data do sorteio da rifa (do servidor)", String(new Date(contagemF?.drawAt ?? 0).getTime()) === String(rifaDb.drawAt ? rifaDb.drawAt.getTime() : 0), `${contagemF?.drawAt} × ${rifaDb.drawAt?.toISOString()}`);
+    checa("o Comprar leva à rifa do story", comF?.figurinhas?.find((f: any) => f.tipo === "comprar")?.slug === rifaDb.slug);
+    checa("o texto vem limpo", comF?.figurinhas?.find((f: any) => f.tipo === "texto")?.texto === "Última chance!");
+    await db.update(campaigns).set({ travadaEm: new Date() }).where(eq(campaigns.id, rifaF.id));
+    r = await anon.req("GET", `/api/public/o/${org.slug}/stories`);
+    comF = r.json?.stories?.find((x: any) => x.id === sF);
+    await db.update(campaigns).set({ travadaEm: null }).where(eq(campaigns.id, rifaF.id));
+    checa("rifa travada: o Comprar e a contagem somem, o texto e o emoji ficam", JSON.stringify(comF?.figurinhas?.map((f: any) => f.tipo)) === '["texto","emoji"]', JSON.stringify(comF?.figurinhas?.map((f: any) => f.tipo)));
+    await db.update(campaigns).set({ travadaEm: new Date() }).where(eq(campaigns.id, rifaF.id));
+    r = await marina.req("GET", "/api/admin/stories");
+    await db.update(campaigns).set({ travadaEm: null }).where(eq(campaigns.id, rifaF.id));
+    const noPainelF = r.json?.find((x: any) => x.id === sF);
+    checa("o painel lista as quatro gravadas, mesmo com a rifa travada", JSON.stringify(noPainelF?.figurinhasGravadas) === '["contagem","comprar","texto","emoji"]', JSON.stringify(noPainelF?.figurinhasGravadas));
+    await db.delete(stories).where(eq(stories.id, sF));
+
     // Story em vídeo: sem transcode, mas medido no servidor.
     console.log("  — story em vídeo");
     const bom = mp4(12, 1080, 1920);

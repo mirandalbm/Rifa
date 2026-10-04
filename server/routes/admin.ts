@@ -3725,8 +3725,15 @@ adminRouter.post("/stories", async (req, res, next) => {
       campaignId: req.body?.campaignId,
       publicaEm: req.body?.publicaEm,
       enquete: req.body?.enquete,
+      figurinhas: req.body?.figurinhas,
     });
-    await audit(req, "story.postar", "story", novo.id, { organizacao: org, rifa: req.body?.campaignId ?? null, publicaEm: novo.publicaEm, enquete: Boolean(req.body?.enquete) });
+    await audit(req, "story.postar", "story", novo.id, {
+      organizacao: org,
+      rifa: req.body?.campaignId ?? null,
+      publicaEm: novo.publicaEm,
+      enquete: Boolean(req.body?.enquete),
+      figurinhas: novo.figurinhas.map((f) => f.tipo),
+    });
     if (typeof req.body?.legenda === "string") {
       emSegundoPlano(varrerTextoDoOrganizador({ organizationId: org, onde: "legenda de story", texto: req.body.legenda }), "varredura");
     }
@@ -3736,7 +3743,12 @@ adminRouter.post("/stories", async (req, res, next) => {
       const texto = [enquete.pergunta, ...(Array.isArray(enquete.opcoes) ? enquete.opcoes.filter((o): o is string => typeof o === "string") : [])].join(" · ");
       emSegundoPlano(varrerTextoDoOrganizador({ organizationId: org, onde: "enquete de story", texto }), "varredura");
     }
-    res.status(201).json(novo);
+    // O texto da figurinha também: já passou pela régua (sem link e sem telefone).
+    const textos = novo.figurinhas.flatMap((f) => (f.tipo === "texto" ? [f.texto] : []));
+    if (textos.length) {
+      emSegundoPlano(varrerTextoDoOrganizador({ organizationId: org, onde: "figurinha de story", texto: textos.join(" · ") }), "varredura");
+    }
+    res.status(201).json({ id: novo.id, publicaEm: novo.publicaEm });
   } catch (err) {
     next(err);
   }

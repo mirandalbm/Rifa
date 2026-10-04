@@ -37,6 +37,7 @@ const bytea = customType<{ data: Buffer; driverData: Buffer }>({
 });
 import { createInsertSchema } from "drizzle-zod";
 import { ACENTOS_DE, ACENTOS_PARA, VERSAO_SEM_ACENTO } from "./semAcentoSql";
+import type { Figurinha } from "./figurinhasStory";
 import { z } from "zod";
 
 /* ------------------------------------------------------------------ *
@@ -2089,6 +2090,12 @@ export const stories = pgTable(
      */
     publicaEm: timestamp("publica_em").notNull().defaultNow(),
     expiraEm: timestamp("expira_em").notNull(),
+    /**
+     * Figurinhas (contagem do sorteio, Comprar, texto, emoji) na posição de
+     * cada uma. Só dados, conferidos por `validarFigurinhas()`; vazio é story
+     * sem figurinha.
+     */
+    figurinhas: jsonb("figurinhas").$type<Figurinha[]>().notNull().default([]),
   },
   (t) => [index("ix_stories_org_expira").on(t.organizationId, t.expiraEm)],
 );

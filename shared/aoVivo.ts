@@ -150,3 +150,41 @@ export function srcComQualidade(src: string, qualidade: QualidadeDoVideo): strin
   u.searchParams.set("quality", qualidade);
   return u.toString();
 }
+
+/** O que o painel diz sobre o link colado no campo da transmissão. */
+export interface LeituraDoLink {
+  situacao: "vazio" | "invalido" | "toca" | "aba";
+  texto: string;
+}
+
+const NOME_DO_SERVICO = { youtube: "YouTube", vimeo: "Vimeo", facebook: "Facebook" } as const;
+
+/**
+ * A leitura do link da transmissão para quem cadastra (o painel do sorteio
+ * oficial): diz, antes de salvar, se o vídeo vai tocar dentro da tela do
+ * sorteio ou só abrir em outra aba, e o que copiar no lugar. A regra é a
+ * mesma da tela (`videoDaTransmissao()`): nada aqui decide sozinho.
+ */
+export function leituraDoLink(bruto: string): LeituraDoLink {
+  const url = bruto.trim();
+  if (!url) return { situacao: "vazio", texto: "" };
+  if (!transmissaoValida(url)) {
+    return { situacao: "invalido", texto: "Link inválido: cole o endereço inteiro, começando com https://." };
+  }
+  const video = videoDaTransmissao(url);
+  if (video?.tipo === "embutido") {
+    return { situacao: "toca", texto: `Certo: o vídeo do ${NOME_DO_SERVICO[video.servico]} vai tocar dentro da tela do sorteio.` };
+  }
+  if (video?.tipo === "twitch") {
+    return { situacao: "toca", texto: `Certo: o canal ${video.canal} da Twitch vai tocar dentro da tela do sorteio.` };
+  }
+  const host = new URL(url).hostname.toLowerCase().replace(/^www\.|^m\./, "");
+  if (host === "youtube.com" || host === "youtu.be") {
+    return {
+      situacao: "aba",
+      texto:
+        "Este é o link do canal ou de uma página do YouTube, não da live: ele só abre o YouTube em outra aba. Abra a live do sorteio, toque em Compartilhar → Copiar link e cole aqui.",
+    };
+  }
+  return { situacao: "aba", texto: "Este link não toca dentro da tela: vai abrir em outra aba." };
+}

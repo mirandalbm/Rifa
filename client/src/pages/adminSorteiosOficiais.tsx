@@ -7,6 +7,7 @@ import { Janela } from "@/components/Janela";
 import { Button, Card, Campo, Empty, Pill } from "@/components/bits";
 import { apiRequest } from "@/lib/queryClient";
 import { useSession } from "@/lib/session";
+import { leituraDoLink } from "@shared/aoVivo";
 import {
   LOTERIAS,
   ROTULO_DA_SITUACAO,
@@ -306,9 +307,14 @@ function FormularioDoSorteio({
       <Campo rotulo="Título (opcional)" dica="Sem título, a tela mostra a loteria e o concurso.">
         <input value={titulo} maxLength={80} onChange={(e) => setTitulo(e.target.value)} />
       </Campo>
-      <Campo rotulo="Link da transmissão (opcional)" dica="YouTube, Vimeo, Twitch ou Facebook tocam dentro da tela; outro link abre em nova aba.">
-        <input type="url" inputMode="url" placeholder="https://" value={link} onChange={(e) => setLink(e.target.value)} />
+      <Campo
+        rotulo="Link da transmissão (opcional)"
+        dica="Cole o link da live do sorteio (não o do canal). YouTube, Vimeo, Twitch ou Facebook tocam dentro da tela; outro link abre em nova aba."
+      >
+        <input type="url" inputMode="url" placeholder="https://www.youtube.com/live/…" value={link} onChange={(e) => setLink(e.target.value)} />
       </Campo>
+      <LeituraDoLinkNaTela link={link} />
+      <ComoCopiarOLink />
       <Button type="submit" disabled={pendente}>
         {pendente ? "Salvando…" : rotulo}
       </Button>
@@ -643,5 +649,50 @@ function ComentariosDoSorteio({ s, onFechar }: { s: SorteioNoCalendario; onFecha
         <Comentarios sorteioOficialId={s.id} dentroDoPainel soModerar />
       </div>
     </Janela>
+  );
+}
+
+/**
+ * Antes de salvar, o painel diz se o link colado vai tocar dentro da tela do
+ * sorteio ou só abrir em outra aba (a mesma regra da tela, `leituraDoLink()`).
+ * O estado vai em texto, nunca só na cor.
+ */
+function LeituraDoLinkNaTela({ link }: { link: string }) {
+  const leitura = leituraDoLink(link);
+  const cor =
+    leitura.situacao === "toca"
+      ? "bg-green-soft text-green-deep"
+      : leitura.situacao === "invalido"
+        ? "bg-red-soft text-red"
+        : "bg-yellow-soft text-yellow-deep";
+  return (
+    <p aria-live="polite" className={leitura.situacao === "vazio" ? "sr-only" : `rounded-md px-3 py-2 text-xs ${cor}`}>
+      {leitura.situacao === "toca" ? "✓ " : leitura.situacao === "vazio" ? "" : "! "}
+      {leitura.texto}
+    </p>
+  );
+}
+
+/** O passo a passo de qual link copiar, para quem cadastra o sorteio. */
+function ComoCopiarOLink() {
+  return (
+    <details className="rounded-md border border-line px-3 py-2 text-xs">
+      <summary className="cursor-pointer font-semibold">Qual link copiar?</summary>
+      <ol className="mt-2 list-decimal space-y-1 pl-4 text-muted">
+        <li>
+          No YouTube, abra a <strong className="text-ink">live do sorteio</strong> — das loterias da Caixa, no canal oficial <strong className="text-ink">@caixa</strong>. Cada sorteio é uma live nova, com link novo.
+        </li>
+        <li>
+          Toque em <strong className="text-ink">Compartilhar</strong> e depois em <strong className="text-ink">Copiar link</strong>.
+        </li>
+        <li>Cole no campo acima: o aviso logo abaixo dele diz se o vídeo vai tocar dentro da tela.</li>
+      </ol>
+      <p className="mt-2 text-muted">
+        Certo: <span className="tnum break-all text-ink">https://www.youtube.com/live/S-4jed6TgNY</span>
+        <br />
+        Não serve: o link do canal (<span className="tnum break-all">youtube.com/@caixa</span>) — ele só abre o YouTube.
+      </p>
+      <p className="mt-2 text-muted">O vídeo começa sem som; quem assiste toca no player para ouvir. Dá para trocar o link até o resultado.</p>
+    </details>
   );
 }

@@ -2919,6 +2919,17 @@ coluna ao vivo segue como estava.
   exige ≥ 3:1. As cores saíram do padrão do site das Loterias Caixa (o site
   e o manual não abrem deste ambiente): confira contra o manual de
   identidade visual e troque só ali.
+- **O painel diz qual link colar** (`leituraDoLink()` em `shared/aoVivo.ts`,
+  a mesma regra da tela, `videoDaTransmissao()`): logo abaixo do campo da
+  transmissão, em texto, se o vídeo vai tocar dentro da tela ("Certo") ou
+  só abrir em outra aba — o link do canal (`youtube.com/@caixa`) é o erro
+  comum, e o aviso manda abrir a live e usar Compartilhar → Copiar link. O
+  "Qual link copiar?" traz o passo a passo e um exemplo. Testar o player
+  abrindo `youtube-nocookie.com/embed/…` direto no navegador dá "Erro 153"
+  (sem o site em volta não há `Referer`), e isso **não** quer dizer que o
+  canal bloqueou: o teste que vale é a tela do sorteio, que manda a origem
+  (`Referrer-Policy: strict-origin-when-cross-origin`).
+  `tests/leituraDoLink.test.ts`.
 - **O selo vai na página da rifa** (`seloDoSorteioOficial()`: "Sorteio
   oficial · Federal 6012 · 02/12", com "Ver o sorteio" no celular).
 - **Comentários do sorteio oficial** (`sorteio_comentarios`,

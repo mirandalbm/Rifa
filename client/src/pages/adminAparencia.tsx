@@ -6,6 +6,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowDown, ArrowUp, Monitor, Smartphone, Trash2 } from "lucide-react";
 import { PanelShell } from "@/components/AppShell";
 import { Button, Card, Pill } from "@/components/bits";
+import { Abas } from "@/components/painel";
 import { BannersCard } from "@/components/BannersCard";
 import { apiRequest } from "@/lib/queryClient";
 import { EMPRESA_VAZIA, faltaNaEmpresa, formatarCnpj } from "@shared/legal";
@@ -156,428 +157,468 @@ export function AdminAparencia() {
   };
   const rascunhoDiferente = JSON.stringify(data.rascunho) !== JSON.stringify(data.publicado);
 
+  const barra = (
+    <div className="sticky bottom-0 z-10 flex flex-wrap items-center gap-3 rounded-xl border border-line bg-white p-3 shadow-card">
+      <Button variant="ghost" disabled={Boolean(problema) || salvar.isPending || !sujo} onClick={() => salvar.mutate(t)}>
+        {salvar.isPending ? "Salvando…" : "Salvar rascunho"}
+      </Button>
+      <Button disabled={sujo || !rascunhoDiferente || publicar.isPending} onClick={() => publicar.mutate()}>
+        {publicar.isPending ? "Publicando…" : "Publicar"}
+      </Button>
+      <span className="text-xs">
+        {problema ? (
+          <span className="text-red">{problema}</span>
+        ) : msg ? (
+          <span className={msg.ok ? "text-green-deep" : "text-red"}>{msg.texto}</span>
+        ) : sujo ? (
+          <span className="text-muted">Alterações ainda não salvas.</span>
+        ) : rascunhoDiferente ? (
+          <span className="text-muted">Rascunho diferente do que está no ar.</span>
+        ) : (
+          <span className="text-muted">O que está no ar é igual ao rascunho.</span>
+        )}
+      </span>
+    </div>
+  );
+
   return (
     <PanelShell title="Aparência">
       {/* grid-cols-1 (minmax 0): sem ele a coluna cresce até a pré-visualização
           de 400 px e a página passa da tela do celular. */}
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_440px]">
-        <div className="space-y-3">
-          <Card title="Identidade">
-            <div className="grid grid-cols-1 gap-4 p-4 text-sm sm:grid-cols-2">
-              <div>
-                <label htmlFor="tpl-nome" className="label-xs">Nome da plataforma</label>
-                <input
-                  id="tpl-nome"
-                  value={id.nome}
-                  maxLength={40}
-                  onChange={(e) => mudarId({ nome: e.target.value })}
-                  className="campo"
-                />
-              </div>
-              <div>
-                <span className="label-xs">Logo (troca o nome no topo)</span>
-                <div className="mt-1 flex items-center gap-3">
-                  {id.logo ? <img src={id.logo} alt="" className="h-8 rounded border border-line bg-branco p-1" /> : null}
-                  <label className="cursor-pointer rounded-md border border-line-2 px-3 py-1.5 text-xs font-semibold hover:bg-mist">
-                    {id.logo ? "Trocar" : "Enviar logo"}
-                    <input
-                      type="file"
-                      accept="image/png,image/jpeg,image/webp"
-                      className="sr-only"
-                      onChange={(e) => {
-                        const f = e.target.files?.[0];
-                        if (!f) return;
-                        if (f.size > 2 * 1024 * 1024) return window.alert("A logo passa de 2 MB.");
-                        const r = new FileReader();
-                        r.onload = () => enviarLogo.mutate(String(r.result));
-                        r.readAsDataURL(f);
-                      }}
-                    />
-                  </label>
-                  {id.logo ? (
-                    <button type="button" className="text-xs text-red underline" onClick={() => mudarId({ logo: null })}>
-                      usar o nome
-                    </button>
-                  ) : null}
-                </div>
-                <p className="mt-1 text-[11px] text-muted">
-                  Horizontal, de preferência PNG com fundo transparente. Aparece com até{" "}
-                  <span className="tnum">96</span> px de altura. PNG, JPG ou WebP até 2 MB.
-                </p>
-              </div>
-              {(["claro", "escuro"] as const).map((tema) => {
-                const c = id.cor[tema];
-                const ok = corValida(c);
-                const razao = ok ? contraste(c, FUNDO[tema]) : 0;
-                return (
-                  <div key={tema}>
-                    <label htmlFor={`tpl-cor-${tema}`} className="label-xs">Cor de marca — tema {tema}</label>
-                    <div className="mt-1 flex items-center gap-2">
-                      <input
-                        type="color"
-                        aria-label={`Escolher cor do tema ${tema}`}
-                        value={ok ? c : "#000000"}
-                        onChange={(e) => mudarId({ cor: { ...id.cor, [tema]: e.target.value } })}
-                        className="h-9 w-12 cursor-pointer rounded border border-line-2 bg-white"
-                      />
-                      <input
-                        id={`tpl-cor-${tema}`}
-                        value={c}
-                        onChange={(e) => mudarId({ cor: { ...id.cor, [tema]: e.target.value.trim() } })}
-                        className="tnum w-28 rounded-md border border-line-2 px-2 py-2"
-                      />
-                      <span
-                        className="tnum rounded px-2 py-1 text-xs"
-                        style={{ background: FUNDO[tema], color: ok ? c : undefined, border: "1px solid var(--line)" }}
-                      >
-                        {ok ? `${razao.toFixed(1)}:1` : "—"}
-                      </span>
-                    </div>
-                    {ok && razao < CONTRASTE_MIN ? (
-                      <p className="mt-1 text-xs text-red">Quase não aparece no fundo {tema} (mínimo {CONTRASTE_MIN}:1).</p>
-                    ) : null}
-                  </div>
-                );
-              })}
-              <div>
-                <label htmlFor="tpl-fonte" className="label-xs">Fonte do texto</label>
-                <select
-                  id="tpl-fonte"
-                  value={id.fonte}
-                  onChange={(e) => mudarId({ fonte: e.target.value as Fonte })}
-                  className="mt-1 w-full rounded-md border border-line-2 bg-white px-2 py-2"
-                >
-                  {Object.entries(FONTES).map(([k, f]) => (
-                    <option key={k} value={k}>{f.nome}</option>
-                  ))}
-                </select>
-              </div>
-              <fieldset>
-                <legend className="label-xs">Cantos</legend>
-                <div className="mt-1 flex gap-2">
-                  {(Object.keys(RAIOS) as Raio[]).map((r) => (
-                    <label
-                      key={r}
-                      className={`flex cursor-pointer items-center gap-1 border px-3 py-1.5 text-xs ${id.raio === r ? "border-marca font-semibold" : "border-line-2"}`}
-                      style={{ borderRadius: RAIOS[r] }}
-                    >
-                      <input type="radio" name="tpl-raio" className="sr-only" checked={id.raio === r} onChange={() => mudarId({ raio: r })} />
-                      {NOME_RAIO[r]}
-                    </label>
-                  ))}
-                </div>
-              </fieldset>
-              <p className="text-xs text-muted sm:col-span-2">
-                A cor de marca vale para logo, links e destaques. Verde de dinheiro, azul de espera e
-                vermelho de erro não mudam — são significado, não enfeite.
-              </p>
-            </div>
-          </Card>
-
-          <BannersCard />
-
-          <Card title="Tela inicial (blocos)">
-            <ul className="divide-y divide-line">
-              {t.blocos.map((b, i) => (
-                <li key={b.id} className="space-y-2 px-4 py-3 text-sm">
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      className="h-6 w-6 shrink-0 sm:h-auto sm:w-auto"
-                      checked={b.ligado}
-                      aria-label={`Mostrar ${TIPOS_DE_BLOCO[b.tipo]}`}
-                      onChange={(e) => mudarBloco(i, { ligado: e.target.checked })}
-                    />
-                    <span className="flex-1 font-semibold">{TIPOS_DE_BLOCO[b.tipo]}</span>
-                    <Pill status={b.ligado ? "active" : "pending"}>{b.ligado ? "ligado" : "desligado"}</Pill>
-                    <button type="button" aria-label="Subir" disabled={i === 0} onClick={() => mover(i, -1)} className="rounded p-1.5 hover:bg-mist disabled:opacity-30">
-                      <ArrowUp size={15} aria-hidden />
-                    </button>
-                    <button type="button" aria-label="Descer" disabled={i === t.blocos.length - 1} onClick={() => mover(i, 1)} className="rounded p-1.5 hover:bg-mist disabled:opacity-30">
-                      <ArrowDown size={15} aria-hidden />
-                    </button>
-                    {b.tipo === "texto" ? (
-                      <button
-                        type="button"
-                        aria-label="Remover bloco"
-                        onClick={() => mudar({ ...t, blocos: t.blocos.filter((_, j) => j !== i) })}
-                        className="rounded p-1 text-red hover:bg-mist"
-                      >
-                        <Trash2 size={15} aria-hidden />
-                      </button>
-                    ) : null}
-                  </div>
-                  {b.tipo === "rifas" || b.tipo === "texto" || b.tipo === "ajuda" ? (
-                    <div className="grid grid-cols-1 gap-2 pl-6 sm:grid-cols-[1fr_auto]">
-                      <input
-                        value={b.titulo ?? ""}
-                        placeholder="Título (opcional)"
-                        maxLength={80}
-                        aria-label="Título do bloco"
-                        onChange={(e) => mudarBloco(i, { titulo: e.target.value })}
-                        className="rounded-md border border-line-2 px-3 py-1.5"
-                      />
-                      {b.tipo === "rifas" ? (
-                        <label className="flex items-center gap-2 text-xs text-muted">
-                          mostrar
+        <div className="min-w-0">
+          {/* Uma aba por assunto, em vez de uma pilha de dez cartões. A barra de
+              salvar e publicar fica nas abas que mexem no template. */}
+          <Abas
+            rotulo="Assuntos da aparência"
+            abas={[
+              {
+                id: "inicio",
+                titulo: "Identidade e tela inicial",
+                conteudo: (
+                  <div className="space-y-3">
+                    <Card title="Identidade">
+                      <div className="grid grid-cols-1 gap-4 p-4 text-sm sm:grid-cols-2">
+                        <div>
+                          <label htmlFor="tpl-nome" className="label-xs">Nome da plataforma</label>
                           <input
-                            type="number"
-                            min={0}
-                            max={60}
-                            value={b.quantidade ?? 0}
-                            onChange={(e) => mudarBloco(i, { quantidade: Number(e.target.value) })}
-                            className="tnum w-16 rounded-md border border-line-2 px-2 py-1.5"
+                            id="tpl-nome"
+                            value={id.nome}
+                            maxLength={40}
+                            onChange={(e) => mudarId({ nome: e.target.value })}
+                            className="campo"
                           />
-                          (0 = todas)
-                        </label>
-                      ) : null}
-                      {b.tipo === "texto" ? (
-                        <textarea
-                          value={b.corpo ?? ""}
-                          rows={3}
-                          maxLength={600}
-                          aria-label="Texto do bloco"
-                          onChange={(e) => mudarBloco(i, { corpo: e.target.value })}
-                          className="rounded-md border border-line-2 px-3 py-2 sm:col-span-2"
-                        />
-                      ) : null}
-                    </div>
-                  ) : null}
-                </li>
-              ))}
-            </ul>
-            <div className="flex flex-wrap gap-2 border-t border-line px-4 py-3">
-              <Button
-                variant="ghost"
-                disabled={t.blocos.length >= 12}
-                onClick={() =>
-                  mudar({
-                    ...t,
-                    blocos: [...t.blocos, { id: `texto-${Date.now().toString(36)}`, tipo: "texto", ligado: true, titulo: "", corpo: "" }],
-                  })
-                }
-              >
-                + Bloco de texto
-              </Button>
-              {/* Bloco que ainda não está na lista (template publicado antes
-                  de ele existir, por exemplo): entra no fim, ligado. */}
-              {(Object.keys(TIPOS_DE_BLOCO) as TipoDeBloco[])
-                .filter((tipo) => !BLOCO_REPETE[tipo] && !t.blocos.some((b) => b.tipo === tipo))
-                .map((tipo) => (
-                  <Button
-                    key={tipo}
-                    variant="ghost"
-                    disabled={t.blocos.length >= 12}
-                    onClick={() => mudar({ ...t, blocos: [...t.blocos, { id: tipo, tipo, ligado: true }] })}
-                  >
-                    + {TIPOS_DE_BLOCO[tipo]}
-                  </Button>
-                ))}
-            </div>
-          </Card>
+                        </div>
+                        <div>
+                          <span className="label-xs">Logo (troca o nome no topo)</span>
+                          <div className="mt-1 flex items-center gap-3">
+                            {id.logo ? <img src={id.logo} alt="" className="h-8 rounded border border-line bg-branco p-1" /> : null}
+                            <label className="cursor-pointer rounded-md border border-line-2 px-3 py-1.5 text-xs font-semibold hover:bg-mist">
+                              {id.logo ? "Trocar" : "Enviar logo"}
+                              <input
+                                type="file"
+                                accept="image/png,image/jpeg,image/webp"
+                                className="sr-only"
+                                onChange={(e) => {
+                                  const f = e.target.files?.[0];
+                                  if (!f) return;
+                                  if (f.size > 2 * 1024 * 1024) return window.alert("A logo passa de 2 MB.");
+                                  const r = new FileReader();
+                                  r.onload = () => enviarLogo.mutate(String(r.result));
+                                  r.readAsDataURL(f);
+                                }}
+                              />
+                            </label>
+                            {id.logo ? (
+                              <button type="button" className="text-xs text-red underline" onClick={() => mudarId({ logo: null })}>
+                                usar o nome
+                              </button>
+                            ) : null}
+                          </div>
+                          <p className="mt-1 text-[11px] text-muted">
+                            Horizontal, de preferência PNG com fundo transparente. Aparece com até{" "}
+                            <span className="tnum">96</span> px de altura. PNG, JPG ou WebP até 2 MB.
+                          </p>
+                        </div>
+                        {(["claro", "escuro"] as const).map((tema) => {
+                          const c = id.cor[tema];
+                          const ok = corValida(c);
+                          const razao = ok ? contraste(c, FUNDO[tema]) : 0;
+                          return (
+                            <div key={tema}>
+                              <label htmlFor={`tpl-cor-${tema}`} className="label-xs">Cor de marca — tema {tema}</label>
+                              <div className="mt-1 flex items-center gap-2">
+                                <input
+                                  type="color"
+                                  aria-label={`Escolher cor do tema ${tema}`}
+                                  value={ok ? c : "#000000"}
+                                  onChange={(e) => mudarId({ cor: { ...id.cor, [tema]: e.target.value } })}
+                                  className="h-9 w-12 cursor-pointer rounded border border-line-2 bg-white"
+                                />
+                                <input
+                                  id={`tpl-cor-${tema}`}
+                                  value={c}
+                                  onChange={(e) => mudarId({ cor: { ...id.cor, [tema]: e.target.value.trim() } })}
+                                  className="tnum w-28 rounded-md border border-line-2 px-2 py-2"
+                                />
+                                <span
+                                  className="tnum rounded px-2 py-1 text-xs"
+                                  style={{ background: FUNDO[tema], color: ok ? c : undefined, border: "1px solid var(--line)" }}
+                                >
+                                  {ok ? `${razao.toFixed(1)}:1` : "—"}
+                                </span>
+                              </div>
+                              {ok && razao < CONTRASTE_MIN ? (
+                                <p className="mt-1 text-xs text-red">Quase não aparece no fundo {tema} (mínimo {CONTRASTE_MIN}:1).</p>
+                              ) : null}
+                            </div>
+                          );
+                        })}
+                        <div>
+                          <label htmlFor="tpl-fonte" className="label-xs">Fonte do texto</label>
+                          <select
+                            id="tpl-fonte"
+                            value={id.fonte}
+                            onChange={(e) => mudarId({ fonte: e.target.value as Fonte })}
+                            className="mt-1 w-full rounded-md border border-line-2 bg-white px-2 py-2"
+                          >
+                            {Object.entries(FONTES).map(([k, f]) => (
+                              <option key={k} value={k}>{f.nome}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <fieldset>
+                          <legend className="label-xs">Cantos</legend>
+                          <div className="mt-1 flex gap-2">
+                            {(Object.keys(RAIOS) as Raio[]).map((r) => (
+                              <label
+                                key={r}
+                                className={`flex cursor-pointer items-center gap-1 border px-3 py-1.5 text-xs ${id.raio === r ? "border-marca font-semibold" : "border-line-2"}`}
+                                style={{ borderRadius: RAIOS[r] }}
+                              >
+                                <input type="radio" name="tpl-raio" className="sr-only" checked={id.raio === r} onChange={() => mudarId({ raio: r })} />
+                                {NOME_RAIO[r]}
+                              </label>
+                            ))}
+                          </div>
+                        </fieldset>
+                        <p className="text-xs text-muted sm:col-span-2">
+                          A cor de marca vale para logo, links e destaques. Verde de dinheiro, azul de espera e
+                          vermelho de erro não mudam — são significado, não enfeite.
+                        </p>
+                      </div>
+                    </Card>
 
-          {/* Fora do template: vale na hora, sem publicar versão. */}
-          <TopoDoAppCard />
-          <AssistenteIACard />
-          <UsoDoAssistenteCard />
+                    <BannersCard />
 
-          <Card title="Textos do rodapé">
-            <div className="space-y-3 p-4 text-sm">
-              <div>
-                <label htmlFor="tpl-rodape" className="label-xs">Rodapé (CNPJ, contato, avisos)</label>
-                <textarea
-                  id="tpl-rodape"
-                  rows={2}
-                  maxLength={300}
-                  value={t.textos.rodape}
-                  onChange={(e) => mudar({ ...t, textos: { ...t.textos, rodape: e.target.value } })}
-                  className="campo"
-                />
-              </div>
-              <div>
-                <label htmlFor="tpl-jogo" className="label-xs">Aviso de jogo responsável</label>
-                <input
-                  id="tpl-jogo"
-                  maxLength={200}
-                  value={t.textos.jogoResponsavel}
-                  onChange={(e) => mudar({ ...t, textos: { ...t.textos, jogoResponsavel: e.target.value } })}
-                  className="campo"
-                />
-              </div>
-            </div>
-          </Card>
-
-          <Card title="Dados da empresa (Termos e Privacidade)">
-            <div className="space-y-3 p-4 text-sm">
-              <p className="text-xs text-muted">
-                Saem nos <a href="/termos" className="underline">Termos de uso</a> e na{" "}
-                <a href="/privacidade" className="underline">Política de privacidade</a>: quem vende pela internet
-                precisa se identificar (Decreto 7.962/2013), e o encarregado de dados precisa ter nome e contato
-                públicos (LGPD, art. 41). Entram no ar ao publicar o template.
-              </p>
-              {faltaNaEmpresa(empresa).length ? (
-                <p className="rounded-md bg-yellow-soft px-3 py-2 text-xs text-yellow-deep">
-                  Falta preencher antes de lançar: {faltaNaEmpresa(empresa).join(", ")}.
-                </p>
-              ) : null}
-              {(
-                [
-                  ["razaoSocial", "Razão social", 150, "organization"],
-                  ["cnpj", "CNPJ", 20, "off"],
-                  ["endereco", "Endereço da sede", 200, "street-address"],
-                  ["contato", "E-mail de contato", 120, "email"],
-                  ["encarregadoNome", "Encarregado de dados (nome)", 120, "off"],
-                  ["encarregadoContato", "Encarregado de dados (e-mail)", 120, "email"],
-                ] as const
-              ).map(([chave, rotulo, max, auto]) => (
-                <div key={chave}>
-                  <label htmlFor={`tpl-legal-${chave}`} className="label-xs">
-                    {rotulo}
-                  </label>
-                  <input
-                    id={`tpl-legal-${chave}`}
-                    maxLength={max}
-                    autoComplete={auto}
-                    inputMode={chave === "cnpj" ? "numeric" : undefined}
-                    value={chave === "cnpj" ? formatarCnpj(empresa.cnpj) : empresa[chave]}
-                    onChange={(e) => mudar({ ...t, legal: { ...empresa, [chave]: chave === "cnpj" ? e.target.value.replace(/\D/g, "").slice(0, 14) : e.target.value } })}
-                    className="campo"
-                  />
-                </div>
-              ))}
-            </div>
-          </Card>
-
-          <Card title="Rodapé de exemplo">
-            <div className="space-y-3 p-4 text-sm">
-              <p className="text-xs text-muted">
-                Ainda sem as redes e os logos de verdade? Preenche o <strong>rascunho</strong> com exemplo — quatro
-                ícones neutros, redes sociais e um texto de apresentação — para você ver o rodapé pronto na
-                pré-visualização. Só preenche o que está vazio e <strong>não publica</strong>. Troque tudo pelo
-                material real antes de publicar: "Projetos que apoiamos" com apoiador inventado seria falso para quem
-                olha.
-              </p>
-              <Button variant="ghost" disabled={preencherExemplo.isPending} onClick={() => preencherExemplo.mutate()}>
-                {preencherExemplo.isPending ? "Preenchendo…" : "Preencher o rascunho com exemplo"}
-              </Button>
-            </div>
-          </Card>
-
-          <Card title="Redes sociais do rodapé">
-            <div className="space-y-3 p-4 text-sm">
-              <p className="text-xs text-muted">
-                Cada rede vira um botão redondo embaixo do texto de apresentação, no rodapé do tablet e do
-                computador. Deixe em branco a que não usar. O endereço precisa ser da própria rede (https).
-              </p>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                {(Object.keys(REDES_DO_RODAPE) as Rede[]).map((rede) => (
-                  <div key={rede} className="min-w-0">
-                    <label htmlFor={`rede-${rede}`} className="label-xs">{REDES_DO_RODAPE[rede].nome}</label>
-                    <input
-                      id={`rede-${rede}`}
-                      maxLength={300}
-                      placeholder="https://…"
-                      value={(t.redes ?? []).find((r) => r.rede === rede)?.link ?? ""}
-                      onChange={(e) => {
-                        const link = e.target.value;
-                        const outras = (t.redes ?? []).filter((r) => r.rede !== rede);
-                        const todas = link.trim() ? [...outras, { rede, link }] : outras;
-                        // A ordem dos botões é a da lista, não a de quem foi digitado primeiro.
-                        const ordem = Object.keys(REDES_DO_RODAPE);
-                        mudar({ ...t, redes: todas.sort((a, b) => ordem.indexOf(a.rede) - ordem.indexOf(b.rede)) });
-                      }}
-                      className="campo"
-                    />
+                    <Card title="Tela inicial (blocos)">
+                      <ul className="divide-y divide-line">
+                        {t.blocos.map((b, i) => (
+                          <li key={b.id} className="space-y-2 px-4 py-3 text-sm">
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="checkbox"
+                                className="h-6 w-6 shrink-0 sm:h-auto sm:w-auto"
+                                checked={b.ligado}
+                                aria-label={`Mostrar ${TIPOS_DE_BLOCO[b.tipo]}`}
+                                onChange={(e) => mudarBloco(i, { ligado: e.target.checked })}
+                              />
+                              <span className="flex-1 font-semibold">{TIPOS_DE_BLOCO[b.tipo]}</span>
+                              <Pill status={b.ligado ? "active" : "pending"}>{b.ligado ? "ligado" : "desligado"}</Pill>
+                              <button type="button" aria-label="Subir" disabled={i === 0} onClick={() => mover(i, -1)} className="rounded p-1.5 hover:bg-mist disabled:opacity-30">
+                                <ArrowUp size={15} aria-hidden />
+                              </button>
+                              <button type="button" aria-label="Descer" disabled={i === t.blocos.length - 1} onClick={() => mover(i, 1)} className="rounded p-1.5 hover:bg-mist disabled:opacity-30">
+                                <ArrowDown size={15} aria-hidden />
+                              </button>
+                              {b.tipo === "texto" ? (
+                                <button
+                                  type="button"
+                                  aria-label="Remover bloco"
+                                  onClick={() => mudar({ ...t, blocos: t.blocos.filter((_, j) => j !== i) })}
+                                  className="rounded p-1 text-red hover:bg-mist"
+                                >
+                                  <Trash2 size={15} aria-hidden />
+                                </button>
+                              ) : null}
+                            </div>
+                            {b.tipo === "rifas" || b.tipo === "texto" || b.tipo === "ajuda" ? (
+                              <div className="grid grid-cols-1 gap-2 pl-6 sm:grid-cols-[1fr_auto]">
+                                <input
+                                  value={b.titulo ?? ""}
+                                  placeholder="Título (opcional)"
+                                  maxLength={80}
+                                  aria-label="Título do bloco"
+                                  onChange={(e) => mudarBloco(i, { titulo: e.target.value })}
+                                  className="rounded-md border border-line-2 px-3 py-1.5"
+                                />
+                                {b.tipo === "rifas" ? (
+                                  <label className="flex items-center gap-2 text-xs text-muted">
+                                    mostrar
+                                    <input
+                                      type="number"
+                                      min={0}
+                                      max={60}
+                                      value={b.quantidade ?? 0}
+                                      onChange={(e) => mudarBloco(i, { quantidade: Number(e.target.value) })}
+                                      className="tnum w-16 rounded-md border border-line-2 px-2 py-1.5"
+                                    />
+                                    (0 = todas)
+                                  </label>
+                                ) : null}
+                                {b.tipo === "texto" ? (
+                                  <textarea
+                                    value={b.corpo ?? ""}
+                                    rows={3}
+                                    maxLength={600}
+                                    aria-label="Texto do bloco"
+                                    onChange={(e) => mudarBloco(i, { corpo: e.target.value })}
+                                    className="rounded-md border border-line-2 px-3 py-2 sm:col-span-2"
+                                  />
+                                ) : null}
+                              </div>
+                            ) : null}
+                          </li>
+                        ))}
+                      </ul>
+                      <div className="flex flex-wrap gap-2 border-t border-line px-4 py-3">
+                        <Button
+                          variant="ghost"
+                          disabled={t.blocos.length >= 12}
+                          onClick={() =>
+                            mudar({
+                              ...t,
+                              blocos: [...t.blocos, { id: `texto-${Date.now().toString(36)}`, tipo: "texto", ligado: true, titulo: "", corpo: "" }],
+                            })
+                          }
+                        >
+                          + Bloco de texto
+                        </Button>
+                        {/* Bloco que ainda não está na lista (template publicado antes
+                            de ele existir, por exemplo): entra no fim, ligado. */}
+                        {(Object.keys(TIPOS_DE_BLOCO) as TipoDeBloco[])
+                          .filter((tipo) => !BLOCO_REPETE[tipo] && !t.blocos.some((b) => b.tipo === tipo))
+                          .map((tipo) => (
+                            <Button
+                              key={tipo}
+                              variant="ghost"
+                              disabled={t.blocos.length >= 12}
+                              onClick={() => mudar({ ...t, blocos: [...t.blocos, { id: tipo, tipo, ligado: true }] })}
+                            >
+                              + {TIPOS_DE_BLOCO[tipo]}
+                            </Button>
+                          ))}
+                      </div>
+                    </Card>
+                    {barra}
                   </div>
-                ))}
-              </div>
-            </div>
-          </Card>
-
-          <Card title="Logos do rodapé">
-            <div className="space-y-3 p-4 text-sm">
-              <p className="text-xs text-muted">
-                Aparecem no rodapé do tablet e do computador — casas de apoio, ONGs, órgãos públicos. Cada logo é um
-                botão: o link é um caminho do site (/ajuda) ou um endereço https. O nome é o texto alternativo da
-                imagem. No máximo <span className="tnum">{APOIOS_MAX}</span>.
-              </p>
-              {(t.apoios ?? []).map((a, i) => (
-                <div key={a.id} className="grid grid-cols-1 items-end gap-2 rounded-lg border border-line p-2 sm:grid-cols-[auto_minmax(0,1fr)_minmax(0,1fr)_auto]">
-                  <img src={a.imagem} alt="" className="h-10 w-auto max-w-[120px] object-contain" />
-                  <div className="min-w-0">
-                    <label htmlFor={`apoio-nome-${a.id}`} className="label-xs">Nome</label>
-                    <input
-                      id={`apoio-nome-${a.id}`}
-                      maxLength={60}
-                      value={a.nome}
-                      onChange={(e) => mudar({ ...t, apoios: (t.apoios ?? []).map((x, j) => (j === i ? { ...x, nome: e.target.value } : x)) })}
-                      className="campo"
-                    />
+                ),
+              },
+              {
+                id: "topo",
+                titulo: "Topo do app",
+                conteudo: (
+                  <div className="space-y-3">
+                    <TopoDoAppCard />
                   </div>
-                  <div className="min-w-0">
-                    <label htmlFor={`apoio-link-${a.id}`} className="label-xs">Link (opcional)</label>
-                    <input
-                      id={`apoio-link-${a.id}`}
-                      maxLength={300}
-                      placeholder="https://…"
-                      value={a.link ?? ""}
-                      onChange={(e) =>
-                        mudar({ ...t, apoios: (t.apoios ?? []).map((x, j) => (j === i ? { ...x, link: e.target.value || null } : x)) })
-                      }
-                      className="campo"
-                    />
-                  </div>
-                  <Button
-                    variant="ghost"
-                    aria-label={`Tirar o logo ${a.nome || i + 1}`}
-                    onClick={() => mudar({ ...t, apoios: (t.apoios ?? []).filter((_, j) => j !== i) })}
-                  >
-                    Tirar
-                  </Button>
-                </div>
-              ))}
-              <div>
-                <label htmlFor="apoio-arquivo" className="label-xs">Adicionar logo (PNG, JPG ou WebP, até 2 MB)</label>
-                <input
-                  id="apoio-arquivo"
-                  type="file"
-                  accept="image/png,image/jpeg,image/webp"
-                  disabled={(t.apoios?.length ?? 0) >= APOIOS_MAX || enviarApoio.isPending}
-                  onChange={(e) => {
-                    const f = e.target.files?.[0];
-                    e.target.value = "";
-                    if (!f) return;
-                    const r = new FileReader();
-                    r.onload = () => enviarApoio.mutate(String(r.result));
-                    r.readAsDataURL(f);
-                  }}
-                  className="mt-1 block w-full text-sm"
-                />
-              </div>
-            </div>
-          </Card>
+                ),
+              },
+              {
+                id: "rodape",
+                titulo: "Rodapé e empresa",
+                conteudo: (
+                  <div className="space-y-3">
+                    <Card title="Textos do rodapé">
+                      <div className="space-y-3 p-4 text-sm">
+                        <div>
+                          <label htmlFor="tpl-rodape" className="label-xs">Rodapé (CNPJ, contato, avisos)</label>
+                          <textarea
+                            id="tpl-rodape"
+                            rows={2}
+                            maxLength={300}
+                            value={t.textos.rodape}
+                            onChange={(e) => mudar({ ...t, textos: { ...t.textos, rodape: e.target.value } })}
+                            className="campo"
+                          />
+                        </div>
+                        <div>
+                          <label htmlFor="tpl-jogo" className="label-xs">Aviso de jogo responsável</label>
+                          <input
+                            id="tpl-jogo"
+                            maxLength={200}
+                            value={t.textos.jogoResponsavel}
+                            onChange={(e) => mudar({ ...t, textos: { ...t.textos, jogoResponsavel: e.target.value } })}
+                            className="campo"
+                          />
+                        </div>
+                      </div>
+                    </Card>
 
-          <div className="sticky bottom-0 z-10 flex flex-wrap items-center gap-3 rounded-xl border border-line bg-white p-3 shadow-card">
-            <Button variant="ghost" disabled={Boolean(problema) || salvar.isPending || !sujo} onClick={() => salvar.mutate(t)}>
-              {salvar.isPending ? "Salvando…" : "Salvar rascunho"}
-            </Button>
-            <Button disabled={sujo || !rascunhoDiferente || publicar.isPending} onClick={() => publicar.mutate()}>
-              {publicar.isPending ? "Publicando…" : "Publicar"}
-            </Button>
-            <span className="text-xs">
-              {problema ? (
-                <span className="text-red">{problema}</span>
-              ) : msg ? (
-                <span className={msg.ok ? "text-green-deep" : "text-red"}>{msg.texto}</span>
-              ) : sujo ? (
-                <span className="text-muted">Alterações ainda não salvas.</span>
-              ) : rascunhoDiferente ? (
-                <span className="text-muted">Rascunho diferente do que está no ar.</span>
-              ) : (
-                <span className="text-muted">O que está no ar é igual ao rascunho.</span>
-              )}
-            </span>
-          </div>
+                    <Card title="Dados da empresa (Termos e Privacidade)">
+                      <div className="space-y-3 p-4 text-sm">
+                        <p className="text-xs text-muted">
+                          Saem nos <a href="/termos" className="underline">Termos de uso</a> e na{" "}
+                          <a href="/privacidade" className="underline">Política de privacidade</a>: quem vende pela internet
+                          precisa se identificar (Decreto 7.962/2013), e o encarregado de dados precisa ter nome e contato
+                          públicos (LGPD, art. 41). Entram no ar ao publicar o template.
+                        </p>
+                        {faltaNaEmpresa(empresa).length ? (
+                          <p className="rounded-md bg-yellow-soft px-3 py-2 text-xs text-yellow-deep">
+                            Falta preencher antes de lançar: {faltaNaEmpresa(empresa).join(", ")}.
+                          </p>
+                        ) : null}
+                        {(
+                          [
+                            ["razaoSocial", "Razão social", 150, "organization"],
+                            ["cnpj", "CNPJ", 20, "off"],
+                            ["endereco", "Endereço da sede", 200, "street-address"],
+                            ["contato", "E-mail de contato", 120, "email"],
+                            ["encarregadoNome", "Encarregado de dados (nome)", 120, "off"],
+                            ["encarregadoContato", "Encarregado de dados (e-mail)", 120, "email"],
+                          ] as const
+                        ).map(([chave, rotulo, max, auto]) => (
+                          <div key={chave}>
+                            <label htmlFor={`tpl-legal-${chave}`} className="label-xs">
+                              {rotulo}
+                            </label>
+                            <input
+                              id={`tpl-legal-${chave}`}
+                              maxLength={max}
+                              autoComplete={auto}
+                              inputMode={chave === "cnpj" ? "numeric" : undefined}
+                              value={chave === "cnpj" ? formatarCnpj(empresa.cnpj) : empresa[chave]}
+                              onChange={(e) => mudar({ ...t, legal: { ...empresa, [chave]: chave === "cnpj" ? e.target.value.replace(/\D/g, "").slice(0, 14) : e.target.value } })}
+                              className="campo"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </Card>
+
+                    <Card title="Rodapé de exemplo">
+                      <div className="space-y-3 p-4 text-sm">
+                        <p className="text-xs text-muted">
+                          Ainda sem as redes e os logos de verdade? Preenche o <strong>rascunho</strong> com exemplo — quatro
+                          ícones neutros, redes sociais e um texto de apresentação — para você ver o rodapé pronto na
+                          pré-visualização. Só preenche o que está vazio e <strong>não publica</strong>. Troque tudo pelo
+                          material real antes de publicar: "Projetos que apoiamos" com apoiador inventado seria falso para quem
+                          olha.
+                        </p>
+                        <Button variant="ghost" disabled={preencherExemplo.isPending} onClick={() => preencherExemplo.mutate()}>
+                          {preencherExemplo.isPending ? "Preenchendo…" : "Preencher o rascunho com exemplo"}
+                        </Button>
+                      </div>
+                    </Card>
+
+                    <Card title="Redes sociais do rodapé">
+                      <div className="space-y-3 p-4 text-sm">
+                        <p className="text-xs text-muted">
+                          Cada rede vira um botão redondo embaixo do texto de apresentação, no rodapé do tablet e do
+                          computador. Deixe em branco a que não usar. O endereço precisa ser da própria rede (https).
+                        </p>
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                          {(Object.keys(REDES_DO_RODAPE) as Rede[]).map((rede) => (
+                            <div key={rede} className="min-w-0">
+                              <label htmlFor={`rede-${rede}`} className="label-xs">{REDES_DO_RODAPE[rede].nome}</label>
+                              <input
+                                id={`rede-${rede}`}
+                                maxLength={300}
+                                placeholder="https://…"
+                                value={(t.redes ?? []).find((r) => r.rede === rede)?.link ?? ""}
+                                onChange={(e) => {
+                                  const link = e.target.value;
+                                  const outras = (t.redes ?? []).filter((r) => r.rede !== rede);
+                                  const todas = link.trim() ? [...outras, { rede, link }] : outras;
+                                  // A ordem dos botões é a da lista, não a de quem foi digitado primeiro.
+                                  const ordem = Object.keys(REDES_DO_RODAPE);
+                                  mudar({ ...t, redes: todas.sort((a, b) => ordem.indexOf(a.rede) - ordem.indexOf(b.rede)) });
+                                }}
+                                className="campo"
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </Card>
+
+                    <Card title="Logos do rodapé">
+                      <div className="space-y-3 p-4 text-sm">
+                        <p className="text-xs text-muted">
+                          Aparecem no rodapé do tablet e do computador — casas de apoio, ONGs, órgãos públicos. Cada logo é um
+                          botão: o link é um caminho do site (/ajuda) ou um endereço https. O nome é o texto alternativo da
+                          imagem. No máximo <span className="tnum">{APOIOS_MAX}</span>.
+                        </p>
+                        {(t.apoios ?? []).map((a, i) => (
+                          <div key={a.id} className="grid grid-cols-1 items-end gap-2 rounded-lg border border-line p-2 sm:grid-cols-[auto_minmax(0,1fr)_minmax(0,1fr)_auto]">
+                            <img src={a.imagem} alt="" className="h-10 w-auto max-w-[120px] object-contain" />
+                            <div className="min-w-0">
+                              <label htmlFor={`apoio-nome-${a.id}`} className="label-xs">Nome</label>
+                              <input
+                                id={`apoio-nome-${a.id}`}
+                                maxLength={60}
+                                value={a.nome}
+                                onChange={(e) => mudar({ ...t, apoios: (t.apoios ?? []).map((x, j) => (j === i ? { ...x, nome: e.target.value } : x)) })}
+                                className="campo"
+                              />
+                            </div>
+                            <div className="min-w-0">
+                              <label htmlFor={`apoio-link-${a.id}`} className="label-xs">Link (opcional)</label>
+                              <input
+                                id={`apoio-link-${a.id}`}
+                                maxLength={300}
+                                placeholder="https://…"
+                                value={a.link ?? ""}
+                                onChange={(e) =>
+                                  mudar({ ...t, apoios: (t.apoios ?? []).map((x, j) => (j === i ? { ...x, link: e.target.value || null } : x)) })
+                                }
+                                className="campo"
+                              />
+                            </div>
+                            <Button
+                              variant="ghost"
+                              aria-label={`Tirar o logo ${a.nome || i + 1}`}
+                              onClick={() => mudar({ ...t, apoios: (t.apoios ?? []).filter((_, j) => j !== i) })}
+                            >
+                              Tirar
+                            </Button>
+                          </div>
+                        ))}
+                        <div>
+                          <label htmlFor="apoio-arquivo" className="label-xs">Adicionar logo (PNG, JPG ou WebP, até 2 MB)</label>
+                          <input
+                            id="apoio-arquivo"
+                            type="file"
+                            accept="image/png,image/jpeg,image/webp"
+                            disabled={(t.apoios?.length ?? 0) >= APOIOS_MAX || enviarApoio.isPending}
+                            onChange={(e) => {
+                              const f = e.target.files?.[0];
+                              e.target.value = "";
+                              if (!f) return;
+                              const r = new FileReader();
+                              r.onload = () => enviarApoio.mutate(String(r.result));
+                              r.readAsDataURL(f);
+                            }}
+                            className="mt-1 block w-full text-sm"
+                          />
+                        </div>
+                      </div>
+                    </Card>
+                    {barra}
+                  </div>
+                ),
+              },
+              {
+                id: "assistente",
+                titulo: "Assistente de IA",
+                conteudo: (
+                  <div className="space-y-3">
+                    <AssistenteIACard />
+                    <UsoDoAssistenteCard />
+                  </div>
+                ),
+              },
+            ]}
+          />
         </div>
 
         <div className="space-y-3">

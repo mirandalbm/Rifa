@@ -2194,20 +2194,6 @@ export function AdminConfiguracoes() {
                   <TrocarSenha />
                 </div>
                 <TelefoneDoOrganizadorCard />
-                {plataforma ? (
-                  <Card title="Trilha de auditoria" right={<span className="label-xs">últimas 200 ações</span>}>
-                    <ul className="divide-y divide-line">
-                      {data?.map((a) => (
-                        <li key={a.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2 text-sm">
-                          <span className="tnum text-[11px] text-muted">{new Date(a.createdAt).toLocaleString("pt-BR")}</span>
-                          <span className="tnum min-w-0 flex-1 break-words">{a.action}</span>
-                          <span className="label-xs">{a.actorRole}</span>
-                        </li>
-                      ))}
-                    </ul>
-                    {data?.length === 0 ? <Empty>Nenhuma ação registrada.</Empty> : null}
-                  </Card>
-                ) : null}
               </div>
             ),
           },
@@ -2245,6 +2231,29 @@ export function AdminConfiguracoes() {
               </div>
             ),
           },
+          // A trilha é só da plataforma, e longa: numa aba própria, não no fim da conta.
+          ...(plataforma
+            ? [
+                {
+                  id: "auditoria",
+                  titulo: "Trilha de auditoria",
+                  conteudo: (
+                    <Card title="Trilha de auditoria" right={<span className="label-xs">últimas 200 ações</span>}>
+                      <ul className="divide-y divide-line">
+                        {data?.map((a) => (
+                          <li key={a.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2 text-sm">
+                            <span className="tnum text-[11px] text-muted">{new Date(a.createdAt).toLocaleString("pt-BR")}</span>
+                            <span className="tnum min-w-0 flex-1 break-words">{a.action}</span>
+                            <span className="label-xs">{a.actorRole}</span>
+                          </li>
+                        ))}
+                      </ul>
+                      {data?.length === 0 ? <Empty>Nenhuma ação registrada.</Empty> : null}
+                    </Card>
+                  ),
+                },
+              ]
+            : []),
         ]}
       />
     </PanelShell>

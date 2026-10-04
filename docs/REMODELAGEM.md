@@ -70,11 +70,34 @@ A loja (vitrine, rifa, perfil, carrinho, conta) está no mapa de
 
 ## 4. Lista de conferência da remodelagem
 
-- [ ] Capturas do "antes" guardadas (`npm run telas`).
-- [ ] Cada linha do inventário acima tem destino na tela nova.
-- [ ] O mapa de `docs/VERSOES.md` atualizado junto (o teste confere o mapa
+- [x] O "antes" guardado: o commit `ef66bef` (seção 1). As capturas dele se
+      regeram com `npm run telas` num checkout daquele commit.
+- [x] Cada linha do inventário acima tem destino na tela nova (seção 5).
+- [x] O mapa de `docs/VERSOES.md` atualizado junto (o teste confere o mapa
       contra o `App.tsx`).
-- [ ] `npm run telas` sem reprovação nas três larguras.
-- [ ] `npm run isolation` e as provas da API passando (a remodelagem não deve
-      mudar nenhuma — se mudar, algo além do layout foi mexido).
-- [ ] `CLAUDE.md` (seção "Layout no computador") reescrita para o arranjo novo.
+- [x] `npm run telas` sem reprovação nas três larguras.
+- [x] `npm run isolation` e as provas da API passando (nenhuma mudou com a
+      remodelagem).
+- [x] `CLAUDE.md` com o arranjo novo: "Layout no computador" (vitrine, rifa,
+      perfil, topo e console) e "Painéis no padrão Materialize" (casca, menu,
+      busca, sino, abas, listas, Atendimento, Rifas em grade).
+
+## 5. Onde cada tela ficou (fechamento, 2026-10-04)
+
+A remodelagem entrou em vários PRs (o web, o Materialize, as abas, o
+Atendimento, as listas longas) e fechou com as últimas telas em pilha.
+Nenhum cartão do inventário saiu: cada um tem lugar abaixo.
+
+| Tela | Onde ficou |
+|---|---|
+| Painel | widgets do kit (`Estatistica`, gráfico, por estado, últimas vendas) na grade; organizador em grade bento |
+| Campanhas | grade de capas (ou lista, escolha do aparelho) com as ações no cartão; a edição em quatro abas (A rifa · Autorização e sorteio · Publicação · Pacotes e cotas premiadas), cada cartão do inventário na aba do assunto |
+| Pedidos e Cobrança | lista por chave (25 por vez), cartão por linha até o tablet e tabela a partir de `xl` |
+| Atendimento | lista e item aberto (`MestreDetalhe`) nos quatro: chamados, pedidos de mudança, denúncias, verificações |
+| Configurações | abas: Conta e segurança · Organização e perfil · Vendas e pagamentos · Trilha de auditoria (plataforma) |
+| Aparência | abas: Identidade e tela inicial · Topo do app · Rodapé e empresa · Assistente de IA; pré-visualização e versões ao lado a partir de `xl` |
+| Antifraude | os números em cima e abas: Limites · Bloqueios manuais · O que foi barrado (com as últimas recusas) |
+| Resultados, Stories, Patrocínio, Marketing, Afiliados, Cambistas, Usuários, Financeiro, Sorteios, Sorteios oficiais, Exportações, Organizações, Cadastros fiscais, Bônus, Banner pago | a mesma rota, os mesmos cartões no "papel" do kit (`.cartao`), em grade que começa em `grid-cols-1` |
+| Caixa de entrada (nova, plataforma) | tudo que espera decisão numa lista, com o destino de cada tipo |
+| Afiliado e cambista | a mesma casca (`PanelShell`) com o menu de cada papel; as telas listadas no inventário seguem com os mesmos cartões |
+| Loja (vitrine, rifa, perfil, carrinho, conta) | o arranjo de `docs/VERSOES.md` e da seção "Layout no computador" do `CLAUDE.md` |

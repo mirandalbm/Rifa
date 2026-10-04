@@ -94,6 +94,15 @@ export function SeguirBotoes({ slug, compacto = false }: { slug: string; compact
   );
 }
 
+/**
+ * O tamanho da foto do perfil como no Instagram (o da fileira de stories da
+ * home, que o Instagram repete na foto do perfil e nos destaques): ~76 px — o
+ * Instagram não publica a medida; é a do app, medida na tela. Vale na tela do
+ * sorteio, no perfil da organização (foto e destaques) e no do apostador. O
+ * feed e a fileira de stories da vitrine têm o tamanho deles.
+ */
+export const FOTO_COMO_NO_INSTAGRAM = 76;
+
 /** A bolinha com a foto do perfil (ou a inicial, sem foto). */
 export function FotoDoPerfil({
   nome,

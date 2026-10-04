@@ -11,7 +11,7 @@ import { PublicShell } from "@/components/AppShell";
 import { Money, Progress, Empty, Button } from "@/components/bits";
 import { apiRequest } from "@/lib/queryClient";
 import { useSession } from "@/lib/session";
-import { SeguirBotoes, FotoDoPerfil } from "@/components/Seguir";
+import { SeguirBotoes, FotoDoPerfil, FOTO_COMO_NO_INSTAGRAM } from "@/components/Seguir";
 import { Denunciar } from "@/components/Seguranca";
 import { DestaqueOrg, LinksDoPerfil } from "@/components/DestaqueOrg";
 import { FotoComStory, VisualizadorDeStories, type AoVivoDaOrg } from "@/components/Stories";
@@ -160,7 +160,7 @@ export default function PerfilPage() {
             foto={p.foto}
             ultimoStory={p.ultimoStory}
             aoVivo={p.aoVivo}
-            tamanho={84}
+            tamanho={FOTO_COMO_NO_INSTAGRAM}
             onAbrir={() => setStories(true)}
           />
           {/* No próprio perfil, o "+" da foto posta no story, como no Instagram. */}
@@ -284,9 +284,12 @@ export default function PerfilPage() {
         <section aria-label="Rifas realizadas" className="-mx-4 mt-5 overflow-x-auto px-4 lg:mx-0 lg:overflow-visible lg:px-0">
           <ul className="flex gap-4 lg:flex-wrap">
             {p.destaques.map((d) => (
-              <li key={d.slug} className="w-[72px] shrink-0 text-center">
+              <li key={d.slug} className="shrink-0 text-center" style={{ width: FOTO_COMO_NO_INSTAGRAM + 10 }}>
                 <Link href={`/o/${p.slug}/r/${d.slug}`} onClick={() => marcarOrigem("perfil")} className="block">
-                  <span className="mx-auto block h-16 w-16 overflow-hidden rounded-full border-2 border-marca p-[2px]">
+                  <span
+                    className="mx-auto block overflow-hidden rounded-full border-2 border-marca p-[2px]"
+                    style={{ width: FOTO_COMO_NO_INSTAGRAM, height: FOTO_COMO_NO_INSTAGRAM }}
+                  >
                     {d.capa ? (
                       <img src={d.capa} alt="" className="h-full w-full rounded-full object-cover" />
                     ) : (

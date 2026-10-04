@@ -3,7 +3,7 @@ import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { ChevronLeft, Radio } from "lucide-react";
 import { Comentarios } from "@/components/Comentarios";
-import { FotoDoPerfil } from "@/components/Seguir";
+import { FOTO_COMO_NO_INSTAGRAM, FotoDoPerfil } from "@/components/Seguir";
 import { VisualizadorDeStories, useVistos } from "@/components/Stories";
 import { vistoAte } from "@/lib/stories";
 import { temStoryNovo } from "@shared/vitrine";
@@ -414,12 +414,8 @@ function FileiraDeAvatares({
   );
 }
 
-/**
- * A foto no tamanho da fileira de stories da home do Instagram no celular
- * (~76 px — o Instagram não publica a medida; é a do app, medida na tela).
- * Com o anel, o círculo inteiro tem 96 px.
- */
-const AVATAR = 76;
+/** A foto como no Instagram (`FOTO_COMO_NO_INSTAGRAM`); com o anel, o círculo tem 96 px. */
+const AVATAR = FOTO_COMO_NO_INSTAGRAM;
 /** A borda que abre o story: o anel e o espaço até a foto, alvo de 10 px. */
 const BORDA = 10;
 

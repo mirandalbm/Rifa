@@ -419,7 +419,7 @@ export const sorteiosOficiais = pgTable(
   "sorteios_oficiais",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    /** `federal`, `mega_sena`, `quina` ou `lotofacil` (`LOTERIAS`). */
+    /** `federal`, `mega_sena`, `quina`, `lotofacil` ou `globo` (`LOTERIAS`). */
     loteria: text("loteria").notNull(),
     concurso: integer("concurso").notNull(),
     sorteioEm: timestamp("sorteio_em").notNull(),
@@ -433,6 +433,12 @@ export const sorteiosOficiais = pgTable(
     criadoEm: timestamp("criado_em").notNull().defaultNow(),
     /** Comentários no ar — anda na mesma transação que grava ou apaga (nunca `COUNT(*)`). */
     comentariosCount: integer("comentarios_count").notNull().default(0),
+    /**
+     * A ata da sessão do globo (`AtaDoGlobo`, `validarAtaDoGlobo`), gravada
+     * com o resultado: local, tabelionato, auditor ou testemunhas e o relato
+     * de cada bola. Nula nas loterias da Caixa.
+     */
+    ata: jsonb("ata"),
   },
   // O mesmo concurso não entra duas vezes: o índice decide, não um SELECT antes.
   (t) => [uniqueIndex("uq_sorteio_oficial_concurso").on(t.loteria, t.concurso), index("idx_sorteios_oficiais_data").on(t.sorteioEm)],
@@ -500,8 +506,9 @@ export const campaigns = pgTable(
     /**
      * Como o número contemplado sai do resultado (`METODOS_DE_APURACAO` em
      * `shared/apuracao.ts`): `federal_direta` (a leitura direta dos 5 prêmios
-     * da Loteria Federal, numeração a partir de zero) ou `globo` (o globo
-     * homologado, quando a plataforma ligar). A promotora escolhe entre os
+     * da Loteria Federal, numeração a partir de zero) ou `globo` (o globo da
+     * plataforma, numa sessão do calendário com ata notarial; a plataforma o
+     * liga depois da homologação). A promotora escolhe entre os
      * que a plataforma liberou, pela autorização que tem; trava ao publicar.
      * Nulo é a rifa de antes, apurada pela semente (hash + HMAC) — só para
      * conferir o que já foi sorteado assim.
@@ -537,6 +544,14 @@ export const campaigns = pgTable(
     travadaEm: timestamp("travada_em"),
     travadaMotivo: text("travada_motivo"),
     drawAtOriginal: timestamp("draw_at_original"),
+    /**
+     * A data máxima do sorteio no modo "quando completar" (resposta 8.7 do
+     * advogado): a data fixa registrada na SPA/MF, gravada ao publicar a
+     * partir de `draw_at`. Encheu antes, `draw_at` é antecipado para a
+     * próxima extração da Federal; o estorno que tira a rifa de cheia devolve
+     * `draw_at` a ela. O adiamento aprovado move as duas.
+     */
+    drawAtMaximo: timestamp("draw_at_maximo"),
     /**
      * Publicação agendada do rascunho: na hora, o relógio chama a mesma
      * `publishCampaign()` (confere tudo de novo e trava total, autorização e
@@ -1782,6 +1797,22 @@ export const campaignCertificados = pgTable("campaign_certificados", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+/**
+ * O arquivo da ata notarial da sessão do globo (PDF ou foto do cartório),
+ * conferido pelo conteúdo como o certificado da rifa. No banco; público só
+ * depois do resultado lançado.
+ */
+export const sorteioAtas = pgTable("sorteio_atas", {
+  sorteioOficialId: uuid("sorteio_oficial_id")
+    .primaryKey()
+    .references(() => sorteiosOficiais.id, { onDelete: "cascade" }),
+  mime: text("mime").notNull(),
+  nome: text("nome").notNull(),
+  bytes: bytea("bytes").notNull(),
+  tamanho: integer("tamanho").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 export const chamadoAnexos = pgTable("chamado_anexos", {
   id: uuid("id").primaryKey().defaultRandom(),
   chamadoId: uuid("chamado_id")
@@ -1913,6 +1944,7 @@ export const insertCampaignSchema = createInsertSchema(campaigns, {
     demonstracao: true,
     adiamentos: true,
     drawAtOriginal: true,
+    drawAtMaximo: true,
     comentariosCount: true,
     legenda: true,
     curtidasCount: true,

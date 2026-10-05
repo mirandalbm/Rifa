@@ -144,7 +144,7 @@ arquitetura.
 | white label do organizador (capa, cor de destaque, links) | `validarDestaque()`/`validarLinks()` em `shared/perfil.ts`, `salvarPerfil()` em `server/services/perfil.ts`, `client/src/components/DestaqueOrg.tsx`, `client/src/components/PerfilPublicoForm.tsx` |
 | notificações no celular (Web Push) | `shared/push.ts` (regras), `server/services/push.ts`, `client/public/sw.js`, `client/src/lib/push.ts`, `scripts/push-test.ts` |
 | Termos de uso e Política de privacidade (texto montado das regras, dados da empresa e encarregado) | `shared/legal.ts` (`montarTermosDeUso`, `montarPrivacidade`, `validarDadosDaEmpresa`), `legal` em `shared/template.ts`, `client/src/pages/Legal.tsx` (`/termos`, `/privacidade`), cartão "Dados da empresa" em `client/src/pages/adminAparencia.tsx`, `tests/legal.test.ts` |
-| apuração pela Loteria Federal (leitura direta, numeração a partir de zero, total em potência de 10, método liberado pela plataforma e escolhido pela promotora) | `shared/apuracao.ts` (regras, `lerFederal`, `clausulaDaApuracao`), `formatQuota`/`numeroInterno` em `shared/format.ts`, `numeroSorteado()` em `server/services/sortear.ts`, `problemaNaApuracao()` em `server/services/campaigns.ts`, `/apuracao/metodos` em `server/routes/admin.ts`, `MetodosDeApuracao` em `client/src/pages/adminSorteiosOficiais.tsx`, o método em `DadosLegaisCard.tsx`, `SorteioCard.tsx` (leitura passo a passo), `scripts/apuracao-test.ts`, `tests/apuracao.test.ts` |
+| apuração pela Loteria Federal e pelo globo da plataforma (leitura direta, numeração a partir de zero, total em potência de 10, método liberado pela plataforma e escolhido pela promotora; a sessão do globo com a ata notarial e o arquivo do cartório) | `shared/apuracao.ts` (regras, `lerFederal`, `lerGlobo`, `clausulaDaApuracao`, `clausulaDoGlobo`), `validarAtaDoGlobo()`/`globo` em `shared/sorteiosOficiais.ts`, `lancarResultado()`/`salvarArquivoDaAta()` em `server/services/sorteiosOficiais.ts`, `PUT /sorteios-oficiais/:id/ata` em `server/routes/admin.ts`, `GET /sorteio-oficial/:id/ata` em `server/routes/public.ts`, `LancarResultado`/`AtaDaSessao` em `adminSorteiosOficiais.tsx`, `formatQuota`/`numeroInterno` em `shared/format.ts`, `numeroSorteado()` em `server/services/sortear.ts`, `problemaNaApuracao()` em `server/services/campaigns.ts`, `/apuracao/metodos` em `server/routes/admin.ts`, `MetodosDeApuracao` em `client/src/pages/adminSorteiosOficiais.tsx`, o método em `DadosLegaisCard.tsx`, `SorteioCard.tsx` (leitura passo a passo), `scripts/apuracao-test.ts`, `tests/apuracao.test.ts` |
 | regulamento, central de ajuda, transmissão, conferência do sorteio e a regra da aproximação (número não vendido) | `shared/regulamento.ts`, `shared/ajuda.ts`, `shared/sorteio.ts` (`contempladoPorAproximacao`), o sorteio em `POST /campaigns/:id/draw` (`server/routes/admin.ts`), `client/src/components/SorteioCard.tsx`, `scripts/transparencia-test.ts` |
 | vitrine: banners, stories (inclusive o agendado, a enquete e as figurinhas), estados e feed | `shared/vitrine.ts` (regras), `shared/enqueteStory.ts` (a enquete), `shared/figurinhasStory.ts` (as figurinhas), `server/services/vitrine.ts`, `server/services/faixa.ts` (`Range` do vídeo), `client/src/components/BannersVitrine.tsx`, `Stories.tsx`, `EstadosVitrine.tsx`, `CartaoDoFeed.tsx`, `client/src/pages/adminStories.tsx`, `scripts/vitrine-test.ts` |
 | painel de resultados, origem da venda e foto do ganhador | `shared/resultados.ts` (regras), `server/services/resultados.ts`, `client/src/lib/origem.ts`, `client/src/pages/adminResultados.tsx`, `server/services/ganhador.ts`, `scripts/resultados-test.ts` |
@@ -2697,14 +2697,22 @@ desconto na primeira compra — **pago pela plataforma**.
   `MODOS_DO_SORTEIO` em `shared/campanhaLegal.ts`, nos dados legais; trava ao
   publicar, fora do `PATCH`, e entra no regulamento): **na data** (o mínimo
   que ela definir), **rifa cheia na data** (mínimo 100%; não completou, pede
-  o adiamento), **rifa cheia, sorteio quando completar** (sem data: a última
-  cota paga, em `settleOrderAsPaid`, marca `draw_at` para a próxima extração
-  da Federal — quarta ou sábado, 19h de Brasília, com 24 h de folga,
-  `proximaExtracaoFederal()` — num `UPDATE` condicional; push
-  `sorteio_marcado`; a comissão de quem vendeu antes espera a data com a data
-  provisória `SORTEIO_SEM_DATA` e passa a esperar a marcada, sem encurtar a
-  carência; estorno que deixa a rifa não cheia **desmarca** a data e a
-  comissão volta a esperar — encheu de novo, marca de novo e avisa de novo)
+  o adiamento), **rifa cheia, antecipado quando completar** (resposta 8.7 do
+  advogado: o SCPC não aceita data condicional, então a data digitada é a
+  **data máxima** — exigida para publicar e gravada em
+  `campaigns.draw_at_maximo` ao publicar; a última cota paga, em
+  `settleOrderAsPaid`, **antecipa** `draw_at` para a próxima extração da
+  Federal — quarta ou sábado, 19h de Brasília, com 24 h de folga,
+  `proximaExtracaoFederal()` — só se ela vier antes da máxima, num `UPDATE`
+  condicional; push `sorteio_marcado` "sorteio antecipado" com a data
+  máxima, a página diz "antecipado — a data máxima era …" e o regulamento
+  traz a cláusula da antecipação (`clausulaDaAntecipacao()`); a comissão
+  pendente passa a esperar a data antecipada, sem encurtar a carência;
+  estorno que deixa a rifa não cheia **devolve `draw_at` à máxima** (push
+  `mensagemAntecipacaoDesfeita`) e a comissão volta a esperar por ela —
+  encheu de novo, antecipa de novo; não completou até a máxima, a promotora
+  pede o adiamento, que move as duas datas; não vale para o globo. A rifa de
+  antes, publicada sem data, segue marcada como era, com `SORTEIO_SEM_DATA`)
   e **a promotora completa** (sem mínimo; o número sorteado não
   vendido é dela e o prêmio fica com ela — sem aproximação). `npm run
   transparencia` prova os três.
@@ -2720,7 +2728,7 @@ desconto na primeira compra — **pago pela plataforma**.
 
 ## Apuração pela Loteria Federal — o que não pode afrouxar
 
-O advogado validou (05/10/2026, respostas 8.1 a 8.6 e 8.11): na rifa
+O advogado validou (05/10/2026, respostas 8.1 a 8.12): na rifa
 autorizada pela SPA/MF, qualquer pessoa chega ao ganhador com o resultado da
 Federal, o regulamento, papel e caneta. O hash + HMAC de antes **não é aceito
 pela portaria** — fica só para conferir a rifa sorteada sem método.
@@ -2750,20 +2758,60 @@ pela portaria** — fica só para conferir a rifa sorteada sem método.
   publicar** (`LOCKED_AFTER_PUBLISH`). A rifa nova nasce com o primeiro
   liberado. **Sem método liberado, nada publica** (`publishBlockers` e de novo
   dentro da transação de `publishCampaign()`).
-- **O globo aparece, mas não liga** (`METODO_INDISPONIVEL`): entra quando for
-  homologado, pelo calendário dos sorteios oficiais, com a ata notarial
-  (local, data, hora, auditor ou testemunhas desvinculadas, o relato de cada
-  bola e o ganhador). Rifa marcada com um método que o sistema ainda não
-  sorteia recusa o sorteio (409).
+- **O globo já funciona; quem liga é a plataforma** (respostas 8.9 a 8.12):
+  o código está no ar e o globo nasce **desligado** em "Métodos de apuração"
+  — liga-se ali depois da homologação, sem publicar código.
+  `METODO_INDISPONIVEL` fica vazio, como régua para o próximo método.
+  - **Sessão do globo no calendário** (`globo` em `LOTERIAS`, "Nº da sessão"
+    no lugar do concurso; só a plataforma cria, como as loterias): **6 globos
+    de 0 a 9**, extraídos em sequência. A leitura é a mesma ideia da Federal
+    (`lerGlobo()`): os 6 algarismos, na ordem, formam o número; a rifa menor
+    fica com os N últimos (6-7-8-1-3-9 → 678.139, ou 139 em 1.000).
+  - **Cada rifa só entra no sorteio do método dela** (8.11,
+    `problemaParaIntegrar(s, agora, metodo)`): a da Federal (e a de antes,
+    sem método) só na Federal; a do globo só no globo — conferido ao
+    integrar, no adiamento (pedir e aprovar) e de novo na publicação
+    (`problemaDoSorteioOficial`). **A rifa do globo só publica numa sessão
+    do globo** (`problemaNaApuracao`) e **nunca sorteia pelo formulário do
+    painel** (409): sorteia sozinha quando a plataforma lança o resultado da
+    sessão. Adiar a rifa do globo exige escolher a nova sessão. "Quando
+    completar" não vale para o globo (422): a antecipação é para a Federal.
+  - **O resultado leva a ata** (8.10, `validarAtaDoGlobo()`,
+    `sorteios_oficiais.ata`): local, tabelionato, registro (livro/folha),
+    auditor independente **ou** pelo menos 2 testemunhas sem vínculo (só
+    nome — nunca número, a ata é pública), e a hora de cada bola, em
+    sequência, conferida contra as bolas lançadas. Só as chaves conhecidas;
+    sem a ata, 400. Lançar segue a régua de sempre (só depois da hora, uma
+    vez, `UPDATE` condicional) e sorteia as rifas integradas.
+  - **O arquivo da ata do cartório** (`sorteio_atas`, no banco) chega depois
+    — o tabelião entrega em dias: `PUT /admin/sorteios-oficiais/:id/ata` (só
+    a plataforma, 403 no `npm run isolation`; só depois do resultado e só no
+    globo), PDF ou foto conferidos pelo conteúdo (foto reprocessada, sem
+    metadados), até 8 MB. Público só com o resultado lançado
+    (`/api/public/sorteio-oficial/:id/ata`); a conferência da rifa
+    (`ata`/`ataUrl` em `/campaigns/:slug/sorteio`) mostra a ata e o link, e a
+    prestação de contas traz a sessão, cada bola com a hora e a ata.
+  - Regulamento (`clausulaDoGlobo()`, com o exemplo calculado pela mesma
+    `lerGlobo()`), bilhete, bio, kit do afiliado, ajuda e Termos dizem o
+    método. A cor do globo no calendário é o verde da casa (`COR_DO_GLOBO`),
+    identidade com o nome junto, como as loterias.
 - **Sem semente na rifa com método**: a página, o regulamento, o bilhete, a
   resposta do sorteio e a prestação de contas não mostram hash nem semente
   (ela nem entra na conta). A conferência pública é a leitura passo a passo
   (`leitura` em `/campaigns/:slug/sorteio`), refeita no aparelho de quem olha
   (`SorteioCard`), e o regulamento traz a cláusula do advogado com o exemplo
   calculado pela mesma `lerFederal()` (`clausulaDaApuracao()`).
-- A coluna `campaigns.metodo_apuracao` sobe com o `db:push` **antes** do
-  código. `npm run apuracao` prova tudo isso contra a API de verdade e
-  `tests/apuracao.test.ts` prova os exemplos do advogado.
+- **Cota premiada é vale-brinde** (8.8, `AVISO_VALE_BRINDE` e
+  `CLAUSULA_VALE_BRINDE` em `shared/premiadas.ts`): com o sorteio, a rifa vira
+  promoção mista (sorteio + vale-brinde), autorizada nas duas modalidades no
+  mesmo processo do SCPC. O cartão das cotas premiadas avisa a promotora, e o
+  regulamento da rifa com método diz isso a quem compra.
+- As colunas `campaigns.metodo_apuracao`, `campaigns.draw_at_maximo` e
+  `sorteios_oficiais.ata` e a tabela `sorteio_atas` sobem com o `db:push`
+  **antes** do código. `npm run apuracao` prova tudo isso contra a API de
+  verdade (o globo de ponta a ponta), `npm run transparencia` a data máxima e
+  a antecipação, e `tests/apuracao.test.ts`, `tests/sorteiosOficiais.test.ts`
+  e `tests/regulamento.test.ts` provam as regras.
 
 ## Termos de uso e Privacidade — o que não pode afrouxar
 
@@ -2954,13 +3002,15 @@ coluna ao vivo segue como estava.
   rifa vira a do concurso **no mesmo `UPDATE`**, condicional ao rascunho, com
   o sorteio travado (`FOR SHARE`) — a plataforma não muda a data no meio.
   Com menos de 24 h (`ANTECEDENCIA_PARA_INTEGRAR_MS`), cancelado ou com
-  resultado, não entra; "quando completar" (sem data) também não. A rifa do
+  resultado, não entra; "quando completar" (a antecipação mudaria a data)
+  também não. A rifa do
   vizinho é 404. `sorteioOficialId` está fora do `PATCH` genérico, e os
   dados legais recusam outra data enquanto a rifa estiver no sorteio.
-- **Só a Loteria Federal recebe rifa** (`LOTERIAS_QUE_RECEBEM_RIFA`,
-  `["federal"]`): a autorização SPA/MF prevê a apuração pela extração da
-  Federal, e o advogado confirmou em 05/10/2026 que Mega-Sena, Quina e
-  Lotofácil não valem como apuração. As outras loterias seguem no
+- **Só a Loteria Federal e o globo da plataforma recebem rifa**
+  (`LOTERIAS_QUE_RECEBEM_RIFA`, `["federal", "globo"]`, e cada rifa só o do
+  método dela — seção "Apuração pela Loteria Federal"): a autorização SPA/MF
+  prevê um dos dois, e o advogado confirmou em 05/10/2026 que Mega-Sena,
+  Quina e Lotofácil não valem como apuração. As outras loterias seguem no
   calendário (a tela do sorteio no celular transmite qualquer uma), mas
   `problemaParaIntegrar()` recusa a rifa nelas (409, com o motivo na tela).
   O número sai do resultado da Federal ("p1-p2-p3-p4-p5", `draws.loteria`

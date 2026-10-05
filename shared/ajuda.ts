@@ -61,8 +61,9 @@ export function perguntasDaAjuda(p: { taxaReembolsoPct: number; aceitaReembolso:
       tema: "sorteio",
       pergunta: "Como o número é sorteado?",
       resposta: [
-        "O número sai dos 5 prêmios da Loteria Federal da data do sorteio, combinados com uma semente secreta. O resumo dessa semente é publicado antes da primeira venda — assim ninguém pode trocá-la depois de ver a Federal.",
-        "Depois do sorteio a semente é publicada, e a página da rifa tem o botão \"Conferir o sorteio\", que refaz a conta no seu próprio aparelho.",
+        "Depende do método da autorização da rifa, que está no regulamento. Pela Loteria Federal: as unidades do 1º ao 5º prêmio da extração, lidas de cima para baixo, formam o número (na rifa menor, valem os últimos algarismos). Qualquer pessoa confere com papel e caneta.",
+        "Pelo globo da plataforma: 6 globos de 0 a 9 são girados ao vivo, em sequência, e as bolas formam o número. A extração é registrada em ata notarial (local, hora, auditor ou testemunhas e cada bola), que fica na página do sorteio da rifa.",
+        "Nas rifas de antes desses métodos, o número saía dos 5 prêmios da Federal com uma semente secreta, cujo resumo foi publicado antes da primeira venda; a página delas refaz a conta no seu aparelho.",
       ],
     },
     {

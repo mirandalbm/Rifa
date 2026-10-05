@@ -1,5 +1,5 @@
-import { lerFederal, numeracaoZero } from "@shared/apuracao";
-import { seloDaRifa, sorteioOficialDaTela } from "../services/sorteiosOficiais";
+import { lerResultado, numeracaoZero } from "@shared/apuracao";
+import { arquivoDaAta, ataDaSessao, seloDaRifa, sorteioOficialDaTela } from "../services/sorteiosOficiais";
 import { bannerPublico, imagemPublica } from "../services/bannerDivulgacao";
 import { enviarComFaixa, enviarFaixaDoBanco } from "../services/faixa";
 import { loteriaDoSorteio } from "@shared/sorteiosOficiais";
@@ -1328,6 +1328,8 @@ publicRouter.get("/campaigns/:slug", async (req, res, next) => {
         maxPerOrder: found.campaign.maxPerOrder,
         reservationTtlMin: found.campaign.reservationTtlMin,
         drawAt: found.campaign.drawAt,
+        // "Quando completar": a data máxima; antes dela, a tela diz que foi antecipado.
+        drawAtMaximo: found.campaign.drawAtMaximo,
         // Como a rifa chega ao sorteio: sem data, a tela diz "quando completar".
         modoSorteio: found.campaign.modoSorteio,
         // Rifa com método de apuração: leitura direta da Federal, numeração
@@ -1423,6 +1425,7 @@ publicRouter.get("/campaigns/:slug/regulamento", async (req, res, next) => {
           maxPerOrder: c.maxPerOrder,
           reservationTtlMin: c.reservationTtlMin,
           drawAt: c.drawAt,
+          drawAtMaximo: c.drawAtMaximo,
           authorizationCode: c.authorizationCode,
           drawSeedHash: c.drawSeedHash,
           metodoApuracao: c.metodoApuracao,
@@ -1449,10 +1452,10 @@ publicRouter.get("/campaigns/:slug/regulamento", async (req, res, next) => {
   }
 });
 
-/** A leitura direta dos prêmios gravados; prêmio estragado não derruba a página. */
-function leituraSegura(premios: string[] | null, total: number) {
+/** A leitura direta do resultado gravado (Federal ou globo); resultado estragado não derruba a página. */
+function leituraSegura(metodo: string | null, premios: string[] | null, total: number) {
   try {
-    return premios ? lerFederal(premios, total) : null;
+    return premios ? lerResultado(metodo, premios, total) : null;
   } catch {
     return null;
   }
@@ -1477,10 +1480,16 @@ publicRouter.get("/campaigns/:slug/sorteio", async (req, res, next) => {
     // Rifa com método de apuração: a leitura direta da Federal (passo a
     // passo, sem hash nem semente). A semente só conta na rifa de antes.
     const zero = numeracaoZero(c.metodoApuracao);
-    const direta = c.metodoApuracao === "federal_direta";
-    const leitura = feito && direta && (!d!.loteria || d!.loteria === "federal") ? leituraSegura(d!.federalPrizes, c.totalQuotas) : null;
+    // A leitura só vale com o resultado da loteria do método: a Federal (nula, a de sempre) ou o globo.
+    const loteriaCerta =
+      c.metodoApuracao === "globo" ? d?.loteria === "globo" : c.metodoApuracao === "federal_direta" && (!d?.loteria || d.loteria === "federal");
+    const leitura = feito && loteriaCerta ? leituraSegura(c.metodoApuracao, d!.federalPrizes, c.totalQuotas) : null;
+    // O globo: a ata da sessão (local, tabelionato, auditor ou testemunhas, a hora de cada bola) e o arquivo do cartório.
+    const sessao = feito && c.metodoApuracao === "globo" && c.sorteioOficialId ? await ataDaSessao(c.sorteioOficialId) : null;
     res.json({
       drawAt: c.drawAt,
+      // "Quando completar": a data máxima registrada (a tela diz se foi antecipado).
+      drawAtMaximo: c.drawAtMaximo,
       metodoApuracao: c.metodoApuracao,
       numeracaoZero: zero,
       seedHash: c.metodoApuracao ? null : c.drawSeedHash,
@@ -1506,6 +1515,8 @@ publicRouter.get("/campaigns/:slug/sorteio", async (req, res, next) => {
             // Na leitura direta ela não entra na conta e não sai.
             seed: c.metodoApuracao ? null : d!.seed,
             leitura: leitura?.passos ?? null,
+            ata: sessao?.ata ?? null,
+            ataUrl: sessao?.temArquivo ? `/api/public/sorteio-oficial/${c.sorteioOficialId}/ata` : null,
             executedAt: d!.executedAt,
             evidenceUrl: d!.evidenceUrl,
             fotoGanhador: urlDaFotoDoGanhador(c.slug, foto?.updatedAt),
@@ -2402,6 +2413,24 @@ publicRouter.get("/campaigns/:slug/premios", async (req, res, next) => {
  * últimos ganhadores e quem está jogando agora — só dado real, nome curto,
  * nunca telefone (`services/aoVivo.ts`).
  */
+/**
+ * O arquivo da ata notarial da sessão do globo: público só com o resultado
+ * lançado (a ata é o relato da extração e a prova de quem conferir).
+ */
+publicRouter.get("/sorteio-oficial/:id/ata", async (req, res, next) => {
+  try {
+    if (!/^[0-9a-f-]{36}$/i.test(req.params.id)) return res.status(404).json({ message: "Ata não encontrada." });
+    const a = await arquivoDaAta(req.params.id);
+    if (!a) return res.status(404).json({ message: "Ata não encontrada." });
+    res.setHeader("Cache-Control", "public, max-age=300");
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("Content-Disposition", `inline; filename="${a.nome}"`);
+    res.type(a.mime).send(a.bytes);
+  } catch (err) {
+    next(err);
+  }
+});
+
 /**
  * O sorteio oficial da tela do Início no celular: o próximo da plataforma (ou
  * o último com resultado) e a fileira das rifas integradas. Público.

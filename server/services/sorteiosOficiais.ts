@@ -13,9 +13,14 @@ import { numeracaoZero } from "@shared/apuracao";
 import { formatQuota } from "@shared/format";
 import { and, asc, desc, eq, gt, inArray, isNotNull, isNull, ne, sql } from "drizzle-orm";
 import { db } from "../db";
-import { campaigns, draws, organizacaoFotos, organizations, sorteiosOficiais, type Campaign } from "@shared/schema";
+import { campaigns, draws, organizacaoFotos, organizations, sorteioAtas, sorteiosOficiais, type Campaign } from "@shared/schema";
+import sharp from "sharp";
+import { tipoDoCertificado } from "@shared/campanhaLegal";
 import {
+  ATA_MAX_BYTES,
   LOTERIAS,
+  ataGuardada,
+  validarAtaDoGlobo,
   RIFAS_NA_FILEIRA,
   nomeDoSorteioOficial,
   problemaParaIntegrar,
@@ -54,6 +59,8 @@ function paraTela(s: Linha) {
     resultadoEm: s.resultadoEm,
     situacao: situacaoDoSorteio(s),
     comentarios: s.comentariosCount,
+    // A ata da sessão do globo (nula nas loterias da Caixa).
+    ata: ataGuardada(s.ata),
   };
 }
 
@@ -97,12 +104,14 @@ export async function calendario(org: string | null) {
         .where(and(inArray(campaigns.sorteioOficialId, ids), org ? eq(campaigns.organizationId, org) : undefined))
     : [];
   const publicadas = org ? new Map<string, number>() : await publicadasPorSorteio(ids);
+  const comAta = await sessoesComAta(ids.filter((id) => linhas.find((l) => l.id === id)?.loteria === "globo"));
   const agora = new Date();
   return linhas
     .map((s) => {
       const rifas = minhas.filter((m) => m.sorteioOficialId === s.id);
       return {
         ...paraTela(s),
+        temArquivoDaAta: comAta.has(s.id),
         // Para a organização: pode integrar agora? (o motivo, se não pode)
         problemaParaIntegrar: problemaParaIntegrar(s, agora),
         rifas: rifas.map((r) => ({
@@ -264,7 +273,7 @@ export async function cancelarSorteioOficial(id: string) {
  * depois da hora do sorteio, uma vez só (`UPDATE` condicional): dois cliques
  * dão um resultado e um 409.
  */
-export async function lancarResultado(id: string, numeros: unknown) {
+export async function lancarResultado(id: string, numeros: unknown, ataBruta?: unknown) {
   return db.transaction(async (tx) => {
     const [s] = await tx.select().from(sorteiosOficiais).where(eq(sorteiosOficiais.id, id)).for("update");
     if (!s) throw new SorteioOficialError("Sorteio oficial não encontrado.", 404);
@@ -272,9 +281,17 @@ export async function lancarResultado(id: string, numeros: unknown) {
     if (problema) throw new SorteioOficialError(problema, 409);
     const v = validarResultado(s.loteria as Loteria, numeros);
     if ("problema" in v) throw new SorteioOficialError(v.problema, 400);
+    // O globo leva a ata junto (8.10): local, tabelionato, auditor ou
+    // testemunhas e o relato de cada bola, conferido contra as bolas lançadas.
+    let ata: unknown = null;
+    if (s.loteria === "globo") {
+      const a = validarAtaDoGlobo(ataBruta, v.numeros);
+      if ("problema" in a) throw new SorteioOficialError(a.problema, 400);
+      ata = a.ata;
+    }
     const [feito] = await tx
       .update(sorteiosOficiais)
-      .set({ resultado: v.numeros, resultadoEm: new Date() })
+      .set({ resultado: v.numeros, resultadoEm: new Date(), ata })
       .where(and(eq(sorteiosOficiais.id, id), isNull(sorteiosOficiais.resultadoEm), isNull(sorteiosOficiais.canceladoEm)))
       .returning();
     if (!feito) throw new SorteioOficialError("O resultado deste sorteio já foi lançado.", 409);
@@ -308,11 +325,11 @@ export async function integrarAoSorteioOficial(c: Campaign, sorteioId: string | 
     }
     const [s] = await tx.select().from(sorteiosOficiais).where(eq(sorteiosOficiais.id, sorteioId)).for("share");
     if (!s) throw new SorteioOficialError("Sorteio oficial não encontrado.", 404);
-    const problema = problemaParaIntegrar(s, new Date());
+    const problema = problemaParaIntegrar(s, new Date(), c.metodoApuracao);
     if (problema) throw new SorteioOficialError(problema, 409);
     if (c.modoSorteio === "quando_completar") {
       throw new SorteioOficialError(
-        "Esta rifa é sorteada quando completar, sem data. Para entrar num sorteio oficial, mude o modo do sorteio em Autorização e sorteio.",
+        "Esta rifa é antecipada quando completar, para a próxima extração da Federal. Para entrar num sorteio oficial, mude o modo do sorteio em Autorização e sorteio.",
         409,
       );
     }
@@ -492,4 +509,75 @@ async function proximasRifas() {
     .orderBy(asc(campaigns.drawAt))
     .limit(RIFAS_NA_FILEIRA);
   return rifas.map((r) => ({ slug: r.slug, premio: r.premio, organizacao: avatarDaOrganizacao(r) }));
+}
+
+/* ------------------------------------------------------------------ *
+ * O arquivo da ata notarial do globo (PDF ou foto do cartório)
+ * ------------------------------------------------------------------ */
+
+/**
+ * Guarda o arquivo da ata da sessão do globo. Só depois do resultado (a ata
+ * relata a extração) e só do globo. Conferido pelo conteúdo como o
+ * certificado da rifa: PDF vai como veio; foto é reprocessada (sem
+ * metadados). Trocar substitui — o tabelião pode mandar a via definitiva.
+ */
+export async function salvarArquivoDaAta(id: string, dataUrl: unknown, nomeBruto: unknown) {
+  const m = /^data:([\w/+.-]+);base64,(.+)$/s.exec(typeof dataUrl === "string" ? dataUrl : "");
+  if (!m) throw new SorteioOficialError("Envie a ata em PDF, JPG ou PNG.", 400);
+  const bruto = Buffer.from(m[2], "base64");
+  if (bruto.length > ATA_MAX_BYTES) throw new SorteioOficialError("A ata passa de 8 MB. Envie um arquivo menor.", 413);
+  const tipo = tipoDoCertificado(bruto);
+  let arquivo: { mime: string; bytes: Buffer };
+  if (tipo === "pdf") arquivo = { mime: "application/pdf", bytes: bruto };
+  else if (tipo === "imagem") {
+    try {
+      const bytes = await sharp(bruto, { limitInputPixels: 40_000_000 }).rotate().resize({ width: 2400, withoutEnlargement: true })
+        .jpeg({ quality: 85 }).toBuffer();
+      arquivo = { mime: "image/jpeg", bytes };
+    } catch {
+      throw new SorteioOficialError("Não consegui ler essa imagem. Envie a ata em PDF, JPG ou PNG.", 400);
+    }
+  } else throw new SorteioOficialError("O arquivo não é PDF nem imagem. Envie a ata em PDF, JPG ou PNG.", 400);
+  const nome = (typeof nomeBruto === "string" && nomeBruto ? nomeBruto : "ata").replace(/[^\w.\- ]+/g, "_").slice(0, 120);
+  return db.transaction(async (tx) => {
+    const [s] = await tx.select().from(sorteiosOficiais).where(eq(sorteiosOficiais.id, id)).for("share");
+    if (!s) throw new SorteioOficialError("Sorteio oficial não encontrado.", 404);
+    if (s.loteria !== "globo") throw new SorteioOficialError("Só a sessão do globo tem ata notarial.", 409);
+    if (!s.resultadoEm) throw new SorteioOficialError("Lance o resultado da sessão antes de anexar a ata.", 409);
+    await tx
+      .insert(sorteioAtas)
+      .values({ sorteioOficialId: id, mime: arquivo.mime, nome, bytes: arquivo.bytes, tamanho: arquivo.bytes.length })
+      .onConflictDoUpdate({
+        target: sorteioAtas.sorteioOficialId,
+        set: { mime: arquivo.mime, nome, bytes: arquivo.bytes, tamanho: arquivo.bytes.length, createdAt: new Date() },
+      });
+    return { nome, tamanho: arquivo.bytes.length };
+  });
+}
+
+/** O arquivo da ata, público só com o resultado lançado (a ata é o relato da extração). */
+export async function arquivoDaAta(id: string) {
+  const [a] = await db
+    .select({ mime: sorteioAtas.mime, nome: sorteioAtas.nome, bytes: sorteioAtas.bytes, createdAt: sorteioAtas.createdAt })
+    .from(sorteioAtas)
+    .innerJoin(sorteiosOficiais, eq(sorteiosOficiais.id, sorteioAtas.sorteioOficialId))
+    .where(and(eq(sorteioAtas.sorteioOficialId, id), isNotNull(sorteiosOficiais.resultadoEm), isNull(sorteiosOficiais.canceladoEm)));
+  return a ?? null;
+}
+
+/** Quais sessões já têm o arquivo da ata (o calendário mostra). */
+export async function sessoesComAta(ids: string[]) {
+  if (!ids.length) return new Set<string>();
+  const linhas = await db.select({ id: sorteioAtas.sorteioOficialId }).from(sorteioAtas).where(inArray(sorteioAtas.sorteioOficialId, ids));
+  return new Set(linhas.map((l) => l.id));
+}
+
+/** A ata da sessão do globo para a conferência pública: os dados e se o arquivo do cartório já chegou. */
+export async function ataDaSessao(id: string) {
+  const [s] = await db
+    .select({ ata: sorteiosOficiais.ata, resultadoEm: sorteiosOficiais.resultadoEm })
+    .from(sorteiosOficiais)
+    .where(eq(sorteiosOficiais.id, id));
+  if (!s?.resultadoEm) return null;
+  return { ata: ataGuardada(s.ata), temArquivo: (await sessoesComAta([id])).has(id) };
 }

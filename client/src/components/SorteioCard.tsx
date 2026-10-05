@@ -3,7 +3,8 @@ import { useQuery } from "@tanstack/react-query";
 import { CheckCircle2, PlayCircle, XCircle } from "lucide-react";
 import { Button, Card } from "@/components/bits";
 import { REGRA_DA_APROXIMACAO, conferirSorteio, type Conferencia } from "@shared/sorteio";
-import { lerFederal } from "@shared/apuracao";
+import { lerResultado } from "@shared/apuracao";
+import type { AtaDoGlobo } from "@shared/sorteiosOficiais";
 
 interface Sorteio {
   drawAt: string | null;
@@ -31,6 +32,9 @@ interface Sorteio {
   seed?: string | null;
   /** A leitura direta passo a passo, feita pelo servidor (a tela refaz a conta e compara). */
   leitura?: string[] | null;
+  /** O globo: a ata da sessão e o endereço do arquivo do cartório (se já chegou). */
+  ata?: AtaDoGlobo | null;
+  ataUrl?: string | null;
   executedAt?: string;
   evidenceUrl?: string | null;
   fotoGanhador?: string | null;
@@ -70,13 +74,14 @@ export function SorteioCard({ slug }: { slug: string }) {
     );
   }
 
-  // Leitura direta da Federal: a conta é de papel e caneta, e a tela a refaz
-  // aqui mesmo com os 5 prêmios (`lerFederal`), sem confiar no servidor.
-  const direta = data.metodoApuracao === "federal_direta";
+  // Leitura direta (Federal ou globo): a conta é de papel e caneta, e a tela
+  // a refaz aqui mesmo com o resultado (`lerResultado`), sem confiar no servidor.
+  const globo = data.metodoApuracao === "globo";
+  const direta = data.metodoApuracao === "federal_direta" || globo;
   let refeita: { passos: string[]; numero: string } | null = null;
   if (direta && data.federalPrizes) {
     try {
-      const l = lerFederal(data.federalPrizes, data.totalQuotas);
+      const l = lerResultado(data.metodoApuracao, data.federalPrizes, data.totalQuotas);
       refeita = { passos: l.passos, numero: l.numeroTexto };
     } catch {
       refeita = null;
@@ -120,7 +125,7 @@ export function SorteioCard({ slug }: { slug: string }) {
           <p className="tnum font-display text-4xl font-extrabold text-yellow-deep">{data.numero}</p>
           <p className="tnum text-xs text-muted">
             {data.loteriaNome ?? "Loteria Federal"}
-            {data.federalContest ? `, concurso ${data.federalContest}` : ""}
+            {data.federalContest ? `, ${globo ? "sessão" : "concurso"} ${data.federalContest}` : ""}
             {data.executedAt ? ` · ${new Date(data.executedAt).toLocaleDateString("pt-BR")}` : ""}
           </p>
           {data.aproximacao && data.contemplado ? (
@@ -176,9 +181,11 @@ export function SorteioCard({ slug }: { slug: string }) {
               <p className="mt-2 text-xs text-muted">Não foi possível refazer a leitura com os prêmios publicados.</p>
             )}
             <p className="mt-2 text-[11px] text-muted">
-              As unidades do 1º ao 5º prêmio, de cima para baixo, formam o Número da Sorte — a regra completa está no
-              regulamento, item 5.
+              {globo
+                ? "As bolas dos 6 globos, na ordem, formam o número; a rifa menor fica com os últimos algarismos — a regra completa está no regulamento, item 5."
+                : "As unidades do 1º ao 5º prêmio, de cima para baixo, formam o Número da Sorte — a regra completa está no regulamento, item 5."}
             </p>
+            {globo ? <AtaNaConferencia ata={data.ata ?? null} url={data.ataUrl ?? null} /> : null}
           </details>
         ) : (
           <>
@@ -221,6 +228,47 @@ export function SorteioCard({ slug }: { slug: string }) {
         {erro ? <p className="text-xs text-red">{erro}</p> : null}
       </div>
     </Card>
+  );
+}
+
+/** A ata notarial da sessão do globo, como o tabelião registrou (8.10). */
+function AtaNaConferencia({ ata, url }: { ata: AtaDoGlobo | null; url: string | null }) {
+  return (
+    <div className="mt-2 border-t border-line pt-2 text-xs">
+      <p className="font-semibold">Ata notarial da extração</p>
+      {ata ? (
+        <dl className="mt-1 grid grid-cols-1 gap-x-3 gap-y-0.5 sm:grid-cols-[auto_1fr]">
+          <dt className="text-muted">Local</dt>
+          <dd className="min-w-0">{ata.local}</dd>
+          <dt className="text-muted">Tabelionato</dt>
+          <dd className="min-w-0">
+            {ata.tabelionato}
+            {ata.registro ? ` · ${ata.registro}` : ""}
+          </dd>
+          {ata.auditor ? (
+            <>
+              <dt className="text-muted">Auditor independente</dt>
+              <dd className="min-w-0">{ata.auditor.nome}</dd>
+            </>
+          ) : null}
+          {ata.testemunhas.length ? (
+            <>
+              <dt className="text-muted">Testemunhas</dt>
+              <dd className="min-w-0">{ata.testemunhas.join(", ")}</dd>
+            </>
+          ) : null}
+          <dt className="text-muted">Cada bola</dt>
+          <dd className="tnum min-w-0">{ata.bolas.map((b) => `${b.globo}º globo: ${b.algarismo} às ${b.hora}`).join(" · ")}</dd>
+        </dl>
+      ) : null}
+      {url ? (
+        <a href={url} target="_blank" rel="noopener noreferrer" className="mt-1 inline-flex min-h-6 items-center font-semibold text-marca hover:underline">
+          Abrir a ata do cartório (abre em outra aba)
+        </a>
+      ) : (
+        <p className="mt-1 text-muted">O arquivo da ata do cartório entra aqui assim que o tabelião entregar.</p>
+      )}
+    </div>
   );
 }
 

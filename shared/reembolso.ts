@@ -146,7 +146,17 @@ export function avisoDePrazoCurto(
   }
   if (!sorteioEm) return null;
   const prazo = prazoDoArrependimento(agora, sorteioEm);
-  if (prazo.getTime() >= agora.getTime() + DIAS_ARREPENDIMENTO * 86_400_000) return null;
+  if (prazo.getTime() >= agora.getTime() + DIAS_ARREPENDIMENTO * 86_400_000) {
+    // A data é a máxima (8.7): encher antes antecipa, e o prazo pode encurtar.
+    if (modoSorteio === "quando_completar") {
+      return (
+        `Atenção: ${dataEHoraSP(sorteioEm)} é a data máxima do sorteio. Se a rifa completar antes, o sorteio é antecipado ` +
+        "para a próxima extração da Loteria Federal (de 1 a 4 dias depois) e os pedidos de reembolso fecham 2 horas antes dele: " +
+        `o prazo para desistir pode ficar menor que ${DIAS_ARREPENDIMENTO} dias.`
+      );
+    }
+    return null;
+  }
   if (prazo.getTime() <= agora.getTime()) {
     return "Os pedidos de reembolso desta rifa já fecharam (2 horas antes do sorteio): esta compra não poderá ser desfeita.";
   }

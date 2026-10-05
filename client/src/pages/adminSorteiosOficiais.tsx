@@ -16,8 +16,11 @@ import {
   type MetodoDeApuracao,
 } from "@shared/apuracao";
 import {
+  ATA_MAX_BYTES,
   LOTERIAS,
   ROTULO_DA_SITUACAO,
+  TESTEMUNHAS_MIN,
+  type AtaDoGlobo,
   type Loteria,
   type SituacaoDoSorteioOficial,
 } from "@shared/sorteiosOficiais";
@@ -48,10 +51,22 @@ interface SorteioNoCalendario {
   publicadas?: number;
   /** Comentários no ar na tela do sorteio (a plataforma modera). */
   comentarios: number;
+  /** A ata da sessão do globo (nula nas loterias da Caixa). */
+  ata?: AtaDoGlobo | null;
+  /** O arquivo da ata (PDF ou foto do cartório) já foi anexado. */
+  temArquivoDaAta?: boolean;
 }
 
 interface Campanha {
-  campaign: { id: string; prizeTitle: string; title: string; status: string; sorteioOficialId: string | null; modoSorteio: string };
+  campaign: {
+    id: string;
+    prizeTitle: string;
+    title: string;
+    status: string;
+    sorteioOficialId: string | null;
+    modoSorteio: string;
+    metodoApuracao?: string | null;
+  };
 }
 
 const FUSO = "America/Sao_Paulo";
@@ -308,7 +323,7 @@ function FormularioDoSorteio({
           </Campo>
           {/* No computador o cadastro fica na coluna estreita (380 px): concurso e data um embaixo do outro. */}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-1">
-            <Campo rotulo="Concurso">
+            <Campo rotulo={loteria === "globo" ? "Nº da sessão do globo" : "Concurso"}>
               <input inputMode="numeric" value={concurso} onChange={(e) => setConcurso(e.target.value.replace(/\D/g, "").slice(0, 5))} required />
             </Campo>
             <Campo rotulo="Data e hora do sorteio">
@@ -398,12 +413,13 @@ function CartaoDoSorteio({ s, plataforma }: { s: SorteioNoCalendario; plataforma
       <div className="space-y-3 p-4 text-sm">
         <p className="flex flex-wrap items-center gap-x-1.5 text-ink-2">
           <span aria-hidden className="h-3 w-3 shrink-0 rounded-sm" style={{ backgroundColor: LOTERIAS[s.loteria]?.cor }} />
-          {s.loteriaNome} · concurso <span className="tnum">{s.concurso}</span> ·{" "}
+          {s.loteriaNome} · {s.loteria === "globo" ? "sessão" : "concurso"} <span className="tnum">{s.concurso}</span> ·{" "}
           <span className="tnum">{dataHora(s.sorteioEm)}</span>
         </p>
+        {s.loteria === "globo" && s.resultado ? <AtaDaSessao s={s} plataforma={plataforma} aoMudar={recarregar} /> : null}
         {s.resultado ? (
           <p>
-            <span className="label-xs">Resultado oficial</span>
+            <span className="label-xs">{s.loteria === "globo" ? "Bolas extraídas (do 1º ao 6º globo)" : "Resultado oficial"}</span>
             <span className="tnum mt-1 flex flex-wrap gap-1.5">
               {s.resultado.map((n, i) => (
                 <span key={i} className="rounded-md bg-mist px-2 py-0.5 font-bold">
@@ -452,7 +468,7 @@ function CartaoDoSorteio({ s, plataforma }: { s: SorteioNoCalendario; plataforma
             </Button>
             {passou ? (
               <Button onClick={() => setLancando((v) => !v)} aria-expanded={lancando}>
-                Lançar resultado oficial
+                {s.loteria === "globo" ? "Lançar resultado e ata" : "Lançar resultado oficial"}
               </Button>
             ) : null}
             <Button
@@ -551,7 +567,11 @@ function Integrar({ s, aoMudar, aoErro }: { s: SorteioNoCalendario; aoMudar: (te
   const { data: campanhas = [] } = useQuery<Campanha[]>({ queryKey: ["/api/admin/campaigns"] });
   const [rifa, setRifa] = useState("");
   // Só rascunho entra (a data trava ao publicar); a que já está neste sorteio não repete.
-  const rascunhos = campanhas.filter((c) => c.campaign.status === "draft" && c.campaign.sorteioOficialId !== s.id);
+  // Só os rascunhos do método desta sessão (8.11): a rifa da Federal no sorteio da Federal, a do globo no globo.
+  const doMetodo = (m: string | null | undefined) => (m === "globo") === (s.loteria === "globo");
+  const rascunhos = campanhas.filter(
+    (c) => c.campaign.status === "draft" && c.campaign.sorteioOficialId !== s.id && doMetodo(c.campaign.metodoApuracao),
+  );
   const integrar = useMutation({
     mutationFn: () => apiRequest("PUT", `/api/admin/campaigns/${rifa}/sorteio-oficial`, { sorteioOficialId: s.id }),
     onSuccess: () => {
@@ -562,7 +582,13 @@ function Integrar({ s, aoMudar, aoErro }: { s: SorteioNoCalendario; aoMudar: (te
   });
   if (s.problemaParaIntegrar) return <p className="text-xs text-muted">{s.problemaParaIntegrar}</p>;
   if (!rascunhos.length) {
-    return <p className="text-xs text-muted">Para integrar, crie a rifa: só rifa em rascunho escolhe o sorteio.</p>;
+    return (
+      <p className="text-xs text-muted">
+        {s.loteria === "globo"
+          ? "Só rifa em rascunho apurada pelo globo (o método da autorização, em Autorização e sorteio) entra nesta sessão."
+          : "Para integrar, crie a rifa: só rifa em rascunho, apurada pela Loteria Federal, escolhe este sorteio."}
+      </p>
+    );
   }
   return (
     <form
@@ -598,52 +624,213 @@ function LancarResultado({
   aoLancar: (rifas: { sorteadas: number; esperando: number }) => void;
 }) {
   const L = LOTERIAS[s.loteria];
+  const globo = L.tipo === "globo";
   const [numeros, setNumeros] = useState<string[]>(() => Array.from({ length: L.quantos }, () => ""));
+  const [horas, setHoras] = useState<string[]>(() => Array.from({ length: L.quantos }, () => ""));
+  const [ata, setAta] = useState({ local: "", tabelionato: "", registro: "", auditor: "", auditorRegistro: "", testemunhas: "", observacoes: "" });
   const [erro, setErro] = useState<string | null>(null);
   const lancar = useMutation({
     mutationFn: async () =>
-      (await (await apiRequest("POST", `/api/admin/sorteios-oficiais/${s.id}/resultado`, { numeros })).json()) as {
+      (await (
+        await apiRequest("POST", `/api/admin/sorteios-oficiais/${s.id}/resultado`, {
+          numeros,
+          ...(globo
+            ? {
+                ata: {
+                  local: ata.local,
+                  tabelionato: ata.tabelionato,
+                  registro: ata.registro,
+                  auditor: ata.auditor.trim() ? { nome: ata.auditor, registro: ata.auditorRegistro } : null,
+                  testemunhas: ata.testemunhas.split("\n").map((t) => t.trim()).filter(Boolean),
+                  // A hora de cada bola, com segundos (o campo do navegador às vezes omite os :00).
+                  bolas: horas.map((h) => ({ hora: h.length === 5 ? `${h}:00` : h })),
+                  observacoes: ata.observacoes,
+                },
+              }
+            : {}),
+        })
+      ).json()) as {
         rifas: { sorteadas: number; esperando: number };
       },
     onSuccess: (r) => aoLancar(r.rifas),
     onError: (e: Error) => setErro(e.message),
   });
-  const largura = L.tipo === "bilhete" ? 5 : 2;
+  const largura = L.tipo === "bilhete" ? 5 : globo ? 1 : 2;
+  const campoDaAta = (chave: keyof typeof ata) => ({
+    value: ata[chave],
+    onChange: (e: { target: { value: string } }) => setAta((a) => ({ ...a, [chave]: e.target.value })),
+  });
   return (
     <form
       className="space-y-2 rounded-md border border-line p-3"
       onSubmit={(e) => {
         e.preventDefault();
-        if (window.confirm("Conferiu os números com o resultado oficial da Caixa? O resultado não muda depois de lançado, e as rifas publicadas neste sorteio são sorteadas na hora.")) lancar.mutate();
+        const pergunta = globo
+          ? "Conferiu as bolas e a ata com o que o tabelião registrou? O resultado não muda depois de lançado, e as rifas publicadas nesta sessão são sorteadas na hora."
+          : "Conferiu os números com o resultado oficial da Caixa? O resultado não muda depois de lançado, e as rifas publicadas neste sorteio são sorteadas na hora.";
+        if (window.confirm(pergunta)) lancar.mutate();
       }}
     >
       <fieldset>
         <legend className="label-xs">{L.rotulo}</legend>
         <div className="mt-1 flex flex-wrap gap-1.5">
           {numeros.map((n, i) => (
-            <input
-              key={i}
-              aria-label={`${L.tipo === "bilhete" ? "Prêmio" : "Dezena"} ${i + 1}`}
-              inputMode="numeric"
-              value={n}
-              onChange={(e) => {
-                const v = e.target.value.replace(/\D/g, "").slice(0, largura);
-                setNumeros((a) => a.map((x, j) => (j === i ? v : x)));
-              }}
-              className={`campo tnum text-center ${L.tipo === "bilhete" ? "w-24" : "w-14"}`}
-            />
+            <div key={i} className={globo ? "flex flex-col items-center gap-1" : undefined}>
+              <input
+                aria-label={`${L.tipo === "bilhete" ? "Prêmio" : globo ? "Bola do globo" : "Dezena"} ${i + 1}`}
+                inputMode="numeric"
+                value={n}
+                onChange={(e) => {
+                  const v = e.target.value.replace(/\D/g, "").slice(0, largura);
+                  setNumeros((a) => a.map((x, j) => (j === i ? v : x)));
+                }}
+                className={`campo tnum text-center ${L.tipo === "bilhete" ? "w-24" : globo ? "w-[7.5rem]" : "w-14"}`}
+              />
+              {globo ? (
+                <input
+                  type="time"
+                  step={1}
+                  aria-label={`Hora em que saiu a bola do globo ${i + 1}`}
+                  value={horas[i]}
+                  onChange={(e) => setHoras((a) => a.map((x, j) => (j === i ? e.target.value : x)))}
+                  className="campo tnum w-[7.5rem] text-center"
+                  required
+                />
+              ) : null}
+            </div>
           ))}
         </div>
+        {globo ? <p className="mt-1 text-xs text-muted">Embaixo de cada bola, a hora em que ela saiu (HH:MM:SS), como está no relato da ata.</p> : null}
       </fieldset>
+      {globo ? (
+        <fieldset className="space-y-2">
+          <legend className="label-xs">Ata notarial da sessão</legend>
+          <Campo rotulo="Local da extração (endereço completo)">
+            <input {...campoDaAta("local")} maxLength={200} required />
+          </Campo>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <Campo rotulo="Tabelionato que lavra a ata">
+              <input {...campoDaAta("tabelionato")} maxLength={120} required />
+            </Campo>
+            <Campo rotulo="Livro, folha ou protocolo (opcional)">
+              <input {...campoDaAta("registro")} maxLength={60} />
+            </Campo>
+            <Campo rotulo="Auditor independente (opcional)">
+              <input {...campoDaAta("auditor")} maxLength={80} />
+            </Campo>
+            <Campo rotulo="Registro do auditor (opcional)">
+              <input {...campoDaAta("auditorRegistro")} maxLength={60} />
+            </Campo>
+          </div>
+          <Campo
+            rotulo="Testemunhas sem vínculo com as promotoras (uma por linha)"
+            dica={`Sem auditor, pelo menos ${TESTEMUNHAS_MIN} testemunhas. Só o nome — sem CPF nem telefone: a ata aparece na conferência pública.`}
+          >
+            <textarea {...campoDaAta("testemunhas")} rows={3} />
+          </Campo>
+          <Campo rotulo="Observações da ata (opcional)">
+            <textarea {...campoDaAta("observacoes")} rows={2} maxLength={1000} />
+          </Campo>
+        </fieldset>
+      ) : null}
       {erro ? (
         <p role="alert" className="text-xs text-red">
           {erro}
         </p>
       ) : null}
       <Button type="submit" disabled={lancar.isPending}>
-        {lancar.isPending ? "Lançando…" : "Lançar resultado"}
+        {lancar.isPending ? "Lançando…" : globo ? "Lançar resultado e ata" : "Lançar resultado"}
       </Button>
     </form>
+  );
+}
+
+/**
+ * A ata da sessão do globo: o que foi registrado e o arquivo do cartório
+ * (PDF ou foto), que a plataforma anexa quando o tabelião entregar. A
+ * organização vê o mesmo; o público, na conferência da rifa.
+ */
+function AtaDaSessao({ s, plataforma, aoMudar }: { s: SorteioNoCalendario; plataforma: boolean; aoMudar: () => void }) {
+  const [msg, setMsg] = useState<{ ok: boolean; texto: string } | null>(null);
+  const enviar = useMutation({
+    mutationFn: async (f: File) => {
+      if (f.size > ATA_MAX_BYTES) throw new Error("A ata passa de 8 MB. Envie um arquivo menor.");
+      const arquivo = await new Promise<string>((resolve, reject) => {
+        const leitor = new FileReader();
+        leitor.onload = () => resolve(String(leitor.result));
+        leitor.onerror = () => reject(new Error("Não consegui ler o arquivo."));
+        leitor.readAsDataURL(f);
+      });
+      return apiRequest("PUT", `/api/admin/sorteios-oficiais/${s.id}/ata`, { arquivo, nome: f.name });
+    },
+    onSuccess: () => {
+      setMsg({ ok: true, texto: "Ata anexada: já aparece na conferência pública das rifas desta sessão." });
+      aoMudar();
+    },
+    onError: (e: Error) => setMsg({ ok: false, texto: e.message }),
+  });
+  const a = s.ata;
+  return (
+    <div className="space-y-2 rounded-md border border-line p-3 text-xs">
+      <p className="label-xs">Ata notarial</p>
+      {a ? (
+        <dl className="grid grid-cols-1 gap-x-3 gap-y-1 sm:grid-cols-[auto_1fr]">
+          <dt className="text-muted">Local</dt>
+          <dd className="min-w-0">{a.local}</dd>
+          <dt className="text-muted">Tabelionato</dt>
+          <dd className="min-w-0">
+            {a.tabelionato}
+            {a.registro ? ` · ${a.registro}` : ""}
+          </dd>
+          {a.auditor ? (
+            <>
+              <dt className="text-muted">Auditor</dt>
+              <dd className="min-w-0">
+                {a.auditor.nome}
+                {a.auditor.registro ? ` (${a.auditor.registro})` : ""}
+              </dd>
+            </>
+          ) : null}
+          {a.testemunhas.length ? (
+            <>
+              <dt className="text-muted">Testemunhas</dt>
+              <dd className="min-w-0">{a.testemunhas.join(", ")}</dd>
+            </>
+          ) : null}
+          <dt className="text-muted">Bolas</dt>
+          <dd className="tnum min-w-0">{a.bolas.map((b) => `${b.globo}º: ${b.algarismo} (${b.hora})`).join(" · ")}</dd>
+        </dl>
+      ) : null}
+      <p>
+        {s.temArquivoDaAta ? (
+          <a className="font-semibold text-marca hover:underline" href={`/api/public/sorteio-oficial/${s.id}/ata`} target="_blank" rel="noopener noreferrer">
+            Abrir o arquivo da ata (abre em outra aba)
+          </a>
+        ) : (
+          <Pill status="pending">Arquivo do cartório ainda não anexado</Pill>
+        )}
+      </p>
+      {plataforma ? (
+        <Campo rotulo={s.temArquivoDaAta ? "Trocar o arquivo da ata (PDF, JPG ou PNG, até 8 MB)" : "Anexar o arquivo da ata (PDF, JPG ou PNG, até 8 MB)"}>
+          <input
+            type="file"
+            accept="application/pdf,image/jpeg,image/png,image/webp"
+            disabled={enviar.isPending}
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              setMsg(null);
+              if (f) enviar.mutate(f);
+              e.target.value = "";
+            }}
+          />
+        </Campo>
+      ) : null}
+      {msg ? (
+        <p role="status" className={msg.ok ? "text-green-deep" : "text-red"}>
+          {msg.texto}
+        </p>
+      ) : null}
+    </div>
   );
 }
 
@@ -773,6 +960,12 @@ function MetodosDeApuracao() {
                   <span className="block font-semibold">{ROTULO_DO_METODO[m]}</span>
                   <span className="block text-xs text-muted">{EXPLICACAO_DO_METODO[m]}</span>
                   {indisponivel ? <span className="mt-0.5 block text-xs font-semibold text-ink-2">{indisponivel}</span> : null}
+                  {m === "globo" ? (
+                    <span className="mt-0.5 block text-xs text-ink-2">
+                      Já funciona no sistema: ligue só depois da homologação. A rifa do globo entra numa sessão do globo deste
+                      calendário, e o resultado é lançado com a ata.
+                    </span>
+                  ) : null}
                 </span>
               </label>
             );

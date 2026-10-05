@@ -62,6 +62,8 @@ interface CampaignDetail {
     metodoApuracao?: string | null;
     adiamentos?: number;
     drawAtOriginal?: string | null;
+    /** "Quando completar": a data máxima registrada; antes dela, o sorteio foi antecipado. */
+    drawAtMaximo?: string | null;
     /** Como a rifa chega ao sorteio (`MODOS_DO_SORTEIO`). */
     modoSorteio?: string;
     authorizationCode: string | null;
@@ -387,7 +389,9 @@ export default function Rifa() {
       <div>
         <p className="font-mono text-[11px] uppercase tracking-widest text-yellow-deep">
           {campaign.drawAt
-            ? `Sorteio ${new Date(campaign.drawAt).toLocaleDateString("pt-BR")} · ${campaign.sorteioOficial?.loteriaNome ?? "Loteria Federal"}`
+            ? `Sorteio ${new Date(campaign.drawAt).toLocaleDateString("pt-BR")} · ${
+                campaign.sorteioOficial?.loteriaNome ?? (campaign.metodoApuracao === "globo" ? "Globo da plataforma" : "Loteria Federal")
+              }`
             : "Sorteio quando completar · Loteria Federal"}
         </p>
         {campaign.sorteioOficial ? (
@@ -400,6 +404,19 @@ export default function Rifa() {
               Ver o sorteio
             </Link>
           </p>
+        ) : null}
+        {campaign.modoSorteio === "quando_completar" && campaign.drawAtMaximo && campaign.drawAt ? (
+          // 8.7: a data máxima é a registrada; encheu antes, o sorteio é antecipado — o comunicado na plataforma.
+          new Date(campaign.drawAt).getTime() < new Date(campaign.drawAtMaximo).getTime() ? (
+            <p className="mt-1 text-xs text-ink-2">
+              Rifa completa: sorteio antecipado — a data máxima era{" "}
+              <span className="tnum">{new Date(campaign.drawAtMaximo).toLocaleDateString("pt-BR")}</span>.
+            </p>
+          ) : (
+            <p className="mt-1 text-xs text-ink-2">
+              Data máxima. Se a rifa completar antes, o sorteio é antecipado para a próxima extração da Loteria Federal.
+            </p>
+          )
         ) : null}
         {campaign.adiamentos && campaign.drawAtOriginal ? (
           <p className="mt-1 text-xs text-ink-2">
@@ -928,6 +945,11 @@ export default function Rifa() {
         {campaign.metodoApuracao === "federal_direta" ? (
           <p>
             Apuração pela Loteria Federal, leitura direta dos 5 prêmios — a regra está no{" "}
+            <a href={`/r/${slug}/regulamento`} className="underline">regulamento</a>.
+          </p>
+        ) : campaign.metodoApuracao === "globo" ? (
+          <p>
+            Apuração pelo globo da plataforma, ao vivo e com ata notarial — a regra está no{" "}
             <a href={`/r/${slug}/regulamento`} className="underline">regulamento</a>.
           </p>
         ) : campaign.drawSeedHash ? (

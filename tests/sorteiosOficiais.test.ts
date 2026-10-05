@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   ANTECEDENCIA_PARA_INTEGRAR_MS,
   CORES_DA_CAIXA,
+  COR_DO_GLOBO,
+  ataGuardada,
+  validarAtaDoGlobo,
   LOTERIAS,
   LOTERIAS_QUE_RECEBEM_RIFA,
   problemaParaIntegrar,
@@ -60,12 +63,21 @@ describe("quando dá para integrar e lançar", () => {
     expect(problemaParaIntegrar({ ...base, resultadoEm: agora, sorteioEm: daqui(48) }, agora)).toMatch(/resultado/);
     // Só a Federal recebe rifa (a apuração da autorização SPA/MF, confirmada
     // pelo advogado em 05/10/2026); as outras ficam só no calendário.
-    expect(LOTERIAS_QUE_RECEBEM_RIFA).toEqual(["federal"]);
+    expect(LOTERIAS_QUE_RECEBEM_RIFA).toEqual(["federal", "globo"]);
     for (const loteria of Object.keys(LOTERIAS)) {
       const p = problemaParaIntegrar({ ...base, loteria, sorteioEm: daqui(48) }, agora);
-      if (loteria === "federal") expect(p, loteria).toBeNull();
+      if (loteria === "federal" || loteria === "globo") expect(p, loteria).toBeNull();
       else expect(p, loteria).toMatch(/Loteria Federal/);
     }
+    // Cada rifa só entra no sorteio do método dela (8.11).
+    const federal = { ...base, sorteioEm: daqui(48) };
+    const globo = { ...base, loteria: "globo", sorteioEm: daqui(48) };
+    expect(problemaParaIntegrar(federal, agora, "federal_direta")).toBeNull();
+    expect(problemaParaIntegrar(federal, agora, null)).toBeNull();
+    expect(problemaParaIntegrar(federal, agora, "globo")).toMatch(/globo/);
+    expect(problemaParaIntegrar(globo, agora, "globo")).toBeNull();
+    expect(problemaParaIntegrar(globo, agora, "federal_direta")).toMatch(/Loteria Federal/);
+    expect(problemaParaIntegrar(globo, agora, null)).toMatch(/Loteria Federal/);
     expect(problemaParaIntegrar({ ...base, loteria: "dupla_sena", sorteioEm: daqui(48) }, agora)).not.toBeNull();
   });
   it("o resultado só depois da hora, uma vez", () => {
@@ -91,9 +103,43 @@ describe("cores das loterias (identidade da Caixa)", () => {
   };
   it("toda loteria tem cor, e o número do dia em branco por cima passa de 3:1", () => {
     for (const [l, d] of Object.entries(LOTERIAS)) {
-      expect(d.cor, l).toBe(CORES_DA_CAIXA[l as keyof typeof CORES_DA_CAIXA]);
+      // O globo é da casa (não é cor da Caixa): só identidade, com o nome junto.
+      expect(d.cor, l).toBe(l === "globo" ? COR_DO_GLOBO : CORES_DA_CAIXA[l as keyof typeof CORES_DA_CAIXA]);
       expect(d.cor).toMatch(/^#[0-9a-f]{6}$/i);
       expect(contraste(d.cor, "#ffffff"), l).toBeGreaterThanOrEqual(3);
     }
+  });
+});
+
+describe("globo: resultado e ata notarial (8.10)", () => {
+  const bolas = ["6", "7", "8", "1", "3", "9"];
+  const relato = bolas.map((_, i) => ({ hora: `20:0${i}:15` }));
+  const ok = { local: "Rua das Flores, 100, São Paulo/SP", tabelionato: "1º Tabelionato de Notas de São Paulo", testemunhas: ["Ana Souza", "Bruno Lima"], bolas: relato };
+  it("o resultado são 6 bolas de 0 a 9", () => {
+    expect(validarResultado("globo", bolas)).toEqual({ numeros: bolas });
+    expect("problema" in validarResultado("globo", ["6", "7", "8", "1", "3"])).toBe(true);
+    expect("problema" in validarResultado("globo", ["6", "7", "8", "1", "3", "10"])).toBe(true);
+  });
+  it("a ata pede local, tabelionato, auditor ou 2 testemunhas e a hora de cada bola", () => {
+    const v = validarAtaDoGlobo(ok, bolas);
+    expect("ata" in v && v.ata.bolas[5]).toEqual({ globo: 6, algarismo: "9", hora: "20:05:15" });
+    expect(validarAtaDoGlobo({ ...ok, testemunhas: ["Ana Souza"] }, bolas)).toMatchObject({ problema: expect.stringMatching(/auditor/) });
+    expect("ata" in validarAtaDoGlobo({ ...ok, testemunhas: [], auditor: { nome: "Carla Dias", registro: "CRC 123" } }, bolas)).toBe(true);
+    expect(validarAtaDoGlobo({ ...ok, local: "" }, bolas)).toMatchObject({ problema: expect.stringMatching(/local/) });
+    expect(validarAtaDoGlobo({ ...ok, tabelionato: "" }, bolas)).toMatchObject({ problema: expect.stringMatching(/tabelionato/) });
+    expect(validarAtaDoGlobo({ ...ok, bolas: relato.slice(0, 5) }, bolas)).toMatchObject({ problema: expect.stringMatching(/uma linha por globo/) });
+    expect(validarAtaDoGlobo({ ...ok, bolas: [{ hora: "25:00:00" }, ...relato.slice(1)] }, bolas)).toMatchObject({ problema: expect.stringMatching(/hora/) });
+    // As bolas saem em sequência.
+    expect(validarAtaDoGlobo({ ...ok, bolas: [...relato].reverse() }, bolas)).toMatchObject({ problema: expect.stringMatching(/sequência/) });
+  });
+  it("testemunha é nome, nunca número (CPF, telefone); sem repetir", () => {
+    expect(validarAtaDoGlobo({ ...ok, testemunhas: ["Ana Souza", "11 99999-0000"] }, bolas)).toMatchObject({ problema: expect.stringMatching(/só letras/) });
+    expect(validarAtaDoGlobo({ ...ok, testemunhas: ["Ana Souza", "ana souza"] }, bolas)).toMatchObject({ problema: expect.stringMatching(/repetida/) });
+  });
+  it("só as chaves conhecidas; a guardada estragada vira nula", () => {
+    const v = validarAtaDoGlobo({ ...ok, html: "<script>" }, bolas);
+    expect("ata" in v && Object.keys(v.ata).sort()).toEqual(["auditor", "bolas", "local", "observacoes", "registro", "tabelionato", "testemunhas"]);
+    expect(ataGuardada("x")).toBeNull();
+    expect(ataGuardada({ local: 1 })).toBeNull();
   });
 });

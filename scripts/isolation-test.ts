@@ -636,6 +636,8 @@ async function rotasDaPlataforma(eu: Lado) {
     ["PATCH sorteio oficial", "/api/admin/sorteios-oficiais/00000000-0000-0000-0000-000000000000", { method: "PATCH", body: '{"titulo":"x"}' }],
     ["POST cancelar sorteio oficial", "/api/admin/sorteios-oficiais/00000000-0000-0000-0000-000000000000/cancelar", { method: "POST" }],
     ["POST resultado do sorteio oficial", "/api/admin/sorteios-oficiais/00000000-0000-0000-0000-000000000000/resultado", { method: "POST", body: '{"numeros":[]}' }],
+    // A ata notarial da sessão do globo: só a plataforma anexa.
+    ["PUT ata da sessão do globo", "/api/admin/sorteios-oficiais/00000000-0000-0000-0000-000000000000/ata", { method: "PUT", body: '{"arquivo":""}' }],
     ["GET cadastros fiscais", "/api/admin/fiscal", {}],
     ["GET cadastro fiscal", "/api/admin/fiscal/00000000-0000-0000-0000-000000000000", {}],
     ["GET documento fiscal", "/api/admin/fiscal/00000000-0000-0000-0000-000000000000/documentos/identidade_frente", {}],

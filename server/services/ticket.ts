@@ -73,9 +73,12 @@ export async function buildTicket(code: number): Promise<TicketData | null> {
     sorteio: {
       data: row.campaign.drawAt ? row.campaign.drawAt.toISOString() : null,
       // Rifa com método de apuração: a leitura direta da Federal, sem semente.
-      metodo: row.campaign.metodoApuracao
-        ? "Loteria Federal, leitura direta dos 5 premios"
-        : "Loteria Federal + semente publicada (HMAC)",
+      metodo:
+        row.campaign.metodoApuracao === "globo"
+          ? "Globo da plataforma, 6 globos, ata notarial"
+          : row.campaign.metodoApuracao
+            ? "Loteria Federal, leitura direta dos 5 premios"
+            : "Loteria Federal + semente publicada (HMAC)",
       seedHash: row.campaign.metodoApuracao ? null : (draw?.seedHash ?? row.campaign.drawSeedHash ?? null),
     },
     numeros: numeros.map((n) => formatQuota(n.number, row.campaign.totalQuotas, numeracaoZero(row.campaign.metodoApuracao))),

@@ -4,6 +4,7 @@ import { Card, Button, Empty, Pill } from "@/components/bits";
 import { apiRequest } from "@/lib/queryClient";
 import { useSession } from "@/lib/session";
 import { formatQuota, groupNumber } from "@shared/format";
+import { AVISO_VALE_BRINDE } from "@shared/premiadas";
 
 interface Pkg {
   id?: string;
@@ -200,6 +201,11 @@ export function CampaignExtras({
         }
       >
         <div className="space-y-3 p-4">
+          {/* Resposta 8.8 do advogado: cota premiada é vale-brinde; com o sorteio, promoção mista. */}
+          <p role="note" className="rounded-md bg-yellow-soft px-3 py-2 text-xs text-yellow-deep">
+            <strong className="font-semibold">Promoção mista. </strong>
+            {AVISO_VALE_BRINDE}
+          </p>
           <p className="text-xs text-muted">
             Os números premiados são sorteados pelo sistema e ficam em segredo — para o
             público e para a organização; só a plataforma vê quais são. Quem comprar um

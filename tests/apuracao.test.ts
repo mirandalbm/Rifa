@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  BOLAS_DE_EXEMPLO,
+  clausulaDoGlobo,
+  lerGlobo,
+  lerResultado,
+  loteriaDoMetodo,
   casasDaRifa,
   clausulaDaApuracao,
   lerFederal,
@@ -90,21 +95,22 @@ describe("métodos liberados pela plataforma", () => {
     expect(problemaNoMetodo("federal_direta", [])).toMatch(/não está liberado/);
     expect(problemaNoMetodo(null, ["federal_direta"])).toMatch(/Escolha/);
     expect(problemaNoMetodo("hash", ["federal_direta"])).toMatch(/Escolha/);
-    // O globo não liga antes da homologação.
-    expect(problemaNoMetodo("globo", ["federal_direta", "globo"])).toMatch(/homologação/);
+    // O globo funciona: quem o liga é a plataforma (depois da homologação), sem publicar código.
+    expect(problemaNoMetodo("globo", ["federal_direta", "globo"])).toBeNull();
+    expect(problemaNoMetodo("globo", ["federal_direta"])).toMatch(/não está liberado/);
   });
 
   it("o painel só liga método conhecido e disponível", () => {
     expect(validarMetodosLiberados(["federal_direta", "federal_direta"])).toEqual(["federal_direta"]);
     expect(validarMetodosLiberados([])).toEqual([]);
-    expect(() => validarMetodosLiberados(["globo"])).toThrow(/homologação/);
+    expect(validarMetodosLiberados(["globo"])).toEqual(["globo"]);
     expect(() => validarMetodosLiberados(["outro"])).toThrow();
     expect(() => validarMetodosLiberados("federal_direta")).toThrow();
   });
 
   it("o guardado estragado perde só o que não vale; ausente é a Federal", () => {
     expect(metodosLiberadosGuardados(undefined)).toEqual(["federal_direta"]);
-    expect(metodosLiberadosGuardados(["globo", "federal_direta", "x"])).toEqual(["federal_direta"]);
+    expect(metodosLiberadosGuardados(["globo", "federal_direta", "x"])).toEqual(["federal_direta", "globo"]);
     expect(metodosLiberadosGuardados([])).toEqual([]);
   });
 });
@@ -149,5 +155,44 @@ describe("cláusula do regulamento", () => {
     const antes = montarRegulamento({ ...dados, rifa: { ...dados.rifa, metodoApuracao: null } }).flatMap((s) => s.itens).join("\n");
     expect(antes).toContain("numeradas de 0001 a 1000");
     expect(antes).toMatch(/semente/);
+  });
+});
+
+describe("globo da plataforma (respostas 8.9 a 8.12)", () => {
+  const ex = [...BOLAS_DE_EXEMPLO];
+  it("os 6 globos formam o número; a rifa menor fica com os últimos", () => {
+    expect(lerGlobo(ex, 1_000_000)).toMatchObject({ numeroTexto: "678139", numero: 678139 });
+    expect(lerGlobo(ex, 100_000).numeroTexto).toBe("78139");
+    expect(lerGlobo(ex, 10_000).numeroTexto).toBe("8139");
+    expect(lerGlobo(ex, 1_000).numeroTexto).toBe("139");
+    expect(lerGlobo(ex, 100).numeroTexto).toBe("39");
+    expect(lerGlobo(["0", "0", "0", "0", "0", "0"], 1_000)).toMatchObject({ numeroTexto: "000", numero: 0 });
+  });
+  it("o passo a passo diz cada globo", () => {
+    const passos = lerGlobo(ex, 1_000).passos;
+    expect(passos[0]).toBe("1º globo → bola 6");
+    expect(passos.at(-1)).toContain("valem os 3 últimos algarismos → 139");
+  });
+  it("recusa bola fora de 0 a 9 e globo faltando", () => {
+    expect(() => lerGlobo(["6", "7", "8", "1", "3"], 1_000)).toThrow();
+    expect(() => lerGlobo(["6", "7", "8", "1", "3", "10"], 1_000)).toThrow();
+    expect(() => lerGlobo(ex, 5_000)).toThrow();
+  });
+  it("todo número lido existe na rifa", () => {
+    for (const total of TOTAIS_DA_APURACAO) {
+      expect(numeroInterno(lerGlobo(["9", "9", "9", "9", "9", "9"], total).numero, true)).toBe(total);
+    }
+  });
+  it("lerResultado escolhe pelo método; a loteria do método", () => {
+    expect(lerResultado("globo", ex, 1_000).numeroTexto).toBe("139");
+    expect(lerResultado("federal_direta", [...PREMIOS_DE_EXEMPLO], 1_000).numeroTexto).toBe("139");
+    expect(loteriaDoMetodo("globo")).toBe("globo");
+    expect(loteriaDoMetodo("federal_direta")).toBe("federal");
+    expect(loteriaDoMetodo(null)).toBe("federal");
+  });
+  it("a cláusula diz a ata notarial e o exemplo calculado", () => {
+    expect(clausulaDoGlobo(1_000_000)).toContain("O bilhete contemplado será o 678.139.");
+    expect(clausulaDoGlobo(1_000)).toContain("auditor independente ou de testemunhas sem vínculo");
+    expect(clausulaDoGlobo(100_000)).toContain("5 (cinco) últimos algarismos");
   });
 });

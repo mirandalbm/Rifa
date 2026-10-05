@@ -18,7 +18,7 @@ import { drawNumber } from "./draw";
 import { notify } from "../notifications";
 import { publicUrl } from "./urls";
 import { formatQuota, numeroInterno } from "@shared/format";
-import { lerFederal, numeracaoZero } from "@shared/apuracao";
+import { lerFederal, lerGlobo, numeracaoZero } from "@shared/apuracao";
 import { contempladoPorAproximacao } from "@shared/sorteio";
 import { cotasMinimasParaSortear, minimoAtingido } from "@shared/campanhaLegal";
 import { vendidasParaOMinimo } from "@shared/bonus";
@@ -47,7 +47,7 @@ export interface AtorDoSorteio {
  * ainda não sorteia — o formulário não substitui a Caixa.
  */
 export async function resultadoParaARifa(
-  c: Pick<Campaign, "sorteioOficialId">,
+  c: Pick<Campaign, "sorteioOficialId"> & { metodoApuracao?: string | null },
   formulario: { federalContest?: unknown; federalPrizes?: unknown },
 ): Promise<Resultado & { sorteioOficialId: string | null }> {
   if (c.sorteioOficialId) {
@@ -61,6 +61,10 @@ export async function resultadoParaARifa(
     if (!loteriaValida(s.loteria)) throw new SorteioRecusado("Loteria desconhecida.");
     return { loteria: s.loteria, concurso: s.concurso, numeros: s.resultado, sorteioOficialId: s.id };
   }
+  // O globo é da plataforma: a rifa sorteia pela sessão do calendário, nunca por formulário.
+  if (c.metodoApuracao === "globo") {
+    throw new SorteioRecusado("Esta rifa é apurada pelo globo: ela sorteia sozinha quando a plataforma lançar o resultado da sessão do globo.");
+  }
   const numeros = Array.isArray(formulario.federalPrizes) ? formulario.federalPrizes.map((p) => String(p ?? "")) : [];
   const concurso = Number(formulario.federalContest);
   if (numeros.length !== 5 || !Number.isInteger(concurso) || concurso < 1) {
@@ -72,7 +76,8 @@ export async function resultadoParaARifa(
 /**
  * O número sorteado (interno, 1 ao total). Rifa com método de apuração é a
  * leitura direta dos 5 prêmios da Federal (`lerFederal`, numeração a partir
- * de zero: o número lido 139 é a cota interna 140). Rifa de antes, sem
+ * de zero: o número lido 139 é a cota interna 140) ou das 6 bolas do globo
+ * (`lerGlobo`). Rifa de antes, sem
  * método, segue a semente (`drawNumber`) — a conferência dela continua igual.
  */
 export function numeroSorteado(
@@ -85,6 +90,14 @@ export function numeroSorteado(
       throw new SorteioRecusado("Esta rifa é apurada pela Loteria Federal: o resultado precisa ser o da Federal.");
     }
     return numeroInterno(lerFederal(r.numeros, campaign.totalQuotas).numero, true);
+  }
+  // O globo da plataforma (8.10 a 8.12): os 6 algarismos, na ordem dos globos;
+  // a rifa menor fica com os N últimos. Só pela sessão do globo do calendário.
+  if (campaign.metodoApuracao === "globo") {
+    if (r.loteria !== "globo") {
+      throw new SorteioRecusado("Esta rifa é apurada pelo globo: o resultado precisa ser o da sessão do globo.");
+    }
+    return numeroInterno(lerGlobo(r.numeros, campaign.totalQuotas).numero, true);
   }
   if (campaign.metodoApuracao) {
     throw new SorteioRecusado("O método de apuração desta rifa ainda não sorteia pelo sistema.");

@@ -10,7 +10,6 @@ import {
   ROTULO_DO_MODO,
   cotasMinimasParaSortear,
   minimoDoModo,
-  modoSemData,
   type ModoDoSorteio,
   problemaNoMinimoVendido,
   problemaNosDadosLegais,
@@ -30,6 +29,8 @@ interface Campanha {
   id: string;
   status: string;
   drawAt: string | null;
+  /** "Quando completar": a data máxima gravada ao publicar (8.7). */
+  drawAtMaximo?: string | null;
   authorizationCode: string | null;
   authorizationFileKey?: string | null;
   regulamentoExtra?: string | null;
@@ -109,8 +110,13 @@ export function DadosLegaisCard({ campanha }: { campanha: Campanha }) {
   const { data: apuracao } = useQuery<{ liberados: MetodoDeApuracao[] }>({ queryKey: ["/api/admin/apuracao/metodos"] });
   const liberados = apuracao?.liberados ?? [];
 
-  const semData = modoSemData(modo);
-  const drawAt = data && !semData ? new Date(data) : null;
+  // No "quando completar", a data digitada é a máxima (a registrada na SPA/MF):
+  // encher antes antecipa para a próxima extração da Federal (8.7).
+  const dataMaxima = modo === "quando_completar";
+  const drawAt = data ? new Date(data) : null;
+  const antecipado =
+    campanha.drawAtMaximo && campanha.drawAt && new Date(campanha.drawAt).getTime() < new Date(campanha.drawAtMaximo).getTime();
+  const quandoCompletarBarrado = metodo === "globo";
   const minimoDigitado = minimo.trim() === "" ? 0 : Number(minimo);
   // Nos modos de rifa cheia o mínimo é 100%; com a promotora completando, não há mínimo.
   const minimoPct = modo === "data" ? minimoDigitado : minimoDoModo(modo, minimoDigitado);
@@ -176,13 +182,13 @@ export function DadosLegaisCard({ campanha }: { campanha: Campanha }) {
           </div>
           <div>
             <label htmlFor={`sorteio-${campanha.id}`} className="label-xs">
-              Data e hora do sorteio
+              {dataMaxima ? "Data máxima do sorteio" : "Data e hora do sorteio"}
             </label>
-            {semData ? (
-              <p id={`sorteio-${campanha.id}`} className="mt-1 rounded-md bg-mist px-3 py-2 text-xs text-muted">
-                {campanha.drawAt
-                  ? `Marcado para ${new Date(campanha.drawAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}.`
-                  : "Sem data: é marcada sozinha quando a última cota for paga, na próxima extração da Loteria Federal."}
+            {antecipado ? (
+              <p id={`sorteio-${campanha.id}`} className="mt-1 rounded-md bg-yellow-soft px-3 py-2 text-xs text-yellow-deep">
+                Antecipado para {new Date(campanha.drawAt!).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}: a
+                rifa completou. A data máxima registrada era{" "}
+                {new Date(campanha.drawAtMaximo!).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}.
               </p>
             ) : (
               <input
@@ -190,6 +196,7 @@ export function DadosLegaisCard({ campanha }: { campanha: Campanha }) {
                 type="datetime-local"
                 value={data}
                 disabled={!rascunho}
+                aria-describedby={dataMaxima ? `sorteio-dica-${campanha.id}` : undefined}
                 onChange={(e) => {
                   setMsg(null);
                   setData(e.target.value);
@@ -197,6 +204,12 @@ export function DadosLegaisCard({ campanha }: { campanha: Campanha }) {
                 className="campo tnum disabled:bg-mist"
               />
             )}
+            {dataMaxima && !antecipado ? (
+              <p id={`sorteio-dica-${campanha.id}`} className="mt-1 text-xs text-muted">
+                É a data registrada na SPA/MF (a portaria exige data certa). Se a rifa completar antes, o sorteio é antecipado
+                para a próxima extração da Federal, com aviso a quem comprou.
+              </p>
+            ) : null}
           </div>
         </div>
 
@@ -236,6 +249,9 @@ export function DadosLegaisCard({ campanha }: { campanha: Campanha }) {
           </div>
           <p className="mt-1 text-xs text-muted">
             O pedido no SCPC prevê um método só: escolha o que está na sua autorização. Trava ao publicar.
+            {metodo === "globo"
+              ? " No globo, a rifa entra numa sessão do globo no calendário (Sorteios oficiais), que dá a data."
+              : ""}
           </p>
         </fieldset>
 
@@ -247,14 +263,14 @@ export function DadosLegaisCard({ campanha }: { campanha: Campanha }) {
                 key={m}
                 className={`flex min-w-0 cursor-pointer items-start gap-2 rounded-md border px-3 py-2 ${
                   modo === m ? "border-green bg-green-soft" : "border-line"
-                } ${!rascunho ? "cursor-default opacity-80" : ""}`}
+                } ${!rascunho || (m === "quando_completar" && quandoCompletarBarrado) ? "cursor-default opacity-80" : ""}`}
               >
                 <input
                   type="radio"
                   name={`modo-${campanha.id}`}
                   value={m}
                   checked={modo === m}
-                  disabled={!rascunho}
+                  disabled={!rascunho || (m === "quando_completar" && quandoCompletarBarrado)}
                   onChange={() => {
                     setMsg(null);
                     setModo(m);
@@ -264,6 +280,9 @@ export function DadosLegaisCard({ campanha }: { campanha: Campanha }) {
                 <span className="min-w-0">
                   <span className="block text-sm font-semibold">{ROTULO_DO_MODO[m]}</span>
                   <span className="block text-xs text-muted">{EXPLICACAO_DO_MODO[m]}</span>
+                  {m === "quando_completar" && quandoCompletarBarrado ? (
+                    <span className="mt-0.5 block text-xs font-semibold text-ink-2">Não vale para o globo: a antecipação é para a extração da Federal.</span>
+                  ) : null}
                 </span>
               </label>
             ))}

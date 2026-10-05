@@ -95,6 +95,14 @@ describe("arrependimento: 7 dias ou o fechamento, o que vier primeiro", () => {
     expect(avisoDePrazoCurto(agora, sorteio)).toBeNull();
     expect(avisoDePrazoCurto(new Date(agora.getTime() + 1), sorteio)).not.toBeNull();
   });
+  it("quando completar com data máxima longe (8.7): avisa que a antecipação pode encurtar o prazo", () => {
+    const agora = new Date("2026-09-20T12:00:00Z");
+    const aviso = avisoDePrazoCurto(agora, sorteio, "quando_completar")!;
+    expect(aviso).toContain("10/10/2026 às 17:00 é a data máxima");
+    expect(aviso).toMatch(/antecipado.*menor que 7 dias/);
+    // Perto da data máxima vale o aviso de sempre (a data e o fechamento).
+    expect(avisoDePrazoCurto(new Date("2026-10-08T12:00:00Z"), sorteio, "quando_completar")).toMatch(/antes dos 7 dias/);
+  });
   it("rifa sorteada quando completar, ainda sem data: avisa que o prazo pode encurtar", () => {
     const agora = new Date("2026-10-01T12:00:00Z");
     expect(avisoDePrazoCurto(agora, null, "quando_completar")).toMatch(/quando completar.*menor que 7 dias/);

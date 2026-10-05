@@ -615,26 +615,32 @@ Na ordem de entrega do plano:
   método liberado, nada publica. O hash + HMAC ficou só para conferir a rifa
   sorteada antes. Sobe com o `db:push` **antes** do código:
   `campaigns.metodo_apuracao`. `npm run apuracao` prova.
-- [ ] **Globo próprio homologado** (método `globo`, hoje aparece e não
-  liga): entra pelo calendário dos sorteios oficiais como uma "loteria" a
-  mais, com a transmissão obrigatória e a **ata notarial** lançada pela
-  plataforma depois da hora, uma vez (local, data e hora da extração; auditor
-  independente ou testemunhas desvinculadas da promotora; o relato de cada
-  bola; o ganhador). O advogado respondeu (8.9 a 8.12): a SPA/MF não
-  certifica o equipamento, audita a prestação de contas; o plano de operação
-  da promotora prevê **um** método só (Federal **ou** globo) — por isso a
-  escolha é por rifa e trava; serve a qualquer total, uma bola por casa
-  decimal. Liga quando a homologação sair.
-- [ ] **"Quando completar" com data máxima** (resposta 8.7): o SCPC não
-  aceita data definida por evento. A promotora declara a **data máxima** do
-  sorteio (a do formulário da SPA/MF) e o regulamento diz que, esgotados os
-  números antes dela, o sorteio pode ser **antecipado** para a extração da
-  Federal seguinte, com comunicado na página e aviso a quem comprou. Próximo
-  PR.
-- [ ] **Cotas premiadas são vale-brinde** (resposta 8.8): com sorteio final e
-  cota premiada, a promoção é **mista** (Sorteio + Vale-Brinde) e a promotora
-  precisa aprovar os dois no mesmo processo do SCPC. Avisar no painel quando
-  ela ligar cotas premiadas. Próximo PR.
+- [x] **Globo da plataforma pronto no código, ligado pela plataforma**
+  (respostas 8.9 a 8.12) — feito. A sessão do globo entra no calendário dos
+  sorteios oficiais (6 globos de 0 a 9; a rifa menor fica com os últimos
+  algarismos, como na Federal); só a rifa com o método "globo" entra nela;
+  o resultado é lançado com a **ata** (local, tabelionato, auditor ou 2
+  testemunhas, a hora de cada bola) e sorteia as rifas na hora; o arquivo da
+  ata do cartório é anexado depois e fica público na conferência. Nasce
+  desligado em "Métodos de apuração": **liga-se pelo painel quando a
+  homologação sair, sem subir código**. Sobe com o `db:push` **antes** do
+  código: `sorteios_oficiais.ata` e a tabela `sorteio_atas`. `npm run
+  apuracao` prova de ponta a ponta.
+- [x] **"Quando completar" com data máxima** (resposta 8.7) — feito. A data
+  digitada é a **data máxima** (exigida para publicar e gravada em
+  `campaigns.draw_at_maximo`); a última cota paga antecipa o sorteio para a
+  extração da Federal seguinte, se vier antes, com push "sorteio antecipado",
+  a página dizendo a data máxima e o regulamento com a cláusula; o estorno
+  que tira a rifa de cheia volta à data máxima, com aviso. Sobe com o
+  `db:push` **antes** do código: `campaigns.draw_at_maximo`. `npm run
+  transparencia` prova.
+- [x] **Cotas premiadas são vale-brinde** (resposta 8.8) — feito. O cartão
+  das cotas premiadas avisa que a rifa vira promoção mista (sorteio +
+  vale-brinde) e que as duas modalidades se pedem no mesmo processo do
+  SCPC; o regulamento da rifa com método diz isso a quem compra.
+- [ ] **Homologar o globo** (você, com o advogado): quando sair, ligar o
+  globo em "Métodos de apuração", cadastrar a sessão no calendário e
+  combinar com o tabelionato a ata de cada sessão.
 
 - [ ] **Sorteios oficiais** (o calendário da plataforma, a tela do sorteio no
   celular). **Fase 1 feita:** o master cadastra, muda, cancela e lança o

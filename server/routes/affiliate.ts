@@ -161,6 +161,7 @@ affiliateRouter.get("/links", async (req, res, next) => {
         prizeTitle: campaigns.prizeTitle,
         priceCents: campaigns.priceCents,
         drawAt: campaigns.drawAt,
+        metodoApuracao: campaigns.metodoApuracao,
         commissionPctDefault: campaigns.commissionPctDefault,
         organizationId: campaigns.organizationId,
         termoId: campaigns.termoId,
@@ -214,7 +215,7 @@ affiliateRouter.get("/links", async (req, res, next) => {
             ? { code: coupon.code, discountPct: coupon.discountPct }
             : null,
           texts: [
-            `🎟️ ${c.prizeTitle} está sendo rifado! Cota a partir de ${price}. Sorteio ${draw} pela Loteria Federal. Garanta o seu: ${url}`,
+            `🎟️ ${c.prizeTitle} está sendo rifado! Cota a partir de ${price}. Sorteio ${draw} ${c.metodoApuracao === "globo" ? "no globo da plataforma, ao vivo" : "pela Loteria Federal"}. Garanta o seu: ${url}`,
             `Tô participando da rifa do ${c.prizeTitle} 👀 cota ${price} e o pagamento é na hora pelo Pix. Entra comigo: ${url}`,
             coupon
               ? `Use o cupom ${coupon.code} e ganhe ${coupon.discountPct}% de desconto na rifa do ${c.prizeTitle}: ${url}`

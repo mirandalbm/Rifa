@@ -110,6 +110,7 @@ arquitetura.
 | exportações | `shared/exports.ts` (formato) e `server/services/exports.ts` (consultas) |
 | usuários, senha e arquivamento | `server/routes/admin.ts` (`/usuarios`, `/organizacoes/:id/arquivar`), `shared/senha.ts` |
 | o que falta para vender em produção | `docs/PENDENCIAS.md` — **atualize no mesmo PR** que fechar um item |
+| a ordem de execução das pendências até abrir ao público (o que destrava o quê) | `docs/ORDEM-DE-LANCAMENTO.md` |
 | cadastro fiscal do afiliado, cofre e recibo | `shared/fiscal.ts` (regras), `server/services/cofre.ts`, `server/services/fiscal.ts`, `server/services/recibos.ts`, `client/src/pages/afiliadoDados.tsx`, `adminFiscal.tsx`, `Recibo.tsx`, `scripts/fiscal-test.ts` |
 | guarda da comissão pela plataforma (etapa 12) | `guardaComissao` e `percentualDoPromotor()` em `shared/plataforma.ts`, `createOrder`/`settleOrderAsPaid` em `server/services/orders.ts`, `scripts/guarda-test.ts` |
 | indicação, bônus e metas (etapa 13) | `shared/bonus.ts` (regras), `server/services/bonus.ts`, `resgatarCotasDeBonus()` em `server/services/orders.ts`, `client/src/lib/indicacao.ts`, `client/src/pages/adminBonus.tsx`, `client/src/components/BonusDoComprador.tsx`, `scripts/bonus-test.ts` |

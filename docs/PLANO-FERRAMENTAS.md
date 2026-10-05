@@ -5,8 +5,9 @@ API, o que disso cabe na estrutura deste sistema, o que vale mais a pena
 fazer por conta própria e onde a IA entra. O objetivo é saber o potencial
 inicial antes de escolher por onde começar.
 
-As regras da casa que valem para qualquer ferramenta, de fora ou nossa,
-estão na seção 5; o plano por fases na seção 6.
+A decisão tomada depois da pesquisa está na seção 6: **nada de API deles;
+construímos o que eles têm**, com a lista deles como referência. As regras
+da casa que valem para qualquer ferramenta estão na seção 5.
 
 ## 1. O que o Canva oferece (Connect API)
 
@@ -130,71 +131,95 @@ assistente, `problemaNaMensagemDaIA`).
 7. **Nenhum dado de comprador** em arte pública além do que já é público
    (nome curto do ganhador).
 
-## 6. Plano por fases
+## 6. Decisão: construir o que eles têm, sem conectar a API deles
 
-A ordem junta o nosso e o de fora pelo custo-benefício. Cada fase é um
-conjunto de PRs pequenos, cada um com prova, docs e registro em
-`docs/VERSOES.md`.
+Decidido em 05/10/2026: **nenhuma integração com a API do Canva nem da
+Adobe**. O catálogo das seções 1 e 2 é a lista de referência do que a
+pessoa espera de um editor; cada item é feito aqui, com os dados da rifa que
+só nós temos. Os motivos: a revisão do Canva e a aprovação comercial da
+Adobe são gargalos fora do nosso controle; a IA deles não sai pela API; e o
+organizador não precisa de conta nem de plano pago em outro lugar.
 
-### Fase A — Artes prontas com os dados da rifa (nosso, servidor) · ~2 PRs
-Modelos nossos em SVG, preenchidos pela rifa e renderizados pelo `sharp`
-nos três formatos (4:5, 1:1, 9:16): **arte da rifa** (prêmio, preço, data,
-selo, QR do link — o do afiliado com o código dele), **"faltam N cotas"**,
-**contagem para o sorteio**, **resultado** (número contemplado, nome curto e
-foto do ganhador) e **cota premiada revelada**. "Baixar" e "Compartilhar"
-(Web Share) no cartão da publicação e no kit do afiliado. Sem terceiro.
+A IA continua entrando (seção 4), mas por **provedores de serviço por
+unidade** escolhidos por nós (geração de imagem, remoção de fundo,
+transcrição), nunca pelo editor de terceiro.
 
-### Fase B — Atalhos para o Canva e o Adobe Express (de fora, nível 1) · 1 PR
-Botões "Criar no Canva" e "Criar no Adobe Express" que abrem o editor no
-tamanho certo, com a instrução de baixar e enviar por aqui. Sem chave, sem
-revisão. Mede a demanda antes da integração de verdade.
+### 6.1 Mapa de paridade: o que eles têm → o que fazemos
 
-### Fase C — Editor de imagem no navegador (nosso) · ~3 PRs
-Foto própria (ou arte da Fase A), enquadramento por formato com o recorte
-atento como ponto de partida, figurinhas (as do story + logo, preço, QR),
-exportação pelo canvas do navegador, entrada pelo envio de sempre. O texto
-passa pela régua antes de virar imagem. Legenda sugerida pela IA (seção 4).
+| Deles | Nossa versão | Fase |
+|---|---|---|
+| Modelos prontos (templates) | Modelos nossos em SVG, preenchidos pelos dados da rifa (arte da rifa, faltam N, contagem, resultado, cota premiada) | A |
+| Redimensionar para cada rede (Magic Resize) | Os três formatos (4:5, 1:1, 9:16) gerados de uma vez, com o recorte atento do `sharp` | A |
+| Texto, fontes e efeitos | Figurinha de texto com as fontes da plataforma (DM Mono para número, a de exibição para título), contorno e sombra | B |
+| Figurinhas, formas e emojis | As figurinhas do story (contagem, Comprar, texto, emoji) + logo, preço, QR, selo SPA/MF | B |
+| Fotos de banco | Não entra: a foto é do prêmio e da organização (as fotos de banco deles são licenciadas por conta) | — |
+| Cortar e enquadrar imagem | Enquadramento por formato no editor, com o recorte atento como ponto de partida | B |
+| Remover fundo (imagem) | Serviço por unidade pelo servidor, com a imagem reprocessada depois pelo `sharp` | B |
+| Escrever o texto (Magic Write) | Legenda e texto da arte sugeridos pelo assistente que já existe (ação `legenda`), na régua | B |
+| Cortar vídeo (trim) | `ffmpeg` local em modo cópia (corta nos quadros-chave, sem recomprimir) | C |
+| Capa do vídeo | Escolha do quadro entre candidatos do `ffmpeg` | C |
+| Texto e figurinhas por cima do vídeo | Como no story: dados desenhados pelo player, nunca gravados no vídeo (a contagem acompanha o adiamento, o texto segue varrível) | C |
+| Legendar vídeo (captions) | Transcrição por serviço por unidade, revisada pela pessoa, guardada como figurinha de legenda | C |
+| Redimensionar e converter vídeo | Não entra: o `ingest` já aceita MP4 e MOV e mede; vídeo deitado não vira reels (é a régua) | — |
+| Juntar vídeos / animar com áudio | Não entra agora: exigiria recomprimir; reavaliar com a fila da Fase D | — |
+| Gerar imagem por IA (Magic Media / Firefly) | Provedor de imagem por geração, só para **fundo e cenário**; nunca rosto de pessoa real; marcado "criado com IA" | D |
+| Expandir e preencher (generativo) | Mesmo provedor, para completar a foto do prêmio no 9:16 | D |
+| Vídeo gerado | Reels automático com as fotos da rifa (movimento lento, prêmio, preço, contagem) pelo `ffmpeg` local, com a fila (BullMQ) | E |
+| Música e trilha | Não entra: sem biblioteca licenciada, o som é o do próprio vídeo | — |
+| Marca (brand kit) | Já existe: logo, cor de destaque e capa da organização (`validarDestaque`) entram nos modelos e figurinhas | A |
+| Agendar e publicar | Já existe (story, peça, rifa); a Fase F liga o pacote pronto à agenda | F |
+| Compartilhar e baixar | "Baixar" e "Compartilhar" (Web Share) em cada arte e no kit do afiliado | A |
 
-### Fase D — Adobe Express embutido (de fora, nível 2) · 2 a 3 PRs
-O editor completo e as ações rápidas (remover fundo, cortar vídeo, legendar)
-dentro do painel e da tela de criar Reels, com o resultado caindo no nosso
-envio. **Depende da aprovação comercial da Adobe** — pedir no começo da
-Fase A para ter a resposta até aqui. Se a Adobe não aprovar, a Fase E cobre
-o mesmo terreno por conta própria.
+### 6.2 Plano por fases (tudo nosso)
 
-### Fase E — Vídeo leve sem recomprimir (nosso) · ~3 PRs
-Cortar início e fim (modo cópia), escolher a capa num quadro, figurinhas no
-reels como dados (contagem, Comprar, texto), legendas por transcrição como
-figurinha.
+Cada fase é um conjunto de PRs pequenos, cada um com prova, docs e registro
+em `docs/VERSOES.md`. A tela de criar é a mesma dos Reels (tela cheia no
+celular e no tablet, ferramentas em ícones por cima da peça; o cartão no
+computador).
 
-### Fase F — Canva pela API (de fora, nível 3) · 3 a 4 PRs + revisão do Canva
-OAuth por organização com tokens no cofre, ida e volta ao editor,
-exportação assíncrona (imagem e MP4), download e entrada pelo `ingest`.
-Só se os organizadores pedirem: a revisão do Canva é o gargalo, e as
-funções de IA deles não saem pela API.
+**Fase A — Artes prontas com os dados da rifa (servidor) · ~2 PRs.**
+Modelos em SVG renderizados pelo `sharp` nos três formatos: arte da rifa
+(prêmio, preço, data, selo, QR do link — o do afiliado com o código dele),
+"faltam N cotas", contagem para o sorteio, resultado (número contemplado,
+nome curto e foto do ganhador), cota premiada revelada. A marca da
+organização (logo e cor de destaque) entra nos modelos. "Baixar" e
+"Compartilhar" no cartão da publicação e no kit do afiliado.
 
-### Fase G — Vídeo gerado pelo sistema (nosso) · ~4 PRs
-Reels automático com as fotos da rifa (movimento lento, prêmio, preço,
-contagem) pelo `ffmpeg` local. É aqui que entra a fila de trabalho (BullMQ)
-que o `CLAUDE.md` reserva para "trabalho pesado de verdade".
+**Fase B — Editor de imagem (navegador) · ~4 PRs.**
+Foto própria ou arte da Fase A; enquadramento por formato; figurinhas (as
+do story + logo, preço, QR, selo) com texto nas fontes da plataforma;
+remover fundo pelo servidor; legenda e texto sugeridos pelo assistente. O
+texto passa pela régua **antes** de virar imagem; a exportação é pelo canvas
+do navegador e entra pelo envio de sempre.
 
-### Fase H — Distribuição · 1 PR
-Pacote "pronto para postar": as artes nos três formatos, a legenda sugerida
-e o link curto, num zip ou num toque de compartilhar, ligado à agenda que já
-existe.
+**Fase C — Vídeo leve, sem recomprimir · ~4 PRs.**
+Cortar início e fim (modo cópia), escolher a capa, figurinhas no reels como
+dados, legendas por transcrição como figurinha de legenda (revisadas pela
+pessoa).
+
+**Fase D — Geração por IA (fundo, cenário, expansão) · ~2 PRs.**
+Provedor de imagem por geração, escolhido pelo preço por unidade; só fundo e
+cenário, nunca pessoa; marcado "criado com IA"; quem paga segue o modelo do
+assistente (franquia e pacote).
+
+**Fase E — Vídeo gerado pelo sistema · ~4 PRs.**
+Reels automático com as fotos da rifa pelo `ffmpeg` local. É aqui que entra
+a fila de trabalho (BullMQ) que o `CLAUDE.md` reserva para "trabalho pesado
+de verdade".
+
+**Fase F — Pacote pronto para postar · 1 PR.**
+As artes nos três formatos, a legenda sugerida e o link curto, num zip ou
+num toque de compartilhar, ligado à agenda que já existe.
 
 ## 7. O que precisa ser feito fora do código
 
-- **Adobe Express Embed SDK**: pedir o acesso no Adobe Developer Console
-  (uso em produção passa por aprovação comercial), criar o projeto, registrar
-  os domínios e guardar o client id como variável de ambiente.
-- **Canva**: registrar a integração no portal de desenvolvedores, definir o
-  endereço de volta e, quando for abrir ao público, submeter à revisão.
-- **Firefly Services** (só se a Fase D evoluir para geração pelo servidor):
-  contato com vendas da Adobe; comparar com provedores de imagem com preço
-  por geração.
-- **Serviços por unidade** (remover fundo, transcrição): escolher o
-  provedor e decidir quem paga (plataforma ou organizador, como no assistente).
+- **Serviços por unidade** (remover fundo, transcrição, geração de imagem):
+  escolher os provedores e decidir quem paga — a plataforma ou o organizador,
+  no modelo de franquia e pacote do assistente.
+- **Fontes**: confirmar a licença das fontes da plataforma para uso em
+  imagem gerada (as do Google Fonts permitem).
+- **Aviso de "criado com IA"**: definir o texto e onde aparece, junto com o
+  advogado, antes da Fase D.
 
 ## Fontes consultadas
 

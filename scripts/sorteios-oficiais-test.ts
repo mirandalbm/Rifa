@@ -216,33 +216,17 @@ async function main() {
     [c] = await db.select().from(campaigns).where(eq(campaigns.id, rascunho.id));
     checa("sorteada, o motivo some", c.status === "drawn" && c.sorteioAutoMotivo === null);
 
-    // Mega-Sena: integra, publica, e o resultado lançado sorteia sozinho.
+    // Mega-Sena: fica no calendário, mas não recebe rifa — só a Federal apura
+    // (autorização SPA/MF; decisão do advogado em 05/10/2026).
     r = await admin.req("POST", "/api/admin/sorteios-oficiais", { loteria: "mega_sena", concurso, sorteioEm: daqui(60), titulo: `${TITULO} mega` });
     const mega = r.json;
+    checa("a Mega-Sena entra no calendário", r.status === 201 || r.status === 200, `HTTP ${r.status} ${r.json?.message ?? ""}`);
     const rMega = await rifa(org.organizacaoId, `${PREFIXO}-mega`);
     r = await marina.req("PUT", `/api/admin/campaigns/${rMega.id}/sorteio-oficial`, { sorteioOficialId: mega.id });
-    checa("a Mega-Sena recebe rifa", r.status === 200, `HTTP ${r.status} ${r.json?.message ?? ""}`);
-    const seedMega = await semente(rMega.id);
-    await publicar(rMega.id);
-    r = await marina.req("POST", `/api/admin/campaigns/${rMega.id}/draw`, { federalContest: 1, federalPrizes: certos });
-    checa("antes do resultado oficial, o botão não sorteia (409)", r.status === 409, `HTTP ${r.status}`);
-    r = await new Cliente().req("GET", `/api/public/campaigns/${rMega.slug}/regulamento`);
-    const regMega = JSON.stringify(r.json?.secoes ?? "");
-    checa("o regulamento diz a loteria e o concurso", regMega.includes("Mega-Sena") && regMega.includes(`concurso ${concurso}`) && regMega.includes("6 dezenas"));
-    await passouAHora(mega.id);
-    const dezenas = ["04", "11", "23", "35", "48", "59"];
-    r = await admin.req("POST", `/api/admin/sorteios-oficiais/${mega.id}/resultado`, { numeros: ["59", "4", "11", "23", "35", "48"] });
-    checa("lançar o resultado sorteia a rifa integrada", r.status === 200 && r.json?.rifas?.sorteadas === 1, `HTTP ${r.status} ${JSON.stringify(r.json?.rifas)}`);
-    const [dM] = await db.select().from(draws).where(eq(draws.campaignId, rMega.id));
-    checa(
-      "o número sai das dezenas da Mega-Sena (a mesma conta da conferência)",
-      dM.loteria === "mega_sena" && JSON.stringify(dM.federalPrizes) === JSON.stringify(dezenas) &&
-        dM.resultNumber === drawNumber({ seed: seedMega, federalPrizes: dezenas, totalQuotas: 500, loteria: "mega_sena" }),
-    );
-    r = await new Cliente().req("GET", `/api/public/campaigns/${rMega.slug}/sorteio`);
-    checa("a página do resultado diz a loteria e publica a semente", r.json?.loteriaNome === "Mega-Sena" && r.json?.loteria === "mega_sena" && r.json?.seed === seedMega);
-    r = await marina.req("POST", `/api/admin/campaigns/${rMega.id}/draw`, {});
-    checa("sorteada, não sorteia de novo (409)", r.status === 409, `HTTP ${r.status}`);
+    checa("a Mega-Sena não recebe rifa (409, só a Federal)", r.status === 409 && /Federal/.test(r.json?.message ?? ""), `HTTP ${r.status} ${r.json?.message ?? ""}`);
+    r = await marina.req("GET", "/api/admin/sorteios-oficiais");
+    const megaNaTela = (r.json?.sorteios ?? r.json ?? []).find?.((x: { id: string }) => x.id === mega.id);
+    checa("o calendário diz por que a Mega-Sena não recebe rifa", /Federal/.test(megaNaTela?.problemaParaIntegrar ?? ""), JSON.stringify(megaNaTela?.problemaParaIntegrar));
 
     // Mínimo não atingido: o resultado não sorteia, o motivo fica, e o
     // adiamento leva a rifa para outro sorteio oficial (com a plataforma).
@@ -265,7 +249,7 @@ async function main() {
     await db.update(campaigns).set({ drawAt: new Date(Date.now() - 60_000) }).where(eq(campaigns.id, rMin.id));
     r = await new Cliente().req("POST", "/api/public/orders", { campaignId: rMin.id, quantity: 1, buyer: { name: "Comprador Tardio", phone: "11955550101" } });
     checa("depois do sorteio oficial, a rifa integrada não vende (409)", r.status === 409 && /fecharam/.test(r.json?.message ?? ""), `HTTP ${r.status} ${r.json?.message ?? ""}`);
-    r = await admin.req("POST", "/api/admin/sorteios-oficiais", { loteria: "quina", concurso: concurso + 3, sorteioEm: daqui(72), titulo: `${TITULO} 5` });
+    r = await admin.req("POST", "/api/admin/sorteios-oficiais", { loteria: "federal", concurso: concurso + 3, sorteioEm: daqui(72), titulo: `${TITULO} 5` });
     const s5 = r.json;
     r = await marina.req("POST", `/api/admin/campaigns/${rMin.id}/adiar`, { sorteioOficialId: s4.id, motivo: "A meta não foi atingida ainda." });
     checa("o adiamento não volta para o mesmo sorteio (422)", r.status === 422, `HTTP ${r.status} ${r.json?.message ?? ""}`);
@@ -286,7 +270,7 @@ async function main() {
     r = await marina.req("POST", `/api/admin/campaigns/${rMin.id}/adiar`, { sorteioOficialId: s5.id, motivo: "A meta não foi atingida ainda." });
     pedido = r.json?.solicitacaoId as string;
     const [detalhe] = [(await admin.req("GET", `/api/admin/solicitacoes/${pedido}`)).json];
-    checa("a plataforma vê o sorteio oficial pedido", String(detalhe?.solicitacao?.sorteioOficialNovo?.selo ?? "").includes("Quina"));
+    checa("a plataforma vê o sorteio oficial pedido", String(detalhe?.solicitacao?.sorteioOficialNovo?.selo ?? "").includes("Federal"));
     r = await admin.req("POST", `/api/admin/solicitacoes/${pedido}/decidir`, { aprovar: true });
     [c] = await db.select().from(campaigns).where(eq(campaigns.id, rMin.id));
     const [s5b] = await db.select().from(sorteiosOficiais).where(eq(sorteiosOficiais.id, s5.id));
@@ -313,10 +297,10 @@ async function main() {
     checa("cancelar tira a rifa em rascunho e a deixa sem data", r.status === 200 && c.sorteioOficialId === null && c.drawAt === null, `HTTP ${r.status}`);
     r = await marina.req("PUT", `/api/admin/campaigns/${outra.id}/sorteio-oficial`, { sorteioOficialId: s2.id });
     checa("sorteio cancelado não aceita rifa (409)", r.status === 409, `HTTP ${r.status}`);
-    r = await admin.req("POST", "/api/admin/sorteios-oficiais", { loteria: "lotofacil", concurso, sorteioEm: daqui(12), titulo: `${TITULO} 3` });
+    r = await admin.req("POST", "/api/admin/sorteios-oficiais", { loteria: "federal", concurso: concurso + 4, sorteioEm: daqui(12), titulo: `${TITULO} 3` });
     const s3 = r.json;
     r = await marina.req("PUT", `/api/admin/campaigns/${outra.id}/sorteio-oficial`, { sorteioOficialId: s3.id });
-    checa("a menos de 24 h, a rifa não entra (409)", r.status === 409, `HTTP ${r.status}`);
+    checa("a menos de 24 h, a rifa não entra (409)", r.status === 409 && /24 horas/.test(r.json?.message ?? ""), `HTTP ${r.status} ${r.json?.message ?? ""}`);
   } finally {
     await limpar();
   }

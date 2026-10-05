@@ -2871,15 +2871,19 @@ coluna ao vivo segue como estava.
   resultado, não entra; "quando completar" (sem data) também não. A rifa do
   vizinho é 404. `sorteioOficialId` está fora do `PATCH` genérico, e os
   dados legais recusam outra data enquanto a rifa estiver no sorteio.
-- **As quatro loterias recebem rifa** (`LOTERIAS_QUE_RECEBEM_RIFA`): o
-  número sai do resultado da loteria do sorteio (`entropiaDoSorteio()` em
-  `shared/sorteio.ts`, a mesma no servidor e na conferência do aparelho). **A
-  Federal segue a conta de sempre** ("p1-p2-p3-p4-p5", `draws.loteria`
-  nulo): todo sorteio já feito continua conferindo. As outras levam o nome
-  da loteria na frente das dezenas em ordem ("mega_sena:04-11-…"). O
-  regulamento (`sorteioOficial` em `montarRegulamento()`) e a página do
-  resultado (`loteriaDoSorteio()`) dizem a loteria e o concurso. Com rifa no
-  sorteio, a loteria dele não muda (409).
+- **Só a Loteria Federal recebe rifa** (`LOTERIAS_QUE_RECEBEM_RIFA`,
+  `["federal"]`): a autorização SPA/MF prevê a apuração pela extração da
+  Federal, e o advogado confirmou em 05/10/2026 que Mega-Sena, Quina e
+  Lotofácil não valem como apuração. As outras loterias seguem no
+  calendário (a tela do sorteio no celular transmite qualquer uma), mas
+  `problemaParaIntegrar()` recusa a rifa nelas (409, com o motivo na tela).
+  O número sai do resultado da Federal ("p1-p2-p3-p4-p5", `draws.loteria`
+  nulo, `entropiaDoSorteio()` em `shared/sorteio.ts`, a mesma no servidor
+  e na conferência do aparelho); a conta por dezenas das outras fica no
+  código, para o sorteio já feito conferir e para o dia em que a autorização
+  permitir. O regulamento (`sorteioOficial` em `montarRegulamento()`) e a
+  página do resultado (`loteriaDoSorteio()`) dizem a loteria e o concurso.
+  Com rifa no sorteio, a loteria dele não muda (409).
 - **O resultado lançado sorteia a rifa** (`sortearRifasDoSorteioOficial()`,
   na rota do resultado, depois de gravá-lo): cada rifa publicada integrada
   passa por `executarSorteio()` — o mesmo caminho do botão, com as regras da

@@ -581,6 +581,36 @@ Na ordem de entrega do plano:
   integrar API nenhuma, está em `docs/PLANO-FERRAMENTAS.md`. Decisão de
   05/10/2026: primeiro fecha a versão inicial; as ferramentas vêm depois.
 
+- [ ] **[depois da versão inicial — dívida técnica e jurídica, isolada]**
+  **Apuração direta pela Loteria Federal (modo "Autorizado MF").** A SPA/MF
+  (Portaria SEAE nº 7.638/2022) exige *verificabilidade simples*: o auditor
+  e o apostador leigo pegam o resultado da Federal, leem o regulamento e,
+  com papel e caneta, chegam ao ganhador. O sorteio de hoje mistura os 5
+  prêmios com a semente secreta (`drawNumber()` em `server/services/draw.ts`,
+  `conferirSorteio()` no aparelho) — auditável e à prova de manipulação, mas
+  **não é a correspondência direta** que a modalidade "Sorteio" pede. Quando
+  for pedir as autorizações formais, entra um **segundo modo de apuração**,
+  escolhido nos dados legais da rifa e travado ao publicar, ao lado do atual:
+  - **Séries e números da sorte** em blocos de 100.000 (a rifa de 1 milhão
+    são 10 séries); exemplo clássico da portaria: a **série** pelo algarismo
+    da dezena do 1º prêmio e o **número da sorte** pelas unidades do 1º ao 5º
+    prêmio, lidas na ordem. A fórmula exata vai no regulamento, letra por
+    letra, e a conferência pública (`/sorteio`) mostra a leitura passo a
+    passo, sem hash.
+  - **Aproximação obrigatória**: "caso o número da sorte não tenha sido
+    distribuído, o prêmio caberá ao portador do número imediatamente
+    superior" (e, sem superior, o inferior) — é cláusula do regulamento
+    aprovado; a regra que já existe (`contempladoPorAproximacao()`) cobre e
+    precisa bater com o texto aprovado.
+  - **Só a Federal** (feito: `LOTERIAS_QUE_RECEBEM_RIFA`); extrações às
+    quartas e aos sábados ("Sábado da Sorte"); "quando completar" já marca a
+    próxima extração.
+  - Fora do escopo: "assemelhado a concurso" e "vale-brinde" (outra mecânica,
+    sem número da sorte).
+  O método atual continua valendo para a rifa que a promotora autoriza no
+  modelo de hoje; o modo direto é plugado na hora de escalar. Confirmado com
+  o advogado em 05/10/2026.
+
 - [ ] **Sorteios oficiais** (o calendário da plataforma, a tela do sorteio no
   celular). **Fase 1 feita:** o master cadastra, muda, cancela e lança o
   resultado oficial (Federal, Mega-Sena, Quina, Lotofácil, cada dia na cor da
@@ -590,8 +620,9 @@ Na ordem de entrega do plano:
   **Fase 2 feita:** lançar o resultado sorteia sozinha cada rifa publicada
   integrada, com as regras dela (mínimo, aproximação, a promotora completa);
   a que não pode (mínimo, reserva esperando Pix) guarda o motivo e o relógio
-  tenta de novo; as quatro loterias recebem rifa (o número sai do resultado
-  da loteria, e o regulamento e a conferência pública dizem qual); e o
+  tenta de novo; **só a Loteria Federal recebe rifa** (decisão do advogado,
+  05/10/2026: é a apuração da autorização SPA/MF; as outras loterias ficam
+  só no calendário); e o
   adiamento pode levar a rifa publicada para outro sorteio oficial, só com
   a aprovação da plataforma. **Fase 3 feita:** os comentários do sorteio
   oficial, embaixo do vídeo na tela do celular (todo mundo lê; conta com
@@ -601,9 +632,8 @@ Na ordem de entrega do plano:
   Denúncias e na Caixa de entrada, e procedente apaga o comentário.
   **Cores conferidas** (05/10/2026) nos cartões do app Loterias Caixa: Mega-Sena, Quina e
   Lotofácil ajustadas; a Federal não tem cartão no app e segue a do site.
-  **Falta:** o advogado confirmar que a autorização SPA/MF da rifa
-  aceita apuração pela Mega-Sena, Quina ou Lotofácil (hoje a plataforma
-  deixa a organização escolher — a autorização é dela, invariante 9).
+  **Advogado respondeu** (05/10/2026): apuração só pela Loteria Federal —
+  aplicado em `LOTERIAS_QUE_RECEBEM_RIFA`.
 - [x] **Reels** (tela cheia, vídeo em pé de até 3 min, ações na lateral):
   pronto, atrás do interruptor `reelsLigado` (Aparência → Topo do app, nasce
   desligado). **v2 feito:** o som escolhido fica lembrado no aparelho (cai

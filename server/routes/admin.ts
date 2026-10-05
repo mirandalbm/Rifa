@@ -86,6 +86,7 @@ import {
   fraudSummary,
   block,
   unblock,
+  identify,
 } from "../services/antifraude";
 import {
   openBalancesBySeller,
@@ -265,6 +266,7 @@ import { conversasDenunciadasAbertas, decidirDenunciaDeConversa, detalheDaDenunc
 import { decidirDenunciaDeGrupo, detalheDaDenunciaDeGrupo, listarDenunciasDeGrupo } from "../services/grupos";
 import { decidirDenunciaDoSorteio, detalheDaDenunciaDoSorteio, listarDenunciasDoSorteio } from "../services/sorteioComentarios";
 import { EXPORTS, exportInfo, exportFilename, CSV_BOM } from "@shared/exports";
+import { aceitarContrato, contratoDaOrganizacao, contratoDaPlataforma, publicarContrato } from "../services/contratoPromotora";
 
 export const adminRouter = Router();
 
@@ -3881,6 +3883,44 @@ adminRouter.post("/termo-afiliado", async (req, res, next) => {
     const termo = await publicarTermo(org, req.body, req.user?.id ?? null);
     await audit(req, "afiliado.termo", "organization", org, { versao: termo.versao, comissaoPct: termo.comissaoPct });
     res.status(201).json(termo);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/* ---------------- contrato da plataforma com a promotora ---------------- */
+
+/** A organização vê a versão em vigor e o aceite dela; a plataforma, as versões e quantas aceitaram. */
+adminRouter.get("/contrato-promotora", async (req, res, next) => {
+  try {
+    const org = orgOf(req);
+    res.set("Cache-Control", "no-store");
+    res.json(org ? await contratoDaOrganizacao(org) : await contratoDaPlataforma());
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** Versão nova do contrato. Só a plataforma (403 para organizador, no `npm run isolation`). */
+adminRouter.post("/contrato-promotora", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    const c = await publicarContrato(req.body, req.user?.id ?? null);
+    await audit(req, "contrato_promotora.publicar", "contrato_promotora", undefined, { versao: c.versao });
+    res.status(201).json(c);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** O aceite é da organização da sessão; a plataforma publica, não aceita. */
+adminRouter.post("/contrato-promotora/aceite", async (req, res, next) => {
+  try {
+    const org = orgOf(req);
+    if (!org) return res.status(403).json({ message: "Quem aceita o contrato é a organização." });
+    const r = await aceitarContrato(org, req.user!.id, { versao: req.body?.versao, identidade: identify(req) });
+    if (r.novo) await audit(req, "contrato_promotora.aceite", "organization", org, { versao: r.versao });
+    res.json(r);
   } catch (err) {
     next(err);
   }

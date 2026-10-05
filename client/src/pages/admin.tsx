@@ -28,6 +28,7 @@ import { PerfilPublicoForm } from "@/components/PerfilPublicoForm";
 import { EnderecoCurto } from "@/components/LinksCurtos";
 import { AdiarSorteioCard, EditarRifaCard, type RifaEditavel } from "@/components/EditarRifa";
 import { TelefoneDoOrganizadorCard } from "@/components/Seguranca";
+import { ContratoPromotoraCard } from "@/components/ContratoPromotoraCard";
 import { VerificacaoCard } from "@/components/Verificacao";
 import { CoresDoSeloCard } from "@/components/CoresDoSelo";
 import { podeExcluir } from "@shared/solicitacoes";
@@ -2182,7 +2183,7 @@ export function AdminConfiguracoes() {
       {/* Uma aba por assunto, em vez de uma pilha de doze cartões. */}
       <Abas
         rotulo="Assuntos das configurações"
-        ancoras={{ verificacao: "organizacao" }}
+        ancoras={{ verificacao: "organizacao", contrato: "organizacao" }}
         abas={[
           {
             id: "conta",
@@ -2206,6 +2207,7 @@ export function AdminConfiguracoes() {
                   <OrganizerCard />
                   <EnderecoDaOrganizacaoCard />
                 </div>
+                <ContratoPromotoraCard plataforma={plataforma} />
                 <PerfilPublicoCard />
                 {plataforma ? <CoresDoSeloCard /> : <VerificacaoDaOrganizacaoCard />}
               </div>

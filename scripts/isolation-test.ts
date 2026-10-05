@@ -562,6 +562,8 @@ async function rotasDaPlataforma(eu: Lado) {
     ["PUT pagamentos da plataforma", "/api/admin/plataforma", { method: "PUT", body: '{"estornoManual":true}' }],
     ["PATCH a própria carteira Asaas", `/api/admin/organizacoes/${eu.orgId}`, { method: "PATCH", body: '{"asaasWalletId":"7bafd95a-e783-4a62-9be1-23999af742c6"}' }],
     ["GET WhatsApp", "/api/admin/whatsapp", {}],
+    // Versão do contrato com as organizações é da plataforma; a organização só aceita.
+    ["POST versão do contrato da promotora", "/api/admin/contrato-promotora", { method: "POST", body: JSON.stringify({ texto: "x".repeat(300) }) }],
     ["GET aparência", "/api/admin/template", {}],
     ["GET pré-visualização do template", "/api/admin/template/previa", {}],
     ["PUT rascunho do template", "/api/admin/template/rascunho", { method: "PUT", body: "{}" }],

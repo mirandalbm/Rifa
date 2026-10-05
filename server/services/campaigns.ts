@@ -20,6 +20,7 @@ import {
   type Campaign,
 } from "@shared/schema";
 import { termoAtual } from "./afiliados";
+import { problemaDoContrato, TRAVA_CONTRATO } from "./contratoPromotora";
 import { apagarArquivosDeMidias } from "./media";
 import { commitSeed } from "./draw";
 import { validarRegulamentoExtra } from "@shared/regulamento";
@@ -114,6 +115,10 @@ export async function publishBlockers(campaignId: string): Promise<string[]> {
       "Confirme o telefone da organização (Configurações) e espere a aprovação da plataforma antes de publicar.",
     );
   }
+  // O contrato da plataforma em vigor tem de estar aceito pela organização:
+  // sem a trava, o contrato seria só intenção.
+  const contrato = await problemaDoContrato(campaign.organizationId);
+  if (contrato) blockers.push(contrato);
 
   if (!ready.some((m) => m.role === "banner")) {
     blockers.push("Falta o banner da rifa.");
@@ -226,6 +231,12 @@ export async function publishCampaign(campaignId: string): Promise<Campaign> {
     if ((org.rows[0] as { archived_at: Date | null } | undefined)?.archived_at) {
       throw new CampaignRuleError("A organização desta rifa está arquivada.");
     }
+
+    // O contrato de novo, com a trava compartilhada: uma versão nova saindo
+    // agora espera esta publicação, ou esta espera ela e confere a nova.
+    await tx.execute(sql`select pg_advisory_xact_lock_shared(${TRAVA_CONTRATO})`);
+    const contrato = await problemaDoContrato(campaign.organizationId, tx);
+    if (contrato) throw new CampaignRuleError(contrato);
 
     // Integrada a um sorteio oficial: o sorteio fica travado (`FOR SHARE`) até
     // o fim — a plataforma não muda a data dele nem o cancela no meio — e a

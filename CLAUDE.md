@@ -125,6 +125,7 @@ arquitetura.
 | conta do apostador (senha, confirmação, exclusão) | `shared/contaComprador.ts`, `server/services/contaComprador.ts`, `scripts/conta-test.ts` |
 | login com Google, completar CPF e telefone, ligar o Google | `shared/google.ts` (regras, claims, volta segura), `server/services/google.ts`, `server/services/contaCompleta.ts`, rotas `/conta/google/*`, `/conta/cpf` e `/conta/telefone/*` em `server/routes/public.ts`, `client/src/components/BotaoGoogle.tsx`, `CompletarConta`/`GoogleCard` em `client/src/pages/MinhasCotas.tsx`, `scripts/google-test.ts`, `tests/google.test.ts` |
 | de quem é o cliente (o que o organizador vê) | `shared/titularidade.ts` (regra) e `server/services/titularidade.ts` (SQL) |
+| contrato da plataforma com a promotora (versões, aceite da organização, trava de publicação) | `shared/contratoPromotora.ts` (régua do texto), `server/services/contratoPromotora.ts` (`problemaDoContrato`, `TRAVA_CONTRATO`), `/contrato-promotora*` em `server/routes/admin.ts`, `publishBlockers`/`publishCampaign()` em `server/services/campaigns.ts`, `client/src/components/ContratoPromotoraCard.tsx` (Configurações), `scripts/contrato-promotora-test.ts`, `tests/contratoPromotora.test.ts` |
 | autorização SPA/MF e data do sorteio | `shared/campanhaLegal.ts`, `salvarDadosLegais()` em `server/services/campaigns.ts`, `client/src/components/DadosLegaisCard.tsx` |
 | endereço do organizador e ordem da vitrine por região | `shared/endereco.ts` (regra), `salvarEndereco()` em `server/services/orgs.ts`, `server/services/cep.ts`, `client/src/components/EnderecoForm.tsx` |
 | perfil do organizador, seguir e sino | `shared/perfil.ts` (regras), `server/services/perfil.ts`, `client/src/pages/Perfil.tsx`, `client/src/components/Seguir.tsx`, `scripts/perfil-test.ts` |
@@ -1328,6 +1329,33 @@ tem atrás.
 - **São as mesmas telas.** Organizador e administrador geral usam o mesmo
   painel; o que muda é o recorte. Tela nova para organizador é sinal de que o
   recorte foi feito no lugar errado.
+
+## Contrato da plataforma com a promotora — o que não pode afrouxar
+
+Os Termos de uso cobrem o apostador; a relação com a promotora é este
+contrato (o texto é do advogado: regresso, autorização SPA/MF e IR por conta
+dela, Pix por fora, prêmio desembaraçado). Se a promotora não entrega o
+prêmio, a Justiça tende a condenar a plataforma junto — o contrato é o que
+permite cobrar dela depois, e o aceite é a prova.
+
+- **Sem o aceite da versão em vigor, a organização não publica rifa**
+  (`problemaDoContrato()` em `publishBlockers` e **de novo dentro da
+  transação** de `publishCampaign()`, com a trava compartilhada
+  `TRAVA_CONTRATO`, 811202): vale para o botão e para a publicação agendada.
+  Publicar versão nova pega a trava exclusiva — a rifa nunca vai ao ar com o
+  aceite de uma versão que deixou de valer no meio. Sem nenhuma versão
+  publicada, nada muda. Rifa já no ar não é tocada por versão nova.
+- **Só a plataforma publica versão** (`POST /contrato-promotora`, 403 para
+  organizador, no `npm run isolation`); **só a organização aceita** (a
+  plataforma é 403). O texto só passa pelo tamanho (`validarContrato()`); o
+  mesmo texto não vira versão nova (409). Publicar nunca edita a anterior.
+- **O aceite é prova**: a cópia do texto, a versão, a organização, quem
+  aceitou, IP e aparelho em hash, e a auditoria
+  (`contrato_promotora.aceite`). A tela manda a versão que leu; outra versão
+  em vigor é 409 (lê de novo). Um aceite por versão e organização (índice
+  único): cinco cliques, um aceite.
+- As tabelas `contratos_promotora` e `contrato_promotora_aceites` sobem com o
+  `db:push` **antes** do código. `npm run contrato` prova tudo isso.
 
 ## Arquivar e usuários — o que não pode afrouxar
 

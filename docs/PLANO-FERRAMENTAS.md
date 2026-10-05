@@ -150,24 +150,25 @@ transcrição), nunca pelo editor de terceiro.
 |---|---|---|
 | Modelos prontos (templates) | Modelos nossos em SVG, preenchidos pelos dados da rifa (arte da rifa, faltam N, contagem, resultado, cota premiada) | A |
 | Redimensionar para cada rede (Magic Resize) | Os três formatos (4:5, 1:1, 9:16) gerados de uma vez, com o recorte atento do `sharp` | A |
-| Texto, fontes e efeitos | Figurinha de texto com as fontes da plataforma (DM Mono para número, a de exibição para título), contorno e sombra | B |
-| Figurinhas, formas e emojis | As figurinhas do story (contagem, Comprar, texto, emoji) + logo, preço, QR, selo SPA/MF | B |
+| Texto, fontes e efeitos | Figurinha de texto com as fontes da plataforma (DM Mono para número, a de exibição para título), contorno e sombra | C |
+| Figurinhas, formas e emojis | As figurinhas do story (contagem, Comprar, texto, emoji) + logo, preço, QR, selo SPA/MF | C |
 | Fotos de banco | Não entra: a foto é do prêmio e da organização (as fotos de banco deles são licenciadas por conta) | — |
-| Cortar e enquadrar imagem | Enquadramento por formato no editor, com o recorte atento como ponto de partida | B |
-| Remover fundo (imagem) | Serviço por unidade pelo servidor, com a imagem reprocessada depois pelo `sharp` | B |
-| Escrever o texto (Magic Write) | Legenda e texto da arte sugeridos pelo assistente que já existe (ação `legenda`), na régua | B |
-| Cortar vídeo (trim) | `ffmpeg` local em modo cópia (corta nos quadros-chave, sem recomprimir) | C |
-| Capa do vídeo | Escolha do quadro entre candidatos do `ffmpeg` | C |
-| Texto e figurinhas por cima do vídeo | Como no story: dados desenhados pelo player, nunca gravados no vídeo (a contagem acompanha o adiamento, o texto segue varrível) | C |
-| Legendar vídeo (captions) | Transcrição por serviço por unidade, revisada pela pessoa, guardada como figurinha de legenda | C |
+| Cortar e enquadrar imagem | Enquadramento por formato no editor, com o recorte atento como ponto de partida | C |
+| Remover fundo (imagem) | Serviço por unidade pelo servidor, com a imagem reprocessada depois pelo `sharp` | C |
+| Escrever o texto (Magic Write) | Legenda e texto da arte sugeridos pelo assistente que já existe (ação `legenda`), na régua | C |
+| Cortar vídeo (trim) | `ffmpeg` local em modo cópia (corta nos quadros-chave, sem recomprimir) | D |
+| Capa do vídeo | Escolha do quadro entre candidatos do `ffmpeg` | D |
+| Texto e figurinhas por cima do vídeo | Como no story: dados desenhados pelo player, nunca gravados no vídeo (a contagem acompanha o adiamento, o texto segue varrível) | D |
+| Legendar vídeo (captions) | Transcrição por serviço por unidade, revisada pela pessoa, guardada como figurinha de legenda | D |
 | Redimensionar e converter vídeo | Não entra: o `ingest` já aceita MP4 e MOV e mede; vídeo deitado não vira reels (é a régua) | — |
-| Juntar vídeos / animar com áudio | Não entra agora: exigiria recomprimir; reavaliar com a fila da Fase D | — |
-| Gerar imagem por IA (Magic Media / Firefly) | Provedor de imagem por geração, só para **fundo e cenário**; nunca rosto de pessoa real; marcado "criado com IA" | D |
-| Expandir e preencher (generativo) | Mesmo provedor, para completar a foto do prêmio no 9:16 | D |
-| Vídeo gerado | Reels automático com as fotos da rifa (movimento lento, prêmio, preço, contagem) pelo `ffmpeg` local, com a fila (BullMQ) | E |
+| Juntar vídeos / animar com áudio | Não entra agora: exigiria recomprimir; reavaliar com a fila da Fase F | — |
+| Magic Design (de uma referência ou prompt → layout pronto) | **Recriar a partir de uma referência**: a pessoa envia uma foto ou um modelo que viu; a IA de visão lê o layout e devolve um modelo nosso (dados), que o sistema preenche com a rifa e as informações oficiais do sorteio | B |
+| Gerar imagem por IA (Magic Media / Firefly) | Provedor de imagem por geração, só para **fundo e cenário**; nunca rosto de pessoa real; marcado "criado com IA" | E |
+| Expandir e preencher (generativo) | Mesmo provedor, para completar a foto do prêmio no 9:16 | E |
+| Vídeo gerado | Reels automático com as fotos da rifa (movimento lento, prêmio, preço, contagem) pelo `ffmpeg` local, com a fila (BullMQ) | F |
 | Música e trilha | Não entra: sem biblioteca licenciada, o som é o do próprio vídeo | — |
 | Marca (brand kit) | Já existe: logo, cor de destaque e capa da organização (`validarDestaque`) entram nos modelos e figurinhas | A |
-| Agendar e publicar | Já existe (story, peça, rifa); a Fase F liga o pacote pronto à agenda | F |
+| Agendar e publicar | Já existe (story, peça, rifa); a Fase G liga o pacote pronto à agenda | G |
 | Compartilhar e baixar | "Baixar" e "Compartilhar" (Web Share) em cada arte e no kit do afiliado | A |
 
 ### 6.2 Plano por fases (tudo nosso)
@@ -185,41 +186,72 @@ nome curto e foto do ganhador), cota premiada revelada. A marca da
 organização (logo e cor de destaque) entra nos modelos. "Baixar" e
 "Compartilhar" no cartão da publicação e no kit do afiliado.
 
-**Fase B — Editor de imagem (navegador) · ~4 PRs.**
-Foto própria ou arte da Fase A; enquadramento por formato; figurinhas (as
-do story + logo, preço, QR, selo) com texto nas fontes da plataforma;
-remover fundo pelo servidor; legenda e texto sugeridos pelo assistente. O
-texto passa pela régua **antes** de virar imagem; a exportação é pelo canvas
-do navegador e entra pelo envio de sempre.
+**Fase B — Recriar a partir de uma referência (IA de visão) · ~3 PRs.**
+A pessoa escolhe uma foto ou um modelo externo (um flyer que viu, uma arte
+antiga dela, um print) e envia. Um modelo de visão lê a peça e devolve
+**um modelo nosso, em dados** (`shared/modelos.ts`: fundo, blocos, cores,
+fontes da plataforma, posições e hierarquia do texto) — nunca HTML, script
+ou imagem pronta. O sistema mostra o modelo recriado já **preenchido com a
+rifa** (prêmio, preço, data) e com as **informações oficiais do sorteio**
+(selo e número da autorização SPA/MF, a loteria e o concurso quando a rifa
+está num sorteio oficial, a regra da aproximação quando couber), e a pessoa
+troca o que quiser (o texto promocional dela, a foto do prêmio no lugar da
+foto da referência) no editor da Fase C. Regras próprias:
+- **Recria o leiaute e o estilo, não copia a arte**: a foto, a logo e a
+  marca da referência não entram — são substituídas pela foto do prêmio, a
+  logo e a cor da organização. É o que evita usar a arte de outro promotor
+  (ou de outra marca) com a assinatura da plataforma.
+- O que o modelo de visão devolve passa por `validarModelo()` (só chaves
+  conhecidas, cores em `#rrggbb`, fontes da lista, blocos dos tipos que o
+  renderizador sabe desenhar) — como `validarTemplate()` do construtor. O
+  texto proposto passa pela régua (sem link, sem telefone, varredura do Pix
+  por fora) e as informações oficiais **não são editáveis** pela IA nem pela
+  pessoa: saem da rifa.
+- A referência enviada vai só ao provedor de visão, cifrada em trânsito, e
+  é apagada depois de lida (a Privacidade diz isso); nenhum dado de
+  comprador entra no pedido. Limite por pessoa (`hit`) e custo no modelo do
+  assistente (franquia e pacote), porque cada leitura é uma chamada paga.
+- Sem provedor configurado, a ferramenta não aparece (como o botão do
+  Google sem as chaves).
 
-**Fase C — Vídeo leve, sem recomprimir · ~4 PRs.**
+**Fase C — Editor de imagem (navegador) · ~4 PRs.**
+Foto própria, arte da Fase A ou modelo recriado na Fase B; enquadramento por
+formato; figurinhas (as do story + logo, preço, QR, selo) com texto nas
+fontes da plataforma; remover fundo pelo servidor; legenda e texto sugeridos
+pelo assistente. O texto passa pela régua **antes** de virar imagem; a
+exportação é pelo canvas do navegador e entra pelo envio de sempre.
+
+**Fase D — Vídeo leve, sem recomprimir · ~4 PRs.**
 Cortar início e fim (modo cópia), escolher a capa, figurinhas no reels como
 dados, legendas por transcrição como figurinha de legenda (revisadas pela
 pessoa).
 
-**Fase D — Geração por IA (fundo, cenário, expansão) · ~2 PRs.**
+**Fase E — Geração por IA (fundo, cenário, expansão) · ~2 PRs.**
 Provedor de imagem por geração, escolhido pelo preço por unidade; só fundo e
 cenário, nunca pessoa; marcado "criado com IA"; quem paga segue o modelo do
 assistente (franquia e pacote).
 
-**Fase E — Vídeo gerado pelo sistema · ~4 PRs.**
+**Fase F — Vídeo gerado pelo sistema · ~4 PRs.**
 Reels automático com as fotos da rifa pelo `ffmpeg` local. É aqui que entra
 a fila de trabalho (BullMQ) que o `CLAUDE.md` reserva para "trabalho pesado
 de verdade".
 
-**Fase F — Pacote pronto para postar · 1 PR.**
+**Fase G — Pacote pronto para postar · 1 PR.**
 As artes nos três formatos, a legenda sugerida e o link curto, num zip ou
 num toque de compartilhar, ligado à agenda que já existe.
 
 ## 7. O que precisa ser feito fora do código
 
-- **Serviços por unidade** (remover fundo, transcrição, geração de imagem):
-  escolher os provedores e decidir quem paga — a plataforma ou o organizador,
+- **Serviços por unidade** (leitura da referência por visão, remover fundo,
+  transcrição, geração de imagem): escolher os provedores e decidir quem paga — a plataforma ou o organizador,
   no modelo de franquia e pacote do assistente.
 - **Fontes**: confirmar a licença das fontes da plataforma para uso em
   imagem gerada (as do Google Fonts permitem).
 - **Aviso de "criado com IA"**: definir o texto e onde aparece, junto com o
-  advogado, antes da Fase D.
+  advogado, antes da Fase E.
+- **Recriar a partir de referência** (Fase B): confirmar com o advogado o
+  limite entre inspirar-se no leiaute e copiar arte alheia; a regra do
+  sistema é trocar foto, logo e marca pela da organização.
 
 ## Fontes consultadas
 

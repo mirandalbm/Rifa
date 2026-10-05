@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { contraste } from "../shared/template";
 import {
+  CONTORNO_DAS_LETRAS,
   CORES_DOS_NOMES,
   PREFERENCIA_PADRAO,
   alfaDoFundo,
@@ -76,5 +77,16 @@ describe("comentários na tela cheia do sorteio", () => {
     // Duzentos apelidos espalham pela paleta inteira, não numa cor só.
     expect(usadas.size).toBe(CORES_DOS_NOMES.length);
     for (const n of ["", "@a", "Ana S."]) expect(CORES_DOS_NOMES).toContain(corDoNome(n));
+  });
+});
+
+describe("contorno das letras na conversa por cima do vídeo", () => {
+  it("é um contorno preto de 1 px nas oito direções, mais uma sombra leve", () => {
+    const partes = CONTORNO_DAS_LETRAS.split(", ");
+    expect(partes).toHaveLength(9);
+    for (const x of [-1, 0, 1]) for (const y of [-1, 0, 1]) {
+      if (x === 0 && y === 0) continue;
+      expect(partes).toContain(`${x === 0 ? "0" : `${x}px`} ${y === 0 ? "0" : `${y}px`} 0 #000`);
+    }
   });
 });

@@ -16,6 +16,7 @@ import {
   type VideoDaTransmissao,
 } from "@shared/aoVivo";
 import {
+  CONTORNO_DAS_LETRAS,
   LADOS_NA_TELA_CHEIA,
   MODOS_NA_TELA_CHEIA,
   alfaDoFundo,
@@ -416,7 +417,7 @@ function ConversaPorCima({
         pref.lado === "esquerda" ? "left-2" : "right-2"
       }`}
       // Sem fundo, a sombra é o que faz o texto branco ler sobre qualquer quadro do vídeo.
-      style={{ backgroundColor: `rgba(0, 0, 0, ${alfaDoFundo(fundoDaConversaPct)})`, textShadow: "0 0 3px #000, 0 1px 2px #000, 0 0 8px rgba(0,0,0,0.9)" }}
+      style={{ backgroundColor: `rgba(0, 0, 0, ${alfaDoFundo(fundoDaConversaPct)})`, textShadow: CONTORNO_DAS_LETRAS }}
     >
       <ol className="min-h-0 space-y-1 overflow-hidden" aria-live="polite">
         {ultimas.length ? (

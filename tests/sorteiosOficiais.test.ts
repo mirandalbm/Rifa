@@ -3,6 +3,7 @@ import {
   ANTECEDENCIA_PARA_INTEGRAR_MS,
   CORES_DA_CAIXA,
   LOTERIAS,
+  LOTERIAS_QUE_RECEBEM_RIFA,
   problemaParaIntegrar,
   problemaParaLancarResultado,
   seloDoSorteioOficial,
@@ -57,9 +58,13 @@ describe("quando dá para integrar e lançar", () => {
     expect(problemaParaIntegrar({ ...base, sorteioEm: daqui(23) }, agora)).not.toBeNull();
     expect(problemaParaIntegrar({ ...base, canceladoEm: agora, sorteioEm: daqui(48) }, agora)).toMatch(/cancelado/);
     expect(problemaParaIntegrar({ ...base, resultadoEm: agora, sorteioEm: daqui(48) }, agora)).toMatch(/resultado/);
-    // Toda loteria do calendário recebe rifa (o sorteio sai do resultado dela).
+    // Só a Federal recebe rifa (a apuração da autorização SPA/MF, confirmada
+    // pelo advogado em 05/10/2026); as outras ficam só no calendário.
+    expect(LOTERIAS_QUE_RECEBEM_RIFA).toEqual(["federal"]);
     for (const loteria of Object.keys(LOTERIAS)) {
-      expect(problemaParaIntegrar({ ...base, loteria, sorteioEm: daqui(48) }, agora), loteria).toBeNull();
+      const p = problemaParaIntegrar({ ...base, loteria, sorteioEm: daqui(48) }, agora);
+      if (loteria === "federal") expect(p, loteria).toBeNull();
+      else expect(p, loteria).toMatch(/Loteria Federal/);
     }
     expect(problemaParaIntegrar({ ...base, loteria: "dupla_sena", sorteioEm: daqui(48) }, agora)).not.toBeNull();
   });

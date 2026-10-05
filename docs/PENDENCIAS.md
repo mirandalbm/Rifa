@@ -582,8 +582,9 @@ Na ordem de entrega do plano:
   **Fase 2 feita:** lançar o resultado sorteia sozinha cada rifa publicada
   integrada, com as regras dela (mínimo, aproximação, a promotora completa);
   a que não pode (mínimo, reserva esperando Pix) guarda o motivo e o relógio
-  tenta de novo; as quatro loterias recebem rifa (o número sai do resultado
-  da loteria, e o regulamento e a conferência pública dizem qual); e o
+  tenta de novo; **só a Loteria Federal recebe rifa** (decisão do advogado,
+  05/10/2026: é a apuração da autorização SPA/MF; as outras loterias ficam
+  só no calendário); e o
   adiamento pode levar a rifa publicada para outro sorteio oficial, só com
   a aprovação da plataforma. **Fase 3 feita:** os comentários do sorteio
   oficial, embaixo do vídeo na tela do celular (todo mundo lê; conta com
@@ -592,9 +593,8 @@ Na ordem de entrega do plano:
   comentário do sorteio ("Denunciar"), a plataforma decide em Atendimento →
   Denúncias e na Caixa de entrada, e procedente apaga o comentário.
   **Falta:** conferir as cores de `CORES_DA_CAIXA` contra o manual de identidade visual das
-  Loterias Caixa; e o advogado confirmar que a autorização SPA/MF da rifa
-  aceita apuração pela Mega-Sena, Quina ou Lotofácil (hoje a plataforma
-  deixa a organização escolher — a autorização é dela, invariante 9).
+  Loterias Caixa. **Advogado respondeu** (05/10/2026): apuração só pela
+  Loteria Federal — aplicado em `LOTERIAS_QUE_RECEBEM_RIFA`.
 - [x] **Reels** (tela cheia, vídeo em pé de até 3 min, ações na lateral):
   pronto, atrás do interruptor `reelsLigado` (Aparência → Topo do app, nasce
   desligado). **v2 feito:** o som escolhido fica lembrado no aparelho (cai

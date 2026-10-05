@@ -198,13 +198,15 @@ export function situacaoDoSorteio(s: { canceladoEm: Date | string | null; result
 }
 
 /**
- * As loterias em que a rifa pode entrar. O número da rifa sai do resultado
- * oficial da loteria do sorteio (`entropiaDoSorteio` em `shared/sorteio.ts`:
- * os 5 prêmios da Federal ou as dezenas das outras), e o regulamento e a
- * conferência pública dizem qual. Tirar uma daqui fecha a porta para rifa
- * nova; a que já está integrada segue.
+ * As loterias em que a rifa pode entrar: **só a Loteria Federal** — a
+ * autorização SPA/MF da rifa prevê a apuração pela extração da Federal, e
+ * o advogado confirmou (05/10/2026) que Mega-Sena, Quina e Lotofácil não
+ * valem como apuração. As outras seguem no calendário da plataforma (a tela
+ * do sorteio no celular transmite qualquer uma), mas não recebem rifa. A
+ * conta por dezenas (`entropiaDoSorteio`) fica no código, para o sorteio já
+ * feito conferir e para o dia em que a autorização permitir.
  */
-export const LOTERIAS_QUE_RECEBEM_RIFA: readonly Loteria[] = ["federal", "mega_sena", "quina", "lotofacil"];
+export const LOTERIAS_QUE_RECEBEM_RIFA: readonly Loteria[] = ["federal"];
 
 /** A rifa pode entrar neste sorteio agora? Devolve o motivo, ou `null`. */
 export function problemaParaIntegrar(
@@ -213,7 +215,7 @@ export function problemaParaIntegrar(
 ): string | null {
   if (!(LOTERIAS_QUE_RECEBEM_RIFA as readonly string[]).includes(s.loteria)) {
     const nome = loteriaValida(s.loteria) ? LOTERIAS[s.loteria].nome : s.loteria;
-    return `As rifas não entram mais nos sorteios da ${nome}.`;
+    return `A rifa só entra em sorteio da Loteria Federal (é a apuração da autorização SPA/MF); a ${nome} fica só no calendário.`;
   }
   const situacao = situacaoDoSorteio(s);
   if (situacao === "cancelado") return "Este sorteio oficial foi cancelado.";

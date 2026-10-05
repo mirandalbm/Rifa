@@ -43,6 +43,7 @@ import {
   mensagemReembolso,
   mensagemResultado,
   mensagemSorteioAdiado,
+  mensagemAntecipacaoDesfeita,
   mensagemSorteioMarcado,
   mensagemRifaNova,
   mensagemSorteioChegando,
@@ -295,8 +296,41 @@ export async function avisarAdiamento(campaignId: string) {
   );
 }
 
-/** "Quando completar": a última cota foi paga e o sorteio ganhou data. Uma vez por rifa (a chave). */
-export async function avisarSorteioMarcado(campaignId: string) {
+const dataCurta = (d: Date) =>
+  d.toLocaleString("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+/**
+ * "Quando completar": o estorno tirou a rifa de cheia e a antecipação caiu —
+ * o sorteio volta à data máxima. A chave leva o pedido estornado: cada
+ * antecipação desfeita avisa uma vez.
+ */
+export async function avisarAntecipacaoDesfeita(campaignId: string, pedidoEstornado: string) {
+  const r = await rifaComDona(campaignId);
+  if (!r?.campaign.drawAt) return 0;
+  const publico = [...(await seguidoresComSino(r.org.id)), ...(await participantes(campaignId))];
+  return avisar(
+    publico,
+    "sorteio_marcado",
+    // O pedido estornado na chave: cada antecipação desfeita avisa uma vez.
+    `${r.campaign.id}:volta:${pedidoEstornado}`,
+    mensagemAntecipacaoDesfeita({
+      premio: r.campaign.prizeTitle,
+      orgSlug: r.org.slug,
+      slug: r.campaign.slug,
+      data: dataCurta(r.campaign.drawAt),
+    }),
+  );
+}
+
+/** "Quando completar": a última cota foi paga e o sorteio foi antecipado (ou ganhou data). Uma vez por data (a chave). */
+export async function avisarSorteioMarcado(campaignId: string, pedidoQueEncheu?: string) {
   const r = await rifaComDona(campaignId);
   if (!r?.campaign.drawAt) return 0;
   const publico = [...(await seguidoresComSino(r.org.id)), ...(await participantes(campaignId))];
@@ -304,19 +338,16 @@ export async function avisarSorteioMarcado(campaignId: string) {
     publico,
     "sorteio_marcado",
     // A data na chave: se a rifa deixar de estar cheia (estorno) e encher de novo, avisa a nova data.
-    `${r.campaign.id}:${r.campaign.drawAt.getTime()}`,
+    // A data e o pedido que encheu: encheu de novo para a mesma data (depois de
+    // um estorno desfazer a antecipação), o aviso sai de novo.
+    `${r.campaign.id}:${r.campaign.drawAt.getTime()}${pedidoQueEncheu ? `:${pedidoQueEncheu}` : ""}`,
     mensagemSorteioMarcado({
       premio: r.campaign.prizeTitle,
       orgSlug: r.org.slug,
       slug: r.campaign.slug,
-      data: r.campaign.drawAt.toLocaleString("pt-BR", {
-        timeZone: "America/Sao_Paulo",
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
+      data: dataCurta(r.campaign.drawAt),
+      // A data máxima registrada: o aviso diz que é uma antecipação.
+      maxima: r.campaign.drawAtMaximo && r.campaign.drawAtMaximo.getTime() !== r.campaign.drawAt.getTime() ? dataCurta(r.campaign.drawAtMaximo) : null,
     }),
   );
 }

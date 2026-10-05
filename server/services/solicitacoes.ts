@@ -200,11 +200,15 @@ export async function pedirAdiamento(
     const [s] = await db.select().from(sorteiosOficiais).where(eq(sorteiosOficiais.id, id));
     if (!s) throw new SolicitacaoError("Sorteio oficial não encontrado.", 404);
     if (s.id === c.sorteioOficialId) throw new SolicitacaoError("A rifa já está neste sorteio oficial.");
-    const problema = problemaParaIntegrar(s, new Date());
+    const problema = problemaParaIntegrar(s, new Date(), c.metodoApuracao);
     if (problema) throw new SolicitacaoError(problema);
     // A data nova é a do concurso, nunca a que veio do formulário.
     novaData = s.sorteioEm;
     sorteioOficialNovoId = s.id;
+  }
+  // A rifa do globo só sorteia numa sessão do globo: o adiamento escolhe a próxima.
+  if (c.metodoApuracao === "globo" && !sorteioOficialNovoId) {
+    throw new SolicitacaoError("Esta rifa é apurada pelo globo: escolha a nova sessão do globo no calendário.");
   }
   const motivo = String(entrada.motivo ?? "");
   const problema = problemaNoAdiamento({
@@ -442,7 +446,9 @@ export async function decidirSolicitacao(
           .from(sorteiosOficiais)
           .where(eq(sorteiosOficiais.id, s.sorteioOficialNovoId))
           .for("share");
-        const problema = so ? problemaParaIntegrar(so, new Date()) : "Sorteio oficial não encontrado.";
+        // O método trava ao publicar: lido sem trava, não muda no meio.
+        const [{ metodo }] = await tx.select({ metodo: campaigns.metodoApuracao }).from(campaigns).where(eq(campaigns.id, s.campaignId));
+        const problema = so ? problemaParaIntegrar(so, new Date(), metodo) : "Sorteio oficial não encontrado.";
         if (!so || problema) {
           throw new SolicitacaoError(`O sorteio oficial pedido não aceita mais a rifa: ${problema} Recuse o pedido.`, 409);
         }
@@ -482,6 +488,9 @@ export async function decidirSolicitacao(
           .set({
             drawAt: s.drawAtNovo,
             drawAtOriginal: c.drawAtOriginal ?? c.drawAt,
+            // "Quando completar": a data nova é a nova data máxima (a que a
+            // autorização passa a registrar); encher antes ainda antecipa.
+            ...(c.modoSorteio === "quando_completar" ? { drawAtMaximo: s.drawAtNovo } : {}),
             adiamentos: sql`${campaigns.adiamentos} + 1`,
             // Integrada a um sorteio oficial, a data era a do concurso: a nova
             // data, autorizada pela plataforma, tira a rifa daquele sorteio —

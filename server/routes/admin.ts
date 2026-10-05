@@ -1,5 +1,5 @@
 import { numeracaoZero, validarMetodosLiberados } from "@shared/apuracao";
-import { calendario, cancelarSorteioOficial, criarSorteioOficial, editarSorteioOficial, integrarAoSorteioOficial, lancarResultado } from "../services/sorteiosOficiais";
+import { calendario, cancelarSorteioOficial, criarSorteioOficial, editarSorteioOficial, integrarAoSorteioOficial, lancarResultado, salvarArquivoDaAta } from "../services/sorteiosOficiais";
 import {
   BannerDivulgacaoError,
   bannerDoPainel,
@@ -3670,7 +3670,7 @@ adminRouter.post("/sorteios-oficiais/:id/cancelar", async (req, res, next) => {
 adminRouter.post("/sorteios-oficiais/:id/resultado", async (req, res, next) => {
   try {
     requirePlatformAdmin(req);
-    const s = await lancarResultado(req.params.id, req.body?.numeros);
+    const s = await lancarResultado(req.params.id, req.body?.numeros, req.body?.ata);
     await audit(req, "sorteio_oficial.resultado", "sorteio_oficial", s.id, { resultado: s.resultado });
     // O resultado já está gravado: falha aqui não vira 500 (o segundo clique
     // daria 409 sem ninguém saber que gravou) — o relógio sorteia as rifas.
@@ -3679,6 +3679,19 @@ adminRouter.post("/sorteios-oficiais/:id/resultado", async (req, res, next) => {
       return { sorteadas: 0, esperando: 0, falhou: true };
     });
     res.json({ ...s, rifas });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// O arquivo da ata notarial da sessão do globo (PDF ou foto do cartório): só a
+// plataforma anexa, depois do resultado. O público baixa pela rota pública.
+adminRouter.put("/sorteios-oficiais/:id/ata", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    const r = await salvarArquivoDaAta(req.params.id, req.body?.arquivo, req.body?.nome);
+    await audit(req, "sorteio_oficial.ata", "sorteio_oficial", req.params.id, r);
+    res.json(r);
   } catch (err) {
     next(err);
   }

@@ -48,3 +48,17 @@ export function numerosPremiados(
   }
   return { numeros };
 }
+
+/**
+ * Cotas premiadas são **vale-brinde** (resposta 8.8 do advogado): a
+ * contemplação é imediata, presa ao número na hora da compra — para a SPA/MF
+ * é outra modalidade, com plano de operação e taxa próprios. Rifa com sorteio
+ * e cota premiada é uma **promoção mista** (sorteio + vale-brinde), aprovada
+ * no mesmo processo do SCPC. O painel avisa a promotora antes de sortear as
+ * cotas; o regulamento diz isso a quem compra.
+ */
+export const AVISO_VALE_BRINDE =
+  "Cotas premiadas são vale-brinde para a SPA/MF: com o sorteio final, a rifa vira uma promoção mista (sorteio + vale-brinde). Peça a autorização das duas modalidades no mesmo processo do SCPC — o plano de operação e a taxa de fiscalização são próprios. Sem a autorização do vale-brinde, não use cotas premiadas.";
+
+export const CLAUSULA_VALE_BRINDE =
+  "As cotas premiadas constituem a modalidade vale-brinde: a contemplação é imediata, revelada no pagamento ao portador do número premiado. Esta é uma promoção mista (sorteio e vale-brinde), autorizada pela SPA/MF nas duas modalidades.";

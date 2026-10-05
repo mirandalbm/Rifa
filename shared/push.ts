@@ -139,11 +139,33 @@ export function mensagemSorteioChegando(r: {
   };
 }
 
-/** "Quando completar": a rifa encheu e o sorteio ganhou data. */
-export function mensagemSorteioMarcado(r: { premio: string; orgSlug: string; slug: string; data: string }): MensagemPush {
+/**
+ * "Quando completar": a rifa encheu e o sorteio foi antecipado da data máxima
+ * para a próxima extração da Federal (8.7) — o comunicado na plataforma que o
+ * regulamento promete. Sem data máxima (rifa de antes), "marcado".
+ */
+export function mensagemSorteioMarcado(r: {
+  premio: string;
+  orgSlug: string;
+  slug: string;
+  data: string;
+  maxima?: string | null;
+}): MensagemPush {
   return {
-    title: "Rifa completa: sorteio marcado",
-    body: `${r.premio} — todas as cotas foram vendidas. Sorteio em ${r.data}, pela Loteria Federal.`,
+    title: r.maxima ? "Rifa completa: sorteio antecipado" : "Rifa completa: sorteio marcado",
+    body: r.maxima
+      ? `${r.premio} — todas as cotas foram vendidas. O sorteio foi antecipado para ${r.data}, pela Loteria Federal (a data máxima era ${r.maxima}).`
+      : `${r.premio} — todas as cotas foram vendidas. Sorteio em ${r.data}, pela Loteria Federal.`,
+    url: `/o/${r.orgSlug}/r/${r.slug}`,
+    tag: `sorteio:${r.slug}`,
+  };
+}
+
+/** "Quando completar": um estorno tirou a rifa de cheia e a antecipação caiu. */
+export function mensagemAntecipacaoDesfeita(r: { premio: string; orgSlug: string; slug: string; data: string }): MensagemPush {
+  return {
+    title: "Sorteio volta à data máxima",
+    body: `${r.premio} — uma compra foi estornada e a rifa não está mais completa. O sorteio volta para ${r.data}; se completar de novo, é antecipado de novo.`,
     url: `/o/${r.orgSlug}/r/${r.slug}`,
     tag: `sorteio:${r.slug}`,
   };

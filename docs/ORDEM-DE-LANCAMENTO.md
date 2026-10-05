@@ -141,8 +141,8 @@ paralelo, para não segurar o resto. Marque aqui mesmo o que for fechando.
 
 ## Fica para depois da versão inicial (código, comigo)
 
-- O globo próprio como método de apuração, depois de homologado (a Federal
-  direta já está no código; o globo aparece e não liga).
+- Ligar o globo da plataforma como método de apuração, depois de homologado
+  (o código está pronto: é ligar em "Métodos de apuração", sem deploy).
 - Ferramentas de imagem e vídeo (`docs/PLANO-FERRAMENTAS.md`, fases A a G).
 - APK das maquininhas (precisa de máquina com o Android SDK).
 - O que foi deixado de fora de propósito: vídeo do afiliado pelo Stream,

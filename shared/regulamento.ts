@@ -11,8 +11,9 @@ import { clausulaDoBonus } from "./bonus";
 import { formatBRL, formatQuota, groupNumber } from "./format";
 import { regraDoReembolso } from "./reembolso";
 import { REGRA_DA_APROXIMACAO } from "./sorteio";
-import { cotasMinimasParaSortear } from "./campanhaLegal";
-import { clausulaDaApuracao, EXPLICACAO_DO_METODO, numeracaoZero, totalDaApuracao } from "./apuracao";
+import { clausulaDaAntecipacao, cotasMinimasParaSortear } from "./campanhaLegal";
+import { clausulaDoMetodo, numeracaoZero, totalDaApuracao } from "./apuracao";
+import { CLAUSULA_VALE_BRINDE } from "./premiadas";
 import { LOTERIAS, loteriaValida, resultadoDaLoteria } from "./sorteiosOficiais";
 
 const DIAS_DA_FEDERAL_TEXTO = "quartas e sábados, às 19h de Brasília";
@@ -44,6 +45,8 @@ export interface DadosDoRegulamento {
     maxPerOrder: number;
     reservationTtlMin: number;
     drawAt: string | Date | null;
+    /** "Quando completar": a data máxima registrada (8.7); `drawAt` pode ser a antecipada. */
+    drawAtMaximo?: string | Date | null;
     authorizationCode: string | null;
     drawSeedHash: string | null;
     /**
@@ -105,14 +108,19 @@ export function montarRegulamento(d: DadosDoRegulamento): Secao[] {
   const zero = numeracaoZero(rifa.metodoApuracao);
   const primeira = formatQuota(1, rifa.totalQuotas, zero);
   const ultima = formatQuota(rifa.totalQuotas, rifa.totalQuotas, zero);
-  // Como o número sai do resultado: a cláusula da leitura direta, o globo, ou a semente (rifa de antes).
+  // Como o número sai do resultado: a cláusula da leitura direta, a do globo, ou a semente (rifa de antes).
   const comoSai =
-    rifa.metodoApuracao === "federal_direta" && totalDaApuracao(rifa.totalQuotas)
-      ? [clausulaDaApuracao(rifa.totalQuotas)]
-      : rifa.metodoApuracao === "globo"
-        ? [`${EXPLICACAO_DO_METODO.globo} A ata e o vídeo ficam na página da rifa.`]
-        : null;
+    (rifa.metodoApuracao === "federal_direta" || rifa.metodoApuracao === "globo") && totalDaApuracao(rifa.totalQuotas)
+      ? [
+          clausulaDoMetodo(rifa.metodoApuracao, rifa.totalQuotas),
+          ...(rifa.metodoApuracao === "globo" ? ["A ata notarial e o vídeo da sessão ficam na página do sorteio da rifa."] : []),
+        ]
+      : null;
   const quando = dataHora(rifa.drawAt);
+  // "Quando completar": a data máxima (a registrada) e, se a rifa encheu antes, a antecipada.
+  const maxima = rifa.modoSorteio === "quando_completar" ? dataHora(rifa.drawAtMaximo ?? rifa.drawAt) : null;
+  const antecipado =
+    maxima && rifa.drawAtMaximo && rifa.drawAt && new Date(rifa.drawAt).getTime() < new Date(rifa.drawAtMaximo).getTime();
   const oficial = rifa.sorteioOficial && loteriaValida(rifa.sorteioOficial.loteria) ? rifa.sorteioOficial.loteria : null;
 
   const secoes: Secao[] = [
@@ -141,6 +149,8 @@ export function montarRegulamento(d: DadosDoRegulamento): Secao[] {
         ...(d.cotasPremiadas.length
           ? [
               `Há ${d.cotasPremiadas.length} cota(s) premiada(s), reveladas na hora do pagamento: ${agrupar(d.cotasPremiadas).join("; ")}. Os números premiados são secretos até a revelação.`,
+              // Resposta 8.8: cota premiada é vale-brinde — com o sorteio, promoção mista.
+              ...(rifa.metodoApuracao ? [CLAUSULA_VALE_BRINDE] : []),
             ]
           : []),
       ],
@@ -161,6 +171,12 @@ export function montarRegulamento(d: DadosDoRegulamento): Secao[] {
       itens: [
         rifa.modoSorteio === "quando_completar" && !quando
           ? `O sorteio não tem data marcada: acontece na primeira extração da Loteria Federal (${DIAS_DA_FEDERAL_TEXTO}) pelo menos 24 horas depois de a última cota ser paga, com os 5 prêmios dessa extração. A data é informada na página da rifa e avisada a quem comprou.`
+          : maxima
+            ? `${clausulaDaAntecipacao(maxima)} As extrações da Loteria Federal são às ${DIAS_DA_FEDERAL_TEXTO}.${
+                antecipado ? ` A rifa completou: o sorteio foi antecipado para ${quando}, com os 5 prêmios dessa extração.` : ""
+              }`
+          : quando && oficial === "globo"
+            ? `O sorteio acontece em ${quando}, na sessão nº ${rifa.sorteioOficial!.concurso} do ${LOTERIAS.globo.nome.toLowerCase()}, transmitida ao vivo. Lançado o resultado da sessão, a rifa é sorteada na hora.`
           : quando && oficial
             ? `O sorteio acontece em ${quando}, no sorteio oficial da plataforma: ${LOTERIAS[oficial].nome}, concurso ${rifa.sorteioOficial!.concurso}, com ${resultadoDaLoteria(oficial)} nesse concurso. Lançado o resultado oficial, a rifa é sorteada na hora.`
             : quando
@@ -171,7 +187,9 @@ export function montarRegulamento(d: DadosDoRegulamento): Secao[] {
           ...(rifa.drawSeedHash ? [`Resumo da semente publicado: ${rifa.drawSeedHash}.`] : []),
         ]),
         ...(rifa.modoSorteio === "quando_completar"
-          ? ["O sorteio só é realizado com todas as cotas vendidas e pagas (rifa cheia)."]
+          ? [
+              "O sorteio só é realizado com todas as cotas vendidas e pagas (rifa cheia). Se a rifa não completar até a data máxima, o sorteio é adiado para nova data, informada na página da rifa e avisada a quem comprou.",
+            ]
           : rifa.modoSorteio === "cheia_com_data"
             ? [
                 "O sorteio só é realizado com todas as cotas vendidas e pagas (rifa cheia). Se a rifa não completar até a data, o sorteio é adiado para nova data, informada na página da rifa e avisada a quem comprou.",

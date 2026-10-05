@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { REGRA_DA_APROXIMACAO, contempladoPorAproximacao } from "../shared/sorteio";
-import { cotasMinimasParaSortear, minimoAtingido, minimoDoModo, modoSemData, modoValido, problemaNoMinimoVendido, proximaExtracaoFederal } from "../shared/campanhaLegal";
+import { cotasMinimasParaSortear, minimoAtingido, minimoDoModo, modoValido, problemaNoMinimoVendido, proximaExtracaoFederal } from "../shared/campanhaLegal";
 import { montarRegulamento, validarRegulamentoExtra, REGULAMENTO_EXTRA_MAX, type DadosDoRegulamento } from "../shared/regulamento";
 
 const base: DadosDoRegulamento = {
@@ -150,8 +150,6 @@ describe("modos do sorteio (rifa cheia)", () => {
     expect(minimoDoModo("quando_completar", 0)).toBe(100);
     expect(minimoDoModo("promotora_completa", 40)).toBe(0);
     expect(minimoDoModo("data", 40)).toBe(40);
-    expect(modoSemData("quando_completar")).toBe(true);
-    expect(modoSemData("data")).toBe(false);
   });
   it("a próxima extração da Federal é quarta ou sábado às 19h de Brasília, com 24 h de folga", () => {
     // segunda 2026-10-05 10:00 UTC → quarta 07/10 22:00 UTC
@@ -172,5 +170,38 @@ describe("modos do sorteio (rifa cheia)", () => {
     expect(promotora).toContain("ficam com a promotora");
     expect(promotora).not.toContain(REGRA_DA_APROXIMACAO);
     expect(de("data")).toContain(REGRA_DA_APROXIMACAO);
+  });
+});
+
+describe("quando completar com data máxima (8.7) e cotas premiadas como vale-brinde (8.8)", () => {
+  const rifa = { ...base.rifa, totalQuotas: 1_000, metodoApuracao: "federal_direta", modoSorteio: "quando_completar" };
+  const texto = (d: DadosDoRegulamento) => montarRegulamento(d).flatMap((s) => s.itens).join("\n");
+  it("a data registrada é a máxima, e a antecipação é anunciada", () => {
+    const t = texto({ ...base, rifa: { ...rifa, drawAt: "2027-01-06T22:00:00Z", drawAtMaximo: "2027-01-06T22:00:00Z" } });
+    expect(t).toContain("O sorteio será realizado até 06/01/2027");
+    expect(t).toContain("antecipado para a extração da Loteria Federal imediatamente subsequente");
+    expect(t).toContain("mediante comunicado na plataforma");
+    expect(t).not.toContain("foi antecipado para");
+  });
+  it("antecipada, diz a data nova", () => {
+    const t = texto({ ...base, rifa: { ...rifa, drawAt: "2026-11-04T22:00:00Z", drawAtMaximo: "2027-01-06T22:00:00Z" } });
+    expect(t).toContain("A rifa completou: o sorteio foi antecipado para 04/11/2026");
+  });
+  it("cota premiada na rifa autorizada é vale-brinde: promoção mista", () => {
+    const t = texto({ ...base, rifa: { ...rifa, drawAt: "2027-01-06T22:00:00Z" }, cotasPremiadas: ["R$ 100 no Pix"] });
+    expect(t).toContain("modalidade vale-brinde");
+    expect(t).toContain("promoção mista");
+    expect(texto({ ...base, rifa: { ...rifa, drawAt: "2027-01-06T22:00:00Z" }, cotasPremiadas: [] })).not.toContain("vale-brinde");
+  });
+  it("o globo leva a cláusula do globo e a sessão", () => {
+    const t = texto({
+      ...base,
+      rifa: { ...base.rifa, totalQuotas: 1_000, metodoApuracao: "globo", drawAt: "2026-12-05T22:00:00Z", sorteioOficial: { loteria: "globo", concurso: 12 } },
+    });
+    expect(t).toContain("6 (seis) globos independentes");
+    expect(t).toContain("ata notarial lavrada por tabelião");
+    expect(t).toContain("sessão nº 12 do globo da plataforma");
+    expect(t).toContain("o ganhador será o detentor do número 139");
+    expect(t).not.toMatch(/semente|hash/i);
   });
 });

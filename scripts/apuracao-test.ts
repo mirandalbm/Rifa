@@ -4,7 +4,9 @@
  * promotora nos dados legais, o total só em potência de 10, a publicação
  * barrada sem método, o sorteio pela leitura direta com a numeração a partir
  * de zero (e a aproximação), a conferência sem semente e o regulamento com a
- * cláusula do advogado. A rifa de antes, sem método, segue pela semente.
+ * cláusula do advogado. O globo da plataforma: liberado pelo painel, a rifa
+ * numa sessão do calendário, o resultado com a ata notarial e o arquivo do
+ * cartório. A rifa de antes, sem método, segue pela semente.
  *
  *   npm run apuracao      (com `npm run dev` no ar e o seed aplicado)
  */
@@ -44,6 +46,7 @@ const EXEMPLO = [...PREMIOS_DE_EXEMPLO];
 
 async function limpar() {
   await db.execute(sql`delete from campaigns where slug like ${`${PREFIXO}%`}`);
+  await db.execute(sql`delete from sorteios_oficiais where titulo like ${`${PREFIXO}%`}`);
   await db.execute(sql`delete from buyers where phone = ${FONE}`);
 }
 
@@ -106,7 +109,7 @@ async function main() {
     r = await marina.req("PUT", "/api/admin/apuracao/metodos", { liberados: ["federal_direta"] });
     checa("a organização não libera método (403)", r.status === 403, `HTTP ${r.status}`);
     r = await admin.req("PUT", "/api/admin/apuracao/metodos", { liberados: ["globo"] });
-    checa("o globo não liga antes da homologação (400)", r.status === 400, `HTTP ${r.status}`);
+    checa("o globo já liga pelo painel (a plataforma decide quando, sem publicar código)", r.status === 200 && r.json?.liberados?.[0] === "globo", `HTTP ${r.status}`);
     r = await admin.req("PUT", "/api/admin/apuracao/metodos", { liberados: ["hash"] });
     checa("método desconhecido: 400", r.status === 400, `HTTP ${r.status}`);
     r = await admin.req("PUT", "/api/admin/apuracao/metodos", { liberados: ["federal_direta"] });
@@ -202,9 +205,89 @@ async function main() {
     r = await sortear(errado.c.id, ["1", "2", "3", "4", "5"]);
     checa("prêmio sem 5 algarismos: 400, nada sorteado", r.status === 400, `HTTP ${r.status}`);
 
-    const globo = await novaRifa("globo", { metodoApuracao: "globo" });
-    r = await sortear(globo.c.id, EXEMPLO);
-    checa("método que o sistema ainda não sorteia (globo): 409", r.status === 409, `HTTP ${r.status}`);
+    // ---------------- o globo da plataforma (8.9 a 8.12) ----------------
+    console.log("\n  globo da plataforma:");
+    const globoSolto = await novaRifa("globo-solto", { metodoApuracao: "globo" });
+    r = await sortear(globoSolto.c.id, EXEMPLO);
+    checa("rifa do globo não sorteia pelo formulário (409)", r.status === 409 && String(r.json?.message).includes("globo"), `HTTP ${r.status}`);
+
+    r = await admin.req("PUT", "/api/admin/apuracao/metodos", { liberados: ["federal_direta", "globo"] });
+    checa("a plataforma libera o globo junto da Federal", r.status === 200 && r.json?.liberados?.includes("globo"), `HTTP ${r.status}`);
+    const rascunhoGlobo = await novaRifa("globo-rascunho", { metodoApuracao: "globo", status: "draft" });
+    r = await marina.req("GET", `/api/admin/campaigns/${rascunhoGlobo.c.id}/blockers`);
+    checa("rifa do globo sem sessão no calendário não publica", (r.json?.blockers ?? []).some((b: string) => b.includes("sessão do globo")), JSON.stringify(r.json?.blockers));
+    r = await marina.req("PUT", `/api/admin/campaigns/${rascunhoGlobo.c.id}/legal`, { modoSorteio: "quando_completar" });
+    checa("globo + \"quando completar\": recusa (a antecipação é para a Federal)", r.status === 422, `HTTP ${r.status}`);
+
+    const concurso = 90_000 + Math.floor(Math.random() * 9_000);
+    const daqui48 = new Date(Date.now() + 48 * 3_600_000).toISOString();
+    r = await marina.req("POST", "/api/admin/sorteios-oficiais", { loteria: "globo", concurso, sorteioEm: daqui48, titulo: `${PREFIXO} globo` });
+    checa("a organização não cria sessão do globo (403)", r.status === 403, `HTTP ${r.status}`);
+    r = await admin.req("POST", "/api/admin/sorteios-oficiais", { loteria: "globo", concurso, sorteioEm: daqui48, titulo: `${PREFIXO} globo` });
+    checa("a plataforma cria a sessão do globo no calendário", r.status === 201 && r.json?.loteria === "globo", `HTTP ${r.status} ${r.json?.message ?? ""}`);
+    const sessao = r.json?.id as string;
+
+    const federalRascunho = await novaRifa("federal-rascunho", { status: "draft" });
+    r = await marina.req("PUT", `/api/admin/campaigns/${federalRascunho.c.id}/sorteio-oficial`, { sorteioOficialId: sessao });
+    checa("rifa da Federal não entra na sessão do globo (409)", r.status === 409 && String(r.json?.message).includes("Loteria Federal"), `HTTP ${r.status}`);
+    r = await marina.req("PUT", `/api/admin/campaigns/${rascunhoGlobo.c.id}/sorteio-oficial`, { sorteioOficialId: sessao });
+    checa("rifa do globo entra na sessão, com a data dela", r.status === 200 && new Date(r.json?.drawAt).getTime() === new Date(daqui48).getTime(), `HTTP ${r.status}`);
+    r = await marina.req("GET", `/api/admin/campaigns/${rascunhoGlobo.c.id}/blockers`);
+    checa("…e deixa de barrar pela sessão", !(r.json?.blockers ?? []).some((b: string) => b.includes("globo")), JSON.stringify(r.json?.blockers));
+    await db.update(campaigns).set({ status: "published", publishedAt: new Date() }).where(eq(campaigns.id, rascunhoGlobo.c.id));
+    await vender(rascunhoGlobo.c.id, [140, 500]);
+
+    const regG = JSON.stringify((await anon.req("GET", `/api/public/campaigns/${rascunhoGlobo.c.slug}/regulamento`)).json?.secoes ?? []);
+    checa("o regulamento traz a cláusula do globo, a ata e a sessão",
+      regG.includes("6 (seis) globos independentes") && regG.includes("ata notarial") && regG.includes(`sessão nº ${concurso}`) && !/semente|hash/i.test(regG));
+
+    const bolas = ["6", "7", "8", "1", "3", "9"];
+    const ata = {
+      local: "Av. Paulista, 1000, São Paulo/SP",
+      tabelionato: "1º Tabelionato de Notas de São Paulo",
+      registro: "Livro 12, folha 34",
+      testemunhas: ["Ana Souza", "Bruno Lima"],
+      bolas: bolas.map((_, i) => ({ hora: `20:0${i}:10` })),
+    };
+    r = await admin.req("POST", `/api/admin/sorteios-oficiais/${sessao}/resultado`, { numeros: bolas, ata });
+    checa("antes da hora, o resultado não entra (409)", r.status === 409, `HTTP ${r.status}`);
+    await db.execute(sql`update sorteios_oficiais set sorteio_em = now() - interval '1 minute' where id = ${sessao}::uuid`);
+    r = await marina.req("POST", `/api/admin/sorteios-oficiais/${sessao}/resultado`, { numeros: bolas, ata });
+    checa("a organização não lança o resultado do globo (403)", r.status === 403, `HTTP ${r.status}`);
+    r = await admin.req("POST", `/api/admin/sorteios-oficiais/${sessao}/resultado`, { numeros: bolas });
+    checa("sem a ata, o resultado do globo não entra (400)", r.status === 400 && String(r.json?.message).includes("local"), `HTTP ${r.status} ${r.json?.message ?? ""}`);
+    r = await admin.req("POST", `/api/admin/sorteios-oficiais/${sessao}/resultado`, { numeros: bolas, ata: { ...ata, testemunhas: ["Ana Souza"] } });
+    checa("ata sem auditor e com 1 testemunha: 400", r.status === 400 && String(r.json?.message).includes("auditor"), `HTTP ${r.status}`);
+    r = await admin.req("POST", `/api/admin/sorteios-oficiais/${sessao}/resultado`, { numeros: bolas, ata });
+    checa("resultado e ata lançados: a rifa do globo sorteia sozinha", r.status === 200 && r.json?.rifas?.sorteadas === 1, `HTTP ${r.status} ${JSON.stringify(r.json?.rifas)}`);
+    r = await admin.req("POST", `/api/admin/sorteios-oficiais/${sessao}/resultado`, { numeros: bolas, ata });
+    checa("segundo lançamento: 409", r.status === 409, `HTTP ${r.status}`);
+    const [dG] = await db.select().from(draws).where(eq(draws.campaignId, rascunhoGlobo.c.id));
+    checa("6-7-8-1-3-9 em 1.000 números: o 139 (interno 140) leva", dG?.resultNumber === 140 && dG?.winnerNumber === 140 && dG?.loteria === "globo", `${dG?.resultNumber}`);
+
+    r = await anon.req("GET", `/api/public/campaigns/${rascunhoGlobo.c.slug}/sorteio`);
+    checa("a conferência mostra 139, a leitura dos globos e a ata", r.json?.numero === "139" && r.json?.leitura?.[0] === "1º globo → bola 6" &&
+      r.json?.ata?.tabelionato === ata.tabelionato && r.json?.ata?.bolas?.[5]?.hora === "20:05:10" && r.json?.seed === null && r.json?.seedHash === null);
+    checa("…e o arquivo da ata ainda não chegou", r.json?.ataUrl === null);
+
+    const pdf = `data:application/pdf;base64,${Buffer.from("%PDF-1.4\n% ata de teste\n%%EOF").toString("base64")}`;
+    r = await marina.req("PUT", `/api/admin/sorteios-oficiais/${sessao}/ata`, { arquivo: pdf, nome: "ata.pdf" });
+    checa("a organização não anexa a ata (403)", r.status === 403, `HTTP ${r.status}`);
+    r = await admin.req("PUT", `/api/admin/sorteios-oficiais/${sessao}/ata`, { arquivo: `data:text/plain;base64,${Buffer.from("oi").toString("base64")}`, nome: "x.txt" });
+    checa("arquivo que não é PDF nem imagem: 400", r.status === 400, `HTTP ${r.status}`);
+    r = await admin.req("PUT", `/api/admin/sorteios-oficiais/${sessao}/ata`, { arquivo: pdf, nome: "ata.pdf" });
+    checa("a plataforma anexa o PDF da ata", r.status === 200, `HTTP ${r.status} ${r.json?.message ?? ""}`);
+    const baixada = await fetch(URL + `/api/public/sorteio-oficial/${sessao}/ata`);
+    const corpo = Buffer.from(await baixada.arrayBuffer()).toString("latin1");
+    checa("o público baixa a ata depois do resultado", baixada.status === 200 && (baixada.headers.get("content-type") ?? "").includes("pdf") && corpo.startsWith("%PDF"), `HTTP ${baixada.status}`);
+    r = await anon.req("GET", `/api/public/campaigns/${rascunhoGlobo.c.slug}/sorteio`);
+    checa("…e a conferência aponta para ela", r.json?.ataUrl === `/api/public/sorteio-oficial/${sessao}/ata`);
+
+    const prestacao = await fetch(URL + `/api/admin/exportacoes/sorteio?campanha=${rascunhoGlobo.c.id}`, { headers: { Cookie: admin.cookie } });
+    const csvG = await prestacao.text();
+    checa("a prestação de contas traz a sessão, as bolas e a ata",
+      prestacao.status === 200 && csvG.includes("Sessão do globo") && csvG.includes(ata.tabelionato) && csvG.includes("Ana Souza; Bruno Lima") && csvG.includes("6 (seis) globos"),
+      `HTTP ${prestacao.status}`);
 
     // ---------------- a rifa de antes segue pela semente ----------------
     console.log("\n  rifa de antes (sem método):");

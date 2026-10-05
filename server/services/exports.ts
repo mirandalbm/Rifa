@@ -12,7 +12,8 @@
  * linhas o Postgres relê tudo a cada página, e linha nova durante a leitura
  * desloca o resto.
  */
-import { clausulaDaApuracao, lerFederal, metodoValido, numeracaoZero, ROTULO_DO_METODO, totalDaApuracao } from "@shared/apuracao";
+import { clausulaDoMetodo, lerResultado, metodoValido, numeracaoZero, ROTULO_DO_METODO, totalDaApuracao } from "@shared/apuracao";
+import { ataGuardada } from "@shared/sorteiosOficiais";
 import { formatQuota, numeroNaTela } from "@shared/format";
 import { sql, type SQL } from "drizzle-orm";
 import { db } from "../db";
@@ -601,6 +602,9 @@ interface LinhaSorteio {
   vencedor_telefone: string | null;
   pedido: number | null;
   vendidas: number;
+  /** A ata da sessão do globo (`AtaDoGlobo`), se a rifa é do globo. */
+  ata: unknown;
+  sessao: number | null;
 }
 
 /**
@@ -622,6 +626,7 @@ function sorteio(escopo: ExportScope): ExportStream {
       const [d] = await rows<LinhaSorteio>(sql`
         SELECT c.slug, c.title, c.prize_title, c.total_quotas, c.price_cents,
                c.authorization_code, c.metodo_apuracao,
+               so.ata, so.concurso AS sessao,
                d.seed, d.seed_hash, d.federal_contest, d.federal_prizes,
                d.result_number, d.winner_number, d.executed_at, d.evidence_url,
                b.name AS vencedor, b.phone AS vencedor_telefone,
@@ -630,6 +635,7 @@ function sorteio(escopo: ExportScope): ExportStream {
           FROM campaigns c
           JOIN draws d ON d.campaign_id = c.id
           LEFT JOIN campaign_stats st ON st.campaign_id = c.id
+          LEFT JOIN sorteios_oficiais so ON so.id = c.sorteio_oficial_id
           LEFT JOIN orders o ON o.id = d.winner_order_id
           LEFT JOIN buyers b ON b.id = o.buyer_id
          WHERE c.id = ${campaignId}::uuid
@@ -659,10 +665,11 @@ function sorteio(escopo: ExportScope): ExportStream {
       yield ["Autorização SPA/MF", d.authorization_code];
       yield ["", ""];
 
-      // Rifa com método de apuração: a leitura direta da Federal, sem semente
-      // (ela não entra na conta). Numeração a partir de zero.
+      // Rifa com método de apuração: a leitura direta da Federal ou do globo,
+      // sem semente (ela não entra na conta). Numeração a partir de zero.
       const zero = numeracaoZero(d.metodo_apuracao);
-      const direta = d.metodo_apuracao === "federal_direta";
+      const globo = d.metodo_apuracao === "globo";
+      const direta = d.metodo_apuracao === "federal_direta" || globo;
       if (d.metodo_apuracao) {
         yield ["Método de apuração", metodoValido(d.metodo_apuracao) ? ROTULO_DO_METODO[d.metodo_apuracao] : d.metodo_apuracao];
       } else {
@@ -676,18 +683,37 @@ function sorteio(escopo: ExportScope): ExportStream {
       }
       yield ["", ""];
 
-      yield ["Concurso da Loteria Federal", d.federal_contest];
-      if (d.federal_prizes) {
-        // Laço, não forEach: `yield` só existe dentro do gerador.
-        for (const [i, premio] of d.federal_prizes.entries()) {
-          yield [`${i + 1}o prêmio da Federal`, premio];
+      if (globo) {
+        // O globo: a sessão do calendário e a ata notarial (resposta 8.10).
+        const ata = ataGuardada(d.ata);
+        yield ["Sessão do globo", d.sessao];
+        if (d.federal_prizes) {
+          for (const [i, bola] of d.federal_prizes.entries()) {
+            yield [`Bola do ${i + 1}o globo`, `${bola}${ata?.bolas[i] ? ` (às ${ata.bolas[i].hora})` : ""}`];
+          }
+        }
+        if (ata) {
+          yield ["Local da extração", ata.local];
+          yield ["Tabelionato (ata notarial)", ata.tabelionato];
+          yield ["Registro da ata", ata.registro];
+          yield ["Auditor independente", ata.auditor ? `${ata.auditor.nome}${ata.auditor.registro ? ` (${ata.auditor.registro})` : ""}` : null];
+          yield ["Testemunhas", ata.testemunhas.join("; ") || null];
+          yield ["Observações da ata", ata.observacoes];
+        }
+      } else {
+        yield ["Concurso da Loteria Federal", d.federal_contest];
+        if (d.federal_prizes) {
+          // Laço, não forEach: `yield` só existe dentro do gerador.
+          for (const [i, premio] of d.federal_prizes.entries()) {
+            yield [`${i + 1}o prêmio da Federal`, premio];
+          }
         }
       }
       yield ["", ""];
 
       yield ["Sorteio realizado em", csvDate(d.executed_at)];
       if (direta && d.federal_prizes && totalDaApuracao(d.total_quotas)) {
-        for (const passo of lerFederal(d.federal_prizes, d.total_quotas).passos) yield ["Leitura", passo];
+        for (const passo of lerResultado(d.metodo_apuracao, d.federal_prizes, d.total_quotas).passos) yield ["Leitura", passo];
       }
       yield ["Número sorteado", d.result_number === null ? null : formatQuota(d.result_number, d.total_quotas, zero)];
       // O pedido vencedor é o do contemplado: se o sorteado não foi vendido, o
@@ -709,7 +735,7 @@ function sorteio(escopo: ExportScope): ExportStream {
       yield [
         "Como conferir",
         direta && totalDaApuracao(d.total_quotas)
-          ? clausulaDaApuracao(d.total_quotas)
+          ? clausulaDoMetodo(d.metodo_apuracao, d.total_quotas)
           : "numero = 1 + (HMAC_SHA256(semente, os 5 premios da Federal) mod total), com rejeicao de amostra",
       ];
     })(),

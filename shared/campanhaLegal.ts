@@ -84,8 +84,11 @@ export function minimoAtingido(vendidas: number, totalCotas: number, pct: number
  *   definir (0 = sem mínimo); número não vendido segue a aproximação.
  * - `cheia_com_data`: só sorteia com a rifa cheia (mínimo de 100%); não
  *   cheia na data, a promotora pede o adiamento.
- * - `quando_completar`: sem data marcada; quando a última cota é paga, o
- *   sorteio é marcado sozinho para a próxima extração da Loteria Federal.
+ * - `quando_completar`: com a **data máxima** registrada na SPA/MF (resposta
+ *   8.7 do advogado: a portaria exige data certa); se a última cota for paga
+ *   antes, o sorteio é antecipado para a próxima extração da Loteria Federal,
+ *   com aviso a quem comprou. Não completou até a data máxima, a promotora
+ *   pede o adiamento, como na rifa cheia.
  * - `promotora_completa`: sorteia na data; as cotas não vendidas ficam com a
  *   promotora — se o número sorteado for uma delas, o prêmio fica com ela.
  */
@@ -95,14 +98,15 @@ export type ModoDoSorteio = (typeof MODOS_DO_SORTEIO)[number];
 export const ROTULO_DO_MODO: Record<ModoDoSorteio, string> = {
   data: "Na data marcada",
   cheia_com_data: "Rifa cheia, na data marcada",
-  quando_completar: "Rifa cheia, sorteio quando completar",
+  quando_completar: "Rifa cheia, antecipado quando completar",
   promotora_completa: "Na data, a promotora fica com as cotas não vendidas",
 };
 
 export const EXPLICACAO_DO_MODO: Record<ModoDoSorteio, string> = {
   data: "Sorteia na data, com o mínimo de cotas vendidas que você definir. Número sorteado não vendido passa ao vendido mais próximo.",
   cheia_com_data: "Só sorteia com todas as cotas vendidas. Se não completar até a data, você pede o adiamento.",
-  quando_completar: "Sem data marcada: quando a última cota for paga, o sorteio é marcado para a próxima extração da Loteria Federal.",
+  quando_completar:
+    "A data que você informar é a data máxima (a registrada na SPA/MF). Se a última cota for paga antes, o sorteio é antecipado para a próxima extração da Loteria Federal, com aviso a quem comprou. Não completou até a data máxima, você pede o adiamento.",
   promotora_completa: "Sorteia na data. As cotas não vendidas ficam com a promotora: se o número sorteado for uma delas, o prêmio fica com ela.",
 };
 
@@ -115,15 +119,11 @@ export function minimoDoModo(modo: ModoDoSorteio, pct: number): number {
   return modo === "cheia_com_data" || modo === "quando_completar" ? 100 : modo === "promotora_completa" ? 0 : pct;
 }
 
-/** Só o modo "quando completar" nasce sem data. */
-export function modoSemData(modo: ModoDoSorteio): boolean {
-  return modo === "quando_completar";
-}
-
 /**
- * Data provisória da comissão que espera um sorteio ainda sem data (modo
- * "quando completar"): longe de propósito; quando a data é marcada, a
- * comissão passa a esperar por ela.
+ * Data provisória da comissão que espera um sorteio ainda sem data — só a
+ * rifa "quando completar" publicada antes da data máxima (8.7) ficou assim:
+ * longe de propósito; quando a data é marcada, a comissão passa a esperar
+ * por ela.
  */
 export const SORTEIO_SEM_DATA = new Date("9999-12-31T00:00:00Z");
 
@@ -143,4 +143,13 @@ export function proximaExtracaoFederal(agora: Date, antecedenciaMs = 24 * 60 * 6
     if ((DIAS_DA_FEDERAL as readonly number[]).includes(d.getUTCDay()) && d.getTime() >= minimo) return new Date(d);
   }
   throw new Error("Não achei a próxima extração da Federal.");
+}
+
+/**
+ * A cláusula do "quando completar" (resposta 8.7 do advogado), com a data
+ * máxima. O SCPC da SPA/MF não aceita data condicional: a data registrada é
+ * a máxima, e a antecipação é anunciada na plataforma.
+ */
+export function clausulaDaAntecipacao(dataMaxima: string): string {
+  return `O sorteio será realizado até ${dataMaxima} (data máxima registrada na autorização). Caso o esgotamento total dos números da sorte ocorra antes dessa data, o sorteio será antecipado para a extração da Loteria Federal imediatamente subsequente (com pelo menos 24 horas de antecedência), mediante comunicado na plataforma a todos os participantes.`;
 }

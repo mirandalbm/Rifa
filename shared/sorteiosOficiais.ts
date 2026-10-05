@@ -29,6 +29,12 @@ export const CORES_DA_CAIXA = {
   lotofacil: "#88348e",
 } as const;
 
+/**
+ * A cor do globo da plataforma: o verde da casa (não é cor da Caixa). Como as
+ * loterias, só identidade, sempre com o nome junto — e ≥ 3:1 com o branco.
+ */
+export const COR_DO_GLOBO = "#046b34";
+
 export const LOTERIAS = {
   federal: {
     nome: "Loteria Federal",
@@ -80,6 +86,20 @@ export const LOTERIAS = {
     min: 1,
     max: 25,
     rotulo: "As 15 dezenas sorteadas (1 a 25)",
+  },
+  /**
+   * O globo da plataforma (respostas 8.9 a 8.12 do advogado): uma sessão do
+   * calendário com 6 globos de 0 a 9, extraídos em sequência, e a ata
+   * notarial (`validarAtaDoGlobo`). Recebe só rifa com o método "globo".
+   */
+  globo: {
+    nome: "Globo da plataforma",
+    curto: "Globo",
+    sigla: "Globo",
+    cor: COR_DO_GLOBO,
+    quantos: 6,
+    tipo: "globo" as const,
+    rotulo: "As 6 bolas, na ordem dos globos (0 a 9 cada)",
   },
 } as const;
 
@@ -171,6 +191,10 @@ export function validarResultado(
     return { problema: `${L.rotulo}.` };
   }
   const limpos = numeros.map((n) => String(n ?? "").trim());
+  if (L.tipo === "globo") {
+    if (!limpos.every((n) => /^\d$/.test(n))) return { problema: "Cada globo dá uma bola de 0 a 9." };
+    return { numeros: limpos };
+  }
   if (L.tipo === "bilhete") {
     if (!limpos.every((n) => /^\d{5}$/.test(n))) {
       return { problema: "Cada prêmio da Federal tem 5 algarismos (00000 a 99999)." };
@@ -200,24 +224,38 @@ export function situacaoDoSorteio(s: { canceladoEm: Date | string | null; result
 }
 
 /**
- * As loterias em que a rifa pode entrar: **só a Loteria Federal** — a
- * autorização SPA/MF da rifa prevê a apuração pela extração da Federal, e
- * o advogado confirmou (05/10/2026) que Mega-Sena, Quina e Lotofácil não
- * valem como apuração. As outras seguem no calendário da plataforma (a tela
- * do sorteio no celular transmite qualquer uma), mas não recebem rifa. A
- * conta por dezenas (`entropiaDoSorteio`) fica no código, para o sorteio já
- * feito conferir e para o dia em que a autorização permitir.
+ * As loterias em que a rifa pode entrar: **a Loteria Federal e o globo da
+ * plataforma** — os dois métodos que a autorização SPA/MF da rifa pode
+ * prever. O advogado confirmou (05/10/2026) que Mega-Sena, Quina e Lotofácil
+ * não valem como apuração: seguem no calendário (a tela do sorteio no celular
+ * transmite qualquer uma), mas não recebem rifa. A conta por dezenas
+ * (`entropiaDoSorteio`) fica no código, para o sorteio já feito conferir.
+ * E cada rifa só entra no do método dela (`problemaParaIntegrar`).
  */
-export const LOTERIAS_QUE_RECEBEM_RIFA: readonly Loteria[] = ["federal"];
+export const LOTERIAS_QUE_RECEBEM_RIFA: readonly Loteria[] = ["federal", "globo"];
 
-/** A rifa pode entrar neste sorteio agora? Devolve o motivo, ou `null`. */
+/**
+ * A rifa pode entrar neste sorteio agora? Devolve o motivo, ou `null`. Com o
+ * método da rifa, confere o par: a rifa da Federal (ou a de antes, sem
+ * método) só entra na Federal; a do globo, só no globo. Sem método informado
+ * (o calendário, antes de escolher a rifa), vale qualquer uma das duas.
+ */
 export function problemaParaIntegrar(
   s: { loteria: string; canceladoEm: Date | string | null; resultadoEm: Date | string | null; sorteioEm: Date | string },
   agora: Date,
+  metodo?: string | null,
 ): string | null {
   if (!(LOTERIAS_QUE_RECEBEM_RIFA as readonly string[]).includes(s.loteria)) {
     const nome = loteriaValida(s.loteria) ? LOTERIAS[s.loteria].nome : s.loteria;
-    return `A rifa só entra em sorteio da Loteria Federal (é a apuração da autorização SPA/MF); a ${nome} fica só no calendário.`;
+    return `A rifa só entra em sorteio da Loteria Federal ou do globo da plataforma (os métodos da autorização SPA/MF); a ${nome} fica só no calendário.`;
+  }
+  if (metodo !== undefined) {
+    const daRifa = metodo === "globo" ? "globo" : "federal";
+    if (s.loteria !== daRifa) {
+      return daRifa === "globo"
+        ? "Esta rifa é apurada pelo globo: ela só entra numa sessão do globo da plataforma."
+        : "Esta rifa é apurada pela Loteria Federal: ela só entra num sorteio da Federal.";
+    }
   }
   const situacao = situacaoDoSorteio(s);
   if (situacao === "cancelado") return "Este sorteio oficial foi cancelado.";
@@ -261,6 +299,7 @@ export const RIFAS_NA_FILEIRA = 30;
 /** "os 5 prêmios da Loteria Federal" / "as 6 dezenas da Mega-Sena" — o regulamento e a tela. */
 export function resultadoDaLoteria(l: Loteria): string {
   const L = LOTERIAS[l];
+  if (L.tipo === "globo") return `as ${L.quantos} bolas extraídas no ${L.nome.toLowerCase()}`;
   return L.tipo === "bilhete" ? `os ${L.quantos} prêmios da ${L.nome}` : `as ${L.quantos} dezenas sorteadas da ${L.nome}`;
 }
 
@@ -274,6 +313,100 @@ export function loteriaDoSorteio(loteria: string | null | undefined) {
   return {
     loteria: l,
     loteriaNome: L.nome,
-    rotuloDoResultado: L.tipo === "bilhete" ? `${L.quantos} prêmios da ${L.curto}` : `${L.quantos} dezenas da ${L.nome}`,
+    rotuloDoResultado:
+      L.tipo === "globo" ? `${L.quantos} bolas do globo` : L.tipo === "bilhete" ? `${L.quantos} prêmios da ${L.curto}` : `${L.quantos} dezenas da ${L.nome}`,
   };
 }
+
+/* ------------------------------------------------------------------ *
+ * Ata notarial da sessão do globo (resposta 8.10 do advogado)
+ * ------------------------------------------------------------------ */
+
+/**
+ * O que a plataforma registra ao lançar o resultado do globo — o que a ata
+ * notarial precisa ter: local, data e hora (a do sorteio), auditor
+ * independente **ou** pelo menos duas testemunhas sem vínculo com a
+ * promotora, o relato de cada bola retirada e o tabelionato que lavra a ata.
+ * O arquivo da ata (PDF do cartório) pode chegar depois do resultado: o
+ * tabelião costuma entregar em dias. Só dados — nunca HTML.
+ */
+export interface AtaDoGlobo {
+  local: string;
+  tabelionato: string;
+  /** Livro, folha ou protocolo da ata — o que o cartório informar. */
+  registro: string | null;
+  auditor: { nome: string; registro: string | null } | null;
+  testemunhas: string[];
+  /** Uma bola por globo, na ordem: o algarismo e a hora em que saiu (HH:MM:SS). */
+  bolas: { globo: number; algarismo: string; hora: string }[];
+  observacoes: string | null;
+}
+
+export const TESTEMUNHAS_MIN = 2;
+export const TESTEMUNHAS_MAX = 6;
+
+function textoLimpo(v: unknown, max: number): string {
+  return typeof v === "string" ? v.trim().replace(/\s+/g, " ").slice(0, max + 1) : "";
+}
+
+/** Nome de gente: letras, espaço, ponto, hífen e apóstrofo — nunca número (telefone, CPF). */
+function nomeValido(n: string): boolean {
+  return n.length >= 3 && n.length <= 80 && /^[\p{L}][\p{L} .'-]*$/u.test(n);
+}
+
+/**
+ * Confere a ata contra o resultado lançado: as bolas do relato têm de ser as
+ * mesmas, na mesma ordem, com a hora de cada uma. Só as chaves conhecidas.
+ */
+export function validarAtaDoGlobo(corpo: unknown, bolas: string[]): { problema: string } | { ata: AtaDoGlobo } {
+  const b = (corpo && typeof corpo === "object" ? corpo : {}) as Record<string, unknown>;
+  const local = textoLimpo(b.local, 200);
+  if (local.length < 5 || local.length > 200) return { problema: "Informe o local da extração (endereço completo)." };
+  const tabelionato = textoLimpo(b.tabelionato, 120);
+  if (tabelionato.length < 3 || tabelionato.length > 120) return { problema: "Informe o tabelionato que lavra a ata notarial." };
+  const registro = textoLimpo(b.registro, 60);
+  if (registro.length > 60) return { problema: "O registro da ata (livro, folha ou protocolo) passa de 60 letras." };
+  let auditor: AtaDoGlobo["auditor"] = null;
+  if (b.auditor && typeof b.auditor === "object") {
+    const a = b.auditor as Record<string, unknown>;
+    const nome = textoLimpo(a.nome, 80);
+    const reg = textoLimpo(a.registro, 60);
+    if (nome) {
+      if (!nomeValido(nome)) return { problema: "O nome do auditor tem só letras (de 3 a 80)." };
+      if (reg.length > 60) return { problema: "O registro do auditor passa de 60 letras." };
+      auditor = { nome, registro: reg || null };
+    }
+  }
+  const brutas = Array.isArray(b.testemunhas) ? b.testemunhas : [];
+  const testemunhas = brutas.map((t) => textoLimpo(t, 80)).filter(Boolean);
+  if (testemunhas.length > TESTEMUNHAS_MAX) return { problema: `No máximo ${TESTEMUNHAS_MAX} testemunhas.` };
+  if (testemunhas.some((t) => !nomeValido(t))) return { problema: "O nome de cada testemunha tem só letras (de 3 a 80)." };
+  if (new Set(testemunhas.map((t) => t.toLowerCase())).size !== testemunhas.length) return { problema: "Há testemunha repetida." };
+  if (!auditor && testemunhas.length < TESTEMUNHAS_MIN) {
+    return { problema: `A ata precisa de um auditor independente ou de pelo menos ${TESTEMUNHAS_MIN} testemunhas sem vínculo com as promotoras.` };
+  }
+  const relato = Array.isArray(b.bolas) ? b.bolas : [];
+  if (relato.length !== bolas.length) return { problema: "O relato precisa ter uma linha por globo, na ordem." };
+  const linhas: AtaDoGlobo["bolas"] = [];
+  for (let i = 0; i < relato.length; i++) {
+    const r = (relato[i] && typeof relato[i] === "object" ? relato[i] : {}) as Record<string, unknown>;
+    const hora = textoLimpo(r.hora, 8);
+    if (!/^([01]\d|2[0-3]):[0-5]\d:[0-5]\d$/.test(hora)) return { problema: `Informe a hora em que saiu a bola do ${i + 1}º globo (HH:MM:SS).` };
+    if (i > 0 && hora < linhas[i - 1].hora) return { problema: "As bolas saem em sequência: a hora de cada globo vem depois da do anterior." };
+    linhas.push({ globo: i + 1, algarismo: bolas[i], hora });
+  }
+  const observacoes = textoLimpo(b.observacoes, 1000);
+  if (observacoes.length > 1000) return { problema: "As observações passam de 1.000 letras." };
+  return { ata: { local, tabelionato, registro: registro || null, auditor, testemunhas, bolas: linhas, observacoes: observacoes || null } };
+}
+
+/** A ata guardada no banco, lida de volta sem confiar (estragada vira nula). */
+export function ataGuardada(v: unknown): AtaDoGlobo | null {
+  if (!v || typeof v !== "object") return null;
+  const a = v as AtaDoGlobo;
+  if (typeof a.local !== "string" || !Array.isArray(a.bolas) || !Array.isArray(a.testemunhas)) return null;
+  return a;
+}
+
+/** O arquivo da ata notarial: PDF ou foto, até 8 MB, conferido pelo conteúdo. */
+export const ATA_MAX_BYTES = 8 * 1024 * 1024;

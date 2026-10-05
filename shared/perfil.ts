@@ -28,6 +28,8 @@ export function validarBio(bruta: unknown): string | null {
 export interface RifaDaBio {
   prizeTitle: string;
   drawAt: string | Date | null;
+  /** O método de apuração: o globo diz "Globo"; o resto é a Federal. */
+  metodoApuracao?: string | null;
   authorizationCode: string | null;
   priceCents: number;
 }
@@ -44,7 +46,7 @@ export function bioAutomatica(rifa: RifaDaBio | null, fuso = "America/Sao_Paulo"
     const d = new Date(rifa.drawAt);
     const dia = d.toLocaleDateString("pt-BR", { timeZone: fuso, day: "2-digit", month: "2-digit", year: "numeric" });
     const hora = d.toLocaleTimeString("pt-BR", { timeZone: fuso, hour: "2-digit", minute: "2-digit" });
-    linhas.push(`📅 Sorteio ${dia} às ${hora} · Loteria Federal`);
+    linhas.push(`📅 Sorteio ${dia} às ${hora} · ${rifa.metodoApuracao === "globo" ? "Globo da plataforma" : "Loteria Federal"}`);
   }
   linhas.push(`🎟️ Cota ${formatBRL(rifa.priceCents)}`);
   if (rifa.authorizationCode) linhas.push(`✅ Autorização SPA/MF ${rifa.authorizationCode}`);

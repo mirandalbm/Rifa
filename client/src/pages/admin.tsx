@@ -1605,7 +1605,9 @@ export function AdminSorteios() {
       <Card title="Executar sorteio">
         <div className="space-y-3 p-4">
           <p className="text-sm text-muted">
-            {escolhida?.metodoApuracao === "federal_direta"
+            {escolhida?.metodoApuracao === "globo"
+              ? "Esta rifa é apurada pelo globo da plataforma: ela sorteia sozinha quando a plataforma lançar o resultado da sessão do globo (com a ata) no calendário de Sorteios oficiais. O formulário abaixo não vale para ela."
+              : escolhida?.metodoApuracao === "federal_direta"
               ? "O número sai da leitura direta dos 5 prêmios (as unidades do 1º ao 5º, de cima para baixo), como diz o regulamento — qualquer pessoa confere com papel e caneta."
               : "O hash da semente foi publicado antes da primeira venda. O número sai de HMAC(semente, os 5 prêmios do concurso) — qualquer pessoa refaz a conta."}
           </p>

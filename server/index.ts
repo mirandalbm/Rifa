@@ -163,6 +163,8 @@ app.use((req, res, next) => {
   if (!peca) return next();
   return req.path.startsWith("/api/affiliate/") ? corpoDaPecaComVideo(req, res, next) : corpoDaPecaComFotos(req, res, next);
 });
+// A ata notarial do globo: até 8 MB (PDF ou foto do cartório), em base64.
+app.use("/api/admin/sorteios-oficiais/:id/ata", express.json({ limit: "12mb" }));
 // Story em vídeo: até 15 MB em base64 (sem transcode, o arquivo vai como veio).
 app.use("/api/admin/stories", express.json({ limit: "22mb" }));
 // O perfil pode levar foto e capa juntas (até 5 MB cada, em base64).

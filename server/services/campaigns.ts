@@ -28,7 +28,6 @@ import { validarRegulamentoExtra } from "@shared/regulamento";
 import {
   CERTIFICADO_MAX_BYTES,
   minimoDoModo,
-  modoSemData,
   modoValido,
   problemaNoMinimoVendido,
   problemaNosDadosLegais,
@@ -36,7 +35,7 @@ import {
   tipoDoCertificado,
 } from "@shared/campanhaLegal";
 import { problemaNoBonusMax } from "@shared/bonus";
-import { PROBLEMA_NO_TOTAL, numeracaoZero, problemaNoMetodo, totalDaApuracao, type MetodoDeApuracao } from "@shared/apuracao";
+import { PROBLEMA_NO_TOTAL, loteriaDoMetodo, numeracaoZero, problemaNoMetodo, totalDaApuracao, type MetodoDeApuracao } from "@shared/apuracao";
 import { getPlataforma } from "./settings";
 
 export class CampaignRuleError extends Error {
@@ -100,14 +99,25 @@ export function assertQuotaRange(total: number) {
 
 /** O método de apuração da rifa ainda vale (liberado pela plataforma)? */
 function problemaNaApuracao(
-  campaign: Pick<Campaign, "metodoApuracao" | "totalQuotas">,
+  campaign: Pick<Campaign, "metodoApuracao" | "totalQuotas" | "sorteioOficialId" | "modoSorteio">,
   liberados: readonly MetodoDeApuracao[],
 ): string | null {
   const metodo = problemaNoMetodo(campaign.metodoApuracao, liberados);
   if (metodo) return `${metodo} (Autorização e sorteio)`;
   if (!totalDaApuracao(campaign.totalQuotas)) return PROBLEMA_NO_TOTAL;
+  // O globo é da plataforma: a rifa sorteia numa sessão do calendário (com a
+  // ata notarial), nunca por conta própria — e por isso tem a data dela.
+  if (campaign.metodoApuracao === "globo") {
+    if (campaign.modoSorteio === "quando_completar") return PROBLEMA_GLOBO_QUANDO_COMPLETAR;
+    if (!campaign.sorteioOficialId) {
+      return "Rifa apurada pelo globo: escolha a sessão do globo no calendário (Sorteios oficiais) antes de publicar.";
+    }
+  }
   return null;
 }
+
+const PROBLEMA_GLOBO_QUANDO_COMPLETAR =
+  "O modo \"quando completar\" antecipa o sorteio para a próxima extração da Loteria Federal: não vale para a rifa apurada pelo globo.";
 
 /** O que impede uma campanha de ir ao ar. */
 export async function publishBlockers(campaignId: string): Promise<string[]> {
@@ -174,15 +184,17 @@ export async function publishBlockers(campaignId: string): Promise<string[]> {
   if (campaign.authorizationCode && !campaign.authorizationFileKey) {
     blockers.push("Anexe o arquivo do certificado de autorização (PDF ou imagem).");
   }
-  if (modoSemData(campaign.modoSorteio as ModoDoSorteio)) {
-    // "Quando completar": a data é marcada sozinha quando a última cota é paga.
-  } else if (!campaign.drawAt) {
-    blockers.push("Defina a data do sorteio.");
+  // Toda rifa tem data fixa — no "quando completar", a data máxima que a
+  // SPA/MF registra (8.7): encher antes só antecipa.
+  if (!campaign.drawAt) {
+    blockers.push(
+      campaign.modoSorteio === "quando_completar" ? "Defina a data máxima do sorteio." : "Defina a data do sorteio.",
+    );
   } else if (campaign.drawAt.getTime() <= Date.now()) {
     blockers.push("A data do sorteio já passou: defina uma data futura.");
   }
   if (campaign.sorteioOficialId) {
-    const p = await problemaDoSorteioOficial(db, campaign.sorteioOficialId, campaign.drawAt, false);
+    const p = await problemaDoSorteioOficial(db, campaign.sorteioOficialId, campaign.drawAt, campaign.metodoApuracao, false);
     if (p) blockers.push(p);
   }
 
@@ -194,15 +206,27 @@ async function problemaDoSorteioOficial(
   conexao: Pick<typeof db, "select">,
   sorteioId: string,
   drawAt: Date | null,
+  metodo: string | null,
   travar: boolean,
 ): Promise<string | null> {
   const consulta = conexao
-    .select({ sorteioEm: sorteiosOficiais.sorteioEm, canceladoEm: sorteiosOficiais.canceladoEm, resultadoEm: sorteiosOficiais.resultadoEm })
+    .select({
+      sorteioEm: sorteiosOficiais.sorteioEm,
+      canceladoEm: sorteiosOficiais.canceladoEm,
+      resultadoEm: sorteiosOficiais.resultadoEm,
+      loteria: sorteiosOficiais.loteria,
+    })
     .from(sorteiosOficiais)
     .where(eq(sorteiosOficiais.id, sorteioId));
   const [s] = travar ? await consulta.for("share") : await consulta;
   if (!s || s.canceladoEm) return "O sorteio oficial desta rifa foi cancelado: escolha outro no calendário.";
   if (s.resultadoEm) return "O sorteio oficial desta rifa já aconteceu: escolha outro no calendário.";
+  // O sorteio tem de ser o do método da autorização: a Federal ou o globo.
+  if (s.loteria !== loteriaDoMetodo(metodo)) {
+    return metodo === "globo"
+      ? "Esta rifa é apurada pelo globo: ela precisa estar numa sessão do globo no calendário."
+      : "Esta rifa é apurada pela Loteria Federal: ela precisa estar num sorteio da Federal no calendário.";
+  }
   if (!drawAt || s.sorteioEm.getTime() !== drawAt.getTime()) {
     return "A data da rifa não é a do sorteio oficial: escolha o sorteio de novo no calendário.";
   }
@@ -272,7 +296,7 @@ export async function publishCampaign(campaignId: string): Promise<Campaign> {
     // o fim — a plataforma não muda a data dele nem o cancela no meio — e a
     // data da rifa tem de ser a do concurso.
     if (campaign.sorteioOficialId) {
-      const p = await problemaDoSorteioOficial(tx, campaign.sorteioOficialId, campaign.drawAt, true);
+      const p = await problemaDoSorteioOficial(tx, campaign.sorteioOficialId, campaign.drawAt, campaign.metodoApuracao, true);
       if (p) throw new CampaignRuleError(p);
     }
 
@@ -303,6 +327,9 @@ export async function publishCampaign(campaignId: string): Promise<Campaign> {
         publishedAt: new Date(),
         drawSeedHash: seedHash,
         termoId: termo?.id ?? null,
+        // "Quando completar": a data registrada é a máxima (8.7); encher antes
+        // só antecipa `draw_at`, e esta fica de referência.
+        drawAtMaximo: campaign.modoSorteio === "quando_completar" ? campaign.drawAt : null,
         publicarEm: null,
         publicacaoAgendadaFalha: null,
       })
@@ -490,6 +517,11 @@ export async function salvarDadosLegais(
   // O modo manda no mínimo e na data: rifa cheia exige 100%, "quando completar"
   // não tem data (é marcada ao completar) e a promotora que completa não tem mínimo.
   const modo = (entrada.modoSorteio ?? campaign.modoSorteio) as ModoDoSorteio;
+  // A antecipação do "quando completar" é para a extração da Federal: o globo
+  // tem a sessão dele no calendário.
+  if (modo === "quando_completar" && ((entrada.metodoApuracao ?? campaign.metodoApuracao) === "globo")) {
+    throw new CampaignRuleError(PROBLEMA_GLOBO_QUANDO_COMPLETAR);
+  }
   const minimoPedido =
     entrada.minimoVendidoPct !== undefined ? (entrada.minimoVendidoPct as number) : campaign.minimoVendidoPct;
 
@@ -528,7 +560,6 @@ export async function salvarDadosLegais(
       mudancas.minimoVendidoPct = minimoDoModo(modo, minimoPedido);
     }
     if (entrada.metodoApuracao !== undefined) mudancas.metodoApuracao = entrada.metodoApuracao as string;
-    if (modoSemData(modo)) mudancas.drawAt = null;
     if (arquivo) mudancas.authorizationFileKey = CERTIFICADO_NO_BANCO;
     if (Object.keys(mudancas).length === 0) throw new CampaignRuleError("Nada para salvar.");
 

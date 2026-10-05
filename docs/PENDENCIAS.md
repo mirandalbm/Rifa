@@ -478,7 +478,9 @@ Na ordem de entrega do plano:
   jogo responsável, prazos de guarda e a lista de quem recebe dados.
   **Termos de uso validados** (05/10/2026, as dez seções, sem mudança de
   texto; o bloqueio do reembolso depois do sorteio, que ele pediu, já é
-  automático). Falta a Privacidade e os itens 2 a 9 do pacote.
+  automático). **Privacidade validada** (05/10/2026, sem mudança de texto;
+  ele pediu o encarregado atualizável pelo painel — já é, em Aparência →
+  Dados da empresa). Faltam os itens 3 a 9 do pacote.
 - [ ] **[você]** Cada organização publicar o termo de adesão de afiliado
   (Afiliados → Termo) — quem já publicou vê o aviso para publicar a versão
   seguinte com o texto novo — e o advogado revisar o texto-base.
@@ -628,6 +630,40 @@ Na ordem de entrega do plano:
   O método atual continua valendo para a rifa que a promotora autoriza no
   modelo de hoje; o modo direto é plugado na hora de escalar. Confirmado com
   o advogado em 05/10/2026.
+- [ ] **[depois da versão inicial — junto do modo "Autorizado MF"]**
+  **Método de apuração escolhido só pela plataforma, com dois modelos
+  autorizados: a Loteria Federal e o globo próprio homologado.** Decisão de
+  05/10/2026: a plataforma vai homologar o próprio globo de sorteios, e o
+  método de apuração de cada rifa passa a ser **decisão da plataforma, nunca
+  da promotora** (hoje o "como chega ao sorteio" — `modo_sorteio` — é da
+  promotora e continua sendo; o método é outra escolha, ao lado dele).
+  - **Campo novo na rifa** (`metodo_apuracao`): `federal_semente` (o de hoje:
+    os 5 prêmios da Federal com a semente publicada em hash), `federal_direta`
+    (o modo "Autorizado MF", a leitura em séries e números da sorte) e
+    `globo` (o globo homologado). **Trava ao publicar**, como a autorização,
+    e entra no regulamento.
+  - **Só a plataforma mexe** (rota própria, fora do `PATCH` e dos dados
+    legais da promotora; 403 para organizador, no `npm run isolation`): liga
+    cada método (o `globo` nasce desligado até a homologação sair), pode
+    deixar um padrão por organização e escolhe o da rifa. A promotora vê o
+    método só para ler. **Sem método liberado, a rifa não publica**
+    (`publishBlockers`) — a mesma ideia do aceite do termo: sem trava no
+    sistema, a autorização vira intenção.
+  - **O globo entra pelo calendário dos sorteios oficiais**, como uma
+    "loteria" a mais (`globo` em `LOTERIAS` e em
+    `LOTERIAS_QUE_RECEBEM_RIFA` só quando ligado): a plataforma marca a data,
+    a transmissão é obrigatória (o canal oficial já existe), e o resultado
+    é lançado só por ela depois da hora, uma vez, com a **ata** do sorteio
+    (arquivo conferido pelo conteúdo, como o certificado) e o vídeo. O
+    resultado sorteia as rifas integradas pelo mesmo `executarSorteio()`,
+    com a aproximação de sempre. A conferência pública mostra a ata, o
+    vídeo e a leitura das bolas — sem hash.
+  - **Para o advogado** (no pacote do item 8): quem homologa e certifica o
+    globo e com que periodicidade; o que a ata precisa ter (testemunhas,
+    auditor independente, registro); se o mesmo plano de operação da
+    promotora pode prever os dois métodos e a plataforma escolher por rifa;
+    e se o globo serve a qualquer total de cotas (as bolas por casa
+    decimal) ou tem teto.
 
 - [ ] **Sorteios oficiais** (o calendário da plataforma, a tela do sorteio no
   celular). **Fase 1 feita:** o master cadastra, muda, cancela e lança o

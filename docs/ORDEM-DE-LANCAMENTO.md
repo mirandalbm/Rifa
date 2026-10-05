@@ -136,8 +136,9 @@ paralelo, para não segurar o resto. Marque aqui mesmo o que for fechando.
 
 ## Fica para depois da versão inicial (código, comigo)
 
-- Modo "Autorizado MF" (apuração direta pela Federal), quando for pedir as
-  autorizações formais — com a fórmula do advogado.
+- Método de apuração escolhido só pela plataforma, com dois modelos: o modo
+  "Autorizado MF" (apuração direta pela Federal, com a fórmula do advogado)
+  e o globo próprio, depois de homologado.
 - Termo da organização com aceite no painel (versionado, como o do
   afiliado; sem o aceite da versão em vigor, não publica).
 - Ferramentas de imagem e vídeo (`docs/PLANO-FERRAMENTAS.md`, fases A a G).

@@ -16,7 +16,7 @@ export interface BilheteDaConta {
   numeros: number[];
   /** Cota premiada que este pedido já reclamou — o número em jogo nunca vem. */
   premiadas: { number: number; label: string }[];
-  rifa: { slug: string; titulo: string; premio: string; totalCotas: number; status: string; drawAt: string | null };
+  rifa: { slug: string; titulo: string; premio: string; totalCotas: number; numeracaoZero: boolean; status: string; drawAt: string | null };
   midias: Peca[];
   organizacao: { nome: string; slug: string; foto: string | null } | null;
 }
@@ -29,10 +29,10 @@ export interface BilheteDaConta {
  */
 export function BilheteComoPublicacao({ bilhete: b }: { bilhete: BilheteDaConta }) {
   const href = b.organizacao ? `/o/${b.organizacao.slug}/r/${b.rifa.slug}` : `/r/${b.rifa.slug}`;
-  const { visiveis, restantes } = numerosDoCartao(b.numeros, b.rifa.totalCotas);
+  const { visiveis, restantes } = numerosDoCartao(b.numeros, b.rifa.totalCotas, b.rifa.numeracaoZero);
   // `quantidade` é o total gravado na compra: o cartão mostra o teto e diz quantos faltam.
   const faltam = Math.max(restantes, b.quantidade - visiveis.length);
-  const digitos = quotaDigits(b.rifa.totalCotas);
+  const digitos = quotaDigits(b.rifa.totalCotas, b.rifa.numeracaoZero);
   const premiadas = new Set(b.premiadas.map((p) => p.number));
 
   return (
@@ -86,7 +86,7 @@ export function BilheteComoPublicacao({ bilhete: b }: { bilhete: BilheteDaConta 
         <ul className="mt-1.5 grid grid-cols-5 gap-1.5 sm:grid-cols-6" aria-label={rotuloDosNumeros(visiveis, faltam)}>
           {b.numeros.slice(0, visiveis.length).map((n) => (
             <li key={n} className={`tnum quadro ${letraDoQuadro(digitos)} ${corDaCasa(n)}`}>
-              {formatQuota(n, b.rifa.totalCotas)}
+              {formatQuota(n, b.rifa.totalCotas, b.rifa.numeracaoZero)}
               {premiadas.has(n) ? <span className="sr-only"> (cota premiada)</span> : null}
             </li>
           ))}
@@ -106,7 +106,7 @@ export function BilheteComoPublicacao({ bilhete: b }: { bilhete: BilheteDaConta 
               <li key={p.number} className="flex items-center gap-1.5 text-xs font-semibold text-green-deep">
                 <Trophy size={14} aria-hidden className="shrink-0" />
                 <span>
-                  Cota premiada <span className="tnum">{formatQuota(p.number, b.rifa.totalCotas)}</span>: {p.label}
+                  Cota premiada <span className="tnum">{formatQuota(p.number, b.rifa.totalCotas, b.rifa.numeracaoZero)}</span>: {p.label}
                 </span>
               </li>
             ))}

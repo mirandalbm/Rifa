@@ -77,6 +77,7 @@ async function novoRascunho(orgId: string, sufixo: string, opcoes: { semBanner?:
       drawAt: new Date(Date.now() + (opcoes.drawEm ?? 20 * 24 * HORA)),
       authorizationCode: `SPA-AG-${sufixo}`,
       authorizationFileKey: "certificado-teste",
+      metodoApuracao: "federal_direta",
     })
     .returning();
   await db.insert(campaignMedia).values([

@@ -10,7 +10,7 @@ import { priceOrder, type PricingPackage } from "@shared/pricing";
 import { formatBRL } from "@shared/format";
 
 interface RifaDaJanela {
-  campaign: { prizeTitle: string; totalQuotas: number; priceCents: number; minPerOrder: number; maxPerOrder: number };
+  campaign: { prizeTitle: string; totalQuotas: number; numeracaoZero?: boolean; priceCents: number; minPerOrder: number; maxPerOrder: number };
   stats: { soldCount: number; reservedCount: number };
   packages: (PricingPackage & { highlight?: boolean })[];
 }
@@ -148,6 +148,7 @@ export function EscolherBilhete({
               slug={slug}
               quantidade={quantidade}
               totalQuotas={c.totalQuotas}
+              numeracaoZero={c.numeracaoZero === true}
               unitCents={c.priceCents}
               packages={data!.packages}
               escolhida={null}

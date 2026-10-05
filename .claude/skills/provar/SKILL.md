@@ -43,6 +43,7 @@ Pelo caminho que mudou (a mesma tabela "Onde mexer" do `CLAUDE.md`):
 | perfil do organizador, seguir, links curtos | `perfil` |
 | push, central de avisos | `push` |
 | regulamento, sorteio, transmissão | `transparencia` |
+| apuração pela Federal direta, método liberado pela plataforma, numeração a partir de zero (`shared/apuracao.ts`, `formatQuota`/`numeroInterno` em `shared/format.ts`, `numeroSorteado()` em `sortear.ts`) | `apuracao`, `transparencia`, `contrato`, `agenda-rifa`, `isolation`, `tests/apuracao.test.ts`; mexeu em tela com número de cota, `telas` |
 | aparência, template, rodapé, banners, stories (e o agendado), vitrine | `aparencia`, `vitrine`, `isolation` (a porta do painel do story) |
 | vídeo: pôster, processador, entrega em HLS e URL assinada (`videoProcessor.ts`, `media.ts`, `streamAssinatura.ts`, `streamPendentes.ts`, `posterRetroativo.ts`, `shared/stream.ts`, `client/src/lib/hls.ts`) | `poster` (com e sem `ffmpeg`; com as variáveis da entrega e `CLOUDFLARE_API_URL` local, a parte do HLS e da URL assinada), `tests/cloudflareStream.test.ts`, `tests/stream.test.ts`, `tests/streamAssinatura.test.ts`, `vitrine`, `publicacao` |
 | comentários, perfil do apostador | `comentarios` |

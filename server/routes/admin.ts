@@ -1,3 +1,4 @@
+import { numeracaoZero, validarMetodosLiberados } from "@shared/apuracao";
 import { calendario, cancelarSorteioOficial, criarSorteioOficial, editarSorteioOficial, integrarAoSorteioOficial, lancarResultado } from "../services/sorteiosOficiais";
 import {
   BannerDivulgacaoError,
@@ -509,9 +510,12 @@ adminRouter.post("/campaigns", async (req, res, next) => {
       req.body?.organizationId ? String(req.body.organizationId) : undefined,
     );
 
+    // Nasce com o primeiro método liberado (hoje, a Federal direta): a
+    // numeração já sai a partir de zero e a promotora troca nos dados legais.
+    const metodoApuracao = (await getPlataforma()).metodosDeApuracao[0] ?? null;
     const [created] = await db
       .insert(campaigns)
-      .values({ ...input, organizationId, status: "draft" })
+      .values({ ...input, organizationId, status: "draft", metodoApuracao })
       .returning();
 
     await audit(req, "campaign.create", "campaign", created.id, input);
@@ -952,8 +956,10 @@ adminRouter.put("/campaigns/:id/legal", async (req, res, next) => {
       bonusMaxCotas: req.body?.bonusMaxCotas,
       minimoVendidoPct: req.body?.minimoVendidoPct,
       modoSorteio: req.body?.modoSorteio,
+      metodoApuracao: req.body?.metodoApuracao,
     });
     await audit(req, "campaign.legal", "campaign", campaign.id, {
+      metodoApuracao: atualizada.metodoApuracao,
       aceitaCotaBonus: atualizada.aceitaCotaBonus,
       bonusMaxCotas: atualizada.bonusMaxCotas,
       minimoVendidoPct: atualizada.minimoVendidoPct,
@@ -971,6 +977,7 @@ adminRouter.put("/campaigns/:id/legal", async (req, res, next) => {
       bonusMaxCotas: atualizada.bonusMaxCotas,
       minimoVendidoPct: atualizada.minimoVendidoPct,
       modoSorteio: atualizada.modoSorteio,
+      metodoApuracao: atualizada.metodoApuracao,
     });
   } catch (err) {
     if (err instanceof CampaignRuleError) return res.status(422).json({ message: err.message });
@@ -1448,7 +1455,7 @@ adminRouter.post("/campaigns/:id/prized", async (req, res, next) => {
       if (campaign.status !== "draft") {
         return res.status(409).json({ message: "Escolher os números só no cadastro, antes de publicar. Depois, só sorteando." });
       }
-      const lidos = numerosPremiados(req.body.numeros, campaign.totalQuotas);
+      const lidos = numerosPremiados(req.body.numeros, campaign.totalQuotas, numeracaoZero(campaign.metodoApuracao));
       if ("problema" in lidos) return res.status(400).json({ message: lidos.problema });
       const criados = await db
         .insert(prizedQuotas)
@@ -3565,6 +3572,28 @@ adminRouter.get("/audit", async (req, res, next) => {
 adminRouter.get("/sorteios-oficiais", async (req, res, next) => {
   try {
     res.json(await calendario(orgOf(req)));
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Os métodos de apuração: a organização lê (para escolher nos dados legais);
+// liberar e desligar é só da plataforma.
+adminRouter.get("/apuracao/metodos", async (_req, res, next) => {
+  try {
+    res.json({ liberados: (await getPlataforma()).metodosDeApuracao });
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.put("/apuracao/metodos", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    const liberados = validarMetodosLiberados(req.body?.liberados);
+    const salva = await setPlataforma({ metodosDeApuracao: liberados });
+    await audit(req, "apuracao.metodos", "plataforma", undefined, { liberados: salva.metodosDeApuracao });
+    res.json({ liberados: salva.metodosDeApuracao });
   } catch (err) {
     next(err);
   }

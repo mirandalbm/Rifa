@@ -5,6 +5,7 @@
  * compra de cada rifa segue o caminho de sempre (`createOrder`), que
  * recalcula o preço de novo. Regras em `shared/carrinho.ts`.
  */
+import { numeracaoZero } from "@shared/apuracao";
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import { db } from "../db";
 import { campaignStats, campaigns, organizacaoFotos, organizations, quotaPackages } from "@shared/schema";
@@ -75,6 +76,7 @@ export async function itensDoCarrinho(bruto: unknown) {
       modoSorteio: c.modoSorteio,
       soldCount,
       totalQuotas: c.totalQuotas,
+      numeracaoZero: numeracaoZero(c.metodoApuracao),
       capa: capa ? { url: capa.url, lqip: capa.lqip, role: capa.role } : null,
       organizacao: {
         slug: l.org.slug,

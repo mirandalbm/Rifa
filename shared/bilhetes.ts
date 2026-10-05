@@ -67,10 +67,12 @@ export function situacaoDaRifa(r: { status: string; drawAt: string | Date | null
 export function numerosDoCartao(
   numeros: number[],
   totalQuotas: number,
+  /** A rifa numera a partir de zero (`numeracaoZero`). */
+  zero: boolean,
   max = NUMEROS_NO_CARTAO,
 ): { visiveis: string[]; restantes: number } {
   const ordenados = [...numeros].sort((a, b) => a - b);
-  const visiveis = ordenados.slice(0, max).map((n) => formatQuota(n, totalQuotas));
+  const visiveis = ordenados.slice(0, max).map((n) => formatQuota(n, totalQuotas, zero));
   return { visiveis, restantes: Math.max(0, ordenados.length - visiveis.length) };
 }
 

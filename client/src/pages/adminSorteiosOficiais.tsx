@@ -9,6 +9,13 @@ import { apiRequest } from "@/lib/queryClient";
 import { useSession } from "@/lib/session";
 import { ANTECEDENCIA_DA_TRANSMISSAO_MS, leituraDoLink } from "@shared/aoVivo";
 import {
+  EXPLICACAO_DO_METODO,
+  METODO_INDISPONIVEL,
+  METODOS_DE_APURACAO,
+  ROTULO_DO_METODO,
+  type MetodoDeApuracao,
+} from "@shared/apuracao";
+import {
   LOTERIAS,
   ROTULO_DA_SITUACAO,
   type Loteria,
@@ -103,6 +110,7 @@ export function AdminSorteiosOficiais() {
           {plataforma ? (
             <>
               <NovoSorteio />
+              <MetodosDeApuracao />
               <CanaisDasLoterias />
             </>
           ) : (
@@ -710,6 +718,79 @@ function ComoCopiarOLink() {
  * colado no sorteio, a tela toca a live que o canal estiver transmitindo, a
  * partir de 30 min antes da hora. Só a plataforma (403 para organizador).
  */
+/**
+ * Os métodos de apuração que a plataforma libera. A promotora escolhe um
+ * deles nos dados legais da rifa, pela autorização que tem; nenhum liberado,
+ * nenhuma rifa publica. O globo aparece, mas só liga depois de homologado.
+ */
+function MetodosDeApuracao() {
+  const qc = useQueryClient();
+  const { data } = useQuery<{ liberados: MetodoDeApuracao[] }>({ queryKey: ["/api/admin/apuracao/metodos"] });
+  const [liberados, setLiberados] = useState<MetodoDeApuracao[]>([]);
+  const [msg, setMsg] = useState<{ ok: boolean; texto: string } | null>(null);
+  useEffect(() => {
+    if (data) setLiberados(data.liberados);
+  }, [data]);
+  const salvar = useMutation({
+    mutationFn: () => apiRequest("PUT", "/api/admin/apuracao/metodos", { liberados }),
+    onSuccess: () => {
+      setMsg({ ok: true, texto: liberados.length ? "Métodos salvos." : "Salvo: sem método liberado, nenhuma rifa publica." });
+      qc.invalidateQueries({ queryKey: ["/api/admin/apuracao/metodos"] });
+    },
+    onError: (e: Error) => setMsg({ ok: false, texto: e.message }),
+  });
+  return (
+    <Card title="Métodos de apuração">
+      <form
+        className="space-y-3 p-4"
+        onSubmit={(e) => {
+          e.preventDefault();
+          setMsg(null);
+          salvar.mutate();
+        }}
+      >
+        <p className="text-xs text-muted">
+          A promotora escolhe, entre os liberados, o método da autorização dela; ele trava ao publicar. Sem nenhum liberado,
+          nenhuma rifa publica.
+        </p>
+        <fieldset className="space-y-2">
+          <legend className="sr-only">Métodos liberados</legend>
+          {METODOS_DE_APURACAO.map((m) => {
+            const indisponivel = METODO_INDISPONIVEL[m];
+            return (
+              <label key={m} className={`flex items-start gap-2 rounded-md border border-line px-3 py-2 ${indisponivel ? "opacity-80" : "cursor-pointer"}`}>
+                <input
+                  type="checkbox"
+                  checked={liberados.includes(m)}
+                  disabled={Boolean(indisponivel)}
+                  onChange={(e) => {
+                    setMsg(null);
+                    setLiberados((l) => (e.target.checked ? [...l, m] : l.filter((x) => x !== m)));
+                  }}
+                  className="mt-1 h-4 w-4 accent-[var(--green)]"
+                />
+                <span className="min-w-0 text-sm">
+                  <span className="block font-semibold">{ROTULO_DO_METODO[m]}</span>
+                  <span className="block text-xs text-muted">{EXPLICACAO_DO_METODO[m]}</span>
+                  {indisponivel ? <span className="mt-0.5 block text-xs font-semibold text-ink-2">{indisponivel}</span> : null}
+                </span>
+              </label>
+            );
+          })}
+        </fieldset>
+        <Button type="submit" disabled={salvar.isPending}>
+          {salvar.isPending ? "Salvando…" : "Salvar métodos"}
+        </Button>
+        {msg ? (
+          <p role="status" className={`text-sm ${msg.ok ? "text-green-deep" : "text-red"}`}>
+            {msg.texto}
+          </p>
+        ) : null}
+      </form>
+    </Card>
+  );
+}
+
 function CanaisDasLoterias() {
   const qc = useQueryClient();
   const { data } = useQuery<{ canais: Partial<Record<Loteria, string>> }>({ queryKey: ["/api/admin/sorteios-oficiais/canais"] });

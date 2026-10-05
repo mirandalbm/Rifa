@@ -601,69 +601,40 @@ Na ordem de entrega do plano:
   desembaraçado) e publicá-lo em Configurações → Organização e perfil. Até
   lá, nenhuma organização é barrada.
 
-- [ ] **[depois da versão inicial — dívida técnica e jurídica, isolada]**
-  **Apuração direta pela Loteria Federal (modo "Autorizado MF").** A SPA/MF
-  (Portaria SEAE nº 7.638/2022) exige *verificabilidade simples*: o auditor
-  e o apostador leigo pegam o resultado da Federal, leem o regulamento e,
-  com papel e caneta, chegam ao ganhador. O sorteio de hoje mistura os 5
-  prêmios com a semente secreta (`drawNumber()` em `server/services/draw.ts`,
-  `conferirSorteio()` no aparelho) — auditável e à prova de manipulação, mas
-  **não é a correspondência direta** que a modalidade "Sorteio" pede. Quando
-  for pedir as autorizações formais, entra um **segundo modo de apuração**,
-  escolhido nos dados legais da rifa e travado ao publicar, ao lado do atual:
-  - **Séries e números da sorte** em blocos de 100.000 (a rifa de 1 milhão
-    são 10 séries); exemplo clássico da portaria: a **série** pelo algarismo
-    da dezena do 1º prêmio e o **número da sorte** pelas unidades do 1º ao 5º
-    prêmio, lidas na ordem. A fórmula exata vai no regulamento, letra por
-    letra, e a conferência pública (`/sorteio`) mostra a leitura passo a
-    passo, sem hash.
-  - **Aproximação obrigatória**: "caso o número da sorte não tenha sido
-    distribuído, o prêmio caberá ao portador do número imediatamente
-    superior" (e, sem superior, o inferior) — é cláusula do regulamento
-    aprovado; a regra que já existe (`contempladoPorAproximacao()`) cobre e
-    precisa bater com o texto aprovado.
-  - **Só a Federal** (feito: `LOTERIAS_QUE_RECEBEM_RIFA`); extrações às
-    quartas e aos sábados ("Sábado da Sorte"); "quando completar" já marca a
-    próxima extração.
-  - Fora do escopo: "assemelhado a concurso" e "vale-brinde" (outra mecânica,
-    sem número da sorte).
-  O método atual continua valendo para a rifa que a promotora autoriza no
-  modelo de hoje; o modo direto é plugado na hora de escalar. Confirmado com
-  o advogado em 05/10/2026.
-- [ ] **[depois da versão inicial — junto do modo "Autorizado MF"]**
-  **Método de apuração escolhido só pela plataforma, com dois modelos
-  autorizados: a Loteria Federal e o globo próprio homologado.** Decisão de
-  05/10/2026: a plataforma vai homologar o próprio globo de sorteios, e o
-  método de apuração de cada rifa passa a ser **decisão da plataforma, nunca
-  da promotora** (hoje o "como chega ao sorteio" — `modo_sorteio` — é da
-  promotora e continua sendo; o método é outra escolha, ao lado dele).
-  - **Campo novo na rifa** (`metodo_apuracao`): `federal_semente` (o de hoje:
-    os 5 prêmios da Federal com a semente publicada em hash), `federal_direta`
-    (o modo "Autorizado MF", a leitura em séries e números da sorte) e
-    `globo` (o globo homologado). **Trava ao publicar**, como a autorização,
-    e entra no regulamento.
-  - **Só a plataforma mexe** (rota própria, fora do `PATCH` e dos dados
-    legais da promotora; 403 para organizador, no `npm run isolation`): liga
-    cada método (o `globo` nasce desligado até a homologação sair), pode
-    deixar um padrão por organização e escolhe o da rifa. A promotora vê o
-    método só para ler. **Sem método liberado, a rifa não publica**
-    (`publishBlockers`) — a mesma ideia do aceite do termo: sem trava no
-    sistema, a autorização vira intenção.
-  - **O globo entra pelo calendário dos sorteios oficiais**, como uma
-    "loteria" a mais (`globo` em `LOTERIAS` e em
-    `LOTERIAS_QUE_RECEBEM_RIFA` só quando ligado): a plataforma marca a data,
-    a transmissão é obrigatória (o canal oficial já existe), e o resultado
-    é lançado só por ela depois da hora, uma vez, com a **ata** do sorteio
-    (arquivo conferido pelo conteúdo, como o certificado) e o vídeo. O
-    resultado sorteia as rifas integradas pelo mesmo `executarSorteio()`,
-    com a aproximação de sempre. A conferência pública mostra a ata, o
-    vídeo e a leitura das bolas — sem hash.
-  - **Para o advogado** (no pacote do item 8): quem homologa e certifica o
-    globo e com que periodicidade; o que a ata precisa ter (testemunhas,
-    auditor independente, registro); se o mesmo plano de operação da
-    promotora pode prever os dois métodos e a plataforma escolher por rifa;
-    e se o globo serve a qualquer total de cotas (as bolas por casa
-    decimal) ou tem teto.
+- [x] **Apuração direta pela Loteria Federal (modo "Autorizado MF") e
+  método liberado pela plataforma** — feito, com as respostas do advogado
+  (05/10/2026, 8.1 a 8.12). A rifa com método (`campaigns.metodo_apuracao`)
+  é sorteada pela leitura direta dos 5 prêmios (unidades do 1º ao 5º; os N
+  últimos algarismos em 100, 1.000 e 10.000; a Série pela dezena do 1º
+  prêmio em 1.000.000), com a numeração da tela **a partir de zero** e o
+  total **só em potência de 10**; a aproximação continua obrigatória. A
+  conferência pública é a leitura passo a passo, sem semente nem hash, e o
+  regulamento traz a cláusula do advogado. A plataforma libera os métodos
+  ("Métodos de apuração", no calendário dos sorteios oficiais) e a promotora
+  escolhe o da autorização dela nos dados legais; trava ao publicar; sem
+  método liberado, nada publica. O hash + HMAC ficou só para conferir a rifa
+  sorteada antes. Sobe com o `db:push` **antes** do código:
+  `campaigns.metodo_apuracao`. `npm run apuracao` prova.
+- [ ] **Globo próprio homologado** (método `globo`, hoje aparece e não
+  liga): entra pelo calendário dos sorteios oficiais como uma "loteria" a
+  mais, com a transmissão obrigatória e a **ata notarial** lançada pela
+  plataforma depois da hora, uma vez (local, data e hora da extração; auditor
+  independente ou testemunhas desvinculadas da promotora; o relato de cada
+  bola; o ganhador). O advogado respondeu (8.9 a 8.12): a SPA/MF não
+  certifica o equipamento, audita a prestação de contas; o plano de operação
+  da promotora prevê **um** método só (Federal **ou** globo) — por isso a
+  escolha é por rifa e trava; serve a qualquer total, uma bola por casa
+  decimal. Liga quando a homologação sair.
+- [ ] **"Quando completar" com data máxima** (resposta 8.7): o SCPC não
+  aceita data definida por evento. A promotora declara a **data máxima** do
+  sorteio (a do formulário da SPA/MF) e o regulamento diz que, esgotados os
+  números antes dela, o sorteio pode ser **antecipado** para a extração da
+  Federal seguinte, com comunicado na página e aviso a quem comprou. Próximo
+  PR.
+- [ ] **Cotas premiadas são vale-brinde** (resposta 8.8): com sorteio final e
+  cota premiada, a promoção é **mista** (Sorteio + Vale-Brinde) e a promotora
+  precisa aprovar os dois no mesmo processo do SCPC. Avisar no painel quando
+  ela ligar cotas premiadas. Próximo PR.
 
 - [ ] **Sorteios oficiais** (o calendário da plataforma, a tela do sorteio no
   celular). **Fase 1 feita:** o master cadastra, muda, cancela e lança o

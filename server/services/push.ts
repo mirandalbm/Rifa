@@ -16,6 +16,7 @@
  * são geradas uma vez e guardadas em `app_settings` — trocar as chaves
  * invalida todas as inscrições, por isso nunca se geram de novo sozinhas.
  */
+import { numeracaoZero } from "@shared/apuracao";
 import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import https from "node:https";
 import webpush from "web-push";
@@ -337,7 +338,7 @@ export async function avisarResultado(campaignId: string) {
       slug: r.campaign.slug,
       // Com contemplado, o número que levou (o sorteado, ou o da aproximação); sem
       // nenhuma cota paga, o número sorteado.
-      numero: formatQuota(d.winnerOrderId ? (d.winnerNumber ?? d.resultNumber) : d.resultNumber, r.campaign.totalQuotas),
+      numero: formatQuota(d.winnerOrderId ? (d.winnerNumber ?? d.resultNumber) : d.resultNumber, r.campaign.totalQuotas, numeracaoZero(r.campaign.metodoApuracao)),
     }),
   );
 }

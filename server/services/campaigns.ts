@@ -12,6 +12,7 @@ import {
   campaignStats,
   organizacaoFotos,
   organizations,
+  prizedQuotas,
   sorteiosOficiais,
   MIN_QUOTAS,
   MAX_QUOTAS,
@@ -35,6 +36,8 @@ import {
   tipoDoCertificado,
 } from "@shared/campanhaLegal";
 import { problemaNoBonusMax } from "@shared/bonus";
+import { PROBLEMA_NO_TOTAL, numeracaoZero, problemaNoMetodo, totalDaApuracao, type MetodoDeApuracao } from "@shared/apuracao";
+import { getPlataforma } from "./settings";
 
 export class CampaignRuleError extends Error {
   constructor(message: string) {
@@ -61,6 +64,8 @@ const LOCKED_AFTER_PUBLISH = [
   // Cota de bônus é cláusula do regulamento aprovado, com a quantidade.
   "aceitaCotaBonus",
   "bonusMaxCotas",
+  // E aquele método de apuração (a leitura da Federal, o globo): é o da autorização.
+  "metodoApuracao",
 ] as const;
 
 export function assertEditable(
@@ -88,6 +93,20 @@ export function assertQuotaRange(total: number) {
       `O total de cotas precisa estar entre ${MIN_QUOTAS} e ${MAX_QUOTAS.toLocaleString("pt-BR")}.`,
     );
   }
+  // Só potência de 10: a leitura direta da Federal alcança todo número da
+  // rifa, e nenhum número lido fica fora dela (resposta 8.3 do advogado).
+  if (!totalDaApuracao(total)) throw new CampaignRuleError(PROBLEMA_NO_TOTAL);
+}
+
+/** O método de apuração da rifa ainda vale (liberado pela plataforma)? */
+function problemaNaApuracao(
+  campaign: Pick<Campaign, "metodoApuracao" | "totalQuotas">,
+  liberados: readonly MetodoDeApuracao[],
+): string | null {
+  const metodo = problemaNoMetodo(campaign.metodoApuracao, liberados);
+  if (metodo) return `${metodo} (Autorização e sorteio)`;
+  if (!totalDaApuracao(campaign.totalQuotas)) return PROBLEMA_NO_TOTAL;
+  return null;
 }
 
 /** O que impede uma campanha de ir ao ar. */
@@ -148,6 +167,10 @@ export async function publishBlockers(campaignId: string): Promise<string[]> {
     const p = problemaNoBonusMax(true, campaign.bonusMaxCotas, campaign.totalQuotas);
     if (p) blockers.push(`${p} (Autorização e sorteio)`);
   }
+  // O método de apuração é o da autorização da promotora, entre os que a
+  // plataforma liberou; sem ele (ou com ele desligado), a rifa não publica.
+  const apuracao = problemaNaApuracao(campaign, (await getPlataforma()).metodosDeApuracao);
+  if (apuracao) blockers.push(apuracao);
   if (campaign.authorizationCode && !campaign.authorizationFileKey) {
     blockers.push("Anexe o arquivo do certificado de autorização (PDF ou imagem).");
   }
@@ -196,6 +219,7 @@ export async function publishCampaign(campaignId: string): Promise<Campaign> {
     throw new CampaignRuleError(blockers.join(" "));
   }
 
+  const liberados = (await getPlataforma()).metodosDeApuracao;
   return db.transaction(async (tx) => {
     // A ordem das travas é sempre sorteio oficial → rifa (a mesma de integrar
     // e de mudar o sorteio): primeiro o sorteio em que a rifa está, depois a
@@ -237,6 +261,12 @@ export async function publishCampaign(campaignId: string): Promise<Campaign> {
     await tx.execute(sql`select pg_advisory_xact_lock_shared(${TRAVA_CONTRATO})`);
     const contrato = await problemaDoContrato(campaign.organizationId, tx);
     if (contrato) throw new CampaignRuleError(contrato);
+
+    // O método de novo, agora contra a rifa travada (a promotora pode ter
+    // trocado o método no rascunho entre a conferência de fora e esta). Os
+    // liberados foram lidos antes da transação: dentro dela, só o `tx`.
+    const apuracao = problemaNaApuracao(campaign, liberados);
+    if (apuracao) throw new CampaignRuleError(apuracao);
 
     // Integrada a um sorteio oficial: o sorteio fica travado (`FOR SHARE`) até
     // o fim — a plataforma não muda a data dele nem o cancela no meio — e a
@@ -392,6 +422,8 @@ export async function salvarDadosLegais(
     minimoVendidoPct?: unknown;
     /** Como a rifa chega ao sorteio (`MODOS_DO_SORTEIO`). Trava ao publicar. */
     modoSorteio?: unknown;
+    /** O método de apuração da autorização, entre os liberados. Trava ao publicar. */
+    metodoApuracao?: unknown;
   },
 ): Promise<Campaign> {
   if (campaign.status !== "draft") {
@@ -438,6 +470,20 @@ export async function salvarDadosLegais(
     const p = problemaNoBonusMax(aceitaBonus, bonusMax, campaign.totalQuotas);
     if (p) throw new CampaignRuleError(p);
   }
+  if (entrada.metodoApuracao !== undefined) {
+    const p = problemaNoMetodo(entrada.metodoApuracao, (await getPlataforma()).metodosDeApuracao);
+    if (p) throw new CampaignRuleError(p);
+    // Trocar a numeração (de 1 para a partir de zero) mudaria na tela o
+    // número das cotas premiadas já escolhidas: tire-as antes.
+    if (numeracaoZero(entrada.metodoApuracao as string) !== numeracaoZero(campaign.metodoApuracao)) {
+      const [premiada] = await db.select({ id: prizedQuotas.id }).from(prizedQuotas).where(eq(prizedQuotas.campaignId, campaign.id)).limit(1);
+      if (premiada) {
+        throw new CampaignRuleError(
+          "Este método muda a numeração da rifa (passa a começar em zero): tire as cotas premiadas e cadastre de novo depois de trocar.",
+        );
+      }
+    }
+  }
   if (entrada.modoSorteio !== undefined && !modoValido(entrada.modoSorteio)) {
     throw new CampaignRuleError("Modo do sorteio desconhecido.");
   }
@@ -481,6 +527,7 @@ export async function salvarDadosLegais(
       mudancas.modoSorteio = modo;
       mudancas.minimoVendidoPct = minimoDoModo(modo, minimoPedido);
     }
+    if (entrada.metodoApuracao !== undefined) mudancas.metodoApuracao = entrada.metodoApuracao as string;
     if (modoSemData(modo)) mudancas.drawAt = null;
     if (arquivo) mudancas.authorizationFileKey = CERTIFICADO_NO_BANCO;
     if (Object.keys(mudancas).length === 0) throw new CampaignRuleError("Nada para salvar.");

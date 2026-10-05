@@ -1,3 +1,4 @@
+import { numeracaoZero } from "@shared/apuracao";
 import { CartaoDoFeed, type RifaDoFeed } from "@/components/CartaoDoFeed";
 import { Janela } from "@/components/Janela";
 import { useEffect, useState } from "react";
@@ -42,6 +43,8 @@ interface OrderRow {
     title: string;
     slug: string;
     totalQuotas: number;
+    /** O método de apuração: com ele, a numeração da tela começa em zero. */
+    metodoApuracao?: string | null;
     status: string;
     drawAt?: string | null;
     /** Último adiamento aprovado: quem pagou antes recebe tudo de volta. */
@@ -1170,7 +1173,7 @@ function ComprasPorRifa({
                   <div className="mt-1 flex flex-wrap gap-1">
                     {pagos.map((n) => (
                       <span key={n} className="tnum rounded bg-green px-1.5 py-[2px] text-[11px] text-on-green">
-                        {formatQuota(n, c.totalQuotas)}
+                        {formatQuota(n, c.totalQuotas, numeracaoZero(c.metodoApuracao))}
                       </span>
                     ))}
                   </div>

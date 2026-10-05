@@ -12,6 +12,8 @@
  * linhas o Postgres relê tudo a cada página, e linha nova durante a leitura
  * desloca o resto.
  */
+import { clausulaDaApuracao, lerFederal, metodoValido, numeracaoZero, ROTULO_DO_METODO, totalDaApuracao } from "@shared/apuracao";
+import { formatQuota, numeroNaTela } from "@shared/format";
 import { sql, type SQL } from "drizzle-orm";
 import { db } from "../db";
 import { REGRA_DA_APROXIMACAO } from "@shared/sorteio";
@@ -245,6 +247,11 @@ function cotas(escopo: ExportScope): ExportStream {
       // Aqui a chave é o próprio número: é único dentro da campanha (é a PK)
       // e já é a ordem que o organizador quer ler.
       let depoisDe = 0;
+      // O número sai como a pessoa lê: na rifa apurada pela Federal, a partir de zero.
+      const [m] = await rows<{ metodo_apuracao: string | null }>(
+        sql`SELECT metodo_apuracao FROM campaigns WHERE id = ${campaignId}::uuid`,
+      );
+      const zero = numeracaoZero(m?.metodo_apuracao);
 
       for (;;) {
         const page = await rows<LinhaCota>(sql`
@@ -279,7 +286,7 @@ function cotas(escopo: ExportScope): ExportStream {
 
         for (const c of page) {
           yield [
-            c.number,
+            numeroNaTela(c.number, zero),
             c.status === "paid" ? "paga" : "reservada",
             c.code,
             c.comprador,
@@ -581,6 +588,7 @@ interface LinhaSorteio {
   total_quotas: number;
   price_cents: number;
   authorization_code: string | null;
+  metodo_apuracao: string | null;
   seed: string;
   seed_hash: string;
   federal_contest: number | null;
@@ -613,7 +621,7 @@ function sorteio(escopo: ExportScope): ExportStream {
     linhas: (async function* () {
       const [d] = await rows<LinhaSorteio>(sql`
         SELECT c.slug, c.title, c.prize_title, c.total_quotas, c.price_cents,
-               c.authorization_code,
+               c.authorization_code, c.metodo_apuracao,
                d.seed, d.seed_hash, d.federal_contest, d.federal_prizes,
                d.result_number, d.winner_number, d.executed_at, d.evidence_url,
                b.name AS vencedor, b.phone AS vencedor_telefone,
@@ -651,13 +659,21 @@ function sorteio(escopo: ExportScope): ExportStream {
       yield ["Autorização SPA/MF", d.authorization_code];
       yield ["", ""];
 
-      yield ["Hash da semente (publicado antes da 1a venda)", d.seed_hash];
-      yield [
-        "Semente",
-        sorteado
-          ? d.seed
-          : "não divulgada — só depois do sorteio, senão o resultado é calculável",
-      ];
+      // Rifa com método de apuração: a leitura direta da Federal, sem semente
+      // (ela não entra na conta). Numeração a partir de zero.
+      const zero = numeracaoZero(d.metodo_apuracao);
+      const direta = d.metodo_apuracao === "federal_direta";
+      if (d.metodo_apuracao) {
+        yield ["Método de apuração", metodoValido(d.metodo_apuracao) ? ROTULO_DO_METODO[d.metodo_apuracao] : d.metodo_apuracao];
+      } else {
+        yield ["Hash da semente (publicado antes da 1a venda)", d.seed_hash];
+        yield [
+          "Semente",
+          sorteado
+            ? d.seed
+            : "não divulgada — só depois do sorteio, senão o resultado é calculável",
+        ];
+      }
       yield ["", ""];
 
       yield ["Concurso da Loteria Federal", d.federal_contest];
@@ -670,11 +686,14 @@ function sorteio(escopo: ExportScope): ExportStream {
       yield ["", ""];
 
       yield ["Sorteio realizado em", csvDate(d.executed_at)];
-      yield ["Número sorteado", d.result_number];
+      if (direta && d.federal_prizes && totalDaApuracao(d.total_quotas)) {
+        for (const passo of lerFederal(d.federal_prizes, d.total_quotas).passos) yield ["Leitura", passo];
+      }
+      yield ["Número sorteado", d.result_number === null ? null : formatQuota(d.result_number, d.total_quotas, zero)];
       // O pedido vencedor é o do contemplado: se o sorteado não foi vendido, o
       // relatório diz qual número levou e por qual regra.
       if (d.winner_number !== null && d.winner_number !== d.result_number) {
-        yield ["Número contemplado", d.winner_number];
+        yield ["Número contemplado", formatQuota(d.winner_number, d.total_quotas, zero)];
         yield ["Regra aplicada", REGRA_DA_APROXIMACAO];
       } else if (d.executed_at && d.pedido === null) {
         yield ["Número contemplado", "Nenhuma cota paga: sorteio sem contemplado"];
@@ -689,7 +708,9 @@ function sorteio(escopo: ExportScope): ExportStream {
 
       yield [
         "Como conferir",
-        "numero = 1 + (HMAC_SHA256(semente, os 5 premios da Federal) mod total), com rejeicao de amostra",
+        direta && totalDaApuracao(d.total_quotas)
+          ? clausulaDaApuracao(d.total_quotas)
+          : "numero = 1 + (HMAC_SHA256(semente, os 5 premios da Federal) mod total), com rejeicao de amostra",
       ];
     })(),
   };

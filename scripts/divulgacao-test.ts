@@ -140,6 +140,7 @@ async function novaRifa(orgId: string, sufixo: string, status: "draft" | "publis
       drawAt: new Date(Date.now() + 20 * 86_400_000),
       authorizationCode: `SPA-DV-${sufixo}`,
       authorizationFileKey: "certificado-teste",
+      metodoApuracao: "federal_direta",
     })
     .returning();
   if (status === "published") await db.insert(campaignStats).values({ campaignId: c.id });

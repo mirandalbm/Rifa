@@ -23,7 +23,7 @@ interface OrderView {
   numbers: number[];
   prizes: { number: number; label: string }[];
   pix: { qr: string | null; copyPaste: string | null };
-  campaign: { id: string; title: string; slug: string; totalQuotas: number };
+  campaign: { id: string; title: string; slug: string; totalQuotas: number; numeracaoZero?: boolean };
   organizacao: string | null;
   buyer: { name: string };
   /** Pedido do carrinho num Pix só: o Pix é o do carrinho inteiro. */
@@ -103,7 +103,7 @@ export default function Pedido() {
               <li key={p.number} className="text-sm text-ink-2">
                 Cota{" "}
                 <span className="tnum font-medium">
-                  {formatQuota(p.number, order.campaign.totalQuotas)}
+                  {formatQuota(p.number, order.campaign.totalQuotas, order.campaign.numeracaoZero === true)}
                 </span>{" "}
                 — <b>{p.label}</b>
               </li>
@@ -191,7 +191,7 @@ export default function Pedido() {
                   : "border border-dashed border-yellow-deep bg-yellow-soft text-yellow-deep"
               }`}
             >
-              {formatQuota(n, order.campaign.totalQuotas)}
+              {formatQuota(n, order.campaign.totalQuotas, order.campaign.numeracaoZero === true)}
             </span>
           ))}
         </div>

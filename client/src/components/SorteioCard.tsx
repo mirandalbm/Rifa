@@ -3,9 +3,12 @@ import { useQuery } from "@tanstack/react-query";
 import { CheckCircle2, PlayCircle, XCircle } from "lucide-react";
 import { Button, Card } from "@/components/bits";
 import { REGRA_DA_APROXIMACAO, conferirSorteio, type Conferencia } from "@shared/sorteio";
+import { lerFederal } from "@shared/apuracao";
 
 interface Sorteio {
   drawAt: string | null;
+  /** O método de apuração: `federal_direta` é a leitura direta (sem semente); nulo é a rifa de antes. */
+  metodoApuracao?: string | null;
   seedHash: string | null;
   totalQuotas: number;
   transmissaoUrl: string | null;
@@ -25,7 +28,9 @@ interface Sorteio {
   loteriaNome?: string;
   /** "5 prêmios da Federal" / "6 dezenas da Mega-Sena". */
   rotuloDoResultado?: string;
-  seed?: string;
+  seed?: string | null;
+  /** A leitura direta passo a passo, feita pelo servidor (a tela refaz a conta e compara). */
+  leitura?: string[] | null;
   executedAt?: string;
   evidenceUrl?: string | null;
   fotoGanhador?: string | null;
@@ -65,6 +70,19 @@ export function SorteioCard({ slug }: { slug: string }) {
     );
   }
 
+  // Leitura direta da Federal: a conta é de papel e caneta, e a tela a refaz
+  // aqui mesmo com os 5 prêmios (`lerFederal`), sem confiar no servidor.
+  const direta = data.metodoApuracao === "federal_direta";
+  let refeita: { passos: string[]; numero: string } | null = null;
+  if (direta && data.federalPrizes) {
+    try {
+      const l = lerFederal(data.federalPrizes, data.totalQuotas);
+      refeita = { passos: l.passos, numero: l.numeroTexto };
+    } catch {
+      refeita = null;
+    }
+  }
+
   const conferir = async () => {
     setConferindo(true);
     setErro(null);
@@ -98,7 +116,7 @@ export function SorteioCard({ slug }: { slug: string }) {
           </figure>
         ) : null}
         <div className="text-center">
-          <p className="label-xs">número sorteado</p>
+          <p className="label-xs">{direta ? "número da sorte" : "número sorteado"}</p>
           <p className="tnum font-display text-4xl font-extrabold text-yellow-deep">{data.numero}</p>
           <p className="tnum text-xs text-muted">
             {data.loteriaNome ?? "Loteria Federal"}
@@ -130,40 +148,76 @@ export function SorteioCard({ slug }: { slug: string }) {
           </a>
         ) : null}
 
-        <details className="rounded-md bg-mist px-3 py-2">
-          <summary className="cursor-pointer text-xs font-semibold">Como conferir</summary>
-          <dl className="mt-2 space-y-1 break-all text-xs">
-            <div>
-              <dt className="label-xs">{data.rotuloDoResultado ?? "5 prêmios da Federal"}</dt>
-              <dd className="tnum">{data.federalPrizes?.join(" · ")}</dd>
-            </div>
-            <div>
-              <dt className="label-xs">resumo publicado antes da 1ª venda</dt>
-              <dd className="tnum">{data.seedHash}</dd>
-            </div>
-            <div>
-              <dt className="label-xs">semente (publicada depois do sorteio)</dt>
-              <dd className="tnum">{data.seed}</dd>
-            </div>
-          </dl>
-          <p className="mt-2 text-[11px] text-muted">
-            SHA-256 da semente tem de dar o resumo. O número é HMAC-SHA256(semente, "resultado:contador"),
-            reduzido ao total de cotas sem viés — a conta está no regulamento.
-          </p>
-        </details>
+        {direta ? (
+          <details open className="rounded-md bg-mist px-3 py-2">
+            <summary className="cursor-pointer text-xs font-semibold">Como conferir (com papel e caneta)</summary>
+            <p className="tnum mt-2 text-xs">
+              {data.rotuloDoResultado ?? "5 prêmios da Federal"}: {data.federalPrizes?.join(" · ")}
+            </p>
+            {refeita ? (
+              <>
+                <ol className="tnum mt-2 list-decimal space-y-0.5 pl-5 text-xs">
+                  {refeita.passos.map((p) => (
+                    <li key={p}>{p}</li>
+                  ))}
+                </ol>
+                <ul className="mt-2 text-xs">
+                  <Linha
+                    ok={refeita.numero === data.numero}
+                    texto={
+                      refeita.numero === data.numero
+                        ? `A leitura feita neste aparelho dá ${refeita.numero}, o número anunciado.`
+                        : `A leitura feita neste aparelho dá ${refeita.numero}, diferente do anunciado.`
+                    }
+                  />
+                </ul>
+              </>
+            ) : (
+              <p className="mt-2 text-xs text-muted">Não foi possível refazer a leitura com os prêmios publicados.</p>
+            )}
+            <p className="mt-2 text-[11px] text-muted">
+              As unidades do 1º ao 5º prêmio, de cima para baixo, formam o Número da Sorte — a regra completa está no
+              regulamento, item 5.
+            </p>
+          </details>
+        ) : (
+          <>
+            <details className="rounded-md bg-mist px-3 py-2">
+              <summary className="cursor-pointer text-xs font-semibold">Como conferir</summary>
+              <dl className="mt-2 space-y-1 break-all text-xs">
+                <div>
+                  <dt className="label-xs">{data.rotuloDoResultado ?? "5 prêmios da Federal"}</dt>
+                  <dd className="tnum">{data.federalPrizes?.join(" · ")}</dd>
+                </div>
+                <div>
+                  <dt className="label-xs">resumo publicado antes da 1ª venda</dt>
+                  <dd className="tnum">{data.seedHash}</dd>
+                </div>
+                <div>
+                  <dt className="label-xs">semente (publicada depois do sorteio)</dt>
+                  <dd className="tnum">{data.seed}</dd>
+                </div>
+              </dl>
+              <p className="mt-2 text-[11px] text-muted">
+                SHA-256 da semente tem de dar o resumo. O número é HMAC-SHA256(semente, "resultado:contador"),
+                reduzido ao total de cotas sem viés — a conta está no regulamento.
+              </p>
+            </details>
 
-        <Button variant="ghost" className="w-full" onClick={conferir} disabled={conferindo}>
-          {conferindo ? "Conferindo…" : "Conferir o sorteio neste aparelho"}
-        </Button>
-        {conf ? (
-          <ul className="space-y-1 text-xs">
-            <Linha ok={conf.hashConfere} texto={conf.hashConfere ? "A semente bate com o resumo publicado antes da 1ª venda." : "A semente NÃO bate com o resumo publicado."} />
-            <Linha
-              ok={conf.numeroConfere}
-              texto={conf.numeroConfere ? `A conta dá ${data.numero}, o número anunciado.` : `A conta dá ${conf.numero}, diferente do anunciado.`}
-            />
-          </ul>
-        ) : null}
+            <Button variant="ghost" className="w-full" onClick={conferir} disabled={conferindo}>
+              {conferindo ? "Conferindo…" : "Conferir o sorteio neste aparelho"}
+            </Button>
+            {conf ? (
+              <ul className="space-y-1 text-xs">
+                <Linha ok={conf.hashConfere} texto={conf.hashConfere ? "A semente bate com o resumo publicado antes da 1ª venda." : "A semente NÃO bate com o resumo publicado."} />
+                <Linha
+                  ok={conf.numeroConfere}
+                  texto={conf.numeroConfere ? `A conta dá ${data.numero}, o número anunciado.` : `A conta dá ${conf.numero}, diferente do anunciado.`}
+                />
+              </ul>
+            ) : null}
+          </>
+        )}
         {erro ? <p className="text-xs text-red">{erro}</p> : null}
       </div>
     </Card>

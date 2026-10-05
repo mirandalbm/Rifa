@@ -31,6 +31,8 @@ interface Item {
   /** A cartela escolhida na janela do "+" (sugestão; sem ela, os números são sorteados na compra). */
   numeros: number[] | null;
   totalQuotas: number;
+  /** A rifa numera a partir de zero (`shared/apuracao.ts`). */
+  numeracaoZero?: boolean;
   vende: boolean;
   status: string;
   drawAt: string | null;
@@ -199,7 +201,7 @@ function ItemDoCarrinho({ item: i, bilhetes: bilhetesGuardados }: { item: Item; 
                   <ul className="mt-1.5 flex flex-wrap gap-1" aria-label={`Números do bilhete ${k + 1}`}>
                     {b.map((n) => (
                       <li key={n} className={`tnum quadro min-w-10 px-1 text-[10px] ${corDaCasa(n)}`}>
-                        {formatQuota(n, i.totalQuotas)}
+                        {formatQuota(n, i.totalQuotas, i.numeracaoZero === true)}
                       </li>
                     ))}
                   </ul>

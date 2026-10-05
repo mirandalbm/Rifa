@@ -18,6 +18,13 @@ import {
 import { REGULAMENTO_EXTRA_MAX } from "@shared/regulamento";
 import { transmissaoValida } from "@shared/sorteio";
 import { problemaNoBonusMax } from "@shared/bonus";
+import {
+  EXPLICACAO_DO_METODO,
+  METODO_INDISPONIVEL,
+  METODOS_DE_APURACAO,
+  ROTULO_DO_METODO,
+  type MetodoDeApuracao,
+} from "@shared/apuracao";
 
 interface Campanha {
   id: string;
@@ -30,6 +37,7 @@ interface Campanha {
   bonusMaxCotas?: number;
   minimoVendidoPct?: number;
   modoSorteio?: string;
+  metodoApuracao?: string | null;
   totalQuotas?: number;
   transmissaoUrl?: string | null;
   slug?: string;
@@ -76,6 +84,7 @@ export function DadosLegaisCard({ campanha }: { campanha: Campanha }) {
   const [bonusMax, setBonusMax] = useState(campanha.bonusMaxCotas ? String(campanha.bonusMaxCotas) : "");
   const [minimo, setMinimo] = useState(String(campanha.minimoVendidoPct ?? 0));
   const [modo, setModo] = useState<ModoDoSorteio>((campanha.modoSorteio as ModoDoSorteio) ?? "data");
+  const [metodo, setMetodo] = useState<string | null>(campanha.metodoApuracao ?? null);
   const [msg, setMsg] = useState<{ ok: boolean; texto: string } | null>(null);
 
   useEffect(() => {
@@ -87,13 +96,18 @@ export function DadosLegaisCard({ campanha }: { campanha: Campanha }) {
     setBonusMax(campanha.bonusMaxCotas ? String(campanha.bonusMaxCotas) : "");
     setMinimo(String(campanha.minimoVendidoPct ?? 0));
     setModo((campanha.modoSorteio as ModoDoSorteio) ?? "data");
+    setMetodo(campanha.metodoApuracao ?? null);
     setMsg(null);
-  }, [campanha.id, campanha.authorizationCode, campanha.drawAt, campanha.regulamentoExtra, campanha.aceitaCotaBonus, campanha.bonusMaxCotas, campanha.minimoVendidoPct, campanha.modoSorteio]);
+  }, [campanha.metodoApuracao, campanha.id, campanha.authorizationCode, campanha.drawAt, campanha.regulamentoExtra, campanha.aceitaCotaBonus, campanha.bonusMaxCotas, campanha.minimoVendidoPct, campanha.modoSorteio]);
 
   const { data: pendencias } = useQuery<{ blockers: string[] }>({
     queryKey: [`/api/admin/campaigns/${campanha.id}/blockers`],
     enabled: rascunho,
   });
+
+  // Os métodos que a plataforma liberou: a promotora escolhe o da autorização dela.
+  const { data: apuracao } = useQuery<{ liberados: MetodoDeApuracao[] }>({ queryKey: ["/api/admin/apuracao/metodos"] });
+  const liberados = apuracao?.liberados ?? [];
 
   const semData = modoSemData(modo);
   const drawAt = data && !semData ? new Date(data) : null;
@@ -117,6 +131,8 @@ export function DadosLegaisCard({ campanha }: { campanha: Campanha }) {
         bonusMaxCotas: bonusMaxNum,
         minimoVendidoPct: minimoPct,
         modoSorteio: modo,
+        // Só manda o método escolhido: o servidor confere contra os liberados.
+        ...(metodo ? { metodoApuracao: metodo } : {}),
       }),
     onSuccess: () => {
       setArquivo(null);
@@ -183,6 +199,45 @@ export function DadosLegaisCard({ campanha }: { campanha: Campanha }) {
             )}
           </div>
         </div>
+
+        <fieldset>
+          <legend className="label-xs">Método de apuração (o da sua autorização)</legend>
+          <div className="mt-1 grid grid-cols-1 gap-2 sm:grid-cols-2">
+            {METODOS_DE_APURACAO.map((m) => {
+              const motivo = METODO_INDISPONIVEL[m] ?? (liberados.includes(m) ? null : "Não liberado pela plataforma.");
+              const pode = rascunho && !motivo;
+              return (
+                <label
+                  key={m}
+                  className={`flex min-w-0 items-start gap-2 rounded-md border px-3 py-2 ${
+                    metodo === m ? "border-green bg-green-soft" : "border-line"
+                  } ${pode ? "cursor-pointer" : "cursor-default opacity-80"}`}
+                >
+                  <input
+                    type="radio"
+                    name={`metodo-${campanha.id}`}
+                    value={m}
+                    checked={metodo === m}
+                    disabled={!pode}
+                    onChange={() => {
+                      setMsg(null);
+                      setMetodo(m);
+                    }}
+                    className="mt-1 h-4 w-4 accent-[var(--green)]"
+                  />
+                  <span className="min-w-0">
+                    <span className="block text-sm font-semibold">{ROTULO_DO_METODO[m]}</span>
+                    <span className="block text-xs text-muted">{EXPLICACAO_DO_METODO[m]}</span>
+                    {motivo ? <span className="mt-0.5 block text-xs font-semibold text-ink-2">{motivo}</span> : null}
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+          <p className="mt-1 text-xs text-muted">
+            O pedido no SCPC prevê um método só: escolha o que está na sua autorização. Trava ao publicar.
+          </p>
+        </fieldset>
 
         <fieldset>
           <legend className="label-xs">Como a rifa chega ao sorteio</legend>

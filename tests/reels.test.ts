@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { abaDoReels, cursorDoReels, ehVideo, itensDoReels, loteDoReels, limiteDoLote, loteDepoisDe, REELS_LOTE, REELS_LOTE_MAX, videoDoReels, videoEmPe, videosDoReels } from "../shared/reels";
+import { abaDoReels, cursorDoReels, ehVideo, itensDoReels, loteDoReels, limiteDoLote, loteDepoisDe, REELS_LOTE, REELS_LOTE_MAX, videoDoReels, videoEmPe, videosDoReels, problemaNoVideoParaReels } from "../shared/reels";
 
 const v = (o: Record<string, unknown> = {}) => ({ role: "video", url: "/v.mp4", durationS: 30, largura: 1080, altura: 1920, ...o });
 
@@ -113,5 +113,22 @@ describe("reels", () => {
   it("vídeo do carrossel e do Reels são vídeo; foto e banner não", () => {
     expect(ehVideo("video") && ehVideo("reels")).toBe(true);
     expect(ehVideo("photo") || ehVideo("banner")).toBe(false);
+  });
+});
+
+describe("problemaNoVideoParaReels (o aviso da tela de criar)", () => {
+  it("vídeo em pé de até 3 minutos passa", () => {
+    expect(problemaNoVideoParaReels({ duracao: 42, largura: 1080, altura: 1920 })).toBeNull();
+    expect(problemaNoVideoParaReels({ duracao: 180, largura: 1080, altura: 1350 })).toBeNull();
+  });
+  it("mais de 3 minutos avisa com a duração", () => {
+    expect(problemaNoVideoParaReels({ duracao: 181, largura: 1080, altura: 1920 })).toMatch(/3:01.*3:00/);
+  });
+  it("deitado avisa", () => {
+    expect(problemaNoVideoParaReels({ duracao: 30, largura: 1920, altura: 1080 })).toMatch(/deitado/);
+  });
+  it("sem leitura do navegador não avisa: quem decide é o servidor", () => {
+    expect(problemaNoVideoParaReels({})).toBeNull();
+    expect(problemaNoVideoParaReels({ duracao: NaN, largura: 0, altura: 0 })).toBeNull();
   });
 });

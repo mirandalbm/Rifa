@@ -23,6 +23,8 @@ import { bilhetesNoCarrinho, useCarrinho } from "@/lib/carrinho";
 import { IconeTrevo } from "@/components/Publicacao";
 import { FotoDoApostador } from "@/components/PerfilDoApostador";
 import { Marca } from "@/components/Marca";
+import { CriarReels } from "@/components/CriarReels";
+import { useNoComputador } from "@/lib/largura";
 
 /** Altura do console na base (sem a área segura do celular). */
 export const ALTURA_DO_CONSOLE = "3.25rem";
@@ -109,6 +111,7 @@ export function BotaoPublicar({ comRotulo = false }: { comRotulo?: boolean }) {
   const { data: sessao } = useSession();
   const { publicarApostador } = useConfigDoApp();
   const [aberto, setAberto] = useState(false);
+  const [criandoReels, setCriandoReels] = useState(false);
   const quem = quemPublica(
     sessao ? { role: sessao.user ? sessao.role : null, apostador: Boolean(sessao.buyer?.conta) } : null,
     publicarApostador,
@@ -128,16 +131,32 @@ export function BotaoPublicar({ comRotulo = false }: { comRotulo?: boolean }) {
         {comRotulo ? <span className="hidden group-hover/lateral:inline group-focus-within/lateral:inline">Criar</span> : null}
       </button>
       {/* No body: dentro do topo (camada própria, z-20) o console passaria por cima do menu. */}
-      {aberto ? createPortal(<MenuCriar quem={quem} onFechar={() => setAberto(false)} />, document.body) : null}
+      {aberto
+        ? createPortal(<MenuCriar quem={quem} onFechar={() => setAberto(false)} aoCriarReels={() => setCriandoReels(true)} />, document.body)
+        : null}
+      {criandoReels ? <CriarReels onFechar={() => setCriandoReels(false)} /> : null}
     </>
   );
 }
 
-function MenuCriar({ quem, onFechar }: { quem: NonNullable<ReturnType<typeof quemPublica>>; onFechar: () => void }) {
+/** Não é rota: o item "Reels" do menu abre a tela cheia de criar por cima de onde a pessoa está. */
+const REELS_NA_TELA_CHEIA = "#criar-reels";
+
+function MenuCriar({
+  quem,
+  onFechar,
+  aoCriarReels,
+}: {
+  quem: NonNullable<ReturnType<typeof quemPublica>>;
+  onFechar: () => void;
+  aoCriarReels: () => void;
+}) {
   const [, navegar] = useLocation();
+  const noComputador = useNoComputador();
   const ir = (href: string) => {
     onFechar();
-    navegar(href);
+    if (href === REELS_NA_TELA_CHEIA) aoCriarReels();
+    else navegar(href);
   };
   const opcoes: { rotulo: string; detalhe: string; href?: string }[] =
     quem === "organizador"
@@ -146,7 +165,12 @@ function MenuCriar({ quem, onFechar }: { quem: NonNullable<ReturnType<typeof que
           { rotulo: "Story", detalhe: "Uma imagem que fica 24 horas no topo da vitrine", href: "/admin/stories" },
           { rotulo: "Legenda", detalhe: "O texto embaixo da publicação de uma rifa no ar", href: "/admin/campanhas" },
           { rotulo: "Divulgações de terceiros", detalhe: "Autorizar o que influenciadores e apostadores publicam com a sua rifa", href: "/admin/afiliados" },
-          { rotulo: "Reels e mais ferramentas", detalhe: "Em breve" },
+          {
+            rotulo: "Reels",
+            detalhe: "Um vídeo em pé, de até 3 minutos, que leva quem assiste até a rifa",
+            // No celular e no tablet, a tela cheia de criar; no computador, o cartão da rifa no painel.
+            href: noComputador ? "/admin/campanhas" : REELS_NA_TELA_CHEIA,
+          },
         ]
       : quem === "influenciador"
         ? [

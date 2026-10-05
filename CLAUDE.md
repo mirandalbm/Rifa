@@ -113,7 +113,7 @@ arquitetura.
 | cadastro fiscal do afiliado, cofre e recibo | `shared/fiscal.ts` (regras), `server/services/cofre.ts`, `server/services/fiscal.ts`, `server/services/recibos.ts`, `client/src/pages/afiliadoDados.tsx`, `adminFiscal.tsx`, `Recibo.tsx`, `scripts/fiscal-test.ts` |
 | guarda da comissão pela plataforma (etapa 12) | `guardaComissao` e `percentualDoPromotor()` em `shared/plataforma.ts`, `createOrder`/`settleOrderAsPaid` em `server/services/orders.ts`, `scripts/guarda-test.ts` |
 | indicação, bônus e metas (etapa 13) | `shared/bonus.ts` (regras), `server/services/bonus.ts`, `resgatarCotasDeBonus()` em `server/services/orders.ts`, `client/src/lib/indicacao.ts`, `client/src/pages/adminBonus.tsx`, `client/src/components/BonusDoComprador.tsx`, `scripts/bonus-test.ts` |
-| Reels (tela cheia, vídeo em pé, interruptor da plataforma, o vídeo só do Reels publicado pela organização) | `shared/reels.ts` (regras, lote, `videosDoReels`/`itensDoReels`), `client/src/components/ReelsDaRifa.tsx` (o cartão do painel), papel `reels` em `server/services/media.ts`, `GET /api/public/reels` em `server/routes/public.ts`, `reelsLigado` em `shared/plataforma.ts`, `client/src/pages/Reels.tsx`, o som lembrado em `client/src/lib/reelsSom.ts`, `vertical` em `BarraDeAcoes`, `scripts/publicacao-test.ts`, `tests/reels.test.ts` |
+| Reels (tela cheia, vídeo em pé, interruptor da plataforma, o vídeo só do Reels publicado pela organização) | `shared/reels.ts` (regras, lote, `videosDoReels`/`itensDoReels`), `client/src/components/ReelsDaRifa.tsx` (o cartão do painel), a tela cheia de criar no celular e no tablet (`client/src/components/CriarReels.tsx`, `client/src/lib/enviarReels.ts`, `problemaNoVideoParaReels()`), papel `reels` em `server/services/media.ts`, `GET /api/public/reels` em `server/routes/public.ts`, `reelsLigado` em `shared/plataforma.ts`, `client/src/pages/Reels.tsx`, o som lembrado em `client/src/lib/reelsSom.ts`, `vertical` em `BarraDeAcoes`, `scripts/publicacao-test.ts`, `tests/reels.test.ts` |
 | Buscar (grade das publicações e busca por texto, interruptor e tabela da plataforma) | `shared/buscar.ts` (regras e tabela), `server/services/buscar.ts`, o índice de texto (`shared/semAcentoSql.ts`, `idx_*_trgm` em `shared/schema.ts`, `scripts/extensoes.ts` no `db:push`), `GET /api/public/buscar` em `server/routes/public.ts`, `buscarLigado`/`buscarTipos` em `shared/plataforma.ts`, `client/src/pages/Buscar.tsx`, cartão em `client/src/components/TopoDoAppCard.tsx`, `scripts/buscar-test.ts`, `tests/buscar.test.ts` |
 | Mensagens (caixa de um para um: apostador, organização e afiliado) | `shared/mensagens.ts` (regras puras), `server/services/mensagens.ts`, rotas `/mensagens/*` em `server/routes/public.ts` e `/mensagens/denuncias*` em `server/routes/admin.ts`, `mensagensLigado` em `shared/plataforma.ts`, `client/src/pages/Mensagens.tsx` (foto e "online agora"), grupos da rifa (`shared/grupos.ts`, `server/services/grupos.ts`, `client/src/components/Grupos.tsx`, `GruposDenunciadosDaPlataforma` em `ConversasDenunciadas.tsx`, `scripts/grupos-test.ts`, `tests/grupos.test.ts`), `ConversasDenunciadas.tsx`, `BotaoMensagem.tsx` (também na peça do afiliado em `DivulgacoesDaRifa.tsx`), o número não lido do painel em `PanelShell` (`client/src/components/AppShell.tsx`, `rotuloDoSino()` em `shared/avisos.ts`), `scripts/mensagens-test.ts`, `tests/mensagens.test.ts` |
 | rifas patrocinadas por clique (etapa 15): pacote, fila, tabela e números | `shared/patrocinio.ts` (regras, preço, previsão da fila), `server/services/patrocinio.ts`, `client/src/pages/adminPatrocinio.tsx`, `client/src/components/Patrocinadas.tsx`, `scripts/patrocinio-test.ts` |
@@ -556,7 +556,9 @@ arquitetura.
   instalar o app) também.
 - **Cor com opacidade**: `white` no Tailwind é `color-mix` com
   `<alpha-value>`, senão `bg-white/95` sai transparente (era o topo e a
-  faixa de baixo). Outra cor que precisar de `/NN` ganha o mesmo formato.
+  faixa de baixo). Outra cor que precisar de `/NN` ganha o mesmo formato —
+  `painel` também (a barra de cima dos painéis é `bg-painel/95`; sem o
+  formato, o conteúdo aparecia por baixo dela ao rolar).
 
 ## Topo e console do app — o que não pode afrouxar
 
@@ -2397,6 +2399,28 @@ conversa como cartão (o compartilhar da publicação), nunca como link no texto
   apagado ainda entra — nunca repete (a rifa que saiu do ar pode pular um). `reelsId` é o vídeo (a chave na
   tela); `id` segue sendo a rifa (curtir, comentar e comprar são dela).
   A legenda do item é a do vídeo, senão a da rifa.
+- **Criar reels no celular e no tablet é tela cheia, como no Instagram**
+  (`CriarReels` em `client/src/components/CriarReels.tsx`, abaixo de `lg` —
+  `useNoComputador()` em `client/src/lib/largura.ts`): o vídeo ocupa a tela e
+  **as ferramentas são ícones por cima dele, na coluna da direita** — onde
+  ficam as ações do reels publicado — com o nome embaixo em texto (Legenda,
+  Rifa, Som, Trocar); embaixo à esquerda, a prévia de como fica publicado (a
+  rifa e a legenda), e o "Publicar no Reels" no pé. Legenda e rifa abrem uma
+  folha que sobe de baixo. O envio mostra o progresso (`enviarReels()` em
+  `client/src/lib/enviarReels.ts`, `XMLHttpRequest` só por isso) e passa
+  pelos mesmos dois passos de toda mídia. **O aviso antes de enviar é
+  cortesia** (`problemaNoVideoParaReels()` em `shared/reels.ts`, a régua do
+  servidor sobre o que o navegador leu): quem decide segue sendo o `ingest`.
+  O vídeo já publicado abre do mesmo jeito (`VerReels`: Legenda, Som,
+  Apagar). Entra pelo "Novo vídeo" do cartão e pelo item "Reels" do menu
+  Criar (no computador, o item leva ao painel). É diálogo (`role="dialog"`,
+  `aria-modal`, o Tab não sai, Esc fecha a folha e depois a tela, com
+  confirmação se há vídeo escolhido). A tela é sempre escura: as cores fixas
+  são `branco` (nunca `white`, que é a superfície no tema escuro).
+- **No computador o cartão segue como era** (legenda e arquivo no próprio
+  cartão, o editor abaixo da grade), mas **a lista é visual nas três
+  larguras**: a grade de capas em pé (pôster, duração, ícone de legenda),
+  as regras em ícones e quantos vídeos de 10 numa barra.
 - `npm run publicacao` prova a rota, o interruptor e o reels da organização
   contra a API de verdade.
 

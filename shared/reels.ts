@@ -8,7 +8,7 @@
  * o vídeo do carrossel da rifa que é reels e em pé, e o vídeo que a
  * organização publica **só no Reels** (papel `reels`, fora do carrossel).
  */
-import { formatoDoVideo } from "./publicacao";
+import { REELS_MAX_S, duracao, formatoDoVideo } from "./publicacao";
 
 /** Quantos vão por vez; a tela pede o próximo ao chegar perto do fim. */
 export const REELS_LOTE = 6;
@@ -173,4 +173,21 @@ export type AbaDoReels = keyof typeof ABAS_DO_REELS;
 
 export function abaDoReels(v: unknown): AbaDoReels {
   return v === "seguindo" ? "seguindo" : "reels";
+}
+
+/**
+ * O aviso da tela de criar reels, antes de enviar: o que o navegador leu do
+ * arquivo (duração e medidas) passa pela mesma régua do servidor — até 3
+ * minutos e em pé. É só cortesia: quem decide é o servidor, que mede o
+ * arquivo guardado. Sem leitura (o navegador não abre MOV, por exemplo),
+ * não há aviso e o servidor confere.
+ */
+export function problemaNoVideoParaReels(m: { duracao?: number | null; largura?: number | null; altura?: number | null }): string | null {
+  if (m.duracao && Number.isFinite(m.duracao) && formatoDoVideo(m.duracao) !== "reels") {
+    return `O vídeo tem ${duracao(m.duracao)} — o Reels aceita até ${duracao(REELS_MAX_S)}.`;
+  }
+  if (m.largura && m.altura && !videoEmPe({ largura: m.largura, altura: m.altura })) {
+    return "O vídeo está deitado. O Reels aceita só vídeo em pé (9 por 16).";
+  }
+  return null;
 }

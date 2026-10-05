@@ -35,7 +35,8 @@ export default {
         azul: "var(--azul)",
         mais: "var(--mais)",
         /** Fundo da página dos painéis (padrão Materialize). */
-        painel: "var(--painel)",
+        // Com `<alpha-value>`, como o `white`: sem isso o `bg-painel/95` da barra de cima saía transparente.
+        painel: "color-mix(in srgb, var(--painel) calc(<alpha-value> * 100%), transparent)",
       },
       fontFamily: {
         display: ['"Bricolage Grotesque"', "ui-sans-serif", "system-ui", "sans-serif"],

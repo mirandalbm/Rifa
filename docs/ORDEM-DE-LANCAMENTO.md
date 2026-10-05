@@ -18,6 +18,10 @@ paralelo, para não segurar o resto. Marque aqui mesmo o que for fechando.
   texto-base do termo do afiliado; consentimento biométrico; a fórmula exata
   do modo "Autorizado MF" (séries e números da sorte da Federal) e se a
   regra da aproximação atual é aceita.
+  **Termos de uso validados em 05/10/2026**; o pacote dos itens 2 a 9 foi
+  reenviado. Ele também redige o **contrato plataforma ↔ promotora**
+  (regresso, autorização e IR por conta dela, Pix por fora, prêmio
+  desembaraçado).
 - [ ] **Contador**: guarda da comissão pela plataforma e RPA/nota dos
   afiliados.
 - [ ] **Pagamento**: pedir por escrito ao Mercado Pago e ao Asaas se aceitam
@@ -83,6 +87,8 @@ paralelo, para não segurar o resto. Marque aqui mesmo o que for fechando.
 
 ## Etapa 6 — cada organização (um roteiro para mandar a elas)
 
+- [ ] **Assinar o contrato da promotora** (o do advogado), por escrito,
+  antes da primeira rifa — até o aceite no painel existir.
 - [ ] Confirmar o telefone pelo código em Configurações; **você aprova** em
   Organizações → "Aprovar telefone" (sem isso ela não publica).
 - [ ] Endereço; foto e bio; capa, cor e links do perfil público.
@@ -132,6 +138,8 @@ paralelo, para não segurar o resto. Marque aqui mesmo o que for fechando.
 
 - Modo "Autorizado MF" (apuração direta pela Federal), quando for pedir as
   autorizações formais — com a fórmula do advogado.
+- Termo da organização com aceite no painel (versionado, como o do
+  afiliado; sem o aceite da versão em vigor, não publica).
 - Ferramentas de imagem e vídeo (`docs/PLANO-FERRAMENTAS.md`, fases A a G).
 - APK das maquininhas (precisa de máquina com o Android SDK).
 - O que foi deixado de fora de propósito: vídeo do afiliado pelo Stream,

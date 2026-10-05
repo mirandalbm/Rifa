@@ -476,6 +476,9 @@ Na ordem de entrega do plano:
 - [ ] **[você]** O advogado ler os Termos de uso e a Privacidade
   (`montarTermosDeUso()`/`montarPrivacidade()`), em especial: foro, CVV no
   jogo responsável, prazos de guarda e a lista de quem recebe dados.
+  **Termos de uso validados** (05/10/2026, as dez seções, sem mudança de
+  texto; o bloqueio do reembolso depois do sorteio, que ele pediu, já é
+  automático). Falta a Privacidade e os itens 2 a 9 do pacote.
 - [ ] **[você]** Cada organização publicar o termo de adesão de afiliado
   (Afiliados → Termo) — quem já publicou vê o aviso para publicar a versão
   seguinte com o texto novo — e o advogado revisar o texto-base.
@@ -580,6 +583,21 @@ Na ordem de entrega do plano:
   o catálogo do Canva e do Adobe Express como referência e a decisão de não
   integrar API nenhuma, está em `docs/PLANO-FERRAMENTAS.md`. Decisão de
   05/10/2026: primeiro fecha a versão inicial; as ferramentas vêm depois.
+
+- [ ] **[depois da versão inicial]** **Termo da organização (contrato
+  plataforma ↔ promotora) com aceite no painel.** Os Termos de uso cobrem o
+  apostador; a relação com a promotora estava a descoberto — se ela não
+  entregar o prêmio, a Justiça tende a condenar a plataforma junto (CDC).
+  O advogado redige (05/10/2026): ação de regresso (*hold harmless*, com
+  custas e honorários), autorização SPA/MF e IR sobre o prêmio por conta da
+  promotora, Pix por fora = rescisão, banimento e retenção de saldo, e
+  declaração de que o prêmio existe, é lícito e está desembaraçado. No
+  código: aceite eletrônico versionado (*clickwrap*), no modelo do termo do
+  afiliado — a versão, a cópia do texto, quem aceitou, a organização, IP e
+  data; versão nova pede novo aceite; **sem o aceite da versão em vigor, a
+  organização não publica rifa** (`publishBlockers`). Até existir, o
+  contrato é assinado fora do sistema (etapa 6 de
+  `docs/ORDEM-DE-LANCAMENTO.md`).
 
 - [ ] **[depois da versão inicial — dívida técnica e jurídica, isolada]**
   **Apuração direta pela Loteria Federal (modo "Autorizado MF").** A SPA/MF

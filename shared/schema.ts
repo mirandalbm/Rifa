@@ -2221,6 +2221,46 @@ export const termoAceites = pgTable(
 );
 
 /**
+ * Contrato da plataforma com a promotora, por versão (o texto do advogado,
+ * colado pela plataforma). Publicar não sobrescreve: versão nova é linha nova.
+ */
+export const contratosPromotora = pgTable(
+  "contratos_promotora",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    versao: integer("versao").notNull(),
+    texto: text("texto").notNull(),
+    publicadoPor: uuid("publicado_por"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("uq_contrato_promotora_versao").on(t.versao)],
+);
+
+/**
+ * Aceite do contrato pela organização: cópia do texto, versão, quem aceitou,
+ * quando, IP e aparelho em hash. É a prova — por isso guarda o texto.
+ */
+export const contratoPromotoraAceites = pgTable(
+  "contrato_promotora_aceites",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    contratoId: uuid("contrato_id")
+      .notNull()
+      .references(() => contratosPromotora.id),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    userId: uuid("user_id"),
+    versao: integer("versao").notNull(),
+    texto: text("texto").notNull(),
+    ipHash: text("ip_hash"),
+    deviceHash: text("device_hash"),
+    aceitoEm: timestamp("aceito_em").notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("uq_contrato_aceite_org").on(t.contratoId, t.organizationId)],
+);
+
+/**
  * "Seja um colaborador": o apostador pede para vender (ser cambista) de uma
  * organização. Um pedido em aberto por pessoa e organização — quem decide é
  * o índice parcial, não um `SELECT` antes.

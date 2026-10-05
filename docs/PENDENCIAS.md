@@ -586,20 +586,20 @@ Na ordem de entrega do plano:
   integrar API nenhuma, está em `docs/PLANO-FERRAMENTAS.md`. Decisão de
   05/10/2026: primeiro fecha a versão inicial; as ferramentas vêm depois.
 
-- [ ] **[depois da versão inicial]** **Termo da organização (contrato
-  plataforma ↔ promotora) com aceite no painel.** Os Termos de uso cobrem o
-  apostador; a relação com a promotora estava a descoberto — se ela não
-  entregar o prêmio, a Justiça tende a condenar a plataforma junto (CDC).
-  O advogado redige (05/10/2026): ação de regresso (*hold harmless*, com
-  custas e honorários), autorização SPA/MF e IR sobre o prêmio por conta da
-  promotora, Pix por fora = rescisão, banimento e retenção de saldo, e
-  declaração de que o prêmio existe, é lícito e está desembaraçado. No
-  código: aceite eletrônico versionado (*clickwrap*), no modelo do termo do
-  afiliado — a versão, a cópia do texto, quem aceitou, a organização, IP e
-  data; versão nova pede novo aceite; **sem o aceite da versão em vigor, a
-  organização não publica rifa** (`publishBlockers`). Até existir, o
-  contrato é assinado fora do sistema (etapa 6 de
-  `docs/ORDEM-DE-LANCAMENTO.md`).
+- [x] **[código]** **Contrato da plataforma com a promotora, com aceite no
+  painel e trava de publicação.** A plataforma cola o texto do advogado em
+  Configurações → Organização e perfil e publica versões; cada organização lê
+  e aceita a versão em vigor no mesmo cartão (cópia do texto, versão, quem
+  aceitou, IP e aparelho em hash). **Sem o aceite, a organização não publica
+  rifa** — nem pelo botão, nem pela publicação agendada. Sem versão
+  publicada, nada muda. `npm run contrato` prova. **Falta no ambiente**:
+  `db:push` (tabelas `contratos_promotora` e `contrato_promotora_aceites`)
+  antes do código.
+- [ ] **[você]** Receber do advogado o contrato (regresso com custas e
+  honorários, autorização SPA/MF e IR por conta da promotora, Pix por fora =
+  rescisão, banimento e retenção de saldo, prêmio existente, lícito e
+  desembaraçado) e publicá-lo em Configurações → Organização e perfil. Até
+  lá, nenhuma organização é barrada.
 
 - [ ] **[depois da versão inicial — dívida técnica e jurídica, isolada]**
   **Apuração direta pela Loteria Federal (modo "Autorizado MF").** A SPA/MF

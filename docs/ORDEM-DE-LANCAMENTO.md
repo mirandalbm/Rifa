@@ -87,8 +87,9 @@ paralelo, para não segurar o resto. Marque aqui mesmo o que for fechando.
 
 ## Etapa 6 — cada organização (um roteiro para mandar a elas)
 
-- [ ] **Assinar o contrato da promotora** (o do advogado), por escrito,
-  antes da primeira rifa — até o aceite no painel existir.
+- [ ] **Aceitar o contrato da plataforma** em Configurações → Organização e
+  perfil (depois que você publicar o texto do advogado lá): sem o aceite,
+  nenhuma rifa dela é publicada.
 - [ ] Confirmar o telefone pelo código em Configurações; **você aprova** em
   Organizações → "Aprovar telefone" (sem isso ela não publica).
 - [ ] Endereço; foto e bio; capa, cor e links do perfil público.
@@ -139,8 +140,6 @@ paralelo, para não segurar o resto. Marque aqui mesmo o que for fechando.
 - Método de apuração escolhido só pela plataforma, com dois modelos: o modo
   "Autorizado MF" (apuração direta pela Federal, com a fórmula do advogado)
   e o globo próprio, depois de homologado.
-- Termo da organização com aceite no painel (versionado, como o do
-  afiliado; sem o aceite da versão em vigor, não publica).
 - Ferramentas de imagem e vídeo (`docs/PLANO-FERRAMENTAS.md`, fases A a G).
 - APK das maquininhas (precisa de máquina com o Android SDK).
 - O que foi deixado de fora de propósito: vídeo do afiliado pelo Stream,

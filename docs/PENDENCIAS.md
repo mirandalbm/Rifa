@@ -573,6 +573,14 @@ Na ordem de entrega do plano:
 
 ## 6. Código, para depois
 
+- [ ] **[depois da versão inicial]** Ferramentas de imagem e vídeo para
+  divulgar a rifa (artes prontas com os dados da rifa, recriar a partir de
+  uma referência com IA de visão, editor de imagem, vídeo leve, IA
+  generativa, vídeo gerado, pacote pronto para postar): o plano completo, com
+  o catálogo do Canva e do Adobe Express como referência e a decisão de não
+  integrar API nenhuma, está em `docs/PLANO-FERRAMENTAS.md`. Decisão de
+  05/10/2026: primeiro fecha a versão inicial; as ferramentas vêm depois.
+
 - [ ] **[depois da versão inicial — dívida técnica e jurídica, isolada]**
   **Apuração direta pela Loteria Federal (modo "Autorizado MF").** A SPA/MF
   (Portaria SEAE nº 7.638/2022) exige *verificabilidade simples*: o auditor
@@ -622,9 +630,10 @@ Na ordem de entrega do plano:
   calendário). **Denúncia feita:** o apostador com conta denuncia o
   comentário do sorteio ("Denunciar"), a plataforma decide em Atendimento →
   Denúncias e na Caixa de entrada, e procedente apaga o comentário.
-  **Falta:** conferir as cores de `CORES_DA_CAIXA` contra o manual de identidade visual das
-  Loterias Caixa. **Advogado respondeu** (05/10/2026): apuração só pela
-  Loteria Federal — aplicado em `LOTERIAS_QUE_RECEBEM_RIFA`.
+  **Cores conferidas** (05/10/2026) nos cartões do app Loterias Caixa: Mega-Sena, Quina e
+  Lotofácil ajustadas; a Federal não tem cartão no app e segue a do site.
+  **Advogado respondeu** (05/10/2026): apuração só pela Loteria Federal —
+  aplicado em `LOTERIAS_QUE_RECEBEM_RIFA`.
 - [x] **Reels** (tela cheia, vídeo em pé de até 3 min, ações na lateral):
   pronto, atrás do interruptor `reelsLigado` (Aparência → Topo do app, nasce
   desligado). **v2 feito:** o som escolhido fica lembrado no aparelho (cai

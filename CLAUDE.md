@@ -2951,9 +2951,9 @@ coluna ao vivo segue como estava.
   estado, e sempre com o nome junto (no dia — a sigla no tablet, `sigla` em
   `LOTERIAS`, e o nome do `lg` em diante —, no rótulo do botão e na
   legenda). O número do dia vai em branco por cima — `tests/sorteiosOficiais.test.ts`
-  exige ≥ 3:1. As cores saíram do padrão do site das Loterias Caixa (o site
-  e o manual não abrem deste ambiente): confira contra o manual de
-  identidade visual e troque só ali.
+  exige ≥ 3:1. Mega-Sena, Quina e Lotofácil foram **medidas nos cartões do
+  app Loterias Caixa** (05/10/2026); a Federal, sem cartão no app, segue a
+  cor do site. Se a Caixa mudar, troque só em `CORES_DA_CAIXA`.
 - **O painel diz qual link colar** (`leituraDoLink()` em `shared/aoVivo.ts`,
   a mesma regra da tela, `videoDaTransmissao()`): logo abaixo do campo da
   transmissão, em texto, se o vídeo vai tocar dentro da tela ("Certo") ou

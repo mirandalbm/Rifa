@@ -101,3 +101,25 @@ Nenhum cartão do inventário saiu: cada um tem lugar abaixo.
 | Caixa de entrada (nova, plataforma) | tudo que espera decisão numa lista, com o destino de cada tipo |
 | Afiliado e cambista | a mesma casca (`PanelShell`) com o menu de cada papel; as telas listadas no inventário seguem com os mesmos cartões |
 | Loja (vitrine, rifa, perfil, carrinho, conta) | o arranjo de `docs/VERSOES.md` e da seção "Layout no computador" do `CLAUDE.md` |
+
+## 6. Conferência final dos três painéis (05/10/2026)
+
+Depois de fechada a remodelagem, uma passada mecânica comparando o "antes"
+(`ef66bef`) com o `main` de hoje, nos painéis do organizador, do afiliado,
+do cambista e do administrador geral:
+
+| O que foi comparado | Como | Resultado |
+|---|---|---|
+| Seções de acesso (`shared/access.ts`) | chaves de `SECTIONS` antes × agora | nenhuma saiu |
+| Rotas das telas (`App.tsx`) | todos os `path=` antes × agora | nenhuma saiu (e entraram `/admin/caixa`, `/admin/banner-pago`, `/admin/sorteios-oficiais`, `/afiliado/divulgar`) |
+| Rotas da API (`admin`, `affiliate`, `seller`, `public`) | todos os `router.<verbo>("…")` antes × agora | nenhuma saiu |
+| Cartões de cada tela | todos os `title="…"` das páginas antes × agora | nenhum saiu; só dois nomes mudaram: "Campanhas" → "Rifas" (a tela) e "No ar agora" → "No ar e agendados" (Stories, com o story agendado) |
+| Inventário da seção 3 | cada item procurado no código de hoje | todos presentes |
+
+Conclusão: nada do painel anterior ficou pendente. O que resta para a
+versão inicial está em `docs/PENDENCIAS.md` e é, quase todo, trabalho fora
+do código (contas, chaves, `db:push`, advogado e contador); no código ficam
+só o APK das maquininhas (precisa do Android SDK) e o que foi deixado para
+depois de propósito. As ferramentas de imagem e vídeo (Canva e Adobe como
+referência, feitas por nós) estão guardadas em `docs/PLANO-FERRAMENTAS.md`
+e **só começam depois da versão inicial**.

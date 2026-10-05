@@ -599,8 +599,9 @@ Na ordem de entrega do plano:
   calendário). **Denúncia feita:** o apostador com conta denuncia o
   comentário do sorteio ("Denunciar"), a plataforma decide em Atendimento →
   Denúncias e na Caixa de entrada, e procedente apaga o comentário.
-  **Falta:** conferir as cores de `CORES_DA_CAIXA` contra o manual de identidade visual das
-  Loterias Caixa; e o advogado confirmar que a autorização SPA/MF da rifa
+  **Cores conferidas** (05/10/2026) nos cartões do app Loterias Caixa: Mega-Sena, Quina e
+  Lotofácil ajustadas; a Federal não tem cartão no app e segue a do site.
+  **Falta:** o advogado confirmar que a autorização SPA/MF da rifa
   aceita apuração pela Mega-Sena, Quina ou Lotofácil (hoje a plataforma
   deixa a organização escolher — a autorização é dela, invariante 9).
 - [x] **Reels** (tela cheia, vídeo em pé de até 3 min, ações na lateral):

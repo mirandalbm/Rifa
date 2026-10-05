@@ -573,6 +573,36 @@ Na ordem de entrega do plano:
 
 ## 6. Código, para depois
 
+- [ ] **[depois da versão inicial — dívida técnica e jurídica, isolada]**
+  **Apuração direta pela Loteria Federal (modo "Autorizado MF").** A SPA/MF
+  (Portaria SEAE nº 7.638/2022) exige *verificabilidade simples*: o auditor
+  e o apostador leigo pegam o resultado da Federal, leem o regulamento e,
+  com papel e caneta, chegam ao ganhador. O sorteio de hoje mistura os 5
+  prêmios com a semente secreta (`drawNumber()` em `server/services/draw.ts`,
+  `conferirSorteio()` no aparelho) — auditável e à prova de manipulação, mas
+  **não é a correspondência direta** que a modalidade "Sorteio" pede. Quando
+  for pedir as autorizações formais, entra um **segundo modo de apuração**,
+  escolhido nos dados legais da rifa e travado ao publicar, ao lado do atual:
+  - **Séries e números da sorte** em blocos de 100.000 (a rifa de 1 milhão
+    são 10 séries); exemplo clássico da portaria: a **série** pelo algarismo
+    da dezena do 1º prêmio e o **número da sorte** pelas unidades do 1º ao 5º
+    prêmio, lidas na ordem. A fórmula exata vai no regulamento, letra por
+    letra, e a conferência pública (`/sorteio`) mostra a leitura passo a
+    passo, sem hash.
+  - **Aproximação obrigatória**: "caso o número da sorte não tenha sido
+    distribuído, o prêmio caberá ao portador do número imediatamente
+    superior" (e, sem superior, o inferior) — é cláusula do regulamento
+    aprovado; a regra que já existe (`contempladoPorAproximacao()`) cobre e
+    precisa bater com o texto aprovado.
+  - **Só a Federal** (feito: `LOTERIAS_QUE_RECEBEM_RIFA`); extrações às
+    quartas e aos sábados ("Sábado da Sorte"); "quando completar" já marca a
+    próxima extração.
+  - Fora do escopo: "assemelhado a concurso" e "vale-brinde" (outra mecânica,
+    sem número da sorte).
+  O método atual continua valendo para a rifa que a promotora autoriza no
+  modelo de hoje; o modo direto é plugado na hora de escalar. Confirmado com
+  o advogado em 05/10/2026.
+
 - [ ] **Sorteios oficiais** (o calendário da plataforma, a tela do sorteio no
   celular). **Fase 1 feita:** o master cadastra, muda, cancela e lança o
   resultado oficial (Federal, Mega-Sena, Quina, Lotofácil, cada dia na cor da

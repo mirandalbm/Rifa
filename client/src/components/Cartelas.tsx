@@ -78,6 +78,7 @@ export function Cartelas({
   slug,
   quantidade,
   totalQuotas,
+  numeracaoZero,
   unitCents,
   packages,
   escolhida,
@@ -91,6 +92,8 @@ export function Cartelas({
   slug: string;
   quantidade: number;
   totalQuotas: number;
+  /** A rifa numera a partir de zero (`shared/apuracao.ts`): só muda o que a tela mostra. */
+  numeracaoZero: boolean;
   unitCents: number;
   packages: PricingPackage[];
   /** Números da cartela que está indo para o pagamento (para marcar o cartão). */
@@ -209,9 +212,9 @@ export function Cartelas({
               {numeros.map((n) => (
                 <li
                   key={n}
-                  className={`tnum quadro ${letraDoQuadro(quotaDigits(totalQuotas))} ${corDaCasa(n)}`}
+                  className={`tnum quadro ${letraDoQuadro(quotaDigits(totalQuotas, numeracaoZero))} ${corDaCasa(n)}`}
                 >
-                  {formatQuota(n, totalQuotas)}
+                  {formatQuota(n, totalQuotas, numeracaoZero)}
                 </li>
               ))}
             </ul>

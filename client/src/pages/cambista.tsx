@@ -1,3 +1,4 @@
+import { numeracaoZero } from "@shared/apuracao";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { PanelShell } from "@/components/AppShell";
@@ -19,6 +20,8 @@ interface Overview {
     minPerOrder: number;
     maxPerOrder: number;
     totalQuotas: number;
+    /** O método de apuração: com ele, a numeração da tela começa em zero. */
+    metodoApuracao?: string | null;
     pct: number;
   }[];
   hoje: { vendas: number; cotas: number; totalCents: number };
@@ -284,7 +287,7 @@ export function CambistaVenda() {
                   key={n}
                   className="tnum rounded border border-dashed border-yellow-deep bg-yellow-soft px-1.5 py-[2px] text-[11px] text-yellow-deep"
                 >
-                  {formatQuota(n, escolhida?.totalQuotas ?? 1000)}
+                  {formatQuota(n, escolhida?.totalQuotas ?? 1000, numeracaoZero(escolhida?.metodoApuracao))}
                 </span>
               ))}
               {venda.numbers.length > 40 ? (

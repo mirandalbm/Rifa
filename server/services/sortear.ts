@@ -17,7 +17,8 @@ import { auditLog, buyers, campaigns, draws, orders, sorteiosOficiais, type Camp
 import { drawNumber } from "./draw";
 import { notify } from "../notifications";
 import { publicUrl } from "./urls";
-import { formatQuota } from "@shared/format";
+import { formatQuota, numeroInterno } from "@shared/format";
+import { lerFederal, numeracaoZero } from "@shared/apuracao";
 import { contempladoPorAproximacao } from "@shared/sorteio";
 import { cotasMinimasParaSortear, minimoAtingido } from "@shared/campanhaLegal";
 import { vendidasParaOMinimo } from "@shared/bonus";
@@ -69,6 +70,29 @@ export async function resultadoParaARifa(
 }
 
 /**
+ * O número sorteado (interno, 1 ao total). Rifa com método de apuração é a
+ * leitura direta dos 5 prêmios da Federal (`lerFederal`, numeração a partir
+ * de zero: o número lido 139 é a cota interna 140). Rifa de antes, sem
+ * método, segue a semente (`drawNumber`) — a conferência dela continua igual.
+ */
+export function numeroSorteado(
+  campaign: Pick<Campaign, "metodoApuracao" | "totalQuotas">,
+  seed: string,
+  r: Pick<Resultado, "loteria" | "numeros">,
+): number {
+  if (campaign.metodoApuracao === "federal_direta") {
+    if (r.loteria !== "federal") {
+      throw new SorteioRecusado("Esta rifa é apurada pela Loteria Federal: o resultado precisa ser o da Federal.");
+    }
+    return numeroInterno(lerFederal(r.numeros, campaign.totalQuotas).numero, true);
+  }
+  if (campaign.metodoApuracao) {
+    throw new SorteioRecusado("O método de apuração desta rifa ainda não sorteia pelo sistema.");
+  }
+  return drawNumber({ seed, federalPrizes: r.numeros, totalQuotas: campaign.totalQuotas, loteria: r.loteria });
+}
+
+/**
  * Sorteia a rifa. Devolve o que foi gravado; recusa com `SorteioRecusado`
  * (já sorteada, não publicada, mínimo não atingido, reserva esperando Pix,
  * saiu do sorteio oficial). Avisos (ganhador e push) saem depois, fora da
@@ -90,8 +114,9 @@ export async function executarSorteio(
   const loteriaGravada = r.loteria === "federal" ? null : r.loteria;
   let resultNumber: number;
   try {
-    resultNumber = drawNumber({ seed: draw.seed, federalPrizes: r.numeros, totalQuotas: campaign.totalQuotas, loteria: r.loteria });
+    resultNumber = numeroSorteado(campaign, draw.seed, r);
   } catch (e) {
+    if (e instanceof SorteioRecusado) throw e;
     throw Object.assign(new SorteioRecusado((e as Error).message), { status: 400 });
   }
 
@@ -215,7 +240,7 @@ export async function executarSorteio(
         template: "sorteio_realizado",
         params: {
           rifa: campaign.title,
-          numero: formatQuota(updated.winnerNumber ?? resultNumber, campaign.totalQuotas),
+          numero: formatQuota(updated.winnerNumber ?? resultNumber, campaign.totalQuotas, numeracaoZero(campaign.metodoApuracao)),
           link: publicUrl(`/r/${campaign.slug}`),
         },
         dedupeKey: `draw:${draw.id}:ganhador`,
@@ -226,8 +251,9 @@ export async function executarSorteio(
 
   return {
     ...updated,
-    // A semente é publicada agora: qualquer pessoa refaz a conta.
-    seed: draw.seed,
+    // A semente é publicada agora, na rifa de antes (sem método): qualquer
+    // pessoa refaz a conta. Na leitura direta ela não entra na conta e não sai.
+    seed: campaign.metodoApuracao ? null : draw.seed,
     loteriaNome: LOTERIAS[r.loteria].nome,
     soldToWinner: Boolean(feito.vencedor),
     // Contemplado pela regra da aproximação (o sorteado não estava vendido).

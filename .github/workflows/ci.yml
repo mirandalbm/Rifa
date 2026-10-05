@@ -130,6 +130,7 @@ jobs:
       - run: npm run divulgacao
       - run: npm run agenda-rifa
       - run: npm run contrato
+      - run: npm run apuracao
       - run: npm run banner-divulgacao
       - run: npm run fiscal
       - run: npm run disputa

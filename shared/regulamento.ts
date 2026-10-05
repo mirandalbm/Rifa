@@ -12,6 +12,7 @@ import { formatBRL, formatQuota, groupNumber } from "./format";
 import { regraDoReembolso } from "./reembolso";
 import { REGRA_DA_APROXIMACAO } from "./sorteio";
 import { cotasMinimasParaSortear } from "./campanhaLegal";
+import { clausulaDaApuracao, EXPLICACAO_DO_METODO, numeracaoZero, totalDaApuracao } from "./apuracao";
 import { LOTERIAS, loteriaValida, resultadoDaLoteria } from "./sorteiosOficiais";
 
 const DIAS_DA_FEDERAL_TEXTO = "quartas e sábados, às 19h de Brasília";
@@ -45,6 +46,12 @@ export interface DadosDoRegulamento {
     drawAt: string | Date | null;
     authorizationCode: string | null;
     drawSeedHash: string | null;
+    /**
+     * O método de apuração (`shared/apuracao.ts`): a leitura direta da
+     * Federal (numeração a partir de zero, cláusula do advogado) ou o globo.
+     * Ausente ou nulo é a rifa de antes, apurada pela semente.
+     */
+    metodoApuracao?: string | null;
     regulamentoExtra: string | null;
     /** Aceita cotas de bônus do programa de indicação (etapa 13). */
     aceitaCotaBonus?: boolean;
@@ -95,8 +102,16 @@ function agrupar(premios: string[]): string[] {
 
 export function montarRegulamento(d: DadosDoRegulamento): Secao[] {
   const { rifa, promotora } = d;
-  const primeira = formatQuota(1, rifa.totalQuotas);
-  const ultima = formatQuota(rifa.totalQuotas, rifa.totalQuotas);
+  const zero = numeracaoZero(rifa.metodoApuracao);
+  const primeira = formatQuota(1, rifa.totalQuotas, zero);
+  const ultima = formatQuota(rifa.totalQuotas, rifa.totalQuotas, zero);
+  // Como o número sai do resultado: a cláusula da leitura direta, o globo, ou a semente (rifa de antes).
+  const comoSai =
+    rifa.metodoApuracao === "federal_direta" && totalDaApuracao(rifa.totalQuotas)
+      ? [clausulaDaApuracao(rifa.totalQuotas)]
+      : rifa.metodoApuracao === "globo"
+        ? [`${EXPLICACAO_DO_METODO.globo} A ata e o vídeo ficam na página da rifa.`]
+        : null;
   const quando = dataHora(rifa.drawAt);
   const oficial = rifa.sorteioOficial && loteriaValida(rifa.sorteioOficial.loteria) ? rifa.sorteioOficial.loteria : null;
 
@@ -151,8 +166,10 @@ export function montarRegulamento(d: DadosDoRegulamento): Secao[] {
             : quando
               ? `O sorteio acontece em ${quando}, com os 5 prêmios da extração da Loteria Federal dessa data.`
               : "A data do sorteio é informada antes da publicação.",
-        `O número vencedor é calculado a partir de ${oficial ? resultadoDaLoteria(oficial) : "os 5 prêmios da Loteria Federal"} e de uma semente secreta, cujo resumo (hash SHA-256) foi publicado antes da primeira venda. Depois do sorteio a semente é publicada, e qualquer pessoa pode refazer a conta na página da rifa.`,
-        ...(rifa.drawSeedHash ? [`Resumo da semente publicado: ${rifa.drawSeedHash}.`] : []),
+        ...(comoSai ?? [
+          `O número vencedor é calculado a partir de ${oficial ? resultadoDaLoteria(oficial) : "os 5 prêmios da Loteria Federal"} e de uma semente secreta, cujo resumo (hash SHA-256) foi publicado antes da primeira venda. Depois do sorteio a semente é publicada, e qualquer pessoa pode refazer a conta na página da rifa.`,
+          ...(rifa.drawSeedHash ? [`Resumo da semente publicado: ${rifa.drawSeedHash}.`] : []),
+        ]),
         ...(rifa.modoSorteio === "quando_completar"
           ? ["O sorteio só é realizado com todas as cotas vendidas e pagas (rifa cheia)."]
           : rifa.modoSorteio === "cheia_com_data"

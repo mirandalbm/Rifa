@@ -6,6 +6,7 @@
  * comprovante que o cambista entrega na mão. Por isso os dados são montados
  * uma vez só, aqui — a formatação mora em `ticketFormat.ts`.
  */
+import { numeracaoZero } from "@shared/apuracao";
 import { eq } from "drizzle-orm";
 import { db } from "../db";
 import { orders, buyers, campaigns, quotaAlloc, affiliates, users, draws } from "@shared/schema";
@@ -71,10 +72,13 @@ export async function buildTicket(code: number): Promise<TicketData | null> {
     },
     sorteio: {
       data: row.campaign.drawAt ? row.campaign.drawAt.toISOString() : null,
-      metodo: "Loteria Federal + semente publicada (HMAC)",
-      seedHash: draw?.seedHash ?? row.campaign.drawSeedHash ?? null,
+      // Rifa com método de apuração: a leitura direta da Federal, sem semente.
+      metodo: row.campaign.metodoApuracao
+        ? "Loteria Federal, leitura direta dos 5 premios"
+        : "Loteria Federal + semente publicada (HMAC)",
+      seedHash: row.campaign.metodoApuracao ? null : (draw?.seedHash ?? row.campaign.drawSeedHash ?? null),
     },
-    numeros: numeros.map((n) => formatQuota(n.number, row.campaign.totalQuotas)),
+    numeros: numeros.map((n) => formatQuota(n.number, row.campaign.totalQuotas, numeracaoZero(row.campaign.metodoApuracao))),
     pagamento: {
       metodo: METODO_LABEL[row.order.method] ?? row.order.method,
       situacao: SITUACAO_LABEL[row.order.status] ?? row.order.status,

@@ -34,8 +34,8 @@ import { CoresDoSeloCard } from "@/components/CoresDoSelo";
 import { podeExcluir } from "@shared/solicitacoes";
 import type { CorDeDestaque, LinkDoPerfil } from "@shared/perfil";
 import type { Endereco } from "@shared/endereco";
-import { formatBRL, groupNumber, formatQuota, maskPhone } from "@shared/format";
-import { MAX_QUOTAS, MIN_QUOTAS } from "@shared/schema";
+import { formatBRL, groupNumber, formatQuota, maskPhone, quotaDigits } from "@shared/format";
+import { numeracaoZero, TOTAIS_DA_APURACAO } from "@shared/apuracao";
 import {
   PAYMENT_METHODS,
   type PaymentMethodKey,
@@ -364,6 +364,8 @@ interface CampaignRow {
     travadaMotivo?: string | null;
     publicarEm?: string | null;
     publicacaoAgendadaFalha?: string | null;
+    /** O método de apuração (`shared/apuracao.ts`); nulo é a rifa de antes, apurada pela semente. */
+    metodoApuracao?: string | null;
   };
   stats: { soldCount: number; reservedCount?: number; revenueCents: number } | null;
   /** Pedidos de mudança esperando a plataforma: "edicao", "adiamento". */
@@ -394,7 +396,6 @@ function situacaoDaRifa(c: CampaignRow["campaign"], emAnalise?: string[] | null)
   return selos;
 }
 
-const PRESETS = [1_000, 10_000, 100_000, 1_000_000];
 
 export function AdminCampanhas() {
   const qc = useQueryClient();
@@ -474,7 +475,7 @@ export function AdminCampanhas() {
     onError: (err: Error) => setError(err.message),
   });
 
-  const digits = String(form.totalQuotas).length;
+  const digits = quotaDigits(form.totalQuotas, true);
 
   return (
     <PanelShell title="Rifas">
@@ -551,27 +552,20 @@ export function AdminCampanhas() {
               </div>
             </div>
 
-            {/* O total trava ao publicar: enquanto é rascunho, é livre. */}
-            <div>
-              <label htmlFor="total" className="label-xs">Total de cotas</label>
-              <input
-                id="total"
-                type="number"
-                min={MIN_QUOTAS}
-                max={MAX_QUOTAS}
-                value={form.totalQuotas}
-                onChange={(e) => setForm({ ...form, totalQuotas: Number(e.target.value) })}
-                className="tnum mt-1 w-full rounded-md border-2 border-green px-3 py-2 text-lg"
-              />
-              <div className="mt-2 grid grid-cols-4 gap-1">
-                {PRESETS.map((p) => (
+            {/* O total trava ao publicar. Só potência de 10: a leitura direta da
+                Loteria Federal alcança todo número da rifa (shared/apuracao.ts). */}
+            <fieldset>
+              <legend className="label-xs">Total de cotas</legend>
+              <div className="mt-1 grid grid-cols-3 gap-1 sm:grid-cols-5">
+                {TOTAIS_DA_APURACAO.map((p) => (
                   <button
                     key={p}
                     type="button"
+                    aria-pressed={form.totalQuotas === p}
                     onClick={() => setForm({ ...form, totalQuotas: p })}
-                    className={`tnum rounded border px-2 py-1 text-xs ${
+                    className={`tnum min-h-[40px] rounded-md border px-2 py-1 text-sm ${
                       form.totalQuotas === p
-                        ? "border-green bg-green text-on-green"
+                        ? "border-green bg-green font-semibold text-on-green"
                         : "border-line-2 text-ink-2"
                     }`}
                   >
@@ -580,10 +574,12 @@ export function AdminCampanhas() {
                 ))}
               </div>
               <p className="mt-1 text-[11px] text-muted">
-                Numeração de <span className="tnum">{formatQuota(1, form.totalQuotas)}</span> a{" "}
-                <span className="tnum">{form.totalQuotas}</span> — {digits} dígitos.
+                Numeração de <span className="tnum">{formatQuota(1, form.totalQuotas, true)}</span> a{" "}
+                <span className="tnum">{formatQuota(form.totalQuotas, form.totalQuotas, true)}</span> — {digits} dígitos,
+                a partir de zero, como a SPA/MF pede. Só 100, 1.000, 10.000, 100.000 ou 1.000.000: é o que a leitura da
+                Loteria Federal alcança.
               </p>
-            </div>
+            </fieldset>
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
@@ -708,7 +704,7 @@ export function AdminCampanhas() {
                   {
                     id: "vendas",
                     titulo: "Pacotes e cotas premiadas",
-                    conteudo: <CampaignExtras campaignId={c.id} totalQuotas={c.totalQuotas ?? 1000} rascunho={c.status === "draft"} />,
+                    conteudo: <CampaignExtras campaignId={c.id} totalQuotas={c.totalQuotas ?? 1000} numeracaoZero={numeracaoZero(c.metodoApuracao)} rascunho={c.status === "draft"} />,
                   },
                 ]}
               />
@@ -1580,7 +1576,7 @@ export function AdminSorteios() {
   const [selected, setSelected] = useState<string | null>(null);
   const [contest, setContest] = useState("");
   const [prizes, setPrizes] = useState(["", "", "", "", ""]);
-  const [result, setResult] = useState<{ resultNumber: number; winnerNumber: number | null; aproximacao?: boolean; seed: string } | null>(null);
+  const [result, setResult] = useState<{ resultNumber: number; winnerNumber: number | null; aproximacao?: boolean; seed: string | null } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const run = useMutation({
@@ -1589,7 +1585,7 @@ export function AdminSorteios() {
         federalContest: Number(contest),
         federalPrizes: prizes,
       });
-      return (await res.json()) as { resultNumber: number; winnerNumber: number | null; aproximacao?: boolean; seed: string };
+      return (await res.json()) as { resultNumber: number; winnerNumber: number | null; aproximacao?: boolean; seed: string | null };
     },
     onSuccess: (r) => {
       setResult(r);
@@ -1599,14 +1595,19 @@ export function AdminSorteios() {
   });
 
   const live = data?.filter((c) => c.campaign.status === "published") ?? [];
+  // A rifa escolhida: a com método mostra o número a partir de zero e não tem semente.
+  const escolhida = data?.find((c) => c.campaign.id === selected)?.campaign;
+  const zero = numeracaoZero(escolhida?.metodoApuracao);
+  const naTela = (n: number) => (escolhida ? formatQuota(n, escolhida.totalQuotas, zero) : groupNumber(n));
 
   return (
     <PanelShell title="Sorteios">
       <Card title="Executar sorteio">
         <div className="space-y-3 p-4">
           <p className="text-sm text-muted">
-            O hash da semente foi publicado antes da primeira venda. O número sai de
-            HMAC(semente, os 5 prêmios do concurso) — qualquer pessoa refaz a conta.
+            {escolhida?.metodoApuracao === "federal_direta"
+              ? "O número sai da leitura direta dos 5 prêmios (as unidades do 1º ao 5º, de cima para baixo), como diz o regulamento — qualquer pessoa confere com papel e caneta."
+              : "O hash da semente foi publicado antes da primeira venda. O número sai de HMAC(semente, os 5 prêmios do concurso) — qualquer pessoa refaz a conta."}
           </p>
 
           <div>
@@ -1674,16 +1675,16 @@ export function AdminSorteios() {
           {result ? (
             <div className="rounded-md bg-green-soft p-3 text-sm text-green-deep">
               <p className="font-display text-lg font-bold">
-                Número sorteado: {groupNumber(result.resultNumber)}
+                Número sorteado: {naTela(result.resultNumber)}
               </p>
               {result.aproximacao && result.winnerNumber !== null ? (
                 <p className="tnum mt-1">
-                  Não foi vendido. Contemplado pela regra da aproximação: {groupNumber(result.winnerNumber)}
+                  Não foi vendido. Contemplado pela regra da aproximação: {naTela(result.winnerNumber)}
                 </p>
               ) : result.winnerNumber === null ? (
                 <p className="mt-1">Nenhuma cota paga: o sorteio não tem contemplado.</p>
               ) : null}
-              <p className="tnum mt-1 break-all text-[11px]">semente: {result.seed}</p>
+              {result.seed ? <p className="tnum mt-1 break-all text-[11px]">semente: {result.seed}</p> : null}
             </div>
           ) : null}
         </div>

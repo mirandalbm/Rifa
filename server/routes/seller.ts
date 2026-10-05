@@ -37,6 +37,7 @@ sellerRouter.get("/overview", async (req, res, next) => {
         minPerOrder: campaigns.minPerOrder,
         maxPerOrder: campaigns.maxPerOrder,
         totalQuotas: campaigns.totalQuotas,
+        metodoApuracao: campaigns.metodoApuracao,
         drawAt: campaigns.drawAt,
         commissionPctDefault: campaigns.commissionPctDefault,
       })

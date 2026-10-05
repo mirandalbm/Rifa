@@ -51,13 +51,13 @@ describe("situação da rifa", () => {
 
 describe("números do cartão", () => {
   it("com o zero à esquerda da rifa, em ordem", () => {
-    const { visiveis, restantes } = numerosDoCartao([12, 3, 1], 1000);
+    const { visiveis, restantes } = numerosDoCartao([12, 3, 1], 1000, false);
     expect(visiveis).toEqual(["0001", "0003", "0012"]);
     expect(restantes).toBe(0);
   });
   it("corta no teto e conta o que ficou de fora", () => {
     const todos = Array.from({ length: NUMEROS_NO_CARTAO + 5 }, (_, i) => i);
-    const { visiveis, restantes } = numerosDoCartao(todos, 1000);
+    const { visiveis, restantes } = numerosDoCartao(todos, 1000, false);
     expect(visiveis).toHaveLength(NUMEROS_NO_CARTAO);
     expect(restantes).toBe(5);
   });

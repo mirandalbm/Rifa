@@ -24,10 +24,13 @@ interface Prized {
 export function CampaignExtras({
   campaignId,
   totalQuotas,
+  numeracaoZero,
   rascunho = false,
 }: {
   campaignId: string;
   totalQuotas: number;
+  /** A rifa numera a partir de zero (`shared/apuracao.ts`). */
+  numeracaoZero: boolean;
   /** Escolher os números só no cadastro; depois de publicar, só sorteando. */
   rascunho?: boolean;
 }) {
@@ -275,7 +278,7 @@ export function CampaignExtras({
               {prized.map((p) => (
                 <li key={p.id} className="flex items-center gap-2 py-1.5 text-sm">
                   <span className="tnum w-24">
-                    {p.number === null ? <span className="text-muted">Em segredo</span> : formatQuota(p.number, totalQuotas)}
+                    {p.number === null ? <span className="text-muted">Em segredo</span> : formatQuota(p.number, totalQuotas, numeracaoZero)}
                   </span>
                   <span className="flex-1 text-ink-2">{p.prizeLabel}</span>
                   {p.claimedByOrderId ? (
@@ -295,7 +298,7 @@ export function CampaignExtras({
           )}
 
           <p className="text-[11px] text-muted">
-            Faixa desta rifa: {formatQuota(1, totalQuotas)} a {groupNumber(totalQuotas)}.
+            Faixa desta rifa: {formatQuota(1, totalQuotas, numeracaoZero)} a {formatQuota(totalQuotas, totalQuotas, numeracaoZero)}.
           </p>
         </div>
       </Card>

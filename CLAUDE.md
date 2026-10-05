@@ -70,6 +70,13 @@ arquitetura.
     `assertCampaignInScope()` ou `assertAffiliateInScope()` — nunca `select`
     solto. `npm run isolation` prova; rota nova que não apareça lá é rota que
     ninguém provou.
+16. **Número da tela não é número interno.** Por dentro a cota é sempre de 1
+    ao total (PK, reserva, mapa, `free_pool`). A rifa apurada pela leitura
+    direta da Federal (`metodo_apuracao`) **mostra** de zero ao total − 1,
+    como a SPA/MF exige: todo número que sai na tela passa por
+    `formatQuota(n, total, zero)` e todo número que a pessoa digita volta por
+    `numeroInterno()`. O `zero` é obrigatório no tipo de propósito. `npm run
+    apuracao` prova.
 
 ## Onde mexer
 
@@ -137,6 +144,7 @@ arquitetura.
 | white label do organizador (capa, cor de destaque, links) | `validarDestaque()`/`validarLinks()` em `shared/perfil.ts`, `salvarPerfil()` em `server/services/perfil.ts`, `client/src/components/DestaqueOrg.tsx`, `client/src/components/PerfilPublicoForm.tsx` |
 | notificações no celular (Web Push) | `shared/push.ts` (regras), `server/services/push.ts`, `client/public/sw.js`, `client/src/lib/push.ts`, `scripts/push-test.ts` |
 | Termos de uso e Política de privacidade (texto montado das regras, dados da empresa e encarregado) | `shared/legal.ts` (`montarTermosDeUso`, `montarPrivacidade`, `validarDadosDaEmpresa`), `legal` em `shared/template.ts`, `client/src/pages/Legal.tsx` (`/termos`, `/privacidade`), cartão "Dados da empresa" em `client/src/pages/adminAparencia.tsx`, `tests/legal.test.ts` |
+| apuração pela Loteria Federal (leitura direta, numeração a partir de zero, total em potência de 10, método liberado pela plataforma e escolhido pela promotora) | `shared/apuracao.ts` (regras, `lerFederal`, `clausulaDaApuracao`), `formatQuota`/`numeroInterno` em `shared/format.ts`, `numeroSorteado()` em `server/services/sortear.ts`, `problemaNaApuracao()` em `server/services/campaigns.ts`, `/apuracao/metodos` em `server/routes/admin.ts`, `MetodosDeApuracao` em `client/src/pages/adminSorteiosOficiais.tsx`, o método em `DadosLegaisCard.tsx`, `SorteioCard.tsx` (leitura passo a passo), `scripts/apuracao-test.ts`, `tests/apuracao.test.ts` |
 | regulamento, central de ajuda, transmissão, conferência do sorteio e a regra da aproximação (número não vendido) | `shared/regulamento.ts`, `shared/ajuda.ts`, `shared/sorteio.ts` (`contempladoPorAproximacao`), o sorteio em `POST /campaigns/:id/draw` (`server/routes/admin.ts`), `client/src/components/SorteioCard.tsx`, `scripts/transparencia-test.ts` |
 | vitrine: banners, stories (inclusive o agendado, a enquete e as figurinhas), estados e feed | `shared/vitrine.ts` (regras), `shared/enqueteStory.ts` (a enquete), `shared/figurinhasStory.ts` (as figurinhas), `server/services/vitrine.ts`, `server/services/faixa.ts` (`Range` do vídeo), `client/src/components/BannersVitrine.tsx`, `Stories.tsx`, `EstadosVitrine.tsx`, `CartaoDoFeed.tsx`, `client/src/pages/adminStories.tsx`, `scripts/vitrine-test.ts` |
 | painel de resultados, origem da venda e foto do ganhador | `shared/resultados.ts` (regras), `server/services/resultados.ts`, `client/src/lib/origem.ts`, `client/src/pages/adminResultados.tsx`, `server/services/ganhador.ts`, `scripts/resultados-test.ts` |
@@ -2654,7 +2662,9 @@ desconto na primeira compra — **pago pela plataforma**.
   `PUT /campaigns/:id/legal` e **travam ao publicar** como a autorização.
   Rascunho não tem regulamento público (404).
 - **A semente não sai antes do sorteio** — nem na página da rifa, nem no
-  regulamento, nem em `/sorteio`. Antes, só o hash. `npm run transparencia`
+  regulamento, nem em `/sorteio`. Antes, só o hash. (Vale para a rifa de
+  antes, sem método: a rifa apurada pela leitura direta não mostra semente
+  nem hash — seção "Apuração pela Loteria Federal".) `npm run transparencia`
   procura a semente em todas as respostas.
 - **Número sorteado não vendido: regra da aproximação**
   (`contempladoPorAproximacao()` e `REGRA_DA_APROXIMACAO` em
@@ -2707,6 +2717,53 @@ desconto na primeira compra — **pago pela plataforma**.
 - **A ajuda responde com a regra em vigor** (`perguntasDaAjuda()` recebe a
   taxa de reembolso configurada): pergunta nova vai para `shared/ajuda.ts`,
   com `id` único.
+
+## Apuração pela Loteria Federal — o que não pode afrouxar
+
+O advogado validou (05/10/2026, respostas 8.1 a 8.6 e 8.11): na rifa
+autorizada pela SPA/MF, qualquer pessoa chega ao ganhador com o resultado da
+Federal, o regulamento, papel e caneta. O hash + HMAC de antes **não é aceito
+pela portaria** — fica só para conferir a rifa sorteada sem método.
+
+- **A leitura** (`lerFederal()` em `shared/apuracao.ts`): as unidades do 1º
+  ao 5º prêmio, de cima para baixo, formam o Número da Sorte (34.567, 12.348,
+  90.211, 55.603, 77.129 → 78.139). Rifa de 100.000: ele mesmo. Menor (100,
+  1.000, 10.000): os N últimos algarismos (139). Rifa de 1.000.000: a
+  **Série** é a dezena do 1º prêmio, na frente (678.139). Prêmio fora dos 5
+  algarismos é recusado (400), nada sorteado. O número lido sem dono segue a
+  **aproximação** de sempre (`contempladoPorAproximacao`).
+- **Total só em potência de 10** (`TOTAIS_DA_APURACAO`: 100, 1.000, 10.000,
+  100.000 e 1.000.000; `assertQuotaRange()` na criação, no `PATCH` e na
+  publicação): todo número lido existe na rifa, sem "número fantasma". O
+  formulário de criação é a fileira dos cinco totais.
+- **Numeração a partir de zero só na tela** (invariante 16): a cota interna
+  segue de 1 ao total, e a rifa com método mostra 000 a 999. A conta do
+  sorteio devolve o número lido e grava o interno (`numeroInterno(lido)`);
+  a cota premiada escolhida pela plataforma, a busca do mapa e qualquer
+  número digitado fazem a mesma volta. A rifa de antes (sem método) segue de
+  1 ao total.
+- **O método é da autorização da promotora, entre os que a plataforma
+  liberou.** A plataforma liga e desliga em "Métodos de apuração" (calendário
+  dos sorteios oficiais; `PUT /admin/apuracao/metodos`, 403 para organizador
+  no `npm run isolation`; a organização só lê). A promotora escolhe nos dados
+  legais (`PUT /campaigns/:id/legal`, fora do `PATCH`), e o método **trava ao
+  publicar** (`LOCKED_AFTER_PUBLISH`). A rifa nova nasce com o primeiro
+  liberado. **Sem método liberado, nada publica** (`publishBlockers` e de novo
+  dentro da transação de `publishCampaign()`).
+- **O globo aparece, mas não liga** (`METODO_INDISPONIVEL`): entra quando for
+  homologado, pelo calendário dos sorteios oficiais, com a ata notarial
+  (local, data, hora, auditor ou testemunhas desvinculadas, o relato de cada
+  bola e o ganhador). Rifa marcada com um método que o sistema ainda não
+  sorteia recusa o sorteio (409).
+- **Sem semente na rifa com método**: a página, o regulamento, o bilhete, a
+  resposta do sorteio e a prestação de contas não mostram hash nem semente
+  (ela nem entra na conta). A conferência pública é a leitura passo a passo
+  (`leitura` em `/campaigns/:slug/sorteio`), refeita no aparelho de quem olha
+  (`SorteioCard`), e o regulamento traz a cláusula do advogado com o exemplo
+  calculado pela mesma `lerFederal()` (`clausulaDaApuracao()`).
+- A coluna `campaigns.metodo_apuracao` sobe com o `db:push` **antes** do
+  código. `npm run apuracao` prova tudo isso contra a API de verdade e
+  `tests/apuracao.test.ts` prova os exemplos do advogado.
 
 ## Termos de uso e Privacidade — o que não pode afrouxar
 

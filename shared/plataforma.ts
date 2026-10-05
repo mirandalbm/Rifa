@@ -20,6 +20,7 @@ import { validarPixels, type Pixels } from "./marketing";
 import { CORES_DO_SELO_PADRAO, validarCoresDoSelo, type CoresDoSelo } from "./verificacao";
 import { idDoCanal } from "./aoVivo";
 import { LOTERIAS, type Loteria } from "./sorteiosOficiais";
+import { METODOS_LIBERADOS_PADRAO, metodosLiberadosGuardados, type MetodoDeApuracao } from "./apuracao";
 
 export const PROVEDORES_PIX = ["mercadopago", "asaas"] as const;
 export type ProvedorPix = (typeof PROVEDORES_PIX)[number];
@@ -140,6 +141,13 @@ export interface ConfigPlataforma {
    * no sorteio oficial, a tela toca a live que o canal estiver transmitindo.
    */
   canaisDasLoterias: CanaisDasLoterias;
+  /**
+   * Os métodos de apuração que a plataforma libera (`shared/apuracao.ts`):
+   * a promotora escolhe um deles, pela autorização que tem. Nasce com a
+   * Loteria Federal (leitura direta); o globo só entra depois de homologado.
+   * Nenhum liberado, nenhuma rifa publica.
+   */
+  metodosDeApuracao: MetodoDeApuracao[];
   /** Banner pago na vitrine: preço do dia, prazo e vagas. Nasce desligado. */
   bannerPago: ConfigBannerPago;
   /** O assistente de IA (Chatbase) nos painéis do master, do organizador e do afiliado. Nasce desligado. */
@@ -227,6 +235,7 @@ export const CONFIG_PADRAO: ConfigPlataforma = {
   buscarTipos: CONFIG_BUSCA_PADRAO,
   fundoDaConversaPct: FUNDO_DA_CONVERSA_PADRAO_PCT,
   canaisDasLoterias: {},
+  metodosDeApuracao: [...METODOS_LIBERADOS_PADRAO],
   bannerPago: CONFIG_BANNER_PAGO_PADRAO,
   assistenteIA: CONFIG_IA_PADRAO,
 };
@@ -266,6 +275,7 @@ export function validarConfigPlataforma(entrada: Partial<ConfigPlataforma>): Con
     buscarTipos: validarConfigBusca(entrada.buscarTipos),
     fundoDaConversaPct: fundoDaConversaGuardado(entrada.fundoDaConversaPct),
     canaisDasLoterias: canaisGuardados(entrada.canaisDasLoterias),
+    metodosDeApuracao: metodosLiberadosGuardados(entrada.metodosDeApuracao),
     bannerPago: validarConfigBannerPago(entrada.bannerPago),
     assistenteIA: configIAGuardada(entrada.assistenteIA),
   };

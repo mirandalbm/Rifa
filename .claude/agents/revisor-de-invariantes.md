@@ -107,6 +107,15 @@ Procure, nesta ordem, o que é **grave**:
     fila; relógio que publica por organização suspensa ou sem reconferir a 1
     hora antes do sorteio; agendar fora do recorte ou pelo `PATCH`.
 
+15. **Apuração e numeração** (invariante 16, seção "Apuração pela Loteria
+    Federal"): número de cota mostrado ou lido sem `formatQuota(n, total,
+    zero)`/`numeroInterno()` (a tela da rifa com método começa em zero, a
+    cota interna segue de 1 ao total); número digitado pela pessoa usado sem
+    voltar ao interno; rifa com método sorteada pela semente ou com a semente
+    (ou o hash) saindo em resposta; método escolhido fora dos liberados pela
+    plataforma, mudado depois de publicar ou pelo `PATCH`; total que não é
+    potência de 10; liberar método alcançável por quem não é a plataforma.
+
 Só depois, o que é menor: mensagem de interface fora do português, número
 sem `tnum`, estado só por cor, cor fixa em vez de variável do tema.
 

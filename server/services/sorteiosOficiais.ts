@@ -9,6 +9,8 @@
  * sorteio e integrar uma rifa nele ao mesmo tempo nunca deixa a rifa com a
  * data velha.
  */
+import { numeracaoZero } from "@shared/apuracao";
+import { formatQuota } from "@shared/format";
 import { and, asc, desc, eq, gt, inArray, isNotNull, isNull, ne, sql } from "drizzle-orm";
 import { db } from "../db";
 import { campaigns, draws, organizacaoFotos, organizations, sorteiosOficiais, type Campaign } from "@shared/schema";
@@ -409,8 +411,14 @@ export async function sorteioOficialDaTela() {
   // Rifa sorteada leva o número contemplado (o resultado da rifa é público).
   const sorteadas = rifas.length
     ? await db
-        .select({ campaignId: draws.campaignId, numero: sql<number>`coalesce(${draws.winnerNumber}, ${draws.resultNumber})` })
+        .select({
+          campaignId: draws.campaignId,
+          numero: sql<number>`coalesce(${draws.winnerNumber}, ${draws.resultNumber})`,
+          total: campaigns.totalQuotas,
+          metodo: campaigns.metodoApuracao,
+        })
         .from(draws)
+        .innerJoin(campaigns, eq(campaigns.id, draws.campaignId))
         .where(and(inArray(draws.campaignId, rifas.map((r) => r.id)), isNotNull(draws.executedAt)))
     : [];
 
@@ -430,7 +438,11 @@ export async function sorteioOficialDaTela() {
         premio: r.premio,
         capa: capaDe(r.id),
         organizacao: avatarDaOrganizacao(r),
-        numeroContemplado: sorteadas.find((d) => d.campaignId === r.id)?.numero ?? null,
+        // Como a pessoa lê: a rifa com método numera a partir de zero.
+        numeroContemplado: (() => {
+          const d = sorteadas.find((x) => x.campaignId === r.id);
+          return d ? formatQuota(Number(d.numero), d.total, numeracaoZero(d.metodo)) : null;
+        })(),
       })),
     },
   };

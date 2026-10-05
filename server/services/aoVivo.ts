@@ -8,6 +8,7 @@
  * do comprador. Demonstração, rifa travada e promotora arquivada ou banida
  * ficam de fora — a vitrine também não as mostra.
  */
+import { numeracaoZero } from "@shared/apuracao";
 import { createHash } from "node:crypto";
 import { and, asc, desc, eq, gt, inArray, isNotNull, isNull, lte, sql } from "drizzle-orm";
 import { db } from "../db";
@@ -113,6 +114,7 @@ async function ultimosGanhadores() {
       // O número que levou: o contemplado (aproximação), ou o sorteado nos antigos.
       numero: sql<number>`coalesce(${draws.winnerNumber}, ${draws.resultNumber})`,
       totalQuotas: campaigns.totalQuotas,
+      metodoApuracao: campaigns.metodoApuracao,
       premio: campaigns.prizeTitle,
       slug: campaigns.slug,
       orgSlug: organizations.slug,
@@ -137,6 +139,7 @@ async function ultimosGanhadores() {
       em: prizedQuotas.claimedAt,
       numero: prizedQuotas.number,
       totalQuotas: campaigns.totalQuotas,
+      metodoApuracao: campaigns.metodoApuracao,
       premio: prizedQuotas.prizeLabel,
       slug: campaigns.slug,
       orgSlug: organizations.slug,
@@ -167,7 +170,7 @@ async function ultimosGanhadores() {
       nome: nomeCurto(g.nome),
       lugar: g.cidade && g.uf ? `${g.cidade}/${g.uf}` : (g.uf ?? null),
       premio: g.premio,
-      cota: g.numero === null ? null : formatQuota(g.numero, g.totalQuotas),
+      cota: g.numero === null ? null : formatQuota(g.numero, g.totalQuotas, numeracaoZero(g.metodoApuracao)),
       em: g.em,
       rifa: { slug: g.slug, organizacao: g.orgSlug },
     }));

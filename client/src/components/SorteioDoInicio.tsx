@@ -225,7 +225,7 @@ export interface SorteioOficialDaTela {
       premio: string;
       capa: string | null;
       organizacao: OrganizacaoDoAvatar;
-      numeroContemplado: number | null;
+      numeroContemplado: string | null;
     }[];
   } | null;
   /** Sem sorteio oficial: as rifas dos próximos sorteios, a mais próxima primeiro. */
@@ -380,7 +380,7 @@ function FileiraDeAvatares({
   rifas,
   aoAbrirStories,
 }: {
-  rifas: { slug: string; premio: string; organizacao: OrganizacaoDoAvatar; numeroContemplado?: number | null }[];
+  rifas: { slug: string; premio: string; organizacao: OrganizacaoDoAvatar; numeroContemplado?: string | null }[];
   aoAbrirStories: (slug: string) => void;
 }) {
   useVistos();

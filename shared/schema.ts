@@ -498,6 +498,16 @@ export const campaigns = pgTable(
      */
     modoSorteio: text("modo_sorteio").notNull().default("data"),
     /**
+     * Como o número contemplado sai do resultado (`METODOS_DE_APURACAO` em
+     * `shared/apuracao.ts`): `federal_direta` (a leitura direta dos 5 prêmios
+     * da Loteria Federal, numeração a partir de zero) ou `globo` (o globo
+     * homologado, quando a plataforma ligar). A promotora escolhe entre os
+     * que a plataforma liberou, pela autorização que tem; trava ao publicar.
+     * Nulo é a rifa de antes, apurada pela semente (hash + HMAC) — só para
+     * conferir o que já foi sorteado assim.
+     */
+    metodoApuracao: text("metodo_apuracao"),
+    /**
      * Rifa de demonstração (perfil de exemplo): aparece na vitrine com a
      * marca "Demonstração" e nunca vende — `createOrder` recusa.
      */
@@ -1889,6 +1899,8 @@ export const insertCampaignSchema = createInsertSchema(campaigns, {
     // O mínimo para sortear é dado legal: só pela rota `/legal`, que trava ao publicar.
     minimoVendidoPct: true,
     modoSorteio: true,
+    // O método de apuração é da autorização: só pela rota `/legal`, entre os liberados pela plataforma.
+    metodoApuracao: true,
     termoId: true,
     // Integrar a um sorteio oficial é pelo calendário (`integrarAoSorteioOficial`), que acerta a data junto.
     sorteioOficialId: true,

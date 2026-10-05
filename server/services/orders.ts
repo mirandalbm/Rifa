@@ -4,6 +4,7 @@
  * O front nunca envia preço — envia campanha e quantidade (ou os números
  * escolhidos). O total é sempre recalculado aqui, em centavos inteiros.
  */
+import { numeracaoZero } from "@shared/apuracao";
 import { avisarSorteioMarcado, emSegundoPlano } from "./push";
 import { SORTEIO_SEM_DATA, proximaExtracaoFederal } from "@shared/campanhaLegal";
 import { comissaoNaRifa, cupomValeNaRifa } from "./afiliados";
@@ -1085,6 +1086,7 @@ async function settleOrderAsPaid(order: typeof orders.$inferSelect) {
     orderId: order.id,
     campaignTitle: campaign?.title ?? "",
     campaignTotal: campaign?.totalQuotas ?? 0,
+    numeracaoZero: numeracaoZero(campaign?.metodoApuracao),
     numbers: result.numbers,
     prizes: result.prizes,
   });
@@ -1119,8 +1121,22 @@ export async function markOrderPaid(chargeId: string) {
   return {
     order: result.order,
     alreadyPaid: false,
-    prizes: result.prizes.map((p) => `${p.number} — ${p.label}`),
+    prizes: await rotuloDosPremios(order.campaignId, result.prizes),
   };
+}
+
+/**
+ * "000 — Moto": a cota premiada como a pessoa lê (na rifa com método, a
+ * numeração da tela começa em zero), nunca o número interno.
+ */
+async function rotuloDosPremios(campaignId: string, premios: { number: number; label: string }[]): Promise<string[]> {
+  if (!premios.length) return [];
+  const [c] = await db
+    .select({ total: campaigns.totalQuotas, metodo: campaigns.metodoApuracao })
+    .from(campaigns)
+    .where(eq(campaigns.id, campaignId));
+  const zero = numeracaoZero(c?.metodo);
+  return premios.map((p) => `${c ? formatQuota(p.number, c.total, zero) : p.number} — ${p.label}`);
 }
 
 /**
@@ -1140,7 +1156,7 @@ async function marcarCarrinhoPago(pedidos: (typeof orders.$inferSelect)[]) {
     const r = await settleOrderAsPaid(order);
     if (r) {
       pagos++;
-      prizes.push(...r.prizes.map((p) => `${p.number} — ${p.label}`));
+      prizes.push(...(await rotuloDosPremios(order.campaignId, r.prizes)));
     }
   }
   const [fresh] = await db.select().from(orders).where(eq(orders.id, pedidos[0].id));
@@ -1213,7 +1229,7 @@ export async function confirmSellerSale(params: {
   return {
     order: result.order,
     alreadyPaid: false,
-    prizes: result.prizes.map((p) => `${p.number} — ${p.label}`),
+    prizes: await rotuloDosPremios(order.campaignId, result.prizes),
   };
 }
 
@@ -1282,6 +1298,8 @@ async function announcePayment(params: {
   orderId: string;
   campaignTitle: string;
   campaignTotal: number;
+  /** A rifa numera a partir de zero (`shared/apuracao.ts`). */
+  numeracaoZero: boolean;
   numbers: number[];
   prizes: { number: number; label: string }[];
 }) {
@@ -1294,7 +1312,7 @@ async function announcePayment(params: {
 
   const shown = params.numbers
     .slice(0, 10)
-    .map((n) => formatQuota(n, params.campaignTotal))
+    .map((n) => formatQuota(n, params.campaignTotal, params.numeracaoZero))
     .join(", ");
   const numeros =
     params.numbers.length > 10 ? `${shown} e mais ${params.numbers.length - 10}` : shown;
@@ -1319,7 +1337,7 @@ async function announcePayment(params: {
       params: {
         nome: row.buyer.name.split(" ")[0],
         premio: prize.label,
-        numero: formatQuota(prize.number, params.campaignTotal),
+        numero: formatQuota(prize.number, params.campaignTotal, params.numeracaoZero),
       },
       dedupeKey: `order:${row.order.id}:premio:${prize.number}`,
     });
@@ -1403,6 +1421,8 @@ export async function ordersByPhone(
         title: campaigns.title,
         slug: campaigns.slug,
         totalQuotas: campaigns.totalQuotas,
+        // O método de apuração decide a numeração da tela (a partir de zero).
+        metodoApuracao: campaigns.metodoApuracao,
         status: campaigns.status,
         drawAt: campaigns.drawAt,
         prizeTitle: campaigns.prizeTitle,
@@ -1436,6 +1456,7 @@ export async function ordersByPhone(
       campaigns.title,
       campaigns.slug,
       campaigns.totalQuotas,
+      campaigns.metodoApuracao,
       campaigns.status,
       campaigns.drawAt,
       campaigns.prizeTitle,

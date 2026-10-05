@@ -21,7 +21,9 @@ paralelo, para não segurar o resto. Marque aqui mesmo o que for fechando.
   **Termos de uso validados em 05/10/2026**; o pacote dos itens 2 a 9 foi
   reenviado. Ele também redige o **contrato plataforma ↔ promotora**
   (regresso, autorização e IR por conta dela, Pix por fora, prêmio
-  desembaraçado).
+  desembaraçado). **Item 8 respondido em 05/10/2026** (a leitura direta da
+  Federal, numeração a partir de zero, total em potência de 10): já está no
+  código (`npm run apuracao`). Faltam os itens 3 a 7 e o 9.
 - [ ] **Contador**: guarda da comissão pela plataforma e RPA/nota dos
   afiliados.
 - [ ] **Pagamento**: pedir por escrito ao Mercado Pago e ao Asaas se aceitam
@@ -51,6 +53,8 @@ paralelo, para não segurar o resto. Marque aqui mesmo o que for fechando.
 - [ ] **`npm run db:push`** (cria a extensão `pg_trgm` antes; o usuário do
   banco precisa poder criar extensão) e, **logo depois, uma vez**:
   `UPDATE stories SET publica_em = created_at WHERE publica_em > created_at`.
+  O rascunho criado antes da apuração pela Federal fica sem método: a
+  publicação pede a escolha nos dados legais (e o total em potência de 10).
 - [ ] Deploy. Conferir a verificação de saúde e os relógios no log.
 - [ ] Conferir em Antifraude que os IPs chegam diferentes (um IP só para
   todos é proxy a mais no caminho).
@@ -137,9 +141,8 @@ paralelo, para não segurar o resto. Marque aqui mesmo o que for fechando.
 
 ## Fica para depois da versão inicial (código, comigo)
 
-- Método de apuração escolhido só pela plataforma, com dois modelos: o modo
-  "Autorizado MF" (apuração direta pela Federal, com a fórmula do advogado)
-  e o globo próprio, depois de homologado.
+- O globo próprio como método de apuração, depois de homologado (a Federal
+  direta já está no código; o globo aparece e não liga).
 - Ferramentas de imagem e vídeo (`docs/PLANO-FERRAMENTAS.md`, fases A a G).
 - APK das maquininhas (precisa de máquina com o Android SDK).
 - O que foi deixado de fora de propósito: vídeo do afiliado pelo Stream,

@@ -234,6 +234,8 @@ async function main() {
         drawAt: new Date(Date.now() + (14 + i * 7) * 86_400_000),
         authorizationCode: `SPA-MF-EXEMPLO-${1000 + i}`,
         authorizationFileKey: CERTIFICADO_NO_BANCO,
+        // A apuração da autorização: leitura direta da Federal (numeração a partir de zero).
+        metodoApuracao: "federal_direta",
         commissionPctDefault: 10,
         featured: i === 0,
         sortWeight: 10 - i,

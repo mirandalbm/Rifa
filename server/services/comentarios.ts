@@ -9,6 +9,7 @@
  *   404) e é um `UPDATE` condicional: dois cliques, um desconto no contador.
  * - O apostador aparece pelo primeiro nome e a inicial; telefone nunca sai.
  */
+import { numeracaoZero } from "@shared/apuracao";
 import type { Request } from "express";
 import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { db } from "../db";
@@ -57,6 +58,7 @@ async function rifaPublica(slug: string) {
       slug: campaigns.slug,
       status: campaigns.status,
       totalQuotas: campaigns.totalQuotas,
+      metodoApuracao: campaigns.metodoApuracao,
       organizationId: campaigns.organizationId,
       orgNome: organizations.name,
       orgSlug: organizations.slug,
@@ -191,7 +193,7 @@ export async function listarComentarios(req: Request, slug: string) {
     organizacao: { nome: rifa.orgNome, slug: rifa.orgSlug, verificada: Boolean(rifa.orgVerificadaEm) },
     premiados: ganhadores.map((g, i) => ({
       numero: g.numero,
-      cota: formatQuota(g.numero, rifa.totalQuotas),
+      cota: formatQuota(g.numero, rifa.totalQuotas, numeracaoZero(rifa.metodoApuracao)),
       premio: g.premio,
       em: g.em,
       nome: g.apelido ?? nomeNoComentario(g.nomeComprador),

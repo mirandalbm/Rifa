@@ -93,6 +93,7 @@ async function rascunho(orgId: string, sufixo: string) {
       drawAt: new Date(Date.now() + 20 * DIA),
       authorizationCode: `SPA-CT-${sufixo}`,
       authorizationFileKey: "certificado-teste",
+      metodoApuracao: "federal_direta",
     })
     .returning();
   await db.insert(campaignMedia).values([

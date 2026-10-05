@@ -1,3 +1,4 @@
+import { lerFederal, numeracaoZero } from "@shared/apuracao";
 import { seloDaRifa, sorteioOficialDaTela } from "../services/sorteiosOficiais";
 import { bannerPublico, imagemPublica } from "../services/bannerDivulgacao";
 import { enviarComFaixa, enviarFaixaDoBanco } from "../services/faixa";
@@ -1329,7 +1330,11 @@ publicRouter.get("/campaigns/:slug", async (req, res, next) => {
         drawAt: found.campaign.drawAt,
         // Como a rifa chega ao sorteio: sem data, a tela diz "quando completar".
         modoSorteio: found.campaign.modoSorteio,
-        drawSeedHash: found.campaign.drawSeedHash,
+        // Rifa com método de apuração: leitura direta da Federal, numeração
+        // a partir de zero e sem hash de semente (que não entra na conta).
+        metodoApuracao: found.campaign.metodoApuracao,
+        numeracaoZero: numeracaoZero(found.campaign.metodoApuracao),
+        drawSeedHash: found.campaign.metodoApuracao ? null : found.campaign.drawSeedHash,
         // Sorteio adiado: a página diz, com a data que valia antes.
         adiamentos: found.campaign.adiamentos,
         comentarios: found.campaign.comentariosCount,
@@ -1420,6 +1425,7 @@ publicRouter.get("/campaigns/:slug/regulamento", async (req, res, next) => {
           drawAt: c.drawAt,
           authorizationCode: c.authorizationCode,
           drawSeedHash: c.drawSeedHash,
+          metodoApuracao: c.metodoApuracao,
           regulamentoExtra: c.regulamentoExtra,
           aceitaCotaBonus: c.aceitaCotaBonus,
           bonusMaxCotas: c.bonusMaxCotas,
@@ -1443,6 +1449,15 @@ publicRouter.get("/campaigns/:slug/regulamento", async (req, res, next) => {
   }
 });
 
+/** A leitura direta dos prêmios gravados; prêmio estragado não derruba a página. */
+function leituraSegura(premios: string[] | null, total: number) {
+  try {
+    return premios ? lerFederal(premios, total) : null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * O sorteio, para conferir. Antes: só o hash da semente e a transmissão.
  * Depois: os 5 prêmios da Federal, a semente e o número — qualquer pessoa
@@ -1459,19 +1474,26 @@ publicRouter.get("/campaigns/:slug/sorteio", async (req, res, next) => {
     const [d] = await db.select().from(draws).where(eq(draws.campaignId, c.id));
     const feito = Boolean(d?.executedAt && d.resultNumber !== null);
     const foto = feito ? await fotoDoGanhador(c.id) : null;
+    // Rifa com método de apuração: a leitura direta da Federal (passo a
+    // passo, sem hash nem semente). A semente só conta na rifa de antes.
+    const zero = numeracaoZero(c.metodoApuracao);
+    const direta = c.metodoApuracao === "federal_direta";
+    const leitura = feito && direta && (!d!.loteria || d!.loteria === "federal") ? leituraSegura(d!.federalPrizes, c.totalQuotas) : null;
     res.json({
       drawAt: c.drawAt,
-      seedHash: c.drawSeedHash,
+      metodoApuracao: c.metodoApuracao,
+      numeracaoZero: zero,
+      seedHash: c.metodoApuracao ? null : c.drawSeedHash,
       totalQuotas: c.totalQuotas,
       transmissaoUrl: c.transmissaoUrl,
       realizado: feito,
       ...(feito
         ? {
             resultNumber: d!.resultNumber,
-            numero: formatQuota(d!.resultNumber!, c.totalQuotas),
+            numero: formatQuota(d!.resultNumber!, c.totalQuotas, zero),
             // O contemplado: o sorteado, ou o mais próximo vendido (regra da aproximação).
             // Sorteio de antes da regra não tem a coluna: vale o sorteado.
-            contemplado: d!.winnerNumber !== null ? formatQuota(d!.winnerNumber, c.totalQuotas) : null,
+            contemplado: d!.winnerNumber !== null ? formatQuota(d!.winnerNumber, c.totalQuotas, zero) : null,
             aproximacao: d!.winnerNumber !== null && d!.winnerNumber !== d!.resultNumber,
             // "A promotora completa": o número sorteado não vendido era dela.
             ficouComPromotora: c.modoSorteio === "promotora_completa" && d!.winnerOrderId === null,
@@ -1481,7 +1503,9 @@ publicRouter.get("/campaigns/:slug/sorteio", async (req, res, next) => {
             // A loteria do resultado: a Federal (nula, sorteio de sempre) ou a do sorteio oficial.
             ...loteriaDoSorteio(d!.loteria),
             // A semente só sai depois: antes, quem a tivesse calcularia o número.
-            seed: d!.seed,
+            // Na leitura direta ela não entra na conta e não sai.
+            seed: c.metodoApuracao ? null : d!.seed,
+            leitura: leitura?.passos ?? null,
             executedAt: d!.executedAt,
             evidenceUrl: d!.evidenceUrl,
             fotoGanhador: urlDaFotoDoGanhador(c.slug, foto?.updatedAt),
@@ -1759,6 +1783,7 @@ publicRouter.get("/orders/:code", async (req, res, next) => {
         title: found.campaign.title,
         slug: found.campaign.slug,
         totalQuotas: found.campaign.totalQuotas,
+        numeracaoZero: numeracaoZero(found.campaign.metodoApuracao),
       },
       // De quem é a rifa: o navegador conta a compra nos pixels da promotora (etapa 16).
       organizacao: (

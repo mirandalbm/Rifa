@@ -1,15 +1,34 @@
 /** Formatação de cota, dinheiro e telefone — compartilhada entre cliente e servidor. */
 
 /**
- * Largura do número da cota: sempre o comprimento do total da campanha.
- * 1.000.000 cotas -> "0000001"; 10.000 -> "0001".
+ * Numeração da rifa. Por dentro, a cota é sempre de 1 ao total (a PK, a
+ * reserva e o mapa não mudam). Na tela, a rifa apurada pela leitura direta
+ * da Loteria Federal (`metodo_apuracao`, `shared/apuracao.ts`) começa em
+ * **zero**, como a SPA/MF exige: a cota 1 aparece como 000 e a última como
+ * 999. A rifa de antes (sem método, apurada pela semente) segue de 1 ao
+ * total. `zero` é obrigatório de propósito: esquecer é erro de tipo, não
+ * número trocado na tela.
  */
-export function quotaDigits(totalQuotas: number): number {
-  return String(totalQuotas).length;
+export function quotaDigits(totalQuotas: number, zero: boolean): number {
+  return String(zero ? Math.max(1, totalQuotas - 1) : totalQuotas).length;
 }
 
-export function formatQuota(n: number, totalQuotas: number): string {
-  return String(n).padStart(quotaDigits(totalQuotas), "0");
+/** O número que a pessoa lê, a partir do número interno (1 ao total). */
+export function numeroNaTela(n: number, zero: boolean): number {
+  return zero ? n - 1 : n;
+}
+
+/** O número interno, a partir do que a pessoa leu ou digitou. */
+export function numeroInterno(lido: number, zero: boolean): number {
+  return zero ? lido + 1 : lido;
+}
+
+/**
+ * Largura fixa: 1.000 cotas da rifa de antes -> "0001" a "1000"; da rifa
+ * apurada pela Federal -> "000" a "999". 1.000.000 -> "000000" a "999999".
+ */
+export function formatQuota(n: number, totalQuotas: number, zero: boolean): string {
+  return String(numeroNaTela(n, zero)).padStart(quotaDigits(totalQuotas, zero), "0");
 }
 
 /** Agrupa em milhares para leitura: 847219 -> "847.219". */

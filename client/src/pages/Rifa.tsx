@@ -20,6 +20,7 @@ import {
   maskCpf,
   maskPhone,
   quotaDigits,
+  numeroInterno,
 } from "@shared/format";
 import { priceOrder } from "@shared/pricing";
 import { regraDoReembolso } from "@shared/reembolso";
@@ -56,6 +57,9 @@ interface CampaignDetail {
     reservationTtlMin: number;
     drawAt: string | null;
     drawSeedHash: string | null;
+    /** A rifa numera a partir de zero (apurada pela leitura direta da Federal). */
+    numeracaoZero?: boolean;
+    metodoApuracao?: string | null;
     adiamentos?: number;
     drawAtOriginal?: string | null;
     /** Como a rifa chega ao sorteio (`MODOS_DO_SORTEIO`). */
@@ -335,12 +339,14 @@ export default function Rifa() {
       ? priceOrder({ quantity: count, unitCents: campaign.priceCents, packages })
       : null;
 
+  // Por dentro a cota é de 1 ao total; a tela da rifa apurada pela Federal lê a partir de zero.
+  const zero = campaign.numeracaoZero === true;
   const totalPaginas = Math.ceil(campaign.totalQuotas / POR_PAGINA);
   const inicioDaPagina = pagina * POR_PAGINA + 1;
   const fimDaPagina = Math.min(inicioDaPagina + POR_PAGINA - 1, campaign.totalQuotas);
   // O quadriculado: 5 ou 10 colunas, pela largura e pelo tamanho do número.
-  const colunas = colunasDoMapa(quotaDigits(campaign.totalQuotas), tablet);
-  const letra = letraDoQuadro(quotaDigits(campaign.totalQuotas));
+  const colunas = colunasDoMapa(quotaDigits(campaign.totalQuotas, zero), tablet);
+  const letra = letraDoQuadro(quotaDigits(campaign.totalQuotas, zero));
 
   function togglePick(n: number) {
     setPicked((prev) => (prev.includes(n) ? prev.filter((x) => x !== n) : [...prev, n]));
@@ -564,6 +570,7 @@ export default function Rifa() {
           slug={slug}
           quantidade={pacote}
           totalQuotas={campaign.totalQuotas}
+          numeracaoZero={zero}
           unitCents={campaign.priceCents}
           packages={packages}
           escolhida={picked.length ? picked : null}
@@ -583,13 +590,14 @@ export default function Rifa() {
           {/* Cabeçalho: a faixa da página, a busca e as setas. */}
           <header className="flex items-center gap-2 border-b border-line px-3 py-2.5">
             <h2 className="tnum shrink-0 font-display text-sm font-bold">
-              {formatQuota(inicioDaPagina, campaign.totalQuotas)} a {formatQuota(fimDaPagina, campaign.totalQuotas)}
+              {formatQuota(inicioDaPagina, campaign.totalQuotas, zero)} a {formatQuota(fimDaPagina, campaign.totalQuotas, zero)}
             </h2>
             <form
               className="flex min-w-0 flex-1 gap-1"
               onSubmit={(e) => {
                 e.preventDefault();
-                const n = Number(search);
+                // Quem busca digita o número da tela; a página e o contorno são do número interno.
+                const n = search ? numeroInterno(Number(search), zero) : 0;
                 if (n >= 1 && n <= campaign.totalQuotas) {
                   setPagina(Math.floor((n - 1) / POR_PAGINA));
                   setBuscado(n);
@@ -599,7 +607,7 @@ export default function Rifa() {
               }}
             >
               <label htmlFor="busca-numero" className="sr-only">
-                Buscar número (1 a {groupNumber(campaign.totalQuotas)})
+                Buscar número ({formatQuota(1, campaign.totalQuotas, zero)} a {formatQuota(campaign.totalQuotas, campaign.totalQuotas, zero)})
               </label>
               <input
                 id="busca-numero"
@@ -655,7 +663,7 @@ export default function Rifa() {
                           disabled={taken}
                           onClick={() => togglePick(n)}
                           aria-pressed={taken ? undefined : mine}
-                          aria-label={`Cota ${formatQuota(n, campaign.totalQuotas)}${taken ? " — indisponível" : mine ? " — escolhida" : ""}`}
+                          aria-label={`Cota ${formatQuota(n, campaign.totalQuotas, zero)}${taken ? " — indisponível" : mine ? " — escolhida" : ""}`}
                           className={`tnum quadro ${letra} ${
                             n === buscado ? "outline outline-2 outline-offset-2 outline-ink " : ""
                           }${
@@ -666,7 +674,7 @@ export default function Rifa() {
                                 : corDaCasa(n)
                           }`}
                         >
-                          {formatQuota(n, campaign.totalQuotas)}
+                          {formatQuota(n, campaign.totalQuotas, zero)}
                           {mine && !taken ? (
                             <span aria-hidden className="absolute right-0.5 top-0 text-[10px] leading-none">✓</span>
                           ) : null}
@@ -696,7 +704,7 @@ export default function Rifa() {
                 {picked.length} número(s) escolhido(s):{" "}
                 {picked
                   .slice(0, 8)
-                  .map((n) => formatQuota(n, campaign.totalQuotas))
+                  .map((n) => formatQuota(n, campaign.totalQuotas, zero))
                   .join(", ")}
                 {picked.length > 8 ? "…" : ""}
               </p>
@@ -917,7 +925,12 @@ export default function Rifa() {
             ) : null}
           </p>
         ) : null}
-        {campaign.drawSeedHash ? (
+        {campaign.metodoApuracao === "federal_direta" ? (
+          <p>
+            Apuração pela Loteria Federal, leitura direta dos 5 prêmios — a regra está no{" "}
+            <a href={`/r/${slug}/regulamento`} className="underline">regulamento</a>.
+          </p>
+        ) : campaign.drawSeedHash ? (
           <p className="tnum break-all">
             Semente do sorteio (hash publicado antes da 1ª venda): {campaign.drawSeedHash}
           </p>

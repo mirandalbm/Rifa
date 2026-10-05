@@ -10,6 +10,7 @@
  * em jogo: a cota premiada só aparece quando este pedido a reclamou (a
  * revelação, `claimed_by_order_id`), e aí o número já é de quem comprou.
  */
+import { numeracaoZero } from "@shared/apuracao";
 import { and, desc, eq, inArray, lt, lte, or, sql } from "drizzle-orm";
 import type { SQL } from "drizzle-orm";
 import { db } from "../db";
@@ -75,6 +76,7 @@ export async function bilhetesDaConta(
       titulo: campaigns.title,
       premio: campaigns.prizeTitle,
       totalCotas: campaigns.totalQuotas,
+      metodoApuracao: campaigns.metodoApuracao,
       status: campaigns.status,
       drawAt: campaigns.drawAt,
       orgNome: organizations.name,
@@ -145,6 +147,7 @@ export async function bilhetesDaConta(
           titulo: i.titulo,
           premio: i.premio,
           totalCotas: i.totalCotas,
+          numeracaoZero: numeracaoZero(i.metodoApuracao),
           status: i.status,
           drawAt: i.drawAt ? i.drawAt.toISOString() : null,
         },

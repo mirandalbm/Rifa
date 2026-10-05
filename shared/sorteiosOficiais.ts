@@ -16,15 +16,17 @@
  * A cor de cada jogo nas Loterias Caixa — a identidade com que o apostador já
  * reconhece a loteria (o volante, o site e o app da Caixa). É cor de
  * **identidade de terceiro**, não do nosso sistema: só aparece junto do nome
- * da loteria (no calendário e na legenda), nunca como estado. Confira contra o
- * manual de identidade visual das Loterias Caixa e troque aqui se mudar.
+ * da loteria (no calendário e na legenda), nunca como estado. Mega-Sena, Quina
+ * e Lotofácil foram medidas nos cartões do app Loterias Caixa em 05/10/2026
+ * (a cor cheia da faixa do título e do botão "Aposte"); a Federal não tem
+ * cartão no app e segue a cor do site. Troque aqui se a Caixa mudar.
  * `tests/sorteiosOficiais.test.ts` exige ≥ 3:1 com o texto branco por cima.
  */
 export const CORES_DA_CAIXA = {
   federal: "#103099",
-  mega_sena: "#209869",
-  quina: "#260085",
-  lotofacil: "#930089",
+  mega_sena: "#49a35b",
+  quina: "#343590",
+  lotofacil: "#88348e",
 } as const;
 
 export const LOTERIAS = {

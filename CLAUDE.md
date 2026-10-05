@@ -452,7 +452,8 @@ arquitetura.
     **ao lado do vídeo** (deitado, o vídeo encolhe e a conversa inteira fica
     numa faixa de 38%; em pé, embaixo) ou **por cima** (as últimas 6
     mensagens num canto, só leitura, apelido e texto — nada além do que a
-    lista já mostra —, **sem fundo** e com sombra no texto, **cada pessoa
+    lista já mostra —, **sem fundo** e com **contorno fino nas letras**, como legenda de filme
+    (`CONTORNO_DAS_LETRAS`: 1 px preto em volta e uma sombra leve), **cada pessoa
     numa cor**, como na Twitch: `corDoNome()` tira a cor do apelido (a mesma
     pessoa, sempre a mesma cor) de `CORES_DOS_NOMES` — laranja, rosa, lilás,
     amarelo, verde, azul… **a única exceção à paleta além das loterias**,

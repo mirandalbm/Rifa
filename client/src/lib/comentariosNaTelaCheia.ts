@@ -142,3 +142,21 @@ export function ultimasMensagens(lista: ComentarioLido[], n = MENSAGENS_POR_CIMA
     .slice(-n)
     .map(({ id, nome, texto }) => ({ id, nome, texto }));
 }
+
+/**
+ * O contorno das letras da conversa por cima do vídeo, como legenda de
+ * filme: 1 px preto em volta de cada letra (as oito direções) e uma sombra
+ * leve por fora. Sem fundo atrás da conversa, é ele que deixa o nome e o
+ * texto legíveis em cima de qualquer cor do vídeo.
+ */
+export const CONTORNO_DAS_LETRAS = [
+  "-1px -1px 0 #000",
+  "0 -1px 0 #000",
+  "1px -1px 0 #000",
+  "-1px 0 0 #000",
+  "1px 0 0 #000",
+  "-1px 1px 0 #000",
+  "0 1px 0 #000",
+  "1px 1px 0 #000",
+  "0 0 4px rgba(0,0,0,0.8)",
+].join(", ");

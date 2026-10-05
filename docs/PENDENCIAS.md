@@ -573,6 +573,14 @@ Na ordem de entrega do plano:
 
 ## 6. Código, para depois
 
+- [ ] **[depois da versão inicial]** Ferramentas de imagem e vídeo para
+  divulgar a rifa (artes prontas com os dados da rifa, recriar a partir de
+  uma referência com IA de visão, editor de imagem, vídeo leve, IA
+  generativa, vídeo gerado, pacote pronto para postar): o plano completo, com
+  o catálogo do Canva e do Adobe Express como referência e a decisão de não
+  integrar API nenhuma, está em `docs/PLANO-FERRAMENTAS.md`. Decisão de
+  05/10/2026: primeiro fecha a versão inicial; as ferramentas vêm depois.
+
 - [ ] **Sorteios oficiais** (o calendário da plataforma, a tela do sorteio no
   celular). **Fase 1 feita:** o master cadastra, muda, cancela e lança o
   resultado oficial (Federal, Mega-Sena, Quina, Lotofácil, cada dia na cor da

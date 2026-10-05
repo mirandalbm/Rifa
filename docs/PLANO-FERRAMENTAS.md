@@ -1,86 +1,56 @@
 # Ferramentas de imagem e vídeo para divulgar a rifa — panorama e plano
 
-Pesquisa feita em 05/10/2026 sobre o que o Canva e a Adobe oferecem por
-API, o que disso cabe na estrutura deste sistema, o que vale mais a pena
-fazer por conta própria e onde a IA entra. O objetivo é saber o potencial
-inicial antes de escolher por onde começar.
+Pesquisa feita em 05/10/2026 sobre o que o Canva e o Adobe Express oferecem
+a quem faz uma peça de divulgação, usada como **lista de referência** para
+as ferramentas que construímos aqui, com os dados da rifa que só nós temos
+e com a IA onde ela ajuda. O objetivo é saber o potencial inicial antes de
+escolher por onde começar.
 
 A decisão tomada depois da pesquisa está na seção 6: **nada de API deles;
 construímos o que eles têm**, com a lista deles como referência. As regras
 da casa que valem para qualquer ferramenta estão na seção 5.
 
-## 1. O que o Canva oferece (Connect API)
+## 1. Catálogo de referência: o que o Canva tem
 
-A integração do Canva é **entre servidores e contas**: o organizador
-autoriza a nossa plataforma na conta Canva dele (OAuth 2.0 com PKCE), e
-dali em diante o nosso servidor conversa com o Canva em nome dele. A pessoa
-**continua desenhando no canva.com** — não existe editor do Canva embutido
-na nossa tela (isso é o Apps SDK, que faz o contrário: põe a nossa tela
-dentro do editor deles).
+Lista do que o organizador conhece do Canva. É **referência para o que
+construímos**, não uma integração: nada daqui é chamado por API.
 
-| Recurso | O que faz | Cabe aqui? |
-|---|---|---|
-| Designs API | Cria um design (vazio, ou a partir de uma imagem nossa) e lista os existentes | Sim: "Criar no Canva" partindo do banner da rifa |
-| Return navigation | Manda o organizador para editar no Canva com um endereço de volta; ao terminar, ele volta para nós com o id do design | Sim: é a ida e volta do fluxo |
-| Exports API | Exporta o design em PNG, JPG, PDF, GIF, PPTX e **MP4** (480p a 4k, em pé ou deitado), por um trabalho assíncrono que depois baixamos | Sim: o arquivo baixado entra pelo nosso envio de mídia |
-| Assets API | Sobe e lê imagens, vídeos e áudios da pasta de uploads da pessoa | Sim: mandar a capa e as fotos da rifa para a conta dela |
-| Brand Templates + Autofill | Preenche um modelo da marca com dados (texto, imagem) e gera o design pronto | **Só com Canva Enterprise** do lado do organizador — fora do nosso público |
-| Folders e Comments | Organização e comentários | Sem uso para nós |
-| Webhooks (collaboration:event) | Avisa quando algo muda no design | Opcional |
-| IA do Canva (Magic Media, Magic Edit, Magic Write, Magic Design) | Gera imagem e vídeo curto, apaga e troca partes, escreve texto | **Não sai pela Connect API**: só dentro do editor deles, com os créditos de IA da conta do organizador |
+| Ferramenta do Canva | O que faz para quem usa |
+|---|---|
+| Modelos prontos | Layouts por tipo de peça (post, story, flyer) para preencher |
+| Magic Resize | A mesma arte refeita para cada tamanho de rede |
+| Texto, fontes e efeitos | Títulos, contorno, sombra, curvas |
+| Elementos, formas, figurinhas e emojis | Peças soltas por cima da arte |
+| Fotos e vídeos de banco | Biblioteca licenciada por conta |
+| Cortar, enquadrar e remover fundo | Edição da foto |
+| Magic Write | Escreve e reescreve o texto da peça |
+| Magic Design | De um prompt ou de uma imagem enviada, monta layouts prontos |
+| Magic Media, Magic Edit, Magic Eraser | Gera imagem e vídeo curto; troca e apaga partes |
+| Editor de vídeo | Corte, legendas, trilhas, exportação em MP4 |
+| Kit de marca | Logo, cores e fontes da marca aplicados nos modelos |
+| Agendar e publicar | Agenda de postagens para as redes |
+| Baixar e compartilhar | PNG, JPG, PDF, GIF, MP4 |
 
-Exigências fora do código:
-- Registrar a integração no portal de desenvolvedores do Canva e, para
-  ficar aberta a qualquer organizador, **passar pela revisão do Canva**
-  (fila com ticket; as permissões pedidas têm de ser justificadas).
-- O organizador precisa de conta Canva; os recursos pagos (fotos de banco,
-  Magic Studio, remoção de fundo) dependem do plano dele.
+## 2. Catálogo de referência: o que o Adobe Express tem
 
-Custo para nós: nenhum pela API. Trabalho: 3 a 4 PRs (OAuth e tokens no
-cofre, ida e volta, exportação assíncrona, download pelo servidor e entrada
-pelo `ingest`), mais a espera da revisão.
+A mesma lista, para o Express. Também só referência.
 
-## 2. O que a Adobe oferece
+| Ferramenta do Express | O que faz para quem usa |
+|---|---|
+| Editor completo | Modelos, fontes, efeitos de texto, fotos de banco, complementos |
+| Ações rápidas de imagem | Remover fundo, cortar, redimensionar, converter |
+| Ações rápidas de vídeo | Cortar (trim), redimensionar, converter para MP4 ou GIF, recortar, juntar vídeos, animar com áudio, legendar |
+| Firefly dentro do editor | Texto para imagem, preenchimento e expansão generativa, texto para vídeo |
+| Animação | Movimento em texto e elementos |
+| Kit de marca | Logo, cores e fontes |
+| Agendar e publicar | Agenda para as redes |
+| Baixar e compartilhar | Imagem, PDF, MP4 |
 
-### 2a. Adobe Express Embed SDK (editor dentro da nossa página)
-
-O editor completo do Express abre **numa janela por cima do nosso painel**
-(iframe), a pessoa monta a arte e o resultado volta para o nosso código como
-arquivo, sem passar pelo nosso servidor até o envio de sempre.
-
-| Módulo | O que faz | Cabe aqui? |
-|---|---|---|
-| Editor completo | Modelos, fontes, efeitos de texto, fotos de banco, exportação de imagem | Sim: "Editar no Express" no cartão da publicação e na tela de criar Reels |
-| Ações rápidas de imagem | Remover fundo, cortar, redimensionar, converter | Sim: cada uma é um botão com poucas linhas |
-| Ações rápidas de vídeo | Redimensionar, **cortar**, converter para MP4 ou GIF, recortar, juntar vídeos, animar com áudio, **legendar** | Sim, e cobre quase toda a nossa Fase C |
-| Geração por IA (Firefly dentro do editor) | Texto para imagem, preenchimento e expansão generativa | Dentro do editor; o crédito é da conta Adobe da pessoa |
-
-Exigências fora do código:
-- O SDK é gratuito para avaliar e testar, mas o uso em produção passa por
-  **aprovação comercial da Adobe** (eles priorizam integrações com público
-  definido e impacto claro) e depois pela revisão da integração.
-- Chave de cliente (client id) com os nossos domínios autorizados; os
-  recursos premium dependem do plano Express do usuário final.
-
-Custo para nós: nenhum anunciado para o SDK em si; pode haver termos
-comerciais conforme a escala. Trabalho: 2 a 3 PRs (a janela, a entrada do
-arquivo pelo envio de sempre, as origens deles na CSP, um Express de
-mentira para a CI).
-
-### 2b. Firefly Services (APIs de servidor)
-
-As APIs que o nosso **servidor** chamaria, sem tela da Adobe: Firefly
-(texto para imagem, preenchimento e expansão generativa, texto para vídeo),
-Photoshop API (remover fundo, máscaras, ajustes), Lightroom API. É o que
-alimenta o conector da Adobe desta sessão (remover fundo, cortar e
-redimensionar, expandir, preencher área, vetorizar, redimensionar e renderizar
-vídeo, corte rápido, animar design, recomendar fonte, extrair marca).
-
-Cabe tecnicamente (é só chamada de API, como o Stream), mas o **acesso é por
-contrato empresarial com vendas da Adobe** — não há preço público nem
-autoatendimento, e os relatos de mercado falam em piso na casa de
-US$ 1.000/mês, medido em créditos por operação. Fica como opção para depois
-do lançamento, se o volume justificar.
+Fica registrado por que não integramos nenhum dos dois (decisão da seção
+6): a revisão do Canva e a aprovação comercial da Adobe seriam gargalos fora
+do nosso controle; a IA deles não sai pela API; o organizador precisaria de
+conta e plano pago em outro lugar; e nenhum dos dois conhece os dados da
+rifa, que são o que faz a nossa peça ser diferente.
 
 ## 3. O que já existe no sistema (e que nenhum editor de fora tem)
 
@@ -105,9 +75,9 @@ do lançamento, se o volume justificar.
 | Legenda e texto da arte sugeridos pelos dados da rifa | O assistente que já existe (ação `legenda`) ou um modelo de texto pelo servidor | Já pago na cobrança do assistente | Passa pela régua: sem link, sem telefone, varredura do Pix por fora |
 | Recorte inteligente da foto para cada formato (4:5, 1:1, 9:16) | `sharp` com `position: attention` (procura o assunto) — já instalado | Zero | Não é IA generativa, mas resolve 80% do "ficou cortado" |
 | Escolha da capa do reels | Quadros candidatos pelo `ffmpeg` + um critério simples (nitidez, não preto) | Zero | Hoje é sempre o quadro de 0,5 s |
-| Remover fundo da foto do prêmio | Serviço de API por imagem (há vários com preço por unidade) ou a ação rápida do Express | Centavos por foto, ou crédito do usuário no Express | Decidir quem paga: plataforma ou organizador |
-| Legendas automáticas no vídeo (transcrição) | API de transcrição pelo servidor; o texto vira figurinha (dado), não é gravado no vídeo | Centavos por minuto | Entra na mesma varredura de texto |
-| Gerar imagem de fundo ou expandir a foto (generativo) | Firefly Services (contrato), ou outro provedor de imagem com preço por geração | Por geração | Nada de rosto de pessoa real; marca d'água/aviso de "criado com IA" conforme a lei vier |
+| Remover fundo da foto do prêmio | Serviço por imagem, chamado pelo nosso servidor (há vários com preço por unidade) | Centavos por foto | Decidir quem paga: plataforma ou organizador |
+| Legendas automáticas no vídeo (transcrição) | Serviço de transcrição chamado pelo nosso servidor; o texto vira figurinha (dado), não é gravado no vídeo | Centavos por minuto | Entra na mesma varredura de texto |
+| Gerar imagem de fundo ou expandir a foto (generativo) | Provedor de imagem com preço por geração, chamado pelo nosso servidor | Por geração | Nada de rosto de pessoa real; marca d'água/aviso de "criado com IA" conforme a lei vier |
 | Vídeo gerado a partir das fotos (movimento, texto, contagem) | `ffmpeg` local com fila (BullMQ), sem IA; o roteiro do vídeo pode vir da IA | Processamento nosso | É o item mais pesado do plano |
 
 Regra para toda IA: a entrada é só a mídia e os dados **da rifa e da
@@ -136,9 +106,7 @@ assistente, `problemaNaMensagemDaIA`).
 Decidido em 05/10/2026: **nenhuma integração com a API do Canva nem da
 Adobe**. O catálogo das seções 1 e 2 é a lista de referência do que a
 pessoa espera de um editor; cada item é feito aqui, com os dados da rifa que
-só nós temos. Os motivos: a revisão do Canva e a aprovação comercial da
-Adobe são gargalos fora do nosso controle; a IA deles não sai pela API; e o
-organizador não precisa de conta nem de plano pago em outro lugar.
+só nós temos. Os motivos estão no fim da seção 2.
 
 A IA continua entrando (seção 4), mas por **provedores de serviço por
 unidade** escolhidos por nós (geração de imagem, remoção de fundo,
@@ -255,6 +223,5 @@ num toque de compartilhar, ligado à agenda que já existe.
 
 ## Fontes consultadas
 
-- Canva Connect API: [visão geral](https://canva.dev/docs/connect/), [criação de integrações](https://www.canva.dev/docs/connect/creating-integrations/), [submissão para revisão](https://www.canva.dev/docs/connect/submitting-integrations/), [lista de verificação](https://www.canva.dev/docs/connect/submission-checklist/), [escopos](https://www.canva.dev/docs/connect/appendix/scopes/), [exportação](https://www.canva.dev/docs/connect/api-reference/exports/create-design-export-job/), [autofill](https://www.canva.dev/docs/connect/api-reference/autofills/), [brand templates](https://www.canva.dev/docs/connect/api-reference/brand-templates/), [lançamento](https://canva.dev/blog/developers/launching-to-all-connect-api), [Apps SDK vs Connect](https://polotno.com/canva-api).
-- Adobe Express Embed SDK: [página do SDK](https://developer.adobe.com/express/embed-sdk/), [documentação](https://developer.adobe.com/express/embed-sdk/docs/), [editor completo](https://developer.adobe.com/express/embed-sdk/docs/guides/full_editor/), [submissão e revisão](https://developer.adobe.com/express/embed-sdk/docs/guides/review/).
-- Adobe Firefly / Firefly Services: [planos e créditos](https://www.adobe.com/cc-shared/fragments/products/firefly/plans/faq), [preço empresarial 2026](https://redresscompliance.com/adobe-firefly-enterprise-pricing-2026), [Photoshop API 2026](https://sudomock.com/blog/adobe-photoshop-api-pricing-2026).
+Páginas de produto e documentação pública dos dois, lidas só para montar o
+catálogo de referência: [Canva Connect API (visão geral)](https://canva.dev/docs/connect/), [Canva: submissão para revisão](https://www.canva.dev/docs/connect/submitting-integrations/), [Canva: exportação](https://www.canva.dev/docs/connect/api-reference/exports/create-design-export-job/), [Canva: autofill e brand templates](https://www.canva.dev/docs/connect/api-reference/brand-templates/), [Adobe Express Embed SDK](https://developer.adobe.com/express/embed-sdk/docs/), [Adobe Express: submissão e revisão](https://developer.adobe.com/express/embed-sdk/docs/guides/review/), [Adobe Firefly: planos e créditos](https://www.adobe.com/cc-shared/fragments/products/firefly/plans/faq), [Firefly Services: preço empresarial](https://redresscompliance.com/adobe-firefly-enterprise-pricing-2026).

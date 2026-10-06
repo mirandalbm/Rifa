@@ -10,7 +10,7 @@
 import { clausulaDoBonus } from "./bonus";
 import { formatBRL, formatQuota, groupNumber } from "./format";
 import { regraDoReembolso } from "./reembolso";
-import { REGRA_DA_APROXIMACAO } from "./sorteio";
+import { IMPEDIDOS_DE_PARTICIPAR, SORTEIO_INVALIDO, regraDoNumeroSemDono } from "./sorteio";
 import { clausulaDaAntecipacao, cotasMinimasParaSortear } from "./campanhaLegal";
 import { clausulaDoMetodo, numeracaoZero, totalDaApuracao } from "./apuracao";
 import { CLAUSULA_VALE_BRINDE } from "./premiadas";
@@ -164,6 +164,8 @@ export function montarRegulamento(d: DadosDoRegulamento): Secao[] {
         "Cada número é vendido uma única vez.",
         "Só vale bilhete pago pela plataforma. Pagamento feito por fora (Pix ou transferência direto à promotora ou a terceiros) não gera cota nem participa do sorteio, e pedir pagamento por fora leva ao banimento da promotora.",
         ...(rifa.aceitaCotaBonus ? [clausulaDoBonus(rifa.bonusMaxCotas ?? 0)] : []),
+        // 9.4: na rifa autorizada a promotora não fica com as cotas e não concorre.
+        ...(rifa.metodoApuracao ? [IMPEDIDOS_DE_PARTICIPAR] : []),
       ],
     },
     {
@@ -201,9 +203,11 @@ export function montarRegulamento(d: DadosDoRegulamento): Secao[] {
                   )} cotas). Se o mínimo não for atingido até a data, o sorteio é adiado para nova data, informada na página da rifa e avisada a quem comprou.`,
                 ]
               : []),
-        rifa.modoSorteio === "promotora_completa"
-          ? "As cotas não vendidas até o sorteio ficam com a promotora. Se o número sorteado for uma delas, não há ganhador entre os participantes e o prêmio permanece com a promotora."
-          : REGRA_DA_APROXIMACAO,
+        // Item 9 do advogado: ressorteio no globo, busca alternada e circular na Federal.
+        regraDoNumeroSemDono(rifa.metodoApuracao, rifa.modoSorteio),
+        ...(rifa.metodoApuracao === "globo"
+          ? [`Cada extração que não valer é registrada como "${SORTEIO_INVALIDO}", com o número e a hora de cada bola, na ata e na página do sorteio da rifa.`]
+          : []),
       ],
     },
     {

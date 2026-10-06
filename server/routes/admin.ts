@@ -66,7 +66,7 @@ import {
   certificadoDa,
 } from "../services/campaigns";
 import { clienteVisivelSql, nomeNoPainelSql, dadoNoPainelSql } from "../services/titularidade";
-import { executarSorteio, resultadoParaARifa, SorteioRecusado, sortearRifasDoSorteioOficial } from "../services/sortear";
+import { executarSorteio, registrarNovaExtracao, resultadoParaARifa, SorteioRecusado, sortearRifasDoSorteioOficial } from "../services/sortear";
 import {
   requestUpload,
   ingestUpload,
@@ -3693,6 +3693,29 @@ adminRouter.put("/sorteios-oficiais/:id/ata", async (req, res, next) => {
     await audit(req, "sorteio_oficial.ata", "sorteio_oficial", req.params.id, r);
     res.json(r);
   } catch (err) {
+    next(err);
+  }
+});
+
+// 9.5: no globo não há aproximação. A rifa cujo número não foi distribuído
+// recebe nova extração no mesmo ato — só a plataforma registra; a rifa tenta
+// sortear com ela na hora. A auditoria vai na transação do serviço.
+adminRouter.post("/sorteios-oficiais/:id/rifas/:campaignId/extracoes", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    if (!/^[0-9a-f-]{36}$/i.test(req.params.id) || !/^[0-9a-f-]{36}$/i.test(req.params.campaignId)) {
+      return res.status(404).json({ message: "Não encontrado." });
+    }
+    const r = await registrarNovaExtracao(req.params.id, req.params.campaignId, req.body ?? {}, {
+      id: req.user?.id,
+      role: req.user?.role,
+      ip: req.ip,
+    });
+    res.status(201).json(r);
+  } catch (err) {
+    if (err instanceof SorteioRecusado) {
+      return res.status((err as { status?: number }).status ?? 409).json({ message: err.message });
+    }
     next(err);
   }
 });

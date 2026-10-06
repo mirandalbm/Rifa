@@ -113,8 +113,13 @@ function problemaNaApuracao(
       return "Rifa apurada pelo globo: escolha a sessão do globo no calendário (Sorteios oficiais) antes de publicar.";
     }
   }
+  // 9.4: na rifa autorizada a promotora não fica com as cotas não vendidas.
+  if (campaign.modoSorteio === "promotora_completa") return `${PROBLEMA_PROMOTORA_COMPLETA} (Autorização e sorteio)`;
   return null;
 }
+
+export const PROBLEMA_PROMOTORA_COMPLETA =
+  "O modo \"a promotora fica com as cotas não vendidas\" não vale para rifa autorizada: a promotora não pode concorrer. Escolha outro modo do sorteio";
 
 const PROBLEMA_GLOBO_QUANDO_COMPLETAR =
   "O modo \"quando completar\" antecipa o sorteio para a próxima extração da Loteria Federal: não vale para a rifa apurada pelo globo.";
@@ -521,6 +526,10 @@ export async function salvarDadosLegais(
   // tem a sessão dele no calendário.
   if (modo === "quando_completar" && ((entrada.metodoApuracao ?? campaign.metodoApuracao) === "globo")) {
     throw new CampaignRuleError(PROBLEMA_GLOBO_QUANDO_COMPLETAR);
+  }
+  // 9.4: rifa com método de apuração é a autorizada — sem "a promotora completa".
+  if (modo === "promotora_completa" && (entrada.metodoApuracao ?? campaign.metodoApuracao)) {
+    throw new CampaignRuleError(`${PROBLEMA_PROMOTORA_COMPLETA}.`);
   }
   const minimoPedido =
     entrada.minimoVendidoPct !== undefined ? (entrada.minimoVendidoPct as number) : campaign.minimoVendidoPct;

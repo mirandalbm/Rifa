@@ -410,3 +410,45 @@ export function ataGuardada(v: unknown): AtaDoGlobo | null {
 
 /** O arquivo da ata notarial: PDF ou foto, até 8 MB, conferido pelo conteúdo. */
 export const ATA_MAX_BYTES = 8 * 1024 * 1024;
+
+/* ------------------------------------------------------------------ *
+ * Nova extração do globo (resposta 9.5 do advogado)
+ * ------------------------------------------------------------------ */
+
+/** A hora da última bola registrada antes desta: a da sessão ou a da extração anterior. */
+export function ultimaHora(horas: readonly string[]): string | null {
+  return horas.length ? horas[horas.length - 1] : null;
+}
+
+/**
+ * A nova extração da rifa cujo número não foi distribuído: as 6 bolas (0 a 9,
+ * na ordem dos globos) e a hora de cada uma, em sequência e **depois** da
+ * última bola já registrada (é o mesmo ato, que continua). Só as chaves
+ * conhecidas.
+ */
+export function validarNovaExtracao(
+  corpo: unknown,
+  depoisDe: string | null,
+): { problema: string } | { bolas: string[]; horas: string[] } {
+  const b = (corpo && typeof corpo === "object" ? corpo : {}) as Record<string, unknown>;
+  const r = validarResultado("globo", b.bolas);
+  if ("problema" in r) return r;
+  const brutas = Array.isArray(b.horas) ? b.horas : [];
+  if (brutas.length !== r.numeros.length) return { problema: "Informe a hora em que saiu cada bola (HH:MM:SS)." };
+  const horas: string[] = [];
+  for (let i = 0; i < brutas.length; i++) {
+    const hora = textoLimpo(brutas[i], 8);
+    if (!/^([01]\d|2[0-3]):[0-5]\d:[0-5]\d$/.test(hora)) return { problema: `Informe a hora em que saiu a bola do ${i + 1}º globo (HH:MM:SS).` };
+    const antes = i > 0 ? horas[i - 1] : depoisDe;
+    if (antes && hora < antes) {
+      return {
+        problema:
+          i > 0
+            ? "As bolas saem em sequência: a hora de cada globo vem depois da do anterior."
+            : `A nova extração é no mesmo ato e vem depois da última bola registrada (${antes}).`,
+      };
+    }
+    horas.push(hora);
+  }
+  return { bolas: r.numeros, horas };
+}

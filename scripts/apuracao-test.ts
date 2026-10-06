@@ -134,6 +134,27 @@ async function main() {
     r = await marina.req("PUT", `/api/admin/campaigns/${nova.id}/legal`, { metodoApuracao: "federal_direta" });
     checa("escolhe a Federal direta nos dados legais", r.status === 200 && r.json?.metodoApuracao === "federal_direta", `HTTP ${r.status}`);
 
+    // 9.4: na rifa autorizada não há "a promotora completa", e a promotora não compra.
+    r = await marina.req("PUT", `/api/admin/campaigns/${nova.id}/legal`, { modoSorteio: "promotora_completa" });
+    checa("9.4: \"a promotora completa\" na rifa autorizada: 422", r.status === 422 && String(r.json?.message).includes("promotora não pode concorrer"), `HTTP ${r.status}`);
+    const completa = await novaRifa("promotora-completa", { status: "draft", modoSorteio: "promotora_completa" });
+    r = await marina.req("GET", `/api/admin/campaigns/${completa.c.id}/blockers`);
+    checa("…e o rascunho que já estava assim não publica", (r.json?.blockers ?? []).some((b: string) => b.includes("promotora não pode concorrer")), JSON.stringify(r.json?.blockers));
+    const impedida = await novaRifa("impedida");
+    const foneDaPromotora = org.telefoneOrganizador;
+    if (foneDaPromotora) {
+      r = await anon.req("POST", "/api/public/orders", {
+        campaignId: impedida.c.id,
+        quantity: 1,
+        buyer: { name: "Promotora", phone: `+55 ${foneDaPromotora.slice(0, 2)} ${foneDaPromotora.slice(2)}` },
+      });
+      checa("9.4: a compra com o telefone da promotora (com +55 e máscara) é recusada (403)", r.status === 403 && String(r.json?.message).includes("não podem participar"), `HTTP ${r.status} ${r.json?.message ?? ""}`);
+      const [semReserva] = await db.select({ n: sql<number>`count(*)::int` }).from(quotaAlloc).where(eq(quotaAlloc.campaignId, impedida.c.id));
+      checa("…sem gravar nada (nenhuma cota reservada)", Number(semReserva.n) === 0);
+    } else {
+      checa("a organização do seed tem telefone para provar o 9.4", false, "telefone_organizador vazio");
+    }
+
     // Sem método liberado, nada publica (e a escolha recusa).
     await admin.req("PUT", "/api/admin/apuracao/metodos", { liberados: [] });
     r = await marina.req("GET", `/api/admin/campaigns/${nova.id}/blockers`);
@@ -189,6 +210,33 @@ async function main() {
     r = await anon.req("GET", `/api/public/campaigns/${aprox.c.slug}/sorteio`);
     checa("a página mostra o sorteado e o contemplado na numeração da tela", r.json?.numero === "139" && r.json?.contemplado === "141", `${r.json?.numero}/${r.json?.contemplado}`);
 
+    // Item 9 do advogado (9.1 a 9.3): +1, −1, +2, −2… na fita circular; bônus conta.
+    const abaixo = await novaRifa("aprox-abaixo");
+    await vender(abaixo.c.id, [139, 143]);
+    r = await sortear(abaixo.c.id, EXEMPLO);
+    checa("9.1: 139 sem dono, 138 a −1 e 142 a +3: leva o 138 (alterna, não só acima)", r.json?.winnerNumber === 139, `${r.json?.winnerNumber}`);
+    const volta = await novaRifa("aprox-volta");
+    await vender(volta.c.id, [2, 995]);
+    r = await sortear(volta.c.id, ["00000", "00000", "00009", "00009", "00009"]);
+    checa("9.3: 999 sem dono, a busca dá a volta: 001 (a +2) antes de 994 (a −5)", r.json?.resultNumber === 1000 && r.json?.winnerNumber === 2, `${r.json?.resultNumber}→${r.json?.winnerNumber}`);
+    r = await anon.req("GET", `/api/public/campaigns/${volta.c.slug}/sorteio`);
+    checa("…e a página mostra 999 → 001", r.json?.numero === "999" && r.json?.contemplado === "001", `${r.json?.numero}/${r.json?.contemplado}`);
+    const bonus = await novaRifa("aprox-bonus");
+    await vender(bonus.c.id, [500]);
+    {
+      const [o] = await db
+        .insert(orders)
+        .values({ code: codigo++, campaignId: bonus.c.id, buyerId: comprador.id, quantity: 1, amountCents: 0, status: "paid", method: "bonus", paidAt: new Date() })
+        .returning();
+      await db.insert(quotaAlloc).values({ campaignId: bonus.c.id, number: 141, status: "paid", orderId: o.id });
+    }
+    r = await sortear(bonus.c.id, EXEMPLO);
+    checa("9.2: a cota de bônus é distribuída e leva (140 a +1)", r.json?.winnerNumber === 141, `${r.json?.winnerNumber}`);
+    r = await anon.req("GET", `/api/public/campaigns/${bonus.c.slug}/regulamento`);
+    const regFed = JSON.stringify(r.json?.secoes ?? []);
+    checa("o regulamento traz o texto exato do 9.1, a fita circular e os impedidos (9.4)",
+      regFed.includes("e assim alternadamente até que seja identificado um contemplado") && regFed.includes("circular") && regFed.includes("seus sócios e diretores"));
+
     const milhao = await novaRifa("milhao", { totalQuotas: 1_000_000 });
     await vender(milhao.c.id, [678_140]);
     r = await sortear(milhao.c.id, EXEMPLO);
@@ -236,6 +284,12 @@ async function main() {
     checa("…e deixa de barrar pela sessão", !(r.json?.blockers ?? []).some((b: string) => b.includes("globo")), JSON.stringify(r.json?.blockers));
     await db.update(campaigns).set({ status: "published", publishedAt: new Date() }).where(eq(campaigns.id, rascunhoGlobo.c.id));
     await vender(rascunhoGlobo.c.id, [140, 500]);
+    // 9.5: a segunda rifa da sessão não tem o 139 (interno 140): o globo gira de novo para ela.
+    const ressorteio = await novaRifa("globo-ressorteio", { metodoApuracao: "globo", status: "draft" });
+    r = await marina.req("PUT", `/api/admin/campaigns/${ressorteio.c.id}/sorteio-oficial`, { sorteioOficialId: sessao });
+    checa("a segunda rifa do globo entra na mesma sessão", r.status === 200, `HTTP ${r.status}`);
+    await db.update(campaigns).set({ status: "published", publishedAt: new Date() }).where(eq(campaigns.id, ressorteio.c.id));
+    await vender(ressorteio.c.id, [139, 141, 500]);
 
     const regG = JSON.stringify((await anon.req("GET", `/api/public/campaigns/${rascunhoGlobo.c.slug}/regulamento`)).json?.secoes ?? []);
     checa("o regulamento traz a cláusula do globo, a ata e a sessão",
@@ -260,6 +314,7 @@ async function main() {
     checa("ata sem auditor e com 1 testemunha: 400", r.status === 400 && String(r.json?.message).includes("auditor"), `HTTP ${r.status}`);
     r = await admin.req("POST", `/api/admin/sorteios-oficiais/${sessao}/resultado`, { numeros: bolas, ata });
     checa("resultado e ata lançados: a rifa do globo sorteia sozinha", r.status === 200 && r.json?.rifas?.sorteadas === 1, `HTTP ${r.status} ${JSON.stringify(r.json?.rifas)}`);
+    checa("9.5: a rifa sem o 139 não sorteia por aproximação (o 138 e o 140 tinham dono)", r.json?.rifas?.esperando === 1, JSON.stringify(r.json?.rifas));
     r = await admin.req("POST", `/api/admin/sorteios-oficiais/${sessao}/resultado`, { numeros: bolas, ata });
     checa("segundo lançamento: 409", r.status === 409, `HTTP ${r.status}`);
     const [dG] = await db.select().from(draws).where(eq(draws.campaignId, rascunhoGlobo.c.id));
@@ -282,6 +337,48 @@ async function main() {
     checa("o público baixa a ata depois do resultado", baixada.status === 200 && (baixada.headers.get("content-type") ?? "").includes("pdf") && corpo.startsWith("%PDF"), `HTTP ${baixada.status}`);
     r = await anon.req("GET", `/api/public/campaigns/${rascunhoGlobo.c.slug}/sorteio`);
     checa("…e a conferência aponta para ela", r.json?.ataUrl === `/api/public/sorteio-oficial/${sessao}/ata`);
+
+    // ---------------- 9.5: nova extração no mesmo ato ----------------
+    console.log("\n  globo — nova extração (9.5):");
+    const [espera] = await db.select().from(campaigns).where(eq(campaigns.id, ressorteio.c.id));
+    checa("a rifa espera com \"Sorteio inválido – cota não vendida\" e o número", espera.status === "published" && String(espera.sorteioAutoMotivo).startsWith("Sorteio inválido – cota não vendida: o número 139"), String(espera.sorteioAutoMotivo));
+    r = await admin.req("GET", "/api/admin/sorteios-oficiais");
+    const naSessao = (r.json ?? []).find((x: { id: string }) => x.id === sessao)?.rifas?.find((x: { id: string }) => x.id === ressorteio.c.id);
+    checa("o calendário da plataforma pede a nova extração", naSessao?.pedeNovaExtracao === true, JSON.stringify(naSessao));
+    const extracao = (b: string[], h: string[]) => ({ bolas: b, horas: h });
+    const horasDe = (min: number) => Array.from({ length: 6 }, (_, i) => `20:${String(min).padStart(2, "0")}:${String(i * 5).padStart(2, "0")}`);
+    const urlExtracao = `/api/admin/sorteios-oficiais/${sessao}/rifas/${ressorteio.c.id}/extracoes`;
+    r = await marina.req("POST", urlExtracao, extracao(["0", "0", "0", "2", "2", "2"], horasDe(10)));
+    checa("a organização não registra extração (403)", r.status === 403, `HTTP ${r.status}`);
+    r = await admin.req("POST", `/api/admin/sorteios-oficiais/${sessao}/rifas/${rascunhoGlobo.c.id}/extracoes`, extracao(["0", "0", "0", "2", "2", "2"], horasDe(10)));
+    checa("rifa já sorteada não recebe extração (409)", r.status === 409, `HTTP ${r.status}`);
+    r = await admin.req("POST", urlExtracao, extracao(["0", "0", "0", "2", "2", "2"], horasDe(4)));
+    checa("hora antes da última bola da sessão (20:05:10): 400", r.status === 400 && String(r.json?.message).includes("20:05:10"), `HTTP ${r.status} ${r.json?.message ?? ""}`);
+    r = await admin.req("POST", urlExtracao, extracao(["0", "0", "0", "2", "2", "X"], horasDe(10)));
+    checa("bola que não é 0 a 9: 400", r.status === 400, `HTTP ${r.status}`);
+    r = await admin.req("POST", urlExtracao, extracao(["0", "0", "0", "2", "2", "2"], horasDe(10)));
+    checa("2ª extração: 222 também sem dono — registrada, ainda não sorteia", r.status === 201 && r.json?.ordem === 2 && r.json?.numero === "222" && r.json?.sorteada === false && String(r.json?.motivo).includes("222"), `HTTP ${r.status} ${JSON.stringify(r.json)}`);
+    r = await admin.req("POST", urlExtracao, extracao(["0", "0", "0", "4", "9", "9"], horasDe(9)));
+    checa("a 3ª vem depois da 2ª (mesmo ato, em sequência): 400", r.status === 400, `HTTP ${r.status}`);
+    r = await admin.req("POST", urlExtracao, extracao(["0", "0", "0", "4", "9", "9"], horasDe(12)));
+    checa("3ª extração: 499 (interno 500) tem dono — a rifa sorteia com ele", r.status === 201 && r.json?.ordem === 3 && r.json?.sorteada === true, `HTTP ${r.status} ${JSON.stringify(r.json)}`);
+    r = await admin.req("POST", urlExtracao, extracao(["0", "0", "0", "1", "1", "1"], horasDe(14)));
+    checa("depois de sorteada, nova extração: 409", r.status === 409, `HTTP ${r.status}`);
+    const [dR] = await db.select().from(draws).where(eq(draws.campaignId, ressorteio.c.id));
+    checa("sorteio gravado com o número da extração que valeu, sem aproximação", dR?.resultNumber === 500 && dR?.winnerNumber === 500 && dR?.federalPrizes?.join("") === "000499", `${dR?.resultNumber}/${dR?.winnerNumber}`);
+    r = await anon.req("GET", `/api/public/campaigns/${ressorteio.c.slug}/sorteio`);
+    const ex = r.json?.extracoes ?? [];
+    checa("a conferência lista as 3 extrações: 139 e 222 inválidas, 499 valeu",
+      ex.length === 3 && ex[0].numero === "139" && !ex[0].valeu && ex[1].numero === "222" && !ex[1].valeu && ex[2].numero === "499" && ex[2].valeu && ex[2].horas[0] === "20:12:00",
+      JSON.stringify(ex.map((e: { numero: string; valeu: boolean }) => `${e.numero}:${e.valeu}`)));
+    checa("…com a leitura da extração que valeu", r.json?.numero === "499" && r.json?.aproximacao === false && String(r.json?.leitura?.at(-1)).includes("499"));
+    const regR = JSON.stringify((await anon.req("GET", `/api/public/campaigns/${ressorteio.c.slug}/regulamento`)).json?.secoes ?? []);
+    checa("o regulamento do globo traz o texto exato do 9.5, sem aproximação", regR.includes("proceder-se-á, no mesmo ato e imediatamente") && !regR.includes("alternadamente"));
+    const prest2 = await (await fetch(URL + `/api/admin/exportacoes/sorteio?campanha=${ressorteio.c.id}`, { headers: { Cookie: admin.cookie } })).text();
+    checa("a prestação de contas relata as extrações inválidas e a que valeu",
+      prest2.includes("1a extração") && prest2.includes("2a extração") && prest2.includes("Sorteio inválido – cota não vendida") && prest2.includes("→ 499 — contemplado"));
+    const [auditada] = await db.execute(sql`select count(*)::int as n from audit_log where action = 'sorteio_oficial.reextracao' and entity_id = ${ressorteio.c.id}`).then((x) => x.rows as { n: number }[]);
+    checa("cada extração registrada vai à auditoria", Number(auditada.n) === 2, String(auditada.n));
 
     const prestacao = await fetch(URL + `/api/admin/exportacoes/sorteio?campanha=${rascunhoGlobo.c.id}`, { headers: { Cookie: admin.cookie } });
     const csvG = await prestacao.text();

@@ -638,6 +638,18 @@ Na ordem de entrega do plano:
   das cotas premiadas avisa que a rifa vira promoção mista (sorteio +
   vale-brinde) e que as duas modalidades se pedem no mesmo processo do
   SCPC; o regulamento da rifa com método diz isso a quem compra.
+- [x] **Número não distribuído, promotora e impedidos** (respostas 9.1 a
+  9.5) — feito. Na Federal, a busca é **alternada** (+1, −1, +2, −2…) numa
+  **fita circular** (depois do último vem o primeiro; no milhão a Série faz
+  parte do número), com o texto exato do advogado; a cota de bônus conta
+  como distribuída e a reserva não paga não. "A promotora completa" saiu da
+  rifa autorizada (os dados legais recusam, a publicação barra) e a compra
+  com o telefone da promotora, de um organizador dela ou da plataforma é
+  recusada. No globo **não há aproximação**: o número sem dono vira "Sorteio
+  inválido – cota não vendida" e a plataforma registra a **nova extração**
+  no calendário até sair um número com dono; a conferência, a prestação de
+  contas e a auditoria listam cada extração. Sobe com o `db:push` **antes**
+  do código: a tabela `sorteio_reextracoes`. `npm run apuracao` prova.
 - [ ] **Homologar o globo** (você, com o advogado): quando sair, ligar o
   globo em "Métodos de apuração", cadastrar a sessão no calendário e
   combinar com o tabelionato a ata de cada sessão.
@@ -649,7 +661,7 @@ Na ordem de entrega do plano:
   vira a do concurso e trava ao publicar); selo na rifa; a tela do sorteio no
   celular mostra só o sorteio oficial, com a fileira das rifas integradas.
   **Fase 2 feita:** lançar o resultado sorteia sozinha cada rifa publicada
-  integrada, com as regras dela (mínimo, aproximação, a promotora completa);
+  integrada, com as regras dela (mínimo, número sem dono — busca alternada na Federal, nova extração no globo);
   a que não pode (mínimo, reserva esperando Pix) guarda o motivo e o relógio
   tenta de novo; **só a Loteria Federal recebe rifa** (decisão do advogado,
   05/10/2026: é a apuração da autorização SPA/MF; as outras loterias ficam

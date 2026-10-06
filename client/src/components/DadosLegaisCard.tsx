@@ -258,7 +258,8 @@ export function DadosLegaisCard({ campanha }: { campanha: Campanha }) {
         <fieldset>
           <legend className="label-xs">Como a rifa chega ao sorteio</legend>
           <div className="mt-1 grid grid-cols-1 gap-2 sm:grid-cols-2">
-            {MODOS_DO_SORTEIO.map((m) => (
+            {/* 9.4: na rifa autorizada (com método) não há "a promotora completa" — ela não pode concorrer. */}
+            {MODOS_DO_SORTEIO.filter((m) => m !== "promotora_completa" || !metodo || modo === m).map((m) => (
               <label
                 key={m}
                 className={`flex min-w-0 cursor-pointer items-start gap-2 rounded-md border px-3 py-2 ${
@@ -280,6 +281,9 @@ export function DadosLegaisCard({ campanha }: { campanha: Campanha }) {
                 <span className="min-w-0">
                   <span className="block text-sm font-semibold">{ROTULO_DO_MODO[m]}</span>
                   <span className="block text-xs text-muted">{EXPLICACAO_DO_MODO[m]}</span>
+                  {m === "promotora_completa" && metodo ? (
+                    <span className="mt-0.5 block text-xs font-semibold text-ink-2">Não vale para rifa autorizada: escolha outro modo.</span>
+                  ) : null}
                   {m === "quando_completar" && quandoCompletarBarrado ? (
                     <span className="mt-0.5 block text-xs font-semibold text-ink-2">Não vale para o globo: a antecipação é para a extração da Federal.</span>
                   ) : null}

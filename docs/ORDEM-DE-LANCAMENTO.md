@@ -23,7 +23,10 @@ paralelo, para não segurar o resto. Marque aqui mesmo o que for fechando.
   (regresso, autorização e IR por conta dela, Pix por fora, prêmio
   desembaraçado). **Item 8 respondido em 05/10/2026** (a leitura direta da
   Federal, numeração a partir de zero, total em potência de 10): já está no
-  código (`npm run apuracao`). Faltam os itens 3 a 7 e o 9.
+  código (`npm run apuracao`). **Item 9 respondido em 05/10/2026**
+  (aproximação alternada e circular na Federal, cota de bônus conta, fim da
+  "promotora completa" na rifa autorizada, ressorteio no globo): também no
+  código. Faltam os itens 3 a 7.
 - [ ] **Contador**: guarda da comissão pela plataforma e RPA/nota dos
   afiliados.
 - [ ] **Pagamento**: pedir por escrito ao Mercado Pago e ao Asaas se aceitam

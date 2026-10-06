@@ -13,7 +13,8 @@ import { numeracaoZero } from "@shared/apuracao";
 import { formatQuota } from "@shared/format";
 import { and, asc, desc, eq, gt, inArray, isNotNull, isNull, ne, sql } from "drizzle-orm";
 import { db } from "../db";
-import { campaigns, draws, organizacaoFotos, organizations, sorteioAtas, sorteiosOficiais, type Campaign } from "@shared/schema";
+import { campaigns, draws, organizacaoFotos, organizations, sorteioAtas, sorteioReextracoes, sorteiosOficiais, type Campaign } from "@shared/schema";
+import { SORTEIO_INVALIDO } from "@shared/sorteio";
 import sharp from "sharp";
 import { tipoDoCertificado } from "@shared/campanhaLegal";
 import {
@@ -97,6 +98,8 @@ export async function calendario(org: string | null) {
           prizeTitle: campaigns.prizeTitle,
           status: campaigns.status,
           sorteioAutoMotivo: campaigns.sorteioAutoMotivo,
+          totalQuotas: campaigns.totalQuotas,
+          metodoApuracao: campaigns.metodoApuracao,
           orgNome: organizations.name,
         })
         .from(campaigns)
@@ -105,6 +108,15 @@ export async function calendario(org: string | null) {
     : [];
   const publicadas = org ? new Map<string, number>() : await publicadasPorSorteio(ids);
   const comAta = await sessoesComAta(ids.filter((id) => linhas.find((l) => l.id === id)?.loteria === "globo"));
+  // 9.5: as novas extrações do globo de cada rifa (a plataforma vê e registra).
+  const rifasDoGlobo = minhas.filter((m) => m.metodoApuracao === "globo").map((m) => m.id);
+  const novas = rifasDoGlobo.length
+    ? await db
+        .select()
+        .from(sorteioReextracoes)
+        .where(inArray(sorteioReextracoes.campaignId, rifasDoGlobo))
+        .orderBy(asc(sorteioReextracoes.ordem))
+    : [];
   const agora = new Date();
   return linhas
     .map((s) => {
@@ -121,6 +133,13 @@ export async function calendario(org: string | null) {
           status: r.status,
           // Lançado o resultado, por que esta rifa ainda não sorteou.
           esperando: r.status === "published" ? r.sorteioAutoMotivo : null,
+          // 9.5: o número lido no globo não foi distribuído — o globo gira de novo para ela.
+          pedeNovaExtracao: Boolean(
+            s.loteria === "globo" && s.resultadoEm && r.status === "published" && r.sorteioAutoMotivo?.startsWith(SORTEIO_INVALIDO),
+          ),
+          novasExtracoes: novas
+            .filter((n) => n.campaignId === r.id)
+            .map((n) => ({ ordem: n.ordem, bolas: n.bolas, horas: n.horas, numero: formatQuota(n.numero, r.totalQuotas, true) })),
           // A plataforma vê de quem é; a organização só vê as dela.
           organizacao: org ? undefined : r.orgNome,
         })),

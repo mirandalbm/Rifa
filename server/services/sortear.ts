@@ -11,18 +11,18 @@
  *   ordem de sempre: sorteio oficial → rifa) e o `UPDATE` exige que a rifa
  *   siga nele. O resultado é o oficial, nunca o que veio do formulário.
  */
-import { and, asc, eq, isNotNull, isNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, isNotNull, isNull, sql } from "drizzle-orm";
 import { db } from "../db";
-import { auditLog, buyers, campaigns, draws, orders, sorteiosOficiais, type Campaign } from "@shared/schema";
+import { auditLog, buyers, campaigns, draws, orders, sorteioReextracoes, sorteiosOficiais, type Campaign } from "@shared/schema";
 import { drawNumber } from "./draw";
 import { notify } from "../notifications";
 import { publicUrl } from "./urls";
 import { formatQuota, numeroInterno } from "@shared/format";
 import { lerFederal, lerGlobo, numeracaoZero } from "@shared/apuracao";
-import { contempladoPorAproximacao } from "@shared/sorteio";
+import { SORTEIO_INVALIDO, contempladoNaFita, contempladoPorAproximacao } from "@shared/sorteio";
 import { cotasMinimasParaSortear, minimoAtingido } from "@shared/campanhaLegal";
 import { vendidasParaOMinimo } from "@shared/bonus";
-import { LOTERIAS, loteriaValida, type Loteria } from "@shared/sorteiosOficiais";
+import { LOTERIAS, ataGuardada, loteriaValida, validarNovaExtracao, type Loteria } from "@shared/sorteiosOficiais";
 import { avisarResultado, emSegundoPlano } from "./push";
 
 /** Recusa do sorteio (dentro ou fora da transação): vira 409, nada muda. */
@@ -191,26 +191,80 @@ export async function executarSorteio(
              FOR SHARE OF q, o
         `)
       ).rows[0] as { number: number; orderId: string } | undefined;
+    // O globo (9.5): a extração que vale é a última registrada para a rifa —
+    // a da sessão, ou a nova extração do mesmo ato. Lida aqui, com a linha do
+    // sorteio travada: a nova extração trava a mesma linha.
+    let numerosGravados = r.numeros;
+    if (campaign.metodoApuracao === "globo") {
+      const [ultima] = await tx
+        .select()
+        .from(sorteioReextracoes)
+        .where(eq(sorteioReextracoes.campaignId, campaign.id))
+        .orderBy(desc(sorteioReextracoes.ordem))
+        .limit(1);
+      if (ultima) {
+        resultNumber = ultima.numero;
+        numerosGravados = ultima.bolas;
+      }
+    }
     const exato = await pago(sql`q.number = ${resultNumber}`, "asc");
-    // "A promotora completa": as cotas não vendidas são dela, então o número
-    // sorteado sempre tem dono — não vendido, o prêmio fica com a promotora.
-    const promotoraCompleta = campaign.modoSorteio === "promotora_completa";
-    const acima = exato || promotoraCompleta ? undefined : await pago(sql`q.number > ${resultNumber}`, "asc");
-    const abaixo = exato || acima || promotoraCompleta ? undefined : await pago(sql`q.number < ${resultNumber}`, "desc");
-    const winnerNumber = promotoraCompleta
-      ? resultNumber
-      : contempladoPorAproximacao({
-          sorteado: resultNumber,
-          sorteadoVendido: Boolean(exato),
-          acima: acima?.number ?? null,
-          abaixo: abaixo?.number ?? null,
-        });
-    const vencedor = exato ?? acima ?? abaixo ?? null;
+    let vencedor: { number: number; orderId: string } | null = exato ?? null;
+    let winnerNumber: number | null;
+    if (campaign.metodoApuracao === "globo") {
+      // 9.5: no globo não há aproximação. Número sem dono não sorteia: o globo
+      // gira de novo, no mesmo ato, e a plataforma registra a nova extração.
+      if (!exato) {
+        if (!(await pago(sql`true`, "asc"))) {
+          throw new SorteioRecusado("Nenhuma cota paga: não há quem contemplar. Peça o adiamento da data do sorteio.");
+        }
+        throw Object.assign(
+          new SorteioRecusado(
+            `${SORTEIO_INVALIDO}: o número ${formatQuota(resultNumber, campaign.totalQuotas, true)} não foi distribuído. Registre a nova extração do globo para esta rifa (Sorteios oficiais).`,
+          ),
+          { ressorteio: resultNumber },
+        );
+      }
+      winnerNumber = resultNumber;
+    } else if (campaign.metodoApuracao) {
+      // 9.1 a 9.3: busca alternada (+1, −1, +2, −2…) na fita circular de
+      // números pagos — inclusive a cota de bônus; reserva não paga não conta.
+      const seguinte = exato
+        ? undefined
+        : ((await pago(sql`q.number > ${resultNumber}`, "asc")) ?? (await pago(sql`true`, "asc")));
+      const anterior = exato
+        ? undefined
+        : ((await pago(sql`q.number < ${resultNumber}`, "desc")) ?? (await pago(sql`true`, "desc")));
+      winnerNumber = contempladoNaFita({
+        sorteado: resultNumber,
+        total: campaign.totalQuotas,
+        sorteadoVendido: Boolean(exato),
+        seguinte: seguinte?.number ?? null,
+        anterior: anterior?.number ?? null,
+      });
+      if (!exato) vencedor = winnerNumber === null ? null : winnerNumber === seguinte?.number ? seguinte! : anterior!;
+    } else {
+      // A rifa de antes (sem método): a regra com que ela foi vendida.
+      // "A promotora completa": as cotas não vendidas são dela, então o número
+      // sorteado sempre tem dono — não vendido, o prêmio fica com a promotora.
+      const promotoraCompleta = campaign.modoSorteio === "promotora_completa";
+      const acima = exato || promotoraCompleta ? undefined : await pago(sql`q.number > ${resultNumber}`, "asc");
+      const abaixo = exato || acima || promotoraCompleta ? undefined : await pago(sql`q.number < ${resultNumber}`, "desc");
+      winnerNumber = promotoraCompleta
+        ? resultNumber
+        : contempladoPorAproximacao({
+            sorteado: resultNumber,
+            sorteadoVendido: Boolean(exato),
+            acima: acima?.number ?? null,
+            abaixo: abaixo?.number ?? null,
+          });
+      vencedor = exato ?? acima ?? abaixo ?? null;
+    }
     const [gravado] = await tx
       .update(draws)
       .set({
         federalContest: r.concurso,
-        federalPrizes: r.numeros,
+        // No globo com nova extração, as bolas da extração que valeu: a conferência refaz a leitura delas.
+        federalPrizes: numerosGravados,
         loteria: loteriaGravada,
         resultNumber,
         winnerNumber,
@@ -270,7 +324,7 @@ export async function executarSorteio(
     loteriaNome: LOTERIAS[r.loteria].nome,
     soldToWinner: Boolean(feito.vencedor),
     // Contemplado pela regra da aproximação (o sorteado não estava vendido).
-    aproximacao: updated.winnerNumber !== null && updated.winnerNumber !== resultNumber,
+    aproximacao: updated.winnerNumber !== null && updated.winnerNumber !== updated.resultNumber,
     ficouComPromotora: campaign.modoSorteio === "promotora_completa" && !updated.winnerOrderId,
   };
 }
@@ -327,4 +381,119 @@ export async function sortearRifasPendentesDosSorteiosOficiais() {
     esperando += r.esperando;
   }
   return { sorteadas, esperando };
+}
+
+/* ------------------------------------------------------------------ *
+ * Nova extração do globo (9.5): sem aproximação, o globo gira de novo
+ * ------------------------------------------------------------------ */
+
+/** As extrações da rifa no globo, da 1ª (a da sessão) à última — a última é a que vale. */
+export async function extracoesDaRifa(
+  campaign: Pick<Campaign, "id" | "totalQuotas" | "metodoApuracao">,
+  sessao: { resultado: string[] | null; ata: unknown },
+) {
+  if (campaign.metodoApuracao !== "globo" || !sessao.resultado) return [];
+  const ata = ataGuardada(sessao.ata);
+  const novas = await db
+    .select()
+    .from(sorteioReextracoes)
+    .where(eq(sorteioReextracoes.campaignId, campaign.id))
+    .orderBy(asc(sorteioReextracoes.ordem));
+  const primeira = {
+    ordem: 1,
+    bolas: sessao.resultado,
+    horas: ata ? ata.bolas.map((b) => b.hora) : [],
+    numero: numeroInterno(lerGlobo(sessao.resultado, campaign.totalQuotas).numero, true),
+  };
+  return [primeira, ...novas.map((n) => ({ ordem: n.ordem, bolas: n.bolas, horas: n.horas, numero: n.numero }))];
+}
+
+/**
+ * Registra a nova extração do globo para a rifa cujo número não foi
+ * distribuído, e tenta sortear com ela. Só a plataforma (a rota confere).
+ * Tudo com a linha do sorteio da rifa travada (`FOR UPDATE`, depois do sorteio
+ * oficial em `FOR SHARE` — a ordem de `executarSorteio`): o número de agora
+ * precisa seguir sem dono, sem reserva esperando Pix; a ordem nova é decidida
+ * pelo índice `uq_reextracao_ordem`.
+ */
+export async function registrarNovaExtracao(sorteioId: string, campaignId: string, corpo: unknown, ator: AtorDoSorteio) {
+  const [s] = await db.select().from(sorteiosOficiais).where(eq(sorteiosOficiais.id, sorteioId));
+  if (!s || s.loteria !== "globo") throw Object.assign(new SorteioRecusado("Sessão do globo não encontrada."), { status: 404 });
+  if (s.canceladoEm) throw new SorteioRecusado("Esta sessão do globo foi cancelada.");
+  if (!s.resultado || !s.resultadoEm) throw new SorteioRecusado("Lance o resultado da sessão antes de registrar nova extração.");
+  const [campaign] = await db
+    .select()
+    .from(campaigns)
+    .where(and(eq(campaigns.id, campaignId), eq(campaigns.sorteioOficialId, s.id)));
+  if (!campaign) throw Object.assign(new SorteioRecusado("Esta rifa não está nesta sessão do globo."), { status: 404 });
+  if (campaign.metodoApuracao !== "globo") throw new SorteioRecusado("Esta rifa não é apurada pelo globo.");
+  if (campaign.status === "drawn") throw new SorteioRecusado("Esta rifa já foi sorteada.");
+  if (campaign.status !== "published") throw new SorteioRecusado("Só rifa publicada é sorteada.");
+  const ata = ataGuardada(s.ata);
+
+  const registrada = await db.transaction(async (tx) => {
+    await tx.execute(sql`SELECT id FROM sorteios_oficiais WHERE id = ${s.id}::uuid FOR SHARE`);
+    const linha = (await tx.execute(sql`SELECT executed_at FROM draws WHERE campaign_id = ${campaign.id}::uuid FOR UPDATE`)).rows[0];
+    if (!linha) throw new SorteioRecusado("Campanha sem sorteio preparado.");
+    if (linha.executed_at) throw new SorteioRecusado("Esta rifa já foi sorteada.");
+    const [ultima] = await tx
+      .select()
+      .from(sorteioReextracoes)
+      .where(eq(sorteioReextracoes.campaignId, campaign.id))
+      .orderBy(desc(sorteioReextracoes.ordem))
+      .limit(1);
+    const depoisDe = ultima ? ultima.horas[ultima.horas.length - 1] : (ata?.bolas[ata.bolas.length - 1]?.hora ?? null);
+    const v = validarNovaExtracao(corpo, depoisDe ?? null);
+    if ("problema" in v) throw Object.assign(new SorteioRecusado(v.problema), { status: 400 });
+    const atual = ultima ? ultima.numero : numeroInterno(lerGlobo(s.resultado!, campaign.totalQuotas).numero, true);
+    const reserva = (
+      await tx.execute(sql`SELECT 1 FROM quota_alloc WHERE campaign_id = ${campaign.id} AND status = 'reserved' LIMIT 1`)
+    ).rows;
+    if (reserva.length) {
+      throw new SorteioRecusado("Há cotas reservadas esperando pagamento: espere elas serem pagas ou vencerem antes de girar o globo de novo.");
+    }
+    const temDono = (
+      await tx.execute(sql`
+        SELECT q.number FROM quota_alloc q JOIN orders o ON o.id = q.order_id AND o.status = 'paid'
+         WHERE q.campaign_id = ${campaign.id} AND q.status = 'paid'
+         ORDER BY (q.number = ${atual}) DESC LIMIT 1
+      `)
+    ).rows[0] as { number: number } | undefined;
+    if (!temDono) throw new SorteioRecusado("Nenhuma cota paga: não há quem contemplar. Peça o adiamento da data do sorteio.");
+    if (Number(temDono.number) === atual) {
+      throw new SorteioRecusado(
+        `O número ${formatQuota(atual, campaign.totalQuotas, true)} foi distribuído: não cabe nova extração, a rifa sorteia com ele.`,
+      );
+    }
+    const numero = numeroInterno(lerGlobo(v.bolas, campaign.totalQuotas).numero, true);
+    const ordem = (ultima?.ordem ?? 1) + 1;
+    const [nova] = await tx
+      .insert(sorteioReextracoes)
+      .values({ campaignId: campaign.id, sorteioOficialId: s.id, ordem, bolas: v.bolas, horas: v.horas, numero, criadoPor: ator.id ?? null })
+      .returning();
+    await tx.insert(auditLog).values({
+      actorId: ator.id ?? null,
+      actorRole: ator.role ?? "sistema",
+      action: "sorteio_oficial.reextracao",
+      entity: "campaign",
+      entityId: campaign.id,
+      diff: { sorteioOficialId: s.id, ordem, bolas: v.bolas, horas: v.horas, numero, anterior: atual } as never,
+      ip: ator.ip ?? null,
+    });
+    return nova;
+  });
+
+  // Com a extração gravada, a rifa tenta sortear pelo caminho de sempre.
+  try {
+    await executarSorteio(campaign.id, { loteria: "globo", concurso: s.concurso, numeros: s.resultado, sorteioOficialId: s.id }, ator);
+    return { ordem: registrada.ordem, numero: formatQuota(registrada.numero, campaign.totalQuotas, true), sorteada: true, motivo: null };
+  } catch (e) {
+    const motivo = e instanceof SorteioRecusado ? e.message : "Erro ao sortear: a plataforma vai tentar de novo.";
+    if (!(e instanceof SorteioRecusado)) console.error(`[globo] rifa ${campaign.id}:`, e);
+    await db
+      .update(campaigns)
+      .set({ sorteioAutoMotivo: motivo.slice(0, 300), sorteioAutoEm: new Date() })
+      .where(and(eq(campaigns.id, campaign.id), eq(campaigns.status, "published")));
+    return { ordem: registrada.ordem, numero: formatQuota(registrada.numero, campaign.totalQuotas, true), sorteada: false, motivo };
+  }
 }

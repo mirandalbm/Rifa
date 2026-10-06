@@ -4,6 +4,7 @@
  * O front nunca envia preço — envia campanha e quantidade (ou os números
  * escolhidos). O total é sempre recalculado aqui, em centavos inteiros.
  */
+import { MSG_IMPEDIDO, telefoneImpedido } from "./impedidos";
 import { numeracaoZero } from "@shared/apuracao";
 import { avisarAntecipacaoDesfeita, avisarSorteioMarcado, emSegundoPlano } from "./push";
 import { SORTEIO_SEM_DATA, proximaExtracaoFederal } from "@shared/campanhaLegal";
@@ -359,6 +360,12 @@ async function prepararPedido(
     if (!cpfValido(input.buyer.cpf ?? "")) {
       throw new OrderError("Informe um CPF válido de quem está comprando: ele é exigido para gerar o Pix.", 400);
     }
+  }
+
+  // 9.4: na rifa autorizada a promotora e a plataforma não concorrem — nem
+  // pela maquininha. Antes de qualquer gravação, como o antifraude.
+  if (campaign.metodoApuracao && (await telefoneImpedido(campaign.organizationId, input.buyer.phone))) {
+    throw new OrderError(MSG_IMPEDIDO, 403);
   }
 
   // O antifraude entra antes de qualquer linha ser escrita: pedido recusado

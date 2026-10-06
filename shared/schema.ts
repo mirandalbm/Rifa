@@ -2792,7 +2792,6 @@ export const verificacoes = pgTable(
     fotoVersao: timestamp("foto_versao"),
     /** `automatico` (comparador) ou o id de quem conferiu. */
     fotoConferidaPor: text("foto_conferida_por"),
-    fotoSimilaridade: integer("foto_similaridade"),
     /**
      * Consentimento biométrico (LGPD, art. 11, I): quando foi dado, a chave
      * do texto (versão e modo) e o SHA-256 do texto exato que a pessoa leu —

@@ -156,7 +156,7 @@ arquitetura.
 | segurança do organizador: telefone aprovado, denúncias, rifa travada, banimento | `shared/seguranca.ts` (regras e varredura), `server/services/seguranca.ts`, `client/src/components/Seguranca.tsx`, `scripts/seguranca-test.ts` |
 | visão do organizador (só o próprio perfil) | `VisaoDoOrganizador` em `client/src/App.tsx`, `organizacao` em `GET /api/auth/me` |
 | central de avisos do apostador (o trevo no topo) | `server/services/notificacoes.ts`, `avisar()` em `server/services/push.ts`, `client/src/pages/Notificacoes.tsx`, `CoracaoDeAvisos` em `client/src/components/AppShell.tsx`, `scripts/push-test.ts` |
-| perfil verificado (selo de trevo): documentos, foto, fila e cores | `shared/verificacao.ts` (regras e paleta), `server/services/verificacao.ts`, `server/services/rosto.ts` (comparador), `server/routes/verificacaoRotas.ts`, `client/src/components/Verificacao.tsx`, `SeloVerificado.tsx`, `VerificacoesDaPlataforma.tsx`, `CoresDoSelo.tsx`, `scripts/verificacao-test.ts` |
+| perfil verificado (selo de trevo): documentos, foto, fila e cores | `shared/verificacao.ts` (regras e paleta), `server/services/verificacao.ts`, `client/src/components/RenovarConsentimento.tsx` (a renovação do consentimento), `server/services/rosto.ts` (comparador), `server/routes/verificacaoRotas.ts`, `client/src/components/Verificacao.tsx`, `SeloVerificado.tsx`, `VerificacoesDaPlataforma.tsx`, `CoresDoSelo.tsx`, `scripts/verificacao-test.ts` |
 | formato da publicação (retrato 4:5, quadrado 1:1, paisagem 1,91:1, vertical 9:16) e o perfil acima ou por cima | `formatoDaPeca()`/`formatoDoCarrossel()`/`perfilPorCima()` em `shared/publicacao.ts`, `probeVideoDimensions()` em `server/services/probe.ts`, `Carrossel` em `client/src/components/Publicacao.tsx`, `tests/publicacao.test.ts` |
 | publicação da rifa: carrossel de até 10 (reels e vídeos), barra de ações (trevo, comentar, republicar, compartilhar, "+" do carrinho, comprar) e legenda | `shared/publicacao.ts` (regras), `server/services/publicacao.ts`, `server/services/media.ts` (limites), `client/src/components/Publicacao.tsx`, `scripts/publicacao-test.ts` |
 | divulgação de terceiros: o afiliado (influenciador) publica com o material da organização e fotos dele, direto ou só depois da autorização dela (com foto, sempre depois), e o apostador publica texto e fotos (atrás de `publicarApostador`); o menu Criar | `shared/divulgacao.ts` (regras), `server/services/divulgacao.ts`, rotas `/divulgacoes*` em `server/routes/affiliate.ts` (afiliado), `public.ts` (apostador e página da rifa) e `admin.ts` (modo e fila), `modoDaOrganizacao`/`divulgacaoAfiliado` em `organizations`, `MenuCriar` em `client/src/components/Console.tsx`, `client/src/pages/afiliadoDivulgar.tsx`, `Publicar.tsx`, as fotos de quem publica em `client/src/components/FotosProprias.tsx`, o vídeo do afiliado em `client/src/components/VideoProprio.tsx` (`divulgacao_videos`), a agenda em `shared/agenda.ts` e `client/src/components/CampoDeAgenda.tsx`, `client/src/components/DivulgacoesDaOrganizacao.tsx`, `DivulgacoesDaRifa.tsx` (também `CartaoDeDivulgacao`, a peça no feed da vitrine, e `divulgacoesDoFeed()`/`intercalar()`), `tests/divulgacao.test.ts`, `scripts/divulgacao-test.ts` |
@@ -2045,8 +2045,23 @@ estorno.
   como estão; autorizar de novo (`POST …/consentimento`, limite por pessoa)
   só reabre a análise de quem estava `incompleto`, nunca a decisão da
   plataforma, e o mesmo texto de novo não grava nada. A fila mostra "Sem
-  autorização da foto". Verificado de antes do consentimento gravado segue
-  verificado; subir a versão do texto exige o consentimento de novo.
+  autorização da foto". **O texto é o do item 7 do advogado** (versão 3):
+  finalidade, compartilhamento e retenção sempre e, com o comparador
+  ligado, a frase da transferência internacional (art. 33, VIII). **Só vale o
+  consentimento da versão em vigor** (`consentimentoVigente()`): o de antes
+  conta como não dado em toda régua (falta, fila, aprovar a foto). **Quem
+  está verificado com o antigo, ou sem nenhum, autoriza de novo**
+  (`precisaRenovarConsentimento()`, resposta 7.3): ao entrar, a janela
+  `RenovarConsentimento` (no `PublicShell` para a conta, no `PanelShell`
+  para o afiliado; `GET …/verificacao/consentimento`, leve, `no-store`)
+  não fecha no Esc nem no fundo — sai autorizando (o selo fica) ou não
+  autorizando (o `DELETE`, que também alcança quem não tinha nada gravado, e
+  o selo sai). Passados `PRAZO_PARA_RENOVAR_CONSENTIMENTO_DIAS` (30) de
+  `CONSENTIMENTO_BIOMETRICO_DESDE`, o relógio (`tirarSelosSemConsentimentoRenovado()`,
+  trava 811019) tira o selo de quem não renovou pela mesma
+  `revogarComparacao()`, com o ator `sistema` e a auditoria
+  `verificacao.consentimento.vencido`. Subir a versão do texto exige o
+  consentimento de novo de todos.
 - **Trocar ou tirar a foto apaga o selo na transação que troca a foto**
   (`fotoMudouNaTransacao`); mexer em dado ou documento derruba a aprovação
   dos documentos. O selo público (`buyers.verificado_em`,
@@ -2056,7 +2071,9 @@ estorno.
   O comparador automático (`ROSTO_PROVEDOR=rekognition`, nasce desligado)
   só verifica acima de `LIMIAR_ROSTO` e só se a foto comparada ainda for a
   do perfil (`foto_versao` no `UPDATE`); abaixo, ou com o provedor fora,
-  **não recusa** — fica para uma pessoa.
+  **não recusa** — fica para uma pessoa. **A semelhança decide e é
+  descartada** (resposta 7.4, minimização): só o resultado fica — a coluna
+  `foto_similaridade` saiu (o `db:push` a apaga; confirme a perda do dado).
 - **O selo é um trevo com o sinal de confirmação**, com rótulo em texto
   (`ROTULO_DO_SELO`). As cores saem da paleta de 12 (`PALETA_DO_SELO`,
   contraste ≥ 3:1 nos dois temas e com o sinal branco — o teste confere),
@@ -3316,7 +3333,9 @@ organização) ganha o selo **"AO VIVO"** quando há transmissão de sorteio no 
   ganho, sem omitir preço, data e autorização, sem menores, sem spam, sem Pix
   por fora), descumprimento, **dados pessoais** (só o primeiro nome, nada fora
   da plataforma), tributos e recibo, versões e saída. A organização só soma as
-  regras dela. Mudar o texto-base **não reescreve** versão publicada (o aceite
+  regras dela. **Com a guarda, a cláusula 2 diz que a plataforma é mera
+  mandatária e agente de cobrança** (resposta 6.5 do advogado): ela
+  arrecada e repassa em nome e por conta da promotora. Mudar o texto-base **não reescreve** versão publicada (o aceite
   é prova daquele texto): `termoDoPainel()` compara o texto em vigor com o de
   hoje e o painel avisa (`desatualizado`), para a organização publicar a
   versão seguinte. `npm run afiliados` prova.

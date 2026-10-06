@@ -211,29 +211,64 @@ export function faltaNaVerificacao(
  * impressão (SHA-256) do texto exato que a pessoa viu: é a prova que a lei
  * pede de quem trata o dado (art. 8º, § 2º).
  */
-export const CONSENTIMENTO_BIOMETRICO_VERSAO = 2;
+export const CONSENTIMENTO_BIOMETRICO_VERSAO = 3;
 
 /**
- * O texto que a pessoa lê e autoriza, destacado do resto da tela: para quê,
- * o quê, quem compara, por quanto tempo, que é opcional e como revogar. Muda
- * com o comparador automático (`automatico`): se ele está ligado, a pessoa
- * precisa saber que um serviço de fora processa a imagem.
+ * Quando a versão em vigor entrou (a 3, do advogado, 06/10/2026). Quem foi
+ * verificado com uma versão anterior — ou antes de o consentimento ser
+ * gravado — precisa autorizar de novo (resposta 7.3): a tela pede ao entrar,
+ * e quem não autorizar até `PRAZO_PARA_RENOVAR_CONSENTIMENTO_DIAS` depois
+ * desta data perde o selo pelo relógio.
+ */
+export const CONSENTIMENTO_BIOMETRICO_DESDE = "2026-10-06T03:00:00.000Z";
+export const PRAZO_PARA_RENOVAR_CONSENTIMENTO_DIAS = 30;
+
+/** Até quando quem tem consentimento antigo pode renovar antes de perder o selo. */
+export function prazoParaRenovarConsentimento(): Date {
+  return new Date(Date.parse(CONSENTIMENTO_BIOMETRICO_DESDE) + PRAZO_PARA_RENOVAR_CONSENTIMENTO_DIAS * 86_400_000);
+}
+
+/**
+ * O texto que a pessoa lê e autoriza, destacado do resto da tela. A LGPD
+ * (arts. 8º e 11, I) exige consentimento específico para dado sensível: o
+ * texto diz a **finalidade**, o **compartilhamento** e a **retenção**
+ * (resposta 7.1), e, com o comparador automático ligado, a **transferência
+ * internacional** com a frase do advogado (art. 33, VIII — resposta 7.2).
  */
 export function textoDoConsentimentoBiometrico(o: { automatico: boolean }): string[] {
   return [
-    "Autorizo a plataforma a comparar a foto do meu perfil com a foto do meu documento de identidade, só para confirmar que o perfil é meu e dar o selo de perfil verificado. A comparação usa dado biométrico (LGPD, art. 11).",
+    "Finalidade: autorizo a plataforma a tratar o meu dado biométrico (a imagem do meu rosto) para verificação de identidade e prevenção a fraudes — comparar a foto do meu perfil com a foto do meu documento de identidade e, se forem da mesma pessoa, dar o selo de perfil verificado (LGPD, arts. 8º e 11, I).",
     o.automatico
-      ? "A comparação é feita por um serviço de reconhecimento facial (Amazon Rekognition), que recebe as duas imagens, devolve só o grau de semelhança e não as guarda; abaixo do limite, uma pessoa da plataforma compara."
-      : "A comparação é feita por uma pessoa da plataforma, olhando as duas imagens lado a lado.",
-    "A foto comparada é a que já aparece no meu perfil. Os documentos ficam cifrados e só a plataforma os abre, com registro de cada acesso. Guardamos o resultado (verificado ou não, e o grau de semelhança) enquanto a verificação existir.",
+      ? "Compartilhamento: a comparação é automatizada pela Amazon Web Services (Amazon Rekognition), que recebe as duas imagens, devolve só se o rosto é o mesmo e não as guarda; quando ela não confirma, uma pessoa da plataforma compara as duas imagens lado a lado."
+      : "Compartilhamento: a comparação é feita por uma pessoa da plataforma, olhando as duas imagens lado a lado; as imagens não são enviadas a ninguém de fora.",
+    ...(o.automatico
+      ? [
+          "Transferência internacional: consinto expressamente com a transferência internacional das imagens para processamento nos servidores da Amazon Web Services (AWS) localizados no exterior, exclusivamente para a finalidade de verificação automatizada (LGPD, art. 33, VIII).",
+        ]
+      : []),
+    "Retenção: nenhum modelo ou medida do rosto é guardado — terminada a comparação, fica só o resultado (verificado ou não). A foto comparada é a que já aparece no meu perfil; os documentos ficam cifrados, só a plataforma os abre e cada acesso é registrado, até eu excluir a conta.",
     "A verificação é opcional: sem ela eu compro e comento normalmente.",
-    "Posso revogar esta autorização a qualquer momento nesta mesma tela. Ao revogar, o selo sai e a foto deixa de ser comparada; ao excluir a conta, a verificação é apagada.",
+    "Posso revogar esta autorização a qualquer momento nesta mesma tela. Ao revogar, o selo sai e a foto deixa de ser comparada; ao excluir a conta, a verificação e os documentos são apagados.",
   ];
 }
 
 /** A chave do texto mostrado: a versão e o modo. A tela devolve a mesma chave ao autorizar. */
 export function chaveDoConsentimento(o: { automatico: boolean }): string {
   return `${CONSENTIMENTO_BIOMETRICO_VERSAO}:${o.automatico ? "automatico" : "manual"}`;
+}
+
+/**
+ * O consentimento gravado vale se é da versão em vigor (em qualquer modo).
+ * O de versão anterior era nulo para o advogado (faltava finalidade,
+ * retenção e compartilhamento): conta como não dado.
+ */
+export function consentimentoVigente(chave: string | null | undefined): boolean {
+  return typeof chave === "string" && chave.startsWith(`${CONSENTIMENTO_BIOMETRICO_VERSAO}:`);
+}
+
+/** Verificado com consentimento antigo ou sem nenhum: a tela pede de novo (7.3). */
+export function precisaRenovarConsentimento(status: string, chave: string | null | undefined): boolean {
+  return status === "verificado" && !consentimentoVigente(chave);
 }
 
 /* ------------------------------------------------------------------ *

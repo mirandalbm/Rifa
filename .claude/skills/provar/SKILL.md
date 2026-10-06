@@ -48,7 +48,7 @@ Pelo caminho que mudou (a mesma tabela "Onde mexer" do `CLAUDE.md`):
 | vídeo: pôster, processador, entrega em HLS e URL assinada (`videoProcessor.ts`, `media.ts`, `streamAssinatura.ts`, `streamPendentes.ts`, `posterRetroativo.ts`, `shared/stream.ts`, `client/src/lib/hls.ts`) | `poster` (com e sem `ffmpeg`; com as variáveis da entrega e `CLOUDFLARE_API_URL` local, a parte do HLS e da URL assinada), `tests/cloudflareStream.test.ts`, `tests/stream.test.ts`, `tests/streamAssinatura.test.ts`, `vitrine`, `publicacao` |
 | comentários, perfil do apostador | `comentarios` |
 | segurança do organizador | `seguranca` |
-| verificação (selo) | `verificacao` |
+| verificação (selo), consentimento biométrico e a renovação dele (`RenovarConsentimento`, relógio 811019) | `verificacao`, `isolation`, `tests/verificacao.test.ts`; mexeu no texto, `tests/legal.test.ts` |
 | publicação, carrinho, Reels | `publicacao`, `carrinho` |
 | mensagens e grupos | `mensagens`, `grupos`, `isolation` |
 | buscar (e o índice de texto: `shared/semAcentoSql.ts`, `idx_*_trgm`, `scripts/extensoes.ts`) | `buscar` (o plano com 5 mil rifas numa transação que volta) |

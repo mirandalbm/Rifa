@@ -58,6 +58,7 @@ import { caminhoDoAviso, naoLidos, rotuloDoSino, type AvisoDoPainel } from "@sha
 import { quandoPublicou } from "@shared/publicacao";
 import { apiRequest } from "@/lib/queryClient";
 import { useSession, useLogout } from "@/lib/session";
+import { RenovarConsentimento } from "@/components/RenovarConsentimento";
 import { TemaCiclo } from "@/components/TemaToggle";
 import { BotaoDoAssistente, ColunaDoAssistente, useAssistente } from "@/components/AssistenteDoPainel";
 import { papelTemIA } from "@shared/ia";
@@ -100,6 +101,7 @@ export function PublicShell({
   // A vitrine ocupa a tela toda do tablet em diante: as colunas ficam
   // coladas (1 px de linha entre elas), sem margem sobrando dos lados.
   const largura = vitrine ? "max-w-3xl md:max-w-none" : larga ? "max-w-3xl lg:max-w-6xl" : "max-w-3xl";
+  const { data: sessao } = useSession();
 
   return (
     <div className="min-h-screen bg-white lg:pl-[72px]">
@@ -120,6 +122,8 @@ export function PublicShell({
       <main className={`mx-auto ${largura} px-4 pb-8 pt-4 ${vitrine ? "md:p-0" : ""}`}>{children}</main>
       {rodape ? <RodapeDaPlataforma /> : null}
       <RodapePublico largura={largura} comRodape={Boolean(rodape)} />
+      {/* Verificado com a autorização de antes: pede de novo ao entrar (resposta 7.3). */}
+      {sessao?.buyer?.conta ? <RenovarConsentimento base="/api/public/conta/verificacao" /> : null}
     </div>
   );
 }
@@ -702,6 +706,7 @@ export function PanelShell({
         </footer>
       </div>
       {assistente.aberto ? <ColunaDoAssistente onFechar={assistente.fechar} cobrado={assistente.cobrado} /> : null}
+      {session?.role === "affiliate" ? <RenovarConsentimento base="/api/affiliate/verificacao" /> : null}
     </div>
   );
 }

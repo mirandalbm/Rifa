@@ -330,6 +330,7 @@ async function alcancaOVizinho(eu: Lado, vizinho: Lado) {
     ["PUT dados da verificação do vizinho", `/api/admin/organizacoes/${vizinho.orgId}/verificacao`, { method: "PUT", body: "{}" }],
     ["PUT documento da verificação do vizinho", `/api/admin/organizacoes/${vizinho.orgId}/verificacao/documentos/cartao_cnpj`, { method: "PUT", body: "{}" }],
     ["GET documento da verificação do vizinho", `/api/admin/organizacoes/${vizinho.orgId}/verificacao/documentos/cartao_cnpj`, {}],
+    ["GET pedido de renovação do consentimento do vizinho", `/api/admin/organizacoes/${vizinho.orgId}/verificacao/consentimento`, {}],
     ["POST endereço curto da rifa do vizinho", `/api/admin/campaigns/${c}/link-curto`, { method: "POST" }],
     ["POST editar rifa do vizinho", `/api/admin/campaigns/${c}/editar`, { method: "POST", body: '{"title":"invadida"}' }],
     ["POST adiar sorteio do vizinho", `/api/admin/campaigns/${c}/adiar`, { method: "POST", body: '{"novaData":"2099-01-01T00:00:00Z","motivo":"adiamento invadido"}' }],

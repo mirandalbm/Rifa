@@ -26,7 +26,6 @@ interface Linha {
   enviadoEm: string | null;
   nome: string;
   identificador: string;
-  similaridade: number | null;
   semAutorizacao: boolean;
 }
 
@@ -40,7 +39,6 @@ interface Detalhe {
   documentosAprovados: boolean;
   comparaFoto: boolean;
   fotoVersao: number | null;
-  similaridade: number | null;
   comparadorAutomatico: string | null;
   dados: DadosPessoa | DadosOrganizacao | null;
   documentos: { tipo: string; mime: string; tamanho: number; createdAt: string }[];
@@ -195,9 +193,7 @@ function DetalheDaVerificacao({ id }: { id: string }) {
             </div>
             <p className="mt-2 text-xs text-muted">
               {data.comparadorAutomatico
-                ? data.similaridade !== null
-                  ? `Comparador automático (${data.comparadorAutomatico}): semelhança de ${data.similaridade}% — verifica sozinho a partir de ${LIMIAR_ROSTO}%.`
-                  : `Comparador automático (${data.comparadorAutomatico}) ligado: aprovando só os documentos, ele confere a foto.`
+                ? `Comparador automático (${data.comparadorAutomatico}) ligado: verifica sozinho a partir de ${LIMIAR_ROSTO}% de semelhança; abaixo disso, a foto fica para você. A semelhança não é guardada — só o resultado.`
                 : "Comparador automático desligado: a foto é conferida aqui, por você."}
             </p>
           </section>

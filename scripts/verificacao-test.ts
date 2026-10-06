@@ -14,8 +14,8 @@ import { and, eq, inArray, sql } from "drizzle-orm";
 import { db, pool } from "../server/db";
 import { hashPassword } from "../server/auth";
 import { affiliates, auditLog, buyers, campaignStats, campaigns, organizations, users, verificacoes } from "../shared/schema";
-import { compararAutomaticamente } from "../server/services/verificacao";
-import { CORES_DO_SELO_PADRAO, chaveDoConsentimento } from "../shared/verificacao";
+import { compararAutomaticamente, tirarSelosSemConsentimentoRenovado } from "../server/services/verificacao";
+import { CORES_DO_SELO_PADRAO, chaveDoConsentimento, prazoParaRenovarConsentimento } from "../shared/verificacao";
 
 const URL = baseUrl();
 let falhas = 0;
@@ -270,7 +270,9 @@ async function main() {
     const [comSelo] = await db.select({ v: buyers.verificadoEm }).from(buyers).where(eq(buyers.id, carlaB.id));
     const [lida] = await db.select().from(verificacoes).where(eq(verificacoes.id, linha.id));
     checa("semelhança alta: verifica sozinho, e registra que foi automático",
-      certo === "verificado" && Boolean(comSelo.v) && lida.fotoConferidaPor === "automatico" && lida.fotoSimilaridade === 97);
+      certo === "verificado" && Boolean(comSelo.v) && lida.fotoConferidaPor === "automatico");
+    const colunaDaSemelhanca = await db.execute(sql`select 1 from information_schema.columns where table_name = 'verificacoes' and column_name = 'foto_similaridade'`);
+    checa("a semelhança não é guardada — só o resultado (resposta 7.4)", colunaDaSemelhanca.rows.length === 0 && !("fotoSimilaridade" in lida));
 
     console.log("\n  consentimento biométrico (gravado, revogável):");
     r = await carla.req("GET", V);
@@ -395,6 +397,44 @@ async function main() {
     await afi2.entrar(EMAIL_AFILIADO_2, "senha-afiliado-1");
     r = await afi2.req("PUT", "/api/affiliate/verificacao", dadosPessoa({ nome: "Outro Afiliado Silva", cpf: PESSOAS[2].cpf }));
     checa("o CPF que já verificou outro afiliado: 409", r.status === 409 && /outro perfil/.test(r.json?.message ?? ""), r.json?.message);
+
+    console.log("\n  renovação do consentimento (resposta 7.3):");
+    const R = "/api/public/conta/verificacao/consentimento";
+    const comoLegado = async (chave: string | null) => {
+      const quando = new Date();
+      await db
+        .update(verificacoes)
+        .set({ status: "verificado", verificadoEm: quando, consentimentoBiometricoChave: chave, consentimentoBiometricoEm: chave ? quando : null, consentimentoBiometricoHash: chave ? "0".repeat(64) : null })
+        .where(eq(verificacoes.id, linha.id));
+      await db.update(buyers).set({ verificadoEm: quando }).where(eq(buyers.id, carlaB.id));
+    };
+    const seloDaCarla = async () => Boolean((await db.select({ v: buyers.verificadoEm }).from(buyers).where(eq(buyers.id, carlaB.id)))[0]?.v);
+    await comoLegado("2:automatico");
+    r = await carla.req("GET", R);
+    checa("verificado com a autorização da versão 2: a tela pede de novo, com o texto e o prazo",
+      r.status === 200 && r.json?.renovar === true && Array.isArray(r.json?.texto) && Boolean(r.json?.renovarAte), JSON.stringify(r.json));
+    r = await anon.req("GET", R);
+    checa("sem conta: 401", r.status === 401, `HTTP ${r.status}`);
+    r = await carla.req("POST", `${V}/consentimento`, { consentimentoFoto: true, consentimentoChave: "2:automatico" });
+    checa("autorizar com a chave antiga: 409 (lê de novo)", r.status === 409, `HTTP ${r.status}`);
+    r = await carla.req("POST", `${V}/consentimento`, { consentimentoFoto: true, consentimentoChave: chaveDoConsentimento({ automatico: false }) });
+    const renovada = await carla.req("GET", R);
+    checa("autorizou o texto novo: segue verificado, com o selo, e a tela não pede mais",
+      r.status === 200 && r.json?.status === "verificado" && (await seloDaCarla()) && renovada.json?.renovar === false, `${r.json?.status} ${JSON.stringify(renovada.json)}`);
+    await comoLegado(null);
+    r = await carla.req("DELETE", `${V}/consentimento`);
+    checa("verificado sem autorização gravada que não autoriza: o selo sai (e vai à auditoria)",
+      r.status === 200 && r.json?.status !== "verificado" && !(await seloDaCarla()), `${r.json?.status}`);
+    await comoLegado("2:manual");
+    checa("antes do prazo, o relógio não mexe", (await tirarSelosSemConsentimentoRenovado(new Date())) >= 0 && (Date.now() >= prazoParaRenovarConsentimento().getTime() || (await seloDaCarla())));
+    const depoisDoPrazo = new Date(prazoParaRenovarConsentimento().getTime() + 60_000);
+    await tirarSelosSemConsentimentoRenovado(depoisDoPrazo);
+    const [vencido] = await db
+      .select()
+      .from(auditLog)
+      .where(and(eq(auditLog.action, "verificacao.consentimento.vencido"), eq(auditLog.entityId, carlaB.id)));
+    checa("passado o prazo, o relógio tira o selo de quem não renovou, com o ator sistema",
+      !(await seloDaCarla()) && vencido?.actorRole === "sistema");
 
     console.log("\n  cores do selo:");
     r = await marina.req("PUT", "/api/admin/selos", { cores: { apostador: "laranja" } });

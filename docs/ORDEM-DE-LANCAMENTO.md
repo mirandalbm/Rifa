@@ -35,9 +35,15 @@ paralelo, para não segurar o resto. Marque aqui mesmo o que for fechando.
   **Item 5 validado em 06/10/2026** (vale-brinde, itens proibidos,
   impedidos, fita circular, 30 dias de entrega, 180 dias ao Tesouro), com a
   trava do prêmio em dinheiro já no código (falta 5.1: a lista exata dos
-  itens proibidos). Faltam o item 7 e a confirmação das três frases do item 9.
-- [ ] **Contador**: guarda da comissão pela plataforma e RPA/nota dos
-  afiliados.
+  itens proibidos, confirmada depois). **Item 7 respondido em 06/10/2026**
+  (consentimento biométrico: texto novo, todos autorizam de novo, só o
+  resultado guardado — no código). **6.5, 4.2, 4.4, 4.5, 5.1 e C.1 (as três
+  frases do item 9) respondidos.** Falta só a sua decisão do 6.4 (MEI/CNPJ
+  para sacar ou RPA com retenções).
+- [ ] **Contador**: guarda da comissão pela plataforma (o advogado, 6.5: é
+  mandato — a comissão guardada **não** entra como receita da plataforma,
+  senão paga PIS/COFINS/ISS sobre dinheiro de terceiro) e RPA/nota dos
+  afiliados (6.4).
 - [ ] **Pagamento**: pedir por escrito ao Mercado Pago e ao Asaas se aceitam
   promoção comercial com autorização SPA/MF. A resposta decide o provedor
   (etapa 4).

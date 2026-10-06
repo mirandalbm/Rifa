@@ -18,6 +18,7 @@ import {
   auditLog,
 } from "@shared/schema";
 import { getPlataforma } from "../services/settings";
+import { templatePublicado } from "../services/template";
 import { FiscalError, documento, estadoFiscal, gravarNotaDoSaque, lerNotaFiscal, notaDoSaque, problemaParaSacar, salvarDadosFiscais, salvarDocumento } from "../services/fiscal";
 import { pdfDoRecibo, reciboPorCodigo } from "../services/recibos";
 import { urlDeConferencia } from "../services/urls";
@@ -299,6 +300,7 @@ affiliateRouter.get("/saldo", async (req, res, next) => {
         // (`organizacaoId` "plataforma"); o resto, por organização.
         organizacaoId: sql<string>`case when ${commissions.guardada} then 'plataforma' else ${organizations.id}::text end`,
         organizacao: sql<string>`case when ${commissions.guardada} then 'Plataforma' else ${organizations.name} end`,
+        cnpjDaOrganizacao: sql<string | null>`case when ${commissions.guardada} then null else ${organizations.cnpj} end`,
         disponivelCents: sql<number>`coalesce(sum(${commissions.amountCents}) filter (where ${commissions.status} = 'available'), 0)::int`,
         pendenteCents: sql<number>`coalesce(sum(${commissions.amountCents}) filter (where ${commissions.status} = 'pending'), 0)::int`,
       })
@@ -306,8 +308,18 @@ affiliateRouter.get("/saldo", async (req, res, next) => {
       .innerJoin(campaigns, eq(campaigns.id, commissions.campaignId))
       .innerJoin(organizations, eq(organizations.id, campaigns.organizationId))
       .where(eq(commissions.affiliateId, id))
-      .groupBy(sql`1`, sql`2`);
-    res.json(linhas);
+      .groupBy(sql`1`, sql`2`, sql`3`);
+    // Contra quem a nota fiscal do saque é emitida (resposta 11.2 do
+    // advogado): quem paga. A comissão guardada é paga pela plataforma, e a
+    // nota sai contra o CNPJ dela (os Dados da empresa publicados).
+    const empresa = linhas.some((l) => l.organizacaoId === "plataforma") ? (await templatePublicado()).template.legal : null;
+    res.json(
+      linhas.map(({ cnpjDaOrganizacao, ...l }) =>
+        l.organizacaoId === "plataforma"
+          ? { ...l, notaContra: { nome: empresa?.razaoSocial || "Plataforma", cnpj: empresa?.cnpj || null } }
+          : { ...l, notaContra: { nome: l.organizacao, cnpj: cnpjDaOrganizacao || null } },
+      ),
+    );
   } catch (err) {
     next(err);
   }

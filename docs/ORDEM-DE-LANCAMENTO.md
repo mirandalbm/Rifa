@@ -29,7 +29,9 @@ paralelo, para não segurar o resto. Marque aqui mesmo o que for fechando.
   código. **Item 3 respondido em 06/10/2026**: as regras de reembolso
   ficaram como estão, com um ajuste já no código (3.6: devolução integral em
   até 3 dias úteis; os 1 a 30 dias da promotora só no reembolso com taxa).
-  Faltam os itens 4 a 7 e a confirmação das três frases do item 9.
+  **Item 6 validado em 06/10/2026** (termo do afiliado, sem mudança; faltam
+  6.4 e 6.5, tributo e guarda). Faltam os itens 4, 5 e 7 e a confirmação
+  das três frases do item 9.
 - [ ] **Contador**: guarda da comissão pela plataforma e RPA/nota dos
   afiliados.
 - [ ] **Pagamento**: pedir por escrito ao Mercado Pago e ao Asaas se aceitam

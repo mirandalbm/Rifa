@@ -660,6 +660,14 @@ Na ordem de entrega do plano:
   promotora respondem juntas pelo art. 49 — o regresso do contrato da
   promotora é o que cobre a plataforma depois. `npm run chamados`,
   `disputa` e `solicitacoes` provam.
+- [x] **Termo do afiliado validado pelo advogado** (item 6, 06/10/2026) —
+  sem mudança no código: aceite versionado com prova (texto, versão, IP e
+  aparelho em hash), rifa presa à versão da publicação, parceria autônoma sem
+  vínculo de emprego, estorno que desfaz a comissão (compensação, CC art.
+  368), regras de divulgação (#publi, sem promessa de ganho, sem menores),
+  só o primeiro nome do comprador (minimização) e o recibo conferível.
+  Faltam 6.4 (retenção de tributo ou RPA no pagamento ao afiliado pessoa
+  física) e 6.5 (a guarda da comissão pela plataforma cria relação própria?).
 - [ ] **Homologar o globo** (você, com o advogado): quando sair, ligar o
   globo em "Métodos de apuração", cadastrar a sessão no calendário e
   combinar com o tabelionato a ata de cada sessão.

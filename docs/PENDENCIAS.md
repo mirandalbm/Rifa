@@ -634,6 +634,15 @@ Na ordem de entrega do plano:
   `[00.000.000/0001-00]` viram a razão social e o CNPJ dos Dados da empresa
   publicados em Aparência (preencha e publique o template antes). "Ver como
   fica" mostra o texto final antes de publicar.
+  **Cláusula 7 (anexos por modalidade) já vale no sistema**: em
+  Configurações, publique um anexo para cada modalidade que quiser cobrir
+  (Federal, globo, vale-brinde, bônus, entidade beneficiada). A modalidade
+  sai dos dados da rifa — o sistema não tem "Sorteio Filantrópico" nem
+  "Promoção Comercial" como tipo; a rifa filantrópica é a com entidade
+  beneficiada. Sem anexo publicado de uma modalidade, nada é barrado por ela.
+  O anexo da entidade é só aceite: o sistema não confere CEBAS. `npm run
+  anexos` prova. **Falta no ambiente**: `db:push` (tabelas `contrato_anexos`
+  e `contrato_anexo_aceites`, coluna `campaigns.contrato_anexo_ids`).
 
 - [x] **Apuração direta pela Loteria Federal (modo "Autorizado MF") e
   método liberado pela plataforma** — feito, com as respostas do advogado

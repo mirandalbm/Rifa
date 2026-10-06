@@ -22,6 +22,7 @@ import {
 } from "@shared/schema";
 import { termoAtual } from "./afiliados";
 import { contratoDaPublicacao, problemaDoContrato, TRAVA_CONTRATO } from "./contratoPromotora";
+import { anexosDaPublicacao } from "./contratoAnexos";
 import { apagarArquivosDeMidias } from "./media";
 import { commitSeed } from "./draw";
 import { validarRegulamentoExtra } from "@shared/regulamento";
@@ -154,6 +155,9 @@ export async function publishBlockers(campaignId: string): Promise<string[]> {
   // sem a trava, o contrato seria só intenção.
   const contrato = await problemaDoContrato(campaign.organizationId);
   if (contrato) blockers.push(contrato);
+  // E cada anexo por modalidade que esta rifa usa (cláusula 7): lido dos dados dela.
+  const anexos = await anexosDaPublicacao(campaign.id, campaign.organizationId);
+  if (anexos.problema) blockers.push(anexos.problema);
 
   if (!ready.some((m) => m.role === "banner")) {
     blockers.push("Falta o banner da rifa.");
@@ -307,6 +311,9 @@ export async function publishCampaign(campaignId: string): Promise<Campaign> {
     // segue ligada a ela até o fim, mesmo com versão nova depois.
     const contrato = await contratoDaPublicacao(campaign.organizationId, tx);
     if (contrato.problema) throw new CampaignRuleError(contrato.problema);
+    // Os anexos da modalidade, sob a mesma trava: os que valem agora ficam gravados na rifa.
+    const anexos = await anexosDaPublicacao(campaignId, campaign.organizationId, tx);
+    if (anexos.problema) throw new CampaignRuleError(anexos.problema);
 
     // O método de novo, agora contra a rifa travada (a promotora pode ter
     // trocado o método no rascunho entre a conferência de fora e esta). Os
@@ -350,6 +357,7 @@ export async function publishCampaign(campaignId: string): Promise<Campaign> {
         drawSeedHash: seedHash,
         termoId: termo?.id ?? null,
         contratoPromotoraId: contrato.contratoId,
+        contratoAnexoIds: anexos.ids,
         // "Quando completar": a data registrada é a máxima (8.7); encher antes
         // só antecipa `draw_at`, e esta fica de referência.
         drawAtMaximo: campaign.modoSorteio === "quando_completar" ? campaign.drawAt : null,

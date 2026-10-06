@@ -132,7 +132,7 @@ arquitetura.
 | conta do apostador (senha, confirmação, exclusão) | `shared/contaComprador.ts`, `server/services/contaComprador.ts`, `scripts/conta-test.ts` |
 | login com Google, completar CPF e telefone, ligar o Google | `shared/google.ts` (regras, claims, volta segura), `server/services/google.ts`, `server/services/contaCompleta.ts`, rotas `/conta/google/*`, `/conta/cpf` e `/conta/telefone/*` em `server/routes/public.ts`, `client/src/components/BotaoGoogle.tsx`, `CompletarConta`/`GoogleCard` em `client/src/pages/MinhasCotas.tsx`, `scripts/google-test.ts`, `tests/google.test.ts` |
 | de quem é o cliente (o que o organizador vê) | `shared/titularidade.ts` (regra) e `server/services/titularidade.ts` (SQL) |
-| contrato da plataforma com a promotora (versões, aceite da organização, trava de publicação, campos da empresa preenchidos pela plataforma) | `shared/contratoPromotora.ts` (régua do texto, `preencherContrato`), `server/services/contratoPromotora.ts` (`problemaDoContrato`, `TRAVA_CONTRATO`), `/contrato-promotora*` em `server/routes/admin.ts`, `publishBlockers`/`publishCampaign()` em `server/services/campaigns.ts`, `client/src/components/ContratoPromotoraCard.tsx` (Configurações), `scripts/contrato-promotora-test.ts`, `tests/contratoPromotora.test.ts` |
+| contrato da plataforma com a promotora (versões, aceite da organização, trava de publicação, campos da empresa preenchidos pela plataforma) | `shared/contratoPromotora.ts` (régua do texto, `preencherContrato`), `server/services/contratoPromotora.ts` (`problemaDoContrato`, `TRAVA_CONTRATO`), `/contrato-promotora*` em `server/routes/admin.ts`, `publishBlockers`/`publishCampaign()` em `server/services/campaigns.ts`, `client/src/components/ContratoPromotoraCard.tsx` (Configurações), `scripts/contrato-promotora-test.ts`, `tests/contratoPromotora.test.ts`; os anexos por modalidade (cláusula 7): `shared/contratoAnexos.ts` (modalidades e régua), `server/services/contratoAnexos.ts` (`anexosDaPublicacao`, `exigirAnexoNaRifa`), `/contrato-promotora/anexos*`, `AnexosDaOrganizacao`/`AnexosDaPlataforma` no mesmo cartão, `scripts/contrato-anexos-test.ts`, `tests/contratoAnexos.test.ts` |
 | autorização SPA/MF e data do sorteio | `shared/campanhaLegal.ts`, `salvarDadosLegais()` em `server/services/campaigns.ts`, `client/src/components/DadosLegaisCard.tsx` |
 | endereço do organizador e ordem da vitrine por região | `shared/endereco.ts` (regra), `salvarEndereco()` em `server/services/orgs.ts`, `server/services/cep.ts`, `client/src/components/EnderecoForm.tsx` |
 | perfil do organizador, seguir e sino | `shared/perfil.ts` (regras), `server/services/perfil.ts`, `client/src/pages/Perfil.tsx`, `client/src/components/Seguir.tsx`, `scripts/perfil-test.ts` |
@@ -1394,6 +1394,30 @@ permite cobrar dela depois, e o aceite é a prova.
   ficam com a impressão nula e a tela a calcula do texto guardado (o
   `UPDATE` de preenchimento está em `docs/ORDEM-DE-LANCAMENTO.md`). `npm run
   contrato` prova tudo isso.
+- **Anexos por modalidade (cláusula 7)**: além do termo geral, a plataforma
+  publica anexos com versão própria para cada modalidade
+  (`MODALIDADES_DE_ANEXO` em `shared/contratoAnexos.ts`): **Loteria Federal**
+  (`metodo_apuracao = federal_direta`), **globo**, **vale-brinde** (rifa com
+  cota premiada), **bônus** (`aceita_cota_bonus`) e **entidade beneficiada**
+  (rifa com banner de divulgação). **A modalidade sai dos dados da rifa**
+  (`modalidadesDaRifa()`), nunca de uma escolha da organização — escolher
+  seria declarar a modalidade que dispensa o anexo. Sem o aceite da versão em
+  vigor do anexo de cada modalidade da rifa, ela **não publica**
+  (`publishBlockers` e de novo na transação de `publishCampaign()`, com a
+  mesma `TRAVA_CONTRATO`, dizendo qual anexo falta); modalidade sem anexo
+  publicado não barra nada. A rifa grava os anexos com que foi publicada
+  (`campaigns.contrato_anexo_ids`) e segue neles. **Rifa já no ar que ganha
+  modalidade nova** — a primeira cota premiada ou a entidade beneficiada nova
+  — exige o anexo dela antes de gravar (`exigirAnexoNaRifa()`, 409) e o soma
+  à rifa; rascunho não é barrado ali (a publicação confere). Publicar,
+  aceitar e a prévia seguem a régua do termo geral: só a plataforma publica
+  (403 no `npm run isolation`), só a organização aceita, os campos da empresa
+  preenchidos, o mesmo texto não vira versão nova (409), a tela manda a
+  versão que leu (409 se mudou), um aceite por versão e organização. **O
+  anexo é aceite, não verificação**: o da entidade não confere o CEBAS nem
+  nada da entidade — quem assina responde. As tabelas `contrato_anexos` e
+  `contrato_anexo_aceites` e a coluna `campaigns.contrato_anexo_ids` sobem com
+  o `db:push` **antes** do código. `npm run anexos` prova.
 
 ## Arquivar e usuários — o que não pode afrouxar
 

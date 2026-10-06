@@ -47,6 +47,7 @@
     "divulgacao": "tsx scripts/divulgacao-test.ts",
     "agenda-rifa": "tsx scripts/agenda-rifa-test.ts",
     "contrato": "tsx scripts/contrato-promotora-test.ts",
+    "anexos": "tsx scripts/contrato-anexos-test.ts",
     "apuracao": "tsx scripts/apuracao-test.ts",
     "banner-divulgacao": "tsx scripts/banner-divulgacao-test.ts",
     "fiscal": "tsx scripts/fiscal-test.ts",

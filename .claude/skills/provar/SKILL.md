@@ -49,6 +49,7 @@ Pelo caminho que mudou (a mesma tabela "Onde mexer" do `CLAUDE.md`):
 | comentários, perfil do apostador | `comentarios` |
 | segurança do organizador | `seguranca`, `retencao` |
 | retenção cautelar de saldo (banimento, reembolso do patrocínio, acerto da cobrança) | `retencao`, `patrocinio`, `presente`, `seguranca`, `isolation` |
+| contrato da promotora e anexos por modalidade (`shared/contratoPromotora.ts`, `shared/contratoAnexos.ts`, `server/services/contratoPromotora.ts`, `server/services/contratoAnexos.ts`, `publishBlockers`/`publishCampaign()`) | `contrato`, `anexos`, `agenda-rifa`, `banner-divulgacao`, `comentarios`, `isolation`, `tests/contratoPromotora.test.ts`, `tests/contratoAnexos.test.ts`; mexeu no cartão, `telas` |
 | verificação (selo), consentimento biométrico e a renovação dele (`RenovarConsentimento`, relógio 811019) | `verificacao`, `isolation`, `tests/verificacao.test.ts`; mexeu no texto, `tests/legal.test.ts` |
 | publicação, carrinho, Reels | `publicacao`, `carrinho` |
 | mensagens e grupos | `mensagens`, `grupos`, `isolation` |

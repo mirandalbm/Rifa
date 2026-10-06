@@ -60,6 +60,7 @@
     "sorteio-comentarios": "tsx scripts/sorteio-comentarios-test.ts",
     "ia": "tsx scripts/ia-test.ts",
     "ia-acoes": "tsx scripts/ia-acoes-test.ts",
+    "base-ia": "tsx scripts/base-ia.ts",
     "google": "tsx scripts/google-test.ts",
     "marketing": "tsx scripts/marketing-test.ts",
     "telas": "tsx scripts/telas.ts",

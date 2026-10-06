@@ -146,8 +146,10 @@ paralelo, para não segurar o resto. Marque aqui mesmo o que for fechando.
 - [ ] Banner pago: preço do dia e vagas, e ligar o produto.
 - [ ] Patrocinadas: conferir a tabela e a conta que recebe as recargas;
   decidir sobre o botão de reembolso do saldo.
-- [ ] Assistente de IA: conta e agente no Chatbase, chave no Railway, id em
-  Aparência, preços, e cadastrar as ações como tipo Client.
+- [ ] Assistente de IA (o Lucky): conta e agente no Chatbase com as
+  instruções do roteiro e os arquivos de `npm run base-ia`, chave no Railway,
+  id em Aparência, cadastrar as 11 ações como tipo Client e ligar só para o
+  master (D8); os preços antes de liberar organização e afiliado.
 - [ ] Cloudflare Stream: ativar, token, chave de assinatura (guarde o
   `jwk`), `VIDEO_PROCESSOR=cloudflare-stream` e
   `CLOUDFLARE_STREAM_ENTREGA=hls`. Só quando houver vídeo de rifa com

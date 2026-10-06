@@ -15,7 +15,7 @@
 import { and, desc, eq, sql } from "drizzle-orm";
 import type { Request } from "express";
 import { db } from "../db";
-import { auditLog, campaigns, chamados } from "@shared/schema";
+import { affiliates, auditLog, campaigns, chamados } from "@shared/schema";
 import { NOME_DA_SITUACAO, SITUACOES_DA_RIFA, type EntradaDaAcao, type QuemUsa } from "@shared/iaAcoes";
 import type { TitularDaIA } from "@shared/ia";
 import { problemaNaLegenda, limparLegenda } from "@shared/publicacao";
@@ -26,6 +26,8 @@ import { salvarLegenda } from "./publicacao";
 import { executarEstorno } from "./chamados";
 import { getPlataforma } from "./settings";
 import { avisarRifaNova, emSegundoPlano } from "./push";
+import { estadoFiscal } from "./fiscal";
+import { MENSAGEM_SAQUE_SO_COM_CNPJ } from "@shared/fiscal";
 
 /** Recusa que volta para a IA (e para a pessoa) como texto, sem derrubar a conversa. */
 export class AcaoRecusada extends Error {
@@ -68,7 +70,7 @@ function soDoPainel(titular: TitularDaIA) {
 }
 
 export async function executarLeitura(req: Request, titular: TitularDaIA, e: EntradaDaAcao): Promise<unknown> {
-  if (e.nome !== "minhas_comissoes") soDoPainel(titular);
+  if (e.nome !== "minhas_comissoes" && e.nome !== "falta_para_sacar") soDoPainel(titular);
   switch (e.nome) {
     case "listar_rifas": {
       const situacao = e.situacao ? sql`AND c.status = ${SITUACOES_DA_RIFA[e.situacao]}` : sql``;
@@ -181,6 +183,57 @@ export async function executarLeitura(req: Request, titular: TitularDaIA, e: Ent
         guardadaPelaPlataforma: formatBRL(soma("available", true)),
         jaPaga: formatBRL(soma("paid")),
         vendasPagasPeloLink: Number(linhas<Record<string, unknown>>(v)[0]?.n ?? 0),
+      };
+    }
+    case "falta_para_publicar": {
+      // Só consulta: a mesma régua do botão (publishBlockers), sem publicar.
+      const c = await rifaNoRecorte(req, e.rifa);
+      if (c.status !== "draft") {
+        return { rifa: c.title, slug: c.slug, situacao: NOME_DA_SITUACAO[c.status] ?? c.status, podePublicar: false, falta: ["A rifa já foi publicada."] };
+      }
+      const falta = await publishBlockers(c.id);
+      return { rifa: c.title, slug: c.slug, situacao: "rascunho", podePublicar: falta.length === 0, falta };
+    }
+    case "falta_para_sacar": {
+      if (titular.tipo !== "afiliado") throw new AcaoRecusada("Esta ação é do afiliado.");
+      const [a] = await db.select({ pixKey: affiliates.pixKey }).from(affiliates).where(eq(affiliates.id, titular.id));
+      const fiscal = await estadoFiscal(titular.id, false);
+      // Por quem paga, como o saque: a plataforma (comissão guardada) ou a organização da rifa. Só o nome público.
+      const r = await db.execute(sql`
+        SELECT CASE WHEN cm.guardada THEN 'Plataforma' ELSE o.name END AS quem,
+               cm.status, COALESCE(SUM(cm.amount_cents), 0) AS total
+        FROM commissions cm
+        JOIN campaigns c ON c.id = cm.campaign_id
+        JOIN organizations o ON o.id = c.organization_id
+        WHERE cm.affiliate_id = ${titular.id}::uuid AND cm.status IN ('pending', 'available')
+        GROUP BY 1, 2
+      `);
+      const pedidos = await db.execute(sql`
+        SELECT COUNT(*) AS n FROM payouts WHERE affiliate_id = ${titular.id}::uuid AND status = 'requested'
+      `);
+      const grupos = linhas<Record<string, unknown>>(r);
+      const porQuem = [...new Set(grupos.map((g) => String(g.quem)))].map((quem) => {
+        const soma = (st: string) => grupos.filter((g) => g.quem === quem && g.status === st).reduce((t, g) => t + Number(g.total), 0);
+        return { quemPaga: quem, liberado: formatBRL(soma("available")), aguardandoSorteio: formatBRL(soma("pending")) };
+      });
+      const temLiberado = grupos.some((g) => g.status === "available" && Number(g.total) > 0);
+      const falta: string[] = [];
+      if (!a?.pixKey) falta.push("Cadastrar a chave Pix (Meus dados).");
+      if (fiscal.status !== "aprovado" || !fiscal.temCnpj) {
+        falta.push(MENSAGEM_SAQUE_SO_COM_CNPJ);
+        for (const f of fiscal.falta) falta.push(`No cadastro fiscal, falta ${f}.`);
+        if (fiscal.status === "em_analise") falta.push("O cadastro fiscal está em análise pela plataforma.");
+        if (fiscal.status === "recusado") falta.push("O cadastro fiscal foi recusado: veja o motivo em Meus dados e envie de novo.");
+      }
+      if (!temLiberado) falta.push("Não há comissão liberada agora: a comissão é liberada depois do sorteio e da janela de estorno.");
+      return {
+        podeSacar: falta.length === 0,
+        falta,
+        cadastroFiscal: fiscal.status,
+        comCnpj: fiscal.temCnpj,
+        porQuemPaga: porQuem,
+        saquesPedidosEsperandoPagamento: Number(linhas<Record<string, unknown>>(pedidos)[0]?.n ?? 0),
+        lembrete: "Cada saque vai com a nota fiscal do valor, emitida contra quem paga (a organização ou, com a comissão guardada, a plataforma).",
       };
     }
     default:

@@ -6,7 +6,7 @@
  * prova (`npm run ia`) troca o Chatbase por um de mentira. Em produção o
  * endereço é sempre o do Chatbase.
  */
-import { milicreditosUsados, textoDasPartes, type MensagemDaIA } from "@shared/ia";
+import { milicreditosUsados, semContexto, textoDasPartes, type MensagemDaIA } from "@shared/ia";
 import { chamadasDasPartes, type ChamadaDeAcao, type SaidaDaAcao } from "@shared/iaAcoes";
 
 export const CHATBASE_API_PADRAO = "https://www.chatbase.co/api/v2";
@@ -145,7 +145,8 @@ export class ClienteChatbase {
     for (const m of lista) {
       const o = (m ?? {}) as { id?: unknown; role?: unknown; parts?: unknown; createdAt?: unknown };
       if (typeof o.id !== "string" || (o.role !== "user" && o.role !== "assistant")) continue;
-      const texto = textoDasPartes(o.parts);
+      // A mensagem da pessoa sai com o contexto do papel na frente (`comContexto`): o histórico mostra só o que ela escreveu.
+      const texto = o.role === "user" ? semContexto(textoDasPartes(o.parts)) : textoDasPartes(o.parts);
       if (!texto) continue;
       const seg = Number(o.createdAt);
       saida.push({ id: o.id, papel: o.role === "user" ? "voce" : "assistente", texto, criadoEm: Number.isFinite(seg) ? seg * 1000 : 0 });

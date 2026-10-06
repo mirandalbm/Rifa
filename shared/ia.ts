@@ -121,6 +121,42 @@ export function idDaIA(userId: string): string {
   return `rifa-u-${userId}`;
 }
 
+/** O nome do assistente na coluna e nas instruções do agente. */
+export const NOME_DO_ASSISTENTE = "Lucky";
+
+/**
+ * O contexto que o agente recebe antes de cada mensagem, montado pelo
+ * servidor a partir da sessão (nunca do navegador): com quem ele fala e até
+ * onde vai o acesso dessa pessoa. **Só o Lucky do master conhece todos os
+ * painéis**; o da organização e o do afiliado só o painel de quem fala. O
+ * texto não traz nome, id nem número — só o papel. Quem barra o que cada um
+ * faz continua sendo o servidor (as ações, no recorte de `orgOf`); isto só
+ * ajusta a resposta.
+ */
+export const CONTEXTO_DO_PAPEL: Record<TitularDaIA["tipo"], string> = {
+  plataforma:
+    "Você atende a administração geral da plataforma (o master). Ela tem acesso a todos os painéis: plataforma, organizações promotoras, afiliados e cambistas. Pode explicar qualquer tela e qualquer regra.",
+  organizacao:
+    "Você atende uma organização promotora de rifas. Ela só alcança o próprio painel: as rifas, vendas, afiliados, cambistas e o atendimento dela. Não explique telas nem decisões da plataforma (aprovar verificação, banir, configurar a plataforma) nem fale de outras organizações.",
+  afiliado:
+    "Você atende um afiliado que divulga rifas e recebe comissão. Ele só alcança o painel do afiliado: links, cupons, divulgações, comissões, saque e cadastro fiscal. Não explique telas da organização nem da plataforma.",
+};
+
+const MARCA_DO_CONTEXTO = "⟦contexto do sistema⟧";
+const FIM_DO_CONTEXTO = "⟦fim do contexto⟧";
+
+/** A mensagem que sai para o Chatbase: o contexto do papel na frente, depois o que a pessoa escreveu. */
+export function comContexto(mensagem: string, tipo: TitularDaIA["tipo"]): string {
+  return `${MARCA_DO_CONTEXTO} Assistente: ${NOME_DO_ASSISTENTE}. ${CONTEXTO_DO_PAPEL[tipo]} ${FIM_DO_CONTEXTO}\n${mensagem}`;
+}
+
+/** O histórico mostra só o que a pessoa escreveu: o contexto sai. */
+export function semContexto(texto: string): string {
+  if (!texto.startsWith(MARCA_DO_CONTEXTO)) return texto;
+  const fim = texto.indexOf(FIM_DO_CONTEXTO);
+  return fim < 0 ? texto : texto.slice(fim + FIM_DO_CONTEXTO.length).replace(/^\n/, "");
+}
+
 export const MENSAGEM_IA_MAX = 2000;
 /** Por pessoa, na janela: conversa, não robô. */
 export const IA_MENSAGENS_POR_JANELA = 20;
@@ -161,6 +197,8 @@ export function problemaNaMensagemDaIA(texto: unknown): string | null {
   const t = typeof texto === "string" ? texto.trim() : "";
   if (!t) return "Escreva a mensagem.";
   if (t.length > MENSAGEM_IA_MAX) return `A mensagem passa de ${MENSAGEM_IA_MAX} caracteres.`;
+  // A marca do contexto é só do servidor: digitada, seria a pessoa se passando por outro papel.
+  if (t.includes("⟦") || t.includes("⟧")) return "A mensagem tem caracteres que o assistente não aceita (⟦ ⟧).";
   const n = normalizarParaChecar(t);
   if (EMAIL.test(n) || CPF.test(n) || TELEFONE_COM_DDD.test(n) || CELULAR_SEM_DDD.test(n) || DIGITOS_DEMAIS.test(n)) {
     return "Não envie telefone, CPF ou e-mail ao assistente — dado pessoal de cliente não sai da plataforma. Use o código do pedido ou o ID do cliente.";

@@ -13,7 +13,11 @@
  * - a versão e o aceite guardam a impressão (SHA-256) do texto, a mesma que o
  *   Postgres calcula;
  * - a rifa publicada fica ligada à versão em vigor na publicação, e segue
- *   nela quando sai versão nova.
+ *   nela quando sai versão nova;
+ * - os campos da empresa (`{{RAZAO_SOCIAL}}`, os colchetes do advogado) são
+ *   preenchidos na publicação com os Dados da empresa publicados; campo sem
+ *   dado ou desconhecido não publica (422); a prévia é só da plataforma; e a
+ *   tela avisa quando os dados mudam depois da versão.
  */
 import "dotenv/config";
 import { createHash } from "node:crypto";
@@ -23,6 +27,8 @@ import { db, pool } from "../server/db";
 import { hashPassword } from "../server/auth";
 import { publishCampaign } from "../server/services/campaigns";
 import {
+  appSettings,
+  templateVersoes,
   auditLog,
   campaignMedia,
   campaigns,
@@ -278,6 +284,68 @@ async function main() {
       .from(auditLog)
       .where(eq(auditLog.action, "contrato_promotora.publicar"));
     checa("a auditoria registra as publicações de versão", publicacoes.length >= 2, `${publicacoes.length}`);
+
+    // ------------------------------------------------ campos da empresa
+    // O template publicado ganha dados de empresa de teste; o de antes volta no fim.
+    const versoesDoTemplate = (await db.select({ id: templateVersoes.id }).from(templateVersoes)).map((v) => v.id);
+    const [rascunhoDoTemplate] = await db.select().from(appSettings).where(eq(appSettings.key, "template.rascunho"));
+    const publicarEmpresa = async (legal: Record<string, string>) => {
+      const t = await plataforma.req("GET", "/api/admin/template");
+      await plataforma.req("PUT", "/api/admin/template/rascunho", { ...t.json.rascunho, legal });
+      return plataforma.req("POST", "/api/admin/template/publicar");
+    };
+    const MODELO =
+      `TERMO DE TESTE. Entre a Plataforma [RAZÃO SOCIAL DA PLATAFORMA], inscrita no CNPJ sob o nº [00.000.000/0001-00] ` +
+      `("Plataforma"), com sede em {{ENDERECO}}, e a Promotora.\n\n${"Cláusula de teste dos campos. ".repeat(10).trim()}`;
+    const EMPRESA = { razaoSocial: "Prova Contrato Tecnologia Ltda", cnpj: "11222333000181", endereco: "Rua da Prova, 10 - Recife/PE", contato: "", encarregadoNome: "", encarregadoContato: "" };
+    try {
+      r = await orgA.req("POST", "/api/admin/contrato-promotora/previa", { texto: MODELO });
+      checa("a prévia é só da plataforma (403)", r.status === 403, `HTTP ${r.status}`);
+      r = await plataforma.req("POST", "/api/admin/contrato-promotora", { texto: `${MODELO}\nSócio: [NOME DO SÓCIO].` });
+      checa("campo que a plataforma não conhece não publica (422)", r.status === 422 && /NOME DO SÓCIO/.test(r.json?.message ?? ""), `HTTP ${r.status} ${r.json?.message ?? ""}`);
+
+      r = await publicarEmpresa({ ...EMPRESA, cnpj: "" });
+      checa("(template com a empresa sem CNPJ publicado)", r.status === 201, `HTTP ${r.status}`);
+      r = await plataforma.req("POST", "/api/admin/contrato-promotora", { texto: MODELO });
+      checa("campo sem dado na empresa não publica (422, diz qual)", r.status === 422 && /CNPJ/.test(r.json?.message ?? ""), `HTTP ${r.status} ${r.json?.message ?? ""}`);
+
+      r = await publicarEmpresa(EMPRESA);
+      const preenchido =
+        `TERMO DE TESTE. Entre a Plataforma Prova Contrato Tecnologia Ltda, inscrita no CNPJ sob o nº 11.222.333/0001-81 ` +
+        `("Plataforma"), com sede em Rua da Prova, 10 - Recife/PE, e a Promotora.\n\n${"Cláusula de teste dos campos. ".repeat(10).trim()}`;
+      r = await plataforma.req("POST", "/api/admin/contrato-promotora/previa", { texto: MODELO });
+      checa(
+        "a prévia mostra o texto preenchido, sem problema, com a impressão que terá",
+        r.status === 200 && r.json?.texto === preenchido && r.json?.problema === null && r.json?.hash === sha256(preenchido),
+        JSON.stringify(r.json?.problema ?? r.json?.texto?.slice(0, 80)),
+      );
+      r = await plataforma.req("POST", "/api/admin/contrato-promotora", { texto: MODELO });
+      const v3 = r.json?.versao as number;
+      checa("com os dados da empresa, publica", r.status === 201, `HTTP ${r.status} ${r.json?.message ?? ""}`);
+      const [cv3] = await db.select().from(contratosPromotora).where(eq(contratosPromotora.versao, v3));
+      checa(
+        "a versão guarda o texto preenchido (o que se aceita), o modelo e a impressão do preenchido",
+        cv3?.texto === preenchido && cv3?.modelo === MODELO && cv3?.textoSha256 === sha256(preenchido),
+      );
+      const gOrg = await orgA.req("GET", "/api/admin/contrato-promotora");
+      checa("a organização lê o texto já preenchido", gOrg.json?.contrato?.texto === preenchido && !/\[|\{\{/.test(gOrg.json?.contrato?.texto ?? "["));
+      let gPlat = await plataforma.req("GET", "/api/admin/contrato-promotora");
+      checa("com os mesmos dados, a versão não está desatualizada", gPlat.json?.contrato?.desatualizado === false);
+      r = await publicarEmpresa({ ...EMPRESA, endereco: "Avenida Nova, 99 - Recife/PE" });
+      // O template publicado fica 30 s na memória do servidor: a leitura espera a troca.
+      for (let i = 0; i < 40; i++) {
+        gPlat = await plataforma.req("GET", "/api/admin/contrato-promotora");
+        if (gPlat.json?.contrato?.desatualizado) break;
+        await new Promise((ok) => setTimeout(ok, 1000));
+      }
+      checa("a empresa mudou depois da versão: a tela avisa (desatualizado)", gPlat.json?.contrato?.desatualizado === true);
+      const [cv3depois] = await db.select({ t: contratosPromotora.texto }).from(contratosPromotora).where(eq(contratosPromotora.versao, v3));
+      checa("…e o texto aceito da versão não muda", cv3depois?.t === preenchido);
+    } finally {
+      await db.delete(templateVersoes).where(versoesDoTemplate.length ? notInArray(templateVersoes.id, versoesDoTemplate) : sql`true`);
+      if (rascunhoDoTemplate) await db.update(appSettings).set({ value: rascunhoDoTemplate.value }).where(eq(appSettings.key, "template.rascunho"));
+      else await db.delete(appSettings).where(eq(appSettings.key, "template.rascunho"));
+    }
   } finally {
     await limpar(await daProva());
   }

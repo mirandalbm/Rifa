@@ -581,6 +581,12 @@ export const campaigns = pgTable(
      */
     contratoPromotoraId: uuid("contrato_promotora_id"),
     /**
+     * Os anexos do contrato (por modalidade) em vigor e aceitos quando a rifa
+     * foi publicada — ou depois, quando a modalidade entrou com a rifa no ar
+     * (entidade beneficiada, cota premiada). Vazio: nenhum anexo valia.
+     */
+    contratoAnexoIds: uuid("contrato_anexo_ids").array().notNull().default(sql`'{}'::uuid[]`),
+    /**
      * O sorteio oficial da plataforma em que a rifa está integrada
      * (`sorteios_oficiais`): a data da rifa é a do concurso. Escolhido pelo
      * calendário do painel só no rascunho e trava ao publicar; fora do PATCH.
@@ -1990,6 +1996,7 @@ export const insertCampaignSchema = createInsertSchema(campaigns, {
     metodoApuracao: true,
     termoId: true,
     contratoPromotoraId: true,
+    contratoAnexoIds: true,
     // Integrar a um sorteio oficial é pelo calendário (`integrarAoSorteioOficial`), que acerta a data junto.
     sorteioOficialId: true,
     sorteioAutoMotivo: true,
@@ -2332,7 +2339,10 @@ export const contratosPromotora = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     versao: integer("versao").notNull(),
+    /** O texto já preenchido com os dados da empresa: o que as organizações leem e aceitam. */
     texto: text("texto").notNull(),
+    /** O texto como a plataforma colou, com os campos (`{{RAZAO_SOCIAL}}`…). Nulo nas versões de antes. */
+    modelo: text("modelo"),
     /** SHA-256 (hex) do texto em UTF-8: a impressão da versão, gravada ao publicar. */
     textoSha256: text("texto_sha256"),
     publicadoPor: uuid("publicado_por"),
@@ -2365,6 +2375,51 @@ export const contratoPromotoraAceites = pgTable(
     aceitoEm: timestamp("aceito_em").notNull().defaultNow(),
   },
   (t) => [uniqueIndex("uq_contrato_aceite_org").on(t.contratoId, t.organizationId)],
+);
+
+/**
+ * Anexo do contrato por modalidade (cláusula 7, `shared/contratoAnexos.ts`):
+ * uma linha por versão de cada modalidade. Publicar não sobrescreve. O texto
+ * já vem preenchido com os dados da empresa, como o contrato.
+ */
+export const contratoAnexos = pgTable(
+  "contrato_anexos",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /** federal | globo | vale_brinde | bonus | entidade */
+    modalidade: text("modalidade").notNull(),
+    versao: integer("versao").notNull(),
+    titulo: text("titulo").notNull(),
+    texto: text("texto").notNull(),
+    modelo: text("modelo"),
+    textoSha256: text("texto_sha256"),
+    publicadoPor: uuid("publicado_por"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("uq_contrato_anexo_versao").on(t.modalidade, t.versao)],
+);
+
+/** Aceite de um anexo pela organização: a mesma prova do aceite do contrato. */
+export const contratoAnexoAceites = pgTable(
+  "contrato_anexo_aceites",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    anexoId: uuid("anexo_id")
+      .notNull()
+      .references(() => contratoAnexos.id),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    userId: uuid("user_id"),
+    modalidade: text("modalidade").notNull(),
+    versao: integer("versao").notNull(),
+    texto: text("texto").notNull(),
+    textoSha256: text("texto_sha256"),
+    ipHash: text("ip_hash"),
+    deviceHash: text("device_hash"),
+    aceitoEm: timestamp("aceito_em").notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("uq_contrato_anexo_aceite_org").on(t.anexoId, t.organizationId)],
 );
 
 /**

@@ -269,7 +269,16 @@ import { conversasDenunciadasAbertas, decidirDenunciaDeConversa, detalheDaDenunc
 import { decidirDenunciaDeGrupo, detalheDaDenunciaDeGrupo, listarDenunciasDeGrupo } from "../services/grupos";
 import { decidirDenunciaDoSorteio, detalheDaDenunciaDoSorteio, listarDenunciasDoSorteio } from "../services/sorteioComentarios";
 import { EXPORTS, exportInfo, exportFilename, CSV_BOM } from "@shared/exports";
-import { aceitarContrato, contratoDaOrganizacao, contratoDaPlataforma, publicarContrato } from "../services/contratoPromotora";
+import { aceitarContrato, contratoDaOrganizacao, contratoDaPlataforma, previaDoContrato, publicarContrato } from "../services/contratoPromotora";
+import {
+  aceitarAnexo,
+  anexosDaOrganizacao,
+  anexosDaPlataforma,
+  exigirAnexoNaRifa,
+  previaDoAnexo,
+  publicarAnexo,
+} from "../services/contratoAnexos";
+import { EMPRESA_VAZIA } from "@shared/legal";
 
 export const adminRouter = Router();
 
@@ -1096,6 +1105,9 @@ adminRouter.put("/campaigns/:id/banner-divulgacao", async (req, res, next) => {
   try {
     const campaign = await assertCampaignInScope(req, req.params.id);
     const corpo = req.body && typeof req.body === "object" ? (req.body as Record<string, unknown>) : {};
+    // Entidade nova numa rifa já no ar: o anexo dela tem de estar aceito (cláusula 7).
+    // Editar a que já existe não pede de novo — a rifa já segue a versão dela.
+    if (!(await bannerDoPainel(campaign.id))) await exigirAnexoNaRifa(campaign.id, campaign.organizationId, "entidade");
     const salvo = await salvarBannerDeDivulgacao(campaign.id, campaign.organizationId, corpo);
     await audit(req, "campaign.banner_divulgacao", "campaign", campaign.id, {
       nome: salvo.nome,
@@ -1234,6 +1246,7 @@ adminRouter.post("/campaigns/:id/publish", async (req, res, next) => {
       totalQuotas: published.totalQuotas,
       seedHash: published.drawSeedHash,
       contratoPromotoraId: published.contratoPromotoraId,
+      contratoAnexoIds: published.contratoAnexoIds,
     });
     // Quem segue a organização com o sino ligado fica sabendo. Fora da
     // resposta: a tela não espera os envios, e falha de push não desfaz nada.
@@ -1532,6 +1545,9 @@ adminRouter.post("/campaigns/:id/prized", async (req, res, next) => {
       .from(prizedQuotas)
       .where(eq(prizedQuotas.campaignId, campaign.id));
     const taken = new Set(existing.map((e) => e.number));
+    // A primeira cota premiada numa rifa já no ar faz dela promoção mista: o
+    // anexo do vale-brinde tem de estar aceito (cláusula 7), e a versão fica ligada à rifa.
+    if (!existing.length) await exigirAnexoNaRifa(campaign.id, campaign.organizationId, "vale_brinde");
 
     if (taken.size + quantity > campaign.totalQuotas) {
       return res.status(409).json({ message: "Mais cotas premiadas do que cotas na rifa." });
@@ -4027,12 +4043,23 @@ adminRouter.post("/termo-afiliado", async (req, res, next) => {
 
 /* ---------------- contrato da plataforma com a promotora ---------------- */
 
+/** Os "Dados da empresa" do template publicado — os mesmos dos Termos de uso. */
+async function dadosDaEmpresaPublicados() {
+  const { template } = await templatePublicado();
+  return { ...EMPRESA_VAZIA, ...(template.legal ?? {}) };
+}
+
 /** A organização vê a versão em vigor e o aceite dela; a plataforma, as versões e quantas aceitaram. */
 adminRouter.get("/contrato-promotora", async (req, res, next) => {
   try {
     const org = orgOf(req);
     res.set("Cache-Control", "no-store");
-    res.json(org ? await contratoDaOrganizacao(org) : await contratoDaPlataforma());
+    if (org) {
+      res.json({ ...(await contratoDaOrganizacao(org)), anexos: await anexosDaOrganizacao(org) });
+    } else {
+      const empresa = await dadosDaEmpresaPublicados();
+      res.json({ ...(await contratoDaPlataforma(empresa)), anexos: await anexosDaPlataforma(empresa) });
+    }
   } catch (err) {
     next(err);
   }
@@ -4042,9 +4069,20 @@ adminRouter.get("/contrato-promotora", async (req, res, next) => {
 adminRouter.post("/contrato-promotora", async (req, res, next) => {
   try {
     requirePlatformAdmin(req);
-    const c = await publicarContrato(req.body, req.user?.id ?? null);
+    const c = await publicarContrato(req.body, req.user?.id ?? null, await dadosDaEmpresaPublicados());
     await audit(req, "contrato_promotora.publicar", "contrato_promotora", undefined, { versao: c.versao });
     res.status(201).json(c);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** Prévia: o texto com os campos preenchidos e o que falta. Só a plataforma (403 no `npm run isolation`). */
+adminRouter.post("/contrato-promotora/previa", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    res.set("Cache-Control", "no-store");
+    res.json(previaDoContrato(req.body, await dadosDaEmpresaPublicados()));
   } catch (err) {
     next(err);
   }
@@ -4057,6 +4095,43 @@ adminRouter.post("/contrato-promotora/aceite", async (req, res, next) => {
     if (!org) return res.status(403).json({ message: "Quem aceita o contrato é a organização." });
     const r = await aceitarContrato(org, req.user!.id, { versao: req.body?.versao, identidade: identify(req) });
     if (r.novo) await audit(req, "contrato_promotora.aceite", "organization", org, { versao: r.versao });
+    res.json(r);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/* ---------------- anexos do contrato por modalidade (cláusula 7) ---------------- */
+
+/** Versão nova do anexo de uma modalidade. Só a plataforma (403 no `npm run isolation`). */
+adminRouter.post("/contrato-promotora/anexos", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    const a = await publicarAnexo(req.body, req.user?.id ?? null, await dadosDaEmpresaPublicados());
+    await audit(req, "contrato_promotora.anexo.publicar", "contrato_promotora", undefined, { modalidade: a.modalidade, versao: a.versao });
+    res.status(201).json(a);
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.post("/contrato-promotora/anexos/previa", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    res.set("Cache-Control", "no-store");
+    res.json(previaDoAnexo(req.body, await dadosDaEmpresaPublicados()));
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** O aceite do anexo é da organização da sessão, como o do contrato. */
+adminRouter.post("/contrato-promotora/anexos/aceite", async (req, res, next) => {
+  try {
+    const org = orgOf(req);
+    if (!org) return res.status(403).json({ message: "Quem aceita o anexo é a organização." });
+    const r = await aceitarAnexo(org, req.user!.id, { modalidade: req.body?.modalidade, versao: req.body?.versao, identidade: identify(req) });
+    if (r.novo) await audit(req, "contrato_promotora.anexo.aceite", "organization", org, { modalidade: r.modalidade, versao: r.versao });
     res.json(r);
   } catch (err) {
     next(err);

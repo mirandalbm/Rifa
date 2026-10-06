@@ -425,16 +425,26 @@ export function AfiliadoSaques() {
                     <span className="tnum text-xs text-muted">aguardando {formatBRL(o.pendenteCents)}</span>
                   </span>
                   <span className="tnum text-green-deep">{formatBRL(o.disponivelCents)}</span>
-                  <label className="flex min-w-0 basis-full items-center gap-2 text-xs sm:basis-auto">
-                    <span className="sr-only">Nota fiscal do saque de {o.organizacao}</span>
-                    <input
-                      type="file"
-                      accept="application/pdf,.pdf,application/xml,text/xml,.xml,image/jpeg,image/png"
-                      disabled={o.disponivelCents <= 0}
-                      onChange={(e) => lerNota(o.organizacaoId, e.target.files?.[0])}
-                      className="min-w-0 max-w-full text-xs"
-                    />
-                  </label>
+                  {/* O botão é o rótulo: o campo nativo mostraria "Choose File" na língua do navegador. */}
+                  <span className="flex min-w-0 basis-full flex-wrap items-center gap-2 text-xs sm:basis-auto">
+                    <label
+                      className={`relative inline-flex items-center rounded-full border border-line px-3 py-1.5 font-semibold focus-within:ring-2 focus-within:ring-green ${o.disponivelCents <= 0 ? "opacity-50" : "cursor-pointer"}`}
+                    >
+                      {notas[o.organizacaoId] ? "Trocar a nota fiscal" : "Anexar a nota fiscal"}
+                      <span className="sr-only"> do saque de {o.organizacao}</span>
+                      <input
+                        type="file"
+                        accept="application/pdf,.pdf,application/xml,text/xml,.xml,image/jpeg,image/png"
+                        disabled={o.disponivelCents <= 0}
+                        onChange={(e) => {
+                          lerNota(o.organizacaoId, e.target.files?.[0]);
+                          e.target.value = "";
+                        }}
+                        className="sr-only"
+                      />
+                    </label>
+                    {notas[o.organizacaoId] ? <span className="min-w-0 truncate text-muted">{notas[o.organizacaoId].nome}</span> : null}
+                  </span>
                   <Button
                     className="px-3 py-1 text-xs"
                     disabled={request.isPending || o.disponivelCents <= 0 || !notas[o.organizacaoId]}

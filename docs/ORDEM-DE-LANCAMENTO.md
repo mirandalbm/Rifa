@@ -75,11 +75,13 @@ paralelo, para não segurar o resto. Marque aqui mesmo o que for fechando.
   O rascunho criado antes da apuração pela Federal fica sem método: a
   publicação pede a escolha nos dados legais (e o total em potência de 10).
   A tabela `retencoes_cautelares` (retenção de saldo no banimento) também
-  sobe aqui. E as colunas do contrato da promotora (`texto_sha256` e
-  `campaigns.contrato_promotora_id`); se já houver contrato publicado, logo
+  sobe aqui. E as colunas do contrato da promotora (`texto_sha256`,
+  `contratos_promotora.modelo` e `campaigns.contrato_promotora_id`); se já houver contrato publicado, logo
   depois, uma vez: `UPDATE contratos_promotora SET texto_sha256 =
   encode(sha256(convert_to(texto, 'UTF8')), 'hex') WHERE texto_sha256 IS NULL`
   e o mesmo em `contrato_promotora_aceites`.
+  As tabelas dos anexos do contrato (`contrato_anexos`,
+  `contrato_anexo_aceites`) e a coluna `campaigns.contrato_anexo_ids` também.
 - [ ] Deploy. Conferir a verificação de saúde e os relógios no log.
 - [ ] Conferir em Antifraude que os IPs chegam diferentes (um IP só para
   todos é proxy a mais no caminho).
@@ -119,6 +121,9 @@ paralelo, para não segurar o resto. Marque aqui mesmo o que for fechando.
 - [ ] **Aceitar o contrato da plataforma** em Configurações → Organização e
   perfil (depois que você publicar o texto do advogado lá): sem o aceite,
   nenhuma rifa dela é publicada.
+- [ ] **Aceitar os anexos das modalidades em que vai vender** (no mesmo
+  cartão): rifa da Federal, com cota premiada, com bônus ou com entidade
+  beneficiada não publica sem o anexo daquela modalidade.
 - [ ] Confirmar o telefone pelo código em Configurações; **você aprova** em
   Organizações → "Aprovar telefone" (sem isso ela não publica).
 - [ ] Endereço; foto e bio; capa, cor e links do perfil público.

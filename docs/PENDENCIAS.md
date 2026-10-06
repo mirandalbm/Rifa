@@ -378,11 +378,17 @@ Na ordem de entrega do plano:
   (coluna `campaigns.modo_sorteio`). **Para o advogado**: confirmar que o
   plano de operação aceita o modo "a promotora completa" (o prêmio pode não
   ser entregue a participante).
-- [ ] **[lançamento]** Prêmio em dinheiro e itens proibidos (Decreto
-  70.951/72, art. 10: remédio, arma, munição, explosivo, fogos, bebida
-  alcoólica, tabaco): o cadastro do prêmio é texto livre e as cotas
-  premiadas aceitam "R$ … no Pix". Confirmar com o advogado o que o plano de
-  operação permite antes de travar no código.
+- [x] **[lançamento]** Prêmio em dinheiro e itens proibidos (Decreto
+  70.951/72: remédio, arma, munição, explosivo, fogos, bebida alcoólica,
+  tabaco) — **feito** (item 5 do advogado, 06/10/2026). Na rifa com método
+  de apuração (a autorizada pela SPA/MF), o prêmio e cada cota premiada são
+  bem ou serviço: Pix, dinheiro, espécie, transferência ou só a quantia ("R$
+  50") são recusados (422) na criação, no `PATCH`, no editar do rascunho e na
+  cota premiada, e a publicação barra o que já estava gravado
+  (`problemaNoPremio()` em `shared/premio.ts`). O valor do bem pode aparecer
+  ("moto avaliada em R$ 15.000"). **Para o advogado (5.1)**: conferir se a
+  lista de itens proibidos do código (`ITENS_PROIBIDOS`) é a do decreto ou
+  se falta algum.
 - [x] Construtor de templates da plataforma (Painel → Aparência): nome,
   logo, cor de marca nos dois temas (com conferência de contraste), fonte,
   cantos, tela inicial em blocos (ligar, ordenar, título, bloco de texto),

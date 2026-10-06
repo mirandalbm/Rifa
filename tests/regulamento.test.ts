@@ -18,7 +18,7 @@ const base: DadosDoRegulamento = {
     regulamentoExtra: null,
   },
   promotora: { nome: "Rifas SJ", cnpj: "12.345.678/0001-90", endereco: "Av. Paulista, 1000 — São Paulo/SP", contato: "(11) 3333-4444" },
-  cotasPremiadas: ["R$ 100 no Pix", "R$ 100 no Pix", "R$ 50 no Pix"],
+  cotasPremiadas: ["Fone bluetooth", "Fone bluetooth", "Caixa de som"],
   taxaReembolsoPct: 10,
   aceitaReembolso: true,
 };
@@ -38,7 +38,7 @@ describe("regulamento da rifa", () => {
 
   it("cotas premiadas aparecem pela descrição, agrupadas — nunca pelo número", () => {
     const t = texto(base);
-    expect(t).toContain("2 × R$ 100 no Pix; R$ 50 no Pix");
+    expect(t).toContain("2 × Fone bluetooth; Caixa de som");
   });
 
   it("a regra de reembolso é a mesma da tela de compra", () => {
@@ -201,7 +201,7 @@ describe("quando completar com data máxima (8.7) e cotas premiadas como vale-br
     expect(t).toContain("A rifa completou: o sorteio foi antecipado para 04/11/2026");
   });
   it("cota premiada na rifa autorizada é vale-brinde: promoção mista", () => {
-    const t = texto({ ...base, rifa: { ...rifa, drawAt: "2027-01-06T22:00:00Z" }, cotasPremiadas: ["R$ 100 no Pix"] });
+    const t = texto({ ...base, rifa: { ...rifa, drawAt: "2027-01-06T22:00:00Z" }, cotasPremiadas: ["Fone bluetooth"] });
     expect(t).toContain("modalidade vale-brinde");
     expect(t).toContain("promoção mista");
     expect(texto({ ...base, rifa: { ...rifa, drawAt: "2027-01-06T22:00:00Z" }, cotasPremiadas: [] })).not.toContain("vale-brinde");

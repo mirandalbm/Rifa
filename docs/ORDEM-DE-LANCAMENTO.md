@@ -32,7 +32,10 @@ paralelo, para não segurar o resto. Marque aqui mesmo o que for fechando.
   **Item 4 validado em 06/10/2026** (cota de bônus; a cláusula dele no
   regulamento; faltam 4.2, 4.4 e 4.5). **Item 6 validado em 06/10/2026**
   (termo do afiliado, sem mudança; faltam 6.4 e 6.5, tributo e guarda).
-  Faltam os itens 5 e 7 e a confirmação das três frases do item 9.
+  **Item 5 validado em 06/10/2026** (vale-brinde, itens proibidos,
+  impedidos, fita circular, 30 dias de entrega, 180 dias ao Tesouro), com a
+  trava do prêmio em dinheiro já no código (falta 5.1: a lista exata dos
+  itens proibidos). Faltam o item 7 e a confirmação das três frases do item 9.
 - [ ] **Contador**: guarda da comissão pela plataforma e RPA/nota dos
   afiliados.
 - [ ] **Pagamento**: pedir por escrito ao Mercado Pago e ao Asaas se aceitam

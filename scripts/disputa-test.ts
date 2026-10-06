@@ -202,7 +202,7 @@ async function main() {
     await o.req("POST", `/api/admin/chamados/${C}/concluir`, { decisao: "recusado", resposta: "Pedido premiado não tem reembolso." });
     r = await c.req("POST", `/api/public/chamados/${C}/disputa`, { motivo: MOTIVO });
     checa("leva C à plataforma", r.status === 201, `HTTP ${r.status}`);
-    await db.insert(prizedQuotas).values({ campaignId: camp.id, number: 77, prizeLabel: "Pix de R$ 100", claimedByOrderId: pc.id, claimedAt: new Date() });
+    await db.insert(prizedQuotas).values({ campaignId: camp.id, number: 77, prizeLabel: "Fone bluetooth", claimedByOrderId: pc.id, claimedAt: new Date() });
     r = await adm.req("POST", `/api/admin/chamados/${C}/disputa/decidir`, { resultado: "procedente", decisao: "Tentativa de procedente em pedido premiado." });
     checa("pedido premiado não tem disputa procedente (409)", r.status === 409 && /premiado/.test(r.json?.message ?? ""), r.json?.message);
 

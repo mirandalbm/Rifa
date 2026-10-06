@@ -122,6 +122,17 @@ async function main() {
     r = await marina.req("POST", "/api/admin/campaigns", { title: "Apuração", slug: `${PREFIXO}-nova`, prizeTitle: "Moto", totalQuotas: 1000, priceCents: 500, commissionPctDefault: 10 });
     checa("rifa nova nasce com a Federal direta", r.status === 201 && r.json?.metodoApuracao === "federal_direta", `HTTP ${r.status} ${r.json?.metodoApuracao}`);
     const nova = r.json;
+    // Resposta 5 do advogado: na rifa autorizada, prêmio é bem ou serviço.
+    r = await marina.req("POST", "/api/admin/campaigns", { title: "Em dinheiro", slug: `${PREFIXO}-pix`, prizeTitle: "R$ 1.000 no Pix", totalQuotas: 1000, priceCents: 500, commissionPctDefault: 10 });
+    checa("prêmio em Pix na criação: 422", r.status === 422 && /dinheiro/.test(r.json?.message ?? ""), `HTTP ${r.status}`);
+    r = await marina.req("PATCH", `/api/admin/campaigns/${nova.id}`, { prizeTitle: "Cesta com cerveja" });
+    checa("prêmio com bebida alcoólica no PATCH: 422", r.status === 422 && /70\.951/.test(r.json?.message ?? ""), `HTTP ${r.status}`);
+    r = await marina.req("POST", `/api/admin/campaigns/${nova.id}/editar`, { prizeTitle: "Dinheiro em espécie" });
+    checa("prêmio em dinheiro no editar do rascunho: 422", r.status === 422, `HTTP ${r.status}`);
+    r = await marina.req("POST", `/api/admin/campaigns/${nova.id}/prized`, { prizeLabel: "Pix de R$ 50", quantity: 1 });
+    checa("cota premiada em Pix: 422", r.status === 422, `HTTP ${r.status}`);
+    r = await marina.req("PATCH", `/api/admin/campaigns/${nova.id}`, { prizeTitle: "Moto avaliada em R$ 15.000" });
+    checa("bem com o valor dele passa", r.status === 200, `HTTP ${r.status}`);
     r = await marina.req("PATCH", `/api/admin/campaigns/${nova.id}`, { totalQuotas: 2500 });
     checa("mudar o total para 2.500 no rascunho: 422", r.status === 422, `HTTP ${r.status}`);
     r = await marina.req("PATCH", `/api/admin/campaigns/${nova.id}`, { metodoApuracao: null, title: "Apuração" });
@@ -166,7 +177,7 @@ async function main() {
     const semMetodo = await novaRifa("sem-metodo", { status: "draft", metodoApuracao: null });
     r = await marina.req("GET", `/api/admin/campaigns/${semMetodo.c.id}/blockers`);
     checa("rascunho sem método: pede a escolha", (r.json?.blockers ?? []).some((b: string) => b.includes("Escolha o método")));
-    r = await admin.req("POST", `/api/admin/campaigns/${semMetodo.c.id}/prized`, { prizeLabel: "R$ 20", numeros: "100" });
+    r = await admin.req("POST", `/api/admin/campaigns/${semMetodo.c.id}/prized`, { prizeLabel: "Fone bluetooth", numeros: "100" });
     r = await marina.req("PUT", `/api/admin/campaigns/${semMetodo.c.id}/legal`, { metodoApuracao: "federal_direta" });
     checa("com cota premiada escolhida, trocar para a numeração a partir de zero recusa (422)", r.status === 422, `HTTP ${r.status}`);
     const total500 = await novaRifa("total-500", { status: "draft", totalQuotas: 500 });
@@ -174,12 +185,12 @@ async function main() {
     checa("rascunho com 500 cotas (de antes): não publica", (r.json?.blockers ?? []).some((b: string) => b.includes("potência") || b.includes("100, 1.000")));
 
     // Cota premiada escolhida pela plataforma: lê o número da tela (000 a 999).
-    r = await admin.req("POST", `/api/admin/campaigns/${nova.id}/prized`, { prizeLabel: "R$ 50", numeros: "000, 999" });
+    r = await admin.req("POST", `/api/admin/campaigns/${nova.id}/prized`, { prizeLabel: "Caixa de som", numeros: "000, 999" });
     checa("cota premiada escolhida pelo número da tela", r.status === 201, `HTTP ${r.status}`);
     r = await admin.req("GET", `/api/admin/campaigns/${nova.id}/prized`);
     const internos = (r.json ?? []).map((p: { number: number }) => p.number).sort((a: number, b: number) => a - b);
     checa("…e guarda o interno (000 → 1, 999 → 1000)", JSON.stringify(internos) === "[1,1000]", JSON.stringify(internos));
-    r = await admin.req("POST", `/api/admin/campaigns/${nova.id}/prized`, { prizeLabel: "R$ 50", numeros: "1000" });
+    r = await admin.req("POST", `/api/admin/campaigns/${nova.id}/prized`, { prizeLabel: "Caixa de som", numeros: "1000" });
     checa("1000 não existe numa rifa de 000 a 999: 400", r.status === 400, `HTTP ${r.status}`);
 
     // ---------------- sorteio pela leitura direta ----------------

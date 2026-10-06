@@ -37,6 +37,7 @@ import {
 import { problemaNoBonusMax } from "@shared/bonus";
 import { PROBLEMA_NO_TOTAL, loteriaDoMetodo, numeracaoZero, problemaNoMetodo, totalDaApuracao, type MetodoDeApuracao } from "@shared/apuracao";
 import { getPlataforma } from "./settings";
+import { problemaNoPremio } from "@shared/premio";
 
 export class CampaignRuleError extends Error {
   constructor(message: string) {
@@ -186,6 +187,20 @@ export async function publishBlockers(campaignId: string): Promise<string[]> {
   // plataforma liberou; sem ele (ou com ele desligado), a rifa não publica.
   const apuracao = problemaNaApuracao(campaign, (await getPlataforma()).metodosDeApuracao);
   if (apuracao) blockers.push(apuracao);
+  // Rifa autorizada pela SPA/MF não dá prêmio em dinheiro nem item proibido
+  // (resposta 5 do advogado): o prêmio e cada cota premiada.
+  if (campaign.metodoApuracao) {
+    const p = problemaNoPremio(campaign.prizeTitle, true);
+    if (p) blockers.push(`${p} (prêmio da rifa)`);
+    const rotulos = await db
+      .selectDistinct({ rotulo: prizedQuotas.prizeLabel })
+      .from(prizedQuotas)
+      .where(eq(prizedQuotas.campaignId, campaign.id));
+    for (const { rotulo } of rotulos) {
+      const q = problemaNoPremio(rotulo, true);
+      if (q) blockers.push(`${q} (cota premiada "${rotulo}")`);
+    }
+  }
   if (campaign.authorizationCode && !campaign.authorizationFileKey) {
     blockers.push("Anexe o arquivo do certificado de autorização (PDF ou imagem).");
   }

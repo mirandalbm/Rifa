@@ -97,7 +97,7 @@ arquitetura.
 | entrega do vídeo em HLS pelo Cloudflare Stream (guardar, tocar, apagar) | `shared/stream.ts` (regras), `publicar()`/`apagarDoStream()` em `server/services/videoProcessor.ts`, `gerarPosterDaMidia()`/`removeMedia()` em `server/services/media.ts`, `stream_uid`/`stream_hls`/`stream_assinado` em `campaign_media`, `server/services/streamPendentes.ts` (vídeo sem dono e a marca dos vídeos de antes, relógio), `client/src/lib/hls.ts` (`useVideoHls`), `scripts/poster-test.ts`, `tests/stream.test.ts`, `tests/streamAssinatura.test.ts`, `tests/cloudflareStream.test.ts` |
 | onde a mídia é guardada e a cópia de segurança | `server/services/storage.ts` (`LocalDiskStorage`, `CopiaS3`, `sincronizarCopia`), `/uploads` em `server/index.ts`, `tests/backup.test.ts` |
 | mensagens e modelos | `server/notifications/` |
-| cotas premiadas | `shared/premiadas.ts` (números escolhidos), `server/routes/admin.ts` (sorteio e escolha), `services/orders.ts` (revelação), `premiados` em `listarComentarios()` (o comentário fixo de quem levou), `client/src/components/CotaSurpresa.tsx` (o presente na publicação, que revela) |
+| cotas premiadas | `shared/premiadas.ts` (números escolhidos), `shared/premio.ts` (prêmio sem dinheiro nem item proibido na rifa autorizada), `server/routes/admin.ts` (sorteio e escolha), `services/orders.ts` (revelação), `premiados` em `listarComentarios()` (o comentário fixo de quem levou), `client/src/components/CotaSurpresa.tsx` (o presente na publicação, que revela) |
 | cadastro/cupom/kit do afiliado | `server/routes/public.ts`, `server/routes/affiliate.ts` |
 | afiliado de todas as organizações (vínculo, termo, aceite, colaborador) | `shared/afiliados.ts` (regras), `server/services/afiliados.ts` (`comissaoNaRifa`), `client/src/pages/afiliado.tsx` (`AfiliadoOrganizacoes`), `scripts/afiliados-test.ts` |
 | venda física e acerto | `server/routes/seller.ts`, `server/services/settlements.ts` |
@@ -2858,6 +2858,17 @@ pela portaria** — fica só para conferir a rifa sorteada sem método.
   promoção mista (sorteio + vale-brinde), autorizada nas duas modalidades no
   mesmo processo do SCPC. O cartão das cotas premiadas avisa a promotora, e o
   regulamento da rifa com método diz isso a quem compra.
+- **Prêmio é bem ou serviço, nunca dinheiro** (item 5 do advogado,
+  `problemaNoPremio()` em `shared/premio.ts`): na rifa com método, Pix,
+  dinheiro, espécie, transferência, depósito, saque ou só a quantia ("R$ 50",
+  "500 reais") no prêmio ou numa cota premiada é recusado (422) na criação, no
+  `PATCH`, no editar do rascunho e em `POST /campaigns/:id/prized`, e
+  `publishBlockers` barra o que já estava gravado. Também os itens proibidos
+  do Decreto 70.951/72 (`ITENS_PROIBIDOS`: medicamento, arma e munição,
+  explosivo e fogos, bebida alcoólica, fumo), lidos sem acento e como palavra
+  inteira ("armário" passa). O valor do bem pode aparecer ("moto avaliada em
+  R$ 15.000"). A rifa de antes, sem método, segue como era. A tela avisa
+  embaixo do campo; quem barra é o servidor.
 - As colunas `campaigns.metodo_apuracao`, `campaigns.draw_at_maximo` e
   `sorteios_oficiais.ata` e a tabela `sorteio_atas` sobem com o `db:push`
   **antes** do código. `npm run apuracao` prova tudo isso contra a API de

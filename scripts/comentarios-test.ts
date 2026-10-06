@@ -210,9 +210,9 @@ async function main() {
     checa("quem escreveu apaga o próprio", r.status === 200 && (await contador()) === 0, `HTTP ${r.status}`);
 
     console.log("\n  cota premiada escolhida e o ganhador no topo:");
-    r = await marina.req("POST", `/api/admin/campaigns/${rascunho.id}/prized`, { prizeLabel: "Pix de R$ 50", numeros: "7, 42" });
+    r = await marina.req("POST", `/api/admin/campaigns/${rascunho.id}/prized`, { prizeLabel: "Caixa de som", numeros: "7, 42" });
     checa("a organização não escolhe os números (403): o sistema sorteia", r.status === 403, `HTTP ${r.status}`);
-    r = await marina.req("POST", `/api/admin/campaigns/${rascunho.id}/prized`, { prizeLabel: "Pix de R$ 20", quantity: 2 });
+    r = await marina.req("POST", `/api/admin/campaigns/${rascunho.id}/prized`, { prizeLabel: "Fone bluetooth", quantity: 2 });
     checa("a organização sorteia", r.status === 201 && r.json?.created === 2, `HTTP ${r.status}`);
     r = await marina.req("GET", `/api/admin/campaigns/${rascunho.id}/prized`);
     checa(
@@ -223,18 +223,18 @@ async function main() {
     r = await admin.req("GET", `/api/admin/campaigns/${rascunho.id}/prized`);
     checa("a plataforma vê os números", r.json?.every((p: { number: unknown }) => typeof p.number === "number"), JSON.stringify(r.json));
     await db.delete(prizedQuotas).where(eq(prizedQuotas.campaignId, rascunho.id));
-    r = await admin.req("POST", `/api/admin/campaigns/${rascunho.id}/prized`, { prizeLabel: "Pix de R$ 50", numeros: "7, 7" });
+    r = await admin.req("POST", `/api/admin/campaigns/${rascunho.id}/prized`, { prizeLabel: "Caixa de som", numeros: "7, 7" });
     checa("número repetido é recusado", r.status === 422 || r.status === 400, `HTTP ${r.status}`);
-    r = await admin.req("POST", `/api/admin/campaigns/${rascunho.id}/prized`, { prizeLabel: "Pix de R$ 50", numeros: "101" });
+    r = await admin.req("POST", `/api/admin/campaigns/${rascunho.id}/prized`, { prizeLabel: "Caixa de som", numeros: "101" });
     checa("número fora da rifa é recusado", r.status === 422 || r.status === 400, `HTTP ${r.status}`);
-    r = await admin.req("POST", `/api/admin/campaigns/${rascunho.id}/prized`, { prizeLabel: "Pix de R$ 50", numeros: "7, 42" });
+    r = await admin.req("POST", `/api/admin/campaigns/${rascunho.id}/prized`, { prizeLabel: "Caixa de som", numeros: "7, 42" });
     checa("no cadastro (rascunho), a plataforma escolhe os números", r.status === 201 && r.json?.created === 2, `HTTP ${r.status}`);
-    r = await admin.req("POST", `/api/admin/campaigns/${rifa.id}/prized`, { prizeLabel: "Pix de R$ 50", numeros: "8" });
+    r = await admin.req("POST", `/api/admin/campaigns/${rifa.id}/prized`, { prizeLabel: "Caixa de som", numeros: "8" });
     checa("depois de publicar, escolher é recusado (409)", r.status === 409, `HTTP ${r.status}`);
     // Na rifa no ar, a cota premiada nasce como se tivesse vindo do cadastro.
-    await db.insert(prizedQuotas).values({ campaignId: rifa.id, number: 7, prizeLabel: "Pix de R$ 50" });
+    await db.insert(prizedQuotas).values({ campaignId: rifa.id, number: 7, prizeLabel: "Caixa de som" });
     r = await anon.req("GET", caminho);
-    checa("antes da compra, ninguém no topo (o número não sai)", r.json?.premiados?.length === 0 && !JSON.stringify(r.json).includes("Pix de R$ 50"));
+    checa("antes da compra, ninguém no topo (o número não sai)", r.json?.premiados?.length === 0 && !JSON.stringify(r.json).includes("Caixa de som"));
     await db.execute(sql`delete from rate_events where bucket like 'order:%'`);
     r = await ana.req("POST", "/api/public/orders", {
       campaignId: rifa.id,
@@ -250,7 +250,7 @@ async function main() {
     const g = r.json?.premiados?.[0];
     checa(
       "pago: o ganhador fica fixo no topo, com a cota e o prêmio, sem telefone",
-      g?.cota === "007" && g.premio === "Pix de R$ 50" && g.nome === "ana.comenta" && !JSON.stringify(r.json.premiados).includes(PESSOAS[0].telefone),
+      g?.cota === "007" && g.premio === "Caixa de som" && g.nome === "ana.comenta" && !JSON.stringify(r.json.premiados).includes(PESSOAS[0].telefone),
       JSON.stringify(g),
     );
     r = await marina.req("GET", `/api/admin/campaigns/${rifa.id}/prized`);

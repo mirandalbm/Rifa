@@ -96,7 +96,7 @@ function dataHora(d: string | Date | null, fuso = "America/Sao_Paulo"): string |
   })} (horário de Brasília)`;
 }
 
-/** Agrupa "R$ 100 no Pix" repetido em "3 × R$ 100 no Pix". */
+/** Agrupa "Fone bluetooth" repetido em "3 × Fone bluetooth". */
 function agrupar(premios: string[]): string[] {
   const conta = new Map<string, number>();
   for (const p of premios) conta.set(p, (conta.get(p) ?? 0) + 1);

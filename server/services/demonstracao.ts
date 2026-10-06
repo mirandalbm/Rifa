@@ -39,7 +39,7 @@ const DESTAQUES = [
 
 const NO_AR = [
   { slug: "demonstracao-moto-pop-110i", titulo: "Honda Pop 110i 0 km", cotas: 100_000, preco: 199, de: "#0B1F14", para: "#00873E" },
-  { slug: "demonstracao-pix-5-mil", titulo: "Pix de R$ 5.000", cotas: 50_000, preco: 99, de: "#06305F", para: "#0A6FD6" },
+  { slug: "demonstracao-notebook", titulo: "Notebook Dell Inspiron", cotas: 50_000, preco: 99, de: "#06305F", para: "#0A6FD6" },
   { slug: "demonstracao-smart-tv-55", titulo: "Smart TV 55\" 4K", cotas: 20_000, preco: 149, de: "#1e1b4b", para: "#6d28d9" },
 ] as const;
 
@@ -330,7 +330,7 @@ export async function preencherComExemplo(orgId: string, baseUrl = "") {
 
   // Destaques: duas rifas de exemplo já sorteadas, com foto do ganhador.
   const destaques = [
-    { sufixo: "exemplo-sorteada-1", titulo: "Pix de R$ 2.000", dias: 15 },
+    { sufixo: "exemplo-sorteada-1", titulo: "Bicicleta aro 29", dias: 15 },
     { sufixo: "exemplo-sorteada-2", titulo: "Smart TV 50\"", dias: 45 },
   ];
   for (const [i, d] of destaques.entries()) {

@@ -1096,6 +1096,9 @@ rifa, do reels e do story. Quem faz é um **processador de vídeo**
   processamento — é decisão de privacidade, ligada só pela variável.
   `tests/cloudflareStream.test.ts` prova com um Stream de mentira.
 
+- **O `ffmpeg` da produção vem do `railpack.json`** (`deploy.aptPackages`): o
+  Railway o instala na imagem. Trocar de construtor sem levar o pacote junto
+  só tira o pôster, nada quebra.
 - **Degrada, nunca quebra.** Sem `ffmpeg`, com vídeo que ele não abre, com
   prazo estourado (20 s) ou saída maior que 8 MB, o resultado é "sem pôster"
   (`null`): o envio da mídia, a publicação e o story seguem iguais, e o
@@ -1368,7 +1371,7 @@ permite cobrar dela depois, e o aceite é a prova.
   no texto** (`preencherContrato()` em `shared/contratoPromotora.ts`): os
   campos `{{RAZAO_SOCIAL}}`, `{{CNPJ}}`, `{{ENDERECO}}` e `{{EMAIL}}` (botões
   na tela) e os colchetes do advogado que dá para reconhecer
-  (`[RAZÃO SOCIAL DA PLATAFORMA]`, `[00.000.000/0001-00]`) viram os "Dados da
+  (`[RAZÃO SOCIAL DA PLATAFORMA]`, `[00.000.000/0001-00]`, `[ENDEREÇO DA PLATAFORMA]`, `[E-MAIL DA PLATAFORMA]` — o colchete em maiúsculas que cita o campo) viram os "Dados da
   empresa" **publicados** em Aparência — os mesmos dos Termos de uso. Campo
   sem dado na empresa, ou colchete em maiúsculas que não é campo
   (`[NOME DO SÓCIO]`), **não publica** (422, `problemaNoPreenchimento()`);

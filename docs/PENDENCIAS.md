@@ -878,8 +878,8 @@ Na ordem de entrega do plano:
 - [x] **Pôster dos vídeos** (rifa, reels e story): o quadro sai em segundo
   plano pelo `ffmpeg` local, se o servidor o tiver, e degrada para "sem
   pôster" sem ele (seção "Pôster do vídeo" do `CLAUDE.md`, `npm run
-  poster`). **Falta no ambiente**: instalar o `ffmpeg` na imagem de
-  produção (ou `FFMPEG_PATH`); sem ele o pôster simplesmente não sai.
+  poster`). O `ffmpeg` entra na imagem de produção pelo `railpack.json`
+  (`deploy.aptPackages`); o log do pôster diz se ele faltar.
 - [x] **[código]** Pôster pelo Cloudflare Stream (`CloudflareStream` em
   `server/services/videoProcessor.ts`, `VIDEO_PROCESSOR=cloudflare-stream`,
   `ffmpeg` de reserva). **Falta no ambiente**: ativar o Stream na conta e pôr

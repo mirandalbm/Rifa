@@ -70,4 +70,10 @@ describe("contrato da promotora", () => {
     const p = preencherContrato("Contrato (ex: Pix direto) sem campos.", EMPRESA_VAZIA);
     expect(p).toEqual({ texto: "Contrato (ex: Pix direto) sem campos.", faltando: [], desconhecidos: [] });
   });
+  it("os marcadores do advogado para endereço e e-mail da plataforma são preenchidos", () => {
+    const p = preencherContrato("Sede [ENDEREÇO DA PLATAFORMA]; contato [E-MAIL DA PLATAFORMA].", EMPRESA);
+    expect(p.desconhecidos).toEqual([]);
+    expect(p.faltando).toEqual([]);
+    expect(p.texto).not.toContain("[");
+  });
 });

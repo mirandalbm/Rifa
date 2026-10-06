@@ -68,7 +68,7 @@ paralelo, para não segurar o resto. Marque aqui mesmo o que for fechando.
 
 ## Etapa 3 — o deploy da versão inicial
 
-- [ ] Instalar o `ffmpeg` na imagem de produção (ou `FFMPEG_PATH`).
+- [x] Instalar o `ffmpeg` na imagem de produção (`railpack.json`, `deploy.aptPackages`).
 - [ ] **`npm run db:push`** (cria a extensão `pg_trgm` antes; o usuário do
   banco precisa poder criar extensão) e, **logo depois, uma vez**:
   `UPDATE stories SET publica_em = created_at WHERE publica_em > created_at`.

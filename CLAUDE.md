@@ -154,6 +154,7 @@ arquitetura.
 | bilhetes do apostador como publicações privadas (`/perfil/bilhetes`) | `shared/bilhetes.ts` (regras), `server/services/bilhetes.ts`, `GET /conta/bilhetes` em `server/routes/public.ts`, `client/src/components/BilheteComoPublicacao.tsx`, `client/src/pages/MeusBilhetes.tsx`, `scripts/bilhetes-test.ts`, `tests/bilhetes.test.ts` |
 | perfil do apostador (apelido, foto, `/u/<apelido>`) e curtidas | `shared/perfilApostador.ts`, `server/services/perfilApostador.ts`, `client/src/components/PerfilDoApostador.tsx`, `client/src/pages/Usuario.tsx`, `scripts/comentarios-test.ts` |
 | segurança do organizador: telefone aprovado, denúncias, rifa travada, banimento | `shared/seguranca.ts` (regras e varredura), `server/services/seguranca.ts`, `client/src/components/Seguranca.tsx`, `scripts/seguranca-test.ts` |
+| retenção cautelar de saldo (nasce no banimento; liberar ou abater) | `shared/retencao.ts` (regras), `server/services/retencao.ts`, `reterNaTransacao()` em `decidirDenuncia()` (`server/services/seguranca.ts`), a trava nos pagamentos (`pedirReembolso`/`decidirReembolso`/`marcarReembolsoPago` em `server/services/patrocinio.ts`, `darBaixa()` em `server/services/billing.ts`), `/retencoes*` e `/organizacoes/:id/retencao` em `server/routes/admin.ts`, `client/src/components/RetencoesCautelares.tsx` (em Cobrança), tipo `retencao` em `shared/caixa.ts`, `scripts/retencao-test.ts`, `tests/retencao.test.ts` |
 | visão do organizador (só o próprio perfil) | `VisaoDoOrganizador` em `client/src/App.tsx`, `organizacao` em `GET /api/auth/me` |
 | central de avisos do apostador (o trevo no topo) | `server/services/notificacoes.ts`, `avisar()` em `server/services/push.ts`, `client/src/pages/Notificacoes.tsx`, `CoracaoDeAvisos` em `client/src/components/AppShell.tsx`, `scripts/push-test.ts` |
 | perfil verificado (selo de trevo): documentos, foto, fila e cores | `shared/verificacao.ts` (regras e paleta), `server/services/verificacao.ts`, `client/src/components/RenovarConsentimento.tsx` (a renovação do consentimento), `server/services/rosto.ts` (comparador), `server/routes/verificacaoRotas.ts`, `client/src/components/Verificacao.tsx`, `SeloVerificado.tsx`, `VerificacoesDaPlataforma.tsx`, `CoresDoSelo.tsx`, `scripts/verificacao-test.ts` |
@@ -694,7 +695,7 @@ O verde da marca entra no lugar do roxo do kit; o significado das cores
   403 para organizador, no `npm run isolation`). `caixaDeEntrada()` junta as
   filas (chamados e disputas, pedidos de mudança de rifa, denúncias, conversas
   e grupos denunciados, comentários do sorteio oficial denunciados,
-  verificações, cadastros fiscais, banner pago, Pix a devolver) e os telefones
+  verificações, cadastros fiscais, banner pago, Pix a devolver, saldo retido) e os telefones
   por aprovar; a ordem e o
   destino de cada tipo moram em `shared/caixa.ts` (`tests/caixa.test.ts`).
   **Sem dado pessoal na lista**: organização, código do afiliado ou apelido —
@@ -2004,6 +2005,52 @@ estorno.
   publicadas travam na mesma transação). Travar e banir exigem motivo;
   auditoria antes. Destravar é da plataforma e nunca vale para banida.
 - `npm run seguranca` prova tudo isso contra a API de verdade.
+
+## Retenção cautelar de saldo — o que não pode afrouxar
+
+O contrato com a promotora diz: Pix por fora é rescisão, banimento e
+**retenção cautelar de saldo** para cobrir passivos (condenação em que a
+plataforma entrou junto, estorno, multa). A retenção é o que torna isso
+verdade no sistema.
+
+- **Só se retém o que está na conta da plataforma**: o saldo de patrocínio
+  (anúncios e banner pago), o crédito do presente ainda não repassado e o
+  reembolso do saldo aprovado e não pago. **O Pix das vendas não**: o split
+  do Asaas o entrega direto à carteira da promotora, e a tela diz isso. A
+  comissão guardada é do afiliado, não da promotora — não entra; os créditos
+  do assistente de IA não viram dinheiro — também não.
+- **Nasce no banimento, na mesma transação** (`reterNaTransacao()` dentro de
+  `decidirDenuncia()`), com o retrato dos três valores e a denúncia. A
+  plataforma também retém sem banir (suspeita em apuração, `POST
+  /organizacoes/:id/retencao`, motivo obrigatório). **Uma ativa por
+  organização** — quem decide é o índice parcial `uq_retencao_ativa_por_org`
+  (`ON CONFLICT DO NOTHING`), nunca um `SELECT` antes: dois cliques, um 201 e
+  um 409; banir quem já está retida mantém a de antes.
+- **Retido, nada sai** (`exigirSemRetencao`, 409 com `MENSAGEM_RETIDO`):
+  pedir o reembolso do saldo, aprovar e dar baixa nele. O acerto
+  (`darBaixa`) recebe as taxas que a organização deve, mas **não repassa** o
+  crédito do presente. Recusar um reembolso pode (o valor volta ao saldo, que
+  segue retido). O dinheiro não muda de lugar: só não sai.
+- **A corrida "reter × pagar" é resolvida pela linha da organização**:
+  reter pega a linha `FOR UPDATE` (o banimento já a atualiza), e todo
+  pagamento a pega `FOR UPDATE` **antes** de qualquer outra linha
+  (`temRetencaoAtiva`). `FOR UPDATE`, não `FOR SHARE`: o pagamento depois
+  mexe no saldo da mesma linha, e dois `FOR SHARE` subindo para escrita se
+  travam. Recusar o reembolso também pega a linha antes do pedido — na ordem
+  inversa, aprovar e recusar ao mesmo tempo eram deadlock e 500.
+- **Só a plataforma vê e decide** (403 para organizador, no `npm run
+  isolation`), em Cobrança → Saldo retido e na Caixa de entrada (tipo
+  `retencao`). **Liberar** devolve tudo ao normal. **Abater** usa o retido
+  para cobrir o passivo e encerra: do patrocínio, qualquer valor até o saldo,
+  pelo livro (`retencao-abate:<id>`, uma vez só); do presente, todos os
+  créditos devidos ou nenhum (`abatido` — cada um é de um pedido e não se
+  parte; `validarAbatimento()`). As duas decisões exigem motivo e são
+  `UPDATE` condicional (`ativa`) com a retenção travada: dois cliques, um 200
+  e um 409.
+- **Auditoria na mesma transação**: `retencao.criar` (com origem e os
+  valores), `retencao.liberar` e `retencao.abater`.
+- A tabela `retencoes_cautelares` sobe com o `db:push` **antes** do código.
+  `npm run retencao` prova tudo isso contra a API de verdade.
 
 ## Perfil verificado — o que não pode afrouxar
 

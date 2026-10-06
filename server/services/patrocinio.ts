@@ -58,6 +58,8 @@ import { activePaymentProvider } from "../payments";
 import { isUniqueViolation } from "../pgError";
 import { assertCampaignInScope, orgOf } from "./orgs";
 import { getPlataforma } from "./settings";
+import { exigirSemRetencao, RetencaoError, temRetencaoAtiva } from "./retencao";
+import { MENSAGEM_RETIDO } from "@shared/retencao";
 
 export class PatrocinioError extends Error {
   constructor(message: string, readonly status = 400) {
@@ -327,6 +329,8 @@ export async function pedirReembolso(req: Request, entrada: { valorCents: unknow
   if (motivo.length < 10) throw new PatrocinioError("Conte ao suporte o motivo do pedido (pelo menos 10 letras).");
   try {
     return await db.transaction(async (tx) => {
+      // Saldo retido cautelarmente não volta em dinheiro (`shared/retencao.ts`).
+      await exigirSemRetencao(tx, org);
       let p: typeof patrocinioReembolsos.$inferSelect | undefined;
       for (let i = 0; i < 5 && !p; i++) {
         [p] = await tx
@@ -383,6 +387,12 @@ export async function decidirReembolso(req: Request, id: string, entrada: { apro
   if (!Number.isInteger(retido) || retido < 0) throw new PatrocinioError("Informe o valor retido em centavos (zero se não houver).");
   if (retido > p.valorCents) throw new PatrocinioError(`O valor retido passa do pedido (${reais(p.valorCents)} reais).`);
   return db.transaction(async (tx) => {
+    // Aprovar com o saldo retido seria prometer o Pix que a retenção segura;
+    // recusar pode (o valor volta ao saldo, que segue retido). A linha da
+    // organização é travada nos dois casos, antes do pedido: recusar também
+    // mexe no saldo, e travar em ordens diferentes se travaria.
+    const saldoRetido = await temRetencaoAtiva(tx, p.organizationId);
+    if (aprovar && saldoRetido) throw new RetencaoError(MENSAGEM_RETIDO, 409);
     const [atual] = await tx.select({ status: patrocinioReembolsos.status }).from(patrocinioReembolsos).where(eq(patrocinioReembolsos.id, p.id)).for("update");
     if (atual?.status !== "aberto") throw new PatrocinioError("Este pedido já foi decidido.", 409);
     const [feito] = await tx
@@ -417,13 +427,16 @@ export async function decidirReembolso(req: Request, id: string, entrada: { apro
 export async function marcarReembolsoPago(req: Request, id: string) {
   if (orgOf(req)) throw new PatrocinioError("Só a plataforma dá baixa no reembolso.", 403);
   const p = await reembolsoNoRecorte(req, id);
-  const [feito] = await db
-    .update(patrocinioReembolsos)
-    .set({ status: "pago", pagoEm: new Date() })
-    .where(and(eq(patrocinioReembolsos.id, p.id), eq(patrocinioReembolsos.status, "aprovado")))
-    .returning();
-  if (!feito) throw new PatrocinioError("Só pedido aprovado e ainda não pago recebe baixa.", 409);
-  return feito;
+  return db.transaction(async (tx) => {
+    await exigirSemRetencao(tx, p.organizationId);
+    const [feito] = await tx
+      .update(patrocinioReembolsos)
+      .set({ status: "pago", pagoEm: new Date() })
+      .where(and(eq(patrocinioReembolsos.id, p.id), eq(patrocinioReembolsos.status, "aprovado")))
+      .returning();
+    if (!feito) throw new PatrocinioError("Só pedido aprovado e ainda não pago recebe baixa.", 409);
+    return feito;
+  });
 }
 
 /** Os pedidos com a conversa, no recorte de quem olha. Abertos e a pagar primeiro. */

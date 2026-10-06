@@ -605,11 +605,21 @@ Na ordem de entrega do plano:
   publicada, nada muda. `npm run contrato` prova. **Falta no ambiente**:
   `db:push` (tabelas `contratos_promotora` e `contrato_promotora_aceites`)
   antes do código.
+- [x] **[código]** **Retenção cautelar de saldo** (o contrato prevê retenção
+  no Pix por fora): banir retém na mesma transação o que está na conta da
+  plataforma em nome da organização — saldo de patrocínio, crédito do
+  presente, reembolso aprovado —, e nada disso sai até a plataforma liberar ou
+  abater (Cobrança → Saldo retido, e a Caixa de entrada). Também dá para reter
+  sem banir. O Pix das vendas não é retido: o split o entrega direto à
+  promotora. `npm run retencao` prova. **Falta no ambiente**: `db:push`
+  (tabela `retencoes_cautelares`) antes do código.
 - [ ] **[você]** Receber do advogado o contrato (regresso com custas e
   honorários, autorização SPA/MF e IR por conta da promotora, Pix por fora =
   rescisão, banimento e retenção de saldo, prêmio existente, lícito e
   desembaraçado) e publicá-lo em Configurações → Organização e perfil. Até
-  lá, nenhuma organização é barrada.
+  lá, nenhuma organização é barrada. **A minuta chega em 09/10/2026.** A
+  cláusula da retenção deve falar em "saldos e créditos mantidos na
+  plataforma" — o Pix com split nunca passa por ela.
 
 - [x] **Apuração direta pela Loteria Federal (modo "Autorizado MF") e
   método liberado pela plataforma** — feito, com as respostas do advogado

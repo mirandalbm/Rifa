@@ -74,6 +74,8 @@ paralelo, para não segurar o resto. Marque aqui mesmo o que for fechando.
   `UPDATE stories SET publica_em = created_at WHERE publica_em > created_at`.
   O rascunho criado antes da apuração pela Federal fica sem método: a
   publicação pede a escolha nos dados legais (e o total em potência de 10).
+  A tabela `retencoes_cautelares` (retenção de saldo no banimento) também
+  sobe aqui.
 - [ ] Deploy. Conferir a verificação de saúde e os relógios no log.
 - [ ] Conferir em Antifraude que os IPs chegam diferentes (um IP só para
   todos é proxy a mais no caminho).

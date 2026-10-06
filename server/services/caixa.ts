@@ -14,7 +14,7 @@ import { LOTERIAS } from "@shared/sorteiosOficiais";
  * afiliado ou apelido — nunca telefone, CPF ou nome de comprador.
  */
 export async function caixaDeEntrada(): Promise<PendenciaDaCaixa[]> {
-  const [chamados, solicitacoes, denuncias, verificacoes, fiscais, telefones, banners, conversas, gruposDenunciados, pixTardios, comentariosDoSorteio] = await Promise.all([
+  const [chamados, solicitacoes, denuncias, verificacoes, fiscais, telefones, banners, conversas, gruposDenunciados, pixTardios, comentariosDoSorteio, retencoes] = await Promise.all([
     db.execute(sql`
       SELECT ch.id, ch.disputa, ch.created_at AS desde, o.name AS org, ch.protocolo, ord.code AS pedido
         FROM chamados ch
@@ -95,6 +95,13 @@ export async function caixaDeEntrada(): Promise<PendenciaDaCaixa[]> {
         JOIN sorteios_oficiais s ON s.id = d.sorteio_oficial_id
        WHERE d.status = 'aberta'
        ORDER BY d.created_at LIMIT 200`),
+    // Saldo retido cautelarmente: espera a plataforma liberar ou abater.
+    db.execute(sql`
+      SELECT r.id, r.criado_em AS desde, r.origem, o.name AS org
+        FROM retencoes_cautelares r
+        JOIN organizations o ON o.id = r.organization_id
+       WHERE r.status = 'ativa'
+       ORDER BY r.criado_em LIMIT 200`),
   ]);
 
   const iso = (d: unknown) => new Date(d as string | Date).toISOString();
@@ -141,6 +148,15 @@ export async function caixaDeEntrada(): Promise<PendenciaDaCaixa[]> {
       tipo: "pix_tardio",
       quem: r.org ?? "Plataforma",
       oQue: `Pix pago ${r.motivo === "depois_do_sorteio" ? "depois do sorteio" : "com a reserva vencida"} — pedido ${r.pedido}, ${formatBRL(Number(r.valor_cents))} a devolver`,
+      desde: iso(r.desde),
+    });
+  }
+  for (const r of retencoes.rows as any[]) {
+    linhas.push({
+      chave: `retencao:${r.id}`,
+      tipo: "retencao",
+      quem: r.org,
+      oQue: `Saldo retido ${r.origem === "banimento" ? "no banimento" : "pela plataforma"} — liberar ou abater`,
       desde: iso(r.desde),
     });
   }

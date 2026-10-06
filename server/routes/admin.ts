@@ -11,6 +11,7 @@ import {
 import { agendarPublicacao } from "../services/publicacaoAgendada";
 import { enviarComFaixa, enviarFaixaDoBanco } from "../services/faixa";
 import { devolverPixTardio, listarPixTardios, resolverPixTardio } from "../services/pixTardio";
+import { abaterRetencao, liberarRetencao, listarRetencoes, reterManual } from "../services/retencao";
 import { numerosPremiados } from "@shared/premiadas";
 import express, { Router, type Request, type Response as Resposta } from "express";
 import {
@@ -696,6 +697,44 @@ adminRouter.post("/organizacoes/:id/telefone/aprovar", async (req, res, next) =>
     requirePlatformAdmin(req);
     await audit(req, "organizacao.telefone.aprovado", "organization", req.params.id, {});
     res.json(await aprovarTelefone(req, req.params.id));
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * Retenção cautelar de saldo (`shared/retencao.ts`): nasce no banimento ou
+ * pela plataforma; só a plataforma vê, libera e abate (403 para organizador,
+ * no `npm run isolation`). A auditoria vai na transação do serviço.
+ */
+adminRouter.get("/retencoes", async (req, res, next) => {
+  try {
+    res.setHeader("Cache-Control", "no-store");
+    res.json(await listarRetencoes(req));
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.post("/organizacoes/:id/retencao", async (req, res, next) => {
+  try {
+    res.status(201).json(await reterManual(req, req.params.id, req.body?.motivo));
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.post("/retencoes/:id/liberar", async (req, res, next) => {
+  try {
+    res.json(await liberarRetencao(req, req.params.id, req.body?.motivo));
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.post("/retencoes/:id/abater", async (req, res, next) => {
+  try {
+    res.json(await abaterRetencao(req, req.params.id, req.body ?? {}));
   } catch (err) {
     next(err);
   }

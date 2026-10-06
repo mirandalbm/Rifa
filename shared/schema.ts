@@ -2046,7 +2046,7 @@ export const presenteCreditos = pgTable(
       .references(() => organizations.id, { onDelete: "cascade" }),
     orderId: uuid("order_id").notNull(),
     amountCents: integer("amount_cents").notNull(),
-    /** devido → pago (acerto) ou cancelado (estorno). */
+    /** devido → pago (acerto), cancelado (estorno) ou abatido (retenção cautelar). */
     status: text("status").notNull().default("devido"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     pagoEm: timestamp("pago_em"),
@@ -3357,4 +3357,41 @@ export const pixTardios = pgTable(
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (t) => [uniqueIndex("uq_pix_tardio_pedido").on(t.orderId), index("idx_pix_tardios_status").on(t.status, t.createdAt)],
+);
+
+/**
+ * Retenção cautelar de saldo (contrato com a promotora): enquanto `ativa`,
+ * nada que a plataforma deve à organização sai da conta dela — saldo de
+ * patrocínio em dinheiro, crédito do presente, reembolso do saldo aprovado.
+ * Nasce no banimento (mesma transação) ou pela plataforma; termina liberada
+ * ou abatida. Uma ativa por organização (o índice decide). Os valores são o
+ * retrato da hora em que nasceu; o de agora é lido na tela.
+ */
+export const retencoesCautelares = pgTable(
+  "retencoes_cautelares",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    /** ativa | liberada | abatida */
+    status: text("status").notNull().default("ativa"),
+    /** banimento | manual */
+    origem: text("origem").notNull(),
+    motivo: text("motivo").notNull(),
+    denunciaId: uuid("denuncia_id"),
+    patrocinioCents: integer("patrocinio_cents").notNull().default(0),
+    presenteCents: integer("presente_cents").notNull().default(0),
+    reembolsoCents: integer("reembolso_cents").notNull().default(0),
+    criadoPor: uuid("criado_por"),
+    criadoEm: timestamp("criado_em").notNull().defaultNow(),
+    decisao: text("decisao"),
+    abatidoCents: integer("abatido_cents"),
+    decididoPor: uuid("decidido_por"),
+    decididoEm: timestamp("decidido_em"),
+  },
+  (t) => [
+    uniqueIndex("uq_retencao_ativa_por_org").on(t.organizationId).where(sql`status = 'ativa'`),
+    index("idx_retencoes_status").on(t.status, t.criadoEm),
+  ],
 );

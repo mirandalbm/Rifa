@@ -15,6 +15,7 @@
 import { and, eq, sql, desc, isNull } from "drizzle-orm";
 import { db } from "../db";
 import { organizations, platformCharges, orders, campaigns, presenteCreditos } from "@shared/schema";
+import { temRetencaoAtiva } from "./retencao";
 import { PAGINA_PADRAO, cortarPagina, type CursorDaLista } from "@shared/paginacao";
 import {
   validateBillingPlan,
@@ -262,6 +263,9 @@ export async function darBaixa(organizationId: string): Promise<number> {
         ),
       )
       .returning({ id: platformCharges.id });
+    // Saldo retido cautelarmente: a organização paga o que deve, mas o
+    // crédito do presente fica (`shared/retencao.ts`).
+    if (await temRetencaoAtiva(tx, organizationId)) return linhas.length;
     const creditos = await tx
       .update(presenteCreditos)
       .set({ status: "pago", pagoEm: agora })

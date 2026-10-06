@@ -34,6 +34,7 @@ import { isUniqueViolation } from "../pgError";
 import { notify, notificationProvider } from "../notifications";
 import { guardOtp, hit, identify } from "./antifraude";
 import { orgOf } from "./orgs";
+import { reterNaTransacao } from "./retencao";
 
 export class SegurancaError extends Error {
   constructor(message: string, readonly status = 400) {
@@ -358,6 +359,18 @@ export async function decidirDenuncia(req: Request, id: string, entrada: { acao?
         .update(organizations)
         .set({ banidaEm: agora, banidaMotivo: resposta, active: false })
         .where(eq(organizations.id, d.organizationId));
+      // Retenção cautelar do saldo que está na conta da plataforma
+      // (`shared/retencao.ts`), na mesma transação: nada sai até a
+      // plataforma liberar ou abater. Já retida antes, fica a de antes.
+      await reterNaTransacao(tx, {
+        organizationId: d.organizationId,
+        origem: "banimento",
+        motivo: resposta,
+        denunciaId: id,
+        userId: req.user!.id,
+        actorRole: req.user!.role,
+        ip: req.ip,
+      });
       // Todas as rifas da banida param de vender na hora.
       await tx
         .update(campaigns)

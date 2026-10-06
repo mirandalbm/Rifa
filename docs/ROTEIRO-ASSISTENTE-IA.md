@@ -221,7 +221,9 @@ o preço já calibrado. O afiliado por último.
    instruções acima, gera a base com os dados de produção —
    `npm run base-ia -- --do-site https://<o site>` (lê as rotas públicas,
    sem tocar no banco; publique antes os Dados da empresa, senão os Termos e a
-   Privacidade da base saem "ainda não publicados"). Sem computador: no
+   Privacidade da base saem "ainda não publicados"; sem o provedor do Pix
+   configurado, a rota da regra de reembolso cai e a base sai com a regra
+   padrão, avisando no cabeçalho de cada arquivo). Sem computador: no
    GitHub, Actions → "Base do Lucky" → Run workflow
    (`.github/workflows/base-ia.yml`), e os 8 arquivos ficam para baixar na
    execução e sobe os 8 arquivos em Sources → Files, cadastra as 11

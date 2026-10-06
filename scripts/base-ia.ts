@@ -54,6 +54,8 @@ interface Fonte {
   template: Template;
   reembolso: { aceita: boolean; taxaPct: number };
   doBanco: boolean;
+  /** A regra de reembolso não veio do site (a rota caiu): vale o padrão, e o arquivo diz isso. */
+  reembolsoDoPadrao?: boolean;
 }
 
 async function lerFonte(): Promise<Fonte> {
@@ -65,12 +67,24 @@ async function lerFonte(): Promise<Fonte> {
       if (!r.ok) throw new Error(`${caminho}: HTTP ${r.status}`);
       return r.json() as Promise<Record<string, unknown>>;
     };
-    const [t, c] = await Promise.all([ler("/api/public/template"), ler("/api/public/checkout")]);
+    // O template é o essencial (nome e dados da empresa). A regra de reembolso vem
+    // da rota do checkout, que cai sem o provedor do Pix configurado: aí vale o
+    // padrão, com aviso no arquivo, em vez de não gerar nada.
+    const [t, c] = await Promise.all([
+      ler("/api/public/template"),
+      ler("/api/public/checkout").catch((e: Error) => {
+        console.warn(`Regra de reembolso do site indisponível (${e.message}); vale o padrão.`);
+        return null;
+      }),
+    ]);
+    if (!t.template) throw new Error("O site respondeu num formato inesperado.");
+    const template = completarTemplate(t.template);
+    if (!c) return { template, reembolso: padrao.reembolso, doBanco: true, reembolsoDoPadrao: true };
     const reembolso = c.reembolso as { aceita?: unknown; taxaPct?: unknown } | undefined;
-    if (!t.template || typeof reembolso?.aceita !== "boolean" || typeof reembolso.taxaPct !== "number") {
+    if (typeof reembolso?.aceita !== "boolean" || typeof reembolso.taxaPct !== "number") {
       throw new Error("O site respondeu num formato inesperado.");
     }
-    return { template: completarTemplate(t.template), reembolso: { aceita: reembolso.aceita, taxaPct: reembolso.taxaPct }, doBanco: true };
+    return { template, reembolso: { aceita: reembolso.aceita, taxaPct: reembolso.taxaPct }, doBanco: true };
   }
   if (!process.env.DATABASE_URL) return padrao;
   try {
@@ -119,7 +133,7 @@ const QUEM: Record<keyof typeof CONTEXTO_DO_PAPEL, string> = { plataforma: "Mast
 function arquivos(f: Fonte): { nome: string; texto: string }[] {
   const plataforma = f.template.identidade.nome;
   const origem = f.doBanco
-    ? `Gerado do sistema em ${new Date().toISOString().slice(0, 10)}, com o template publicado e a configuração em vigor.`
+    ? `Gerado do sistema em ${new Date().toISOString().slice(0, 10)}, com o template publicado e ${f.reembolsoDoPadrao ? "a regra de reembolso **padrão** (a do site não respondeu — gere de novo depois de configurar o provedor do Pix)" : "a configuração em vigor"}.`
     : `Gerado do sistema em ${new Date().toISOString().slice(0, 10)}, **sem banco**: nome e dados da empresa do padrão — gere de novo com o banco antes de subir.`;
   const cab = (t: string) => `# ${t}\n\n_${origem}_\n\n`;
 

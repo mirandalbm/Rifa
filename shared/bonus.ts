@@ -151,15 +151,36 @@ export function clausulaDoBonus(maxCotas: number): string {
   if (n === 0) {
     return "Esta rifa aceita cotas de bônus do programa de indicação da plataforma: o participante que as resgata recebe cotas sem pagar, sorteadas entre os números livres, que concorrem em igualdade com as cotas pagas. As cotas de bônus não têm reembolso nem valor em dinheiro.";
   }
+  // Resposta 4.1 do advogado (06/10/2026): o texto exato da distribuição
+  // promocional, com a quantidade autorizada; depois, em frase própria, o que
+  // o sistema faz (como se ganha, o fechamento e a rifa cheia), que ele validou.
+  return [
+    `${TITULO_DA_DISTRIBUICAO_PROMOCIONAL}: ${clausulaDaDistribuicaoPromocional(n)}`,
+    COMO_O_BONUS_FUNCIONA,
+  ].join(" ");
+}
+
+export const TITULO_DA_DISTRIBUICAO_PROMOCIONAL = "DA DISTRIBUIÇÃO PROMOCIONAL (BÔNUS E INCENTIVOS)";
+
+/** O texto exato do advogado (4.1), com a quantidade da autorização no lugar de [QUANTIDADE]. */
+export function clausulaDaDistribuicaoPromocional(quantidade: number): string {
   return (
-    `Esta rifa distribui até ${n} cota${n === 1 ? "" : "s"} de bônus, sem custo, pelo programa de indicação e metas da plataforma ` +
-    "(indicar quem faça a primeira compra paga, comprar em rifas diferentes, trazer visitas pelo link e seguir organizações). " +
-    "Quem resgata recebe números sorteados entre os livres, que concorrem em igualdade com as cotas pagas, inclusive às cotas premiadas. " +
-    "O resgate fecha 2 horas antes do sorteio e acaba quando a quantidade autorizada se esgota. " +
-    "As cotas de bônus não têm reembolso nem valor em dinheiro, não podem ser transferidas e não contam para o mínimo de cotas vendidas para o sorteio " +
-    "(na rifa sorteada só quando cheia, contam para completá-la, porque o número já tem dono)."
+    `O presente plano de operação prevê a emissão e distribuição gratuita de até ${quantidade.toLocaleString("pt-BR")} Números da Sorte, ` +
+    "de forma subsidiária, a título de incentivo promocional (Bônus). Estes números concorrem aos prêmios em estrita igualdade de " +
+    "condições com as cotas integralizadas. A concessão dos Bônus será regida exclusivamente pelo sistema de metas e indicação da " +
+    "Plataforma, sendo o crédito gerado pessoal, intransferível e desprovido de qualquer valor monetário para fins de saque ou " +
+    "reembolso financeiro. Os Bônus não contabilizam para o cômputo da viabilidade financeira da campanha (mínimo de arrecadação) e, " +
+    "em caso de cancelamento, fraude ou estorno financeiro da operação que lhes deu origem, serão sumariamente invalidados, sem " +
+    "direito a compensação, retificando-se o saldo do participante."
   );
 }
+
+/** Como o sistema aplica a cláusula: o que dá o Bônus, quando o resgate fecha e a rifa cheia. */
+export const COMO_O_BONUS_FUNCIONA =
+  "As metas são: indicar quem faça a primeira compra paga, comprar em rifas diferentes, trazer visitas pelo link e seguir organizações. " +
+  "Quem resgata recebe números sorteados entre os livres, inclusive para as cotas premiadas. O resgate fecha 2 horas antes do sorteio " +
+  "e acaba quando a quantidade autorizada se esgota. Na rifa sorteada só quando cheia, os Bônus contam para completá-la, porque o " +
+  "número já tem dono.";
 
 /**
  * Cotas que contam para o mínimo do sorteio. No mínimo em percentual, só as

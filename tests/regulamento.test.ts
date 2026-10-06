@@ -88,12 +88,13 @@ describe("central de ajuda", () => {
   it("cota de bônus só entra no regulamento da rifa que a aceita", () => {
     expect(texto(base)).not.toMatch(/cotas de bônus/);
     expect(texto({ ...base, rifa: { ...base.rifa, aceitaCotaBonus: true } })).toMatch(/cotas de bônus/);
+    expect(texto({ ...base, rifa: { ...base.rifa, aceitaCotaBonus: true, bonusMaxCotas: 10 } })).toMatch(/DISTRIBUIÇÃO PROMOCIONAL/);
   });
 
   it("a cláusula do bônus diz a quantidade autorizada", () => {
     const t = texto({ ...base, rifa: { ...base.rifa, aceitaCotaBonus: true, bonusMaxCotas: 120 } });
-    expect(t).toMatch(/até 120 cotas de bônus/);
-    expect(t).toMatch(/não contam para o mínimo de cotas vendidas/);
+    expect(t).toMatch(/até 120 Números da Sorte/);
+    expect(t).toMatch(/não contabilizam para o cômputo da viabilidade financeira/);
   });
 });
 

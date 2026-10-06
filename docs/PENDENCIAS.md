@@ -660,6 +660,13 @@ Na ordem de entrega do plano:
   promotora respondem juntas pelo art. 49 — o regresso do contrato da
   promotora é o que cobre a plataforma depois. `npm run chamados`,
   `disputa` e `solicitacoes` provam.
+- [x] **Cota de bônus validada pelo advogado** (item 4, 06/10/2026) — feito.
+  As regras ficaram (nasce desligado, quantidade no plano de operação, um CPF
+  por conta, sem saque nem transferência, fora do mínimo e dentro da rifa
+  cheia, estorno desfaz com saldo negativo). O regulamento passa a trazer a
+  cláusula exata dele ("Da distribuição promocional (bônus e incentivos)").
+  Faltam 4.2 (seguir e visitas como meta), 4.4 (o presente é desconto ou
+  distribuição gratuita?) e 4.5 (venda casada). `npm run bonus` prova.
 - [x] **Termo do afiliado validado pelo advogado** (item 6, 06/10/2026) —
   sem mudança no código: aceite versionado com prova (texto, versão, IP e
   aparelho em hash), rifa presa à versão da publicação, parceria autônoma sem

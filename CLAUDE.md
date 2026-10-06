@@ -3411,9 +3411,12 @@ organização) ganha o selo **"AO VIVO"** quando há transmissão de sorteio no 
   (`vendidasParaOMinimo()`: `sold_count − bonus_count`) — senão a promotora
   inflaria a venda dando cota. **Na rifa cheia conta** (`cheia_com_data` e
   `quando_completar`), porque o número já tem dono e sem ela a rifa cheia
-  com bônus nunca sortearia. A cláusula diz a
-  quantidade, como se ganha, que concorre igual (inclusive às premiadas), que
-  fecha 2 horas antes e que não vira dinheiro, reembolso nem transferência.
+  com bônus nunca sortearia. **A cláusula é o texto do advogado** (resposta
+  4.1, 06/10/2026: "DA DISTRIBUIÇÃO PROMOCIONAL (BÔNUS E INCENTIVOS)",
+  `clausulaDaDistribuicaoPromocional()` em `shared/bonus.ts`, com a
+  quantidade da autorização), seguido de `COMO_O_BONUS_FUNCIONA` (as metas,
+  as premiadas, o fechamento 2 horas antes e a rifa cheia). A rifa publicada
+  antes da quantidade (0) segue a cláusula com que foi vendida.
 - **Livro-razão com chave única** (`bonus_lancamentos.chave`): a mesma
   indicação, meta ou resgate nunca lança duas vezes; o saldo
   (`buyers.bonus_saldo`) só anda quando a linha entrou, na mesma transação.

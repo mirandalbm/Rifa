@@ -266,8 +266,8 @@ async function main() {
     checa("rifa publicada não muda a marcação", r.status >= 400, `HTTP ${r.status}`);
     r = await new Cliente().req("GET", `/api/public/campaigns/${aceita.slug}/regulamento`);
     const reg = JSON.stringify(r.json ?? "");
-    checa("o regulamento da rifa traz a cláusula", /cotas de bônus/.test(reg), `HTTP ${r.status}`);
-    checa("a cláusula diz a quantidade e que não conta para o mínimo", /até 50 cotas de bônus/.test(reg) && /mínimo de cotas vendidas/.test(reg), reg.slice(0, 200));
+    checa("o regulamento da rifa traz a cláusula do advogado (4.1)", reg.includes("DISTRIBUIÇÃO PROMOCIONAL (BÔNUS E INCENTIVOS)"), `HTTP ${r.status}`);
+    checa("a cláusula diz a quantidade e que não conta para o mínimo", /até 50 Números da Sorte/.test(reg) && /mínimo de arrecadação/.test(reg), reg.slice(0, 200));
 
     // Rascunho: aceitar cota de bônus exige dizer quantas a autorização prevê.
     const [rascunho] = await db

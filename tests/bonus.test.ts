@@ -105,11 +105,15 @@ describe("quantidade de cotas de bônus da autorização", () => {
   });
   it("a cláusula diz quantas, como se ganha e o que não vale", () => {
     const c = clausulaDoBonus(1);
-    expect(c).toMatch(/até 1 cota de bônus/);
-    expect(clausulaDoBonus(40)).toMatch(/até 40 cotas de bônus/);
-    expect(c).toMatch(/indica/);
-    expect(c).toMatch(/igualdade/);
-    expect(c).toMatch(/não têm reembolso nem valor em dinheiro/);
+    expect(c).toMatch(/até 1 Números da Sorte/);
+    expect(clausulaDoBonus(1200)).toMatch(/até 1\.200 Números da Sorte/);
+    expect(c).toMatch(/indicar/);
+    // Resposta 4.1 do advogado: o texto exato, com o título.
+    expect(c).toContain("DA DISTRIBUIÇÃO PROMOCIONAL (BÔNUS E INCENTIVOS)");
+    expect(c).toContain("estrita igualdade de condições com as cotas integralizadas");
+    expect(c).toContain("pessoal, intransferível e desprovido de qualquer valor monetário para fins de saque ou reembolso financeiro");
+    expect(c).toContain("não contabilizam para o cômputo da viabilidade financeira da campanha (mínimo de arrecadação)");
+    expect(c).toContain("serão sumariamente invalidados, sem direito a compensação, retificando-se o saldo do participante");
     expect(c).toMatch(/2 horas antes do sorteio/);
   });
   it("rifa publicada antes da quantidade (0) segue a cláusula antiga, sem número", () => {

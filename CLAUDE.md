@@ -3840,7 +3840,9 @@ login). Cambista e apostador não têm.
   outro papel —, e o histórico a tira (`semContexto()`). É só a resposta: o
   que cada um faz continua barrado pelas ações no recorte da sessão.
 - **A base de conhecimento é gerada do sistema** (`npm run base-ia`,
-  `scripts/base-ia.ts`, grava em `base-do-assistente/`, fora do git): o menu
+  `scripts/base-ia.ts`, grava em `base-do-assistente/`, fora do git; com
+  `--do-site https://…` lê o template publicado e a regra de reembolso pelas
+  rotas públicas, sem tocar no banco de produção): o menu
   de cada papel, a central de ajuda, as regras da rifa, as medidas de
   divulgação, o afiliado, os Termos e a Privacidade publicados. Nunca dado de
   comprador, de organização nem número de venda. Regra mudou, gere de novo e

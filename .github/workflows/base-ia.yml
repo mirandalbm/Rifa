@@ -1,0 +1,43 @@
+name: Base do Lucky
+
+# Gera a base de conhecimento do assistente (o Lucky) com os dados do site no
+# ar, pelas rotas públicas (`npm run base-ia -- --do-site`): só leitura, sem
+# segredo e sem tocar no banco. Roda à mão (Actions → "Base do Lucky" → Run
+# workflow) e deixa os arquivos para baixar e no próprio registro da execução.
+on:
+  workflow_dispatch:
+    inputs:
+      site:
+        description: "Endereço do site no ar (https://…)"
+        required: true
+        default: "https://rifa-production-d8a4.up.railway.app"
+
+permissions:
+  contents: read
+
+jobs:
+  gerar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Gerar a base
+        env:
+          SITE: ${{ inputs.site }}
+        run: npm run base-ia -- base-do-assistente --do-site "$SITE"
+      - name: Mostrar os arquivos no registro
+        run: |
+          for f in base-do-assistente/*.md; do
+            echo "===== INICIO $(basename "$f") ====="
+            cat "$f"
+            echo "===== FIM $(basename "$f") ====="
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: base-do-lucky
+          path: base-do-assistente/

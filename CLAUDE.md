@@ -1354,17 +1354,31 @@ permite cobrar dela depois, e o aceite é a prova.
   Publicar versão nova pega a trava exclusiva — a rifa nunca vai ao ar com o
   aceite de uma versão que deixou de valer no meio. Sem nenhuma versão
   publicada, nada muda. Rifa já no ar não é tocada por versão nova.
+- **A rifa fica ligada à versão em vigor na publicação**
+  (`campaigns.contrato_promotora_id`, gravado por `publishCampaign()` dentro
+  da mesma transação e da mesma trava compartilhada, fora do `PATCH`; também
+  no `diff` de `campaign.publish`). Versão nova não muda a de quem já
+  publicou — é a cláusula 6.2 do contrato. Nulo: publicada sem contrato em
+  vigor.
 - **Só a plataforma publica versão** (`POST /contrato-promotora`, 403 para
   organizador, no `npm run isolation`); **só a organização aceita** (a
   plataforma é 403). O texto só passa pelo tamanho (`validarContrato()`); o
   mesmo texto não vira versão nova (409). Publicar nunca edita a anterior.
-- **O aceite é prova**: a cópia do texto, a versão, a organização, quem
-  aceitou, IP e aparelho em hash, e a auditoria
-  (`contrato_promotora.aceite`). A tela manda a versão que leu; outra versão
+- **O aceite é prova**: a cópia do texto, a **impressão SHA-256** dele
+  (`texto_sha256`, `hashDoContrato()`: hex sobre o UTF-8, o mesmo valor que o
+  Postgres dá com `encode(sha256(convert_to(texto, 'UTF8')), 'hex')`; a
+  versão guarda a dela também), a versão, a organização, quem aceitou, IP e
+  aparelho em hash, e a auditoria (`contrato_promotora.aceite`). A tela da
+  organização mostra a impressão do texto aceito; a da plataforma, a da
+  versão em vigor. A tela manda a versão que leu; outra versão
   em vigor é 409 (lê de novo). Um aceite por versão e organização (índice
   único): cinco cliques, um aceite.
 - As tabelas `contratos_promotora` e `contrato_promotora_aceites` sobem com o
-  `db:push` **antes** do código. `npm run contrato` prova tudo isso.
+  `db:push` **antes** do código, e as colunas `texto_sha256` (nas duas) e
+  `campaigns.contrato_promotora_id` também. Versão e aceite de antes da coluna
+  ficam com a impressão nula e a tela a calcula do texto guardado (o
+  `UPDATE` de preenchimento está em `docs/ORDEM-DE-LANCAMENTO.md`). `npm run
+  contrato` prova tudo isso.
 
 ## Arquivar e usuários — o que não pode afrouxar
 

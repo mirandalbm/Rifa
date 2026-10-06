@@ -4,6 +4,7 @@
  * organização só publica rifa depois de aceitá-la (`problemaDoContrato`, em
  * `publishBlockers` e de novo dentro da transação da publicação).
  */
+import { createHash } from "node:crypto";
 import { and, count, desc, eq, isNull, sql } from "drizzle-orm";
 import { db } from "../db";
 import { contratoPromotoraAceites, contratosPromotora, organizations, users } from "@shared/schema";
@@ -24,15 +25,32 @@ export async function contratoEmVigor(banco: Banco = db) {
   return c ?? null;
 }
 
-/** O que barra a publicação: versão em vigor sem o aceite desta organização. */
-export async function problemaDoContrato(orgId: string, banco: Banco = db): Promise<string | null> {
+/**
+ * A impressão do texto: SHA-256 em hexadecimal sobre o UTF-8. Gravada na
+ * versão e no aceite — é o "hash da versão lida" do contrato. O mesmo valor
+ * sai no Postgres com `encode(sha256(convert_to(texto, 'UTF8')), 'hex')`.
+ */
+export function hashDoContrato(texto: string): string {
+  return createHash("sha256").update(texto, "utf8").digest("hex");
+}
+
+/**
+ * A versão em vigor e se a organização a aceitou. A publicação usa as duas
+ * coisas: o problema barra, e a versão fica gravada na rifa (`contratoId`).
+ */
+export async function contratoDaPublicacao(orgId: string, banco: Banco = db): Promise<{ problema: string | null; contratoId: string | null }> {
   const c = await contratoEmVigor(banco);
-  if (!c) return null;
+  if (!c) return { problema: null, contratoId: null };
   const [a] = await banco
     .select({ id: contratoPromotoraAceites.id })
     .from(contratoPromotoraAceites)
     .where(and(eq(contratoPromotoraAceites.contratoId, c.id), eq(contratoPromotoraAceites.organizationId, orgId)));
-  return a ? null : bloqueioDoContrato(c.versao);
+  return { problema: a ? null : bloqueioDoContrato(c.versao), contratoId: c.id };
+}
+
+/** O que barra a publicação: versão em vigor sem o aceite desta organização. */
+export async function problemaDoContrato(orgId: string, banco: Banco = db): Promise<string | null> {
+  return (await contratoDaPublicacao(orgId, banco)).problema;
 }
 
 /** A tela da organização: o texto em vigor e se ela já aceitou. */
@@ -43,6 +61,8 @@ export async function contratoDaOrganizacao(orgId: string) {
       versao: contratoPromotoraAceites.versao,
       aceitoEm: contratoPromotoraAceites.aceitoEm,
       aceitoPor: users.name,
+      textoSha256: contratoPromotoraAceites.textoSha256,
+      texto: contratoPromotoraAceites.texto,
     })
     .from(contratoPromotoraAceites)
     .leftJoin(users, eq(users.id, contratoPromotoraAceites.userId))
@@ -50,8 +70,11 @@ export async function contratoDaOrganizacao(orgId: string) {
     .orderBy(desc(contratoPromotoraAceites.versao))
     .limit(1);
   return {
-    contrato: c ? { versao: c.versao, texto: c.texto, publicadoEm: c.createdAt } : null,
-    ultimoAceite: ultimo ?? null,
+    contrato: c ? { versao: c.versao, texto: c.texto, publicadoEm: c.createdAt, hash: c.textoSha256 ?? hashDoContrato(c.texto) } : null,
+    // O aceite de antes da coluna não tem a impressão gravada: é a do texto que ele guardou.
+    ultimoAceite: ultimo
+      ? { versao: ultimo.versao, aceitoEm: ultimo.aceitoEm, aceitoPor: ultimo.aceitoPor, hash: ultimo.textoSha256 ?? hashDoContrato(ultimo.texto) }
+      : null,
     pendente: Boolean(c && (!ultimo || ultimo.versao !== c.versao)),
   };
 }
@@ -63,6 +86,7 @@ export async function contratoDaPlataforma() {
       versao: contratosPromotora.versao,
       publicadoEm: contratosPromotora.createdAt,
       texto: contratosPromotora.texto,
+      textoSha256: contratosPromotora.textoSha256,
       aceites: count(contratoPromotoraAceites.id),
     })
     .from(contratosPromotora)
@@ -75,8 +99,13 @@ export async function contratoDaPlataforma() {
     .where(and(isNull(organizations.archivedAt), isNull(organizations.banidaEm)));
   const atual = versoes[0] ?? null;
   return {
-    contrato: atual ? { versao: atual.versao, texto: atual.texto, publicadoEm: atual.publicadoEm } : null,
-    versoes: versoes.map((v) => ({ versao: v.versao, publicadoEm: v.publicadoEm, aceites: Number(v.aceites) })),
+    contrato: atual ? { versao: atual.versao, texto: atual.texto, publicadoEm: atual.publicadoEm, hash: atual.textoSha256 ?? hashDoContrato(atual.texto) } : null,
+    versoes: versoes.map((v) => ({
+      versao: v.versao,
+      publicadoEm: v.publicadoEm,
+      aceites: Number(v.aceites),
+      hash: v.textoSha256 ?? hashDoContrato(v.texto),
+    })),
     organizacoesAtivas: Number(ativas?.n ?? 0),
   };
 }
@@ -92,9 +121,9 @@ export async function publicarContrato(entrada: unknown, userId: string | null) 
     }
     const [novo] = await tx
       .insert(contratosPromotora)
-      .values({ versao: (anterior?.versao ?? 0) + 1, texto, publicadoPor: userId })
+      .values({ versao: (anterior?.versao ?? 0) + 1, texto, textoSha256: hashDoContrato(texto), publicadoPor: userId })
       .returning();
-    return { versao: novo.versao, publicadoEm: novo.createdAt };
+    return { versao: novo.versao, publicadoEm: novo.createdAt, hash: novo.textoSha256 };
   });
 }
 
@@ -128,11 +157,14 @@ export async function aceitarContrato(
         userId,
         versao: c.versao,
         texto: c.texto,
+        // A impressão do texto que esta organização aceitou, calculada da cópia
+        // gravada aqui (não da versão): a prova se confere sozinha.
+        textoSha256: hashDoContrato(c.texto),
         ipHash: entrada.identidade.ipHash,
         deviceHash: entrada.identidade.deviceHash,
       })
       .onConflictDoNothing()
       .returning({ id: contratoPromotoraAceites.id });
-    return { versao: c.versao, novo: Boolean(novo) };
+    return { versao: c.versao, novo: Boolean(novo), hash: hashDoContrato(c.texto) };
   });
 }

@@ -575,6 +575,12 @@ export const campaigns = pgTable(
      */
     termoId: uuid("termo_id"),
     /**
+     * A versão do contrato da plataforma com a promotora em vigor quando a rifa
+     * foi publicada (`publishCampaign`). A rifa fica ligada a ela até o fim,
+     * mesmo que saia versão nova. Nulo: publicada sem contrato em vigor.
+     */
+    contratoPromotoraId: uuid("contrato_promotora_id"),
+    /**
      * O sorteio oficial da plataforma em que a rifa está integrada
      * (`sorteios_oficiais`): a data da rifa é a do concurso. Escolhido pelo
      * calendário do painel só no rascunho e trava ao publicar; fora do PATCH.
@@ -1983,6 +1989,7 @@ export const insertCampaignSchema = createInsertSchema(campaigns, {
     // O método de apuração é da autorização: só pela rota `/legal`, entre os liberados pela plataforma.
     metodoApuracao: true,
     termoId: true,
+    contratoPromotoraId: true,
     // Integrar a um sorteio oficial é pelo calendário (`integrarAoSorteioOficial`), que acerta a data junto.
     sorteioOficialId: true,
     sorteioAutoMotivo: true,
@@ -2307,6 +2314,8 @@ export const termoAceites = pgTable(
       .references(() => organizacaoTermos.id),
     versao: integer("versao").notNull(),
     texto: text("texto").notNull(),
+    /** SHA-256 do texto aceito — a mesma impressão da versão, guardada no aceite. */
+    textoSha256: text("texto_sha256"),
     ipHash: text("ip_hash"),
     deviceHash: text("device_hash"),
     aceitoEm: timestamp("aceito_em").notNull().defaultNow(),
@@ -2324,6 +2333,8 @@ export const contratosPromotora = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     versao: integer("versao").notNull(),
     texto: text("texto").notNull(),
+    /** SHA-256 (hex) do texto em UTF-8: a impressão da versão, gravada ao publicar. */
+    textoSha256: text("texto_sha256"),
     publicadoPor: uuid("publicado_por"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
@@ -2347,6 +2358,8 @@ export const contratoPromotoraAceites = pgTable(
     userId: uuid("user_id"),
     versao: integer("versao").notNull(),
     texto: text("texto").notNull(),
+    /** SHA-256 do texto aceito — a mesma impressão da versão, guardada no aceite. */
+    textoSha256: text("texto_sha256"),
     ipHash: text("ip_hash"),
     deviceHash: text("device_hash"),
     aceitoEm: timestamp("aceito_em").notNull().defaultNow(),

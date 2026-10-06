@@ -101,7 +101,7 @@ export async function publicarAgendadas(agora = new Date()) {
           action: "campaign.publish",
           entity: "campaign",
           entityId: p.id,
-          diff: { agendada: true, agendadoPor: tomada.por ?? null, publicarEm: v.publicarEm, totalQuotas: p.totalQuotas, seedHash: p.drawSeedHash },
+          diff: { agendada: true, agendadoPor: tomada.por ?? null, publicarEm: v.publicarEm, totalQuotas: p.totalQuotas, seedHash: p.drawSeedHash, contratoPromotoraId: p.contratoPromotoraId },
         })
         .catch((e) => console.error("[publicação agendada] auditoria da rifa", p.id, e));
       // Quem segue com o sino fica sabendo, como na publicação à mão.

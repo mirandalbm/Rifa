@@ -9,9 +9,14 @@
  *   tempo são um aceite só, com a cópia do texto, quem aceitou e o IP em hash;
  * - o aceite de uma organização não libera a outra;
  * - versão nova pede aceite de novo, e não mexe nas rifas que já estão no ar;
- * - o mesmo texto não vira versão nova (409).
+ * - o mesmo texto não vira versão nova (409);
+ * - a versão e o aceite guardam a impressão (SHA-256) do texto, a mesma que o
+ *   Postgres calcula;
+ * - a rifa publicada fica ligada à versão em vigor na publicação, e segue
+ *   nela quando sai versão nova.
  */
 import "dotenv/config";
+import { createHash } from "node:crypto";
 import { baseUrl } from "./base-url";
 import { and, eq, inArray, notInArray, sql } from "drizzle-orm";
 import { db, pool } from "../server/db";
@@ -28,6 +33,11 @@ import {
 } from "../shared/schema";
 
 const URL = baseUrl();
+const sha256 = (t: string) => createHash("sha256").update(t, "utf8").digest("hex");
+async function contratoDaRifa(id: string) {
+  const [c] = await db.select({ c: campaigns.contratoPromotoraId }).from(campaigns).where(eq(campaigns.id, id));
+  return c?.c ?? null;
+}
 let falhas = 0;
 const checa = (n: string, ok: boolean, d = "") => {
   console.log(`  ${ok ? "✓" : "✗"} ${n}${d ? ` (${d})` : ""}`);
@@ -147,6 +157,7 @@ async function main() {
       const a1 = await rascunho(orgs[0].id, "a1");
       const r = await orgA.req("POST", `/api/admin/campaigns/${a1.id}/publish`);
       checa("sem contrato publicado, a rifa publica como sempre", r.status === 200, `HTTP ${r.status} ${r.json?.message ?? ""}`);
+      checa("…e fica sem contrato ligado", (await contratoDaRifa(a1.id)) === null);
       const g = await orgA.req("GET", "/api/admin/contrato-promotora");
       checa("a organização vê que não há contrato, sem pendência", g.status === 200 && g.json?.contrato === null && g.json?.pendente === false);
     } else {
@@ -190,6 +201,14 @@ async function main() {
 
     const g = await orgA.req("GET", "/api/admin/contrato-promotora");
     checa("a organização lê o texto em vigor e vê a pendência", g.json?.contrato?.versao === v1 && g.json?.contrato?.texto === TEXTO_1 && g.json?.pendente === true);
+    checa("…com a impressão (SHA-256) da versão", g.json?.contrato?.hash === sha256(TEXTO_1), g.json?.contrato?.hash);
+    const [cv1] = await db.select().from(contratosPromotora).where(eq(contratosPromotora.versao, v1));
+    const pg = await db.execute(sql`select encode(sha256(convert_to(texto, 'UTF8')), 'hex') as h from contratos_promotora where id = ${cv1.id}`);
+    checa(
+      "a versão guarda a impressão, igual à que o Postgres calcula",
+      cv1.textoSha256 === sha256(TEXTO_1) && (pg.rows[0] as { h: string }).h === cv1.textoSha256,
+      cv1.textoSha256 ?? "nula",
+    );
 
     // ------------------------------------------------ aceitar
     r = await orgA.req("POST", "/api/admin/contrato-promotora/aceite", { versao: v1 + 7 });
@@ -207,6 +226,9 @@ async function main() {
       "o aceite guarda a cópia do texto, a versão, quem aceitou e o IP em hash",
       aceites[0]?.texto === TEXTO_1 && aceites[0]?.versao === v1 && aceites[0]?.userId === userIds[0] && /^[0-9a-f]{32}$/.test(aceites[0]?.ipHash ?? ""),
     );
+    checa("o aceite guarda a impressão (SHA-256) do texto aceito", aceites[0]?.textoSha256 === sha256(TEXTO_1), aceites[0]?.textoSha256 ?? "nula");
+    const gAceito = await orgA.req("GET", "/api/admin/contrato-promotora");
+    checa("a organização vê a impressão do que aceitou", gAceito.json?.ultimoAceite?.hash === sha256(TEXTO_1));
     const trilha = await db
       .select({ id: auditLog.id })
       .from(auditLog)
@@ -215,6 +237,12 @@ async function main() {
 
     r = await orgA.req("POST", `/api/admin/campaigns/${a2.id}/publish`);
     checa("com o aceite, a organização publica", r.status === 200, `HTTP ${r.status} ${r.json?.message ?? ""}`);
+    checa("a rifa publicada fica ligada à versão em vigor", (await contratoDaRifa(a2.id)) === cv1.id);
+    const [publicou] = await db
+      .select({ diff: auditLog.diff })
+      .from(auditLog)
+      .where(and(eq(auditLog.action, "campaign.publish"), eq(auditLog.entityId, a2.id)));
+    checa("a auditoria da publicação diz a versão", (publicou?.diff as { contratoPromotoraId?: string } | undefined)?.contratoPromotoraId === cv1.id);
 
     const b1 = await rascunho(orgs[1].id, "b1");
     r = await orgB.req("POST", `/api/admin/campaigns/${b1.id}/publish`);
@@ -236,6 +264,11 @@ async function main() {
     checa("aceitar a nova: 200", r.status === 200, `HTTP ${r.status}`);
     r = await orgA.req("POST", `/api/admin/campaigns/${a3.id}/publish`);
     checa("e publicar de novo", r.status === 200, `HTTP ${r.status} ${r.json?.message ?? ""}`);
+    const [cv2] = await db.select({ id: contratosPromotora.id }).from(contratosPromotora).where(eq(contratosPromotora.versao, v2));
+    checa(
+      "a rifa nova fica na versão nova; a de antes segue na dela",
+      (await contratoDaRifa(a3.id)) === cv2.id && (await contratoDaRifa(a2.id)) === cv1.id,
+    );
 
     const p = await plataforma.req("GET", "/api/admin/contrato-promotora");
     const linha = (p.json?.versoes ?? []).find((x: { versao: number }) => x.versao === v2);

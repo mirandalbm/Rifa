@@ -21,7 +21,7 @@ import {
   type Campaign,
 } from "@shared/schema";
 import { termoAtual } from "./afiliados";
-import { problemaDoContrato, TRAVA_CONTRATO } from "./contratoPromotora";
+import { contratoDaPublicacao, problemaDoContrato, TRAVA_CONTRATO } from "./contratoPromotora";
 import { apagarArquivosDeMidias } from "./media";
 import { commitSeed } from "./draw";
 import { validarRegulamentoExtra } from "@shared/regulamento";
@@ -303,8 +303,10 @@ export async function publishCampaign(campaignId: string): Promise<Campaign> {
     // O contrato de novo, com a trava compartilhada: uma versão nova saindo
     // agora espera esta publicação, ou esta espera ela e confere a nova.
     await tx.execute(sql`select pg_advisory_xact_lock_shared(${TRAVA_CONTRATO})`);
-    const contrato = await problemaDoContrato(campaign.organizationId, tx);
-    if (contrato) throw new CampaignRuleError(contrato);
+    // A versão em vigor fica gravada na rifa (`contratoPromotoraId`): a rifa
+    // segue ligada a ela até o fim, mesmo com versão nova depois.
+    const contrato = await contratoDaPublicacao(campaign.organizationId, tx);
+    if (contrato.problema) throw new CampaignRuleError(contrato.problema);
 
     // O método de novo, agora contra a rifa travada (a promotora pode ter
     // trocado o método no rascunho entre a conferência de fora e esta). Os
@@ -347,6 +349,7 @@ export async function publishCampaign(campaignId: string): Promise<Campaign> {
         publishedAt: new Date(),
         drawSeedHash: seedHash,
         termoId: termo?.id ?? null,
+        contratoPromotoraId: contrato.contratoId,
         // "Quando completar": a data registrada é a máxima (8.7); encher antes
         // só antecipa `draw_at`, e esta fica de referência.
         drawAtMaximo: campaign.modoSorteio === "quando_completar" ? campaign.drawAt : null,

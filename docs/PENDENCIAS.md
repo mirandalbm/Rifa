@@ -624,6 +624,11 @@ Na ordem de entrega do plano:
   código não fixa nome — a marca vem do template (Aparência) e a empresa dos
   "Dados da empresa". O contrato deve identificar a plataforma pela razão
   social e pelo CNPJ, para a troca de marca não exigir versão nova.
+  **Cláusulas 6.1 e 6.2 da minuta já valem no sistema**: o aceite guarda a
+  impressão SHA-256 do texto lido (e a cópia dele), e cada rifa fica ligada
+  à versão do contrato em vigor quando foi publicada. O IP fica guardado em
+  hash (LGPD) — o texto do contrato deve dizer "IP e aparelho em forma
+  cifrada", não "o IP".
 
 - [x] **Apuração direta pela Loteria Federal (modo "Autorizado MF") e
   método liberado pela plataforma** — feito, com as respostas do advogado

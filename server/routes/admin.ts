@@ -1233,6 +1233,7 @@ adminRouter.post("/campaigns/:id/publish", async (req, res, next) => {
     await audit(req, "campaign.publish", "campaign", published.id, {
       totalQuotas: published.totalQuotas,
       seedHash: published.drawSeedHash,
+      contratoPromotoraId: published.contratoPromotoraId,
     });
     // Quem segue a organização com o sino ligado fica sabendo. Fora da
     // resposta: a tela não espera os envios, e falha de push não desfaz nada.

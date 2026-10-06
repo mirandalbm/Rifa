@@ -146,6 +146,8 @@ app.use(
     // de 5 MB do serviço.
     "/api/public/conta/perfil",
     "/api/affiliate/foto",
+    // O saque leva a nota fiscal (até 3 MB, em base64).
+    "/api/affiliate/payouts",
   ],
   express.json({ limit: "8mb" }),
 );

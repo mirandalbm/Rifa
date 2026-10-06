@@ -70,13 +70,6 @@ export interface ConfigPlataforma {
    */
   taxaReembolsoPct: number;
   /**
-   * Saque do afiliado só com o cadastro fiscal aprovado. **Desligado por
-   * padrão**: liga-se quando o contador confirmar o modelo (RPA ou nota) e as
-   * organizações já tiverem avisado os afiliados — senão o saque de todo
-   * mundo trava no dia seguinte.
-   */
-  exigirCadastroFiscal: boolean;
-  /**
    * Guarda da comissão pela plataforma (etapa 12). **Desligada por padrão**:
    * liga-se quando o contador confirmar o modelo (a plataforma segurando
    * dinheiro de terceiro até o sorteio). Ligada, a venda online com afiliado
@@ -218,7 +211,6 @@ export const CONFIG_PADRAO: ConfigPlataforma = {
   provedorPix: null,
   estornoManual: false,
   taxaReembolsoPct: TAXA_REEMBOLSO_PADRAO_PCT,
-  exigirCadastroFiscal: false,
   guardaComissao: false,
   bonusLigado: false,
   bonusPorIndicacao: BONUS_POR_INDICACAO_PADRAO,
@@ -258,7 +250,6 @@ export function validarConfigPlataforma(entrada: Partial<ConfigPlataforma>): Con
     provedorPix: provedor,
     estornoManual: entrada.estornoManual === true,
     taxaReembolsoPct: taxa,
-    exigirCadastroFiscal: entrada.exigirCadastroFiscal === true,
     guardaComissao: entrada.guardaComissao === true,
     bonusLigado: entrada.bonusLigado === true,
     bonusPorIndicacao: bonusPorIndicacaoValido(entrada.bonusPorIndicacao),

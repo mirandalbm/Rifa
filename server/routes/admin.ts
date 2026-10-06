@@ -180,7 +180,7 @@ import {
   situacaoDaDemonstracao,
 } from "../services/demonstracao";
 import { emitirRecibo, pdfDoRecibo, reciboPorCodigo } from "../services/recibos";
-import { cadastrosFiscais, decidirCadastro, documento, estadoFiscal } from "../services/fiscal";
+import { FiscalError, cadastrosFiscais, decidirCadastro, documento, estadoFiscal, notaDoSaque } from "../services/fiscal";
 import { montarRotasDaVerificacao } from "./verificacaoRotas";
 import { salvarLegenda } from "../services/publicacao";
 import { limparLegenda, problemaNaLegenda } from "@shared/publicacao";
@@ -2612,10 +2612,6 @@ adminRouter.put("/plataforma", async (req, res, next) => {
         req.body?.taxaReembolsoPct !== undefined
           ? Number(req.body.taxaReembolsoPct)
           : (await getPlataforma()).taxaReembolsoPct,
-      exigirCadastroFiscal:
-        req.body?.exigirCadastroFiscal !== undefined
-          ? req.body.exigirCadastroFiscal === true
-          : (await getPlataforma()).exigirCadastroFiscal,
       // Guarda da comissão (etapa 12): sem o campo, vale o que já estava.
       guardaComissao:
         req.body?.guardaComissao !== undefined
@@ -3304,6 +3300,29 @@ function comprovanteValido(bruto: unknown): string | null {
     return null;
   }
 }
+
+/**
+ * A nota fiscal do saque, para quem paga: a organização do saque (a do
+ * vizinho é 404) ou a plataforma. A leitura vai à auditoria antes de sair.
+ */
+adminRouter.get("/payouts/:id/nota", async (req, res, next) => {
+  try {
+    const pid = String(req.params.id);
+    const org = orgOf(req);
+    const [saque] = /^[0-9a-f-]{36}$/i.test(pid)
+      ? await db.select({ organizationId: payouts.organizationId }).from(payouts).where(eq(payouts.id, pid))
+      : [];
+    if (!saque || (org && saque.organizationId !== org)) return res.status(404).json({ message: "Saque não encontrado." });
+    const n = await notaDoSaque(pid);
+    await audit(req, "payout.nota.lida", "payout", pid);
+    res.setHeader("Cache-Control", "no-store");
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.type(n.mime).send(n.bytes);
+  } catch (err) {
+    if (err instanceof FiscalError) return res.status(err.status).json({ message: err.message });
+    next(err);
+  }
+});
 
 adminRouter.post("/payouts/:id/paid", async (req, res, next) => {
   try {

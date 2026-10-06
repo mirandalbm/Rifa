@@ -38,12 +38,13 @@ paralelo, para não segurar o resto. Marque aqui mesmo o que for fechando.
   itens proibidos, confirmada depois). **Item 7 respondido em 06/10/2026**
   (consentimento biométrico: texto novo, todos autorizam de novo, só o
   resultado guardado — no código). **6.5, 4.2, 4.4, 4.5, 5.1 e C.1 (as três
-  frases do item 9) respondidos.** Falta só a sua decisão do 6.4 (MEI/CNPJ
-  para sacar ou RPA com retenções).
+  frases do item 9) respondidos.** 6.4 decidido e no código: o saque é pago
+  só a MEI ou empresa, com a nota fiscal de cada saque.
 - [ ] **Contador**: guarda da comissão pela plataforma (o advogado, 6.5: é
   mandato — a comissão guardada **não** entra como receita da plataforma,
-  senão paga PIS/COFINS/ISS sobre dinheiro de terceiro) e RPA/nota dos
-  afiliados (6.4).
+  senão paga PIS/COFINS/ISS sobre dinheiro de terceiro) e a nota fiscal
+  dos afiliados (6.4: o saque é só para MEI ou empresa, com a nota anexada —
+  confirmar com ele o serviço da nota e quem é o tomador na guarda).
 - [ ] **Pagamento**: pedir por escrito ao Mercado Pago e ao Asaas se aceitam
   promoção comercial com autorização SPA/MF. A resposta decide o provedor
   (etapa 4).

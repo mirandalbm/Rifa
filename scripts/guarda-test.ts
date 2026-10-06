@@ -17,6 +17,7 @@ import { eq, inArray, sql } from "drizzle-orm";
 import { db, pool } from "../server/db";
 import { hashPassword } from "../server/auth";
 import { affiliates, afiliadoVinculos, campaignStats, campaigns, commissions, orders, organizations, recibos, users } from "../shared/schema";
+import { NOTA_DE_TESTE, aprovarCadastroComCnpj } from "./saque-de-teste";
 
 const URL = baseUrl();
 let falhas = 0;
@@ -158,9 +159,10 @@ async function main() {
     checa("o afiliado vê 'Plataforma' à parte", plat?.organizacao === "Plataforma" && plat.disponivelCents === 100, JSON.stringify(r.json));
     checa("e o saldo da organização continua dela", daOrgSaldo?.disponivelCents === v1.comissao.amountCents);
 
-    r = await eu.req("POST", "/api/affiliate/payouts", {});
+    await aprovarCadastroComCnpj(aff.id);
+    r = await eu.req("POST", "/api/affiliate/payouts", { notaFiscal: NOTA_DE_TESTE });
     checa("com dois saldos, precisa escolher (400)", r.status === 400, `HTTP ${r.status}`);
-    r = await eu.req("POST", "/api/affiliate/payouts", { organizacaoId: "plataforma" });
+    r = await eu.req("POST", "/api/affiliate/payouts", { organizacaoId: "plataforma", notaFiscal: NOTA_DE_TESTE });
     checa("saca o da plataforma", r.status === 201 && r.json?.organizationId === null && r.json?.amountCents === 100, `HTTP ${r.status} ${JSON.stringify(r.json)}`);
     const saque = r.json?.id as string;
 

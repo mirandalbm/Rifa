@@ -3380,9 +3380,24 @@ organização) ganha o selo **"AO VIVO"** quando há transmissão de sorteio no 
   destino é exatamente o golpe de quem tomou a conta do afiliado. Decidir é
   `UPDATE` condicional (`em_analise` → aprovado/recusado); recusa exige
   motivo.
-- **Exigir o cadastro para sacar é escolha da plataforma**
-  (`exigirCadastroFiscal`, nasce desligada): quem já sacava não acorda
-  barrado.
+- **O saque é pago só a MEI ou empresa** (resposta 6.4 do advogado,
+  caminho escolhido em 06/10/2026): pagar pessoa física obrigaria a fonte
+  pagadora a emitir RPA, reter IRRF e INSS e recolher o INSS patronal — e o
+  sistema não faz isso. Por isso **não há interruptor** (o
+  `exigirCadastroFiscal` saiu): o cadastro fiscal leva o CNPJ (`empresa`:
+  MEI ou empresa, CNPJ conferido pelo dígito, razão social —
+  `validarEmpresa()` em `shared/fiscal.ts`) e o comprovante do CNPJ, e o
+  saque (`problemaParaSacar()`) exige o cadastro **aprovado com CNPJ** (409)
+  e **a nota fiscal do valor** anexada (`lerNotaFiscal()`: PDF, XML de
+  NF-e/NFS-e ou foto, conferidos pelo conteúdo, até 3 MB — antes da
+  transação, 400). A nota fica cifrada em `saque_notas`, gravada na
+  transação que cria o saque; abrem o afiliado (a dele) e quem paga — a
+  organização do saque ou a plataforma (`GET /admin/payouts/:id/nota`, o do
+  vizinho é 404, no `npm run isolation`; a leitura vai à auditoria). O
+  cadastro de antes da regra, sem CNPJ, aparece como faltando o CNPJ e não
+  saca até completar. O recibo da empresa sai com a razão social e o CNPJ
+  (`beneficiario.cnpj`, só quando existe — o texto canônico dos recibos de
+  antes não muda). A cláusula 10 do termo do afiliado diz isso.
 - **Baixa e recibo na mesma transação**, com `UPDATE` condicional: dois
   cliques dão um recibo e um 409. Recibo que não fecha (origem ≠ valor) não
   sai — e a baixa volta junto.

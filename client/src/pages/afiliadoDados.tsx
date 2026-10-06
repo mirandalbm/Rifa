@@ -5,12 +5,13 @@ import { Button, Card, Pill } from "@/components/bits";
 import { apiRequest } from "@/lib/queryClient";
 import { lerFoto } from "@/lib/anexo";
 import { VerificacaoCard } from "@/components/Verificacao";
-import { maskCpf } from "@shared/format";
+import { formatarCnpj, maskCpf } from "@shared/format";
 import { UFS, maskCep } from "@shared/endereco";
 import {
   DOCUMENTOS,
   DOCUMENTO_MAX_BYTES,
   STATUS_FISCAL,
+  TIPOS_DE_EMPRESA,
   validarCadastroFiscal,
   type DadosFiscais,
   type StatusFiscal,
@@ -35,6 +36,7 @@ const vazio = {
   nascimento: "",
   endereco: { cep: "", logradouro: "", numero: "", complemento: "", bairro: "", cidade: "", uf: "" },
   conta: { banco: "", agencia: "", conta: "", tipo: "corrente" as "corrente" | "poupanca" },
+  empresa: { tipo: "mei" as "mei" | "empresa", cnpj: "", razaoSocial: "" },
 };
 
 /**
@@ -56,6 +58,7 @@ export function AfiliadoDados() {
       ...d,
       cpf: maskCpf(d.cpf),
       endereco: { ...d.endereco, cep: maskCep(d.endereco.cep), complemento: d.endereco.complemento ?? "" },
+      empresa: d.empresa ? { ...d.empresa, cnpj: formatarCnpj(d.empresa.cnpj) } : vazio.empresa,
     });
   }, [data?.dados]);
 
@@ -108,11 +111,11 @@ export function AfiliadoDados() {
         {status === "recusado" && data?.motivo ? <span className="text-red">Motivo: {data.motivo}</span> : null}
         {data?.falta.length ? <span className="text-muted">Falta: {data.falta.join(", ")}.</span> : null}
       </div>
-      {data?.exigido && status !== "aprovado" ? (
-        <p className="mb-3 rounded-md bg-yellow-soft px-3 py-2 text-sm text-yellow-deep">
-          O saque de comissão só é liberado com este cadastro aprovado.
-        </p>
-      ) : null}
+      <p className="mb-3 rounded-md bg-yellow-soft px-3 py-2 text-sm text-yellow-deep">
+        A comissão é paga a <strong>MEI ou empresa</strong>: o saque só é liberado com este cadastro aprovado e o CNPJ
+        nele, e cada saque vai com a nota fiscal do valor. Não tem CNPJ? O MEI se abre de graça no Portal do
+        Empreendedor (gov.br).
+      </p>
       <p className="mb-3 text-xs text-muted">
         Seus dados e documentos ficam guardados cifrados. As organizações nunca veem; só a plataforma, para conferir, e
         cada consulta fica registrada. Mudar a conta ou um documento depois de aprovado volta para a análise.
@@ -127,7 +130,30 @@ export function AfiliadoDados() {
               salvar.mutate();
             }}
           >
-            {campo("Nome completo (como no documento)", f.nomeCompleto, (v) => setF({ ...f, nomeCompleto: v }))}
+            <fieldset className="space-y-2 rounded-md border border-line p-3">
+              <legend className="label-xs px-1">MEI ou empresa que recebe a comissão</legend>
+              <div className="flex flex-wrap gap-4 text-sm">
+                {(Object.keys(TIPOS_DE_EMPRESA) as (keyof typeof TIPOS_DE_EMPRESA)[]).map((t) => (
+                  <label key={t} className="flex items-center gap-2">
+                    <input
+                      type="radio"
+                      name="tipo-empresa"
+                      checked={f.empresa.tipo === t}
+                      onChange={() => setF({ ...f, empresa: { ...f.empresa, tipo: t } })}
+                    />
+                    {TIPOS_DE_EMPRESA[t]}
+                  </label>
+                ))}
+              </div>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                {campo("CNPJ", f.empresa.cnpj, (v) => setF({ ...f, empresa: { ...f.empresa, cnpj: formatarCnpj(v) } }), {
+                  inputMode: "numeric",
+                  className: "campo tnum text-sm",
+                })}
+                {campo("Razão social", f.empresa.razaoSocial, (v) => setF({ ...f, empresa: { ...f.empresa, razaoSocial: v } }))}
+              </div>
+            </fieldset>
+            {campo("Nome completo do titular (como no documento)", f.nomeCompleto, (v) => setF({ ...f, nomeCompleto: v }))}
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               {campo("CPF", f.cpf, (v) => setF({ ...f, cpf: maskCpf(v) }), { inputMode: "numeric", className: "campo tnum text-sm" })}
               {campo("RG", f.rg, (v) => setF({ ...f, rg: v }))}

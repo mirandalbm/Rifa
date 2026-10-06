@@ -122,3 +122,9 @@ export function cnpjValido(entrada: string): boolean {
   };
   return digito(12) === Number(d[12]) && digito(13) === Number(d[13]);
 }
+
+/** CNPJ com a máscara: 12.345.678/0001-90. Entrada sem 14 dígitos volta como veio. */
+export function formatarCnpj(entrada: string): string {
+  const d = String(entrada ?? "").replace(/\D/g, "");
+  return d.length === 14 ? `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5, 8)}/${d.slice(8, 12)}-${d.slice(12)}` : entrada;
+}

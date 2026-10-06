@@ -18,7 +18,7 @@ import "dotenv/config";
 import { baseUrl } from "./base-url";
 import { sql, eq } from "drizzle-orm";
 import { db, pool } from "../server/db";
-import {
+import { payouts, saqueNotas,
   organizations,
   campaigns,
   users,
@@ -45,6 +45,7 @@ import { mediaKey, storage } from "../server/services/storage";
 const URL = baseUrl();
 
 interface Lado {
+  cambistaId: string;
   slug: string;
   nome: string;
   email: string;
@@ -223,6 +224,7 @@ async function montarLado(marca: string, indice: number): Promise<Lado> {
     .returning({ id: chamadoAnexos.id });
 
   return {
+    cambistaId: cambista.id,
     slug,
     nome: marca,
     email,
@@ -242,6 +244,12 @@ async function montarLado(marca: string, indice: number): Promise<Lado> {
 async function alcancaOVizinho(eu: Lado, vizinho: Lado) {
   const c = vizinho.campaignId;
   // Um story do vizinho no ar: apagar pelo id dele tem de dar 404.
+  // Um saque pedido à organização do vizinho, com a nota fiscal: a nota é 404 para mim.
+  const [saqueDoVizinho] = await db
+    .insert(payouts)
+    .values({ affiliateId: vizinho.cambistaId, organizationId: vizinho.orgId, amountCents: 1, pixKey: "iso@pix" })
+    .returning({ id: payouts.id });
+  await db.insert(saqueNotas).values({ payoutId: saqueDoVizinho.id, mime: "application/pdf", tamanho: 1, dados: Buffer.from([0]), iv: Buffer.alloc(12), tag: Buffer.alloc(16), chaveVersao: "v1" });
   const [storyDoVizinho] = await db
     .insert(stories)
     .values({ organizationId: vizinho.orgId, mime: "image/webp", bytes: Buffer.from([0]), expiraEm: new Date(Date.now() + 3_600_000) })
@@ -330,6 +338,7 @@ async function alcancaOVizinho(eu: Lado, vizinho: Lado) {
     ["PUT dados da verificação do vizinho", `/api/admin/organizacoes/${vizinho.orgId}/verificacao`, { method: "PUT", body: "{}" }],
     ["PUT documento da verificação do vizinho", `/api/admin/organizacoes/${vizinho.orgId}/verificacao/documentos/cartao_cnpj`, { method: "PUT", body: "{}" }],
     ["GET documento da verificação do vizinho", `/api/admin/organizacoes/${vizinho.orgId}/verificacao/documentos/cartao_cnpj`, {}],
+    ["GET nota fiscal do saque pedido ao vizinho", `/api/admin/payouts/${saqueDoVizinho.id}/nota`, {}],
     ["GET pedido de renovação do consentimento do vizinho", `/api/admin/organizacoes/${vizinho.orgId}/verificacao/consentimento`, {}],
     ["POST endereço curto da rifa do vizinho", `/api/admin/campaigns/${c}/link-curto`, { method: "POST" }],
     ["POST editar rifa do vizinho", `/api/admin/campaigns/${c}/editar`, { method: "POST", body: '{"title":"invadida"}' }],
@@ -353,6 +362,7 @@ async function alcancaOVizinho(eu: Lado, vizinho: Lado) {
   const meusPedidos = (await (await pedir(eu.cookie, "/api/admin/solicitacoes")).json()) as { id: string }[];
   checa("a lista de pedidos não traz o do vizinho", !meusPedidos.some((x) => x.id === pedidoDoVizinho.id));
   await db.delete(campanhaSolicitacoes).where(eq(campanhaSolicitacoes.id, pedidoDoVizinho.id));
+  await db.delete(payouts).where(eq(payouts.id, saqueDoVizinho.id));
   const [comentarioAinda] = await db
     .select({ removidoEm: comentarios.removidoEm })
     .from(comentarios)

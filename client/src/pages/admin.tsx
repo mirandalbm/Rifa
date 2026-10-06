@@ -1527,6 +1527,9 @@ export function AdminFinanceiro() {
               <li key={p.id} className="flex items-center gap-3 px-4 py-3 text-sm">
                 <span className="tnum flex-1 truncate text-muted">{p.pixKey}</span>
                 <Money cents={p.amountCents} />
+                <a href={`/api/admin/payouts/${p.id}/nota`} className="text-xs text-green-deep underline">
+                  nota fiscal
+                </a>
                 <Button
                   variant="ghost"
                   className="px-2 py-1 text-xs"

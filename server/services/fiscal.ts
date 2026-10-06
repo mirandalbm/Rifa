@@ -11,17 +11,22 @@
  */
 import { and, desc, eq } from "drizzle-orm";
 import { db } from "../db";
-import { affiliates, afiliadoDocumentos, afiliadoFiscal, users } from "@shared/schema";
+import { affiliates, afiliadoDocumentos, afiliadoFiscal, saqueNotas, users } from "@shared/schema";
 import {
   DOCUMENTOS,
   DOCUMENTO_MAX_BYTES,
+  MENSAGEM_SAQUE_SO_COM_CNPJ,
+  NOTA_FISCAL_MAX_BYTES,
   faltaNoCadastro,
+  mimeDaNotaFiscal,
   validarCadastroFiscal,
   type DadosFiscais,
   type StatusFiscal,
   type TipoDeDocumento,
 } from "@shared/fiscal";
 import { cifrar, cifrarJson, decifrar, decifrarJson, impressaoDoCpf } from "./cofre";
+
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 export class FiscalError extends Error {
   constructor(message: string, readonly status = 400) {
@@ -51,10 +56,21 @@ async function tiposEnviados(affiliateId: string) {
  * Depois de qualquer envio: completo vai para análise; incompleto fica
  * incompleto. Aprovado que mudou volta para análise.
  */
+/** Os dados decifrados da linha (nulo sem dados). */
+function dadosDa(f: { dados: Buffer | null; iv: Buffer | null; tag: Buffer | null; chaveVersao: string | null } | undefined) {
+  return f?.dados && f.iv && f.tag && f.chaveVersao
+    ? decifrarJson<DadosFiscais>({ dados: f.dados, iv: f.iv, tag: f.tag, versao: f.chaveVersao })
+    : null;
+}
+
 async function recalcularStatus(affiliateId: string) {
-  const [f] = await db.select({ dados: afiliadoFiscal.dados }).from(afiliadoFiscal).where(eq(afiliadoFiscal.affiliateId, affiliateId));
+  const [f] = await db
+    .select({ dados: afiliadoFiscal.dados, iv: afiliadoFiscal.iv, tag: afiliadoFiscal.tag, chaveVersao: afiliadoFiscal.chaveVersao })
+    .from(afiliadoFiscal)
+    .where(eq(afiliadoFiscal.affiliateId, affiliateId));
   const docs = (await tiposEnviados(affiliateId)).map((d) => d.tipo);
-  const completo = faltaNoCadastro(Boolean(f?.dados), docs).length === 0;
+  const dados = dadosDa(f);
+  const completo = faltaNoCadastro(Boolean(dados), docs, Boolean(dados?.empresa)).length === 0;
   await db
     .insert(afiliadoFiscal)
     .values({ affiliateId, status: completo ? "em_analise" : "incompleto", enviadoEm: completo ? new Date() : null })
@@ -115,10 +131,8 @@ export async function salvarDocumento(affiliateId: string, tipo: string, dataUrl
 export async function estadoFiscal(affiliateId: string, comDados: boolean) {
   const [f] = await db.select().from(afiliadoFiscal).where(eq(afiliadoFiscal.affiliateId, affiliateId));
   const documentos = await tiposEnviados(affiliateId);
-  const dados =
-    comDados && f?.dados && f.iv && f.tag && f.chaveVersao
-      ? decifrarJson<DadosFiscais>({ dados: f.dados, iv: f.iv, tag: f.tag, versao: f.chaveVersao })
-      : null;
+  const todos = dadosDa(f);
+  const dados = comDados ? todos : null;
   return {
     status: (f?.status ?? "incompleto") as StatusFiscal,
     motivo: f?.motivo ?? null,
@@ -126,7 +140,9 @@ export async function estadoFiscal(affiliateId: string, comDados: boolean) {
     decididoEm: f?.decididoEm ?? null,
     dados,
     documentos,
-    falta: faltaNoCadastro(Boolean(f?.dados), documentos.map((d) => d.tipo)),
+    falta: faltaNoCadastro(Boolean(todos), documentos.map((d) => d.tipo), Boolean(todos?.empresa)),
+    /** Com o CNPJ no cadastro (a regra do saque): só o tipo, sem o número. */
+    temCnpj: Boolean(todos?.empresa),
   };
 }
 
@@ -177,11 +193,50 @@ export async function cadastroAprovado(affiliateId: string) {
   return f?.status === "aprovado";
 }
 
-/** Nome e CPF do cadastro aprovado, para o recibo (nulo sem cadastro). */
+/**
+ * Quem recebe, para o recibo (nulo sem cadastro): com CNPJ, a razão social e
+ * o CNPJ; o cadastro de antes da regra, o nome e o CPF.
+ */
 export async function identificacaoParaRecibo(affiliateId: string) {
   const e = await estadoFiscal(affiliateId, true);
   if (e.status !== "aprovado" || !e.dados) return null;
-  return { nome: e.dados.nomeCompleto, cpf: e.dados.cpf };
+  if (e.dados.empresa) return { nome: e.dados.empresa.razaoSocial, cpf: null, cnpj: e.dados.empresa.cnpj };
+  return { nome: e.dados.nomeCompleto, cpf: e.dados.cpf, cnpj: undefined };
+}
+
+/**
+ * A regra do saque (resposta 6.4 do advogado, caminho escolhido: só MEI ou
+ * empresa): cadastro fiscal **aprovado** e **com CNPJ**. Devolve o motivo da
+ * recusa, ou `null`. Sem interruptor: pagar pessoa física exigiria RPA e
+ * retenções que o sistema não faz.
+ */
+export async function problemaParaSacar(affiliateId: string): Promise<string | null> {
+  const e = await estadoFiscal(affiliateId, false);
+  if (e.status !== "aprovado" || !e.temCnpj) return MENSAGEM_SAQUE_SO_COM_CNPJ;
+  return null;
+}
+
+/** Confere a nota fiscal do saque **antes** da transação: tamanho e tipo pelo conteúdo. */
+export function lerNotaFiscal(dataUrl: unknown): { mime: string; bytes: Buffer } {
+  const m = /^data:[a-z/+.-]*;base64,([A-Za-z0-9+/=]+)$/i.exec(String(dataUrl ?? ""));
+  if (!m) throw new FiscalError("Anexe a nota fiscal do saque (PDF, XML ou foto), emitida pelo seu CNPJ no valor do saque.");
+  const bytes = Buffer.from(m[1], "base64");
+  if (bytes.length > NOTA_FISCAL_MAX_BYTES) throw new FiscalError("A nota fiscal passa de 3 MB.");
+  const mime = mimeDaNotaFiscal(bytes);
+  if (!mime) throw new FiscalError("O arquivo não é uma nota fiscal em PDF, XML ou foto.");
+  return { mime, bytes };
+}
+
+/** Grava a nota na transação que cria o saque — cifrada, como os documentos. */
+export async function gravarNotaDoSaque(tx: Tx, payoutId: string, nota: { mime: string; bytes: Buffer }) {
+  const c = cifrar(nota.bytes);
+  await tx.insert(saqueNotas).values({ payoutId, mime: nota.mime, tamanho: nota.bytes.length, dados: c.dados, iv: c.iv, tag: c.tag, chaveVersao: c.versao });
+}
+
+export async function notaDoSaque(payoutId: string) {
+  const [n] = await db.select().from(saqueNotas).where(eq(saqueNotas.payoutId, payoutId));
+  if (!n) throw new FiscalError("Nota fiscal não encontrada.", 404);
+  return { mime: n.mime, bytes: decifrar({ dados: n.dados, iv: n.iv, tag: n.tag, versao: n.chaveVersao }) };
 }
 
 export type { TipoDeDocumento };

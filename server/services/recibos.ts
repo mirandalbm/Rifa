@@ -14,7 +14,7 @@ import QRCode from "qrcode";
 import { db } from "../db";
 import { affiliates, organizations, payouts, recibos, users } from "@shared/schema";
 import { canonico, codigoDeRecibo, reciboFecha, type ReciboSnapshot } from "@shared/fiscal";
-import { formatBRL, maskCpf } from "@shared/format";
+import { formatBRL, formatarCnpj, maskCpf } from "@shared/format";
 import { assinar, assinaturaConfere, sha256 } from "./cofre";
 import { identificacaoParaRecibo } from "./fiscal";
 
@@ -56,7 +56,14 @@ export async function emitirRecibo(tx: Tx, payoutId: string) {
     codigo: codigoDeRecibo(randomInt),
     emitidoEm: new Date().toISOString(),
     pagador: { nome: p.orgNome ?? "Plataforma", cnpj: p.orgCnpj ?? null },
-    beneficiario: { nome: id?.nome ?? p.nomeDaConta, cpf: id?.cpf ?? null, codigoAfiliado: p.codigoAfiliado },
+    beneficiario: {
+      nome: id?.nome ?? p.nomeDaConta,
+      cpf: id?.cpf ?? null,
+      // Com CNPJ (a regra do saque), o recibo é da empresa; sem ele, o campo nem existe — o
+      // texto canônico dos recibos de antes não muda.
+      ...(id?.cnpj ? { cnpj: id.cnpj } : {}),
+      codigoAfiliado: p.codigoAfiliado,
+    },
     valorCents: p.payout.amountCents,
     pagamento: { forma: "pix", destino: p.payout.pixKey },
     origem: (origem.rows as { rifa: string; pedidos: number; comissao: number }[]).map((o) => ({
@@ -124,7 +131,11 @@ export async function pdfDoRecibo(r: { snapshot: unknown; hash: string; assinatu
   doc.font("Helvetica-Bold").fontSize(16).text("RECIBO DE PAGAMENTO DE COMISSÃO");
   doc.font("Helvetica").fontSize(10).fillColor("#555").text(`Recibo ${s.codigo} · emitido em ${data}`);
   doc.moveDown(1.2).fillColor("#000").fontSize(11);
-  const cpf = s.beneficiario.cpf ? `, CPF ${maskCpf(s.beneficiario.cpf)}` : "";
+  const cpf = s.beneficiario.cnpj
+    ? `, CNPJ ${formatarCnpj(s.beneficiario.cnpj)}`
+    : s.beneficiario.cpf
+      ? `, CPF ${maskCpf(s.beneficiario.cpf)}`
+      : "";
   const cnpj = s.pagador.cnpj ? ` (CNPJ ${s.pagador.cnpj})` : "";
   doc.text(
     `Recebi de ${s.pagador.nome}${cnpj} a importância de ${formatBRL(s.valorCents)}, referente a comissão por divulgação de rifas (afiliado ${s.beneficiario.codigoAfiliado}), paga por Pix para a chave ${s.pagamento.destino}.`,

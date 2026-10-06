@@ -620,6 +620,10 @@ Na ordem de entrega do plano:
   lá, nenhuma organização é barrada. **A minuta chega em 09/10/2026.** A
   cláusula da retenção deve falar em "saldos e créditos mantidos na
   plataforma" — o Pix com split nunca passa por ela.
+  **O nome "Sábado da Sorte" não é definitivo** (decisão de 06/10/2026): o
+  código não fixa nome — a marca vem do template (Aparência) e a empresa dos
+  "Dados da empresa". O contrato deve identificar a plataforma pela razão
+  social e pelo CNPJ, para a troca de marca não exigir versão nova.
 
 - [x] **Apuração direta pela Loteria Federal (modo "Autorizado MF") e
   método liberado pela plataforma** — feito, com as respostas do advogado

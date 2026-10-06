@@ -1,10 +1,17 @@
 import { createHash, randomUUID } from "node:crypto";
 import type { PaymentProvider, PixCharge, WebhookResult } from "./provider";
+import { pixCopiaECola } from "./pixEstatico";
 
 /**
  * Provedor de desenvolvimento: gera uma cobrança falsa para o fluxo rodar
  * inteiro sem credencial. O pagamento é disparado à mão pela rota /api/dev.
  * Recusa-se a existir em produção.
+ *
+ * Com `DEV_PIX_CHAVE` (só no `.env` de quem testa — nunca no repositório, que é
+ * público), o "copia e cola" é um Pix de verdade para essa chave, com o valor e
+ * o código do pedido: dá para ver o pagamento no aplicativo do banco. Pagar
+ * **não** confirma nada sozinho — o teste confirma pela rota /api/dev, como
+ * sempre.
  */
 export class DevPaymentProvider implements PaymentProvider {
   readonly name = "dev";
@@ -34,7 +41,15 @@ export class DevPaymentProvider implements PaymentProvider {
       provider: this.name,
       chargeId,
       qr: "",
-      copyPaste: `00020126580014BR.GOV.BCB.PIX0136${fingerprint}5204000053039865802BR6009SAO PAULO62070503***DEV`,
+      copyPaste: process.env.DEV_PIX_CHAVE
+        ? pixCopiaECola({
+            chave: process.env.DEV_PIX_CHAVE.trim(),
+            valorCents: params.amountCents,
+            txid: String(params.orderCode),
+            nome: process.env.DEV_PIX_NOME,
+            cidade: process.env.DEV_PIX_CIDADE,
+          })
+        : `00020126580014BR.GOV.BCB.PIX0136${fingerprint}5204000053039865802BR6009SAO PAULO62070503***DEV`,
       expiresAt: params.expiresAt,
       // Imita o Asaas: com carteira no split, a taxa já fica retida — é
       // assim que `npm run carrinho` prova o lançamento `retida` sem credencial.

@@ -13,6 +13,7 @@
  *
  *   npm run solicitacoes      (com `npm run dev` no ar e o seed aplicado)
  */
+import { DIAS_UTEIS_DEVOLUCAO_INTEGRAL, somarDiasUteis } from "../shared/chamados";
 import "dotenv/config";
 import { baseUrl } from "./base-url";
 import { eq, like, sql } from "drizzle-orm";
@@ -303,6 +304,9 @@ async function main() {
         taxaPct: 10,
         taxaCents: 50,
         devolverCents: 450,
+        // Já aprovado, com os 30 dias que a organização escolheu (liberalidade da taxa).
+        status: "aprovado",
+        prazoEstornoAte: new Date(Date.now() + 30 * 86_400_000),
       })
       .returning();
     r = await admin.req("POST", `/api/admin/solicitacoes/${pedidoAdiamento}/decidir`, { aprovar: true, resposta: "Aprovado." });
@@ -318,6 +322,13 @@ async function main() {
       "o chamado com taxa aberto antes do adiamento passa a devolver tudo",
       chAdiado.tipoReembolso === "adiamento" && chAdiado.taxaCents === 0 && chAdiado.devolverCents === 500,
       `${chAdiado.tipoReembolso} ${chAdiado.devolverCents}/${chAdiado.taxaCents}`,
+    );
+    checa(
+      "3.6: virou devolução integral, e o prazo de 30 dias cai para 3 dias úteis",
+      Boolean(chAdiado.prazoEstornoAte) &&
+        chAdiado.prazoEstornoAte!.getTime() <= somarDiasUteis(new Date(), DIAS_UTEIS_DEVOLUCAO_INTEGRAL).getTime() + 60_000 &&
+        chAdiado.prazoEstornoAte!.getTime() > Date.now(),
+      chAdiado.prazoEstornoAte?.toISOString(),
     );
     r = await fetch(`${URL}/api/public/campaigns/${comVenda.slug}`).then(async (x) => ({ status: x.status, json: await x.json() }));
     checa("a página da rifa mostra o adiamento e a data de antes",

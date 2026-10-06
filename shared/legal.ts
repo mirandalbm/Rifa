@@ -13,13 +13,14 @@
  *
  * Puro: o servidor valida, a tela mostra, o teste confere.
  */
+import { DIAS_UTEIS_DEVOLUCAO_INTEGRAL, PRAZO_ESTORNO_MAX } from "./chamados";
 import { GUARDA_DAS_RECUSAS_DIAS, GUARDA_DO_BLOQUEIO_VENCIDO_DIAS } from "./antifraude";
 import { cnpjValido } from "./format";
 import { regraDoReembolso } from "./reembolso";
 import type { Secao } from "./regulamento";
 
 /** Data em que esta redação passou a valer. Sobe junto com qualquer mudança de texto. */
-export const VIGENCIA_DOS_TERMOS = "2026-10-05";
+export const VIGENCIA_DOS_TERMOS = "2026-10-06";
 
 export interface DadosDaEmpresa {
   razaoSocial: string;
@@ -161,7 +162,7 @@ export function montarTermosDeUso(d: DadosDosTermos): Secao[] {
       itens: d.reembolso.aceita
         ? [
             regraDoReembolso(d.reembolso.taxaPct),
-            "O pedido é feito por chamado, dentro da conta, e a devolução vai para a mesma conta que pagou. Se a promotora recusar, você pode levar a disputa à plataforma, que dá a palavra final.",
+            `O pedido é feito por chamado, dentro da conta, e a devolução vai para a mesma conta que pagou. A devolução integral (arrependimento ou sorteio adiado) sai em até ${DIAS_UTEIS_DEVOLUCAO_INTEGRAL} dias úteis da aprovação; a com taxa, no prazo informado no protocolo, de até ${PRAZO_ESTORNO_MAX} dias. Se a promotora recusar, você pode levar a disputa à plataforma, que dá a palavra final.`,
           ]
         : [
             `No momento a plataforma não recebe pedidos de reembolso pelo site: fale com a promotora da rifa (os contatos dela estão no perfil). O seu direito de desistir da compra online em até 7 dias (art. 49 do Código de Defesa do Consumidor), antes do fechamento dos pedidos, segue valendo — se a promotora não responder, fale com a plataforma ${canal(d.empresa)}.`,

@@ -15,6 +15,7 @@
  *
  *   npm run disputa      (com `npm run dev` no ar e sem WhatsApp configurado)
  */
+import { prazoDoEstornoDoTipo } from "../shared/chamados";
 import "dotenv/config";
 import { baseUrl } from "./base-url";
 import sharp from "sharp";
@@ -161,8 +162,10 @@ async function main() {
     const [ca] = await db.select().from(chamados).where(eq(chamados.id, A));
     {
       checa("procedente: A vira aprovado", ca.status === "aprovado" && ca.disputa === "procedente");
-      const prazo = ca.prazoEstornoAte ? Math.round((ca.prazoEstornoAte.getTime() - Date.now()) / 86_400_000) : -1;
-      checa("com o prazo da organização (5 dias)", prazo === 5, String(prazo));
+      // 3.6 do advogado: integral em 3 dias úteis; com taxa, o prazo da organização (5 dias).
+      const esperado = prazoDoEstornoDoTipo(new Date(), ca.tipoReembolso, 5).getTime();
+      const desvio = ca.prazoEstornoAte ? Math.abs(ca.prazoEstornoAte.getTime() - esperado) / 86_400_000 : 99;
+      checa(`com o prazo do tipo (${ca.tipoReembolso})`, desvio < 0.01, desvio.toFixed(3));
       r = await c.req("GET", `/api/public/chamados/${A}`);
       const daPlataforma = r.json?.mensagens?.find((m: any) => m.autor === "plataforma");
       checa("o comprador lê 'Plataforma'", daPlataforma?.nome === "Plataforma" && r.json?.disputa === "procedente");

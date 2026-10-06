@@ -1448,6 +1448,11 @@ permite cobrar dela depois, e o aceite é a prova.
   reembolso"). Desligado, o comprador não abre chamado e a organização não
   devolve; estorno avisado pelo provedor (contestação, Pix devolvido) é
   registrado sempre — o dinheiro já saiu.
+  O interruptor é **operacional, não jurídico** (resposta 3.7 do advogado):
+  desligado, o art. 49 continua valendo e, perante o comprador, plataforma e
+  promotora respondem **juntas** (CDC, art. 7º, parágrafo único — a
+  plataforma cobrou o Pix e emitiu o bilhete). A plataforma devolve se for
+  condenada e cobra da promotora pelo regresso do contrato da promotora.
 - **Carteira do Asaas só a plataforma cadastra.** Trocar a carteira é trocar
   para onde vai o dinheiro das vendas.
 
@@ -1628,8 +1633,15 @@ botão, é **chamado** — com dono, prova, conversa e protocolo.
   de localização) e fica no banco, servido só pelas duas rotas que conferem o
   dono, com `no-store`. Imagem do bilhete nunca vai para URL pública.
 - **Concluir é um `UPDATE` condicional** (`aberto` → `aprovado`/`recusado`).
-  O prazo de devolução sai de `organizations.prazoEstornoDias` (1 a 30),
-  calculado na conclusão, e vai na mensagem com o protocolo — é compromisso.
+  O prazo de devolução é calculado na conclusão e vai na mensagem com o
+  protocolo — é compromisso. **Depende do tipo** (`prazoDoEstornoDoTipo()` em
+  `shared/chamados.ts`, resposta 3.6 do advogado): a devolução **integral**
+  (arrependimento do art. 49 e adiamento do art. 35) é obrigação legal e sai
+  em até `DIAS_UTEIS_DEVOLUCAO_INTEGRAL` (3) dias úteis (`somarDiasUteis()`,
+  fuso de São Paulo; feriado não é pulado, o prazo só fica menor); só a
+  **com taxa** (liberalidade) usa os 1 a 30 dias que a organização escolheu
+  (`organizations.prazoEstornoDias`). O adiamento aprovado que converte um
+  chamado já aprovado com taxa encurta o prazo dele na mesma transação.
 - **Estornar toma o chamado** (`aprovado` → `estornado`) antes de chamar o
   provedor: dois cliques simultâneos dão um estorno e um 409.
 - **O comprador nunca vê o nome de quem atendeu** — só "Atendimento".

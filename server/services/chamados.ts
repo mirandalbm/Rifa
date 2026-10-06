@@ -37,7 +37,7 @@ import {
   disputaLiberadaEm,
   problemaNaDisputa,
   gerarProtocolo,
-  prazoDoEstorno,
+  prazoDoEstornoDoTipo,
   problemaNoPedido,
   type PedidoDeReembolso,
 } from "@shared/chamados";
@@ -646,7 +646,7 @@ export async function concluirChamado(
       decisao: resposta,
       concluidoEm: agora,
       concluidoPor: req.user!.id,
-      prazoEstornoAte: entrada.decisao === "aprovado" ? prazoDoEstorno(agora, org?.dias ?? 7) : null,
+      prazoEstornoAte: entrada.decisao === "aprovado" ? prazoDoEstornoDoTipo(agora, c.tipoReembolso, org?.dias ?? 7) : null,
     })
     // Em disputa, quem decide é a plataforma (`decidirDisputa`).
     .where(and(eq(chamados.id, c.id), eq(chamados.status, "aberto"), isNull(chamados.disputa)))
@@ -863,7 +863,7 @@ export async function decidirDisputa(
         decisao: procedente ? decisao : sql`coalesce(${chamados.decisao}, ${decisao})`,
         concluidoEm: procedente ? agora : sql`coalesce(${chamados.concluidoEm}, ${agora})`,
         concluidoPor: procedente ? req.user!.id : sql`coalesce(${chamados.concluidoPor}, ${req.user!.id}::uuid)`,
-        prazoEstornoAte: procedente ? prazoDoEstorno(agora, org?.dias ?? 7) : null,
+        prazoEstornoAte: procedente ? prazoDoEstornoDoTipo(agora, c.tipoReembolso, org?.dias ?? 7) : null,
       })
       .where(and(eq(chamados.id, c.id), eq(chamados.disputa, "aberta")))
       .returning();

@@ -17,6 +17,7 @@
  *    sorteio passa a esperar a data nova — senão seria liberada antes do
  *    sorteio que ela devia esperar.
  */
+import { DIAS_UTEIS_DEVOLUCAO_INTEGRAL, somarDiasUteis } from "@shared/chamados";
 import { randomInt } from "node:crypto";
 import { and, asc, desc, eq, isNull, sql } from "drizzle-orm";
 import type { Request } from "express";
@@ -513,7 +514,11 @@ export async function decidirSolicitacao(
         // só para quem pedisse depois.
         await tx.execute(sql`
           UPDATE chamados ch
-             SET tipo_reembolso = 'adiamento', taxa_pct = 0, taxa_cents = 0, devolver_cents = o.amount_cents
+             SET tipo_reembolso = 'adiamento', taxa_pct = 0, taxa_cents = 0, devolver_cents = o.amount_cents,
+                 -- Integral é obrigação legal: o aprovado devolve no prazo bancário (resposta 3.6).
+                 prazo_estorno_ate = CASE WHEN ch.status = 'aprovado'
+                                          THEN least(ch.prazo_estorno_ate, ${somarDiasUteis(new Date(), DIAS_UTEIS_DEVOLUCAO_INTEGRAL)})
+                                          ELSE ch.prazo_estorno_ate END
             FROM orders o
            WHERE o.id = ch.order_id
              AND o.campaign_id = ${c.id}::uuid

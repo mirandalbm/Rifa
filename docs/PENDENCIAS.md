@@ -650,6 +650,16 @@ Na ordem de entrega do plano:
   no calendário até sair um número com dono; a conferência, a prestação de
   contas e a auditoria listam cada extração. Sobe com o `db:push` **antes**
   do código: a tabela `sorteio_reextracoes`. `npm run apuracao` prova.
+- [x] **Reembolso validado pelo advogado** (item 3, 06/10/2026) — feito. As
+  regras ficaram como estavam (arrependimento até o fechamento com o aviso de
+  data e hora, taxa de até 10% depois, adiamento integral, disputa com a
+  plataforma, Pix tardio). Ajuste no código (3.6): a devolução **integral**
+  (arrependimento e adiamento) sai em até **3 dias úteis** da aprovação; os 1
+  a 30 dias da promotora valem só para o reembolso com taxa. Os Termos dizem
+  isso. Ciência (3.7): com o interruptor de reembolso desligado, plataforma e
+  promotora respondem juntas pelo art. 49 — o regresso do contrato da
+  promotora é o que cobre a plataforma depois. `npm run chamados`,
+  `disputa` e `solicitacoes` provam.
 - [ ] **Homologar o globo** (você, com o advogado): quando sair, ligar o
   globo em "Métodos de apuração", cadastrar a sessão no calendário e
   combinar com o tabelionato a ata de cada sessão.

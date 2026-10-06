@@ -647,14 +647,11 @@ Na ordem de entrega do plano:
   são preenchidos), "Plataforma" no lugar da marca, sem título de
   capitalização; os cinco textos dos anexos vieram prontos (publique cada um
   em Configurações); a entidade beneficiada é só a declaração da promotora
-  (17.1), e a rifa filantrópica é a com entidade (17.2). **Antes de publicar
-  o anexo do bônus (D)**: o texto diz que as cotas de bônus "serão
-  invalidadas em caso de estorno da operação que lhes deu origem", e o
-  sistema não faz isso — o estorno tira o **saldo** de bônus (que pode ficar
-  negativo e trava o resgate), mas a cota já resgatada segue valendo.
-  Peça ao advogado para trocar por "o bônus é estornado do saldo; se já
-  tiver sido usado, o saldo fica negativo e novos resgates ficam bloqueados
-  até a compensação", ou peça a invalidação no código.
+  (17.1), e a rifa filantrópica é a com entidade (17.2). **O anexo do bônus (D)
+  foi corrigido pelo advogado** para o que o sistema faz: o estorno tira o
+  bônus do **saldo**; se a cota já foi resgatada, o saldo fica negativo e
+  trava novos resgates até a compensação — a cota resgatada segue valendo.
+  Os cinco anexos (A a E) podem ser publicados como vieram.
 
 - [x] **Apuração direta pela Loteria Federal (modo "Autorizado MF") e
   método liberado pela plataforma** — feito, com as respostas do advogado

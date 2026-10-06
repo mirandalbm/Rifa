@@ -7,7 +7,7 @@ import { Card, Money, Pill, Button, Empty } from "@/components/bits";
 import { Estatistica } from "@/components/painel";
 import { Banknote, MousePointerClick, Percent, ShoppingBag } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
-import { formatBRL } from "@shared/format";
+import { formatBRL, formatarCnpj } from "@shared/format";
 
 interface Overview {
   affiliate: { code: string; pixKey: string | null; commissionPct: number | null; status: string };
@@ -336,7 +336,13 @@ export function AfiliadoSaques() {
   });
 
   const { data: saldo = [] } = useQuery<
-    { organizacaoId: string; organizacao: string; disponivelCents: number; pendenteCents: number }[]
+    {
+      organizacaoId: string;
+      organizacao: string;
+      disponivelCents: number;
+      pendenteCents: number;
+      notaContra?: { nome: string; cnpj: string | null };
+    }[]
   >({ queryKey: ["/api/affiliate/saldo"] });
 
   // A nota fiscal do saque (o saque só sai para MEI ou empresa): uma por linha, lida como data URL.
@@ -413,8 +419,8 @@ export function AfiliadoSaques() {
               sempre depois do sorteio. O saque é pedido a um de cada vez.
             </p>
             <p className="text-xs text-muted">
-              A comissão é paga a MEI ou empresa: anexe a nota fiscal emitida pelo seu CNPJ no valor do saque (PDF, XML
-              ou foto, até 3 MB). O CNPJ fica em <a href="/afiliado/dados" className="underline">Meus dados</a>.
+              A comissão é paga a MEI ou empresa: anexe a nota fiscal emitida pelo seu CNPJ no valor do saque, contra
+              quem paga (o nome e o CNPJ vão em cada linha), em PDF, XML ou foto, até 3 MB. O CNPJ fica em <a href="/afiliado/dados" className="underline">Meus dados</a>.
             </p>
             {saldo.length === 0 ? <p className="text-sm text-muted">Nenhuma comissão ainda.</p> : null}
             <ul className="divide-y divide-line">
@@ -423,6 +429,12 @@ export function AfiliadoSaques() {
                   <span className="min-w-0 flex-1 basis-full sm:basis-auto">
                     <span className="block font-semibold">{o.organizacao}</span>
                     <span className="tnum text-xs text-muted">aguardando {formatBRL(o.pendenteCents)}</span>
+                    {o.notaContra ? (
+                      <span className="block text-xs text-muted">
+                        Nota contra {o.notaContra.nome}
+                        {o.notaContra.cnpj ? <span className="tnum">, CNPJ {formatarCnpj(o.notaContra.cnpj)}</span> : " (CNPJ ainda não cadastrado)"}
+                      </span>
+                    ) : null}
                   </span>
                   <span className="tnum text-green-deep">{formatBRL(o.disponivelCents)}</span>
                   {/* O botão é o rótulo: o campo nativo mostraria "Choose File" na língua do navegador. */}

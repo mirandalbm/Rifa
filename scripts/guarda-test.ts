@@ -158,6 +158,8 @@ async function main() {
     const daOrgSaldo = r.json?.find((x: any) => x.organizacaoId === org.id);
     checa("o afiliado vê 'Plataforma' à parte", plat?.organizacao === "Plataforma" && plat.disponivelCents === 100, JSON.stringify(r.json));
     checa("e o saldo da organização continua dela", daOrgSaldo?.disponivelCents === v1.comissao.amountCents);
+    checa("a nota da guardada sai contra a plataforma", typeof plat?.notaContra?.nome === "string" && plat.notaContra.nome.length > 0, JSON.stringify(plat?.notaContra));
+    checa("a da organização, contra ela", daOrgSaldo?.notaContra?.nome === daOrgSaldo?.organizacao, JSON.stringify(daOrgSaldo?.notaContra));
 
     await aprovarCadastroComCnpj(aff.id);
     r = await eu.req("POST", "/api/affiliate/payouts", { notaFiscal: NOTA_DE_TESTE });

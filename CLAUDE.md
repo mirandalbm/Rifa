@@ -3496,7 +3496,11 @@ organização) ganha o selo **"AO VIVO"** quando há transmissão de sorteio no 
   transação, 400). A nota fica cifrada em `saque_notas`, gravada na
   transação que cria o saque; abrem o afiliado (a dele) e quem paga — a
   organização do saque ou a plataforma (`GET /admin/payouts/:id/nota`, o do
-  vizinho é 404, no `npm run isolation`; a leitura vai à auditoria). O
+  vizinho é 404, no `npm run isolation`; a leitura vai à auditoria). **A
+  nota sai contra quem paga** (resposta 11.2 do advogado): a organização da
+  rifa ou, com a comissão guardada, a plataforma (razão social e CNPJ dos
+  Dados da empresa publicados) — `notaContra` em cada linha de `GET
+  /api/affiliate/saldo`, e a tela do saque mostra. O
   cadastro de antes da regra, sem CNPJ, aparece como faltando o CNPJ e não
   saca até completar. O recibo da empresa sai com a razão social e o CNPJ
   (`beneficiario.cnpj`, só quando existe — o texto canônico dos recibos de

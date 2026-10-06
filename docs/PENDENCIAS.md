@@ -641,8 +641,20 @@ Na ordem de entrega do plano:
   "Promoção Comercial" como tipo; a rifa filantrópica é a com entidade
   beneficiada. Sem anexo publicado de uma modalidade, nada é barrado por ela.
   O anexo da entidade é só aceite: o sistema não confere CEBAS. `npm run
-  anexos` prova. **Falta no ambiente**: `db:push` (tabelas `contrato_anexos`
-  e `contrato_anexo_aceites`, coluna `campaigns.contrato_anexo_ids`).
+  anexos` prova. O `db:push` dos anexos já rodou no deploy do #187.
+  **Respostas 15 a 17 do advogado (06/10/2026)**: preâmbulo e 1.2 com os
+  marcadores (`[ENDEREÇO DA PLATAFORMA]` e `[E-MAIL DA PLATAFORMA]` também
+  são preenchidos), "Plataforma" no lugar da marca, sem título de
+  capitalização; os cinco textos dos anexos vieram prontos (publique cada um
+  em Configurações); a entidade beneficiada é só a declaração da promotora
+  (17.1), e a rifa filantrópica é a com entidade (17.2). **Antes de publicar
+  o anexo do bônus (D)**: o texto diz que as cotas de bônus "serão
+  invalidadas em caso de estorno da operação que lhes deu origem", e o
+  sistema não faz isso — o estorno tira o **saldo** de bônus (que pode ficar
+  negativo e trava o resgate), mas a cota já resgatada segue valendo.
+  Peça ao advogado para trocar por "o bônus é estornado do saldo; se já
+  tiver sido usado, o saldo fica negativo e novos resgates ficam bloqueados
+  até a compensação", ou peça a invalidação no código.
 
 - [x] **Apuração direta pela Loteria Federal (modo "Autorizado MF") e
   método liberado pela plataforma** — feito, com as respostas do advogado
@@ -729,6 +741,14 @@ Na ordem de entrega do plano:
   cadastro fiscal aprovado com CNPJ e a nota fiscal do valor anexada a cada
   saque, sem RPA nem retenção (`npm run fiscal`). O cadastro de antes, sem
   CNPJ, precisa completar para voltar a sacar.
+  **11.2 feito (06/10/2026)**: a nota sai contra quem paga — a organização
+  da rifa ou, com a comissão guardada, a plataforma (razão social e CNPJ dos
+  Dados da empresa publicados), que a contabiliza como custo de
+  intermediação. A tela do saque mostra, em cada linha, o nome e o CNPJ
+  contra quem emitir, e a cláusula 10 do termo diz isso (as organizações com
+  termo publicado veem o aviso de texto desatualizado). `npm run guarda`
+  prova. A organização sem CNPJ cadastrado aparece como "CNPJ ainda não
+  cadastrado" — cadastre o CNPJ de cada promotora.
 - [ ] **Homologar o globo** (você, com o advogado): quando sair, ligar o
   globo em "Métodos de apuração", cadastrar a sessão no calendário e
   combinar com o tabelionato a ata de cada sessão.

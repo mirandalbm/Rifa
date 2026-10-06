@@ -102,6 +102,36 @@ export function prazoDoEstorno(concluidoEm: Date, dias: number): Date {
   return new Date(concluidoEm.getTime() + d * 86_400_000);
 }
 
+/**
+ * Devolução integral (arrependimento do art. 49 e adiamento do art. 35 do
+ * CDC) é obrigação legal e a lei pede devolução imediata: o prazo é o
+ * bancário, em dias úteis, nunca o que a promotora escolheu (resposta 3.6 do
+ * advogado, 06/10/2026). Os 1 a 30 dias da organização valem só para o
+ * reembolso com taxa, que é liberalidade.
+ */
+export const DIAS_UTEIS_DEVOLUCAO_INTEGRAL = 3;
+
+/**
+ * Soma dias úteis (segunda a sexta, no fuso de São Paulo, UTC−3 sem horário
+ * de verão). Feriado não é pulado: o prazo fica menor, nunca maior.
+ */
+export function somarDiasUteis(de: Date, dias: number): Date {
+  let t = de.getTime();
+  let contados = 0;
+  while (contados < dias) {
+    t += 86_400_000;
+    const diaDaSemana = new Date(t - 3 * 3_600_000).getUTCDay();
+    if (diaDaSemana !== 0 && diaDaSemana !== 6) contados++;
+  }
+  return new Date(t);
+}
+
+/** O prazo de devolução pelo tipo do reembolso: integral em dias úteis; com taxa, o da organização. */
+export function prazoDoEstornoDoTipo(concluidoEm: Date, tipo: string | null | undefined, diasDaOrganizacao: number): Date {
+  if (tipo === "arrependimento" || tipo === "adiamento") return somarDiasUteis(concluidoEm, DIAS_UTEIS_DEVOLUCAO_INTEGRAL);
+  return prazoDoEstorno(concluidoEm, diasDaOrganizacao);
+}
+
 /* ------------------------------------------------------------------ *
  * Aviso de chamado novo à organização
  * ------------------------------------------------------------------ */

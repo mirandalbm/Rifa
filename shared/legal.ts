@@ -13,13 +13,14 @@
  *
  * Puro: o servidor valida, a tela mostra, o teste confere.
  */
+import { DIAS_UTEIS_DEVOLUCAO_INTEGRAL, PRAZO_ESTORNO_MAX } from "./chamados";
 import { GUARDA_DAS_RECUSAS_DIAS, GUARDA_DO_BLOQUEIO_VENCIDO_DIAS } from "./antifraude";
 import { cnpjValido } from "./format";
 import { regraDoReembolso } from "./reembolso";
 import type { Secao } from "./regulamento";
 
 /** Data em que esta redação passou a valer. Sobe junto com qualquer mudança de texto. */
-export const VIGENCIA_DOS_TERMOS = "2026-10-05";
+export const VIGENCIA_DOS_TERMOS = "2026-10-06";
 
 export interface DadosDaEmpresa {
   razaoSocial: string;
@@ -161,7 +162,7 @@ export function montarTermosDeUso(d: DadosDosTermos): Secao[] {
       itens: d.reembolso.aceita
         ? [
             regraDoReembolso(d.reembolso.taxaPct),
-            "O pedido é feito por chamado, dentro da conta, e a devolução vai para a mesma conta que pagou. Se a promotora recusar, você pode levar a disputa à plataforma, que dá a palavra final.",
+            `O pedido é feito por chamado, dentro da conta, e a devolução vai para a mesma conta que pagou. A devolução integral (arrependimento ou sorteio adiado) sai em até ${DIAS_UTEIS_DEVOLUCAO_INTEGRAL} dias úteis da aprovação; a com taxa, no prazo informado no protocolo, de até ${PRAZO_ESTORNO_MAX} dias. Se a promotora recusar, você pode levar a disputa à plataforma, que dá a palavra final.`,
           ]
         : [
             `No momento a plataforma não recebe pedidos de reembolso pelo site: fale com a promotora da rifa (os contatos dela estão no perfil). O seu direito de desistir da compra online em até 7 dias (art. 49 do Código de Defesa do Consumidor), antes do fechamento dos pedidos, segue valendo — se a promotora não responder, fale com a plataforma ${canal(d.empresa)}.`,
@@ -223,14 +224,14 @@ export function montarPrivacidade(d: DadosDosTermos): Secao[] {
         "Segurança e antifraude (endereço IP e identificador do aparelho em hash, telefone mascarado nas recusas, e tentativas de acesso): impedir golpe, bloqueio de estoque e uso indevido de contas. O registro de auditoria de algumas ações (entrar no painel, autorizar ou revogar a comparação de foto, por exemplo) guarda o IP de quem agiu. Base legal: legítimo interesse e prevenção à fraude.",
         "Comentários, mensagens e publicações: o que você escreve, para mostrar a quem deve ver e para moderar denúncias (a plataforma lê só o trecho denunciado).",
         "Voto nas enquetes dos stories (só com conta): qual opção você escolheu, guardado só para contar um voto por pessoa e mostrar a você o resultado. A organização vê os totais de cada opção, nunca quem votou em quê; o voto sai com o story.",
-        "Verificação de perfil (opcional): documentos, guardados cifrados, e — só com a sua autorização destacada — a comparação da foto do perfil com a do documento, que é dado biométrico (art. 11). A autorização pode ser revogada na própria tela.",
+        "Verificação de perfil (opcional): documentos, guardados cifrados, e — só com a sua autorização destacada — a comparação da foto do perfil com a do documento, que é dado biométrico (art. 11), para verificação de identidade e prevenção a fraudes. Da comparação fica só o resultado (verificado ou não) — nenhum modelo ou medida do rosto. A autorização pode ser revogada na própria tela; quem foi verificado com uma autorização anterior é chamado a confirmar de novo, senão o selo sai.",
         "Origem da visita (de onde você chegou, campanha de anúncio): estatística de vendas; nunca decide preço nem comissão.",
       ],
     },
     {
       titulo: "3. Com quem compartilhamos",
       itens: [
-        "Provedor do Pix (para gerar e conferir a cobrança e fazer devoluções); Meta/WhatsApp (código de acesso e mensagens das suas compras); Google (só se você entrar com o Google); serviço de consulta de CEP (só o CEP); serviços de notificação do celular (Google, Apple, Mozilla, Microsoft — só se você ligar os avisos); Amazon Rekognition, que pode processar a imagem fora do Brasil (só se você autorizou o texto que o cita); os provedores de hospedagem, banco de dados e cópia de segurança, que guardam os dados por nós; e a promotora e o afiliado (o que está no item 1).",
+        "Provedor do Pix (para gerar e conferir a cobrança e fazer devoluções); Meta/WhatsApp (código de acesso e mensagens das suas compras); Google (só se você entrar com o Google); serviço de consulta de CEP (só o CEP); serviços de notificação do celular (Google, Apple, Mozilla, Microsoft — só se você ligar os avisos); Amazon Web Services (Amazon Rekognition), em servidores no exterior — transferência internacional que só acontece com o seu consentimento expresso no texto que a cita (LGPD, art. 33, VIII); os provedores de hospedagem, banco de dados e cópia de segurança, que guardam os dados por nós; e a promotora e o afiliado (o que está no item 1).",
         "Pixels de anúncio (Meta, Google, TikTok) só carregam depois do seu \"Aceitar\" no aviso de cookies; a compra enviada a eles leva o telefone só em hash, nunca nome, CPF ou e-mail.",
         "Autoridades, quando a lei ou ordem judicial exigir. Nunca vendemos dados pessoais.",
       ],

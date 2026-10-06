@@ -10,6 +10,7 @@
  *
  *   npm run chamados      (com `npm run dev` no ar e sem WhatsApp configurado)
  */
+import { prazoDoEstornoDoTipo } from "../shared/chamados";
 import "dotenv/config";
 import { baseUrl } from "./base-url";
 import sharp from "sharp";
@@ -453,12 +454,13 @@ async function main() {
     });
     checa("aprova", r.status === 200, r.json?.message ?? "");
     const vis = await c.req("GET", `/api/public/chamados/${chamadoId}`);
-    const dias =
-      (new Date(vis.json.prazoEstornoAte).getTime() - Date.now()) / 86_400_000;
+    // 3.6 do advogado: integral (arrependimento, adiamento) em dias úteis; com taxa, o prazo da organização (5).
+    const esperado = prazoDoEstornoDoTipo(new Date(), vis.json.tipoReembolso, 5).getTime();
+    const dias = (new Date(vis.json.prazoEstornoAte).getTime() - esperado) / 86_400_000;
     checa(
-      "prazo = 5 dias da organização",
-      dias > 4.9 && dias <= 5,
-      dias.toFixed(2),
+      `prazo pelo tipo (${vis.json.tipoReembolso}: ${vis.json.tipoReembolso === "com_taxa" ? "5 dias da organização" : "3 dias úteis"})`,
+      Math.abs(dias) < 0.01,
+      dias.toFixed(3),
     );
     checa(
       "comprador vê o protocolo na conversa",

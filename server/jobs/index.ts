@@ -28,6 +28,7 @@ import { paymentProviderByName } from "../payments";
 import { log } from "../vite";
 import { poolDasTravas } from "../db";
 import { LocalDiskStorage, storage } from "../services/storage";
+import { tirarSelosSemConsentimentoRenovado } from "../services/verificacao";
 
 /**
  * Trava de aplicação no Postgres: com duas réplicas, os dois processos
@@ -75,6 +76,7 @@ const LOCK_SEGUNDO_FATOR = 811_015;
 const LOCK_SORTEIO_OFICIAL = 811_016;
 const LOCK_POSTER_ANTIGO = 811_017;
 const LOCK_PUBLICACAO_AGENDADA = 811_018;
+const LOCK_CONSENTIMENTO = 811_019;
 
 /** Quantos minutos antes de a reserva cair o lembrete é enviado. */
 const LEMBRETE_MINUTOS = Number(process.env.REMINDER_MINUTES_BEFORE ?? 5);
@@ -280,6 +282,18 @@ export function startJobs() {
   };
   setTimeout(migrarAfiliados, 3_000).unref();
   setInterval(migrarAfiliados, releaseMs).unref();
+
+  // Consentimento biométrico de versão antiga (resposta 7.3): passado o prazo, o selo sai.
+  setInterval(async () => {
+    try {
+      await withLock(LOCK_CONSENTIMENTO, async () => {
+        const n = await tirarSelosSemConsentimentoRenovado();
+        if (n > 0) log(`${n} selo(s) tirado(s): consentimento biométrico não renovado`, "jobs");
+      });
+    } catch (err) {
+      console.error("[jobs] consentimento não renovado:", err);
+    }
+  }, releaseMs).unref();
 
   // Stories vencidos (24 h): a rota já não serve, e o relógio tira do banco.
   setInterval(async () => {

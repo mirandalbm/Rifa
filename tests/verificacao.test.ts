@@ -11,6 +11,11 @@ import {
   CONSENTIMENTO_BIOMETRICO_VERSAO,
   chaveDoConsentimento,
   textoDoConsentimentoBiometrico,
+  consentimentoVigente,
+  precisaRenovarConsentimento,
+  prazoParaRenovarConsentimento,
+  CONSENTIMENTO_BIOMETRICO_DESDE,
+  PRAZO_PARA_RENOVAR_CONSENTIMENTO_DIAS,
 } from "@shared/verificacao";
 import { CONTRASTE_MIN, FUNDO, contraste } from "@shared/template";
 import { cnpjValido } from "@shared/format";
@@ -125,20 +130,38 @@ describe("emoji é de perfil verificado", () => {
 });
 
 describe("consentimento biométrico", () => {
-  it("o texto diz para quê, quem compara, guarda, que é opcional e como revogar", () => {
+  it("o texto diz finalidade, compartilhamento e retenção (resposta 7.1), que é opcional e como revogar", () => {
     const t = textoDoConsentimentoBiometrico({ automatico: false }).join(" ");
-    expect(t).toMatch(/só para confirmar que o perfil é meu/);
-    expect(t).toMatch(/LGPD, art\. 11/);
-    expect(t).toMatch(/uma pessoa da plataforma/);
-    expect(t).toMatch(/foto comparada é a que já aparece no meu perfil/);
+    expect(t).toMatch(/Finalidade: .*verificação de identidade e prevenção a fraudes/);
+    expect(t).toMatch(/LGPD, arts\. 8º e 11, I/);
+    expect(t).toMatch(/Compartilhamento: .*uma pessoa da plataforma.*não são enviadas a ninguém de fora/);
+    expect(t).toMatch(/Retenção: nenhum modelo ou medida do rosto é guardado .*só o resultado \(verificado ou não\)/);
+    expect(t).not.toMatch(/grau de semelhança/);
     expect(t).toMatch(/documentos ficam cifrados/);
     expect(t).toMatch(/opcional/);
     expect(t).toMatch(/revogar/);
+    expect(t).not.toMatch(/transferência internacional/);
   });
-  it("com o comparador automático, diz qual serviço recebe a imagem", () => {
+  it("com o comparador automático, a AWS e a transferência internacional com a frase do advogado (7.2)", () => {
     const t = textoDoConsentimentoBiometrico({ automatico: true }).join(" ");
-    expect(t).toMatch(/Amazon Rekognition/);
+    expect(t).toMatch(/Amazon Web Services \(Amazon Rekognition\)/);
     expect(t).toMatch(/não as guarda/);
+    expect(t).toContain(
+      "consinto expressamente com a transferência internacional das imagens para processamento nos servidores da Amazon Web Services (AWS) localizados no exterior, exclusivamente para a finalidade de verificação automatizada (LGPD, art. 33, VIII).",
+    );
+  });
+  it("só vale o consentimento da versão em vigor; verificado com o antigo precisa renovar (7.3)", () => {
+    expect(CONSENTIMENTO_BIOMETRICO_VERSAO).toBe(3);
+    expect(consentimentoVigente(`${CONSENTIMENTO_BIOMETRICO_VERSAO}:manual`)).toBe(true);
+    expect(consentimentoVigente(`${CONSENTIMENTO_BIOMETRICO_VERSAO}:automatico`)).toBe(true);
+    expect(consentimentoVigente("2:manual")).toBe(false);
+    expect(consentimentoVigente(null)).toBe(false);
+    expect(consentimentoVigente("30:manual")).toBe(false);
+    expect(precisaRenovarConsentimento("verificado", "2:automatico")).toBe(true);
+    expect(precisaRenovarConsentimento("verificado", null)).toBe(true);
+    expect(precisaRenovarConsentimento("verificado", `${CONSENTIMENTO_BIOMETRICO_VERSAO}:manual`)).toBe(false);
+    expect(precisaRenovarConsentimento("em_analise", "2:manual")).toBe(false);
+    expect(prazoParaRenovarConsentimento().getTime() - Date.parse(CONSENTIMENTO_BIOMETRICO_DESDE)).toBe(PRAZO_PARA_RENOVAR_CONSENTIMENTO_DIAS * 86_400_000);
   });
   it("a chave muda com a versão e o modo: o servidor recusa texto diferente do lido", () => {
     expect(chaveDoConsentimento({ automatico: false })).toBe(`${CONSENTIMENTO_BIOMETRICO_VERSAO}:manual`);

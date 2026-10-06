@@ -6,6 +6,7 @@ import {
   documentoDoDono,
   revogarComparacao,
   estadoDaVerificacao,
+  pedidoDeRenovacao,
   salvarDadosDaVerificacao,
   salvarDocumentoDaVerificacao,
 } from "../services/verificacao";
@@ -55,6 +56,16 @@ export function montarRotasDaVerificacao(
    * prova (chave e SHA-256 do texto lido) e a auditoria entram na mesma
    * transação, e só quando algo mudou.
    */
+  /** A tela pergunta ao entrar se precisa pedir de novo a autorização (resposta 7.3). */
+  router.get(`${caminho}/consentimento`, async (req, res, next) => {
+    try {
+      res.setHeader("Cache-Control", "no-store");
+      res.json(await pedidoDeRenovacao(sujeito, await idDe(req)));
+    } catch (err) {
+      next(err);
+    }
+  });
+
   router.post(`${caminho}/consentimento`, async (req, res, next) => {
     try {
       const id = await idDe(req);

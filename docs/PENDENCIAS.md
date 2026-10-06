@@ -378,11 +378,17 @@ Na ordem de entrega do plano:
   (coluna `campaigns.modo_sorteio`). **Para o advogado**: confirmar que o
   plano de operação aceita o modo "a promotora completa" (o prêmio pode não
   ser entregue a participante).
-- [ ] **[lançamento]** Prêmio em dinheiro e itens proibidos (Decreto
-  70.951/72, art. 10: remédio, arma, munição, explosivo, fogos, bebida
-  alcoólica, tabaco): o cadastro do prêmio é texto livre e as cotas
-  premiadas aceitam "R$ … no Pix". Confirmar com o advogado o que o plano de
-  operação permite antes de travar no código.
+- [x] **[lançamento]** Prêmio em dinheiro e itens proibidos (Decreto
+  70.951/72: remédio, arma, munição, explosivo, fogos, bebida alcoólica,
+  tabaco) — **feito** (item 5 do advogado, 06/10/2026). Na rifa com método
+  de apuração (a autorizada pela SPA/MF), o prêmio e cada cota premiada são
+  bem ou serviço: Pix, dinheiro, espécie, transferência ou só a quantia ("R$
+  50") são recusados (422) na criação, no `PATCH`, no editar do rascunho e na
+  cota premiada, e a publicação barra o que já estava gravado
+  (`problemaNoPremio()` em `shared/premio.ts`). O valor do bem pode aparecer
+  ("moto avaliada em R$ 15.000"). A lista de itens proibidos
+  (`ITENS_PROIBIDOS`) foi confirmada pelo advogado (5.1) como a do Decreto
+  70.951/72, art. 10, com vape e cigarro eletrônico.
 - [x] Construtor de templates da plataforma (Painel → Aparência): nome,
   logo, cor de marca nos dois temas (com conferência de contraste), fonte,
   cantos, tela inicial em blocos (ligar, ordenar, título, bloco de texto),
@@ -441,14 +447,18 @@ Na ordem de entrega do plano:
   (publicidade identificada, sem promessa de ganho, sem menores, sem Pix por
   fora), descumprimento, LGPD, tributos e recibo. O painel avisa quando o
   termo em vigor ficou atrás do texto de hoje (`npm run afiliados`).
-- [x] Consentimento biométrico da verificação: texto destacado (finalidade,
-  quem compara, guarda, opcional, revogação), gravado com a data e o
-  SHA-256 do texto lido, revogável na própria tela (o selo sai), e a foto
-  não é comparada sem ele — nem pelo serviço automático sem o texto que o
-  cita (`npm run verificacao`). Quem foi verificado antes desta versão
-  segue com o selo, sem consentimento gravado: a fila mostra "Sem
-  autorização da foto"; decidir se pede a todos que autorizem de novo. Falta o advogado ler o
-  texto (`textoDoConsentimentoBiometrico()` em `shared/verificacao.ts`).
+- [x] Consentimento biométrico da verificação — **feito com as respostas do
+  item 7 do advogado (06/10/2026)**. Texto versão 3
+  (`textoDoConsentimentoBiometrico()`): **finalidade** (verificação de
+  identidade e prevenção a fraudes), **compartilhamento** (uma pessoa da
+  plataforma, ou a AWS com o comparador ligado), **retenção** (só o resultado)
+  e, com o comparador, a frase da **transferência internacional** (art. 33,
+  VIII). **Todos os verificados autorizam de novo** (7.3): ao entrar, a janela
+  "Confirme sua autorização para manter o selo" só sai autorizando ou
+  recusando, e quem não renovar até 30 dias perde o selo pelo relógio (trava
+  811019). **Só o resultado fica** (7.4): a coluna `foto_similaridade` saiu.
+  Organização não tem consentimento biométrico (7.5). `npm run verificacao`
+  prova.
 - [x] Termos de uso e Política de privacidade (`/termos`, `/privacidade`),
   montados das regras do sistema (`shared/legal.ts`), no rodapé, no perfil
   e no Criar conta (`tests/legal.test.ts`).
@@ -548,8 +558,8 @@ Na ordem de entrega do plano:
 - [ ] **[você]** Comparação automática da foto (opcional): criar conta na AWS
   e pôr no Railway `ROSTO_PROVEDOR=rekognition`, `ROSTO_AWS_ACCESS_KEY_ID`,
   `ROSTO_AWS_SECRET_ACCESS_KEY` e `ROSTO_AWS_REGION`. Sem isso, a plataforma
-  confere a foto à mão. Confirmar com o advogado o texto do consentimento
-  biométrico (LGPD, art. 11).
+  confere a foto à mão. O texto do consentimento já cita a AWS e a
+  transferência internacional quando o comparador está ligado (item 7).
 - [x] Publicação como no Instagram: carrossel de até 10 (reels até 3 min,
   vídeo do feed até 15 min), curtir com o trevo, comentar, republicar,
   compartilhar e salvar com contadores, legenda da organização, "• Autor"
@@ -650,6 +660,42 @@ Na ordem de entrega do plano:
   no calendário até sair um número com dono; a conferência, a prestação de
   contas e a auditoria listam cada extração. Sobe com o `db:push` **antes**
   do código: a tabela `sorteio_reextracoes`. `npm run apuracao` prova.
+- [x] **Reembolso validado pelo advogado** (item 3, 06/10/2026) — feito. As
+  regras ficaram como estavam (arrependimento até o fechamento com o aviso de
+  data e hora, taxa de até 10% depois, adiamento integral, disputa com a
+  plataforma, Pix tardio). Ajuste no código (3.6): a devolução **integral**
+  (arrependimento e adiamento) sai em até **3 dias úteis** da aprovação; os 1
+  a 30 dias da promotora valem só para o reembolso com taxa. Os Termos dizem
+  isso. Ciência (3.7): com o interruptor de reembolso desligado, plataforma e
+  promotora respondem juntas pelo art. 49 — o regresso do contrato da
+  promotora é o que cobre a plataforma depois. `npm run chamados`,
+  `disputa` e `solicitacoes` provam.
+- [x] **Cota de bônus validada pelo advogado** (item 4, 06/10/2026) — feito.
+  As regras ficaram (nasce desligado, quantidade no plano de operação, um CPF
+  por conta, sem saque nem transferência, fora do mínimo e dentro da rifa
+  cheia, estorno desfaz com saldo negativo). O regulamento passa a trazer a
+  cláusula exata dele ("Da distribuição promocional (bônus e incentivos)").
+  4.2 a 4.5 respondidos: dar cota por meta é distribuição gratuita
+  promocional (a SPA/MF não se opõe); o presente é desconto comercial e não
+  vai ao plano de operação; indicação com bônus não é venda casada. A meta
+  "seguir" é seguir a organização **dentro da plataforma** — nada passa
+  pelas APIs da Meta, então o risco de bloqueio no Instagram que ele apontou
+  não se aplica; não ligar a meta a seguir perfil no Instagram. `npm run
+  bonus` prova.
+- [x] **Termo do afiliado validado pelo advogado** (item 6, 06/10/2026) —
+  sem mudança no código: aceite versionado com prova (texto, versão, IP e
+  aparelho em hash), rifa presa à versão da publicação, parceria autônoma sem
+  vínculo de emprego, estorno que desfaz a comissão (compensação, CC art.
+  368), regras de divulgação (#publi, sem promessa de ganho, sem menores),
+  só o primeiro nome do comprador (minimização) e o recibo conferível.
+  **6.5 respondido**: com a guarda, a plataforma é mandatária (intermediadora
+  de pagamentos) — o termo diz isso na cláusula 2 ("mera mandatária e agente
+  de cobrança … em nome e por conta da promotora"); as organizações com termo
+  publicado veem o aviso de texto desatualizado e publicam a versão seguinte.
+  **6.4 respondido, falta a sua decisão**: pagar afiliado pessoa física exige
+  RPA, com IRRF (pela tabela), INSS de 11% retido e 20% patronal; MEI ou
+  empresa emite nota fiscal e nada é retido. Escolher entre (a) exigir MEI
+  ou CNPJ para sacar ou (b) emitir RPA com as retenções (com o contador).
 - [ ] **Homologar o globo** (você, com o advogado): quando sair, ligar o
   globo em "Métodos de apuração", cadastrar a sessão no calendário e
   combinar com o tabelionato a ata de cada sessão.

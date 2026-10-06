@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, Button } from "@/components/bits";
 import { apiRequest } from "@/lib/queryClient";
-import { PRAZO_ESTORNO_MIN, PRAZO_ESTORNO_MAX, telefoneDeAvisoValido } from "@shared/chamados";
+import { PRAZO_ESTORNO_MIN, PRAZO_ESTORNO_MAX, DIAS_UTEIS_DEVOLUCAO_INTEGRAL, telefoneDeAvisoValido } from "@shared/chamados";
 import { maskPhone } from "@shared/format";
 
 /**
@@ -69,7 +69,9 @@ export function ReembolsoCard() {
           O comprador pede o reembolso em "Minhas cotas", logado e com o print do bilhete. Ao
           aprovar em Atendimento, o protocolo sai com a data-limite calculada por este prazo (de{" "}
           <span className="tnum">{PRAZO_ESTORNO_MIN}</span> a <span className="tnum">{PRAZO_ESTORNO_MAX}</span>{" "}
-          dias).
+          dias). Este prazo vale só para o reembolso com taxa: no arrependimento (até 7 dias) e no sorteio adiado, a
+          devolução é integral e sai em até <span className="tnum">{DIAS_UTEIS_DEVOLUCAO_INTEGRAL}</span> dias úteis,
+          como a lei pede.
         </p>
         <label htmlFor="aviso" className="label-xs block pt-2">
           WhatsApp que recebe o aviso de chamado novo

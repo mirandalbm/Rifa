@@ -44,6 +44,7 @@ describe("termo de adesão", () => {
     expect(t).toMatch(/só o primeiro nome/);
     expect(t).toMatch(/tributos/);
     expect(t).toMatch(/plataforma guarda a comissão/);
+    expect(t).toMatch(/mera mandatária e agente de cobrança \(intermediadora de pagamentos\).*em nome e por conta de/);
     // As cláusulas vêm numeradas em ordem, sem pular.
     const numeros = [...t.matchAll(/^(\d+)\. /gm)].map((m) => Number(m[1]));
     expect(numeros).toEqual(numeros.map((_, i) => i + 1));

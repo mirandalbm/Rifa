@@ -1,4 +1,5 @@
 import { numeracaoZero, validarMetodosLiberados } from "@shared/apuracao";
+import { problemaNoPremio } from "@shared/premio";
 import { calendario, cancelarSorteioOficial, criarSorteioOficial, editarSorteioOficial, integrarAoSorteioOficial, lancarResultado, salvarArquivoDaAta } from "../services/sorteiosOficiais";
 import {
   BannerDivulgacaoError,
@@ -513,6 +514,8 @@ adminRouter.post("/campaigns", async (req, res, next) => {
     // Nasce com o primeiro método liberado (hoje, a Federal direta): a
     // numeração já sai a partir de zero e a promotora troca nos dados legais.
     const metodoApuracao = (await getPlataforma()).metodosDeApuracao[0] ?? null;
+    const premio = problemaNoPremio(input.prizeTitle, Boolean(metodoApuracao));
+    if (premio) return res.status(422).json({ message: premio });
     const [created] = await db
       .insert(campaigns)
       .values({ ...input, organizationId, status: "draft", metodoApuracao })
@@ -552,6 +555,10 @@ adminRouter.patch("/campaigns/:id", async (req, res, next) => {
     }
     assertEditable(campaign, changes);
     if (changes.totalQuotas) assertQuotaRange(changes.totalQuotas);
+    if (changes.prizeTitle !== undefined) {
+      const premio = problemaNoPremio(changes.prizeTitle, Boolean(campaign.metodoApuracao));
+      if (premio) return res.status(422).json({ message: premio });
+    }
 
     const [updated] = await db
       .update(campaigns)
@@ -596,6 +603,10 @@ adminRouter.post("/campaigns/:id/editar", async (req, res, next) => {
       delete (changes as { organizationId?: unknown }).organizationId;
       if (Object.keys(changes).length === 0) return res.status(400).json({ message: "Nada para alterar." });
       if (changes.totalQuotas) assertQuotaRange(changes.totalQuotas);
+      if (changes.prizeTitle !== undefined) {
+        const premio = problemaNoPremio(changes.prizeTitle, Boolean(campaign.metodoApuracao));
+        if (premio) return res.status(422).json({ message: premio });
+      }
       const [updated] = await db.update(campaigns).set(changes).where(eq(campaigns.id, campaign.id)).returning();
       await audit(req, "campaign.update", "campaign", campaign.id, changes);
       return res.json({ aplicada: true, campaign: updated });
@@ -1444,6 +1455,8 @@ adminRouter.post("/campaigns/:id/prized", async (req, res, next) => {
     if (prizeLabel.length < 2) {
       return res.status(400).json({ message: "Descreva o prêmio da cota." });
     }
+    const premio = problemaNoPremio(prizeLabel, Boolean(campaign.metodoApuracao));
+    if (premio) return res.status(422).json({ message: premio });
 
     // Números escolhidos: só a plataforma, e só no cadastro, antes de publicar
     // (`shared/premiadas.ts`). A organização sorteia — quem escolhe o número

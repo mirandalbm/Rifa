@@ -1,4 +1,5 @@
 import { LegendaCard } from "@/components/Publicacao";
+import { problemaNoPremio } from "@shared/premio";
 import { BannerDivulgacaoCard } from "@/components/BannerDivulgacaoCard";
 import { DivulgacoesDaOrganizacao } from "@/components/DivulgacoesDaOrganizacao";
 import { SeloVerificado } from "@/components/SeloVerificado";
@@ -548,7 +549,13 @@ export function AdminCampanhas() {
                   value={form.prizeTitle}
                   onChange={(e) => setForm({ ...form, prizeTitle: e.target.value })}
                   className="campo text-sm"
+                  aria-describedby="premio-dica"
                 />
+                {/* Rifa autorizada pela SPA/MF: bem ou serviço, nunca dinheiro
+                    nem item proibido (shared/premio.ts). Quem barra é o servidor. */}
+                <p id="premio-dica" className={`mt-1 text-xs ${problemaNoPremio(form.prizeTitle, true) ? "text-red" : "text-muted"}`} role={problemaNoPremio(form.prizeTitle, true) ? "alert" : undefined}>
+                  {problemaNoPremio(form.prizeTitle, true) ?? "Um bem ou serviço — nunca dinheiro, Pix ou transferência."}
+                </p>
               </div>
             </div>
 

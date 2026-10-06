@@ -541,7 +541,7 @@ async function main() {
     r = await anon.req("GET", "/api/public/campaigns");
     const demos = (r.json ?? []).filter((c: any) => c.demonstracao && c.organizacao?.slug === "demonstracao");
     checa("três rifas de demonstração na vitrine, sem selo SPA/MF", demos.length === 3 && demos.every((c: any) => !c.autorizacao), `${demos.length}`);
-    const [umaDemo] = await db.select({ id: campaigns.id }).from(campaigns).where(sql`${campaigns.slug} = 'demonstracao-pix-5-mil'`);
+    const [umaDemo] = await db.select({ id: campaigns.id }).from(campaigns).where(sql`${campaigns.slug} = 'demonstracao-notebook'`);
     r = await anon.req("POST", "/api/public/orders", {
       campaignId: umaDemo?.id,
       quantity: 5,

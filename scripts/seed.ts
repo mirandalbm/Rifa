@@ -206,8 +206,8 @@ async function main() {
       // O caso que importa para a arquitetura: 1M de cotas sem uma linha
       // sequer criada na publicação.
       slug: "pix-de-1-milhao",
-      title: "PIX de R$ 10.000",
-      prizeTitle: "PIX de R$ 10.000 na sua conta",
+      title: "Carro 0 km",
+      prizeTitle: "Fiat Mobi 0 km",
       totalQuotas: 1_000_000,
       priceCents: 120,
       packages: [
@@ -287,8 +287,8 @@ async function main() {
 
     // Duas cotas premiadas para exercitar a revelação na compra.
     await db.insert(prizedQuotas).values([
-      { campaignId: campaign.id, number: 11, prizeLabel: "R$ 100 no Pix" },
-      { campaignId: campaign.id, number: 29, prizeLabel: "R$ 50 no Pix" },
+      { campaignId: campaign.id, number: 11, prizeLabel: "Fone bluetooth" },
+      { campaignId: campaign.id, number: 29, prizeLabel: "Caixa de som" },
     ]);
 
     // Publicar exige o arquivo do certificado: o de exemplo diz que é exemplo.

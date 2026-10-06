@@ -218,7 +218,7 @@ export function CampaignExtras({
               <input
                 id="prize-label"
                 value={prize.prizeLabel}
-                placeholder="R$ 100 no Pix"
+                placeholder="Fone de ouvido bluetooth"
                 onChange={(e) => setPrize({ ...prize, prizeLabel: e.target.value })}
                 className="mt-1 w-44 rounded-md border border-line-2 px-3 py-2 text-sm"
               />

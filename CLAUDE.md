@@ -97,7 +97,7 @@ arquitetura.
 | entrega do vídeo em HLS pelo Cloudflare Stream (guardar, tocar, apagar) | `shared/stream.ts` (regras), `publicar()`/`apagarDoStream()` em `server/services/videoProcessor.ts`, `gerarPosterDaMidia()`/`removeMedia()` em `server/services/media.ts`, `stream_uid`/`stream_hls`/`stream_assinado` em `campaign_media`, `server/services/streamPendentes.ts` (vídeo sem dono e a marca dos vídeos de antes, relógio), `client/src/lib/hls.ts` (`useVideoHls`), `scripts/poster-test.ts`, `tests/stream.test.ts`, `tests/streamAssinatura.test.ts`, `tests/cloudflareStream.test.ts` |
 | onde a mídia é guardada e a cópia de segurança | `server/services/storage.ts` (`LocalDiskStorage`, `CopiaS3`, `sincronizarCopia`), `/uploads` em `server/index.ts`, `tests/backup.test.ts` |
 | mensagens e modelos | `server/notifications/` |
-| cotas premiadas | `shared/premiadas.ts` (números escolhidos), `server/routes/admin.ts` (sorteio e escolha), `services/orders.ts` (revelação), `premiados` em `listarComentarios()` (o comentário fixo de quem levou), `client/src/components/CotaSurpresa.tsx` (o presente na publicação, que revela) |
+| cotas premiadas | `shared/premiadas.ts` (números escolhidos), `shared/premio.ts` (prêmio sem dinheiro nem item proibido na rifa autorizada), `server/routes/admin.ts` (sorteio e escolha), `services/orders.ts` (revelação), `premiados` em `listarComentarios()` (o comentário fixo de quem levou), `client/src/components/CotaSurpresa.tsx` (o presente na publicação, que revela) |
 | cadastro/cupom/kit do afiliado | `server/routes/public.ts`, `server/routes/affiliate.ts` |
 | afiliado de todas as organizações (vínculo, termo, aceite, colaborador) | `shared/afiliados.ts` (regras), `server/services/afiliados.ts` (`comissaoNaRifa`), `client/src/pages/afiliado.tsx` (`AfiliadoOrganizacoes`), `scripts/afiliados-test.ts` |
 | venda física e acerto | `server/routes/seller.ts`, `server/services/settlements.ts` |
@@ -156,7 +156,7 @@ arquitetura.
 | segurança do organizador: telefone aprovado, denúncias, rifa travada, banimento | `shared/seguranca.ts` (regras e varredura), `server/services/seguranca.ts`, `client/src/components/Seguranca.tsx`, `scripts/seguranca-test.ts` |
 | visão do organizador (só o próprio perfil) | `VisaoDoOrganizador` em `client/src/App.tsx`, `organizacao` em `GET /api/auth/me` |
 | central de avisos do apostador (o trevo no topo) | `server/services/notificacoes.ts`, `avisar()` em `server/services/push.ts`, `client/src/pages/Notificacoes.tsx`, `CoracaoDeAvisos` em `client/src/components/AppShell.tsx`, `scripts/push-test.ts` |
-| perfil verificado (selo de trevo): documentos, foto, fila e cores | `shared/verificacao.ts` (regras e paleta), `server/services/verificacao.ts`, `server/services/rosto.ts` (comparador), `server/routes/verificacaoRotas.ts`, `client/src/components/Verificacao.tsx`, `SeloVerificado.tsx`, `VerificacoesDaPlataforma.tsx`, `CoresDoSelo.tsx`, `scripts/verificacao-test.ts` |
+| perfil verificado (selo de trevo): documentos, foto, fila e cores | `shared/verificacao.ts` (regras e paleta), `server/services/verificacao.ts`, `client/src/components/RenovarConsentimento.tsx` (a renovação do consentimento), `server/services/rosto.ts` (comparador), `server/routes/verificacaoRotas.ts`, `client/src/components/Verificacao.tsx`, `SeloVerificado.tsx`, `VerificacoesDaPlataforma.tsx`, `CoresDoSelo.tsx`, `scripts/verificacao-test.ts` |
 | formato da publicação (retrato 4:5, quadrado 1:1, paisagem 1,91:1, vertical 9:16) e o perfil acima ou por cima | `formatoDaPeca()`/`formatoDoCarrossel()`/`perfilPorCima()` em `shared/publicacao.ts`, `probeVideoDimensions()` em `server/services/probe.ts`, `Carrossel` em `client/src/components/Publicacao.tsx`, `tests/publicacao.test.ts` |
 | publicação da rifa: carrossel de até 10 (reels e vídeos), barra de ações (trevo, comentar, republicar, compartilhar, "+" do carrinho, comprar) e legenda | `shared/publicacao.ts` (regras), `server/services/publicacao.ts`, `server/services/media.ts` (limites), `client/src/components/Publicacao.tsx`, `scripts/publicacao-test.ts` |
 | divulgação de terceiros: o afiliado (influenciador) publica com o material da organização e fotos dele, direto ou só depois da autorização dela (com foto, sempre depois), e o apostador publica texto e fotos (atrás de `publicarApostador`); o menu Criar | `shared/divulgacao.ts` (regras), `server/services/divulgacao.ts`, rotas `/divulgacoes*` em `server/routes/affiliate.ts` (afiliado), `public.ts` (apostador e página da rifa) e `admin.ts` (modo e fila), `modoDaOrganizacao`/`divulgacaoAfiliado` em `organizations`, `MenuCriar` em `client/src/components/Console.tsx`, `client/src/pages/afiliadoDivulgar.tsx`, `Publicar.tsx`, as fotos de quem publica em `client/src/components/FotosProprias.tsx`, o vídeo do afiliado em `client/src/components/VideoProprio.tsx` (`divulgacao_videos`), a agenda em `shared/agenda.ts` e `client/src/components/CampoDeAgenda.tsx`, `client/src/components/DivulgacoesDaOrganizacao.tsx`, `DivulgacoesDaRifa.tsx` (também `CartaoDeDivulgacao`, a peça no feed da vitrine, e `divulgacoesDoFeed()`/`intercalar()`), `tests/divulgacao.test.ts`, `scripts/divulgacao-test.ts` |
@@ -1448,6 +1448,11 @@ permite cobrar dela depois, e o aceite é a prova.
   reembolso"). Desligado, o comprador não abre chamado e a organização não
   devolve; estorno avisado pelo provedor (contestação, Pix devolvido) é
   registrado sempre — o dinheiro já saiu.
+  O interruptor é **operacional, não jurídico** (resposta 3.7 do advogado):
+  desligado, o art. 49 continua valendo e, perante o comprador, plataforma e
+  promotora respondem **juntas** (CDC, art. 7º, parágrafo único — a
+  plataforma cobrou o Pix e emitiu o bilhete). A plataforma devolve se for
+  condenada e cobra da promotora pelo regresso do contrato da promotora.
 - **Carteira do Asaas só a plataforma cadastra.** Trocar a carteira é trocar
   para onde vai o dinheiro das vendas.
 
@@ -1628,8 +1633,15 @@ botão, é **chamado** — com dono, prova, conversa e protocolo.
   de localização) e fica no banco, servido só pelas duas rotas que conferem o
   dono, com `no-store`. Imagem do bilhete nunca vai para URL pública.
 - **Concluir é um `UPDATE` condicional** (`aberto` → `aprovado`/`recusado`).
-  O prazo de devolução sai de `organizations.prazoEstornoDias` (1 a 30),
-  calculado na conclusão, e vai na mensagem com o protocolo — é compromisso.
+  O prazo de devolução é calculado na conclusão e vai na mensagem com o
+  protocolo — é compromisso. **Depende do tipo** (`prazoDoEstornoDoTipo()` em
+  `shared/chamados.ts`, resposta 3.6 do advogado): a devolução **integral**
+  (arrependimento do art. 49 e adiamento do art. 35) é obrigação legal e sai
+  em até `DIAS_UTEIS_DEVOLUCAO_INTEGRAL` (3) dias úteis (`somarDiasUteis()`,
+  fuso de São Paulo; feriado não é pulado, o prazo só fica menor); só a
+  **com taxa** (liberalidade) usa os 1 a 30 dias que a organização escolheu
+  (`organizations.prazoEstornoDias`). O adiamento aprovado que converte um
+  chamado já aprovado com taxa encurta o prazo dele na mesma transação.
 - **Estornar toma o chamado** (`aprovado` → `estornado`) antes de chamar o
   provedor: dois cliques simultâneos dão um estorno e um 409.
 - **O comprador nunca vê o nome de quem atendeu** — só "Atendimento".
@@ -2033,8 +2045,23 @@ estorno.
   como estão; autorizar de novo (`POST …/consentimento`, limite por pessoa)
   só reabre a análise de quem estava `incompleto`, nunca a decisão da
   plataforma, e o mesmo texto de novo não grava nada. A fila mostra "Sem
-  autorização da foto". Verificado de antes do consentimento gravado segue
-  verificado; subir a versão do texto exige o consentimento de novo.
+  autorização da foto". **O texto é o do item 7 do advogado** (versão 3):
+  finalidade, compartilhamento e retenção sempre e, com o comparador
+  ligado, a frase da transferência internacional (art. 33, VIII). **Só vale o
+  consentimento da versão em vigor** (`consentimentoVigente()`): o de antes
+  conta como não dado em toda régua (falta, fila, aprovar a foto). **Quem
+  está verificado com o antigo, ou sem nenhum, autoriza de novo**
+  (`precisaRenovarConsentimento()`, resposta 7.3): ao entrar, a janela
+  `RenovarConsentimento` (no `PublicShell` para a conta, no `PanelShell`
+  para o afiliado; `GET …/verificacao/consentimento`, leve, `no-store`)
+  não fecha no Esc nem no fundo — sai autorizando (o selo fica) ou não
+  autorizando (o `DELETE`, que também alcança quem não tinha nada gravado, e
+  o selo sai). Passados `PRAZO_PARA_RENOVAR_CONSENTIMENTO_DIAS` (30) de
+  `CONSENTIMENTO_BIOMETRICO_DESDE`, o relógio (`tirarSelosSemConsentimentoRenovado()`,
+  trava 811019) tira o selo de quem não renovou pela mesma
+  `revogarComparacao()`, com o ator `sistema` e a auditoria
+  `verificacao.consentimento.vencido`. Subir a versão do texto exige o
+  consentimento de novo de todos.
 - **Trocar ou tirar a foto apaga o selo na transação que troca a foto**
   (`fotoMudouNaTransacao`); mexer em dado ou documento derruba a aprovação
   dos documentos. O selo público (`buyers.verificado_em`,
@@ -2044,7 +2071,9 @@ estorno.
   O comparador automático (`ROSTO_PROVEDOR=rekognition`, nasce desligado)
   só verifica acima de `LIMIAR_ROSTO` e só se a foto comparada ainda for a
   do perfil (`foto_versao` no `UPDATE`); abaixo, ou com o provedor fora,
-  **não recusa** — fica para uma pessoa.
+  **não recusa** — fica para uma pessoa. **A semelhança decide e é
+  descartada** (resposta 7.4, minimização): só o resultado fica — a coluna
+  `foto_similaridade` saiu (o `db:push` a apaga; confirme a perda do dado).
 - **O selo é um trevo com o sinal de confirmação**, com rótulo em texto
   (`ROTULO_DO_SELO`). As cores saem da paleta de 12 (`PALETA_DO_SELO`,
   contraste ≥ 3:1 nos dois temas e com o sinal branco — o teste confere),
@@ -2846,6 +2875,17 @@ pela portaria** — fica só para conferir a rifa sorteada sem método.
   promoção mista (sorteio + vale-brinde), autorizada nas duas modalidades no
   mesmo processo do SCPC. O cartão das cotas premiadas avisa a promotora, e o
   regulamento da rifa com método diz isso a quem compra.
+- **Prêmio é bem ou serviço, nunca dinheiro** (item 5 do advogado,
+  `problemaNoPremio()` em `shared/premio.ts`): na rifa com método, Pix,
+  dinheiro, espécie, transferência, depósito, saque ou só a quantia ("R$ 50",
+  "500 reais") no prêmio ou numa cota premiada é recusado (422) na criação, no
+  `PATCH`, no editar do rascunho e em `POST /campaigns/:id/prized`, e
+  `publishBlockers` barra o que já estava gravado. Também os itens proibidos
+  do Decreto 70.951/72 (`ITENS_PROIBIDOS`: medicamento, arma e munição,
+  explosivo e fogos, bebida alcoólica, fumo), lidos sem acento e como palavra
+  inteira ("armário" passa). O valor do bem pode aparecer ("moto avaliada em
+  R$ 15.000"). A rifa de antes, sem método, segue como era. A tela avisa
+  embaixo do campo; quem barra é o servidor.
 - As colunas `campaigns.metodo_apuracao`, `campaigns.draw_at_maximo` e
   `sorteios_oficiais.ata` e a tabela `sorteio_atas` sobem com o `db:push`
   **antes** do código. `npm run apuracao` prova tudo isso contra a API de
@@ -3293,7 +3333,9 @@ organização) ganha o selo **"AO VIVO"** quando há transmissão de sorteio no 
   ganho, sem omitir preço, data e autorização, sem menores, sem spam, sem Pix
   por fora), descumprimento, **dados pessoais** (só o primeiro nome, nada fora
   da plataforma), tributos e recibo, versões e saída. A organização só soma as
-  regras dela. Mudar o texto-base **não reescreve** versão publicada (o aceite
+  regras dela. **Com a guarda, a cláusula 2 diz que a plataforma é mera
+  mandatária e agente de cobrança** (resposta 6.5 do advogado): ela
+  arrecada e repassa em nome e por conta da promotora. Mudar o texto-base **não reescreve** versão publicada (o aceite
   é prova daquele texto): `termoDoPainel()` compara o texto em vigor com o de
   hoje e o painel avisa (`desatualizado`), para a organização publicar a
   versão seguinte. `npm run afiliados` prova.
@@ -3399,9 +3441,12 @@ organização) ganha o selo **"AO VIVO"** quando há transmissão de sorteio no 
   (`vendidasParaOMinimo()`: `sold_count − bonus_count`) — senão a promotora
   inflaria a venda dando cota. **Na rifa cheia conta** (`cheia_com_data` e
   `quando_completar`), porque o número já tem dono e sem ela a rifa cheia
-  com bônus nunca sortearia. A cláusula diz a
-  quantidade, como se ganha, que concorre igual (inclusive às premiadas), que
-  fecha 2 horas antes e que não vira dinheiro, reembolso nem transferência.
+  com bônus nunca sortearia. **A cláusula é o texto do advogado** (resposta
+  4.1, 06/10/2026: "DA DISTRIBUIÇÃO PROMOCIONAL (BÔNUS E INCENTIVOS)",
+  `clausulaDaDistribuicaoPromocional()` em `shared/bonus.ts`, com a
+  quantidade da autorização), seguido de `COMO_O_BONUS_FUNCIONA` (as metas,
+  as premiadas, o fechamento 2 horas antes e a rifa cheia). A rifa publicada
+  antes da quantidade (0) segue a cláusula com que foi vendida.
 - **Livro-razão com chave única** (`bonus_lancamentos.chave`): a mesma
   indicação, meta ou resgate nunca lança duas vezes; o saldo
   (`buyers.bonus_saldo`) só anda quando a linha entrou, na mesma transação.

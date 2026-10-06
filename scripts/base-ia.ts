@@ -6,9 +6,12 @@
  *
  *   npm run base-ia                 → grava em base-do-assistente/ (fora do git)
  *   npm run base-ia -- <pasta>      → grava em outra pasta
+ *   npm run base-ia -- --do-site https://<site>   → lê do site no ar
  *
- * Com `DATABASE_URL`, lê o template publicado (nome e dados da empresa) e a
- * configuração de reembolso; sem banco, usa o padrão e diz isso no arquivo.
+ * Lê o template publicado (nome e dados da empresa) e a regra de reembolso:
+ * com `--do-site`, pelas rotas públicas do site (`/api/public/template` e
+ * `/api/public/checkout` — só leitura, sem tocar no banco); senão, com
+ * `DATABASE_URL`, do banco; sem nenhum, usa o padrão e diz isso no arquivo.
  *
  * **Nunca entra**: dado de comprador, de organização, contrato, números de
  * venda (esses vêm pelas ações, na hora). É só regra e caminho de tela. Os
@@ -22,7 +25,7 @@ import { SECTIONS, MENUS, type GrupoDoMenu, type Role, type SectionKey } from ".
 import { NOME_TEMA_AJUDA, perguntasDaAjuda } from "../shared/ajuda";
 import { montarPrivacidade, montarTermosDeUso } from "../shared/legal";
 import type { Secao } from "../shared/regulamento";
-import { TEMPLATE_PADRAO, type Template } from "../shared/template";
+import { TEMPLATE_PADRAO, completarTemplate, type Template } from "../shared/template";
 import { TAXA_REEMBOLSO_PADRAO_PCT, regraDoReembolso } from "../shared/reembolso";
 import { FORMATOS, LEGENDA_MAX, MAX_CARROSSEL, REELS_MAX_S, VIDEO_MAX_S } from "../shared/publicacao";
 import { REELS_POR_RIFA } from "../shared/reels";
@@ -42,7 +45,10 @@ import { MENSAGEM_SAQUE_SO_COM_CNPJ } from "../shared/fiscal";
 import { ACOES_DA_IA, ROTULO_DA_ACAO } from "../shared/iaAcoes";
 import { CONTEXTO_DO_PAPEL, NOME_DO_ASSISTENTE } from "../shared/ia";
 
-const pasta = resolve(process.argv[2] ?? "base-do-assistente");
+const args = process.argv.slice(2);
+const iSite = args.indexOf("--do-site");
+const site = iSite >= 0 ? args.splice(iSite, 2)[1]?.replace(/\/+$/, "") : undefined;
+const pasta = resolve(args[0] ?? "base-do-assistente");
 
 interface Fonte {
   template: Template;
@@ -52,6 +58,20 @@ interface Fonte {
 
 async function lerFonte(): Promise<Fonte> {
   const padrao: Fonte = { template: TEMPLATE_PADRAO, reembolso: { aceita: false, taxaPct: TAXA_REEMBOLSO_PADRAO_PCT }, doBanco: false };
+  if (site) {
+    if (!/^(https:\/\/|http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$)/.test(site)) throw new Error("--do-site precisa de um endereço https:// (ou http://localhost na prova)");
+    const ler = async (caminho: string) => {
+      const r = await fetch(site + caminho, { signal: AbortSignal.timeout(15_000) });
+      if (!r.ok) throw new Error(`${caminho}: HTTP ${r.status}`);
+      return r.json() as Promise<Record<string, unknown>>;
+    };
+    const [t, c] = await Promise.all([ler("/api/public/template"), ler("/api/public/checkout")]);
+    const reembolso = c.reembolso as { aceita?: unknown; taxaPct?: unknown } | undefined;
+    if (!t.template || typeof reembolso?.aceita !== "boolean" || typeof reembolso.taxaPct !== "number") {
+      throw new Error("O site respondeu num formato inesperado.");
+    }
+    return { template: completarTemplate(t.template), reembolso: { aceita: reembolso.aceita, taxaPct: reembolso.taxaPct }, doBanco: true };
+  }
   if (!process.env.DATABASE_URL) return padrao;
   try {
     const { templatePublicado } = await import("../server/services/template");

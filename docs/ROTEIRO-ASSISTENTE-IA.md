@@ -218,8 +218,10 @@ o preço já calibrado. O afiliado por último.
 
 1. ~~Mudanças de código (D1 e D4) e o gerador da base (D2)~~ — feito.
 2. Você cria a conta no Chatbase e o agente (nome **Lucky**), cola as
-   instruções acima, roda `npm run base-ia` com o banco de produção (ou eu
-   gero e mando) e sobe os 8 arquivos em Sources → Files, cadastra as 11
+   instruções acima, gera a base com os dados de produção —
+   `npm run base-ia -- --do-site https://<o site>` (lê as rotas públicas,
+   sem tocar no banco; publique antes os Dados da empresa, senão os Termos e a
+   Privacidade da base saem "ainda não publicados") e sobe os 8 arquivos em Sources → Files, cadastra as 11
    ações (a lista está em Aparência → Assistente de IA) e põe a
    `CHATBASE_API_KEY` no Railway.
 3. Em Aparência: o id do agente, os preços (D7) e liga só para o master (D8).

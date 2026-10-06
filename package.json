@@ -33,6 +33,7 @@
     "solicitacoes": "tsx scripts/solicitacoes-test.ts",
     "comentarios": "tsx scripts/comentarios-test.ts",
     "seguranca": "tsx scripts/seguranca-test.ts",
+    "retencao": "tsx scripts/retencao-test.ts",
     "verificacao": "tsx scripts/verificacao-test.ts",
     "publicacao": "tsx scripts/publicacao-test.ts",
     "poster": "tsx scripts/poster-test.ts",

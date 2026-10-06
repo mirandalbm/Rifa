@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { PanelShell } from "@/components/AppShell";
 import { Card, Button, Pill, Empty, Money, Kpi } from "@/components/bits";
 import { TabelaOuCartoes, VerMais } from "@/components/painel";
+import { RetencoesCautelares } from "@/components/RetencoesCautelares";
 import { useListaPaginada } from "@/lib/paginada";
 import { apiRequest } from "@/lib/queryClient";
 import { useSession } from "@/lib/session";
@@ -137,6 +138,8 @@ function Carteira() {
           hint="o padrão de quem ainda não tem contrato"
         />
       </div>
+
+      <RetencoesCautelares organizacoes={data?.carteira.map((o) => ({ id: o.organizationId, nome: o.name })) ?? []} />
 
       <Card
         title="Carteira"

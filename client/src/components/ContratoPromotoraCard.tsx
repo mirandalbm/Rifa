@@ -5,18 +5,30 @@ import { apiRequest } from "@/lib/queryClient";
 import { CONTRATO_MAX, CONTRATO_MIN } from "@shared/contratoPromotora";
 
 type DaOrganizacao = {
-  contrato: { versao: number; texto: string; publicadoEm: string } | null;
-  ultimoAceite: { versao: number; aceitoEm: string; aceitoPor: string | null } | null;
+  contrato: { versao: number; texto: string; publicadoEm: string; hash: string } | null;
+  ultimoAceite: { versao: number; aceitoEm: string; aceitoPor: string | null; hash: string } | null;
   pendente: boolean;
 };
 type DaPlataforma = {
-  contrato: { versao: number; texto: string; publicadoEm: string } | null;
-  versoes: { versao: number; publicadoEm: string; aceites: number }[];
+  contrato: { versao: number; texto: string; publicadoEm: string; hash: string } | null;
+  versoes: { versao: number; publicadoEm: string; aceites: number; hash: string }[];
   organizacoesAtivas: number;
 };
 
 const CHAVE = ["/api/admin/contrato-promotora"];
 const data = (iso: string) => new Date(iso).toLocaleDateString("pt-BR");
+
+/**
+ * A impressão (SHA-256) do texto: o que prova qual versão foi lida e aceita.
+ * Vai inteira, em fonte de largura fixa, quebrando onde precisar.
+ */
+function Impressao({ rotulo, hash }: { rotulo: string; hash: string }) {
+  return (
+    <p className="text-[11px] text-muted">
+      {rotulo}: <code className="tnum break-all">{hash}</code>
+    </p>
+  );
+}
 
 /**
  * Contrato da plataforma com a promotora. A organização lê e aceita a versão
@@ -88,6 +100,10 @@ function DaOrganizacaoCard() {
                 : ""}
             </p>
             <TextoDoContrato texto={c.texto} id="contrato-texto" />
+            <Impressao
+              rotulo={d?.ultimoAceite && !d.pendente ? "Impressão (SHA-256) do texto aceito" : "Impressão (SHA-256) desta versão"}
+              hash={d?.ultimoAceite && !d.pendente ? d.ultimoAceite.hash : c.hash}
+            />
             {d?.pendente ? (
               <>
                 <label className="flex items-start gap-2">
@@ -167,6 +183,7 @@ function DaPlataformaCard() {
           </button>
         ) : null}
         {ver && c ? <TextoDoContrato texto={c.texto} id="contrato-em-vigor" /> : null}
+        {c ? <Impressao rotulo="Impressão (SHA-256) da versão em vigor" hash={c.hash} /> : null}
         <div>
           <label htmlFor="contrato-novo" className="label-xs">
             {c ? "Texto da versão seguinte" : "Texto do contrato"}

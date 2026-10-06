@@ -290,7 +290,7 @@ export async function executarGravacao(req: Request, titular: TitularDaIA, acaoI
       case "publicar_rifa": {
         await rifaDoAlvo();
         const p = await publishCampaign(alvoId);
-        await auditar(req, acaoId, "campaign.publish", "campaign", p.id, { totalQuotas: p.totalQuotas, seedHash: p.drawSeedHash });
+        await auditar(req, acaoId, "campaign.publish", "campaign", p.id, { totalQuotas: p.totalQuotas, seedHash: p.drawSeedHash, contratoPromotoraId: p.contratoPromotoraId });
         emSegundoPlano(avisarRifaNova(p.id), "rifa nova");
         return { publicada: true, slug: p.slug, titulo: p.title };
       }

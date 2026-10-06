@@ -46,6 +46,8 @@ export const NOMES_DAS_ACOES = [
   "consultar_pedido",
   "pendencias",
   "minhas_comissoes",
+  "falta_para_publicar",
+  "falta_para_sacar",
   "publicar_rifa",
   "atualizar_legenda",
   "excluir_rifa",
@@ -125,6 +127,22 @@ export const ACOES_DA_IA: readonly AcaoDaIA[] = [
     grava: false,
   },
   {
+    nome: "falta_para_publicar",
+    descricao:
+      "O que ainda falta para uma rifa em rascunho poder ser publicada (banner, autorização SPA/MF, data do sorteio, telefone aprovado, contrato, anexos). Só consulta: não publica.",
+    parametros: [RIFA],
+    quem: PAINEL,
+    grava: false,
+  },
+  {
+    nome: "falta_para_sacar",
+    descricao:
+      "O que falta para o afiliado sacar: chave Pix, cadastro fiscal (aprovado e com CNPJ), o saldo liberado por quem paga e o saque já pedido. Só consulta: não saca.",
+    parametros: [],
+    quem: ["afiliado"],
+    grava: false,
+  },
+  {
     nome: "publicar_rifa",
     descricao:
       "Publica uma rifa em rascunho. Pede a confirmação da pessoa. Se faltar algo (banner, autorização SPA/MF, data do sorteio), devolve o que falta.",
@@ -180,6 +198,8 @@ export const ROTULO_DA_ACAO: Record<NomeDaAcao, string> = {
   consultar_pedido: "Consultar um pedido",
   pendencias: "Pendências do painel",
   minhas_comissoes: "Minhas comissões",
+  falta_para_publicar: "O que falta para publicar",
+  falta_para_sacar: "O que falta para sacar",
   publicar_rifa: "Publicar a rifa",
   atualizar_legenda: "Trocar a legenda",
   excluir_rifa: "Apagar a rifa",
@@ -231,6 +251,8 @@ export type EntradaDaAcao =
   | { nome: "consultar_pedido"; codigo: number }
   | { nome: "pendencias" }
   | { nome: "minhas_comissoes" }
+  | { nome: "falta_para_publicar"; rifa: string }
+  | { nome: "falta_para_sacar" }
   | { nome: "publicar_rifa"; rifa: string }
   | { nome: "atualizar_legenda"; rifa: string; legenda: string }
   | { nome: "excluir_rifa"; rifa: string }
@@ -274,7 +296,9 @@ export function validarEntrada(nome: NomeDaAcao, entrada: unknown): Resultado<En
     }
     case "pendencias":
     case "minhas_comissoes":
+    case "falta_para_sacar":
       return { ok: true, valor: { nome } };
+    case "falta_para_publicar":
     case "publicar_rifa":
     case "excluir_rifa": {
       const rifa = slugDe(e.rifa);

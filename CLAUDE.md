@@ -184,6 +184,7 @@ arquitetura.
 | assistente de IA nos painéis (Chatbase): conversa pelo servidor, coluna, uso e configuração | `shared/ia.ts` (regras, papéis, titular, barreira de dado pessoal), `server/services/chatbase.ts` (cliente da API v2), `server/services/ia.ts` (conversa e uso), `server/routes/ia.ts` (`/api/ia/*`), `/ia/config` em `server/routes/admin.ts`, `assistenteIA` em `shared/plataforma.ts`, `ia_conversas`/`ia_uso` em `shared/schema.ts`, `client/src/lib/assistente.ts` (coluna aberta lembrada), `client/src/components/AssistenteDoPainel.tsx` (botão e coluna, em `PanelShell`), `AssistenteIACard.tsx` (Aparência), `scripts/ia-test.ts`, `tests/ia.test.ts`, `tests/chatbase.test.ts`, `tests/assistente.test.ts` |
 | cobrança do assistente de IA (assinatura com franquia, pacotes avulsos, Pix da plataforma, débito por mensagem, vencimento, relatório e ajuste de crédito da plataforma) | `shared/iaCobranca.ts` (regras), `server/services/iaCobranca.ts` (conta, livro, Pix, débito, `ajustarCreditosIA`, `relatorioDaIA`, `extratoDaIA`), `/ia/relatorio`, `/ia/lancamentos` e `/ia/ajustes` em `server/routes/admin.ts`, `client/src/components/UsoDoAssistenteCard.tsx` (em Aparência), `ia_contas`/`ia_pagamentos`/`ia_lancamentos` em `shared/schema.ts`, `/api/ia/conta` e `/api/ia/pagamentos` em `server/routes/ia.ts`, `confirmarPagamentoIA` no webhook, relógio em `server/jobs/index.ts`, `client/src/components/PlanoDoAssistente.tsx` (o plano na coluna), preços em `AssistenteIACard.tsx`, `scripts/ia-test.ts`, `tests/iaCobranca.test.ts` |
 | ações do assistente de IA no sistema (consultar, publicar, legenda, excluir, estorno; confirmação e auditoria) | `shared/iaAcoes.ts` (catálogo, entrada, barreira do resultado), `server/services/iaAcoes.ts` (o que cada ação faz, no recorte), `tratarChamadas`/`seguirComAcoes`/`decidirAcaoDaIA` em `server/services/ia.ts`, `enviarResultado` em `server/services/chatbase.ts`, `ia_acoes` em `shared/schema.ts`, `/api/ia/acoes/:id/confirmar\|recusar` em `server/routes/ia.ts`, `CartaoDaAcao` em `AssistenteDoPainel.tsx`, a lista para o Chatbase em `AssistenteIACard.tsx`, `scripts/ia-acoes-test.ts`, `tests/iaAcoes.test.ts` |
+| roteiro do assistente de IA (o Lucky): as decisões D1–D8, as instruções do agente e como ele aprende; o papel de quem fala (`comContexto()`/`CONTEXTO_DO_PAPEL` em `shared/ia.ts`) e a base de conhecimento gerada do sistema | `docs/ROTEIRO-ASSISTENTE-IA.md`, `scripts/base-ia.ts` (`npm run base-ia`) |
 | segurança: onde mora cada defesa, lista de conferência de rota nova e as revisões | `docs/SEGURANCA.md` |
 | versões (celular, tablet, computador): registro das mudanças do celular, levas, mapa das telas e auditoria | `docs/VERSOES.md` (guia, mapa e registro — **anote no mesmo PR**), `scripts/telas.ts` (`npm run telas`), `tests/versoes.test.ts` |
 
@@ -3830,6 +3831,20 @@ login). Cambista e apostador não têm.
   cadastro do afiliado (**ativo**, a mesma porta das Mensagens). Quem não tem
   direito recebe `{ ligado: false }` na sessão e 404 nas outras rotas (para ele
   o assistente não existe); cambista, 403; sem login, 401. `no-store` em tudo.
+- **O agente sabe com quem fala pelo servidor** (`comContexto()` em
+  `shared/ia.ts`): cada mensagem sai com uma linha de contexto na frente — o
+  nome (**Lucky**, `NOME_DO_ASSISTENTE`) e o papel da sessão
+  (`CONTEXTO_DO_PAPEL`). **Só o do master conhece todos os painéis**; o da
+  organização e o do afiliado, só o de quem fala. Nada de nome, id ou número
+  na linha. A marca `⟦ ⟧` digitada é recusada (422) — ninguém se passa por
+  outro papel —, e o histórico a tira (`semContexto()`). É só a resposta: o
+  que cada um faz continua barrado pelas ações no recorte da sessão.
+- **A base de conhecimento é gerada do sistema** (`npm run base-ia`,
+  `scripts/base-ia.ts`, grava em `base-do-assistente/`, fora do git): o menu
+  de cada papel, a central de ajuda, as regras da rifa, as medidas de
+  divulgação, o afiliado, os Termos e a Privacidade publicados. Nunca dado de
+  comprador, de organização nem número de venda. Regra mudou, gere de novo e
+  troque os arquivos no Chatbase.
 - **Dado pessoal de cliente nunca sai para a IA**: `problemaNaMensagemDaIA()`
   barra **antes** de qualquer coisa sair (422) o e-mail, o CPF (3+3+3+2, com ou
   sem separador), o telefone com DDD (com ou sem +55), o celular sem DDD com
@@ -3991,7 +4006,11 @@ Aparência → Assistente de IA.
 - **O recorte é o da sessão** (`orgOf(req)`; o afiliado só pelo cadastro
   dele): a rifa, o pedido e o chamado do vizinho "não existem". O afiliado só
   consulta (`minhas_comissoes`); nenhuma ação que grava é dele.
-- **Ler é na hora; gravar só com confirmação.** Publicar, trocar a legenda,
+- **Ler é na hora**, inclusive "o que falta para publicar" (a régua de
+  `publishBlockers`, sem publicar) e "o que falta para sacar" (só do
+  afiliado: chave Pix, cadastro fiscal com CNPJ, saldo por quem paga pelo
+  nome público, saque pedido — nunca a chave, o CPF ou o CNPJ).
+- **Gravar só com confirmação.** Publicar, trocar a legenda,
   apagar a rifa e estornar (o chamado já aprovado, pelo protocolo) viram uma
   linha `pendente` em `ia_acoes`; a coluna mostra o **resumo montado pelo
   servidor** com os dados de verdade (`prepararGravacao()`), nunca o texto da

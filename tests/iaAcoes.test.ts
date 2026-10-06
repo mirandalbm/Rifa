@@ -24,14 +24,14 @@ describe("catálogo das ações do assistente", () => {
 
   it("o afiliado só consulta: nenhuma ação que grava é dele", () => {
     expect(acoesDe("afiliado").every((a) => !a.grava)).toBe(true);
-    expect(acoesDe("afiliado").map((a) => a.nome)).toEqual(["minhas_comissoes"]);
+    expect(acoesDe("afiliado").map((a) => a.nome)).toEqual(["minhas_comissoes", "falta_para_sacar"]);
   });
 
   it("dinheiro, estorno, publicação e exclusão gravam (pedem confirmação)", () => {
     for (const n of ["publicar_rifa", "atualizar_legenda", "excluir_rifa", "estornar_chamado"] as const) {
       expect(acaoPeloNome(n)?.grava).toBe(true);
     }
-    for (const n of ["listar_rifas", "resumo_de_vendas", "consultar_pedido", "pendencias", "minhas_comissoes"] as const) {
+    for (const n of ["listar_rifas", "resumo_de_vendas", "consultar_pedido", "pendencias", "minhas_comissoes", "falta_para_publicar", "falta_para_sacar"] as const) {
       expect(acaoPeloNome(n)?.grava).toBe(false);
     }
     expect(acaoPeloNome("apagar_tudo")).toBeNull();

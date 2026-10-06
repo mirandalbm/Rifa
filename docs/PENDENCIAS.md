@@ -66,12 +66,19 @@ senha); **[código]** é trabalho no repositório.
   as comissões) na hora; publicar, trocar a legenda, apagar a rifa e estornar
   um chamado aprovado só depois de a pessoa confirmar na coluna. No recorte de
   `orgOf`, pelos mesmos serviços das rotas e com `audit_log` como feita pela IA.
+- [x] **[código]** O **Lucky** (decisões D1–D8 de `docs/ROTEIRO-ASSISTENTE-IA.md`,
+  06/10/2026): o servidor diz ao agente o papel de quem fala (só o master
+  conhece todos os painéis), as ações "o que falta para publicar" e "o que
+  falta para sacar" e a base de conhecimento gerada do sistema
+  (`npm run base-ia`).
 - [ ] **[você]** Chatbase: em Actions, cadastrar cada ação da lista de
   Aparência → Assistente de IA ("Ações do assistente") como ação do tipo
   **Client**, com o mesmo nome e os mesmos parâmetros. Ação não cadastrada lá
   simplesmente não é pedida.
-- [ ] **[você]** Chatbase: criar a conta e o agente (treinado com a ajuda do
-  painel), copiar o **id do agente** e criar uma **chave da API** (Settings →
+- [ ] **[você]** Chatbase: criar a conta e o agente **Lucky**, colar as
+  instruções do roteiro (`docs/ROTEIRO-ASSISTENTE-IA.md`) e subir os arquivos
+  de `npm run base-ia` (gerado com o banco de produção) em Sources → Files;
+  copiar o **id do agente** e criar uma **chave da API** (Settings →
   API keys). A chave vai só no Railway (`CHATBASE_API_KEY`); o id vai em
   Aparência → Assistente de IA, e só então liga. Para liberar organizador e
   afiliado, defina ali o **preço da assinatura, a franquia e os pacotes**

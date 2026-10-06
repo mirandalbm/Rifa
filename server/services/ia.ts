@@ -17,6 +17,7 @@ import { affiliates, iaAcoes, iaConversas, iaUso } from "@shared/schema";
 import {
   IA_JANELA_MIN,
   IA_MENSAGENS_POR_JANELA,
+  comContexto,
   idDaIA,
   normalizarParaChecar,
   problemaNaMensagemDaIA,
@@ -206,7 +207,7 @@ export async function conversarComIA(
   // Ação esperando confirmação e a pessoa seguiu a conversa: a ação vence, e o agente fica sabendo.
   if (lida) await expirarPendentes(c, lida, "A pessoa seguiu a conversa sem confirmar. Se ela ainda quiser, peça de novo.");
   const enviar = (conversationId: string | null) =>
-    cliente(c.chave).enviar({ agenteId: c.config.agenteId, mensagem, conversationId, userId: idDaIA(c.userId) });
+    cliente(c.chave).enviar({ agenteId: c.config.agenteId, mensagem: comContexto(mensagem, c.titular.tipo), conversationId, userId: idDaIA(c.userId) });
   let r;
   try {
     r = await enviar(lida);

@@ -27,6 +27,7 @@ import { and, eq, inArray, like, sql } from "drizzle-orm";
 import { baseUrl } from "./base-url";
 import { db, pool } from "../server/db";
 import {
+  affiliates,
   auditLog,
   buyers,
   campaigns,
@@ -43,6 +44,7 @@ import {
   users,
 } from "../shared/schema";
 import { hashPassword } from "../server/auth";
+import { semContexto } from "../shared/ia";
 import { getPlataforma, setPlataforma } from "../server/services/settings";
 
 const URL_DO_SITE = baseUrl();
@@ -126,7 +128,8 @@ function subirFalso(): Promise<http.Server> {
         seq++;
         const conv = corpo?.conversationId ?? `conv_${seq}`;
         const id = `msg_${seq}`;
-        const mensagem: string = corpo?.message ?? "";
+        // O servidor manda o contexto do papel na frente: o roteiro do Chatbase de mentira lê só o que a pessoa escreveu.
+        const mensagem: string = semContexto(corpo?.message ?? "");
         const resposta = (parts: unknown[], finishReason: string) =>
           responder(200, { data: { id, role: "assistant", parts, metadata: { conversationId: conv, finishReason, usage: { credits: 1 } } } });
         const acao = (nome: string, input: unknown) => ({ type: "tool-call", toolCallId: `call_${seq}_${nome}`, toolName: nome, input });
@@ -185,6 +188,7 @@ async function main() {
   const [uAdmin] = await db.select({ id: users.id }).from(users).where(eq(users.email, "admin@rifa.br"));
   const [uMarina] = await db.select({ id: users.id, org: users.organizationId }).from(users).where(eq(users.email, "marina@rifassaojose.br"));
   const [uJoao] = await db.select({ id: users.id }).from(users).where(eq(users.email, "joao@rifa.br"));
+  const [afJoao] = await db.select({ id: affiliates.id }).from(affiliates).where(eq(affiliates.userId, uJoao.id));
   const [orgVizinha] = await db
     .insert(organizations)
     .values({ slug: VIZINHA.slug, name: "Vizinha das Ações", cidade: "Recife", uf: "PE" })
@@ -199,7 +203,7 @@ async function main() {
   await entrar(vizinha, VIZINHA.email, VIZINHA.senha);
 
   const ids = [uAdmin.id, uMarina.id, uJoao.id, uVizinha.id];
-  const titulares = [uMarina.org!, orgVizinha.id];
+  const titulares = [uMarina.org!, orgVizinha.id, ...(afJoao ? [afJoao.id] : [])];
   const novaRifa = (org: string, slug: string, titulo: string) =>
     db
       .insert(campaigns)
@@ -284,6 +288,20 @@ async function main() {
     r = await marina.req("POST", "/api/ia/mensagens", { texto: "acao pendencias {}" });
     saida = ultimoResultado();
     checa("pendências do painel", saida?.status === "success" && Number.isInteger(saida.data.rascunhos) && saida.data.rascunhos >= 1);
+    r = await marina.req("POST", "/api/ia/mensagens", { texto: `acao falta_para_publicar {"rifa":"${SLUG_MARINA}"}` });
+    saida = ultimoResultado();
+    checa(
+      "o que falta para publicar: só consulta, a régua do botão, nada para confirmar",
+      r.json?.acao === null && saida?.status === "success" && saida.data.podePublicar === false && Array.isArray(saida.data.falta) && saida.data.falta.length > 0,
+      JSON.stringify(saida).slice(0, 160),
+    );
+    checa("…e a rifa segue em rascunho", (await db.select({ s: campaigns.status }).from(campaigns).where(eq(campaigns.id, rifaM.id)))[0]?.s === "draft");
+    r = await marina.req("POST", "/api/ia/mensagens", { texto: `acao falta_para_publicar {"rifa":"${SLUG_VIZINHA}"}` });
+    saida = ultimoResultado();
+    checa("o que falta na rifa do vizinho: não existe", saida?.status === "error" && /Não achei/.test(saida.error));
+    r = await marina.req("POST", "/api/ia/mensagens", { texto: "acao falta_para_sacar {}" });
+    saida = ultimoResultado();
+    checa("o que falta para sacar é do afiliado, não da organização", saida?.status === "error" && /não está disponível/.test(saida.error));
 
     console.log("\nO que a IA pede é conferido antes");
     await zerarLimites();
@@ -428,6 +446,26 @@ async function main() {
 
     r = await joao.req("POST", "/api/ia/mensagens", { texto: "acao minhas_comissoes {}" });
     checa("sem a liberação, o afiliado nem conversa (404)", r.status === 404, `HTTP ${r.status}`);
+    console.log("\nO afiliado: o que falta para sacar");
+    r = await admin.req("PUT", "/api/admin/ia/config", { ligado: true, agenteId: AGENTE, paraOrganizador: true, paraAfiliado: true, cobranca: COBRANCA });
+    checa("liberar o afiliado", r.status === 200, `HTTP ${r.status} ${r.texto.slice(0, 80)}`);
+    {
+      const p = await joao.req("POST", "/api/ia/pagamentos", { tipo: "assinatura", documento: "11144477735" });
+      if (p.status !== 201) throw new Error(`Pix da assinatura do afiliado: HTTP ${p.status} ${p.texto}`);
+      await joao.req("POST", `/api/dev/ia-pagamento/${p.json.codigo}`);
+    }
+    await zerarLimites();
+    r = await joao.req("POST", "/api/ia/mensagens", { texto: "acao falta_para_sacar {}" });
+    saida = ultimoResultado();
+    checa(
+      "o que falta para sacar: só consulta, com o cadastro fiscal e o saldo por quem paga",
+      r.status === 200 && r.json?.acao === null && saida?.status === "success" && typeof saida.data.podeSacar === "boolean" && Array.isArray(saida.data.falta) && Array.isArray(saida.data.porQuemPaga) && typeof saida.data.cadastroFiscal === "string",
+      JSON.stringify(saida).slice(0, 200),
+    );
+    checa("…sem chave Pix nem CPF/CNPJ no resultado", !/pix_key|cpf|cnpj\"?:\s*\"\d/i.test(JSON.stringify(saida?.data ?? {})));
+    r = await joao.req("POST", "/api/ia/mensagens", { texto: `acao falta_para_publicar {"rifa":"${SLUG_MARINA}"}` });
+    saida = ultimoResultado();
+    checa("o afiliado não consulta a publicação da rifa", saida?.status === "error" && /não está disponível/.test(saida.error));
     r = await anon.req("POST", `/api/ia/acoes/${p2.id}/confirmar`);
     checa("sem login: 401", r.status === 401, `HTTP ${r.status}`);
 

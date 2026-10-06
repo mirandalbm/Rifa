@@ -17,7 +17,7 @@ import { ataGuardada } from "@shared/sorteiosOficiais";
 import { formatQuota, numeroNaTela } from "@shared/format";
 import { sql, type SQL } from "drizzle-orm";
 import { db } from "../db";
-import { REGRA_DA_APROXIMACAO } from "@shared/sorteio";
+import { SORTEIO_INVALIDO, regraDoNumeroSemDono } from "@shared/sorteio";
 import { SORTEIO_SEM_DATA } from "@shared/campanhaLegal";
 import {
   csvRow,
@@ -605,6 +605,10 @@ interface LinhaSorteio {
   /** A ata da sessão do globo (`AtaDoGlobo`), se a rifa é do globo. */
   ata: unknown;
   sessao: number | null;
+  /** As bolas da sessão (a 1ª extração); `federal_prizes` guarda a extração que valeu. */
+  sessao_resultado: string[] | null;
+  campaign_id: string;
+  modo_sorteio: string | null;
 }
 
 /**
@@ -626,7 +630,8 @@ function sorteio(escopo: ExportScope): ExportStream {
       const [d] = await rows<LinhaSorteio>(sql`
         SELECT c.slug, c.title, c.prize_title, c.total_quotas, c.price_cents,
                c.authorization_code, c.metodo_apuracao,
-               so.ata, so.concurso AS sessao,
+               so.ata, so.concurso AS sessao, so.resultado AS sessao_resultado,
+               c.id AS campaign_id, c.modo_sorteio,
                d.seed, d.seed_hash, d.federal_contest, d.federal_prizes,
                d.result_number, d.winner_number, d.executed_at, d.evidence_url,
                b.name AS vencedor, b.phone AS vencedor_telefone,
@@ -687,10 +692,27 @@ function sorteio(escopo: ExportScope): ExportStream {
         // O globo: a sessão do calendário e a ata notarial (resposta 8.10).
         const ata = ataGuardada(d.ata);
         yield ["Sessão do globo", d.sessao];
-        if (d.federal_prizes) {
-          for (const [i, bola] of d.federal_prizes.entries()) {
+        const sessaoBolas = d.sessao_resultado ?? d.federal_prizes;
+        if (sessaoBolas) {
+          for (const [i, bola] of sessaoBolas.entries()) {
             yield [`Bola do ${i + 1}o globo`, `${bola}${ata?.bolas[i] ? ` (às ${ata.bolas[i].hora})` : ""}`];
           }
+        }
+        // 9.5: as novas extrações do mesmo ato, quando o número não foi distribuído.
+        const novas = await rows<{ ordem: number; bolas: string[]; horas: string[]; numero: number }>(sql`
+          SELECT ordem, bolas, horas, numero FROM sorteio_reextracoes WHERE campaign_id = ${d.campaign_id}::uuid ORDER BY ordem
+        `);
+        if (novas.length && sessaoBolas && totalDaApuracao(d.total_quotas)) {
+          const primeira = lerResultado("globo", sessaoBolas, d.total_quotas).numeroTexto;
+          yield ["1a extração", `${primeira} — ${SORTEIO_INVALIDO}`];
+          for (const [i, n] of novas.entries()) {
+            const valeu = i === novas.length - 1 && sorteado;
+            yield [
+              `${n.ordem}a extração`,
+              `${n.bolas.map((b, j) => `${b} (às ${n.horas[j]})`).join(", ")} → ${formatQuota(n.numero, d.total_quotas, true)} — ${valeu ? "contemplado" : SORTEIO_INVALIDO}`,
+            ];
+          }
+          yield ["Regra aplicada", regraDoNumeroSemDono("globo")];
         }
         if (ata) {
           yield ["Local da extração", ata.local];
@@ -720,7 +742,7 @@ function sorteio(escopo: ExportScope): ExportStream {
       // relatório diz qual número levou e por qual regra.
       if (d.winner_number !== null && d.winner_number !== d.result_number) {
         yield ["Número contemplado", formatQuota(d.winner_number, d.total_quotas, zero)];
-        yield ["Regra aplicada", REGRA_DA_APROXIMACAO];
+        yield ["Regra aplicada", regraDoNumeroSemDono(d.metodo_apuracao, d.modo_sorteio)];
       } else if (d.executed_at && d.pedido === null) {
         yield ["Número contemplado", "Nenhuma cota paga: sorteio sem contemplado"];
       }

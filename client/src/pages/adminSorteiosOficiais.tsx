@@ -32,6 +32,9 @@ interface RifaNoSorteio {
   status: string;
   /** Lançado o resultado, por que esta rifa ainda não sorteou (o relógio tenta de novo). */
   esperando?: string | null;
+  /** 9.5: o número lido no globo não foi distribuído — o globo gira de novo para esta rifa. */
+  pedeNovaExtracao?: boolean;
+  novasExtracoes?: { ordem: number; bolas: string[]; horas: string[]; numero: string }[];
   organizacao?: string;
 }
 
@@ -448,7 +451,7 @@ function CartaoDoSorteio({ s, plataforma }: { s: SorteioNoCalendario; plataforma
             <p className="label-xs">{plataforma ? "Rifas integradas" : "Suas rifas neste sorteio"}</p>
             <ul className="mt-1 divide-y divide-line rounded-md border border-line">
               {s.rifas.map((r) => (
-                <RifaIntegrada key={r.id} r={r} plataforma={plataforma} aoMudar={recarregar} aoErro={erro} />
+                <RifaIntegrada key={r.id} r={r} sorteioId={s.id} plataforma={plataforma} aoMudar={recarregar} aoErro={erro} />
               ))}
             </ul>
           </div>
@@ -518,11 +521,13 @@ function CartaoDoSorteio({ s, plataforma }: { s: SorteioNoCalendario; plataforma
 
 function RifaIntegrada({
   r,
+  sorteioId,
   plataforma,
   aoMudar,
   aoErro,
 }: {
   r: RifaNoSorteio;
+  sorteioId: string;
   plataforma: boolean;
   aoMudar: () => void;
   aoErro: (e: Error) => void;
@@ -554,12 +559,110 @@ function RifaIntegrada({
           </Button>
         ) : null}
       </span>
+      {r.novasExtracoes?.length ? (
+        <ol className="tnum order-last w-full space-y-0.5 text-xs text-muted">
+          {r.novasExtracoes.map((e) => (
+            <li key={e.ordem}>
+              {e.ordem}ª extração: {e.bolas.join("-")} (de {e.horas[0]} a {e.horas[e.horas.length - 1]}) → {e.numero}
+            </li>
+          ))}
+        </ol>
+      ) : null}
+      {plataforma && r.pedeNovaExtracao ? <NovaExtracao sorteioId={sorteioId} rifaId={r.id} aoMudar={aoMudar} aoErro={aoErro} /> : null}
       {r.status === "published" && !plataforma && !r.esperando ? (
         <span className="order-last w-full text-xs text-muted">
           Publicada: para trocar de sorteio, peça o adiamento na edição da rifa (a plataforma analisa).
         </span>
       ) : null}
     </li>
+  );
+}
+
+/**
+ * 9.5: no globo não há aproximação. A plataforma registra, no mesmo ato, a
+ * nova extração (as 6 bolas e a hora de cada uma) para a rifa cujo número não
+ * foi distribuído; a rifa tenta sortear com ela na hora.
+ */
+function NovaExtracao({
+  sorteioId,
+  rifaId,
+  aoMudar,
+  aoErro,
+}: {
+  sorteioId: string;
+  rifaId: string;
+  aoMudar: () => void;
+  aoErro: (e: Error) => void;
+}) {
+  const [bolas, setBolas] = useState<string[]>(() => Array(6).fill(""));
+  const [horas, setHoras] = useState<string[]>(() => Array(6).fill(""));
+  const [aviso, setAviso] = useState<string | null>(null);
+  const registrar = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", `/api/admin/sorteios-oficiais/${sorteioId}/rifas/${rifaId}/extracoes`, {
+        bolas,
+        horas: horas.map((h) => (h.length === 5 ? `${h}:00` : h)),
+      });
+      return (await res.json()) as { ordem: number; numero: string; sorteada: boolean; motivo: string | null };
+    },
+    onSuccess: (r) => {
+      setBolas(Array(6).fill(""));
+      setHoras(Array(6).fill(""));
+      setAviso(r.sorteada ? `${r.ordem}ª extração: ${r.numero} — distribuído, a rifa foi sorteada.` : `${r.ordem}ª extração: ${r.numero}. ${r.motivo ?? ""}`);
+      aoMudar();
+    },
+    onError: aoErro,
+  });
+  return (
+    <form
+      className="order-last w-full space-y-2 rounded-md bg-mist p-2"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (window.confirm("Conferiu as bolas e as horas com o relato da ata? A extração registrada não muda.")) registrar.mutate();
+      }}
+    >
+      <fieldset>
+        <legend className="label-xs">Nova extração do globo (mesmo ato)</legend>
+        <div className="mt-1 grid grid-cols-2 gap-1.5 sm:grid-cols-3 xl:grid-cols-6">
+          {bolas.map((b, i) => (
+            <div key={i} className="flex min-w-0 flex-col items-center gap-1">
+              <span className="tnum text-xs text-muted" aria-hidden>{i + 1}º globo</span>
+              <input
+                aria-label={`Nova extração: bola do globo ${i + 1}`}
+                inputMode="numeric"
+                value={b}
+                onChange={(e) => {
+                  const v = e.target.value.replace(/\D/g, "").slice(0, 1);
+                  setBolas((a) => a.map((x, j) => (j === i ? v : x)));
+                }}
+                className="campo tnum w-full min-w-0 text-center"
+                required
+              />
+              <input
+                type="time"
+                step={1}
+                aria-label={`Nova extração: hora em que saiu a bola do globo ${i + 1}`}
+                value={horas[i]}
+                onChange={(e) => setHoras((a) => a.map((x, j) => (j === i ? e.target.value : x)))}
+                className="campo tnum w-full min-w-0 text-center"
+                required
+              />
+            </div>
+          ))}
+        </div>
+        <p className="mt-1 text-xs text-muted">
+          A hora de cada bola vem depois da última bola já registrada. Se o número de novo não tiver dono, registre outra extração.
+        </p>
+      </fieldset>
+      <Button type="submit" disabled={registrar.isPending || bolas.some((b) => !b) || horas.some((h) => !h)}>
+        Registrar nova extração
+      </Button>
+      {aviso ? (
+        <p className="text-xs" role="status">
+          {aviso}
+        </p>
+      ) : null}
+    </form>
   );
 }
 

@@ -145,7 +145,7 @@ arquitetura.
 | notificações no celular (Web Push) | `shared/push.ts` (regras), `server/services/push.ts`, `client/public/sw.js`, `client/src/lib/push.ts`, `scripts/push-test.ts` |
 | Termos de uso e Política de privacidade (texto montado das regras, dados da empresa e encarregado) | `shared/legal.ts` (`montarTermosDeUso`, `montarPrivacidade`, `validarDadosDaEmpresa`), `legal` em `shared/template.ts`, `client/src/pages/Legal.tsx` (`/termos`, `/privacidade`), cartão "Dados da empresa" em `client/src/pages/adminAparencia.tsx`, `tests/legal.test.ts` |
 | apuração pela Loteria Federal e pelo globo da plataforma (leitura direta, numeração a partir de zero, total em potência de 10, método liberado pela plataforma e escolhido pela promotora; a sessão do globo com a ata notarial e o arquivo do cartório) | `shared/apuracao.ts` (regras, `lerFederal`, `lerGlobo`, `clausulaDaApuracao`, `clausulaDoGlobo`), `validarAtaDoGlobo()`/`globo` em `shared/sorteiosOficiais.ts`, `lancarResultado()`/`salvarArquivoDaAta()` em `server/services/sorteiosOficiais.ts`, `PUT /sorteios-oficiais/:id/ata` em `server/routes/admin.ts`, `GET /sorteio-oficial/:id/ata` em `server/routes/public.ts`, `LancarResultado`/`AtaDaSessao` em `adminSorteiosOficiais.tsx`, `formatQuota`/`numeroInterno` em `shared/format.ts`, `numeroSorteado()` em `server/services/sortear.ts`, `problemaNaApuracao()` em `server/services/campaigns.ts`, `/apuracao/metodos` em `server/routes/admin.ts`, `MetodosDeApuracao` em `client/src/pages/adminSorteiosOficiais.tsx`, o método em `DadosLegaisCard.tsx`, `SorteioCard.tsx` (leitura passo a passo), `scripts/apuracao-test.ts`, `tests/apuracao.test.ts` |
-| regulamento, central de ajuda, transmissão, conferência do sorteio e a regra da aproximação (número não vendido) | `shared/regulamento.ts`, `shared/ajuda.ts`, `shared/sorteio.ts` (`contempladoPorAproximacao`), o sorteio em `POST /campaigns/:id/draw` (`server/routes/admin.ts`), `client/src/components/SorteioCard.tsx`, `scripts/transparencia-test.ts` |
+| regulamento, central de ajuda, transmissão, conferência do sorteio e o número não distribuído (busca alternada e circular na Federal, ressorteio no globo, impedidos de participar) | `shared/regulamento.ts`, `shared/ajuda.ts`, `shared/sorteio.ts` (`regraDoNumeroSemDono`, `contempladoNaFita`, `contempladoPorAproximacao`), `registrarNovaExtracao()` em `server/services/sortear.ts`, `NovaExtracao` em `adminSorteiosOficiais.tsx`, `ExtracoesDoGlobo` em `SorteioCard.tsx`, `server/services/impedidos.ts`, `tests/item9.test.ts`, o sorteio em `POST /campaigns/:id/draw` (`server/routes/admin.ts`), `client/src/components/SorteioCard.tsx`, `scripts/transparencia-test.ts` |
 | vitrine: banners, stories (inclusive o agendado, a enquete e as figurinhas), estados e feed | `shared/vitrine.ts` (regras), `shared/enqueteStory.ts` (a enquete), `shared/figurinhasStory.ts` (as figurinhas), `server/services/vitrine.ts`, `server/services/faixa.ts` (`Range` do vídeo), `client/src/components/BannersVitrine.tsx`, `Stories.tsx`, `EstadosVitrine.tsx`, `CartaoDoFeed.tsx`, `client/src/pages/adminStories.tsx`, `scripts/vitrine-test.ts` |
 | painel de resultados, origem da venda e foto do ganhador | `shared/resultados.ts` (regras), `server/services/resultados.ts`, `client/src/lib/origem.ts`, `client/src/pages/adminResultados.tsx`, `server/services/ganhador.ts`, `scripts/resultados-test.ts` |
 | aparência da plataforma (construtor de templates) | `shared/template.ts` (regras), `server/services/template.ts`, `client/src/lib/template.ts`, `client/src/pages/adminAparencia.tsx`, `scripts/aparencia-test.ts` |
@@ -2666,11 +2666,38 @@ desconto na primeira compra — **pago pela plataforma**.
   antes, sem método: a rifa apurada pela leitura direta não mostra semente
   nem hash — seção "Apuração pela Loteria Federal".) `npm run transparencia`
   procura a semente em todas as respostas.
-- **Número sorteado não vendido: regra da aproximação**
-  (`contempladoPorAproximacao()` e `REGRA_DA_APROXIMACAO` em
-  `shared/sorteio.ts`, a mesma frase no regulamento e na tela): o prêmio vai
-  ao número **vendido e pago** imediatamente acima; sem nenhum acima, ao
-  imediatamente abaixo. O sorteio grava os dois (`resultNumber`, o sorteado,
+- **Número sorteado não distribuído: a regra depende do método** (item 9
+  do advogado, 05/10/2026; `regraDoNumeroSemDono()` em `shared/sorteio.ts`,
+  o mesmo texto no regulamento, na tela e na prestação de contas):
+  - **Loteria Federal** (9.1 a 9.3): busca **alternada** a partir do número
+    apurado — +1, −1, +2, −2… (`contempladoNaFita()`; o banco devolve o pago
+    seguinte e o anterior, e a distância decide, empate com o de cima) — numa
+    **fita circular** (depois do último número vem o primeiro; na rifa de
+    1.000.000 a Série faz parte do número). O texto é o do advogado
+    (`REGRA_DA_APROXIMACAO_ALTERNADA`). **Distribuído é o pago, inclusive a
+    cota de bônus**; reserva não paga não conta. `contempladoPassoAPasso()`
+    é a mesma regra escrita como o papel e a caneta, e `tests/item9.test.ts`
+    compara as duas em 400 casos.
+  - **Globo** (9.5): **não há aproximação**. A extração cujo número não foi
+    distribuído é "Sorteio inválido – cota não vendida" (`SORTEIO_INVALIDO`),
+    a rifa não sorteia e o globo gira de novo no mesmo ato: só a plataforma
+    registra a **nova extração** (`POST
+    /sorteios-oficiais/:id/rifas/:campaignId/extracoes`,
+    `registrarNovaExtracao()` em `server/services/sortear.ts`; 403 para
+    organizador, no `npm run isolation`) — as 6 bolas e a hora de cada uma,
+    depois da última bola registrada (`validarNovaExtracao()`), com a linha
+    do sorteio travada; o número de agora tem de seguir sem dono e sem
+    reserva esperando Pix, e a ordem é decidida pelo índice
+    `uq_reextracao_ordem` (`sorteio_reextracoes`). Gravada, a rifa tenta
+    sortear pelo caminho de sempre; `draws.federal_prizes` guarda as bolas da
+    extração que valeu. A conferência pública (`extracoes`), o calendário e a
+    prestação de contas listam cada extração, e cada uma vai à auditoria
+    (`sorteio_oficial.reextracao`). Nenhuma cota paga: o globo não gira (409,
+    adiamento).
+  - **Rifa de antes, sem método**: a regra com que foi vendida
+    (`contempladoPorAproximacao()`, imediatamente acima e, sem nenhum acima,
+    o abaixo; ou "a promotora completa").
+  O sorteio grava os dois (`resultNumber`, o sorteado,
   que a conferência pública refaz; e `winnerNumber`, o contemplado) numa
   transação com a linha de `draws` travada (`FOR UPDATE`): dois cliques, um
   sorteio e um 409; só rifa publicada. **Com cota reservada esperando Pix, o
@@ -2714,8 +2741,17 @@ desconto na primeira compra — **pago pela plataforma**.
   pede o adiamento, que move as duas datas; não vale para o globo. A rifa de
   antes, publicada sem data, segue marcada como era, com `SORTEIO_SEM_DATA`)
   e **a promotora completa** (sem mínimo; o número sorteado não
-  vendido é dela e o prêmio fica com ela — sem aproximação). `npm run
-  transparencia` prova os três.
+  vendido é dela e o prêmio fica com ela — sem aproximação). **"A promotora
+  completa" é só da rifa de antes, sem método** (9.4): na rifa autorizada a
+  promotora não concorre — os dados legais recusam (422) e a publicação barra
+  (`PROBLEMA_PROMOTORA_COMPLETA`). **Quem não pode concorrer**
+  (`IMPEDIDOS_DE_PARTICIPAR`, no regulamento e nos Termos): a promotora,
+  sócios e diretores, e a plataforma — a compra com o telefone aprovado ou do
+  aviso da organização, de um organizador dela ou de um administrador da
+  plataforma é recusada (403) em `prepararPedido`, antes de qualquer gravação
+  (`telefoneImpedido()` em `server/services/impedidos.ts`, telefone sem o 55 e
+  sem máscara — `telefoneComparavel()`), também na maquininha. `npm run
+  transparencia` prova os modos; `npm run apuracao`, o item 9.
 - **A conferência roda no aparelho de quem olha** (`conferirSorteio()`, com
   WebCrypto): a mesma conta de `drawNumber()`. Mudou uma, mude a outra —
   `tests/sorteio.test.ts` compara as duas em 300 casos.
@@ -2801,6 +2837,10 @@ pela portaria** — fica só para conferir a rifa sorteada sem método.
   (`leitura` em `/campaigns/:slug/sorteio`), refeita no aparelho de quem olha
   (`SorteioCard`), e o regulamento traz a cláusula do advogado com o exemplo
   calculado pela mesma `lerFederal()` (`clausulaDaApuracao()`).
+- **Número sem dono, promotora e impedidos** (item 9): a busca alternada e
+  circular na Federal, o ressorteio no globo e o fim da "promotora completa"
+  na rifa autorizada estão na seção "Transparência". A tabela
+  `sorteio_reextracoes` sobe com o `db:push` **antes** do código.
 - **Cota premiada é vale-brinde** (8.8, `AVISO_VALE_BRINDE` e
   `CLAUSULA_VALE_BRINDE` em `shared/premiadas.ts`): com o sorteio, a rifa vira
   promoção mista (sorteio + vale-brinde), autorizada nas duas modalidades no

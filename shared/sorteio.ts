@@ -127,6 +127,89 @@ export function contempladoPorAproximacao(p: {
   return null;
 }
 
-/** O texto da regra, igual no regulamento e na tela do resultado. */
+/** O texto da regra, igual no regulamento e na tela do resultado — a da rifa de antes, sem método de apuração. */
 export const REGRA_DA_APROXIMACAO =
   "Se o número sorteado não tiver sido vendido e pago, o prêmio vai para o número vendido e pago imediatamente acima; se não houver nenhum acima, para o imediatamente abaixo.";
+
+/* ------------------------------------------------------------------ *
+ * Item 9 do advogado (05/10/2026): o número sem dono na rifa autorizada
+ * ------------------------------------------------------------------ */
+
+/**
+ * 9.1, o texto exato da aproximação da rifa apurada pela Loteria Federal:
+ * alternada, superior primeiro — +1, −1, +2, −2… a partir do número apurado.
+ */
+export const REGRA_DA_APROXIMACAO_ALTERNADA =
+  "Caso o Número da Sorte apurado não tenha sido distribuído a um participante válido, o prêmio caberá ao portador do Número da Sorte distribuído imediatamente superior ou, na falta deste, ao imediatamente inferior, e assim alternadamente até que seja identificado um contemplado.";
+
+/** 9.3: a fita é uma só e circular — na rifa de 1.000.000 a Série faz parte do número. */
+export const REGRA_DA_FITA_CIRCULAR =
+  "Para essa busca, a numeração é uma sequência contínua e circular: depois do maior número da rifa vem o primeiro, e antes do primeiro vem o maior. Na rifa de 1.000.000 de números a Série faz parte do número, e a busca passa de uma Série à outra.";
+
+/** 9.2: o que é "distribuído" — pago, inclusive a cota de bônus; reserva não paga não conta. */
+export const NUMERO_DISTRIBUIDO =
+  "Considera-se distribuído o Número da Sorte pago, inclusive a cota recebida como bônus; número reservado e não pago não conta e é pulado na busca.";
+
+/** 9.5, o texto exato do ressorteio do globo: no globo não há aproximação. */
+export const REGRA_DO_RESSORTEIO =
+  "Caso o Número da Sorte extraído do globo não tenha sido distribuído, proceder-se-á, no mesmo ato e imediatamente, ao sorteio de novos Números da Sorte, tantas vezes quantas forem necessárias, até que se apure um número que tenha sido validamente distribuído a um participante.";
+
+/** O registro de cada extração do globo que não valeu (9.5): o mesmo texto no painel, na página e na ata. */
+export const SORTEIO_INVALIDO = "Sorteio inválido – cota não vendida";
+
+/** 9.4: na rifa autorizada não há "a promotora completa" — e quem não pode concorrer. */
+export const IMPEDIDOS_DE_PARTICIPAR =
+  "Não podem participar desta promoção a promotora, seus sócios e diretores, nem a plataforma e seus administradores. A compra feita com o telefone de um deles é recusada.";
+
+/**
+ * 9.1 e 9.3: o contemplado pela busca alternada na fita circular. A cota
+ * interna vai de 1 ao total; a fita fecha (depois do total vem o 1). Quem
+ * consulta o banco devolve o pago mais próximo **seguindo** a fita (acima, ou
+ * o menor de todos ao dar a volta) e **voltando** (abaixo, ou o maior). A
+ * distância de cada lado decide; empate fica com o de cima (+k antes de −k).
+ * Sem nenhum pago, ninguém.
+ */
+export function contempladoNaFita(p: {
+  sorteado: number;
+  total: number;
+  sorteadoVendido: boolean;
+  seguinte: number | null;
+  anterior: number | null;
+}): number | null {
+  if (p.sorteadoVendido) return p.sorteado;
+  const n = p.total;
+  const dist = (de: number, ate: number) => (((ate - de) % n) + n) % n;
+  const frente = p.seguinte !== null && p.seguinte !== p.sorteado ? dist(p.sorteado, p.seguinte) : null;
+  const tras = p.anterior !== null && p.anterior !== p.sorteado ? dist(p.anterior, p.sorteado) : null;
+  if (frente === null && tras === null) return null;
+  if (tras === null || (frente !== null && frente <= tras)) return p.seguinte;
+  return p.anterior;
+}
+
+/**
+ * A mesma regra, passo a passo como está escrita (+1, −1, +2, −2…): é a que
+ * qualquer pessoa faz com papel e caneta. O teste compara as duas.
+ */
+export function contempladoPassoAPasso(sorteado: number, total: number, distribuido: (n: number) => boolean): number | null {
+  const na = (x: number) => ((((x - 1) % total) + total) % total) + 1;
+  if (distribuido(sorteado)) return sorteado;
+  for (let k = 1; k <= Math.floor(total / 2); k++) {
+    if (distribuido(na(sorteado + k))) return na(sorteado + k);
+    if (distribuido(na(sorteado - k))) return na(sorteado - k);
+  }
+  return null;
+}
+
+/**
+ * O texto do número sem dono, pelo método: o ressorteio no globo, a busca
+ * alternada na Federal e a regra de antes (ou "a promotora completa") na rifa
+ * sem método. O mesmo no regulamento, na página do resultado e na prestação.
+ */
+export function regraDoNumeroSemDono(metodo: string | null | undefined, modo?: string | null): string {
+  if (metodo === "globo") return REGRA_DO_RESSORTEIO;
+  if (metodo) return `${REGRA_DA_APROXIMACAO_ALTERNADA} ${REGRA_DA_FITA_CIRCULAR} ${NUMERO_DISTRIBUIDO}`;
+  if (modo === "promotora_completa") {
+    return "As cotas não vendidas até o sorteio ficam com a promotora. Se o número sorteado for uma delas, não há ganhador entre os participantes e o prêmio permanece com a promotora.";
+  }
+  return REGRA_DA_APROXIMACAO;
+}

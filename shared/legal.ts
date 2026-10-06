@@ -152,7 +152,7 @@ export function montarTermosDeUso(d: DadosDosTermos): Secao[] {
     {
       titulo: "4. Sorteio e prêmio",
       itens: [
-        "O sorteio segue o regulamento da rifa: data (no modo \"quando completar\", a data máxima, que é antecipada para a próxima extração da Loteria Federal se a rifa completar antes, com aviso na plataforma), método de apuração da autorização (a leitura direta da Loteria Federal ou o globo da plataforma, com ata notarial), a regra para número sorteado não vendido e o mínimo de cotas, se houver. Qualquer pessoa confere o resultado na página do sorteio da rifa. Cotas premiadas, quando houver, são vale-brinde, autorizado junto com o sorteio (promoção mista).",
+        "O sorteio segue o regulamento da rifa: data (no modo \"quando completar\", a data máxima, que é antecipada para a próxima extração da Loteria Federal se a rifa completar antes, com aviso na plataforma), método de apuração da autorização (a leitura direta da Loteria Federal ou o globo da plataforma, com ata notarial), a regra para número sorteado não vendido (na Loteria Federal, o número vendido mais próximo, alternando acima e abaixo; no globo, nova extração no mesmo ato) e o mínimo de cotas, se houver. Na rifa autorizada não podem participar a promotora, seus sócios e diretores, nem a plataforma e seus administradores: a compra com o telefone de um deles é recusada. Qualquer pessoa confere o resultado na página do sorteio da rifa. Cotas premiadas, quando houver, são vale-brinde, autorizado junto com o sorteio (promoção mista).",
         "O ganhador é avisado pelos dados do cadastro e recebe o prêmio da promotora no prazo do regulamento. Prêmio não reclamado em 180 dias prescreve, na forma da lei.",
       ],
     },

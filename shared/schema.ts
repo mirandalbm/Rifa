@@ -1813,6 +1813,38 @@ export const sorteioAtas = pgTable("sorteio_atas", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+/**
+ * 9.5 do advogado: no globo não há aproximação. A extração da sessão que dá
+ * número não distribuído é "Sorteio inválido – cota não vendida", e no mesmo
+ * ato o globo é girado de novo para aquela rifa, tantas vezes quantas forem
+ * precisas. Cada nova extração é uma linha (a 1ª é a da própria sessão, em
+ * `sorteios_oficiais.resultado`); a última é a que vale. O índice do par
+ * (rifa, ordem) decide a vez — nunca um `SELECT` antes.
+ */
+export const sorteioReextracoes = pgTable(
+  "sorteio_reextracoes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    campaignId: uuid("campaign_id")
+      .notNull()
+      .references(() => campaigns.id, { onDelete: "cascade" }),
+    sorteioOficialId: uuid("sorteio_oficial_id")
+      .notNull()
+      .references(() => sorteiosOficiais.id, { onDelete: "cascade" }),
+    /** 2 para a primeira nova extração, 3 para a seguinte… (a 1ª é a da sessão). */
+    ordem: integer("ordem").notNull(),
+    /** As 6 bolas, uma por globo, na ordem. */
+    bolas: text("bolas").array().notNull(),
+    /** A hora em que saiu cada bola (HH:MM:SS), para a ata. */
+    horas: text("horas").array().notNull(),
+    /** O número lido (interno, 1 ao total), como `draws.result_number`. */
+    numero: integer("numero").notNull(),
+    criadoPor: uuid("criado_por"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("uq_reextracao_ordem").on(t.campaignId, t.ordem)],
+);
+
 export const chamadoAnexos = pgTable("chamado_anexos", {
   id: uuid("id").primaryKey().defaultRandom(),
   chamadoId: uuid("chamado_id")

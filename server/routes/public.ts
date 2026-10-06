@@ -71,7 +71,9 @@ import {
   createOrderSchema,
   carrinhoCheckoutSchema,
   carrinhoPedidos,
+  sorteiosOficiais,
 } from "@shared/schema";
+import { extracoesDaRifa } from "../services/sortear";
 import { normalizePhone, hidePhone, formatQuota } from "@shared/format";
 import { listPublicCampaigns, campaignBySlug, certificadoDa } from "../services/campaigns";
 import { ufValida, ordenarPorProximidade, cidadeUf, distancia, enderecoEmUmaLinha } from "@shared/endereco";
@@ -1486,6 +1488,25 @@ publicRouter.get("/campaigns/:slug/sorteio", async (req, res, next) => {
     const leitura = feito && loteriaCerta ? leituraSegura(c.metodoApuracao, d!.federalPrizes, c.totalQuotas) : null;
     // O globo: a ata da sessão (local, tabelionato, auditor ou testemunhas, a hora de cada bola) e o arquivo do cartório.
     const sessao = feito && c.metodoApuracao === "globo" && c.sorteioOficialId ? await ataDaSessao(c.sorteioOficialId) : null;
+    // 9.5: cada extração do globo para esta rifa — as que não valeram ("Sorteio
+    // inválido – cota não vendida") e a última, a que valeu.
+    const extracoes =
+      feito && c.metodoApuracao === "globo" && c.sorteioOficialId
+        ? await (async () => {
+            const [s] = await db
+              .select({ resultado: sorteiosOficiais.resultado, ata: sorteiosOficiais.ata })
+              .from(sorteiosOficiais)
+              .where(eq(sorteiosOficiais.id, c.sorteioOficialId!));
+            const lista = s ? await extracoesDaRifa(c, s) : [];
+            return lista.map((e, i) => ({
+              ordem: e.ordem,
+              bolas: e.bolas,
+              horas: e.horas,
+              numero: formatQuota(e.numero, c.totalQuotas, true),
+              valeu: i === lista.length - 1,
+            }));
+          })()
+        : null;
     res.json({
       drawAt: c.drawAt,
       // "Quando completar": a data máxima registrada (a tela diz se foi antecipado).
@@ -1516,6 +1537,7 @@ publicRouter.get("/campaigns/:slug/sorteio", async (req, res, next) => {
             seed: c.metodoApuracao ? null : d!.seed,
             leitura: leitura?.passos ?? null,
             ata: sessao?.ata ?? null,
+            extracoes: extracoes && extracoes.length > 1 ? extracoes : null,
             ataUrl: sessao?.temArquivo ? `/api/public/sorteio-oficial/${c.sorteioOficialId}/ata` : null,
             executedAt: d!.executedAt,
             evidenceUrl: d!.evidenceUrl,

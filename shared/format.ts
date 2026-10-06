@@ -48,6 +48,12 @@ export function normalizePhone(input: string): string {
   return input.replace(/\D/g, "");
 }
 
+/** Só os dígitos, sem o 55 do país: "+55 (11) 98888-7777" e "11988887777" são o mesmo. */
+export function telefoneComparavel(bruto: string | null | undefined): string {
+  const d = String(bruto ?? "").replace(/\D/g, "");
+  return /^55\d{10,11}$/.test(d) ? d.slice(2) : d;
+}
+
 export function maskPhone(digits: string): string {
   const d = normalizePhone(digits);
   if (d.length === 11) return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;

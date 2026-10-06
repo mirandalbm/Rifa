@@ -171,6 +171,18 @@ describe("modos do sorteio (rifa cheia)", () => {
     expect(promotora).not.toContain(REGRA_DA_APROXIMACAO);
     expect(de("data")).toContain(REGRA_DA_APROXIMACAO);
   });
+  it("item 9: a rifa autorizada traz a busca alternada (Federal) ou o ressorteio (globo) e os impedidos", () => {
+    const de = (metodoApuracao: string) =>
+      montarRegulamento({ ...base, rifa: { ...base.rifa, totalQuotas: 1_000, metodoApuracao } }).flatMap((x) => x.itens).join("\n");
+    const federal = de("federal_direta");
+    expect(federal).toContain("e assim alternadamente até que seja identificado um contemplado");
+    expect(federal).not.toContain(REGRA_DA_APROXIMACAO);
+    expect(federal).toMatch(/não podem participar desta promoção a promotora/i);
+    const globo = de("globo");
+    expect(globo).toContain("proceder-se-á, no mesmo ato e imediatamente, ao sorteio de novos Números da Sorte");
+    expect(globo).toContain("Sorteio inválido – cota não vendida");
+    expect(globo).not.toContain("alternadamente");
+  });
 });
 
 describe("quando completar com data máxima (8.7) e cotas premiadas como vale-brinde (8.8)", () => {

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { CheckCircle2, PlayCircle, XCircle } from "lucide-react";
 import { Button, Card } from "@/components/bits";
-import { REGRA_DA_APROXIMACAO, conferirSorteio, type Conferencia } from "@shared/sorteio";
+import { SORTEIO_INVALIDO, conferirSorteio, regraDoNumeroSemDono, type Conferencia } from "@shared/sorteio";
 import { lerResultado } from "@shared/apuracao";
 import type { AtaDoGlobo } from "@shared/sorteiosOficiais";
 
@@ -35,6 +35,8 @@ interface Sorteio {
   /** O globo: a ata da sessão e o endereço do arquivo do cartório (se já chegou). */
   ata?: AtaDoGlobo | null;
   ataUrl?: string | null;
+  /** 9.5: as extrações do globo para esta rifa, quando a 1ª deu número não distribuído. A última valeu. */
+  extracoes?: { ordem: number; bolas: string[]; horas: string[]; numero: string; valeu: boolean }[] | null;
   executedAt?: string;
   evidenceUrl?: string | null;
   fotoGanhador?: string | null;
@@ -132,7 +134,7 @@ export function SorteioCard({ slug }: { slug: string }) {
             <div className="mt-3 rounded-md bg-mist px-3 py-2">
               <p className="label-xs">número contemplado</p>
               <p className="tnum font-display text-2xl font-extrabold text-green-deep">{data.contemplado}</p>
-              <p className="text-xs text-muted">O número sorteado não foi vendido. {REGRA_DA_APROXIMACAO}</p>
+              <p className="text-xs text-muted">O número sorteado não foi vendido. {regraDoNumeroSemDono(data.metodoApuracao)}</p>
             </div>
           ) : data.ficouComPromotora ? (
             <p className="mt-2 text-xs text-muted">
@@ -157,7 +159,8 @@ export function SorteioCard({ slug }: { slug: string }) {
           <details open className="rounded-md bg-mist px-3 py-2">
             <summary className="cursor-pointer text-xs font-semibold">Como conferir (com papel e caneta)</summary>
             <p className="tnum mt-2 text-xs">
-              {data.rotuloDoResultado ?? "5 prêmios da Federal"}: {data.federalPrizes?.join(" · ")}
+              {data.extracoes?.length ? "Bolas da extração que valeu" : (data.rotuloDoResultado ?? "5 prêmios da Federal")}:{" "}
+              {data.federalPrizes?.join(" · ")}
             </p>
             {refeita ? (
               <>
@@ -185,6 +188,7 @@ export function SorteioCard({ slug }: { slug: string }) {
                 ? "As bolas dos 6 globos, na ordem, formam o número; a rifa menor fica com os últimos algarismos — a regra completa está no regulamento, item 5."
                 : "As unidades do 1º ao 5º prêmio, de cima para baixo, formam o Número da Sorte — a regra completa está no regulamento, item 5."}
             </p>
+            {globo && data.extracoes?.length ? <ExtracoesDoGlobo extracoes={data.extracoes} /> : null}
             {globo ? <AtaNaConferencia ata={data.ata ?? null} url={data.ataUrl ?? null} /> : null}
           </details>
         ) : (
@@ -232,6 +236,29 @@ export function SorteioCard({ slug }: { slug: string }) {
 }
 
 /** A ata notarial da sessão do globo, como o tabelião registrou (8.10). */
+/**
+ * 9.5: no globo não há aproximação. Cada extração cujo número não foi
+ * distribuído fica registrada como "Sorteio inválido – cota não vendida", e o
+ * globo girou de novo no mesmo ato; a última é a que valeu.
+ */
+function ExtracoesDoGlobo({ extracoes }: { extracoes: NonNullable<Sorteio["extracoes"]> }) {
+  return (
+    <div className="mt-3 border-t border-line-2 pt-2">
+      <p className="text-xs font-semibold">Extrações desta rifa</p>
+      <ol className="tnum mt-1 space-y-1 text-xs">
+        {extracoes.map((e) => (
+          <li key={e.ordem}>
+            <span className="font-semibold">{e.ordem}ª extração:</span> {e.bolas.join("-")}
+            {e.horas.length ? ` (de ${e.horas[0]} a ${e.horas[e.horas.length - 1]})` : ""} → {e.numero} —{" "}
+            {e.valeu ? <span className="font-semibold text-green-deep">valeu (número distribuído)</span> : <span>{SORTEIO_INVALIDO}</span>}
+          </li>
+        ))}
+      </ol>
+      <p className="mt-1 text-[11px] text-muted">{regraDoNumeroSemDono("globo")}</p>
+    </div>
+  );
+}
+
 function AtaNaConferencia({ ata, url }: { ata: AtaDoGlobo | null; url: string | null }) {
   return (
     <div className="mt-2 border-t border-line pt-2 text-xs">

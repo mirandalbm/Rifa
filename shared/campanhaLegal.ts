@@ -81,7 +81,8 @@ export function minimoAtingido(vendidas: number, totalCotas: number, pct: number
  * trava ao publicar e entra no regulamento:
  *
  * - `data`: sorteia na data marcada, com o mínimo de cotas vendidas que ela
- *   definir (0 = sem mínimo); número não vendido segue a aproximação.
+ *   definir (0 = sem mínimo); número não distribuído segue a busca alternada
+ *   na Federal (+1, −1, +2…) e o ressorteio no globo (item 9 do advogado).
  * - `cheia_com_data`: só sorteia com a rifa cheia (mínimo de 100%); não
  *   cheia na data, a promotora pede o adiamento.
  * - `quando_completar`: com a **data máxima** registrada na SPA/MF (resposta
@@ -91,6 +92,8 @@ export function minimoAtingido(vendidas: number, totalCotas: number, pct: number
  *   pede o adiamento, como na rifa cheia.
  * - `promotora_completa`: sorteia na data; as cotas não vendidas ficam com a
  *   promotora — se o número sorteado for uma delas, o prêmio fica com ela.
+ *   **Só a rifa de antes, sem método** (9.4): na rifa autorizada a promotora
+ *   não concorre, e o modo é recusado nos dados legais e na publicação.
  */
 export const MODOS_DO_SORTEIO = ["data", "cheia_com_data", "quando_completar", "promotora_completa"] as const;
 export type ModoDoSorteio = (typeof MODOS_DO_SORTEIO)[number];
@@ -103,7 +106,7 @@ export const ROTULO_DO_MODO: Record<ModoDoSorteio, string> = {
 };
 
 export const EXPLICACAO_DO_MODO: Record<ModoDoSorteio, string> = {
-  data: "Sorteia na data, com o mínimo de cotas vendidas que você definir. Número sorteado não vendido passa ao vendido mais próximo.",
+  data: "Sorteia na data, com o mínimo de cotas vendidas que você definir. Número sorteado não vendido: na Federal, passa ao vendido mais próximo (acima, abaixo, alternando); no globo, o globo gira de novo.",
   cheia_com_data: "Só sorteia com todas as cotas vendidas. Se não completar até a data, você pede o adiamento.",
   quando_completar:
     "A data que você informar é a data máxima (a registrada na SPA/MF). Se a última cota for paga antes, o sorteio é antecipado para a próxima extração da Loteria Federal, com aviso a quem comprou. Não completou até a data máxima, você pede o adiamento.",

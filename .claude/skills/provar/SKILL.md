@@ -54,7 +54,7 @@ Pelo caminho que mudou (a mesma tabela "Onde mexer" do `CLAUDE.md`):
 | buscar (e o índice de texto: `shared/semAcentoSql.ts`, `idx_*_trgm`, `scripts/extensoes.ts`) | `buscar` (o plano com 5 mil rifas numa transação que volta) |
 | presente | `presente` |
 | painel de resultados | `resultados` |
-| afiliados, fiscal, guarda da comissão | `afiliados`, `fiscal`, `guarda` |
+| afiliados, fiscal (saque só a MEI ou empresa, nota fiscal do saque), guarda da comissão | `afiliados`, `fiscal`, `guarda`, `isolation`, `tests/fiscal.test.ts` |
 | divulgação de terceiros (afiliado influenciador, publicação do apostador, menu Criar, os avisos no sino e no trevo, editar a peça e a versão decidida, as fotos do apostador e do afiliado, a peça agendada) |  `divulgacao`, `afiliados`, `seguranca`, `isolation` |
 | bônus, patrocínio, banner pago, marketing | `bonus`, `patrocinio`, `banner`, `marketing` |
 | sorteios oficiais (calendário, integrar a rifa, resultado oficial, sorteio automático, outras loterias, tela do sorteio) e o sorteio da rifa (`server/services/sortear.ts`) | `sorteios`, `transparencia`, `solicitacoes`, `isolation` |

@@ -43,6 +43,8 @@ describe("termo de adesão", () => {
     expect(t).toMatch(/LGPD/);
     expect(t).toMatch(/só o primeiro nome/);
     expect(t).toMatch(/tributos/);
+    expect(t).toMatch(/MEI ou empresa: o saque exige o cadastro fiscal aprovado com o CNPJ/);
+    expect(t).toMatch(/nota fiscal de serviço emitida por ele no valor do saque/);
     expect(t).toMatch(/plataforma guarda a comissão/);
     expect(t).toMatch(/mera mandatária e agente de cobrança \(intermediadora de pagamentos\).*em nome e por conta de/);
     // As cláusulas vêm numeradas em ordem, sem pular.

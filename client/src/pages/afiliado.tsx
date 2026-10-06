@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { NOTA_FISCAL_MAX_BYTES } from "@shared/fiscal";
 import { Link } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { PanelShell } from "@/components/AppShell";
@@ -338,9 +339,26 @@ export function AfiliadoSaques() {
     { organizacaoId: string; organizacao: string; disponivelCents: number; pendenteCents: number }[]
   >({ queryKey: ["/api/affiliate/saldo"] });
 
+  // A nota fiscal do saque (o saque só sai para MEI ou empresa): uma por linha, lida como data URL.
+  const [notas, setNotas] = useState<Record<string, { nome: string; dataUrl: string }>>({});
+  const lerNota = (organizacaoId: string, arquivo: File | undefined) => {
+    setError(null);
+    if (!arquivo) return;
+    if (arquivo.size > NOTA_FISCAL_MAX_BYTES) {
+      setError("A nota fiscal passa de 3 MB.");
+      return;
+    }
+    const leitor = new FileReader();
+    leitor.onload = () => setNotas((n) => ({ ...n, [organizacaoId]: { nome: arquivo.name, dataUrl: String(leitor.result) } }));
+    leitor.readAsDataURL(arquivo);
+  };
   const request = useMutation({
-    mutationFn: (organizacaoId: string) => apiRequest("POST", "/api/affiliate/payouts", { organizacaoId }),
-    onSuccess: () => qc.invalidateQueries(),
+    mutationFn: (organizacaoId: string) =>
+      apiRequest("POST", "/api/affiliate/payouts", { organizacaoId, notaFiscal: notas[organizacaoId]?.dataUrl }),
+    onSuccess: () => {
+      setNotas({});
+      qc.invalidateQueries();
+    },
     onError: (err: Error) => setError(err.message),
   });
 
@@ -394,6 +412,10 @@ export function AfiliadoSaques() {
               Cada organização paga a comissão das rifas dela; a comissão guardada pela plataforma é paga por ela,
               sempre depois do sorteio. O saque é pedido a um de cada vez.
             </p>
+            <p className="text-xs text-muted">
+              A comissão é paga a MEI ou empresa: anexe a nota fiscal emitida pelo seu CNPJ no valor do saque (PDF, XML
+              ou foto, até 3 MB). O CNPJ fica em <a href="/afiliado/dados" className="underline">Meus dados</a>.
+            </p>
             {saldo.length === 0 ? <p className="text-sm text-muted">Nenhuma comissão ainda.</p> : null}
             <ul className="divide-y divide-line">
               {saldo.map((o) => (
@@ -403,9 +425,19 @@ export function AfiliadoSaques() {
                     <span className="tnum text-xs text-muted">aguardando {formatBRL(o.pendenteCents)}</span>
                   </span>
                   <span className="tnum text-green-deep">{formatBRL(o.disponivelCents)}</span>
+                  <label className="flex min-w-0 basis-full items-center gap-2 text-xs sm:basis-auto">
+                    <span className="sr-only">Nota fiscal do saque de {o.organizacao}</span>
+                    <input
+                      type="file"
+                      accept="application/pdf,.pdf,application/xml,text/xml,.xml,image/jpeg,image/png"
+                      disabled={o.disponivelCents <= 0}
+                      onChange={(e) => lerNota(o.organizacaoId, e.target.files?.[0])}
+                      className="min-w-0 max-w-full text-xs"
+                    />
+                  </label>
                   <Button
                     className="px-3 py-1 text-xs"
-                    disabled={request.isPending || o.disponivelCents <= 0}
+                    disabled={request.isPending || o.disponivelCents <= 0 || !notas[o.organizacaoId]}
                     onClick={() => {
                       setError(null);
                       request.mutate(o.organizacaoId);
@@ -437,6 +469,9 @@ export function AfiliadoSaques() {
                   </span>
                   <Money cents={p.amountCents} />
                   <Pill status={p.status === "requested" ? "pending" : p.status} />
+                  <a href={`/api/affiliate/payouts/${p.id}/nota`} className="text-xs text-green-deep underline">
+                    nota fiscal
+                  </a>
                   {p.recibo ? (
                     <a href={`/api/affiliate/recibos/${p.recibo}/pdf`} className="text-xs text-green-deep underline">
                       recibo

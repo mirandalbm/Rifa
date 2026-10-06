@@ -692,10 +692,10 @@ Na ordem de entrega do plano:
   de pagamentos) — o termo diz isso na cláusula 2 ("mera mandatária e agente
   de cobrança … em nome e por conta da promotora"); as organizações com termo
   publicado veem o aviso de texto desatualizado e publicam a versão seguinte.
-  **6.4 respondido, falta a sua decisão**: pagar afiliado pessoa física exige
-  RPA, com IRRF (pela tabela), INSS de 11% retido e 20% patronal; MEI ou
-  empresa emite nota fiscal e nada é retido. Escolher entre (a) exigir MEI
-  ou CNPJ para sacar ou (b) emitir RPA com as retenções (com o contador).
+  **6.4 feito (caminho A, 06/10/2026)**: o saque é pago só a MEI ou empresa —
+  cadastro fiscal aprovado com CNPJ e a nota fiscal do valor anexada a cada
+  saque, sem RPA nem retenção (`npm run fiscal`). O cadastro de antes, sem
+  CNPJ, precisa completar para voltar a sacar.
 - [ ] **Homologar o globo** (você, com o advogado): quando sair, ligar o
   globo em "Métodos de apuração", cadastrar a sessão no calendário e
   combinar com o tabelionato a ata de cada sessão.

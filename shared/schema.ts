@@ -961,6 +961,24 @@ export const payouts = pgTable("payouts", {
   processedAt: timestamp("processed_at"),
 });
 
+/**
+ * A nota fiscal de cada saque (o saque só sai para MEI ou empresa: a nota é
+ * o documento do pagamento, sem RPA nem retenção). Cifrada no cofre, como os
+ * documentos fiscais; uma por saque, gravada na transação que cria o saque.
+ */
+export const saqueNotas = pgTable("saque_notas", {
+  payoutId: uuid("payout_id")
+    .primaryKey()
+    .references(() => payouts.id, { onDelete: "cascade" }),
+  mime: text("mime").notNull(),
+  tamanho: integer("tamanho").notNull(),
+  dados: bytea("dados").notNull(),
+  iv: bytea("iv").notNull(),
+  tag: bytea("tag").notNull(),
+  chaveVersao: text("chave_versao").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 /* ------------------------------------------------------------------ *
  * Sorteio, webhooks, auditoria
  * ------------------------------------------------------------------ */

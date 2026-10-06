@@ -63,6 +63,7 @@ const DADOS = {
   nascimento: "1990-05-10",
   endereco: { cep: "59020-000", logradouro: "Avenida Teste", numero: "100", complemento: "", bairro: "Centro", cidade: "Natal", uf: "RN" },
   conta: { banco: "260", agencia: "0001", conta: "1234567-8", tipo: "corrente" },
+  empresa: { tipo: "mei", cnpj: "11.222.333/0001-81", razaoSocial: "Fernanda Teste Divulgação" },
 };
 // Menor PNG válido (1×1) e um PDF mínimo: o servidor confere pelo conteúdo.
 const PNG =
@@ -148,14 +149,14 @@ async function main() {
     r = await eu.req("PUT", "/api/affiliate/fiscal", DADOS);
     checa("salva os dados", r.status === 200, `HTTP ${r.status} ${r.json?.message ?? ""}`);
     r = await eu.req("GET", "/api/affiliate/fiscal");
-    checa("sem documentos: incompleto, e diz o que falta", r.json?.status === "incompleto" && r.json?.falta?.length === 3, JSON.stringify(r.json?.falta));
+    checa("sem documentos: incompleto, e diz o que falta", r.json?.status === "incompleto" && r.json?.falta?.length === 4, JSON.stringify(r.json?.falta));
     checa("o afiliado lê os próprios dados", r.json?.dados?.cpf === CPF);
 
     r = await eu.req("PUT", "/api/affiliate/fiscal/documentos/identidade_frente", { arquivo: "data:image/png;base64,QUJDREVGRw==" });
     checa("arquivo que não é foto nem PDF é recusado", r.status === 400, `HTTP ${r.status}`);
     r = await eu.req("PUT", "/api/affiliate/fiscal/documentos/cnh", { arquivo: PNG });
     checa("tipo de documento desconhecido é recusado", r.status === 400, `HTTP ${r.status}`);
-    for (const [tipo, arq] of [["identidade_frente", PNG], ["identidade_verso", PNG], ["comprovante_residencia", PDF]]) {
+    for (const [tipo, arq] of [["identidade_frente", PNG], ["identidade_verso", PNG], ["comprovante_residencia", PDF], ["comprovante_cnpj", PDF]]) {
       r = await eu.req("PUT", `/api/affiliate/fiscal/documentos/${tipo}`, { arquivo: arq });
       checa(`envia ${tipo}`, r.status === 200, `HTTP ${r.status} ${r.json?.message ?? ""}`);
     }
@@ -209,17 +210,32 @@ async function main() {
     r = await eu.req("GET", "/api/affiliate/fiscal");
     checa("trocar a conta depois de aprovado volta para análise", r.json?.status === "em_analise", r.json?.status);
 
-    // Exigência ligada: sem aprovação, não saca.
-    r = await admin.req("PUT", "/api/admin/plataforma", { ...plataformaAntes, exigirCadastroFiscal: true });
-    checa("a plataforma liga a exigência", r.status === 200 && r.json?.exigirCadastroFiscal === true, `HTTP ${r.status}`);
+    // O saque é pago a MEI ou empresa (6.4): cadastro aprovado com CNPJ e a nota fiscal.
+    r = await eu.req("PUT", "/api/affiliate/fiscal", { ...DADOS, empresa: undefined });
+    checa("cadastro sem CNPJ não fecha (MEI ou empresa)", r.status === 400 && /MEI ou empresa/.test(r.json?.message ?? ""), r.json?.message);
     await comissao(A.id, aff.id, 700, 1);
     await comissao(A.id, aff.id, 300, 2);
-    r = await eu.req("POST", "/api/affiliate/payouts", {});
-    checa("em análise, o saque é 409", r.status === 409, `HTTP ${r.status}`);
+    const NOTA = `data:application/pdf;base64,${Buffer.from("%PDF-1.4\nNota fiscal de servico\n%%EOF\n").toString("base64")}`;
+    r = await eu.req("POST", "/api/affiliate/payouts", { notaFiscal: NOTA });
+    checa("em análise, o saque é 409", r.status === 409 && /MEI ou empresa/.test(r.json?.message ?? ""), `HTTP ${r.status}`);
     await admin.req("POST", `/api/admin/fiscal/${aff.id}/decidir`, { status: "aprovado" });
     r = await eu.req("POST", "/api/affiliate/payouts", {});
-    checa("aprovado, o saque sai", r.status === 201 || r.status === 200, `HTTP ${r.status} ${r.json?.message ?? ""}`);
+    checa("sem a nota fiscal, o saque é 400", r.status === 400 && /nota fiscal/.test(r.json?.message ?? ""), `HTTP ${r.status} ${r.json?.message ?? ""}`);
+    r = await eu.req("POST", "/api/affiliate/payouts", { notaFiscal: `data:text/html;base64,${Buffer.from("<html><script>").toString("base64")}` });
+    checa("arquivo que não é nota: 400", r.status === 400, `HTTP ${r.status}`);
+    r = await eu.req("POST", "/api/affiliate/payouts", { notaFiscal: NOTA });
+    checa("aprovado com CNPJ e com a nota, o saque sai", r.status === 201 || r.status === 200, `HTTP ${r.status} ${r.json?.message ?? ""}`);
     const payoutId = r.json?.id as string;
+    const notaCrua = (await db.execute(sql`select position('Nota fiscal'::bytea in dados) as p from saque_notas where payout_id = ${payoutId}`)).rows[0] as { p: number } | undefined;
+    checa("a nota fica gravada, cifrada", notaCrua !== undefined && Number(notaCrua.p) === 0);
+    const minhaNota = await eu.bruto("GET", `/api/affiliate/payouts/${payoutId}/nota`);
+    checa("o afiliado baixa a própria nota", minhaNota.status === 200 && Buffer.from(await minhaNota.arrayBuffer()).subarray(0, 4).toString("latin1") === "%PDF");
+    r = await outro.req("GET", `/api/affiliate/payouts/${payoutId}/nota`);
+    checa("outro afiliado não baixa (404)", r.status === 404, `HTTP ${r.status}`);
+    const notaDaA = await orgA.bruto("GET", `/api/admin/payouts/${payoutId}/nota`);
+    checa("quem paga (a organização do saque) baixa a nota", notaDaA.status === 200);
+    r = await orgB.req("GET", `/api/admin/payouts/${payoutId}/nota`);
+    checa("a vizinha não baixa a nota (404)", r.status === 404, `HTTP ${r.status}`);
 
     // Baixa e recibo.
     r = await orgB.req("POST", `/api/admin/payouts/${payoutId}/paid`);
@@ -231,7 +247,8 @@ async function main() {
     checa("a segunda baixa é 409 (um recibo só)", r.status === 409, `HTTP ${r.status}`);
     const [rec] = await db.select().from(recibos).where(eq(recibos.payoutId, payoutId));
     const snap = rec.snapshot as any;
-    checa("o recibo leva o nome e o CPF do cadastro", snap.beneficiario.nome === DADOS.nomeCompleto && snap.beneficiario.cpf === CPF);
+    checa("o recibo é da empresa: razão social e CNPJ, sem CPF",
+      snap.beneficiario.nome === DADOS.empresa.razaoSocial && snap.beneficiario.cnpj === "11222333000181" && snap.beneficiario.cpf === null);
     checa("a origem soma o valor (R$ 10,00 em duas rifas)", snap.valorCents === 1000 && snap.origem.length === 2);
 
     const pdf = await orgA.bruto("GET", `/api/admin/recibos/${codigo}/pdf`);

@@ -18,7 +18,7 @@ import {
   auditLog,
 } from "@shared/schema";
 import { getPlataforma } from "../services/settings";
-import { cadastroAprovado, documento, estadoFiscal, salvarDadosFiscais, salvarDocumento } from "../services/fiscal";
+import { FiscalError, documento, estadoFiscal, gravarNotaDoSaque, lerNotaFiscal, notaDoSaque, problemaParaSacar, salvarDadosFiscais, salvarDocumento } from "../services/fiscal";
 import { pdfDoRecibo, reciboPorCodigo } from "../services/recibos";
 import { urlDeConferencia } from "../services/urls";
 import { aderir, comissaoNaRifa, organizacoesDoAfiliado, sair } from "../services/afiliados";
@@ -324,10 +324,17 @@ affiliateRouter.post("/payouts", async (req, res, next) => {
     if (!aff.pixKey) {
       return res.status(400).json({ message: "Cadastre sua chave Pix antes de sacar." });
     }
-    // Com a chave da plataforma ligada, só saca quem tem o cadastro fiscal
-    // aprovado: a comissão vai para uma pessoa identificada, com recibo.
-    if ((await getPlataforma()).exigirCadastroFiscal && !(await cadastroAprovado(id))) {
-      return res.status(409).json({ message: "Complete o cadastro fiscal (Meus dados) e aguarde a aprovação para sacar." });
+    // Só saca MEI ou empresa (resposta 6.4 do advogado): cadastro fiscal
+    // aprovado com CNPJ, e a nota fiscal do valor anexada a cada saque —
+    // pagar pessoa física exigiria RPA e retenções que o sistema não faz.
+    const problema = await problemaParaSacar(id);
+    if (problema) return res.status(409).json({ message: problema });
+    let nota: { mime: string; bytes: Buffer };
+    try {
+      nota = lerNotaFiscal(req.body?.notaFiscal);
+    } catch (e) {
+      if (e instanceof FiscalError) return res.status(e.status).json({ message: e.message });
+      throw e;
     }
 
     const payout = await db.transaction(async (tx) => {
@@ -361,6 +368,7 @@ affiliateRouter.post("/payouts", async (req, res, next) => {
         // Saque da plataforma não tem organização: só o administrador geral o vê e paga.
         .values({ affiliateId: id, organizationId: pedida === "plataforma" ? null : pedida, amountCents: totalCents, pixKey: aff.pixKey! })
         .returning();
+      await gravarNotaDoSaque(tx, created.id, nota);
 
       await tx
         .update(commissions)
@@ -380,6 +388,26 @@ affiliateRouter.post("/payouts", async (req, res, next) => {
     }
     res.status(201).json(payout);
   } catch (err) {
+    next(err);
+  }
+});
+
+/** A nota fiscal do próprio saque (só a dele: o de outro é 404). */
+affiliateRouter.get("/payouts/:id/nota", async (req, res, next) => {
+  try {
+    const pid = String(req.params.id);
+    if (!/^[0-9a-f-]{36}$/i.test(pid)) return res.status(404).json({ message: "Saque não encontrado." });
+    const [p] = await db
+      .select({ id: payouts.id })
+      .from(payouts)
+      .where(and(eq(payouts.id, pid), eq(payouts.affiliateId, affiliateId(req))));
+    if (!p) return res.status(404).json({ message: "Saque não encontrado." });
+    const n = await notaDoSaque(p.id);
+    res.setHeader("Cache-Control", "no-store");
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.type(n.mime).send(n.bytes);
+  } catch (err) {
+    if (err instanceof FiscalError) return res.status(err.status).json({ message: err.message });
     next(err);
   }
 });
@@ -441,7 +469,7 @@ affiliateRouter.delete("/organizacoes/:slug", async (req, res, next) => {
 affiliateRouter.get("/fiscal", async (req, res, next) => {
   try {
     res.setHeader("Cache-Control", "no-store");
-    res.json({ ...(await estadoFiscal(affiliateId(req), true)), exigido: (await getPlataforma()).exigirCadastroFiscal });
+    res.json({ ...(await estadoFiscal(affiliateId(req), true)), exigido: true });
   } catch (err) {
     next(err);
   }

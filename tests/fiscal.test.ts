@@ -4,6 +4,8 @@ import {
   codigoDeRecibo,
   faltaNoCadastro,
   maiorDeIdade,
+  mimeDaNotaFiscal,
+  NOTA_FISCAL_MAX_BYTES,
   reciboFecha,
   validarCadastroFiscal,
   type ReciboSnapshot,
@@ -17,6 +19,7 @@ const BASE = {
   nascimento: "1990-05-10",
   endereco: { cep: "13015-904", logradouro: "Rua Barão de Jaguara", numero: "1481", complemento: "", bairro: "Centro", cidade: "Campinas", uf: "SP" },
   conta: { banco: "260", agencia: "0001", conta: "1234567-8", tipo: "corrente" },
+  empresa: { tipo: "mei", cnpj: "11.222.333/0001-81", razaoSocial: " Maria da Silva  Divulgação " },
 };
 
 describe("validarCadastroFiscal", () => {
@@ -25,7 +28,8 @@ describe("validarCadastroFiscal", () => {
     expect(d.nomeCompleto).toBe("Maria da Silva");
     expect(d.cpf).toBe("52998224725");
     expect(d.conta).toEqual({ banco: "260", agencia: "0001", conta: "12345678", tipo: "corrente" });
-    expect(Object.keys(d).sort()).toEqual(["conta", "cpf", "endereco", "nascimento", "nomeCompleto", "rg"]);
+    expect(d.empresa).toEqual({ tipo: "mei", cnpj: "11222333000181", razaoSocial: "Maria da Silva Divulgação" });
+    expect(Object.keys(d).sort()).toEqual(["conta", "cpf", "empresa", "endereco", "nascimento", "nomeCompleto", "rg"]);
   });
   it("recusa o que não fecha", () => {
     expect(() => validarCadastroFiscal({ ...BASE, nomeCompleto: "Maria" })).toThrow(/nome completo/);
@@ -34,6 +38,18 @@ describe("validarCadastroFiscal", () => {
     expect(() => validarCadastroFiscal({ ...BASE, conta: { ...BASE.conta, banco: "26" } })).toThrow(/banco/);
     expect(() => validarCadastroFiscal({ ...BASE, conta: { ...BASE.conta, tipo: "salario" } })).toThrow(/corrente ou poupança/);
     expect(() => validarCadastroFiscal({ ...BASE, endereco: { ...BASE.endereco, uf: "XX" } })).toThrow();
+  });
+  it("o saque é pago a MEI ou empresa: sem CNPJ válido, o cadastro não fecha (6.4)", () => {
+    const { empresa: _, ...semEmpresa } = BASE;
+    expect(() => validarCadastroFiscal(semEmpresa)).toThrow(/MEI ou empresa/);
+    expect(() => validarCadastroFiscal({ ...BASE, empresa: { ...BASE.empresa, tipo: "pf" } })).toThrow(/MEI ou empresa/);
+    expect(() => validarCadastroFiscal({ ...BASE, empresa: { ...BASE.empresa, cnpj: "11.222.333/0001-80" } })).toThrow(/CNPJ inválido/);
+    expect(() => validarCadastroFiscal({ ...BASE, empresa: { ...BASE.empresa, razaoSocial: "x" } })).toThrow(/razão social/);
+    expect(validarCadastroFiscal({ ...BASE, empresa: { ...BASE.empresa, tipo: "empresa", extra: 1 } }).empresa).toEqual({
+      tipo: "empresa",
+      cnpj: "11222333000181",
+      razaoSocial: "Maria da Silva Divulgação",
+    });
   });
 });
 
@@ -51,8 +67,31 @@ describe("maiorDeIdade", () => {
 
 describe("faltaNoCadastro", () => {
   it("lista dados e documentos que faltam", () => {
-    expect(faltaNoCadastro(false, [])).toHaveLength(4);
-    expect(faltaNoCadastro(true, ["identidade_frente", "identidade_verso", "comprovante_residencia"])).toEqual([]);
+    const todos = ["identidade_frente", "identidade_verso", "comprovante_residencia", "comprovante_cnpj"];
+    expect(faltaNoCadastro(false, [])).toHaveLength(5);
+    expect(faltaNoCadastro(true, todos)).toEqual([]);
+    expect(faltaNoCadastro(true, todos.slice(0, 3))).toEqual(["comprovante do CNPJ (CCMEI ou cartão CNPJ)"]);
+  });
+  it("o cadastro de antes da regra, sem CNPJ, não fecha", () => {
+    const todos = ["identidade_frente", "identidade_verso", "comprovante_residencia", "comprovante_cnpj"];
+    expect(faltaNoCadastro(true, todos, false)).toEqual(["o CNPJ do seu MEI ou da sua empresa"]);
+  });
+});
+
+describe("nota fiscal do saque", () => {
+  const b = (s: string) => new TextEncoder().encode(s);
+  it("reconhece PDF, XML de nota, JPG e PNG pelo conteúdo", () => {
+    expect(mimeDaNotaFiscal(b("%PDF-1.7 ..."))).toBe("application/pdf");
+    expect(mimeDaNotaFiscal(b('<?xml version="1.0"?><nfeProc xmlns="http://www.portalfiscal.inf.br/nfe">'))).toBe("application/xml");
+    expect(mimeDaNotaFiscal(b("\uFEFF<CompNfse><Nfse>"))).toBe("application/xml");
+    expect(mimeDaNotaFiscal(new Uint8Array([0xff, 0xd8, 0xff, 0xe0]))).toBe("image/jpeg");
+    expect(mimeDaNotaFiscal(new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a]))).toBe("image/png");
+  });
+  it("recusa o que não é nota: XML qualquer, HTML, texto", () => {
+    expect(mimeDaNotaFiscal(b('<?xml version="1.0"?><svg onload="x">'))).toBeNull();
+    expect(mimeDaNotaFiscal(b("<html><script>"))).toBeNull();
+    expect(mimeDaNotaFiscal(b("nota"))).toBeNull();
+    expect(NOTA_FISCAL_MAX_BYTES).toBe(3 * 1024 * 1024);
   });
 });
 

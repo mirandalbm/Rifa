@@ -34,6 +34,7 @@ import {
   organizations,
   users,
 } from "../shared/schema";
+import { NOTA_DE_TESTE, aprovarCadastroComCnpj } from "./saque-de-teste";
 
 const URL = baseUrl();
 let falhas = 0;
@@ -260,7 +261,8 @@ async function main() {
     r = await afiliada.req("GET", "/api/affiliate/saldo");
     const saldoA = r.json?.find((s: any) => s.organizacaoId === A.id);
     checa("saldo separado por organização", saldoA?.disponivelCents > 0 && !r.json?.some((s: any) => s.organizacaoId === B.id));
-    r = await afiliada.req("POST", "/api/affiliate/payouts", { organizacaoId: A.id });
+    await aprovarCadastroComCnpj(aff.id);
+    r = await afiliada.req("POST", "/api/affiliate/payouts", { organizacaoId: A.id, notaFiscal: NOTA_DE_TESTE });
     checa("saque pedido à A", r.status === 201 && r.json?.organizationId === A.id && r.json?.amountCents === saldoA?.disponivelCents, `HTTP ${r.status} ${r.json?.message ?? ""}`);
     const saque = r.json?.id as string;
     r = await orgB.req("GET", "/api/admin/finance");

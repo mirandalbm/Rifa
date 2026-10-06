@@ -269,7 +269,8 @@ import { conversasDenunciadasAbertas, decidirDenunciaDeConversa, detalheDaDenunc
 import { decidirDenunciaDeGrupo, detalheDaDenunciaDeGrupo, listarDenunciasDeGrupo } from "../services/grupos";
 import { decidirDenunciaDoSorteio, detalheDaDenunciaDoSorteio, listarDenunciasDoSorteio } from "../services/sorteioComentarios";
 import { EXPORTS, exportInfo, exportFilename, CSV_BOM } from "@shared/exports";
-import { aceitarContrato, contratoDaOrganizacao, contratoDaPlataforma, publicarContrato } from "../services/contratoPromotora";
+import { aceitarContrato, contratoDaOrganizacao, contratoDaPlataforma, previaDoContrato, publicarContrato } from "../services/contratoPromotora";
+import { EMPRESA_VAZIA } from "@shared/legal";
 
 export const adminRouter = Router();
 
@@ -4027,12 +4028,18 @@ adminRouter.post("/termo-afiliado", async (req, res, next) => {
 
 /* ---------------- contrato da plataforma com a promotora ---------------- */
 
+/** Os "Dados da empresa" do template publicado — os mesmos dos Termos de uso. */
+async function dadosDaEmpresaPublicados() {
+  const { template } = await templatePublicado();
+  return { ...EMPRESA_VAZIA, ...(template.legal ?? {}) };
+}
+
 /** A organização vê a versão em vigor e o aceite dela; a plataforma, as versões e quantas aceitaram. */
 adminRouter.get("/contrato-promotora", async (req, res, next) => {
   try {
     const org = orgOf(req);
     res.set("Cache-Control", "no-store");
-    res.json(org ? await contratoDaOrganizacao(org) : await contratoDaPlataforma());
+    res.json(org ? await contratoDaOrganizacao(org) : await contratoDaPlataforma(await dadosDaEmpresaPublicados()));
   } catch (err) {
     next(err);
   }
@@ -4042,9 +4049,20 @@ adminRouter.get("/contrato-promotora", async (req, res, next) => {
 adminRouter.post("/contrato-promotora", async (req, res, next) => {
   try {
     requirePlatformAdmin(req);
-    const c = await publicarContrato(req.body, req.user?.id ?? null);
+    const c = await publicarContrato(req.body, req.user?.id ?? null, await dadosDaEmpresaPublicados());
     await audit(req, "contrato_promotora.publicar", "contrato_promotora", undefined, { versao: c.versao });
     res.status(201).json(c);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** Prévia: o texto com os campos preenchidos e o que falta. Só a plataforma (403 no `npm run isolation`). */
+adminRouter.post("/contrato-promotora/previa", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    res.set("Cache-Control", "no-store");
+    res.json(previaDoContrato(req.body, await dadosDaEmpresaPublicados()));
   } catch (err) {
     next(err);
   }

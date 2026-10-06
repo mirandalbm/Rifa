@@ -2332,7 +2332,10 @@ export const contratosPromotora = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     versao: integer("versao").notNull(),
+    /** O texto já preenchido com os dados da empresa: o que as organizações leem e aceitam. */
     texto: text("texto").notNull(),
+    /** O texto como a plataforma colou, com os campos (`{{RAZAO_SOCIAL}}`…). Nulo nas versões de antes. */
+    modelo: text("modelo"),
     /** SHA-256 (hex) do texto em UTF-8: a impressão da versão, gravada ao publicar. */
     textoSha256: text("texto_sha256"),
     publicadoPor: uuid("publicado_por"),

@@ -575,6 +575,7 @@ async function rotasDaPlataforma(eu: Lado) {
     ["GET WhatsApp", "/api/admin/whatsapp", {}],
     // Versão do contrato com as organizações é da plataforma; a organização só aceita.
     ["POST versão do contrato da promotora", "/api/admin/contrato-promotora", { method: "POST", body: JSON.stringify({ texto: "x".repeat(300) }) }],
+    ["POST prévia do contrato da promotora", "/api/admin/contrato-promotora/previa", { method: "POST", body: JSON.stringify({ texto: "x".repeat(300) }) }],
     ["GET aparência", "/api/admin/template", {}],
     ["GET pré-visualização do template", "/api/admin/template/previa", {}],
     ["PUT rascunho do template", "/api/admin/template/rascunho", { method: "PUT", body: "{}" }],

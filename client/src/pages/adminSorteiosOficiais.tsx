@@ -914,19 +914,27 @@ function AtaDaSessao({ s, plataforma, aoMudar }: { s: SorteioNoCalendario; plata
         )}
       </p>
       {plataforma ? (
-        <Campo rotulo={s.temArquivoDaAta ? "Trocar o arquivo da ata (PDF, JPG ou PNG, até 8 MB)" : "Anexar o arquivo da ata (PDF, JPG ou PNG, até 8 MB)"}>
-          <input
-            type="file"
-            accept="application/pdf,image/jpeg,image/png,image/webp"
-            disabled={enviar.isPending}
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              setMsg(null);
-              if (f) enviar.mutate(f);
-              e.target.value = "";
-            }}
-          />
-        </Campo>
+        // O botão é o rótulo: o campo nativo mostraria "Choose File" na língua do navegador.
+        <div>
+          <label
+            className={`relative inline-flex items-center rounded-full border border-line px-3 py-1.5 text-xs font-semibold focus-within:ring-2 focus-within:ring-green ${enviar.isPending ? "opacity-50" : "cursor-pointer"}`}
+          >
+            {enviar.isPending ? "Enviando…" : s.temArquivoDaAta ? "Trocar o arquivo da ata" : "Anexar o arquivo da ata"}
+            <input
+              type="file"
+              accept="application/pdf,image/jpeg,image/png,image/webp"
+              disabled={enviar.isPending}
+              className="sr-only"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                setMsg(null);
+                if (f) enviar.mutate(f);
+                e.target.value = "";
+              }}
+            />
+          </label>
+          <p className="mt-1 text-[11px] text-muted">PDF, JPG ou PNG, até 8 MB.</p>
+        </div>
       ) : null}
       {msg ? (
         <p role="status" className={msg.ok ? "text-green-deep" : "text-red"}>

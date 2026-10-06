@@ -132,7 +132,7 @@ arquitetura.
 | conta do apostador (senha, confirmação, exclusão) | `shared/contaComprador.ts`, `server/services/contaComprador.ts`, `scripts/conta-test.ts` |
 | login com Google, completar CPF e telefone, ligar o Google | `shared/google.ts` (regras, claims, volta segura), `server/services/google.ts`, `server/services/contaCompleta.ts`, rotas `/conta/google/*`, `/conta/cpf` e `/conta/telefone/*` em `server/routes/public.ts`, `client/src/components/BotaoGoogle.tsx`, `CompletarConta`/`GoogleCard` em `client/src/pages/MinhasCotas.tsx`, `scripts/google-test.ts`, `tests/google.test.ts` |
 | de quem é o cliente (o que o organizador vê) | `shared/titularidade.ts` (regra) e `server/services/titularidade.ts` (SQL) |
-| contrato da plataforma com a promotora (versões, aceite da organização, trava de publicação) | `shared/contratoPromotora.ts` (régua do texto), `server/services/contratoPromotora.ts` (`problemaDoContrato`, `TRAVA_CONTRATO`), `/contrato-promotora*` em `server/routes/admin.ts`, `publishBlockers`/`publishCampaign()` em `server/services/campaigns.ts`, `client/src/components/ContratoPromotoraCard.tsx` (Configurações), `scripts/contrato-promotora-test.ts`, `tests/contratoPromotora.test.ts` |
+| contrato da plataforma com a promotora (versões, aceite da organização, trava de publicação, campos da empresa preenchidos pela plataforma) | `shared/contratoPromotora.ts` (régua do texto, `preencherContrato`), `server/services/contratoPromotora.ts` (`problemaDoContrato`, `TRAVA_CONTRATO`), `/contrato-promotora*` em `server/routes/admin.ts`, `publishBlockers`/`publishCampaign()` em `server/services/campaigns.ts`, `client/src/components/ContratoPromotoraCard.tsx` (Configurações), `scripts/contrato-promotora-test.ts`, `tests/contratoPromotora.test.ts` |
 | autorização SPA/MF e data do sorteio | `shared/campanhaLegal.ts`, `salvarDadosLegais()` em `server/services/campaigns.ts`, `client/src/components/DadosLegaisCard.tsx` |
 | endereço do organizador e ordem da vitrine por região | `shared/endereco.ts` (regra), `salvarEndereco()` em `server/services/orgs.ts`, `server/services/cep.ts`, `client/src/components/EnderecoForm.tsx` |
 | perfil do organizador, seguir e sino | `shared/perfil.ts` (regras), `server/services/perfil.ts`, `client/src/pages/Perfil.tsx`, `client/src/components/Seguir.tsx`, `scripts/perfil-test.ts` |
@@ -1362,8 +1362,23 @@ permite cobrar dela depois, e o aceite é a prova.
   vigor.
 - **Só a plataforma publica versão** (`POST /contrato-promotora`, 403 para
   organizador, no `npm run isolation`); **só a organização aceita** (a
-  plataforma é 403). O texto só passa pelo tamanho (`validarContrato()`); o
+  plataforma é 403). O texto passa pelo tamanho (`validarContrato()`); o
   mesmo texto não vira versão nova (409). Publicar nunca edita a anterior.
+- **Os dados da plataforma são preenchidos pela plataforma, nunca digitados
+  no texto** (`preencherContrato()` em `shared/contratoPromotora.ts`): os
+  campos `{{RAZAO_SOCIAL}}`, `{{CNPJ}}`, `{{ENDERECO}}` e `{{EMAIL}}` (botões
+  na tela) e os colchetes do advogado que dá para reconhecer
+  (`[RAZÃO SOCIAL DA PLATAFORMA]`, `[00.000.000/0001-00]`) viram os "Dados da
+  empresa" **publicados** em Aparência — os mesmos dos Termos de uso. Campo
+  sem dado na empresa, ou colchete em maiúsculas que não é campo
+  (`[NOME DO SÓCIO]`), **não publica** (422, `problemaNoPreenchimento()`);
+  colchete de texto comum (`[sic]`) fica. O que vai ao ar, o que se aceita e
+  o que o hash prova é o **texto preenchido**; o modelo fica em
+  `contratos_promotora.modelo`. "Ver como fica" (`POST
+  /contrato-promotora/previa`, só a plataforma) mostra o texto e a impressão
+  antes do botão de publicar. **Dados da empresa mudaram depois da versão**:
+  a tela avisa (`desatualizado`) e oferece publicar a versão seguinte com o
+  mesmo modelo — a versão em vigor nunca muda sozinha.
 - **O aceite é prova**: a cópia do texto, a **impressão SHA-256** dele
   (`texto_sha256`, `hashDoContrato()`: hex sobre o UTF-8, o mesmo valor que o
   Postgres dá com `encode(sha256(convert_to(texto, 'UTF8')), 'hex')`; a
@@ -1374,8 +1389,8 @@ permite cobrar dela depois, e o aceite é a prova.
   em vigor é 409 (lê de novo). Um aceite por versão e organização (índice
   único): cinco cliques, um aceite.
 - As tabelas `contratos_promotora` e `contrato_promotora_aceites` sobem com o
-  `db:push` **antes** do código, e as colunas `texto_sha256` (nas duas) e
-  `campaigns.contrato_promotora_id` também. Versão e aceite de antes da coluna
+  `db:push` **antes** do código, e as colunas `texto_sha256` (nas duas),
+  `contratos_promotora.modelo` e `campaigns.contrato_promotora_id` também. Versão e aceite de antes da coluna
   ficam com a impressão nula e a tela a calcula do texto guardado (o
   `UPDATE` de preenchimento está em `docs/ORDEM-DE-LANCAMENTO.md`). `npm run
   contrato` prova tudo isso.

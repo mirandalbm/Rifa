@@ -629,6 +629,11 @@ Na ordem de entrega do plano:
   à versão do contrato em vigor quando foi publicada. O IP fica guardado em
   hash (LGPD) — o texto do contrato deve dizer "IP e aparelho em forma
   cifrada", não "o IP".
+  **Os campos entre colchetes da minuta são preenchidos pela plataforma**:
+  cole o texto como veio — `[RAZÃO SOCIAL DA PLATAFORMA]` e
+  `[00.000.000/0001-00]` viram a razão social e o CNPJ dos Dados da empresa
+  publicados em Aparência (preencha e publique o template antes). "Ver como
+  fica" mostra o texto final antes de publicar.
 
 - [x] **Apuração direta pela Loteria Federal (modo "Autorizado MF") e
   método liberado pela plataforma** — feito, com as respostas do advogado

@@ -8,7 +8,15 @@ import { createHash } from "node:crypto";
 import { and, count, desc, eq, isNull, sql } from "drizzle-orm";
 import { db } from "../db";
 import { contratoPromotoraAceites, contratosPromotora, organizations, users } from "@shared/schema";
-import { bloqueioDoContrato, ContratoError, validarContrato, versaoLida } from "@shared/contratoPromotora";
+import {
+  bloqueioDoContrato,
+  ContratoError,
+  preencherContrato,
+  problemaNoPreenchimento,
+  validarContrato,
+  versaoLida,
+} from "@shared/contratoPromotora";
+import type { DadosDaEmpresa } from "@shared/legal";
 import type { RequestIdentity } from "./antifraude";
 
 type Banco = Pick<typeof db, "select" | "execute">;
@@ -79,13 +87,19 @@ export async function contratoDaOrganizacao(orgId: string) {
   };
 }
 
-/** A tela da plataforma: as versões, quantas organizações aceitaram cada uma e quantas faltam na de agora. */
-export async function contratoDaPlataforma() {
+/**
+ * A tela da plataforma: as versões, quantas organizações aceitaram cada uma e
+ * quantas faltam na de agora. `desatualizado`: os dados da empresa mudaram
+ * desde a versão em vigor (o modelo preenchido hoje daria outro texto) — a
+ * tela pede a versão seguinte, porque o aceite vale para o texto que foi lido.
+ */
+export async function contratoDaPlataforma(empresa: DadosDaEmpresa) {
   const versoes = await db
     .select({
       versao: contratosPromotora.versao,
       publicadoEm: contratosPromotora.createdAt,
       texto: contratosPromotora.texto,
+      modelo: contratosPromotora.modelo,
       textoSha256: contratosPromotora.textoSha256,
       aceites: count(contratoPromotoraAceites.id),
     })
@@ -98,8 +112,18 @@ export async function contratoDaPlataforma() {
     .from(organizations)
     .where(and(isNull(organizations.archivedAt), isNull(organizations.banidaEm)));
   const atual = versoes[0] ?? null;
+  const hoje = atual?.modelo ? preencherContrato(atual.modelo, empresa) : null;
   return {
-    contrato: atual ? { versao: atual.versao, texto: atual.texto, publicadoEm: atual.publicadoEm, hash: atual.textoSha256 ?? hashDoContrato(atual.texto) } : null,
+    contrato: atual
+      ? {
+          versao: atual.versao,
+          texto: atual.texto,
+          modelo: atual.modelo,
+          publicadoEm: atual.publicadoEm,
+          hash: atual.textoSha256 ?? hashDoContrato(atual.texto),
+          desatualizado: Boolean(hoje && !problemaNoPreenchimento(hoje) && hoje.texto !== atual.texto),
+        }
+      : null,
     versoes: versoes.map((v) => ({
       versao: v.versao,
       publicadoEm: v.publicadoEm,
@@ -110,9 +134,27 @@ export async function contratoDaPlataforma() {
   };
 }
 
-/** Versão nova. Nunca edita a anterior: o aceite dela é prova daquele texto. */
-export async function publicarContrato(entrada: unknown, userId: string | null) {
-  const { texto } = validarContrato(entrada);
+/**
+ * Como o texto vai ficar, sem publicar: os campos preenchidos com os dados da
+ * empresa de agora e o que ainda falta. A tela mostra antes do botão.
+ */
+export function previaDoContrato(entrada: unknown, empresa: DadosDaEmpresa) {
+  const { texto: modelo } = validarContrato(entrada);
+  const p = preencherContrato(modelo, empresa);
+  return { ...p, problema: problemaNoPreenchimento(p), hash: hashDoContrato(p.texto) };
+}
+
+/**
+ * Versão nova. Nunca edita a anterior: o aceite dela é prova daquele texto.
+ * Os campos são preenchidos aqui, com os "Dados da empresa" publicados; campo
+ * sem dado ou marcador desconhecido não publica (422).
+ */
+export async function publicarContrato(entrada: unknown, userId: string | null, empresa: DadosDaEmpresa) {
+  const { texto: modelo } = validarContrato(entrada);
+  const preenchido = preencherContrato(modelo, empresa);
+  const problema = problemaNoPreenchimento(preenchido);
+  if (problema) throw new ContratoError(problema, 422);
+  const texto = preenchido.texto;
   return db.transaction(async (tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(${TRAVA_CONTRATO})`);
     const anterior = await contratoEmVigor(tx);
@@ -121,7 +163,7 @@ export async function publicarContrato(entrada: unknown, userId: string | null) 
     }
     const [novo] = await tx
       .insert(contratosPromotora)
-      .values({ versao: (anterior?.versao ?? 0) + 1, texto, textoSha256: hashDoContrato(texto), publicadoPor: userId })
+      .values({ versao: (anterior?.versao ?? 0) + 1, texto, modelo, textoSha256: hashDoContrato(texto), publicadoPor: userId })
       .returning();
     return { versao: novo.versao, publicadoEm: novo.createdAt, hash: novo.textoSha256 };
   });

@@ -145,11 +145,11 @@ async function main() {
     checa("a lista traz o valor de agora", naLista?.agora?.presenteCents === 1200 && naLista?.agora?.patrocinioCents === 10_000);
 
     // Abater.
-    r = await admin.req("POST", `/api/admin/retencoes/${ret1.id}/abater`, { patrocinioCents: 10_001, motivo: "cobrir a condenação do processo" });
+    r = await admin.req("POST", `/api/admin/retencoes/${ret1.id}/abater`, { patrocinioCents: 10_001, motivo: "cobrir a condenação do processo", fundamento: "judicial", referencia: "0001234-56.2026.8.26.0100" });
     checa("abater mais que o saldo é recusado (409)", r.status === 409, `HTTP ${r.status}`);
-    r = await admin.req("POST", `/api/admin/retencoes/${ret1.id}/abater`, { patrocinioCents: 0, motivo: "cobrir a condenação do processo" });
+    r = await admin.req("POST", `/api/admin/retencoes/${ret1.id}/abater`, { patrocinioCents: 0, motivo: "cobrir a condenação do processo", fundamento: "judicial", referencia: "0001234-56.2026.8.26.0100" });
     checa("abater nada é recusado (400)", r.status === 400, `HTTP ${r.status}`);
-    const corpo = { patrocinioCents: 3000, presente: true, motivo: "cobrir a condenação do processo" };
+    const corpo = { patrocinioCents: 3000, presente: true, motivo: "cobrir a condenação do processo", fundamento: "judicial", referencia: "0001234-56.2026.8.26.0100" };
     const [a1, a2] = await Promise.all([
       admin.req("POST", `/api/admin/retencoes/${ret1.id}/abater`, corpo),
       admin.req("POST", `/api/admin/retencoes/${ret1.id}/abater`, corpo),

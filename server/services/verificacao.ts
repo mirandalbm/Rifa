@@ -33,6 +33,7 @@ import {
   DOCUMENTOS_DO_SUJEITO,
   DOCUMENTO_VERIFICACAO_MAX_BYTES,
   CONSENTIMENTO_BIOMETRICO_VERSAO,
+  DOCUMENTOS_GUARDA_DIAS,
   chaveDoConsentimento,
   consentimentoVigente,
   precisaRenovarConsentimento,
@@ -415,6 +416,52 @@ export async function tirarSelosSemConsentimentoRenovado(agora = new Date(), lim
     }
   }
   return n;
+}
+
+/**
+ * O relógio da guarda dos documentos (resposta 7.1): passados
+ * `DOCUMENTOS_GUARDA_DIAS` da decisão (verificado ou recusado), os arquivos
+ * da verificação saem do banco. O status, o selo e a prova do consentimento
+ * ficam. Cada verificação limpa vai à auditoria com o ator `sistema`.
+ * Devolve quantas verificações tiveram documentos apagados.
+ */
+export async function apagarDocumentosDeVerificacaoAntigos(agora = new Date(), limite = 200): Promise<number> {
+  const corte = new Date(agora.getTime() - DOCUMENTOS_GUARDA_DIAS * 86_400_000);
+  return db.transaction(async (tx) => {
+    const apagados = await tx
+      .delete(verificacaoDocumentos)
+      .where(
+        inArray(
+          verificacaoDocumentos.verificacaoId,
+          tx
+            .select({ id: verificacoes.id })
+            .from(verificacoes)
+            .where(
+              and(
+                inArray(verificacoes.status, ["verificado", "recusado"]),
+                sql`coalesce(${verificacoes.decididoEm}, ${verificacoes.verificadoEm}) < ${corte}`,
+              ),
+            )
+            .limit(limite),
+        ),
+      )
+      .returning({ verificacaoId: verificacaoDocumentos.verificacaoId });
+    const ids = [...new Set(apagados.map((a) => a.verificacaoId))];
+    if (ids.length) {
+      await tx.insert(auditLog).values(
+        ids.map((id) => ({
+          actorId: null,
+          actorRole: "sistema" as never,
+          action: "verificacao.documentos.apagados",
+          entity: "verificacao",
+          entityId: id,
+          diff: { guardaDias: DOCUMENTOS_GUARDA_DIAS } as never,
+          ip: null,
+        })),
+      );
+    }
+    return ids.length;
+  });
 }
 
 export async function salvarDocumentoDaVerificacao(sujeito: Sujeito, id: string, tipo: string, dataUrl: unknown) {

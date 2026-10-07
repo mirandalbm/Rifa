@@ -18,6 +18,7 @@ import { and, desc, eq, sql } from "drizzle-orm";
 import { db } from "../db";
 import { auditLog, organizations, presenteCreditos, retencoesCautelares } from "@shared/schema";
 import {
+  FUNDAMENTOS_DO_ABATE,
   MENSAGEM_RETIDO,
   RetencaoError,
   validarAbatimento,
@@ -174,7 +175,11 @@ export async function liberarRetencao(req: Request, id: string, motivoBruto: unk
  * devidos viram `abatido` — não são mais repassados. A retenção termina; o
  * que sobrar volta a poder sair.
  */
-export async function abaterRetencao(req: Request, id: string, entrada: { patrocinioCents?: unknown; presente?: unknown; motivo?: unknown }) {
+export async function abaterRetencao(
+  req: Request,
+  id: string,
+  entrada: { patrocinioCents?: unknown; presente?: unknown; motivo?: unknown; fundamento?: unknown; referencia?: unknown },
+) {
   soPlataforma(req);
   if (!uuidValido(id)) throw new RetencaoError("Retenção não encontrada.", 404);
   return db.transaction(async (tx) => {
@@ -201,9 +206,10 @@ export async function abaterRetencao(req: Request, id: string, entrada: { patroc
       presenteCents = linhas.reduce((s, l) => s + l.amountCents, 0);
     }
     const abatidoCents = a.patrocinioCents + presenteCents;
+    const decisao = `${FUNDAMENTOS_DO_ABATE[a.fundamento]} (${a.referencia}): ${a.motivo}`.slice(0, 1000);
     const [feita] = await tx
       .update(retencoesCautelares)
-      .set({ status: "abatida", decisao: a.motivo, abatidoCents, decididoPor: req.user!.id, decididoEm: new Date() })
+      .set({ status: "abatida", decisao, abatidoCents, decididoPor: req.user!.id, decididoEm: new Date() })
       .where(and(eq(retencoesCautelares.id, id), eq(retencoesCautelares.status, "ativa")))
       .returning();
     if (!feita) throw new RetencaoError("Esta retenção já foi decidida.", 409);
@@ -213,7 +219,7 @@ export async function abaterRetencao(req: Request, id: string, entrada: { patroc
       action: "retencao.abater",
       entity: "organization",
       entityId: r.organizationId,
-      diff: { retencaoId: id, motivo: a.motivo, patrocinioCents: a.patrocinioCents, presenteCents } as never,
+      diff: { retencaoId: id, motivo: a.motivo, fundamento: a.fundamento, referencia: a.referencia, patrocinioCents: a.patrocinioCents, presenteCents } as never,
       ip: req.ip,
     });
     return feita;

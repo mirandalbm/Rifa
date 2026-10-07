@@ -21,6 +21,10 @@ describe("prêmio da rifa autorizada (resposta 5 do advogado)", () => {
     expect(problemaNoPremio("Pistola", true)).toMatch(/arma/);
     expect(problemaNoPremio("Fogos de artifício", true)).toMatch(/explosivo/);
     expect(problemaNoPremio("Vape descartável", true)).toMatch(/fumo/);
+    expect(problemaNoPremio("Vale-gasolina de 100 litros", true)).toMatch(/combustível/);
+    expect(problemaNoPremio("Óleo lubrificante 20 litros", true)).toMatch(/combustível ou lubrificante/);
+    expect(problemaNoPremio("Moto 0 km", true)).toBeNull();
+    expect(problemaNoPremio("Hilux SRV diesel 2024", true)).toBeNull();
   });
 
   it("rifa de antes, sem método, segue como era", () => {

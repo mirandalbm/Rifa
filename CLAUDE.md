@@ -2086,6 +2086,12 @@ verdade no sistema.
   organização** — quem decide é o índice parcial `uq_retencao_ativa_por_org`
   (`ON CONFLICT DO NOTHING`), nunca um `SELECT` antes: dois cliques, um 201 e
   um 409; banir quem já está retida mantém a de antes.
+- **É suspensão, não apropriação** (resposta 1.5 do advogado, 07/10/2026):
+  reter só segura o saldo até a apuração — a tela diz "suspenso". **Abater
+  exige o fundamento** (`FUNDAMENTOS_DO_ABATE`: decisão judicial ou acordo
+  assinado com a promotora) e a referência (nº do processo ou do acordo),
+  conferidos em `validarAbatimento()`, gravados na decisão e na auditoria.
+  Sem eles, 400.
 - **Retido, nada sai** (`exigirSemRetencao`, 409 com `MENSAGEM_RETIDO`):
   pedir o reembolso do saldo, aprovar e dar baixa nele. O acerto
   (`darBaixa`) recebe as taxas que a organização deve, mas **não repassa** o
@@ -2152,7 +2158,8 @@ verdade no sistema.
   como estão; autorizar de novo (`POST …/consentimento`, limite por pessoa)
   só reabre a análise de quem estava `incompleto`, nunca a decisão da
   plataforma, e o mesmo texto de novo não grava nada. A fila mostra "Sem
-  autorização da foto". **O texto é o do item 7 do advogado** (versão 3):
+  autorização da foto". **O texto é o do item 7 do advogado** (versão 4: a 3,
+  de 06/10, com a guarda dos documentos de 90 dias da resposta 7.1):
   finalidade, compartilhamento e retenção sempre e, com o comparador
   ligado, a frase da transferência internacional (art. 33, VIII). **Só vale o
   consentimento da versão em vigor** (`consentimentoVigente()`): o de antes
@@ -2185,6 +2192,13 @@ verdade no sistema.
   (`ROTULO_DO_SELO`). As cores saem da paleta de 12 (`PALETA_DO_SELO`,
   contraste ≥ 3:1 nos dois temas e com o sinal branco — o teste confere),
   três diferentes; só a plataforma escolhe (`PUT /admin/selos`).
+- **Os documentos saem 90 dias depois da decisão** (resposta 7.1,
+  `DOCUMENTOS_GUARDA_DIAS`, `apagarDocumentosDeVerificacaoAntigos()`, relógio
+  com a trava 811020): verificado ou recusado há mais de 90 dias, os arquivos
+  de `verificacao_documentos` são apagados, com a auditoria
+  `verificacao.documentos.apagados` (ator `sistema`). O status, o selo e a
+  prova do consentimento ficam; pedir de novo (dado mudado, foto nova) volta
+  a pedir os documentos. O texto do consentimento e a Privacidade dizem isso.
 - Excluir a conta (LGPD) apaga a verificação junto.
 - `npm run verificacao` prova tudo isso contra a API de verdade (o
   comparador é injetado: a prova não sai para a internet).
@@ -2728,6 +2742,9 @@ desconto na primeira compra — **pago pela plataforma**.
 - **O ícone fica sempre à direita do campo de comentário.** Desligado, o
   presente vira convite: o link da rifa com o código de indicação, sem
   desconto (`meuCodigoDePresente` devolve o código e `ligado: false`).
+- **Ligado, entra no regulamento de toda rifa** (resposta 6.2,
+  `clausulaDoPresente()`): o percentual, o teto, uma vez por CPF, fora do
+  cambista e do carrinho, e que o reembolso devolve só o que o comprador pagou.
 - **Uma vez por pessoa, e só com conta.** O CPF único entre contas é o que
   faz o desconto ser um por pessoa; sessão só com o código do WhatsApp não
   basta (`presenteDoPedido` exige senha e CPF). Só na primeira compra paga;
@@ -2988,9 +3005,11 @@ pela portaria** — fica só para conferir a rifa sorteada sem método.
   "500 reais") no prêmio ou numa cota premiada é recusado (422) na criação, no
   `PATCH`, no editar do rascunho e em `POST /campaigns/:id/prized`, e
   `publishBlockers` barra o que já estava gravado. Também os itens proibidos
-  do Decreto 70.951/72 (`ITENS_PROIBIDOS`: medicamento, arma e munição,
-  explosivo e fogos, bebida alcoólica, fumo), lidos sem acento e como palavra
-  inteira ("armário" passa). O valor do bem pode aparecer ("moto avaliada em
+  do art. 10 do Decreto 70.951/72 (`ITENS_PROIBIDOS`: medicamento,
+  combustível e lubrificante — "diesel" sozinho não, é o carro —, arma e
+  munição, explosivo e fogos, bebida alcoólica, fumo; resposta 5.1, 07/10),
+  lidos sem acento, com o hífen como espaço, e como palavra inteira
+  ("armário" passa). O valor do bem pode aparecer ("moto avaliada em
   R$ 15.000"). A rifa de antes, sem método, segue como era. A tela avisa
   embaixo do campo; quem barra é o servidor.
 - As colunas `campaigns.metodo_apuracao`, `campaigns.draw_at_maximo` e

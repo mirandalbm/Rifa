@@ -151,7 +151,7 @@ describe("consentimento biométrico", () => {
     );
   });
   it("só vale o consentimento da versão em vigor; verificado com o antigo precisa renovar (7.3)", () => {
-    expect(CONSENTIMENTO_BIOMETRICO_VERSAO).toBe(3);
+    expect(CONSENTIMENTO_BIOMETRICO_VERSAO).toBe(4);
     expect(consentimentoVigente(`${CONSENTIMENTO_BIOMETRICO_VERSAO}:manual`)).toBe(true);
     expect(consentimentoVigente(`${CONSENTIMENTO_BIOMETRICO_VERSAO}:automatico`)).toBe(true);
     expect(consentimentoVigente("2:manual")).toBe(false);

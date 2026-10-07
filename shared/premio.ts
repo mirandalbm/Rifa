@@ -9,8 +9,10 @@
  *   (viagem, vale-compras de loja física) pode; "R$ 1.000 no Pix" não. O
  *   valor do bem pode aparecer ("moto avaliada em R$ 15.000"): o que se
  *   recusa é o prêmio **ser** o dinheiro.
- * - **Sem item proibido** (Decreto 70.951/72): medicamento, arma e munição,
- *   explosivo e fogos de artifício, bebida alcoólica, fumo e derivados.
+ * - **Sem item proibido** (Decreto 70.951/72, art. 10 — resposta 5.1 do
+ *   advogado, 07/10/2026): medicamento, combustível e lubrificante, arma e
+ *   munição, explosivo e fogos de artifício, bebida alcoólica, fumo e
+ *   derivados.
  *
  * Vale para o prêmio principal e para cada cota premiada. A palavra é lida
  * sem acento e sem diferença de maiúscula, e só como palavra inteira
@@ -44,9 +46,27 @@ const DINHEIRO = [
 /** Prêmio que é só uma quantia: "R$ 50", "R$ 1.000,00", "500 reais". */
 const SO_QUANTIA = /^\s*(r\$\s*[\d.,]+|[\d.,]+\s*(reais|real|r\$))\s*$/;
 
-/** Decreto 70.951/72: o que não pode ser prêmio de promoção comercial. */
+/**
+ * Decreto 70.951/72, art. 10: o que não pode ser prêmio de promoção
+ * comercial. "Diesel" sozinho fica de fora: "Hilux diesel" é o carro.
+ */
 export const ITENS_PROIBIDOS: readonly { grupo: string; palavras: readonly string[] }[] = [
   { grupo: "medicamento", palavras: ["medicamento", "remedio", "farmaco"] },
+  {
+    grupo: "combustível ou lubrificante",
+    palavras: [
+      "combustivel",
+      "combustiveis",
+      "gasolina",
+      "etanol",
+      "querosene",
+      "gnv",
+      "litros de diesel",
+      "oleo diesel",
+      "lubrificante",
+      "oleo de motor",
+    ],
+  },
   {
     grupo: "arma ou munição",
     palavras: ["arma", "arma de fogo", "pistola", "revolver", "espingarda", "carabina", "fuzil", "rifle", "municao", "cartucho de bala"],
@@ -85,11 +105,12 @@ export const MENSAGEM_DINHEIRO =
 /** O problema do texto do prêmio, ou `null`. `autorizada`: a rifa tem método de apuração (a da SPA/MF). */
 export function problemaNoPremio(texto: string, autorizada: boolean): string | null {
   if (!autorizada) return null;
-  const t = semAcento(String(texto ?? ""));
+  // "Vale-gasolina" e "vale gasolina" são a mesma coisa.
+  const t = semAcento(String(texto ?? "")).replace(/-/g, " ");
   if (SO_QUANTIA.test(t) || temPalavra(t, DINHEIRO)) return MENSAGEM_DINHEIRO;
   for (const item of ITENS_PROIBIDOS) {
     if (temPalavra(t, item.palavras)) {
-      return `Este prêmio parece ser ${item.grupo}, que não pode ser prêmio de promoção comercial (Decreto 70.951/72). Escolha outro bem ou serviço.`;
+      return `Este prêmio parece ser ${item.grupo}, que não pode ser prêmio de promoção comercial (Decreto 70.951/72, art. 10). Escolha outro bem ou serviço.`;
     }
   }
   return null;

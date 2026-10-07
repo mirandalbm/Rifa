@@ -211,17 +211,26 @@ export function faltaNaVerificacao(
  * impressão (SHA-256) do texto exato que a pessoa viu: é a prova que a lei
  * pede de quem trata o dado (art. 8º, § 2º).
  */
-export const CONSENTIMENTO_BIOMETRICO_VERSAO = 3;
+export const CONSENTIMENTO_BIOMETRICO_VERSAO = 4;
 
 /**
- * Quando a versão em vigor entrou (a 3, do advogado, 06/10/2026). Quem foi
+ * Quando a versão em vigor entrou (a 4: o texto do advogado de 06/10/2026
+ * com a guarda dos documentos de 90 dias, resposta 7.1, 07/10/2026). Quem foi
  * verificado com uma versão anterior — ou antes de o consentimento ser
  * gravado — precisa autorizar de novo (resposta 7.3): a tela pede ao entrar,
  * e quem não autorizar até `PRAZO_PARA_RENOVAR_CONSENTIMENTO_DIAS` depois
  * desta data perde o selo pelo relógio.
  */
-export const CONSENTIMENTO_BIOMETRICO_DESDE = "2026-10-06T03:00:00.000Z";
+export const CONSENTIMENTO_BIOMETRICO_DESDE = "2026-10-07T03:00:00.000Z";
 export const PRAZO_PARA_RENOVAR_CONSENTIMENTO_DIAS = 30;
+
+/**
+ * Guarda dos documentos da verificação (resposta 7.1 do advogado,
+ * 07/10/2026): 90 dias depois de cumprida a finalidade — a decisão
+ * (verificado ou recusado). O resultado e o selo ficam; os arquivos saem.
+ * Pedir de novo (dado mudado, foto nova) volta a pedir os documentos.
+ */
+export const DOCUMENTOS_GUARDA_DIAS = 90;
 
 /** Até quando quem tem consentimento antigo pode renovar antes de perder o selo. */
 export function prazoParaRenovarConsentimento(): Date {
@@ -246,7 +255,7 @@ export function textoDoConsentimentoBiometrico(o: { automatico: boolean }): stri
           "Transferência internacional: consinto expressamente com a transferência internacional das imagens para processamento nos servidores da Amazon Web Services (AWS) localizados no exterior, exclusivamente para a finalidade de verificação automatizada (LGPD, art. 33, VIII).",
         ]
       : []),
-    "Retenção: nenhum modelo ou medida do rosto é guardado — terminada a comparação, fica só o resultado (verificado ou não). A foto comparada é a que já aparece no meu perfil; os documentos ficam cifrados, só a plataforma os abre e cada acesso é registrado, até eu excluir a conta.",
+    `Retenção: nenhum modelo ou medida do rosto é guardado — terminada a comparação, fica só o resultado (verificado ou não). A foto comparada é a que já aparece no meu perfil; os documentos ficam cifrados, só a plataforma os abre e cada acesso é registrado, e são apagados ${DOCUMENTOS_GUARDA_DIAS} dias depois da decisão (verificado ou recusado) — o resultado fica.`,
     "A verificação é opcional: sem ela eu compro e comento normalmente.",
     "Posso revogar esta autorização a qualquer momento nesta mesma tela. Ao revogar, o selo sai e a foto deixa de ser comparada; ao excluir a conta, a verificação e os documentos são apagados.",
   ];

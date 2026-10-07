@@ -61,7 +61,7 @@ export function montarTermo(d: {
     `TERMO DE ADESÃO DE AFILIADO — ${promotora} — versão ${d.versao}`,
     "",
     `1. O que é. Parceria comercial autônoma para divulgar as rifas de ${promotora} pelo link ou cupom do afiliado. Não há vínculo de emprego, subordinação, horário, meta obrigatória nem exclusividade: o afiliado pode divulgar outras organizações. Ele não fala em nome da promotora nem da plataforma além da divulgação, e declara ter 18 anos ou mais.`,
-    `2. Quem paga. A comissão é paga por ${promotora}, promotora das rifas, sobre as vendas feitas pelo link ou cupom do afiliado. Quando a plataforma guarda a comissão da venda online (opção da plataforma), a plataforma atua como mera mandatária e agente de cobrança (intermediadora de pagamentos), arrecadando o valor e repassando a comissão ao afiliado em nome e por conta de ${promotora}, sempre depois do sorteio, com o mesmo percentual.`,
+    `2. Quem paga. A comissão é paga por ${promotora}, promotora das rifas, sobre as vendas feitas pelo link ou cupom do afiliado. Quando a plataforma guarda a comissão da venda online (opção da plataforma), a plataforma atua como mera mandatária e agente de cobrança, arrecadando o valor e repassando a comissão ao afiliado em nome e por conta de ${promotora}, sempre depois do sorteio, com o mesmo percentual; a comissão continua devida pela promotora, não pela plataforma.`,
     `3. Quanto. ${d.comissaoPct}% sobre o valor pago pelo comprador, depois da taxa da plataforma e já com descontos de pacote e cupom.`,
     `4. Quando. ${quando} (${NOME_LIBERACAO[d.liberacao]}.)`,
     "5. Só venda paga conta. Pedido não pago, cancelado ou estornado não gera comissão; estorno desfaz a comissão daquela venda.",

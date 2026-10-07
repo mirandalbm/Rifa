@@ -238,6 +238,8 @@ async function main() {
         authorizationFileKey: CERTIFICADO_NO_BANCO,
         // A apuração da autorização: leitura direta da Federal (numeração a partir de zero).
         metodoApuracao: "federal_direta",
+        // A rifa de exemplo tem cota premiada (vale-brinde): a autorização a inclui (2.3).
+        declaraValeBrinde: true,
         commissionPctDefault: 10,
         featured: i === 0,
         sortWeight: 10 - i,

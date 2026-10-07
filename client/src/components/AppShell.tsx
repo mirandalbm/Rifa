@@ -88,8 +88,11 @@ export function PublicShell({
   vitrine,
   rodape,
   antesDaMarca,
+  noTopo,
 }: {
   children: ReactNode;
+  /** No topo, à esquerda da varinha (a vitrine põe o local no celular). */
+  noTopo?: ReactNode;
   /** No topo do celular, à esquerda da logo (hoje nenhuma tela usa). */
   antesDaMarca?: ReactNode;
   larga?: boolean;
@@ -114,6 +117,7 @@ export function PublicShell({
             </Link>
           </div>
           <nav aria-label="Criar e avisos" className="flex items-center gap-1">
+            {noTopo}
             <BotaoPublicar />
             <TrevoDeAvisos />
           </nav>

@@ -712,12 +712,25 @@ Na ordem de entrega do plano:
   de "TFF"), 1.5 (suspensão temporária), 1.6 (só ressarcimento entre as
   partes, depois do pagamento) e 1.7 (exigível depois do pagamento ou do
   trânsito em julgado).
-- [ ] **[você]** Perguntar ao advogado o **1.2**: com o Pix cobrado e
-  dividido pelo Asaas (a instituição de pagamento), a plataforma é mesmo
-  "subcredenciadora", ou só cliente que contrata o split do provedor?
-  Subcredenciadora é figura regulada pelo Banco Central. Até a resposta, o
-  contrato usa "facilitadora de pagamentos, por meio de instituição de
-  pagamento autorizada".
+- [x] **1.2 respondido (advogado, 07/10/2026)**: a plataforma **não** é
+  subcredenciadora (Resolução BCB 150/2021, art. 2º, V): o Asaas recebe o
+  Pix e faz o split, e a plataforma não liquida nem habilita recebedores. A
+  guarda da comissão, quando ligada, é mandato (CC, arts. 653 e seguintes).
+  O termo consolidado (1.1 nova, 2.2 "Taxa de Autorização (SPA/MF)", 4.2
+  suspensão, 5.1 regresso entre as partes, 5.3 exigível depois do
+  pagamento pela plataforma ou do trânsito em julgado) foi **aprovado**
+  cláusula por cláusula, com quatro ajustes de forma opcionais. A cláusula
+  10 do termo do afiliado dizia "custo de intermediação" e "quem paga não
+  retém tributo": agora diz o que o contador validou (valor a repassar, não
+  receita) e o IRRF de 1,5% do Lucro Presumido ou Real que o saque já retém.
+- [ ] **[você]** Publicar o termo consolidado em Configurações → Contrato da
+  promotora, depois do "Ver como fica" (os colchetes da plataforma são
+  preenchidos pelos Dados da empresa). As organizações que já tinham termo
+  de afiliado veem o aviso de texto desatualizado e publicam a versão nova.
+- [ ] **[ligar]** Antes de ligar a guarda da comissão, as três providências
+  do advogado: conta ou subconta separada no Asaas para a comissão guardada,
+  o prazo de repasse em dias no termo do afiliado (hoje "depois do sorteio")
+  e a prestação de contas à promotora (hoje ela não vê a comissão guardada).
 - [x] **Decisões do questionário (07/10/2026)** — feito: **2.5** a entidade
   beneficiada leva o CNPJ e só aparece na rifa com o comprovante do CNPJ
   ativo, a ata da diretoria e a certidão de regularidade fiscal enviados e

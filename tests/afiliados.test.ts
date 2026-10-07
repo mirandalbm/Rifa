@@ -46,6 +46,11 @@ describe("termo de adesão", () => {
     expect(t).toMatch(/MEI ou empresa: o saque exige o cadastro fiscal aprovado com o CNPJ/);
     expect(t).toMatch(/nota fiscal de serviço emitida por ele no valor do saque/);
     expect(t).toMatch(/plataforma guarda a comissão/);
+    // Contador (07/10/2026): guardada é mandato — passivo, não custo; e o
+    // Lucro Presumido ou Real tem o IRRF retido por quem paga.
+    expect(t).toMatch(/como mandatária — é valor a repassar, não receita dela/);
+    expect(t).not.toMatch(/custo de intermediação|não retém tributo/);
+    expect(t).toMatch(/Lucro Presumido ou Real tem 1,5% de imposto de renda retido na fonte/);
     expect(t).toMatch(/mera mandatária e agente de cobrança, arrecadando.*em nome e por conta de.*devida pela promotora, não pela plataforma/);
     // As cláusulas vêm numeradas em ordem, sem pular.
     const numeros = [...t.matchAll(/^(\d+)\. /gm)].map((m) => Number(m[1]));

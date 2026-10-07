@@ -469,10 +469,6 @@ Na ordem de entrega do plano:
 - [x] Termos de uso e Política de privacidade (`/termos`, `/privacidade`),
   montados das regras do sistema (`shared/legal.ts`), no rodapé, no perfil
   e no Criar conta (`tests/legal.test.ts`).
-- [ ] **[você]** Em Aparência → "Dados da empresa": razão social, CNPJ,
-  endereço, e-mail de contato e o **encarregado de dados** (nome e e-mail),
-  e publicar o template. Sem isso as páginas dizem que os dados ainda não
-  foram publicados (Decreto 7.962/2013 e LGPD, art. 41, pedem os dois).
 - [x] Devolução do Pix que chega tarde (reserva vencida ou depois do
   sorteio): o pagamento entra na fila `pix_tardios` (um por pedido), que a
   plataforma vê em Pedidos ("Pix a devolver") e na Caixa de entrada, e

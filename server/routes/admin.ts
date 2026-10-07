@@ -210,6 +210,7 @@ import {
 import {
   publicar,
   rascunho as rascunhoDoTemplate,
+  salvarEmpresa as salvarEmpresaDoTemplate,
   restaurar,
   salvarLogo,
   salvarApoio,
@@ -3450,6 +3451,16 @@ adminRouter.put("/template/rascunho", async (req, res, next) => {
   try {
     requirePlatformAdmin(req);
     res.json(await salvarRascunho(req.body));
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Só os dados da empresa, por etapas: grava o que está certo e devolve o erro de cada campo.
+adminRouter.put("/template/empresa", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    res.json(await salvarEmpresaDoTemplate(req.body));
   } catch (err) {
     next(err);
   }

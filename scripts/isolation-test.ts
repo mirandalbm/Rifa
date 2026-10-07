@@ -581,6 +581,7 @@ async function rotasDaPlataforma(eu: Lado) {
     ["GET aparência", "/api/admin/template", {}],
     ["GET pré-visualização do template", "/api/admin/template/previa", {}],
     ["PUT rascunho do template", "/api/admin/template/rascunho", { method: "PUT", body: "{}" }],
+    ["PUT dados da empresa no rascunho", "/api/admin/template/empresa", { method: "PUT", body: "{}" }],
     ["PUT logo da plataforma", "/api/admin/template/logo", { method: "PUT", body: "{}" }],
     ["PUT logo de apoio do rodapé", "/api/admin/template/apoio", { method: "PUT", body: "{}" }],
     ["POST rodapé de exemplo no rascunho", "/api/admin/template/exemplo-rodape", { method: "POST" }],

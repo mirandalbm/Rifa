@@ -108,7 +108,10 @@ paralelo, para não segurar o resto. Marque aqui mesmo o que for fechando.
 ## Etapa 5 — a plataforma pronta para o público
 
 - [ ] Aparência → Dados da empresa (razão social, CNPJ, endereço, e-mail,
-  encarregado de dados) e **publicar o template**.
+  encarregado de dados), com os dados oficiais, e **publicar o template**.
+  Até lá, `/termos` e `/privacidade` dizem que os dados ainda não foram
+  publicados, e o contrato da promotora com campos da empresa não publica
+  (422) — os dois esperam este passo.
 - [ ] Aparência: banners da vitrine, logos e redes do rodapé.
 - [ ] Sorteios oficiais: cadastrar o id do canal da Caixa (@caixa) e os
   próximos concursos da Federal.

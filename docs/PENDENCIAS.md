@@ -582,13 +582,14 @@ Na ordem de entrega do plano:
   fechamento, 2 h antes do sorteio), com a data e a hora exatas antes do Pix
   quando o prazo fica menor; sorteio adiado depois da compra devolve tudo
   (`npm run chamados`).
-- [ ] **[lançamento]** Validação jurídica: o texto do reembolso
-  (`regraDoReembolso()` e `avisoDePrazoCurto()` em `shared/reembolso.ts`) —
-  se o aviso ao lado do Pix basta ou se pede uma caixa de "li e concordo";
-  se a taxa depois dos 7 dias (até 10%) pode existir — e a cota grátis de
-  bônus no regulamento (a cláusula, `clausulaDoBonus()`, já diz a quantidade
-  autorizada e que a cota grátis não conta para o mínimo de vendidas; falta
-  ele confirmar que o plano de operação da SPA/MF prevê a distribuição).
+- [x] **[lançamento]** Validação jurídica (advogado, item 3 e resposta 4.1):
+  o aviso com a data e a hora exatas ao lado do Pix (`avisoDePrazoCurto()`)
+  cumpre o dever de informação (CDC, art. 6º, III; Decreto 7.962/2013) — não
+  pede caixa de "li e concordo"; a taxa de até 10% depois dos 7 dias ou na
+  venda do cambista é liberalidade válida (arredondada para baixo, a favor
+  do comprador); a devolução integral no adiamento é obrigatória (art. 35); a
+  cota grátis de bônus usa a cláusula dele ("Da distribuição promocional",
+  `clausulaDaDistribuicaoPromocional()`), com a quantidade da autorização.
 - [x] **[lançamento]** Validação contábil (contador, 07/10/2026):
   - **Guarda da comissão** é mandato: o valor entra a débito de Banco e a
     crédito de "Valores a repassar — afiliados" (passivo circulante) e sai

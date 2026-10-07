@@ -19,7 +19,7 @@ import {
 } from "@shared/schema";
 import { getPlataforma } from "../services/settings";
 import { templatePublicado } from "../services/template";
-import { FiscalError, documento, estadoFiscal, gravarNotaDoSaque, lerNotaFiscal, notaDoSaque, problemaParaSacar, salvarDadosFiscais, salvarDocumento } from "../services/fiscal";
+import { FiscalError, conferirSaque, documento, estadoFiscal, gravarNotaDoSaque, lerNotaFiscal, notaDoSaque, salvarDadosFiscais, salvarDocumento } from "../services/fiscal";
 import { pdfDoRecibo, reciboPorCodigo } from "../services/recibos";
 import { urlDeConferencia } from "../services/urls";
 import { aderir, comissaoNaRifa, organizacoesDoAfiliado, sair } from "../services/afiliados";
@@ -29,6 +29,7 @@ import { guardLogin, identify } from "../services/antifraude";
 import QRCode from "qrcode";
 import { affiliateId, verifyPassword } from "../auth";
 import { formatBRL } from "@shared/format";
+import { irrfDoSaque } from "@shared/fiscal";
 import { montarRotasDaVerificacao } from "./verificacaoRotas";
 import { copiarDocumentosDoFiscal, estadoDaVerificacao, fotoDoAfiliado, salvarFotoDoAfiliado } from "../services/verificacao";
 
@@ -313,12 +314,18 @@ affiliateRouter.get("/saldo", async (req, res, next) => {
     // advogado): quem paga. A comissão guardada é paga pela plataforma, e a
     // nota sai contra o CNPJ dela (os Dados da empresa publicados).
     const empresa = linhas.some((l) => l.organizacaoId === "plataforma") ? (await templatePublicado()).template.legal : null;
+    // A retenção de IRRF (Lucro Presumido ou Real) vai na tela antes do saque:
+    // a nota é do bruto, e o afiliado sabe quanto cai na conta.
+    const { regime } = await estadoFiscal(id, false);
     res.json(
-      linhas.map(({ cnpjDaOrganizacao, ...l }) =>
-        l.organizacaoId === "plataforma"
-          ? { ...l, notaContra: { nome: empresa?.razaoSocial || "Plataforma", cnpj: empresa?.cnpj || null } }
-          : { ...l, notaContra: { nome: l.organizacao, cnpj: cnpjDaOrganizacao || null } },
-      ),
+      linhas.map(({ cnpjDaOrganizacao, ...l }) => ({
+        ...l,
+        irrfCents: irrfDoSaque(l.disponivelCents, regime),
+        notaContra:
+          l.organizacaoId === "plataforma"
+            ? { nome: empresa?.razaoSocial || "Plataforma", cnpj: empresa?.cnpj || null }
+            : { nome: l.organizacao, cnpj: cnpjDaOrganizacao || null },
+      })),
     );
   } catch (err) {
     next(err);
@@ -337,9 +344,11 @@ affiliateRouter.post("/payouts", async (req, res, next) => {
       return res.status(400).json({ message: "Cadastre sua chave Pix antes de sacar." });
     }
     // Só saca MEI ou empresa (resposta 6.4 do advogado): cadastro fiscal
-    // aprovado com CNPJ, e a nota fiscal do valor anexada a cada saque —
-    // pagar pessoa física exigiria RPA e retenções que o sistema não faz.
-    const problema = await problemaParaSacar(id);
+    // aprovado com CNPJ e regime, e a nota fiscal do valor bruto anexada a
+    // cada saque — pagar pessoa física exigiria RPA, que o sistema não faz.
+    // O regime decide a retenção (1,5% de IRRF no Lucro Presumido ou Real),
+    // lido do mesmo cadastro aprovado que libera o saque — nunca do corpo.
+    const { problema, regime } = await conferirSaque(id);
     if (problema) return res.status(409).json({ message: problema });
     let nota: { mime: string; bytes: Buffer };
     try {
@@ -378,7 +387,13 @@ affiliateRouter.post("/payouts", async (req, res, next) => {
       const [created] = await tx
         .insert(payouts)
         // Saque da plataforma não tem organização: só o administrador geral o vê e paga.
-        .values({ affiliateId: id, organizationId: pedida === "plataforma" ? null : pedida, amountCents: totalCents, pixKey: aff.pixKey! })
+        .values({
+          affiliateId: id,
+          organizationId: pedida === "plataforma" ? null : pedida,
+          amountCents: totalCents,
+          irrfCents: irrfDoSaque(totalCents, regime),
+          pixKey: aff.pixKey!,
+        })
         .returning();
       await gravarNotaDoSaque(tx, created.id, nota);
 

@@ -610,14 +610,17 @@ Na ordem de entrega do plano:
   Ltda se ele consta (principal ou secundário) **e na inscrição municipal**;
   se não, o contador inclui antes do primeiro faturamento — sem ele a
   prefeitura não emite a NFS-e com esse serviço ou tributa errado.
-- [ ] **[decidir]** Afiliado do Lucro Presumido ou Real: a retenção de 1,5% de
-  IRRF é obrigatória (contador, 07/10/2026) — repassar o líquido e recolher
-  o DARF. Hoje o sistema paga qualquer empresa pelo valor cheio e não sabe
-  o regime (o cadastro só diz "MEI" ou "empresa"). Caminhos que o contador
-  aceita: travar o saque automático de quem não é MEI nem Simples e o
-  financeiro calcular à mão (aceitável no começo), ou — o melhor contra
-  erro humano — o cadastro fiscal pedir o regime e o saque já descontar os
-  1,5%.
+- [x] Afiliado do Lucro Presumido ou Real: a retenção de 1,5% de IRRF é
+  obrigatória (contador, 07/10/2026) — **feito no sistema** (o melhor
+  caminho, segundo ele): o cadastro fiscal pede o regime, e o saque da
+  empresa do Lucro Presumido ou Real já sai com o desconto (`irrfDoSaque()`;
+  a nota é do bruto, o recibo mostra o IRRF retido e o líquido, e quem paga
+  vê o valor a recolher no DARF). Imposto de até R$ 10,00 é dispensado (Lei
+  9.430/1996, art. 67). **Falta no ambiente**: `db:push` (coluna
+  `payouts.irrf_cents`) antes do código. **[você]** Confirmar com o
+  contador a dispensa de até R$ 10,00 e que, quando a organização paga o
+  saque, é ela a fonte pagadora que recolhe o DARF. A empresa já cadastrada
+  sem regime não saca até informar em Meus dados (volta para a análise).
 - [ ] **[você]** Cliente OAuth do Google (console.cloud.google.com → APIs e
   serviços → Credenciais → ID do cliente OAuth, tipo "Aplicativo da Web"):
   URI de redirecionamento autorizada

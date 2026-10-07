@@ -960,7 +960,14 @@ export const payouts = pgTable("payouts", {
   affiliateId: uuid("affiliate_id")
     .notNull()
     .references(() => affiliates.id, { onDelete: "cascade" }),
+  /** O bruto: a soma das comissões e o valor da nota fiscal. */
   amountCents: integer("amount_cents").notNull(),
+  /**
+   * IRRF retido no saque (empresa do Lucro Presumido ou Real, 1,5%,
+   * `irrfDoSaque`), decidido ao pedir o saque. Quem paga transfere
+   * `amountCents - irrfCents` e recolhe isto no DARF. Zero para MEI e Simples.
+   */
+  irrfCents: integer("irrf_cents").notNull().default(0),
   pixKey: text("pix_key").notNull(),
   /**
    * Quem paga este saque: a organização das rifas das comissões dele. O
@@ -975,7 +982,7 @@ export const payouts = pgTable("payouts", {
 
 /**
  * A nota fiscal de cada saque (o saque só sai para MEI ou empresa: a nota é
- * o documento do pagamento, sem RPA nem retenção). Cifrada no cofre, como os
+ * o documento do pagamento, sem RPA; a nota é do valor bruto). Cifrada no cofre, como os
  * documentos fiscais; uma por saque, gravada na transação que cria o saque.
  */
 export const saqueNotas = pgTable("saque_notas", {

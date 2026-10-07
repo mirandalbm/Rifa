@@ -11,6 +11,7 @@ import {
   DOCUMENTOS,
   DOCUMENTO_MAX_BYTES,
   STATUS_FISCAL,
+  REGIMES_TRIBUTARIOS,
   TIPOS_DE_EMPRESA,
   validarCadastroFiscal,
   type DadosFiscais,
@@ -36,7 +37,12 @@ const vazio = {
   nascimento: "",
   endereco: { cep: "", logradouro: "", numero: "", complemento: "", bairro: "", cidade: "", uf: "" },
   conta: { banco: "", agencia: "", conta: "", tipo: "corrente" as "corrente" | "poupanca" },
-  empresa: { tipo: "mei" as "mei" | "empresa", cnpj: "", razaoSocial: "" },
+  empresa: {
+    tipo: "mei" as "mei" | "empresa",
+    cnpj: "",
+    razaoSocial: "",
+    regime: undefined as "mei" | "simples" | "presumido_real" | undefined,
+  },
 };
 
 /**
@@ -58,7 +64,7 @@ export function AfiliadoDados() {
       ...d,
       cpf: maskCpf(d.cpf),
       endereco: { ...d.endereco, cep: maskCep(d.endereco.cep), complemento: d.endereco.complemento ?? "" },
-      empresa: d.empresa ? { ...d.empresa, cnpj: formatarCnpj(d.empresa.cnpj) } : vazio.empresa,
+      empresa: d.empresa ? { ...d.empresa, regime: d.empresa.regime, cnpj: formatarCnpj(d.empresa.cnpj) } : vazio.empresa,
     });
   }, [data?.dados]);
 
@@ -152,6 +158,28 @@ export function AfiliadoDados() {
                 })}
                 {campo("Razão social", f.empresa.razaoSocial, (v) => setF({ ...f, empresa: { ...f.empresa, razaoSocial: v } }))}
               </div>
+              {f.empresa.tipo === "empresa" ? (
+                <fieldset className="space-y-1">
+                  <legend className="label-xs">Regime tributário da empresa</legend>
+                  <div className="flex flex-wrap gap-4 text-sm">
+                    {(["simples", "presumido_real"] as const).map((r) => (
+                      <label key={r} className="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          name="regime-empresa"
+                          checked={f.empresa.regime === r}
+                          onChange={() => setF({ ...f, empresa: { ...f.empresa, regime: r } })}
+                        />
+                        {REGIMES_TRIBUTARIOS[r]}
+                      </label>
+                    ))}
+                  </div>
+                  <p className="text-xs text-muted">
+                    No Lucro Presumido ou Real, quem paga retém 1,5% de IRRF em cada saque: a nota fiscal é do valor
+                    bruto, e cai na sua conta o valor menos a retenção. MEI e Simples Nacional recebem o valor cheio.
+                  </p>
+                </fieldset>
+              ) : null}
             </fieldset>
             {campo("Nome completo do titular (como no documento)", f.nomeCompleto, (v) => setF({ ...f, nomeCompleto: v }))}
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">

@@ -12,6 +12,8 @@ interface Conferencia {
   pagador: string;
   beneficiario: string;
   valorCents: number;
+  /** IRRF retido (Lucro Presumido ou Real); zero sem retenção. */
+  irrfCents?: number;
   hash: string;
 }
 
@@ -54,9 +56,17 @@ export default function ReciboPage() {
                   <dd>{data.beneficiario}</dd>
                 </div>
                 <div>
-                  <dt className="label-xs">Valor</dt>
+                  <dt className="label-xs">{data.irrfCents ? "Valor bruto" : "Valor"}</dt>
                   <dd className="tnum">{formatBRL(data.valorCents)}</dd>
                 </div>
+                {data.irrfCents ? (
+                  <div>
+                    <dt className="label-xs">IRRF retido (1,5%) · líquido pago</dt>
+                    <dd className="tnum">
+                      {formatBRL(data.irrfCents)} · {formatBRL(data.valorCents - data.irrfCents)}
+                    </dd>
+                  </div>
+                ) : null}
               </dl>
               <p className="tnum break-all text-[11px] text-muted">SHA-256 {data.hash}</p>
             </div>

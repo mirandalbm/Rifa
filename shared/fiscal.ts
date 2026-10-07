@@ -40,18 +40,58 @@ export interface ContaBancaria {
  * O saque só sai para MEI ou empresa (decisão do produto sobre a resposta
  * 6.4 do advogado, 06/10/2026): pagar comissão a pessoa física obrigaria a
  * fonte pagadora a emitir RPA, reter IRRF e INSS e recolher o INSS patronal.
- * Com CNPJ, o afiliado emite a nota fiscal de cada saque e ninguém retém
- * nada. A pessoa (nome, CPF, documentos) segue no cadastro: é o titular, e o
+ * Com CNPJ, o afiliado emite a nota fiscal de cada saque; só a empresa do
+ * Lucro Presumido ou Real sofre retenção (1,5% de IRRF, `irrfDoSaque`). A pessoa (nome, CPF, documentos) segue no cadastro: é o titular, e o
  * CPF continua sendo a chave de "um cadastro por pessoa".
  */
 export const TIPOS_DE_EMPRESA = { mei: "MEI", empresa: "Empresa (ME, EPP ou outra)" } as const;
 export type TipoDeEmpresa = keyof typeof TIPOS_DE_EMPRESA;
 
+/**
+ * O regime tributário de quem recebe (contador, 07/10/2026): MEI e Simples
+ * Nacional não sofrem retenção na fonte; no Lucro Presumido ou Real, quem
+ * paga retém 1,5% de IRRF, repassa o líquido e recolhe o DARF.
+ */
+export const REGIMES_TRIBUTARIOS = {
+  mei: "MEI",
+  simples: "Simples Nacional",
+  presumido_real: "Lucro Presumido ou Real",
+} as const;
+export type RegimeTributario = keyof typeof REGIMES_TRIBUTARIOS;
+
 export interface EmpresaDoAfiliado {
   tipo: TipoDeEmpresa;
   cnpj: string;
   razaoSocial: string;
+  /** Nulo só no cadastro de antes do regime: a empresa não saca até informar. */
+  regime?: RegimeTributario;
 }
+
+/** O regime do cadastro: o MEI é sempre MEI; a empresa de antes, sem regime, é `null`. */
+export function regimeDaEmpresa(e: EmpresaDoAfiliado | null | undefined): RegimeTributario | null {
+  if (!e) return null;
+  if (e.tipo === "mei") return "mei";
+  return e.regime === "simples" || e.regime === "presumido_real" ? e.regime : null;
+}
+
+/** IRRF sobre serviço de propaganda e promoção: 1,5% (em milésimos, sem ponto flutuante). */
+export const IRRF_POR_MIL = 15;
+/** Retenção de até R$ 10,00 é dispensada (Lei 9.430/1996, art. 67) — o saque sai cheio. */
+export const IRRF_DISPENSA_ATE_CENTS = 1000;
+
+/**
+ * A retenção do saque: só no Lucro Presumido ou Real, 1,5% do valor bruto,
+ * arredondado para baixo (nunca reter mais do que o devido). A nota fiscal é
+ * do bruto; o afiliado recebe o bruto menos isto, e quem paga recolhe o DARF.
+ */
+export function irrfDoSaque(brutoCents: number, regime: RegimeTributario | null): number {
+  if (regime !== "presumido_real" || !Number.isInteger(brutoCents) || brutoCents <= 0) return 0;
+  const irrf = Math.floor((brutoCents * IRRF_POR_MIL) / 1000);
+  return irrf <= IRRF_DISPENSA_ATE_CENTS ? 0 : irrf;
+}
+
+export const MENSAGEM_SAQUE_SEM_REGIME =
+  "Informe o regime tributário da sua empresa (Simples Nacional, ou Lucro Presumido ou Real) em Meus dados: é ele que diz se o saque tem retenção de IRRF.";
 
 export interface DadosFiscais {
   nomeCompleto: string;
@@ -67,7 +107,7 @@ export interface DadosFiscais {
 /**
  * O serviço que o afiliado descreve na nota do saque (contador, 07/10/2026):
  * promoção de vendas, CNAE 7319-0/02. MEI e Simples Nacional não sofrem
- * retenção na fonte, e o saque sai pelo valor cheio.
+ * retenção na fonte; o Lucro Presumido ou Real, sim (`irrfDoSaque`).
  */
 export const DESCRICAO_DA_NOTA_DO_AFILIADO = "Serviços de promoção de vendas (divulgação e publicidade online)";
 
@@ -83,7 +123,10 @@ export function validarEmpresa(bruto: unknown): EmpresaDoAfiliado {
   if (!cnpjValido(cnpj)) throw new Error("CNPJ inválido.");
   const razaoSocial = limpo(e.razaoSocial);
   if (razaoSocial.length < 3 || razaoSocial.length > 150) throw new Error("Informe a razão social, como no comprovante do CNPJ.");
-  return { tipo, cnpj, razaoSocial };
+  if (tipo === "mei") return { tipo, cnpj, razaoSocial, regime: "mei" };
+  const regime = e.regime === "simples" || e.regime === "presumido_real" ? e.regime : null;
+  if (!regime) throw new Error("Diga o regime tributário da empresa: Simples Nacional, ou Lucro Presumido ou Real.");
+  return { tipo, cnpj, razaoSocial, regime };
 }
 
 const limpo = (v: unknown) => (typeof v === "string" ? v.replace(/\s+/g, " ").trim() : "");
@@ -140,10 +183,11 @@ export function validarCadastroFiscal(bruto: unknown): DadosFiscais {
 }
 
 /** O cadastro está completo para ir à análise? Dados (com o CNPJ) e os documentos. */
-export function faltaNoCadastro(temDados: boolean, documentos: string[], temEmpresa = true): string[] {
+export function faltaNoCadastro(temDados: boolean, documentos: string[], temEmpresa = true, temRegime = true): string[] {
   const falta: string[] = [];
   if (!temDados) falta.push("seus dados");
   else if (!temEmpresa) falta.push("o CNPJ do seu MEI ou da sua empresa");
+  else if (!temRegime) falta.push("o regime tributário da empresa");
   for (const [tipo, nome] of Object.entries(DOCUMENTOS)) {
     if (!documentos.includes(tipo)) falta.push(nome.charAt(0).toLowerCase() + nome.slice(1));
   }
@@ -160,7 +204,13 @@ export interface ReciboSnapshot {
   pagador: { nome: string; cnpj: string | null };
   /** Com CNPJ (a regra de hoje), o nome é a razão social e o `cnpj` vem junto. */
   beneficiario: { nome: string; cpf: string | null; cnpj?: string; codigoAfiliado: string };
+  /** O valor bruto: o da nota fiscal e a soma das comissões. */
   valorCents: number;
+  /**
+   * IRRF retido (Lucro Presumido ou Real). Só existe quando houve retenção —
+   * o texto canônico dos recibos sem retenção não muda. Pago = bruto − isto.
+   */
+  irrfCents?: number;
   pagamento: { forma: "pix" | "transferencia"; destino: string };
   origem: { rifa: string; pedidos: number; comissaoCents: number }[];
 }

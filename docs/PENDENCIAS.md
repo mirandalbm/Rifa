@@ -604,16 +604,20 @@ Na ordem de entrega do plano:
     mensal contra cada promotora ("taxa de uso de plataforma tecnológica" ou
     "intermediação de negócios"); o valor sai da exportação "Cobrança da
     plataforma" (Exportações), por organização e mês.
-- [ ] **[você]** Conferir no cartão do CNPJ da International Lottery Ltda se
-  há um CNAE que comporte a taxa da plataforma (o contador citou 7490-1/04,
-  intermediação, ou um de serviço de aplicação na internet — confirme com
-  ele o código exato, o 6311-9/00 é o de provedores de aplicação) e, se não
-  houver, incluir antes da primeira nota.
-- [ ] **[você]** Decidir o afiliado do Lucro Presumido ou Real: o sistema
-  paga qualquer empresa pelo valor cheio, e nesse caso o contador indica
-  retenção de 1,5% de IRRF. Hoje é raro; ou o pagamento desse afiliado sai
-  com a retenção feita à mão, ou o código passa a pedir o regime no cadastro
-  fiscal.
+- [ ] **[você]** CNAE da taxa da plataforma: **6311-9/00** (tratamento de
+  dados, provedores de serviços de aplicação e hospedagem na internet —
+  contador, 07/10/2026). Conferir no cartão do CNPJ da International Lottery
+  Ltda se ele consta (principal ou secundário) **e na inscrição municipal**;
+  se não, o contador inclui antes do primeiro faturamento — sem ele a
+  prefeitura não emite a NFS-e com esse serviço ou tributa errado.
+- [ ] **[decidir]** Afiliado do Lucro Presumido ou Real: a retenção de 1,5% de
+  IRRF é obrigatória (contador, 07/10/2026) — repassar o líquido e recolher
+  o DARF. Hoje o sistema paga qualquer empresa pelo valor cheio e não sabe
+  o regime (o cadastro só diz "MEI" ou "empresa"). Caminhos que o contador
+  aceita: travar o saque automático de quem não é MEI nem Simples e o
+  financeiro calcular à mão (aceitável no começo), ou — o melhor contra
+  erro humano — o cadastro fiscal pedir o regime e o saque já descontar os
+  1,5%.
 - [ ] **[você]** Cliente OAuth do Google (console.cloud.google.com → APIs e
   serviços → Credenciais → ID do cliente OAuth, tipo "Aplicativo da Web"):
   URI de redirecionamento autorizada

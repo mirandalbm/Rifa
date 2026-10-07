@@ -733,13 +733,15 @@ Na ordem de entrega do plano:
   `entidade_documentos` e `organizacao_socios`; colunas
   `campaigns.declara_vale_brinde`, `organizations.socios_declarados_em` e
   `socios_declarados_por`, e `cnpj`/`documentos_*` em
-  `campaign_banners_divulgacao`). **Depois do deploy**: (1) a entidade
-  beneficiada que já estava no ar **some da página** até a organização
-  informar o CNPJ, mandar os três documentos e a plataforma aprovar — avise as
+  `campaign_banners_divulgacao`).
+- [ ] **[você] Depois do lançamento** (antes dele não há organização nem
+  entidade no ar a avisar): (1) a entidade beneficiada que já estiver no ar
+  **some da página** até a organização informar o CNPJ, mandar os três
+  documentos e a plataforma aprovar em Atendimento → Entidades — avise as
   organizações que têm entidade; (2) toda organização precisa cadastrar os
   sócios e diretores e declarar a lista antes de publicar a próxima rifa
-  autorizada (rifa já no ar não é tocada); (3) a rifa com cota premiada ainda
-  em rascunho precisa da declaração do vale-brinde nos dados legais.
+  autorizada (rifa já no ar não é tocada); (3) a rifa com cota premiada
+  ainda em rascunho precisa da declaração do vale-brinde nos dados legais.
 
 - [x] **Apuração direta pela Loteria Federal (modo "Autorizado MF") e
   método liberado pela plataforma** — feito, com as respostas do advogado

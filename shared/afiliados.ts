@@ -10,6 +10,7 @@
  * rifa em andamento segue a versão com que foi publicada, até o sorteio.
  */
 import { NOME_LIBERACAO, type LiberacaoComissao } from "./plataforma";
+import { PRAZO_DE_ESTORNO_DIAS } from "./pricing";
 
 export const STATUS_DO_VINCULO = {
   pendente: "Aguardando a organização",
@@ -51,12 +52,15 @@ export function montarTermo(d: {
   comissaoPct: number;
   liberacao: LiberacaoComissao;
   textoExtra: string;
+  /** Dias da janela de estorno (`REFUND_WINDOW_DAYS` no servidor). */
+  prazoEstornoDias?: number;
 }): string {
+  const prazoEstorno = d.prazoEstornoDias ?? PRAZO_DE_ESTORNO_DIAS;
   const promotora = d.organizacao.cnpj ? `${d.organizacao.nome} (CNPJ ${d.organizacao.cnpj})` : d.organizacao.nome;
   const quando =
     d.liberacao === "imediata"
       ? "A comissão fica disponível para saque na confirmação do pagamento. Se a venda for estornada depois do saque, o valor é cobrado do afiliado."
-      : "A comissão fica disponível para saque depois do sorteio da rifa e do fim do prazo de estorno.";
+      : `A comissão fica disponível para saque depois do sorteio da rifa e do fim do prazo de estorno, que é de ${prazoEstorno} dias contados do pagamento da compra — o que vier por último.`;
   const linhas = [
     `TERMO DE ADESÃO DE AFILIADO — ${promotora} — versão ${d.versao}`,
     "",
@@ -69,11 +73,16 @@ export function montarTermo(d: {
     "7. Como divulgar. A divulgação usa o link e o material da plataforma e é identificada como publicidade (por exemplo, \"#publi\"). É proibido: prometer ganho ou chance maior do que a real; omitir o preço da cota, a data do sorteio ou o número da autorização SPA/MF; divulgar para menores de 18 anos ou em ambiente voltado a eles; enviar mensagem a quem não pediu (spam); usar a marca de terceiros; e pedir pagamento fora da plataforma (Pix, depósito ou dinheiro) — só vale bilhete pago pela plataforma. Foto ou vídeo próprio publicado na plataforma é só do afiliado ou de quem autorizou o uso da imagem, nunca de menor de 18 anos, e sempre passa pela promotora antes de ir ao ar; recusado ou retirado, é apagado.",
     "8. Descumprimento. Divulgação que desrespeite o item 7, o regulamento da rifa ou a lei permite à promotora desfazer o vínculo e não pagar a comissão das vendas ligadas à infração, e à plataforma suspender a conta do afiliado. Venda fraudada (compra falsa, estorno combinado) não gera comissão.",
     "9. Dados pessoais (LGPD). O afiliado vê só o primeiro nome de quem comprou pelo link dele. Não pode guardar, compartilhar nem usar esse dado fora da plataforma, nem pedir CPF, telefone ou dados de pagamento aos compradores.",
-    "10. Tributos, nota fiscal e recibo. A comissão é paga a MEI ou empresa: o saque exige o cadastro fiscal aprovado com o CNPJ e o regime tributário do afiliado, e cada saque vai com a nota fiscal de serviço emitida por ele no valor do saque (o valor bruto), contra o CNPJ de quem paga: a promotora ou, quando a comissão é guardada pela plataforma, a plataforma, que recebe e repassa esse valor como mandatária — é valor a repassar, não receita dela. MEI e empresa do Simples Nacional recebem o valor cheio; empresa do Lucro Presumido ou Real tem 1,5% de imposto de renda retido na fonte, recolhido por quem paga (imposto de até R$ 10,00 é dispensado). O afiliado responde pelos demais tributos da empresa dele. Cada pagamento sai também com o recibo da plataforma.",
+    "10. Tributos, nota fiscal e recibo. A comissão é paga a MEI ou empresa: o saque exige o cadastro fiscal aprovado com o CNPJ e o regime tributário do afiliado, e cada saque vai com a nota fiscal de serviço emitida por ele no valor do saque (o valor bruto), contra o CNPJ de quem paga: a promotora ou, quando a comissão é guardada pela plataforma, a plataforma, que recebe e repassa esse valor como mandatária — é valor a repassar, não receita dela. MEI e empresa do Simples Nacional recebem o valor cheio; empresa do Lucro Presumido ou Real tem 1,5% de imposto de renda retido na fonte, recolhido por quem paga (imposto de até R$ 10,00 por saque é dispensado). O afiliado responde pelos demais tributos da empresa dele. Cada pagamento sai também com o recibo da plataforma.",
     "11. Versões. Esta versão vale para as rifas publicadas enquanto ela estiver em vigor, até o sorteio de cada uma. Versão nova vale só para rifas publicadas depois e precisa de novo aceite. O aceite fica registrado com a cópia deste texto, a versão e a data.",
     "12. Saída. O afiliado pode sair a qualquer momento, sem perder o que já ganhou de vendas pagas e não estornadas.",
   ];
-  if (d.textoExtra) linhas.push("", "Regras da organização:", d.textoExtra);
+  if (d.textoExtra)
+    linhas.push(
+      "",
+      "Regras da organização (não podem contrariar a lei nem este termo; em caso de conflito com as cláusulas acima, prevalece o que for mais favorável ao afiliado):",
+      d.textoExtra,
+    );
   return linhas.join("\n");
 }
 

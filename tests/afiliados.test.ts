@@ -30,6 +30,8 @@ describe("termo de adesão", () => {
     expect(t).toContain("depois do sorteio");
     expect(t).toContain("Autoindicação é proibida");
     expect(t).toContain("Proibido divulgar em grupo de apostas.");
+    // As regras da organização não passam por cima do termo nem da lei.
+    expect(t).toMatch(/não podem contrariar a lei nem este termo.*mais favorável ao afiliado/);
   });
 
   it("o texto-base cobre a natureza, a divulgação, os dados pessoais e os tributos", () => {
@@ -51,6 +53,10 @@ describe("termo de adesão", () => {
     expect(t).toMatch(/como mandatária — é valor a repassar, não receita dela/);
     expect(t).not.toMatch(/custo de intermediação|não retém tributo/);
     expect(t).toMatch(/Lucro Presumido ou Real tem 1,5% de imposto de renda retido na fonte/);
+    // Advogado (07/10/2026): a dispensa é por saque, e o prazo de estorno tem número.
+    expect(t).toMatch(/até R\$ 10,00 por saque é dispensado/);
+    expect(t).toMatch(/prazo de estorno, que é de 7 dias contados do pagamento/);
+    expect(montarTermo({ organizacao: { nome: "Z", cnpj: null }, versao: 1, comissaoPct: 10, liberacao: "apos_sorteio", textoExtra: "", prazoEstornoDias: 10 })).toMatch(/que é de 10 dias/);
     expect(t).toMatch(/mera mandatária e agente de cobrança, arrecadando.*em nome e por conta de.*devida pela promotora, não pela plataforma/);
     // As cláusulas vêm numeradas em ordem, sem pular.
     const numeros = [...t.matchAll(/^(\d+)\. /gm)].map((m) => Number(m[1]));

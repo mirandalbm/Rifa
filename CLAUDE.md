@@ -401,7 +401,7 @@ arquitetura.
   - **Gesto nunca é o único caminho** (WCAG 2.5.1): a contagem da faixa do
     estado (`ContagemDoSorteio`, abaixo) é botão e abre a mesma tela. **Não
     há ícone à esquerda da logo** — saiu a pedido; o topo é a logo e o
-    trevo. Aberta, é diálogo (`role="dialog"`, `aria-modal`, foco no
+    trevo (e, na vitrine, o pino do estado). Aberta, é diálogo (`role="dialog"`, `aria-modal`, foco no
     "Voltar ao início", Esc fecha) e a página de baixo não rola.
   - **A tela do celular transmite o sorteio oficial da plataforma**
     (seção "Sorteios oficiais"), com a fileira das rifas integradas embaixo
@@ -424,19 +424,22 @@ arquitetura.
     rifa**; sem story no ar, não há anel e o círculo inteiro abre a rifa.
     Cada alvo tem o próprio rótulo ("Ver stories de…", "Abrir a rifa…"). O
     visualizador de stories fica por cima da tela do sorteio (`z-[70]`).
-  - **A faixa do estado no Início do celular**: à esquerda, o seletor de
-    estado mostra **só a sigla** (BR para todo o Brasil) e, aberto, a lista
-    traz o nome de cada estado — o `<select>` de verdade fica por cima,
-    transparente (o toque, o teclado e o leitor de tela são dele, com o
-    rótulo "Rifas perto de"); à direita, a **contagem do próximo sorteio**
+  - **O estado e a contagem no Início do celular**: o estado mora **no
+    topo, só o ícone do local** (o pino), à esquerda da varinha
+    (`noTopo` do `PublicShell`, a vitrine o passa) — saiu da faixa a
+    pedido, a caixa da sigla incomodava. O `<select>` de verdade fica por
+    cima do ícone, transparente (o toque, o teclado e o leitor de tela são
+    dele), e o estado escolhido vai no rótulo ("Rifas perto de: São
+    Paulo") e no `title` — o ícone sozinho não diz qual é. Na faixa fica
+    só a **contagem do próximo sorteio**, à direita
     (`ContagemDoSorteio`, a cara da tela do sorteio: fundo escuro e as casas
     d/h/m/s), que é botão e abre a tela do sorteio. O tempo vai no
     `aria-label`; sem nenhum sorteio marcado (nem oficial nem de rifa),
     "Sorteios". O botão tem 44 px de altura e as casas em 14 px, para a
     contagem ler bem. **É só do celular**:
-    do tablet em diante o seletor segue o de antes ("Rifas perto de" e o
-    nome do estado) e a contagem não existe — lá a tela do sorteio principal
-    é a coluna ao vivo, já definida.
+    do tablet em diante o pino não aparece, o seletor segue o de antes na
+    faixa ("Rifas perto de" e o nome do estado) e a contagem não existe —
+    lá a tela do sorteio principal é a coluna ao vivo, já definida.
   - **O voltar do aparelho fecha** (`#sorteio`, `useSorteioDoInicio()`):
     abrir empurra a marca no histórico, fechar a tira; chegar com
     `#sorteio` abre direto.

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { ChevronDown, MapPin, Plus } from "lucide-react";
+import { MapPin, Plus } from "lucide-react";
 import { UFS, ufValida } from "@shared/endereco";
 import { lerRegiao, gravarRegiao, regiaoEfetiva, type EscolhaDeRegiao } from "@/lib/regiao";
 import { useSession } from "@/lib/session";
@@ -44,49 +44,58 @@ export default function Vitrine() {
     setEscolha(r);
   };
 
-  // Cada bloco da tela inicial vem do template (ordem, ligado, título).
+  const valorDaRegiao = escolha === "todos" ? "" : (regiao?.uf ?? "");
+  const aoEscolherUf = (uf: string) => {
+    if (!uf) return escolher("todos");
+    if (conta?.uf === uf) return escolher(null);
+    if (ufValida(uf)) escolher({ uf, cidade: null });
+  };
+  const opcoesDeUf = (
+    <>
+      <option value="">Todo o Brasil</option>
+      {Object.entries(UFS).map(([sigla, nome]) => (
+        <option key={sigla} value={sigla}>
+          {nome}
+        </option>
+      ))}
+    </>
+  );
+  // Celular: o estado mora no topo, só o ícone do local ao lado da varinha.
+  // O <select> de verdade fica por cima, transparente — o toque, o teclado e
+  // o leitor de tela são dele, e o estado escolhido vai no rótulo.
+  const nomeDaRegiao = valorDaRegiao ? (UFS as Record<string, string>)[valorDaRegiao] : "Todo o Brasil";
+  const regiaoNoTopo = (
+    <div
+      className="relative flex h-10 w-10 items-center justify-center rounded-lg text-ink focus-within:ring-2 focus-within:ring-marca hover:bg-mist md:hidden"
+      title={`Rifas perto de: ${nomeDaRegiao}`}
+    >
+      <MapPin size={24} aria-hidden />
+      <select
+        aria-label={`Rifas perto de: ${nomeDaRegiao}`}
+        value={valorDaRegiao}
+        onChange={(e) => aoEscolherUf(e.target.value)}
+        className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+      >
+        {opcoesDeUf}
+      </select>
+    </div>
+  );
+  // Tablet e computador seguem com "Rifas perto de" e o nome do estado; no
+  // celular a faixa fica só com a contagem do sorteio.
   const blocoRegiao = (
     <div className="flex items-center gap-2 pb-1">
-      {/* Celular: o select mostra só a sigla; aberto, a lista traz o nome de
-          cada estado. O select de verdade fica por cima, transparente: o toque
-          e o leitor de tela são dele. Do tablet em diante, o de antes. */}
       <MapPin size={16} aria-hidden className="hidden shrink-0 text-muted md:block" />
       <label htmlFor="vitrine-uf" className="hidden text-sm text-ink-2 md:block">
         Rifas perto de
       </label>
-      <div className="relative shrink-0 rounded-md focus-within:ring-2 focus-within:ring-marca md:min-w-0 md:focus-within:ring-0">
-        <span
-          aria-hidden
-          className="pointer-events-none flex h-9 items-center gap-1 rounded-md border border-line-2 bg-white pl-2 pr-1.5 text-sm font-bold md:hidden"
-        >
-          <MapPin size={15} className="text-muted" />
-          <span className="tnum">{escolha === "todos" ? "BR" : (regiao?.uf ?? "BR")}</span>
-          <ChevronDown size={14} className="text-muted" />
-        </span>
-        <label htmlFor="vitrine-uf" className="sr-only md:hidden">
-          Rifas perto de
-        </label>
-        <select
-          id="vitrine-uf"
-          value={escolha === "todos" ? "" : (regiao?.uf ?? "")}
-          onChange={(e) => {
-            const uf = e.target.value;
-            if (!uf) return escolher("todos");
-            // Voltar ao estado da conta devolve também a cidade dela.
-            if (conta?.uf === uf) return escolher(null);
-            if (ufValida(uf)) escolher({ uf, cidade: null });
-          }}
-          className="absolute inset-0 h-full w-full cursor-pointer opacity-0 md:static md:h-auto md:w-auto md:cursor-auto md:rounded-md md:border md:border-line-2 md:bg-white md:px-2 md:py-1.5 md:text-sm md:font-semibold md:opacity-100"
-        >
-          <option value="">Todo o Brasil</option>
-          {Object.entries(UFS).map(([sigla, nome]) => (
-            <option key={sigla} value={sigla}>
-              {nome}
-            </option>
-          ))}
-        </select>
-      </div>
-      {/* À direita, a contagem do sorteio: abre a tela do sorteio (celular). */}
+      <select
+        id="vitrine-uf"
+        value={valorDaRegiao}
+        onChange={(e) => aoEscolherUf(e.target.value)}
+        className="hidden min-w-0 rounded-md border border-line-2 bg-white px-2 py-1.5 text-sm font-semibold md:block"
+      >
+        {opcoesDeUf}
+      </select>
       <ContagemDoSorteio onAbrir={sorteio.abrir} />
     </div>
   );
@@ -96,6 +105,7 @@ export default function Vitrine() {
     <FeedInfinito lista={lista ?? []} comDivulgacoes={comDivulgacoes} />
   );
 
+  // Cada bloco da tela inicial vem do template (ordem, ligado, título).
   const blocos = comPatrocinadas(template.blocos).filter((b) => b.ligado);
   // A fileira de stories ocupa o lugar do primeiro bloco "seguidos" ou
   // "estados" do template (os estados deram lugar aos stories, como no
@@ -104,7 +114,7 @@ export default function Vitrine() {
   const primeiroDeRifas = blocos.find((b) => b.tipo === "rifas")?.id;
 
   return (
-    <PublicShell vitrine rodape>
+    <PublicShell vitrine rodape noTopo={regiaoNoTopo}>
       {/* Título da página para leitor de tela (a vitrine abre direto nos banners). */}
       <h1 className="sr-only">Rifas no ar</h1>
       {/* Tablet e computador: o feed no centro e, à direita, a coluna ao vivo

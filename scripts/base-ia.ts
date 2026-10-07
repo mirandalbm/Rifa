@@ -212,7 +212,7 @@ function arquivos(f: Fonte): { nome: string; texto: string }[] {
       nome: "06-afiliado.md",
       texto:
         cab("Afiliado: comissão e saque") +
-        `- A comissão só vale com o vínculo aprovado pela organização dona da rifa e o aceite do termo dela.\n- Ela fica disponível depois do sorteio e da janela de estorno (ou na hora, se a organização escolheu).\n- ${MENSAGEM_SAQUE_SO_COM_CNPJ}\n- A nota fiscal sai contra quem paga: a organização ou, com a comissão guardada, a plataforma.\n- A ação "${ROTULO_DA_ACAO.falta_para_sacar}" diz o que falta para o saque.\n`,
+        `- A comissão só vale com o vínculo aprovado pela organização dona da rifa e o aceite do termo dela.\n- Ela fica disponível depois do sorteio e da janela de estorno (ou na hora, se a organização escolheu).\n- ${MENSAGEM_SAQUE_SO_COM_CNPJ}\n- A nota fiscal é do valor bruto do saque e sai contra quem paga: a organização ou, com a comissão guardada, a plataforma.\n- O regime tributário da empresa fica em Meus dados: MEI e Simples Nacional recebem o valor cheio; Lucro Presumido ou Real tem 1,5% de imposto de renda retido por quem paga (imposto de até R$ 10,00 é dispensado).\n- A ação "${ROTULO_DA_ACAO.falta_para_sacar}" diz o que falta para o saque.\n`,
     },
     {
       nome: "07-termos-de-uso.md",

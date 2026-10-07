@@ -315,7 +315,15 @@ export function AfiliadoSaques() {
   const qc = useQueryClient();
   const { data: overview } = useQuery<Overview>({ queryKey: ["/api/affiliate/overview"] });
   const { data: payouts } = useQuery<
-    { id: string; amountCents: number; status: string; requestedAt: string; recibo: string | null; organizacao: string | null }[]
+    {
+      id: string;
+      amountCents: number;
+      irrfCents?: number;
+      status: string;
+      requestedAt: string;
+      recibo: string | null;
+      organizacao: string | null;
+    }[]
   >({ queryKey: ["/api/affiliate/payouts"] });
 
   const [pixKey, setPixKey] = useState("");
@@ -341,6 +349,8 @@ export function AfiliadoSaques() {
       organizacao: string;
       disponivelCents: number;
       pendenteCents: number;
+      /** IRRF retido no saque (Lucro Presumido ou Real); zero para MEI e Simples. */
+      irrfCents?: number;
       notaContra?: { nome: string; cnpj: string | null };
     }[]
   >({ queryKey: ["/api/affiliate/saldo"] });
@@ -437,7 +447,14 @@ export function AfiliadoSaques() {
                       </span>
                     ) : null}
                   </span>
-                  <span className="tnum text-green-deep">{formatBRL(o.disponivelCents)}</span>
+                  <span className="text-right">
+                    <span className="tnum block text-green-deep">{formatBRL(o.disponivelCents)}</span>
+                    {o.irrfCents ? (
+                      <span className="tnum block text-xs text-muted">
+                        IRRF (1,5%) −{formatBRL(o.irrfCents)} · cai {formatBRL(o.disponivelCents - o.irrfCents)}
+                      </span>
+                    ) : null}
+                  </span>
                   {/* O botão é o rótulo: o campo nativo mostraria "Choose File" na língua do navegador. */}
                   <span className="flex min-w-0 basis-full flex-wrap items-center gap-2 text-xs sm:basis-auto">
                     <label
@@ -490,7 +507,12 @@ export function AfiliadoSaques() {
                     <span className="tnum block text-muted">{new Date(p.requestedAt).toLocaleDateString("pt-BR")}</span>
                     <span className="block truncate text-xs text-muted">{p.organizacao ?? "Plataforma"}</span>
                   </span>
-                  <Money cents={p.amountCents} />
+                  <span className="text-right">
+                    <Money cents={p.amountCents} />
+                    {p.irrfCents ? (
+                      <span className="tnum block text-xs text-muted">IRRF −{formatBRL(p.irrfCents)} · líquido {formatBRL(p.amountCents - p.irrfCents)}</span>
+                    ) : null}
+                  </span>
                   <Pill status={p.status === "requested" ? "pending" : p.status} />
                   <a href={`/api/affiliate/payouts/${p.id}/nota`} className="text-xs text-green-deep underline">
                     nota fiscal

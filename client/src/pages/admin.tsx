@@ -1476,7 +1476,7 @@ export function AdminFinanceiro() {
       pendingCents: number;
       availableCents: number;
     }[];
-    payoutsRequested: { id: string; amountCents: number; pixKey: string; requestedAt: string }[];
+    payoutsRequested: { id: string; amountCents: number; irrfCents?: number; pixKey: string; requestedAt: string }[];
   }>({ queryKey: ["/api/admin/finance"] });
 
   const release = useMutation({
@@ -1489,7 +1489,7 @@ export function AdminFinanceiro() {
     onSuccess: () => qc.invalidateQueries(),
   });
   const { data: pagos = [] } = useQuery<
-    { id: string; amountCents: number; processedAt: string | null; codigoAfiliado: string; recibo: string | null }[]
+    { id: string; amountCents: number; irrfCents?: number; processedAt: string | null; codigoAfiliado: string; recibo: string | null }[]
   >({ queryKey: ["/api/admin/saques-pagos"] });
 
   return (
@@ -1524,9 +1524,18 @@ export function AdminFinanceiro() {
         <Card title="Saques solicitados">
           <ul className="divide-y divide-line">
             {data?.payoutsRequested.map((p) => (
-              <li key={p.id} className="flex items-center gap-3 px-4 py-3 text-sm">
-                <span className="tnum flex-1 truncate text-muted">{p.pixKey}</span>
-                <Money cents={p.amountCents} />
+              <li key={p.id} className="flex flex-wrap items-center gap-3 px-4 py-3 text-sm">
+                <span className="tnum min-w-0 flex-1 truncate text-muted">{p.pixKey}</span>
+                {/* Com retenção (Lucro Presumido ou Real), quem paga transfere o
+                    líquido e recolhe o IRRF no DARF; a nota é do bruto. */}
+                <span className="text-right">
+                  <Money cents={p.irrfCents ? p.amountCents - p.irrfCents : p.amountCents} />
+                  {p.irrfCents ? (
+                    <span className="tnum block text-xs text-muted">
+                      bruto {formatBRL(p.amountCents)} · IRRF a recolher {formatBRL(p.irrfCents)}
+                    </span>
+                  ) : null}
+                </span>
                 <a href={`/api/admin/payouts/${p.id}/nota`} className="text-xs text-green-deep underline">
                   nota fiscal
                 </a>
@@ -1555,7 +1564,10 @@ export function AdminFinanceiro() {
                     {p.processedAt ? new Date(p.processedAt).toLocaleDateString("pt-BR") : ""}
                   </span>
                 </span>
-                <Money cents={p.amountCents} className="shrink-0" />
+                <span className="shrink-0 text-right">
+                  <Money cents={p.amountCents} />
+                  {p.irrfCents ? <span className="tnum block text-xs text-muted">IRRF {formatBRL(p.irrfCents)}</span> : null}
+                </span>
                 {p.recibo ? (
                   <a
                     href={`/api/admin/recibos/${p.recibo}/pdf`}

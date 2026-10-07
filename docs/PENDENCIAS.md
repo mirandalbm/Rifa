@@ -483,24 +483,29 @@ Na ordem de entrega do plano:
 - [x] Guarda de `fraud_events` e `fraud_blocks`: recusas saem com 180 dias e
   o bloqueio com prazo sai 30 dias depois de vencer (o sem prazo fica até a
   plataforma retirar) — relógio de limpeza, `purgarGuardaDoAntifraude()`. A
-  Privacidade diz os dois prazos. **[você]** O advogado confirmar os prazos
-  (`GUARDA_DAS_RECUSAS_DIAS`, `GUARDA_DO_BLOQUEIO_VENCIDO_DIAS` em
-  `shared/antifraude.ts`).
+  Privacidade diz os dois prazos. **Prazos confirmados pelo advogado**
+  (07/10/2026): os 180 dias das recusas seguem o Marco Civil da Internet
+  (art. 15, seis meses de registro) e os 30 dias depois de vencer o bloqueio
+  atendem à minimização da LGPD (`GUARDA_DAS_RECUSAS_DIAS`,
+  `GUARDA_DO_BLOQUEIO_VENCIDO_DIAS` em `shared/antifraude.ts`).
 - [x] O estorno desfaz as metas "rifas compradas" (de quem comprou) e
   "indicações" (de quem indicou) quando a meta deixa de ser cumprida;
   alcançar de novo paga de novo (`desfazerMetasNoEstorno()`, `npm run
   bonus`). Visitas e seguir não voltam atrás.
-- [ ] **[você]** O advogado ler os Termos de uso e a Privacidade
-  (`montarTermosDeUso()`/`montarPrivacidade()`), em especial: foro, CVV no
-  jogo responsável, prazos de guarda e a lista de quem recebe dados.
-  **Termos de uso validados** (05/10/2026, as dez seções, sem mudança de
-  texto; o bloqueio do reembolso depois do sorteio, que ele pediu, já é
-  automático). **Privacidade validada** (05/10/2026, sem mudança de texto;
-  ele pediu o encarregado atualizável pelo painel — já é, em Aparência →
-  Dados da empresa). Faltam os itens 3 a 9 do pacote.
+- [x] O advogado ler os Termos de uso e a Privacidade
+  (`montarTermosDeUso()`/`montarPrivacidade()`): **Termos de uso validados**
+  (05/10/2026, as dez seções, sem mudança de texto; o bloqueio do reembolso
+  depois do sorteio, que ele pediu, já é automático). **Privacidade
+  validada** (05/10/2026, sem mudança de texto; ele pediu o encarregado
+  atualizável pelo painel — já é, em Aparência → Dados da empresa). Os itens
+  3 a 9 do pacote também foram respondidos (05 e 06/10/2026) e estão no
+  código, e os prazos de guarda do antifraude foram confirmados em
+  07/10/2026. Do advogado falta só o contrato da promotora (versão final em
+  09/10/2026); o globo fica desligado até a demanda justificar o cartório.
 - [ ] **[você]** Cada organização publicar o termo de adesão de afiliado
   (Afiliados → Termo) — quem já publicou vê o aviso para publicar a versão
-  seguinte com o texto novo — e o advogado revisar o texto-base.
+  seguinte com o texto novo. O texto-base já foi validado pelo advogado
+  (item 6, 06/10/2026).
 - [x] Cadastro fiscal do afiliado (Meus dados): nome, CPF, RG, nascimento,
   endereço, conta e três documentos, cifrados (AES-256-GCM) e conferidos só
   pela plataforma (Cadastros fiscais), com cada leitura na auditoria.
@@ -599,16 +604,26 @@ Na ordem de entrega do plano:
     mensal contra cada promotora ("taxa de uso de plataforma tecnológica" ou
     "intermediação de negócios"); o valor sai da exportação "Cobrança da
     plataforma" (Exportações), por organização e mês.
-- [ ] **[você]** Conferir no cartão do CNPJ da International Lottery Ltda se
-  há um CNAE que comporte a taxa da plataforma (o contador citou 7490-1/04,
-  intermediação, ou um de serviço de aplicação na internet — confirme com
-  ele o código exato, o 6311-9/00 é o de provedores de aplicação) e, se não
-  houver, incluir antes da primeira nota.
-- [ ] **[você]** Decidir o afiliado do Lucro Presumido ou Real: o sistema
-  paga qualquer empresa pelo valor cheio, e nesse caso o contador indica
-  retenção de 1,5% de IRRF. Hoje é raro; ou o pagamento desse afiliado sai
-  com a retenção feita à mão, ou o código passa a pedir o regime no cadastro
-  fiscal.
+- [ ] **[você]** CNAE da taxa da plataforma: **6311-9/00** (tratamento de
+  dados, provedores de serviços de aplicação e hospedagem na internet —
+  contador, 07/10/2026). Conferir no cartão do CNPJ da International Lottery
+  Ltda se ele consta (principal ou secundário) **e na inscrição municipal**;
+  se não, o contador inclui antes do primeiro faturamento — sem ele a
+  prefeitura não emite a NFS-e com esse serviço ou tributa errado.
+- [x] Afiliado do Lucro Presumido ou Real: a retenção de 1,5% de IRRF é
+  obrigatória (contador, 07/10/2026) — **feito no sistema** (o melhor
+  caminho, segundo ele): o cadastro fiscal pede o regime, e o saque da
+  empresa do Lucro Presumido ou Real já sai com o desconto (`irrfDoSaque()`;
+  a nota é do bruto, o recibo mostra o IRRF retido e o líquido, e quem paga
+  vê o valor a recolher no DARF). Imposto de até R$ 10,00 é dispensado (Lei
+  9.430/1996, art. 67). **Falta no ambiente**: `db:push` (coluna
+  `payouts.irrf_cents`) antes do código. **Confirmado pelo contador
+  (07/10/2026)**: a dispensa de até R$ 10,00 (art. 67 da Lei 9.430/1996) e
+  que a fonte pagadora segue o dinheiro — na comissão guardada, a plataforma
+  retém e recolhe o DARF; quando a organização paga o saque, é ela a fonte
+  pagadora e a única responsável pelo DARF (o Financeiro dela mostra o IRRF
+  a recolher). A empresa já cadastrada sem regime não saca até informar em
+  Meus dados (volta para a análise).
 - [ ] **[você]** Cliente OAuth do Google (console.cloud.google.com → APIs e
   serviços → Credenciais → ID do cliente OAuth, tipo "Aplicativo da Web"):
   URI de redirecionamento autorizada
@@ -647,7 +662,10 @@ Na ordem de entrega do plano:
   honorários, autorização SPA/MF e IR por conta da promotora, Pix por fora =
   rescisão, banimento e retenção de saldo, prêmio existente, lícito e
   desembaraçado) e publicá-lo em Configurações → Organização e perfil. Até
-  lá, nenhuma organização é barrada. **A minuta chega em 09/10/2026.** A
+  lá, nenhuma organização é barrada. **A versão final chega em
+  09/10/2026**, e o advogado confirmou (07/10/2026) as duas exigências: o
+  preâmbulo usa só a razão social e o CNPJ dos Dados da empresa (sem fixar a
+  marca), e o aceite eletrônico diz "IP e aparelho em forma cifrada". A
   cláusula da retenção deve falar em "saldos e créditos mantidos na
   plataforma" — o Pix com split nunca passa por ela.
   **O nome "Sábado da Sorte" não é definitivo** (decisão de 06/10/2026): o
@@ -776,9 +794,13 @@ Na ordem de entrega do plano:
   termo publicado veem o aviso de texto desatualizado). `npm run guarda`
   prova. A organização sem CNPJ cadastrado aparece como "CNPJ ainda não
   cadastrado" — cadastre o CNPJ de cada promotora.
-- [ ] **Homologar o globo** (você, com o advogado): quando sair, ligar o
-  globo em "Métodos de apuração", cadastrar a sessão no calendário e
-  combinar com o tabelionato a ata de cada sessão.
+- [ ] **Homologar o globo** (você, com o advogado): **fica desligado até a
+  demanda comercial justificar o custo do cartório** (advogado, 07/10/2026).
+  Quando for a hora: parceria com um Tabelionato de Notas, que lavra a ata
+  notarial de cada sessão de extração (é o que a SPA/MF exige para sorteio
+  fora da Loteria Federal); então ligar o globo em "Métodos de apuração",
+  cadastrar a sessão no calendário e anexar o arquivo da ata depois do
+  resultado.
 
 - [ ] **Sorteios oficiais** (o calendário da plataforma, a tela do sorteio no
   celular). **Fase 1 feita:** o master cadastra, muda, cancela e lança o

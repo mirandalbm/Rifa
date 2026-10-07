@@ -4251,6 +4251,7 @@ adminRouter.get("/saques-pagos", async (req, res, next) => {
       .select({
         id: payouts.id,
         amountCents: payouts.amountCents,
+        irrfCents: payouts.irrfCents,
         processedAt: payouts.processedAt,
         codigoAfiliado: affiliates.code,
         recibo: recibos.codigo,

@@ -3491,8 +3491,8 @@ organização) ganha o selo **"AO VIVO"** quando há transmissão de sorteio no 
   `exigirCadastroFiscal` saiu): o cadastro fiscal leva o CNPJ (`empresa`:
   MEI ou empresa, CNPJ conferido pelo dígito, razão social —
   `validarEmpresa()` em `shared/fiscal.ts`) e o comprovante do CNPJ, e o
-  saque (`problemaParaSacar()`) exige o cadastro **aprovado com CNPJ** (409)
-  e **a nota fiscal do valor** anexada (`lerNotaFiscal()`: PDF, XML de
+  saque (`conferirSaque()`) exige o cadastro **aprovado com CNPJ** (409)
+  e **a nota fiscal do valor bruto** anexada (`lerNotaFiscal()`: PDF, XML de
   NF-e/NFS-e ou foto, conferidos pelo conteúdo, até 3 MB — antes da
   transação, 400). A nota fica cifrada em `saque_notas`, gravada na
   transação que cria o saque; abrem o afiliado (a dele) e quem paga — a
@@ -3506,6 +3506,19 @@ organização) ganha o selo **"AO VIVO"** quando há transmissão de sorteio no 
   saca até completar. O recibo da empresa sai com a razão social e o CNPJ
   (`beneficiario.cnpj`, só quando existe — o texto canônico dos recibos de
   antes não muda). A cláusula 10 do termo do afiliado diz isso.
+- **O regime tributário decide a retenção** (contador, 07/10/2026): a
+  empresa diz se é Simples Nacional ou Lucro Presumido ou Real
+  (`validarEmpresa()`; o MEI é sempre MEI, `regimeDaEmpresa()`), e a empresa
+  de antes do regime não saca até informar (`MENSAGEM_SAQUE_SEM_REGIME`). No
+  Lucro Presumido ou Real o saque retém **1,5% de IRRF** (`irrfDoSaque()` em
+  `shared/fiscal.ts`: para baixo, nunca a mais; imposto de até R$ 10,00 é
+  dispensado, Lei 9.430/1996, art. 67). O IRRF é decidido **ao pedir o
+  saque**, pelo cadastro aprovado — nunca pelo corpo da requisição — e fica
+  em `payouts.irrf_cents`; `amount_cents` segue sendo o bruto (a soma das
+  comissões e o valor da nota). Quem paga transfere o líquido e recolhe o
+  DARF (o Financeiro mostra os dois). O recibo leva `irrfCents` **só quando
+  houve retenção** — o texto canônico dos recibos de antes não muda — e
+  fecha pelo bruto. A coluna sobe com o `db:push` **antes** do código.
 - **Baixa e recibo na mesma transação**, com `UPDATE` condicional: dois
   cliques dão um recibo e um 409. Recibo que não fecha (origem ≠ valor) não
   sai — e a baixa volta junto.

@@ -65,6 +65,8 @@ export async function emitirRecibo(tx: Tx, payoutId: string) {
       codigoAfiliado: p.codigoAfiliado,
     },
     valorCents: p.payout.amountCents,
+    // Só com retenção: o texto canônico dos recibos sem IRRF não muda.
+    ...(p.payout.irrfCents > 0 ? { irrfCents: p.payout.irrfCents } : {}),
     pagamento: { forma: "pix", destino: p.payout.pixKey },
     origem: (origem.rows as { rifa: string; pedidos: number; comissao: number }[]).map((o) => ({
       rifa: o.rifa,
@@ -114,6 +116,7 @@ export async function conferirRecibo(codigo: string) {
     pagador: s.pagador.nome,
     beneficiario: s.beneficiario.nome.split(" ")[0],
     valorCents: s.valorCents,
+    irrfCents: s.irrfCents ?? 0,
     hash: r.hash,
   };
 }
@@ -137,8 +140,11 @@ export async function pdfDoRecibo(r: { snapshot: unknown; hash: string; assinatu
       ? `, CPF ${maskCpf(s.beneficiario.cpf)}`
       : "";
   const cnpj = s.pagador.cnpj ? ` (CNPJ ${s.pagador.cnpj})` : "";
+  const irrf = s.irrfCents ?? 0;
   doc.text(
-    `Recebi de ${s.pagador.nome}${cnpj} a importância de ${formatBRL(s.valorCents)}, referente a comissão por divulgação de rifas (afiliado ${s.beneficiario.codigoAfiliado}), paga por Pix para a chave ${s.pagamento.destino}.`,
+    irrf > 0
+      ? `Recebi de ${s.pagador.nome}${cnpj} a importância bruta de ${formatBRL(s.valorCents)}, referente a comissão por divulgação de rifas (afiliado ${s.beneficiario.codigoAfiliado}), com retenção de ${formatBRL(irrf)} de IRRF (1,5%) pela fonte pagadora, e o líquido de ${formatBRL(s.valorCents - irrf)} pago por Pix para a chave ${s.pagamento.destino}.`
+      : `Recebi de ${s.pagador.nome}${cnpj} a importância de ${formatBRL(s.valorCents)}, referente a comissão por divulgação de rifas (afiliado ${s.beneficiario.codigoAfiliado}), paga por Pix para a chave ${s.pagamento.destino}.`,
     { align: "justify" },
   );
   doc.moveDown(0.6).text(`Beneficiário: ${s.beneficiario.nome}${cpf}.`);
@@ -149,6 +155,10 @@ export async function pdfDoRecibo(r: { snapshot: unknown; hash: string; assinatu
     doc.text(`${o.rifa} — ${o.pedidos} venda(s)`, { continued: true }).text(`  ${formatBRL(o.comissaoCents)}`, { align: "right" });
   }
   doc.font("Helvetica-Bold").text(`Total  ${formatBRL(s.valorCents)}`, { align: "right" });
+  if (irrf > 0) {
+    doc.font("Helvetica").text(`IRRF retido (1,5%)  − ${formatBRL(irrf)}`, { align: "right" });
+    doc.font("Helvetica-Bold").text(`Líquido pago  ${formatBRL(s.valorCents - irrf)}`, { align: "right" });
+  }
 
   doc.moveDown(2).font("Helvetica").fontSize(8).fillColor("#555");
   doc.text(`Confira a autenticidade em ${urlDeConferencia}`);

@@ -15,12 +15,15 @@ import { affiliates, afiliadoDocumentos, afiliadoFiscal, saqueNotas, users } fro
 import {
   DOCUMENTOS,
   DOCUMENTO_MAX_BYTES,
+  MENSAGEM_SAQUE_SEM_REGIME,
   MENSAGEM_SAQUE_SO_COM_CNPJ,
+  regimeDaEmpresa,
   NOTA_FISCAL_MAX_BYTES,
   faltaNoCadastro,
   mimeDaNotaFiscal,
   validarCadastroFiscal,
   type DadosFiscais,
+  type RegimeTributario,
   type StatusFiscal,
   type TipoDeDocumento,
 } from "@shared/fiscal";
@@ -70,7 +73,7 @@ async function recalcularStatus(affiliateId: string) {
     .where(eq(afiliadoFiscal.affiliateId, affiliateId));
   const docs = (await tiposEnviados(affiliateId)).map((d) => d.tipo);
   const dados = dadosDa(f);
-  const completo = faltaNoCadastro(Boolean(dados), docs, Boolean(dados?.empresa)).length === 0;
+  const completo = faltaNoCadastro(Boolean(dados), docs, Boolean(dados?.empresa), Boolean(regimeDaEmpresa(dados?.empresa))).length === 0;
   await db
     .insert(afiliadoFiscal)
     .values({ affiliateId, status: completo ? "em_analise" : "incompleto", enviadoEm: completo ? new Date() : null })
@@ -140,9 +143,11 @@ export async function estadoFiscal(affiliateId: string, comDados: boolean) {
     decididoEm: f?.decididoEm ?? null,
     dados,
     documentos,
-    falta: faltaNoCadastro(Boolean(todos), documentos.map((d) => d.tipo), Boolean(todos?.empresa)),
+    falta: faltaNoCadastro(Boolean(todos), documentos.map((d) => d.tipo), Boolean(todos?.empresa), Boolean(regimeDaEmpresa(todos?.empresa))),
     /** Com o CNPJ no cadastro (a regra do saque): só o tipo, sem o número. */
     temCnpj: Boolean(todos?.empresa),
+    /** O regime tributário (decide a retenção do IRRF); `null` na empresa de antes do regime. */
+    regime: regimeDaEmpresa(todos?.empresa),
   };
 }
 
@@ -206,14 +211,18 @@ export async function identificacaoParaRecibo(affiliateId: string) {
 
 /**
  * A regra do saque (resposta 6.4 do advogado, caminho escolhido: só MEI ou
- * empresa): cadastro fiscal **aprovado** e **com CNPJ**. Devolve o motivo da
- * recusa, ou `null`. Sem interruptor: pagar pessoa física exigiria RPA e
- * retenções que o sistema não faz.
+ * empresa): cadastro fiscal **aprovado**, **com CNPJ** e com o regime
+ * tributário. Devolve o motivo da recusa (ou `null`) e o regime **na mesma
+ * leitura**: o regime que decide o IRRF é o do cadastro aprovado que liberou
+ * o saque (ler duas vezes deixaria uma troca de regime no meio gravar o saque
+ * sem a retenção). Sem interruptor: pagar pessoa física exigiria RPA.
  */
-export async function problemaParaSacar(affiliateId: string): Promise<string | null> {
+export async function conferirSaque(affiliateId: string): Promise<{ problema: string | null; regime: RegimeTributario | null }> {
   const e = await estadoFiscal(affiliateId, false);
-  if (e.status !== "aprovado" || !e.temCnpj) return MENSAGEM_SAQUE_SO_COM_CNPJ;
-  return null;
+  if (e.status !== "aprovado" || !e.temCnpj) return { problema: MENSAGEM_SAQUE_SO_COM_CNPJ, regime: null };
+  // Sem o regime, não dá para saber se o saque tem retenção de IRRF.
+  if (!e.regime) return { problema: MENSAGEM_SAQUE_SEM_REGIME, regime: null };
+  return { problema: null, regime: e.regime };
 }
 
 /** Confere a nota fiscal do saque **antes** da transação: tamanho e tipo pelo conteúdo. */

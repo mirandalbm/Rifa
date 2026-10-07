@@ -279,6 +279,34 @@ async function main() {
     checa("um centavo mexido no banco: não confere", r.json?.autentico === false);
     r = await publico.req("GET", "/api/public/recibos/R-2222222222");
     checa("código inexistente é 404", r.status === 404);
+
+    // Retenção de IRRF (contador, 07/10/2026): a empresa do Lucro Presumido
+    // ou Real recebe o bruto menos 1,5%; MEI e Simples, o valor cheio.
+    r = await eu.req("PUT", "/api/affiliate/fiscal", { ...DADOS, empresa: { ...DADOS.empresa, tipo: "empresa" } });
+    checa("empresa sem regime tributário não fecha", r.status === 400 && /regime tributário/.test(r.json?.message ?? ""), r.json?.message);
+    r = await eu.req("PUT", "/api/affiliate/fiscal", { ...DADOS, empresa: { ...DADOS.empresa, tipo: "empresa", regime: "presumido_real" } });
+    checa("empresa do Lucro Presumido ou Real é aceita", r.status === 200, `HTTP ${r.status} ${r.json?.message ?? ""}`);
+    await admin.req("POST", `/api/admin/fiscal/${aff.id}/decidir`, { status: "aprovado" });
+    await comissao(A.id, aff.id, 100_000, 3);
+    r = await eu.req("GET", "/api/affiliate/saldo");
+    const linhaA = r.json?.find?.((l: any) => l.organizacaoId === A.id);
+    checa("o saldo mostra a retenção antes do saque (R$ 15,00 de R$ 1.000,00)", linhaA?.disponivelCents === 100_000 && linhaA?.irrfCents === 1_500, JSON.stringify(linhaA));
+    r = await eu.req("POST", "/api/affiliate/payouts", { notaFiscal: NOTA, irrfCents: 0 });
+    const saqueIrrf = r.json?.id as string;
+    checa("o saque grava o bruto e o IRRF (o corpo não muda a retenção)", r.status === 201 && r.json?.amountCents === 100_000 && r.json?.irrfCents === 1_500, `HTTP ${r.status} ${JSON.stringify(r.json)}`);
+    r = await orgA.req("GET", "/api/admin/finance");
+    checa("quem paga vê o IRRF a recolher", r.json?.payoutsRequested?.some?.((p: any) => p.id === saqueIrrf && p.irrfCents === 1_500));
+    r = await orgA.req("POST", `/api/admin/payouts/${saqueIrrf}/paid`);
+    const codigoIrrf = r.json?.recibo as string;
+    checa("a baixa emite o recibo", r.status === 200 && Boolean(codigoIrrf), `HTTP ${r.status}`);
+    const [recIrrf] = await db.select().from(recibos).where(eq(recibos.payoutId, saqueIrrf));
+    const snapIrrf = recIrrf.snapshot as any;
+    checa("o recibo leva o bruto e o IRRF retido", snapIrrf.valorCents === 100_000 && snapIrrf.irrfCents === 1_500);
+    checa("o recibo sem retenção não tem o campo", !("irrfCents" in snap));
+    r = await publico.req("GET", `/api/public/recibos/${codigoIrrf}`);
+    checa("a conferência do recibo com IRRF diz autêntico e mostra a retenção", r.json?.autentico === true && r.json?.irrfCents === 1_500, JSON.stringify(r.json));
+    const pdfIrrf = await orgA.bruto("GET", `/api/admin/recibos/${codigoIrrf}/pdf`);
+    checa("o PDF do recibo com IRRF sai", pdfIrrf.status === 200 && Buffer.from(await pdfIrrf.arrayBuffer()).subarray(0, 4).toString("latin1") === "%PDF");
     void aff2;
   } finally {
     await admin.req("PUT", "/api/admin/plataforma", plataformaAntes);

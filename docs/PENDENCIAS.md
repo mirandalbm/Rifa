@@ -490,17 +490,20 @@ Na ordem de entrega do plano:
   "indicações" (de quem indicou) quando a meta deixa de ser cumprida;
   alcançar de novo paga de novo (`desfazerMetasNoEstorno()`, `npm run
   bonus`). Visitas e seguir não voltam atrás.
-- [ ] **[você]** O advogado ler os Termos de uso e a Privacidade
-  (`montarTermosDeUso()`/`montarPrivacidade()`), em especial: foro, CVV no
-  jogo responsável, prazos de guarda e a lista de quem recebe dados.
-  **Termos de uso validados** (05/10/2026, as dez seções, sem mudança de
-  texto; o bloqueio do reembolso depois do sorteio, que ele pediu, já é
-  automático). **Privacidade validada** (05/10/2026, sem mudança de texto;
-  ele pediu o encarregado atualizável pelo painel — já é, em Aparência →
-  Dados da empresa). Faltam os itens 3 a 9 do pacote.
+- [x] O advogado ler os Termos de uso e a Privacidade
+  (`montarTermosDeUso()`/`montarPrivacidade()`): **Termos de uso validados**
+  (05/10/2026, as dez seções, sem mudança de texto; o bloqueio do reembolso
+  depois do sorteio, que ele pediu, já é automático). **Privacidade
+  validada** (05/10/2026, sem mudança de texto; ele pediu o encarregado
+  atualizável pelo painel — já é, em Aparência → Dados da empresa). Os itens
+  3 a 9 do pacote também foram respondidos (05 e 06/10/2026) e estão no
+  código. Do advogado faltam só o contrato da promotora (minuta em
+  09/10/2026), os prazos de guarda do antifraude (acima) e a homologação do
+  globo.
 - [ ] **[você]** Cada organização publicar o termo de adesão de afiliado
   (Afiliados → Termo) — quem já publicou vê o aviso para publicar a versão
-  seguinte com o texto novo — e o advogado revisar o texto-base.
+  seguinte com o texto novo. O texto-base já foi validado pelo advogado
+  (item 6, 06/10/2026).
 - [x] Cadastro fiscal do afiliado (Meus dados): nome, CPF, RG, nascimento,
   endereço, conta e três documentos, cifrados (AES-256-GCM) e conferidos só
   pela plataforma (Cadastros fiscais), com cada leitura na auditoria.

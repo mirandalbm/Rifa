@@ -729,8 +729,22 @@ Na ordem de entrega do plano:
   de afiliado veem o aviso de texto desatualizado e publicam a versão nova.
 - [ ] **[ligar]** Antes de ligar a guarda da comissão, as três providências
   do advogado: conta ou subconta separada no Asaas para a comissão guardada,
-  o prazo de repasse em dias no termo do afiliado (hoje "depois do sorteio")
-  e a prestação de contas à promotora (hoje ela não vê a comissão guardada).
+  o prazo de repasse em dias no termo do afiliado (hoje "depois do sorteio",
+  cláusula 2: "em até X dias do sorteio") e a prestação de contas à promotora
+  (hoje ela não vê a comissão guardada). E perguntar ao contador o
+  **documento fiscal espelho** que o advogado sugeriu para a cláusula 10
+  (com a nota do afiliado contra a plataforma, a plataforma emite documento
+  contra a promotora, para o fisco não ler receita e despesa da plataforma):
+  qual documento e se é preciso — só então ele entra no termo.
+- [x] **Termo do afiliado revisado pelo advogado (07/10/2026)**: aprovado
+  cláusula por cláusula, com o tratamento contábil validado pelo contador no
+  mesmo dia. Entraram no texto-base: o prazo de estorno com número (cláusula
+  4: 7 dias do pagamento, o mesmo `REFUND_WINDOW_DAYS` que libera a
+  comissão), a dispensa de IRRF "por saque" (cláusula 10) e a prevalência no
+  bloco "Regras da organização" (não contrariam a lei nem o termo; no
+  conflito, vale o mais favorável ao afiliado). A cláusula 1.1 do contrato
+  da promotora ganhou a autorização expressa para a plataforma atuar como
+  mandatária na guarda.
 - [x] **Decisões do questionário (07/10/2026)** — feito: **2.5** a entidade
   beneficiada leva o CNPJ e só aparece na rifa com o comprovante do CNPJ
   ativo, a ata da diretoria e a certidão de regularidade fiscal enviados e

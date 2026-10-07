@@ -28,6 +28,7 @@ import {
   type StatusDoVinculo,
 } from "@shared/afiliados";
 import type { LiberacaoComissao } from "@shared/plataforma";
+import { REFUND_WINDOW_DAYS } from "./prazoDeEstorno";
 
 export class AfiliadoError extends Error {
   constructor(message: string, readonly status = 400) {
@@ -83,6 +84,7 @@ export async function termoDoPainel(orgId: string) {
         comissaoPct: termo.comissaoPct,
         liberacao: org.liberacao as LiberacaoComissao,
         textoExtra: termo.textoExtra,
+        prazoEstornoDias: REFUND_WINDOW_DAYS,
       })
     : termo.texto;
   return { termo, desatualizado: hoje !== termo.texto };
@@ -110,6 +112,7 @@ export async function publicarTermo(orgId: string, entrada: unknown, userId: str
       comissaoPct: dados.comissaoPct,
       liberacao: org.liberacao as LiberacaoComissao,
       textoExtra: dados.textoExtra,
+      prazoEstornoDias: REFUND_WINDOW_DAYS,
     });
     const [novo] = await tx
       .insert(organizacaoTermos)

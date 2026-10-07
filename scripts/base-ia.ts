@@ -42,6 +42,7 @@ import {
 import { ITENS_PROIBIDOS, MENSAGEM_DINHEIRO } from "../shared/premio";
 import { EXPLICACAO_DO_METODO, ROTULO_DO_METODO, TOTAIS_DA_APURACAO, clausulaDaApuracao, clausulaDoGlobo } from "../shared/apuracao";
 import { MENSAGEM_SAQUE_SO_COM_CNPJ } from "../shared/fiscal";
+import { PRAZO_DE_ESTORNO_DIAS } from "../shared/pricing";
 import { ACOES_DA_IA, ROTULO_DA_ACAO } from "../shared/iaAcoes";
 import { CONTEXTO_DO_PAPEL, NOME_DO_ASSISTENTE } from "../shared/ia";
 
@@ -212,7 +213,7 @@ function arquivos(f: Fonte): { nome: string; texto: string }[] {
       nome: "06-afiliado.md",
       texto:
         cab("Afiliado: comissão e saque") +
-        `- A comissão só vale com o vínculo aprovado pela organização dona da rifa e o aceite do termo dela.\n- Ela fica disponível depois do sorteio e da janela de estorno (ou na hora, se a organização escolheu).\n- ${MENSAGEM_SAQUE_SO_COM_CNPJ}\n- A nota fiscal sai contra quem paga: a organização ou, com a comissão guardada, a plataforma.\n- A ação "${ROTULO_DA_ACAO.falta_para_sacar}" diz o que falta para o saque.\n`,
+        `- A comissão só vale com o vínculo aprovado pela organização dona da rifa e o aceite do termo dela.\n- Ela fica disponível depois do sorteio e do fim do prazo de estorno, de ${PRAZO_DE_ESTORNO_DIAS} dias contados do pagamento — o que vier por último (ou na hora, se a organização escolheu).\n- ${MENSAGEM_SAQUE_SO_COM_CNPJ}\n- A nota fiscal é do valor bruto do saque e sai contra quem paga: a organização ou, com a comissão guardada, a plataforma.\n- O regime tributário da empresa fica em Meus dados: MEI e Simples Nacional recebem o valor cheio; Lucro Presumido ou Real tem 1,5% de imposto de renda retido por quem paga (imposto de até R$ 10,00 é dispensado).\n- A ação "${ROTULO_DA_ACAO.falta_para_sacar}" diz o que falta para o saque.\n`,
     },
     {
       nome: "07-termos-de-uso.md",

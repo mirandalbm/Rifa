@@ -81,7 +81,8 @@ import { cancelarCreditoDoPresente, lancarCreditoDoPresente, presenteDoPedido } 
 import { bloqueioDoResgate } from "@shared/bonus";
 
 /** Dias entre o pagamento e a liberação da comissão do afiliado. */
-export const REFUND_WINDOW_DAYS = Number(process.env.REFUND_WINDOW_DAYS ?? 7);
+import { REFUND_WINDOW_DAYS } from "./prazoDeEstorno";
+export { REFUND_WINDOW_DAYS };
 
 export class OrderError extends Error {
   constructor(message: string, readonly status = 400) {

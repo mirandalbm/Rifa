@@ -80,6 +80,14 @@ export function commissionCents(paidCents: number, pct: number): number {
   return Math.floor((paidCents * pct) / 100);
 }
 
+/**
+ * Prazo de estorno da comissão, em dias contados do pagamento: a comissão
+ * (padrão) só libera depois dele e do sorteio. O termo do afiliado diz o
+ * número (cláusula 4) — o servidor e o texto leem daqui, pelo
+ * `REFUND_WINDOW_DAYS` de `server/services/prazoDeEstorno.ts`.
+ */
+export const PRAZO_DE_ESTORNO_DIAS = 7;
+
 /** Liberação da comissão: fim da janela de estorno ou o sorteio, o que for depois. */
 export function commissionAvailableAt(
   paidAt: Date,

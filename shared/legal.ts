@@ -45,33 +45,89 @@ export const EMPRESA_VAZIA: DadosDaEmpresa = {
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
+export type CampoDaEmpresa = keyof DadosDaEmpresa;
+
+/** A ordem dos campos na tela e nas mensagens. */
+export const CAMPOS_DA_EMPRESA: readonly CampoDaEmpresa[] = [
+  "razaoSocial",
+  "cnpj",
+  "endereco",
+  "contato",
+  "encarregadoNome",
+  "encarregadoContato",
+];
+
+const LIMITE: Record<CampoDaEmpresa, [number, string]> = {
+  razaoSocial: [150, "A razão social"],
+  cnpj: [20, "O CNPJ"],
+  endereco: [200, "O endereço"],
+  contato: [120, "O e-mail de contato"],
+  encarregadoNome: [120, "O nome do encarregado"],
+  encarregadoContato: [120, "O e-mail do encarregado"],
+};
+
+/**
+ * Confere um campo só e devolve o valor normalizado ou a mensagem do erro.
+ * Vazio é sempre válido: a plataforma preenche aos poucos, antes de lançar.
+ */
+export function conferirCampoDaEmpresa(campo: CampoDaEmpresa, v: unknown): { valor: string } | { erro: string } {
+  const [max, nome] = LIMITE[campo];
+  if (v === undefined || v === null) return { valor: "" };
+  if (typeof v !== "string") return { erro: `${nome} precisa ser texto.` };
+  let t = v.replace(/\s+/g, " ").trim();
+  if (campo === "cnpj") t = t.replace(/\D/g, "");
+  if (t.length > max) return { erro: `${nome} passa de ${max} caracteres.` };
+  if (!t) return { valor: "" };
+  if (campo === "cnpj" && !cnpjValido(t)) return { erro: "CNPJ da empresa inválido." };
+  if (campo === "contato" || campo === "encarregadoContato") {
+    t = t.toLowerCase();
+    if (!EMAIL.test(t)) {
+      return {
+        erro: `${campo === "contato" ? "E-mail de contato" : "E-mail do encarregado"} inválido: use o formato nome@dominio.com.`,
+      };
+    }
+  }
+  return { valor: t };
+}
+
+/**
+ * Confere campo a campo e separa o que está certo do que não está — para
+ * salvar por etapas: o que passou entra, o que não passou volta com a
+ * mensagem embaixo do campo. Só as chaves conhecidas.
+ */
+export function conferirDadosDaEmpresa(bruto: unknown): {
+  dados: DadosDaEmpresa;
+  erros: Partial<Record<CampoDaEmpresa, string>>;
+} {
+  const dados: DadosDaEmpresa = { ...EMPRESA_VAZIA };
+  const erros: Partial<Record<CampoDaEmpresa, string>> = {};
+  if (bruto === undefined || bruto === null) return { dados, erros };
+  if (typeof bruto !== "object" || Array.isArray(bruto)) {
+    for (const c of CAMPOS_DA_EMPRESA) erros[c] = "Dados da empresa inválidos.";
+    return { dados, erros };
+  }
+  const b = bruto as Record<string, unknown>;
+  for (const c of CAMPOS_DA_EMPRESA) {
+    const r = conferirCampoDaEmpresa(c, b[c]);
+    if ("erro" in r) erros[c] = r.erro;
+    else dados[c] = r.valor;
+  }
+  return { dados, erros };
+}
+
 /**
  * Confere e normaliza (vem do corpo da requisição e sai na tela de todo
  * mundo). Tudo é opcional — a plataforma preenche antes de lançar —, mas o
  * que vier precisa estar certo: CNPJ com dígito válido e e-mails de verdade.
- * Lança `Error` com a mensagem para a tela.
+ * Lança `Error` com a mensagem do primeiro campo errado.
  */
 export function validarDadosDaEmpresa(bruto: unknown): DadosDaEmpresa {
   if (bruto === undefined || bruto === null) return { ...EMPRESA_VAZIA };
   if (typeof bruto !== "object") throw new Error("Dados da empresa inválidos.");
-  const b = bruto as Record<string, unknown>;
-  const texto = (v: unknown, max: number, campo: string) => {
-    if (v === undefined || v === null) return "";
-    if (typeof v !== "string") throw new Error(`${campo} precisa ser texto.`);
-    const t = v.replace(/\s+/g, " ").trim();
-    if (t.length > max) throw new Error(`${campo} passa de ${max} caracteres.`);
-    return t;
-  };
-  const razaoSocial = texto(b.razaoSocial, 150, "A razão social");
-  const cnpj = texto(b.cnpj, 20, "O CNPJ").replace(/\D/g, "");
-  if (cnpj && !cnpjValido(cnpj)) throw new Error("CNPJ da empresa inválido.");
-  const endereco = texto(b.endereco, 200, "O endereço");
-  const contato = texto(b.contato, 120, "O e-mail de contato").toLowerCase();
-  if (contato && !EMAIL.test(contato)) throw new Error("E-mail de contato inválido.");
-  const encarregadoNome = texto(b.encarregadoNome, 120, "O nome do encarregado");
-  const encarregadoContato = texto(b.encarregadoContato, 120, "O e-mail do encarregado").toLowerCase();
-  if (encarregadoContato && !EMAIL.test(encarregadoContato)) throw new Error("E-mail do encarregado inválido.");
-  return { razaoSocial, cnpj, endereco, contato, encarregadoNome, encarregadoContato };
+  const { dados, erros } = conferirDadosDaEmpresa(bruto);
+  const primeiro = CAMPOS_DA_EMPRESA.find((c) => erros[c]);
+  if (primeiro) throw new Error(erros[primeiro]);
+  return dados;
 }
 
 /** 12345678000190 → 12.345.678/0001-90. */

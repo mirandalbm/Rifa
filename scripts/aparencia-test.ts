@@ -66,6 +66,53 @@ async function main() {
     });
     if (r.status !== 200) throw new Error(`login do administrador: HTTP ${r.status} ${r.json?.message ?? ""}`);
 
+    // Dados da empresa por etapas: o certo entra, o errado volta com a mensagem.
+    r = await marina.req("PUT", "/api/admin/template/empresa", { razaoSocial: "Golpe Ltda" });
+    checa("organizador não mexe nos dados da empresa (403)", r.status === 403, `HTTP ${r.status}`);
+    r = await admin.req("PUT", "/api/admin/template/empresa", {
+      razaoSocial: "",
+      cnpj: "",
+      endereco: "",
+      contato: "",
+      encarregadoNome: "",
+      encarregadoContato: "",
+    });
+    checa("dados da empresa: campo que veio vazio é apagado", r.status === 200 && !r.json?.template?.legal?.contato, JSON.stringify(r.json?.template?.legal));
+    r = await admin.req("PUT", "/api/admin/template/empresa", {
+      razaoSocial: "International Lottery Ltda",
+      cnpj: "47.992.008/0001-45",
+      contato: "skuayd92@gmail",
+    });
+    checa(
+      "dados da empresa: salva o que está certo e aponta o campo errado",
+      r.status === 200 &&
+        r.json?.template?.legal?.razaoSocial === "International Lottery Ltda" &&
+        r.json?.template?.legal?.cnpj === "47992008000145" &&
+        r.json?.template?.legal?.contato === "" &&
+        /E-mail de contato/.test(r.json?.erros?.contato ?? ""),
+      JSON.stringify(r.json),
+    );
+    r = await admin.req("PUT", "/api/admin/template/empresa", {
+      razaoSocial: "International Lottery Ltda",
+      cnpj: "47992008000145",
+      contato: "Skuayd92@Gmail.com",
+    });
+    checa(
+      "dados da empresa: o e-mail corrigido entra, normalizado, sem erro",
+      r.status === 200 && r.json?.template?.legal?.contato === "skuayd92@gmail.com" && Object.keys(r.json?.erros ?? {}).length === 0,
+      JSON.stringify(r.json),
+    );
+    r = await admin.req("PUT", "/api/admin/template/empresa", { endereco: "Rua A, 1", cnpj: "123", contato: "x@y" });
+    checa(
+      "dados da empresa: o campo errado e o que não veio ficam com o valor de antes",
+      r.status === 200 &&
+        r.json?.template?.legal?.cnpj === "47992008000145" &&
+        r.json?.template?.legal?.contato === "skuayd92@gmail.com" &&
+        r.json?.template?.legal?.endereco === "Rua A, 1" &&
+        r.json?.template?.legal?.razaoSocial === "International Lottery Ltda",
+      JSON.stringify(r.json?.template?.legal),
+    );
+
     const roxo = {
       ...TEMPLATE_PADRAO,
       identidade: { ...TEMPLATE_PADRAO.identidade, nome: "Rifa Roxa", cor: { claro: "#6d28d9", escuro: "#c4b5fd" }, fonte: "poppins", raio: "redondo" },

@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
 import {
   EMPRESA_VAZIA,
+  conferirCampoDaEmpresa,
+  conferirDadosDaEmpresa,
   faltaNaEmpresa,
   formatarCnpj,
   montarPrivacidade,
@@ -52,6 +54,31 @@ describe("dados da empresa", () => {
     expect(validarTemplate({ ...TEMPLATE_PADRAO, legal: empresa }).legal?.cnpj).toBe("11222333000181");
     expect(() => validarTemplate({ ...TEMPLATE_PADRAO, legal: { cnpj: "123" } })).toThrow(TemplateInvalido);
     expect(validarTemplate({ ...TEMPLATE_PADRAO, legal: undefined }).legal).toEqual(EMPRESA_VAZIA);
+  });
+});
+
+describe("dados da empresa por etapas", () => {
+  it("separa o que está certo do que não está", () => {
+    const { dados, erros } = conferirDadosDaEmpresa({
+      razaoSocial: "International Lottery Ltda",
+      cnpj: "47.992.008/0001-45",
+      contato: "skuayd92@gmail",
+      encarregadoContato: " Skuayd92@Gmail.com ",
+    });
+    expect(dados.razaoSocial).toBe("International Lottery Ltda");
+    expect(dados.cnpj).toBe("47992008000145");
+    expect(dados.encarregadoContato).toBe("skuayd92@gmail.com");
+    expect(dados.contato).toBe("");
+    expect(erros.contato).toMatch(/E-mail de contato inválido/);
+    expect(Object.keys(erros)).toEqual(["contato"]);
+  });
+  it("vazio é válido, campo a campo", () => {
+    expect(conferirCampoDaEmpresa("contato", "")).toEqual({ valor: "" });
+    expect(conferirCampoDaEmpresa("contato", "   ")).toEqual({ valor: "" });
+    expect(conferirCampoDaEmpresa("cnpj", "11.222.333/0001-82")).toHaveProperty("erro");
+  });
+  it("o formatado com máscara cabe no CNPJ", () => {
+    expect(conferirCampoDaEmpresa("cnpj", "47.992.008/0001-45")).toEqual({ valor: "47992008000145" });
   });
 });
 

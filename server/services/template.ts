@@ -25,6 +25,7 @@ import {
   validarTemplate,
   type Template,
 } from "@shared/template";
+import { CAMPOS_DA_EMPRESA, EMPRESA_VAZIA, conferirDadosDaEmpresa, type CampoDaEmpresa } from "@shared/legal";
 
 export class TemplateError extends Error {
   constructor(message: string, readonly status = 400) {
@@ -69,6 +70,26 @@ export async function salvarRascunho(entrada: unknown): Promise<Template> {
     .values({ key: CHAVE_RASCUNHO, value: t })
     .onConflictDoUpdate({ target: appSettings.key, set: { value: t, updatedAt: new Date() } });
   return t;
+}
+
+/**
+ * Dados da empresa por etapas: só o cartão "Dados da empresa" entra, sem
+ * mexer no resto do rascunho. O campo certo é gravado; o errado fica com o
+ * valor que já estava e volta com a mensagem — a pessoa salva o que tem e
+ * completa depois. Publicar continua sendo o botão do template.
+ */
+export async function salvarEmpresa(
+  entrada: unknown,
+): Promise<{ template: Template; erros: Partial<Record<CampoDaEmpresa, string>> }> {
+  const { dados, erros } = conferirDadosDaEmpresa(entrada);
+  const atual = await rascunho();
+  const legal = { ...EMPRESA_VAZIA, ...atual.legal };
+  // Campo que não veio fica como estava; campo que veio vazio é apagado de propósito.
+  const veio = (c: CampoDaEmpresa) =>
+    typeof entrada === "object" && entrada !== null && Object.prototype.hasOwnProperty.call(entrada, c);
+  for (const c of CAMPOS_DA_EMPRESA) if (veio(c) && !erros[c]) legal[c] = dados[c];
+  const template = await salvarRascunho({ ...atual, legal });
+  return { template, erros };
 }
 
 export async function publicar(userId: string) {

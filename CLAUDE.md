@@ -143,7 +143,7 @@ arquitetura.
 | endereço curto (`/c/…`) e cliques nos links do perfil (`/l/…`) | `server/services/links.ts`, `client/src/components/LinksCurtos.tsx`, rotas em `server/routes/index.ts`, `scripts/perfil-test.ts` |
 | white label do organizador (capa, cor de destaque, links) | `validarDestaque()`/`validarLinks()` em `shared/perfil.ts`, `salvarPerfil()` em `server/services/perfil.ts`, `client/src/components/DestaqueOrg.tsx`, `client/src/components/PerfilPublicoForm.tsx` |
 | notificações no celular (Web Push) | `shared/push.ts` (regras), `server/services/push.ts`, `client/public/sw.js`, `client/src/lib/push.ts`, `scripts/push-test.ts` |
-| Termos de uso e Política de privacidade (texto montado das regras, dados da empresa e encarregado) | `shared/legal.ts` (`montarTermosDeUso`, `montarPrivacidade`, `validarDadosDaEmpresa`), `legal` em `shared/template.ts`, `client/src/pages/Legal.tsx` (`/termos`, `/privacidade`), cartão "Dados da empresa" em `client/src/pages/adminAparencia.tsx`, `tests/legal.test.ts` |
+| Termos de uso e Política de privacidade (texto montado das regras, dados da empresa e encarregado) | `shared/legal.ts` (`montarTermosDeUso`, `montarPrivacidade`, `validarDadosDaEmpresa`), `legal` em `shared/template.ts`, `client/src/pages/Legal.tsx` (`/termos`, `/privacidade`), cartão "Dados da empresa" (`client/src/components/DadosDaEmpresaCard.tsx`, salvo por etapas em `PUT /admin/template/empresa`) na Aparência, `tests/legal.test.ts` |
 | apuração pela Loteria Federal e pelo globo da plataforma (leitura direta, numeração a partir de zero, total em potência de 10, método liberado pela plataforma e escolhido pela promotora; a sessão do globo com a ata notarial e o arquivo do cartório) | `shared/apuracao.ts` (regras, `lerFederal`, `lerGlobo`, `clausulaDaApuracao`, `clausulaDoGlobo`), `validarAtaDoGlobo()`/`globo` em `shared/sorteiosOficiais.ts`, `lancarResultado()`/`salvarArquivoDaAta()` em `server/services/sorteiosOficiais.ts`, `PUT /sorteios-oficiais/:id/ata` em `server/routes/admin.ts`, `GET /sorteio-oficial/:id/ata` em `server/routes/public.ts`, `LancarResultado`/`AtaDaSessao` em `adminSorteiosOficiais.tsx`, `formatQuota`/`numeroInterno` em `shared/format.ts`, `numeroSorteado()` em `server/services/sortear.ts`, `problemaNaApuracao()` em `server/services/campaigns.ts`, `/apuracao/metodos` em `server/routes/admin.ts`, `MetodosDeApuracao` em `client/src/pages/adminSorteiosOficiais.tsx`, o método em `DadosLegaisCard.tsx`, `SorteioCard.tsx` (leitura passo a passo), `scripts/apuracao-test.ts`, `tests/apuracao.test.ts` |
 | regulamento, central de ajuda, transmissão, conferência do sorteio e o número não distribuído (busca alternada e circular na Federal, ressorteio no globo, impedidos de participar) | `shared/regulamento.ts`, `shared/ajuda.ts`, `shared/sorteio.ts` (`regraDoNumeroSemDono`, `contempladoNaFita`, `contempladoPorAproximacao`), `registrarNovaExtracao()` em `server/services/sortear.ts`, `NovaExtracao` em `adminSorteiosOficiais.tsx`, `ExtracoesDoGlobo` em `SorteioCard.tsx`, `server/services/impedidos.ts`, `tests/item9.test.ts`, o sorteio em `POST /campaigns/:id/draw` (`server/routes/admin.ts`), `client/src/components/SorteioCard.tsx`, `scripts/transparencia-test.ts` |
 | vitrine: banners, stories (inclusive o agendado, a enquete e as figurinhas), estados e feed | `shared/vitrine.ts` (regras), `shared/enqueteStory.ts` (a enquete), `shared/figurinhasStory.ts` (as figurinhas), `server/services/vitrine.ts`, `server/services/faixa.ts` (`Range` do vídeo), `client/src/components/BannersVitrine.tsx`, `Stories.tsx`, `EstadosVitrine.tsx`, `CartaoDoFeed.tsx`, `client/src/pages/adminStories.tsx`, `scripts/vitrine-test.ts` |
@@ -3014,6 +3014,15 @@ pela portaria** — fica só para conferir a rifa sorteada sem método.
   template) e entram no ar ao publicar. Decreto 7.962/2013, art. 2º; LGPD,
   art. 41, § 1º. **Faltando, a página diz que ainda não foram publicados —
   nunca inventa** — e Aparência lista o que falta (`faltaNaEmpresa()`).
+- **Os dados da empresa salvam por etapas** (`DadosDaEmpresaCard`, `PUT
+  /admin/template/empresa`, `salvarEmpresa()` em `server/services/template.ts`,
+  403 para organizador no `npm run isolation`): o cartão tem o próprio botão e
+  grava só estes campos no rascunho. Campo a campo (`conferirDadosDaEmpresa()`):
+  o certo entra, o errado fica com o valor de antes e volta com a mensagem
+  embaixo dele; o campo que não veio fica como estava, o que veio vazio é
+  apagado. A conferência na tela roda ao sair do campo, nunca a cada letra, e
+  um campo errado aqui não trava o "Salvar rascunho" do resto da Aparência.
+  Publicar continua sendo o botão do template. `npm run aparencia` prova.
 - **Uma página, dois textos** (`client/src/pages/Legal.tsx`): `/termos` e
   `/privacidade`, coluna de leitura, data de vigência e o link de uma para a
   outra. Saem do rodapé (coluna Legal), do `/perfil` e de Criar conta ("Ao

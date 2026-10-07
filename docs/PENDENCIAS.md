@@ -617,10 +617,13 @@ Na ordem de entrega do plano:
   a nota é do bruto, o recibo mostra o IRRF retido e o líquido, e quem paga
   vê o valor a recolher no DARF). Imposto de até R$ 10,00 é dispensado (Lei
   9.430/1996, art. 67). **Falta no ambiente**: `db:push` (coluna
-  `payouts.irrf_cents`) antes do código. **[você]** Confirmar com o
-  contador a dispensa de até R$ 10,00 e que, quando a organização paga o
-  saque, é ela a fonte pagadora que recolhe o DARF. A empresa já cadastrada
-  sem regime não saca até informar em Meus dados (volta para a análise).
+  `payouts.irrf_cents`) antes do código. **Confirmado pelo contador
+  (07/10/2026)**: a dispensa de até R$ 10,00 (art. 67 da Lei 9.430/1996) e
+  que a fonte pagadora segue o dinheiro — na comissão guardada, a plataforma
+  retém e recolhe o DARF; quando a organização paga o saque, é ela a fonte
+  pagadora e a única responsável pelo DARF (o Financeiro dela mostra o IRRF
+  a recolher). A empresa já cadastrada sem regime não saca até informar em
+  Meus dados (volta para a análise).
 - [ ] **[você]** Cliente OAuth do Google (console.cloud.google.com → APIs e
   serviços → Credenciais → ID do cliente OAuth, tipo "Aplicativo da Web"):
   URI de redirecionamento autorizada

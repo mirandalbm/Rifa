@@ -88,14 +88,16 @@ async function main() {
       uf: "SP",
       observacao: "Bilhete válido mediante pagamento confirmado.",
       // A organização de exemplo já vem com o telefone provado e aprovado:
-      // sem isso nenhuma rifa publica (`publishBlockers`).
+      // sem isso nenhuma rifa publica (`publishBlockers`). E a lista de sócios
+      // declarada (5.6): sem ela, a rifa autorizada não publica.
       telefoneOrganizador: "11933334444",
       telefoneConfirmadoEm: new Date(),
       telefoneAprovadoEm: new Date(),
+      sociosDeclaradosEm: new Date(),
     })
     .onConflictDoUpdate({
       target: organizations.slug,
-      set: { active: true, telefoneOrganizador: "11933334444", telefoneConfirmadoEm: new Date(), telefoneAprovadoEm: new Date() },
+      set: { active: true, telefoneOrganizador: "11933334444", telefoneConfirmadoEm: new Date(), telefoneAprovadoEm: new Date(), sociosDeclaradosEm: new Date() },
     })
     .returning();
 
@@ -236,6 +238,8 @@ async function main() {
         authorizationFileKey: CERTIFICADO_NO_BANCO,
         // A apuração da autorização: leitura direta da Federal (numeração a partir de zero).
         metodoApuracao: "federal_direta",
+        // A rifa de exemplo tem cota premiada (vale-brinde): a autorização a inclui (2.3).
+        declaraValeBrinde: true,
         commissionPctDefault: 10,
         featured: i === 0,
         sortWeight: 10 - i,

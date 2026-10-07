@@ -62,3 +62,26 @@ export const AVISO_VALE_BRINDE =
 
 export const CLAUSULA_VALE_BRINDE =
   "As cotas premiadas constituem a modalidade vale-brinde: a contemplação é imediata, revelada no pagamento ao portador do número premiado. Esta é uma promoção mista (sorteio e vale-brinde), autorizada pela SPA/MF nas duas modalidades.";
+
+/**
+ * A declaração da promotora (resposta 2.3 do advogado): a rifa autorizada com
+ * cota premiada só publica com a declaração de que a autorização da SPA/MF
+ * inclui o vale-brinde — além do arquivo da autorização, que já é exigido. O
+ * sistema não lê o certificado: a declaração é da promotora, e quem declara
+ * responde. Trava ao publicar; depois disso, cota premiada nova na rifa no ar
+ * só com a declaração já feita.
+ */
+export const DECLARACAO_VALE_BRINDE =
+  "Declaro que a autorização da SPA/MF anexada inclui a modalidade vale-brinde (as cotas premiadas), no mesmo processo do sorteio.";
+
+export const PROBLEMA_SEM_DECLARACAO_VALE_BRINDE =
+  "Esta rifa tem cota premiada: declare em Autorização e sorteio que a autorização da SPA/MF inclui o vale-brinde (ou tire as cotas premiadas)";
+
+export const PROBLEMA_PREMIADA_SEM_DECLARACAO =
+  "Esta rifa foi publicada sem a declaração de que a autorização inclui o vale-brinde: ela não pode ter cota premiada.";
+
+/** A rifa autorizada com cota premiada precisa da declaração? (`null` = tudo certo). */
+export function problemaDoValeBrinde(r: { metodoApuracao: string | null; declaraValeBrinde: boolean }, temPremiada: boolean): string | null {
+  if (!r.metodoApuracao || !temPremiada || r.declaraValeBrinde) return null;
+  return PROBLEMA_SEM_DECLARACAO_VALE_BRINDE;
+}

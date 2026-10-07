@@ -1,3 +1,4 @@
+import { SociosDaOrganizacaoCard } from "@/components/SociosDaOrganizacaoCard";
 import { LegendaCard } from "@/components/Publicacao";
 import { problemaNoPremio } from "@shared/premio";
 import { BannerDivulgacaoCard } from "@/components/BannerDivulgacaoCard";
@@ -2233,6 +2234,7 @@ export function AdminConfiguracoes() {
                   <EnderecoDaOrganizacaoCard />
                 </div>
                 <ContratoPromotoraCard plataforma={plataforma} />
+                {plataforma ? null : <SociosDaOrganizacaoCard />}
                 <PerfilPublicoCard />
                 {plataforma ? <CoresDoSeloCard /> : <VerificacaoDaOrganizacaoCard />}
               </div>

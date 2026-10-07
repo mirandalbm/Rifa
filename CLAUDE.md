@@ -134,10 +134,11 @@ arquitetura.
 | de quem é o cliente (o que o organizador vê) | `shared/titularidade.ts` (regra) e `server/services/titularidade.ts` (SQL) |
 | contrato da plataforma com a promotora (versões, aceite da organização, trava de publicação, campos da empresa preenchidos pela plataforma) | `shared/contratoPromotora.ts` (régua do texto, `preencherContrato`), `server/services/contratoPromotora.ts` (`problemaDoContrato`, `TRAVA_CONTRATO`), `/contrato-promotora*` em `server/routes/admin.ts`, `publishBlockers`/`publishCampaign()` em `server/services/campaigns.ts`, `client/src/components/ContratoPromotoraCard.tsx` (Configurações), `scripts/contrato-promotora-test.ts`, `tests/contratoPromotora.test.ts`; os anexos por modalidade (cláusula 7): `shared/contratoAnexos.ts` (modalidades e régua), `server/services/contratoAnexos.ts` (`anexosDaPublicacao`, `exigirAnexoNaRifa`), `/contrato-promotora/anexos*`, `AnexosDaOrganizacao`/`AnexosDaPlataforma` no mesmo cartão, `scripts/contrato-anexos-test.ts`, `tests/contratoAnexos.test.ts` |
 | autorização SPA/MF e data do sorteio | `shared/campanhaLegal.ts`, `salvarDadosLegais()` em `server/services/campaigns.ts`, `client/src/components/DadosLegaisCard.tsx` |
+| sócios e diretores da organização (CPF, declaração da lista, compra recusada) | `shared/socios.ts` (regras), `server/services/socios.ts` (`cpfDeSocio`, `problemaDosSocios`), `/organizacoes/:id/socios*` em `server/routes/admin.ts`, `client/src/components/SociosDaOrganizacaoCard.tsx` (Configurações → Organização e perfil), `scripts/apuracao-test.ts`, `tests/juridico2.test.ts` |
 | endereço do organizador e ordem da vitrine por região | `shared/endereco.ts` (regra), `salvarEndereco()` em `server/services/orgs.ts`, `server/services/cep.ts`, `client/src/components/EnderecoForm.tsx` |
 | perfil do organizador, seguir e sino | `shared/perfil.ts` (regras), `server/services/perfil.ts`, `client/src/pages/Perfil.tsx`, `client/src/components/Seguir.tsx`, `scripts/perfil-test.ts` |
 | perfil de demonstração (organização de exemplo, sem rifa à venda) | `server/services/demonstracao.ts`, card em `client/src/pages/adminOrganizacoes.tsx` |
-| entidade beneficiada da rifa (ONG, fundação): o banner em cima da rifa e a tela dela | `shared/bannerDivulgacao.ts` (regras, `validarEntidade`), `server/services/bannerDivulgacao.ts`, `/campaigns/:id/banner-divulgacao` em `server/routes/admin.ts` e `/campaigns/:slug/banner-divulgacao` em `server/routes/public.ts`, `campaign_banners_divulgacao` em `shared/schema.ts`, `client/src/components/BannerDivulgacaoCard.tsx` (aba Publicação), `client/src/components/EntidadeBeneficiada.tsx` (banner e tela), `client/src/pages/Rifa.tsx`, `scripts/banner-divulgacao-test.ts` |
+| entidade beneficiada da rifa (ONG, fundação): o banner em cima da rifa e a tela dela, e os documentos conferidos pela plataforma | `shared/bannerDivulgacao.ts` (regras, `validarEntidade`, `DOCUMENTOS_DA_ENTIDADE`), `entidade_documentos`, `/entidades*` em `server/routes/admin.ts`, `client/src/components/EntidadesDaPlataforma.tsx` (Atendimento → Entidades), `server/services/bannerDivulgacao.ts`, `/campaigns/:id/banner-divulgacao` em `server/routes/admin.ts` e `/campaigns/:slug/banner-divulgacao` em `server/routes/public.ts`, `campaign_banners_divulgacao` em `shared/schema.ts`, `client/src/components/BannerDivulgacaoCard.tsx` (aba Publicação), `client/src/components/EntidadeBeneficiada.tsx` (banner e tela), `client/src/pages/Rifa.tsx`, `scripts/banner-divulgacao-test.ts` |
 | publicação agendada da rifa (o relógio publica pela `publishCampaign()`) | `instanteAgendado()`/`problemaNaAgendaDaRifa()` em `shared/agenda.ts`, `server/services/publicacaoAgendada.ts`, `PUT /campaigns/:id/agendar-publicacao` em `server/routes/admin.ts`, relógio em `server/jobs/index.ts` (trava 811018), `client/src/components/AgendarPublicacaoCard.tsx`, `scripts/agenda-rifa-test.ts`, `tests/agenda.test.ts` |
 | editar, adiar e excluir rifa (pedido analisado pela plataforma) | `shared/solicitacoes.ts` (regras), `server/services/solicitacoes.ts`, `excluirRifa()` em `server/services/campaigns.ts`, `client/src/components/EditarRifa.tsx`, `client/src/components/SolicitacoesDeRifa.tsx`, `scripts/solicitacoes-test.ts` |
 | endereço curto (`/c/…`) e cliques nos links do perfil (`/l/…`) | `server/services/links.ts`, `client/src/components/LinksCurtos.tsx`, rotas em `server/routes/index.ts`, `scripts/perfil-test.ts` |
@@ -699,7 +700,7 @@ O verde da marca entra no lugar do roxo do kit; o significado das cores
   403 para organizador, no `npm run isolation`). `caixaDeEntrada()` junta as
   filas (chamados e disputas, pedidos de mudança de rifa, denúncias, conversas
   e grupos denunciados, comentários do sorteio oficial denunciados,
-  verificações, cadastros fiscais, banner pago, Pix a devolver, saldo retido) e os telefones
+  verificações, cadastros fiscais, banner pago, entidades beneficiadas, Pix a devolver, saldo retido) e os telefones
   por aprovar; a ordem e o
   destino de cada tipo moram em `shared/caixa.ts` (`tests/caixa.test.ts`).
   **Sem dado pessoal na lista**: organização, código do afiliado ou apelido —
@@ -735,8 +736,8 @@ O verde da marca entra no lugar do roxo do kit; o significado das cores
   assunto dele; não abra aba nova para um cartão só. Aba nova que ganha
   âncora de link entra em `ancoras`.
 - **O Atendimento é lista e item aberto, não duas colunas coladas.**
-  `MestreDetalhe` (`painel.tsx`) serve os quatro (chamados, pedidos de
-  mudança em rifa, denúncias, verificações): de `xl` (1280 px) a lista e o
+  `MestreDetalhe` (`painel.tsx`) serve os cinco (chamados, pedidos de
+  mudança em rifa, denúncias, verificações, entidades beneficiadas): de `xl` (1280 px) a lista e o
   item rolam cada um no seu lugar e o item fica fixo sob a barra de cima;
   abaixo disso é **uma coisa por vez** — abriu um item, a lista dá lugar a
   ele, com "Voltar para a lista" no alto (o foco vai para o botão e a página
@@ -835,6 +836,24 @@ capa na vitrine, no feed e na busca e, na página da rifa, abre o carrossel.
   só com o foco dentro, a rifa de trás não rola), e o foco volta ao banner
   ao fechar. A data do sorteio, o selo e o
   prêmio ficam como texto embaixo do banner.
+- **Só aparece com os documentos conferidos pela plataforma** (resposta 2.5
+  do advogado): o **CNPJ** da entidade (obrigatório, dígito conferido) e os
+  documentos — comprovante do CNPJ ativo, ata da diretoria em exercício e
+  certidão de regularidade fiscal (`DOCUMENTOS_OBRIGATORIOS`); o CEBAS é
+  opcional. Foto ou PDF conferidos pelo conteúdo, até 5 MB, **cifrados no
+  cofre** (`entidade_documentos`), enviados pela dona da rifa (`PUT
+  /campaigns/:id/banner-divulgacao/documentos/:tipo`, o vizinho é 404). Com
+  os três, a conferência vai a `em_analise`; a plataforma vê a fila
+  (Atendimento → Entidades e a Caixa, tipo `entidade` — sem CNPJ nem
+  documento na lista), abre cada documento com a auditoria **antes**
+  (`entidade.documento.ler`) e decide **a versão que abriu**
+  (`documentos_enviados_em`, `UPDATE` condicional: dois cliques, uma decisão;
+  documento novo no meio, 409). Recusa exige motivo (a organização lê). As
+  rotas `/entidades*` são só da plataforma (403 no `npm run isolation`).
+  **Trocar nome, CNPJ ou documento volta à análise** (com a linha travada);
+  texto, site, redes e imagem não. A régua pública (`noAr`) exige
+  `documentos_status = 'aprovado'`: a entidade de antes desta regra sai da
+  página até ser conferida. Retirar a entidade apaga os documentos.
 - **Muda a qualquer hora**, antes ou depois de publicar (não é termo da
   rifa: fora de `LOCKED_AFTER_PUBLISH`), por `PUT
   /campaigns/:id/banner-divulgacao` — fora do `PATCH`. O recorte é
@@ -862,7 +881,8 @@ capa na vitrine, no feed e na busca e, na página da rifa, abre o carrossel.
   aí a página também não entrega nome, texto nem links da entidade).
   O endereço leva `?v=` da troca, e o cache é `private` de 60 s — cache
   compartilhado seguiria servindo a rifa que saiu do ar.
-- A tabela sobe com o `db:push` **antes** do código. `npm run
+- A tabela sobe com o `db:push` **antes** do código, e a tabela
+  `entidade_documentos` e as colunas `cnpj` e `documentos_*` também. `npm run
   banner-divulgacao` prova tudo isso contra a API de verdade.
 
 ## Publicação agendada da rifa — o que não pode afrouxar
@@ -1421,8 +1441,9 @@ permite cobrar dela depois, e o aceite é a prova.
   (403 no `npm run isolation`), só a organização aceita, os campos da empresa
   preenchidos, o mesmo texto não vira versão nova (409), a tela manda a
   versão que leu (409 se mudou), um aceite por versão e organização. **O
-  anexo é aceite, não verificação**: o da entidade não confere o CEBAS nem
-  nada da entidade — quem assina responde. As tabelas `contrato_anexos` e
+  anexo é aceite, não verificação**: quem confere a entidade são os
+  documentos dela (seção "Entidade beneficiada"); o CEBAS segue opcional — quem
+  assina responde. As tabelas `contrato_anexos` e
   `contrato_anexo_aceites` e a coluna `campaigns.contrato_anexo_ids` sobem com
   o `db:push` **antes** do código. `npm run anexos` prova.
 
@@ -2903,7 +2924,20 @@ desconto na primeira compra — **pago pela plataforma**.
   aviso da organização, de um organizador dela ou de um administrador da
   plataforma é recusada (403) em `prepararPedido`, antes de qualquer gravação
   (`telefoneImpedido()` em `server/services/impedidos.ts`, telefone sem o 55 e
-  sem máscara — `telefoneComparavel()`), também na maquininha. `npm run
+  sem máscara — `telefoneComparavel()`), também na maquininha. **E pelo CPF
+  dos sócios e diretores** (resposta 5.6): a organização os cadastra (nome,
+  cargo, CPF) e **declara a lista completa** (`organizacao_socios`,
+  `organizations.socios_declarados_em`, cartão em Configurações → Organização
+  e perfil); a compra com o CPF de um deles é recusada (403,
+  `cpfDeSocio()`), e a rifa autorizada **não publica sem a lista declarada**
+  (`problemaDosSocios()` em `publishBlockers` e de novo na transação de
+  `publishCampaign()`, com a organização travada). O CPF nunca fica em
+  claro: a impressão (HMAC do cofre, índice único por organização — o mesmo
+  CPF duas vezes é 409) e os dois últimos dígitos para a tela. **Mexer na
+  lista apaga a declaração** na mesma transação. Só a organização grava e
+  declara (a plataforma lê, 403 para gravar; o vizinho é 404, no `npm run
+  isolation`). Sem CPF no pedido, não há o que comparar — o telefone segue
+  valendo. `npm run
   transparencia` prova os modos; `npm run apuracao`, o item 9.
 - **A conferência roda no aparelho de quem olha** (`conferirSorteio()`, com
   WebCrypto): a mesma conta de `drawNumber()`. Mudou uma, mude a outra —
@@ -2998,7 +3032,14 @@ pela portaria** — fica só para conferir a rifa sorteada sem método.
   `CLAUSULA_VALE_BRINDE` em `shared/premiadas.ts`): com o sorteio, a rifa vira
   promoção mista (sorteio + vale-brinde), autorizada nas duas modalidades no
   mesmo processo do SCPC. O cartão das cotas premiadas avisa a promotora, e o
-  regulamento da rifa com método diz isso a quem compra.
+  regulamento da rifa com método diz isso a quem compra. **A rifa com cota
+  premiada só publica com a declaração** de que a autorização inclui o
+  vale-brinde (resposta 2.3, `campaigns.declara_vale_brinde`,
+  `DECLARACAO_VALE_BRINDE`, nos dados legais), além do arquivo da autorização
+  que já é exigido; `problemaDoValeBrinde()` em `publishBlockers` e de novo
+  na transação da publicação. A declaração **trava ao publicar**; a rifa no
+  ar sem ela não ganha cota premiada (409). O sistema não lê o certificado:
+  quem declara responde.
 - **Prêmio é bem ou serviço, nunca dinheiro** (item 5 do advogado,
   `problemaNoPremio()` em `shared/premio.ts`): na rifa com método, Pix,
   dinheiro, espécie, transferência, depósito, saque ou só a quantia ("R$ 50",
@@ -3012,9 +3053,10 @@ pela portaria** — fica só para conferir a rifa sorteada sem método.
   ("armário" passa). O valor do bem pode aparecer ("moto avaliada em
   R$ 15.000"). A rifa de antes, sem método, segue como era. A tela avisa
   embaixo do campo; quem barra é o servidor.
-- As colunas `campaigns.metodo_apuracao`, `campaigns.draw_at_maximo` e
-  `sorteios_oficiais.ata` e a tabela `sorteio_atas` sobem com o `db:push`
-  **antes** do código. `npm run apuracao` prova tudo isso contra a API de
+- As colunas `campaigns.metodo_apuracao`, `campaigns.draw_at_maximo`,
+  `campaigns.declara_vale_brinde`, `organizations.socios_declarados_em` e
+  `sorteios_oficiais.ata` e as tabelas `sorteio_atas` e `organizacao_socios`
+  sobem com o `db:push` **antes** do código. `npm run apuracao` prova tudo isso contra a API de
   verdade (o globo de ponta a ponta), `npm run transparencia` a data máxima e
   a antecipação, e `tests/apuracao.test.ts`, `tests/sorteiosOficiais.test.ts`
   e `tests/regulamento.test.ts` provam as regras.

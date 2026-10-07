@@ -6,7 +6,10 @@
  * - nome e texto sem link e sem telefone; site só https; cada rede só no
  *   domínio dela, e WhatsApp fica de fora;
  * - o público só vê com a rifa no ar: rascunho e promotora arquivada são 404;
- * - muda depois de publicar (não é termo da rifa).
+ * - muda depois de publicar (não é termo da rifa);
+ * - só aparece com os documentos conferidos pela plataforma (resposta 2.5:
+ *   CNPJ ativo, ata e certidão; CEBAS opcional), cifrados, com a auditoria
+ *   antes de cada leitura; trocar nome, CNPJ ou documento volta à análise.
  */
 import "dotenv/config";
 import { baseUrl } from "./base-url";
@@ -59,6 +62,7 @@ async function limpar() {
   await db.delete(users).where(inArray(users.email, EMAILS));
   if (ids.length) await db.delete(organizations).where(inArray(organizations.id, ids));
   await db.execute(sql`delete from rate_events where bucket like 'login:%'`);
+  await db.execute(sql`delete from entidade_documentos where campaign_id not in (select id from campaigns)`);
 }
 
 async function novoRascunho(orgId: string, sufixo: string, opcoes: { semBanner?: boolean; drawEm?: number } = {}) {
@@ -94,7 +98,7 @@ async function main() {
   for (const [i, slug] of SLUGS.entries()) {
     const [o] = await db
       .insert(organizations)
-      .values({ slug, name: `Banner ${i ? "B" : "A"}`, cidade: "Natal", uf: "RN", telefoneConfirmadoEm: new Date(), telefoneAprovadoEm: new Date() })
+      .values({ slug, name: `Banner ${i ? "B" : "A"}`, cidade: "Natal", uf: "RN", telefoneConfirmadoEm: new Date(), telefoneAprovadoEm: new Date(), sociosDeclaradosEm: new Date() })
       .returning();
     await db
       .insert(users)
@@ -109,8 +113,13 @@ async function main() {
   const png = await sharp({ create: { width: 900, height: 900, channels: 3, background: "#1b6b3a" } }).png().toBuffer();
   const imagem = `data:image/png;base64,${png.toString("base64")}`;
 
+  const admin = new Cliente();
+  if ((await admin.req("POST", "/api/auth/login", { email: "admin@rifa.br", password: "admin123" })).status !== 200) throw new Error("login da plataforma");
+  const pdf = `data:application/pdf;base64,${Buffer.from("%PDF-1.4\n%teste\n").toString("base64")}`;
+
   const base = {
     nome: "Instituto Esperança",
+    cnpj: "11.222.333/0001-81",
     texto: "Atendemos 200 crianças no contraturno escolar desde 2012, com reforço, esporte e alimentação.",
     site: "https://institutoesperanca.org.br",
     redes: [
@@ -137,6 +146,8 @@ async function main() {
       ["site que é Telegram", { ...base, site: "https://t.me/fulano" }],
       ["site com telefone no endereço", { ...base, site: "https://exemplo.com.br/fale?tel=11987654321" }],
       ["site que é IP", { ...base, site: "https://192.168.0.1" }],
+      ["CNPJ com dígito errado", { ...base, cnpj: "11.222.333/0001-80" }],
+      ["sem CNPJ", { ...base, cnpj: "" }],
     ];
     for (const [nome, corpo] of recusas) {
       r = await orgA.req("PUT", rota, { ...corpo, imagem });
@@ -171,9 +182,59 @@ async function main() {
     let p = await fetch(URL + publico);
     checa("rascunho: a imagem pública é 404", p.status === 404, `HTTP ${p.status}`);
 
-    // ------------------------------------------------ no ar
+    // ------------------------------------------------ documentos (2.5)
     await db.update(campaigns).set({ status: "published", publishedAt: new Date() }).where(eq(campaigns.id, a1.id));
     let pag = await new Cliente().req("GET", `/api/public/campaigns/${a1.slug}`);
+    checa("publicada sem documentos: a entidade não aparece", pag.status === 200 && pag.json?.campaign?.bannerDivulgacao === null, JSON.stringify(pag.json?.campaign?.bannerDivulgacao));
+    p = await fetch(URL + publico);
+    checa("nem a imagem pública (404)", p.status === 404, `HTTP ${p.status}`);
+    r = await orgA.req("GET", rota);
+    checa("o painel diz: falta documento", r.json?.documentos === "pendente" && r.json?.cnpj === "11222333000181", JSON.stringify(r.json?.documentos));
+    const docs = `${rota}/documentos`;
+    r = await orgA.req("PUT", `${docs}/rg`, { arquivo: pdf });
+    checa("tipo de documento desconhecido: 400", r.status === 400, `HTTP ${r.status}`);
+    r = await orgA.req("PUT", `${docs}/cnpj`, { arquivo: "data:text/html;base64,PGgxPg==" });
+    checa("o que não é foto nem PDF: 400", r.status === 400, `HTTP ${r.status}`);
+    r = await orgB.req("PUT", `${docs}/cnpj`, { arquivo: pdf });
+    checa("a organização B não envia documento na rifa da A (404)", r.status === 404, `HTTP ${r.status}`);
+    r = await orgA.req("PUT", `${docs}/cnpj`, { arquivo: pdf });
+    checa("o comprovante do CNPJ entra (ainda falta documento)", r.status === 200 && r.json?.documentos === "pendente", JSON.stringify(r.json));
+    r = await orgA.req("PUT", `${docs}/ata`, { arquivo: pdf });
+    r = await orgA.req("PUT", `${docs}/certidao`, { arquivo: `data:image/png;base64,${png.toString("base64")}` });
+    checa("com CNPJ, ata e certidão: vai para análise (o CEBAS é opcional)", r.status === 200 && r.json?.documentos === "em_analise", JSON.stringify(r.json));
+    const [cifrado] = (await db.execute(sql`select dados from entidade_documentos where campaign_id = ${a1.id} and tipo = 'cnpj'`)).rows as { dados: Buffer }[];
+    checa("o documento fica cifrado no banco", !Buffer.from(cifrado.dados).toString("latin1").includes("%PDF"));
+    pag = await new Cliente().req("GET", `/api/public/campaigns/${a1.slug}`);
+    checa("em análise: a entidade ainda não aparece", pag.json?.campaign?.bannerDivulgacao === null);
+
+    r = await orgA.req("GET", "/api/admin/entidades");
+    checa("a fila é só da plataforma (organização: 403)", r.status === 403, `HTTP ${r.status}`);
+    r = await orgA.req("GET", `/api/admin/entidades/${a1.id}/documentos/cnpj`);
+    checa("nem o documento pela rota da plataforma (403)", r.status === 403, `HTTP ${r.status}`);
+    r = await orgA.req("POST", `/api/admin/entidades/${a1.id}/decidir`, { status: "aprovado", versao: new Date().toISOString() });
+    checa("nem decide (403)", r.status === 403, `HTTP ${r.status}`);
+    r = await admin.req("GET", "/api/admin/entidades");
+    const naFila = (r.json as { campaignId: string; versao: string; cnpj: string; documentos: { tipo: string }[] }[]).find((l) => l.campaignId === a1.id);
+    checa("a plataforma vê na fila, com os três documentos (sem o conteúdo)", Boolean(naFila) && naFila!.documentos.length === 3 && !JSON.stringify(naFila).includes("dados"), JSON.stringify(naFila));
+    const caixa = await admin.req("GET", "/api/admin/caixa-de-entrada");
+    checa("e na Caixa de entrada, sem o CNPJ", JSON.stringify(caixa.json).includes(`entidade:${a1.id}`) && !JSON.stringify(caixa.json).includes("11222333000181"));
+    const antesAudit = Number(((await db.execute(sql`select count(*)::int as n from audit_log where action = 'entidade.documento.ler' and entity_id = ${a1.id}`)).rows[0] as { n: number }).n);
+    const doc = await fetch(`${URL}/api/admin/entidades/${a1.id}/documentos/cnpj`, { headers: { Cookie: admin.cookie } });
+    const corpoDoc = Buffer.from(await doc.arrayBuffer()).toString("latin1");
+    const depoisAudit = Number(((await db.execute(sql`select count(*)::int as n from audit_log where action = 'entidade.documento.ler' and entity_id = ${a1.id}`)).rows[0] as { n: number }).n);
+    checa("a plataforma abre o documento decifrado, sem cache, e a leitura vai à auditoria", doc.status === 200 && corpoDoc.startsWith("%PDF") && doc.headers.get("cache-control") === "no-store" && depoisAudit === antesAudit + 1);
+    r = await admin.req("POST", `/api/admin/entidades/${a1.id}/decidir`, { status: "recusado", versao: naFila!.versao });
+    checa("recusar sem motivo: 422", r.status === 422, `HTTP ${r.status}`);
+    r = await admin.req("POST", `/api/admin/entidades/${a1.id}/decidir`, { status: "aprovado", versao: new Date(Date.now() - 86_400_000).toISOString() });
+    checa("decidir outra versão (documento mudou no meio): 409", r.status === 409, `HTTP ${r.status}`);
+    const [d1, d2] = await Promise.all([
+      admin.req("POST", `/api/admin/entidades/${a1.id}/decidir`, { status: "aprovado", versao: naFila!.versao }),
+      admin.req("POST", `/api/admin/entidades/${a1.id}/decidir`, { status: "aprovado", versao: naFila!.versao }),
+    ]);
+    checa("dois cliques: uma decisão e um 409", [d1.status, d2.status].sort().join() === "200,409", `${d1.status} ${d2.status}`);
+
+    // ------------------------------------------------ no ar
+    pag = await new Cliente().req("GET", `/api/public/campaigns/${a1.slug}`);
     const e = pag.json?.campaign?.bannerDivulgacao;
     checa(
       "publicada: a página traz a entidade (nome, texto, site, redes e as duas imagens)",
@@ -185,8 +246,23 @@ async function main() {
     p = await fetch(URL + e.urlGrande);
     const grande = await sharp(Buffer.from(await p.arrayBuffer())).metadata();
     checa("a imagem grande vem inteira (900×900, sem corte)", p.status === 200 && grande.width === 900 && grande.height === 900, `${grande.width}x${grande.height}`);
+    r = await orgA.req("PUT", rota, { ...base, texto: `${base.texto} Novo.`, site: "", redes: [] });
+    checa("depois de publicar, a entidade muda; texto, site e redes não reabrem a análise", r.status === 200 && r.json?.documentos === "aprovado", JSON.stringify(r.json?.documentos));
     r = await orgA.req("PUT", rota, { ...base, nome: "ONG Amigos do Bairro", site: "", redes: [] });
-    checa("depois de publicar, a entidade muda (não é termo da rifa)", r.status === 200, `HTTP ${r.status}`);
+    checa("trocar o nome volta à análise", r.status === 200 && r.json?.documentos === "em_analise", JSON.stringify(r.json?.documentos));
+    pag = await new Cliente().req("GET", `/api/public/campaigns/${a1.slug}`);
+    checa("e a entidade sai da página até a plataforma conferir de novo", pag.json?.campaign?.bannerDivulgacao === null);
+    r = await admin.req("GET", "/api/admin/entidades");
+    const versao2 = (r.json as { campaignId: string; versao: string }[]).find((l) => l.campaignId === a1.id)?.versao;
+    r = await admin.req("POST", `/api/admin/entidades/${a1.id}/decidir`, { status: "recusado", motivo: "A ata está vencida.", versao: versao2 });
+    r = await orgA.req("GET", rota);
+    checa("recusada: a organização lê o motivo", r.json?.documentos === "recusado" && r.json?.motivo === "A ata está vencida.", JSON.stringify(r.json?.motivo));
+    r = await orgA.req("PUT", `${docs}/ata`, { arquivo: pdf });
+    checa("mandar o documento de novo volta à análise", r.json?.documentos === "em_analise", JSON.stringify(r.json));
+    r = await admin.req("GET", "/api/admin/entidades");
+    const versao3 = (r.json as { campaignId: string; versao: string }[]).find((l) => l.campaignId === a1.id)?.versao;
+    r = await admin.req("POST", `/api/admin/entidades/${a1.id}/decidir`, { status: "aprovado", versao: versao3 });
+    checa("aprovada de novo", r.status === 200, `HTTP ${r.status}`);
     pag = await new Cliente().req("GET", `/api/public/campaigns/${a1.slug}`);
     checa(
       "e a página mostra a nova (sem site e sem redes)",
@@ -208,6 +284,8 @@ async function main() {
     pag = await new Cliente().req("GET", `/api/public/campaigns/${a1.slug}`);
     p = await fetch(URL + publico);
     checa("retirada: a página fica sem entidade e a imagem some", r.status === 204 && pag.json?.campaign?.bannerDivulgacao === null && p.status === 404, `HTTP ${r.status} ${p.status}`);
+    const sobra = (await db.execute(sql`select count(*)::int as n from entidade_documentos where campaign_id = ${a1.id}`)).rows[0] as { n: number };
+    checa("e os documentos saem junto", Number(sobra.n) === 0, `${sobra.n}`);
   } finally {
     await limpar();
   }

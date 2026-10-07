@@ -17,6 +17,7 @@ import {
 import { REGULAMENTO_EXTRA_MAX } from "@shared/regulamento";
 import { transmissaoValida } from "@shared/sorteio";
 import { problemaNoBonusMax } from "@shared/bonus";
+import { DECLARACAO_VALE_BRINDE } from "@shared/premiadas";
 import {
   EXPLICACAO_DO_METODO,
   METODO_INDISPONIVEL,
@@ -36,6 +37,7 @@ interface Campanha {
   regulamentoExtra?: string | null;
   aceitaCotaBonus?: boolean;
   bonusMaxCotas?: number;
+  declaraValeBrinde?: boolean;
   minimoVendidoPct?: number;
   modoSorteio?: string;
   metodoApuracao?: string | null;
@@ -83,6 +85,7 @@ export function DadosLegaisCard({ campanha }: { campanha: Campanha }) {
   const [extra, setExtra] = useState(campanha.regulamentoExtra ?? "");
   const [bonus, setBonus] = useState(Boolean(campanha.aceitaCotaBonus));
   const [bonusMax, setBonusMax] = useState(campanha.bonusMaxCotas ? String(campanha.bonusMaxCotas) : "");
+  const [valeBrinde, setValeBrinde] = useState(Boolean(campanha.declaraValeBrinde));
   const [minimo, setMinimo] = useState(String(campanha.minimoVendidoPct ?? 0));
   const [modo, setModo] = useState<ModoDoSorteio>((campanha.modoSorteio as ModoDoSorteio) ?? "data");
   const [metodo, setMetodo] = useState<string | null>(campanha.metodoApuracao ?? null);
@@ -95,11 +98,12 @@ export function DadosLegaisCard({ campanha }: { campanha: Campanha }) {
     setExtra(campanha.regulamentoExtra ?? "");
     setBonus(Boolean(campanha.aceitaCotaBonus));
     setBonusMax(campanha.bonusMaxCotas ? String(campanha.bonusMaxCotas) : "");
+    setValeBrinde(Boolean(campanha.declaraValeBrinde));
     setMinimo(String(campanha.minimoVendidoPct ?? 0));
     setModo((campanha.modoSorteio as ModoDoSorteio) ?? "data");
     setMetodo(campanha.metodoApuracao ?? null);
     setMsg(null);
-  }, [campanha.metodoApuracao, campanha.id, campanha.authorizationCode, campanha.drawAt, campanha.regulamentoExtra, campanha.aceitaCotaBonus, campanha.bonusMaxCotas, campanha.minimoVendidoPct, campanha.modoSorteio]);
+  }, [campanha.metodoApuracao, campanha.id, campanha.authorizationCode, campanha.drawAt, campanha.regulamentoExtra, campanha.aceitaCotaBonus, campanha.bonusMaxCotas, campanha.declaraValeBrinde, campanha.minimoVendidoPct, campanha.modoSorteio]);
 
   const { data: pendencias } = useQuery<{ blockers: string[] }>({
     queryKey: [`/api/admin/campaigns/${campanha.id}/blockers`],
@@ -135,6 +139,7 @@ export function DadosLegaisCard({ campanha }: { campanha: Campanha }) {
         regulamentoExtra: extra,
         aceitaCotaBonus: bonus,
         bonusMaxCotas: bonusMaxNum,
+        declaraValeBrinde: valeBrinde,
         minimoVendidoPct: minimoPct,
         modoSorteio: modo,
         // Só manda o método escolhido: o servidor confere contra os liberados.
@@ -423,6 +428,27 @@ export function DadosLegaisCard({ campanha }: { campanha: Campanha }) {
                 (na rifa cheia, conta para completá-la).
               </p>
             </div>
+          ) : null}
+          {metodo ? (
+            <label className="mt-2 flex items-start gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={valeBrinde}
+                disabled={!rascunho}
+                onChange={(e) => {
+                  setMsg(null);
+                  setValeBrinde(e.target.checked);
+                }}
+                className="mt-1 h-4 w-4 accent-[var(--green)]"
+              />
+              <span>
+                {DECLARACAO_VALE_BRINDE}
+                <span className="block text-xs text-muted">
+                  Obrigatória para publicar a rifa com cota premiada. Trava ao publicar: sem ela, a rifa no ar não ganha
+                  cota premiada depois.
+                </span>
+              </span>
+            </label>
           ) : null}
           <p className="text-[11px] text-muted">
             O resto do regulamento (promotora, autorização, prêmios, numeração, sorteio, entrega e

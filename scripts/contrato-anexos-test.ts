@@ -102,6 +102,8 @@ async function rascunho(orgId: string, sufixo: string, metodo: string) {
       authorizationCode: `SPA-AX-${sufixo}`,
       authorizationFileKey: "certificado-teste",
       metodoApuracao: metodo,
+      // A declaração do vale-brinde (2.3) tem a prova dela em `npm run apuracao`.
+      declaraValeBrinde: true,
     })
     .returning();
   await db.insert(campaignMedia).values([
@@ -127,7 +129,7 @@ async function main() {
   for (const [i, slug] of SLUGS.entries()) {
     const [o] = await db
       .insert(organizations)
-      .values({ slug, name: `Anexos ${i ? "B" : "A"}`, cidade: "Natal", uf: "RN", telefoneConfirmadoEm: new Date(), telefoneAprovadoEm: new Date() })
+      .values({ slug, name: `Anexos ${i ? "B" : "A"}`, cidade: "Natal", uf: "RN", telefoneConfirmadoEm: new Date(), telefoneAprovadoEm: new Date(), sociosDeclaradosEm: new Date() })
       .returning();
     await db.insert(users).values({ role: "organizer", organizationId: o.id, name: `Org ${i ? "B" : "A"}`, email: EMAILS[i], passwordHash: await hashPassword(SENHA) });
     orgs.push(o);
@@ -218,6 +220,7 @@ async function main() {
     const png = await sharp({ create: { width: 600, height: 200, channels: 3, background: "#2a6" } }).png().toBuffer();
     const entidade = {
       nome: "Instituto da Prova",
+      cnpj: "11.222.333/0001-81",
       texto: "Entidade de teste para a prova dos anexos.",
       imagem: `data:image/png;base64,${png.toString("base64")}`,
     };

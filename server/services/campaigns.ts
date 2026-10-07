@@ -39,6 +39,8 @@ import { problemaNoBonusMax } from "@shared/bonus";
 import { PROBLEMA_NO_TOTAL, loteriaDoMetodo, numeracaoZero, problemaNoMetodo, totalDaApuracao, type MetodoDeApuracao } from "@shared/apuracao";
 import { getPlataforma } from "./settings";
 import { problemaNoPremio } from "@shared/premio";
+import { problemaDoValeBrinde } from "@shared/premiadas";
+import { problemaDosSocios } from "./socios";
 
 export class CampaignRuleError extends Error {
   constructor(message: string) {
@@ -67,6 +69,8 @@ const LOCKED_AFTER_PUBLISH = [
   "bonusMaxCotas",
   // E aquele método de apuração (a leitura da Federal, o globo): é o da autorização.
   "metodoApuracao",
+  // E a declaração de que a autorização inclui o vale-brinde (resposta 2.3).
+  "declaraValeBrinde",
 ] as const;
 
 export function assertEditable(
@@ -204,6 +208,12 @@ export async function publishBlockers(campaignId: string): Promise<string[]> {
       const q = problemaNoPremio(rotulo, true);
       if (q) blockers.push(`${q} (cota premiada "${rotulo}")`);
     }
+    // Cota premiada é vale-brinde: a autorização tem de incluí-lo (resposta 2.3).
+    const valeBrinde = problemaDoValeBrinde(campaign, rotulos.length > 0);
+    if (valeBrinde) blockers.push(`${valeBrinde}.`);
+    // Sócios e diretores não concorrem (5.6): a lista declarada completa.
+    const socios = await problemaDosSocios(campaign.organizationId);
+    if (socios) blockers.push(socios);
   }
   if (campaign.authorizationCode && !campaign.authorizationFileKey) {
     blockers.push("Anexe o arquivo do certificado de autorização (PDF ou imagem).");
@@ -320,6 +330,17 @@ export async function publishCampaign(campaignId: string): Promise<Campaign> {
     // liberados foram lidos antes da transação: dentro dela, só o `tx`.
     const apuracao = problemaNaApuracao(campaign, liberados);
     if (apuracao) throw new CampaignRuleError(apuracao);
+    if (campaign.metodoApuracao) {
+      // A declaração do vale-brinde contra a rifa travada (cota premiada
+      // sorteada no rascunho entre a conferência de fora e esta).
+      const [premiada] = await tx.select({ id: prizedQuotas.id }).from(prizedQuotas).where(eq(prizedQuotas.campaignId, campaignId)).limit(1);
+      const valeBrinde = problemaDoValeBrinde(campaign, Boolean(premiada));
+      if (valeBrinde) throw new CampaignRuleError(`${valeBrinde}.`);
+      // E a lista de sócios com a organização travada (`FOR SHARE` acima):
+      // mexer na lista atualiza a linha dela, então espera esta publicação.
+      const socios = await problemaDosSocios(campaign.organizationId, tx);
+      if (socios) throw new CampaignRuleError(socios);
+    }
 
     // Integrada a um sorteio oficial: o sorteio fica travado (`FOR SHARE`) até
     // o fim — a plataforma não muda a data dele nem o cancela no meio — e a
@@ -482,6 +503,8 @@ export async function salvarDadosLegais(
     modoSorteio?: unknown;
     /** O método de apuração da autorização, entre os liberados. Trava ao publicar. */
     metodoApuracao?: unknown;
+    /** A autorização inclui o vale-brinde (resposta 2.3). Trava ao publicar. */
+    declaraValeBrinde?: boolean;
   },
 ): Promise<Campaign> {
   if (campaign.status !== "draft") {
@@ -595,6 +618,7 @@ export async function salvarDadosLegais(
       mudancas.minimoVendidoPct = minimoDoModo(modo, minimoPedido);
     }
     if (entrada.metodoApuracao !== undefined) mudancas.metodoApuracao = entrada.metodoApuracao as string;
+    if (entrada.declaraValeBrinde !== undefined) mudancas.declaraValeBrinde = entrada.declaraValeBrinde;
     if (arquivo) mudancas.authorizationFileKey = CERTIFICADO_NO_BANCO;
     if (Object.keys(mudancas).length === 0) throw new CampaignRuleError("Nada para salvar.");
 

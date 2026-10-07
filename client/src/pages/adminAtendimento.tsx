@@ -1,3 +1,4 @@
+import { EntidadesDaPlataforma } from "@/components/EntidadesDaPlataforma";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { PanelShell } from "@/components/AppShell";
@@ -121,9 +122,9 @@ export function AdminAtendimento() {
 
   // Duas filas: reembolso (chamados dos compradores) e pedidos de mudança em
   // rifa publicada (edição e adiamento, que a plataforma analisa).
-  const [area, setArea] = useState<"reembolsos" | "rifas" | "denuncias" | "verificacoes">(() => {
+  const [area, setArea] = useState<"reembolsos" | "rifas" | "denuncias" | "verificacoes" | "entidades">(() => {
     const aba = new URLSearchParams(window.location.search).get("aba");
-    return aba === "rifas" || aba === "denuncias" || aba === "verificacoes" ? aba : "reembolsos";
+    return aba === "rifas" || aba === "denuncias" || aba === "verificacoes" || aba === "entidades" ? aba : "reembolsos";
   });
   const { data: pendentes } = useQuery<{
     total: number;
@@ -155,7 +156,9 @@ export function AdminAtendimento() {
           ["reembolsos", "Reembolsos"],
           ["rifas", "Rifas (edição e adiamento)"],
           // Denúncias são só da plataforma: a denunciada nunca vê.
-          ...(daPlataforma ? ([["denuncias", "Denúncias"], ["verificacoes", "Verificações"]] as const) : []),
+          ...(daPlataforma
+            ? ([["denuncias", "Denúncias"], ["verificacoes", "Verificações"], ["entidades", "Entidades"]] as const)
+            : []),
         ] as const
       ).map(([valor, rotulo]) => (
         <button
@@ -197,6 +200,15 @@ export function AdminAtendimento() {
       <PanelShell title="Atendimento">
         {abas}
         <DenunciasDaPlataforma />
+      </PanelShell>
+    );
+  }
+
+  if (area === "entidades" && daPlataforma) {
+    return (
+      <PanelShell title="Atendimento">
+        {abas}
+        <EntidadesDaPlataforma />
       </PanelShell>
     );
   }

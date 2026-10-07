@@ -718,14 +718,28 @@ Na ordem de entrega do plano:
   Subcredenciadora é figura regulada pelo Banco Central. Até a resposta, o
   contrato usa "facilitadora de pagamentos, por meio de instituição de
   pagamento autorizada".
-- [ ] **[código]** Decisões do questionário (07/10/2026), no próximo PR:
-  **2.5** a entidade beneficiada só aparece com CNPJ ativo, ata da diretoria
-  e certidão de regularidade fiscal enviados e conferidos pela plataforma
-  (CEBAS opcional); **5.6** a organização cadastra sócios e diretores com
-  CPF e declara a lista completa, e a compra é recusada também pelo CPF;
-  **2.3** a rifa com cota premiada só publica com a declaração de que a
-  autorização inclui o vale-brinde (mais o arquivo da autorização, que já é
-  exigido).
+- [x] **Decisões do questionário (07/10/2026)** — feito: **2.5** a entidade
+  beneficiada leva o CNPJ e só aparece na rifa com o comprovante do CNPJ
+  ativo, a ata da diretoria e a certidão de regularidade fiscal enviados e
+  conferidos pela plataforma (CEBAS opcional; Atendimento → Entidades e a
+  Caixa de entrada); **5.6** a organização cadastra sócios e diretores com
+  CPF e declara a lista completa (Configurações → Organização e perfil), a
+  rifa autorizada não publica sem a declaração e a compra com o CPF de um
+  deles é recusada; **2.3** a rifa autorizada com cota premiada só publica
+  com a declaração de que a autorização inclui o vale-brinde (dados legais),
+  e a rifa no ar sem ela não ganha cota premiada. `npm run
+  banner-divulgacao` e `npm run apuracao` provam.
+- [ ] **[você]** Antes do deploy deste PR: `npm run db:push` (tabelas
+  `entidade_documentos` e `organizacao_socios`; colunas
+  `campaigns.declara_vale_brinde`, `organizations.socios_declarados_em` e
+  `socios_declarados_por`, e `cnpj`/`documentos_*` em
+  `campaign_banners_divulgacao`). **Depois do deploy**: (1) a entidade
+  beneficiada que já estava no ar **some da página** até a organização
+  informar o CNPJ, mandar os três documentos e a plataforma aprovar — avise as
+  organizações que têm entidade; (2) toda organização precisa cadastrar os
+  sócios e diretores e declarar a lista antes de publicar a próxima rifa
+  autorizada (rifa já no ar não é tocada); (3) a rifa com cota premiada ainda
+  em rascunho precisa da declaração do vale-brinde nos dados legais.
 
 - [x] **Apuração direta pela Loteria Federal (modo "Autorizado MF") e
   método liberado pela plataforma** — feito, com as respostas do advogado

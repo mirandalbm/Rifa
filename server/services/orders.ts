@@ -5,6 +5,8 @@
  * escolhidos). O total é sempre recalculado aqui, em centavos inteiros.
  */
 import { MSG_IMPEDIDO, telefoneImpedido } from "./impedidos";
+import { cpfDeSocio } from "./socios";
+import { MSG_SOCIO_IMPEDIDO } from "@shared/socios";
 import { numeracaoZero } from "@shared/apuracao";
 import { avisarAntecipacaoDesfeita, avisarSorteioMarcado, emSegundoPlano } from "./push";
 import { SORTEIO_SEM_DATA, proximaExtracaoFederal } from "@shared/campanhaLegal";
@@ -366,6 +368,10 @@ async function prepararPedido(
   // pela maquininha. Antes de qualquer gravação, como o antifraude.
   if (campaign.metodoApuracao && (await telefoneImpedido(campaign.organizationId, input.buyer.phone))) {
     throw new OrderError(MSG_IMPEDIDO, 403);
+  }
+  // 5.6: os sócios e diretores declarados pela organização, pelo CPF.
+  if (campaign.metodoApuracao && (await cpfDeSocio(campaign.organizationId, input.buyer.cpf))) {
+    throw new OrderError(MSG_SOCIO_IMPEDIDO, 403);
   }
 
   // O antifraude entra antes de qualquer linha ser escrita: pedido recusado

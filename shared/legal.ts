@@ -283,6 +283,8 @@ export function montarPrivacidade(d: DadosDosTermos): Secao[] {
         "Voto nas enquetes dos stories (só com conta): qual opção você escolheu, guardado só para contar um voto por pessoa e mostrar a você o resultado. A organização vê os totais de cada opção, nunca quem votou em quê; o voto sai com o story.",
         `Verificação de perfil (opcional): documentos, guardados cifrados, e — só com a sua autorização destacada — a comparação da foto do perfil com a do documento, que é dado biométrico (art. 11), para verificação de identidade e prevenção a fraudes. Da comparação fica só o resultado (verificado ou não) — nenhum modelo ou medida do rosto. Os documentos são apagados ${DOCUMENTOS_GUARDA_DIAS} dias depois da decisão (verificado ou recusado); o resultado e o selo ficam. A autorização pode ser revogada na própria tela; quem foi verificado com uma autorização anterior é chamado a confirmar de novo, senão o selo sai.`,
         "Origem da visita (de onde você chegou, campanha de anúncio): estatística de vendas; nunca decide preço nem comissão.",
+        "Sócios e diretores da promotora (nome, cargo e CPF, cadastrados pela organização): só para recusar a compra deles nas rifas autorizadas, que eles não podem disputar. O CPF não fica guardado — só uma impressão cifrada para a comparação e os dois últimos dígitos para a tela. Sai quando a organização tira a pessoa da lista. Base legal: cumprimento de obrigação regulatória (Lei 5.768/71).",
+        "Documentos da entidade beneficiada (CNPJ, ata da diretoria, certidões), enviados pela organização: só a plataforma os abre, para conferir a entidade antes de ela aparecer na rifa; guardados cifrados e apagados junto com a entidade.",
       ],
     },
     {

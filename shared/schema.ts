@@ -236,6 +236,14 @@ export const organizations = pgTable(
     telefoneConfirmadoEm: timestamp("telefone_confirmado_em"),
     telefoneAprovadoEm: timestamp("telefone_aprovado_em"),
     telefoneAprovadoPor: uuid("telefone_aprovado_por"),
+    /**
+     * A organização declarou que a lista de sócios e diretores
+     * (`organizacao_socios`) está completa (resposta 5.6 do advogado). Mexer
+     * na lista apaga a declaração na mesma transação; a rifa autorizada não
+     * publica sem ela.
+     */
+    sociosDeclaradosEm: timestamp("socios_declarados_em"),
+    sociosDeclaradosPor: uuid("socios_declarados_por"),
     /** Banida por fraude (ex.: Pix fora da plataforma): porta fechada e rifas travadas. */
     banidaEm: timestamp("banida_em"),
     banidaMotivo: text("banida_motivo"),
@@ -491,6 +499,13 @@ export const campaigns = pgTable(
      * `UPDATE`). 0 com `aceitaCotaBonus` desligado. Trava ao publicar.
      */
     bonusMaxCotas: integer("bonus_max_cotas").notNull().default(0),
+    /**
+     * A promotora declarou que a autorização da SPA/MF inclui o vale-brinde
+     * (resposta 2.3 do advogado): a rifa autorizada com cota premiada só
+     * publica com a declaração. Entra por `PUT /campaigns/:id/legal` e trava
+     * ao publicar, como a autorização.
+     */
+    declaraValeBrinde: boolean("declara_vale_brinde").notNull().default(false),
     /**
      * Mínimo de cotas vendidas (percentual do total) para o sorteio acontecer,
      * pela autorização. 0 = sem mínimo. Entra por `salvarDadosLegais()` e
@@ -1440,8 +1455,71 @@ export const campaignBannersDivulgacao = pgTable("campaign_banners_divulgacao", 
   mime: text("mime").notNull(),
   bytes: bytea("bytes").notNull(),
   bytesGrande: bytea("bytes_grande").notNull(),
+  /**
+   * O CNPJ da entidade e a conferência dos documentos dela pela plataforma
+   * (resposta 2.5 do advogado): a entidade só aparece na rifa com
+   * `documentos_status = 'aprovado'`. Trocar nome, CNPJ ou documento volta à
+   * análise; `documentos_enviados_em` é a versão que a plataforma decide.
+   */
+  cnpj: text("cnpj"),
+  documentosStatus: text("documentos_status").notNull().default("pendente"),
+  documentosEnviadosEm: timestamp("documentos_enviados_em"),
+  documentosMotivo: text("documentos_motivo"),
+  documentosDecididoEm: timestamp("documentos_decidido_em"),
+  documentosDecididoPor: uuid("documentos_decidido_por"),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
+
+/**
+ * Os documentos da entidade beneficiada (CNPJ ativo, ata da diretoria,
+ * certidão de regularidade fiscal e, se tiver, o CEBAS), cifrados no cofre
+ * como os do cadastro fiscal. Só a plataforma os abre, com a auditoria
+ * antes. Saem com a entidade (cascata da rifa e `removerBannerDeDivulgacao`).
+ */
+export const entidadeDocumentos = pgTable(
+  "entidade_documentos",
+  {
+    campaignId: uuid("campaign_id")
+      .notNull()
+      .references(() => campaigns.id, { onDelete: "cascade" }),
+    tipo: text("tipo").notNull(),
+    mime: text("mime").notNull(),
+    tamanho: integer("tamanho").notNull(),
+    dados: bytea("dados").notNull(),
+    iv: bytea("iv").notNull(),
+    tag: bytea("tag").notNull(),
+    chaveVersao: text("chave_versao").notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("uq_entidade_documento_tipo").on(t.campaignId, t.tipo)],
+);
+
+/**
+ * Sócios e diretores da organização (resposta 5.6 do advogado): não
+ * concorrem nas rifas autorizadas dela. O CPF nunca fica em claro — só a
+ * impressão (HMAC do cofre, para recusar a compra) e os dois últimos
+ * dígitos (para a tela). O mesmo CPF não entra duas vezes na mesma
+ * organização: quem decide é o índice.
+ */
+export const organizacaoSocios = pgTable(
+  "organizacao_socios",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    nome: text("nome").notNull(),
+    cargo: text("cargo").notNull(),
+    cpfImpressao: text("cpf_impressao").notNull(),
+    cpfFinal: text("cpf_final").notNull(),
+    criadoPor: uuid("criado_por"),
+    criadoEm: timestamp("criado_em").notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("uq_socio_cpf_por_org").on(t.organizationId, t.cpfImpressao),
+    index("ix_socios_cpf").on(t.cpfImpressao),
+  ],
+);
 
 /**
  * Capa do perfil da organização. Mesma regra da foto: no banco, reprocessada
@@ -1996,6 +2074,8 @@ export const insertCampaignSchema = createInsertSchema(campaigns, {
     // Cota de bônus é cláusula do regulamento: só por PUT /legal (etapa 13).
     aceitaCotaBonus: true,
     bonusMaxCotas: true,
+    // A declaração do vale-brinde é dado legal: só pela rota `/legal`.
+    declaraValeBrinde: true,
     // O mínimo para sortear é dado legal: só pela rota `/legal`, que trava ao publicar.
     minimoVendidoPct: true,
     modoSorteio: true,

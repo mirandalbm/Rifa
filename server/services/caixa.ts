@@ -14,7 +14,7 @@ import { LOTERIAS } from "@shared/sorteiosOficiais";
  * afiliado ou apelido — nunca telefone, CPF ou nome de comprador.
  */
 export async function caixaDeEntrada(): Promise<PendenciaDaCaixa[]> {
-  const [chamados, solicitacoes, denuncias, verificacoes, fiscais, telefones, banners, conversas, gruposDenunciados, pixTardios, comentariosDoSorteio, retencoes] = await Promise.all([
+  const [chamados, solicitacoes, denuncias, verificacoes, fiscais, telefones, banners, conversas, gruposDenunciados, pixTardios, comentariosDoSorteio, retencoes, entidades] = await Promise.all([
     db.execute(sql`
       SELECT ch.id, ch.disputa, ch.created_at AS desde, o.name AS org, ch.protocolo, ord.code AS pedido
         FROM chamados ch
@@ -102,6 +102,15 @@ export async function caixaDeEntrada(): Promise<PendenciaDaCaixa[]> {
         JOIN organizations o ON o.id = r.organization_id
        WHERE r.status = 'ativa'
        ORDER BY r.criado_em LIMIT 200`),
+    // Entidade beneficiada com os documentos enviados (2.5): nome da entidade e
+    // da rifa, nunca o CNPJ nem o documento.
+    db.execute(sql`
+      SELECT b.campaign_id AS id, b.documentos_enviados_em AS desde, o.name AS org, c.title AS rifa, b.nome
+        FROM campaign_banners_divulgacao b
+        JOIN campaigns c ON c.id = b.campaign_id
+        JOIN organizations o ON o.id = c.organization_id
+       WHERE b.documentos_status = 'em_analise'
+       ORDER BY b.documentos_enviados_em LIMIT 200`),
   ]);
 
   const iso = (d: unknown) => new Date(d as string | Date).toISOString();
@@ -159,6 +168,9 @@ export async function caixaDeEntrada(): Promise<PendenciaDaCaixa[]> {
       oQue: `Saldo retido ${r.origem === "banimento" ? "no banimento" : "pela plataforma"} — liberar ou abater`,
       desde: iso(r.desde),
     });
+  }
+  for (const r of entidades.rows as any[]) {
+    linhas.push({ chave: `entidade:${r.id}`, tipo: "entidade", quem: r.org, oQue: `Documentos da entidade ${r.nome} esperando conferência — rifa ${r.rifa}`, desde: iso(r.desde) });
   }
   for (const r of banners.rows as any[]) {
     linhas.push({ chave: `banner:${r.id}`, tipo: "banner", quem: r.org, oQue: `Arte de banner pago esperando aprovação — rifa ${r.rifa}, ${r.dias} dia(s)`, desde: iso(r.desde) });

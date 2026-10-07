@@ -7,6 +7,7 @@
  * servidor leem daqui.
  */
 import { temLinkOuTelefone } from "./comentarios";
+import { cnpjValido } from "./format";
 import { REDES_DO_RODAPE } from "./template";
 
 /** O banner (3:1, cortado ao centro) e a imagem grande da tela da entidade. */
@@ -27,6 +28,8 @@ export type RedeDaEntidade = (typeof REDES_DA_ENTIDADE)[number];
 
 export interface DadosDaEntidade {
   nome: string;
+  /** Só os 14 dígitos, conferidos. */
+  cnpj: string;
   texto: string;
   site: string | null;
   redes: { rede: RedeDaEntidade; link: string }[];
@@ -92,6 +95,9 @@ export function validarEntidade(bruto: unknown): DadosDaEntidade {
   if (nome.length > NOME_DA_ENTIDADE_MAX) throw new EntidadeInvalida(`O nome passa de ${NOME_DA_ENTIDADE_MAX} caracteres.`);
   semLinkNemTelefone(nome, "O nome");
 
+  const cnpj = limpar(b.cnpj).replace(/\D/g, "");
+  if (!cnpjValido(cnpj)) throw new EntidadeInvalida("Informe o CNPJ da entidade (confira os dígitos).");
+
   const texto = limpar(b.texto).replace(/[ \t]+/g, " ").replace(/\n{3,}/g, "\n\n");
   if (texto.length < 10) throw new EntidadeInvalida("Conte em poucas linhas o que a entidade faz.");
   if (texto.length > TEXTO_DA_ENTIDADE_MAX) throw new EntidadeInvalida(`O texto passa de ${TEXTO_DA_ENTIDADE_MAX} caracteres.`);
@@ -118,9 +124,61 @@ export function validarEntidade(bruto: unknown): DadosDaEntidade {
     }
     redes.push({ rede: rede as RedeDaEntidade, link: u.toString() });
   }
-  return { nome, texto, site, redes };
+  return { nome, cnpj, texto, site, redes };
 }
 
 /** Os endereços públicos das imagens (com `?v=`: troca de imagem, troca de endereço). */
 export const urlDoBannerDeDivulgacao = (slug: string, em: Date | string, grande = false) =>
   `/api/public/campaigns/${slug}/banner-divulgacao?v=${new Date(em).getTime()}${grande ? "&tam=grande" : ""}`;
+
+/**
+ * Os documentos da entidade (resposta 2.5 do advogado): ela só aparece na
+ * rifa depois que a plataforma confere o CNPJ ativo, a ata da diretoria em
+ * exercício e a certidão de regularidade fiscal. O CEBAS é opcional — quem
+ * tem, manda. Foto ou PDF, conferidos pelo conteúdo, cifrados no cofre.
+ */
+export const DOCUMENTOS_DA_ENTIDADE = {
+  cnpj: "Comprovante de CNPJ ativo",
+  ata: "Ata da diretoria em exercício",
+  certidao: "Certidão de regularidade fiscal",
+  cebas: "CEBAS (opcional)",
+} as const;
+export type DocumentoDaEntidade = keyof typeof DOCUMENTOS_DA_ENTIDADE;
+export const DOCUMENTOS_OBRIGATORIOS: DocumentoDaEntidade[] = ["cnpj", "ata", "certidao"];
+/** Até 5 MB: em base64 cabe no corpo de 8 MB da rota (`server/index.ts`). */
+export const DOCUMENTO_DA_ENTIDADE_MAX_BYTES = 5 * 1024 * 1024;
+
+/**
+ * A conferência dos documentos: `pendente` (falta documento), `em_analise`
+ * (todos os obrigatórios enviados, esperando a plataforma), `aprovado` (a
+ * entidade aparece na rifa) e `recusado` (com o motivo; mandar de novo volta
+ * à análise).
+ */
+export const SITUACOES_DOS_DOCUMENTOS = {
+  pendente: "Falta documento",
+  em_analise: "Em análise pela plataforma",
+  aprovado: "Conferida",
+  recusado: "Recusada",
+} as const;
+export type SituacaoDosDocumentos = keyof typeof SITUACOES_DOS_DOCUMENTOS;
+
+/** Os obrigatórios que ainda faltam. */
+export function documentosQueFaltam(enviados: readonly string[]): DocumentoDaEntidade[] {
+  return DOCUMENTOS_OBRIGATORIOS.filter((t) => !enviados.includes(t));
+}
+
+/** Depois de um envio ou de trocar nome ou CNPJ: completo vai para análise. */
+export const situacaoDepoisDoEnvio = (enviados: readonly string[]): SituacaoDosDocumentos =>
+  documentosQueFaltam(enviados).length ? "pendente" : "em_analise";
+
+/** O que a plataforma decide: aprovar ou recusar, recusar com motivo. */
+export function validarDecisaoDaEntidade(bruto: unknown): { status: "aprovado" | "recusado"; motivo: string | null; versao: string } {
+  const b = (bruto ?? {}) as Record<string, unknown>;
+  const status = b.status;
+  if (status !== "aprovado" && status !== "recusado") throw new EntidadeInvalida("Decida: aprovar ou recusar.");
+  const motivo = limpar(b.motivo).slice(0, 500);
+  if (status === "recusado" && motivo.length < 5) throw new EntidadeInvalida("Diga o motivo da recusa: a organização vai lê-lo.");
+  const versao = limpar(b.versao);
+  if (!versao || Number.isNaN(new Date(versao).getTime())) throw new EntidadeInvalida("Abra a entidade de novo: falta a versão que você conferiu.");
+  return { status, motivo: status === "recusado" ? motivo : null, versao };
+}

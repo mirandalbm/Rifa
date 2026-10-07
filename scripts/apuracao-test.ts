@@ -48,6 +48,7 @@ async function limpar() {
   await db.execute(sql`delete from campaigns where slug like ${`${PREFIXO}%`}`);
   await db.execute(sql`delete from sorteios_oficiais where titulo like ${`${PREFIXO}%`}`);
   await db.execute(sql`delete from buyers where phone = ${FONE}`);
+  await db.execute(sql`delete from buyers where phone in ('11977776611', '11977776612') and not exists (select 1 from orders o where o.buyer_id = buyers.id)`);
 }
 
 async function main() {
@@ -165,6 +166,72 @@ async function main() {
     } else {
       checa("a organização do seed tem telefone para provar o 9.4", false, "telefone_organizador vazio");
     }
+
+    // 5.6: sócios e diretores pelo CPF, com a lista declarada completa.
+    console.log("\n  sócios e diretores (5.6) e vale-brinde (2.3):");
+    const socios = `/api/admin/organizacoes/${org.id}/socios`;
+    const CPF_SOCIO = "529.982.247-25";
+    try {
+      r = await admin.req("POST", socios, { nome: "Sócio da Plataforma", cargo: "socio", cpf: CPF_SOCIO });
+      checa("a plataforma não grava a lista da organização (403)", r.status === 403, `HTTP ${r.status}`);
+      r = await marina.req("POST", socios, { nome: "Carlos Souza", cargo: "socio", cpf: "111.111.111-11" });
+      checa("CPF inválido: 422", r.status === 422, `HTTP ${r.status}`);
+      r = await marina.req("POST", socios, { nome: "Carlos Souza", cargo: "socio", cpf: CPF_SOCIO });
+      checa("a organização inclui o sócio; o CPF volta só com o final", r.status === 201 && r.json?.cpf === "•••.•••.•••-25" && !JSON.stringify(r.json).includes("52998224725"), JSON.stringify(r.json));
+      const socioId = r.json?.id;
+      const [guardado] = (await db.execute(sql`select cpf_impressao, cpf_final from organizacao_socios where id = ${socioId}::uuid`)).rows as { cpf_impressao: string; cpf_final: string }[];
+      checa("o banco guarda a impressão e o final, nunca o CPF", guardado?.cpf_final === "25" && !String(guardado?.cpf_impressao).includes("52998224725"));
+      r = await marina.req("POST", socios, { nome: "Carlos de Novo", cargo: "diretor", cpf: CPF_SOCIO });
+      checa("o mesmo CPF duas vezes: 409", r.status === 409, `HTTP ${r.status}`);
+      r = await admin.req("GET", socios);
+      checa("a plataforma consulta a lista (sem declaração: mexer apagou)", r.status === 200 && r.json?.socios?.length >= 1 && r.json?.declaradaEm === null, JSON.stringify(r.json?.declaradaEm));
+      const rascunhoSocios = await novaRifa("socios", { status: "draft" });
+      r = await marina.req("GET", `/api/admin/campaigns/${rascunhoSocios.c.id}/blockers`);
+      checa("sem a lista declarada, a rifa autorizada não publica", (r.json?.blockers ?? []).some((b: string) => b.includes("sócios e diretores")), JSON.stringify(r.json?.blockers));
+      r = await marina.req("POST", `/api/admin/campaigns/${rascunhoSocios.c.id}/publish`);
+      checa("…e o publicar recusa", r.status === 422, `HTTP ${r.status}`);
+      r = await admin.req("POST", `${socios}/declarar`);
+      checa("a plataforma não declara pela organização (403)", r.status === 403, `HTTP ${r.status}`);
+      r = await marina.req("POST", `${socios}/declarar`);
+      checa("a organização declara a lista completa", r.status === 200 && Boolean(r.json?.declaradaEm), `HTTP ${r.status}`);
+      r = await marina.req("GET", `/api/admin/campaigns/${rascunhoSocios.c.id}/blockers`);
+      checa("declarada, a publicação não acusa mais", !(r.json?.blockers ?? []).some((b: string) => b.includes("sócios e diretores")), JSON.stringify(r.json?.blockers));
+      r = await anon.req("POST", "/api/public/orders", {
+        campaignId: impedida.c.id,
+        quantity: 1,
+        buyer: { name: "Carlos Souza", phone: "11977776611", cpf: CPF_SOCIO },
+      });
+      checa("a compra com o CPF do sócio é recusada (403)", r.status === 403 && String(r.json?.message).includes("sócio"), `HTTP ${r.status} ${r.json?.message ?? ""}`);
+      const [nadaReservado] = await db.select({ n: sql<number>`count(*)::int` }).from(quotaAlloc).where(eq(quotaAlloc.campaignId, impedida.c.id));
+      checa("…sem gravar nada", Number(nadaReservado.n) === 0);
+      const semMetodoSocio = await novaRifa("socio-sem-metodo", { metodoApuracao: null });
+      r = await anon.req("POST", "/api/public/orders", { campaignId: semMetodoSocio.c.id, quantity: 1, buyer: { name: "Carlos Souza", phone: "11977776612", cpf: CPF_SOCIO } });
+      checa("na rifa de antes (sem método) a regra não muda", r.status === 201, `HTTP ${r.status} ${r.json?.message ?? ""}`);
+      r = await marina.req("DELETE", `${socios}/${socioId}`);
+      const depois = await marina.req("GET", socios);
+      checa("remover a pessoa apaga a declaração", r.status === 204 && depois.json?.declaradaEm === null, `HTTP ${r.status}`);
+    } finally {
+      await db.execute(sql`delete from organizacao_socios where organization_id = ${org.id}::uuid`);
+      await db.update(organizations).set({ sociosDeclaradosEm: org.sociosDeclaradosEm ?? new Date() }).where(eq(organizations.id, org.id));
+    }
+
+    // 2.3: cota premiada é vale-brinde — a autorização tem de incluí-lo.
+    const comPremiada = await novaRifa("vale-brinde", { status: "draft" });
+    r = await admin.req("POST", `/api/admin/campaigns/${comPremiada.c.id}/prized`, { prizeLabel: "Fone bluetooth", numeros: "005" });
+    r = await marina.req("GET", `/api/admin/campaigns/${comPremiada.c.id}/blockers`);
+    checa("rifa autorizada com cota premiada, sem a declaração: não publica", (r.json?.blockers ?? []).some((b: string) => b.includes("vale-brinde")), JSON.stringify(r.json?.blockers));
+    r = await marina.req("PUT", `/api/admin/campaigns/${comPremiada.c.id}/legal`, { declaraValeBrinde: true });
+    checa("a promotora declara nos dados legais", r.status === 200 && r.json?.declaraValeBrinde === true, `HTTP ${r.status}`);
+    r = await marina.req("GET", `/api/admin/campaigns/${comPremiada.c.id}/blockers`);
+    checa("…e a publicação não acusa mais", !(r.json?.blockers ?? []).some((b: string) => b.includes("vale-brinde")), JSON.stringify(r.json?.blockers));
+    const noArSemDeclaracao = await novaRifa("vale-brinde-no-ar");
+    r = await marina.req("POST", `/api/admin/campaigns/${noArSemDeclaracao.c.id}/prized`, { prizeLabel: "Fone bluetooth", quantity: 1 });
+    checa("rifa no ar sem a declaração não ganha cota premiada (409)", r.status === 409 && String(r.json?.message).includes("vale-brinde"), `HTTP ${r.status}`);
+    r = await marina.req("PUT", `/api/admin/campaigns/${noArSemDeclaracao.c.id}/legal`, { declaraValeBrinde: true });
+    checa("…e a declaração trava ao publicar (422)", r.status === 422, `HTTP ${r.status}`);
+    const noArComDeclaracao = await novaRifa("vale-brinde-declarada", { declaraValeBrinde: true });
+    r = await marina.req("POST", `/api/admin/campaigns/${noArComDeclaracao.c.id}/prized`, { prizeLabel: "Fone bluetooth", quantity: 1 });
+    checa("rifa no ar com a declaração ganha cota premiada", r.status === 201, `HTTP ${r.status} ${r.json?.message ?? ""}`);
 
     // Sem método liberado, nada publica (e a escolha recusa).
     await admin.req("PUT", "/api/admin/apuracao/metodos", { liberados: [] });

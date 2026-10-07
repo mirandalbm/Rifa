@@ -166,7 +166,7 @@ async function main() {
   for (const [i, slug] of SLUGS.entries()) {
     const [o] = await db
       .insert(organizations)
-      .values({ slug, name: `Divulgação ${i ? "B" : "A"}`, cidade: "Natal", uf: "RN", telefoneConfirmadoEm: new Date(), telefoneAprovadoEm: new Date() })
+      .values({ slug, name: `Divulgação ${i ? "B" : "A"}`, cidade: "Natal", uf: "RN", telefoneConfirmadoEm: new Date(), telefoneAprovadoEm: new Date(), sociosDeclaradosEm: new Date() })
       .returning();
     await db.insert(users).values({ role: "organizer", organizationId: o.id, name: `Org ${i}`, email: EMAILS[i], passwordHash: await hashPassword(SENHA) });
     orgs.push(o);

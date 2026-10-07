@@ -147,7 +147,7 @@ async function main() {
     // Telefone já aprovado: sem isso a rifa não publica (`publishBlockers`).
     const [o] = await db
       .insert(organizations)
-      .values({ slug, name: `Afiliados ${i ? "B" : "A"}`, cidade: "Natal", uf: "RN", telefoneConfirmadoEm: new Date(), telefoneAprovadoEm: new Date() })
+      .values({ slug, name: `Afiliados ${i ? "B" : "A"}`, cidade: "Natal", uf: "RN", telefoneConfirmadoEm: new Date(), telefoneAprovadoEm: new Date(), sociosDeclaradosEm: new Date() })
       .returning();
     await db.insert(users).values({ role: "organizer", organizationId: o.id, name: `Org ${i}`, email: EMAILS[i], passwordHash: await hashPassword(SENHA) });
     orgs.push(o);

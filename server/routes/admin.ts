@@ -7,12 +7,18 @@ import {
   imagemDoPainel,
   removerBannerDeDivulgacao,
   salvarBannerDeDivulgacao,
+  salvarDocumentoDaEntidade,
+  documentosEnviados,
+  entidadesParaConferir,
+  documentoDaEntidade,
+  decidirEntidade,
 } from "../services/bannerDivulgacao";
+import { SociosError, adicionarSocio, declararSocios, listarSocios, removerSocio } from "../services/socios";
 import { agendarPublicacao } from "../services/publicacaoAgendada";
 import { enviarComFaixa, enviarFaixaDoBanco } from "../services/faixa";
 import { devolverPixTardio, listarPixTardios, resolverPixTardio } from "../services/pixTardio";
 import { abaterRetencao, liberarRetencao, listarRetencoes, reterManual } from "../services/retencao";
-import { numerosPremiados } from "@shared/premiadas";
+import { PROBLEMA_PREMIADA_SEM_DECLARACAO, numerosPremiados } from "@shared/premiadas";
 import express, { Router, type Request, type Response as Resposta } from "express";
 import {
   aprovarTelefone,
@@ -1017,9 +1023,11 @@ adminRouter.put("/campaigns/:id/legal", async (req, res, next) => {
       minimoVendidoPct: req.body?.minimoVendidoPct,
       modoSorteio: req.body?.modoSorteio,
       metodoApuracao: req.body?.metodoApuracao,
+      declaraValeBrinde: req.body?.declaraValeBrinde === undefined ? undefined : req.body.declaraValeBrinde === true,
     });
     await audit(req, "campaign.legal", "campaign", campaign.id, {
       metodoApuracao: atualizada.metodoApuracao,
+      declaraValeBrinde: atualizada.declaraValeBrinde,
       aceitaCotaBonus: atualizada.aceitaCotaBonus,
       bonusMaxCotas: atualizada.bonusMaxCotas,
       minimoVendidoPct: atualizada.minimoVendidoPct,
@@ -1038,6 +1046,7 @@ adminRouter.put("/campaigns/:id/legal", async (req, res, next) => {
       minimoVendidoPct: atualizada.minimoVendidoPct,
       modoSorteio: atualizada.modoSorteio,
       metodoApuracao: atualizada.metodoApuracao,
+      declaraValeBrinde: atualizada.declaraValeBrinde,
     });
   } catch (err) {
     if (err instanceof CampaignRuleError) return res.status(422).json({ message: err.message });
@@ -1077,10 +1086,15 @@ adminRouter.get("/campaigns/:id/banner-divulgacao", async (req, res, next) => {
       b
         ? {
             nome: b.nome,
+            cnpj: b.cnpj,
             texto: b.texto,
             site: b.site,
             redes: b.redes,
             imagem: `/api/admin/campaigns/${campaign.id}/banner-divulgacao/imagem?v=${b.em.getTime()}`,
+            // A conferência da plataforma (2.5): a entidade só aparece aprovada.
+            documentos: b.documentos,
+            motivo: b.motivo,
+            enviados: (await documentosEnviados(campaign.id)).map((d) => ({ tipo: d.tipo, em: d.em })),
           }
         : null,
     );
@@ -1112,11 +1126,29 @@ adminRouter.put("/campaigns/:id/banner-divulgacao", async (req, res, next) => {
     const salvo = await salvarBannerDeDivulgacao(campaign.id, campaign.organizationId, corpo);
     await audit(req, "campaign.banner_divulgacao", "campaign", campaign.id, {
       nome: salvo.nome,
+      documentos: salvo.documentos,
       site: salvo.site,
       redes: salvo.redes.map((r) => r.rede),
       imagemNova: corpo.imagem !== undefined,
     });
     res.json(salvo);
+  } catch (err) {
+    if (err instanceof BannerDivulgacaoError) return res.status(err.status).json({ message: err.message });
+    next(err);
+  }
+});
+
+/**
+ * Documentos da entidade (resposta 2.5): CNPJ ativo, ata da diretoria e
+ * certidão de regularidade fiscal (CEBAS opcional). Quem envia é a dona da
+ * rifa (o vizinho é 404); cifrados no cofre, e só a plataforma os abre.
+ */
+adminRouter.put("/campaigns/:id/banner-divulgacao/documentos/:tipo", async (req, res, next) => {
+  try {
+    const campaign = await assertCampaignInScope(req, req.params.id);
+    const situacao = await salvarDocumentoDaEntidade(campaign.id, req.params.tipo, req.body?.arquivo);
+    await audit(req, "campaign.entidade.documento", "campaign", campaign.id, { tipo: req.params.tipo, situacao });
+    res.json({ documentos: situacao });
   } catch (err) {
     if (err instanceof BannerDivulgacaoError) return res.status(err.status).json({ message: err.message });
     next(err);
@@ -1130,6 +1162,49 @@ adminRouter.delete("/campaigns/:id/banner-divulgacao", async (req, res, next) =>
     await audit(req, "campaign.banner_divulgacao.remover", "campaign", campaign.id, {});
     res.status(204).end();
   } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * A fila das entidades beneficiadas (2.5): só a plataforma vê, abre os
+ * documentos (a auditoria vai antes de o arquivo sair) e decide a versão que
+ * conferiu. A organização é 403.
+ */
+adminRouter.get("/entidades", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    res.setHeader("Cache-Control", "no-store");
+    res.json(await entidadesParaConferir());
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.get("/entidades/:campaignId/documentos/:tipo", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    if (!/^[0-9a-f-]{36}$/i.test(req.params.campaignId)) return res.status(404).json({ message: "Documento não encontrado." });
+    await audit(req, "entidade.documento.ler", "campaign", req.params.campaignId, { tipo: req.params.tipo });
+    const d = await documentoDaEntidade(req.params.campaignId, req.params.tipo);
+    if (!d) return res.status(404).json({ message: "Documento não encontrado." });
+    res.setHeader("Cache-Control", "no-store");
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.type(d.mime).send(d.bytes);
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.post("/entidades/:campaignId/decidir", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    if (!/^[0-9a-f-]{36}$/i.test(req.params.campaignId)) return res.status(404).json({ message: "Entidade não encontrada." });
+    const feita = await decidirEntidade(req.params.campaignId, req.body, req.user?.id ?? null);
+    await audit(req, "entidade.decidir", "campaign", req.params.campaignId, { status: feita.status, motivo: feita.motivo });
+    res.json(feita);
+  } catch (err) {
+    if (err instanceof BannerDivulgacaoError) return res.status(err.status).json({ message: err.message });
     next(err);
   }
 });
@@ -1511,6 +1586,12 @@ adminRouter.post("/campaigns/:id/prized", async (req, res, next) => {
     }
     const premio = problemaNoPremio(prizeLabel, Boolean(campaign.metodoApuracao));
     if (premio) return res.status(422).json({ message: premio });
+    // Cota premiada é vale-brinde (2.3): a rifa autorizada publicada sem a
+    // declaração de que a autorização o inclui não ganha cota premiada. No
+    // rascunho, quem confere é a publicação.
+    if (campaign.metodoApuracao && campaign.status !== "draft" && !campaign.declaraValeBrinde) {
+      return res.status(409).json({ message: PROBLEMA_PREMIADA_SEM_DECLARACAO });
+    }
 
     // Números escolhidos: só a plataforma, e só no cadastro, antes de publicar
     // (`shared/premiadas.ts`). A organização sorteia — quem escolhe o número
@@ -2454,6 +2535,72 @@ adminRouter.put("/organizacoes/:id/endereco", async (req, res, next) => {
     await audit(req, "organizacao.endereco", "organization", req.params.id, endereco);
     res.json(endereco);
   } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * Sócios e diretores (resposta 5.6 do advogado): a organização cadastra e
+ * declara a lista completa — a declaração é dela, então só ela grava (a
+ * plataforma lê, 403 para gravar). O vizinho é 404, como toda rota com id
+ * de organização. O CPF nunca volta: só o final.
+ */
+function socioDaRota(req: Request, res: Resposta, gravar: boolean): boolean {
+  const org = orgOf(req);
+  if (org && org !== req.params.id) {
+    res.status(404).json({ message: "Organização não encontrada." });
+    return false;
+  }
+  if (gravar && !org) {
+    res.status(403).json({ message: "A lista e a declaração são da organização: a plataforma só consulta." });
+    return false;
+  }
+  return true;
+}
+
+adminRouter.get("/organizacoes/:id/socios", async (req, res, next) => {
+  try {
+    if (!socioDaRota(req, res, false)) return;
+    res.setHeader("Cache-Control", "no-store");
+    res.json(await listarSocios(req.params.id));
+  } catch (err) {
+    if (err instanceof SociosError) return res.status(err.status).json({ message: err.message });
+    next(err);
+  }
+});
+
+adminRouter.post("/organizacoes/:id/socios", async (req, res, next) => {
+  try {
+    if (!socioDaRota(req, res, true)) return;
+    const socio = await adicionarSocio(req.params.id, req.body, req.user?.id ?? null);
+    await audit(req, "organizacao.socio.adicionar", "organization", req.params.id, { socioId: socio.id, cargo: socio.cargo });
+    res.status(201).json(socio);
+  } catch (err) {
+    if (err instanceof SociosError) return res.status(err.status).json({ message: err.message });
+    next(err);
+  }
+});
+
+adminRouter.delete("/organizacoes/:id/socios/:socioId", async (req, res, next) => {
+  try {
+    if (!socioDaRota(req, res, true)) return;
+    await removerSocio(req.params.id, req.params.socioId);
+    await audit(req, "organizacao.socio.remover", "organization", req.params.id, { socioId: req.params.socioId });
+    res.status(204).end();
+  } catch (err) {
+    if (err instanceof SociosError) return res.status(err.status).json({ message: err.message });
+    next(err);
+  }
+});
+
+adminRouter.post("/organizacoes/:id/socios/declarar", async (req, res, next) => {
+  try {
+    if (!socioDaRota(req, res, true)) return;
+    const em = await declararSocios(req.params.id, req.user?.id ?? null);
+    await audit(req, "organizacao.socios.declarar", "organization", req.params.id, { declaradaEm: em });
+    res.json({ declaradaEm: em });
+  } catch (err) {
+    if (err instanceof SociosError) return res.status(err.status).json({ message: err.message });
     next(err);
   }
 });

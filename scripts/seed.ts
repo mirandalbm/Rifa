@@ -88,14 +88,16 @@ async function main() {
       uf: "SP",
       observacao: "Bilhete válido mediante pagamento confirmado.",
       // A organização de exemplo já vem com o telefone provado e aprovado:
-      // sem isso nenhuma rifa publica (`publishBlockers`).
+      // sem isso nenhuma rifa publica (`publishBlockers`). E a lista de sócios
+      // declarada (5.6): sem ela, a rifa autorizada não publica.
       telefoneOrganizador: "11933334444",
       telefoneConfirmadoEm: new Date(),
       telefoneAprovadoEm: new Date(),
+      sociosDeclaradosEm: new Date(),
     })
     .onConflictDoUpdate({
       target: organizations.slug,
-      set: { active: true, telefoneOrganizador: "11933334444", telefoneConfirmadoEm: new Date(), telefoneAprovadoEm: new Date() },
+      set: { active: true, telefoneOrganizador: "11933334444", telefoneConfirmadoEm: new Date(), telefoneAprovadoEm: new Date(), sociosDeclaradosEm: new Date() },
     })
     .returning();
 

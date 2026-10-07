@@ -135,7 +135,7 @@ async function main() {
   for (const [i, slug] of SLUGS.entries()) {
     const [o] = await db
       .insert(organizations)
-      .values({ slug, name: `Contrato ${i ? "B" : "A"}`, cidade: "Natal", uf: "RN", telefoneConfirmadoEm: new Date(), telefoneAprovadoEm: new Date() })
+      .values({ slug, name: `Contrato ${i ? "B" : "A"}`, cidade: "Natal", uf: "RN", telefoneConfirmadoEm: new Date(), telefoneAprovadoEm: new Date(), sociosDeclaradosEm: new Date() })
       .returning();
     const [u] = await db
       .insert(users)

@@ -82,7 +82,7 @@ async function main() {
 
   const [org] = await db
     .insert(organizations)
-    .values({ slug: ORG, name: "Org dos Grupos", cidade: "Natal", uf: "RN", telefoneConfirmadoEm: new Date(), telefoneAprovadoEm: new Date() })
+    .values({ slug: ORG, name: "Org dos Grupos", cidade: "Natal", uf: "RN", telefoneConfirmadoEm: new Date(), telefoneAprovadoEm: new Date(), sociosDeclaradosEm: new Date() })
     .returning();
   await db.insert(users).values({ role: "organizer", organizationId: org.id, name: "Org Grupos", email: EMAIL_ORG, passwordHash: await hashPassword("grupos-123") });
   const novaRifa = async (slug: string) => {

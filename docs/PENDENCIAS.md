@@ -515,9 +515,9 @@ Na ordem de entrega do plano:
   desligado** (Configurações → Pagamentos → "A plataforma guarda a comissão
   dos afiliados"): a comissão da venda online com afiliado sai do split da
   organização, só libera depois do sorteio e é paga pela plataforma.
-- [ ] **[ligar]** Guarda da comissão: ligar quando o modelo contábil estiver
-  validado (combinado, não bloqueia o código) (a plataforma segurando dinheiro de terceiro até o sorteio; RPA ou
-  nota do afiliado).
+- [ ] **[ligar]** Guarda da comissão: o modelo contábil foi validado pelo
+  contador (07/10/2026, abaixo). Ligar quando o provedor do Pix estiver no ar
+  e a contabilidade tiver a conta "Valores a repassar — afiliados".
 - [x] Indicação, bônus e metas, **atrás de um interruptor desligado**
   (menu Bônus da plataforma): link de indicação, visitas novas, metas e
   cotas grátis de bônus, resgatadas só em rifa cujo regulamento as prevê.
@@ -584,8 +584,31 @@ Na ordem de entrega do plano:
   bônus no regulamento (a cláusula, `clausulaDoBonus()`, já diz a quantidade
   autorizada e que a cota grátis não conta para o mínimo de vendidas; falta
   ele confirmar que o plano de operação da SPA/MF prevê a distribuição).
-- [ ] **[lançamento]** Validação contábil: guarda da comissão pela plataforma
-  e RPA/nota dos afiliados.
+- [x] **[lançamento]** Validação contábil (contador, 07/10/2026):
+  - **Guarda da comissão** é mandato: o valor entra a débito de Banco e a
+    crédito de "Valores a repassar — afiliados" (passivo circulante) e sai
+    no pagamento depois do sorteio. Não passa pelo resultado, então não
+    paga PIS, COFINS, IRPJ, CSLL nem ISS.
+  - **Nota do afiliado**: "promoção de vendas" (CNAE 7319-0/02 sugerido),
+    contra a International Lottery Ltda quando a plataforma guarda e paga
+    (é o que o sistema já mostra em cada linha do saque). A tela do saque
+    sugere a descrição (`DESCRICAO_DA_NOTA_DO_AFILIADO` em
+    `shared/fiscal.ts`). MEI e Simples: sem retenção na fonte, pagamento
+    pelo valor cheio.
+  - **Receita da plataforma**: só a taxa por venda ou a mensalidade. NFS-e
+    mensal contra cada promotora ("taxa de uso de plataforma tecnológica" ou
+    "intermediação de negócios"); o valor sai da exportação "Cobrança da
+    plataforma" (Exportações), por organização e mês.
+- [ ] **[você]** Conferir no cartão do CNPJ da International Lottery Ltda se
+  há um CNAE que comporte a taxa da plataforma (o contador citou 7490-1/04,
+  intermediação, ou um de serviço de aplicação na internet — confirme com
+  ele o código exato, o 6311-9/00 é o de provedores de aplicação) e, se não
+  houver, incluir antes da primeira nota.
+- [ ] **[você]** Decidir o afiliado do Lucro Presumido ou Real: o sistema
+  paga qualquer empresa pelo valor cheio, e nesse caso o contador indica
+  retenção de 1,5% de IRRF. Hoje é raro; ou o pagamento desse afiliado sai
+  com a retenção feita à mão, ou o código passa a pedir o regime no cadastro
+  fiscal.
 - [ ] **[você]** Cliente OAuth do Google (console.cloud.google.com → APIs e
   serviços → Credenciais → ID do cliente OAuth, tipo "Aplicativo da Web"):
   URI de redirecionamento autorizada

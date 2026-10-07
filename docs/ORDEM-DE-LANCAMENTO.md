@@ -40,11 +40,14 @@ paralelo, para não segurar o resto. Marque aqui mesmo o que for fechando.
   resultado guardado — no código). **6.5, 4.2, 4.4, 4.5, 5.1 e C.1 (as três
   frases do item 9) respondidos.** 6.4 decidido e no código: o saque é pago
   só a MEI ou empresa, com a nota fiscal de cada saque.
-- [ ] **Contador**: guarda da comissão pela plataforma (o advogado, 6.5: é
-  mandato — a comissão guardada **não** entra como receita da plataforma,
-  senão paga PIS/COFINS/ISS sobre dinheiro de terceiro) e a nota fiscal
-  dos afiliados (6.4: o saque é só para MEI ou empresa, com a nota anexada —
-  confirmar com ele o serviço da nota e quem é o tomador na guarda).
+- [x] **Contador** (respondido em 07/10/2026): a comissão guardada é
+  dinheiro de terceiro em trânsito — entra a débito de Banco e a crédito de
+  "Valores a repassar — afiliados" (passivo) e sai no pagamento, sem passar
+  pelo resultado (sem PIS, COFINS, IRPJ, CSLL e ISS). A nota do afiliado
+  descreve "promoção de vendas" (CNAE 7319-0/02) e, na guarda, sai contra a
+  International Lottery Ltda; MEI e Simples não sofrem retenção. A receita
+  da plataforma é só a taxa ou a mensalidade, com NFS-e mensal contra cada
+  promotora. Pendências que sobraram: seção 5 de `docs/PENDENCIAS.md`.
 - [ ] **Pagamento**: pedir por escrito ao Mercado Pago e ao Asaas se aceitam
   promoção comercial com autorização SPA/MF. A resposta decide o provedor
   (etapa 4).

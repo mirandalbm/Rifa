@@ -64,6 +64,13 @@ export interface DadosFiscais {
   empresa?: EmpresaDoAfiliado | null;
 }
 
+/**
+ * O serviço que o afiliado descreve na nota do saque (contador, 07/10/2026):
+ * promoção de vendas, CNAE 7319-0/02. MEI e Simples Nacional não sofrem
+ * retenção na fonte, e o saque sai pelo valor cheio.
+ */
+export const DESCRICAO_DA_NOTA_DO_AFILIADO = "Serviços de promoção de vendas (divulgação e publicidade online)";
+
 export const MENSAGEM_SAQUE_SO_COM_CNPJ =
   "O saque é pago a MEI ou empresa: cadastre o CNPJ em Meus dados e aguarde a aprovação. Cada saque vai com a nota fiscal do valor.";
 

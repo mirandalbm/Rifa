@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { NOTA_FISCAL_MAX_BYTES } from "@shared/fiscal";
+import { DESCRICAO_DA_NOTA_DO_AFILIADO, NOTA_FISCAL_MAX_BYTES } from "@shared/fiscal";
 import { Link } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { PanelShell } from "@/components/AppShell";
@@ -421,6 +421,7 @@ export function AfiliadoSaques() {
             <p className="text-xs text-muted">
               A comissão é paga a MEI ou empresa: anexe a nota fiscal emitida pelo seu CNPJ no valor do saque, contra
               quem paga (o nome e o CNPJ vão em cada linha), em PDF, XML ou foto, até 3 MB. O CNPJ fica em <a href="/afiliado/dados" className="underline">Meus dados</a>.
+              {" "}Na descrição da nota, use “{DESCRICAO_DA_NOTA_DO_AFILIADO}”.
             </p>
             {saldo.length === 0 ? <p className="text-sm text-muted">Nenhuma comissão ainda.</p> : null}
             <ul className="divide-y divide-line">

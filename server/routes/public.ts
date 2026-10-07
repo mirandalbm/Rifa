@@ -1447,6 +1447,7 @@ publicRouter.get("/campaigns/:slug/regulamento", async (req, res, next) => {
         cotasPremiadas: premiadas.map((p) => p.label),
         taxaReembolsoPct: plataforma.taxaReembolsoPct,
         aceitaReembolso: plataforma.estornoManual,
+        presente: plataforma.presente,
       }),
     });
   } catch (err) {

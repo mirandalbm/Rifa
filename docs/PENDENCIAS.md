@@ -697,6 +697,35 @@ Na ordem de entrega do plano:
   bônus do **saldo**; se a cota já foi resgatada, o saldo fica negativo e
   trava novos resgates até a compensação — a cota resgatada segue valendo.
   Os cinco anexos (A a E) podem ser publicados como vieram.
+  **Questionário do advogado (respondido em 07/10/2026, item por item)** —
+  de acordo: 1.1, 1.4, 1.8, 1.9, 2.1, 2.2, 2.4, 3.1, 3.2, 4.1, 4.2, 4.4,
+  4.5, 4.6, 5.2 a 5.5, 5.7, 6.1, 7.2, 7.3. **Já no código**: 5.1
+  (combustível e lubrificante nos itens proibidos, art. 10 do Decreto
+  70.951/72), 1.5 (a retenção virou suspensão; abater exige decisão judicial
+  ou acordo), 7.1 (documentos da verificação apagados 90 dias depois da
+  decisão; Rekognition citado como operador; consentimento na versão 4), 7.4
+  (Privacidade: 5 anos, e até 11 para o XML fiscal), 4.3 (justificativa da
+  taxa do reembolso), 6.2 (o presente no regulamento) e 3.3 (o termo do
+  afiliado diz que a comissão é devida pela promotora). **Texto do contrato
+  a reescrever** (o termo consolidado vai com estas mudanças): 1.2
+  (qualificação da plataforma), 1.3 ("Taxa de Autorização (SPA/MF)" no lugar
+  de "TFF"), 1.5 (suspensão temporária), 1.6 (só ressarcimento entre as
+  partes, depois do pagamento) e 1.7 (exigível depois do pagamento ou do
+  trânsito em julgado).
+- [ ] **[você]** Perguntar ao advogado o **1.2**: com o Pix cobrado e
+  dividido pelo Asaas (a instituição de pagamento), a plataforma é mesmo
+  "subcredenciadora", ou só cliente que contrata o split do provedor?
+  Subcredenciadora é figura regulada pelo Banco Central. Até a resposta, o
+  contrato usa "facilitadora de pagamentos, por meio de instituição de
+  pagamento autorizada".
+- [ ] **[código]** Decisões do questionário (07/10/2026), no próximo PR:
+  **2.5** a entidade beneficiada só aparece com CNPJ ativo, ata da diretoria
+  e certidão de regularidade fiscal enviados e conferidos pela plataforma
+  (CEBAS opcional); **5.6** a organização cadastra sócios e diretores com
+  CPF e declara a lista completa, e a compra é recusada também pelo CPF;
+  **2.3** a rifa com cota premiada só publica com a declaração de que a
+  autorização inclui o vale-brinde (mais o arquivo da autorização, que já é
+  exigido).
 
 - [x] **Apuração direta pela Loteria Federal (modo "Autorizado MF") e
   método liberado pela plataforma** — feito, com as respostas do advogado

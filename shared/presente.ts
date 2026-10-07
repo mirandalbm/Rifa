@@ -49,6 +49,22 @@ export function validarConfigPresente(v: unknown): ConfigPresente {
 }
 
 /**
+ * A cláusula do regulamento quando o presente está ligado (resposta 6.2 do
+ * advogado, 07/10/2026): o desconto tem de estar no regulamento, para quem
+ * compra saber que ele existe e como funciona.
+ */
+export function clausulaDoPresente(cfg: Pick<ConfigPresente, "pct" | "tetoCents">): string {
+  const teto = (cfg.tetoCents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  return (
+    `Desconto de primeira compra (presente): quem tem conta pode convidar outra pessoa pelo link da rifa; ` +
+    `o convidado que comprar dentro da própria conta tem ${cfg.pct}% de desconto (até ${teto}) na primeira compra paga, ` +
+    `pago pela plataforma. Vale uma vez por CPF, não vale para quem convida a si mesmo, nem em compra com cambista ou ` +
+    `no carrinho com várias rifas. A cota comprada com desconto concorre como qualquer outra; no reembolso, volta só o ` +
+    `que o comprador pagou.`
+  );
+}
+
+/**
  * Quanto a plataforma paga da compra: o percentual sobre o total (já com
  * pacote e cupom), para baixo, até o teto. Com o máximo de 50%, o
  * comprador sempre paga alguma coisa — o Pix nunca sai de R$ 0,00.

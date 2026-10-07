@@ -41,6 +41,15 @@ describe("regulamento da rifa", () => {
     expect(t).toContain("2 × Fone bluetooth; Caixa de som");
   });
 
+  it("o presente ligado entra no regulamento; desligado, não (resposta 6.2)", () => {
+    expect(texto(base)).not.toContain("Desconto de primeira compra");
+    expect(texto({ ...base, presente: { ligado: false, pct: 10, tetoCents: 1000 } })).not.toContain("Desconto de primeira compra");
+    const t = texto({ ...base, presente: { ligado: true, pct: 15, tetoCents: 2500 } });
+    expect(t).toContain("Desconto de primeira compra");
+    expect(t).toContain("15% de desconto");
+    expect(t).toMatch(/até R\$\s25,00/);
+  });
+
   it("a regra de reembolso é a mesma da tela de compra", () => {
     expect(texto(base)).toContain("taxa administrativa de 10%");
     expect(texto({ ...base, aceitaReembolso: false })).toContain("não aceita pedidos de reembolso");

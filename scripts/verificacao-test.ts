@@ -13,8 +13,12 @@ import { baseUrl } from "./base-url";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { db, pool } from "../server/db";
 import { hashPassword } from "../server/auth";
-import { affiliates, auditLog, buyers, campaignStats, campaigns, organizations, users, verificacoes } from "../shared/schema";
-import { compararAutomaticamente, tirarSelosSemConsentimentoRenovado } from "../server/services/verificacao";
+import { affiliates, auditLog, buyers, campaignStats, campaigns, organizations, users, verificacaoDocumentos, verificacoes } from "../shared/schema";
+import {
+  apagarDocumentosDeVerificacaoAntigos,
+  compararAutomaticamente,
+  tirarSelosSemConsentimentoRenovado,
+} from "../server/services/verificacao";
 import { CORES_DO_SELO_PADRAO, chaveDoConsentimento, prazoParaRenovarConsentimento } from "../shared/verificacao";
 
 const URL = baseUrl();
@@ -435,6 +439,25 @@ async function main() {
       .where(and(eq(auditLog.action, "verificacao.consentimento.vencido"), eq(auditLog.entityId, carlaB.id)));
     checa("passado o prazo, o relógio tira o selo de quem não renovou, com o ator sistema",
       !(await seloDaCarla()) && vencido?.actorRole === "sistema");
+
+    console.log("\n  guarda dos documentos (resposta 7.1):");
+    const docsDaCarla = async () =>
+      (await db.select({ t: verificacaoDocumentos.tipo }).from(verificacaoDocumentos).where(eq(verificacaoDocumentos.verificacaoId, linha.id))).length;
+    const antesDaGuarda = await docsDaCarla();
+    const diasAtras = (d: number) => new Date(Date.now() - d * 86_400_000);
+    await db.update(verificacoes).set({ status: "verificado", decididoEm: diasAtras(10), verificadoEm: diasAtras(10) }).where(eq(verificacoes.id, linha.id));
+    await apagarDocumentosDeVerificacaoAntigos();
+    checa("decidida há 10 dias: os documentos ficam", antesDaGuarda > 0 && (await docsDaCarla()) === antesDaGuarda, `${antesDaGuarda} → ${await docsDaCarla()}`);
+    await db.update(verificacoes).set({ decididoEm: diasAtras(91) }).where(eq(verificacoes.id, linha.id));
+    await apagarDocumentosDeVerificacaoAntigos();
+    const [depoisDaGuarda] = await db.select({ status: verificacoes.status }).from(verificacoes).where(eq(verificacoes.id, linha.id));
+    const [registro] = await db
+      .select()
+      .from(auditLog)
+      .where(and(eq(auditLog.action, "verificacao.documentos.apagados"), eq(auditLog.entityId, linha.id)));
+    checa("decidida há 91 dias: os documentos saem, o status fica e a auditoria registra (ator sistema)",
+      (await docsDaCarla()) === 0 && depoisDaGuarda?.status === "verificado" && registro?.actorRole === "sistema",
+      `${await docsDaCarla()} ${depoisDaGuarda?.status} ${registro?.actorRole}`);
 
     console.log("\n  cores do selo:");
     r = await marina.req("PUT", "/api/admin/selos", { cores: { apostador: "laranja" } });

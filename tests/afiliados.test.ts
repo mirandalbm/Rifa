@@ -46,7 +46,7 @@ describe("termo de adesão", () => {
     expect(t).toMatch(/MEI ou empresa: o saque exige o cadastro fiscal aprovado com o CNPJ/);
     expect(t).toMatch(/nota fiscal de serviço emitida por ele no valor do saque/);
     expect(t).toMatch(/plataforma guarda a comissão/);
-    expect(t).toMatch(/mera mandatária e agente de cobrança \(intermediadora de pagamentos\).*em nome e por conta de/);
+    expect(t).toMatch(/mera mandatária e agente de cobrança, arrecadando.*em nome e por conta de.*devida pela promotora, não pela plataforma/);
     // As cláusulas vêm numeradas em ordem, sem pular.
     const numeros = [...t.matchAll(/^(\d+)\. /gm)].map((m) => Number(m[1]));
     expect(numeros).toEqual(numeros.map((_, i) => i + 1));

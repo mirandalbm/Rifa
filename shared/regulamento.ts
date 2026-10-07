@@ -8,6 +8,7 @@
  * Puro: o servidor monta, a tela mostra, o teste confere.
  */
 import { clausulaDoBonus } from "./bonus";
+import { clausulaDoPresente, type ConfigPresente } from "./presente";
 import { formatBRL, formatQuota, groupNumber } from "./format";
 import { regraDoReembolso } from "./reembolso";
 import { IMPEDIDOS_DE_PARTICIPAR, SORTEIO_INVALIDO, regraDoNumeroSemDono } from "./sorteio";
@@ -79,6 +80,8 @@ export interface DadosDoRegulamento {
   cotasPremiadas: string[];
   taxaReembolsoPct: number;
   aceitaReembolso: boolean;
+  /** O presente ligado na plataforma (6.2: tem de constar no regulamento); ausente ou desligado, nada. */
+  presente?: Pick<ConfigPresente, "ligado" | "pct" | "tetoCents"> | null;
 }
 
 export interface Secao {
@@ -164,6 +167,7 @@ export function montarRegulamento(d: DadosDoRegulamento): Secao[] {
         "Cada número é vendido uma única vez.",
         "Só vale bilhete pago pela plataforma. Pagamento feito por fora (Pix ou transferência direto à promotora ou a terceiros) não gera cota nem participa do sorteio, e pedir pagamento por fora leva ao banimento da promotora.",
         ...(rifa.aceitaCotaBonus ? [clausulaDoBonus(rifa.bonusMaxCotas ?? 0)] : []),
+        ...(d.presente?.ligado ? [clausulaDoPresente(d.presente)] : []),
         // 9.4: na rifa autorizada a promotora não fica com as cotas e não concorre.
         ...(rifa.metodoApuracao ? [IMPEDIDOS_DE_PARTICIPAR] : []),
       ],

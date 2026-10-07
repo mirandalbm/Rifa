@@ -28,7 +28,7 @@ import { paymentProviderByName } from "../payments";
 import { log } from "../vite";
 import { poolDasTravas } from "../db";
 import { LocalDiskStorage, storage } from "../services/storage";
-import { tirarSelosSemConsentimentoRenovado } from "../services/verificacao";
+import { apagarDocumentosDeVerificacaoAntigos, tirarSelosSemConsentimentoRenovado } from "../services/verificacao";
 
 /**
  * Trava de aplicação no Postgres: com duas réplicas, os dois processos
@@ -77,6 +77,7 @@ const LOCK_SORTEIO_OFICIAL = 811_016;
 const LOCK_POSTER_ANTIGO = 811_017;
 const LOCK_PUBLICACAO_AGENDADA = 811_018;
 const LOCK_CONSENTIMENTO = 811_019;
+const LOCK_DOCUMENTOS_VERIFICACAO = 811_020;
 
 /** Quantos minutos antes de a reserva cair o lembrete é enviado. */
 const LEMBRETE_MINUTOS = Number(process.env.REMINDER_MINUTES_BEFORE ?? 5);
@@ -292,6 +293,18 @@ export function startJobs() {
       });
     } catch (err) {
       console.error("[jobs] consentimento não renovado:", err);
+    }
+  }, releaseMs).unref();
+
+  // Documentos da verificação: saem 90 dias depois da decisão (resposta 7.1). O selo fica.
+  setInterval(async () => {
+    try {
+      await withLock(LOCK_DOCUMENTOS_VERIFICACAO, async () => {
+        const n = await apagarDocumentosDeVerificacaoAntigos();
+        if (n > 0) log(`documentos de ${n} verificação(ões) apagados (guarda vencida)`, "jobs");
+      });
+    } catch (err) {
+      console.error("[jobs] documentos da verificação:", err);
     }
   }, releaseMs).unref();
 

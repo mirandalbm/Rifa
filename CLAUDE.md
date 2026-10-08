@@ -802,6 +802,14 @@ registro estão em `docs/VERSOES.md`.
   exemplo sorteadas, também marcadas), foto e capa só se faltarem, e três
   stories. Recusa (409) organização com rifa de verdade no ar — exemplo na
   vitrine de promotor real seria propaganda falsa com o nome dele.
+- **A imagem de exemplo vai com a medida** (1600 × 900, horizontal, nas
+  duas funções: `criarDemonstracao()` e `preencherComExemplo()`): o formato
+  da publicação sai da medida gravada, e sem ela o carrossel caía no retrato
+  — a arte horizontal ficava numa caixa em pé, com o título cortado. A
+  gravada antes disso ganha a medida pela tag `<svg>` (`medidaDoSvg()` em
+  `shared/publicacao.ts`), uma vez, ao subir o servidor
+  (`medirImagensDeExemplo()`, trava 811021). Só SVG em data URI: a mídia
+  das organizações é medida no envio. `npm run vitrine` prova.
 - **Excluir rifa** (`excluirRifa()`, `DELETE /campaigns/:id`) apaga de
   vez: rascunho, rifa no ar sem nenhuma cota tomada (nem reserva em
   andamento) e rifa de teste. Dinheiro envolvido — pedido pago ou

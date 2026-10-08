@@ -13,7 +13,8 @@
  * Remover é arquivar (DELETE de organização não existe): o perfil some na
  * hora, como o de qualquer arquivada. Criar de novo restaura e refaz.
  */
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, isNull, like } from "drizzle-orm";
+import { medidaDoSvg } from "@shared/publicacao";
 import sharp from "sharp";
 import { db } from "../db";
 import {
@@ -47,6 +48,14 @@ const NO_AR = [
 function xml(t: string) {
   return t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
+
+/**
+ * Medida das imagens de exemplo das publicações: horizontal, como o banner
+ * (16:9 cai em paisagem). Vai gravada junto: sem ela o carrossel cai no
+ * retrato e a arte horizontal ficava numa caixa em pé, com o título cortado.
+ */
+const W = 1600;
+const H = 900;
 
 /** Imagem de exemplo em SVG, direto no banco (data URI): não depende do disco. */
 function svg(w: number, h: number, de: string, para: string, texto: string, sub: string) {
@@ -167,14 +176,16 @@ export async function criarDemonstracao(baseUrl: string) {
       .limit(1);
     if (!temMidia) {
       await db.insert(campaignMedia).values([
-        { campaignId: c.id, role: "banner", position: 0, storageKey: svg(1600, 900, r.de, r.para, r.titulo, "demonstração"), mime: "image/svg+xml", status: "ready" },
+        { campaignId: c.id, role: "banner", position: 0, storageKey: svg(W, H, r.de, r.para, r.titulo, "demonstração"), mime: "image/svg+xml", status: "ready", width: W, height: H },
         ...[1, 2, 3].map((i) => ({
           campaignId: c.id,
           role: "photo" as const,
           position: i,
-          storageKey: svg(1200, 900, r.para, r.de, r.titulo, `foto ${i}`),
+          storageKey: svg(W, H, r.para, r.de, r.titulo, `foto ${i}`),
           mime: "image/svg+xml",
           status: "ready" as const,
+          width: W,
+          height: H,
         })),
       ]);
     }
@@ -239,14 +250,16 @@ async function midiaDeExemplo(campaignId: string, titulo: string, i: number) {
   // O vídeo que estava no Stream sai junto (cobra por minuto guardado).
   for (const m of saiu) await apagarNoStream(m.streamUid);
   await db.insert(campaignMedia).values([
-    { campaignId, role: "banner", position: 0, storageKey: svg(1600, 900, c.de, c.para, titulo, "rifa de teste"), mime: "image/svg+xml", status: "ready" },
+    { campaignId, role: "banner", position: 0, storageKey: svg(W, H, c.de, c.para, titulo, "rifa de teste"), mime: "image/svg+xml", status: "ready", width: W, height: H },
     ...[1, 2, 3].map((n) => ({
       campaignId,
       role: "photo" as const,
       position: n,
-      storageKey: svg(1200, 900, c.para, c.de, titulo, `foto ${n}`),
+      storageKey: svg(W, H, c.para, c.de, titulo, `foto ${n}`),
       mime: "image/svg+xml",
       status: "ready" as const,
+      width: W,
+      height: H,
     })),
   ]);
 }
@@ -362,4 +375,37 @@ export async function preencherComExemplo(orgId: string, baseUrl = "") {
 
   const stories = await storiesDeExemplo(orgId, noAr[0]?.id ?? null, org.name);
   return { fotosDePublicacao: noAr.length, destaques: destaques.length, stories };
+}
+
+/**
+ * As imagens de exemplo gravadas antes de levarem a medida (perfil de
+ * demonstração e "Preencher com exemplo"): a medida sai da própria tag
+ * `<svg>` (`medidaDoSvg()`), uma vez, ao subir o servidor. Só SVG em data
+ * URI — a mídia enviada pelas organizações é medida no envio e não passa por
+ * aqui. O `UPDATE` só vale com a largura ainda vazia: repetir não muda nada.
+ */
+export async function medirImagensDeExemplo(): Promise<number> {
+  const linhas = await db
+    .select({ id: campaignMedia.id, chave: campaignMedia.storageKey })
+    .from(campaignMedia)
+    .where(
+      and(
+        eq(campaignMedia.mime, "image/svg+xml"),
+        isNull(campaignMedia.width),
+        like(campaignMedia.storageKey, "data:image/svg+xml;base64,%"),
+      ),
+    )
+    .limit(500);
+  let n = 0;
+  for (const l of linhas) {
+    const m = medidaDoSvg(l.chave);
+    if (!m) continue;
+    const feito = await db
+      .update(campaignMedia)
+      .set({ width: m.largura, height: m.altura })
+      .where(and(eq(campaignMedia.id, l.id), isNull(campaignMedia.width)))
+      .returning({ id: campaignMedia.id });
+    n += feito.length;
+  }
+  return n;
 }

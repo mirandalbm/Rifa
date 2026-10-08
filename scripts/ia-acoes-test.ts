@@ -23,6 +23,7 @@
  */
 import "dotenv/config";
 import http from "node:http";
+import { randomUUID } from "node:crypto";
 import { and, eq, inArray, like, sql } from "drizzle-orm";
 import { baseUrl } from "./base-url";
 import { db, pool } from "../server/db";
@@ -58,6 +59,7 @@ const SLUG_MARINA = "ia-acao-rascunho-marina";
 const SLUG_VIZINHA = "ia-acao-rascunho-vizinha";
 /** A rifa e o comprador do pedido de teste (o seed do CI não tem pedido da Marina). */
 const SLUG_PEDIDO = "ia-acao-pedido-marina";
+const SLUG_SUGESTAO = "ia-acoes-sugestao";
 const FONE_PROVA = "11960009901";
 const NOME_PROVA = "Comprador Prova Assistente";
 const PROTOCOLO = "RB-20261002-990001";
@@ -84,7 +86,7 @@ class Cliente {
     } catch {
       /* não é JSON */
     }
-    return { status: r.status, texto, json };
+    return { status: r.status, texto, json, cache: r.headers.get("cache-control") ?? "" };
   }
 }
 
@@ -133,6 +135,23 @@ function subirFalso(): Promise<http.Server> {
         const resposta = (parts: unknown[], finishReason: string) =>
           responder(200, { data: { id, role: "assistant", parts, metadata: { conversationId: conv, finishReason, usage: { credits: 1 } } } });
         const acao = (nome: string, input: unknown) => ({ type: "tool-call", toolCallId: `call_${seq}_${nome}`, toolName: nome, input });
+        // Os pedidos de texto sugerido (o editor e a legenda): a resposta traz o bom e o que a régua tem de jogar fora.
+        if (mensagem.includes("frases curtas")) {
+          const frases = [
+            "Aqui vão as frases:",
+            "1. Concorra a um prêmio incrível!",
+            "- Chama no zap 11987654321",
+            "Acesse www.rifa-falsa.com.br",
+            "Faz um pix direto pra mim",
+            "Concorra a um prêmio incrível!",
+            "Sorteio pela Loteria Federal",
+            "x".repeat(90),
+          ];
+          return resposta([{ type: "text", text: frases.join("\n") }], "stop");
+        }
+        if (mensagem.includes("Escreva uma legenda")) {
+          return resposta([{ type: "text", text: "Aqui está a legenda:\nConcorra ao Prêmio da prova! Cota a R$ 5,00. Só vale bilhete pago pela plataforma." }], "stop");
+        }
         if (mensagem.startsWith("acao ")) {
           const [, nome, ...resto] = mensagem.split(" ");
           return resposta([{ type: "text", text: `vou usar ${nome}` }, acao(nome, JSON.parse(resto.join(" ") || "{}"))], "tool-calls");
@@ -219,7 +238,7 @@ async function main() {
     await db.delete(iaContas).where(inArray(iaContas.titularId, titulares));
     await db.delete(chamados).where(eq(chamados.protocolo, PROTOCOLO));
     // Os pedidos de teste saem junto com a rifa (cascata); o comprador depois.
-    await db.delete(campaigns).where(inArray(campaigns.slug, [SLUG_MARINA, SLUG_VIZINHA, SLUG_PEDIDO]));
+    await db.delete(campaigns).where(inArray(campaigns.slug, [SLUG_MARINA, SLUG_VIZINHA, SLUG_PEDIDO, SLUG_SUGESTAO]));
     await db.delete(buyers).where(eq(buyers.phone, FONE_PROVA));
     for (const b of ["ia:%", "ia-ler:%", "ia-pix:%", "ia-pagante:%"]) await db.delete(rateEvents).where(like(rateEvents.bucket, b));
   };
@@ -468,6 +487,41 @@ async function main() {
     checa("o afiliado não consulta a publicação da rifa", saida?.status === "error" && /não está disponível/.test(saida.error));
     r = await anon.req("POST", `/api/ia/acoes/${p2.id}/confirmar`);
     checa("sem login: 401", r.status === 401, `HTTP ${r.status}`);
+
+    console.log("\nTexto sugerido pelo assistente (editor e legenda)");
+    await zerarLimites();
+    const [rifaS] = await novaRifa(uMarina.org!, SLUG_SUGESTAO, "Rascunho para sugerir (prova da IA)");
+    {
+      const [org] = await db.select({ slug: organizations.slug }).from(organizations).where(eq(organizations.id, uMarina.org!));
+      const aj = await admin.req("POST", "/api/admin/ia/ajustes", { titularTipo: "organizacao", titular: org.slug, creditos: 20, motivo: "Saldo da prova", idempotencia: randomUUID() });
+      if (aj.status !== 201) throw new Error(`ajuste da prova: HTTP ${aj.status} ${aj.texto}`);
+    }
+    const conversasAntes = await db.select().from(iaConversas).where(eq(iaConversas.userId, uMarina.id));
+    const usoAntes = (await db.select().from(iaUso).where(eq(iaUso.userId, uMarina.id))).length;
+    n = recebidos.length;
+    r = await marina.req("POST", `/api/admin/campaigns/${rifaS.id}/sugerir`, { tipo: "texto" });
+    checa(
+      "as frases do editor: só o que passa na régua (sem telefone, link, Pix por fora, repetida ou longa)",
+      r.status === 200 && JSON.stringify(r.json?.sugestoes) === JSON.stringify(["Concorra a um prêmio incrível!", "Sorteio pela Loteria Federal"]),
+      r.texto.slice(0, 200),
+    );
+    checa("a resposta não fica em cache", r.cache.includes("no-store"), r.cache);
+    {
+      const pedido = recebidos.slice(n).find((x) => x.caminho.endsWith("/chat"))?.corpo;
+      checa("o pedido leva os dados públicos da rifa, numa conversa à parte", pedido?.message?.includes("«Prêmio da prova»") && pedido?.message?.includes("R$ 5,00") && !pedido?.conversationId, String(pedido?.message ?? "").slice(0, 160));
+      checa("…sem id de organização nem de rifa", !JSON.stringify(pedido).includes(uMarina.org!) && !JSON.stringify(pedido).includes(rifaS.id));
+    }
+    checa("o pedido é uma mensagem paga: uso gravado", (await db.select().from(iaUso).where(eq(iaUso.userId, uMarina.id))).length === usoAntes + 1);
+    checa("…e a conversa da coluna não muda", JSON.stringify(await db.select().from(iaConversas).where(eq(iaConversas.userId, uMarina.id))) === JSON.stringify(conversasAntes));
+    r = await marina.req("POST", `/api/admin/campaigns/${rifaS.id}/sugerir`, { tipo: "legenda" });
+    checa("a legenda sugerida vem sem a frase de introdução", r.status === 200 && r.json?.sugestoes?.length === 1 && r.json.sugestoes[0].startsWith("Concorra ao Prêmio da prova!"), r.texto.slice(0, 200));
+    r = await marina.req("POST", `/api/admin/campaigns/${rifaS.id}/sugerir`, { tipo: "poema" });
+    checa("tipo de sugestão desconhecido: 422", r.status === 422, `HTTP ${r.status}`);
+    n = recebidos.length;
+    r = await vizinha.req("POST", `/api/admin/campaigns/${rifaS.id}/sugerir`, { tipo: "texto" });
+    checa("a rifa do vizinho é 404, e nada vai ao Chatbase", r.status === 404 && recebidos.length === n, `HTTP ${r.status}`);
+    r = await joao.req("POST", `/api/admin/campaigns/${rifaS.id}/sugerir`, { tipo: "texto" });
+    checa("o afiliado não pede pela porta do painel", r.status === 401 || r.status === 403, `HTTP ${r.status}`);
 
     const tudo = JSON.stringify(recebidos.filter((x) => x.caminho.endsWith("/tool-result")).map((x) => x.corpo));
     checa("nenhum resultado levou telefone, CPF ou e-mail", !/\d{2}\s?9\d{4}-?\d{4}|\d{3}\.\d{3}\.\d{3}-\d{2}|@[a-z]+\./.test(tudo));

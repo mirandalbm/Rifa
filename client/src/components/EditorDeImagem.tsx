@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Janela } from "@/components/Janela";
 import { Campo } from "@/components/bits";
+import { SugestaoDoAssistente } from "@/components/SugestaoDoAssistente";
 import { camadaNoPonto, carregarFontesDoEditor, desenharImagem, type Caixa, type RecursosDoDesenho } from "@/lib/desenharArte";
 import { FORMATOS_DA_ARTE, FORMATOS_DA_ARTE_LISTA, type FormatoDaArte, type TipoDeArte } from "@shared/artes";
 import { EMOJIS_DA_FIGURINHA } from "@shared/figurinhasStory";
@@ -53,6 +54,8 @@ export interface PortasDoEditor {
   artes: string;
   /** A base das mídias da rifa (`…/media`): só no painel. */
   carrossel?: string;
+  /** Onde pedir as frases ao assistente (`…/sugerir`); some se o assistente não estiver ligado. */
+  sugerir?: string;
 }
 
 type Fundo = { origem: "nenhum" } | { origem: "foto"; id: string } | { origem: "arte"; tipo: TipoDeArte } | { origem: "aparelho"; nome: string };
@@ -217,6 +220,14 @@ export function EditorDeImagem({ portas, onFechar }: { portas: PortasDoEditor; o
     setSelecionada(null);
   }
   const oficialJaTem = (tipo: TipoDeCamada) => camadas.some((c) => c.tipo === tipo);
+  /** A frase do assistente: troca o texto selecionado ou entra como texto novo. */
+  function usarFrase(frase: string) {
+    if (atual?.tipo === "texto" && selecionada != null) return mudar(selecionada, { texto: frase });
+    if (camadas.length >= CAMADAS_MAX) return;
+    const nova = camadaNova("texto");
+    setCamadas((cs) => [...cs, { ...nova, texto: frase } as Camada]);
+    setSelecionada(camadas.length);
+  }
 
   // ------------------------------------------------------------- arrastar
 
@@ -504,6 +515,11 @@ export function EditorDeImagem({ portas, onFechar }: { portas: PortasDoEditor; o
                 })}
               </div>
               {!temSelo ? <p className="mt-1 text-[11px] text-muted">O selo SPA/MF aparece com a autorização da rifa.</p> : null}
+              {portas.sugerir ? (
+                <div className="mt-3">
+                  <SugestaoDoAssistente url={portas.sugerir} tipo="texto" onEscolher={usarFrase} />
+                </div>
+              ) : null}
               {camadas.length ? (
                 <p className="mt-3 text-[11px] font-semibold text-ink-2">Na imagem — toque para mudar:</p>
               ) : null}

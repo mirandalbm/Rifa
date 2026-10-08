@@ -743,6 +743,12 @@ Na ordem de entrega do plano:
   declaração do vale-brinde nos dados legais, que fica gravada e trava ao
   publicar. O arquivo é o respaldo da plataforma; não há fila de
   conferência do conteúdo. O Anexo C segue sem a frase da conferência.
+- [x] **Tabela de cookies na Privacidade (08/10/2026)**, antes da revisão do
+  advogado (ele pediu a lista com finalidade e duração): o cookie de sessão
+  (`rifa.sid`, 7 dias desde o último uso), o que fica no aparelho e na aba
+  (pelo nome de cada chave) e os cookies dos pixels (Meta, Google Analytics,
+  Google Ads, TikTok) com a duração de cada fornecedor. A vigência dos textos
+  passou a 08/10/2026.
 - [ ] **[ligar]** Antes de ligar a guarda da comissão, as três providências
   do advogado: conta ou subconta separada no Asaas para a comissão guardada,
   o prazo de repasse em dias no termo do afiliado (hoje "depois do sorteio",

@@ -21,7 +21,55 @@ import { regraDoReembolso } from "./reembolso";
 import type { Secao } from "./regulamento";
 
 /** Data em que esta redação passou a valer. Sobe junto com qualquer mudança de texto. */
-export const VIGENCIA_DOS_TERMOS = "2026-10-07";
+export const VIGENCIA_DOS_TERMOS = "2026-10-08";
+
+/** Dias que a sessão de login vale sem uso (o cookie renova a cada acesso). */
+export const SESSAO_DIAS = 7;
+
+/**
+ * O que o site guarda no navegador, com finalidade e duração — a tabela da
+ * Privacidade (item 8). Só um cookie é do site (`rifa.sid`); o resto do que
+ * é do site fica no aparelho (armazenamento local ou da aba) e não vai a
+ * terceiros. Os de anúncio são dos fornecedores e só existem depois do
+ * "Aceitar". Chave nova no aparelho, ou pixel novo, entra aqui no mesmo PR.
+ */
+export const GUARDADO_NO_NAVEGADOR: { grupo: string; itens: string[] }[] = [
+  {
+    grupo: "Cookie do site (essencial, não depende de aceite)",
+    itens: [
+      `rifa.sid — mantém você conectado à conta e protege os envios de formulário. Vale ${SESSAO_DIAS} dias desde o último uso e sai ao sair da conta.`,
+    ],
+  },
+  {
+    grupo: "Guardado só no seu aparelho (não é cookie e não vai a terceiros; fica até você limpar os dados do site)",
+    itens: [
+      "rifa.device — identificador aleatório do aparelho, para o antifraude e para contar visita e clique uma vez só; o servidor guarda só a impressão (hash) dele.",
+      "rifa.carrinho — as rifas e os números que você pôs no carrinho (nunca preço nem dado de pagamento).",
+      "rifa.cookies — a sua escolha neste aviso de cookies.",
+      "rifa.tema e rifa.regiao — o tema claro ou escuro e o estado escolhido na vitrine.",
+      "Preferências de tela: rifa.menu.aberto, rifa.assistente.aberto, rifa.reels.som, rifa.sorteio.comentarios, rifa.rifas.visao, rifa.instalar.fechado, rifa.login.aba, rifa.stories.vistos e rifa.surpresa (o presente da rifa já aberto).",
+      "rifa.indicacao e rifa.indicacao.visitas — o código de quem te indicou, por 30 dias, e os links de indicação já contados.",
+      "rifa.login.email — o e-mail do painel, só se você marcar \"lembrar\" ao entrar.",
+      "rifa.compra-contada — marca a compra já contada para os pixels, para não contar duas vezes.",
+    ],
+  },
+  {
+    grupo: "Guardado só na aba (some ao fechar a aba)",
+    itens: [
+      "rifa.origem e rifa.utm — de onde você chegou (anúncio, story, link), para as estatísticas da organização; nunca decidem dinheiro.",
+      "rifa.patrocinadas.vistas — as rifas patrocinadas já mostradas, para não repetir.",
+    ],
+  },
+  {
+    grupo: "Cookies de anúncio e medição (só depois do \"Aceitar\" e só quando a página tem o pixel; duração definida por cada fornecedor)",
+    itens: [
+      "Meta (Facebook e Instagram): _fbp e _fbc — medir a compra que veio de anúncio; 90 dias.",
+      "Google Analytics: _ga e _ga_<id> — medir visitas; 2 anos.",
+      "Google Ads: _gcl_au — medir a compra que veio de anúncio; 90 dias.",
+      "TikTok: _ttp e _tt_enable_cookie — medir a compra que veio de anúncio; 13 meses.",
+    ],
+  },
+];
 
 export interface DadosDaEmpresa {
   razaoSocial: string;
@@ -329,6 +377,7 @@ export function montarPrivacidade(d: DadosDosTermos): Secao[] {
       titulo: "8. Cookies",
       itens: [
         "Os essenciais (sessão, carrinho, tema, região) fazem o site funcionar e não dependem de aceite. Os de anúncio e medição só depois do \"Aceitar\"; recusar é tão fácil quanto aceitar, e você muda de ideia em Perfil → Preferência de cookies.",
+        ...GUARDADO_NO_NAVEGADOR.flatMap((g) => [`${g.grupo}:`, ...g.itens.map((i) => `• ${i}`)]),
       ],
     },
     {

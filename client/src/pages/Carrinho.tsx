@@ -389,6 +389,10 @@ function PagarCarrinho({ itens, total }: { itens: Item[]; total: number }) {
             </Link>
           </span>
         ))}
+        , e os{" "}
+        <Link href="/termos" className="underline">
+          Termos de uso
+        </Link>
         .
       </p>
       {erro ? (

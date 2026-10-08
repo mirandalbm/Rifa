@@ -13,7 +13,7 @@
  *
  * Puro: o servidor valida, a tela mostra, o teste confere.
  */
-import { DIAS_UTEIS_DEVOLUCAO_INTEGRAL, PRAZO_ESTORNO_MAX } from "./chamados";
+import { DIAS_UTEIS_DEVOLUCAO_INTEGRAL, DISPUTA_PRAZO_DIAS, PRAZO_ESTORNO_MAX, RESPOSTA_PRAZO_DIAS } from "./chamados";
 import { GUARDA_DAS_RECUSAS_DIAS, GUARDA_DO_BLOQUEIO_VENCIDO_DIAS } from "./antifraude";
 import { DOCUMENTOS_GUARDA_DIAS } from "./verificacao";
 import { cnpjValido } from "./format";
@@ -234,7 +234,7 @@ export function montarTermosDeUso(d: DadosDosTermos): Secao[] {
       titulo: "1. Quem somos",
       itens: [
         identificacao(d),
-        `${d.plataforma} é a plataforma de tecnologia que hospeda as rifas, recebe o pagamento pelo Pix e emite os bilhetes. Cada rifa tem uma promotora — a organização que obteve a autorização da Secretaria de Prêmios e Apostas do Ministério da Fazenda (Lei 5.768/71) —, e o regulamento de cada rifa, publicado na página dela, vale para aquela rifa junto com estes termos.`,
+        `${d.plataforma} é a plataforma de tecnologia que hospeda as rifas e emite os bilhetes, e facilita o pagamento pelo Pix por meio de instituição de pagamento autorizada pelo Banco Central, que recebe e processa o Pix. Cada rifa tem uma promotora — a organização que obteve a autorização da Secretaria de Prêmios e Apostas do Ministério da Fazenda (Lei 5.768/71) —, e o regulamento de cada rifa, publicado na página dela, vale para aquela rifa junto com estes termos.`,
         "A promotora responde pelo prêmio e pela entrega dele ao ganhador. A plataforma responde pelo funcionamento do sistema: venda, reserva, pagamento, bilhete, sorteio conferível e atendimento.",
       ],
     },
@@ -258,7 +258,7 @@ export function montarTermosDeUso(d: DadosDosTermos): Secao[] {
     {
       titulo: "4. Sorteio e prêmio",
       itens: [
-        "O sorteio segue o regulamento da rifa: data (no modo \"quando completar\", a data máxima, que é antecipada para a próxima extração da Loteria Federal se a rifa completar antes, com aviso na plataforma), método de apuração da autorização (a leitura direta da Loteria Federal ou o globo da plataforma, com ata notarial), a regra para número sorteado não vendido (na Loteria Federal, o número vendido mais próximo, alternando acima e abaixo; no globo, nova extração no mesmo ato) e o mínimo de cotas, se houver. Na rifa autorizada não podem participar a promotora, seus sócios e diretores, nem a plataforma e seus administradores: a compra com o telefone de um deles é recusada. Qualquer pessoa confere o resultado na página do sorteio da rifa. Cotas premiadas, quando houver, são vale-brinde, autorizado junto com o sorteio (promoção mista).",
+        "O sorteio segue o regulamento da rifa: data (no modo \"quando completar\", a data máxima, que é antecipada para a próxima extração da Loteria Federal se a rifa completar antes, com aviso na plataforma), método de apuração da autorização (a leitura direta da Loteria Federal ou o globo da plataforma, com ata notarial), a regra para número sorteado não vendido (na Loteria Federal, o número vendido mais próximo, alternando acima e abaixo; no globo, nova extração no mesmo ato) e o mínimo de cotas, se houver. Na rifa autorizada não podem participar a promotora, seus sócios e diretores, nem a plataforma e seus administradores: a compra com o telefone de um deles, ou com o CPF de um sócio ou diretor, é recusada. Qualquer pessoa confere o resultado na página do sorteio da rifa. Cotas premiadas, quando houver, são vale-brinde, autorizado junto com o sorteio (promoção mista).",
         "O ganhador é avisado pelos dados do cadastro e recebe o prêmio da promotora no prazo do regulamento. Prêmio não reclamado em 180 dias prescreve, na forma da lei.",
       ],
     },
@@ -267,10 +267,10 @@ export function montarTermosDeUso(d: DadosDosTermos): Secao[] {
       itens: d.reembolso.aceita
         ? [
             regraDoReembolso(d.reembolso.taxaPct),
-            `O pedido é feito por chamado, dentro da conta, e a devolução vai para a mesma conta que pagou. A devolução integral (arrependimento ou sorteio adiado) sai em até ${DIAS_UTEIS_DEVOLUCAO_INTEGRAL} dias úteis da aprovação; a com taxa, no prazo informado no protocolo, de até ${PRAZO_ESTORNO_MAX} dias. Se a promotora recusar, você pode levar a disputa à plataforma, que dá a palavra final.`,
+            `O pedido é feito por chamado, dentro da conta, e a devolução vai para a mesma conta que pagou. A devolução integral (arrependimento ou sorteio adiado) sai em até ${DIAS_UTEIS_DEVOLUCAO_INTEGRAL} dias úteis da aprovação; a com taxa, no prazo informado no protocolo, de até ${PRAZO_ESTORNO_MAX} dias. A promotora responde em até ${RESPOSTA_PRAZO_DIAS} dias; se recusar, ou se não responder nesse prazo, você pode levar a disputa à plataforma em até ${DISPUTA_PRAZO_DIAS} dias, e ela dá a palavra final. Nada disso tira o seu direito de reclamar no Procon ou no consumidor.gov.br.`,
           ]
         : [
-            `No momento a plataforma não recebe pedidos de reembolso pelo site: fale com a promotora da rifa (os contatos dela estão no perfil). O seu direito de desistir da compra online em até 7 dias (art. 49 do Código de Defesa do Consumidor), antes do fechamento dos pedidos, segue valendo — se a promotora não responder, fale com a plataforma ${canal(d.empresa)}.`,
+            `No momento a plataforma não recebe pedidos de reembolso pelo site: fale com a promotora da rifa (os contatos dela estão no perfil). O seu direito de desistir da compra online em até 7 dias (art. 49 do Código de Defesa do Consumidor), antes do fechamento dos pedidos, segue valendo — se a promotora não responder, fale com a plataforma ${canal(d.empresa)}, sem prejuízo de reclamar no Procon ou no consumidor.gov.br.`,
           ],
     },
     {
@@ -303,6 +303,7 @@ export function montarTermosDeUso(d: DadosDosTermos): Secao[] {
       titulo: "10. Mudanças, lei e foro",
       itens: [
         `Esta versão vale a partir de ${dataPorExtenso(VIGENCIA_DOS_TERMOS)}. Uma versão nova é publicada nesta página com a data em que passa a valer; a compra já feita segue as regras do momento em que foi feita.`,
+        "Você aceita estes termos ao criar a conta e, a cada compra, junto com o regulamento da rifa — os dois ficam ao lado do botão de pagar. Eles estão sempre nesta página, para ler, copiar ou imprimir.",
         `Vale a lei brasileira. Você pode reclamar no foro do seu domicílio, como prevê o Código de Defesa do Consumidor, além de falar com a plataforma ${canal(d.empresa)} e usar o consumidor.gov.br.`,
       ],
     },
@@ -327,10 +328,10 @@ export function montarPrivacidade(d: DadosDosTermos): Secao[] {
         "Cadastro (nome, telefone, CPF, e-mail, CEP, cidade e estado, apelido e foto): identificar você, emitir o bilhete, avisar do resultado, entregar o prêmio e cumprir a lei das rifas. Base legal: execução do contrato e obrigação legal.",
         "Compras e pagamentos (pedidos, números, valores, o identificador do Pix): vender, conferir o pagamento, devolver em caso de reembolso e prestar contas. Os dados do pagamento ficam com o provedor do Pix; a plataforma não guarda dados bancários de quem compra.",
         "Segurança e antifraude (endereço IP e identificador do aparelho em hash, telefone mascarado nas recusas, e tentativas de acesso): impedir golpe, bloqueio de estoque e uso indevido de contas. O registro de auditoria de algumas ações (entrar no painel, autorizar ou revogar a comparação de foto, por exemplo) guarda o IP de quem agiu. Base legal: legítimo interesse e prevenção à fraude.",
-        "Comentários, mensagens e publicações: o que você escreve, para mostrar a quem deve ver e para moderar denúncias (a plataforma lê só o trecho denunciado).",
+        "Comentários, mensagens e publicações: o que você escreve, para mostrar a quem deve ver e para moderar denúncias (a plataforma lê só o trecho denunciado). Base legal: execução do contrato e legítimo interesse (moderação).",
         "Voto nas enquetes dos stories (só com conta): qual opção você escolheu, guardado só para contar um voto por pessoa e mostrar a você o resultado. A organização vê os totais de cada opção, nunca quem votou em quê; o voto sai com o story.",
         `Verificação de perfil (opcional): documentos, guardados cifrados, e — só com a sua autorização destacada — a comparação da foto do perfil com a do documento, que é dado biométrico (art. 11), para verificação de identidade e prevenção a fraudes. Da comparação fica só o resultado (verificado ou não) — nenhum modelo ou medida do rosto. Os documentos são apagados ${DOCUMENTOS_GUARDA_DIAS} dias depois da decisão (verificado ou recusado); o resultado e o selo ficam. A autorização pode ser revogada na própria tela; quem foi verificado com uma autorização anterior é chamado a confirmar de novo, senão o selo sai.`,
-        "Origem da visita (de onde você chegou, campanha de anúncio): estatística de vendas; nunca decide preço nem comissão.",
+        "Origem da visita (de onde você chegou, campanha de anúncio): estatística de vendas; nunca decide preço nem comissão. Base legal: legítimo interesse.",
         "Sócios e diretores da promotora (nome, cargo e CPF, cadastrados pela organização): só para recusar a compra deles nas rifas autorizadas, que eles não podem disputar. O CPF não fica guardado — só uma impressão cifrada para a comparação e os dois últimos dígitos para a tela. Sai quando a organização tira a pessoa da lista. Base legal: cumprimento de obrigação regulatória (Lei 5.768/71).",
         "Documentos da entidade beneficiada (CNPJ, ata da diretoria, certidões), enviados pela organização: só a plataforma os abre, para conferir a entidade antes de ela aparecer na rifa; guardados cifrados e apagados junto com a entidade.",
       ],
@@ -339,7 +340,7 @@ export function montarPrivacidade(d: DadosDosTermos): Secao[] {
       titulo: "3. Com quem compartilhamos",
       itens: [
         "Provedor do Pix (para gerar e conferir a cobrança e fazer devoluções); Meta/WhatsApp (código de acesso e mensagens das suas compras); Google (só se você entrar com o Google); serviço de consulta de CEP (só o CEP); serviços de notificação do celular (Google, Apple, Mozilla, Microsoft — só se você ligar os avisos); Amazon Web Services (Amazon Rekognition), como operador que só compara as fotos por nossa ordem, em servidores no exterior e com as garantias de segurança do contrato dele — transferência internacional que só acontece com o seu consentimento expresso no texto que a cita (LGPD, art. 33, VIII); os provedores de hospedagem, banco de dados e cópia de segurança, que guardam os dados por nós; e a promotora e o afiliado (o que está no item 1).",
-        "Pixels de anúncio (Meta, Google, TikTok) só carregam depois do seu \"Aceitar\" no aviso de cookies; a compra enviada a eles leva o telefone só em hash, nunca nome, CPF ou e-mail.",
+        "Pixels de anúncio (Meta, Google, TikTok) só carregam depois do seu \"Aceitar\" no aviso de cookies; a compra enviada a eles leva o telefone só em hash, nunca nome, CPF ou e-mail. Base legal: o seu consentimento, que você retira em Perfil → Preferência de cookies.",
         "Autoridades, quando a lei ou ordem judicial exigir. Nunca vendemos dados pessoais.",
       ],
     },
@@ -369,8 +370,8 @@ export function montarPrivacidade(d: DadosDosTermos): Secao[] {
     {
       titulo: "7. Seus direitos",
       itens: [
-        "Você pode confirmar se tratamos seus dados, acessá-los, corrigi-los (Minha conta), excluir a conta, revogar consentimentos (cookies e perfil público no seu perfil, avisos no celular, comparação de foto na verificação), pedir informação sobre compartilhamento e a portabilidade (LGPD, art. 18).",
-        `Peça pelo encarregado (item 1) ou fale com a plataforma ${canal(d.empresa)}. Você também pode reclamar à Autoridade Nacional de Proteção de Dados (ANPD).`,
+        "Você pode confirmar se tratamos seus dados, acessá-los, corrigi-los (Minha conta), excluir a conta, revogar consentimentos a qualquer momento e sem custo (cookies e perfil público no seu perfil, avisos no celular, comparação de foto na verificação), pedir informação sobre compartilhamento e a portabilidade (LGPD, art. 18).",
+        `Peça pelo encarregado (item 1) ou fale com a plataforma ${canal(d.empresa)}. O pedido é gratuito e respondido em até 15 dias (LGPD, art. 19, II). Você também pode reclamar à Autoridade Nacional de Proteção de Dados (ANPD).`,
       ],
     },
     {

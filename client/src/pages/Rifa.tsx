@@ -811,6 +811,10 @@ export default function Rifa() {
               Ao comprar, você aceita o{" "}
               <Link href={`${base}/regulamento`} className="underline">
                 regulamento da rifa
+              </Link>{" "}
+              e os{" "}
+              <Link href="/termos" className="underline">
+                Termos de uso
               </Link>
               .
             </p>

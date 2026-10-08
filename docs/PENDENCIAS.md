@@ -749,6 +749,16 @@ Na ordem de entrega do plano:
   (pelo nome de cada chave) e os cookies dos pixels (Meta, Google Analytics,
   Google Ads, TikTok) com a duração de cada fornecedor. A vigência dos textos
   passou a 08/10/2026.
+- [x] **Termos e Privacidade ajustados ao roteiro do advogado (08/10/2026)**,
+  antes da devolutiva dele: a qualificação da plataforma igual à cláusula 1.1
+  do contrato (facilita o Pix por instituição de pagamento autorizada, não
+  "recebe o pagamento"), os impedidos também pelo CPF de sócios e diretores,
+  como os termos são aceitos (ao criar a conta e a cada compra — o link dos
+  Termos foi para o lado do botão de pagar, junto do regulamento), o prazo
+  de resposta da promotora (3 dias) e o da disputa (7 dias), o Procon e o
+  consumidor.gov.br no reembolso, as bases legais que faltavam (comentários,
+  origem da visita, pixels), a revogação sem custo e a resposta ao titular
+  em até 15 dias (LGPD, art. 19, II).
 - [ ] **[ligar]** Antes de ligar a guarda da comissão, as três providências
   do advogado: conta ou subconta separada no Asaas para a comissão guardada,
   o prazo de repasse em dias no termo do afiliado (hoje "depois do sorteio",

@@ -32,6 +32,7 @@ import {
   argsDoPoster,
 } from "@shared/poster";
 import { hlsDoStream, uidValido } from "@shared/stream";
+import { CORTE_ATE_BYTES, CORTE_PRAZO_MS, argsDoCorte } from "@shared/corte";
 import { chaveDoStream } from "./streamAssinatura";
 
 /** O vídeo guardado no Stream para tocar em HLS. */
@@ -137,6 +138,31 @@ function rodar(bin: string, args: string[], prazoMs: number): Promise<Buffer | n
   });
 }
 
+/** Roda o programa sem ler a saída padrão; `true` só se ele terminou bem dentro do prazo. */
+function rodarAteOFim(bin: string, args: string[], prazoMs: number): Promise<boolean> {
+  return new Promise((resolve) => {
+    let filho: ReturnType<typeof spawn>;
+    try {
+      filho = spawn(bin, args, { stdio: ["ignore", "ignore", "ignore"] });
+    } catch {
+      return resolve(false);
+    }
+    let acabou = false;
+    const termina = (v: boolean) => {
+      if (acabou) return;
+      acabou = true;
+      clearTimeout(relogio);
+      resolve(v);
+    };
+    const relogio = setTimeout(() => {
+      filho.kill("SIGKILL");
+      termina(false);
+    }, prazoMs);
+    filho.on("error", () => termina(false));
+    filho.on("close", (codigo) => termina(codigo === 0));
+  });
+}
+
 /**
  * Quantos `ffmpeg` rodam ao mesmo tempo no processo web. Cada um é CPU e RAM
  * de verdade: com muitos envios seguidos, sem fila, o site para de responder.
@@ -200,6 +226,28 @@ export class FfmpegLocal implements ProcessadorDeVideo {
         return jpeg ? await sharp(jpeg, { limitInputPixels: 40_000_000 }).webp({ quality: POSTER_QUALIDADE }).toBuffer() : null;
       } catch {
         return null;
+      }
+    });
+  }
+
+  /**
+   * O trecho de `inicio` a `fim` (segundos), copiado sem recomprimir
+   * (`argsDoCorte`), no mesmo contêiner. `null` sem `ffmpeg`, com vídeo que
+   * ele não abre, prazo estourado ou saída vazia ou maior que o teto.
+   */
+  cortar(arquivo: string, inicio: number, fim: number, mime: string): Promise<Buffer | null> {
+    return vagasDoFfmpeg.rodar(async () => {
+      const pasta = await fs.mkdtemp(path.join(os.tmpdir(), "rifa-corte-"));
+      const saida = path.join(pasta, mime === "video/quicktime" ? "corte.mov" : "corte.mp4");
+      try {
+        if (!(await rodarAteOFim(this.bin, argsDoCorte(arquivo, saida, inicio, fim, mime), CORTE_PRAZO_MS))) return null;
+        const { size } = await fs.stat(saida);
+        if (size === 0 || size > CORTE_ATE_BYTES) return null;
+        return await fs.readFile(saida);
+      } catch {
+        return null;
+      } finally {
+        await fs.rm(pasta, { recursive: true, force: true }).catch(() => {});
       }
     });
   }

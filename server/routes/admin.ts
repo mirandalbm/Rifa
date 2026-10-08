@@ -82,6 +82,7 @@ import {
   listMedia,
   MediaRuleError,
   escolherCapaDoVideo,
+  cortarVideo,
 } from "../services/media";
 import { storage, LocalDiskStorage } from "../services/storage";
 import { encerrarSessoesDoUsuario, hashPassword, verifyPassword } from "../auth";
@@ -115,6 +116,7 @@ import {
 } from "../services/settings";
 import { artesDaRifa, rifaDaArte } from "../services/artes";
 import { CAPAS_POR_JANELA } from "@shared/poster";
+import { CORTES_POR_JANELA } from "@shared/corte";
 import { enviarArte, enviarPacote, listaDeArtes } from "./artesRotas";
 import { generateSecret, otpauthUrl } from "../services/totp";
 import { codigoConfere, guardarSegredo } from "../services/segundoFator";
@@ -1595,6 +1597,37 @@ adminRouter.put("/media/:mediaId/capa", async (req, res, next) => {
     const escolhida = await escolherCapaDoVideo(req.params.mediaId, req.body?.instante);
     await audit(req, "media.capa", "campaign", campanha.id, { id: req.params.mediaId, instante: escolhida.instante });
     res.json(escolhida);
+  } catch (err) {
+    if (err instanceof MediaRuleError) return res.status(err.status).json({ message: err.message });
+    next(err);
+  }
+});
+
+/**
+ * Cortar o início e o fim do vídeo (Fase D), sem recomprimir. Como a capa:
+ * muda a qualquer hora, o dono é conferido pelo pai (a mídia do vizinho é 404)
+ * e o limite por pessoa conta depois do recorte.
+ */
+adminRouter.put("/media/:mediaId/corte", async (req, res, next) => {
+  try {
+    const [midia] = await db
+      .select({ campaignId: campaignMedia.campaignId })
+      .from(campaignMedia)
+      .where(eq(campaignMedia.id, req.params.mediaId));
+    if (!midia) return res.status(404).json({ message: "Mídia não encontrada." });
+    const campanha = await assertCampaignInScope(req, midia.campaignId);
+    if ((await hit(`corte:${req.user!.id}`, CORTES_POR_JANELA.minutos, CORTES_POR_JANELA.limite)).excedeu) {
+      return res.status(429).json({ message: "Muitos cortes em pouco tempo. Espere alguns minutos." });
+    }
+    const feito = await cortarVideo(req.params.mediaId, req.body?.inicio, req.body?.fim);
+    await audit(req, "media.corte", "campaign", campanha.id, {
+      id: req.params.mediaId,
+      inicio: feito.inicio,
+      fim: feito.fim,
+      duracaoAntes: feito.duracaoAntes,
+      duracaoDepois: feito.duracaoDepois,
+    });
+    res.json(feito);
   } catch (err) {
     if (err instanceof MediaRuleError) return res.status(err.status).json({ message: err.message });
     next(err);

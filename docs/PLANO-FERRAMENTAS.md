@@ -205,8 +205,11 @@ pessoa).
 **Em andamento.** Feito (08/10/2026): **escolher a capa** — a organização
 arrasta até o quadro no vídeo do carrossel e no do Reels, e o servidor tira
 aquele quadro pelo `ffmpeg` local (`escolherCapaDoVideo()`, `PUT
-/media/:id/capa`, `npm run poster` prova). Faltam: cortar início e fim,
-figurinhas no reels e legendas por transcrição (esta precisa de provedor).
+/media/:id/capa`, `npm run poster` prova) e **cortar início e fim** em
+modo cópia — o `ffmpeg` copia o trecho sem recomprimir, o arquivo é medido de
+novo e troca a mídia, e o pôster e o HLS saem de novo (`cortarVideo()`, `PUT
+/media/:id/corte`, `shared/corte.ts`). Faltam: figurinhas no reels e legendas
+por transcrição (esta precisa de provedor).
 
 **Fase E — Geração por IA (fundo, cenário, expansão) · ~2 PRs.**
 Provedor de imagem por geração, escolhido pelo preço por unidade; só fundo e

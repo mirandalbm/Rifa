@@ -26,7 +26,8 @@ import { entregaHlsLigada, hlsParaATela } from "@shared/stream";
 import { tokenDoStream } from "./streamAssinatura";
 import { emSegundoPlano } from "./push";
 import { POSTER_BAIXAR_ATE_BYTES, chaveDoPoster, instanteDaCapa, posterPublico } from "@shared/poster";
-import { probeImage, probeVideoDimensions, probeVideoDuration, UnreadableMediaError } from "./probe";
+import { bufferReader, probeImage, probeVideoDimensions, probeVideoDuration, UnreadableMediaError } from "./probe";
+import { CORTE_ATE_BYTES, trechoDoCorte } from "@shared/corte";
 import { processImage, srcSet, removeVariants, type ImageVariant } from "./images";
 import { MAX_CARROSSEL, duracao, formatoDoVideo, limparLegenda, problemaNaLegenda } from "@shared/publicacao";
 import { REELS_POR_RIFA, ehVideo, videoEmPe } from "@shared/reels";
@@ -393,7 +394,9 @@ export async function gerarPosterDaMidia(
     const [gravado] = await db
       .update(campaignMedia)
       .set({ posterKey: chave, streamUid: stream?.uid ?? null, streamHls: stream?.hls ?? null, streamAssinado: stream?.assinado ?? false })
-      .where(and(eq(campaignMedia.id, mediaId), isNull(campaignMedia.posterKey), isNull(campaignMedia.streamUid)))
+      // E só se o arquivo ainda é o que foi processado: cortado no meio do caminho
+      // (`cortarVideo`), o quadro e o HLS são do vídeo de antes.
+      .where(and(eq(campaignMedia.id, mediaId), eq(campaignMedia.storageKey, storageKey), isNull(campaignMedia.posterKey), isNull(campaignMedia.streamUid)))
       .returning({ id: campaignMedia.id });
     if (gravado) {
       // Agora o vídeo tem dono (a mídia): sai da lista do relógio.
@@ -460,11 +463,13 @@ export async function escolherCapaDoVideo(mediaId: string, instanteBruto: unknow
   try {
     const trocou = await db.transaction(async (tx) => {
       const [atual] = await tx
-        .select({ posterKey: campaignMedia.posterKey })
+        .select({ posterKey: campaignMedia.posterKey, storageKey: campaignMedia.storageKey })
         .from(campaignMedia)
         .where(eq(campaignMedia.id, mediaId))
         .for("update");
       if (!atual) return false;
+      // Cortado enquanto o quadro saía: o quadro é do vídeo de antes.
+      if (atual.storageKey !== m.storageKey) throw new MediaRuleError("O vídeo mudou enquanto a capa saía. Escolha de novo.", 409);
       antiga = atual.posterKey;
       await tx.update(campaignMedia).set({ posterKey: chave }).where(eq(campaignMedia.id, mediaId));
       return true;
@@ -474,11 +479,103 @@ export async function escolherCapaDoVideo(mediaId: string, instanteBruto: unknow
       throw new MediaRuleError("Mídia não encontrada.", 404);
     }
   } catch (e) {
-    if (!(e instanceof MediaRuleError)) await store.remove(chave).catch(() => {});
+    await store.remove(chave).catch(() => {});
     throw e;
   }
   if (antiga) await store.remove(antiga).catch(() => {});
   return { poster: store.publicUrl(chave), instante: t.instante };
+}
+
+/**
+ * Cortar o início e o fim do vídeo (Fase D), em modo cópia (`argsDoCorte`): o
+ * trecho vem do navegador só como dois números, conferidos contra a duração
+ * medida aqui (`trechoDoCorte`); o arquivo novo é medido de novo (duração e
+ * medidas) e passa pela régua do papel — nada do navegador vira medida. O
+ * arquivo novo ganha chave nova; a troca é feita com a mídia travada e só se o
+ * arquivo ainda é o que foi cortado (dois cortes ao mesmo tempo: um 200 e um
+ * 409). Pôster e HLS eram do vídeo de antes: saem junto (o original, o pôster e
+ * o vídeo do Stream, depois da transação) e o pôster novo sai em segundo plano,
+ * pelo mesmo caminho do envio. O recorte é conferido na rota, antes.
+ */
+export async function cortarVideo(mediaId: string, inicioBruto: unknown, fimBruto: unknown) {
+  const [m] = await db.select().from(campaignMedia).where(eq(campaignMedia.id, mediaId));
+  if (!m) throw new MediaRuleError("Mídia não encontrada.", 404);
+  if (!ehVideo(m.role) || m.status !== "ready") throw new MediaRuleError("Só vídeo pronto pode ser cortado.", 409);
+  const t = trechoDoCorte(inicioBruto, fimBruto, m.durationS);
+  if ("erro" in t) throw new MediaRuleError(t.erro, 422);
+
+  const store = storage();
+  let tamanho = m.bytes;
+  if (store instanceof LocalDiskStorage) tamanho = await store.size(m.storageKey).catch(() => null); // traz da cópia se o disco perdeu
+  if (tamanho == null) throw new MediaRuleError("O arquivo deste vídeo não está no armazenamento.", 409);
+  if (tamanho > CORTE_ATE_BYTES) {
+    throw new MediaRuleError(`Este vídeo passa de ${CORTE_ATE_BYTES / 1024 / 1024} MB: corte no aparelho e envie de novo.`, 409);
+  }
+
+  const cortar = (arquivo: string) => new FfmpegLocal().cortar(arquivo, t.inicio, t.fim, m.mime);
+  const cortado =
+    store instanceof LocalDiskStorage
+      ? await cortar(store.caminho(m.storageKey))
+      : await comVagaDeDownload(() =>
+          comArquivoTemporarioEmPedacos(tamanho!, store.reader(m.storageKey), m.storageKey.slice(m.storageKey.lastIndexOf(".")), cortar),
+        );
+  if (!cortado) throw new MediaRuleError("Não consegui cortar este vídeo agora. Tente mais tarde.", 409);
+
+  // Medido de novo, como no envio: a régua do papel vale para o arquivo que fica.
+  let durationS: number;
+  let width: number | null;
+  let height: number | null;
+  try {
+    const ler = bufferReader(cortado);
+    const segundos = await probeVideoDuration(ler, cortado.length);
+    const dim = await probeVideoDimensions(ler, cortado.length);
+    if (m.role === "reels" && (formatoDoVideo(segundos) !== "reels" || !dim || !videoEmPe({ largura: dim.width, altura: dim.height }))) {
+      throw new MediaRuleError("O vídeo cortado saiu fora da régua do Reels (em pé, até 3 min).");
+    }
+    if (m.role === "video" && (segundos > MAX_VIDEO_SECONDS || !formatoDoVideo(segundos))) {
+      throw new MediaRuleError("O vídeo cortado saiu fora do limite de duração.");
+    }
+    durationS = Math.max(1, Math.round(segundos));
+    width = dim?.width ?? null;
+    height = dim?.height ?? null;
+  } catch (e) {
+    if (e instanceof MediaRuleError) throw e;
+    throw new MediaRuleError("Não consegui medir o vídeo cortado. Tente outro trecho.", 409);
+  }
+
+  const chave = mediaKey(m.campaignId, m.role, m.mime);
+  await store.write(chave, cortado, m.mime);
+  let antes: { storageKey: string; posterKey: string | null; streamUid: string | null } | null = null;
+  let linha: MediaRow | undefined;
+  try {
+    linha = await db.transaction(async (tx) => {
+      const [atual] = await tx
+        .select({ storageKey: campaignMedia.storageKey, posterKey: campaignMedia.posterKey, streamUid: campaignMedia.streamUid })
+        .from(campaignMedia)
+        .where(eq(campaignMedia.id, mediaId))
+        .for("update");
+      if (!atual) throw new MediaRuleError("Mídia não encontrada.", 404);
+      if (atual.storageKey !== m.storageKey) throw new MediaRuleError("O vídeo mudou enquanto o corte saía. Abra de novo.", 409);
+      antes = atual;
+      const [nova] = await tx
+        .update(campaignMedia)
+        .set({ storageKey: chave, durationS, width, height, bytes: cortado.length, posterKey: null, streamUid: null, streamHls: null, streamAssinado: false })
+        .where(eq(campaignMedia.id, mediaId))
+        .returning();
+      return nova;
+    });
+  } catch (e) {
+    await store.remove(chave).catch(() => {});
+    throw e;
+  }
+  const velho = antes as { storageKey: string; posterKey: string | null; streamUid: string | null } | null;
+  if (velho) {
+    await store.remove(velho.storageKey).catch(() => {});
+    if (velho.posterKey) await store.remove(velho.posterKey).catch(() => {});
+    await apagarNoStream(velho.streamUid);
+  }
+  emSegundoPlano(gerarPosterDaMidia(mediaId, m.campaignId, chave, cortado.length), "pôster do vídeo cortado");
+  return { media: withUrls(linha!), inicio: t.inicio, fim: t.fim, duracaoAntes: m.durationS, duracaoDepois: durationS };
 }
 
 /** Com a mídia sem pôster, quanto esperar o primeiro (o do envio) antes de deixar escolher. */

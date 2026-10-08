@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, Button, Pill, Empty } from "@/components/bits";
 import { apiRequest } from "@/lib/queryClient";
 import { EscolherCapa } from "@/components/EscolherCapa";
+import { CortarVideo } from "@/components/CortarVideo";
 import { FORMATOS, duracao, formatoDaPeca, formatoDoVideo } from "@shared/publicacao";
 
 interface MediaItem {
@@ -60,6 +61,7 @@ export function MediaManager({ campaignId }: { campaignId: string }) {
   const [error, setError] = useState<string | null>(null);
   const [altText, setAltText] = useState("");
   const [capaDe, setCapaDe] = useState<MediaItem | null>(null);
+  const [corteDe, setCorteDe] = useState<MediaItem | null>(null);
   const inputs = {
     banner: useRef<HTMLInputElement>(null),
     photo: useRef<HTMLInputElement>(null),
@@ -209,6 +211,11 @@ export function MediaManager({ campaignId }: { campaignId: string }) {
                         capa
                       </Button>
                     ) : null}
+                    {m.role === "video" && m.durationS ? (
+                      <Button variant="ghost" className="px-2 py-1 text-xs" onClick={() => setCorteDe(m)}>
+                        cortar
+                      </Button>
+                    ) : null}
                     <Button
                       variant="ghost"
                       className="px-2 py-1 text-xs"
@@ -239,6 +246,16 @@ export function MediaManager({ campaignId }: { campaignId: string }) {
           durationS={capaDe.durationS}
           onFechar={() => setCapaDe(null)}
           aoEscolher={() => void qc.invalidateQueries()}
+        />
+      ) : null}
+      {corteDe && corteDe.durationS ? (
+        <CortarVideo
+          mediaId={corteDe.id}
+          url={corteDe.url}
+          poster={corteDe.posterUrl ?? null}
+          durationS={corteDe.durationS}
+          onFechar={() => setCorteDe(null)}
+          aoCortar={() => void qc.invalidateQueries()}
         />
       ) : null}
     </Card>

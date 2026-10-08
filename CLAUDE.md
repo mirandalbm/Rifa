@@ -3094,7 +3094,8 @@ pela portaria** — fica só para conferir a rifa sorteada sem método.
   Decreto 7.962/2013) e a devolução do Pix que chegou tarde
   (`PIX_TARDIO_PRAZO_DIAS_UTEIS`, 5 dias úteis, a data no cartão "Pix a
   devolver"). O e-mail e o endereço vêm dos Dados da empresa, nunca do
-  código.
+  código. **Cada tratamento da Privacidade diz a base legal** (LGPD, art.
+  9º, II): tratamento novo entra com a dele.
 - **Os dados da empresa são da plataforma** (`legal` no template:
   razão social, CNPJ com dígito conferido, endereço, e-mail e o encarregado
   de dados — `validarDadosDaEmpresa()`, só as chaves conhecidas; cartão

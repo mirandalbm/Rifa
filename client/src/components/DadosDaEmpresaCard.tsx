@@ -19,6 +19,7 @@ const ROTULO: Record<CampoDaEmpresa, string> = {
   endereco: "Endereço da sede",
   contato: "E-mail de contato",
   encarregadoNome: "Encarregado de dados (nome)",
+  encarregadoCargo: "Encarregado de dados (cargo ou função)",
   encarregadoContato: "Encarregado de dados (e-mail)",
 };
 
@@ -28,6 +29,7 @@ const AUTO: Record<CampoDaEmpresa, string> = {
   endereco: "street-address",
   contato: "email",
   encarregadoNome: "off",
+  encarregadoCargo: "organization-title",
   encarregadoContato: "email",
 };
 
@@ -37,6 +39,7 @@ const MAX: Record<CampoDaEmpresa, number> = {
   endereco: 200,
   contato: 120,
   encarregadoNome: 120,
+  encarregadoCargo: 80,
   encarregadoContato: 120,
 };
 

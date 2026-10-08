@@ -224,6 +224,24 @@ describe("Termos e Privacidade na régua do advogado (roteiro de 08/10/2026)", (
     expect(termos).not.toMatch(/gere de novo|Gerado do sistema/);
   });
 
+  it("revisão da Privacidade (08/10/2026): numeração, papéis, bases legais e oposição", () => {
+    const titulos = montarPrivacidade(base).map((x) => x.titulo);
+    expect(titulos.map((t) => Number(t.split(".")[0]))).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+    expect(priv).toMatch(/controladora dos dados que trata em nome próprio .* operadora dos dados que trata por conta da promotora/);
+    expect(priv).toMatch(/guarda apenas o identificador do Pix, necessário para conferir o pagamento e fazer devoluções/);
+    expect(priv).toMatch(/consentimento específico e destacado \(LGPD, art\. 11, I\)/);
+    expect(priv).toMatch(/Voto nas enquetes.*Base legal: execução do contrato/);
+    expect(priv).toMatch(/Documentos da entidade beneficiada.*Base legal: legítimo interesse/);
+    expect(priv).not.toMatch(/só compara as fotos por nossa ordem/);
+    expect(priv).toMatch(/só quando a plataforma liga o comparador automático/);
+    expect(priv).toMatch(/as compras e os bilhetes ficam anonimizados/);
+    expect(priv).toMatch(/se opor a tratamento feito sem o seu consentimento .* \(art\. 18, § 2º\)/);
+    // O cargo do encarregado, quando cadastrado, vai junto do nome.
+    const comCargo = texto(montarPrivacidade({ ...base, empresa: { ...base.empresa, encarregadoCargo: "sócio-administrador" } }));
+    expect(comCargo).toMatch(/é Ana Souza, sócio-administrador, pelo e-mail dpo@rifas\.com\.br/);
+    expect(priv).toMatch(/é Ana Souza, pelo e-mail dpo@rifas\.com\.br/);
+  });
+
   it("a Privacidade diz as bases legais, a gratuidade e o prazo de resposta ao titular", () => {
     expect(priv).toMatch(/Base legal: o seu consentimento, que você retira/);
     expect(priv).toMatch(/a qualquer momento e sem custo/);

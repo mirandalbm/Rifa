@@ -88,6 +88,8 @@ export interface DadosDaEmpresa {
   contato: string;
   /** Encarregado pelo tratamento de dados (LGPD, art. 41). */
   encarregadoNome: string;
+  /** Cargo ou função do encarregado (opcional; a Privacidade diz junto do nome). */
+  encarregadoCargo: string;
   encarregadoContato: string;
 }
 
@@ -97,6 +99,7 @@ export const EMPRESA_VAZIA: DadosDaEmpresa = {
   endereco: "",
   contato: "",
   encarregadoNome: "",
+  encarregadoCargo: "",
   encarregadoContato: "",
 };
 
@@ -111,6 +114,7 @@ export const CAMPOS_DA_EMPRESA: readonly CampoDaEmpresa[] = [
   "endereco",
   "contato",
   "encarregadoNome",
+  "encarregadoCargo",
   "encarregadoContato",
 ];
 
@@ -120,6 +124,7 @@ const LIMITE: Record<CampoDaEmpresa, [number, string]> = {
   endereco: [200, "O endereço"],
   contato: [120, "O e-mail de contato"],
   encarregadoNome: [120, "O nome do encarregado"],
+  encarregadoCargo: [80, "O cargo do encarregado"],
   encarregadoContato: [120, "O e-mail do encarregado"],
 };
 
@@ -230,7 +235,8 @@ function canal(e: DadosDaEmpresa): string {
 
 function contatoDoEncarregado(e: DadosDaEmpresa): string {
   if (e.encarregadoNome && e.encarregadoContato) {
-    return `O encarregado pelo tratamento de dados pessoais é ${e.encarregadoNome}, pelo e-mail ${e.encarregadoContato}.`;
+    const cargo = e.encarregadoCargo ? `, ${e.encarregadoCargo}` : "";
+    return `O encarregado pelo tratamento de dados pessoais é ${e.encarregadoNome}${cargo}, pelo e-mail ${e.encarregadoContato} — é o canal para exercer os seus direitos (item 7).`;
   }
   return `O contato do encarregado pelo tratamento de dados pessoais será publicado nesta página; até lá, fale com a plataforma ${canal(e)}.`;
 }
@@ -342,7 +348,7 @@ export function montarPrivacidade(d: DadosDosTermos): Secao[] {
       titulo: "1. Quem trata os seus dados",
       itens: [
         identificacao(d),
-        "A plataforma é a controladora dos dados do seu cadastro e das suas compras. A promotora da rifa recebe só o necessário para cumprir o que é dela: o ganhador (para entregar o prêmio), os clientes que compraram na mão do cambista dela e o nome e o WhatsApp de quem pede para ser colaborador dela. Das demais compras, ela vê o pedido, os números e o valor, com o cliente identificado só por um código. O afiliado vê só o primeiro nome de quem comprou pelo link dele.",
+        "A plataforma atua como controladora dos dados que trata em nome próprio — o seu cadastro e as suas compras — e como operadora dos dados que trata por conta da promotora, para ela cumprir o que é dela (como a entrega do prêmio), na forma desta Política. A promotora da rifa recebe só o necessário para cumprir o que é dela: o ganhador (para entregar o prêmio), os clientes que compraram na mão do cambista dela e o nome e o WhatsApp de quem pede para ser colaborador dela. Das demais compras, ela vê o pedido, os números e o valor, com o cliente identificado só por um código. O afiliado vê só o primeiro nome de quem comprou pelo link dele.",
         contatoDoEncarregado(d.empresa),
       ],
     },
@@ -350,20 +356,20 @@ export function montarPrivacidade(d: DadosDosTermos): Secao[] {
       titulo: "2. Quais dados e para quê",
       itens: [
         "Cadastro (nome, telefone, CPF, e-mail, CEP, cidade e estado, apelido e foto): identificar você, emitir o bilhete, avisar do resultado, entregar o prêmio e cumprir a lei das rifas. Base legal: execução do contrato e obrigação legal.",
-        "Compras e pagamentos (pedidos, números, valores, o identificador do Pix): vender, conferir o pagamento, devolver em caso de reembolso e prestar contas. Os dados do pagamento ficam com o provedor do Pix; a plataforma não guarda dados bancários de quem compra.",
+        "Compras e pagamentos (pedidos, números, valores, o identificador do Pix): vender, conferir o pagamento, devolver em caso de reembolso e prestar contas. Os dados do pagamento ficam com o provedor do Pix; a plataforma não guarda dados bancários de quem compra; guarda apenas o identificador do Pix, necessário para conferir o pagamento e fazer devoluções. Base legal: execução do contrato e obrigação legal (prestação de contas da rifa).",
         "Segurança e antifraude (endereço IP e identificador do aparelho em hash, telefone mascarado nas recusas, e tentativas de acesso): impedir golpe, bloqueio de estoque e uso indevido de contas. O registro de auditoria de algumas ações (entrar no painel, autorizar ou revogar a comparação de foto, por exemplo) guarda o IP de quem agiu. Base legal: legítimo interesse e prevenção à fraude.",
         "Comentários, mensagens e publicações: o que você escreve, para mostrar a quem deve ver e para moderar denúncias (a plataforma lê só o trecho denunciado). Base legal: execução do contrato e legítimo interesse (moderação).",
-        "Voto nas enquetes dos stories (só com conta): qual opção você escolheu, guardado só para contar um voto por pessoa e mostrar a você o resultado. A organização vê os totais de cada opção, nunca quem votou em quê; o voto sai com o story.",
-        `Verificação de perfil (opcional): documentos, guardados cifrados, e — só com a sua autorização destacada — a comparação da foto do perfil com a do documento, que é dado biométrico (art. 11), para verificação de identidade e prevenção a fraudes. Da comparação fica só o resultado (verificado ou não) — nenhum modelo ou medida do rosto. Os documentos são apagados ${DOCUMENTOS_GUARDA_DIAS} dias depois da decisão (verificado ou recusado); o resultado e o selo ficam. A autorização pode ser revogada na própria tela; quem foi verificado com uma autorização anterior é chamado a confirmar de novo, senão o selo sai.`,
+        "Voto nas enquetes dos stories (só com conta): qual opção você escolheu, guardado só para contar um voto por pessoa e mostrar a você o resultado. A organização vê os totais de cada opção, nunca quem votou em quê; o voto sai com o story. Base legal: execução do contrato (a enquete que você escolheu responder).",
+        `Verificação de perfil (opcional): documentos, guardados cifrados, e — só com a sua autorização destacada — a comparação da foto do perfil com a do documento, que é dado biométrico (art. 11), para verificação de identidade e prevenção a fraudes. Da comparação fica só o resultado (verificado ou não) — nenhum modelo ou medida do rosto. Os documentos são apagados ${DOCUMENTOS_GUARDA_DIAS} dias depois da decisão (verificado ou recusado); o resultado e o selo ficam. A autorização pode ser revogada na própria tela; quem foi verificado com uma autorização anterior é chamado a confirmar de novo, senão o selo sai. Base legal: os documentos, execução do contrato (a verificação que você pede); a comparação da foto, o seu consentimento específico e destacado (LGPD, art. 11, I).`,
         "Origem da visita (de onde você chegou, campanha de anúncio): estatística de vendas; nunca decide preço nem comissão. Base legal: legítimo interesse.",
         "Sócios e diretores da promotora (nome, cargo e CPF, cadastrados pela organização): só para recusar a compra deles nas rifas autorizadas, que eles não podem disputar. O CPF não fica guardado — só uma impressão cifrada para a comparação e os dois últimos dígitos para a tela. Sai quando a organização tira a pessoa da lista. Base legal: cumprimento de obrigação regulatória (Lei 5.768/71).",
-        "Documentos da entidade beneficiada (CNPJ, ata da diretoria, certidões), enviados pela organização: só a plataforma os abre, para conferir a entidade antes de ela aparecer na rifa; guardados cifrados e apagados junto com a entidade.",
+        "Documentos da entidade beneficiada (CNPJ, ata da diretoria, certidões), enviados pela organização: só a plataforma os abre, para conferir a entidade antes de ela aparecer na rifa; guardados cifrados e apagados junto com a entidade. Base legal: legítimo interesse (conferir a entidade antes de ela aparecer ao público) e prevenção à fraude.",
       ],
     },
     {
       titulo: "3. Com quem compartilhamos",
       itens: [
-        "Provedor do Pix (para gerar e conferir a cobrança e fazer devoluções); Meta/WhatsApp (código de acesso e mensagens das suas compras); Google (só se você entrar com o Google); serviço de consulta de CEP (só o CEP); serviços de notificação do celular (Google, Apple, Mozilla, Microsoft — só se você ligar os avisos); Amazon Web Services (Amazon Rekognition), como operador que só compara as fotos por nossa ordem, em servidores no exterior e com as garantias de segurança do contrato dele — transferência internacional que só acontece com o seu consentimento expresso no texto que a cita (LGPD, art. 33, VIII); os provedores de hospedagem, banco de dados e cópia de segurança, que guardam os dados por nós; e a promotora e o afiliado (o que está no item 1).",
+        "Provedor do Pix (para gerar e conferir a cobrança e fazer devoluções); Meta/WhatsApp (código de acesso e mensagens das suas compras); Google (só se você entrar com o Google); serviço de consulta de CEP (só o CEP); serviços de notificação do celular (Google, Apple, Mozilla, Microsoft — só se você ligar os avisos); Amazon Web Services (Amazon Rekognition), só quando a plataforma liga o comparador automático (sem ele, a comparação é feita por uma pessoa da plataforma e a foto não sai), como operadora, nos termos do contrato dela com a plataforma, em servidores no exterior — transferência internacional que só acontece com o seu consentimento expresso no texto que a cita (LGPD, art. 33, VIII); os provedores de hospedagem, banco de dados e cópia de segurança, que guardam os dados por nós; e a promotora e o afiliado (o que está no item 1).",
         "Pixels de anúncio (Meta, Google, TikTok) só carregam depois do seu \"Aceitar\" no aviso de cookies; a compra enviada a eles leva o telefone só em hash, nunca nome, CPF ou e-mail. Meta, Google e TikTok atuam como controladores conjuntos dos dados coletados por esses cookies, nos termos das respectivas políticas de privacidade. Base legal: o seu consentimento, que você retira em Perfil → Preferência de cookies; ao recusar, os cookies não essenciais já instalados são removidos.",
         "Autoridades, quando a lei ou ordem judicial exigir. Nunca vendemos dados pessoais.",
       ],
@@ -382,7 +388,7 @@ export function montarPrivacidade(d: DadosDosTermos): Secao[] {
       titulo: "5. Por quanto tempo",
       itens: [
         `Compras, bilhetes, recibos e o registro do sorteio: 5 anos (Código Tributário Nacional, arts. 173 e 174), e os documentos fiscais eletrônicos até 11 anos, mesmo depois de excluída a conta. Avisos da central: 90 dias. Contagem de tentativas para os limites de antifraude: 2 horas; o registro das recusas (com o telefone mascarado e o aparelho em hash): ${GUARDA_DAS_RECUSAS_DIAS} dias; o bloqueio com prazo sai ${GUARDA_DO_BLOQUEIO_VENCIDO_DIAS} dias depois de vencer, e o bloqueio sem prazo fica até a plataforma retirá-lo.`,
-        "Ao excluir a conta, nome, telefone, CPF, e-mail, senha, apelido, foto, as fotos das suas publicações e a verificação e os votos nas enquetes saem; o que precisa ficar por lei fica sem identificar você.",
+        "Ao excluir a conta, nome, telefone, CPF, e-mail, senha, apelido, foto, as fotos das suas publicações e a verificação e os votos nas enquetes saem; o que precisa ficar por lei fica sem identificar você: as compras e os bilhetes ficam anonimizados (sem nome, telefone, CPF e e-mail), para fins fiscais e de auditoria do sorteio.",
       ],
     },
     {
@@ -394,7 +400,7 @@ export function montarPrivacidade(d: DadosDosTermos): Secao[] {
     {
       titulo: "7. Seus direitos",
       itens: [
-        "Você pode confirmar se tratamos seus dados, acessá-los, corrigi-los (Minha conta), excluir a conta, revogar consentimentos a qualquer momento e sem custo (cookies e perfil público no seu perfil, avisos no celular, comparação de foto na verificação), pedir informação sobre compartilhamento e a portabilidade (LGPD, art. 18).",
+        "Você pode confirmar se tratamos seus dados, acessá-los, corrigi-los (Minha conta), excluir a conta, revogar consentimentos a qualquer momento e sem custo (cookies e perfil público no seu perfil, avisos no celular, comparação de foto na verificação), pedir informação sobre compartilhamento e a portabilidade (LGPD, art. 18). Você também pode se opor a tratamento feito sem o seu consentimento — como os de legítimo interesse (segurança e antifraude, moderação, origem da visita) — quando ele descumprir a LGPD (art. 18, § 2º).",
         `Peça pelo encarregado (item 1) ou fale com a plataforma ${canal(d.empresa)}. O pedido é gratuito e respondido em até 15 dias (LGPD, art. 19, II). Você também pode reclamar à Autoridade Nacional de Proteção de Dados (ANPD).`,
       ],
     },

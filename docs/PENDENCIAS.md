@@ -827,12 +827,29 @@ Na ordem de entrega do plano:
   cada caso); no item 10, o art. 101, I, do CDC e o foro da sede para as
   relações fora do CDC. A nota "gere de novo…" é do arquivo da base do
   assistente, nunca do site — o cabeçalho agora diz isso.
+- [x] **Revisão formal da Política de privacidade pelo advogado
+  (08/10/2026)**, aplicada. As seções 3 e 4 existiam (a cópia dele perdeu
+  os títulos); o teste confere a numeração de 1 a 9. Entraram: o papel de
+  controladora (o que trata em nome próprio) e de operadora (o que trata
+  por conta da promotora); o **cargo do encarregado** (campo novo e
+  opcional nos Dados da empresa) junto do nome, e o encarregado como canal
+  dos direitos; base legal nos tratamentos que não a diziam (pagamento,
+  voto na enquete, verificação — os documentos, execução do contrato; a
+  comparação da foto, consentimento específico e destacado, art. 11, I —
+  e documentos da entidade); "guarda apenas o identificador do Pix"; a AWS
+  só com o comparador ligado, como operadora "nos termos do contrato", sem
+  o "só compara por nossa ordem"; as compras e os bilhetes anonimizados
+  depois de excluir a conta; e o direito de oposição com a condição da lei
+  (art. 18, § 2º: tratamento sem consentimento que descumpra a LGPD). A
+  lista do que fica no navegador segue chave por chave (o teste lê o código
+  e exige cada uma pelo nome; a sugestão de agrupar não foi aplicada).
 - [ ] **[você]** Antes de publicar os Termos, nos **Dados da empresa**
   (Aparência → Rodapé e empresa), os dois bloqueantes do advogado: o
   **e-mail de contato institucional** no domínio (ex.: contato@…) no lugar
   do Gmail — ele aparece nos Termos (itens 1, 5, 9 e 10) e sai de um campo
   só, então trocar ali troca em todos — e o **e-mail do encarregado**
-  (ex.: privacidade@…); e o **endereço na forma oficial**, com número e
+  (ex.: privacidade@ ou dpo@…, só do encarregado), com o **cargo ou
+  função** dele no campo novo; e o **endereço na forma oficial**, com número e
   complemento. Nenhum dos dois está no código.
 - [ ] **[você]** **Responder em até 5 dias** as reclamações que chegarem ao
   e-mail de contato (os Termos prometem, pelo Decreto 7.962/2013) e

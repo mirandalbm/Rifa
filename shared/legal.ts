@@ -325,7 +325,6 @@ export function montarTermosDeUso(d: DadosDosTermos): Secao[] {
       titulo: "9. Responsabilidade e funcionamento",
       itens: [
         `A plataforma mantém o sistema no ar com o cuidado devido, mas pode ter interrupções para manutenção ou por falha de terceiros (provedor do Pix, WhatsApp, internet). Pague dentro do prazo da reserva: se a confirmação do Pix chegar depois de a reserva vencer, ou depois do sorteio, os números não ficam garantidos e o valor é devolvido: o pagamento entra numa fila que a plataforma confere e devolve para a mesma conta que pagou, em até ${PIX_TARDIO_PRAZO_DIAS_UTEIS} dias úteis da confirmação do pagamento — pelo provedor do Pix, sempre que ele permitir. Se demorar, fale com a plataforma ${canal(d.empresa)}.`,
-        "Nada nestes termos afasta os seus direitos de consumidor.",
       ],
     },
     {

@@ -220,6 +220,8 @@ describe("Termos e Privacidade na régua do advogado (roteiro de 08/10/2026)", (
     expect(termos).toMatch(/Nas relações não sujeitas ao Código de Defesa do Consumidor, fica eleito o foro da comarca da sede/);
     const ligado = texto(montarTermosDeUso({ ...base, reembolso: { aceita: true, taxaPct: 10 } }));
     expect(ligado).toMatch(/a plataforma responde em até 5 dias/);
+    // A frase dos direitos de consumidor fica só no item 1 (sugestão do advogado: uma vez, com remissão).
+    expect(termos.match(/nada nestes termos afasta os seus direitos de consumidor/gi)).toHaveLength(1);
     // Nenhuma nota interna do gerador vai ao texto publicado.
     expect(termos).not.toMatch(/gere de novo|Gerado do sistema/);
   });

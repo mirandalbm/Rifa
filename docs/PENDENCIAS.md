@@ -116,7 +116,10 @@ senha); **[código]** é trabalho no repositório.
   e cada organização conferir o prazo de reembolso em Configurações.
   **Desligado é estado provisório** (revisão do advogado, 08/10/2026): o
   art. 49 vale do mesmo jeito, e o interruptor desligado por muito tempo
-  pode ser lido como dificultar o direito de desistir.
+  pode ser lido como dificultar o direito de desistir. Ligado, o fluxo do
+  site volta (chamado, disputa, devolução pelo provedor) e os Termos (item
+  5), a tela da compra e a ajuda trocam de texto sozinhos. O prazo de 5 dias
+  para responder reclamação (Decreto 7.962/2013) vale nos dois estados.
 - [ ] **[você]** O comprador só entra em "Minhas cotas" pelo código do
   WhatsApp: **sem o modelo `codigo_acesso` aprovado (item 1), ninguém
   consegue pedir reembolso** — nem ver as cotas.
@@ -826,7 +829,9 @@ Na ordem de entrega do plano:
   `PIX_TARDIO_PRAZO_DIAS_UTEIS`, que o cartão "Pix a devolver" mostra em
   cada caso); no item 10, o art. 101, I, do CDC e o foro da sede para as
   relações fora do CDC. A nota "gere de novo…" é do arquivo da base do
-  assistente, nunca do site — o cabeçalho agora diz isso.
+  assistente, nunca do site — o cabeçalho agora diz isso. Na segunda leitura (08/10/2026),
+  a pedido dele, a frase "nada nestes termos afasta os seus direitos de
+  consumidor" ficou só no item 1 (saiu a repetição do item 9).
 - [x] **Revisão formal da Política de privacidade pelo advogado
   (08/10/2026)**, aplicada. As seções 3 e 4 existiam (a cópia dele perdeu
   os títulos); o teste confere a numeração de 1 a 9. Entraram: o papel de
@@ -842,7 +847,16 @@ Na ordem de entrega do plano:
   depois de excluir a conta; e o direito de oposição com a condição da lei
   (art. 18, § 2º: tratamento sem consentimento que descumpra a LGPD). A
   lista do que fica no navegador segue chave por chave (o teste lê o código
-  e exige cada uma pelo nome; a sugestão de agrupar não foi aplicada).
+  e exige cada uma pelo nome; as preferências de tela já vêm numa linha
+  só). Na segunda leitura (08/10/2026) ele **retirou o bloqueio da redação
+  da AWS na Privacidade** (o texto remete ao contrato, sem afirmar o que a
+  plataforma não controla) e aprovou o conjunto: contrato da promotora,
+  anexos A a E (com as ressalvas: cópia da autorização do SCPC no C; o CEBAS
+  quando invocado no E), termo do afiliado, aviso de cookies, reembolso,
+  Termos e Privacidade. Para publicar, falta só o que está fora do código:
+  o e-mail institucional e o endereço oficial nos Dados da empresa (item
+  abaixo). **Ligar o comparador automático** segue dependendo do opt-out da
+  AWS (o item bloqueante, acima).
 - [ ] **[você]** Antes de publicar os Termos, nos **Dados da empresa**
   (Aparência → Rodapé e empresa), os dois bloqueantes do advogado: o
   **e-mail de contato institucional** no domínio (ex.: contato@…) no lugar

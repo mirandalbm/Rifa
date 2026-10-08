@@ -79,6 +79,7 @@ export function CartaoDoFeed({ rifa: c, origem = "vitrine" }: { rifa: RifaDoFeed
         href={href}
         aoAbrir={() => marcarOrigem(origem)}
         perfilSobreNaWeb
+        retratoNoCelular={Boolean(c.demonstracao)}
         perfil={
           c.organizacao
             ? (sobreImagem) => (

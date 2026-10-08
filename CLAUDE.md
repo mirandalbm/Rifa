@@ -838,7 +838,12 @@ registro estão em `docs/VERSOES.md`.
   gravada antes disso ganha a medida pela tag `<svg>` (`medidaDoSvg()` em
   `shared/publicacao.ts`), uma vez, ao subir o servidor
   (`medirImagensDeExemplo()`, trava 811021). Só SVG em data URI: a mídia
-  das organizações é medida no envio. `npm run vitrine` prova.
+  das organizações é medida no envio. **A medida vale só do tablet em
+  diante**: no celular a rifa de demonstração ou de teste segue no retrato
+  4:5 de antes (`retratoNoCelular` no `Carrossel`, `caixaDoCarrossel()` em
+  `shared/publicacao.ts`) — a caixa em pé com espaço sobrando era problema
+  da web. A mídia de verdade segue o formato medido em toda largura.
+  `npm run vitrine` prova.
 - **Excluir rifa** (`excluirRifa()`, `DELETE /campaigns/:id`) apaga de
   vez: rascunho, rifa no ar sem nenhuma cota tomada (nem reserva em
   andamento) e rifa de teste. Dinheiro envolvido — pedido pago ou

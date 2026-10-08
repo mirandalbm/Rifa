@@ -15,8 +15,8 @@ import { EscolherBilhete } from "@/components/EscolherBilhete";
 import {
   LEGENDA_MAX,
   contadorCurto,
-  FORMATOS,
   duracao,
+  caixaDoCarrossel,
   formatoDoCarrossel,
   formatoDoVideo,
   perfilPorCima,
@@ -80,6 +80,7 @@ export function Carrossel({
   perfil,
   perfilSobreNaWeb = false,
   limitarNoTablet = false,
+  retratoNoCelular = false,
   canto,
   children,
 }: {
@@ -96,6 +97,8 @@ export function Carrossel({
   perfilSobreNaWeb?: boolean;
   /** No tablet a imagem vai até a borda, mas não passa de 85% da altura da tela (corta ao centro). */
   limitarNoTablet?: boolean;
+  /** Rifa de demonstração: no celular, retrato 4:5; do tablet em diante, o formato medido (`caixaDoCarrossel`). */
+  retratoNoCelular?: boolean;
   /** O que vai por cima da imagem, abaixo do perfil quando ele está por cima. */
   children?: ReactNode;
   /** Botão no canto de cima à direita, abaixo do contador (a cota surpresa). */
@@ -104,7 +107,7 @@ export function Carrossel({
   const [atual, setAtual] = useState(0);
   const formato = formatoDoCarrossel(pecas);
   const porCima = !proporcao && perfilPorCima(formato);
-  const caixa = proporcao ?? FORMATOS[formato].classe;
+  const caixa = proporcao ?? caixaDoCarrossel(formato, retratoNoCelular);
   const desce = porCima && perfil ? FAIXA_DO_PERFIL : 0;
   // Na web o perfil passa para cima da imagem só por classe (`md:`): o
   // celular não muda, e o selo e o "1/8" descem para baixo dele.

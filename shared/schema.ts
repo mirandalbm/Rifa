@@ -3555,3 +3555,61 @@ export const retencoesCautelares = pgTable(
     index("idx_retencoes_status").on(t.status, t.criadoEm),
   ],
 );
+
+/**
+ * A fila de trabalho pesado (Fase F, `shared/fila.ts`): o site enfileira, o
+ * trabalhador (`server/worker.ts`, processo à parte) toma com `FOR UPDATE SKIP
+ * LOCKED` e devolve a saída, e o site a recebe. Uma linha por trabalho; a
+ * chave impede dois iguais **em aberto** (índice parcial), e o trabalho sai
+ * junto com a rifa (cascata).
+ */
+export const trabalhos = pgTable(
+  "trabalhos",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /** O tipo (`reels_gerado`): o trabalhador só toma o que sabe fazer. */
+    tipo: text("tipo").notNull(),
+    chave: text("chave").notNull(),
+    /** pendente | executando | pronto | recebendo | concluido | falhou */
+    situacao: text("situacao").notNull().default("pendente"),
+    /** Parâmetros pequenos, sem dado pessoal. */
+    dados: jsonb("dados").notNull().default({}),
+    campaignId: uuid("campaign_id").references(() => campaigns.id, { onDelete: "cascade" }),
+    pedidoPor: uuid("pedido_por"),
+    tentativas: integer("tentativas").notNull().default(0),
+    disponivelEm: timestamp("disponivel_em").notNull().defaultNow(),
+    tomadoEm: timestamp("tomado_em"),
+    tomadoPor: text("tomado_por"),
+    erro: text("erro"),
+    resultado: jsonb("resultado"),
+    criadoEm: timestamp("criado_em").notNull().defaultNow(),
+    terminadoEm: timestamp("terminado_em"),
+  },
+  (t) => [
+    uniqueIndex("uq_trabalho_aberto").on(t.chave).where(sql`situacao in ('pendente', 'executando', 'pronto', 'recebendo')`),
+    index("idx_trabalhos_fila").on(t.situacao, t.disponivelEm),
+    index("idx_trabalhos_rifa").on(t.campaignId, t.criadoEm),
+  ],
+);
+
+/** As entradas e a saída de cada trabalho, no banco (o trabalhador não alcança o volume do site). */
+export const trabalhoArquivos = pgTable(
+  "trabalho_arquivos",
+  {
+    trabalhoId: uuid("trabalho_id")
+      .notNull()
+      .references(() => trabalhos.id, { onDelete: "cascade" }),
+    /** entrada | saida */
+    papel: text("papel").notNull(),
+    nome: text("nome").notNull(),
+    bytes: bytea("bytes").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.trabalhoId, t.papel, t.nome] })],
+);
+
+/** O último aviso de cada trabalhador ("estou no ar"): a tela diz quando o gerador está parado. */
+export const trabalhadores = pgTable("trabalhadores", {
+  nome: text("nome").primaryKey(),
+  vistoEm: timestamp("visto_em").notNull().defaultNow(),
+  tipos: text("tipos").array().notNull().default(sql`'{}'::text[]`),
+});

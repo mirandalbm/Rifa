@@ -332,6 +332,8 @@ async function alcancaOVizinho(eu: Lado, vizinho: Lado) {
     // Corpo válido de propósito: um 422 da régua esconderia a falta do recorte.
     ["POST conferir texto do editor na rifa do vizinho", `/api/admin/campaigns/${c}/editor/conferir`, { method: "POST", body: '{"camadas":[]}' }],
     ["GET foco da foto no editor da rifa do vizinho", `/api/admin/campaigns/${c}/editor/foco/00000000-0000-0000-0000-000000000000`, {}],
+    ["POST gerar reels com as fotos da rifa do vizinho", `/api/admin/campaigns/${c}/reels-gerado`, { method: "POST", body: '{"legenda":"Concorra!"}' }],
+    ["GET situação do reels gerado da rifa do vizinho", `/api/admin/campaigns/${c}/reels-gerado`, {}],
     ["POST sugerir texto pelo assistente na rifa do vizinho", `/api/admin/campaigns/${c}/sugerir`, { method: "POST", body: '{"tipo":"texto"}' }],
     ["PUT documento da entidade da rifa do vizinho", `/api/admin/campaigns/${c}/banner-divulgacao/documentos/cnpj`, { method: "PUT", body: JSON.stringify({ arquivo: `data:application/pdf;base64,${Buffer.from("%PDF-1.4").toString("base64")}` }) }],
     ["GET sócios do vizinho", `/api/admin/organizacoes/${vizinho.orgId}/socios`, {}],

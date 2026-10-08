@@ -29,6 +29,8 @@ import { paymentProviderByName } from "../payments";
 import { log } from "../vite";
 import { poolDasTravas } from "../db";
 import { LocalDiskStorage, storage } from "../services/storage";
+import { receberReelsGerados } from "../services/reelsGerado";
+import { devolverPresos, limparTrabalhosAntigos } from "../services/fila";
 import { apagarDocumentosDeVerificacaoAntigos, tirarSelosSemConsentimentoRenovado } from "../services/verificacao";
 
 /**
@@ -80,6 +82,7 @@ const LOCK_PUBLICACAO_AGENDADA = 811_018;
 const LOCK_CONSENTIMENTO = 811_019;
 const LOCK_DOCUMENTOS_VERIFICACAO = 811_020;
 const LOCK_MEDIDA_EXEMPLO = 811_021;
+const LOCK_REELS_GERADO = 811_022;
 
 /** Quantos minutos antes de a reserva cair o lembrete é enviado. */
 const LEMBRETE_MINUTOS = Number(process.env.REMINDER_MINUTES_BEFORE ?? 5);
@@ -515,4 +518,30 @@ export function startJobs() {
       console.error("[jobs] mensalidades:", err);
     }
   }, releaseMs).unref();
+
+  // Fila de trabalho pesado (Fase F): o trabalhador (processo à parte) monta
+  // o vídeo; aqui o site só recebe o pronto pela ingestão de sempre, devolve
+  // o que ficou preso no meio e limpa o que terminou há muito tempo.
+  setInterval(async () => {
+    try {
+      await withLock(LOCK_REELS_GERADO, async () => {
+        await devolverPresos();
+        const n = await receberReelsGerados();
+        if (n > 0) log(`${n} reels gerado(s) recebido(s)`, "jobs");
+      });
+    } catch (err) {
+      console.error("[jobs] reels gerado:", err);
+    }
+  }, Number(process.env.RECEBER_TRABALHOS_MS ?? 15_000)).unref();
+
+  setInterval(async () => {
+    try {
+      await withLock(LOCK_REELS_GERADO, async () => {
+        const n = await limparTrabalhosAntigos();
+        if (n > 0) log(`${n} trabalho(s) antigo(s) apagados da fila`, "jobs");
+      });
+    } catch (err) {
+      console.error("[jobs] limpeza da fila:", err);
+    }
+  }, 60 * 60_000).unref();
 }

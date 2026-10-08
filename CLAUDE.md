@@ -106,6 +106,7 @@ arquitetura.
 | ponte com a maquininha | `client/src/lib/pos.ts`, `android/`, `docs/MAQUININHAS.md`; Stone por deeplink em `android/app/src/ton/` e `RetornoDeApp.kt`, provada sem SDK por `npm run stone` |
 | teste de carga | `scripts/load-test.ts` |
 | relógios (expiração, lembretes, limpezas) e a trava de cada um | `server/jobs/index.ts` (`withLock`), `poolDasTravas` em `server/db.ts`, `scripts/relogios-test.ts` |
+| fila de trabalho pesado e o trabalhador (processo à parte), o reels gerado com as fotos da rifa (Fase F) | `shared/fila.ts` (regras), `server/services/fila.ts` (enfileirar, tomar, terminar, devolver os presos, receber), `server/worker.ts` e `server/trabalhos/` (o laço e os tipos), `shared/reelsGerado.ts` (roteiro, comando do `ffmpeg`, texto gravado), `faixaDoReelsGerado()` em `server/services/arteDesenho.ts`, `server/services/reelsGerado.ts` (pedir, situação, receber), `/campaigns/:id/reels-gerado` em `server/routes/admin.ts`, relógio em `server/jobs/index.ts` (trava 811022), `client/src/components/GerarReels.tsx` (no cartão Reels da rifa), `scripts/fila-test.ts`, `tests/fila.test.ts`, `tests/reelsGerado.test.ts` |
 | limites de antifraude | `shared/antifraude.ts` (regras) e `server/services/antifraude.ts` |
 | isolamento entre organizadores | `server/services/orgs.ts` e `scripts/isolation-test.ts` |
 | rateio da venda | `shared/pricing.ts` (`splitOrder`) |
@@ -238,9 +239,11 @@ arquitetura.
   servimos o arquivo original. Vídeo enviado antes de ligar a entrega segue
   no original (não há envio retroativo ao Stream; o pôster retroativo só tira
   o quadro).
-- Fila (BullMQ): os três relógios rodam com `setInterval` no processo,
+- Fila de mensagens à parte (BullMQ, Redis): não existe e não precisa. O
+  trabalho pesado tem a **fila no Postgres** (seção "Fila de trabalho e
+  reels gerado"), e os relógios rodam com `setInterval` no processo,
   protegidos por trava de aplicação do Postgres — com várias réplicas só uma
-  executa. Serve bem; a fila entra quando houver trabalho pesado de verdade.
+  executa.
   **A trava pega a conexão de `poolDasTravas`, nunca do `pool` comum**
   (`withLock()` em `server/jobs/index.ts`): a trava é de sessão e fica presa
   enquanto o relógio trabalha pelo `pool`. No mesmo pool, os ~12 relógios
@@ -1335,6 +1338,64 @@ isso é variável à parte.
   própria prova, só no processo dela) e `tests/stream.test.ts`,
   `tests/streamAssinatura.test.ts` e `tests/cloudflareStream.test.ts` cobrem
   as regras.
+
+## Fila de trabalho e reels gerado — o que não pode afrouxar
+
+O trabalho pesado (hoje, montar o reels com as fotos da rifa — Fase F do
+`docs/PLANO-FERRAMENTAS.md`) roda num **processo à parte, o trabalhador**
+(`server/worker.ts`; no Railway, outro serviço com o mesmo repositório e
+`npm run start:worker`). **O processo web nunca recomprime vídeo**: ele
+enfileira e recebe.
+
+- **A fila é uma tabela no Postgres** (`trabalhos`, regras em
+  `shared/fila.ts`), sem Redis. O caminho é `pendente → executando → pronto →
+  recebendo → concluido`, e `falhou` em qualquer ponto. **Tomar é `UPDATE …
+  FOR UPDATE SKIP LOCKED`**: dois trabalhadores nunca pegam o mesmo. **Dois
+  pedidos iguais em aberto, quem barra é o índice parcial** sobre a chave
+  (`uq_trabalho_aberto`, `ON CONFLICT DO NOTHING`) — nunca um `SELECT` antes.
+  Toda troca de situação é `UPDATE` condicional à situação lida e, no
+  trabalhador, ao nome de quem tomou: o trabalho devolvido pelo prazo e
+  terminado depois pelo processo lento não vira dois.
+- **Entradas e saída moram no banco** (`trabalho_arquivos`), não no disco: o
+  volume do Railway é de um serviço só e o trabalhador não alcança o do site.
+  Por isso o trabalhador precisa só do `DATABASE_URL` e do `ffmpeg`. A saída
+  tem teto (`SAIDA_DO_TRABALHO_MAX_BYTES`, 40 MB); as entradas saem quando o
+  trabalho fica pronto, e a saída quando o site recebe ou o trabalho falha.
+  Os nomes dos arquivos nunca viram caminho: o trabalhador grava cada um com
+  um nome dele.
+- **Falha passageira volta para a fila com espera** (30 s, 2 min, 8 min… até
+  30 min, `esperaDaTentativa()`), até `TENTATIVAS_DO_TRABALHO` (3); a
+  definitiva (`ErroDefinitivo`, ex.: entrada faltando) falha na hora. O
+  motivo vai para a tela numa linha, sem caminho de arquivo
+  (`erroParaATela()`). **Trabalho preso** (o processo caiu no meio) volta ou
+  falha pelo prazo (`PRAZO_DO_TRABALHO_MS`, 10 min, `devolverPresos()`, no
+  trabalhador e no relógio do site). O SIGTERM do deploy para de tomar e
+  espera o que está em andamento.
+- **A tela nunca promete o que não acontece**: o trabalhador avisa que está
+  no ar (`trabalhadores`, a cada 30 s), e sem aviso há 2 min a tela diz que o
+  gerador está parado e o pedido espera na fila.
+- **O reels gerado** (`shared/reelsGerado.ts`): só rifa **publicada**, nem
+  demonstração, nem travada (ou de promotora arquivada ou banida), nem
+  sorteada — o prêmio, o preço e a autorização gravados no vídeo travam ao
+  publicar. **A data do sorteio nunca vai gravada** (muda no adiamento): o
+  vídeo leva as figurinhas da contagem e do Comprar, que são dados. O site
+  prepara até 6 fotos (o banner primeiro) no 9:16, cortadas no assunto pelo
+  `sharp`, e a faixa de texto em contorno (`faixaDoReelsGerado()`, nunca
+  `<text>`); o `ffmpeg` do trabalhador monta (movimento lento, transição,
+  H.264 sem som). Um em aberto por rifa (409), Reels cheio é 409, a legenda
+  na régua (422, antes do limite) e com a varredura do Pix por fora, 6
+  pedidos por hora por pessoa (429), recorte por `assertCampaignInScope` (o
+  vizinho é 404, no `npm run isolation`), auditoria `reels.gerar`.
+- **O vídeo pronto entra pela ingestão de sempre** (`ingestUpload`, no
+  relógio do site, trava 811022): medido de novo (em pé, até 3 min), contado
+  na vaga do Reels sob a trava da rifa, com o pôster e o HLS de sempre. A
+  recusa da régua falha o pedido com o motivo; nada fica pela metade.
+- **Trabalho terminado sai em 30 dias** (`limparTrabalhosAntigos()`), e sai
+  junto com a rifa (cascata).
+- As tabelas `trabalhos`, `trabalho_arquivos` e `trabalhadores` sobem com o
+  `db:push` **antes** do código. `npm run fila` prova tudo isso contra a API
+  de verdade (o trabalhador roda dentro da prova); `tests/fila.test.ts` e
+  `tests/reelsGerado.test.ts` cobrem as regras e o `ffmpeg` de verdade.
 
 ## Antifraude — o que não pode afrouxar
 

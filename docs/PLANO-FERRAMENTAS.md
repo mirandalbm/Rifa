@@ -133,7 +133,7 @@ transcrição), nunca pelo editor de terceiro.
 | Magic Design (de uma referência ou prompt → layout pronto) | **Recriar a partir de uma referência**: a pessoa envia uma foto ou um modelo que viu; a IA de visão lê o layout e devolve um modelo nosso (dados), que o sistema preenche com a rifa e as informações oficiais do sorteio | B |
 | Gerar imagem por IA (Magic Media / Firefly) | Provedor de imagem por geração, só para **fundo e cenário**; nunca rosto de pessoa real; marcado "criado com IA" | E |
 | Expandir e preencher (generativo) | Mesmo provedor, para completar a foto do prêmio no 9:16 | E |
-| Vídeo gerado | Reels automático com as fotos da rifa (movimento lento, prêmio, preço, contagem) pelo `ffmpeg` local, com a fila (BullMQ) | F |
+| Vídeo gerado | Reels automático com as fotos da rifa (movimento lento, prêmio, preço, contagem) pelo `ffmpeg` do trabalhador, com a fila no Postgres | F |
 | Música e trilha | Não entra: sem biblioteca licenciada, o som é o do próprio vídeo | — |
 | Marca (brand kit) | Já existe: logo, cor de destaque e capa da organização (`validarDestaque`) entram nos modelos e figurinhas | A |
 | Agendar e publicar | Já existe (story, peça, rifa); a Fase G liga o pacote pronto à agenda | G |
@@ -245,8 +245,22 @@ assistente (franquia e pacote).
 
 **Fase F — Vídeo gerado pelo sistema · ~4 PRs.**
 Reels automático com as fotos da rifa pelo `ffmpeg` local. É aqui que entra
-a fila de trabalho (BullMQ) que o `CLAUDE.md` reserva para "trabalho pesado
-de verdade".
+a fila de trabalho que o `CLAUDE.md` reserva para "trabalho pesado de
+verdade".
+**Feita (08/10/2026), num PR.** Decidido com você: **a fila é uma tabela no
+Postgres que já existe** (`trabalhos`, sem Redis nem BullMQ) e **um processo
+à parte, o trabalhador** (`server/worker.ts`, `npm run start:worker` — no
+Railway, outro serviço com o mesmo repositório), que toma o trabalho com
+`FOR UPDATE SKIP LOCKED`. O processo web continua sem recomprimir vídeo.
+"Gerar vídeo com as fotos" no cartão "Reels da rifa": o site prepara até 6
+fotos no 9:16 (cortadas no assunto) e a faixa com o prêmio, o preço da cota,
+quem apura e a autorização (nunca a data, que muda no adiamento — ela vai
+como figurinha de contagem, junto do Comprar); o trabalhador monta o vídeo
+(movimento lento, transição, H.264 sem som); o relógio do site recebe pela
+ingestão de sempre e publica no Reels. As entradas e a saída passam pelo
+banco, então o trabalhador não precisa do volume — só do `DATABASE_URL` e do
+`ffmpeg`. `npm run fila` prova. Fica para depois: música (sem biblioteca
+licenciada, como o resto), escolher as fotos e a ordem, e juntar vídeos.
 
 **Fase G — Pacote pronto para postar · 1 PR.**
 As artes nos três formatos, a legenda sugerida e o link curto, num zip ou

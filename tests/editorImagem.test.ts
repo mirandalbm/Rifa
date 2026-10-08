@@ -117,3 +117,36 @@ describe("quebrarEmLinhas", () => {
     expect(quebrarEmLinhas("a supercalifragilístico b", 50, medir)).toEqual(["a", "supercalifragilístico", "b"]);
   });
 });
+
+describe("o assunto da foto (recorte atento)", () => {
+  it("converte o ponto do sharp (na foto reduzida, antes do corte) em fração", async () => {
+    const { focoEmFracao } = await import("@shared/editorImagem");
+    // Foto 800×400 reduzida para cobrir 128×128: escala 0,32 → 256×128.
+    expect(focoEmFracao({ x: 208, y: 38 }, { largura: 800, altura: 400 }, 128)).toEqual({ x: 0.813, y: 0.297 });
+    expect(focoEmFracao({ x: undefined, y: 10 }, { largura: 800, altura: 400 }, 128)).toBeNull();
+    expect(focoEmFracao({ x: 999, y: 10 }, { largura: 800, altura: 400 }, 128)).toBeNull();
+  });
+
+  it("o enquadramento parte do foco, sem zoom; sem foco, o meio", async () => {
+    const { enquadramentoDoFoco, ENQUADRAMENTO_INICIAL } = await import("@shared/editorImagem");
+    expect(enquadramentoDoFoco({ x: 0.8, y: 0.3 })).toEqual({ zoom: 1, cx: 0.8, cy: 0.3 });
+    expect(enquadramentoDoFoco(null)).toEqual(ENQUADRAMENTO_INICIAL);
+    expect(enquadramentoDoFoco({ x: Number.NaN, y: 0.3 })).toEqual(ENQUADRAMENTO_INICIAL);
+  });
+
+  it("acha o assunto numa foto de verdade, inclusive deitada pelo EXIF", async () => {
+    const sharp = (await import("sharp")).default;
+    const { focoDosBytes } = await import("../server/services/foco");
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="400"><rect width="800" height="400" fill="#888"/><circle cx="650" cy="120" r="50" fill="#f00"/></svg>`;
+    const foto = await sharp(Buffer.from(svg)).jpeg().toBuffer();
+    const foco = await focoDosBytes(foto);
+    expect(foco!.x).toBeGreaterThan(0.75);
+    expect(foco!.y).toBeLessThan(0.4);
+    // A mesma foto gravada deitada com a marca de girar 90° (EXIF 6): a tela a mostra em pé, e o foco segue a tela.
+    const deitada = await sharp(foto).rotate(-90).withMetadata({ orientation: 6 }).jpeg().toBuffer();
+    const emPe = await focoDosBytes(deitada);
+    expect(emPe!.x).toBeGreaterThan(0.75);
+    expect(emPe!.y).toBeLessThan(0.4);
+    expect(await focoDosBytes(Buffer.from("não é imagem"))).toBeNull();
+  });
+});

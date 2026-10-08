@@ -176,8 +176,8 @@ import {
   salvarModo as salvarModoDeDivulgacao,
 } from "../services/divulgacao";
 import { cliquesDosLinks, linkCurtoDaRifa, linkCurtoDoPerfil } from "../services/links";
-import { EditorError, conferirCamadas, dadosDoEditor, sugerirTexto, tipoDaSugestao } from "../services/editorImagem";
-import { CONFERENCIAS_POR_JANELA } from "@shared/editorImagem";
+import { EditorError, conferirCamadas, dadosDoEditor, focoDaFoto, sugerirTexto, tipoDaSugestao } from "../services/editorImagem";
+import { CONFERENCIAS_POR_JANELA, FOCOS_POR_JANELA } from "@shared/editorImagem";
 import {
   cancelarSolicitacao,
   conferirEdicao,
@@ -1136,6 +1136,23 @@ adminRouter.get("/campaigns/:id/editor", async (req, res, next) => {
     if (!dados) return res.status(404).json({ message: "Campanha não encontrada." });
     res.setHeader("Cache-Control", "no-store");
     res.json(dados);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// O assunto da foto (recorte atento): o editor abre a foto da rifa já
+// enquadrada no prêmio. Só foto pronta desta rifa; a do vizinho é 404.
+adminRouter.get("/campaigns/:id/editor/foco/:mediaId", async (req, res, next) => {
+  try {
+    const campaign = await assertCampaignInScope(req, req.params.id);
+    if ((await hit(`editor-foco:${req.user!.id}`, FOCOS_POR_JANELA.minutos, FOCOS_POR_JANELA.limite)).excedeu) {
+      return res.status(429).json({ message: "Muitas fotos em pouco tempo. Espere alguns minutos." });
+    }
+    const r = await focoDaFoto(campaign.id, req.params.mediaId);
+    if (!r) return res.status(404).json({ message: "Foto não encontrada." });
+    res.setHeader("Cache-Control", "private, max-age=300");
+    res.json(r);
   } catch (err) {
     next(err);
   }

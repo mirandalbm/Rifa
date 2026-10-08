@@ -29,8 +29,8 @@ import { enviarComFaixa, enviarFaixaDoBanco } from "../services/faixa";
 import { guardLogin, hit, identify } from "../services/antifraude";
 import QRCode from "qrcode";
 import { artesDaRifa, rifaDaArte } from "../services/artes";
-import { EditorError, conferirCamadas, dadosDoEditor, sugerirTexto } from "../services/editorImagem";
-import { CONFERENCIAS_POR_JANELA } from "@shared/editorImagem";
+import { EditorError, conferirCamadas, dadosDoEditor, focoDaFoto, sugerirTexto } from "../services/editorImagem";
+import { CONFERENCIAS_POR_JANELA, FOCOS_POR_JANELA } from "@shared/editorImagem";
 import { enviarArte, enviarPacote, listaDeArtes } from "./artesRotas";
 import { affiliateId, verifyPassword } from "../auth";
 import { textosDoKit } from "@shared/afiliados";
@@ -333,6 +333,22 @@ affiliateRouter.post("/editor/:slug/sugerir", async (req, res, next) => {
     res.json(await sugerirTexto(req, "texto", kit.r));
   } catch (err) {
     if (err instanceof EditorError) return res.status(err.status).json({ message: err.message });
+    next(err);
+  }
+});
+
+affiliateRouter.get("/editor/:slug/foco/:mediaId", async (req, res, next) => {
+  try {
+    const kit = await rifaDoKit(req, req.params.slug);
+    if (!kit || !artesDaRifa(kit.r).length) return res.status(404).json({ message: "Rifa não encontrada." });
+    if ((await hit(`editor-foco:afiliado:${kit.id}`, FOCOS_POR_JANELA.minutos, FOCOS_POR_JANELA.limite)).excedeu) {
+      return res.status(429).json({ message: "Muitas fotos em pouco tempo. Espere alguns minutos." });
+    }
+    const r = await focoDaFoto(kit.r.id, req.params.mediaId);
+    if (!r) return res.status(404).json({ message: "Foto não encontrada." });
+    res.setHeader("Cache-Control", "private, max-age=300");
+    res.json(r);
+  } catch (err) {
     next(err);
   }
 });

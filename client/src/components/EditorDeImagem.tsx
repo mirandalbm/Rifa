@@ -22,6 +22,7 @@ import {
   ZOOM_MAX,
   ZOOM_MIN,
   camadaNova,
+  enquadramentoDoFoco,
   enquadramentoLimitado,
   medidasDoFormato,
   nomeDaImagemDoEditor,
@@ -29,6 +30,7 @@ import {
   type Camada,
   type CorDoTexto,
   type Enquadramento,
+  type Foco,
   type FonteDoEditor,
   type TipoDeCamada,
 } from "@shared/editorImagem";
@@ -158,18 +160,26 @@ export function EditorDeImagem({ portas, onFechar }: { portas: PortasDoEditor; o
     const url = fundo.origem === "arte" ? `${portas.artes}/${fundo.tipo}?formato=${formato}` : (data?.fundos.find((f) => f.id === fundo.id)?.url ?? null);
     if (!url) return;
     setCarregandoFundo(true);
-    abrirImagem(url)
-      .then((img) => {
+    // A foto da rifa abre enquadrada no assunto (o recorte atento do servidor); a arte pronta já vem no formato.
+    const foco =
+      fundo.origem === "foto"
+        ? fetch(`${portas.dados}/foco/${encodeURIComponent(fundo.id)}`, { credentials: "include" })
+            .then((r) => (r.ok ? (r.json() as Promise<{ foco: Foco | null }>) : { foco: null }))
+            .then((j) => j.foco)
+            .catch(() => null)
+        : Promise.resolve(null);
+    Promise.all([abrirImagem(url), foco])
+      .then(([img, f]) => {
         if (!vivo) return;
         setImagemDoFundo(img);
-        setEnquadramento(ENQUADRAMENTO_INICIAL);
+        setEnquadramento(enquadramentoDoFoco(f));
       })
       .catch((e: Error) => vivo && setErro(e.message))
       .finally(() => vivo && setCarregandoFundo(false));
     return () => {
       vivo = false;
     };
-  }, [portas.artes, data, fundo, formato]);
+  }, [portas.artes, portas.dados, data, fundo, formato]);
 
   // Qualquer mudança desfaz a imagem pronta: o que sai é sempre o que está na tela.
   useEffect(() => {

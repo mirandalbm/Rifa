@@ -216,6 +216,37 @@ export function enquadramentoLimitado(
   return { zoom, cx: (imagem.largura / 2 - r.x) / r.largura, cy: (imagem.altura / 2 - r.y) / r.altura };
 }
 
+/**
+ * O assunto da foto (o recorte atento do `sharp`, `position: "attention"`),
+ * em fração da foto: é o ponto de partida do enquadramento — a foto da rifa
+ * já abre centrada no prêmio, não no meio. A pessoa arrasta dali.
+ */
+export interface Foco {
+  x: number;
+  y: number;
+}
+
+/**
+ * O `sharp` devolve o ponto de atenção na medida da foto **redimensionada,
+ * antes do corte** (`cover` para um quadrado de `lado`): a escala é
+ * `lado / menor lado` da foto. Volta em fração; fora da foto, `null`.
+ */
+export function focoEmFracao(atencao: { x?: number; y?: number }, foto: { largura: number; altura: number }, lado: number): Foco | null {
+  if (typeof atencao.x !== "number" || typeof atencao.y !== "number" || foto.largura <= 0 || foto.altura <= 0 || lado <= 0) return null;
+  const escala = lado / Math.min(foto.largura, foto.altura);
+  const x = atencao.x / (foto.largura * escala);
+  const y = atencao.y / (foto.altura * escala);
+  if (!Number.isFinite(x) || !Number.isFinite(y) || x < 0 || x > 1 || y < 0 || y > 1) return null;
+  return { x: Math.round(x * 1000) / 1000, y: Math.round(y * 1000) / 1000 };
+}
+
+/** O enquadramento que começa no assunto (sem zoom); sem foco, o meio. */
+export function enquadramentoDoFoco(foco: Foco | null | undefined): Enquadramento {
+  if (!foco || !Number.isFinite(foco.x) || !Number.isFinite(foco.y)) return ENQUADRAMENTO_INICIAL;
+  const limitar = (v: number) => Math.min(1, Math.max(0, v));
+  return { zoom: 1, cx: limitar(foco.x), cy: limitar(foco.y) };
+}
+
 /* ------------------------------------------------------------------ *
  * Desenho
  * ------------------------------------------------------------------ */
@@ -250,4 +281,6 @@ export function nomeDaImagemDoEditor(slug: string, formato: FormatoDaArte): stri
 }
 
 /** Quantas conferências do texto por pessoa (cada uma roda a régua e a varredura). */
+/** Quantos focos (o assunto de uma foto) por pessoa na janela: cada um que não está guardado abre a foto no servidor. */
+export const FOCOS_POR_JANELA = { minutos: 10, limite: 120 };
 export const CONFERENCIAS_POR_JANELA = { minutos: 10, limite: 60 } as const;

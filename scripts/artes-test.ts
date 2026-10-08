@@ -19,7 +19,8 @@ import { and, eq, inArray, sql } from "drizzle-orm";
 import sharp from "sharp";
 import { db, pool } from "../server/db";
 import { hashPassword } from "../server/auth";
-import { affiliates, afiliadoVinculos, campaignStats, campaigns, denuncias, organizations, users } from "../shared/schema";
+import { affiliates, afiliadoVinculos, campaignMedia, campaignStats, campaigns, denuncias, organizations, users } from "../shared/schema";
+import { storage } from "../server/services/storage";
 import { CONFERENCIAS_POR_JANELA, camadaNova } from "../shared/editorImagem";
 import { ARTES_POR_JANELA, PACOTES_POR_JANELA } from "../server/routes/artesRotas";
 
@@ -87,7 +88,7 @@ async function limpar() {
   if (us.length) await db.delete(affiliates).where(inArray(affiliates.userId, us.map((u) => u.id)));
   await db.delete(users).where(inArray(users.email, EMAILS));
   if (ids.length) await db.delete(organizations).where(inArray(organizations.id, ids));
-  await db.execute(sql`delete from rate_events where bucket like 'login:%' or bucket like 'arte:%' or bucket like 'arte-pacote:%' or bucket like 'editor:%'`);
+  await db.execute(sql`delete from rate_events where bucket like 'login:%' or bucket like 'arte:%' or bucket like 'arte-pacote:%' or bucket like 'editor:%' or bucket like 'editor-foco:%'`);
 }
 
 async function rifa(orgId: string, slug: string, extra: Partial<typeof campaigns.$inferInsert> = {}) {
@@ -147,6 +148,19 @@ async function main() {
   try {
     const a = await rifa(orgs[0].id, "artes-teste-a");
     const b = await rifa(orgs[1].id, "artes-teste-b");
+    // Uma foto de cada rifa, com o assunto no canto de cima à direita: o editor abre enquadrado nele.
+    const svgDaFoto = `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="400"><rect width="800" height="400" fill="#888"/><circle cx="650" cy="120" r="50" fill="#f00"/></svg>`;
+    const bytesDaFoto = await sharp(Buffer.from(svgDaFoto)).jpeg().toBuffer();
+    const fotos: Record<string, { id: string; key: string }> = {};
+    for (const c of [a, b]) {
+      const key = `campanhas/${c.id}/foto-da-prova-do-foco.jpg`;
+      await storage().write(key, bytesDaFoto, "image/jpeg");
+      const [m] = await db
+        .insert(campaignMedia)
+        .values({ campaignId: c.id, role: "photo", position: 1, storageKey: key, mime: "image/jpeg", status: "ready", width: 800, height: 400, altText: "Foto da prova" })
+        .returning({ id: campaignMedia.id });
+      fotos[c.id] = { id: m.id, key };
+    }
     const orgA = await entrar(EMAILS[0]);
     let ultimoDoEditor = 0;
 
@@ -299,6 +313,24 @@ async function main() {
     checa("sem o assistente ligado, a sugestão do painel não existe (404)", r.status === 404, `HTTP ${r.status}`);
     r = await orgA.req("POST", `/api/admin/campaigns/${b.id}/sugerir`, { tipo: "texto" });
     checa("a sugestão na rifa do vizinho é 404", r.status === 404, `HTTP ${r.status}`);
+    r = await orgA.req("GET", `/api/admin/campaigns/${a.id}/editor`);
+    checa("a foto da rifa está entre os fundos", (r.json?.fundos ?? []).some((f: any) => f.id === fotos[a.id].id), JSON.stringify(r.json?.fundos));
+    r = await orgA.req("GET", `/api/admin/campaigns/${a.id}/editor/foco/${fotos[a.id].id}`);
+    checa(
+      "o assunto da foto (recorte atento): o canto de cima à direita",
+      r.status === 200 && r.json?.foco?.x > 0.75 && r.json?.foco?.y < 0.4 && /private/.test(r.headers.get("cache-control") ?? ""),
+      `HTTP ${r.status} ${JSON.stringify(r.json)}`,
+    );
+    r = await orgA.req("GET", `/api/admin/campaigns/${a.id}/editor/foco/${fotos[b.id].id}`);
+    checa("a foto de outra rifa, pela rifa própria, é 404", r.status === 404, `HTTP ${r.status}`);
+    r = await orgA.req("GET", `/api/admin/campaigns/${b.id}/editor/foco/${fotos[b.id].id}`);
+    checa("o foco da foto do vizinho é 404", r.status === 404, `HTTP ${r.status}`);
+    r = await orgA.req("GET", `/api/admin/campaigns/${a.id}/editor/foco/nao-e-id`);
+    checa("id fora do formato é 404", r.status === 404, `HTTP ${r.status}`);
+    r = await comVinculo.req("GET", `/api/affiliate/editor/artes-teste-a/foco/${fotos[a.id].id}`);
+    checa("o afiliado com vínculo tem o foco da foto", r.status === 200 && r.json?.foco?.x > 0.75, `HTTP ${r.status}`);
+    r = await semVinculo.req("GET", `/api/affiliate/editor/artes-teste-a/foco/${fotos[a.id].id}`);
+    checa("o afiliado sem vínculo não tem (404)", r.status === 404, `HTTP ${r.status}`);
     const texto = (t: string) => [{ ...camadaNova("texto"), texto: t }, camadaNova("preco"), camadaNova("selo"), camadaNova("qr")];
     r = await orgA.req("POST", `/api/admin/campaigns/${a.id}/editor/conferir`, { camadas: texto("Sorteio neste sábado") });
     checa("texto limpo passa a conferência", r.status === 200 && r.json?.camadas?.length === 4, `HTTP ${r.status} ${r.json?.message ?? ""}`);
@@ -342,6 +374,9 @@ async function main() {
     }
     checa(`passou de ${PACOTES_POR_JANELA.limite} pacotes em ${PACOTES_POR_JANELA.minutos} min: 429`, ultimo === 429, `HTTP ${ultimo}`);
   } finally {
+    for (const k of await db.select({ key: campaignMedia.storageKey }).from(campaignMedia).where(sql`${campaignMedia.storageKey} like '%/foto-da-prova-do-foco.jpg'`)) {
+      await storage().remove(k.key).catch(() => {});
+    }
     await limpar();
   }
   console.log(falhas ? `\n${falhas} falha(s)\n` : "\ntudo certo\n");

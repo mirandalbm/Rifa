@@ -26,9 +26,11 @@ import { baseDoSite, urlDeConferencia } from "../services/urls";
 import { aderir, comissaoNaRifa, organizacoesDoAfiliado, sair } from "../services/afiliados";
 import { decididasParaOAfiliado, editarComoAfiliado, fotoDaPecaDoAfiliado, videoDaPecaDoAfiliado, marcarVistoDoAfiliado, minhasDoAfiliado, publicarComoAfiliado, retirarPropria, rifasParaDivulgar } from "../services/divulgacao";
 import { enviarComFaixa, enviarFaixaDoBanco } from "../services/faixa";
-import { guardLogin, identify } from "../services/antifraude";
+import { guardLogin, hit, identify } from "../services/antifraude";
 import QRCode from "qrcode";
-import { rifaDaArte } from "../services/artes";
+import { artesDaRifa, rifaDaArte } from "../services/artes";
+import { EditorError, conferirCamadas, dadosDoEditor } from "../services/editorImagem";
+import { CONFERENCIAS_POR_JANELA } from "@shared/editorImagem";
 import { enviarArte, enviarPacote, listaDeArtes } from "./artesRotas";
 import { affiliateId, verifyPassword } from "../auth";
 import { textosDoKit } from "@shared/afiliados";
@@ -300,6 +302,43 @@ affiliateRouter.get("/artes/:slug/:tipo", async (req, res, next) => {
     if (!kit) return res.status(404).json({ message: "Rifa não encontrada." });
     await enviarArte(res, kit.r, req.params.tipo, req.query.formato, kit.url, `afiliado:${kit.id}`);
   } catch (err) {
+    next(err);
+  }
+});
+
+// Editor de imagem (Fase C) no kit: só na rifa em que ele recebe e que tem
+// arte (no ar, nem demonstração nem travada); o QR leva o link dele, tirado
+// da sessão. O texto passa pela régua antes de virar imagem, e o Pix por
+// fora vira denúncia como texto de terceiro.
+affiliateRouter.get("/editor/:slug", async (req, res, next) => {
+  try {
+    const kit = await rifaDoKit(req, req.params.slug);
+    if (!kit || !artesDaRifa(kit.r).length) return res.status(404).json({ message: "Rifa não encontrada." });
+    const dados = await dadosDoEditor(kit.r.id, kit.url, kit.r);
+    if (!dados) return res.status(404).json({ message: "Rifa não encontrada." });
+    res.setHeader("Cache-Control", "no-store");
+    res.json(dados);
+  } catch (err) {
+    next(err);
+  }
+});
+
+affiliateRouter.post("/editor/:slug/conferir", async (req, res, next) => {
+  try {
+    const kit = await rifaDoKit(req, req.params.slug);
+    if (!kit || !artesDaRifa(kit.r).length) return res.status(404).json({ message: "Rifa não encontrada." });
+    if ((await hit(`editor:afiliado:${kit.id}`, CONFERENCIAS_POR_JANELA.minutos, CONFERENCIAS_POR_JANELA.limite)).excedeu) {
+      return res.status(429).json({ message: "Muitas conferências em pouco tempo. Espere alguns minutos." });
+    }
+    const [aff] = await db.select({ code: affiliates.code }).from(affiliates).where(eq(affiliates.id, kit.id));
+    const camadas = conferirCamadas(
+      req.body?.camadas,
+      { id: kit.r.id, organizationId: kit.r.organizationId, temSelo: Boolean(kit.r.dados.autorizacao) },
+      `afiliado ${aff?.code ?? kit.id}`,
+    );
+    res.json({ camadas });
+  } catch (err) {
+    if (err instanceof EditorError) return res.status(err.status).json({ message: err.message });
     next(err);
   }
 });

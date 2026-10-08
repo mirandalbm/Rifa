@@ -2199,7 +2199,11 @@ verdade no sistema.
   transferência internacional (art. 33, VIII). **"A AWS não guarda as
   imagens" só volta ao texto com o opt-out de serviços de IA ativado na
   conta da AWS** — por padrão o Rekognition pode guardar e usar o conteúdo
-  (`docs/PENDENCIAS.md`); sem isso, o comparador não liga. **Só vale o
+  (`docs/PENDENCIAS.md`); sem isso, o comparador não liga. **A frase que
+  volta é a do advogado** (resposta (c), 08/10/2026, guardada no
+  `docs/PENDENCIAS.md`) e, ao trocar, **sobe `CONSENTIMENTO_BIOMETRICO_VERSAO`**:
+  a chave guarda só versão e modo, então texto novo na mesma versão valeria
+  como consentimento de um texto que a pessoa não leu. **Só vale o
   consentimento da versão em vigor** (`consentimentoVigente()`): o de antes
   conta como não dado em toda régua (falta, fila, aprovar a foto). **Quem
   está verificado com o antigo, ou sem nenhum, autoriza de novo**
@@ -3089,7 +3093,8 @@ pela portaria** — fica só para conferir a rifa sorteada sem método.
   `VIGENCIA_DOS_TERMOS`. Termo que promete o que o sistema não faz é pior
   que termo nenhum.
   **A numeração das seções é contínua** (1 a 10; o teste confere — buraco
-  parece cláusula suprimida), e os prazos prometidos são constantes que o
+  parece cláusula suprimida), e cada remissão "item N" está num mapa do
+  teste com o título da seção a que aponta (remissão nova entra no mapa), e os prazos prometidos são constantes que o
   sistema usa: a resposta da plataforma (`RESPOSTA_DA_PLATAFORMA_DIAS`, 5,
   Decreto 7.962/2013) e a devolução do Pix que chegou tarde
   (`PIX_TARDIO_PRAZO_DIAS_UTEIS`, 5 dias úteis, a data no cartão "Pix a

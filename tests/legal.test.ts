@@ -244,6 +244,33 @@ describe("Termos e Privacidade na régua do advogado (roteiro de 08/10/2026)", (
     expect(priv).toMatch(/é Ana Souza, pelo e-mail dpo@rifas\.com\.br/);
   });
 
+  it("cada remissão \"item N\" aponta para a seção do assunto certo", () => {
+    // O advogado (08/10/2026): renumerar sem atualizar as remissões as deixa apontando para o lugar errado.
+    const esperado: Record<string, RegExp> = {
+      "termos:1": /^1\. Quem somos$/,
+      "termos:10": /^10\. Mudanças, lei e foro$/,
+      "priv:1": /^1\. Quem trata os seus dados$/,
+      "priv:7": /^7\. Seus direitos$/,
+    };
+    for (const aceita of [true, false]) {
+      const docs = {
+        termos: montarTermosDeUso({ ...base, reembolso: { aceita, taxaPct: 10 } }),
+        priv: montarPrivacidade({ ...base, reembolso: { aceita, taxaPct: 10 } }),
+      };
+      for (const [nome, secoes] of Object.entries(docs)) {
+        for (const secao of secoes) {
+          for (const item of secao.itens) {
+            for (const m of item.matchAll(/item (\d+)/g)) {
+              const regra = esperado[`${nome}:${m[1]}`];
+              expect(regra, `${nome}: remissão nova "${m[0]}" em "${secao.titulo}" — ponha no mapa`).toBeDefined();
+              expect(secoes[Number(m[1]) - 1]?.titulo).toMatch(regra!);
+            }
+          }
+        }
+      }
+    }
+  });
+
   it("a Privacidade diz as bases legais, a gratuidade e o prazo de resposta ao titular", () => {
     expect(priv).toMatch(/Base legal: o seu consentimento, que você retira/);
     expect(priv).toMatch(/a qualquer momento e sem custo/);

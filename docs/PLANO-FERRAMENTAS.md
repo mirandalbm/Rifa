@@ -74,7 +74,7 @@ rifa, que são o que faz a nossa peça ser diferente.
 |---|---|---|---|
 | Legenda e texto da arte sugeridos pelos dados da rifa | O assistente que já existe (ação `legenda`) ou um modelo de texto pelo servidor | Já pago na cobrança do assistente | Passa pela régua: sem link, sem telefone, varredura do Pix por fora |
 | Recorte inteligente da foto para cada formato (4:5, 1:1, 9:16) | `sharp` com `position: attention` (procura o assunto) — já instalado | Zero | Não é IA generativa, mas resolve 80% do "ficou cortado" |
-| Escolha da capa do reels | Quadros candidatos pelo `ffmpeg` + um critério simples (nitidez, não preto) | Zero | Hoje é sempre o quadro de 0,5 s |
+| Escolha da capa do reels | Quadros candidatos pelo `ffmpeg` + um critério simples (nitidez, não preto) | Zero | **Feito** (08/10/2026): o melhor de 4 candidatos; a organização ainda pode escolher outro |
 | Remover fundo da foto do prêmio | Serviço por imagem, chamado pelo nosso servidor (há vários com preço por unidade) | Centavos por foto | Decidir quem paga: plataforma ou organizador |
 | Legendas automáticas no vídeo (transcrição) | Serviço de transcrição chamado pelo nosso servidor; o texto vira figurinha (dado), não é gravado no vídeo | Centavos por minuto | Entra na mesma varredura de texto |
 | Gerar imagem de fundo ou expandir a foto (generativo) | Provedor de imagem com preço por geração, chamado pelo nosso servidor | Por geração | Nada de rosto de pessoa real; marca d'água/aviso de "criado com IA" conforme a lei vier |
@@ -231,7 +231,11 @@ novo e troca a mídia, e o pôster e o HLS saem de novo (`cortarVideo()`, `PUT
 /media/:id/corte`, `shared/corte.ts`) e **figurinhas no reels** — as do
 story (contagem, Comprar, texto, emoji) como dados no vídeo do Reels,
 desenhadas pelo player (`PUT /media/:id/figurinhas`,
-`figurinhasParaATela()`, `npm run publicacao` prova). Falta: legendas por
+`figurinhasParaATela()`, `npm run publicacao` prova) e **a capa automática**
+— o pôster deixou de ser sempre o quadro de 0,5 s: sai um quadro de cada
+candidato (0,5, 1,5, 3 e 5 s) e fica o mais nítido que não é preto nem
+estourado (`melhorQuadro()` em `shared/poster.ts`, no `ffmpeg` local e no
+Stream; `npm run poster` e `tests/poster.test.ts` provam). Falta: legendas por
 transcrição (precisa de provedor).
 
 **Fase E — Geração por IA (fundo, cenário, expansão) · ~2 PRs.**

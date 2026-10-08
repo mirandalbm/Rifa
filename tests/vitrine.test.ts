@@ -1,6 +1,9 @@
 import { describe, it, expect } from "vitest";
 import {
   BANNER_SEGUNDOS,
+  BANNERS_DE_EXEMPLO,
+  BANNERS_MAX,
+  bannersEmModoExemplo,
   bannerNoAr,
   estadosComRifa,
   expiraEm,
@@ -15,7 +18,7 @@ import {
   STORY_VIDEO_MAX_SEGUNDOS,
   problemaNoVideoDoStory,
 } from "../shared/vitrine";
-import { TEMPLATE_PADRAO, validarTemplate } from "../shared/template";
+import { TEMPLATE_PADRAO, contraste, validarTemplate } from "../shared/template";
 
 describe("link do banner", () => {
   it("aceita caminho do site e https", () => {
@@ -160,5 +163,28 @@ describe("publicacaoDoStory (agendar)", () => {
     expect(() => publicacaoDoStory("10/05/2026", agora)).toThrow();
     expect(() => publicacaoDoStory("2026-10-05", agora)).toThrow();
     expect(publicacaoDoStory("2026-10-04T09:30-03:00", agora).toISOString()).toBe("2026-10-04T12:30:00.000Z");
+  });
+});
+
+describe("banners de exemplo (sem nenhum cadastrado)", () => {
+  it("são o carrossel inteiro, cada um com id próprio e marca de exemplo só enquanto não há banner de verdade", () => {
+    expect(BANNERS_DE_EXEMPLO).toHaveLength(BANNERS_MAX);
+    expect(new Set(BANNERS_DE_EXEMPLO.map((b) => b.id)).size).toBe(BANNERS_MAX);
+    expect(bannersEmModoExemplo([])).toBe(true);
+    expect(bannersEmModoExemplo([{ id: "x" }])).toBe(false);
+  });
+
+  it("texto branco legível nas duas pontas do degradê, só azul e verde (nada de amarelo)", () => {
+    for (const b of BANNERS_DE_EXEMPLO) {
+      expect(contraste("#ffffff", b.de), b.id).toBeGreaterThanOrEqual(4.5);
+      expect(contraste("#ffffff", b.para), b.id).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
+  it("não promete dinheiro nem traz link ou telefone", () => {
+    for (const b of BANNERS_DE_EXEMPLO) {
+      const t = `${b.titulo} ${b.texto}`;
+      expect(t, b.id).not.toMatch(/R\$|https?:|www\.|\d{4,}/i);
+    }
   });
 });

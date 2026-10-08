@@ -3170,6 +3170,16 @@ pela portaria** — fica só para conferir a rifa sorteada sem método.
   nunca `//outro-site` nem `javascript:` (`validarLinkDoBanner`). A janela de
   datas e o "ligado" decidem o que está no ar (`bannerNoAr`), e entram na
   hora, sem publicar o template.
+- **Sem nenhum banner no ar, a vitrine mostra os de exemplo**
+  (`BANNERS_DE_EXEMPLO` e `bannersEmModoExemplo()` em `shared/vitrine.ts`,
+  desenhados em `BannersVitrine`): os 5 do carrossel, no degradê azul e verde
+  da casa com texto branco (contraste ≥ 4,5:1), marcados "Exemplo" em texto,
+  sem imagem e sem link, e só com o que o sistema já faz — a mesma ideia do
+  rodapé de exemplo. Vêm do código, **não gravam nada no banco** e só aparecem
+  depois de a lista chegar vazia (não piscam antes do banner de verdade);
+  somem sozinhos no primeiro banner cadastrado, inclusive o pago. No
+  lançamento, cadastre os banners em Aparência → Identidade e tela inicial.
+  `tests/vitrine.test.ts` prova.
 - **Limite é conferido com trava**, não com `SELECT` solto: contar e
   inserir ficam na mesma transação com `pg_advisory_xact_lock` (banners e
   stories por organização). Dois pedidos ao mesmo tempo não passam do teto —

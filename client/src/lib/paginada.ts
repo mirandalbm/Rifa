@@ -6,9 +6,14 @@ import { useInfiniteQuery } from "@tanstack/react-query";
  * servidor mandou no cabeçalho `X-Proximo` da página anterior. Sem cursor,
  * acabou — o botão some, e ninguém contou linha para saber disso.
  */
-export function useListaPaginada<T>(url: string, params: Record<string, string | null | undefined> = {}) {
+export function useListaPaginada<T>(
+  url: string,
+  params: Record<string, string | null | undefined> = {},
+  opcoes: { enabled?: boolean } = {},
+) {
   const consulta = useInfiniteQuery({
     queryKey: [url, params],
+    enabled: opcoes.enabled ?? true,
     initialPageParam: null as string | null,
     queryFn: async ({ pageParam }) => {
       const q = new URLSearchParams();

@@ -3,7 +3,7 @@
 Desenhos usados no app que não são nossos. Os ícones ficam em
 `client/src/components/Icones.tsx`, copiados como vêm da fonte (o reels
 com os cantos arredondados). O crédito visível ao usuário está na tela do
-perfil (`/perfil`).
+perfil (`/perfil/configuracoes`, as Configurações do perfil).
 
 | O quê | Onde | Autor | Licença |
 |---|---|---|---|

@@ -6,7 +6,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Link, useLocation, useParams } from "wouter";
 import { definirOrganizacaoDaPagina } from "@/lib/marketing";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { MoreVertical, Share2, MapPin, X, Copy, Check, Plus } from "lucide-react";
+import { MoreVertical, Share2, MapPin, X, Copy, Check, Plus, Settings } from "lucide-react";
 import { PublicShell } from "@/components/AppShell";
 import { Money, Progress, Empty, Button } from "@/components/bits";
 import { apiRequest } from "@/lib/queryClient";
@@ -218,6 +218,17 @@ export default function PerfilPage() {
         ) : (
           <SeguirBotoes slug={p.slug} />
         )}
+        {/* No próprio perfil, a engrenagem das configurações, como no Instagram. */}
+        {sessao?.organizacao?.slug === p.slug ? (
+          <Link
+            href="/perfil/configuracoes"
+            aria-label="Configurações"
+            title="Configurações"
+            className="flex h-8 w-9 items-center justify-center rounded-md border border-line-2 hover:bg-mist"
+          >
+            <Settings size={17} aria-hidden />
+          </Link>
+        ) : null}
         <div className="relative ml-auto">
           <button
             type="button"

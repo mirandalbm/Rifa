@@ -10,6 +10,7 @@ import { users, affiliates, organizations } from "@shared/schema";
 import { type Role, roleSatisfies } from "@shared/access";
 import { codigoConfere } from "./services/segundoFator";
 import { hashCodigo, hashPassword, senhaPedeNovoHash, verifyPassword } from "./services/hashSenha";
+import { SESSAO_DIAS } from "@shared/legal";
 
 
 /* ------------------------------------------------------------------ *
@@ -101,7 +102,8 @@ declare global {
   }
 }
 
-const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+// O mesmo número que a Privacidade diz (item 8, `GUARDADO_NO_NAVEGADOR`).
+const ONE_WEEK_MS = SESSAO_DIAS * 24 * 60 * 60 * 1000;
 
 /**
  * A porta da organização. Suspensa, o organizador para de entrar — as rifas

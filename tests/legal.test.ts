@@ -1,6 +1,10 @@
 import { describe, it, expect } from "vitest";
+import { readFileSync, readdirSync, statSync } from "node:fs";
+import { join } from "node:path";
 import {
   EMPRESA_VAZIA,
+  GUARDADO_NO_NAVEGADOR,
+  SESSAO_DIAS,
   conferirCampoDaEmpresa,
   conferirDadosDaEmpresa,
   faltaNaEmpresa,
@@ -127,5 +131,51 @@ describe("política de privacidade", () => {
     expect(t).toContain("Telefone, CPF e e-mail nunca são públicos");
     expect(t).toContain("art. 11");
     expect(t).toMatch(/Nunca vendemos dados pessoais/);
+  });
+});
+
+/** Toda chave `rifa.*` que o site grava no navegador, lida do código do cliente. */
+function chavesDoCliente(): string[] {
+  const achadas = new Set<string>();
+  const andar = (dir: string) => {
+    for (const nome of readdirSync(dir)) {
+      const caminho = join(dir, nome);
+      if (statSync(caminho).isDirectory()) andar(caminho);
+      else if (/\.(ts|tsx)$/.test(nome)) {
+        for (const m of readFileSync(caminho, "utf8").matchAll(/["`](rifa\.[a-zA-Z.-]+)/g)) {
+          achadas.add(m[1].replace(/[.-]$/, ""));
+        }
+      }
+    }
+  };
+  andar(join(__dirname, "..", "client", "src"));
+  achadas.delete("rifa.br"); // o nome da marca, não é chave
+  return [...achadas].sort();
+}
+
+describe("o que o site guarda no navegador (Privacidade, item 8)", () => {
+  const texto = GUARDADO_NO_NAVEGADOR.flatMap((g) => g.itens).join("\n");
+
+  it("toda chave gravada pelo site está na tabela, pelo nome", () => {
+    const chaves = chavesDoCliente();
+    expect(chaves.length).toBeGreaterThan(10);
+    for (const c of chaves) expect(texto, c).toContain(c);
+  });
+
+  it("o cookie de sessão diz a mesma duração que o servidor usa", () => {
+    expect(texto).toContain(`rifa.sid — `);
+    expect(texto).toContain(`Vale ${SESSAO_DIAS} dias desde o último uso`);
+  });
+
+  it("os cookies de anúncio só depois do aceite, com a duração de cada fornecedor", () => {
+    const anuncio = GUARDADO_NO_NAVEGADOR.find((g) => g.grupo.startsWith("Cookies de anúncio"));
+    expect(anuncio?.grupo).toMatch(/só depois do "Aceitar"/);
+    for (const nome of ["_fbp", "_ga", "_gcl_au", "_ttp"]) expect(anuncio?.itens.join(" ")).toContain(nome);
+  });
+
+  it("a tabela entra no item 8 da Privacidade", () => {
+    const item8 = montarPrivacidade(base).find((s) => s.titulo.startsWith("8."));
+    const todo = (item8?.itens ?? []).join("\n");
+    for (const g of GUARDADO_NO_NAVEGADOR) expect(todo).toContain(g.grupo);
   });
 });

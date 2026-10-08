@@ -685,8 +685,9 @@ Na ordem de entrega do plano:
   sai dos dados da rifa — o sistema não tem "Sorteio Filantrópico" nem
   "Promoção Comercial" como tipo; a rifa filantrópica é a com entidade
   beneficiada. Sem anexo publicado de uma modalidade, nada é barrado por ela.
-  O anexo da entidade é só aceite: o sistema não confere CEBAS. `npm run
-  anexos` prova. O `db:push` dos anexos já rodou no deploy do #187.
+  O anexo é aceite: quem confere a entidade são os documentos dela (CNPJ
+  ativo, ata e certidão, conferidos pela plataforma — 2.5; o CEBAS segue
+  opcional). `npm run anexos` prova. O `db:push` dos anexos já rodou no deploy do #187.
   **Respostas 15 a 17 do advogado (06/10/2026)**: preâmbulo e 1.2 com os
   marcadores (`[ENDEREÇO DA PLATAFORMA]` e `[E-MAIL DA PLATAFORMA]` também
   são preenchidos), "Plataforma" no lugar da marca, sem título de
@@ -727,6 +728,27 @@ Na ordem de entrega do plano:
   promotora, depois do "Ver como fica" (os colchetes da plataforma são
   preenchidos pelos Dados da empresa). As organizações que já tinham termo
   de afiliado veem o aviso de texto desatualizado e publicam a versão nova.
+- [x] **Anexos A a E revisados pelo advogado (08/10/2026)**: aprovados na
+  versão que descreve o sistema (C com a declaração nos dados legais, D com
+  a quantidade da autorização, E com a conferência dos documentos), sem
+  voltar à de 06/10. No E entrou o CEBAS "ou equivalente" quando a entidade
+  invocar imunidade (o envio dele já existe, opcional); cada anexo diz que
+  integra o termo e que o aceite é condição para publicar. A modalidade
+  continua saindo dos dados da rifa (decisão de produto, cláusula 7 acima).
+- [x] **Ressalva do Anexo C decidida (08/10/2026): a plataforma arquiva,
+  não confere.** A responsabilidade pela autorização é da promotora (Lei
+  5.768/71; cláusulas 2.1 e 3.1 do contrato): a rifa com cota premiada
+  publica com o arquivo da autorização SPA/MF (obrigatório e guardado em
+  `campaign_certificados`; o sistema confere que é PDF ou imagem de verdade, não o que está escrito) e a
+  declaração do vale-brinde nos dados legais, que fica gravada e trava ao
+  publicar. O arquivo é o respaldo da plataforma; não há fila de
+  conferência do conteúdo. O Anexo C segue sem a frase da conferência.
+- [x] **Tabela de cookies na Privacidade (08/10/2026)**, antes da revisão do
+  advogado (ele pediu a lista com finalidade e duração): o cookie de sessão
+  (`rifa.sid`, 7 dias desde o último uso), o que fica no aparelho e na aba
+  (pelo nome de cada chave) e os cookies dos pixels (Meta, Google Analytics,
+  Google Ads, TikTok) com a duração de cada fornecedor. A vigência dos textos
+  passou a 08/10/2026.
 - [ ] **[ligar]** Antes de ligar a guarda da comissão, as três providências
   do advogado: conta ou subconta separada no Asaas para a comissão guardada,
   o prazo de repasse em dias no termo do afiliado (hoje "depois do sorteio",

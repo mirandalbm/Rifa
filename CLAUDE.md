@@ -3091,6 +3091,13 @@ pela portaria** — fica só para conferir a rifa sorteada sem método.
   `/privacidade`, coluna de leitura, data de vigência e o link de uma para a
   outra. Saem do rodapé (coluna Legal), do `/perfil` e de Criar conta ("Ao
   criar a conta, você declara ter 18 anos ou mais e concorda…").
+- **A Privacidade lista tudo o que o site guarda no navegador** (item 8,
+  `GUARDADO_NO_NAVEGADOR` em `shared/legal.ts`): o único cookie do site
+  (`rifa.sid`, com a duração de `SESSAO_DIAS`, a mesma do servidor), cada
+  chave do aparelho e da aba pelo nome, e os cookies de cada pixel com a
+  duração do fornecedor. **Chave nova no navegador, ou pixel novo, entra na
+  tabela no mesmo PR** — `tests/legal.test.ts` lê o código do cliente e
+  falha com a chave que faltar.
 - `tests/legal.test.ts` prova a régua dos dados, a regra de reembolso igual à
   da compra e o texto sem empresa cadastrada.
 

@@ -476,26 +476,28 @@ function PedirReembolso({
           <input maxLength={140} value={pixChave} onChange={(e) => setPixChave(e.target.value)} />
         </Campo>
         <div>
-          <label htmlFor="print" className="label-xs">
-            Print do bilhete ou do comprovante (opcional)
+          <span className="label-xs">Print do bilhete ou do comprovante (opcional)</span>
+          {/* O botão é o rótulo: o campo nativo mostraria "Choose File" na língua do navegador. */}
+          <label className="relative mt-1 flex w-fit cursor-pointer items-center rounded-md border border-line-2 px-3 py-1.5 text-xs font-semibold hover:bg-mist focus-within:ring-2 focus-within:ring-green">
+            {anexo ? "Trocar o print" : "Anexar um print"}
+            <input
+              id="print"
+              type="file"
+              accept="image/*"
+              className="sr-only"
+              onChange={async (e) => {
+                const f = e.target.files?.[0];
+                if (!f) return setAnexo(null);
+                try {
+                  setAnexo(await lerImagem(f));
+                  setErro(null);
+                } catch (err) {
+                  setErro((err as Error).message);
+                  e.target.value = "";
+                }
+              }}
+            />
           </label>
-          <input
-            id="print"
-            type="file"
-            accept="image/*"
-            className="mt-1 block text-xs"
-            onChange={async (e) => {
-              const f = e.target.files?.[0];
-              if (!f) return setAnexo(null);
-              try {
-                setAnexo(await lerImagem(f));
-                setErro(null);
-              } catch (err) {
-                setErro((err as Error).message);
-                e.target.value = "";
-              }
-            }}
-          />
           {anexo ? <img src={anexo} alt="Prévia do print" className="mt-2 max-h-40 rounded-md border border-line" /> : null}
         </div>
 

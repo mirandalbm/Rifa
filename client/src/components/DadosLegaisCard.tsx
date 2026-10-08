@@ -330,29 +330,32 @@ export function DadosLegaisCard({ campanha }: { campanha: Campanha }) {
         ) : null}
 
         <div>
-          <label htmlFor={`cert-${campanha.id}`} className="label-xs">
-            Arquivo do certificado (PDF, JPG ou PNG, até 5 MB)
-          </label>
+          <span className="label-xs">Arquivo do certificado (PDF, JPG ou PNG, até 5 MB)</span>
           <div className="mt-1 flex flex-wrap items-center gap-3">
             {rascunho ? (
-              <input
-                id={`cert-${campanha.id}`}
-                type="file"
-                accept={CERTIFICADO_MIMES.join(",")}
-                className="text-xs"
-                onChange={async (e) => {
-                  const f = e.target.files?.[0];
-                  if (!f) return setArquivo(null);
-                  try {
-                    setArquivo({ dataUrl: await lerArquivo(f), nome: f.name });
-                    setMsg(null);
-                  } catch (err) {
-                    setMsg({ ok: false, texto: (err as Error).message });
-                    e.target.value = "";
-                  }
-                }}
-              />
+              // O botão é o rótulo: o campo nativo mostraria "Choose File" na língua do navegador.
+              <label className="relative inline-flex cursor-pointer items-center rounded-md border border-line-2 px-3 py-1.5 text-xs font-semibold hover:bg-mist focus-within:ring-2 focus-within:ring-green">
+                {arquivo || temCertificado ? "Trocar o certificado" : "Anexar o certificado"}
+                <input
+                  id={`cert-${campanha.id}`}
+                  type="file"
+                  accept={CERTIFICADO_MIMES.join(",")}
+                  className="sr-only"
+                  onChange={async (e) => {
+                    const f = e.target.files?.[0];
+                    if (!f) return setArquivo(null);
+                    try {
+                      setArquivo({ dataUrl: await lerArquivo(f), nome: f.name });
+                      setMsg(null);
+                    } catch (err) {
+                      setMsg({ ok: false, texto: (err as Error).message });
+                      e.target.value = "";
+                    }
+                  }}
+                />
+              </label>
             ) : null}
+            {arquivo ? <span className="min-w-0 truncate text-xs text-muted">{arquivo.nome}</span> : null}
             {temCertificado ? (
               <a
                 href={`/api/admin/campaigns/${campanha.id}/certificado`}

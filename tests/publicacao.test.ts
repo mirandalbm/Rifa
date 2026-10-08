@@ -11,6 +11,7 @@ import {
   formatoDaPeca,
   formatoDoCarrossel,
   medidaDoSvg,
+  caixaDoCarrossel,
   formatoDoVideo,
   perfilPorCima,
   problemaNaLegenda,
@@ -134,5 +135,22 @@ describe("medidaDoSvg (imagem de exemplo guardada em data URI)", () => {
 
   it("o width de um elemento de dentro não conta, só o da tag <svg>", () => {
     expect(medidaDoSvg(dataUri('<svg xmlns="x"><rect width="10" height="10"/></svg>'))).toBeNull();
+  });
+});
+
+describe("caixaDoCarrossel (rifa de demonstração: retrato no celular, medida da web)", () => {
+  it("sem a marca, a caixa é a do formato medido em todas as larguras", () => {
+    expect(caixaDoCarrossel("paisagem")).toBe("aspect-[191/100]");
+    expect(caixaDoCarrossel("quadrado")).toBe("aspect-square");
+  });
+
+  it("com a marca, o celular fica no 4:5 e o formato medido vale só do tablet em diante", () => {
+    expect(caixaDoCarrossel("paisagem", true)).toBe("aspect-[4/5] md:aspect-[191/100]");
+    expect(caixaDoCarrossel("quadrado", true)).toBe("aspect-[4/5] md:aspect-square");
+  });
+
+  it("retrato e vertical não mudam (o vertical leva o perfil por cima em toda largura)", () => {
+    expect(caixaDoCarrossel("retrato", true)).toBe("aspect-[4/5]");
+    expect(caixaDoCarrossel("vertical", true)).toBe("aspect-[9/16]");
   });
 });

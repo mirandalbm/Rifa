@@ -642,7 +642,14 @@ async function main() {
     );
     checa(
       "rifa de demonstração não entra na coluna",
-      !(r.json?.jogando ?? []).some((j: any) => j.rifa?.organizacao === "demonstracao") && r.json?.proximo?.organizacao?.slug !== "demonstracao",
+      !(r.json?.jogando ?? []).some((j: any) => j.rifa?.organizacao === "demonstracao"),
+    );
+    checa(
+      "o próximo sorteio não traz prêmio, rifa nem organização (é de várias): só quem realiza, a hora e o vídeo",
+      r.json?.proximo === null ||
+        (Object.keys(r.json?.proximo ?? {}).sort().join() === "drawAt,realizadoPor,video" &&
+          /^Sorteio realizado pel[ao] /.test(r.json.proximo.realizadoPor)),
+      JSON.stringify(r.json?.proximo),
     );
     r = await marina.req("PUT", "/api/admin/template/apoio", { dataUrl: "data:image/png;base64,AAAA" });
     checa("organizador não envia logo do rodapé (403)", r.status === 403, `HTTP ${r.status}`);

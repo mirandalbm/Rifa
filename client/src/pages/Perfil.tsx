@@ -45,6 +45,8 @@ interface RifaDoPerfil {
   drawAt: string | null;
   status: "published" | "closed" | "drawn";
   vende?: boolean;
+  /** Rifa de demonstração ou de teste: no celular a publicação fica no retrato 4:5. */
+  demonstracao?: boolean;
   midias: Peca[];
   legenda?: string | null;
   interacoes: Interacoes;
@@ -500,7 +502,13 @@ function CartaoDaRifa({ org, nome, rifa }: { org: string; nome: string; rifa: Ri
 
   return (
     <article className="overflow-hidden bg-white">
-      <Carrossel pecas={rifa.midias} titulo={rifa.prizeTitle} href={href} aoAbrir={() => marcarOrigem("perfil")} />
+      <Carrossel
+        pecas={rifa.midias}
+        titulo={rifa.prizeTitle}
+        href={href}
+        aoAbrir={() => marcarOrigem("perfil")}
+        retratoNoCelular={Boolean(rifa.demonstracao)}
+      />
       {/* Só a rifa vai dentro do cartão, logo abaixo da imagem e acima das ações, como no feed. */}
       <Link href={href} onClick={() => marcarOrigem("perfil")} className="mx-3 mt-3 block space-y-2 rounded-xl border border-line p-3 hover:bg-mist">
         <div className="flex items-baseline justify-between gap-2">

@@ -46,10 +46,10 @@ export function cabeNoCarrossel(pecasAtuais: number) {
  * `razao` é largura ÷ altura; `classe` é a do Tailwind para a caixa.
  */
 export const FORMATOS = {
-  retrato: { rotulo: "Retrato 4:5", razao: 4 / 5, classe: "aspect-[4/5]", recomendado: "1080 × 1350" },
-  quadrado: { rotulo: "Quadrado 1:1", razao: 1, classe: "aspect-square", recomendado: "1080 × 1080" },
-  paisagem: { rotulo: "Paisagem 1,91:1", razao: 1.91, classe: "aspect-[191/100]", recomendado: "1080 × 566" },
-  vertical: { rotulo: "Vertical 9:16", razao: 9 / 16, classe: "aspect-[9/16]", recomendado: "1080 × 1920" },
+  retrato: { rotulo: "Retrato 4:5", razao: 4 / 5, classe: "aspect-[4/5]", classeMd: "md:aspect-[4/5]", recomendado: "1080 × 1350" },
+  quadrado: { rotulo: "Quadrado 1:1", razao: 1, classe: "aspect-square", classeMd: "md:aspect-square", recomendado: "1080 × 1080" },
+  paisagem: { rotulo: "Paisagem 1,91:1", razao: 1.91, classe: "aspect-[191/100]", classeMd: "md:aspect-[191/100]", recomendado: "1080 × 566" },
+  vertical: { rotulo: "Vertical 9:16", razao: 9 / 16, classe: "aspect-[9/16]", classeMd: "md:aspect-[9/16]", recomendado: "1080 × 1920" },
 } as const;
 
 export type Formato = keyof typeof FORMATOS;
@@ -83,6 +83,18 @@ export function formatoDaPeca(largura: number | null | undefined, altura: number
 export function formatoDoCarrossel(pecas: { largura?: number | null; altura?: number | null }[]): Formato {
   const primeira = pecas[0];
   return primeira ? formatoDaPeca(primeira.largura, primeira.altura) : FORMATO_PADRAO;
+}
+
+/**
+ * A caixa do carrossel (classe do Tailwind). Com `retratoNoCelular` (a rifa
+ * de demonstração ou de teste), o celular fica no retrato 4:5, como era antes
+ * de a imagem de exemplo ganhar a medida, e só do tablet em diante (`md`)
+ * vale o formato medido: o problema da caixa em pé com a arte horizontal era
+ * da web. O vertical não muda (o perfil vai por cima dele em toda largura).
+ */
+export function caixaDoCarrossel(formato: Formato, retratoNoCelular = false): string {
+  if (!retratoNoCelular || formato === "retrato" || formato === "vertical") return FORMATOS[formato].classe;
+  return `${FORMATOS.retrato.classe} ${FORMATOS[formato].classeMd}`;
 }
 
 /**

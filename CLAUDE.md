@@ -375,6 +375,13 @@ arquitetura.
   solta a tela da coluna (portal no `body`): arrasta pela barra, muda de
   tamanho pelo canto (livre, sempre 16:9), nunca sai da janela, e o Esc ou o
   X a devolvem. Flutuando, "jogando agora" ocupa o espaço dela.
+  **Nenhuma rifa na tela do sorteio**: o sorteio pode ser de várias
+  organizações, então o próximo sorteio (`proximo` de `/vitrine/ao-vivo`)
+  traz só a hora, o vídeo e quem realiza (`realizadoPor`,
+  `quemRealizaOSorteio()`: "Sorteio realizado pela Loteria Federal", ou pelo
+  globo da plataforma na rifa do globo) — nem o prêmio, nem a rifa, nem a
+  organização, nem no título do vídeo. Vale para a coluna e para a tela do
+  celular. Os últimos ganhadores e "jogando agora" seguem com a rifa de cada um.
 - **A barra de baixo da tela é a do YouTube**: qualidade num seletor
   (Automática, 2160p … 240p), flutuar e **tela cheia** (a tela inteira,
   barra junto; o Esc do navegador sai da tela cheia, não da flutuante). Fica
@@ -831,7 +838,12 @@ registro estão em `docs/VERSOES.md`.
   gravada antes disso ganha a medida pela tag `<svg>` (`medidaDoSvg()` em
   `shared/publicacao.ts`), uma vez, ao subir o servidor
   (`medirImagensDeExemplo()`, trava 811021). Só SVG em data URI: a mídia
-  das organizações é medida no envio. `npm run vitrine` prova.
+  das organizações é medida no envio. **A medida vale só do tablet em
+  diante**: no celular a rifa de demonstração ou de teste segue no retrato
+  4:5 de antes (`retratoNoCelular` no `Carrossel`, `caixaDoCarrossel()` em
+  `shared/publicacao.ts`) — a caixa em pé com espaço sobrando era problema
+  da web. A mídia de verdade segue o formato medido em toda largura.
+  `npm run vitrine` prova.
 - **Excluir rifa** (`excluirRifa()`, `DELETE /campaigns/:id`) apaga de
   vez: rascunho, rifa no ar sem nenhuma cota tomada (nem reserva em
   andamento) e rifa de teste. Dinheiro envolvido — pedido pago ou

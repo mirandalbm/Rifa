@@ -249,6 +249,7 @@ export async function perfilPublico(slug: string, buyerId?: string | null) {
     soldCount: r.stats?.soldCount ?? 0,
     drawAt: r.campaign.drawAt,
     status: r.campaign.status,
+    demonstracao: r.campaign.demonstracao,
     vende: rifaAVenda({
       status: r.campaign.status,
       demonstracao: r.campaign.demonstracao,

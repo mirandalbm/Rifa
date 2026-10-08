@@ -438,6 +438,7 @@ export default function Rifa() {
           <Carrossel
             pecas={carrossel}
             limitarNoTablet
+            retratoNoCelular={Boolean(campaign.demonstracao)}
             titulo={campaign.prizeTitle}
             canto={premios && premios.total > 0 ? <CotaSurpresa slug={slug} premios={premios} /> : null}
           />

@@ -31,10 +31,13 @@ import { deitarATela, deveGirarATela, ESTILO_DA_TELA_GIRADA, soltarATela } from 
 
 /** O que `GET /api/public/vitrine/ao-vivo` devolve — já recortado no servidor. */
 export interface AoVivo {
+  /**
+   * O próximo sorteio de rifa. O sorteio pode ser de várias organizações:
+   * nada da rifa — só quem realiza ("Sorteio realizado pela Loteria Federal"),
+   * a hora e o vídeo.
+   */
   proximo: {
-    slug: string;
-    organizacao: { slug: string; nome: string };
-    prizeTitle: string;
+    realizadoPor: string;
     drawAt: string;
     video: VideoDaTransmissao | null;
   } | null;
@@ -509,7 +512,6 @@ function ConteudoDaTela({
     );
   }
   const falta = faltaParaOSorteio(proximo.drawAt, agora);
-  const href = `/o/${proximo.organizacao.slug}/r/${proximo.slug}`;
   const hora = new Date(proximo.drawAt).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 
   // A transmissão entra na tela 30 min antes da hora (a live começa antes da extração).
@@ -522,7 +524,7 @@ function ConteudoDaTela({
         // Trocar a qualidade recarrega o player com o endereço novo.
         key={src}
         src={src}
-        title={`Sorteio ao vivo: ${proximo.prizeTitle}`}
+        title={`Sorteio ao vivo. ${proximo.realizadoPor}`}
         className="h-full w-full"
         allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
         allowFullScreen
@@ -570,12 +572,11 @@ function ConteudoDaTela({
       {semTitulo ? (
         <span aria-hidden />
       ) : (
-        <Link href={href} className="block truncate text-sm font-semibold hover:underline">
-          {proximo.prizeTitle}
-          <span className="block truncate text-[11px] font-normal text-branco/70">
-            {proximo.organizacao.nome} · <span className="tnum">{hora}</span>
-          </span>
-        </Link>
+        // Nunca o prêmio nem a rifa: o sorteio é de várias organizações.
+        <p className="text-xs font-semibold leading-snug">
+          {proximo.realizadoPor}
+          <span className="tnum block truncate text-[11px] font-normal text-branco/70">{hora}</span>
+        </p>
       )}
     </div>
   );

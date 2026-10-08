@@ -7,9 +7,11 @@ paralelo, para não segurar o resto. Marque aqui mesmo o que for fechando.
 
 ## Dia 1 — disparar o que depende de terceiros (demora semanas)
 
-Em 08/10/2026, o que falta deste bloco (Meta e pagamento) espera o **CNPJ
-final da empresa**: a verificação da Meta e o pedido aos provedores são
-feitos com ele.
+O **CNPJ já é o oficial** (confirmado em 08/10/2026): no fim muda só a
+**razão social**. Então a Meta e o pagamento **não esperam mais** — a
+verificação e o pedido aos provedores saem com o CNPJ de hoje. Quando a razão
+social mudar, a Meta e o provedor pedem o cartão CNPJ novo para atualizar o
+cadastro (o roteiro do dia está na etapa 5, "Dia da troca da razão social").
 
 - [ ] **Meta / WhatsApp**: verificar a empresa Sorte Nacional na Central de
   Segurança (CNPJ, endereço, site, documento). É o que libera o modelo
@@ -30,8 +32,9 @@ feitos com ele.
     na guarda;
   - o **aprovado final dos Termos e da Privacidade com os dados da empresa
     trocados** (e-mail institucional, encarregado com o cargo, endereço
-    oficial) — depende do CNPJ final e da etapa 5: publicados os dados, os
-    dois textos são gerados do site e vão a ele.
+    oficial) — depende da etapa 5: publicados os dados, os dois textos são
+    gerados do site e vão a ele. Trocar só a razão social depois não pede
+    nova leitura: o texto é o mesmo, com o nome novo.
   A frase completa da A.2 só entra depois do opt-out da AWS (etapa 7), sem
   nova leitura dele.
 - [x] **Contador** (respondido em 07/10/2026): a comissão guardada é
@@ -106,6 +109,26 @@ feitos com ele.
   Até lá, `/termos` e `/privacidade` dizem que os dados ainda não foram
   publicados, e o contrato da promotora com campos da empresa não publica
   (422) — os dois esperam este passo.
+- [ ] **Dia da troca da razão social** (o CNPJ não muda; nenhum código
+  muda). Na ordem:
+  1. Aparência → Rodapé e empresa → Dados da empresa: a razão social nova,
+     **Salvar** o cartão e **publicar o template**. Sem publicar, fica só no
+     rascunho. Na hora, os Termos de uso, a Privacidade e a nota fiscal que o
+     afiliado emite contra a plataforma (comissão guardada) passam a mostrar
+     o nome novo.
+  2. Configurações → Contrato da promotora: o cartão avisa que os dados da
+     empresa mudaram; **publicar a versão seguinte** (o mesmo texto, com o
+     nome novo). Fazer o mesmo em **cada anexo** que mostrar o aviso. A
+     versão em vigor nunca muda sozinha: o aceite é a prova do texto lido.
+  3. Avisar as organizações: cada uma **aceita a versão nova** (do contrato e
+     dos anexos que usa) antes de publicar a próxima rifa. As rifas já no ar
+     seguem na versão com que foram publicadas (cláusula 6.2).
+  4. Fora do sistema: mandar o cartão CNPJ novo à Meta (verificação da
+     empresa) e ao provedor do Pix.
+  O que **não** muda: o regulamento e o bilhete (trazem a promotora), o
+  consentimento da foto (traz o e-mail do encarregado) e os recibos já
+  emitidos (são o retrato do dia; os da comissão guardada dizem
+  "Plataforma").
 - [ ] Aparência: banners da vitrine, logos e redes do rodapé.
 - [ ] Sorteios oficiais: cadastrar o id do canal da Caixa (@caixa) e os
   próximos concursos da Federal.

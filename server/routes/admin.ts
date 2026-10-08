@@ -237,6 +237,8 @@ import {
 } from "../services/template";
 import { transmissaoValida } from "@shared/sorteio";
 import { avisarRifaNova, emSegundoPlano } from "../services/push";
+import { ReelsGeradoError, pedirReelsGerado, situacaoDoReelsGerado } from "../services/reelsGerado";
+import { REELS_GERADOS_POR_HORA } from "@shared/reelsGerado";
 import {
   anexoPara,
   chamadosAbertos,
@@ -1712,6 +1714,46 @@ adminRouter.put("/media/:mediaId/capa", async (req, res, next) => {
     res.json(escolhida);
   } catch (err) {
     if (err instanceof MediaRuleError) return res.status(err.status).json({ message: err.message });
+    next(err);
+  }
+});
+
+/**
+ * Reels gerado com as fotos da rifa (Fase F): o pedido vai para a fila e o
+ * trabalhador (processo à parte) monta o vídeo; o relógio do site o recebe
+ * pela ingestão de sempre. O recorte vem antes de tudo (a rifa do vizinho é
+ * 404) e o limite por pessoa conta depois dele.
+ */
+adminRouter.post("/campaigns/:id/reels-gerado", async (req, res, next) => {
+  try {
+    const campanha = await assertCampaignInScope(req, req.params.id);
+    // O erro de preenchimento sai antes de contar no limite.
+    const problemaDaLegenda = problemaNaLegenda(req.body?.legenda);
+    if (problemaDaLegenda) return res.status(422).json({ message: problemaDaLegenda });
+    if ((await hit(`reels-gerado:${req.user!.id}`, 60, REELS_GERADOS_POR_HORA)).excedeu) {
+      return res.status(429).json({ message: "Muitos vídeos pedidos nesta hora. Espere um pouco." });
+    }
+    const pedido = await pedirReelsGerado({ campaignId: campanha.id, pedidoPor: req.user!.id, legenda: req.body?.legenda });
+    if (pedido.legenda) {
+      emSegundoPlano(
+        varrerTextoDoOrganizador({ organizationId: campanha.organizationId, campaignId: campanha.id, onde: "legenda do reels", texto: pedido.legenda }),
+        "varredura",
+      );
+    }
+    await audit(req, "reels.gerar", "campaign", campanha.id, { trabalho: pedido.id });
+    res.status(202).json({ id: pedido.id, ...(await situacaoDoReelsGerado(campanha.id)) });
+  } catch (err) {
+    if (err instanceof ReelsGeradoError) return res.status(err.status).json({ message: err.message });
+    next(err);
+  }
+});
+
+adminRouter.get("/campaigns/:id/reels-gerado", async (req, res, next) => {
+  try {
+    const campanha = await assertCampaignInScope(req, req.params.id);
+    res.setHeader("Cache-Control", "no-store");
+    res.json(await situacaoDoReelsGerado(campanha.id));
+  } catch (err) {
     next(err);
   }
 });

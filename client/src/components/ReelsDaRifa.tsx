@@ -12,6 +12,7 @@ import { FigurinhasDoReels } from "@/components/FigurinhasDoReels";
 import type { Figurinha } from "@shared/figurinhasStory";
 import { enviarReels } from "@/lib/enviarReels";
 import { useNoComputador } from "@/lib/largura";
+import { GerarReels } from "@/components/GerarReels";
 
 interface Reels {
   id: string;
@@ -116,6 +117,8 @@ export function ReelsDaRifa({ campaignId }: { campaignId: string }) {
             Esta rifa já tem <span className="tnum">{REELS_POR_RIFA}</span> vídeos no Reels. Apague um para publicar outro.
           </p>
         ) : null}
+
+        <GerarReels campaignId={campaignId} cheio={cheio} aoFicarPronto={() => void atualizar()} />
 
         {/* A grade de capas em pé, como no perfil do Instagram; o primeiro quadro é o "novo". */}
         <ul className="grid grid-cols-3 gap-2 sm:grid-cols-4 xl:grid-cols-6">

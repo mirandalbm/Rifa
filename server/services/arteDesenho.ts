@@ -15,6 +15,7 @@ import {
   type FormatoDaArte,
   type TipoDeArte,
 } from "@shared/artes";
+import { QUADRO_DO_REELS_GERADO, type TextosDoReelsGerado } from "@shared/reelsGerado";
 
 // ---------------------------------------------------------------- fontes
 
@@ -250,3 +251,58 @@ export function camadaDaArte(p: PedidoDeArte, comLogo: boolean): { svg: string; 
   }
 }
 
+
+// ---------------------------------------------------------------- reels gerado
+
+/**
+ * A faixa do reels gerado (Fase F, `shared/reelsGerado.ts`): PNG transparente
+ * no 9:16 que o `ffmpeg` põe por cima das fotos. O prêmio, o preço da cota
+ * (na cor da organização, numa pílula), quem apura e a autorização — nunca a
+ * data, que muda no adiamento. Tudo dentro da área segura do 9:16 (o perfil
+ * fica por cima no alto; a legenda e as ações, embaixo).
+ */
+export function faixaDoReelsGerado(t: TextosDoReelsGerado, destaque: string): string {
+  const { largura, altura } = QUADRO_DO_REELS_GERADO;
+  const base = altura - AREA_SEGURA_DO_VERTICAL.base;
+  const util = largura - MARGEM * 2;
+  const branco = "#ffffff";
+  const suave = "#e6efe9";
+  const partes: string[] = [];
+  let y = base;
+
+  const tamLinha = 34;
+  const linhas = t.linhas.flatMap((l) => quebrarTexto("texto", l, tamLinha, util, 2));
+  for (let i = linhas.length - 1; i >= 0; i--) {
+    partes.push(textoEmContorno("texto", linhas[i], MARGEM, y, tamLinha, suave));
+    y -= tamLinha * 1.35;
+  }
+  y -= 24;
+
+  const tamPreco = 46;
+  const preco = limparTexto(t.destaque);
+  const wPreco = Math.min(util, larguraDoTexto("forte", preco, tamPreco));
+  const hPilula = tamPreco * 1.7;
+  const yPilula = y - hPilula;
+  partes.push(`<rect x="${MARGEM}" y="${yPilula.toFixed(1)}" width="${(wPreco + 52).toFixed(1)}" height="${hPilula.toFixed(1)}" rx="${(hPilula / 2).toFixed(1)}" fill="${destaque}"/>`);
+  partes.push(textoEmContorno("forte", preco, MARGEM + 26, yPilula + hPilula / 2 + tamPreco * 0.36, tamPreco, branco));
+  y = yPilula - 28;
+
+  const tamPremio = 72;
+  const premio = quebrarTexto("premio", t.titulo, tamPremio, util, 3);
+  for (let i = premio.length - 1; i >= 0; i--) {
+    partes.push(textoEmContorno("premio", premio[i], MARGEM, y, tamPremio, branco));
+    y -= tamPremio * 1.12;
+  }
+
+  const inicio = Math.max(0, (y - 120) / altura);
+  return (
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${largura}" height="${altura}" viewBox="0 0 ${largura} ${altura}">` +
+    `<defs><linearGradient id="b" x1="0" y1="0" x2="0" y2="1">` +
+    `<stop offset="${inicio.toFixed(3)}" stop-color="#000" stop-opacity="0"/>` +
+    `<stop offset="${Math.min(1, inicio + 0.12).toFixed(3)}" stop-color="#000" stop-opacity="0.55"/>` +
+    `<stop offset="1" stop-color="#000" stop-opacity="0.8"/></linearGradient></defs>` +
+    `<rect width="${largura}" height="${altura}" fill="url(#b)"/>` +
+    partes.join("") +
+    `</svg>`
+  );
+}

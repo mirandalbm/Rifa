@@ -186,7 +186,7 @@ export async function melhorPoster(pegar: (instanteS: number) => Promise<Buffer 
   }
 }
 
-function rodarAteOFim(bin: string, args: string[], prazoMs: number): Promise<boolean> {
+export function rodarAteOFim(bin: string, args: string[], prazoMs: number): Promise<boolean> {
   return new Promise((resolve) => {
     let filho: ReturnType<typeof spawn>;
     try {

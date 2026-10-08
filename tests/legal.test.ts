@@ -179,3 +179,35 @@ describe("o que o site guarda no navegador (Privacidade, item 8)", () => {
     for (const g of GUARDADO_NO_NAVEGADOR) expect(todo).toContain(g.grupo);
   });
 });
+
+describe("Termos e Privacidade na régua do advogado (roteiro de 08/10/2026)", () => {
+  const termos = texto(montarTermosDeUso(base));
+  const priv = texto(montarPrivacidade(base));
+
+  it("a plataforma é qualificada como no contrato da promotora (1.1), não como quem recebe o Pix", () => {
+    expect(termos).toMatch(/facilita o pagamento pelo Pix por meio de instituição de pagamento autorizada pelo Banco Central/);
+    expect(termos).not.toMatch(/recebe o pagamento pelo Pix/);
+  });
+
+  it("impedidos também pelo CPF dos sócios e diretores (5.6)", () => {
+    expect(termos).toMatch(/com o CPF de um sócio ou diretor, é recusada/);
+  });
+
+  it("diz como os termos são aceitos", () => {
+    expect(termos).toMatch(/Você aceita estes termos ao criar a conta e, a cada compra/);
+  });
+
+  it("reembolso diz o prazo da promotora, o da disputa e os órgãos de defesa do consumidor", () => {
+    const ligado = texto(montarTermosDeUso({ ...base, reembolso: { aceita: true, taxaPct: 10 } }));
+    expect(ligado).toMatch(/responde em até 3 dias/);
+    expect(ligado).toMatch(/em até 7 dias, e ela dá a palavra final/);
+    expect(ligado).toMatch(/Procon ou no consumidor\.gov\.br/);
+    expect(termos).toMatch(/Procon ou no consumidor\.gov\.br/);
+  });
+
+  it("a Privacidade diz as bases legais, a gratuidade e o prazo de resposta ao titular", () => {
+    expect(priv).toMatch(/Base legal: o seu consentimento, que você retira/);
+    expect(priv).toMatch(/a qualquer momento e sem custo/);
+    expect(priv).toMatch(/respondido em até 15 dias \(LGPD, art\. 19, II\)/);
+  });
+});

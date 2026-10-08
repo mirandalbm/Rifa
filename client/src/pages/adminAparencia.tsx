@@ -551,22 +551,28 @@ export function AdminAparencia() {
                           </div>
                         ))}
                         <div>
-                          <label htmlFor="apoio-arquivo" className="label-xs">Adicionar logo (PNG, JPG ou WebP, até 2 MB)</label>
-                          <input
-                            id="apoio-arquivo"
-                            type="file"
-                            accept="image/png,image/jpeg,image/webp"
-                            disabled={(t.apoios?.length ?? 0) >= APOIOS_MAX || enviarApoio.isPending}
-                            onChange={(e) => {
-                              const f = e.target.files?.[0];
-                              e.target.value = "";
-                              if (!f) return;
-                              const r = new FileReader();
-                              r.onload = () => enviarApoio.mutate(String(r.result));
-                              r.readAsDataURL(f);
-                            }}
-                            className="mt-1 block w-full text-sm"
-                          />
+                          <span className="label-xs">Adicionar logo (PNG, JPG ou WebP, até 2 MB)</span>
+                          {/* O botão é o rótulo: o campo nativo mostraria "Choose File" na língua do navegador. */}
+                          <label
+                            className={`relative mt-1 flex w-fit items-center rounded-md border border-line-2 px-3 py-1.5 text-xs font-semibold focus-within:ring-2 focus-within:ring-green ${(t.apoios?.length ?? 0) >= APOIOS_MAX || enviarApoio.isPending ? "opacity-50" : "cursor-pointer hover:bg-mist"}`}
+                          >
+                            {enviarApoio.isPending ? "Enviando…" : "Enviar logo do rodapé"}
+                            <input
+                              id="apoio-arquivo"
+                              type="file"
+                              accept="image/png,image/jpeg,image/webp"
+                              disabled={(t.apoios?.length ?? 0) >= APOIOS_MAX || enviarApoio.isPending}
+                              onChange={(e) => {
+                                const f = e.target.files?.[0];
+                                e.target.value = "";
+                                if (!f) return;
+                                const r = new FileReader();
+                                r.onload = () => enviarApoio.mutate(String(r.result));
+                                r.readAsDataURL(f);
+                              }}
+                              className="sr-only"
+                            />
+                          </label>
                         </div>
                       </div>
                     </Card>

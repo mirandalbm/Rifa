@@ -7,39 +7,33 @@ paralelo, para não segurar o resto. Marque aqui mesmo o que for fechando.
 
 ## Dia 1 — disparar o que depende de terceiros (demora semanas)
 
+Em 08/10/2026, o que falta deste bloco (Meta e pagamento) espera o **CNPJ
+final da empresa**: a verificação da Meta e o pedido aos provedores são
+feitos com ele.
+
 - [ ] **Meta / WhatsApp**: verificar a empresa Sorte Nacional na Central de
   Segurança (CNPJ, endereço, site, documento). É o que libera o modelo
   `codigo_acesso`; sem ele ninguém entra em "Minhas cotas" nem pede
   reembolso. No mesmo dia: completar o perfil e aceitar os termos de
   desenvolvedor.
-- [ ] **Advogado** (um pacote só, para uma reunião): Termos de uso e
-  Privacidade; texto do reembolso e a taxa depois dos 7 dias; cláusula da
-  cota de bônus; prêmio em dinheiro e itens proibidos (Decreto 70.951/72);
-  texto-base do termo do afiliado; consentimento biométrico; a fórmula exata
-  do modo "Autorizado MF" (séries e números da sorte da Federal) e se a
-  regra da aproximação atual é aceita.
-  **Termos de uso validados em 05/10/2026**; o pacote dos itens 2 a 9 foi
-  reenviado. Ele também redige o **contrato plataforma ↔ promotora**
-  (regresso, autorização e IR por conta dela, Pix por fora, prêmio
-  desembaraçado). **Item 8 respondido em 05/10/2026** (a leitura direta da
-  Federal, numeração a partir de zero, total em potência de 10): já está no
-  código (`npm run apuracao`). **Item 9 respondido em 05/10/2026**
-  (aproximação alternada e circular na Federal, cota de bônus conta, fim da
-  "promotora completa" na rifa autorizada, ressorteio no globo): também no
-  código. **Item 3 respondido em 06/10/2026**: as regras de reembolso
-  ficaram como estão, com um ajuste já no código (3.6: devolução integral em
-  até 3 dias úteis; os 1 a 30 dias da promotora só no reembolso com taxa).
-  **Item 4 validado em 06/10/2026** (cota de bônus; a cláusula dele no
-  regulamento; faltam 4.2, 4.4 e 4.5). **Item 6 validado em 06/10/2026**
-  (termo do afiliado, sem mudança; faltam 6.4 e 6.5, tributo e guarda).
-  **Item 5 validado em 06/10/2026** (vale-brinde, itens proibidos,
-  impedidos, fita circular, 30 dias de entrega, 180 dias ao Tesouro), com a
-  trava do prêmio em dinheiro já no código (falta 5.1: a lista exata dos
-  itens proibidos, confirmada depois). **Item 7 respondido em 06/10/2026**
-  (consentimento biométrico: texto novo, todos autorizam de novo, só o
-  resultado guardado — no código). **6.5, 4.2, 4.4, 4.5, 5.1 e C.1 (as três
-  frases do item 9) respondidos.** 6.4 decidido e no código: o saque é pago
-  só a MEI ou empresa, com a nota fiscal de cada saque.
+- [ ] **Advogado**: **todo o conteúdo aprovado em 08/10/2026** — contrato
+  plataforma ↔ promotora e anexos A a E (com as ressalvas), termo do
+  afiliado, consentimento biométrico (A.1 e A.2), aviso de cookies,
+  reembolso, fluxo do pedido, regulamento e apuração (itens 2 a 9), Termos
+  de uso e Privacidade. O registro de cada resposta está em
+  `docs/PENDENCIAS.md`. Faltam só duas leituras, cada uma esperando um passo
+  de fora:
+  - a **versão final do contrato da promotora** (prevista para 09/10/2026),
+    com os quatro pontos dele: cláusula 1.1 (autorização da promotora para a
+    guarda da comissão), Anexo C (cópia da autorização do SCPC), Anexo E
+    (documento de imunidade quando invocado) e a plataforma como mandatária
+    na guarda;
+  - o **aprovado final dos Termos e da Privacidade com os dados da empresa
+    trocados** (e-mail institucional, encarregado com o cargo, endereço
+    oficial) — depende do CNPJ final e da etapa 5: publicados os dados, os
+    dois textos são gerados do site e vão a ele.
+  A frase completa da A.2 só entra depois do opt-out da AWS (etapa 7), sem
+  nova leitura dele.
 - [x] **Contador** (respondido em 07/10/2026): a comissão guardada é
   dinheiro de terceiro em trânsito — entra a débito de Banco e a crédito de
   "Valores a repassar — afiliados" (passivo) e sai no pagamento, sem passar
@@ -139,13 +133,17 @@ paralelo, para não segurar o resto. Marque aqui mesmo o que for fechando.
 
 ## Etapa 7 — depois que o advogado e o contador responderem
 
-- [ ] Ajustar textos que eles pedirem (Termos, Privacidade, reembolso,
-  termo do afiliado) e subir `VIGENCIA_DOS_TERMOS`.
+- [x] Ajustar textos que eles pedirem (Termos, Privacidade, reembolso,
+  termo do afiliado) e subir `VIGENCIA_DOS_TERMOS` — feito até 08/10/2026
+  (#205 a #209).
 - [ ] Ligar, na ordem: Presente (Bônus → Presente), Programa de bônus,
   Guarda da comissão.
 - [ ] Marketing: cadastrar pixels e chaves (só com o ok da Meta e do Google).
 - [ ] Verificação com comparação automática da foto (opcional): conta na
-  AWS, `ROSTO_*` no Railway e o texto do consentimento revisado.
+  AWS **com o opt-out de serviços de IA ativado** e o contrato conferido
+  (condição de ativação do advogado), `ROSTO_*` no Railway e, no mesmo PR, a
+  frase completa da A.2 com a versão do consentimento subida (o texto está
+  em `docs/PENDENCIAS.md`).
 
 ## Etapa 8 — receita extra (quando quiser vender)
 

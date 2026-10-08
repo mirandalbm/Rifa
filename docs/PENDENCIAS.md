@@ -735,11 +735,14 @@ Na ordem de entrega do plano:
   invocar imunidade (o envio dele já existe, opcional); cada anexo diz que
   integra o termo e que o aceite é condição para publicar. A modalidade
   continua saindo dos dados da rifa (decisão de produto, cláusula 7 acima).
-- [ ] **[você]** Decidir a ressalva do advogado no Anexo C: hoje a rifa com
-  cota premiada publica com o arquivo da autorização (obrigatório, como em
-  toda rifa autorizada) e a declaração do vale-brinde. Ele recomenda que a
-  plataforma **confira** a autorização antes de publicar — uma fila de
-  conferência, como a da entidade. Sem a decisão, segue a declaração.
+- [x] **Ressalva do Anexo C decidida (08/10/2026): a plataforma arquiva,
+  não confere.** A responsabilidade pela autorização é da promotora (Lei
+  5.768/71; cláusulas 2.1 e 3.1 do contrato): a rifa com cota premiada
+  publica com o arquivo da autorização SPA/MF (obrigatório e guardado em
+  `campaign_certificados`; o sistema confere que é PDF ou imagem de verdade, não o que está escrito) e a
+  declaração do vale-brinde nos dados legais, que fica gravada e trava ao
+  publicar. O arquivo é o respaldo da plataforma; não há fila de
+  conferência do conteúdo. O Anexo C segue sem a frase da conferência.
 - [ ] **[ligar]** Antes de ligar a guarda da comissão, as três providências
   do advogado: conta ou subconta separada no Asaas para a comissão guardada,
   o prazo de repasse em dias no termo do afiliado (hoje "depois do sorteio",

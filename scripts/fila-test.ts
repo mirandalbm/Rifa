@@ -174,10 +174,51 @@ async function main() {
   checa("a foto já vai no 9:16", medida.width === 1080 && medida.height === 1920, `${medida.width}x${medida.height}`);
   const [t0] = await db.select({ dados: trabalhos.dados, pedidoPor: trabalhos.pedidoPor }).from(trabalhos).where(eq(trabalhos.id, trabalhoId));
   const dados0 = t0.dados as Record<string, unknown>;
-  checa("a legenda vai nos dados, sem dado pessoal", Object.keys(dados0).sort().join(",") === "fotos,legenda" && dados0.legenda === "Concorra à moto!" && dados0.fotos === 2, JSON.stringify(dados0));
+  checa("a legenda vai nos dados, sem dado pessoal", Object.keys(dados0).sort().join(",") === "escolhidas,fotos,legenda" && dados0.legenda === "Concorra à moto!" && dados0.fotos === 2 && dados0.escolhidas === false, JSON.stringify(dados0));
 
   r = await orgA.req("POST", `/api/admin/campaigns/${a.id}/reels-gerado`, {});
   checa("um em aberto por rifa (409)", r.status === 409, `HTTP ${r.status}`);
+
+  // ------------------------------------------------ escolher as fotos e a ordem
+  const c = await rifa(orgs[0].id, "fila-teste-c");
+  await foto(c.id, "banner", "#aa3322", 0);
+  await foto(c.id, "photo", "#2255aa", 1);
+  const midiasC = await db.select({ id: campaignMedia.id, role: campaignMedia.role }).from(campaignMedia).where(eq(campaignMedia.campaignId, c.id));
+  const bannerC = midiasC.find((m) => m.role === "banner")!.id;
+  const fotoC = midiasC.find((m) => m.role === "photo")!.id;
+  const [fotoDoVizinho] = await db.select({ id: campaignMedia.id }).from(campaignMedia).where(eq(campaignMedia.campaignId, b.id));
+  await db.execute(sql`delete from rate_events where bucket like 'reels-gerado:%'`);
+  for (const ruim of [[], [fotoC, fotoC], "x", [1], Array.from({ length: 7 }, () => randomUUID())]) {
+    r = await orgA.req("POST", `/api/admin/campaigns/${c.id}/reels-gerado`, { fotos: ruim });
+    checa(`escolha fora da forma é 422 (${JSON.stringify(ruim).slice(0, 30)})`, r.status === 422, `HTTP ${r.status}`);
+  }
+  const [{ n: contadosDaForma }] = (await db.execute(sql`select count(*)::int as n from rate_events where bucket like 'reels-gerado:%'`)).rows as { n: number }[];
+  checa("a escolha fora da forma não conta no limite", contadosDaForma === 0, `${contadosDaForma}`);
+  r = await orgA.req("POST", `/api/admin/campaigns/${c.id}/reels-gerado`, { fotos: [fotoC, fotoDoVizinho.id] });
+  checa("a foto do vizinho na escolha é 422, e nada entra na fila", r.status === 422 && /2ª foto/.test(r.json?.message ?? ""), `HTTP ${r.status} ${r.json?.message}`);
+  r = await orgA.req("POST", `/api/admin/campaigns/${c.id}/reels-gerado`, { fotos: [fotoC, randomUUID()] });
+  checa("foto que não existe é 422 com a mesma mensagem", r.status === 422 && /não é uma foto desta rifa/.test(r.json?.message ?? ""), `HTTP ${r.status}`);
+  const [{ n: naFila }] = (await db.execute(sql`select count(*)::int as n from trabalhos where campaign_id = ${c.id}`)).rows as { n: number }[];
+  checa("a escolha recusada não deixa pedido na fila", naFila === 0, `${naFila}`);
+  r = await orgA.req("POST", `/api/admin/campaigns/${c.id}/reels-gerado`, { fotos: [fotoC, bannerC] });
+  checa("a escolha certa entra (202)", r.status === 202, `HTTP ${r.status} ${r.json?.message ?? ""}`);
+  const idC: string = r.json?.id;
+  const entradasC = await db.select({ nome: trabalhoArquivos.nome, bytes: trabalhoArquivos.bytes }).from(trabalhoArquivos).where(and(eq(trabalhoArquivos.trabalhoId, idC), eq(trabalhoArquivos.papel, "entrada")));
+  const corDoCanto = async (nome: string) => {
+    const { channels } = await sharp(Buffer.from(entradasC.find((e) => e.nome === nome)!.bytes)).extract({ left: 0, top: 0, width: 40, height: 40 }).stats();
+    return channels[2].mean > channels[0].mean ? "azul" : "vermelho";
+  };
+  checa("a ordem é a escolhida: a foto do carrossel antes do banner", (await corDoCanto("foto-0.jpg")) === "azul" && (await corDoCanto("foto-1.jpg")) === "vermelho");
+  const [tC] = await db.select({ dados: trabalhos.dados }).from(trabalhos).where(eq(trabalhos.id, idC));
+  checa("os dados dizem que a escolha foi da pessoa", (tC.dados as Record<string, unknown>).escolhidas === true && (tC.dados as Record<string, unknown>).fotos === 2, JSON.stringify(tC.dados));
+  r = await orgA.req("POST", `/api/admin/campaigns/${c.id}/reels-gerado`, { fotos: [bannerC] });
+  checa("com um pedido em aberto, a outra escolha espera (409)", r.status === 409, `HTTP ${r.status}`);
+  // O pedido da rifa C sai para não ser tomado pelo trabalhador da prova abaixo.
+  await db.delete(trabalhos).where(eq(trabalhos.id, idC));
+  r = await orgA.req("POST", `/api/admin/campaigns/${c.id}/reels-gerado`, { fotos: [bannerC] });
+  checa("uma foto só, escolhida, entra", r.status === 202, `HTTP ${r.status}`);
+  await db.delete(trabalhos).where(eq(trabalhos.campaignId, c.id));
+  await db.execute(sql`delete from rate_events where bucket like 'reels-gerado:%'`);
 
   // ------------------------------------------------ trabalhador
   const [um, dois] = await Promise.all([executarUm("prova-1"), executarUm("prova-2")]);

@@ -259,8 +259,10 @@ como figurinha de contagem, junto do Comprar); o trabalhador monta o vídeo
 (movimento lento, transição, H.264 sem som); o relógio do site recebe pela
 ingestão de sempre e publica no Reels. As entradas e a saída passam pelo
 banco, então o trabalhador não precisa do volume — só do `DATABASE_URL` e do
-`ffmpeg`. `npm run fila` prova. Fica para depois: música (sem biblioteca
-licenciada, como o resto), escolher as fotos e a ordem, e juntar vídeos.
+`ffmpeg`. `npm run fila` prova. **Escolher as fotos e a ordem** também está feito
+(o toque nas miniaturas do quadro; cada id conferido como foto desta rifa).
+Fica para depois: música (sem biblioteca licenciada, como o resto) e juntar
+vídeos.
 
 **Fase G — Pacote pronto para postar · 1 PR.**
 As artes nos três formatos, a legenda sugerida e o link curto, num zip ou

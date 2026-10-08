@@ -17,6 +17,8 @@ import { GerarReels } from "@/components/GerarReels";
 interface Reels {
   id: string;
   role: string;
+  mime: string;
+  status: string;
   url: string;
   posterUrl: string | null;
   durationS: number | null;
@@ -36,6 +38,8 @@ export function ReelsDaRifa({ campaignId }: { campaignId: string }) {
   const chave = `/api/admin/campaigns/${campaignId}/media`;
   const { data } = useQuery<Reels[]>({ queryKey: [chave] });
   const reels = (data ?? []).filter((m) => m.role === "reels");
+  // As fotos que podem entrar no vídeo gerado: o banner e as do carrossel, prontas (a lista já vem por papel e posição).
+  const fotosDaRifa = (data ?? []).filter((m) => (m.role === "banner" || m.role === "photo") && m.status === "ready" && m.mime.startsWith("image/"));
   const noComputador = useNoComputador();
   const [legenda, setLegenda] = useState("");
   const [progresso, setProgresso] = useState<number | null>(null);
@@ -118,7 +122,7 @@ export function ReelsDaRifa({ campaignId }: { campaignId: string }) {
           </p>
         ) : null}
 
-        <GerarReels campaignId={campaignId} cheio={cheio} aoFicarPronto={() => void atualizar()} />
+        <GerarReels campaignId={campaignId} cheio={cheio} fotos={fotosDaRifa} aoFicarPronto={() => void atualizar()} />
 
         {/* A grade de capas em pé, como no perfil do Instagram; o primeiro quadro é o "novo". */}
         <ul className="grid grid-cols-3 gap-2 sm:grid-cols-4 xl:grid-cols-6">

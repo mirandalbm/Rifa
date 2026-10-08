@@ -2199,7 +2199,11 @@ verdade no sistema.
   transferência internacional (art. 33, VIII). **"A AWS não guarda as
   imagens" só volta ao texto com o opt-out de serviços de IA ativado na
   conta da AWS** — por padrão o Rekognition pode guardar e usar o conteúdo
-  (`docs/PENDENCIAS.md`); sem isso, o comparador não liga. **Só vale o
+  (`docs/PENDENCIAS.md`); sem isso, o comparador não liga. **A frase que
+  volta é a do advogado** (resposta (c), 08/10/2026, guardada no
+  `docs/PENDENCIAS.md`) e, ao trocar, **sobe `CONSENTIMENTO_BIOMETRICO_VERSAO`**:
+  a chave guarda só versão e modo, então texto novo na mesma versão valeria
+  como consentimento de um texto que a pessoa não leu. **Só vale o
   consentimento da versão em vigor** (`consentimentoVigente()`): o de antes
   conta como não dado em toda régua (falta, fila, aprovar a foto). **Quem
   está verificado com o antigo, ou sem nenhum, autoriza de novo**

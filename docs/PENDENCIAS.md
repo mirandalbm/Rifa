@@ -808,8 +808,47 @@ Na ordem de entrega do plano:
   Data Processing Addendum) que as imagens não são retidas nem usadas para
   treinamento e que a transferência internacional está coberta por
   cláusulas-padrão ou equivalente; (iii) mandar a confirmação ao advogado.
-  Só então o texto pode voltar a dizer que a AWS "não guarda" as imagens.
   Desligado (o padrão), a comparação é por uma pessoa e nada sai.
+  **O texto da A.2 está liberado** (resposta (b) do advogado, 08/10/2026:
+  "atua como operadora… nos termos do contrato dela com a plataforma"), mas
+  é **condição de ativação**, como obrigação de meio: o comparador
+  automático só entra em produção com (i) e (ii) concluídos, ainda que o
+  texto esteja aprovado.
+  **A frase "não retém" é opcional e só depois de (i) e (ii)** (resposta
+  (c)): para trocar o trecho "Compartilhamento" da A.2
+  (`textoDoConsentimentoBiometrico`, `automatico: true`, em
+  `shared/verificacao.ts`), a frase exata do advogado é: "Compartilhamento:
+  a comparação é automatizada pela Amazon Web Services (Amazon Rekognition),
+  que recebe as duas imagens, devolve apenas o resultado da comparação e não
+  as retém nem as utiliza para treinamento de seus modelos, nos termos do
+  contrato de serviço e do aditivo de tratamento de dados aplicáveis." O
+  trecho da transferência internacional (art. 33, VIII) não muda. Ao trocar:
+  (1) subir `CONSENTIMENTO_BIOMETRICO_VERSAO` — a versão vale como prova do
+  texto lido, e quem consentiu o texto de antes autoriza de novo; (2)
+  perguntar ao advogado se a frase pode manter o fim da atual ("quando ela
+  não confirma, uma pessoa da plataforma compara as duas imagens lado a
+  lado"), que é o que o sistema faz; (3) mudar a Privacidade (seção 3) no
+  mesmo PR. Com qualquer dúvida sobre o opt-out ou o contrato, fica a
+  redação atual — o advogado a considera igualmente válida.
+- [x] **Respostas finais do advogado (08/10/2026)**: (a) Termos e
+  Privacidade **aprovados**, com a condição de publicar só com o e-mail
+  institucional e o endereço oficial (item abaixo) e com a numeração
+  conferida — a do sistema já é contínua (Termos 1 a 10, Privacidade 1 a 9,
+  o teste confere), e os buracos que ele via eram títulos perdidos no
+  arquivo enviado; (b) A.2 liberada com a condição de ativação (item acima);
+  (c) a frase "não retém" para depois do opt-out (item acima); o prazo de 5
+  dias, os três ajustes do fluxo do pedido e o agrupamento da seção 8 da
+  Privacidade aprovados.
+- [ ] **[você]** **Versão final do contrato da promotora** (prevista para
+  09/10/2026; o advogado ainda não a recebeu): mandar a ele antes de
+  publicar em Configurações. Ela precisa trazer os quatro pontos que ele
+  pediu: a cláusula 1.1 com a autorização expressa da promotora para a
+  guarda da comissão; o Anexo C exigindo a cópia da autorização do SCPC (no
+  sistema, o arquivo do certificado já é exigido para publicar —
+  `PUT /campaigns/:id/legal`); o Anexo E com o documento de imunidade (CEBAS
+  ou equivalente) quando invocado (no sistema, o CEBAS é documento opcional
+  da entidade beneficiada); e a plataforma como mandatária na guarda da
+  comissão do afiliado. Com os quatro, está pronta para publicar.
 - [ ] **[você]** Antes de abrir ao público, o **encarregado** precisa estar
   publicado nos Dados da empresa (Aparência → Rodapé e empresa): o texto do
   consentimento biométrico o cita (exigência legal, art. 41, § 1º).

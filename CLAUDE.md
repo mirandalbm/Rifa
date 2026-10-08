@@ -130,6 +130,7 @@ arquitetura.
 | plano da próxima fase (vitrine, contas, afiliados, marketing) | `docs/PLANO-FASE5.md` |
 | ferramentas de imagem e vídeo para divulgar a rifa (Canva, Adobe, as nossas, IA): panorama e fases | `docs/PLANO-FERRAMENTAS.md` |
 | artes prontas para divulgar (Fase A: arte da rifa, cotas que faltam, data, resultado, cota premiada, nos três formatos) e o pacote para postar (Fase G: ZIP com os três formatos e a legenda) | `shared/artes.ts` (regras, textos e `legendaSugerida`), `server/services/zip.ts`, os textos do kit (`textosDoKit()` em `shared/afiliados.ts`), `server/services/arteDesenho.ts` (texto em contorno, QR, camada), `server/services/artes.ts` (dados da rifa, fundo, foto da organização), `server/routes/artesRotas.ts`, `/campaigns/:id/artes*` em `server/routes/admin.ts`, `/artes/:slug*` em `server/routes/affiliate.ts`, `client/src/components/ArtesParaDivulgar.tsx` (aba Publicação e Meus links), `scripts/artes-test.ts`, `tests/artes.test.ts` |
+| editor de imagem no navegador (Fase C: fundo, formato, figurinhas, conferência do texto, pôr no carrossel) | `shared/editorImagem.ts` (camadas como dados, enquadramento, régua), `server/services/editorImagem.ts`, `/campaigns/:id/editor*` em `server/routes/admin.ts`, `client/src/lib/desenharArte.ts` (o canvas), `client/src/components/EditorDeImagem.tsx` (`AbrirEditorDeImagem` no cartão "Artes para divulgar"), `scripts/artes-test.ts`, `tests/editorImagem.test.ts` |
 | conta do apostador (senha, confirmação, exclusão) | `shared/contaComprador.ts`, `server/services/contaComprador.ts`, `scripts/conta-test.ts` |
 | login com Google, completar CPF e telefone, ligar o Google | `shared/google.ts` (regras, claims, volta segura), `server/services/google.ts`, `server/services/contaCompleta.ts`, rotas `/conta/google/*`, `/conta/cpf` e `/conta/telefone/*` em `server/routes/public.ts`, `client/src/components/BotaoGoogle.tsx`, `CompletarConta`/`GoogleCard` em `client/src/pages/MinhasCotas.tsx`, `scripts/google-test.ts`, `tests/google.test.ts` |
 | de quem é o cliente (o que o organizador vê) | `shared/titularidade.ts` (regra) e `server/services/titularidade.ts` (SQL) |
@@ -2807,6 +2808,46 @@ Baixar e Compartilhar (arquivo, pelo Web Share, onde o navegador deixa).
   (é a rifa dela).
 - `npm run artes` prova tudo isso contra a API de verdade e
   `tests/artes.test.ts` cobre as regras, o ZIP e o desenho.
+
+## Editor de imagem — o que não pode afrouxar
+
+A Fase C do `docs/PLANO-FERRAMENTAS.md`, primeira parte: a organização monta
+uma imagem de divulgação no navegador ("Criar imagem" no cartão "Artes para
+divulgar", aba Publicação) — o fundo (a cor da casa, uma foto da rifa, uma
+arte pronta da Fase A ou uma foto do aparelho), o formato (4:5, 1:1 ou 9:16),
+o enquadramento (arrastar e aproximar) e até `CAMADAS_MAX` (8) figurinhas:
+texto nas fontes da plataforma (título, texto, número) com contorno e sombra,
+emoji da lista, preço, selo SPA/MF, foto da organização e QR da rifa.
+
+- **As camadas são dados** (`validarCamadas()` em `shared/editorImagem.ts`):
+  tipo, fonte e cor de listas fixas (`Object.hasOwn`, nunca `in`), tamanho e
+  posição em faixa, só as chaves conhecidas. A mesma régua na tela e no
+  servidor.
+- **O texto passa pela régua antes de virar imagem** (`POST
+  /campaigns/:id/editor/conferir`, antes de baixar, compartilhar ou pôr no
+  carrossel): sem link e sem telefone (422) e, aqui, **o Pix por fora é
+  recusado** (422) e vira denúncia automática em segundo plano — depois de
+  virar pixel, nenhuma varredura o leria. Limite por pessoa (`editor:`, 60 em
+  10 min).
+- **O oficial não se edita**: preço e selo saem da rifa (`GET
+  /campaigns/:id/editor`, `no-store`; a camada guarda só onde e o tamanho), o
+  selo só existe com a autorização, e o QR leva o endereço curto da rifa no
+  ar (o rascunho leva `/r/<slug>`).
+- **Quem desenha é o canvas do navegador** (`desenharImagem()` em
+  `client/src/lib/desenharArte.ts`): a mesma função faz a prévia (metade da
+  medida) e a imagem final (1080 de largura), em JPEG. As fotos entram por
+  `fetch` e `blob:` (o canvas não fica "sujo"); a foto do aparelho não sobe
+  ao servidor só por entrar no editor.
+- **A imagem entra pelo envio de sempre** (dois passos, papel `photo`, com a
+  descrição para quem não enxerga): o servidor mede, reprocessa e conta a
+  vaga do carrossel como em qualquer foto. É honesto dizer: a imagem que
+  chega é uma foto como as outras — a régua do texto vale para quem usa o
+  editor; a foto pronta feita fora segue como sempre foi.
+- O recorte é `assertCampaignInScope` (o vizinho é 404, no `npm run
+  isolation`). O editor (e o `qrcode`) só baixa quando abre.
+- Ficou para as próximas partes da Fase C: remover fundo (precisa de
+  provedor), legenda sugerida pelo assistente e o editor no kit do afiliado.
+- `npm run artes` prova as rotas e `tests/editorImagem.test.ts` as regras.
 
 ## Carrinho e comprar — o que não pode afrouxar
 

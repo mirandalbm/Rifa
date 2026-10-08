@@ -160,8 +160,8 @@ organização (logo e cor de destaque) entra nos modelos. "Baixar" e
 organização); as rotas `/api/admin/campaigns/:id/artes*` e
 `/api/affiliate/artes/:slug*`; o cartão "Artes para divulgar" na aba
 Publicação e "Artes prontas para postar" em Meus links. `npm run artes`
-prova. Ficou para a Fase C: escolher a foto de fundo (hoje é a capa da
-rifa, ou a foto do ganhador no resultado).
+prova. A foto de fundo escolhida pela pessoa entrou na Fase C (o editor usa
+a arte pronta, uma foto da rifa ou do aparelho como fundo).
 
 **Fase B — Recriar a partir de uma referência (IA de visão) · ~3 PRs.**
 A pessoa escolhe uma foto ou um modelo externo (um flyer que viu, uma arte
@@ -197,6 +197,17 @@ formato; figurinhas (as do story + logo, preço, QR, selo) com texto nas
 fontes da plataforma; remover fundo pelo servidor; legenda e texto sugeridos
 pelo assistente. O texto passa pela régua **antes** de virar imagem; a
 exportação é pelo canvas do navegador e entra pelo envio de sempre.
+**Em andamento.** Feito (08/10/2026): **o editor base** — "Criar imagem" no
+cartão "Artes para divulgar": fundo (cor da casa, foto da rifa, arte pronta da
+Fase A ou foto do aparelho — o que a Fase A deixou para cá), formato e
+enquadramento, figurinhas (texto nas fontes da plataforma com contorno e
+sombra, emoji, preço, selo SPA/MF, foto da organização e QR) como dados
+(`shared/editorImagem.ts`), o texto conferido no servidor antes de virar
+imagem (`POST /campaigns/:id/editor/conferir`: link e telefone recusados, Pix
+por fora recusado e denunciado), e a imagem baixada, compartilhada ou posta no
+carrossel pelo envio de sempre (`npm run artes` prova). Falta: remover fundo
+(precisa de provedor), legenda e texto sugeridos pelo assistente, e o editor
+no kit do afiliado.
 
 **Fase D — Vídeo leve, sem recomprimir · ~4 PRs.**
 Cortar início e fim (modo cópia), escolher a capa, figurinhas no reels como

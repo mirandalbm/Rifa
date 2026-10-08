@@ -176,6 +176,8 @@ import {
   salvarModo as salvarModoDeDivulgacao,
 } from "../services/divulgacao";
 import { cliquesDosLinks, linkCurtoDaRifa, linkCurtoDoPerfil } from "../services/links";
+import { EditorError, conferirCamadas, dadosDoEditor } from "../services/editorImagem";
+import { CONFERENCIAS_POR_JANELA } from "@shared/editorImagem";
 import {
   cancelarSolicitacao,
   conferirEdicao,
@@ -1119,6 +1121,40 @@ adminRouter.get("/campaigns/:id/artes/:tipo", async (req, res, next) => {
     if (!r) return res.status(404).json({ message: "Campanha não encontrada." });
     await enviarArte(res, r, req.params.tipo, req.query.formato, `${baseDoSite(req)}/r/${r.slug}`, `painel:${req.user!.id}`);
   } catch (err) {
+    next(err);
+  }
+});
+
+// Editor de imagem (Fase C): a tela recebe as fotos da rifa e as informações
+// oficiais, e o texto passa pela régua aqui antes de virar pixel. O vizinho é 404.
+adminRouter.get("/campaigns/:id/editor", async (req, res, next) => {
+  try {
+    const campaign = await assertCampaignInScope(req, req.params.id);
+    const base = baseDoSite(req);
+    const link = campaign.status === "published" ? `${base}${(await linkCurtoDaRifa(campaign.id)).caminho}` : `${base}/r/${campaign.slug}`;
+    const dados = await dadosDoEditor(campaign.id, link);
+    if (!dados) return res.status(404).json({ message: "Campanha não encontrada." });
+    res.setHeader("Cache-Control", "no-store");
+    res.json(dados);
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.post("/campaigns/:id/editor/conferir", async (req, res, next) => {
+  try {
+    const campaign = await assertCampaignInScope(req, req.params.id);
+    if ((await hit(`editor:${req.user!.id}`, CONFERENCIAS_POR_JANELA.minutos, CONFERENCIAS_POR_JANELA.limite)).excedeu) {
+      return res.status(429).json({ message: "Muitas conferências em pouco tempo. Espere alguns minutos." });
+    }
+    const camadas = conferirCamadas(req.body?.camadas, {
+      id: campaign.id,
+      organizationId: campaign.organizationId,
+      temSelo: Boolean(campaign.authorizationCode),
+    });
+    res.json({ camadas });
+  } catch (err) {
+    if (err instanceof EditorError) return res.status(err.status).json({ message: err.message });
     next(err);
   }
 });

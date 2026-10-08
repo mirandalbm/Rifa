@@ -1,7 +1,34 @@
-import { useEffect, useId, useState } from "react";
-import { Copy, Download, Package, Share2 } from "lucide-react";
+import { Suspense, lazy, useEffect, useId, useState } from "react";
+import { Copy, Download, Package, Palette, Share2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { nomeDoArquivoDaArte, nomeDoPacote, type FormatoDaArte, type TipoDeArte } from "@shared/artes";
+
+const EditorDeImagem = lazy(() => import("@/components/EditorDeImagem").then((m) => ({ default: m.EditorDeImagem })));
+
+/**
+ * A entrada do editor de imagem (Fase C) no painel: o editor (canvas, QR)
+ * só baixa quando abre.
+ */
+export function AbrirEditorDeImagem({ campaignId }: { campaignId: string }) {
+  const [aberto, setAberto] = useState(false);
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-line px-3 py-2">
+      <p className="min-w-0 text-xs text-ink-2">Monte a sua imagem: foto, formato, texto, preço, selo e QR por cima.</p>
+      <button
+        type="button"
+        onClick={() => setAberto(true)}
+        className="inline-flex min-h-9 items-center gap-2 rounded-md border-2 border-green bg-white px-4 text-sm font-semibold text-green-deep"
+      >
+        <Palette size={16} aria-hidden /> Criar imagem
+      </button>
+      {aberto ? (
+        <Suspense fallback={<span role="status" className="text-xs text-muted">Abrindo o editor…</span>}>
+          <EditorDeImagem campaignId={campaignId} onFechar={() => setAberto(false)} />
+        </Suspense>
+      ) : null}
+    </div>
+  );
+}
 
 interface ListaDeArtes {
   slug: string;

@@ -7,7 +7,10 @@
  *   resultado antes do sorteio, rifa de demonstração ou travada são 404;
  * - o afiliado só tem arte da rifa em que recebe comissão, e o link do QR
  *   leva o código dele, tirado da sessão — `?ref=` na URL não muda nada;
- * - desenhar tem limite por pessoa (429).
+ * - desenhar tem limite por pessoa (429);
+ * - o editor de imagem (Fase C): os dados da própria rifa (preço e selo do
+ *   banco), o texto conferido antes de virar imagem — link e telefone são
+ *   422, o Pix por fora é 422 e vira denúncia —, o vizinho 404 e o limite.
  */
 import "dotenv/config";
 import { baseUrl } from "./base-url";
@@ -15,7 +18,8 @@ import { eq, inArray, sql } from "drizzle-orm";
 import sharp from "sharp";
 import { db, pool } from "../server/db";
 import { hashPassword } from "../server/auth";
-import { affiliates, afiliadoVinculos, campaignStats, campaigns, organizations, users } from "../shared/schema";
+import { affiliates, afiliadoVinculos, campaignStats, campaigns, denuncias, organizations, users } from "../shared/schema";
+import { CONFERENCIAS_POR_JANELA, camadaNova } from "../shared/editorImagem";
 import { ARTES_POR_JANELA, PACOTES_POR_JANELA } from "../server/routes/artesRotas";
 
 /** Os arquivos do ZIP (pelo diretório central): nome e conteúdo. */
@@ -76,12 +80,13 @@ async function limpar() {
       await db.execute(sql`delete from campaign_stats where campaign_id in ${l}`);
     }
     await db.delete(campaigns).where(inArray(campaigns.organizationId, ids));
+    await db.delete(denuncias).where(inArray(denuncias.organizationId, ids));
   }
   const us = await db.select({ id: users.id }).from(users).where(inArray(users.email, EMAILS));
   if (us.length) await db.delete(affiliates).where(inArray(affiliates.userId, us.map((u) => u.id)));
   await db.delete(users).where(inArray(users.email, EMAILS));
   if (ids.length) await db.delete(organizations).where(inArray(organizations.id, ids));
-  await db.execute(sql`delete from rate_events where bucket like 'login:%' or bucket like 'arte:%' or bucket like 'arte-pacote:%'`);
+  await db.execute(sql`delete from rate_events where bucket like 'login:%' or bucket like 'arte:%' or bucket like 'arte-pacote:%' or bucket like 'editor:%'`);
 }
 
 async function rifa(orgId: string, slug: string, extra: Partial<typeof campaigns.$inferInsert> = {}) {
@@ -142,6 +147,7 @@ async function main() {
     const a = await rifa(orgs[0].id, "artes-teste-a");
     const b = await rifa(orgs[1].id, "artes-teste-b");
     const orgA = await entrar(EMAILS[0]);
+    let ultimoDoEditor = 0;
 
     // ------------------------------------------------ painel
     let r = await orgA.req("GET", `/api/admin/campaigns/${a.id}/artes`);
@@ -246,6 +252,40 @@ async function main() {
     checa("a organização não entra pela porta do afiliado", r.status === 401 || r.status === 403, `HTTP ${r.status}`);
     r = await new Cliente().req("GET", `/api/admin/campaigns/${a.id}/artes/rifa`);
     checa("sem login, a arte do painel é 401", r.status === 401, `HTTP ${r.status}`);
+
+    // ------------------------------------------------ editor de imagem (Fase C)
+    r = await orgA.req("GET", `/api/admin/campaigns/${a.id}/editor`);
+    checa("os dados do editor da própria rifa", r.status === 200 && r.json?.slug === "artes-teste-a", `HTTP ${r.status}`);
+    checa("o preço e o selo saem da rifa", r.json?.oficiais?.preco?.includes("15,00") && r.json?.oficiais?.selo === "Autorizada SPA/MF nº SPA-ARTE-1", JSON.stringify(r.json?.oficiais));
+    checa("os dados do editor não ficam em cache", r.headers.get("cache-control") === "no-store", r.headers.get("cache-control") ?? "");
+    r = await orgA.req("GET", `/api/admin/campaigns/${b.id}/editor`);
+    checa("o editor da rifa do vizinho é 404", r.status === 404, `HTTP ${r.status}`);
+    const texto = (t: string) => [{ ...camadaNova("texto"), texto: t }, camadaNova("preco"), camadaNova("selo"), camadaNova("qr")];
+    r = await orgA.req("POST", `/api/admin/campaigns/${a.id}/editor/conferir`, { camadas: texto("Sorteio neste sábado") });
+    checa("texto limpo passa a conferência", r.status === 200 && r.json?.camadas?.length === 4, `HTTP ${r.status} ${r.json?.message ?? ""}`);
+    r = await orgA.req("POST", `/api/admin/campaigns/${a.id}/editor/conferir`, { camadas: texto("veja em golpe.com") });
+    checa("link no texto da imagem é 422", r.status === 422, `HTTP ${r.status}`);
+    r = await orgA.req("POST", `/api/admin/campaigns/${a.id}/editor/conferir`, { camadas: texto("chama no 84 99999-1234") });
+    checa("telefone no texto da imagem é 422", r.status === 422, `HTTP ${r.status}`);
+    r = await orgA.req("POST", `/api/admin/campaigns/${a.id}/editor/conferir`, { camadas: texto("faz um pix direto pra mim") });
+    checa("Pix por fora no texto da imagem é 422", r.status === 422, `HTTP ${r.status}`);
+    let denuncia = null;
+    for (let i = 0; i < 20 && !denuncia; i++) {
+      [denuncia] = await db.select({ evidencia: denuncias.evidencia }).from(denuncias).where(eq(denuncias.organizationId, orgs[0].id));
+      if (!denuncia) await new Promise((ok) => setTimeout(ok, 100));
+    }
+    checa("o Pix por fora vira denúncia automática", Boolean(denuncia?.evidencia?.includes("editor de imagem")), denuncia?.evidencia ?? "nenhuma");
+    r = await orgA.req("POST", `/api/admin/campaigns/${a.id}/editor/conferir`, { camadas: [{ tipo: "html", x: 0.5, y: 0.5, tamanho: 0.1 }] });
+    checa("camada desconhecida é 422", r.status === 422, `HTTP ${r.status}`);
+    r = await orgA.req("POST", `/api/admin/campaigns/${b.id}/editor/conferir`, { camadas: texto("Sorteio") });
+    checa("conferir na rifa do vizinho é 404", r.status === 404, `HTTP ${r.status}`);
+    r = await new Cliente().req("POST", `/api/admin/campaigns/${a.id}/editor/conferir`, { camadas: [] });
+    checa("sem login, conferir é 401", r.status === 401, `HTTP ${r.status}`);
+    await db.execute(sql`delete from rate_events where bucket like 'editor:%'`);
+    for (let i = 0; i <= CONFERENCIAS_POR_JANELA.limite; i++) {
+      ultimoDoEditor = (await orgA.req("POST", `/api/admin/campaigns/${a.id}/editor/conferir`, { camadas: [] })).status;
+    }
+    checa(`passou de ${CONFERENCIAS_POR_JANELA.limite} conferências em ${CONFERENCIAS_POR_JANELA.minutos} min: 429`, ultimoDoEditor === 429, `HTTP ${ultimoDoEditor}`);
 
     // ------------------------------------------------ limite
     await db.execute(sql`delete from rate_events where bucket like 'arte:%'`);

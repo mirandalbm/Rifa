@@ -192,6 +192,18 @@ export class FfmpegLocal implements ProcessadorDeVideo {
     return vagasDoFfmpeg.rodar(() => this.gerar(arquivo));
   }
 
+  /** O quadro de um instante escolhido (a capa), em WebP. `null` sem `ffmpeg` ou sem quadro. */
+  quadroEm(arquivo: string, instanteS: number): Promise<Buffer | null> {
+    return vagasDoFfmpeg.rodar(async () => {
+      try {
+        const jpeg = await rodar(this.bin, argsDoPoster(arquivo, instanteS), this.prazoMs);
+        return jpeg ? await sharp(jpeg, { limitInputPixels: 40_000_000 }).webp({ quality: POSTER_QUALIDADE }).toBuffer() : null;
+      } catch {
+        return null;
+      }
+    });
+  }
+
   private async gerar(arquivo: string): Promise<Buffer | null> {
     try {
       for (const instante of POSTER_INSTANTES_S) {

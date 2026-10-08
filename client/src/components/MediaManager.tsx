@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, Button, Pill, Empty } from "@/components/bits";
 import { apiRequest } from "@/lib/queryClient";
+import { EscolherCapa } from "@/components/EscolherCapa";
 import { FORMATOS, duracao, formatoDaPeca, formatoDoVideo } from "@shared/publicacao";
 
 interface MediaItem {
@@ -15,6 +16,7 @@ interface MediaItem {
   durationS: number | null;
   bytes: number | null;
   altText: string | null;
+  posterUrl?: string | null;
 }
 
 const ROLE_LABEL = {
@@ -57,6 +59,7 @@ export function MediaManager({ campaignId }: { campaignId: string }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [altText, setAltText] = useState("");
+  const [capaDe, setCapaDe] = useState<MediaItem | null>(null);
   const inputs = {
     banner: useRef<HTMLInputElement>(null),
     photo: useRef<HTMLInputElement>(null),
@@ -185,9 +188,11 @@ export function MediaManager({ campaignId }: { campaignId: string }) {
                     className="flex items-center gap-3 rounded-md border border-line px-3 py-2"
                   >
                     {m.role === "video" ? (
-                      <span className="flex h-9 w-12 items-center justify-center rounded bg-ink text-xs text-white">
-                        ▶
-                      </span>
+                      m.posterUrl ? (
+                        <img src={m.posterUrl} alt="" className="h-9 w-12 rounded bg-black object-cover" />
+                      ) : (
+                        <span className="flex h-9 w-12 items-center justify-center rounded bg-ink text-xs text-white">▶</span>
+                      )
                     ) : (
                       <img
                         src={m.url}
@@ -199,6 +204,11 @@ export function MediaManager({ campaignId }: { campaignId: string }) {
                     <span className="tnum text-[11px] text-muted">
                       {m.bytes ? `${(m.bytes / 1024).toFixed(0)} KB` : ""}
                     </span>
+                    {m.role === "video" && m.durationS ? (
+                      <Button variant="ghost" className="px-2 py-1 text-xs" onClick={() => setCapaDe(m)}>
+                        capa
+                      </Button>
+                    ) : null}
                     <Button
                       variant="ghost"
                       className="px-2 py-1 text-xs"
@@ -221,6 +231,16 @@ export function MediaManager({ campaignId }: { campaignId: string }) {
           </ul>
         ) : null}
       </div>
+      {capaDe && capaDe.durationS ? (
+        <EscolherCapa
+          mediaId={capaDe.id}
+          url={capaDe.url}
+          poster={capaDe.posterUrl ?? null}
+          durationS={capaDe.durationS}
+          onFechar={() => setCapaDe(null)}
+          aoEscolher={() => void qc.invalidateQueries()}
+        />
+      ) : null}
     </Card>
   );
 }

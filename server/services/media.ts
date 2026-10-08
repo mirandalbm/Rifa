@@ -17,6 +17,7 @@ import { apagarNoStream, esquecerDoStream } from "./streamPendentes";
 import {
   comArquivoTemporarioEmPedacos,
   comVagaDeDownload,
+  FfmpegLocal,
   processadorDeVideo,
   publicarVideo,
   type VideoPublicado,
@@ -24,7 +25,7 @@ import {
 import { entregaHlsLigada, hlsParaATela } from "@shared/stream";
 import { tokenDoStream } from "./streamAssinatura";
 import { emSegundoPlano } from "./push";
-import { POSTER_BAIXAR_ATE_BYTES, chaveDoPoster, posterPublico } from "@shared/poster";
+import { POSTER_BAIXAR_ATE_BYTES, chaveDoPoster, instanteDaCapa, posterPublico } from "@shared/poster";
 import { probeImage, probeVideoDimensions, probeVideoDuration, UnreadableMediaError } from "./probe";
 import { processImage, srcSet, removeVariants, type ImageVariant } from "./images";
 import { MAX_CARROSSEL, duracao, formatoDoVideo, limparLegenda, problemaNaLegenda } from "@shared/publicacao";
@@ -406,6 +407,82 @@ export async function gerarPosterDaMidia(
   await descartar(chave, stream?.uid);
   return null;
 }
+
+/**
+ * Escolher a capa (Fase D): o quadro do instante que a organização escolheu
+ * vira o pôster do vídeo. O instante é só um número conferido contra a duração
+ * medida aqui (`instanteDaCapa`); o quadro é tirado pelo `ffmpeg` local — o
+ * Stream não entra (seria mandar o vídeo para fora por um quadro). Troca o
+ * pôster com a mídia travada (`FOR UPDATE`): duas escolhas ao mesmo tempo
+ * ficam uma depois da outra, e o pôster de antes sai do armazenamento depois
+ * da transação. O recorte (a rifa do vizinho) é conferido na rota, antes.
+ */
+export async function escolherCapaDoVideo(mediaId: string, instanteBruto: unknown): Promise<{ poster: string; instante: number }> {
+  const [m] = await db
+    .select({
+      campaignId: campaignMedia.campaignId,
+      role: campaignMedia.role,
+      status: campaignMedia.status,
+      storageKey: campaignMedia.storageKey,
+      posterKey: campaignMedia.posterKey,
+      durationS: campaignMedia.durationS,
+      bytes: campaignMedia.bytes,
+      createdAt: campaignMedia.createdAt,
+    })
+    .from(campaignMedia)
+    .where(eq(campaignMedia.id, mediaId));
+  if (!m) throw new MediaRuleError("Mídia não encontrada.", 404);
+  if (!ehVideo(m.role) || m.status !== "ready") throw new MediaRuleError("Só vídeo pronto tem capa para escolher.", 409);
+  const t = instanteDaCapa(instanteBruto, m.durationS);
+  if ("erro" in t) throw new MediaRuleError(t.erro, 422);
+  // O primeiro pôster sai em segundo plano no envio (e, com a entrega em HLS, deixa
+  // o vídeo no Stream na mesma gravação condicional): escolher antes disso faria o
+  // envio descartar o que preparou.
+  if (!m.posterKey && Date.now() - m.createdAt.getTime() < FOLGA_PARA_ESCOLHER_CAPA_MS) {
+    throw new MediaRuleError("O vídeo ainda está sendo preparado. Tente de novo em alguns minutos.", 409);
+  }
+
+  const store = storage();
+  const tirar = (arquivo: string) => new FfmpegLocal().quadroEm(arquivo, t.instante);
+  let quadro: Buffer | null = null;
+  if (store instanceof LocalDiskStorage) {
+    await store.size(m.storageKey); // traz da cópia se o disco perdeu o arquivo
+    quadro = await tirar(store.caminho(m.storageKey));
+  } else if (m.bytes != null && m.bytes <= POSTER_BAIXAR_ATE_BYTES) {
+    const ext = m.storageKey.slice(m.storageKey.lastIndexOf("."));
+    quadro = await comVagaDeDownload(() => comArquivoTemporarioEmPedacos(m.bytes!, store.reader(m.storageKey), ext, tirar));
+  }
+  if (!quadro) throw new MediaRuleError("Não consegui tirar o quadro deste vídeo agora. Tente outro instante ou mais tarde.", 409);
+
+  const chave = chaveDoPoster(m.campaignId, randomUUID());
+  await store.write(chave, quadro, "image/webp");
+  let antiga: string | null = null;
+  try {
+    const trocou = await db.transaction(async (tx) => {
+      const [atual] = await tx
+        .select({ posterKey: campaignMedia.posterKey })
+        .from(campaignMedia)
+        .where(eq(campaignMedia.id, mediaId))
+        .for("update");
+      if (!atual) return false;
+      antiga = atual.posterKey;
+      await tx.update(campaignMedia).set({ posterKey: chave }).where(eq(campaignMedia.id, mediaId));
+      return true;
+    });
+    if (!trocou) {
+      await store.remove(chave).catch(() => {});
+      throw new MediaRuleError("Mídia não encontrada.", 404);
+    }
+  } catch (e) {
+    if (!(e instanceof MediaRuleError)) await store.remove(chave).catch(() => {});
+    throw e;
+  }
+  if (antiga) await store.remove(antiga).catch(() => {});
+  return { poster: store.publicUrl(chave), instante: t.instante };
+}
+
+/** Com a mídia sem pôster, quanto esperar o primeiro (o do envio) antes de deixar escolher. */
+export const FOLGA_PARA_ESCOLHER_CAPA_MS = 60 * 60 * 1000;
 
 async function descartar(posterKey: string | null, streamUid: string | null | undefined) {
   if (posterKey) await storage().remove(posterKey).catch(() => {});

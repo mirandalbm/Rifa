@@ -202,6 +202,11 @@ exportação é pelo canvas do navegador e entra pelo envio de sempre.
 Cortar início e fim (modo cópia), escolher a capa, figurinhas no reels como
 dados, legendas por transcrição como figurinha de legenda (revisadas pela
 pessoa).
+**Em andamento.** Feito (08/10/2026): **escolher a capa** — a organização
+arrasta até o quadro no vídeo do carrossel e no do Reels, e o servidor tira
+aquele quadro pelo `ffmpeg` local (`escolherCapaDoVideo()`, `PUT
+/media/:id/capa`, `npm run poster` prova). Faltam: cortar início e fim,
+figurinhas no reels e legendas por transcrição (esta precisa de provedor).
 
 **Fase E — Geração por IA (fundo, cenário, expansão) · ~2 PRs.**
 Provedor de imagem por geração, escolhido pelo preço por unidade; só fundo e

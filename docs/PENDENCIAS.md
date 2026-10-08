@@ -847,7 +847,16 @@ Na ordem de entrega do plano:
   depois de excluir a conta; e o direito de oposição com a condição da lei
   (art. 18, § 2º: tratamento sem consentimento que descumpra a LGPD). A
   lista do que fica no navegador segue chave por chave (o teste lê o código
-  e exige cada uma pelo nome; a sugestão de agrupar não foi aplicada).
+  e exige cada uma pelo nome; as preferências de tela já vêm numa linha
+  só). Na segunda leitura (08/10/2026) ele **retirou o bloqueio da redação
+  da AWS na Privacidade** (o texto remete ao contrato, sem afirmar o que a
+  plataforma não controla) e aprovou o conjunto: contrato da promotora,
+  anexos A a E (com as ressalvas: cópia da autorização do SCPC no C; o CEBAS
+  quando invocado no E), termo do afiliado, aviso de cookies, reembolso,
+  Termos e Privacidade. Para publicar, falta só o que está fora do código:
+  o e-mail institucional e o endereço oficial nos Dados da empresa (item
+  abaixo). **Ligar o comparador automático** segue dependendo do opt-out da
+  AWS (o item bloqueante, acima).
 - [ ] **[você]** Antes de publicar os Termos, nos **Dados da empresa**
   (Aparência → Rodapé e empresa), os dois bloqueantes do advogado: o
   **e-mail de contato institucional** no domínio (ex.: contato@…) no lugar

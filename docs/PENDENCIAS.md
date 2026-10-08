@@ -817,18 +817,18 @@ Na ordem de entrega do plano:
   **A frase "não retém" é opcional e só depois de (i) e (ii)** (resposta
   (c)): para trocar o trecho "Compartilhamento" da A.2
   (`textoDoConsentimentoBiometrico`, `automatico: true`, em
-  `shared/verificacao.ts`), a frase exata do advogado é: "Compartilhamento:
-  a comparação é automatizada pela Amazon Web Services (Amazon Rekognition),
-  que recebe as duas imagens, devolve apenas o resultado da comparação e não
-  as retém nem as utiliza para treinamento de seus modelos, nos termos do
-  contrato de serviço e do aditivo de tratamento de dados aplicáveis." O
-  trecho da transferência internacional (art. 33, VIII) não muda. Ao trocar:
-  (1) subir `CONSENTIMENTO_BIOMETRICO_VERSAO` — a versão vale como prova do
-  texto lido, e quem consentiu o texto de antes autoriza de novo; (2)
-  perguntar ao advogado se a frase pode manter o fim da atual ("quando ela
-  não confirma, uma pessoa da plataforma compara as duas imagens lado a
-  lado"), que é o que o sistema faz; (3) mudar a Privacidade (seção 3) no
-  mesmo PR. Com qualquer dúvida sobre o opt-out ou o contrato, fica a
+  `shared/verificacao.ts`), a frase exata do advogado, já com o fim da
+  atual (ele pediu para manter: é a revisão humana do art. 20 da LGPD), é:
+  "Compartilhamento: a comparação é automatizada pela Amazon Web Services
+  (Amazon Rekognition), que recebe as duas imagens, devolve apenas o
+  resultado da comparação e não as retém nem as utiliza para treinamento de
+  seus modelos, nos termos do contrato de serviço e do aditivo de tratamento
+  de dados aplicáveis; quando ela não confirma, uma pessoa da plataforma
+  compara as duas imagens lado a lado." O trecho da transferência
+  internacional (art. 33, VIII) não muda. Ao trocar: (1) subir
+  `CONSENTIMENTO_BIOMETRICO_VERSAO` — a versão vale como prova do texto
+  lido, e quem consentiu o texto de antes autoriza de novo (LGPD, art. 8º,
+  § 5º); (2) mudar a Privacidade (seção 3) no mesmo PR. Com qualquer dúvida sobre o opt-out ou o contrato, fica a
   redação atual — o advogado a considera igualmente válida.
 - [x] **Respostas finais do advogado (08/10/2026)**: (a) Termos e
   Privacidade **aprovados**, com a condição de publicar só com o e-mail
@@ -838,7 +838,14 @@ Na ordem de entrega do plano:
   arquivo enviado; (b) A.2 liberada com a condição de ativação (item acima);
   (c) a frase "não retém" para depois do opt-out (item acima); o prazo de 5
   dias, os três ajustes do fluxo do pedido e o agrupamento da seção 8 da
-  Privacidade aprovados.
+  Privacidade aprovados. **Na leitura do documento único (08/10/2026) ele
+  deu o aprovado final de todo o conjunto** (contrato e anexos A a E com as
+  ressalvas, termo do afiliado, consentimento A.1 e A.2, aviso de cookies,
+  reembolso C.1 e C.2, fluxo do pedido D, Termos e Privacidade), retirou o
+  ponto da numeração e manteve o fim da frase da A.2. **Não há mais
+  pendência de conteúdo**; restam três operacionais: a troca dos dados no
+  cadastro antes de publicar (item abaixo), o opt-out da AWS antes de ligar
+  o comparador (item acima) e a versão final do contrato da promotora.
 - [ ] **[você]** **Versão final do contrato da promotora** (prevista para
   09/10/2026; o advogado ainda não a recebeu): mandar a ele antes de
   publicar em Configurações. Ela precisa trazer os quatro pontos que ele

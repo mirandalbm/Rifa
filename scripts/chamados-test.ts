@@ -27,6 +27,7 @@ import {
   quotaAlloc,
   appSettings,
   chamados,
+  chamadoMensagens,
   campanhaSolicitacoes,
 } from "../shared/schema";
 import { hashPassword } from "../server/auth";
@@ -211,8 +212,6 @@ async function main() {
       r.status >= 400 && /sorteio/.test(r.json?.message),
       r.json?.message,
     );
-    r = await c.req("POST", "/api/public/chamados", { ...pedido, anexo: "" });
-    checa("sem print: recusa", r.status === 400, r.json?.message);
     r = await c.req("POST", "/api/public/chamados", {
       ...pedido,
       anexo: "data:image/png;base64,bm90LWltYWdlbQ==",
@@ -370,6 +369,7 @@ async function main() {
       avisos.length === 3 && avisos.filter((a) => a.to === "11955550009").length === 2,
       avisos.map((a) => a.to).join(", "),
     );
+
     r = await o.req("PUT", "/api/admin/reembolso", {
       prazoEstornoDias: 5,
       avisoTelefone: "123",
@@ -394,6 +394,21 @@ async function main() {
       pend.json.total === 3,
       String(pend.json.total),
     );
+
+    // O print é opcional (revisão do advogado, 08/10/2026): sem ele, o
+    // pedido abre do mesmo jeito, só sem anexo.
+    const semPrint = await mk(93000020, camp.id, outro.id);
+    r = await j.req("POST", "/api/public/chamados", {
+      ...pedido,
+      orderCode: semPrint.code,
+      cpf: "111.444.777-35",
+      anexo: undefined,
+    });
+    checa("sem print: o pedido abre", r.status === 201, r.json?.message);
+    const [msgSemPrint] = r.json?.id
+      ? await db.select().from(chamadoMensagens).where(eq(chamadoMensagens.chamadoId, r.json.id))
+      : [];
+    checa("e a mensagem fica sem anexo", Boolean(msgSemPrint) && msgSemPrint.anexoId === null, JSON.stringify(msgSemPrint?.anexoId));
     const det = await o.req("GET", `/api/admin/chamados/${chamadoId}`);
     checa(
       "detalhe traz o ID do cliente",

@@ -18,10 +18,18 @@ import { GUARDA_DAS_RECUSAS_DIAS, GUARDA_DO_BLOQUEIO_VENCIDO_DIAS } from "./anti
 import { DOCUMENTOS_GUARDA_DIAS } from "./verificacao";
 import { cnpjValido } from "./format";
 import { regraDoReembolso } from "./reembolso";
+import { PIX_TARDIO_PRAZO_DIAS_UTEIS } from "./pixTardio";
 import type { Secao } from "./regulamento";
 
 /** Data em que esta redação passou a valer. Sobe junto com qualquer mudança de texto. */
 export const VIGENCIA_DOS_TERMOS = "2026-10-08";
+
+/**
+ * Em quantos dias a plataforma responde a reclamação de consumidor: o teto do
+ * Decreto 7.962/2013, art. 4º, parágrafo único (cinco dias). Os Termos dizem
+ * isso a quem não conseguiu falar com a promotora.
+ */
+export const RESPOSTA_DA_PLATAFORMA_DIAS = 5;
 
 /** Dias que a sessão de login vale sem uso (o cookie renova a cada acesso). */
 export const SESSAO_DIAS = 7;
@@ -80,6 +88,8 @@ export interface DadosDaEmpresa {
   contato: string;
   /** Encarregado pelo tratamento de dados (LGPD, art. 41). */
   encarregadoNome: string;
+  /** Cargo ou função do encarregado (opcional; a Privacidade diz junto do nome). */
+  encarregadoCargo: string;
   encarregadoContato: string;
 }
 
@@ -89,6 +99,7 @@ export const EMPRESA_VAZIA: DadosDaEmpresa = {
   endereco: "",
   contato: "",
   encarregadoNome: "",
+  encarregadoCargo: "",
   encarregadoContato: "",
 };
 
@@ -103,6 +114,7 @@ export const CAMPOS_DA_EMPRESA: readonly CampoDaEmpresa[] = [
   "endereco",
   "contato",
   "encarregadoNome",
+  "encarregadoCargo",
   "encarregadoContato",
 ];
 
@@ -112,6 +124,7 @@ const LIMITE: Record<CampoDaEmpresa, [number, string]> = {
   endereco: [200, "O endereço"],
   contato: [120, "O e-mail de contato"],
   encarregadoNome: [120, "O nome do encarregado"],
+  encarregadoCargo: [80, "O cargo do encarregado"],
   encarregadoContato: [120, "O e-mail do encarregado"],
 };
 
@@ -222,9 +235,21 @@ function canal(e: DadosDaEmpresa): string {
 
 function contatoDoEncarregado(e: DadosDaEmpresa): string {
   if (e.encarregadoNome && e.encarregadoContato) {
-    return `O encarregado pelo tratamento de dados pessoais é ${e.encarregadoNome}, pelo e-mail ${e.encarregadoContato}.`;
+    const cargo = e.encarregadoCargo ? `, ${e.encarregadoCargo}` : "";
+    return `O encarregado pelo tratamento de dados pessoais é ${e.encarregadoNome}${cargo}, pelo e-mail ${e.encarregadoContato} — é o canal para exercer os seus direitos (item 7).`;
   }
   return `O contato do encarregado pelo tratamento de dados pessoais será publicado nesta página; até lá, fale com a plataforma ${canal(e)}.`;
+}
+
+/**
+ * Os canais de quem não resolveu com a promotora, num item à parte para não
+ * se perder no meio do parágrafo: a plataforma, com o prazo de resposta, e os
+ * órgãos públicos, um não dependendo do outro.
+ */
+function canaisDoConsumidor(e: DadosDaEmpresa): string[] {
+  return [
+    `Reclamação: a plataforma responde em até ${RESPOSTA_DA_PLATAFORMA_DIAS} dias (Decreto 7.962/2013, art. 4º, parágrafo único) ${e.contato ? `— escreva para ${e.contato}` : "— pelos contatos que ela publicar nesta página"}. Você também pode registrar a reclamação no consumidor.gov.br, o serviço público do governo federal, ou no Procon da sua cidade, sem precisar falar antes com a plataforma.`,
+  ];
 }
 
 /** Termos de uso da plataforma (apostador; organização e afiliado têm os termos deles além destes). */
@@ -236,13 +261,15 @@ export function montarTermosDeUso(d: DadosDosTermos): Secao[] {
         identificacao(d),
         `${d.plataforma} é a plataforma de tecnologia que hospeda as rifas e emite os bilhetes, e facilita o pagamento pelo Pix por meio de instituição de pagamento autorizada pelo Banco Central, que recebe e processa o Pix. Cada rifa tem uma promotora — a organização que obteve a autorização da Secretaria de Prêmios e Apostas do Ministério da Fazenda (Lei 5.768/71) —, e o regulamento de cada rifa, publicado na página dela, vale para aquela rifa junto com estes termos.`,
         "A promotora responde pelo prêmio e pela entrega dele ao ganhador. A plataforma responde pelo funcionamento do sistema: venda, reserva, pagamento, bilhete, sorteio conferível e atendimento.",
+        "A compra de uma cota é relação de consumo: valem o Código de Defesa do Consumidor (Lei 8.078/1990) e a Lei 5.768/71, e nada nestes termos afasta os seus direitos de consumidor. A lei aplicável e o foro estão no item 10.",
+        "Os dados pessoais seguem a Política de privacidade: lá estão o papel da plataforma (controladora dos dados do seu cadastro e das suas compras), as bases legais de cada uso e o encarregado pelo tratamento de dados.",
       ],
     },
     {
       titulo: "2. Quem pode usar",
       itens: [
         "Só maiores de 18 anos. Comprar para menor de idade, ou deixar que use a sua conta, é proibido.",
-        "Os dados do cadastro precisam ser verdadeiros e seus. CPF e e-mail valem para uma conta só; o telefone pode ser confirmado por código no WhatsApp — sem essa confirmação, algumas funções (como ver compras feitas fora da conta e pedir reembolso de venda do cambista) ficam limitadas.",
+        "Os dados do cadastro precisam ser verdadeiros e seus. CPF e e-mail valem para uma conta só; o telefone pode ser confirmado por código no WhatsApp. Sem essa confirmação: (a) uma compra feita fora da conta, com o mesmo telefone, só aparece nela se tiver sido feita com o CPF da conta; (b) não dá para pedir pelo site o reembolso de compra feita com cambista; e (c) a conta criada pelo Google só compra depois de confirmar o telefone e informar o CPF.",
         "Você é responsável pela sua senha e pelo que é feito na sua conta. Desconfiou de acesso de outra pessoa, troque a senha: as outras sessões são encerradas.",
       ],
     },
@@ -258,7 +285,7 @@ export function montarTermosDeUso(d: DadosDosTermos): Secao[] {
     {
       titulo: "4. Sorteio e prêmio",
       itens: [
-        "O sorteio segue o regulamento da rifa: data (no modo \"quando completar\", a data máxima, que é antecipada para a próxima extração da Loteria Federal se a rifa completar antes, com aviso na plataforma), método de apuração da autorização (a leitura direta da Loteria Federal ou o globo da plataforma, com ata notarial), a regra para número sorteado não vendido (na Loteria Federal, o número vendido mais próximo, alternando acima e abaixo; no globo, nova extração no mesmo ato) e o mínimo de cotas, se houver. Na rifa autorizada não podem participar a promotora, seus sócios e diretores, nem a plataforma e seus administradores: a compra com o telefone de um deles, ou com o CPF de um sócio ou diretor, é recusada. Qualquer pessoa confere o resultado na página do sorteio da rifa. Cotas premiadas, quando houver, são vale-brinde, autorizado junto com o sorteio (promoção mista).",
+        "O sorteio segue o regulamento da rifa: data (no modo \"quando completar\", a data máxima, que é antecipada para a próxima extração da Loteria Federal se a rifa completar antes, com aviso na plataforma), método de apuração da autorização (a leitura direta da Loteria Federal ou o globo da plataforma, com ata notarial), a regra para número sorteado não distribuído (na Loteria Federal, aproximação obrigatória por busca alternada e contínua em fita circular, +1, −1, +2, −2…, a partir do número apurado, até identificar um número distribuído; no globo, nova extração no mesmo ato, quantas vezes forem necessárias) e o mínimo de cotas, se houver. Na rifa autorizada não podem participar a promotora, seus sócios e diretores, nem a plataforma e seus administradores: a compra com o telefone de um deles, ou com o CPF de um sócio ou diretor, é recusada. Qualquer pessoa confere o resultado na página do sorteio da rifa. Cotas premiadas, quando houver, são vale-brinde, autorizado junto com o sorteio (promoção mista).",
         "O ganhador é avisado pelos dados do cadastro e recebe o prêmio da promotora no prazo do regulamento. Prêmio não reclamado em 180 dias prescreve, na forma da lei.",
       ],
     },
@@ -268,9 +295,11 @@ export function montarTermosDeUso(d: DadosDosTermos): Secao[] {
         ? [
             regraDoReembolso(d.reembolso.taxaPct),
             `O pedido é feito por chamado, dentro da conta, e a devolução vai para a mesma conta que pagou. A devolução integral (arrependimento ou sorteio adiado) sai em até ${DIAS_UTEIS_DEVOLUCAO_INTEGRAL} dias úteis da aprovação; a com taxa, no prazo informado no protocolo, de até ${PRAZO_ESTORNO_MAX} dias. A promotora responde em até ${RESPOSTA_PRAZO_DIAS} dias; se recusar, ou se não responder nesse prazo, você pode levar a disputa à plataforma em até ${DISPUTA_PRAZO_DIAS} dias, e ela dá a palavra final. Nada disso tira o seu direito de reclamar no Procon ou no consumidor.gov.br.`,
+            ...canaisDoConsumidor(d.empresa),
           ]
         : [
-            `No momento a plataforma não recebe pedidos de reembolso pelo site: fale com a promotora da rifa (os contatos dela estão no perfil). O seu direito de desistir da compra online em até 7 dias (art. 49 do Código de Defesa do Consumidor), antes do fechamento dos pedidos, segue valendo — se a promotora não responder, fale com a plataforma ${canal(d.empresa)}, sem prejuízo de reclamar no Procon ou no consumidor.gov.br.`,
+            `No momento a plataforma não recebe pedidos de reembolso pelo site: fale com a promotora da rifa (os contatos dela estão no perfil). O seu direito de desistir da compra online em até 7 dias (art. 49 do Código de Defesa do Consumidor), antes do fechamento dos pedidos, segue valendo — se a promotora não responder, fale com a plataforma ${canal(d.empresa)}, com o número do pedido.`,
+            ...canaisDoConsumidor(d.empresa),
           ],
     },
     {
@@ -283,7 +312,7 @@ export function montarTermosDeUso(d: DadosDosTermos): Secao[] {
       titulo: "7. Comentários, mensagens e conduta",
       itens: [
         "Comentários, mensagens, grupos e publicações não podem ter link, telefone, pedido de pagamento por fora, ofensa, discriminação, conteúdo ilegal ou dado pessoal de terceiros. A plataforma pode retirar o conteúdo, encerrar conversas, travar a rifa ou banir a organização que descumprir — e as denúncias são analisadas por ela.",
-        "Afiliados divulgam pelas regras do termo de adesão de cada organização: publicidade identificada, sem prometer ganho e sem atingir menores.",
+        "Afiliados divulgam pelas regras do termo de adesão de cada organização: publicidade identificada, sem prometer ganho e sem atingir menores. Esse termo é um contrato à parte, entre o afiliado e a promotora: não integra estes termos, e o afiliado não fala nem age em nome da plataforma.",
       ],
     },
     {
@@ -295,7 +324,7 @@ export function montarTermosDeUso(d: DadosDosTermos): Secao[] {
     {
       titulo: "9. Responsabilidade e funcionamento",
       itens: [
-        `A plataforma mantém o sistema no ar com o cuidado devido, mas pode ter interrupções para manutenção ou por falha de terceiros (provedor do Pix, WhatsApp, internet). Pague dentro do prazo da reserva: se a confirmação do Pix chegar depois de a reserva vencer, ou depois do sorteio, os números não ficam garantidos e o valor é devolvido: o pagamento entra numa fila que a plataforma confere e devolve para a mesma conta que pagou — pelo provedor do Pix, sempre que ele permitir. Se demorar, fale com a plataforma ${canal(d.empresa)}.`,
+        `A plataforma mantém o sistema no ar com o cuidado devido, mas pode ter interrupções para manutenção ou por falha de terceiros (provedor do Pix, WhatsApp, internet). Pague dentro do prazo da reserva: se a confirmação do Pix chegar depois de a reserva vencer, ou depois do sorteio, os números não ficam garantidos e o valor é devolvido: o pagamento entra numa fila que a plataforma confere e devolve para a mesma conta que pagou, em até ${PIX_TARDIO_PRAZO_DIAS_UTEIS} dias úteis da confirmação do pagamento — pelo provedor do Pix, sempre que ele permitir. Se demorar, fale com a plataforma ${canal(d.empresa)}.`,
         "Nada nestes termos afasta os seus direitos de consumidor.",
       ],
     },
@@ -304,7 +333,8 @@ export function montarTermosDeUso(d: DadosDosTermos): Secao[] {
       itens: [
         `Esta versão vale a partir de ${dataPorExtenso(VIGENCIA_DOS_TERMOS)}. Uma versão nova é publicada nesta página com a data em que passa a valer; a compra já feita segue as regras do momento em que foi feita.`,
         "Você aceita estes termos ao criar a conta e, a cada compra, junto com o regulamento da rifa — os dois ficam ao lado do botão de pagar. Eles estão sempre nesta página, para ler, copiar ou imprimir.",
-        `Vale a lei brasileira. Você pode reclamar no foro do seu domicílio, como prevê o Código de Defesa do Consumidor, além de falar com a plataforma ${canal(d.empresa)} e usar o consumidor.gov.br.`,
+        `Vale a lei brasileira. Você pode reclamar no foro do seu domicílio, nos termos do art. 101, I, do Código de Defesa do Consumidor, além de falar com a plataforma ${canal(d.empresa)} e usar o consumidor.gov.br.`,
+        "Nas relações não sujeitas ao Código de Defesa do Consumidor, fica eleito o foro da comarca da sede da plataforma, informada no item 1.",
       ],
     },
   ];
@@ -318,7 +348,7 @@ export function montarPrivacidade(d: DadosDosTermos): Secao[] {
       titulo: "1. Quem trata os seus dados",
       itens: [
         identificacao(d),
-        "A plataforma é a controladora dos dados do seu cadastro e das suas compras. A promotora da rifa recebe só o necessário para cumprir o que é dela: o ganhador (para entregar o prêmio), os clientes que compraram na mão do cambista dela e o nome e o WhatsApp de quem pede para ser colaborador dela. Das demais compras, ela vê o pedido, os números e o valor, com o cliente identificado só por um código. O afiliado vê só o primeiro nome de quem comprou pelo link dele.",
+        "A plataforma atua como controladora dos dados que trata em nome próprio — o seu cadastro e as suas compras — e como operadora dos dados que trata por conta da promotora, para ela cumprir o que é dela (como a entrega do prêmio), na forma desta Política. A promotora da rifa recebe só o necessário para cumprir o que é dela: o ganhador (para entregar o prêmio), os clientes que compraram na mão do cambista dela e o nome e o WhatsApp de quem pede para ser colaborador dela. Das demais compras, ela vê o pedido, os números e o valor, com o cliente identificado só por um código. O afiliado vê só o primeiro nome de quem comprou pelo link dele.",
         contatoDoEncarregado(d.empresa),
       ],
     },
@@ -326,21 +356,21 @@ export function montarPrivacidade(d: DadosDosTermos): Secao[] {
       titulo: "2. Quais dados e para quê",
       itens: [
         "Cadastro (nome, telefone, CPF, e-mail, CEP, cidade e estado, apelido e foto): identificar você, emitir o bilhete, avisar do resultado, entregar o prêmio e cumprir a lei das rifas. Base legal: execução do contrato e obrigação legal.",
-        "Compras e pagamentos (pedidos, números, valores, o identificador do Pix): vender, conferir o pagamento, devolver em caso de reembolso e prestar contas. Os dados do pagamento ficam com o provedor do Pix; a plataforma não guarda dados bancários de quem compra.",
+        "Compras e pagamentos (pedidos, números, valores, o identificador do Pix): vender, conferir o pagamento, devolver em caso de reembolso e prestar contas. Os dados do pagamento ficam com o provedor do Pix; a plataforma não guarda dados bancários de quem compra; guarda apenas o identificador do Pix, necessário para conferir o pagamento e fazer devoluções. Base legal: execução do contrato e obrigação legal (prestação de contas da rifa).",
         "Segurança e antifraude (endereço IP e identificador do aparelho em hash, telefone mascarado nas recusas, e tentativas de acesso): impedir golpe, bloqueio de estoque e uso indevido de contas. O registro de auditoria de algumas ações (entrar no painel, autorizar ou revogar a comparação de foto, por exemplo) guarda o IP de quem agiu. Base legal: legítimo interesse e prevenção à fraude.",
         "Comentários, mensagens e publicações: o que você escreve, para mostrar a quem deve ver e para moderar denúncias (a plataforma lê só o trecho denunciado). Base legal: execução do contrato e legítimo interesse (moderação).",
-        "Voto nas enquetes dos stories (só com conta): qual opção você escolheu, guardado só para contar um voto por pessoa e mostrar a você o resultado. A organização vê os totais de cada opção, nunca quem votou em quê; o voto sai com o story.",
-        `Verificação de perfil (opcional): documentos, guardados cifrados, e — só com a sua autorização destacada — a comparação da foto do perfil com a do documento, que é dado biométrico (art. 11), para verificação de identidade e prevenção a fraudes. Da comparação fica só o resultado (verificado ou não) — nenhum modelo ou medida do rosto. Os documentos são apagados ${DOCUMENTOS_GUARDA_DIAS} dias depois da decisão (verificado ou recusado); o resultado e o selo ficam. A autorização pode ser revogada na própria tela; quem foi verificado com uma autorização anterior é chamado a confirmar de novo, senão o selo sai.`,
+        "Voto nas enquetes dos stories (só com conta): qual opção você escolheu, guardado só para contar um voto por pessoa e mostrar a você o resultado. A organização vê os totais de cada opção, nunca quem votou em quê; o voto sai com o story. Base legal: execução do contrato (a enquete que você escolheu responder).",
+        `Verificação de perfil (opcional): documentos, guardados cifrados, e — só com a sua autorização destacada — a comparação da foto do perfil com a do documento, que é dado biométrico (art. 11), para verificação de identidade e prevenção a fraudes. Da comparação fica só o resultado (verificado ou não) — nenhum modelo ou medida do rosto. Os documentos são apagados ${DOCUMENTOS_GUARDA_DIAS} dias depois da decisão (verificado ou recusado); o resultado e o selo ficam. A autorização pode ser revogada na própria tela; quem foi verificado com uma autorização anterior é chamado a confirmar de novo, senão o selo sai. Base legal: os documentos, execução do contrato (a verificação que você pede); a comparação da foto, o seu consentimento específico e destacado (LGPD, art. 11, I).`,
         "Origem da visita (de onde você chegou, campanha de anúncio): estatística de vendas; nunca decide preço nem comissão. Base legal: legítimo interesse.",
         "Sócios e diretores da promotora (nome, cargo e CPF, cadastrados pela organização): só para recusar a compra deles nas rifas autorizadas, que eles não podem disputar. O CPF não fica guardado — só uma impressão cifrada para a comparação e os dois últimos dígitos para a tela. Sai quando a organização tira a pessoa da lista. Base legal: cumprimento de obrigação regulatória (Lei 5.768/71).",
-        "Documentos da entidade beneficiada (CNPJ, ata da diretoria, certidões), enviados pela organização: só a plataforma os abre, para conferir a entidade antes de ela aparecer na rifa; guardados cifrados e apagados junto com a entidade.",
+        "Documentos da entidade beneficiada (CNPJ, ata da diretoria, certidões), enviados pela organização: só a plataforma os abre, para conferir a entidade antes de ela aparecer na rifa; guardados cifrados e apagados junto com a entidade. Base legal: legítimo interesse (conferir a entidade antes de ela aparecer ao público) e prevenção à fraude.",
       ],
     },
     {
       titulo: "3. Com quem compartilhamos",
       itens: [
-        "Provedor do Pix (para gerar e conferir a cobrança e fazer devoluções); Meta/WhatsApp (código de acesso e mensagens das suas compras); Google (só se você entrar com o Google); serviço de consulta de CEP (só o CEP); serviços de notificação do celular (Google, Apple, Mozilla, Microsoft — só se você ligar os avisos); Amazon Web Services (Amazon Rekognition), como operador que só compara as fotos por nossa ordem, em servidores no exterior e com as garantias de segurança do contrato dele — transferência internacional que só acontece com o seu consentimento expresso no texto que a cita (LGPD, art. 33, VIII); os provedores de hospedagem, banco de dados e cópia de segurança, que guardam os dados por nós; e a promotora e o afiliado (o que está no item 1).",
-        "Pixels de anúncio (Meta, Google, TikTok) só carregam depois do seu \"Aceitar\" no aviso de cookies; a compra enviada a eles leva o telefone só em hash, nunca nome, CPF ou e-mail. Base legal: o seu consentimento, que você retira em Perfil → Preferência de cookies.",
+        "Provedor do Pix (para gerar e conferir a cobrança e fazer devoluções); Meta/WhatsApp (código de acesso e mensagens das suas compras); Google (só se você entrar com o Google); serviço de consulta de CEP (só o CEP); serviços de notificação do celular (Google, Apple, Mozilla, Microsoft — só se você ligar os avisos); Amazon Web Services (Amazon Rekognition), só quando a plataforma liga o comparador automático (sem ele, a comparação é feita por uma pessoa da plataforma e a foto não sai), como operadora, nos termos do contrato dela com a plataforma, em servidores no exterior — transferência internacional que só acontece com o seu consentimento expresso no texto que a cita (LGPD, art. 33, VIII); os provedores de hospedagem, banco de dados e cópia de segurança, que guardam os dados por nós; e a promotora e o afiliado (o que está no item 1).",
+        "Pixels de anúncio (Meta, Google, TikTok) só carregam depois do seu \"Aceitar\" no aviso de cookies; a compra enviada a eles leva o telefone só em hash, nunca nome, CPF ou e-mail. Meta, Google e TikTok atuam como controladores conjuntos dos dados coletados por esses cookies, nos termos das respectivas políticas de privacidade. Base legal: o seu consentimento, que você retira em Perfil → Preferência de cookies; ao recusar, os cookies não essenciais já instalados são removidos.",
         "Autoridades, quando a lei ou ordem judicial exigir. Nunca vendemos dados pessoais.",
       ],
     },
@@ -358,7 +388,7 @@ export function montarPrivacidade(d: DadosDosTermos): Secao[] {
       titulo: "5. Por quanto tempo",
       itens: [
         `Compras, bilhetes, recibos e o registro do sorteio: 5 anos (Código Tributário Nacional, arts. 173 e 174), e os documentos fiscais eletrônicos até 11 anos, mesmo depois de excluída a conta. Avisos da central: 90 dias. Contagem de tentativas para os limites de antifraude: 2 horas; o registro das recusas (com o telefone mascarado e o aparelho em hash): ${GUARDA_DAS_RECUSAS_DIAS} dias; o bloqueio com prazo sai ${GUARDA_DO_BLOQUEIO_VENCIDO_DIAS} dias depois de vencer, e o bloqueio sem prazo fica até a plataforma retirá-lo.`,
-        "Ao excluir a conta, nome, telefone, CPF, e-mail, senha, apelido, foto, as fotos das suas publicações e a verificação e os votos nas enquetes saem; o que precisa ficar por lei fica sem identificar você.",
+        "Ao excluir a conta, nome, telefone, CPF, e-mail, senha, apelido, foto, as fotos das suas publicações e a verificação e os votos nas enquetes saem; o que precisa ficar por lei fica sem identificar você: as compras e os bilhetes ficam anonimizados (sem nome, telefone, CPF e e-mail), para fins fiscais e de auditoria do sorteio.",
       ],
     },
     {
@@ -370,14 +400,14 @@ export function montarPrivacidade(d: DadosDosTermos): Secao[] {
     {
       titulo: "7. Seus direitos",
       itens: [
-        "Você pode confirmar se tratamos seus dados, acessá-los, corrigi-los (Minha conta), excluir a conta, revogar consentimentos a qualquer momento e sem custo (cookies e perfil público no seu perfil, avisos no celular, comparação de foto na verificação), pedir informação sobre compartilhamento e a portabilidade (LGPD, art. 18).",
+        "Você pode confirmar se tratamos seus dados, acessá-los, corrigi-los (Minha conta), excluir a conta, revogar consentimentos a qualquer momento e sem custo (cookies e perfil público no seu perfil, avisos no celular, comparação de foto na verificação), pedir informação sobre compartilhamento e a portabilidade (LGPD, art. 18). Você também pode se opor a tratamento feito sem o seu consentimento — como os de legítimo interesse (segurança e antifraude, moderação, origem da visita) — quando ele descumprir a LGPD (art. 18, § 2º).",
         `Peça pelo encarregado (item 1) ou fale com a plataforma ${canal(d.empresa)}. O pedido é gratuito e respondido em até 15 dias (LGPD, art. 19, II). Você também pode reclamar à Autoridade Nacional de Proteção de Dados (ANPD).`,
       ],
     },
     {
       titulo: "8. Cookies",
       itens: [
-        "Os essenciais (sessão, carrinho, tema, região) fazem o site funcionar e não dependem de aceite. Os de anúncio e medição só depois do \"Aceitar\"; recusar é tão fácil quanto aceitar, e você muda de ideia em Perfil → Preferência de cookies.",
+        "Os essenciais (sessão, carrinho, tema, região) fazem o site funcionar e não dependem de aceite. Os de anúncio e medição só depois do \"Aceitar\"; recusar é tão fácil quanto aceitar, apaga os de anúncio e medição já gravados, e você muda de ideia em Perfil → Preferência de cookies.",
         ...GUARDADO_NO_NAVEGADOR.flatMap((g) => [`${g.grupo}:`, ...g.itens.map((i) => `• ${i}`)]),
       ],
     },

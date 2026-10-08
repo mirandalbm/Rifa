@@ -31,6 +31,7 @@ import {
 import {
   ANEXO_MAX_BYTES,
   CHAMADOS_POR_DIA,
+  DIREITO_DO_CONSUMIDOR,
   bloqueioDaDisputa,
   bloqueioDoReembolso,
   destinatariosDoAviso,
@@ -123,7 +124,7 @@ export function exigirComprador(req: Request): CompradorLogado {
 
 export async function abrirChamado(
   comprador: CompradorLogado,
-  entrada: PedidoDeReembolso & { orderCode: number; anexo: string },
+  entrada: PedidoDeReembolso & { orderCode: number; anexo?: string },
 ) {
   const problema = problemaNoPedido(entrada);
   if (problema) throw new ChamadoError(problema);
@@ -181,10 +182,11 @@ export async function abrirChamado(
     adiadoEm: linha.adiadoEm,
   });
 
-  // Erro de preenchimento (print faltando, arquivo que não é imagem) não
-  // gasta a cota do dia: senão quem erra o formulário duas vezes fica 24 h
-  // sem poder pedir.
-  const imagem = await processarAnexo(entrada.anexo);
+  // O print é opcional (o bilhete já está no sistema; exigir era barreira —
+  // revisão do advogado, 08/10/2026). Mandado, é conferido: erro de
+  // preenchimento (arquivo que não é imagem) não gasta a cota do dia, senão
+  // quem erra o formulário duas vezes fica 24 h sem poder pedir.
+  const imagem = entrada.anexo ? await processarAnexo(entrada.anexo) : null;
 
   // Daqui em diante conta, mesmo quando recusa: pedido falso vem em série, e
   // o CPF errado precisa contar — senão dá para chutar CPF sem limite.
@@ -220,15 +222,17 @@ export async function abrirChamado(
             devolverCents: calculo.devolverCents,
           })
           .returning();
-        const [anexo] = await tx
-          .insert(chamadoAnexos)
-          .values({ chamadoId: chamado.id, mime: "image/jpeg", bytes: imagem, tamanho: imagem.length })
-          .returning({ id: chamadoAnexos.id });
+        const [anexo] = imagem
+          ? await tx
+              .insert(chamadoAnexos)
+              .values({ chamadoId: chamado.id, mime: "image/jpeg", bytes: imagem, tamanho: imagem.length })
+              .returning({ id: chamadoAnexos.id })
+          : [null];
         await tx.insert(chamadoMensagens).values({
           chamadoId: chamado.id,
           autor: "comprador",
           texto: entrada.motivo.trim(),
-          anexoId: anexo.id,
+          anexoId: anexo?.id ?? null,
         });
         // Primeira vez que o CPF aparece: fica no cadastro, e o próximo
         // pedido de reembolso precisa bater com ele.
@@ -840,7 +844,7 @@ export async function decidirDisputa(
   if (c.disputa !== "aberta") throw new ChamadoError("Este chamado não está em disputa.", 409);
   // Quem ganhou o prêmio não recebe também o dinheiro de volta.
   if (entrada.resultado === "procedente" && (await pedidoPremiado(c.orderId))) {
-    throw new ChamadoError("Este pedido foi premiado: a disputa não pode ser procedente.", 409);
+    throw new ChamadoError("Este pedido foi premiado: o prêmio já foi ganho e a participação foi prestada, por isso a disputa não pode ser procedente.", 409);
   }
 
   const [org] = await db
@@ -881,7 +885,7 @@ export async function decidirDisputa(
     userId: req.user!.id,
     texto: procedente
       ? `A plataforma deu razão ao comprador: reembolso aprovado (protocolo ${feito.protocolo}). ${decisao}`
-      : `A plataforma manteve a recusa. ${decisao}`,
+      : `A plataforma manteve a recusa. ${decisao} ${DIREITO_DO_CONSUMIDOR}`,
   });
   emSegundoPlano(avisarDisputa(feito.id), "disputa decidida");
   return feito;

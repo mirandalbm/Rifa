@@ -54,6 +54,7 @@ import { comparadorAtivo, type ComparadorDeRostos } from "./rosto";
 import { avisar, emSegundoPlano } from "./push";
 import { isUniqueViolation } from "../pgError";
 import { hit } from "./antifraude";
+import { templatePublicado } from "./template";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -215,10 +216,19 @@ async function linhaDe(sujeito: Sujeito, id: string) {
   return v;
 }
 
-/** O texto do consentimento em vigor agora, com a chave e a impressão. */
-function consentimentoEmVigor() {
+/**
+ * O texto do consentimento em vigor agora, com a chave e a impressão. O
+ * encarregado vem dos Dados da empresa publicados (o mesmo da Privacidade):
+ * trocar o e-mail dele não muda a chave — não pede consentimento de novo —,
+ * mas a impressão guardada prova o texto exato que a pessoa leu.
+ */
+async function consentimentoEmVigor() {
   const modo = { automatico: Boolean(comparadorAtivo()) };
-  const texto = textoDoConsentimentoBiometrico(modo);
+  const legal = (await templatePublicado()).template.legal;
+  const texto = textoDoConsentimentoBiometrico({
+    ...modo,
+    encarregado: legal ? { nome: legal.encarregadoNome, contato: legal.encarregadoContato } : null,
+  });
   return {
     texto,
     chave: chaveDoConsentimento(modo),
@@ -234,10 +244,10 @@ export type AtorDaVerificacao = { id: string | null; role: string; ip: string | 
  * que está em vigor (o texto mudou desde que a pessoa leu → 409, lê de novo).
  * Sem a marca, devolve `null` — quem chama decide se é obrigatória.
  */
-function consentimentoConferido(bruto: unknown) {
+async function consentimentoConferido(bruto: unknown) {
   const b = (bruto ?? {}) as { consentimentoFoto?: unknown; consentimentoChave?: unknown };
   if (b.consentimentoFoto !== true) return null;
-  const atual = consentimentoEmVigor();
+  const atual = await consentimentoEmVigor();
   if (b.consentimentoChave !== atual.chave) {
     throw new VerificacaoError("O texto da autorização mudou desde que você leu. Leia de novo e autorize.", 409);
   }
@@ -272,7 +282,7 @@ export async function salvarDadosDaVerificacao(sujeito: Sujeito, id: string, bru
   // A foto do rosto é dado biométrico (LGPD, art. 11): a autorização vem marcada na tela, à parte.
   // Não é condição para salvar os dados — quem revogou corrige a conta sem consentir de novo; o que
   // falta aparece em `faltaNaVerificacao`.
-  const consentimento = comparaFoto(sujeito) ? consentimentoConferido(bruto) : null;
+  const consentimento = comparaFoto(sujeito) ? await consentimentoConferido(bruto) : null;
   let dados: DadosVerificacao;
   try {
     dados = validarDadosDaVerificacao(sujeito, bruto);
@@ -322,7 +332,7 @@ export async function salvarDadosDaVerificacao(sujeito: Sujeito, id: string, bru
  */
 export async function autorizarComparacao(sujeito: Sujeito, id: string, bruto: unknown, ator: AtorDaVerificacao) {
   if (!comparaFoto(sujeito)) throw new VerificacaoError("Esta verificação não compara foto.", 400);
-  const consentimento = consentimentoConferido(bruto);
+  const consentimento = await consentimentoConferido(bruto);
   if (!consentimento) throw new VerificacaoError("Marque a autorização para comparar a foto do perfil com a do documento.");
   // Cada autorização pode chamar o comparador pago: limite por pessoa.
   if ((await hit(`verificacao:consentimento:${sujeito}:${id}`, 60, 10)).excedeu) {
@@ -529,7 +539,7 @@ export async function pedidoDeRenovacao(sujeito: Sujeito, id: string) {
     .from(verificacoes)
     .where(and(eq(verificacoes.sujeito, sujeito), eq(verificacoes.sujeitoId, id)));
   if (!v || !precisaRenovarConsentimento(v.status, v.chave)) return { renovar: false as const };
-  const atual = consentimentoEmVigor();
+  const atual = await consentimentoEmVigor();
   return { renovar: true as const, renovarAte: prazoParaRenovarConsentimento().toISOString(), texto: atual.texto, chave: atual.chave };
 }
 
@@ -546,6 +556,7 @@ export async function estadoDaVerificacao(sujeito: Sujeito, id: string, comDados
         .where(eq(verificacaoDocumentos.verificacaoId, v.id))
     : [];
   const temFoto = Boolean(await versaoDaFoto(db, sujeito, id));
+  const atual = comparaFoto(sujeito) ? await consentimentoEmVigor() : null;
   const dados =
     comDados && v?.dados && v.iv && v.tag && v.chaveVersao
       ? decifrarJson<DadosVerificacao>({ dados: v.dados, iv: v.iv, tag: v.tag, versao: v.chaveVersao })
@@ -568,9 +579,8 @@ export async function estadoDaVerificacao(sujeito: Sujeito, id: string, comDados
       temConsentimento: consentimentoVigente(v?.consentimentoBiometricoChave),
     }),
     /** O texto a autorizar (com a chave que volta no pedido) e o consentimento gravado. */
-    consentimento: comparaFoto(sujeito)
+    consentimento: atual
       ? (() => {
-          const atual = consentimentoEmVigor();
           return {
             texto: atual.texto,
             chave: atual.chave,

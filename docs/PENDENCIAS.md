@@ -112,8 +112,11 @@ senha); **[código]** é trabalho no repositório.
   Configurações → "Reembolso: prazo e aviso" (vazio, avisa os organizadores
   que têm WhatsApp no cadastro).
 - [ ] **[você]** Ligar "Aceitar pedidos de reembolso" (Configurações →
-  Pagamentos e estorno) quando decidir aceitar, e cada organização conferir
-  o prazo de reembolso em Configurações.
+  Pagamentos e estorno) **assim que o provedor do Pix estiver configurado**,
+  e cada organização conferir o prazo de reembolso em Configurações.
+  **Desligado é estado provisório** (revisão do advogado, 08/10/2026): o
+  art. 49 vale do mesmo jeito, e o interruptor desligado por muito tempo
+  pode ser lido como dificultar o direito de desistir.
 - [ ] **[você]** O comprador só entra em "Minhas cotas" pelo código do
   WhatsApp: **sem o modelo `codigo_acesso` aprovado (item 1), ninguém
   consegue pedir reembolso** — nem ver as cotas.
@@ -568,6 +571,8 @@ Na ordem de entrega do plano:
   `ROSTO_AWS_SECRET_ACCESS_KEY` e `ROSTO_AWS_REGION`. Sem isso, a plataforma
   confere a foto à mão. O texto do consentimento já cita a AWS e a
   transferência internacional quando o comparador está ligado (item 7).
+  **Antes, o opt-out da AWS** (o item bloqueante da revisão de 08/10/2026,
+  mais abaixo).
 - [x] Publicação como no Instagram: carrossel de até 10 (reels até 3 min,
   vídeo do feed até 15 min), curtir com o trevo, comentar, republicar,
   compartilhar e salvar com contadores, legenda da organização, "• Autor"
@@ -759,6 +764,98 @@ Na ordem de entrega do plano:
   consumidor.gov.br no reembolso, as bases legais que faltavam (comentários,
   origem da visita, pixels), a revogação sem custo e a resposta ao titular
   em até 15 dias (LGPD, art. 19, II).
+- [x] **Reembolso e disputa na tela, pelo roteiro do advogado (08/10/2026)**:
+  com o reembolso desligado, a página da rifa e o carrinho passam a dizer,
+  antes do Pix, o prazo de 7 dias do art. 49 (e o aviso de prazo curto), com
+  o caminho (promotora, depois a plataforma) e o Procon
+  (`regraSemReembolsoPeloSite()`); a ajuda diz o mesmo. A disputa deixou de
+  dizer só "a decisão é final": a tela, a mensagem da decisão e a ajuda nova
+  ("E se a promotora recusar o reembolso?") dizem que a decisão encerra o
+  caso no site sem tirar o Procon e o consumidor.gov.br
+  (`DIREITO_DO_CONSUMIDOR`). O consentimento biométrico mudou depois, com a
+  revisão formal (item abaixo).
+- [x] **Revisão formal do advogado no consentimento, nos cookies e no
+  reembolso (08/10/2026)**, aplicada:
+  - consentimento biométrico na **versão 5**: "não compartilhadas com
+    terceiros para a finalidade de comparação" (no lugar de "não são
+    enviadas a ninguém de fora"), a AWS como operadora "nos termos do
+    contrato" (sem o "não as guarda"), o resultado guardado enquanto a conta
+    existir, e o **encarregado com o e-mail** (dos Dados da empresa
+    publicados; sem ele, a frase aponta a Privacidade). Quem já estava
+    verificado autoriza de novo (a janela de sempre, 30 dias);
+  - aviso de cookies na **versão 2** (todos escolhem de novo): Meta, Google e
+    TikTok como controladores conjuntos, e **recusar apaga os cookies de
+    medição já gravados** (`apagarCookiesDeMedicao()`, que recarrega a página
+    se algum pixel já tinha carregado); a Privacidade diz o mesmo;
+  - a taxa de 10% com a causa identificada (processamento, tarifas do
+    provedor, custos da devolução pelo Pix ou pelo caixa);
+  - o **print do bilhete deixou de ser obrigatório** no pedido de reembolso
+    (o bilhete já está no sistema);
+  - a ajuda com o reembolso desligado responde cada pergunta (a da recusa diz
+    o que fazer se a promotora negar ou não responder), e diz por que a
+    compra premiada não tem devolução nem disputa procedente e como volta o
+    dinheiro da compra com cambista.
+- [ ] **[você]** **Bloqueante para ligar o comparador automático**
+  (`ROSTO_PROVEDOR=rekognition`), resposta do advogado de 08/10/2026: por
+  padrão a AWS **pode guardar e usar** as imagens do Rekognition para
+  melhorar os serviços dela, a menos que a conta ative a **política de
+  opt-out de serviços de IA** (AWS Organizations → Policies → AI services
+  opt-out policies, para o Rekognition). Antes de ligar: (i) ativar o
+  opt-out; (ii) conferir no contrato/termos da AWS (Service Terms e o
+  Data Processing Addendum) que as imagens não são retidas nem usadas para
+  treinamento e que a transferência internacional está coberta por
+  cláusulas-padrão ou equivalente; (iii) mandar a confirmação ao advogado.
+  Só então o texto pode voltar a dizer que a AWS "não guarda" as imagens.
+  Desligado (o padrão), a comparação é por uma pessoa e nada sai.
+- [ ] **[você]** Antes de abrir ao público, o **encarregado** precisa estar
+  publicado nos Dados da empresa (Aparência → Rodapé e empresa): o texto do
+  consentimento biométrico o cita (exigência legal, art. 41, § 1º).
+- [x] **Revisão formal dos Termos de uso pelo advogado (08/10/2026)**,
+  aplicada. A numeração já era de 1 a 10 (a cópia que ele recebeu tinha
+  perdido os títulos das seções 4, 5, 6, 8 e 9) e agora o teste confere que
+  não há buraco. Entraram: no item 1, a relação de consumo (CDC e Lei
+  5.768/71) e a remissão à Privacidade (controladora, bases legais,
+  encarregado); no item 2, a lista do que fica limitado sem o telefone
+  confirmado; no item 4, a aproximação com as palavras do Anexo A (busca
+  alternada e contínua em fita circular, +1, −1, +2, −2); no item 5, um
+  item próprio com o prazo de resposta da plataforma (5 dias, Decreto
+  7.962/2013, art. 4º, parágrafo único — `RESPOSTA_DA_PLATAFORMA_DIAS`) e o
+  consumidor.gov.br e o Procon; no item 7, que o termo do afiliado é
+  contrato à parte com a promotora e não integra os Termos; no item 9, o
+  prazo da devolução do Pix que chegou tarde (5 dias úteis da confirmação,
+  `PIX_TARDIO_PRAZO_DIAS_UTEIS`, que o cartão "Pix a devolver" mostra em
+  cada caso); no item 10, o art. 101, I, do CDC e o foro da sede para as
+  relações fora do CDC. A nota "gere de novo…" é do arquivo da base do
+  assistente, nunca do site — o cabeçalho agora diz isso.
+- [x] **Revisão formal da Política de privacidade pelo advogado
+  (08/10/2026)**, aplicada. As seções 3 e 4 existiam (a cópia dele perdeu
+  os títulos); o teste confere a numeração de 1 a 9. Entraram: o papel de
+  controladora (o que trata em nome próprio) e de operadora (o que trata
+  por conta da promotora); o **cargo do encarregado** (campo novo e
+  opcional nos Dados da empresa) junto do nome, e o encarregado como canal
+  dos direitos; base legal nos tratamentos que não a diziam (pagamento,
+  voto na enquete, verificação — os documentos, execução do contrato; a
+  comparação da foto, consentimento específico e destacado, art. 11, I —
+  e documentos da entidade); "guarda apenas o identificador do Pix"; a AWS
+  só com o comparador ligado, como operadora "nos termos do contrato", sem
+  o "só compara por nossa ordem"; as compras e os bilhetes anonimizados
+  depois de excluir a conta; e o direito de oposição com a condição da lei
+  (art. 18, § 2º: tratamento sem consentimento que descumpra a LGPD). A
+  lista do que fica no navegador segue chave por chave (o teste lê o código
+  e exige cada uma pelo nome; a sugestão de agrupar não foi aplicada).
+- [ ] **[você]** Antes de publicar os Termos, nos **Dados da empresa**
+  (Aparência → Rodapé e empresa), os dois bloqueantes do advogado: o
+  **e-mail de contato institucional** no domínio (ex.: contato@…) no lugar
+  do Gmail — ele aparece nos Termos (itens 1, 5, 9 e 10) e sai de um campo
+  só, então trocar ali troca em todos — e o **e-mail do encarregado**
+  (ex.: privacidade@ ou dpo@…, só do encarregado), com o **cargo ou
+  função** dele no campo novo; e o **endereço na forma oficial**, com número e
+  complemento. Nenhum dos dois está no código.
+- [ ] **[você]** **Responder em até 5 dias** as reclamações que chegarem ao
+  e-mail de contato (os Termos prometem, pelo Decreto 7.962/2013) e
+  **devolver o Pix que chegou tarde em até 5 dias úteis** (o cartão "Pix a
+  devolver", em Pedidos, mostra a data de cada caso). Se quiser, cadastre a
+  empresa no consumidor.gov.br para responder lá também.
 - [ ] **[ligar]** Antes de ligar a guarda da comissão, as três providências
   do advogado: conta ou subconta separada no Asaas para a comissão guardada,
   o prazo de repasse em dias no termo do afiliado (hoje "depois do sorteio",

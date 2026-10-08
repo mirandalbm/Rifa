@@ -187,8 +187,46 @@ export function rotuloDaCampanha(u: Utm | null | undefined) {
  * Consentimento (aviso de cookies)
  * ------------------------------------------------------------------ */
 
-/** Mudou o texto do aviso de um jeito que peça novo "aceito"? Suba a versão. */
-export const VERSAO_DO_AVISO = 1;
+/**
+ * Mudou o texto do aviso de um jeito que peça novo "aceito"? Suba a versão.
+ * A 2 (08/10/2026, revisão do advogado) diz o papel da Meta, do Google e do
+ * TikTok (controladores conjuntos) e que recusar apaga os cookies já gravados.
+ */
+export const VERSAO_DO_AVISO = 2;
+
+/** O texto do aviso, numa fonte só (a tela e o que vai ao advogado). */
+export const TEXTO_DO_AVISO_DE_COOKIES = [
+  "Usamos cookies de medição de anúncios (Meta, Google, TikTok) para saber quais campanhas trazem apostadores. Eles só são ativados se você aceitar; recusar não muda nada na compra.",
+  "Meta, Google e TikTok atuam como controladores conjuntos dos dados coletados por esses cookies, nos termos das respectivas políticas de privacidade. Ao recusar, os cookies não essenciais já instalados são removidos.",
+];
+
+/**
+ * Os cookies de medição dos pixels — os nomes da Privacidade (item 8,
+ * `GUARDADO_NO_NAVEGADOR`): _fbp e _fbc, _ga e _ga_<id>, _gcl_au, _ttp e
+ * _tt_enable_cookie. Recusar apaga todos os que estiverem no navegador.
+ */
+export const PREFIXOS_DOS_COOKIES_DE_MEDICAO = ["_fbp", "_fbc", "_ga", "_gcl_", "_ttp", "_tt_"];
+
+/** Os nomes de cookie de medição presentes no `document.cookie`. */
+export function cookiesDeMedicao(cookieDoNavegador: string): string[] {
+  const nomes = cookieDoNavegador
+    .split(";")
+    .map((par) => par.split("=")[0].trim())
+    .filter(Boolean);
+  return [...new Set(nomes.filter((n) => PREFIXOS_DOS_COOKIES_DE_MEDICAO.some((p) => n.startsWith(p))))];
+}
+
+/**
+ * Os domínios em que o pixel pode ter gravado o cookie: o próprio endereço e
+ * cada domínio de cima, com ponto (o Google grava no domínio de cima). O
+ * navegador ignora o que não couber; apagar em todos é o que garante.
+ */
+export function dominiosDoCookie(host: string): string[] {
+  const partes = host.split(".");
+  const doms: string[] = [host];
+  for (let i = 0; i < partes.length - 1; i++) doms.push(`.${partes.slice(i).join(".")}`);
+  return doms;
+}
 export type Escolha = "aceito" | "recusado";
 
 export function lerEscolha(bruta: string | null): Escolha | null {

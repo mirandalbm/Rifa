@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from "react";
-import { gravarEscolha, lerEscolha, utmDaUrl, type Escolha, type Pixels, type Utm } from "@shared/marketing";
+import { cookiesDeMedicao, dominiosDoCookie, gravarEscolha, lerEscolha, utmDaUrl, type Escolha, type Pixels, type Utm } from "@shared/marketing";
 
 /**
  * Marketing no navegador (etapa 16): aviso de cookies, UTM e pixels.
@@ -41,7 +41,34 @@ export function escolher(e: Escolha) {
     // armazenamento bloqueado: vale só nesta visita
   }
   memoria = e;
+  if (e === "recusado") {
+    apagarCookiesDeMedicao();
+    // Pixel já carregado nesta página segue rodando (e regravaria o cookie):
+    // só recarregar o tira da memória. Sem pixel carregado, nada a recarregar.
+    if (algumPixelIniciado()) {
+      window.location.reload();
+      return;
+    }
+  }
   avisar();
+}
+
+/**
+ * Recusou: apaga os cookies de medição já gravados (o aviso diz isso). Vale
+ * também ao abrir o site com a recusa guardada — o que um pixel deixou antes
+ * não fica.
+ */
+export function apagarCookiesDeMedicao() {
+  try {
+    for (const nome of cookiesDeMedicao(document.cookie)) {
+      document.cookie = `${nome}=; Max-Age=0; path=/`;
+      for (const d of dominiosDoCookie(window.location.hostname)) {
+        document.cookie = `${nome}=; Max-Age=0; path=/; domain=${d}`;
+      }
+    }
+  } catch {
+    // cookie bloqueado pelo navegador: não há o que apagar
+  }
 }
 
 /** Reabre o aviso (link "Cookies" no rodapé). */
@@ -145,6 +172,7 @@ function script(src: string) {
 }
 
 const iniciados = { meta: new Set<string>(), google: new Set<string>(), tiktok: new Set<string>() };
+const algumPixelIniciado = () => iniciados.meta.size + iniciados.google.size + iniciados.tiktok.size > 0;
 
 function iniciarMeta(id: string) {
   const j = w();

@@ -78,13 +78,36 @@ describe("regulamento da rifa", () => {
 });
 
 import { perguntasDaAjuda, buscarNaAjuda } from "../shared/ajuda";
+import { DIREITO_DO_CONSUMIDOR, DISPUTA_PRAZO_DIAS, RESPOSTA_PRAZO_DIAS } from "../shared/chamados";
 
 describe("central de ajuda", () => {
   it("a resposta de reembolso segue a regra configurada", () => {
     const com = perguntasDaAjuda({ taxaReembolsoPct: 7, aceitaReembolso: true });
     expect(com.find((p) => p.id === "reembolso")!.resposta[0]).toContain("7%");
     const sem = perguntasDaAjuda({ taxaReembolsoPct: 7, aceitaReembolso: false });
-    expect(sem.find((p) => p.id === "reembolso")!.resposta[0]).toContain("não recebe");
+    const desligado = sem.find((p) => p.id === "reembolso")!.resposta[0];
+    // O interruptor é operacional: o art. 49 e o caminho seguem ditos (resposta 3.7).
+    expect(desligado).toContain("não é feito pelo site");
+    expect(desligado).toContain("art. 49");
+    expect(desligado).toContain("Procon");
+    // Cada pergunta responde a dela (revisão do advogado, 08/10/2026): o
+    // prazo explica o fechamento; a recusa diz o que fazer se a promotora negar.
+    const prazo = sem.find((p) => p.id === "prazo-de-desistir")!.resposta;
+    expect(prazo[0]).toMatch(/2 horas antes do sorteio/);
+    expect(prazo).toContain(desligado);
+    const recusa = sem.find((p) => p.id === "recusa-do-reembolso")!.resposta;
+    expect(recusa).not.toContain(desligado);
+    expect(recusa.join(" ")).toMatch(/fale com a plataforma .*número do pedido/);
+    expect(recusa).toContain(DIREITO_DO_CONSUMIDOR);
+  });
+
+  it("a recusa do reembolso leva à disputa e não tira o Procon", () => {
+    const com = perguntasDaAjuda({ taxaReembolsoPct: 7, aceitaReembolso: true });
+    const recusa = com.find((p) => p.id === "recusa-do-reembolso")!.resposta.join(" ");
+    expect(recusa).toContain(`${DISPUTA_PRAZO_DIAS} dias`);
+    expect(recusa).toContain(`${RESPOSTA_PRAZO_DIAS} dias`);
+    expect(recusa).toMatch(/premiada .*o prêmio já foi ganho e a participação foi prestada/);
+    expect(recusa).toContain(DIREITO_DO_CONSUMIDOR);
   });
 
   it("busca sem acento", () => {

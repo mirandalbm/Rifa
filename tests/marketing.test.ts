@@ -121,3 +121,36 @@ describe("compra para as APIs", () => {
     expect(telefoneParaHash("123")).toBeNull();
   });
 });
+
+describe("recusar apaga os cookies de medição (revisão do advogado, 08/10/2026)", () => {
+  it("acha só os cookies dos pixels, inclusive o _ga_<id>", async () => {
+    const { cookiesDeMedicao } = await import("../shared/marketing");
+    const doNavegador = "rifa.sid=abc; _fbp=fb.1; _ga=GA1.1; _ga_ABC123=GS1; _gcl_au=1.1; _ttp=x; _tt_enable_cookie=1; outro=1";
+    expect(cookiesDeMedicao(doNavegador).sort()).toEqual(["_fbp", "_ga", "_ga_ABC123", "_gcl_au", "_tt_enable_cookie", "_ttp"].sort());
+    expect(cookiesDeMedicao("rifa.sid=abc")).toEqual([]);
+    expect(cookiesDeMedicao("")).toEqual([]);
+  });
+
+  it("todo cookie de pixel listado na Privacidade é apagado", async () => {
+    const { PREFIXOS_DOS_COOKIES_DE_MEDICAO } = await import("../shared/marketing");
+    const { GUARDADO_NO_NAVEGADOR } = await import("../shared/legal");
+    const pixels = GUARDADO_NO_NAVEGADOR.find((g) => /anúncio e medição/.test(g.grupo))!;
+    const nomes = pixels.itens.flatMap((i) => i.match(/_[a-z_]+/g) ?? []);
+    expect(nomes.length).toBeGreaterThan(5);
+    for (const n of nomes) expect(PREFIXOS_DOS_COOKIES_DE_MEDICAO.some((p) => n.startsWith(p)), n).toBe(true);
+  });
+
+  it("apaga no endereço e em cada domínio de cima", async () => {
+    const { dominiosDoCookie } = await import("../shared/marketing");
+    expect(dominiosDoCookie("www.rifa.com.br")).toEqual(["www.rifa.com.br", ".www.rifa.com.br", ".rifa.com.br", ".com.br"]);
+    expect(dominiosDoCookie("localhost")).toEqual(["localhost"]);
+  });
+
+  it("o aviso diz o papel dos fornecedores e a remoção", async () => {
+    const { TEXTO_DO_AVISO_DE_COOKIES, VERSAO_DO_AVISO } = await import("../shared/marketing");
+    const t = TEXTO_DO_AVISO_DE_COOKIES.join(" ");
+    expect(t).toMatch(/controladores conjuntos/);
+    expect(t).toMatch(/Ao recusar, os cookies não essenciais já instalados são removidos/);
+    expect(VERSAO_DO_AVISO).toBe(2);
+  });
+});

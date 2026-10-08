@@ -2,8 +2,9 @@ import { acimaDoConsole } from "@/components/Console";
 import { useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import type { Pixels } from "@shared/marketing";
+import { TEXTO_DO_AVISO_DE_COOKIES, type Pixels } from "@shared/marketing";
 import {
+  apagarCookiesDeMedicao,
   carregarPixels,
   escolher,
   rastrear,
@@ -36,6 +37,10 @@ export function Marketing() {
   const alvos = useAlvos();
   const escolha = useEscolha();
   const [local] = useLocation();
+
+  useEffect(() => {
+    if (escolha === "recusado") apagarCookiesDeMedicao();
+  }, [escolha]);
 
   useEffect(() => {
     if (escolha !== "aceito" || !alvos.length) return;
@@ -73,10 +78,11 @@ function AvisoDeCookies() {
       style={{ ["--acima-do-console" as string]: acimaDoConsole }}
     >
       <div className="mx-auto max-w-3xl rounded-xl border border-line bg-white p-4 text-sm shadow-lg">
-        <p>
-          Usamos cookies de medição de anúncios (Meta, Google, TikTok) para saber quais campanhas trazem
-          apostadores. Eles só são ativados se você aceitar; recusar não muda nada na compra.
-        </p>
+        {TEXTO_DO_AVISO_DE_COOKIES.map((t, i) => (
+          <p key={i} className={i ? "mt-2 text-xs text-muted" : undefined}>
+            {t}
+          </p>
+        ))}
         <div className="mt-3 grid grid-cols-2 gap-2">
           <button
             type="button"

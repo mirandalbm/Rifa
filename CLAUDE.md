@@ -1534,7 +1534,11 @@ permite cobrar dela depois, e o aceite é a prova.
   desligado, o art. 49 continua valendo e, perante o comprador, plataforma e
   promotora respondem **juntas** (CDC, art. 7º, parágrafo único — a
   plataforma cobrou o Pix e emitiu o bilhete). A plataforma devolve se for
-  condenada e cobra da promotora pelo regresso do contrato da promotora.
+  condenada e cobra da promotora pelo regresso do contrato da promotora. Por
+  isso, desligado, a tela diz antes do Pix o prazo do art. 49, o caminho
+  (promotora, depois a plataforma) e o Procon (`regraSemReembolsoPeloSite()`
+  em `shared/reembolso.ts`, o mesmo texto na ajuda), com o aviso de prazo
+  curto como no ligado.
 - **Carteira do Asaas só a plataforma cadastra.** Trocar a carteira é trocar
   para onde vai o dinheiro das vendas.
 
@@ -1708,11 +1712,12 @@ botão, é **chamado** — com dono, prova, conversa e protocolo.
 - **Um chamado em andamento por pedido** — quem decide é o índice único
   parcial `uq_chamados_pedido_em_andamento`, não um `SELECT` antes.
 - **Limite do dia conta a tentativa, e conta o CPF errado.** Erro de
-  preenchimento (print faltando) sai **antes** do `hit()`, senão quem erra o
+  preenchimento (arquivo que não é imagem) sai **antes** do `hit()`, senão quem erra o
   formulário fica 24 h sem pedir; o CPF é conferido **depois**, senão dá para
   chutar CPF sem limite.
-- **O print é reprocessado** (`processarAnexo`: sharp → JPEG, sem metadados
-  de localização) e fica no banco, servido só pelas duas rotas que conferem o
+- **O print é opcional** (revisão do advogado, 08/10/2026: o bilhete já está
+  no sistema, exigir era barreira) **e, quando vem, é reprocessado**
+  (`processarAnexo`: sharp → JPEG, sem metadados de localização) e fica no banco, servido só pelas duas rotas que conferem o
   dono, com `no-store`. Imagem do bilhete nunca vai para URL pública.
 - **Concluir é um `UPDATE` condicional** (`aberto` → `aprovado`/`recusado`).
   O prazo de devolução é calculado na conclusão e vai na mensagem com o
@@ -1765,6 +1770,10 @@ final.
   a recusa e encerra.
 - **Quem decidiu aparece como "Plataforma"** para o comprador e para a
   organização; a pessoa fica na auditoria (`chamado.disputa.*`).
+- **A palavra final é do site, não do consumidor**: a tela da disputa, a
+  mensagem da decisão e a ajuda dizem que a decisão encerra o caso aqui sem
+  tirar o Procon e o consumidor.gov.br (`DIREITO_DO_CONSUMIDOR` em
+  `shared/chamados.ts`). Nunca "a decisão é final" sozinho.
 - O índice ganhou nome novo quando o filtro mudou: `db:push` não troca o
   filtro de um índice existente, mas apaga o antigo e cria o novo.
 - `npm run disputa` prova tudo isso contra a API de verdade.
@@ -2179,10 +2188,18 @@ verdade no sistema.
   como estão; autorizar de novo (`POST …/consentimento`, limite por pessoa)
   só reabre a análise de quem estava `incompleto`, nunca a decisão da
   plataforma, e o mesmo texto de novo não grava nada. A fila mostra "Sem
-  autorização da foto". **O texto é o do item 7 do advogado** (versão 4: a 3,
-  de 06/10, com a guarda dos documentos de 90 dias da resposta 7.1):
-  finalidade, compartilhamento e retenção sempre e, com o comparador
-  ligado, a frase da transferência internacional (art. 33, VIII). **Só vale o
+  autorização da foto". **O texto é o do advogado** (versão 5, da revisão
+  formal de 08/10/2026, sobre a 4 com a guarda de 90 dias da resposta 7.1):
+  finalidade, compartilhamento ("não compartilhadas com terceiros para a
+  finalidade de comparação"; com o comparador, a AWS como operadora "nos
+  termos do contrato") e retenção (o resultado fica enquanto a conta
+  existir) sempre, o **encarregado com o e-mail** (dos Dados da empresa
+  publicados, `consentimentoEmVigor()`; trocar o e-mail não muda a chave, a
+  impressão prova o texto lido) e, com o comparador ligado, a frase da
+  transferência internacional (art. 33, VIII). **"A AWS não guarda as
+  imagens" só volta ao texto com o opt-out de serviços de IA ativado na
+  conta da AWS** — por padrão o Rekognition pode guardar e usar o conteúdo
+  (`docs/PENDENCIAS.md`); sem isso, o comparador não liga. **Só vale o
   consentimento da versão em vigor** (`consentimentoVigente()`): o de antes
   conta como não dado em toda régua (falta, fila, aprovar a foto). **Quem
   está verificado com o antigo, ou sem nenhum, autoriza de novo**
@@ -3071,6 +3088,14 @@ pela portaria** — fica só para conferir a rifa sorteada sem método.
   dado pessoal ou compartilhamento muda o texto no mesmo PR** — e sobe
   `VIGENCIA_DOS_TERMOS`. Termo que promete o que o sistema não faz é pior
   que termo nenhum.
+  **A numeração das seções é contínua** (1 a 10; o teste confere — buraco
+  parece cláusula suprimida), e os prazos prometidos são constantes que o
+  sistema usa: a resposta da plataforma (`RESPOSTA_DA_PLATAFORMA_DIAS`, 5,
+  Decreto 7.962/2013) e a devolução do Pix que chegou tarde
+  (`PIX_TARDIO_PRAZO_DIAS_UTEIS`, 5 dias úteis, a data no cartão "Pix a
+  devolver"). O e-mail e o endereço vêm dos Dados da empresa, nunca do
+  código. **Cada tratamento da Privacidade diz a base legal** (LGPD, art.
+  9º, II): tratamento novo entra com a dele.
 - **Os dados da empresa são da plataforma** (`legal` no template:
   razão social, CNPJ com dígito conferido, endereço, e-mail e o encarregado
   de dados — `validarDadosDaEmpresa()`, só as chaves conhecidas; cartão
@@ -4154,7 +4179,12 @@ Aparência → Assistente de IA.
 - **Consentimento antes do pixel** (LGPD). Sem o "Aceitar" do aviso
   (`rifa.cookies`, no aparelho, com versão), nenhum script carrega. Recusar
   é tão fácil quanto aceitar (dois botões iguais) e a tela do perfil
-  (`/perfil`) tem "Preferência de cookies" para mudar de ideia. O pedido leva `marketing: true/false`
+  (`/perfil`) tem "Preferência de cookies" para mudar de ideia. **Recusar
+  apaga os cookies de medição já gravados** (`apagarCookiesDeMedicao()`, os
+  nomes da Privacidade em `PREFIXOS_DOS_COOKIES_DE_MEDICAO`, em cada domínio
+  de cima) e recarrega a página se algum pixel já tinha carregado — o aviso
+  (`TEXTO_DO_AVISO_DE_COOKIES`, versão 2) diz isso e que Meta, Google e
+  TikTok são controladores conjuntos. O pedido leva `marketing: true/false`
   (`orders.marketing_consentimento`): sem o aceite, a compra **não** sai
   pelo servidor.
 - **Cada evento vai só para os pixels da página** (`trackSingle`,

@@ -18,6 +18,7 @@ import { formatQuota, maskPhone, maskCpf, cpfValido, formatBRL } from "@shared/f
 import { calcularReembolso, NOME_TIPO_REEMBOLSO } from "@shared/reembolso";
 import {
   DISPUTA_PRAZO_DIAS,
+  DIREITO_DO_CONSUMIDOR,
   NOME_STATUS_CHAMADO,
   NOME_STATUS_DISPUTA,
   PILL_CHAMADO,
@@ -410,7 +411,7 @@ function PedirReembolso({
     onError: (e: Error) => setErro(e instanceof ApiError ? e.message : "Não foi possível enviar."),
   });
 
-  const pronto = motivo.trim().length >= 10 && cpfValido(cpf) && Boolean(anexo);
+  const pronto = motivo.trim().length >= 10 && cpfValido(cpf);
 
   return (
     <Janela onFechar={fechar} rotuloPor="titulo-reembolso" className="p-4">
@@ -476,7 +477,7 @@ function PedirReembolso({
         </Campo>
         <div>
           <label htmlFor="print" className="label-xs">
-            Print do bilhete ou do comprovante
+            Print do bilhete ou do comprovante (opcional)
           </label>
           <input
             id="print"
@@ -629,7 +630,7 @@ function Disputa({
   if (dados.disputa === "aberta") {
     return (
       <p className="mt-3 rounded-md bg-yellow-soft px-3 py-2 text-sm text-yellow-deep">
-        O caso está com a plataforma. A decisão dela é final e chega aqui e no seu celular.
+        O caso está com a plataforma. A decisão dela encerra o caso aqui no site e chega aqui e no seu celular. {DIREITO_DO_CONSUMIDOR}
       </p>
     );
   }
@@ -638,6 +639,7 @@ function Disputa({
       <div className="mt-3 rounded-md border border-line bg-white px-3 py-2 text-sm">
         <p className="font-semibold">Decisão da plataforma: {dados.disputa === "procedente" ? "a seu favor" : "recusa mantida"}</p>
         {dados.disputaDecisao ? <p className="mt-1 text-muted">{dados.disputaDecisao}</p> : null}
+        {dados.disputa === "improcedente" ? <p className="mt-1 text-xs text-muted">{DIREITO_DO_CONSUMIDOR}</p> : null}
       </div>
     );
   }
@@ -652,7 +654,9 @@ function Disputa({
       );
     }
     return dados.status === "recusado" && dados.disputaBloqueio ? (
-      <p className="mt-3 text-xs text-muted">{dados.disputaBloqueio}</p>
+      <p className="mt-3 text-xs text-muted">
+        {dados.disputaBloqueio} {DIREITO_DO_CONSUMIDOR}
+      </p>
     ) : null;
   }
 
@@ -663,8 +667,8 @@ function Disputa({
         <div className="space-y-2 p-4 text-sm">
           <p className="text-muted">
             {dados.status === "recusado"
-              ? `Você pode levar a recusa à plataforma em até ${DISPUTA_PRAZO_DIAS} dias. A decisão dela é final.`
-              : "A organização não respondeu no prazo. Você pode levar o caso à plataforma, que decide no lugar dela."}
+              ? `Você pode levar a recusa à plataforma em até ${DISPUTA_PRAZO_DIAS} dias. A decisão dela encerra o caso aqui no site. ${DIREITO_DO_CONSUMIDOR}`
+              : `A organização não respondeu no prazo. Você pode levar o caso à plataforma, que decide no lugar dela. ${DIREITO_DO_CONSUMIDOR}`}
           </p>
           {aberto ? (
             <form

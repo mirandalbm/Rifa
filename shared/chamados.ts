@@ -3,8 +3,8 @@
  * decide) e pela tela (que mostra o botão e avisa antes de enviar).
  *
  * O desenho existe para o reembolso não ser banal: só o comprador logado
- * pede, só para pedido pago dele, só antes do sorteio, com o print do
- * bilhete, e a organização decide num chamado com protocolo. O dinheiro
+ * pede, só para pedido pago dele, só antes do sorteio, com o CPF (o print
+ * do bilhete é opcional), e a organização decide num chamado com protocolo. O dinheiro
  * volta preferencialmente pelo provedor, para a mesma conta que pagou —
  * é isso que tira a graça do pedido falso: não adianta informar a chave
  * Pix de outra pessoa.
@@ -185,6 +185,12 @@ export const PILL_DISPUTA: Record<StatusDisputa, string> = {
 
 /** Prazo para contestar a recusa, contado da resposta da organização. */
 export const DISPUTA_PRAZO_DIAS = 7;
+
+/**
+ * A palavra final da plataforma encerra o caso dentro do site, nunca o direito
+ * do consumidor: a tela da disputa e a mensagem da decisão dizem isso.
+ */
+export const DIREITO_DO_CONSUMIDOR = "Isso não tira o seu direito de reclamar no Procon ou no consumidor.gov.br.";
 /** Prazo da organização para responder antes de o comprador poder recorrer. */
 export const RESPOSTA_PRAZO_DIAS = 3;
 

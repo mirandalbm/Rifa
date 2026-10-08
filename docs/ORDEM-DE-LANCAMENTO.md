@@ -202,8 +202,8 @@ cadastro (o roteiro do dia está na etapa 5, "Dia da troca da razão social").
 
 - Ligar o globo da plataforma como método de apuração, depois de homologado
   (o código está pronto: é ligar em "Métodos de apuração", sem deploy).
-- Ferramentas de imagem e vídeo (`docs/PLANO-FERRAMENTAS.md`, fases B a G; a
-  A — artes prontas — já está feita).
+- Ferramentas de imagem e vídeo (`docs/PLANO-FERRAMENTAS.md`, fases B a F; a
+  A — artes prontas — e a G — pacote para postar — já estão feitas).
 - APK das maquininhas (precisa de máquina com o Android SDK).
 - O que foi deixado de fora de propósito: vídeo do afiliado pelo Stream,
   perfil público do afiliado, hashtags, moderador de grupo.

@@ -111,8 +111,8 @@ import {
   getPlataforma,
   setPlataforma,
 } from "../services/settings";
-import { rifaDaArte } from "../services/artes";
-import { enviarArte, listaDeArtes } from "./artesRotas";
+import { artesDaRifa, rifaDaArte } from "../services/artes";
+import { enviarArte, enviarPacote, listaDeArtes } from "./artesRotas";
 import { generateSecret, otpauthUrl } from "../services/totp";
 import { codigoConfere, guardarSegredo } from "../services/segundoFator";
 import { buildExport, ExportError, toCsvLine } from "../services/exports";
@@ -1084,8 +1084,23 @@ adminRouter.get("/campaigns/:id/artes", async (req, res, next) => {
     const campaign = await assertCampaignInScope(req, req.params.id);
     const r = await rifaDaArte(campaign.id);
     if (!r) return res.status(404).json({ message: "Campanha não encontrada." });
+    const base = baseDoSite(req);
+    const curto = artesDaRifa(r).length ? `${base}${(await linkCurtoDaRifa(r.id)).caminho}` : `${base}/r/${r.slug}`;
     res.setHeader("Cache-Control", "no-store");
-    res.json(listaDeArtes(r, `${baseDoSite(req)}/r/${r.slug}`));
+    res.json(listaDeArtes(r, `${base}/r/${r.slug}`, curto));
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.get("/campaigns/:id/artes/:tipo/pacote", async (req, res, next) => {
+  try {
+    const campaign = await assertCampaignInScope(req, req.params.id);
+    const r = await rifaDaArte(campaign.id);
+    if (!r) return res.status(404).json({ message: "Campanha não encontrada." });
+    const base = baseDoSite(req);
+    const curto = artesDaRifa(r).length ? `${base}${(await linkCurtoDaRifa(r.id)).caminho}` : `${base}/r/${r.slug}`;
+    await enviarPacote(res, r, req.params.tipo, `${base}/r/${r.slug}`, curto, `painel:${req.user!.id}`);
   } catch (err) {
     next(err);
   }

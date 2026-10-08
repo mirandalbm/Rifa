@@ -16,7 +16,25 @@ import sharp from "sharp";
 import { db, pool } from "../server/db";
 import { hashPassword } from "../server/auth";
 import { affiliates, afiliadoVinculos, campaignStats, campaigns, organizations, users } from "../shared/schema";
-import { ARTES_POR_JANELA } from "../server/routes/artesRotas";
+import { ARTES_POR_JANELA, PACOTES_POR_JANELA } from "../server/routes/artesRotas";
+
+/** Os arquivos do ZIP (pelo diretório central): nome e conteúdo. */
+function lerZip(zip: Buffer): Map<string, Buffer> {
+  const fim = zip.length - 22;
+  if (zip.readUInt32LE(fim) !== 0x06054b50) throw new Error("ZIP sem o fim do diretório");
+  const arquivos = new Map<string, Buffer>();
+  let p = zip.readUInt32LE(fim + 16);
+  for (let i = 0; i < zip.readUInt16LE(fim + 10); i++) {
+    const tamanho = zip.readUInt32LE(p + 24);
+    const n = zip.readUInt16LE(p + 28);
+    const nome = zip.subarray(p + 46, p + 46 + n).toString("utf8");
+    const local = zip.readUInt32LE(p + 42);
+    const ln = zip.readUInt16LE(local + 26);
+    arquivos.set(nome, zip.subarray(local + 30 + ln, local + 30 + ln + tamanho));
+    p += 46 + n;
+  }
+  return arquivos;
+}
 
 const URL = baseUrl();
 let falhas = 0;
@@ -63,7 +81,7 @@ async function limpar() {
   if (us.length) await db.delete(affiliates).where(inArray(affiliates.userId, us.map((u) => u.id)));
   await db.delete(users).where(inArray(users.email, EMAILS));
   if (ids.length) await db.delete(organizations).where(inArray(organizations.id, ids));
-  await db.execute(sql`delete from rate_events where bucket like 'login:%' or bucket like 'arte:%'`);
+  await db.execute(sql`delete from rate_events where bucket like 'login:%' or bucket like 'arte:%' or bucket like 'arte-pacote:%'`);
 }
 
 async function rifa(orgId: string, slug: string, extra: Partial<typeof campaigns.$inferInsert> = {}) {
@@ -179,12 +197,42 @@ async function main() {
     r = await orgA.req("GET", `/api/admin/campaigns/${sorteada.id}/artes/resultado?formato=quadrado`);
     checa("a arte do resultado sai", r.status === 200 && r.tipo.startsWith("image/jpeg"), `HTTP ${r.status}`);
 
+    // ------------------------------------------------ pacote (Fase G)
+    r = await orgA.req("GET", `/api/admin/campaigns/${a.id}/artes`);
+    const legendaDaLista = r.json?.artes?.find((x: { tipo: string }) => x.tipo === "rifa")?.legenda ?? "";
+    checa("a legenda do painel leva o endereço curto da rifa", /\/c\/[A-Za-z0-9]+/.test(legendaDaLista) && !legendaDaLista.includes("#publi"), legendaDaLista.split("\n").join(" | "));
+    r = await orgA.req("GET", `/api/admin/campaigns/${a.id}/artes/faltam/pacote`);
+    checa("o pacote é um ZIP para baixar", r.status === 200 && r.tipo.startsWith("application/zip") && (r.headers.get("content-disposition") ?? "").startsWith("attachment"), `HTTP ${r.status} ${r.tipo}`);
+    const pacote = r.bytes ? lerZip(r.bytes) : new Map<string, Buffer>();
+    checa("o pacote traz os três formatos e a legenda", [...pacote.keys()].sort().join(",") === "arte-artes-teste-a-faltam-quadrado.jpg,arte-artes-teste-a-faltam-retrato.jpg,arte-artes-teste-a-faltam-vertical.jpg,legenda.txt", [...pacote.keys()].join(","));
+    const vertical = pacote.get("arte-artes-teste-a-faltam-vertical.jpg");
+    checa("a arte do pacote é a de 9:16", Boolean(vertical) && (await sharp(vertical!).metadata()).height === 1920);
+    checa("a legenda do pacote diz quantas faltam", (pacote.get("legenda.txt")?.toString("utf8") ?? "").includes("Faltam 600 cotas"));
+    r = await orgA.req("GET", `/api/admin/campaigns/${b.id}/artes/rifa/pacote`);
+    checa("o pacote da rifa do vizinho é 404", r.status === 404, `HTTP ${r.status}`);
+    r = await orgA.req("GET", `/api/admin/campaigns/${a.id}/artes/resultado/pacote`);
+    checa("pacote de arte que a rifa não tem é 404", r.status === 404, `HTTP ${r.status}`);
+
     // ------------------------------------------------ afiliado
     const comVinculo = await entrar(EMAILS[2]);
     const semVinculo = await entrar(EMAILS[3]);
     r = await comVinculo.req("GET", "/api/affiliate/artes/artes-teste-a?ref=OUTRO");
     checa("o afiliado com vínculo vê as artes", r.status === 200 && r.json?.artes?.length === 3, `HTTP ${r.status}`);
     checa("o QR leva o código dele, não o da URL", typeof r.json?.link === "string" && r.json.link.endsWith(`/r/artes-teste-a?ref=${CODIGOS[0]}`), r.json?.link);
+    const legendaDoKit = r.json?.artes?.find((x: { tipo: string }) => x.tipo === "rifa")?.legenda ?? "";
+    checa("a legenda do afiliado leva o link dele e o #publi", legendaDoKit.includes(`?ref=${CODIGOS[0]}`) && legendaDoKit.endsWith("#publi"), legendaDoKit.split("\n").join(" | "));
+    r = await comVinculo.req("GET", "/api/affiliate/artes/artes-teste-a/rifa/pacote");
+    const doKit = r.bytes && r.status === 200 ? lerZip(r.bytes) : new Map<string, Buffer>();
+    checa("o afiliado baixa o pacote com a legenda dele", (doKit.get("legenda.txt")?.toString("utf8") ?? "").includes(`?ref=${CODIGOS[0]}`), `HTTP ${r.status}`);
+    r = await semVinculo.req("GET", "/api/affiliate/artes/artes-teste-a/rifa/pacote");
+    checa("o afiliado sem vínculo não tem o pacote", r.status === 404, `HTTP ${r.status}`);
+    r = await comVinculo.req("GET", "/api/affiliate/links");
+    const textos: string[] = r.json?.find((l: { slug: string }) => l.slug === "artes-teste-a")?.texts ?? [];
+    checa(
+      "os textos do kit levam #publi, a autorização e nenhum 'últimas cotas' (termo, cláusula 7)",
+      textos.length === 3 && textos.every((t) => t.includes("#publi") && t.includes("SPA-ARTE-1") && !/últimas/i.test(t)),
+      textos.join(" || "),
+    );
     r = await comVinculo.req("GET", "/api/affiliate/artes/artes-teste-a/rifa?formato=vertical");
     const meta = r.bytes ? await sharp(r.bytes).metadata() : null;
     checa("o afiliado baixa a arte 9:16", r.status === 200 && meta?.height === 1920, `HTTP ${r.status}`);
@@ -206,6 +254,11 @@ async function main() {
       ultimo = (await orgA.req("GET", `/api/admin/campaigns/${a.id}/artes/rifa`)).status;
     }
     checa(`passou de ${ARTES_POR_JANELA.limite} artes em ${ARTES_POR_JANELA.minutos} min: 429`, ultimo === 429, `HTTP ${ultimo}`);
+    await db.execute(sql`delete from rate_events where bucket like 'arte-pacote:%'`);
+    for (let i = 0; i <= PACOTES_POR_JANELA.limite; i++) {
+      ultimo = (await orgA.req("GET", `/api/admin/campaigns/${a.id}/artes/rifa/pacote`)).status;
+    }
+    checa(`passou de ${PACOTES_POR_JANELA.limite} pacotes em ${PACOTES_POR_JANELA.minutos} min: 429`, ultimo === 429, `HTTP ${ultimo}`);
   } finally {
     await limpar();
   }

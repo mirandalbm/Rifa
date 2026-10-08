@@ -1,12 +1,12 @@
 import { useEffect, useId, useState } from "react";
-import { Download, Share2 } from "lucide-react";
+import { Copy, Download, Package, Share2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { nomeDoArquivoDaArte, type FormatoDaArte, type TipoDeArte } from "@shared/artes";
+import { nomeDoArquivoDaArte, nomeDoPacote, type FormatoDaArte, type TipoDeArte } from "@shared/artes";
 
 interface ListaDeArtes {
   slug: string;
   link: string;
-  artes: { tipo: TipoDeArte; rotulo: string }[];
+  artes: { tipo: TipoDeArte; rotulo: string; legenda: string }[];
   formatos: { formato: FormatoDaArte; rotulo: string }[];
 }
 
@@ -33,6 +33,7 @@ export function ArtesParaDivulgar({ base }: { base: string }) {
   const [imagem, setImagem] = useState<{ chave: string; url: string; blob: Blob } | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [podeCompartilhar] = useState(compartilhaArquivo);
+  const [copiada, setCopiada] = useState(false);
   const id = useId();
 
   const escolhido = tipo && data?.artes.some((a) => a.tipo === tipo) ? tipo : (data?.artes[0]?.tipo ?? null);
@@ -68,16 +69,28 @@ export function ArtesParaDivulgar({ base }: { base: string }) {
   }
 
   const pronta = imagem && imagem.chave === chave ? imagem : null;
-  const rotuloDoTipo = data.artes.find((a) => a.tipo === escolhido)?.rotulo ?? "";
+  const daEscolhida = data.artes.find((a) => a.tipo === escolhido);
+  const rotuloDoTipo = daEscolhida?.rotulo ?? "";
+  const legenda = daEscolhida?.legenda ?? "";
   const rotuloDoFormato = data.formatos.find((f) => f.formato === formato)?.rotulo ?? "";
   const nome = escolhido ? nomeDoArquivoDaArte(data.slug, escolhido, formato) : "arte.jpg";
 
   async function compartilhar() {
     if (!pronta) return;
     try {
-      await navigator.share({ files: [new File([pronta.blob], nome, { type: "image/jpeg" })], text: data!.link });
+      await navigator.share({ files: [new File([pronta.blob], nome, { type: "image/jpeg" })], text: legenda });
     } catch {
       // Cancelar o compartilhamento não é erro.
+    }
+  }
+
+  async function copiarLegenda() {
+    try {
+      await navigator.clipboard.writeText(legenda);
+      setCopiada(true);
+      setTimeout(() => setCopiada(false), 2000);
+    } catch {
+      setCopiada(false);
     }
   }
 
@@ -112,6 +125,16 @@ export function ArtesParaDivulgar({ base }: { base: string }) {
           O QR leva a <span className="tnum break-all text-ink-2">{data.link.replace(/^https?:\/\//, "")}</span>. Os números são os de agora: baixe de novo quando
           mudarem.
         </p>
+        <div>
+          <div className="mb-1 flex items-center justify-between gap-2">
+            <span className="label-xs">Legenda sugerida</span>
+            <button type="button" onClick={copiarLegenda} className="inline-flex min-h-6 items-center gap-1 text-xs font-semibold text-green-deep">
+              <Copy size={14} aria-hidden /> {copiada ? "Copiada" : "Copiar"}
+            </button>
+          </div>
+          <p className="whitespace-pre-wrap break-words rounded-md border border-line px-3 py-2 text-xs leading-snug text-ink-2">{legenda}</p>
+          <p className="mt-1 text-[11px] text-muted">O pacote traz esta arte nos três formatos e a legenda num arquivo de texto.</p>
+        </div>
         {erro ? (
           <p role="alert" className="rounded-md bg-red-soft px-3 py-2 text-xs text-red">
             {erro}
@@ -126,6 +149,15 @@ export function ArtesParaDivulgar({ base }: { base: string }) {
           >
             <Download size={16} aria-hidden /> Baixar
           </a>
+          {escolhido ? (
+            <a
+              href={`${base}/${escolhido}/pacote`}
+              download={nomeDoPacote(data.slug, escolhido)}
+              className="inline-flex min-h-9 items-center gap-2 rounded-md border-2 border-green bg-white px-4 text-sm font-semibold text-green-deep"
+            >
+              <Package size={16} aria-hidden /> Baixar pacote
+            </a>
+          ) : null}
           {podeCompartilhar ? (
             <button
               type="button"

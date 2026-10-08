@@ -10,24 +10,31 @@ import {
   FORMATOS_DA_ARTE_LISTA,
   ROTULO_DA_ARTE,
   interpretarFormatoDaArte,
+  legendaSugerida,
   interpretarTipoDeArte,
   nomeDoArquivoDaArte,
+  nomeDoPacote,
 } from "@shared/artes";
 import { hit } from "../services/antifraude";
 import { artesDaRifa, desenharArte, type RifaDaArte } from "../services/artes";
+import { montarZip } from "../services/zip";
 
 /** Desenhar custa CPU: 60 artes a cada 10 min por pessoa. */
 export const ARTES_POR_JANELA = { minutos: 10, limite: 60 } as const;
+/** O pacote desenha três de uma vez: 10 pacotes a cada 10 min por pessoa. */
+export const PACOTES_POR_JANELA = { minutos: 10, limite: 10 } as const;
 
 /**
- * A lista que a tela mostra: as artes que a rifa tem agora, os formatos e o
- * link que vai no QR (o mesmo que a tela copia).
+ * A lista que a tela mostra: as artes que a rifa tem agora (com a legenda
+ * sugerida de cada uma), os formatos e o link que vai no QR. A legenda leva
+ * `linkDaLegenda` — no painel, o endereço curto da rifa — e, no kit do
+ * afiliado, o "#publi" do termo (`publi`).
  */
-export function listaDeArtes(r: RifaDaArte, link: string) {
+export function listaDeArtes(r: RifaDaArte, link: string, linkDaLegenda = link, publi = false) {
   return {
     slug: r.slug,
     link,
-    artes: artesDaRifa(r).map((tipo) => ({ tipo, rotulo: ROTULO_DA_ARTE[tipo] })),
+    artes: artesDaRifa(r).map((tipo) => ({ tipo, rotulo: ROTULO_DA_ARTE[tipo], legenda: legendaSugerida(tipo, r.dados, linkDaLegenda, publi) })),
     formatos: FORMATOS_DA_ARTE_LISTA.map((f) => ({ formato: f, rotulo: FORMATOS_DA_ARTE[f].rotulo })),
   };
 }
@@ -57,4 +64,25 @@ export async function enviarArte(
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("Content-Disposition", `inline; filename="${nomeDoArquivoDaArte(r.slug, tipo, formato)}"`);
   res.type("image/jpeg").send(jpeg);
+}
+
+/**
+ * O pacote pronto para postar (Fase G): a arte escolhida nos três formatos e
+ * a legenda sugerida num `.txt`, num ZIP. As mesmas regras da arte avulsa.
+ */
+export async function enviarPacote(res: Response, r: RifaDaArte, tipoBruto: unknown, url: string, linkDaLegenda: string, quem: string, publi = false) {
+  const tipo = interpretarTipoDeArte(tipoBruto);
+  if (!tipo || !artesDaRifa(r).includes(tipo)) return res.status(404).json({ message: "Arte não encontrada." });
+  if ((await hit(`arte-pacote:${quem}`, PACOTES_POR_JANELA.minutos, PACOTES_POR_JANELA.limite)).excedeu) {
+    return res.status(429).json({ message: "Muitos pacotes em pouco tempo. Espere alguns minutos." });
+  }
+  const arquivos = [];
+  for (const formato of FORMATOS_DA_ARTE_LISTA) {
+    arquivos.push({ nome: nomeDoArquivoDaArte(r.slug, tipo, formato), dados: await desenharArte({ rifa: r, tipo, formato, url }) });
+  }
+  arquivos.push({ nome: "legenda.txt", dados: Buffer.from(`${legendaSugerida(tipo, r.dados, linkDaLegenda, publi)}\n`, "utf8") });
+  res.setHeader("Cache-Control", "private, no-store");
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("Content-Disposition", `attachment; filename="${nomeDoPacote(r.slug, tipo)}"`);
+  res.type("application/zip").send(montarZip(arquivos));
 }

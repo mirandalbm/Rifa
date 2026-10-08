@@ -3435,7 +3435,9 @@ pela portaria** — fica só para conferir a rifa sorteada sem método.
   em todos os formatos (`md:max-h-[85svh]`: a imagem corta ao centro, como o
   vertical — a publicação cabe inteira na janela, sem rolar para ver a
   foto) (`perfilSobreNaWeb` no `Carrossel`, só por classes `md:` — o celular
-  não muda). O "1/8" desce para baixo do perfil.
+  não muda). **O teto vem com `md:w-full`**: sem a largura fixa, o navegador
+  passa o teto de altura para a largura pela proporção, e a publicação em
+  retrato encolhia, encostada à esquerda (leva 12). O "1/8" desce para baixo do perfil.
   **Não há selo de vendidas sobre a imagem**, em nenhuma largura: o
   progresso já está no cartão da rifa logo abaixo, e dois contadores na
   mesma tela eram repetição. Depois do toque em "Seguir", o botão vira

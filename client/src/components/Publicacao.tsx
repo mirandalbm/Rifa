@@ -115,10 +115,12 @@ export function Carrossel({
   return (
     <div data-formato={proporcao ? undefined : formato}>
       {perfil && !porCima ? web ? <div className="md:hidden">{perfil(false)}</div> : perfil(false) : null}
-      {/* No vertical, a caixa não passa da altura da tela (computador, tablet deitado). */}
+      {/* No vertical, a caixa não passa da altura da tela (computador, tablet deitado).
+          O teto de altura vem com a largura fixa (`w-full`): sem ela, o navegador passa o
+          teto para a largura pela proporção e a caixa encolhe, encostada à esquerda. */}
       <div
-        className={`relative overflow-hidden bg-mist-2 ${caixa} ${porCima ? "max-h-[85svh] w-full" : ""} ${limitarNoTablet ? "md:max-h-[85svh] lg:max-h-none" : ""} ${
-          perfilSobreNaWeb ? "md:max-h-[85svh] md:rounded-2xl" : ""
+        className={`relative overflow-hidden bg-mist-2 ${caixa} ${porCima ? "max-h-[85svh] w-full" : ""} ${limitarNoTablet ? "md:max-h-[85svh] md:w-full lg:max-h-none" : ""} ${
+          perfilSobreNaWeb ? "md:max-h-[85svh] md:w-full md:rounded-2xl" : ""
         }`}
       >
         <div

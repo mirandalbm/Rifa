@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Check, Image as IconeImagem, RefreshCw, Scissors, Send, Ticket, Trash2, Type, Volume2, VolumeX, X } from "lucide-react";
+import { Check, Image as IconeImagem, RefreshCw, Scissors, Send, Sticker, Ticket, Trash2, Type, Volume2, VolumeX, X } from "lucide-react";
 import { IconeReels } from "@/components/Icones";
 import { EscolherCapa } from "@/components/EscolherCapa";
 import { CortarVideo } from "@/components/CortarVideo";
+import { FigurinhasDoReels } from "@/components/FigurinhasDoReels";
+import type { Figurinha } from "@shared/figurinhasStory";
 import { apiRequest } from "@/lib/queryClient";
 import { enviarReels } from "@/lib/enviarReels";
 import { LEGENDA_MAX, duracao, problemaNaLegenda } from "@shared/publicacao";
@@ -478,6 +480,7 @@ export interface ReelsGuardado {
   width: number | null;
   height: number | null;
   legenda: string | null;
+  figurinhas?: Figurinha[];
 }
 
 /**
@@ -490,6 +493,7 @@ export function VerReels({ reels, onFechar, aoMudar }: { reels: ReelsGuardado; o
   const [folha, setFolha] = useState(false);
   const [capa, setCapa] = useState(false);
   const [corte, setCorte] = useState(false);
+  const [comFigurinhas, setComFigurinhas] = useState(false);
   const [texto, setTexto] = useState(reels.legenda ?? "");
   const [erro, setErro] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState(false);
@@ -545,6 +549,7 @@ export function VerReels({ reels, onFechar, aoMudar }: { reels: ReelsGuardado; o
           <Ferramenta rotulo={mudo ? "Sem som" : "Com som"} icone={iconeDoSom(mudo)} onClick={() => setMudo(!mudo)} pressionado={!mudo} />
           {reels.durationS ? <Ferramenta rotulo="Capa" icone={<IconeImagem size={22} aria-hidden />} onClick={() => setCapa(true)} /> : null}
           {reels.durationS ? <Ferramenta rotulo="Cortar" icone={<Scissors size={22} aria-hidden />} onClick={() => setCorte(true)} /> : null}
+          <Ferramenta rotulo="Figurinhas" icone={<Sticker size={22} aria-hidden />} onClick={() => setComFigurinhas(true)} />
           <Ferramenta
             rotulo="Apagar"
             icone={<Trash2 size={22} aria-hidden />}
@@ -614,6 +619,16 @@ export function VerReels({ reels, onFechar, aoMudar }: { reels: ReelsGuardado; o
           camada="z-[80]"
           onFechar={() => setCorte(false)}
           aoCortar={aoMudar}
+        />
+      ) : null}
+      {comFigurinhas ? (
+        <FigurinhasDoReels
+          mediaId={reels.id}
+          gravadas={reels.figurinhas}
+          poster={reels.posterUrl}
+          camada="z-[80]"
+          onFechar={() => setComFigurinhas(false)}
+          aoSalvar={aoMudar}
         />
       ) : null}
     </div>,

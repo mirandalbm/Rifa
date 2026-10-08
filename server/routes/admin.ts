@@ -117,6 +117,7 @@ import {
 import { artesDaRifa, rifaDaArte } from "../services/artes";
 import { CAPAS_POR_JANELA } from "@shared/poster";
 import { CORTES_POR_JANELA } from "@shared/corte";
+import { type Figurinha, textosDasFigurinhas, validarFigurinhas } from "@shared/figurinhasStory";
 import { enviarArte, enviarPacote, listaDeArtes } from "./artesRotas";
 import { generateSecret, otpauthUrl } from "../services/totp";
 import { codigoConfere, guardarSegredo } from "../services/segundoFator";
@@ -1572,6 +1573,48 @@ adminRouter.put("/media/:mediaId/legenda", async (req, res, next) => {
     }
     await audit(req, "media.legenda", "campaign", campanha.id, { id: req.params.mediaId });
     res.json({ legenda });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * As figurinhas do vídeo do Reels (Fase D): contagem do sorteio, Comprar,
+ * texto e emoji, na régua das do story (`validarFigurinhas()`, sempre com a
+ * rifa do vídeo). Só dados — a tela desenha. Muda a qualquer hora; o dono é
+ * conferido pelo pai (a mídia do vizinho é 404) e o texto passa pela
+ * varredura do Pix por fora.
+ */
+adminRouter.put("/media/:mediaId/figurinhas", async (req, res, next) => {
+  try {
+    const [midia] = await db
+      .select({ campaignId: campaignMedia.campaignId, role: campaignMedia.role })
+      .from(campaignMedia)
+      .where(eq(campaignMedia.id, req.params.mediaId));
+    if (!midia) return res.status(404).json({ message: "Mídia não encontrada." });
+    const campanha = await assertCampaignInScope(req, midia.campaignId);
+    if (midia.role !== "reels") return res.status(409).json({ message: "Só o vídeo do Reels leva figurinha." });
+    let figurinhas: Figurinha[];
+    try {
+      figurinhas = validarFigurinhas(req.body?.figurinhas ?? null, { temRifa: true });
+    } catch (e) {
+      return res.status(422).json({ message: (e as Error).message });
+    }
+    const [gravada] = await db
+      .update(campaignMedia)
+      .set({ figurinhas })
+      .where(and(eq(campaignMedia.id, req.params.mediaId), eq(campaignMedia.role, "reels")))
+      .returning({ id: campaignMedia.id });
+    if (!gravada) return res.status(404).json({ message: "Mídia não encontrada." });
+    const textos = textosDasFigurinhas(figurinhas);
+    if (textos) {
+      emSegundoPlano(
+        varrerTextoDoOrganizador({ organizationId: campanha.organizationId, campaignId: campanha.id, onde: "figurinha do reels", texto: textos }),
+        "varredura",
+      );
+    }
+    await audit(req, "media.figurinhas", "campaign", campanha.id, { id: req.params.mediaId, figurinhas: figurinhas.map((f) => f.tipo) });
+    res.json({ figurinhas });
   } catch (err) {
     next(err);
   }

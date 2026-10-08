@@ -669,6 +669,11 @@ export const campaignMedia = pgTable(
     altText: text("alt_text"),
     /** A legenda do vídeo do Reels (só `reels`; a da rifa é `campaigns.legenda`). */
     legenda: text("legenda"),
+    /**
+     * As figurinhas do vídeo do Reels (só `reels`): a mesma régua das do story
+     * (`validarFigurinhas()`), sempre com rifa — a do próprio vídeo.
+     */
+    figurinhas: jsonb("figurinhas").$type<Figurinha[]>().notNull().default([]),
     bytes: bigint("bytes", { mode: "number" }),
     status: mediaStatus("status").notNull().default("processing"),
     createdAt: timestamp("created_at").notNull().defaultNow(),

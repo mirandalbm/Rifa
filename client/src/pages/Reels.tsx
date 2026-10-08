@@ -13,8 +13,16 @@ import { guardarSomDosReels, lerSomDosReels } from "@/lib/reelsSom";
 import { useVideoHls } from "@/lib/hls";
 import { ABAS_DO_REELS, type AbaDoReels } from "@shared/reels";
 import type { RifaDoFeed } from "@/components/CartaoDoFeed";
+import { FigurinhasNaTela } from "@/components/Figurinhas";
+import type { FigurinhaNaTela } from "@shared/figurinhasStory";
 
-type ItemDoReels = RifaDoFeed & { reelsId?: string; reels: string | null; reelsPoster?: string | null; reelsHls?: string | null };
+type ItemDoReels = RifaDoFeed & {
+  reelsId?: string;
+  reels: string | null;
+  reelsPoster?: string | null;
+  reelsHls?: string | null;
+  reelsFigurinhas?: FigurinhaNaTela[];
+};
 interface Pagina {
   ligado: boolean;
   precisaEntrar?: boolean;
@@ -227,6 +235,10 @@ function Quadro({
               <path d="M8 5.5v13l10.5-6.5Z" fill="currentColor" />
             </svg>
           </button>
+        ) : null}
+        {/* As figurinhas do vídeo (contagem, Comprar, texto, emoji): só o Comprar pega o toque. */}
+        {c.reelsFigurinhas?.length ? (
+          <FigurinhasNaTela figurinhas={c.reelsFigurinhas} perfil={c.organizacao?.slug ?? ""} aoSair={() => marcarOrigem("vitrine")} />
         ) : null}
         <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/70 to-transparent" />
 

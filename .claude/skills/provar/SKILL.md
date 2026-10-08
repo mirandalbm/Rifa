@@ -51,7 +51,7 @@ Pelo caminho que mudou (a mesma tabela "Onde mexer" do `CLAUDE.md`):
 | retenção cautelar de saldo (banimento, reembolso do patrocínio, acerto da cobrança) | `retencao`, `patrocinio`, `presente`, `seguranca`, `isolation` |
 | contrato da promotora e anexos por modalidade (`shared/contratoPromotora.ts`, `shared/contratoAnexos.ts`, `server/services/contratoPromotora.ts`, `server/services/contratoAnexos.ts`, `publishBlockers`/`publishCampaign()`) | `contrato`, `anexos`, `agenda-rifa`, `banner-divulgacao`, `comentarios`, `isolation`, `tests/contratoPromotora.test.ts`, `tests/contratoAnexos.test.ts`; mexeu no cartão, `telas` |
 | verificação (selo), consentimento biométrico e a renovação dele (`RenovarConsentimento`, relógio 811019) | `verificacao`, `isolation`, `tests/verificacao.test.ts`; mexeu no texto, `tests/legal.test.ts` |
-| publicação, carrinho, Reels | `publicacao`, `carrinho` |
+| publicação, carrinho, Reels (inclusive as figurinhas do vídeo, `Figurinhas.tsx`) | `publicacao`, `carrinho`, `isolation` (as figurinhas), `vitrine` (o editor e o desenho são os do story) |
 | mensagens e grupos | `mensagens`, `grupos`, `isolation` |
 | buscar (e o índice de texto: `shared/semAcentoSql.ts`, `idx_*_trgm`, `scripts/extensoes.ts`) | `buscar` (o plano com 5 mil rifas numa transação que volta) |
 | presente | `presente` |

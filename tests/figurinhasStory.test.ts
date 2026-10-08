@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { FIGURINHAS_MAX, POSICAO_MAX, POSICAO_MIN, nomeDoEmoji, textoDaContagem, validarFigurinhas } from "../shared/figurinhasStory";
+import { FIGURINHAS_MAX, POSICAO_MAX, POSICAO_MIN, figurinhasParaATela, nomeDoEmoji, textoDaContagem, textosDasFigurinhas, validarFigurinhas } from "../shared/figurinhasStory";
 
 const comRifa = { temRifa: true };
 
@@ -45,7 +45,7 @@ describe("figurinhas do story", () => {
         ],
         comRifa,
       ),
-    ).toThrow(/Um botão Comprar/);
+    ).toThrow(/um botão Comprar/);
   });
 
   it("no máximo quatro, tipo conhecido, formato de lista", () => {
@@ -74,5 +74,33 @@ describe("figurinhas do story", () => {
     expect(textoDaContagem("2026-10-04T11:00:00Z", false, agora)).toEqual({ partes: null, texto: "Sorteio agora" });
     expect(textoDaContagem(null, false, agora).texto).toBe("Sorteio quando a rifa completar");
     expect(textoDaContagem("2026-10-06T15:30:05Z", true, agora).texto).toBe("Sorteio realizado");
+  });
+});
+
+describe("figurinhasParaATela", () => {
+  const gravadas = [
+    { tipo: "contagem" as const, x: 0.5, y: 0.2 },
+    { tipo: "comprar" as const, x: 0.5, y: 0.8 },
+    { tipo: "texto" as const, x: 0.3, y: 0.5, texto: "Oi" },
+    { tipo: "emoji" as const, x: 0.7, y: 0.5, emoji: "🍀" },
+  ];
+  const rifa = { slug: "moto", drawAt: "2026-12-01T22:00:00Z", sorteada: false, conta: true, vende: true };
+  it("traz a data e o endereço da rifa de agora", () => {
+    const tela = figurinhasParaATela(gravadas, rifa);
+    expect(tela.map((f) => f.tipo)).toEqual(["contagem", "comprar", "texto", "emoji"]);
+    expect(tela[0]).toMatchObject({ drawAt: rifa.drawAt, sorteada: false });
+    expect(tela[1]).toMatchObject({ slug: "moto" });
+  });
+  it("tira o Comprar quando a rifa não vende e a contagem quando não conta", () => {
+    expect(figurinhasParaATela(gravadas, { ...rifa, vende: false }).map((f) => f.tipo)).toEqual(["contagem", "texto", "emoji"]);
+    expect(figurinhasParaATela(gravadas, { ...rifa, conta: false }).map((f) => f.tipo)).toEqual(["comprar", "texto", "emoji"]);
+    expect(figurinhasParaATela(gravadas, { ...rifa, slug: null }).map((f) => f.tipo)).toEqual(["contagem", "texto", "emoji"]);
+  });
+  it("sem figurinha, lista vazia", () => {
+    expect(figurinhasParaATela(null, rifa)).toEqual([]);
+  });
+  it("junta só os textos para a varredura", () => {
+    expect(textosDasFigurinhas(gravadas)).toBe("Oi");
+    expect(textosDasFigurinhas([])).toBe("");
   });
 });

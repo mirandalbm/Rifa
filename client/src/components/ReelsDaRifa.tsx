@@ -8,6 +8,8 @@ import { REELS_POR_RIFA } from "@shared/reels";
 import { CriarReels, VerReels } from "@/components/CriarReels";
 import { EscolherCapa } from "@/components/EscolherCapa";
 import { CortarVideo } from "@/components/CortarVideo";
+import { FigurinhasDoReels } from "@/components/FigurinhasDoReels";
+import type { Figurinha } from "@shared/figurinhasStory";
 import { enviarReels } from "@/lib/enviarReels";
 import { useNoComputador } from "@/lib/largura";
 
@@ -20,6 +22,7 @@ interface Reels {
   width: number | null;
   height: number | null;
   legenda: string | null;
+  figurinhas?: Figurinha[];
 }
 
 /**
@@ -201,6 +204,7 @@ function ItemDoReels({ reels, aoMudar, aoFechar }: { reels: Reels; aoMudar: () =
   const [texto, setTexto] = useState(reels.legenda ?? "");
   const [capa, setCapa] = useState(false);
   const [corte, setCorte] = useState(false);
+  const [comFigurinhas, setComFigurinhas] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState(false);
   const mudou = texto !== (reels.legenda ?? "");
@@ -264,6 +268,9 @@ function ItemDoReels({ reels, aoMudar, aoFechar }: { reels: Reels; aoMudar: () =
             Cortar
           </Button>
         ) : null}
+        <Button variant="ghost" className="px-3 py-1 text-xs" disabled={ocupado} onClick={() => setComFigurinhas(true)}>
+          Figurinhas{reels.figurinhas?.length ? ` (${reels.figurinhas.length})` : ""}
+        </Button>
         <Button
           variant="ghost"
           className="px-3 py-1 text-xs"
@@ -297,6 +304,15 @@ function ItemDoReels({ reels, aoMudar, aoFechar }: { reels: Reels; aoMudar: () =
           durationS={reels.durationS}
           onFechar={() => setCorte(false)}
           aoCortar={aoMudar}
+        />
+      ) : null}
+      {comFigurinhas ? (
+        <FigurinhasDoReels
+          mediaId={reels.id}
+          gravadas={reels.figurinhas}
+          poster={reels.posterUrl}
+          onFechar={() => setComFigurinhas(false)}
+          aoSalvar={aoMudar}
         />
       ) : null}
     </div>

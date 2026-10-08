@@ -318,6 +318,47 @@ async function main() {
       const [foto] = await db.select({ id: campaignMedia.id }).from(campaignMedia).where(and(eq(campaignMedia.campaignId, rifa.id), eq(campaignMedia.role, "video")));
       r = await marina.req("PUT", `/api/admin/media/${foto?.id}/legenda`, { legenda: "x" });
       checa("vídeo do carrossel não tem legenda própria (409)", r.status === 409, `HTTP ${r.status}`);
+
+      // Figurinhas do reels (Fase D): a régua das do story, sempre com a rifa do vídeo.
+      console.log("\n  figurinhas do reels:");
+      const figs = [
+        { tipo: "contagem", x: 0.5, y: 0.2 },
+        { tipo: "comprar", x: 0.5, y: 0.8 },
+        { tipo: "texto", x: 0.25, y: 0.5, texto: "  Última   semana!  " },
+        { tipo: "emoji", x: 0.75, y: 0.35, emoji: "🍀" },
+      ];
+      r = await marina.req("PUT", `/api/admin/media/${reels1?.id}/figurinhas`, { figurinhas: figs, posicao: "forjada" });
+      checa(
+        "as quatro figurinhas entram, com o texto limpo",
+        r.status === 200 && r.json?.figurinhas?.length === 4 && r.json.figurinhas[2].texto === "Última semana!",
+        `HTTP ${r.status} ${JSON.stringify(r.json)}`,
+      );
+      r = await anon.req("GET", "/api/public/reels?limite=50");
+      const comFigs = ((r.json?.itens ?? []) as { reelsId: string; reelsFigurinhas?: { tipo: string; slug?: string; drawAt?: string }[] }[]).find((c) => c.reelsId === reels1?.id);
+      const tipos = (comFigs?.reelsFigurinhas ?? []).map((f) => f.tipo);
+      checa("o Reels leva as figurinhas do vídeo", tipos.join(",") === "contagem,comprar,texto,emoji", JSON.stringify(comFigs?.reelsFigurinhas));
+      checa(
+        "a contagem traz a data do sorteio da rifa e o Comprar o endereço dela (nada do navegador)",
+        comFigs?.reelsFigurinhas?.[1]?.slug === SLUG && Boolean(comFigs?.reelsFigurinhas?.[0]?.drawAt),
+        JSON.stringify(comFigs?.reelsFigurinhas?.slice(0, 2)),
+      );
+      for (const [nome, corpo] of [
+        ["texto com telefone", [{ tipo: "texto", x: 0.5, y: 0.5, texto: "chama no 11 98888-7777" }]],
+        ["cinco figurinhas", Array.from({ length: 5 }, () => ({ tipo: "emoji", x: 0.5, y: 0.5, emoji: "🍀" }))],
+        ["duas contagens", [{ tipo: "contagem", x: 0.5, y: 0.2 }, { tipo: "contagem", x: 0.5, y: 0.4 }]],
+        ["emoji fora da lista", [{ tipo: "emoji", x: 0.5, y: 0.5, emoji: "💣" }]],
+        ["tipo inventado", [{ tipo: "html", x: 0.5, y: 0.5, html: "<script>" }]],
+        ["posição fora da tela", [{ tipo: "comprar", x: 2, y: 0.5 }]],
+      ] as [string, unknown][]) {
+        r = await marina.req("PUT", `/api/admin/media/${reels1?.id}/figurinhas`, { figurinhas: corpo });
+        checa(`figurinha recusada (${nome}): 422`, r.status === 422, `HTTP ${r.status} ${r.json?.message ?? ""}`);
+      }
+      r = await marina.req("PUT", `/api/admin/media/${foto?.id}/figurinhas`, { figurinhas: [] });
+      checa("vídeo do carrossel não leva figurinha (409)", r.status === 409, `HTTP ${r.status}`);
+      r = await anon.req("PUT", `/api/admin/media/${reels1?.id}/figurinhas`, { figurinhas: [] });
+      checa("figurinhas sem login: 401", r.status === 401, `HTTP ${r.status}`);
+      r = await marina.req("PUT", `/api/admin/media/${reels1?.id}/figurinhas`, { figurinhas: [] });
+      checa("lista vazia tira as figurinhas", r.status === 200 && r.json?.figurinhas?.length === 0, JSON.stringify(r.json));
       // O cursor no reels1 (o do meio: o reels2 vem depois); apagado o reels1, a fila não recomeça.
       r = await anon.req("GET", "/api/public/reels?limite=50");
       const todos = (r.json?.itens ?? []) as { reelsId: string }[];

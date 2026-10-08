@@ -20,7 +20,7 @@ import {
   storyVotos,
   buyers,
 } from "@shared/schema";
-import { type Figurinha, type FigurinhaNaTela, validarFigurinhas } from "@shared/figurinhasStory";
+import { type Figurinha, figurinhasParaATela, validarFigurinhas } from "@shared/figurinhasStory";
 import { rifaAVenda } from "@shared/carrinho";
 import { getPaymentMethods } from "./settings";
 import { ENQUETE_VOTOS_POR_JANELA, opcaoValida, percentuais, validarEnquete } from "@shared/enqueteStory";
@@ -265,16 +265,14 @@ function figurinhasNaTela(s: LinhaDoStory, pixOnline: boolean) {
       totalQuotas: s.rifaTotal ?? 0,
       pixOnline,
     });
-  return (s.figurinhas ?? []).flatMap((f): FigurinhaNaTela[] => {
-    if (f.tipo === "contagem") {
-      // Demonstração não tem sorteio de verdade (data longe), e a travada não
-      // vende: contar para nenhuma das duas seria anunciar o que não vai acontecer.
-      const conta = publica && !s.rifaDemonstracao && !s.rifaTravada;
-      return conta ? [{ tipo: "contagem", x: f.x, y: f.y, drawAt: s.rifaDrawAt, sorteada: s.rifaStatus === "drawn" }] : [];
-    }
-    if (f.tipo === "comprar") return vende ? [{ tipo: "comprar", x: f.x, y: f.y, slug: s.rifaSlug! }] : [];
-    if (f.tipo === "texto") return [{ tipo: "texto", x: f.x, y: f.y, texto: f.texto }];
-    return [{ tipo: "emoji", x: f.x, y: f.y, emoji: f.emoji }];
+  // Demonstração não tem sorteio de verdade (data longe), e a travada não
+  // vende: contar para nenhuma das duas seria anunciar o que não vai acontecer.
+  return figurinhasParaATela(s.figurinhas, {
+    slug: s.rifaSlug,
+    drawAt: s.rifaDrawAt,
+    sorteada: s.rifaStatus === "drawn",
+    conta: publica && !s.rifaDemonstracao && !s.rifaTravada,
+    vende,
   });
 }
 

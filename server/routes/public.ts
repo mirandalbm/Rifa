@@ -1,3 +1,4 @@
+import { type Figurinha, figurinhasParaATela } from "@shared/figurinhasStory";
 import { lerResultado, numeracaoZero } from "@shared/apuracao";
 import { arquivoDaAta, ataDaSessao, seloDaRifa, sorteioOficialDaTela } from "../services/sorteiosOficiais";
 import { bannerPublico, imagemPublica } from "../services/bannerDivulgacao";
@@ -502,7 +503,7 @@ publicRouter.get("/reels", async (req, res, next) => {
     const [midias, soReels] = await Promise.all([midiasDas(ids), reelsDas(ids)]);
     const comVideo = todas
       .map((r) => {
-        const doCarrossel = (midias.get(r.campaign.id) ?? []).map((m) => ({ ...pecaPublica(m), id: m.id, legenda: null as string | null, criadaEm: m.createdAt }));
+        const doCarrossel = (midias.get(r.campaign.id) ?? []).map((m) => ({ ...pecaPublica(m), id: m.id, legenda: null as string | null, criadaEm: m.createdAt, figurinhas: [] as Figurinha[] }));
         return { ...r, videos: videosDoReels([...(soReels.get(r.campaign.id) ?? []), ...doCarrossel]) };
       })
       .filter((r) => r.videos.length > 0);
@@ -524,7 +525,15 @@ publicRouter.get("/reels", async (req, res, next) => {
         const c = cartoes.get(rifa.campaign.id);
         if (!c) return [];
         // `id` segue sendo a rifa (curtir, comentar e comprar são dela); `reelsId` é o vídeo.
-        return [{ ...c, reelsId: id, legenda: video.legenda ?? c.legenda, reels: video.url, reelsPoster: video.poster ?? null, reelsHls: video.hls ?? null }];
+        // As figurinhas do vídeo, com a data do sorteio de agora; o Comprar só enquanto a rifa vende.
+        const figurinhas = figurinhasParaATela(video.figurinhas, {
+          slug: c.slug,
+          drawAt: rifa.campaign.drawAt,
+          sorteada: rifa.campaign.status === "drawn",
+          conta: !rifa.campaign.demonstracao,
+          vende: Boolean(c.vende),
+        });
+        return [{ ...c, reelsId: id, legenda: video.legenda ?? c.legenda, reels: video.url, reelsPoster: video.poster ?? null, reelsHls: video.hls ?? null, reelsFigurinhas: figurinhas }];
       }),
     proximo: lote.proximo,
     });

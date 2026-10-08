@@ -6,6 +6,7 @@
  * comprador) — o contador só anda quando a linha entrou de verdade, na mesma
  * transação. Dois toques em "Seguir" não viram dois seguidores.
  */
+import type { Figurinha } from "@shared/figurinhasStory";
 import { and, asc, desc, eq, inArray, isNull, ne, or, sql } from "drizzle-orm";
 import sharp from "sharp";
 import { rifaAVenda } from "@shared/carrinho";
@@ -102,7 +103,7 @@ export async function midiasDas(ids: string[]) {
  * mais novo primeiro, com a legenda própria e a data (a tela do Reels ordena).
  */
 export async function reelsDas(ids: string[]) {
-  const porRifa = new Map<string, (ReturnType<typeof pecaPublica> & { id: string; legenda: string | null; criadaEm: Date })[]>();
+  const porRifa = new Map<string, (ReturnType<typeof pecaPublica> & { id: string; legenda: string | null; criadaEm: Date; figurinhas: Figurinha[] })[]>();
   if (ids.length === 0) return porRifa;
   const linhas = await db
     .select()
@@ -111,7 +112,7 @@ export async function reelsDas(ids: string[]) {
     .orderBy(desc(campaignMedia.createdAt));
   for (const m of linhas) {
     const lista = porRifa.get(m.campaignId) ?? [];
-    lista.push({ ...pecaPublica(withUrls(m)), id: m.id, legenda: m.legenda, criadaEm: m.createdAt });
+    lista.push({ ...pecaPublica(withUrls(m)), id: m.id, legenda: m.legenda, criadaEm: m.createdAt, figurinhas: m.figurinhas ?? [] });
     porRifa.set(m.campaignId, lista);
   }
   return porRifa;

@@ -14,16 +14,8 @@ import {
   STORY_VIDEO_MAX_SEGUNDOS,
   validarLegenda,
 } from "@shared/vitrine";
-import {
-  EMOJIS_DA_FIGURINHA,
-  FIGURINHAS_MAX,
-  FIGURINHA_TEXTO_MAX,
-  POSICOES_HORIZONTAIS,
-  POSICOES_VERTICAIS,
-  type FigurinhaNaTela,
-  type TipoDeFigurinha,
-  validarFigurinhas,
-} from "@shared/figurinhasStory";
+import { type FigurinhaNaTela, type TipoDeFigurinha, validarFigurinhas } from "@shared/figurinhasStory";
+import { EditorDeFigurinhas, NOME_DA_FIGURINHA, paraEnviar, type FigurinhaDoForm } from "@/components/Figurinhas";
 import { ENQUETE_OPCAO_MAX, ENQUETE_OPCOES_MAX, ENQUETE_OPCOES_MIN, ENQUETE_PERGUNTA_MAX, validarEnquete } from "@shared/enqueteStory";
 
 interface StoryNoPainel {
@@ -112,8 +104,6 @@ export function AdminStories() {
   } catch (e) {
     problemaNasFigurinhas = (e as Error).message;
   }
-  const mudarFigurinha = (k: number, campo: Partial<FigurinhaDoForm>) =>
-    setFigurinhas(figurinhas.map((f, j) => (j === k ? { ...f, ...campo } : f)));
 
   const recarregar = () => qc.invalidateQueries({ queryKey: ["/api/admin/stories"] });
   const postar = useMutation({
@@ -334,122 +324,14 @@ export function AdminStories() {
               ) : null}
             </fieldset>
 
-            <fieldset className="space-y-2 rounded-md border border-line p-3">
-              <legend className="px-1 label-xs">Figurinhas (opcional)</legend>
-              <p className="text-[11px] text-muted">
-                Até <span className="tnum">{FIGURINHAS_MAX}</span>, cada uma num ponto da tela. A contagem e o Comprar são da rifa escolhida acima: o
-                Comprar some sozinho quando a rifa para de vender.
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {(
-                  [
-                    ["contagem", "Contagem do sorteio"],
-                    ["comprar", "Botão Comprar"],
-                    ["texto", "Texto"],
-                    ["emoji", "Emoji"],
-                  ] as [TipoDeFigurinha, string][]
-                ).map(([tipo, rotulo]) => {
-                  const daRifa = tipo === "contagem" || tipo === "comprar";
-                  const bloqueada =
-                    figurinhas.length >= FIGURINHAS_MAX || (daRifa && (!campaignId || figurinhas.some((f) => f.tipo === tipo)));
-                  return (
-                    <Button
-                      key={tipo}
-                      type="button"
-                      variant="ghost"
-                      className="px-2 py-1 text-xs"
-                      disabled={bloqueada}
-                      onClick={() => setFigurinhas([...figurinhas, novaFigurinha(tipo, figurinhas.length)])}
-                    >
-                      + {rotulo}
-                    </Button>
-                  );
-                })}
-              </div>
-              {!campaignId ? <p className="text-[11px] text-muted">Escolha a rifa do story para usar a contagem e o Comprar.</p> : null}
-              {figurinhas.length ? (
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_120px]">
-                  <ul className="min-w-0 space-y-2">
-                    {figurinhas.map((f, k) => (
-                      <li key={k} className="space-y-2 rounded-md bg-painel p-2">
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-xs font-semibold">{NOME_DA_FIGURINHA[f.tipo]}</span>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            className="px-2 py-1 text-xs"
-                            onClick={() => setFigurinhas(figurinhas.filter((_, j) => j !== k))}
-                            aria-label={`Tirar a figurinha ${k + 1} (${NOME_DA_FIGURINHA[f.tipo]})`}
-                          >
-                            Tirar
-                          </Button>
-                        </div>
-                        {f.tipo === "texto" ? (
-                          <div>
-                            <label htmlFor={`fig-texto-${k}`} className="label-xs">Texto</label>
-                            <input
-                              id={`fig-texto-${k}`}
-                              value={f.texto}
-                              maxLength={FIGURINHA_TEXTO_MAX + 5}
-                              onChange={(e) => mudarFigurinha(k, { texto: e.target.value })}
-                              className="campo mt-1"
-                            />
-                          </div>
-                        ) : null}
-                        {f.tipo === "emoji" ? (
-                          <div>
-                            <label htmlFor={`fig-emoji-${k}`} className="label-xs">Emoji</label>
-                            <select id={`fig-emoji-${k}`} value={f.emoji} onChange={(e) => mudarFigurinha(k, { emoji: e.target.value })} className="campo mt-1">
-                              {EMOJIS_DA_FIGURINHA.map((e) => (
-                                <option key={e.emoji} value={e.emoji}>
-                                  {e.emoji} {e.nome}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                        ) : null}
-                        <div className="grid grid-cols-2 gap-2">
-                          <div>
-                            <label htmlFor={`fig-x-${k}`} className="label-xs">Lado</label>
-                            <select id={`fig-x-${k}`} value={f.x} onChange={(e) => mudarFigurinha(k, { x: Number(e.target.value) })} className="campo mt-1">
-                              {POSICOES_HORIZONTAIS.map((p) => (
-                                <option key={p.valor} value={p.valor}>
-                                  {p.rotulo}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                          <div>
-                            <label htmlFor={`fig-y-${k}`} className="label-xs">Altura</label>
-                            <select id={`fig-y-${k}`} value={f.y} onChange={(e) => mudarFigurinha(k, { y: Number(e.target.value) })} className="campo mt-1">
-                              {POSICOES_VERTICAIS.map((p) => (
-                                <option key={p.valor} value={p.valor}>
-                                  {p.rotulo}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                  {/* Prévia do lugar de cada figurinha (só o desenho; a tela de verdade é o story). */}
-                  <div aria-hidden className="relative mx-auto aspect-[9/16] w-[120px] overflow-hidden rounded-md bg-[#0b1f14]">
-                    {peca && !peca.video ? <img src={peca.url} alt="" className="h-full w-full object-cover opacity-80" /> : null}
-                    {figurinhas.map((f, k) => (
-                      <span
-                        key={k}
-                        className="absolute max-w-[90%] -translate-x-1/2 -translate-y-1/2 truncate rounded bg-black/60 px-1 text-[9px] font-semibold text-branco"
-                        style={{ left: `${f.x * 100}%`, top: `${f.y * 100}%` }}
-                      >
-                        {f.tipo === "emoji" ? f.emoji : f.tipo === "texto" ? f.texto || "Texto" : NOME_DA_FIGURINHA[f.tipo]}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
-              {problemaNasFigurinhas ? <p className="text-[11px] text-red">{problemaNasFigurinhas}</p> : null}
-            </fieldset>
+            <EditorDeFigurinhas
+              figurinhas={figurinhas}
+              mudar={setFigurinhas}
+              temRifa={Boolean(campaignId)}
+              fundo={peca && !peca.video ? peca.url : null}
+              explicacao="A contagem e o Comprar são da rifa escolhida acima: o Comprar some sozinho quando a rifa para de vender."
+              semRifa="Escolha a rifa do story para usar a contagem e o Comprar."
+            />
 
             {msg ? (
               <p className={`rounded-md px-3 py-2 ${msg.ok ? "bg-green-soft text-green-deep" : "bg-red-soft text-red"}`}>{msg.texto}</p>
@@ -534,32 +416,4 @@ export function AdminStories() {
       </div>
     </PanelShell>
   );
-}
-
-interface FigurinhaDoForm {
-  tipo: TipoDeFigurinha;
-  x: number;
-  y: number;
-  texto: string;
-  emoji: string;
-}
-
-const NOME_DA_FIGURINHA: Record<TipoDeFigurinha, string> = {
-  contagem: "Contagem do sorteio",
-  comprar: "Botão Comprar",
-  texto: "Texto",
-  emoji: "Emoji",
-};
-
-/** A figurinha nova entra no centro, um degrau abaixo da anterior. */
-function novaFigurinha(tipo: TipoDeFigurinha, quantas: number): FigurinhaDoForm {
-  const alturas = POSICOES_VERTICAIS.map((p) => p.valor);
-  return { tipo, x: 0.5, y: alturas[(quantas + 1) % alturas.length], texto: "", emoji: EMOJIS_DA_FIGURINHA[0].emoji };
-}
-
-/** Só as chaves que o tipo usa: o servidor confere do mesmo jeito. */
-function paraEnviar(f: FigurinhaDoForm) {
-  if (f.tipo === "texto") return { tipo: f.tipo, x: f.x, y: f.y, texto: f.texto };
-  if (f.tipo === "emoji") return { tipo: f.tipo, x: f.x, y: f.y, emoji: f.emoji };
-  return { tipo: f.tipo, x: f.x, y: f.y };
 }

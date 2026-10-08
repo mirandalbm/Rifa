@@ -445,6 +445,8 @@ async function midiaDoVizinho(eu: Lado, vizinho: Lado) {
       checa("PUT capa do reels do vizinho é 404", res.status === 404, `HTTP ${res.status}`);
       res = await pedir(eu.cookie, `/api/admin/media/${reels.id}/corte`, { method: "PUT", body: '{"inicio":1,"fim":5}' });
       checa("PUT corte do reels do vizinho é 404", res.status === 404, `HTTP ${res.status}`);
+      res = await pedir(eu.cookie, `/api/admin/media/${reels.id}/figurinhas`, { method: "PUT", body: '{"figurinhas":[{"tipo":"emoji","x":0.5,"y":0.5,"emoji":"🍀"}]}' });
+      checa("PUT figurinhas do reels do vizinho é 404", res.status === 404, `HTTP ${res.status}`);
       res = await pedir(eu.cookie, `/api/admin/media/${reels.id}`, { method: "DELETE" });
       checa("DELETE reels do vizinho é 404", res.status === 404, `HTTP ${res.status}`);
       const [depois] = await db.select().from(campaignMedia).where(eq(campaignMedia.id, reels.id));

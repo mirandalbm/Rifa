@@ -82,7 +82,7 @@ export function Janela({
         aria-labelledby={rotuloPor}
         onClick={(e) => e.stopPropagation()}
         style={style}
-        className={`max-h-[90vh] w-full rounded-t-2xl bg-white shadow-card outline-none ${
+        className={`max-h-[90vh] w-full rounded-t-2xl bg-white text-ink shadow-card outline-none ${
           centralizarEm === "lg" ? `${largura} lg:rounded-2xl` : `${largura} sm:rounded-2xl`
         } ${rolar ? "overflow-y-auto" : ""} ${className}`}
       >

@@ -91,7 +91,7 @@ function limpar(t: string) {
 export function validarFigurinhas(bruta: unknown, opcoes: { temRifa: boolean }): Figurinha[] {
   if (bruta === null || bruta === undefined) return [];
   if (!Array.isArray(bruta)) throw new Error("As figurinhas vieram num formato que não reconheço.");
-  if (bruta.length > FIGURINHAS_MAX) throw new Error(`No máximo ${FIGURINHAS_MAX} figurinhas por story.`);
+  if (bruta.length > FIGURINHAS_MAX) throw new Error(`No máximo ${FIGURINHAS_MAX} figurinhas.`);
   const vistas = new Set<string>();
   return bruta.map((item): Figurinha => {
     if (!item || typeof item !== "object" || Array.isArray(item)) {
@@ -111,7 +111,7 @@ export function validarFigurinhas(bruta: unknown, opcoes: { temRifa: boolean }):
         );
       }
       if (vistas.has(tipo)) {
-        throw new Error(tipo === "contagem" ? "Uma contagem por story." : "Um botão Comprar por story.");
+        throw new Error(tipo === "contagem" ? "Só cabe uma contagem do sorteio." : "Só cabe um botão Comprar.");
       }
       vistas.add(tipo);
       return { tipo, x, y };
@@ -128,6 +128,31 @@ export function validarFigurinhas(bruta: unknown, opcoes: { temRifa: boolean }):
     if (!EMOJIS_DA_FIGURINHA.some((e) => e.emoji === emoji)) throw new Error("Escolha um dos emojis da lista.");
     return { tipo: "emoji", x, y, emoji };
   });
+}
+
+/**
+ * As figurinhas gravadas como a tela as desenha, a partir da rifa de agora —
+ * a mesma conta no story e no reels. A contagem leva a data do sorteio de
+ * agora (o adiamento muda sozinho) e só conta para rifa pública que vai
+ * sortear de verdade (`conta`: nem demonstração nem travada); o Comprar só sai
+ * enquanto a rifa vende (`vende`, a régua de `rifaAVenda()`). Texto e emoji
+ * ficam sempre.
+ */
+export function figurinhasParaATela(
+  gravadas: Figurinha[] | null | undefined,
+  rifa: { slug: string | null; drawAt: Date | string | null; sorteada: boolean; conta: boolean; vende: boolean },
+): FigurinhaNaTela[] {
+  return (gravadas ?? []).flatMap((f): FigurinhaNaTela[] => {
+    if (f.tipo === "contagem") return rifa.conta ? [{ tipo: "contagem", x: f.x, y: f.y, drawAt: rifa.drawAt, sorteada: rifa.sorteada }] : [];
+    if (f.tipo === "comprar") return rifa.vende && rifa.slug ? [{ tipo: "comprar", x: f.x, y: f.y, slug: rifa.slug }] : [];
+    if (f.tipo === "texto") return [{ tipo: "texto", x: f.x, y: f.y, texto: f.texto }];
+    return [{ tipo: "emoji", x: f.x, y: f.y, emoji: f.emoji }];
+  });
+}
+
+/** Os textos das figurinhas, para a varredura do Pix por fora. */
+export function textosDasFigurinhas(figurinhas: Figurinha[]): string {
+  return figurinhas.flatMap((f) => (f.tipo === "texto" ? [f.texto] : [])).join(" · ");
 }
 
 /** O nome do emoji (para o `aria-label`), ou o próprio emoji se sair da lista. */

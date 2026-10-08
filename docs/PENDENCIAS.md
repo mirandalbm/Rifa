@@ -647,7 +647,7 @@ Na ordem de entrega do plano:
   05/10/2026: primeiro fecha a versão inicial; as ferramentas vêm depois.
   **As fases A (artes prontas com os dados da rifa, no painel e no kit do
   afiliado) e G (pacote pronto para postar) estão feitas** (08/10/2026), e
-  da D já saíram a escolha da capa e o corte do início e do fim do vídeo (sem recomprimir); o resto da D (figurinhas no reels e legendas por transcrição) e as fases B, C, E e
+  da D já saíram a escolha da capa, o corte do início e do fim do vídeo (sem recomprimir) e as figurinhas no reels (**falta no ambiente** o `db:push` da coluna `campaign_media.figurinhas` **antes** do código); o resto da D (legendas por transcrição, que precisa de provedor) e as fases B, C, E e
   F seguem para depois.
 
 - [x] **[código]** **Contrato da plataforma com a promotora, com aceite no

@@ -3,6 +3,7 @@ import { DESCRICAO_DA_NOTA_DO_AFILIADO, NOTA_FISCAL_MAX_BYTES } from "@shared/fi
 import { Link } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { PanelShell } from "@/components/AppShell";
+import { ArtesParaDivulgar } from "@/components/ArtesParaDivulgar";
 import { Card, Money, Pill, Button, Empty } from "@/components/bits";
 import { Estatistica } from "@/components/painel";
 import { Banknote, MousePointerClick, Percent, ShoppingBag } from "lucide-react";
@@ -225,11 +226,38 @@ export function AfiliadoLinks() {
                   ))}
                 </div>
               </div>
+
+              <ArtesDoKit slug={l.slug} />
             </div>
           </Card>
         ))}
       </div>
     </PanelShell>
+  );
+}
+
+/**
+ * As artes prontas da rifa, com o QR do link do afiliado. Só busca quando a
+ * pessoa abre — a lista de links pode ter muitas rifas.
+ */
+function ArtesDoKit({ slug }: { slug: string }) {
+  const [aberto, setAberto] = useState(false);
+  return (
+    <div className="border-t border-line pt-3">
+      <button
+        type="button"
+        aria-expanded={aberto}
+        onClick={() => setAberto((v) => !v)}
+        className="flex min-h-8 items-center gap-2 text-sm font-semibold text-green-deep"
+      >
+        <span aria-hidden>{aberto ? "−" : "+"}</span> Artes prontas para postar
+      </button>
+      {aberto ? (
+        <div className="mt-3">
+          <ArtesParaDivulgar base={`/api/affiliate/artes/${encodeURIComponent(slug)}`} />
+        </div>
+      ) : null}
+    </div>
   );
 }
 

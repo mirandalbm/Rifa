@@ -129,6 +129,7 @@ jobs:
       - run: npm run afiliados
       - run: npm run divulgacao
       - run: npm run agenda-rifa
+      - run: npm run artes
       - run: npm run contrato
       - run: npm run anexos
       - run: npm run retencao

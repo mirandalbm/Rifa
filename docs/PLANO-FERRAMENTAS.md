@@ -153,6 +153,15 @@ Modelos em SVG renderizados pelo `sharp` nos três formatos: arte da rifa
 nome curto e foto do ganhador), cota premiada revelada. A marca da
 organização (logo e cor de destaque) entra nos modelos. "Baixar" e
 "Compartilhar" no cartão da publicação e no kit do afiliado.
+**Feita (08/10/2026).** Regras em `shared/artes.ts`, desenho em
+`server/services/arteDesenho.ts` (o texto vira contorno pelas fontes do
+`@fontsource`, sem depender de fonte no servidor; o QR é desenhado) e
+`server/services/artes.ts` (os dados da rifa, o fundo, a foto da
+organização); as rotas `/api/admin/campaigns/:id/artes*` e
+`/api/affiliate/artes/:slug*`; o cartão "Artes para divulgar" na aba
+Publicação e "Artes prontas para postar" em Meus links. `npm run artes`
+prova. Ficou para a Fase C: escolher a foto de fundo (hoje é a capa da
+rifa, ou a foto do ganhador no resultado).
 
 **Fase B — Recriar a partir de uma referência (IA de visão) · ~3 PRs.**
 A pessoa escolhe uma foto ou um modelo externo (um flyer que viu, uma arte

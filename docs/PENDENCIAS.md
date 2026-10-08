@@ -645,6 +645,8 @@ Na ordem de entrega do plano:
   o catálogo do Canva e do Adobe Express como referência e a decisão de não
   integrar API nenhuma, está em `docs/PLANO-FERRAMENTAS.md`. Decisão de
   05/10/2026: primeiro fecha a versão inicial; as ferramentas vêm depois.
+  **A Fase A (artes prontas com os dados da rifa, no painel e no kit do
+  afiliado) está feita** (08/10/2026); as fases B a G seguem para depois.
 
 - [x] **[código]** **Contrato da plataforma com a promotora, com aceite no
   painel e trava de publicação.** A plataforma cola o texto do advogado em

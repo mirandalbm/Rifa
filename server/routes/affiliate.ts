@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, type Request } from "express";
 import { SORTEIO_SEM_DATA } from "@shared/campanhaLegal";
 import { eq, and, sql, desc, inArray } from "drizzle-orm";
 import { db } from "../db";
@@ -21,12 +21,14 @@ import { getPlataforma } from "../services/settings";
 import { templatePublicado } from "../services/template";
 import { FiscalError, conferirSaque, documento, estadoFiscal, gravarNotaDoSaque, lerNotaFiscal, notaDoSaque, salvarDadosFiscais, salvarDocumento } from "../services/fiscal";
 import { pdfDoRecibo, reciboPorCodigo } from "../services/recibos";
-import { urlDeConferencia } from "../services/urls";
+import { baseDoSite, urlDeConferencia } from "../services/urls";
 import { aderir, comissaoNaRifa, organizacoesDoAfiliado, sair } from "../services/afiliados";
 import { decididasParaOAfiliado, editarComoAfiliado, fotoDaPecaDoAfiliado, videoDaPecaDoAfiliado, marcarVistoDoAfiliado, minhasDoAfiliado, publicarComoAfiliado, retirarPropria, rifasParaDivulgar } from "../services/divulgacao";
 import { enviarComFaixa, enviarFaixaDoBanco } from "../services/faixa";
 import { guardLogin, identify } from "../services/antifraude";
 import QRCode from "qrcode";
+import { rifaDaArte } from "../services/artes";
+import { enviarArte, listaDeArtes } from "./artesRotas";
 import { affiliateId, verifyPassword } from "../auth";
 import { formatBRL } from "@shared/format";
 import { irrfDoSaque } from "@shared/fiscal";
@@ -243,12 +245,51 @@ affiliateRouter.get("/coupons", async (req, res, next) => {
   }
 });
 
-/** O link precisa levar ao domínio pelo qual a pessoa está acessando. */
-function publicBaseUrl(req: { protocol: string; get(name: string): string | undefined }): string {
-  if (process.env.PUBLIC_BASE_URL) return process.env.PUBLIC_BASE_URL.replace(/\/+$/, "");
-  const host = req.get("host") ?? "localhost";
-  return `${req.protocol}://${host}`;
+/**
+ * Artes prontas do kit (Fase A): só da rifa em que o afiliado recebe
+ * comissão (`comissaoNaRifa`, a régua do link). O QR leva o código dele, tirado
+ * da sessão — nunca de um parâmetro. Fora disso, 404, como rifa inexistente.
+ */
+async function rifaDoKit(req: Request, slug: string) {
+  const id = affiliateId(req);
+  const [c] = await db
+    .select({
+      id: campaigns.id,
+      organizationId: campaigns.organizationId,
+      termoId: campaigns.termoId,
+      commissionPctDefault: campaigns.commissionPctDefault,
+    })
+    .from(campaigns)
+    .where(eq(campaigns.slug, slug));
+  if (!c || !(await comissaoNaRifa(db, id, c)).recebe) return null;
+  const [aff] = await db.select({ code: affiliates.code }).from(affiliates).where(eq(affiliates.id, id));
+  const r = await rifaDaArte(c.id);
+  return r && aff ? { r, url: `${baseDoSite(req)}/r/${r.slug}?ref=${encodeURIComponent(aff.code)}`, id } : null;
 }
+
+affiliateRouter.get("/artes/:slug", async (req, res, next) => {
+  try {
+    const kit = await rifaDoKit(req, req.params.slug);
+    if (!kit) return res.status(404).json({ message: "Rifa não encontrada." });
+    res.setHeader("Cache-Control", "no-store");
+    res.json(listaDeArtes(kit.r, kit.url));
+  } catch (err) {
+    next(err);
+  }
+});
+
+affiliateRouter.get("/artes/:slug/:tipo", async (req, res, next) => {
+  try {
+    const kit = await rifaDoKit(req, req.params.slug);
+    if (!kit) return res.status(404).json({ message: "Rifa não encontrada." });
+    await enviarArte(res, kit.r, req.params.tipo, req.query.formato, kit.url, `afiliado:${kit.id}`);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** O link precisa levar ao domínio pelo qual a pessoa está acessando. */
+const publicBaseUrl = baseDoSite;
 
 /** "joao@exemplo.com" → "joa•••com": reconhecível na auditoria sem guardar a chave inteira. */
 function mascararChave(chave: string | null | undefined): string | null {

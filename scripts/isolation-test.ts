@@ -328,6 +328,9 @@ async function alcancaOVizinho(eu: Lado, vizinho: Lado) {
     ["GET artes da rifa do vizinho", `/api/admin/campaigns/${c}/artes`, {}],
     ["GET arte da rifa do vizinho", `/api/admin/campaigns/${c}/artes/rifa?formato=vertical`, {}],
     ["GET pacote de artes da rifa do vizinho", `/api/admin/campaigns/${c}/artes/rifa/pacote`, {}],
+    ["GET editor de imagem da rifa do vizinho", `/api/admin/campaigns/${c}/editor`, {}],
+    // Corpo válido de propósito: um 422 da régua esconderia a falta do recorte.
+    ["POST conferir texto do editor na rifa do vizinho", `/api/admin/campaigns/${c}/editor/conferir`, { method: "POST", body: '{"camadas":[]}' }],
     ["PUT documento da entidade da rifa do vizinho", `/api/admin/campaigns/${c}/banner-divulgacao/documentos/cnpj`, { method: "PUT", body: JSON.stringify({ arquivo: `data:application/pdf;base64,${Buffer.from("%PDF-1.4").toString("base64")}` }) }],
     ["GET sócios do vizinho", `/api/admin/organizacoes/${vizinho.orgId}/socios`, {}],
     ["POST sócio na lista do vizinho", `/api/admin/organizacoes/${vizinho.orgId}/socios`, { method: "POST", body: '{"nome":"Invasor da Silva","cargo":"socio","cpf":"52998224725"}' }],

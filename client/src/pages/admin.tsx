@@ -1,7 +1,7 @@
 import { SociosDaOrganizacaoCard } from "@/components/SociosDaOrganizacaoCard";
 import { LegendaCard } from "@/components/Publicacao";
 import { problemaNoPremio } from "@shared/premio";
-import { ArtesParaDivulgar } from "@/components/ArtesParaDivulgar";
+import { AbrirEditorDeImagem, ArtesParaDivulgar } from "@/components/ArtesParaDivulgar";
 import { BannerDivulgacaoCard } from "@/components/BannerDivulgacaoCard";
 import { DivulgacoesDaOrganizacao } from "@/components/DivulgacoesDaOrganizacao";
 import { SeloVerificado } from "@/components/SeloVerificado";
@@ -708,7 +708,8 @@ export function AdminCampanhas() {
                         <LegendaCard campanha={c} />
                         <ReelsDaRifa campaignId={c.id} />
                         <Card title="Artes para divulgar">
-                          <div className="p-4">
+                          <div className="space-y-4 p-4">
+                            <AbrirEditorDeImagem campaignId={c.id} />
                             <ArtesParaDivulgar base={`/api/admin/campaigns/${c.id}/artes`} />
                           </div>
                         </Card>

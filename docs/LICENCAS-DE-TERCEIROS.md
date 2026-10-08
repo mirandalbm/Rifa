@@ -14,6 +14,23 @@ perfil (`/perfil/configuracoes`, as Configurações do perfil).
 A casa (Início), o trevo (curtir, avisos e selo) e o "+" do carrinho são
 desenhos nossos.
 
+## Fontes e bibliotecas das artes prontas
+
+As artes prontas (`server/services/arteDesenho.ts`) desenham o texto com as
+fontes abaixo, vindas dos pacotes `@fontsource` (o arquivo da fonte vai junto
+do servidor; a letra vira contorno dentro da imagem).
+
+| O quê | Autor | Licença |
+|---|---|---|
+| Bricolage Grotesque | Ateliér Triay (Mathieu Triay) | [SIL Open Font License 1.1](https://openfontlicense.org) |
+| Instrument Sans | Instrument | [SIL Open Font License 1.1](https://openfontlicense.org) |
+| DM Mono | Colophon Foundry, para o Google | [SIL Open Font License 1.1](https://openfontlicense.org) |
+| fontkit (leitura das fontes) | Devon Govett | MIT |
+
+A OFL permite usar as fontes em imagens e embuti-las; só não permite vender
+a fonte sozinha nem usar o nome reservado numa versão alterada — não fazemos
+nenhum dos dois.
+
 ## Texto da licença MIT (Tabler Icons e Iconoir)
 
 ```

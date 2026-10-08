@@ -129,6 +129,7 @@ arquitetura.
 | marketing e tráfego pago (etapa 16): pixels, aviso de cookies, UTM, compra pelo servidor | `shared/marketing.ts` (regras e corpos das APIs), `server/services/marketing.ts`, `client/src/lib/marketing.ts`, `client/src/components/Marketing.tsx`, `client/src/pages/adminMarketing.tsx`, `scripts/marketing-test.ts` |
 | plano da próxima fase (vitrine, contas, afiliados, marketing) | `docs/PLANO-FASE5.md` |
 | ferramentas de imagem e vídeo para divulgar a rifa (Canva, Adobe, as nossas, IA): panorama e fases | `docs/PLANO-FERRAMENTAS.md` |
+| artes prontas para divulgar (Fase A: arte da rifa, cotas que faltam, data, resultado, cota premiada, nos três formatos) | `shared/artes.ts` (regras e textos), `server/services/arteDesenho.ts` (texto em contorno, QR, camada), `server/services/artes.ts` (dados da rifa, fundo, foto da organização), `server/routes/artesRotas.ts`, `/campaigns/:id/artes*` em `server/routes/admin.ts`, `/artes/:slug*` em `server/routes/affiliate.ts`, `client/src/components/ArtesParaDivulgar.tsx` (aba Publicação e Meus links), `scripts/artes-test.ts`, `tests/artes.test.ts` |
 | conta do apostador (senha, confirmação, exclusão) | `shared/contaComprador.ts`, `server/services/contaComprador.ts`, `scripts/conta-test.ts` |
 | login com Google, completar CPF e telefone, ligar o Google | `shared/google.ts` (regras, claims, volta segura), `server/services/google.ts`, `server/services/contaCompleta.ts`, rotas `/conta/google/*`, `/conta/cpf` e `/conta/telefone/*` em `server/routes/public.ts`, `client/src/components/BotaoGoogle.tsx`, `CompletarConta`/`GoogleCard` em `client/src/pages/MinhasCotas.tsx`, `scripts/google-test.ts`, `tests/google.test.ts` |
 | de quem é o cliente (o que o organizador vê) | `shared/titularidade.ts` (regra) e `server/services/titularidade.ts` (SQL) |
@@ -2695,6 +2696,53 @@ conversa como cartão (o compartilhar da publicação), nunca como link no texto
   as regras em ícones e quantos vídeos de 10 numa barra.
 - `npm run publicacao` prova a rota, o interruptor e o reels da organização
   contra a API de verdade.
+
+## Artes prontas para divulgar — o que não pode afrouxar
+
+A Fase A do `docs/PLANO-FERRAMENTAS.md`: o servidor desenha a arte com os
+dados da rifa — arte da rifa (preço, prêmio, data, autorização), cotas que
+faltam, data do sorteio, resultado e cota premiada — em JPEG nos três
+formatos (feed 4:5, quadrado, story e reels 9:16), com a foto e a cor de
+destaque da organização e o QR do link. Cartão "Artes para divulgar" na aba
+Publicação e "Artes prontas para postar" em Meus links do afiliado, com
+Baixar e Compartilhar (arquivo, pelo Web Share, onde o navegador deixa).
+
+- **Só dado real e só o que já é público**: "faltam N" é o número de agora
+  (`campaign_stats`, nunca `COUNT(*)`), o ganhador sai pelo nome curto
+  (`nomeCurto()`, o mesmo da coluna ao vivo) e a cota premiada só depois de
+  reclamada por pedido **pago** — o número em jogo nunca sai. Todo número de
+  cota passa por `formatQuota` (invariante 16). "Compre" só enquanto a rifa
+  vende (`rodapeDaArte()`); o resultado manda conferir.
+- **Quais artes existem é regra** (`artesDisponiveis()`): rifa de
+  demonstração, travada, ou de promotora arquivada ou banida não tem nenhuma
+  — seria anunciar o que não vende. Rascunho também não. Tipo ou formato
+  fora da lista, ou arte que a rifa não tem agora, é **404**, como rifa
+  inexistente (`interpretarFormatoDaArte` usa `Object.hasOwn`: `constructor`
+  não é formato).
+- **Nada do navegador entra no desenho.** Os dados vêm do banco; o link do
+  QR é montado pela rota — no painel, a página da rifa sem código; no kit,
+  com o código do afiliado **tirado da sessão** (`?ref=` na URL não muda
+  nada). O afiliado só tem arte da rifa em que recebe (`comissaoNaRifa`, a
+  régua do link); o resto é 404. No painel, o recorte é
+  `assertCampaignInScope` (o vizinho é 404, no `npm run isolation`).
+- **O texto vira contorno** (fontkit sobre as fontes do `@fontsource`, OFL —
+  `docs/LICENCAS-DE-TERCEIROS.md`): o SVG nunca leva `<text>` com texto da
+  rifa, então nome ou prêmio com `<`, `&` ou script não vira marcação, e o
+  desenho não depende de fonte instalada no servidor. Só letra latina entra
+  (`limparTexto`); o que não cabe ganha reticências. A cor de destaque só
+  entra em `#rrggbb` (senão, o verde).
+- **A imagem nunca sai como veio**: o fundo (a capa — banner, senão a
+  primeira foto, senão o pôster —, ou a foto do ganhador no resultado) é
+  cortado e regravado pelo `sharp` em JPEG, sem metadados, com teto de 40 MP.
+  No 9:16 nada fica nas faixas que o story cobre (`AREA_SEGURA_DO_VERTICAL`:
+  220 em cima, 450 embaixo).
+- **Desenhar custa CPU**: 60 artes a cada 10 min por pessoa (`hit`, 429), a
+  arte fica guardada 60 s no servidor (por rifa, tipo, formato e link) e
+  `private, max-age=60` no navegador — nunca em cache compartilhado. A tela
+  busca **uma** imagem por escolha, e a mesma serve a prévia, o baixar e o
+  compartilhar.
+- `npm run artes` prova tudo isso contra a API de verdade e
+  `tests/artes.test.ts` cobre as regras e o desenho.
 
 ## Carrinho e comprar — o que não pode afrouxar
 

@@ -85,7 +85,7 @@ import {
 import { storage, LocalDiskStorage } from "../services/storage";
 import { encerrarSessoesDoUsuario, hashPassword, verifyPassword } from "../auth";
 import { notify } from "../notifications";
-import { publicUrl } from "../services/urls";
+import { baseDoSite, publicUrl } from "../services/urls";
 import { normalizePhone } from "@shared/format";
 import {
   getLimits,
@@ -111,6 +111,8 @@ import {
   getPlataforma,
   setPlataforma,
 } from "../services/settings";
+import { rifaDaArte } from "../services/artes";
+import { enviarArte, listaDeArtes } from "./artesRotas";
 import { generateSecret, otpauthUrl } from "../services/totp";
 import { codigoConfere, guardarSegredo } from "../services/segundoFator";
 import { buildExport, ExportError, toCsvLine } from "../services/exports";
@@ -1070,6 +1072,31 @@ adminRouter.put("/campaigns/:id/legenda", async (req, res, next) => {
     const salva = await salvarLegenda(campaign.id, campaign.organizationId, req.body?.legenda ?? "");
     await audit(req, "campaign.legenda", "campaign", campaign.id, salva);
     res.json(salva);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Artes prontas para divulgar (Fase A): desenhadas com os dados da rifa, no
+// recorte — a do vizinho é 404. O QR leva à página da rifa, sem código.
+adminRouter.get("/campaigns/:id/artes", async (req, res, next) => {
+  try {
+    const campaign = await assertCampaignInScope(req, req.params.id);
+    const r = await rifaDaArte(campaign.id);
+    if (!r) return res.status(404).json({ message: "Campanha não encontrada." });
+    res.setHeader("Cache-Control", "no-store");
+    res.json(listaDeArtes(r, `${baseDoSite(req)}/r/${r.slug}`));
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.get("/campaigns/:id/artes/:tipo", async (req, res, next) => {
+  try {
+    const campaign = await assertCampaignInScope(req, req.params.id);
+    const r = await rifaDaArte(campaign.id);
+    if (!r) return res.status(404).json({ message: "Campanha não encontrada." });
+    await enviarArte(res, r, req.params.tipo, req.query.formato, `${baseDoSite(req)}/r/${r.slug}`, `painel:${req.user!.id}`);
   } catch (err) {
     next(err);
   }

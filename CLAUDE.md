@@ -375,6 +375,13 @@ arquitetura.
   solta a tela da coluna (portal no `body`): arrasta pela barra, muda de
   tamanho pelo canto (livre, sempre 16:9), nunca sai da janela, e o Esc ou o
   X a devolvem. Flutuando, "jogando agora" ocupa o espaço dela.
+  **Nenhuma rifa na tela do sorteio**: o sorteio pode ser de várias
+  organizações, então o próximo sorteio (`proximo` de `/vitrine/ao-vivo`)
+  traz só a hora, o vídeo e quem realiza (`realizadoPor`,
+  `quemRealizaOSorteio()`: "Sorteio realizado pela Loteria Federal", ou pelo
+  globo da plataforma na rifa do globo) — nem o prêmio, nem a rifa, nem a
+  organização, nem no título do vídeo. Vale para a coluna e para a tela do
+  celular. Os últimos ganhadores e "jogando agora" seguem com a rifa de cada um.
 - **A barra de baixo da tela é a do YouTube**: qualidade num seletor
   (Automática, 2160p … 240p), flutuar e **tela cheia** (a tela inteira,
   barra junto; o Esc do navegador sai da tela cheia, não da flutuante). Fica

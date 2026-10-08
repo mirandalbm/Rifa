@@ -8,7 +8,8 @@
  * do comprador. Demonstração, rifa travada e promotora arquivada ou banida
  * ficam de fora — a vitrine também não as mostra.
  */
-import { numeracaoZero } from "@shared/apuracao";
+import { loteriaDoMetodo, numeracaoZero } from "@shared/apuracao";
+import { LOTERIAS, quemRealizaOSorteio } from "@shared/sorteiosOficiais";
 import { createHash } from "node:crypto";
 import { and, asc, desc, eq, gt, inArray, isNotNull, isNull, lte, sql } from "drizzle-orm";
 import { db } from "../db";
@@ -73,15 +74,17 @@ export async function transmissoesNoAr(orgIds?: string[]) {
   return porOrg;
 }
 
+/**
+ * O próximo sorteio de rifa (sem sorteio oficial marcado). O sorteio pode ser
+ * de várias organizações: sai só a hora, o vídeo e quem realiza — nem o
+ * prêmio, nem a rifa, nem a organização.
+ */
 async function proximoSorteio() {
   const [r] = await db
     .select({
-      slug: campaigns.slug,
-      prizeTitle: campaigns.prizeTitle,
       drawAt: campaigns.drawAt,
       transmissaoUrl: campaigns.transmissaoUrl,
-      orgSlug: organizations.slug,
-      orgNome: organizations.name,
+      metodoApuracao: campaigns.metodoApuracao,
     })
     .from(campaigns)
     .innerJoin(organizations, eq(organizations.id, campaigns.organizationId))
@@ -98,9 +101,7 @@ async function proximoSorteio() {
     .limit(1);
   if (!r?.drawAt) return null;
   return {
-    slug: r.slug,
-    organizacao: { slug: r.orgSlug, nome: r.orgNome },
-    prizeTitle: r.prizeTitle,
+    realizadoPor: quemRealizaOSorteio(loteriaDoMetodo(r.metodoApuracao) === "globo" ? LOTERIAS.globo.nome : null),
     drawAt: r.drawAt,
     video: videoDaTransmissao(r.transmissaoUrl),
   };

@@ -283,7 +283,7 @@ function ConteudoDoSorteio({
   // A mesma tela da coluna ao vivo: contagem e, na hora, a transmissão.
   const naTela: AoVivo["proximo"] =
     s && !comResultado
-      ? { slug: "", organizacao: { slug: "", nome: "" }, prizeTitle: s.nome, drawAt: s.sorteioEm, video: s.video }
+      ? { realizadoPor: quemRealizaOSorteio(s.loteriaNome), drawAt: s.sorteioEm, video: s.video }
       : daRifa;
   const aoVivoDaRifa = daRifa ? faltaParaOSorteio(daRifa.drawAt, Date.now()).aoVivo : false;
 
@@ -462,7 +462,7 @@ export function ContagemDoSorteio({ onAbrir }: { onAbrir: () => void }) {
   const proximo = oficialMarcado
     ? { nome: quemRealizaOSorteio(oficialMarcado.loteriaNome), drawAt: oficialMarcado.sorteioEm }
     : aoVivo?.proximo
-      ? { nome: quemRealizaOSorteio(null), drawAt: aoVivo.proximo.drawAt }
+      ? { nome: aoVivo.proximo.realizadoPor, drawAt: aoVivo.proximo.drawAt }
       : null;
   const falta = proximo ? faltaParaOSorteio(proximo.drawAt, agora) : null;
 

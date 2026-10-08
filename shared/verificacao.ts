@@ -211,17 +211,20 @@ export function faltaNaVerificacao(
  * impressão (SHA-256) do texto exato que a pessoa viu: é a prova que a lei
  * pede de quem trata o dado (art. 8º, § 2º).
  */
-export const CONSENTIMENTO_BIOMETRICO_VERSAO = 4;
+export const CONSENTIMENTO_BIOMETRICO_VERSAO = 5;
 
 /**
- * Quando a versão em vigor entrou (a 4: o texto do advogado de 06/10/2026
- * com a guarda dos documentos de 90 dias, resposta 7.1, 07/10/2026). Quem foi
+ * Quando a versão em vigor entrou (a 5: a revisão formal do advogado de
+ * 08/10/2026 — o encarregado e o canal do titular, "não compartilhadas com
+ * terceiros" na comparação por pessoa, a AWS como operadora "nos termos do
+ * contrato" e o resultado guardado enquanto a conta existir; a 4 era o texto
+ * de 06/10/2026 com a guarda dos documentos de 90 dias, resposta 7.1). Quem foi
  * verificado com uma versão anterior — ou antes de o consentimento ser
  * gravado — precisa autorizar de novo (resposta 7.3): a tela pede ao entrar,
  * e quem não autorizar até `PRAZO_PARA_RENOVAR_CONSENTIMENTO_DIAS` depois
  * desta data perde o selo pelo relógio.
  */
-export const CONSENTIMENTO_BIOMETRICO_DESDE = "2026-10-07T03:00:00.000Z";
+export const CONSENTIMENTO_BIOMETRICO_DESDE = "2026-10-08T03:00:00.000Z";
 export const PRAZO_PARA_RENOVAR_CONSENTIMENTO_DIAS = 30;
 
 /**
@@ -244,20 +247,27 @@ export function prazoParaRenovarConsentimento(): Date {
  * (resposta 7.1), e, com o comparador automático ligado, a **transferência
  * internacional** com a frase do advogado (art. 33, VIII — resposta 7.2).
  */
-export function textoDoConsentimentoBiometrico(o: { automatico: boolean }): string[] {
+export function textoDoConsentimentoBiometrico(o: {
+  automatico: boolean;
+  /** O encarregado publicado nos Dados da empresa (LGPD, art. 41, § 1º). */
+  encarregado?: { nome: string; contato: string } | null;
+}): string[] {
   return [
     "Finalidade: autorizo a plataforma a tratar o meu dado biométrico (a imagem do meu rosto) para verificação de identidade e prevenção a fraudes — comparar a foto do meu perfil com a foto do meu documento de identidade e, se forem da mesma pessoa, dar o selo de perfil verificado (LGPD, arts. 8º e 11, I).",
     o.automatico
-      ? "Compartilhamento: a comparação é automatizada pela Amazon Web Services (Amazon Rekognition), que recebe as duas imagens, devolve só se o rosto é o mesmo e não as guarda; quando ela não confirma, uma pessoa da plataforma compara as duas imagens lado a lado."
-      : "Compartilhamento: a comparação é feita por uma pessoa da plataforma, olhando as duas imagens lado a lado; as imagens não são enviadas a ninguém de fora.",
+      ? "Compartilhamento: a comparação é automatizada pela Amazon Web Services (Amazon Rekognition), que atua como operadora: recebe as duas imagens e devolve se o rosto é o mesmo, nos termos do contrato dela com a plataforma; quando ela não confirma, uma pessoa da plataforma compara as duas imagens lado a lado."
+      : "Compartilhamento: a comparação é feita por uma pessoa da plataforma, olhando as duas imagens lado a lado; as imagens não são compartilhadas com terceiros para a finalidade de comparação.",
     ...(o.automatico
       ? [
           "Transferência internacional: consinto expressamente com a transferência internacional das imagens para processamento nos servidores da Amazon Web Services (AWS) localizados no exterior, exclusivamente para a finalidade de verificação automatizada (LGPD, art. 33, VIII).",
         ]
       : []),
-    `Retenção: nenhum modelo ou medida do rosto é guardado — terminada a comparação, fica só o resultado (verificado ou não). A foto comparada é a que já aparece no meu perfil; os documentos ficam cifrados, só a plataforma os abre e cada acesso é registrado, e são apagados ${DOCUMENTOS_GUARDA_DIAS} dias depois da decisão (verificado ou recusado) — o resultado fica.`,
+    `Retenção: a plataforma não guarda nenhum modelo ou medida do rosto — terminada a comparação, fica só o resultado (verificado ou não), enquanto a conta existir. A foto comparada é a que já aparece no meu perfil; os documentos ficam cifrados, só a plataforma os abre e cada acesso é registrado, e são apagados ${DOCUMENTOS_GUARDA_DIAS} dias depois da decisão (verificado ou recusado).`,
     "A verificação é opcional: sem ela eu compro e comento normalmente.",
-    "Posso revogar esta autorização a qualquer momento nesta mesma tela. Ao revogar, o selo sai e a foto deixa de ser comparada; ao excluir a conta, a verificação e os documentos são apagados.",
+    "Posso revogar esta autorização a qualquer momento nesta mesma tela. Ao revogar, o selo sai e a foto deixa de ser comparada; ao excluir a conta, a verificação, o resultado e os documentos são apagados.",
+    o.encarregado?.nome && o.encarregado.contato
+      ? `O encarregado pelo tratamento de dados é ${o.encarregado.nome} e pode ser contatado em ${o.encarregado.contato}, também para exercer os meus direitos de titular (LGPD, art. 18).`
+      : "O encarregado pelo tratamento de dados e o canal para exercer os meus direitos de titular (LGPD, art. 18) estão na Política de privacidade.",
   ];
 }
 

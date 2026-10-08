@@ -1712,11 +1712,12 @@ botão, é **chamado** — com dono, prova, conversa e protocolo.
 - **Um chamado em andamento por pedido** — quem decide é o índice único
   parcial `uq_chamados_pedido_em_andamento`, não um `SELECT` antes.
 - **Limite do dia conta a tentativa, e conta o CPF errado.** Erro de
-  preenchimento (print faltando) sai **antes** do `hit()`, senão quem erra o
+  preenchimento (arquivo que não é imagem) sai **antes** do `hit()`, senão quem erra o
   formulário fica 24 h sem pedir; o CPF é conferido **depois**, senão dá para
   chutar CPF sem limite.
-- **O print é reprocessado** (`processarAnexo`: sharp → JPEG, sem metadados
-  de localização) e fica no banco, servido só pelas duas rotas que conferem o
+- **O print é opcional** (revisão do advogado, 08/10/2026: o bilhete já está
+  no sistema, exigir era barreira) **e, quando vem, é reprocessado**
+  (`processarAnexo`: sharp → JPEG, sem metadados de localização) e fica no banco, servido só pelas duas rotas que conferem o
   dono, com `no-store`. Imagem do bilhete nunca vai para URL pública.
 - **Concluir é um `UPDATE` condicional** (`aberto` → `aprovado`/`recusado`).
   O prazo de devolução é calculado na conclusão e vai na mensagem com o
@@ -2187,10 +2188,18 @@ verdade no sistema.
   como estão; autorizar de novo (`POST …/consentimento`, limite por pessoa)
   só reabre a análise de quem estava `incompleto`, nunca a decisão da
   plataforma, e o mesmo texto de novo não grava nada. A fila mostra "Sem
-  autorização da foto". **O texto é o do item 7 do advogado** (versão 4: a 3,
-  de 06/10, com a guarda dos documentos de 90 dias da resposta 7.1):
-  finalidade, compartilhamento e retenção sempre e, com o comparador
-  ligado, a frase da transferência internacional (art. 33, VIII). **Só vale o
+  autorização da foto". **O texto é o do advogado** (versão 5, da revisão
+  formal de 08/10/2026, sobre a 4 com a guarda de 90 dias da resposta 7.1):
+  finalidade, compartilhamento ("não compartilhadas com terceiros para a
+  finalidade de comparação"; com o comparador, a AWS como operadora "nos
+  termos do contrato") e retenção (o resultado fica enquanto a conta
+  existir) sempre, o **encarregado com o e-mail** (dos Dados da empresa
+  publicados, `consentimentoEmVigor()`; trocar o e-mail não muda a chave, a
+  impressão prova o texto lido) e, com o comparador ligado, a frase da
+  transferência internacional (art. 33, VIII). **"A AWS não guarda as
+  imagens" só volta ao texto com o opt-out de serviços de IA ativado na
+  conta da AWS** — por padrão o Rekognition pode guardar e usar o conteúdo
+  (`docs/PENDENCIAS.md`); sem isso, o comparador não liga. **Só vale o
   consentimento da versão em vigor** (`consentimentoVigente()`): o de antes
   conta como não dado em toda régua (falta, fila, aprovar a foto). **Quem
   está verificado com o antigo, ou sem nenhum, autoriza de novo**
@@ -4162,7 +4171,12 @@ Aparência → Assistente de IA.
 - **Consentimento antes do pixel** (LGPD). Sem o "Aceitar" do aviso
   (`rifa.cookies`, no aparelho, com versão), nenhum script carrega. Recusar
   é tão fácil quanto aceitar (dois botões iguais) e a tela do perfil
-  (`/perfil`) tem "Preferência de cookies" para mudar de ideia. O pedido leva `marketing: true/false`
+  (`/perfil`) tem "Preferência de cookies" para mudar de ideia. **Recusar
+  apaga os cookies de medição já gravados** (`apagarCookiesDeMedicao()`, os
+  nomes da Privacidade em `PREFIXOS_DOS_COOKIES_DE_MEDICAO`, em cada domínio
+  de cima) e recarrega a página se algum pixel já tinha carregado — o aviso
+  (`TEXTO_DO_AVISO_DE_COOKIES`, versão 2) diz isso e que Meta, Google e
+  TikTok são controladores conjuntos. O pedido leva `marketing: true/false`
   (`orders.marketing_consentimento`): sem o aceite, a compra **não** sai
   pelo servidor.
 - **Cada evento vai só para os pixels da página** (`trackSingle`,

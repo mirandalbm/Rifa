@@ -3,8 +3,8 @@
  * decide) e pela tela (que mostra o botão e avisa antes de enviar).
  *
  * O desenho existe para o reembolso não ser banal: só o comprador logado
- * pede, só para pedido pago dele, só antes do sorteio, com o print do
- * bilhete, e a organização decide num chamado com protocolo. O dinheiro
+ * pede, só para pedido pago dele, só antes do sorteio, com o CPF (o print
+ * do bilhete é opcional), e a organização decide num chamado com protocolo. O dinheiro
  * volta preferencialmente pelo provedor, para a mesma conta que pagou —
  * é isso que tira a graça do pedido falso: não adianta informar a chave
  * Pix de outra pessoa.

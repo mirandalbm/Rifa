@@ -340,7 +340,7 @@ export function montarPrivacidade(d: DadosDosTermos): Secao[] {
       titulo: "3. Com quem compartilhamos",
       itens: [
         "Provedor do Pix (para gerar e conferir a cobrança e fazer devoluções); Meta/WhatsApp (código de acesso e mensagens das suas compras); Google (só se você entrar com o Google); serviço de consulta de CEP (só o CEP); serviços de notificação do celular (Google, Apple, Mozilla, Microsoft — só se você ligar os avisos); Amazon Web Services (Amazon Rekognition), como operador que só compara as fotos por nossa ordem, em servidores no exterior e com as garantias de segurança do contrato dele — transferência internacional que só acontece com o seu consentimento expresso no texto que a cita (LGPD, art. 33, VIII); os provedores de hospedagem, banco de dados e cópia de segurança, que guardam os dados por nós; e a promotora e o afiliado (o que está no item 1).",
-        "Pixels de anúncio (Meta, Google, TikTok) só carregam depois do seu \"Aceitar\" no aviso de cookies; a compra enviada a eles leva o telefone só em hash, nunca nome, CPF ou e-mail. Base legal: o seu consentimento, que você retira em Perfil → Preferência de cookies.",
+        "Pixels de anúncio (Meta, Google, TikTok) só carregam depois do seu \"Aceitar\" no aviso de cookies; a compra enviada a eles leva o telefone só em hash, nunca nome, CPF ou e-mail. Meta, Google e TikTok atuam como controladores conjuntos dos dados coletados por esses cookies, nos termos das respectivas políticas de privacidade. Base legal: o seu consentimento, que você retira em Perfil → Preferência de cookies; ao recusar, os cookies não essenciais já instalados são removidos.",
         "Autoridades, quando a lei ou ordem judicial exigir. Nunca vendemos dados pessoais.",
       ],
     },
@@ -377,7 +377,7 @@ export function montarPrivacidade(d: DadosDosTermos): Secao[] {
     {
       titulo: "8. Cookies",
       itens: [
-        "Os essenciais (sessão, carrinho, tema, região) fazem o site funcionar e não dependem de aceite. Os de anúncio e medição só depois do \"Aceitar\"; recusar é tão fácil quanto aceitar, e você muda de ideia em Perfil → Preferência de cookies.",
+        "Os essenciais (sessão, carrinho, tema, região) fazem o site funcionar e não dependem de aceite. Os de anúncio e medição só depois do \"Aceitar\"; recusar é tão fácil quanto aceitar, apaga os de anúncio e medição já gravados, e você muda de ideia em Perfil → Preferência de cookies.",
         ...GUARDADO_NO_NAVEGADOR.flatMap((g) => [`${g.grupo}:`, ...g.itens.map((i) => `• ${i}`)]),
       ],
     },

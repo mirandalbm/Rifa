@@ -189,7 +189,7 @@ export function regraDoReembolso(taxaPct: number): string {
     `Reembolso: compra online pode ser desfeita com devolução integral em até ${DIAS_ARREPENDIMENTO} dias, ` +
     `desde que antes do fechamento dos pedidos, 2 horas antes do sorteio — o que vier primeiro. ` +
     (pct > 0
-      ? `Depois disso, ou em compra com cambista, é retida taxa administrativa de ${pct}%, que cobre os custos operacionais e as tarifas do pagamento e da devolução. `
+      ? `Depois disso, ou em compra com cambista, é retida taxa administrativa de ${pct}%, que cobre os custos operacionais de processamento, as tarifas do provedor de pagamento e os custos da devolução (pelo Pix, ou pelo caixa na compra com cambista). `
       : `Depois disso, ou em compra com cambista, também sem taxa. `) +
     `Se a plataforma aprovar o adiamento do sorteio depois da sua compra, a devolução é integral até 2 horas antes da nova data. ` +
     `Feito o sorteio, a participação foi prestada e não há reembolso.`

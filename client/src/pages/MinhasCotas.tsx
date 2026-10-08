@@ -411,7 +411,7 @@ function PedirReembolso({
     onError: (e: Error) => setErro(e instanceof ApiError ? e.message : "Não foi possível enviar."),
   });
 
-  const pronto = motivo.trim().length >= 10 && cpfValido(cpf) && Boolean(anexo);
+  const pronto = motivo.trim().length >= 10 && cpfValido(cpf);
 
   return (
     <Janela onFechar={fechar} rotuloPor="titulo-reembolso" className="p-4">
@@ -477,7 +477,7 @@ function PedirReembolso({
         </Campo>
         <div>
           <label htmlFor="print" className="label-xs">
-            Print do bilhete ou do comprovante
+            Print do bilhete ou do comprovante (opcional)
           </label>
           <input
             id="print"

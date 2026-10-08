@@ -90,7 +90,15 @@ describe("central de ajuda", () => {
     expect(desligado).toContain("não é feito pelo site");
     expect(desligado).toContain("art. 49");
     expect(desligado).toContain("Procon");
-    expect(sem.find((p) => p.id === "prazo-de-desistir")!.resposta[0]).toBe(desligado);
+    // Cada pergunta responde a dela (revisão do advogado, 08/10/2026): o
+    // prazo explica o fechamento; a recusa diz o que fazer se a promotora negar.
+    const prazo = sem.find((p) => p.id === "prazo-de-desistir")!.resposta;
+    expect(prazo[0]).toMatch(/2 horas antes do sorteio/);
+    expect(prazo).toContain(desligado);
+    const recusa = sem.find((p) => p.id === "recusa-do-reembolso")!.resposta;
+    expect(recusa).not.toContain(desligado);
+    expect(recusa.join(" ")).toMatch(/fale com a plataforma .*número do pedido/);
+    expect(recusa).toContain(DIREITO_DO_CONSUMIDOR);
   });
 
   it("a recusa do reembolso leva à disputa e não tira o Procon", () => {
@@ -98,6 +106,7 @@ describe("central de ajuda", () => {
     const recusa = com.find((p) => p.id === "recusa-do-reembolso")!.resposta.join(" ");
     expect(recusa).toContain(`${DISPUTA_PRAZO_DIAS} dias`);
     expect(recusa).toContain(`${RESPOSTA_PRAZO_DIAS} dias`);
+    expect(recusa).toMatch(/premiada .*o prêmio já foi ganho e a participação foi prestada/);
     expect(recusa).toContain(DIREITO_DO_CONSUMIDOR);
   });
 

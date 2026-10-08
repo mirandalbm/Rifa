@@ -134,8 +134,15 @@ describe("consentimento biométrico", () => {
     const t = textoDoConsentimentoBiometrico({ automatico: false }).join(" ");
     expect(t).toMatch(/Finalidade: .*verificação de identidade e prevenção a fraudes/);
     expect(t).toMatch(/LGPD, arts\. 8º e 11, I/);
-    expect(t).toMatch(/Compartilhamento: .*uma pessoa da plataforma.*não são enviadas a ninguém de fora/);
-    expect(t).toMatch(/Retenção: nenhum modelo ou medida do rosto é guardado .*só o resultado \(verificado ou não\)/);
+    // Revisão formal do advogado (08/10/2026): o que dá para sustentar.
+    expect(t).toMatch(/Compartilhamento: .*uma pessoa da plataforma.*não são compartilhadas com terceiros para a finalidade de comparação/);
+    expect(t).not.toMatch(/ninguém de fora/);
+    expect(t).toMatch(/Retenção: a plataforma não guarda nenhum modelo ou medida do rosto .*só o resultado \(verificado ou não\), enquanto a conta existir/);
+    expect(t).toMatch(/ao excluir a conta, a verificação, o resultado e os documentos são apagados/);
+    // O encarregado (LGPD, art. 41, § 1º): sem ele publicado, aponta a Privacidade.
+    expect(t).toMatch(/encarregado .*Política de privacidade/);
+    const comEncarregado = textoDoConsentimentoBiometrico({ automatico: false, encarregado: { nome: "Ana", contato: "dpo@exemplo.com.br" } }).join(" ");
+    expect(comEncarregado).toContain("O encarregado pelo tratamento de dados é Ana e pode ser contatado em dpo@exemplo.com.br");
     expect(t).not.toMatch(/grau de semelhança/);
     expect(t).toMatch(/documentos ficam cifrados/);
     expect(t).toMatch(/opcional/);
@@ -145,13 +152,16 @@ describe("consentimento biométrico", () => {
   it("com o comparador automático, a AWS e a transferência internacional com a frase do advogado (7.2)", () => {
     const t = textoDoConsentimentoBiometrico({ automatico: true }).join(" ");
     expect(t).toMatch(/Amazon Web Services \(Amazon Rekognition\)/);
-    expect(t).toMatch(/não as guarda/);
+    // "Não as guarda" só volta depois de confirmado o contrato da AWS (o
+    // opt-out de uso dos dados pelo Rekognition): até lá, operadora nos termos do contrato.
+    expect(t).not.toMatch(/não as guarda/);
+    expect(t).toMatch(/atua como operadora: .*nos termos do contrato dela com a plataforma/);
     expect(t).toContain(
       "consinto expressamente com a transferência internacional das imagens para processamento nos servidores da Amazon Web Services (AWS) localizados no exterior, exclusivamente para a finalidade de verificação automatizada (LGPD, art. 33, VIII).",
     );
   });
   it("só vale o consentimento da versão em vigor; verificado com o antigo precisa renovar (7.3)", () => {
-    expect(CONSENTIMENTO_BIOMETRICO_VERSAO).toBe(4);
+    expect(CONSENTIMENTO_BIOMETRICO_VERSAO).toBe(5);
     expect(consentimentoVigente(`${CONSENTIMENTO_BIOMETRICO_VERSAO}:manual`)).toBe(true);
     expect(consentimentoVigente(`${CONSENTIMENTO_BIOMETRICO_VERSAO}:automatico`)).toBe(true);
     expect(consentimentoVigente("2:manual")).toBe(false);

@@ -2154,7 +2154,7 @@ publicRouter.post("/chamados", async (req, res, next) => {
       motivo: String(req.body?.motivo ?? ""),
       cpf: String(req.body?.cpf ?? ""),
       pixChave: req.body?.pixChave ? String(req.body.pixChave) : undefined,
-      anexo: String(req.body?.anexo ?? ""),
+      anexo: req.body?.anexo ? String(req.body.anexo) : undefined,
     });
     res.status(201).json({ id: chamado.id, protocolo: chamado.protocolo });
   } catch (err) {

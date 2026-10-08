@@ -129,6 +129,7 @@ async function papeis(): Promise<{ papeis: Record<string, Papel>; carrinho: stri
           "/notificacoes",
           "/publicar",
           "/perfil",
+          "/perfil/configuracoes",
           "/reels",
           "/mensagens",
           "/buscar",
@@ -146,7 +147,7 @@ async function papeis(): Promise<{ papeis: Record<string, Papel>; carrinho: stri
           corpo: { identificador: APOSTADOR.telefone, senha: APOSTADOR.senha },
           criar: { url: "/api/public/conta", corpo: APOSTADOR },
         },
-        rotas: ["/", "/perfil", "/perfil/bilhetes", "/minhas-cotas", "/minhas-cotas?aba=conta", "/notificacoes", "/mensagens", "/publicar", `/u/${APOSTADOR.apelido}`, ...so(r, `/r/${r}`)],
+        rotas: ["/", "/perfil", "/perfil/configuracoes", "/perfil/bilhetes", "/minhas-cotas", "/minhas-cotas?aba=conta", "/notificacoes", "/mensagens", "/publicar", `/u/${APOSTADOR.apelido}`, ...so(r, `/r/${r}`)],
       },
       organizador: {
         login: { url: "/api/auth/login", corpo: { email: "marina@rifassaojose.br", password: "organizador123" } },
@@ -208,6 +209,7 @@ async function papeis(): Promise<{ papeis: Record<string, Papel>; carrinho: stri
           "/afiliado/comissoes",
           "/afiliado/saques",
           "/afiliado/dados",
+          "/perfil",
         ],
       },
       cambista: {

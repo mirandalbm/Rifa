@@ -24,6 +24,7 @@ import Publicar from "@/pages/Publicar";
 import { AfiliadoDivulgar } from "@/pages/afiliadoDivulgar";
 import MeusBilhetes from "@/pages/MeusBilhetes";
 import PerfilDoUsuario from "@/pages/PerfilDoUsuario";
+import Configuracoes from "@/pages/Configuracoes";
 import Buscar from "@/pages/Buscar";
 import Mensagens from "@/pages/Mensagens";
 import Reels from "@/pages/Reels";
@@ -164,6 +165,7 @@ export default function App() {
           <Route path="/publicar" component={Publicar} />
           <Route path="/perfil" component={PerfilDoUsuario} />
           <Route path="/perfil/bilhetes" component={MeusBilhetes} />
+          <Route path="/perfil/configuracoes" component={Configuracoes} />
           <Route path="/reels" component={Reels} />
           <Route path="/mensagens" component={Mensagens} />
           <Route path="/mensagens/:id" component={Mensagens} />

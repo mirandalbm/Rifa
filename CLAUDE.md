@@ -504,7 +504,7 @@ arquitetura.
     cheia, o vídeo fica com 60% da altura, no centro, para o botão de tela
     cheia não sair da vista.
 - **Rodapé da plataforma** (`RodapeDaPlataforma`, só tablet e computador;
-  no celular isso mora em `/perfil`), no desenho de rodapé de produto:
+  no celular isso mora em `/perfil/configuracoes`), no desenho de rodapé de produto:
   **à esquerda** a logo, o texto de apresentação do template e, embaixo do
   texto, as **redes sociais em botão redondo**; **no meio** o espaço de
   apoio (as logos, com o atalho da central de ajuda); **à direita quatro
@@ -596,7 +596,7 @@ Como no Instagram, com as nossas cores (verde no lugar do vermelho e do rosa).
   foto de quem entrou). **Os ícones moram em `Icones.tsx`**, os mesmos na
   barra de ações e no console: a casa é nossa; republicar é Tabler; reels
   é Iconoir com os cantos arredondados; o resto é Solar, com a versão
-  cheia no botão aceso. A Solar é CC BY 4.0: o crédito fica em `/perfil`
+  cheia no botão aceso. A Solar é CC BY 4.0: o crédito fica em `/perfil/configuracoes`
   e em `docs/LICENCAS-DE-TERCEIROS.md` — ícone novo de terceiro entra lá
   também. Nada de ícone de traço reto no console. O que ainda não existe (`pronto: false`) aparece
   mesmo assim e leva a "Em breve" (`EM_BREVE`) — o app em desenvolvimento
@@ -628,9 +628,24 @@ Como no Instagram, com as nossas cores (verde no lugar do vermelho e do rosa).
   vitrine, é levado ao perfil dele, então é ali que ele está), e na fileira
   de stories vai com a foto da organização, não a inicial. O selo "ao vivo"
   do story é a seção "Selo ao vivo no story" (abaixo).
-- **O "18+", a ajuda, o tema e os cookies moram em `/perfil`**; não há mais
-  faixa fixa de rodapé. O texto livre do rodapé (template) segue no fim da
-  página.
+- **`/perfil` é um perfil, como o do Instagram, e o menu da conta mora atrás
+  da engrenagem** (`/perfil/configuracoes`, `pages/Configuracoes.tsx`): no
+  alto, o @apelido (ou o nome) e a engrenagem "Configurações"; a foto com os
+  contadores ao lado; o nome; dois botões; e a grade 3 × N em abas, com ícone
+  **e nome** (a aberta com o traço e `aria-selected`; a privada com o
+  cadeado e "(só você vê)" no rótulo). **Apostador**: bilhetes (os pagos;
+  "N+" quando há mais páginas — nenhum `COUNT(*)` novo), republicações e
+  seguindo; abas Bilhetes (privada, leva a `/perfil/bilhetes`),
+  Republicações e Salvos (privada); "Editar perfil" leva a Minha conta e
+  "Compartilhar perfil" ao `/u/<apelido>`. **Afiliado**: divulgações,
+  organizações aprovadas e vendas; a grade das peças dele com a situação em
+  texto; "Editar perfil" e "Divulgar". **Organizador**: o Perfil do console
+  leva ao `/o/<org>`, que no próprio perfil tem a engrenagem ao lado de
+  "Editar perfil". Plataforma e cambista: o nome e "Meu painel". Tudo sai das
+  rotas que já existiam, com o recorte de sempre — o perfil não abriu rota
+  nova. **O "18+", a ajuda, o tema, os cookies, o sair e o crédito dos
+  ícones moram em Configurações**; não há faixa fixa de rodapé. O texto livre
+  do rodapé (template) segue no fim da página.
 
 ## Painéis no padrão Materialize — o que não pode afrouxar
 

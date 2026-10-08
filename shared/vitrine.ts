@@ -15,6 +15,28 @@ export const BANNER_SEGUNDOS = { min: 3, max: 15, padrao: 6 } as const;
 /** 2:1 — cabe no celular sem empurrar as rifas para fora da tela. */
 export const BANNER_TAMANHO = { largura: 1200, altura: 600 } as const;
 
+/**
+ * Banners de exemplo, só enquanto a plataforma não cadastrou nenhum (a fase
+ * de construção): vêm do código, **não gravam nada no banco** e somem sozinhos
+ * no primeiro banner de verdade (inclusive o pago) — a mesma ideia do rodapé
+ * de exemplo. São `BANNERS_MAX`, para o carrossel aparecer inteiro; cada um diz
+ * "Exemplo" na tela, não leva a lugar nenhum e só afirma o que o sistema já
+ * faz. Cores da casa (azul e verde) com texto branco, contraste ≥ 4,5:1 nas
+ * duas pontas do degradê (`tests/vitrine.test.ts`).
+ */
+export const BANNERS_DE_EXEMPLO: { id: string; titulo: string; texto: string; de: string; para: string }[] = [
+  { id: "exemplo-1", titulo: "Rifas autorizadas, sorteio pela Loteria Federal", texto: "Cada rifa mostra o número da autorização", de: "#06305F", para: "#0A6FD6" },
+  { id: "exemplo-2", titulo: "Pague com Pix e receba seus números na hora", texto: "Só vale o bilhete pago pela plataforma", de: "#0B1F14", para: "#00873E" },
+  { id: "exemplo-3", titulo: "Siga as organizações e ative o sino", texto: "Avisamos quando sai rifa nova e quando o sorteio chega", de: "#06305F", para: "#0A6FD6" },
+  { id: "exemplo-4", titulo: "Assista ao sorteio ao vivo", texto: "A transmissão aparece na tela do sorteio, na hora", de: "#0B1F14", para: "#00873E" },
+  { id: "exemplo-5", titulo: "Monte seu carrinho com várias rifas", texto: "E pague tudo num Pix só", de: "#06305F", para: "#0A6FD6" },
+];
+
+/** O exemplo só aparece sem nenhum banner no ar: qualquer cadastro real o desliga. */
+export function bannersEmModoExemplo(banners: unknown[]): boolean {
+  return banners.length === 0;
+}
+
 export interface DadosDoBanner {
   titulo: string;
   link: string | null;

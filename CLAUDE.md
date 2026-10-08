@@ -437,7 +437,10 @@ arquitetura.
     escuro, cantos arredondados como o carrossel de cima), tudo
     centralizado: "Próximo sorteio" (ou "Ao vivo agora") no alto, as quatro
     casas com o número grande (`text-2xl`) e a unidade escrita embaixo
-    (dias, horas, min, seg) e, por último, o prêmio. É botão e abre a tela
+    (dias, horas, min, seg) e, por último, o nome do sorteio oficial (a
+    loteria e o concurso) ou "Toque para assistir ao sorteio". **Nunca o
+    prêmio nem a rifa**: o sorteio é de várias organizações — nem na tela,
+    nem no `aria-label`. É botão e abre a tela
     do sorteio. O tempo vai no `aria-label`; sem nenhum sorteio marcado
     (nem oficial nem de rifa), "Sorteios". **É só do celular**:
     do tablet em diante o pino não aparece, o seletor segue o de antes na

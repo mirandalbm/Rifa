@@ -86,6 +86,34 @@ export function formatoDoCarrossel(pecas: { largura?: number | null; altura?: nu
 }
 
 /**
+ * Largura e altura de uma imagem de exemplo em SVG guardada como data URI
+ * (perfil de demonstração e "Preencher com exemplo"): os atributos `width` e
+ * `height` da tag `<svg>`. Sem a medida gravada, o carrossel cai no retrato e
+ * a arte horizontal fica numa caixa em pé. O envio de verdade não passa por
+ * aqui: quem mede é o servidor, lendo o arquivo.
+ */
+export function medidaDoSvg(dataUri: string): { largura: number; altura: number } | null {
+  const prefixo = "data:image/svg+xml;base64,";
+  if (!dataUri.startsWith(prefixo)) return null;
+  let texto: string;
+  try {
+    texto = atob(dataUri.slice(prefixo.length, prefixo.length + 4000));
+  } catch {
+    return null;
+  }
+  const tag = /<svg\b[^>]*>/.exec(texto)?.[0];
+  if (!tag) return null;
+  const valor = (nome: string) => {
+    const m = new RegExp(`\\s${nome}="(\\d{1,5})"`).exec(tag);
+    const n = m ? Number(m[1]) : 0;
+    return n >= 1 && n <= 10_000 ? n : null;
+  };
+  const largura = valor("width");
+  const altura = valor("height");
+  return largura && altura ? { largura, altura } : null;
+}
+
+/**
  * No vertical (9:16) a peça ocupa a tela, e o perfil da promotora vai **por
  * cima** dela, como no reels; nos outros três, **acima**, fora da imagem.
  * A faixa de cima de 220 px em 1920 (11,5%) é a área que a interface cobre

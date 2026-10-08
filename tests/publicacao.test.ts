@@ -10,6 +10,7 @@ import {
   FORMATO_PADRAO,
   formatoDaPeca,
   formatoDoCarrossel,
+  medidaDoSvg,
   formatoDoVideo,
   perfilPorCima,
   problemaNaLegenda,
@@ -109,5 +110,29 @@ describe("formato da peça, como no Instagram", () => {
   it("só o vertical põe o perfil por cima da imagem", () => {
     expect(perfilPorCima("vertical")).toBe(true);
     for (const f of ["retrato", "quadrado", "paisagem"] as const) expect(perfilPorCima(f)).toBe(false);
+  });
+});
+
+describe("medidaDoSvg (imagem de exemplo guardada em data URI)", () => {
+  const dataUri = (svg: string) => `data:image/svg+xml;base64,${Buffer.from(svg).toString("base64")}`;
+
+  it("lê largura e altura da tag <svg>, e a peça sai no formato certo", () => {
+    const m = medidaDoSvg(dataUri('<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900"><rect/></svg>'));
+    expect(m).toEqual({ largura: 1600, altura: 900 });
+    expect(formatoDaPeca(m!.largura, m!.altura)).toBe("paisagem");
+  });
+
+  it("não inventa medida: sem atributo, fora da faixa, outro tipo ou base64 quebrado", () => {
+    expect(medidaDoSvg(dataUri('<svg viewBox="0 0 10 10"></svg>'))).toBeNull();
+    expect(medidaDoSvg(dataUri('<svg width="0" height="900"></svg>'))).toBeNull();
+    expect(medidaDoSvg(dataUri('<svg width="200000" height="900"></svg>'))).toBeNull();
+    expect(medidaDoSvg(dataUri('<svg width="100%" height="900"></svg>'))).toBeNull();
+    expect(medidaDoSvg("data:image/png;base64,iVBORw0KGgo=")).toBeNull();
+    expect(medidaDoSvg("campanhas/x/banner.webp")).toBeNull();
+    expect(medidaDoSvg("data:image/svg+xml;base64,@@@")).toBeNull();
+  });
+
+  it("o width de um elemento de dentro não conta, só o da tag <svg>", () => {
+    expect(medidaDoSvg(dataUri('<svg xmlns="x"><rect width="10" height="10"/></svg>'))).toBeNull();
   });
 });

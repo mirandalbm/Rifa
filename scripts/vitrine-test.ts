@@ -14,6 +14,8 @@ import sharp from "sharp";
 import { db, pool } from "../server/db";
 import { buyers, campaignStats, campaigns, organizations, plataformaBanners, stories, storyEnquetes } from "../shared/schema";
 import { apagarStoriesVencidos } from "../server/services/vitrine";
+import { medirImagensDeExemplo } from "../server/services/demonstracao";
+import { formatoDaPeca } from "../shared/publicacao";
 import { BANNERS_MAX, STORIES_MAX } from "../shared/vitrine";
 
 const URL = baseUrl();
@@ -468,11 +470,11 @@ async function main() {
     r = await admin.req("POST", `/api/admin/organizacoes/${vizinha.id}/exemplo`);
     const perfilExemplo = await anon.req("GET", `/api/public/o/${VIZINHA}`);
     const storiesExemplo = await anon.req("GET", `/api/public/o/${VIZINHA}/stories`);
-    const [midiaExemplo] = await db.execute(sql`select count(*)::int as n from campaign_media where campaign_id = ${rifaVizinha.id}::uuid and storage_key like 'data:%'`).then((x) => x.rows as { n: number }[]);
+    const [midiaExemplo] = await db.execute(sql`select count(*)::int as n, count(*) filter (where width = 1600 and height = 900)::int as medidas from campaign_media where campaign_id = ${rifaVizinha.id}::uuid and storage_key like 'data:%'`).then((x) => x.rows as { n: number; medidas: number }[]);
     checa(
-      "preencher: fotos da publicação, 2 destaques, foto, capa e stories",
-      r.status === 200 && midiaExemplo.n === 4 && perfilExemplo.json?.destaques?.length === 2 && Boolean(perfilExemplo.json?.foto) && Boolean(perfilExemplo.json?.capa) && (storiesExemplo.json?.stories?.length ?? 0) >= 3,
-      `HTTP ${r.status} · mídia ${midiaExemplo.n} · destaques ${perfilExemplo.json?.destaques?.length} · stories ${storiesExemplo.json?.stories?.length}`,
+      "preencher: fotos da publicação (com a medida), 2 destaques, foto, capa e stories",
+      r.status === 200 && midiaExemplo.n === 4 && midiaExemplo.medidas === 4 && perfilExemplo.json?.destaques?.length === 2 && Boolean(perfilExemplo.json?.foto) && Boolean(perfilExemplo.json?.capa) && (storiesExemplo.json?.stories?.length ?? 0) >= 3,
+      `HTTP ${r.status} · mídia ${midiaExemplo.n} (medidas ${midiaExemplo.medidas}) · destaques ${perfilExemplo.json?.destaques?.length} · stories ${storiesExemplo.json?.stories?.length}`,
     );
     r = await admin.req("POST", `/api/admin/campaigns/${rifaVizinha.id}/demonstracao`, { ligado: false });
     cartao = ((await anon.req("GET", "/api/public/campaigns")).json ?? []).find((c: any) => c.id === rifaVizinha.id);
@@ -541,6 +543,30 @@ async function main() {
     r = await anon.req("GET", "/api/public/campaigns");
     const demos = (r.json ?? []).filter((c: any) => c.demonstracao && c.organizacao?.slug === "demonstracao");
     checa("três rifas de demonstração na vitrine, sem selo SPA/MF", demos.length === 3 && demos.every((c: any) => !c.autorizacao), `${demos.length}`);
+    // A imagem de exemplo é horizontal e vai com a medida: a publicação sai em
+    // paisagem, não numa caixa em pé com a arte cortada.
+    const semMedida = async () =>
+      (await db.execute(sql`select count(*)::int as n from campaign_media m join campaigns c on c.id = m.campaign_id
+        where c.slug like 'demonstracao-%' and m.storage_key like 'data:image/svg+xml%' and (m.width is null or m.height is null)`)).rows[0] as { n: number };
+    // O carrossel segue a primeira peça (o banner); as fotos são cortadas na caixa dele.
+    const formatos = async () =>
+      (await db.execute(sql`select distinct m.width, m.height from campaign_media m join campaigns c on c.id = m.campaign_id
+        where c.slug like 'demonstracao-%' and m.storage_key like 'data:image/svg+xml%' and m.role = 'banner'`)).rows as { width: number; height: number }[];
+    const fs1 = await formatos();
+    checa(
+      "imagens da demonstração gravadas com a medida, e a publicação em paisagem",
+      (await semMedida()).n === 0 && fs1.length > 0 && fs1.every((f) => formatoDaPeca(f.width, f.height) === "paisagem"),
+      JSON.stringify(fs1),
+    );
+    // A demonstração criada antes da medida: o acerto da subida mede pela tag <svg>.
+    await db.execute(sql`update campaign_media set width = null, height = null where campaign_id in (select id from campaigns where slug like 'demonstracao-%') and storage_key like 'data:image/svg+xml%'`);
+    const medidas = await medirImagensDeExemplo();
+    const fs2 = await formatos();
+    checa(
+      "imagem de exemplo sem medida ganha a medida da tag <svg>, uma vez",
+      medidas > 0 && (await semMedida()).n === 0 && fs2.every((f) => formatoDaPeca(f.width, f.height) === "paisagem") && (await medirImagensDeExemplo()) === 0,
+      `${medidas} · ${JSON.stringify(fs2)}`,
+    );
     const [umaDemo] = await db.select({ id: campaigns.id }).from(campaigns).where(sql`${campaigns.slug} = 'demonstracao-notebook'`);
     r = await anon.req("POST", "/api/public/orders", {
       campaignId: umaDemo?.id,

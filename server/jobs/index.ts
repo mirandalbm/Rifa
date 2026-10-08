@@ -21,6 +21,7 @@ import { assinarVideosDoStream, limparStreamPendente } from "../services/streamP
 import { posterDosVideosAntigos } from "../services/posterRetroativo";
 import { enviarEventosPendentes } from "../services/marketing";
 import { migrarAfiliadosAntigos } from "../services/afiliados";
+import { medirImagensDeExemplo } from "../services/demonstracao";
 import { lancarMensalidades } from "../services/billing";
 import { releaseExpired } from "../services/quotas";
 import { sortearRifasPendentesDosSorteiosOficiais } from "../services/sortear";
@@ -78,6 +79,7 @@ const LOCK_POSTER_ANTIGO = 811_017;
 const LOCK_PUBLICACAO_AGENDADA = 811_018;
 const LOCK_CONSENTIMENTO = 811_019;
 const LOCK_DOCUMENTOS_VERIFICACAO = 811_020;
+const LOCK_MEDIDA_EXEMPLO = 811_021;
 
 /** Quantos minutos antes de a reserva cair o lembrete é enviado. */
 const LEMBRETE_MINUTOS = Number(process.env.REMINDER_MINUTES_BEFORE ?? 5);
@@ -268,6 +270,19 @@ export function startJobs() {
       console.error("[jobs] segredos do segundo fator:", err);
     }
   }, 4_000).unref();
+
+  // Imagem de exemplo gravada sem medida (demonstração antiga): mede uma vez,
+  // ao subir o servidor, para a publicação sair no formato dela.
+  setTimeout(async () => {
+    try {
+      await withLock(LOCK_MEDIDA_EXEMPLO, async () => {
+        const n = await medirImagensDeExemplo();
+        if (n > 0) log(`${n} imagem(ns) de exemplo com a medida gravada`, "jobs");
+      });
+    } catch (err) {
+      console.error("[jobs] medida das imagens de exemplo:", err);
+    }
+  }, 6_000).unref();
 
   // Afiliado de antes dos vínculos (organização no usuário): cria o vínculo,
   // e a organização dos cupons e saques antigos. Idempotente.

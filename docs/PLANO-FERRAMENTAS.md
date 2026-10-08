@@ -213,7 +213,9 @@ e kit do afiliado) e "Sugerir legenda com o assistente" no cartão da legenda:
 o servidor monta o pedido só com os dados públicos da rifa, numa conversa à
 parte, cobra como uma mensagem do assistente e devolve só o que passa na régua
 (`shared/sugestaoIA.ts`, `POST /campaigns/:id/sugerir`, `POST
-/api/affiliate/editor/:slug/sugerir`; `npm run ia-acoes` prova). Falta: remover
+/api/affiliate/editor/:slug/sugerir`; `npm run ia-acoes` prova) e **o recorte
+atento como ponto de partida** — a foto da rifa abre enquadrada no assunto
+(`sharp` com `position: "attention"`, `…/editor/foco/:mediaId`). Falta: remover
 fundo (precisa de provedor).
 
 **Fase D — Vídeo leve, sem recomprimir · ~4 PRs.**

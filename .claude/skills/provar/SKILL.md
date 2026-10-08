@@ -66,7 +66,7 @@ Pelo caminho que mudou (a mesma tabela "Onde mexer" do `CLAUDE.md`):
 | entidade beneficiada da rifa (ONG, fundação: banner e tela) | `banner-divulgacao`, `isolation` |
 | publicação agendada da rifa (o relógio que publica) | `agenda-rifa`, `transparencia`, `isolation` |
 | artes prontas (`shared/artes.ts`, `server/services/arteDesenho.ts`, `server/services/artes.ts`, `server/routes/artesRotas.ts`, `ArtesParaDivulgar.tsx`) | `artes`, `isolation`, `tests/artes.test.ts`; mexeu no cartão, `telas` |
-| editor de imagem, no painel e no kit do afiliado (`/editor*` em `admin.ts` e `affiliate.ts`, `shared/editorImagem.ts`, `server/services/editorImagem.ts`, `client/src/lib/desenharArte.ts`, `EditorDeImagem.tsx`) | `artes`, `isolation`, `tests/editorImagem.test.ts`; mexeu na tela, `telas` e a captura do editor nas três larguras |
+| editor de imagem, no painel e no kit do afiliado (`/editor*` em `admin.ts` e `affiliate.ts`, `shared/editorImagem.ts`, `server/services/editorImagem.ts`, `client/src/lib/desenharArte.ts`, `EditorDeImagem.tsx`, o assunto da foto em `server/services/foco.ts`) | `artes`, `isolation`, `tests/editorImagem.test.ts`; mexeu na tela, `telas` e a captura do editor nas três larguras |
 | texto sugerido pelo assistente (`shared/sugestaoIA.ts`, `sugerirComIA()` em `server/services/ia.ts`, `/sugerir` em `admin.ts` e `affiliate.ts`, `SugestaoDoAssistente.tsx`) | `ia-acoes` (com o Chatbase de mentira), `artes` (desligado é 404), `isolation`, `tests/sugestaoIA.test.ts` |
 | conta do apostador, login com Google | `conta`, `google` (o servidor sobe com `GOOGLE_PROVA=1`) |
 | qualquer tela (client/) | `telas` (60 telas × 390/820/1440; não pode reprovar) |

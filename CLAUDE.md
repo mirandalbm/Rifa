@@ -130,7 +130,7 @@ arquitetura.
 | plano da próxima fase (vitrine, contas, afiliados, marketing) | `docs/PLANO-FASE5.md` |
 | ferramentas de imagem e vídeo para divulgar a rifa (Canva, Adobe, as nossas, IA): panorama e fases | `docs/PLANO-FERRAMENTAS.md` |
 | artes prontas para divulgar (Fase A: arte da rifa, cotas que faltam, data, resultado, cota premiada, nos três formatos) e o pacote para postar (Fase G: ZIP com os três formatos e a legenda) | `shared/artes.ts` (regras, textos e `legendaSugerida`), `server/services/zip.ts`, os textos do kit (`textosDoKit()` em `shared/afiliados.ts`), `server/services/arteDesenho.ts` (texto em contorno, QR, camada), `server/services/artes.ts` (dados da rifa, fundo, foto da organização), `server/routes/artesRotas.ts`, `/campaigns/:id/artes*` em `server/routes/admin.ts`, `/artes/:slug*` em `server/routes/affiliate.ts`, `client/src/components/ArtesParaDivulgar.tsx` (aba Publicação e Meus links), `scripts/artes-test.ts`, `tests/artes.test.ts` |
-| editor de imagem no navegador (Fase C: fundo, formato, figurinhas, conferência do texto, pôr no carrossel) | `shared/editorImagem.ts` (camadas como dados, enquadramento, régua), `server/services/editorImagem.ts`, `/campaigns/:id/editor*` em `server/routes/admin.ts` e `/editor/:slug*` em `server/routes/affiliate.ts` (o kit do afiliado), `client/src/lib/desenharArte.ts` (o canvas), `client/src/components/EditorDeImagem.tsx` (`AbrirEditorDeImagem` no cartão "Artes para divulgar" e em Meus links do afiliado), `scripts/artes-test.ts`, `tests/editorImagem.test.ts` |
+| editor de imagem no navegador (Fase C: fundo, formato, figurinhas, conferência do texto, pôr no carrossel) | `shared/editorImagem.ts` (camadas como dados, enquadramento, régua), `server/services/editorImagem.ts`, `/campaigns/:id/editor*` em `server/routes/admin.ts` e `/editor/:slug*` em `server/routes/affiliate.ts` (o kit do afiliado), `client/src/lib/desenharArte.ts` (o canvas), `client/src/components/EditorDeImagem.tsx` (`AbrirEditorDeImagem` no cartão "Artes para divulgar" e em Meus links do afiliado), o assunto da foto (`server/services/foco.ts`, `focoDaFoto()`), `scripts/artes-test.ts`, `tests/editorImagem.test.ts` |
 | frases da imagem e legenda sugeridas pelo assistente (Fase C) | `shared/sugestaoIA.ts` (o pedido e a régua da volta), `sugerirComIA()` em `server/services/ia.ts`, `sugerirTexto()` em `server/services/editorImagem.ts`, `POST /campaigns/:id/sugerir` em `server/routes/admin.ts` e `/editor/:slug/sugerir` em `server/routes/affiliate.ts`, `client/src/components/SugestaoDoAssistente.tsx` (no editor e no `LegendaCard` de `Publicacao.tsx`), `scripts/ia-acoes-test.ts`, `tests/sugestaoIA.test.ts` |
 | conta do apostador (senha, confirmação, exclusão) | `shared/contaComprador.ts`, `server/services/contaComprador.ts`, `scripts/conta-test.ts` |
 | login com Google, completar CPF e telefone, ligar o Google | `shared/google.ts` (regras, claims, volta segura), `server/services/google.ts`, `server/services/contaCompleta.ts`, rotas `/conta/google/*`, `/conta/cpf` e `/conta/telefone/*` em `server/routes/public.ts`, `client/src/components/BotaoGoogle.tsx`, `CompletarConta`/`GoogleCard` em `client/src/pages/MinhasCotas.tsx`, `scripts/google-test.ts`, `tests/google.test.ts` |
@@ -2878,6 +2878,17 @@ emoji da lista, preço, selo SPA/MF, foto da organização e QR da rifa.
   régua do editor do afiliado; sem o assistente, 404). O afiliado pede só as
   frases: a legenda dele é a do kit, com o "#publi". `npm run ia-acoes` prova
   com o Chatbase de mentira e `tests/sugestaoIA.test.ts` as regras.
+- **A foto da rifa abre enquadrada no assunto** (o recorte atento do
+  `sharp`, `position: "attention"`, o mesmo das artes prontas): ao escolher
+  uma foto como fundo, a tela pede `…/editor/foco/:mediaId` (painel e kit) e
+  o enquadramento começa ali (`enquadramentoDoFoco()`), sem zoom; a pessoa
+  arrasta dali e "Centralizar" volta ao meio. O servidor só abre **foto
+  pronta daquela rifa** (banner ou foto do carrossel, nunca o vídeo nem a
+  foto do vizinho — 404, no `npm run isolation`), com a rotação do EXIF e o
+  teto de 40 MP (`focoDosBytes()` em `server/services/foco.ts`), e guarda o
+  resultado na memória pela chave do arquivo (a chave nunca muda); falha de
+  leitura não fica guardada. Limite por pessoa (`editor-foco:`, 120 em 10
+  min). A foto do aparelho não sobe por isso: começa no meio.
 - Ficou para a próxima parte da Fase C: remover fundo (precisa de provedor).
 - `npm run artes` prova as rotas (painel e kit do afiliado) e
   `tests/editorImagem.test.ts` as regras.

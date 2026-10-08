@@ -9,7 +9,8 @@ import { db } from "../db";
 import { campaignMedia, campaigns, organizacaoFotos, organizations } from "@shared/schema";
 import { formatBRL } from "@shared/format";
 import { pedePagamentoPorFora } from "@shared/seguranca";
-import { textosDasCamadas, validarCamadas, type Camada } from "@shared/editorImagem";
+import { textosDasCamadas, validarCamadas, type Camada, type Foco } from "@shared/editorImagem";
+import { focoDosBytes } from "./foco";
 import { ROTULO_DA_ARTE } from "@shared/artes";
 import { storage } from "./storage";
 import { urlDaFoto } from "./perfil";
@@ -131,4 +132,35 @@ export async function sugerirTexto(req: Request, tipo: TipoDeSugestao, r: RifaDa
     if (e instanceof IAError || e instanceof ChatbaseError || e instanceof CobrancaIAError) throw new EditorError(e.status, e.message);
     throw e;
   }
+}
+
+/**
+ * O assunto de uma foto da rifa (banner ou foto do carrossel, pronta): o
+ * recorte atento do `sharp`, o mesmo das artes prontas. A chave do arquivo
+ * nunca muda (a troca é outra mídia), então o resultado fica guardado na
+ * memória. `null` = a foto não é desta rifa (a rota responde 404); `{ foco:
+ * null }` = não deu para achar (a tela começa no meio).
+ */
+const FOCOS_GUARDADOS_MAX = 500;
+const focos = new Map<string, Foco | null>();
+
+export async function focoDaFoto(campaignId: string, mediaId: string): Promise<{ foco: Foco | null } | null> {
+  if (!/^[0-9a-f-]{36}$/i.test(mediaId)) return null;
+  const [m] = await db
+    .select({ key: campaignMedia.storageKey, mime: campaignMedia.mime })
+    .from(campaignMedia)
+    .where(and(eq(campaignMedia.id, mediaId), eq(campaignMedia.campaignId, campaignId), eq(campaignMedia.status, "ready"), inArray(campaignMedia.role, ["banner", "photo"])));
+  if (!m || !m.mime.startsWith("image/")) return null;
+  if (focos.has(m.key)) return { foco: focos.get(m.key) ?? null };
+  let bytes: Buffer;
+  try {
+    bytes = await storage().readAll(m.key);
+  } catch {
+    // Falha de leitura (disco, cópia) não fica guardada: a próxima vez tenta de novo.
+    return { foco: null };
+  }
+  const foco = await focoDosBytes(bytes);
+  if (focos.size >= FOCOS_GUARDADOS_MAX) focos.delete(focos.keys().next().value!);
+  focos.set(m.key, foco);
+  return { foco };
 }

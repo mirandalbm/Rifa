@@ -4,12 +4,17 @@ import {
   dataDoSorteio,
   interpretarFormatoDaArte,
   interpretarTipoDeArte,
+  legendaSugerida,
   nomeDoArquivoDaArte,
+  nomeDoPacote,
   rodapeDaArte,
   textosDaArte,
   type DadosDaArte,
 } from "../shared/artes";
 import { camadaDaArte, larguraDoTexto, qrEmContorno, quebrarTexto, type RifaDaArte } from "../server/services/arteDesenho";
+import { crc32, montarZip } from "../server/services/zip";
+import { textosDoKit } from "../shared/afiliados";
+import { formatBRL } from "../shared/format";
 
 const agora = Date.parse("2026-10-08T12:00:00Z");
 const base: DadosDaArte = {
@@ -133,5 +138,88 @@ describe("desenho", () => {
     const qr = qrEmContorno("https://x.com.br/r/moto-cg?ref=AF1", 10, 20, 200);
     expect(qr).toContain('fill="#ffffff"');
     expect((qr.match(/<path/g) ?? []).length).toBe(1);
+  });
+});
+
+describe("pacote pronto para postar (Fase G)", () => {
+  const link = "https://x.com.br/c/ABC123";
+  it("a legenda leva os dados, o link e o aviso; sem 'últimas cotas'", () => {
+    for (const tipo of ["rifa", "faltam", "contagem"] as const) {
+      const l = legendaSugerida(tipo, base, link);
+      expect(l).toContain(link);
+      expect(l).toContain(`${formatBRL(1990)} a cota`);
+      expect(l).toContain("Autorizada SPA/MF nº 05.012345/2026".replace("Autorizada", "Rifa autorizada"));
+      expect(l).toContain("Só vale bilhete pago pela plataforma.");
+      expect(l.toLowerCase()).not.toContain("últimas");
+      expect(l).not.toContain("#publi");
+    }
+    expect(legendaSugerida("faltam", base, link)).toContain("Faltam 36.579 cotas");
+  });
+  it("a do afiliado é identificada como publicidade (termo, cláusula 7)", () => {
+    expect(legendaSugerida("rifa", base, link, true).endsWith("#publi")).toBe(true);
+  });
+  it("o resultado sai como a tela mostra e manda conferir", () => {
+    const l = legendaSugerida("resultado", { ...base, status: "drawn", vende: false, resultado: { numero: 78140, nome: "Ana S." } }, link);
+    expect(l).toContain("Número contemplado: 78139 — parabéns, Ana S.!");
+    expect(l).toContain(`A conferência é pública: ${link}`);
+    expect(l).not.toContain("Só vale bilhete");
+  });
+  it("nome do pacote", () => {
+    expect(nomeDoPacote("moto-cg", "rifa")).toBe("pacote-moto-cg-rifa.zip");
+  });
+  it("CRC-32 da especificação", () => {
+    expect(crc32(Buffer.from("123456789"))).toBe(0xcbf43926);
+  });
+  it("o ZIP lista cada arquivo com o tamanho, o CRC e o nome em UTF-8", () => {
+    const arquivos = [
+      { nome: "arte.jpg", dados: Buffer.from([0xff, 0xd8, 0xff, 0xd9]) },
+      { nome: "legenda.txt", dados: Buffer.from("Ação\n", "utf8") },
+    ];
+    const zip = montarZip(arquivos, new Date(2026, 9, 8, 12, 0, 0));
+    const fim = zip.length - 22;
+    expect(zip.readUInt32LE(fim)).toBe(0x06054b50);
+    expect(zip.readUInt16LE(fim + 10)).toBe(2);
+    let p = zip.readUInt32LE(fim + 16);
+    for (const a of arquivos) {
+      expect(zip.readUInt32LE(p)).toBe(0x02014b50);
+      expect(zip.readUInt16LE(p + 8) & 0x0800).toBe(0x0800);
+      expect(zip.readUInt32LE(p + 16)).toBe(crc32(a.dados));
+      expect(zip.readUInt32LE(p + 24)).toBe(a.dados.length);
+      const n = zip.readUInt16LE(p + 28);
+      expect(zip.subarray(p + 46, p + 46 + n).toString("utf8")).toBe(a.nome);
+      const local = zip.readUInt32LE(p + 42);
+      expect(zip.readUInt32LE(local)).toBe(0x04034b50);
+      const dados = zip.subarray(local + 30 + n, local + 30 + n + a.dados.length);
+      expect(Buffer.compare(dados, a.dados)).toBe(0);
+      p += 46 + n;
+    }
+  });
+});
+
+describe("textos prontos do kit do afiliado (termo, cláusula 7)", () => {
+  const kit = {
+    premio: "Moto 0 km",
+    precoCents: 1500,
+    drawAt: "2026-10-17T22:00:00Z",
+    metodoApuracao: "federal_direta",
+    autorizacao: "SPA-1",
+    totalQuotas: 1000,
+    vendidas: 400,
+    cupom: null,
+  };
+  it("todo texto leva #publi, preço, data, autorização e o link", () => {
+    for (const t of textosDoKit(kit, "https://x/r/moto?ref=AF1")) {
+      expect(t).toContain("#publi");
+      expect(t).toContain(formatBRL(1500));
+      expect(t).toContain("17/10");
+      expect(t).toContain("SPA/MF nº SPA-1");
+      expect(t).toContain("https://x/r/moto?ref=AF1");
+      expect(t.toLowerCase()).not.toContain("últimas");
+    }
+  });
+  it("sem cupom, o número de agora; esgotada, sem 'faltam'", () => {
+    expect(textosDoKit(kit, "u")[2]).toContain("Faltam 600 cotas");
+    expect(textosDoKit({ ...kit, vendidas: 1000 }, "u")[2]).toContain("esgotou");
+    expect(textosDoKit({ ...kit, cupom: { code: "ANA10", discountPct: 10 } }, "u")[2]).toContain("cupom ANA10");
   });
 });

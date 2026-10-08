@@ -129,7 +129,7 @@ arquitetura.
 | marketing e tráfego pago (etapa 16): pixels, aviso de cookies, UTM, compra pelo servidor | `shared/marketing.ts` (regras e corpos das APIs), `server/services/marketing.ts`, `client/src/lib/marketing.ts`, `client/src/components/Marketing.tsx`, `client/src/pages/adminMarketing.tsx`, `scripts/marketing-test.ts` |
 | plano da próxima fase (vitrine, contas, afiliados, marketing) | `docs/PLANO-FASE5.md` |
 | ferramentas de imagem e vídeo para divulgar a rifa (Canva, Adobe, as nossas, IA): panorama e fases | `docs/PLANO-FERRAMENTAS.md` |
-| artes prontas para divulgar (Fase A: arte da rifa, cotas que faltam, data, resultado, cota premiada, nos três formatos) | `shared/artes.ts` (regras e textos), `server/services/arteDesenho.ts` (texto em contorno, QR, camada), `server/services/artes.ts` (dados da rifa, fundo, foto da organização), `server/routes/artesRotas.ts`, `/campaigns/:id/artes*` em `server/routes/admin.ts`, `/artes/:slug*` em `server/routes/affiliate.ts`, `client/src/components/ArtesParaDivulgar.tsx` (aba Publicação e Meus links), `scripts/artes-test.ts`, `tests/artes.test.ts` |
+| artes prontas para divulgar (Fase A: arte da rifa, cotas que faltam, data, resultado, cota premiada, nos três formatos) e o pacote para postar (Fase G: ZIP com os três formatos e a legenda) | `shared/artes.ts` (regras, textos e `legendaSugerida`), `server/services/zip.ts`, os textos do kit (`textosDoKit()` em `shared/afiliados.ts`), `server/services/arteDesenho.ts` (texto em contorno, QR, camada), `server/services/artes.ts` (dados da rifa, fundo, foto da organização), `server/routes/artesRotas.ts`, `/campaigns/:id/artes*` em `server/routes/admin.ts`, `/artes/:slug*` em `server/routes/affiliate.ts`, `client/src/components/ArtesParaDivulgar.tsx` (aba Publicação e Meus links), `scripts/artes-test.ts`, `tests/artes.test.ts` |
 | conta do apostador (senha, confirmação, exclusão) | `shared/contaComprador.ts`, `server/services/contaComprador.ts`, `scripts/conta-test.ts` |
 | login com Google, completar CPF e telefone, ligar o Google | `shared/google.ts` (regras, claims, volta segura), `server/services/google.ts`, `server/services/contaCompleta.ts`, rotas `/conta/google/*`, `/conta/cpf` e `/conta/telefone/*` em `server/routes/public.ts`, `client/src/components/BotaoGoogle.tsx`, `CompletarConta`/`GoogleCard` em `client/src/pages/MinhasCotas.tsx`, `scripts/google-test.ts`, `tests/google.test.ts` |
 | de quem é o cliente (o que o organizador vê) | `shared/titularidade.ts` (regra) e `server/services/titularidade.ts` (SQL) |
@@ -2741,8 +2741,21 @@ Baixar e Compartilhar (arquivo, pelo Web Share, onde o navegador deixa).
   `private, max-age=60` no navegador — nunca em cache compartilhado. A tela
   busca **uma** imagem por escolha, e a mesma serve a prévia, o baixar e o
   compartilhar.
+- **O pacote para postar** (Fase G, `…/artes/:tipo/pacote`): um ZIP
+  (`montarZip()`, modo "store", sem dependência) com a arte nos três
+  formatos e a `legenda.txt` (`legendaSugerida()`). No painel a legenda leva
+  o endereço curto da rifa; no kit, o link do afiliado. Limite próprio (10
+  pacotes a cada 10 min, `arte-pacote:`), mesmas regras e mesmo 404 da arte
+  avulsa; `no-store`.
+- **Texto pronto do afiliado cumpre o termo** (cláusula 7): os textos do kit
+  (`textosDoKit()` em `shared/afiliados.ts`) e a legenda sugerida dele levam
+  **"#publi"**, o preço, a data do sorteio e a autorização SPA/MF — o termo
+  proíbe omitir os três, e texto nosso que o afiliado copia não pode pô-lo
+  em falta. Urgência só com o número de agora: o "Últimas cotas!" de antes
+  saía com a rifa quase vazia. A legenda da organização não leva "#publi"
+  (é a rifa dela).
 - `npm run artes` prova tudo isso contra a API de verdade e
-  `tests/artes.test.ts` cobre as regras e o desenho.
+  `tests/artes.test.ts` cobre as regras, o ZIP e o desenho.
 
 ## Carrinho e comprar — o que não pode afrouxar
 

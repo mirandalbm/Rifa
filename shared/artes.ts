@@ -156,6 +156,11 @@ export function textosDaArte(tipo: TipoDeArte, d: DadosDaArte): TextosDaArte {
   }
 }
 
+/** O nome do pacote (Fase G): `pacote-<rifa>-<tipo>.zip`. */
+export function nomeDoPacote(slug: string, tipo: TipoDeArte): string {
+  return `pacote-${slug}-${tipo}.zip`;
+}
+
 /** O nome do arquivo para baixar: `arte-<rifa>-<tipo>-<formato>.jpg`. */
 export function nomeDoArquivoDaArte(slug: string, tipo: TipoDeArte, formato: FormatoDaArte): string {
   return `arte-${slug}-${tipo}-${formato}.jpg`;
@@ -169,4 +174,53 @@ export function rodapeDaArte(tipo: TipoDeArte, vende: boolean): [string, string]
   if (tipo === "resultado") return ["Confira o resultado", "A conferência é pública, na página da rifa"];
   if (vende) return ["Compre pelo site", "Só vale bilhete pago pela plataforma"];
   return ["Veja a rifa no site", "Só vale bilhete pago pela plataforma"];
+}
+
+/**
+ * A legenda sugerida para postar com a arte: os mesmos dados da arte, o
+ * link e o aviso de que só vale bilhete pago pela plataforma. Sem urgência
+ * inventada ("faltam" é o número de agora) e sem telefone. Na do afiliado
+ * (`publi`), a cláusula 7 do termo: identificada como publicidade e sem
+ * omitir preço, data e autorização.
+ */
+export function legendaSugerida(tipo: TipoDeArte, d: DadosDaArte, link: string, publi = false): string {
+  const t = textosDaArte(tipo, d);
+  const zero = numeracaoZero(d.metodoApuracao);
+  const preco = `${formatBRL(d.precoCents)} a cota`;
+  const sorteio = d.drawAt ? `Sorteio ${dataDoSorteio(d.drawAt)} ${quemApura(d.metodoApuracao)}.` : `Sorteio ${quemApura(d.metodoApuracao)}.`;
+  const autorizada = d.autorizacao ? `Rifa autorizada SPA/MF nº ${d.autorizacao}.` : "";
+  const aviso = "Só vale bilhete pago pela plataforma.";
+  const linhas: string[] = [];
+  switch (tipo) {
+    case "rifa":
+      linhas.push(`🎟️ ${d.premio}`, `${preco}. ${sorteio}`, autorizada, `Garanta a sua: ${link}`, aviso);
+      break;
+    case "faltam":
+      linhas.push(`Faltam ${t.destaque} para completar a rifa: ${d.premio}.`, `${preco}. ${sorteio}`, autorizada, `Garanta a sua: ${link}`, aviso);
+      break;
+    case "contagem":
+      linhas.push(`📅 ${sorteio}`, `Prêmio: ${d.premio}. ${preco}.`, autorizada, `Ainda dá tempo: ${link}`, aviso);
+      break;
+    case "resultado":
+      linhas.push(
+        `🏆 Resultado da rifa: ${d.premio}.`,
+        d.resultado ? `Número contemplado: ${formatQuota(d.resultado.numero, d.totalQuotas, zero)}${d.resultado.nome ? ` — parabéns, ${d.resultado.nome}!` : "."}` : "Sorteio realizado.",
+        autorizada,
+        `A conferência é pública: ${link}`,
+      );
+      break;
+    case "premiada": {
+      const p = d.premiadas[0];
+      linhas.push(
+        p ? `🎁 Cota premiada nº ${formatQuota(p.numero, d.totalQuotas, zero)} saiu: ${p.premio} para ${p.nome}!` : "🎁 Cota premiada revelada!",
+        d.vende ? `Na rifa: ${d.premio}. ${preco}. ${sorteio}` : `Na rifa: ${d.premio}.`,
+        autorizada,
+        d.vende ? `Garanta a sua: ${link}` : `Veja a rifa: ${link}`,
+        d.vende ? aviso : "",
+      );
+      break;
+    }
+  }
+  if (publi) linhas.push("#publi");
+  return linhas.filter(Boolean).join("\n");
 }

@@ -11,6 +11,8 @@
  */
 import { NOME_LIBERACAO, type LiberacaoComissao } from "./plataforma";
 import { PRAZO_DE_ESTORNO_DIAS } from "./pricing";
+import { dataDoSorteio, quemApura } from "./artes";
+import { formatBRL, groupNumber } from "./format";
 
 export const STATUS_DO_VINCULO = {
   pendente: "Aguardando a organização",
@@ -131,4 +133,39 @@ export function validarPedidoDeColaborador(bruto: unknown): { cidade: string; me
   if (cidade.length > 80) throw new Error("Nome da cidade longo demais.");
   if (mensagem.length > MENSAGEM_MAX) throw new Error(`A mensagem passa de ${MENSAGEM_MAX} caracteres.`);
   return { cidade, mensagem };
+}
+
+/**
+ * Os textos prontos do kit do afiliado. A cláusula 7 do termo pede que a
+ * divulgação seja identificada como publicidade ("#publi") e nunca omita o
+ * preço da cota, a data do sorteio e o número da autorização SPA/MF — então
+ * os três vão em todo texto, com o link dele. Urgência só com o número de
+ * agora ("faltam N"), nunca "últimas cotas".
+ */
+export interface DadosDoKit {
+  premio: string;
+  precoCents: number;
+  drawAt: Date | string | null;
+  metodoApuracao: string | null;
+  autorizacao: string | null;
+  totalQuotas: number;
+  vendidas: number;
+  cupom: { code: string; discountPct: number } | null;
+}
+
+export function textosDoKit(d: DadosDoKit, url: string): string[] {
+  const preco = `cota a ${formatBRL(d.precoCents)}`;
+  const sorteio = d.drawAt ? `sorteio ${dataDoSorteio(d.drawAt)} ${quemApura(d.metodoApuracao)}` : `sorteio ${quemApura(d.metodoApuracao)}, data a definir`;
+  const autorizada = d.autorizacao ? ` Rifa autorizada SPA/MF nº ${d.autorizacao}.` : "";
+  const fim = ` Só vale bilhete pago pela plataforma. #publi`;
+  const faltam = Math.max(0, d.totalQuotas - d.vendidas);
+  return [
+    `🎟️ Rifa do ${d.premio}: ${preco}, ${sorteio}.${autorizada} Garanta a sua: ${url}${fim}`,
+    `O pagamento é na hora, pelo Pix da plataforma. ${d.premio} — ${preco}, ${sorteio}.${autorizada} ${url}${fim}`,
+    d.cupom
+      ? `Use o cupom ${d.cupom.code} e ganhe ${d.cupom.discountPct}% de desconto na rifa do ${d.premio} (${preco}, ${sorteio}).${autorizada} ${url}${fim}`
+      : faltam > 0
+        ? `Faltam ${groupNumber(faltam)} ${faltam === 1 ? "cota" : "cotas"} na rifa do ${d.premio} — ${preco}, ${sorteio}.${autorizada} ${url}${fim}`
+        : `A rifa do ${d.premio} esgotou — ${sorteio}.${autorizada} ${url} #publi`,
+  ];
 }

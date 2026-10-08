@@ -216,14 +216,23 @@ de verdade".
 **Fase G — Pacote pronto para postar · 1 PR.**
 As artes nos três formatos, a legenda sugerida e o link curto, num zip ou
 num toque de compartilhar, ligado à agenda que já existe.
+**Feita (08/10/2026), sem a agenda.** "Baixar pacote" no mesmo cartão das
+artes: um ZIP com a arte escolhida nos três formatos e a `legenda.txt`
+(`legendaSugerida()` em `shared/artes.ts`; no painel, com o endereço curto
+da rifa; no kit, com o link e o "#publi" do afiliado). O "Compartilhar"
+manda a arte com a legenda. O ZIP é montado no servidor
+(`server/services/zip.ts`, modo "store", sem dependência nova). Ligar o
+pacote à agenda (postar na hora marcada) fica para quando houver a
+publicação nas redes pela API — hoje a postagem é da pessoa.
 
 ## 7. O que precisa ser feito fora do código
 
 - **Serviços por unidade** (leitura da referência por visão, remover fundo,
   transcrição, geração de imagem): escolher os provedores e decidir quem paga — a plataforma ou o organizador,
   no modelo de franquia e pacote do assistente.
-- **Fontes**: confirmar a licença das fontes da plataforma para uso em
-  imagem gerada (as do Google Fonts permitem).
+- ~~**Fontes**: confirmar a licença das fontes da plataforma para uso em
+  imagem gerada.~~ Conferido: as três são OFL e permitem
+  (`docs/LICENCAS-DE-TERCEIROS.md`).
 - **Aviso de "criado com IA"**: definir o texto e onde aparece, junto com o
   advogado, antes da Fase E.
 - **Recriar a partir de referência** (Fase B): confirmar com o advogado o

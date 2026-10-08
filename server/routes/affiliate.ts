@@ -7,6 +7,7 @@ import {
   commissions,
   payouts,
   orders,
+  campaignStats,
   campaigns,
   buyers,
   clickEvents,
@@ -28,9 +29,9 @@ import { enviarComFaixa, enviarFaixaDoBanco } from "../services/faixa";
 import { guardLogin, identify } from "../services/antifraude";
 import QRCode from "qrcode";
 import { rifaDaArte } from "../services/artes";
-import { enviarArte, listaDeArtes } from "./artesRotas";
+import { enviarArte, enviarPacote, listaDeArtes } from "./artesRotas";
 import { affiliateId, verifyPassword } from "../auth";
-import { formatBRL } from "@shared/format";
+import { textosDoKit } from "@shared/afiliados";
 import { irrfDoSaque } from "@shared/fiscal";
 import { montarRotasDaVerificacao } from "./verificacaoRotas";
 import { copiarDocumentosDoFiscal, estadoDaVerificacao, fotoDoAfiliado, salvarFotoDoAfiliado } from "../services/verificacao";
@@ -170,9 +171,13 @@ affiliateRouter.get("/links", async (req, res, next) => {
         organizationId: campaigns.organizationId,
         termoId: campaigns.termoId,
         organizacao: organizations.name,
+        totalQuotas: campaigns.totalQuotas,
+        autorizacao: campaigns.authorizationCode,
+        vendidas: campaignStats.soldCount,
       })
       .from(campaigns)
       .innerJoin(organizations, eq(organizations.id, campaigns.organizationId))
+      .leftJoin(campaignStats, eq(campaignStats.campaignId, campaigns.id))
       .where(eq(campaigns.status, "published"));
     const comComissao = await Promise.all(todas.map(async (c) => ({ c, r: await comissaoNaRifa(db, id, c) })));
     const vinculados = new Set(
@@ -202,11 +207,6 @@ affiliateRouter.get("/links", async (req, res, next) => {
         const coupon = myCoupons.find(
           (k) => (!k.campaignId || k.campaignId === c.id) && (!k.organizationId || k.organizationId === c.organizationId),
         );
-        const price = formatBRL(c.priceCents);
-        const draw = c.drawAt
-          ? new Date(c.drawAt).toLocaleDateString("pt-BR")
-          : "em breve";
-
         return {
           slug: c.slug,
           title: c.title,
@@ -218,13 +218,19 @@ affiliateRouter.get("/links", async (req, res, next) => {
           coupon: coupon
             ? { code: coupon.code, discountPct: coupon.discountPct }
             : null,
-          texts: [
-            `🎟️ ${c.prizeTitle} está sendo rifado! Cota a partir de ${price}. Sorteio ${draw} ${c.metodoApuracao === "globo" ? "no globo da plataforma, ao vivo" : "pela Loteria Federal"}. Garanta o seu: ${url}`,
-            `Tô participando da rifa do ${c.prizeTitle} 👀 cota ${price} e o pagamento é na hora pelo Pix. Entra comigo: ${url}`,
-            coupon
-              ? `Use o cupom ${coupon.code} e ganhe ${coupon.discountPct}% de desconto na rifa do ${c.prizeTitle}: ${url}`
-              : `Últimas cotas da rifa do ${c.prizeTitle}! Sorteio ${draw}. ${url}`,
-          ],
+          texts: textosDoKit(
+            {
+              premio: c.prizeTitle,
+              precoCents: c.priceCents,
+              drawAt: c.drawAt,
+              metodoApuracao: c.metodoApuracao,
+              autorizacao: c.autorizacao,
+              totalQuotas: c.totalQuotas,
+              vendidas: c.vendidas ?? 0,
+              cupom: coupon ? { code: coupon.code, discountPct: coupon.discountPct } : null,
+            },
+            url,
+          ),
         };
       }),
     );
@@ -272,7 +278,17 @@ affiliateRouter.get("/artes/:slug", async (req, res, next) => {
     const kit = await rifaDoKit(req, req.params.slug);
     if (!kit) return res.status(404).json({ message: "Rifa não encontrada." });
     res.setHeader("Cache-Control", "no-store");
-    res.json(listaDeArtes(kit.r, kit.url));
+    res.json(listaDeArtes(kit.r, kit.url, kit.url, true));
+  } catch (err) {
+    next(err);
+  }
+});
+
+affiliateRouter.get("/artes/:slug/:tipo/pacote", async (req, res, next) => {
+  try {
+    const kit = await rifaDoKit(req, req.params.slug);
+    if (!kit) return res.status(404).json({ message: "Rifa não encontrada." });
+    await enviarPacote(res, kit.r, req.params.tipo, kit.url, kit.url, `afiliado:${kit.id}`, true);
   } catch (err) {
     next(err);
   }

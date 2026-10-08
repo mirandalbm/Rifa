@@ -260,6 +260,7 @@ function ArtesDoKit({ slug }: { slug: string }) {
               portas={{
                 dados: `/api/affiliate/editor/${encodeURIComponent(slug)}`,
                 conferir: `/api/affiliate/editor/${encodeURIComponent(slug)}/conferir`,
+                sugerir: `/api/affiliate/editor/${encodeURIComponent(slug)}/sugerir`,
                 artes: `/api/affiliate/artes/${encodeURIComponent(slug)}`,
               }}
             />

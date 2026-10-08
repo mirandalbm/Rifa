@@ -275,6 +275,11 @@ async function main() {
       if (!denunciaDoAfiliado) await new Promise((ok) => setTimeout(ok, 100));
     }
     checa("vira denúncia como texto de terceiro", Boolean(denunciaDoAfiliado?.evidencia?.includes("texto de terceiro (afiliado ARTEAF01)")), denunciaDoAfiliado?.evidencia ?? "nenhuma");
+    // O assistente nasce desligado (o `npm run ia-acoes` prova o caminho ligado): sem ele, a sugestão não existe.
+    r = await comVinculo.req("POST", "/api/affiliate/editor/artes-teste-a/sugerir", { tipo: "texto" });
+    checa("sem o assistente ligado, o afiliado não pede sugestão (404)", r.status === 404, `HTTP ${r.status}`);
+    r = await semVinculo.req("POST", "/api/affiliate/editor/artes-teste-a/sugerir", { tipo: "texto" });
+    checa("o afiliado sem vínculo não pede sugestão (404)", r.status === 404, `HTTP ${r.status}`);
     r = await orgA.req("GET", "/api/affiliate/editor/artes-teste-a");
     checa("a organização não entra no editor pela porta do afiliado", r.status === 401 || r.status === 403, `HTTP ${r.status}`);
     r = await comVinculo.req("GET", `/api/admin/campaigns/${a.id}/editor`);
@@ -290,6 +295,10 @@ async function main() {
     checa("os dados do editor não ficam em cache", r.headers.get("cache-control") === "no-store", r.headers.get("cache-control") ?? "");
     r = await orgA.req("GET", `/api/admin/campaigns/${b.id}/editor`);
     checa("o editor da rifa do vizinho é 404", r.status === 404, `HTTP ${r.status}`);
+    r = await orgA.req("POST", `/api/admin/campaigns/${a.id}/sugerir`, { tipo: "texto" });
+    checa("sem o assistente ligado, a sugestão do painel não existe (404)", r.status === 404, `HTTP ${r.status}`);
+    r = await orgA.req("POST", `/api/admin/campaigns/${b.id}/sugerir`, { tipo: "texto" });
+    checa("a sugestão na rifa do vizinho é 404", r.status === 404, `HTTP ${r.status}`);
     const texto = (t: string) => [{ ...camadaNova("texto"), texto: t }, camadaNova("preco"), camadaNova("selo"), camadaNova("qr")];
     r = await orgA.req("POST", `/api/admin/campaigns/${a.id}/editor/conferir`, { camadas: texto("Sorteio neste sábado") });
     checa("texto limpo passa a conferência", r.status === 200 && r.json?.camadas?.length === 4, `HTTP ${r.status} ${r.json?.message ?? ""}`);

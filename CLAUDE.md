@@ -131,6 +131,7 @@ arquitetura.
 | ferramentas de imagem e vídeo para divulgar a rifa (Canva, Adobe, as nossas, IA): panorama e fases | `docs/PLANO-FERRAMENTAS.md` |
 | artes prontas para divulgar (Fase A: arte da rifa, cotas que faltam, data, resultado, cota premiada, nos três formatos) e o pacote para postar (Fase G: ZIP com os três formatos e a legenda) | `shared/artes.ts` (regras, textos e `legendaSugerida`), `server/services/zip.ts`, os textos do kit (`textosDoKit()` em `shared/afiliados.ts`), `server/services/arteDesenho.ts` (texto em contorno, QR, camada), `server/services/artes.ts` (dados da rifa, fundo, foto da organização), `server/routes/artesRotas.ts`, `/campaigns/:id/artes*` em `server/routes/admin.ts`, `/artes/:slug*` em `server/routes/affiliate.ts`, `client/src/components/ArtesParaDivulgar.tsx` (aba Publicação e Meus links), `scripts/artes-test.ts`, `tests/artes.test.ts` |
 | editor de imagem no navegador (Fase C: fundo, formato, figurinhas, conferência do texto, pôr no carrossel) | `shared/editorImagem.ts` (camadas como dados, enquadramento, régua), `server/services/editorImagem.ts`, `/campaigns/:id/editor*` em `server/routes/admin.ts` e `/editor/:slug*` em `server/routes/affiliate.ts` (o kit do afiliado), `client/src/lib/desenharArte.ts` (o canvas), `client/src/components/EditorDeImagem.tsx` (`AbrirEditorDeImagem` no cartão "Artes para divulgar" e em Meus links do afiliado), `scripts/artes-test.ts`, `tests/editorImagem.test.ts` |
+| frases da imagem e legenda sugeridas pelo assistente (Fase C) | `shared/sugestaoIA.ts` (o pedido e a régua da volta), `sugerirComIA()` em `server/services/ia.ts`, `sugerirTexto()` em `server/services/editorImagem.ts`, `POST /campaigns/:id/sugerir` em `server/routes/admin.ts` e `/editor/:slug/sugerir` em `server/routes/affiliate.ts`, `client/src/components/SugestaoDoAssistente.tsx` (no editor e no `LegendaCard` de `Publicacao.tsx`), `scripts/ia-acoes-test.ts`, `tests/sugestaoIA.test.ts` |
 | conta do apostador (senha, confirmação, exclusão) | `shared/contaComprador.ts`, `server/services/contaComprador.ts`, `scripts/conta-test.ts` |
 | login com Google, completar CPF e telefone, ligar o Google | `shared/google.ts` (regras, claims, volta segura), `server/services/google.ts`, `server/services/contaCompleta.ts`, rotas `/conta/google/*`, `/conta/cpf` e `/conta/telefone/*` em `server/routes/public.ts`, `client/src/components/BotaoGoogle.tsx`, `CompletarConta`/`GoogleCard` em `client/src/pages/MinhasCotas.tsx`, `scripts/google-test.ts`, `tests/google.test.ts` |
 | de quem é o cliente (o que o organizador vê) | `shared/titularidade.ts` (regra) e `server/services/titularidade.ts` (SQL) |
@@ -2855,8 +2856,29 @@ emoji da lista, preço, selo SPA/MF, foto da organização e QR da rifa.
   organização como alvo porque a rifa é dela — a mesma régua da divulgação.
   **Não há "Pôr no carrossel"**: o carrossel é da organização; o afiliado
   baixa ou compartilha. Limite próprio (`editor:afiliado:`).
-- Ficou para as próximas partes da Fase C: remover fundo (precisa de
-  provedor) e a legenda sugerida pelo assistente.
+- **Texto sugerido pelo assistente** ("Sugerir frases com o assistente" no
+  editor, painel e kit; "Sugerir legenda com o assistente" no cartão da
+  legenda; `SugestaoDoAssistente.tsx`, só com o assistente ligado para quem
+  está no painel). **O pedido é montado no servidor** (`pedidoDeSugestao()`
+  em `shared/sugestaoIA.ts`) **só com os dados públicos da rifa** — prêmio,
+  preço, data e quem apura, nome da organização —, entre « » e marcados como
+  dados (o prêmio é texto da organização), sem id nem dado de comprador; nada
+  do corpo além do tipo (`texto` ou `legenda`, 422 fora disso). Vai por
+  `sugerirComIA()` (`server/services/ia.ts`): **a mesma porta, o mesmo saldo
+  (402), o mesmo limite e o mesmo uso da conversa** — cada pedido é uma
+  mensagem paga, gravada em `ia_uso` e debitada pela chave da mensagem —,
+  **numa conversa à parte** (não entra na coluna nem em `ia_conversas`), e a
+  ação que o agente pedir na resposta é ignorada. **A volta é dado, não
+  ordem** (`lerSugestoes()`): cada frase ou a legenda passa pela régua do
+  texto que a pessoa digitaria (sem link, sem telefone, sem Pix por fora, sem
+  CPF nem e-mail, no tamanho) e o que não passa some calado; nada entra
+  sozinho — só o toque põe a frase na imagem ou a legenda no campo, e aí a
+  régua de sempre (`/editor/conferir`, `PUT /legenda`) confere de novo. O
+  recorte é o da rota (o vizinho é 404, no `npm run isolation`; no kit, a
+  régua do editor do afiliado; sem o assistente, 404). O afiliado pede só as
+  frases: a legenda dele é a do kit, com o "#publi". `npm run ia-acoes` prova
+  com o Chatbase de mentira e `tests/sugestaoIA.test.ts` as regras.
+- Ficou para a próxima parte da Fase C: remover fundo (precisa de provedor).
 - `npm run artes` prova as rotas (painel e kit do afiliado) e
   `tests/editorImagem.test.ts` as regras.
 

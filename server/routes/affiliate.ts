@@ -29,7 +29,7 @@ import { enviarComFaixa, enviarFaixaDoBanco } from "../services/faixa";
 import { guardLogin, hit, identify } from "../services/antifraude";
 import QRCode from "qrcode";
 import { artesDaRifa, rifaDaArte } from "../services/artes";
-import { EditorError, conferirCamadas, dadosDoEditor } from "../services/editorImagem";
+import { EditorError, conferirCamadas, dadosDoEditor, sugerirTexto } from "../services/editorImagem";
 import { CONFERENCIAS_POR_JANELA } from "@shared/editorImagem";
 import { enviarArte, enviarPacote, listaDeArtes } from "./artesRotas";
 import { affiliateId, verifyPassword } from "../auth";
@@ -319,6 +319,20 @@ affiliateRouter.get("/editor/:slug", async (req, res, next) => {
     res.setHeader("Cache-Control", "no-store");
     res.json(dados);
   } catch (err) {
+    next(err);
+  }
+});
+
+// As frases sugeridas pelo assistente do afiliado (a conta dele paga), só na
+// rifa do editor dele. Só texto da imagem: a legenda dele é a do kit (#publi).
+affiliateRouter.post("/editor/:slug/sugerir", async (req, res, next) => {
+  try {
+    const kit = await rifaDoKit(req, req.params.slug);
+    if (!kit || !artesDaRifa(kit.r).length) return res.status(404).json({ message: "Rifa não encontrada." });
+    res.setHeader("Cache-Control", "no-store");
+    res.json(await sugerirTexto(req, "texto", kit.r));
+  } catch (err) {
+    if (err instanceof EditorError) return res.status(err.status).json({ message: err.message });
     next(err);
   }
 });

@@ -48,6 +48,7 @@ import {
 } from "@shared/iaAcoes";
 import { AcaoRecusada, executarGravacao, executarLeitura, prepararGravacao, quemUsa } from "./iaAcoes";
 import type { RespostaDoChatbase } from "./chatbase";
+import { lerSugestoes, pedidoDeSugestao, type DadosParaSugerir, type TipoDeSugestao } from "@shared/sugestaoIA";
 
 export class IAError extends Error {
   constructor(
@@ -220,6 +221,51 @@ export async function conversarComIA(
   }
   await gravarResposta(c, lida, r);
   return seguirComAcoes(req, c, r);
+}
+
+/**
+ * Texto sugerido pelo assistente (o editor de imagem e a legenda): um pedido
+ * só, numa conversa à parte (não entra na coluna da pessoa nem é guardada
+ * aqui), montado pelo servidor com os dados públicos da rifa — o recorte é da
+ * rota que chama. A mesma porta, o mesmo limite, o mesmo saldo e o mesmo uso
+ * da conversa: cada pedido é uma mensagem paga. A ação que o agente pedir na
+ * resposta é ignorada — aqui ele só escreve. O que volta passa pela régua
+ * (`lerSugestoes`) e o que não passa some.
+ */
+export async function sugerirComIA(req: Request, tipo: TipoDeSugestao, dados: DadosParaSugerir): Promise<{ sugestoes: string[]; creditos: number | null }> {
+  const c = await exigirContexto(req);
+  const pedido = pedidoDeSugestao(tipo, dados);
+  if (problemaNaMensagemDaIA(pedido)) {
+    throw new IAError("Os dados da rifa têm um número que parece telefone ou CPF, e isso não vai ao assistente. Ajuste o prêmio e tente de novo.", 422);
+  }
+  const quemPaga = pagante(c.titular);
+  if (quemPaga) await exigirSaldo(quemPaga);
+  const limite = await hit(`ia:${c.userId}`, IA_JANELA_MIN, IA_MENSAGENS_POR_JANELA);
+  if (limite.excedeu) throw new IAError("Muitos pedidos ao assistente em pouco tempo. Espere alguns minutos.", 429);
+  if (quemPaga) {
+    const doPagante = await hit(`ia-pagante:${quemPaga.tipo}:${quemPaga.id}`, IA_JANELA_MIN, IA_MENSAGENS_POR_PAGANTE);
+    if (doPagante.excedeu) throw new IAError("Muitos pedidos da sua conta ao assistente em pouco tempo. Espere alguns minutos.", 429);
+  }
+  const r = await cliente(c.chave).enviar({
+    agenteId: c.config.agenteId,
+    mensagem: comContexto(pedido, c.titular.tipo),
+    conversationId: null,
+    userId: idDaIA(c.userId),
+  });
+  await db.transaction(async (tx) => {
+    await tx
+      .insert(iaUso)
+      .values({
+        mensagemId: r.id,
+        titularTipo: c.titular.tipo,
+        titularId: c.titular.tipo === "plataforma" ? null : c.titular.id,
+        userId: c.userId,
+        milicreditos: r.milicreditos,
+      })
+      .onConflictDoNothing({ target: iaUso.mensagemId });
+    if (quemPaga) await debitarUso(tx, quemPaga, r.id, r.milicreditos);
+  });
+  return { sugestoes: lerSugestoes(tipo, r.texto), creditos: r.milicreditos === null ? null : r.milicreditos / 1000 };
 }
 
 export interface RespostaDaIA {

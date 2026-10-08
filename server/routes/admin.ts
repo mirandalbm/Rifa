@@ -176,7 +176,7 @@ import {
   salvarModo as salvarModoDeDivulgacao,
 } from "../services/divulgacao";
 import { cliquesDosLinks, linkCurtoDaRifa, linkCurtoDoPerfil } from "../services/links";
-import { EditorError, conferirCamadas, dadosDoEditor } from "../services/editorImagem";
+import { EditorError, conferirCamadas, dadosDoEditor, sugerirTexto, tipoDaSugestao } from "../services/editorImagem";
 import { CONFERENCIAS_POR_JANELA } from "@shared/editorImagem";
 import {
   cancelarSolicitacao,
@@ -1153,6 +1153,23 @@ adminRouter.post("/campaigns/:id/editor/conferir", async (req, res, next) => {
       temSelo: Boolean(campaign.authorizationCode),
     });
     res.json({ camadas });
+  } catch (err) {
+    if (err instanceof EditorError) return res.status(err.status).json({ message: err.message });
+    next(err);
+  }
+});
+
+// Texto sugerido pelo assistente (Fase C): as frases do editor ou a legenda.
+// Cada pedido é uma mensagem paga do assistente; o que volta passa pela régua.
+// O vizinho é 404; sem o assistente para o papel, 404 também.
+adminRouter.post("/campaigns/:id/sugerir", async (req, res, next) => {
+  try {
+    const campaign = await assertCampaignInScope(req, req.params.id);
+    const tipo = tipoDaSugestao(req.body?.tipo);
+    const r = await rifaDaArte(campaign.id);
+    if (!r) return res.status(404).json({ message: "Campanha não encontrada." });
+    res.setHeader("Cache-Control", "no-store");
+    res.json(await sugerirTexto(req, tipo, r));
   } catch (err) {
     if (err instanceof EditorError) return res.status(err.status).json({ message: err.message });
     next(err);

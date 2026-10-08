@@ -16,6 +16,12 @@ import { urlDaFoto } from "./perfil";
 import { artesDaRifa, rifaDaArte, type RifaDaArte } from "./artes";
 import { varrerTextoDoOrganizador } from "./seguranca";
 import { emSegundoPlano } from "./push";
+import { dataDoSorteio, quemApura } from "@shared/artes";
+import { TIPOS_DE_SUGESTAO, type DadosParaSugerir, type TipoDeSugestao } from "@shared/sugestaoIA";
+import { IAError, sugerirComIA } from "./ia";
+import { ChatbaseError } from "./chatbase";
+import { CobrancaIAError } from "./iaCobranca";
+import type { Request } from "express";
 
 export class EditorError extends Error {
   constructor(
@@ -95,4 +101,34 @@ export function conferirCamadas(
     throw new EditorError(422, "O texto da imagem pede pagamento por fora da plataforma. Só vale bilhete pago pela plataforma.");
   }
   return camadas;
+}
+
+/** Os dados públicos da rifa que vão no pedido de sugestão ao assistente — nunca dado de comprador. */
+export function dadosParaSugerir(r: RifaDaArte): DadosParaSugerir {
+  return {
+    premio: r.dados.premio,
+    preco: formatBRL(r.dados.precoCents),
+    sorteio: r.dados.drawAt ? `${dataDoSorteio(r.dados.drawAt)} ${quemApura(r.dados.metodoApuracao)}` : null,
+    organizacao: r.orgNome,
+  };
+}
+
+/** O tipo pedido pela tela: só os conhecidos (o resto é 422). */
+export function tipoDaSugestao(v: unknown): TipoDeSugestao {
+  if (typeof v === "string" && (TIPOS_DE_SUGESTAO as readonly string[]).includes(v)) return v as TipoDeSugestao;
+  throw new EditorError(422, "Esse tipo de sugestão não existe.");
+}
+
+/**
+ * Pede a sugestão ao assistente com os dados da rifa (o recorte já foi feito
+ * pela rota) e traduz os erros do assistente — desligado (404), sem saldo
+ * (402), limite (429), Chatbase fora — em `EditorError` com a mensagem.
+ */
+export async function sugerirTexto(req: Request, tipo: TipoDeSugestao, r: RifaDaArte) {
+  try {
+    return await sugerirComIA(req, tipo, dadosParaSugerir(r));
+  } catch (e) {
+    if (e instanceof IAError || e instanceof ChatbaseError || e instanceof CobrancaIAError) throw new EditorError(e.status, e.message);
+    throw e;
+  }
 }

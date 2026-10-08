@@ -1,3 +1,4 @@
+import { SugestaoDoAssistente } from "@/components/SugestaoDoAssistente";
 import { Icone, IconeAviao, IconeComentar, IconeMais, IconeRepublicar, IconeSacola } from "@/components/Icones";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link, useLocation } from "wouter";
@@ -617,6 +618,14 @@ export function LegendaCard({ campanha }: { campanha: { id: string; legenda?: st
             {texto.length}/{LEGENDA_MAX}
           </span>
         </p>
+        <SugestaoDoAssistente
+          url={`/api/admin/campaigns/${campanha.id}/sugerir`}
+          tipo="legenda"
+          onEscolher={(t) => {
+            setMsg({ ok: true, texto: "Legenda sugerida no campo: confira e salve." });
+            setTexto(t);
+          }}
+        />
         {problema ? <p className="text-xs text-red">{problema}</p> : null}
         {msg ? <p className={`text-xs ${msg.ok ? "text-green-deep" : "text-red"}`}>{msg.texto}</p> : null}
         <Button onClick={() => salvar.mutate()} disabled={Boolean(problema) || salvar.isPending}>

@@ -713,6 +713,7 @@ export function AdminCampanhas() {
                               portas={{
                                 dados: `/api/admin/campaigns/${c.id}/editor`,
                                 conferir: `/api/admin/campaigns/${c.id}/editor/conferir`,
+                                sugerir: `/api/admin/campaigns/${c.id}/sugerir`,
                                 artes: `/api/admin/campaigns/${c.id}/artes`,
                                 carrossel: `/api/admin/campaigns/${c.id}/media`,
                               }}

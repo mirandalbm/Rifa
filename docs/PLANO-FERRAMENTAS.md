@@ -207,8 +207,14 @@ imagem (`POST /campaigns/:id/editor/conferir`: link e telefone recusados, Pix
 por fora recusado e denunciado), e a imagem baixada, compartilhada ou posta no
 carrossel pelo envio de sempre (`npm run artes` prova) e **o editor no kit do
 afiliado** (em Meus links: o QR com o link dele, só na rifa em que recebe, sem
-carrossel; o Pix por fora vira denúncia como texto de terceiro). Falta: remover
-fundo (precisa de provedor) e legenda e texto sugeridos pelo assistente.
+carrossel; o Pix por fora vira denúncia como texto de terceiro) e **o texto
+sugerido pelo assistente** — "Sugerir frases com o assistente" no editor (painel
+e kit do afiliado) e "Sugerir legenda com o assistente" no cartão da legenda:
+o servidor monta o pedido só com os dados públicos da rifa, numa conversa à
+parte, cobra como uma mensagem do assistente e devolve só o que passa na régua
+(`shared/sugestaoIA.ts`, `POST /campaigns/:id/sugerir`, `POST
+/api/affiliate/editor/:slug/sugerir`; `npm run ia-acoes` prova). Falta: remover
+fundo (precisa de provedor).
 
 **Fase D — Vídeo leve, sem recomprimir · ~4 PRs.**
 Cortar início e fim (modo cópia), escolher a capa, figurinhas no reels como

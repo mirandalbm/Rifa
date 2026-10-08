@@ -61,14 +61,14 @@ export function BannersVitrine() {
     <section
       aria-label="Destaques"
       aria-roledescription="carrossel"
-      className="relative -mx-4 mb-3 sm:mx-0 lg:mb-0"
+      className="relative mb-3 lg:mb-0"
       onPointerDown={() => setParado(true)}
       onMouseEnter={() => setParado(true)}
       onMouseLeave={() => setParado(false)}
     >
       <div
         ref={trilho}
-        className="flex snap-x snap-mandatory overflow-x-auto sm:rounded-xl"
+        className="flex snap-x snap-mandatory overflow-x-auto rounded-xl"
         style={{ scrollbarWidth: "none" }}
         onScroll={(e) => {
           const el = e.currentTarget;

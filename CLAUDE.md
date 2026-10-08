@@ -3179,6 +3179,8 @@ pela portaria** — fica só para conferir a rifa sorteada sem método.
   depois de a lista chegar vazia (não piscam antes do banner de verdade);
   somem sozinhos no primeiro banner cadastrado, inclusive o pago. No
   lançamento, cadastre os banners em Aparência → Identidade e tela inicial.
+  O carrossel tem **os cantos arredondados em todas as larguras** — no
+  celular ele fica dentro da margem da página, não vai de ponta a ponta.
   `tests/vitrine.test.ts` prova.
 - **Limite é conferido com trava**, não com `SELECT` solto: contar e
   inserir ficam na mesma transação com `pg_advisory_xact_lock` (banners e

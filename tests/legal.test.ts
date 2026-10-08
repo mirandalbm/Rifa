@@ -66,12 +66,12 @@ describe("dados da empresa por etapas", () => {
     const { dados, erros } = conferirDadosDaEmpresa({
       razaoSocial: "International Lottery Ltda",
       cnpj: "47.992.008/0001-45",
-      contato: "skuayd92@gmail",
-      encarregadoContato: " Skuayd92@Gmail.com ",
+      contato: "contato@exemplo",
+      encarregadoContato: " Contato@Exemplo.com.br ",
     });
     expect(dados.razaoSocial).toBe("International Lottery Ltda");
     expect(dados.cnpj).toBe("47992008000145");
-    expect(dados.encarregadoContato).toBe("skuayd92@gmail.com");
+    expect(dados.encarregadoContato).toBe("contato@exemplo.com.br");
     expect(dados.contato).toBe("");
     expect(erros.contato).toMatch(/E-mail de contato inválido/);
     expect(Object.keys(erros)).toEqual(["contato"]);
@@ -203,6 +203,25 @@ describe("Termos e Privacidade na régua do advogado (roteiro de 08/10/2026)", (
     expect(ligado).toMatch(/em até 7 dias, e ela dá a palavra final/);
     expect(ligado).toMatch(/Procon ou no consumidor\.gov\.br/);
     expect(termos).toMatch(/Procon ou no consumidor\.gov\.br/);
+  });
+
+  it("revisão dos Termos (08/10/2026): CDC, foro, prazos e afiliado", () => {
+    const titulos = montarTermosDeUso(base).map((x) => x.titulo);
+    // A numeração é contínua, de 1 a 10: sem buraco que pareça cláusula suprimida.
+    expect(titulos.map((t) => Number(t.split(".")[0]))).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+    expect(termos).toMatch(/relação de consumo: valem o Código de Defesa do Consumidor \(Lei 8\.078\/1990\)/);
+    expect(termos).toMatch(/Política de privacidade: lá estão o papel da plataforma \(controladora/);
+    expect(termos).toMatch(/\(a\) uma compra feita fora da conta.*\(b\) não dá para pedir.*\(c\) a conta criada pelo Google/);
+    expect(termos).toMatch(/busca alternada e contínua em fita circular, \+1, −1, \+2, −2/);
+    expect(termos).toMatch(/a plataforma responde em até 5 dias \(Decreto 7\.962\/2013, art\. 4º, parágrafo único\) — escreva para contato@rifas\.com\.br/);
+    expect(termos).toMatch(/em até 5 dias úteis da confirmação do pagamento/);
+    expect(termos).toMatch(/não integra estes termos, e o afiliado não fala nem age em nome da plataforma/);
+    expect(termos).toMatch(/nos termos do art\. 101, I, do Código de Defesa do Consumidor/);
+    expect(termos).toMatch(/Nas relações não sujeitas ao Código de Defesa do Consumidor, fica eleito o foro da comarca da sede/);
+    const ligado = texto(montarTermosDeUso({ ...base, reembolso: { aceita: true, taxaPct: 10 } }));
+    expect(ligado).toMatch(/a plataforma responde em até 5 dias/);
+    // Nenhuma nota interna do gerador vai ao texto publicado.
+    expect(termos).not.toMatch(/gere de novo|Gerado do sistema/);
   });
 
   it("a Privacidade diz as bases legais, a gratuidade e o prazo de resposta ao titular", () => {

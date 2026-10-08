@@ -3088,6 +3088,13 @@ pela portaria** — fica só para conferir a rifa sorteada sem método.
   dado pessoal ou compartilhamento muda o texto no mesmo PR** — e sobe
   `VIGENCIA_DOS_TERMOS`. Termo que promete o que o sistema não faz é pior
   que termo nenhum.
+  **A numeração das seções é contínua** (1 a 10; o teste confere — buraco
+  parece cláusula suprimida), e os prazos prometidos são constantes que o
+  sistema usa: a resposta da plataforma (`RESPOSTA_DA_PLATAFORMA_DIAS`, 5,
+  Decreto 7.962/2013) e a devolução do Pix que chegou tarde
+  (`PIX_TARDIO_PRAZO_DIAS_UTEIS`, 5 dias úteis, a data no cartão "Pix a
+  devolver"). O e-mail e o endereço vêm dos Dados da empresa, nunca do
+  código.
 - **Os dados da empresa são da plataforma** (`legal` no template:
   razão social, CNPJ com dígito conferido, endereço, e-mail e o encarregado
   de dados — `validarDadosDaEmpresa()`, só as chaves conhecidas; cartão

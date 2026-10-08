@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, Card, Money, Pill } from "@/components/bits";
 import { apiRequest } from "@/lib/queryClient";
-import { MOTIVOS_DO_PIX_TARDIO, SITUACOES_DO_PIX_TARDIO, type MotivoDoPixTardio, type SituacaoDoPixTardio } from "@shared/pixTardio";
+import { MOTIVOS_DO_PIX_TARDIO, prazoDoPixTardio, SITUACOES_DO_PIX_TARDIO, type MotivoDoPixTardio, type SituacaoDoPixTardio } from "@shared/pixTardio";
 
 interface Caso {
   id: string;
@@ -80,6 +80,13 @@ export function PixTardios() {
                       {c.rifa ?? "—"} · {MOTIVOS_DO_PIX_TARDIO[c.motivo] ?? c.motivo} · desde{" "}
                       <span className="tnum">{new Date(c.createdAt).toLocaleString("pt-BR")}</span>
                     </p>
+                    {c.status === "pendente" || c.status === "devolvendo" ? (
+                      // O prazo que os Termos de uso (item 9) prometem a quem pagou.
+                      <p className="text-xs text-muted">
+                        Devolver até{" "}
+                        <span className="tnum">{prazoDoPixTardio(new Date(c.createdAt)).toLocaleDateString("pt-BR")}</span>
+                      </p>
+                    ) : null}
                   </div>
                   <Pill status={PILL[c.status]}>{SITUACOES_DO_PIX_TARDIO[c.status]}</Pill>
                 </div>

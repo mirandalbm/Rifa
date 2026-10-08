@@ -136,7 +136,8 @@ function arquivos(f: Fonte): { nome: string; texto: string }[] {
   const origem = f.doBanco
     ? `Gerado do sistema em ${new Date().toISOString().slice(0, 10)}, com o template publicado e ${f.reembolsoDoPadrao ? "a regra de reembolso **padrão** (a do site não respondeu — gere de novo depois de configurar o provedor do Pix)" : "a configuração em vigor"}.`
     : `Gerado do sistema em ${new Date().toISOString().slice(0, 10)}, **sem banco**: nome e dados da empresa do padrão — gere de novo com o banco antes de subir.`;
-  const cab = (t: string) => `# ${t}\n\n_${origem}_\n\n`;
+  // A linha de origem é nota do arquivo da base (para quem sobe no Chatbase), nunca texto do site.
+  const cab = (t: string) => `# ${t}\n\n_Nota do gerador, fora do texto publicado: ${origem}_\n\n`;
 
   const ajuda = perguntasDaAjuda({ taxaReembolsoPct: f.reembolso.taxaPct, aceitaReembolso: f.reembolso.aceita });
   const temas = [...new Set(ajuda.map((p) => p.tema))];

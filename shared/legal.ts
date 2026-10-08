@@ -18,10 +18,18 @@ import { GUARDA_DAS_RECUSAS_DIAS, GUARDA_DO_BLOQUEIO_VENCIDO_DIAS } from "./anti
 import { DOCUMENTOS_GUARDA_DIAS } from "./verificacao";
 import { cnpjValido } from "./format";
 import { regraDoReembolso } from "./reembolso";
+import { PIX_TARDIO_PRAZO_DIAS_UTEIS } from "./pixTardio";
 import type { Secao } from "./regulamento";
 
 /** Data em que esta redação passou a valer. Sobe junto com qualquer mudança de texto. */
 export const VIGENCIA_DOS_TERMOS = "2026-10-08";
+
+/**
+ * Em quantos dias a plataforma responde a reclamação de consumidor: o teto do
+ * Decreto 7.962/2013, art. 4º, parágrafo único (cinco dias). Os Termos dizem
+ * isso a quem não conseguiu falar com a promotora.
+ */
+export const RESPOSTA_DA_PLATAFORMA_DIAS = 5;
 
 /** Dias que a sessão de login vale sem uso (o cookie renova a cada acesso). */
 export const SESSAO_DIAS = 7;
@@ -227,6 +235,17 @@ function contatoDoEncarregado(e: DadosDaEmpresa): string {
   return `O contato do encarregado pelo tratamento de dados pessoais será publicado nesta página; até lá, fale com a plataforma ${canal(e)}.`;
 }
 
+/**
+ * Os canais de quem não resolveu com a promotora, num item à parte para não
+ * se perder no meio do parágrafo: a plataforma, com o prazo de resposta, e os
+ * órgãos públicos, um não dependendo do outro.
+ */
+function canaisDoConsumidor(e: DadosDaEmpresa): string[] {
+  return [
+    `Reclamação: a plataforma responde em até ${RESPOSTA_DA_PLATAFORMA_DIAS} dias (Decreto 7.962/2013, art. 4º, parágrafo único) ${e.contato ? `— escreva para ${e.contato}` : "— pelos contatos que ela publicar nesta página"}. Você também pode registrar a reclamação no consumidor.gov.br, o serviço público do governo federal, ou no Procon da sua cidade, sem precisar falar antes com a plataforma.`,
+  ];
+}
+
 /** Termos de uso da plataforma (apostador; organização e afiliado têm os termos deles além destes). */
 export function montarTermosDeUso(d: DadosDosTermos): Secao[] {
   const s: Secao[] = [
@@ -236,13 +255,15 @@ export function montarTermosDeUso(d: DadosDosTermos): Secao[] {
         identificacao(d),
         `${d.plataforma} é a plataforma de tecnologia que hospeda as rifas e emite os bilhetes, e facilita o pagamento pelo Pix por meio de instituição de pagamento autorizada pelo Banco Central, que recebe e processa o Pix. Cada rifa tem uma promotora — a organização que obteve a autorização da Secretaria de Prêmios e Apostas do Ministério da Fazenda (Lei 5.768/71) —, e o regulamento de cada rifa, publicado na página dela, vale para aquela rifa junto com estes termos.`,
         "A promotora responde pelo prêmio e pela entrega dele ao ganhador. A plataforma responde pelo funcionamento do sistema: venda, reserva, pagamento, bilhete, sorteio conferível e atendimento.",
+        "A compra de uma cota é relação de consumo: valem o Código de Defesa do Consumidor (Lei 8.078/1990) e a Lei 5.768/71, e nada nestes termos afasta os seus direitos de consumidor. A lei aplicável e o foro estão no item 10.",
+        "Os dados pessoais seguem a Política de privacidade: lá estão o papel da plataforma (controladora dos dados do seu cadastro e das suas compras), as bases legais de cada uso e o encarregado pelo tratamento de dados.",
       ],
     },
     {
       titulo: "2. Quem pode usar",
       itens: [
         "Só maiores de 18 anos. Comprar para menor de idade, ou deixar que use a sua conta, é proibido.",
-        "Os dados do cadastro precisam ser verdadeiros e seus. CPF e e-mail valem para uma conta só; o telefone pode ser confirmado por código no WhatsApp — sem essa confirmação, algumas funções (como ver compras feitas fora da conta e pedir reembolso de venda do cambista) ficam limitadas.",
+        "Os dados do cadastro precisam ser verdadeiros e seus. CPF e e-mail valem para uma conta só; o telefone pode ser confirmado por código no WhatsApp. Sem essa confirmação: (a) uma compra feita fora da conta, com o mesmo telefone, só aparece nela se tiver sido feita com o CPF da conta; (b) não dá para pedir pelo site o reembolso de compra feita com cambista; e (c) a conta criada pelo Google só compra depois de confirmar o telefone e informar o CPF.",
         "Você é responsável pela sua senha e pelo que é feito na sua conta. Desconfiou de acesso de outra pessoa, troque a senha: as outras sessões são encerradas.",
       ],
     },
@@ -258,7 +279,7 @@ export function montarTermosDeUso(d: DadosDosTermos): Secao[] {
     {
       titulo: "4. Sorteio e prêmio",
       itens: [
-        "O sorteio segue o regulamento da rifa: data (no modo \"quando completar\", a data máxima, que é antecipada para a próxima extração da Loteria Federal se a rifa completar antes, com aviso na plataforma), método de apuração da autorização (a leitura direta da Loteria Federal ou o globo da plataforma, com ata notarial), a regra para número sorteado não vendido (na Loteria Federal, o número vendido mais próximo, alternando acima e abaixo; no globo, nova extração no mesmo ato) e o mínimo de cotas, se houver. Na rifa autorizada não podem participar a promotora, seus sócios e diretores, nem a plataforma e seus administradores: a compra com o telefone de um deles, ou com o CPF de um sócio ou diretor, é recusada. Qualquer pessoa confere o resultado na página do sorteio da rifa. Cotas premiadas, quando houver, são vale-brinde, autorizado junto com o sorteio (promoção mista).",
+        "O sorteio segue o regulamento da rifa: data (no modo \"quando completar\", a data máxima, que é antecipada para a próxima extração da Loteria Federal se a rifa completar antes, com aviso na plataforma), método de apuração da autorização (a leitura direta da Loteria Federal ou o globo da plataforma, com ata notarial), a regra para número sorteado não distribuído (na Loteria Federal, aproximação obrigatória por busca alternada e contínua em fita circular, +1, −1, +2, −2…, a partir do número apurado, até identificar um número distribuído; no globo, nova extração no mesmo ato, quantas vezes forem necessárias) e o mínimo de cotas, se houver. Na rifa autorizada não podem participar a promotora, seus sócios e diretores, nem a plataforma e seus administradores: a compra com o telefone de um deles, ou com o CPF de um sócio ou diretor, é recusada. Qualquer pessoa confere o resultado na página do sorteio da rifa. Cotas premiadas, quando houver, são vale-brinde, autorizado junto com o sorteio (promoção mista).",
         "O ganhador é avisado pelos dados do cadastro e recebe o prêmio da promotora no prazo do regulamento. Prêmio não reclamado em 180 dias prescreve, na forma da lei.",
       ],
     },
@@ -268,9 +289,11 @@ export function montarTermosDeUso(d: DadosDosTermos): Secao[] {
         ? [
             regraDoReembolso(d.reembolso.taxaPct),
             `O pedido é feito por chamado, dentro da conta, e a devolução vai para a mesma conta que pagou. A devolução integral (arrependimento ou sorteio adiado) sai em até ${DIAS_UTEIS_DEVOLUCAO_INTEGRAL} dias úteis da aprovação; a com taxa, no prazo informado no protocolo, de até ${PRAZO_ESTORNO_MAX} dias. A promotora responde em até ${RESPOSTA_PRAZO_DIAS} dias; se recusar, ou se não responder nesse prazo, você pode levar a disputa à plataforma em até ${DISPUTA_PRAZO_DIAS} dias, e ela dá a palavra final. Nada disso tira o seu direito de reclamar no Procon ou no consumidor.gov.br.`,
+            ...canaisDoConsumidor(d.empresa),
           ]
         : [
-            `No momento a plataforma não recebe pedidos de reembolso pelo site: fale com a promotora da rifa (os contatos dela estão no perfil). O seu direito de desistir da compra online em até 7 dias (art. 49 do Código de Defesa do Consumidor), antes do fechamento dos pedidos, segue valendo — se a promotora não responder, fale com a plataforma ${canal(d.empresa)}, sem prejuízo de reclamar no Procon ou no consumidor.gov.br.`,
+            `No momento a plataforma não recebe pedidos de reembolso pelo site: fale com a promotora da rifa (os contatos dela estão no perfil). O seu direito de desistir da compra online em até 7 dias (art. 49 do Código de Defesa do Consumidor), antes do fechamento dos pedidos, segue valendo — se a promotora não responder, fale com a plataforma ${canal(d.empresa)}, com o número do pedido.`,
+            ...canaisDoConsumidor(d.empresa),
           ],
     },
     {
@@ -283,7 +306,7 @@ export function montarTermosDeUso(d: DadosDosTermos): Secao[] {
       titulo: "7. Comentários, mensagens e conduta",
       itens: [
         "Comentários, mensagens, grupos e publicações não podem ter link, telefone, pedido de pagamento por fora, ofensa, discriminação, conteúdo ilegal ou dado pessoal de terceiros. A plataforma pode retirar o conteúdo, encerrar conversas, travar a rifa ou banir a organização que descumprir — e as denúncias são analisadas por ela.",
-        "Afiliados divulgam pelas regras do termo de adesão de cada organização: publicidade identificada, sem prometer ganho e sem atingir menores.",
+        "Afiliados divulgam pelas regras do termo de adesão de cada organização: publicidade identificada, sem prometer ganho e sem atingir menores. Esse termo é um contrato à parte, entre o afiliado e a promotora: não integra estes termos, e o afiliado não fala nem age em nome da plataforma.",
       ],
     },
     {
@@ -295,7 +318,7 @@ export function montarTermosDeUso(d: DadosDosTermos): Secao[] {
     {
       titulo: "9. Responsabilidade e funcionamento",
       itens: [
-        `A plataforma mantém o sistema no ar com o cuidado devido, mas pode ter interrupções para manutenção ou por falha de terceiros (provedor do Pix, WhatsApp, internet). Pague dentro do prazo da reserva: se a confirmação do Pix chegar depois de a reserva vencer, ou depois do sorteio, os números não ficam garantidos e o valor é devolvido: o pagamento entra numa fila que a plataforma confere e devolve para a mesma conta que pagou — pelo provedor do Pix, sempre que ele permitir. Se demorar, fale com a plataforma ${canal(d.empresa)}.`,
+        `A plataforma mantém o sistema no ar com o cuidado devido, mas pode ter interrupções para manutenção ou por falha de terceiros (provedor do Pix, WhatsApp, internet). Pague dentro do prazo da reserva: se a confirmação do Pix chegar depois de a reserva vencer, ou depois do sorteio, os números não ficam garantidos e o valor é devolvido: o pagamento entra numa fila que a plataforma confere e devolve para a mesma conta que pagou, em até ${PIX_TARDIO_PRAZO_DIAS_UTEIS} dias úteis da confirmação do pagamento — pelo provedor do Pix, sempre que ele permitir. Se demorar, fale com a plataforma ${canal(d.empresa)}.`,
         "Nada nestes termos afasta os seus direitos de consumidor.",
       ],
     },
@@ -304,7 +327,8 @@ export function montarTermosDeUso(d: DadosDosTermos): Secao[] {
       itens: [
         `Esta versão vale a partir de ${dataPorExtenso(VIGENCIA_DOS_TERMOS)}. Uma versão nova é publicada nesta página com a data em que passa a valer; a compra já feita segue as regras do momento em que foi feita.`,
         "Você aceita estes termos ao criar a conta e, a cada compra, junto com o regulamento da rifa — os dois ficam ao lado do botão de pagar. Eles estão sempre nesta página, para ler, copiar ou imprimir.",
-        `Vale a lei brasileira. Você pode reclamar no foro do seu domicílio, como prevê o Código de Defesa do Consumidor, além de falar com a plataforma ${canal(d.empresa)} e usar o consumidor.gov.br.`,
+        `Vale a lei brasileira. Você pode reclamar no foro do seu domicílio, nos termos do art. 101, I, do Código de Defesa do Consumidor, além de falar com a plataforma ${canal(d.empresa)} e usar o consumidor.gov.br.`,
+        "Nas relações não sujeitas ao Código de Defesa do Consumidor, fica eleito o foro da comarca da sede da plataforma, informada no item 1.",
       ],
     },
   ];

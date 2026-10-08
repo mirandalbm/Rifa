@@ -810,6 +810,35 @@ Na ordem de entrega do plano:
 - [ ] **[você]** Antes de abrir ao público, o **encarregado** precisa estar
   publicado nos Dados da empresa (Aparência → Rodapé e empresa): o texto do
   consentimento biométrico o cita (exigência legal, art. 41, § 1º).
+- [x] **Revisão formal dos Termos de uso pelo advogado (08/10/2026)**,
+  aplicada. A numeração já era de 1 a 10 (a cópia que ele recebeu tinha
+  perdido os títulos das seções 4, 5, 6, 8 e 9) e agora o teste confere que
+  não há buraco. Entraram: no item 1, a relação de consumo (CDC e Lei
+  5.768/71) e a remissão à Privacidade (controladora, bases legais,
+  encarregado); no item 2, a lista do que fica limitado sem o telefone
+  confirmado; no item 4, a aproximação com as palavras do Anexo A (busca
+  alternada e contínua em fita circular, +1, −1, +2, −2); no item 5, um
+  item próprio com o prazo de resposta da plataforma (5 dias, Decreto
+  7.962/2013, art. 4º, parágrafo único — `RESPOSTA_DA_PLATAFORMA_DIAS`) e o
+  consumidor.gov.br e o Procon; no item 7, que o termo do afiliado é
+  contrato à parte com a promotora e não integra os Termos; no item 9, o
+  prazo da devolução do Pix que chegou tarde (5 dias úteis da confirmação,
+  `PIX_TARDIO_PRAZO_DIAS_UTEIS`, que o cartão "Pix a devolver" mostra em
+  cada caso); no item 10, o art. 101, I, do CDC e o foro da sede para as
+  relações fora do CDC. A nota "gere de novo…" é do arquivo da base do
+  assistente, nunca do site — o cabeçalho agora diz isso.
+- [ ] **[você]** Antes de publicar os Termos, nos **Dados da empresa**
+  (Aparência → Rodapé e empresa), os dois bloqueantes do advogado: o
+  **e-mail de contato institucional** no domínio (ex.: contato@…) no lugar
+  do Gmail — ele aparece nos Termos (itens 1, 5, 9 e 10) e sai de um campo
+  só, então trocar ali troca em todos — e o **e-mail do encarregado**
+  (ex.: privacidade@…); e o **endereço na forma oficial**, com número e
+  complemento. Nenhum dos dois está no código.
+- [ ] **[você]** **Responder em até 5 dias** as reclamações que chegarem ao
+  e-mail de contato (os Termos prometem, pelo Decreto 7.962/2013) e
+  **devolver o Pix que chegou tarde em até 5 dias úteis** (o cartão "Pix a
+  devolver", em Pedidos, mostra a data de cada caso). Se quiser, cadastre a
+  empresa no consumidor.gov.br para responder lá também.
 - [ ] **[ligar]** Antes de ligar a guarda da comissão, as três providências
   do advogado: conta ou subconta separada no Asaas para a comissão guardada,
   o prazo de repasse em dias no termo do afiliado (hoje "depois do sorteio",

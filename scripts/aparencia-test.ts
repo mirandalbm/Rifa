@@ -81,7 +81,7 @@ async function main() {
     r = await admin.req("PUT", "/api/admin/template/empresa", {
       razaoSocial: "International Lottery Ltda",
       cnpj: "47.992.008/0001-45",
-      contato: "skuayd92@gmail",
+      contato: "contato@exemplo",
     });
     checa(
       "dados da empresa: salva o que está certo e aponta o campo errado",
@@ -95,11 +95,11 @@ async function main() {
     r = await admin.req("PUT", "/api/admin/template/empresa", {
       razaoSocial: "International Lottery Ltda",
       cnpj: "47992008000145",
-      contato: "Skuayd92@Gmail.com",
+      contato: "Contato@Exemplo.com.br",
     });
     checa(
       "dados da empresa: o e-mail corrigido entra, normalizado, sem erro",
-      r.status === 200 && r.json?.template?.legal?.contato === "skuayd92@gmail.com" && Object.keys(r.json?.erros ?? {}).length === 0,
+      r.status === 200 && r.json?.template?.legal?.contato === "contato@exemplo.com.br" && Object.keys(r.json?.erros ?? {}).length === 0,
       JSON.stringify(r.json),
     );
     r = await admin.req("PUT", "/api/admin/template/empresa", { endereco: "Rua A, 1", cnpj: "123", contato: "x@y" });
@@ -107,7 +107,7 @@ async function main() {
       "dados da empresa: o campo errado e o que não veio ficam com o valor de antes",
       r.status === 200 &&
         r.json?.template?.legal?.cnpj === "47992008000145" &&
-        r.json?.template?.legal?.contato === "skuayd92@gmail.com" &&
+        r.json?.template?.legal?.contato === "contato@exemplo.com.br" &&
         r.json?.template?.legal?.endereco === "Rua A, 1" &&
         r.json?.template?.legal?.razaoSocial === "International Lottery Ltda",
       JSON.stringify(r.json?.template?.legal),

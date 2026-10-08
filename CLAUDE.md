@@ -1154,8 +1154,8 @@ rifa, do reels e do story. Quem faz é um **processador de vídeo**
 - **Cloudflare Stream** (`CloudflareStream`, com `CLOUDFLARE_ACCOUNT_ID` e
   `CLOUDFLARE_STREAM_TOKEN`; sem as duas, cai no `ffmpeg` local com aviso no
   log): envia o arquivo temporário (`openAsBlob`, sem pôr o vídeo na memória;
-  até 200 MB), espera `readyToStream`, busca o quadro (`time=0.5s`,
-  `width=720`) e **apaga o vídeo do Stream no `finally`**, dê certo ou não — o
+  até 200 MB), espera `readyToStream`, busca os quadros candidatos
+  (`time=` de cada instante da capa automática, abaixo, `width=720`) e **apaga o vídeo do Stream no `finally`**, dê certo ou não — o
   Stream cobra por minuto guardado, e hoje ele só serve para o pôster. O
   endereço do quadro vem da resposta e só vale `https` em
   `*.cloudflarestream.com`. O token só vai no cabeçalho, nunca na URL nem no
@@ -1169,7 +1169,7 @@ rifa, do reels e do story. Quem faz é um **processador de vídeo**
   Railway o instala na imagem. Trocar de construtor sem levar o pacote junto
   só tira o pôster, nada quebra.
 - **Degrada, nunca quebra.** Sem `ffmpeg`, com vídeo que ele não abre, com
-  prazo estourado (20 s) ou saída maior que 8 MB, o resultado é "sem pôster"
+  prazo estourado (20 s por quadro, 40 s no total) ou saída maior que 8 MB, o resultado é "sem pôster"
   (`null`): o envio da mídia, a publicação e o story seguem iguais, e o
   `<video>` mostra o primeiro quadro como sempre mostrou. `gerarPoster()`
   nunca lança.
@@ -1181,10 +1181,18 @@ rifa, do reels e do story. Quem faz é um **processador de vídeo**
   não passa por `chaveDaCampanha()` — confirmar essa chave como mídia dá 400.
   `posterKey`/`poster` no corpo do envio são ignorados. Vale a regra da
   mídia: nenhuma medida ou valor vem do cliente.
-- **Um quadro só, WebP, até 720 px de largura**, tirado a 0,5 s (o primeiro
-  quadro costuma ser preto) ou, em vídeo curto demais, do primeiro de
-  verdade; o `ffmpeg` aplica a rotação do vídeo. Reprocessado pelo `sharp`:
-  sem metadados.
+- **Um quadro só, WebP, até 720 px de largura, o melhor entre candidatos**
+  (a capa automática, Fase D): um quadro de cada instante de
+  `POSTER_CANDIDATOS_S` (0,5, 1,5, 3 e 5 s), medido pelo `sharp`
+  (`medirQuadro()`: brilho médio e nitidez), e fica o de brilho aceitável
+  mais nítido (`melhorQuadro()` em `shared/poster.ts`: o primeiro quadro
+  costuma ser preto e o de 0,5 s, borrado no movimento; sem nenhum
+  aceitável, o mais nítido de todos; empate, o mais cedo). O mesmo
+  `melhorPoster()` serve o `ffmpeg` local e o quadro do Stream. Vídeo curto
+  demais para um instante não rende aquele quadro; nenhum rendeu, tenta o
+  primeiro de verdade. O `ffmpeg` aplica a rotação do vídeo. Reprocessado
+  pelo `sharp`: sem metadados. A capa escolhida pela organização (abaixo)
+  continua valendo por cima.
 - **Onde mora**: rifa — `campaign_media.poster_key` no armazenamento (volume
   e cópia, como a mídia; `removeMedia` apaga junto), exposto como `poster`
   (`posterUrl` em `withUrls`, `pecaPublica` para feed, perfil e Reels, e

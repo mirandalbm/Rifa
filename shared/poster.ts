@@ -17,10 +17,45 @@ export const POSTER_SAIDA_MAX_BYTES = 8 * 1024 * 1024;
 /** Vídeo maior que isto, fora do disco local, não é baixado só para tirar o quadro. */
 export const POSTER_BAIXAR_ATE_BYTES = 200 * 1024 * 1024;
 /**
- * O primeiro quadro costuma ser preto (fade de entrada). Tenta meio segundo
- * adiante e, se o vídeo for mais curto que isso, o primeiro de verdade.
+ * Os instantes candidatos a pôster (a capa automática, Fase D do
+ * `docs/PLANO-FERRAMENTAS.md`). O primeiro quadro costuma ser preto (fade de
+ * entrada) e o de 0,5 s pode estar borrado no movimento: o processador tira um
+ * quadro de cada instante e fica com o melhor (`melhorQuadro()`). Vídeo mais
+ * curto que um instante simplesmente não rende aquele quadro. Se nenhum
+ * render, tenta o primeiro de verdade (`POSTER_ULTIMO_RECURSO_S`).
  */
-export const POSTER_INSTANTES_S = [0.5, 0] as const;
+export const POSTER_CANDIDATOS_S = [0.5, 1.5, 3, 5] as const;
+export const POSTER_ULTIMO_RECURSO_S = 0;
+/** Brilho médio (0 a 255) fora desta faixa é quadro preto ou estourado: só vence se não houver outro. */
+export const POSTER_BRILHO_MIN = 28;
+export const POSTER_BRILHO_MAX = 235;
+
+/** O que se mede de cada quadro candidato: o brilho médio (0–255) e a nitidez (a do `sharp`). */
+export interface MedidaDoQuadro {
+  brilho: number;
+  nitidez: number;
+}
+
+/**
+ * Qual candidato vira o pôster: entre os de brilho aceitável, o mais nítido
+ * (empate fica com o primeiro, o mais cedo); sem nenhum aceitável, o mais
+ * nítido de todos. `null` só sem candidato. Regra pura: o processador mede, a
+ * regra escolhe.
+ */
+export function melhorQuadro(medidas: (MedidaDoQuadro | null)[]): number | null {
+  const valido = (m: MedidaDoQuadro | null): m is MedidaDoQuadro =>
+    !!m && Number.isFinite(m.brilho) && Number.isFinite(m.nitidez);
+  const aceitavel = (m: MedidaDoQuadro) => m.brilho >= POSTER_BRILHO_MIN && m.brilho <= POSTER_BRILHO_MAX;
+  let melhor: number | null = null;
+  for (const passo of [true, false]) {
+    medidas.forEach((m, i) => {
+      if (!valido(m) || (passo && !aceitavel(m))) return;
+      if (melhor === null || m.nitidez > (medidas[melhor] as MedidaDoQuadro).nitidez) melhor = i;
+    });
+    if (melhor !== null) return melhor;
+  }
+  return null;
+}
 
 /** Chave do pôster no armazenamento: opaca, gerada aqui — nunca vem do navegador. */
 export function chaveDoPoster(campaignId: string, sufixo: string): string {

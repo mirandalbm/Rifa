@@ -25,11 +25,14 @@ import os from "node:os";
 import path from "node:path";
 import sharp from "sharp";
 import {
-  POSTER_INSTANTES_S,
+  POSTER_CANDIDATOS_S,
   POSTER_PRAZO_MS,
   POSTER_QUALIDADE,
   POSTER_SAIDA_MAX_BYTES,
+  POSTER_ULTIMO_RECURSO_S,
   argsDoPoster,
+  melhorQuadro,
+  type MedidaDoQuadro,
 } from "@shared/poster";
 import { hlsDoStream, uidValido } from "@shared/stream";
 import { CORTE_ATE_BYTES, CORTE_PRAZO_MS, argsDoCorte } from "@shared/corte";
@@ -139,6 +142,50 @@ function rodar(bin: string, args: string[], prazoMs: number): Promise<Buffer | n
 }
 
 /** Roda o programa sem ler a saída padrão; `true` só se ele terminou bem dentro do prazo. */
+/** O brilho médio (0–255) e a nitidez de um quadro, pelo `sharp`. `null` se a imagem não abre. */
+export async function medirQuadro(imagem: Buffer): Promise<MedidaDoQuadro | null> {
+  try {
+    const st = await sharp(imagem, { limitInputPixels: 40_000_000 }).stats();
+    const cores = st.channels.slice(0, 3);
+    if (!cores.length) return null;
+    return { brilho: cores.reduce((t, c) => t + c.mean, 0) / cores.length, nitidez: st.sharpness };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * A capa automática: tira um quadro de cada instante candidato
+ * (`POSTER_CANDIDATOS_S`), mede e fica com o melhor (`melhorQuadro()`: nem
+ * preto nem estourado, o mais nítido); nenhum rendeu, tenta o primeiro de
+ * verdade. Sai em WebP, sem metadados. `fim` é o prazo total — passou, para
+ * de tentar e fica com o que já tem.
+ */
+export async function melhorPoster(pegar: (instanteS: number) => Promise<Buffer | null>, fim: number): Promise<Buffer | null> {
+  const quadros: Buffer[] = [];
+  const medidas: MedidaDoQuadro[] = [];
+  const tentar = async (instante: number) => {
+    const q = await pegar(instante).catch(() => null);
+    const m = q ? await medirQuadro(q) : null;
+    if (q && m) {
+      quadros.push(q);
+      medidas.push(m);
+    }
+  };
+  for (const instante of POSTER_CANDIDATOS_S) {
+    if (Date.now() >= fim) break;
+    await tentar(instante);
+  }
+  if (!quadros.length && Date.now() < fim) await tentar(POSTER_ULTIMO_RECURSO_S);
+  const i = melhorQuadro(medidas);
+  if (i === null) return null;
+  try {
+    return await sharp(quadros[i], { limitInputPixels: 40_000_000 }).webp({ quality: POSTER_QUALIDADE }).toBuffer();
+  } catch {
+    return null;
+  }
+}
+
 function rodarAteOFim(bin: string, args: string[], prazoMs: number): Promise<boolean> {
   return new Promise((resolve) => {
     let filho: ReturnType<typeof spawn>;
@@ -253,17 +300,9 @@ export class FfmpegLocal implements ProcessadorDeVideo {
   }
 
   private async gerar(arquivo: string): Promise<Buffer | null> {
-    try {
-      for (const instante of POSTER_INSTANTES_S) {
-        const jpeg = await rodar(this.bin, argsDoPoster(arquivo, instante), this.prazoMs);
-        if (!jpeg) continue;
-        // Reprocessa: WebP, sem metadados. Um quadro que não abre vira "sem pôster".
-        return await sharp(jpeg, { limitInputPixels: 40_000_000 }).webp({ quality: POSTER_QUALIDADE }).toBuffer();
-      }
-      return null;
-    } catch {
-      return null;
-    }
+    // Vários quadros, mas o prazo total é o dobro do de um: o processo que trava não segura a fila.
+    const fim = Date.now() + this.prazoMs * 2;
+    return melhorPoster((instante) => rodar(this.bin, argsDoPoster(arquivo, instante), Math.max(1, Math.min(this.prazoMs, fim - Date.now()))), fim);
   }
 }
 
@@ -437,20 +476,25 @@ export class CloudflareStream implements ProcessadorDeVideo {
 
   /** O quadro do Stream, em WebP. O endereço vem da resposta: só https e no domínio dele. */
   private async quadro(miniatura: string, restante: () => number): Promise<Buffer | null> {
+    let base: URL;
     try {
-      const url = new URL(miniatura);
-      if (url.protocol !== "https:" || !/(^|\.)cloudflarestream\.com$/.test(url.hostname)) return null;
-      url.searchParams.set("time", `${POSTER_INSTANTES_S[0]}s`);
+      base = new URL(miniatura);
+    } catch {
+      return null;
+    }
+    if (base.protocol !== "https:" || !/(^|\.)cloudflarestream\.com$/.test(base.hostname)) return null;
+    // A capa automática, como no `ffmpeg` local: um quadro de cada instante candidato, o melhor fica.
+    const pegar = async (instante: number) => {
+      const url = new URL(base);
+      url.searchParams.set("time", `${instante}s`);
       url.searchParams.set("width", String(this.largura));
       url.searchParams.set("fit", "scale-down");
       const q = await this.f(url, { signal: AbortSignal.timeout(restante()) });
       if (!q.ok) return null;
       const bytes = Buffer.from(await q.arrayBuffer());
-      if (bytes.length === 0 || bytes.length > POSTER_SAIDA_MAX_BYTES) return null;
-      return await sharp(bytes, { limitInputPixels: 40_000_000 }).webp({ quality: POSTER_QUALIDADE }).toBuffer();
-    } catch {
-      return null;
-    }
+      return bytes.length === 0 || bytes.length > POSTER_SAIDA_MAX_BYTES ? null : bytes;
+    };
+    return melhorPoster(pegar, Date.now() + restante());
   }
 
   private async remover(uid: string): Promise<boolean> {

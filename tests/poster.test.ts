@@ -136,6 +136,23 @@ describe("processador local", () => {
     expect(meta.width).toBe(POSTER_LARGURA_MAX);
     expect(meta.height!).toBeGreaterThan(meta.width!);
   });
+
+  it.skipIf(!temFfmpeg)("com o ffmpeg de verdade: o vídeo que começa preto ganha a capa do quadro com imagem", async () => {
+    const mp4 = path.join(pasta, "comeca-preto.mp4");
+    // 2 s pretos e 4 s de imagem com detalhe (testsrc): a capa de antes, a 0,5 s, saía preta.
+    const r = spawnSync("ffmpeg", [
+      "-v", "error", "-y",
+      "-f", "lavfi", "-i", "color=c=black:s=320x240:d=2:r=10",
+      "-f", "lavfi", "-i", "testsrc=s=320x240:d=4:r=10",
+      "-filter_complex", "[0:v][1:v]concat=n=2:v=1[v]", "-map", "[v]",
+      "-pix_fmt", "yuv420p", mp4,
+    ]);
+    expect(r.status).toBe(0);
+    const out = await new FfmpegLocal().gerarPoster(mp4);
+    expect(out).not.toBeNull();
+    const { medirQuadro } = await import("../server/services/videoProcessor");
+    expect((await medirQuadro(out!))!.brilho).toBeGreaterThan(40);
+  });
 });
 
 describe("instante da capa escolhida (Fase D)", () => {
@@ -152,5 +169,80 @@ describe("instante da capa escolhida (Fase D)", () => {
     expect("erro" in instanteDaCapa(null, 10)).toBe(true);
     expect("erro" in instanteDaCapa(1, null)).toBe(true);
     expect("erro" in instanteDaCapa(1, 0)).toBe(true);
+  });
+});
+
+describe("capa automática: o melhor quadro entre os candidatos", () => {
+  const quadro = async (cor: string, detalhe: boolean, borrar = 0) => {
+    const svg =
+      `<svg xmlns="http://www.w3.org/2000/svg" width="320" height="180"><rect width="320" height="180" fill="${cor}"/>` +
+      (detalhe ? Array.from({ length: 12 }, (_, i) => `<rect x="${i * 26}" y="${(i % 3) * 50}" width="13" height="40" fill="#fff"/>`).join("") : "") +
+      `</svg>`;
+    let img = sharp(Buffer.from(svg));
+    if (borrar) img = img.blur(borrar);
+    return img.jpeg().toBuffer();
+  };
+
+  it("a regra: nem preto nem estourado, o mais nítido; empate fica com o mais cedo", async () => {
+    const { melhorQuadro, POSTER_BRILHO_MIN } = await import("../shared/poster");
+    expect(melhorQuadro([])).toBeNull();
+    expect(melhorQuadro([null, null])).toBeNull();
+    // o preto (brilho baixo) perde mesmo sendo o mais "nítido"
+    expect(melhorQuadro([{ brilho: 5, nitidez: 9 }, { brilho: 120, nitidez: 3 }, { brilho: 110, nitidez: 4 }])).toBe(2);
+    // empate: o primeiro
+    expect(melhorQuadro([{ brilho: 100, nitidez: 4 }, { brilho: 100, nitidez: 4 }])).toBe(0);
+    // sem nenhum aceitável, o mais nítido de todos (melhor que nenhum pôster)
+    expect(melhorQuadro([{ brilho: 2, nitidez: 1 }, { brilho: 250, nitidez: 2 }])).toBe(1);
+    expect(melhorQuadro([{ brilho: POSTER_BRILHO_MIN, nitidez: 1 }])).toBe(0);
+  });
+
+  it("mede brilho e nitidez de verdade", async () => {
+    const { medirQuadro } = await import("../server/services/videoProcessor");
+    const preto = await medirQuadro(await quadro("#000", false));
+    const nitido = await medirQuadro(await quadro("#336699", true));
+    const borrado = await medirQuadro(await quadro("#336699", true, 6));
+    expect(preto!.brilho).toBeLessThan(10);
+    expect(nitido!.brilho).toBeGreaterThan(40);
+    expect(nitido!.nitidez).toBeGreaterThan(borrado!.nitidez);
+    expect(await medirQuadro(Buffer.from("não é imagem"))).toBeNull();
+  });
+
+  it("fica com o quadro bom: nem o preto do início, nem o borrado", async () => {
+    const { melhorPoster } = await import("../server/services/videoProcessor");
+    const preto = await quadro("#000", false);
+    const nitido = await quadro("#336699", true);
+    const borrado = await quadro("#336699", true, 6);
+    const pedidos: number[] = [];
+    const porInstante: Record<number, Buffer | null> = { 0.5: preto, 1.5: borrado, 3: nitido, 5: null };
+    const out = await melhorPoster(async (t) => (pedidos.push(t), porInstante[t] ?? null), Date.now() + 10_000);
+    expect(pedidos).toEqual([0.5, 1.5, 3, 5]);
+    expect((await sharp(out!).metadata()).format).toBe("webp");
+    // o escolhido é o nítido: a mesma nitidez depois do WebP fica acima da do borrado
+    const { medirQuadro } = await import("../server/services/videoProcessor");
+    expect((await medirQuadro(out!))!.nitidez).toBeGreaterThan((await medirQuadro(borrado))!.nitidez);
+  });
+
+  it("vídeo curto: nenhum candidato rende, tenta o primeiro quadro; nada rende, sem pôster", async () => {
+    const { melhorPoster } = await import("../server/services/videoProcessor");
+    const nitido = await quadro("#336699", true);
+    const pedidos: number[] = [];
+    expect(await melhorPoster(async (t) => (pedidos.push(t), t === 0 ? nitido : null), Date.now() + 10_000)).not.toBeNull();
+    expect(pedidos).toEqual([0.5, 1.5, 3, 5, 0]);
+    expect(await melhorPoster(async () => null, Date.now() + 10_000)).toBeNull();
+    // quem lança vira "não rendeu", nunca exceção
+    expect(await melhorPoster(async () => { throw new Error("x"); }, Date.now() + 10_000)).toBeNull();
+  });
+
+  it("passado o prazo total, para de tentar e fica com o que já tem", async () => {
+    const { melhorPoster } = await import("../server/services/videoProcessor");
+    const nitido = await quadro("#336699", true);
+    const pedidos: number[] = [];
+    const out = await melhorPoster(async (t) => {
+      pedidos.push(t);
+      await new Promise((ok) => setTimeout(ok, 60));
+      return nitido;
+    }, Date.now() + 50);
+    expect(out).not.toBeNull();
+    expect(pedidos).toEqual([0.5]);
   });
 });

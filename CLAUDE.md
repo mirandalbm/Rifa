@@ -432,12 +432,14 @@ arquitetura.
     cima do ícone, transparente (o toque, o teclado e o leitor de tela são
     dele), e o estado escolhido vai no rótulo ("Rifas perto de: São
     Paulo") e no `title` — o ícone sozinho não diz qual é. Na faixa fica
-    só a **contagem do próximo sorteio**, à direita
-    (`ContagemDoSorteio`, a cara da tela do sorteio: fundo escuro e as casas
-    d/h/m/s), que é botão e abre a tela do sorteio. O tempo vai no
-    `aria-label`; sem nenhum sorteio marcado (nem oficial nem de rifa),
-    "Sorteios". O botão tem 44 px de altura e as casas em 14 px, para a
-    contagem ler bem. **É só do celular**:
+    só a **contagem do próximo sorteio**, como um **banner pequeno de
+    ponta a ponta** (`ContagemDoSorteio`, a cara da tela do sorteio: fundo
+    escuro, cantos arredondados como o carrossel de cima), tudo
+    centralizado: "Próximo sorteio" (ou "Ao vivo agora") no alto, as quatro
+    casas com o número grande (`text-2xl`) e a unidade escrita embaixo
+    (dias, horas, min, seg) e, por último, o prêmio. É botão e abre a tela
+    do sorteio. O tempo vai no `aria-label`; sem nenhum sorteio marcado
+    (nem oficial nem de rifa), "Sorteios". **É só do celular**:
     do tablet em diante o pino não aparece, o seletor segue o de antes na
     faixa ("Rifas perto de" e o nome do estado) e a contagem não existe —
     lá a tela do sorteio principal é a coluna ao vivo, já definida.

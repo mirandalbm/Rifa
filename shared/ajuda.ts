@@ -3,7 +3,8 @@
  * mesmas regras que o sistema aplica (reembolso, sorteio, conta) — quando a
  * regra muda, a resposta muda junto, sem ninguém lembrar de reescrever.
  */
-import { regraDoReembolso } from "./reembolso";
+import { regraDoReembolso, regraSemReembolsoPeloSite } from "./reembolso";
+import { DIREITO_DO_CONSUMIDOR, DISPUTA_PRAZO_DIAS, RESPOSTA_PRAZO_DIAS } from "./chamados";
 
 export interface Pergunta {
   id: string;
@@ -117,18 +118,29 @@ export function perguntasDaAjuda(p: { taxaReembolsoPct: number; aceitaReembolso:
             regraDoReembolso(p.taxaReembolsoPct),
             "O pedido é feito em Minhas compras → Reembolsos, com o CPF e o print do bilhete, e você acompanha a resposta por lá.",
           ]
-        : ["No momento a plataforma não recebe pedidos de reembolso pelo site. Fale com a promotora da rifa."],
+        : [regraSemReembolsoPeloSite()],
     },
     {
       id: "prazo-de-desistir",
       tema: "reembolso",
       pergunta: "Por que meu prazo para desistir é menor que 7 dias?",
       resposta: !p.aceitaReembolso
-        ? ["No momento a plataforma não recebe pedidos de reembolso pelo site. Fale com a promotora da rifa."]
+        ? [regraSemReembolsoPeloSite()]
         : [
             "O bilhete é a participação num sorteio com data marcada. Os pedidos de reembolso fecham 2 horas antes do sorteio, para o quadro de números estar parado quando o número sair — e, feito o sorteio, a participação já foi prestada.",
             "Por isso, quem compra a menos de 7 dias do sorteio pode desistir até o fechamento, e não por 7 dias inteiros. A data e a hora exatas aparecem antes do Pix, ao lado do botão de pagar. Na rifa sorteada quando completar, o sorteio é marcado ao encher, para a próxima extração da Loteria Federal, e o fechamento vem junto.",
             "Se a plataforma aprovar o adiamento do sorteio depois da sua compra, você pode pedir a devolução integral até 2 horas antes da nova data, mesmo que já tenham passado 7 dias (compra com cambista: com o telefone confirmado na sua conta). O pedido que já estava aberto passa a devolver tudo.",
+          ],
+    },
+    {
+      id: "recusa-do-reembolso",
+      tema: "reembolso",
+      pergunta: "E se a promotora recusar o reembolso?",
+      resposta: !p.aceitaReembolso
+        ? [regraSemReembolsoPeloSite()]
+        : [
+            `A promotora responde o pedido em até ${RESPOSTA_PRAZO_DIAS} dias. Se ela recusar, ou não responder nesse prazo, você pode levar o caso à plataforma em Minhas compras → Reembolsos, em até ${DISPUTA_PRAZO_DIAS} dias da recusa e até 2 horas antes do sorteio. A plataforma decide no lugar da promotora, e a decisão dela encerra o caso aqui no site.`,
+            DIREITO_DO_CONSUMIDOR,
           ],
     },
     {

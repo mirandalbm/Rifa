@@ -168,6 +168,21 @@ export function avisoDePrazoCurto(
 }
 
 /** O texto que o comprador lê antes de comprar. */
+/**
+ * Reembolso desligado pelo site ("Aceitar pedidos de reembolso"): o
+ * interruptor é operacional, não jurídico (resposta 3.7). O art. 49 continua
+ * valendo, e quem compra fica sabendo disso antes do Pix, na ajuda e nos
+ * Termos de uso — com o caminho para pedir e os órgãos de defesa do consumidor.
+ */
+export function regraSemReembolsoPeloSite(): string {
+  return (
+    `Desistência: compra online pode ser desfeita com devolução integral em até ${DIAS_ARREPENDIMENTO} dias ` +
+    `(art. 49 do Código de Defesa do Consumidor), desde que antes do fechamento dos pedidos, 2 horas antes do sorteio — o que vier primeiro. ` +
+    `No momento o pedido não é feito pelo site: fale com a promotora da rifa (os contatos dela estão no perfil) e, ` +
+    `se ela não responder, com a plataforma pelo contato dos Termos de uso, sem prejuízo de reclamar no Procon ou no consumidor.gov.br.`
+  );
+}
+
 export function regraDoReembolso(taxaPct: number): string {
   const pct = Math.min(TAXA_REEMBOLSO_MAX_PCT, Math.max(0, Math.round(taxaPct)));
   return (

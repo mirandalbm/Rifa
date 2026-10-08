@@ -759,6 +759,19 @@ Na ordem de entrega do plano:
   consumidor.gov.br no reembolso, as bases legais que faltavam (comentários,
   origem da visita, pixels), a revogação sem custo e a resposta ao titular
   em até 15 dias (LGPD, art. 19, II).
+- [x] **Reembolso e disputa na tela, pelo roteiro do advogado (08/10/2026)**:
+  com o reembolso desligado, a página da rifa e o carrinho passam a dizer,
+  antes do Pix, o prazo de 7 dias do art. 49 (e o aviso de prazo curto), com
+  o caminho (promotora, depois a plataforma) e o Procon
+  (`regraSemReembolsoPeloSite()`); a ajuda diz o mesmo. A disputa deixou de
+  dizer só "a decisão é final": a tela, a mensagem da decisão e a ajuda nova
+  ("E se a promotora recusar o reembolso?") dizem que a decisão encerra o
+  caso no site sem tirar o Procon e o consumidor.gov.br
+  (`DIREITO_DO_CONSUMIDOR`). O consentimento biométrico não mudou: trocar o
+  texto obriga todos a autorizar de novo, então espera a revisão formal.
+- [ ] **[você]** Mandar ao advogado, para a revisão formal, os três textos
+  gerados do sistema: `lgpd-e-reembolso-para-o-advogado.txt`,
+  `07-termos-de-uso.md` e `08-privacidade.md`.
 - [ ] **[ligar]** Antes de ligar a guarda da comissão, as três providências
   do advogado: conta ou subconta separada no Asaas para a comissão guardada,
   o prazo de repasse em dias no termo do afiliado (hoje "depois do sorteio",

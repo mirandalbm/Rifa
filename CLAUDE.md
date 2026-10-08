@@ -1534,7 +1534,11 @@ permite cobrar dela depois, e o aceite é a prova.
   desligado, o art. 49 continua valendo e, perante o comprador, plataforma e
   promotora respondem **juntas** (CDC, art. 7º, parágrafo único — a
   plataforma cobrou o Pix e emitiu o bilhete). A plataforma devolve se for
-  condenada e cobra da promotora pelo regresso do contrato da promotora.
+  condenada e cobra da promotora pelo regresso do contrato da promotora. Por
+  isso, desligado, a tela diz antes do Pix o prazo do art. 49, o caminho
+  (promotora, depois a plataforma) e o Procon (`regraSemReembolsoPeloSite()`
+  em `shared/reembolso.ts`, o mesmo texto na ajuda), com o aviso de prazo
+  curto como no ligado.
 - **Carteira do Asaas só a plataforma cadastra.** Trocar a carteira é trocar
   para onde vai o dinheiro das vendas.
 
@@ -1765,6 +1769,10 @@ final.
   a recusa e encerra.
 - **Quem decidiu aparece como "Plataforma"** para o comprador e para a
   organização; a pessoa fica na auditoria (`chamado.disputa.*`).
+- **A palavra final é do site, não do consumidor**: a tela da disputa, a
+  mensagem da decisão e a ajuda dizem que a decisão encerra o caso aqui sem
+  tirar o Procon e o consumidor.gov.br (`DIREITO_DO_CONSUMIDOR` em
+  `shared/chamados.ts`). Nunca "a decisão é final" sozinho.
 - O índice ganhou nome novo quando o filtro mudou: `db:push` não troca o
   filtro de um índice existente, mas apaga o antigo e cria o novo.
 - `npm run disputa` prova tudo isso contra a API de verdade.

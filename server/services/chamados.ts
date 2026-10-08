@@ -31,6 +31,7 @@ import {
 import {
   ANEXO_MAX_BYTES,
   CHAMADOS_POR_DIA,
+  DIREITO_DO_CONSUMIDOR,
   bloqueioDaDisputa,
   bloqueioDoReembolso,
   destinatariosDoAviso,
@@ -881,7 +882,7 @@ export async function decidirDisputa(
     userId: req.user!.id,
     texto: procedente
       ? `A plataforma deu razão ao comprador: reembolso aprovado (protocolo ${feito.protocolo}). ${decisao}`
-      : `A plataforma manteve a recusa. ${decisao}`,
+      : `A plataforma manteve a recusa. ${decisao} ${DIREITO_DO_CONSUMIDOR}`,
   });
   emSegundoPlano(avisarDisputa(feito.id), "disputa decidida");
   return feito;

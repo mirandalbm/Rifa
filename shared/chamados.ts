@@ -185,6 +185,12 @@ export const PILL_DISPUTA: Record<StatusDisputa, string> = {
 
 /** Prazo para contestar a recusa, contado da resposta da organização. */
 export const DISPUTA_PRAZO_DIAS = 7;
+
+/**
+ * A palavra final da plataforma encerra o caso dentro do site, nunca o direito
+ * do consumidor: a tela da disputa e a mensagem da decisão dizem isso.
+ */
+export const DIREITO_DO_CONSUMIDOR = "Isso não tira o seu direito de reclamar no Procon ou no consumidor.gov.br.";
 /** Prazo da organização para responder antes de o comprador poder recorrer. */
 export const RESPOSTA_PRAZO_DIAS = 3;
 

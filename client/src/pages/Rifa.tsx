@@ -23,7 +23,7 @@ import {
   numeroInterno,
 } from "@shared/format";
 import { priceOrder } from "@shared/pricing";
-import { regraDoReembolso } from "@shared/reembolso";
+import { regraDoReembolso, regraSemReembolsoPeloSite } from "@shared/reembolso";
 import { AvisoDePrazo } from "@/components/AvisoDePrazo";
 import { DestaqueOrg } from "@/components/DestaqueOrg";
 import { lerOrigem } from "@/lib/origem";
@@ -801,10 +801,12 @@ export default function Rifa() {
             <p className="text-[11px] text-muted">
               A reserva vale por {campaign.reservationTtlMin} minutos. Pagou, o número é seu.
             </p>
-            {checkout?.reembolso?.aceita ? (
+            {checkout?.reembolso ? (
               <>
                 <AvisoDePrazo sorteioEm={campaign.drawAt} modoSorteio={campaign.modoSorteio} />
-                <p className="text-[11px] text-muted">{regraDoReembolso(checkout.reembolso.taxaPct)}</p>
+                <p className="text-[11px] text-muted">
+                  {checkout.reembolso.aceita ? regraDoReembolso(checkout.reembolso.taxaPct) : regraSemReembolsoPeloSite()}
+                </p>
               </>
             ) : null}
             <p className="text-[11px] text-muted">

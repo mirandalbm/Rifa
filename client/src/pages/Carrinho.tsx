@@ -15,7 +15,7 @@ import { useSession } from "@/lib/session";
 import { lerOrigem } from "@/lib/origem";
 import { lerIndicacao } from "@/lib/indicacao";
 import { consentiu, lerUtm } from "@/lib/marketing";
-import { regraDoReembolso } from "@shared/reembolso";
+import { regraDoReembolso, regraSemReembolsoPeloSite } from "@shared/reembolso";
 import { AvisoDePrazo } from "@/components/AvisoDePrazo";
 import { SO_VALE_PELA_PLATAFORMA } from "@shared/seguranca";
 
@@ -369,14 +369,16 @@ function PagarCarrinho({ itens, total }: { itens: Item[]; total: number }) {
         </div>
       ) : null}
       <p className="text-[11px] text-muted">{SO_VALE_PELA_PLATAFORMA}</p>
-      {checkout?.reembolso?.aceita ? (
+      {checkout?.reembolso ? (
         <>
           {itens
             .filter((i) => i.vende)
             .map((i) => (
               <AvisoDePrazo key={i.slug} sorteioEm={i.drawAt} modoSorteio={i.modoSorteio} rifa={i.prizeTitle} />
             ))}
-          <p className="text-[11px] text-muted">{regraDoReembolso(checkout.reembolso.taxaPct)}</p>
+          <p className="text-[11px] text-muted">
+            {checkout.reembolso.aceita ? regraDoReembolso(checkout.reembolso.taxaPct) : regraSemReembolsoPeloSite()}
+          </p>
         </>
       ) : null}
       <p className="text-[11px] text-muted">

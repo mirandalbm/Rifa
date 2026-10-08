@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Check, RefreshCw, Send, Ticket, Trash2, Type, Volume2, VolumeX, X } from "lucide-react";
+import { Check, Image as IconeImagem, RefreshCw, Scissors, Send, Ticket, Trash2, Type, Volume2, VolumeX, X } from "lucide-react";
 import { IconeReels } from "@/components/Icones";
+import { EscolherCapa } from "@/components/EscolherCapa";
+import { CortarVideo } from "@/components/CortarVideo";
 import { apiRequest } from "@/lib/queryClient";
 import { enviarReels } from "@/lib/enviarReels";
 import { LEGENDA_MAX, duracao, problemaNaLegenda } from "@shared/publicacao";
@@ -486,6 +488,8 @@ export interface ReelsGuardado {
 export function VerReels({ reels, onFechar, aoMudar }: { reels: ReelsGuardado; onFechar: () => void; aoMudar: () => void }) {
   const [mudo, setMudo] = useState(true);
   const [folha, setFolha] = useState(false);
+  const [capa, setCapa] = useState(false);
+  const [corte, setCorte] = useState(false);
   const [texto, setTexto] = useState(reels.legenda ?? "");
   const [erro, setErro] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState(false);
@@ -539,6 +543,8 @@ export function VerReels({ reels, onFechar, aoMudar }: { reels: ReelsGuardado; o
         <div className="absolute right-2 top-20 z-10 flex flex-col items-center gap-4">
           <Ferramenta rotulo="Legenda" icone={<Type size={22} aria-hidden />} onClick={() => setFolha(true)} />
           <Ferramenta rotulo={mudo ? "Sem som" : "Com som"} icone={iconeDoSom(mudo)} onClick={() => setMudo(!mudo)} pressionado={!mudo} />
+          {reels.durationS ? <Ferramenta rotulo="Capa" icone={<IconeImagem size={22} aria-hidden />} onClick={() => setCapa(true)} /> : null}
+          {reels.durationS ? <Ferramenta rotulo="Cortar" icone={<Scissors size={22} aria-hidden />} onClick={() => setCorte(true)} /> : null}
           <Ferramenta
             rotulo="Apagar"
             icone={<Trash2 size={22} aria-hidden />}
@@ -588,6 +594,28 @@ export function VerReels({ reels, onFechar, aoMudar }: { reels: ReelsGuardado; o
           </div>
         ) : null}
       </div>
+      {capa && reels.durationS ? (
+        <EscolherCapa
+          mediaId={reels.id}
+          url={reels.url}
+          poster={reels.posterUrl}
+          durationS={reels.durationS}
+          camada="z-[80]"
+          onFechar={() => setCapa(false)}
+          aoEscolher={aoMudar}
+        />
+      ) : null}
+      {corte && reels.durationS ? (
+        <CortarVideo
+          mediaId={reels.id}
+          url={reels.url}
+          poster={reels.posterUrl}
+          durationS={reels.durationS}
+          camada="z-[80]"
+          onFechar={() => setCorte(false)}
+          aoCortar={aoMudar}
+        />
+      ) : null}
     </div>,
     document.body,
   );

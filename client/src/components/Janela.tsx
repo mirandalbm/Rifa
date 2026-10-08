@@ -24,6 +24,7 @@ export function Janela({
   rolar = true,
   className = "",
   style,
+  camada = "z-50",
   children,
 }: {
   onFechar: () => void;
@@ -41,6 +42,8 @@ export function Janela({
   rolar?: boolean;
   className?: string;
   style?: CSSProperties;
+  /** A camada da janela: `z-50`, ou mais alto quando abre por cima de uma tela cheia (o Reels é `z-[70]`). */
+  camada?: string;
   children: ReactNode;
 }) {
   // O Esc e o fechar do pai mudam a cada desenho: ficam numa referência para
@@ -67,7 +70,7 @@ export function Janela({
 
   return (
     <div
-      className={`fixed inset-0 z-50 flex items-end justify-center bg-black/50 ${centralizarEm === "lg" ? "lg:items-center" : "sm:items-center"}`}
+      className={`fixed inset-0 ${camada} flex items-end justify-center bg-black/50 ${centralizarEm === "lg" ? "lg:items-center" : "sm:items-center"}`}
       onClick={() => fechar.current()}
     >
       <div

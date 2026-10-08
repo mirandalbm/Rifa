@@ -646,8 +646,9 @@ Na ordem de entrega do plano:
   integrar API nenhuma, está em `docs/PLANO-FERRAMENTAS.md`. Decisão de
   05/10/2026: primeiro fecha a versão inicial; as ferramentas vêm depois.
   **As fases A (artes prontas com os dados da rifa, no painel e no kit do
-  afiliado) e G (pacote pronto para postar) estão feitas** (08/10/2026); as
-  fases B a F seguem para depois.
+  afiliado) e G (pacote pronto para postar) estão feitas** (08/10/2026), e
+  da D já saíram a escolha da capa e o corte do início e do fim do vídeo (sem recomprimir); o resto da D (figurinhas no reels e legendas por transcrição) e as fases B, C, E e
+  F seguem para depois.
 
 - [x] **[código]** **Contrato da plataforma com a promotora, com aceite no
   painel e trava de publicação.** A plataforma cola o texto do advogado em

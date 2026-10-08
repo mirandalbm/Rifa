@@ -137,3 +137,20 @@ describe("processador local", () => {
     expect(meta.height!).toBeGreaterThan(meta.width!);
   });
 });
+
+describe("instante da capa escolhida (Fase D)", () => {
+  it("só número dentro do vídeo, arredondado ao décimo e um pouco antes do fim", async () => {
+    const { instanteDaCapa } = await import("../shared/poster");
+    expect(instanteDaCapa(1.53, 10)).toEqual({ instante: 1.5 });
+    expect(instanteDaCapa("2", 10)).toEqual({ instante: 2 });
+    expect(instanteDaCapa(10, 10)).toEqual({ instante: 9.9 });
+    expect(instanteDaCapa(0, 10)).toEqual({ instante: 0 });
+    expect("erro" in instanteDaCapa(10.5, 10)).toBe(true);
+    expect("erro" in instanteDaCapa(-1, 10)).toBe(true);
+    expect("erro" in instanteDaCapa("meio", 10)).toBe(true);
+    expect("erro" in instanteDaCapa("", 10)).toBe(true);
+    expect("erro" in instanteDaCapa(null, 10)).toBe(true);
+    expect("erro" in instanteDaCapa(1, null)).toBe(true);
+    expect("erro" in instanteDaCapa(1, 0)).toBe(true);
+  });
+});

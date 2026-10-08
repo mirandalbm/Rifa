@@ -158,6 +158,7 @@ function subirStreamFalso(): Promise<http.Server> {
 
 async function limpar() {
   await db.execute(sql`delete from campaigns where slug = ${SLUG}`);
+  await db.execute(sql`delete from rate_events where bucket like 'capa:%' or bucket like 'corte:%'`);
 }
 
 async function esperaPor<T>(f: () => Promise<T | null | undefined | false>, ms = 15000): Promise<T | null> {
@@ -280,6 +281,12 @@ async function main() {
     checa("…e fica sem pôster, sem erro", semPoster?.k === null);
     let pub = await anon.req("GET", `/api/public/campaigns/${SLUG}`);
     checa("a página pública diz `poster: null` para ele", pub.json?.media?.find((m: any) => m.role === "video")?.poster === null);
+    // Sem quadro do envio e recém-enviado: escolher a capa espera o envio terminar (409, nunca 500).
+    r = await marina.req("PUT", `/api/admin/media/${idFalsa}/capa`, { instante: 1 });
+    checa("escolher a capa de vídeo sem pôster recém-enviado: 409", r.status === 409, `HTTP ${r.status} ${r.json?.message ?? ""}`);
+    await db.update(campaignMedia).set({ createdAt: new Date(Date.now() - 2 * 3600_000) }).where(eq(campaignMedia.id, idFalsa));
+    r = await marina.req("PUT", `/api/admin/media/${idFalsa}/capa`, { instante: 1 });
+    checa("…e, passado o envio, o vídeo que o ffmpeg não abre dá 409 com o motivo (nada gravado)", r.status === 409, `HTTP ${r.status} ${r.json?.message ?? ""}`);
     await marina.req("DELETE", `/api/admin/media/${idFalsa}`);
 
     if (real) {
@@ -320,6 +327,109 @@ async function main() {
       const chaveCurta = idCurto ? await esperaPor(async () => (await db.select({ k: campaignMedia.posterKey }).from(campaignMedia).where(eq(campaignMedia.id, idCurto)))[0]?.k) : null;
       checa("vídeo de 0,2 s: o pôster sai do primeiro quadro", !!chaveCurta);
       if (idCurto) await marina.req("DELETE", `/api/admin/media/${idCurto}`);
+
+      // Escolher a capa (Fase D): o quadro do segundo escolhido vira o pôster.
+      console.log("\n  capa escolhida:");
+      const duasCores = path.join(pasta, "duas-cores.mp4");
+      spawnSync("ffmpeg", [
+        "-v", "error", "-y",
+        "-f", "lavfi", "-i", "color=c=red:s=720x1280:d=1:r=10",
+        "-f", "lavfi", "-i", "color=c=blue:s=720x1280:d=1:r=10",
+        "-filter_complex", "[0:v][1:v]concat=n=2:v=1[v]", "-map", "[v]",
+        "-pix_fmt", "yuv420p", duasCores,
+      ]);
+      r = await subir(await fs.readFile(duasCores));
+      const idCapa = r.json?.id as string;
+      const chaveDoEnvio = idCapa ? await esperaPor(async () => (await db.select({ k: campaignMedia.posterKey }).from(campaignMedia).where(eq(campaignMedia.id, idCapa)))[0]?.k) : null;
+      checa("o vídeo de duas cores ganha o pôster do envio", !!chaveDoEnvio);
+      const cor = async (url: string) => {
+        const b = Buffer.from(await (await fetch(URL + url)).arrayBuffer());
+        const { channels } = await sharp(b).stats();
+        return { r: channels[0].mean, b: channels[2].mean };
+      };
+      r = await marina.req("PUT", `/api/admin/media/${idCapa}/capa`, { instante: 1.5 });
+      checa("escolher o segundo 1,5 responde com o pôster novo", r.status === 200 && typeof r.json?.poster === "string" && r.json?.instante === 1.5, `HTTP ${r.status} ${r.json?.message ?? ""}`);
+      if (r.status === 200) {
+        const c = await cor(r.json.poster);
+        checa("…e o pôster é o quadro daquele segundo (azul), tirado no servidor", c.b > 150 && c.r < 80, `${Math.round(c.r)}/${Math.round(c.b)}`);
+        const [linha] = await db.select({ k: campaignMedia.posterKey }).from(campaignMedia).where(eq(campaignMedia.id, idCapa));
+        checa("a mídia guarda a chave nova, na pasta da rifa", linha?.k !== chaveDoEnvio && !!linha?.k?.startsWith(`campanhas/${rifa.id}/poster-`), String(linha?.k));
+        checa("o pôster de antes sai do armazenamento", (await fetch(URL + `/uploads/${chaveDoEnvio}`)).status === 404);
+        r = await marina.req("PUT", `/api/admin/media/${idCapa}/capa`, { instante: 0.2 });
+        checa("voltar ao começo traz o quadro vermelho", r.status === 200 && (await cor(r.json.poster)).r > 150);
+      }
+      r = await marina.req("PUT", `/api/admin/media/${idCapa}/capa`, { instante: 9 });
+      checa("instante depois do fim do vídeo: 422", r.status === 422, `HTTP ${r.status}`);
+      r = await marina.req("PUT", `/api/admin/media/${idCapa}/capa`, { instante: "meio" });
+      checa("instante que não é número: 422", r.status === 422, `HTTP ${r.status}`);
+      r = await marina.req("PUT", `/api/admin/media/${idCapa}/capa`, { instante: 1, poster: "campanhas/outra/poster-forjado.webp" });
+      const [depoisDoForjado] = await db.select({ k: campaignMedia.posterKey }).from(campaignMedia).where(eq(campaignMedia.id, idCapa));
+      checa("a chave mandada pelo navegador é ignorada", r.status === 200 && !depoisDoForjado?.k?.includes("forjado"), String(depoisDoForjado?.k));
+      r = await anon.req("PUT", `/api/admin/media/${idCapa}/capa`, { instante: 1 });
+      checa("sem login: 401", r.status === 401, `HTTP ${r.status}`);
+      if (idCapa) await marina.req("DELETE", `/api/admin/media/${idCapa}`);
+
+      // Cortar o início e o fim (Fase D), sem recomprimir: o trecho que fica vira o vídeo.
+      console.log("\n  corte do vídeo:");
+      const paraCortar = path.join(pasta, "para-cortar.mp4");
+      spawnSync("ffmpeg", [
+        "-v", "error", "-y",
+        "-f", "lavfi", "-i", "color=c=red:s=720x1280:d=2:r=10",
+        "-f", "lavfi", "-i", "color=c=blue:s=720x1280:d=2:r=10",
+        "-filter_complex", "[0:v][1:v]concat=n=2:v=1[v]", "-map", "[v]",
+        // Quadro-chave a cada meio segundo: o corte em modo cópia cai neles.
+        "-g", "5", "-keyint_min", "5", "-sc_threshold", "0",
+        "-pix_fmt", "yuv420p", paraCortar,
+      ]);
+      r = await subir(await fs.readFile(paraCortar));
+      const idCorte = r.json?.id as string;
+      const posterDoEnvio = idCorte ? await esperaPor(async () => (await db.select({ k: campaignMedia.posterKey }).from(campaignMedia).where(eq(campaignMedia.id, idCorte)))[0]?.k) : null;
+      const [antesDoCorte] = idCorte ? await db.select().from(campaignMedia).where(eq(campaignMedia.id, idCorte)) : [];
+      checa("o vídeo de 4 s entra medido e com pôster", antesDoCorte?.durationS === 4 && !!posterDoEnvio, `${antesDoCorte?.durationS} s`);
+      r = await marina.req("PUT", `/api/admin/media/${idCorte}/corte`, { inicio: 2, fim: 4, storageKey: "campanhas/outra/video-forjado.mp4", durationS: 99 });
+      checa("cortar de 2 a 4 s responde 200", r.status === 200, `HTTP ${r.status} ${r.json?.message ?? ""}`);
+      if (r.status === 200 && antesDoCorte) {
+        const [depoisDoCorte] = await db.select().from(campaignMedia).where(eq(campaignMedia.id, idCorte));
+        checa("a duração é medida de novo no servidor (2 s), nunca a do navegador", depoisDoCorte?.durationS === 2, `${depoisDoCorte?.durationS} s`);
+        checa(
+          "o arquivo cortado ganha chave nova da própria rifa (a mandada pelo navegador é ignorada)",
+          depoisDoCorte!.storageKey !== antesDoCorte.storageKey && depoisDoCorte!.storageKey.startsWith(`campanhas/${rifa.id}/video-`) && !depoisDoCorte!.storageKey.includes("forjado"),
+          depoisDoCorte?.storageKey,
+        );
+        checa("o arquivo cortado é menor e as medidas seguem em pé", Number(depoisDoCorte!.bytes) < Number(antesDoCorte.bytes) && depoisDoCorte!.height! > depoisDoCorte!.width!);
+        checa("o original de antes sai do armazenamento", (await fetch(URL + `/uploads/${antesDoCorte.storageKey}`)).status === 404);
+        checa("o pôster de antes sai do armazenamento", (await fetch(URL + `/uploads/${posterDoEnvio}`)).status === 404);
+        if (comEntrega && antesDoCorte.streamUid) {
+          checa("o vídeo de antes sai do Stream (o HLS era dele)", stream.apagados.includes(antesDoCorte.streamUid), antesDoCorte.streamUid);
+          const uidNovo = await esperaPor(async () => (await db.select({ u: campaignMedia.streamUid }).from(campaignMedia).where(eq(campaignMedia.id, idCorte)))[0]?.u);
+          checa("…e o cortado entra no Stream no lugar dele", !!uidNovo && uidNovo !== antesDoCorte.streamUid);
+        }
+        // O pôster novo sai em segundo plano, do vídeo cortado: o primeiro quadro agora é azul.
+        const posterNovo = await esperaPor(async () => (await db.select({ k: campaignMedia.posterKey }).from(campaignMedia).where(eq(campaignMedia.id, idCorte)))[0]?.k);
+        checa("o vídeo cortado ganha pôster novo", !!posterNovo && posterNovo !== posterDoEnvio);
+        if (posterNovo) {
+          const c = await cor(`/uploads/${posterNovo}`);
+          checa("…tirado do trecho que ficou (azul), sem recomprimir o resto", c.b > 150 && c.r < 80, `${Math.round(c.r)}/${Math.round(c.b)}`);
+        }
+        const arq = await fetch(URL + `/uploads/${depoisDoCorte!.storageKey}`);
+        checa("o vídeo cortado é servido", arq.status === 200);
+        const sonda = spawnSync("ffprobe", ["-v", "error", "-show_entries", "stream=codec_name", "-of", "csv=p=0", "-"], { input: Buffer.from(await arq.arrayBuffer()) });
+        checa("…e segue H.264 (cópia, não transcode)", String(sonda.stdout).trim().startsWith("h264"), String(sonda.stdout).trim());
+        // A capa escolhida agora mede contra a duração nova.
+        r = await marina.req("PUT", `/api/admin/media/${idCorte}/capa`, { instante: 3 });
+        checa("a capa passa a medir a duração nova (3 s num vídeo de 2 s: 422)", r.status === 422, `HTTP ${r.status}`);
+      }
+      r = await marina.req("PUT", `/api/admin/media/${idCorte}/corte`, { inicio: 0, fim: 2 });
+      checa("cortar o vídeo inteiro: 422 (nada a cortar)", r.status === 422, `HTTP ${r.status} ${r.json?.message ?? ""}`);
+      r = await marina.req("PUT", `/api/admin/media/${idCorte}/corte`, { inicio: 1, fim: 1.5 });
+      checa("trecho de menos de 1 s: 422", r.status === 422, `HTTP ${r.status}`);
+      r = await marina.req("PUT", `/api/admin/media/${idCorte}/corte`, { inicio: 0, fim: 9 });
+      checa("fim depois do vídeo: 422", r.status === 422, `HTTP ${r.status}`);
+      r = await marina.req("PUT", `/api/admin/media/${idCorte}/corte`, { inicio: "começo", fim: 1 });
+      checa("início que não é número: 422", r.status === 422, `HTTP ${r.status}`);
+      r = await anon.req("PUT", `/api/admin/media/${idCorte}/corte`, { inicio: 0, fim: 1 });
+      checa("cortar sem login: 401", r.status === 401, `HTTP ${r.status}`);
+      if (idCorte) await marina.req("DELETE", `/api/admin/media/${idCorte}`);
 
       // Vídeo de antes do pôster: o relógio gera depois, pelo mesmo caminho do envio.
       console.log("\n  pôster retroativo (vídeos de antes):");

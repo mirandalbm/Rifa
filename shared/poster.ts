@@ -56,3 +56,21 @@ export function argsDoPoster(arquivo: string, instanteS: number): string[] {
 export function posterPublico(url: string | null | undefined): string | null {
   return url ? url : null;
 }
+
+/**
+ * Escolher a capa (Fase D do `docs/PLANO-FERRAMENTAS.md`): a organização
+ * escolhe o segundo do vídeo que vira o pôster. O instante vem do navegador,
+ * mas é só um número conferido contra a duração **medida no servidor**; o
+ * quadro é tirado aqui, pelo `ffmpeg`, nunca enviado pela tela.
+ */
+export const CAPAS_POR_JANELA = { minutos: 10, limite: 20 } as const;
+
+export function instanteDaCapa(bruto: unknown, duracaoS: number | null): { instante: number } | { erro: string } {
+  if (duracaoS == null || !(duracaoS > 0)) return { erro: "A duração deste vídeo não foi medida; não dá para escolher o quadro." };
+  const n = typeof bruto === "number" ? bruto : typeof bruto === "string" && bruto.trim() !== "" ? Number(bruto) : NaN;
+  if (!Number.isFinite(n) || n < 0) return { erro: "Escolha um instante do vídeo." };
+  // O último décimo pode não ter quadro: o teto fica um pouco antes do fim.
+  const teto = Math.max(0, duracaoS - 0.1);
+  if (n > duracaoS) return { erro: "Esse instante passa do fim do vídeo." };
+  return { instante: Math.round(Math.min(n, teto) * 10) / 10 };
+}

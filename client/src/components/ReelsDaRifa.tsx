@@ -6,6 +6,8 @@ import { apiRequest } from "@/lib/queryClient";
 import { LEGENDA_MAX, duracao } from "@shared/publicacao";
 import { REELS_POR_RIFA } from "@shared/reels";
 import { CriarReels, VerReels } from "@/components/CriarReels";
+import { EscolherCapa } from "@/components/EscolherCapa";
+import { CortarVideo } from "@/components/CortarVideo";
 import { enviarReels } from "@/lib/enviarReels";
 import { useNoComputador } from "@/lib/largura";
 
@@ -197,6 +199,8 @@ function Regra({ icone, children }: { icone: ReactNode; children: ReactNode }) {
 
 function ItemDoReels({ reels, aoMudar, aoFechar }: { reels: Reels; aoMudar: () => void; aoFechar: () => void }) {
   const [texto, setTexto] = useState(reels.legenda ?? "");
+  const [capa, setCapa] = useState(false);
+  const [corte, setCorte] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState(false);
   const mudou = texto !== (reels.legenda ?? "");
@@ -250,6 +254,16 @@ function ItemDoReels({ reels, aoMudar, aoFechar }: { reels: Reels; aoMudar: () =
         >
           Salvar legenda
         </Button>
+        {reels.durationS ? (
+          <Button variant="ghost" className="px-3 py-1 text-xs" disabled={ocupado} onClick={() => setCapa(true)}>
+            Escolher a capa
+          </Button>
+        ) : null}
+        {reels.durationS ? (
+          <Button variant="ghost" className="px-3 py-1 text-xs" disabled={ocupado} onClick={() => setCorte(true)}>
+            Cortar
+          </Button>
+        ) : null}
         <Button
           variant="ghost"
           className="px-3 py-1 text-xs"
@@ -265,6 +279,26 @@ function ItemDoReels({ reels, aoMudar, aoFechar }: { reels: Reels; aoMudar: () =
           Fechar
         </Button>
       </div>
+      {capa && reels.durationS ? (
+        <EscolherCapa
+          mediaId={reels.id}
+          url={reels.url}
+          poster={reels.posterUrl}
+          durationS={reels.durationS}
+          onFechar={() => setCapa(false)}
+          aoEscolher={aoMudar}
+        />
+      ) : null}
+      {corte && reels.durationS ? (
+        <CortarVideo
+          mediaId={reels.id}
+          url={reels.url}
+          poster={reels.posterUrl}
+          durationS={reels.durationS}
+          onFechar={() => setCorte(false)}
+          aoCortar={aoMudar}
+        />
+      ) : null}
     </div>
   );
 }

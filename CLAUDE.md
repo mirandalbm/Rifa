@@ -93,7 +93,7 @@ arquitetura.
 | hash da senha (custo do scrypt, refazer a antiga no login) | `server/services/hashSenha.ts`, `refazerHashSeAntigo()` em `server/auth.ts`, `tests/hashSenha.test.ts` |
 | política de conteúdo (CSP, modo relatório) | `shared/csp.ts`, `server/services/csp.ts`, `server/index.ts`, `tests/csp.test.ts` |
 | variantes de imagem | `server/services/images.ts` |
-| pôster do vídeo (rifa, reels e story), o `ffmpeg` local e o Cloudflare Stream | `shared/poster.ts` (regras e comando), `server/services/videoProcessor.ts` (`ProcessadorDeVideo`, `FfmpegLocal`), `gerarPosterDaMidia()` em `server/services/media.ts`, o dos vídeos de antes em `server/services/posterRetroativo.ts` (relógio), `gerarPosterDoStory()` em `server/services/vitrine.ts`, `poster` em `Publicacao.tsx`/`Reels.tsx`/`Stories.tsx`, `scripts/poster-test.ts`, `tests/poster.test.ts`, `tests/cloudflareStream.test.ts` |
+| pôster do vídeo (rifa, reels e story), a capa escolhida, o corte do início e do fim, o `ffmpeg` local e o Cloudflare Stream | `shared/poster.ts` (regras, comando e `instanteDaCapa`), `escolherCapaDoVideo()` em `server/services/media.ts` e `client/src/components/EscolherCapa.tsx` (a capa), `shared/corte.ts`, `cortarVideo()` e `client/src/components/CortarVideo.tsx` (cortar início e fim), `server/services/videoProcessor.ts` (`ProcessadorDeVideo`, `FfmpegLocal`), `gerarPosterDaMidia()` em `server/services/media.ts`, o dos vídeos de antes em `server/services/posterRetroativo.ts` (relógio), `gerarPosterDoStory()` em `server/services/vitrine.ts`, `poster` em `Publicacao.tsx`/`Reels.tsx`/`Stories.tsx`, `scripts/poster-test.ts`, `tests/poster.test.ts`, `tests/cloudflareStream.test.ts` |
 | entrega do vídeo em HLS pelo Cloudflare Stream (guardar, tocar, apagar) | `shared/stream.ts` (regras), `publicar()`/`apagarDoStream()` em `server/services/videoProcessor.ts`, `gerarPosterDaMidia()`/`removeMedia()` em `server/services/media.ts`, `stream_uid`/`stream_hls`/`stream_assinado` em `campaign_media`, `server/services/streamPendentes.ts` (vídeo sem dono e a marca dos vídeos de antes, relógio), `client/src/lib/hls.ts` (`useVideoHls`), `scripts/poster-test.ts`, `tests/stream.test.ts`, `tests/streamAssinatura.test.ts`, `tests/cloudflareStream.test.ts` |
 | onde a mídia é guardada e a cópia de segurança | `server/services/storage.ts` (`LocalDiskStorage`, `CopiaS3`, `sincronizarCopia`), `/uploads` em `server/index.ts`, `tests/backup.test.ts` |
 | mensagens e modelos | `server/notifications/` |
@@ -1197,6 +1197,42 @@ rifa, do reels e do story. Quem faz é um **processador de vídeo**
   `excluirRifa()` apaga do armazenamento o original, o pôster e as variantes
   (`apagarArquivosDeMidias()`), só **depois** de a transação fechar: rollback
   não pode deixar mídia sem arquivo.
+- **A capa pode ser escolhida** (Fase D do `docs/PLANO-FERRAMENTAS.md`,
+  `escolherCapaDoVideo()` em `server/services/media.ts`, `PUT
+  /media/:mediaId/capa`, `EscolherCapa.tsx` no vídeo do carrossel e no do
+  Reels): a organização arrasta até o quadro e a tela manda **só o segundo**
+  — conferido contra a duração medida no servidor (`instanteDaCapa()` em
+  `shared/poster.ts`, 422 fora do vídeo); o quadro é tirado aqui pelo
+  `ffmpeg` local (`FfmpegLocal.quadroEm`), **nunca pelo Stream** (seria
+  mandar o vídeo para fora por um quadro), e nenhuma imagem ou chave do
+  navegador vale. Troca o pôster com a mídia travada (`FOR UPDATE`) e apaga o
+  de antes depois da transação. Com a mídia ainda sem o pôster do envio
+  (menos de 1 h, `FOLGA_PARA_ESCOLHER_CAPA_MS`), 409: o envio em segundo
+  plano grava o pôster (e o HLS) só com `poster_key` nulo, e escolher antes
+  faria ele descartar o que preparou. Sem `ffmpeg` ou sem quadro, 409 com o
+  motivo — nada gravado. Recorte pelo pai (o do vizinho é 404, no `npm run
+  isolation`), 20 escolhas a cada 10 min por pessoa (`capa:`), auditoria
+  `media.capa`. Muda a qualquer hora: é apresentação, não termo da rifa.
+- **Cortar o início e o fim** (Fase D, `cortarVideo()` em
+  `server/services/media.ts`, `PUT /media/:mediaId/corte`, `CortarVideo.tsx`
+  nos mesmos lugares da capa): **modo cópia, nunca recompressão**
+  (`argsDoCorte()` em `shared/corte.ts`: `-c copy`, só o primeiro vídeo e o
+  primeiro áudio, o mesmo contêiner, só arquivo local) — o corte cai no
+  quadro-chave antes do início, e a tela diz isso. A tela manda **só os dois
+  segundos**, conferidos contra a duração medida (`trechoDoCorte()`: 422 fora
+  do vídeo, trecho de menos de 1 s ou o vídeo inteiro). O arquivo cortado é
+  **medido de novo** e passa pela régua do papel (reels em pé e até 3 min),
+  ganha **chave nova** e troca a mídia com a linha travada (`FOR UPDATE`) e
+  só se o arquivo ainda for o lido (outro corte no meio: 409); o original, o
+  pôster e o vídeo do Stream saem depois da transação, e o pôster (e o HLS)
+  novo sai em segundo plano pelo `gerarPosterDaMidia()` de sempre. **O
+  `gerarPosterDaMidia()` grava só se o arquivo ainda for o que ele
+  processou** (`storage_key` no `UPDATE`), e a capa também confere: quadro do
+  vídeo de antes nunca cai no cortado. Até `CORTE_ATE_BYTES` (200 MB — o
+  cortado passa pela memória ao ser gravado); maior, 409 "corte no aparelho".
+  Sem `ffmpeg`, 409 com o motivo. Recorte pelo pai (404, no `npm run
+  isolation`), 10 cortes a cada 10 min por pessoa (`corte:`), auditoria
+  `media.corte` com o trecho e as duas durações. `npm run poster` prova.
 - **O vídeo de antes ganha o pôster pelo relógio** (`posterDosVideosAntigos()`
   em `server/services/posterRetroativo.ts`, trava 811017): o vídeo sem pôster
   nem `uid` passa pelo mesmo `gerarPosterDaMidia()` do envio (mesmo `UPDATE`

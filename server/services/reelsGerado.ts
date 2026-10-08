@@ -74,17 +74,37 @@ async function fotoNoQuadro(bytes: Buffer): Promise<Buffer | null> {
   }
 }
 
-/** As fotos da rifa que entram: o banner, depois as do carrossel, até `REELS_GERADO_FOTOS_MAX`. */
-async function fotosDaRifa(campaignId: string): Promise<ArquivoDoTrabalho[]> {
+/**
+ * As fotos da rifa que entram. Sem escolha: o banner, depois as do carrossel,
+ * até `REELS_GERADO_FOTOS_MAX` (a que o `sharp` não abre fica de fora). Com
+ * escolha (`ids`, já na forma pela régua): exatamente aquelas, na ordem dada —
+ * cada uma tem de ser foto pronta **desta** rifa (banner ou carrossel), senão
+ * 422; e a que não abre também é 422, porque a pessoa pediu aquela.
+ */
+async function fotosDaRifa(campaignId: string, ids: string[] | null): Promise<ArquivoDoTrabalho[]> {
   const midias = await db
-    .select({ role: campaignMedia.role, mime: campaignMedia.mime, key: campaignMedia.storageKey, position: campaignMedia.position })
+    .select({ id: campaignMedia.id, role: campaignMedia.role, mime: campaignMedia.mime, key: campaignMedia.storageKey, position: campaignMedia.position })
     .from(campaignMedia)
     .where(and(eq(campaignMedia.campaignId, campaignId), eq(campaignMedia.status, "ready"), inArray(campaignMedia.role, ["banner", "photo"])));
-  midias.sort((a, b) => Number(b.role === "banner") - Number(a.role === "banner") || a.position - b.position);
+  const fotosProntas = midias.filter((m) => m.mime.startsWith("image/"));
   const fotos: ArquivoDoTrabalho[] = [];
-  for (const m of midias) {
+
+  if (ids) {
+    for (const [i, id] of ids.entries()) {
+      const m = fotosProntas.find((f) => f.id === id);
+      // A foto do vizinho, o vídeo, o reels e a que não existe dizem o mesmo: não é foto desta rifa.
+      if (!m) throw new ReelsGeradoError(`A ${i + 1}ª foto escolhida não é uma foto desta rifa. Atualize a tela e escolha de novo.`, 422);
+      const bytes = await lerFoto(m.key);
+      const jpeg = bytes ? await fotoNoQuadro(bytes) : null;
+      if (!jpeg) throw new ReelsGeradoError(`Não foi possível abrir a ${i + 1}ª foto escolhida. Tire-a da escolha ou troque a foto.`, 422);
+      fotos.push({ nome: `foto-${fotos.length}.jpg`, bytes: jpeg });
+    }
+    return fotos;
+  }
+
+  fotosProntas.sort((a, b) => Number(b.role === "banner") - Number(a.role === "banner") || a.position - b.position);
+  for (const m of fotosProntas) {
     if (fotos.length >= REELS_GERADO_FOTOS_MAX) break;
-    if (!m.mime.startsWith("image/")) continue;
     const bytes = await lerFoto(m.key);
     const jpeg = bytes ? await fotoNoQuadro(bytes) : null;
     if (jpeg) fotos.push({ nome: `foto-${fotos.length}.jpg`, bytes: jpeg });
@@ -105,7 +125,13 @@ async function reelsDaRifa(campaignId: string): Promise<number> {
  * Põe o pedido na fila. O recorte (`assertCampaignInScope`) e o limite por
  * pessoa são da rota, antes. Devolve o id do trabalho e a legenda limpa.
  */
-export async function pedirReelsGerado(p: { campaignId: string; pedidoPor: string; legenda: unknown }): Promise<{ id: string; legenda: string | null }> {
+export async function pedirReelsGerado(p: {
+  campaignId: string;
+  pedidoPor: string;
+  legenda: unknown;
+  /** As fotos escolhidas, na ordem (`escolhaDasFotos()`); `null` é a escolha de sempre. */
+  fotos?: string[] | null;
+}): Promise<{ id: string; legenda: string | null; fotos: number }> {
   const problemaDaLegenda = problemaNaLegenda(p.legenda);
   if (problemaDaLegenda) throw new ReelsGeradoError(problemaDaLegenda, 422);
   const legenda = limparLegenda(typeof p.legenda === "string" ? p.legenda : "") || null;
@@ -123,7 +149,7 @@ export async function pedirReelsGerado(p: { campaignId: string; pedidoPor: strin
     throw new ReelsGeradoError(`Esta rifa já tem ${REELS_POR_RIFA} vídeos no Reels. Apague um para gerar outro.`);
   }
 
-  const fotos = await fotosDaRifa(p.campaignId);
+  const fotos = await fotosDaRifa(p.campaignId, p.fotos ?? null);
   if (!fotos.length) throw new ReelsGeradoError("A rifa precisa de pelo menos uma foto (o banner ou uma do carrossel) para gerar o vídeo.");
   const faixa = await sharp(Buffer.from(faixaDoReelsGerado(textosDoReelsGerado(rifa.dados), rifa.destaque))).png().toBuffer();
 
@@ -131,14 +157,14 @@ export async function pedirReelsGerado(p: { campaignId: string; pedidoPor: strin
     enfileirar(tx, {
       tipo: TIPO_REELS_GERADO,
       chave: chaveDoReelsGerado(p.campaignId),
-      dados: { legenda, fotos: fotos.length },
+      dados: { legenda, fotos: fotos.length, escolhidas: Boolean(p.fotos) },
       campaignId: p.campaignId,
       pedidoPor: p.pedidoPor,
       entradas: [...fotos, { nome: "faixa.png", bytes: faixa }],
     }),
   );
   if (!id) throw new ReelsGeradoError("Já há um vídeo sendo gerado para esta rifa. Espere ele ficar pronto.");
-  return { id, legenda };
+  return { id, legenda, fotos: fotos.length };
 }
 
 export interface SituacaoDoReelsGerado {

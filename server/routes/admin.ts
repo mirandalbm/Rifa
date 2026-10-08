@@ -238,7 +238,7 @@ import {
 import { transmissaoValida } from "@shared/sorteio";
 import { avisarRifaNova, emSegundoPlano } from "../services/push";
 import { ReelsGeradoError, pedirReelsGerado, situacaoDoReelsGerado } from "../services/reelsGerado";
-import { REELS_GERADOS_POR_HORA } from "@shared/reelsGerado";
+import { REELS_GERADOS_POR_HORA, escolhaDasFotos } from "@shared/reelsGerado";
 import {
   anexoPara,
   chamadosAbertos,
@@ -1730,17 +1730,24 @@ adminRouter.post("/campaigns/:id/reels-gerado", async (req, res, next) => {
     // O erro de preenchimento sai antes de contar no limite.
     const problemaDaLegenda = problemaNaLegenda(req.body?.legenda);
     if (problemaDaLegenda) return res.status(422).json({ message: problemaDaLegenda });
+    const escolha = escolhaDasFotos(req.body?.fotos);
+    if ("erro" in escolha) return res.status(422).json({ message: escolha.erro });
     if ((await hit(`reels-gerado:${req.user!.id}`, 60, REELS_GERADOS_POR_HORA)).excedeu) {
       return res.status(429).json({ message: "Muitos vídeos pedidos nesta hora. Espere um pouco." });
     }
-    const pedido = await pedirReelsGerado({ campaignId: campanha.id, pedidoPor: req.user!.id, legenda: req.body?.legenda });
+    const pedido = await pedirReelsGerado({
+      campaignId: campanha.id,
+      pedidoPor: req.user!.id,
+      legenda: req.body?.legenda,
+      fotos: escolha.ids,
+    });
     if (pedido.legenda) {
       emSegundoPlano(
         varrerTextoDoOrganizador({ organizationId: campanha.organizationId, campaignId: campanha.id, onde: "legenda do reels", texto: pedido.legenda }),
         "varredura",
       );
     }
-    await audit(req, "reels.gerar", "campaign", campanha.id, { trabalho: pedido.id });
+    await audit(req, "reels.gerar", "campaign", campanha.id, { trabalho: pedido.id, fotos: pedido.fotos });
     res.status(202).json({ id: pedido.id, ...(await situacaoDoReelsGerado(campanha.id)) });
   } catch (err) {
     if (err instanceof ReelsGeradoError) return res.status(err.status).json({ message: err.message });

@@ -11,6 +11,7 @@ import {
   TRANSICAO_S,
   argsDoReelsGerado,
   duracaoDoReelsGerado,
+  escolhaDasFotos,
   problemaParaGerarReels,
   segundosPorFoto,
   textosDoReelsGerado,
@@ -31,6 +32,20 @@ describe("reels gerado: regras", () => {
     expect(problemaParaGerarReels({ ...RIFA, demonstracao: true })).toMatch(/demonstração/);
     expect(problemaParaGerarReels({ ...RIFA, travada: true })).toMatch(/travada/);
     expect(problemaParaGerarReels({ ...RIFA, sorteada: true })).toMatch(/sorteada/);
+  });
+
+  it("a escolha das fotos: sem escolha é a de sempre; com escolha, de 1 ao máximo, ids distintos e na ordem", () => {
+    const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
+    expect(escolhaDasFotos(undefined)).toEqual({ ids: null });
+    expect(escolhaDasFotos(null)).toEqual({ ids: null });
+    expect(escolhaDasFotos([id(3), id(1)])).toEqual({ ids: [id(3), id(1)] });
+    // Maiúscula vira minúscula: o mesmo id em caixas diferentes é repetido.
+    expect(escolhaDasFotos([id(1).toUpperCase()])).toEqual({ ids: [id(1)] });
+    expect(escolhaDasFotos([id(1), id(1).toUpperCase()])).toHaveProperty("erro");
+    expect(escolhaDasFotos([])).toHaveProperty("erro");
+    expect(escolhaDasFotos(Array.from({ length: REELS_GERADO_FOTOS_MAX + 1 }, (_, i) => id(i)))).toHaveProperty("erro");
+    expect(escolhaDasFotos(Array.from({ length: REELS_GERADO_FOTOS_MAX }, (_, i) => id(i)))).toHaveProperty("ids");
+    for (const ruim of ["x", { 0: id(1) }, [1], ["../etc"], [id(1), null], "' or 1=1"]) expect(escolhaDasFotos(ruim)).toHaveProperty("erro");
   });
 
   it("a duração fica dentro do Reels, com as transições sobrepostas", () => {

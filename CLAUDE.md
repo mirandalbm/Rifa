@@ -1386,6 +1386,14 @@ enfileira e recebe.
   na régua (422, antes do limite) e com a varredura do Pix por fora, 6
   pedidos por hora por pessoa (429), recorte por `assertCampaignInScope` (o
   vizinho é 404, no `npm run isolation`), auditoria `reels.gerar`.
+- **A pessoa escolhe as fotos e a ordem** (`fotos` no pedido, ids de mídia;
+  sem o campo, a escolha de sempre: o banner primeiro, depois o carrossel).
+  A forma é conferida por `escolhaDasFotos()` **antes do limite** (de 1 a 6,
+  ids distintos — 422); depois, cada id tem de ser **foto pronta desta
+  rifa** (banner ou carrossel; a do vizinho, o vídeo e o id que não existe
+  dizem o mesmo, 422) e a escolhida que o `sharp` não abre também é 422 —
+  nunca some calada. A ordem do pedido é a ordem do vídeo; a tela é o toque
+  (o número na miniatura, `aria-pressed` e a ordem no rótulo).
 - **O vídeo pronto entra pela ingestão de sempre** (`ingestUpload`, no
   relógio do site, trava 811022): medido de novo (em pé, até 3 min), contado
   na vaga do Reels sob a trava da rifa, com o pôster e o HLS de sempre. A

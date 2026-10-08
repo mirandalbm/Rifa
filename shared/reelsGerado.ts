@@ -32,6 +32,30 @@ export const APROXIMACAO_MAX = 1.1;
 /** Quantos vídeos uma pessoa pede por hora (cada um é minuto de CPU do trabalhador). */
 export const REELS_GERADOS_POR_HORA = 6;
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * As fotos que a pessoa escolheu, na ordem em que entram no vídeo (ids de
+ * mídia da rifa). Sem escolha (`undefined` ou `null`), vale a de sempre: o
+ * banner primeiro, depois as do carrossel. A régua é só a forma — de 1 a
+ * `REELS_GERADO_FOTOS_MAX` ids distintos; quem confere se cada uma é foto
+ * pronta **desta** rifa é o servidor.
+ */
+export function escolhaDasFotos(entrada: unknown): { ids: string[] | null } | { erro: string } {
+  if (entrada === undefined || entrada === null) return { ids: null };
+  if (!Array.isArray(entrada)) return { erro: "A escolha das fotos veio num formato que não entendemos." };
+  if (entrada.length < 1) return { erro: "Escolha pelo menos uma foto para o vídeo." };
+  if (entrada.length > REELS_GERADO_FOTOS_MAX) return { erro: `O vídeo leva no máximo ${REELS_GERADO_FOTOS_MAX} fotos.` };
+  const ids: string[] = [];
+  for (const id of entrada) {
+    if (typeof id !== "string" || !UUID.test(id)) return { erro: "A escolha das fotos veio num formato que não entendemos." };
+    const minusculo = id.toLowerCase();
+    if (ids.includes(minusculo)) return { erro: "A mesma foto foi escolhida duas vezes." };
+    ids.push(minusculo);
+  }
+  return { ids };
+}
+
 /** Quanto cada foto fica na tela: com poucas fotos, mais tempo em cada. */
 export function segundosPorFoto(fotos: number): number {
   if (fotos <= 1) return 6;

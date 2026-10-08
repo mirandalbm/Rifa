@@ -28,7 +28,24 @@ const ROTULO: Record<SituacaoDoTrabalho, string> = {
  * tela acompanha a situação e diz quando o gerador está parado — nunca
  * promete o que não está acontecendo.
  */
-export function GerarReels({ campaignId, cheio, aoFicarPronto }: { campaignId: string; cheio: boolean; aoFicarPronto: () => void }) {
+export interface FotoParaOVideo {
+  id: string;
+  role: string;
+  url: string;
+}
+
+export function GerarReels({
+  campaignId,
+  cheio,
+  fotos,
+  aoFicarPronto,
+}: {
+  campaignId: string;
+  cheio: boolean;
+  /** O banner e as fotos do carrossel, prontos, na ordem da rifa. */
+  fotos: FotoParaOVideo[];
+  aoFicarPronto: () => void;
+}) {
   const chave = `/api/admin/campaigns/${campaignId}/reels-gerado`;
   const { data, refetch } = useQuery<Situacao>({
     queryKey: [chave],
@@ -41,6 +58,12 @@ export function GerarReels({ campaignId, cheio, aoFicarPronto }: { campaignId: s
   const [legenda, setLegenda] = useState("");
   const [pedindo, setPedindo] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  // `null` é a escolha de sempre (o banner primeiro, depois o carrossel, até o máximo); o toque faz a escolha e a ordem.
+  const [escolha, setEscolha] = useState<string[] | null>(null);
+  const idsDasFotos = fotos.map((f) => f.id);
+  const padrao = idsDasFotos.slice(0, REELS_GERADO_FOTOS_MAX);
+  // A foto apagada depois de escolhida sai da escolha sozinha.
+  const escolhidas = escolha ? escolha.filter((id) => idsDasFotos.includes(id)) : padrao;
   const ultimo = data?.ultimo ?? null;
   const emAberto = Boolean(ultimo && SITUACOES_EM_ABERTO.includes(ultimo.situacao));
 
@@ -56,8 +79,9 @@ export function GerarReels({ campaignId, cheio, aoFicarPronto }: { campaignId: s
     setPedindo(true);
     setErro(null);
     try {
-      await apiRequest("POST", chave, { legenda });
+      await apiRequest("POST", chave, escolha ? { legenda, fotos: escolhidas } : { legenda });
       setLegenda("");
+      setEscolha(null);
       await refetch();
     } catch (e) {
       setErro((e as Error).message);
@@ -65,6 +89,14 @@ export function GerarReels({ campaignId, cheio, aoFicarPronto }: { campaignId: s
       setPedindo(false);
     }
   }
+
+  function alternar(id: string) {
+    const atual = escolhidas;
+    if (atual.includes(id)) setEscolha(atual.filter((x) => x !== id));
+    else if (atual.length < REELS_GERADO_FOTOS_MAX) setEscolha([...atual, id]);
+  }
+
+  const cheiaDeFotos = escolhidas.length >= REELS_GERADO_FOTOS_MAX;
 
   return (
     <section className="space-y-3 rounded-lg border border-line p-3" aria-labelledby={`gerar-${campaignId}`}>
@@ -77,8 +109,8 @@ export function GerarReels({ campaignId, cheio, aoFicarPronto }: { campaignId: s
             Vídeo com as fotos da rifa
           </h3>
           <p className="mt-0.5 text-xs text-muted">
-            O sistema monta um vídeo em pé com até <span className="tnum">{REELS_GERADO_FOTOS_MAX}</span> fotos (o banner primeiro), com o prêmio, o preço da cota e a
-            autorização, e publica no Reels. A data do sorteio vai como contagem, que acompanha um adiamento.
+            O sistema monta um vídeo em pé com até <span className="tnum">{REELS_GERADO_FOTOS_MAX}</span> fotos da rifa, na ordem que você escolher, com o prêmio,
+            o preço da cota e a autorização, e publica no Reels. A data do sorteio vai como contagem, que acompanha um adiamento.
           </p>
         </div>
       </div>
@@ -103,11 +135,56 @@ export function GerarReels({ campaignId, cheio, aoFicarPronto }: { campaignId: s
 
       {!emAberto && !cheio ? (
         <>
+          {fotos.length ? (
+            <fieldset className="space-y-2">
+              <legend className="label-xs">Fotos do vídeo, na ordem do toque</legend>
+              <p className="text-xs text-muted">
+                Toque para tirar ou pôr uma foto; o número é a ordem em que ela entra (até <span className="tnum">{REELS_GERADO_FOTOS_MAX}</span>).
+              </p>
+              <ul className="flex flex-wrap gap-2">
+                {fotos.map((f, i) => {
+                  const ordem = escolhidas.indexOf(f.id);
+                  const escolhida = ordem >= 0;
+                  const nome = f.role === "banner" ? "Banner" : `Foto ${i + (fotos[0]?.role === "banner" ? 0 : 1)}`;
+                  return (
+                    <li key={f.id} className="w-16 sm:w-20">
+                      <button
+                        type="button"
+                        onClick={() => alternar(f.id)}
+                        disabled={!escolhida && cheiaDeFotos}
+                        aria-pressed={escolhida}
+                        aria-label={escolhida ? `${nome}: entra em ${ordem + 1}º lugar` : `${nome}: fora do vídeo`}
+                        className={`relative block aspect-[9/16] w-full overflow-hidden rounded-md border-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-green disabled:opacity-40 ${
+                          escolhida ? "border-green" : "border-line opacity-60"
+                        }`}
+                      >
+                        <img src={f.url} alt="" loading="lazy" className="h-full w-full object-cover" />
+                        <span
+                          aria-hidden
+                          className={`tnum absolute left-1 top-1 flex h-6 min-w-6 items-center justify-center rounded-full px-1 text-xs font-bold ${
+                            escolhida ? "bg-green text-on-green" : "bg-white text-muted"
+                          }`}
+                        >
+                          {escolhida ? ordem + 1 : "–"}
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+              {escolha ? (
+                <button type="button" onClick={() => setEscolha(null)} className="text-xs font-semibold text-green-deep underline underline-offset-2">
+                  Voltar à ordem de sempre
+                </button>
+              ) : null}
+              {!escolhidas.length ? <p className="text-xs text-red">Escolha pelo menos uma foto.</p> : null}
+            </fieldset>
+          ) : null}
           <label className="block">
             <span className="label-xs">Legenda do vídeo (opcional)</span>
             <textarea className="campo mt-1" rows={2} maxLength={LEGENDA_MAX} value={legenda} onChange={(e) => setLegenda(e.target.value)} placeholder="Sem link e sem telefone" />
           </label>
-          <Button onClick={() => void pedir()} disabled={pedindo}>
+          <Button onClick={() => void pedir()} disabled={pedindo || (escolha !== null && !escolhidas.length)}>
             {pedindo ? "Pedindo…" : "Gerar vídeo com as fotos"}
           </Button>
         </>

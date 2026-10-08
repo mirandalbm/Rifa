@@ -13,7 +13,7 @@ import { textosDasCamadas, validarCamadas, type Camada } from "@shared/editorIma
 import { ROTULO_DA_ARTE } from "@shared/artes";
 import { storage } from "./storage";
 import { urlDaFoto } from "./perfil";
-import { artesDaRifa, rifaDaArte } from "./artes";
+import { artesDaRifa, rifaDaArte, type RifaDaArte } from "./artes";
 import { varrerTextoDoOrganizador } from "./seguranca";
 import { emSegundoPlano } from "./push";
 
@@ -26,9 +26,13 @@ export class EditorError extends Error {
   }
 }
 
-/** Tudo que a tela usa; nada disso é digitado por ela. `null` = rifa inexistente. */
-export async function dadosDoEditor(campaignId: string, link: string) {
-  const r = await rifaDaArte(campaignId);
+/**
+ * Tudo que a tela usa; nada disso é digitado por ela. `null` = rifa
+ * inexistente. `link` é o endereço do QR: no painel, o da rifa; no kit do
+ * afiliado, o dele (tirado da sessão pela rota).
+ */
+export async function dadosDoEditor(campaignId: string, link: string, rifa?: RifaDaArte) {
+  const r = rifa ?? (await rifaDaArte(campaignId));
   if (!r) return null;
   const [org] = await db
     .select({ slug: organizations.slug, fotoEm: organizacaoFotos.updatedAt })
@@ -66,6 +70,8 @@ export async function dadosDoEditor(campaignId: string, link: string) {
 export function conferirCamadas(
   corpo: unknown,
   rifa: { id: string; organizationId: string; temSelo: boolean },
+  /** Quem escreveu, para a evidência: a organização, ou o terceiro (o afiliado e o código dele). */
+  quem: string | null = null,
 ): Camada[] {
   let camadas: Camada[];
   try {
@@ -79,7 +85,9 @@ export function conferirCamadas(
       varrerTextoDoOrganizador({
         organizationId: rifa.organizationId,
         campaignId: rifa.id,
-        onde: "texto do editor de imagem (recusado, não virou imagem)",
+        onde: quem
+          ? `texto de terceiro (${quem}) no editor de imagem, recusado e não virou imagem`
+          : "texto do editor de imagem (recusado, não virou imagem)",
         texto,
       }),
       "varredura do editor de imagem",

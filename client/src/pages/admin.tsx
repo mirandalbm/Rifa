@@ -709,7 +709,14 @@ export function AdminCampanhas() {
                         <ReelsDaRifa campaignId={c.id} />
                         <Card title="Artes para divulgar">
                           <div className="space-y-4 p-4">
-                            <AbrirEditorDeImagem campaignId={c.id} />
+                            <AbrirEditorDeImagem
+                              portas={{
+                                dados: `/api/admin/campaigns/${c.id}/editor`,
+                                conferir: `/api/admin/campaigns/${c.id}/editor/conferir`,
+                                artes: `/api/admin/campaigns/${c.id}/artes`,
+                                carrossel: `/api/admin/campaigns/${c.id}/media`,
+                              }}
+                            />
                             <ArtesParaDivulgar base={`/api/admin/campaigns/${c.id}/artes`} />
                           </div>
                         </Card>

@@ -130,7 +130,7 @@ arquitetura.
 | plano da próxima fase (vitrine, contas, afiliados, marketing) | `docs/PLANO-FASE5.md` |
 | ferramentas de imagem e vídeo para divulgar a rifa (Canva, Adobe, as nossas, IA): panorama e fases | `docs/PLANO-FERRAMENTAS.md` |
 | artes prontas para divulgar (Fase A: arte da rifa, cotas que faltam, data, resultado, cota premiada, nos três formatos) e o pacote para postar (Fase G: ZIP com os três formatos e a legenda) | `shared/artes.ts` (regras, textos e `legendaSugerida`), `server/services/zip.ts`, os textos do kit (`textosDoKit()` em `shared/afiliados.ts`), `server/services/arteDesenho.ts` (texto em contorno, QR, camada), `server/services/artes.ts` (dados da rifa, fundo, foto da organização), `server/routes/artesRotas.ts`, `/campaigns/:id/artes*` em `server/routes/admin.ts`, `/artes/:slug*` em `server/routes/affiliate.ts`, `client/src/components/ArtesParaDivulgar.tsx` (aba Publicação e Meus links), `scripts/artes-test.ts`, `tests/artes.test.ts` |
-| editor de imagem no navegador (Fase C: fundo, formato, figurinhas, conferência do texto, pôr no carrossel) | `shared/editorImagem.ts` (camadas como dados, enquadramento, régua), `server/services/editorImagem.ts`, `/campaigns/:id/editor*` em `server/routes/admin.ts`, `client/src/lib/desenharArte.ts` (o canvas), `client/src/components/EditorDeImagem.tsx` (`AbrirEditorDeImagem` no cartão "Artes para divulgar"), `scripts/artes-test.ts`, `tests/editorImagem.test.ts` |
+| editor de imagem no navegador (Fase C: fundo, formato, figurinhas, conferência do texto, pôr no carrossel) | `shared/editorImagem.ts` (camadas como dados, enquadramento, régua), `server/services/editorImagem.ts`, `/campaigns/:id/editor*` em `server/routes/admin.ts` e `/editor/:slug*` em `server/routes/affiliate.ts` (o kit do afiliado), `client/src/lib/desenharArte.ts` (o canvas), `client/src/components/EditorDeImagem.tsx` (`AbrirEditorDeImagem` no cartão "Artes para divulgar" e em Meus links do afiliado), `scripts/artes-test.ts`, `tests/editorImagem.test.ts` |
 | conta do apostador (senha, confirmação, exclusão) | `shared/contaComprador.ts`, `server/services/contaComprador.ts`, `scripts/conta-test.ts` |
 | login com Google, completar CPF e telefone, ligar o Google | `shared/google.ts` (regras, claims, volta segura), `server/services/google.ts`, `server/services/contaCompleta.ts`, rotas `/conta/google/*`, `/conta/cpf` e `/conta/telefone/*` em `server/routes/public.ts`, `client/src/components/BotaoGoogle.tsx`, `CompletarConta`/`GoogleCard` em `client/src/pages/MinhasCotas.tsx`, `scripts/google-test.ts`, `tests/google.test.ts` |
 | de quem é o cliente (o que o organizador vê) | `shared/titularidade.ts` (regra) e `server/services/titularidade.ts` (SQL) |
@@ -2845,9 +2845,20 @@ emoji da lista, preço, selo SPA/MF, foto da organização e QR da rifa.
   editor; a foto pronta feita fora segue como sempre foi.
 - O recorte é `assertCampaignInScope` (o vizinho é 404, no `npm run
   isolation`). O editor (e o `qrcode`) só baixa quando abre.
+- **No kit do afiliado** ("Criar imagem" em Meus links, `GET
+  /api/affiliate/editor/:slug` e `…/conferir`): o mesmo editor, com as portas
+  dele (`PortasDoEditor`). Só na rifa em que ele recebe (`comissaoNaRifa`, a
+  régua do link) **e** que tem arte (no ar, nem demonstração nem travada:
+  `artesDaRifa()`); o resto é 404. **O QR leva o link dele, com o código
+  tirado da sessão** (`?ref=` na URL não muda nada). O Pix por fora é recusado
+  e vira denúncia como **texto de terceiro** ("afiliado <código>"), com a
+  organização como alvo porque a rifa é dela — a mesma régua da divulgação.
+  **Não há "Pôr no carrossel"**: o carrossel é da organização; o afiliado
+  baixa ou compartilha. Limite próprio (`editor:afiliado:`).
 - Ficou para as próximas partes da Fase C: remover fundo (precisa de
-  provedor), legenda sugerida pelo assistente e o editor no kit do afiliado.
-- `npm run artes` prova as rotas e `tests/editorImagem.test.ts` as regras.
+  provedor) e a legenda sugerida pelo assistente.
+- `npm run artes` prova as rotas (painel e kit do afiliado) e
+  `tests/editorImagem.test.ts` as regras.
 
 ## Carrinho e comprar — o que não pode afrouxar
 

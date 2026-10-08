@@ -205,9 +205,10 @@ sombra, emoji, preço, selo SPA/MF, foto da organização e QR) como dados
 (`shared/editorImagem.ts`), o texto conferido no servidor antes de virar
 imagem (`POST /campaigns/:id/editor/conferir`: link e telefone recusados, Pix
 por fora recusado e denunciado), e a imagem baixada, compartilhada ou posta no
-carrossel pelo envio de sempre (`npm run artes` prova). Falta: remover fundo
-(precisa de provedor), legenda e texto sugeridos pelo assistente, e o editor
-no kit do afiliado.
+carrossel pelo envio de sempre (`npm run artes` prova) e **o editor no kit do
+afiliado** (em Meus links: o QR com o link dele, só na rifa em que recebe, sem
+carrossel; o Pix por fora vira denúncia como texto de terceiro). Falta: remover
+fundo (precisa de provedor) e legenda e texto sugeridos pelo assistente.
 
 **Fase D — Vídeo leve, sem recomprimir · ~4 PRs.**
 Cortar início e fim (modo cópia), escolher a capa, figurinhas no reels como

@@ -86,15 +86,19 @@ const TAMANHO_PADRAO: Record<TipoDeCamada, number> = {
   qr: 0.22,
 };
 
-/** A camada nova, no centro (o texto um pouco acima, o QR embaixo à direita). */
+/**
+ * A camada nova, num lugar que não cobre as outras no começo: o texto em cima,
+ * a foto da organização no canto de cima, o preço e o QR lado a lado embaixo
+ * e o selo no pé.
+ */
 export function camadaNova(tipo: TipoDeCamada): Camada {
   const tamanho = TAMANHO_PADRAO[tipo];
   if (tipo === "texto") return { tipo, x: 0.5, y: 0.3, tamanho, texto: "Seu texto", fonte: "titulo", cor: "branco", contorno: true, sombra: true };
   if (tipo === "emoji") return { tipo, x: 0.5, y: 0.5, tamanho, emoji: EMOJIS_DA_FIGURINHA[0].emoji };
-  if (tipo === "qr") return { tipo, x: 0.8, y: 0.8, tamanho };
+  if (tipo === "qr") return { tipo, x: 0.8, y: 0.76, tamanho };
   if (tipo === "logo") return { tipo, x: 0.15, y: 0.12, tamanho };
-  if (tipo === "selo") return { tipo, x: 0.5, y: 0.9, tamanho };
-  return { tipo, x: 0.5, y: 0.7, tamanho };
+  if (tipo === "selo") return { tipo, x: 0.5, y: 0.94, tamanho };
+  return { tipo, x: 0.36, y: 0.76, tamanho };
 }
 
 function faixa(v: unknown, min: number, max: number, nome: string): number {

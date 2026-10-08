@@ -8,13 +8,14 @@
  * - o afiliado só tem arte da rifa em que recebe comissão, e o link do QR
  *   leva o código dele, tirado da sessão — `?ref=` na URL não muda nada;
  * - desenhar tem limite por pessoa (429);
- * - o editor de imagem (Fase C): os dados da própria rifa (preço e selo do
+ * - o editor de imagem (Fase C), no painel e no kit do afiliado (o QR com o
+ *   código dele, só onde recebe): os dados da própria rifa (preço e selo do
  *   banco), o texto conferido antes de virar imagem — link e telefone são
  *   422, o Pix por fora é 422 e vira denúncia —, o vizinho 404 e o limite.
  */
 import "dotenv/config";
 import { baseUrl } from "./base-url";
-import { eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import sharp from "sharp";
 import { db, pool } from "../server/db";
 import { hashPassword } from "../server/auth";
@@ -250,6 +251,35 @@ async function main() {
     checa("rifa inexistente é 404", r.status === 404, `HTTP ${r.status}`);
     r = await orgA.req("GET", "/api/affiliate/artes/artes-teste-a");
     checa("a organização não entra pela porta do afiliado", r.status === 401 || r.status === 403, `HTTP ${r.status}`);
+    // ------------------------------------------------ editor no kit do afiliado
+    r = await comVinculo.req("GET", "/api/affiliate/editor/artes-teste-a?ref=OUTRO");
+    checa("o afiliado com vínculo abre o editor", r.status === 200, `HTTP ${r.status}`);
+    checa("o QR do editor leva o código dele, não o da URL", typeof r.json?.link === "string" && r.json.link.endsWith("?ref=ARTEAF01"), r.json?.link);
+    checa("o preço e o selo do editor saem da rifa", r.json?.oficiais?.selo === "Autorizada SPA/MF nº SPA-ARTE-1", JSON.stringify(r.json?.oficiais));
+    r = await semVinculo.req("GET", "/api/affiliate/editor/artes-teste-a");
+    checa("o afiliado sem vínculo não tem o editor", r.status === 404, `HTTP ${r.status}`);
+    r = await comVinculo.req("GET", "/api/affiliate/editor/artes-teste-b");
+    checa("rifa de organização sem vínculo não tem editor", r.status === 404, `HTTP ${r.status}`);
+    r = await semVinculo.req("POST", "/api/affiliate/editor/artes-teste-a/conferir", { camadas: [] });
+    checa("o afiliado sem vínculo não confere texto", r.status === 404, `HTTP ${r.status}`);
+    r = await comVinculo.req("POST", "/api/affiliate/editor/artes-teste-a/conferir", { camadas: [{ ...camadaNova("texto"), texto: "Concorra a uma moto" }, camadaNova("qr")] });
+    checa("texto limpo do afiliado passa", r.status === 200, `HTTP ${r.status} ${r.json?.message ?? ""}`);
+    r = await comVinculo.req("POST", "/api/affiliate/editor/artes-teste-a/conferir", { camadas: [{ ...camadaNova("texto"), texto: "chave pix no meu perfil" }] });
+    checa("Pix por fora do afiliado é 422", r.status === 422, `HTTP ${r.status}`);
+    let denunciaDoAfiliado = null;
+    for (let i = 0; i < 20 && !denunciaDoAfiliado; i++) {
+      [denunciaDoAfiliado] = await db
+        .select({ evidencia: denuncias.evidencia })
+        .from(denuncias)
+        .where(and(eq(denuncias.organizationId, orgs[0].id), sql`${denuncias.evidencia} like '%afiliado ARTEAF01%'`));
+      if (!denunciaDoAfiliado) await new Promise((ok) => setTimeout(ok, 100));
+    }
+    checa("vira denúncia como texto de terceiro", Boolean(denunciaDoAfiliado?.evidencia?.includes("texto de terceiro (afiliado ARTEAF01)")), denunciaDoAfiliado?.evidencia ?? "nenhuma");
+    r = await orgA.req("GET", "/api/affiliate/editor/artes-teste-a");
+    checa("a organização não entra no editor pela porta do afiliado", r.status === 401 || r.status === 403, `HTTP ${r.status}`);
+    r = await comVinculo.req("GET", `/api/admin/campaigns/${a.id}/editor`);
+    checa("o afiliado não abre o editor do painel", r.status === 401 || r.status === 403, `HTTP ${r.status}`);
+
     r = await new Cliente().req("GET", `/api/admin/campaigns/${a.id}/artes/rifa`);
     checa("sem login, a arte do painel é 401", r.status === 401, `HTTP ${r.status}`);
 
@@ -271,7 +301,10 @@ async function main() {
     checa("Pix por fora no texto da imagem é 422", r.status === 422, `HTTP ${r.status}`);
     let denuncia = null;
     for (let i = 0; i < 20 && !denuncia; i++) {
-      [denuncia] = await db.select({ evidencia: denuncias.evidencia }).from(denuncias).where(eq(denuncias.organizationId, orgs[0].id));
+      [denuncia] = await db
+        .select({ evidencia: denuncias.evidencia })
+        .from(denuncias)
+        .where(and(eq(denuncias.organizationId, orgs[0].id), sql`${denuncias.evidencia} like 'texto do editor de imagem%'`));
       if (!denuncia) await new Promise((ok) => setTimeout(ok, 100));
     }
     checa("o Pix por fora vira denúncia automática", Boolean(denuncia?.evidencia?.includes("editor de imagem")), denuncia?.evidencia ?? "nenhuma");

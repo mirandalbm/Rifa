@@ -2,6 +2,7 @@ import { Suspense, lazy, useEffect, useId, useState } from "react";
 import { Copy, Download, Package, Palette, Share2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { nomeDoArquivoDaArte, nomeDoPacote, type FormatoDaArte, type TipoDeArte } from "@shared/artes";
+import type { PortasDoEditor } from "@/components/EditorDeImagem";
 
 const EditorDeImagem = lazy(() => import("@/components/EditorDeImagem").then((m) => ({ default: m.EditorDeImagem })));
 
@@ -9,11 +10,11 @@ const EditorDeImagem = lazy(() => import("@/components/EditorDeImagem").then((m)
  * A entrada do editor de imagem (Fase C) no painel: o editor (canvas, QR)
  * só baixa quando abre.
  */
-export function AbrirEditorDeImagem({ campaignId }: { campaignId: string }) {
+export function AbrirEditorDeImagem({ portas, texto }: { portas: PortasDoEditor; texto?: string }) {
   const [aberto, setAberto] = useState(false);
   return (
     <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-line px-3 py-2">
-      <p className="min-w-0 text-xs text-ink-2">Monte a sua imagem: foto, formato, texto, preço, selo e QR por cima.</p>
+      <p className="min-w-0 text-xs text-ink-2">{texto ?? "Monte a sua imagem: foto, formato, texto, preço, selo e QR por cima."}</p>
       <button
         type="button"
         onClick={() => setAberto(true)}
@@ -23,7 +24,7 @@ export function AbrirEditorDeImagem({ campaignId }: { campaignId: string }) {
       </button>
       {aberto ? (
         <Suspense fallback={<span role="status" className="text-xs text-muted">Abrindo o editor…</span>}>
-          <EditorDeImagem campaignId={campaignId} onFechar={() => setAberto(false)} />
+          <EditorDeImagem portas={portas} onFechar={() => setAberto(false)} />
         </Suspense>
       ) : null}
     </div>

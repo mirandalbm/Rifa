@@ -3,7 +3,7 @@ import { DESCRICAO_DA_NOTA_DO_AFILIADO, NOTA_FISCAL_MAX_BYTES } from "@shared/fi
 import { Link } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { PanelShell } from "@/components/AppShell";
-import { ArtesParaDivulgar } from "@/components/ArtesParaDivulgar";
+import { AbrirEditorDeImagem, ArtesParaDivulgar } from "@/components/ArtesParaDivulgar";
 import { Card, Money, Pill, Button, Empty } from "@/components/bits";
 import { Estatistica } from "@/components/painel";
 import { Banknote, MousePointerClick, Percent, ShoppingBag } from "lucide-react";
@@ -254,7 +254,17 @@ function ArtesDoKit({ slug }: { slug: string }) {
       </button>
       {aberto ? (
         <div className="mt-3">
-          <ArtesParaDivulgar base={`/api/affiliate/artes/${encodeURIComponent(slug)}`} />
+          <div className="space-y-4">
+            <AbrirEditorDeImagem
+              texto="Monte a sua imagem: foto, formato, texto, preço, selo e o QR com o seu link."
+              portas={{
+                dados: `/api/affiliate/editor/${encodeURIComponent(slug)}`,
+                conferir: `/api/affiliate/editor/${encodeURIComponent(slug)}/conferir`,
+                artes: `/api/affiliate/artes/${encodeURIComponent(slug)}`,
+              }}
+            />
+            <ArtesParaDivulgar base={`/api/affiliate/artes/${encodeURIComponent(slug)}`} />
+          </div>
         </div>
       ) : null}
     </div>

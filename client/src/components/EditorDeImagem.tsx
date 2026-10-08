@@ -41,6 +41,20 @@ interface DadosDoEditor {
   artes: { tipo: TipoDeArte; rotulo: string }[];
 }
 
+/**
+ * Onde o editor fala com o servidor: no painel, as rotas da rifa (e o envio
+ * ao carrossel); no kit do afiliado, as dele — sem carrossel, que é da
+ * organização.
+ */
+export interface PortasDoEditor {
+  dados: string;
+  conferir: string;
+  /** A base das artes prontas (`…/artes`), para usar uma como fundo. */
+  artes: string;
+  /** A base das mídias da rifa (`…/media`): só no painel. */
+  carrossel?: string;
+}
+
 type Fundo = { origem: "nenhum" } | { origem: "foto"; id: string } | { origem: "arte"; tipo: TipoDeArte } | { origem: "aparelho"; nome: string };
 
 /** A prévia desenha na metade da medida final: leve, e nítida o bastante na tela. */
@@ -88,9 +102,8 @@ function compartilhaArquivo(): boolean {
  * a imagem sair (baixar, compartilhar ou ir para o carrossel), o servidor
  * confere o texto (`/editor/conferir`); a imagem entra pelo envio de sempre.
  */
-export function EditorDeImagem({ campaignId, onFechar }: { campaignId: string; onFechar: () => void }) {
-  const base = `/api/admin/campaigns/${campaignId}`;
-  const { data, isError } = useQuery<DadosDoEditor>({ queryKey: [`${base}/editor`] });
+export function EditorDeImagem({ portas, onFechar }: { portas: PortasDoEditor; onFechar: () => void }) {
+  const { data, isError } = useQuery<DadosDoEditor>({ queryKey: [portas.dados] });
   const id = useId();
   const [formato, setFormato] = useState<FormatoDaArte>("retrato");
   const [fundo, setFundo] = useState<Fundo>({ origem: "nenhum" });
@@ -139,7 +152,7 @@ export function EditorDeImagem({ campaignId, onFechar }: { campaignId: string; o
   useEffect(() => {
     if (fundo.origem !== "arte" && fundo.origem !== "foto") return;
     let vivo = true;
-    const url = fundo.origem === "arte" ? `${base}/artes/${fundo.tipo}?formato=${formato}` : (data?.fundos.find((f) => f.id === fundo.id)?.url ?? null);
+    const url = fundo.origem === "arte" ? `${portas.artes}/${fundo.tipo}?formato=${formato}` : (data?.fundos.find((f) => f.id === fundo.id)?.url ?? null);
     if (!url) return;
     setCarregandoFundo(true);
     abrirImagem(url)
@@ -153,7 +166,7 @@ export function EditorDeImagem({ campaignId, onFechar }: { campaignId: string; o
     return () => {
       vivo = false;
     };
-  }, [base, data, fundo, formato]);
+  }, [portas.artes, data, fundo, formato]);
 
   // Qualquer mudança desfaz a imagem pronta: o que sai é sempre o que está na tela.
   useEffect(() => {
@@ -268,7 +281,7 @@ export function EditorDeImagem({ campaignId, onFechar }: { campaignId: string; o
     setTrabalhando("conferindo");
     try {
       // O texto passa pela régua no servidor antes de virar pixel.
-      await apiRequest("POST", `${base}/editor/conferir`, { camadas });
+      await apiRequest("POST", portas.conferir, { camadas });
       const canvas = document.createElement("canvas");
       canvas.width = largura;
       canvas.height = altura;
@@ -310,11 +323,12 @@ export function EditorDeImagem({ campaignId, onFechar }: { campaignId: string; o
   async function porNoCarrossel() {
     const alt = descricao.trim();
     if (!alt) return setErro("Descreva a imagem para quem não enxerga antes de pôr no carrossel.");
+    const chave = portas.carrossel;
+    if (!chave) return;
     const p = await gerar();
     if (!p) return;
     setTrabalhando("enviando");
     try {
-      const chave = `${base}/media`;
       const ticket = (await (
         await apiRequest("POST", `${chave}/upload-url`, { role: "photo", filename: p.nome, mime: "image/jpeg", bytes: p.blob.size })
       ).json()) as { url: string; storageKey: string; headers: Record<string, string> };
@@ -643,6 +657,8 @@ export function EditorDeImagem({ campaignId, onFechar }: { campaignId: string; o
                   </button>
                 ) : null}
               </div>
+              {portas.carrossel ? (
+                <>
               <Campo rotulo="Descrição para quem não enxerga" dica="Vai com a imagem no carrossel da rifa.">
                 <input value={descricao} maxLength={300} onChange={(e) => setDescricao(e.target.value)} placeholder="Ex.: a moto do prêmio com o preço da cota" />
               </Campo>
@@ -658,6 +674,8 @@ export function EditorDeImagem({ campaignId, onFechar }: { campaignId: string; o
                 <p role="status" className="text-xs text-green-deep">
                   ✓ A imagem entrou no carrossel da rifa.
                 </p>
+              ) : null}
+                </>
               ) : null}
             </div>
           </div>

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  quemRealizaOSorteio,
   ANTECEDENCIA_PARA_INTEGRAR_MS,
   CORES_DA_CAIXA,
   COR_DO_GLOBO,
@@ -141,5 +142,14 @@ describe("globo: resultado e ata notarial (8.10)", () => {
     expect("ata" in v && Object.keys(v.ata).sort()).toEqual(["auditor", "bolas", "local", "observacoes", "registro", "tabelionato", "testemunhas"]);
     expect(ataGuardada("x")).toBeNull();
     expect(ataGuardada({ local: 1 })).toBeNull();
+  });
+});
+
+describe("quem realiza o sorteio (a contagem do Início)", () => {
+  it("diz a loteria, nunca o prêmio; sem sorteio oficial, a Federal", () => {
+    expect(quemRealizaOSorteio(null)).toBe("Sorteio realizado pela Loteria Federal");
+    expect(quemRealizaOSorteio("Loteria Federal")).toBe("Sorteio realizado pela Loteria Federal");
+    expect(quemRealizaOSorteio("Globo da plataforma")).toBe("Sorteio realizado pelo globo da plataforma");
+    expect(quemRealizaOSorteio("Mega-Sena")).toBe("Sorteio realizado pela Mega-Sena");
   });
 });

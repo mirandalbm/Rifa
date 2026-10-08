@@ -19,6 +19,7 @@ import {
   type ElementoDoToque,
 } from "@/lib/deslizar";
 import { faltaParaOSorteio, type VideoDaTransmissao } from "@shared/aoVivo";
+import { quemRealizaOSorteio } from "@shared/sorteiosOficiais";
 
 /** Onde a tela vale: abaixo de `md`, onde a vitrine não tem a coluna ao vivo. */
 /**
@@ -456,19 +457,21 @@ export function ContagemDoSorteio({ onAbrir }: { onAbrir: () => void }) {
     refetchInterval: ATUALIZA_MS,
     refetchIntervalInBackground: false,
   });
+  // O sorteio é de várias organizações: a contagem nunca cita prêmio nem
+  // rifa — só quem realiza o sorteio (a loteria).
   const proximo = oficialMarcado
-    ? { prizeTitle: oficialMarcado.nome, drawAt: oficialMarcado.sorteioEm }
+    ? { nome: quemRealizaOSorteio(oficialMarcado.loteriaNome), drawAt: oficialMarcado.sorteioEm }
     : aoVivo?.proximo
-      ? { prizeTitle: aoVivo.proximo.prizeTitle, drawAt: aoVivo.proximo.drawAt }
+      ? { nome: quemRealizaOSorteio(null), drawAt: aoVivo.proximo.drawAt }
       : null;
   const falta = proximo ? faltaParaOSorteio(proximo.drawAt, agora) : null;
 
   const casas: [number, string][] = falta
     ? [
-        [falta.dias, "d"],
-        [falta.horas, "h"],
-        [falta.minutos, "m"],
-        [falta.segundos, "s"],
+        [falta.dias, "dias"],
+        [falta.horas, "horas"],
+        [falta.minutos, "min"],
+        [falta.segundos, "seg"],
       ]
     : [];
   const rotulo = !proximo
@@ -476,31 +479,36 @@ export function ContagemDoSorteio({ onAbrir }: { onAbrir: () => void }) {
       ? `Resultado oficial: ${oficial.nome}. Abrir a tela do sorteio`
       : "Nenhum sorteio marcado. Abrir a tela do sorteio"
     : falta?.aoVivo
-      ? `Sorteio ao vivo agora: ${proximo.prizeTitle}. Abrir a tela do sorteio`
-      : `Próximo sorteio em ${falta?.dias} dias, ${falta?.horas} horas e ${falta?.minutos} minutos: ${proximo.prizeTitle}. Abrir a tela do sorteio`;
+      ? `Sorteio ao vivo agora. ${proximo.nome}. Abrir a tela do sorteio`
+      : `Próximo sorteio em ${falta?.dias} dias, ${falta?.horas} horas e ${falta?.minutos} minutos. ${proximo.nome}. Abrir a tela do sorteio`;
 
+  // Um banner pequeno de ponta a ponta: o título em cima, as casas no meio
+  // (como a tela do sorteio) e, embaixo, quem realiza o sorteio — nunca o
+  // prêmio. Tudo centralizado.
   return (
     <button
       type="button"
       onClick={onAbrir}
       aria-label={rotulo}
-      className="ml-auto flex h-11 min-w-0 shrink-0 items-center gap-2 rounded-lg border border-line-2 bg-[#0B1F14] px-3 text-branco md:hidden"
+      className="flex w-full min-w-0 flex-col items-center justify-center gap-1.5 rounded-xl border border-line-2 bg-[#0B1F14] px-4 py-3 text-center text-branco md:hidden"
     >
-      <Radio size={16} aria-hidden className="shrink-0 text-[#8cc2ff]" />
-      {!proximo ? (
-        <span className="truncate text-sm font-semibold">{oficial ? "Resultado" : "Sorteios"}</span>
-      ) : falta?.aoVivo ? (
-        <span className="truncate text-sm font-bold uppercase tracking-wide">Ao vivo</span>
-      ) : (
-        <span aria-hidden className="flex items-center gap-1">
+      <span aria-hidden className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-[#8cc2ff]">
+        <Radio size={14} className="shrink-0" />
+        {!proximo ? (oficial ? "Resultado do sorteio" : "Sorteios") : falta?.aoVivo ? "Ao vivo agora" : "Próximo sorteio"}
+      </span>
+      {proximo && !falta?.aoVivo ? (
+        <span aria-hidden className="flex items-stretch justify-center gap-2">
           {casas.map(([n, u]) => (
-            <span key={u} className="rounded bg-branco/10 px-1.5 py-1 text-sm leading-none">
-              <span className="tnum font-bold">{String(n).padStart(2, "0")}</span>
-              <span className="text-[11px] text-branco/70">{u}</span>
+            <span key={u} className="flex min-w-[3.5rem] flex-col items-center rounded-lg bg-branco/10 px-2 py-1.5">
+              <span className="tnum text-2xl font-bold leading-none">{String(n).padStart(2, "0")}</span>
+              <span className="mt-1 text-[11px] leading-none text-branco/70">{u}</span>
             </span>
           ))}
         </span>
-      )}
+      ) : null}
+      <span aria-hidden className={`max-w-full truncate text-xs ${proximo ? "font-semibold text-branco" : "text-branco/80"}`}>
+        {proximo ? proximo.nome : oficial ? oficial.nome : "Toque para ver os últimos sorteios"}
+      </span>
     </button>
   );
 }

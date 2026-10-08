@@ -313,7 +313,7 @@ export function CriarReels({
           )}
 
           {/* As ferramentas, em ícones, na coluna da direita — onde ficam as ações do reels publicado. */}
-          <div className="absolute right-2 top-20 z-10 flex flex-col items-center gap-4">
+          <div className="absolute right-2 top-24 z-10 flex flex-col items-center gap-4">
             <Ferramenta rotulo="Legenda" icone={<Type size={22} aria-hidden />} onClick={() => setFolha("legenda")} />
             <Ferramenta rotulo="Rifa" icone={<Ticket size={22} aria-hidden />} onClick={() => setFolha("rifa")} />
             <Ferramenta rotulo={mudo ? "Sem som" : "Com som"} icone={iconeDoSom(mudo)} onClick={() => setMudo(!mudo)} pressionado={!mudo} />
@@ -544,7 +544,7 @@ export function VerReels({ reels, onFechar, aoMudar }: { reels: ReelsGuardado; o
           <h2 className="flex-1 text-center text-base font-bold">Seu reels</h2>
           <span className="w-10" aria-hidden />
         </header>
-        <div className="absolute right-2 top-20 z-10 flex flex-col items-center gap-4">
+        <div className="absolute right-2 top-24 z-10 flex flex-col items-center gap-4">
           <Ferramenta rotulo="Legenda" icone={<Type size={22} aria-hidden />} onClick={() => setFolha(true)} />
           <Ferramenta rotulo={mudo ? "Sem som" : "Com som"} icone={iconeDoSom(mudo)} onClick={() => setMudo(!mudo)} pressionado={!mudo} />
           {reels.durationS ? <Ferramenta rotulo="Capa" icone={<IconeImagem size={22} aria-hidden />} onClick={() => setCapa(true)} /> : null}

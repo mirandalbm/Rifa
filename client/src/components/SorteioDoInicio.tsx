@@ -19,6 +19,7 @@ import {
   type ElementoDoToque,
 } from "@/lib/deslizar";
 import { faltaParaOSorteio, type VideoDaTransmissao } from "@shared/aoVivo";
+import { quemRealizaOSorteio } from "@shared/sorteiosOficiais";
 
 /** Onde a tela vale: abaixo de `md`, onde a vitrine não tem a coluna ao vivo. */
 /**
@@ -457,12 +458,11 @@ export function ContagemDoSorteio({ onAbrir }: { onAbrir: () => void }) {
     refetchIntervalInBackground: false,
   });
   // O sorteio é de várias organizações: a contagem nunca cita prêmio nem
-  // rifa. Do sorteio oficial vai o nome dele (a loteria e o concurso); do
-  // sorteio de rifa, só a hora.
+  // rifa — só quem realiza o sorteio (a loteria).
   const proximo = oficialMarcado
-    ? { nome: oficialMarcado.nome as string | null, drawAt: oficialMarcado.sorteioEm }
+    ? { nome: quemRealizaOSorteio(oficialMarcado.loteriaNome), drawAt: oficialMarcado.sorteioEm }
     : aoVivo?.proximo
-      ? { nome: null, drawAt: aoVivo.proximo.drawAt }
+      ? { nome: quemRealizaOSorteio(null), drawAt: aoVivo.proximo.drawAt }
       : null;
   const falta = proximo ? faltaParaOSorteio(proximo.drawAt, agora) : null;
 
@@ -479,12 +479,12 @@ export function ContagemDoSorteio({ onAbrir }: { onAbrir: () => void }) {
       ? `Resultado oficial: ${oficial.nome}. Abrir a tela do sorteio`
       : "Nenhum sorteio marcado. Abrir a tela do sorteio"
     : falta?.aoVivo
-      ? `Sorteio ao vivo agora${proximo.nome ? `: ${proximo.nome}` : ""}. Abrir a tela do sorteio`
-      : `Próximo sorteio em ${falta?.dias} dias, ${falta?.horas} horas e ${falta?.minutos} minutos${proximo.nome ? `: ${proximo.nome}` : ""}. Abrir a tela do sorteio`;
+      ? `Sorteio ao vivo agora. ${proximo.nome}. Abrir a tela do sorteio`
+      : `Próximo sorteio em ${falta?.dias} dias, ${falta?.horas} horas e ${falta?.minutos} minutos. ${proximo.nome}. Abrir a tela do sorteio`;
 
   // Um banner pequeno de ponta a ponta: o título em cima, as casas no meio
-  // (como a tela do sorteio) e, embaixo, o nome do sorteio oficial ou o
-  // convite para assistir — nunca o prêmio. Tudo centralizado.
+  // (como a tela do sorteio) e, embaixo, quem realiza o sorteio — nunca o
+  // prêmio. Tudo centralizado.
   return (
     <button
       type="button"
@@ -506,8 +506,8 @@ export function ContagemDoSorteio({ onAbrir }: { onAbrir: () => void }) {
           ))}
         </span>
       ) : null}
-      <span aria-hidden className="max-w-full truncate text-xs text-branco/80">
-        {proximo ? (proximo.nome ?? "Toque para assistir ao sorteio") : oficial ? oficial.nome : "Toque para ver os últimos sorteios"}
+      <span aria-hidden className={`max-w-full truncate text-xs ${proximo ? "font-semibold text-branco" : "text-branco/80"}`}>
+        {proximo ? proximo.nome : oficial ? oficial.nome : "Toque para ver os últimos sorteios"}
       </span>
     </button>
   );

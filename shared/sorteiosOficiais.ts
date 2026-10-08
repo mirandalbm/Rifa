@@ -288,6 +288,18 @@ export function seloDoSorteioOficial(s: { loteria: Loteria; concurso: number; so
   return `Sorteio oficial · ${LOTERIAS[s.loteria].curto} ${s.concurso} · ${data}`;
 }
 
+/**
+ * Quem realiza o sorteio, para a contagem do Início do celular: o sorteio é
+ * de várias organizações, então a contagem diz a loteria, nunca o prêmio.
+ * Sem sorteio oficial marcado, a contagem vai ao próximo sorteio de rifa —
+ * e rifa fora do globo é apurada pela Loteria Federal.
+ */
+export function quemRealizaOSorteio(loteriaNome?: string | null): string {
+  if (!loteriaNome) return `Sorteio realizado pela ${LOTERIAS.federal.nome}`;
+  if (loteriaNome === LOTERIAS.globo.nome) return "Sorteio realizado pelo globo da plataforma";
+  return `Sorteio realizado pela ${loteriaNome}`;
+}
+
 /** O nome do sorteio na tela: o título, senão "Federal · concurso 6012". */
 export function nomeDoSorteioOficial(s: { loteria: Loteria; concurso: number; titulo: string | null }): string {
   return s.titulo || `${LOTERIAS[s.loteria].nome} · concurso ${s.concurso}`;

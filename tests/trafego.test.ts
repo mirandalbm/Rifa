@@ -7,7 +7,9 @@ import {
   janelaDaImportacao,
   lerLinhasDoGasto,
   custoPorVenda,
+  linhaDoPacote,
   linkDoAnuncio,
+  pacotesValidos,
   problemaNaRecusa,
   reservaDoPedido,
   sobraDaCampanha,
@@ -43,6 +45,46 @@ describe("configuração do tráfego pago", () => {
     expect(() => validarConfigTrafego({ taxaPct: 101 })).toThrow();
     expect(() => validarConfigTrafego({ taxaPct: 12.5 })).toThrow();
     expect(() => validarConfigTrafego({ investimentoMinCents: 10_000, verbaDiaMinCents: 20_000 })).toThrow(/mínimo por dia/);
+  });
+});
+
+describe("pacotes de investimento", () => {
+  it("de fábrica: 50, 100, 250 e 500 reais, com o mínimo no menor", () => {
+    expect(CONFIG_TRAFEGO_PADRAO.pacotesCents).toEqual([5_000, 10_000, 25_000, 50_000]);
+    expect(CONFIG_TRAFEGO_PADRAO.investimentoMinCents).toBe(CONFIG_TRAFEGO_PADRAO.pacotesCents[0]);
+  });
+
+  it("a taxa vem por cima do pacote, e a soma é a reserva do pedido", () => {
+    expect(linhaDoPacote(5_000, 20)).toEqual({ midiaCents: 5_000, taxaCents: 1_000, totalCents: 6_000 });
+    expect(linhaDoPacote(50_000, 20).totalCents).toBe(reservaDoPedido(50_000, 20));
+    // taxa arredonda para baixo, igual ao lançamento do gasto
+    expect(linhaDoPacote(5_001, 20)).toEqual({ midiaCents: 5_001, taxaCents: 1_000, totalCents: 6_001 });
+    expect(linhaDoPacote(5_000, 0).taxaCents).toBe(0);
+  });
+
+  it("guarda em ordem crescente e confere a lista a sério", () => {
+    expect(pacotesValidos([25_000, 5_000, 10_000], 5_000)).toEqual([5_000, 10_000, 25_000]);
+    expect(pacotesValidos([], 5_000)).toEqual([]);
+    expect(() => pacotesValidos([4_999], 5_000)).toThrow(/Cada pacote/);
+    expect(() => pacotesValidos([5_000, 5_000], 5_000)).toThrow(/repetido/);
+    expect(() => pacotesValidos([5_000.5], 5_000)).toThrow();
+    expect(() => pacotesValidos([true], 5_000)).toThrow();
+    expect(() => pacotesValidos([null], 5_000)).toThrow();
+    expect(() => pacotesValidos(["", 6_000], 5_000)).toThrow();
+    expect(() => pacotesValidos("5000", 5_000)).toThrow(/lista/);
+    expect(() => pacotesValidos(Array.from({ length: 9 }, (_, i) => 5_000 + i * 100), 5_000)).toThrow(/No máximo/);
+  });
+
+  it("configuração guardada antes dos pacotes (mínimo maior) continua carregando", () => {
+    const c = validarConfigTrafego({ investimentoMinCents: 30_000 });
+    expect(c.pacotesCents).toEqual([50_000]);
+    expect(validarConfigTrafego({ investimentoMinCents: 60_000 }).pacotesCents).toEqual([]);
+  });
+
+  it("o pacote não é obrigatório: outro valor vale a partir do mínimo", () => {
+    const c = validarConfigTrafego({ ligado: true, redes: ["google"] });
+    expect(validarPedidoDeTrafego(c, { redes: ["google"], investimentoCents: 17_300, verbaDiaCents: 3_000 }).investimentoCents).toBe(17_300);
+    expect(() => validarPedidoDeTrafego(c, { redes: ["google"], investimentoCents: 4_999, verbaDiaCents: 2_000 })).toThrow();
   });
 });
 

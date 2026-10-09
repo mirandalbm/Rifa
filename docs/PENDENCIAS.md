@@ -662,6 +662,11 @@ Na ordem de entrega do plano:
   do ar levando a campanha, a venda atribuída pela UTM e a margem por mês.
   A taxa e os mínimos ficam a critério da plataforma (decidido em
   09/10/2026), em Marketing → Tráfego pago, que **nasce desligado**.
+  **Pacotes (09/10/2026)**: R$ 50, 100, 250 e 500 (e outro valor a partir do
+  mínimo, que de fábrica passou de R$ 300 para R$ 50), com a taxa por cima;
+  **[você]** conferir a tabela e a taxa no painel antes de ligar, e levar ao
+  contador a tese (despesa repassada), ISS 2,9% e PIS/COFINS 9,25% do Meta e
+  o tributo sobre a taxa de 20%. O imposto da rede não é modelado no sistema.
   **Falta no ambiente**: o `db:push` das tabelas `trafego_campanhas` e
   `trafego_gastos` (e as colunas `trafego_gastos.cliques`, `origem` e
   `excedente_cents`)

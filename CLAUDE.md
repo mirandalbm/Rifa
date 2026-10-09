@@ -4594,12 +4594,27 @@ abaixo).
 
 - **Nasce desligado, e a tabela é da plataforma** (`trafegoPago` em
   `shared/plataforma.ts`, `validarConfigTrafego()`: só as chaves conhecidas —
-  ligado, taxa de 0 a 100%, investimento mínimo, mínimo por dia e as redes
-  com conta pronta; ligar exige pelo menos uma rede). `PUT
+  ligado, taxa de 0 a 100%, investimento mínimo, mínimo por dia, os pacotes
+  e as redes com conta pronta; ligar exige pelo menos uma rede). `PUT
   /admin/trafego/config`, 403 para organizador (no `npm run isolation`).
   Desligado, a organização **sem campanha** recebe 404 e vê só como vai
   funcionar; a que **tem** campanha continua vendo, cancelando e encerrando
   as dela (o dinheiro dela está reservado ali), e não pede campanha nova.
+- **Pacotes de investimento** (`pacotesCents`, `pacotesValidos()`,
+  `linhaDoPacote()` em `shared/trafego.ts`; de fábrica R$ 50, 100, 250 e 500,
+  com o mínimo no menor): o pacote é **o que vai para a rede de anúncio** e a
+  taxa de gestão vem **por cima** (50 + 20% = 60 reservados). A tela mostra
+  as três contas (anúncios, taxa, total) com a mesma função do pedido, e a
+  taxa **nunca vira anúncio**, em nenhuma rede (é lucro da plataforma, não
+  entra no orçamento mandado à rede). O pacote é vitrine, não regra: o pedido
+  aceita **qualquer valor a partir do mínimo** ("outro valor"), e o saldo
+  decide o resto. A lista da plataforma é conferida a sério (de 1 a 8,
+  inteiros, a partir do mínimo, sem repetir, guardada em ordem); sem o campo,
+  vale a de fábrica **só no que cabe no mínimo** — configuração guardada antes
+  dos pacotes nunca deixa de carregar. **Imposto da rede não é modelado**: o
+  Meta cobra a plataforma pelo preço cheio (ISS e PIS/COFINS já dentro) e
+  só esse preço conta; a tese contábil e o tributo sobre a taxa são do contador
+  (`docs/PLANO-TRAFEGO-PAGO.md`).
 - **O pedido reserva tudo de uma vez**: mídia + a taxa sobre ela
   (`reservaDoPedido()`), pelo livro do patrocínio (`lancar()`,
   `trafego:<id>`), **na mesma transação que grava a campanha** — sem saldo,

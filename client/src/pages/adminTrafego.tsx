@@ -14,6 +14,7 @@ import {
   REDES_DE_ANUNCIO,
   SITUACOES_DA_CAMPANHA,
   SITUACOES_EM_ABERTO,
+  linhaDoPacote,
   reservaDoPedido,
   type ConfigTrafegoPago,
   type RedeDeAnuncio,
@@ -284,7 +285,8 @@ function NovaCampanha({ painel }: { painel: Painel }) {
 
   const [campaignId, setCampaignId] = useState("");
   const [redes, setRedes] = useState<RedeDeAnuncio[]>(config.redes.length === 1 ? [...config.redes] : []);
-  const [investimento, setInvestimento] = useState(reais(config.investimentoMinCents));
+  const pacotes = config.pacotesCents ?? [];
+  const [investimento, setInvestimento] = useState(reais(pacotes[0] ?? config.investimentoMinCents));
   const [verbaDia, setVerbaDia] = useState(reais(config.verbaDiaMinCents));
   const [uf, setUf] = useState("");
   const [cidade, setCidade] = useState("");
@@ -358,12 +360,40 @@ function NovaCampanha({ painel }: { painel: Painel }) {
           ))}
         </fieldset>
 
+        {pacotes.length ? (
+          <fieldset className="space-y-2">
+            <legend className="label-xs">Pacote de investimento</legend>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              {pacotes.map((p) => {
+                const l = linhaDoPacote(p, config.taxaPct);
+                const escolhido = investimentoCents === p;
+                return (
+                  <button
+                    key={p}
+                    type="button"
+                    aria-pressed={escolhido}
+                    onClick={() => setInvestimento(reais(p))}
+                    className={`rounded-md border px-3 py-2 text-left ${escolhido ? "border-marca bg-mist font-semibold" : "border-line"}`}
+                  >
+                    <span className="tnum block text-base">{formatBRL(l.midiaCents)} em anúncios</span>
+                    <span className="tnum block text-xs text-muted">
+                      + {formatBRL(l.taxaCents)} de taxa ({config.taxaPct}%) = {formatBRL(l.totalCents)}
+                      {escolhido ? " · escolhido" : ""}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-xs text-muted">Ou escreva outro valor abaixo, a partir do mínimo.</p>
+          </fieldset>
+        ) : null}
+
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Campo
             rotulo="Investimento em mídia (R$)"
             dica={
               <>
-                Mínimo <span className="tnum">{formatBRL(config.investimentoMinCents)}</span>.
+                Mínimo <span className="tnum">{formatBRL(config.investimentoMinCents)}</span>. A taxa vem por cima e nunca vira anúncio.
               </>
             }
           >
@@ -457,6 +487,7 @@ function ConfigDoTrafego({ config: c, faltamNoMeta }: { config: ConfigTrafegoPag
   const [taxa, setTaxa] = useState(String(c.taxaPct));
   const [minimo, setMinimo] = useState(reais(c.investimentoMinCents));
   const [porDia, setPorDia] = useState(reais(c.verbaDiaMinCents));
+  const [pacotes, setPacotes] = useState((c.pacotesCents ?? []).map((p) => reais(p)).join(", "));
   const [redes, setRedes] = useState<RedeDeAnuncio[]>(c.redes);
   const [criarPelaApi, setCriarPelaApi] = useState(c.criarPelaApi);
   const [msg, setMsg] = useState<{ ok: boolean; texto: string } | null>(null);
@@ -468,6 +499,11 @@ function ConfigDoTrafego({ config: c, faltamNoMeta }: { config: ConfigTrafegoPag
         taxaPct: Number(taxa),
         investimentoMinCents: centavos(minimo),
         verbaDiaMinCents: centavos(porDia),
+        pacotesCents: pacotes
+          .split(/[;,]/)
+          .map((x) => x.trim())
+          .filter(Boolean)
+          .map(centavos),
         redes,
         criarPelaApi,
       }),
@@ -509,6 +545,12 @@ function ConfigDoTrafego({ config: c, faltamNoMeta }: { config: ConfigTrafegoPag
             <input inputMode="decimal" value={porDia} onChange={(e) => setPorDia(e.target.value)} />
           </Campo>
         </div>
+        <Campo
+          rotulo="Pacotes de investimento (R$, separados por vírgula)"
+          dica="O que vai para a rede de anúncio; a taxa vem por cima. De 1 a 8 valores, a partir do mínimo. A organização ainda pode escrever outro valor."
+        >
+          <input inputMode="decimal" value={pacotes} onChange={(e) => setPacotes(e.target.value)} placeholder="50, 100, 250, 500" />
+        </Campo>
         <fieldset className="space-y-1">
           <legend className="label-xs">Redes com conta pronta</legend>
           {LISTA_DE_REDES.map((r) => (

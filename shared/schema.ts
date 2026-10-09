@@ -2303,6 +2303,16 @@ export const trafegoCampanhas = pgTable(
     encerradoEm: timestamp("encerrado_em"),
     /** O que voltou ao saldo no fim (recusa, cancelamento ou sobra). */
     devolvidoCents: integer("devolvido_cents").notNull().default(0),
+    /**
+     * Quando a taxa de gestão foi cobrada inteira (na aprovação, UTC). Nulo: a
+     * campanha ainda não foi aprovada (nada cobrado) ou é de antes desta regra
+     * (segue com a taxa diária de cada lançamento — `taxaDoLancamento()`).
+     */
+    taxaCobradaEm: timestamp("taxa_cobrada_em"),
+    /** O aceite explícito da taxa no pedido: quando (UTC), a versão do texto e a impressão SHA-256 do texto exato mostrado. */
+    taxaAceiteEm: timestamp("taxa_aceite_em"),
+    taxaAceiteVersao: integer("taxa_aceite_versao"),
+    taxaAceiteSha256: text("taxa_aceite_sha256"),
   },
   (t) => [
     uniqueIndex("uq_trafego_aberto_por_rifa")

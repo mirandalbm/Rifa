@@ -8,9 +8,13 @@
  * pede a campanha com o saldo de publicidade (o mesmo do patrocínio e do
  * banner pago): o pedido **reserva** o investimento em mídia mais a taxa de
  * gestão, de uma vez. A plataforma aprova, monta a campanha fora do sistema e
- * lança o gasto de cada dia; cada lançamento consome a reserva (mídia + taxa)
- * e **nunca passa dela**. Quando a campanha acaba — verba gasta, encerrada por
- * uma das partes ou rifa fora do ar —, o que sobrou da reserva volta ao saldo.
+ * lança o gasto de cada dia. **A taxa de gestão é cobrada inteira na
+ * aprovação e nunca volta** (decisão de 09/10/2026, com o aceite explícito no
+ * pedido); cada lançamento de gasto consome só a verba de mídia e **nunca
+ * passa dela**. Quando a campanha acaba — verba gasta, encerrada por uma das
+ * partes ou rifa fora do ar —, a mídia que não foi gasta volta ao saldo como
+ * crédito (nunca em dinheiro). Antes da aprovação nada é cobrado: recusar ou
+ * cancelar em análise devolve tudo.
  *
  * Nasce desligado. A taxa e os mínimos são do administrador da plataforma
  * (painel), fotografados no pedido: mudar a tabela não mexe em campanha
@@ -172,12 +176,64 @@ export function taxaSobre(gastoCents: number, taxaPct: number): number {
 }
 
 /**
- * Quanto o pedido reserva no saldo: a verba de mídia e a taxa sobre ela.
- * Cada lançamento cobra a taxa do próprio gasto, para baixo, e a soma dos
- * pisos nunca passa do piso da soma: o que se debita nunca passa da reserva.
+ * Quanto o pedido reserva no saldo: a verba de mídia e a taxa sobre ela. A
+ * taxa inteira (`taxaSobre(investimento)`) é a que a aprovação cobra: o que
+ * se debita nunca passa da reserva.
  */
 export function reservaDoPedido(investimentoCents: number, taxaPct: number): number {
   return investimentoCents + taxaSobre(investimentoCents, taxaPct);
+}
+
+/* ------------------------------------------------------------------ *
+ * A taxa de gestão: cobrada inteira na aprovação, nunca devolvida
+ * ------------------------------------------------------------------ */
+
+/**
+ * Sobe sempre que o texto do aceite mudar: o aceite grava a versão e a
+ * impressão (SHA-256) do texto exato que a pessoa viu, e texto novo na mesma
+ * versão valeria como aceite de um texto que ela não leu.
+ */
+export const ACEITE_DA_TAXA_VERSAO = 1;
+
+/** "1.234,56": reais com vírgula decimal, sem `Intl` (o texto vai a uma impressão digital e não pode depender do ICU do aparelho). */
+export function reaisDoAceite(cents: number): string {
+  const c = Math.max(0, Math.trunc(cents));
+  const inteiro = String(Math.floor(c / 100)).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  return `${inteiro},${String(c % 100).padStart(2, "0")}`;
+}
+
+/**
+ * O texto do aceite, com a taxa e o valor em reais do pedido. A tela o mostra
+ * ao lado da caixa de marcar e o servidor o remonta do pedido (nunca do
+ * navegador) para gravar a impressão dele: é o texto exato que a pessoa leu.
+ */
+export function textoDoAceiteDaTaxa(taxaPct: number, taxaCents: number): string {
+  return (
+    `A taxa de gestão de ${taxaPct}% (R$ ${reaisDoAceite(taxaCents)} neste pedido) é cobrada quando a plataforma aprova a campanha ` +
+    "e não é devolvida, mesmo que a campanha termine antes de gastar tudo. " +
+    "O valor em anúncios que não for usado volta ao seu saldo como crédito, não em dinheiro, e pode ser usado em outra campanha."
+  );
+}
+
+/** O corpo do aceite como a tela o manda: o `true` e o texto exato que ela mostrou (usado pelas provas). */
+export function corpoDoAceiteDaTaxa(taxaPct: number, investimentoCents: number): { aceiteTaxa: true; aceiteTexto: string } {
+  return { aceiteTaxa: true, aceiteTexto: textoDoAceiteDaTaxa(taxaPct, taxaSobre(investimentoCents, taxaPct)) };
+}
+
+/** O aceite é um `true` de verdade: "true", 1 e ausente não valem. 422, antes de reservar ou gravar qualquer coisa. */
+export function problemaNoAceiteDaTaxa(aceite: unknown): string | null {
+  return aceite === true ? null : "Para pedir a campanha, leia e aceite a taxa de gestão.";
+}
+
+/**
+ * A taxa que um lançamento de gasto soma na campanha. **Um só caminho** (o
+ * manual e o importado passam por aqui): a campanha com a taxa já cobrada na
+ * aprovação (`taxaCobradaEm`) não soma taxa por dia — só a verba de mídia; a
+ * aprovada antes desta regra (legado, sem a marca) segue com a taxa diária, a
+ * do próprio gasto, para baixo.
+ */
+export function taxaDoLancamento(c: { taxaCobradaEm: Date | string | null; taxaPct: number }, gastoCents: number): number {
+  return c.taxaCobradaEm ? 0 : taxaSobre(gastoCents, c.taxaPct);
 }
 
 export interface LinhaDePacote {
@@ -185,7 +241,7 @@ export interface LinhaDePacote {
   midiaCents: number;
   /** A taxa de gestão, por cima: lucro da plataforma, nunca vira anúncio. */
   taxaCents: number;
-  /** O que fica reservado no saldo (mídia + taxa, se gastar tudo). */
+  /** O que fica reservado no saldo (mídia + taxa). A taxa é cobrada na aprovação. */
   totalCents: number;
 }
 
@@ -283,7 +339,12 @@ export function validarGasto(
   return { dia, rede: b.rede as RedeDeAnuncio, gastoCents, cliques };
 }
 
-/** O que volta ao saldo no fim: a reserva menos o que foi debitado. */
+/**
+ * O que volta ao saldo no fim, como crédito: a reserva menos o que foi
+ * debitado. Com a taxa cobrada na aprovação (`taxaCents` já inteira), é a
+ * verba de mídia que não foi gasta; antes da aprovação a taxa é zero e volta
+ * tudo.
+ */
 export function sobraDaCampanha(c: { reservaCents: number; gastoCents: number; taxaCents: number }): number {
   return Math.max(0, c.reservaCents - c.gastoCents - c.taxaCents);
 }

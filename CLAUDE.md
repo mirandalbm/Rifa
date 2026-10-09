@@ -129,8 +129,9 @@ arquitetura.
 | banner pago na vitrine (dias de topo, arte aprovada, vagas, devolução dos dias não usados) | `shared/bannerPago.ts` (regras e config), `server/services/bannerPago.ts`, rotas `/banner-pago*` em `server/routes/admin.ts`, `/banners` e `/banners-pagos/:id/imagem` em `server/routes/public.ts`, `bannerPago` em `shared/plataforma.ts`, `client/src/pages/adminBannerPago.tsx` (aba de `adminPublicidade.tsx`), `client/src/components/BannersVitrine.tsx`, relógio em `server/jobs/index.ts`, `scripts/banner-pago-test.ts`, `tests/bannerPago.test.ts` |
 | marketing e tráfego pago (etapa 16): pixels, aviso de cookies, UTM, compra pelo servidor | `shared/marketing.ts` (regras e corpos das APIs), `server/services/marketing.ts`, `client/src/lib/marketing.ts`, `client/src/components/Marketing.tsx`, `client/src/pages/adminMarketing.tsx`, `scripts/marketing-test.ts` |
 | plano da próxima fase (vitrine, contas, afiliados, marketing) | `docs/PLANO-FASE5.md` |
+| plano da Tesouraria (painel financeiro do master: saldo bruto, áreas de destinação com valor fixo, % ou do mês, fechamento mensal; sem mover dinheiro) — **ainda não existe no código** | `docs/PLANO-FINANCEIRO.md` |
 | ferramentas de imagem e vídeo para divulgar a rifa (Canva, Adobe, as nossas, IA): panorama e fases | `docs/PLANO-FERRAMENTAS.md` |
-| tráfego pago como serviço da plataforma (modelo A, fase 1: pedido com o saldo, fila do master, gasto do dia + taxa, margem, venda atribuída) | `shared/trafego.ts` (regras), `server/services/trafego.ts`, `/trafego*` em `server/routes/admin.ts`, `trafegoPago` em `shared/plataforma.ts`, `trafego_campanhas`/`trafego_gastos` em `shared/schema.ts`, relógio em `server/jobs/index.ts` (trava 811406), tipo `trafego` em `shared/caixa.ts`, `client/src/pages/adminTrafego.tsx`, `docs/PLANO-TRAFEGO-PAGO.md`, `scripts/trafego-test.ts`, `tests/trafego.test.ts`; a fase 2 (o gasto importado das redes pelo Windsor.ai): `lerLinhasDoGasto()`/`codigoNoNome()` em `shared/trafego.ts`, `server/services/trafegoImportacao.ts`, `lancarGastoImportado()` em `server/services/trafego.ts`, `/trafego/importacao` em `server/routes/admin.ts`, relógio (trava 811407), `ImportacaoDoGasto` em `adminTrafego.tsx`; a fase 3 (criar a campanha no Meta pela API, pausada; Google e TikTok depois, na mesma interface): `shared/trafegoCriacao.ts` (nome, orçamento e fim, alvo, texto, conta, busca do código, erro do Meta), `server/services/trafegoCriacao.ts` (`CriadorDeCampanha`, `criadorDoMeta()`, `criarNoMeta()` — `{ assumir: true }` nunca cria —, `largarCriacao()`, `pausarNaRedeDepois()`), `POST /trafego/campanhas/:id/meta` e `…/meta/largar` em `server/routes/admin.ts`, `trafego_criacoes` em `shared/schema.ts`, `criarPelaApi` em `shared/trafego.ts`, `NoMeta` em `adminTrafego.tsx`, `scripts/trafego-criacao-test.ts`, `tests/trafegoCriacao.test.ts` |
+| tráfego pago como serviço da plataforma (modelo A, fase 1: pedido com o saldo, fila do master, gasto do dia, a taxa cobrada inteira na aprovação com o aceite — `taxaDoLancamento()`, `textoDoAceiteDaTaxa()`, `ACEITE_DA_TAXA_VERSAO` —, margem, venda atribuída) | `shared/trafego.ts` (regras), `server/services/trafego.ts`, `/trafego*` em `server/routes/admin.ts`, `trafegoPago` em `shared/plataforma.ts`, `trafego_campanhas`/`trafego_gastos` em `shared/schema.ts`, relógio em `server/jobs/index.ts` (trava 811406), tipo `trafego` em `shared/caixa.ts`, `client/src/pages/adminTrafego.tsx`, `docs/PLANO-TRAFEGO-PAGO.md`, `docs/CONSULTA-CONTADOR-E-ADVOGADO.md` (o que o contador e o advogado responderam e o que ficou em aberto), `scripts/trafego-test.ts`, `tests/trafego.test.ts`; a fase 2 (o gasto importado das redes pelo Windsor.ai): `lerLinhasDoGasto()`/`codigoNoNome()` em `shared/trafego.ts`, `server/services/trafegoImportacao.ts`, `lancarGastoImportado()` em `server/services/trafego.ts`, `/trafego/importacao` em `server/routes/admin.ts`, relógio (trava 811407), `ImportacaoDoGasto` em `adminTrafego.tsx`; a fase 3 (criar a campanha no Meta pela API, pausada; Google e TikTok depois, na mesma interface): `shared/trafegoCriacao.ts` (nome, orçamento e fim, alvo, texto, conta, busca do código, erro do Meta), `server/services/trafegoCriacao.ts` (`CriadorDeCampanha`, `criadorDoMeta()`, `criarNoMeta()` — `{ assumir: true }` nunca cria —, `largarCriacao()`, `pausarNaRedeDepois()`), `POST /trafego/campanhas/:id/meta` e `…/meta/largar` em `server/routes/admin.ts`, `trafego_criacoes` em `shared/schema.ts`, `criarPelaApi` em `shared/trafego.ts`, `NoMeta` em `adminTrafego.tsx`, `scripts/trafego-criacao-test.ts`, `tests/trafegoCriacao.test.ts` |
 | Marketing AI: plano de divulgação, textos de anúncio e leitura dos resultados de uma rifa | `shared/marketingIA.ts` (as três regras: `planoDeDivulgacao`, `lerAnuncios`/`prometeGanho`, `leituraDosResultados`), `server/services/marketingIA.ts` (os dados), `anunciosComIA()`/`perguntarAoAssistente()` em `server/services/ia.ts`, `GET /campaigns/:id/marketing` e `POST /campaigns/:id/marketing/anuncios` em `server/routes/admin.ts`, `client/src/pages/adminMarketingIA.tsx`, `scripts/ia-acoes-test.ts` (a seção do Marketing AI), `tests/marketingIA.test.ts` |
 | menu Marketing (Tráfego pago, Marketing AI, Publicidade em abas, Medição e campanhas) | grupo "Marketing" em `MENUS` (`shared/access.ts`), `client/src/pages/adminTrafego.tsx`, `adminMarketingIA.tsx` (os criativos por rifa), `adminPublicidade.tsx` (as abas: `RifasPatrocinadas` de `adminPatrocinio.tsx` e `BannerNaVitrine` de `adminBannerPago.tsx`), os redirecionamentos em `client/src/App.tsx`, `tests/menu.test.ts` |
 | artes prontas para divulgar (Fase A: arte da rifa, cotas que faltam, data, resultado, cota premiada, nos três formatos) e o pacote para postar (Fase G: ZIP com os três formatos e a legenda) | `shared/artes.ts` (regras, textos e `legendaSugerida`), `server/services/zip.ts`, os textos do kit (`textosDoKit()` em `shared/afiliados.ts`), `server/services/arteDesenho.ts` (texto em contorno, QR, camada), `server/services/artes.ts` (dados da rifa, fundo, foto da organização), `server/routes/artesRotas.ts`, `/campaigns/:id/artes*` em `server/routes/admin.ts`, `/artes/:slug*` em `server/routes/affiliate.ts`, `client/src/components/ArtesParaDivulgar.tsx` (aba Publicação e Meus links), `scripts/artes-test.ts`, `tests/artes.test.ts` |
@@ -4586,8 +4587,9 @@ anúncio** (`shared/marketingIA.ts`).
 A plataforma anuncia a rifa da organização no Google, no Meta (Facebook e
 Instagram) e no TikTok **pelas contas de anúncios dela** (modelo A do
 `docs/PLANO-TRAFEGO-PAGO.md`) e cobra o gasto em mídia mais uma **taxa de
-gestão sobre o gasto**, do saldo de publicidade da organização (o mesmo do
-patrocínio e do banner pago). A campanha é montada no gerenciador da rede
+gestão sobre o investimento, cobrada inteira na aprovação e que nunca volta**,
+do saldo de publicidade da organização (o mesmo do patrocínio e do banner
+pago). A campanha é montada no gerenciador da rede
 ou, no Meta, criada pausada pela API (fase 3, abaixo); o gasto do dia é
 lançado à mão pela plataforma (fase 1) ou importado das redes (fase 2,
 abaixo).
@@ -4627,13 +4629,45 @@ abaixo).
   (`exigirSemRetencao()`, com a linha da organização travada antes de tudo).
   A observação para quem monta passa pela régua do comentário (sem link e
   sem telefone).
+- **A taxa de gestão é cobrada inteira na aprovação e nunca volta** (decisão
+  do dono, 09/10/2026; **o texto do aceite e a cláusula no contrato da
+  promotora são do advogado, e a taxa virar receita na aprovação é do
+  contador** — `docs/PENDENCIAS.md`). `taxaSobre(investimento, taxaPct)`, para
+  baixo, é gravada em `taxa_cents` com `taxa_cobrada_em` (UTC) **na mesma
+  transação do `UPDATE` condicional `em_analise → ativa`**; o saldo não se
+  mexe, porque a taxa já estava dentro da reserva. Depois disso ela não volta
+  em caso nenhum (encerrar sem gastar, rifa fora do ar, verba que acabou). O
+  que não foi gasto em anúncios volta ao saldo **como crédito**
+  (`trafego-sobra:<id>`), **nunca em dinheiro** — o reembolso em dinheiro do
+  saldo segue só pelo interruptor do patrocínio. **Antes da aprovação nada é
+  cobrado** (`taxa_cents` zero): cancelar em análise (a organização ou o
+  relógio) e recusar devolvem tudo, mídia e taxa. **O pedido exige o aceite
+  explícito**: `aceiteTaxa: true` no corpo (só o `true` vale; 422 sem ele,
+  depois do erro de preenchimento e do recorte da rifa e **antes** de
+  reservar ou gravar qualquer coisa). **O aceite prende o texto que a pessoa
+  viu**: a tela manda junto o texto exato (`aceiteTexto`) e o servidor o
+  compara com o que remonta do pedido (`textoDoAceiteDaTaxa()` em
+  `shared/trafego.ts`, a mesma função da tela): taxa ou valor diferente — a
+  plataforma mudou a tabela entre abrir a tela e clicar — é 409 antes de
+  gravar, e a tela recarrega a tabela e desmarca a caixa; sem o texto, 422.
+  A impressão gravada é sempre a de um texto que a pessoa leu. O servidor grava `taxa_aceite_em`,
+  `taxa_aceite_versao` (`ACEITE_DA_TAXA_VERSAO`, **sobe se o texto mudar**,
+  e o teste trava a impressão da versão 1) e `taxa_aceite_sha256` (o
+  `hashDoContrato()` do contrato da promotora); o `trafego.pedido` leva a
+  versão e a impressão no `diff`, e o `trafego.aprovar` leva a taxa cobrada.
+  **Aprovar sem aceite gravado** (pedido de antes da regra, ainda em análise)
+  **não cobra a taxa de uma vez**: segue como o legado, com a taxa diária —
+  ninguém é cobrado de forma irreversível sem ter aceitado. A tela mostra o
+  texto numa caixa de marcar obrigatória ("Li e concordo"), que desmarca se o
+  valor do pedido mudar, e o resumo diz só "Taxa de gestão (X%)". O pedido de
+  antes da regra, em análise, não diz "cobrada na aprovação" (cai no legado).
 - **Uma campanha aberta por rifa** (em análise, no ar ou fechando a conta): quem decide é o
   índice parcial `uq_trafego_aberto_por_rifa`, nunca um `SELECT` antes — dois
   pedidos ao mesmo tempo, um 201 e um 409, e o perdedor não debita nada.
 - **Só a plataforma decide e lança o gasto** (403 para organizador).
   Decidir é `UPDATE` condicional (`em_analise`, linha travada): dois cliques,
   uma decisão e um 409. Recusa exige motivo (a organização o lê) e devolve a
-  reserva inteira; **aprovar confere de novo a rifa no ar e a retenção
+  reserva inteira (mídia e taxa: nada foi cobrado); **aprovar confere de novo a rifa no ar e a retenção
   cautelar** (409 — recuse para devolver). A organização cancela só em
   análise; no ar, encerra (as duas partes podem).
 - **Encerrar só para; quem fecha a conta é a plataforma.** A rede cobra a
@@ -4642,7 +4676,7 @@ abaixo).
   a `encerrando` ("Fechando a conta") **sem devolver nada**, ela ainda recebe
   o gasto dos dias até a parada (`encerrado_em`, nunca depois), e só **fechar
   a conta** (`POST …/fechar`, só a plataforma, 403 no `npm run isolation`)
-  devolve a sobra. Devolver ao encerrar deixava o último dia sem cobrança — a
+  devolve a sobra (só a mídia não gasta; a taxa já foi cobrada). Devolver ao encerrar deixava o último dia sem cobrança — a
   organização gastava em patrocínio o que a plataforma já tinha pago à rede.
   Fechando a conta, a rifa ainda não aceita outra campanha, e o item vai à
   Caixa de entrada.
@@ -4654,15 +4688,21 @@ abaixo).
 - **O gasto do dia nunca passa da verba e a taxa nunca passa da reserva.**
   Um lançamento por campanha, dia (de São Paulo, nunca no futuro nem antes da
   aprovação) e rede (`uq_trafego_gasto_do_dia`, 409), só rede da campanha,
-  com a soma num `UPDATE` condicional (`gasto + G <= investimento`). A taxa de
-  cada lançamento arredonda para baixo (`taxaSobre()`), e a soma dos pisos
-  nunca passa do piso da soma: o que se debita nunca passa do reservado. O
-  gasto consome a reserva; o saldo não se mexe. Gastou a verba inteira, a
-  campanha **encerra na mesma transação**.
-- **O que sobra volta uma vez** (`fecharNaTransacao()`): recusa e
-  cancelamento devolvem por `trafego-devolucao:<id>`, o fechamento da conta
-  (ou a verba que acabou) por `trafego-sobra:<id>` (reserva − gasto − taxa, `sobraDaCampanha()`); a chave
-  do livro decide, e o `UPDATE` da situação é condicional à situação lida.
+  com a soma num `UPDATE` condicional (`gasto + G <= investimento`). **O
+  lançamento não soma taxa por dia** quando a campanha tem `taxa_cobrada_em`:
+  quem decide é `taxaDoLancamento()` (`shared/trafego.ts`), **a única função**
+  que o lançamento manual e o importado chamam — zero com a taxa já cobrada;
+  a campanha **aprovada antes desta regra** (sem a marca) segue com a taxa
+  diária de antes, `taxaSobre()` do próprio gasto, para baixo, cuja soma dos
+  pisos nunca passa do piso da soma. Em qualquer caso o que se debita nunca
+  passa do reservado. O gasto consome a reserva; o saldo não se mexe. Gastou
+  a verba inteira, a campanha **encerra na mesma transação**.
+- **O que sobra volta uma vez, como crédito** (`fecharNaTransacao()`): recusa
+  e cancelamento devolvem por `trafego-devolucao:<id>` (a reserva inteira),
+  o fechamento da conta (ou a verba que acabou) por `trafego-sobra:<id>`
+  (reserva − gasto − taxa, `sobraDaCampanha()`, que com a taxa inteira
+  cobrada é só a mídia não gasta); a chave do livro decide, e o `UPDATE` da
+  situação é condicional à situação lida.
 - **A rifa que sai do ar leva a campanha** (`encerrarTrafegoForaDoAr()`,
   relógio com a trava 811406): rifa fora de `published`, travada, marcada
   como teste, ou promotora arquivada ou banida — a em análise é cancelada (a
@@ -4674,13 +4714,15 @@ abaixo).
   (`utmCampanhaDe()`), o link que a plataforma põe no anúncio
   (`linkDoAnuncio()`: `/o/<org>/r/<rifa>?utm_source=<rede>&utm_medium=cpc&…`).
   A tela diz que é estimativa. Custo por venda = (mídia + taxa) ÷ vendas,
-  para baixo.
+  para baixo, com a taxa inteira quando já foi cobrada.
 - **Recorte**: a campanha do vizinho é 404 (ver gastos, cancelar, encerrar,
   pedir na rifa dele — no `npm run isolation`); a organização não recebe os
   links do anúncio, o nome de quem lançou o gasto nem a margem. A plataforma
   vê a fila (também na Caixa de entrada, tipo `trafego`), os links e a
-  **margem por mês e por organização** (os últimos 12 meses, de
-  `trafego_gastos`).
+  **margem por mês e por organização** (os últimos 12 meses): a mídia e o
+  excedente pelo dia do gasto (`trafego_gastos`), a taxa **no mês de
+  `taxa_cobrada_em`** (fuso de São Paulo, a aprovação) e, na campanha de antes
+  da regra, pelos lançamentos diários.
 - **Auditoria na mesma transação** de cada passo (`trafego.pedido`,
   `.cancelar`, `.encerrar`, `.aprovar`, `.recusar`, `.gasto`, `.fechar`, e os
   do relógio com o ator `sistema`); a configuração vai como as outras.
@@ -4704,12 +4746,12 @@ abaixo).
   soma por campanha, dia e rede **em frações de centavo e arredonda uma vez,
   para baixo** — a organização nunca paga meio centavo que a rede não
   cobrou —, conta o ignorado com o motivo). **Cada linha passa pela régua do
-  manual** (`lancarGastoImportado()`: a mesma taxa por dia, o mesmo teto da
+  manual** (`lancarGastoImportado()`: a mesma `taxaDoLancamento()`, o mesmo teto da
   verba no `UPDATE` condicional, a mesma ordem das travas e a auditoria com o
   ator `sistema`, `trafego.gasto.importado` e `.atualizado`). **O dia
   importado é corrigido enquanto está na janela** (a rede fecha o de ontem
-  horas depois e acerta cliques inválidos; a diferença e a taxa dela entram,
-  para cima ou para baixo); **o dia lançado à mão nunca é tocado**, e repetir
+  horas depois e acerta cliques inválidos; a diferença entra na mídia, para cima ou
+  para baixo — e a taxa diária dela só na campanha de antes da regra da taxa na aprovação); **o dia lançado à mão nunca é tocado**, e repetir
   ou importar em paralelo nunca cobra duas vezes (a campanha travada e o
   mesmo índice). **Só se cobra o dia cobrável** — campanha no ar, ou fechando
   a conta até o dia da parada, e só até a verba; o resto que a rede gastou
@@ -4896,7 +4938,9 @@ abaixo).
 - As tabelas `trafego_campanhas` e `trafego_gastos` sobem com o `db:push`
   **antes** do código, e as colunas `trafego_gastos.cliques`, `origem` e
   `excedente_cents` também, e a tabela `trafego_criacoes` da fase 3 (com a
-  coluna `orcamento`). `npm run
+  coluna `orcamento`), e as colunas `trafego_campanhas.taxa_cobrada_em`,
+  `taxa_aceite_em`, `taxa_aceite_versao` e `taxa_aceite_sha256` (a taxa na
+  aprovação e o aceite). `npm run
   trafego` prova tudo isso contra a API de verdade (a fase 2 com um
   Windsor.ai de mentira), `npm run trafego-criacao` a fase 3 (com um Meta de
   mentira) e `tests/trafego.test.ts` e `tests/trafegoCriacao.test.ts` as

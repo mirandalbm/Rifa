@@ -302,7 +302,7 @@ async function alcancaOVizinho(eu: Lado, vizinho: Lado) {
     ["GET gastos da campanha de tráfego do vizinho", `/api/admin/trafego/campanhas/${trafegoDoVizinho.id}/gastos`, {}],
     ["POST cancelar campanha de tráfego do vizinho", `/api/admin/trafego/campanhas/${trafegoDoVizinho.id}/cancelar`, { method: "POST" }],
     ["POST encerrar campanha de tráfego do vizinho", `/api/admin/trafego/campanhas/${trafegoDoVizinho.id}/encerrar`, { method: "POST" }],
-    ["POST campanha de tráfego na rifa do vizinho", "/api/admin/trafego/campanhas", { method: "POST", body: JSON.stringify({ campaignId: c, redes: ["google"], investimentoCents: 100_000, verbaDiaCents: 10_000 }) }],
+    ["POST campanha de tráfego na rifa do vizinho", "/api/admin/trafego/campanhas", { method: "POST", body: JSON.stringify({ campaignId: c, redes: ["google"], investimentoCents: 100_000, verbaDiaCents: 10_000, aceiteTaxa: true, aceiteTexto: "" }) }],
     ["POST aprovar divulgação do vizinho", `/api/admin/divulgacoes/${divulgacaoDoVizinho.id}`, { method: "POST", body: '{"acao":"aprovar","versao":0}' }],
     ["POST recusar divulgação do vizinho", `/api/admin/divulgacoes/${divulgacaoDoVizinho.id}`, { method: "POST", body: '{"acao":"recusar","motivo":"invadido","versao":0}' }],
     ["DELETE comentário na rifa do vizinho", `/api/public/comentarios/${comentarioDoVizinho.id}`, { method: "DELETE" }],

@@ -85,7 +85,11 @@ cadastro (o roteiro do dia está na etapa 5, "Dia da troca da razão social").
   E as da fila de trabalho (`trabalhos`, `trabalho_arquivos`, `trabalhadores`).
   E as do tráfego pago (`trafego_campanhas`, `trafego_gastos`, com as
   colunas `cliques`, `origem` e `excedente_cents` da fase 2, e
-  `trafego_criacoes` da fase 3 — sem ela, o painel do tráfego dá 500).
+  `trafego_criacoes` da fase 3 — sem ela, o painel do tráfego dá 500) e as
+  colunas `trafego_campanhas.taxa_cobrada_em`, `taxa_aceite_em`,
+  `taxa_aceite_versao` e `taxa_aceite_sha256` da taxa cobrada na aprovação
+  (sem elas, o pedido e a lista dão 500; a campanha de antes fica com a
+  marca nula e segue com a taxa diária).
 - [ ] Deploy. Conferir a verificação de saúde e os relógios no log.
 - [ ] Criar o serviço do trabalhador (o gerador de vídeo) no Railway, com
   `npm run start:worker` e só o `DATABASE_URL` (passo a passo em

@@ -667,6 +667,26 @@ Na ordem de entrega do plano:
   **[você]** conferir a tabela e a taxa no painel antes de ligar, e levar ao
   contador a tese (despesa repassada), ISS 2,9% e PIS/COFINS 9,25% do Meta e
   o tributo sobre a taxa de 20%. O imposto da rede não é modelado no sistema.
+  **Decisão do dono (09/10/2026): a taxa de gestão é cobrada inteira na
+  aprovação e não volta; a mídia que não for gasta volta ao saldo como
+  crédito, nunca em dinheiro** (o pedido exige o aceite do texto, gravado com
+  a versão e a impressão SHA-256; recusar ou cancelar em análise devolve tudo).
+  **Falta no ambiente**: o `db:push` das colunas `trafego_campanhas.taxa_cobrada_em`,
+  `taxa_aceite_em`, `taxa_aceite_versao` e `taxa_aceite_sha256` **antes** do
+  código (sem elas o pedido e a lista dão 500). **[você]** levar ao **advogado**
+  o texto do aceite (`textoDoAceiteDaTaxa()` em `shared/trafego.ts`) e a
+  cláusula correspondente no contrato da promotora (e conferir que "não é
+  devolvida" cabe no CDC, art. 51, para o consumidor-empresa e para o MEI);
+  ao **contador**, que a taxa passa a ser receita na aprovação (e não ao longo
+  do gasto): reconhecimento, tributo e o que fazer com a taxa de campanha
+  recusada depois de aprovada (não existe: aprovada, a taxa é definitiva).
+  **O contador respondeu (09/10/2026)** — tudo em
+  `docs/CONSULTA-CONTADOR-E-ADVOGADO.md`: a mídia é repasse e a receita é só a
+  taxa (17.06, CNAE 73.11-4-00, NFS-e só da taxa); competência com a taxa
+  diferida; **erro da plataforma devolve a taxa** (choca com "nunca volta",
+  decisão do dono e do advogado); **crédito com validade de 6 ou 12 meses**;
+  contas bancárias separadas e extrato mensal com campos definidos (próximo
+  PR). **O advogado ainda não respondeu**: perguntas 1 a 20 na mesma página.
   **Falta no ambiente**: o `db:push` das tabelas `trafego_campanhas` e
   `trafego_gastos` (e as colunas `trafego_gastos.cliques`, `origem` e
   `excedente_cents`)

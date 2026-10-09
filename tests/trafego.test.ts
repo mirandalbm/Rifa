@@ -1,5 +1,7 @@
+import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import {
+  ACEITE_DA_TAXA_VERSAO,
   CONFIG_TRAFEGO_PADRAO,
   centavosDoGasto,
   codigoDaCampanha,
@@ -13,9 +15,13 @@ import {
   pacotesValidos,
   textoDosPacotes,
   problemaNaRecusa,
+  problemaNoAceiteDaTaxa,
+  reaisDoAceite,
   reservaDoPedido,
   sobraDaCampanha,
+  taxaDoLancamento,
   taxaSobre,
+  textoDoAceiteDaTaxa,
   utmCampanhaDe,
   validarConfigTrafego,
   validarGasto,
@@ -160,6 +166,88 @@ describe("dinheiro da campanha", () => {
   it("custo por venda para baixo; sem venda, nulo", () => {
     expect(custoPorVenda(1_000, 3)).toBe(333);
     expect(custoPorVenda(1_000, 0)).toBeNull();
+  });
+});
+
+describe("taxa de gestão cobrada inteira na aprovação", () => {
+  const sha = (t: string) => createHash("sha256").update(t, "utf8").digest("hex");
+
+  it("o texto do aceite traz a taxa e o valor em reais do pedido, e não promete devolução", () => {
+    const t = textoDoAceiteDaTaxa(20, 4_000);
+    expect(t).toBe(
+      "A taxa de gestão de 20% (R$ 40,00 neste pedido) é cobrada quando a plataforma aprova a campanha e não é devolvida, " +
+        "mesmo que a campanha termine antes de gastar tudo. O valor em anúncios que não for usado volta ao seu saldo como crédito, " +
+        "não em dinheiro, e pode ser usado em outra campanha.",
+    );
+    expect(textoDoAceiteDaTaxa(15, 123_456)).toContain("15% (R$ 1.234,56 neste pedido)");
+    expect(textoDoAceiteDaTaxa(0, 0)).toContain("0% (R$ 0,00 neste pedido)");
+  });
+
+  it("os reais do aceite são manuais (sem Intl) e com centavos de dois algarismos", () => {
+    expect(reaisDoAceite(5)).toBe("0,05");
+    expect(reaisDoAceite(100)).toBe("1,00");
+    expect(reaisDoAceite(99_999_999)).toBe("999.999,99");
+    expect(reaisDoAceite(-1)).toBe("0,00");
+  });
+
+  it("a impressão do texto é estável: o mesmo pedido dá o mesmo hash, outro valor ou outra taxa dá outro", () => {
+    const base = sha(textoDoAceiteDaTaxa(20, 4_000));
+    expect(sha(textoDoAceiteDaTaxa(20, taxaSobre(20_000, 20)))).toBe(base);
+    expect(base).toMatch(/^[0-9a-f]{64}$/);
+    expect(sha(textoDoAceiteDaTaxa(20, 4_001))).not.toBe(base);
+    expect(sha(textoDoAceiteDaTaxa(21, 4_000))).not.toBe(base);
+    // Trava a impressão do texto da versão 1: mudou o texto, suba ACEITE_DA_TAXA_VERSAO e troque este valor.
+    expect(ACEITE_DA_TAXA_VERSAO).toBe(1);
+    expect(base).toBe("aff955055dd8994a6a6d5fdea896e1ad8d04d085663704e57ccdee8de40eddf3");
+  });
+
+  it("o aceite é um true de verdade: ausente, false, 'true' e 1 não valem", () => {
+    expect(problemaNoAceiteDaTaxa(true)).toBeNull();
+    for (const v of [undefined, null, false, "true", 1, "on", {}]) expect(problemaNoAceiteDaTaxa(v)).toMatch(/aceite a taxa/);
+  });
+
+  it("taxa do lançamento: nenhuma se a taxa já foi cobrada na aprovação; a diária, para baixo, só no legado", () => {
+    const nova = { taxaCobradaEm: new Date("2026-10-09T12:00:00Z"), taxaPct: 20 };
+    const legado = { taxaCobradaEm: null, taxaPct: 20 };
+    expect(taxaDoLancamento(nova, 5_001)).toBe(0);
+    expect(taxaDoLancamento(nova, 1)).toBe(0);
+    expect(taxaDoLancamento(legado, 5_001)).toBe(1_000);
+    expect(taxaDoLancamento(legado, 4)).toBe(0);
+    expect(taxaDoLancamento({ taxaCobradaEm: "2026-10-09T12:00:00.000Z", taxaPct: 20 }, 5_001)).toBe(0);
+  });
+
+  it("a taxa inteira + qualquer gasto até a verba nunca passa da reserva; a sobra é só a mídia não gasta", () => {
+    for (const pct of [0, 7, 20, 33, 100]) {
+      for (const investimento of [100, 999, 30_001, 77_777]) {
+        const reserva = reservaDoPedido(investimento, pct);
+        const taxa = taxaSobre(investimento, pct);
+        expect(investimento + taxa).toBe(reserva);
+        for (const gasto of [0, 1, Math.floor(investimento / 3), investimento]) {
+          const sobra = sobraDaCampanha({ reservaCents: reserva, gastoCents: gasto, taxaCents: taxa });
+          expect(sobra).toBe(investimento - gasto);
+          expect(gasto + taxa + sobra).toBe(reserva);
+        }
+      }
+    }
+  });
+
+  it("encerrar sem gastar nada devolve só a mídia; recusar ou cancelar em análise (taxa ainda zero) devolve tudo", () => {
+    const reserva = reservaDoPedido(10_000, 20);
+    expect(sobraDaCampanha({ reservaCents: reserva, gastoCents: 0, taxaCents: taxaSobre(10_000, 20) })).toBe(10_000);
+    expect(sobraDaCampanha({ reservaCents: reserva, gastoCents: 0, taxaCents: 0 })).toBe(reserva);
+  });
+
+  it("legado (taxa diária): a sobra continua sendo a reserva menos mídia e taxas dos dias", () => {
+    const reserva = reservaDoPedido(10_000, 20);
+    const gasto = 4_333;
+    const legado = { taxaCobradaEm: null, taxaPct: 20 };
+    const taxa = taxaDoLancamento(legado, 3_333) + taxaDoLancamento(legado, 1_000);
+    expect(taxa).toBe(666 + 200);
+    expect(sobraDaCampanha({ reservaCents: reserva, gastoCents: gasto, taxaCents: taxa })).toBe(6_801);
+  });
+
+  it("o custo por venda usa mídia + a taxa inteira quando ela já foi cobrada", () => {
+    expect(custoPorVenda(5_001 + taxaSobre(20_000, 20), 2)).toBe(Math.floor((5_001 + 4_000) / 2));
   });
 });
 

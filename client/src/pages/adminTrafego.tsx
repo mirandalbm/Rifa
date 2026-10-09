@@ -17,6 +17,8 @@ import {
   linhaDoPacote,
   pacotesDoTexto,
   reservaDoPedido,
+  taxaSobre,
+  textoDoAceiteDaTaxa,
   textoDosPacotes,
   type ConfigTrafegoPago,
   type RedeDeAnuncio,
@@ -53,6 +55,10 @@ interface CampanhaDeTrafego {
   aprovadoEm: string | null;
   encerradoEm: string | null;
   devolvidoCents: number;
+  /** Quando a taxa de gestão foi cobrada inteira (na aprovação); nulo: ainda não, ou campanha de antes da regra. */
+  taxaCobradaEm: string | null;
+  /** Sem ele, o pedido é de antes do aceite e segue com a taxa diária. */
+  taxaAceiteEm: string | null;
   vendas: number;
   receitaCents: number;
   cliques: number;
@@ -169,9 +175,10 @@ function Aviso({ msg }: { msg: { ok: boolean; texto: string } | null }) {
 /**
  * Tráfego pago (menu Marketing): a plataforma anuncia a rifa no Google, no
  * Meta (Facebook e Instagram) e no TikTok pelas contas dela. A organização
- * pede com o saldo da publicidade (investimento + taxa ficam reservados), a
- * plataforma aprova, monta a campanha e lança o gasto de cada dia, que
- * consome a reserva com a taxa de gestão; o que sobra volta ao saldo no fim.
+ * pede com o saldo da publicidade (investimento + taxa ficam reservados, com
+ * o aceite da taxa), a plataforma aprova — e aí cobra a taxa de gestão inteira,
+ * que não volta — , monta a campanha e lança o gasto de cada dia, que consome
+ * a verba de mídia; a mídia que não foi gasta volta ao saldo como crédito.
  * Desligado, a organização vê só como vai funcionar — nunca um botão que
  * não faz nada. O plano está em `docs/PLANO-TRAFEGO-PAGO.md`.
  */
@@ -236,8 +243,9 @@ function ComoFunciona() {
       >
         <p className="px-4 py-3 text-sm text-ink-2">
           Você escolhe a rifa e quanto quer investir; a plataforma monta a campanha, acompanha todo dia e mostra quanto gastou e quantas
-          vendas o anúncio trouxe. Você paga o que for gasto mais uma taxa de gestão, do mesmo saldo da publicidade. Quando a plataforma
-          liberar, o pedido aparece aqui.
+          vendas o anúncio trouxe. Você paga a mídia que for gasta e uma taxa de gestão, cobrada quando a plataforma aprova a campanha e
+          não devolvida; a mídia que não for gasta volta ao saldo como crédito. Tudo sai do mesmo saldo da publicidade. Quando a
+          plataforma liberar, o pedido aparece aqui.
         </p>
       </Card>
       <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -248,7 +256,8 @@ function ComoFunciona() {
           A plataforma monta o anúncio com as artes e o vídeo da própria rifa e confere as regras de cada rede.
         </Passo>
         <Passo icone={<BadgeDollarSign size={18} />} titulo="Cobrança">
-          Do saldo sai o que foi gasto no dia mais a taxa — nunca além do reservado. Encerrou, o que sobrou volta ao saldo.
+          A taxa de gestão é cobrada quando a plataforma aprova e não volta. A mídia sai do saldo conforme é gasta; o que não
+          for gasto volta como crédito, não em dinheiro.
         </Passo>
         <Passo icone={<ChartNoAxesCombined size={18} />} titulo="Resultado">
           Gasto, vendas e custo por venda. A venda atribuída ao anúncio é estimativa e a tela diz isso.
@@ -293,10 +302,14 @@ function NovaCampanha({ painel }: { painel: Painel }) {
   const [uf, setUf] = useState("");
   const [cidade, setCidade] = useState("");
   const [observacao, setObservacao] = useState("");
+  // O aceite vale para o texto que está na tela: mexer no valor muda o texto e desmarca a caixa.
+  const [textoAceito, setTextoAceito] = useState<string | null>(null);
   const [msg, setMsg] = useState<{ ok: boolean; texto: string } | null>(null);
 
   const investimentoCents = centavos(investimento);
   const reserva = investimentoCents > 0 ? reservaDoPedido(investimentoCents, config.taxaPct) : 0;
+  const textoDaTaxa = textoDoAceiteDaTaxa(config.taxaPct, taxaSobre(investimentoCents, config.taxaPct));
+  const aceitou = textoAceito === textoDaTaxa;
   const faltaSaldo = reserva > (saldoCents ?? 0);
   const dias = centavos(verbaDia) > 0 ? Math.ceil(investimentoCents / centavos(verbaDia)) : null;
 
@@ -310,14 +323,25 @@ function NovaCampanha({ painel }: { painel: Painel }) {
         uf: uf || null,
         cidade: cidade.trim() || null,
         observacao: observacao.trim() || null,
+        aceiteTaxa: aceitou,
+        // O texto exato que a pessoa viu e aceitou: o servidor recusa (409) se a taxa mudou no meio.
+        aceiteTexto: textoAceito,
       }),
     onSuccess: () => {
       setCampaignId("");
       setObservacao("");
+      setTextoAceito(null);
       setMsg({ ok: true, texto: "Pedido enviado. O valor ficou reservado no saldo até a plataforma aprovar a campanha." });
       qc.invalidateQueries({ queryKey: CHAVE });
     },
-    onError: (e: Error) => setMsg({ ok: false, texto: e.message }),
+    onError: (e: Error) => {
+      setMsg({ ok: false, texto: e.message });
+      if ((e as { status?: number }).status === 409) {
+        // A taxa ou o valor mudou: recarrega a tabela e desmarca, para ler o texto novo.
+        setTextoAceito(null);
+        qc.invalidateQueries({ queryKey: CHAVE });
+      }
+    },
   });
 
   return (
@@ -331,9 +355,9 @@ function NovaCampanha({ painel }: { painel: Painel }) {
         }}
       >
         <p className="text-xs text-muted">
-          A plataforma monta a campanha nas contas de anúncio dela, com as artes e o vídeo da sua rifa, e acompanha todo dia. Do saldo sai o
-          que for gasto em mídia mais <span className="tnum">{config.taxaPct}%</span> de taxa de gestão sobre esse gasto — nunca além do
-          reservado.
+          A plataforma monta a campanha nas contas de anúncio dela, com as artes e o vídeo da sua rifa, e acompanha todo dia. O pedido
+          reserva no saldo a mídia mais <span className="tnum">{config.taxaPct}%</span> de taxa de gestão sobre ela. A taxa é cobrada
+          inteira quando a plataforma aprova a campanha e não volta; a mídia que não for gasta volta ao saldo como crédito.
         </p>
 
         <Campo rotulo="Rifa" dica="Só rifa no ar, e uma campanha aberta por rifa.">
@@ -465,13 +489,30 @@ function NovaCampanha({ painel }: { painel: Painel }) {
           ) : null}
         </p>
         <p className="text-xs text-muted">
-          Recusado ou cancelado antes de ir ao ar, tudo volta ao saldo. Encerrada a campanha (por você ou porque a rifa saiu do ar), a
-          plataforma lança os últimos dias que a rede cobrou e fecha a conta; aí o que não foi gasto volta como crédito. Acabou a verba, a
-          sobra volta na hora.
+          Recusado ou cancelado antes de ir ao ar, nada foi cobrado e tudo volta ao saldo, taxa inclusive. Aprovada a campanha, a taxa de
+          gestão é cobrada e não volta. Encerrada a campanha (por você ou porque a rifa saiu do ar), a plataforma lança os últimos dias
+          que a rede cobrou e fecha a conta; aí a mídia que não foi gasta volta como crédito. Acabou a verba, não há o que voltar.
         </p>
 
+        <fieldset className="space-y-2 rounded-md border border-line px-3 py-2">
+          <legend className="label-xs px-1">Taxa de gestão</legend>
+          <p id="texto-da-taxa" className="text-sm">
+            {textoDaTaxa}
+          </p>
+          <label className="flex items-center gap-2 font-semibold">
+            <input
+              type="checkbox"
+              className="h-4 w-4"
+              aria-describedby="texto-da-taxa"
+              checked={aceitou}
+              onChange={(e) => setTextoAceito(e.target.checked ? textoDaTaxa : null)}
+            />
+            Li e concordo
+          </label>
+        </fieldset>
+
         <Aviso msg={msg} />
-        <Button type="submit" disabled={!campaignId || redes.length === 0 || investimentoCents <= 0 || faltaSaldo || pedir.isPending}>
+        <Button type="submit" disabled={!campaignId || redes.length === 0 || investimentoCents <= 0 || faltaSaldo || !aceitou || pedir.isPending}>
           {pedir.isPending ? "Enviando…" : "Pedir campanha"}
         </Button>
       </form>
@@ -579,8 +620,8 @@ function ConfigDoTrafego({ config: c, faltamNoMeta }: { config: ConfigTrafegoPag
           </span>
         </label>
         <p className="text-xs text-muted">
-          A taxa de gestão incide sobre o gasto em mídia e é fotografada em cada pedido: mudar aqui não mexe nas campanhas já
-          pedidas. Ligue só as redes em que a conta de anúncios da plataforma aceita rifa autorizada.
+          A taxa de gestão incide sobre o investimento em mídia do pedido, é cobrada inteira quando você aprova a campanha e
+          não volta; ela é fotografada em cada pedido: mudar aqui não mexe nas campanhas já pedidas. Ligue só as redes em que a conta de anúncios da plataforma aceita rifa autorizada.
         </p>
         <Aviso msg={msg} />
         <Button type="submit" disabled={salvar.isPending}>
@@ -685,11 +726,13 @@ function Margem({ meses }: { meses: MesDaMargem[] }) {
   return (
     <Card title="Margem por mês">
       {meses.length === 0 ? (
-        <Empty>Nenhum gasto lançado nos últimos 12 meses.</Empty>
+        <Empty>Nenhuma taxa cobrada nem gasto lançado nos últimos 12 meses.</Empty>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <caption className="sr-only">Gasto em mídia, taxa de gestão e excedente (não cobrado) por mês e por organização</caption>
+            <caption className="sr-only">
+              Gasto em mídia, taxa de gestão (no mês em que foi cobrada, na aprovação) e excedente (não cobrado) por mês e por organização
+            </caption>
             <thead>
               <tr className="border-b border-line text-left text-xs text-muted">
                 <th scope="col" className="px-4 py-2 font-medium">
@@ -827,6 +870,9 @@ function CartaoDaCampanha({ c, plataforma, painelLigaMeta = false }: { c: Campan
 
   const regiao = c.cidade ? `${c.cidade}/${c.uf}` : c.uf ? UFS[c.uf as keyof typeof UFS] : "Brasil todo";
   const total = c.gastoCents + c.taxaCents;
+  // Antes da aprovação nada foi cobrado; a taxa que vai ser cobrada é a do pedido.
+  // Pedido de antes da regra (sem aceite gravado) segue com a taxa diária: não é "cobrada na aprovação".
+  const taxaAPagar = c.status === "em_analise" && c.taxaAceiteEm ? taxaSobre(c.investimentoCents, c.taxaPct) : null;
 
   return (
     <li className="space-y-2 p-4 text-sm">
@@ -854,9 +900,9 @@ function CartaoDaCampanha({ c, plataforma, painelLigaMeta = false }: { c: Campan
 
       <dl className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs sm:grid-cols-4">
         <div>
-          <dt className="text-muted">Taxa cobrada</dt>
+          <dt className="text-muted">{taxaAPagar === null ? "Taxa cobrada" : "Taxa (cobrada na aprovação)"}</dt>
           <dd>
-            <Money cents={c.taxaCents} />
+            <Money cents={taxaAPagar ?? c.taxaCents} />
           </dd>
         </div>
         <div>
@@ -892,7 +938,7 @@ function CartaoDaCampanha({ c, plataforma, painelLigaMeta = false }: { c: Campan
       {c.status === "encerrando" ? (
         <p className="text-xs text-ink-2">
           Parada em <span className="tnum">{data(c.encerradoEm)}</span>. A plataforma lança os últimos dias que a rede cobrou e fecha a
-          conta; aí o que não foi gasto volta ao saldo.
+          conta; aí a mídia que não foi gasta volta ao saldo como crédito; a taxa de gestão não volta.
         </p>
       ) : null}
       {c.status === "ativa" || c.status === "encerrando" ? (
@@ -902,7 +948,7 @@ function CartaoDaCampanha({ c, plataforma, painelLigaMeta = false }: { c: Campan
       ) : null}
       {c.devolvidoCents > 0 ? (
         <p className="text-xs text-muted">
-          Voltou ao saldo: <Money cents={c.devolvidoCents} />.
+          Voltou ao saldo{c.status === "encerrada" ? " (como crédito)" : ""}: <Money cents={c.devolvidoCents} />.
         </p>
       ) : null}
       {c.motivo && c.status === "recusada" ? <p className="text-xs text-red">Motivo: {c.motivo}</p> : null}
@@ -1181,7 +1227,8 @@ function LancarGasto({ c, aoLancar }: { c: CampanhaDeTrafego; aoLancar: () => vo
   const [cliques, setCliques] = useState("");
   const [msg, setMsg] = useState<{ ok: boolean; texto: string } | null>(null);
   const gasto = centavos(valor);
-  const taxa = Math.floor((gasto * c.taxaPct) / 100);
+  // A campanha com a taxa já cobrada na aprovação não soma taxa por dia (a de antes da regra, sim).
+  const taxa = c.taxaCobradaEm ? 0 : taxaSobre(gasto, c.taxaPct);
 
   const lancar = useMutation({
     mutationFn: () => apiRequest("POST", `/api/admin/trafego/campanhas/${c.id}/gastos`, { dia, rede, gastoCents: gasto, cliques: cliques.trim() === "" ? null : Number(cliques) }),
@@ -1225,8 +1272,9 @@ function LancarGasto({ c, aoLancar }: { c: CampanhaDeTrafego; aoLancar: () => vo
         </Campo>
       </div>
       <p className="text-xs text-muted">
-        Debita <Money cents={gasto} /> + <Money cents={taxa} /> de taxa. Resta de verba <Money cents={c.investimentoCents - c.gastoCents} />
-        ; um lançamento por dia e rede.
+        Debita <Money cents={gasto} /> da verba de mídia
+        {c.taxaCobradaEm ? " (a taxa de gestão já foi cobrada na aprovação)" : <> + <Money cents={taxa} /> de taxa</>}. Resta de verba{" "}
+        <Money cents={c.investimentoCents - c.gastoCents} />; um lançamento por dia e rede.
       </p>
       <Aviso msg={msg} />
       <Button type="submit" disabled={gasto <= 0 || lancar.isPending}>
@@ -1254,7 +1302,8 @@ function GastosDaCampanha({ id, plataforma }: { id: string; plataforma: boolean 
             {plataforma && g.lancadoPor ? <span className="text-muted"> · {g.lancadoPor}</span> : null}
           </span>
           <span>
-            <Money cents={g.gastoCents} /> + <Money cents={g.taxaCents} /> de taxa
+            <Money cents={g.gastoCents} />
+            {g.taxaCents > 0 ? <> + <Money cents={g.taxaCents} /> de taxa</> : null}
             {g.cliques !== null ? (
               <span className="text-muted">
                 {" "}

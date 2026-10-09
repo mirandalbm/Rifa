@@ -686,8 +686,16 @@ Na ordem de entrega do plano:
   com a permissão `ads_management` (e `pages_read_engagement`, que o Meta
   pede para o anúncio da página) e pôr no Railway as três variáveis:
   `META_ADS_TOKEN` (o token), `META_AD_ACCOUNT_ID` (`act_` + o número da
-  conta) e `META_PAGE_ID` (o número da página). A conta de anúncios em reais
-  e no fuso de São Paulo (a fase 2 já pede). Conferir com o primeiro
+  conta) e `META_PAGE_ID` (o número da página), e conferir que a
+  **`PUBLIC_BASE_URL`** está no Railway (em produção, sem ela o botão não
+  cria: é o endereço do link do anúncio). A conta de anúncios **em reais
+  (BRL) e no fuso `America/Sao_Paulo`** — o sistema lê os dois no Meta antes
+  de criar e recusa a conta fora disso (a moeda e o fuso de uma conta de
+  anúncios não mudam depois de criada: se estiver errada, é outra conta).
+  Com a campanha montada à mão no Meta (o código `trafego-…` no nome) ou
+  com gasto do Meta já lançado, o botão recusa — é a mesma campanha. O
+  orçamento diário mandado é a parte do Meta (a verba por dia dividida entre
+  as redes da campanha, no mínimo R$ 6,00). Conferir com o primeiro
   anúncio de verdade, ainda pausado, se o Meta aceitou os campos (a prova
   usa um Meta de mentira: a API real nunca foi chamada daqui). **Falta no
   código**: a fase 3 no Google Ads (exige o *developer token* aprovado) e

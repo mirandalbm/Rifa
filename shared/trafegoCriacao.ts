@@ -22,7 +22,7 @@ import { UFS, type UF } from "./endereco";
 import { formatBRL } from "./format";
 import { prometeGanho } from "./marketingIA";
 import { pedePagamentoPorFora } from "./seguranca";
-import { codigoDaCampanha } from "./trafego";
+import { codigoDaCampanha, codigoNoNome } from "./trafego";
 
 export const SITUACOES_DA_CRIACAO = {
   criando: "Criando",
@@ -56,6 +56,17 @@ export function faltaNoMeta(env: Partial<Record<string, string | undefined>>): s
   return falta;
 }
 
+/**
+ * O que falta no servidor para criar: as variáveis do Meta e, em produção, o
+ * endereço público do site (o link do anúncio leva a ele; sem a variável, o
+ * endereço sairia do cabeçalho `Host` da requisição de quem clicou).
+ */
+export function faltaNoServidor(env: Partial<Record<string, string | undefined>>): string[] {
+  const falta = faltaNoMeta(env);
+  if (env.NODE_ENV === "production" && !env.PUBLIC_BASE_URL?.trim()) falta.push("PUBLIC_BASE_URL");
+  return falta;
+}
+
 /** Limite do nome na rede; o código vai na frente, então nunca é cortado. */
 export const NOME_NA_REDE_MAX = 200;
 
@@ -66,15 +77,71 @@ export function nomeNaRede(id: string, titulo: string): string {
   return nome.length > NOME_NA_REDE_MAX ? `${nome.slice(0, NOME_NA_REDE_MAX - 1)}…` : nome;
 }
 
-/** Quantos dias a verba dura pela conta: investimento ÷ por dia, para baixo (nunca menos de 1). */
-export function diasDaVerba(investimentoCents: number, verbaDiaCents: number): number {
-  if (!(verbaDiaCents > 0)) return 1;
-  return Math.max(1, Math.floor(investimentoCents / verbaDiaCents));
+/**
+ * O orçamento diário mínimo que se manda ao Meta (R$ 6,00). O piso do Meta
+ * muda com a moeda e o lance; abaixo deste valor, o conjunto costuma ser
+ * recusado — melhor dizer antes, com o motivo, do que deixar pela metade.
+ */
+export const DIARIO_MIN_DO_META_CENTS = 600;
+
+export interface OrcamentoNoMeta {
+  /** O que resta da verba da campanha (investimento − gasto já lançado em todas as redes). */
+  restanteCents: number;
+  /** Em quantas redes a campanha divide a verba. */
+  redes: number;
+  /** A parte do Meta: por dia e no total, e os dias que isso dura. */
+  diarioCents: number;
+  totalCents: number;
+  dias: number;
 }
 
-/** A data de fim na rede: o começo mais os dias que a verba dura. */
-export function fimDaVerba(inicio: Date, investimentoCents: number, verbaDiaCents: number): Date {
-  return new Date(inicio.getTime() + diasDaVerba(investimentoCents, verbaDiaCents) * 86_400_000);
+/**
+ * Quanto vai para o Meta, casado com a verba que sobra e com as redes da
+ * campanha: a base é `investimento − gasto`, e com mais de uma rede a parte
+ * do Meta é a divisão em partes iguais, para baixo — `floor(por dia ÷ redes)`
+ * por dia e `floor(restante ÷ redes)` no total. Os dias são o total ÷ o
+ * diário, para baixo, então diário × dias nunca passa do total (e o total
+ * nunca passa do que resta). Se o total não dá um dia inteiro, vai num dia
+ * só, com o total como diário. Nada restando, ou o diário abaixo do mínimo
+ * que o Meta aceita, é recusa com o motivo.
+ */
+export function orcamentoNoMeta(c: { investimentoCents: number; gastoCents: number; verbaDiaCents: number; redes: readonly string[] }):
+  | { ok: true; orcamento: OrcamentoNoMeta }
+  | { ok: false; motivo: string } {
+  const redes = Math.max(1, c.redes.length);
+  const restanteCents = Math.max(0, c.investimentoCents - c.gastoCents);
+  if (restanteCents <= 0) return { ok: false, motivo: "Nada resta da verba desta campanha: não há o que mandar ao Meta." };
+  const totalCents = Math.floor(restanteCents / redes);
+  let diarioCents = Math.floor(c.verbaDiaCents / redes);
+  let dias = 0;
+  if (diarioCents >= DIARIO_MIN_DO_META_CENTS) {
+    if (totalCents < diarioCents) {
+      // O que resta não dá um dia inteiro: vai num dia só, com o total como diário.
+      diarioCents = totalCents;
+      dias = 1;
+    } else {
+      dias = Math.floor(totalCents / diarioCents);
+    }
+  }
+  if (diarioCents < DIARIO_MIN_DO_META_CENTS) {
+    const porque = redes > 1 ? `, a ${diarioCents === Math.floor(c.verbaDiaCents / redes) ? "verba por dia" : "verba que resta"} dividida entre ${redes} redes` : "";
+    return {
+      ok: false,
+      motivo: `A parte do Meta por dia (${formatBRL(diarioCents)}${porque}) fica abaixo do mínimo que o Meta aceita (${formatBRL(DIARIO_MIN_DO_META_CENTS)}).`,
+    };
+  }
+  return { ok: true, orcamento: { restanteCents, redes, diarioCents, totalCents, dias } };
+}
+
+/** A frase da tela: quanto foi para o Meta e por quê. */
+export function explicarOrcamento(o: OrcamentoNoMeta): string {
+  const divisao = o.redes > 1 ? `, dividido em partes iguais entre as ${o.redes} redes da campanha` : "";
+  return `${formatBRL(o.diarioCents)} por dia por ${o.dias} ${o.dias === 1 ? "dia" : "dias"}, até ${formatBRL(o.diarioCents * o.dias)}: o que resta da verba (${formatBRL(o.restanteCents)})${divisao}.`;
+}
+
+/** A data de fim na rede: o começo mais os dias do orçamento. */
+export function fimDoOrcamento(inicio: Date, o: Pick<OrcamentoNoMeta, "dias">): Date {
+  return new Date(inicio.getTime() + o.dias * 86_400_000);
 }
 
 /** Idade mínima de quem vê o anúncio de rifa (e o teto do Meta, 65 = 65 ou mais). */
@@ -86,9 +153,13 @@ export type AlvoDoPedido =
   | { tipo: "estado"; uf: UF; estado: string }
   | { tipo: "cidade"; uf: UF; estado: string; cidade: string };
 
-/** A região do pedido: o Brasil, o estado ou a cidade (cidade sempre com o estado). */
-export function alvoDoPedido(p: { uf: string | null; cidade: string | null }): AlvoDoPedido {
-  if (!p.uf || !Object.hasOwn(UFS, p.uf)) return { tipo: "pais" };
+/**
+ * A região do pedido: o Brasil (sem UF), o estado ou a cidade (sempre com o
+ * estado). UF fora da lista é `null` — quem chama recusa, nunca cai no Brasil todo.
+ */
+export function alvoDoPedido(p: { uf: string | null; cidade: string | null }): AlvoDoPedido | null {
+  if (p.uf === null || p.uf === undefined || p.uf === "") return p.cidade && p.cidade.trim() ? null : { tipo: "pais" };
+  if (!Object.hasOwn(UFS, p.uf)) return null;
   const uf = p.uf as UF;
   const estado = UFS[uf];
   if (p.cidade && p.cidade.trim()) return { tipo: "cidade", uf, estado, cidade: p.cidade.trim() };
@@ -158,13 +229,16 @@ export const AVISO_DO_ANUNCIO = "Só vale bilhete pago pela plataforma.";
  * O texto do anúncio, montado dos dados públicos da rifa: o prêmio, o preço,
  * a data e quem apura, a autorização e o aviso. O título é o prêmio, curto.
  */
+/** A linha da autorização, montada do número que veio do banco (conferido nos dados legais). */
+export const linhaDaAutorizacao = (autorizacao: string) => `Rifa autorizada SPA/MF nº ${autorizacao}.`;
+
 export function textoDoAnuncio(d: DadosDoAnuncio): { mensagem: string; titulo: string } {
   const premio = d.premio.replace(/\s+/g, " ").trim();
   const sorteio = d.drawAt ? `Sorteio ${dataDoSorteio(d.drawAt)} ${quemApura(d.metodoApuracao)}.` : `Sorteio ${quemApura(d.metodoApuracao)}.`;
   const linhas = [
     `🎟️ ${premio}`,
     `${formatBRL(d.precoCents)} a cota. ${sorteio}`,
-    d.autorizacao ? `Rifa autorizada SPA/MF nº ${d.autorizacao}.` : "",
+    d.autorizacao ? linhaDaAutorizacao(d.autorizacao) : "",
     AVISO_DO_ANUNCIO,
   ].filter(Boolean);
   const titulo = premio.length > TITULO_DO_ANUNCIO_MAX ? `${premio.slice(0, TITULO_DO_ANUNCIO_MAX - 1)}…` : premio;
@@ -172,13 +246,18 @@ export function textoDoAnuncio(d: DadosDoAnuncio): { mensagem: string; titulo: s
 }
 
 /**
- * O texto passa na régua? Sem link e sem telefone (o número da autorização
- * vem do banco, conferido nos dados legais, e fica fora desta conta), sem
- * promessa de ganho (as redes recusam e o CDC chama de enganosa) e sem Pix
- * por fora. Devolve o motivo, ou `null`.
+ * O texto passa na régua? Sem link e sem telefone nas linhas do texto **fora**
+ * a linha da autorização (o número dela vem do banco, conferido nos dados
+ * legais, e tem dígitos de sobra) — a linha inteira sai da conta, nunca o
+ * número de dentro das outras; sem promessa de ganho (as redes recusam e o
+ * CDC chama de enganosa) e sem Pix por fora. Devolve o motivo, ou `null`.
  */
 export function problemaNoTextoDoAnuncio(texto: string, autorizacao: string | null): string | null {
-  const semAutorizacao = autorizacao ? texto.split(autorizacao).join(" ") : texto;
+  const daAutorizacao = autorizacao ? linhaDaAutorizacao(autorizacao) : null;
+  const semAutorizacao = texto
+    .split("\n")
+    .filter((l) => l !== daAutorizacao)
+    .join("\n");
   const p = temLinkOuTelefone(semAutorizacao);
   if (p) return `O texto do anúncio (o prêmio da rifa) ${p.charAt(0).toLowerCase()}${p.slice(1)}`;
   if (prometeGanho(texto)) return "O texto do anúncio promete ganho (as redes recusam e o CDC chama de propaganda enganosa). Ajuste o prêmio da rifa.";
@@ -188,6 +267,8 @@ export function problemaNoTextoDoAnuncio(texto: string, autorizacao: string | nu
 
 /** O passo em que a criação parou, para a mensagem e para os ids da metade. */
 export const PASSOS_DA_CRIACAO = {
+  conta: "ao conferir a conta de anúncios",
+  busca: "ao procurar campanhas com o código",
   local: "ao procurar a região",
   imagem: "ao enviar a imagem",
   campanha: "ao criar a campanha",
@@ -235,3 +316,44 @@ export function idDaRede(v: unknown): string | null {
 export function hashDaImagem(v: unknown): string | null {
   return typeof v === "string" && /^[0-9a-zA-Z]{8,64}$/.test(v) ? v : null;
 }
+
+/** A conta de anúncios precisa estar em reais e no fuso de São Paulo (a verba e o dia do gasto dependem disso). */
+export const MOEDA_DA_CONTA = "BRL";
+export const FUSO_DA_CONTA = "America/Sao_Paulo";
+
+/** O que está errado na conta de anúncios que o Meta descreveu, ou `null`. Só as duas chaves são lidas. */
+export function problemaNaContaDoMeta(resposta: unknown): string | null {
+  const r = resposta && typeof resposta === "object" ? (resposta as Record<string, unknown>) : {};
+  const moeda = typeof r.currency === "string" ? r.currency : "";
+  const fuso = typeof r.timezone_name === "string" ? r.timezone_name : "";
+  if (moeda !== MOEDA_DA_CONTA) {
+    return `A conta de anúncios do Meta está em ${moeda ? moeda.slice(0, 8) : "moeda desconhecida"}, não em reais (BRL): a verba seria cobrada errado. Nada foi criado.`;
+  }
+  if (fuso !== FUSO_DA_CONTA) {
+    return `A conta de anúncios do Meta está no fuso ${fuso ? fuso.slice(0, 40) : "desconhecido"}, não no de São Paulo: o dia do gasto não casaria. Nada foi criado.`;
+  }
+  return null;
+}
+
+/**
+ * Entre as campanhas que a busca do Meta devolveu, as que levam o código desta
+ * (a mesma régua da importação, `codigoNoNome`) e que o sistema não conhece —
+ * nem a criação atual, nem a metade anotada para apagar. Achou alguma, a
+ * campanha já foi montada lá (à mão, ou por uma resposta que se perdeu no
+ * prazo): quem chama recusa, com o id, para a plataforma conferir.
+ */
+export function campanhaJaNoMeta(resultados: unknown, codigo: string, conhecidos: ReadonlySet<string>): string | null {
+  if (!Array.isArray(resultados)) return null;
+  for (const bruto of resultados) {
+    if (!bruto || typeof bruto !== "object") continue;
+    const l = bruto as Record<string, unknown>;
+    const id = idDaRede(l.id);
+    if (id && codigoNoNome(l.name) === codigo && !conhecidos.has(id)) return id;
+  }
+  return null;
+}
+
+/** As peças que uma criação completa tem no Meta (a imagem é só o hash enviado). */
+export const PECAS_DA_CRIACAO = ["campanha", "conjunto", "criativo", "anuncio"] as const;
+export const criacaoCompleta = (ids: Record<string, string> | null | undefined) =>
+  Boolean(ids) && PECAS_DA_CRIACAO.every((k) => typeof ids![k] === "string" && ids![k].length > 0);

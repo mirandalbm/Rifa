@@ -2375,6 +2375,8 @@ export const trafegoCriacoes = pgTable(
     restos: jsonb("restos").$type<Record<string, string>[]>().notNull().default([]),
     /** O motivo da falha em português, sem token nem resposta crua da rede. */
     erro: text("erro"),
+    /** O orçamento mandado ao Meta (`orcamentoNoMeta()`): a parte da verba que sobra, por dia e no total. */
+    orcamento: jsonb("orcamento").$type<import("./trafegoCriacao").OrcamentoNoMeta>(),
     tentativas: integer("tentativas").notNull().default(1),
     /** Pausar na rede ao encerrar: nulo (não pediu), `pausada` ou `falhou`. */
     pausa: text("pausa"),
@@ -2382,7 +2384,8 @@ export const trafegoCriacoes = pgTable(
     pausadaEm: timestamp("pausada_em"),
     criadoPor: uuid("criado_por").references(() => users.id, { onDelete: "set null" }),
     createdAt: timestamp("created_at").notNull().defaultNow(),
-    atualizadoEm: timestamp("atualizado_em").notNull().defaultNow(),
+    /** O sinal de vida da criação (o prazo compara com `now() AT TIME ZONE 'UTC'`); toda escrita usa o mesmo padrão. */
+    atualizadoEm: timestamp("atualizado_em").notNull().default(sql`(now() AT TIME ZONE 'UTC')`),
     criadaEm: timestamp("criada_em"),
   },
   (t) => [uniqueIndex("uq_trafego_criacao_por_rede").on(t.campanhaId, t.rede)],

@@ -130,7 +130,7 @@ arquitetura.
 | marketing e tráfego pago (etapa 16): pixels, aviso de cookies, UTM, compra pelo servidor | `shared/marketing.ts` (regras e corpos das APIs), `server/services/marketing.ts`, `client/src/lib/marketing.ts`, `client/src/components/Marketing.tsx`, `client/src/pages/adminMarketing.tsx`, `scripts/marketing-test.ts` |
 | plano da próxima fase (vitrine, contas, afiliados, marketing) | `docs/PLANO-FASE5.md` |
 | ferramentas de imagem e vídeo para divulgar a rifa (Canva, Adobe, as nossas, IA): panorama e fases | `docs/PLANO-FERRAMENTAS.md` |
-| tráfego pago como serviço da plataforma (modelo A, fase 1: pedido com o saldo, fila do master, gasto do dia + taxa, margem, venda atribuída) | `shared/trafego.ts` (regras), `server/services/trafego.ts`, `/trafego*` em `server/routes/admin.ts`, `trafegoPago` em `shared/plataforma.ts`, `trafego_campanhas`/`trafego_gastos` em `shared/schema.ts`, relógio em `server/jobs/index.ts` (trava 811406), tipo `trafego` em `shared/caixa.ts`, `client/src/pages/adminTrafego.tsx`, `docs/PLANO-TRAFEGO-PAGO.md`, `scripts/trafego-test.ts`, `tests/trafego.test.ts`; a fase 2 (o gasto importado das redes pelo Windsor.ai): `lerLinhasDoGasto()`/`codigoNoNome()` em `shared/trafego.ts`, `server/services/trafegoImportacao.ts`, `lancarGastoImportado()` em `server/services/trafego.ts`, `/trafego/importacao` em `server/routes/admin.ts`, relógio (trava 811407), `ImportacaoDoGasto` em `adminTrafego.tsx`; a fase 3 (criar a campanha no Meta pela API, pausada; Google e TikTok depois, na mesma interface): `shared/trafegoCriacao.ts` (nome, verba e fim, alvo, texto, erro do Meta), `server/services/trafegoCriacao.ts` (`CriadorDeCampanha`, `criadorDoMeta()`, `criarNoMeta()`, `pausarNaRedeDepois()`), `POST /trafego/campanhas/:id/meta` em `server/routes/admin.ts`, `trafego_criacoes` em `shared/schema.ts`, `criarPelaApi` em `shared/trafego.ts`, `NoMeta` em `adminTrafego.tsx`, `scripts/trafego-criacao-test.ts`, `tests/trafegoCriacao.test.ts` |
+| tráfego pago como serviço da plataforma (modelo A, fase 1: pedido com o saldo, fila do master, gasto do dia + taxa, margem, venda atribuída) | `shared/trafego.ts` (regras), `server/services/trafego.ts`, `/trafego*` em `server/routes/admin.ts`, `trafegoPago` em `shared/plataforma.ts`, `trafego_campanhas`/`trafego_gastos` em `shared/schema.ts`, relógio em `server/jobs/index.ts` (trava 811406), tipo `trafego` em `shared/caixa.ts`, `client/src/pages/adminTrafego.tsx`, `docs/PLANO-TRAFEGO-PAGO.md`, `scripts/trafego-test.ts`, `tests/trafego.test.ts`; a fase 2 (o gasto importado das redes pelo Windsor.ai): `lerLinhasDoGasto()`/`codigoNoNome()` em `shared/trafego.ts`, `server/services/trafegoImportacao.ts`, `lancarGastoImportado()` em `server/services/trafego.ts`, `/trafego/importacao` em `server/routes/admin.ts`, relógio (trava 811407), `ImportacaoDoGasto` em `adminTrafego.tsx`; a fase 3 (criar a campanha no Meta pela API, pausada; Google e TikTok depois, na mesma interface): `shared/trafegoCriacao.ts` (nome, orçamento e fim, alvo, texto, conta, busca do código, erro do Meta), `server/services/trafegoCriacao.ts` (`CriadorDeCampanha`, `criadorDoMeta()`, `criarNoMeta()`, `pausarNaRedeDepois()`), `POST /trafego/campanhas/:id/meta` em `server/routes/admin.ts`, `trafego_criacoes` em `shared/schema.ts`, `criarPelaApi` em `shared/trafego.ts`, `NoMeta` em `adminTrafego.tsx`, `scripts/trafego-criacao-test.ts`, `tests/trafegoCriacao.test.ts` |
 | Marketing AI: plano de divulgação, textos de anúncio e leitura dos resultados de uma rifa | `shared/marketingIA.ts` (as três regras: `planoDeDivulgacao`, `lerAnuncios`/`prometeGanho`, `leituraDosResultados`), `server/services/marketingIA.ts` (os dados), `anunciosComIA()`/`perguntarAoAssistente()` em `server/services/ia.ts`, `GET /campaigns/:id/marketing` e `POST /campaigns/:id/marketing/anuncios` em `server/routes/admin.ts`, `client/src/pages/adminMarketingIA.tsx`, `scripts/ia-acoes-test.ts` (a seção do Marketing AI), `tests/marketingIA.test.ts` |
 | menu Marketing (Tráfego pago, Marketing AI, Publicidade em abas, Medição e campanhas) | grupo "Marketing" em `MENUS` (`shared/access.ts`), `client/src/pages/adminTrafego.tsx`, `adminMarketingIA.tsx` (os criativos por rifa), `adminPublicidade.tsx` (as abas: `RifasPatrocinadas` de `adminPatrocinio.tsx` e `BannerNaVitrine` de `adminBannerPago.tsx`), os redirecionamentos em `client/src/App.tsx`, `tests/menu.test.ts` |
 | artes prontas para divulgar (Fase A: arte da rifa, cotas que faltam, data, resultado, cota premiada, nos três formatos) e o pacote para postar (Fase G: ZIP com os três formatos e a legenda) | `shared/artes.ts` (regras, textos e `legendaSugerida`), `server/services/zip.ts`, os textos do kit (`textosDoKit()` em `shared/afiliados.ts`), `server/services/arteDesenho.ts` (texto em contorno, QR, camada), `server/services/artes.ts` (dados da rifa, fundo, foto da organização), `server/routes/artesRotas.ts`, `/campaigns/:id/artes*` em `server/routes/admin.ts`, `/artes/:slug*` em `server/routes/affiliate.ts`, `client/src/components/ArtesParaDivulgar.tsx` (aba Publicação e Meus links), `scripts/artes-test.ts`, `tests/artes.test.ts` |
@@ -4700,66 +4700,103 @@ abaixo).
   `CriadorDeCampanha` (Google e TikTok entram depois por ela). **Nasce
   desligado** (`criarPelaApi` dentro de `trafegoPago`, só chave conhecida, a
   config parte da atual) e **só existe com `META_ADS_TOKEN`,
-  `META_AD_ACCOUNT_ID` (`act_…`) e `META_PAGE_ID`** no servidor
-  (`faltaNoMeta()`: a tela diz o nome do que falta, nunca o valor, e nada é
-  chamado). **Só a plataforma cria** (`POST
-  /trafego/campanhas/:id/meta`, 403 para organizador, no `npm run
-  isolation`), pelo botão "Criar no Meta" — **nunca sozinho na
-  aprovação** —, e **campanha, conjunto e anúncio nascem PAUSADOS**: ligar
-  é no gerenciador do Meta, onde o anúncio de rifa passa pela revisão de
-  política. Nada gasta sem uma pessoa ligar lá.
+  `META_AD_ACCOUNT_ID` (`act_…`) e `META_PAGE_ID`** no servidor e, em
+  produção, **`PUBLIC_BASE_URL`** (o link do anúncio leva a ele;
+  `faltaNoServidor()`: a tela diz o nome do que falta, nunca o valor, e nada
+  é chamado). **Só a plataforma cria** (`POST /trafego/campanhas/:id/meta`,
+  403 para organizador, no `npm run isolation`), pelo botão "Criar no
+  Meta" — **nunca sozinho na aprovação** —, e **campanha, conjunto e
+  anúncio nascem PAUSADOS**: ligar é no gerenciador do Meta, onde o anúncio
+  de rifa passa pela revisão de política. Nada gasta sem uma pessoa ligar lá.
+  - **Antes de reservar, nada é chamado se não passar**: campanha no ar com
+    o Meta, rifa no ar (nem travada, nem de teste, nem de promotora
+    arquivada ou banida), **promotora ativa** (`organizations.active`,
+    conferido só aqui — `rifaSegueNoAr()`, do relógio, não muda), **nenhum
+    gasto do Meta lançado** (à mão ou importado: é o sinal de que a campanha
+    já foi montada lá), a UF do pedido na lista (`alvoDoPedido()` devolve
+    nulo para a desconhecida — nunca o Brasil todo), o orçamento e o texto.
+    Depois, **no Meta e ainda antes de reservar**: a conta de anúncios lida
+    (`act_…?fields=currency,timezone_name`, `problemaNaContaDoMeta()`) —
+    **fora de BRL ou de `America/Sao_Paulo`, recusa** — e a busca, na conta,
+    de campanha com `trafego-<código>` no nome (`campanhaJaNoMeta()`, a régua
+    da importação): achou uma que o sistema não conhece, recusa com o id dela
+    para a plataforma conferir no gerenciador (cobre a montada à mão e a
+    resposta perdida no prazo). Tudo 409 com o motivo; as conferências que
+    não dependem do Meta se repetem dentro da transação que reserva.
   - **Nunca cria duas vezes**: uma linha por campanha e rede em
     `trafego_criacoes` (`uq_trafego_criacao_por_rede`); o `INSERT … ON
     CONFLICT DO NOTHING` em `criando`, com a organização e a campanha
-    travadas e a campanha no ar e a rifa no ar conferidas, vem **antes** de
-    chamar o Meta — quem não entrou recebe 409. Falhou, grava `falhou` com o
-    motivo em português (`erroDoMeta()`: o passo e o código, nunca a
-    mensagem crua nem o token) e o 502 diz o mesmo; tentar de novo é `UPDATE`
-    condicional (`falhou`, ou `criando` esquecido há mais de
-    `PRAZO_DA_CRIACAO_MIN` por um processo que caiu) e o fim grava só se a
-    tentativa ainda é a dele. **O que o Meta criou pela metade** (campanha
-    sem conjunto) fica nos `ids` e, ao tentar de novo, em `restos`: a tela
-    da plataforma lista para apagar no gerenciador (tudo pausado, não gasta).
+    travadas, vem **antes** de chamar o Meta — quem não entrou recebe 409.
+    **Cada peça criada é gravada antes da próxima** (`anotar()`, esperado
+    pelo criador: `UPDATE … SET ids = ids || …, atualizado_em = <agora em
+    UTC> WHERE status = 'criando' AND tentativas = <a desta execução>`), e
+    esse `UPDATE` é o sinal de vida do prazo (`PRAZO_DA_CRIACAO_MIN`, 10
+    min). Não pegou a linha (outra tentativa a tomou): **para de criar**,
+    anexa o que já criou a `restos` e responde 409. Falhou na rede, grava
+    `falhou` com o motivo em português (`erroDoMeta()`: o passo e o código,
+    nunca a mensagem crua nem o token) e o 502 diz o mesmo. **O sucesso que
+    perde a linha** (outra tentativa, ou o banco falhando no `UPDATE`) não
+    descarta os ids: vão a `restos` num `UPDATE` sem a condição da
+    tentativa, a auditoria vai fora da transação que voltou, e responde 409.
+    `restos` nunca repete o mesmo conjunto de ids.
+  - **Tentar de novo** é `UPDATE` condicional (`falhou`, ou `criando` além
+    do prazo — o processo caiu: o painel recebe `podeRetomar` e mostra
+    "Tentar de novo"): a metade dos `ids` vai a `restos` e cria tudo de novo;
+    se a parada já tinha anotado as quatro peças (`criacaoCompleta()`), a
+    retomada só marca `criada`, sem chamar a criação (e tira aqueles ids de
+    `restos`, se o fim que caiu os tinha posto lá). A tela da plataforma
+    lista os `restos` para apagar no gerenciador (tudo pausado, não gasta).
+  - **O orçamento casa com a verba que sobra e com as redes**
+    (`orcamentoNoMeta()`, gravado em `trafego_criacoes.orcamento` e dito na
+    tela por `explicarOrcamento()`): a base é `investimento − gasto` (de todas
+    as redes); com mais de uma rede, a parte do Meta é a divisão em partes
+    iguais, para baixo — `floor(por dia ÷ redes)` por dia e `floor(restante ÷
+    redes)` no total; os dias são o total ÷ o diário, para baixo (e a data de
+    fim sai deles, `fimDoOrcamento()`), então diário × dias nunca passa do
+    que resta. Nada restando, ou o diário abaixo de
+    `DIARIO_MIN_DO_META_CENTS` (R$ 6,00), é 409 com o motivo.
   - **O que vai para o Meta sai do banco**, nunca do navegador: o nome
     `trafego-<código> · <título da rifa>` (`nomeNaRede()`, a importação da
-    fase 2 casa por ele), `daily_budget` = `verbaDiaCents` (centavos de real
-    são a unidade do Meta) e o fim quando a verba acaba pela conta
-    (`fimDaVerba()`: investimento ÷ por dia, para baixo), o objetivo de
-    tráfego para o link, a região do pedido pela busca de locais do Meta
-    (`localDoMeta()`: do Brasil, do tipo e no estado certos; **sem achar,
-    recusa com o motivo — nunca o Brasil todo calado**), maiores de 18
-    (`segmentacaoDoMeta()`), a **arte pronta "rifa" 4:5** do servidor (Fase
-    A) como imagem, o link `linkDoAnuncio(…, "meta")` com a UTM e o texto dos
-    dados públicos da rifa (`textoDoAnuncio()`: prêmio, preço, data e quem
-    apura, "Rifa autorizada SPA/MF nº …" e "Só vale bilhete pago pela
-    plataforma"), na régua (`problemaNoTextoDoAnuncio()`: sem link e sem
-    telefone — o número da autorização vem do banco e fica fora da conta —,
-    sem promessa de ganho, sem Pix por fora; 422 antes de qualquer
-    chamada). Campanha que não está no ar, sem o Meta, ou rifa fora do ar,
-    travada, de teste ou de promotora arquivada ou banida: 409, nada é
-    chamado.
+    fase 2 casa por ele), o `daily_budget` do orçamento (centavos de real são
+    a unidade do Meta), o objetivo de tráfego para o link, a região do pedido
+    pela busca de locais do Meta (`localDoMeta()`: do Brasil, do tipo e no
+    estado certos; **sem achar, recusa com o motivo — nunca o Brasil todo
+    calado**), maiores de 18 (`segmentacaoDoMeta()`), a **arte pronta "rifa"
+    4:5** do servidor (Fase A) como imagem, o link `linkDoAnuncio(…, "meta")`
+    com a UTM e o texto dos dados públicos da rifa (`textoDoAnuncio()`:
+    prêmio, preço, data e quem apura, a linha "Rifa autorizada SPA/MF nº …" e
+    "Só vale bilhete pago pela plataforma"), na régua
+    (`problemaNoTextoDoAnuncio()`: telefone e link conferidos nas linhas do
+    texto **sem a linha da autorização** — nunca tirando o número de dentro
+    das outras —, sem promessa de ganho, sem Pix por fora; 422 antes de
+    qualquer chamada).
   - **O token só no cabeçalho** (`Authorization: Bearer`), nunca na URL, em
     log, resposta ou erro; o endereço do Meta só muda fora de produção
     (`META_API_URL`, `baseDoMeta()`), para a prova. Cada chamada tem prazo de
     30 s; ids e o hash da imagem só entram no formato (`idDaRede()`,
-    `hashDaImagem()`).
+    `hashDaImagem()`). **Toda data da criação é UTC do banco** (`now() AT
+    TIME ZONE 'UTC'`, o padrão de `streamPendentes.ts`), na escrita e no
+    prazo.
   - **Encerrar pausa na rede**: quando a campanha vai a `encerrando` (a
     organização, a plataforma ou o relógio da rifa fora do ar) ou encerra
     (fechar a conta, verba acabada pelo gasto manual ou importado), se tem
     criação `criada` no Meta, `pausarNaRedeDepois()` pede a pausa **depois
-    da transação, em segundo plano** — nunca derruba o encerramento. A falha
-    fica em `pausa`/`pausa_erro`, vai ao log e a tela da plataforma diz "não
-    consegui pausar no Meta — pause no gerenciador"; fechar a conta tenta de
-    novo (a já pausada não é chamada outra vez). O que a rede gastar depois
-    continua sendo excedente (fase 2).
+    da transação, em segundo plano** — nunca derruba o encerramento. E a
+    criação que termina com a campanha já fora do ar (encerrada enquanto
+    criava) pausa também. A falha fica em `pausa`/`pausa_erro`, vai ao log e
+    a tela da plataforma diz "não consegui pausar no Meta — pause no
+    gerenciador"; fechar a conta tenta de novo (a já pausada não é chamada
+    outra vez). O que a rede gastar depois continua sendo excedente (fase 2).
   - **Recorte**: a organização vê só "Criada no Meta (pausada)" ou nada —
     nunca ids nem erro técnico (`criacoesDasCampanhas()`); a plataforma vê a
-    situação, os ids, os restos, o erro e os botões (criar, tentar de novo).
-    Auditoria na mesma transação: `trafego.meta.criar`, `.criada`,
-    `.falhou` e `.pausar` (esta com o ator `sistema`).
+    situação, o orçamento, os ids, os restos, o erro e os botões (criar,
+    tentar de novo, retomar). Auditoria na mesma transação:
+    `trafego.meta.criar`, `.criada`, `.falhou` e `.pausar` (esta com o ator
+    `sistema`); a da linha perdida vai fora, depois da transação que voltou.
 - As tabelas `trafego_campanhas` e `trafego_gastos` sobem com o `db:push`
   **antes** do código, e as colunas `trafego_gastos.cliques`, `origem` e
-  `excedente_cents` também, e a tabela `trafego_criacoes` da fase 3. `npm run
+  `excedente_cents` também, e a tabela `trafego_criacoes` da fase 3 (com a
+  coluna `orcamento`). `npm run
   trafego` prova tudo isso contra a API de verdade (a fase 2 com um
   Windsor.ai de mentira), `npm run trafego-criacao` a fase 3 (com um Meta de
   mentira) e `tests/trafego.test.ts` e `tests/trafegoCriacao.test.ts` as

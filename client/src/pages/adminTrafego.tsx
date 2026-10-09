@@ -19,7 +19,14 @@ import {
   type RedeDeAnuncio,
   type SituacaoDaCampanha,
 } from "@shared/trafego";
-import { ROTULO_DOS_IDS, SITUACOES_DA_CRIACAO, type SituacaoDaCriacao } from "@shared/trafegoCriacao";
+import {
+  ROTULO_DOS_IDS,
+  SITUACOES_DA_CRIACAO,
+  explicarOrcamento,
+  orcamentoNoMeta,
+  type OrcamentoNoMeta,
+  type SituacaoDaCriacao,
+} from "@shared/trafegoCriacao";
 
 interface CampanhaDeTrafego {
   id: string;
@@ -60,7 +67,10 @@ interface CriacaoNoMeta {
   ids?: Record<string, string>;
   restos?: Record<string, string>[];
   erro?: string | null;
+  orcamento?: OrcamentoNoMeta | null;
   tentativas?: number;
+  /** Em "criando" além do prazo: o processo caiu e a plataforma pode retomar. */
+  podeRetomar?: boolean;
   pausa?: "pausada" | "falhou" | null;
   pausaErro?: string | null;
   criadaEm?: string | null;
@@ -963,7 +973,10 @@ function NoMeta({ c, aoMudar }: { c: CampanhaDeTrafego; aoMudar: () => void }) {
   });
   const m = c.meta;
   const restos = (m?.restos ?? []).filter((r) => Object.keys(r).length > 0);
-  const podeCriar = c.status === "ativa" && (!m || m.status === "falhou");
+  const podeCriar = c.status === "ativa" && (!m || m.status === "falhou" || Boolean(m.podeRetomar));
+  // Quanto vai (ou foi) para o Meta e por quê: o gravado na criação, senão a conta de agora (a mesma do servidor).
+  const previa = orcamentoNoMeta(c);
+  const orcamento = m?.orcamento ?? (previa.ok ? previa.orcamento : null);
   return (
     <div className="space-y-1 rounded-md border border-line px-3 py-2 text-xs">
       <div className="flex flex-wrap items-center gap-2">
@@ -971,12 +984,30 @@ function NoMeta({ c, aoMudar }: { c: CampanhaDeTrafego; aoMudar: () => void }) {
         {m ? <Pill status={TOM_DA_CRIACAO[m.status]}>{SITUACOES_DA_CRIACAO[m.status]}</Pill> : <Pill status="closed">Ainda não criada</Pill>}
         {m?.tentativas && m.tentativas > 1 ? <span className="tnum text-muted">{m.tentativas} tentativas</span> : null}
       </div>
+      {orcamento ? (
+        <p className="text-ink-2">
+          {m?.orcamento ? "Mandado ao Meta" : "Vai para o Meta"}: <span className="tnum">{explicarOrcamento(orcamento)}</span>
+        </p>
+      ) : !m && !previa.ok ? (
+        <p className="text-red">{previa.motivo}</p>
+      ) : null}
+      {m?.podeRetomar ? (
+        <p className="text-red">
+          A criação parou no meio (passou do prazo sem sinal de vida). Tentar de novo retoma: se o anúncio já existe, só marca como criada; senão, o que
+          ficou pela metade vai para a lista de apagar e cria de novo.
+        </p>
+      ) : null}
       {m?.status === "criada" ? (
         <p className="text-ink-2">
           Tudo nasceu pausado. Ligue no gerenciador do Meta depois da revisão de política. <span className="tnum">{listaDeIds(m.ids ?? {})}</span>
         </p>
       ) : null}
       {m?.status === "falhou" && m.erro ? <p className="text-red">{m.erro}</p> : null}
+      {m?.podeRetomar && Object.keys(m.ids ?? {}).length ? (
+        <p className="text-ink-2">
+          Anotado até parar (pausado no Meta): <span className="tnum">{listaDeIds(m.ids ?? {})}</span>.
+        </p>
+      ) : null}
       {m?.status === "falhou" && Object.keys(m.ids ?? {}).length ? (
         <p className="text-ink-2">
           Ficou criado pela metade (pausado): <span className="tnum">{listaDeIds(m.ids ?? {})}</span>. Apague no gerenciador do Meta — tentar

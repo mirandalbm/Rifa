@@ -130,14 +130,19 @@ organização grande que já tem conta própria.
   **tudo pausado** — ligar continua sendo no gerenciador do Meta, onde o
   anúncio de rifa passa pela revisão de política. O que vai para o Meta sai
   do banco: o nome com o código `trafego-…` (a importação da fase 2 casa por
-  ele), a verba por dia, o fim quando a verba acaba pela conta, a região do
+  ele), a parte do Meta na verba que sobra (dividida entre as redes da
+  campanha) por dia e o fim quando ela acaba pela conta, a região do
   pedido pela busca de locais do Meta (sem achar, recusa — nunca o Brasil
   todo), maiores de 18, a arte pronta "rifa" 4:5 e o texto dos dados
   públicos (prêmio, preço, data, autorização, "só vale bilhete pago pela
   plataforma"), na régua do texto. Uma criação por campanha e rede (o
-  índice decide); a falha no meio fica anotada para apagar no gerenciador
-  e dá para tentar de novo; encerrar pausa lá. Nasce desligado e só existe
-  com `META_ADS_TOKEN`, `META_AD_ACCOUNT_ID` e `META_PAGE_ID` no servidor.
+  índice decide), cada peça gravada antes da próxima; a falha ou a queda no
+  meio fica anotada para apagar no gerenciador e dá para tentar de novo (ou
+  retomar); antes de criar, a conta precisa estar em BRL e no fuso de São
+  Paulo, e nenhuma campanha com o código pode existir lá (nem gasto do Meta
+  lançado); encerrar pausa lá. Nasce desligado e só existe com
+  `META_ADS_TOKEN`, `META_AD_ACCOUNT_ID` e `META_PAGE_ID` no servidor (e
+  `PUBLIC_BASE_URL` em produção).
   O que ficou valendo está na seção "Tráfego pago" do `CLAUDE.md`.
   **A seguir, na mesma interface (`CriadorDeCampanha` em
   `server/services/trafegoCriacao.ts`):** o **Google Ads** (exige o

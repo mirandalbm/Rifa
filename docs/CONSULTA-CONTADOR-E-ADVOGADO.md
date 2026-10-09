@@ -8,7 +8,7 @@ vira trabalho de código está na seção 4; o que é decisão do dono, na seç�
 
 | Quem | Situação |
 |---|---|
-| Contador | **Respondeu** (09/10/2026). Primeira rodada na seção 2, doação à ONG na seção 7, segunda rodada (Tesouraria) na seção 11; terceira rodada respondida na seção 13; **quarta rodada respondida na seção 15 (muda a posição fiscal do modelo A: revenda)**; quinta, mínima (4 dúvidas), na seção 16; **comentários finais e o parecer conjunto na seção 17**; **respostas a C11–C16 e a minha conferência na seção 18**. |
+| Contador | **Respondeu** (09/10/2026). Primeira rodada na seção 2, doação à ONG na seção 7, segunda rodada (Tesouraria) na seção 11; terceira rodada respondida na seção 13; **quarta rodada respondida na seção 15 (muda a posição fiscal do modelo A: revenda)**; quinta, mínima (4 dúvidas), na seção 16; **comentários finais e o parecer conjunto na seção 17**; **respostas a C11–C16 e a minha conferência na seção 18**; **respostas a C17–C20 e aos pontos que não fechavam na seção 19 (a revenda fica sem a exclusão do ISS)**; **última rodada (C21–C24, que ele não leu) na seção 20: falta só o que depende do parecer e de você**; **normas lidas e crédito como redução de custo na seção 21**. |
 | Regime da plataforma | **Lucro Real** (informado pelo dono em 09/10/2026) — ver a seção 8, que muda a leitura de várias respostas. |
 | Advogado | **Perguntas enviadas, sem resposta ainda.** Perguntas na seção 3; as respostas entram aqui quando chegarem. |
 
@@ -1049,3 +1049,252 @@ anúncios é esse total menos o imposto da rede (como o próprio Meta faz).
   custo do excedente. A trava e a taxa do modelo B seguem o gasto líquido.
 - **Tabela de municípios:** vira parâmetro **cadastrado pelo contador, com
   fonte e data**, nunca constante no código.
+
+## 19. Respostas do contador a C17–C20 e aos pontos que não fechavam (09/10/2026)
+
+O contador reconheceu as imprecisões da seção 18 e respondeu. O que mais pesa:
+**a contradição foi resolvida contra a saída que reduzia o ISS** — veja o item 1.
+
+### O que ele respondeu
+
+- **C17 – Imposto do Meta.** No Lucro Real o crédito de PIS/COFINS é sobre o valor
+  **total** da fatura (9,25% de R$ 60.000 = **R$ 5.550**, não de R$ 52.710). O
+  ISS de 2,9% (R$ 1.740) é **custo sem crédito**, despesa definitiva, que se soma
+  ao nosso ISS sobre a nota. A diferença entre o pago (R$ 60.000) e o saldo de
+  anúncios (R$ 52.710): PIS/COFINS como **crédito a recuperar** (ativo) e ISS como
+  despesa (custo da mídia). Com a posição de **conta alheia** não haveria compra
+  nem crédito: por isso a contradição era insustentável.
+- **C18 – Modelo B.** A base da taxa é o **gasto de mídia sem imposto**, o que o
+  Ads Manager mostra; os impostos que o cliente paga à rede não entram na base,
+  porque a plataforma não os movimenta.
+- **C19 – Cadastro.** Gestão de tráfego pago é **17.06**; se também intermediar
+  entre anunciante e veículo, pode caber o **10.08**. O ISS é devido no município
+  do **estabelecimento prestador**. O artigo da lei municipal depende do município
+  da sede (em São Paulo, art. 47-A do Decreto 58.175/2018): **ele precisa saber o
+  município**.
+- **C20 – Crédito sobre mídia.** O fundamento é o conceito de insumo do STJ
+  (**REsp 1.221.170/PR**, essencialidade e relevância). Citou a **SC Cosit nº 32,
+  de 18/03/2021** (gastos com publicidade não eram insumo para aquela
+  contribuinte). Não há solução de consulta específica sobre mídia de anúncio
+  para plataforma de gestão de tráfego; o argumento é caso a caso.
+- **Pendências antigas.** SC 6.006: apontou de novo só a página de busca; Acórdão
+  de Recife: o Diário Oficial do Município; municípios: a planilha de alíquotas
+  dos 5.571 municípios do **Portal Nacional da NFS-e**, com a regra de retenção a
+  consultar por município e a tabela do sistema alimentada com ela.
+
+### Os cinco pontos da seção 18, fechados
+
+1. **Conta própria × conta alheia.** Ele concorda: a mesma operação não pode ser
+   própria no federal e de terceiro no municipal. Como a campanha está na conta
+   da plataforma e o Meta fatura a plataforma, é **revenda**, e a plataforma **não
+   é mera intermediadora**: **a exclusão do § 2º do art. 47-A não se aplica**. Em
+   São Paulo o ISS incide sobre **mídia + taxa**.
+2. **Fee efetivo.** A tabela dele só tinha ISS; a simulação com PIS/COFINS e
+   IRPJ/CSLL entra no **parecer conjunto**.
+3. **Mídia não consumida.** Adiantamento de cliente (passivo), **sem nota**; a nota
+   sai só na prestação (veiculação).
+4. **Reserva de 10%.** Entendida: margem de proteção da trava, saldo do cliente,
+   passivo, **nem receita nem despesa**; não afeta a competência (a receita da taxa
+   segue o gasto da mídia).
+5. **Item de serviço e município.** Depende de você me dizer (ver a lista abaixo).
+
+### A minha conferência
+
+| Ponto | Resultado |
+|---|---|
+| Crédito de PIS/COFINS de R$ 5.550 sobre o total | **Bate** com a minha simulação da seção 18 (crédito de 9,25% sobre o total da fatura). O custo líquido de cada R$ 100 de gasto é R$ 103,30 depois do crédito. |
+| Contabilização ("o custo para a DRE é R$ 60.000" e "o crédito reduz o custo") | **Duas frases que não combinam.** Com o crédito de R$ 5.550 a recuperar, o custo da mídia na DRE é R$ 54.450 (R$ 52.710 consumidos + R$ 1.740 de ISS), não R$ 60.000. Pedir a ele a frase certa no parecer. |
+| "PIS/COFINS e ISS cobrados **por fora**" (C18) | **Contradiz o checkout do dono**: no "Add funds" o imposto está **dentro** dos R$ 60.000. A conclusão (base da taxa = gasto líquido) não muda, mas a frase está errada ou vale para outra forma de pagamento (cartão ou fatura). |
+| REsp 1.221.170/PR | **Confere**: é o julgamento do STJ que fixou o critério de essencialidade e relevância. |
+| SC Cosit 32/2021 | **Existe** (aparece citada como vinculante em soluções posteriores) e **nega** crédito de publicidade para o caso dela, que trata de um prestador de limpeza de móveis. **Não conferi o texto oficial.** Ela é contra a tese, não a favor. |
+| O que ele **não citou** e pesa mais | A **SC Cosit 8/2024** (parcialmente vinculada à 32/2021): para o **prestador de serviços de publicidade**, o crédito é admitido sobre a **subcontratação de terceiros** para prestar o serviço, com requisitos, e negado para veiculação em rádio, TV, jornal e revista. Mídia digital do Meta cabe melhor aqui. Também o **Parecer Normativo Cosit 5/2018**, que diz que **na revenda de bens não há insumo**, só crédito sobre o bem adquirido para revenda. **Risco**: o fisco chamar a operação de "revenda de mídia". Mídia é serviço, não bem, mas a classificação é para o parecer. **Só encontrei fontes secundárias**: o texto oficial das duas fica para ele. |
+| Planilha de alíquotas dos 5.571 municípios no Portal Nacional da NFS-e | **Não conferi.** É alíquota, não regra de retenção. |
+| SC 6.006 e Acórdão de Recife | Ele não deu o texto oficial nem o link direto. Pendência de baixa prioridade. |
+
+### O que isto muda
+
+- **O modelo A fica sem a saída do ISS.** Com revenda confirmada e o § 2º
+  afastado, o ISS incide sobre mídia + taxa. A minha simulação da seção 18
+  (≈ −R$ 0,40 por R$ 100 de mídia com ISS de 5%) passa a ser o **cenário base**
+  de São Paulo. Com ISS de 2% sobra cerca de **+R$ 3,20**. **O modelo A só fecha
+  com preço novo** (as opções (a), (b) e (c) da seção 18) **ou migrando para o
+  modelo B**, onde o ISS é só sobre a taxa e os 20% fazem sentido.
+- **O crédito de PIS/COFINS é parte do preço do modelo A**: sem ele (se o fisco
+  negar), a conta piora em R$ 10,53 por R$ 100 de mídia. O parecer precisa dizer
+  qual a segurança jurídica do crédito (SC Cosit 8/2024, REsp 1.221.170).
+- **Modelo B**: base da taxa = gasto líquido que a API entrega. Nada a mudar no
+  que está planejado.
+- **Código**: nada muda agora. Os parâmetros do planejamento ficam: posição fiscal
+  (revenda ou repasse, por competência), imposto da rede retido do pagamento
+  (12,15%) e a **tabela de municípios** (alíquota e retenção, com fonte e data,
+  alimentada pelo contador).
+
+### Perguntas que sobram ao contador
+
+- **C21.** O que o contador quis dizer com "por fora" (C18), se no checkout o
+  imposto está dentro do total pago? Vale para cartão e fatura?
+- **C22.** A SC Cosit 8/2024 (e a 32/2021 de que depende) sustenta o crédito de
+  PIS/COFINS sobre a fatura do Meta na revenda? E o risco do Parecer Normativo
+  Cosit 5/2018 ("revenda não gera insumo")? Pedir o número e o link oficiais.
+- **C23.** A frase certa da DRE: custo da mídia de R$ 54.450 (com o crédito) ou
+  R$ 60.000?
+- **C24.** Na revenda, qual taxa mantém a margem-alvo em cada município (2%, 3%,
+  5% de ISS), com PIS/COFINS líquido e IRPJ/CSLL: **a simulação do parecer**.
+- **Ao advogado:** o item 11 (termos das redes) passa a ser o mais urgente,
+  porque a revenda é a posição confirmada.
+
+### O que ainda é seu
+
+- Dizer **o município da sede** e **o item de serviço do cadastro**: sem isso o
+  contador não busca a lei.
+- Decidir entre reprecificar o modelo A (opções (a), (b) ou (c)) ou priorizar o
+  modelo B.
+
+## 20. Última rodada do contador: o que ficou resolvido e o que depende do parecer (09/10/2026)
+
+O contador respondeu de novo, mas **não leu o texto das minhas C21 a C24**: ele
+escreveu que não as recebeu e "deduziu" as perguntas. As numerações dele não
+são as nossas; abaixo vai o casamento, pergunta por pergunta.
+
+### O que ele corrigiu
+
+1. **"Por fora" × "por dentro."** Reconhece que estava errado: os R$ 7.290 de
+   imposto já estão **dentro** dos R$ 60.000 do checkout do Meta. A conclusão (o
+   crédito é sobre o valor total da fatura) fica; a premissa estava errada.
+2. **Custo da mídia na DRE.** **Bruto R$ 60.000; líquido R$ 54.450** (depois do
+   crédito de PIS/COFINS de R$ 5.550). Fecha a frase que não combinava.
+3. **SC Cosit 32/2021** é contra a tese (prestador de limpeza); o que sustenta é a
+   **SC Cosit 8/2024**.
+4. **Parecer Normativo Cosit 5/2018**: o risco existe — o fisco pode chamar a
+   operação de **revenda de mídia** e negar o crédito (o parecer diz que na
+   revenda de bens não há insumo, só crédito sobre o bem comprado para revenda). A
+   defesa dele: a mídia é **meio** da prestação do serviço de gestão, não o fim.
+   Recomenda **manter o crédito, provisionar o risco e documentar a
+   essencialidade**, e levar o ponto ao parecer conjunto.
+
+### Casamento com as minhas perguntas
+
+| Minha pergunta | Situação |
+|---|---|
+| **C21** (o "por fora") | **Respondida** (item 1 acima). |
+| **C22** (SC 8/2024 e o risco do PN 5/2018) | **Respondida com risco** (item 4): manter o crédito, provisionar. |
+| **C23** (frase da DRE) | **Respondida** (item 2): bruto R$ 60.000, líquido R$ 54.450. |
+| **C24** (taxa que mantém a margem em cada município, com PIS/COFINS líquido e IRPJ/CSLL) | **Não respondida.** Fica para o **parecer conjunto**. |
+| Município da sede e item de serviço (C19) | **Esperando você.** Ele repete que precisa saber o município. |
+
+As respostas que ele rotulou "C23" (reserva de 10%) e "C24" (modelo B: base da
+taxa sem imposto) **repetem o que já estava fechado** na seção 19.
+
+### O que eu conferi
+
+- **A SC Cosit 8/2024 e o PN 5/2018 voltaram "da boca" dele, mas vieram de mim**:
+  ele escreveu "a SC 8/2024, que você citou". Eu só tinha **fontes secundárias**
+  (seção 19). **O parecer não pode se apoiar numa norma que nenhum dos dois leu
+  no texto oficial**: pedir a ele que abra a SC 8/2024, a 32/2021 e os itens do
+  PN 5/2018 que cita ("itens 40 a 44", que não conferi) e confirme o que dizem.
+- **"Receita financeira (ou redução de custo)."** Ele chama o crédito de
+  PIS/COFINS de uma coisa **ou** da outra. Não são equivalentes (uma entra na
+  receita e muda a base; a outra reduz o custo). Para a DRE do parecer ele
+  precisa **escolher e dizer o fundamento**.
+- **As "pendências antigas" voltaram iguais**: SC 6.006 e Acórdão de Recife
+  seguem só com a página de busca e o Diário Oficial, sem o texto; a planilha de
+  alíquotas do Portal Nacional da NFS-e não foi conferida por mim e **é só
+  alíquota, não regra de retenção**. Nada mudou; ficam de baixa prioridade.
+- **Item 11 (termos das redes)**: ele concorda que é o mais urgente e que pode
+  **inviabilizar o modelo A** para certas categorias. É assunto do advogado.
+
+### Onde estamos
+
+O contador **não tem mais dúvida pendente do lado dele** além do que o parecer
+conjunto vai responder (simulação por município, segurança do crédito, preço da
+taxa) e do que **só você** sabe (município da sede e item de serviço). O que
+destrava o planejamento:
+
+1. **Você**: município, item de serviço e a decisão entre **reprecificar o
+   modelo A** ou **priorizar o modelo B**.
+2. **O advogado**: itens 1 a 14 (em especial o 11, os termos das redes na revenda
+   e em jogo de azar).
+3. **O parecer conjunto**, com a simulação completa e o preço da taxa por cenário.
+
+## 21. O contador diz ter lido as normas no texto oficial (09/10/2026)
+
+Ele aceitou a cobrança (norma de fonte secundária não entra em parecer) e
+respondeu com a análise de cada norma, os links e a posição sobre o crédito.
+
+### O que ele disse
+
+- **SC Cosit 8/2024** (DOU 05/03/2024): nega crédito de PIS/COFINS para (a) a
+  publicidade das próprias atividades, (b) rádio, TV, jornal e revista (excluídos
+  da base) e (c) a compra do direito de comercializar espaço publicitário para
+  ceder a terceiros; **admite** o crédito das despesas de **subcontratação de
+  terceiros** para prestar serviço de publicidade, na modalidade aquisição de
+  insumos. Meta, Google e TikTok seriam os terceiros subcontratados: **é o melhor
+  fundamento que há**.
+- **SC Cosit 32/2021** (DOU 25/03/2021): contra a tese, mas de caso diferente
+  (empresa de limpeza de bens móveis, publicidade como despesa de marketing,
+  atividade-meio). Aqui a publicidade é a atividade-fim.
+- **Parecer Normativo Cosit 5/2018** (itens 40 a 44): na revenda de bens não há
+  insumo, só crédito sobre o bem adquirido para revenda (art. 3º, I, das Leis
+  10.637/2002 e 10.833/2003). **O risco** é o fisco enquadrar a operação como
+  "revenda de mídia". A defesa: a atividade é prestação de serviço de publicidade
+  (17.06), com a mídia como insumo essencial, lido o parecer em conjunto com o
+  critério da essencialidade. Cita ainda os acórdãos do CARF **3402-003.989** e
+  **9303-012.426**.
+- **SC 6.006/2019**: o texto da ementa citado agora é o integral e **dá o link
+  direto** (`normas.receita.fazenda.gov.br/…/anexoOutros.action?idArquivoBinario=51537`).
+  Conclusão dele: no modelo A a campanha está no nome da plataforma, é **conta
+  própria**, e a tese de repasse não se sustenta.
+- **Acórdão 012/25 de Recife**: confirma que a fiscalização pode exigir o ISS pela
+  **competência contábil** (receita apropriada), não só pela data da NFS-e;
+  reforça alinhar a emissão da NFS-e à competência.
+- **Crédito de PIS/COFINS**: **não é receita financeira**. É crédito a recuperar
+  (ativo) com a **redução do custo** como contrapartida: a fatura do Meta entra
+  no custo por R$ 60.000 e o crédito de R$ 5.550 o reduz. **O custo da mídia na
+  DRE é o líquido, R$ 54.450.** (Fecha o ponto aberto na seção 20.)
+- **Municípios**: vai compilar uma tabela inicial (SP, RJ, BH, Curitiba, Porto
+  Alegre, Florianópolis, Brasília, Londrina) com alíquota usual e a fonte (lei
+  municipal), revista de tempos em tempos; o sistema deve permitir a marcação
+  manual por organização, validada contra essa tabela.
+- **Parecer conjunto**: cinco itens (posição do modelo A com o art. 208, III do
+  RIR/2018 e a SC 6.006; simulações com ISS, PIS/COFINS e IRPJ/CSLL; preço da taxa
+  por cenário; riscos das redes; estratégia de defesa do crédito diante do PN
+  5/2018). Só começa quando você disser o **município da sede** e o advogado
+  concordar com a estrutura.
+
+### O que eu consegui conferir
+
+- **Nada disto eu abri.** Tentei os dois links dele (a SC 6.006 e o acórdão de
+  Recife) e **os dois endereços não abrem do meu ambiente** (sem rede para esses
+  sites). Os textos, as datas do DOU e os itens 40 a 44 do PN 5/2018 seguem
+  **como ele os descreve**, não como eu os li. Os dois acórdãos do CARF vêm
+  **sem link**: não conferi nem a existência.
+- **O que bate com o que eu já tinha**: a ementa da SC 6.006 agora citada **bate**
+  com a que eu havia achado em sites de terceiros (conta alheia: só o resultado é
+  receita; conta própria: o valor cobrado entra inteiro), e a SC 8/2024 segue o
+  que apareceu nas buscas (admite crédito na subcontratação de terceiros).
+- **A SC 6.006 é do Simples Nacional.** A plataforma é Lucro Real, e o parecer o
+  cita ao lado do art. 208, III do RIR/2018. Vale pela **analogia** da distinção
+  conta própria × conta alheia, não como regra do Lucro Real: o parecer precisa
+  dizer isso com todas as letras.
+- **A palavra "revenda" é o gatilho do risco.** O PN 5/2018 nega insumo à
+  **revenda de bens**; a SC 8/2024 admite crédito na **subcontratação para prestar
+  serviço de publicidade**. A operação do modelo A é **conta própria** (a
+  plataforma contrata o Meta e responde por ele), e isso **não é** revenda de
+  bens: é prestação de serviço com mídia subcontratada. Se o contrato, a nota e a
+  documentação disserem "revenda de mídia", o fisco recebe o enquadramento de
+  graça. **Minha leitura, a confirmar com ele e com o advogado**: o parecer deve
+  fixar o nome da operação (por exemplo, "prestação de serviço de publicidade com
+  fornecimento de mídia por subcontratação, em conta própria") e o contrato e a
+  NFS-e usarem o mesmo.
+- **Este documento e o código também dizem "revenda"** (seções 15 a 20 e o
+  `docs/PLANO-TRAFEGO-PAGO.md`): é termo de trabalho nosso, **não** o que vai ao
+  contrato; ajustar quando o parecer fixar o nome.
+
+### Onde estamos
+
+Contador sem dúvida pendente do lado dele. **Falta para o parecer sair**:
+1. **Você**: município da sede e item de serviço (17.06 ou 10.08).
+2. **O advogado**: concordar com a estrutura do parecer e responder os itens 1 a 14
+   (em especial o 11, os termos das redes).
+3. **O contador**: anexar ao parecer **cópia dos trechos oficiais** que cita (SC
+   8/2024, itens 40 a 44 do PN 5/2018, a SC 6.006) e os dois acórdãos do CARF.

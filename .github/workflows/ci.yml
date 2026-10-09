@@ -40,7 +40,9 @@ jobs:
     timeout-minutes: 30
     services:
       postgres:
-        image: postgres:16
+        # Espelho oficial do Docker na AWS: o Docker Hub barra o pull sem login
+        # ("toomanyrequests") e derrubava este job antes de qualquer teste.
+        image: public.ecr.aws/docker/library/postgres:16
         env:
           POSTGRES_USER: rifa
           POSTGRES_PASSWORD: rifa

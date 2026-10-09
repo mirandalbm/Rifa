@@ -2352,6 +2352,50 @@ export const trafegoGastos = pgTable(
 );
 
 /**
+ * Fase 3: a campanha aprovada criada na rede pela API (hoje, só o Meta), pela
+ * plataforma, tudo PAUSADO. Uma linha por campanha e rede — o índice decide:
+ * o `INSERT … ON CONFLICT DO NOTHING` em `criando` vem antes de chamar a rede,
+ * e quem não entrou recebe 409. Falhou, volta a `criando` por um `UPDATE`
+ * condicional; o que a rede criou pela metade fica em `restos` para a
+ * plataforma apagar no gerenciador. Nunca guarda token nem resposta crua.
+ */
+export const trafegoCriacoes = pgTable(
+  "trafego_criacoes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    campanhaId: uuid("campanha_id")
+      .notNull()
+      .references(() => trafegoCampanhas.id, { onDelete: "cascade" }),
+    rede: text("rede").notNull(),
+    /** criando | criada | falhou */
+    status: text("status").notNull().default("criando"),
+    /** Os ids na rede (campanha, conjunto, criativo, anúncio, imagem) — os da tentativa atual. */
+    ids: jsonb("ids").$type<Record<string, string>>().notNull().default({}),
+    /**
+     * O que tentativas que falharam (ou perderam a linha) deixaram criado na
+     * rede, pausado, para apagar no gerenciador: a lista achatada de peças
+     * (`{ tipo, id }`), um id uma vez só e nunca um id da criação viva.
+     */
+    restos: jsonb("restos").$type<import("./trafegoCriacao").Resto[]>().notNull().default([]),
+    /** O motivo da falha em português, sem token nem resposta crua da rede. */
+    erro: text("erro"),
+    /** O orçamento mandado ao Meta (`orcamentoNoMeta()`): a parte da verba que sobra, por dia e no total. */
+    orcamento: jsonb("orcamento").$type<import("./trafegoCriacao").OrcamentoNoMeta>(),
+    tentativas: integer("tentativas").notNull().default(1),
+    /** Pausar na rede ao encerrar: nulo (não pediu), `pausada` ou `falhou`. */
+    pausa: text("pausa"),
+    pausaErro: text("pausa_erro"),
+    pausadaEm: timestamp("pausada_em"),
+    criadoPor: uuid("criado_por").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    /** O sinal de vida da criação (o prazo compara com `now() AT TIME ZONE 'UTC'`); toda escrita usa o mesmo padrão. */
+    atualizadoEm: timestamp("atualizado_em").notNull().default(sql`(now() AT TIME ZONE 'UTC')`),
+    criadaEm: timestamp("criada_em"),
+  },
+  (t) => [uniqueIndex("uq_trafego_criacao_por_rede").on(t.campanhaId, t.rede)],
+);
+
+/**
  * Stories do organizador: uma imagem 9:16 que entra no ar em `publica_em`
  * (na hora ou agendado) e some 24 h depois (`expira_em`).
  * Aparece para quem segue, no topo da vitrine, e acende o anel da foto no

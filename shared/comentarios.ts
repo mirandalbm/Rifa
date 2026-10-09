@@ -18,6 +18,11 @@ const LINK = /(https?:\/\/|www\.|\b[a-z0-9-]+\.(com|net|org|br|io|me|app|link|si
 /** 8 dígitos ou mais, com ou sem separadores: telefone, conta, chave. */
 const MUITOS_DIGITOS = /(\d[\s.()-]*){8,}/;
 
+/** Só o link (a mesma régua de `temLinkOuTelefone`), para quem confere link e número separados. */
+export function temLink(t: string): boolean {
+  return LINK.test(t);
+}
+
 /** Link ou telefone no texto — a régua do comentário e da legenda da publicação. */
 export function temLinkOuTelefone(t: string): string | null {
   if (LINK.test(t)) return "Não pode ter link — é assim que golpista tenta levar gente para fora da rifa.";

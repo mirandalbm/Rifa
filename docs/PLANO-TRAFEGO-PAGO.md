@@ -2,7 +2,8 @@
 
 Rascunho de 09/10/2026. **Decidido**: modelo A (seção 2). **No código**: o
 menu Marketing (Tráfego pago, Marketing AI, Publicidade da plataforma em
-abas, Medição e campanhas), a fase 1 do Tráfego pago (seção 5) e o
+abas, Medição e campanhas), as fases 1 e 2 do Tráfego pago e a primeira
+parte da 3 — a campanha criada no Meta pela API, pausada (seção 5) — e o
 Marketing AI (plano de divulgação, textos de anúncio e leitura dos
 resultados). A ideia: a plataforma anuncia as rifas das organizações no Google,
 no Meta (Facebook e Instagram) e no TikTok, mede o que cada anúncio vendeu e
@@ -122,8 +123,36 @@ organização grande que já tem conta própria.
   excedente. O que ficou valendo está na seção "Tráfego pago" do
   `CLAUDE.md`. As APIs oficiais (Google Ads com *developer token*, Meta com
   app verificado) ficam como alternativa, se um dia o Windsor sair.
-- **Fase 3 — criar a campanha pela API:** o pedido aprovado vira campanha
-  sozinho, com o criativo das artes prontas e do reels gerado.
+- **Fase 3 — criar a campanha pela API.** **Primeira parte feita
+  (09/10/2026): o Meta (Facebook e Instagram), pela Marketing API.** Na
+  campanha no ar que pediu o Meta, a plataforma toca "Criar no Meta" (nunca
+  sozinho na aprovação) e o sistema cria campanha, conjunto e anúncio,
+  **tudo pausado** — ligar continua sendo no gerenciador do Meta, onde o
+  anúncio de rifa passa pela revisão de política. O que vai para o Meta sai
+  do banco: o nome com o código `trafego-…` (a importação da fase 2 casa por
+  ele), a parte do Meta na verba que sobra (dividida entre as redes da
+  campanha) como orçamento total do conjunto, com o fim quando ela acaba
+  pela conta (o teto rígido), a região do
+  pedido pela busca de locais do Meta (sem achar, recusa — nunca o Brasil
+  todo), maiores de 18, a arte pronta "rifa" 4:5 e o texto dos dados
+  públicos (prêmio, preço, data, autorização, "só vale bilhete pago pela
+  plataforma"), na régua do texto. Uma criação por campanha e rede (o
+  índice decide), cada peça gravada antes da próxima; a falha ou a queda no
+  meio fica anotada para apagar no gerenciador e dá para tentar de novo (ou
+  retomar); antes de criar, a conta precisa estar em BRL e no fuso de São
+  Paulo, e nenhuma campanha com o código pode existir lá (nem gasto do Meta
+  lançado); encerrar pausa lá. Nasce desligado e só existe com
+  `META_ADS_TOKEN`, `META_AD_ACCOUNT_ID` e `META_PAGE_ID` no servidor (e
+  `PUBLIC_BASE_URL` em produção).
+  O que ficou valendo está na seção "Tráfego pago" do `CLAUDE.md`.
+  **A seguir, na mesma interface (`CriadorDeCampanha` em
+  `server/services/trafegoCriacao.ts`):** o **Google Ads** (exige o
+  *developer token* aprovado pelo Google, a conta de administrador (MCC) e
+  o OAuth da conta de anúncios; a campanha de pesquisa precisa de palavras
+  e anúncio de texto, não de imagem) e o **TikTok** (exige o app aprovado no
+  TikTok for Business, com o acesso à conta de anúncios, e o vídeo — o
+  reels gerado da fase F é o candidato). Depois, o criativo do reels gerado
+  no Meta também.
 
 ## 6. O que fazer fora do código antes de anunciar
 

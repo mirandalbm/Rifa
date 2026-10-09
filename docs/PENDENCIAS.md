@@ -671,8 +671,51 @@ Na ordem de entrega do plano:
   pôr a `WINDSOR_API_KEY` nos segredos do Railway (sem ela, segue o
   lançamento à mão), deixar as contas de anúncio em reais e no fuso de São
   Paulo, e nomear cada campanha nas redes com o código `trafego-…` que a
-  tela mostra. **Falta no código**: a fase 3 (criar a
-  campanha pela API). **Feito também
+  tela mostra. **Feito também (fase 3, primeira parte, 09/10/2026)**: a
+  campanha no ar criada no Meta (Facebook e Instagram) pela Marketing API,
+  pelo botão "Criar no Meta" da plataforma — campanha, conjunto e anúncio
+  **pausados** (ligar é no gerenciador do Meta, depois da revisão de
+  política), com a arte pronta da rifa, o texto dos dados públicos, a verba
+  por dia, o fim pela verba, a região do pedido e maiores de 18; encerrar
+  pausa lá. Nasce desligado ("Criar campanhas no Meta pela API" em Taxa e
+  mínimos). **Falta no ambiente**: o `db:push` da tabela `trafego_criacoes`
+  **antes** do código. **[você] No Meta**: no Business Manager da
+  plataforma, criar um **usuário do sistema** (Configurações do negócio →
+  Usuários → Usuários do sistema) com acesso de administrador à **conta de
+  anúncios** e à **página** que vai assinar os anúncios, gerar o token dele
+  com a permissão `ads_management` (e `pages_read_engagement`, que o Meta
+  pede para o anúncio da página) e pôr no Railway as três variáveis:
+  `META_ADS_TOKEN` (o token), `META_AD_ACCOUNT_ID` (`act_` + o número da
+  conta) e `META_PAGE_ID` (o número da página), e conferir que a
+  **`PUBLIC_BASE_URL`** está no Railway **com `https://`** (em produção,
+  sem ela — ou com `http://` — o botão não cria: é o endereço do link do
+  anúncio). A conta de anúncios **em reais
+  (BRL) e no fuso `America/Sao_Paulo`** — o sistema lê os dois no Meta antes
+  de criar e recusa a conta fora disso (a moeda e o fuso de uma conta de
+  anúncios não mudam depois de criada: se estiver errada, é outra conta).
+  Com a campanha montada à mão no Meta (o código `trafego-…` no nome) ou
+  com gasto do Meta já lançado, o botão recusa — é a mesma campanha. O
+  conjunto vai com **orçamento total** (`lifetime_budget` = diário × dias,
+  com a data de fim): o teto rígido do que o Meta gasta, a parte do Meta na
+  verba que sobra (dividida entre as redes da campanha), nunca o orçamento
+  diário (que o Meta pode passar num dia). O mínimo de R$ 6,00 por dia na
+  média é **palpite** — não achamos o mínimo oficial do Meta em reais;
+  confira no gerenciador com o primeiro anúncio (o Meta tem a consulta
+  `act_…/minimum_budgets` para isso) e ajuste `DIARIO_MIN_DO_META_CENTS`
+  se for outro. O número da autorização da rifa entra no texto do anúncio:
+  só o número no formato oficial do SCPC (`NN.NNNNNN/AAAA`, com ou sem os
+  pontos, ex.: `03.012345/2026`) fica fora da régua do telefone; qualquer
+  outro número longo ou telefone nele recusa a criação. A autorização e o
+  prêmio travam ao publicar: recusada, essa campanha se monta à mão no
+  gerenciador do Meta. O
+  conjunto vale até a data de fim (os dias do orçamento mais 1 hora) e
+  nasce pausado: ligue logo, porque o tempo até ligar encurta a janela.
+  Conferir com o primeiro
+  anúncio de verdade, ainda pausado, se o Meta aceitou os campos (a prova
+  usa um Meta de mentira: a API real nunca foi chamada daqui). **Falta no
+  código**: a fase 3 no Google Ads (exige o *developer token* aprovado) e
+  no TikTok (exige o app aprovado no TikTok for Business), pela mesma
+  interface (`CriadorDeCampanha`). **Feito também
   (09/10/2026)**: o Marketing AI — o plano de divulgação e a leitura dos
   resultados (dos dados, sem IA) e os textos de anúncio (pelo assistente, na
   régua). **[você] Antes de ligar**: as respostas do contador (faturamento da

@@ -56,6 +56,11 @@ export interface ConfigTrafegoPago {
   verbaDiaMinCents: number;
   /** As redes que a plataforma oferece (as que aceitam rifa e têm conta pronta). */
   redes: RedeDeAnuncio[];
+  /**
+   * Fase 3: a plataforma pode criar a campanha aprovada na rede pela API (hoje,
+   * só o Meta), tudo pausado. Só vale com as variáveis da rede no servidor.
+   */
+  criarPelaApi: boolean;
 }
 
 export const CONFIG_TRAFEGO_PADRAO: ConfigTrafegoPago = {
@@ -64,6 +69,7 @@ export const CONFIG_TRAFEGO_PADRAO: ConfigTrafegoPago = {
   investimentoMinCents: 30_000,
   verbaDiaMinCents: 2_000,
   redes: [],
+  criarPelaApi: false,
 };
 
 /** Teto de uma campanha (R$ 100 mil): erro de digitação não vira reserva gigante. */
@@ -107,6 +113,7 @@ export function validarConfigTrafego(bruto: unknown): ConfigTrafegoPago {
     investimentoMinCents,
     verbaDiaMinCents,
     redes,
+    criarPelaApi: b.criarPelaApi === true,
   };
 }
 

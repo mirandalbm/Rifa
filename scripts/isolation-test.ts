@@ -646,6 +646,8 @@ async function rotasDaPlataforma(eu: Lado) {
     ["PUT configuração do tráfego pago", "/api/admin/trafego/config", { method: "PUT", body: '{"ligado":true,"redes":["google"]}' }],
     ["POST decisão de campanha de tráfego", "/api/admin/trafego/campanhas/00000000-0000-4000-8000-000000000000/decisao", { method: "POST", body: '{"aprovar":true}' }],
     ["POST fechar a conta de campanha de tráfego", "/api/admin/trafego/campanhas/00000000-0000-4000-8000-000000000000/fechar", { method: "POST" }],
+    ["POST criar no Meta a campanha de tráfego", "/api/admin/trafego/campanhas/00000000-0000-4000-8000-000000000000/meta", { method: "POST" }],
+    ["POST largar a criação no Meta da campanha de tráfego", "/api/admin/trafego/campanhas/00000000-0000-4000-8000-000000000000/meta/largar", { method: "POST" }],
     ["POST gasto de campanha de tráfego", "/api/admin/trafego/campanhas/00000000-0000-4000-8000-000000000000/gastos", { method: "POST", body: '{"dia":"2026-10-01","rede":"google","gastoCents":100}' }],
     ["GET situação da importação do gasto do tráfego", "/api/admin/trafego/importacao", {}],
     ["POST importar o gasto do tráfego", "/api/admin/trafego/importacao", { method: "POST" }],

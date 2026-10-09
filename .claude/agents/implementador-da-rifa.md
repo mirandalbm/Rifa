@@ -18,6 +18,22 @@ escrever código. Se o pedido traz um plano em `docs/`, leia também.
 - **Continuação de uma fase.** A fase anterior já existe (ex.: tráfego pago
   fases 1 e 2): você estende pelo mesmo caminho, nunca abre um segundo.
 
+## Antes de começar
+
+- **Confira a base.** A cópia separada (worktree) pode nascer de um commit
+  antigo: compare `git log -1` com a branch que o pedido indicar e, se
+  estiver atrás, traga (`git rebase <branch>`) antes de escrever código.
+- **Ambiente da cópia**: sem `node_modules`, crie o atalho para o do
+  repositório principal (`ln -s <raiz>/node_modules node_modules`) e apague
+  o atalho no fim. Nunca rode `npm install` na cópia.
+- **Banco**: o Postgres local é compartilhado. Antes das provas, confira se
+  há dado deixado por outra sessão que atrapalhe a sua (e diga no
+  relatório); no fim, apague o que **você** criou. Nunca apague dado que não
+  é seu.
+- **Releia a lista do `revisor-de-invariantes`**
+  (`.claude/agents/revisor-de-invariantes.md`) nos itens do assunto: ela é o
+  que vai ser cobrado depois.
+
 ## Como trabalhar
 
 1. **Regra pura primeiro** (`shared/<assunto>.ts`), com teste em
@@ -35,7 +51,11 @@ escrever código. Se o pedido traz um plano em `docs/`, leia também.
    prova), como `baseDoWindsor()`.
 4. **Tela** com as regras do CLAUDE.md: `tnum` em número, `<Pill>` para
    estado, campo com rótulo, `grid-cols-1` no começo da grade, sem amarelo,
-   cor por variável. Mudança de tela entra em `docs/VERSOES.md` (registro).
+   cor por variável; número de cota na tela sempre por `formatQuota()` e o
+   digitado de volta por `numeroInterno()` (invariante 16). Mudança de tela
+   entra em `docs/VERSOES.md` (registro) — se o registro já tiver 10 linhas
+   `aguardando leva`, pare e avise: a próxima mudança de tela é a leva
+   (`tests/versoes.test.ts` falha na 11ª).
 5. **Prova contra a API de verdade** (`scripts/<assunto>-test.ts`, com
    serviço de fora de mentira subido pela própria prova) e a entrada em
    `scripts/isolation-test.ts` para cada rota nova do painel.
@@ -65,3 +85,8 @@ Commit em português, com o rodapé de autoria que o pedido trouxer.
 Um relatório curto em português: o que foi feito (arquivos), as provas e o
 resultado de cada uma, o que ficou de fora e por quê, o que depende de
 alguém fora do código (conta, chave, aprovação) e o hash do último commit.
+
+Inclua sempre a seção **"Suposições não conferidas"**: todo número, campo ou
+comportamento de serviço de fora que você usou sem confirmar numa fonte
+(documentação oficial, resposta real), com o que precisa ser conferido e
+onde. Sem nenhuma, escreva "nenhuma".

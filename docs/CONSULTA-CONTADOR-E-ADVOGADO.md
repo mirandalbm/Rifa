@@ -8,7 +8,7 @@ vira trabalho de código está na seção 4; o que é decisão do dono, na seç�
 
 | Quem | Situação |
 |---|---|
-| Contador | **Respondeu** (09/10/2026). Primeira rodada na seção 2, doação à ONG na seção 7, segunda rodada (Tesouraria) na seção 11; terceira rodada respondida na seção 13; **quarta rodada respondida na seção 15 (muda a posição fiscal do modelo A: revenda)**; quinta, mínima (4 dúvidas), na seção 16; **comentários finais e o parecer conjunto na seção 17**; **respostas a C11–C16 e a minha conferência na seção 18**; **respostas a C17–C20 e aos pontos que não fechavam na seção 19 (a revenda fica sem a exclusão do ISS)**; **última rodada (C21–C24, que ele não leu) na seção 20: falta só o que depende do parecer e de você**. |
+| Contador | **Respondeu** (09/10/2026). Primeira rodada na seção 2, doação à ONG na seção 7, segunda rodada (Tesouraria) na seção 11; terceira rodada respondida na seção 13; **quarta rodada respondida na seção 15 (muda a posição fiscal do modelo A: revenda)**; quinta, mínima (4 dúvidas), na seção 16; **comentários finais e o parecer conjunto na seção 17**; **respostas a C11–C16 e a minha conferência na seção 18**; **respostas a C17–C20 e aos pontos que não fechavam na seção 19 (a revenda fica sem a exclusão do ISS)**; **última rodada (C21–C24, que ele não leu) na seção 20: falta só o que depende do parecer e de você**; **normas lidas e crédito como redução de custo na seção 21**. |
 | Regime da plataforma | **Lucro Real** (informado pelo dono em 09/10/2026) — ver a seção 8, que muda a leitura de várias respostas. |
 | Advogado | **Perguntas enviadas, sem resposta ainda.** Perguntas na seção 3; as respostas entram aqui quando chegarem. |
 
@@ -1215,3 +1215,86 @@ destrava o planejamento:
 2. **O advogado**: itens 1 a 14 (em especial o 11, os termos das redes na revenda
    e em jogo de azar).
 3. **O parecer conjunto**, com a simulação completa e o preço da taxa por cenário.
+
+## 21. O contador diz ter lido as normas no texto oficial (09/10/2026)
+
+Ele aceitou a cobrança (norma de fonte secundária não entra em parecer) e
+respondeu com a análise de cada norma, os links e a posição sobre o crédito.
+
+### O que ele disse
+
+- **SC Cosit 8/2024** (DOU 05/03/2024): nega crédito de PIS/COFINS para (a) a
+  publicidade das próprias atividades, (b) rádio, TV, jornal e revista (excluídos
+  da base) e (c) a compra do direito de comercializar espaço publicitário para
+  ceder a terceiros; **admite** o crédito das despesas de **subcontratação de
+  terceiros** para prestar serviço de publicidade, na modalidade aquisição de
+  insumos. Meta, Google e TikTok seriam os terceiros subcontratados: **é o melhor
+  fundamento que há**.
+- **SC Cosit 32/2021** (DOU 25/03/2021): contra a tese, mas de caso diferente
+  (empresa de limpeza de bens móveis, publicidade como despesa de marketing,
+  atividade-meio). Aqui a publicidade é a atividade-fim.
+- **Parecer Normativo Cosit 5/2018** (itens 40 a 44): na revenda de bens não há
+  insumo, só crédito sobre o bem adquirido para revenda (art. 3º, I, das Leis
+  10.637/2002 e 10.833/2003). **O risco** é o fisco enquadrar a operação como
+  "revenda de mídia". A defesa: a atividade é prestação de serviço de publicidade
+  (17.06), com a mídia como insumo essencial, lido o parecer em conjunto com o
+  critério da essencialidade. Cita ainda os acórdãos do CARF **3402-003.989** e
+  **9303-012.426**.
+- **SC 6.006/2019**: o texto da ementa citado agora é o integral e **dá o link
+  direto** (`normas.receita.fazenda.gov.br/…/anexoOutros.action?idArquivoBinario=51537`).
+  Conclusão dele: no modelo A a campanha está no nome da plataforma, é **conta
+  própria**, e a tese de repasse não se sustenta.
+- **Acórdão 012/25 de Recife**: confirma que a fiscalização pode exigir o ISS pela
+  **competência contábil** (receita apropriada), não só pela data da NFS-e;
+  reforça alinhar a emissão da NFS-e à competência.
+- **Crédito de PIS/COFINS**: **não é receita financeira**. É crédito a recuperar
+  (ativo) com a **redução do custo** como contrapartida: a fatura do Meta entra
+  no custo por R$ 60.000 e o crédito de R$ 5.550 o reduz. **O custo da mídia na
+  DRE é o líquido, R$ 54.450.** (Fecha o ponto aberto na seção 20.)
+- **Municípios**: vai compilar uma tabela inicial (SP, RJ, BH, Curitiba, Porto
+  Alegre, Florianópolis, Brasília, Londrina) com alíquota usual e a fonte (lei
+  municipal), revista de tempos em tempos; o sistema deve permitir a marcação
+  manual por organização, validada contra essa tabela.
+- **Parecer conjunto**: cinco itens (posição do modelo A com o art. 208, III do
+  RIR/2018 e a SC 6.006; simulações com ISS, PIS/COFINS e IRPJ/CSLL; preço da taxa
+  por cenário; riscos das redes; estratégia de defesa do crédito diante do PN
+  5/2018). Só começa quando você disser o **município da sede** e o advogado
+  concordar com a estrutura.
+
+### O que eu consegui conferir
+
+- **Nada disto eu abri.** Tentei os dois links dele (a SC 6.006 e o acórdão de
+  Recife) e **os dois endereços não abrem do meu ambiente** (sem rede para esses
+  sites). Os textos, as datas do DOU e os itens 40 a 44 do PN 5/2018 seguem
+  **como ele os descreve**, não como eu os li. Os dois acórdãos do CARF vêm
+  **sem link**: não conferi nem a existência.
+- **O que bate com o que eu já tinha**: a ementa da SC 6.006 agora citada **bate**
+  com a que eu havia achado em sites de terceiros (conta alheia: só o resultado é
+  receita; conta própria: o valor cobrado entra inteiro), e a SC 8/2024 segue o
+  que apareceu nas buscas (admite crédito na subcontratação de terceiros).
+- **A SC 6.006 é do Simples Nacional.** A plataforma é Lucro Real, e o parecer o
+  cita ao lado do art. 208, III do RIR/2018. Vale pela **analogia** da distinção
+  conta própria × conta alheia, não como regra do Lucro Real: o parecer precisa
+  dizer isso com todas as letras.
+- **A palavra "revenda" é o gatilho do risco.** O PN 5/2018 nega insumo à
+  **revenda de bens**; a SC 8/2024 admite crédito na **subcontratação para prestar
+  serviço de publicidade**. A operação do modelo A é **conta própria** (a
+  plataforma contrata o Meta e responde por ele), e isso **não é** revenda de
+  bens: é prestação de serviço com mídia subcontratada. Se o contrato, a nota e a
+  documentação disserem "revenda de mídia", o fisco recebe o enquadramento de
+  graça. **Minha leitura, a confirmar com ele e com o advogado**: o parecer deve
+  fixar o nome da operação (por exemplo, "prestação de serviço de publicidade com
+  fornecimento de mídia por subcontratação, em conta própria") e o contrato e a
+  NFS-e usarem o mesmo.
+- **Este documento e o código também dizem "revenda"** (seções 15 a 20 e o
+  `docs/PLANO-TRAFEGO-PAGO.md`): é termo de trabalho nosso, **não** o que vai ao
+  contrato; ajustar quando o parecer fixar o nome.
+
+### Onde estamos
+
+Contador sem dúvida pendente do lado dele. **Falta para o parecer sair**:
+1. **Você**: município da sede e item de serviço (17.06 ou 10.08).
+2. **O advogado**: concordar com a estrutura do parecer e responder os itens 1 a 14
+   (em especial o 11, os termos das redes).
+3. **O contador**: anexar ao parecer **cópia dos trechos oficiais** que cita (SC
+   8/2024, itens 40 a 44 do PN 5/2018, a SC 6.006) e os dois acórdãos do CARF.

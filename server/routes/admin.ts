@@ -270,6 +270,15 @@ import {
   painelDoBannerPago,
 } from "../services/bannerPago";
 import {
+  cancelarCampanha,
+  decidirCampanha,
+  encerrarCampanha,
+  gastosDaCampanha,
+  lancarGasto,
+  painelDoTrafego,
+  pedirCampanha,
+} from "../services/trafego";
+import {
   PROVEDORES_PIX,
   NOME_PROVEDOR,
   CREDENCIAIS_PROVEDOR,
@@ -4823,6 +4832,116 @@ adminRouter.put("/banner-pago/config", async (req, res, next) => {
     const salva = await setPlataforma({ bannerPago: req.body });
     await audit(req, "banner.config", "settings", "plataforma", { ...salva.bannerPago });
     res.json(salva.bannerPago);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/* ---------------- tráfego pago (anúncios nas contas da plataforma) ---------------- */
+
+/**
+ * A mesma tela, dois recortes: a organização vê as campanhas e o saldo dela;
+ * a plataforma vê todas, os links dos anúncios e a margem. Desligado, a
+ * organização recebe 404.
+ */
+adminRouter.get("/trafego", async (req, res, next) => {
+  try {
+    res.setHeader("Cache-Control", "no-store");
+    res.json(await painelDoTrafego(req));
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.post("/trafego/campanhas", async (req, res, next) => {
+  try {
+    const c = await pedirCampanha(req, (req.body ?? {}) as Record<string, unknown>);
+    await audit(req, "trafego.pedido", "trafego_campanha", c.id, {
+      campaignId: c.campaignId,
+      redes: c.redes,
+      investimentoCents: c.investimentoCents,
+      taxaPct: c.taxaPct,
+      reservaCents: c.reservaCents,
+    });
+    res.status(201).json(c);
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.get("/trafego/campanhas/:id/gastos", async (req, res, next) => {
+  try {
+    res.setHeader("Cache-Control", "no-store");
+    res.json(await gastosDaCampanha(req, req.params.id));
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.post("/trafego/campanhas/:id/cancelar", async (req, res, next) => {
+  try {
+    const c = await cancelarCampanha(req, req.params.id);
+    await audit(req, "trafego.cancelar", "trafego_campanha", c.id, { devolvidoCents: c.devolvidoCents });
+    res.json(c);
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.post("/trafego/campanhas/:id/encerrar", async (req, res, next) => {
+  try {
+    const c = await encerrarCampanha(req, req.params.id);
+    await audit(req, "trafego.encerrar", "trafego_campanha", c.id, {
+      gastoCents: c.gastoCents,
+      taxaCents: c.taxaCents,
+      devolvidoCents: c.devolvidoCents,
+    });
+    res.json(c);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** Aprovar ou recusar o pedido: só a plataforma. */
+adminRouter.post("/trafego/campanhas/:id/decisao", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    const c = await decidirCampanha(req, req.params.id, { aprovar: req.body?.aprovar, motivo: req.body?.motivo });
+    await audit(req, `trafego.${c.status === "ativa" ? "aprovar" : "recusar"}`, "trafego_campanha", c.id, {
+      organizacao: c.organizationId,
+      motivo: c.motivo,
+    });
+    res.json(c);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** O gasto de um dia numa rede, copiado do painel da rede: só a plataforma. */
+adminRouter.post("/trafego/campanhas/:id/gastos", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    const r = await lancarGasto(req, req.params.id, req.body);
+    await audit(req, "trafego.gasto", "trafego_campanha", r.campanha.id, {
+      dia: r.gasto.dia,
+      rede: r.gasto.rede,
+      gastoCents: r.gasto.gastoCents,
+      taxaCents: r.gasto.taxaCents,
+      encerrada: r.campanha.status === "encerrada",
+    });
+    res.status(201).json(r);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** Taxa de gestão, mínimos e redes (só a plataforma). O resto da configuração fica como está. */
+adminRouter.put("/trafego/config", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    const salva = await setPlataforma({ trafegoPago: req.body });
+    await audit(req, "trafego.config", "settings", "plataforma", { ...salva.trafegoPago });
+    res.json(salva.trafegoPago);
   } catch (err) {
     next(err);
   }

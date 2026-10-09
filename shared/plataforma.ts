@@ -15,6 +15,7 @@ import { TAXA_REEMBOLSO_MAX_PCT, TAXA_REEMBOLSO_PADRAO_PCT } from "./reembolso";
 import { BONUS_POR_INDICACAO_MAX, BONUS_POR_INDICACAO_PADRAO } from "./bonus";
 import { CONFIG_IA_PADRAO, configIAGuardada, type ConfigIA } from "./ia";
 import { CONFIG_BANNER_PAGO_PADRAO, validarConfigBannerPago, type ConfigBannerPago } from "./bannerPago";
+import { CONFIG_TRAFEGO_PADRAO, validarConfigTrafego, type ConfigTrafegoPago } from "./trafego";
 import { CONFIG_PATROCINIO_PADRAO, validarConfigPatrocinio, type ConfigPatrocinio } from "./patrocinio";
 import { validarPixels, type Pixels } from "./marketing";
 import { CORES_DO_SELO_PADRAO, validarCoresDoSelo, type CoresDoSelo } from "./verificacao";
@@ -143,6 +144,8 @@ export interface ConfigPlataforma {
   metodosDeApuracao: MetodoDeApuracao[];
   /** Banner pago na vitrine: preço do dia, prazo e vagas. Nasce desligado. */
   bannerPago: ConfigBannerPago;
+  /** Gestão de tráfego pago: taxa de gestão, mínimos e redes oferecidas. Nasce desligada. */
+  trafegoPago: ConfigTrafegoPago;
   /** O assistente de IA (Chatbase) nos painéis do master, do organizador e do afiliado. Nasce desligado. */
   assistenteIA: ConfigIA;
 }
@@ -229,6 +232,7 @@ export const CONFIG_PADRAO: ConfigPlataforma = {
   canaisDasLoterias: {},
   metodosDeApuracao: [...METODOS_LIBERADOS_PADRAO],
   bannerPago: CONFIG_BANNER_PAGO_PADRAO,
+  trafegoPago: CONFIG_TRAFEGO_PADRAO,
   assistenteIA: CONFIG_IA_PADRAO,
 };
 
@@ -268,6 +272,7 @@ export function validarConfigPlataforma(entrada: Partial<ConfigPlataforma>): Con
     canaisDasLoterias: canaisGuardados(entrada.canaisDasLoterias),
     metodosDeApuracao: metodosLiberadosGuardados(entrada.metodosDeApuracao),
     bannerPago: validarConfigBannerPago(entrada.bannerPago),
+    trafegoPago: validarConfigTrafego(entrada.trafegoPago),
     assistenteIA: configIAGuardada(entrada.assistenteIA),
   };
 }

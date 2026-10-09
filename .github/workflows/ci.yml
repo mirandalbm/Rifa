@@ -142,6 +142,7 @@ jobs:
       - run: npm run bonus
       - run: npm run patrocinio
       - run: npm run banner
+      - run: npm run trafego
       - run: npm run sorteios
       - run: npm run sorteio-comentarios
       - run: npm run google

@@ -83,6 +83,7 @@ cadastro (o roteiro do dia está na etapa 5, "Dia da troca da razão social").
   As tabelas dos anexos do contrato (`contrato_anexos`,
   `contrato_anexo_aceites`) e a coluna `campaigns.contrato_anexo_ids` também.
   E as da fila de trabalho (`trabalhos`, `trabalho_arquivos`, `trabalhadores`).
+  E as do tráfego pago (`trafego_campanhas`, `trafego_gastos`).
 - [ ] Deploy. Conferir a verificação de saúde e os relógios no log.
 - [ ] Criar o serviço do trabalhador (o gerador de vídeo) no Railway, com
   `npm run start:worker` e só o `DATABASE_URL` (passo a passo em

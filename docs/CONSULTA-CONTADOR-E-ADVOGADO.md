@@ -313,6 +313,13 @@ pedido cria dever de comprovar). Pergunta nova ao advogado:
   parece caber só no **excedente** (que é custo próprio). Perguntar qual
   tratamento vale e se tomar o crédito enfraquece a tese do repasse (ele mesmo
   apontou o risco de o fisco tratar tudo como receita de agenciamento).
+  **Esclarecimento do dono (09/10/2026):** o ISS e o PIS/COFINS embutidos na
+  fatura do Meta são tributos **do próprio Meta** (ele os gera e recolhe); a
+  plataforma, como cliente, **paga o preço cheio**, e só esse preço importa.
+  Logo, o sistema não modela imposto da rede, e a plataforma **não conta com
+  crédito de PIS/COFINS sobre a mídia** (que é repasse). A pergunta ao contador
+  fica só para o excedente e para confirmar que tomar crédito sobre a fatura
+  da rede não é necessário nem recomendável.
 - **Excedente dedutível** se necessário, usual e comprovado pela fatura da rede
   (já dito, agora vale de fato).
 - **Pergunta nova ao contador (a)**: com o IRRF/CSRF retidos sobre a taxa,

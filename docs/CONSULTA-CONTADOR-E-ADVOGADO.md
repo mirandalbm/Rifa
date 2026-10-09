@@ -8,7 +8,7 @@ vira trabalho de código está na seção 4; o que é decisão do dono, na seç�
 
 | Quem | Situação |
 |---|---|
-| Contador | **Respondeu** (09/10/2026). Respostas na seção 2; análise na seção 4. Segunda consulta (doação de parte da taxa a uma ONG) na seção 7. |
+| Contador | **Respondeu** (09/10/2026). Primeira rodada na seção 2, doação à ONG na seção 7, segunda rodada (Tesouraria) na seção 11; **terceira rodada curta, 8 dúvidas, na seção 12**. |
 | Regime da plataforma | **Lucro Real** (informado pelo dono em 09/10/2026) — ver a seção 8, que muda a leitura de várias respostas. |
 | Advogado | **Perguntas enviadas, sem resposta ainda.** Perguntas na seção 3; as respostas entram aqui quando chegarem. |
 
@@ -475,4 +475,126 @@ dinheiro**: só calcula e registra. Regime: Lucro Real.
 **Fechamento**
 9. O **retrato imutável** do fechamento mensal, com a impressão SHA-256, vale
    como prova interna? Há prazo mínimo de guarda?
+
+## 11. Respostas da segunda rodada do contador (09/10/2026)
+
+(Os números dele pulam a partir do 18; aqui seguem os da pergunta.)
+
+- **18. Saldo ≠ lucro.** Saldo em conta é posição patrimonial (ativo) e pode ter
+  dinheiro de terceiros. Rótulos que ele recomenda no painel: **"Disponível em
+  Caixa"** (saldo bancário total), **"Saldo de Mídia (Passivo)"** (o que é dos
+  clientes), **"Caixa Livre da Empresa"** (a diferença: o que pode pagar
+  despesas e distribuição) e **"Lucro Acumulado (Contábil)"** (resultado da DRE,
+  a base da distribuição). **Dividendos a partir de 2026 (Lei 15.270/2025):**
+  lucros e dividendos pagos pela mesma empresa à mesma pessoa física que
+  passem de **R$ 50.000 por mês** sofrem **IRRF de 10% sobre o valor integral**
+  (não só o excedente), em qualquer regime (inclusive Simples). O painel deve
+  **alertar e calcular** a retenção quando a distribuição mensal a um sócio
+  passar disso, mostrando o líquido e o IRRF a recolher.
+- **19. Diferimento da taxa de gestão:** pelo **gasto proporcional da mídia**
+  (ou o período de veiculação), não pelo período planejado — se a campanha
+  encerra antes, o planejado superavaliaria a receita. Metade da verba gasta =
+  metade da taxa reconhecida; o resto fica como **receita diferida** (passivo).
+- **20. NFS-e:** a prática recomendada é **uma por tomador (organização) por
+  mês**, descrição "Serviços de gestão de tráfego pago – competência mês/ano".
+  Se o município exigir nota por campanha, o sistema se adapta.
+- **21. Pessoa física:** pode emitir NFS-e com o CPF do tomador (padrão ABRASF).
+  O contrato qualifica o tomador (nome, CPF, endereço); o sistema deve permitir
+  preencher à mão se o município não aceitar a nota sem identificação.
+- **22. ISS no 17.06:** regra geral, no município do **prestador**, mas a lei
+  municipal pode mandar o **tomador reter** (ele cita São Paulo: o tomador
+  paulistano retém o ISS de prestador de fora). O sistema deve conhecer o
+  município do tomador e aplicar a retenção local.
+- **23. Recargas de saldo:** são adiantamento de cliente (passivo); a nota da
+  **taxa de gestão sai na aprovação da campanha**. Para serviço que a
+  plataforma presta direto (ex.: assistente de IA), a receita é o valor
+  cobrado, **reconhecido no consumo**, não na recarga.
+- **24. Crédito de PIS/COFINS (Lucro Real):** serviços de desenvolvimento e
+  manutenção de sistema e infraestrutura têm argumento de insumo (ele cita a
+  Solução de Consulta nº 87/2011 e o STJ). **Tarifa do Pix** é despesa
+  financeira: em regra, **sem crédito**. Chatbase, Railway, armazenamento e
+  domínio têm "forte argumento" de insumo, mas ele recomenda um especialista
+  caso a caso.
+- **25. Presente:** desconto **incondicional** na venda é redução da receita
+  bruta; valor pago depois (tipo cashback) pode ser despesa promocional. O
+  crédito devido à promotora é **passivo** até o repasse.
+- **26. Duas atividades:** podem coexistir no mesmo CNPJ, com inscrições
+  municipais distintas se os códigos de serviço e alíquotas diferirem. A taxa
+  por venda/mensalidade provavelmente cai em outro item da lista (ele sugere o
+  10.04, agenciamento/intermediação). O sistema deve **segregar a receita por
+  atividade** e mostrar o ISS por atividade.
+- **27. Percentuais da linha "Impostos":** o painel pode provisionar com
+  percentuais parametrizáveis; **o contador os informa** periodicamente e o
+  sistema precisa de uma **tela de alíquotas**.
+- **28. Prazo:** o extrato mensal completo até o **5º dia útil** do mês
+  seguinte.
+- **29. Citações:** ele corrigiu as referências — **Solução de Consulta
+  SRRF06/Disit nº 6.006, de 26/02/2019** (repasse a veículos por conta e ordem
+  do anunciante fora da base do Simples) e **Solução de Consulta Cosit nº 110,
+  de 28/08/2018** (doação a OSC sem exigir OSCIP, art. 13, § 2º, III, da Lei
+  9.249/1995). Não mandou link direto, só "buscar pelo número" em
+  `normas.receita.fazenda.gov.br/sijut2consulta`.
+
+**Conferência feita por mim (09/10/2026, fontes secundárias, não o site
+oficial):**
+- A **Cosit 110/2018 existe** e diz isso mesmo (ementa reproduzida em
+  [okai](https://okai.com.br/documento/2018-08-28/solucao-de-consulta-cosit-nº-110-de-28-de-agosto-de-2018)
+  e [IBET](https://www.ibet.com.br/solucao-de-consulta-cosit-no-110-de-28-de-agosto-de-2018/)).
+- A **6.006/2019** aparece em portais contábeis com o entendimento descrito
+  (conta alheia fica fora da base do Simples; **conta própria entra na receita
+  bruta**; a agência precisa **provar** que foi só intermediária). **Atenção**:
+  um portal cita também uma "DISIT/SRRF06 nº 6006" de **2023** sobre doação a
+  OSC, então o número pode estar repetido ou trocado — **confirmar no site
+  oficial**. E ela é sobre o **Simples**; a plataforma é **Lucro Real**.
+- A **Lei 15.270/2025** confirma o essencial (10% sobre o total acima de R$ 50
+  mil por mês da mesma fonte à mesma pessoa física, vale para o Simples,
+  recolhimento pelo código 1841, informado na EFD-Reinf e DCTFWeb; há regra de
+  transição para lucros apurados até 2025 e controvérsias em discussão). Fonte:
+  [Jornal Contábil](https://jornalcontabil.com.br/noticia/lei-15-270-define-regras-para-taxacao-de-lucros-e-dividendos-a-partir-de-2026/).
+- **Não consegui conferir** a Solução de Consulta nº 87/2011 (crédito de
+  insumo) nem o "Tema 1.412 do STJ" (bonificações) que ele citou na 24 e na 25.
+  Nada do sistema se apoia nelas; o contador deve mandar o texto.
+
+## 12. O que ficou em aberto com o contador (terceira rodada, curta)
+
+- **C1. Nota da taxa: na aprovação ou mensal?** Ele disse as duas coisas: na
+  20 recomenda **uma nota mensal por organização**; na 23 diz que a nota da
+  taxa **sai na aprovação**. Qual vale? E, se a nota sai na aprovação e a receita
+  é diferida, o ISS é devido na emissão ou na apropriação?
+- **C2. Patrocínio, banner e assistente de IA são serviços próprios da
+  plataforma, não mídia de terceiros.** Ele os tratou "como a mídia" e disse
+  que a receita é "apenas a taxa de gestão vinculada". Só o **tráfego pago** tem
+  mídia de terceiros. Confirmo que nos outros três **100% do valor consumido** é
+  receita da plataforma (cliques gastos, dias de banner usados, créditos
+  usados) e o que não foi consumido é adiantamento?
+- **C3. Encerramento da campanha.** Encerrada antes de gastar tudo (a taxa não
+  volta): o saldo ainda **diferido** da taxa é reconhecido de uma vez no
+  encerramento (serviço encerrado, taxa não reembolsável) ou continua diferido?
+- **C4. Repasse no Lucro Real.** A 6.006 trata do **Simples**. Qual a base
+  legal para a mídia ficar fora da receita bruta do **Lucro Real** (IRPJ, CSLL,
+  PIS/COFINS)? E que prova ele quer guardar ("por conta e ordem do anunciante e
+  em nome dele"): a campanha é criada na conta de anúncios da plataforma, em
+  nome da plataforma — isso derruba a tese de "conta alheia"? (Pergunta
+  também ao advogado.)
+- **C5. Presente: o desconto é na taxa ou no bilhete?** O desconto de
+  primeira compra incide no **preço do bilhete** (receita da promotora); a
+  plataforma **paga a diferença à promotora** (crédito). Para a plataforma isso
+  é despesa promocional (de aquisição), redução da receita da taxa ou o
+  quê? Ele respondeu como se o desconto fosse na nossa taxa.
+- **C6. O que o sistema não sabe.** O painel calcula pelos livros ("Saldo de
+  Mídia", valores de terceiros, receita por origem, taxa diferida), mas **não
+  conhece o saldo bancário nem o lucro contábil**. Proposta: "Disponível em
+  Caixa" e "Lucro Acumulado (Contábil)" são **informados** no fechamento (por
+  quem fecha, ou pelo contador), com a data e quem informou, e o painel mostra
+  a diferença para o que os livros esperam. Aceita? Em que dia do mês ele
+  informa o lucro contábil?
+- **C7. Distribuição de lucros no painel.** Para o alerta de R$ 50 mil por
+  sócio/mês, a linha "Distribuição de lucros" precisa dos **sócios da
+  plataforma** (nome e CPF, em cofre) e do valor por sócio. O contador quer o
+  painel calculando o IRRF de 10% ou só alertando? E o painel também deve
+  mostrar o **IRRF de dividendos a recolher** (código 1841) como obrigação?
+- **C8. Retenção de ISS pelo tomador.** O sistema guarda o município de cada
+  organização (cadastro de endereço). Basta o master informar, por organização,
+  "tomador retém ISS: sim/não e alíquota", ou o contador quer uma tabela de
+  municípios?
 

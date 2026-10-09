@@ -664,9 +664,10 @@ Na ordem de entrega do plano:
   09/10/2026), em Marketing → Tráfego pago, que **nasce desligado**.
   **Falta no ambiente**: o `db:push` das tabelas `trafego_campanhas` e
   `trafego_gastos` **antes** do código. **Falta no código**: as fases 2
-  (importar o gasto) e 3 (criar a campanha pela API) e o plano de
-  divulgação, os textos de anúncio e a leitura dos resultados do Marketing
-  AI. **[você] Antes de ligar**: as respostas do contador (faturamento da
+  (importar o gasto) e 3 (criar a campanha pela API). **Feito também
+  (09/10/2026)**: o Marketing AI — o plano de divulgação e a leitura dos
+  resultados (dos dados, sem IA) e os textos de anúncio (pelo assistente, na
+  régua). **[você] Antes de ligar**: as respostas do contador (faturamento da
   taxa e o repasse da mídia) e do advogado (política de jogos das redes e a
   cláusula no contrato da promotora) — as perguntas estão no artefato
   "Consulta tráfego pago"; a conta de anúncios pronta em cada rede que for

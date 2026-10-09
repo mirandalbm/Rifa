@@ -131,6 +131,7 @@ arquitetura.
 | plano da próxima fase (vitrine, contas, afiliados, marketing) | `docs/PLANO-FASE5.md` |
 | ferramentas de imagem e vídeo para divulgar a rifa (Canva, Adobe, as nossas, IA): panorama e fases | `docs/PLANO-FERRAMENTAS.md` |
 | tráfego pago como serviço da plataforma (modelo A, fase 1: pedido com o saldo, fila do master, gasto do dia + taxa, margem, venda atribuída) | `shared/trafego.ts` (regras), `server/services/trafego.ts`, `/trafego*` em `server/routes/admin.ts`, `trafegoPago` em `shared/plataforma.ts`, `trafego_campanhas`/`trafego_gastos` em `shared/schema.ts`, relógio em `server/jobs/index.ts` (trava 811406), tipo `trafego` em `shared/caixa.ts`, `client/src/pages/adminTrafego.tsx`, `docs/PLANO-TRAFEGO-PAGO.md`, `scripts/trafego-test.ts`, `tests/trafego.test.ts` |
+| Marketing AI: plano de divulgação, textos de anúncio e leitura dos resultados de uma rifa | `shared/marketingIA.ts` (as três regras: `planoDeDivulgacao`, `lerAnuncios`/`prometeGanho`, `leituraDosResultados`), `server/services/marketingIA.ts` (os dados), `anunciosComIA()`/`perguntarAoAssistente()` em `server/services/ia.ts`, `GET /campaigns/:id/marketing` e `POST /campaigns/:id/marketing/anuncios` em `server/routes/admin.ts`, `client/src/pages/adminMarketingIA.tsx`, `scripts/ia-acoes-test.ts` (a seção do Marketing AI), `tests/marketingIA.test.ts` |
 | menu Marketing (Tráfego pago, Marketing AI, Publicidade em abas, Medição e campanhas) | grupo "Marketing" em `MENUS` (`shared/access.ts`), `client/src/pages/adminTrafego.tsx`, `adminMarketingIA.tsx` (os criativos por rifa), `adminPublicidade.tsx` (as abas: `RifasPatrocinadas` de `adminPatrocinio.tsx` e `BannerNaVitrine` de `adminBannerPago.tsx`), os redirecionamentos em `client/src/App.tsx`, `tests/menu.test.ts` |
 | artes prontas para divulgar (Fase A: arte da rifa, cotas que faltam, data, resultado, cota premiada, nos três formatos) e o pacote para postar (Fase G: ZIP com os três formatos e a legenda) | `shared/artes.ts` (regras, textos e `legendaSugerida`), `server/services/zip.ts`, os textos do kit (`textosDoKit()` em `shared/afiliados.ts`), `server/services/arteDesenho.ts` (texto em contorno, QR, camada), `server/services/artes.ts` (dados da rifa, fundo, foto da organização), `server/routes/artesRotas.ts`, `/campaigns/:id/artes*` em `server/routes/admin.ts`, `/artes/:slug*` em `server/routes/affiliate.ts`, `client/src/components/ArtesParaDivulgar.tsx` (aba Publicação e Meus links), `scripts/artes-test.ts`, `tests/artes.test.ts` |
 | editor de imagem no navegador (Fase C: fundo, formato, figurinhas, conferência do texto, pôr no carrossel) | `shared/editorImagem.ts` (camadas como dados, enquadramento, régua), `server/services/editorImagem.ts`, `/campaigns/:id/editor*` em `server/routes/admin.ts` e `/editor/:slug*` em `server/routes/affiliate.ts` (o kit do afiliado), `client/src/lib/desenharArte.ts` (o canvas), `client/src/components/EditorDeImagem.tsx` (`AbrirEditorDeImagem` no cartão "Artes para divulgar" e em Meus links do afiliado), o assunto da foto (`server/services/foco.ts`, `focoDaFoto()`), `scripts/artes-test.ts`, `tests/editorImagem.test.ts` |
@@ -687,7 +688,8 @@ O verde da marca entra no lugar do roxo do kit; o significado das cores
   certa; as seções deles ficam fora do menu (`nav: false`), mas seguem na
   matriz — é o que libera a rota. Marketing AI reúne os criativos que já
   existiam na aba Publicação da rifa (artes, editor, vídeo gerado), escolhendo
-  a rifa no alto; nada de rota nova. Tráfego pago é a seção "Tráfego pago"
+  a rifa no alto, e as três ferramentas da seção "Marketing AI" (abaixo).
+  Tráfego pago é a seção "Tráfego pago"
   (abaixo); desligado, a organização sem campanha vê só como vai funcionar,
   sem botão que não faz nada.
 - **Casca uma só, três larguras.** Computador e tablet: menu de 260 px, ou
@@ -4512,6 +4514,60 @@ Aparência → Assistente de IA.
   mentira que pede ações); `npm run isolation` confere visitante, cambista e
   organizador sem o assistente nas rotas de confirmar e recusar;
   `tests/iaAcoes.test.ts` cobre as regras.
+
+## Marketing AI — o que não pode afrouxar
+
+A tela Marketing → Marketing AI, escolhida a rifa, traz além dos criativos o
+**plano de divulgação**, a **leitura dos resultados** e os **textos de
+anúncio** (`shared/marketingIA.ts`).
+
+- **O plano e a leitura não vêm da IA**: são montados no servidor dos dados da
+  rifa (`GET /campaigns/:id/marketing`, `marketingDaRifa()`), sem ir ao
+  Chatbase e sem gastar crédito. Número inventado num relatório é pior que
+  relatório nenhum.
+  - **Plano** (`planoDeDivulgacao()`): de hoje até o sorteio, um passo por dia
+    (o marco vence o lembrete): lançamento ou lembrete no feed, a cota
+    premiada revelada no story, um lembrete a cada 3 dias alternando story e
+    reels, "falta uma semana", "é amanhã", "é hoje" e o resultado no dia
+    seguinte; no máximo 20 passos — passou do teto (sorteio longe), saem os
+    lembretes mais distantes, **nunca os marcos**. **Só sugere as artes que a rifa tem agora**
+    (`artesDisponiveis()`), e cada passo baixa a arte pronta no formato do
+    lugar (`FORMATO_DE`); o resultado futuro diz que a arte aparece no dia.
+    Sem data, cobre duas semanas.
+  - **Leitura** (`leituraDosResultados()`): só venda paga, só desta rifa —
+    onde a rifa está, sem venda na semana, o ritmo contra o mínimo de
+    vendidas (**a conta do sorteio, nunca uma cópia**: `vendidasParaOMinimo()`
+    com o modo do sorteio — sem a cota de bônus, salvo na rifa cheia — e
+    `cotasMinimasParaSortear()`)
+    ou a projeção pelo ritmo da semana (a frase diz que é projeção), o canal
+    que mais vende (`canalDaVenda`, a partir de 5 pedidos) e, por campanha de
+    tráfego, o retorno pela venda atribuída (a UTM `trafego-<código>`,
+    estatística). Nenhum `COUNT(*)` de cota: o progresso é `campaign_stats`.
+    Rascunho não tem leitura.
+- **Os textos de anúncio vêm do assistente**, como as frases do editor:
+  `POST /campaigns/:id/marketing/anuncios` → `anunciosComIA()` pela mesma porta
+  (`perguntarAoAssistente()`: o mesmo saldo, 402, o mesmo limite, o uso em
+  `ia_uso` e o débito), numa conversa à parte. **O pedido leva só os dados
+  públicos da rifa**, entre « » e marcados como dados (`pedidoDeAnuncios()`);
+  nada do corpo da requisição. **A volta é dado** (`lerAnuncios()`): só as
+  linhas com a marca de cada campo (títulos e descrições do Google, texto e
+  título do Instagram e Facebook), no limite de caracteres da rede, sem
+  link, telefone, hashtag, Pix por fora, dado pessoal e **sem promessa de
+  ganho** (`prometeGanho()`: ganho certo, garantido, lucro, investimento,
+  renda extra, dinheiro fácil — as redes recusam e o CDC chama de
+  enganosa); o que não passa some calado, o repetido sai e cada campo para
+  no que foi pedido. **Sem o assistente para o papel, 404 antes de olhar a
+  rifa**; depois, só rifa no ar, de verdade e não travada (409 antes de ir ao
+  Chatbase). **O erro do assistente volta com a mensagem dele** (sem saldo,
+  limite, Chatbase fora ou sem créditos): a rota responde o
+  `MarketingIAError` por conta própria, porque o tratador geral troca todo
+  5xx por "erro interno". O plano e a leitura não dependem do assistente. A
+  tela só copia: nada vai ao ar sozinho.
+- **Recorte** pela rota (`assertCampaignInScope`: a rifa do vizinho é 404
+  nas duas, no `npm run isolation`); o afiliado não alcança (é rota do
+  painel). `no-store` nas duas.
+- `npm run ia-acoes` prova tudo isso contra a API de verdade (com o Chatbase
+  de mentira) e `tests/marketingIA.test.ts` as regras.
 
 ## Tráfego pago — o que não pode afrouxar
 

@@ -49,6 +49,7 @@ import {
 import { AcaoRecusada, executarGravacao, executarLeitura, prepararGravacao, quemUsa } from "./iaAcoes";
 import type { RespostaDoChatbase } from "./chatbase";
 import { lerSugestoes, pedidoDeSugestao, type DadosParaSugerir, type TipoDeSugestao } from "@shared/sugestaoIA";
+import { lerAnuncios, pedidoDeAnuncios, type TextosDeAnuncio } from "@shared/marketingIA";
 
 export class IAError extends Error {
   constructor(
@@ -224,17 +225,23 @@ export async function conversarComIA(
 }
 
 /**
- * Texto sugerido pelo assistente (o editor de imagem e a legenda): um pedido
- * só, numa conversa à parte (não entra na coluna da pessoa nem é guardada
- * aqui), montado pelo servidor com os dados públicos da rifa — o recorte é da
- * rota que chama. A mesma porta, o mesmo limite, o mesmo saldo e o mesmo uso
- * da conversa: cada pedido é uma mensagem paga. A ação que o agente pedir na
- * resposta é ignorada — aqui ele só escreve. O que volta passa pela régua
- * (`lerSugestoes`) e o que não passa some.
+ * O assistente existe para esta sessão? Lança o mesmo erro da conversa (404
+ * sem o assistente para o papel, 401/403 fora do painel). Quem confere a rifa
+ * antes de pedir chama isto primeiro: sem o assistente, a resposta é 404, nunca
+ * a régua da rifa.
  */
-export async function sugerirComIA(req: Request, tipo: TipoDeSugestao, dados: DadosParaSugerir): Promise<{ sugestoes: string[]; creditos: number | null }> {
+export async function exigirAssistente(req: Request): Promise<void> {
+  await exigirContexto(req);
+}
+
+/**
+ * Um pedido de texto ao assistente, fora da conversa da coluna: a mesma porta,
+ * o mesmo saldo, o mesmo limite e o mesmo uso (cada pedido é uma mensagem
+ * paga, gravada em `ia_uso` e debitada). O pedido é montado pelo servidor; a
+ * volta é texto cru — quem chama passa pela régua do que vai mostrar.
+ */
+async function perguntarAoAssistente(req: Request, pedido: string): Promise<{ texto: string; creditos: number | null }> {
   const c = await exigirContexto(req);
-  const pedido = pedidoDeSugestao(tipo, dados);
   if (problemaNaMensagemDaIA(pedido)) {
     throw new IAError("Os dados da rifa têm um número que parece telefone ou CPF, e isso não vai ao assistente. Ajuste o prêmio e tente de novo.", 422);
   }
@@ -265,7 +272,26 @@ export async function sugerirComIA(req: Request, tipo: TipoDeSugestao, dados: Da
       .onConflictDoNothing({ target: iaUso.mensagemId });
     if (quemPaga) await debitarUso(tx, quemPaga, r.id, r.milicreditos);
   });
-  return { sugestoes: lerSugestoes(tipo, r.texto), creditos: r.milicreditos === null ? null : r.milicreditos / 1000 };
+  return { texto: r.texto, creditos: r.milicreditos === null ? null : r.milicreditos / 1000 };
+}
+
+/**
+ * Texto sugerido pelo assistente (o editor de imagem e a legenda): um pedido
+ * só, numa conversa à parte (não entra na coluna da pessoa nem é guardada
+ * aqui), montado pelo servidor com os dados públicos da rifa — o recorte é da
+ * rota que chama. A ação que o agente pedir na resposta é ignorada — aqui ele
+ * só escreve. O que volta passa pela régua (`lerSugestoes`) e o que não passa
+ * some.
+ */
+export async function sugerirComIA(req: Request, tipo: TipoDeSugestao, dados: DadosParaSugerir): Promise<{ sugestoes: string[]; creditos: number | null }> {
+  const r = await perguntarAoAssistente(req, pedidoDeSugestao(tipo, dados));
+  return { sugestoes: lerSugestoes(tipo, r.texto), creditos: r.creditos };
+}
+
+/** Os textos de anúncio (Marketing AI): um pedido só, os campos de cada rede pela régua. */
+export async function anunciosComIA(req: Request, dados: DadosParaSugerir): Promise<{ textos: TextosDeAnuncio; creditos: number | null }> {
+  const r = await perguntarAoAssistente(req, pedidoDeAnuncios(dados));
+  return { textos: lerAnuncios(r.texto), creditos: r.creditos };
 }
 
 export interface RespostaDaIA {

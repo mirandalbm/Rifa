@@ -351,6 +351,8 @@ async function alcancaOVizinho(eu: Lado, vizinho: Lado) {
     ["POST gerar reels com as fotos da rifa do vizinho", `/api/admin/campaigns/${c}/reels-gerado`, { method: "POST", body: '{"legenda":"Concorra!"}' }],
     ["GET situação do reels gerado da rifa do vizinho", `/api/admin/campaigns/${c}/reels-gerado`, {}],
     ["POST sugerir texto pelo assistente na rifa do vizinho", `/api/admin/campaigns/${c}/sugerir`, { method: "POST", body: '{"tipo":"texto"}' }],
+    ["GET plano e leitura do Marketing AI da rifa do vizinho", `/api/admin/campaigns/${c}/marketing`, {}],
+    ["POST textos de anúncio pelo assistente na rifa do vizinho", `/api/admin/campaigns/${c}/marketing/anuncios`, { method: "POST", body: "{}" }],
     ["PUT documento da entidade da rifa do vizinho", `/api/admin/campaigns/${c}/banner-divulgacao/documentos/cnpj`, { method: "PUT", body: JSON.stringify({ arquivo: `data:application/pdf;base64,${Buffer.from("%PDF-1.4").toString("base64")}` }) }],
     ["GET sócios do vizinho", `/api/admin/organizacoes/${vizinho.orgId}/socios`, {}],
     ["POST sócio na lista do vizinho", `/api/admin/organizacoes/${vizinho.orgId}/socios`, { method: "POST", body: '{"nome":"Invasor da Silva","cargo":"socio","cpf":"52998224725"}' }],

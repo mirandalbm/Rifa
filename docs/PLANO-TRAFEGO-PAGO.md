@@ -2,8 +2,9 @@
 
 Rascunho de 09/10/2026. **Decidido**: modelo A (seção 2). **No código**: o
 menu Marketing (Tráfego pago, Marketing AI, Publicidade da plataforma em
-abas, Medição e campanhas) e a tela de Tráfego pago que explica o serviço;
-a fase 1 (seção 5) ainda não. A ideia: a plataforma anuncia as rifas das organizações no Google,
+abas, Medição e campanhas), a fase 1 do Tráfego pago (seção 5) e o
+Marketing AI (plano de divulgação, textos de anúncio e leitura dos
+resultados). A ideia: a plataforma anuncia as rifas das organizações no Google,
 no Meta (Facebook e Instagram) e no TikTok, mede o que cada anúncio vendeu e
 **ganha uma margem** sobre esse serviço. É uma ferramenta do painel do
 administrador master, ao lado de Marketing, Patrocínio e Banner pago.

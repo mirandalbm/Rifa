@@ -177,6 +177,7 @@ import {
 } from "../services/divulgacao";
 import { cliquesDosLinks, linkCurtoDaRifa, linkCurtoDoPerfil } from "../services/links";
 import { EditorError, conferirCamadas, dadosDoEditor, focoDaFoto, sugerirTexto, tipoDaSugestao } from "../services/editorImagem";
+import { MarketingIAError, anunciosDaRifa, marketingDaRifa } from "../services/marketingIA";
 import { CONFERENCIAS_POR_JANELA, FOCOS_POR_JANELA } from "@shared/editorImagem";
 import {
   cancelarSolicitacao,
@@ -1184,6 +1185,33 @@ adminRouter.post("/campaigns/:id/editor/conferir", async (req, res, next) => {
     res.json({ camadas });
   } catch (err) {
     if (err instanceof EditorError) return res.status(err.status).json({ message: err.message });
+    next(err);
+  }
+});
+
+// Marketing AI: o plano de divulgação e a leitura dos resultados (dos dados,
+// sem IA) e os textos de anúncio (pelo assistente, pago como mensagem). O vizinho é 404.
+adminRouter.get("/campaigns/:id/marketing", async (req, res, next) => {
+  try {
+    const campaign = await assertCampaignInScope(req, req.params.id);
+    const m = await marketingDaRifa(campaign.id);
+    if (!m) return res.status(404).json({ message: "Campanha não encontrada." });
+    res.setHeader("Cache-Control", "no-store");
+    res.json(m);
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.post("/campaigns/:id/marketing/anuncios", async (req, res, next) => {
+  try {
+    const campaign = await assertCampaignInScope(req, req.params.id);
+    res.setHeader("Cache-Control", "no-store");
+    res.json(await anunciosDaRifa(req, campaign.id));
+  } catch (err) {
+    // O erro do assistente (Chatbase fora, sem créditos, prazo) volta com a mensagem dele;
+    // o tratador geral trocaria todo 5xx por "erro interno".
+    if (err instanceof MarketingIAError) return res.status(err.status).json({ message: err.message });
     next(err);
   }
 });

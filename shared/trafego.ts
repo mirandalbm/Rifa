@@ -54,6 +54,12 @@ export interface ConfigTrafegoPago {
   investimentoMinCents: number;
   /** O mínimo por dia (a rede não entrega nada abaixo de um piso). */
   verbaDiaMinCents: number;
+  /**
+   * Os pacotes de investimento em mídia que a tela oferece (centavos, em ordem
+   * crescente). É vitrine: o pedido aceita qualquer valor a partir do mínimo
+   * ("outro valor"), e a taxa de gestão sempre vem por cima do pacote.
+   */
+  pacotesCents: number[];
   /** As redes que a plataforma oferece (as que aceitam rifa e têm conta pronta). */
   redes: RedeDeAnuncio[];
   /**
@@ -66,8 +72,9 @@ export interface ConfigTrafegoPago {
 export const CONFIG_TRAFEGO_PADRAO: ConfigTrafegoPago = {
   ligado: false,
   taxaPct: 20,
-  investimentoMinCents: 30_000,
+  investimentoMinCents: 5_000,
   verbaDiaMinCents: 2_000,
+  pacotesCents: [5_000, 10_000, 25_000, 50_000],
   redes: [],
   criarPelaApi: false,
 };
@@ -76,6 +83,7 @@ export const CONFIG_TRAFEGO_PADRAO: ConfigTrafegoPago = {
 export const INVESTIMENTO_MAX_CENTS = 10_000_000;
 export const TAXA_MAX_PCT = 100;
 export const OBSERVACAO_MAX = 500;
+export const PACOTES_MAX = 8;
 
 const erro = (m: string, status = 400) => Object.assign(new Error(m), { status });
 
@@ -96,6 +104,46 @@ function redesValidas(v: unknown): RedeDeAnuncio[] {
   return out;
 }
 
+/**
+ * A tabela de pacotes. Vinda do corpo, é conferida a sério (inteiros, no
+ * máximo `PACOTES_MAX`, todos a partir do mínimo, sem repetir) e guardada em
+ * ordem crescente. Sem o campo, vale a de fábrica **só no que cabe no
+ * mínimo**: a configuração guardada antes dos pacotes (com mínimo maior) não
+ * pode deixar de carregar por causa de um pacote que ela nunca escolheu.
+ */
+export function pacotesValidos(v: unknown, minCents: number): number[] {
+  if (v === undefined || v === null) return CONFIG_TRAFEGO_PADRAO.pacotesCents.filter((c) => c >= minCents);
+  if (!Array.isArray(v)) throw erro("Os pacotes têm de ser uma lista de valores.");
+  if (v.length > PACOTES_MAX) throw erro(`No máximo ${PACOTES_MAX} pacotes.`);
+  const out: number[] = [];
+  for (const x of v) {
+    const n = Number(x);
+    if (typeof x === "boolean" || x === null || x === "" || !Number.isInteger(n) || n < minCents || n > INVESTIMENTO_MAX_CENTS) {
+      throw erro(`Cada pacote vai de ${formatBRL(minCents)} a ${formatBRL(INVESTIMENTO_MAX_CENTS)}.`);
+    }
+    if (out.includes(n)) throw erro("Há pacote repetido.");
+    out.push(n);
+  }
+  return out.sort((a, b) => a - b);
+}
+
+/** "50,50; 100" → [5050, 10000]: o `;` (ou a quebra de linha) separa, a vírgula é a decimal. Lixo vira 0 e o servidor recusa. */
+export function pacotesDoTexto(texto: string): number[] {
+  return texto
+    .split(/[;\n]/)
+    .map((x) => x.trim())
+    .filter(Boolean)
+    .map((x) => {
+      const n = Number(x.replace(/\./g, "").replace(",", "."));
+      return Number.isFinite(n) ? Math.round(n * 100) : 0;
+    });
+}
+
+/** O inverso, para o campo da tela: o que a tela mostra volta igual ao salvar. */
+export function textoDosPacotes(pacotesCents: number[]): string {
+  return pacotesCents.map((c) => (c / 100).toFixed(2).replace(".", ",")).join("; ");
+}
+
 /** Só as chaves conhecidas: isto vem do corpo da requisição. */
 export function validarConfigTrafego(bruto: unknown): ConfigTrafegoPago {
   if (bruto === undefined || bruto === null) return CONFIG_TRAFEGO_PADRAO;
@@ -112,6 +160,7 @@ export function validarConfigTrafego(bruto: unknown): ConfigTrafegoPago {
     taxaPct: inteiro(b.taxaPct ?? p.taxaPct, 0, TAXA_MAX_PCT, "Taxa de gestão (%)"),
     investimentoMinCents,
     verbaDiaMinCents,
+    pacotesCents: pacotesValidos(b.pacotesCents, investimentoMinCents),
     redes,
     criarPelaApi: b.criarPelaApi === true,
   };
@@ -129,6 +178,21 @@ export function taxaSobre(gastoCents: number, taxaPct: number): number {
  */
 export function reservaDoPedido(investimentoCents: number, taxaPct: number): number {
   return investimentoCents + taxaSobre(investimentoCents, taxaPct);
+}
+
+export interface LinhaDePacote {
+  /** Quanto vai para a rede de anúncio. */
+  midiaCents: number;
+  /** A taxa de gestão, por cima: lucro da plataforma, nunca vira anúncio. */
+  taxaCents: number;
+  /** O que fica reservado no saldo (mídia + taxa, se gastar tudo). */
+  totalCents: number;
+}
+
+/** A conta de um valor de mídia: a mesma do pedido, para a tela nunca mostrar outra. */
+export function linhaDoPacote(midiaCents: number, taxaPct: number): LinhaDePacote {
+  const totalCents = reservaDoPedido(midiaCents, taxaPct);
+  return { midiaCents, taxaCents: totalCents - midiaCents, totalCents };
 }
 
 export interface PedidoDeTrafego {

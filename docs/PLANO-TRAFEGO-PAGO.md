@@ -160,3 +160,46 @@ organização grande que já tem conta própria.
   conversão "Compra"; criar o GA4 do site; cadastrar os pixels em Marketing.
 - Verificar o Business Manager do Meta e a conta do TikTok Ads da plataforma.
 - As respostas do contador e do advogado da seção 4.
+
+
+## 7. Pacotes e o que o dono decidiu (09/10/2026)
+
+Orientação do dono, **a confirmar pelo contador e pelo advogado**:
+
+- **Pacotes de investimento** em mídia de R$ 50, 100, 250 e 500, mais um valor
+  à escolha a partir do mínimo. A taxa de gestão (hoje 20%, ajustável no
+  painel do master) vem **por cima**: 50 + 20% = 60. Já está no código
+  (`pacotesCents`, "Taxa e mínimos" da plataforma).
+- **O pacote é o que vai para a rede.** Os 20% ficam na plataforma, não viram
+  anúncio de novo, em nenhuma rede (senão o pacote de 100 viraria 120 de mídia
+  e a conta fecharia em 120%). No split, o que é da rede vai para a rede e o
+  que é da plataforma fica nela.
+- **O imposto do Meta não entra na conta do sistema.** O Meta cobra o preço
+  cheio com ISS (2,9%) e PIS/COFINS (9,25%) embutidos; a plataforma, como
+  cliente, paga o preço cheio, e só o preço cobrado importa. A tese
+  (despesa de marketing repassada, não receita) e o tributo que a plataforma
+  paga sobre a taxa de 20% são **para o contador**.
+- **Ainda em aberto, depende de um teste pequeno no Meta:** se o orçamento que
+  mandamos ao conjunto e o gasto que o Windsor devolve são antes ou depois do
+  imposto. Enquanto não se sabe, o sistema trata o gasto como o preço cobrado.
+- **Para depois (próximos PRs):** extrato mensal para o contador (mídia, taxa,
+  excedente por organização), conferência prévia da campanha contra as regras
+  da rede ("pré-aprovada pela plataforma", nunca "aprovada pelo Meta"), o
+  Lucky especializado em campanhas, e as proteções de gasto (limite da conta,
+  freio no fim do dia, repetir a pausa e avisar na Caixa).
+
+### Decisão seguinte (09/10/2026): o modelo B entra como segundo caminho
+
+Orientação do dono: **manter o modelo A como está e acrescentar o B** (a
+organização conecta a conta de anúncios dela; a plataforma gere, mede e cobra),
+escolhido **por organização** e atrás de interruptor próprio, para que a
+suspensão de uma conta de anúncios não derrube todas as campanhas.
+**Em aberto, a confirmar antes de desenhar o PR**: como a plataforma cobra no B
+(só a gestão, ou a taxa sobre o gasto lido da conta dela — o palpite é a
+segunda); o aceite de gerir conta alheia no contrato da promotora (cláusula
+nova, a validar com o advogado); e o acesso como parceiro com permissão só de
+gestão, nunca login e senha. A mídia **não** passa pela plataforma no B: o Meta
+cobra a organização direto.
+
+Texto da tela: o resumo do pedido mostra só "Taxa de gestão (X%)", sem
+"se gastar tudo" — a frase dava a entender que a taxa poderia voltar.

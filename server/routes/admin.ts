@@ -5017,7 +5017,10 @@ adminRouter.put("/trafego/config", async (req, res, next) => {
     requirePlatformAdmin(req);
     const atual = (await getPlataforma()).trafegoPago;
     const corpo = req.body && typeof req.body === "object" ? (req.body as Record<string, unknown>) : {};
-    const salva = await setPlataforma({ trafegoPago: { ...atual, ...corpo } as never });
+    // Subir o mínimo sem mexer nos pacotes: os que ficaram abaixo saem, em vez de recusar o que ninguém pediu.
+    const minimo = Number(corpo.investimentoMinCents ?? atual.investimentoMinCents);
+    const pacotes = corpo.pacotesCents === undefined ? atual.pacotesCents.filter((c) => c >= minimo) : corpo.pacotesCents;
+    const salva = await setPlataforma({ trafegoPago: { ...atual, ...corpo, pacotesCents: pacotes } as never });
     await audit(req, "trafego.config", "settings", "plataforma", { ...salva.trafegoPago });
     res.json(salva.trafegoPago);
   } catch (err) {

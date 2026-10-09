@@ -10,7 +10,7 @@ vira trabalho de código está na seção 4; o que é decisão do dono, na seç�
 |---|---|
 | Contador | **Respondeu** (09/10/2026). Primeira rodada na seção 2, doação à ONG na seção 7, segunda rodada (Tesouraria) na seção 11; terceira rodada respondida na seção 13; **quarta rodada respondida na seção 15 (muda a posição fiscal do modelo A: revenda)**; quinta, mínima (4 dúvidas), na seção 16; **comentários finais e o parecer conjunto na seção 17**; **respostas a C11–C16 e a minha conferência na seção 18**; **respostas a C17–C20 e aos pontos que não fechavam na seção 19 (a revenda fica sem a exclusão do ISS)**; **última rodada (C21–C24, que ele não leu) na seção 20: falta só o que depende do parecer e de você**; **normas lidas e crédito como redução de custo na seção 21**. |
 | Regime da plataforma | **Lucro Real** (informado pelo dono em 09/10/2026) — ver a seção 8, que muda a leitura de várias respostas. |
-| Advogado | **Perguntas enviadas, sem resposta ainda.** Perguntas na seção 3; as respostas entram aqui quando chegarem. |
+| Advogado | **Sem resposta ainda.** A lista **consolidada e enxuta** (as das seções 3, 10, 16 e 17, juntadas e com o contexto novo do contador) está em **`docs/PERGUNTAS-AO-ADVOGADO.md`** — é essa que se repassa; as seções 3, 10, 16 e 17 ficam como histórico. As respostas entram aqui quando chegarem. |
 
 ## 1. O que o sistema faz hoje (o que foi levado a eles)
 

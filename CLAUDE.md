@@ -4806,6 +4806,22 @@ abaixo).
     rígido nunca passa do que resta. Nada restando, ou o total ÷ dias abaixo
     de `DIARIO_MIN_DO_META_CENTS` (R$ 6,00 — palpite, não achamos o mínimo
     oficial em reais), é 409 com o motivo.
+  - **Medidas conferidas na documentação do Meta (pesquisa de 09/10/2026)**:
+    a API fica na **v25.0** (`META_PADRAO`; a v22.0 venceu em fev/2026 e uma
+    versão vencida falha ou sobe sem avisar — troque a constante quando a
+    seguinte for aposentada); a cidade vai com **raio de 17 km** (o mínimo
+    do Meta é 17 km ou 10 milhas; 10 km era menos); o conjunto **começa 5
+    minutos à frente** (`ATRASO_DO_INICIO_MS`: um `start_time` que já passou
+    quando o Meta lê pode ser recusado, e a documentação não diz) e o fim
+    conta dali. Ficaram por confirmar com o primeiro anúncio de verdade: o
+    mínimo diário em reais (`act_…/minimum_budgets`), o `Authorization:
+    Bearer` na Marketing API e o anúncio no Instagram só com a identidade
+    da página. **Rifa é "jogo de azar online" na política do Meta**: o
+    anúncio só roda com a **autorização da conta de anúncios** (pedida no
+    Business Suite, com licença e revisão manual) — sem ela, reprovação, e
+    reprovação repetida pode restringir a conta de todas as organizações.
+    O código cria tudo pausado; **a autorização é anterior ao primeiro
+    anúncio** (`docs/PENDENCIAS.md`).
   - **O que vai para o Meta sai do banco**, nunca do navegador: o nome
     `trafego-<código> · <título da rifa>` (`nomeNaRede()`, a importação da
     fase 2 casa por ele), o orçamento total do conjunto (`lifetime_budget`,

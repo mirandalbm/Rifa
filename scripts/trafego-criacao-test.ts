@@ -19,7 +19,7 @@
  * no fim: os ids vão a restos) e o encerrar durante a criação (termina
  * pausada). Devolve o estado de antes.
  *
- *   META_ADS_TOKEN=… META_AD_ACCOUNT_ID=act_… META_PAGE_ID=… META_API_URL=http://127.0.0.1:5096/v22.0 npm run dev
+ *   META_ADS_TOKEN=… META_AD_ACCOUNT_ID=act_… META_PAGE_ID=… META_API_URL=http://127.0.0.1:5096/v25.0 npm run dev
  *   (as mesmas variáveis) npm run trafego-criacao
  */
 import "dotenv/config";
@@ -319,7 +319,7 @@ async function main() {
     checa("o fim fica gravado com o orçamento (a tela diz até quando o total vale)", (await criacao(idA))?.orcamento?.fimEm === conj?.end_time, String((await criacao(idA))?.orcamento?.fimEm));
     checa(
       "conjunto: a cidade achada no estado certo e maiores de 18",
-      JSON.stringify(conj?.targeting?.geo_locations) === JSON.stringify({ cities: [{ key: "248", radius: 10, distance_unit: "kilometer" }] }) && conj?.targeting?.age_min === 18,
+      JSON.stringify(conj?.targeting?.geo_locations) === JSON.stringify({ cities: [{ key: "248", radius: 17, distance_unit: "kilometer" }] }) && conj?.targeting?.age_min === 18,
       JSON.stringify(conj?.targeting),
     );
     const criat = doPasso(`${CONTA}/adcreatives`, antes)[0]?.corpo;

@@ -124,9 +124,9 @@ describe("orçamento no Meta", () => {
   it("o fim é o começo mais os dias, e a frase diz o porquê", () => {
     const o = ok(orcamentoNoMeta({ investimentoCents: 20_000, gastoCents: 0, verbaDiaCents: 2_000, redes: ["meta", "google"] }));
     const janela = janelaDoConjunto(new Date("2026-10-09T12:00:00Z"), o);
-    expect(janela.inicio.toISOString()).toBe("2026-10-09T12:00:00.000Z");
+    expect(janela.inicio.toISOString()).toBe("2026-10-09T12:05:00.000Z");
     // Os dias do orçamento mais 1 hora de folga: o total não muda, só a janela.
-    expect(janela.fim.toISOString()).toBe("2026-10-19T13:00:00.000Z");
+    expect(janela.fim.toISOString()).toBe("2026-10-19T13:05:00.000Z");
     expect(FOLGA_DO_FIM_MS).toBe(3_600_000);
     expect(explicarOrcamento(o)).toMatch(/R\$\s100,00 no total em 10 dias.*teto.*2 redes/);
   });
@@ -247,7 +247,7 @@ describe("alvo", () => {
     expect(estado.geo_locations).toEqual({ regions: [{ key: "460" }] });
     expect(estado.age_min).toBe(18);
     const cidade = segmentacaoDoMeta(alvoDoPedido({ uf: "SP", cidade: "Campinas" })!, "248");
-    expect(cidade.geo_locations).toEqual({ cities: [{ key: "248", radius: 10, distance_unit: "kilometer" }] });
+    expect(cidade.geo_locations).toEqual({ cities: [{ key: "248", radius: 17, distance_unit: "kilometer" }] });
   });
 
   it("acha o local do pedido entre os do Meta, sem acento e no estado certo", () => {

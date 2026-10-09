@@ -176,13 +176,17 @@ export function explicarOrcamento(o: OrcamentoNoMeta): string {
 /** A folga do fim: o total não muda, só a janela (a criação leva tempo entre o começo e o conjunto). */
 export const FOLGA_DO_FIM_MS = 60 * 60 * 1000;
 
+/** O começo fica alguns minutos à frente: um `start_time` que já passou quando o Meta lê pode ser recusado (a documentação não diz). */
+export const ATRASO_DO_INICIO_MS = 5 * 60 * 1000;
+
 /**
- * A janela do conjunto, calculada logo antes do POST dele: o começo é agora,
- * o fim são os dias do orçamento mais a folga de 1 hora. O total
- * (`vidaCents`) não muda.
+ * A janela do conjunto, calculada logo antes do POST dele: o começo é daqui
+ * a 5 minutos, o fim são os dias do orçamento mais a folga de 1 hora
+ * depois do começo. O total (`vidaCents`) não muda.
  */
 export function janelaDoConjunto(agora: Date, o: Pick<OrcamentoNoMeta, "dias">): { inicio: Date; fim: Date } {
-  return { inicio: agora, fim: new Date(agora.getTime() + o.dias * 86_400_000 + FOLGA_DO_FIM_MS) };
+  const inicio = new Date(agora.getTime() + ATRASO_DO_INICIO_MS);
+  return { inicio, fim: new Date(inicio.getTime() + o.dias * 86_400_000 + FOLGA_DO_FIM_MS) };
 }
 
 /** Idade mínima de quem vê o anúncio de rifa (e o teto do Meta, 65 = 65 ou mais). */
@@ -247,7 +251,7 @@ export function segmentacaoDoMeta(alvo: AlvoDoPedido, chaveDoLocal: string | nul
       ? { countries: ["BR"] }
       : alvo.tipo === "estado"
         ? { regions: [{ key: chaveDoLocal }] }
-        : { cities: [{ key: chaveDoLocal, radius: 10, distance_unit: "kilometer" }] };
+        : { cities: [{ key: chaveDoLocal, radius: 17, distance_unit: "kilometer" }] };
   return { geo_locations: geo, age_min: IDADE_MINIMA_DO_ANUNCIO, age_max: IDADE_MAXIMA_DO_META };
 }
 

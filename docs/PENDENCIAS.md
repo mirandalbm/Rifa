@@ -708,8 +708,25 @@ Na ordem de entrega do plano:
   outro número longo ou telefone nele recusa a criação. A autorização e o
   prêmio travam ao publicar: recusada, essa campanha se monta à mão no
   gerenciador do Meta. O
-  conjunto vale até a data de fim (os dias do orçamento mais 1 hora) e
-  nasce pausado: ligue logo, porque o tempo até ligar encurta a janela.
+  conjunto começa 5 minutos depois da criação (um começo que já passou
+  quando o Meta lê pode ser recusado), vale até a data de fim (os dias do
+  orçamento mais 1 hora) e nasce pausado: ligue logo, porque o tempo até
+  ligar encurta a janela. A API fica na **v25.0** (a v22.0 venceu em
+  fev/2026; troque a constante `META_PADRAO` quando o Meta aposentar a
+  seguinte) e a cidade vai com raio de **17 km** (o mínimo do Meta; 10 km
+  era menos que o aceito). **[você] Autorização do Meta para jogos**
+  (pesquisa de 09/10/2026): o Meta trata rifa e sorteio com cota paga como
+  "jogos de azar online" e só deixa anunciar com **autorização da conta de
+  anúncios** (Business Suite → Autorizações e verificações, com licença
+  válida, prints do site e revisão manual, em inglês). Sem ela os anúncios
+  são reprovados, e reprovação repetida pode restringir a conta e a página
+  — de todas as organizações ao mesmo tempo. Peça antes do primeiro
+  anúncio de verdade e confirme com o advogado qual documento vale (a
+  autorização SPA/MF é por rifa e por promotora; a conta de anúncios é da
+  plataforma). Ainda não confirmados na documentação: o mínimo diário em
+  reais (leia `act_…/minimum_budgets` com o token real), o cabeçalho
+  `Authorization: Bearer` na Marketing API (se der erro 190, trocar para
+  `OAuth`) e o anúncio no Instagram só com a identidade da página.
   Conferir com o primeiro
   anúncio de verdade, ainda pausado, se o Meta aceitou os campos (a prova
   usa um Meta de mentira: a API real nunca foi chamada daqui). **Falta no

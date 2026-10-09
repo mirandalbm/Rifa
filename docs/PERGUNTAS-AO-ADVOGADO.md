@@ -5,6 +5,12 @@ das seções 3, 10, 16 e 17 de `docs/CONSULTA-CONTADOR-E-ADVOGADO.md` (que ficam
 como histórico): as repetidas foram juntadas e as que o contador já fechou
 saíram ou ganharam o contexto novo. A numeração é a desta lista.
 
+**Situação (09/10/2026):** o advogado respondeu a **prioridade 1 (A1 a A6)** e a **prioridade 2
+(B a D1)** de forma resumida; **não tocou a prioridade 3**. As respostas e a
+conferência estão na **seção 22** de `docs/CONSULTA-CONTADOR-E-ADVOGADO.md`. A
+**"Segunda rodada"**, no fim deste arquivo, junta o que ficou sem resposta e as
+correções.
+
 **Como responder (pedido ao advogado).** Para cada pergunta: **sim / não / sim
 com ressalva**, o **fundamento** em uma ou duas linhas e, onde houver, a
 **cláusula** que recomenda. Marcamos a prioridade: **[1]** decide se o modelo A
@@ -231,3 +237,80 @@ tributário de cada cenário, o **preço da taxa por cenário** e os riscos
 contratuais e das redes). **O advogado é quem decide a estrutura do parecer**
 (o contador só começa quando o advogado concordar) e é dele a análise dos
 **termos das redes (A1)**, o ponto que pode mudar tudo.
+
+---
+
+## Segunda rodada (depois da primeira resposta, 09/10/2026)
+
+O advogado concluiu: **não implementar o modelo A como descrito**; só com **contas
+de anúncio segregadas por promotora**; **parecer de direito bancário** sobre o
+saldo pré-pago; **consulta formal à Meta e ao Google** sobre agência. Perguntas
+novas, e o que ficou em aberto:
+
+**R1. [1] "Contas segregadas por promotora" é o modelo B?** Cada promotora é a
+**anunciante, titular da conta de anúncios e da autorização**, e a plataforma
+tem só acesso de parceiro para gerir? Se for isso, as restrições de política
+**do conteúdo** (autorização de jogo de azar na Meta, certificação no Google e
+TikTok) valem para **cada promotora na conta dela**, e a plataforma deixa de
+responder por uma conta única? Ou há uma terceira estrutura (uma conta por
+promotora **dentro** do gerenciador da plataforma, titular a plataforma)?
+
+**R2. [1] Responsabilidade de gestão no modelo B.** Que cláusulas limitam o risco
+de **erro de gestão** que o advogado apontou (gasto acima do autorizado, falta de
+otimização): **obrigação de meio**, **orçamento teto fixado pela promotora** (e
+posto no próprio Meta), **aprovação prévia do anúncio** antes de ligar, relatório,
+prazo de reclamação. A **taxa mais alta** que ele sugere é necessária?
+
+**R3. [1] TikTok e Google para rifa.** A conclusão "TikTok inviável" vem da
+política de **anúncios** ou da do **TikTok Shop** (que proíbe rifa)? O que a
+**política de mercado do Brasil** do TikTok diz de loteria e rifa autorizada pela
+SPA/MF? No Google, a certificação do Ministério da Fazenda (apostas e cassino)
+alcança **rifa autorizada pela SPA/MF** ou há categoria própria? Vale para o
+modelo B também?
+
+**R4. [2] Norma da publicidade da rifa.** A **Lei 14.790/2023 e a Portaria SPA/MF
+nº 1.231/2024** tratam de **apostas de quota fixa**. Qual norma rege a
+publicidade de **rifa autorizada** (Lei 5.768/71, Decreto 70.951/72 e as portarias
+da SPA/MF para promoção comercial)? As exigências (número da autorização, 18+,
+não associar a riqueza) vêm de qual delas?
+
+**R5. [2] Base dos 12 meses do crédito.** O art. 26, § 3º, do CDC trata do prazo
+para reclamar de vício, não da validade de crédito. Em que norma ou prática se
+apoiam os 12 meses? E o que ele não tratou: **baixa do crédito vencido**, **aviso
+prévio**, o saldo no **encerramento da conta**, na **rescisão** e no **banimento**
+(retenção cautelar que o contrato da promotora prevê).
+
+**R6. [2] "Pausar aos 10% de excedente."** Nosso desenho é **pausar quando o saldo
+restante cai a 10%**; "excedente" é o que a rede gasta **além** da verba. Sua
+resposta vale para o nosso desenho? E o que ele não respondeu: o excedente
+**pode ser cobrado da promotora**? Que **limitação de responsabilidade** e que
+**prazo de leitura** do gasto a cláusula traz? A pausa automática é **obrigação de
+resultado ou de meio**?
+
+**R7. [2] Carência do Pix.** A **carência de 7 dias** do saldo depois do Pix atrasa
+o início de toda campanha. Há alternativa (carência menor, valor máximo
+liberado no primeiro mês, garantia)? O **Pix tem devolução por fraude (MED)** por
+muito mais tempo que 7 dias: a cláusula de **reposição do saldo** basta?
+
+**R8. [2] O saldo que já existe.** O saldo pré-pago já está no sistema (patrocínio,
+banner pago, assistente de IA). Enquanto o parecer de direito bancário não sai,
+que **medidas provisórias** o advogado recomenda (reembolso em dinheiro desligado,
+sem saque nem transferência, conta segregada)? O saldo de **tráfego** deve
+**esperar** o parecer?
+
+**R9. [2] Aceite da taxa.** Concordamos em acrescentar **IP e aparelho (em hash)**
+ao aceite da taxa (hoje só data, versão e SHA-256). Algo mais para o aceite valer
+como prova?
+
+**R10. [2] O que ficou sem resposta na prioridade 2:** **B1** (CDC e B2B; a taxa
+inteira se a campanha for encerrada logo após a aprovação), **B6** (anúncio
+reprovado ou conta restrita por conteúdo da organização: repassar o risco;
+Pix por fora), **C1** (LGPD, revogação do acesso e campanha ativa no modelo B) e
+**C2** (base de cálculo da taxa e direito de auditar), e o **"o que a autorização
+SPA/MF permite dizer"** do D1.
+
+**R11. [3] Prioridade 3 inteira:** D2 a D4 e E1 a E7.
+
+**Providências que ele pediu (do dono):** (a) contratar o **parecer de direito
+bancário** sobre o saldo; (b) **consultar formalmente a Meta e o Google** se uma
+agência pode obter a certificação para anunciar em nome de várias promotoras.

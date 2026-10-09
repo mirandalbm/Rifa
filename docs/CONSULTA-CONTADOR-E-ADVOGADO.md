@@ -10,7 +10,7 @@ vira trabalho de código está na seção 4; o que é decisão do dono, na seç�
 |---|---|
 | Contador | **Respondeu** (09/10/2026). Primeira rodada na seção 2, doação à ONG na seção 7, segunda rodada (Tesouraria) na seção 11; terceira rodada respondida na seção 13; **quarta rodada respondida na seção 15 (muda a posição fiscal do modelo A: revenda)**; quinta, mínima (4 dúvidas), na seção 16; **comentários finais e o parecer conjunto na seção 17**; **respostas a C11–C16 e a minha conferência na seção 18**; **respostas a C17–C20 e aos pontos que não fechavam na seção 19 (a revenda fica sem a exclusão do ISS)**; **última rodada (C21–C24, que ele não leu) na seção 20: falta só o que depende do parecer e de você**; **normas lidas e crédito como redução de custo na seção 21**. |
 | Regime da plataforma | **Lucro Real** (informado pelo dono em 09/10/2026) — ver a seção 8, que muda a leitura de várias respostas. |
-| Advogado | **Sem resposta ainda.** A lista **consolidada e enxuta** (as das seções 3, 10, 16 e 17, juntadas e com o contexto novo do contador) está em **`docs/PERGUNTAS-AO-ADVOGADO.md`** — é essa que se repassa; as seções 3, 10, 16 e 17 ficam como histórico. As respostas entram aqui quando chegarem. |
+| Advogado | **Respondeu as prioridades 1 e 2 (09/10/2026)** — seção 22: o modelo A **não deve ser implementado como está**; o saldo pré-pago exige parecer de direito bancário; faltam os itens que ele não tocou. A lista que se repassa é `docs/PERGUNTAS-AO-ADVOGADO.md` (junta as seções 3, 10, 16 e 17, que ficam como histórico). |
 
 ## 1. O que o sistema faz hoje (o que foi levado a eles)
 
@@ -1298,3 +1298,141 @@ Contador sem dúvida pendente do lado dele. **Falta para o parecer sair**:
    (em especial o 11, os termos das redes).
 3. **O contador**: anexar ao parecer **cópia dos trechos oficiais** que cita (SC
    8/2024, itens 40 a 44 do PN 5/2018, a SC 6.006) e os dois acórdãos do CARF.
+
+## 22. Respostas do advogado às prioridades 1 e 2 (09/10/2026)
+
+Ele respondeu a lista de `docs/PERGUNTAS-AO-ADVOGADO.md`, blocos A (prioridade 1)
+e B a D1 (prioridade 2). **Não respondeu a prioridade 3** (D2 a D4 e E1 a E7).
+
+### O que ele disse
+
+**A1 — termos das redes.** O modelo A, como descrito, é de **altíssimo risco**:
+- **Meta**: exige autorização prévia para "jogos de azar e jogos online", que
+  inclui rifas e loterias; a autorização é do **anunciante** (quem paga), vinculada
+  à conta de anúncios e à prova de licença do regulador. Com a conta da plataforma,
+  **ela** precisa da autorização e responde pela veiculação; se uma promotora for
+  penalizada, a plataforma, como titular da conta principal, pode responder
+  **solidariamente** perante a Meta e as outras promotoras.
+- **Google**: desde 01/01/2025 exige licença válida do Ministério da Fazenda para
+  certificar anunciantes de apostas e jogos online no Brasil; a plataforma, como
+  agência, pode precisar da certificação **na conta principal**, com o mesmo risco
+  de responsabilidade centralizada.
+- **TikTok**: proíbe jogos de azar, **inclusive rifas**; só loterias, com permissão
+  e representante dedicado. **Inviável para rifa.**
+- Conclusão: viável na Meta e no Google (com certificação), inviável no TikTok; a
+  centralização das contas cria risco de responsabilidade solidária e de bloqueio
+  de **toda** a operação.
+
+**A2 — contrato.** Redigir como **"prestação de serviços de gestão de mídia
+paga"**, nunca "revenda de mídia" (a revenda poderia configurar representação
+comercial ou intermediação, com outras consequências tributárias e de
+responsabilidade). A plataforma adquire a mídia em nome próprio; a remuneração é
+a taxa de gestão.
+
+**A3 — responsabilidade.** Ao contratar a rede, a plataforma assume a
+responsabilidade **primária perante a rede**, e aumenta a perante a promotora (obrigação
+de meio, salvo promessa de resultado) e perante o consumidor (CDC, arts. 3º, 37 e
+38: publicidade enganosa ou abusiva em nome da promotora, solidariedade). O
+**regresso** do contrato da promotora (cláusula 5.1) segue essencial, mas **não
+protege de condenação solidária**.
+
+**A4 — risco de crédito.** O Pix da promotora estornado depois de a plataforma ter
+pago a rede é prejuízo da plataforma. Recomenda: **carência para o estorno do Pix
+(ex.: 7 dias)** antes de o saldo poder pagar a rede, e cláusula de **reposição do
+saldo** em caso de estorno, sob pena de rescisão e cobrança judicial.
+
+**A5 — imposto da rede.** A ideia está correta: o contrato diz que o valor pago é
+o total e que o saldo de anúncios é o total **menos os impostos retidos pela
+rede** ("gross-up", prática de mercado), com clareza no contrato e no painel.
+
+**A6 — saldo pré-pago.** **Risco regulatório sério.** O saldo pode ser
+caracterizado como **conta de pagamento pré-paga** (Resolução BCB nº 96/2021) e,
+se for, a plataforma exerceria atividade regulada sem autorização. Mitigar com
+(1) **conta segregada**, (2) contrato dizendo que o saldo é **crédito pré-pago
+para um serviço específico**, sem saque nem transferência a terceiros e (3)
+**parecer de escritório especializado em direito bancário e de pagamentos**.
+
+**B — taxa, crédito e excedente.**
+- A taxa de gestão, incorrida, **não é reembolsável**, e o contrato diz isso.
+- **Exceção por falha da plataforma: crédito, não dinheiro**, é prática aceitável
+  se estiver no contrato.
+- **12 meses** de validade do crédito é razoável; tem de constar no contrato.
+- **Aceite eletrônico**: registrar hash, **IP**, data, como nos outros documentos.
+- **Excedente**: pausar sozinha "ao atingir 10% de excedente" e **notificar a
+  promotora**, para não cobrar o que ela não autorizou.
+
+**C — modelo B.** "Mais complexo e arriscado": a plataforma passa a responder por
+**erros de gestão** (gastar mais do que o autorizado, não otimizar). Pede
+**taxa mais alta** e **cláusulas de limitação de responsabilidade** muito bem
+redigidas.
+
+**D1 — publicidade.** Cita a **Lei 14.790/2023** e a **Portaria SPA/MF nº
+1.231/2024**: a publicidade leva o **número da autorização** da SPA/MF, não pode
+se dirigir a menores de 18 e não pode associar a rifa a riqueza, sucesso ou saída
+de dívidas; a plataforma, ao criar o anúncio, responde por incluir isso.
+
+**Conclusão e recomendação dele.** (1) **Não implementar o modelo A como
+descrito**, ou só com **contas de anúncio segregadas por promotora** (o que acaba
+com a economia de escala). (2) O **saldo pré-pago (A6) é o risco mais grave**.
+(3) A plataforma não se exime da responsabilidade perante o consumidor.
+**Antes de investir**: contratar o **parecer de direito bancário** sobre o saldo e
+**consultar formalmente a Meta e o Google** se uma agência pode obter a
+certificação para anunciar em nome de várias promotoras.
+
+### O que eu consegui conferir (busca em fontes abertas, 09/10/2026)
+
+| Ponto | Resultado |
+|---|---|
+| **Meta**: autorização para rifa e loteria | **Confere** na política oficial ("Online Gambling and Games"): exige permissão por escrito para loterias e rifas, pedida por formulário, com prova de licença ou legalidade no território. **A página não diz nada sobre agência** (a pergunta de fundo do A1 segue aberta). |
+| **Google**: licença do Ministério da Fazenda desde 01/01/2025 | **Confere**, mas a política oficial fala de **apostas esportivas e cassino online**. Que **rifa autorizada pela SPA/MF** caia nessa certificação **não aparece**. |
+| **TikTok**: "proíbe rifas" | **Só em parte.** A política de anúncios do TikTok é de **certificação por mercado** (loterias estão no escopo); quem **proíbe rifa** é a política do **TikTok Shop**, outra coisa. O que vale para o Brasil está numa seção de requisitos por mercado que **eu não li**. A conclusão "inviável" é plausível, **não está provada**. |
+| **Lei 14.790 e Portaria SPA/MF 1.231/2024** para a rifa (D1) | **Não confere como está.** A portaria trata de **apostas de quota fixa** (bets: jogo responsável, publicidade e promoção desses operadores). Nada encontrado a liga a **rifa ou promoção comercial** (Lei 5.768/71). Pode valer por analogia, mas **não é a norma da nossa rifa**. |
+| Resolução BCB nº 96/2021 (conta de pagamento) | Não conferi o texto; o enquadramento é o que se espera, e a recomendação de parecer especializado é a certa. |
+| CDC, art. 26, § 3º, citado para o prazo do crédito | **Inadequado**: o art. 26 trata do prazo para reclamar de vício, não da validade de crédito. A base dos 12 meses precisa ser outra. |
+
+### O que ele disse que não bate com o que fizemos
+
+- **Excedente.** Ele escreveu "pausar ao atingir **10% de excedente**". O desenho é
+  **pausar quando o saldo restante cai a 10%** (o excedente é o que a rede gasta
+  **além** da verba). São coisas diferentes e precisam ser corrigidas com ele.
+- **Aceite.** "Registrar hash, **IP** e data como já fazemos": no aceite da **taxa**
+  do tráfego o sistema grava só **data, versão e SHA-256**; IP e aparelho (em hash)
+  existem no **contrato da promotora**, não no aceite da taxa. **Falta
+  acrescentar** (mudança de código pequena, depois de decidido).
+- **Exemplo do gross-up** (R$ 1.000 → R$ 970): usa 3% de imposto. O real é de
+  **12,15% sobre o total** (R$ 1.000 → R$ 878,50 de saldo de anúncios).
+- **Modelo B "mais arriscado".** O contador via o B como a saída que preserva a
+  economia (ISS só sobre a taxa). O advogado vê o risco de **gestão**: é um risco
+  real, mas **contratual** (obrigação de meio, orçamento fixado pelo cliente,
+  aprovação prévia antes de ligar), não um impedimento. E a própria saída dele
+  para o A ("contas de anúncio segregadas por promotora") **é, na prática, o B**:
+  cada promotora é a anunciante, com a **própria** autorização e a **própria**
+  responsabilidade.
+- **A restrição das redes pesa nos dois modelos.** A exigência de autorização para
+  rifa e a restrição do TikTok são **do conteúdo do anúncio**, não do modelo: no
+  B a promotora precisa dela na conta dela. O que muda no B é **quem responde**:
+  deixa de ser a plataforma, por uma conta única.
+
+### Perguntas que sobram
+
+Estão em `docs/PERGUNTAS-AO-ADVOGADO.md`, na "Segunda rodada". Resumo: confirmar
+que "contas segregadas por promotora" = modelo B e como limitar a
+responsabilidade de gestão; a base do TikTok e do Google para **rifa**; qual
+norma rege a **publicidade da rifa** (não a das bets); a base dos 12 meses; o
+"10%"; a carência do Pix; e **tudo que ele não tocou** (B1, B3, B6, C1 e C2 em
+detalhe, prioridade 3).
+
+### O que isto muda
+
+- **O modelo A fica suspenso.** Nada de código do modelo A (criar campanha na
+  conta da plataforma para várias promotoras) até **duas** respostas: o parecer de
+  direito bancário e a consulta formal à Meta e ao Google. **O modelo B passa a
+  ser o caminho mais provável**, com o contrato certo.
+- **TikTok sai** da lista de redes com conta pronta, no que tange a rifa, até
+  ler a política de mercado do Brasil.
+- **O saldo pré-pago já existe no sistema** (patrocínio, banner pago, assistente de
+  IA) **e o parecer de direito bancário vale para todos**, não só para o tráfego.
+  Enquanto não sair: manter **desligado** o reembolso em dinheiro do saldo, sem
+  saque nem transferência, e conta bancária **segregada** para esse dinheiro.
+- **Já decidido por ele e a fazer no código, quando o planejamento começar**: IP
+  e aparelho (hash) no aceite da taxa.

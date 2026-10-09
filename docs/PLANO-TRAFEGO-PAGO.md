@@ -264,3 +264,17 @@ pesa no desenho:
   voltar, e que o saldo precisa de **prazo de validade** (6 ou 12 meses). As
   duas coisas tocam a decisão "a taxa nunca volta" e o saldo compartilhado com
   patrocínio e banner pago; ficam para depois da resposta do advogado.
+
+### Posição fiscal do modelo A: revenda (contador, 09/10/2026)
+
+A tese de que a mídia seria **repasse** (conta alheia, fora da receita) **não
+se sustenta no modelo A**, porque a campanha fica na conta de anúncios da
+plataforma, em nome dela, e a rede fatura a plataforma. O contador recomenda
+**revenda (conta própria)**: a mídia é receita bruta, a fatura da rede é custo
+com crédito de PIS/COFINS e o ISS pode alcançar o valor da mídia. Efeito direto
+no produto: **rever a taxa padrão (20%)**, o contrato (de mandato para prestação
+de serviço com fornecimento de mídia) e o texto do aceite; o **modelo B** (o
+cliente paga a rede) é onde o repasse vale. Detalhes e perguntas abertas em
+`docs/CONSULTA-CONTADOR-E-ADVOGADO.md`, seções 15 e 16. A decisão final é do
+dono com o advogado.
+

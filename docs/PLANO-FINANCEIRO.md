@@ -315,3 +315,31 @@ As perguntas ao contador e ao advogado sobre a Tesouraria e os acessos estão
 em `docs/CONSULTA-CONTADOR-E-ADVOGADO.md`, seções 9 (contador) e 10
 (advogado). **Nada é implementado antes das respostas e da aprovação do plano
 final.**
+
+## 11. Efeito da posição fiscal do modelo A (revenda) no desenho — 09/10/2026
+
+O contador recomendou tratar a mídia do **modelo A como revenda (conta
+própria)**; a decisão final é do dono com o advogado (`docs/CONSULTA-CONTADOR-E-ADVOGADO.md`,
+seção 15). O desenho da Tesouraria se adapta assim, **sem apagar** a decisão
+gerencial do dono (só a % da plataforma entra no saldo bruto):
+
+- **Duas visões lado a lado**, ambas calculadas pelo sistema: a **gerencial** (a
+  decisão do dono: mídia em bloco à parte, só a taxa na receita) e a **fiscal**
+  (receita bruta com a mídia revendida, custo da fatura da rede, crédito de
+  PIS/COFINS, base do ISS). O extrato do contador entrega a fiscal.
+- **Parâmetro "posição fiscal"** (repasse ou revenda) por modelo/rede, com o
+  histórico de qual valia em cada mês; modelo A = revenda; modelo B = repasse.
+- **Base nova para as linhas de imposto**: "receita bruta fiscal", além de
+  bruto, saldo restante e lucro antes dos impostos.
+- **Reconhecimento**: taxa de gestão pelo gasto proporcional (diferida até o
+  consumo, o saldo restante de uma vez no encerramento, **exceto** erro da
+  plataforma); mídia pelo consumo; patrocínio, banner e IA pelo consumo (serviço
+  próprio, 100% receita); recargas e taxa recebida = adiantamento de cliente
+  (passivo). Valores em centavos, com o acumulado arredondado para baixo e o
+  resto no encerramento, para fechar em igualdade exata.
+- **Informações que o sistema não tem**: saldo bancário (até o 5º dia útil) e
+  lucro contábil (até o 10º dia útil) são **informados**, com data e quem
+  informou, e **não alteram o retrato gerencial**: entram ligados ao mês.
+- **O preço da taxa** precisa ser revisto com o contador (o ISS sobre a mídia
+  pode consumir parte da taxa de 20%).
+

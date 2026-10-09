@@ -8,7 +8,7 @@ vira trabalho de código está na seção 4; o que é decisão do dono, na seç�
 
 | Quem | Situação |
 |---|---|
-| Contador | **Respondeu** (09/10/2026). Primeira rodada na seção 2, doação à ONG na seção 7, segunda rodada (Tesouraria) na seção 11; **terceira rodada respondida na seção 13; falta uma quarta, mínima (2 dúvidas), na seção 14**. |
+| Contador | **Respondeu** (09/10/2026). Primeira rodada na seção 2, doação à ONG na seção 7, segunda rodada (Tesouraria) na seção 11; terceira rodada respondida na seção 13; **quarta rodada respondida na seção 15 (muda a posição fiscal do modelo A: revenda)**; **quinta, mínima (4 dúvidas), na seção 16**. |
 | Regime da plataforma | **Lucro Real** (informado pelo dono em 09/10/2026) — ver a seção 8, que muda a leitura de várias respostas. |
 | Advogado | **Perguntas enviadas, sem resposta ainda.** Perguntas na seção 3; as respostas entram aqui quando chegarem. |
 
@@ -691,4 +691,114 @@ comportar os dois (um parâmetro da Tesouraria), sem apagar o histórico.
 - **Para o dono**: a **exceção da falha da plataforma** (taxa devolvida ou
   compensada em erro nosso) segue pendente da sua decisão; o contador confirma
   que, nesse caso, a taxa **não é receita**.
+
+## 15. Respostas da quarta rodada do contador (09/10/2026): a posição fiscal do modelo A
+
+- **C9. No modelo A, a posição é REVENDA (conta própria).** Fundamento dele: a
+  campanha é criada na conta de anúncios **da plataforma, em nome dela**, e o
+  Meta fatura a plataforma pelo preço cheio, "como cliente direto"; "não há como
+  sustentar que a plataforma atua em nome do anunciante"; e o crédito de
+  PIS/COFINS sobre a fatura é atributo da conta própria. **Isto substitui a
+  tese de repasse da primeira rodada (seção 2) para o modelo A.**
+  Custo tributário do cenário (conforme ele):
+  - **ISS** incide sobre o valor total da mídia **mais** a taxa — "o maior
+    impacto";
+  - **PIS/COFINS** (9,25%): a receita da mídia entra na base e a fatura do Meta
+    gera crédito de 9,25% sobre o mesmo valor, anulando o efeito; o saldo a
+    recolher fica sobre a margem;
+  - **IRPJ/CSLL**: receita da mídia e custo da fatura se anulam; o lucro
+    tributável é, na prática, a taxa;
+  - **Simples**: não se aplica (a plataforma é Lucro Real; seria o cenário mais
+    oneroso).
+  Recomendação dele: **parâmetro "Posição Fiscal" (Repasse ou Revenda)**; no
+  modelo A, **Revenda**; a Tesouraria avisa que o saldo de caixa inclui valores
+  que, para fins fiscais, são receita.
+- **C10. Nota e diferimento.**
+  1. A taxa recebida na aprovação é **adiantamento de cliente (passivo)**.
+  2. Com a campanha rodando, reconhece-se a receita proporcional (gasto da
+     mídia ou período) e emite-se a **NFS-e da parcela do mês**.
+  3. No encerramento, reconhece-se o **saldo remanescente de uma vez** e emite-se a
+     NFS-e correspondente.
+  A prefeitura **aceita** a nota depois do recebimento, porque a emissão segue
+  a **competência da prestação**, não o pagamento (ele cita o "Acórdão nº
+  012/25 do Recife" — **não conferido**). A taxa recebida e não reconhecida fica
+  como **"Receita Diferida" (passivo)**, nunca como lucro ou receita disponível.
+- **Resumo dele para o modelo A:** mídia = receita bruta (revenda); fatura do Meta
+  = custo com crédito de PIS/COFINS; ISS sobre mídia + taxa; taxa recebida =
+  passivo; taxa reconhecida = receita + NFS-e; saldo diferido = receita
+  diferida.
+- **A decisão final (repasse × revenda) é do dono com o advogado**, diz ele, mas
+  a recomendação técnica é revenda, porque "os fatos apontam para a conta
+  própria".
+
+### O que isto muda (leitura minha)
+
+1. **O preço da taxa.** Se o ISS passa a incidir sobre a mídia, o custo sobe.
+   Exemplo (alíquota máxima de 5%, só para dar a ordem de grandeza): pacote de
+   R$ 100 + taxa de 20% = R$ 120; ISS sobre R$ 120 = R$ 6,00, contra R$ 1,00 se
+   fosse só sobre a taxa — **R$ 5,00 a mais, um quarto da taxa**. Os 20% foram
+   pensados no cenário de repasse; **a taxa padrão precisa ser revista com o
+   contador** (e o ISS do município da plataforma decide o número real).
+2. **A premissa de "ISS sobre tudo" precisa de conferência.** Em muitos
+   municípios as **agências de publicidade** pagam ISS sobre a comissão e os
+   honorários, e **não** sobre o custo de veiculação pago a veículos; a regra
+   municipal manda. Pedir a **lei do município da plataforma** (e dos principais
+   tomadores) com o artigo, em vez de aceitar "incide sobre o total".
+3. **A mídia deixa de ser "bloco à parte" para a contabilidade fiscal**, mas pode
+   continuar sendo para a **gestão**: a Tesouraria terá duas visões lado a lado — a
+   **gerencial** (decisão do dono: só a % da plataforma entra no saldo bruto) e a
+   **fiscal** (receita bruta com a mídia de revenda, custo da fatura da rede, crédito
+   de PIS/COFINS, base do ISS). O extrato do contador entrega a fiscal.
+4. **Nova base para as linhas de imposto**: além do bruto, do saldo restante e
+   do lucro antes dos impostos, **a receita bruta fiscal**.
+5. **A nota passa a incluir a mídia consumida** (e não só a taxa), o que
+   contradiz a recomendação da primeira rodada de "emitir nota só da taxa". A
+   reconciliar com o contador (C11).
+6. **O contrato deixa de ser mandato.** A cláusula de "mera intermediadora de
+   pagamento" (que ele sugeriu como mitigação em C4) não combina com revenda.
+   O contrato passa a descrever a **prestação de serviço de publicidade com
+   fornecimento de mídia**. Isso é para o advogado.
+7. **O modelo B volta a ser o caminho do repasse puro** (o cliente paga a rede):
+   é onde a tese de conta alheia é forte e o ISS fica só sobre a gestão. Um
+   argumento a mais para entregar o modelo B.
+8. **Termos das redes.** Rodar campanha de vários anunciantes na conta de
+   anúncios da própria plataforma (revenda) pode ser tratado pelo Meta, Google e
+   TikTok de forma diferente (conta de agência/parceiro, identificação do
+   anunciante real, regras de jogos de azar). Isso é para o advogado e para a
+   pesquisa de integração antes de crescer.
+
+## 16. Dúvidas que sobraram (quinta rodada, mínima)
+
+- **C11. Revenda: o que a nota inclui e quando se reconhece a mídia.** Na
+  revenda, a receita da mídia é reconhecida no **consumo** (gasto lançado do
+  dia)? A NFS-e mensal inclui a mídia consumida **mais** a taxa reconhecida,
+  no mesmo código de serviço? O que acontece com a mídia **não consumida**
+  (volta ao saldo como crédito): adiantamento de cliente, sem nota?
+- **C12. Base do ISS sobre mídia.** Em que **artigo da lei do município** da
+  plataforma se apoia a incidência do ISS sobre a mídia revendida? Existe regra
+  de **dedução do custo de veiculação** para agência de propaganda (conta
+  própria, com nota do veículo em nome da agência)? Qual o ISS efetivo do cenário
+  de revenda, em reais, para o pacote de R$ 100 + 20%?
+- **C13. Excedente da rede.** Na revenda, o gasto da rede acima da verba (que
+  nós pagamos e não cobramos) é custo da mídia sem receita correspondente:
+  é despesa dedutível e gera crédito de PIS/COFINS, como a fatura?
+- **C14. Os textos.** Pedir o texto (ou link oficial) do "Acórdão nº 012/25 do
+  Recife", da Solução de Consulta 6.006 e da 87/2011, que ele citou.
+- **Para o advogado (itens 10 a 12 da seção 10):** ver abaixo.
+
+### Perguntas novas ao advogado (itens 10 a 12 da seção 10)
+
+10. **Estrutura do contrato na revenda (modelo A).** Sai o mandato e entra a
+    prestação de serviço de publicidade com fornecimento de mídia: como ficam a
+    cláusula de responsabilidade pelo conteúdo, a rejeição pela rede, o
+    saldo-crédito e o aceite da taxa (hoje redigido no cenário de repasse)?
+11. **Termos do Meta, Google e TikTok.** É permitido rodar campanhas de vários
+    anunciantes na conta de anúncios da plataforma (revenda)? Que identificação do
+    anunciante real e da entidade que paga é exigida, principalmente em
+    **jogos de azar/rifas autorizadas**? Quem responde por reprovação e por
+    restrição da conta?
+12. **Posição fiscal e responsabilidade.** Com a revenda, a plataforma deixa de
+    ser "intermediária" e passa a ser a vendedora da mídia perante a organização.
+    Isso altera a responsabilidade (CDC, solidariedade) e o regime do saldo
+    pré-pago (pergunta 14)?
 

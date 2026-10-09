@@ -15,7 +15,9 @@ import {
   SITUACOES_DA_CAMPANHA,
   SITUACOES_EM_ABERTO,
   linhaDoPacote,
+  pacotesDoTexto,
   reservaDoPedido,
+  textoDosPacotes,
   type ConfigTrafegoPago,
   type RedeDeAnuncio,
   type SituacaoDaCampanha,
@@ -487,7 +489,7 @@ function ConfigDoTrafego({ config: c, faltamNoMeta }: { config: ConfigTrafegoPag
   const [taxa, setTaxa] = useState(String(c.taxaPct));
   const [minimo, setMinimo] = useState(reais(c.investimentoMinCents));
   const [porDia, setPorDia] = useState(reais(c.verbaDiaMinCents));
-  const [pacotes, setPacotes] = useState((c.pacotesCents ?? []).map((p) => reais(p)).join(", "));
+  const [pacotes, setPacotes] = useState(textoDosPacotes(c.pacotesCents ?? []));
   const [redes, setRedes] = useState<RedeDeAnuncio[]>(c.redes);
   const [criarPelaApi, setCriarPelaApi] = useState(c.criarPelaApi);
   const [msg, setMsg] = useState<{ ok: boolean; texto: string } | null>(null);
@@ -499,11 +501,7 @@ function ConfigDoTrafego({ config: c, faltamNoMeta }: { config: ConfigTrafegoPag
         taxaPct: Number(taxa),
         investimentoMinCents: centavos(minimo),
         verbaDiaMinCents: centavos(porDia),
-        pacotesCents: pacotes
-          .split(/[;,]/)
-          .map((x) => x.trim())
-          .filter(Boolean)
-          .map(centavos),
+        pacotesCents: pacotesDoTexto(pacotes),
         redes,
         criarPelaApi,
       }),
@@ -546,10 +544,10 @@ function ConfigDoTrafego({ config: c, faltamNoMeta }: { config: ConfigTrafegoPag
           </Campo>
         </div>
         <Campo
-          rotulo="Pacotes de investimento (R$, separados por vírgula)"
-          dica="O que vai para a rede de anúncio; a taxa vem por cima. De 1 a 8 valores, a partir do mínimo. A organização ainda pode escrever outro valor."
+          rotulo="Pacotes de investimento (R$, separados por ponto e vírgula)"
+          dica="O que vai para a rede de anúncio; a taxa vem por cima. Até 8 valores, a partir do mínimo (vazio: só o valor à escolha). A organização ainda pode escrever outro valor."
         >
-          <input inputMode="decimal" value={pacotes} onChange={(e) => setPacotes(e.target.value)} placeholder="50, 100, 250, 500" />
+          <input inputMode="decimal" value={pacotes} onChange={(e) => setPacotes(e.target.value)} placeholder="50; 100; 250; 500" />
         </Campo>
         <fieldset className="space-y-1">
           <legend className="label-xs">Redes com conta pronta</legend>

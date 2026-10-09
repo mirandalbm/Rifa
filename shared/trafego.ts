@@ -127,6 +127,23 @@ export function pacotesValidos(v: unknown, minCents: number): number[] {
   return out.sort((a, b) => a - b);
 }
 
+/** "50,50; 100" → [5050, 10000]: o `;` (ou a quebra de linha) separa, a vírgula é a decimal. Lixo vira 0 e o servidor recusa. */
+export function pacotesDoTexto(texto: string): number[] {
+  return texto
+    .split(/[;\n]/)
+    .map((x) => x.trim())
+    .filter(Boolean)
+    .map((x) => {
+      const n = Number(x.replace(/\./g, "").replace(",", "."));
+      return Number.isFinite(n) ? Math.round(n * 100) : 0;
+    });
+}
+
+/** O inverso, para o campo da tela: o que a tela mostra volta igual ao salvar. */
+export function textoDosPacotes(pacotesCents: number[]): string {
+  return pacotesCents.map((c) => (c / 100).toFixed(2).replace(".", ",")).join("; ");
+}
+
 /** Só as chaves conhecidas: isto vem do corpo da requisição. */
 export function validarConfigTrafego(bruto: unknown): ConfigTrafegoPago {
   if (bruto === undefined || bruto === null) return CONFIG_TRAFEGO_PADRAO;

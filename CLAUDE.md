@@ -4608,10 +4608,12 @@ abaixo).
   taxa **nunca vira anúncio**, em nenhuma rede (é lucro da plataforma, não
   entra no orçamento mandado à rede). O pacote é vitrine, não regra: o pedido
   aceita **qualquer valor a partir do mínimo** ("outro valor"), e o saldo
-  decide o resto. A lista da plataforma é conferida a sério (de 1 a 8,
+  decide o resto. A lista da plataforma é conferida a sério (até 8, pode ficar vazia,
   inteiros, a partir do mínimo, sem repetir, guardada em ordem); sem o campo,
   vale a de fábrica **só no que cabe no mínimo** — configuração guardada antes
-  dos pacotes nunca deixa de carregar. **Imposto da rede não é modelado**: o
+  dos pacotes nunca deixa de carregar —, e subir o mínimo sem mandar os
+  pacotes tira os que ficaram abaixo dele (`PUT /admin/trafego/config`). Na
+  tela da plataforma os valores vão separados por `;` (a vírgula é a decimal). **Imposto da rede não é modelado**: o
   Meta cobra a plataforma pelo preço cheio (ISS e PIS/COFINS já dentro) e
   só esse preço conta; a tese contábil e o tributo sobre a taxa são do contador
   (`docs/PLANO-TRAFEGO-PAGO.md`).

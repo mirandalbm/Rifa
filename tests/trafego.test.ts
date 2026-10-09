@@ -9,7 +9,9 @@ import {
   custoPorVenda,
   linhaDoPacote,
   linkDoAnuncio,
+  pacotesDoTexto,
   pacotesValidos,
+  textoDosPacotes,
   problemaNaRecusa,
   reservaDoPedido,
   sobraDaCampanha,
@@ -73,6 +75,15 @@ describe("pacotes de investimento", () => {
     expect(() => pacotesValidos(["", 6_000], 5_000)).toThrow();
     expect(() => pacotesValidos("5000", 5_000)).toThrow(/lista/);
     expect(() => pacotesValidos(Array.from({ length: 9 }, (_, i) => 5_000 + i * 100), 5_000)).toThrow(/No máximo/);
+  });
+
+  it("o campo da plataforma volta igual ao salvar (a vírgula é a decimal, o ; separa)", () => {
+    const texto = textoDosPacotes(CONFIG_TRAFEGO_PADRAO.pacotesCents);
+    expect(texto).toBe("50,00; 100,00; 250,00; 500,00");
+    expect(pacotesDoTexto(texto)).toEqual(CONFIG_TRAFEGO_PADRAO.pacotesCents);
+    expect(pacotesDoTexto("50; 100,50\n1.000")).toEqual([5_000, 10_050, 100_000]);
+    expect(pacotesDoTexto("")).toEqual([]);
+    expect(pacotesDoTexto("abc; 50")).toEqual([0, 5_000]);
   });
 
   it("configuração guardada antes dos pacotes (mínimo maior) continua carregando", () => {

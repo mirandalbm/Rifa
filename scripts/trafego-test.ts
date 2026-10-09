@@ -209,6 +209,10 @@ async function main() {
     checa("os pacotes entram em ordem crescente", r.status === 200 && JSON.stringify(r.json?.pacotesCents) === JSON.stringify([10_000, 25_000, 50_000]), JSON.stringify(r.json));
     r = await marina.req("GET", "/api/admin/trafego");
     checa("a organização recebe os pacotes na tabela", JSON.stringify(r.json?.config?.pacotesCents) === JSON.stringify([10_000, 25_000, 50_000]), JSON.stringify(r.json?.config));
+    r = await admin.req("PUT", "/api/admin/trafego/config", { investimentoMinCents: 20_000 });
+    checa("subir o mínimo sem mandar pacotes tira os que ficaram abaixo (sem 400)", r.status === 200 && JSON.stringify(r.json?.pacotesCents) === JSON.stringify([25_000, 50_000]), JSON.stringify(r.json));
+    r = await admin.req("PUT", "/api/admin/trafego/config", { investimentoMinCents: 10_000, pacotesCents: [10_000, 25_000, 50_000] });
+    checa("…e a plataforma volta o mínimo e os pacotes", r.status === 200 && r.json?.investimentoMinCents === 10_000, JSON.stringify(r.json));
     r = await pedido(marina, rifaA.id, { investimentoCents: 17_300 });
     checa("o pedido aceita outro valor que não é pacote (a partir do mínimo)", r.status === 201 && r.json?.reservaCents === 20_760, `HTTP ${r.status} ${r.json?.message ?? ""}`);
     if (r.json?.id) await marina.req("POST", `/api/admin/trafego/campanhas/${r.json.id}/cancelar`);

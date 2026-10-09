@@ -4643,9 +4643,13 @@ abaixo).
   relógio) e recusar devolvem tudo, mídia e taxa. **O pedido exige o aceite
   explícito**: `aceiteTaxa: true` no corpo (só o `true` vale; 422 sem ele,
   depois do erro de preenchimento e do recorte da rifa e **antes** de
-  reservar ou gravar qualquer coisa). O servidor remonta o texto do pedido
-  (`textoDoAceiteDaTaxa()` em `shared/trafego.ts`, a mesma função da tela —
-  nada do texto vem do navegador) e grava `taxa_aceite_em`,
+  reservar ou gravar qualquer coisa). **O aceite prende o texto que a pessoa
+  viu**: a tela manda junto o texto exato (`aceiteTexto`) e o servidor o
+  compara com o que remonta do pedido (`textoDoAceiteDaTaxa()` em
+  `shared/trafego.ts`, a mesma função da tela): taxa ou valor diferente — a
+  plataforma mudou a tabela entre abrir a tela e clicar — é 409 antes de
+  gravar, e a tela recarrega a tabela e desmarca a caixa; sem o texto, 422.
+  A impressão gravada é sempre a de um texto que a pessoa leu. O servidor grava `taxa_aceite_em`,
   `taxa_aceite_versao` (`ACEITE_DA_TAXA_VERSAO`, **sobe se o texto mudar**,
   e o teste trava a impressão da versão 1) e `taxa_aceite_sha256` (o
   `hashDoContrato()` do contrato da promotora); o `trafego.pedido` leva a
@@ -4654,7 +4658,8 @@ abaixo).
   **não cobra a taxa de uma vez**: segue como o legado, com a taxa diária —
   ninguém é cobrado de forma irreversível sem ter aceitado. A tela mostra o
   texto numa caixa de marcar obrigatória ("Li e concordo"), que desmarca se o
-  valor do pedido mudar, e o resumo diz só "Taxa de gestão (X%)".
+  valor do pedido mudar, e o resumo diz só "Taxa de gestão (X%)". O pedido de
+  antes da regra, em análise, não diz "cobrada na aprovação" (cai no legado).
 - **Uma campanha aberta por rifa** (em análise, no ar ou fechando a conta): quem decide é o
   índice parcial `uq_trafego_aberto_por_rifa`, nunca um `SELECT` antes — dois
   pedidos ao mesmo tempo, um 201 e um 409, e o perdedor não debita nada.

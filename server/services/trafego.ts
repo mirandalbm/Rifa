@@ -246,6 +246,12 @@ export async function pedirCampanha(req: Request, entrada: Record<string, unknow
   const reservaCents = reservaDoPedido(pedido.investimentoCents, cfg.taxaPct);
   // O texto que a pessoa leu é remontado aqui, do pedido: a impressão nunca vem do navegador.
   const textoDoAceite = textoDoAceiteDaTaxa(cfg.taxaPct, taxaSobre(pedido.investimentoCents, cfg.taxaPct));
+  // O aceite prende o texto que a pessoa viu: se a taxa (ou o valor) mudou desde que ela leu, 409 antes de gravar
+  // qualquer coisa. A taxa é irreversível e a impressão tem de ser de um texto que ela de fato leu.
+  if (typeof entrada.aceiteTexto !== "string") throw new TrafegoError("Para pedir a campanha, leia e aceite a taxa de gestão.", 422);
+  if (entrada.aceiteTexto !== textoDoAceite) {
+    throw new TrafegoError("A taxa de gestão ou o valor do pedido mudou desde que você leu. Releia o texto e aceite de novo.", 409);
+  }
   const aceiteSha256 = hashDoContrato(textoDoAceite);
   try {
     return await db.transaction(async (tx) => {

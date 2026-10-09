@@ -34,7 +34,7 @@ import { encerrarTrafegoForaDoAr } from "../server/services/trafego";
 import { importarGastosDoRelogio } from "../server/services/trafegoImportacao";
 import { getPlataforma } from "../server/services/settings";
 import { hashDoContrato } from "../server/services/contratoPromotora";
-import { ACEITE_DA_TAXA_VERSAO, codigoDaCampanha, janelaDaImportacao, textoDoAceiteDaTaxa } from "../shared/trafego";
+import { ACEITE_DA_TAXA_VERSAO, codigoDaCampanha, corpoDoAceiteDaTaxa, janelaDaImportacao, textoDoAceiteDaTaxa } from "../shared/trafego";
 
 const URL = baseUrl();
 let falhas = 0;
@@ -168,8 +168,19 @@ async function main() {
   const rascunho = await novaRifa(orgId, "rascunho", "draft");
   const rifaVizinha = await novaRifa(vizinha.id, "vizinha");
 
-  const pedido = (cli: Cliente, campaignId: string, extra: Record<string, unknown> = {}) =>
-    cli.req("POST", "/api/admin/trafego/campanhas", { campaignId, redes: ["google", "meta"], investimentoCents: 20_000, verbaDiaCents: 2_000, aceiteTaxa: true, ...extra });
+  // A taxa que a tela mostra (muda no meio da prova, quando a plataforma troca a tabela).
+  let taxaDaTela = 20;
+  const pedido = (cli: Cliente, campaignId: string, extra: Record<string, unknown> = {}) => {
+    const investimentoCents = typeof extra.investimentoCents === "number" ? extra.investimentoCents : 20_000;
+    return cli.req("POST", "/api/admin/trafego/campanhas", {
+      campaignId,
+      redes: ["google", "meta"],
+      investimentoCents,
+      verbaDiaCents: 2_000,
+      ...corpoDoAceiteDaTaxa(taxaDaTela, investimentoCents),
+      ...extra,
+    });
+  };
 
   try {
     /* ---------------- desligado ---------------- */
@@ -255,6 +266,13 @@ async function main() {
       r = await pedido(marina, rifaA.id, { aceiteTaxa: valor });
       checa(`aceite da taxa ${nome}: o pedido é recusado (422)`, r.status === 422, `HTTP ${r.status} ${r.json?.message ?? ""}`);
     }
+    // O aceite prende o texto que a pessoa viu: taxa ou valor diferente do que ela leu é 409, sem gravar nada.
+    r = await pedido(marina, rifaA.id, { aceiteTexto: corpoDoAceiteDaTaxa(30, 20_000).aceiteTexto });
+    checa("aceite de um texto com outra taxa (a tabela mudou no meio): 409, nada gravado", r.status === 409, `HTTP ${r.status} ${r.json?.message ?? ""}`);
+    r = await pedido(marina, rifaA.id, { aceiteTexto: corpoDoAceiteDaTaxa(20, 30_000).aceiteTexto });
+    checa("aceite de um texto com outro valor de pedido: 409", r.status === 409, `HTTP ${r.status}`);
+    r = await pedido(marina, rifaA.id, { aceiteTexto: undefined });
+    checa("aceite sem o texto que a pessoa viu: 422", r.status === 422, `HTTP ${r.status}`);
     r = await pedido(marina, rifaA.id, { investimentoCents: 9_999, aceiteTaxa: undefined });
     checa("o erro de preenchimento vem antes do aceite (400)", r.status === 400, `HTTP ${r.status}`);
     r = await pedido(vizinhaCli, rifaA.id, { aceiteTaxa: undefined });
@@ -502,6 +520,7 @@ async function main() {
 
     /* ---------------- configuração parcial ---------------- */
     r = await admin.req("PUT", "/api/admin/trafego/config", { taxaPct: 25 });
+    taxaDaTela = 25;
     checa("mandar só a taxa não desliga o produto nem apaga as redes", r.status === 200 && r.json?.ligado === true && r.json?.taxaPct === 25 && r.json?.redes?.length === 2, JSON.stringify(r.json));
 
     const auditados = await db.execute(sql`select action from audit_log where entity = 'trafego_campanha' and entity_id = ${idD}::text order by created_at`);
@@ -512,6 +531,7 @@ async function main() {
     // A vizinha volta a não ter campanha nenhuma: desligado, ela não vê o produto.
     await db.delete(trafegoCampanhas).where(eq(trafegoCampanhas.organizationId, vizinha.id));
     await admin.req("PUT", "/api/admin/trafego/config", { ligado: false, taxaPct: 20, investimentoMinCents: 10_000, verbaDiaMinCents: 1_000, redes: ["google", "meta"] });
+    taxaDaTela = 20;
     r = await marina.req("GET", "/api/admin/trafego");
     checa("desligado, quem tem campanha continua vendo as suas", r.status === 200 && (r.json?.campanhas ?? []).length >= 1, `HTTP ${r.status}`);
     r = await vizinhaCli.req("GET", "/api/admin/trafego");

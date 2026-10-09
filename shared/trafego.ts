@@ -215,6 +215,11 @@ export function textoDoAceiteDaTaxa(taxaPct: number, taxaCents: number): string 
   );
 }
 
+/** O corpo do aceite como a tela o manda: o `true` e o texto exato que ela mostrou (usado pelas provas). */
+export function corpoDoAceiteDaTaxa(taxaPct: number, investimentoCents: number): { aceiteTaxa: true; aceiteTexto: string } {
+  return { aceiteTaxa: true, aceiteTexto: textoDoAceiteDaTaxa(taxaPct, taxaSobre(investimentoCents, taxaPct)) };
+}
+
 /** O aceite é um `true` de verdade: "true", 1 e ausente não valem. 422, antes de reservar ou gravar qualquer coisa. */
 export function problemaNoAceiteDaTaxa(aceite: unknown): string | null {
   return aceite === true ? null : "Para pedir a campanha, leia e aceite a taxa de gestão.";

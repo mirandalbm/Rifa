@@ -223,8 +223,9 @@ promotora) e pelo contador (a taxa vira receita na aprovação).**
    o relógio quando a rifa sai do ar) e recusar devolvem **tudo** — mídia e
    taxa —, porque a taxa ainda não foi cobrada (`taxa_cents` zero).
 4. **Aceite explícito no pedido**: `POST /trafego/campanhas` exige
-   `aceiteTaxa: true` (422 sem ele, antes de reservar ou gravar qualquer
-   coisa). O servidor **remonta o texto** do pedido
+   `aceiteTaxa: true` e o `aceiteTexto` que a tela mostrou (422 sem eles; 409
+   se a taxa ou o valor mudou desde que a pessoa leu; sempre antes de reservar
+   ou gravar qualquer coisa). O servidor **remonta o texto** do pedido
    (`textoDoAceiteDaTaxa(taxaPct, taxaCents)`, em `shared/trafego.ts`, a mesma
    função da tela) e grava `taxa_aceite_em`, `taxa_aceite_versao`
    (`ACEITE_DA_TAXA_VERSAO`) e `taxa_aceite_sha256` — a impressão SHA-256 do

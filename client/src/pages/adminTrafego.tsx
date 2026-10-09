@@ -57,6 +57,8 @@ interface CampanhaDeTrafego {
   devolvidoCents: number;
   /** Quando a taxa de gestão foi cobrada inteira (na aprovação); nulo: ainda não, ou campanha de antes da regra. */
   taxaCobradaEm: string | null;
+  /** Sem ele, o pedido é de antes do aceite e segue com a taxa diária. */
+  taxaAceiteEm: string | null;
   vendas: number;
   receitaCents: number;
   cliques: number;
@@ -322,6 +324,8 @@ function NovaCampanha({ painel }: { painel: Painel }) {
         cidade: cidade.trim() || null,
         observacao: observacao.trim() || null,
         aceiteTaxa: aceitou,
+        // O texto exato que a pessoa viu e aceitou: o servidor recusa (409) se a taxa mudou no meio.
+        aceiteTexto: textoAceito,
       }),
     onSuccess: () => {
       setCampaignId("");
@@ -330,7 +334,14 @@ function NovaCampanha({ painel }: { painel: Painel }) {
       setMsg({ ok: true, texto: "Pedido enviado. O valor ficou reservado no saldo até a plataforma aprovar a campanha." });
       qc.invalidateQueries({ queryKey: CHAVE });
     },
-    onError: (e: Error) => setMsg({ ok: false, texto: e.message }),
+    onError: (e: Error) => {
+      setMsg({ ok: false, texto: e.message });
+      if ((e as { status?: number }).status === 409) {
+        // A taxa ou o valor mudou: recarrega a tabela e desmarca, para ler o texto novo.
+        setTextoAceito(null);
+        qc.invalidateQueries({ queryKey: CHAVE });
+      }
+    },
   });
 
   return (
@@ -860,7 +871,8 @@ function CartaoDaCampanha({ c, plataforma, painelLigaMeta = false }: { c: Campan
   const regiao = c.cidade ? `${c.cidade}/${c.uf}` : c.uf ? UFS[c.uf as keyof typeof UFS] : "Brasil todo";
   const total = c.gastoCents + c.taxaCents;
   // Antes da aprovação nada foi cobrado; a taxa que vai ser cobrada é a do pedido.
-  const taxaAPagar = c.status === "em_analise" ? taxaSobre(c.investimentoCents, c.taxaPct) : null;
+  // Pedido de antes da regra (sem aceite gravado) segue com a taxa diária: não é "cobrada na aprovação".
+  const taxaAPagar = c.status === "em_analise" && c.taxaAceiteEm ? taxaSobre(c.investimentoCents, c.taxaPct) : null;
 
   return (
     <li className="space-y-2 p-4 text-sm">

@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Check, Copy, Download, Sparkles } from "lucide-react";
 import { PanelShell } from "@/components/AppShell";
 import { Card, Empty, Pill } from "@/components/bits";
-import { ArtesParaDivulgar } from "@/components/ArtesParaDivulgar";
+import { AbrirEditorDeImagem, ArtesParaDivulgar } from "@/components/ArtesParaDivulgar";
 import { ReelsDaRifa } from "@/components/ReelsDaRifa";
 import { apiRequest } from "@/lib/queryClient";
 import { ROTULO_DA_ARTE, type TipoDeArte } from "@shared/artes";
@@ -72,7 +72,21 @@ export function AdminMarketingIA() {
         {rifa ? (
           <div key={rifa.campaign.id} className="grid grid-cols-1 gap-3 xl:grid-cols-2">
             <div className="min-w-0">
-              <ArtesParaDivulgar base={`/api/admin/campaigns/${rifa.campaign.id}/artes`} />
+              {/* O mesmo cartão da aba Publicação: o editor e as artes prontas. */}
+              <Card title="Artes para divulgar">
+                <div className="space-y-4 p-4">
+                  <AbrirEditorDeImagem
+                    portas={{
+                      dados: `/api/admin/campaigns/${rifa.campaign.id}/editor`,
+                      conferir: `/api/admin/campaigns/${rifa.campaign.id}/editor/conferir`,
+                      sugerir: `/api/admin/campaigns/${rifa.campaign.id}/sugerir`,
+                      artes: `/api/admin/campaigns/${rifa.campaign.id}/artes`,
+                      carrossel: `/api/admin/campaigns/${rifa.campaign.id}/media`,
+                    }}
+                  />
+                  <ArtesParaDivulgar base={`/api/admin/campaigns/${rifa.campaign.id}/artes`} />
+                </div>
+              </Card>
             </div>
             <div className="min-w-0">
               <ReelsDaRifa campaignId={rifa.campaign.id} />

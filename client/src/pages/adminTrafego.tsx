@@ -465,14 +465,15 @@ function ConfigDoTrafego({ config: c }: { config: ConfigTrafegoPago }) {
             </span>
           </span>
         </label>
+        {/* Rótulo que quebra em duas linhas não desce o campo dele: cada um encosta no pé da linha. */}
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <Campo rotulo="Taxa de gestão (%)" dica="Sobre o gasto em mídia.">
+          <Campo rotulo="Taxa de gestão (%)" className={NO_PE}>
             <input type="number" inputMode="numeric" min={0} max={100} value={taxa} onChange={(e) => setTaxa(e.target.value)} />
           </Campo>
-          <Campo rotulo="Investimento mínimo (R$)">
+          <Campo rotulo="Investimento mínimo (R$)" className={NO_PE}>
             <input inputMode="decimal" value={minimo} onChange={(e) => setMinimo(e.target.value)} />
           </Campo>
-          <Campo rotulo="Mínimo por dia (R$)">
+          <Campo rotulo="Mínimo por dia (R$)" className={NO_PE}>
             <input inputMode="decimal" value={porDia} onChange={(e) => setPorDia(e.target.value)} />
           </Campo>
         </div>
@@ -491,8 +492,8 @@ function ConfigDoTrafego({ config: c }: { config: ConfigTrafegoPago }) {
           ))}
         </fieldset>
         <p className="text-xs text-muted">
-          A taxa é fotografada em cada pedido: mudar aqui não mexe nas campanhas já pedidas. Ligue só as redes em que a conta de anúncios
-          da plataforma aceita rifa autorizada.
+          A taxa de gestão incide sobre o gasto em mídia e é fotografada em cada pedido: mudar aqui não mexe nas campanhas já
+          pedidas. Ligue só as redes em que a conta de anúncios da plataforma aceita rifa autorizada.
         </p>
         <Aviso msg={msg} />
         <Button type="submit" disabled={salvar.isPending}>
@@ -960,10 +961,10 @@ function LancarGasto({ c, aoLancar }: { c: CampanhaDeTrafego; aoLancar: () => vo
     >
       <p className="text-xs font-semibold">Lançar o gasto de um dia (do painel da rede)</p>
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
-        <Campo rotulo="Dia">
+        <Campo rotulo="Dia" className={NO_PE}>
           <input type="date" value={dia} max={ultimoDia} onChange={(e) => setDia(e.target.value)} />
         </Campo>
-        <Campo rotulo="Rede">
+        <Campo rotulo="Rede" className={NO_PE}>
           <select value={rede} onChange={(e) => setRede(e.target.value as RedeDeAnuncio)}>
             {c.redes.map((r) => (
               <option key={r} value={r}>
@@ -972,10 +973,10 @@ function LancarGasto({ c, aoLancar }: { c: CampanhaDeTrafego; aoLancar: () => vo
             ))}
           </select>
         </Campo>
-        <Campo rotulo="Gasto (R$)">
+        <Campo rotulo="Gasto (R$)" className={NO_PE}>
           <input inputMode="decimal" value={valor} onChange={(e) => setValor(e.target.value)} />
         </Campo>
-        <Campo rotulo="Cliques (opcional)">
+        <Campo rotulo="Cliques (opcional)" className={NO_PE}>
           <input inputMode="numeric" value={cliques} onChange={(e) => setCliques(e.target.value.replace(/\D/g, ""))} />
         </Campo>
       </div>
@@ -990,6 +991,9 @@ function LancarGasto({ c, aoLancar }: { c: CampanhaDeTrafego; aoLancar: () => vo
     </form>
   );
 }
+
+/** Campo encostado no pé da linha da grade: o rótulo longo quebra para cima, e os campos ficam alinhados. */
+const NO_PE = "flex flex-col justify-end";
 
 function GastosDaCampanha({ id, plataforma }: { id: string; plataforma: boolean }) {
   const { data: gastos, isError } = useQuery<Gasto[]>({ queryKey: [`/api/admin/trafego/campanhas/${id}/gastos`] });

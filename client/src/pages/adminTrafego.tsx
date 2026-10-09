@@ -975,8 +975,21 @@ function NoMeta({ c, aoMudar }: { c: CampanhaDeTrafego; aoMudar: () => void }) {
       aoMudar();
     },
   });
+  const largar = useMutation({
+    mutationFn: () => apiRequest("POST", `/api/admin/trafego/campanhas/${c.id}/meta/largar`, {}),
+    onSuccess: () => {
+      setErro(null);
+      aoMudar();
+    },
+    onError: (e: Error) => {
+      setErro(e.message);
+      aoMudar();
+    },
+  });
   const m = c.meta;
-  const restos = (m?.restos ?? []).filter((r) => r && typeof r.id === "string");
+  const restos = (Array.isArray(m?.restos) ? m.restos : []).filter((r) => r && typeof r.id === "string");
+  // Parada no meio (sem as quatro peças): largar como falha, sem criar nada — vale com a campanha fora do ar.
+  const podeLargar = Boolean(m?.podeRetomar && !m.completa);
   // Assumir a criação presa e completa vale mesmo com a campanha já fora do ar (não cria nada novo).
   const assumir = Boolean(m?.podeRetomar && m.completa);
   const podeCriar = assumir || (c.status === "ativa" && (!m || m.status === "falhou" || Boolean(m.podeRetomar)));
@@ -1005,13 +1018,21 @@ function NoMeta({ c, aoMudar }: { c: CampanhaDeTrafego; aoMudar: () => void }) {
       {m?.podeRetomar ? (
         <p className="text-red">
           {assumir
-            ? "A criação parou depois de anotar as quatro peças (passou do prazo sem sinal de vida). Assumir confere no Meta: se a campanha ainda existe lá, a criação passa a ser dela; se foi apagada, fica como falha e dá para criar de novo."
-            : "A criação parou no meio (passou do prazo sem sinal de vida). Tentar de novo põe o que ficou pela metade na lista de apagar e cria de novo."}
+            ? "A criação parou depois de anotar as quatro peças (passou do prazo sem sinal de vida). \"Assumir a criação\" confere no Meta e não cria nada: se a campanha ainda existe lá, a criação passa a ser dela; se foi apagada, a criação fica como falha, e o \"Tentar de novo\" dela cria outra."
+            : c.status === "ativa"
+              ? "A criação parou no meio (passou do prazo sem sinal de vida). \"Tentar de novo\" põe o que ficou pela metade na lista de apagar e cria de novo; \"Largar como falha\" só marca a falha e põe o que ficou na lista de apagar no gerenciador, sem criar nada."
+              : "A criação parou no meio (passou do prazo sem sinal de vida) e a campanha já não está no ar. \"Largar como falha\" marca a falha e põe o que ficou no Meta na lista de apagar no gerenciador; nada é criado."}
         </p>
       ) : null}
       {m?.status === "criada" ? (
         <p className="text-ink-2">
           Tudo nasceu pausado. Ligue no gerenciador do Meta depois da revisão de política. <span className="tnum">{listaDeIds(m.ids ?? {})}</span>
+        </p>
+      ) : null}
+      {m?.status === "criada" && m.orcamento?.fimEm ? (
+        <p className="text-ink-2">
+          O total vale até <span className="tnum">{dataEHora(m.orcamento.fimEm)}</span>. O anúncio nasce pausado: o tempo até ligar encurta a janela, e
+          depois do fim ele não roda.
         </p>
       ) : null}
       {m?.status === "falhou" && m.erro ? <p className="text-red">{m.erro}</p> : null}
@@ -1041,21 +1062,36 @@ function NoMeta({ c, aoMudar }: { c: CampanhaDeTrafego; aoMudar: () => void }) {
         <p className="text-red">Não consegui pausar no Meta — pause no gerenciador. {m.pausaErro ?? ""}</p>
       ) : null}
       {erro && erro !== m?.erro ? <p className="text-red">{erro}</p> : null}
-      {podeCriar ? (
-        <Button
-          variant={m ? "ghost" : undefined}
-          disabled={criar.isPending}
-          onClick={() => {
-            setErro(null);
-            const pergunta = assumir
-              ? "Assumir a criação? O sistema confere no Meta se a campanha anotada ainda existe; nada novo é criado."
-              : "Criar campanha, conjunto e anúncio no Meta? Tudo nasce pausado; ligar é no gerenciador do Meta.";
-            if (window.confirm(pergunta)) criar.mutate();
-          }}
-        >
-          {criar.isPending ? "Conferindo no Meta…" : assumir ? "Assumir a criação" : m ? "Tentar de novo" : "Criar no Meta"}
-        </Button>
-      ) : null}
+      <div className="flex flex-wrap gap-2">
+        {podeCriar ? (
+          <Button
+            variant={m ? "ghost" : undefined}
+            disabled={criar.isPending}
+            onClick={() => {
+              setErro(null);
+              const pergunta = assumir
+                ? "Assumir a criação? O sistema confere no Meta se a campanha anotada ainda existe; nada novo é criado."
+                : "Criar campanha, conjunto e anúncio no Meta? Tudo nasce pausado; ligar é no gerenciador do Meta.";
+              if (window.confirm(pergunta)) criar.mutate();
+            }}
+          >
+            {criar.isPending ? "Conferindo no Meta…" : assumir ? "Assumir a criação" : m ? "Tentar de novo" : "Criar no Meta"}
+          </Button>
+        ) : null}
+        {podeLargar ? (
+          <Button
+            variant="ghost"
+            disabled={largar.isPending}
+            onClick={() => {
+              setErro(null);
+              const pergunta = "Largar como falha? A criação fica como falha e o que ficou no Meta vai para a lista de apagar no gerenciador. Nada é criado.";
+              if (window.confirm(pergunta)) largar.mutate();
+            }}
+          >
+            {largar.isPending ? "Largando…" : "Largar como falha"}
+          </Button>
+        ) : null}
+      </div>
     </div>
   );
 }

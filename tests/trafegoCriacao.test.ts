@@ -7,7 +7,6 @@ import {
   DIARIO_MIN_DO_META_CENTS,
   achatarIds,
   alvoDoPedido,
-  autorizacaoNoFormato,
   basePublicaDoAnuncio,
   campanhaJaNoMeta,
   campanhaVivaNoMeta,
@@ -16,7 +15,10 @@ import {
   explicarOrcamento,
   faltaNoMeta,
   faltaNoServidor,
-  fimDoOrcamento,
+  FOLGA_DO_FIM_MS,
+  janelaDoConjunto,
+  restosComoLista,
+  semNumeroDoScpc,
   orcamentoNoMeta,
   problemaNaContaDoMeta,
   hashDaImagem,
@@ -121,7 +123,11 @@ describe("orçamento no Meta", () => {
   });
   it("o fim é o começo mais os dias, e a frase diz o porquê", () => {
     const o = ok(orcamentoNoMeta({ investimentoCents: 20_000, gastoCents: 0, verbaDiaCents: 2_000, redes: ["meta", "google"] }));
-    expect(fimDoOrcamento(new Date("2026-10-09T12:00:00Z"), o).toISOString()).toBe("2026-10-19T12:00:00.000Z");
+    const janela = janelaDoConjunto(new Date("2026-10-09T12:00:00Z"), o);
+    expect(janela.inicio.toISOString()).toBe("2026-10-09T12:00:00.000Z");
+    // Os dias do orçamento mais 1 hora de folga: o total não muda, só a janela.
+    expect(janela.fim.toISOString()).toBe("2026-10-19T13:00:00.000Z");
+    expect(FOLGA_DO_FIM_MS).toBe(3_600_000);
     expect(explicarOrcamento(o)).toMatch(/R\$\s100,00 no total em 10 dias.*teto.*2 redes/);
   });
 });
@@ -152,8 +158,20 @@ describe("restos achatados", () => {
     const r = juntarRestos([{ tipo: "imagem", id: "abc" }, { tipo: "campanha", id: "1" }], [], ["abc", "9"]);
     expect(r).toEqual([{ tipo: "campanha", id: "1" }]);
   });
-  it("lixo na lista guardada não entra", () => {
+  it("lixo na lista guardada não entra, e o que não é lista vira lista vazia", () => {
     expect(juntarRestos([null as never, { tipo: "x" } as never], [])).toEqual([]);
+    expect(juntarRestos({}, [])).toEqual([]);
+    expect(juntarRestos(null, [{ tipo: "campanha", id: "1" }])).toEqual([{ tipo: "campanha", id: "1" }]);
+    expect(juntarRestos("lixo", [])).toEqual([]);
+    expect(restosComoLista([null])).toEqual([]);
+  });
+  it("a entrada no formato antigo é achatada, nunca descartada", () => {
+    expect(restosComoLista([{ campanha: "10", conjunto: "11", imagem: "abc", outra: "x" }])).toEqual([
+      { tipo: "campanha", id: "10" },
+      { tipo: "conjunto", id: "11" },
+      { tipo: "imagem", id: "abc" },
+    ]);
+    expect(juntarRestos([{ campanha: "10" }, { tipo: "campanha", id: "10" }], [], ["abc"])).toEqual([{ tipo: "campanha", id: "10" }]);
   });
   it("mesmos ids sem olhar a ordem das chaves", () => {
     expect(mesmosIds({ campanha: "1", imagem: "a" }, { imagem: "a", campanha: "1" })).toBe(true);
@@ -257,14 +275,14 @@ describe("texto do anúncio", () => {
     precoCents: 500,
     drawAt: "2026-10-31T22:00:00Z",
     metodoApuracao: "federal_direta",
-    autorizacao: "SEI/ME 18101.000123/2026-11",
+    autorizacao: "SPA/MF 03.012345/2026",
   };
   it("monta dos dados públicos, com a autorização e o aviso", () => {
     const t = textoDoAnuncio(dados);
     expect(t.mensagem).toContain("Moto 0 km");
     expect(t.mensagem).toMatch(/R\$\s5,00 a cota/);
     expect(t.mensagem).toContain("Loteria Federal");
-    expect(t.mensagem).toContain("Rifa autorizada SPA/MF nº SEI/ME 18101.000123/2026-11.");
+    expect(t.mensagem).toContain("Rifa autorizada SPA/MF nº SPA/MF 03.012345/2026.");
     expect(t.mensagem).toContain(AVISO_DO_ANUNCIO);
     expect(t.titulo).toBe("Moto 0 km");
     expect(problemaNoTextoDoAnuncio(t.mensagem, dados.autorizacao)).toBeNull();
@@ -281,22 +299,21 @@ describe("texto do anúncio", () => {
     const t = textoDoAnuncio({ ...dados, premio: `Moto ${dados.autorizacao}` });
     expect(problemaNoTextoDoAnuncio(t.mensagem, dados.autorizacao)).toMatch(/telefone/);
     // Sem a linha da autorização no texto, nada sai da conta.
-    expect(problemaNoTextoDoAnuncio("Moto\n18101.000123/2026-11", dados.autorizacao)).toMatch(/telefone/);
+    expect(problemaNoTextoDoAnuncio("Moto\n03.012345/2026", dados.autorizacao)).toMatch(/telefone/);
   });
-  it("a linha da autorização só sai da conta no formato estrito; link vale sempre", () => {
-    expect(autorizacaoNoFormato("SEI/ME 18101.000123/2026-11")).toBe(true);
-    expect(autorizacaoNoFormato("Certificado nº 04.012345/2024")).toBe(true);
-    // Texto livre da organização com link e telefone: não é número de autorização.
-    const golpe = "golpe.com/pix 11 98765-4321";
-    expect(autorizacaoNoFormato(golpe)).toBe(false);
-    expect(problemaNoTextoDoAnuncio(textoDoAnuncio({ ...dados, autorizacao: golpe }).mensagem, golpe)).toMatch(/link/);
-    // Celular disfarçado de número de autorização: a linha passa pela régua inteira.
-    const celular = "SPA 11 98765-4321";
-    expect(autorizacaoNoFormato(celular)).toBe(false);
-    expect(problemaNoTextoDoAnuncio(textoDoAnuncio({ ...dados, autorizacao: celular }).mensagem, celular)).toMatch(/autorização/);
-    // Caractere fora da lista (ex.: "@", ":"): régua inteira.
-    expect(autorizacaoNoFormato("SEI: 18101.000123/2026-11")).toBe(false);
-    expect(problemaNoTextoDoAnuncio(textoDoAnuncio({ ...dados, autorizacao: "SEI: 18101.000123/2026-11" }).mensagem, "SEI: 18101.000123/2026-11")).toMatch(/telefone/);
+  it("da linha da autorização só sai o número no formato do SCPC; o resto passa pela régua inteira", () => {
+    expect(semNumeroDoScpc("Rifa autorizada SPA/MF nº SPA/MF 03.012345/2026.")).not.toMatch(/\d{4}/);
+    const passa = (a: string) => problemaNoTextoDoAnuncio(textoDoAnuncio({ ...dados, autorizacao: a }).mensagem, a);
+    expect(passa("SPA/MF 03.012345/2026")).toBeNull();
+    expect(passa("SPA-MF-EXEMPLO-1001")).toBeNull();
+    // Os quatro do revisor: telefone fora do formato do SCPC, na linha da autorização.
+    for (const a of ["zap 11 9 8765-4321", "11.9.8765.4321", "0800 777 1234", "SPA 11 3456 7890"]) {
+      expect(passa(a), a).toMatch(/autorização/);
+    }
+    // Número do SCPC e telefone juntos: o número sai, o telefone fica.
+    expect(passa("03.012345/2026 zap 11 98765-4321")).toMatch(/autorização/);
+    // Link vale sempre, inclusive na linha da autorização.
+    expect(passa("golpe.com/pix 11 98765-4321")).toMatch(/link/);
   });
   it("recusa link, promessa de ganho e Pix por fora", () => {
     expect(problemaNoTextoDoAnuncio(textoDoAnuncio({ ...dados, premio: "Moto www.golpe.com" }).mensagem, dados.autorizacao)).toMatch(/link/);

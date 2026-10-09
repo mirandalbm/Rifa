@@ -179,7 +179,7 @@ import { cliquesDosLinks, linkCurtoDaRifa, linkCurtoDoPerfil } from "../services
 import { EditorError, conferirCamadas, dadosDoEditor, focoDaFoto, sugerirTexto, tipoDaSugestao } from "../services/editorImagem";
 import { MarketingIAError, anunciosDaRifa, marketingDaRifa } from "../services/marketingIA";
 import { fonteDoWindsor, importarGastos, ultimoResumo } from "../services/trafegoImportacao";
-import { CriacaoFalhou, criarNoMeta } from "../services/trafegoCriacao";
+import { CriacaoFalhou, criarNoMeta, largarCriacao } from "../services/trafegoCriacao";
 import { CONFERENCIAS_POR_JANELA, FOCOS_POR_JANELA } from "@shared/editorImagem";
 import {
   cancelarSolicitacao,
@@ -4953,6 +4953,17 @@ adminRouter.post("/trafego/campanhas/:id/fechar", async (req, res, next) => {
  * pausado — ligar é no gerenciador do Meta. A segunda vez é 409; a falha da
  * rede volta 502 com o motivo em português (já gravado, dá para tentar de novo).
  */
+/** "Largar como falha" a criação parada no meio (só a plataforma): não chama o Meta, não cria nada. */
+adminRouter.post("/trafego/campanhas/:id/meta/largar", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    res.setHeader("Cache-Control", "no-store");
+    res.json(await largarCriacao(req, req.params.id));
+  } catch (err) {
+    next(err);
+  }
+});
+
 adminRouter.post("/trafego/campanhas/:id/meta", async (req, res, next) => {
   try {
     requirePlatformAdmin(req);

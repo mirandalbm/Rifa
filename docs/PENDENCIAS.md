@@ -703,9 +703,12 @@ Na ordem de entrega do plano:
   confira no gerenciador com o primeiro anúncio (o Meta tem a consulta
   `act_…/minimum_budgets` para isso) e ajuste `DIARIO_MIN_DO_META_CENTS`
   se for outro. O número da autorização da rifa entra no texto do anúncio:
-  fora do formato de um número de autorização (letras, dígitos, espaço e
-  `. / - º`, sem link e sem cara de celular), a criação recusa — corrija nos
-  dados legais. Conferir com o primeiro
+  só o número no formato oficial do SCPC (`NN.NNNNNN/AAAA`, ex.:
+  `03.012345/2026`) fica fora da régua do telefone; qualquer outro número
+  longo ou telefone nele recusa a criação — corrija nos dados legais. O
+  conjunto vale até a data de fim (os dias do orçamento mais 1 hora) e
+  nasce pausado: ligue logo, porque o tempo até ligar encurta a janela.
+  Conferir com o primeiro
   anúncio de verdade, ainda pausado, se o Meta aceitou os campos (a prova
   usa um Meta de mentira: a API real nunca foi chamada daqui). **Falta no
   código**: a fase 3 no Google Ads (exige o *developer token* aprovado) e

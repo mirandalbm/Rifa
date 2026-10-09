@@ -27,7 +27,11 @@
  *   (`orcamentoNoMeta()`) e vai como orçamento total do conjunto
  *   (`lifetime_budget`, com o `end_time`): o teto rígido nunca passa do que resta.
  * - **A criação presa e completa** só é assumida se a campanha anotada ainda
- *   estiver viva na busca do Meta; apagada lá, vira falha e cria de novo.
+ *   estiver viva na busca do Meta; apagada lá, vira falha e responde 409 —
+ *   assumir nunca cria campanha nova (criar de novo é o "Tentar de novo" da
+ *   falha). A presa e incompleta pode ser largada como falha, sem criar nada.
+ * - **A janela do conjunto** sai logo antes do POST dele, com 1 hora de folga
+ *   no fim; o fim fica gravado para a tela.
  * - **Encerrar pausa na rede** depois da transação, em segundo plano, sem
  *   nunca derrubar o encerramento; a falha vai ao log e à tela da plataforma.
  * - **O token só no cabeçalho** (`Authorization: Bearer`): nunca na URL, em
@@ -51,7 +55,7 @@ import {
   erroDoMeta,
   faltaNoMeta,
   faltaNoServidor,
-  fimDoOrcamento,
+  janelaDoConjunto,
   hashDaImagem,
   idDaRede,
   juntarRestos,
@@ -93,8 +97,8 @@ export interface PedidoDeCriacao {
    * real: vai como `lifetime_budget`, com o `end_time`.
    */
   vidaCents: number;
-  inicio: Date;
-  fim: Date;
+  /** Os dias do orçamento: a janela (começo e fim, com a folga) é calculada logo antes do POST do conjunto. */
+  dias: number;
   alvo: AlvoDoPedido;
   link: string;
   mensagem: string;
@@ -116,7 +120,7 @@ export interface CriadorDeCampanha {
   rede: RedeDeAnuncio;
   conferirConta(): Promise<string | null>;
   campanhasComCodigo(codigo: string): Promise<unknown>;
-  criar(p: PedidoDeCriacao, anotar: (ids: IdsNaRede) => Promise<void>): Promise<IdsNaRede>;
+  criar(p: PedidoDeCriacao, anotar: (ids: IdsNaRede, fimEm?: Date) => Promise<void>): Promise<IdsNaRede>;
   pausar(ids: IdsNaRede): Promise<void>;
 }
 
@@ -174,9 +178,9 @@ export function criadorDoMeta(env: NodeJS.ProcessEnv = process.env): CriadorDeCa
     async criar(p, anotar) {
       const ids: IdsNaRede = {};
       // Cada peça fica anotada no banco antes da próxima nascer; se não ficar, para aqui.
-      const guardar = async (k: keyof IdsNaRede, v: string) => {
+      const guardar = async (k: keyof IdsNaRede, v: string, fimEm?: Date) => {
         ids[k] = v;
-        await anotar({ [k]: v });
+        await anotar({ [k]: v }, fimEm);
       };
       const semId = (passo: PassoDaCriacao) => new CriacaoError(`O Meta respondeu sem o id ${PASSOS_DA_CRIACAO[passo]} — confira no gerenciador.`);
 
@@ -220,6 +224,8 @@ export function criadorDoMeta(env: NodeJS.ProcessEnv = process.env): CriadorDeCa
       await guardar("campanha", campanha);
 
       // 4. O conjunto: a parte do Meta no total da vida (centavos de real são a unidade do Meta), o fim e o alvo.
+      // A janela sai daqui, logo antes do POST (a imagem e a campanha levam tempo), com 1 hora de folga no fim.
+      const janela = janelaDoConjunto(new Date(), { dias: p.dias });
       const conj = await chamar("conjunto", "POST", `${conta}/adsets`, {
         name: p.nome,
         campaign_id: campanha,
@@ -230,13 +236,13 @@ export function criadorDoMeta(env: NodeJS.ProcessEnv = process.env): CriadorDeCa
         bid_strategy: "LOWEST_COST_WITHOUT_CAP",
         destination_type: "WEBSITE",
         targeting: segmentacaoDoMeta(p.alvo, chave),
-        start_time: p.inicio.toISOString(),
-        end_time: p.fim.toISOString(),
+        start_time: janela.inicio.toISOString(),
+        end_time: janela.fim.toISOString(),
         status: "PAUSED",
       });
       const conjunto = idDaRede(conj.id);
       if (!conjunto) throw semId("conjunto");
-      await guardar("conjunto", conjunto);
+      await guardar("conjunto", conjunto, janela.fim);
 
       // 5. O criativo: a imagem, o texto e o link com a UTM da campanha.
       const criat = await chamar("criativo", "POST", `${conta}/adcreatives`, {
@@ -316,7 +322,7 @@ class LinhaPerdida extends Error {
 const presaSql = sql`(${trafegoCriacoes.status} = 'criando' and ${trafegoCriacoes.atualizadoEm} < (now() AT TIME ZONE 'UTC') - make_interval(mins => ${PRAZO_DA_CRIACAO_MIN}))`;
 
 /** Os ids vivos de uma criação (os da linha), para nunca ir a `restos`. */
-const idsVivos = (ids: Record<string, string> | null | undefined) => achatarIds(ids).map((r) => r.id);
+const idsVivos = (ids: unknown) => achatarIds(ids).map((r) => r.id);
 
 /** A auditoria fora de uma transação (quando a de quem chama voltou): melhor esforço, nunca derruba a resposta. */
 async function auditarFora(req: Request | null, action: string, id: string, diff: Record<string, unknown>) {
@@ -345,24 +351,46 @@ async function auditarFora(req: Request | null, action: string, id: string, diff
  * retomada que adota ao mesmo tempo espera ou vem antes. A auditoria vai fora
  * da transação que voltou. Exportada para a prova chamar "atrasada".
  */
-export async function guardarOQueSobrou(req: Request | null, campanhaId: string, linhaId: string, ids: IdsNaRede, motivo: string) {
+export async function guardarOQueSobrou(
+  req: Request | null,
+  campanhaId: string,
+  linhaId: string,
+  ids: IdsNaRede,
+  motivo: string,
+): Promise<"assumida" | "na_linha" | "anotada"> {
+  let resultado: "assumida" | "na_linha" | "anotada" = "anotada";
   if (Object.keys(ids).length) {
     try {
-      await db.transaction(async (tx) => {
-        const [l] = await tx.select({ ids: trafegoCriacoes.ids, restos: trafegoCriacoes.restos }).from(trafegoCriacoes).where(eq(trafegoCriacoes.id, linhaId)).for("update");
-        if (!l || mesmosIds(l.ids, ids as Record<string, string>)) return;
-        const restos = juntarRestos(l.restos, achatarIds(ids as Record<string, string>), idsVivos(l.ids));
+      resultado = await db.transaction(async (tx) => {
+        const [l] = await tx
+          .select({ ids: trafegoCriacoes.ids, restos: trafegoCriacoes.restos, status: trafegoCriacoes.status })
+          .from(trafegoCriacoes)
+          .where(eq(trafegoCriacoes.id, linhaId))
+          .for("update");
+        // Os ids que a linha guarda como dela: outra tentativa os assumiu (criada) ou o banco falhou no fim (criando).
+        if (l && mesmosIds(l.ids, ids)) return l.status === "criada" ? ("assumida" as const) : ("na_linha" as const);
+        if (!l) return "anotada" as const;
+        const restos = juntarRestos(l.restos, achatarIds(ids), idsVivos(l.ids));
         await tx
           .update(trafegoCriacoes)
           .set({ restos, atualizadoEm: AGORA_UTC })
           .where(and(eq(trafegoCriacoes.id, linhaId), sql`${trafegoCriacoes.ids} <> ${JSON.stringify(ids)}::jsonb`));
+        return "anotada" as const;
       });
     } catch (e) {
       console.error(`[trafego] não consegui anotar o que ficou no Meta (campanha ${campanhaId}): ${JSON.stringify(ids)} — ${(e as Error).message}`);
     }
   }
-  await auditarFora(req, "trafego.meta.falhou", campanhaId, { erro: motivo, ids });
+  if (resultado === "assumida") {
+    // Perdeu para a adoção: os ids são os da criação viva, não uma falha.
+    await auditarFora(req, "trafego.meta.perdeu_a_vez", campanhaId, { motivo: "outra tentativa assumiu esta criação com os mesmos ids" });
+  } else {
+    await auditarFora(req, "trafego.meta.falhou", campanhaId, { erro: motivo, ids, ...(resultado === "na_linha" ? { ficaramNaCriacao: true } : {}) });
+  }
+  return resultado;
 }
+
+const MSG_OUTRA_ASSUMIU = "Outra tentativa assumiu esta criação: a campanha no Meta é a mesma e ficou com ela. Nada a apagar.";
 
 /** O que a criação lê da campanha e da rifa (tudo do banco). */
 async function dadosDaCampanha(id: string) {
@@ -479,7 +507,7 @@ export async function criarNoMeta(req: Request, id: string, criador: CriadorDeCa
   const codigo = codigoDaCampanha(id);
 
   // 0. A criação que ficou presa e completa: assumir (se viva no Meta) ou largar (se morta).
-  let [antes] = await db
+  const [antes] = await db
     .select({ ...linhaDaCriacao, presa: sql<boolean>`${presaSql}` })
     .from(trafegoCriacoes)
     .where(and(eq(trafegoCriacoes.campanhaId, id), eq(trafegoCriacoes.rede, "meta")));
@@ -488,11 +516,9 @@ export async function criarNoMeta(req: Request, id: string, criador: CriadorDeCa
   if (antes?.presa && criacaoCompleta(antes.ids)) {
     const lista = await buscarNoMeta(criador, codigo);
     if (campanhaVivaNoMeta(lista, codigo, antes.ids.campanha)) return adotar(req, id, antes);
+    // Assumir nunca cria: a morta vira falha, e criar outra é o "Tentar de novo" dela.
     await largarMorta(req, id, antes);
-    [antes] = await db
-      .select({ ...linhaDaCriacao, presa: sql<boolean>`${presaSql}` })
-      .from(trafegoCriacoes)
-      .where(and(eq(trafegoCriacoes.campanhaId, id), eq(trafegoCriacoes.rede, "meta")));
+    throw new TrafegoError("A campanha anotada foi apagada no Meta; a criação ficou como falha — 'Tentar de novo' cria outra.", 409);
   }
 
   // 1. O que dá para conferir sem chamar o Meta.
@@ -526,7 +552,7 @@ export async function criarNoMeta(req: Request, id: string, criador: CriadorDeCa
     throw e;
   }
   // O que o sistema já conhece (a criação presa e as metades anotadas) não conta como "já existe".
-  const conhecidos = new Set<string>([...idsVivos(antes?.ids), ...(antes?.restos ?? []).map((r) => r.id)]);
+  const conhecidos = new Set<string>([...idsVivos(antes?.ids), ...juntarRestos(antes?.restos, []).map((r) => r.id)]);
   const achada = campanhaJaNoMeta(await buscarNoMeta(criador, codigo), codigo, conhecidos);
   if (achada) {
     throw new TrafegoError(`Já existe no Meta uma campanha com o código trafego-${codigo} (id ${achada}). Confira no gerenciador: nada foi criado de novo.`, 409);
@@ -592,12 +618,17 @@ export async function criarNoMeta(req: Request, id: string, criador: CriadorDeCa
   const orcamento = minha.orcamento!;
   const daTentativa = and(eq(trafegoCriacoes.id, minha.id), eq(trafegoCriacoes.status, "criando"), eq(trafegoCriacoes.tentativas, minha.tentativas));
   let ids: IdsNaRede = {};
-  const anotar = async (parcial: IdsNaRede) => {
+  const anotar = async (parcial: IdsNaRede, fimEm?: Date) => {
     ids = { ...ids, ...parcial };
     // O mesmo UPDATE é o sinal de vida do prazo. Não pegou a linha: outra tentativa a tomou.
+    // Com o conjunto, o fim da janela vai junto ao orçamento (a tela diz até quando o total vale).
     const [ok] = await db
       .update(trafegoCriacoes)
-      .set({ ids: sql`${trafegoCriacoes.ids} || ${JSON.stringify(parcial)}::jsonb`, atualizadoEm: AGORA_UTC })
+      .set({
+        ids: sql`${trafegoCriacoes.ids} || ${JSON.stringify(parcial)}::jsonb`,
+        atualizadoEm: AGORA_UTC,
+        ...(fimEm ? { orcamento: sql`coalesce(${trafegoCriacoes.orcamento}, '{}'::jsonb) || ${JSON.stringify({ fimEm: fimEm.toISOString() })}::jsonb` } : {}),
+      })
       .where(daTentativa)
       .returning({ id: trafegoCriacoes.id });
     if (!ok) throw new LinhaPerdida();
@@ -605,13 +636,11 @@ export async function criarNoMeta(req: Request, id: string, criador: CriadorDeCa
   try {
     const link = linkDoAnuncio(base, { id: c.id, orgSlug: c.orgSlug, rifaSlug: c.rifaSlug }, "meta");
     const imagem = await desenharArte({ rifa, tipo: "rifa", formato: "retrato", url: link });
-    const inicio = new Date();
     const prontos = await criador.criar(
       {
         nome: nomeNaRede(c.id, c.titulo),
         vidaCents: orcamento.vidaCents,
-        inicio,
-        fim: fimDoOrcamento(inicio, orcamento),
+        dias: orcamento.dias,
         alvo,
         link,
         mensagem,
@@ -624,8 +653,8 @@ export async function criarNoMeta(req: Request, id: string, criador: CriadorDeCa
   } catch (e) {
     if (e instanceof LinhaPerdida) {
       const msg = "Outra tentativa tomou esta criação no meio: o que esta já tinha criado no Meta ficou anotado para apagar no gerenciador.";
-      await guardarOQueSobrou(req, id, minha.id, ids, msg);
-      throw new TrafegoError(msg, 409);
+      const r = await guardarOQueSobrou(req, id, minha.id, ids, msg);
+      throw new TrafegoError(r === "assumida" ? MSG_OUTRA_ASSUMIU : msg, 409);
     }
     if (e instanceof TrafegoError) throw e;
     const msg = e instanceof CriacaoError ? e.message : "Não deu para criar no Meta (erro inesperado). Tente de novo.";
@@ -656,8 +685,8 @@ export async function criarNoMeta(req: Request, id: string, criador: CriadorDeCa
       );
     }
     if (!falha) {
-      await guardarOQueSobrou(req, id, minha.id, ids, msg);
-      throw new TrafegoError(`${msg} (A criação foi tomada por outra tentativa; o que ficou no Meta está anotado.)`, 409);
+      const r = await guardarOQueSobrou(req, id, minha.id, ids, msg);
+      throw new TrafegoError(r === "assumida" ? MSG_OUTRA_ASSUMIU : `${msg} (A criação foi tomada por outra tentativa; o que ficou no Meta está anotado.)`, 409);
     }
     throw new CriacaoFalhou(msg, falha);
   }
@@ -692,14 +721,45 @@ export async function criarNoMeta(req: Request, id: string, criador: CriadorDeCa
   }
   if (!feita) {
     const msg = bancoFalhou
-      ? `A campanha foi criada no Meta (pausada), mas o banco falhou ao gravar: os ids ficaram anotados na criação. Depois de ${PRAZO_DA_CRIACAO_MIN} minutos, "Tentar de novo" confere no Meta e assume a campanha (ou cria de novo, se ela tiver sido apagada).`
+      ? `A campanha foi criada no Meta (pausada), mas o banco falhou ao gravar: os ids ficaram anotados na criação. Depois de ${PRAZO_DA_CRIACAO_MIN} minutos, "Assumir a criação" confere no Meta e assume a campanha (se ela tiver sido apagada lá, a criação fica como falha).`
       : "A campanha foi criada no Meta (pausada), mas outra tentativa tomou esta criação: os ids ficaram anotados para conferir e apagar no gerenciador.";
-    await guardarOQueSobrou(req, id, minha.id, ids, msg);
-    throw new TrafegoError(msg, 409);
+    const r = await guardarOQueSobrou(req, id, minha.id, ids, msg);
+    throw new TrafegoError(r === "assumida" ? MSG_OUTRA_ASSUMIU : msg, 409);
   }
   // Encerrada enquanto criava: o encerramento não achou o que pausar; pausa agora.
   await pausarSeJaParou(id);
   return feita;
+}
+
+/**
+ * "Largar como falha" (só a plataforma): a criação parada além do prazo e
+ * incompleta (a completa se assume, conferindo no Meta) vira `falhou`, com o
+ * que ficou no Meta na lista de apagar no gerenciador. Não cria nada e não
+ * chama o Meta — vale também com a campanha já fora do ar, onde "Tentar de
+ * novo" não existe.
+ */
+export async function largarCriacao(req: Request, id: string) {
+  if (orgOf(req)) throw new TrafegoError("Largar a criação é da plataforma.", 403);
+  if (!idValido(id)) throw new TrafegoError("Campanha não encontrada.", 404);
+  const msg = "Largada pela plataforma: a criação parou no meio. O que ficou no Meta (pausado) está na lista de apagar no gerenciador; nada foi criado.";
+  return db.transaction(async (tx) => {
+    const [l] = await tx
+      .select({ ...linhaDaCriacao, presa: sql<boolean>`${presaSql}` })
+      .from(trafegoCriacoes)
+      .where(and(eq(trafegoCriacoes.campanhaId, id), eq(trafegoCriacoes.rede, "meta")))
+      .for("update");
+    if (!l) throw new TrafegoError("Esta campanha não tem criação no Meta.", 404);
+    if (!l.presa) throw new TrafegoError("Só a criação parada além do prazo pode ser largada.", 409);
+    if (criacaoCompleta(l.ids)) throw new TrafegoError("A criação tem as quatro peças anotadas: use \"Assumir a criação\", que confere no Meta.", 409);
+    const [f] = await tx
+      .update(trafegoCriacoes)
+      .set({ status: "falhou", erro: msg, restos: juntarRestos(l.restos, achatarIds(l.ids)), ids: {}, atualizadoEm: AGORA_UTC })
+      .where(and(eq(trafegoCriacoes.id, l.id), eq(trafegoCriacoes.tentativas, l.tentativas), presaSql))
+      .returning(linhaDaCriacao);
+    if (!f) throw new TrafegoError(MSG_MUDOU, 409);
+    await auditar(tx, req, "trafego.meta.largar", id, { ids: l.ids, tentativa: l.tentativas });
+    return f;
+  });
 }
 
 /** A campanha já não está no ar (encerrada durante a criação): pausa no Meta, em segundo plano. */

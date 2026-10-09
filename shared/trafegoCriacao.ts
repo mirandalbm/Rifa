@@ -119,6 +119,8 @@ export interface OrcamentoNoMeta {
    * (o Meta distribui), o total da vida do conjunto não.
    */
   vidaCents: number;
+  /** Até quando o total vale no Meta (`end_time` do conjunto), gravado quando o conjunto nasce. */
+  fimEm?: string;
 }
 
 /**
@@ -171,9 +173,16 @@ export function explicarOrcamento(o: OrcamentoNoMeta): string {
   return `${formatBRL(vida)} no total em ${o.dias} ${o.dias === 1 ? "dia" : "dias"} (teto do conjunto no Meta; ${formatBRL(o.diarioCents)} por dia na média): o que resta da verba (${formatBRL(o.restanteCents)})${divisao}.`;
 }
 
-/** A data de fim na rede: o começo mais os dias do orçamento. */
-export function fimDoOrcamento(inicio: Date, o: Pick<OrcamentoNoMeta, "dias">): Date {
-  return new Date(inicio.getTime() + o.dias * 86_400_000);
+/** A folga do fim: o total não muda, só a janela (a criação leva tempo entre o começo e o conjunto). */
+export const FOLGA_DO_FIM_MS = 60 * 60 * 1000;
+
+/**
+ * A janela do conjunto, calculada logo antes do POST dele: o começo é agora,
+ * o fim são os dias do orçamento mais a folga de 1 hora. O total
+ * (`vidaCents`) não muda.
+ */
+export function janelaDoConjunto(agora: Date, o: Pick<OrcamentoNoMeta, "dias">): { inicio: Date; fim: Date } {
+  return { inicio: agora, fim: new Date(agora.getTime() + o.dias * 86_400_000 + FOLGA_DO_FIM_MS) };
 }
 
 /** Idade mínima de quem vê o anúncio de rifa (e o teto do Meta, 65 = 65 ou mais). */
@@ -262,16 +271,18 @@ export const AVISO_DO_ANUNCIO = "Só vale bilhete pago pela plataforma.";
  * a data e quem apura, a autorização e o aviso. O título é o prêmio, curto.
  */
 /**
- * O número da autorização é texto da organização (os dados legais só conferem
- * de 5 a 80 caracteres). A linha dele só sai da régua do número longo se ele
- * tiver a cara de um número de autorização: letras, dígitos, espaço e
- * `. / - º`, sem link e sem nada com a forma de um celular (DDD, 9 e oito
- * dígitos). Fora disso, a linha passa pela régua inteira.
+ * O número oficial do SCPC (o certificado de autorização da SPA/MF):
+ * `NN.NNNNNN/AAAA`, ex.: `03.012345/2026`. É a **única** coisa que sai da
+ * régua do número longo, e só na linha da autorização — uma lista positiva:
+ * o número da autorização é texto livre da organização (os dados legais só
+ * conferem de 5 a 80 caracteres), então o resto da linha passa pela régua
+ * inteira, como qualquer outra.
  */
-const AUTORIZACAO_ESTRITA = /^[\p{L}\p{N} ./º-]{5,80}$/u;
-const PARECE_CELULAR = /(?<!\d)\(?\d{2}\)?[\s.-]?9\d{4}[\s.-]?\d{4}(?!\d)/;
-export function autorizacaoNoFormato(autorizacao: string): boolean {
-  return AUTORIZACAO_ESTRITA.test(autorizacao) && !temLink(autorizacao) && !PARECE_CELULAR.test(autorizacao);
+export const NUMERO_DO_SCPC = /\d{2}\.\d{6}\/\d{4}/g;
+
+/** A linha da autorização sem os trechos no formato do SCPC (o resto fica para a régua). */
+export function semNumeroDoScpc(linha: string): string {
+  return linha.replace(NUMERO_DO_SCPC, " ");
 }
 
 /** A linha da autorização, montada do número que veio do banco (conferido nos dados legais). */
@@ -291,25 +302,25 @@ export function textoDoAnuncio(d: DadosDoAnuncio): { mensagem: string; titulo: s
 }
 
 /**
- * O texto passa na régua? Sem link e sem telefone nas linhas do texto **fora**
- * a linha da autorização (o número dela vem do banco, conferido nos dados
- * legais, e tem dígitos de sobra) — a linha inteira sai da conta, nunca o
- * número de dentro das outras; sem promessa de ganho (as redes recusam e o
- * CDC chama de enganosa) e sem Pix por fora. Devolve o motivo, ou `null`.
+ * O texto passa na régua? Link nunca, em linha nenhuma. Telefone e número
+ * longo em todas as linhas, com uma exceção só: na linha da autorização, o
+ * trecho no formato oficial do número do SCPC (`semNumeroDoScpc()`) sai da
+ * conta — e só ele; o resto da linha passa pela régua inteira. Nunca tirando
+ * o número de dentro das outras linhas. Sem promessa de ganho (as redes
+ * recusam e o CDC chama de enganosa) e sem Pix por fora. Devolve o motivo,
+ * ou `null`.
  */
 export function problemaNoTextoDoAnuncio(texto: string, autorizacao: string | null): string | null {
   // Link nunca, em linha nenhuma — nem na da autorização.
   if (temLink(texto)) return "O texto do anúncio não pode ter link (nem no prêmio, nem no número da autorização). Ajuste os dados da rifa.";
-  // Só a linha de uma autorização no formato estrito sai da conta do número longo.
-  const daAutorizacao = autorizacao && autorizacaoNoFormato(autorizacao) ? linhaDaAutorizacao(autorizacao) : null;
-  const semAutorizacao = texto
-    .split("\n")
-    .filter((l) => l !== daAutorizacao)
-    .join("\n");
-  const p = temLinkOuTelefone(semAutorizacao);
+  const daAutorizacao = autorizacao ? linhaDaAutorizacao(autorizacao) : null;
+  const linhas = texto.split("\n");
+  const semScpc = linhas.map((l) => (l === daAutorizacao ? semNumeroDoScpc(l) : l)).join("\n");
+  const p = temLinkOuTelefone(semScpc);
   if (p) {
-    return autorizacao && !daAutorizacao
-      ? "O texto do anúncio não pode ter telefone nem número longo — e o número da autorização, fora do formato de um número de autorização, também conta. Confira os dados legais e o prêmio da rifa."
+    const naAutorizacao = daAutorizacao && linhas.includes(daAutorizacao) && temLinkOuTelefone(semNumeroDoScpc(daAutorizacao));
+    return naAutorizacao
+      ? "O número da autorização da rifa tem telefone ou número longo fora do formato do SCPC (NN.NNNNNN/AAAA, ex.: 03.012345/2026). Corrija nos dados legais da rifa."
       : `O texto do anúncio (o prêmio da rifa) ${p.charAt(0).toLowerCase()}${p.slice(1)}`;
   }
   if (prometeGanho(texto)) return "O texto do anúncio promete ganho (as redes recusam e o CDC chama de propaganda enganosa). Ajuste o prêmio da rifa.";
@@ -433,13 +444,31 @@ export interface Resto {
   id: string;
 }
 
-/** Os ids de uma criação como peças, na ordem em que nascem. */
-export function achatarIds(ids: Record<string, string> | null | undefined): Resto[] {
-  const ordem = ["campanha", "conjunto", "criativo", "anuncio", "imagem"];
-  return Object.entries(ids ?? {})
-    .filter(([, v]) => typeof v === "string" && v.length > 0)
-    .sort(([a], [b]) => ordem.indexOf(a) - ordem.indexOf(b))
-    .map(([tipo, id]) => ({ tipo, id }));
+const ORDEM_DAS_PECAS = ["campanha", "conjunto", "criativo", "anuncio", "imagem"];
+
+/** Os ids de uma criação como peças, na ordem em que nascem. Só as chaves conhecidas; o que não é objeto vira nada. */
+export function achatarIds(ids: unknown): Resto[] {
+  if (!ids || typeof ids !== "object" || Array.isArray(ids)) return [];
+  const o = ids as Record<string, unknown>;
+  return ORDEM_DAS_PECAS.filter((k) => typeof o[k] === "string" && /^[0-9a-zA-Z]{1,64}$/.test(o[k] as string)).map((k) => ({ tipo: k, id: o[k] as string }));
+}
+
+/**
+ * `restos` como gravado, lido com tolerância: o que não é lista vira lista
+ * vazia (nunca derruba o painel), a entrada nula some, e a entrada no
+ * formato de antes (`{ campanha, conjunto, … }`) é achatada — nunca
+ * descartada calada.
+ */
+export function restosComoLista(restos: unknown): Resto[] {
+  if (!Array.isArray(restos)) return [];
+  const saida: Resto[] = [];
+  for (const r of restos) {
+    if (!r || typeof r !== "object") continue;
+    const e = r as Record<string, unknown>;
+    if (typeof e.tipo === "string" && typeof e.id === "string") saida.push({ tipo: e.tipo, id: e.id });
+    else saida.push(...achatarIds(e));
+  }
+  return saida;
 }
 
 /**
@@ -447,11 +476,11 @@ export function achatarIds(ids: Record<string, string> | null | undefined): Rest
  * id que é da criação viva (`vivos`) — o hash da imagem, igual entre
  * tentativas, inclusive.
  */
-export function juntarRestos(restos: readonly Resto[] | null | undefined, novos: readonly Resto[], vivos: Iterable<string> = []): Resto[] {
+export function juntarRestos(restos: unknown, novos: readonly Resto[], vivos: Iterable<string> = []): Resto[] {
   const fora = new Set(vivos);
   const vistos = new Set<string>();
   const saida: Resto[] = [];
-  for (const r of [...(restos ?? []), ...novos]) {
+  for (const r of [...restosComoLista(restos), ...restosComoLista(novos)]) {
     if (!r || typeof r.id !== "string" || typeof r.tipo !== "string") continue;
     if (fora.has(r.id) || vistos.has(r.id)) continue;
     vistos.add(r.id);
@@ -461,7 +490,7 @@ export function juntarRestos(restos: readonly Resto[] | null | undefined, novos:
 }
 
 /** Os mesmos ids (sem olhar a ordem das chaves)? */
-export function mesmosIds(a: Record<string, string> | null | undefined, b: Record<string, string> | null | undefined): boolean {
+export function mesmosIds(a: unknown, b: unknown): boolean {
   const x = achatarIds(a);
   const y = achatarIds(b);
   return x.length === y.length && x.every((r, i) => r.tipo === y[i].tipo && r.id === y[i].id);
@@ -469,5 +498,7 @@ export function mesmosIds(a: Record<string, string> | null | undefined, b: Recor
 
 /** As peças que uma criação completa tem no Meta (a imagem é só o hash enviado). */
 export const PECAS_DA_CRIACAO = ["campanha", "conjunto", "criativo", "anuncio"] as const;
-export const criacaoCompleta = (ids: Record<string, string> | null | undefined) =>
-  Boolean(ids) && PECAS_DA_CRIACAO.every((k) => typeof ids![k] === "string" && ids![k].length > 0);
+export const criacaoCompleta = (ids: unknown) => {
+  const tipos = new Set(achatarIds(ids).map((r) => r.tipo));
+  return PECAS_DA_CRIACAO.every((k) => tipos.has(k));
+};

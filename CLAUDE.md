@@ -4745,9 +4745,15 @@ abaixo).
     tentativa), a auditoria vai fora da transação que voltou, e responde 409
     — **mas nunca os ids vivos**: se a linha guarda estes mesmos ids (o banco
     falhou no fim, ou uma retomada já os adotou), nada entra, e nenhum id da
-    criação viva entra (o hash da imagem se repete entre tentativas).
-    **`restos` é a lista achatada de peças** (`{ tipo, id }`,
-    `juntarRestos()`): um id uma vez só, e a tela nunca lista um vivo.
+    criação viva entra (o hash da imagem se repete entre tentativas). Se
+    quem perdeu a linha perdeu **para a adoção** (a linha virou `criada` com
+    estes mesmos ids), ela audita `trafego.meta.perdeu_a_vez` — nunca
+    `trafego.meta.falhou` com ids vivos — e responde que outra tentativa
+    assumiu. **`restos` é a lista achatada de peças** (`{ tipo, id }`,
+    `juntarRestos()`/`restosComoLista()`): um id uma vez só, e a tela nunca
+    lista um vivo; lida com tolerância — o que não é lista vira lista vazia
+    (o painel nunca cai), a entrada nula some e a do formato de antes
+    (`{ campanha, conjunto, … }`) é achatada, nunca descartada calada.
   - **Tentar de novo** é `UPDATE` condicional (`falhou`, ou `criando` além
     do prazo — o processo caiu: o painel recebe `podeRetomar` e mostra
     "Tentar de novo"): a metade dos `ids` vai a `restos` e cria tudo de novo.
@@ -4759,8 +4765,16 @@ abaixo).
     ar, rifa, promotora ativa, gasto, orçamento) — basta a linha travada,
     parada além do prazo e com os mesmos ids —, e depois
     `pausarSeJaParou()`; apagada no gerenciador, vira `falhou` com os ids
-    mortos em `restos`, e criar de novo segue o caminho de sempre. Nunca
-    `criada` com ids mortos. A tela da plataforma lista os `restos` para
+    mortos em `restos` e **responde 409 na mesma requisição** ("Assumir"
+    nunca cria campanha nova: criar fica no botão de criar, ou no "Tentar de
+    novo" da criação em `falhou`). Nunca `criada` com ids mortos.
+    **"Largar como falha"** (`largarCriacao()`, `POST
+    /trafego/campanhas/:id/meta/largar`, só a plataforma — 403 no `npm run
+    isolation`): a criação parada além do prazo e **incompleta** (a completa
+    se assume, conferindo no Meta) vira `falhou`, com o que ficou no Meta em
+    `restos`, sem chamar o Meta e sem criar nada — vale também com a campanha
+    já fora do ar, onde "Tentar de novo" não existe; auditoria
+    `trafego.meta.largar`. A tela da plataforma lista os `restos` para
     apagar no gerenciador (tudo pausado, não gasta).
   - **O orçamento casa com a verba que sobra e com as redes**
     (`orcamentoNoMeta()`, gravado em `trafego_criacoes.orcamento` e dito na
@@ -4768,8 +4782,13 @@ abaixo).
     `criada`): a base é `investimento − gasto` (de todas as redes); com mais
     de uma rede, a parte do Meta é a divisão em partes iguais, para baixo —
     `floor(por dia ÷ redes)` por dia e `floor(restante ÷ redes)` no total; os
-    dias são o total ÷ o diário, para baixo (e a data de fim sai deles,
-    `fimDoOrcamento()`). **Vai ao Meta como orçamento total do conjunto**
+    dias são o total ÷ o diário, para baixo. A janela é calculada **logo
+    antes do POST do conjunto** (`janelaDoConjunto()`): o começo é aquele
+    instante e o fim são os dias mais **1 hora de folga**
+    (`FOLGA_DO_FIM_MS`; o total não muda, só a janela), gravado em
+    `orcamento.fimEm` junto com o conjunto; criada, a tela diz "O total vale
+    até <data e hora>. O anúncio nasce pausado: o tempo até ligar encurta a
+    janela, e depois do fim ele não roda." **Vai ao Meta como orçamento total do conjunto**
     (`lifetime_budget` = `vidaCents` = diário × dias, com o mesmo
     `end_time`; nunca `daily_budget`, que o Meta pode passar num dia): o teto
     rígido nunca passa do que resta. Nada restando, ou o total ÷ dias abaixo
@@ -4777,8 +4796,9 @@ abaixo).
     oficial em reais), é 409 com o motivo.
   - **O que vai para o Meta sai do banco**, nunca do navegador: o nome
     `trafego-<código> · <título da rifa>` (`nomeNaRede()`, a importação da
-    fase 2 casa por ele), o `daily_budget` do orçamento (centavos de real são
-    a unidade do Meta), o objetivo de tráfego para o link, a região do pedido
+    fase 2 casa por ele), o orçamento total do conjunto (`lifetime_budget`,
+    com o `end_time`; centavos de real são a unidade do Meta), o objetivo de
+    tráfego para o link, a região do pedido
     pela busca de locais do Meta (`localDoMeta()`: do Brasil, do tipo e no
     estado certos; **sem achar, recusa com o motivo — nunca o Brasil todo
     calado**), maiores de 18 (`segmentacaoDoMeta()`), a **arte pronta "rifa"
@@ -4787,14 +4807,18 @@ abaixo).
     prêmio, preço, data e quem apura, a linha "Rifa autorizada SPA/MF nº …" e
     "Só vale bilhete pago pela plataforma"), na régua
     (`problemaNoTextoDoAnuncio()`: **link nunca, em linha nenhuma**, nem na
-    da autorização; o número longo conferido nas linhas do texto **sem a
-    linha da autorização só se o número dela tiver o formato estrito**
-    (`autorizacaoNoFormato()`: letras, dígitos, espaço e `. / - º`, sem link
-    e sem cara de celular — o número é texto livre da organização, e os
-    dados legais só conferem de 5 a 80 letras); fora do formato, a linha
-    passa pela régua inteira e a criação recusa com o motivo. Nunca tirando
-    o número de dentro das outras linhas. Sem promessa de ganho, sem Pix por
-    fora; 422 antes de qualquer chamada).
+    da autorização; telefone e número longo em todas as linhas, com **uma
+    lista positiva só**: da linha da autorização sai **apenas** o trecho no
+    formato oficial do número do SCPC (`NUMERO_DO_SCPC`,
+    `\d{2}\.\d{6}/\d{4}`, ex.: `03.012345/2026`, `semNumeroDoScpc()`), e o
+    resto da linha passa pela régua inteira, como qualquer outra — o número
+    é texto livre da organização, e os dados legais só conferem de 5 a 80
+    letras. `SPA/MF 03.012345/2026` e `SPA-MF-EXEMPLO-1001` passam;
+    `zap 11 9 8765-4321`, `11.9.8765.4321`, `0800 777 1234` e
+    `SPA 11 3456 7890` dão 422 dizendo que o número da autorização está fora
+    do formato do SCPC. Nunca tirando o número de dentro das outras linhas.
+    Sem promessa de ganho, sem Pix por fora; 422 antes de qualquer
+    chamada).
   - **O token só no cabeçalho** (`Authorization: Bearer`), nunca na URL, em
     log, resposta ou erro; o endereço do Meta só muda fora de produção
     (`META_API_URL`, `baseDoMeta()`), para a prova. Cada chamada tem prazo de
@@ -4814,10 +4838,13 @@ abaixo).
     outra vez). O que a rede gastar depois continua sendo excedente (fase 2).
   - **Recorte**: a organização vê só "Criada no Meta (pausada)" ou nada —
     nunca ids nem erro técnico (`criacoesDasCampanhas()`); a plataforma vê a
-    situação, o orçamento, os ids, os restos, o erro e os botões (criar,
-    tentar de novo, retomar). Auditoria na mesma transação:
-    `trafego.meta.criar`, `.criada`, `.falhou` e `.pausar` (esta com o ator
-    `sistema`); a da linha perdida vai fora, depois da transação que voltou.
+    situação, o orçamento, até quando o total vale, os ids, os restos, o
+    erro e os botões ("Criar no Meta", "Tentar de novo", "Assumir a
+    criação" e "Largar como falha"). Auditoria na mesma transação:
+    `trafego.meta.criar`, `.criada`, `.falhou`, `.largar` e `.pausar` (esta
+    com o ator `sistema`); a da linha perdida (`.falhou`, ou
+    `.perdeu_a_vez` quando a adoção venceu) vai fora, depois da transação
+    que voltou.
 - As tabelas `trafego_campanhas` e `trafego_gastos` sobem com o `db:push`
   **antes** do código, e as colunas `trafego_gastos.cliques`, `origem` e
   `excedente_cents` também, e a tabela `trafego_criacoes` da fase 3 (com a

@@ -57,7 +57,7 @@ class Cliente {
 }
 
 const PREFIXO = "trafego-meta-teste-";
-const BASE = 500_000;
+const BASE = 3_000_000;
 
 /* ---------------- o Meta de mentira ---------------- */
 
@@ -153,7 +153,7 @@ function subirMeta(): Promise<http.Server> {
 const hoje = () => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
 const doPasso = (caminho: string, desde = 0) => pedidos.slice(desde).filter((p) => p.caminho === caminho);
 
-async function novaRifa(organizationId: string, slug: string, premio = `Prêmio ${slug}`, autorizacao = "SEI/ME 18101.000123/2026-11") {
+async function novaRifa(organizationId: string, slug: string, premio = `Prêmio ${slug}`, autorizacao = "SPA/MF 03.012345/2026") {
   const [c] = await db
     .insert(campaigns)
     .values({
@@ -309,13 +309,14 @@ async function main() {
     const codigo = codigoDaCampanha(idA);
     checa("campanha: nome com o código e o título, tráfego, PAUSADA", camp?.name === `trafego-${codigo} · Rifa a` && camp?.objective === "OUTCOME_TRAFFIC" && camp?.status === "PAUSED", JSON.stringify(camp));
     const conj = doPasso(`${CONTA}/adsets`, antes)[0]?.corpo;
-    const dias = conj ? (Date.parse(conj.end_time) - Date.parse(conj.start_time)) / 86_400_000 : 0;
+    const janelaMs = conj ? Date.parse(conj.end_time) - Date.parse(conj.start_time) : 0;
     checa(
       "conjunto: o teto da vida (R$ 200,00 = R$ 20,00 × 10 dias) em centavos, sem orçamento diário, PAUSADO, ligado à campanha",
       conj?.lifetime_budget === 20_000 && !("daily_budget" in (conj ?? {})) && conj?.status === "PAUSED" && conj?.campaign_id === feita?.ids.campanha,
       JSON.stringify(conj),
     );
-    checa("conjunto: o fim é quando a verba acaba pela conta (20.500 ÷ 2.000 = 10 dias)", dias === 10, String(dias));
+    checa("conjunto: o fim é quando a verba acaba pela conta (20.500 ÷ 2.000 = 10 dias) mais 1 hora de folga", janelaMs === 10 * 86_400_000 + 3_600_000, String(janelaMs));
+    checa("o fim fica gravado com o orçamento (a tela diz até quando o total vale)", (await criacao(idA))?.orcamento?.fimEm === conj?.end_time, String((await criacao(idA))?.orcamento?.fimEm));
     checa(
       "conjunto: a cidade achada no estado certo e maiores de 18",
       JSON.stringify(conj?.targeting?.geo_locations) === JSON.stringify({ cities: [{ key: "248", radius: 10, distance_unit: "kilometer" }] }) && conj?.targeting?.age_min === 18,
@@ -331,7 +332,7 @@ async function main() {
     const msg: string = criat?.object_story_spec?.link_data?.message ?? "";
     checa(
       "criativo: o texto dos dados públicos, com a autorização e o aviso, sem telefone",
-      msg.includes("Prêmio a") && msg.includes("SPA/MF nº SEI/ME 18101.000123/2026-11") && msg.includes("Só vale bilhete pago pela plataforma") && !/\(?\d{2}\)?\s?9\d{4}-?\d{4}/.test(msg),
+      msg.includes("Prêmio a") && msg.includes("SPA/MF nº SPA/MF 03.012345/2026") && msg.includes("Só vale bilhete pago pela plataforma") && !/\(?\d{2}\)?\s?9\d{4}-?\d{4}/.test(msg),
       msg,
     );
     checa("criativo: assinado pela página da plataforma, com a imagem enviada", criat?.object_story_spec?.page_id === PAGINA && criat?.object_story_spec?.link_data?.image_hash === feita?.ids.imagem);
@@ -455,7 +456,7 @@ async function main() {
     antes = pedidos.length;
     r = await criar(admin, idI);
     const conjI = doPasso(`${CONTA}/adsets`, antes)[0]?.corpo;
-    const diasI = conjI ? (Date.parse(conjI.end_time) - Date.parse(conjI.start_time)) / 86_400_000 : 0;
+    const diasI = conjI ? (Date.parse(conjI.end_time) - Date.parse(conjI.start_time) - 3_600_000) / 86_400_000 : 0;
     checa(
       "duas redes e R$ 40,00 já gastos: o Meta recebe o teto de R$ 72,00 em 6 dias (R$ 160,00 ÷ 2 = R$ 80,00; R$ 12,00 por dia)",
       r.status === 201 && conjI?.lifetime_budget === 7_200 && !("daily_budget" in (conjI ?? {})) && diasI === 6,
@@ -644,9 +645,13 @@ async function main() {
       `HTTP ${r.status} ${r.json?.message ?? ""} ${JSON.stringify(fimQ?.restos)}`,
     );
     // O guardar da primeira tentativa chega atrasado, depois de a retomada adotar: não repõe os ids vivos.
-    await guardarOQueSobrou(null, idQ, fimQ!.id, perdidaQ!.ids, "guardar atrasado (prova)");
+    const falhasAntes = (await db.execute(sql`select count(*)::int as n from audit_log where entity_id = ${idQ} and action = 'trafego.meta.falhou'`)).rows[0] as { n: number };
+    const atrasado = await guardarOQueSobrou(null, idQ, fimQ!.id, perdidaQ!.ids, "guardar atrasado (prova)");
     const depoisQ = await criacao(idQ);
-    checa("o guardar atrasado não põe em restos os ids que a retomada adotou", depoisQ?.status === "criada" && depoisQ.restos.length === 0, JSON.stringify(depoisQ?.restos));
+    checa("o guardar atrasado não põe em restos os ids que a retomada adotou", atrasado === "assumida" && depoisQ?.status === "criada" && depoisQ.restos.length === 0, `${atrasado} ${JSON.stringify(depoisQ?.restos)}`);
+    const falhasDepois = (await db.execute(sql`select count(*)::int as n from audit_log where entity_id = ${idQ} and action = 'trafego.meta.falhou'`)).rows[0] as { n: number };
+    const perdeu = (await db.execute(sql`select count(*)::int as n from audit_log where entity_id = ${idQ} and action = 'trafego.meta.perdeu_a_vez'`)).rows[0] as { n: number };
+    checa("…e audita trafego.meta.perdeu_a_vez, nunca trafego.meta.falhou com ids vivos", perdeu.n === 1 && falhasDepois.n === falhasAntes.n, `${perdeu.n} ${falhasAntes.n}→${falhasDepois.n}`);
 
     // O banco falha no sucesso, a pessoa apaga a campanha no gerenciador e tenta de novo: cria de novo, nunca adota ids mortos.
     const rifaQ2 = await novaRifa(orgId, "q2");
@@ -677,9 +682,22 @@ async function main() {
     checa("a tela recebe podeRetomar e completa", q2NaTela?.podeRetomar === true && q2NaTela?.completa === true, JSON.stringify(q2NaTela));
     antes = pedidos.length;
     r = await criar(admin, idQ2);
+    const largadaQ2 = await criacao(idQ2);
+    checa(
+      "assumir a apagada no Meta: 409, a criação fica como falha com os ids mortos em restos, e nada é criado",
+      r.status === 409 &&
+        /apagada no Meta; a criação ficou como falha/.test(r.json?.message ?? "") &&
+        largadaQ2?.status === "falhou" &&
+        Object.keys(largadaQ2.ids).length === 0 &&
+        largadaQ2.restos.some((x) => x.tipo === "campanha" && x.id === mortaQ2?.ids.campanha) &&
+        pedidos.slice(antes).every((p) => p.metodo === "GET"),
+      `HTTP ${r.status} ${r.json?.message ?? ""}`,
+    );
+    antes = pedidos.length;
+    r = await criar(admin, idQ2);
     const novaQ2 = await criacao(idQ2);
     checa(
-      "apagada no Meta: a retomada cria de novo (uma campanha), nunca marca criada com ids mortos",
+      "…e o \"Tentar de novo\" da falha cria outra (uma campanha), nunca marca criada com ids mortos",
       r.status === 201 &&
         novaQ2?.status === "criada" &&
         novaQ2.ids.campanha !== mortaQ2?.ids.campanha &&
@@ -759,6 +777,92 @@ async function main() {
       r.status === 422 && /link/.test(r.json?.message ?? "") && pedidos.length === antes,
       `HTTP ${r.status} ${r.json?.message ?? ""}`,
     );
+
+    /* ---------------- a régua da autorização: só o número do SCPC sai ---------------- */
+    console.log("  — autorização fora do formato do SCPC");
+    let k = 0;
+    for (const autorizacao of ["zap 11 9 8765-4321", "11.9.8765.4321", "0800 777 1234", "SPA 11 3456 7890"]) {
+      const rifaX = await novaRifa(orgId, `aut${k++}`, `Prêmio aut${k}`, autorizacao);
+      const idX = await noAr(rifaX.id);
+      antes = pedidos.length;
+      r = await criar(admin, idX);
+      checa(`autorização "${autorizacao}": 422 com o motivo, nada chamado`, r.status === 422 && /autorização/.test(r.json?.message ?? "") && pedidos.length === antes, `HTTP ${r.status} ${r.json?.message ?? ""}`);
+    }
+    const rifaExemplo = await novaRifa(orgId, "aut-exemplo", "Prêmio exemplo", "SPA-MF-EXEMPLO-1001");
+    const idExemplo = await noAr(rifaExemplo.id);
+    r = await criar(admin, idExemplo);
+    checa("autorização sem número do SCPC e sem telefone (SPA-MF-EXEMPLO-1001) passa", r.status === 201, `HTTP ${r.status} ${r.json?.message ?? ""}`);
+
+    /* ---------------- restos gravado fora do formato não derruba o painel ---------------- */
+    console.log("  — restos fora do formato");
+    const restosEstranhos: [string, ReturnType<typeof sql>][] = [
+      ["objeto", sql`'{}'::jsonb`],
+      ["null", sql`'null'::jsonb`],
+      ["entrada null", sql`'[null]'::jsonb`],
+      ["formato antigo", sql`'[{"campanha":"120299000000090","conjunto":"120299000000091"}]'::jsonb`],
+    ];
+    const idsEstranhos: string[] = [];
+    for (const [nome, valor] of restosEstranhos) {
+      const rifaY = await novaRifa(orgId, `restos-${nome.replace(/\s/g, "-")}`);
+      const idY = await noAr(rifaY.id);
+      idsEstranhos.push(idY);
+      await db.insert(trafegoCriacoes).values({ campanhaId: idY, rede: "meta", status: "falhou", erro: "teste", restos: valor as never });
+    }
+    r = await admin.req("GET", "/api/admin/trafego");
+    checa("restos {}, null e [null] gravados à mão: o painel segue 200", r.status === 200, `HTTP ${r.status}`);
+    const antigo = (r.json?.campanhas ?? []).find((c: any) => c.id === idsEstranhos[3])?.meta?.restos ?? [];
+    checa(
+      "restos no formato antigo é achatado, não some",
+      antigo.some((x: any) => x.tipo === "campanha" && x.id === "120299000000090") && antigo.some((x: any) => x.tipo === "conjunto" && x.id === "120299000000091"),
+      JSON.stringify(antigo),
+    );
+    antes = pedidos.length;
+    r = await criar(admin, idsEstranhos[0]);
+    checa("tentar de novo com restos {} gravado: cria normalmente", r.status === 201, `HTTP ${r.status} ${r.json?.message ?? ""}`);
+
+    /* ---------------- largar como falha ---------------- */
+    console.log("  — largar como falha");
+    const rifaV = await novaRifa(orgId, "v");
+    const idV = await noAr(rifaV.id);
+    const metadeV = { imagem: "0123456789abcdef0123456789abcdef", campanha: "120299000000040" };
+    await db.insert(trafegoCriacoes).values({ campanhaId: idV, rede: "meta", status: "criando", ids: metadeV, atualizadoEm: sql`(now() AT TIME ZONE 'UTC')` });
+    r = await admin.req("POST", `/api/admin/trafego/campanhas/${idV}/meta/largar`);
+    checa("largar a criação ainda dentro do prazo: 409", r.status === 409, `HTTP ${r.status} ${r.json?.message ?? ""}`);
+    await db.update(trafegoCriacoes).set({ atualizadoEm: sql`(now() AT TIME ZONE 'UTC') - interval '20 minutes'` }).where(eq(trafegoCriacoes.campanhaId, idV));
+    r = await marina.req("POST", `/api/admin/trafego/campanhas/${idV}/encerrar`);
+    if (r.status !== 200) throw new Error(`encerrar V: HTTP ${r.status}`);
+    r = await admin.req("GET", "/api/admin/trafego");
+    const vNaTela = (r.json?.campanhas ?? []).find((c: any) => c.id === idV);
+    checa("presa e incompleta com a campanha fora do ar: a tela recebe podeRetomar sem completa", vNaTela?.status === "encerrando" && vNaTela?.meta?.podeRetomar === true && vNaTela?.meta?.completa === false, JSON.stringify(vNaTela?.meta));
+    r = await marina.req("POST", `/api/admin/trafego/campanhas/${idV}/meta/largar`);
+    checa("a organização não larga (403)", r.status === 403, `HTTP ${r.status}`);
+    antes = pedidos.length;
+    r = await admin.req("POST", `/api/admin/trafego/campanhas/${idV}/meta/largar`);
+    const largadaV = await criacao(idV);
+    checa(
+      "largar como falha: vira falha, o que ficou vai a restos, nada chamado no Meta",
+      r.status === 200 &&
+        largadaV?.status === "falhou" &&
+        Object.keys(largadaV.ids).length === 0 &&
+        largadaV.restos.some((x) => x.tipo === "campanha" && x.id === metadeV.campanha) &&
+        pedidos.length === antes,
+      `HTTP ${r.status} ${r.json?.message ?? ""} ${JSON.stringify(largadaV?.restos)}`,
+    );
+    r = await admin.req("POST", `/api/admin/trafego/campanhas/${idV}/meta/largar`);
+    checa("largar de novo: 409", r.status === 409, `HTTP ${r.status}`);
+    const largouV = (await db.execute(sql`select count(*)::int as n from audit_log where entity_id = ${idV} and action = 'trafego.meta.largar'`)).rows[0] as { n: number };
+    checa("…com a auditoria trafego.meta.largar", largouV.n === 1);
+    const rifaW = await novaRifa(orgId, "w");
+    const idW = await noAr(rifaW.id);
+    await db.insert(trafegoCriacoes).values({
+      campanhaId: idW,
+      rede: "meta",
+      status: "criando",
+      ids: { campanha: "120299000000050", conjunto: "120299000000051", criativo: "120299000000052", anuncio: "120299000000053" },
+      atualizadoEm: sql`(now() AT TIME ZONE 'UTC') - interval '20 minutes'`,
+    });
+    r = await admin.req("POST", `/api/admin/trafego/campanhas/${idW}/meta/largar`);
+    checa("largar a presa completa: 409 (assumir confere no Meta)", r.status === 409 && /Assumir/.test(r.json?.message ?? ""), `HTTP ${r.status} ${r.json?.message ?? ""}`);
 
     /* ---------------- encerrar durante a criação ---------------- */
     console.log("  — encerrar durante a criação");

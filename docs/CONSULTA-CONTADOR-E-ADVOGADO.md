@@ -405,6 +405,42 @@ dinheiro**: só calcula e registra. Regime: Lucro Real.
 17. Quem na empresa fecha o mês e quem pode reabrir? Há exigência de
     **segregação de funções** (quem lança não aprova) para auditoria?
 
+**Segunda rodada ao contador (dúvidas que ficaram depois de ler as respostas)**
+18. **O "saldo da empresa" do fechamento é gerencial, não é lucro contábil.**
+    Como rotular para não ser confundido com resultado apurado? E ele pode
+    orientar a **retirada dos sócios**: há regra em vigor sobre distribuição de
+    lucros e tributação de dividendos (mudanças de 2026) que o painel deva
+    respeitar ou avisar?
+19. **NFS-e**: uma por campanha aprovada (na aprovação) ou consolidada por
+    organização no mês? Para organização **pessoa física**, sem CNPJ? O ISS é
+    devido ao município do prestador ou do tomador no item 17.06?
+20. **Recargas de saldo** (patrocínio, banner, assistente de IA) pagas por Pix:
+    a nota sai **na recarga** ou **no consumo**? Antes do consumo é só
+    adiantamento (passivo), sem fato gerador?
+21. **Diferimento da taxa de gestão**: o critério é o **período planejado** da
+    campanha (da aprovação até a data final) ou o **gasto proporcional** da
+    mídia (percentual executado)? O extrato do sistema entrega os dois; qual
+    ele usa?
+22. **Crédito de PIS/COFINS** sobre o que **é custo nosso**: tarifa do provedor
+    de Pix, Chatbase, hospedagem (Railway), armazenamento, domínio. Quais geram
+    crédito no Lucro Real não cumulativo, e como o painel separa essas
+    despesas?
+23. **Presente** (desconto de primeira compra pago pela plataforma): é
+    despesa promocional, redução da receita ou outra coisa? O crédito devido à
+    promotora é passivo até o repasse?
+24. **Mensalidade e taxa por venda** (CNAE 6311-9/00) e **taxa de gestão do
+    tráfego** (73.11-4-00, item 17.06): as duas atividades na mesma inscrição
+    municipal, com alíquotas de ISS diferentes? O painel mostra o ISS por
+    atividade?
+25. **Percentuais padrão da linha "Impostos"**: o painel pode provisionar ISS,
+    PIS/COFINS e IRPJ/CSLL com percentuais que o contador informa (ISS por
+    município, PIS/COFINS líquido de créditos), e quem os mantém atualizados?
+26. **Prazo do fechamento**: até que dia do mês seguinte o contador precisa do
+    extrato e do retrato para escriturar?
+27. Pode **enviar os números e links** da Solução de Consulta nº 6.006 (repasse
+    a veículos de comunicação) e da Solução de Consulta Cosit nº 110 (doação
+    sem OSCIP) para conferirmos e anexarmos ao dossiê?
+
 ## 10. Dúvidas ao advogado sobre a Tesouraria e os acessos (aguardando)
 
 **Dinheiro de terceiros**

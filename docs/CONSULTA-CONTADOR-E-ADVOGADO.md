@@ -8,7 +8,7 @@ vira trabalho de código está na seção 4; o que é decisão do dono, na seç�
 
 | Quem | Situação |
 |---|---|
-| Contador | **Respondeu** (09/10/2026). Primeira rodada na seção 2, doação à ONG na seção 7, segunda rodada (Tesouraria) na seção 11; terceira rodada respondida na seção 13; **quarta rodada respondida na seção 15 (muda a posição fiscal do modelo A: revenda)**; **quinta, mínima (4 dúvidas), na seção 16**. |
+| Contador | **Respondeu** (09/10/2026). Primeira rodada na seção 2, doação à ONG na seção 7, segunda rodada (Tesouraria) na seção 11; terceira rodada respondida na seção 13; **quarta rodada respondida na seção 15 (muda a posição fiscal do modelo A: revenda)**; quinta, mínima (4 dúvidas), na seção 16; **comentários finais e o parecer conjunto na seção 17**. |
 | Regime da plataforma | **Lucro Real** (informado pelo dono em 09/10/2026) — ver a seção 8, que muda a leitura de várias respostas. |
 | Advogado | **Perguntas enviadas, sem resposta ainda.** Perguntas na seção 3; as respostas entram aqui quando chegarem. |
 
@@ -801,4 +801,72 @@ comportar os dois (um parâmetro da Tesouraria), sem apagar o histórico.
     ser "intermediária" e passa a ser a vendedora da mídia perante a organização.
     Isso altera a responsabilidade (CDC, solidariedade) e o regime do saldo
     pré-pago (pergunta 14)?
+
+## 17. Comentários finais do contador sobre a revenda e o esclarecimento do dono (09/10/2026)
+
+**O contador concorda com os oito pontos da seção 15 e acrescenta:**
+
+1. **Preço da taxa (o mais urgente).** Com ISS de 5% sobre o total, o pacote de
+   R$ 100 + R$ 20 recolhe R$ 6,00 de ISS (R$ 5,00 sobre a mídia + R$ 1,00 sobre
+   a taxa) em vez de R$ 1,00; os R$ 5,00 a mais consomem 25% da taxa, e o fee
+   efetivo de 20% cai para algo entre **14% e 15%** da mídia, conforme o município.
+   O 20% foi calibrado para o repasse; **precisa ser refeito para a revenda, ou o
+   modelo A migra para o B.** (Ele fala do Simples Nacional como "inviável" na
+   revenda — não se aplica: a plataforma é **Lucro Real**; ele recomenda
+   simular Presumido e Real com seriedade.)
+2. **ISS sobre tudo precisa de conferência.** Em vários municípios a base do ISS
+   da agência de publicidade **exclui o custo de veiculação** (está na lei
+   municipal, não na LC 116): ele precisa da **lei do município com o artigo**.
+   Nuance nova: a veiculação é prestada por empresas **estrangeiras**
+   (Meta/Google/TikTok); se o município trata como **serviço importado**, o ISS é
+   devido **pelo tomador (a plataforma)** e a base muda. Analisar com o município
+   e o advogado. (O Meta fatura as contas brasileiras com ISS embutido, o que
+   sugere entidade brasileira e não importação — **confirmar** com a fatura.)
+3. **Tesouraria com duas visões**, com o parâmetro "posição fiscal"
+   **versionado por competência, nunca retroativo**: protege o histórico.
+4. **Contrato:** de mandato para prestação de serviço de publicidade com
+   fornecimento de mídia. **Risco de crédito novo:** na revenda a plataforma
+   continua devendo ao Meta se o cliente não paga; precisa estar **precificado na
+   taxa** ou **mitigado** (cobrança antecipada, garantias). "Não é só nomenclatura;
+   é posição econômica."
+5. **Termos das redes:** rodar vários anunciantes na mesma conta da plataforma
+   pode violar as políticas, em especial **jogos de azar** (licença por
+   anunciante); a responsabilidade perante a rede é da plataforma. Pode
+   **inviabilizar o modelo A** para certas categorias.
+6. **Modelo B** preserva a economia original: o ISS incide só sobre a taxa e os
+   20% voltam a fazer sentido. Argumento para priorizá-lo.
+7. **Reconhecimento da receita** (taxa pelo gasto; mídia, patrocínio, banner e
+   IA pelo consumo; recargas como passivo; lucro contábil e saldo bancário
+   informados): confirmado.
+8. **Parecer conjunto** (contador e advogado) antes de qualquer parametrização
+   definitiva: a posição do modelo A com fundamentos, o custo tributário de cada
+   cenário com simulações, o preço da taxa por cenário e os riscos contratuais e
+   das redes. "Sem ele, qualquer parametrização é provisória."
+
+**Esclarecimento do dono sobre o modelo B:** o organizador **paga à plataforma
+apenas as taxas** (a mídia ele paga direto à rede); os **20%** são referentes ao
+**pagamento dos créditos** e aos **serviços de campanhas automáticas** que a
+plataforma fornece às promotoras. Isto fixa a leitura do modelo B: a plataforma
+**não toca a mídia**, e a taxa de 20% é a receita dela, sobre o gasto da campanha
+(a confirmar a forma de cobrar, abaixo).
+
+**Pendente de confirmação (leitura minha do esclarecimento):** no modelo B a
+organização compra na plataforma só o **crédito da taxa** (os 20%), e o sistema
+**debita a taxa à medida que lê o gasto** na conta de anúncios dela; sem saldo de
+taxa, a campanha pausa. Assim a taxa só existe sobre o que foi gasto de fato — não
+há "cobrada inteira na aprovação" nem devolução a discutir no modelo B — e a
+receita é reconhecida **no mesmo momento** do débito. É isso, ou a taxa do modelo B
+também é cobrada inteira na aprovação, sobre o orçamento planejado?
+
+**Perguntas novas:**
+- **Ao contador (C15):** o Meta que fatura as contas brasileiras é entidade
+  brasileira (fatura com ISS)? Se sim, não há ISS de importação. E se for
+  estrangeira, quem recolhe o ISS e sobre que base?
+- **Ao contador (C16):** no modelo B, a taxa é reconhecida no débito (gasto
+  lido); a NFS-e mensal consolida o mês? Há risco de a rede ou o cliente
+  questionarem a base (o gasto lido na conta do cliente)?
+- **Ao advogado (item 13):** risco de crédito na revenda — cobrança antecipada,
+  garantia, prazo para o cliente repor o saldo, direito de pausar a campanha.
+- **Ao advogado (item 14):** aprovar com o contador o **parecer conjunto** e a
+  posição do modelo A.
 

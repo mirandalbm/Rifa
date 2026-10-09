@@ -278,3 +278,13 @@ cliente paga a rede) é onde o repasse vale. Detalhes e perguntas abertas em
 `docs/CONSULTA-CONTADOR-E-ADVOGADO.md`, seções 15 e 16. A decisão final é do
 dono com o advogado.
 
+### Modelo B: a leitura da cobrança (dono, 09/10/2026)
+
+O organizador **paga à plataforma apenas as taxas**; a mídia ele paga direto à
+rede. Os **20%** remuneram o pagamento dos créditos e os **serviços de campanhas
+automáticas** que a plataforma presta às promotoras. A plataforma não toca a
+mídia (repasse puro, ISS só sobre a taxa). Em aberto: se a taxa é **debitada do
+saldo à medida que o gasto é lido** na conta dela (proposta) ou cobrada na
+aprovação sobre o orçamento planejado — ver `docs/CONSULTA-CONTADOR-E-ADVOGADO.md`,
+seção 17.
+

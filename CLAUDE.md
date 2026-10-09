@@ -4810,7 +4810,8 @@ abaixo).
     da autorização; telefone e número longo em todas as linhas, com **uma
     lista positiva só**: da linha da autorização sai **apenas** o trecho no
     formato oficial do número do SCPC (`NUMERO_DO_SCPC`,
-    `\d{2}\.?\d{3}\.?\d{3}/\d{4}`, com ou sem os pontos, ex.:
+    `\d{2}\.?\d{3}\.?\d{3}/\d{4}` preso nas duas pontas — o fim de um
+    celular com "/AAAA" não vale —, com ou sem os pontos, ex.:
     `03.012345/2026`, `semNumeroDoScpc()`), e o
     resto da linha passa pela régua inteira, como qualquer outra — o número
     é texto livre da organização, e os dados legais só conferem de 5 a 80

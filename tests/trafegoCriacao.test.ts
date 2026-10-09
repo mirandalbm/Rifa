@@ -309,6 +309,10 @@ describe("texto do anúncio", () => {
     // O mesmo número com ou sem os pontos (a autorização trava ao publicar: recusar seria sem saída).
     expect(passa("SPA/MF 03012345/2026")).toBeNull();
     expect(passa("SPA/MF 03.012.345/2026")).toBeNull();
+    // Preso nas pontas: o fim de um telefone com "/AAAA" não vale como número do SCPC.
+    for (const a of ["SPA/MF 11987654321/2026", "5511987654321/2026", "1198765432/2026", "11.98765432/2026", "0800777123/4567"]) {
+      expect(passa(a), a).toMatch(/autorização/);
+    }
     // Os quatro do revisor: telefone fora do formato do SCPC, na linha da autorização.
     for (const a of ["zap 11 9 8765-4321", "11.9.8765.4321", "0800 777 1234", "SPA 11 3456 7890"]) {
       expect(passa(a), a).toMatch(/autorização/);

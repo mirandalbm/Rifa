@@ -278,7 +278,8 @@ export const AVISO_DO_ANUNCIO = "Só vale bilhete pago pela plataforma.";
  * conferem de 5 a 80 caracteres), então o resto da linha passa pela régua
  * inteira, como qualquer outra.
  */
-export const NUMERO_DO_SCPC = /\d{2}\.?\d{3}\.?\d{3}\/\d{4}/g;
+// Preso nas duas pontas: sem isso, o fim de um celular ("11987654321/2026") casava e o resto passava curto.
+export const NUMERO_DO_SCPC = /(?<![\d.])\d{2}\.?\d{3}\.?\d{3}\/\d{4}(?!\d)/g;
 
 /** A linha da autorização sem os trechos no formato do SCPC (o resto fica para a régua). */
 export function semNumeroDoScpc(linha: string): string {
@@ -320,7 +321,7 @@ export function problemaNoTextoDoAnuncio(texto: string, autorizacao: string | nu
   if (p) {
     const naAutorizacao = daAutorizacao && linhas.includes(daAutorizacao) && temLinkOuTelefone(semNumeroDoScpc(daAutorizacao));
     return naAutorizacao
-      ? "O número da autorização da rifa tem telefone ou número longo fora do formato do SCPC (NN.NNNNNN/AAAA, ex.: 03.012345/2026). A autorização trava ao publicar: monte esta campanha à mão no gerenciador do Meta."
+      ? "O número da autorização da rifa tem telefone ou número longo fora do formato do SCPC (NN.NNNNNN/AAAA, com ou sem os pontos, ex.: 03.012345/2026). A autorização trava ao publicar: monte esta campanha à mão no gerenciador do Meta."
       : `O texto do anúncio (o prêmio da rifa) ${p.charAt(0).toLowerCase()}${p.slice(1)} O prêmio trava ao publicar: monte esta campanha à mão no gerenciador do Meta.`;
   }
   if (prometeGanho(texto)) return "O texto do anúncio promete ganho (as redes recusam e o CDC chama de propaganda enganosa). O prêmio trava ao publicar: monte esta campanha à mão no gerenciador do Meta, com outro texto.";

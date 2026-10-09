@@ -350,7 +350,7 @@ que a política permite?
 
 O dono mudou o foco: sair do tráfego pago nas redes e divulgar por
 **influenciadores** (e, depois, portais). O plano está em
-`docs/PLANO-INFLUENCIADORES.md`; estas são as perguntas dele (R16 a R22). As
+`docs/PLANO-INFLUENCIADORES.md`; estas são as perguntas dele (R16 a R23). As
 anteriores seguem valendo, em especial R1 e R12 para o que sobrar de anúncio
 pago.
 
@@ -383,4 +383,10 @@ organização nesse formato?
 **R22. [2] Anúncio em portal e rede nativa** (Taboola, Outbrain, portais). Há
 regra que proíba ou limite rifa autorizada em publicidade paga fora das redes?
 A resposta de "agregador" do Google vale aqui?
+
+**R23. [1] Autorização em nome da plataforma e o que dizer nas peças.** Há, ou
+é possível obter, autorização ou certificação em nome da plataforma (para a
+operação ou para o globo) que mude a análise de "agregador" do Google e de quem
+pede a permissão à Meta? Antes da homologação do globo, o que a plataforma pode
+afirmar sobre ele nas peças e nos anúncios (por exemplo, "sem manipulação")?
 

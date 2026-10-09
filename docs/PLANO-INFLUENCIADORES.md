@@ -27,6 +27,49 @@ O tráfego pago (`docs/PLANO-TRAFEGO-PAGO.md`) **continua no código, desligado*
   modelo. Sair da conta de anúncios não tira a rifa da mira das regras de cada
   rede e do CONAR (seção 3). Muda quem responde e onde.
 
+## 1.1 A premissa do dono e o que ela muda (09/10/2026)
+
+O dono lembrou: a operação terá todas as licenças e certificados, a rifa **não
+é "bet"**, e o resultado não é manipulável — a apuração é pela Loteria Federal
+da Caixa ou pelo globo da própria plataforma, sem intervenção humana e
+homologado. **Isto vale e o plano parte disso.**
+
+**O que o sistema já sustenta, no código**: rifa só publica com a autorização
+SPA/MF, o arquivo do certificado e a data (invariante 9); apuração pela leitura
+direta da Federal ou pelo globo, que qualquer pessoa refaz com papel e caneta
+(`shared/apuracao.ts`); regulamento público montado dos dados da rifa; sem
+semente nem hash na rifa com método; número sem dono resolvido por regra
+escrita. Isso é o que diferencia a rifa da aposta.
+
+**O que a premissa muda a nosso favor**
+- É um regime próprio: promoção com autorização da SPA/MF (Lei 5.768/1971 e
+  Decreto 70.951/1972), e não a Lei 14.790/2023 das apostas de quota fixa. A
+  Portaria SPA/MF 1.231/2024, que o advogado citou, é das apostas — já tinha
+  ficado anotado na seção 22 da consulta.
+- A licença e o método verificável são o **que se apresenta** à Meta, ao Google
+  e aos veículos para pedir a permissão, e a melhor defesa diante do CONAR.
+
+**O que ela não muda**
+1. **As redes classificam pela categoria, não pela licença nem pela lisura do
+   sorteio.** Dinheiro na entrada e prêmio por sorte é a definição que elas
+   usam. A Meta exige permissão por escrito para rifa e loteria (conferido na
+   política); o Google aceita loteria com licença **e certificação do Google**
+   e proíbe "agregadores" (guia do advogado); a política do WhatsApp Business
+   lista jogo com dinheiro real como proibido por padrão (guia de terceiros).
+   A licença é o que entra no pedido; **não dispensa o pedido**.
+2. **A licença é da promotora, por rifa.** O projeto parte de que a Lei
+   5.768/1971 autoriza o promotor, e a plataforma não é homologada em bloco
+   (invariante 9 do `CLAUDE.md`). Se o dono tem, ou vai ter, autorização ou
+   certificação **em nome da plataforma** (para a operação ou para o globo),
+   isso muda a conversa sobre "agregador" e sobre quem pede a permissão. Precisa
+   estar por escrito e ir ao advogado (R23).
+3. **"Globo homologado" ainda é futuro no código.** O globo nasce desligado e
+   só liga depois da homologação, com ata notarial (respostas 8.9 a 8.12). Até
+   lá, nenhuma peça, texto de kit ou anúncio pode dizer que o globo é
+   homologado, nem "sem manipulação" como promessa sem a prova ao lado:
+   publicidade que afirma o que não está cumprido é enganosa (CDC) e é
+   exatamente o que o CONAR cobra.
+
 ## 2. O que já existe e é reaproveitado
 
 | Peça | Onde | Serve para |
@@ -109,6 +152,15 @@ O texto é do advogado (seção 7).
 somar CPF, e o teto de cliques por IP e aparelho já usado no patrocínio, para
 o influenciador não inflar o próprio desempenho com cliques.
 
+**4.9 Dossiê de conformidade por rifa.** Uma página pública (e um PDF para
+baixar) por rifa no ar, só com o que já é público depois de publicada: número
+da autorização SPA/MF e o certificado, a promotora (nome e CNPJ), o método de
+apuração e o passo a passo para conferir o resultado, o regulamento e quem é a
+plataforma (Dados da empresa). Serve de anexo à permissão da Meta, à consulta
+ao Google, aos veículos e ao influenciador. **Nada novo de dado pessoal**, e
+nada que o número em jogo revele; o que ainda não foi cumprido (por exemplo, a
+homologação do globo) aparece como pendente, nunca como feito.
+
 **Provas**: `npm run influenciadores` (nova) contra a API de verdade:
 convite de uso único, convite vencido, vínculo só com o aceite, vitrine só com
 rifa que aceita divulgação, desempenho no recorte (o vizinho não aparece), e
@@ -165,7 +217,7 @@ margem do tráfego pago, com a "rede" nova. Antes de qualquer integração, o
 
 ## 7. Perguntas novas ao advogado
 
-Entram em `docs/PERGUNTAS-AO-ADVOGADO.md` como **terceira rodada** (R16 a R22):
+Entram em `docs/PERGUNTAS-AO-ADVOGADO.md` como **terceira rodada** (R16 a R23):
 
 - **R16. [1] Responsabilidade por post de influenciador.** A plataforma
   responde pela peça que o influenciador publica com o link dela? E a
@@ -191,6 +243,12 @@ Entram em `docs/PERGUNTAS-AO-ADVOGADO.md` como **terceira rodada** (R16 a R22):
 - **R22. [2] Anúncio em portal e rede nativa.** Há regra que proíba ou limite
   rifa autorizada em publicidade paga fora das redes (portais, Taboola,
   Outbrain)? A mesma resposta de "agregador" do Google vale aqui?
+
+- **R23. [1] Autorização em nome da plataforma e o que dizer nas peças.** Há,
+  ou é possível obter, autorização ou certificação em nome da plataforma (para
+  a operação ou para o globo) que mude a análise de "agregador" do Google e de
+  quem pede a permissão à Meta? Antes da homologação do globo, o que a
+  plataforma pode afirmar sobre ele nas peças e nos anúncios?
 
 E ao **contador**: cachê pago pela organização a MEI e a pessoa física (nota,
 IR); se a plataforma tem algum tributo sobre o registro do acordo (não cobra

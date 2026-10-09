@@ -14,7 +14,10 @@
  *   com telefone) falha antes de pedir confirmação;
  * - o que foi feito entra em `audit_log` com `viaIA: true`;
  * - cada resposta do Chatbase (inclusive as que seguem uma ação) é uma linha
- *   de uso e debita quem paga; as rodadas de ação têm teto.
+ *   de uso e debita quem paga; as rodadas de ação têm teto;
+ * - o Marketing AI: o plano e a leitura saem dos dados, sem ir ao Chatbase; os
+ *   textos de anúncio só na rifa no ar, pela régua (promessa de ganho, link,
+ *   telefone, Pix por fora, hashtag, tamanho); o vizinho é 404.
  *
  * Devolve a configuração de antes e apaga o que criou.
  *
@@ -60,6 +63,7 @@ const SLUG_VIZINHA = "ia-acao-rascunho-vizinha";
 /** A rifa e o comprador do pedido de teste (o seed do CI não tem pedido da Marina). */
 const SLUG_PEDIDO = "ia-acao-pedido-marina";
 const SLUG_SUGESTAO = "ia-acoes-sugestao";
+const SLUG_MARKETING = "ia-acoes-marketing";
 const FONE_PROVA = "11960009901";
 const NOME_PROVA = "Comprador Prova Assistente";
 const PROTOCOLO = "RB-20261002-990001";
@@ -103,6 +107,8 @@ const resultados = new Map<string, { toolCallId: string; output: any }[]>();
 /** Conversas em que o agente pede ação de novo a cada continuação (para provar o teto). */
 const emLaco = new Set<string>();
 let seq = 0;
+/** Ligado, o pedido dos textos de anúncio volta como "créditos da plataforma esgotados". */
+let anuncioSemCredito = false;
 
 function subirFalso(): Promise<http.Server> {
   const alvo = new URL(FALSO);
@@ -148,6 +154,24 @@ function subirFalso(): Promise<http.Server> {
             "x".repeat(90),
           ];
           return resposta([{ type: "text", text: frases.join("\n") }], "stop");
+        }
+        // Os textos de anúncio do Marketing AI: os bons e o que a régua tem de jogar fora.
+        if (mensagem.includes("textos de anúncio")) {
+          if (anuncioSemCredito) return responder(402, { error: { code: "CHAT_CREDITS_EXHAUSTED" } });
+          const linhas = [
+            "Seguem os textos:",
+            "GT: Concorra a um prêmio incrível",
+            "GT: concorra a um prêmio incrível",
+            "GT: " + "x".repeat(31),
+            "GD: Sorteio pela Loteria Federal. Cota a R$ 5,00.",
+            "GD: Chama no zap 11987654321",
+            "MT: Ganho garantido, lucro certo!",
+            "MT: Veja em www.rifa-falsa.com.br",
+            "MT: Faz um pix direto pra mim",
+            "MH: Prêmio da prova #rifa",
+            "MH: Garanta sua cota agora",
+          ];
+          return resposta([{ type: "text", text: linhas.join("\n") }], "stop");
         }
         if (mensagem.includes("Escreva uma legenda")) {
           return resposta([{ type: "text", text: "Aqui está a legenda:\nConcorra ao Prêmio da prova! Cota a R$ 5,00. Só vale bilhete pago pela plataforma." }], "stop");
@@ -238,7 +262,7 @@ async function main() {
     await db.delete(iaContas).where(inArray(iaContas.titularId, titulares));
     await db.delete(chamados).where(eq(chamados.protocolo, PROTOCOLO));
     // Os pedidos de teste saem junto com a rifa (cascata); o comprador depois.
-    await db.delete(campaigns).where(inArray(campaigns.slug, [SLUG_MARINA, SLUG_VIZINHA, SLUG_PEDIDO, SLUG_SUGESTAO]));
+    await db.delete(campaigns).where(inArray(campaigns.slug, [SLUG_MARINA, SLUG_VIZINHA, SLUG_PEDIDO, SLUG_SUGESTAO, SLUG_MARKETING]));
     await db.delete(buyers).where(eq(buyers.phone, FONE_PROVA));
     for (const b of ["ia:%", "ia-ler:%", "ia-pix:%", "ia-pagante:%"]) await db.delete(rateEvents).where(like(rateEvents.bucket, b));
   };
@@ -522,6 +546,75 @@ async function main() {
     checa("a rifa do vizinho é 404, e nada vai ao Chatbase", r.status === 404 && recebidos.length === n, `HTTP ${r.status}`);
     r = await joao.req("POST", `/api/admin/campaigns/${rifaS.id}/sugerir`, { tipo: "texto" });
     checa("o afiliado não pede pela porta do painel", r.status === 401 || r.status === 403, `HTTP ${r.status}`);
+
+    console.log("\nMarketing AI (plano, leitura e textos de anúncio)");
+    await zerarLimites();
+    const [rifaMk] = await novaRifa(uMarina.org!, SLUG_MARKETING, "Rifa no ar do marketing (prova da IA)");
+    await db
+      .update(campaigns)
+      .set({ status: "published", publishedAt: new Date(Date.now() - 86_400_000), drawAt: new Date(Date.now() + 20 * 86_400_000) })
+      .where(eq(campaigns.id, rifaMk.id));
+    n = recebidos.length;
+    r = await marina.req("GET", `/api/admin/campaigns/${rifaMk.id}/marketing`);
+    checa(
+      "o plano sai dos dados da rifa: lançamento hoje, os marcos e o resultado depois do sorteio",
+      r.status === 200 && r.json?.plano?.[0]?.titulo === "Lançamento" && r.json.plano.some((p: any) => p.titulo === "É hoje") && r.json.plano.at(-1)?.titulo === "Resultado",
+      r.texto.slice(0, 200),
+    );
+    checa(
+      "a leitura diz onde a rifa está, com os números de verdade",
+      r.json?.leitura?.[0]?.titulo === "Onde a rifa está" && r.json.leitura[0].texto.startsWith("0% vendido (0 de 1000 cotas)"),
+      JSON.stringify(r.json?.leitura?.[0] ?? null),
+    );
+    checa("…sem IA: nada foi ao Chatbase, e não fica em cache", recebidos.length === n && r.cache.includes("no-store"), r.cache);
+    r = await marina.req("GET", `/api/admin/campaigns/${rifaS.id}/marketing`);
+    checa("rascunho: sem plano e sem leitura", r.status === 200 && r.json?.noAr === false && !r.json.plano.length && !r.json.leitura.length, r.texto.slice(0, 160));
+    r = await vizinha.req("GET", `/api/admin/campaigns/${rifaMk.id}/marketing`);
+    checa("o marketing da rifa do vizinho é 404", r.status === 404, `HTTP ${r.status}`);
+
+    const usoMk = (await db.select().from(iaUso).where(eq(iaUso.userId, uMarina.id))).length;
+    n = recebidos.length;
+    r = await marina.req("POST", `/api/admin/campaigns/${rifaS.id}/marketing/anuncios`, {});
+    checa("texto de anúncio de rascunho: 409, e nada vai ao Chatbase", r.status === 409 && recebidos.length === n, `HTTP ${r.status}`);
+    r = await vizinha.req("POST", `/api/admin/campaigns/${rifaMk.id}/marketing/anuncios`, {});
+    checa("os anúncios da rifa do vizinho são 404, e nada vai ao Chatbase", r.status === 404 && recebidos.length === n, `HTTP ${r.status}`);
+    r = await joao.req("POST", `/api/admin/campaigns/${rifaMk.id}/marketing/anuncios`, {});
+    checa("o afiliado não pede pela porta do painel", r.status === 401 || r.status === 403, `HTTP ${r.status}`);
+    r = await marina.req("POST", `/api/admin/campaigns/${rifaMk.id}/marketing/anuncios`, {});
+    const t = r.json?.textos;
+    checa(
+      "os textos de anúncio: só o que passa na régua (tamanho, telefone, link, Pix por fora, hashtag, promessa de ganho, repetido)",
+      r.status === 200 &&
+        JSON.stringify(t) ===
+          JSON.stringify({
+            google_titulo: ["Concorra a um prêmio incrível"],
+            google_descricao: ["Sorteio pela Loteria Federal. Cota a R$ 5,00."],
+            meta_texto: [],
+            meta_titulo: ["Garanta sua cota agora"],
+          }),
+      r.texto.slice(0, 300),
+    );
+    checa("a resposta não fica em cache", r.cache.includes("no-store"), r.cache);
+    {
+      const pedido = recebidos.slice(n).find((x) => x.caminho.endsWith("/chat"))?.corpo;
+      checa("o pedido leva os dados públicos da rifa, numa conversa à parte", pedido?.message?.includes("«Prêmio da prova»") && !pedido?.conversationId, String(pedido?.message ?? "").slice(0, 160));
+      checa("…sem id de organização nem de rifa", !JSON.stringify(pedido).includes(uMarina.org!) && !JSON.stringify(pedido).includes(rifaMk.id));
+    }
+    checa("o pedido é uma mensagem paga: uso gravado", (await db.select().from(iaUso).where(eq(iaUso.userId, uMarina.id))).length === usoMk + 1);
+    anuncioSemCredito = true;
+    r = await marina.req("POST", `/api/admin/campaigns/${rifaMk.id}/marketing/anuncios`, {});
+    anuncioSemCredito = false;
+    checa("Chatbase sem créditos: a mensagem dele (503), nunca \"erro interno\"", r.status === 503 && /sem créditos/.test(r.json?.message ?? ""), r.texto.slice(0, 160));
+    {
+      const cfg = (await admin.req("GET", "/api/admin/ia/config")).json?.config;
+      await admin.req("PUT", "/api/admin/ia/config", { ...cfg, paraOrganizador: false });
+      n = recebidos.length;
+      r = await marina.req("POST", `/api/admin/campaigns/${rifaS.id}/marketing/anuncios`, {});
+      checa("sem o assistente para o organizador: 404 antes da régua da rifa (nem o 409 do rascunho)", r.status === 404 && recebidos.length === n, `HTTP ${r.status}`);
+      r = await marina.req("GET", `/api/admin/campaigns/${rifaMk.id}/marketing`);
+      checa("…e o plano e a leitura seguem (não dependem do assistente)", r.status === 200 && r.json?.plano?.length > 0, `HTTP ${r.status}`);
+      await admin.req("PUT", "/api/admin/ia/config", cfg);
+    }
 
     const tudo = JSON.stringify(recebidos.filter((x) => x.caminho.endsWith("/tool-result")).map((x) => x.corpo));
     checa("nenhum resultado levou telefone, CPF ou e-mail", !/\d{2}\s?9\d{4}-?\d{4}|\d{3}\.\d{3}\.\d{3}-\d{2}|@[a-z]+\./.test(tudo));

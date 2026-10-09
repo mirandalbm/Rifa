@@ -58,6 +58,7 @@ import { lancar } from "./patrocinio";
 import { exigirSemRetencao } from "./retencao";
 import { getPlataforma } from "./settings";
 import { baseDoSite } from "./urls";
+import { criacoesDasCampanhas, pausarNaRedeDepois, situacaoDaCriacaoPelaApi } from "./trafegoCriacao";
 
 export class TrafegoError extends Error {
   constructor(message: string, readonly status = 400) {
@@ -66,7 +67,7 @@ export class TrafegoError extends Error {
   }
 }
 
-type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+export type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 const campos = {
   id: trafegoCampanhas.id,
@@ -105,7 +106,7 @@ async function configLigada(): Promise<ConfigTrafegoPago> {
   return cfg;
 }
 
-const idValido = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+export const idValido = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
 
 /** A campanha no recorte de quem pede: a do vizinho é 404, nunca 403. */
 async function campanhaNoRecorte(req: Request, id: string): Promise<Campanha> {
@@ -121,7 +122,7 @@ async function campanhaNoRecorte(req: Request, id: string): Promise<Campanha> {
  * quem paga). O dono da campanha nunca muda, então lê-lo antes é seguro; a
  * conferência repete-se com as duas linhas travadas.
  */
-async function travar(tx: Tx, id: string): Promise<Campanha> {
+export async function travar(tx: Tx, id: string): Promise<Campanha> {
   const [dono] = await tx.select({ org: trafegoCampanhas.organizationId }).from(trafegoCampanhas).where(eq(trafegoCampanhas.id, id));
   if (!dono) throw new TrafegoError("Campanha não encontrada.", 404);
   await tx.execute(sql`select 1 from organizations where id = ${dono.org}::uuid for update`);
@@ -131,7 +132,7 @@ async function travar(tx: Tx, id: string): Promise<Campanha> {
 }
 
 /** A régua da vitrine: rifa publicada, não travada, não demonstração, promotora nem arquivada nem banida. */
-async function rifaSegueNoAr(tx: Tx, campaignId: string): Promise<boolean> {
+export async function rifaSegueNoAr(tx: Tx, campaignId: string): Promise<boolean> {
   const r = await tx.execute(sql`
     select 1 from campaigns c join organizations o on o.id = c.organization_id
      where c.id = ${campaignId}::uuid and c.status = 'published' and c.travada_em is null
@@ -140,7 +141,7 @@ async function rifaSegueNoAr(tx: Tx, campaignId: string): Promise<boolean> {
 }
 
 /** A auditoria entra na transação do que registra: sem ela, nada muda. */
-async function auditar(tx: Tx, req: Request | null, action: string, id: string, diff: Record<string, unknown>) {
+export async function auditar(tx: Tx, req: Request | null, action: string, id: string, diff: Record<string, unknown>) {
   await tx.insert(auditLog).values({
     actorId: req?.user?.id ?? null,
     actorRole: (req?.user?.role ?? null) as never,
@@ -287,13 +288,16 @@ export async function cancelarCampanha(req: Request, id: string) {
  */
 export async function encerrarCampanha(req: Request, id: string) {
   const c = await campanhaNoRecorte(req, id);
-  return db.transaction(async (tx) => {
+  const feito = await db.transaction(async (tx) => {
     const atual = await travar(tx, c.id);
     if (atual.status !== "ativa") throw new TrafegoError("Só dá para encerrar a campanha no ar.", 409);
-    const feito = await pararNaTransacao(tx, atual, orgOf(req) ? undefined : req.user!.id);
-    await auditar(tx, req, "trafego.encerrar", feito.id, { gastoCents: feito.gastoCents, taxaCents: feito.taxaCents });
-    return feito;
+    const parada = await pararNaTransacao(tx, atual, orgOf(req) ? undefined : req.user!.id);
+    await auditar(tx, req, "trafego.encerrar", parada.id, { gastoCents: parada.gastoCents, taxaCents: parada.taxaCents });
+    return parada;
   });
+  // Fase 3: criada no Meta, pausa lá — depois da transação, sem derrubar o encerramento.
+  pausarNaRedeDepois(feito.id);
+  return feito;
 }
 
 /* ------------------------------------------------------------------ *
@@ -427,6 +431,10 @@ export async function lancarGasto(req: Request, id: string, entrada: unknown) {
     const feito = await gravarGasto(tx, c, g, { req, origem: "manual" });
     if (!feito) throw new TrafegoError("O gasto deste dia nesta rede já foi lançado.", 409);
     return feito;
+  }).then((feito) => {
+    // A verba acabou e a campanha encerrou: criada no Meta, pausa lá.
+    if (feito.campanha.status === "encerrada") pausarNaRedeDepois(feito.campanha.id);
+    return feito;
   });
 }
 
@@ -460,7 +468,8 @@ export async function lancarGastoImportado(
   const alvo = abertas.length === 1 ? abertas[0] : abertas.length === 0 && achadas.length === 1 ? achadas[0] : null;
   if (!alvo) return { resultado: "sem_campanha", excedenteCents: 0 };
 
-  return db.transaction(async (tx) => {
+  let encerrou = false;
+  const r = await db.transaction(async (tx) => {
     const c = await travar(tx, alvo.id);
     const desde = c.aprovadoEm ? diaNoFuso(c.aprovadoEm) : null;
     if (!desde || g.dia < desde || g.dia > ontem || !c.redes.includes(g.rede)) return { resultado: "fora_da_janela" as const, excedenteCents: 0 };
@@ -542,21 +551,28 @@ export async function lancarGastoImportado(
       encerrada: campanha.status === "encerrada" && c.status !== "encerrada",
     });
     const resultado: ResultadoDoImportado = antes ? "atualizado" : gasto > 0 ? "importado" : "excedente";
+    encerrou = campanha.status === "encerrada" && c.status !== "encerrada";
     return { resultado, excedenteCents };
   });
+  // A verba acabou pela importação: criada no Meta, pausa lá (depois da transação).
+  if (encerrou) pausarNaRedeDepois(alvo.id);
+  return r;
 }
 
 /** Fechar a conta da campanha encerrada: lançados os últimos dias, a sobra volta ao saldo. */
 export async function fecharConta(req: Request, id: string) {
   if (orgOf(req)) throw new TrafegoError("Fechar a conta é da plataforma.", 403);
   if (!idValido(id)) throw new TrafegoError("Campanha não encontrada.", 404);
-  return db.transaction(async (tx) => {
+  const fechada = await db.transaction(async (tx) => {
     const atual = await travar(tx, id);
     if (atual.status !== "encerrando") throw new TrafegoError("Só a campanha encerrada, esperando a conta, pode ser fechada.", 409);
     const feito = await fecharNaTransacao(tx, atual, "encerrada", { decididoPor: req.user!.id }, "Campanha encerrada: o que não foi gasto voltou ao saldo");
     await auditar(tx, req, "trafego.fechar", feito.id, { gastoCents: feito.gastoCents, taxaCents: feito.taxaCents, devolvidoCents: feito.devolvidoCents });
     return feito;
   });
+  // Se a pausa ao encerrar falhou, fechar tenta de novo (a já pausada não é chamada outra vez).
+  pausarNaRedeDepois(fechada.id);
+  return fechada;
 }
 
 /* ------------------------------------------------------------------ *
@@ -580,19 +596,22 @@ export async function encerrarTrafegoForaDoAr(): Promise<number> {
             or o.archived_at is not null or o.banida_em is not null)`);
   let n = 0;
   for (const { id } of perdidos.rows as { id: string }[]) {
-    await db.transaction(async (tx) => {
+    const parou = await db.transaction(async (tx) => {
       const c = await travar(tx, id);
-      if (c.status !== "em_analise" && c.status !== "ativa") return;
-      if (await rifaSegueNoAr(tx, c.campaignId)) return;
+      if (c.status !== "em_analise" && c.status !== "ativa") return false;
+      if (await rifaSegueNoAr(tx, c.campaignId)) return false;
+      n++;
       if (c.status === "em_analise") {
         const feito = await fecharNaTransacao(tx, c, "cancelada", {}, "Campanha não iniciada: a rifa saiu do ar e a reserva voltou ao saldo");
         await auditar(tx, null, "trafego.cancelar.fora_do_ar", feito.id, { devolvidoCents: feito.devolvidoCents });
-      } else {
-        await pararNaTransacao(tx, c, undefined);
-        await auditar(tx, null, "trafego.encerrar.fora_do_ar", c.id, { gastoCents: c.gastoCents });
+        return false;
       }
-      n++;
+      await pararNaTransacao(tx, c, undefined);
+      await auditar(tx, null, "trafego.encerrar.fora_do_ar", c.id, { gastoCents: c.gastoCents });
+      return true;
     });
+    // Parou a no ar: criada no Meta, pausa lá (depois da transação).
+    if (parou) pausarNaRedeDepois(id);
   }
   return n;
 }
@@ -649,9 +668,15 @@ export async function painelDoTrafego(req: Request) {
     saldoCents = o?.s ?? 0;
   }
   const base = baseDoSite(req);
+  const criacoes = await criacoesDasCampanhas(
+    linhas.map((l) => l.id),
+    !org,
+  );
   return {
     config: cfg,
     saldoCents,
+    // Fase 3 (só a plataforma): o interruptor e o que falta no servidor — os nomes, nunca os valores.
+    criacaoPelaApi: org ? undefined : situacaoDaCriacaoPelaApi(cfg.criarPelaApi),
     campanhas: linhas.map((l) => ({
       ...l,
       organizacao: org ? undefined : l.organizacao,
@@ -662,6 +687,8 @@ export async function painelDoTrafego(req: Request) {
       codigo: codigoDaCampanha(l.id),
       utmCampanha: utmCampanhaDe(l.id),
       custoPorVendaCents: custoPorVenda(l.gastoCents + l.taxaCents, l.vendas),
+      // Fase 3: a organização só sabe que foi criada no Meta (pausada); a plataforma vê ids, restos e erro.
+      meta: criacoes.get(l.id),
       // O endereço que vai em cada anúncio: só para quem monta a campanha (a plataforma).
       links: org
         ? undefined

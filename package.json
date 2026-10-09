@@ -60,6 +60,7 @@
     "patrocinio": "tsx scripts/patrocinio-test.ts",
     "banner": "tsx scripts/banner-pago-test.ts",
     "trafego": "tsx scripts/trafego-test.ts",
+    "trafego-criacao": "tsx scripts/trafego-criacao-test.ts",
     "sorteios": "tsx scripts/sorteios-oficiais-test.ts",
     "sorteio-comentarios": "tsx scripts/sorteio-comentarios-test.ts",
     "ia": "tsx scripts/ia-test.ts",

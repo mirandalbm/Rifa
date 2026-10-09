@@ -179,6 +179,7 @@ import { cliquesDosLinks, linkCurtoDaRifa, linkCurtoDoPerfil } from "../services
 import { EditorError, conferirCamadas, dadosDoEditor, focoDaFoto, sugerirTexto, tipoDaSugestao } from "../services/editorImagem";
 import { MarketingIAError, anunciosDaRifa, marketingDaRifa } from "../services/marketingIA";
 import { fonteDoWindsor, importarGastos, ultimoResumo } from "../services/trafegoImportacao";
+import { CriacaoFalhou, criarNoMeta } from "../services/trafegoCriacao";
 import { CONFERENCIAS_POR_JANELA, FOCOS_POR_JANELA } from "@shared/editorImagem";
 import {
   cancelarSolicitacao,
@@ -4943,6 +4944,22 @@ adminRouter.post("/trafego/campanhas/:id/fechar", async (req, res, next) => {
     requirePlatformAdmin(req);
     res.json(await fecharConta(req, req.params.id));
   } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * Fase 3: criar a campanha no ar no Meta pela API (só a plataforma), tudo
+ * pausado — ligar é no gerenciador do Meta. A segunda vez é 409; a falha da
+ * rede volta 502 com o motivo em português (já gravado, dá para tentar de novo).
+ */
+adminRouter.post("/trafego/campanhas/:id/meta", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    res.setHeader("Cache-Control", "no-store");
+    res.status(201).json(await criarNoMeta(req, req.params.id));
+  } catch (err) {
+    if (err instanceof CriacaoFalhou) return res.status(502).json({ message: err.message, criacao: err.criacao });
     next(err);
   }
 });

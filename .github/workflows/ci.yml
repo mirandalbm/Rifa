@@ -74,6 +74,12 @@ jobs:
       # mentira que a própria prova sobe nesta porta (o servidor só troca o endereço fora de produção).
       WINDSOR_API_KEY: ci-chave-do-windsor-1234
       WINDSOR_API_URL: http://127.0.0.1:5097
+      # Só para a fase 3 do tráfego pago (`npm run trafego-criacao`): o token de teste, a conta e a
+      # página de mentira, e o Meta de mentira que a própria prova sobe nesta porta (só fora de produção).
+      META_ADS_TOKEN: ci-token-do-meta-1234
+      META_AD_ACCOUNT_ID: act_1234567890
+      META_PAGE_ID: "1122334455"
+      META_API_URL: http://127.0.0.1:5096/v22.0
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -147,6 +153,7 @@ jobs:
       - run: npm run patrocinio
       - run: npm run banner
       - run: npm run trafego
+      - run: npm run trafego-criacao
       - run: npm run sorteios
       - run: npm run sorteio-comentarios
       - run: npm run google

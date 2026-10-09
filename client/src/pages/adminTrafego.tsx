@@ -19,6 +19,7 @@ import {
   type RedeDeAnuncio,
   type SituacaoDaCampanha,
 } from "@shared/trafego";
+import { ROTULO_DOS_IDS, SITUACOES_DA_CRIACAO, type SituacaoDaCriacao } from "@shared/trafegoCriacao";
 
 interface CampanhaDeTrafego {
   id: string;
@@ -50,6 +51,19 @@ interface CampanhaDeTrafego {
   utmCampanha: string;
   custoPorVendaCents: number | null;
   links?: Partial<Record<RedeDeAnuncio, string>>;
+  /** Fase 3: a organização só recebe `{ status: "criada" }`; a plataforma, tudo. */
+  meta?: CriacaoNoMeta;
+}
+
+interface CriacaoNoMeta {
+  status: SituacaoDaCriacao;
+  ids?: Record<string, string>;
+  restos?: Record<string, string>[];
+  erro?: string | null;
+  tentativas?: number;
+  pausa?: "pausada" | "falhou" | null;
+  pausaErro?: string | null;
+  criadaEm?: string | null;
 }
 
 interface MesDaMargem {
@@ -63,6 +77,8 @@ interface MesDaMargem {
 interface Painel {
   config: ConfigTrafegoPago;
   saldoCents: number | null;
+  /** Só para a plataforma: o interruptor e o nome das variáveis que faltam no servidor. */
+  criacaoPelaApi?: { ligado: boolean; meta: { faltam: string[] } };
   campanhas: CampanhaDeTrafego[];
   margem?: MesDaMargem[];
 }
@@ -157,7 +173,7 @@ export function AdminTrafego() {
         <div className="space-y-3">
           <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
             <div className="min-w-0 space-y-3">
-              <ConfigDoTrafego config={painel.config} />
+              <ConfigDoTrafego config={painel.config} faltamNoMeta={painel.criacaoPelaApi?.meta.faltam ?? []} />
               <ImportacaoDoGasto />
               <Margem meses={painel.margem ?? []} />
             </div>
@@ -421,13 +437,14 @@ function NovaCampanha({ painel }: { painel: Painel }) {
  * Plataforma: tabela
  * ------------------------------------------------------------------ */
 
-function ConfigDoTrafego({ config: c }: { config: ConfigTrafegoPago }) {
+function ConfigDoTrafego({ config: c, faltamNoMeta }: { config: ConfigTrafegoPago; faltamNoMeta: string[] }) {
   const qc = useQueryClient();
   const [ligado, setLigado] = useState(c.ligado);
   const [taxa, setTaxa] = useState(String(c.taxaPct));
   const [minimo, setMinimo] = useState(reais(c.investimentoMinCents));
   const [porDia, setPorDia] = useState(reais(c.verbaDiaMinCents));
   const [redes, setRedes] = useState<RedeDeAnuncio[]>(c.redes);
+  const [criarPelaApi, setCriarPelaApi] = useState(c.criarPelaApi);
   const [msg, setMsg] = useState<{ ok: boolean; texto: string } | null>(null);
 
   const salvar = useMutation({
@@ -438,6 +455,7 @@ function ConfigDoTrafego({ config: c }: { config: ConfigTrafegoPago }) {
         investimentoMinCents: centavos(minimo),
         verbaDiaMinCents: centavos(porDia),
         redes,
+        criarPelaApi,
       }),
     onSuccess: () => {
       setMsg({ ok: true, texto: "Salvo." });
@@ -491,6 +509,21 @@ function ConfigDoTrafego({ config: c }: { config: ConfigTrafegoPago }) {
             </label>
           ))}
         </fieldset>
+        <label className="flex items-start gap-2">
+          <input type="checkbox" checked={criarPelaApi} onChange={(e) => setCriarPelaApi(e.target.checked)} className="mt-1 h-4 w-4" />
+          <span>
+            <span className="font-semibold">Criar campanhas no Meta pela API</span>
+            <span className="block text-xs text-muted">
+              Aparece o botão "Criar no Meta" na campanha no ar que pediu Instagram e Facebook. Campanha, conjunto e anúncio nascem
+              pausados: ligar é no gerenciador do Meta, onde o anúncio passa pela revisão.
+            </span>
+            {faltamNoMeta.length ? (
+              <span className="mt-1 block text-xs text-red">
+                Falta no servidor: {faltamNoMeta.join(", ")}. Sem isso, nada é chamado.
+              </span>
+            ) : null}
+          </span>
+        </label>
         <p className="text-xs text-muted">
           A taxa de gestão incide sobre o gasto em mídia e é fotografada em cada pedido: mudar aqui não mexe nas campanhas já
           pedidas. Ligue só as redes em que a conta de anúncios da plataforma aceita rifa autorizada.
@@ -694,7 +727,7 @@ function Campanhas({ painel, plataforma }: { painel: Painel; plataforma: boolean
           {g.lista.length === 0 ? <Empty>Nenhuma campanha aqui.</Empty> : null}
           <ul className="divide-y divide-line">
             {g.lista.map((c) => (
-              <CartaoDaCampanha key={c.id} c={c} plataforma={plataforma} />
+              <CartaoDaCampanha key={c.id} c={c} plataforma={plataforma} painelLigaMeta={Boolean(painel.criacaoPelaApi?.ligado)} />
             ))}
           </ul>
         </Card>
@@ -707,7 +740,7 @@ function Campanhas({ painel, plataforma }: { painel: Painel; plataforma: boolean
   );
 }
 
-function CartaoDaCampanha({ c, plataforma }: { c: CampanhaDeTrafego; plataforma: boolean }) {
+function CartaoDaCampanha({ c, plataforma, painelLigaMeta = false }: { c: CampanhaDeTrafego; plataforma: boolean; painelLigaMeta?: boolean }) {
   const qc = useQueryClient();
   const [erro, setErro] = useState<string | null>(null);
   const [verGastos, setVerGastos] = useState(false);
@@ -827,6 +860,14 @@ function CartaoDaCampanha({ c, plataforma }: { c: CampanhaDeTrafego; plataforma:
       ) : null}
 
       {plataforma && c.status === "ativa" && c.links ? <LinksDosAnuncios links={c.links} utm={c.utmCampanha} /> : null}
+      {plataforma && c.redes.includes("meta") && (c.meta || (c.status === "ativa" && painelLigaMeta)) ? (
+        <NoMeta c={c} aoMudar={recarregar} />
+      ) : null}
+      {!plataforma && c.meta?.status === "criada" ? (
+        <p className="text-xs text-ink-2">
+          <Pill status="pending">Criada no Meta (pausada)</Pill> A plataforma liga o anúncio no Meta depois da revisão de política.
+        </p>
+      ) : null}
 
       {erro ? <p className="rounded-md bg-red-soft px-3 py-2 text-xs text-red">{erro}</p> : null}
 
@@ -889,6 +930,87 @@ function CartaoDaCampanha({ c, plataforma }: { c: CampanhaDeTrafego; plataforma:
       {plataforma && (c.status === "ativa" || c.status === "encerrando") ? <LancarGasto c={c} aoLancar={recarregar} /> : null}
       {verGastos ? <GastosDaCampanha id={c.id} plataforma={plataforma} /> : null}
     </li>
+  );
+}
+
+/** A situação de uma criação na tela: estado em texto na pílula, nunca só a cor. */
+const TOM_DA_CRIACAO: Record<SituacaoDaCriacao, string> = { criando: "pending", criada: "paid", falhou: "expired" };
+
+/** Na ordem em que nascem no Meta (campanha, conjunto, criativo, anúncio, imagem), nunca na do banco. */
+const listaDeIds = (ids: Record<string, string>) =>
+  Object.keys(ROTULO_DOS_IDS)
+    .filter((k) => typeof ids[k] === "string")
+    .map((k) => `${ROTULO_DOS_IDS[k]} ${ids[k]}`)
+    .join(" · ");
+
+/**
+ * Fase 3 (só a plataforma): criar a campanha no Meta pela API, tudo pausado.
+ * Mostra a situação, os ids, o que ficou pela metade para apagar no
+ * gerenciador e se a pausa ao encerrar falhou.
+ */
+function NoMeta({ c, aoMudar }: { c: CampanhaDeTrafego; aoMudar: () => void }) {
+  const [erro, setErro] = useState<string | null>(null);
+  const criar = useMutation({
+    mutationFn: () => apiRequest("POST", `/api/admin/trafego/campanhas/${c.id}/meta`, {}),
+    onSuccess: () => {
+      setErro(null);
+      aoMudar();
+    },
+    onError: (e: Error) => {
+      setErro(e.message);
+      aoMudar();
+    },
+  });
+  const m = c.meta;
+  const restos = (m?.restos ?? []).filter((r) => Object.keys(r).length > 0);
+  const podeCriar = c.status === "ativa" && (!m || m.status === "falhou");
+  return (
+    <div className="space-y-1 rounded-md border border-line px-3 py-2 text-xs">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="font-semibold">Meta (Instagram e Facebook)</span>
+        {m ? <Pill status={TOM_DA_CRIACAO[m.status]}>{SITUACOES_DA_CRIACAO[m.status]}</Pill> : <Pill status="closed">Ainda não criada</Pill>}
+        {m?.tentativas && m.tentativas > 1 ? <span className="tnum text-muted">{m.tentativas} tentativas</span> : null}
+      </div>
+      {m?.status === "criada" ? (
+        <p className="text-ink-2">
+          Tudo nasceu pausado. Ligue no gerenciador do Meta depois da revisão de política. <span className="tnum">{listaDeIds(m.ids ?? {})}</span>
+        </p>
+      ) : null}
+      {m?.status === "falhou" && m.erro ? <p className="text-red">{m.erro}</p> : null}
+      {m?.status === "falhou" && Object.keys(m.ids ?? {}).length ? (
+        <p className="text-ink-2">
+          Ficou criado pela metade (pausado): <span className="tnum">{listaDeIds(m.ids ?? {})}</span>. Apague no gerenciador do Meta — tentar
+          de novo cria tudo outra vez.
+        </p>
+      ) : null}
+      {restos.length ? (
+        <p className="text-ink-2">
+          De tentativas anteriores, para apagar no gerenciador:{" "}
+          {restos.map((r, i) => (
+            <span key={i} className="tnum block">
+              {listaDeIds(r)}
+            </span>
+          ))}
+        </p>
+      ) : null}
+      {m?.pausa === "pausada" ? <p className="text-ink-2">Pausada no Meta ao encerrar.</p> : null}
+      {m?.pausa === "falhou" ? (
+        <p className="text-red">Não consegui pausar no Meta — pause no gerenciador. {m.pausaErro ?? ""}</p>
+      ) : null}
+      {erro && erro !== m?.erro ? <p className="text-red">{erro}</p> : null}
+      {podeCriar ? (
+        <Button
+          variant={m ? "ghost" : undefined}
+          disabled={criar.isPending}
+          onClick={() => {
+            setErro(null);
+            if (window.confirm("Criar campanha, conjunto e anúncio no Meta? Tudo nasce pausado; ligar é no gerenciador do Meta.")) criar.mutate();
+          }}
+        >
+          {criar.isPending ? "Criando no Meta…" : m ? "Tentar de novo" : "Criar no Meta"}
+        </Button>
+      ) : null}
+    </div>
   );
 }
 

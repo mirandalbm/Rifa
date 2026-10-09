@@ -130,7 +130,7 @@ arquitetura.
 | marketing e tráfego pago (etapa 16): pixels, aviso de cookies, UTM, compra pelo servidor | `shared/marketing.ts` (regras e corpos das APIs), `server/services/marketing.ts`, `client/src/lib/marketing.ts`, `client/src/components/Marketing.tsx`, `client/src/pages/adminMarketing.tsx`, `scripts/marketing-test.ts` |
 | plano da próxima fase (vitrine, contas, afiliados, marketing) | `docs/PLANO-FASE5.md` |
 | ferramentas de imagem e vídeo para divulgar a rifa (Canva, Adobe, as nossas, IA): panorama e fases | `docs/PLANO-FERRAMENTAS.md` |
-| gestão de tráfego pago como serviço da plataforma (modelos de lucro, telas, fases) — a tela explica, a fase 1 ainda não tem código | `docs/PLANO-TRAFEGO-PAGO.md`, `client/src/pages/adminTrafego.tsx` |
+| tráfego pago como serviço da plataforma (modelo A, fase 1: pedido com o saldo, fila do master, gasto do dia + taxa, margem, venda atribuída) | `shared/trafego.ts` (regras), `server/services/trafego.ts`, `/trafego*` em `server/routes/admin.ts`, `trafegoPago` em `shared/plataforma.ts`, `trafego_campanhas`/`trafego_gastos` em `shared/schema.ts`, relógio em `server/jobs/index.ts` (trava 811406), tipo `trafego` em `shared/caixa.ts`, `client/src/pages/adminTrafego.tsx`, `docs/PLANO-TRAFEGO-PAGO.md`, `scripts/trafego-test.ts`, `tests/trafego.test.ts` |
 | menu Marketing (Tráfego pago, Marketing AI, Publicidade em abas, Medição e campanhas) | grupo "Marketing" em `MENUS` (`shared/access.ts`), `client/src/pages/adminTrafego.tsx`, `adminMarketingIA.tsx` (os criativos por rifa), `adminPublicidade.tsx` (as abas: `RifasPatrocinadas` de `adminPatrocinio.tsx` e `BannerNaVitrine` de `adminBannerPago.tsx`), os redirecionamentos em `client/src/App.tsx`, `tests/menu.test.ts` |
 | artes prontas para divulgar (Fase A: arte da rifa, cotas que faltam, data, resultado, cota premiada, nos três formatos) e o pacote para postar (Fase G: ZIP com os três formatos e a legenda) | `shared/artes.ts` (regras, textos e `legendaSugerida`), `server/services/zip.ts`, os textos do kit (`textosDoKit()` em `shared/afiliados.ts`), `server/services/arteDesenho.ts` (texto em contorno, QR, camada), `server/services/artes.ts` (dados da rifa, fundo, foto da organização), `server/routes/artesRotas.ts`, `/campaigns/:id/artes*` em `server/routes/admin.ts`, `/artes/:slug*` em `server/routes/affiliate.ts`, `client/src/components/ArtesParaDivulgar.tsx` (aba Publicação e Meus links), `scripts/artes-test.ts`, `tests/artes.test.ts` |
 | editor de imagem no navegador (Fase C: fundo, formato, figurinhas, conferência do texto, pôr no carrossel) | `shared/editorImagem.ts` (camadas como dados, enquadramento, régua), `server/services/editorImagem.ts`, `/campaigns/:id/editor*` em `server/routes/admin.ts` e `/editor/:slug*` em `server/routes/affiliate.ts` (o kit do afiliado), `client/src/lib/desenharArte.ts` (o canvas), `client/src/components/EditorDeImagem.tsx` (`AbrirEditorDeImagem` no cartão "Artes para divulgar" e em Meus links do afiliado), o assunto da foto (`server/services/foco.ts`, `focoDaFoto()`), `scripts/artes-test.ts`, `tests/editorImagem.test.ts` |
@@ -687,8 +687,9 @@ O verde da marca entra no lugar do roxo do kit; o significado das cores
   certa; as seções deles ficam fora do menu (`nav: false`), mas seguem na
   matriz — é o que libera a rota. Marketing AI reúne os criativos que já
   existiam na aba Publicação da rifa (artes, editor, vídeo gerado), escolhendo
-  a rifa no alto; nada de rota nova. Tráfego pago diz como vai funcionar,
-  sem botão que não faz nada, até a fase 1 entrar (`docs/PLANO-TRAFEGO-PAGO.md`).
+  a rifa no alto; nada de rota nova. Tráfego pago é a seção "Tráfego pago"
+  (abaixo); desligado, a organização sem campanha vê só como vai funcionar,
+  sem botão que não faz nada.
 - **Casca uma só, três larguras.** Computador e tablet: menu de 260 px, ou
   recolhido em 72 px (lembrado em `rifa.menu.aberto`) que abre com os nomes
   **por cima** do conteúdo ao passar o ponteiro ou entrar pelo teclado.
@@ -4512,13 +4513,104 @@ Aparência → Assistente de IA.
   organizador sem o assistente nas rotas de confirmar e recusar;
   `tests/iaAcoes.test.ts` cobre as regras.
 
+## Tráfego pago — o que não pode afrouxar
+
+A plataforma anuncia a rifa da organização no Google, no Meta (Facebook e
+Instagram) e no TikTok **pelas contas de anúncios dela** (modelo A do
+`docs/PLANO-TRAFEGO-PAGO.md`) e cobra o gasto em mídia mais uma **taxa de
+gestão sobre o gasto**, do saldo de publicidade da organização (o mesmo do
+patrocínio e do banner pago). Fase 1: a campanha é montada fora do sistema e
+o gasto do dia é lançado à mão pela plataforma.
+
+- **Nasce desligado, e a tabela é da plataforma** (`trafegoPago` em
+  `shared/plataforma.ts`, `validarConfigTrafego()`: só as chaves conhecidas —
+  ligado, taxa de 0 a 100%, investimento mínimo, mínimo por dia e as redes
+  com conta pronta; ligar exige pelo menos uma rede). `PUT
+  /admin/trafego/config`, 403 para organizador (no `npm run isolation`).
+  Desligado, a organização **sem campanha** recebe 404 e vê só como vai
+  funcionar; a que **tem** campanha continua vendo, cancelando e encerrando
+  as dela (o dinheiro dela está reservado ali), e não pede campanha nova.
+- **O pedido reserva tudo de uma vez**: mídia + a taxa sobre ela
+  (`reservaDoPedido()`), pelo livro do patrocínio (`lancar()`,
+  `trafego:<id>`), **na mesma transação que grava a campanha** — sem saldo,
+  a campanha também não fica. A taxa é **fotografada** no pedido
+  (`taxa_pct`): mudar a tabela não mexe no que já foi pedido. Só a
+  organização pede (a plataforma é 403), só rifa dela no ar (nem rascunho,
+  nem travada, nem demonstração — 409), e **o saldo retido não paga**
+  (`exigirSemRetencao()`, com a linha da organização travada antes de tudo).
+  A observação para quem monta passa pela régua do comentário (sem link e
+  sem telefone).
+- **Uma campanha aberta por rifa** (em análise, no ar ou fechando a conta): quem decide é o
+  índice parcial `uq_trafego_aberto_por_rifa`, nunca um `SELECT` antes — dois
+  pedidos ao mesmo tempo, um 201 e um 409, e o perdedor não debita nada.
+- **Só a plataforma decide e lança o gasto** (403 para organizador).
+  Decidir é `UPDATE` condicional (`em_analise`, linha travada): dois cliques,
+  uma decisão e um 409. Recusa exige motivo (a organização o lê) e devolve a
+  reserva inteira; **aprovar confere de novo a rifa no ar e a retenção
+  cautelar** (409 — recuse para devolver). A organização cancela só em
+  análise; no ar, encerra (as duas partes podem).
+- **Encerrar só para; quem fecha a conta é a plataforma.** A rede cobra a
+  plataforma pelo dia em que a campanha ainda rodou, e o lançamento chega
+  depois: encerrar (a organização, a plataforma ou o relógio) leva a campanha
+  a `encerrando` ("Fechando a conta") **sem devolver nada**, ela ainda recebe
+  o gasto dos dias até a parada (`encerrado_em`, nunca depois), e só **fechar
+  a conta** (`POST …/fechar`, só a plataforma, 403 no `npm run isolation`)
+  devolve a sobra. Devolver ao encerrar deixava o último dia sem cobrança — a
+  organização gastava em patrocínio o que a plataforma já tinha pago à rede.
+  Fechando a conta, a rifa ainda não aceita outra campanha, e o item vai à
+  Caixa de entrada.
+- **Ordem das travas: a organização, depois a campanha** (`travar()`, a de
+  quem retém e de quem paga) em pedir, cancelar, encerrar, decidir, lançar,
+  fechar e no relógio. Na ordem inversa, pedir campanha nova enquanto a
+  anterior da mesma rifa fechava era deadlock (o `INSERT` esperava a linha
+  antiga no índice parcial).
+- **O gasto do dia nunca passa da verba e a taxa nunca passa da reserva.**
+  Um lançamento por campanha, dia (de São Paulo, nunca no futuro nem antes da
+  aprovação) e rede (`uq_trafego_gasto_do_dia`, 409), só rede da campanha,
+  com a soma num `UPDATE` condicional (`gasto + G <= investimento`). A taxa de
+  cada lançamento arredonda para baixo (`taxaSobre()`), e a soma dos pisos
+  nunca passa do piso da soma: o que se debita nunca passa do reservado. O
+  gasto consome a reserva; o saldo não se mexe. Gastou a verba inteira, a
+  campanha **encerra na mesma transação**.
+- **O que sobra volta uma vez** (`fecharNaTransacao()`): recusa e
+  cancelamento devolvem por `trafego-devolucao:<id>`, o fechamento da conta
+  (ou a verba que acabou) por `trafego-sobra:<id>` (reserva − gasto − taxa, `sobraDaCampanha()`); a chave
+  do livro decide, e o `UPDATE` da situação é condicional à situação lida.
+- **A rifa que sai do ar leva a campanha** (`encerrarTrafegoForaDoAr()`,
+  relógio com a trava 811406): rifa fora de `published`, travada, marcada
+  como teste, ou promotora arquivada ou banida — a em análise é cancelada (a
+  reserva volta) e a no ar para e fica fechando a conta. O relógio confere a
+  rifa de novo com a campanha travada: a que voltou ao ar no meio fica. Rifa com campanha de tráfego não se apaga
+  (422, `excluirRifa()`).
+- **A venda atribuída é estatística**, nunca decide dinheiro: pedido **pago**
+  da mesma rifa com `orders.utm.campaign = trafego-<os 8 primeiros do id>`
+  (`utmCampanhaDe()`), o link que a plataforma põe no anúncio
+  (`linkDoAnuncio()`: `/o/<org>/r/<rifa>?utm_source=<rede>&utm_medium=cpc&…`).
+  A tela diz que é estimativa. Custo por venda = (mídia + taxa) ÷ vendas,
+  para baixo.
+- **Recorte**: a campanha do vizinho é 404 (ver gastos, cancelar, encerrar,
+  pedir na rifa dele — no `npm run isolation`); a organização não recebe os
+  links do anúncio, o nome de quem lançou o gasto nem a margem. A plataforma
+  vê a fila (também na Caixa de entrada, tipo `trafego`), os links e a
+  **margem por mês e por organização** (os últimos 12 meses, de
+  `trafego_gastos`).
+- **Auditoria na mesma transação** de cada passo (`trafego.pedido`,
+  `.cancelar`, `.encerrar`, `.aprovar`, `.recusar`, `.gasto`, `.fechar`, e os
+  do relógio com o ator `sistema`); a configuração vai como as outras.
+- **A configuração parte da atual** (`PUT /admin/trafego/config` junta o
+  corpo com o que está gravado): mandar só a taxa não desliga o produto nem
+  apaga as redes.
+- As tabelas `trafego_campanhas` e `trafego_gastos` sobem com o `db:push`
+  **antes** do código. `npm run trafego` prova tudo isso contra a API de
+  verdade e `tests/trafego.test.ts` as regras.
+
 ## Marketing e tráfego pago — o que não pode afrouxar
 
 - **Sem interruptor: quem liga é o pixel.** O menu Marketing existe para a
   plataforma e para o organizador; sem nenhum pixel cadastrado para a
   página, nada carrega, o aviso de cookies não aparece e nenhuma compra vira
-  evento. (O único interruptor ligado a dinheiro de anúncio é o do
-  reembolso do saldo de patrocínio.)
+  evento. (Os interruptores ligados a dinheiro de anúncio são o do
+  reembolso do saldo de patrocínio e o do tráfego pago.)
 - **Só dados, nunca script.** Pixel é número conferido por formato
   (`validarPixels`: Meta, GA4, Google Ads e rótulo, TikTok); quem monta o
   código que roda no navegador é `client/src/lib/marketing.ts`, chamando as

@@ -2264,6 +2264,84 @@ export const bannerPedidos = pgTable(
 );
 
 /**
+ * Tráfego pago (`shared/trafego.ts`): a campanha que a plataforma monta nas
+ * contas de anúncios dela para a rifa de uma organização. O pedido reserva no
+ * saldo de publicidade (`patrocinio_lancamentos`, `trafego:<id>`) a verba de
+ * mídia mais a taxa; cada gasto lançado consome a reserva e nunca passa dela;
+ * no fim, a sobra volta (`trafego-sobra:<id>`). Taxa fotografada no pedido.
+ */
+export const trafegoCampanhas = pgTable(
+  "trafego_campanhas",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    /** Dinheiro envolvido: a rifa com campanha não se apaga (`excluirRifa`). */
+    campaignId: uuid("campaign_id")
+      .notNull()
+      .references(() => campaigns.id, { onDelete: "restrict" }),
+    redes: text("redes").array().notNull(),
+    uf: text("uf"),
+    cidade: text("cidade"),
+    observacao: text("observacao"),
+    investimentoCents: integer("investimento_cents").notNull(),
+    verbaDiaCents: integer("verba_dia_cents").notNull(),
+    /** A taxa de gestão fotografada no pedido: mudar a tabela não mexe na campanha. */
+    taxaPct: integer("taxa_pct").notNull(),
+    reservaCents: integer("reserva_cents").notNull(),
+    /** Mídia gasta e taxa cobrada até agora (somas dos lançamentos, na mesma transação). */
+    gastoCents: integer("gasto_cents").notNull().default(0),
+    taxaCents: integer("taxa_cents").notNull().default(0),
+    /** em_analise | ativa | encerrada | recusada | cancelada */
+    status: text("status").notNull().default("em_analise"),
+    motivo: text("motivo"),
+    criadoPor: uuid("criado_por").references(() => users.id, { onDelete: "set null" }),
+    decididoPor: uuid("decidido_por").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    aprovadoEm: timestamp("aprovado_em"),
+    encerradoEm: timestamp("encerrado_em"),
+    /** O que voltou ao saldo no fim (recusa, cancelamento ou sobra). */
+    devolvidoCents: integer("devolvido_cents").notNull().default(0),
+  },
+  (t) => [
+    uniqueIndex("uq_trafego_aberto_por_rifa")
+      .on(t.campaignId)
+      .where(sql`${t.status} in ('em_analise','ativa','encerrando')`),
+    index("ix_trafego_campanhas_status").on(t.status, t.createdAt),
+    index("ix_trafego_campanhas_org").on(t.organizationId, t.createdAt),
+  ],
+);
+
+/**
+ * O gasto de um dia numa rede, lançado pela plataforma: um por campanha, dia
+ * e rede (o índice decide — lançar duas vezes é um 409, nunca dois débitos).
+ */
+export const trafegoGastos = pgTable(
+  "trafego_gastos",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    campanhaId: uuid("campanha_id")
+      .notNull()
+      .references(() => trafegoCampanhas.id, { onDelete: "cascade" }),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    /** O dia no fuso de São Paulo ("2026-10-09"). */
+    dia: text("dia").notNull(),
+    rede: text("rede").notNull(),
+    gastoCents: integer("gasto_cents").notNull(),
+    taxaCents: integer("taxa_cents").notNull(),
+    lancadoPor: uuid("lancado_por").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("uq_trafego_gasto_do_dia").on(t.campanhaId, t.dia, t.rede),
+    index("ix_trafego_gastos_org_dia").on(t.organizationId, t.dia),
+  ],
+);
+
+/**
  * Stories do organizador: uma imagem 9:16 que entra no ar em `publica_em`
  * (na hora ou agendado) e some 24 h depois (`expira_em`).
  * Aparece para quem segue, no topo da vitrine, e acende o anel da foto no

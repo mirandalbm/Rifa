@@ -270,6 +270,16 @@ import {
   painelDoBannerPago,
 } from "../services/bannerPago";
 import {
+  cancelarCampanha,
+  decidirCampanha,
+  encerrarCampanha,
+  fecharConta,
+  gastosDaCampanha,
+  lancarGasto,
+  painelDoTrafego,
+  pedirCampanha,
+} from "../services/trafego";
+import {
   PROVEDORES_PIX,
   NOME_PROVEDOR,
   CREDENCIAIS_PROVEDOR,
@@ -4823,6 +4833,103 @@ adminRouter.put("/banner-pago/config", async (req, res, next) => {
     const salva = await setPlataforma({ bannerPago: req.body });
     await audit(req, "banner.config", "settings", "plataforma", { ...salva.bannerPago });
     res.json(salva.bannerPago);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/* ---------------- tráfego pago (anúncios nas contas da plataforma) ---------------- */
+
+/**
+ * A mesma tela, dois recortes: a organização vê as campanhas e o saldo dela;
+ * a plataforma vê todas, os links dos anúncios e a margem. Desligado, a
+ * organização recebe 404.
+ */
+adminRouter.get("/trafego", async (req, res, next) => {
+  try {
+    res.setHeader("Cache-Control", "no-store");
+    res.json(await painelDoTrafego(req));
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.post("/trafego/campanhas", async (req, res, next) => {
+  try {
+    res.status(201).json(await pedirCampanha(req, (req.body ?? {}) as Record<string, unknown>));
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.get("/trafego/campanhas/:id/gastos", async (req, res, next) => {
+  try {
+    res.setHeader("Cache-Control", "no-store");
+    res.json(await gastosDaCampanha(req, req.params.id));
+  } catch (err) {
+    next(err);
+  }
+});
+
+// A auditoria de cada passo vai dentro da transação do serviço.
+adminRouter.post("/trafego/campanhas/:id/cancelar", async (req, res, next) => {
+  try {
+    res.json(await cancelarCampanha(req, req.params.id));
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.post("/trafego/campanhas/:id/encerrar", async (req, res, next) => {
+  try {
+    res.json(await encerrarCampanha(req, req.params.id));
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** Aprovar ou recusar o pedido: só a plataforma. */
+adminRouter.post("/trafego/campanhas/:id/decisao", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    res.json(await decidirCampanha(req, req.params.id, { aprovar: req.body?.aprovar, motivo: req.body?.motivo }));
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** O gasto de um dia numa rede, copiado do painel da rede: só a plataforma. */
+adminRouter.post("/trafego/campanhas/:id/gastos", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    res.status(201).json(await lancarGasto(req, req.params.id, req.body));
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** Fechar a conta da campanha encerrada (lançados os últimos dias): só a plataforma. */
+adminRouter.post("/trafego/campanhas/:id/fechar", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    res.json(await fecharConta(req, req.params.id));
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * Taxa de gestão, mínimos e redes (só a plataforma). O que não vier no corpo
+ * fica como estava — mandar só a taxa não desliga o produto.
+ */
+adminRouter.put("/trafego/config", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    const atual = (await getPlataforma()).trafegoPago;
+    const corpo = req.body && typeof req.body === "object" ? (req.body as Record<string, unknown>) : {};
+    const salva = await setPlataforma({ trafegoPago: { ...atual, ...corpo } as never });
+    await audit(req, "trafego.config", "settings", "plataforma", { ...salva.trafegoPago });
+    res.json(salva.trafegoPago);
   } catch (err) {
     next(err);
   }

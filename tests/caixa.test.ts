@@ -29,7 +29,7 @@ describe("caixa de entrada", () => {
 
   it("todo tipo leva a uma tela que existe", () => {
     const caminhos = (Object.keys(TIPOS_DA_CAIXA) as TipoDaCaixa[]).map((t) => destinoDaPendencia({ tipo: t }).split(/[?#]/)[0]);
-    for (const c of caminhos) expect(["/admin/atendimento", "/admin/marketing/publicidade", "/admin/fiscal", "/admin/organizacoes", "/admin/pedidos", "/admin/cobranca"]).toContain(c);
+    for (const c of caminhos) expect(["/admin/atendimento", "/admin/marketing/publicidade", "/admin/marketing/trafego", "/admin/fiscal", "/admin/organizacoes", "/admin/pedidos", "/admin/cobranca"]).toContain(c);
   });
 
   it("conta por tipo", () => {

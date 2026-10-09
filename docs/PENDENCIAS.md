@@ -655,12 +655,22 @@ Na ordem de entrega do plano:
   **Decidido (09/10/2026)**: modelo A, a plataforma compra a mídia e cobra
   taxa sobre o gasto. **Feito**: o menu Marketing (Tráfego pago, Marketing AI,
   Publicidade em abas, Medição e campanhas) para a plataforma e o organizador.
-  **Falta no código**: a fase 1 do tráfego pago (saldo, pedido, fila, gasto +
-  taxa, margem) e o plano de divulgação, os textos de anúncio e a leitura dos
-  resultados do Marketing AI. **Falta decidir**: o valor da taxa e o
-  investimento mínimo; a resposta do contador sobre o faturamento e a do
-  advogado sobre a política de jogos das redes e a cláusula no contrato da
-  promotora.
+  **Feito também (fase 1)**: o pedido com o saldo de publicidade (reserva de
+  mídia + taxa), a fila do master (e na Caixa de entrada), o lançamento do
+  gasto do dia com a taxa, o encerramento (a campanha para, a plataforma
+  lança os últimos dias e fecha a conta, e a sobra volta), a rifa fora
+  do ar levando a campanha, a venda atribuída pela UTM e a margem por mês.
+  A taxa e os mínimos ficam a critério da plataforma (decidido em
+  09/10/2026), em Marketing → Tráfego pago, que **nasce desligado**.
+  **Falta no ambiente**: o `db:push` das tabelas `trafego_campanhas` e
+  `trafego_gastos` **antes** do código. **Falta no código**: as fases 2
+  (importar o gasto) e 3 (criar a campanha pela API) e o plano de
+  divulgação, os textos de anúncio e a leitura dos resultados do Marketing
+  AI. **[você] Antes de ligar**: as respostas do contador (faturamento da
+  taxa e o repasse da mídia) e do advogado (política de jogos das redes e a
+  cláusula no contrato da promotora) — as perguntas estão no artefato
+  "Consulta tráfego pago"; a conta de anúncios pronta em cada rede que for
+  ligada.
 
 - [ ] **[você]** **Criar o serviço do trabalhador no Railway** (Fase F, o
   gerador de vídeo). No mesmo projeto: **New → GitHub Repo** com este mesmo

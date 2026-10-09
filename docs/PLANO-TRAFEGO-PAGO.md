@@ -100,10 +100,16 @@ organização grande que já tem conta própria.
 
 ## 5. Fases
 
-- **Fase 1 — o negócio no sistema (código, ~2 PRs):** saldo de tráfego,
+- **Fase 1 — o negócio no sistema (feita, 09/10/2026):** saldo de tráfego,
   pedido de campanha, fila do master, lançamento manual do gasto com a taxa,
   relatório de margem e o relatório da organização (gasto × vendas
   atribuídas). Funciona sem nenhuma API de anúncio: a campanha é montada fora.
+  O que ficou valendo está na seção "Tráfego pago" do `CLAUDE.md`: o
+  "pausar" virou **encerrar** (a campanha para e fica "fechando a conta" até a
+  plataforma lançar os últimos dias que a rede cobrou; aí o que não foi gasto
+  volta ao saldo; pedir de novo é uma campanha nova), a taxa e os mínimos ficaram a critério da
+  plataforma (decisão de 09/10/2026) e os cliques ficam para a fase 2 (vêm
+  do painel da rede).
 - **Fase 2 — importar o gasto:** o gasto diário vem das plataformas em vez
   de ser digitado. Caminhos: a API do Windsor.ai (uma integração para todas
   as redes) ou as APIs oficiais (Google Ads exige *developer token* aprovado;

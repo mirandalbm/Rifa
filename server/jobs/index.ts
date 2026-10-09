@@ -15,6 +15,7 @@ import { apagarStoriesVencidos } from "../services/vitrine";
 import { apagarNotificacoesAntigas } from "../services/notificacoes";
 import { encerrarAnunciosForaDoAr } from "../services/patrocinio";
 import { encerrarBannersPagos } from "../services/bannerPago";
+import { encerrarTrafegoForaDoAr } from "../services/trafego";
 import { vencerFranquias } from "../services/iaCobranca";
 import { destravarAcoesPresas } from "../services/ia";
 import { assinarVideosDoStream, limparStreamPendente } from "../services/streamPendentes";
@@ -71,6 +72,7 @@ const LOCK_PUSH_SORTEIO = 811_008;
 const LOCK_REGIOES = 811_009;
 const LOCK_ANUNCIOS = 811_403;
 const LOCK_BANNERS = 811_404;
+const LOCK_TRAFEGO = 811_406;
 const LOCK_MARKETING = 811_501;
 const LOCK_COPIA = 811_013;
 const LOCK_IA_FRANQUIA = 811_701;
@@ -403,6 +405,19 @@ export function startJobs() {
       });
     } catch (err) {
       console.error("[jobs] banners pagos:", err);
+    }
+  }, releaseMs).unref();
+
+  // Tráfego pago: rifa fora do ar ou promotora arquivada/banida encerra a
+  // campanha e devolve ao saldo o que não foi gasto da reserva.
+  setInterval(async () => {
+    try {
+      await withLock(LOCK_TRAFEGO, async () => {
+        const n = await encerrarTrafegoForaDoAr();
+        if (n > 0) log(`tráfego pago: ${n} campanha(s) encerrada(s) com a rifa fora do ar`, "jobs");
+      });
+    } catch (err) {
+      console.error("[jobs] tráfego pago:", err);
     }
   }, releaseMs).unref();
 

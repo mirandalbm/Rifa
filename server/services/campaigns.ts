@@ -755,7 +755,8 @@ export async function excluirRifa(campaignId: string) {
         EXISTS (SELECT 1 FROM chamados ch JOIN orders o ON o.id = ch.order_id
                  WHERE o.campaign_id = ${campaignId}::uuid) AS chamado,
         EXISTS (SELECT 1 FROM patrocinio_anuncios WHERE campaign_id = ${campaignId}::uuid)
-          OR EXISTS (SELECT 1 FROM banner_pedidos WHERE campaign_id = ${campaignId}::uuid) AS anuncio
+          OR EXISTS (SELECT 1 FROM banner_pedidos WHERE campaign_id = ${campaignId}::uuid)
+          OR EXISTS (SELECT 1 FROM trafego_campanhas WHERE campaign_id = ${campaignId}::uuid) AS anuncio
     `);
     const f = r.rows[0] as Record<"vendeu" | "reservando" | "cota" | "sorteada" | "cobrou" | "chamado" | "anuncio", boolean>;
     if (f.vendeu || f.cobrou) throw new CampaignRuleError("Esta rifa teve venda paga: não pode ser apagada. Com comprador, o caminho é o estorno.");

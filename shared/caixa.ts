@@ -18,6 +18,7 @@ export const TIPOS_DA_CAIXA = {
   fiscal: { rotulo: "Cadastro fiscal", tom: "yellow" },
   telefone: { rotulo: "Telefone", tom: "green" },
   banner: { rotulo: "Banner pago", tom: "yellow" },
+  trafego: { rotulo: "Tráfego pago", tom: "yellow" },
   entidade: { rotulo: "Entidade beneficiada", tom: "yellow" },
   pix_tardio: { rotulo: "Pix a devolver", tom: "red" },
   retencao: { rotulo: "Saldo retido", tom: "red" },
@@ -59,6 +60,8 @@ export function destinoDaPendencia(p: Pick<PendenciaDaCaixa, "tipo">): string {
       return "/admin/organizacoes";
     case "banner":
       return "/admin/marketing/publicidade?aba=banner";
+    case "trafego":
+      return "/admin/marketing/trafego";
     case "entidade":
       return "/admin/atendimento?aba=entidades";
     case "pix_tardio":
@@ -82,6 +85,7 @@ const PESO: Record<TipoDaCaixa, number> = {
   fiscal: 2,
   telefone: 2,
   banner: 2,
+  trafego: 2,
   entidade: 2,
   pix_tardio: 0,
   retencao: 1,

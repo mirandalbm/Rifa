@@ -38,6 +38,7 @@ import { payouts, saqueNotas,
   sorteiosOficiais,
   sorteioComentarios,
   campaignMedia,
+  trafegoCampanhas,
 } from "../shared/schema";
 import { hashPassword } from "../server/auth";
 import { mediaKey, storage } from "../server/services/storage";
@@ -286,7 +287,22 @@ async function alcancaOVizinho(eu: Lado, vizinho: Lado) {
     .insert(divulgacoes)
     .values({ campaignId: c, organizationId: vizinho.orgId, autor: "apostador", legenda: "divulgação do vizinho", status: "em_analise" })
     .returning({ id: divulgacoes.id });
+  // Uma campanha de tráfego pago do vizinho: ver gastos, cancelar e encerrar pelo id dele é 404.
+  const [trafegoDoVizinho] = await db
+    .insert(trafegoCampanhas)
+    .values({ organizationId: vizinho.orgId, campaignId: c, redes: ["google"], investimentoCents: 10_000, verbaDiaCents: 1_000, taxaPct: 20, reservaCents: 12_000 })
+    .returning({ id: trafegoCampanhas.id });
+  // Com o tráfego ligado: senão o 404 viria do interruptor, não do recorte.
+  const configAntes = await db.execute(sql`select value from app_settings where key = 'plataforma'`);
+  const trafegoLigado = { ligado: true, taxaPct: 20, investimentoMinCents: 10_000, verbaDiaMinCents: 1_000, redes: ["google"] };
+  await db.execute(sql`
+    insert into app_settings (key, value) values ('plataforma', jsonb_build_object('trafegoPago', ${JSON.stringify(trafegoLigado)}::jsonb))
+    on conflict (key) do update set value = jsonb_set(app_settings.value, '{trafegoPago}', ${JSON.stringify(trafegoLigado)}::jsonb)`);
   const tentativas: [string, string, RequestInit][] = [
+    ["GET gastos da campanha de tráfego do vizinho", `/api/admin/trafego/campanhas/${trafegoDoVizinho.id}/gastos`, {}],
+    ["POST cancelar campanha de tráfego do vizinho", `/api/admin/trafego/campanhas/${trafegoDoVizinho.id}/cancelar`, { method: "POST" }],
+    ["POST encerrar campanha de tráfego do vizinho", `/api/admin/trafego/campanhas/${trafegoDoVizinho.id}/encerrar`, { method: "POST" }],
+    ["POST campanha de tráfego na rifa do vizinho", "/api/admin/trafego/campanhas", { method: "POST", body: JSON.stringify({ campaignId: c, redes: ["google"], investimentoCents: 100_000, verbaDiaCents: 10_000 }) }],
     ["POST aprovar divulgação do vizinho", `/api/admin/divulgacoes/${divulgacaoDoVizinho.id}`, { method: "POST", body: '{"acao":"aprovar","versao":0}' }],
     ["POST recusar divulgação do vizinho", `/api/admin/divulgacoes/${divulgacaoDoVizinho.id}`, { method: "POST", body: '{"acao":"recusar","motivo":"invadido","versao":0}' }],
     ["DELETE comentário na rifa do vizinho", `/api/public/comentarios/${comentarioDoVizinho.id}`, { method: "DELETE" }],
@@ -374,6 +390,14 @@ async function alcancaOVizinho(eu: Lado, vizinho: Lado) {
     .from(campanhaSolicitacoes)
     .where(eq(campanhaSolicitacoes.id, pedidoDoVizinho.id));
   checa("o pedido do vizinho continua em análise", pedidoAinda?.status === "em_analise", pedidoAinda?.status);
+  const [trafegoAinda] = await db.select({ status: trafegoCampanhas.status }).from(trafegoCampanhas).where(eq(trafegoCampanhas.id, trafegoDoVizinho.id));
+  checa("a campanha de tráfego do vizinho continua em análise", trafegoAinda?.status === "em_analise", trafegoAinda?.status);
+  const meuTrafego = (await (await pedir(eu.cookie, "/api/admin/trafego")).json()) as { campanhas?: { id: string }[] };
+  checa("a lista do tráfego pago não traz a campanha do vizinho", Array.isArray(meuTrafego.campanhas) && !meuTrafego.campanhas.some((x) => x.id === trafegoDoVizinho.id));
+  await db.delete(trafegoCampanhas).where(eq(trafegoCampanhas.id, trafegoDoVizinho.id));
+  const valorAntes = (configAntes.rows[0] as { value?: unknown } | undefined)?.value;
+  if (valorAntes) await db.execute(sql`update app_settings set value = ${JSON.stringify(valorAntes)}::jsonb where key = 'plataforma'`);
+  else await db.execute(sql`delete from app_settings where key = 'plataforma'`);
   const meusPedidos = (await (await pedir(eu.cookie, "/api/admin/solicitacoes")).json()) as { id: string }[];
   checa("a lista de pedidos não traz o do vizinho", !meusPedidos.some((x) => x.id === pedidoDoVizinho.id));
   await db.delete(campanhaSolicitacoes).where(eq(campanhaSolicitacoes.id, pedidoDoVizinho.id));
@@ -617,6 +641,10 @@ async function rotasDaPlataforma(eu: Lado) {
     ["POST teste do WhatsApp", "/api/admin/whatsapp/teste", { method: "POST", body: '{"telefone":"11999999999"}' }],
     ["POST decidir disputa de reembolso", "/api/admin/chamados/00000000-0000-0000-0000-000000000000/disputa/decidir", { method: "POST", body: '{"resultado":"procedente","decisao":"xxxxxxxxxxxx"}' }],
     ["PUT configuração do banner pago", "/api/admin/banner-pago/config", { method: "PUT", body: '{"ligado":true}' }],
+    ["PUT configuração do tráfego pago", "/api/admin/trafego/config", { method: "PUT", body: '{"ligado":true,"redes":["google"]}' }],
+    ["POST decisão de campanha de tráfego", "/api/admin/trafego/campanhas/00000000-0000-4000-8000-000000000000/decisao", { method: "POST", body: '{"aprovar":true}' }],
+    ["POST fechar a conta de campanha de tráfego", "/api/admin/trafego/campanhas/00000000-0000-4000-8000-000000000000/fechar", { method: "POST" }],
+    ["POST gasto de campanha de tráfego", "/api/admin/trafego/campanhas/00000000-0000-4000-8000-000000000000/gastos", { method: "POST", body: '{"dia":"2026-10-01","rede":"google","gastoCents":100}' }],
     ["GET configuração do assistente de IA", "/api/admin/ia/config", {}],
     ["PUT configuração do assistente de IA", "/api/admin/ia/config", { method: "PUT", body: '{"ligado":false}' }],
     ["GET relatório do assistente de IA", "/api/admin/ia/relatorio", {}],

@@ -14,7 +14,7 @@ import { LOTERIAS } from "@shared/sorteiosOficiais";
  * afiliado ou apelido — nunca telefone, CPF ou nome de comprador.
  */
 export async function caixaDeEntrada(): Promise<PendenciaDaCaixa[]> {
-  const [chamados, solicitacoes, denuncias, verificacoes, fiscais, telefones, banners, conversas, gruposDenunciados, pixTardios, comentariosDoSorteio, retencoes, entidades] = await Promise.all([
+  const [chamados, solicitacoes, denuncias, verificacoes, fiscais, telefones, banners, conversas, gruposDenunciados, pixTardios, comentariosDoSorteio, retencoes, entidades, trafego] = await Promise.all([
     db.execute(sql`
       SELECT ch.id, ch.disputa, ch.created_at AS desde, o.name AS org, ch.protocolo, ord.code AS pedido
         FROM chamados ch
@@ -111,6 +111,14 @@ export async function caixaDeEntrada(): Promise<PendenciaDaCaixa[]> {
         JOIN organizations o ON o.id = c.organization_id
        WHERE b.documentos_status = 'em_analise'
        ORDER BY b.documentos_enviados_em LIMIT 200`),
+    db.execute(sql`
+      SELECT t.id, t.status, coalesce(t.encerrado_em, t.created_at) AS desde, o.name AS org, c.title AS rifa,
+             t.investimento_cents AS investimento
+        FROM trafego_campanhas t
+        JOIN organizations o ON o.id = t.organization_id
+        JOIN campaigns c ON c.id = t.campaign_id
+       WHERE t.status IN ('em_analise', 'encerrando')
+       ORDER BY 3 LIMIT 200`),
   ]);
 
   const iso = (d: unknown) => new Date(d as string | Date).toISOString();
@@ -174,6 +182,18 @@ export async function caixaDeEntrada(): Promise<PendenciaDaCaixa[]> {
   }
   for (const r of banners.rows as any[]) {
     linhas.push({ chave: `banner:${r.id}`, tipo: "banner", quem: r.org, oQue: `Arte de banner pago esperando aprovação — rifa ${r.rifa}, ${r.dias} dia(s)`, desde: iso(r.desde) });
+  }
+  for (const r of trafego.rows as any[]) {
+    linhas.push({
+      chave: `trafego:${r.id}`,
+      tipo: "trafego",
+      quem: r.org,
+      oQue:
+        r.status === "encerrando"
+          ? `Campanha de anúncios encerrada esperando os últimos gastos e o fechamento da conta — rifa ${r.rifa}`
+          : `Pedido de campanha de anúncios esperando aprovação — rifa ${r.rifa}, ${formatBRL(Number(r.investimento))} em mídia`,
+      desde: iso(r.desde),
+    });
   }
   const PARTE: Record<string, string> = { comprador: "apostador", organizacao: "organização", afiliado: "afiliado" };
   for (const r of conversas.rows as any[]) {

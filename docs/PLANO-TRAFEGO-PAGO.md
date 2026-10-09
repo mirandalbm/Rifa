@@ -131,7 +131,8 @@ organização grande que já tem conta própria.
   anúncio de rifa passa pela revisão de política. O que vai para o Meta sai
   do banco: o nome com o código `trafego-…` (a importação da fase 2 casa por
   ele), a parte do Meta na verba que sobra (dividida entre as redes da
-  campanha) por dia e o fim quando ela acaba pela conta, a região do
+  campanha) como orçamento total do conjunto, com o fim quando ela acaba
+  pela conta (o teto rígido), a região do
   pedido pela busca de locais do Meta (sem achar, recusa — nunca o Brasil
   todo), maiores de 18, a arte pronta "rifa" 4:5 e o texto dos dados
   públicos (prêmio, preço, data, autorização, "só vale bilhete pago pela

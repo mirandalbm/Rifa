@@ -687,15 +687,25 @@ Na ordem de entrega do plano:
   pede para o anúncio da página) e pôr no Railway as três variáveis:
   `META_ADS_TOKEN` (o token), `META_AD_ACCOUNT_ID` (`act_` + o número da
   conta) e `META_PAGE_ID` (o número da página), e conferir que a
-  **`PUBLIC_BASE_URL`** está no Railway (em produção, sem ela o botão não
-  cria: é o endereço do link do anúncio). A conta de anúncios **em reais
+  **`PUBLIC_BASE_URL`** está no Railway **com `https://`** (em produção,
+  sem ela — ou com `http://` — o botão não cria: é o endereço do link do
+  anúncio). A conta de anúncios **em reais
   (BRL) e no fuso `America/Sao_Paulo`** — o sistema lê os dois no Meta antes
   de criar e recusa a conta fora disso (a moeda e o fuso de uma conta de
   anúncios não mudam depois de criada: se estiver errada, é outra conta).
   Com a campanha montada à mão no Meta (o código `trafego-…` no nome) ou
   com gasto do Meta já lançado, o botão recusa — é a mesma campanha. O
-  orçamento diário mandado é a parte do Meta (a verba por dia dividida entre
-  as redes da campanha, no mínimo R$ 6,00). Conferir com o primeiro
+  conjunto vai com **orçamento total** (`lifetime_budget` = diário × dias,
+  com a data de fim): o teto rígido do que o Meta gasta, a parte do Meta na
+  verba que sobra (dividida entre as redes da campanha), nunca o orçamento
+  diário (que o Meta pode passar num dia). O mínimo de R$ 6,00 por dia na
+  média é **palpite** — não achamos o mínimo oficial do Meta em reais;
+  confira no gerenciador com o primeiro anúncio (o Meta tem a consulta
+  `act_…/minimum_budgets` para isso) e ajuste `DIARIO_MIN_DO_META_CENTS`
+  se for outro. O número da autorização da rifa entra no texto do anúncio:
+  fora do formato de um número de autorização (letras, dígitos, espaço e
+  `. / - º`, sem link e sem cara de celular), a criação recusa — corrija nos
+  dados legais. Conferir com o primeiro
   anúncio de verdade, ainda pausado, se o Meta aceitou os campos (a prova
   usa um Meta de mentira: a API real nunca foi chamada daqui). **Falta no
   código**: a fase 3 no Google Ads (exige o *developer token* aprovado) e

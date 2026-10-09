@@ -2371,8 +2371,12 @@ export const trafegoCriacoes = pgTable(
     status: text("status").notNull().default("criando"),
     /** Os ids na rede (campanha, conjunto, criativo, anúncio, imagem) — os da tentativa atual. */
     ids: jsonb("ids").$type<Record<string, string>>().notNull().default({}),
-    /** O que tentativas que falharam deixaram criado na rede (pausado), para apagar no gerenciador. */
-    restos: jsonb("restos").$type<Record<string, string>[]>().notNull().default([]),
+    /**
+     * O que tentativas que falharam (ou perderam a linha) deixaram criado na
+     * rede, pausado, para apagar no gerenciador: a lista achatada de peças
+     * (`{ tipo, id }`), um id uma vez só e nunca um id da criação viva.
+     */
+    restos: jsonb("restos").$type<import("./trafegoCriacao").Resto[]>().notNull().default([]),
     /** O motivo da falha em português, sem token nem resposta crua da rede. */
     erro: text("erro"),
     /** O orçamento mandado ao Meta (`orcamentoNoMeta()`): a parte da verba que sobra, por dia e no total. */

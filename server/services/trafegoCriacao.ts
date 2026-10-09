@@ -24,7 +24,10 @@
  *   além do prazo (retomar); o que a rede criou pela metade vai para
  *   `restos`, para a plataforma apagar no gerenciador.
  * - **O orçamento casa com a verba que sobra e com as redes**
- *   (`orcamentoNoMeta()`), e nunca passa do que resta.
+ *   (`orcamentoNoMeta()`) e vai como orçamento total do conjunto
+ *   (`lifetime_budget`, com o `end_time`): o teto rígido nunca passa do que resta.
+ * - **A criação presa e completa** só é assumida se a campanha anotada ainda
+ *   estiver viva na busca do Meta; apagada lá, vira falha e cria de novo.
  * - **Encerrar pausa na rede** depois da transação, em segundo plano, sem
  *   nunca derrubar o encerramento; a falha vai ao log e à tela da plataforma.
  * - **O token só no cabeçalho** (`Authorization: Bearer`): nunca na URL, em
@@ -41,7 +44,9 @@ import {
   PRAZO_DA_CRIACAO_MIN,
   ROTULO_DO_ALVO,
   alvoDoPedido,
+  achatarIds,
   campanhaJaNoMeta,
+  campanhaVivaNoMeta,
   criacaoCompleta,
   erroDoMeta,
   faltaNoMeta,
@@ -49,7 +54,10 @@ import {
   fimDoOrcamento,
   hashDaImagem,
   idDaRede,
+  juntarRestos,
+  lerBuscaDoMeta,
   localDoMeta,
+  mesmosIds,
   nomeNaRede,
   orcamentoNoMeta,
   problemaNaContaDoMeta,
@@ -64,7 +72,7 @@ import { desenharArte, rifaDaArte } from "./artes";
 import { emSegundoPlano } from "./push";
 import { getPlataforma } from "./settings";
 import { TrafegoError, auditar, idValido, rifaSegueNoAr, travar } from "./trafego";
-import { baseDoSite } from "./urls";
+import { baseDoAnuncio } from "./urls";
 
 const META_PADRAO = "https://graph.facebook.com/v22.0";
 const PRAZO_MS = 30_000;
@@ -80,8 +88,11 @@ export class CriacaoError extends Error {
 /** O que a criação precisa saber — tudo do banco, nada do navegador. */
 export interface PedidoDeCriacao {
   nome: string;
-  /** A parte do Meta por dia (`orcamentoNoMeta()`), em centavos de real. */
-  diarioCents: number;
+  /**
+   * O teto da vida do conjunto (`orcamentoNoMeta().vidaCents`), em centavos de
+   * real: vai como `lifetime_budget`, com o `end_time`.
+   */
+  vidaCents: number;
   inicio: Date;
   fim: Date;
   alvo: AlvoDoPedido;
@@ -98,8 +109,8 @@ export type IdsNaRede = Partial<Record<"campanha" | "conjunto" | "criativo" | "a
  * de cada peça que nasce (quem chama grava no banco): se `anotar` falhar, a
  * criação para ali — nada é criado sem ficar anotado. `conferirConta` diz o
  * que está errado na conta de anúncios (ou `null`); `campanhasComCodigo`
- * devolve as campanhas da conta com o código no nome (a resposta crua, que
- * quem chama lê pela régua); `pausar` para a campanha inteira na rede.
+ * devolve a resposta crua da busca de campanhas com o código no nome (quem
+ * chama lê pela régua, `lerBuscaDoMeta`); `pausar` para a campanha inteira.
  */
 export interface CriadorDeCampanha {
   rede: RedeDeAnuncio;
@@ -157,8 +168,8 @@ export function criadorDoMeta(env: NodeJS.ProcessEnv = process.env): CriadorDeCa
         filtering: JSON.stringify([{ field: "name", operator: "CONTAIN", value: `trafego-${codigo}` }]),
         limit: "50",
       });
-      const r = await chamar("busca", "GET", `${conta}/campaigns`, undefined, q);
-      return r.data;
+      // A resposta inteira: quem chama confere o formato (sem `data` em lista, recusa).
+      return chamar("busca", "GET", `${conta}/campaigns`, undefined, q);
     },
     async criar(p, anotar) {
       const ids: IdsNaRede = {};
@@ -208,11 +219,12 @@ export function criadorDoMeta(env: NodeJS.ProcessEnv = process.env): CriadorDeCa
       if (!campanha) throw semId("campanha");
       await guardar("campanha", campanha);
 
-      // 4. O conjunto: a parte do Meta por dia (centavos de real são a unidade do Meta), o fim e o alvo.
+      // 4. O conjunto: a parte do Meta no total da vida (centavos de real são a unidade do Meta), o fim e o alvo.
       const conj = await chamar("conjunto", "POST", `${conta}/adsets`, {
         name: p.nome,
         campaign_id: campanha,
-        daily_budget: p.diarioCents,
+        // Teto rígido: o total da vida do conjunto, com o fim (o diário pode passar num dia; o total, não).
+        lifetime_budget: p.vidaCents,
         billing_event: "IMPRESSIONS",
         optimization_goal: "LINK_CLICKS",
         bid_strategy: "LOWEST_COST_WITHOUT_CAP",
@@ -303,11 +315,8 @@ class LinhaPerdida extends Error {
 /** A linha em `criando` além do prazo: o processo que a tomou caiu (ou travou). */
 const presaSql = sql`(${trafegoCriacoes.status} = 'criando' and ${trafegoCriacoes.atualizadoEm} < (now() AT TIME ZONE 'UTC') - make_interval(mins => ${PRAZO_DA_CRIACAO_MIN}))`;
 
-/** Anexa um conjunto de ids a `restos` sem repetir (o mesmo objeto já lá não entra de novo). */
-const anexarARestos = (ids: IdsNaRede) => {
-  const obj = JSON.stringify(ids);
-  return sql`case when ${trafegoCriacoes.restos} @> jsonb_build_array(${obj}::jsonb) then ${trafegoCriacoes.restos} else ${trafegoCriacoes.restos} || jsonb_build_array(${obj}::jsonb) end`;
-};
+/** Os ids vivos de uma criação (os da linha), para nunca ir a `restos`. */
+const idsVivos = (ids: Record<string, string> | null | undefined) => achatarIds(ids).map((r) => r.id);
 
 /** A auditoria fora de uma transação (quando a de quem chama voltou): melhor esforço, nunca derruba a resposta. */
 async function auditarFora(req: Request | null, action: string, id: string, diff: Record<string, unknown>) {
@@ -327,18 +336,27 @@ async function auditarFora(req: Request | null, action: string, id: string, diff
 }
 
 /**
- * Esta execução perdeu a linha (outra tentativa a tomou, ou o banco falhou no
- * fim): o que ela criou no Meta não pode sumir. Anexa a `restos` sem a
- * condição da tentativa — a plataforma vê para apagar no gerenciador — e a
- * auditoria vai fora da transação que voltou.
+ * Uma execução que perdeu a linha (outra tentativa a tomou, ou o banco falhou
+ * no fim) guarda o que criou no Meta em `restos`, sem a condição da
+ * tentativa — a plataforma vê para apagar no gerenciador. **Nunca** o que a
+ * linha guarda como dela: se os ids da linha são estes mesmos (o banco falhou
+ * no fim, ou uma retomada já os adotou), nada entra; e nenhum id vivo da
+ * linha entra, nem o hash da imagem repetido. Com a linha travada, então a
+ * retomada que adota ao mesmo tempo espera ou vem antes. A auditoria vai fora
+ * da transação que voltou. Exportada para a prova chamar "atrasada".
  */
-async function guardarOQueSobrou(req: Request, campanhaId: string, linhaId: string, ids: IdsNaRede, motivo: string) {
+export async function guardarOQueSobrou(req: Request | null, campanhaId: string, linhaId: string, ids: IdsNaRede, motivo: string) {
   if (Object.keys(ids).length) {
     try {
-      await db
-        .update(trafegoCriacoes)
-        .set({ restos: anexarARestos(ids), atualizadoEm: AGORA_UTC })
-        .where(eq(trafegoCriacoes.id, linhaId));
+      await db.transaction(async (tx) => {
+        const [l] = await tx.select({ ids: trafegoCriacoes.ids, restos: trafegoCriacoes.restos }).from(trafegoCriacoes).where(eq(trafegoCriacoes.id, linhaId)).for("update");
+        if (!l || mesmosIds(l.ids, ids as Record<string, string>)) return;
+        const restos = juntarRestos(l.restos, achatarIds(ids as Record<string, string>), idsVivos(l.ids));
+        await tx
+          .update(trafegoCriacoes)
+          .set({ restos, atualizadoEm: AGORA_UTC })
+          .where(and(eq(trafegoCriacoes.id, linhaId), sql`${trafegoCriacoes.ids} <> ${JSON.stringify(ids)}::jsonb`));
+      });
     } catch (e) {
       console.error(`[trafego] não consegui anotar o que ficou no Meta (campanha ${campanhaId}): ${JSON.stringify(ids)} — ${(e as Error).message}`);
     }
@@ -374,6 +392,7 @@ async function dadosDaCampanha(id: string) {
 const MSG_RIFA_FORA = "A rifa não está no ar (rascunho, encerrada, travada ou marcada como teste) ou a promotora foi arquivada ou banida: nada foi criado no Meta.";
 const MSG_SUSPENSA = "A promotora está suspensa: nada foi criado no Meta.";
 const MSG_GASTO_DO_META = "Esta campanha já tem gasto do Meta lançado (à mão ou importado): ela já foi montada lá. Nada foi criado.";
+const MSG_MUDOU = "A criação mudou enquanto era conferida. Atualize a tela e tente de novo.";
 
 /** Já há gasto lançado no Meta para esta campanha? É o sinal de que ela foi montada lá. */
 async function temGastoDoMeta(q: Pick<typeof db, "execute">, id: string): Promise<boolean> {
@@ -381,8 +400,71 @@ async function temGastoDoMeta(q: Pick<typeof db, "execute">, id: string): Promis
   return r.rows.length > 0;
 }
 
+/** A busca de campanhas com o código, conferida (resposta fora do formato recusa). */
+async function buscarNoMeta(criador: CriadorDeCampanha, codigo: string) {
+  let resposta: unknown;
+  try {
+    resposta = await criador.campanhasComCodigo(codigo);
+  } catch (e) {
+    if (e instanceof CriacaoError) throw new TrafegoError(`${e.message} Nada foi criado.`, 409);
+    throw e;
+  }
+  const lista = lerBuscaDoMeta(resposta);
+  if (!lista) throw new TrafegoError("O Meta respondeu a busca de campanhas fora do formato esperado: sem ela não dá para saber se a campanha já existe lá. Nada foi criado.", 409);
+  return lista;
+}
+
 /**
- * Cria a campanha no ar no Meta, tudo pausado (só a plataforma). Antes de
+ * Assume a criação presa e completa cuja campanha ainda vive no Meta: marca
+ * `criada` com os ids que estão lá. Não cria nada, então não pede as
+ * condições de criar (campanha no ar, rifa no ar, promotora ativa, sem gasto
+ * do Meta, orçamento): basta a linha travada, ainda parada além do prazo e
+ * com os mesmos ids que a busca confirmou. Depois, se a campanha já parou,
+ * pausa no Meta.
+ */
+async function adotar(req: Request, campanhaId: string, antes: { id: string; tentativas: number; ids: Record<string, string> }) {
+  const feita = await db.transaction(async (tx) => {
+    const [l] = await tx
+      .select({ ...linhaDaCriacao, presa: sql<boolean>`${presaSql}` })
+      .from(trafegoCriacoes)
+      .where(eq(trafegoCriacoes.id, antes.id))
+      .for("update");
+    if (!l || !l.presa || l.tentativas !== antes.tentativas || !mesmosIds(l.ids, antes.ids)) throw new TrafegoError(MSG_MUDOU, 409);
+    const [f] = await tx
+      .update(trafegoCriacoes)
+      .set({ status: "criada", erro: null, restos: juntarRestos(l.restos, [], idsVivos(l.ids)), criadaEm: AGORA_UTC, atualizadoEm: AGORA_UTC })
+      .where(and(eq(trafegoCriacoes.id, l.id), eq(trafegoCriacoes.tentativas, l.tentativas), presaSql))
+      .returning(linhaDaCriacao);
+    if (!f) throw new TrafegoError(MSG_MUDOU, 409);
+    await auditar(tx, req, "trafego.meta.criada", campanhaId, { ids: f.ids, tentativa: f.tentativas, retomada: true, adotada: true });
+    return f;
+  });
+  await pausarSeJaParou(campanhaId);
+  return feita;
+}
+
+/**
+ * A criação presa e completa cuja campanha **não** está mais no Meta (apagada
+ * no gerenciador): vira `falhou`, com os ids mortos em `restos`. Nunca é
+ * adotada; criar de novo segue pelo caminho de sempre (com as condições).
+ */
+async function largarMorta(req: Request, campanhaId: string, antes: { id: string; tentativas: number; ids: Record<string, string> }) {
+  const msg = "A campanha anotada desta criação não existe mais no Meta (apagada no gerenciador). Nada foi adotado.";
+  await db.transaction(async (tx) => {
+    const [l] = await tx.select({ ...linhaDaCriacao, presa: sql<boolean>`${presaSql}` }).from(trafegoCriacoes).where(eq(trafegoCriacoes.id, antes.id)).for("update");
+    if (!l || !l.presa || l.tentativas !== antes.tentativas || !mesmosIds(l.ids, antes.ids)) throw new TrafegoError(MSG_MUDOU, 409);
+    await tx
+      .update(trafegoCriacoes)
+      .set({ status: "falhou", erro: msg, restos: juntarRestos(l.restos, achatarIds(l.ids)), ids: {}, atualizadoEm: AGORA_UTC })
+      .where(and(eq(trafegoCriacoes.id, l.id), eq(trafegoCriacoes.tentativas, l.tentativas), presaSql));
+    await auditar(tx, req, "trafego.meta.falhou", campanhaId, { erro: msg, ids: l.ids, tentativa: l.tentativas });
+  });
+}
+
+/**
+ * Cria a campanha no ar no Meta, tudo pausado (só a plataforma). A criação
+ * presa e completa cuja campanha ainda vive no Meta é assumida (sem criar
+ * nada); a que morreu lá vira falha e segue para criar de novo. Antes de
  * reservar, confere sem chamar a rede (produto, variáveis, campanha no ar com
  * o Meta, rifa no ar, promotora ativa, nenhum gasto do Meta lançado, região,
  * orçamento, texto) e, na rede, a conta (BRL e São Paulo) e se já existe
@@ -392,12 +474,32 @@ async function temGastoDoMeta(q: Pick<typeof db, "execute">, id: string): Promis
 export async function criarNoMeta(req: Request, id: string, criador: CriadorDeCampanha | null = criadorDoMeta()) {
   if (orgOf(req)) throw new TrafegoError("Criar a campanha na rede é da plataforma.", 403);
   if (!idValido(id)) throw new TrafegoError("Campanha não encontrada.", 404);
-  const cfg = (await getPlataforma()).trafegoPago;
-  if (!cfg.criarPelaApi) throw new TrafegoError("A criação pela API está desligada. Ligue em Taxa e mínimos.", 409);
   const falta = faltaNoServidor(process.env);
   if (!criador || falta.length) throw new TrafegoError(`Falta no servidor: ${falta.join(", ")}. Nada foi chamado.`, 409);
+  const codigo = codigoDaCampanha(id);
+
+  // 0. A criação que ficou presa e completa: assumir (se viva no Meta) ou largar (se morta).
+  let [antes] = await db
+    .select({ ...linhaDaCriacao, presa: sql<boolean>`${presaSql}` })
+    .from(trafegoCriacoes)
+    .where(and(eq(trafegoCriacoes.campanhaId, id), eq(trafegoCriacoes.rede, "meta")));
+  if (antes?.status === "criada") throw new TrafegoError("Esta campanha já foi criada no Meta.", 409);
+  if (antes?.status === "criando" && !antes.presa) throw new TrafegoError("Esta campanha está sendo criada no Meta agora.", 409);
+  if (antes?.presa && criacaoCompleta(antes.ids)) {
+    const lista = await buscarNoMeta(criador, codigo);
+    if (campanhaVivaNoMeta(lista, codigo, antes.ids.campanha)) return adotar(req, id, antes);
+    await largarMorta(req, id, antes);
+    [antes] = await db
+      .select({ ...linhaDaCriacao, presa: sql<boolean>`${presaSql}` })
+      .from(trafegoCriacoes)
+      .where(and(eq(trafegoCriacoes.campanhaId, id), eq(trafegoCriacoes.rede, "meta")));
+  }
 
   // 1. O que dá para conferir sem chamar o Meta.
+  const cfg = (await getPlataforma()).trafegoPago;
+  if (!cfg.criarPelaApi) throw new TrafegoError("A criação pela API está desligada. Ligue em Taxa e mínimos.", 409);
+  const base = baseDoAnuncio(req);
+  if (!base) throw new TrafegoError("Falta no servidor: PUBLIC_BASE_URL (com https://). Nada foi chamado.", 409);
   const c = await dadosDaCampanha(id);
   if (!c) throw new TrafegoError("Campanha não encontrada.", 404);
   if (c.status !== "ativa") throw new TrafegoError("Só a campanha no ar (aprovada) é criada na rede.", 409);
@@ -415,35 +517,23 @@ export async function criarNoMeta(req: Request, id: string, criador: CriadorDeCa
   const problema = problemaNoTextoDoAnuncio(`${mensagem}\n${titulo}`, rifa.dados.autorizacao);
   if (problema) throw new TrafegoError(problema, 422);
 
-  const [antes] = await db
-    .select({ ...linhaDaCriacao, presa: sql<boolean>`${presaSql}` })
-    .from(trafegoCriacoes)
-    .where(and(eq(trafegoCriacoes.campanhaId, id), eq(trafegoCriacoes.rede, "meta")));
-  if (antes?.status === "criada") throw new TrafegoError("Esta campanha já foi criada no Meta.", 409);
-  if (antes?.status === "criando" && !antes.presa) throw new TrafegoError("Esta campanha está sendo criada no Meta agora.", 409);
-
   // 2. Na rede, antes de reservar: a conta e se a campanha já existe lá.
-  const codigo = codigoDaCampanha(id);
   try {
     const naConta = await criador.conferirConta();
     if (naConta) throw new TrafegoError(naConta, 409);
-    // O que o sistema já conhece (a criação presa e as metades anotadas) não conta como "já existe".
-    const conhecidos = new Set<string>();
-    for (const grupo of [antes?.ids ?? {}, ...(antes?.restos ?? [])]) for (const v of Object.values(grupo)) conhecidos.add(v);
-    const achada = campanhaJaNoMeta(await criador.campanhasComCodigo(codigo), codigo, conhecidos);
-    if (achada) {
-      throw new TrafegoError(
-        `Já existe no Meta uma campanha com o código trafego-${codigo} (id ${achada}). Confira no gerenciador: nada foi criado de novo.`,
-        409,
-      );
-    }
   } catch (e) {
     if (e instanceof CriacaoError) throw new TrafegoError(`${e.message} Nada foi criado.`, 409);
     throw e;
   }
+  // O que o sistema já conhece (a criação presa e as metades anotadas) não conta como "já existe".
+  const conhecidos = new Set<string>([...idsVivos(antes?.ids), ...(antes?.restos ?? []).map((r) => r.id)]);
+  const achada = campanhaJaNoMeta(await buscarNoMeta(criador, codigo), codigo, conhecidos);
+  if (achada) {
+    throw new TrafegoError(`Já existe no Meta uma campanha com o código trafego-${codigo} (id ${achada}). Confira no gerenciador: nada foi criado de novo.`, 409);
+  }
 
   // 3. A reserva: a campanha e a rifa conferidas com as linhas travadas, e o índice decide.
-  const reservada = await db.transaction(async (tx) => {
+  const minha = await db.transaction(async (tx) => {
     const atual = await travar(tx, id);
     if (atual.status !== "ativa") throw new TrafegoError("Só a campanha no ar (aprovada) é criada na rede.", 409);
     if (!(await rifaSegueNoAr(tx, atual.campaignId))) throw new TrafegoError(MSG_RIFA_FORA, 409);
@@ -460,9 +550,9 @@ export async function criarNoMeta(req: Request, id: string, criador: CriadorDeCa
       .returning(linhaDaCriacao);
     if (nova) {
       await auditar(tx, req, "trafego.meta.criar", id, { tentativa: nova.tentativas, orcamento: orc.orcamento });
-      return { linha: nova, pronta: false };
+      return nova;
     }
-    // De novo, só depois de falhar ou da criação presa além do prazo.
+    // De novo, só depois de falhar ou da criação presa além do prazo (e não completa: essa é assumida acima).
     const [anterior] = await tx
       .select({ ...linhaDaCriacao, presa: sql<boolean>`${presaSql}` })
       .from(trafegoCriacoes)
@@ -471,29 +561,13 @@ export async function criarNoMeta(req: Request, id: string, criador: CriadorDeCa
     if (!anterior || !(anterior.status === "falhou" || anterior.presa)) {
       throw new TrafegoError("Esta campanha já foi criada no Meta (ou está sendo criada agora).", 409);
     }
-    if (anterior.presa && criacaoCompleta(anterior.ids)) {
-      // O processo caiu depois de anotar o anúncio: tudo já existe no Meta. Retomar é só marcar criada.
-      const [feita] = await tx
-        .update(trafegoCriacoes)
-        .set({
-          status: "criada",
-          erro: null,
-          // Se o fim que caiu tinha anexado estes ids a `restos`, eles saem de lá: não são para apagar.
-          restos: sql`(select coalesce(jsonb_agg(e), '[]'::jsonb) from jsonb_array_elements(${trafegoCriacoes.restos}) e where e <> ${trafegoCriacoes.ids})`,
-          criadaEm: AGORA_UTC,
-          atualizadoEm: AGORA_UTC,
-        })
-        .where(and(eq(trafegoCriacoes.id, anterior.id), eq(trafegoCriacoes.tentativas, anterior.tentativas), presaSql))
-        .returning(linhaDaCriacao);
-      if (!feita) throw new TrafegoError("Esta campanha está sendo criada no Meta agora.", 409);
-      await auditar(tx, req, "trafego.meta.criada", id, { ids: feita.ids, tentativa: feita.tentativas, retomada: true });
-      return { linha: feita, pronta: true };
-    }
+    if (anterior.presa && criacaoCompleta(anterior.ids)) throw new TrafegoError(MSG_MUDOU, 409);
     const [deNovo] = await tx
       .update(trafegoCriacoes)
       .set({
         status: "criando",
-        restos: sql`case when ${trafegoCriacoes.ids} = '{}'::jsonb or ${trafegoCriacoes.restos} @> jsonb_build_array(${trafegoCriacoes.ids}) then ${trafegoCriacoes.restos} else ${trafegoCriacoes.restos} || jsonb_build_array(${trafegoCriacoes.ids}) end`,
+        // A metade da tentativa anterior vai para a lista de apagar, achatada e sem repetir.
+        restos: juntarRestos(anterior.restos, achatarIds(anterior.ids)),
         ids: {},
         erro: null,
         orcamento: orc.orcamento,
@@ -511,15 +585,10 @@ export async function criarNoMeta(req: Request, id: string, criador: CriadorDeCa
       .returning(linhaDaCriacao);
     if (!deNovo) throw new TrafegoError("Esta campanha está sendo criada no Meta agora.", 409);
     await auditar(tx, req, "trafego.meta.criar", id, { tentativa: deNovo.tentativas, orcamento: orc.orcamento, retomada: anterior.status === "criando" });
-    return { linha: deNovo, pronta: false };
+    return deNovo;
   });
-  if (reservada.pronta) {
-    await pausarSeJaParou(id);
-    return reservada.linha;
-  }
 
   // 4. A rede, fora da transação: cada peça anotada no banco antes da próxima.
-  const minha = reservada.linha;
   const orcamento = minha.orcamento!;
   const daTentativa = and(eq(trafegoCriacoes.id, minha.id), eq(trafegoCriacoes.status, "criando"), eq(trafegoCriacoes.tentativas, minha.tentativas));
   let ids: IdsNaRede = {};
@@ -534,13 +603,13 @@ export async function criarNoMeta(req: Request, id: string, criador: CriadorDeCa
     if (!ok) throw new LinhaPerdida();
   };
   try {
-    const link = linkDoAnuncio(baseDoSite(req), { id: c.id, orgSlug: c.orgSlug, rifaSlug: c.rifaSlug }, "meta");
+    const link = linkDoAnuncio(base, { id: c.id, orgSlug: c.orgSlug, rifaSlug: c.rifaSlug }, "meta");
     const imagem = await desenharArte({ rifa, tipo: "rifa", formato: "retrato", url: link });
     const inicio = new Date();
     const prontos = await criador.criar(
       {
         nome: nomeNaRede(c.id, c.titulo),
-        diarioCents: orcamento.diarioCents,
+        vidaCents: orcamento.vidaCents,
         inicio,
         fim: fimDoOrcamento(inicio, orcamento),
         alvo,
@@ -562,6 +631,7 @@ export async function criarNoMeta(req: Request, id: string, criador: CriadorDeCa
     const msg = e instanceof CriacaoError ? e.message : "Não deu para criar no Meta (erro inesperado). Tente de novo.";
     if (!(e instanceof CriacaoError)) console.error("[trafego] criar no Meta:", (e as Error).name, (e as Error).message);
     let falha: unknown = null;
+    let bancoFalhou = false;
     try {
       falha = await db.transaction(async (tx) => {
         const [f] = await tx
@@ -574,7 +644,16 @@ export async function criarNoMeta(req: Request, id: string, criador: CriadorDeCa
         return f;
       });
     } catch (dbErro) {
+      bancoFalhou = true;
       console.error("[trafego] gravar a falha no Meta:", (dbErro as Error).message);
+    }
+    if (bancoFalhou) {
+      // O banco falhou ao gravar a falha: a linha segue em "criando" com o que foi anotado peça a peça.
+      await auditarFora(req, "trafego.meta.falhou", id, { erro: msg, ids, tentativa: minha.tentativas, bancoFalhou: true });
+      throw new CriacaoFalhou(
+        `${msg} E o banco falhou ao gravar esta falha: o que foi criado no Meta ficou anotado peça a peça na criação. Confira no gerenciador; dá para tentar de novo depois de ${PRAZO_DA_CRIACAO_MIN} minutos.`,
+        null,
+      );
     }
     if (!falha) {
       await guardarOQueSobrou(req, id, minha.id, ids, msg);
@@ -585,11 +664,22 @@ export async function criarNoMeta(req: Request, id: string, criador: CriadorDeCa
 
   // 5. Sucesso: grava só se a tentativa ainda é esta. Perdeu a linha, os ids não somem.
   let feita: typeof minha | null = null;
+  let bancoFalhou = false;
   try {
     feita = await db.transaction(async (tx) => {
+      const [l] = await tx.select({ restos: trafegoCriacoes.restos }).from(trafegoCriacoes).where(daTentativa).for("update");
+      if (!l) return null;
       const [f] = await tx
         .update(trafegoCriacoes)
-        .set({ status: "criada", ids: ids as Record<string, string>, erro: null, criadaEm: AGORA_UTC, atualizadoEm: AGORA_UTC })
+        .set({
+          status: "criada",
+          ids: ids as Record<string, string>,
+          erro: null,
+          // Nenhum id vivo na lista de apagar (o hash da imagem se repete entre tentativas).
+          restos: juntarRestos(l.restos, [], idsVivos(ids as Record<string, string>)),
+          criadaEm: AGORA_UTC,
+          atualizadoEm: AGORA_UTC,
+        })
         .where(daTentativa)
         .returning(linhaDaCriacao);
       if (!f) return null;
@@ -597,11 +687,13 @@ export async function criarNoMeta(req: Request, id: string, criador: CriadorDeCa
       return f;
     });
   } catch (dbErro) {
+    bancoFalhou = true;
     console.error("[trafego] gravar a criação no Meta:", (dbErro as Error).message);
-    feita = null;
   }
   if (!feita) {
-    const msg = "A campanha foi criada no Meta (pausada), mas esta tentativa perdeu a vez de gravar: os ids ficaram anotados para conferir e apagar no gerenciador.";
+    const msg = bancoFalhou
+      ? `A campanha foi criada no Meta (pausada), mas o banco falhou ao gravar: os ids ficaram anotados na criação. Depois de ${PRAZO_DA_CRIACAO_MIN} minutos, "Tentar de novo" confere no Meta e assume a campanha (ou cria de novo, se ela tiver sido apagada).`
+      : "A campanha foi criada no Meta (pausada), mas outra tentativa tomou esta criação: os ids ficaram anotados para conferir e apagar no gerenciador.";
     await guardarOQueSobrou(req, id, minha.id, ids, msg);
     throw new TrafegoError(msg, 409);
   }
@@ -687,12 +779,15 @@ export async function criacoesDasCampanhas(ids: string[], plataforma: boolean) {
       mapa.set(l.campanhaId, {
         status: l.status,
         ids: l.ids,
-        restos: l.restos,
+        // Nunca um id vivo na lista de apagar (lista achatada, um id uma vez só).
+        restos: juntarRestos(l.restos, [], idsVivos(l.ids)),
         erro: l.erro,
         orcamento: l.orcamento,
         tentativas: l.tentativas,
         // Em `criando` além do prazo: o processo caiu, e a plataforma pode retomar.
         podeRetomar: l.presa,
+        // Presa e com as quatro peças: "Assumir a criação" (mesmo com a campanha já fora do ar).
+        completa: criacaoCompleta(l.ids),
         pausa: l.pausa,
         pausaErro: l.pausaErro,
         criadaEm: l.criadaEm,

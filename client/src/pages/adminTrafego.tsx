@@ -25,6 +25,7 @@ import {
   explicarOrcamento,
   orcamentoNoMeta,
   type OrcamentoNoMeta,
+  type Resto,
   type SituacaoDaCriacao,
 } from "@shared/trafegoCriacao";
 
@@ -65,12 +66,15 @@ interface CampanhaDeTrafego {
 interface CriacaoNoMeta {
   status: SituacaoDaCriacao;
   ids?: Record<string, string>;
-  restos?: Record<string, string>[];
+  /** Para apagar no gerenciador: a lista achatada (um id uma vez só, nunca um vivo). */
+  restos?: Resto[];
   erro?: string | null;
   orcamento?: OrcamentoNoMeta | null;
   tentativas?: number;
   /** Em "criando" além do prazo: o processo caiu e a plataforma pode retomar. */
   podeRetomar?: boolean;
+  /** Presa e com as quatro peças anotadas: a plataforma pode assumir (mesmo com a campanha fora do ar). */
+  completa?: boolean;
   pausa?: "pausada" | "falhou" | null;
   pausaErro?: string | null;
   criadaEm?: string | null;
@@ -972,11 +976,14 @@ function NoMeta({ c, aoMudar }: { c: CampanhaDeTrafego; aoMudar: () => void }) {
     },
   });
   const m = c.meta;
-  const restos = (m?.restos ?? []).filter((r) => Object.keys(r).length > 0);
-  const podeCriar = c.status === "ativa" && (!m || m.status === "falhou" || Boolean(m.podeRetomar));
-  // Quanto vai (ou foi) para o Meta e por quê: o gravado na criação, senão a conta de agora (a mesma do servidor).
+  const restos = (m?.restos ?? []).filter((r) => r && typeof r.id === "string");
+  // Assumir a criação presa e completa vale mesmo com a campanha já fora do ar (não cria nada novo).
+  const assumir = Boolean(m?.podeRetomar && m.completa);
+  const podeCriar = assumir || (c.status === "ativa" && (!m || m.status === "falhou" || Boolean(m.podeRetomar)));
+  // Quanto foi para o Meta (só a criação feita); senão, quanto iria agora (a mesma conta do servidor).
   const previa = orcamentoNoMeta(c);
-  const orcamento = m?.orcamento ?? (previa.ok ? previa.orcamento : null);
+  const mandado = m?.status === "criada" && m.orcamento ? m.orcamento : null;
+  const iria = !mandado && c.status === "ativa" && m?.status !== "criada" && previa.ok ? previa.orcamento : null;
   return (
     <div className="space-y-1 rounded-md border border-line px-3 py-2 text-xs">
       <div className="flex flex-wrap items-center gap-2">
@@ -984,17 +991,22 @@ function NoMeta({ c, aoMudar }: { c: CampanhaDeTrafego; aoMudar: () => void }) {
         {m ? <Pill status={TOM_DA_CRIACAO[m.status]}>{SITUACOES_DA_CRIACAO[m.status]}</Pill> : <Pill status="closed">Ainda não criada</Pill>}
         {m?.tentativas && m.tentativas > 1 ? <span className="tnum text-muted">{m.tentativas} tentativas</span> : null}
       </div>
-      {orcamento ? (
+      {mandado ? (
         <p className="text-ink-2">
-          {m?.orcamento ? "Mandado ao Meta" : "Vai para o Meta"}: <span className="tnum">{explicarOrcamento(orcamento)}</span>
+          Mandado ao Meta: <span className="tnum">{explicarOrcamento(mandado)}</span>
         </p>
-      ) : !m && !previa.ok ? (
+      ) : iria ? (
+        <p className="text-ink-2">
+          Vai para o Meta: <span className="tnum">{explicarOrcamento(iria)}</span>
+        </p>
+      ) : c.status === "ativa" && m?.status !== "criada" && !previa.ok ? (
         <p className="text-red">{previa.motivo}</p>
       ) : null}
       {m?.podeRetomar ? (
         <p className="text-red">
-          A criação parou no meio (passou do prazo sem sinal de vida). Tentar de novo retoma: se o anúncio já existe, só marca como criada; senão, o que
-          ficou pela metade vai para a lista de apagar e cria de novo.
+          {assumir
+            ? "A criação parou depois de anotar as quatro peças (passou do prazo sem sinal de vida). Assumir confere no Meta: se a campanha ainda existe lá, a criação passa a ser dela; se foi apagada, fica como falha e dá para criar de novo."
+            : "A criação parou no meio (passou do prazo sem sinal de vida). Tentar de novo põe o que ficou pela metade na lista de apagar e cria de novo."}
         </p>
       ) : null}
       {m?.status === "criada" ? (
@@ -1016,10 +1028,10 @@ function NoMeta({ c, aoMudar }: { c: CampanhaDeTrafego; aoMudar: () => void }) {
       ) : null}
       {restos.length ? (
         <p className="text-ink-2">
-          De tentativas anteriores, para apagar no gerenciador:{" "}
-          {restos.map((r, i) => (
-            <span key={i} className="tnum block">
-              {listaDeIds(r)}
+          De tentativas anteriores, para apagar no gerenciador (pausado, não gasta):{" "}
+          {restos.map((r) => (
+            <span key={r.id} className="tnum block">
+              {ROTULO_DOS_IDS[r.tipo] ?? r.tipo} {r.id}
             </span>
           ))}
         </p>
@@ -1035,10 +1047,13 @@ function NoMeta({ c, aoMudar }: { c: CampanhaDeTrafego; aoMudar: () => void }) {
           disabled={criar.isPending}
           onClick={() => {
             setErro(null);
-            if (window.confirm("Criar campanha, conjunto e anúncio no Meta? Tudo nasce pausado; ligar é no gerenciador do Meta.")) criar.mutate();
+            const pergunta = assumir
+              ? "Assumir a criação? O sistema confere no Meta se a campanha anotada ainda existe; nada novo é criado."
+              : "Criar campanha, conjunto e anúncio no Meta? Tudo nasce pausado; ligar é no gerenciador do Meta.";
+            if (window.confirm(pergunta)) criar.mutate();
           }}
         >
-          {criar.isPending ? "Criando no Meta…" : m ? "Tentar de novo" : "Criar no Meta"}
+          {criar.isPending ? "Conferindo no Meta…" : assumir ? "Assumir a criação" : m ? "Tentar de novo" : "Criar no Meta"}
         </Button>
       ) : null}
     </div>

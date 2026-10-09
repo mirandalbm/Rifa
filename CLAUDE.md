@@ -4701,9 +4701,10 @@ abaixo).
   desligado** (`criarPelaApi` dentro de `trafegoPago`, só chave conhecida, a
   config parte da atual) e **só existe com `META_ADS_TOKEN`,
   `META_AD_ACCOUNT_ID` (`act_…`) e `META_PAGE_ID`** no servidor e, em
-  produção, **`PUBLIC_BASE_URL`** (o link do anúncio leva a ele;
-  `faltaNoServidor()`: a tela diz o nome do que falta, nunca o valor, e nada
-  é chamado). **Só a plataforma cria** (`POST /trafego/campanhas/:id/meta`,
+  produção, **`PUBLIC_BASE_URL` aparada e `https:`** (`basePublicaDoAnuncio()`,
+  lida por `baseDoAnuncio()` em `server/services/urls.ts` — o link do anúncio
+  nunca sai do `Host` da requisição em produção; `faltaNoServidor()`: a tela
+  diz o nome do que falta, nunca o valor, e nada é chamado). **Só a plataforma cria** (`POST /trafego/campanhas/:id/meta`,
   403 para organizador, no `npm run isolation`), pelo botão "Criar no
   Meta" — **nunca sozinho na aprovação** —, e **campanha, conjunto e
   anúncio nascem PAUSADOS**: ligar é no gerenciador do Meta, onde o anúncio
@@ -4721,8 +4722,10 @@ abaixo).
     de campanha com `trafego-<código>` no nome (`campanhaJaNoMeta()`, a régua
     da importação): achou uma que o sistema não conhece, recusa com o id dela
     para a plataforma conferir no gerenciador (cobre a montada à mão e a
-    resposta perdida no prazo). Tudo 409 com o motivo; as conferências que
-    não dependem do Meta se repetem dentro da transação que reserva.
+    resposta perdida no prazo). A resposta da busca **fora do formato** (sem
+    `data` em lista, `lerBuscaDoMeta()`) recusa — nunca vale como "nenhuma
+    campanha". Tudo 409 com o motivo; as conferências que não dependem do
+    Meta se repetem dentro da transação que reserva.
   - **Nunca cria duas vezes**: uma linha por campanha e rede em
     `trafego_criacoes` (`uq_trafego_criacao_por_rede`); o `INSERT … ON
     CONFLICT DO NOTHING` em `criando`, com a organização e a campanha
@@ -4734,27 +4737,44 @@ abaixo).
     min). Não pegou a linha (outra tentativa a tomou): **para de criar**,
     anexa o que já criou a `restos` e responde 409. Falhou na rede, grava
     `falhou` com o motivo em português (`erroDoMeta()`: o passo e o código,
-    nunca a mensagem crua nem o token) e o 502 diz o mesmo. **O sucesso que
-    perde a linha** (outra tentativa, ou o banco falhando no `UPDATE`) não
-    descarta os ids: vão a `restos` num `UPDATE` sem a condição da
-    tentativa, a auditoria vai fora da transação que voltou, e responde 409.
-    `restos` nunca repete o mesmo conjunto de ids.
+    nunca a mensagem crua nem o token) e o 502 diz o mesmo; **o banco falhar
+    ao gravar a falha** tem mensagem própria (o anotado fica na linha), nunca
+    "tomada por outra tentativa". **O sucesso que perde a linha** (outra
+    tentativa, ou o banco falhando no `UPDATE`) não descarta os ids: vão a
+    `restos` (`guardarOQueSobrou()`, com a linha travada, sem a condição da
+    tentativa), a auditoria vai fora da transação que voltou, e responde 409
+    — **mas nunca os ids vivos**: se a linha guarda estes mesmos ids (o banco
+    falhou no fim, ou uma retomada já os adotou), nada entra, e nenhum id da
+    criação viva entra (o hash da imagem se repete entre tentativas).
+    **`restos` é a lista achatada de peças** (`{ tipo, id }`,
+    `juntarRestos()`): um id uma vez só, e a tela nunca lista um vivo.
   - **Tentar de novo** é `UPDATE` condicional (`falhou`, ou `criando` além
     do prazo — o processo caiu: o painel recebe `podeRetomar` e mostra
-    "Tentar de novo"): a metade dos `ids` vai a `restos` e cria tudo de novo;
-    se a parada já tinha anotado as quatro peças (`criacaoCompleta()`), a
-    retomada só marca `criada`, sem chamar a criação (e tira aqueles ids de
-    `restos`, se o fim que caiu os tinha posto lá). A tela da plataforma
-    lista os `restos` para apagar no gerenciador (tudo pausado, não gasta).
+    "Tentar de novo"): a metade dos `ids` vai a `restos` e cria tudo de novo.
+    **A criação presa e completa** (as quatro peças anotadas,
+    `criacaoCompleta()`, o painel recebe `completa` e mostra "Assumir a
+    criação" mesmo com a campanha já fora do ar) **só é adotada se a
+    campanha anotada aparecer na busca do código** (`campanhaVivaNoMeta()`):
+    viva, vira `criada` sem criar nada e **sem as condições de criar** (no
+    ar, rifa, promotora ativa, gasto, orçamento) — basta a linha travada,
+    parada além do prazo e com os mesmos ids —, e depois
+    `pausarSeJaParou()`; apagada no gerenciador, vira `falhou` com os ids
+    mortos em `restos`, e criar de novo segue o caminho de sempre. Nunca
+    `criada` com ids mortos. A tela da plataforma lista os `restos` para
+    apagar no gerenciador (tudo pausado, não gasta).
   - **O orçamento casa com a verba que sobra e com as redes**
     (`orcamentoNoMeta()`, gravado em `trafego_criacoes.orcamento` e dito na
-    tela por `explicarOrcamento()`): a base é `investimento − gasto` (de todas
-    as redes); com mais de uma rede, a parte do Meta é a divisão em partes
-    iguais, para baixo — `floor(por dia ÷ redes)` por dia e `floor(restante ÷
-    redes)` no total; os dias são o total ÷ o diário, para baixo (e a data de
-    fim sai deles, `fimDoOrcamento()`), então diário × dias nunca passa do
-    que resta. Nada restando, ou o diário abaixo de
-    `DIARIO_MIN_DO_META_CENTS` (R$ 6,00), é 409 com o motivo.
+    tela por `explicarOrcamento()` — "Mandado ao Meta" só com a criação
+    `criada`): a base é `investimento − gasto` (de todas as redes); com mais
+    de uma rede, a parte do Meta é a divisão em partes iguais, para baixo —
+    `floor(por dia ÷ redes)` por dia e `floor(restante ÷ redes)` no total; os
+    dias são o total ÷ o diário, para baixo (e a data de fim sai deles,
+    `fimDoOrcamento()`). **Vai ao Meta como orçamento total do conjunto**
+    (`lifetime_budget` = `vidaCents` = diário × dias, com o mesmo
+    `end_time`; nunca `daily_budget`, que o Meta pode passar num dia): o teto
+    rígido nunca passa do que resta. Nada restando, ou o total ÷ dias abaixo
+    de `DIARIO_MIN_DO_META_CENTS` (R$ 6,00 — palpite, não achamos o mínimo
+    oficial em reais), é 409 com o motivo.
   - **O que vai para o Meta sai do banco**, nunca do navegador: o nome
     `trafego-<código> · <título da rifa>` (`nomeNaRede()`, a importação da
     fase 2 casa por ele), o `daily_budget` do orçamento (centavos de real são
@@ -4766,10 +4786,15 @@ abaixo).
     com a UTM e o texto dos dados públicos da rifa (`textoDoAnuncio()`:
     prêmio, preço, data e quem apura, a linha "Rifa autorizada SPA/MF nº …" e
     "Só vale bilhete pago pela plataforma"), na régua
-    (`problemaNoTextoDoAnuncio()`: telefone e link conferidos nas linhas do
-    texto **sem a linha da autorização** — nunca tirando o número de dentro
-    das outras —, sem promessa de ganho, sem Pix por fora; 422 antes de
-    qualquer chamada).
+    (`problemaNoTextoDoAnuncio()`: **link nunca, em linha nenhuma**, nem na
+    da autorização; o número longo conferido nas linhas do texto **sem a
+    linha da autorização só se o número dela tiver o formato estrito**
+    (`autorizacaoNoFormato()`: letras, dígitos, espaço e `. / - º`, sem link
+    e sem cara de celular — o número é texto livre da organização, e os
+    dados legais só conferem de 5 a 80 letras); fora do formato, a linha
+    passa pela régua inteira e a criação recusa com o motivo. Nunca tirando
+    o número de dentro das outras linhas. Sem promessa de ganho, sem Pix por
+    fora; 422 antes de qualquer chamada).
   - **O token só no cabeçalho** (`Authorization: Bearer`), nunca na URL, em
     log, resposta ou erro; o endereço do Meta só muda fora de produção
     (`META_API_URL`, `baseDoMeta()`), para a prova. Cada chamada tem prazo de

@@ -17,7 +17,7 @@
  *   ganho, sem Pix por fora): o prêmio é texto da organização.
  */
 import { dataDoSorteio, quemApura } from "./artes";
-import { temLinkOuTelefone } from "./comentarios";
+import { temLink, temLinkOuTelefone } from "./comentarios";
 import { UFS, type UF } from "./endereco";
 import { formatBRL } from "./format";
 import { prometeGanho } from "./marketingIA";
@@ -63,8 +63,28 @@ export function faltaNoMeta(env: Partial<Record<string, string | undefined>>): s
  */
 export function faltaNoServidor(env: Partial<Record<string, string | undefined>>): string[] {
   const falta = faltaNoMeta(env);
-  if (env.NODE_ENV === "production" && !env.PUBLIC_BASE_URL?.trim()) falta.push("PUBLIC_BASE_URL");
+  if (env.NODE_ENV === "production" && !basePublicaDoAnuncio(env.PUBLIC_BASE_URL)) {
+    falta.push(env.PUBLIC_BASE_URL?.trim() ? "PUBLIC_BASE_URL (com https:// e sem usuário nem senha)" : "PUBLIC_BASE_URL");
+  }
   return falta;
+}
+
+/**
+ * O endereço público do site para o link do anúncio, em produção: aparado,
+ * `https:`, sem usuário nem senha, sem consulta nem âncora; sem barra no fim.
+ * Fora disso, `null` — a criação não acontece com um link que não é o do site.
+ */
+export function basePublicaDoAnuncio(bruto: string | undefined | null): string | null {
+  const t = bruto?.trim();
+  if (!t) return null;
+  let u: URL;
+  try {
+    u = new URL(t);
+  } catch {
+    return null;
+  }
+  if (u.protocol !== "https:" || u.username || u.password || u.search || u.hash || !u.hostname.includes(".")) return null;
+  return `${u.origin}${u.pathname}`.replace(/\/+$/, "");
 }
 
 /** Limite do nome na rede; o código vai na frente, então nunca é cortado. */
@@ -93,6 +113,12 @@ export interface OrcamentoNoMeta {
   diarioCents: number;
   totalCents: number;
   dias: number;
+  /**
+   * O que vai ao Meta como `lifetime_budget` do conjunto (diário × dias, com
+   * o mesmo `end_time`): o teto rígido. O diário pode passar do valor num dia
+   * (o Meta distribui), o total da vida do conjunto não.
+   */
+  vidaCents: number;
 }
 
 /**
@@ -130,13 +156,19 @@ export function orcamentoNoMeta(c: { investimentoCents: number; gastoCents: numb
       motivo: `A parte do Meta por dia (${formatBRL(diarioCents)}${porque}) fica abaixo do mínimo que o Meta aceita (${formatBRL(DIARIO_MIN_DO_META_CENTS)}).`,
     };
   }
-  return { ok: true, orcamento: { restanteCents, redes, diarioCents, totalCents, dias } };
+  const vidaCents = diarioCents * dias;
+  // O mínimo vale sobre o que o Meta recebe por dia na média: o total da vida ÷ os dias.
+  if (Math.floor(vidaCents / dias) < DIARIO_MIN_DO_META_CENTS) {
+    return { ok: false, motivo: `O orçamento do Meta por dia fica abaixo do mínimo (${formatBRL(DIARIO_MIN_DO_META_CENTS)}).` };
+  }
+  return { ok: true, orcamento: { restanteCents, redes, diarioCents, totalCents, dias, vidaCents } };
 }
 
 /** A frase da tela: quanto foi para o Meta e por quê. */
 export function explicarOrcamento(o: OrcamentoNoMeta): string {
   const divisao = o.redes > 1 ? `, dividido em partes iguais entre as ${o.redes} redes da campanha` : "";
-  return `${formatBRL(o.diarioCents)} por dia por ${o.dias} ${o.dias === 1 ? "dia" : "dias"}, até ${formatBRL(o.diarioCents * o.dias)}: o que resta da verba (${formatBRL(o.restanteCents)})${divisao}.`;
+  const vida = o.vidaCents ?? o.diarioCents * o.dias;
+  return `${formatBRL(vida)} no total em ${o.dias} ${o.dias === 1 ? "dia" : "dias"} (teto do conjunto no Meta; ${formatBRL(o.diarioCents)} por dia na média): o que resta da verba (${formatBRL(o.restanteCents)})${divisao}.`;
 }
 
 /** A data de fim na rede: o começo mais os dias do orçamento. */
@@ -229,6 +261,19 @@ export const AVISO_DO_ANUNCIO = "Só vale bilhete pago pela plataforma.";
  * O texto do anúncio, montado dos dados públicos da rifa: o prêmio, o preço,
  * a data e quem apura, a autorização e o aviso. O título é o prêmio, curto.
  */
+/**
+ * O número da autorização é texto da organização (os dados legais só conferem
+ * de 5 a 80 caracteres). A linha dele só sai da régua do número longo se ele
+ * tiver a cara de um número de autorização: letras, dígitos, espaço e
+ * `. / - º`, sem link e sem nada com a forma de um celular (DDD, 9 e oito
+ * dígitos). Fora disso, a linha passa pela régua inteira.
+ */
+const AUTORIZACAO_ESTRITA = /^[\p{L}\p{N} ./º-]{5,80}$/u;
+const PARECE_CELULAR = /(?<!\d)\(?\d{2}\)?[\s.-]?9\d{4}[\s.-]?\d{4}(?!\d)/;
+export function autorizacaoNoFormato(autorizacao: string): boolean {
+  return AUTORIZACAO_ESTRITA.test(autorizacao) && !temLink(autorizacao) && !PARECE_CELULAR.test(autorizacao);
+}
+
 /** A linha da autorização, montada do número que veio do banco (conferido nos dados legais). */
 export const linhaDaAutorizacao = (autorizacao: string) => `Rifa autorizada SPA/MF nº ${autorizacao}.`;
 
@@ -253,13 +298,20 @@ export function textoDoAnuncio(d: DadosDoAnuncio): { mensagem: string; titulo: s
  * CDC chama de enganosa) e sem Pix por fora. Devolve o motivo, ou `null`.
  */
 export function problemaNoTextoDoAnuncio(texto: string, autorizacao: string | null): string | null {
-  const daAutorizacao = autorizacao ? linhaDaAutorizacao(autorizacao) : null;
+  // Link nunca, em linha nenhuma — nem na da autorização.
+  if (temLink(texto)) return "O texto do anúncio não pode ter link (nem no prêmio, nem no número da autorização). Ajuste os dados da rifa.";
+  // Só a linha de uma autorização no formato estrito sai da conta do número longo.
+  const daAutorizacao = autorizacao && autorizacaoNoFormato(autorizacao) ? linhaDaAutorizacao(autorizacao) : null;
   const semAutorizacao = texto
     .split("\n")
     .filter((l) => l !== daAutorizacao)
     .join("\n");
   const p = temLinkOuTelefone(semAutorizacao);
-  if (p) return `O texto do anúncio (o prêmio da rifa) ${p.charAt(0).toLowerCase()}${p.slice(1)}`;
+  if (p) {
+    return autorizacao && !daAutorizacao
+      ? "O texto do anúncio não pode ter telefone nem número longo — e o número da autorização, fora do formato de um número de autorização, também conta. Confira os dados legais e o prêmio da rifa."
+      : `O texto do anúncio (o prêmio da rifa) ${p.charAt(0).toLowerCase()}${p.slice(1)}`;
+  }
   if (prometeGanho(texto)) return "O texto do anúncio promete ganho (as redes recusam e o CDC chama de propaganda enganosa). Ajuste o prêmio da rifa.";
   if (pedePagamentoPorFora(texto)) return "O texto do anúncio pede pagamento por fora da plataforma.";
   return null;
@@ -351,6 +403,68 @@ export function campanhaJaNoMeta(resultados: unknown, codigo: string, conhecidos
     if (id && codigoNoNome(l.name) === codigo && !conhecidos.has(id)) return id;
   }
   return null;
+}
+
+/**
+ * A busca de campanhas por nome que o Meta devolveu: só a lista em `data`,
+ * com `id` e `name`. Fora do formato, `null` — quem chama recusa, nunca lê
+ * como "nenhuma campanha".
+ */
+export function lerBuscaDoMeta(resposta: unknown): { id: string; name: string }[] | null {
+  if (!resposta || typeof resposta !== "object" || !Array.isArray((resposta as { data?: unknown }).data)) return null;
+  const lista: { id: string; name: string }[] = [];
+  for (const bruto of (resposta as { data: unknown[] }).data) {
+    if (!bruto || typeof bruto !== "object") continue;
+    const l = bruto as Record<string, unknown>;
+    const id = idDaRede(l.id);
+    if (id && typeof l.name === "string") lista.push({ id, name: l.name });
+  }
+  return lista;
+}
+
+/** A campanha `id` está viva no Meta, com o código no nome? (a retomada só adota assim) */
+export function campanhaVivaNoMeta(lista: readonly { id: string; name: string }[], codigo: string, id: string | undefined): boolean {
+  return Boolean(id) && lista.some((c) => c.id === id && codigoNoNome(c.name) === codigo);
+}
+
+/** Uma peça para apagar no gerenciador: o tipo e o id (a lista é achatada, um id uma vez só). */
+export interface Resto {
+  tipo: string;
+  id: string;
+}
+
+/** Os ids de uma criação como peças, na ordem em que nascem. */
+export function achatarIds(ids: Record<string, string> | null | undefined): Resto[] {
+  const ordem = ["campanha", "conjunto", "criativo", "anuncio", "imagem"];
+  return Object.entries(ids ?? {})
+    .filter(([, v]) => typeof v === "string" && v.length > 0)
+    .sort(([a], [b]) => ordem.indexOf(a) - ordem.indexOf(b))
+    .map(([tipo, id]) => ({ tipo, id }));
+}
+
+/**
+ * Junta peças a `restos` sem repetir id, e nunca lista como "para apagar" um
+ * id que é da criação viva (`vivos`) — o hash da imagem, igual entre
+ * tentativas, inclusive.
+ */
+export function juntarRestos(restos: readonly Resto[] | null | undefined, novos: readonly Resto[], vivos: Iterable<string> = []): Resto[] {
+  const fora = new Set(vivos);
+  const vistos = new Set<string>();
+  const saida: Resto[] = [];
+  for (const r of [...(restos ?? []), ...novos]) {
+    if (!r || typeof r.id !== "string" || typeof r.tipo !== "string") continue;
+    if (fora.has(r.id) || vistos.has(r.id)) continue;
+    vistos.add(r.id);
+    saida.push({ tipo: r.tipo, id: r.id });
+  }
+  return saida;
+}
+
+/** Os mesmos ids (sem olhar a ordem das chaves)? */
+export function mesmosIds(a: Record<string, string> | null | undefined, b: Record<string, string> | null | undefined): boolean {
+  const x = achatarIds(a);
+  const y = achatarIds(b);
+  return x.length === y.length && x.every((r, i) => r.tipo === y[i].tipo && r.id === y[i].id);
 }
 
 /** As peças que uma criação completa tem no Meta (a imagem é só o hash enviado). */

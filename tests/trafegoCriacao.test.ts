@@ -5,8 +5,12 @@ import {
   NOME_NA_REDE_MAX,
   TITULO_DO_ANUNCIO_MAX,
   DIARIO_MIN_DO_META_CENTS,
+  achatarIds,
   alvoDoPedido,
+  autorizacaoNoFormato,
+  basePublicaDoAnuncio,
   campanhaJaNoMeta,
+  campanhaVivaNoMeta,
   criacaoCompleta,
   erroDoMeta,
   explicarOrcamento,
@@ -17,7 +21,10 @@ import {
   problemaNaContaDoMeta,
   hashDaImagem,
   idDaRede,
+  juntarRestos,
+  lerBuscaDoMeta,
   localDoMeta,
+  mesmosIds,
   nomeNaRede,
   problemaNoTextoDoAnuncio,
   segmentacaoDoMeta,
@@ -72,12 +79,14 @@ describe("orçamento no Meta", () => {
       diarioCents: 2_000,
       totalCents: 20_500,
       dias: 10,
+      vidaCents: 20_000,
     });
   });
   it("duas redes: partes iguais para baixo, e o gasto já lançado sai da base", () => {
     const o = ok(orcamentoNoMeta({ investimentoCents: 20_001, gastoCents: 5_000, verbaDiaCents: 2_001, redes: ["google", "meta"] }));
-    expect(o).toEqual({ restanteCents: 15_001, redes: 2, diarioCents: 1_000, totalCents: 7_500, dias: 7 });
-    expect(o.diarioCents * o.dias).toBeLessThanOrEqual(o.totalCents);
+    expect(o).toEqual({ restanteCents: 15_001, redes: 2, diarioCents: 1_000, totalCents: 7_500, dias: 7, vidaCents: 7_000 });
+    expect(o.vidaCents).toBe(o.diarioCents * o.dias);
+    expect(o.vidaCents).toBeLessThanOrEqual(o.totalCents);
     expect(o.totalCents * o.redes).toBeLessThanOrEqual(o.restanteCents);
   });
   it("nunca passa do que resta, em qualquer combinação", () => {
@@ -88,7 +97,10 @@ describe("orçamento no Meta", () => {
             const r = orcamentoNoMeta({ investimentoCents: inv, gastoCents: gasto, verbaDiaCents: dia, redes });
             if (!r.ok) continue;
             const o = r.orcamento;
-            expect(o.diarioCents * o.dias).toBeLessThanOrEqual(Math.floor(Math.max(0, inv - gasto) / redes.length));
+            // O teto que vai ao Meta (lifetime_budget) nunca passa do que resta da verba, na parte do Meta.
+            expect(o.vidaCents).toBe(o.diarioCents * o.dias);
+            expect(o.vidaCents).toBeLessThanOrEqual(Math.floor(Math.max(0, inv - gasto) / redes.length));
+            expect(Math.floor(o.vidaCents / o.dias)).toBeGreaterThanOrEqual(DIARIO_MIN_DO_META_CENTS);
             expect(o.diarioCents).toBeLessThanOrEqual(Math.floor(dia / redes.length));
             expect(o.diarioCents).toBeGreaterThanOrEqual(DIARIO_MIN_DO_META_CENTS);
             expect(o.dias).toBeGreaterThanOrEqual(1);
@@ -110,7 +122,59 @@ describe("orçamento no Meta", () => {
   it("o fim é o começo mais os dias, e a frase diz o porquê", () => {
     const o = ok(orcamentoNoMeta({ investimentoCents: 20_000, gastoCents: 0, verbaDiaCents: 2_000, redes: ["meta", "google"] }));
     expect(fimDoOrcamento(new Date("2026-10-09T12:00:00Z"), o).toISOString()).toBe("2026-10-19T12:00:00.000Z");
-    expect(explicarOrcamento(o)).toMatch(/10 dias.*2 redes/);
+    expect(explicarOrcamento(o)).toMatch(/R\$\s100,00 no total em 10 dias.*teto.*2 redes/);
+  });
+});
+
+describe("endereço do link do anúncio", () => {
+  it("aparado, https, sem usuário, consulta nem âncora", () => {
+    expect(basePublicaDoAnuncio("  https://rifa.br/  ")).toBe("https://rifa.br");
+    expect(basePublicaDoAnuncio("https://rifa.br/loja/")).toBe("https://rifa.br/loja");
+    expect(basePublicaDoAnuncio("http://rifa.br")).toBeNull();
+    expect(basePublicaDoAnuncio("https://eu:senha@rifa.br")).toBeNull();
+    expect(basePublicaDoAnuncio("https://rifa.br/?x=1")).toBeNull();
+    expect(basePublicaDoAnuncio("javascript:alert(1)")).toBeNull();
+    expect(basePublicaDoAnuncio("https://localhost")).toBeNull();
+    expect(basePublicaDoAnuncio(undefined)).toBeNull();
+  });
+});
+
+describe("restos achatados", () => {
+  it("um id uma vez só, na ordem em que as peças nascem", () => {
+    const r = juntarRestos([{ tipo: "campanha", id: "1" }], achatarIds({ imagem: "abc", campanha: "1", conjunto: "2" }));
+    expect(r).toEqual([
+      { tipo: "campanha", id: "1" },
+      { tipo: "conjunto", id: "2" },
+      { tipo: "imagem", id: "abc" },
+    ]);
+  });
+  it("nunca um id vivo (o hash da imagem igual entre tentativas)", () => {
+    const r = juntarRestos([{ tipo: "imagem", id: "abc" }, { tipo: "campanha", id: "1" }], [], ["abc", "9"]);
+    expect(r).toEqual([{ tipo: "campanha", id: "1" }]);
+  });
+  it("lixo na lista guardada não entra", () => {
+    expect(juntarRestos([null as never, { tipo: "x" } as never], [])).toEqual([]);
+  });
+  it("mesmos ids sem olhar a ordem das chaves", () => {
+    expect(mesmosIds({ campanha: "1", imagem: "a" }, { imagem: "a", campanha: "1" })).toBe(true);
+    expect(mesmosIds({ campanha: "1" }, { campanha: "1", imagem: "a" })).toBe(false);
+  });
+});
+
+describe("busca do Meta", () => {
+  it("só a lista em data; fora do formato é nulo (recusa), nunca nenhuma campanha", () => {
+    expect(lerBuscaDoMeta({ data: [{ id: "120", name: "trafego-ab12cd34 x" }, { id: "x", name: "y" }] })).toEqual([{ id: "120", name: "trafego-ab12cd34 x" }]);
+    expect(lerBuscaDoMeta({ data: [] })).toEqual([]);
+    expect(lerBuscaDoMeta({})).toBeNull();
+    expect(lerBuscaDoMeta({ data: "nada" })).toBeNull();
+    expect(lerBuscaDoMeta(null)).toBeNull();
+  });
+  it("viva no Meta só com o id e o código no nome", () => {
+    const lista = [{ id: "120", name: "trafego-ab12cd34 · Rifa" }];
+    expect(campanhaVivaNoMeta(lista, "ab12cd34", "120")).toBe(true);
+    expect(campanhaVivaNoMeta(lista, "ab12cd34", "121")).toBe(false);
+    expect(campanhaVivaNoMeta(lista, "ffffffff", "120")).toBe(false);
+    expect(campanhaVivaNoMeta(lista, "ab12cd34", undefined)).toBe(false);
   });
 });
 
@@ -119,6 +183,8 @@ describe("servidor e conta", () => {
     const meta = { META_ADS_TOKEN: "x", META_AD_ACCOUNT_ID: "act_1234567", META_PAGE_ID: "1234567" };
     expect(faltaNoServidor({ ...meta, NODE_ENV: "production" })).toEqual(["PUBLIC_BASE_URL"]);
     expect(faltaNoServidor({ ...meta, NODE_ENV: "production", PUBLIC_BASE_URL: "https://rifa.br" })).toEqual([]);
+    expect(faltaNoServidor({ ...meta, NODE_ENV: "production", PUBLIC_BASE_URL: "  https://rifa.br/  " })).toEqual([]);
+    expect(faltaNoServidor({ ...meta, NODE_ENV: "production", PUBLIC_BASE_URL: "http://rifa.br" })[0]).toMatch(/PUBLIC_BASE_URL \(com https/);
     expect(faltaNoServidor({ ...meta, NODE_ENV: "development" })).toEqual([]);
   });
   it("a conta precisa estar em BRL e no fuso de São Paulo", () => {
@@ -216,6 +282,21 @@ describe("texto do anúncio", () => {
     expect(problemaNoTextoDoAnuncio(t.mensagem, dados.autorizacao)).toMatch(/telefone/);
     // Sem a linha da autorização no texto, nada sai da conta.
     expect(problemaNoTextoDoAnuncio("Moto\n18101.000123/2026-11", dados.autorizacao)).toMatch(/telefone/);
+  });
+  it("a linha da autorização só sai da conta no formato estrito; link vale sempre", () => {
+    expect(autorizacaoNoFormato("SEI/ME 18101.000123/2026-11")).toBe(true);
+    expect(autorizacaoNoFormato("Certificado nº 04.012345/2024")).toBe(true);
+    // Texto livre da organização com link e telefone: não é número de autorização.
+    const golpe = "golpe.com/pix 11 98765-4321";
+    expect(autorizacaoNoFormato(golpe)).toBe(false);
+    expect(problemaNoTextoDoAnuncio(textoDoAnuncio({ ...dados, autorizacao: golpe }).mensagem, golpe)).toMatch(/link/);
+    // Celular disfarçado de número de autorização: a linha passa pela régua inteira.
+    const celular = "SPA 11 98765-4321";
+    expect(autorizacaoNoFormato(celular)).toBe(false);
+    expect(problemaNoTextoDoAnuncio(textoDoAnuncio({ ...dados, autorizacao: celular }).mensagem, celular)).toMatch(/autorização/);
+    // Caractere fora da lista (ex.: "@", ":"): régua inteira.
+    expect(autorizacaoNoFormato("SEI: 18101.000123/2026-11")).toBe(false);
+    expect(problemaNoTextoDoAnuncio(textoDoAnuncio({ ...dados, autorizacao: "SEI: 18101.000123/2026-11" }).mensagem, "SEI: 18101.000123/2026-11")).toMatch(/telefone/);
   });
   it("recusa link, promessa de ganho e Pix por fora", () => {
     expect(problemaNoTextoDoAnuncio(textoDoAnuncio({ ...dados, premio: "Moto www.golpe.com" }).mensagem, dados.autorizacao)).toMatch(/link/);

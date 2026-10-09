@@ -112,12 +112,13 @@ export async function caixaDeEntrada(): Promise<PendenciaDaCaixa[]> {
        WHERE b.documentos_status = 'em_analise'
        ORDER BY b.documentos_enviados_em LIMIT 200`),
     db.execute(sql`
-      SELECT t.id, t.created_at AS desde, o.name AS org, c.title AS rifa, t.investimento_cents AS investimento
+      SELECT t.id, t.status, coalesce(t.encerrado_em, t.created_at) AS desde, o.name AS org, c.title AS rifa,
+             t.investimento_cents AS investimento
         FROM trafego_campanhas t
         JOIN organizations o ON o.id = t.organization_id
         JOIN campaigns c ON c.id = t.campaign_id
-       WHERE t.status = 'em_analise'
-       ORDER BY t.created_at LIMIT 200`),
+       WHERE t.status IN ('em_analise', 'encerrando')
+       ORDER BY 3 LIMIT 200`),
   ]);
 
   const iso = (d: unknown) => new Date(d as string | Date).toISOString();
@@ -187,7 +188,10 @@ export async function caixaDeEntrada(): Promise<PendenciaDaCaixa[]> {
       chave: `trafego:${r.id}`,
       tipo: "trafego",
       quem: r.org,
-      oQue: `Pedido de campanha de anúncios esperando aprovação — rifa ${r.rifa}, ${formatBRL(Number(r.investimento))} em mídia`,
+      oQue:
+        r.status === "encerrando"
+          ? `Campanha de anúncios encerrada esperando os últimos gastos e o fechamento da conta — rifa ${r.rifa}`
+          : `Pedido de campanha de anúncios esperando aprovação — rifa ${r.rifa}, ${formatBRL(Number(r.investimento))} em mídia`,
       desde: iso(r.desde),
     });
   }

@@ -273,6 +273,7 @@ import {
   cancelarCampanha,
   decidirCampanha,
   encerrarCampanha,
+  fecharConta,
   gastosDaCampanha,
   lancarGasto,
   painelDoTrafego,
@@ -4855,15 +4856,7 @@ adminRouter.get("/trafego", async (req, res, next) => {
 
 adminRouter.post("/trafego/campanhas", async (req, res, next) => {
   try {
-    const c = await pedirCampanha(req, (req.body ?? {}) as Record<string, unknown>);
-    await audit(req, "trafego.pedido", "trafego_campanha", c.id, {
-      campaignId: c.campaignId,
-      redes: c.redes,
-      investimentoCents: c.investimentoCents,
-      taxaPct: c.taxaPct,
-      reservaCents: c.reservaCents,
-    });
-    res.status(201).json(c);
+    res.status(201).json(await pedirCampanha(req, (req.body ?? {}) as Record<string, unknown>));
   } catch (err) {
     next(err);
   }
@@ -4878,11 +4871,10 @@ adminRouter.get("/trafego/campanhas/:id/gastos", async (req, res, next) => {
   }
 });
 
+// A auditoria de cada passo vai dentro da transação do serviço.
 adminRouter.post("/trafego/campanhas/:id/cancelar", async (req, res, next) => {
   try {
-    const c = await cancelarCampanha(req, req.params.id);
-    await audit(req, "trafego.cancelar", "trafego_campanha", c.id, { devolvidoCents: c.devolvidoCents });
-    res.json(c);
+    res.json(await cancelarCampanha(req, req.params.id));
   } catch (err) {
     next(err);
   }
@@ -4890,13 +4882,7 @@ adminRouter.post("/trafego/campanhas/:id/cancelar", async (req, res, next) => {
 
 adminRouter.post("/trafego/campanhas/:id/encerrar", async (req, res, next) => {
   try {
-    const c = await encerrarCampanha(req, req.params.id);
-    await audit(req, "trafego.encerrar", "trafego_campanha", c.id, {
-      gastoCents: c.gastoCents,
-      taxaCents: c.taxaCents,
-      devolvidoCents: c.devolvidoCents,
-    });
-    res.json(c);
+    res.json(await encerrarCampanha(req, req.params.id));
   } catch (err) {
     next(err);
   }
@@ -4906,12 +4892,7 @@ adminRouter.post("/trafego/campanhas/:id/encerrar", async (req, res, next) => {
 adminRouter.post("/trafego/campanhas/:id/decisao", async (req, res, next) => {
   try {
     requirePlatformAdmin(req);
-    const c = await decidirCampanha(req, req.params.id, { aprovar: req.body?.aprovar, motivo: req.body?.motivo });
-    await audit(req, `trafego.${c.status === "ativa" ? "aprovar" : "recusar"}`, "trafego_campanha", c.id, {
-      organizacao: c.organizationId,
-      motivo: c.motivo,
-    });
-    res.json(c);
+    res.json(await decidirCampanha(req, req.params.id, { aprovar: req.body?.aprovar, motivo: req.body?.motivo }));
   } catch (err) {
     next(err);
   }
@@ -4921,25 +4902,32 @@ adminRouter.post("/trafego/campanhas/:id/decisao", async (req, res, next) => {
 adminRouter.post("/trafego/campanhas/:id/gastos", async (req, res, next) => {
   try {
     requirePlatformAdmin(req);
-    const r = await lancarGasto(req, req.params.id, req.body);
-    await audit(req, "trafego.gasto", "trafego_campanha", r.campanha.id, {
-      dia: r.gasto.dia,
-      rede: r.gasto.rede,
-      gastoCents: r.gasto.gastoCents,
-      taxaCents: r.gasto.taxaCents,
-      encerrada: r.campanha.status === "encerrada",
-    });
-    res.status(201).json(r);
+    res.status(201).json(await lancarGasto(req, req.params.id, req.body));
   } catch (err) {
     next(err);
   }
 });
 
-/** Taxa de gestão, mínimos e redes (só a plataforma). O resto da configuração fica como está. */
+/** Fechar a conta da campanha encerrada (lançados os últimos dias): só a plataforma. */
+adminRouter.post("/trafego/campanhas/:id/fechar", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    res.json(await fecharConta(req, req.params.id));
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * Taxa de gestão, mínimos e redes (só a plataforma). O que não vier no corpo
+ * fica como estava — mandar só a taxa não desliga o produto.
+ */
 adminRouter.put("/trafego/config", async (req, res, next) => {
   try {
     requirePlatformAdmin(req);
-    const salva = await setPlataforma({ trafegoPago: req.body });
+    const atual = (await getPlataforma()).trafegoPago;
+    const corpo = req.body && typeof req.body === "object" ? (req.body as Record<string, unknown>) : {};
+    const salva = await setPlataforma({ trafegoPago: { ...atual, ...corpo } as never });
     await audit(req, "trafego.config", "settings", "plataforma", { ...salva.trafegoPago });
     res.json(salva.trafegoPago);
   } catch (err) {

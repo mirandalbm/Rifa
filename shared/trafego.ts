@@ -31,14 +31,19 @@ export const LISTA_DE_REDES = Object.keys(REDES_DE_ANUNCIO) as RedeDeAnuncio[];
 export const SITUACOES_DA_CAMPANHA = {
   em_analise: "Em análise",
   ativa: "No ar",
+  encerrando: "Fechando a conta",
   encerrada: "Encerrada",
   recusada: "Recusada",
   cancelada: "Cancelada",
 } as const;
 export type SituacaoDaCampanha = keyof typeof SITUACOES_DA_CAMPANHA;
 
-/** Campanha que ainda ocupa a rifa e a reserva: uma por rifa (o índice parcial decide). */
-export const SITUACOES_EM_ABERTO: SituacaoDaCampanha[] = ["em_analise", "ativa"];
+/**
+ * Campanha que ainda ocupa a rifa e a reserva: uma por rifa (o índice parcial
+ * decide). "Fechando a conta" é a que parou e ainda espera os últimos gastos
+ * da rede: a reserva segue presa até a plataforma fechar a conta.
+ */
+export const SITUACOES_EM_ABERTO: SituacaoDaCampanha[] = ["em_analise", "ativa", "encerrando"];
 
 export interface ConfigTrafegoPago {
   /** Sem isto o produto não existe para a organização. */

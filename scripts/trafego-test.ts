@@ -327,7 +327,7 @@ async function main() {
     checa("campanha encerrada não recebe gasto (409)", r.status === 409, `HTTP ${r.status}`);
 
     /* ---------------- encerrar ---------------- */
-    console.log("  — encerrar e relógio");
+    console.log("  — encerrar, fechar a conta e relógio");
     r = await pedido(marina, rifaC.id, { investimentoCents: 10_000 });
     const idD = r.json?.id as string;
     await admin.req("POST", `/api/admin/trafego/campanhas/${idD}/decisao`, { aprovar: true });
@@ -338,8 +338,26 @@ async function main() {
       marina.req("POST", `/api/admin/trafego/campanhas/${idD}/encerrar`),
     ]);
     checa("dois cliques em encerrar: um 200 e um 409", [e1.status, e2.status].sort().join(",") === "200,409", `${e1.status},${e2.status}`);
-    // Reserva 12.000; gasto 3.333; taxa 666 → sobra 8.001.
-    checa("encerrada, a sobra (R$ 80,01) volta uma vez", (await campanha(idD)).devolvidoCents === 8_001 && (await saldoDe(orgId)) === saldoAntesDeEncerrar + 8_001);
+    checa("encerrar só para a campanha: fica fechando a conta, nada volta ainda", (await campanha(idD)).status === "encerrando" && (await saldoDe(orgId)) === saldoAntesDeEncerrar);
+    r = await pedido(marina, rifaC.id, { investimentoCents: 10_000 });
+    checa("fechando a conta, a rifa ainda não aceita outra campanha (409)", r.status === 409, `HTTP ${r.status}`);
+    r = await admin.req("POST", `/api/admin/trafego/campanhas/${idD}/gastos`, { dia: hoje(), rede: "meta", gastoCents: 1_000 });
+    checa("o último dia que a rede cobrou ainda entra depois de encerrar", r.status === 201, `HTTP ${r.status} ${r.json?.message ?? ""}`);
+    r = await admin.req("POST", `/api/admin/trafego/campanhas/${idD}/gastos`, { dia: amanha(), rede: "google", gastoCents: 10 });
+    checa("…mas não dia depois da parada (400)", r.status === 400, `HTTP ${r.status}`);
+    r = await marina.req("POST", `/api/admin/trafego/campanhas/${idD}/fechar`);
+    checa("a organização não fecha a conta (403)", r.status === 403, `HTTP ${r.status}`);
+    r = await admin.req("GET", "/api/admin/caixa-de-entrada");
+    checa("a conta a fechar aparece na Caixa de entrada", (r.json ?? []).some((p: any) => p.chave === `trafego:${idD}` && /fechamento da conta/.test(p.oQue)));
+    const [f1, f2] = await Promise.all([
+      admin.req("POST", `/api/admin/trafego/campanhas/${idD}/fechar`),
+      admin.req("POST", `/api/admin/trafego/campanhas/${idD}/fechar`),
+    ]);
+    checa("dois cliques em fechar a conta: um 200 e um 409", [f1.status, f2.status].sort().join(",") === "200,409", `${f1.status},${f2.status}`);
+    // Reserva 12.000; gasto 4.333; taxa 666 + 200 → sobra 6.801.
+    checa("conta fechada: a sobra (R$ 68,01) volta uma vez", (await campanha(idD)).status === "encerrada" && (await campanha(idD)).devolvidoCents === 6_801 && (await saldoDe(orgId)) === saldoAntesDeEncerrar + 6_801);
+    r = await admin.req("POST", `/api/admin/trafego/campanhas/${idD}/gastos`, { dia: hoje(), rede: "google", gastoCents: 1 });
+    checa("conta fechada não recebe gasto (409)", r.status === 409, `HTTP ${r.status}`);
 
     r = await pedido(marina, rifaD.id, { investimentoCents: 10_000 });
     const idE = r.json?.id as string;
@@ -347,16 +365,45 @@ async function main() {
     r = await pedido(marina, rifaE.id, { investimentoCents: 10_000 });
     const idG = r.json?.id as string;
     const saldoAntesDoRelogio = await saldoDe(orgId);
-    await db.update(campaigns).set({ status: "closed" }).where(eq(campaigns.id, rifaD.id));
+    await db.update(campaigns).set({ demonstracao: true }).where(eq(campaigns.id, rifaD.id));
     await db.update(campaigns).set({ travadaEm: new Date() }).where(eq(campaigns.id, rifaE.id));
     const n = await encerrarTrafegoForaDoAr();
-    checa("o relógio fecha as campanhas das rifas fora do ar", n >= 3, `${n}`);
-    checa("no ar: encerrada; em análise: cancelada", (await campanha(idE)).status === "encerrada" && (await campanha(idG)).status === "cancelada" && (await campanha(idF)).status === "cancelada");
-    checa("…e devolve as três reservas inteiras", (await saldoDe(orgId)) === saldoAntesDoRelogio + 3 * 12_000, `${(await saldoDe(orgId)) - saldoAntesDoRelogio}`);
+    checa("o relógio pega as campanhas das rifas fora do ar (inclusive a que virou teste)", n >= 3, `${n}`);
+    checa("no ar: para e fica fechando a conta; em análise: cancelada", (await campanha(idE)).status === "encerrando" && (await campanha(idG)).status === "cancelada" && (await campanha(idF)).status === "cancelada");
+    checa("…e só as em análise devolvem na hora (duas reservas)", (await saldoDe(orgId)) === saldoAntesDoRelogio + 2 * 12_000, `${(await saldoDe(orgId)) - saldoAntesDoRelogio}`);
     await encerrarTrafegoForaDoAr();
-    checa("o relógio de novo não devolve outra vez", (await saldoDe(orgId)) === saldoAntesDoRelogio + 3 * 12_000);
+    checa("o relógio de novo não devolve outra vez", (await saldoDe(orgId)) === saldoAntesDoRelogio + 2 * 12_000);
+    r = await admin.req("POST", `/api/admin/trafego/campanhas/${idE}/fechar`);
+    checa("a plataforma fecha a conta da parada pelo relógio e a reserva volta", r.status === 200 && (await saldoDe(orgId)) === saldoAntesDoRelogio + 3 * 12_000, `HTTP ${r.status}`);
+
+    /* ---------------- retenção e recorte do conteúdo ---------------- */
+    console.log("  — retenção na aprovação e conteúdo da lista");
+    r = await pedido(vizinhaCli, rifaVizinha.id, { investimentoCents: 10_000 });
+    const idV = r.json?.id as string;
+    checa("a vizinha pede a dela", r.status === 201, `HTTP ${r.status} ${r.json?.message ?? ""}`);
+    const [ret2] = await db.insert(retencoesCautelares).values({ organizationId: vizinha.id, origem: "manual", motivo: "Prova do tráfego pago" }).returning();
+    r = await admin.req("POST", `/api/admin/trafego/campanhas/${idV}/decisao`, { aprovar: true });
+    checa("com o saldo retido, aprovar é recusado (409)", r.status === 409, `HTTP ${r.status}`);
+    await db.delete(retencoesCautelares).where(eq(retencoesCautelares.id, ret2.id));
+    r = await marina.req("GET", "/api/admin/trafego");
+    checa("a lista da organização não traz a campanha da vizinha", r.status === 200 && !(r.json?.campanhas ?? []).some((c: any) => c.id === idV));
+    r = await vizinhaCli.req("GET", "/api/admin/trafego");
+    checa("…e a da vizinha só traz a dela", r.status === 200 && (r.json?.campanhas ?? []).length === 1 && r.json.campanhas[0].id === idV);
+    r = await marina.req("POST", `/api/admin/trafego/campanhas/${idV}/cancelar`);
+    checa("cancelar a da vizinha: 404", r.status === 404, `HTTP ${r.status}`);
+    await vizinhaCli.req("POST", `/api/admin/trafego/campanhas/${idV}/cancelar`);
+
+    /* ---------------- configuração parcial ---------------- */
+    r = await admin.req("PUT", "/api/admin/trafego/config", { taxaPct: 25 });
+    checa("mandar só a taxa não desliga o produto nem apaga as redes", r.status === 200 && r.json?.ligado === true && r.json?.taxaPct === 25 && r.json?.redes?.length === 2, JSON.stringify(r.json));
+
+    const auditados = await db.execute(sql`select action from audit_log where entity = 'trafego_campanha' and entity_id = ${idD}::text order by created_at`);
+    const acoes = (auditados.rows as { action: string }[]).map((x) => x.action);
+    checa("cada passo ficou na auditoria (pedido, aprovar, gastos, encerrar, fechar)", ["trafego.pedido", "trafego.aprovar", "trafego.gasto", "trafego.encerrar", "trafego.fechar"].every((a) => acoes.includes(a)), acoes.join(","));
 
     /* ---------------- desligado com campanha ---------------- */
+    // A vizinha volta a não ter campanha nenhuma: desligado, ela não vê o produto.
+    await db.delete(trafegoCampanhas).where(eq(trafegoCampanhas.organizationId, vizinha.id));
     await admin.req("PUT", "/api/admin/trafego/config", { ligado: false, taxaPct: 20, investimentoMinCents: 10_000, verbaDiaMinCents: 1_000, redes: ["google", "meta"] });
     r = await marina.req("GET", "/api/admin/trafego");
     checa("desligado, quem tem campanha continua vendo as suas", r.status === 200 && (r.json?.campanhas ?? []).length >= 1, `HTTP ${r.status}`);
@@ -370,11 +417,11 @@ async function main() {
     const doMes = (r.json?.margem ?? []).find((m: any) => m.mes === mes);
     const [minhaOrg] = await db.select({ nome: organizations.name }).from(organizations).where(eq(organizations.id, orgId));
     const daMarina = doMes?.organizacoes?.find((o: any) => o.organizacao === minhaOrg.nome);
-    checa("a margem do mês traz a taxa cobrada", Boolean(doMes) && doMes.taxaCents >= 1_000 + 2_999 + 666, `${doMes?.taxaCents}`);
-    checa("…por organização", Boolean(daMarina) && daMarina.taxaCents >= 1_000 + 2_999 + 666, `${daMarina?.taxaCents}`);
+    checa("a margem do mês traz a taxa cobrada", Boolean(doMes) && doMes.taxaCents >= 1_000 + 2_999 + 866, `${doMes?.taxaCents}`);
+    checa("…por organização", Boolean(daMarina) && daMarina.taxaCents >= 1_000 + 2_999 + 866, `${daMarina?.taxaCents}`);
     const livro = await db.execute(sql`select coalesce(sum(valor_cents),0)::int as s from patrocinio_lancamentos where organization_id = ${orgId}::uuid and created_at >= ${inicio.toISOString()}::timestamp and motivo like 'trafego%'`);
     const gastoNoLivro = -(livro.rows[0] as { s: number }).s;
-    const debitado = fimA.gastoCents + fimA.taxaCents + 3_333 + 666;
+    const debitado = fimA.gastoCents + fimA.taxaCents + 4_333 + 866;
     checa("o livro fecha: reservas − devoluções = mídia + taxa", gastoNoLivro === debitado, `${gastoNoLivro} vs ${debitado}`);
     checa("e o saldo bate com o livro", (await saldoDe(orgId)) === BASE - debitado, `${await saldoDe(orgId)}`);
   } finally {

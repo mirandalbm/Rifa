@@ -13,6 +13,7 @@ import {
   OBSERVACAO_MAX,
   REDES_DE_ANUNCIO,
   SITUACOES_DA_CAMPANHA,
+  SITUACOES_EM_ABERTO,
   reservaDoPedido,
   type ConfigTrafegoPago,
   type RedeDeAnuncio,
@@ -81,6 +82,7 @@ const CHAVE = ["/api/admin/trafego"];
 const TOM: Record<SituacaoDaCampanha, string> = {
   em_analise: "pending",
   ativa: "paid",
+  encerrando: "pending",
   encerrada: "closed",
   recusada: "expired",
   cancelada: "closed",
@@ -220,7 +222,7 @@ function NovaCampanha({ painel }: { painel: Painel }) {
   const qc = useQueryClient();
   const { config, saldoCents } = painel;
   const { data: campanhas = [] } = useQuery<Rifa[]>({ queryKey: ["/api/admin/campaigns"] });
-  const abertas = new Set(painel.campanhas.filter((c) => c.status === "em_analise" || c.status === "ativa").map((c) => c.campaignId));
+  const abertas = new Set(painel.campanhas.filter((c) => SITUACOES_EM_ABERTO.includes(c.status)).map((c) => c.campaignId));
   const rifas = campanhas.filter(
     (c) => c.campaign.status === "published" && !c.campaign.travadaEm && !c.campaign.demonstracao && !abertas.has(c.campaign.id),
   );
@@ -376,8 +378,9 @@ function NovaCampanha({ painel }: { painel: Painel }) {
           ) : null}
         </p>
         <p className="text-xs text-muted">
-          Recusado ou cancelado antes de ir ao ar, tudo volta ao saldo. Encerrada a campanha (por você, pelo fim da verba ou porque a rifa
-          saiu do ar), o que não foi gasto volta como crédito.
+          Recusado ou cancelado antes de ir ao ar, tudo volta ao saldo. Encerrada a campanha (por você ou porque a rifa saiu do ar), a
+          plataforma lança os últimos dias que a rede cobrou e fecha a conta; aí o que não foi gasto volta como crédito. Acabou a verba, a
+          sobra volta na hora.
         </p>
 
         <Aviso msg={msg} />
@@ -433,7 +436,7 @@ function ConfigDoTrafego({ config: c }: { config: ConfigTrafegoPago }) {
           <span>
             <span className="font-semibold">Oferecer tráfego pago às organizações</span>
             <span className="block text-xs text-muted">
-              Desligado, elas só veem como vai funcionar e não pedem campanha nova. As que estão no ar seguem até você encerrar.
+              Desligado, elas só veem como vai funcionar e não pedem campanha nova. As que estão no ar seguem até alguém encerrar.
             </span>
           </span>
         </label>
@@ -548,11 +551,13 @@ function Campanhas({ painel, plataforma }: { painel: Painel; plataforma: boolean
   const { campanhas } = painel;
   const fila = campanhas.filter((c) => c.status === "em_analise");
   const ativas = campanhas.filter((c) => c.status === "ativa");
-  const outras = campanhas.filter((c) => c.status !== "em_analise" && c.status !== "ativa");
+  const fechando = campanhas.filter((c) => c.status === "encerrando");
+  const outras = campanhas.filter((c) => !SITUACOES_EM_ABERTO.includes(c.status));
   const grupos = plataforma
     ? [
         { titulo: "Esperando aprovação", lista: fila },
         { titulo: "No ar", lista: ativas },
+        { titulo: "Fechando a conta", lista: fechando },
         { titulo: "Encerradas", lista: outras },
       ]
     : [{ titulo: "Minhas campanhas", lista: campanhas }];
@@ -594,6 +599,11 @@ function CartaoDaCampanha({ c, plataforma }: { c: CampanhaDeTrafego; plataforma:
   });
   const encerrar = useMutation({
     mutationFn: () => apiRequest("POST", `/api/admin/trafego/campanhas/${c.id}/encerrar`),
+    onSuccess: recarregar,
+    onError: falhou,
+  });
+  const fechar = useMutation({
+    mutationFn: () => apiRequest("POST", `/api/admin/trafego/campanhas/${c.id}/fechar`),
     onSuccess: recarregar,
     onError: falhou,
   });
@@ -655,7 +665,13 @@ function CartaoDaCampanha({ c, plataforma }: { c: CampanhaDeTrafego; plataforma:
         </div>
       </dl>
 
-      {c.status === "ativa" ? (
+      {c.status === "encerrando" ? (
+        <p className="text-xs text-ink-2">
+          Parada em <span className="tnum">{data(c.encerradoEm)}</span>. A plataforma lança os últimos dias que a rede cobrou e fecha a
+          conta; aí o que não foi gasto volta ao saldo.
+        </p>
+      ) : null}
+      {c.status === "ativa" || c.status === "encerrando" ? (
         <p className="text-xs text-muted">
           Reservado: <Money cents={c.reservaCents} /> · ainda pode ser debitado <Money cents={c.reservaCents - total} />.
         </p>
@@ -696,13 +712,29 @@ function CartaoDaCampanha({ c, plataforma }: { c: CampanhaDeTrafego; plataforma:
             disabled={encerrar.isPending}
             onClick={() => {
               setErro(null);
-              if (window.confirm("Encerrar a campanha? O que não foi gasto volta ao saldo da organização.")) encerrar.mutate();
+              if (
+                window.confirm(
+                  "Encerrar a campanha? Ela para agora; a plataforma lança os últimos dias que a rede cobrou e o que não foi gasto volta ao saldo.",
+                )
+              )
+                encerrar.mutate();
             }}
           >
             Encerrar campanha
           </Button>
         ) : null}
-        {c.gastoCents > 0 || c.status === "ativa" ? (
+        {plataforma && c.status === "encerrando" ? (
+          <Button
+            disabled={fechar.isPending}
+            onClick={() => {
+              setErro(null);
+              if (window.confirm("Fechar a conta? Confira antes que todos os dias até a parada foram lançados: depois disso, nenhum gasto entra.")) fechar.mutate();
+            }}
+          >
+            Fechar a conta
+          </Button>
+        ) : null}
+        {c.gastoCents > 0 || c.status === "ativa" || c.status === "encerrando" ? (
           <Button variant="ghost" aria-expanded={verGastos} onClick={() => setVerGastos((v) => !v)}>
             {verGastos ? "Esconder gastos por dia" : "Gastos por dia"}
           </Button>
@@ -712,7 +744,7 @@ function CartaoDaCampanha({ c, plataforma }: { c: CampanhaDeTrafego; plataforma:
       {c.status === "em_analise" && plataforma ? (
         <Decisao rifa={c.rifa} ocupado={decidir.isPending} onDecidir={(aprovar, motivo) => decidir.mutate({ aprovar, motivo })} />
       ) : null}
-      {plataforma && c.status === "ativa" ? <LancarGasto c={c} aoLancar={recarregar} /> : null}
+      {plataforma && (c.status === "ativa" || c.status === "encerrando") ? <LancarGasto c={c} aoLancar={recarregar} /> : null}
       {verGastos ? <GastosDaCampanha id={c.id} plataforma={plataforma} /> : null}
     </li>
   );
@@ -748,7 +780,12 @@ function LinksDosAnuncios({ links }: { links: Partial<Record<RedeDeAnuncio, stri
 }
 
 function LancarGasto({ c, aoLancar }: { c: CampanhaDeTrafego; aoLancar: () => void }) {
-  const [dia, setDia] = useState(hojeEmSaoPaulo());
+  // Fechando a conta, só os dias até a parada.
+  const ultimoDia =
+    c.status === "encerrando" && c.encerradoEm
+      ? new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date(c.encerradoEm))
+      : hojeEmSaoPaulo();
+  const [dia, setDia] = useState(ultimoDia);
   const [rede, setRede] = useState<RedeDeAnuncio>(c.redes[0]);
   const [valor, setValor] = useState("");
   const [msg, setMsg] = useState<{ ok: boolean; texto: string } | null>(null);
@@ -777,7 +814,7 @@ function LancarGasto({ c, aoLancar }: { c: CampanhaDeTrafego; aoLancar: () => vo
       <p className="text-xs font-semibold">Lançar o gasto de um dia (do painel da rede)</p>
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
         <Campo rotulo="Dia">
-          <input type="date" value={dia} max={hojeEmSaoPaulo()} onChange={(e) => setDia(e.target.value)} />
+          <input type="date" value={dia} max={ultimoDia} onChange={(e) => setDia(e.target.value)} />
         </Campo>
         <Campo rotulo="Rede">
           <select value={rede} onChange={(e) => setRede(e.target.value as RedeDeAnuncio)}>

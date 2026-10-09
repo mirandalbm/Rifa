@@ -2307,7 +2307,7 @@ export const trafegoCampanhas = pgTable(
   (t) => [
     uniqueIndex("uq_trafego_aberto_por_rifa")
       .on(t.campaignId)
-      .where(sql`${t.status} in ('em_analise','ativa')`),
+      .where(sql`${t.status} in ('em_analise','ativa','encerrando')`),
     index("ix_trafego_campanhas_status").on(t.status, t.createdAt),
     index("ix_trafego_campanhas_org").on(t.organizationId, t.createdAt),
   ],

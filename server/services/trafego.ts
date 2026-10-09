@@ -7,25 +7,35 @@
  * saldo nunca fica negativo):
  * - o **pedido** reserva no saldo a verba de mídia mais a taxa de gestão, na
  *   mesma transação que grava a campanha (`trafego:<id>`): sem saldo, nada
- *   fica. Saldo retido cautelarmente não paga campanha nova (a mídia sairia
- *   da conta da plataforma para a rede);
- * - **recusa** e **cancelamento** (só em análise) devolvem a reserva inteira
- *   (`trafego-devolucao:<id>`);
+ *   fica. Saldo retido cautelarmente não paga campanha nova nem a aprovação
+ *   (a mídia sairia da conta da plataforma para a rede);
+ * - **recusa** e **cancelamento** (só em análise, nada foi gasto) devolvem a
+ *   reserva inteira (`trafego-devolucao:<id>`);
  * - cada **gasto lançado** consome a reserva (mídia + taxa do próprio gasto,
  *   para baixo) sem mexer no saldo, num `UPDATE` condicional que nunca passa
  *   da verba; um lançamento por campanha, dia e rede (o índice decide);
- * - no **fim** (verba gasta, encerrada por uma das partes, rifa ou promotora
- *   fora do ar) a sobra volta ao saldo (`trafego-sobra:<id>`).
+ * - **encerrar** (a organização, a plataforma ou o relógio, quando a rifa sai
+ *   do ar) só para a campanha: ela fica "fechando a conta" e **ainda recebe o
+ *   gasto dos dias até o encerramento** — a rede cobra a plataforma pelo dia
+ *   em que a campanha ainda rodou, e o lançamento chega depois. A sobra
+ *   (`trafego-sobra:<id>`) só volta quando a plataforma **fecha a conta**, ou
+ *   quando a verba acaba.
+ *
+ * Ordem das travas, sempre: a linha da organização, depois a campanha (a
+ * mesma de quem retém e de quem paga). Pedir trava a organização antes de
+ * gravar; fechar, decidir e lançar também — na ordem inversa, pedir uma
+ * campanha nova enquanto a anterior da mesma rifa fecha era deadlock.
  *
  * Uma rifa tem no máximo uma campanha em aberto — o índice parcial decide
  * (nunca um SELECT antes), e a violação derruba a transação inteira, reserva
  * junto. Recorte: a organização vê e mexe só nas dela (a do vizinho é 404);
- * decidir, lançar gasto e configurar são da plataforma (a rota barra com 403).
+ * decidir, lançar gasto, fechar a conta e configurar são da plataforma (403).
+ * A auditoria vai na mesma transação do que ela registra.
  */
 import type { Request } from "express";
 import { and, desc, eq, sql } from "drizzle-orm";
 import { db } from "../db";
-import { campaigns, organizations, trafegoCampanhas, trafegoGastos, users } from "@shared/schema";
+import { auditLog, campaigns, organizations, trafegoCampanhas, trafegoGastos, users } from "@shared/schema";
 import {
   SITUACOES_EM_ABERTO,
   codigoDaCampanha,
@@ -95,9 +105,9 @@ async function configLigada(): Promise<ConfigTrafegoPago> {
   return cfg;
 }
 
-/** A campanha no recorte de quem pede: a do vizinho é 404, nunca 403. */
 const idValido = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
 
+/** A campanha no recorte de quem pede: a do vizinho é 404, nunca 403. */
 async function campanhaNoRecorte(req: Request, id: string): Promise<Campanha> {
   if (!idValido(id)) throw new TrafegoError("Campanha não encontrada.", 404);
   const [c] = await db.select(campos).from(trafegoCampanhas).where(eq(trafegoCampanhas.id, id));
@@ -106,18 +116,46 @@ async function campanhaNoRecorte(req: Request, id: string): Promise<Campanha> {
   return c;
 }
 
-/** A régua da vitrine: rifa publicada, não travada, promotora nem arquivada nem banida. */
+/**
+ * Trava a organização e depois a campanha, nesta ordem (a de quem retém e de
+ * quem paga). O dono da campanha nunca muda, então lê-lo antes é seguro; a
+ * conferência repete-se com as duas linhas travadas.
+ */
+async function travar(tx: Tx, id: string): Promise<Campanha> {
+  const [dono] = await tx.select({ org: trafegoCampanhas.organizationId }).from(trafegoCampanhas).where(eq(trafegoCampanhas.id, id));
+  if (!dono) throw new TrafegoError("Campanha não encontrada.", 404);
+  await tx.execute(sql`select 1 from organizations where id = ${dono.org}::uuid for update`);
+  const [c] = await tx.select(campos).from(trafegoCampanhas).where(eq(trafegoCampanhas.id, id)).for("update");
+  if (!c || c.organizationId !== dono.org) throw new TrafegoError("Campanha não encontrada.", 404);
+  return c;
+}
+
+/** A régua da vitrine: rifa publicada, não travada, não demonstração, promotora nem arquivada nem banida. */
 async function rifaSegueNoAr(tx: Tx, campaignId: string): Promise<boolean> {
   const r = await tx.execute(sql`
     select 1 from campaigns c join organizations o on o.id = c.organization_id
      where c.id = ${campaignId}::uuid and c.status = 'published' and c.travada_em is null
-       and o.archived_at is null and o.banida_em is null`);
+       and not c.demonstracao and o.archived_at is null and o.banida_em is null`);
   return r.rows.length > 0;
+}
+
+/** A auditoria entra na transação do que registra: sem ela, nada muda. */
+async function auditar(tx: Tx, req: Request | null, action: string, id: string, diff: Record<string, unknown>) {
+  await tx.insert(auditLog).values({
+    actorId: req?.user?.id ?? null,
+    actorRole: (req?.user?.role ?? null) as never,
+    action,
+    entity: "trafego_campanha",
+    entityId: id,
+    diff: diff as never,
+    ip: req?.ip ?? null,
+  });
 }
 
 /**
  * Fecha a campanha (já travada por quem chama) e devolve ao saldo o que
- * sobrou da reserva, uma vez só (a chave do livro decide).
+ * sobrou da reserva, uma vez só (a chave do livro decide). A data do
+ * encerramento que já existia (a parada) fica: é ela que limita os gastos.
  */
 async function fecharNaTransacao(
   tx: Tx,
@@ -126,12 +164,11 @@ async function fecharNaTransacao(
   extra: { motivo?: string | null; decididoPor?: string | null },
   descricao: string,
 ) {
-  const agora = new Date();
   const [feito] = await tx
     .update(trafegoCampanhas)
     .set({
       status,
-      encerradoEm: agora,
+      encerradoEm: sql`coalesce(${trafegoCampanhas.encerradoEm}, now())`,
       ...(extra.motivo !== undefined ? { motivo: extra.motivo } : {}),
       ...(extra.decididoPor !== undefined ? { decididoPor: extra.decididoPor } : {}),
     })
@@ -151,6 +188,17 @@ async function fecharNaTransacao(
     await tx.update(trafegoCampanhas).set({ devolvidoCents: sobra }).where(eq(trafegoCampanhas.id, c.id));
     feito.devolvidoCents = sobra;
   }
+  return feito;
+}
+
+/** Para a campanha no ar: ela passa a "fechando a conta", sem devolver nada ainda. */
+async function pararNaTransacao(tx: Tx, c: Campanha, decididoPor: string | null | undefined) {
+  const [feito] = await tx
+    .update(trafegoCampanhas)
+    .set({ status: "encerrando", encerradoEm: new Date(), ...(decididoPor !== undefined ? { decididoPor } : {}) })
+    .where(and(eq(trafegoCampanhas.id, c.id), eq(trafegoCampanhas.status, "ativa")))
+    .returning(campos);
+  if (!feito) throw new TrafegoError("Esta campanha mudou de situação. Atualize a tela.", 409);
   return feito;
 }
 
@@ -203,6 +251,13 @@ export async function pedirCampanha(req: Request, entrada: Record<string, unknow
         descricao: `Tráfego pago (reserva): ${rifa.prizeTitle}`,
         userId: req.user!.id,
       });
+      await auditar(tx, req, "trafego.pedido", nova.id, {
+        campaignId: nova.campaignId,
+        redes: nova.redes,
+        investimentoCents: nova.investimentoCents,
+        taxaPct: nova.taxaPct,
+        reservaCents: nova.reservaCents,
+      });
       return nova;
     });
   } catch (e) {
@@ -213,46 +268,38 @@ export async function pedirCampanha(req: Request, entrada: Record<string, unknow
   }
 }
 
-/** A organização desiste enquanto a campanha está em análise: a reserva volta inteira. */
 export async function cancelarCampanha(req: Request, id: string) {
   const c = await campanhaNoRecorte(req, id);
   if (!orgOf(req)) throw new TrafegoError("Quem cancela o pedido é a organização. A plataforma recusa.", 403);
   return db.transaction(async (tx) => {
-    const [atual] = await tx.select(campos).from(trafegoCampanhas).where(eq(trafegoCampanhas.id, c.id)).for("update");
-    if (!atual || atual.status !== "em_analise") throw new TrafegoError("Só dá para cancelar enquanto está em análise.", 409);
-    return fecharNaTransacao(tx, atual, "cancelada", {}, "Campanha cancelada: a reserva voltou ao saldo");
+    const atual = await travar(tx, c.id);
+    if (atual.status !== "em_analise") throw new TrafegoError("Só dá para cancelar enquanto está em análise.", 409);
+    const feito = await fecharNaTransacao(tx, atual, "cancelada", {}, "Campanha cancelada: a reserva voltou ao saldo");
+    await auditar(tx, req, "trafego.cancelar", feito.id, { devolvidoCents: feito.devolvidoCents });
+    return feito;
   });
 }
 
 /**
- * Encerra a campanha no ar (a organização ou a plataforma): para de gastar e
- * a sobra da reserva volta. A plataforma precisa pausar a campanha na rede —
- * a tela diz isso a ela.
+ * Encerrar a campanha no ar (a organização ou a plataforma): ela para e fica
+ * "fechando a conta" até a plataforma lançar os últimos dias e fechar. A
+ * sobra não volta aqui — o dia em que a campanha ainda rodou a rede cobra.
  */
 export async function encerrarCampanha(req: Request, id: string) {
   const c = await campanhaNoRecorte(req, id);
   return db.transaction(async (tx) => {
-    const [atual] = await tx.select(campos).from(trafegoCampanhas).where(eq(trafegoCampanhas.id, c.id)).for("update");
-    if (!atual || atual.status !== "ativa") throw new TrafegoError("Só dá para encerrar a campanha no ar.", 409);
-    return fecharNaTransacao(
-      tx,
-      atual,
-      "encerrada",
-      { decididoPor: orgOf(req) ? undefined : req.user!.id },
-      "Campanha encerrada: o que não foi gasto voltou ao saldo",
-    );
+    const atual = await travar(tx, c.id);
+    if (atual.status !== "ativa") throw new TrafegoError("Só dá para encerrar a campanha no ar.", 409);
+    const feito = await pararNaTransacao(tx, atual, orgOf(req) ? undefined : req.user!.id);
+    await auditar(tx, req, "trafego.encerrar", feito.id, { gastoCents: feito.gastoCents, taxaCents: feito.taxaCents });
+    return feito;
   });
 }
 
 /* ------------------------------------------------------------------ *
- * Plataforma: decidir e lançar o gasto
+ * Plataforma: decidir, lançar gasto, fechar a conta
  * ------------------------------------------------------------------ */
 
-/**
- * Aprova (a plataforma vai montar a campanha) ou recusa (a reserva volta).
- * O pedido é travado e o `UPDATE` é condicional (`em_analise`): dois cliques,
- * uma decisão e um 409.
- */
 export async function decidirCampanha(req: Request, id: string, entrada: { aprovar?: unknown; motivo?: unknown }) {
   if (orgOf(req)) throw new TrafegoError("Decidir é da plataforma.", 403);
   const aprovar = entrada.aprovar === true;
@@ -262,20 +309,23 @@ export async function decidirCampanha(req: Request, id: string, entrada: { aprov
   }
   if (!idValido(id)) throw new TrafegoError("Campanha não encontrada.", 404);
   return db.transaction(async (tx) => {
-    const [atual] = await tx.select(campos).from(trafegoCampanhas).where(eq(trafegoCampanhas.id, id)).for("update");
-    if (!atual) throw new TrafegoError("Campanha não encontrada.", 404);
+    const atual = await travar(tx, id);
     if (atual.status !== "em_analise") throw new TrafegoError("Esta campanha já foi decidida.", 409);
-    if (aprovar && !(await rifaSegueNoAr(tx, atual.campaignId))) {
-      throw new TrafegoError("A rifa saiu do ar (ou a promotora foi suspensa): recuse o pedido para devolver a reserva.", 409);
-    }
     if (!aprovar) {
-      return fecharNaTransacao(
+      const feito = await fecharNaTransacao(
         tx,
         atual,
         "recusada",
         { motivo: String(entrada.motivo).trim(), decididoPor: req.user!.id },
         "Campanha recusada: a reserva voltou ao saldo",
       );
+      await auditar(tx, req, "trafego.recusar", feito.id, { organizacao: feito.organizationId, motivo: feito.motivo, devolvidoCents: feito.devolvidoCents });
+      return feito;
+    }
+    // Saldo retido não vira mídia: a organização já está travada pela leitura acima.
+    await exigirSemRetencao(tx, atual.organizationId);
+    if (!(await rifaSegueNoAr(tx, atual.campaignId))) {
+      throw new TrafegoError("A rifa saiu do ar (ou a promotora foi suspensa): recuse o pedido para devolver a reserva.", 409);
     }
     const [feito] = await tx
       .update(trafegoCampanhas)
@@ -283,31 +333,29 @@ export async function decidirCampanha(req: Request, id: string, entrada: { aprov
       .where(and(eq(trafegoCampanhas.id, id), eq(trafegoCampanhas.status, "em_analise")))
       .returning(campos);
     if (!feito) throw new TrafegoError("Esta campanha já foi decidida.", 409);
+    await auditar(tx, req, "trafego.aprovar", feito.id, { organizacao: feito.organizationId });
     return feito;
   });
 }
 
 /**
- * O gasto de um dia numa rede, copiado do painel da rede. Consome a reserva
- * (mídia + taxa do gasto, para baixo) num `UPDATE` condicional que nunca
- * passa da verba; o mesmo dia e rede duas vezes é 409 (o índice decide).
- * Gastou a verba inteira: a campanha encerra e a sobra (o arredondamento da
- * taxa) volta ao saldo, na mesma transação.
+ * O gasto de um dia numa rede, copiado do painel da rede. Vale para a
+ * campanha no ar e para a que está fechando a conta (só os dias até o
+ * encerramento). Gastou a verba inteira, a campanha encerra aqui mesmo.
  */
 export async function lancarGasto(req: Request, id: string, entrada: unknown) {
   if (orgOf(req)) throw new TrafegoError("Lançar o gasto é da plataforma.", 403);
   if (!idValido(id)) throw new TrafegoError("Campanha não encontrada.", 404);
   try {
     return await db.transaction(async (tx) => {
-      const [c] = await tx.select(campos).from(trafegoCampanhas).where(eq(trafegoCampanhas.id, id)).for("update");
-      if (!c) throw new TrafegoError("Campanha não encontrada.", 404);
-      if (c.status !== "ativa") throw new TrafegoError("Só a campanha no ar recebe gasto.", 409);
+      const c = await travar(tx, id);
+      if (c.status !== "ativa" && c.status !== "encerrando") throw new TrafegoError("Só a campanha no ar (ou fechando a conta) recebe gasto.", 409);
       let g: ReturnType<typeof validarGasto>;
       try {
         g = validarGasto(
           entrada,
           { redes: c.redes, investimentoCents: c.investimentoCents, gastoCents: c.gastoCents, diaDaAprovacao: c.aprovadoEm ? diaNoFuso(c.aprovadoEm) : null },
-          diaNoFuso(new Date()),
+          c.status === "encerrando" && c.encerradoEm ? diaNoFuso(c.encerradoEm) : diaNoFuso(new Date()),
         );
       } catch (e) {
         throw aviso(e);
@@ -334,7 +382,7 @@ export async function lancarGasto(req: Request, id: string, entrada: unknown) {
         .where(
           and(
             eq(trafegoCampanhas.id, c.id),
-            eq(trafegoCampanhas.status, "ativa"),
+            eq(trafegoCampanhas.status, c.status),
             sql`${trafegoCampanhas.gastoCents} + ${g.gastoCents} <= ${trafegoCampanhas.investimentoCents}`,
           ),
         )
@@ -344,6 +392,13 @@ export async function lancarGasto(req: Request, id: string, entrada: unknown) {
       if (somada.gastoCents >= somada.investimentoCents) {
         campanha = await fecharNaTransacao(tx, somada, "encerrada", {}, "Campanha concluída: a sobra da reserva voltou ao saldo");
       }
+      await auditar(tx, req, "trafego.gasto", c.id, {
+        dia: lancado.dia,
+        rede: lancado.rede,
+        gastoCents: lancado.gastoCents,
+        taxaCents: lancado.taxaCents,
+        encerrada: campanha.status === "encerrada",
+      });
       return { gasto: lancado, campanha };
     });
   } catch (e) {
@@ -354,15 +409,29 @@ export async function lancarGasto(req: Request, id: string, entrada: unknown) {
   }
 }
 
+/** Fechar a conta da campanha encerrada: lançados os últimos dias, a sobra volta ao saldo. */
+export async function fecharConta(req: Request, id: string) {
+  if (orgOf(req)) throw new TrafegoError("Fechar a conta é da plataforma.", 403);
+  if (!idValido(id)) throw new TrafegoError("Campanha não encontrada.", 404);
+  return db.transaction(async (tx) => {
+    const atual = await travar(tx, id);
+    if (atual.status !== "encerrando") throw new TrafegoError("Só a campanha encerrada, esperando a conta, pode ser fechada.", 409);
+    const feito = await fecharNaTransacao(tx, atual, "encerrada", { decididoPor: req.user!.id }, "Campanha encerrada: o que não foi gasto voltou ao saldo");
+    await auditar(tx, req, "trafego.fechar", feito.id, { gastoCents: feito.gastoCents, taxaCents: feito.taxaCents, devolvidoCents: feito.devolvidoCents });
+    return feito;
+  });
+}
+
 /* ------------------------------------------------------------------ *
  * Relógio
  * ------------------------------------------------------------------ */
 
 /**
- * Rifa que saiu do ar (ou foi travada) e promotora arquivada ou banida levam
- * a campanha junto: em análise, a reserva volta inteira; no ar, a sobra.
- * Cada uma é tomada com a linha travada e o `UPDATE` condicional: duas
- * réplicas, uma devolução.
+ * A rifa saiu do ar (ou virou demonstração, foi travada, a promotora foi
+ * arquivada ou banida): a campanha em análise é cancelada com a reserva de
+ * volta; a no ar para e fica fechando a conta (a plataforma lança os últimos
+ * dias e fecha). Confere a rifa de novo com a campanha travada: a que voltou
+ * ao ar no meio fica como está.
  */
 export async function encerrarTrafegoForaDoAr(): Promise<number> {
   const perdidos = await db.execute(sql`
@@ -370,21 +439,21 @@ export async function encerrarTrafegoForaDoAr(): Promise<number> {
       join campaigns c on c.id = t.campaign_id
       join organizations o on o.id = t.organization_id
      where t.status in ('em_analise','ativa')
-       and (c.status <> 'published' or c.travada_em is not null or o.archived_at is not null or o.banida_em is not null)`);
+       and (c.status <> 'published' or c.travada_em is not null or c.demonstracao
+            or o.archived_at is not null or o.banida_em is not null)`);
   let n = 0;
   for (const { id } of perdidos.rows as { id: string }[]) {
     await db.transaction(async (tx) => {
-      const [c] = await tx.select(campos).from(trafegoCampanhas).where(eq(trafegoCampanhas.id, id)).for("update");
-      if (!c || !SITUACOES_EM_ABERTO.includes(c.status as never)) return;
-      await fecharNaTransacao(
-        tx,
-        c,
-        c.status === "em_analise" ? "cancelada" : "encerrada",
-        {},
-        c.status === "em_analise"
-          ? "Campanha não iniciada: a rifa saiu do ar e a reserva voltou ao saldo"
-          : "Campanha encerrada: a rifa saiu do ar e o que não foi gasto voltou ao saldo",
-      );
+      const c = await travar(tx, id);
+      if (c.status !== "em_analise" && c.status !== "ativa") return;
+      if (await rifaSegueNoAr(tx, c.campaignId)) return;
+      if (c.status === "em_analise") {
+        const feito = await fecharNaTransacao(tx, c, "cancelada", {}, "Campanha não iniciada: a rifa saiu do ar e a reserva voltou ao saldo");
+        await auditar(tx, null, "trafego.cancelar.fora_do_ar", feito.id, { devolvidoCents: feito.devolvidoCents });
+      } else {
+        await pararNaTransacao(tx, c, undefined);
+        await auditar(tx, null, "trafego.encerrar.fora_do_ar", c.id, { gastoCents: c.gastoCents });
+      }
       n++;
     });
   }
@@ -398,8 +467,8 @@ export async function encerrarTrafegoForaDoAr(): Promise<number> {
 /**
  * O painel: a organização vê as campanhas e o saldo dela; a plataforma vê
  * todas (com o nome da organização), os links para pôr nos anúncios e a
- * margem por mês. Desligado, a organização recebe 404 (o produto não existe
- * para ela); a plataforma vê para poder ligar.
+ * margem por mês. Desligado, a organização sem campanha recebe 404 (o
+ * produto não existe para ela); a plataforma vê para poder ligar.
  *
  * A venda atribuída é a paga na rifa com a UTM da campanha (`trafego-<código>`):
  * estatística, e a tela diz isso.

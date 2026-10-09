@@ -657,7 +657,8 @@ Na ordem de entrega do plano:
   Publicidade em abas, Medição e campanhas) para a plataforma e o organizador.
   **Feito também (fase 1)**: o pedido com o saldo de publicidade (reserva de
   mídia + taxa), a fila do master (e na Caixa de entrada), o lançamento do
-  gasto do dia com a taxa, o encerramento com a sobra de volta, a rifa fora
+  gasto do dia com a taxa, o encerramento (a campanha para, a plataforma
+  lança os últimos dias e fecha a conta, e a sobra volta), a rifa fora
   do ar levando a campanha, a venda atribuída pela UTM e a margem por mês.
   A taxa e os mínimos ficam a critério da plataforma (decidido em
   09/10/2026), em Marketing → Tráfego pago, que **nasce desligado**.

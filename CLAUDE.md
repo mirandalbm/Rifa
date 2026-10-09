@@ -4540,15 +4540,30 @@ o gasto do dia é lançado à mão pela plataforma.
   (`exigirSemRetencao()`, com a linha da organização travada antes de tudo).
   A observação para quem monta passa pela régua do comentário (sem link e
   sem telefone).
-- **Uma campanha aberta por rifa** (em análise ou no ar): quem decide é o
+- **Uma campanha aberta por rifa** (em análise, no ar ou fechando a conta): quem decide é o
   índice parcial `uq_trafego_aberto_por_rifa`, nunca um `SELECT` antes — dois
   pedidos ao mesmo tempo, um 201 e um 409, e o perdedor não debita nada.
 - **Só a plataforma decide e lança o gasto** (403 para organizador).
   Decidir é `UPDATE` condicional (`em_analise`, linha travada): dois cliques,
   uma decisão e um 409. Recusa exige motivo (a organização o lê) e devolve a
-  reserva inteira; **aprovar confere de novo a rifa no ar** (409 — recuse para
-  devolver). A organização cancela só em análise; no ar, encerra (as duas
-  partes podem).
+  reserva inteira; **aprovar confere de novo a rifa no ar e a retenção
+  cautelar** (409 — recuse para devolver). A organização cancela só em
+  análise; no ar, encerra (as duas partes podem).
+- **Encerrar só para; quem fecha a conta é a plataforma.** A rede cobra a
+  plataforma pelo dia em que a campanha ainda rodou, e o lançamento chega
+  depois: encerrar (a organização, a plataforma ou o relógio) leva a campanha
+  a `encerrando` ("Fechando a conta") **sem devolver nada**, ela ainda recebe
+  o gasto dos dias até a parada (`encerrado_em`, nunca depois), e só **fechar
+  a conta** (`POST …/fechar`, só a plataforma, 403 no `npm run isolation`)
+  devolve a sobra. Devolver ao encerrar deixava o último dia sem cobrança — a
+  organização gastava em patrocínio o que a plataforma já tinha pago à rede.
+  Fechando a conta, a rifa ainda não aceita outra campanha, e o item vai à
+  Caixa de entrada.
+- **Ordem das travas: a organização, depois a campanha** (`travar()`, a de
+  quem retém e de quem paga) em pedir, cancelar, encerrar, decidir, lançar,
+  fechar e no relógio. Na ordem inversa, pedir campanha nova enquanto a
+  anterior da mesma rifa fechava era deadlock (o `INSERT` esperava a linha
+  antiga no índice parcial).
 - **O gasto do dia nunca passa da verba e a taxa nunca passa da reserva.**
   Um lançamento por campanha, dia (de São Paulo, nunca no futuro nem antes da
   aprovação) e rede (`uq_trafego_gasto_do_dia`, 409), só rede da campanha,
@@ -4558,13 +4573,14 @@ o gasto do dia é lançado à mão pela plataforma.
   gasto consome a reserva; o saldo não se mexe. Gastou a verba inteira, a
   campanha **encerra na mesma transação**.
 - **O que sobra volta uma vez** (`fecharNaTransacao()`): recusa e
-  cancelamento devolvem por `trafego-devolucao:<id>`, o encerramento por
-  `trafego-sobra:<id>` (reserva − gasto − taxa, `sobraDaCampanha()`); a chave
+  cancelamento devolvem por `trafego-devolucao:<id>`, o fechamento da conta
+  (ou a verba que acabou) por `trafego-sobra:<id>` (reserva − gasto − taxa, `sobraDaCampanha()`); a chave
   do livro decide, e o `UPDATE` da situação é condicional à situação lida.
 - **A rifa que sai do ar leva a campanha** (`encerrarTrafegoForaDoAr()`,
-  relógio com a trava 811406): rifa fora de `published`, travada, ou
-  promotora arquivada ou banida — a em análise é cancelada e a no ar é
-  encerrada, com a sobra de volta. Rifa com campanha de tráfego não se apaga
+  relógio com a trava 811406): rifa fora de `published`, travada, marcada
+  como teste, ou promotora arquivada ou banida — a em análise é cancelada (a
+  reserva volta) e a no ar para e fica fechando a conta. O relógio confere a
+  rifa de novo com a campanha travada: a que voltou ao ar no meio fica. Rifa com campanha de tráfego não se apaga
   (422, `excluirRifa()`).
 - **A venda atribuída é estatística**, nunca decide dinheiro: pedido **pago**
   da mesma rifa com `orders.utm.campaign = trafego-<os 8 primeiros do id>`
@@ -4578,8 +4594,12 @@ o gasto do dia é lançado à mão pela plataforma.
   vê a fila (também na Caixa de entrada, tipo `trafego`), os links e a
   **margem por mês e por organização** (os últimos 12 meses, de
   `trafego_gastos`).
-- **Auditoria** em cada passo (`trafego.pedido`, `.cancelar`, `.encerrar`,
-  `.aprovar`, `.recusar`, `.gasto`, `.config`).
+- **Auditoria na mesma transação** de cada passo (`trafego.pedido`,
+  `.cancelar`, `.encerrar`, `.aprovar`, `.recusar`, `.gasto`, `.fechar`, e os
+  do relógio com o ator `sistema`); a configuração vai como as outras.
+- **A configuração parte da atual** (`PUT /admin/trafego/config` junta o
+  corpo com o que está gravado): mandar só a taxa não desliga o produto nem
+  apaga as redes.
 - As tabelas `trafego_campanhas` e `trafego_gastos` sobem com o `db:push`
   **antes** do código. `npm run trafego` prova tudo isso contra a API de
   verdade e `tests/trafego.test.ts` as regras.

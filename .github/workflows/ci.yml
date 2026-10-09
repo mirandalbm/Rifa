@@ -70,6 +70,10 @@ jobs:
       CLOUDFLARE_ACCOUNT_ID: ci
       CLOUDFLARE_STREAM_TOKEN: ci-token-do-stream
       CLOUDFLARE_API_URL: http://127.0.0.1:5098/client/v4
+      # Só para a fase 2 do tráfego pago (`npm run trafego`): a chave de teste e o Windsor.ai de
+      # mentira que a própria prova sobe nesta porta (o servidor só troca o endereço fora de produção).
+      WINDSOR_API_KEY: ci-chave-do-windsor-1234
+      WINDSOR_API_URL: http://127.0.0.1:5097
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

@@ -130,7 +130,7 @@ arquitetura.
 | marketing e tráfego pago (etapa 16): pixels, aviso de cookies, UTM, compra pelo servidor | `shared/marketing.ts` (regras e corpos das APIs), `server/services/marketing.ts`, `client/src/lib/marketing.ts`, `client/src/components/Marketing.tsx`, `client/src/pages/adminMarketing.tsx`, `scripts/marketing-test.ts` |
 | plano da próxima fase (vitrine, contas, afiliados, marketing) | `docs/PLANO-FASE5.md` |
 | ferramentas de imagem e vídeo para divulgar a rifa (Canva, Adobe, as nossas, IA): panorama e fases | `docs/PLANO-FERRAMENTAS.md` |
-| tráfego pago como serviço da plataforma (modelo A, fase 1: pedido com o saldo, fila do master, gasto do dia + taxa, margem, venda atribuída) | `shared/trafego.ts` (regras), `server/services/trafego.ts`, `/trafego*` em `server/routes/admin.ts`, `trafegoPago` em `shared/plataforma.ts`, `trafego_campanhas`/`trafego_gastos` em `shared/schema.ts`, relógio em `server/jobs/index.ts` (trava 811406), tipo `trafego` em `shared/caixa.ts`, `client/src/pages/adminTrafego.tsx`, `docs/PLANO-TRAFEGO-PAGO.md`, `scripts/trafego-test.ts`, `tests/trafego.test.ts` |
+| tráfego pago como serviço da plataforma (modelo A, fase 1: pedido com o saldo, fila do master, gasto do dia + taxa, margem, venda atribuída) | `shared/trafego.ts` (regras), `server/services/trafego.ts`, `/trafego*` em `server/routes/admin.ts`, `trafegoPago` em `shared/plataforma.ts`, `trafego_campanhas`/`trafego_gastos` em `shared/schema.ts`, relógio em `server/jobs/index.ts` (trava 811406), tipo `trafego` em `shared/caixa.ts`, `client/src/pages/adminTrafego.tsx`, `docs/PLANO-TRAFEGO-PAGO.md`, `scripts/trafego-test.ts`, `tests/trafego.test.ts`; a fase 2 (o gasto importado das redes pelo Windsor.ai): `lerLinhasDoGasto()`/`codigoNoNome()` em `shared/trafego.ts`, `server/services/trafegoImportacao.ts`, `lancarGastoImportado()` em `server/services/trafego.ts`, `/trafego/importacao` em `server/routes/admin.ts`, relógio (trava 811407), `ImportacaoDoGasto` em `adminTrafego.tsx` |
 | Marketing AI: plano de divulgação, textos de anúncio e leitura dos resultados de uma rifa | `shared/marketingIA.ts` (as três regras: `planoDeDivulgacao`, `lerAnuncios`/`prometeGanho`, `leituraDosResultados`), `server/services/marketingIA.ts` (os dados), `anunciosComIA()`/`perguntarAoAssistente()` em `server/services/ia.ts`, `GET /campaigns/:id/marketing` e `POST /campaigns/:id/marketing/anuncios` em `server/routes/admin.ts`, `client/src/pages/adminMarketingIA.tsx`, `scripts/ia-acoes-test.ts` (a seção do Marketing AI), `tests/marketingIA.test.ts` |
 | menu Marketing (Tráfego pago, Marketing AI, Publicidade em abas, Medição e campanhas) | grupo "Marketing" em `MENUS` (`shared/access.ts`), `client/src/pages/adminTrafego.tsx`, `adminMarketingIA.tsx` (os criativos por rifa), `adminPublicidade.tsx` (as abas: `RifasPatrocinadas` de `adminPatrocinio.tsx` e `BannerNaVitrine` de `adminBannerPago.tsx`), os redirecionamentos em `client/src/App.tsx`, `tests/menu.test.ts` |
 | artes prontas para divulgar (Fase A: arte da rifa, cotas que faltam, data, resultado, cota premiada, nos três formatos) e o pacote para postar (Fase G: ZIP com os três formatos e a legenda) | `shared/artes.ts` (regras, textos e `legendaSugerida`), `server/services/zip.ts`, os textos do kit (`textosDoKit()` em `shared/afiliados.ts`), `server/services/arteDesenho.ts` (texto em contorno, QR, camada), `server/services/artes.ts` (dados da rifa, fundo, foto da organização), `server/routes/artesRotas.ts`, `/campaigns/:id/artes*` em `server/routes/admin.ts`, `/artes/:slug*` em `server/routes/affiliate.ts`, `client/src/components/ArtesParaDivulgar.tsx` (aba Publicação e Meus links), `scripts/artes-test.ts`, `tests/artes.test.ts` |
@@ -4575,8 +4575,9 @@ A plataforma anuncia a rifa da organização no Google, no Meta (Facebook e
 Instagram) e no TikTok **pelas contas de anúncios dela** (modelo A do
 `docs/PLANO-TRAFEGO-PAGO.md`) e cobra o gasto em mídia mais uma **taxa de
 gestão sobre o gasto**, do saldo de publicidade da organização (o mesmo do
-patrocínio e do banner pago). Fase 1: a campanha é montada fora do sistema e
-o gasto do dia é lançado à mão pela plataforma.
+patrocínio e do banner pago). A campanha é montada fora do sistema; o gasto
+do dia é lançado à mão pela plataforma (fase 1) ou importado das redes
+(fase 2, abaixo).
 
 - **Nasce desligado, e a tabela é da plataforma** (`trafegoPago` em
   `shared/plataforma.ts`, `validarConfigTrafego()`: só as chaves conhecidas —
@@ -4656,9 +4657,46 @@ o gasto do dia é lançado à mão pela plataforma.
 - **A configuração parte da atual** (`PUT /admin/trafego/config` junta o
   corpo com o que está gravado): mandar só a taxa não desliga o produto nem
   apaga as redes.
+- **Fase 2: o gasto vem das redes** (`server/services/trafegoImportacao.ts`):
+  com `WINDSOR_API_KEY` no servidor (uma chave para Google, Meta e TikTok;
+  sem ela, a importação não existe e o lançamento à mão segue), o relógio
+  (trava 811407, de hora em hora, **mesmo com o produto desligado** —
+  desligar não para a campanha no ar, e a rede segue gastando; sem campanha
+  no ar ou fechando a conta, nem chama a fonte) e o "Importar agora" da
+  plataforma (`POST /admin/trafego/importacao`, 403 para organizador, no
+  `npm run isolation`; 6 por hora) buscam **só os dias fechados**
+  (`janelaDaImportacao()`: de 3 dias atrás até ontem; as contas de anúncio em
+  reais e no fuso de São Paulo — a fonte não diz a moeda). **A campanha da
+  rede é casada pelo código no nome** (`codigoNoNome()`: a plataforma põe
+  `trafego-<código>` no nome da campanha em cada rede — a tela diz isso junto
+  dos links); a aberta vence, senão a única com o código. A resposta da fonte
+  é dado, nunca instrução (`lerLinhasDoGasto()`: só as chaves conhecidas,
+  soma por campanha, dia e rede **em frações de centavo e arredonda uma vez,
+  para baixo** — a organização nunca paga meio centavo que a rede não
+  cobrou —, conta o ignorado com o motivo). **Cada linha passa pela régua do
+  manual** (`lancarGastoImportado()`: a mesma taxa por dia, o mesmo teto da
+  verba no `UPDATE` condicional, a mesma ordem das travas e a auditoria com o
+  ator `sistema`, `trafego.gasto.importado` e `.atualizado`). **O dia
+  importado é corrigido enquanto está na janela** (a rede fecha o de ontem
+  horas depois e acerta cliques inválidos; a diferença e a taxa dela entram,
+  para cima ou para baixo); **o dia lançado à mão nunca é tocado**, e repetir
+  ou importar em paralelo nunca cobra duas vezes (a campanha travada e o
+  mesmo índice). **Só se cobra o dia cobrável** — campanha no ar, ou fechando
+  a conta até o dia da parada, e só até a verba; o resto que a rede gastou
+  (além da verba, depois da parada, com a campanha fechada) fica em
+  `trafego_gastos.excedente_cents`: **custo da plataforma, nunca da
+  organização**, que não o vê (nem o dia só de excedente); a plataforma o vê
+  por campanha, por dia e na margem do mês. Fechada a conta, o dia não muda
+  mais — feche depois de a rede acertar (a tela lembra). Os cliques entram
+  com o gasto (`cliques`; o manual aceita os opcionais) e a origem
+  (`origem`: `manual` ou `importado`). **A chave nunca sai**: vai só na
+  chamada (o Windsor a pede no endereço), e o endereço nunca vai a log,
+  resposta ou erro; `WINDSOR_API_URL` só fora de produção, para a prova. O
+  resumo da última volta fica em `app_settings` (`trafego_importacao`).
 - As tabelas `trafego_campanhas` e `trafego_gastos` sobem com o `db:push`
-  **antes** do código. `npm run trafego` prova tudo isso contra a API de
-  verdade e `tests/trafego.test.ts` as regras.
+  **antes** do código, e as colunas `trafego_gastos.cliques`, `origem` e
+  `excedente_cents` também. `npm run trafego` prova tudo isso contra a API de verdade (a fase 2
+  com um Windsor.ai de mentira) e `tests/trafego.test.ts` as regras.
 
 ## Marketing e tráfego pago — o que não pode afrouxar
 

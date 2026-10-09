@@ -16,6 +16,7 @@ import { apagarNotificacoesAntigas } from "../services/notificacoes";
 import { encerrarAnunciosForaDoAr } from "../services/patrocinio";
 import { encerrarBannersPagos } from "../services/bannerPago";
 import { encerrarTrafegoForaDoAr } from "../services/trafego";
+import { importarGastosDoRelogio } from "../services/trafegoImportacao";
 import { vencerFranquias } from "../services/iaCobranca";
 import { destravarAcoesPresas } from "../services/ia";
 import { assinarVideosDoStream, limparStreamPendente } from "../services/streamPendentes";
@@ -73,6 +74,7 @@ const LOCK_REGIOES = 811_009;
 const LOCK_ANUNCIOS = 811_403;
 const LOCK_BANNERS = 811_404;
 const LOCK_TRAFEGO = 811_406;
+const LOCK_TRAFEGO_IMPORTACAO = 811_407;
 const LOCK_MARKETING = 811_501;
 const LOCK_COPIA = 811_013;
 const LOCK_IA_FRANQUIA = 811_701;
@@ -420,6 +422,21 @@ export function startJobs() {
       console.error("[jobs] tráfego pago:", err);
     }
   }, releaseMs).unref();
+
+  // Tráfego pago, fase 2: o gasto dos dias fechados vem das redes (com a
+  // chave WINDSOR_API_KEY e alguma campanha no ar ou fechando a conta, mesmo
+  // com o produto desligado). De hora em hora: o dia importado é corrigido
+  // pela régua de sempre, e repetir nunca cobra duas vezes.
+  setInterval(async () => {
+    try {
+      await withLock(LOCK_TRAFEGO_IMPORTACAO, async () => {
+        const r = await importarGastosDoRelogio();
+        if (r && (r.importados > 0 || r.atualizados > 0 || r.erro)) log(`tráfego pago: ${r.importados} gasto(s) importado(s)${r.erro ? ` — ${r.erro}` : ""}`, "jobs");
+      });
+    } catch (err) {
+      console.error("[jobs] importação do tráfego:", err);
+    }
+  }, 60 * 60_000).unref();
 
   // Assistente de IA: a franquia de ciclo vencido sai pelo livro (uma vez por ciclo).
   setInterval(async () => {

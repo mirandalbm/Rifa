@@ -339,6 +339,71 @@ export async function decidirCampanha(req: Request, id: string, entrada: { aprov
 }
 
 /**
+ * Grava um gasto na campanha já travada (por quem chama) e soma na campanha
+ * num `UPDATE` condicional que nunca passa da verba; gastou a verba inteira, a
+ * campanha encerra aqui mesmo. Devolve `null` quando o dia nesta rede já foi
+ * lançado (o índice decide, `ON CONFLICT DO NOTHING`) — o manual responde 409,
+ * a importação conta como "já lançado".
+ */
+async function gravarGasto(
+  tx: Tx,
+  c: Campanha,
+  g: { dia: string; rede: RedeDeAnuncio; gastoCents: number; cliques: number | null },
+  autor: { req: Request | null; origem: "manual" | "importado" },
+  extraNaAuditoria: Record<string, unknown> = {},
+) {
+  const taxa = taxaSobre(g.gastoCents, c.taxaPct);
+  const [lancado] = await tx
+    .insert(trafegoGastos)
+    .values({
+      campanhaId: c.id,
+      organizationId: c.organizationId,
+      dia: g.dia,
+      rede: g.rede,
+      gastoCents: g.gastoCents,
+      taxaCents: taxa,
+      cliques: g.cliques,
+      origem: autor.origem,
+      lancadoPor: autor.req?.user?.id ?? null,
+    })
+    .onConflictDoNothing({ target: [trafegoGastos.campanhaId, trafegoGastos.dia, trafegoGastos.rede] })
+    .returning();
+  if (!lancado) return null;
+  const [somada] = await tx
+    .update(trafegoCampanhas)
+    .set({
+      gastoCents: sql`${trafegoCampanhas.gastoCents} + ${g.gastoCents}`,
+      taxaCents: sql`${trafegoCampanhas.taxaCents} + ${taxa}`,
+    })
+    .where(
+      and(
+        eq(trafegoCampanhas.id, c.id),
+        eq(trafegoCampanhas.status, c.status),
+        sql`${trafegoCampanhas.gastoCents} + ${g.gastoCents} <= ${trafegoCampanhas.investimentoCents}`,
+      ),
+    )
+    .returning(campos);
+  if (!somada) throw new TrafegoError("O gasto passa do que resta da verba.", 409);
+  let campanha = somada;
+  if (somada.gastoCents >= somada.investimentoCents) {
+    campanha = await fecharNaTransacao(tx, somada, "encerrada", {}, "Campanha concluída: a sobra da reserva voltou ao saldo");
+  }
+  await auditar(tx, autor.req, autor.origem === "importado" ? "trafego.gasto.importado" : "trafego.gasto", c.id, {
+    dia: lancado.dia,
+    rede: lancado.rede,
+    gastoCents: lancado.gastoCents,
+    taxaCents: lancado.taxaCents,
+    cliques: lancado.cliques,
+    encerrada: campanha.status === "encerrada",
+    ...extraNaAuditoria,
+  });
+  return { gasto: lancado, campanha };
+}
+
+/** O último dia que a campanha ainda pode receber: o da parada, ou hoje (a importação passa ontem). */
+const ultimoDiaDoGasto = (c: Campanha, hoje: string) => (c.status === "encerrando" && c.encerradoEm ? diaNoFuso(c.encerradoEm) : hoje);
+
+/**
  * O gasto de um dia numa rede, copiado do painel da rede. Vale para a
  * campanha no ar e para a que está fechando a conta (só os dias até o
  * encerramento). Gastou a verba inteira, a campanha encerra aqui mesmo.
@@ -346,67 +411,139 @@ export async function decidirCampanha(req: Request, id: string, entrada: { aprov
 export async function lancarGasto(req: Request, id: string, entrada: unknown) {
   if (orgOf(req)) throw new TrafegoError("Lançar o gasto é da plataforma.", 403);
   if (!idValido(id)) throw new TrafegoError("Campanha não encontrada.", 404);
-  try {
-    return await db.transaction(async (tx) => {
-      const c = await travar(tx, id);
-      if (c.status !== "ativa" && c.status !== "encerrando") throw new TrafegoError("Só a campanha no ar (ou fechando a conta) recebe gasto.", 409);
-      let g: ReturnType<typeof validarGasto>;
-      try {
-        g = validarGasto(
-          entrada,
-          { redes: c.redes, investimentoCents: c.investimentoCents, gastoCents: c.gastoCents, diaDaAprovacao: c.aprovadoEm ? diaNoFuso(c.aprovadoEm) : null },
-          c.status === "encerrando" && c.encerradoEm ? diaNoFuso(c.encerradoEm) : diaNoFuso(new Date()),
-        );
-      } catch (e) {
-        throw aviso(e);
-      }
-      const taxa = taxaSobre(g.gastoCents, c.taxaPct);
-      const [lancado] = await tx
+  return db.transaction(async (tx) => {
+    const c = await travar(tx, id);
+    if (c.status !== "ativa" && c.status !== "encerrando") throw new TrafegoError("Só a campanha no ar (ou fechando a conta) recebe gasto.", 409);
+    let g: ReturnType<typeof validarGasto>;
+    try {
+      g = validarGasto(
+        entrada,
+        { redes: c.redes, investimentoCents: c.investimentoCents, gastoCents: c.gastoCents, diaDaAprovacao: c.aprovadoEm ? diaNoFuso(c.aprovadoEm) : null },
+        ultimoDiaDoGasto(c, diaNoFuso(new Date())),
+      );
+    } catch (e) {
+      throw aviso(e);
+    }
+    const feito = await gravarGasto(tx, c, g, { req, origem: "manual" });
+    if (!feito) throw new TrafegoError("O gasto deste dia nesta rede já foi lançado.", 409);
+    return feito;
+  });
+}
+
+export type ResultadoDoImportado = "importado" | "atualizado" | "ja_lancado" | "sem_campanha" | "fora_da_janela" | "excedente";
+
+/**
+ * Um gasto que veio da rede (fase 2), na mesma régua do manual: a mesma taxa
+ * (para baixo, por dia), o mesmo teto da verba no `UPDATE` condicional, a
+ * mesma ordem das travas e a auditoria na mesma transação.
+ *
+ * - **A campanha** é achada pelo código: a aberta (no ar ou fechando a conta)
+ *   se houver uma só; senão a única com o código. Em análise, recusada e
+ *   cancelada nunca rodaram (sem aprovação, o dia fica fora).
+ * - **O dia é atualizado enquanto está na janela**: a rede ainda fecha o de
+ *   ontem e acerta cliques inválidos. O lançado à mão nunca é tocado.
+ * - **Só se cobra o dia cobrável**: campanha no ar, ou fechando a conta até o
+ *   dia da parada, e só até a verba. O resto que a rede gastou — além da
+ *   verba, depois da parada, com a campanha fechada — vai em
+ *   `excedente_cents`: custo da plataforma, nunca da organização.
+ */
+export async function lancarGastoImportado(
+  g: { codigo: string; dia: string; rede: RedeDeAnuncio; gastoCents: number; cliques: number },
+  ontem: string,
+): Promise<{ resultado: ResultadoDoImportado; excedenteCents: number }> {
+  const achadas = (
+    await db.execute(sql`
+      select id, status from trafego_campanhas
+       where substr(replace(id::text, '-', ''), 1, 8) = ${g.codigo} and status <> 'em_analise'`)
+  ).rows as { id: string; status: string }[];
+  const abertas = achadas.filter((a) => a.status === "ativa" || a.status === "encerrando");
+  const alvo = abertas.length === 1 ? abertas[0] : abertas.length === 0 && achadas.length === 1 ? achadas[0] : null;
+  if (!alvo) return { resultado: "sem_campanha", excedenteCents: 0 };
+
+  return db.transaction(async (tx) => {
+    const c = await travar(tx, alvo.id);
+    const desde = c.aprovadoEm ? diaNoFuso(c.aprovadoEm) : null;
+    if (!desde || g.dia < desde || g.dia > ontem || !c.redes.includes(g.rede)) return { resultado: "fora_da_janela" as const, excedenteCents: 0 };
+    const [antes] = await tx
+      .select()
+      .from(trafegoGastos)
+      .where(and(eq(trafegoGastos.campanhaId, c.id), eq(trafegoGastos.dia, g.dia), eq(trafegoGastos.rede, g.rede)))
+      .for("update");
+    if (antes && antes.origem !== "importado") return { resultado: "ja_lancado" as const, excedenteCents: 0 };
+
+    const parada = c.encerradoEm ? diaNoFuso(c.encerradoEm) : null;
+    const cobravel = (c.status === "ativa" || c.status === "encerrando") && (!parada || g.dia <= parada);
+    const jaCobrado = antes?.gastoCents ?? 0;
+    // Cobrável: até o que resta da verba (contando o que este dia já tinha). Senão, o dia fica como estava.
+    const gasto = cobravel ? Math.min(g.gastoCents, jaCobrado + (c.investimentoCents - c.gastoCents)) : jaCobrado;
+    const excedenteCents = Math.max(0, g.gastoCents - gasto);
+    const taxa = taxaSobre(gasto, c.taxaPct);
+    if (antes && antes.gastoCents === gasto && antes.excedenteCents === excedenteCents && antes.cliques === g.cliques) {
+      return { resultado: "ja_lancado" as const, excedenteCents: 0 };
+    }
+
+    if (antes) {
+      await tx
+        .update(trafegoGastos)
+        .set({ gastoCents: gasto, taxaCents: taxa, excedenteCents, cliques: g.cliques })
+        .where(and(eq(trafegoGastos.id, antes.id), eq(trafegoGastos.origem, "importado")));
+    } else {
+      const [novo] = await tx
         .insert(trafegoGastos)
         .values({
           campanhaId: c.id,
           organizationId: c.organizationId,
           dia: g.dia,
           rede: g.rede,
-          gastoCents: g.gastoCents,
+          gastoCents: gasto,
           taxaCents: taxa,
-          lancadoPor: req.user!.id,
+          excedenteCents,
+          cliques: g.cliques,
+          origem: "importado",
+          lancadoPor: null,
         })
-        .returning();
+        .onConflictDoNothing({ target: [trafegoGastos.campanhaId, trafegoGastos.dia, trafegoGastos.rede] })
+        .returning({ id: trafegoGastos.id });
+      if (!novo) return { resultado: "ja_lancado" as const, excedenteCents: 0 };
+    }
+
+    const delta = gasto - jaCobrado;
+    const deltaTaxa = taxa - (antes?.taxaCents ?? 0);
+    let campanha: Campanha = c;
+    if (delta !== 0 || deltaTaxa !== 0) {
       const [somada] = await tx
         .update(trafegoCampanhas)
         .set({
-          gastoCents: sql`${trafegoCampanhas.gastoCents} + ${g.gastoCents}`,
-          taxaCents: sql`${trafegoCampanhas.taxaCents} + ${taxa}`,
+          gastoCents: sql`${trafegoCampanhas.gastoCents} + ${delta}`,
+          taxaCents: sql`${trafegoCampanhas.taxaCents} + ${deltaTaxa}`,
         })
         .where(
           and(
             eq(trafegoCampanhas.id, c.id),
             eq(trafegoCampanhas.status, c.status),
-            sql`${trafegoCampanhas.gastoCents} + ${g.gastoCents} <= ${trafegoCampanhas.investimentoCents}`,
+            sql`${trafegoCampanhas.gastoCents} + ${delta} between 0 and ${trafegoCampanhas.investimentoCents}`,
           ),
         )
         .returning(campos);
-      if (!somada) throw new TrafegoError("O gasto passa do que resta da verba.", 409);
-      let campanha = somada;
+      if (!somada) throw new TrafegoError("O gasto importado passa do que resta da verba.", 409);
+      campanha = somada;
       if (somada.gastoCents >= somada.investimentoCents) {
         campanha = await fecharNaTransacao(tx, somada, "encerrada", {}, "Campanha concluída: a sobra da reserva voltou ao saldo");
       }
-      await auditar(tx, req, "trafego.gasto", c.id, {
-        dia: lancado.dia,
-        rede: lancado.rede,
-        gastoCents: lancado.gastoCents,
-        taxaCents: lancado.taxaCents,
-        encerrada: campanha.status === "encerrada",
-      });
-      return { gasto: lancado, campanha };
-    });
-  } catch (e) {
-    if (isUniqueViolation(e, "uq_trafego_gasto_do_dia")) {
-      throw new TrafegoError("O gasto deste dia nesta rede já foi lançado.", 409);
     }
-    throw e;
-  }
+    await auditar(tx, null, antes ? "trafego.gasto.importado.atualizado" : "trafego.gasto.importado", c.id, {
+      dia: g.dia,
+      rede: g.rede,
+      gastoCents: gasto,
+      taxaCents: taxa,
+      cliques: g.cliques,
+      ...(antes ? { antes: { gastoCents: antes.gastoCents, taxaCents: antes.taxaCents, excedenteCents: antes.excedenteCents } } : {}),
+      ...(excedenteCents > 0 ? { gastoNaRedeCents: g.gastoCents, excedenteCents } : {}),
+      encerrada: campanha.status === "encerrada" && c.status !== "encerrada",
+    });
+    const resultado: ResultadoDoImportado = antes ? "atualizado" : gasto > 0 ? "importado" : "excedente";
+    return { resultado, excedenteCents };
+  });
 }
 
 /** Fechar a conta da campanha encerrada: lançados os últimos dias, a sobra volta ao saldo. */
@@ -492,6 +629,9 @@ export async function painelDoTrafego(req: Request) {
       vendas: sql<number>`(select count(*)::int from orders x
         where x.campaign_id = ${trafegoCampanhas.campaignId} and x.status = 'paid'
           and x.utm->>'campaign' = 'trafego-' || substr(replace(${trafegoCampanhas.id}::text, '-', ''), 1, 8))`,
+      // Os cliques que vieram da rede (importados ou digitados com o gasto).
+      cliques: sql<number>`(select coalesce(sum(g.cliques), 0)::int from trafego_gastos g where g.campanha_id = ${trafegoCampanhas.id})`,
+      excedenteCents: sql<number>`(select coalesce(sum(g.excedente_cents), 0)::int from trafego_gastos g where g.campanha_id = ${trafegoCampanhas.id})`,
       receitaCents: sql<number>`(select coalesce(sum(x.amount_cents), 0)::int from orders x
         where x.campaign_id = ${trafegoCampanhas.campaignId} and x.status = 'paid'
           and x.utm->>'campaign' = 'trafego-' || substr(replace(${trafegoCampanhas.id}::text, '-', ''), 1, 8))`,
@@ -515,6 +655,8 @@ export async function painelDoTrafego(req: Request) {
     campanhas: linhas.map((l) => ({
       ...l,
       organizacao: org ? undefined : l.organizacao,
+      // O excedente é custo da plataforma: a organização não vê.
+      excedenteCents: org ? undefined : l.excedenteCents,
       orgSlug: undefined,
       rifaSlug: undefined,
       codigo: codigoDaCampanha(l.id),
@@ -542,38 +684,47 @@ export async function gastosDaCampanha(req: Request, id: string) {
       rede: trafegoGastos.rede,
       gastoCents: trafegoGastos.gastoCents,
       taxaCents: trafegoGastos.taxaCents,
+      cliques: trafegoGastos.cliques,
+      origem: trafegoGastos.origem,
+      excedenteCents: org ? sql<number | null>`null` : trafegoGastos.excedenteCents,
       createdAt: trafegoGastos.createdAt,
       // Quem lançou só para a plataforma: a organização vê "Plataforma".
       lancadoPor: org ? sql<string | null>`null` : users.name,
     })
     .from(trafegoGastos)
     .leftJoin(users, eq(users.id, trafegoGastos.lancadoPor))
-    .where(eq(trafegoGastos.campanhaId, c.id))
+    // O dia só de excedente (nada cobrado) é da plataforma: a organização não o vê.
+    .where(and(eq(trafegoGastos.campanhaId, c.id), org ? sql`${trafegoGastos.gastoCents} > 0` : undefined))
     .orderBy(desc(trafegoGastos.dia), desc(trafegoGastos.createdAt));
 }
 
 /**
  * A margem da plataforma por mês (fuso de São Paulo, pelo dia do gasto): a
- * mídia repassada às redes e a taxa de gestão, no total e por organização.
+ * mídia repassada às redes, a taxa de gestão e o excedente (o que a rede
+ * gastou além do cobrado, custo da plataforma), no total e por organização.
  * Os últimos 12 meses.
  */
 async function margemPorMes() {
   const r = await db.execute(sql`
     select substr(g.dia, 1, 7) as mes, o.name as organizacao,
-           sum(g.gasto_cents)::bigint as midia, sum(g.taxa_cents)::bigint as taxa
+           sum(g.gasto_cents)::bigint as midia, sum(g.taxa_cents)::bigint as taxa, sum(g.excedente_cents)::bigint as excedente
       from trafego_gastos g
       join organizations o on o.id = g.organization_id
      where g.dia >= to_char((now() at time zone 'America/Sao_Paulo') - interval '11 months', 'YYYY-MM') || '-01'
      group by 1, 2
      order by 1 desc, 4 desc`);
-  const meses = new Map<string, { mes: string; midiaCents: number; taxaCents: number; organizacoes: { organizacao: string; midiaCents: number; taxaCents: number }[] }>();
-  for (const l of r.rows as { mes: string; organizacao: string; midia: string; taxa: string }[]) {
-    const m = meses.get(l.mes) ?? { mes: l.mes, midiaCents: 0, taxaCents: 0, organizacoes: [] };
+  type Linha = { organizacao: string; midiaCents: number; taxaCents: number; excedenteCents: number };
+  const meses = new Map<string, { mes: string; midiaCents: number; taxaCents: number; excedenteCents: number; organizacoes: Linha[] }>();
+  for (const l of r.rows as { mes: string; organizacao: string; midia: string; taxa: string; excedente: string }[]) {
+    const m = meses.get(l.mes) ?? { mes: l.mes, midiaCents: 0, taxaCents: 0, excedenteCents: 0, organizacoes: [] };
     const midia = Number(l.midia);
     const taxa = Number(l.taxa);
+    // O que a rede gastou e não foi cobrado (verba acabada, campanha parada): sai da margem.
+    const excedente = Number(l.excedente);
     m.midiaCents += midia;
     m.taxaCents += taxa;
-    m.organizacoes.push({ organizacao: l.organizacao, midiaCents: midia, taxaCents: taxa });
+    m.excedenteCents += excedente;
+    m.organizacoes.push({ organizacao: l.organizacao, midiaCents: midia, taxaCents: taxa, excedenteCents: excedente });
     meses.set(l.mes, m);
   }
   return [...meses.values()];

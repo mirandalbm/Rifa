@@ -345,3 +345,42 @@ quem faz e o que ela cobre.
 Qual é a **cláusula da política de anúncios do TikTok** (versão, seção do
 Brasil) que ele usa? Se a plataforma quiser anúncio de **marca** (sem rifa), o
 que a política permite?
+
+## Terceira rodada — influenciadores (09/10/2026)
+
+O dono mudou o foco: sair do tráfego pago nas redes e divulgar por
+**influenciadores** (e, depois, portais). O plano está em
+`docs/PLANO-INFLUENCIADORES.md`; estas são as perguntas dele (R16 a R22). As
+anteriores seguem valendo, em especial R1 e R12 para o que sobrar de anúncio
+pago.
+
+**R16. [1] Responsabilidade por post de influenciador.** A plataforma responde
+pela peça que o influenciador publica com o link dela? E a organização? Que
+cláusulas do termo do afiliado e do contrato da promotora separam as duas
+responsabilidades?
+
+**R17. [1] O guia do CONAR (vigente desde 1º/06/2026) em rifa e sorteio.**
+Existe regra própria para promoção com autorização SPA/MF? O "#publi" mais a
+ferramenta nativa de parceria paga bastam?
+
+**R18. [1] Decreto 70.951/1972 e a divulgação.** A publicidade da rifa tem de
+trazer o número da autorização? Em que formato, e em todas as peças (inclusive
+story e reels)?
+
+**R19. [1] Regras das redes sobre o conteúdo orgânico.** YouTube, TikTok,
+Instagram e Kwai: a rifa autorizada pela SPA/MF conta como "aprovada" ou
+"licenciada" para essas políticas? O criador que posta responde sozinho?
+
+**R20. [2] WhatsApp Business.** A política proíbe "jogo com dinheiro real" por
+padrão. As mensagens de compra que a plataforma já manda (confirmação, lembrete,
+resultado) correm risco de bloqueio do número? Há como pedir autorização à Meta?
+
+**R21. [2] Acordo com cachê.** O modelo "a plataforma registra, a organização
+paga direto" evita a plataforma ser contratante do influenciador? Que cláusulas
+o acordo precisa ter? Pessoa física sem CNPJ pode ser contratada pela
+organização nesse formato?
+
+**R22. [2] Anúncio em portal e rede nativa** (Taboola, Outbrain, portais). Há
+regra que proíba ou limite rifa autorizada em publicidade paga fora das redes?
+A resposta de "agregador" do Google vale aqui?
+

@@ -7,6 +7,14 @@ entradas, saídas e destino final — o caixa, o gestor do split e a leitura da
 receita —, com a plataforma **já direcionando** créditos e débitos para os
 lugares certos.
 
+**Esclarecimento do dono (09/10/2026): o dinheiro não se move pelo
+sistema.** O que a Tesouraria faz é **contabilidade, controladoria e gestão**:
+no **fechamento mensal** ela mostra o saldo bruto, **quanto deve ser destinado
+a cada área** (doação, mídia, despesas, salários, impostos, consultoria…) e o
+**saldo final da empresa**. As áreas e as regras — valor fixo, percentual,
+valor digitado no mês — são **campos que o master cria e edita no painel**.
+Quem transfere o dinheiro é a pessoa, fora do sistema; o painel diz quanto.
+
 Este documento é o plano. Nada daqui está no código ainda. As decisões que
 faltam estão na seção 8. O pano de fundo contábil (Lucro Real, mídia como
 repasse, competência) está em `docs/CONSULTA-CONTADOR-E-ADVOGADO.md`.
@@ -102,69 +110,108 @@ Regras que não se negociam (herdam do `CLAUDE.md`):
   **espelha**, e um conferidor compara os dois e acusa a diferença. Trocar a
   verdade de lugar seria reescrever todo o dinheiro de uma vez.
 
-### 4.2 Destinos e "a plataforma já direciona"
+### 4.2 Destinação do mês (a controladoria) — o coração do pedido
 
-- **Destino** é uma conta real: a conta bancária da receita (taxa), a conta da
-  mídia (repasse), a conta das comissões guardadas, as carteiras do Asaas. O
-  master cadastra os destinos e liga cada conta contábil a um (`fin_destinos`).
-- **Tabela de roteamento fechada em código**: para cada tipo de evento, quais
-  contas debita e credita e para qual destino. A plataforma escolhe o
-  destino; ela **não escreve fórmula** (o rateio continua `splitOrder()`, a
-  ordem "plataforma sai antes" não é configurável).
-- **O que o código move sozinho** é só o que o provedor permite: o split do
-  Asaas já separa a promotora no Pix. O resto — passar a taxa para a conta da
-  receita, a mídia para a conta da mídia, pagar saque — hoje é **transferência
-  bancária feita por uma pessoa**. Por isso o sistema gera a **lista de
-  movimentações a fazer** ("mover R$ X da conta A para a B, por este motivo, até
-  esta data"), a pessoa marca como feita com o comprovante, e a conciliação
-  confere. Se o Asaas tiver API para transferência ou subcontas, parte disso
-  vira automática depois (**a pesquisar**, seção 6).
-- **Nunca prometer movimento que não aconteceu**: a tela diz "a fazer",
-  "feito, a conferir" e "conferido".
+**Sem movimento de dinheiro.** O sistema calcula e registra; não transfere.
+
+- **Saldo bruto do mês**: vem do sistema (seção 4.4), não é digitado.
+- **Áreas de destinação** (`fin_areas`): linhas que o master cria, nomeia,
+  ordena e agrupa — "Doação ONG", "Mídia (Meta/Google/YouTube/TikTok)",
+  "Despesas da empresa", "Salários", "Impostos", "Consultoria"… Cada área pode
+  ter **subitens** (aluguel, energia, água, combustível…). Cada linha tem uma
+  **natureza** (despesa, imposto, doação, reserva, repasse), que é o que o
+  contador usa para classificar.
+- **Como cada linha calcula** (`regra`), só estas formas, fechadas em código:
+  1. **valor fixo** (em reais, por mês);
+  2. **percentual** de uma **base** à escolha: o saldo bruto, o **saldo que
+     sobrou até ali** (cascata) ou o **lucro antes dos impostos**;
+  3. **valor do mês** (variável): digitado no fechamento (salários que mudam,
+     consultoria avulsa);
+  4. **automático** do sistema, quando o dado existe: gasto de mídia do mês,
+     custo do Chatbase, excedente da rede, taxa do provedor, doações já
+     registradas.
+- **Contas exatas, como o rateio da venda**: tudo em centavos inteiros; o
+  percentual arredonda **para baixo** e o centavo que sobra fica no saldo da
+  empresa, de modo que **saldo bruto = soma das destinações + saldo final**
+  é igualdade, nunca aproximação. A ordem das linhas é a ordem da conta
+  (a cascata depende dela) e fica visível.
+- **Teto e aviso**: linha com limite (a doação no Lucro Real é até 2% do
+  **lucro operacional**, não do bruto — o painel avisa ao passar, e a base
+  certa é pergunta ao contador). Saldo final negativo aparece em destaque,
+  em texto, não só em cor.
+- **Fechamento do mês**: o master **fecha o mês** e o sistema guarda um
+  **retrato imutável** (período, saldo bruto e a origem dele, cada linha com a
+  regra e o valor calculado, saldo final e uma impressão SHA-256), como o recibo
+  do saque. **Reabrir** é possível, mas fica na auditoria com motivo, e o
+  retrato anterior permanece. Dois cliques, um fechamento (`UPDATE`
+  condicional); o retrato de um mês não muda quando o modelo de áreas muda
+  depois.
+- **Previsto × realizado** (depois): a destinação é o que **deve** ser
+  destinado; o master pode lançar o que **foi** gasto (valor, data, comprovante)
+  em cada área, e o painel mostra a diferença e o que sobrou ou faltou. É a
+  parte de auditoria.
+- **Destinos reais** (conta da receita, da mídia, das comissões guardadas,
+  carteiras do Asaas) viram apenas **cadastro informativo**: onde cada área
+  está guardada, para o painel dizer "destine R$ X para a conta Y". O sistema
+  não tem como mover, e a tela diz "a destinar", nunca "destinado".
 
 ### 4.3 As telas (grupo Tesouraria)
 
-1. **Visão geral**: dinheiro por destino agora, receita do mês por origem,
-   a pagar a terceiros, a mover, diferença da conciliação.
-2. **Receitas**: por origem, por organização e por mês, em competência e em
-   caixa; a taxa de gestão diferida (receita diferida × apropriada).
-3. **Valores de terceiros**: saldo pré-pago por organização, mídia a
-   repassar, comissões guardadas, créditos do presente, Pix a devolver, retenção
-   cautelar.
-4. **Fluxo de caixa**: entradas e saídas por dia e por destino, destino final.
-5. **Split de pagamento**: por venda, o que foi para plataforma, afiliado ou
+1. **Visão geral**: saldo bruto do mês e de onde veio, o que está destinado a
+   cada área, saldo da empresa, a pagar a terceiros.
+2. **Fechamento mensal**: o quadro do exemplo do dono — saldo bruto, cada
+   área com a regra (fixo, % ou valor do mês) e o valor, saldo final; botão
+   de fechar o mês e a lista dos meses fechados.
+3. **Áreas e regras**: criar, editar, ordenar e desativar as áreas e os
+   campos (fixo, %, valor do mês, automático), com a base e o teto.
+4. **Receitas**: por origem, por organização e por mês, em competência e em
+   caixa; a taxa de gestão diferida.
+5. **Valores de terceiros**: saldo pré-pago por organização, mídia a repassar,
+   comissões guardadas, créditos do presente, Pix a devolver, retenção
+   cautelar — **dinheiro que não é da plataforma e fica fora do saldo bruto**.
+6. **Split de pagamento**: por venda, o que foi para plataforma, afiliado ou
    cambista e promotora, o que o provedor já dividiu e o que ficou devendo.
-6. **Movimentações**: a lista "a fazer / feito / conferido" da seção 4.2.
 7. **Conciliação**: livro × extrato do provedor × faturas das redes.
-8. **Contador**: o extrato mensal (campos do item 16 da consulta, com as
-   retenções do Lucro Real), DRE gerencial e provisões; exporta pelo
-   `shared/exports.ts`.
-9. **Política de doações**: o percentual da taxa reservado para doação e as
-   doações feitas, com o recibo da ONG.
+8. **Contador**: o extrato mensal (campos da consulta, com as retenções do
+   Lucro Real), DRE gerencial e provisões; exporta pelo `shared/exports.ts`.
+9. **Realizado × previsto** e as doações com o recibo da ONG.
+
+### 4.4 O que entra no saldo bruto (precisa de decisão — seção 8)
+
+O saldo bruto tem de ser **dinheiro da plataforma**: taxa por venda,
+mensalidade, taxa de gestão do tráfego, patrocínio, banner pago, assistente de
+IA. Valor de terceiros — a **mídia** que a organização pagou, o saldo
+pré-pago, a comissão guardada — **não é receita** (o contador: é repasse).
+Misturar os dois faria o painel dizer que há dinheiro para salários onde há
+dinheiro de outras pessoas. Por isso a proposta é: o saldo bruto é a **receita
+própria do mês**; a mídia aparece em bloco à parte ("repasse"), e a linha
+"Meta/Google/TikTok" do exemplo do dono entra como **repasse** (dinheiro que
+passa e sai) ou como **custo próprio** (o excedente e o que a plataforma
+gastar com anúncio da própria marca).
 
 ## 5. Fases (cada uma é um PR, com o revisor de invariantes)
 
+Nenhuma fase move dinheiro. A ordem prioriza o que o dono pediu.
+
 | Fase | O que entrega | Risco |
 |---|---|---|
-| **F0** | Pesquisa (Asaas: subcontas, transferências, extrato; Meta: faturas), plano de contas com o contador, o advogado sobre saldo pré-pago | nenhum código |
-| **F1** | Grupo Tesouraria + **Receitas por origem** e **Valores de terceiros**, **somente leitura**, em cima dos livros que já existem; inclui o **extrato mensal do contador** | baixo: não grava nada |
-| **F2** | O razão em **modo sombra**: `fin_*`, lançamentos nas transações dos eventos novos, **reconstrução do histórico**, conferidor que compara o razão com cada livro | médio: toca a transação de cada evento |
-| **F3** | Destinos, roteamento e a **lista de movimentações a fazer** | baixo |
-| **F4** | Conciliação com o extrato do provedor e as faturas das redes | médio: depende da API |
-| **F5** | Competência (taxa diferida), retenções, NFS-e, DRE, provisões, doações | contábil, junto do contador |
-| **F6** | Movimentos automáticos onde o provedor deixar | alto: dinheiro saindo sozinho; só com a conciliação provada |
+| **F0** | Plano de contas e as áreas do exemplo com o contador; o advogado sobre saldo pré-pago | nenhum código |
+| **F1** | Grupo Tesouraria, **Receitas por origem**, **Valores de terceiros** e o **saldo bruto do mês**, somente leitura, sobre os livros de hoje; inclui o extrato mensal do contador | baixo: não grava nada |
+| **F2** | **Áreas e regras** (fixo, %, valor do mês, automático) e o **Fechamento mensal** com retrato imutável e saldo final | baixo: grava só a configuração e o retrato |
+| **F3** | **Realizado × previsto**: lançar o que foi gasto por área, comprovante, diferença; doações com recibo | baixo |
+| **F4** | Conciliação com o extrato do provedor e as faturas das redes; o razão em modo sombra, se ainda valer a pena | médio |
+| **F5** | Competência (taxa diferida), retenções, NFS-e, DRE e provisões, com o contador | contábil |
 
-A **F1** entrega valor logo e não arrisca o dinheiro. A **F2** é onde mora o
-perigo (o razão errado parece certo); por isso entra em sombra, com o
-conferidor, e só vira "a verdade da Tesouraria" depois de rodar limpo.
+A **F2** é a que o dono descreveu. O razão de partida dobrada deixou de ser
+o centro: sem movimento de dinheiro, ele é uma escolha da F4, não pré-requisito.
 
 ## 6. Quem faz o quê
 
-- **pesquisador-de-integracao**: Asaas (subcontas, transferência, extrato e
-  eventos de conciliação), faturas do Meta/Google/TikTok — antes de F3/F4.
+- **pesquisador-de-integracao**: Asaas (extrato e eventos de conciliação),
+  faturas do Meta/Google/TikTok — antes da F4.
 - **implementador-da-rifa**: cada fase de código, em worktree.
-- **revisor-de-invariantes**: obrigatório em F2, F3 e F6 (dinheiro, transação,
-  isolamento) e opcional em F1.
+- **revisor-de-invariantes**: obrigatório na F2 (conta exata, fechamento
+  imutável, isolamento) e na F4; opcional na F1 e na F3.
 - **conferente-de-telas**: as telas novas nas três larguras.
 - **contador** (fora): plano de contas, DRE, tratamento de cada conta,
   competência. **Advogado** (fora): saldo pré-pago e arranjo de pagamento,
@@ -173,29 +220,32 @@ conferidor, e só vira "a verdade da Tesouraria" depois de rodar limpo.
 
 ## 7. Riscos que já dá para ver
 
-- **Divergência entre o razão e os livros.** Vira dois lugares dizendo o
-  dinheiro. Mitigação: sombra + conferidor + o livro de cada fluxo continua
-  sendo a verdade até a fase F5.
-- **Prometer "direcionamento automático" sem API.** Mitigação: a lista de
-  movimentações a fazer; automatizar só o que a conciliação provar.
-- **Arranjo de pagamento.** Guardar saldo pré-pago e mover dinheiro de
-  terceiros pode ser instituição de pagamento (pergunta 14 ao advogado). A
-  Tesouraria não deve ir além do que o advogado liberar.
-- **Histórico.** Reconstruir lançamentos de vendas antigas exige regra clara
-  por tipo de pedido (estornado, com presente, de carrinho, de cambista).
-- **Peso.** O razão cresce por venda; índices por conta/data/organização e
-  saldo em coluna desde o início.
+- **Misturar dinheiro de terceiros com receita** no saldo bruto (seção 4.4).
+  Mitigação: o bruto é só receita própria; o resto aparece à parte.
+- **Percentual sobre base errada** (bruto × saldo restante × lucro): o painel
+  mostra a base de cada linha e a ordem; `tests` varrem a igualdade exata.
+- **Retrato que muda**: fechar guarda o modelo e os valores da época; mudar as
+  áreas depois não reescreve o passado.
+- **Doação acima do teto** de 2% do lucro operacional (Lucro Real): o painel
+  avisa; a base certa vem do contador.
+- **Imposto**: o exemplo cita ICMS; serviço de publicidade costuma ser ISS, e
+  IRPJ/CSLL no Lucro Real incidem sobre o **lucro**, depois das despesas —
+  então as linhas de imposto precisam da base "lucro antes dos impostos". O
+  contador define quais linhas e quais bases.
+- **Peso**: o fechamento lê o mês inteiro; usar o que já é agregado
+  (`platform_charges`, `patrocinio_diario`, `trafego_gastos`…), nunca
+  `COUNT(*)` sobre pedidos.
 
 ## 8. O que falta o dono decidir
 
 1. **Nome e lugar**: "Tesouraria" como grupo novo do master? (recomendado)
-2. **Por onde começar**: F1 (somente leitura, entrega rápida) ou o razão (F2)
-   de uma vez? (recomendado: F1, com o extrato do contador dentro)
-3. **Os destinos reais de hoje**: quantas contas bancárias existem e quais
-   (receita, mídia, comissões)? O provedor é só o Asaas? Há conta no Meta em
-   reais, cobrada em cartão ou boleto? Sem isso o roteamento não tem para onde
-   apontar.
-4. **Quem executa as movimentações** enquanto não houver API: o dono, uma
-   pessoa financeira? Precisa de papel próprio (financeiro) além do master?
-5. **Doações**: percentual fixo da taxa reservado em conta contábil própria,
-   ou só registro do que foi doado?
+2. **O que é o saldo bruto**: só a **receita própria do mês** (recomendado) ou
+   também o que passa pela conta (mídia, saldo pré-pago)?
+3. **A linha Meta/Google/TikTok**: entra como **repasse** (bloco à parte, não
+   sai da sua receita) ou como **custo** que sai do bruto, como no seu exemplo?
+4. **Percentual sobre quê**: cada linha escolhe a base (bruto, saldo restante
+   ou lucro antes dos impostos) — confirma?
+5. **Fechamento imutável** com reabertura auditada — confirma?
+6. **Quem acessa**: só o master, ou um papel "financeiro" separado?
+7. **Por onde começar**: F1 + F2 juntas (recomendado, é o que você descreveu)
+   ou F1 primeiro?

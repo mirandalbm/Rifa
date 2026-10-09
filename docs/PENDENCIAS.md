@@ -703,9 +703,11 @@ Na ordem de entrega do plano:
   confira no gerenciador com o primeiro anúncio (o Meta tem a consulta
   `act_…/minimum_budgets` para isso) e ajuste `DIARIO_MIN_DO_META_CENTS`
   se for outro. O número da autorização da rifa entra no texto do anúncio:
-  só o número no formato oficial do SCPC (`NN.NNNNNN/AAAA`, ex.:
-  `03.012345/2026`) fica fora da régua do telefone; qualquer outro número
-  longo ou telefone nele recusa a criação — corrija nos dados legais. O
+  só o número no formato oficial do SCPC (`NN.NNNNNN/AAAA`, com ou sem os
+  pontos, ex.: `03.012345/2026`) fica fora da régua do telefone; qualquer
+  outro número longo ou telefone nele recusa a criação. A autorização e o
+  prêmio travam ao publicar: recusada, essa campanha se monta à mão no
+  gerenciador do Meta. O
   conjunto vale até a data de fim (os dias do orçamento mais 1 hora) e
   nasce pausado: ligue logo, porque o tempo até ligar encurta a janela.
   Conferir com o primeiro

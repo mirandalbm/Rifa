@@ -694,6 +694,13 @@ async function main() {
       `HTTP ${r.status} ${r.json?.message ?? ""}`,
     );
     antes = pedidos.length;
+    r = await admin.req("POST", `/api/admin/trafego/campanhas/${idQ2}/meta`, { assumir: true });
+    checa(
+      "\"Assumir\" de uma tela velha (a criação já virou falha): 409 e nada chamado no Meta — assumir nunca cria",
+      r.status === 409 && pedidos.length === antes && (await criacao(idQ2))?.status === "falhou",
+      `HTTP ${r.status} ${r.json?.message ?? ""}`,
+    );
+    antes = pedidos.length;
     r = await criar(admin, idQ2);
     const novaQ2 = await criacao(idQ2);
     checa(
@@ -850,6 +857,14 @@ async function main() {
     );
     r = await admin.req("POST", `/api/admin/trafego/campanhas/${idV}/meta/largar`);
     checa("largar de novo: 409", r.status === 409, `HTTP ${r.status}`);
+    // A tentativa congelada que foi largada acorda depois e guarda o que tinha criado: vai a restos, nunca some.
+    await guardarOQueSobrou(null, idV, largadaV!.id, { ...metadeV, conjunto: "120299000000041" }, "Prova: a tentativa largada acordou.");
+    const acordouV = await criacao(idV);
+    checa(
+      "a tentativa largada que acorda depois: o conjunto que ela criou vai a restos, e a criação segue como falha",
+      acordouV?.status === "falhou" && acordouV.restos.some((x) => x.tipo === "conjunto" && x.id === "120299000000041"),
+      JSON.stringify(acordouV?.restos),
+    );
     const largouV = (await db.execute(sql`select count(*)::int as n from audit_log where entity_id = ${idV} and action = 'trafego.meta.largar'`)).rows[0] as { n: number };
     checa("…com a auditoria trafego.meta.largar", largouV.n === 1);
     const rifaW = await novaRifa(orgId, "w");

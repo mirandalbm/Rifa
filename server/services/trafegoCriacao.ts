@@ -499,7 +499,12 @@ async function largarMorta(req: Request, campanhaId: string, antes: { id: string
  * campanha com o código. Reserva pelo índice, e cada peça criada fica anotada
  * no banco antes da próxima.
  */
-export async function criarNoMeta(req: Request, id: string, criador: CriadorDeCampanha | null = criadorDoMeta()) {
+export async function criarNoMeta(
+  req: Request,
+  id: string,
+  criador: CriadorDeCampanha | null = criadorDoMeta(),
+  opcoes: { assumir?: boolean } = {},
+) {
   if (orgOf(req)) throw new TrafegoError("Criar a campanha na rede é da plataforma.", 403);
   if (!idValido(id)) throw new TrafegoError("Campanha não encontrada.", 404);
   const falta = faltaNoServidor(process.env);
@@ -513,12 +518,17 @@ export async function criarNoMeta(req: Request, id: string, criador: CriadorDeCa
     .where(and(eq(trafegoCriacoes.campanhaId, id), eq(trafegoCriacoes.rede, "meta")));
   if (antes?.status === "criada") throw new TrafegoError("Esta campanha já foi criada no Meta.", 409);
   if (antes?.status === "criando" && !antes.presa) throw new TrafegoError("Esta campanha está sendo criada no Meta agora.", 409);
+  // "Assumir a criação" diz que é assumir: com a tela velha (outra aba já largou ou criou), é 409 — assumir nunca cria.
+  if (opcoes.assumir && !(antes?.presa && criacaoCompleta(antes.ids))) throw new TrafegoError(MSG_MUDOU, 409);
   if (antes?.presa && criacaoCompleta(antes.ids)) {
     const lista = await buscarNoMeta(criador, codigo);
     if (campanhaVivaNoMeta(lista, codigo, antes.ids.campanha)) return adotar(req, id, antes);
     // Assumir nunca cria: a morta vira falha, e criar outra é o "Tentar de novo" dela.
     await largarMorta(req, id, antes);
-    throw new TrafegoError("A campanha anotada foi apagada no Meta; a criação ficou como falha — 'Tentar de novo' cria outra.", 409);
+    throw new TrafegoError(
+      "A campanha anotada foi apagada no Meta; a criação ficou como falha. Com a campanha de tráfego no ar, 'Tentar de novo' cria outra.",
+      409,
+    );
   }
 
   // 1. O que dá para conferir sem chamar o Meta.

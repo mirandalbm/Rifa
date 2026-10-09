@@ -306,6 +306,9 @@ describe("texto do anúncio", () => {
     const passa = (a: string) => problemaNoTextoDoAnuncio(textoDoAnuncio({ ...dados, autorizacao: a }).mensagem, a);
     expect(passa("SPA/MF 03.012345/2026")).toBeNull();
     expect(passa("SPA-MF-EXEMPLO-1001")).toBeNull();
+    // O mesmo número com ou sem os pontos (a autorização trava ao publicar: recusar seria sem saída).
+    expect(passa("SPA/MF 03012345/2026")).toBeNull();
+    expect(passa("SPA/MF 03.012.345/2026")).toBeNull();
     // Os quatro do revisor: telefone fora do formato do SCPC, na linha da autorização.
     for (const a of ["zap 11 9 8765-4321", "11.9.8765.4321", "0800 777 1234", "SPA 11 3456 7890"]) {
       expect(passa(a), a).toMatch(/autorização/);

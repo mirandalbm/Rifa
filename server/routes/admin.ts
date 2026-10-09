@@ -4948,11 +4948,6 @@ adminRouter.post("/trafego/campanhas/:id/fechar", async (req, res, next) => {
   }
 });
 
-/**
- * Fase 3: criar a campanha no ar no Meta pela API (só a plataforma), tudo
- * pausado — ligar é no gerenciador do Meta. A segunda vez é 409; a falha da
- * rede volta 502 com o motivo em português (já gravado, dá para tentar de novo).
- */
 /** "Largar como falha" a criação parada no meio (só a plataforma): não chama o Meta, não cria nada. */
 adminRouter.post("/trafego/campanhas/:id/meta/largar", async (req, res, next) => {
   try {
@@ -4964,11 +4959,18 @@ adminRouter.post("/trafego/campanhas/:id/meta/largar", async (req, res, next) =>
   }
 });
 
+/**
+ * Fase 3: criar a campanha no ar no Meta pela API (só a plataforma), tudo
+ * pausado — ligar é no gerenciador do Meta. A segunda vez é 409; a falha da
+ * rede volta 502 com o motivo em português (já gravado, dá para tentar de novo).
+ * `{ assumir: true }` (o botão "Assumir a criação") nunca cria: sem a criação
+ * presa e completa, 409.
+ */
 adminRouter.post("/trafego/campanhas/:id/meta", async (req, res, next) => {
   try {
     requirePlatformAdmin(req);
     res.setHeader("Cache-Control", "no-store");
-    res.status(201).json(await criarNoMeta(req, req.params.id));
+    res.status(201).json(await criarNoMeta(req, req.params.id, undefined, { assumir: req.body?.assumir === true }));
   } catch (err) {
     if (err instanceof CriacaoFalhou) return res.status(502).json({ message: err.message, criacao: err.criacao });
     next(err);

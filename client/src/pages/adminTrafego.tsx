@@ -965,7 +965,7 @@ const listaDeIds = (ids: Record<string, string>) =>
 function NoMeta({ c, aoMudar }: { c: CampanhaDeTrafego; aoMudar: () => void }) {
   const [erro, setErro] = useState<string | null>(null);
   const criar = useMutation({
-    mutationFn: () => apiRequest("POST", `/api/admin/trafego/campanhas/${c.id}/meta`, {}),
+    mutationFn: (assumir: boolean) => apiRequest("POST", `/api/admin/trafego/campanhas/${c.id}/meta`, { assumir }),
     onSuccess: () => {
       setErro(null);
       aoMudar();
@@ -1072,7 +1072,7 @@ function NoMeta({ c, aoMudar }: { c: CampanhaDeTrafego; aoMudar: () => void }) {
               const pergunta = assumir
                 ? "Assumir a criação? O sistema confere no Meta se a campanha anotada ainda existe; nada novo é criado."
                 : "Criar campanha, conjunto e anúncio no Meta? Tudo nasce pausado; ligar é no gerenciador do Meta.";
-              if (window.confirm(pergunta)) criar.mutate();
+              if (window.confirm(pergunta)) criar.mutate(assumir);
             }}
           >
             {criar.isPending ? "Conferindo no Meta…" : assumir ? "Assumir a criação" : m ? "Tentar de novo" : "Criar no Meta"}

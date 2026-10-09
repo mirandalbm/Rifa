@@ -58,7 +58,7 @@ export function destinoDaPendencia(p: Pick<PendenciaDaCaixa, "tipo">): string {
     case "telefone":
       return "/admin/organizacoes";
     case "banner":
-      return "/admin/banner-pago";
+      return "/admin/marketing/publicidade?aba=banner";
     case "entidade":
       return "/admin/atendimento?aba=entidades";
     case "pix_tardio":

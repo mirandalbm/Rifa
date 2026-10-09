@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { PanelShell } from "@/components/AppShell";
 import { Button, Card, Empty, Money, Pill } from "@/components/bits";
 import { apiRequest } from "@/lib/queryClient";
 import { formatBRL, groupNumber } from "@shared/format";
@@ -225,14 +224,14 @@ function Barra({ usados, comprados }: { usados: number; comprados: number }) {
  * receita, anúncios e compra); a plataforma, a fila de cada região com a
  * previsão de quem entra, a configuração e os saldos.
  */
-export function AdminPatrocinio() {
+export function RifasPatrocinadas() {
   const [dias, setDias] = useState(30);
   const { data } = useQuery<Painel>({
     queryKey: ["/api/admin/patrocinio", { dias }],
     refetchInterval: 20_000,
   });
   return (
-    <PanelShell title="Patrocínio">
+    <div>
       <div
         className="mb-3 flex flex-wrap items-center gap-1"
         role="tablist"
@@ -262,7 +261,7 @@ export function AdminPatrocinio() {
       ) : (
         <DaOrganizacaoView dados={data} />
       )}
-    </PanelShell>
+    </div>
   );
 }
 

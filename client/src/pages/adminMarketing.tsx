@@ -34,7 +34,7 @@ export function AdminMarketing() {
   const [dias, setDias] = useState(30);
   const { data, error } = useQuery<Painel>({ queryKey: ["/api/admin/marketing", { dias }] });
   return (
-    <PanelShell title="Marketing">
+    <PanelShell title="Medição e campanhas">
       {error ? (
         <Empty>Não disponível.</Empty>
       ) : !data ? (

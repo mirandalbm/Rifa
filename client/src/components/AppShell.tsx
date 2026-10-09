@@ -51,6 +51,8 @@ import {
   GalleryHorizontal,
   Rocket,
   Target,
+  MousePointerClick,
+  Sparkles,
 } from "lucide-react";
 import { menuDe, type IconeDoGrupo, type Section, type SectionKey } from "@shared/access";
 import { BUSCA_MAX, NOME_DO_TIPO, interpretarBusca, type AchadoDaBusca } from "@shared/busca";
@@ -167,6 +169,9 @@ const ICONE: Partial<Record<SectionKey, LucideIcon>> = {
   adminPatrocinio: Rocket,
   adminBannerPago: GalleryHorizontal,
   adminMarketing: Target,
+  adminTrafego: MousePointerClick,
+  adminMarketingIA: Sparkles,
+  adminPublicidade: Rocket,
 };
 
 const CHAVE_MENU = "rifa.menu.aberto";

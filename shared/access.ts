@@ -73,6 +73,9 @@ export type SectionKey =
   | "adminPatrocinio"
   | "adminBannerPago"
   | "adminMarketing"
+  | "adminTrafego"
+  | "adminMarketingIA"
+  | "adminPublicidade"
   | "adminFinanceiro"
   | "adminSorteios"
   | "adminSorteiosOficiais"
@@ -129,10 +132,19 @@ export const SECTIONS: Section[] = [
   // Stories de 24 h, para quem segue. Cada organização posta os dela.
   { key: "adminStories", path: "/admin/stories", label: "Stories", requires: "organizer", nav: true },
   // Rifas patrocinadas por clique (etapa 15): saldo e rifas da organização; a plataforma configura.
-  { key: "adminPatrocinio", path: "/admin/patrocinio", label: "Patrocínio", requires: "organizer", nav: true },
-  { key: "adminBannerPago", path: "/admin/banner-pago", label: "Banner na vitrine", requires: "organizer", nav: true },
+  // O Marketing é uma ferramenta só, com quatro entradas, para a organização e
+  // para a plataforma (cada uma vê o lado dela): o tráfego pago (a plataforma
+  // anuncia a rifa e cobra taxa sobre o gasto), o Marketing AI (criativos e
+  // textos pelo assistente), a publicidade dentro da plataforma (rifas
+  // patrocinadas e banner na vitrine, numa tela com abas) e a medição.
+  { key: "adminTrafego", path: "/admin/marketing/trafego", label: "Tráfego pago", requires: "organizer", nav: true },
+  { key: "adminMarketingIA", path: "/admin/marketing/ia", label: "Marketing AI", requires: "organizer", nav: true },
+  { key: "adminPublicidade", path: "/admin/marketing/publicidade", label: "Publicidade", requires: "organizer", nav: true },
+  // Os endereços de antes seguem valendo e abrem a aba certa da publicidade.
+  { key: "adminPatrocinio", path: "/admin/patrocinio", label: "Rifas patrocinadas", requires: "organizer", nav: false },
+  { key: "adminBannerPago", path: "/admin/banner-pago", label: "Banner na vitrine", requires: "organizer", nav: false },
   // Pixels, chaves e vendas por campanha (etapa 16).
-  { key: "adminMarketing", path: "/admin/marketing", label: "Marketing", requires: "organizer", nav: true },
+  { key: "adminMarketing", path: "/admin/marketing", label: "Medição e campanhas", requires: "organizer", nav: true },
   { key: "adminAfiliados", path: "/admin/afiliados", label: "Afiliados", requires: "organizer", nav: true },
   { key: "adminCambistas", path: "/admin/cambistas", label: "Cambistas", requires: "organizer", nav: true },
   // Todo mundo que entra no painel, com os dados de cada um. O organizador vê
@@ -237,7 +249,7 @@ const MENU_DO_MASTER: GrupoDoMenu[] = [
       { rotulo: "Rifas", icone: "rifas", filhos: ["adminCampanhas", "adminSorteios", "adminSorteiosOficiais", "adminStories"] },
       { rotulo: "Vendas e dinheiro", icone: "dinheiro", filhos: ["adminPedidos", "adminFinanceiro", "adminCobranca", "adminExportacoes"] },
       { rotulo: "Pessoas", icone: "pessoas", filhos: ["adminOrganizacoes", "adminUsuarios", "adminAfiliados", "adminCambistas", "adminFiscal"] },
-      { rotulo: "Crescimento", icone: "crescimento", filhos: ["adminMarketing", "adminPatrocinio", "adminBannerPago", "adminBonus"] },
+      { rotulo: "Marketing", icone: "crescimento", filhos: ["adminTrafego", "adminMarketingIA", "adminPublicidade", "adminMarketing", "adminBonus"] },
       { rotulo: "Plataforma", icone: "plataforma", filhos: ["adminAparencia", "adminConfiguracoes"] },
     ],
   },
@@ -254,10 +266,10 @@ const MENU_DO_ORGANIZADOR: GrupoDoMenu[] = [
     itens: [{ secao: "adminPedidos" }, { secao: "adminFinanceiro" }, { secao: "adminCobranca" }, { secao: "adminExportacoes" }],
   },
   {
-    titulo: "Equipe e crescimento",
+    titulo: "Equipe e marketing",
     itens: [
       { rotulo: "Equipe", icone: "equipe", filhos: ["adminAfiliados", "adminCambistas", "adminUsuarios"] },
-      { rotulo: "Crescimento", icone: "crescimento", filhos: ["adminMarketing", "adminPatrocinio", "adminBannerPago"] },
+      { rotulo: "Marketing", icone: "crescimento", filhos: ["adminTrafego", "adminMarketingIA", "adminPublicidade", "adminMarketing"] },
       { secao: "adminConfiguracoes" },
     ],
   },

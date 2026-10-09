@@ -651,11 +651,16 @@ Na ordem de entrega do plano:
 
 - [ ] **[produto]** Gestão de tráfego pago como serviço da plataforma
   (anunciar as rifas no Google, Meta e TikTok com margem para a plataforma,
-  ferramenta do master em Crescimento): o plano, os três modelos de lucro e
-  as decisões que faltam estão em `docs/PLANO-TRAFEGO-PAGO.md`. **Decidir**:
-  modelo (recomendado: a plataforma compra a mídia e cobra taxa sobre o gasto),
-  a taxa, a resposta do contador sobre o faturamento e a do advogado sobre a
-  política de jogos das redes e a cláusula no contrato da promotora.
+  ferramenta do menu Marketing): o plano está em `docs/PLANO-TRAFEGO-PAGO.md`.
+  **Decidido (09/10/2026)**: modelo A, a plataforma compra a mídia e cobra
+  taxa sobre o gasto. **Feito**: o menu Marketing (Tráfego pago, Marketing AI,
+  Publicidade em abas, Medição e campanhas) para a plataforma e o organizador.
+  **Falta no código**: a fase 1 do tráfego pago (saldo, pedido, fila, gasto +
+  taxa, margem) e o plano de divulgação, os textos de anúncio e a leitura dos
+  resultados do Marketing AI. **Falta decidir**: o valor da taxa e o
+  investimento mínimo; a resposta do contador sobre o faturamento e a do
+  advogado sobre a política de jogos das redes e a cláusula no contrato da
+  promotora.
 
 - [ ] **[você]** **Criar o serviço do trabalhador no Railway** (Fase F, o
   gerador de vídeo). No mesmo projeto: **New → GitHub Repo** com este mesmo

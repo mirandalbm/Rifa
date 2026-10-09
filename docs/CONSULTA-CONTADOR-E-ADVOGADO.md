@@ -8,7 +8,7 @@ vira trabalho de código está na seção 4; o que é decisão do dono, na seç�
 
 | Quem | Situação |
 |---|---|
-| Contador | **Respondeu** (09/10/2026). Primeira rodada na seção 2, doação à ONG na seção 7, segunda rodada (Tesouraria) na seção 11; terceira rodada respondida na seção 13; **quarta rodada respondida na seção 15 (muda a posição fiscal do modelo A: revenda)**; quinta, mínima (4 dúvidas), na seção 16; **comentários finais e o parecer conjunto na seção 17**. |
+| Contador | **Respondeu** (09/10/2026). Primeira rodada na seção 2, doação à ONG na seção 7, segunda rodada (Tesouraria) na seção 11; terceira rodada respondida na seção 13; **quarta rodada respondida na seção 15 (muda a posição fiscal do modelo A: revenda)**; quinta, mínima (4 dúvidas), na seção 16; **comentários finais e o parecer conjunto na seção 17**; **respostas a C11–C16 e a minha conferência na seção 18**. |
 | Regime da plataforma | **Lucro Real** (informado pelo dono em 09/10/2026) — ver a seção 8, que muda a leitura de várias respostas. |
 | Advogado | **Perguntas enviadas, sem resposta ainda.** Perguntas na seção 3; as respostas entram aqui quando chegarem. |
 
@@ -870,3 +870,149 @@ também é cobrada inteira na aprovação, sobre o orçamento planejado?
 - **Ao advogado (item 14):** aprovar com o contador o **parecer conjunto** e a
   posição do modelo A.
 
+## 18. Respostas do contador a C11–C16 e a minha conferência (09/10/2026)
+
+O contador respondeu as seis dúvidas da seção 16, já com a correção do art. 208
+do RIR/2018 e a posição de **revenda (conta própria)** para o modelo A. Abaixo,
+o que ele disse, o que eu consegui conferir e o que **ainda não fecha**.
+
+### O que ele respondeu
+
+- **C11 – Mídia na receita bruta.** Na revenda, a mídia entra na receita bruta
+  fiscal. A NFS-e discrimina (1) fornecimento de mídia, pelo valor total da
+  mídia, e (2) gestão de tráfego pago, pela taxa, **ambas no item 17.06** (ou o
+  código municipal equivalente). A fatura da rede é custo e gera crédito de
+  PIS/COFINS no Lucro Real. O ISS incide sobre o total, salvo se a lei
+  municipal excluir a veiculação da base.
+- **C12 – Base do ISS.** Em **São Paulo**, o **art. 47-A do Regulamento do ISS**
+  (incluído pelo Decreto 58.175/2018): no 10.08 (agenciamento) a base é a receita
+  bruta de comissões, honorários, fees, criação, redação e veiculação; no
+  **17.06** é o preço da produção em geral, "soma de todo e qualquer ingresso
+  financeiro", ainda que parte seja executada por terceiros. O **§ 2º** tira da
+  base o preço do serviço do 17.06 **efetivamente prestado por terceiro**.
+  Exemplo dele, com alíquota de 5%: ISS sobre o total (base R$ 120) = R$ 6,00,
+  sobra R$ 14,00 da taxa; ISS só sobre a taxa (base R$ 20) = R$ 1,00, sobra R$ 19,00.
+- **C13 – Excedente.** Custo da plataforma, **dedutível no Lucro Real** com
+  documento idôneo (fatura, extrato da conta de anúncios, comprovante); lançar
+  como despesa operacional ("Serviços de Terceiros – Mídia Excedente").
+- **C14 – Textos.** Acórdão 012/25 de Recife (D.O.M. nº 095, 02/08/2025): a
+  fiscalização pode apropriar à competência receitas diferidas, e a diferença
+  entre a NFS-e emitida e a apropriação deve ser ajustada. Solução de Consulta
+  SRRF06/Disit **nº 6.006, de 26/02/2019**: conta alheia, só o resultado é receita
+  bruta; conta própria, o valor cobrado do anunciante entra inteiro. SC SRRF09/Disit
+  nº 87, de 10/03/2011: desenvolvimento e manutenção de sistemas como insumo de
+  PIS/COFINS.
+- **C15 – Fornecedor.** Desde janeiro de 2026 o Meta fatura as contas brasileiras
+  pela **Facebook Serviços Online do Brasil Ltda.** (CNPJ 13.347.016/0001-17),
+  com ISS (2,9%) e PIS/COFINS (9,25%) na fatura. Entidade brasileira: **não há ISS
+  de importação**, e o crédito de PIS/COFINS é de 9,25% sobre a mídia.
+- **C16 – Modelo B.** A receita é só a taxa, reconhecida **proporcionalmente ao
+  gasto** (lido por API na conta do cliente); NFS-e **mensal, consolidada por
+  organização**; ISS **só sobre a taxa**; o contrato diz que o cliente paga a
+  rede direto. Sobre a reserva de 10%: se for retenção contratual, é
+  **adiantamento (passivo)** até a prestação; se for provisão de custo futuro, é
+  despesa e não mexe na receita da taxa.
+- **Municípios:** deu uma tabela (SP, RJ, BH, Curitiba, Porto Alegre,
+  Florianópolis, Brasília, Londrina) com alíquotas de 2% a 5% e retenção pelo
+  tomador PJ; recomenda o sistema ter uma **tabela de municípios** (retém ou
+  não, alíquota), a ser fornecida por ele.
+- **Parecer conjunto:** reforça que ele e o advogado emitam um parecer formal
+  (posição do modelo A com fundamentos, custo de cada cenário com simulação,
+  preço da taxa por cenário, riscos contratuais e das redes) **antes de
+  qualquer parametrização definitiva**.
+
+### O que eu consegui conferir (busca em fontes abertas, 09/10/2026)
+
+| Ponto | Resultado |
+|---|---|
+| Art. 47-A do RISS de São Paulo | **Confere na estrutura** (fontes secundárias): inciso I (10.08), inciso II (17.06, "todos os ingressos"), § 1º (se prestar os dois serviços ao mesmo cliente, bases distintas e **NFS-e distintas**) e § 2º (serviço do 17.06 prestado por terceiro não entra na base). **Não conferi o texto consolidado nem se está em vigor hoje** — falta o texto da Prefeitura. |
+| SC SRRF06/Disit nº 6.006/2019 | **Existe, e a ementa bate** (sites de terceiros; o texto oficial não apareceu). Ela é do **Simples Nacional** e remete à SC Cosit 70/2016. Serve por analogia (conta alheia × conta própria), não como regra do Lucro Real. A dúvida de antes (número confundido com outra solução) fica **resolvida**. |
+| Acórdão 012/25 de Recife | Não conferi o link; a ementa que ele cita trata de **competência × NFS-e**, o que **apoia** a NFS-e mensal pelo valor reconhecido. |
+| SC 87/2011 | Trata de **software como insumo**; **não serve de base** para crédito sobre mídia. O crédito sobre a fatura do Meta se apoia no conceito de insumo (essencialidade), a confirmar por ele. |
+| Facebook Serviços Online do Brasil e CNPJ | A entidade e o repasse de ISS 2,9% e PIS/COFINS 9,25% **confirmam** (comunicados da Meta repassados pela imprensa). **O CNPJ não confirmei.** Veja o ponto crítico abaixo. |
+| Tabela de municípios | Sem fonte: **não é base para código**. Alíquota e retenção mudam por lei municipal e por tomador. |
+
+### O ponto crítico que apareceu: o imposto do Meta entra POR CIMA do orçamento
+
+As fontes que achei dizem que, desde 01/01/2026, a nota fiscal do Meta **soma os
+impostos ao orçamento** (≈ **+12,15%**: ISS 2,9% + PIS/COFINS 9,25%), e que o
+**Ads Manager mostra o gasto sem imposto**. Também aparecem CBS/IBS de teste
+(1%) que, em 2026, não mudam o total. Isto **contradiz** o que está no
+documento (seção 1 e o `CLAUDE.md`): "o Meta cobra o preço cheio, com ISS e
+PIS/COFINS **já embutidos**". Se o imposto vem por cima:
+
+- o **gasto que o sistema lê** (insights/Windsor, sem imposto) fica **abaixo do
+  que o Meta realmente cobra**; o custo real da plataforma é gasto × 1,1215;
+- no **modelo A**, R$ 100 de mídia custam ~R$ 112,15 à plataforma. Com a taxa de 20%
+  e o ISS de 5% sobre o total, a conta fica, **por R$ 100 de mídia** (minha
+  simulação grosseira, antes de IRPJ/CSLL, só para dar a ordem de grandeza):
+  receita 120 − custo 112,15 − ISS 6,00 − PIS/COFINS líquido (11,10 − crédito de
+  10,37 = 0,73) = **≈ R$ 1,12**. Com o ISS só sobre a taxa (R$ 1,00) sobram
+  **≈ R$ 6,12**. Em qualquer caso, **a taxa de 20% não sustenta o modelo A sem
+  repassar o imposto da rede ao cliente**;
+- no **modelo B** isso não pesa para nós (o cliente paga a rede), mas a **base da
+  taxa** (gasto com ou sem imposto) precisa ser definida;
+- a **trava de 10%** e o teto do Meta (`lifetime_budget`) também: o que o Meta
+  cobra é o orçamento **mais** o imposto, e o saldo a travar tem de contar assim.
+
+**Ninguém deve parametrizar nada em cima disso antes de olhar uma fatura real do
+Meta** (a nota da conta de anúncios, com o campo de impostos).
+
+### Onde a resposta ainda não fecha
+
+1. **Uma conta, duas leituras.** O contador trata a mídia como **conta própria**
+   para a receita federal (tudo é receita bruta) e usa o § 2º do art. 47-A, que
+   exclui da base do ISS o serviço **prestado por terceiro**, como saída para
+   baixar o ISS. A mesma operação pode ser "própria" no federal e "de terceiro"
+   no ISS? É para o **parecer conjunto** dizer, com a lei do município.
+2. **Item de serviço.** Ele cita 17.06 em C11 e "17.06 ou 10.08" em C16. Em São
+   Paulo as bases dos dois são **diferentes** (no 10.08 a veiculação faz parte da
+   receita bruta). Qual é a nossa atividade, e qual item entra no cadastro?
+3. **Que município.** A resposta é de São Paulo. A plataforma está **em qual
+   município**? Sem isso, a lei é outra.
+4. **"Nota segregada".** Ele diz que a exclusão do § 2º exige nota emitida de forma
+   segregada. O § 1º fala de notas distintas para 10.08 e 17.06, **não** da
+   exclusão do terceiro. Pedir o texto do § 2º e o que ele exige como prova.
+5. **A tabela de ISS é só de ISS.** O "fee efetivo" dele não tem PIS/COFINS
+   líquido nem IRPJ/CSLL; a simulação certa é a do parecer.
+6. **Mídia não consumida** (C11, última parte): ele não respondeu se o que volta
+   ao saldo como crédito é adiantamento de cliente **sem nota**. Pela posição
+   anterior (recarga é passivo, mídia é receita no consumo), parece que sim —
+   confirmar.
+7. **A reserva de 10%.** Ele a tratou como retenção contratual ou provisão. **Ela
+   não é nenhuma das duas**: é a **margem de proteção** da trava automática. O
+   saldo dos 10% **continua do cliente** (passivo, adiantamento), volta como
+   crédito se a campanha encerrar, e nada disso vira receita nem despesa. Vale
+   dizer a ele assim.
+
+### Perguntas novas
+
+**Ao contador:**
+- **C17.** A fatura do Meta soma os impostos **por cima** do orçamento (+12,15%)
+  ou o orçamento já os inclui? Na revenda, o crédito de PIS/COFINS é calculado
+  sobre o valor **total** da fatura? E o ISS de 2,9% que o Meta cobra é custo sem
+  crédito, que se soma ao nosso ISS sobre a nota (cascata)?
+- **C18.** No modelo B, a **base da taxa** é o gasto **sem** imposto (o que o
+  Ads Manager mostra) ou com?
+- **C19.** Qual item de serviço (10.08 ou 17.06), qual município e qual artigo da
+  lei municipal valem para a **nossa** empresa?
+- **C20.** O crédito de PIS/COFINS sobre mídia se apoia em quê (a SC 87/2011 trata
+  de software)? Existe solução de consulta ou decisão sobre **mídia de anúncio**
+  como insumo?
+
+**Ao advogado:** acrescentar ao item 12 a pergunta **se a revenda é possível sem
+repassar o imposto da rede** ao cliente (preço da mídia com o imposto
+discriminado na proposta e no aceite), e ao item 11 se a identificação do
+anunciante real pesa mais com o imposto cobrado em nome da plataforma.
+
+### O que isto muda
+
+- **Preço da taxa:** a decisão de manter 20% fica **suspensa** até a fatura real
+  e o parecer. No modelo A é provável que a mídia tenha de ser **vendida com o
+  imposto da rede por cima**; no modelo B os 20% seguem fazendo sentido.
+- **Código:** nada muda agora. No planejamento entram dois parâmetros
+  **versionados por competência**: a posição fiscal (revenda ou repasse) e o
+  **acréscimo de imposto da rede** (hoje 0% no código, possivelmente 12,15%),
+  usados pelo gasto, pela margem, pela trava e pela taxa do modelo B.
+- **Tabela de municípios:** vira parâmetro **cadastrado pelo contador, com
+  fonte e data**, nunca constante no código.

@@ -680,6 +680,13 @@ Na ordem de entrega do plano:
   ao **contador**, que a taxa passa a ser receita na aprovação (e não ao longo
   do gasto): reconhecimento, tributo e o que fazer com a taxa de campanha
   recusada depois de aprovada (não existe: aprovada, a taxa é definitiva).
+  **O contador respondeu (09/10/2026)** — tudo em
+  `docs/CONSULTA-CONTADOR-E-ADVOGADO.md`: a mídia é repasse e a receita é só a
+  taxa (17.06, CNAE 73.11-4-00, NFS-e só da taxa); competência com a taxa
+  diferida; **erro da plataforma devolve a taxa** (choca com "nunca volta",
+  decisão do dono e do advogado); **crédito com validade de 6 ou 12 meses**;
+  contas bancárias separadas e extrato mensal com campos definidos (próximo
+  PR). **O advogado ainda não respondeu**: perguntas 1 a 20 na mesma página.
   **Falta no ambiente**: o `db:push` das tabelas `trafego_campanhas` e
   `trafego_gastos` (e as colunas `trafego_gastos.cliques`, `origem` e
   `excedente_cents`)

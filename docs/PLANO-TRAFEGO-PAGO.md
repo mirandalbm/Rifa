@@ -248,3 +248,19 @@ promotora) e pelo contador (a taxa vira receita na aprovação).**
 6. **Margem**: a taxa entra no mês de `taxa_cobrada_em` (fuso de São Paulo); a do
    legado segue pelos lançamentos; o excedente como estava. O custo por venda e
    a venda atribuída usam a taxa inteira quando cobrada.
+
+### Resposta do contador (09/10/2026) e o que fica em aberto
+
+Registrada por inteiro em `docs/CONSULTA-CONTADOR-E-ADVOGADO.md`. Resumo do que
+pesa no desenho:
+
+- A mídia é **repasse** e a receita é **só a taxa** (NFS-e só dela, serviço
+  17.06, CNAE 73.11-4-00): é como o sistema já separa mídia, taxa e excedente.
+- O contador reconhece a taxa pelo **regime de competência** (diferida ao longo
+  da campanha); o sistema não muda a cobrança, mas o **extrato mensal** leva as
+  datas e o percentual executado para ele diferir.
+- **Em aberto, depende do advogado e do dono**: o contador diz que, se o erro
+  for da plataforma (anúncio reprovado, campanha que não rodou), a taxa tem de
+  voltar, e que o saldo precisa de **prazo de validade** (6 ou 12 meses). As
+  duas coisas tocam a decisão "a taxa nunca volta" e o saldo compartilhado com
+  patrocínio e banner pago; ficam para depois da resposta do advogado.

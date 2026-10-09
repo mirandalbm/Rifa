@@ -46,7 +46,7 @@ cada item precisa ter um lugar novo — ou uma decisão explícita de sair.
 | Resultados (`/admin/resultados`) | `pages/adminResultados.tsx` | Receita por dia, Por canal, Rifas que mais vendem |
 | Stories (`/admin/stories`) | `pages/adminStories.tsx` | Novo story, No ar agora |
 | Atendimento (`/admin/atendimento`) | `pages/adminAtendimento.tsx` | Chamados, disputas, solicitações de rifa, denúncias, verificações |
-| Patrocínio (`/admin/patrocinio`) | `pages/adminPatrocinio.tsx` | Funil, Gasto × receita, De onde vieram, Seus anúncios, Extrato, Encerrados, Novo anúncio, Saldo, Fila das vitrines, Configuração, Saldo das organizações, reembolsos |
+| Patrocínio (`/admin/patrocinio`, hoje a aba "Rifas patrocinadas" de `/admin/marketing/publicidade`) | `pages/adminPatrocinio.tsx` | Funil, Gasto × receita, De onde vieram, Seus anúncios, Extrato, Encerrados, Novo anúncio, Saldo, Fila das vitrines, Configuração, Saldo das organizações, reembolsos |
 | Marketing (`/admin/marketing`) | `pages/adminMarketing.tsx` | pixels e chaves (`ConfigCard`), Compras enviadas pelo servidor, Vendas por campanha (UTM) |
 | Afiliados (`/admin/afiliados`) | `pages/admin.tsx` | Divulgação, Pedidos de adesão, Novo afiliado, Termo de adesão, Cupons, Comissão por afiliado |
 | Cambistas (`/admin/cambistas`) | `pages/adminCambistas.tsx` | A receber, Novo cambista, Acertos fechados, Querem ser colaboradores |

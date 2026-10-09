@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Link } from "wouter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { PanelShell } from "@/components/AppShell";
 import { Button, Campo, Card, Empty, Money, Pill } from "@/components/bits";
 import { apiRequest } from "@/lib/queryClient";
 import { useSession } from "@/lib/session";
@@ -71,13 +70,13 @@ const centavos = (texto: string) => {
  * confere a arte antes de ir ao ar. A plataforma vê todos os pedidos, decide
  * e fixa preço, prazo e vagas. Desligado, a organização não vê nada.
  */
-export function AdminBannerPago() {
+export function BannerNaVitrine() {
   const { data: sessao } = useSession();
   const plataforma = sessao?.role === "admin";
   const { data: painel, isError } = useQuery<Painel>({ queryKey: ["/api/admin/banner-pago"] });
 
   return (
-    <PanelShell title="Banner na vitrine">
+    <div>
       {isError ? (
         <Card>
           <Empty>O banner pago ainda não está disponível. Quando a plataforma liberar, ele aparece aqui.</Empty>
@@ -94,7 +93,7 @@ export function AdminBannerPago() {
           </div>
         </div>
       )}
-    </PanelShell>
+    </div>
   );
 }
 
@@ -222,7 +221,7 @@ function NovoPedido({ painel }: { painel: Painel }) {
           {faltaSaldo ? (
             <>
               Falta saldo para este pedido.{" "}
-              <Link href="/admin/patrocinio" className="font-semibold underline">
+              <Link href="/admin/marketing/publicidade?aba=patrocinadas" className="font-semibold underline">
                 Recarregar
               </Link>
             </>

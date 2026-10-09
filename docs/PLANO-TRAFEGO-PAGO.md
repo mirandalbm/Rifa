@@ -1,7 +1,9 @@
 # Gestão de tráfego pago como serviço da plataforma — plano
 
-Rascunho de 09/10/2026, para decidir com você. **Nada daqui está no código
-ainda.** A ideia: a plataforma anuncia as rifas das organizações no Google,
+Rascunho de 09/10/2026. **Decidido**: modelo A (seção 2). **No código**: o
+menu Marketing (Tráfego pago, Marketing AI, Publicidade da plataforma em
+abas, Medição e campanhas) e a tela de Tráfego pago que explica o serviço;
+a fase 1 (seção 5) ainda não. A ideia: a plataforma anuncia as rifas das organizações no Google,
 no Meta (Facebook e Instagram) e no TikTok, mede o que cada anúncio vendeu e
 **ganha uma margem** sobre esse serviço. É uma ferramenta do painel do
 administrador master, ao lado de Marketing, Patrocínio e Banner pago.
@@ -53,7 +55,7 @@ organização grande que já tem conta própria.
 
 ## 3. Como ficaria (modelo A)
 
-**Para a organização** (menu Crescimento → "Anúncios"):
+**Para a organização** (menu Marketing → "Tráfego pago"):
 1. Recarrega o saldo de tráfego por Pix (o mesmo fluxo da recarga do patrocínio).
 2. Pede uma campanha para uma rifa publicada: objetivo (vender cotas), quanto
    investir no total e por dia, onde (Google, Instagram/Facebook, TikTok),
@@ -62,7 +64,7 @@ organização grande que já tem conta própria.
    aviso de que a atribuição é estimativa.
 4. Pausa a qualquer hora; o que não foi gasto volta ao saldo.
 
-**Para o administrador master** (Crescimento → "Gestão de tráfego"):
+**Para o administrador master** (Marketing → "Tráfego pago", a mesma tela com a fila e a margem):
 1. Fila dos pedidos de campanha (também na Caixa de entrada).
 2. Monta a campanha nas contas da plataforma — no começo **à mão ou por mim,
    pelo Windsor.ai**, com a sua aprovação; depois, pela API (seção 5).

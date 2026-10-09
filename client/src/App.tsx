@@ -58,8 +58,9 @@ import { AdminResultados } from "@/pages/adminResultados";
 import { AdminFiscal } from "@/pages/adminFiscal";
 import { AdminCaixa } from "@/pages/adminCaixa";
 import { AdminBonus } from "@/pages/adminBonus";
-import { AdminPatrocinio } from "@/pages/adminPatrocinio";
-import { AdminBannerPago } from "@/pages/adminBannerPago";
+import { AdminPublicidade } from "@/pages/adminPublicidade";
+import { AdminTrafego } from "@/pages/adminTrafego";
+import { AdminMarketingIA } from "@/pages/adminMarketingIA";
 import { AdminMarketing } from "@/pages/adminMarketing";
 import { AfiliadoDados } from "@/pages/afiliadoDados";
 import ReciboPage from "@/pages/Recibo";
@@ -312,14 +313,26 @@ export default function App() {
               <AdminOrganizacoes />
             </Guarded>
           </Route>
+          {/* Os endereços de antes da tela com abas abrem a aba certa da publicidade. */}
           <Route path="/admin/patrocinio">
-            <Guarded requires="organizer">
-              <AdminPatrocinio />
-            </Guarded>
+            <Redirect to="/admin/marketing/publicidade" replace />
           </Route>
           <Route path="/admin/banner-pago">
+            <Redirect to="/admin/marketing/publicidade?aba=banner" replace />
+          </Route>
+          <Route path="/admin/marketing/publicidade">
             <Guarded requires="organizer">
-              <AdminBannerPago />
+              <AdminPublicidade />
+            </Guarded>
+          </Route>
+          <Route path="/admin/marketing/trafego">
+            <Guarded requires="organizer">
+              <AdminTrafego />
+            </Guarded>
+          </Route>
+          <Route path="/admin/marketing/ia">
+            <Guarded requires="organizer">
+              <AdminMarketingIA />
             </Guarded>
           </Route>
           <Route path="/admin/marketing">

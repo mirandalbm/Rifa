@@ -444,7 +444,7 @@ function NovaCampanha({ painel }: { painel: Painel }) {
           </div>
           <div className="flex items-center justify-between">
             <dt className="text-muted">
-              Taxa de gestão (<span className="tnum">{config.taxaPct}%</span>, se gastar tudo)
+              Taxa de gestão (<span className="tnum">{config.taxaPct}%</span>)
             </dt>
             <dd className="tnum">{formatBRL(reserva - investimentoCents)}</dd>
           </div>

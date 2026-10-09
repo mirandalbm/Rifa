@@ -187,3 +187,19 @@ Orientação do dono, **a confirmar pelo contador e pelo advogado**:
   da rede ("pré-aprovada pela plataforma", nunca "aprovada pelo Meta"), o
   Lucky especializado em campanhas, e as proteções de gasto (limite da conta,
   freio no fim do dia, repetir a pausa e avisar na Caixa).
+
+### Decisão seguinte (09/10/2026): o modelo B entra como segundo caminho
+
+Orientação do dono: **manter o modelo A como está e acrescentar o B** (a
+organização conecta a conta de anúncios dela; a plataforma gere, mede e cobra),
+escolhido **por organização** e atrás de interruptor próprio, para que a
+suspensão de uma conta de anúncios não derrube todas as campanhas.
+**Em aberto, a confirmar antes de desenhar o PR**: como a plataforma cobra no B
+(só a gestão, ou a taxa sobre o gasto lido da conta dela — o palpite é a
+segunda); o aceite de gerir conta alheia no contrato da promotora (cláusula
+nova, a validar com o advogado); e o acesso como parceiro com permissão só de
+gestão, nunca login e senha. A mídia **não** passa pela plataforma no B: o Meta
+cobra a organização direto.
+
+Texto da tela: o resumo do pedido mostra só "Taxa de gestão (X%)", sem
+"se gastar tudo" — a frase dava a entender que a taxa poderia voltar.

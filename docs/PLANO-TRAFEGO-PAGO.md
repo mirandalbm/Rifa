@@ -264,3 +264,66 @@ pesa no desenho:
   voltar, e que o saldo precisa de **prazo de validade** (6 ou 12 meses). As
   duas coisas tocam a decisão "a taxa nunca volta" e o saldo compartilhado com
   patrocínio e banner pago; ficam para depois da resposta do advogado.
+
+### Posição fiscal do modelo A: revenda (contador, 09/10/2026)
+
+A tese de que a mídia seria **repasse** (conta alheia, fora da receita) **não
+se sustenta no modelo A**, porque a campanha fica na conta de anúncios da
+plataforma, em nome dela, e a rede fatura a plataforma. O contador recomenda
+**revenda (conta própria)**: a mídia é receita bruta, a fatura da rede é custo
+com crédito de PIS/COFINS e o ISS pode alcançar o valor da mídia. Efeito direto
+no produto: **rever a taxa padrão (20%)**, o contrato (de mandato para prestação
+de serviço com fornecimento de mídia) e o texto do aceite; o **modelo B** (o
+cliente paga a rede) é onde o repasse vale. Detalhes e perguntas abertas em
+`docs/CONSULTA-CONTADOR-E-ADVOGADO.md`, seções 15 e 16. A decisão final é do
+dono com o advogado.
+
+### Modelo B: a leitura da cobrança (dono, 09/10/2026)
+
+O organizador **paga à plataforma apenas as taxas**; a mídia ele paga direto à
+rede. Os **20%** remuneram o pagamento dos créditos e os **serviços de campanhas
+automáticas** que a plataforma presta às promotoras. A plataforma não toca a
+mídia (repasse puro, ISS só sobre a taxa). Em aberto: se a taxa é **debitada do
+saldo à medida que o gasto é lido** na conta dela (proposta) ou cobrada na
+aprovação sobre o orçamento planejado — ver `docs/CONSULTA-CONTADOR-E-ADVOGADO.md`,
+seção 17.
+
+### Proteção de gasto (decisão do dono, 09/10/2026): contar, travar sozinho, alertar aos 10%, travar à mão aos 5%
+
+O dono pediu que a plataforma **contabilize os créditos e o gasto** de cada
+campanha e **trave a campanha sozinha**; se não conseguir sozinha, **alerta aos
+10% do saldo restante**, o alerta cai numa **fila no painel de gestão do
+marketing**, e o gestor **trava aos 5%**. Desenho proposto (a refinar no
+planejamento, depois da pesquisa de integração):
+
+1. **A primeira trava é a do próprio Meta**, não a nossa. A campanha já nasce com
+   **orçamento total** (`lifetime_budget`, teto rígido) igual ao que resta da
+   verba, no modelo A. No modelo B a plataforma cria a campanha na conta da
+   organização com teto igual ao que o **saldo de taxa** cobre (saldo de taxa ÷
+   taxa%). Assim, mesmo que tudo o mais falhe, a rede para no teto.
+2. **A segunda trava é a nossa, automática**: ao ler o gasto, se o saldo restante
+   (modelo A: verba − gasto; modelo B: saldo de taxa) cair a **5%** ou menos, o
+   sistema **pausa a campanha na rede** (pausar, não encerrar: dá para retomar
+   depois de recarga), uma vez só (condicional ao estado), com auditoria do ator
+   `sistema`.
+3. **Aos 10%** entra um **alerta na fila de Marketing** (item da Caixa de entrada
+   hoje; da fila do perfil "Marketing" quando existir), com a campanha, a
+   organização, o saldo restante e o botão **"Travar agora"** (decisão do dono,
+   09/10/2026: o painel de gestão do marketing mostra o botão quando a campanha
+   chega ao limite). O botão pausa a campanha na rede pelo mesmo caminho da
+   trava automática (uma vez só, condicional ao estado, com auditoria do nome
+   de quem clicou) e só alcança quem tem o perfil Marketing ou o master. Se a pausa
+   automática falhou, o alerta sobe de nível e **escala ao master** depois de um
+   prazo.
+4. **A leitura do gasto precisa ser mais fresca do que a de hoje.** A importação
+   atual (Windsor) traz só **dias fechados**, de hora em hora; para 10% e 5% é
+   preciso ler o **gasto do dia** direto da API de insights do Meta, que também
+   **atrasa** (de minutos a horas — a confirmar). Por isso o limite de 5% tem de
+   considerar o ritmo: a regra é travar quando o **saldo restante for menor que o
+   gasto previsível até a próxima leitura** (ou 5%, o que vier primeiro).
+5. **Fora do horário** a fila não basta: o gestor dorme. O automático e o teto do
+   Meta são a proteção de verdade; a fila é a segunda linha, com aviso por push
+   ou WhatsApp.
+6. A pausa que falha é repetida com espera e vira alerta; o que a rede gastar
+   depois continua sendo **excedente** (custo da plataforma), como já é.
+

@@ -8,7 +8,7 @@ vira trabalho de código está na seção 4; o que é decisão do dono, na seç�
 
 | Quem | Situação |
 |---|---|
-| Contador | **Respondeu** (09/10/2026). Respostas na seção 2; análise na seção 4. Segunda consulta (doação de parte da taxa a uma ONG) na seção 7. |
+| Contador | **Respondeu** (09/10/2026). Primeira rodada na seção 2, doação à ONG na seção 7, segunda rodada (Tesouraria) na seção 11; terceira rodada respondida na seção 13; **quarta rodada respondida na seção 15 (muda a posição fiscal do modelo A: revenda)**; quinta, mínima (4 dúvidas), na seção 16; **comentários finais e o parecer conjunto na seção 17**. |
 | Regime da plataforma | **Lucro Real** (informado pelo dono em 09/10/2026) — ver a seção 8, que muda a leitura de várias respostas. |
 | Advogado | **Perguntas enviadas, sem resposta ainda.** Perguntas na seção 3; as respostas entram aqui quando chegarem. |
 
@@ -405,6 +405,42 @@ dinheiro**: só calcula e registra. Regime: Lucro Real.
 17. Quem na empresa fecha o mês e quem pode reabrir? Há exigência de
     **segregação de funções** (quem lança não aprova) para auditoria?
 
+**Segunda rodada ao contador (dúvidas que ficaram depois de ler as respostas)**
+18. **O "saldo da empresa" do fechamento é gerencial, não é lucro contábil.**
+    Como rotular para não ser confundido com resultado apurado? E ele pode
+    orientar a **retirada dos sócios**: há regra em vigor sobre distribuição de
+    lucros e tributação de dividendos (mudanças de 2026) que o painel deva
+    respeitar ou avisar?
+19. **NFS-e**: uma por campanha aprovada (na aprovação) ou consolidada por
+    organização no mês? Para organização **pessoa física**, sem CNPJ? O ISS é
+    devido ao município do prestador ou do tomador no item 17.06?
+20. **Recargas de saldo** (patrocínio, banner, assistente de IA) pagas por Pix:
+    a nota sai **na recarga** ou **no consumo**? Antes do consumo é só
+    adiantamento (passivo), sem fato gerador?
+21. **Diferimento da taxa de gestão**: o critério é o **período planejado** da
+    campanha (da aprovação até a data final) ou o **gasto proporcional** da
+    mídia (percentual executado)? O extrato do sistema entrega os dois; qual
+    ele usa?
+22. **Crédito de PIS/COFINS** sobre o que **é custo nosso**: tarifa do provedor
+    de Pix, Chatbase, hospedagem (Railway), armazenamento, domínio. Quais geram
+    crédito no Lucro Real não cumulativo, e como o painel separa essas
+    despesas?
+23. **Presente** (desconto de primeira compra pago pela plataforma): é
+    despesa promocional, redução da receita ou outra coisa? O crédito devido à
+    promotora é passivo até o repasse?
+24. **Mensalidade e taxa por venda** (CNAE 6311-9/00) e **taxa de gestão do
+    tráfego** (73.11-4-00, item 17.06): as duas atividades na mesma inscrição
+    municipal, com alíquotas de ISS diferentes? O painel mostra o ISS por
+    atividade?
+25. **Percentuais padrão da linha "Impostos"**: o painel pode provisionar ISS,
+    PIS/COFINS e IRPJ/CSLL com percentuais que o contador informa (ISS por
+    município, PIS/COFINS líquido de créditos), e quem os mantém atualizados?
+26. **Prazo do fechamento**: até que dia do mês seguinte o contador precisa do
+    extrato e do retrato para escriturar?
+27. Pode **enviar os números e links** da Solução de Consulta nº 6.006 (repasse
+    a veículos de comunicação) e da Solução de Consulta Cosit nº 110 (doação
+    sem OSCIP) para conferirmos e anexarmos ao dossiê?
+
 ## 10. Dúvidas ao advogado sobre a Tesouraria e os acessos (aguardando)
 
 **Dinheiro de terceiros**
@@ -439,4 +475,398 @@ dinheiro**: só calcula e registra. Regime: Lucro Real.
 **Fechamento**
 9. O **retrato imutável** do fechamento mensal, com a impressão SHA-256, vale
    como prova interna? Há prazo mínimo de guarda?
+
+## 11. Respostas da segunda rodada do contador (09/10/2026)
+
+(Os números dele pulam a partir do 18; aqui seguem os da pergunta.)
+
+- **18. Saldo ≠ lucro.** Saldo em conta é posição patrimonial (ativo) e pode ter
+  dinheiro de terceiros. Rótulos que ele recomenda no painel: **"Disponível em
+  Caixa"** (saldo bancário total), **"Saldo de Mídia (Passivo)"** (o que é dos
+  clientes), **"Caixa Livre da Empresa"** (a diferença: o que pode pagar
+  despesas e distribuição) e **"Lucro Acumulado (Contábil)"** (resultado da DRE,
+  a base da distribuição). **Dividendos a partir de 2026 (Lei 15.270/2025):**
+  lucros e dividendos pagos pela mesma empresa à mesma pessoa física que
+  passem de **R$ 50.000 por mês** sofrem **IRRF de 10% sobre o valor integral**
+  (não só o excedente), em qualquer regime (inclusive Simples). O painel deve
+  **alertar e calcular** a retenção quando a distribuição mensal a um sócio
+  passar disso, mostrando o líquido e o IRRF a recolher.
+- **19. Diferimento da taxa de gestão:** pelo **gasto proporcional da mídia**
+  (ou o período de veiculação), não pelo período planejado — se a campanha
+  encerra antes, o planejado superavaliaria a receita. Metade da verba gasta =
+  metade da taxa reconhecida; o resto fica como **receita diferida** (passivo).
+- **20. NFS-e:** a prática recomendada é **uma por tomador (organização) por
+  mês**, descrição "Serviços de gestão de tráfego pago – competência mês/ano".
+  Se o município exigir nota por campanha, o sistema se adapta.
+- **21. Pessoa física:** pode emitir NFS-e com o CPF do tomador (padrão ABRASF).
+  O contrato qualifica o tomador (nome, CPF, endereço); o sistema deve permitir
+  preencher à mão se o município não aceitar a nota sem identificação.
+- **22. ISS no 17.06:** regra geral, no município do **prestador**, mas a lei
+  municipal pode mandar o **tomador reter** (ele cita São Paulo: o tomador
+  paulistano retém o ISS de prestador de fora). O sistema deve conhecer o
+  município do tomador e aplicar a retenção local.
+- **23. Recargas de saldo:** são adiantamento de cliente (passivo); a nota da
+  **taxa de gestão sai na aprovação da campanha**. Para serviço que a
+  plataforma presta direto (ex.: assistente de IA), a receita é o valor
+  cobrado, **reconhecido no consumo**, não na recarga.
+- **24. Crédito de PIS/COFINS (Lucro Real):** serviços de desenvolvimento e
+  manutenção de sistema e infraestrutura têm argumento de insumo (ele cita a
+  Solução de Consulta nº 87/2011 e o STJ). **Tarifa do Pix** é despesa
+  financeira: em regra, **sem crédito**. Chatbase, Railway, armazenamento e
+  domínio têm "forte argumento" de insumo, mas ele recomenda um especialista
+  caso a caso.
+- **25. Presente:** desconto **incondicional** na venda é redução da receita
+  bruta; valor pago depois (tipo cashback) pode ser despesa promocional. O
+  crédito devido à promotora é **passivo** até o repasse.
+- **26. Duas atividades:** podem coexistir no mesmo CNPJ, com inscrições
+  municipais distintas se os códigos de serviço e alíquotas diferirem. A taxa
+  por venda/mensalidade provavelmente cai em outro item da lista (ele sugere o
+  10.04, agenciamento/intermediação). O sistema deve **segregar a receita por
+  atividade** e mostrar o ISS por atividade.
+- **27. Percentuais da linha "Impostos":** o painel pode provisionar com
+  percentuais parametrizáveis; **o contador os informa** periodicamente e o
+  sistema precisa de uma **tela de alíquotas**.
+- **28. Prazo:** o extrato mensal completo até o **5º dia útil** do mês
+  seguinte.
+- **29. Citações:** ele corrigiu as referências — **Solução de Consulta
+  SRRF06/Disit nº 6.006, de 26/02/2019** (repasse a veículos por conta e ordem
+  do anunciante fora da base do Simples) e **Solução de Consulta Cosit nº 110,
+  de 28/08/2018** (doação a OSC sem exigir OSCIP, art. 13, § 2º, III, da Lei
+  9.249/1995). Não mandou link direto, só "buscar pelo número" em
+  `normas.receita.fazenda.gov.br/sijut2consulta`.
+
+**Conferência feita por mim (09/10/2026, fontes secundárias, não o site
+oficial):**
+- A **Cosit 110/2018 existe** e diz isso mesmo (ementa reproduzida em
+  [okai](https://okai.com.br/documento/2018-08-28/solucao-de-consulta-cosit-nº-110-de-28-de-agosto-de-2018)
+  e [IBET](https://www.ibet.com.br/solucao-de-consulta-cosit-no-110-de-28-de-agosto-de-2018/)).
+- A **6.006/2019** aparece em portais contábeis com o entendimento descrito
+  (conta alheia fica fora da base do Simples; **conta própria entra na receita
+  bruta**; a agência precisa **provar** que foi só intermediária). **Atenção**:
+  um portal cita também uma "DISIT/SRRF06 nº 6006" de **2023** sobre doação a
+  OSC, então o número pode estar repetido ou trocado — **confirmar no site
+  oficial**. E ela é sobre o **Simples**; a plataforma é **Lucro Real**.
+- A **Lei 15.270/2025** confirma o essencial (10% sobre o total acima de R$ 50
+  mil por mês da mesma fonte à mesma pessoa física, vale para o Simples,
+  recolhimento pelo código 1841, informado na EFD-Reinf e DCTFWeb; há regra de
+  transição para lucros apurados até 2025 e controvérsias em discussão). Fonte:
+  [Jornal Contábil](https://jornalcontabil.com.br/noticia/lei-15-270-define-regras-para-taxacao-de-lucros-e-dividendos-a-partir-de-2026/).
+- **Não consegui conferir** a Solução de Consulta nº 87/2011 (crédito de
+  insumo) nem o "Tema 1.412 do STJ" (bonificações) que ele citou na 24 e na 25.
+  Nada do sistema se apoia nelas; o contador deve mandar o texto.
+
+## 12. O que ficou em aberto com o contador (terceira rodada, curta)
+
+- **C1. Nota da taxa: na aprovação ou mensal?** Ele disse as duas coisas: na
+  20 recomenda **uma nota mensal por organização**; na 23 diz que a nota da
+  taxa **sai na aprovação**. Qual vale? E, se a nota sai na aprovação e a receita
+  é diferida, o ISS é devido na emissão ou na apropriação?
+- **C2. Patrocínio, banner e assistente de IA são serviços próprios da
+  plataforma, não mídia de terceiros.** Ele os tratou "como a mídia" e disse
+  que a receita é "apenas a taxa de gestão vinculada". Só o **tráfego pago** tem
+  mídia de terceiros. Confirmo que nos outros três **100% do valor consumido** é
+  receita da plataforma (cliques gastos, dias de banner usados, créditos
+  usados) e o que não foi consumido é adiantamento?
+- **C3. Encerramento da campanha.** Encerrada antes de gastar tudo (a taxa não
+  volta): o saldo ainda **diferido** da taxa é reconhecido de uma vez no
+  encerramento (serviço encerrado, taxa não reembolsável) ou continua diferido?
+- **C4. Repasse no Lucro Real.** A 6.006 trata do **Simples**. Qual a base
+  legal para a mídia ficar fora da receita bruta do **Lucro Real** (IRPJ, CSLL,
+  PIS/COFINS)? E que prova ele quer guardar ("por conta e ordem do anunciante e
+  em nome dele"): a campanha é criada na conta de anúncios da plataforma, em
+  nome da plataforma — isso derruba a tese de "conta alheia"? (Pergunta
+  também ao advogado.)
+- **C5. Presente: o desconto é na taxa ou no bilhete?** O desconto de
+  primeira compra incide no **preço do bilhete** (receita da promotora); a
+  plataforma **paga a diferença à promotora** (crédito). Para a plataforma isso
+  é despesa promocional (de aquisição), redução da receita da taxa ou o
+  quê? Ele respondeu como se o desconto fosse na nossa taxa.
+- **C6. O que o sistema não sabe.** O painel calcula pelos livros ("Saldo de
+  Mídia", valores de terceiros, receita por origem, taxa diferida), mas **não
+  conhece o saldo bancário nem o lucro contábil**. Proposta: "Disponível em
+  Caixa" e "Lucro Acumulado (Contábil)" são **informados** no fechamento (por
+  quem fecha, ou pelo contador), com a data e quem informou, e o painel mostra
+  a diferença para o que os livros esperam. Aceita? Em que dia do mês ele
+  informa o lucro contábil?
+- **C7. Distribuição de lucros no painel.** Para o alerta de R$ 50 mil por
+  sócio/mês, a linha "Distribuição de lucros" precisa dos **sócios da
+  plataforma** (nome e CPF, em cofre) e do valor por sócio. O contador quer o
+  painel calculando o IRRF de 10% ou só alertando? E o painel também deve
+  mostrar o **IRRF de dividendos a recolher** (código 1841) como obrigação?
+- **C8. Retenção de ISS pelo tomador.** O sistema guarda o município de cada
+  organização (cadastro de endereço). Basta o master informar, por organização,
+  "tomador retém ISS: sim/não e alíquota", ou o contador quer uma tabela de
+  municípios?
+
+## 13. Respostas da terceira rodada do contador (09/10/2026)
+
+- **C1. Nota e ISS.** Recomenda **NFS-e mensal consolidada por organização**,
+  descrição "Serviços de gestão de tráfego pago – competência [mês/ano]", **com o
+  valor da taxa efetivamente reconhecida como receita no mês** (não o total
+  cobrado na aprovação). O ISS segue a **mesma proporção** (50% da taxa
+  reconhecida, 50% do ISS devido no mês), para casar a competência contábil com
+  a tributária. Isto **substitui** o "nota na aprovação" da resposta 23.
+- **C2. Patrocínio, banner e IA.** Corrigido: são **serviços próprios**;
+  **100% do valor consumido é receita bruta** (ISS, PIS/COFINS, IRPJ e CSLL sobre
+  o total), nota sobre o valor total do serviço; contas separadas da taxa de
+  gestão.
+- **C3. Encerramento.** A receita diferida que sobrar é **reconhecida de uma vez
+  no encerramento** (o serviço de gestão acabou). **Exceção:** campanha
+  encerrada por **erro da plataforma** → a taxa é **devolvida ou compensada**,
+  não reconhecida. Se o contrato previr retenção integral (não reembolso) e for
+  válido, reconhece-se no encerramento.
+- **C4. Repasse no Lucro Real.** A 6.006 é do Simples, mas o conceito de conta
+  alheia vale para todos. Ele cita o **art. 224 do RIR/2018** e "outras
+  Soluções de Consulta". **Risco que ele mesmo admite:** a campanha criada na
+  conta de anúncios **da plataforma, em nome dela**, enfraquece a tese. Mitigação
+  por contrato: o cliente é o anunciante e titular da campanha; a plataforma é
+  mera intermediadora de pagamento; o risco de inadimplência da rede é do
+  cliente; a plataforma não ganha sobre a mídia. Recomenda o advogado.
+- **C5. Presente.** O que a plataforma paga à promotora para cobrir o desconto
+  é **despesa promocional** (marketing), dedutível no Lucro Real com documento
+  idôneo; o valor recebido para repassar à promotora é **passivo**, e o repasse
+  não gera tributo.
+- **C6. Saldo bancário e lucro contábil.** Concorda em serem **informados**: o
+  saldo bancário **até o 5º dia útil** (ou diário, se houver integração) e o
+  **lucro contábil até o 10º dia útil**, com data e quem informou. O painel
+  mostra a diferença entre "Disponível em Caixa" e "Lucro Acumulado (Contábil)",
+  com o aviso de que saldo bancário não é lucro.
+- **C7. Distribuição de lucros.** Com os **sócios em cofre** (nome e CPF) o painel
+  **calcula** o IRRF de 10% e a obrigação; sem os dados, só alerta e o contador
+  calcula. Recomenda guardar em cofre.
+- **C8. ISS retido.** Recomenda uma **tabela de municípios** (retém? alíquota?),
+  mantida com a lista que ele fornece; a marcação manual por organização é a
+  alternativa, com alerta se o município não estiver na tabela.
+
+**Conferência minha (09/10/2026):** o artigo do RIR/2018 que define a receita
+bruta é o **208** (e não o 224): ele repete o art. 12 do Decreto-Lei 1.598/1977,
+com a redação da Lei 12.973/2014 — a receita bruta compreende o produto da venda
+em **conta própria**, o preço dos serviços e **"o resultado auferido nas
+operações de conta alheia"**; isto é, na conta alheia só entra o **resultado**,
+não o valor repassado (fonte:
+[legjur, art. 208](https://www.legjur.com/legislacao/art/DEC_00095802018-208)).
+Uma Solução de Consulta Cosit nº 40/2017 (Lucro Presumido: valores por conta e
+ordem de terceiros não são receita) aparece como apoio
+([Jornal Contábil](https://jornalcontabil.com.br/noticia/recursos-de-terceiros-nao-e-base-de-calculo-para-o-irpj-e-csll-no-lucro-presumido/amp/)),
+mas é anterior à Lei 12.973 e pede conferência. Pedir ao contador que corrija o
+número do artigo no dossiê.
+
+### O ponto que mais pesa: conta alheia ou conta própria (modelo A)
+
+No **modelo A** a campanha é criada **na conta de anúncios da plataforma, em nome
+dela**; a rede (Meta) fatura **a plataforma**, e já dissemos que "como cliente,
+pagamos o preço cheio". Isso descreve **conta própria**: a plataforma compra a
+mídia e a revende ao cliente. O contador também disse, na primeira rodada, que a
+fatura da rede gera **crédito de PIS/COFINS** — o que só faz sentido na conta
+própria. Já a tese de **repasse** (mídia fora da receita) só se sustenta se a
+operação for de conta alheia. As duas leituras não convivem:
+
+| | Conta alheia (repasse) | Conta própria (revenda) |
+|---|---|---|
+| Receita da plataforma | só a taxa de gestão | a mídia **mais** a taxa |
+| A fatura da rede | não é custo nem gera crédito | é custo; PIS/COFINS pode gerar crédito |
+| ISS | só sobre a taxa | pode alcançar o valor cobrado do cliente (conforme o município) |
+| Fundamento | art. 208, III, RIR/2018 | regra geral |
+| Força no modelo A | **fraca** (nome da plataforma na conta) | forte |
+| Força no modelo B (cliente paga a rede) | **forte** | não se aplica |
+
+**Efeito no sistema:** o painel e o extrato foram desenhados no cenário de
+repasse (mídia em bloco à parte, só a taxa na receita). Se o cenário for conta
+própria, o **"saldo bruto" muda** (mídia entra na receita e na despesa). Isto é
+**decisão de posição fiscal**, do contador com o advogado — e o sistema deve
+comportar os dois (um parâmetro da Tesouraria), sem apagar o histórico.
+
+## 14. Dúvidas que sobraram (quarta rodada, mínima)
+
+- **C9. Conta própria × conta alheia no modelo A.** Dado que a campanha fica na
+  conta da plataforma, que fatura a rede em nome dela: qual posição ele adota
+  (repasse ou revenda)? Qual o **custo tributário do cenário conservador**
+  (mídia como receita e a fatura da rede como custo, com o crédito de
+  PIS/COFINS), principalmente o **ISS**? Qual das duas ele escreve na escrituração?
+- **C10. Receita diferida e nota mensal.** O dinheiro da taxa entra **na
+  aprovação** (cobrado inteiro) e a nota só sai no mês, pelo valor reconhecido.
+  A **prefeitura aceita** emitir a nota depois do recebimento, ou exige nota na
+  data do pagamento? E o que se faz com a taxa já recebida e ainda não
+  reconhecida no fechamento (passivo "receita diferida")?
+- **Para o dono**: a **exceção da falha da plataforma** (taxa devolvida ou
+  compensada em erro nosso) segue pendente da sua decisão; o contador confirma
+  que, nesse caso, a taxa **não é receita**.
+
+## 15. Respostas da quarta rodada do contador (09/10/2026): a posição fiscal do modelo A
+
+- **C9. No modelo A, a posição é REVENDA (conta própria).** Fundamento dele: a
+  campanha é criada na conta de anúncios **da plataforma, em nome dela**, e o
+  Meta fatura a plataforma pelo preço cheio, "como cliente direto"; "não há como
+  sustentar que a plataforma atua em nome do anunciante"; e o crédito de
+  PIS/COFINS sobre a fatura é atributo da conta própria. **Isto substitui a
+  tese de repasse da primeira rodada (seção 2) para o modelo A.**
+  Custo tributário do cenário (conforme ele):
+  - **ISS** incide sobre o valor total da mídia **mais** a taxa — "o maior
+    impacto";
+  - **PIS/COFINS** (9,25%): a receita da mídia entra na base e a fatura do Meta
+    gera crédito de 9,25% sobre o mesmo valor, anulando o efeito; o saldo a
+    recolher fica sobre a margem;
+  - **IRPJ/CSLL**: receita da mídia e custo da fatura se anulam; o lucro
+    tributável é, na prática, a taxa;
+  - **Simples**: não se aplica (a plataforma é Lucro Real; seria o cenário mais
+    oneroso).
+  Recomendação dele: **parâmetro "Posição Fiscal" (Repasse ou Revenda)**; no
+  modelo A, **Revenda**; a Tesouraria avisa que o saldo de caixa inclui valores
+  que, para fins fiscais, são receita.
+- **C10. Nota e diferimento.**
+  1. A taxa recebida na aprovação é **adiantamento de cliente (passivo)**.
+  2. Com a campanha rodando, reconhece-se a receita proporcional (gasto da
+     mídia ou período) e emite-se a **NFS-e da parcela do mês**.
+  3. No encerramento, reconhece-se o **saldo remanescente de uma vez** e emite-se a
+     NFS-e correspondente.
+  A prefeitura **aceita** a nota depois do recebimento, porque a emissão segue
+  a **competência da prestação**, não o pagamento (ele cita o "Acórdão nº
+  012/25 do Recife" — **não conferido**). A taxa recebida e não reconhecida fica
+  como **"Receita Diferida" (passivo)**, nunca como lucro ou receita disponível.
+- **Resumo dele para o modelo A:** mídia = receita bruta (revenda); fatura do Meta
+  = custo com crédito de PIS/COFINS; ISS sobre mídia + taxa; taxa recebida =
+  passivo; taxa reconhecida = receita + NFS-e; saldo diferido = receita
+  diferida.
+- **A decisão final (repasse × revenda) é do dono com o advogado**, diz ele, mas
+  a recomendação técnica é revenda, porque "os fatos apontam para a conta
+  própria".
+
+### O que isto muda (leitura minha)
+
+1. **O preço da taxa.** Se o ISS passa a incidir sobre a mídia, o custo sobe.
+   Exemplo (alíquota máxima de 5%, só para dar a ordem de grandeza): pacote de
+   R$ 100 + taxa de 20% = R$ 120; ISS sobre R$ 120 = R$ 6,00, contra R$ 1,00 se
+   fosse só sobre a taxa — **R$ 5,00 a mais, um quarto da taxa**. Os 20% foram
+   pensados no cenário de repasse; **a taxa padrão precisa ser revista com o
+   contador** (e o ISS do município da plataforma decide o número real).
+2. **A premissa de "ISS sobre tudo" precisa de conferência.** Em muitos
+   municípios as **agências de publicidade** pagam ISS sobre a comissão e os
+   honorários, e **não** sobre o custo de veiculação pago a veículos; a regra
+   municipal manda. Pedir a **lei do município da plataforma** (e dos principais
+   tomadores) com o artigo, em vez de aceitar "incide sobre o total".
+3. **A mídia deixa de ser "bloco à parte" para a contabilidade fiscal**, mas pode
+   continuar sendo para a **gestão**: a Tesouraria terá duas visões lado a lado — a
+   **gerencial** (decisão do dono: só a % da plataforma entra no saldo bruto) e a
+   **fiscal** (receita bruta com a mídia de revenda, custo da fatura da rede, crédito
+   de PIS/COFINS, base do ISS). O extrato do contador entrega a fiscal.
+4. **Nova base para as linhas de imposto**: além do bruto, do saldo restante e
+   do lucro antes dos impostos, **a receita bruta fiscal**.
+5. **A nota passa a incluir a mídia consumida** (e não só a taxa), o que
+   contradiz a recomendação da primeira rodada de "emitir nota só da taxa". A
+   reconciliar com o contador (C11).
+6. **O contrato deixa de ser mandato.** A cláusula de "mera intermediadora de
+   pagamento" (que ele sugeriu como mitigação em C4) não combina com revenda.
+   O contrato passa a descrever a **prestação de serviço de publicidade com
+   fornecimento de mídia**. Isso é para o advogado.
+7. **O modelo B volta a ser o caminho do repasse puro** (o cliente paga a rede):
+   é onde a tese de conta alheia é forte e o ISS fica só sobre a gestão. Um
+   argumento a mais para entregar o modelo B.
+8. **Termos das redes.** Rodar campanha de vários anunciantes na conta de
+   anúncios da própria plataforma (revenda) pode ser tratado pelo Meta, Google e
+   TikTok de forma diferente (conta de agência/parceiro, identificação do
+   anunciante real, regras de jogos de azar). Isso é para o advogado e para a
+   pesquisa de integração antes de crescer.
+
+## 16. Dúvidas que sobraram (quinta rodada, mínima)
+
+- **C11. Revenda: o que a nota inclui e quando se reconhece a mídia.** Na
+  revenda, a receita da mídia é reconhecida no **consumo** (gasto lançado do
+  dia)? A NFS-e mensal inclui a mídia consumida **mais** a taxa reconhecida,
+  no mesmo código de serviço? O que acontece com a mídia **não consumida**
+  (volta ao saldo como crédito): adiantamento de cliente, sem nota?
+- **C12. Base do ISS sobre mídia.** Em que **artigo da lei do município** da
+  plataforma se apoia a incidência do ISS sobre a mídia revendida? Existe regra
+  de **dedução do custo de veiculação** para agência de propaganda (conta
+  própria, com nota do veículo em nome da agência)? Qual o ISS efetivo do cenário
+  de revenda, em reais, para o pacote de R$ 100 + 20%?
+- **C13. Excedente da rede.** Na revenda, o gasto da rede acima da verba (que
+  nós pagamos e não cobramos) é custo da mídia sem receita correspondente:
+  é despesa dedutível e gera crédito de PIS/COFINS, como a fatura?
+- **C14. Os textos.** Pedir o texto (ou link oficial) do "Acórdão nº 012/25 do
+  Recife", da Solução de Consulta 6.006 e da 87/2011, que ele citou.
+- **Para o advogado (itens 10 a 12 da seção 10):** ver abaixo.
+
+### Perguntas novas ao advogado (itens 10 a 12 da seção 10)
+
+10. **Estrutura do contrato na revenda (modelo A).** Sai o mandato e entra a
+    prestação de serviço de publicidade com fornecimento de mídia: como ficam a
+    cláusula de responsabilidade pelo conteúdo, a rejeição pela rede, o
+    saldo-crédito e o aceite da taxa (hoje redigido no cenário de repasse)?
+11. **Termos do Meta, Google e TikTok.** É permitido rodar campanhas de vários
+    anunciantes na conta de anúncios da plataforma (revenda)? Que identificação do
+    anunciante real e da entidade que paga é exigida, principalmente em
+    **jogos de azar/rifas autorizadas**? Quem responde por reprovação e por
+    restrição da conta?
+12. **Posição fiscal e responsabilidade.** Com a revenda, a plataforma deixa de
+    ser "intermediária" e passa a ser a vendedora da mídia perante a organização.
+    Isso altera a responsabilidade (CDC, solidariedade) e o regime do saldo
+    pré-pago (pergunta 14)?
+
+## 17. Comentários finais do contador sobre a revenda e o esclarecimento do dono (09/10/2026)
+
+**O contador concorda com os oito pontos da seção 15 e acrescenta:**
+
+1. **Preço da taxa (o mais urgente).** Com ISS de 5% sobre o total, o pacote de
+   R$ 100 + R$ 20 recolhe R$ 6,00 de ISS (R$ 5,00 sobre a mídia + R$ 1,00 sobre
+   a taxa) em vez de R$ 1,00; os R$ 5,00 a mais consomem 25% da taxa, e o fee
+   efetivo de 20% cai para algo entre **14% e 15%** da mídia, conforme o município.
+   O 20% foi calibrado para o repasse; **precisa ser refeito para a revenda, ou o
+   modelo A migra para o B.** (Ele fala do Simples Nacional como "inviável" na
+   revenda — não se aplica: a plataforma é **Lucro Real**; ele recomenda
+   simular Presumido e Real com seriedade.)
+2. **ISS sobre tudo precisa de conferência.** Em vários municípios a base do ISS
+   da agência de publicidade **exclui o custo de veiculação** (está na lei
+   municipal, não na LC 116): ele precisa da **lei do município com o artigo**.
+   Nuance nova: a veiculação é prestada por empresas **estrangeiras**
+   (Meta/Google/TikTok); se o município trata como **serviço importado**, o ISS é
+   devido **pelo tomador (a plataforma)** e a base muda. Analisar com o município
+   e o advogado. (O Meta fatura as contas brasileiras com ISS embutido, o que
+   sugere entidade brasileira e não importação — **confirmar** com a fatura.)
+3. **Tesouraria com duas visões**, com o parâmetro "posição fiscal"
+   **versionado por competência, nunca retroativo**: protege o histórico.
+4. **Contrato:** de mandato para prestação de serviço de publicidade com
+   fornecimento de mídia. **Risco de crédito novo:** na revenda a plataforma
+   continua devendo ao Meta se o cliente não paga; precisa estar **precificado na
+   taxa** ou **mitigado** (cobrança antecipada, garantias). "Não é só nomenclatura;
+   é posição econômica."
+5. **Termos das redes:** rodar vários anunciantes na mesma conta da plataforma
+   pode violar as políticas, em especial **jogos de azar** (licença por
+   anunciante); a responsabilidade perante a rede é da plataforma. Pode
+   **inviabilizar o modelo A** para certas categorias.
+6. **Modelo B** preserva a economia original: o ISS incide só sobre a taxa e os
+   20% voltam a fazer sentido. Argumento para priorizá-lo.
+7. **Reconhecimento da receita** (taxa pelo gasto; mídia, patrocínio, banner e
+   IA pelo consumo; recargas como passivo; lucro contábil e saldo bancário
+   informados): confirmado.
+8. **Parecer conjunto** (contador e advogado) antes de qualquer parametrização
+   definitiva: a posição do modelo A com fundamentos, o custo tributário de cada
+   cenário com simulações, o preço da taxa por cenário e os riscos contratuais e
+   das redes. "Sem ele, qualquer parametrização é provisória."
+
+**Esclarecimento do dono sobre o modelo B:** o organizador **paga à plataforma
+apenas as taxas** (a mídia ele paga direto à rede); os **20%** são referentes ao
+**pagamento dos créditos** e aos **serviços de campanhas automáticas** que a
+plataforma fornece às promotoras. Isto fixa a leitura do modelo B: a plataforma
+**não toca a mídia**, e a taxa de 20% é a receita dela, sobre o gasto da campanha
+(a confirmar a forma de cobrar, abaixo).
+
+**Pendente de confirmação (leitura minha do esclarecimento):** no modelo B a
+organização compra na plataforma só o **crédito da taxa** (os 20%), e o sistema
+**debita a taxa à medida que lê o gasto** na conta de anúncios dela; sem saldo de
+taxa, a campanha pausa. Assim a taxa só existe sobre o que foi gasto de fato — não
+há "cobrada inteira na aprovação" nem devolução a discutir no modelo B — e a
+receita é reconhecida **no mesmo momento** do débito. É isso, ou a taxa do modelo B
+também é cobrada inteira na aprovação, sobre o orçamento planejado?
+
+**Perguntas novas:**
+- **Ao contador (C15):** o Meta que fatura as contas brasileiras é entidade
+  brasileira (fatura com ISS)? Se sim, não há ISS de importação. E se for
+  estrangeira, quem recolhe o ISS e sobre que base?
+- **Ao contador (C16):** no modelo B, a taxa é reconhecida no débito (gasto
+  lido); a NFS-e mensal consolida o mês? Há risco de a rede ou o cliente
+  questionarem a base (o gasto lido na conta do cliente)?
+- **Ao advogado (item 13):** risco de crédito na revenda — cobrança antecipada,
+  garantia, prazo para o cliente repor o saldo, direito de pausar a campanha.
+- **Ao advogado (item 14):** aprovar com o contador o **parecer conjunto** e a
+  posição do modelo A.
 

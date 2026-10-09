@@ -687,12 +687,13 @@ Na ordem de entrega do plano:
   decisão do dono e do advogado); **crédito com validade de 6 ou 12 meses**;
   contas bancárias separadas e extrato mensal com campos definidos (próximo
   PR). **O advogado ainda não respondeu**: perguntas 1 a 20 na mesma página.
-  **Atenção (09/10/2026, seção 18 da consulta)**: fontes abertas dizem que o
-  Meta soma ISS 2,9% e PIS/COFINS 9,25% **por cima** do orçamento (≈ +12,15%) e
-  que o Ads Manager mostra o gasto sem imposto — o que contradiz "já embutidos"
-  deste texto e do `CLAUDE.md`. **[você]** abrir uma fatura real da conta de
-  anúncios do Meta e ver se o imposto é somado ao orçamento; **antes disso nada
-  de preço, margem ou trava deve ser parametrizado**.
+  **Atenção (09/10/2026, seção 18 da consulta)**: no checkout do Meta ("Add
+  funds"), R$ 60.000 pagos viram R$ 52.710 de saldo de anúncios — ISS (2,9%) e
+  PIS/COFINS (9,25%) incidem sobre o **total pago**. O imposto está dentro do
+  que se paga, mas o saldo é só 87,85%: cada R$ 100 de gasto lido custa R$ 113,83.
+  O sistema não modela isso (margem e excedente ficam otimistas). **[você]**
+  conferir numa campanha de verdade que o gasto desconta o saldo 1 para 1 e se a
+  conta é pré-paga ou cartão; **preço da taxa do modelo A só depois do parecer**.
   **Falta no ambiente**: o `db:push` das tabelas `trafego_campanhas` e
   `trafego_gastos` (e as colunas `trafego_gastos.cliques`, `origem` e
   `excedente_cents`)

@@ -2336,6 +2336,12 @@ export const trafegoGastos = pgTable(
     cliques: integer("cliques"),
     /** `manual` (digitado pela plataforma) ou `importado` (pela fonte do gasto, fase 2). */
     origem: text("origem").notNull().default("manual"),
+    /**
+     * O que a rede gastou neste dia além do que se cobra da organização (verba
+     * acabada, campanha parada ou fechada): é custo da plataforma, nunca da
+     * organização. Só a importação grava; a organização não vê.
+     */
+    excedenteCents: integer("excedente_cents").notNull().default(0),
     lancadoPor: uuid("lancado_por").references(() => users.id, { onDelete: "set null" }),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },

@@ -4660,32 +4660,42 @@ do dia é lançado à mão pela plataforma (fase 1) ou importado das redes
 - **Fase 2: o gasto vem das redes** (`server/services/trafegoImportacao.ts`):
   com `WINDSOR_API_KEY` no servidor (uma chave para Google, Meta e TikTok;
   sem ela, a importação não existe e o lançamento à mão segue), o relógio
-  (trava 811407, de hora em hora, só com o produto ligado) e o "Importar
-  agora" da plataforma (`POST /admin/trafego/importacao`, 403 para
-  organizador, no `npm run isolation`; 6 por hora) buscam **só os dias
-  fechados** (`janelaDaImportacao()`: de 3 dias atrás até ontem). **A
-  campanha da rede é casada pelo código no nome** (`codigoNoNome()`: a
-  plataforma põe `trafego-<código>` no nome da campanha em cada rede — a tela
-  diz isso junto dos links), e a resposta da fonte é dado, nunca instrução
-  (`lerLinhasDoGasto()`: só as chaves conhecidas, soma por campanha, dia e
-  rede, conta o ignorado com o motivo). **Cada linha passa pela régua do
-  manual** (`lancarGastoImportado()` → `gravarGasto()`: a mesma taxa, o mesmo
-  teto, a mesma auditoria com o ator `sistema`, `trafego.gasto.importado`),
-  só na campanha no ar ou fechando a conta, só código de uma campanha só, só
-  dia entre a aprovação e a parada (ou ontem) e só rede da campanha. **O dia
-  já lançado fica como está** (à mão ou antes; `ON CONFLICT DO NOTHING` no
-  mesmo índice): repetir, ou dois cliques, nunca cobra duas vezes. **A rede
-  que gastou além da verba não é cobrada da organização**: entra só o que
-  resta, o excedente vai à auditoria e ao resumo (a tela avisa em vermelho)
-  — o orçamento na rede é da plataforma. Os cliques do dia entram com o
-  gasto (`trafego_gastos.cliques`; o manual aceita os cliques opcionais) e a
-  origem (`origem`: `manual` ou `importado`). **A chave nunca sai**: vai só
-  na chamada (o Windsor a pede no endereço), e o endereço nunca vai a log,
+  (trava 811407, de hora em hora, **mesmo com o produto desligado** —
+  desligar não para a campanha no ar, e a rede segue gastando; sem campanha
+  no ar ou fechando a conta, nem chama a fonte) e o "Importar agora" da
+  plataforma (`POST /admin/trafego/importacao`, 403 para organizador, no
+  `npm run isolation`; 6 por hora) buscam **só os dias fechados**
+  (`janelaDaImportacao()`: de 3 dias atrás até ontem; as contas de anúncio em
+  reais e no fuso de São Paulo — a fonte não diz a moeda). **A campanha da
+  rede é casada pelo código no nome** (`codigoNoNome()`: a plataforma põe
+  `trafego-<código>` no nome da campanha em cada rede — a tela diz isso junto
+  dos links); a aberta vence, senão a única com o código. A resposta da fonte
+  é dado, nunca instrução (`lerLinhasDoGasto()`: só as chaves conhecidas,
+  soma por campanha, dia e rede **em frações de centavo e arredonda uma vez,
+  para baixo** — a organização nunca paga meio centavo que a rede não
+  cobrou —, conta o ignorado com o motivo). **Cada linha passa pela régua do
+  manual** (`lancarGastoImportado()`: a mesma taxa por dia, o mesmo teto da
+  verba no `UPDATE` condicional, a mesma ordem das travas e a auditoria com o
+  ator `sistema`, `trafego.gasto.importado` e `.atualizado`). **O dia
+  importado é corrigido enquanto está na janela** (a rede fecha o de ontem
+  horas depois e acerta cliques inválidos; a diferença e a taxa dela entram,
+  para cima ou para baixo); **o dia lançado à mão nunca é tocado**, e repetir
+  ou importar em paralelo nunca cobra duas vezes (a campanha travada e o
+  mesmo índice). **Só se cobra o dia cobrável** — campanha no ar, ou fechando
+  a conta até o dia da parada, e só até a verba; o resto que a rede gastou
+  (além da verba, depois da parada, com a campanha fechada) fica em
+  `trafego_gastos.excedente_cents`: **custo da plataforma, nunca da
+  organização**, que não o vê (nem o dia só de excedente); a plataforma o vê
+  por campanha, por dia e na margem do mês. Fechada a conta, o dia não muda
+  mais — feche depois de a rede acertar (a tela lembra). Os cliques entram
+  com o gasto (`cliques`; o manual aceita os opcionais) e a origem
+  (`origem`: `manual` ou `importado`). **A chave nunca sai**: vai só na
+  chamada (o Windsor a pede no endereço), e o endereço nunca vai a log,
   resposta ou erro; `WINDSOR_API_URL` só fora de produção, para a prova. O
   resumo da última volta fica em `app_settings` (`trafego_importacao`).
 - As tabelas `trafego_campanhas` e `trafego_gastos` sobem com o `db:push`
-  **antes** do código, e as colunas `trafego_gastos.cliques` e `origem`
-  também. `npm run trafego` prova tudo isso contra a API de verdade (a fase 2
+  **antes** do código, e as colunas `trafego_gastos.cliques`, `origem` e
+  `excedente_cents` também. `npm run trafego` prova tudo isso contra a API de verdade (a fase 2
   com um Windsor.ai de mentira) e `tests/trafego.test.ts` as regras.
 
 ## Marketing e tráfego pago — o que não pode afrouxar

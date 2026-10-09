@@ -7,10 +7,13 @@
  * - **A régua é a do lançamento à mão**: cada linha passa por
  *   `lancarGastoImportado()` (`server/services/trafego.ts`) — a mesma
  *   gravação, a mesma taxa, o mesmo teto da verba e a mesma auditoria (com o
- *   ator "sistema"). Um dia já lançado numa rede (à mão ou numa importação
- *   anterior) fica como está: o índice decide.
+ *   ator "sistema"). O dia lançado à mão nunca é tocado; o importado é
+ *   atualizado enquanto está na janela (a rede ainda fecha o de ontem). O que
+ *   a rede gastou além do cobrável fica em `excedente_cents` — custo da
+ *   plataforma, nunca da organização.
  * - **Só dias fechados** (`janelaDaImportacao()`): de 3 dias atrás até ontem,
- *   no fuso de São Paulo. O de hoje ainda muda na rede.
+ *   no fuso de São Paulo. O de hoje ainda muda na rede. As contas de anúncio
+ *   precisam estar em reais e no fuso de São Paulo (a fonte não diz a moeda).
  * - **A resposta da fonte é dado, nunca instrução**: `lerLinhasDoGasto()` lê
  *   só as chaves conhecidas, casa a campanha pelo código `trafego-<código>`
  *   no nome dela na rede e conta o que ficou de fora, com o motivo.
@@ -21,13 +24,12 @@
  *   para a tela da plataforma: quando, quantos, o que ficou de fora e o erro,
  *   em português e sem o endereço.
  */
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { db } from "../db";
 import { appSettings } from "@shared/schema";
 import { diaNoFuso } from "@shared/resultados";
 import { janelaDaImportacao, lerLinhasDoGasto, type MotivoIgnorado } from "@shared/trafego";
 import { lancarGastoImportado, type ResultadoDoImportado } from "./trafego";
-import { getPlataforma } from "./settings";
 
 const WINDSOR_PADRAO = "https://connectors.windsor.ai";
 const CHAVE_DO_RESUMO = "trafego_importacao";
@@ -87,11 +89,14 @@ export interface ResumoDaImportacao {
   desde: string;
   ate: string;
   importados: number;
+  /** Dias já importados que a rede corrigiu (o de ontem ainda fecha horas depois). */
+  atualizados: number;
   jaLancados: number;
   semCampanha: number;
   foraDaJanela: number;
-  verbaEsgotada: number;
-  /** O que a rede gastou além da verba (a plataforma paga; a organização nunca). */
+  /** Dias em que a rede gastou com a campanha já parada ou fechada (nada cobrado). */
+  excedentes: number;
+  /** O excedente novo desta volta (a plataforma paga; a organização nunca). Fica por dia em `trafego_gastos`. */
   excedenteCents: number;
   ignoradas: Partial<Record<MotivoIgnorado, number>>;
   erro: string | null;
@@ -123,10 +128,11 @@ export async function importarGastos(fonte: FonteDoGasto | null = fonteDoWindsor
     desde,
     ate,
     importados: 0,
+    atualizados: 0,
     jaLancados: 0,
     semCampanha: 0,
     foraDaJanela: 0,
-    verbaEsgotada: 0,
+    excedentes: 0,
     excedenteCents: 0,
     ignoradas: {},
     erro: null,
@@ -144,10 +150,11 @@ export async function importarGastos(fonte: FonteDoGasto | null = fonteDoWindsor
   resumo.ignoradas = ignoradas;
   const conta: Record<ResultadoDoImportado, keyof ResumoDaImportacao> = {
     importado: "importados",
+    atualizado: "atualizados",
     ja_lancado: "jaLancados",
     sem_campanha: "semCampanha",
     fora_da_janela: "foraDaJanela",
-    verba_esgotada: "verbaEsgotada",
+    excedente: "excedentes",
   };
   for (const g of gastos) {
     try {
@@ -164,9 +171,15 @@ export async function importarGastos(fonte: FonteDoGasto | null = fonteDoWindsor
   return resumo;
 }
 
-/** O relógio só importa com o produto ligado e a chave no servidor. */
-export async function importarGastosSeLigado(): Promise<ResumoDaImportacao | null> {
-  const cfg = (await getPlataforma()).trafegoPago;
-  if (!cfg.ligado) return null;
-  return importarGastos();
+/**
+ * O relógio importa sempre que houver a chave — inclusive com o produto
+ * desligado: desligar não para as campanhas que estão no ar, e a rede segue
+ * gastando nelas. Sem campanha no ar nem fechando a conta, nem chama a fonte.
+ */
+export async function importarGastosDoRelogio(): Promise<ResumoDaImportacao | null> {
+  const fonte = fonteDoWindsor();
+  if (!fonte) return null;
+  const aberta = await db.execute(sql`select 1 from trafego_campanhas where status in ('ativa', 'encerrando') limit 1`);
+  if (aberta.rows.length === 0) return null;
+  return importarGastos(fonte);
 }

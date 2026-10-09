@@ -44,6 +44,8 @@ interface CampanhaDeTrafego {
   vendas: number;
   receitaCents: number;
   cliques: number;
+  /** Só para a plataforma: o que a rede gastou e não foi cobrado. */
+  excedenteCents?: number;
   codigo: string;
   utmCampanha: string;
   custoPorVendaCents: number | null;
@@ -54,7 +56,8 @@ interface MesDaMargem {
   mes: string;
   midiaCents: number;
   taxaCents: number;
-  organizacoes: { organizacao: string; midiaCents: number; taxaCents: number }[];
+  excedenteCents: number;
+  organizacoes: { organizacao: string; midiaCents: number; taxaCents: number; excedenteCents: number }[];
 }
 
 interface Painel {
@@ -72,6 +75,7 @@ interface Gasto {
   taxaCents: number;
   cliques: number | null;
   origem: "manual" | "importado";
+  excedenteCents: number | null;
   lancadoPor: string | null;
 }
 
@@ -81,10 +85,11 @@ interface ResumoDaImportacao {
   desde: string;
   ate: string;
   importados: number;
+  atualizados: number;
   jaLancados: number;
   semCampanha: number;
   foraDaJanela: number;
-  verbaEsgotada: number;
+  excedentes: number;
   excedenteCents: number;
   ignoradas: Partial<Record<string, number>>;
   erro: string | null;
@@ -539,8 +544,9 @@ function ImportacaoDoGasto() {
           <>
             <p className="text-ink-2">
               De hora em hora, o gasto e os cliques dos dias já fechados (até 3 dias atrás) vêm do Google, do Meta e do TikTok pelo
-              Windsor.ai. A campanha é achada pelo código <code className="font-mono text-[11px]">trafego-…</code> no nome dela na rede, e o
-              dia já lançado fica como está.
+              Windsor.ai, e o dia importado é corrigido enquanto a rede o acerta; o lançado à mão fica como está. A campanha é achada pelo
+              código <code className="font-mono text-[11px]">trafego-…</code> no nome dela na rede. As contas de anúncio precisam estar em
+              reais e no fuso de São Paulo.
             </p>
             {u ? (
               <div className="space-y-1 rounded-md bg-mist px-3 py-2 text-xs">
@@ -549,9 +555,9 @@ function ImportacaoDoGasto() {
                   <span className="tnum">{diaBR(u.ate)}</span>
                 </p>
                 <p>
-                  <span className="tnum">{u.importados}</span> importado(s) · <span className="tnum">{u.jaLancados}</span> já lançado(s) ·{" "}
-                  <span className="tnum">{u.semCampanha}</span> sem campanha no ar · <span className="tnum">{u.foraDaJanela}</span> fora da
-                  campanha
+                  <span className="tnum">{u.importados}</span> importado(s) · <span className="tnum">{u.atualizados}</span> corrigido(s) pela
+                  rede · <span className="tnum">{u.jaLancados}</span> sem mudança · <span className="tnum">{u.semCampanha}</span> sem campanha ·{" "}
+                  <span className="tnum">{u.foraDaJanela}</span> fora da campanha
                 </p>
                 {ignoradas.length ? (
                   <p className="text-muted">
@@ -560,8 +566,8 @@ function ImportacaoDoGasto() {
                 ) : null}
                 {u.excedenteCents > 0 ? (
                   <p className="text-red">
-                    A rede gastou <Money cents={u.excedenteCents} /> além da verba: a organização não paga esse valor. Confira o orçamento na
-                    rede.
+                    A rede gastou <Money cents={u.excedenteCents} /> além do cobrável (verba acabada ou campanha parada): a organização não
+                    paga esse valor. Confira o orçamento e pause a campanha na rede.
                   </p>
                 ) : null}
                 {u.erro ? <p className="text-red">{u.erro}</p> : null}
@@ -595,7 +601,7 @@ function Margem({ meses }: { meses: MesDaMargem[] }) {
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <caption className="sr-only">Gasto em mídia e taxa de gestão por mês e por organização</caption>
+            <caption className="sr-only">Gasto em mídia, taxa de gestão e excedente (não cobrado) por mês e por organização</caption>
             <thead>
               <tr className="border-b border-line text-left text-xs text-muted">
                 <th scope="col" className="px-4 py-2 font-medium">
@@ -606,6 +612,9 @@ function Margem({ meses }: { meses: MesDaMargem[] }) {
                 </th>
                 <th scope="col" className="px-4 py-2 text-right font-medium">
                   Taxa (margem)
+                </th>
+                <th scope="col" className="px-4 py-2 text-right font-medium">
+                  Excedente
                 </th>
               </tr>
             </thead>
@@ -634,6 +643,9 @@ function MesDaTabela({ mes: m }: { mes: MesDaMargem }) {
         <td className="px-4 py-2 text-right text-green-deep">
           <Money cents={m.taxaCents} />
         </td>
+        <td className={`px-4 py-2 text-right ${m.excedenteCents > 0 ? "text-red" : ""}`}>
+          <Money cents={m.excedenteCents} />
+        </td>
       </tr>
       {m.organizacoes.map((o) => (
         <tr key={o.organizacao} className="border-b border-line text-xs text-ink-2">
@@ -645,6 +657,9 @@ function MesDaTabela({ mes: m }: { mes: MesDaMargem }) {
           </td>
           <td className="px-4 py-1 text-right">
             <Money cents={o.taxaCents} />
+          </td>
+          <td className="px-4 py-1 text-right">
+            <Money cents={o.excedenteCents} />
           </td>
         </tr>
       ))}
@@ -776,6 +791,14 @@ function CartaoDaCampanha({ c, plataforma }: { c: CampanhaDeTrafego; plataforma:
           <dt className="text-muted">Cliques na rede</dt>
           <dd className="tnum">{c.cliques}</dd>
         </div>
+        {plataforma && (c.excedenteCents ?? 0) > 0 ? (
+          <div>
+            <dt className="text-muted">Excedente (não cobrado)</dt>
+            <dd className="text-red">
+              <Money cents={c.excedenteCents ?? 0} />
+            </dd>
+          </div>
+        ) : null}
       </dl>
 
       {c.status === "encerrando" ? (
@@ -841,7 +864,12 @@ function CartaoDaCampanha({ c, plataforma }: { c: CampanhaDeTrafego; plataforma:
             disabled={fechar.isPending}
             onClick={() => {
               setErro(null);
-              if (window.confirm("Fechar a conta? Confira antes que todos os dias até a parada foram lançados: depois disso, nenhum gasto entra.")) fechar.mutate();
+              if (
+                window.confirm(
+                  "Fechar a conta? Confira antes que todos os dias até a parada foram lançados (o importado é corrigido pela rede por até 3 dias): depois disso, nenhum gasto muda.",
+                )
+              )
+                fechar.mutate();
             }}
           >
             Fechar a conta
@@ -983,6 +1011,12 @@ function GastosDaCampanha({ id, plataforma }: { id: string; plataforma: boolean 
               <span className="text-muted">
                 {" "}
                 · <span className="tnum">{g.cliques}</span> cliques
+              </span>
+            ) : null}
+            {plataforma && (g.excedenteCents ?? 0) > 0 ? (
+              <span className="text-red">
+                {" "}
+                · excedente <Money cents={g.excedenteCents ?? 0} />
               </span>
             ) : null}
           </span>

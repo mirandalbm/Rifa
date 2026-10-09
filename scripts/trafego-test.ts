@@ -23,6 +23,7 @@ import { db, pool } from "../server/db";
 import { buyers, campaignStats, campaigns, orders, organizations, retencoesCautelares, trafegoCampanhas, users } from "../shared/schema";
 import { hashPassword } from "../server/auth";
 import { encerrarTrafegoForaDoAr } from "../server/services/trafego";
+import { importarGastosDoRelogio } from "../server/services/trafegoImportacao";
 import { getPlataforma } from "../server/services/settings";
 import { codigoDaCampanha, janelaDaImportacao } from "../shared/trafego";
 
@@ -467,6 +468,11 @@ async function main() {
       try {
         await db.update(organizations).set({ patrocinioSaldoCents: sql`${organizations.patrocinioSaldoCents} + 100000` }).where(eq(organizations.id, orgId));
         await admin.req("PUT", "/api/admin/trafego/config", { ligado: true, taxaPct: 20, investimentoMinCents: 10_000, verbaDiaMinCents: 1_000, redes: ["google", "meta", "tiktok"] });
+        // O limite (6 por hora) é conferido no fim; antes, cada importação começa do zero.
+        const importar = async () => {
+          await db.execute(sql`delete from rate_events where bucket like 'trafego-importar:%'`);
+          return admin.req("POST", "/api/admin/trafego/importacao");
+        };
         const rifaG = await novaRifa(orgId, "g");
         const rifaH = await novaRifa(orgId, "h");
         const idG = (await pedido(marina, rifaG.id)).json?.id as string;
@@ -491,7 +497,7 @@ async function main() {
 
         r = await admin.req("GET", "/api/admin/trafego/importacao");
         checa("com a chave no servidor, a importação está ligada", r.status === 200 && r.json?.ligada === true, JSON.stringify(r.json));
-        r = await admin.req("POST", "/api/admin/trafego/importacao");
+        r = await importar();
         const pedidoFeito = pedidosAoWindsor[pedidosAoWindsor.length - 1];
         checa("a fonte é chamada com a janela dos dias fechados e só os campos do gasto", pedidoFeito?.get("date_from") === desde && pedidoFeito?.get("date_to") === ate && pedidoFeito?.get("fields") === "campaign,clicks,datasource,date,spend", pedidoFeito?.toString().replace(CHAVE_WINDSOR, "***"));
         checa(
@@ -513,6 +519,7 @@ async function main() {
         r = await marina.req("GET", "/api/admin/trafego");
         checa("a organização vê os cliques da campanha", (r.json?.campanhas ?? []).find((c: any) => c.id === idG)?.cliques === 140);
 
+        await db.execute(sql`delete from rate_events where bucket like 'trafego-importar:%'`);
         const [a1, a2] = await Promise.all([admin.req("POST", "/api/admin/trafego/importacao"), admin.req("POST", "/api/admin/trafego/importacao")]);
         const cG2 = await campanha(idG);
         checa("dois cliques em importar: o dia já lançado fica como está", cG2.gastoCents === 4_550 && cG2.taxaCents === 910 && a1.json?.importados === 0 && a2.json?.importados === 0, `${cG2.gastoCents} ${a1.json?.importados}/${a2.json?.importados}`);
@@ -522,19 +529,60 @@ async function main() {
         await db.update(trafegoCampanhas).set({ gastoCents: 3_000, taxaCents: 600 }).where(eq(trafegoCampanhas.id, idG));
         r = await admin.req("POST", `/api/admin/trafego/campanhas/${idG}/gastos`, { dia: desde, rede: "meta", gastoCents: 1_000, cliques: 12 });
         checa("o lançamento à mão aceita os cliques", r.status === 201 && r.json?.gasto?.cliques === 12 && r.json?.gasto?.origem === "manual", `HTTP ${r.status}`);
-        r = await admin.req("POST", "/api/admin/trafego/importacao");
+        r = await importar();
         const cG3 = await campanha(idG);
         checa("…e a importação não cobra de novo o dia lançado à mão", cG3.gastoCents === 4_000 && r.json?.jaLancados >= 1, `${cG3.gastoCents}`);
 
+        // A rede fecha o dia horas depois (e acerta cliques inválidos): o dia importado é corrigido, para cima e para baixo.
+        (linhasDoWindsor[0] as { spend: string }).spend = "25.00";
+        r = await importar();
+        let cG4 = await campanha(idG);
+        checa("a rede corrigiu o dia para cima: a diferença e a taxa dela entram", r.json?.atualizados === 1 && cG4.gastoCents === 4_500 && cG4.taxaCents === 700 + 200, `${r.json?.atualizados} ${cG4.gastoCents}/${cG4.taxaCents}`);
+        (linhasDoWindsor[0] as { spend: string }).spend = "5.00";
+        r = await importar();
+        cG4 = await campanha(idG);
+        checa("…e para baixo: a cobrança desce junto", r.json?.atualizados === 1 && cG4.gastoCents === 2_500 && cG4.taxaCents === 300 + 200, `${cG4.gastoCents}/${cG4.taxaCents}`);
+        r = await importar();
+        checa("sem mudança na rede, nada muda", r.json?.atualizados === 0 && r.json?.importados === 0 && (await campanha(idG)).gastoCents === 2_500);
+
+        // A campanha H acabou a verba e encerrou; a rede seguiu gastando nela noutro dia.
+        linhasDoWindsor.push({ campaign: `Rifa H trafego-${h}`, datasource: "google_ads", date: desde, spend: "10.00", clicks: 50 });
+        r = await importar();
+        const cH2 = await campanha(idH);
+        checa("gasto da rede com a campanha já encerrada: nada é cobrado, vira excedente", r.json?.excedentes === 1 && r.json?.excedenteCents === 1_000 && cH2.gastoCents === 20_000, JSON.stringify(r.json));
+        r = await admin.req("GET", "/api/admin/trafego");
+        const hNaPlataforma = (r.json?.campanhas ?? []).find((c: any) => c.id === idH);
+        checa("a plataforma vê o excedente da campanha (verba + dia depois)", hNaPlataforma?.excedenteCents === 6_000, `${hNaPlataforma?.excedenteCents}`);
+        const doMesEx = (r.json?.margem ?? []).find((m: any) => m.mes === desde.slice(0, 7) || m.mes === ate.slice(0, 7));
+        checa("…e a margem do mês traz o excedente", (r.json?.margem ?? []).reduce((s: number, m: any) => s + (m.excedenteCents ?? 0), 0) >= 6_000, JSON.stringify(doMesEx?.excedenteCents));
+        r = await marina.req("GET", "/api/admin/trafego");
+        const hNaOrg = (r.json?.campanhas ?? []).find((c: any) => c.id === idH);
+        checa("a organização não vê o excedente", hNaOrg && !("excedenteCents" in hNaOrg), JSON.stringify(Object.keys(hNaOrg ?? {})));
+        const gastosHOrg = (await marina.req("GET", `/api/admin/trafego/campanhas/${idH}/gastos`)).json as any[];
+        checa("…nem o dia só de excedente na lista de gastos", gastosHOrg.length === 1 && gastosHOrg.every((x) => x.gastoCents > 0 && x.excedenteCents === null), JSON.stringify(gastosHOrg));
+
+        // Desligar o produto não para as campanhas no ar: o relógio segue importando.
+        await admin.req("PUT", "/api/admin/trafego/config", { ligado: false });
+        (linhasDoWindsor[0] as { spend: string }).spend = "6.00";
+        const doRelogio = await importarGastosDoRelogio();
+        await admin.req("PUT", "/api/admin/trafego/config", { ligado: true });
+        checa("com o produto desligado e campanha no ar, o relógio importa", doRelogio?.atualizados === 1 && (await campanha(idG)).gastoCents === 2_600, JSON.stringify(doRelogio));
+
         windsorRecusa = true;
-        r = await admin.req("POST", "/api/admin/trafego/importacao");
+        r = await importar();
         windsorRecusa = false;
         checa("a fonte recusou a chave: nada entra e o motivo vem em português, sem o endereço", r.status === 200 && r.json?.importados === 0 && /chave/i.test(r.json?.erro ?? "") && !JSON.stringify(r.json).includes("api_key"), JSON.stringify(r.json));
         r = await admin.req("GET", "/api/admin/trafego/importacao");
         checa("a última volta fica guardada para a tela", Boolean(r.json?.ultima?.erro), JSON.stringify(r.json?.ultima));
 
-        const audit = await db.execute(sql`select count(*)::int as n from audit_log where action = 'trafego.gasto.importado' and actor_id is null and entity_id in (${idG}, ${idH})`);
-        checa("cada gasto importado entra na auditoria com o ator sistema", (audit.rows[0] as { n: number }).n === 3, String((audit.rows[0] as { n: number }).n));
+        await db.execute(sql`delete from rate_events where bucket like 'trafego-importar:%'`);
+        const limite = [];
+        for (let k = 0; k < 7; k++) limite.push((await admin.req("POST", "/api/admin/trafego/importacao")).status);
+        checa("importar agora tem limite: 6 por hora, a sétima é 429", limite.slice(0, 6).every((x) => x === 200) && limite[6] === 429, limite.join(","));
+
+        const audit = await db.execute(sql`select action, count(*)::int as n from audit_log where action like 'trafego.gasto.importado%' and actor_id is null and entity_id in (${idG}, ${idH}) group by action`);
+        const porAcao = Object.fromEntries((audit.rows as { action: string; n: number }[]).map((x) => [x.action, x.n]));
+        checa("cada gasto importado e cada correção entram na auditoria com o ator sistema", porAcao["trafego.gasto.importado"] === 4 && porAcao["trafego.gasto.importado.atualizado"] === 3, JSON.stringify(porAcao));
       } finally {
         windsor.close();
       }

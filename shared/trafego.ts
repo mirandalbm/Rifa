@@ -270,7 +270,12 @@ export const FONTES_DO_GASTO: Record<string, RedeDeAnuncio> = {
   tiktok_ads: "tiktok",
 };
 
-/** Quantos dias fechados para trás a importação olha (a rede ainda acerta o gasto de ontem). */
+/**
+ * Quantos dias fechados para trás a importação olha. Dentro da janela, o dia
+ * importado **é atualizado** a cada volta (a rede ainda fecha o de ontem horas
+ * depois, e acerta cliques inválidos): o valor parcial da primeira volta
+ * depois da meia-noite não fica para sempre.
+ */
 export const DIAS_DA_IMPORTACAO = 3;
 
 /** O teto de cliques de um dia numa rede (número maior é dado estragado). */
@@ -299,12 +304,22 @@ export function codigoNoNome(nome: unknown): string | null {
   return m ? m[1].toLowerCase() : null;
 }
 
-/** Reais da rede ("12.34", 12.34) em centavos inteiros; nada de negativo, NaN ou absurdo. */
-export function centavosDoGasto(valor: unknown): number | null {
+/**
+ * Reais da rede ("12.34", 12.34) em milionésimos de real, inteiros — o
+ * arredondamento interno só absorve o erro do ponto flutuante (1,005 × 100 =
+ * 100,4999…). Nada de negativo, NaN ou absurdo.
+ */
+function microsDoGasto(valor: unknown): number | null {
   const n = typeof valor === "string" && valor.trim() !== "" ? Number(valor) : typeof valor === "number" ? valor : NaN;
   if (!Number.isFinite(n) || n < 0) return null;
-  const c = Math.round(n * 100);
-  return c <= INVESTIMENTO_MAX_CENTS ? c : null;
+  const micros = Math.round(n * 1e6);
+  return micros <= INVESTIMENTO_MAX_CENTS * 1e4 ? micros : null;
+}
+
+/** Em centavos, **para baixo**: a organização nunca paga meio centavo que a rede não cobrou. */
+export function centavosDoGasto(valor: unknown): number | null {
+  const m = microsDoGasto(valor);
+  return m === null ? null : Math.floor(m / 1e4);
 }
 
 /** Os dias fechados que a importação olha: de `DIAS_DA_IMPORTACAO` atrás até ontem (fuso de quem chama). */
@@ -325,7 +340,7 @@ export function lerLinhasDoGasto(
 ): { gastos: GastoImportado[]; ignoradas: Partial<Record<MotivoIgnorado, number>> } {
   const ignoradas: Partial<Record<MotivoIgnorado, number>> = {};
   const contar = (m: MotivoIgnorado) => (ignoradas[m] = (ignoradas[m] ?? 0) + 1);
-  const somados = new Map<string, GastoImportado>();
+  const somados = new Map<string, Omit<GastoImportado, "gastoCents"> & { micros: number }>();
   for (const bruta of Array.isArray(linhas) ? linhas : []) {
     if (!bruta || typeof bruta !== "object") continue;
     const l = bruta as Record<string, unknown>;
@@ -345,21 +360,27 @@ export function lerLinhasDoGasto(
       contar("data");
       continue;
     }
-    const gastoCents = centavosDoGasto(l.spend);
+    const micros = microsDoGasto(l.spend);
     const cliques = l.clicks === undefined || l.clicks === null || l.clicks === "" ? 0 : Number(l.clicks);
-    if (gastoCents === null || !Number.isInteger(cliques) || cliques < 0 || cliques > CLIQUES_MAX_DIA) {
+    if (micros === null || !Number.isInteger(cliques) || cliques < 0 || cliques > CLIQUES_MAX_DIA) {
       contar("valor");
       continue;
     }
     const chave = `${codigo}|${dia}|${rede}`;
     const atual = somados.get(chave);
     if (atual) {
-      atual.gastoCents += gastoCents;
-      atual.cliques += cliques;
+      atual.micros += micros;
+      atual.cliques = Math.min(CLIQUES_MAX_DIA, atual.cliques + cliques);
     } else {
-      somados.set(chave, { codigo, dia, rede, gastoCents, cliques });
+      somados.set(chave, { codigo, dia, rede, micros, cliques });
     }
   }
-  // Dia sem gasto não vira lançamento (o lançamento é cobrança).
-  return { gastos: [...somados.values()].filter((g) => g.gastoCents > 0), ignoradas };
+  // Soma em milionésimos e arredonda uma vez só, para baixo. Dia sem gasto não
+  // vira lançamento (o lançamento é cobrança); gasto acima do teto é dado estragado.
+  const gastos: GastoImportado[] = [];
+  for (const { micros, ...g } of somados.values()) {
+    const gastoCents = Math.floor(micros / 1e4);
+    if (gastoCents > 0 && gastoCents <= INVESTIMENTO_MAX_CENTS) gastos.push({ ...g, gastoCents });
+  }
+  return { gastos, ignoradas };
 }

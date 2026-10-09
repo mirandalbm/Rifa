@@ -171,6 +171,17 @@ describe("gasto importado das redes (fase 2)", () => {
     expect(centavosDoGasto("")).toBeNull();
     expect(centavosDoGasto(Infinity)).toBeNull();
     expect(centavosDoGasto(1e12)).toBeNull();
+    // Para baixo, nunca a mais — e o erro do ponto flutuante não vira centavo perdido.
+    expect(centavosDoGasto("12.345")).toBe(1234);
+    expect(centavosDoGasto(1.005)).toBe(100);
+    expect(centavosDoGasto("0.29")).toBe(29);
+  });
+
+  it("soma em frações de centavo e arredonda uma vez só, para baixo", () => {
+    const janela = { desde: "2026-10-06", ate: "2026-10-08" };
+    const meio = { campaign: "trafego-3f2a9c1b", datasource: "google_ads", date: "2026-10-07", spend: "0.005", clicks: 1 };
+    expect(lerLinhasDoGasto([meio, meio], janela).gastos).toEqual([{ codigo: "3f2a9c1b", dia: "2026-10-07", rede: "google", gastoCents: 1, cliques: 2 }]);
+    expect(lerLinhasDoGasto([meio], janela).gastos).toEqual([]);
   });
 
   it("a janela são os dias fechados: de 3 dias atrás até ontem", () => {

@@ -115,9 +115,11 @@ organização grande que já tem conta própria.
   dos dias fechados vêm das redes pela API do Windsor.ai (uma chave do
   servidor, `WINDSOR_API_KEY`, para as três), de hora em hora e no "Importar
   agora" da plataforma, pela mesma régua do lançamento à mão. A campanha da
-  rede é achada pelo código `trafego-<código>` no nome dela; o dia já lançado
-  fica como está; o que a rede gastar além da verba não é cobrado da
-  organização. O que ficou valendo está na seção "Tráfego pago" do
+  rede é achada pelo código `trafego-<código>` no nome dela; o dia importado
+  é corrigido enquanto a rede o acerta (até 3 dias), o lançado à mão fica
+  como está; o que a rede gastar além do cobrável (verba acabada, campanha
+  parada ou fechada) não é cobrado da organização e aparece na margem como
+  excedente. O que ficou valendo está na seção "Tráfego pago" do
   `CLAUDE.md`. As APIs oficiais (Google Ads com *developer token*, Meta com
   app verificado) ficam como alternativa, se um dia o Windsor sair.
 - **Fase 3 — criar a campanha pela API:** o pedido aprovado vira campanha

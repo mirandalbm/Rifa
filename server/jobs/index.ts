@@ -16,7 +16,7 @@ import { apagarNotificacoesAntigas } from "../services/notificacoes";
 import { encerrarAnunciosForaDoAr } from "../services/patrocinio";
 import { encerrarBannersPagos } from "../services/bannerPago";
 import { encerrarTrafegoForaDoAr } from "../services/trafego";
-import { importarGastosSeLigado } from "../services/trafegoImportacao";
+import { importarGastosDoRelogio } from "../services/trafegoImportacao";
 import { vencerFranquias } from "../services/iaCobranca";
 import { destravarAcoesPresas } from "../services/ia";
 import { assinarVideosDoStream, limparStreamPendente } from "../services/streamPendentes";
@@ -424,13 +424,14 @@ export function startJobs() {
   }, releaseMs).unref();
 
   // Tráfego pago, fase 2: o gasto dos dias fechados vem das redes (com a
-  // chave WINDSOR_API_KEY e o produto ligado). De hora em hora: o dia já
-  // lançado fica como está, então repetir não lança duas vezes.
+  // chave WINDSOR_API_KEY e alguma campanha no ar ou fechando a conta, mesmo
+  // com o produto desligado). De hora em hora: o dia importado é corrigido
+  // pela régua de sempre, e repetir nunca cobra duas vezes.
   setInterval(async () => {
     try {
       await withLock(LOCK_TRAFEGO_IMPORTACAO, async () => {
-        const r = await importarGastosSeLigado();
-        if (r && (r.importados > 0 || r.erro)) log(`tráfego pago: ${r.importados} gasto(s) importado(s)${r.erro ? ` — ${r.erro}` : ""}`, "jobs");
+        const r = await importarGastosDoRelogio();
+        if (r && (r.importados > 0 || r.atualizados > 0 || r.erro)) log(`tráfego pago: ${r.importados} gasto(s) importado(s)${r.erro ? ` — ${r.erro}` : ""}`, "jobs");
       });
     } catch (err) {
       console.error("[jobs] importação do tráfego:", err);

@@ -236,16 +236,82 @@ o centro: sem movimento de dinheiro, ele é uma escolha da F4, não pré-requisi
   (`platform_charges`, `patrocinio_diario`, `trafego_gastos`…), nunca
   `COUNT(*)` sobre pedidos.
 
-## 8. O que falta o dono decidir
+## 8. Decisões do dono (09/10/2026)
 
-1. **Nome e lugar**: "Tesouraria" como grupo novo do master? (recomendado)
-2. **O que é o saldo bruto**: só a **receita própria do mês** (recomendado) ou
-   também o que passa pela conta (mídia, saldo pré-pago)?
-3. **A linha Meta/Google/TikTok**: entra como **repasse** (bloco à parte, não
-   sai da sua receita) ou como **custo** que sai do bruto, como no seu exemplo?
-4. **Percentual sobre quê**: cada linha escolhe a base (bruto, saldo restante
-   ou lucro antes dos impostos) — confirma?
-5. **Fechamento imutável** com reabertura auditada — confirma?
-6. **Quem acessa**: só o master, ou um papel "financeiro" separado?
-7. **Por onde começar**: F1 + F2 juntas (recomendado, é o que você descreveu)
-   ou F1 primeiro?
+1. **Nome**: "Tesouraria", grupo novo do menu do master. **Sim.**
+2. **Saldo bruto**: a receita própria do mês (taxas, mensalidade, patrocínio,
+   banner, IA) — **sim, com os detalhes financeiros bem definidos e
+   detalhados, com destino inicial e final** (cada receita mostra de onde veio
+   e para onde vai: a origem, o bloco de terceiros que ficou de fora e a área
+   de destinação que a recebe).
+3. **Meta/Google/TikTok**: tudo o que entra para as plataformas de campanha
+   fica em **bloco à parte**; **só a % da plataforma entra na receita**.
+4. **Base de cada linha** (bruto, saldo restante, lucro antes dos impostos):
+   **sim**, cada linha escolhe.
+5. **Fechamento imutável com reabertura auditada**: **sim**.
+6. **Acessos**: o master acessa e **cria os logins da equipe**, cada um só com
+   a tela da sua função (seção 9).
+7. **Começar**: **ainda não.** Primeiro as dúvidas com o contador e o advogado
+   (seção 10 de `docs/CONSULTA-CONTADOR-E-ADVOGADO.md`); depois o
+   planejamento completo; **só começa depois de aprovado**.
+
+## 9. Acessos da equipe (proposta, a aprovar)
+
+Hoje existem seis papéis (`Role` em `shared/access.ts`): visitante, apostador,
+afiliado, cambista, organizador e **admin (o master)**, que herda o organizador.
+Quem tem pouco acesso não tem como ser criado: ou é master ou não entra no
+painel da plataforma. A proposta é um **papel novo, `equipe`**, com **perfis de
+acesso** (a função de cada pessoa) que dizem **quais telas** (`SectionKey`) ela
+alcança. O master cria o usuário (e-mail, senha e perfil) em Usuários, como já
+faz com o organizador; a pessoa entra e vê **só o menu da função dela**.
+
+| Perfil | Para quem | Alcança (telas) | Não alcança |
+|---|---|---|---|
+| **Master** | dono | tudo, inclusive Tesouraria, usuários e configurações | — |
+| **Financeiro** | quem fecha o mês | Tesouraria (ver, lançar o realizado, **fechar o mês**), Cobrança, Financeiro dos afiliados, Pedidos (sem dado pessoal), Exportações, Pix a devolver, Saldo retido (só ver) | **reabrir mês**, Aparência, Usuários, Contrato, cadastro fiscal (documentos) |
+| **Marketing** | tráfego, banners, conteúdo | Tráfego pago, Marketing AI, Publicidade, Medição, Bônus, Stories, Aparência da vitrine (banners), Resultados | Tesouraria, Cobrança, dados de comprador |
+| **Gestão da plataforma** | operação geral | Caixa de entrada, Rifas e sorteios (publicar, sorteio oficial, entidades), Organizações, Afiliados, Cambistas, Antifraude, Resultados | Tesouraria (só o resumo?), Usuários da equipe, Aparência jurídica |
+| **Atendimento** | suporte | Atendimento (chamados, disputas, pedidos de mudança, denúncias), Pedidos (consulta) | Qualquer tela de dinheiro, cadastro fiscal, verificações com documento |
+
+Outros perfis que cabem (a decidir se entram):
+
+- **Contador (externo, só leitura)**: Tesouraria em leitura, extrato mensal,
+  Exportações; **nunca** altera nada. É o perfil que o contador pediu na prática
+  (o extrato com retenções e NFS-e).
+- **Compliance / verificação**: Verificações (selo), Entidades beneficiadas,
+  Cadastros fiscais — as telas com **documento pessoal**, separadas do
+  atendimento por LGPD.
+- **Segurança e antifraude**: Antifraude, Denúncias, Segurança do organizador.
+- **Sorteios**: calendário de sorteios oficiais e resultado. Quem lança o
+  resultado deve ser poucas pessoas — é o ato mais sensível da plataforma.
+- **Auditor (só leitura)**: Trilha de auditoria.
+
+Regras que valem para todos (herdam do `CLAUDE.md`):
+
+- **Quem barra é o servidor**, por seção: hoje a rota diz "só admin"; passa a
+  dizer "esta seção". Esconder o menu é cortesia. É a mudança mais delicada do
+  plano: **toda rota `/api/admin/*` e `npm run isolation`** precisam provar o
+  que cada perfil alcança e **o que não alcança** (403, e 404 no dado do
+  vizinho).
+- **Perfil é lista fechada em código** (`shared/access.ts`), não campo livre; o
+  master escolhe o perfil, não monta permissão solta. Ajuste fino por pessoa
+  (tirar uma tela) só se o plano aprovado pedir.
+- **Só o master** cria, troca perfil, redefine senha e desliga a equipe, e
+  **reabre mês fechado**. O financeiro fecha, não reabre (separação de funções).
+- **Segundo fator obrigatório** para quem toca dinheiro ou dado pessoal
+  (financeiro, compliance, gestão); senha na régua de sempre; senha nova derruba
+  as outras sessões.
+- **Auditoria com o nome de quem agiu** (`audit_log`), e a leitura de dado
+  sensível entra antes de sair, como hoje.
+- **Sem dado pessoal desnecessário**: o perfil da equipe herda as regras de
+  titularidade (o nome do comprador só aparece onde a regra manda); o
+  **atendimento vê o ID do cliente**, não o CPF.
+- A conta da equipe é da plataforma (organização nula), mas **não vê a tela do
+  organizador por herança**: alcança só a lista do perfil.
+
+## 10. Dúvidas antes do planejamento
+
+As perguntas ao contador e ao advogado sobre a Tesouraria e os acessos estão
+em `docs/CONSULTA-CONTADOR-E-ADVOGADO.md`, seções 9 (contador) e 10
+(advogado). **Nada é implementado antes das respostas e da aprovação do plano
+final.**

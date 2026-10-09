@@ -328,3 +328,115 @@ pedido cria dever de comprovar). Pergunta nova ao advogado:
   Lucro Real, gera tributo (PIS/COFINS, ISS) no recebimento ou na apropriação?
   Isso define quando emitir a NFS-e (o contador disse "na aprovação ou
   mensalmente").
+
+## 9. Dúvidas ao contador sobre a Tesouraria (aguardando)
+
+Contexto: o painel do master vai mostrar o saldo bruto do mês (receita própria
+da plataforma), as áreas de destinação (doação, despesas, salários, impostos,
+consultoria, etc., cada uma com valor fixo, percentual ou valor do mês) e o
+saldo final, e fechar o mês com um retrato imutável. A mídia das redes fica em
+bloco à parte; só a % da plataforma entra na receita. O sistema **não move
+dinheiro**: só calcula e registra. Regime: Lucro Real.
+
+**Saldo bruto e competência**
+1. O **saldo bruto do mês** deve ser a receita em **competência** (reconhecida)
+   ou o dinheiro recebido (caixa)? Hoje há recargas de saldo pré-pago
+   (patrocínio, banner, assistente de IA) e a taxa de gestão do tráfego cobrada
+   na aprovação. Para cada uma, a receita é reconhecida (a) no recebimento,
+   (b) no consumo (cliques gastos, dias de banner usados, créditos usados) ou
+   (c) no vencimento do que não foi usado? Peço o tratamento de cada origem.
+2. O painel pode mostrar **os dois** (competência e caixa) lado a lado no
+   fechamento? Qual deles o contador usa para as guias do mês?
+3. **Estornos e devoluções** reduzem a receita bruta como "dedução"? A taxa de
+   gestão não devolvida e a taxa retida no split do Asaas entram como receita no
+   mês em que foram retidas ou no pagamento?
+
+**Impostos e a base de cada linha**
+4. No Lucro Real, que linhas de imposto o painel deve mostrar e **qual a base
+   de cada uma**: ISS (sobre a receita de serviço, município), PIS e COFINS
+   (9,25% não cumulativo, com crédito de quê?), IRPJ (15% + adicional de 10%
+   acima de R$ 20 mil/mês) e CSLL (9%)? O **IRPJ e a CSLL** dependem do lucro
+   contábil do período, que inclui despesas que o sistema não conhece (folha
+   real, aluguel real): o painel mostra uma **estimativa** (com a base "lucro
+   antes dos impostos" e as despesas que o master informa) ou isso fica fora
+   do painel?
+5. **Apuração**: trimestral ou anual com estimativa mensal? O fechamento
+   mensal do painel precisa de provisão de IRPJ/CSLL (balancete de suspensão)?
+6. O exemplo cita **ICMS**: confirmo que não incide sobre a taxa de gestão,
+   a mensalidade e o patrocínio (serviço de publicidade, ISS)? Há outro
+   tributo que eu esteja esquecendo (INSS patronal da folha, FGTS, CPRB)?
+7. **Retenções que sofremos** (IRRF 1,5%, CSRF 4,65%, ISS) reduzem o que
+   entra no caixa. No painel, o bruto é antes das retenções e elas aparecem
+   como linha à parte (valor a compensar)? Como compensar no IRPJ/CSLL?
+
+**Destinações (áreas)**
+8. **Doação**: o teto de 2% é do **lucro operacional** (antes da própria
+   dedução). Como o painel deve calcular essa base para avisar o limite, se o
+   lucro real fecha só no balanço? Sugestão: estimar com o lucro antes dos
+   impostos do próprio painel e avisar "estimativa".
+9. **Salários e encargos**: a linha de folha leva só o salário ou também
+   encargos (INSS, FGTS, férias, 13º) e pró-labore dos sócios? Qual o
+   percentual de encargo a usar como padrão?
+10. **Despesas operacionais**: que categorias o contador quer separadas para
+    a escrituração (aluguel, energia, água, combustível, software, honorários,
+    tarifas do provedor Pix, Chatbase)? O plano de contas dele pode ser
+    importado?
+11. **Consultoria e pagamentos a PJ**: retenções na fonte que **nós** fazemos
+    ao pagar (IRRF, CSRF, ISS retido) devem aparecer como linha própria?
+
+**Mídia e repasse (bloco à parte)**
+12. O **bloco de mídia** deve mostrar: recebido dos clientes (reservas),
+    gasto lançado, repassado às redes, **saldo a repassar** (passivo) e o
+    **excedente** (custo nosso). Falta algum campo para a defesa do repasse?
+13. Para a defesa do repasse, a **conta bancária da mídia** precisa ser outra
+    conta jurídica ou basta conta separada (subconta/Asaas)?
+
+**Fechamento mensal**
+14. **Reabrir um mês fechado** (com motivo e auditoria) pode conflitar com a
+    escrituração (ECD, SPED, balancete já enviado)? Se o mês já foi
+    escriturado, o ajuste vira lançamento no mês seguinte, sem reabrir?
+15. O retrato do fechamento (valores, regra de cada linha, saldo final e
+    impressão SHA-256) serve como **documento de apoio** à escrituração?
+    Falta algum dado (CNPJ, período, regime)?
+
+**Acessos da equipe**
+16. O **contador externo** precisa de um acesso de **só leitura** com
+    exportação (extrato, retenções, retrato do mês)? Que telas ele quer?
+17. Quem na empresa fecha o mês e quem pode reabrir? Há exigência de
+    **segregação de funções** (quem lança não aprova) para auditoria?
+
+## 10. Dúvidas ao advogado sobre a Tesouraria e os acessos (aguardando)
+
+**Dinheiro de terceiros**
+1. O **bloco de mídia** (dinheiro das organizações reservado para pagar as
+   redes) exige **conta segregada** por lei ou contrato, ou basta o controle
+   contábil? Que cláusula garante que esse dinheiro não responde por dívida da
+   plataforma?
+2. O painel passa a mostrar saldos de terceiros (pré-pago, comissão guardada,
+   mídia): isso muda a análise de **arranjo de pagamento / instituição de
+   pagamento** (pergunta 14)? A plataforma só calcula e registra, não move.
+
+**Equipe e dados pessoais (LGPD)**
+3. O que a **equipe** pode ver: atendimento com ID do cliente (sem CPF),
+   financeiro sem dado pessoal, compliance com documentos. Esse **desenho de
+   perfis** atende ao princípio da necessidade (LGPD, art. 6º, III)?
+4. A **equipe** deve aceitar um **termo de confidencialidade e uso aceitável**
+   no primeiro acesso, com o aceite gravado (texto, versão, SHA-256, data, IP)
+   como o contrato da promotora? Quem redige?
+5. Funcionário é **operador** ou parte do controlador? Precisa de contrato de
+   trabalho/estágio com cláusula de dados, e de treinamento registrado?
+6. **Retenção dos registros de acesso** (quem leu o quê): por quanto tempo
+   guardar o log de auditoria da equipe? (hoje: sem prazo; LGPD pede
+   minimização, a guarda fiscal é de 5 anos).
+7. **Contador externo** com acesso de leitura ao painel: precisa de contrato
+   de operador e de cláusula de sigilo? Pode receber os extratos por e-mail ou
+   só por download autenticado?
+
+**Doação e política interna**
+8. A **política de doações** da empresa (percentual da taxa) precisa de ata ou
+   documento interno? E a pergunta 21 anterior (divulgar a doação ao cliente).
+
+**Fechamento**
+9. O **retrato imutável** do fechamento mensal, com a impressão SHA-256, vale
+   como prova interna? Há prazo mínimo de guarda?
+

@@ -8,7 +8,8 @@ vira trabalho de código está na seção 4; o que é decisão do dono, na seç�
 
 | Quem | Situação |
 |---|---|
-| Contador | **Respondeu** (09/10/2026). Respostas na seção 2; análise na seção 4. |
+| Contador | **Respondeu** (09/10/2026). Respostas na seção 2; análise na seção 4. Segunda consulta (doação de parte da taxa a uma ONG) na seção 7. |
+| Regime da plataforma | **Lucro Real** (informado pelo dono em 09/10/2026) — ver a seção 8, que muda a leitura de várias respostas. |
 | Advogado | **Perguntas enviadas, sem resposta ainda.** Perguntas na seção 3; as respostas entram aqui quando chegarem. |
 
 ## 1. O que o sistema faz hoje (o que foi levado a eles)
@@ -246,11 +247,77 @@ outra campanha." (`textoDoAceiteDaTaxa()`, versão 1).
 ## 6. Do lado de fora do código (você)
 
 - Levar as perguntas da seção 3 (inclusive as novas, 18 a 20) ao advogado.
-- Com o contador: regime (Simples, Presumido ou Real); se a competência vale
-  mesmo no Simples; o **Anexo e o Fator R** do item 17.06 no Simples (a resposta
-  falou de Anexo III com 6%, mas conferir se publicidade cai no Anexo V); e
-  **conferir a Solução de Consulta nº 6.006** citada.
+- Com o contador: as perguntas novas da seção 8 (o regime é Lucro Real, então
+  as respostas sobre Simples e Presumido não valem; o Anexo e o Fator R do
+  Simples deixam de importar) e **conferir a Solução de Consulta nº 6.006**
+  citada (não consegui verificar).
 - Abrir **contas bancárias separadas** para a mídia e para a taxa.
 - Guardar por 5 anos extratos, faturas e comprovantes das redes.
 - CNAE **73.11-4-00** e serviço **17.06** no cartão do CNPJ e na inscrição
   municipal (a prefeitura só emite a NFS-e de serviço cadastrado).
+
+## 7. Segunda consulta ao contador: doar parte da taxa a uma ONG (09/10/2026)
+
+Pergunta do dono: é viável doar parte da taxa de gestão (20%) a uma ONG?
+Resposta do contador:
+
+- **É viável**: a taxa é receita da plataforma, é dinheiro dela, não do cliente.
+- **Lucro Real** (o regime da plataforma): a doação é **despesa operacional
+  dedutível** do IRPJ e da CSLL, **limitada a 2% do lucro operacional** (antes
+  de computar a própria dedução); o que passar disso não deduz e volta na
+  apuração. A ONG tem de ser entidade civil constituída no Brasil, sem fins
+  lucrativos, que preste serviços gratuitos à comunidade ou aos empregados; a
+  certificação como OSCIP não é mais obrigatória (ele citou a Solução de
+  Consulta Cosit nº 110 — **não verifiquei**). Não gera crédito de PIS/COFINS.
+  Economia de até 34% do valor doado (15% IRPJ + 9% CSLL + 10% do adicional,
+  quando incide), respeitado o teto.
+- **Presumido e Simples**: nenhum benefício fiscal (despesa não dedutível; não
+  reduz a base nem o DAS). Não se aplica à plataforma, que é Lucro Real.
+- **Como proceder (em qualquer regime)**: pagar **da conta da taxa**, nunca da
+  conta da mídia (a segregação é a defesa do modelo de repasse); formalizar
+  com **recibo da ONG** (qualificação das duas partes, valor e finalidade);
+  contabilizar em despesa operacional ("Doações a Entidades Sem Fins
+  Lucrativos") contra caixa/banco.
+- **Recomendação**: uma **política de doações** com um percentual da taxa
+  destinado a causas sociais, dentro do teto de 2% no Lucro Real.
+
+**O que isto muda no sistema: nada por enquanto.** A doação sai da conta da
+plataforma e é contabilidade; o sistema só entra se o dono quiser **mostrar**
+a doação ao cliente ("parte da taxa vai para…"). Isso vira promessa pública e
+tem de passar pelo advogado antes (publicidade e CDC; vincular a doação ao
+pedido cria dever de comprovar). Pergunta nova ao advogado:
+
+21. Se a plataforma disser ao cliente que "parte da taxa de gestão é doada à
+    ONG X", que cuidados valem (publicidade enganosa, comprovação, o
+    percentual real, a ONG poder ser a mesma entidade beneficiada de uma
+    rifa)? A doação pode ser vinculada a cada pedido ou só a uma política
+    geral da empresa?
+
+## 8. O regime é Lucro Real: o que isso muda nas respostas da seção 2
+
+- **Competência é obrigatória** (não há a opção de caixa do Simples): a taxa
+  tem de ser **diferida ao longo da campanha** na contabilidade. O extrato
+  mensal deixa de ser "útil" e passa a ser a base da escrituração: mídia
+  aprovada, mídia gasta, **percentual executado**, datas de aprovação e de
+  encerramento.
+- **Nós sofremos retenção, sem a saída do Simples**: quando o tomador é pessoa
+  jurídica, retém IRRF 1,5% e CSRF/PCC 4,65% (e o ISS, conforme o município).
+  O contador disse que o optante do Simples escapa com a declaração; **a
+  plataforma não escapa**. As colunas de retenção do extrato (lançadas à mão
+  pela plataforma) são obrigatórias, não opcionais.
+- **PIS/COFINS não cumulativo (9,25%) com créditos** sobre a taxa.
+- **Contradição para o contador esclarecer**: ele disse (a) que a mídia é
+  repasse, valor de terceiros, que "não passa pelo resultado", e (b) que as
+  faturas do Meta/Google/TikTok geram crédito de PIS/COFINS no Lucro Real. Se a
+  mídia é conta alheia, a fatura da rede não é insumo da plataforma; o crédito
+  parece caber só no **excedente** (que é custo próprio). Perguntar qual
+  tratamento vale e se tomar o crédito enfraquece a tese do repasse (ele mesmo
+  apontou o risco de o fisco tratar tudo como receita de agenciamento).
+- **Excedente dedutível** se necessário, usual e comprovado pela fatura da rede
+  (já dito, agora vale de fato).
+- **Pergunta nova ao contador (a)**: com o IRRF/CSRF retidos sobre a taxa,
+  como o extrato deve apresentar bruto, retenção e líquido por NFS-e?
+- **Pergunta nova ao contador (b)**: a taxa cobrada na aprovação e diferida, no
+  Lucro Real, gera tributo (PIS/COFINS, ISS) no recebimento ou na apropriação?
+  Isso define quando emitir a NFS-e (o contador disse "na aprovação ou
+  mensalmente").

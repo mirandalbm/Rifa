@@ -8,7 +8,7 @@ vira trabalho de código está na seção 4; o que é decisão do dono, na seç�
 
 | Quem | Situação |
 |---|---|
-| Contador | **Respondeu** (09/10/2026). Primeira rodada na seção 2, doação à ONG na seção 7, segunda rodada (Tesouraria) na seção 11; terceira rodada respondida na seção 13; **quarta rodada respondida na seção 15 (muda a posição fiscal do modelo A: revenda)**; quinta, mínima (4 dúvidas), na seção 16; **comentários finais e o parecer conjunto na seção 17**; **respostas a C11–C16 e a minha conferência na seção 18**; **respostas a C17–C20 e aos pontos que não fechavam na seção 19 (a revenda fica sem a exclusão do ISS)**. |
+| Contador | **Respondeu** (09/10/2026). Primeira rodada na seção 2, doação à ONG na seção 7, segunda rodada (Tesouraria) na seção 11; terceira rodada respondida na seção 13; **quarta rodada respondida na seção 15 (muda a posição fiscal do modelo A: revenda)**; quinta, mínima (4 dúvidas), na seção 16; **comentários finais e o parecer conjunto na seção 17**; **respostas a C11–C16 e a minha conferência na seção 18**; **respostas a C17–C20 e aos pontos que não fechavam na seção 19 (a revenda fica sem a exclusão do ISS)**; **última rodada (C21–C24, que ele não leu) na seção 20: falta só o que depende do parecer e de você**. |
 | Regime da plataforma | **Lucro Real** (informado pelo dono em 09/10/2026) — ver a seção 8, que muda a leitura de várias respostas. |
 | Advogado | **Perguntas enviadas, sem resposta ainda.** Perguntas na seção 3; as respostas entram aqui quando chegarem. |
 
@@ -1149,3 +1149,69 @@ O contador reconheceu as imprecisões da seção 18 e respondeu. O que mais pesa
   contador não busca a lei.
 - Decidir entre reprecificar o modelo A (opções (a), (b) ou (c)) ou priorizar o
   modelo B.
+
+## 20. Última rodada do contador: o que ficou resolvido e o que depende do parecer (09/10/2026)
+
+O contador respondeu de novo, mas **não leu o texto das minhas C21 a C24**: ele
+escreveu que não as recebeu e "deduziu" as perguntas. As numerações dele não
+são as nossas; abaixo vai o casamento, pergunta por pergunta.
+
+### O que ele corrigiu
+
+1. **"Por fora" × "por dentro."** Reconhece que estava errado: os R$ 7.290 de
+   imposto já estão **dentro** dos R$ 60.000 do checkout do Meta. A conclusão (o
+   crédito é sobre o valor total da fatura) fica; a premissa estava errada.
+2. **Custo da mídia na DRE.** **Bruto R$ 60.000; líquido R$ 54.450** (depois do
+   crédito de PIS/COFINS de R$ 5.550). Fecha a frase que não combinava.
+3. **SC Cosit 32/2021** é contra a tese (prestador de limpeza); o que sustenta é a
+   **SC Cosit 8/2024**.
+4. **Parecer Normativo Cosit 5/2018**: o risco existe — o fisco pode chamar a
+   operação de **revenda de mídia** e negar o crédito (o parecer diz que na
+   revenda de bens não há insumo, só crédito sobre o bem comprado para revenda). A
+   defesa dele: a mídia é **meio** da prestação do serviço de gestão, não o fim.
+   Recomenda **manter o crédito, provisionar o risco e documentar a
+   essencialidade**, e levar o ponto ao parecer conjunto.
+
+### Casamento com as minhas perguntas
+
+| Minha pergunta | Situação |
+|---|---|
+| **C21** (o "por fora") | **Respondida** (item 1 acima). |
+| **C22** (SC 8/2024 e o risco do PN 5/2018) | **Respondida com risco** (item 4): manter o crédito, provisionar. |
+| **C23** (frase da DRE) | **Respondida** (item 2): bruto R$ 60.000, líquido R$ 54.450. |
+| **C24** (taxa que mantém a margem em cada município, com PIS/COFINS líquido e IRPJ/CSLL) | **Não respondida.** Fica para o **parecer conjunto**. |
+| Município da sede e item de serviço (C19) | **Esperando você.** Ele repete que precisa saber o município. |
+
+As respostas que ele rotulou "C23" (reserva de 10%) e "C24" (modelo B: base da
+taxa sem imposto) **repetem o que já estava fechado** na seção 19.
+
+### O que eu conferi
+
+- **A SC Cosit 8/2024 e o PN 5/2018 voltaram "da boca" dele, mas vieram de mim**:
+  ele escreveu "a SC 8/2024, que você citou". Eu só tinha **fontes secundárias**
+  (seção 19). **O parecer não pode se apoiar numa norma que nenhum dos dois leu
+  no texto oficial**: pedir a ele que abra a SC 8/2024, a 32/2021 e os itens do
+  PN 5/2018 que cita ("itens 40 a 44", que não conferi) e confirme o que dizem.
+- **"Receita financeira (ou redução de custo)."** Ele chama o crédito de
+  PIS/COFINS de uma coisa **ou** da outra. Não são equivalentes (uma entra na
+  receita e muda a base; a outra reduz o custo). Para a DRE do parecer ele
+  precisa **escolher e dizer o fundamento**.
+- **As "pendências antigas" voltaram iguais**: SC 6.006 e Acórdão de Recife
+  seguem só com a página de busca e o Diário Oficial, sem o texto; a planilha de
+  alíquotas do Portal Nacional da NFS-e não foi conferida por mim e **é só
+  alíquota, não regra de retenção**. Nada mudou; ficam de baixa prioridade.
+- **Item 11 (termos das redes)**: ele concorda que é o mais urgente e que pode
+  **inviabilizar o modelo A** para certas categorias. É assunto do advogado.
+
+### Onde estamos
+
+O contador **não tem mais dúvida pendente do lado dele** além do que o parecer
+conjunto vai responder (simulação por município, segurança do crédito, preço da
+taxa) e do que **só você** sabe (município da sede e item de serviço). O que
+destrava o planejamento:
+
+1. **Você**: município, item de serviço e a decisão entre **reprecificar o
+   modelo A** ou **priorizar o modelo B**.
+2. **O advogado**: itens 1 a 14 (em especial o 11, os termos das redes na revenda
+   e em jogo de azar).
+3. **O parecer conjunto**, com a simulação completa e o preço da taxa por cenário.

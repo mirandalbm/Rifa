@@ -339,6 +339,71 @@ export async function decidirCampanha(req: Request, id: string, entrada: { aprov
 }
 
 /**
+ * Grava um gasto na campanha já travada (por quem chama) e soma na campanha
+ * num `UPDATE` condicional que nunca passa da verba; gastou a verba inteira, a
+ * campanha encerra aqui mesmo. Devolve `null` quando o dia nesta rede já foi
+ * lançado (o índice decide, `ON CONFLICT DO NOTHING`) — o manual responde 409,
+ * a importação conta como "já lançado".
+ */
+async function gravarGasto(
+  tx: Tx,
+  c: Campanha,
+  g: { dia: string; rede: RedeDeAnuncio; gastoCents: number; cliques: number | null },
+  autor: { req: Request | null; origem: "manual" | "importado" },
+  extraNaAuditoria: Record<string, unknown> = {},
+) {
+  const taxa = taxaSobre(g.gastoCents, c.taxaPct);
+  const [lancado] = await tx
+    .insert(trafegoGastos)
+    .values({
+      campanhaId: c.id,
+      organizationId: c.organizationId,
+      dia: g.dia,
+      rede: g.rede,
+      gastoCents: g.gastoCents,
+      taxaCents: taxa,
+      cliques: g.cliques,
+      origem: autor.origem,
+      lancadoPor: autor.req?.user?.id ?? null,
+    })
+    .onConflictDoNothing({ target: [trafegoGastos.campanhaId, trafegoGastos.dia, trafegoGastos.rede] })
+    .returning();
+  if (!lancado) return null;
+  const [somada] = await tx
+    .update(trafegoCampanhas)
+    .set({
+      gastoCents: sql`${trafegoCampanhas.gastoCents} + ${g.gastoCents}`,
+      taxaCents: sql`${trafegoCampanhas.taxaCents} + ${taxa}`,
+    })
+    .where(
+      and(
+        eq(trafegoCampanhas.id, c.id),
+        eq(trafegoCampanhas.status, c.status),
+        sql`${trafegoCampanhas.gastoCents} + ${g.gastoCents} <= ${trafegoCampanhas.investimentoCents}`,
+      ),
+    )
+    .returning(campos);
+  if (!somada) throw new TrafegoError("O gasto passa do que resta da verba.", 409);
+  let campanha = somada;
+  if (somada.gastoCents >= somada.investimentoCents) {
+    campanha = await fecharNaTransacao(tx, somada, "encerrada", {}, "Campanha concluída: a sobra da reserva voltou ao saldo");
+  }
+  await auditar(tx, autor.req, autor.origem === "importado" ? "trafego.gasto.importado" : "trafego.gasto", c.id, {
+    dia: lancado.dia,
+    rede: lancado.rede,
+    gastoCents: lancado.gastoCents,
+    taxaCents: lancado.taxaCents,
+    cliques: lancado.cliques,
+    encerrada: campanha.status === "encerrada",
+    ...extraNaAuditoria,
+  });
+  return { gasto: lancado, campanha };
+}
+
+/** O último dia que a campanha ainda pode receber: o da parada, ou hoje (a importação passa ontem). */
+const ultimoDiaDoGasto = (c: Campanha, hoje: string) => (c.status === "encerrando" && c.encerradoEm ? diaNoFuso(c.encerradoEm) : hoje);
+
+/**
  * O gasto de um dia numa rede, copiado do painel da rede. Vale para a
  * campanha no ar e para a que está fechando a conta (só os dias até o
  * encerramento). Gastou a verba inteira, a campanha encerra aqui mesmo.
@@ -346,67 +411,66 @@ export async function decidirCampanha(req: Request, id: string, entrada: { aprov
 export async function lancarGasto(req: Request, id: string, entrada: unknown) {
   if (orgOf(req)) throw new TrafegoError("Lançar o gasto é da plataforma.", 403);
   if (!idValido(id)) throw new TrafegoError("Campanha não encontrada.", 404);
-  try {
-    return await db.transaction(async (tx) => {
-      const c = await travar(tx, id);
-      if (c.status !== "ativa" && c.status !== "encerrando") throw new TrafegoError("Só a campanha no ar (ou fechando a conta) recebe gasto.", 409);
-      let g: ReturnType<typeof validarGasto>;
-      try {
-        g = validarGasto(
-          entrada,
-          { redes: c.redes, investimentoCents: c.investimentoCents, gastoCents: c.gastoCents, diaDaAprovacao: c.aprovadoEm ? diaNoFuso(c.aprovadoEm) : null },
-          c.status === "encerrando" && c.encerradoEm ? diaNoFuso(c.encerradoEm) : diaNoFuso(new Date()),
-        );
-      } catch (e) {
-        throw aviso(e);
-      }
-      const taxa = taxaSobre(g.gastoCents, c.taxaPct);
-      const [lancado] = await tx
-        .insert(trafegoGastos)
-        .values({
-          campanhaId: c.id,
-          organizationId: c.organizationId,
-          dia: g.dia,
-          rede: g.rede,
-          gastoCents: g.gastoCents,
-          taxaCents: taxa,
-          lancadoPor: req.user!.id,
-        })
-        .returning();
-      const [somada] = await tx
-        .update(trafegoCampanhas)
-        .set({
-          gastoCents: sql`${trafegoCampanhas.gastoCents} + ${g.gastoCents}`,
-          taxaCents: sql`${trafegoCampanhas.taxaCents} + ${taxa}`,
-        })
-        .where(
-          and(
-            eq(trafegoCampanhas.id, c.id),
-            eq(trafegoCampanhas.status, c.status),
-            sql`${trafegoCampanhas.gastoCents} + ${g.gastoCents} <= ${trafegoCampanhas.investimentoCents}`,
-          ),
-        )
-        .returning(campos);
-      if (!somada) throw new TrafegoError("O gasto passa do que resta da verba.", 409);
-      let campanha = somada;
-      if (somada.gastoCents >= somada.investimentoCents) {
-        campanha = await fecharNaTransacao(tx, somada, "encerrada", {}, "Campanha concluída: a sobra da reserva voltou ao saldo");
-      }
-      await auditar(tx, req, "trafego.gasto", c.id, {
-        dia: lancado.dia,
-        rede: lancado.rede,
-        gastoCents: lancado.gastoCents,
-        taxaCents: lancado.taxaCents,
-        encerrada: campanha.status === "encerrada",
-      });
-      return { gasto: lancado, campanha };
-    });
-  } catch (e) {
-    if (isUniqueViolation(e, "uq_trafego_gasto_do_dia")) {
-      throw new TrafegoError("O gasto deste dia nesta rede já foi lançado.", 409);
+  return db.transaction(async (tx) => {
+    const c = await travar(tx, id);
+    if (c.status !== "ativa" && c.status !== "encerrando") throw new TrafegoError("Só a campanha no ar (ou fechando a conta) recebe gasto.", 409);
+    let g: ReturnType<typeof validarGasto>;
+    try {
+      g = validarGasto(
+        entrada,
+        { redes: c.redes, investimentoCents: c.investimentoCents, gastoCents: c.gastoCents, diaDaAprovacao: c.aprovadoEm ? diaNoFuso(c.aprovadoEm) : null },
+        ultimoDiaDoGasto(c, diaNoFuso(new Date())),
+      );
+    } catch (e) {
+      throw aviso(e);
     }
-    throw e;
-  }
+    const feito = await gravarGasto(tx, c, g, { req, origem: "manual" });
+    if (!feito) throw new TrafegoError("O gasto deste dia nesta rede já foi lançado.", 409);
+    return feito;
+  });
+}
+
+export type ResultadoDoImportado = "importado" | "ja_lancado" | "sem_campanha" | "fora_da_janela" | "verba_esgotada";
+
+/**
+ * Um gasto que veio da rede (fase 2), pela mesma conta do manual. A campanha é
+ * achada pelo código (só as no ar ou fechando a conta, e só se o código for de
+ * uma só) e travada; o dia tem de estar entre a aprovação e a parada (ou
+ * ontem), e a rede tem de ser da campanha. A rede pode ter gastado além da
+ * verba (o orçamento lá foi mal posto): entra só o que resta, e o excedente
+ * vai na auditoria e no resumo — quem paga a diferença é a plataforma, nunca a
+ * organização. O dia já lançado (à mão ou numa importação anterior) fica como
+ * está.
+ */
+export async function lancarGastoImportado(
+  g: { codigo: string; dia: string; rede: RedeDeAnuncio; gastoCents: number; cliques: number },
+  ontem: string,
+): Promise<{ resultado: ResultadoDoImportado; excedenteCents: number }> {
+  const achadas = await db.execute(sql`
+    select id from trafego_campanhas
+     where substr(replace(id::text, '-', ''), 1, 8) = ${g.codigo} and status in ('ativa', 'encerrando')`);
+  if (achadas.rows.length !== 1) return { resultado: "sem_campanha", excedenteCents: 0 };
+  const id = (achadas.rows[0] as { id: string }).id;
+  return db.transaction(async (tx) => {
+    const c = await travar(tx, id);
+    if (c.status !== "ativa" && c.status !== "encerrando") return { resultado: "sem_campanha" as const, excedenteCents: 0 };
+    const desde = c.aprovadoEm ? diaNoFuso(c.aprovadoEm) : null;
+    const ate = ultimoDiaDoGasto(c, ontem) < ontem ? ultimoDiaDoGasto(c, ontem) : ontem;
+    if ((desde && g.dia < desde) || g.dia > ate || !c.redes.includes(g.rede)) return { resultado: "fora_da_janela" as const, excedenteCents: 0 };
+    const resta = c.investimentoCents - c.gastoCents;
+    if (resta <= 0) return { resultado: "verba_esgotada" as const, excedenteCents: g.gastoCents };
+    const gasto = Math.min(g.gastoCents, resta);
+    const excedenteCents = g.gastoCents - gasto;
+    const feito = await gravarGasto(
+      tx,
+      c,
+      { dia: g.dia, rede: g.rede, gastoCents: gasto, cliques: g.cliques },
+      { req: null, origem: "importado" },
+      excedenteCents > 0 ? { gastoNaRedeCents: g.gastoCents, excedenteCents } : {},
+    );
+    if (!feito) return { resultado: "ja_lancado" as const, excedenteCents: 0 };
+    return { resultado: "importado" as const, excedenteCents };
+  });
 }
 
 /** Fechar a conta da campanha encerrada: lançados os últimos dias, a sobra volta ao saldo. */
@@ -492,6 +556,8 @@ export async function painelDoTrafego(req: Request) {
       vendas: sql<number>`(select count(*)::int from orders x
         where x.campaign_id = ${trafegoCampanhas.campaignId} and x.status = 'paid'
           and x.utm->>'campaign' = 'trafego-' || substr(replace(${trafegoCampanhas.id}::text, '-', ''), 1, 8))`,
+      // Os cliques que vieram da rede (importados ou digitados com o gasto).
+      cliques: sql<number>`(select coalesce(sum(g.cliques), 0)::int from trafego_gastos g where g.campanha_id = ${trafegoCampanhas.id})`,
       receitaCents: sql<number>`(select coalesce(sum(x.amount_cents), 0)::int from orders x
         where x.campaign_id = ${trafegoCampanhas.campaignId} and x.status = 'paid'
           and x.utm->>'campaign' = 'trafego-' || substr(replace(${trafegoCampanhas.id}::text, '-', ''), 1, 8))`,
@@ -542,6 +608,8 @@ export async function gastosDaCampanha(req: Request, id: string) {
       rede: trafegoGastos.rede,
       gastoCents: trafegoGastos.gastoCents,
       taxaCents: trafegoGastos.taxaCents,
+      cliques: trafegoGastos.cliques,
+      origem: trafegoGastos.origem,
       createdAt: trafegoGastos.createdAt,
       // Quem lançou só para a plataforma: a organização vê "Plataforma".
       lancadoPor: org ? sql<string | null>`null` : users.name,

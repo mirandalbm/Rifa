@@ -43,6 +43,7 @@ interface CampanhaDeTrafego {
   devolvidoCents: number;
   vendas: number;
   receitaCents: number;
+  cliques: number;
   codigo: string;
   utmCampanha: string;
   custoPorVendaCents: number | null;
@@ -69,7 +70,24 @@ interface Gasto {
   rede: RedeDeAnuncio;
   gastoCents: number;
   taxaCents: number;
+  cliques: number | null;
+  origem: "manual" | "importado";
   lancadoPor: string | null;
+}
+
+interface ResumoDaImportacao {
+  em: string;
+  fonte: string;
+  desde: string;
+  ate: string;
+  importados: number;
+  jaLancados: number;
+  semCampanha: number;
+  foraDaJanela: number;
+  verbaEsgotada: number;
+  excedenteCents: number;
+  ignoradas: Partial<Record<string, number>>;
+  erro: string | null;
 }
 
 interface Rifa {
@@ -90,6 +108,7 @@ const TOM: Record<SituacaoDaCampanha, string> = {
 
 const data = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString("pt-BR") : "—");
 const diaBR = (dia: string) => dia.split("-").reverse().join("/");
+const dataEHora = (iso: string) => new Date(iso).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", dateStyle: "short", timeStyle: "short" });
 const reais = (cents: number) => (cents / 100).toFixed(2).replace(".", ",");
 /** "20,50" → 2050; texto que não é dinheiro vira 0 (o servidor confere de novo). */
 const centavos = (texto: string) => {
@@ -134,6 +153,7 @@ export function AdminTrafego() {
           <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
             <div className="min-w-0 space-y-3">
               <ConfigDoTrafego config={painel.config} />
+              <ImportacaoDoGasto />
               <Margem meses={painel.margem ?? []} />
             </div>
             <div className="min-w-0">
@@ -478,6 +498,95 @@ function ConfigDoTrafego({ config: c }: { config: ConfigTrafegoPago }) {
   );
 }
 
+const IGNORADAS: Record<string, string> = {
+  sem_codigo: "sem o código no nome",
+  rede: "de rede desconhecida",
+  data: "fora da janela de dias",
+  valor: "com número inválido",
+};
+
+/**
+ * Fase 2: o gasto dos dias fechados vem das redes pelo Windsor.ai, de hora em
+ * hora, pela mesma régua do lançamento à mão. Sem a chave no servidor, diz
+ * isso e o lançamento à mão segue valendo.
+ */
+function ImportacaoDoGasto() {
+  const qc = useQueryClient();
+  const { data } = useQuery<{ ligada: boolean; ultima: ResumoDaImportacao | null }>({ queryKey: ["/api/admin/trafego/importacao"] });
+  const [msg, setMsg] = useState<{ ok: boolean; texto: string } | null>(null);
+  const importar = useMutation({
+    mutationFn: async () => (await apiRequest("POST", "/api/admin/trafego/importacao", {})).json() as Promise<ResumoDaImportacao>,
+    onSuccess: (r) => {
+      setMsg(r.erro ? { ok: false, texto: r.erro } : { ok: true, texto: `${r.importados} gasto(s) importado(s).` });
+      qc.invalidateQueries({ queryKey: ["/api/admin/trafego/importacao"] });
+      qc.invalidateQueries({ queryKey: CHAVE });
+    },
+    onError: (e: Error) => setMsg({ ok: false, texto: e.message }),
+  });
+  const u = data?.ultima ?? null;
+  const ignoradas = u ? Object.entries(u.ignoradas).filter(([, n]) => (n ?? 0) > 0) : [];
+  return (
+    <Card title="Gasto importado das redes">
+      <div className="space-y-2 px-4 py-3 text-sm">
+        {!data ? (
+          <p className="text-muted">Carregando…</p>
+        ) : !data.ligada ? (
+          <p className="text-ink-2">
+            Desligada: falta a chave <code className="rounded bg-mist px-1 font-mono text-[11px]">WINDSOR_API_KEY</code> no servidor. O gasto
+            segue sendo lançado à mão em cada campanha.
+          </p>
+        ) : (
+          <>
+            <p className="text-ink-2">
+              De hora em hora, o gasto e os cliques dos dias já fechados (até 3 dias atrás) vêm do Google, do Meta e do TikTok pelo
+              Windsor.ai. A campanha é achada pelo código <code className="font-mono text-[11px]">trafego-…</code> no nome dela na rede, e o
+              dia já lançado fica como está.
+            </p>
+            {u ? (
+              <div className="space-y-1 rounded-md bg-mist px-3 py-2 text-xs">
+                <p>
+                  Última volta: <span className="tnum">{dataEHora(u.em)}</span> · dias <span className="tnum">{diaBR(u.desde)}</span> a{" "}
+                  <span className="tnum">{diaBR(u.ate)}</span>
+                </p>
+                <p>
+                  <span className="tnum">{u.importados}</span> importado(s) · <span className="tnum">{u.jaLancados}</span> já lançado(s) ·{" "}
+                  <span className="tnum">{u.semCampanha}</span> sem campanha no ar · <span className="tnum">{u.foraDaJanela}</span> fora da
+                  campanha
+                </p>
+                {ignoradas.length ? (
+                  <p className="text-muted">
+                    Linhas ignoradas: {ignoradas.map(([m, n]) => `${n} ${IGNORADAS[m] ?? m}`).join(", ")}.
+                  </p>
+                ) : null}
+                {u.excedenteCents > 0 ? (
+                  <p className="text-red">
+                    A rede gastou <Money cents={u.excedenteCents} /> além da verba: a organização não paga esse valor. Confira o orçamento na
+                    rede.
+                  </p>
+                ) : null}
+                {u.erro ? <p className="text-red">{u.erro}</p> : null}
+              </div>
+            ) : (
+              <p className="text-xs text-muted">Ainda não houve importação.</p>
+            )}
+            <Aviso msg={msg} />
+            <Button
+              variant="ghost"
+              disabled={importar.isPending}
+              onClick={() => {
+                setMsg(null);
+                importar.mutate();
+              }}
+            >
+              {importar.isPending ? "Importando…" : "Importar agora"}
+            </Button>
+          </>
+        )}
+      </div>
+    </Card>
+  );
+}
+
 function Margem({ meses }: { meses: MesDaMargem[] }) {
   return (
     <Card title="Margem por mês">
@@ -663,6 +772,10 @@ function CartaoDaCampanha({ c, plataforma }: { c: CampanhaDeTrafego; plataforma:
           <dt className="text-muted">Custo por venda</dt>
           <dd>{c.custoPorVendaCents === null ? "—" : <Money cents={c.custoPorVendaCents} />}</dd>
         </div>
+        <div>
+          <dt className="text-muted">Cliques na rede</dt>
+          <dd className="tnum">{c.cliques}</dd>
+        </div>
       </dl>
 
       {c.status === "encerrando" ? (
@@ -689,7 +802,7 @@ function CartaoDaCampanha({ c, plataforma }: { c: CampanhaDeTrafego; plataforma:
         </p>
       ) : null}
 
-      {plataforma && c.status === "ativa" && c.links ? <LinksDosAnuncios links={c.links} /> : null}
+      {plataforma && c.status === "ativa" && c.links ? <LinksDosAnuncios links={c.links} utm={c.utmCampanha} /> : null}
 
       {erro ? <p className="rounded-md bg-red-soft px-3 py-2 text-xs text-red">{erro}</p> : null}
 
@@ -750,10 +863,14 @@ function CartaoDaCampanha({ c, plataforma }: { c: CampanhaDeTrafego; plataforma:
   );
 }
 
-function LinksDosAnuncios({ links }: { links: Partial<Record<RedeDeAnuncio, string>> }) {
+function LinksDosAnuncios({ links, utm }: { links: Partial<Record<RedeDeAnuncio, string>>; utm: string }) {
   const [copiado, setCopiado] = useState<string | null>(null);
   return (
     <div className="space-y-1">
+      <p className="text-xs text-ink-2">
+        Ponha <code className="rounded bg-mist px-1 font-mono text-[11px]">{utm}</code> no nome da campanha em cada rede: é por ele que o
+        gasto do dia é importado.
+      </p>
       <span className="label-xs">Link do anúncio (com a UTM da campanha)</span>
       {(Object.entries(links) as [RedeDeAnuncio, string][]).map(([rede, link]) => (
         <div key={rede} className="flex items-center gap-2">
@@ -788,14 +905,16 @@ function LancarGasto({ c, aoLancar }: { c: CampanhaDeTrafego; aoLancar: () => vo
   const [dia, setDia] = useState(ultimoDia);
   const [rede, setRede] = useState<RedeDeAnuncio>(c.redes[0]);
   const [valor, setValor] = useState("");
+  const [cliques, setCliques] = useState("");
   const [msg, setMsg] = useState<{ ok: boolean; texto: string } | null>(null);
   const gasto = centavos(valor);
   const taxa = Math.floor((gasto * c.taxaPct) / 100);
 
   const lancar = useMutation({
-    mutationFn: () => apiRequest("POST", `/api/admin/trafego/campanhas/${c.id}/gastos`, { dia, rede, gastoCents: gasto }),
+    mutationFn: () => apiRequest("POST", `/api/admin/trafego/campanhas/${c.id}/gastos`, { dia, rede, gastoCents: gasto, cliques: cliques.trim() === "" ? null : Number(cliques) }),
     onSuccess: () => {
       setValor("");
+      setCliques("");
       setMsg({ ok: true, texto: "Gasto lançado e debitado da reserva." });
       aoLancar();
     },
@@ -812,7 +931,7 @@ function LancarGasto({ c, aoLancar }: { c: CampanhaDeTrafego; aoLancar: () => vo
       }}
     >
       <p className="text-xs font-semibold">Lançar o gasto de um dia (do painel da rede)</p>
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
         <Campo rotulo="Dia">
           <input type="date" value={dia} max={ultimoDia} onChange={(e) => setDia(e.target.value)} />
         </Campo>
@@ -827,6 +946,9 @@ function LancarGasto({ c, aoLancar }: { c: CampanhaDeTrafego; aoLancar: () => vo
         </Campo>
         <Campo rotulo="Gasto (R$)">
           <input inputMode="decimal" value={valor} onChange={(e) => setValor(e.target.value)} />
+        </Campo>
+        <Campo rotulo="Cliques (opcional)">
+          <input inputMode="numeric" value={cliques} onChange={(e) => setCliques(e.target.value.replace(/\D/g, ""))} />
         </Campo>
       </div>
       <p className="text-xs text-muted">
@@ -852,10 +974,17 @@ function GastosDaCampanha({ id, plataforma }: { id: string; plataforma: boolean 
         <li key={g.id} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2">
           <span>
             <span className="tnum">{diaBR(g.dia)}</span> · {REDES_DE_ANUNCIO[g.rede]}
+            {g.origem === "importado" ? <span className="text-muted"> · importado da rede</span> : null}
             {plataforma && g.lancadoPor ? <span className="text-muted"> · {g.lancadoPor}</span> : null}
           </span>
           <span>
             <Money cents={g.gastoCents} /> + <Money cents={g.taxaCents} /> de taxa
+            {g.cliques !== null ? (
+              <span className="text-muted">
+                {" "}
+                · <span className="tnum">{g.cliques}</span> cliques
+              </span>
+            ) : null}
           </span>
         </li>
       ))}

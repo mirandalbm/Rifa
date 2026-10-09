@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   CONFIG_TRAFEGO_PADRAO,
+  centavosDoGasto,
   codigoDaCampanha,
+  codigoNoNome,
+  janelaDaImportacao,
+  lerLinhasDoGasto,
   custoPorVenda,
   linkDoAnuncio,
   problemaNaRecusa,
@@ -113,6 +117,7 @@ describe("gasto do dia", () => {
       dia: "2026-10-05",
       rede: "google",
       gastoCents: 1_000,
+      cliques: null,
     });
   });
   it("recusa dia no futuro, antes da aprovação, rede fora da campanha e gasto acima da verba", () => {
@@ -143,5 +148,68 @@ describe("atribuição", () => {
   it("recusa sem motivo", () => {
     expect(problemaNaRecusa("curto")).not.toBeNull();
     expect(problemaNaRecusa("A arte promete prêmio em dinheiro.")).toBeNull();
+  });
+});
+
+describe("gasto importado das redes (fase 2)", () => {
+  it("acha o código no nome da campanha da rede, só com 8 hex inteiros", () => {
+    expect(codigoNoNome("Rifa Moto · trafego-3F2A9C1B · BR")).toBe("3f2a9c1b");
+    expect(codigoNoNome("trafego-3f2a9c1b")).toBe("3f2a9c1b");
+    expect(codigoNoNome("trafego-3f2a9c1bz")).toBe("3f2a9c1b");
+    expect(codigoNoNome("trafego-3f2a9c1b0")).toBeNull();
+    expect(codigoNoNome("xtrafego-3f2a9c1b")).toBeNull();
+    expect(codigoNoNome("trafego-3f2a9c")).toBeNull();
+    expect(codigoNoNome(42)).toBeNull();
+  });
+
+  it("reais da rede em centavos inteiros, nada negativo nem estragado", () => {
+    expect(centavosDoGasto("12.34")).toBe(1234);
+    expect(centavosDoGasto(0.1 + 0.2)).toBe(30);
+    expect(centavosDoGasto(0)).toBe(0);
+    expect(centavosDoGasto("-1")).toBeNull();
+    expect(centavosDoGasto("abc")).toBeNull();
+    expect(centavosDoGasto("")).toBeNull();
+    expect(centavosDoGasto(Infinity)).toBeNull();
+    expect(centavosDoGasto(1e12)).toBeNull();
+  });
+
+  it("a janela são os dias fechados: de 3 dias atrás até ontem", () => {
+    expect(janelaDaImportacao("2026-10-09")).toEqual({ desde: "2026-10-06", ate: "2026-10-08" });
+    expect(janelaDaImportacao("2026-03-01")).toEqual({ desde: "2026-02-26", ate: "2026-02-28" });
+  });
+
+  it("soma por campanha, dia e rede e conta o que ficou de fora", () => {
+    const janela = { desde: "2026-10-06", ate: "2026-10-08" };
+    const { gastos, ignoradas } = lerLinhasDoGasto(
+      [
+        { campaign: "Moto trafego-3f2a9c1b", datasource: "google_ads", date: "2026-10-07", spend: "10.50", clicks: 30 },
+        { campaign: "Moto trafego-3f2a9c1b (2)", datasource: "google_ads", date: "2026-10-07", spend: 4.5, clicks: "10" },
+        { campaign: "Moto trafego-3f2a9c1b", source: "facebook", date: "2026-10-07", spend: "3", clicks: 0 },
+        { campaign: "Sem código", datasource: "google_ads", date: "2026-10-07", spend: "1" },
+        { campaign: "trafego-3f2a9c1b", datasource: "linkedin", date: "2026-10-07", spend: "1" },
+        { campaign: "trafego-3f2a9c1b", datasource: "tiktok", date: "2026-10-09", spend: "1" },
+        { campaign: "trafego-3f2a9c1b", datasource: "tiktok", date: "2026-10-07", spend: "-1" },
+        { campaign: "trafego-3f2a9c1b", datasource: "tiktok", date: "2026-10-07", spend: "1", clicks: 1.5 },
+        { campaign: "trafego-3f2a9c1b", datasource: "constructor", date: "2026-10-07", spend: "1" },
+        { campaign: "trafego-3f2a9c1b", datasource: "tiktok", date: "2026-10-08", spend: "0", clicks: 5 },
+        null,
+        "texto",
+      ],
+      janela,
+    );
+    expect(gastos).toEqual([
+      { codigo: "3f2a9c1b", dia: "2026-10-07", rede: "google", gastoCents: 1500, cliques: 40 },
+      { codigo: "3f2a9c1b", dia: "2026-10-07", rede: "meta", gastoCents: 300, cliques: 0 },
+    ]);
+    expect(ignoradas).toEqual({ sem_codigo: 1, rede: 2, data: 1, valor: 2 });
+    expect(lerLinhasDoGasto({ data: [] }, janela)).toEqual({ gastos: [], ignoradas: {} });
+  });
+
+  it("o lançamento à mão aceita os cliques opcionais", () => {
+    const c = { redes: ["google"], investimentoCents: 1_000, gastoCents: 0, diaDaAprovacao: "2026-10-01" };
+    expect(validarGasto({ dia: "2026-10-05", rede: "google", gastoCents: 10 }, c, "2026-10-09").cliques).toBeNull();
+    expect(validarGasto({ dia: "2026-10-05", rede: "google", gastoCents: 10, cliques: 7 }, c, "2026-10-09").cliques).toBe(7);
+    expect(() => validarGasto({ dia: "2026-10-05", rede: "google", gastoCents: 10, cliques: -1 }, c, "2026-10-09")).toThrow(/Cliques/);
+    expect(() => validarGasto({ dia: "2026-10-05", rede: "google", gastoCents: 10, cliques: 1.5 }, c, "2026-10-09")).toThrow(/Cliques/);
   });
 });

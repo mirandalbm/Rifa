@@ -177,6 +177,8 @@ export interface GastoDoDia {
   dia: string;
   rede: RedeDeAnuncio;
   gastoCents: number;
+  /** Os cliques do dia no painel da rede (opcional no lançamento à mão). */
+  cliques: number | null;
 }
 
 /**
@@ -202,7 +204,12 @@ export function validarGasto(
   if (!Number.isInteger(gastoCents) || gastoCents < 1) throw erro("Informe o gasto do dia em reais.");
   const resta = c.investimentoCents - c.gastoCents;
   if (gastoCents > resta) throw erro(`O gasto passa do que resta da verba (${formatBRL(resta)}).`, 409);
-  return { dia, rede: b.rede as RedeDeAnuncio, gastoCents };
+  let cliques: number | null = null;
+  if (b.cliques !== undefined && b.cliques !== null && b.cliques !== "") {
+    cliques = Number(b.cliques);
+    if (!Number.isInteger(cliques) || cliques < 0 || cliques > CLIQUES_MAX_DIA) throw erro("Cliques inválidos.");
+  }
+  return { dia, rede: b.rede as RedeDeAnuncio, gastoCents, cliques };
 }
 
 /** O que volta ao saldo no fim: a reserva menos o que foi debitado. */
@@ -237,4 +244,122 @@ export function problemaNaRecusa(motivo: unknown): string | null {
     return "Explique o motivo da recusa (pelo menos 10 letras): a organização lê isto.";
   }
   return null;
+}
+
+/* ------------------------------------------------------------------ *
+ * Fase 2: o gasto importado das redes
+ * ------------------------------------------------------------------ */
+
+/**
+ * O gasto vem pronto das redes (pelo Windsor.ai, uma chave para as três) em
+ * vez de ser digitado. A campanha da rede é casada com a nossa pelo código
+ * da UTM (`trafego-<código>`) **no nome da campanha** na rede — é assim que a
+ * plataforma deve nomear a campanha ao montá-la. Linha sem código, de rede
+ * que não conhecemos ou com número estranho fica de fora (e conta como
+ * ignorada, com o motivo). Só dias **já fechados** entram: o de hoje ainda
+ * muda na rede.
+ */
+export const FONTES_DO_GASTO: Record<string, RedeDeAnuncio> = {
+  google_ads: "google",
+  google: "google",
+  facebook: "meta",
+  facebook_ads: "meta",
+  meta: "meta",
+  instagram: "meta",
+  tiktok: "tiktok",
+  tiktok_ads: "tiktok",
+};
+
+/** Quantos dias fechados para trás a importação olha (a rede ainda acerta o gasto de ontem). */
+export const DIAS_DA_IMPORTACAO = 3;
+
+/** O teto de cliques de um dia numa rede (número maior é dado estragado). */
+export const CLIQUES_MAX_DIA = 10_000_000;
+
+export type MotivoIgnorado = "sem_codigo" | "rede" | "data" | "valor";
+export const MOTIVOS_IGNORADOS: Record<MotivoIgnorado, string> = {
+  sem_codigo: "Campanha da rede sem o código trafego-… no nome",
+  rede: "Rede que o sistema não conhece",
+  data: "Data inválida ou fora da janela",
+  valor: "Gasto ou cliques inválidos",
+};
+
+export interface GastoImportado {
+  codigo: string;
+  dia: string;
+  rede: RedeDeAnuncio;
+  gastoCents: number;
+  cliques: number;
+}
+
+/** O código da nossa campanha dentro do nome da campanha na rede (`… trafego-ab12cd34 …`). */
+export function codigoNoNome(nome: unknown): string | null {
+  if (typeof nome !== "string") return null;
+  const m = /(?:^|[^a-z0-9])trafego-([0-9a-f]{8})(?![0-9a-f])/i.exec(nome);
+  return m ? m[1].toLowerCase() : null;
+}
+
+/** Reais da rede ("12.34", 12.34) em centavos inteiros; nada de negativo, NaN ou absurdo. */
+export function centavosDoGasto(valor: unknown): number | null {
+  const n = typeof valor === "string" && valor.trim() !== "" ? Number(valor) : typeof valor === "number" ? valor : NaN;
+  if (!Number.isFinite(n) || n < 0) return null;
+  const c = Math.round(n * 100);
+  return c <= INVESTIMENTO_MAX_CENTS ? c : null;
+}
+
+/** Os dias fechados que a importação olha: de `DIAS_DA_IMPORTACAO` atrás até ontem (fuso de quem chama). */
+export function janelaDaImportacao(hoje: string): { desde: string; ate: string } {
+  const base = Date.parse(`${hoje}T12:00:00Z`);
+  const dia = (n: number) => new Date(base - n * 86_400_000).toISOString().slice(0, 10);
+  return { desde: dia(DIAS_DA_IMPORTACAO), ate: dia(1) };
+}
+
+/**
+ * As linhas que a fonte devolveu, já conferidas e somadas por campanha, dia
+ * e rede (a mesma campanha pode ter vários conjuntos de anúncios). A entrada
+ * vem de fora: é dado, nunca instrução — só as chaves conhecidas são lidas.
+ */
+export function lerLinhasDoGasto(
+  linhas: unknown,
+  janela: { desde: string; ate: string },
+): { gastos: GastoImportado[]; ignoradas: Partial<Record<MotivoIgnorado, number>> } {
+  const ignoradas: Partial<Record<MotivoIgnorado, number>> = {};
+  const contar = (m: MotivoIgnorado) => (ignoradas[m] = (ignoradas[m] ?? 0) + 1);
+  const somados = new Map<string, GastoImportado>();
+  for (const bruta of Array.isArray(linhas) ? linhas : []) {
+    if (!bruta || typeof bruta !== "object") continue;
+    const l = bruta as Record<string, unknown>;
+    const codigo = codigoNoNome(l.campaign);
+    if (!codigo) {
+      contar("sem_codigo");
+      continue;
+    }
+    const fonte = typeof l.datasource === "string" ? l.datasource : typeof l.source === "string" ? l.source : "";
+    const rede = Object.hasOwn(FONTES_DO_GASTO, fonte.toLowerCase()) ? FONTES_DO_GASTO[fonte.toLowerCase()] : null;
+    if (!rede) {
+      contar("rede");
+      continue;
+    }
+    const dia = typeof l.date === "string" ? l.date.slice(0, 10) : "";
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dia) || Number.isNaN(Date.parse(`${dia}T12:00:00Z`)) || dia < janela.desde || dia > janela.ate) {
+      contar("data");
+      continue;
+    }
+    const gastoCents = centavosDoGasto(l.spend);
+    const cliques = l.clicks === undefined || l.clicks === null || l.clicks === "" ? 0 : Number(l.clicks);
+    if (gastoCents === null || !Number.isInteger(cliques) || cliques < 0 || cliques > CLIQUES_MAX_DIA) {
+      contar("valor");
+      continue;
+    }
+    const chave = `${codigo}|${dia}|${rede}`;
+    const atual = somados.get(chave);
+    if (atual) {
+      atual.gastoCents += gastoCents;
+      atual.cliques += cliques;
+    } else {
+      somados.set(chave, { codigo, dia, rede, gastoCents, cliques });
+    }
+  }
+  // Dia sem gasto não vira lançamento (o lançamento é cobrança).
+  return { gastos: [...somados.values()].filter((g) => g.gastoCents > 0), ignoradas };
 }

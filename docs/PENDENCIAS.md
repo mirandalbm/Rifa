@@ -663,8 +663,14 @@ Na ordem de entrega do plano:
   A taxa e os mínimos ficam a critério da plataforma (decidido em
   09/10/2026), em Marketing → Tráfego pago, que **nasce desligado**.
   **Falta no ambiente**: o `db:push` das tabelas `trafego_campanhas` e
-  `trafego_gastos` **antes** do código. **Falta no código**: as fases 2
-  (importar o gasto) e 3 (criar a campanha pela API). **Feito também
+  `trafego_gastos` (e as colunas `trafego_gastos.cliques` e `origem`)
+  **antes** do código. **Feito também (fase 2, 09/10/2026)**: o gasto e os
+  cliques dos dias fechados importados das redes pelo Windsor.ai, de hora em
+  hora e no "Importar agora", pela régua do lançamento à mão — **[você]**
+  pôr a `WINDSOR_API_KEY` nos segredos do Railway (sem ela, segue o
+  lançamento à mão) e nomear cada campanha nas redes com o código
+  `trafego-…` que a tela mostra. **Falta no código**: a fase 3 (criar a
+  campanha pela API). **Feito também
   (09/10/2026)**: o Marketing AI — o plano de divulgação e a leitura dos
   resultados (dos dados, sem IA) e os textos de anúncio (pelo assistente, na
   régua). **[você] Antes de ligar**: as respostas do contador (faturamento da

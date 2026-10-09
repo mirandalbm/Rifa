@@ -2332,6 +2332,10 @@ export const trafegoGastos = pgTable(
     rede: text("rede").notNull(),
     gastoCents: integer("gasto_cents").notNull(),
     taxaCents: integer("taxa_cents").notNull(),
+    /** Os cliques do dia no painel da rede (nulo no lançamento à mão sem o número). */
+    cliques: integer("cliques"),
+    /** `manual` (digitado pela plataforma) ou `importado` (pela fonte do gasto, fase 2). */
+    origem: text("origem").notNull().default("manual"),
     lancadoPor: uuid("lancado_por").references(() => users.id, { onDelete: "set null" }),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },

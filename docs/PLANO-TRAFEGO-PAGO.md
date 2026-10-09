@@ -111,11 +111,15 @@ organização grande que já tem conta própria.
   volta ao saldo; pedir de novo é uma campanha nova), a taxa e os mínimos ficaram a critério da
   plataforma (decisão de 09/10/2026) e os cliques ficam para a fase 2 (vêm
   do painel da rede).
-- **Fase 2 — importar o gasto:** o gasto diário vem das plataformas em vez
-  de ser digitado. Caminhos: a API do Windsor.ai (uma integração para todas
-  as redes) ou as APIs oficiais (Google Ads exige *developer token* aprovado;
-  Meta exige app verificado com `ads_management`). O conector que eu uso aqui
-  é da sessão, não do servidor — o servidor precisa da própria chave.
+- **Fase 2 — importar o gasto (feita, 09/10/2026):** o gasto e os cliques
+  dos dias fechados vêm das redes pela API do Windsor.ai (uma chave do
+  servidor, `WINDSOR_API_KEY`, para as três), de hora em hora e no "Importar
+  agora" da plataforma, pela mesma régua do lançamento à mão. A campanha da
+  rede é achada pelo código `trafego-<código>` no nome dela; o dia já lançado
+  fica como está; o que a rede gastar além da verba não é cobrado da
+  organização. O que ficou valendo está na seção "Tráfego pago" do
+  `CLAUDE.md`. As APIs oficiais (Google Ads com *developer token*, Meta com
+  app verificado) ficam como alternativa, se um dia o Windsor sair.
 - **Fase 3 — criar a campanha pela API:** o pedido aprovado vira campanha
   sozinho, com o criativo das artes prontas e do reels gerado.
 

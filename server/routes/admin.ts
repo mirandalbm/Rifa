@@ -178,6 +178,7 @@ import {
 import { cliquesDosLinks, linkCurtoDaRifa, linkCurtoDoPerfil } from "../services/links";
 import { EditorError, conferirCamadas, dadosDoEditor, focoDaFoto, sugerirTexto, tipoDaSugestao } from "../services/editorImagem";
 import { MarketingIAError, anunciosDaRifa, marketingDaRifa } from "../services/marketingIA";
+import { fonteDoWindsor, importarGastos, ultimoResumo } from "../services/trafegoImportacao";
 import { CONFERENCIAS_POR_JANELA, FOCOS_POR_JANELA } from "@shared/editorImagem";
 import {
   cancelarSolicitacao,
@@ -4941,6 +4942,37 @@ adminRouter.post("/trafego/campanhas/:id/fechar", async (req, res, next) => {
   try {
     requirePlatformAdmin(req);
     res.json(await fecharConta(req, req.params.id));
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * Fase 2: o gasto importado das redes (só a plataforma). A situação diz se há
+ * chave no servidor (nunca a chave) e o resumo da última volta; "Importar
+ * agora" roda a mesma volta do relógio, com limite.
+ */
+adminRouter.get("/trafego/importacao", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    res.setHeader("Cache-Control", "no-store");
+    res.json({ ligada: fonteDoWindsor() !== null, ultima: await ultimoResumo() });
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.post("/trafego/importacao", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    const fonte = fonteDoWindsor();
+    if (!fonte) return res.status(409).json({ message: "Falta WINDSOR_API_KEY no servidor: sem ela o gasto não é importado." });
+    if ((await hit(`trafego-importar:${req.user!.id}`, 60, 6)).excedeu) {
+      return res.status(429).json({ message: "Muitas importações em pouco tempo. Espere alguns minutos." });
+    }
+    const r = await importarGastos(fonte);
+    await audit(req, "trafego.importar", "settings", "trafego_importacao", { importados: r?.importados ?? 0, erro: r?.erro ?? null });
+    res.json(r);
   } catch (err) {
     next(err);
   }

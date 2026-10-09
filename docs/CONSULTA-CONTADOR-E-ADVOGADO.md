@@ -929,34 +929,61 @@ o que ele disse, o que eu consegui conferir e o que **ainda não fecha**.
 | SC SRRF06/Disit nº 6.006/2019 | **Existe, e a ementa bate** (sites de terceiros; o texto oficial não apareceu). Ela é do **Simples Nacional** e remete à SC Cosit 70/2016. Serve por analogia (conta alheia × conta própria), não como regra do Lucro Real. A dúvida de antes (número confundido com outra solução) fica **resolvida**. |
 | Acórdão 012/25 de Recife | Não conferi o link; a ementa que ele cita trata de **competência × NFS-e**, o que **apoia** a NFS-e mensal pelo valor reconhecido. |
 | SC 87/2011 | Trata de **software como insumo**; **não serve de base** para crédito sobre mídia. O crédito sobre a fatura do Meta se apoia no conceito de insumo (essencialidade), a confirmar por ele. |
-| Facebook Serviços Online do Brasil e CNPJ | A entidade e o repasse de ISS 2,9% e PIS/COFINS 9,25% **confirmam** (comunicados da Meta repassados pela imprensa). **O CNPJ não confirmei.** Veja o ponto crítico abaixo. |
+| Facebook Serviços Online do Brasil e CNPJ | A entidade e as alíquotas (ISS 2,9% e PIS/COFINS 9,25%) **confirmam** (comunicados da Meta e o checkout do dono). **O CNPJ não confirmei.** O imposto fica **dentro** do total pago, não por cima; veja o ponto crítico abaixo. |
 | Tabela de municípios | Sem fonte: **não é base para código**. Alíquota e retenção mudam por lei municipal e por tomador. |
 
-### O ponto crítico que apareceu: o imposto do Meta entra POR CIMA do orçamento
+### O ponto crítico: o imposto do Meta fica DENTRO do que se paga, mas reduz o saldo de anúncios
 
-As fontes que achei dizem que, desde 01/01/2026, a nota fiscal do Meta **soma os
-impostos ao orçamento** (≈ **+12,15%**: ISS 2,9% + PIS/COFINS 9,25%), e que o
-**Ads Manager mostra o gasto sem imposto**. Também aparecem CBS/IBS de teste
-(1%) que, em 2026, não mudam o total. Isto **contradiz** o que está no
-documento (seção 1 e o `CLAUDE.md`): "o Meta cobra o preço cheio, com ISS e
-PIS/COFINS **já embutidos**". Se o imposto vem por cima:
+As fontes abertas que achei diziam que o Meta **soma** os impostos ao orçamento
+(+12,15%). **O dono conferiu no checkout do próprio Meta (09/10/2026) e a leitura
+correta é outra**: o imposto fica **embutido no total pago**, nada é somado por
+cima do que se paga. A captura do "Add funds", pagando com Mercado Pago:
 
-- o **gasto que o sistema lê** (insights/Windsor, sem imposto) fica **abaixo do
-  que o Meta realmente cobra**; o custo real da plataforma é gasto × 1,1215;
-- no **modelo A**, R$ 100 de mídia custam ~R$ 112,15 à plataforma. Com a taxa de 20%
-  e o ISS de 5% sobre o total, a conta fica, **por R$ 100 de mídia** (minha
-  simulação grosseira, antes de IRPJ/CSLL, só para dar a ordem de grandeza):
-  receita 120 − custo 112,15 − ISS 6,00 − PIS/COFINS líquido (11,10 − crédito de
-  10,37 = 0,73) = **≈ R$ 1,12**. Com o ISS só sobre a taxa (R$ 1,00) sobram
-  **≈ R$ 6,12**. Em qualquer caso, **a taxa de 20% não sustenta o modelo A sem
-  repassar o imposto da rede ao cliente**;
-- no **modelo B** isso não pesa para nós (o cliente paga a rede), mas a **base da
-  taxa** (gasto com ou sem imposto) precisa ser definida;
-- a **trava de 10%** e o teto do Meta (`lifetime_budget`) também: o que o Meta
-  cobra é o orçamento **mais** o imposto, e o saldo a travar tem de contar assim.
+| Linha | Valor |
+|---|---|
+| Subtotal (o que vira saldo de anúncios) | R$ 52.710,00 |
+| ISS estimado (2,9% **do total**) | R$ 1.740,00 |
+| PIS/COFINS estimado (9,25% **do total**) | R$ 5.550,00 |
+| Impostos estimados (12,15% do total) | R$ 7.290,00 |
+| **Total pago** | **R$ 60.000,00** |
 
-**Ninguém deve parametrizar nada em cima disso antes de olhar uma fatura real do
-Meta** (a nota da conta de anúncios, com o campo de impostos).
+(1.740 ÷ 0,029 = 60.000 e 5.550 ÷ 0,0925 = 60.000: **as duas alíquotas incidem
+sobre o total pago**, não sobre o subtotal.) Fica corrigida a minha afirmação
+anterior de que o imposto vinha "por cima"; o que está no `CLAUDE.md` ("ISS e
+PIS/COFINS já dentro") **estava certo quanto ao que se paga**. Mas o checkout
+mostra o que a frase não mostrava:
+
+- **O saldo de anúncios é 87,85% do que se paga.** Cada R$ 100 de gasto (o que o
+  Ads Manager e o Windsor leem) custa à plataforma **R$ 113,83** (100 ÷ 0,8785),
+  não R$ 100. O gasto que o sistema lê é líquido de imposto; o custo real em
+  dinheiro é 13,83% maior.
+- No **modelo A (revenda)**, por R$ 100 de mídia vendida ao cliente (a minha
+  simulação grosseira, antes de IRPJ/CSLL, supondo o crédito de PIS/COFINS
+  sobre o total da fatura): receita 120 − custo 113,83 − ISS próprio 6,00 −
+  PIS/COFINS líquido (11,10 − crédito 10,53 = 0,57) = **≈ −R$ 0,40**; com o ISS só
+  sobre a taxa (R$ 1,00), **≈ +R$ 4,60**. **Os 20% não sustentam o modelo A se a
+  mídia for vendida a R$ 100 por R$ 100 de anúncio.**
+- No **modelo B** o custo da rede é do cliente (ele paga o Meta, com os impostos
+  dele). Resta definir a **base da taxa**: o gasto líquido que o Ads Manager
+  mostra (a leitura natural, e a que a API entrega).
+- A **trava de 10%** e o teto do Meta (`lifetime_budget`) **não mudam**: os dois
+  falam em gasto líquido, que é o que sai do saldo de R$ 52.710. Só a margem e o
+  custo do excedente mudam (o excedente também custa 13,83% mais do que o gasto
+  lido).
+
+**Duas coisas a confirmar ainda**: (1) que o gasto da campanha desconta o saldo
+**1 para 1** (o Ads Manager mostra R$ 52.710 de saldo e cada real gasto sai dele)
+— conferir numa campanha de verdade; (2) se a conta da plataforma é **pré-paga**
+("Add funds", como na captura) ou **cartão/fatura**: a captura é do pré-pago, e o
+comunicado do Meta fala que para cartão ou faturamento mensal o valor pode
+mudar. Os números do checkout são **estimativas** do Meta.
+
+**Opções de produto para o modelo A (decisão do dono, depois do parecer):**
+(a) vender a mídia **com o imposto da rede discriminado**: o cliente paga
+R$ 113,83 por R$ 100 de anúncio; (b) fazer como o próprio Meta: o cliente paga
+R$ 100 e o **pacote vira R$ 87,85 de anúncio**, com a linha do imposto na tela;
+(c) subir a taxa. A (b) é a mais transparente e igual ao que o anunciante já vê
+no Meta.
 
 ### Onde a resposta ainda não fecha
 
@@ -988,10 +1015,12 @@ Meta** (a nota da conta de anúncios, com o campo de impostos).
 ### Perguntas novas
 
 **Ao contador:**
-- **C17.** A fatura do Meta soma os impostos **por cima** do orçamento (+12,15%)
-  ou o orçamento já os inclui? Na revenda, o crédito de PIS/COFINS é calculado
-  sobre o valor **total** da fatura? E o ISS de 2,9% que o Meta cobra é custo sem
-  crédito, que se soma ao nosso ISS sobre a nota (cascata)?
+- **C17.** No Meta, ISS 2,9% e PIS/COFINS 9,25% incidem sobre o **total pago**
+  (R$ 60.000 pagos → R$ 52.710 de saldo de anúncios; captura do checkout na
+  seção acima). O crédito de PIS/COFINS na revenda é calculado sobre o valor
+  **total** da fatura (R$ 60.000) e o ISS de 2,9% é custo sem crédito, que se soma
+  ao nosso ISS sobre a nota (cascata)? Como contabilizar a diferença entre o que
+  se paga e o saldo de anúncios (adiantamento de R$ 60.000 ou de R$ 52.710)?
 - **C18.** No modelo B, a **base da taxa** é o gasto **sem** imposto (o que o
   Ads Manager mostra) ou com?
 - **C19.** Qual item de serviço (10.08 ou 17.06), qual município e qual artigo da
@@ -1003,16 +1032,20 @@ Meta** (a nota da conta de anúncios, com o campo de impostos).
 **Ao advogado:** acrescentar ao item 12 a pergunta **se a revenda é possível sem
 repassar o imposto da rede** ao cliente (preço da mídia com o imposto
 discriminado na proposta e no aceite), e ao item 11 se a identificação do
-anunciante real pesa mais com o imposto cobrado em nome da plataforma.
+anunciante real pesa mais com o imposto cobrado em nome da plataforma. No item 12,
+se o contrato pode dizer que o pacote contratado é o **total pago** e o saldo de
+anúncios é esse total menos o imposto da rede (como o próprio Meta faz).
 
 ### O que isto muda
 
-- **Preço da taxa:** a decisão de manter 20% fica **suspensa** até a fatura real
-  e o parecer. No modelo A é provável que a mídia tenha de ser **vendida com o
-  imposto da rede por cima**; no modelo B os 20% seguem fazendo sentido.
+- **Preço da taxa:** a decisão de manter 20% fica **suspensa** até o parecer.
+  No modelo A a mídia tem de ser **vendida já contando o imposto da rede** (o
+  saldo de anúncios é 87,85% do pago); no modelo B os 20% seguem fazendo
+  sentido.
 - **Código:** nada muda agora. No planejamento entram dois parâmetros
   **versionados por competência**: a posição fiscal (revenda ou repasse) e o
-  **acréscimo de imposto da rede** (hoje 0% no código, possivelmente 12,15%),
-  usados pelo gasto, pela margem, pela trava e pela taxa do modelo B.
+  **imposto da rede retido do pagamento** (12,15% do total pago, hoje 0% no
+  código; o custo de um gasto G é G ÷ (1 − 12,15%)), usados pela margem e pelo
+  custo do excedente. A trava e a taxa do modelo B seguem o gasto líquido.
 - **Tabela de municípios:** vira parâmetro **cadastrado pelo contador, com
   fonte e data**, nunca constante no código.

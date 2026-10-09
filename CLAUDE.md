@@ -4616,9 +4616,14 @@ abaixo).
   dos pacotes nunca deixa de carregar —, e subir o mínimo sem mandar os
   pacotes tira os que ficaram abaixo dele (`PUT /admin/trafego/config`). Na
   tela da plataforma os valores vão separados por `;` (a vírgula é a decimal). **Imposto da rede não é modelado**: o
-  Meta cobra a plataforma pelo preço cheio (ISS e PIS/COFINS já dentro) e
-  só esse preço conta; a tese contábil e o tributo sobre a taxa são do contador
-  (`docs/PLANO-TRAFEGO-PAGO.md`).
+  Meta cobra a plataforma pelo preço cheio, com ISS (2,9%) e PIS/COFINS
+  (9,25%) **dentro do total pago** — no "Add funds", R$ 60.000 pagos viram
+  R$ 52.710 de saldo de anúncios, então cada R$ 100 de gasto lido custa à
+  plataforma R$ 113,83 (÷ 0,8785). O gasto, a verba e a trava falam em gasto
+  líquido (o que o Ads Manager mostra) e não mudam; **a margem e o excedente
+  ficam otimistas** até o parâmetro de imposto da rede entrar (planejamento;
+  `docs/CONSULTA-CONTADOR-E-ADVOGADO.md`, seção 18). A tese contábil e o
+  tributo sobre a taxa são do contador (`docs/PLANO-TRAFEGO-PAGO.md`).
 - **O pedido reserva tudo de uma vez**: mídia + a taxa sobre ela
   (`reservaDoPedido()`), pelo livro do patrocínio (`lancar()`,
   `trafego:<id>`), **na mesma transação que grava a campanha** — sem saldo,

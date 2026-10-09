@@ -174,9 +174,12 @@ Orientação do dono, **a confirmar pelo contador e pelo advogado**:
   anúncio de novo, em nenhuma rede (senão o pacote de 100 viraria 120 de mídia
   e a conta fecharia em 120%). No split, o que é da rede vai para a rede e o
   que é da plataforma fica nela.
-- **O imposto do Meta não entra na conta do sistema.** O Meta cobra o preço
-  cheio com ISS (2,9%) e PIS/COFINS (9,25%) embutidos; a plataforma, como
-  cliente, paga o preço cheio, e só o preço cobrado importa. A tese
+- **O imposto do Meta não entra na conta do sistema (ainda).** O Meta cobra o
+  preço cheio com ISS (2,9%) e PIS/COFINS (9,25%) **dentro do total pago**: no
+  "Add funds", R$ 60.000 viram R$ 52.710 de saldo de anúncios (captura do dono,
+  09/10/2026), logo R$ 100 de gasto lido custam R$ 113,83. O sistema trabalha
+  em gasto líquido; o custo real entra no planejamento como parâmetro (seção 18
+  de `docs/CONSULTA-CONTADOR-E-ADVOGADO.md`). A tese
   (despesa de marketing repassada, não receita) e o tributo que a plataforma
   paga sobre a taxa de 20% são **para o contador**.
 - **Ainda em aberto, depende de um teste pequeno no Meta:** se o orçamento que

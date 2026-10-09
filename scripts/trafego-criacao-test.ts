@@ -316,6 +316,7 @@ async function main() {
       JSON.stringify(conj),
     );
     checa("conjunto: o fim é quando a verba acaba pela conta (20.500 ÷ 2.000 = 10 dias) mais 1 hora de folga", janelaMs === 10 * 86_400_000 + 3_600_000, String(janelaMs));
+    checa("conjunto: o começo é no futuro (a criação leva segundos; começo já passado pode ser recusado pelo Meta)", conj ? Date.parse(conj.start_time) > Date.now() : false, String(conj?.start_time));
     checa("o fim fica gravado com o orçamento (a tela diz até quando o total vale)", (await criacao(idA))?.orcamento?.fimEm === conj?.end_time, String((await criacao(idA))?.orcamento?.fimEm));
     checa(
       "conjunto: a cidade achada no estado certo e maiores de 18",

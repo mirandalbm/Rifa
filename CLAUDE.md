@@ -4795,9 +4795,9 @@ abaixo).
     de uma rede, a parte do Meta é a divisão em partes iguais, para baixo —
     `floor(por dia ÷ redes)` por dia e `floor(restante ÷ redes)` no total; os
     dias são o total ÷ o diário, para baixo. A janela é calculada **logo
-    antes do POST do conjunto** (`janelaDoConjunto()`): o começo é aquele
-    instante e o fim são os dias mais **1 hora de folga**
-    (`FOLGA_DO_FIM_MS`; o total não muda, só a janela), gravado em
+    antes do POST do conjunto** (`janelaDoConjunto()`): o começo é daqui a
+    5 minutos (`ATRASO_DO_INICIO_MS`) e o fim são os dias mais **1 hora de
+    folga** depois do começo (`FOLGA_DO_FIM_MS`; o total não muda, só a janela), gravado em
     `orcamento.fimEm` junto com o conjunto; criada, a tela diz "O total vale
     até <data e hora>. O anúncio nasce pausado: o tempo até ligar encurta a
     janela, e depois do fim ele não roda." **Vai ao Meta como orçamento total do conjunto**

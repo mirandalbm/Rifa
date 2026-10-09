@@ -8,7 +8,7 @@ vira trabalho de código está na seção 4; o que é decisão do dono, na seç�
 
 | Quem | Situação |
 |---|---|
-| Contador | **Respondeu** (09/10/2026). Primeira rodada na seção 2, doação à ONG na seção 7, segunda rodada (Tesouraria) na seção 11; **terceira rodada curta, 8 dúvidas, na seção 12**. |
+| Contador | **Respondeu** (09/10/2026). Primeira rodada na seção 2, doação à ONG na seção 7, segunda rodada (Tesouraria) na seção 11; **terceira rodada respondida na seção 13; falta uma quarta, mínima (2 dúvidas), na seção 14**. |
 | Regime da plataforma | **Lucro Real** (informado pelo dono em 09/10/2026) — ver a seção 8, que muda a leitura de várias respostas. |
 | Advogado | **Perguntas enviadas, sem resposta ainda.** Perguntas na seção 3; as respostas entram aqui quando chegarem. |
 
@@ -597,4 +597,98 @@ oficial):**
   organização (cadastro de endereço). Basta o master informar, por organização,
   "tomador retém ISS: sim/não e alíquota", ou o contador quer uma tabela de
   municípios?
+
+## 13. Respostas da terceira rodada do contador (09/10/2026)
+
+- **C1. Nota e ISS.** Recomenda **NFS-e mensal consolidada por organização**,
+  descrição "Serviços de gestão de tráfego pago – competência [mês/ano]", **com o
+  valor da taxa efetivamente reconhecida como receita no mês** (não o total
+  cobrado na aprovação). O ISS segue a **mesma proporção** (50% da taxa
+  reconhecida, 50% do ISS devido no mês), para casar a competência contábil com
+  a tributária. Isto **substitui** o "nota na aprovação" da resposta 23.
+- **C2. Patrocínio, banner e IA.** Corrigido: são **serviços próprios**;
+  **100% do valor consumido é receita bruta** (ISS, PIS/COFINS, IRPJ e CSLL sobre
+  o total), nota sobre o valor total do serviço; contas separadas da taxa de
+  gestão.
+- **C3. Encerramento.** A receita diferida que sobrar é **reconhecida de uma vez
+  no encerramento** (o serviço de gestão acabou). **Exceção:** campanha
+  encerrada por **erro da plataforma** → a taxa é **devolvida ou compensada**,
+  não reconhecida. Se o contrato previr retenção integral (não reembolso) e for
+  válido, reconhece-se no encerramento.
+- **C4. Repasse no Lucro Real.** A 6.006 é do Simples, mas o conceito de conta
+  alheia vale para todos. Ele cita o **art. 224 do RIR/2018** e "outras
+  Soluções de Consulta". **Risco que ele mesmo admite:** a campanha criada na
+  conta de anúncios **da plataforma, em nome dela**, enfraquece a tese. Mitigação
+  por contrato: o cliente é o anunciante e titular da campanha; a plataforma é
+  mera intermediadora de pagamento; o risco de inadimplência da rede é do
+  cliente; a plataforma não ganha sobre a mídia. Recomenda o advogado.
+- **C5. Presente.** O que a plataforma paga à promotora para cobrir o desconto
+  é **despesa promocional** (marketing), dedutível no Lucro Real com documento
+  idôneo; o valor recebido para repassar à promotora é **passivo**, e o repasse
+  não gera tributo.
+- **C6. Saldo bancário e lucro contábil.** Concorda em serem **informados**: o
+  saldo bancário **até o 5º dia útil** (ou diário, se houver integração) e o
+  **lucro contábil até o 10º dia útil**, com data e quem informou. O painel
+  mostra a diferença entre "Disponível em Caixa" e "Lucro Acumulado (Contábil)",
+  com o aviso de que saldo bancário não é lucro.
+- **C7. Distribuição de lucros.** Com os **sócios em cofre** (nome e CPF) o painel
+  **calcula** o IRRF de 10% e a obrigação; sem os dados, só alerta e o contador
+  calcula. Recomenda guardar em cofre.
+- **C8. ISS retido.** Recomenda uma **tabela de municípios** (retém? alíquota?),
+  mantida com a lista que ele fornece; a marcação manual por organização é a
+  alternativa, com alerta se o município não estiver na tabela.
+
+**Conferência minha (09/10/2026):** o artigo do RIR/2018 que define a receita
+bruta é o **208** (e não o 224): ele repete o art. 12 do Decreto-Lei 1.598/1977,
+com a redação da Lei 12.973/2014 — a receita bruta compreende o produto da venda
+em **conta própria**, o preço dos serviços e **"o resultado auferido nas
+operações de conta alheia"**; isto é, na conta alheia só entra o **resultado**,
+não o valor repassado (fonte:
+[legjur, art. 208](https://www.legjur.com/legislacao/art/DEC_00095802018-208)).
+Uma Solução de Consulta Cosit nº 40/2017 (Lucro Presumido: valores por conta e
+ordem de terceiros não são receita) aparece como apoio
+([Jornal Contábil](https://jornalcontabil.com.br/noticia/recursos-de-terceiros-nao-e-base-de-calculo-para-o-irpj-e-csll-no-lucro-presumido/amp/)),
+mas é anterior à Lei 12.973 e pede conferência. Pedir ao contador que corrija o
+número do artigo no dossiê.
+
+### O ponto que mais pesa: conta alheia ou conta própria (modelo A)
+
+No **modelo A** a campanha é criada **na conta de anúncios da plataforma, em nome
+dela**; a rede (Meta) fatura **a plataforma**, e já dissemos que "como cliente,
+pagamos o preço cheio". Isso descreve **conta própria**: a plataforma compra a
+mídia e a revende ao cliente. O contador também disse, na primeira rodada, que a
+fatura da rede gera **crédito de PIS/COFINS** — o que só faz sentido na conta
+própria. Já a tese de **repasse** (mídia fora da receita) só se sustenta se a
+operação for de conta alheia. As duas leituras não convivem:
+
+| | Conta alheia (repasse) | Conta própria (revenda) |
+|---|---|---|
+| Receita da plataforma | só a taxa de gestão | a mídia **mais** a taxa |
+| A fatura da rede | não é custo nem gera crédito | é custo; PIS/COFINS pode gerar crédito |
+| ISS | só sobre a taxa | pode alcançar o valor cobrado do cliente (conforme o município) |
+| Fundamento | art. 208, III, RIR/2018 | regra geral |
+| Força no modelo A | **fraca** (nome da plataforma na conta) | forte |
+| Força no modelo B (cliente paga a rede) | **forte** | não se aplica |
+
+**Efeito no sistema:** o painel e o extrato foram desenhados no cenário de
+repasse (mídia em bloco à parte, só a taxa na receita). Se o cenário for conta
+própria, o **"saldo bruto" muda** (mídia entra na receita e na despesa). Isto é
+**decisão de posição fiscal**, do contador com o advogado — e o sistema deve
+comportar os dois (um parâmetro da Tesouraria), sem apagar o histórico.
+
+## 14. Dúvidas que sobraram (quarta rodada, mínima)
+
+- **C9. Conta própria × conta alheia no modelo A.** Dado que a campanha fica na
+  conta da plataforma, que fatura a rede em nome dela: qual posição ele adota
+  (repasse ou revenda)? Qual o **custo tributário do cenário conservador**
+  (mídia como receita e a fatura da rede como custo, com o crédito de
+  PIS/COFINS), principalmente o **ISS**? Qual das duas ele escreve na escrituração?
+- **C10. Receita diferida e nota mensal.** O dinheiro da taxa entra **na
+  aprovação** (cobrado inteiro) e a nota só sai no mês, pelo valor reconhecido.
+  A **prefeitura aceita** emitir a nota depois do recebimento, ou exige nota na
+  data do pagamento? E o que se faz com a taxa já recebida e ainda não
+  reconhecida no fechamento (passivo "receita diferida")?
+- **Para o dono**: a **exceção da falha da plataforma** (taxa devolvida ou
+  compensada em erro nosso) segue pendente da sua decisão; o contador confirma
+  que, nesse caso, a taxa **não é receita**.
 

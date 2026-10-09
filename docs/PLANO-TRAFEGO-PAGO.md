@@ -308,7 +308,11 @@ planejamento, depois da pesquisa de integração):
    `sistema`.
 3. **Aos 10%** entra um **alerta na fila de Marketing** (item da Caixa de entrada
    hoje; da fila do perfil "Marketing" quando existir), com a campanha, a
-   organização, o saldo restante e o botão **"Travar agora"**. Se a pausa
+   organização, o saldo restante e o botão **"Travar agora"** (decisão do dono,
+   09/10/2026: o painel de gestão do marketing mostra o botão quando a campanha
+   chega ao limite). O botão pausa a campanha na rede pelo mesmo caminho da
+   trava automática (uma vez só, condicional ao estado, com auditoria do nome
+   de quem clicou) e só alcança quem tem o perfil Marketing ou o master. Se a pausa
    automática falhou, o alerta sobe de nível e **escala ao master** depois de um
    prazo.
 4. **A leitura do gasto precisa ser mais fresca do que a de hoje.** A importação

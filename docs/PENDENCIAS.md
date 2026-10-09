@@ -649,6 +649,14 @@ Na ordem de entrega do plano:
   afiliado) e G (pacote pronto para postar) estão feitas** (08/10/2026), e
   da D já saíram a escolha da capa (e a capa automática: o melhor de 4 quadros, nem preto nem borrado), o corte do início e do fim do vídeo (sem recomprimir) e as figurinhas no reels (**falta no ambiente** o `db:push` da coluna `campaign_media.figurinhas` **antes** do código); da C, o editor de imagem (fundo, formato, figurinhas, texto conferido antes de virar imagem, pôr no carrossel) no painel e no kit do afiliado, e as frases e a legenda sugeridas pelo assistente (pagas como mensagem do assistente). **A F também está feita** (o reels gerado com as fotos da rifa, pela fila no Postgres e o trabalhador à parte, e a escolha das fotos e da ordem pela organização) — **falta no ambiente**: o `db:push` das tabelas `trabalhos`, `trabalho_arquivos` e `trabalhadores` **antes** do código, e **[você] criar o serviço do trabalhador no Railway** (abaixo). O resto da D (legendas por transcrição, que precisa de provedor), o resto da C (remover fundo, que precisa de provedor) e as fases B e E seguem para depois.
 
+- [ ] **[produto]** Gestão de tráfego pago como serviço da plataforma
+  (anunciar as rifas no Google, Meta e TikTok com margem para a plataforma,
+  ferramenta do master em Crescimento): o plano, os três modelos de lucro e
+  as decisões que faltam estão em `docs/PLANO-TRAFEGO-PAGO.md`. **Decidir**:
+  modelo (recomendado: a plataforma compra a mídia e cobra taxa sobre o gasto),
+  a taxa, a resposta do contador sobre o faturamento e a do advogado sobre a
+  política de jogos das redes e a cláusula no contrato da promotora.
+
 - [ ] **[você]** **Criar o serviço do trabalhador no Railway** (Fase F, o
   gerador de vídeo). No mesmo projeto: **New → GitHub Repo** com este mesmo
   repositório e o mesmo ramo; em **Settings → Deploy → Custom Start Command**,

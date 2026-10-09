@@ -5,21 +5,30 @@
  * Dinheiro que anda aqui (tudo pelo livro de saldo do patrocínio,
  * `patrocinio_lancamentos`, chave única — repetir nunca lança duas vezes e o
  * saldo nunca fica negativo):
- * - o **pedido** reserva no saldo a verba de mídia mais a taxa de gestão, na
- *   mesma transação que grava a campanha (`trafego:<id>`): sem saldo, nada
- *   fica. Saldo retido cautelarmente não paga campanha nova nem a aprovação
- *   (a mídia sairia da conta da plataforma para a rede);
- * - **recusa** e **cancelamento** (só em análise, nada foi gasto) devolvem a
- *   reserva inteira (`trafego-devolucao:<id>`);
- * - cada **gasto lançado** consome a reserva (mídia + taxa do próprio gasto,
- *   para baixo) sem mexer no saldo, num `UPDATE` condicional que nunca passa
- *   da verba; um lançamento por campanha, dia e rede (o índice decide);
+ * - o **pedido** só entra com o aceite explícito da taxa (`aceiteTaxa: true`,
+ *   422 sem ele; grava quando, a versão e a impressão SHA-256 do texto) e
+ *   reserva no saldo a verba de mídia mais a taxa de gestão, na mesma
+ *   transação que grava a campanha (`trafego:<id>`): sem saldo, nada fica.
+ *   Saldo retido cautelarmente não paga campanha nova nem a aprovação (a
+ *   mídia sairia da conta da plataforma para a rede);
+ * - a **aprovação** cobra a taxa de gestão **inteira** (`taxa_cents`,
+ *   `taxa_cobrada_em`), na mesma transação do `UPDATE` condicional — o saldo
+ *   não se mexe, a taxa já estava dentro da reserva — e ela **nunca volta**,
+ *   em caso nenhum depois disso (encerrar sem gastar, rifa fora do ar, verba
+ *   que acabou);
+ * - **recusa** e **cancelamento** (só em análise, nada foi cobrado) devolvem a
+ *   reserva inteira, mídia e taxa (`trafego-devolucao:<id>`);
+ * - cada **gasto lançado** consome só a verba de mídia, sem mexer no saldo,
+ *   num `UPDATE` condicional que nunca passa da verba; um lançamento por
+ *   campanha, dia e rede (o índice decide). A campanha de antes desta regra
+ *   (sem `taxa_cobrada_em`) segue com a taxa diária (`taxaDoLancamento()`);
  * - **encerrar** (a organização, a plataforma ou o relógio, quando a rifa sai
  *   do ar) só para a campanha: ela fica "fechando a conta" e **ainda recebe o
  *   gasto dos dias até o encerramento** — a rede cobra a plataforma pelo dia
- *   em que a campanha ainda rodou, e o lançamento chega depois. A sobra
- *   (`trafego-sobra:<id>`) só volta quando a plataforma **fecha a conta**, ou
- *   quando a verba acaba.
+ *   em que a campanha ainda rodou, e o lançamento chega depois. A mídia que
+ *   não foi gasta (`trafego-sobra:<id>`) volta **como crédito** no saldo — nunca
+ *   em dinheiro — quando a plataforma **fecha a conta**, ou quando a verba
+ *   acaba.
  *
  * Ordem das travas, sempre: a linha da organização, depois a campanha (a
  * mesma de quem retém e de quem paga). Pedir trava a organização antes de
@@ -37,14 +46,18 @@ import { and, desc, eq, sql } from "drizzle-orm";
 import { db } from "../db";
 import { auditLog, campaigns, organizations, trafegoCampanhas, trafegoGastos, users } from "@shared/schema";
 import {
+  ACEITE_DA_TAXA_VERSAO,
   SITUACOES_EM_ABERTO,
   codigoDaCampanha,
   custoPorVenda,
   linkDoAnuncio,
   problemaNaRecusa,
+  problemaNoAceiteDaTaxa,
   reservaDoPedido,
   sobraDaCampanha,
+  taxaDoLancamento,
   taxaSobre,
+  textoDoAceiteDaTaxa,
   utmCampanhaDe,
   validarGasto,
   validarPedidoDeTrafego,
@@ -58,6 +71,7 @@ import { lancar } from "./patrocinio";
 import { exigirSemRetencao } from "./retencao";
 import { getPlataforma } from "./settings";
 import { baseDoSite } from "./urls";
+import { hashDoContrato } from "./contratoPromotora";
 import { criacoesDasCampanhas, pausarNaRedeDepois, situacaoDaCriacaoPelaApi } from "./trafegoCriacao";
 
 export class TrafegoError extends Error {
@@ -89,6 +103,8 @@ const campos = {
   aprovadoEm: trafegoCampanhas.aprovadoEm,
   encerradoEm: trafegoCampanhas.encerradoEm,
   devolvidoCents: trafegoCampanhas.devolvidoCents,
+  taxaCobradaEm: trafegoCampanhas.taxaCobradaEm,
+  taxaAceiteEm: trafegoCampanhas.taxaAceiteEm,
 };
 type Campanha = { [K in keyof typeof campos]: (typeof trafegoCampanhas.$inferSelect)[K & keyof typeof trafegoCampanhas.$inferSelect] };
 
@@ -154,8 +170,10 @@ export async function auditar(tx: Tx, req: Request | null, action: string, id: s
 }
 
 /**
- * Fecha a campanha (já travada por quem chama) e devolve ao saldo o que
- * sobrou da reserva, uma vez só (a chave do livro decide). A data do
+ * Fecha a campanha (já travada por quem chama) e devolve ao saldo, como
+ * crédito, o que sobrou da reserva, uma vez só (a chave do livro decide). Com
+ * a taxa já cobrada na aprovação, o que sobra é só a mídia não gasta; recusada
+ * ou cancelada, nada foi cobrado e volta tudo. A data do
  * encerramento que já existia (a parada) fica: é ela que limita os gastos.
  */
 async function fecharNaTransacao(
@@ -222,7 +240,13 @@ export async function pedirCampanha(req: Request, entrada: Record<string, unknow
   } catch (e) {
     throw aviso(e);
   }
+  // O aceite da taxa vem depois do erro de preenchimento e antes de qualquer gravação.
+  const semAceite = problemaNoAceiteDaTaxa(entrada.aceiteTaxa);
+  if (semAceite) throw new TrafegoError(semAceite, 422);
   const reservaCents = reservaDoPedido(pedido.investimentoCents, cfg.taxaPct);
+  // O texto que a pessoa leu é remontado aqui, do pedido: a impressão nunca vem do navegador.
+  const textoDoAceite = textoDoAceiteDaTaxa(cfg.taxaPct, taxaSobre(pedido.investimentoCents, cfg.taxaPct));
+  const aceiteSha256 = hashDoContrato(textoDoAceite);
   try {
     return await db.transaction(async (tx) => {
       // A trava da organização vem antes de tudo (a mesma ordem de quem retém).
@@ -240,6 +264,9 @@ export async function pedirCampanha(req: Request, entrada: Record<string, unknow
           verbaDiaCents: pedido.verbaDiaCents,
           taxaPct: cfg.taxaPct,
           reservaCents,
+          taxaAceiteEm: sql`now() at time zone 'UTC'`,
+          taxaAceiteVersao: ACEITE_DA_TAXA_VERSAO,
+          taxaAceiteSha256: aceiteSha256,
           criadoPor: req.user!.id,
         })
         .returning(campos);
@@ -258,6 +285,7 @@ export async function pedirCampanha(req: Request, entrada: Record<string, unknow
         investimentoCents: nova.investimentoCents,
         taxaPct: nova.taxaPct,
         reservaCents: nova.reservaCents,
+        aceiteDaTaxa: { versao: ACEITE_DA_TAXA_VERSAO, sha256: aceiteSha256 },
       });
       return nova;
     });
@@ -275,7 +303,7 @@ export async function cancelarCampanha(req: Request, id: string) {
   return db.transaction(async (tx) => {
     const atual = await travar(tx, c.id);
     if (atual.status !== "em_analise") throw new TrafegoError("Só dá para cancelar enquanto está em análise.", 409);
-    const feito = await fecharNaTransacao(tx, atual, "cancelada", {}, "Campanha cancelada: a reserva voltou ao saldo");
+    const feito = await fecharNaTransacao(tx, atual, "cancelada", {}, "Campanha cancelada: a reserva (mídia e taxa) voltou ao saldo");
     await auditar(tx, req, "trafego.cancelar", feito.id, { devolvidoCents: feito.devolvidoCents });
     return feito;
   });
@@ -321,7 +349,7 @@ export async function decidirCampanha(req: Request, id: string, entrada: { aprov
         atual,
         "recusada",
         { motivo: String(entrada.motivo).trim(), decididoPor: req.user!.id },
-        "Campanha recusada: a reserva voltou ao saldo",
+        "Campanha recusada: a reserva (mídia e taxa) voltou ao saldo",
       );
       await auditar(tx, req, "trafego.recusar", feito.id, { organizacao: feito.organizationId, motivo: feito.motivo, devolvidoCents: feito.devolvidoCents });
       return feito;
@@ -331,13 +359,27 @@ export async function decidirCampanha(req: Request, id: string, entrada: { aprov
     if (!(await rifaSegueNoAr(tx, atual.campaignId))) {
       throw new TrafegoError("A rifa saiu do ar (ou a promotora foi suspensa): recuse o pedido para devolver a reserva.", 409);
     }
+    // A taxa de gestão é cobrada inteira aqui e nunca volta. O saldo não se mexe: ela já
+    // estava dentro da reserva. Só com o aceite gravado no pedido — o pedido feito antes do
+    // aceite existir segue com a taxa diária (sem `taxa_cobrada_em`), nunca cobrado às cegas.
+    const taxaInteira = atual.taxaAceiteEm ? taxaSobre(atual.investimentoCents, atual.taxaPct) : null;
     const [feito] = await tx
       .update(trafegoCampanhas)
-      .set({ status: "ativa", aprovadoEm: new Date(), motivo: null, decididoPor: req.user!.id })
+      .set({
+        status: "ativa",
+        aprovadoEm: new Date(),
+        motivo: null,
+        decididoPor: req.user!.id,
+        ...(taxaInteira !== null ? { taxaCents: taxaInteira, taxaCobradaEm: sql`now() at time zone 'UTC'` } : {}),
+      })
       .where(and(eq(trafegoCampanhas.id, id), eq(trafegoCampanhas.status, "em_analise")))
       .returning(campos);
     if (!feito) throw new TrafegoError("Esta campanha já foi decidida.", 409);
-    await auditar(tx, req, "trafego.aprovar", feito.id, { organizacao: feito.organizationId });
+    await auditar(tx, req, "trafego.aprovar", feito.id, {
+      organizacao: feito.organizationId,
+      taxaCobradaCents: feito.taxaCobradaEm ? feito.taxaCents : 0,
+      taxaDiaria: !feito.taxaCobradaEm,
+    });
     return feito;
   });
 }
@@ -356,7 +398,7 @@ async function gravarGasto(
   autor: { req: Request | null; origem: "manual" | "importado" },
   extraNaAuditoria: Record<string, unknown> = {},
 ) {
-  const taxa = taxaSobre(g.gastoCents, c.taxaPct);
+  const taxa = taxaDoLancamento(c, g.gastoCents);
   const [lancado] = await tx
     .insert(trafegoGastos)
     .values({
@@ -390,7 +432,7 @@ async function gravarGasto(
   if (!somada) throw new TrafegoError("O gasto passa do que resta da verba.", 409);
   let campanha = somada;
   if (somada.gastoCents >= somada.investimentoCents) {
-    campanha = await fecharNaTransacao(tx, somada, "encerrada", {}, "Campanha concluída: a sobra da reserva voltou ao saldo");
+    campanha = await fecharNaTransacao(tx, somada, "encerrada", {}, "Campanha concluída: a mídia não gasta voltou ao saldo como crédito");
   }
   await auditar(tx, autor.req, autor.origem === "importado" ? "trafego.gasto.importado" : "trafego.gasto", c.id, {
     dia: lancado.dia,
@@ -442,7 +484,8 @@ export type ResultadoDoImportado = "importado" | "atualizado" | "ja_lancado" | "
 
 /**
  * Um gasto que veio da rede (fase 2), na mesma régua do manual: a mesma taxa
- * (para baixo, por dia), o mesmo teto da verba no `UPDATE` condicional, a
+ * (`taxaDoLancamento()`: nenhuma por dia se a taxa já foi cobrada na
+ * aprovação; a diária, para baixo, só na campanha de antes), o mesmo teto da verba no `UPDATE` condicional, a
  * mesma ordem das travas e a auditoria na mesma transação.
  *
  * - **A campanha** é achada pelo código: a aberta (no ar ou fechando a conta)
@@ -486,7 +529,7 @@ export async function lancarGastoImportado(
     // Cobrável: até o que resta da verba (contando o que este dia já tinha). Senão, o dia fica como estava.
     const gasto = cobravel ? Math.min(g.gastoCents, jaCobrado + (c.investimentoCents - c.gastoCents)) : jaCobrado;
     const excedenteCents = Math.max(0, g.gastoCents - gasto);
-    const taxa = taxaSobre(gasto, c.taxaPct);
+    const taxa = taxaDoLancamento(c, gasto);
     if (antes && antes.gastoCents === gasto && antes.excedenteCents === excedenteCents && antes.cliques === g.cliques) {
       return { resultado: "ja_lancado" as const, excedenteCents: 0 };
     }
@@ -537,7 +580,7 @@ export async function lancarGastoImportado(
       if (!somada) throw new TrafegoError("O gasto importado passa do que resta da verba.", 409);
       campanha = somada;
       if (somada.gastoCents >= somada.investimentoCents) {
-        campanha = await fecharNaTransacao(tx, somada, "encerrada", {}, "Campanha concluída: a sobra da reserva voltou ao saldo");
+        campanha = await fecharNaTransacao(tx, somada, "encerrada", {}, "Campanha concluída: a mídia não gasta voltou ao saldo como crédito");
       }
     }
     await auditar(tx, null, antes ? "trafego.gasto.importado.atualizado" : "trafego.gasto.importado", c.id, {
@@ -566,7 +609,7 @@ export async function fecharConta(req: Request, id: string) {
   const fechada = await db.transaction(async (tx) => {
     const atual = await travar(tx, id);
     if (atual.status !== "encerrando") throw new TrafegoError("Só a campanha encerrada, esperando a conta, pode ser fechada.", 409);
-    const feito = await fecharNaTransacao(tx, atual, "encerrada", { decididoPor: req.user!.id }, "Campanha encerrada: o que não foi gasto voltou ao saldo");
+    const feito = await fecharNaTransacao(tx, atual, "encerrada", { decididoPor: req.user!.id }, "Campanha encerrada: a mídia não gasta voltou ao saldo como crédito (a taxa de gestão não volta)");
     await auditar(tx, req, "trafego.fechar", feito.id, { gastoCents: feito.gastoCents, taxaCents: feito.taxaCents, devolvidoCents: feito.devolvidoCents });
     return feito;
   });
@@ -726,10 +769,12 @@ export async function gastosDaCampanha(req: Request, id: string) {
 }
 
 /**
- * A margem da plataforma por mês (fuso de São Paulo, pelo dia do gasto): a
- * mídia repassada às redes, a taxa de gestão e o excedente (o que a rede
- * gastou além do cobrado, custo da plataforma), no total e por organização.
- * Os últimos 12 meses.
+ * A margem da plataforma por mês (fuso de São Paulo): a mídia repassada às
+ * redes e o excedente (o que a rede gastou além do cobrado, custo da
+ * plataforma) entram pelo dia do gasto; a taxa de gestão entra no mês em que
+ * foi cobrada — a aprovação (`taxa_cobrada_em`) — e a da campanha de antes
+ * desta regra (sem a marca) segue pelos lançamentos diários. No total e por
+ * organização, os últimos 12 meses.
  */
 async function margemPorMes() {
   const r = await db.execute(sql`
@@ -738,21 +783,42 @@ async function margemPorMes() {
       from trafego_gastos g
       join organizations o on o.id = g.organization_id
      where g.dia >= to_char((now() at time zone 'America/Sao_Paulo') - interval '11 months', 'YYYY-MM') || '-01'
-     group by 1, 2
-     order by 1 desc, 4 desc`);
+     group by 1, 2`);
+  // A taxa cobrada de uma vez na aprovação: no mês (de São Paulo) em que foi cobrada.
+  const cobradas = await db.execute(sql`
+    select to_char((t.taxa_cobrada_em at time zone 'UTC') at time zone 'America/Sao_Paulo', 'YYYY-MM') as mes,
+           o.name as organizacao, sum(t.taxa_cents)::bigint as taxa
+      from trafego_campanhas t
+      join organizations o on o.id = t.organization_id
+     where t.taxa_cobrada_em is not null
+       and to_char((t.taxa_cobrada_em at time zone 'UTC') at time zone 'America/Sao_Paulo', 'YYYY-MM')
+           >= to_char((now() at time zone 'America/Sao_Paulo') - interval '11 months', 'YYYY-MM')
+     group by 1, 2`);
   type Linha = { organizacao: string; midiaCents: number; taxaCents: number; excedenteCents: number };
   const meses = new Map<string, { mes: string; midiaCents: number; taxaCents: number; excedenteCents: number; organizacoes: Linha[] }>();
-  for (const l of r.rows as { mes: string; organizacao: string; midia: string; taxa: string; excedente: string }[]) {
-    const m = meses.get(l.mes) ?? { mes: l.mes, midiaCents: 0, taxaCents: 0, excedenteCents: 0, organizacoes: [] };
-    const midia = Number(l.midia);
-    const taxa = Number(l.taxa);
-    // O que a rede gastou e não foi cobrado (verba acabada, campanha parada): sai da margem.
-    const excedente = Number(l.excedente);
+  const somar = (mes: string, organizacao: string, midia: number, taxa: number, excedente: number) => {
+    const m = meses.get(mes) ?? { mes, midiaCents: 0, taxaCents: 0, excedenteCents: 0, organizacoes: [] };
     m.midiaCents += midia;
     m.taxaCents += taxa;
     m.excedenteCents += excedente;
-    m.organizacoes.push({ organizacao: l.organizacao, midiaCents: midia, taxaCents: taxa, excedenteCents: excedente });
-    meses.set(l.mes, m);
+    const o = m.organizacoes.find((x) => x.organizacao === organizacao);
+    if (o) {
+      o.midiaCents += midia;
+      o.taxaCents += taxa;
+      o.excedenteCents += excedente;
+    } else {
+      m.organizacoes.push({ organizacao, midiaCents: midia, taxaCents: taxa, excedenteCents: excedente });
+    }
+    meses.set(mes, m);
+  };
+  for (const l of r.rows as { mes: string; organizacao: string; midia: string; taxa: string; excedente: string }[]) {
+    // O excedente (verba acabada, campanha parada) é o que a rede gastou e não foi cobrado: sai da margem.
+    somar(l.mes, l.organizacao, Number(l.midia), Number(l.taxa), Number(l.excedente));
   }
-  return [...meses.values()];
+  for (const l of cobradas.rows as { mes: string; organizacao: string; taxa: string }[]) {
+    somar(l.mes, l.organizacao, 0, Number(l.taxa), 0);
+  }
+  const lista = [...meses.values()].sort((a, b) => (a.mes < b.mes ? 1 : -1));
+  for (const m of lista) m.organizacoes.sort((a, b) => b.taxaCents - a.taxaCents);
+  return lista;
 }

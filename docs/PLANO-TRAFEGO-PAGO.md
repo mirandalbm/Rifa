@@ -203,3 +203,47 @@ cobra a organização direto.
 
 Texto da tela: o resumo do pedido mostra só "Taxa de gestão (X%)", sem
 "se gastar tudo" — a frase dava a entender que a taxa poderia voltar.
+
+### Decisão do dono (09/10/2026): a taxa é cobrada inteira na aprovação e não volta
+
+**A confirmar pelo advogado (o texto do aceite e a cláusula no contrato da
+promotora) e pelo contador (a taxa vira receita na aprovação).**
+
+1. **A taxa de gestão** (`taxaPct` fotografada no pedido, sobre o investimento
+   em mídia: `taxaSobre(investimento, taxaPct)`, para baixo) **é cobrada de uma
+   vez quando a plataforma aprova a campanha** e **não volta em nenhum caso
+   depois disso**: encerrar sem gastar nada, a rifa que sai do ar, a verba que
+   acaba. Antes era cobrada por dia, sobre o gasto lançado, e a parte do que
+   não se gastava voltava com a sobra.
+2. **O que não for gasto em anúncios volta ao saldo como crédito** (pelo livro,
+   `trafego-sobra:<id>`, como já era), **nunca em dinheiro**. O reembolso em
+   dinheiro do saldo segue só pelo interruptor próprio do patrocínio
+   (`patrocinioReembolso`), que esta decisão não toca.
+3. **Antes da aprovação nada é cobrado.** Cancelar em análise (a organização, ou
+   o relógio quando a rifa sai do ar) e recusar devolvem **tudo** — mídia e
+   taxa —, porque a taxa ainda não foi cobrada (`taxa_cents` zero).
+4. **Aceite explícito no pedido**: `POST /trafego/campanhas` exige
+   `aceiteTaxa: true` (422 sem ele, antes de reservar ou gravar qualquer
+   coisa). O servidor **remonta o texto** do pedido
+   (`textoDoAceiteDaTaxa(taxaPct, taxaCents)`, em `shared/trafego.ts`, a mesma
+   função da tela) e grava `taxa_aceite_em`, `taxa_aceite_versao`
+   (`ACEITE_DA_TAXA_VERSAO`) e `taxa_aceite_sha256` — a impressão SHA-256 do
+   texto exato, com o `hashDoContrato()` do contrato da promotora. Mudou o
+   texto, sobe a versão. O texto é:
+   "A taxa de gestão de X% (R$ Y neste pedido) é cobrada quando a plataforma
+   aprova a campanha e não é devolvida, mesmo que a campanha termine antes de
+   gastar tudo. O valor em anúncios que não for usado volta ao seu saldo como
+   crédito, não em dinheiro, e pode ser usado em outra campanha."
+5. **Mecânica**: na aprovação, na mesma transação do `UPDATE` condicional
+   `em_analise → ativa`, grava `taxa_cents` (a inteira) e `taxa_cobrada_em`
+   (UTC). O saldo não se mexe: a taxa já estava dentro da reserva. Os
+   lançamentos de gasto (manual e importado) **deixam de somar taxa por dia**
+   na campanha com `taxa_cobrada_em` (`taxaDoLancamento()`), mas seguem com o
+   teto da verba. A sobra continua sendo reserva − gasto − taxa, que agora é a
+   mídia não gasta. **Legado**: campanha já aprovada sem `taxa_cobrada_em`
+   segue com a taxa diária de antes; o pedido em análise sem aceite gravado
+   (feito antes desta regra) é aprovado **sem** a cobrança de uma vez — nunca se
+   cobra de forma irreversível quem não aceitou.
+6. **Margem**: a taxa entra no mês de `taxa_cobrada_em` (fuso de São Paulo); a do
+   legado segue pelos lançamentos; o excedente como estava. O custo por venda e
+   a venda atribuída usam a taxa inteira quando cobrada.

@@ -223,7 +223,7 @@ async function main() {
 
   // Pede e aprova uma campanha; devolve o id.
   const noAr = async (rifaId: string, extra: Record<string, unknown> = {}, aprovar = true) => {
-    const p = await marina.req("POST", "/api/admin/trafego/campanhas", { campaignId: rifaId, redes: ["meta"], investimentoCents: 20_500, verbaDiaCents: 2_000, ...extra });
+    const p = await marina.req("POST", "/api/admin/trafego/campanhas", { campaignId: rifaId, redes: ["meta"], investimentoCents: 20_500, verbaDiaCents: 2_000, aceiteTaxa: true, ...extra });
     if (p.status !== 201) throw new Error(`pedido: HTTP ${p.status} ${p.json?.message ?? ""}`);
     if (aprovar) {
       const d = await admin.req("POST", `/api/admin/trafego/campanhas/${p.json.id}/decisao`, { aprovar: true });

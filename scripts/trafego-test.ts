@@ -12,6 +12,14 @@
  * do manual, uma vez só mesmo com dois cliques, o excedente da rede nunca
  * cobrado da organização, a chave nunca na resposta). Devolve o estado de antes.
  *
+ * A taxa de gestão é cobrada INTEIRA na aprovação e nunca volta (decisão de
+ * 09/10/2026): o pedido exige o aceite do texto (422 sem ele, nada debitado) e
+ * grava quando, a versão e a impressão do texto; aprovar fixa a taxa inteira
+ * sem mexer no saldo; o gasto do dia não cobra taxa de novo; encerrar sem
+ * gastar devolve só a mídia, como crédito; recusar e cancelar em análise
+ * devolvem tudo; a margem põe a taxa no mês da aprovação; a campanha sem a
+ * marca da cobrança (legado) segue com a taxa diária.
+ *
  *   WINDSOR_API_KEY=… WINDSOR_API_URL=http://127.0.0.1:5097 npm run dev   (noutro terminal, com o seed)
  *   WINDSOR_API_KEY=<a mesma> WINDSOR_API_URL=<o mesmo> npm run trafego
  */
@@ -25,7 +33,8 @@ import { hashPassword } from "../server/auth";
 import { encerrarTrafegoForaDoAr } from "../server/services/trafego";
 import { importarGastosDoRelogio } from "../server/services/trafegoImportacao";
 import { getPlataforma } from "../server/services/settings";
-import { codigoDaCampanha, janelaDaImportacao } from "../shared/trafego";
+import { hashDoContrato } from "../server/services/contratoPromotora";
+import { ACEITE_DA_TAXA_VERSAO, codigoDaCampanha, janelaDaImportacao, textoDoAceiteDaTaxa } from "../shared/trafego";
 
 const URL = baseUrl();
 let falhas = 0;
@@ -160,7 +169,7 @@ async function main() {
   const rifaVizinha = await novaRifa(vizinha.id, "vizinha");
 
   const pedido = (cli: Cliente, campaignId: string, extra: Record<string, unknown> = {}) =>
-    cli.req("POST", "/api/admin/trafego/campanhas", { campaignId, redes: ["google", "meta"], investimentoCents: 20_000, verbaDiaCents: 2_000, ...extra });
+    cli.req("POST", "/api/admin/trafego/campanhas", { campaignId, redes: ["google", "meta"], investimentoCents: 20_000, verbaDiaCents: 2_000, aceiteTaxa: true, ...extra });
 
   try {
     /* ---------------- desligado ---------------- */
@@ -234,12 +243,38 @@ async function main() {
     checa("abaixo do investimento mínimo é recusado (400)", r.status === 400, `HTTP ${r.status}`);
     r = await pedido(marina, rifaA.id, { observacao: "me chama no 11 98888-7777" });
     checa("observação com telefone é recusada (400)", r.status === 400, `HTTP ${r.status}`);
+    // O aceite da taxa: 422, depois do erro de preenchimento e antes de reservar ou gravar qualquer coisa.
+    const contaDaA = async () => (await db.select({ n: sql<number>`count(*)::int` }).from(trafegoCampanhas).where(eq(trafegoCampanhas.campaignId, rifaA.id)))[0].n;
+    const campanhasDaAAntes = await contaDaA();
+    for (const [nome, valor] of [
+      ["ausente", undefined],
+      ["false", false],
+      ["'true' em texto", "true"],
+      ["1", 1],
+    ] as [string, unknown][]) {
+      r = await pedido(marina, rifaA.id, { aceiteTaxa: valor });
+      checa(`aceite da taxa ${nome}: o pedido é recusado (422)`, r.status === 422, `HTTP ${r.status} ${r.json?.message ?? ""}`);
+    }
+    r = await pedido(marina, rifaA.id, { investimentoCents: 9_999, aceiteTaxa: undefined });
+    checa("o erro de preenchimento vem antes do aceite (400)", r.status === 400, `HTTP ${r.status}`);
+    r = await pedido(vizinhaCli, rifaA.id, { aceiteTaxa: undefined });
+    checa("…e a rifa do vizinho segue 404 mesmo sem o aceite", r.status === 404, `HTTP ${r.status}`);
     checa("nada foi debitado nas recusas", (await saldoDe(orgId)) === BASE);
+    checa("…e nenhuma campanha foi gravada sem o aceite", (await contaDaA()) === campanhasDaAAntes, `${campanhasDaAAntes} → ${await contaDaA()}`);
 
     r = await pedido(marina, rifaA.id, { uf: "SP", cidade: "São José dos Campos", observacao: "Público de 25 a 45 anos" });
     const idA = r.json?.id as string;
     checa("pedido aceito (201), com a taxa fotografada", r.status === 201 && r.json?.taxaPct === 20 && r.json?.reservaCents === 24_000, `HTTP ${r.status} ${r.json?.message ?? ""}`);
     checa("reservou mídia + taxa no saldo (R$ 240,00)", (await saldoDe(orgId)) === BASE - 24_000, `${await saldoDe(orgId)}`);
+    const pedidoA = await campanha(idA);
+    checa(
+      "o aceite ficou gravado: quando, a versão e a impressão SHA-256 do texto exato (20%, R$ 40,00)",
+      Boolean(pedidoA.taxaAceiteEm) &&
+        pedidoA.taxaAceiteVersao === ACEITE_DA_TAXA_VERSAO &&
+        pedidoA.taxaAceiteSha256 === hashDoContrato(textoDoAceiteDaTaxa(20, 4_000)),
+      `${pedidoA.taxaAceiteVersao} ${pedidoA.taxaAceiteSha256}`,
+    );
+    checa("…e nada foi cobrado ainda: antes da aprovação a taxa é zero e sem data de cobrança", pedidoA.taxaCents === 0 && pedidoA.taxaCobradaEm === null);
     r = await pedido(marina, rifaA.id);
     checa("segunda campanha aberta na mesma rifa é 409", r.status === 409, `HTTP ${r.status}`);
     checa("…e não debita nada", (await saldoDe(orgId)) === BASE - 24_000);
@@ -295,20 +330,28 @@ async function main() {
     r = await admin.req("POST", `/api/admin/trafego/campanhas/${idB}/decisao`, { aprovar: false, motivo: "A rifa ainda não tem arte para anúncio." });
     checa("recusada, a reserva inteira volta", r.status === 200 && r.json?.status === "recusada" && r.json?.devolvidoCents === 24_000, `${r.json?.status} ${r.json?.devolvidoCents}`);
     checa("…e o saldo sobe R$ 240,00", (await saldoDe(orgId)) === BASE - 24_000);
+    const recusadaB = await campanha(idB);
+    checa("recusada antes da aprovação, nada foi cobrado: sem taxa e sem data de cobrança", recusadaB.taxaCents === 0 && recusadaB.taxaCobradaEm === null);
     r = await admin.req("POST", `/api/admin/trafego/campanhas/${idB}/decisao`, { aprovar: true });
     checa("decidir de novo é 409", r.status === 409, `HTTP ${r.status}`);
 
     r = await pedido(marina, rifaC.id, { investimentoCents: 10_000 });
     const idC = r.json?.id as string;
     r = await marina.req("POST", `/api/admin/trafego/campanhas/${idC}/cancelar`);
-    checa("a organização cancela o pedido em análise e tudo volta", r.status === 200 && r.json?.status === "cancelada" && (await saldoDe(orgId)) === BASE - 24_000, `${r.json?.status}`);
+    checa("a organização cancela o pedido em análise e tudo volta (mídia + taxa, R$ 120,00)", r.status === 200 && r.json?.status === "cancelada" && r.json?.devolvidoCents === 12_000 && (await saldoDe(orgId)) === BASE - 24_000, `${r.json?.status} ${r.json?.devolvidoCents}`);
 
+    const saldoAntesDeAprovar = await saldoDe(orgId);
     const [ap1, ap2] = await Promise.all([
       admin.req("POST", `/api/admin/trafego/campanhas/${idA}/decisao`, { aprovar: true }),
       admin.req("POST", `/api/admin/trafego/campanhas/${idA}/decisao`, { aprovar: true }),
     ]);
     checa("dois cliques em aprovar: um 200 e um 409", [ap1.status, ap2.status].sort().join(",") === "200,409", `${ap1.status},${ap2.status}`);
     checa("aprovada, a campanha fica no ar", (await campanha(idA)).status === "ativa");
+    const aprovadaA = await campanha(idA);
+    checa("aprovar cobra a taxa INTEIRA (20% de R$ 200,00 = R$ 40,00) e marca quando", aprovadaA.taxaCents === 4_000 && aprovadaA.taxaCobradaEm !== null, `${aprovadaA.taxaCents}`);
+    checa("…e o saldo não se mexe: a taxa já estava dentro da reserva", (await saldoDe(orgId)) === saldoAntesDeAprovar, `${await saldoDe(orgId)} vs ${saldoAntesDeAprovar}`);
+    const auditoriaDaAprovacao = await db.execute(sql`select diff from audit_log where action = 'trafego.aprovar' and entity_id = ${idA}::text`);
+    checa("a auditoria da aprovação leva a taxa cobrada", (auditoriaDaAprovacao.rows as { diff: { taxaCobradaCents?: number } }[]).some((x) => x.diff?.taxaCobradaCents === 4_000), JSON.stringify(auditoriaDaAprovacao.rows));
     r = await marina.req("POST", `/api/admin/trafego/campanhas/${idA}/cancelar`);
     checa("no ar, não se cancela — se encerra (409)", r.status === 409, `HTTP ${r.status}`);
 
@@ -327,7 +370,9 @@ async function main() {
     r = await admin.req("POST", `/api/admin/trafego/campanhas/${idA}/gastos`, { dia: hoje(), rede: "tiktok", gastoCents: 100 });
     checa("rede fora da campanha é recusada (400)", r.status === 400, `HTTP ${r.status}`);
     r = await admin.req("POST", `/api/admin/trafego/campanhas/${idA}/gastos`, { dia: hoje(), rede: "google", gastoCents: 5_001 });
-    checa("gasto lançado (201), com a taxa para baixo (R$ 10,00)", r.status === 201 && r.json?.gasto?.taxaCents === 1_000, `HTTP ${r.status} ${r.json?.message ?? ""}`);
+    checa("gasto lançado (201), sem taxa por dia: ela já foi cobrada na aprovação", r.status === 201 && r.json?.gasto?.taxaCents === 0, `HTTP ${r.status} ${r.json?.message ?? ""}`);
+    const depoisDoGasto = await campanha(idA);
+    checa("…a campanha soma só a mídia e a taxa segue inteira (R$ 40,00), sem cobrar de novo", depoisDoGasto.gastoCents === 5_001 && depoisDoGasto.taxaCents === 4_000, `${depoisDoGasto.gastoCents}/${depoisDoGasto.taxaCents}`);
     checa("o gasto consome a reserva, o saldo não muda", (await saldoDe(orgId)) === saldoNoAr);
     r = await admin.req("POST", `/api/admin/trafego/campanhas/${idA}/gastos`, { dia: hoje(), rede: "google", gastoCents: 10 });
     checa("o mesmo dia na mesma rede de novo é 409", r.status === 409, `HTTP ${r.status}`);
@@ -360,7 +405,7 @@ async function main() {
     r = await marina.req("GET", "/api/admin/trafego");
     const comVendas = (r.json?.campanhas ?? []).find((c: any) => c.id === idA);
     checa("vendas atribuídas: só as pagas, com a UTM, na rifa da campanha", comVendas?.vendas === 2 && comVendas?.receitaCents === 3_000, `${comVendas?.vendas} ${comVendas?.receitaCents}`);
-    checa("custo por venda = (mídia + taxa) ÷ vendas, para baixo", comVendas?.custoPorVendaCents === Math.floor(6_001 / 2), `${comVendas?.custoPorVendaCents}`);
+    checa("custo por venda = (mídia + a taxa inteira) ÷ vendas, para baixo", comVendas?.custoPorVendaCents === Math.floor((5_001 + 4_000) / 2), `${comVendas?.custoPorVendaCents}`);
     r = await admin.req("GET", "/api/admin/trafego");
     const daPlataforma = (r.json?.campanhas ?? []).find((c: any) => c.id === idA);
     const link = daPlataforma?.links?.google ? new globalThis.URL(daPlataforma.links.google) : null;
@@ -377,8 +422,8 @@ async function main() {
     r = await admin.req("POST", `/api/admin/trafego/campanhas/${idA}/gastos`, { dia: hoje(), rede: "meta", gastoCents: 14_999 });
     checa("o último gasto encerra a campanha", r.status === 201 && r.json?.campanha?.status === "encerrada", `HTTP ${r.status} ${r.json?.campanha?.status}`);
     const fimA = await campanha(idA);
-    checa("taxa total nunca passa da reserva (gasto + taxa ≤ R$ 240,00)", fimA.gastoCents + fimA.taxaCents <= fimA.reservaCents, `${fimA.gastoCents}+${fimA.taxaCents}`);
-    checa("a sobra do arredondamento volta ao saldo", fimA.devolvidoCents === fimA.reservaCents - fimA.gastoCents - fimA.taxaCents && (await saldoDe(orgId)) === saldoNoAr + fimA.devolvidoCents, `${fimA.devolvidoCents}`);
+    checa("mídia + taxa inteira = a reserva (R$ 240,00), e a taxa não mudou com os gastos", fimA.gastoCents === 20_000 && fimA.taxaCents === 4_000 && fimA.gastoCents + fimA.taxaCents === fimA.reservaCents, `${fimA.gastoCents}+${fimA.taxaCents}`);
+    checa("gastou a verba toda: não há mídia a devolver, e a taxa não volta", fimA.devolvidoCents === 0 && (await saldoDe(orgId)) === saldoNoAr, `${fimA.devolvidoCents}`);
     r = await admin.req("POST", `/api/admin/trafego/campanhas/${idA}/gastos`, { dia: hoje(), rede: "google", gastoCents: 1 });
     checa("campanha encerrada não recebe gasto (409)", r.status === 409, `HTTP ${r.status}`);
 
@@ -410,8 +455,10 @@ async function main() {
       admin.req("POST", `/api/admin/trafego/campanhas/${idD}/fechar`),
     ]);
     checa("dois cliques em fechar a conta: um 200 e um 409", [f1.status, f2.status].sort().join(",") === "200,409", `${f1.status},${f2.status}`);
-    // Reserva 12.000; gasto 4.333; taxa 666 + 200 → sobra 6.801.
-    checa("conta fechada: a sobra (R$ 68,01) volta uma vez", (await campanha(idD)).status === "encerrada" && (await campanha(idD)).devolvidoCents === 6_801 && (await saldoDe(orgId)) === saldoAntesDeEncerrar + 6_801);
+    // Reserva 12.000; taxa inteira 2.000 (cobrada na aprovação); gasto 4.333 → só a mídia que sobrou volta: 5.667.
+    const fechadaD = await campanha(idD);
+    checa("conta fechada: só a mídia não gasta (R$ 56,67) volta, como crédito, uma vez", fechadaD.status === "encerrada" && fechadaD.devolvidoCents === 5_667 && (await saldoDe(orgId)) === saldoAntesDeEncerrar + 5_667, `${fechadaD.devolvidoCents}`);
+    checa("…a taxa de gestão ficou inteira (R$ 20,00) e os gastos lançados não somaram taxa", fechadaD.taxaCents === 2_000 && fechadaD.gastoCents === 4_333, `${fechadaD.taxaCents}/${fechadaD.gastoCents}`);
     r = await admin.req("POST", `/api/admin/trafego/campanhas/${idD}/gastos`, { dia: hoje(), rede: "google", gastoCents: 1 });
     checa("conta fechada não recebe gasto (409)", r.status === 409, `HTTP ${r.status}`);
 
@@ -426,11 +473,15 @@ async function main() {
     const n = await encerrarTrafegoForaDoAr();
     checa("o relógio pega as campanhas das rifas fora do ar (inclusive a que virou teste)", n >= 3, `${n}`);
     checa("no ar: para e fica fechando a conta; em análise: cancelada", (await campanha(idE)).status === "encerrando" && (await campanha(idG)).status === "cancelada" && (await campanha(idF)).status === "cancelada");
-    checa("…e só as em análise devolvem na hora (duas reservas)", (await saldoDe(orgId)) === saldoAntesDoRelogio + 2 * 12_000, `${(await saldoDe(orgId)) - saldoAntesDoRelogio}`);
+    checa("…e só as em análise devolvem na hora, com a taxa (duas reservas)", (await saldoDe(orgId)) === saldoAntesDoRelogio + 2 * 12_000, `${(await saldoDe(orgId)) - saldoAntesDoRelogio}`);
     await encerrarTrafegoForaDoAr();
     checa("o relógio de novo não devolve outra vez", (await saldoDe(orgId)) === saldoAntesDoRelogio + 2 * 12_000);
     r = await admin.req("POST", `/api/admin/trafego/campanhas/${idE}/fechar`);
-    checa("a plataforma fecha a conta da parada pelo relógio e a reserva volta", r.status === 200 && (await saldoDe(orgId)) === saldoAntesDoRelogio + 3 * 12_000, `HTTP ${r.status}`);
+    checa("a plataforma fecha a conta da parada pelo relógio: sem gasto nenhum, volta só a mídia (R$ 100,00); a taxa fica", r.status === 200 && (await saldoDe(orgId)) === saldoAntesDoRelogio + 2 * 12_000 + 10_000, `HTTP ${r.status}`);
+    const fechadaE = await campanha(idE);
+    checa("…taxa inteira cobrada (R$ 20,00), nada gasto, devolvido só a mídia", fechadaE.taxaCents === 2_000 && fechadaE.gastoCents === 0 && fechadaE.devolvidoCents === 10_000, `${fechadaE.taxaCents}/${fechadaE.devolvidoCents}`);
+    const [sobraE] = (await db.execute(sql`select valor_cents::int as v, motivo from patrocinio_lancamentos where chave = ${"trafego-sobra:" + idE}`)).rows as { v: number; motivo: string }[];
+    checa("…e a mídia volta pelo livro, como crédito no saldo (uma linha trafego-sobra)", sobraE?.v === 10_000 && sobraE?.motivo === "trafego-sobra", JSON.stringify(sobraE));
 
     /* ---------------- retenção e recorte do conteúdo ---------------- */
     console.log("  — retenção na aprovação e conteúdo da lista");
@@ -473,13 +524,64 @@ async function main() {
     const doMes = (r.json?.margem ?? []).find((m: any) => m.mes === mes);
     const [minhaOrg] = await db.select({ nome: organizations.name }).from(organizations).where(eq(organizations.id, orgId));
     const daMarina = doMes?.organizacoes?.find((o: any) => o.organizacao === minhaOrg.nome);
-    checa("a margem do mês traz a taxa cobrada", Boolean(doMes) && doMes.taxaCents >= 1_000 + 2_999 + 866, `${doMes?.taxaCents}`);
-    checa("…por organização", Boolean(daMarina) && daMarina.taxaCents >= 1_000 + 2_999 + 866, `${daMarina?.taxaCents}`);
+    checa("a margem do mês traz a taxa cobrada na aprovação (A, D e E: R$ 40,00 + 20,00 + 20,00)", Boolean(doMes) && doMes.taxaCents >= 4_000 + 2_000 + 2_000, `${doMes?.taxaCents}`);
+    checa("…por organização", Boolean(daMarina) && daMarina.taxaCents >= 4_000 + 2_000 + 2_000, `${daMarina?.taxaCents}`);
     const livro = await db.execute(sql`select coalesce(sum(valor_cents),0)::int as s from patrocinio_lancamentos where organization_id = ${orgId}::uuid and created_at >= ${inicio.toISOString()}::timestamp and motivo like 'trafego%'`);
     const gastoNoLivro = -(livro.rows[0] as { s: number }).s;
-    const debitado = fimA.gastoCents + fimA.taxaCents + 4_333 + 866;
+    // A: mídia 20.000 + taxa 4.000. D: mídia 4.333 + taxa 2.000 (sobra voltou). E: taxa 2.000 (a mídia voltou).
+    const debitado = fimA.gastoCents + fimA.taxaCents + 4_333 + 2_000 + 2_000;
     checa("o livro fecha: reservas − devoluções = mídia + taxa", gastoNoLivro === debitado, `${gastoNoLivro} vs ${debitado}`);
     checa("e o saldo bate com o livro", (await saldoDe(orgId)) === BASE - debitado, `${await saldoDe(orgId)}`);
+
+    /* ---------------- a taxa na aprovação: casos extras ---------------- */
+    console.log("  — taxa cobrada na aprovação: margem do mês, encerrar sem gastar e legado");
+    const noFuso = (d: Date) => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(d);
+
+    // A margem põe a taxa no mês em que foi cobrada (a aprovação), não no do gasto nem no de hoje.
+    const margemAntes = (await admin.req("GET", "/api/admin/trafego")).json?.margem as { mes: string; taxaCents: number }[];
+    const mesAtual = hoje().slice(0, 7);
+    const mesPassado = noFuso(new Date(Date.now() - 40 * 86_400_000)).slice(0, 7);
+    const taxaNoMes = (lista: { mes: string; taxaCents: number }[], mes: string) => lista.find((m) => m.mes === mes)?.taxaCents ?? 0;
+    await db.execute(sql`update trafego_campanhas set taxa_cobrada_em = (now() - interval '40 days') at time zone 'UTC' where id = ${idE}::uuid`);
+    const margemDepois = (await admin.req("GET", "/api/admin/trafego")).json?.margem as { mes: string; taxaCents: number }[];
+    checa(
+      "a margem do mês segue a data da cobrança: a taxa de R$ 20,00 sai do mês atual e entra no da cobrança",
+      taxaNoMes(margemAntes, mesAtual) - taxaNoMes(margemDepois, mesAtual) === 2_000 && taxaNoMes(margemDepois, mesPassado) - taxaNoMes(margemAntes, mesPassado) === 2_000,
+      `${mesAtual}: ${taxaNoMes(margemAntes, mesAtual)}→${taxaNoMes(margemDepois, mesAtual)}; ${mesPassado}: ${taxaNoMes(margemAntes, mesPassado)}→${taxaNoMes(margemDepois, mesPassado)}`,
+    );
+
+    await admin.req("PUT", "/api/admin/trafego/config", { ligado: true });
+    // Encerrar sem gastar nada: a taxa fica e só a mídia volta, como crédito.
+    const rifaSemGasto = await novaRifa(orgId, "sem-gasto");
+    r = await pedido(marina, rifaSemGasto.id, { investimentoCents: 10_000 });
+    const idSG = r.json?.id as string;
+    await admin.req("POST", `/api/admin/trafego/campanhas/${idSG}/decisao`, { aprovar: true });
+    const saldoAntesDeEncerrarSG = await saldoDe(orgId);
+    r = await marina.req("POST", `/api/admin/trafego/campanhas/${idSG}/encerrar`);
+    checa("a organização encerra a campanha sem ter gasto nada", r.status === 200 && r.json?.status === "encerrando", `HTTP ${r.status}`);
+    r = await admin.req("POST", `/api/admin/trafego/campanhas/${idSG}/fechar`);
+    const fechadaSG = await campanha(idSG);
+    checa(
+      "encerrar sem gastar: a taxa (R$ 20,00) não volta e a mídia (R$ 100,00) volta como crédito",
+      r.status === 200 && fechadaSG.taxaCents === 2_000 && fechadaSG.devolvidoCents === 10_000 && (await saldoDe(orgId)) === saldoAntesDeEncerrarSG + 10_000,
+      `${fechadaSG.taxaCents}/${fechadaSG.devolvidoCents}`,
+    );
+
+    // Legado: pedido sem o aceite gravado (de antes da regra) é aprovado sem cobrar a taxa de uma vez e segue com a taxa diária.
+    const rifaLegado = await novaRifa(orgId, "legado");
+    r = await pedido(marina, rifaLegado.id, { investimentoCents: 10_000 });
+    const idLG = r.json?.id as string;
+    await db.update(trafegoCampanhas).set({ taxaAceiteEm: null, taxaAceiteVersao: null, taxaAceiteSha256: null }).where(eq(trafegoCampanhas.id, idLG));
+    await admin.req("POST", `/api/admin/trafego/campanhas/${idLG}/decisao`, { aprovar: true });
+    const aprovadaLG = await campanha(idLG);
+    checa("sem aceite gravado, a aprovação não cobra a taxa às cegas: segue sem a marca de cobrança", aprovadaLG.status === "ativa" && aprovadaLG.taxaCobradaEm === null && aprovadaLG.taxaCents === 0);
+    r = await admin.req("POST", `/api/admin/trafego/campanhas/${idLG}/gastos`, { dia: hoje(), rede: "google", gastoCents: 5_001 });
+    checa("legado: o gasto do dia segue com a taxa diária, para baixo (R$ 10,00)", r.status === 201 && r.json?.gasto?.taxaCents === 1_000, `HTTP ${r.status} ${r.json?.gasto?.taxaCents}`);
+    const saldoAntesDeFecharLG = await saldoDe(orgId);
+    await marina.req("POST", `/api/admin/trafego/campanhas/${idLG}/encerrar`);
+    r = await admin.req("POST", `/api/admin/trafego/campanhas/${idLG}/fechar`);
+    const fechadaLG = await campanha(idLG);
+    checa("legado: a sobra é a reserva menos mídia e taxas dos dias (R$ 59,99)", r.status === 200 && fechadaLG.devolvidoCents === 12_000 - 5_001 - 1_000 && (await saldoDe(orgId)) === saldoAntesDeFecharLG + 5_999, `${fechadaLG.devolvidoCents}`);
 
     /* ---------------- fase 2: o gasto importado das redes ---------------- */
     console.log("  — fase 2: gasto importado das redes");
@@ -534,7 +636,7 @@ async function main() {
         );
         checa("a chave nunca volta na resposta", !JSON.stringify(r.json).includes(CHAVE_WINDSOR));
         const cG = await campanha(idG);
-        checa("o gasto entra pela régua do manual: mídia e taxa (20%, para baixo) por dia", cG.gastoCents === 4_550 && cG.taxaCents === 600 + 310, `${cG.gastoCents}/${cG.taxaCents}`);
+        checa("o gasto entra pela régua do manual: só mídia por dia, a taxa (20% de R$ 200,00) já foi cobrada inteira na aprovação", cG.gastoCents === 4_550 && cG.taxaCents === 4_000, `${cG.gastoCents}/${cG.taxaCents}`);
         const cH = await campanha(idH);
         checa(
           "a rede gastou além da verba: entra só a verba, a campanha encerra e o excedente vai ao resumo",
@@ -542,6 +644,7 @@ async function main() {
           `${cH.gastoCents} ${cH.status} ${r.json?.excedenteCents}`,
         );
         const gastosG = (await admin.req("GET", `/api/admin/trafego/campanhas/${idG}/gastos`)).json as any[];
+        checa("…e nenhum dia importado soma taxa de novo", gastosG.every((x) => x.taxaCents === 0), JSON.stringify(gastosG.map((x) => x.taxaCents)));
         checa("cada dia importado guarda os cliques e a origem, sem pessoa", gastosG.length === 2 && gastosG.every((x) => x.origem === "importado" && x.lancadoPor === null) && gastosG.find((x) => x.rede === "google")?.cliques === 100, JSON.stringify(gastosG.map((x) => [x.rede, x.cliques, x.origem])));
         r = await marina.req("GET", "/api/admin/trafego");
         checa("a organização vê os cliques da campanha", (r.json?.campanhas ?? []).find((c: any) => c.id === idG)?.cliques === 140);
@@ -549,11 +652,11 @@ async function main() {
         await db.execute(sql`delete from rate_events where bucket like 'trafego-importar:%'`);
         const [a1, a2] = await Promise.all([admin.req("POST", "/api/admin/trafego/importacao"), admin.req("POST", "/api/admin/trafego/importacao")]);
         const cG2 = await campanha(idG);
-        checa("dois cliques em importar: o dia já lançado fica como está", cG2.gastoCents === 4_550 && cG2.taxaCents === 910 && a1.json?.importados === 0 && a2.json?.importados === 0, `${cG2.gastoCents} ${a1.json?.importados}/${a2.json?.importados}`);
+        checa("dois cliques em importar: o dia já lançado fica como está", cG2.gastoCents === 4_550 && cG2.taxaCents === 4_000 && a1.json?.importados === 0 && a2.json?.importados === 0, `${cG2.gastoCents} ${a1.json?.importados}/${a2.json?.importados}`);
 
         // O dia lançado à mão vence a importação daquele dia.
         await db.execute(sql`delete from trafego_gastos where campanha_id = ${idG}::uuid and rede = 'meta'`);
-        await db.update(trafegoCampanhas).set({ gastoCents: 3_000, taxaCents: 600 }).where(eq(trafegoCampanhas.id, idG));
+        await db.update(trafegoCampanhas).set({ gastoCents: 3_000 }).where(eq(trafegoCampanhas.id, idG));
         r = await admin.req("POST", `/api/admin/trafego/campanhas/${idG}/gastos`, { dia: desde, rede: "meta", gastoCents: 1_000, cliques: 12 });
         checa("o lançamento à mão aceita os cliques", r.status === 201 && r.json?.gasto?.cliques === 12 && r.json?.gasto?.origem === "manual", `HTTP ${r.status}`);
         r = await importar();
@@ -564,11 +667,11 @@ async function main() {
         (linhasDoWindsor[0] as { spend: string }).spend = "25.00";
         r = await importar();
         let cG4 = await campanha(idG);
-        checa("a rede corrigiu o dia para cima: a diferença e a taxa dela entram", r.json?.atualizados === 1 && cG4.gastoCents === 4_500 && cG4.taxaCents === 700 + 200, `${r.json?.atualizados} ${cG4.gastoCents}/${cG4.taxaCents}`);
+        checa("a rede corrigiu o dia para cima: a diferença entra na mídia e a taxa inteira não muda", r.json?.atualizados === 1 && cG4.gastoCents === 4_500 && cG4.taxaCents === 4_000, `${r.json?.atualizados} ${cG4.gastoCents}/${cG4.taxaCents}`);
         (linhasDoWindsor[0] as { spend: string }).spend = "5.00";
         r = await importar();
         cG4 = await campanha(idG);
-        checa("…e para baixo: a cobrança desce junto", r.json?.atualizados === 1 && cG4.gastoCents === 2_500 && cG4.taxaCents === 300 + 200, `${cG4.gastoCents}/${cG4.taxaCents}`);
+        checa("…e para baixo: a mídia cobrada desce e a taxa inteira não muda", r.json?.atualizados === 1 && cG4.gastoCents === 2_500 && cG4.taxaCents === 4_000, `${cG4.gastoCents}/${cG4.taxaCents}`);
         r = await importar();
         checa("sem mudança na rede, nada muda", r.json?.atualizados === 0 && r.json?.importados === 0 && (await campanha(idG)).gastoCents === 2_500);
 

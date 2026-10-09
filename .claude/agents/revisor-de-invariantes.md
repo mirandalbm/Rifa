@@ -115,6 +115,36 @@ Procure, nesta ordem, o que é **grave**:
     (ou o hash) saindo em resposta; método escolhido fora dos liberados pela
     plataforma, mudado depois de publicar ou pelo `PATCH`; total que não é
     potência de 10; liberar método alcançável por quem não é a plataforma.
+16. **Saldo de publicidade e livro** (seções "Rifas patrocinadas", "Banner
+    pago", "Tráfego pago"): saldo que anda sem lançamento no livro
+    (`patrocinio_lancamentos`) com chave única, ou fora da transação que grava
+    o pedido; saldo que pode ficar negativo (o débito é `UPDATE` condicional);
+    devolução sem chave própria (duas devoluções do mesmo caso); taxa ou gasto
+    arredondado para cima, ou acima do reservado; preço ou taxa lidos da
+    tabela atual em vez da fotografada no pedido; travas em outra ordem que
+    não **organização, depois a campanha/pedido** (deadlock); saldo retido
+    (`exigirSemRetencao`) pagando alguma coisa.
+17. **Retenção, contrato e anexos** (seções "Retenção cautelar", "Contrato da
+    plataforma com a promotora"): pagamento que não pega a linha da
+    organização `FOR UPDATE` antes de tudo; abater sem fundamento e
+    referência; publicar sem conferir de novo o aceite do contrato e dos
+    anexos **dentro** da transação, com a `TRAVA_CONTRATO`; modalidade da rifa
+    escolhida pela organização em vez de tirada dos dados.
+18. **Serviço de fora** (Meta, Windsor, Chatbase, Cloudflare, Asaas, Mercado
+    Pago e o próximo): endereço do serviço trocável em produção (só fora de
+    produção, para a prova); token ou chave em log, resposta, erro ou URL de
+    log; resposta do serviço usada como ordem em vez de dado conferido;
+    valor que vai ao serviço vindo do navegador em vez do banco; ação que
+    custa dinheiro ou publica algo **sem interruptor desligado** ou sem uma
+    pessoa confirmar; criação no serviço que pode acontecer duas vezes (quem
+    decide é a linha com índice único gravada **antes** da chamada, e cada
+    peça criada é anotada no banco antes da seguinte); efeito no serviço
+    feito de dentro da transação, ou que derruba a transação quando falha.
+19. **Fila e trabalhador** (seção "Fila de trabalho"): tomar trabalho sem
+    `FOR UPDATE SKIP LOCKED`; troca de situação sem `UPDATE` condicional à
+    situação lida e a quem tomou; dois pedidos iguais barrados por `SELECT`
+    em vez do índice parcial; nome de arquivo do pedido virando caminho; o
+    processo web recomprimindo vídeo.
 
 Só depois, o que é menor: mensagem de interface fora do português, número
 sem `tnum`, estado só por cor, cor fixa em vez de variável do tema.

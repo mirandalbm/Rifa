@@ -13,9 +13,11 @@ não existe → Política de conteúdo (CSP) valendo" do `CLAUDE.md`,
 ## Quando entra
 
 - **Depois do lançamento, com tráfego real.** O log de produção agrupa os
-  avisos por hora (`[csp]`, diretiva e origem). Você recebe esse log (colado
-  pelo responsável, ou lido das ferramentas de log da hospedagem só para
-  leitura) e decide.
+  avisos por hora (`[csp]`, diretiva e origem). O log vem de um de dois
+  lugares: colado pelo responsável, ou lido por você nos logs do serviço do
+  site no Railway (a ferramenta de logs do Railway, **só leitura**: nunca
+  mude variável, serviço ou deploy por lá). Filtre por `[csp]` e pelo menos
+  7 dias.
 - **Origem nova no código.** Um pixel, player ou CDN entrou num PR: você
   confere se a origem está na lista e se o teste cobre.
 

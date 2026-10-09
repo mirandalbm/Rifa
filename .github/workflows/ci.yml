@@ -79,7 +79,7 @@ jobs:
       META_ADS_TOKEN: ci-token-do-meta-1234
       META_AD_ACCOUNT_ID: act_1234567890
       META_PAGE_ID: "1122334455"
-      META_API_URL: http://127.0.0.1:5096/v22.0
+      META_API_URL: http://127.0.0.1:5096/v25.0
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

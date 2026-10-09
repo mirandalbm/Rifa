@@ -78,7 +78,7 @@ import { getPlataforma } from "./settings";
 import { TrafegoError, auditar, idValido, rifaSegueNoAr, travar } from "./trafego";
 import { baseDoAnuncio } from "./urls";
 
-const META_PADRAO = "https://graph.facebook.com/v22.0";
+const META_PADRAO = "https://graph.facebook.com/v25.0";
 const PRAZO_MS = 30_000;
 
 /** Erro de uma chamada à rede, já em português e sem nada sensível. */

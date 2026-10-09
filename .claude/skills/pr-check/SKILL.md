@@ -25,12 +25,18 @@ cada passo já foi esquecido uma vez.
      `tests/versoes.test.ts` falha na 11ª. Rota nova entra no mapa de telas.
      Mudança só de tablet/computador (classes `md:`/`lg:`) não vira linha.
    - `docs/PENDENCIAS.md`: atualize no mesmo PR que fechar um item.
-4. **Revisão**: se mexeu em dinheiro, cota, estorno, rota do painel,
+4. **Trabalho feito por agente** (`implementador-da-rifa` numa cópia
+   separada): traga os commits dele para a branch da sessão com `git
+   cherry-pick`, reinicie o servidor e rode as provas **você mesmo** — o
+   relatório do agente não é prova. Leia a seção "Suposições não
+   conferidas" do relatório e leve as que importam ao usuário.
+5. **Revisão**: se mexeu em dinheiro, cota, estorno, rota do painel,
    antifraude, dado de comprador, número de cota na tela ou apuração do
    sorteio (invariante 16) ou o assistente de IA (a chave, o que sai
    para o Chatbase, o uso contado, as ações que ele executa), chame o agente `revisor-de-invariantes`
-   antes de abrir o PR.
-5. **Capturas** de qualquer mudança visível (claro e escuro; celular, tablet
+   antes de abrir o PR. Corrigiu o que ele achou? Peça uma segunda leitura
+   só das correções: correção também abre problema novo.
+6. **Capturas** de qualquer mudança visível (claro e escuro; celular, tablet
    e computador conforme o caso) — mande ao usuário com `SendUserFile`. Em
    rodapé e telas fixas, esconda a faixa "Baixe o app" na captura.
 
@@ -60,8 +66,9 @@ cada passo já foi esquecido uma vez.
 
 1. Confira os checks do PR (todos verdes, na cabeça atual).
 2. `update_pull_request` com `draft: false`.
-3. `merge_pull_request`, `merge_method: squash`, com o `expectedHeadSha` de
-   40 caracteres e título terminando em `(#N)`.
+3. Mescle com **commit de mesclagem** (`merge_method: merge`, nunca squash
+   nem rebase — é o que a `main` usa desde sempre), com o SHA de 40
+   caracteres da cabeça conferida no passo 1.
 4. `delete_trigger` do check-in e `unsubscribe_pr_activity`.
 5. `git fetch origin main && git checkout -B <branch> origin/main && git push
    --force-with-lease -u origin <branch>`.

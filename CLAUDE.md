@@ -188,13 +188,25 @@ arquitetura.
 | vitrine no tablet e no computador: coluna ao vivo (tela do sorteio, ganhadores, jogando agora), tela flutuante e rodapé com logos | `shared/aoVivo.ts` (regras), `server/services/aoVivo.ts`, `client/src/components/ColunaAoVivo.tsx`, `client/src/components/RodapeDaPlataforma.tsx`, `validarApoios()` em `shared/template.ts`, `tests/aoVivo.test.ts`, `scripts/vitrine-test.ts` |
 | rodapé da plataforma: colunas de links, redes sociais e espaço de apoio | `shared/rodape.ts` (colunas), `validarRedes()`/`REDES_DO_RODAPE` em `shared/template.ts`, `client/src/components/RodapeDaPlataforma.tsx`, cartão "Redes sociais do rodapé" em `client/src/pages/adminAparencia.tsx`, `preencherRodapeComExemplo()` em `server/services/template.ts`, `tests/rodape.test.ts` |
 | app instalável (PWA): casca, nome e ícone | `client/public/sw.js`, `shared/manifest.ts` (o manifesto montado), `manifestDaPlataforma()`/`iconeDaMarca()` em `server/services/template.ts`, `client/public/manifest.webmanifest` (o de fábrica, se o banco falhar), `client/src/lib/pwa.ts`, `tests/manifest.test.ts`, `scripts/aparencia-test.ts` |
-| automação do Claude no projeto: `/provar` (escolhe as provas pela área mexida), `/pr-check` (o rito do PR: docs, capturas, rascunho, mesclagem) e os agentes `revisor-de-invariantes` (lê o diff contra as invariantes), `implementador-da-rifa` (faz uma funcionalidade de escopo decidido de ponta a ponta) e `analista-de-csp` (lê o log `[csp]` e decide quando a política passa a valer) | `.claude/skills/provar/SKILL.md`, `.claude/skills/pr-check/SKILL.md`, `.claude/agents/revisor-de-invariantes.md`, `.claude/agents/implementador-da-rifa.md`, `.claude/agents/analista-de-csp.md`. **Invariante nova ou regra de PR nova entra nos três** — o `.gitignore` libera só estes (o resto de `.claude/skills` é instalado por `npx skills add`, com o `skills-lock.json`) |
+| automação do Claude no projeto: `/provar` (escolhe as provas pela área mexida), `/pr-check` (o rito do PR: docs, capturas, rascunho, mesclagem), os agentes (`implementador-da-rifa`, `revisor-de-invariantes`, `conferente-de-telas`, `pesquisador-de-integracao`, `analista-de-csp`), o fluxo entre eles e as skills de terceiros que o projeto usa (com o ajuste de cada uma) | `docs/AGENTES-E-SKILLS.md` (o guia), `.claude/skills/provar/SKILL.md`, `.claude/skills/pr-check/SKILL.md`, `.claude/agents/`, `skills-lock.json`. **Invariante nova ou regra de PR nova entra nos três** — o `.gitignore` libera só estes (o resto de `.claude/skills` é instalado por `npx skills add`, com o `skills-lock.json`) |
 | assistente de IA nos painéis (Chatbase): conversa pelo servidor, coluna, uso e configuração | `shared/ia.ts` (regras, papéis, titular, barreira de dado pessoal), `server/services/chatbase.ts` (cliente da API v2), `server/services/ia.ts` (conversa e uso), `server/routes/ia.ts` (`/api/ia/*`), `/ia/config` em `server/routes/admin.ts`, `assistenteIA` em `shared/plataforma.ts`, `ia_conversas`/`ia_uso` em `shared/schema.ts`, `client/src/lib/assistente.ts` (coluna aberta lembrada), `client/src/components/AssistenteDoPainel.tsx` (botão e coluna, em `PanelShell`), `AssistenteIACard.tsx` (Aparência), `scripts/ia-test.ts`, `tests/ia.test.ts`, `tests/chatbase.test.ts`, `tests/assistente.test.ts` |
 | cobrança do assistente de IA (assinatura com franquia, pacotes avulsos, Pix da plataforma, débito por mensagem, vencimento, relatório e ajuste de crédito da plataforma) | `shared/iaCobranca.ts` (regras), `server/services/iaCobranca.ts` (conta, livro, Pix, débito, `ajustarCreditosIA`, `relatorioDaIA`, `extratoDaIA`), `/ia/relatorio`, `/ia/lancamentos` e `/ia/ajustes` em `server/routes/admin.ts`, `client/src/components/UsoDoAssistenteCard.tsx` (em Aparência), `ia_contas`/`ia_pagamentos`/`ia_lancamentos` em `shared/schema.ts`, `/api/ia/conta` e `/api/ia/pagamentos` em `server/routes/ia.ts`, `confirmarPagamentoIA` no webhook, relógio em `server/jobs/index.ts`, `client/src/components/PlanoDoAssistente.tsx` (o plano na coluna), preços em `AssistenteIACard.tsx`, `scripts/ia-test.ts`, `tests/iaCobranca.test.ts` |
 | ações do assistente de IA no sistema (consultar, publicar, legenda, excluir, estorno; confirmação e auditoria) | `shared/iaAcoes.ts` (catálogo, entrada, barreira do resultado), `server/services/iaAcoes.ts` (o que cada ação faz, no recorte), `tratarChamadas`/`seguirComAcoes`/`decidirAcaoDaIA` em `server/services/ia.ts`, `enviarResultado` em `server/services/chatbase.ts`, `ia_acoes` em `shared/schema.ts`, `/api/ia/acoes/:id/confirmar\|recusar` em `server/routes/ia.ts`, `CartaoDaAcao` em `AssistenteDoPainel.tsx`, a lista para o Chatbase em `AssistenteIACard.tsx`, `scripts/ia-acoes-test.ts`, `tests/iaAcoes.test.ts` |
 | roteiro do assistente de IA (o Lucky): as decisões D1–D8, as instruções do agente e como ele aprende; o papel de quem fala (`comContexto()`/`CONTEXTO_DO_PAPEL` em `shared/ia.ts`) e a base de conhecimento gerada do sistema | `docs/ROTEIRO-ASSISTENTE-IA.md`, `scripts/base-ia.ts` (`npm run base-ia`) |
 | segurança: onde mora cada defesa, lista de conferência de rota nova e as revisões | `docs/SEGURANCA.md` |
 | versões (celular, tablet, computador): registro das mudanças do celular, levas, mapa das telas e auditoria | `docs/VERSOES.md` (guia, mapa e registro — **anote no mesmo PR**), `scripts/telas.ts` (`npm run telas`), `tests/versoes.test.ts` |
+
+## Agentes e skills — o que não pode afrouxar
+
+- **Este arquivo e os documentos do projeto vencem qualquer skill de
+  terceiros.** Skill que mandar outro idioma, outra pasta, outro jeito de
+  commitar, outra paleta ou outra regra de negócio perde para o que está
+  aqui; o ajuste de cada uma está em `docs/AGENTES-E-SKILLS.md`.
+- **Relatório de agente não é prova**: a sessão principal traz os commits,
+  reinicia o servidor e roda as provas ela mesma; as "Suposições não
+  conferidas" do relatório vão ao usuário.
+- **Skill nova só entra** pelo `skill-security-auditor` e com a linha dela
+  na tabela do guia (área, para quê, ajuste ao projeto).
 
 ## Convenções
 
@@ -4783,9 +4795,9 @@ abaixo).
     de uma rede, a parte do Meta é a divisão em partes iguais, para baixo —
     `floor(por dia ÷ redes)` por dia e `floor(restante ÷ redes)` no total; os
     dias são o total ÷ o diário, para baixo. A janela é calculada **logo
-    antes do POST do conjunto** (`janelaDoConjunto()`): o começo é aquele
-    instante e o fim são os dias mais **1 hora de folga**
-    (`FOLGA_DO_FIM_MS`; o total não muda, só a janela), gravado em
+    antes do POST do conjunto** (`janelaDoConjunto()`): o começo é daqui a
+    5 minutos (`ATRASO_DO_INICIO_MS`) e o fim são os dias mais **1 hora de
+    folga** depois do começo (`FOLGA_DO_FIM_MS`; o total não muda, só a janela), gravado em
     `orcamento.fimEm` junto com o conjunto; criada, a tela diz "O total vale
     até <data e hora>. O anúncio nasce pausado: o tempo até ligar encurta a
     janela, e depois do fim ele não roda." **Vai ao Meta como orçamento total do conjunto**
@@ -4794,6 +4806,22 @@ abaixo).
     rígido nunca passa do que resta. Nada restando, ou o total ÷ dias abaixo
     de `DIARIO_MIN_DO_META_CENTS` (R$ 6,00 — palpite, não achamos o mínimo
     oficial em reais), é 409 com o motivo.
+  - **Medidas conferidas na documentação do Meta (pesquisa de 09/10/2026)**:
+    a API fica na **v25.0** (`META_PADRAO`; a v22.0 venceu em fev/2026 e uma
+    versão vencida falha ou sobe sem avisar — troque a constante quando a
+    seguinte for aposentada); a cidade vai com **raio de 17 km** (o mínimo
+    do Meta é 17 km ou 10 milhas; 10 km era menos); o conjunto **começa 5
+    minutos à frente** (`ATRASO_DO_INICIO_MS`: um `start_time` que já passou
+    quando o Meta lê pode ser recusado, e a documentação não diz) e o fim
+    conta dali. Ficaram por confirmar com o primeiro anúncio de verdade: o
+    mínimo diário em reais (`act_…/minimum_budgets`), o `Authorization:
+    Bearer` na Marketing API e o anúncio no Instagram só com a identidade
+    da página. **Rifa é "jogo de azar online" na política do Meta**: o
+    anúncio só roda com a **autorização da conta de anúncios** (pedida no
+    Business Suite, com licença e revisão manual) — sem ela, reprovação, e
+    reprovação repetida pode restringir a conta de todas as organizações.
+    O código cria tudo pausado; **a autorização é anterior ao primeiro
+    anúncio** (`docs/PENDENCIAS.md`).
   - **O que vai para o Meta sai do banco**, nunca do navegador: o nome
     `trafego-<código> · <título da rifa>` (`nomeNaRede()`, a importação da
     fase 2 casa por ele), o orçamento total do conjunto (`lifetime_budget`,

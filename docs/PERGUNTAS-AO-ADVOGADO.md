@@ -314,3 +314,34 @@ SPA/MF permite dizer"** do D1.
 **Providências que ele pediu (do dono):** (a) contratar o **parecer de direito
 bancário** sobre o saldo; (b) **consultar formalmente a Meta e o Google** se uma
 agência pode obter a certificação para anunciar em nome de várias promotoras.
+
+**Depois do guia por rede (seção 23 da consulta):** o advogado afirmou que o
+**modelo B é o caminho mais seguro** (Meta e Google), que o **TikTok está fora**
+para rifa e se ofereceu para **redigir as consultas formais** e **revisar os
+contratos**. R1 e R3 ficam em boa parte respondidas (a conta é da promotora; o
+TikTok sai). Perguntas que sobram:
+
+**R12. [1] "Agregador" no Google, e o destino do anúncio.** A proibição aos
+"agregadores de jogos de azar de qualquer tipo" olha a **conta de anúncios** ou o
+**site de destino**? Nosso anúncio leva a uma página **da plataforma**, que é um
+site que reúne rifas de várias promotoras. No **modelo B** (conta da promotora)
+a plataforma continua sendo vista como agregadora pelo **destino**? Que estrutura
+afasta o risco (domínio da promotora, página própria da rifa, a plataforma só como
+meio de pagamento)? Esta é a pergunta que mais precisa de **resposta por escrito
+do Google**.
+
+**R13. [1] Meta: quem pede a autorização no modelo B.** Cada promotora pede a
+**própria** autorização para a conta dela e prova a SPA/MF de cada rifa. Que papel
+a plataforma pode ter (preparar o dossiê, fornecer o número da autorização e o
+certificado) **sem se tornar a anunciante**? E "contas segregadas **por rifa**" é
+mais de uma conta por promotora?
+
+**R14. [2] Redação, a pedido dele:** (a) o **anexo do contrato do modelo B** com as
+cinco cláusulas da seção 23 e as de gestão da seção 22; (b) as **consultas formais
+à Meta e ao Google**, incluindo R12; (c) a **revisão trimestral** que ele sugere:
+quem faz e o que ela cobre.
+
+**R15. [2] TikTok.** A fundamentação da proibição mudou entre as duas respostas.
+Qual é a **cláusula da política de anúncios do TikTok** (versão, seção do
+Brasil) que ele usa? Se a plataforma quiser anúncio de **marca** (sem rifa), o
+que a política permite?

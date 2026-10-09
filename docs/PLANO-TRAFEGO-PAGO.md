@@ -288,39 +288,47 @@ saldo à medida que o gasto é lido** na conta dela (proposta) ou cobrada na
 aprovação sobre o orçamento planejado — ver `docs/CONSULTA-CONTADOR-E-ADVOGADO.md`,
 seção 17.
 
-### Proteção de gasto (decisão do dono, 09/10/2026): contar, travar sozinho, alertar aos 10%, travar à mão aos 5%
+### Proteção de gasto (decisão do dono, 09/10/2026): contar, travar sozinho aos 10%, alertar antes, "Travar agora"
 
 O dono pediu que a plataforma **contabilize os créditos e o gasto** de cada
-campanha e **trave a campanha sozinha**; se não conseguir sozinha, **alerta aos
-10% do saldo restante**, o alerta cai numa **fila no painel de gestão do
-marketing**, e o gestor **trava aos 5%**. Desenho proposto (a refinar no
-planejamento, depois da pesquisa de integração):
+campanha e **trave a campanha sozinha**; se não conseguir sozinha, o alerta cai
+numa **fila no painel de gestão do marketing**, e o gestor trava à mão. A
+primeira ideia era alertar aos 10% e travar aos 5%. **Correção do dono, no
+mesmo dia: se os últimos 5% ainda podem gastar além do que existe, a margem
+certa para a trava é de 10%.** Ficou assim (a refinar no planejamento, depois
+da pesquisa de integração):
 
 1. **A primeira trava é a do próprio Meta**, não a nossa. A campanha já nasce com
    **orçamento total** (`lifetime_budget`, teto rígido) igual ao que resta da
    verba, no modelo A. No modelo B a plataforma cria a campanha na conta da
    organização com teto igual ao que o **saldo de taxa** cobre (saldo de taxa ÷
    taxa%). Assim, mesmo que tudo o mais falhe, a rede para no teto.
-2. **A segunda trava é a nossa, automática**: ao ler o gasto, se o saldo restante
-   (modelo A: verba − gasto; modelo B: saldo de taxa) cair a **5%** ou menos, o
-   sistema **pausa a campanha na rede** (pausar, não encerrar: dá para retomar
-   depois de recarga), uma vez só (condicional ao estado), com auditoria do ator
-   `sistema`.
-3. **Aos 10%** entra um **alerta na fila de Marketing** (item da Caixa de entrada
-   hoje; da fila do perfil "Marketing" quando existir), com a campanha, a
-   organização, o saldo restante e o botão **"Travar agora"** (decisão do dono,
-   09/10/2026: o painel de gestão do marketing mostra o botão quando a campanha
-   chega ao limite). O botão pausa a campanha na rede pelo mesmo caminho da
-   trava automática (uma vez só, condicional ao estado, com auditoria do nome
-   de quem clicou) e só alcança quem tem o perfil Marketing ou o master. Se a pausa
-   automática falhou, o alerta sobe de nível e **escala ao master** depois de um
-   prazo.
+2. **A segunda trava é a nossa, automática, aos 10%**: ao ler o gasto, se o
+   saldo restante (modelo A: verba − gasto; modelo B: saldo de taxa) cair a
+   **10%** ou menos, o sistema **pausa a campanha na rede** (pausar, não
+   encerrar: dá para retomar depois de recarga), uma vez só (condicional ao
+   estado), com auditoria do ator `sistema`. Os 10% são a **reserva contra o
+   atraso da leitura**: o que a rede gastar entre duas leituras sai desses
+   10%, nunca do que já não existe. O percentual é um valor da plataforma
+   (editável só pelo master, nunca abaixo de um piso) e não fica espalhado no
+   código.
+3. **O alerta vem antes da trava.** Como a trava agora é aos 10%, o aviso à fila
+   de Marketing tem de subir mais cedo: **proposta de 20%** (a confirmar com o
+   dono). O alerta cai na fila (item da Caixa de entrada hoje; da fila do perfil
+   "Marketing" quando existir), com a campanha, a organização, o saldo restante
+   e o botão **"Travar agora"** (decisão do dono, 09/10/2026: o painel de gestão
+   do marketing mostra o botão quando a campanha chega ao limite). O botão pausa
+   a campanha na rede pelo mesmo caminho da trava automática (uma vez só,
+   condicional ao estado, com auditoria do nome de quem clicou) e só alcança
+   quem tem o perfil Marketing ou o master. Se a pausa automática falhou, o
+   alerta sobe de nível e **escala ao master** depois de um prazo.
 4. **A leitura do gasto precisa ser mais fresca do que a de hoje.** A importação
-   atual (Windsor) traz só **dias fechados**, de hora em hora; para 10% e 5% é
-   preciso ler o **gasto do dia** direto da API de insights do Meta, que também
-   **atrasa** (de minutos a horas — a confirmar). Por isso o limite de 5% tem de
-   considerar o ritmo: a regra é travar quando o **saldo restante for menor que o
-   gasto previsível até a próxima leitura** (ou 5%, o que vier primeiro).
+   atual (Windsor) traz só **dias fechados**, de hora em hora; para o alerta e a
+   trava é preciso ler o **gasto do dia** direto da API de insights do Meta, que
+   também **atrasa** (de minutos a horas — a confirmar). Por isso a regra é
+   travar quando o **saldo restante for menor que o gasto previsível até a
+   próxima leitura** ou **10%, o que vier primeiro**: se o ritmo for alto, a
+   trava vem antes dos 10%.
 5. **Fora do horário** a fila não basta: o gestor dorme. O automático e o teto do
    Meta são a proteção de verdade; a fila é a segunda linha, com aviso por push
    ou WhatsApp.

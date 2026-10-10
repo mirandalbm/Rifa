@@ -225,3 +225,13 @@ contrato é versionado pelo painel. Proposta, a confirmar na Parte 1:
 3. **Domínio**, e depois os e-mails institucional e do encarregado (com o cargo).
 4. **Endereço oficial** na forma completa (rua, número, complemento, CEP).
 5. **Estágio do globo** (se já há conversa com tabelionato).
+
+### Respostas do dono, segunda leva (10/10/2026)
+
+| Ponto | Resposta | Efeito |
+|---|---|---|
+| Razão social e CNPJ | **Serão definidos depois do lançamento**; sai da lista de pendências do dono | O anexo do advogado usa os campos `{{RAZAO_SOCIAL}}` e `{{CNPJ}}`. **Segue travando** a publicação de contrato, anexo, Termos e Privacidade (exigem os "Dados da empresa" completos) e as consultas à Meta e ao Google. Não vai ao advogado nem ao contador como pendência |
+| Domínio | O dono decide **até segunda-feira, 12/10/2026** | Destrava os e-mails institucional e do encarregado |
+| Autorização em nome da plataforma (V4) | Entendido; **não há necessidade de avisar agora** | Nenhuma peça ou página afirma autorização da plataforma. Sem aviso ao advogado nesta rodada |
+| UOL Anúncios (V6) | Entendido | Entra na lista de consultas por escrito, depois do CNPJ |
+| Anexo do modelo B | O dono pede o detalhamento para repassar ao advogado | `docs/PEDIDO-ANEXO-MODELO-B.md` |

@@ -12,6 +12,7 @@
  * observação, quando a devolução foi feita por fora. Só a plataforma (403
  * para organizador): o dinheiro passou pela conta dela.
  */
+import { ehUuid } from "@shared/uuid";
 import type { Request } from "express";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "../db";
@@ -107,7 +108,7 @@ async function auditar(tx: Tx, req: Request, id: string, action: string, diff: R
  * e só se fecha por "resolver" depois de conferir no provedor. Voltar a
  * `pendente` deixaria o próximo clique devolver duas vezes.
  */
-const UUID = /^[0-9a-f-]{36}$/i;
+const UUID = { test: (v: unknown) => ehUuid(v) };
 
 export async function devolverPixTardio(req: Request, id: string) {
   requirePlatformAdmin(req);

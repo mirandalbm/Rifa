@@ -7,8 +7,8 @@ Gerada do código por `npm run matriz` — **não edite à mão** (o teste `test
 | Telas (rotas do `App.tsx`) | 66 (+ 2 redirecionamentos) |
 | Seções de acesso (`shared/access.ts`) | 41 |
 | Cartões (componentes usados pelas telas) | 715 |
-| Rotas da API | 477, das quais 462 citadas por alguma prova |
-| Provas contra a API (`npm run …`) | 60 |
+| Rotas da API | 477, das quais 463 citadas por alguma prova |
+| Provas contra a API (`npm run …`) | 61 |
 | Testes de regra (`tests/`) | 127 arquivos |
 | Destinos decididos | 0 de 822 |
 
@@ -1613,7 +1613,7 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 | GET | `/campaigns/:slug/numbers/:number` | `publico-test.ts` |
 | POST | `/track-click` | `publico-test.ts` |
 | GET | `/checkout` | `base-ia.ts` |
-| POST | `/orders` | `acessos-test.ts`, `afiliados-test.ts`, `apuracao-test.ts` +17 |
+| POST | `/orders` | `acessos-test.ts`, `afiliados-test.ts`, `apuracao-test.ts` +18 |
 | POST | `/carrinho/checkout` | `carrinho-test.ts` |
 | GET | `/orders/:code` | `carrinho-test.ts`, `marketing-test.ts`, `presente-test.ts` |
 | GET | `/carrinho/pedidos/:codigo` | `carrinho-test.ts` |
@@ -1698,11 +1698,11 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 | PUT | `${caminho}/documentos/:tipo` | — |
 | GET | `${caminho}/documentos/:tipo` | — |
 
-### `server/routes/webhooks.ts` — /api/webhooks (1 rotas, 0 com prova)
+### `server/routes/webhooks.ts` — /api/webhooks (1 rotas, 1 com prova)
 
 | Método | Caminho | Provas |
 |---|---|---|
-| POST | `/:provider` | — |
+| POST | `/:provider` | `webhook-test.ts` |
 
 ## 5. Rotas que nenhuma prova cita
 
@@ -1712,7 +1712,6 @@ Busca literal do caminho em `scripts/` e `tests/` (a interpolação vale como pa
 - `server/routes/affiliate.ts` (4 de 36): GET `/commissions`, GET `/coupons`, GET `/organizacoes`, GET `/divulgacoes/:id/video`
 - `server/routes/public.ts` (2 de 149): GET `/mensagens/conversas/:id/fotos/:fotoId`, GET `/divulgacoes/minhas/:id/fotos/:fotoId`
 - `server/routes/verificacaoRotas.ts` (5 de 5): GET `${caminho}/consentimento`, POST `${caminho}/consentimento`, DELETE `${caminho}/consentimento`, PUT `${caminho}/documentos/:tipo`, GET `${caminho}/documentos/:tipo`
-- `server/routes/webhooks.ts` (1 de 1): POST `/:provider`
 
 ## 6. Provas contra a API
 
@@ -1778,3 +1777,4 @@ Busca literal do caminho em `scripts/` e `tests/` (a interpolação vale como pa
 | `transparencia` | `scripts/transparencia-test.ts` |
 | `verificacao` | `scripts/verificacao-test.ts` |
 | `vitrine` | `scripts/vitrine-test.ts` |
+| `webhook` | `scripts/webhook-test.ts` |

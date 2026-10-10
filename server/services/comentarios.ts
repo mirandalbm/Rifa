@@ -9,6 +9,7 @@
  *   404) e é um `UPDATE` condicional: dois cliques, um desconto no contador.
  * - O apostador aparece pelo primeiro nome e a inicial; telefone nunca sai.
  */
+import { ehUuid } from "@shared/uuid";
 import { numeracaoZero } from "@shared/apuracao";
 import type { Request } from "express";
 import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
@@ -232,7 +233,7 @@ export async function listarComentarios(req: Request, slug: string) {
 export async function curtirComentario(req: Request, id: string, curtir: boolean) {
   const buyerId = req.session.buyer?.id;
   if (!buyerId) throw new ComentarioError("Entre na sua conta para curtir.", 401);
-  if (!/^[0-9a-f-]{36}$/i.test(id)) throw new ComentarioError("Comentário não encontrado.", 404);
+  if (!ehUuid(id)) throw new ComentarioError("Comentário não encontrado.", 404);
   return db.transaction(async (tx) => {
     const [c] = await tx
       .select({ id: comentarios.id })
@@ -283,7 +284,7 @@ export async function comentar(req: Request, slug: string, entrada: { texto?: un
   let autorDoPai: { buyerId: string | null; autor: string } | null = null;
   if (entrada.respostaA) {
     const id = String(entrada.respostaA);
-    if (!/^[0-9a-f-]{36}$/i.test(id)) throw new ComentarioError("Comentário não encontrado.", 404);
+    if (!ehUuid(id)) throw new ComentarioError("Comentário não encontrado.", 404);
     const [pai] = await db
       .select({ id: comentarios.id, parentId: comentarios.parentId, buyerId: comentarios.buyerId, autor: comentarios.autor })
       .from(comentarios)
@@ -398,7 +399,7 @@ export async function removerNaTransacao(tx: Tx, comentarioId: string, userId: s
  * denúncia contra ela, e quem decide é a plataforma. Para os demais, 404.
  */
 export async function apagarComentario(req: Request, id: string, motivo?: unknown) {
-  if (!/^[0-9a-f-]{36}$/i.test(id)) throw new ComentarioError("Comentário não encontrado.", 404);
+  if (!ehUuid(id)) throw new ComentarioError("Comentário não encontrado.", 404);
   const [c] = await db
     .select({
       id: comentarios.id,

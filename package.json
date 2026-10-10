@@ -60,6 +60,7 @@
     "cambista": "tsx scripts/cambista-test.ts",
     "acessos": "tsx scripts/acessos-test.ts",
     "publico": "tsx scripts/publico-test.ts",
+    "webhook": "tsx scripts/webhook-test.ts",
     "bonus": "tsx scripts/bonus-test.ts",
     "patrocinio": "tsx scripts/patrocinio-test.ts",
     "banner": "tsx scripts/banner-pago-test.ts",

@@ -685,7 +685,7 @@ publicRouter.post("/stories/:id/enquete", async (req, res, next) => {
     res.setHeader("Cache-Control", "no-store");
     const buyerId = await contaQueVota(req.session.buyer?.id);
     if (!buyerId) return res.status(401).json({ message: "Entre na sua conta (com CPF) para votar." });
-    if (!/^[0-9a-f-]{36}$/i.test(req.params.id)) return res.status(404).json({ message: "Enquete não encontrada." });
+    if (!ehUuid(req.params.id)) return res.status(404).json({ message: "Enquete não encontrada." });
     // Erro de preenchimento (enquete que não existe, opção que não é dela) sai antes de contar.
     const opcao = await conferirVoto(req.params.id, req.body?.opcao);
     if ((await hit(`enquete:${buyerId}`, 10, ENQUETE_VOTOS_POR_JANELA)).excedeu) {
@@ -1656,14 +1656,6 @@ publicRouter.post("/track-click", async (req, res, next) => {
     const slug = req.body?.slug ? String(req.body.slug) : undefined;
     if (!code) return res.status(400).json({ message: "Código ausente." });
 
-    // Cada clique grava uma linha: sem limite, um script enche a tabela. O teto
-    // é folgado (operadora põe um bairro atrás do mesmo IP) e conta antes de
-    // olhar o código, para chute de código também gastar.
-    const { ipHash } = identify(req);
-    if (ipHash && (await hit(`track-click:${ipHash}`, 10, 120)).excedeu) {
-      return res.status(429).json({ message: "Muitos cliques. Tente de novo em alguns minutos." });
-    }
-
     const [aff] = await db
       .select()
       .from(affiliates)
@@ -1677,6 +1669,15 @@ publicRouter.post("/track-click", async (req, res, next) => {
     if (!req.session.affiliateCode || fresh) {
       req.session.affiliateCode = code;
       req.session.affiliateSince = Date.now();
+    }
+
+    // Cada clique grava uma linha: sem limite, um script enche a tabela. O teto
+    // protege só o INSERT, nunca a atribuição — o código já foi para a sessão
+    // acima, e um vizinho de IP (operadora, Wi-Fi de evento) não pode tirar a
+    // comissão do afiliado. Limite folgado, por IP (não por aparelho).
+    const { ipHash } = identify(req);
+    if (ipHash && (await hit(`track-click:${ipHash}`, 10, 120)).excedeu) {
+      return res.json({ tracked: true, attributed: req.session.affiliateCode });
     }
 
     let campaignId: string | undefined;
@@ -1803,7 +1804,7 @@ publicRouter.post("/carrinho/checkout", async (req, res, next) => {
 /** O código do pedido na URL: o que não é inteiro positivo não existe (404), nunca vira NaN no SQL. */
 function codigoDoPedido(texto: string): number {
   const n = Number(texto);
-  return Number.isSafeInteger(n) && n > 0 ? n : 0;
+  return Number.isSafeInteger(n) && n > 0 && n <= 2_147_483_647 ? n : 0; // `orders.code` é int4
 }
 
 /** Barra quem está varrendo códigos de pedido; ver `lookupBlocked`. */
@@ -2482,7 +2483,7 @@ publicRouter.get("/campaigns/:slug/premios", async (req, res, next) => {
  */
 publicRouter.get("/sorteio-oficial/:id/ata", async (req, res, next) => {
   try {
-    if (!/^[0-9a-f-]{36}$/i.test(req.params.id)) return res.status(404).json({ message: "Ata não encontrada." });
+    if (!ehUuid(req.params.id)) return res.status(404).json({ message: "Ata não encontrada." });
     const a = await arquivoDaAta(req.params.id);
     if (!a) return res.status(404).json({ message: "Ata não encontrada." });
     res.setHeader("Cache-Control", "public, max-age=300");

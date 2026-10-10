@@ -214,6 +214,8 @@ async function main() {
     checa("texto da impressora térmica", r.status === 200 && r.texto.length > 20 && !r.texto.includes(TELEFONE), `HTTP ${r.status}`);
     r = await publico.req("GET", "/api/public/tickets/12345678");
     checa("bilhete que não existe: 404", r.status === 404, `HTTP ${r.status}`);
+    r = await publico.req("GET", "/api/public/tickets/9999999999");
+    checa("código maior que o inteiro do banco: 404, nunca 500", r.status === 404, `HTTP ${r.status}`);
     r = await publico.req("GET", "/api/public/tickets/abc");
     checa("código que não é número: 404", r.status === 404, `HTTP ${r.status}`);
 
@@ -270,9 +272,11 @@ async function main() {
     const antes = await cliques();
     for (let i = 0; i < 200 && !barrou; i++) {
       const t = await publico.req("POST", "/api/public/track-click", { ref: CODIGOS[0] });
-      barrou = t.status === 429;
+      barrou = (await cliques()) - antes < i + 1 && t.status === 200;
     }
-    checa("clique em rajada do mesmo aparelho é barrado (429)", barrou);
+    checa("clique em rajada do mesmo IP deixa de gravar", barrou);
+    r = await publico.req("POST", "/api/public/track-click", { ref: CODIGOS[0] });
+    checa("…mas a atribuição segue (o afiliado não perde a venda)", r.status === 200 && r.json?.tracked === true && r.json?.attributed === CODIGOS[0], JSON.stringify(r.json));
     checa("…e a tabela não cresce sem limite", (await cliques()) - antes <= 130, `${(await cliques()) - antes}`);
 
     /* -------------------------------- CEP --------------------------------- */

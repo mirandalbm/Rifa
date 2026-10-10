@@ -1085,7 +1085,9 @@ plataforma analisa** (Atendimento → Rifas, com conversa dos dois lados).
   mexia na trilha do pedido dos outros. Código que não é número inteiro
   positivo é 404 nas três rotas do bilhete (era 500). `npm run publico` prova,
   junto com o rascunho 404 em premiados, últimas compras, ranking, número e
-  certificado, e o `track-click` com limite por aparelho (120 em 10 min).
+  certificado, e o `track-click` com limite por IP por IP, 120 em 10 min — o limite protege só o `INSERT` do clique,
+  nunca a atribuição: o código vai para a sessão antes, e um vizinho de IP não
+  tira a comissão do afiliado).
 
 - A formatação vive em `ticketFormat.ts`, sem banco, porque é o que os testes
   exercitam: 32 colunas, total alinhado à direita, sem acento e sem espaço
@@ -1737,6 +1739,19 @@ permite cobrar dela depois, e o aceite é a prova.
   `sw.js`: guardado lá, o nome novo nunca chegaria. `npm run aparencia` prova.
 
 ## Provedor do Pix e estorno — o que não pode afrouxar
+
+- **O webhook nunca perde um pagamento atrás de "duplicado"** (`webhooks.ts`):
+  o evento é gravado em `webhook_events` antes de processar, mas só `processed_at`
+  o conclui. Entrega repetida de evento **concluído** é 200 duplicado. Evento
+  **não concluído** (o processamento falhou, ou o processo caiu no meio) é
+  retomado pela entrega seguinte: falha inesperada solta a linha na hora; a que
+  parou sem saber por quê espera `PRAZO_DO_PROCESSAMENTO_S` (60 s); quem retoma
+  é um `UPDATE` condicional que renova `created_at`, então cinco entregas ao
+  mesmo tempo dão um processamento. Erro de **regra** (`OrderError`: cobrança
+  que não conhecemos, Pix de pedido vencido que já foi para a fila de
+  devolução) conclui o evento — repetir daria o mesmo. Cada passo do
+  processamento é idempotente por si, por isso retomar nunca cobra, credita ou
+  estorna duas vezes. `npm run webhook` prova, inclusive a retomada.
 
 - **Duas funções, dois papéis.** `activePaymentProvider()` escolhe quem gera
   o Pix das vendas novas (escolha do painel, ou `PAYMENT_PROVIDER`);

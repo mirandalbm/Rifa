@@ -1342,7 +1342,7 @@ adminRouter.get("/entidades", async (req, res, next) => {
 adminRouter.get("/entidades/:campaignId/documentos/:tipo", async (req, res, next) => {
   try {
     requirePlatformAdmin(req);
-    if (!/^[0-9a-f-]{36}$/i.test(req.params.campaignId)) return res.status(404).json({ message: "Documento não encontrado." });
+    if (!ehUuid(req.params.campaignId)) return res.status(404).json({ message: "Documento não encontrado." });
     await audit(req, "entidade.documento.ler", "campaign", req.params.campaignId, { tipo: req.params.tipo });
     const d = await documentoDaEntidade(req.params.campaignId, req.params.tipo);
     if (!d) return res.status(404).json({ message: "Documento não encontrado." });
@@ -1357,7 +1357,7 @@ adminRouter.get("/entidades/:campaignId/documentos/:tipo", async (req, res, next
 adminRouter.post("/entidades/:campaignId/decidir", async (req, res, next) => {
   try {
     requirePlatformAdmin(req);
-    if (!/^[0-9a-f-]{36}$/i.test(req.params.campaignId)) return res.status(404).json({ message: "Entidade não encontrada." });
+    if (!ehUuid(req.params.campaignId)) return res.status(404).json({ message: "Entidade não encontrada." });
     const feita = await decidirEntidade(req.params.campaignId, req.body, req.user?.id ?? null);
     await audit(req, "entidade.decidir", "campaign", req.params.campaignId, { status: feita.status, motivo: feita.motivo });
     res.json(feita);
@@ -3431,7 +3431,7 @@ adminRouter.get("/usuarios", async (req, res, next) => {
     // id válido é ignorado, em vez de virar erro de conversão no Postgres.
     const bruta = !org && req.query.organizacao ? String(req.query.organizacao) : null;
     const pedida =
-      bruta === "plataforma" || (bruta && /^[0-9a-f-]{36}$/i.test(bruta)) ? bruta : null;
+      bruta === "plataforma" || (bruta && ehUuid(bruta)) ? bruta : null;
     const papel = req.query.papel ? String(req.query.papel) : null;
     const busca = req.query.q ? `%${String(req.query.q).trim().toLowerCase()}%` : null;
 
@@ -3639,7 +3639,7 @@ adminRouter.delete("/cobranca/tabela/proxima", async (req, res, next) => {
 adminRouter.post("/cobranca/:id/baixa", async (req, res, next) => {
   try {
     requirePlatformAdmin(req);
-    if (!/^[0-9a-f-]{36}$/i.test(req.params.id)) return res.status(404).json({ message: "Organização não encontrada." });
+    if (!ehUuid(req.params.id)) return res.status(404).json({ message: "Organização não encontrada." });
     const { quantas, regularizada } = await darBaixa(req.params.id, req.user!.id);
     await audit(req, "cobranca.baixa", "organization", req.params.id, { quantas, regularizada });
     res.json({ baixadas: quantas, regularizada });
@@ -3928,7 +3928,7 @@ adminRouter.get("/payouts/:id/nota", async (req, res, next) => {
   try {
     const pid = String(req.params.id);
     const org = orgOf(req);
-    const [saque] = /^[0-9a-f-]{36}$/i.test(pid)
+    const [saque] = ehUuid(pid)
       ? await db.select({ organizationId: payouts.organizationId }).from(payouts).where(eq(payouts.id, pid))
       : [];
     if (!saque || (org && saque.organizationId !== org)) return res.status(404).json({ message: "Saque não encontrado." });
@@ -4374,7 +4374,7 @@ adminRouter.put("/sorteios-oficiais/:id/ata", async (req, res, next) => {
 adminRouter.post("/sorteios-oficiais/:id/rifas/:campaignId/extracoes", async (req, res, next) => {
   try {
     requirePlatformAdmin(req);
-    if (!/^[0-9a-f-]{36}$/i.test(req.params.id) || !/^[0-9a-f-]{36}$/i.test(req.params.campaignId)) {
+    if (!ehUuid(req.params.id) || !ehUuid(req.params.campaignId)) {
       return res.status(404).json({ message: "Não encontrado." });
     }
     const recusa = await conferirSegundoFatorAgora(req.user!.id, req.body, "registrar nova extração do globo");
@@ -4398,7 +4398,7 @@ adminRouter.put("/campaigns/:id/sorteio-oficial", async (req, res, next) => {
   try {
     const c = await assertCampaignInScope(req, req.params.id);
     const id = req.body?.sorteioOficialId;
-    if (id !== null && (typeof id !== "string" || !/^[0-9a-f-]{36}$/i.test(id))) {
+    if (id !== null && (typeof id !== "string" || !ehUuid(id))) {
       return res.status(400).json({ message: "Escolha um sorteio do calendário." });
     }
     const r = await integrarAoSorteioOficial(c, id);
@@ -4561,7 +4561,7 @@ adminRouter.get("/resultados", async (req, res, next) => {
   try {
     const daSessao = orgOf(req);
     const escolhida =
-      !daSessao && typeof req.query.organizacao === "string" && /^[0-9a-f-]{36}$/i.test(req.query.organizacao)
+      !daSessao && typeof req.query.organizacao === "string" && ehUuid(req.query.organizacao)
         ? req.query.organizacao
         : null;
     res.json(await resultadosDoPainel(daSessao ?? escolhida, validarPeriodo(req.query.dias)));
@@ -4597,7 +4597,7 @@ function organizacaoDoPedido(req: Request): string | null {
   const org = orgOf(req);
   if (org) return org;
   const pedida = req.query.organizacao ?? req.body?.organizacaoId;
-  return typeof pedida === "string" && /^[0-9a-f-]{36}$/i.test(pedida) ? pedida : null;
+  return typeof pedida === "string" && ehUuid(pedida) ? pedida : null;
 }
 
 adminRouter.get("/termo-afiliado", async (req, res, next) => {

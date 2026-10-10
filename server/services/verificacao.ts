@@ -14,6 +14,7 @@
  *   própria cara e depois pôr a de outra pessoa.
  * - Mexer em dado ou documento volta tudo para a análise.
  */
+import { ehUuid } from "@shared/uuid";
 import type { Request } from "express";
 import { createHash } from "node:crypto";
 import { and, eq, inArray, isNotNull, or, sql } from "drizzle-orm";
@@ -720,7 +721,7 @@ export async function verificacoesPendentes() {
 }
 
 async function linhaPorId(id: string) {
-  if (!/^[0-9a-f-]{36}$/i.test(id)) throw new VerificacaoError("Verificação não encontrada.", 404);
+  if (!ehUuid(id)) throw new VerificacaoError("Verificação não encontrada.", 404);
   const [v] = await db.select().from(verificacoes).where(eq(verificacoes.id, id));
   if (!v) throw new VerificacaoError("Verificação não encontrada.", 404);
   return v;

@@ -341,3 +341,20 @@ Esta seção registra o caminho escolhido. Nenhum item abaixo está concluído.
 Critério para declarar a Parte 1 fechada: etapas A e B concluídas, C com o parecer bancário em andamento, e D mesclado. Até lá, a Parte 2 continua parada.
 
 Riscos aceitos até aqui (sem texto oficial que os confirme): momento do IRRF; CSRF sobre publicidade; CNAE 73.11-4/00 para tráfego pago; ISS de promotora de outro município; responsabilidade supletiva do beneficiário pelo IRRF não retido (Tema 333 do STF não decidido).
+
+---
+
+## Respostas do advogado e do contador aos quatro pontos (10/10/2026) — não aceitas ainda
+
+Recebidas. Três pontos impedem o anexo e a parte contábil de fechar:
+
+1. **"Prestação de serviço sem mandato" descreve o modelo A, não o B.** A resposta diz que a plataforma contrata a mídia em nome próprio e revende. Isso é conta própria, o modelo suspenso. No modelo B a promotora é titular da conta e paga a rede direto (V3 e D2). A escolha entre mandato e prestação sem mandato precisa ser refeita para o modelo B. O contador aceitou a descrição como "Modelo A" sem notar a contradição.
+2. **Calendário da Reforma Tributária.** A resposta diz que a partir de 2026 PIS/COFINS e ISS são substituídos por IBS e CBS. Pela leitura da EC 132/2023 e da LC 214/2025 (a verificar no texto), a CBS substitui PIS/COFINS a partir de 2027, e o IBS entra gradualmente a partir de 2029. A simulação não deve ser refeita para 2026 com base nessa afirmação.
+3. **Afirmações marcadas como "conferidas" e "a confirmar" ao mesmo tempo.** A Portaria 7.638 aparece como "confirmada" e, na mesma resposta, com o artigo "a confirmar". A data de publicação no DOU (20/10/2022) e o valor da CSLL retida (1,00%) não têm fonte citada. A pesquisa que fiz mostrou que a página do Ministério da Fazenda lista a portaria como "despublicada": a vigência continua sem confirmação.
+
+Pontos ainda abertos:
+- Aplicação do § 1º do art. 718 a plataformas digitais (Meta, Google, TikTok). A resposta não diz se a exclusão de valores repassados alcança a mídia paga na internet.
+- Caminho do art. 33 da LGPD: o prazo das cláusulas-padrão da ANPD terminou em 23/08/2025. A resposta não diz se o caminho é o Anexo II sem alterações ou o consentimento específico, e o consentimento para hospedagem e IA é difícil de sustentar.
+- Responsabilidade supletiva: concordo com o art. 128 do CTN e com a cláusula de comprovação do DARF. Isso fecha.
+
+O que não fecha ainda: a parte contábil depende de um modelo que a resposta do advogado contradiz. Não incorporar "conta própria" ao anexo nem ao parecer contábil até que o advogado descreva a estrutura do modelo B.

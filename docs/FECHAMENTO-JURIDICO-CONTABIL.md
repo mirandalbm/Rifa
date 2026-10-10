@@ -561,3 +561,28 @@ SC 234/2025 e a comparação com a Lei 4.680/1965; e a origem do endereço apres
 3. Dono: cartão CNPJ alterado (com endereço e CNAE) ou protocolo; domínio até 12/10; verificação dos contratos Railway, Cloudflare e Chatbase (Anexo II da ANPD); contratar o parecer bancário.
 4. Advogado: assinar a parte jurídica depois de 1 a 3.
 5. PR de adequação, somente depois de 1 a 4 e com o seu aval.
+
+---
+
+## Estado da Parte 1 em 10/10/2026: não encerrada
+
+Pedido do dono: encerrar. Não foi registrado como encerrado, porque quatro itens
+impedem o fechamento e um deles afeta o cartão CNPJ em alteração.
+
+| Item | Responsável | Por que impede | Ação mínima |
+|---|---|---|---|
+| Maior receita própria: taxa de gestão e comissão sobre rifas (valores mensais) | Dono | Define o CNAE principal. Sem isso, o CNAE pode sair errado no CNPJ | Estimativa basta |
+| CNAE secundário para a comissão sobre rifas (sem 92.00-3/00) | Advogado | Se a comissão for receita própria, precisa de código | Indicar código |
+| §1º do art. 718: alcança plataforma digital (Meta, Google, TikTok)? | Advogado | Define se a base do IRRF é a taxa ou o valor total | Uma linha com fonte |
+| CSLL retida: alíquota e norma | Advogado | Entra na simulação | Uma linha com fonte |
+| Reforma Tributária: a resposta do contador repete que IBS e CBS substituem PIS/COFINS/ISS "a partir de 2026". Está errado: 2026 é ano de teste (CBS 0,9%, IBS 0,1%). A substituição começa em 2027 (CBS) e 2029 (IBS) | Contador | Corrige a simulação | Reemitir com o calendário certo |
+
+Além disso, sem ação do dono: cartão CNPJ alterado (ou protocolo com CNAE),
+domínio (até 12/10), verificação dos contratos com o Anexo II da ANPD, e parecer
+de direito bancário (recomendado).
+
+**Decisão que cabe ao dono agora (escolha uma):**
+- **A.** Informar a receita própria (estimativa). Com isso, o CNAE principal fecha hoje.
+- **B.** Encerrar com CNAE principal provisório **73.19-0/99** e risco aceito, sujeito a
+  revisão quando a receita de rifas for conhecida. Só vale se o CNPJ ainda não foi
+  protocolado com outro CNAE.

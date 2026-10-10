@@ -22,6 +22,7 @@ import { CORES_DO_SELO_PADRAO, validarCoresDoSelo, type CoresDoSelo } from "./ve
 import { idDoCanal } from "./aoVivo";
 import { LOTERIAS, type Loteria } from "./sorteiosOficiais";
 import { METODOS_LIBERADOS_PADRAO, metodosLiberadosGuardados, type MetodoDeApuracao } from "./apuracao";
+import { CONFIG_COBRANCA_PADRAO, validarConfigCobranca, type ConfigCobranca } from "./cobranca";
 
 export const PROVEDORES_PIX = ["mercadopago", "asaas"] as const;
 export type ProvedorPix = (typeof PROVEDORES_PIX)[number];
@@ -148,6 +149,12 @@ export interface ConfigPlataforma {
   trafegoPago: ConfigTrafegoPago;
   /** O assistente de IA (Chatbase) nos painéis do master, do organizador e do afiliado. Nasce desligado. */
   assistenteIA: ConfigIA;
+  /**
+   * A tabela de cobrança das organizações (`shared/cobranca.ts`): o
+   * percentual sobre a venda, o valor por cota e as faixas da taxa Pix.
+   * Nasce zerada; cada rifa fotografa a tabela do dia ao publicar.
+   */
+  cobranca: ConfigCobranca;
 }
 
 /**
@@ -234,6 +241,7 @@ export const CONFIG_PADRAO: ConfigPlataforma = {
   bannerPago: CONFIG_BANNER_PAGO_PADRAO,
   trafegoPago: CONFIG_TRAFEGO_PADRAO,
   assistenteIA: CONFIG_IA_PADRAO,
+  cobranca: CONFIG_COBRANCA_PADRAO,
 };
 
 /** Só as chaves conhecidas: isto vem do corpo da requisição. */
@@ -274,6 +282,7 @@ export function validarConfigPlataforma(entrada: Partial<ConfigPlataforma>): Con
     bannerPago: validarConfigBannerPago(entrada.bannerPago),
     trafegoPago: validarConfigTrafego(entrada.trafegoPago),
     assistenteIA: configIAGuardada(entrada.assistenteIA),
+    cobranca: validarConfigCobranca(entrada.cobranca),
   };
 }
 

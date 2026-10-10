@@ -82,6 +82,15 @@ export interface DadosDoRegulamento {
   aceitaReembolso: boolean;
   /** O presente ligado na plataforma (6.2: tem de constar no regulamento); ausente ou desligado, nada. */
   presente?: Pick<ConfigPresente, "ligado" | "pct" | "tetoCents"> | null;
+  /** Os meios de pagamento ligados (resposta 2.3 do advogado, 10/10/2026: a forma de pagamento consta do regulamento). */
+  meios?: { pix_online: boolean; dinheiro: boolean; pix_maquininha: boolean } | null;
+}
+
+/** A forma de pagamento, montada dos meios ligados. Cartão nunca é aceito. */
+export function formaDePagamento(m: { pix_online: boolean; dinheiro: boolean; pix_maquininha: boolean }): string {
+  const naMao = [m.dinheiro ? "em dinheiro" : null, m.pix_maquininha ? "por Pix na maquininha" : null].filter(Boolean).join(" ou ");
+  const partes = [m.pix_online ? "por Pix, pelo site" : null, naMao ? `${naMao}, quando a compra for feita pelo cambista autorizado` : null].filter(Boolean);
+  return `Forma de pagamento: o pagamento é feito ${partes.join(", ou ")}. Não são aceitos cartão de crédito nem de débito.`;
 }
 
 export interface Secao {
@@ -165,6 +174,7 @@ export function montarRegulamento(d: DadosDoRegulamento): Secao[] {
         `Cada pedido tem no mínimo ${rifa.minPerOrder} e no máximo ${groupNumber(rifa.maxPerOrder)} cota(s).`,
         `Só participa a cota paga. A reserva não paga em ${rifa.reservationTtlMin} minutos é desfeita e os números voltam a ficar livres.`,
         "Cada número é vendido uma única vez.",
+        ...(d.meios ? [formaDePagamento(d.meios)] : []),
         "Só vale bilhete pago pela plataforma. Pagamento feito por fora (Pix ou transferência direto à promotora ou a terceiros) não gera cota nem participa do sorteio, e pedir pagamento por fora leva ao banimento da promotora.",
         ...(rifa.aceitaCotaBonus ? [clausulaDoBonus(rifa.bonusMaxCotas ?? 0)] : []),
         ...(d.presente?.ligado ? [clausulaDoPresente(d.presente)] : []),

@@ -22,7 +22,7 @@ import { PIX_TARDIO_PRAZO_DIAS_UTEIS } from "./pixTardio";
 import type { Secao } from "./regulamento";
 
 /** Data em que esta redação passou a valer. Sobe junto com qualquer mudança de texto. */
-export const VIGENCIA_DOS_TERMOS = "2026-10-08";
+export const VIGENCIA_DOS_TERMOS = "2026-10-10";
 
 /**
  * Em quantos dias a plataforma responde a reclamação de consumidor: o teto do
@@ -280,6 +280,8 @@ export function montarTermosDeUso(d: DadosDosTermos): Secao[] {
         "Cada número é vendido uma vez só. O carrinho é uma lista de desejos: só a compra reserva.",
         "Só vale bilhete pago pela plataforma. Pix feito direto para a promotora, para um afiliado ou para qualquer outra pessoa não gera bilhete, não concorre e não tem reembolso pela plataforma. Recebeu esse pedido, denuncie.",
         "A confirmação do pagamento vem do provedor do Pix, nunca da tela do navegador. O bilhete fica em Minhas compras e, para quem tem conta, também no seu perfil.",
+        "Meios de pagamento: pelo site, só Pix; com o cambista, dinheiro ou Pix na maquininha. Não aceitamos cartão de crédito nem de débito.",
+        "O preço que você vê é o preço que você paga. A plataforma é remunerada pela promotora, por taxas sobre as vendas (percentual ou valor por cota) e sobre as transações Pix; essas taxas são custo da promotora e não são cobradas de você à parte.",
       ],
     },
     {

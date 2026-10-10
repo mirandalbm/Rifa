@@ -819,6 +819,7 @@ function cobranca(escopo: ExportScope): ExportStream {
             LEFT JOIN campaigns c ON c.id = o.campaign_id
            WHERE TRUE
              ${daOrganizacao(sql`pc.organization_id`, escopo)}
+             ${escopo.campaignId ? sql`AND o.campaign_id = ${escopo.campaignId}::uuid` : sql``}
              ${janela(sql`pc.created_at`, escopo)}
              ${depois}
            ORDER BY pc.created_at, pc.id

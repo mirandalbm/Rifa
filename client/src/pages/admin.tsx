@@ -1320,7 +1320,7 @@ function TermoAfiliadoCard() {
             }}
             className="tnum w-20 rounded-md border border-line-2 px-2 py-1.5"
           />
-          <span className="tnum text-muted">% sobre o pago, depois da taxa da plataforma</span>
+          <span className="tnum text-muted">% sobre o pago, depois das taxas da plataforma</span>
         </label>
         <div>
           <label htmlFor="termo-extra" className="label-xs">Regras da organização (opcional)</label>

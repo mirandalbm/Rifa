@@ -17,7 +17,7 @@ import { lerIndicacao } from "@/lib/indicacao";
 import { consentiu, lerUtm } from "@/lib/marketing";
 import { regraDoReembolso, regraSemReembolsoPeloSite } from "@shared/reembolso";
 import { AvisoDePrazo } from "@/components/AvisoDePrazo";
-import { SO_VALE_PELA_PLATAFORMA } from "@shared/seguranca";
+import { PAGAMENTO_SO_PIX, SO_VALE_PELA_PLATAFORMA } from "@shared/seguranca";
 
 interface Item {
   slug: string;
@@ -368,7 +368,9 @@ function PagarCarrinho({ itens, total }: { itens: Item[]; total: number }) {
           )}
         </div>
       ) : null}
-      <p className="text-[11px] text-muted">{SO_VALE_PELA_PLATAFORMA}</p>
+      <p className="text-[11px] text-muted">
+        {PAGAMENTO_SO_PIX} {SO_VALE_PELA_PLATAFORMA}
+      </p>
       {checkout?.reembolso ? (
         <>
           {itens

@@ -209,7 +209,7 @@ export function problemaNaCobranca(
  */
 export function problemaNoTotalDoPedido(t: TaxaDoPedido, totalCents: number, quantidade: number): string | null {
   if (t.modo === "por_cota" && t.porCotaCents * quantidade >= totalCents) {
-    return "Com este desconto, o valor ficou abaixo da taxa da plataforma por cota. Compre sem o cupom ou outra quantidade.";
+    return "Este cupom reduz o valor abaixo da taxa mínima da plataforma por cota. Remova o cupom ou escolha outro pacote.";
   }
   return null;
 }

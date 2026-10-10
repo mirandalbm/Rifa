@@ -105,3 +105,52 @@ dono): o parecer fica com a cláusula de revisão de 90 dias.
 4. **Tesouraria** de leitura (`docs/PLANO-FINANCEIRO.md`): as contas da seção 1.
 
 Nenhum entra antes de o modelo B existir e do aval do dono.
+
+## 5. Segunda versão do contador (10/10/2026)
+
+Ele aceitou as seis objeções da seção 2 e devolveu a **parte contábil**
+corrigida, ainda sem assinatura, sem data e sem CRC. O texto corrigido mantém
+todo o resto da seção 1.
+
+| Objeção | O que mudou | Situação |
+|---|---|---|
+| CSRF | A não retenção fica, **registrada como risco** (tabelas de mercado listam publicidade; texto oficial não localizado), com a divergência documentada | **Resolvido no texto.** Ver a observação 1 abaixo sobre "provisionar" |
+| IRRF e a IN 1.234/2012 | O risco voltou ao parecer: a IN pode ter deslocado a base legal dos arts. 714 e 718; confirmar o texto oficial antes da primeira retenção | **Resolvido no texto**; a verificação continua com ele |
+| Quando se retém o IRRF | Diz que o abastecimento é adiantamento (sem retenção) e que a retenção ocorre "no consumo", quando o tomador "paga pelo serviço"; registra a assimetria e a manda ao advogado | **Não resolvido.** Ver a observação 2 |
+| Citações sem conferência | O art. 223 da IN 1.700/2017 fica marcado "não verificado"; as soluções de consulta, o PN e o acórdão ficam como "ementa lida, texto não conferido"; os anexos 5 a 9 só entram depois de lidos no texto oficial | **Resolvido no texto.** "Ementa lida" é declaração dele; eu não li nenhuma |
+| Assinatura | É só a parte contábil; falta o advogado (com `{{OAB}}`) e as duas assinaturas | **Resolvido** |
+| Pedidos de código | Saem do corpo e viram lista anexa, sem caráter vinculante | **Resolvido** |
+
+### Observações minhas sobre a segunda versão
+
+1. **"Provisionar o risco" do CSRF** pode estar no lugar errado. A retenção é
+   obrigação do **tomador**, a promotora: se ela não retém, a multa e os juros
+   são dela. A plataforma, como prestadora, paga os próprios PIS, COFINS e CSLL
+   de qualquer jeito, e a retenção seria só antecipação. Peço ao contador que diga
+   quem tem o risco e quem provisiona. Isso também define uma **cláusula do anexo
+   do advogado**: as retenções na fonte são de responsabilidade do tomador, nos
+   termos da lei, e a plataforma só informa o que entende aplicável
+   (cláusula 10 do pedido, que ganha esta linha).
+2. **A retenção do IRRF continua sem resposta prática.** Ele diz que retém "o
+   tomador, no consumo". Mas no modelo B o tomador já pagou tudo no abastecimento;
+   no consumo a plataforma só debita o saldo e não há pagamento a reter. Se a
+   retenção ocorre ali, a promotora teria de recolher o DARF do bolso, tendo já
+   pago o valor bruto. Se ocorre no abastecimento, a nota ainda não existe.
+   Mandar isso ao advogado não resolve: **é matéria tributária**, e o contador
+   deve dizer o momento do pagamento, quem recolhe e como a promotora recupera.
+3. O "registro de decisões" que ele cita (C1 a C6 e P1 a P5) não é o da seção 8 do
+   fechamento, que é o das decisões do dono e dos profissionais (V1 a V6, A e C).
+   Não muda nada, só para não confundir.
+
+### Pendências depois da segunda versão
+
+| Pendência | De quem |
+|---|---|
+| Quem tem o risco do CSRF e quem provisiona | Contador |
+| Momento, responsável e recuperação do IRRF no modelo pré-pago | Contador |
+| Textos oficiais: IN 1.700 (art. 223), IN 1.234, SCs, PN, acórdão de Recife | Contador |
+| Regra de retenção do ISS em São Paulo | Contador |
+| CNAE (uma só recomendação) | Contador e advogado |
+| Anexo do modelo B, com a cláusula das retenções (cláusula 10) | Advogado |
+| Cláusula de revisão de 90 dias; domínio até 12/10/2026; data do pedido ao advogado | Dono |
+| Parecer bancário (A13) | Dono |

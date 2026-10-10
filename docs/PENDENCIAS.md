@@ -87,10 +87,20 @@ senha); **[código]** é trabalho no repositório.
 
 ## 2. Para a rifa vender
 
-- [ ] **[você]** Pagamento: escolher **Mercado Pago** ou **Asaas** (os dois
-  estão prontos no sistema; a escolha é em Configurações → Pagamentos e
-  estorno). Antes de decidir, confirmar por escrito com o provedor que ele
-  aceita **promoção comercial com autorização SPA/MF**.
+- [ ] **[você]** Pagamento: **decidido o Pagar.me (Stone)** em 10/10/2026
+  (`docs/FECHAMENTO-JURIDICO-CONTABIL.md`, "Decisões do dono, tarde"):
+  pela pesquisa do dono, Asaas e Mercado Pago não aceitam rifa. Antes do
+  contrato, obter **por escrito** do Pagar.me: (a) que aceita promoção
+  comercial com autorização SPA/MF; (b) conta com split (recebedor por
+  promotora) para Pix; (c) como o estorno e a devolução por MED se dividem
+  entre os recebedores; (d) o prazo em que o Pix fica disponível para o
+  recebedor; (e) as tarifas.
+- [ ] **[código]** Integrar o Pagar.me (`server/payments/`, `PaymentProvider`)
+  com o recebedor de cada organização no lugar da carteira do Asaas: plano
+  em `docs/PLANO-GATEWAY-PAGARME.md` (documentação lida em 10/10/2026). O
+  Asaas e o Mercado Pago (abaixo) ficam no código até a troca. Pela busca,
+  o Asaas põe loterias como "uso restrito" (empresa, com documentos), e não
+  como proibidas: vale perguntar a ele também.
   - Mercado Pago: `MP_ACCESS_TOKEN` e `MP_WEBHOOK_SECRET` no Railway.
   - Asaas: `ASAAS_API_KEY` e `ASAAS_WEBHOOK_TOKEN` no Railway; cadastrar o
     webhook `/api/webhooks/asaas` no painel do Asaas; cadastrar a carteira
@@ -653,12 +663,27 @@ Na ordem de entrega do plano:
 - [ ] **[produto]** Tráfego pago, **modelo B** (decisão de 10/10/2026, com o
   advogado e o contador; `docs/RODADA-FINAL-ADVOGADO.md`): a promotora é a
   anunciante, titular da conta e da autorização, e paga a mídia direto à rede;
-  a plataforma só gere e cobra uma **taxa sobre o gasto lido**, debitada de um
-  **saldo de taxa**. **Isto não existe no código** (hoje só o modelo A, atrás
-  de interruptor desligado, que está suspenso). É condição de implantação, não
-  de contrato: o contrato pode prever a estrutura, e a cobrança só entra quando
-  o código estiver pronto. Antes de codar: respostas do contador (C1 a C6) e a
-  consulta formal à Meta e ao Google.
+  a plataforma só gere e cobra a taxa. **Entra no lançamento** (decisão B4/B5
+  do dono, 10/10/2026, noite): sempre pago à parte, nunca do dinheiro da rifa,
+  e **sem saldo** — a taxa vai por Pix próprio (falta decidir se sobre a
+  verba, na aprovação, ou sobre o gasto lido, depois). **Isto não existe no
+  código** (hoje só o modelo A, atrás de interruptor desligado, que fica). Antes
+  de codar: o anexo do modelo B (advogado), a K11 do contador e a autorização
+  do Meta para cada promotora.
+- [ ] **[código]** Decisões A1 a B5 de 10/10/2026, noite
+  (`docs/FECHAMENTO-JURIDICO-CONTABIL.md`), antes do lançamento:
+  - **saldo pré-pago acaba**: anúncio patrocinado, banner e taxa do tráfego
+    com Pix próprio por compra; a sobra volta pela devolução parcial do Pix;
+    sai o reembolso do saldo; a retenção cautelar passa a segurar o crédito
+    do presente e as devoluções pendentes;
+  - **conta de recebimento obrigatória** da promotora no gateway para vender
+    online;
+  - **créditos avulsos do assistente vencem em 12 meses**, com aviso 30 dias
+    antes;
+  - **segundo fator** obrigatório para a equipe e o master, e pedido de novo
+    ao lançar o resultado do sorteio oficial e a nova extração do globo;
+  - **perfis de equipe** (os 6, com o master ligando os que usar), na
+    reformulação.
 - [ ] **[código]** PR de adequação jurídica, depois do encerramento das duas
   rodadas: IP e aparelho (hash) no aceite da taxa; número da autorização em
   toda peça (story e reels incluídos); redação da apuração sem "sem

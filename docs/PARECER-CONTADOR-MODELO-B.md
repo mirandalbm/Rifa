@@ -258,3 +258,48 @@ Ele pede a confirmação do dono do prazo de 5 dias úteis.
 4. **Contagem do prazo:** 12/10/2026 (segunda-feira) é feriado nacional
    (Nossa Senhora Aparecida). Confirmado hoje, os 5 dias úteis começam em
    13/10 e terminam em **19/10/2026**.
+
+## 8. Quinta versão do contador (10/10/2026): as três entregas
+
+Ele entregou a leitura dos textos oficiais, a regra do ISS em São Paulo e a
+recomendação de CNAE, no mesmo dia, e diz que o parecer pode ser assinado pela
+parte contábil. **Eu não li o texto oficial de nenhum dos itens abaixo** (os sites
+oficiais não abriram nesta sessão); o que segue é a conferência possível por busca.
+
+| Item | O que ele entregou | Situação |
+|---|---|---|
+| IN RFB 1.700/2017, art. 223, § 2º | Adiantamento é receita no mês do faturamento ou da conclusão do serviço | **Aceito como posição dele.** Não li o artigo. Falta ele dizer em que capítulo e regime ele está (a IN trata Lucro Presumido e Lucro Real em partes diferentes; a empresa é Lucro Real) |
+| RIR/2018, art. 685 | Citado como a regra geral de IRRF "no pagamento ou crédito" | **Não sustenta a conclusão.** O próprio texto que ele cita é sobre rendimentos pagos a **residentes no exterior**, e a busca confirma que o art. 685 está no capítulo dos residentes no exterior. Para serviços entre empresas no país ele continua com o art. 718, II, que **também não foi lido** |
+| RIR/2018, art. 720 | Retirado | **Aceito.** Mas ele diz que "não foi localizado" e, na mesma frase, que trata de adiantamentos do trabalho: sem texto, não se pode dizer o que o artigo cobre |
+| IN RFB 1.234/2012 | Retirada: é de órgãos públicos | **Aceito**, igual ao segundo retorno. O risco da "fonte divergente" fica sem leitura |
+| SC 6.006/2019, SC Cosit 8/2024, SC Cosit 32/2021, PN Cosit 5/2018 | "Texto confirmado": conta alheia (Simples), crédito na subcontratação, contra a tese, nega insumo na revenda | **Aceitos como histórico do modelo A**, que está suspenso, e como apoio por analogia no modelo B. Não li os textos. O acórdão 012/25 de Recife ficou fora da resposta |
+| Momento do IRRF | Fica como risco (abastecimento ou consumo) | **Aceito** |
+| ISS em São Paulo | Alíquota 5% e código 06394 (SC SF/DEJUG 7/2014); o CPOM tornou-se opcional com a Lei 17.719/2021; sem retenção quando prestador e tomador são de São Paulo | **Parcial.** A alíquota e o fim da obrigatoriedade do CPOM conferem por busca ([Contábeis](https://www.contabeis.com.br/artigos/7119/cadastro-no-cpom-deixa-de-ser-obrigatorio-em-sao-paulo/)). Mas o CPOM só alcança **prestadores de fora** de São Paulo, então não decide nada para uma plataforma sediada lá. A frase "sem retenção quando os dois são de São Paulo" **contradiz a resposta anterior dele** (retenção do tomador PJ quando o prestador não é do Simples) e não cita o dispositivo. E a maioria das promotoras será de **outros municípios**, onde vale a regra de cada um |
+| CNAE | **73.11-4/00 como principal**; o 63.11-9/00 só como secundário se houver tecnologia | **Contradiz de novo** o terceiro retorno (63.11-9/00 principal, 73.11-4/00 nunca principal). Falta o critério que decide a atividade principal: **de onde virá a maior receita**. Hoje o produto de toda a plataforma é a taxa por venda de rifas (tecnologia) e o tráfego é uma linha nova |
+
+### Observações minhas
+1. **A conta do IRRF segue sem resposta.** A aritmética das duas alternativas
+   (a promotora pagando R$ 101,50 por uma taxa de R$ 100) não foi refeita, e ele
+   ainda pede ao dono que escolha. O dono não deve escolher nada antes disso.
+2. **Retenção do ISS: a pendência não fechou.** Falta a regra de São Paulo para
+   o **tomador paulistano** de um prestador paulistano (se existe, qual dispositivo)
+   e uma resposta para a promotora de **fora** de São Paulo.
+3. **O CNAE precisa do critério da receita.** O dono decide a atividade
+   principal; o contador deve dizer o que cada escolha implica no cartão do CNPJ
+   e na inscrição municipal. Há ainda uma pergunta para o advogado: o nome
+   "Agências de publicidade" do código tem algum efeito regulatório, já que o
+   anexo evita a palavra "agência"? (Não afirmo que tenha.)
+4. **O que ele chama de "texto confirmado"** vale como declaração dele até os
+   textos chegarem como anexo ao parecer (os anexos 5 a 9 continuam não entregues).
+
+### Pendências depois da quinta versão
+| Pendência | De quem |
+|---|---|
+| Refazer a conta do IRRF (taxa bruta ou líquida) | Contador |
+| Dispositivo legal do art. 718, II, e leitura que sustente o momento do IRRF | Contador |
+| Regra do ISS para tomador e prestador de São Paulo, e para tomador de outro município | Contador |
+| CNAE com o critério da receita | Contador, depois o dono |
+| Capítulo e regime do art. 223 da IN 1.700/2017 | Contador |
+| Anexos 5 a 9, acórdão 012/25, assinatura | Contador |
+| Efeito do nome do CNAE sobre o anexo | Advogado |
+| Cláusula de revisão de 90 dias, anexo ao advogado (data), domínio, parecer bancário | Dono |

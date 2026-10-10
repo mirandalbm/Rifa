@@ -375,3 +375,67 @@ O que não fecha ainda: a parte contábil depende de um modelo que a resposta do
 6. **ANPD continua sem resposta sobre os contratos.** Ainda não sabemos se Railway, Cloudflare e Chatbase incorporaram o Anexo II sem alterações. Isso é do dono, por meio dos contratos ou dos aditivos.
 
 **Efeito:** a Parte 1 continua aberta no item do IRRF (responsável e base) e nas alíquotas da Reforma Tributária. O modelo B e o objeto do anexo podem avançar como rascunho.
+
+---
+
+## Solução para sair do ciclo (10/10/2026): premissas congeladas e rodada única de fechamento
+
+### Pesquisa que mudou o caminho
+- **Solução de Consulta Cosit 234/2025** (publicada no DOU em 21/11/2025, texto
+  integral não lido): o IRRF sobre serviços de propaganda e publicidade é
+  recolhido pela **agência beneficiária**, mesmo quando ela não distribui a
+  propaganda aos veículos, e isso alcança a criação e o planejamento de campanhas.
+  Pela resposta do advogado, a plataforma seria a beneficiária da taxa. Isso
+  **inverte** a tese de que a promotora retém e recolhe. A alíquota citada nas
+  fontes varia (1,5% no art. 718, II, do RIR/2018 e 4,8% na IN 1.234/2012 segundo
+  uma fonte): **confirmar no texto antes de usar**.
+- **CBS e IBS:** não há resolução do Senado fixando as alíquotas de referência. Em
+  2026 as alíquotas são de teste (CBS 0,9%, IBS 0,1%). Os números de 8,7% e 19,5%
+  não têm fonte e não entram na simulação. A simulação usa PIS/COFINS e ISS
+  enquanto estiverem em vigor, e marca CBS/IBS como "a definir pelo Senado".
+
+### Premissas congeladas (não reabrir sem fato novo)
+| # | Premissa | Fonte |
+|---|---|---|
+| P1 | Modelo B: a promotora é titular da conta e paga a rede direto; a plataforma presta gestão com acesso de parceiro; taxa sobre o gasto lido | Advogado (3ª resposta), dono |
+| P2 | Forma **bruta**: a taxa de R$ 100 é o valor pago pela promotora; a plataforma absorve o IRRF no caixa e apura o crédito contra o IRPJ | Dono (decisão de 10/10) |
+| P3 | Sede em São Paulo; ISS de 5% no item 10.08 sobre a taxa | Contador, V1 |
+| P4 | Não há solidariedade nem mandato: prestação de serviço em nome próprio perante o cliente (a promotora), com acesso de parceiro às redes | Advogado (3ª resposta) |
+| P5 | Não há CBS/IBS fixados; PIS/COFINS e ISS seguem na simulação | Pesquisa acima |
+| P6 | Número da autorização SPA/MF em toda peça, como política da plataforma | Advogado, D1 |
+| P7 | Nome do IRRF: "IRRF a 1,5%", sem novo nome | Advogado |
+| P8 | Modelos da fase IRRF renomeados: **"recolhimento pela plataforma"** (quando a plataforma é a beneficiária, SC 234/2025) e **"retenção pela promotora"** (tese anterior). O "A/B" sai dos documentos da fase | Esta seção |
+
+### Rodada única de fechamento (advogado e contador)
+Seis perguntas fechadas, cada uma com a opção padrão. Prazo de **5 dias úteis** a
+partir do envio. Sem resposta, vale o padrão, como decisão do dono. Depois disso,
+só fato novo reabre.
+
+1. **Quem recolhe o IRRF sobre a taxa?** Padrão: a plataforma, como beneficiária
+   (SC 234/2025), sem retenção pela promotora. Alternativa: retenção pela promotora
+   com a tese anterior.
+2. **Base do IRRF:** R$ 100 (taxa), e não o gasto de mídia. Padrão: taxa.
+3. **Texto do art. 718, II, do RIR/2018 e da IN 1.234/2012** (alíquota: 1,5% ou 4,8%).
+   Padrão: 1,5% do art. 718, II, até o texto mostrar outra coisa.
+4. **Portaria SEAE/ME 7.638/2022:** vigência no DOU. Padrão: mantida como base
+   da política do número de autorização (P6).
+5. **Cláusulas-padrão da ANPD para Railway, Cloudflare e Chatbase:** ver item abaixo.
+6. **Objeto do anexo do modelo B:** redação de P1 e P4. Padrão: a redação aceita
+   pelo advogado na terceira resposta.
+
+### O que é do dono (4 decisões, sem novas perguntas aos profissionais)
+- Atividade principal: tráfego (73.11-4/00) ou rifa. Padrão: 73.11-4/00.
+- Domínio (até 12/10) e endereço completo.
+- Contrato com Railway, Cloudflare e Chatbase: verificar se incorporam o Anexo II da
+  ANPD sem alterações (é o único caminho sem consentimento para hospedagem e IA).
+- Contratar o parecer de direito bancário.
+
+### O que fecha a Parte 1
+1. Respostas da rodada única (ou padrão após 5 dias úteis).
+2. Parte contábil reemitida com P1 a P8, assinada pelo contador.
+3. Parte jurídica assinada pelo advogado.
+4. Decisões do dono acima.
+5. PR de adequação: só depois de 1 a 4 e com o seu aval.
+
+Regra de ouro daqui em diante: nenhuma resposta parcial reabre premissa; cada
+resposta entra uma vez, com veredito (aceita, recusada ou pendente).

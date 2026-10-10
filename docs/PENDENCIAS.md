@@ -680,8 +680,9 @@ Na ordem de entrega do plano:
     online;
   - **créditos avulsos do assistente vencem em 12 meses**, com aviso 30 dias
     antes;
-  - **segundo fator** obrigatório para a equipe e o master, e pedido de novo
-    ao lançar o resultado do sorteio oficial e a nova extração do globo;
+  - **segundo fator** obrigatório para a equipe e o master (com os perfis); o
+    pedido de novo ao lançar o resultado do sorteio oficial e a nova
+    extração do globo **está feito** (B0, `conferirSegundoFatorAgora()`);
   - **perfis de equipe** (os 6, com o master ligando os que usar), na
     reformulação.
 - [ ] **[código]** PR de adequação jurídica, depois do encerramento das duas

@@ -122,7 +122,7 @@ import { CORTES_POR_JANELA } from "@shared/corte";
 import { type Figurinha, textosDasFigurinhas, validarFigurinhas } from "@shared/figurinhasStory";
 import { enviarArte, enviarPacote, listaDeArtes } from "./artesRotas";
 import { generateSecret, otpauthUrl } from "../services/totp";
-import { codigoConfere, guardarSegredo } from "../services/segundoFator";
+import { codigoConfere, conferirSegundoFatorAgora, guardarSegredo } from "../services/segundoFator";
 import { buildExport, ExportError, toCsvLine } from "../services/exports";
 import { refundOrder } from "../services/orders";
 import { carteiraDaPlataforma, extratoDa, darBaixa } from "../services/billing";
@@ -4308,6 +4308,9 @@ adminRouter.post("/sorteios-oficiais/:id/cancelar", async (req, res, next) => {
 adminRouter.post("/sorteios-oficiais/:id/resultado", async (req, res, next) => {
   try {
     requirePlatformAdmin(req);
+    // Decide o ganhador de várias rifas: senha e código na hora, antes de gravar.
+    const recusa = await conferirSegundoFatorAgora(req.user!.id, req.body, "lançar o resultado do sorteio");
+    if (recusa) return res.status(recusa.status).json({ message: recusa.message, code: recusa.code });
     const s = await lancarResultado(req.params.id, req.body?.numeros, req.body?.ata);
     await audit(req, "sorteio_oficial.resultado", "sorteio_oficial", s.id, { resultado: s.resultado });
     // O resultado já está gravado: falha aqui não vira 500 (o segundo clique
@@ -4344,6 +4347,8 @@ adminRouter.post("/sorteios-oficiais/:id/rifas/:campaignId/extracoes", async (re
     if (!/^[0-9a-f-]{36}$/i.test(req.params.id) || !/^[0-9a-f-]{36}$/i.test(req.params.campaignId)) {
       return res.status(404).json({ message: "Não encontrado." });
     }
+    const recusa = await conferirSegundoFatorAgora(req.user!.id, req.body, "registrar nova extração do globo");
+    if (recusa) return res.status(recusa.status).json({ message: recusa.message, code: recusa.code });
     const r = await registrarNovaExtracao(req.params.id, req.params.campaignId, req.body ?? {}, {
       id: req.user?.id,
       role: req.user?.role,

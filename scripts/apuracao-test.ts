@@ -14,8 +14,10 @@ import "dotenv/config";
 import { baseUrl } from "./base-url";
 import { eq, sql } from "drizzle-orm";
 import { db, pool } from "../server/db";
-import { buyers, campaignStats, campaigns, draws, orders, organizations, quotaAlloc } from "../shared/schema";
+import { buyers, campaignStats, campaigns, draws, orders, organizations, quotaAlloc, users } from "../shared/schema";
 import { commitSeed, drawNumber } from "../server/services/draw";
+import { guardarSegredo } from "../server/services/segundoFator";
+import { generateSecret, totpCode } from "../server/services/totp";
 import { PREMIOS_DE_EXEMPLO } from "../shared/apuracao";
 
 const URL = baseUrl();
@@ -64,6 +66,15 @@ async function main() {
   if ((await marina.req("POST", "/api/auth/login", { email: "marina@rifassaojose.br", password: "organizador123" })).status !== 200) throw new Error("login da organizadora");
 
   const antes = (await admin.req("GET", "/api/admin/apuracao/metodos")).json?.liberados ?? ["federal_direta"];
+
+  // Lançar o resultado e registrar nova extração pedem senha e código na hora: liga o segundo
+  // fator do administrador só durante a prova e devolve o que havia no fim.
+  const [adminDb] = await db.select().from(users).where(eq(users.email, "admin@rifa.br"));
+  const totpAnterior = adminDb.totpSecret;
+  const segredo = generateSecret();
+  await db.execute(sql`delete from rate_events where bucket like 'segundo-fator:%'`);
+  await db.update(users).set({ totpSecret: guardarSegredo(segredo) }).where(eq(users.id, adminDb.id));
+  const fator = () => ({ password: "admin123", code: totpCode(segredo) });
 
   const novaRifa = async (sufixo: string, extra: Partial<typeof campaigns.$inferInsert> = {}) => {
     const { seed, seedHash } = commitSeed();
@@ -381,19 +392,19 @@ async function main() {
       testemunhas: ["Ana Souza", "Bruno Lima"],
       bolas: bolas.map((_, i) => ({ hora: `20:0${i}:10` })),
     };
-    r = await admin.req("POST", `/api/admin/sorteios-oficiais/${sessao}/resultado`, { numeros: bolas, ata });
+    r = await admin.req("POST", `/api/admin/sorteios-oficiais/${sessao}/resultado`, { ...fator(), numeros: bolas, ata });
     checa("antes da hora, o resultado não entra (409)", r.status === 409, `HTTP ${r.status}`);
     await db.execute(sql`update sorteios_oficiais set sorteio_em = now() - interval '1 minute' where id = ${sessao}::uuid`);
     r = await marina.req("POST", `/api/admin/sorteios-oficiais/${sessao}/resultado`, { numeros: bolas, ata });
     checa("a organização não lança o resultado do globo (403)", r.status === 403, `HTTP ${r.status}`);
-    r = await admin.req("POST", `/api/admin/sorteios-oficiais/${sessao}/resultado`, { numeros: bolas });
+    r = await admin.req("POST", `/api/admin/sorteios-oficiais/${sessao}/resultado`, { ...fator(), numeros: bolas });
     checa("sem a ata, o resultado do globo não entra (400)", r.status === 400 && String(r.json?.message).includes("local"), `HTTP ${r.status} ${r.json?.message ?? ""}`);
-    r = await admin.req("POST", `/api/admin/sorteios-oficiais/${sessao}/resultado`, { numeros: bolas, ata: { ...ata, testemunhas: ["Ana Souza"] } });
+    r = await admin.req("POST", `/api/admin/sorteios-oficiais/${sessao}/resultado`, { ...fator(), numeros: bolas, ata: { ...ata, testemunhas: ["Ana Souza"] } });
     checa("ata sem auditor e com 1 testemunha: 400", r.status === 400 && String(r.json?.message).includes("auditor"), `HTTP ${r.status}`);
-    r = await admin.req("POST", `/api/admin/sorteios-oficiais/${sessao}/resultado`, { numeros: bolas, ata });
+    r = await admin.req("POST", `/api/admin/sorteios-oficiais/${sessao}/resultado`, { ...fator(), numeros: bolas, ata });
     checa("resultado e ata lançados: a rifa do globo sorteia sozinha", r.status === 200 && r.json?.rifas?.sorteadas === 1, `HTTP ${r.status} ${JSON.stringify(r.json?.rifas)}`);
     checa("9.5: a rifa sem o 139 não sorteia por aproximação (o 138 e o 140 tinham dono)", r.json?.rifas?.esperando === 1, JSON.stringify(r.json?.rifas));
-    r = await admin.req("POST", `/api/admin/sorteios-oficiais/${sessao}/resultado`, { numeros: bolas, ata });
+    r = await admin.req("POST", `/api/admin/sorteios-oficiais/${sessao}/resultado`, { ...fator(), numeros: bolas, ata });
     checa("segundo lançamento: 409", r.status === 409, `HTTP ${r.status}`);
     const [dG] = await db.select().from(draws).where(eq(draws.campaignId, rascunhoGlobo.c.id));
     checa("6-7-8-1-3-9 em 1.000 números: o 139 (interno 140) leva", dG?.resultNumber === 140 && dG?.winnerNumber === 140 && dG?.loteria === "globo", `${dG?.resultNumber}`);
@@ -423,7 +434,7 @@ async function main() {
     r = await admin.req("GET", "/api/admin/sorteios-oficiais");
     const naSessao = (r.json ?? []).find((x: { id: string }) => x.id === sessao)?.rifas?.find((x: { id: string }) => x.id === ressorteio.c.id);
     checa("o calendário da plataforma pede a nova extração", naSessao?.pedeNovaExtracao === true, JSON.stringify(naSessao));
-    const extracao = (b: string[], h: string[]) => ({ bolas: b, horas: h });
+    const extracao = (b: string[], h: string[]) => ({ ...fator(), bolas: b, horas: h });
     const horasDe = (min: number) => Array.from({ length: 6 }, (_, i) => `20:${String(min).padStart(2, "0")}:${String(i * 5).padStart(2, "0")}`);
     const urlExtracao = `/api/admin/sorteios-oficiais/${sessao}/rifas/${ressorteio.c.id}/extracoes`;
     r = await marina.req("POST", urlExtracao, extracao(["0", "0", "0", "2", "2", "2"], horasDe(10)));
@@ -473,6 +484,7 @@ async function main() {
     r = await anon.req("GET", `/api/public/campaigns/${antiga.c.slug}/sorteio`);
     checa("…com a semente publicada e a numeração de 1", r.json?.seed === antiga.seed && r.json?.numero === String(esperado).padStart(4, "0"));
   } finally {
+    await db.update(users).set({ totpSecret: totpAnterior }).where(eq(users.id, adminDb.id));
     await admin.req("PUT", "/api/admin/apuracao/metodos", { liberados: antes });
     await limpar();
   }

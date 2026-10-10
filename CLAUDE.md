@@ -3757,6 +3757,17 @@ coluna ao vivo segue como estava.
 - **Só a plataforma cadastra, muda, cancela e lança o resultado** (403 para
   organizador, no `npm run isolation`). O mesmo concurso da mesma loteria
   não entra duas vezes: quem decide é o índice `uq_sorteio_oficial_concurso`.
+- **Lançar o resultado e registrar nova extração do globo pedem senha E o
+  código do autenticador na hora** (`conferirSegundoFatorAgora()` em
+  `server/services/segundoFator.ts`, depois do recorte e antes de qualquer
+  gravação): é o ato que decide o ganhador de várias rifas, e a sessão aberta
+  sozinha não vale. Sem o segundo fator ligado: 409 `totp_required`; sem senha
+  e código: 401; errados: 401. Cada ato conta uma tentativa por pessoa
+  (`segundo-fator:<id>`, 30 em 10 min, 429), certa ou errada. A tela
+  (`CamposDoSegundoFator`) limpa o código quando erra. O ato sensível novo
+  entra nesta mesma função, não numa cópia. `npm run sorteios` e `npm run
+  apuracao` ligam o segundo fator do administrador só durante a prova e
+  devolvem o que havia.
 - **Integrar é escolher no calendário, e só no rascunho** (`PUT
   /campaigns/:id/sorteio-oficial`, `integrarAoSorteioOficial()`): a data da
   rifa vira a do concurso **no mesmo `UPDATE`**, condicional ao rascunho, com

@@ -358,3 +358,20 @@ Pontos ainda abertos:
 - Responsabilidade supletiva: concordo com o art. 128 do CTN e com a cláusula de comprovação do DARF. Isso fecha.
 
 O que não fecha ainda: a parte contábil depende de um modelo que a resposta do advogado contradiz. Não incorporar "conta própria" ao anexo nem ao parecer contábil até que o advogado descreva a estrutura do modelo B.
+
+---
+
+## Terceira resposta do advogado (10/10/2026) — conferida, ainda não aceita
+
+**Aceito:** a descrição do modelo B (promotora titular, paga a rede direto, plataforma presta gestão com acesso de parceiro, taxa sobre o gasto lido) e a redação do objeto do anexo do modelo B. A redação entra no rascunho do contrato, não em código.
+
+**Não aceito ainda:**
+
+1. **Contradição sobre agência.** Na rodada anterior ele disse que a plataforma não é agência de publicidade. Agora diz que, no modelo A, "a plataforma é a agência" para aplicar o § 1º do art. 718. Não pode ser as duas coisas. Isso afeta quem recolhe o IRRF.
+2. **Solução de Consulta Cosit 30/2022 citada além do que trata.** Pela pesquisa, a SC 30/2022 trata de empresa que veicula propaganda em equipamentos próprios (televisores em pontos de venda). Não trata de plataforma que paga Google, Meta ou TikTok. A conclusão de que o valor da mídia fica fora da base não se sustenta com essa fonte.
+3. **Solução de Consulta Cosit 234/2025 não foi considerada.** Pela pesquisa, ela diz que o IRRF sobre serviços de propaganda deve ser recolhido pela agência beneficiária dos rendimentos. Isso pode mudar quem responde pelo recolhimento, em direção oposta à tese da promotora como responsável. Precisa de leitura integral antes de qualquer cláusula.
+4. **Alíquotas de CBS e IBS (8,7% e 19,5%) não têm fonte.** A pesquisa mostra referências de 8,8% e 17,7% em guias, e a LC 214 manda fixar as alíquotas por resolução do Senado; uma estimativa do CGIBS fala em 27,91%, acima da trava de 26,5%. Não usar valores fixos até a resolução. A LC 214 também foi alterada pela LC 227/2026, a verificar.
+5. **Art. 53, II, da Lei 7.450/1985 "corresponde" ao art. 718, II.** Não confirmado. A pesquisa cita a Lei 7.450 com alíquota de 5%, o que é diferente do 1,5% do RIR/2018.
+6. **ANPD continua sem resposta sobre os contratos.** Ainda não sabemos se Railway, Cloudflare e Chatbase incorporaram o Anexo II sem alterações. Isso é do dono, por meio dos contratos ou dos aditivos.
+
+**Efeito:** a Parte 1 continua aberta no item do IRRF (responsável e base) e nas alíquotas da Reforma Tributária. O modelo B e o objeto do anexo podem avançar como rascunho.

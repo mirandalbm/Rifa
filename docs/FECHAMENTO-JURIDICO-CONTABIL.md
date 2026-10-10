@@ -439,3 +439,31 @@ só fato novo reabre.
 
 Regra de ouro daqui em diante: nenhuma resposta parcial reabre premissa; cada
 resposta entra uma vez, com veredito (aceita, recusada ou pendente).
+
+---
+
+## Respostas definitivas do advogado (10/10/2026) — veredito por item
+
+| # | Item | Veredito | Motivo |
+|---|---|---|---|
+| 1 | Quem recolhe o IRRF | **Recusado como escrito** | Diz "Padrão aplicado: a plataforma, como beneficiária" e, no texto, descreve a promotora retendo e recolhendo. O padrão era a plataforma, por SC 234/2025. A SC 234/2025 não é citada. Precisa de uma única resposta |
+| 2 | Base do IRRF | Aceito, condicionado | Taxa de R$ 100 no modelo B. Citações de SC 223/2024 e do §1º dependem de texto |
+| 3 | Art. 718, II, e IN 1.234/2012 | **Pendente** | Usa a IN 1.234/2012, art. 16, §1º, II, como regra para agência privada. A contadora anterior disse que a IN 1.234 é de órgãos públicos. Contradição a resolver. O "Manual MAFON 2025" e o texto do art. 718 foram dados como conferidos, sem link |
+| 4 | Portaria 7.638/2022 | **Pendente de prova** | Afirma vigência "confirmada" com página "atualizada em 25/08/2026", sem link. A pesquisa anterior indicou listagem como "despublicada". Precisa de captura do DOU ou do ato de revogação |
+| 5 | Cláusulas-padrão ANPD | Aceito como caminho; **depende de você** | O art. 11 da Res. 19/2024 é citado sem texto. A verificação dos contratos é sua |
+| 6 | Objeto do anexo (modelo B) | **Aceito** | Coincide com P1 e P4 |
+
+Decisões do dono:
+- Atividade principal: **73.11-4/00** (aceito, conforme padrão).
+- Domínio e endereço: pendentes.
+- Verificação dos contratos Railway, Cloudflare e Chatbase: pendente.
+- Parecer de direito bancário: recomendado, não contratado.
+
+### Pedido de correção (única rodada, 5 dias úteis)
+1. Item 1: uma resposta só. Se a plataforma é a beneficiária (SC 234/2025), o recolhimento é dela e a promotora não retém. Se a promotora retém, explicar por que a SC 234/2025 não se aplica. Não aceito as duas teses juntas.
+2. Item 3: explicar por que a IN 1.234/2012 se aplica a agência privada, dado o que o contador já registrou. Se não se aplica, retirar a citação.
+3. Item 4: anexar captura do DOU ou do ato de revogação/republicação. Sem isso, a Portaria fica como política da plataforma, não como base legal.
+4. Para todos os itens: link ou captura da fonte oficial. "Conferido" sem fonte não entra no parecer.
+
+### Efeito na Parte 1
+A Parte 1 continua aberta no item 1 (responsável pelo IRRF), que muda a cláusula e o lançamento contábil. Os itens 2, 5 e 6 podem ser redigidos. O item 4 depende de prova. O item 3 depende de resposta. Sem a correção do item 1, a parte contábil não pode ser reemitida.

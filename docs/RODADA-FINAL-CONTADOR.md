@@ -319,3 +319,22 @@ Ele leu o desenho do anexo (`docs/PEDIDO-ANEXO-MODELO-B.md`) e respondeu só no 
 - **Resolvido:** município (V1 = São Paulo).
 - **Do dono:** custo mensal, volume e margem desejada (itens A, C e D do pedido
   anterior), e a decisão sobre razão social e CNPJ.
+
+---
+
+## Quarto retorno do contador (10/10/2026): São Paulo, parecer e CNAE
+
+| Item | O que ele disse | Situação |
+|---|---|---|
+| Município da sede | São Paulo; ISS do item 10.08 a **5%** | **Registrado.** A alíquota de 5% para o 10.08 em São Paulo aparece nas soluções de consulta da prefeitura, que a ligam ao art. 16, III, da Lei 13.701/2003 (redação da Lei 15.406/2011). A citação dele ("art. 14, § 1º") **não confere**; a vigência atual da Lei 15.406/2011 **não conferi**. Para a simulação vale **5%** |
+| Retenção em São Paulo | Cita o Decreto 58.175/2018, art. 47-A, para exigir retenção do tomador PJ não optante do Simples | **A citação está trocada.** O art. 47-A do Decreto 58.175/2018 trata da **base de cálculo** do item 10.08 (receita sem os repasses a terceiros), não da retenção. A regra de retenção de São Paulo é outra (a Lei 14.042/2005 e o cadastro CPOM aparecem nas buscas, mas **não li o texto**). Fica como pendência dele: a fonte certa da retenção |
+| Ação "o sistema deve parametrizar o ISS em 5% com retenção" | Pede que o sistema marque a sede e parametrize o ISS | **Recusada.** O Padrão fechado no segundo retorno vale: o sistema **não calcula nem destaca retenção nem emite NFS-e**; o contador lança à mão. O ISS de 5% é só dado da simulação do parecer |
+| Parecer com campos em aberto | Aceita; sai com `{{RAZAO_SOCIAL}}` e `{{CNPJ}}` | **Fechado** (decorre da decisão do dono de definir depois do lançamento) |
+| Nome "agência" e CDC | Concorda com a observação | **Fechado**; conciliar no parecer conjunto. Anexo: "plataforma de gestão de tráfego pago"; fundamento do CDC no art. 2º, com a ressalva do art. 29 |
+| CNAE | Diz agora que o 63.11-9/00 **não cobre** a gestão de tráfego e recomenda incluir o 73.11-4/00 "como principal ou secundária", ou o 73.19-0/99 | **Contradiz o terceiro retorno** (63.11-9/00 principal, 73.11-4/00 só secundário, nunca principal) e o próprio texto dele no mesmo retorno (diz que o 73.11-4/00 "não é a nossa operação"). Além disso, o 73.19-0/99 é "Outras atividades de publicidade não especificadas anteriormente", não "atividades profissionais, científicas e técnicas". **Aberto até o parecer conjunto**; o CNAE é decisão do cartão CNPJ e não entra no código |
+| Margem desejada | Define como "percentual sobre o custo" | **Não é o que foi pedido.** Pedi a margem **sobre a receita da taxa** (margem), que difere de percentual sobre o custo (markup). O dono precisa dizer qual dos dois quer; a simulação traz os dois |
+
+### O que trava o parecer conjunto
+- **Do dono:** custo mensal, volume e margem desejada (e em qual base).
+- **Do contador:** a fonte certa da retenção em São Paulo, o CNAE (uma só recomendação)
+  e as entregas do encerramento (simulação, plano de contas, tabela de municípios).

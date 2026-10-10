@@ -245,3 +245,13 @@ custo mensal, volume e margem desejada; e a razão social e o CNPJ, que ele pede
 para o parecer e o plano de contas e que o dono deixou para depois do
 lançamento. **Município (São Paulo) já está respondido e precisa ser
 repassado a ele.**
+
+### Contador: município e parecer (10/10/2026)
+
+São Paulo recebido: ISS a **5%** para o item 10.08 (simulação). O parecer sai com
+`{{RAZAO_SOCIAL}}` e `{{CNPJ}}` em aberto. **Recusei** a ação "sistema parametriza
+ISS e retenção" (o sistema não calcula retenção nem emite NFS-e, Padrão do
+segundo retorno). Ficaram abertas com ele: a fonte certa da retenção em São
+Paulo (o art. 47-A do Decreto 58.175/2018 trata da base de cálculo) e o CNAE
+(duas recomendações que se contradizem). Com o dono: custo, volume e margem, e em
+qual base (sobre a receita da taxa ou sobre o custo).

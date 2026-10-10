@@ -1742,7 +1742,9 @@ permite cobrar dela depois, e o aceite é a prova.
 
 - **O webhook nunca perde um pagamento atrás de "duplicado"** (`webhooks.ts`):
   o evento é gravado em `webhook_events` antes de processar, mas só `processed_at`
-  o conclui. Entrega repetida de evento **concluído** é 200 duplicado. Evento
+  o conclui. Entrega repetida de evento **concluído** é 200 duplicado; a de evento **em
+  andamento** (menos de 60 s) é **503** com `Retry-After` — um 200 aí encerraria
+  os reenvios do provedor e, se o processo morreu, o Pix pago se perderia. Evento
   **não concluído** (o processamento falhou, ou o processo caiu no meio) é
   retomado pela entrega seguinte: falha inesperada solta a linha na hora; a que
   parou sem saber por quê espera `PRAZO_DO_PROCESSAMENTO_S` (60 s); quem retoma
@@ -1973,9 +1975,11 @@ quem pagou.
 - **Fila, não log** (`pix_tardios`, `server/services/pixTardio.ts`): uma
   linha por pedido (índice único `uq_pix_tardio_pedido`, `ON CONFLICT DO
   NOTHING` — o webhook repetido não duplica), com o valor, a cobrança e o
-  provedor do pedido. `registrarPixTardio()` **nunca lança**: quem chama é
-  o webhook, e falhar aqui não vira 500 para o provedor. Entra por
-  `markOrderPaid`/`marcarCarrinhoPago` (pedido `expired`) e por
+  provedor do pedido. `registrarPixTardio()` **lança se o banco falhar**: engolir o erro
+  concluía o evento do webhook com o dinheiro sem cota e fora da fila; propagando,
+  o webhook solta o evento e o reenvio do provedor tenta de novo (o `INSERT` é
+  idempotente). Entra por
+  `markOrderPaid`/`marcarCarrinhoPago` (pedido `expired`, inclusive o que venceu entre a leitura e a confirmação) e por
   `settleOrderAsPaid` (rifa sorteada, valor acima de zero).
 - **Só a plataforma vê e resolve** (403 para organizador, no `npm run
   isolation`): o dinheiro passou pela conta dela. Cartão "Pix a devolver"

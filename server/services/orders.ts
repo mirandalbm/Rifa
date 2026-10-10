@@ -1221,6 +1221,13 @@ export async function markOrderPaid(chargeId: string) {
 
   if (!result) {
     const [fresh] = await db.select().from(orders).where(eq(orders.id, order.id));
+    // A reserva venceu entre a leitura e a confirmação (o relógio devolveu as
+    // cotas): o Pix entrou sem cota, e vai para a fila de devolução — antes
+    // este caminho respondia "já pago" e o dinheiro ficava fora de qualquer fila.
+    if (fresh?.status === "expired") {
+      await registrarPixTardio(fresh, "reserva_vencida");
+      throw new OrderError(`Pedido ${fresh.code} está expired.`, 409);
+    }
     return { order: fresh, alreadyPaid: true, prizes: [] as string[] };
   }
 
@@ -1263,6 +1270,10 @@ async function marcarCarrinhoPago(pedidos: (typeof orders.$inferSelect)[]) {
     if (r) {
       pagos++;
       prizes.push(...(await rotuloDosPremios(order.campaignId, r.prizes)));
+    } else {
+      // Venceu entre a leitura e a confirmação: dinheiro sem cota, para a fila.
+      const [agora] = await db.select().from(orders).where(eq(orders.id, order.id));
+      if (agora?.status === "expired") await registrarPixTardio(agora, "reserva_vencida");
     }
   }
   const [fresh] = await db.select().from(orders).where(eq(orders.id, pedidos[0].id));

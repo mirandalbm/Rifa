@@ -125,8 +125,8 @@ async function main() {
     console.log("\n  cinco entregas ao mesmo tempo:");
     const p2 = await novoPedido(3);
     const rs = await Promise.all(Array.from({ length: 5 }, () => postar("dev", { id: "wh-prova-2", chargeId: p2.chargeId, event: "paid" })));
-    checa("todas respondem 200", rs.every((x) => x.status === 200), rs.map((x) => x.status).join(","));
-    checa("…uma processa e as outras são duplicadas", rs.filter((x) => x.json?.duplicate).length === 4, JSON.stringify(rs.map((x) => x.json)));
+    checa("exatamente uma responde 200 processando, as outras 200 ou 503", rs.filter((x) => x.status === 200 && !x.json?.duplicate).length === 1 && rs.every((x) => x.status === 200 || x.status === 503), rs.map((x) => x.status).join(","));
+    checa("…uma processa; as outras 200 duplicado (já concluído) ou 503 (ainda em andamento) — nunca processam de novo", rs.filter((x) => !x.json?.duplicate && !x.json?.emAndamento).length === 1, JSON.stringify(rs.map((x) => x.status)));
     checa("…a venda conta 3 cotas, não 15", (await vendidas()) === 5, `${await vendidas()}`);
 
     /* --------------------- o que não terminou não se perde --------------- */
@@ -151,12 +151,21 @@ async function main() {
       payload: { id: "wh-prova-andando", chargeId: p4.chargeId, event: "paid" },
     });
     r = await postar("dev", { id: "wh-prova-andando", chargeId: p4.chargeId, event: "paid" });
-    checa("evento ainda em andamento (recente): duplicado, não processa em dobro", r.status === 200 && r.json?.duplicate === true, JSON.stringify(r.json));
+    checa("evento ainda em andamento (recente): 503 para o provedor reenviar, não processa em dobro", r.status === 503 && r.json?.emAndamento === true, `HTTP ${r.status}`);
     checa("…o pedido segue pendente", (await pedido(p4.code)).status === "pending");
     await db.update(webhookEvents).set({ createdAt: new Date(Date.now() - 2 * 60_000) }).where(eq(webhookEvents.externalId, "wh-prova-andando"));
     const cinco = await Promise.all(Array.from({ length: 5 }, () => postar("dev", { id: "wh-prova-andando", chargeId: p4.chargeId, event: "paid" })));
-    checa("passado o prazo, cinco retomadas ao mesmo tempo: uma só processa", cinco.filter((x) => !x.json?.duplicate).length === 1, JSON.stringify(cinco.map((x) => x.json?.duplicate)));
+    checa("passado o prazo, cinco retomadas ao mesmo tempo: uma só processa", cinco.filter((x) => x.status === 200 && !x.json?.duplicate).length === 1, JSON.stringify(cinco.map((x) => x.status)));
     checa("…o pedido é pago uma vez", (await pedido(p4.code)).status === "paid" && (await vendidas()) === 7, `${await vendidas()}`);
+
+    console.log("\n  Pix de pedido vencido:");
+    const p5 = await novoPedido(1);
+    await db.update(orders).set({ status: "expired" }).where(eq(orders.code, p5.code));
+    r = await postar("dev", { id: "wh-prova-tarde", chargeId: p5.chargeId, event: "paid" });
+    checa("o Pix de pedido vencido conclui o evento (200)", r.status === 200 && !r.json?.duplicate, JSON.stringify(r.json));
+    const fila = await db.execute(sql`select count(*)::int as n from pix_tardios where order_id = (select id from orders where code = ${p5.code})`);
+    checa("…e o dinheiro vai para a fila de devolução", (fila.rows[0] as any).n === 1);
+    checa("…sem virar cota nem pagar o pedido", (await pedido(p5.code)).status === "expired" && (await vendidas()) === 7);
 
     /* ------------------------- estorno e ignorado ------------------------ */
     console.log("\n  estorno e ignorado:");

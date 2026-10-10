@@ -33,26 +33,24 @@ export class PixTardioError extends Error {
 type PedidoTardio = Pick<typeof orders.$inferSelect, "id" | "code" | "amountCents" | "pspProvider" | "pspChargeId">;
 
 /**
- * Anota o Pix tardio. Nunca lança: quem chama é a confirmação do pagamento
- * (o webhook), e falhar aqui não pode virar 500 para o provedor — o log
- * continua sendo a rede de segurança.
+ * Anota o Pix tardio. **Lança se o banco falhar**: quem chama é a confirmação
+ * do pagamento (o webhook), e engolir o erro concluía o evento com o dinheiro
+ * sem cota e fora da fila — a devolução só existiria num `console.error`. Com
+ * a falha propagada, o webhook solta o evento e o reenvio do provedor tenta de
+ * novo. É idempotente (`uq_pix_tardio_pedido`, `ON CONFLICT DO NOTHING`).
  */
 export async function registrarPixTardio(pedido: PedidoTardio, motivo: MotivoDoPixTardio) {
   console.error(`[pix tardio] Pix do pedido ${pedido.code} confirmado tarde (${motivo}): ${pedido.amountCents} centavos a devolver.`);
-  try {
-    await db
-      .insert(pixTardios)
-      .values({
-        orderId: pedido.id,
-        provider: pedido.pspProvider,
-        chargeId: pedido.pspChargeId,
-        valorCents: pedido.amountCents,
-        motivo,
-      })
-      .onConflictDoNothing();
-  } catch (e) {
-    console.error(`[pix tardio] não consegui anotar o pedido ${pedido.code}:`, e);
-  }
+  await db
+    .insert(pixTardios)
+    .values({
+      orderId: pedido.id,
+      provider: pedido.pspProvider,
+      chargeId: pedido.pspChargeId,
+      valorCents: pedido.amountCents,
+      motivo,
+    })
+    .onConflictDoNothing();
 }
 
 /** A fila: os pendentes primeiro, depois os 50 últimos resolvidos. Sem nome nem telefone de comprador. */

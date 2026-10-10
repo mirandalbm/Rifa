@@ -61,7 +61,19 @@ webhookRouter.post("/:provider", async (req, res) => {
           ),
         )
         .returning({ id: webhookEvents.id });
-      if (!retomada) return res.json({ ok: true, duplicate: true });
+      if (!retomada) {
+        const [vista] = await db
+          .select({ processedAt: webhookEvents.processedAt })
+          .from(webhookEvents)
+          .where(and(eq(webhookEvents.provider, providerName), eq(webhookEvents.externalId, event.externalId)));
+        if (vista?.processedAt) return res.json({ ok: true, duplicate: true });
+        // Em andamento (outra entrega processa, ou o processo caiu há menos do
+        // prazo): NÃO é 2xx. Um 200 aqui encerraria os reenvios do provedor e,
+        // se o processo morreu, o Pix pago nunca viraria cota. 503 faz o
+        // provedor tentar de novo, e a retomada pega depois do prazo.
+        res.setHeader("Retry-After", String(PRAZO_DO_PROCESSAMENTO_S));
+        return res.status(503).json({ message: "Evento em processamento. Tente de novo.", emAndamento: true });
+      }
       eventoId = retomada.id;
     }
 
@@ -78,7 +90,7 @@ webhookRouter.post("/:provider", async (req, res) => {
         // Falha inesperada (banco, rede): solta a linha já, para o reenvio do
         // provedor retomar sem esperar o prazo.
         await db
-        .update(webhookEvents)
+          .update(webhookEvents)
           .set({ createdAt: sql`'epoch'::timestamp` })
           .where(and(eq(webhookEvents.id, eventoId), isNull(webhookEvents.processedAt)))
           .catch(() => {});

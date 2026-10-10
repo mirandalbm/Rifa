@@ -438,3 +438,55 @@ sem retenção, e ISS de promotora de outro município conforme a lei local dela
   IRRF no anexo do modelo B (quem arca com o gross-up e como aparece na nota).
 - Dono: a atividade principal (tráfego ou rifa), a aceitação do custo de 1,52% na
   taxa e a escolha do momento depois do contador.
+
+## 12. Sétima resposta do contador e revisão (10/10/2026): o fluxo do IRRF não fecha
+
+Ele fixa: momento **consumo**, base **R$ 100**, retenção **R$ 1,50**, abastecimento
+**R$ 101,50**, com risco de momento registrado; retira 92.00-3/00 e mantém
+73.11-4/00 como candidato.
+
+### Por que o fluxo não fecha
+A tabela dele lista: abastecimento R$ 101,50; plataforma recebe R$ 98,50; promotora
+recolhe R$ 1,50 ao fisco; saldo remanescente R$ 0,00. Somando:
+- Entra na plataforma: **R$ 101,50**.
+- Sai da plataforma/promotora: **R$ 98,50** (para a plataforma) + **R$ 1,50** (para o fisco) = **R$ 100,00**.
+- **Sobram R$ 1,50 sem destino.** O "saldo remanescente zero" da tabela é falso:
+  101,50 − 100,00 = 1,50 continua no saldo, e ninguém diz para onde vai.
+
+A conta só fecha em duas formas, cada uma com um comprador diferente:
+
+| Forma | Abastecimento | Plataforma fica com | Quem paga o DARF | Quem absorve o IRRF |
+|---|---|---|---|---|
+| Bruta (retenção sai do que a plataforma recebe) | R$ 100,00 | R$ 98,50 | Promotora, dos R$ 100 | Plataforma (perde R$ 1,50) |
+| Líquida (a promotora paga o IRRF por cima) | R$ 101,50 | R$ 100,00 | Promotora, dos R$ 101,50 | Promotora (paga R$ 1,50 a mais) |
+
+A proposta atual mistura as duas e não tem terceira forma: pega a base da líquida
+(R$ 101,50 de abastecimento) e o recebimento da bruta (R$ 98,50). É isso que
+deixa R$ 1,50 solto.
+
+### Momento: risco maior do que o parecer registra
+- A "regra do crédito" que ele atribui ao art. 718, II, **não foi lida** e não
+  está demonstrada na busca. Está registrada como fundamento, o que não pode ser.
+- Se a Receita entender que o momento é o **pagamento** (abastecimento), a
+  retenção de R$ 1,50 **não foi feita** e fica devida pela promotora, como fonte
+  pagadora, com multa e juros. O parecer atual não diz isso. Isso precisa constar
+  como consequência do risco, e não só como risco abstrato.
+
+### CNAE e referências
+- Retirada do 92.00-3/00: de acordo.
+- **"Confirmo a existência e a aplicação"** do art. 718, II, e do art. 209 é uma
+  afirmação sem leitura. Vale como declaração dele, não como verificação.
+- SC Cosit 13/2022: o texto dele diz "não existe para CSRF", o que é ambíguo.
+  A SC existe e trata de outro assunto. Escrever assim no parecer.
+
+### Pendências depois da sétima resposta
+- **Contador:** refazer a tabela até fechar o centavo, escolhendo a forma bruta
+  ou a líquida; dizer quem paga o DARF e de qual valor; dizer o que acontece se a
+  Receita entender que o momento é o abastecimento.
+- **Contador:** prazo de 5 dias úteis para as entregas (até 19/10/2026, contando
+  a partir de 13/10, porque 12/10 é feriado).
+- **Dono:** escolher entre bruta e líquida (é comercial) e informar a atividade
+  principal. Sem isso, a conta não fecha.
+- **Advogado:** a cláusula do IRRF no anexo, com a forma escolhida; e a consulta
+  sobre o momento (abastecimento ou consumo), que o contador não consegue responder
+  com o texto que tem.

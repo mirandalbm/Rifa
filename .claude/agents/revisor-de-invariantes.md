@@ -30,12 +30,17 @@ Procure, nesta ordem, o que é **grave**:
    taxa calculada pela tabela de agora em vez da fotografada na rifa
    (`campaigns.cobranca`) e no pedido (`orders.taxa_*`) — invariante 13;
    taxa Pix cobrada do comprador ou fora do Pix online; volume do mês por
-   `COUNT(*)` em vez de `pix_volume_mensal`; mensalidade ou cartão de volta.
+   `COUNT(*)` em vez de `pix_volume_mensal`; mensalidade ou cartão de volta;
+   leitura da tabela pela `cobranca` crua em vez da vigente
+   (`tabelaDeCobrancaAgora()`), ou aumento que vale sem os 30 dias de aviso
+   (`problemaNaVigencia()`).
 4. **Webhook**: sem idempotência por `(provider, external_id)`; status
    aceito do corpo em vez de consultado ao provedor; redirect do navegador
    tratado como prova de pagamento.
 5. **Estorno** (14): desfazer só parte (cota, contador, comissão, taxa, cota
-   premiada, crédito do presente) ou fora da mesma transação.
+   premiada, crédito do presente) ou fora da mesma transação; taxa da venda
+   que fica, ou taxa Pix decidida fora de `taxaPixFicaNoEstorno()` ou por
+   motivo lido fora da transação do estorno.
 6. **Isolamento** (15): consulta ou rota do painel sem `orgOf(req)`; rota por
    id sem `assertCampaignInScope()`/`assertAffiliateInScope()`; 403 onde
    deveria ser 404 para dado do vizinho; filho conferido **depois** do

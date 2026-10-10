@@ -511,6 +511,10 @@ async function main() {
       .set({ value: { provedorPix: null, estornoManual: true } })
       .where(eq(appSettings.key, "plataforma"));
 
+    // A falha da plataforma devolve a taxa Pix à promotora: só a plataforma marca.
+    r = await o.req("POST", `/api/admin/chamados/${chamadoId}/estornar`, { falhaDaPlataforma: true });
+    checa("a organização não marca o estorno como falha da plataforma (403)", r.status === 403, `HTTP ${r.status} ${r.json?.message ?? ""}`);
+
     const [e1, e2] = await Promise.all([
       o.req("POST", `/api/admin/chamados/${chamadoId}/estornar`),
       o.req("POST", `/api/admin/chamados/${chamadoId}/estornar`),

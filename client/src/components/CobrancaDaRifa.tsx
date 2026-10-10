@@ -8,9 +8,11 @@ import {
   NOME_DO_MODO,
   textoDaFaixa,
   textoPct,
+  dataDaVigencia,
   type CobrancaDaRifa,
   type ConfigCobranca,
   type ModoDeCobranca,
+  type TabelasDaCobranca,
 } from "@shared/cobranca";
 
 /**
@@ -27,12 +29,13 @@ export function CobrancaDaRifaCard({
   const qc = useQueryClient();
   const nome = useId();
   const rascunho = rifa.status === "draft";
-  const { data: tabelaAtual } = useQuery<ConfigCobranca>({
+  const { data: tabelas } = useQuery<TabelasDaCobranca>({
     queryKey: ["/api/admin/cobranca/tabela"],
     enabled: rascunho,
   });
   // Publicada: vale a tabela fotografada, nunca a de hoje.
-  const tabela: ConfigCobranca | undefined = rascunho ? tabelaAtual : (rifa.cobranca ?? undefined);
+  const tabela: ConfigCobranca | undefined = rascunho ? tabelas?.vigente : (rifa.cobranca ?? undefined);
+  const proxima = rascunho ? (tabelas?.proxima ?? null) : null;
   const [modo, setModo] = useState<ModoDeCobranca>(rifa.cobrancaModo === "por_cota" ? "por_cota" : "percentual");
   const [aviso, setAviso] = useState<{ ok: boolean; texto: string } | null>(null);
   useEffect(() => {
@@ -102,6 +105,17 @@ export function CobrancaDaRifaCard({
             </ul>
             <p className="mt-1">As duas taxas saem antes da comissão do afiliado. A escolha trava ao publicar.</p>
           </div>
+        ) : null}
+
+        {proxima ? (
+          <p className="rounded-md bg-yellow-soft px-3 py-2 text-xs">
+            <b>Tabela nova a partir de <span className="tnum">{dataDaVigencia(proxima.vigenteEm)}</span>:</b>{" "}
+            publicada desse dia em diante, a rifa grava{" "}
+            <span className="tnum">
+              {textoPct(proxima.tabela.percentualPct)} de cada venda ou {formatBRL(proxima.tabela.porCotaCents)} por cota
+            </span>
+            , com as faixas Pix novas. Publicada antes, segue a de hoje.
+          </p>
         ) : null}
 
         {rascunho ? (

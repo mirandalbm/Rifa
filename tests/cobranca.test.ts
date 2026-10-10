@@ -14,7 +14,16 @@ import {
   configCobrancaGuardada,
   CONFIG_COBRANCA_PADRAO,
   TAXA_ZERO,
+  aumentaAlgumaTaxa,
+  primeiroDiaComAviso,
+  problemaNaVigencia,
+  tabelaVigente,
+  tabelasDeCobranca,
+  tabelaAgendadaGuardada,
+  hojeEmSaoPaulo,
+  dataDaVigencia,
   type CobrancaDaRifa,
+  type ConfigCobranca,
 } from "../shared/cobranca";
 import { splitOrder } from "../shared/pricing";
 import { percentualDoPromotor } from "../shared/plataforma";
@@ -234,5 +243,91 @@ describe("crédito do presente", () => {
     // Taxa de 333 sobre 10.000; presente de 1.000: a taxa nele é 33 (33,3 para baixo).
     const c = creditoDoPresente({ presenteCents: 1_000, platformPct: 0, commissionPct: 0, comissaoGuardada: false, taxa: { cents: 333, totalCents: 10_000 } });
     expect(c).toBe(967);
+  });
+});
+
+describe("estorno (cláusula X.10)", () => {
+  it("o motivo sai do chamado; sem chamado, é o provedor", async () => {
+    const { motivoDoEstorno } = await import("../shared/cobranca");
+    expect(motivoDoEstorno(null)).toBe("provedor");
+    expect(motivoDoEstorno({ tipoReembolso: "arrependimento", falhaPlataforma: false })).toBe("arrependimento");
+    expect(motivoDoEstorno({ tipoReembolso: null, falhaPlataforma: false })).toBe("arrependimento");
+    expect(motivoDoEstorno({ tipoReembolso: "com_taxa", falhaPlataforma: false })).toBe("com_taxa");
+    expect(motivoDoEstorno({ tipoReembolso: "adiamento", falhaPlataforma: false })).toBe("adiamento");
+    expect(motivoDoEstorno({ tipoReembolso: "com_taxa", falhaPlataforma: true })).toBe("falha_plataforma");
+  });
+
+  it("a taxa Pix só volta no arrependimento e na falha da plataforma", async () => {
+    const { taxaPixFicaNoEstorno } = await import("../shared/cobranca");
+    expect(taxaPixFicaNoEstorno("arrependimento")).toBe(false);
+    expect(taxaPixFicaNoEstorno("falha_plataforma")).toBe(false);
+    expect(taxaPixFicaNoEstorno("com_taxa")).toBe(true);
+    expect(taxaPixFicaNoEstorno("adiamento")).toBe(true);
+    expect(taxaPixFicaNoEstorno("provedor")).toBe(true);
+  });
+});
+
+describe("tabela agendada (cláusula X.3, parágrafo único)", () => {
+  const atual: ConfigCobranca = { percentualPct: 5, porCotaCents: 30, faixasPix: FAIXAS };
+  // 10/10/2026, 15h em Brasília.
+  const agora = new Date("2026-10-10T18:00:00Z");
+
+  it("o dia é o de Brasília, e 30 dias de aviso são 30 dias inteiros", () => {
+    expect(hojeEmSaoPaulo(new Date("2026-10-11T02:30:00Z"))).toBe("2026-10-10");
+    expect(primeiroDiaComAviso(agora)).toBe("2026-11-10");
+    // À meia-noite e um de Brasília, o próprio dia + 30 ainda tem 30 dias inteiros.
+    expect(primeiroDiaComAviso(new Date("2026-10-10T03:00:00Z"))).toBe("2026-11-09");
+    expect(dataDaVigencia("2026-11-10")).toBe("10/11/2026");
+  });
+
+  it("aumento é qualquer valor que sobe, inclusive a taxa Pix numa faixa só", () => {
+    expect(aumentaAlgumaTaxa(atual, atual)).toBe(false);
+    expect(aumentaAlgumaTaxa(atual, { ...atual, percentualPct: 4 })).toBe(false);
+    expect(aumentaAlgumaTaxa(atual, { ...atual, percentualPct: 5.01 })).toBe(true);
+    expect(aumentaAlgumaTaxa(atual, { ...atual, porCotaCents: 31 })).toBe(true);
+    // Baixar o teto da primeira faixa empurra as transações 51 a 100 para 1,5%: redução.
+    expect(aumentaAlgumaTaxa(atual, { ...atual, faixasPix: [{ ate: 50, pct: 2 }, { ate: 1000, pct: 1.5 }, { ate: null, pct: 1 }] })).toBe(false);
+    // Subir o teto da primeira faixa deixa as transações 101 a 200 em 2%: aumento.
+    expect(aumentaAlgumaTaxa(atual, { ...atual, faixasPix: [{ ate: 200, pct: 2 }, { ate: 1000, pct: 1.5 }, { ate: null, pct: 1 }] })).toBe(true);
+    // Uma faixa só, mais alta que a última de antes.
+    expect(aumentaAlgumaTaxa(atual, { ...atual, faixasPix: [{ ate: null, pct: 1.2 }] })).toBe(true);
+  });
+
+  it("redução vale na hora; aumento exige 30 dias, salvo sem promotora com contrato", () => {
+    const menor = { ...atual, percentualPct: 4 };
+    const maior = { ...atual, percentualPct: 6 };
+    const base = { antes: atual, agora, comPromotoras: true };
+    expect(problemaNaVigencia({ ...base, depois: menor, vigenteEm: null })).toBeNull();
+    expect(problemaNaVigencia({ ...base, depois: maior, vigenteEm: null })).toMatch(/30 dias de aviso.*10\/11\/2026/);
+    expect(problemaNaVigencia({ ...base, depois: maior, vigenteEm: "2026-11-09" })).toMatch(/30 dias/);
+    expect(problemaNaVigencia({ ...base, depois: maior, vigenteEm: "2026-11-10" })).toBeNull();
+    expect(problemaNaVigencia({ ...base, comPromotoras: false, depois: maior, vigenteEm: null })).toBeNull();
+  });
+
+  it("a data é conferida: formato, dia que existe, futuro e até um ano", () => {
+    const base = { antes: atual, depois: atual, agora, comPromotoras: true };
+    expect(problemaNaVigencia({ ...base, vigenteEm: "10/11/2026" })).toMatch(/inválida/);
+    expect(problemaNaVigencia({ ...base, vigenteEm: "2026-02-30" })).toMatch(/inválida/);
+    expect(problemaNaVigencia({ ...base, vigenteEm: "2026-10-10" })).toMatch(/futuro/);
+    expect(problemaNaVigencia({ ...base, vigenteEm: "2027-12-01" })).toMatch(/365 dias/);
+    expect(problemaNaVigencia({ ...base, vigenteEm: "2026-10-11" })).toBeNull();
+  });
+
+  it("a agendada passa a valer à meia-noite de Brasília do dia marcado", () => {
+    const nova = { ...atual, percentualPct: 6 };
+    const proxima = { vigenteEm: "2026-11-10", tabela: nova };
+    expect(tabelaVigente(atual, proxima, new Date("2026-11-10T02:59:59Z"))).toBe(atual);
+    expect(tabelaVigente(atual, proxima, new Date("2026-11-10T03:00:00Z"))).toBe(nova);
+    expect(tabelaVigente(atual, null, agora)).toBe(atual);
+    expect(tabelasDeCobranca(atual, proxima, agora)).toEqual({ vigente: atual, proxima });
+    // Já valendo, não é mais "a próxima".
+    expect(tabelasDeCobranca(atual, proxima, new Date("2026-11-11T12:00:00Z"))).toEqual({ vigente: nova, proxima: null });
+  });
+
+  it("a agendada guardada fora da régua some, sem derrubar a configuração", () => {
+    expect(tabelaAgendadaGuardada(null)).toBeNull();
+    expect(tabelaAgendadaGuardada({ vigenteEm: "amanhã", tabela: atual })).toBeNull();
+    expect(tabelaAgendadaGuardada({ vigenteEm: "2026-11-10", tabela: { percentualPct: 500 } })).toBeNull();
+    expect(tabelaAgendadaGuardada({ vigenteEm: "2026-11-10", tabela: atual, extra: 1 })).toEqual({ vigenteEm: "2026-11-10", tabela: atual });
   });
 });

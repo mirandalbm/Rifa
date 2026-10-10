@@ -1401,6 +1401,11 @@ export const chamados = pgTable(
      * nos chamados anteriores a esta regra: devolução integral.
      */
     tipoReembolso: text("tipo_reembolso"),
+    /**
+     * A plataforma marcou o estorno como falha dela (só ela marca, ao fazer a
+     * devolução): a taxa Pix volta à promotora (`taxaPixFicaNoEstorno()`).
+     */
+    falhaPlataforma: boolean("falha_plataforma").notNull().default(false),
     taxaPct: integer("taxa_pct"),
     taxaCents: integer("taxa_cents"),
     devolverCents: integer("devolver_cents"),

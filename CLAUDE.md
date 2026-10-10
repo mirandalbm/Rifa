@@ -62,10 +62,13 @@ arquitetura.
     (`campaigns.cobranca_modo`, trava ao publicar); `publishCampaign()`
     grava a tabela da plataforma daquele dia na rifa (`campaigns.cobranca`)
     e o pedido grava a taxa dele (`taxaDoPedido()`), com a faixa do Pix pelo
-    volume do mês. Mudar a tabela não mexe em rifa publicada nem em pedido.
-    Não existe mensalidade nem cartão — só Pix (`shared/cobranca.ts`).
+    volume do mês. Mudar a tabela não mexe em rifa publicada nem em pedido,
+    e aumentar qualquer taxa exige 30 dias de aviso (tabela agendada,
+    `problemaNaVigencia()`). Não existe mensalidade nem cartão — só Pix
+    (`shared/cobranca.ts`).
 14. **Estorno desfaz tudo, ou não desfaz nada.** `refundOrder()` devolve cota,
-    contador, comissão, taxa da plataforma, cota premiada e o crédito do
+    contador, comissão, taxa da plataforma (a da venda sempre; a do Pix pelo
+    motivo, `taxaPixFicaNoEstorno()`), cota premiada e o crédito do
     presente na mesma transação. Desfazer cinco das seis não dá erro — vira
     comissão paga a quem não vendeu, ou número que some do estoque. `npm run
     refund` prova (e `npm run presente`, o crédito).
@@ -118,7 +121,7 @@ arquitetura.
 | Pix que chegou tarde (reserva vencida ou depois do sorteio): fila de devolução | `shared/pixTardio.ts`, `server/services/pixTardio.ts`, `/pix-tardios*` em `server/routes/admin.ts`, `client/src/components/PixTardios.tsx` (em Pedidos), tipo `pix_tardio` em `shared/caixa.ts`, `scripts/pix-tardio-test.ts` |
 | pedido de reembolso (chamado) | `shared/chamados.ts`, `server/services/chamados.ts`, `client/src/pages/adminAtendimento.tsx`, `scripts/chamados-test.ts` |
 | disputa de reembolso (palavra final da plataforma) | `bloqueioDaDisputa()` em `shared/chamados.ts`, `abrirDisputa()`/`decidirDisputa()` em `server/services/chamados.ts`, `scripts/disputa-test.ts` |
-| cobrança da plataforma (percentual ou por cota escolhido por rifa, taxa Pix em faixas pelo volume do mês, tabela do master) | `shared/cobranca.ts` (regras), `campaigns.cobranca_modo`/`cobranca` e `orders.taxa_*` em `shared/schema.ts`, `pix_volume_mensal`, `publishCampaign()` em `server/services/campaigns.ts` (a fotografia), `prepararPedido`/`settleOrderAsPaid` em `server/services/orders.ts`, `shared/billing.ts` e `server/services/billing.ts` (o lançamento), `/cobranca/tabela` em `server/routes/admin.ts`, `client/src/pages/adminCobranca.tsx`, `client/src/components/CobrancaDaRifa.tsx` (na aba "A rifa"), `scripts/cobranca-test.ts`, `tests/cobranca.test.ts` |
+| cobrança da plataforma (percentual ou por cota escolhido por rifa, taxa Pix em faixas pelo volume do mês, tabela do master, a tabela agendada com o aviso de 30 dias, a taxa Pix no estorno) | `shared/cobranca.ts` (regras; `tabelaVigente`/`problemaNaVigencia`, `motivoDoEstorno`/`taxaPixFicaNoEstorno`), `tabelaDeCobrancaAgora()` em `server/services/settings.ts`, `refundOrder()` em `server/services/orders.ts` e a caixa "Falha da plataforma" em `client/src/pages/adminAtendimento.tsx` (o estorno), o aviso no sino (`rotuloDoSino()`, `PanelShell`), `campaigns.cobranca_modo`/`cobranca` e `orders.taxa_*` em `shared/schema.ts`, `pix_volume_mensal`, `publishCampaign()` em `server/services/campaigns.ts` (a fotografia), `prepararPedido`/`settleOrderAsPaid` em `server/services/orders.ts`, `shared/billing.ts` e `server/services/billing.ts` (o lançamento), `/cobranca/tabela` em `server/routes/admin.ts`, `client/src/pages/adminCobranca.tsx`, `client/src/components/CobrancaDaRifa.tsx` (na aba "A rifa"), `scripts/cobranca-test.ts`, `tests/cobranca.test.ts` |
 | exportações | `shared/exports.ts` (formato) e `server/services/exports.ts` (consultas) |
 | usuários, senha e arquivamento | `server/routes/admin.ts` (`/usuarios`, `/organizacoes/:id/arquivar`), `shared/senha.ts` |
 | o que falta para vender em produção | `docs/PENDENCIAS.md` — **atualize no mesmo PR** que fechar um item |
@@ -1772,8 +1775,26 @@ promotor. **A ordem é sempre esta, e a plataforma sai primeiro.**
     sobem e a taxa nunca sobe — `validarFaixasPix()`). Descontada da
     organização, **nunca de quem compra**: o comprador paga o preço da rifa.
 - **A tabela é do master** (`GET`/`PUT /admin/cobranca/tabela`, só as chaves
-  conhecidas; a organização lê, 403 para mudar, no `npm run isolation`).
-  Mudar a tabela vale para as rifas publicadas dali em diante.
+  conhecidas; a organização lê, 403 para mudar e para cancelar o
+  agendamento, no `npm run isolation`). Mudar a tabela vale para as rifas
+  publicadas dali em diante.
+- **Aumentar exige 30 dias de aviso; reduzir vale na hora** (cláusula X.3,
+  parágrafo único; `problemaNaVigencia()`, 422). A tabela nova vai com a
+  data em que passa a valer (`vigenteEm`, `aaaa-mm-dd` de Brasília, até 365
+  dias) e fica em `cobrancaProxima` (`shared/plataforma.ts`) até a
+  meia-noite daquele dia; quem lê a tabela (publicação, pacotes,
+  demonstração, extrato) lê a **vigente** (`tabelaDeCobrancaAgora()`,
+  `tabelaVigente()`), nunca a `cobranca` crua. Aumento é qualquer valor que
+  sobe para alguma promotora — percentual, por cota ou a taxa Pix em
+  qualquer volume do mês (`aumentaAlgumaTaxa()`, conferida no começo de
+  cada degrau das duas tabelas). **Antes de qualquer promotora aceitar o
+  contrato** (nenhuma linha em `contrato_promotora_aceites`) não há a quem
+  avisar: é a montagem da tabela, e vale na hora. Mudar agora descarta a
+  agendada; agendar de novo a troca; a plataforma cancela pelo `DELETE
+  /admin/cobranca/tabela/proxima` (409 se já está valendo). As organizações
+  são avisadas no sino ("tabela de cobrança nova a partir de…", até o dia),
+  na Cobrança e no cartão da rifa em rascunho. Toda mudança vai à auditoria
+  (`cobranca.tabela`, `.agendada`, `.agendada.cancelar`).
 - **O pedido fotografa a taxa quando nasce** (`orders.taxa_modo`,
   `taxa_venda_bp`, `taxa_por_cota_cents`, `taxa_pix_bp`; `taxaDoPedido()`),
   com a faixa do volume naquele instante — a leitura do contador é a faixa
@@ -1833,8 +1854,23 @@ mesmo: desfazer quatro e esquecer a quinta. O que sobra não dá erro — vira
 comissão paga por venda que voltou, ou número que some do estoque.
 
 - **Tudo na mesma transação**: cota, `campaign_stats`, comissão
-  (`reversed`), taxa da plataforma (`cancelada`) e a cota premiada que aquele
-  pedido tinha reclamado.
+  (`reversed`), taxa da plataforma e a cota premiada que aquele pedido tinha
+  reclamado.
+- **A taxa da venda é sempre cancelada; a do Pix depende do motivo**
+  (cláusula X.10, `motivoDoEstorno()`/`taxaPixFicaNoEstorno()` em
+  `shared/cobranca.ts`). A taxa Pix **fica** no reembolso com taxa, no
+  adiamento (é pedido da promotora) e na devolução avisada pelo provedor sem
+  chamado (MED, contestação) — custo de transação já incorrido; **volta** no
+  arrependimento (até 7 dias) e quando a plataforma marca o estorno como
+  **falha da plataforma** (`chamados.falha_plataforma`, caixa só da
+  plataforma no Atendimento; o organizador que manda a marca é 403). O
+  motivo é lido **dentro da transação do estorno**, do chamado já
+  `estornado` (gravado antes de chamar o provedor) — o webhook que chega no
+  meio lê o mesmo. A linha que fica passa a ter só a taxa Pix
+  (`vendaCents` 0) e, se estava `retida` no split, volta a `aberta`: a
+  devolução do provedor desfez o split. O volume do mês não desconta. A
+  coluna `chamados.falha_plataforma` sobe com o `db:push` **antes** do
+  código. `npm run cobranca` prova os três caminhos.
 - **A cota só volta se a rifa ainda não foi sorteada.** Depois do sorteio o
   quadro está congelado: quem conferir o resultado precisa encontrar
   exatamente o que existia quando o número saiu. Aí o estorno vira só

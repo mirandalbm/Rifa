@@ -22,7 +22,7 @@ import { CORES_DO_SELO_PADRAO, validarCoresDoSelo, type CoresDoSelo } from "./ve
 import { idDoCanal } from "./aoVivo";
 import { LOTERIAS, type Loteria } from "./sorteiosOficiais";
 import { METODOS_LIBERADOS_PADRAO, metodosLiberadosGuardados, type MetodoDeApuracao } from "./apuracao";
-import { CONFIG_COBRANCA_PADRAO, configCobrancaGuardada, type ConfigCobranca } from "./cobranca";
+import { CONFIG_COBRANCA_PADRAO, configCobrancaGuardada, tabelaAgendadaGuardada, type ConfigCobranca, type TabelaAgendada } from "./cobranca";
 
 export const PROVEDORES_PIX = ["mercadopago", "asaas"] as const;
 export type ProvedorPix = (typeof PROVEDORES_PIX)[number];
@@ -155,6 +155,11 @@ export interface ConfigPlataforma {
    * Nasce zerada; cada rifa fotografa a tabela do dia ao publicar.
    */
   cobranca: ConfigCobranca;
+  /**
+   * A tabela nova agendada (cláusula X.3, parágrafo único): vale a partir do
+   * dia dela (`tabelaVigente()`); aumento só com 30 dias de aviso.
+   */
+  cobrancaProxima: TabelaAgendada | null;
 }
 
 /**
@@ -242,6 +247,7 @@ export const CONFIG_PADRAO: ConfigPlataforma = {
   trafegoPago: CONFIG_TRAFEGO_PADRAO,
   assistenteIA: CONFIG_IA_PADRAO,
   cobranca: CONFIG_COBRANCA_PADRAO,
+  cobrancaProxima: null,
 };
 
 /** Só as chaves conhecidas: isto vem do corpo da requisição. */
@@ -285,6 +291,7 @@ export function validarConfigPlataforma(entrada: Partial<ConfigPlataforma>): Con
     // Guardada que não passe mais na régua volta à tabela padrão, sem
     // derrubar o resto da configuração (a rota da tabela valida antes).
     cobranca: configCobrancaGuardada(entrada.cobranca),
+    cobrancaProxima: tabelaAgendadaGuardada(entrada.cobrancaProxima),
   };
 }
 

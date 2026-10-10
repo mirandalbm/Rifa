@@ -683,9 +683,14 @@ export async function concluirChamado(
  * cotas, comissão e taxa. Venda do cambista não tem provedor: o sistema
  * desfaz o registro e a devolução é feita à mão (caixa ou Pix informado).
  */
-export async function executarEstorno(req: Request, id: string) {
+export async function executarEstorno(req: Request, id: string, opcoes: { falhaDaPlataforma?: boolean } = {}) {
   // O recorte vem antes da chave: o chamado do vizinho é 404, sempre.
   const c = await chamadoNoRecorte(req, id);
+  // A falha da plataforma devolve a taxa Pix à promotora (`taxaPixFicaNoEstorno`):
+  // só a própria plataforma reconhece a falha dela.
+  if (opcoes.falhaDaPlataforma && orgOf(req)) {
+    throw new ChamadoError("Só a plataforma marca o estorno como falha dela.", 403);
+  }
   if (!(await getPlataforma()).estornoManual) {
     throw new ChamadoError("O estorno está desligado nas configurações da plataforma.", 403);
   }
@@ -693,7 +698,7 @@ export async function executarEstorno(req: Request, id: string) {
 
   const [tomado] = await db
     .update(chamados)
-    .set({ status: "estornado", estornadoEm: new Date() })
+    .set({ status: "estornado", estornadoEm: new Date(), falhaPlataforma: Boolean(opcoes.falhaDaPlataforma) })
     .where(and(eq(chamados.id, c.id), eq(chamados.status, "aprovado")))
     .returning();
   if (!tomado) {
@@ -722,7 +727,7 @@ export async function executarEstorno(req: Request, id: string) {
     }
   } catch (err) {
     // Provedor recusou: nada foi devolvido, então o chamado volta a aprovado.
-    await db.update(chamados).set({ status: "aprovado", estornadoEm: null }).where(eq(chamados.id, c.id));
+    await db.update(chamados).set({ status: "aprovado", estornadoEm: null, falhaPlataforma: false }).where(eq(chamados.id, c.id));
     throw new ChamadoError(`O provedor recusou a devolução: ${(err as Error).message}`, 502);
   }
 

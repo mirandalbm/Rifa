@@ -38,7 +38,7 @@ import {
 } from "@shared/campanhaLegal";
 import { problemaNoBonusMax } from "@shared/bonus";
 import { PROBLEMA_NO_TOTAL, loteriaDoMetodo, numeracaoZero, problemaNoMetodo, totalDaApuracao, type MetodoDeApuracao } from "@shared/apuracao";
-import { getPlataforma } from "./settings";
+import { getPlataforma, tabelaDeCobrancaAgora } from "./settings";
 import { cobrancaNaPublicacao, problemaNaCobranca, validarModo } from "@shared/cobranca";
 import { problemaNoPremio } from "@shared/premio";
 import { problemaDoValeBrinde } from "@shared/premiadas";
@@ -238,7 +238,7 @@ export async function publishBlockers(campaignId: string): Promise<string[]> {
   // A cobrança escolhida tem de caber no preço da cota (por cota acima do
   // preço levaria a venda inteira e mais).
   const pacotes = await db.select().from(quotaPackages).where(eq(quotaPackages.campaignId, campaignId));
-  const cobranca = problemaNaCobranca(validarModo(campaign.cobrancaModo), (await getPlataforma()).cobranca, campaign.priceCents, pacotes);
+  const cobranca = problemaNaCobranca(validarModo(campaign.cobrancaModo), await tabelaDeCobrancaAgora(), campaign.priceCents, pacotes);
   if (cobranca) blockers.push(cobranca);
 
   return blockers;
@@ -289,6 +289,8 @@ export async function publishCampaign(campaignId: string): Promise<Campaign> {
   // Lidos antes da transação: dentro dela, só o `tx`.
   const plataforma = await getPlataforma();
   const liberados = plataforma.metodosDeApuracao;
+  // A tabela que vale hoje (a agendada, se o dia dela chegou) é a que a rifa grava.
+  const tabelaDoDia = await tabelaDeCobrancaAgora();
   return db.transaction(async (tx) => {
     // A ordem das travas é sempre sorteio oficial → rifa (a mesma de integrar
     // e de mudar o sorteio): primeiro o sorteio em que a rifa está, depois a
@@ -365,7 +367,7 @@ export async function publishCampaign(campaignId: string): Promise<Campaign> {
     // depois da conferência de fora). A tabela do dia fica fotografada na rifa.
     const modo = validarModo(campaign.cobrancaModo);
     const pacotes = await tx.select().from(quotaPackages).where(eq(quotaPackages.campaignId, campaignId));
-    const cobranca = problemaNaCobranca(modo, plataforma.cobranca, campaign.priceCents, pacotes);
+    const cobranca = problemaNaCobranca(modo, tabelaDoDia, campaign.priceCents, pacotes);
     if (cobranca) throw new CampaignRuleError(cobranca);
 
     const { seed, seedHash } = commitSeed();
@@ -400,7 +402,7 @@ export async function publishCampaign(campaignId: string): Promise<Campaign> {
         // "Quando completar": a data registrada é a máxima (8.7); encher antes
         // só antecipa `draw_at`, e esta fica de referência.
         drawAtMaximo: campaign.modoSorteio === "quando_completar" ? campaign.drawAt : null,
-        cobranca: cobrancaNaPublicacao(modo, plataforma.cobranca),
+        cobranca: cobrancaNaPublicacao(modo, tabelaDoDia),
         publicarEm: null,
         publicacaoAgendadaFalha: null,
       })
@@ -719,7 +721,7 @@ export async function marcarDemonstracao(campaignId: string, ligado: boolean) {
   // cobrança fotografada: desmarcada, ela passa a vender, então ganha a
   // tabela do dia aqui (`shared/cobranca.ts`) — senão venderia sem taxa. Por
   // cota igual ou maior que o preço da cota não desmarca.
-  const tabela = (await getPlataforma()).cobranca;
+  const tabela = await tabelaDeCobrancaAgora();
   const r = await db.execute(sql`
     UPDATE campaigns
        SET demonstracao = ${ligado}::boolean,

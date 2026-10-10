@@ -16,8 +16,11 @@ import {
   POR_COTA_MAX_CENTS,
   textoDaFaixa,
   textoPct,
+  dataDaVigencia,
   type ConfigCobranca,
   type FaixaPix,
+  type TabelaAgendada,
+  type TabelasDaCobranca,
 } from "@shared/cobranca";
 
 interface LinhaCarteira {
@@ -34,6 +37,8 @@ interface LinhaCarteira {
 
 interface Extrato {
   tabela: ConfigCobranca;
+  /** A tabela agendada que ainda não vale (cláusula X.3). */
+  proxima: TabelaAgendada | null;
   totais: { abertoCents: number; pagoCents: number; retidaCents: number };
   creditos: { devidoCents: number; pagoCents: number };
   linhas: {
@@ -50,6 +55,7 @@ interface Extrato {
       createdAt: string;
     };
     orderCode: number | null;
+    pedidoStatus: string | null;
     campanha: string | null;
   }[];
 }
@@ -73,7 +79,9 @@ function DeOndeVeio({ l }: { l: LinhaDoExtrato }) {
       {c.modo === "percentual" && c.pct ? <span className="tnum text-muted"> · {textoPct(c.pct / 100)}</span> : null}
       {c.modo === "por_cota" ? <span className="text-muted"> · por cota</span> : null}
       {l.campanha ? <span className="block text-[11px] text-muted">{l.campanha}</span> : null}
-      {c.pixCents > 0 ? (
+      {l.pedidoStatus === "refunded" && c.status !== "cancelada" ? (
+        <span className="block text-[11px] text-muted">pedido estornado: fica só a taxa Pix</span>
+      ) : c.pixCents > 0 ? (
         <span className="block text-[11px] text-muted">
           venda <Money cents={c.vendaCents} /> + Pix <Money cents={c.pixCents} />
         </span>
@@ -262,23 +270,29 @@ const emReais = (c: number) => (c / 100).toFixed(2);
 const deReais = (v: string) => Math.round(Number(v.replace(",", ".")) * 100);
 
 /**
- * A tabela de cobrança da plataforma. Vale para as rifas publicadas daqui em
- * diante: a rifa publicada guardou a dela, e o pedido, a dele.
+ * A tabela de cobrança da plataforma. Vale para as rifas publicadas a partir
+ * da vigência: a rifa publicada guardou a dela, e o pedido, a dele. Reduzir
+ * vale na hora; aumentar exige agendar com 30 dias de aviso (cláusula X.3),
+ * salvo antes de qualquer promotora ter aceitado o contrato.
  */
 function TabelaDeCobranca() {
   const qc = useQueryClient();
-  const { data } = useQuery<ConfigCobranca>({ queryKey: ["/api/admin/cobranca/tabela"] });
+  const { data } = useQuery<TabelasDaCobranca>({ queryKey: ["/api/admin/cobranca/tabela"] });
   const [pct, setPct] = useState("0");
   const [porCota, setPorCota] = useState("0.00");
   const [faixas, setFaixas] = useState<{ ate: string; pct: string }[]>([{ ate: "", pct: "0" }]);
+  const [vigenteEm, setVigenteEm] = useState("");
   const [msg, setMsg] = useState<{ ok: boolean; texto: string } | null>(null);
 
   useEffect(() => {
     if (!data) return;
-    setPct(String(data.percentualPct));
-    setPorCota(emReais(data.porCotaCents));
-    setFaixas(data.faixasPix.map((f) => ({ ate: f.ate === null ? "" : String(f.ate), pct: String(f.pct) })));
+    const t = data.vigente;
+    setPct(String(t.percentualPct));
+    setPorCota(emReais(t.porCotaCents));
+    setFaixas(t.faixasPix.map((f) => ({ ate: f.ate === null ? "" : String(f.ate), pct: String(f.pct) })));
   }, [data]);
+
+  const recarregar = () => qc.invalidateQueries({ queryKey: ["/api/admin/cobranca/tabela"] });
 
   const salvar = useMutation({
     mutationFn: () => {
@@ -290,11 +304,27 @@ function TabelaDeCobranca() {
         percentualPct: Number(pct.replace(",", ".")),
         porCotaCents: deReais(porCota),
         faixasPix,
+        ...(vigenteEm ? { vigenteEm } : {}),
       });
     },
     onSuccess: () => {
-      setMsg({ ok: true, texto: "Tabela salva. Vale para as rifas publicadas daqui em diante." });
-      qc.invalidateQueries({ queryKey: ["/api/admin/cobranca/tabela"] });
+      setMsg({
+        ok: true,
+        texto: vigenteEm
+          ? `Tabela agendada para ${dataDaVigencia(vigenteEm)}. As organizações são avisadas no painel.`
+          : "Tabela salva. Vale para as rifas publicadas daqui em diante.",
+      });
+      setVigenteEm("");
+      recarregar();
+    },
+    onError: (err: Error) => setMsg({ ok: false, texto: err.message }),
+  });
+
+  const cancelar = useMutation({
+    mutationFn: () => apiRequest("DELETE", "/api/admin/cobranca/tabela/proxima"),
+    onSuccess: () => {
+      setMsg({ ok: true, texto: "Agendamento cancelado. Segue valendo a tabela atual." });
+      recarregar();
     },
     onError: (err: Error) => setMsg({ ok: false, texto: err.message }),
   });
@@ -372,10 +402,26 @@ function TabelaDeCobranca() {
           </Button>
         </fieldset>
 
+        <Campo
+          rotulo="Vale a partir de (opcional)"
+          dica={
+            data
+              ? `Vazio: vale agora. Reduzir pode valer na hora; aumentar qualquer taxa exige ${data.avisoDias} dias de aviso às organizações — a partir de ${dataDaVigencia(data.primeiroDiaComAviso)}.`
+              : undefined
+          }
+        >
+          <input type="date" value={vigenteEm} onChange={(e) => setVigenteEm(e.target.value)} className="campo tnum" />
+        </Campo>
+
         <div className="flex flex-wrap items-center gap-3">
           <Button type="submit" disabled={salvar.isPending}>
-            Salvar tabela
+            {vigenteEm ? "Agendar tabela" : "Salvar tabela"}
           </Button>
+          {data?.proxima ? (
+            <span className="text-xs text-muted">
+              {vigenteEm ? "Agendar de novo troca a agendada." : "Salvar sem data descarta a tabela agendada."}
+            </span>
+          ) : null}
           {msg ? (
             <span role="status" className={`text-sm ${msg.ok ? "text-green-deep" : "text-red"}`}>
               {msg.texto}
@@ -383,7 +429,28 @@ function TabelaDeCobranca() {
           ) : null}
         </div>
       </form>
-      {data ? <ResumoDaTabela tabela={data} /> : null}
+      {data ? (
+        <>
+          <p className="px-4 pt-2 text-sm font-medium">Em vigor</p>
+          <ResumoDaTabela tabela={data.vigente} />
+        </>
+      ) : null}
+      {data?.proxima ? (
+        <div className="border-t border-line">
+          <div className="flex flex-wrap items-center justify-between gap-2 px-4 pt-3">
+            <p className="text-sm font-medium">
+              <Pill status="reserved">agendada</Pill>{" "}
+              <span className="ml-1">
+                A partir de <span className="tnum">{dataDaVigencia(data.proxima.vigenteEm)}</span>
+              </span>
+            </p>
+            <Button variant="ghost" onClick={() => cancelar.mutate()} disabled={cancelar.isPending}>
+              Cancelar agendamento
+            </Button>
+          </div>
+          <ResumoDaTabela tabela={data.proxima.tabela} />
+        </div>
+      ) : null}
     </Card>
   );
 }
@@ -414,6 +481,16 @@ function MinhaConta() {
           />
         ) : null}
       </div>
+
+      {data?.proxima ? (
+        <Card title={`Tabela nova a partir de ${dataDaVigencia(data.proxima.vigenteEm)}`} right={<Pill status="reserved">aviso</Pill>}>
+          <p className="px-4 pt-3 text-sm">
+            Vale para as rifas publicadas a partir de <span className="tnum">{dataDaVigencia(data.proxima.vigenteEm)}</span>. As
+            rifas já publicadas seguem com a tabela que gravaram na publicação.
+          </p>
+          <ResumoDaTabela tabela={data.proxima.tabela} />
+        </Card>
+      ) : null}
 
       {data ? (
         <Card title="Como a plataforma cobra">

@@ -10,15 +10,22 @@
  * - publicar fotografa a tabela do dia na rifa e trava a escolha; mudar a
  *   tabela depois não mexe na rifa publicada;
  * - o pedido fotografa a taxa, com a faixa do Pix pelo volume do mês da
- *   organização, e o pagamento lança a venda e o Pix numa linha.
+ *   organização, e o pagamento lança a venda e o Pix numa linha;
+ * - o estorno cancela a taxa da venda e mantém ou devolve a do Pix pelo
+ *   motivo (cláusula X.10);
+ * - a tabela agendada: reduzir vale na hora, aumentar exige 30 dias de aviso
+ *   com promotora que aceitou o contrato, a publicação grava a vigente e só a
+ *   plataforma agenda e cancela (cláusula X.3, parágrafo único).
  */
 import "dotenv/config";
 import { baseUrl } from "./base-url";
 import { and, eq, inArray, like, sql } from "drizzle-orm";
 import { db, pool } from "../server/db";
 import { hashPassword } from "../server/auth";
-import { buyers, campaignMedia, campaigns, orders, organizations, pixVolumeMensal, platformCharges, users } from "../shared/schema";
-import { mesEmSaoPaulo } from "../shared/cobranca";
+import { buyers, campaignMedia, campaigns, chamados, contratoPromotoraAceites, contratosPromotora, orders, organizations, pixVolumeMensal, platformCharges, users } from "../shared/schema";
+import { mesEmSaoPaulo, primeiroDiaComAviso } from "../shared/cobranca";
+import { refundOrder } from "../server/services/orders";
+import { getPlataforma, setPlataforma } from "../server/services/settings";
 
 const URL = baseUrl();
 let falhas = 0;
@@ -54,7 +61,10 @@ async function limpar() {
   if (cs.length) {
     const l = sql.raw(`('${cs.join("','")}')`);
     const ps = (await db.select({ id: orders.id }).from(orders).where(inArray(orders.campaignId, cs))).map((o) => o.id);
-    if (ps.length) await db.delete(platformCharges).where(inArray(platformCharges.orderId, ps));
+    if (ps.length) {
+      await db.delete(platformCharges).where(inArray(platformCharges.orderId, ps));
+      await db.delete(chamados).where(inArray(chamados.orderId, ps));
+    }
     await db.execute(sql`delete from quota_alloc where campaign_id in ${l}`);
     await db.execute(sql`delete from orders where campaign_id in ${l}`);
     await db.execute(sql`delete from draws where campaign_id in ${l}`);
@@ -99,7 +109,10 @@ async function main() {
   const admin = new Cliente();
   let r = await admin.req("POST", "/api/auth/login", { email: "admin@rifa.br", password: "admin123" });
   if (r.status !== 200) throw new Error(`login do administrador: HTTP ${r.status}`);
-  const antes = (await admin.req("GET", "/api/admin/cobranca/tabela")).json;
+  // A tabela de antes volta direto no banco no fim: devolver pela rota seria
+  // recusado se fosse um aumento com promotora que aceitou o contrato.
+  const antes = await getPlataforma();
+  let contratoDaProva: string | null = null;
 
   const [org] = await db
     .insert(organizations)
@@ -116,11 +129,22 @@ async function main() {
     checa("faixa que sobe a taxa é recusada (400)", r.status === 400, `HTTP ${r.status} ${r.json?.message ?? ""}`);
     r = await admin.req("PUT", "/api/admin/cobranca/tabela", { percentualPct: 5, porCotaCents: 20_000, faixasPix: [{ ate: null, pct: 1 }] });
     checa("valor por cota acima do teto é recusado (400)", r.status === 400, `HTTP ${r.status}`);
+    // Parte de uma tabela mais alta em tudo: a da prova é uma redução, que
+    // vale na hora com ou sem promotora com contrato.
+    await setPlataforma({ cobranca: { percentualPct: 9, porCotaCents: 500, faixasPix: [{ ate: null, pct: 5 }] }, cobrancaProxima: null });
     const tabela = { percentualPct: 4.9, porCotaCents: 30, faixasPix: [{ ate: 2, pct: 2 }, { ate: null, pct: 1 }] };
     r = await admin.req("PUT", "/api/admin/cobranca/tabela", { ...tabela, extra: "<script>" });
-    checa("a plataforma salva a tabela, só com as chaves conhecidas", r.status === 200 && JSON.stringify(r.json) === JSON.stringify(tabela), `HTTP ${r.status} ${JSON.stringify(r.json)}`);
+    checa(
+      "a plataforma salva a tabela, só com as chaves conhecidas",
+      r.status === 200 && JSON.stringify(r.json?.vigente) === JSON.stringify(tabela) && r.json?.proxima === null,
+      `HTTP ${r.status} ${JSON.stringify(r.json)}`,
+    );
     r = await organizador.req("GET", "/api/admin/cobranca/tabela");
-    checa("a organização lê a tabela", r.status === 200 && r.json?.porCotaCents === 30, `HTTP ${r.status}`);
+    checa(
+      "a organização lê a tabela em vigor e o prazo do aviso",
+      r.status === 200 && r.json?.vigente?.porCotaCents === 30 && r.json?.proxima === null && r.json?.avisoDias === 30 && /^\d{4}-\d{2}-\d{2}$/.test(r.json?.primeiroDiaComAviso ?? ""),
+      `HTTP ${r.status} ${JSON.stringify(r.json)}`,
+    );
     r = await organizador.req("PUT", "/api/admin/cobranca/tabela", { percentualPct: 0 });
     checa("a organização não muda a tabela (403)", r.status === 403, `HTTP ${r.status}`);
     r = await new Cliente().req("GET", "/api/admin/cobranca/tabela");
@@ -158,9 +182,9 @@ async function main() {
     );
     r = await admin.req("PATCH", `/api/admin/campaigns/${a.id}`, { cobrancaModo: "percentual" });
     checa("nem a plataforma troca o modo depois de publicar (422)", r.status === 422, `HTTP ${r.status}`);
-    r = await admin.req("PUT", "/api/admin/cobranca/tabela", { ...tabela, porCotaCents: 90 });
+    r = await admin.req("PUT", "/api/admin/cobranca/tabela", { ...tabela, porCotaCents: 20 });
     rifa = await ler(a.id);
-    checa("mudar a tabela não mexe na rifa publicada", r.status === 200 && rifa.cobranca?.porCotaCents === 30, `${rifa.cobranca?.porCotaCents}`);
+    checa("mudar a tabela não mexe na rifa publicada", r.status === 200 && rifa.cobranca?.porCotaCents === 30, `HTTP ${r.status} ${rifa.cobranca?.porCotaCents}`);
 
     // A demonstração nasce no ar sem passar pela publicação: desmarcada, ela
     // passa a vender e ganha a tabela do dia — nunca vende sem taxa.
@@ -184,7 +208,7 @@ async function main() {
     const desmarcada = await ler(demo.id);
     checa(
       "desmarcar a demonstração fotografa a tabela do dia",
-      r.status === 200 && !desmarcada.demonstracao && desmarcada.cobranca?.modo === "percentual" && desmarcada.cobranca?.porCotaCents === 90,
+      r.status === 200 && !desmarcada.demonstracao && desmarcada.cobranca?.modo === "percentual" && desmarcada.cobranca?.porCotaCents === 20,
       `HTTP ${r.status} ${JSON.stringify(desmarcada.cobranca)}`,
     );
 
@@ -217,15 +241,99 @@ async function main() {
     [taxa] = await db.select().from(platformCharges).where(eq(platformCharges.orderId, o.id));
     checa("e o lançamento usa a faixa fotografada", taxa?.vendaCents === 60 && taxa?.pixCents === 20, JSON.stringify(taxa));
 
+    console.log("\n  o estorno (cláusula X.10):");
+    // O motivo sai do chamado estornado do pedido; sem chamado, é o provedor.
+    const comChamado = async (code: number, tipo: string | null, falha: boolean) => {
+      const o = await pedido(code);
+      await db.insert(chamados).values({
+        protocolo: `CB-${code}`,
+        organizationId: org.id,
+        orderId: o.id,
+        buyerId: o.buyerId,
+        status: "estornado",
+        motivo: "prova da cobrança",
+        tipoReembolso: tipo,
+        falhaPlataforma: falha,
+        estornadoEm: new Date(),
+      });
+      return o;
+    };
+    const taxaDe = async (orderId: string) => (await db.select().from(platformCharges).where(eq(platformCharges.orderId, orderId)))[0];
+    let o1 = await comChamado(c1, "arrependimento", false);
+    let est = await refundOrder(o1.id);
+    let t = await taxaDe(o1.id);
+    checa("arrependimento: as duas taxas são canceladas", est?.motivo === "arrependimento" && t?.status === "cancelada", `${est?.motivo} ${t?.status}`);
+    o1 = await pedido(c2);
+    est = await refundOrder(o1.id);
+    t = await taxaDe(o1.id);
+    checa("provedor (sem chamado): fica só a taxa Pix", est?.motivo === "provedor" && t?.status === "aberta" && t.vendaCents === 0 && t.amountCents === t.pixCents && t.pixCents > 0, JSON.stringify(t));
+    o1 = await comChamado(c3, "com_taxa", true);
+    est = await refundOrder(o1.id);
+    t = await taxaDe(o1.id);
+    checa("falha da plataforma: as duas taxas são canceladas", est?.motivo === "falha_plataforma" && t?.status === "cancelada", `${est?.motivo} ${t?.status}`);
+    checa("o estorno não desconta o volume do mês", (await volume()) === 3, `${await volume()}`);
+
     r = await organizador.req("GET", "/api/admin/cobranca/extrato");
     checa(
-      "o extrato da organização mostra a venda e o Pix de cada lançamento",
-      r.status === 200 && r.json?.linhas?.length === 3 && r.json.linhas.every((l: any) => l.charge.vendaCents > 0 && l.charge.pixCents > 0) && r.json?.tabela?.porCotaCents === 90,
+      "o extrato mostra o pedido estornado com só a taxa Pix",
+      r.status === 200 && r.json?.linhas?.length === 3 && r.json.linhas.some((l: any) => l.pedidoStatus === "refunded" && l.charge.status === "aberta" && l.charge.vendaCents === 0),
       `HTTP ${r.status} ${r.json?.linhas?.length}`,
     );
+
+    console.log("\n  a tabela agendada (cláusula X.3):");
+    const vigente = { ...tabela, porCotaCents: 20 };
+    const maior = { ...vigente, percentualPct: 6 };
+    const minimo = primeiroDiaComAviso(new Date());
+    const diaAntes = new Date(new Date(`${minimo}T12:00:00-03:00`).getTime() - 86_400_000).toISOString().slice(0, 10);
+    r = await admin.req("PUT", "/api/admin/cobranca/tabela", { ...maior, vigenteEm: minimo });
+    checa("a plataforma agenda o aumento com 30 dias", r.status === 200 && r.json?.proxima?.vigenteEm === minimo && r.json?.vigente?.percentualPct === 4.9, `HTTP ${r.status} ${JSON.stringify(r.json)}`);
+    r = await organizador.req("GET", "/api/admin/cobranca/tabela");
+    checa("a organização vê a tabela agendada", r.status === 200 && r.json?.proxima?.tabela?.percentualPct === 6, `HTTP ${r.status}`);
+    r = await organizador.req("GET", "/api/admin/cobranca/extrato");
+    checa("o extrato traz a agendada para o aviso", r.status === 200 && r.json?.proxima?.vigenteEm === minimo && r.json?.tabela?.percentualPct === 4.9, `HTTP ${r.status}`);
+    const b = await rascunho(org.id, "b", 1000);
+    r = await organizador.req("POST", `/api/admin/campaigns/${b.id}/publish`);
+    checa("publicada antes da data, a rifa grava a tabela em vigor", r.status === 200 && (await ler(b.id)).cobranca?.percentualPct === 4.9, `HTTP ${r.status} ${r.json?.message ?? ""}`);
+    r = await organizador.req("PUT", "/api/admin/cobranca/tabela", { ...maior, vigenteEm: minimo });
+    checa("a organização não agenda (403)", r.status === 403, `HTTP ${r.status}`);
+    r = await organizador.req("DELETE", "/api/admin/cobranca/tabela/proxima");
+    checa("a organização não cancela o agendamento (403)", r.status === 403, `HTTP ${r.status}`);
+    for (const [nome, dia] of [["no passado", "2020-01-01"], ["fora do formato", "10/11/2026"], ["que não existe", "2026-02-30"]] as const) {
+      r = await admin.req("PUT", "/api/admin/cobranca/tabela", { ...maior, vigenteEm: dia });
+      checa(`data ${nome} é recusada (422)`, r.status === 422, `HTTP ${r.status} ${r.json?.message ?? ""}`);
+    }
+
+    // Com promotora que aceitou o contrato, o aumento precisa do aviso.
+    const [algumAceite] = await db.select({ id: contratoPromotoraAceites.id }).from(contratoPromotoraAceites).limit(1);
+    if (!algumAceite) {
+      r = await admin.req("PUT", "/api/admin/cobranca/tabela", { ...maior, vigenteEm: diaAntes });
+      checa("sem promotora com contrato, o aumento pode valer antes dos 30 dias (montagem)", r.status === 200, `HTTP ${r.status} ${r.json?.message ?? ""}`);
+      const [ultima] = await db.select({ v: sql<number>`coalesce(max(${contratosPromotora.versao}), 0)` }).from(contratosPromotora);
+      const [versao] = await db.insert(contratosPromotora).values({ versao: Number(ultima.v) + 1, texto: "Contrato da prova da cobrança." }).returning();
+      contratoDaProva = versao.id;
+      await db.insert(contratoPromotoraAceites).values({ contratoId: versao.id, organizationId: org.id, versao: versao.versao, texto: versao.texto });
+    }
+    r = await admin.req("PUT", "/api/admin/cobranca/tabela", maior);
+    checa("aumento para valer agora é recusado (422)", r.status === 422 && /30 dias de aviso/.test(r.json?.message ?? ""), `HTTP ${r.status} ${r.json?.message ?? ""}`);
+    r = await admin.req("PUT", "/api/admin/cobranca/tabela", { ...maior, vigenteEm: diaAntes });
+    checa("aumento com menos de 30 dias é recusado (422)", r.status === 422, `HTTP ${r.status} ${r.json?.message ?? ""}`);
+    r = await admin.req("PUT", "/api/admin/cobranca/tabela", { ...maior, vigenteEm: minimo });
+    checa("aumento com 30 dias é aceito", r.status === 200 && r.json?.proxima?.vigenteEm === minimo, `HTTP ${r.status} ${r.json?.message ?? ""}`);
+    r = await admin.req("PUT", "/api/admin/cobranca/tabela", { ...vigente, porCotaCents: 15 });
+    checa("redução vale na hora e descarta a agendada", r.status === 200 && r.json?.vigente?.porCotaCents === 15 && r.json?.proxima === null, `HTTP ${r.status} ${JSON.stringify(r.json)}`);
+    r = await admin.req("DELETE", "/api/admin/cobranca/tabela/proxima");
+    checa("sem agendada, cancelar é 404", r.status === 404, `HTTP ${r.status}`);
+    await admin.req("PUT", "/api/admin/cobranca/tabela", { ...maior, vigenteEm: minimo });
+    r = await admin.req("DELETE", "/api/admin/cobranca/tabela/proxima");
+    const depois = (await admin.req("GET", "/api/admin/cobranca/tabela")).json;
+    checa("a plataforma cancela o agendamento", r.status === 204 && depois?.proxima === null && depois?.vigente?.porCotaCents === 15, `HTTP ${r.status}`);
   } finally {
-    if (antes) await admin.req("PUT", "/api/admin/cobranca/tabela", antes).catch(() => {});
+    await setPlataforma({ cobranca: antes.cobranca, cobrancaProxima: antes.cobrancaProxima }).catch(() => {});
     await limpar();
+    if (contratoDaProva) {
+      await db.delete(contratoPromotoraAceites).where(eq(contratoPromotoraAceites.contratoId, contratoDaProva));
+      await db.delete(contratosPromotora).where(eq(contratosPromotora.id, contratoDaProva));
+    }
   }
 
   console.log(falhas ? `\n${falhas} falha(s).\n` : "\nTudo certo.\n");

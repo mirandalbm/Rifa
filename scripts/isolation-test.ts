@@ -612,6 +612,8 @@ async function rotasDaPlataforma(eu: Lado) {
     ["GET auditoria", "/api/admin/audit", {}],
     ["GET carteira de cobrança", "/api/admin/cobranca", {}],
     ["PUT tabela de cobrança", "/api/admin/cobranca/tabela", { method: "PUT", body: '{"percentualPct":0}' }],
+    ["PUT tabela de cobrança agendada", "/api/admin/cobranca/tabela", { method: "PUT", body: '{"percentualPct":0,"vigenteEm":"2099-01-01"}' }],
+    ["DELETE tabela de cobrança agendada", "/api/admin/cobranca/tabela/proxima", { method: "DELETE" }],
     ["POST dar baixa", `/api/admin/cobranca/${eu.orgId}/baixa`, { method: "POST" }],
     ["POST arquivar organização", `/api/admin/organizacoes/${eu.orgId}/arquivar`, { method: "POST", body: "{}" }],
     ["POST restaurar organização", `/api/admin/organizacoes/${eu.orgId}/restaurar`, { method: "POST" }],

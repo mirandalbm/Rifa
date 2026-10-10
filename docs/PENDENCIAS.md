@@ -1016,6 +1016,22 @@ Na ordem de entrega do plano:
   ou equivalente) quando invocado (no sistema, o CEBAS é documento opcional
   da entidade beneficiada); e a plataforma como mandatária na guarda da
   comissão do afiliado. Com os quatro, está pronta para publicar.
+- [ ] **[você]** **Cláusula de remuneração (cobrança por rifa)** no contrato
+  da promotora: a versão final está em `docs/RESPOSTA-ADVOGADO-COBRANCA.md`
+  (seção 4), já com as duas decisões de 10/10/2026 (taxa Pix no estorno
+  conforme o motivo, X.10; aviso de 30 dias para aumentar a tabela, X.3) e
+  as correções da X.5, X.9 e X.13. Mandar ao advogado para confirmar e
+  publicar junto com a versão final do contrato. **Monte a tabela de
+  cobrança antes do primeiro aceite**: depois dele, aumento exige 30 dias.
+- [x] **[código]** Taxa Pix no estorno conforme o motivo (cláusula X.10) e
+  tabela de cobrança agendada com o aviso de 30 dias (cláusula X.3,
+  parágrafo único), 10/10/2026: `taxaPixFicaNoEstorno()`, a caixa "Falha da
+  plataforma" no Atendimento, `cobrancaProxima` com o aviso no sino, na
+  Cobrança e no cartão da rifa. `npm run cobranca` prova.
+- [ ] **[código, quando houver cobrança em aberto de verdade]** Bloqueio por
+  inadimplência (cláusula X.13, a): notificar a promotora pelo painel e, 10
+  dias depois sem regularizar, barrar a publicação de rifa nova
+  (`publishBlockers`). Hoje a cláusula só autoriza; o acerto é à mão.
 - [ ] **[você]** Antes de abrir ao público, o **encarregado** precisa estar
   publicado nos Dados da empresa (Aparência → Rodapé e empresa): o texto do
   consentimento biométrico o cita (exigência legal, art. 41, § 1º).

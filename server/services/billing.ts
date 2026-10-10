@@ -75,6 +75,7 @@ export async function extratoDa(
     .select({
       charge: platformCharges,
       orderCode: orders.code,
+      pedidoStatus: orders.status,
       campanha: campaigns.title,
     })
     .from(platformCharges)

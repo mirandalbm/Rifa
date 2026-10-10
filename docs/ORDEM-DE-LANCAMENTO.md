@@ -76,7 +76,11 @@ cadastro (o roteiro do dia está na etapa 5, "Dia da troca da razão social").
   teste). Pedido pendente de antes do deploy e rifa publicada antes não têm
   a taxa fotografada e não cobram nada. Antes de liberar a primeira rifa,
   preencha a **Tabela de cobrança** (Cobrança: percentual, valor por cota e
-  faixas do Pix): ela nasce zerada.
+  faixas do Pix): ela nasce zerada. **Monte a tabela antes do primeiro
+  aceite do contrato da promotora**: até lá ela vale na hora; depois do
+  primeiro aceite, aumentar qualquer taxa exige agendar com 30 dias de aviso
+  (cláusula X.3, parágrafo único). A coluna `chamados.falha_plataforma` (a
+  taxa Pix no estorno) sobe no mesmo `db:push`.
 - [ ] **`npm run db:push`** (cria a extensão `pg_trgm` antes; o usuário do
   banco precisa poder criar extensão) e, **logo depois, uma vez**:
   `UPDATE stories SET publica_em = created_at WHERE publica_em > created_at`.

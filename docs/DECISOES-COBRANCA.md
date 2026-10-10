@@ -21,6 +21,9 @@ depois, como versão nova (Termos, regulamento, contrato da promotora).
 | P5 | Dinheiro com o cambista continua aceito (o "só Pix" vale para cartão) | Nada muda: o meio segue ligável em Configurações |
 | P6 | No carrinho, cada pedido conta uma transação Pix no volume do mês da organização | Como está (`pix_volume_mensal` por pedido) |
 | P7 | Textos legais: pedido detalhado ao advogado | `docs/PEDIDO-ADVOGADO-COBRANCA.md` |
+| P8 | Estorno (cláusula X.10): a taxa da venda sempre cai; a taxa Pix fica no reembolso com taxa, no adiamento e na devolução do provedor (MED, contestação), e volta no arrependimento e na falha da plataforma | `motivoDoEstorno()`/`taxaPixFicaNoEstorno()` em `shared/cobranca.ts`, lido do chamado dentro de `refundOrder()`; caixa "Falha da plataforma" (só a plataforma) no Atendimento |
+| P9 | Tabela (cláusula X.3, parágrafo único): reduzir vale na hora; aumentar exige 30 dias de aviso pelo painel; antes do primeiro aceite do contrato, a montagem vale na hora | `cobrancaProxima` agendada, `problemaNaVigencia()`, aviso no sino, na Cobrança e no cartão da rifa; `DELETE /admin/cobranca/tabela/proxima` |
+| P10 | Inadimplência (cláusula X.13): bloquear publicação só depois de notificar pelo painel com 10 dias para regularizar, para todas as promotoras | Só no contrato por ora: o bloqueio por inadimplência ainda não existe no sistema (`docs/PENDENCIAS.md`) |
 
 ## Como fica a conta de um pedido
 
@@ -38,7 +41,9 @@ depois, como versão nova (Termos, regulamento, contrato da promotora).
 ## O que ficou de fora
 
 - **Textos legais** (Termos, regulamento, contrato da promotora, termo do
-  afiliado): pedido ao advogado em `docs/PEDIDO-ADVOGADO-COBRANCA.md`.
+  afiliado): pedido ao advogado em `docs/PEDIDO-ADVOGADO-COBRANCA.md`; a
+  resposta, a conferência e a cláusula final em
+  `docs/RESPOSTA-ADVOGADO-COBRANCA.md`.
 - **Simulação contábil** das duas receitas (taxa da venda e taxa Pix): com o
   contador.
 - **A ponte com a maquininha** (`client/src/lib/pos.ts`, o shim do Android)

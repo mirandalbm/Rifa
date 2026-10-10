@@ -336,9 +336,11 @@ function DetalheChamado({ id, aoMudar, daPlataforma }: { id: string; aoMudar: ()
     onError: falhou,
   });
 
+  // Só a plataforma reconhece a falha dela: a taxa Pix volta à promotora (cláusula X.10).
+  const [falhaDaPlataforma, setFalhaDaPlataforma] = useState(false);
   const estornar = useMutation({
     mutationFn: async () =>
-      (await (await apiRequest("POST", `/api/admin/chamados/${id}/estornar`)).json()) as {
+      (await (await apiRequest("POST", `/api/admin/chamados/${id}/estornar`, daPlataforma ? { falhaDaPlataforma } : {})).json()) as {
         protocolo: string;
         forma: string;
         cotasLiberadas: number;
@@ -529,6 +531,20 @@ function DetalheChamado({ id, aoMudar, daPlataforma }: { id: string; aoMudar: ()
           >
             {estornar.isPending ? "Devolvendo…" : "Fazer a devolução"}
           </Button>
+          {daPlataforma ? (
+            <label className="flex items-start gap-2 text-xs">
+              <input
+                type="checkbox"
+                checked={falhaDaPlataforma}
+                onChange={(e) => setFalhaDaPlataforma(e.target.checked)}
+                className="mt-0.5"
+              />
+              <span>
+                Falha da plataforma: a taxa Pix volta à organização. Sem marcar, ela só volta no arrependimento (até 7
+                dias); no reembolso com taxa e no adiamento, fica com a plataforma.
+              </span>
+            </label>
+          ) : null}
           <p className="text-[11px] text-muted">
             {pedido.provedor
               ? "Com Pix, o valor volta pelo provedor para a mesma conta que pagou."

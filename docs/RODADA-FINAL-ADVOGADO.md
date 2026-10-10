@@ -213,3 +213,42 @@ serviço e o modelo (A ou B), que são do contador.
 
 5 decisões (D1 a D5), 8 propostas (P1 a P8) e 1 tabela de fontes. Tudo o mais
 do dossiê (Q1 a Q39) está **fechado** ou **absorvido** por estas.
+
+---
+
+## Retorno recebido em 10/10/2026 e conferência
+
+O advogado devolveu **só a Parte 3 (fontes)**, reescrita como "o que deve estar
+visível no link", mais descrições de links nos itens D e P. **Não respondeu D1
+a D5 nem P1 a P8** (nenhum "de acordo"). Descrição do que um link deveria
+mostrar **não é fonte**: não há endereço, e o texto é dele, não da norma. Pela
+regra 3, o que não tem link oficial fica como **regra de trabalho**.
+
+Conferência do que ele escreveu (os sites oficiais não abrem do nosso
+ambiente; vale o que as buscas trouxeram e o texto que dá para conferir):
+
+| Citação dele | Conferência |
+|---|---|
+| **Decreto 70.951/72, art. 7º, p. único**: "A publicidade da promoção mencionará, obrigatoriamente, o número do certificado de autorização" | **Não confere.** O art. 7º trata de quem participa do resultado financeiro da promoção. A exigência do número aparece na **Portaria SEAE/ME nº 7.638/2022** (número "em todo material utilizado na divulgação") e na página da SPA/MF no gov.br (número "legível em todo o material publicitário"). A vigência e o artigo exato da portaria **não conferi** |
+| Decreto 70.951/72, art. 2º, § 1º (autorização coletiva com mandatária solidária) | **Confere** no conteúdo (incluído pelo Decreto 538/92); a redação literal que ele cita não conferi |
+| Res. BCB 96/2021, art. 3º, I | **Confere**: conta de pagamento pré-paga para transações em moeda eletrônica com fundos em reais previamente aportados. A "exigência de segregação" que ele lista **não vi** nesse artigo |
+| Marco Civil, art. 15 (6 meses) | **Confere** |
+| LGPD, art. 33, VIII (consentimento específico e em destaque) | **Confere**. Atenção: indica que, por esse caminho, o aviso precisa de consentimento **específico e em destaque** |
+| CDC, art. 7º, p. único | **Confere** |
+| IN RFB 2.110/2022 "retenção de INSS e IRRF" | **Em parte.** Trata de tributação **previdenciária** (INSS), não de IRRF |
+| "Guia Orientativo da ANPD sobre **Legítimo Interesse**" para controlador e operador | **Guia errado.** O que define controlador, operador e encarregado é o Guia Orientativo de **agentes de tratamento** |
+| Lei 5.768/71, art. 1º, § 3º ("vedada a conversão em dinheiro dos prêmios") | **Não conferi** |
+| Portaria 1.231/2024, "Capítulo III" com "distinção em relação a promoções comerciais" | **Não conferi**; a portaria é das apostas |
+| Descrições de Meta, Google, TikTok (jun/2026), CONAR ("Anexo X"), YouTube, Instagram e Kwai | **Não conferidas**: são o que o link "deve mostrar", sem endereço. Ficam como **regra de trabalho** |
+
+**Conclusões desta conferência**
+1. **D1b tem agora um candidato verificável**: a Portaria SEAE/ME 7.638/2022
+   (a conferir pelo advogado: artigo e se foi substituída por ato da SPA/MF).
+   O Padrão de D1 não muda.
+2. A tabela de fontes **fecha como está**: linhas conferidas = fundamento;
+   linhas sem link = regra de trabalho, sem nova pergunta.
+3. Da recomendação dele, **adotamos**: guardar **PDF ou captura datada** de cada
+   página oficial na data da consulta, para a revisão trimestral comparar. Isso
+   é tarefa do dono (as páginas não abrem daqui).
+4. **O que falta é só responder D1 a D5 e P1 a P8.** O prazo de 5 dias úteis
+   conta da entrega da rodada; vencido, valem os Padrões (regra 4).

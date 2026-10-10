@@ -235,3 +235,13 @@ contrato é versionado pelo painel. Proposta, a confirmar na Parte 1:
 | Autorização em nome da plataforma (V4) | Entendido; **não há necessidade de avisar agora** | Nenhuma peça ou página afirma autorização da plataforma. Sem aviso ao advogado nesta rodada |
 | UOL Anúncios (V6) | Entendido | Entra na lista de consultas por escrito, depois do CNPJ |
 | Anexo do modelo B | O dono pede o detalhamento para repassar ao advogado | `docs/PEDIDO-ANEXO-MODELO-B.md` |
+
+### Contador: confirmação do anexo do modelo B (10/10/2026)
+
+O contador confirmou os 8 pontos do modelo B, o nome "plataforma de gestão de
+tráfego pago", os aceites independentes e o crédito de 12 meses (ver
+`docs/RODADA-FINAL-CONTADOR.md`). **Segue travado**, e a pendência é do dono:
+custo mensal, volume e margem desejada; e a razão social e o CNPJ, que ele pede
+para o parecer e o plano de contas e que o dono deixou para depois do
+lançamento. **Município (São Paulo) já está respondido e precisa ser
+repassado a ele.**

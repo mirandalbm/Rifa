@@ -101,3 +101,21 @@ Respondo com o Padrão se não vierem:
 > (`PEDIDO-ANEXO-MODELO-B.md`, com as cláusulas 1 a 15 e os Padrões), a rodada
 > final e a minuta do termo de encerramento. Para cada cláusula, basta "de
 > acordo" ou "altera para". Sem resposta em 10 dias úteis, vale o Padrão.
+
+## 8. Posição do contador sobre este pedido (10/10/2026)
+
+Detalhe em `docs/RODADA-FINAL-CONTADOR.md` (terceiro retorno). O que muda para o
+advogado:
+
+- O anexo e o contrato chamam o produto de **"plataforma de gestão de tráfego
+  pago"**, sem o nome "agência" (pergunta A: **resolvida, sem precisar de
+  resposta**).
+- Aceites independentes: **de acordo** pelo lado fiscal (pergunta B); o jurídico
+  continua com o advogado.
+- Relação empresarial (pergunta C): de acordo pelo contador, que remete o
+  fundamento ao advogado. **Nota:** a definição de consumidor é o art. 2º do CDC
+  (não o art. 3º, § 2º, que define "serviço"), com a ressalva do art. 29.
+- Cláusula 6: crédito de 12 meses **fechado** com o contador; cláusula 12:
+  sem impacto fiscal; a devolução judicial de taxa reduz a base do mês.
+- Cláusula 7: a **pausa aos 90%** é o que evita o gasto excedente; o texto deve
+  conter a regra e a obrigação de meio.

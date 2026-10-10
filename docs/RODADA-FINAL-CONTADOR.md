@@ -275,3 +275,47 @@ sobre a taxa, é a que vale.
   RIR/2018.
 - **O que trava o parecer conjunto:** município da sede (V1), custo, margem
   desejada, razão social e CNPJ. **Tudo isso é do dono.**
+
+---
+
+## Terceiro retorno do contador (10/10/2026): o anexo do modelo B
+
+Ele leu o desenho do anexo (`docs/PEDIDO-ANEXO-MODELO-B.md`) e respondeu só no que é dele.
+
+| Item | Posição | Situação |
+|---|---|---|
+| Os 8 pontos do modelo B | Confirmados como descrição da operação. Os que sustentam o enquadramento: a promotora é titular da conta e paga a rede direto; acesso de parceiro, sem login e senha; taxa debitada de saldo sobre o gasto lido (receita só da taxa, item 10.08; o abastecimento é adiantamento de cliente, passivo). Pede que a **pausa aos 90%** conste do contrato | **Fechado.** A pausa aos 90% já é a cláusula 7 do pedido |
+| Crédito vence em 12 meses | De acordo; a baixa do crédito vencido é receita no mês da baixa (C1b) | **Fechado** (já estava fechado) |
+| Limitação à taxa dos 12 meses | Sem impacto tributário; devolução de taxa por decisão judicial reduz a base de ISS, PIS e COFINS do mês da devolução | **Fechado.** Registro do efeito fiscal |
+| Foro e as outras 12 cláusulas | Não são dele; remete ao advogado | Vão ao advogado |
+| Nome "agência de publicidade" | **Evitar.** Usar "plataforma de gestão de tráfego pago". CNAE 63.11-9/00 como principal e 73.11-4/00 como secundário (C2c, já fechado) | **Fechado** quanto ao nome. Ver a observação abaixo |
+| Aceites independentes (anexo e taxa) | De acordo; cada pedido tem o fato gerador na competência do gasto lido (C1a) | **Fechado** pelo lado fiscal; o jurídico é do advogado |
+| Relação empresarial, não de consumo | De acordo, remete ao advogado a redação e o fundamento | Vai ao advogado |
+| Campos `{{RAZAO_SOCIAL}}`, `{{CNPJ}}`… no anexo | De acordo | **Fechado** |
+
+### Observações minhas (para não virarem erro no anexo)
+
+1. **O fundamento fiscal do nome não está limpo.** Ele diz que "agência de
+   publicidade" puxa para o item 17.06; mas o texto do item 10.08, que ele mesmo
+   adota, é "agenciamento de publicidade e propaganda". A conclusão (não usar
+   "agência" no anexo) é a mesma do pedido ao advogado, então **não muda nada no
+   documento**; a razão é para o contador e o advogado conciliarem no parecer.
+   Ele mesmo sugere "prestadora de serviços de agenciamento de publicidade"
+   como alternativa: **o anexo usa "plataforma de gestão de tráfego pago"**, o
+   nome que não tem a palavra "agência".
+2. **A citação do CDC.** Ele cita o art. 3º, § 2º, que define "serviço". O que
+   afasta a promotora da definição de consumidora é o **art. 2º** (destinatário
+   final), com a ressalva do **art. 29** (equiparação). Não é minha alçada
+   decidir; fica anotado para o advogado.
+3. **"Município da sede" já foi respondido**: **São Paulo** (V1, 10/10/2026).
+   Ele ainda o lista como pendente, então precisa receber a resposta.
+4. **A razão social e o CNPJ ainda travam o parecer, segundo ele**, para o
+   cabeçalho e o plano de contas. O dono decidiu defini-los **depois do
+   lançamento**. Isso é uma decisão do dono (ver `docs/FECHAMENTO-JURIDICO-CONTABIL.md`).
+5. **A confiança** de que 63.11-9/00 "já existe" na sede não foi conferida por
+   mim: depende do cartão CNPJ, que ainda não existe.
+
+### O que trava o parecer conjunto agora
+- **Resolvido:** município (V1 = São Paulo).
+- **Do dono:** custo mensal, volume e margem desejada (itens A, C e D do pedido
+  anterior), e a decisão sobre razão social e CNPJ.

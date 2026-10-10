@@ -315,3 +315,29 @@ Cláusulas que o advogado precisa redigir no anexo do modelo B:
 - Decisão sobre a responsabilidade solidária, que não foi verificada.
 
 Esta fase **não encerra a Parte 1**. O critério da seção 8 continua valendo: parecer conjunto assinado, registro de decisões, PR de adequação e parecer de direito bancário.
+
+---
+
+## Plano para terminar a Parte 1 (10/10/2026) — em andamento, não fechada
+
+Esta seção registra o caminho escolhido. Nenhum item abaixo está concluído.
+
+| Etapa | O que falta | Responsável | Prazo | Situação |
+|---|---|---|---|---|
+| A | Parecer do advogado sobre os quatro pontos: base do IRRF (arts. 717 e 718 do RIR/2018, texto conferido); responsabilidade supletiva do beneficiário e regresso contra a promotora; mandato ou prestação de serviço sem mandato; troca de "modelo A" por "retenção no abastecimento" | Advogado | 5 dias úteis após o envio | Pedido enviado com a mensagem de 10/10; resposta pendente |
+| A | Confirmação da Portaria SEAE/ME 7.638/2022 no DOU (vigência) | Advogado | 5 dias úteis | Pendente |
+| A | Base do art. 33 da LGPD para hospedagem, armazenamento e IA; Anexo II das cláusulas-padrão da ANPD sem alteração | Advogado e dono | 5 dias úteis | Pendente |
+| A | Consultas formais à Meta e ao Google | Advogado | 5 dias úteis, após razão social e CNPJ | Bloqueado até o lançamento |
+| A | Termo de confidencialidade da equipe | Advogado | 5 dias úteis | Pendente |
+| A | 15 cláusulas e 3 perguntas do anexo do modelo B | Advogado | 10 dias úteis | Suspenso até decisão sobre o modelo B |
+| B | Parecer contábil: base legal corrigida (arts. 717 e 718); retirar "sem solidariedade" até a etapa A fechar; versão final assinada | Contador | 20/10/2026 | Parte contábil entregue em 19/10 com pendências; assinatura pendente |
+| B | Assinatura do parecer conjunto (contábil e jurídico) | Contador e advogado | Após A e B | Pendente |
+| C | Parecer de direito bancário contratado (critério da seção 8: "em andamento" basta) | Dono | Imediato | Não contratado |
+| C | Domínio (V5) e endereço oficial completo para os dados da empresa | Dono | 12/10/2026 (domínio) | Pendente |
+| C | Decisão sobre o anexo do modelo B (sai agora ou fica guardado) | Dono | Após a etapa A | Pendente |
+| D | PR de adequação: decisões do IRRF (retenção no abastecimento, forma bruta), textos de contrato e Privacidade | Código, com aval do dono | Após a etapa B assinada | Não iniciado |
+| D | Registro final de decisões | Dono e contador | Após a etapa B | Pendente |
+
+Critério para declarar a Parte 1 fechada: etapas A e B concluídas, C com o parecer bancário em andamento, e D mesclado. Até lá, a Parte 2 continua parada.
+
+Riscos aceitos até aqui (sem texto oficial que os confirme): momento do IRRF; CSRF sobre publicidade; CNAE 73.11-4/00 para tráfego pago; ISS de promotora de outro município; responsabilidade supletiva do beneficiário pelo IRRF não retido (Tema 333 do STF não decidido).

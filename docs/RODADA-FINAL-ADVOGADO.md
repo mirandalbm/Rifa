@@ -303,3 +303,72 @@ com **uma única pendência dele** e três coisas que resolvemos do nosso lado.
 ou vencer o prazo. Lista: D1 a D5, P1 a P8, riscos residuais (fontes sem
 link, aviso de 30 dias, classificação de Meta) e itens reservados à revisão
 trimestral (globo, TikTok e Kwai, autorização coletiva, fontes sem link).
+
+---
+
+## Segundo retorno (10/10/2026, noite): aceites, textos da D4(c) e o que fica
+
+### Aceitos pelo advogado
+- **V2:** retira a opinião sobre o item 10.08; a escolha é do contador.
+- **V5:** os e-mails eram sugestões; precisa do domínio real (tarefa do dono).
+- **P1:** a estrutura de taxa sobre o gasto lido **não existe no código** e
+  entra por implantação. **Registrado em `docs/PENDENCIAS.md`** (feito neste
+  PR, junto do item do PR de adequação).
+
+### Os textos da D4(c) são rascunho, não vão ao ar como vieram
+Ele mandou dois textos (aviso de cookies e Privacidade, seção 3). Conferência:
+
+1. **Consentimento embutido no "Aceitar".** O texto diz que, ao clicar em
+   "Aceitar", a pessoa consente **também** com a transferência. O art. 33, VIII
+   da LGPD pede consentimento **específico e em destaque**, com informação
+   prévia sobre o caráter internacional. Um botão que liga os cookies e a
+   transferência juntos não é específico. **Ajuste:** a transferência vira uma
+   frase em destaque **acima dos botões**, e o consentimento é o mesmo gesto
+   só se o texto disser isso de forma separada e clara; o advogado valida a
+   redação final. (Hoje o aviso não pede nada sobre transferência.)
+2. **"Cláusulas contratuais padrão do contrato de cada operador" (art. 33, II).**
+   Desde **23/08/2025**, pela Resolução CD/ANPD nº 19/2024, contrato só serve
+   de base se adotar as **cláusulas-padrão da ANPD** (sem alterar) ou cláusulas
+   específicas aprovadas por ela. As buscas indicam que os adendos de
+   tratamento de dados da **Railway** e da **Cloudflare** trazem as cláusulas-
+   padrão **da União Europeia** (e o aditivo do Reino Unido), **não** as da
+   ANPD; o da Chatbase não consegui ler. **Fontes secundárias; os adendos dos
+   fornecedores não foram lidos por inteiro.** Logo, o item (c) do advogado **não
+   está fechado**.
+3. **"Ou no consentimento do titular ao usar o serviço" (item d).** Usar o
+   serviço não é consentimento específico e em destaque. Sai do texto.
+4. **Art. 35** citado como fundamento é o que trata do conteúdo das cláusulas-
+   padrão; só vale junto com o item 2.
+
+### O que fica para ele, e o que acontece se não vier (fim do ciclo)
+1. **Artigo e vigência da Portaria SEAE/ME 7.638/2022.** Sem resposta em 5 dias
+   úteis: a regra continua como política da plataforma (Padrão de D1).
+2. **Base do art. 33 para hospedagem, armazenamento e IA** (Railway,
+   Cloudflare, Chatbase) diante da Res. CD/ANPD 19/2024. Escolher uma:
+   (i) cláusulas-padrão da ANPD assinadas com cada fornecedor;
+   (ii) outra hipótese do art. 33 (por exemplo, a execução de contrato a
+   pedido do titular, IX) quando couber; (iii) região no Brasil, se o
+   fornecedor tiver; (iv) consentimento específico e em destaque.
+   **Padrão se não vier resposta:** a Privacidade diz a verdade em linguagem
+   neutra ("alguns provedores estão no exterior; tomamos as garantias
+   contratuais que cada um oferece") **sem afirmar** que são as cláusulas-padrão
+   da ANPD, e o termo de encerramento registra o **risco residual**. Tarefa do
+   dono, em paralelo: pedir a cada fornecedor o aditivo brasileiro (CCP da ANPD).
+
+### Comentários dele sobre a rodada do contador (o que não adotamos)
+- **Documento fiscal espelho da comissão guardada = NFS-e da plataforma contra
+  a promotora, pelo valor bruto.** Não adotamos: o contador validou a comissão
+  guardada como **valor a repassar, não receita**; uma NFS-e pelo bruto
+  transformaria o repasse em receita com ISS. A pergunta continua sendo do
+  contador (C5, item c).
+- **"A segregação separa crédito de serviço de conta de pagamento".** Exagero:
+  a segregação reduz o risco, mas a classificação depende da função do saldo.
+  Por isso o **parecer de direito bancário segue necessário** (D3a).
+- Ele chamou a guarda de 5 anos de "P3" e as contas separadas de "P4"; no
+  documento do contador são P4 e P5. O conteúdo é o mesmo.
+
+### Encerramento da parte do advogado
+Fechado: D1 a D5 (D1b e D4c com a pendência acima), P1 a P8. Não há nova
+rodada: só as duas entregas dele (itens 1 e 2) e, depois, a **redação** dos
+documentos do Q7 (anexo do modelo B, consultas, termo de confidencialidade),
+que dependem de razão social, CNPJ e lista de rifas autorizadas.

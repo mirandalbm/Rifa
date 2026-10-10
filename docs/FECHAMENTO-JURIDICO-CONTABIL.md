@@ -607,3 +607,18 @@ Assinatura da parte jurídica: _pendente_.
 Isto não encerra a Parte 1: os itens da seção "Estado da Parte 1" acima seguem
 como estão.
 
+
+---
+
+## Decisões do dono, tarde (10/10/2026): CNAE, receita principal e gateway
+
+| # | Decisão | Efeito |
+|---|---|---|
+| K-CNAE | **Opção B**: o CNAE principal é o do **serviço de software da plataforma**, não o de publicidade. Proposta ao contador: principal 63.11-9/00; secundários 74.90-1/04 (se a taxa da venda for lida como intermediação) e 73.19-0/99 (patrocinado, banner e tráfego); nunca 92.00-3 | Substitui a recomendação 73.19-0/99 e a opção A/B da seção "Estado da Parte 1". Conferência do contador em `docs/PEDIDO-CONTADOR-COBRANCA.md` (K1) |
+| K-RECEITA | A receita principal é o serviço de software (a taxa por rifa vendida e a taxa Pix). **O tráfego pago é serviço secundário, incluído no serviço da plataforma** | O pedido ao contador sobre a tributação da cobrança por rifa, que ainda não tinha sido enviado, sai agora (`docs/PEDIDO-CONTADOR-COBRANCA.md`, K2 a K12) |
+| K-GATEWAY | **Pagar.me (Stone)**, com recebedor por promotora e divisão do Pix na origem. Pela pesquisa do dono, **Asaas e Mercado Pago não aceitam rifa**. Ficaram de fora: os gateways credenciados pela LOTEP (servem a operadores de loteria estadual, outro regime — a rifa aqui é promoção comercial autorizada pela SPA/MF) e os citados sem confirmação | Integração nova no código (`docs/PENDENCIAS.md`, seção 2). O advogado confirma que a conclusão de 07/10 ("a plataforma não é subcredenciadora, porque o provedor recebe e divide") vale igual com o Pagar.me. O parecer bancário trata o Pagar.me no lugar do Asaas |
+
+O que segue aberto da Parte 1 não muda: a assinatura do advogado (tabela e
+contrato), as respostas do contador (agora K1 a K12 e a reemissão), o
+domínio e o endereço, os contratos com o Anexo II da ANPD, o parecer
+bancário, a Tesouraria e os perfis de equipe, e o saldo pré-pago.

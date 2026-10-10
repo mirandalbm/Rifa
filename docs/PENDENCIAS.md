@@ -87,10 +87,18 @@ senha); **[código]** é trabalho no repositório.
 
 ## 2. Para a rifa vender
 
-- [ ] **[você]** Pagamento: escolher **Mercado Pago** ou **Asaas** (os dois
-  estão prontos no sistema; a escolha é em Configurações → Pagamentos e
-  estorno). Antes de decidir, confirmar por escrito com o provedor que ele
-  aceita **promoção comercial com autorização SPA/MF**.
+- [ ] **[você]** Pagamento: **decidido o Pagar.me (Stone)** em 10/10/2026
+  (`docs/FECHAMENTO-JURIDICO-CONTABIL.md`, "Decisões do dono, tarde"):
+  pela pesquisa do dono, Asaas e Mercado Pago não aceitam rifa. Antes do
+  contrato, obter **por escrito** do Pagar.me: (a) que aceita promoção
+  comercial com autorização SPA/MF; (b) conta com split (recebedor por
+  promotora) para Pix; (c) como o estorno e a devolução por MED se dividem
+  entre os recebedores; (d) o prazo em que o Pix fica disponível para o
+  recebedor; (e) as tarifas.
+- [ ] **[código]** Integrar o Pagar.me (`server/payments/`, `PaymentProvider`)
+  com o recebedor de cada organização no lugar da carteira do Asaas; o
+  pesquisador de integração lê a documentação antes. O Asaas e o Mercado
+  Pago (abaixo) ficam no código até a troca.
   - Mercado Pago: `MP_ACCESS_TOKEN` e `MP_WEBHOOK_SECRET` no Railway.
   - Asaas: `ASAAS_API_KEY` e `ASAAS_WEBHOOK_TOKEN` no Railway; cadastrar o
     webhook `/api/webhooks/asaas` no painel do Asaas; cadastrar a carteira

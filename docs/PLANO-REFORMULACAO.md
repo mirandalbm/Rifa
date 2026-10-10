@@ -3,13 +3,20 @@
 Situação: **plano para aprovação**. Nenhuma linha de código foi mexida.
 Data: 09/10/2026. Este documento só vira PR se você disser.
 
-## 0. Resposta à pergunta de abertura
+## 0. Ordem: primeiro o jurídico e o contábil (decisão de 10/10/2026)
 
-"As dúvidas com o contador e o advogado foram sanadas?" — **Não por inteiro.**
-O que fechou: a maior parte das rodadas R1 a R15 do advogado (contrato,
-Federal, globo, vale-brinde, entidade, retenção) e o parecer do contador sobre
-IRRF e CNAE. O que segue aberto está na seção 2 (blocos J e K). Nada disso
-trava a reformulação visual, que corre em paralelo.
+O dono decidiu ir por partes: advogado e contador **finalizados antes** de
+refazer o sistema, para não haver mudança por causa deles depois. A Parte 1
+está em `docs/FECHAMENTO-JURIDICO-CONTABIL.md` (situação, perguntas na ordem
+de envio, dependências e o critério para começar). Este plano é a **Parte 2**
+e só inicia quando aquele critério passar. Duas áreas pedem cuidado: o menu
+e os papéis (perfis de equipe e Tesouraria dependem de respostas ainda não
+dadas) e a área "Dinheiro" (depende do parecer sobre o saldo pré-pago).
+
+As dúvidas **não** estão todas sanadas. Fechado: termos de uso, anexos A a E,
+termo do afiliado, apuração, IRRF. Aberto: o saldo pré-pago, o modelo de
+tráfego, os influenciadores (R16 a R23), a Tesouraria e os perfis de equipe, o
+parecer conjunto e o município da sede.
 
 ## 1. Diagnóstico: por que o painel parece "escrito"
 
@@ -43,8 +50,8 @@ Dono: **V** = você, **C** = código (Claude), **A** = advogado, **K** = contado
 | G. Cada organização | endereço, foto/bio, capa/cor/links, termo de afiliado, aprovar telefone | V (por org) | não |
 | H. Ligar interruptores | presente, bônus, guarda da comissão, reembolso | V | não |
 | I. Antes de abrir | reset geral (apagar o perfil de demonstração), conferir vídeo no celular, tabela de patrocinadas e banner pago | V | não |
-| J. Advogado | mandar R1 a R23; contrato final da promotora; encarregado; Termos; homologar o globo; autorização/certificação em nome da plataforma; saldo pré-pago (direito bancário) | V + A | não |
-| K. Contador | taxa virar receita na aprovação; cachê a MEI ou pessoa física; município da sede; item de serviço (17.06 ou 10.08); a palavra "revenda"; imposto da rede no modelo A | V + K | não |
+| J. Advogado | ver `FECHAMENTO-JURIDICO-CONTABIL.md` (A1 a A20): estrutura do parecer, influenciadores, saldo pré-pago (direito bancário), equipe e Tesouraria, contrato final da promotora, globo | V + A | **sim** (menu, papéis e Dinheiro) |
+| K. Contador | ver `FECHAMENTO-JURIDICO-CONTABIL.md` (C1 a C10): parecer conjunto, preço da taxa, cachê, município e item de serviço, "revenda", Tesouraria | V + K | **sim** (Tesouraria) |
 | L. Marketing (decisão) | modelo A suspenso ou reajustado; priorizar o B; consultas por escrito a Meta, Google, Taboola, Outbrain, UOL; o que é "UOL Host" | V | não |
 | M. Código aberto | influenciadores PR 1 (convite e vitrine), PR 2 (desempenho), dossiê de conformidade, PR 3 (termo; espera R16-R19, R23), PR 4 (acordo com cachê; espera R21 e contador); Tesouraria (`PLANO-FINANCEIRO.md`, não existe no código); APK das maquininhas (precisa do Android SDK); ferramentas de publicação que ficaram; CSP valendo (depende do log) | C | não (competem por agenda) |
 | N. **Reformulação dos painéis** | este plano | C + V | — |

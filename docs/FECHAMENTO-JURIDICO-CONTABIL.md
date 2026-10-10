@@ -255,3 +255,23 @@ segundo retorno). Ficaram abertas com ele: a fonte certa da retenção em São
 Paulo (o art. 47-A do Decreto 58.175/2018 trata da base de cálculo) e o CNAE
 (duas recomendações que se contradizem). Com o dono: custo, volume e margem, e em
 qual base (sobre a receita da taxa ou sobre o custo).
+
+### Contador: rascunho do parecer (10/10/2026)
+
+Recebido o rascunho do parecer do modelo B (`docs/PARECER-CONTADOR-MODELO-B.md`),
+com a revisão feita aqui. **Decisão do dono:** o custo mensal só aparece com a
+plataforma ativa, então a simulação de custo e margem sai da Parte 1; o parecer
+fica com a cláusula de revisão de preço aos 90 dias.
+
+### Situação do critério da seção 8 (10/10/2026)
+
+| Item | Situação |
+|---|---|
+| V1 a V6 | V1, V3, V4 e V6 respondidas; V2 é do contador (10.08, fechado); V5 (domínio) até 12/10/2026 |
+| Advogado | Fechado, com as entregas dele pendentes (Portaria 7.638, art. 33, anexo do modelo B, consultas, termo de confidencialidade) |
+| Contador | C1 a C6 e P1 a P5 fechados; rascunho do parecer recebido, **com pendências** (seção 3 do documento do parecer) |
+| Parecer conjunto assinado | **Não**: falta a parte do advogado e as pendências do contador |
+| Registro de decisões e PR de adequação | **Não**: o PR de adequação só sai com o seu aval |
+| A13 (parecer bancário) e T2/T3 | A13 ainda **não foi contratado** (sua lista) |
+
+A Parte 2 **ainda não começa** por este critério.

@@ -190,10 +190,14 @@ export function lerApi(): RotaDaApi[] {
     for (const m of src.matchAll(/\b\w*[rR]outer\.(get|post|put|patch|delete)\(\s*(["'`])([^"'`]+)\2/g)) {
       const caminho = m[3];
       let provas: string[] = [];
-      if (montagem?.startsWith("/api")) {
-        const alvo = montagem + caminho;
+      // Rota montada em vários lugares (`${caminho}/consentimento`): o prefixo é
+      // variável, então a busca é pelo final — `${V}/consentimento` nas provas.
+      const prefixoVariavel = !montagem?.startsWith("/api") && caminho.startsWith("${");
+      if (montagem?.startsWith("/api") || prefixoVariavel) {
+        const alvo = prefixoVariavel ? "\u0001" + caminho.replace(/^\$\{[^}]*\}/, "") : montagem + caminho;
         // :param e a interpolação do script casam entre si.
         const padrao = escapar(alvo)
+          .replace(/:\w+\\\([^)]*\\\)/g, ":p") // `:qual(imagem|poster)` é um parâmetro
           .replace(/:\w+/g, "(?:[^/\\s\"'`?]+|\u0001)")
           .replace(/\\\?/g, "\\?");
         const re = new RegExp(padrao + "(?![\\w/-])");

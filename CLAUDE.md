@@ -2366,7 +2366,7 @@ pedido, cotas e valor, e o cliente só pelo ID (`Cliente C-XXXXXXXX`).
 - **O número premiado é sorteado e só a plataforma o vê.** A organização
   só sorteia (`POST /campaigns/:id/prized` com `quantity`); mandar
   `numeros` é 403 — quem escolhe o número premiado da própria rifa pode
-  comprá-lo. `GET /campaigns/:id/prized` devolve `number: null` para a
+  comprá-lo. `DELETE /prized/:id` confere o dono antes, só apaga cota ainda não ganha (o `DELETE` é condicional; ganha é 409 e nada some) e id fora do formato é 404 (`npm run isolation`). `GET /campaigns/:id/prized` devolve `number: null` para a
   organização enquanto a cota está em jogo (ganha, o número já é público e
   volta a aparecer), e o relatório de cotas só marca "Cota premiada" em
   número já ganho. A plataforma vê os números e, só no rascunho, pode

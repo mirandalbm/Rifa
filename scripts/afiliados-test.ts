@@ -251,6 +251,24 @@ async function main() {
     r = await orgB.req("DELETE", `/api/admin/coupons/${(await db.execute(sql`select id from coupons where code = 'AFTESTEA'`)).rows[0]?.id}`);
     checa("a B não apaga o cupom da A (404)", r.status === 404, `HTTP ${r.status}`);
 
+    // As leituras da afiliada: só o que é dela, sem dado de comprador.
+    r = await new Cliente().req("GET", "/api/affiliate/coupons");
+    checa("cupons sem sessão: 401", r.status === 401, `HTTP ${r.status}`);
+    r = await afiliada.req("GET", "/api/affiliate/coupons");
+    checa(
+      "a afiliada vê o cupom dela, e só os dela",
+      r.status === 200 && r.json?.some((c: any) => c.code === "AFTESTEA") && r.json.every((c: any) => c.affiliateId === aff.id),
+      JSON.stringify(r.json)?.slice(0, 120),
+    );
+    r = await afiliada.req("GET", "/api/affiliate/organizacoes");
+    checa("as organizações dela trazem a A", r.status === 200 && JSON.stringify(r.json).includes(A.slug), `HTTP ${r.status}`);
+    r = await afiliada.req("GET", "/api/affiliate/commissions");
+    const linhas: any[] = r.json ?? [];
+    checa("o extrato de comissões traz as vendas dela", r.status === 200 && linhas.length > 0, `HTTP ${r.status} ${linhas.length}`);
+    checa("…quem comprou pelo link aparece só pelo primeiro nome", linhas.every((l) => !String(l.buyerName).includes(" ") && !JSON.stringify(l).includes("Teste")), JSON.stringify(linhas[0]));
+    checa("…e cada comissão diz qual organização paga", linhas.every((l) => typeof l.organizacao === "string" && l.organizacao.length > 0));
+    checa("…sem telefone nem CPF", !/phone|telefone|cpf/i.test(JSON.stringify(linhas)));
+
     // Saque por organização.
     await db.update(commissions).set({ status: "available" }).where(eq(commissions.affiliateId, aff.id));
     // A chave Pix é para onde vai o saque: sem a senha, a sessão sozinha não troca.

@@ -35,7 +35,7 @@ import {
 import { once } from "node:events";
 import { randomInt } from "node:crypto";
 import QRCode from "qrcode";
-import { eq, and, sql, desc } from "drizzle-orm";
+import { eq, and, sql, desc, isNull } from "drizzle-orm";
 import { db } from "../db";
 import {
   campaigns,
@@ -1971,25 +1971,26 @@ adminRouter.post("/campaigns/:id/prized", async (req, res, next) => {
 
 adminRouter.delete("/prized/:prizedId", async (req, res, next) => {
   try {
+    if (!ehUuid(req.params.prizedId)) return res.status(404).json({ message: "Cota premiada não encontrada." });
     // Confere o dono ANTES de apagar: aqui a rota apaga e só depois decide se
     // devolve, então um id de outra organização já teria sumido do banco.
     const [alvo] = await db
-      .select({ campaignId: prizedQuotas.campaignId })
+      .select({ campaignId: prizedQuotas.campaignId, claimedByOrderId: prizedQuotas.claimedByOrderId })
       .from(prizedQuotas)
       .where(eq(prizedQuotas.id, req.params.prizedId));
     if (!alvo) return res.status(404).json({ message: "Cota premiada não encontrada." });
     await assertCampaignInScope(req, alvo.campaignId);
-
-    const [removed] = await db
-      .delete(prizedQuotas)
-      .where(eq(prizedQuotas.id, req.params.prizedId))
-      .returning();
-    if (!removed) return res.status(404).json({ message: "Cota premiada não encontrada." });
-    if (removed.claimedByOrderId) {
-      // Já foi ganha: recriar seria tirar prêmio de quem levou.
-      await db.insert(prizedQuotas).values(removed);
+    // Já foi ganha: apagar seria tirar prêmio de quem levou.
+    if (alvo.claimedByOrderId) {
       return res.status(409).json({ message: "Esta cota premiada já foi ganha." });
     }
+
+    // Condicional ao "ainda não ganha": se a revelação chegou no meio, nada some.
+    const [removed] = await db
+      .delete(prizedQuotas)
+      .where(and(eq(prizedQuotas.id, req.params.prizedId), isNull(prizedQuotas.claimedByOrderId)))
+      .returning();
+    if (!removed) return res.status(409).json({ message: "Esta cota premiada já foi ganha." });
     await audit(req, "prized.remove", "campaign", removed.campaignId, { id: removed.id });
     res.json({ removed: removed.id });
   } catch (err) {

@@ -7,7 +7,7 @@ Gerada do código por `npm run matriz` — **não edite à mão** (o teste `test
 | Telas (rotas do `App.tsx`) | 66 (+ 2 redirecionamentos) |
 | Seções de acesso (`shared/access.ts`) | 41 |
 | Cartões (componentes usados pelas telas) | 715 |
-| Rotas da API | 477, das quais 463 citadas por alguma prova |
+| Rotas da API | 477, das quais 473 citadas por alguma prova |
 | Provas contra a API (`npm run …`) | 61 |
 | Testes de regra (`tests/`) | 127 arquivos |
 | Destinos decididos | 0 de 822 |
@@ -1182,7 +1182,7 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 
 A API não muda de lugar na reformulação. Aqui está para que a tela nova não deixe rota sem prova: "—" quer dizer que nenhum arquivo de `scripts/` ou `tests/` cita o caminho.
 
-### `server/routes/admin.ts` — /api/admin (264 rotas, 261 com prova)
+### `server/routes/admin.ts` — /api/admin (264 rotas, 263 com prova)
 
 | Método | Caminho | Provas |
 |---|---|---|
@@ -1264,7 +1264,7 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 | DELETE | `/media/:mediaId` | `isolation-test.ts`, `poster-test.ts`, `publicacao-test.ts` |
 | GET | `/campaigns/:id/prized` | `apuracao-test.ts`, `comentarios-test.ts`, `contrato-anexos-test.ts` +1 |
 | POST | `/campaigns/:id/prized` | `apuracao-test.ts`, `comentarios-test.ts`, `contrato-anexos-test.ts` +1 |
-| DELETE | `/prized/:prizedId` | — |
+| DELETE | `/prized/:prizedId` | `isolation-test.ts` |
 | GET | `/busca` | `isolation-test.ts` |
 | GET | `/orders` | `isolation-test.ts` |
 | GET | `/affiliates` | `afiliados-test.ts` |
@@ -1378,7 +1378,7 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 | DELETE | `/banners/:id` | `isolation-test.ts`, `vitrine-test.ts` |
 | GET | `/stories` | `isolation-test.ts`, `poster-test.ts`, `vitrine-test.ts` |
 | POST | `/stories` | `isolation-test.ts`, `poster-test.ts`, `vitrine-test.ts` |
-| GET | `/stories/:id/:qual(imagem\|poster)` | — |
+| GET | `/stories/:id/:qual(imagem\|poster)` | `isolation-test.ts`, `poster-test.ts` |
 | DELETE | `/stories/:id` | `isolation-test.ts`, `poster-test.ts`, `vitrine-test.ts` |
 | GET | `/resultados` | `resultados-test.ts` |
 | PUT | `/campaigns/:id/foto-ganhador` | `isolation-test.ts`, `resultados-test.ts` |
@@ -1451,14 +1451,14 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 | GET | `/fiscal/:affiliateId/documentos/:tipo` | `fiscal-test.ts`, `isolation-test.ts` |
 | POST | `/fiscal/:affiliateId/decidir` | `fiscal-test.ts`, `isolation-test.ts` |
 
-### `server/routes/affiliate.ts` — /api/affiliate (36 rotas, 32 com prova)
+### `server/routes/affiliate.ts` — /api/affiliate (36 rotas, 35 com prova)
 
 | Método | Caminho | Provas |
 |---|---|---|
 | GET | `/overview` | `verificacao-test.ts` |
-| GET | `/commissions` | — |
+| GET | `/commissions` | `afiliados-test.ts` |
 | GET | `/links` | `afiliados-test.ts`, `artes-test.ts` |
-| GET | `/coupons` | — |
+| GET | `/coupons` | `afiliados-test.ts` |
 | GET | `/artes/:slug` | `artes-test.ts` |
 | GET | `/artes/:slug/:tipo/pacote` | `artes-test.ts` |
 | GET | `/artes/:slug/:tipo` | `artes-test.ts` |
@@ -1471,7 +1471,7 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 | POST | `/payouts` | `afiliados-test.ts`, `fiscal-test.ts`, `guarda-test.ts` |
 | GET | `/payouts/:id/nota` | `fiscal-test.ts` |
 | GET | `/payouts` | `afiliados-test.ts`, `fiscal-test.ts`, `guarda-test.ts` |
-| GET | `/organizacoes` | — |
+| GET | `/organizacoes` | `afiliados-test.ts` |
 | POST | `/organizacoes/:slug/aderir` | `afiliados-test.ts`, `divulgacao-test.ts` |
 | DELETE | `/organizacoes/:slug` | `afiliados-test.ts`, `divulgacao-test.ts` |
 | GET | `/fiscal` | `fiscal-test.ts` |
@@ -1688,15 +1688,15 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 | GET | `/sales` | `cambista-test.ts`, `publico-test.ts` |
 | GET | `/settlement` | `cambista-test.ts` |
 
-### `server/routes/verificacaoRotas.ts` — (montada em public.ts, affiliate.ts e admin.ts) (5 rotas, 0 com prova)
+### `server/routes/verificacaoRotas.ts` — (montada em public.ts, affiliate.ts e admin.ts) (5 rotas, 5 com prova)
 
 | Método | Caminho | Provas |
 |---|---|---|
-| GET | `${caminho}/consentimento` | — |
-| POST | `${caminho}/consentimento` | — |
-| DELETE | `${caminho}/consentimento` | — |
-| PUT | `${caminho}/documentos/:tipo` | — |
-| GET | `${caminho}/documentos/:tipo` | — |
+| GET | `${caminho}/consentimento` | `matriz.ts`, `verificacao-test.ts` |
+| POST | `${caminho}/consentimento` | `matriz.ts`, `verificacao-test.ts` |
+| DELETE | `${caminho}/consentimento` | `matriz.ts`, `verificacao-test.ts` |
+| PUT | `${caminho}/documentos/:tipo` | `banner-divulgacao-test.ts`, `fiscal-test.ts`, `verificacao-test.ts` |
+| GET | `${caminho}/documentos/:tipo` | `banner-divulgacao-test.ts`, `fiscal-test.ts`, `verificacao-test.ts` |
 
 ### `server/routes/webhooks.ts` — /api/webhooks (1 rotas, 1 com prova)
 
@@ -1708,10 +1708,9 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 
 Busca literal do caminho em `scripts/` e `tests/` (a interpolação vale como parâmetro): é a lista do que a reformulação mexe sem rede de proteção. Pode haver prova que chega à rota por outro caminho; o contrário (prova que cita e não confere) a busca não vê.
 
-- `server/routes/admin.ts` (3 de 264): PUT `/media/raw`, DELETE `/prized/:prizedId`, GET `/stories/:id/:qual(imagem|poster)`
-- `server/routes/affiliate.ts` (4 de 36): GET `/commissions`, GET `/coupons`, GET `/organizacoes`, GET `/divulgacoes/:id/video`
+- `server/routes/admin.ts` (1 de 264): PUT `/media/raw`
+- `server/routes/affiliate.ts` (1 de 36): GET `/divulgacoes/:id/video`
 - `server/routes/public.ts` (2 de 149): GET `/mensagens/conversas/:id/fotos/:fotoId`, GET `/divulgacoes/minhas/:id/fotos/:fotoId`
-- `server/routes/verificacaoRotas.ts` (5 de 5): GET `${caminho}/consentimento`, POST `${caminho}/consentimento`, DELETE `${caminho}/consentimento`, PUT `${caminho}/documentos/:tipo`, GET `${caminho}/documentos/:tipo`
 
 ## 6. Provas contra a API
 

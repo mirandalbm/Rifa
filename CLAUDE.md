@@ -107,7 +107,7 @@ arquitetura.
 | cotas premiadas | `shared/premiadas.ts` (números escolhidos), `shared/premio.ts` (prêmio sem dinheiro nem item proibido na rifa autorizada), `server/routes/admin.ts` (sorteio e escolha), `services/orders.ts` (revelação), `premiados` em `listarComentarios()` (o comentário fixo de quem levou), `client/src/components/CotaSurpresa.tsx` (o presente na publicação, que revela) |
 | cadastro/cupom/kit do afiliado | `server/routes/public.ts`, `server/routes/affiliate.ts` |
 | afiliado de todas as organizações (vínculo, termo, aceite, colaborador) | `shared/afiliados.ts` (regras), `server/services/afiliados.ts` (`comissaoNaRifa`), `client/src/pages/afiliado.tsx` (`AfiliadoOrganizacoes`), `scripts/afiliados-test.ts` |
-| venda física e acerto | `server/routes/seller.ts`, `server/services/settlements.ts` |
+| venda física e acerto | `server/routes/seller.ts`, `server/services/settlements.ts`, `scripts/cambista-test.ts` (`npm run cambista`) |
 | meios de pagamento aceitos | `shared/payments.ts` (regras) e `services/settings.ts` |
 | bilhete | `server/services/ticketFormat.ts` (puro) e `ticket.ts` (dados) |
 | ponte com a maquininha | `client/src/lib/pos.ts`, `android/`, `docs/MAQUININHAS.md`; Stone por deeplink em `android/app/src/ton/` e `RetornoDeApp.kt`, provada sem SDK por `npm run stone` |
@@ -191,6 +191,7 @@ arquitetura.
 | janela sobre a tela (sobe de baixo, Esc, fundo, rolagem travada) | `client/src/components/Janela.tsx`, regra 14 de `docs/VERSOES.md`, `tests/pecas.test.ts` |
 | casca dos painéis (menu lateral em grupos, barra de cima, busca, conta, rodapé) e as peças do kit | `MENUS`/`menuDe()` em `shared/access.ts`, `PanelShell` em `client/src/components/AppShell.tsx`, `client/src/components/painel.tsx` (`Estatistica`, `CartaoDoPainel`, `CabecalhoDaTabela`, `AlternarVisao`), `.painel`/`.cartao` em `client/src/index.css`, `tests/menu.test.ts` |
 | remodelagem do web e dos painéis: inventário do que existe e lista de conferência | `docs/REMODELAGEM.md` |
+| reformulação dos painéis (plano e cronograma; a matriz de cobertura gerada do código — telas, seções, cartões, rotas da API e a prova de cada uma; o destino de cada coisa na tela nova) | `docs/PLANO-REFORMULACAO.md`, `docs/REFORMULACAO-MATRIZ.md` (**gerada: `npm run matriz`, nunca à mão**), `docs/reformulacao-destinos.json` (o destino, que a fase 2 preenche; `npm run matriz -- --destinos` acrescenta o que for novo), `scripts/matriz.ts`, `tests/matrizReformulacao.test.ts` (falha se a matriz ficar velha ou se tela, seção ou cartão novo não tiver linha de destino) |
 | selo "ao vivo" no story (anel com a transmissão do sorteio) | `transmissaoNoAr()` em `shared/aoVivo.ts` (regra), `transmissoesNoAr()` em `server/services/aoVivo.ts`, `perfisComStory()` e `perfilPublico()` em `server/services/perfil.ts`, `FotoComStory`/`VisualizadorDeStories` em `client/src/components/Stories.tsx`, `tests/seloAoVivo.test.ts`, `scripts/vitrine-test.ts` |
 | tela do sorteio no Início do celular (deslizar para a direita, vídeo e comentários como no YouTube) | `client/src/components/SorteioDoInicio.tsx` (`useSorteioDoInicio`, `ContagemDoSorteio`), a regra do gesto em `client/src/lib/deslizar.ts`, `TelaDoProximoSorteio` em `client/src/components/ColunaAoVivo.tsx`, `antesDaMarca` em `PublicShell`, `tests/deslizar.test.ts` |
 | sorteios oficiais da plataforma (calendário, integrar a rifa, selo, resultado oficial, sorteio automático, outras loterias, troca pelo adiamento, a tela do celular) | `shared/sorteiosOficiais.ts` (regras e loterias), `server/services/sorteiosOficiais.ts`, `sortearRifasDoSorteioOficial()` em `server/services/sortear.ts` (e o relógio em `server/jobs/index.ts`), `pedirAdiamento()` com `sorteioOficialId` em `server/services/solicitacoes.ts`, os comentários em `server/services/sorteioComentarios.ts` (o componente `Comentarios` com `sorteioOficialId`, `scripts/sorteio-comentarios-test.ts`) e a denúncia deles (`shared/sorteioDenuncias.ts`, `ComentariosDoSorteioDenunciados` em `client/src/components/ConversasDenunciadas.tsx`, tipo `comentario_sorteio` em `shared/caixa.ts`, `tests/sorteioDenuncias.test.ts`), `/sorteios-oficiais*` e `PUT /campaigns/:id/sorteio-oficial` em `server/routes/admin.ts`, `GET /api/public/sorteio-oficial` em `server/routes/public.ts`, `client/src/pages/adminSorteiosOficiais.tsx`, `ConteudoDoSorteio`/`ContagemDoSorteio` em `client/src/components/SorteioDoInicio.tsx`, `scripts/sorteios-oficiais-test.ts`, `tests/sorteiosOficiais.test.ts` |
@@ -1061,11 +1062,32 @@ plataforma analisa** (Atendimento → Rifas, com conversa dos dois lados).
 - A venda do cambista usa o **mesmo** caminho de reserva das vendas online
   (`INSERT … ON CONFLICT`). Não existe atalho para venda física.
 - Fechar acerto **carimba** os pedidos (`orders.settlement_id`). Sem o carimbo,
-  a mesma venda entra em dois acertos.
+  a mesma venda entra em dois acertos. **E fecha com a linha do cambista
+  travada** (`FOR UPDATE`, `closeSettlement()`): cinco fechamentos ao mesmo
+  tempo liam as mesmas vendas em aberto e geravam cinco acertos — o cambista
+  devendo cinco vezes. O `UPDATE` do carimbo exige `settlement_id IS NULL` e
+  confere a contagem — e o `UPDATE` exige `status = 'paid'` e o mesmo
+  cambista, porque o estorno não trava a linha dele: venda devolvida no meio
+  do fechamento desfaz o acerto (409, `AcertoError`), nunca entra no bruto.
+  **Dar baixa também é condicional** (`status <> 'pago'`):
+  a segunda é 409 e não reescreve a data.
+- **Venda de outro cambista é 404**, ao confirmar e ao cancelar (era 403, que
+  entregava que o código existe). `npm run cambista` prova.
 - O cambista deve à casa; o afiliado recebe dela. Direções opostas, mesma
   máquina de comissão.
 
 ## Bilhete — o que não pode afrouxar
+
+- **Marcar como impresso é de quem tem a ver com a venda** (`POST
+  /tickets/:code/printed`): o cambista que vendeu, a organização dona da rifa
+  ou a plataforma. Qualquer outra sessão — outra organização, outro cambista,
+  afiliado — recebe 404 e nada é gravado; antes, qualquer pessoa logada
+  mexia na trilha do pedido dos outros. Código que não é número inteiro
+  positivo é 404 nas três rotas do bilhete (era 500). `npm run publico` prova,
+  junto com o rascunho 404 em premiados, últimas compras, ranking, número e
+  certificado, e o `track-click` com limite por IP por IP, 120 em 10 min — o limite protege só o `INSERT` do clique,
+  nunca a atribuição: o código vai para a sessão antes, e um vizinho de IP não
+  tira a comissão do afiliado).
 
 - A formatação vive em `ticketFormat.ts`, sem banco, porque é o que os testes
   exercitam: 32 colunas, total alinhado à direita, sem acento e sem espaço
@@ -1689,6 +1711,15 @@ permite cobrar dela depois, e o aceite é a prova.
   suba `UV_THREADPOOL_SIZE`.
 - **Cambista e afiliado passam pela mesma régua de senha** (`senhaInvalida`)
   do resto do painel.
+- **Desligar o segundo fator conta tentativa** (`POST /2fa/disable`: 30 em 10
+  min por pessoa, balde próprio `2fa-off:` — não gasta o dos atos sensíveis, 429): senha e
+  código de 6 dígitos sem limite deixavam quem tomou a sessão chutar o código.
+- **Bloqueio do antifraude**: a data de validade inválida ou no passado é 400
+  (era 500, e nasceria vencido) e o id fora do formato é 404 ao desbloquear (`ehUuid()` em `shared/uuid.ts`, o
+  UUID de verdade; o teste de "36 letras e hífens" deixava passar o que o
+  Postgres recusa).
+  `npm run acessos` prova, junto com trocar a senha, sair, criar o acesso de
+  organizador, os pedidos pendentes e o "visto" do sino.
 
 ## App instalável — o que não pode afrouxar
 
@@ -1708,6 +1739,21 @@ permite cobrar dela depois, e o aceite é a prova.
   `sw.js`: guardado lá, o nome novo nunca chegaria. `npm run aparencia` prova.
 
 ## Provedor do Pix e estorno — o que não pode afrouxar
+
+- **O webhook nunca perde um pagamento atrás de "duplicado"** (`webhooks.ts`):
+  o evento é gravado em `webhook_events` antes de processar, mas só `processed_at`
+  o conclui. Entrega repetida de evento **concluído** é 200 duplicado; a de evento **em
+  andamento** (menos de 60 s) é **503** com `Retry-After` — um 200 aí encerraria
+  os reenvios do provedor e, se o processo morreu, o Pix pago se perderia. Evento
+  **não concluído** (o processamento falhou, ou o processo caiu no meio) é
+  retomado pela entrega seguinte: falha inesperada solta a linha na hora; a que
+  parou sem saber por quê espera `PRAZO_DO_PROCESSAMENTO_S` (60 s); quem retoma
+  é um `UPDATE` condicional que renova `created_at`, então cinco entregas ao
+  mesmo tempo dão um processamento. Erro de **regra** (`OrderError`: cobrança
+  que não conhecemos, Pix de pedido vencido que já foi para a fila de
+  devolução) conclui o evento — repetir daria o mesmo. Cada passo do
+  processamento é idempotente por si, por isso retomar nunca cobra, credita ou
+  estorna duas vezes. `npm run webhook` prova, inclusive a retomada.
 
 - **Duas funções, dois papéis.** `activePaymentProvider()` escolhe quem gera
   o Pix das vendas novas (escolha do painel, ou `PAYMENT_PROVIDER`);
@@ -1929,9 +1975,11 @@ quem pagou.
 - **Fila, não log** (`pix_tardios`, `server/services/pixTardio.ts`): uma
   linha por pedido (índice único `uq_pix_tardio_pedido`, `ON CONFLICT DO
   NOTHING` — o webhook repetido não duplica), com o valor, a cobrança e o
-  provedor do pedido. `registrarPixTardio()` **nunca lança**: quem chama é
-  o webhook, e falhar aqui não vira 500 para o provedor. Entra por
-  `markOrderPaid`/`marcarCarrinhoPago` (pedido `expired`) e por
+  provedor do pedido. `registrarPixTardio()` **lança se o banco falhar**: engolir o erro
+  concluía o evento do webhook com o dinheiro sem cota e fora da fila; propagando,
+  o webhook solta o evento e o reenvio do provedor tenta de novo (o `INSERT` é
+  idempotente). Entra por
+  `markOrderPaid`/`marcarCarrinhoPago` (pedido `expired`, inclusive o que venceu entre a leitura e a confirmação) e por
   `settleOrderAsPaid` (rifa sorteada, valor acima de zero).
 - **Só a plataforma vê e resolve** (403 para organizador, no `npm run
   isolation`): o dinheiro passou pela conta dela. Cartão "Pix a devolver"
@@ -2322,7 +2370,7 @@ pedido, cotas e valor, e o cliente só pelo ID (`Cliente C-XXXXXXXX`).
 - **O número premiado é sorteado e só a plataforma o vê.** A organização
   só sorteia (`POST /campaigns/:id/prized` com `quantity`); mandar
   `numeros` é 403 — quem escolhe o número premiado da própria rifa pode
-  comprá-lo. `GET /campaigns/:id/prized` devolve `number: null` para a
+  comprá-lo. `DELETE /prized/:id` confere o dono antes, só apaga cota ainda não ganha (o `DELETE` é condicional; ganha é 409 e nada some) e id fora do formato é 404 (`npm run isolation`). `GET /campaigns/:id/prized` devolve `number: null` para a
   organização enquanto a cota está em jogo (ganha, o número já é público e
   volta a aparecer), e o relatório de cotas só marca "Cota premiada" em
   número já ganho. A plataforma vê os números e, só no rascunho, pode
@@ -3757,6 +3805,17 @@ coluna ao vivo segue como estava.
 - **Só a plataforma cadastra, muda, cancela e lança o resultado** (403 para
   organizador, no `npm run isolation`). O mesmo concurso da mesma loteria
   não entra duas vezes: quem decide é o índice `uq_sorteio_oficial_concurso`.
+- **Lançar o resultado e registrar nova extração do globo pedem senha E o
+  código do autenticador na hora** (`conferirSegundoFatorAgora()` em
+  `server/services/segundoFator.ts`, depois do recorte e antes de qualquer
+  gravação): é o ato que decide o ganhador de várias rifas, e a sessão aberta
+  sozinha não vale. Sem o segundo fator ligado: 409 `totp_required`; sem senha
+  e código: 401; errados: 401. Cada ato conta uma tentativa por pessoa
+  (`segundo-fator:<id>`, 30 em 10 min, 429), certa ou errada. A tela
+  (`CamposDoSegundoFator`) limpa o código quando erra. O ato sensível novo
+  entra nesta mesma função, não numa cópia. `npm run sorteios` e `npm run
+  apuracao` ligam o segundo fator do administrador só durante a prova e
+  devolvem o que havia.
 - **Integrar é escolher no calendário, e só no rascunho** (`PUT
   /campaigns/:id/sorteio-oficial`, `integrarAoSorteioOficial()`): a data da
   rifa vira a do concurso **no mesmo `UPDATE`**, condicional ao rascunho, com

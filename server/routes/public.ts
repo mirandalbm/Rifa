@@ -80,6 +80,7 @@ import { listPublicCampaigns, campaignBySlug, certificadoDa } from "../services/
 import { ufValida, ordenarPorProximidade, cidadeUf, distancia, enderecoEmUmaLinha } from "@shared/endereco";
 import { montarRegulamento } from "@shared/regulamento";
 import { enderecoDa } from "../services/orgs";
+import { ehUuid } from "@shared/uuid";
 import { consultarCep } from "../services/cep";
 import { chavesVapid, inscrever, cancelarInscricao } from "../services/push";
 import {
@@ -634,7 +635,7 @@ publicRouter.get("/banners", async (_req, res, next) => {
 
 publicRouter.get("/banners/:id/imagem", async (req, res, next) => {
   try {
-    const b = await imagemDoBanner(req.params.id);
+    const b = ehUuid(req.params.id) ? await imagemDoBanner(req.params.id) : null;
     if (!b) return res.status(404).json({ message: "Banner não encontrado." });
     // O endereço leva a data (?v=): trocar a imagem troca o endereço.
     res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
@@ -684,7 +685,7 @@ publicRouter.post("/stories/:id/enquete", async (req, res, next) => {
     res.setHeader("Cache-Control", "no-store");
     const buyerId = await contaQueVota(req.session.buyer?.id);
     if (!buyerId) return res.status(401).json({ message: "Entre na sua conta (com CPF) para votar." });
-    if (!/^[0-9a-f-]{36}$/i.test(req.params.id)) return res.status(404).json({ message: "Enquete não encontrada." });
+    if (!ehUuid(req.params.id)) return res.status(404).json({ message: "Enquete não encontrada." });
     // Erro de preenchimento (enquete que não existe, opção que não é dela) sai antes de contar.
     const opcao = await conferirVoto(req.params.id, req.body?.opcao);
     if ((await hit(`enquete:${buyerId}`, 10, ENQUETE_VOTOS_POR_JANELA)).excedeu) {
@@ -1670,6 +1671,15 @@ publicRouter.post("/track-click", async (req, res, next) => {
       req.session.affiliateSince = Date.now();
     }
 
+    // Cada clique grava uma linha: sem limite, um script enche a tabela. O teto
+    // protege só o INSERT, nunca a atribuição — o código já foi para a sessão
+    // acima, e um vizinho de IP (operadora, Wi-Fi de evento) não pode tirar a
+    // comissão do afiliado. Limite folgado, por IP (não por aparelho).
+    const { ipHash } = identify(req);
+    if (ipHash && (await hit(`track-click:${ipHash}`, 10, 120)).excedeu) {
+      return res.json({ tracked: true, attributed: req.session.affiliateCode });
+    }
+
     let campaignId: string | undefined;
     if (slug) {
       const [c] = await db
@@ -1790,6 +1800,12 @@ publicRouter.post("/carrinho/checkout", async (req, res, next) => {
     next(err);
   }
 });
+
+/** O código do pedido na URL: o que não é inteiro positivo não existe (404), nunca vira NaN no SQL. */
+function codigoDoPedido(texto: string): number {
+  const n = Number(texto);
+  return Number.isSafeInteger(n) && n > 0 && n <= 2_147_483_647 ? n : 0; // `orders.code` é int4
+}
 
 /** Barra quem está varrendo códigos de pedido; ver `lookupBlocked`. */
 async function lookupGuard(req: Request, res: Response): Promise<boolean> {
@@ -2361,7 +2377,7 @@ publicRouter.post("/patrocinadas/:id/clique", async (req, res, next) => {
 publicRouter.get("/tickets/:code", async (req, res, next) => {
   try {
     if (!(await lookupGuard(req, res))) return;
-    const ticket = await buildTicket(Number(req.params.code));
+    const ticket = await buildTicket(codigoDoPedido(req.params.code));
     if (!ticket) {
       await recordLookupMiss(identify(req));
       return res.status(404).json({ message: "Bilhete não encontrado." });
@@ -2376,7 +2392,7 @@ publicRouter.get("/tickets/:code", async (req, res, next) => {
 publicRouter.get("/tickets/:code/escpos", async (req, res, next) => {
   try {
     if (!(await lookupGuard(req, res))) return;
-    const ticket = await buildTicket(Number(req.params.code));
+    const ticket = await buildTicket(codigoDoPedido(req.params.code));
     if (!ticket) {
       await recordLookupMiss(identify(req));
       return res.status(404).json({ message: "Bilhete não encontrado." });
@@ -2395,7 +2411,22 @@ publicRouter.get("/tickets/:code/escpos", async (req, res, next) => {
 publicRouter.post("/tickets/:code/printed", async (req, res, next) => {
   try {
     if (!req.user) return res.status(401).json({ message: "Entre para continuar." });
-    await markTicketPrinted(Number(req.params.code));
+    const code = codigoDoPedido(req.params.code);
+    const [venda] = await db
+      .select({ sellerId: orders.sellerId, organizationId: campaigns.organizationId })
+      .from(orders)
+      .innerJoin(campaigns, eq(campaigns.id, orders.campaignId))
+      .where(eq(orders.code, code));
+    // Só mexe na trilha de impressão quem tem a ver com a venda: o cambista
+    // que vendeu, a organização dona da rifa ou a plataforma. Os demais veem
+    // "não existe" — 404, nunca 403, como o resto do que é do vizinho.
+    const role = req.user.role;
+    const pode =
+      role === "admin" ||
+      (role === "organizer" && req.user.organizationId === venda?.organizationId) ||
+      (role === "cambista" && Boolean(req.user.affiliateId) && req.user.affiliateId === venda?.sellerId);
+    if (!venda || !pode) return res.status(404).json({ message: "Bilhete não encontrado." });
+    await markTicketPrinted(code);
     res.json({ ok: true });
   } catch (err) {
     next(err);
@@ -2452,7 +2483,7 @@ publicRouter.get("/campaigns/:slug/premios", async (req, res, next) => {
  */
 publicRouter.get("/sorteio-oficial/:id/ata", async (req, res, next) => {
   try {
-    if (!/^[0-9a-f-]{36}$/i.test(req.params.id)) return res.status(404).json({ message: "Ata não encontrada." });
+    if (!ehUuid(req.params.id)) return res.status(404).json({ message: "Ata não encontrada." });
     const a = await arquivoDaAta(req.params.id);
     if (!a) return res.status(404).json({ message: "Ata não encontrada." });
     res.setHeader("Cache-Control", "public, max-age=300");

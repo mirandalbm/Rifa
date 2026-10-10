@@ -20,6 +20,8 @@ import { db, pool } from "../server/db";
 import { hashPassword } from "../server/auth";
 import { campaignStats, campaigns, draws, organizations, sorteiosOficiais, users } from "../shared/schema";
 import { commitSeed, drawNumber } from "../server/services/draw";
+import { guardarSegredo } from "../server/services/segundoFator";
+import { generateSecret, totpCode } from "../server/services/totp";
 
 const URL = baseUrl();
 let falhas = 0;
@@ -42,6 +44,9 @@ class Cliente {
     return { status: r.status, json: tipo.includes("json") ? await r.json() : null };
   }
 }
+
+let totpAnterior: string | null | undefined;
+let adminId: string | undefined;
 
 const PREFIXO = "sorteio-oficial-prova";
 const TITULO = "Prova do sorteio oficial";
@@ -90,6 +95,17 @@ async function main() {
       password: process.env.SEED_ADMIN_PASSWORD ?? "admin123",
     });
     if (r.status !== 200) throw new Error(`login do administrador: HTTP ${r.status}`);
+    // Lançar o resultado pede senha e código na hora: liga o segundo fator do administrador
+    // só durante a prova e devolve o que havia no fim.
+    const emailAdmin = process.env.SEED_ADMIN_EMAIL ?? "admin@rifa.br";
+    const senhaAdmin = process.env.SEED_ADMIN_PASSWORD ?? "admin123";
+    const [adminDb] = await db.select().from(users).where(eq(users.email, emailAdmin));
+    totpAnterior = adminDb.totpSecret;
+    adminId = adminDb.id;
+    const segredo = generateSecret();
+    await db.execute(sql`delete from rate_events where bucket like 'segundo-fator:%'`);
+    await db.update(users).set({ totpSecret: guardarSegredo(segredo) }).where(eq(users.id, adminDb.id));
+    const fator = () => ({ password: senhaAdmin, code: totpCode(segredo) });
     const marina = new Cliente();
     r = await marina.req("POST", "/api/auth/login", { email: "marina@rifassaojose.br", password: "organizador123" });
     if (r.status !== 200) throw new Error(`login da organizadora: HTTP ${r.status}`);
@@ -178,17 +194,31 @@ async function main() {
     checa("rifa publicada não sai do sorteio sozinha (409)", r.status === 409, `HTTP ${r.status}`);
 
     // --- resultado ---
-    r = await admin.req("POST", `/api/admin/sorteios-oficiais/${s1.id}/resultado`, { numeros: ["01234", "56789", "00001", "99999", "12345"] });
+    r = await admin.req("POST", `/api/admin/sorteios-oficiais/${s1.id}/resultado`, { ...fator(), numeros: ["01234", "56789", "00001", "99999", "12345"] });
     checa("antes da hora, o resultado não entra (409)", r.status === 409, `HTTP ${r.status}`);
     await db.update(sorteiosOficiais).set({ sorteioEm: new Date(Date.now() - 60_000) }).where(eq(sorteiosOficiais.id, s1.id));
     r = await admin.req("PATCH", `/api/admin/sorteios-oficiais/${s1.id}`, { transmissaoUrl: "https://www.youtube.com/watch?v=prova" });
     checa("depois da hora, a transmissão ainda muda (antes do resultado)", r.status === 200, `HTTP ${r.status} ${r.json?.message ?? ""}`);
-    r = await admin.req("POST", `/api/admin/sorteios-oficiais/${s1.id}/resultado`, { numeros: ["1234", "56789", "00001", "99999", "12345"] });
+    // O segundo fator na hora: sem senha e código, com código errado e sem o segundo fator ligado.
+    const bolasOk = { numeros: ["01234", "56789", "00001", "99999", "12345"] };
+    r = await admin.req("POST", `/api/admin/sorteios-oficiais/${s1.id}/resultado`, bolasOk);
+    checa("sem senha e código, o resultado não entra (401)", r.status === 401 && r.json?.code === "segundo_fator_pedido", `HTTP ${r.status} ${r.json?.code}`);
+    r = await admin.req("POST", `/api/admin/sorteios-oficiais/${s1.id}/resultado`, { ...bolasOk, password: senhaAdmin, code: totpCode(segredo) === "000000" ? "111111" : "000000" });
+    checa("com o código errado, o resultado não entra (401)", r.status === 401, `HTTP ${r.status}`);
+    r = await admin.req("POST", `/api/admin/sorteios-oficiais/${s1.id}/resultado`, { ...bolasOk, password: "senha-errada-123", code: totpCode(segredo) });
+    checa("com a senha errada, o resultado não entra (401)", r.status === 401, `HTTP ${r.status}`);
+    const [antes] = await db.select().from(sorteiosOficiais).where(eq(sorteiosOficiais.id, s1.id));
+    checa("recusado, nada foi gravado", antes.resultado === null);
+    await db.update(users).set({ totpSecret: null }).where(eq(users.id, adminDb.id));
+    r = await admin.req("POST", `/api/admin/sorteios-oficiais/${s1.id}/resultado`, { ...bolasOk, ...fator() });
+    checa("sem o segundo fator ligado, manda ligar (409)", r.status === 409 && r.json?.code === "totp_required", `HTTP ${r.status} ${r.json?.code}`);
+    await db.update(users).set({ totpSecret: guardarSegredo(segredo) }).where(eq(users.id, adminDb.id));
+    r = await admin.req("POST", `/api/admin/sorteios-oficiais/${s1.id}/resultado`, { ...fator(), numeros: ["1234", "56789", "00001", "99999", "12345"] });
     checa("fora do formato da Federal é recusado (400)", r.status === 400, `HTTP ${r.status}`);
     const certos = ["01234", "56789", "00001", "99999", "12345"];
     const [a1, a2] = await Promise.all([
-      admin.req("POST", `/api/admin/sorteios-oficiais/${s1.id}/resultado`, { numeros: certos }),
-      admin.req("POST", `/api/admin/sorteios-oficiais/${s1.id}/resultado`, { numeros: certos }),
+      admin.req("POST", `/api/admin/sorteios-oficiais/${s1.id}/resultado`, { ...fator(), numeros: certos }),
+      admin.req("POST", `/api/admin/sorteios-oficiais/${s1.id}/resultado`, { ...fator(), numeros: certos }),
     ]);
     checa("dois cliques: um resultado e um 409", [a1.status, a2.status].sort().join(",") === "200,409", `${a1.status}/${a2.status}`);
     const [s1b] = await db.select().from(sorteiosOficiais).where(eq(sorteiosOficiais.id, s1.id));
@@ -237,7 +267,7 @@ async function main() {
     await semente(rMin.id);
     await publicar(rMin.id);
     await passouAHora(s4.id);
-    r = await admin.req("POST", `/api/admin/sorteios-oficiais/${s4.id}/resultado`, { numeros: certos });
+    r = await admin.req("POST", `/api/admin/sorteios-oficiais/${s4.id}/resultado`, { ...fator(), numeros: certos });
     [c] = await db.select().from(campaigns).where(eq(campaigns.id, rMin.id));
     checa(
       "abaixo do mínimo, o resultado não sorteia e o motivo fica",
@@ -302,6 +332,7 @@ async function main() {
     r = await marina.req("PUT", `/api/admin/campaigns/${outra.id}/sorteio-oficial`, { sorteioOficialId: s3.id });
     checa("a menos de 24 h, a rifa não entra (409)", r.status === 409 && /24 horas/.test(r.json?.message ?? ""), `HTTP ${r.status} ${r.json?.message ?? ""}`);
   } finally {
+    if (adminId) await db.update(users).set({ totpSecret: totpAnterior ?? null }).where(eq(users.id, adminId));
     await limpar();
   }
   console.log(falhas ? `\n${falhas} falha(s)` : "\ntudo certo");

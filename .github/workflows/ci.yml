@@ -152,6 +152,10 @@ jobs:
       - run: npm run fiscal
       - run: npm run disputa
       - run: npm run guarda
+      - run: npm run cambista
+      - run: npm run acessos
+      - run: npm run publico
+      - run: npm run webhook
       - run: npm run bonus
       - run: npm run patrocinio
       - run: npm run banner

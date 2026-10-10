@@ -20,6 +20,7 @@ import type { OrganizerInfo } from "@shared/schema";
 import { LIBERACAO_COMISSAO, carteiraAsaasValida } from "@shared/plataforma";
 import { PRAZO_ESTORNO_MIN, PRAZO_ESTORNO_MAX, telefoneDeAvisoValido } from "@shared/chamados";
 import { normalizePhone } from "@shared/format";
+import { ehUuid } from "@shared/uuid";
 import { validarEndereco, cidadeUf, ufValida, separarCidadeUf, type Endereco } from "@shared/endereco";
 
 export class OrgScopeError extends Error {
@@ -106,6 +107,7 @@ export async function assertCampaignInScope(req: Request, campaignId: string) {
  * decidir). Sem vínculo, 404, como o dado de qualquer vizinho.
  */
 export async function assertAffiliateInScope(req: Request, affiliateId: string) {
+  if (!ehUuid(affiliateId)) throw new OrgScopeError("Cadastro não encontrado.");
   const [linha] = await db
     .select({ afiliado: affiliates, organizationId: users.organizationId })
     .from(affiliates)

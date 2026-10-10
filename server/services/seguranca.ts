@@ -14,6 +14,7 @@
  *   uma decisão. Travar para as vendas na hora (`createOrder` recusa);
  *   banir fecha a porta de todos da organização e trava todas as rifas.
  */
+import { ehUuid } from "@shared/uuid";
 import { randomInt } from "node:crypto";
 import type { Request } from "express";
 import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
@@ -167,7 +168,7 @@ const protocolo = () => {
 async function alvoDaDenuncia(entrada: { rifa?: unknown; comentario?: unknown; organizacao?: unknown }) {
   if (entrada.comentario) {
     const id = String(entrada.comentario);
-    if (!/^[0-9a-f-]{36}$/i.test(id)) throw new SegurancaError("Comentário não encontrado.", 404);
+    if (!ehUuid(id)) throw new SegurancaError("Comentário não encontrado.", 404);
     const [c] = await db
       .select({ org: comentarios.organizationId, campanha: comentarios.campaignId })
       .from(comentarios)
@@ -298,7 +299,7 @@ export async function denunciasAbertas() {
 }
 
 export async function detalheDaDenuncia(id: string) {
-  if (!/^[0-9a-f-]{36}$/i.test(id)) throw new SegurancaError("Denúncia não encontrada.", 404);
+  if (!ehUuid(id)) throw new SegurancaError("Denúncia não encontrada.", 404);
   const [d] = await db
     .select({
       denuncia: denuncias,

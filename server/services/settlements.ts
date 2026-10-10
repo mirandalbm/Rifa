@@ -5,7 +5,7 @@
  * ele deve à casa: tudo que recolheu, menos a comissão dele. É o oposto do
  * afiliado online, que recebe da casa.
  */
-import { and, eq, isNull, sql, desc } from "drizzle-orm";
+import { and, eq, isNull, ne, sql, desc } from "drizzle-orm";
 import { db } from "../db";
 import { orders, commissions, settlements, affiliates, users } from "@shared/schema";
 
@@ -51,6 +51,11 @@ export async function openBalance(sellerId: string): Promise<OpenBalance> {
  */
 export async function closeSettlement(sellerId: string, notes?: string) {
   return db.transaction(async (tx) => {
+    // Quem decide é a linha do cambista, travada: cinco fechamentos ao mesmo
+    // tempo liam as mesmas vendas em aberto e geravam cinco acertos com elas
+    // (o cambista devendo cinco vezes). O segundo espera e já não encontra nada.
+    await tx.execute(sql`SELECT id FROM affiliates WHERE id = ${sellerId}::uuid FOR UPDATE`);
+
     const pendentes = await tx
       .select({
         id: orders.id,
@@ -87,10 +92,15 @@ export async function closeSettlement(sellerId: string, notes?: string) {
       })
       .returning();
 
-    await tx.execute(sql`
+    const carimbadas = await tx.execute(sql`
       UPDATE orders SET settlement_id = ${created.id}::uuid
       WHERE id = ANY(${`{${pendentes.map((o) => o.id).join(",")}}`}::uuid[])
+        AND settlement_id IS NULL
     `);
+    // Defesa em profundidade: se alguma venda já tinha acerto, desfaz tudo.
+    if (carimbadas.rowCount !== pendentes.length) {
+      throw new Error("Acerto desfeito: uma das vendas já pertence a outro acerto.");
+    }
 
     return created;
   });
@@ -100,7 +110,8 @@ export async function markSettlementPaid(settlementId: string) {
   const [updated] = await db
     .update(settlements)
     .set({ status: "pago", settledAt: new Date() })
-    .where(eq(settlements.id, settlementId))
+    // Condicional: dar baixa de novo não reescreve a data da primeira.
+    .where(and(eq(settlements.id, settlementId), ne(settlements.status, "pago")))
     .returning();
   return updated ?? null;
 }

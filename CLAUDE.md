@@ -107,7 +107,7 @@ arquitetura.
 | cotas premiadas | `shared/premiadas.ts` (números escolhidos), `shared/premio.ts` (prêmio sem dinheiro nem item proibido na rifa autorizada), `server/routes/admin.ts` (sorteio e escolha), `services/orders.ts` (revelação), `premiados` em `listarComentarios()` (o comentário fixo de quem levou), `client/src/components/CotaSurpresa.tsx` (o presente na publicação, que revela) |
 | cadastro/cupom/kit do afiliado | `server/routes/public.ts`, `server/routes/affiliate.ts` |
 | afiliado de todas as organizações (vínculo, termo, aceite, colaborador) | `shared/afiliados.ts` (regras), `server/services/afiliados.ts` (`comissaoNaRifa`), `client/src/pages/afiliado.tsx` (`AfiliadoOrganizacoes`), `scripts/afiliados-test.ts` |
-| venda física e acerto | `server/routes/seller.ts`, `server/services/settlements.ts` |
+| venda física e acerto | `server/routes/seller.ts`, `server/services/settlements.ts`, `scripts/cambista-test.ts` (`npm run cambista`) |
 | meios de pagamento aceitos | `shared/payments.ts` (regras) e `services/settings.ts` |
 | bilhete | `server/services/ticketFormat.ts` (puro) e `ticket.ts` (dados) |
 | ponte com a maquininha | `client/src/lib/pos.ts`, `android/`, `docs/MAQUININHAS.md`; Stone por deeplink em `android/app/src/ton/` e `RetornoDeApp.kt`, provada sem SDK por `npm run stone` |
@@ -1062,7 +1062,14 @@ plataforma analisa** (Atendimento → Rifas, com conversa dos dois lados).
 - A venda do cambista usa o **mesmo** caminho de reserva das vendas online
   (`INSERT … ON CONFLICT`). Não existe atalho para venda física.
 - Fechar acerto **carimba** os pedidos (`orders.settlement_id`). Sem o carimbo,
-  a mesma venda entra em dois acertos.
+  a mesma venda entra em dois acertos. **E fecha com a linha do cambista
+  travada** (`FOR UPDATE`, `closeSettlement()`): cinco fechamentos ao mesmo
+  tempo liam as mesmas vendas em aberto e geravam cinco acertos — o cambista
+  devendo cinco vezes. O `UPDATE` do carimbo exige `settlement_id IS NULL` e
+  confere a contagem. **Dar baixa também é condicional** (`status <> 'pago'`):
+  a segunda é 409 e não reescreve a data.
+- **Venda de outro cambista é 404**, ao confirmar e ao cancelar (era 403, que
+  entregava que o código existe). `npm run cambista` prova.
 - O cambista deve à casa; o afiliado recebe dela. Direções opostas, mesma
   máquina de comissão.
 

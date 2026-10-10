@@ -7,8 +7,8 @@ Gerada do código por `npm run matriz` — **não edite à mão** (o teste `test
 | Telas (rotas do `App.tsx`) | 66 (+ 2 redirecionamentos) |
 | Seções de acesso (`shared/access.ts`) | 41 |
 | Cartões (componentes usados pelas telas) | 715 |
-| Rotas da API | 477, das quais 425 citadas por alguma prova |
-| Provas contra a API (`npm run …`) | 57 |
+| Rotas da API | 477, das quais 435 citadas por alguma prova |
+| Provas contra a API (`npm run …`) | 58 |
 | Testes de regra (`tests/`) | 127 arquivos |
 | Destinos decididos | 0 de 822 |
 
@@ -1182,7 +1182,7 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 
 A API não muda de lugar na reformulação. Aqui está para que a tela nova não deixe rota sem prova: "—" quer dizer que nenhum arquivo de `scripts/` ou `tests/` cita o caminho.
 
-### `server/routes/admin.ts` — /api/admin (264 rotas, 248 com prova)
+### `server/routes/admin.ts` — /api/admin (264 rotas, 252 com prova)
 
 | Método | Caminho | Provas |
 |---|---|---|
@@ -1273,10 +1273,10 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 | GET | `/coupons` | `afiliados-test.ts` |
 | POST | `/coupons` | `afiliados-test.ts` |
 | DELETE | `/coupons/:id` | `afiliados-test.ts` |
-| POST | `/sellers` | — |
-| GET | `/settlements` | — |
-| POST | `/settlements/:sellerId/close` | — |
-| POST | `/settlements/:id/paid` | — |
+| POST | `/sellers` | `cambista-test.ts` |
+| GET | `/settlements` | `cambista-test.ts` |
+| POST | `/settlements/:sellerId/close` | `cambista-test.ts` |
+| POST | `/settlements/:id/paid` | `cambista-test.ts` |
 | GET | `/organizer` | `banner-pago-test.ts`, `isolation-test.ts`, `sorteios-oficiais-test.ts` +3 |
 | PUT | `/organizer` | `banner-pago-test.ts`, `isolation-test.ts`, `sorteios-oficiais-test.ts` +3 |
 | GET | `/exportacoes` | — |
@@ -1497,7 +1497,7 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 | Método | Caminho | Provas |
 |---|---|---|
 | GET | `/me` | `google-test.ts`, `marketing-test.ts` |
-| POST | `/login` | `afiliados-test.ts`, `agenda-rifa-test.ts`, `aparencia-test.ts` +41 |
+| POST | `/login` | `afiliados-test.ts`, `agenda-rifa-test.ts`, `aparencia-test.ts` +42 |
 | POST | `/senha` | — |
 | POST | `/logout` | — |
 
@@ -1677,16 +1677,16 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 | PATCH | `/divulgacoes/:id` | `divulgacao-test.ts` |
 | DELETE | `/divulgacoes/:id` | `divulgacao-test.ts` |
 
-### `server/routes/seller.ts` — /api/seller (6 rotas, 0 com prova)
+### `server/routes/seller.ts` — /api/seller (6 rotas, 6 com prova)
 
 | Método | Caminho | Provas |
 |---|---|---|
-| GET | `/overview` | — |
-| POST | `/sales` | — |
-| POST | `/sales/:code/confirm` | — |
-| POST | `/sales/:code/cancel` | — |
-| GET | `/sales` | — |
-| GET | `/settlement` | — |
+| GET | `/overview` | `cambista-test.ts` |
+| POST | `/sales` | `cambista-test.ts` |
+| POST | `/sales/:code/confirm` | `cambista-test.ts` |
+| POST | `/sales/:code/cancel` | `cambista-test.ts` |
+| GET | `/sales` | `cambista-test.ts` |
+| GET | `/settlement` | `cambista-test.ts` |
 
 ### `server/routes/verificacaoRotas.ts` — (montada em public.ts, affiliate.ts e admin.ts) (5 rotas, 0 com prova)
 
@@ -1708,11 +1708,10 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 
 Busca literal do caminho em `scripts/` e `tests/` (a interpolação vale como parâmetro): é a lista do que a reformulação mexe sem rede de proteção. Pode haver prova que chega à rota por outro caminho; o contrário (prova que cita e não confere) a busca não vê.
 
-- `server/routes/admin.ts` (16 de 264): GET `/solicitacoes/pendentes`, PUT `/media/raw`, DELETE `/prized/:prizedId`, POST `/sellers`, GET `/settlements`, POST `/settlements/:sellerId/close`, POST `/settlements/:id/paid`, GET `/exportacoes`, POST `/organizacoes/:id/acessos`, POST `/avisos/vistos`, PUT `/antifraude/limites`, POST `/antifraude/bloqueios`, DELETE `/antifraude/bloqueios/:id`, GET `/2fa`, POST `/2fa/disable`, GET `/stories/:id/:qual(imagem|poster)`
+- `server/routes/admin.ts` (12 de 264): GET `/solicitacoes/pendentes`, PUT `/media/raw`, DELETE `/prized/:prizedId`, GET `/exportacoes`, POST `/organizacoes/:id/acessos`, POST `/avisos/vistos`, PUT `/antifraude/limites`, POST `/antifraude/bloqueios`, DELETE `/antifraude/bloqueios/:id`, GET `/2fa`, POST `/2fa/disable`, GET `/stories/:id/:qual(imagem|poster)`
 - `server/routes/affiliate.ts` (4 de 36): GET `/commissions`, GET `/coupons`, GET `/organizacoes`, GET `/divulgacoes/:id/video`
 - `server/routes/auth.ts` (2 de 4): POST `/senha`, POST `/logout`
 - `server/routes/public.ts` (18 de 149): GET `/mensagens/conversas/:id/fotos/:fotoId`, GET `/banners/:id/imagem`, GET `/o/:slug/termo-afiliado`, GET `/o/:slug/foto`, GET `/o/:slug/capa`, GET `/u/:apelido/foto`, GET `/cep/:cep`, GET `/campaigns/:slug/certificado`, GET `/campaigns/:slug/foto-ganhador`, GET `/campaigns/:slug/numbers/:number`, POST `/track-click`, GET `/tickets/:code`, GET `/tickets/:code/escpos`, POST `/tickets/:code/printed`, GET `/campaigns/:slug/premios`, GET `/campaigns/:slug/ultimas-compras`, GET `/campaigns/:slug/ranking`, GET `/divulgacoes/minhas/:id/fotos/:fotoId`
-- `server/routes/seller.ts` (6 de 6): GET `/overview`, POST `/sales`, POST `/sales/:code/confirm`, POST `/sales/:code/cancel`, GET `/sales`, GET `/settlement`
 - `server/routes/verificacaoRotas.ts` (5 de 5): GET `${caminho}/consentimento`, POST `${caminho}/consentimento`, DELETE `${caminho}/consentimento`, PUT `${caminho}/documentos/:tipo`, GET `${caminho}/documentos/:tipo`
 - `server/routes/webhooks.ts` (1 de 1): POST `/:provider`
 
@@ -1733,6 +1732,7 @@ Busca literal do caminho em `scripts/` e `tests/` (a interpolação vale como pa
 | `bilhetes` | `scripts/bilhetes-test.ts` |
 | `bonus` | `scripts/bonus-test.ts` |
 | `buscar` | `scripts/buscar-test.ts` |
+| `cambista` | `scripts/cambista-test.ts` |
 | `carrinho` | `scripts/carrinho-test.ts` |
 | `chamados` | `scripts/chamados-test.ts` |
 | `cobranca` | `scripts/cobranca-test.ts` |

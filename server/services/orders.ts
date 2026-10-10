@@ -1298,8 +1298,9 @@ export async function confirmSellerSale(params: {
 }) {
   const [order] = await db.select().from(orders).where(eq(orders.code, params.code));
   if (!order) throw new OrderError("Venda não encontrada.", 404);
+  // 404, não 403: "existe, mas é de outro" já entrega que o código é válido.
   if (order.sellerId !== params.sellerId) {
-    throw new OrderError("Esta venda é de outro cambista.", 403);
+    throw new OrderError("Venda não encontrada.", 404);
   }
   if (order.status === "paid") {
     return { order, alreadyPaid: true, prizes: [] as string[] };
@@ -1344,8 +1345,9 @@ export async function confirmSellerSale(params: {
 export async function cancelSellerSale(params: { code: number; sellerId: string }) {
   const [order] = await db.select().from(orders).where(eq(orders.code, params.code));
   if (!order) throw new OrderError("Venda não encontrada.", 404);
+  // 404, não 403: "existe, mas é de outro" já entrega que o código é válido.
   if (order.sellerId !== params.sellerId) {
-    throw new OrderError("Esta venda é de outro cambista.", 403);
+    throw new OrderError("Venda não encontrada.", 404);
   }
   if (order.status !== "pending") {
     throw new OrderError("Só dá para cancelar venda ainda não paga.", 409);

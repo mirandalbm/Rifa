@@ -2411,7 +2411,7 @@ adminRouter.post("/settlements/:id/paid", async (req, res, next) => {
     await assertAffiliateInScope(req, acerto.sellerId);
 
     const updated = await markSettlementPaid(req.params.id);
-    if (!updated) return res.status(404).json({ message: "Acerto não encontrado." });
+    if (!updated) return res.status(409).json({ message: "Este acerto já está pago." });
     await audit(req, "settlement.paid", "settlement", updated.id);
     res.json(updated);
   } catch (err) {

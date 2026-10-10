@@ -294,7 +294,7 @@ com **uma única pendência dele** e três coisas que resolvemos do nosso lado.
    contador entre 10.08, 17.06 e 17.25.
 4. **V5, sugestão de e-mail:** `contato@rifa.br` e `dpo@rifa.br` não existem;
    não usar. O domínio é o da empresa (a razão social nos documentos é
-   "International Lottery Ltda"); o dono informa o domínio real.
+   "North Ocean Brazil", informada pelo dono em 10/10/2026; documentos antigos do repositório citam "International Lottery Ltda", a confirmar com o CNPJ); o dono informa o domínio real.
 5. O advogado se oferece a redigir: anexo do modelo B (10 dias úteis),
    consultas à Meta e ao Google (5 dias úteis, precisam de razão social, CNPJ e
    lista de rifas autorizadas) e o termo de confidencialidade (5 dias úteis).

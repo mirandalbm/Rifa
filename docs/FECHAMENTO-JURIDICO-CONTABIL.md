@@ -203,3 +203,25 @@ contrato é versionado pelo painel. Proposta, a confirmar na Parte 1:
 - [ ] Registro de decisões completo; PR de adequação mesclado.
 - [ ] A13 (parecer bancário) e T2/T3 em andamento, com o pior caso assumido
       na Parte 2 (seção 6).
+
+---
+
+## Respostas do dono V1 a V6 (10/10/2026)
+
+| # | Pergunta | Resposta | Efeito |
+|---|---|---|---|
+| V1 | Município da sede | **São Paulo** | Libera a alíquota de ISS e a regra de retenção para o parecer. A SF/DEJUG nº 2/2024 (São Paulo) passa a valer para a base do ISS no item 10.08. **O contador confirma a alíquota** |
+| — | Custo mensal e margem desejada | O dono pediu a explicação detalhada do que se precisa (abaixo) | **Aberto** |
+| — | Razão social e CNPJ | **"North Ocean Brazil"**; CNPJ **ainda não informado** | **Divergência:** documentos antigos do repositório citam "International Lottery Ltda" e a marca "Sorte Nacional". Confirmar a razão social completa (com o tipo societário) e o CNPJ, e se os outros nomes são marca ou razão anterior |
+| — | Domínio da empresa | **Ainda será feito** | Sem domínio não há e-mail institucional nem do encarregado; **os Termos de uso e a Privacidade não publicam** (o advogado exigiu sair do Gmail) |
+| V3 | Modelo B como principal | **Sim, seguir** | O modelo A fica suspenso; modelo B é o produto (ainda não existe no código) |
+| V4 | Autorização em nome da plataforma e homologação do globo | A plataforma é o **software**; o dono **vai pedir** autorização também, mas se não conseguir **não é problema**, porque a licença é do sorteio | Coerente com a D2 (cada promotora titular). **Nada nas peças ou no site afirma autorização da plataforma** enquanto não houver documento. O estágio da homologação do globo não foi informado: registrado como **desligado** |
+| V6 | "UOL Host" | A imagem mostra o perfil **uolhost** (selo de verificado) com a peça "**UOL Anúncios** — Mais visibilidade começa com um anúncio — planos a partir de R$ 159,90/mês" (24 de julho) | Então é um **produto de anúncios** (e não só hospedagem). Não dá para saber, só pela peça, em que redes ou veículos esses planos veiculam. **Vai para a lista de consultas por escrito** (rifa autorizada pela SPA/MF; em que veículos roda; se há política de jogos); não entra em código antes da resposta |
+
+### O que ainda se precisa do dono
+1. **CNPJ** e a **razão social completa** (e a relação com "International Lottery
+   Ltda" e "Sorte Nacional").
+2. **Custo e margem** (explicação na resposta ao dono).
+3. **Domínio**, e depois os e-mails institucional e do encarregado (com o cargo).
+4. **Endereço oficial** na forma completa (rua, número, complemento, CEP).
+5. **Estágio do globo** (se já há conversa com tabelionato).

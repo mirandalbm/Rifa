@@ -532,3 +532,32 @@ Privacidade e ao contrato.
 
 **Pendências do advogado:** a qualificação pela substância, a regra sobre vinculação da
 SC 234/2025 e a comparação com a Lei 4.680/1965; e a origem do endereço apresentado.
+
+---
+
+## Decisões do dono (10/10/2026): endereço, recolhimento e CNAE
+
+**Endereço:** o dono informa que "Rua Torre da Alfândega, 163, Vila Amália, CEP 02618-200" é o endereço da alteração do CNPJ em andamento. Fica como **informado, não comprovado**. Não vai aos Termos, à Privacidade nem ao contrato até o cartão CNPJ alterado ou o comprovante de protocolo estar no dossiê. O complemento ("[complemento]" na resposta do advogado) ainda está em branco.
+
+**Recolhimento do IRRF pela plataforma (I1 e I2): confirmado pelo dono.** A promotora paga a taxa integral e não retém. Os lançamentos antigos com retenção pela promotora devem ser estornados e refeitos. Lançamentos do recolhimento:
+- Abastecimento: Caixa R$ 100 (D) / Adiantamento R$ 100 (C).
+- Consumo: Adiantamento R$ 100 (D) / Receita de taxa R$ 100 (C).
+- Recolhimento do DARF: IRRF a compensar R$ 1,50 (D) / Caixa R$ 1,50 (C).
+
+**Qualificação "agência": não.** A plataforma não se qualifica como agência de propaganda, nem para o IRRF nem para o contrato.
+- O IRRF do art. 718, II, incide sobre a natureza do serviço (propaganda e publicidade), não sobre o CNAE. O CNAE não decide a retenção.
+- Resta uma confirmação do advogado, em uma linha: que o recolhimento pelo beneficiário vale pela natureza do serviço do art. 718, II, sem a qualificação de agência. Padrão: sim.
+
+**CNAE: recomendação para encerrar.**
+- **Principal: 73.19-0/99 (Outras atividades de publicidade não especificadas anteriormente).** Descreve a gestão de mídia paga prestada à promotora sem usar a palavra "agência". O 73.11-4/00 sai da principal.
+- **Secundário: 63.11-9/00 (provedores de aplicação e hospedagem), somente se a plataforma de software for mantida na mesma empresa.** Isso precisa ser confirmado pelo dono.
+- O ISS continua no item 10.08 da LC 116/2003. O item de serviço não depende do CNAE.
+- A regra usual para a atividade principal é a que gera a maior receita. Se a taxa de venda de rifas for maior que a taxa de gestão, o código principal muda. Essa informação ainda não foi dada pelo dono.
+- A alteração do CNPJ em andamento é o momento de registrar o CNAE. Não precisa de outra alteração depois.
+
+**O que fecha a Parte 1 agora:**
+1. Advogado: uma linha confirmando o recolhimento pelo beneficiário sem qualificação de agência (padrão: sim).
+2. Contador: reemitir a parte contábil com o CNAE 73.19-0/99, o recolhimento pela plataforma e os lançamentos acima, e assinar.
+3. Dono: cartão CNPJ alterado (com endereço e CNAE) ou protocolo; domínio até 12/10; verificação dos contratos Railway, Cloudflare e Chatbase (Anexo II da ANPD); contratar o parecer bancário.
+4. Advogado: assinar a parte jurídica depois de 1 a 3.
+5. PR de adequação, somente depois de 1 a 4 e com o seu aval.

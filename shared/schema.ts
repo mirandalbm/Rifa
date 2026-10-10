@@ -1249,6 +1249,38 @@ export const pixVolumeMensal = pgTable(
   (t) => [primaryKey({ columns: [t.organizationId, t.mes] })],
 );
 
+/**
+ * A notificação de falta de pagamento (cláusula X.13 (a),
+ * `shared/inadimplencia.ts`): a plataforma notifica pelo painel, com as
+ * taxas em aberto daquele instante (`cobranca_ids`); passado `bloqueia_em`
+ * com alguma delas ainda em aberto, a organização não publica rifa nova.
+ * Uma aberta por organização — quem decide é o índice parcial, nunca um
+ * `SELECT` antes.
+ */
+export const cobrancaNotificacoes = pgTable(
+  "cobranca_notificacoes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    /** aberta | regularizada | cancelada */
+    status: text("status").notNull().default("aberta"),
+    /** As taxas em aberto no instante da notificação: só elas contam. */
+    cobrancaIds: uuid("cobranca_ids").array().notNull(),
+    valorCents: integer("valor_cents").notNull(),
+    notificadaEm: timestamp("notificada_em").notNull(),
+    bloqueiaEm: timestamp("bloqueia_em").notNull(),
+    notificadaPor: uuid("notificada_por"),
+    encerradaEm: timestamp("encerrada_em"),
+    encerradaPor: uuid("encerrada_por"),
+    motivoDoCancelamento: text("motivo_do_cancelamento"),
+  },
+  (t) => [
+    uniqueIndex("uq_notificacao_cobranca_aberta").on(t.organizationId).where(sql`status = 'aberta'`),
+  ],
+);
+
 export const auditLog = pgTable(
   "audit_log",
   {
@@ -1401,6 +1433,11 @@ export const chamados = pgTable(
      * nos chamados anteriores a esta regra: devolução integral.
      */
     tipoReembolso: text("tipo_reembolso"),
+    /**
+     * A plataforma marcou o estorno como falha dela (só ela marca, ao fazer a
+     * devolução): a taxa Pix volta à promotora (`taxaPixFicaNoEstorno()`).
+     */
+    falhaPlataforma: boolean("falha_plataforma").notNull().default(false),
     taxaPct: integer("taxa_pct"),
     taxaCents: integer("taxa_cents"),
     devolverCents: integer("devolver_cents"),

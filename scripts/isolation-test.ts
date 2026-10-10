@@ -604,7 +604,7 @@ async function assistenteDeIA(eu: Lado) {
 }
 
 /** Estas existem, mas não são do organizador: 403. */
-async function rotasDaPlataforma(eu: Lado) {
+async function rotasDaPlataforma(eu: Lado, outro: Lado) {
   const tentativas: [string, string, RequestInit][] = [
     ["GET organizações", "/api/admin/organizacoes", {}],
     ["GET antifraude", "/api/admin/antifraude", {}],
@@ -612,7 +612,13 @@ async function rotasDaPlataforma(eu: Lado) {
     ["GET auditoria", "/api/admin/audit", {}],
     ["GET carteira de cobrança", "/api/admin/cobranca", {}],
     ["PUT tabela de cobrança", "/api/admin/cobranca/tabela", { method: "PUT", body: '{"percentualPct":0}' }],
+    ["PUT tabela de cobrança agendada", "/api/admin/cobranca/tabela", { method: "PUT", body: '{"percentualPct":0,"vigenteEm":"2099-01-01"}' }],
+    ["DELETE tabela de cobrança agendada", "/api/admin/cobranca/tabela/proxima", { method: "DELETE" }],
     ["POST dar baixa", `/api/admin/cobranca/${eu.orgId}/baixa`, { method: "POST" }],
+    // Falta de pagamento (cláusula X.13 (a)): a organização não se notifica, não notifica o vizinho e não cancela.
+    ["POST notificar falta de pagamento (a própria)", `/api/admin/cobranca/${eu.orgId}/notificar`, { method: "POST" }],
+    ["POST notificar falta de pagamento (o vizinho)", `/api/admin/cobranca/${outro.orgId}/notificar`, { method: "POST" }],
+    ["POST cancelar notificação", "/api/admin/cobranca/notificacoes/00000000-0000-0000-0000-000000000000/cancelar", { method: "POST", body: '{"motivo":"tentativa do organizador"}' }],
     ["POST arquivar organização", `/api/admin/organizacoes/${eu.orgId}/arquivar`, { method: "POST", body: "{}" }],
     ["POST restaurar organização", `/api/admin/organizacoes/${eu.orgId}/restaurar`, { method: "POST" }],
     ["GET pagamentos da plataforma", "/api/admin/plataforma", {}],
@@ -1092,7 +1098,7 @@ async function main() {
     await assistenteDeIA(norte);
 
     console.log("\n  rotas da plataforma (espera 403):");
-    await rotasDaPlataforma(norte);
+    await rotasDaPlataforma(norte, sul);
 
     console.log("\n  o que as listas dele realmente trazem:");
     await conteudoDasListas(norte, sul);

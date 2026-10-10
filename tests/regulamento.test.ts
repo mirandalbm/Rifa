@@ -250,3 +250,15 @@ describe("quando completar com data máxima (8.7) e cotas premiadas como vale-br
     expect(t).not.toMatch(/semente|hash/i);
   });
 });
+
+describe("forma de pagamento (resposta 2.3 do advogado)", () => {
+  it("cita os meios ligados e recusa o cartão", async () => {
+    const { formaDePagamento } = await import("../shared/regulamento");
+    expect(formaDePagamento({ pix_online: true, dinheiro: true, pix_maquininha: true })).toBe(
+      "Forma de pagamento: o pagamento é feito por Pix, pelo site, ou em dinheiro ou por Pix na maquininha, quando a compra for feita pelo cambista autorizado. Não são aceitos cartão de crédito nem de débito.",
+    );
+    expect(formaDePagamento({ pix_online: true, dinheiro: false, pix_maquininha: false })).toBe(
+      "Forma de pagamento: o pagamento é feito por Pix, pelo site. Não são aceitos cartão de crédito nem de débito.",
+    );
+  });
+});

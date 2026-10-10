@@ -36,6 +36,7 @@ import {
   draws,
   platformCharges,
   pixVolumeMensal,
+  chamados,
   carrinhoPedidos,
   bonusLancamentos as bonusLancamentosTabela,
   type CarrinhoCheckoutInput,
@@ -47,7 +48,7 @@ import {
   commissionAvailableAt,
   splitOrder,
 } from "@shared/pricing";
-import { mesEmSaoPaulo, pctEquivalente, problemaNoTotalDoPedido, taxaDoPedido, taxasEmCentavos } from "@shared/cobranca";
+import { mesEmSaoPaulo, motivoDoEstorno, pctEquivalente, problemaNoTotalDoPedido, taxaDoPedido, taxaPixFicaNoEstorno, taxasEmCentavos, type MotivoDoEstorno } from "@shared/cobranca";
 import { lancarTaxaDaVenda } from "./billing";
 import { normalizePhone } from "@shared/format";
 import { users, organizations } from "@shared/schema";
@@ -1588,8 +1589,10 @@ export interface RefundResult {
    * isso volta daqui em vez de sumir calada.
    */
   comissaoJaPagaCents: number;
-  /** Taxa da plataforma cancelada. */
+  /** Taxa da plataforma cancelada (a do Pix pode ficar, conforme o motivo). */
   taxaCanceladaCents: number;
+  /** Por que foi estornado (`motivoDoEstorno()`): decide a taxa Pix. */
+  motivo: MotivoDoEstorno;
   /** Cotas premiadas que voltaram a valer. */
   premiadasLiberadas: number;
 }
@@ -1723,23 +1726,51 @@ export async function refundOrder(orderId: string): Promise<RefundResult | null>
     // E o crédito do presente que a plataforma devia à promotora.
     await cancelarCreditoDoPresente(tx, order.id);
 
-    const taxas = await tx
-      .update(platformCharges)
-      .set({ status: "cancelada" })
-      .where(
-        and(
-          eq(platformCharges.orderId, order.id),
-          sql`${platformCharges.status} <> 'cancelada'`,
-        ),
-      )
-      .returning({ amountCents: platformCharges.amountCents });
+    // A taxa da plataforma (cláusula X.10): a da venda é sempre cancelada; a
+    // do Pix fica com a plataforma conforme o motivo, lido do chamado
+    // estornado deste pedido aqui dentro — o aviso do provedor que chega
+    // antes do chamado terminar lê o mesmo chamado (`motivoDoEstorno()`).
+    const [chamadoDoPedido] = await tx
+      .select({ tipoReembolso: chamados.tipoReembolso, falhaPlataforma: chamados.falhaPlataforma })
+      .from(chamados)
+      .where(and(eq(chamados.orderId, order.id), eq(chamados.status, "estornado")))
+      .orderBy(desc(chamados.estornadoEm))
+      .limit(1);
+    const motivo = motivoDoEstorno(chamadoDoPedido ?? null);
+    const [linhaDaTaxa] = await tx
+      .select()
+      .from(platformCharges)
+      .where(and(eq(platformCharges.orderId, order.id), sql`${platformCharges.status} <> 'cancelada'`))
+      .for("update");
+    let taxaCanceladaCents = 0;
+    if (linhaDaTaxa) {
+      const fica = taxaPixFicaNoEstorno(motivo) ? linhaDaTaxa.pixCents : 0;
+      taxaCanceladaCents = linhaDaTaxa.amountCents - fica;
+      await tx
+        .update(platformCharges)
+        .set(
+          fica > 0
+            ? {
+                amountCents: fica,
+                vendaCents: 0,
+                pct: null,
+                // Retida no split: o provedor desfaz o split junto com a
+                // devolução, então a taxa Pix que fica passa a ser devida.
+                // Já paga no acerto, segue paga.
+                ...(linhaDaTaxa.status === "retida" ? { status: "aberta" as const, paidAt: null } : {}),
+              }
+            : { status: "cancelada" as const },
+        )
+        .where(eq(platformCharges.id, linhaDaTaxa.id));
+    }
 
     return {
       order: atualizado,
       liberadas,
       comissoes: revertidas.length,
       comissaoJaPagaCents: jaPaga,
-      taxaCanceladaCents: taxas.reduce((soma, t) => soma + t.amountCents, 0),
+      taxaCanceladaCents,
+      motivo,
       premiadasLiberadas: premiadas.length,
     };
   }).then(async (r) => {

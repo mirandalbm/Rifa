@@ -209,7 +209,7 @@ export function problemaNaCobranca(
  */
 export function problemaNoTotalDoPedido(t: TaxaDoPedido, totalCents: number, quantidade: number): string | null {
   if (t.modo === "por_cota" && t.porCotaCents * quantidade >= totalCents) {
-    return "Com este desconto, o valor ficou abaixo da taxa da plataforma por cota. Compre sem o cupom ou outra quantidade.";
+    return "Este cupom reduz o valor abaixo da taxa mínima da plataforma por cota. Remova o cupom ou escolha outro pacote.";
   }
   return null;
 }
@@ -313,4 +313,156 @@ export function mesEmSaoPaulo(d: Date): string {
   const ano = partes.find((x) => x.type === "year")?.value;
   const mes = partes.find((x) => x.type === "month")?.value;
   return `${ano}-${mes}`;
+}
+
+/* ------------------------------------------------------------------ *
+ * Estorno
+ * ------------------------------------------------------------------ */
+
+/**
+ * Por que o pedido foi estornado, para decidir a taxa da plataforma
+ * (cláusula X.10 do contrato da promotora, decisão de 10/10/2026). Vem do
+ * chamado (`tipoReembolso`, e a marca de falha que só a plataforma põe); sem
+ * chamado, é a devolução avisada pelo provedor (MED, contestação).
+ */
+export type MotivoDoEstorno = "arrependimento" | "adiamento" | "com_taxa" | "provedor" | "falha_plataforma";
+
+/**
+ * A taxa de transação Pix fica com a plataforma no estorno? A taxa da venda
+ * é sempre cancelada; a do Pix remunera a transação que já aconteceu e só é
+ * cancelada no arrependimento do comprador (art. 49 do CDC) e na falha da
+ * plataforma. Fica no reembolso com taxa, no adiamento (pedido da promotora)
+ * e na devolução do provedor. O comprador recebe o que recebia antes em
+ * todos os casos: isto é só a conta entre a plataforma e a promotora.
+ */
+export function taxaPixFicaNoEstorno(motivo: MotivoDoEstorno): boolean {
+  return motivo === "com_taxa" || motivo === "adiamento" || motivo === "provedor";
+}
+
+/** O motivo pelo chamado estornado do pedido (ou nenhum: o provedor). */
+export function motivoDoEstorno(chamado: { tipoReembolso: string | null; falhaPlataforma: boolean } | null): MotivoDoEstorno {
+  if (!chamado) return "provedor";
+  if (chamado.falhaPlataforma) return "falha_plataforma";
+  // Chamado de antes da regra do reembolso não tem tipo: devolução integral, como o arrependimento.
+  if (chamado.tipoReembolso === "adiamento" || chamado.tipoReembolso === "com_taxa") return chamado.tipoReembolso;
+  return "arrependimento";
+}
+
+/* ------------------------------------------------------------------ *
+ * Mudança da tabela (cláusula X.3, parágrafo único)
+ * ------------------------------------------------------------------ */
+
+/** Aviso prévio para aumentar qualquer valor da tabela. */
+export const AVISO_DA_TABELA_DIAS = 30;
+/** Até quando dá para agendar (pega dedo errado no ano). */
+export const AGENDA_DA_TABELA_MAX_DIAS = 365;
+
+/** A tabela nova, com a data em que passa a valer (`aaaa-mm-dd`, horário de Brasília). */
+export interface TabelaAgendada {
+  vigenteEm: string;
+  tabela: ConfigCobranca;
+}
+
+/** O começo do dia `aaaa-mm-dd` em Brasília (sem horário de verão desde 2019). */
+export function inicioDoDia(data: string): Date {
+  return new Date(`${data}T00:00:00-03:00`);
+}
+
+/** O dia de hoje em Brasília, `aaaa-mm-dd`. */
+export function hojeEmSaoPaulo(agora: Date): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit" }).format(agora);
+}
+
+/** O primeiro dia em que um aumento pode valer: 30 dias inteiros de aviso. */
+export function primeiroDiaComAviso(agora: Date): string {
+  let dia = hojeEmSaoPaulo(new Date(agora.getTime() + AVISO_DA_TABELA_DIAS * 86_400_000));
+  if (inicioDoDia(dia).getTime() < agora.getTime() + AVISO_DA_TABELA_DIAS * 86_400_000) {
+    dia = hojeEmSaoPaulo(new Date(inicioDoDia(dia).getTime() + 36 * 3_600_000));
+  }
+  return dia;
+}
+
+/** A tabela que vale agora: a agendada, se o dia dela já chegou. */
+export function tabelaVigente(atual: ConfigCobranca, proxima: TabelaAgendada | null, agora: Date): ConfigCobranca {
+  return proxima && agora.getTime() >= inicioDoDia(proxima.vigenteEm).getTime() ? proxima.tabela : atual;
+}
+
+/** A vigente e a agendada que ainda não começou (a que já começou é a vigente). */
+export function tabelasDeCobranca(
+  atual: ConfigCobranca,
+  proxima: TabelaAgendada | null,
+  agora: Date,
+): { vigente: ConfigCobranca; proxima: TabelaAgendada | null } {
+  const vigente = tabelaVigente(atual, proxima, agora);
+  return { vigente, proxima: proxima && vigente !== proxima.tabela ? proxima : null };
+}
+
+/** O que `GET /admin/cobranca/tabela` devolve. */
+export interface TabelasDaCobranca {
+  vigente: ConfigCobranca;
+  proxima: TabelaAgendada | null;
+  /** O primeiro dia em que um aumento salvo hoje pode valer. */
+  primeiroDiaComAviso: string;
+  avisoDias: number;
+}
+
+/** `aaaa-mm-dd` → `dd/mm/aaaa`. */
+export function dataDaVigencia(dia: string): string {
+  return dia.split("-").reverse().join("/");
+}
+
+/**
+ * A tabela nova aumenta algum valor para alguma promotora? O percentual, o
+ * valor por cota, ou a taxa Pix em qualquer volume do mês. As faixas são
+ * degraus: basta conferir no começo de cada degrau das duas tabelas.
+ */
+export function aumentaAlgumaTaxa(antes: ConfigCobranca, depois: ConfigCobranca): boolean {
+  if (depois.percentualPct > antes.percentualPct || depois.porCotaCents > antes.porCotaCents) return true;
+  const inicios = new Set<number>([0]);
+  for (const f of [...antes.faixasPix, ...depois.faixasPix]) if (f.ate !== null) inicios.add(f.ate);
+  for (const jaFeitas of inicios) {
+    if (faixaPixPara(jaFeitas, depois.faixasPix).pct > faixaPixPara(jaFeitas, antes.faixasPix).pct) return true;
+  }
+  return false;
+}
+
+/**
+ * Pode valer nesta data? Redução vale na hora. Aumento só com 30 dias de
+ * aviso — salvo antes de qualquer promotora ter aceitado o contrato (não há
+ * a quem avisar: é a montagem da tabela antes do lançamento).
+ */
+export function problemaNaVigencia(p: {
+  antes: ConfigCobranca;
+  depois: ConfigCobranca;
+  /** `aaaa-mm-dd`, ou nulo para valer agora. */
+  vigenteEm: string | null;
+  agora: Date;
+  comPromotoras: boolean;
+}): string | null {
+  if (p.vigenteEm !== null) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(p.vigenteEm) || Number.isNaN(inicioDoDia(p.vigenteEm).getTime()) || hojeEmSaoPaulo(inicioDoDia(p.vigenteEm)) !== p.vigenteEm) {
+      return "Data de vigência inválida.";
+    }
+    const inicio = inicioDoDia(p.vigenteEm).getTime();
+    if (inicio <= p.agora.getTime()) return "A data de vigência precisa ser no futuro. Para valer agora, deixe sem data.";
+    if (inicio > p.agora.getTime() + AGENDA_DA_TABELA_MAX_DIAS * 86_400_000) return `Agende no máximo ${AGENDA_DA_TABELA_MAX_DIAS} dias à frente.`;
+  }
+  if (!p.comPromotoras || !aumentaAlgumaTaxa(p.antes, p.depois)) return null;
+  const minimo = primeiroDiaComAviso(p.agora);
+  if (p.vigenteEm === null || p.vigenteEm < minimo) {
+    return `Aumentar uma taxa exige ${AVISO_DA_TABELA_DIAS} dias de aviso às promotoras: agende para ${dataDaVigencia(minimo)} ou depois.`;
+  }
+  return null;
+}
+
+/** A tabela agendada guardada: fora da régua, some (nunca derruba a configuração). */
+export function tabelaAgendadaGuardada(v: unknown): TabelaAgendada | null {
+  if (!v || typeof v !== "object") return null;
+  const e = v as Record<string, unknown>;
+  if (typeof e.vigenteEm !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(e.vigenteEm)) return null;
+  try {
+    return { vigenteEm: e.vigenteEm, tabela: validarConfigCobranca(e.tabela) };
+  } catch {
+    return null;
+  }
 }

@@ -122,6 +122,7 @@ export function CartaoDoFeed({ rifa: c, origem = "vitrine" }: { rifa: RifaDoFeed
           <div className="flex items-baseline justify-between text-xs font-semibold text-ink-2">
             <span>
               cota <Money cents={c.priceCents} className="text-sm font-bold text-green-deep" />
+              <span className="font-normal text-muted"> · Pix</span>
             </span>
             <span className="tnum">
               {c.status && c.status !== "published"

@@ -1016,6 +1016,34 @@ Na ordem de entrega do plano:
   ou equivalente) quando invocado (no sistema, o CEBAS é documento opcional
   da entidade beneficiada); e a plataforma como mandatária na guarda da
   comissão do afiliado. Com os quatro, está pronta para publicar.
+- [ ] **[você]** **Cláusula de remuneração (cobrança por rifa)** no contrato
+  da promotora: a versão final está em `docs/RESPOSTA-ADVOGADO-COBRANCA.md`
+  (seção 4), já com as duas decisões de 10/10/2026 (taxa Pix no estorno
+  conforme o motivo, X.10; aviso de 30 dias para aumentar a tabela, X.3) e
+  as correções da X.5, X.9 e X.13. **Aval formal do advogado em
+  10/10/2026** (seção 5 do mesmo documento): cláusula aprovada e publicação
+  autorizada; o bloqueio da X.13 (a), que ele tinha condicionado, já existe
+  no sistema (item abaixo). Falta só fazer: montar a tabela (abaixo),
+  publicar a versão nova do contrato com a cláusula X junto com a versão
+  final do item acima, e avisá-lo — ele assina a parte jurídica em
+  `docs/FECHAMENTO-JURIDICO-CONTABIL.md`. **Monte a tabela de
+  cobrança antes do primeiro aceite**: depois dele, aumento exige 30 dias.
+- [x] **[código]** Taxa Pix no estorno conforme o motivo (cláusula X.10) e
+  tabela de cobrança agendada com o aviso de 30 dias (cláusula X.3,
+  parágrafo único), 10/10/2026: `taxaPixFicaNoEstorno()`, a caixa "Falha da
+  plataforma" no Atendimento, `cobrancaProxima` com o aviso no sino, na
+  Cobrança e no cartão da rifa. `npm run cobranca` prova.
+- [x] **[código]** Bloqueio por falta de pagamento (cláusula X.13, a),
+  10/10/2026, pedido pelo advogado antes de publicar a cláusula: a
+  plataforma notifica pelo painel (Cobrança → Carteira, "notificar falta de
+  pagamento"), com as taxas em aberto daquele instante; a organização vê no
+  sino e na Cobrança até quando regularizar; passados 10 dias (contados do
+  dia seguinte, em Brasília) com taxa notificada em aberto, rifa nova não
+  publica (`publishBlockers` e de novo na transação de `publishCampaign()`)
+  e as no ar seguem vendendo; o acerto ("dar baixa") regulariza na mesma
+  transação. `shared/inadimplencia.ts`, `server/services/inadimplencia.ts`,
+  `npm run cobranca` prova. Os juros e a multa (X.13, c) seguem à mão, no
+  acerto.
 - [ ] **[você]** Antes de abrir ao público, o **encarregado** precisa estar
   publicado nos Dados da empresa (Aparência → Rodapé e empresa): o texto do
   consentimento biométrico o cita (exigência legal, art. 41, § 1º).

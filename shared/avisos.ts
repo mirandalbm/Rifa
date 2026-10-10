@@ -42,8 +42,20 @@ export function rotuloDoSino(
   pendencias: number,
   mensagens = 0,
   divulgacoes: { paraAutorizar?: number; decididas?: number } = {},
+  /** A tabela de cobrança agendada (`dd/mm/aaaa`), para a organização. */
+  tabelaNovaEm: string | null = null,
+  /** A falta de pagamento notificada (cláusula X.13 (a)): até quando, e se já bloqueia. */
+  faltaDePagamento: { ate: string; bloqueada: boolean } | null = null,
 ): string {
   const partes: string[] = [];
+  if (faltaDePagamento) {
+    partes.push(
+      faltaDePagamento.bloqueada
+        ? "publicação de rifa nova bloqueada por falta de pagamento"
+        : `falta de pagamento: regularize até ${faltaDePagamento.ate}`,
+    );
+  }
+  if (tabelaNovaEm) partes.push(`tabela de cobrança nova a partir de ${tabelaNovaEm}`);
   const { paraAutorizar = 0, decididas = 0 } = divulgacoes;
   if (mensagens) partes.push(`${mensagens} ${mensagens > 1 ? "mensagens" : "mensagem"} não lida${mensagens > 1 ? "s" : ""}`);
   if (novos) partes.push(`${novos} comentário${novos > 1 ? "s" : ""} novo${novos > 1 ? "s" : ""}`);

@@ -57,6 +57,8 @@ import {
 import { menuDe, type IconeDoGrupo, type Section, type SectionKey } from "@shared/access";
 import { BUSCA_MAX, NOME_DO_TIPO, interpretarBusca, type AchadoDaBusca } from "@shared/busca";
 import { caminhoDoAviso, naoLidos, rotuloDoSino, type AvisoDoPainel } from "@shared/avisos";
+import { dataDaVigencia, type TabelasDaCobranca } from "@shared/cobranca";
+import { situacaoDaNotificacao, ultimoDiaParaRegularizar, type NotificacaoDeCobranca } from "@shared/inadimplencia";
 import { quandoPublicou } from "@shared/publicacao";
 import { apiRequest } from "@/lib/queryClient";
 import { useSession, useLogout } from "@/lib/session";
@@ -398,6 +400,29 @@ export function PanelShell({
     refetchInterval: 60_000,
   });
   const decididas = souAfiliado ? (novidadesDoAfiliado?.decididas ?? 0) : 0;
+  // A tabela de cobrança agendada (cláusula X.3): a organização é avisada no
+  // sino até o dia em que ela passa a valer. Sem "visto": é aviso de prazo.
+  const caminhoDaCobranca = secoes.find((s) => s.key === "adminCobranca")?.path;
+  const { data: tabelas } = useQuery<TabelasDaCobranca>({
+    queryKey: ["/api/admin/cobranca/tabela"],
+    enabled: session?.role === "organizer" && Boolean(caminhoDaCobranca),
+    refetchInterval: 15 * 60_000,
+  });
+  const tabelaNovaEm = session?.role === "organizer" && tabelas?.proxima ? dataDaVigencia(tabelas.proxima.vigenteEm) : null;
+  // A falta de pagamento notificada (cláusula X.13 (a)): fica no sino até a
+  // plataforma registrar o pagamento. Também sem "visto": é prazo.
+  const { data: daNotificacao } = useQuery<{ notificacao: NotificacaoDeCobranca | null }>({
+    queryKey: ["/api/admin/cobranca/notificacao"],
+    enabled: session?.role === "organizer" && Boolean(caminhoDaCobranca),
+    refetchInterval: 15 * 60_000,
+  });
+  const notificacao = session?.role === "organizer" ? (daNotificacao?.notificacao ?? null) : null;
+  const faltaDePagamento = notificacao
+    ? {
+        ate: ultimoDiaParaRegularizar(notificacao.bloqueiaEm),
+        bloqueada: situacaoDaNotificacao(notificacao, new Date()) === "bloqueando",
+      }
+    : null;
   const verAvisos = useMutation({
     // O afiliado não passa por /api/admin: o "visto" dele tem rota própria.
     mutationFn: () => apiRequest("POST", souAfiliado ? "/api/affiliate/avisos/vistos" : "/api/admin/avisos/vistos"),
@@ -607,16 +632,49 @@ export function PanelShell({
             }}
           >
             <summary
-              aria-label={rotuloDoSino(novos, pendenciasNoMenu, mensagensNovas, { paraAutorizar, decididas })}
+              aria-label={rotuloDoSino(novos, pendenciasNoMenu, mensagensNovas, { paraAutorizar, decididas }, tabelaNovaEm, faltaDePagamento)}
               className="relative flex cursor-pointer list-none rounded-md p-1.5 text-ink-2 hover:bg-mist-2 [&::-webkit-details-marker]:hidden"
             >
               <Bell size={20} aria-hidden />
-              {novos || pendenciasNoMenu || mensagensNovas || paraAutorizar || decididas ? (
-                <span aria-hidden className={`absolute right-1 top-1 h-2 w-2 rounded-full ${pendenciasNoMenu ? "bg-red" : "bg-green"}`} />
+              {novos || pendenciasNoMenu || mensagensNovas || paraAutorizar || decididas || tabelaNovaEm || faltaDePagamento ? (
+                <span
+                  aria-hidden
+                  className={`absolute right-1 top-1 h-2 w-2 rounded-full ${pendenciasNoMenu || faltaDePagamento?.bloqueada ? "bg-red" : "bg-green"}`}
+                />
               ) : null}
             </summary>
             <div className="cartao absolute right-0 top-full z-30 mt-1 w-80 max-w-[calc(100vw-2rem)] rounded-lg border border-line bg-white py-1 text-sm">
               <p className="px-3 py-2 text-xs font-medium uppercase tracking-[0.1em] text-ink-2">Avisos</p>
+              {caminhoDaCobranca && faltaDePagamento ? (
+                <Link
+                  href={caminhoDaCobranca}
+                  aria-label={
+                    faltaDePagamento.bloqueada
+                      ? "Cobrança: publicação de rifa nova bloqueada por falta de pagamento"
+                      : `Cobrança: falta de pagamento notificada, regularize até ${faltaDePagamento.ate}`
+                  }
+                  className="block border-b border-line px-3 py-2 hover:bg-mist"
+                >
+                  {faltaDePagamento.bloqueada ? (
+                    <span className="font-medium text-red">Publicação de rifa nova bloqueada por falta de pagamento</span>
+                  ) : (
+                    <>
+                      Falta de pagamento: regularize até <span className="tnum font-medium">{faltaDePagamento.ate}</span>
+                    </>
+                  )}
+                  <span className="block text-[11px] text-muted">As rifas no ar seguem vendendo. Veja em Cobrança.</span>
+                </Link>
+              ) : null}
+              {caminhoDaCobranca && tabelaNovaEm ? (
+                <Link
+                  href={caminhoDaCobranca}
+                  aria-label={`Cobrança: tabela nova a partir de ${tabelaNovaEm}, para as rifas publicadas desse dia em diante`}
+                  className="block border-b border-line px-3 py-2 hover:bg-mist"
+                >
+                  Tabela de cobrança nova a partir de <span className="tnum font-medium">{tabelaNovaEm}</span>
+                  <span className="block text-[11px] text-muted">Vale para as rifas publicadas desse dia em diante.</span>
+                </Link>
+              ) : null}
               {caminhoDoAtendimento && pendenciasNoMenu ? (
                 <Link href={caminhoDoAtendimento} aria-label={`Atendimento: ${pendenciasNoMenu} pendente${pendenciasNoMenu > 1 ? "s" : ""}`} className="block border-b border-line px-3 py-2 hover:bg-mist">
                   <span className="tnum font-medium">{pendenciasNoMenu}</span> pendente{pendenciasNoMenu > 1 ? "s" : ""} no atendimento

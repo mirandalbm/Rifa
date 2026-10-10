@@ -59,6 +59,7 @@ import {
   organizations,
   organizacaoCapas,
   organizacaoFotos,
+  contratoPromotoraAceites,
   insertCampaignSchema,
 } from "@shared/schema";
 import {
@@ -113,6 +114,7 @@ import {
   setPaymentMethods,
   getPlataforma,
   setPlataforma,
+  tabelaDeCobrancaAgora,
 } from "../services/settings";
 import { artesDaRifa, rifaDaArte } from "../services/artes";
 import { CAPAS_POR_JANELA } from "@shared/poster";
@@ -124,7 +126,8 @@ import { codigoConfere, guardarSegredo } from "../services/segundoFator";
 import { buildExport, ExportError, toCsvLine } from "../services/exports";
 import { refundOrder } from "../services/orders";
 import { carteiraDaPlataforma, extratoDa, darBaixa } from "../services/billing";
-import { problemaNaCobranca, validarConfigCobranca, validarModo } from "@shared/cobranca";
+import { cancelarNotificacao, notificacaoDa, notificarFaltaDePagamento } from "../services/inadimplencia";
+import { AVISO_DA_TABELA_DIAS, primeiroDiaComAviso, problemaNaCobranca, problemaNaVigencia, tabelasDeCobranca, tabelaVigente, validarConfigCobranca, validarModo, type TabelasDaCobranca } from "@shared/cobranca";
 import {
   orgOf,
   isPlatform,
@@ -1520,7 +1523,7 @@ adminRouter.put("/campaigns/:id/packages", async (req, res, next) => {
     }[];
     // Por cota: o desconto do pacote não pode levar a cota abaixo da taxa da
     // plataforma (a fotografada na publicação, ou a de hoje no rascunho).
-    const tabela = campanha.cobranca ?? (await getPlataforma()).cobranca;
+    const tabela = campanha.cobranca ?? (await tabelaDeCobrancaAgora());
     const abaixo = problemaNaCobranca(validarModo(campanha.cobrancaModo), tabela, campanha.priceCents, list);
     if (abaixo) return res.status(422).json({ message: abaixo });
 
@@ -3291,9 +3294,12 @@ adminRouter.post("/chamados/:id/disputa/decidir", async (req, res, next) => {
 
 adminRouter.post("/chamados/:id/estornar", async (req, res, next) => {
   try {
-    const { chamado, refund, devolverCents, taxaCents } = await executarEstorno(req, req.params.id);
+    const { chamado, refund, devolverCents, taxaCents } = await executarEstorno(req, req.params.id, {
+      falhaDaPlataforma: req.body?.falhaDaPlataforma === true,
+    });
     await audit(req, "chamado.estornado", "chamado", chamado.id, {
       protocolo: chamado.protocolo,
+      motivo: refund?.motivo ?? null,
       forma: chamado.formaDevolucao,
       devolverCents,
       taxaCents,
@@ -3543,42 +3549,125 @@ adminRouter.get("/cobranca", async (req, res, next) => {
 });
 
 /**
- * A tabela de cobrança (`shared/cobranca.ts`): o percentual sobre a venda, o
- * valor por cota e as faixas da taxa Pix. A organização lê — é o que ela
- * escolhe no rascunho e o que paga —; só a plataforma muda.
+ * A tabela de cobrança (`shared/cobranca.ts`): a que vale agora e a agendada,
+ * se houver. A organização lê — é o que ela escolhe no rascunho, o que paga e
+ * o aviso da mudança (cláusula X.3) —; só a plataforma muda.
  */
 adminRouter.get("/cobranca/tabela", async (_req, res, next) => {
   try {
     res.setHeader("Cache-Control", "no-store");
-    res.json((await getPlataforma()).cobranca);
+    const p = await getPlataforma();
+    const agora = new Date();
+    const resposta: TabelasDaCobranca = {
+      ...tabelasDeCobranca(p.cobranca, p.cobrancaProxima, agora),
+      primeiroDiaComAviso: primeiroDiaComAviso(agora),
+      avisoDias: AVISO_DA_TABELA_DIAS,
+    };
+    res.json(resposta);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** Alguma promotora já aceitou o contrato? Antes disso não há a quem avisar. */
+async function haPromotorasComContrato(): Promise<boolean> {
+  const [linha] = await db.select({ id: contratoPromotoraAceites.id }).from(contratoPromotoraAceites).limit(1);
+  return Boolean(linha);
+}
+
+/**
+ * Muda a tabela, agora (`vigenteEm` ausente) ou a partir de um dia. Aumento
+ * só com 30 dias de aviso (`problemaNaVigencia()`); redução vale na hora.
+ * Vale para as rifas publicadas a partir da vigência: a rifa publicada gravou
+ * a dela (`campaigns.cobranca`) e o pedido, a dele. Agendar de novo troca a
+ * agendada; mudar agora a descarta.
+ */
+adminRouter.put("/cobranca/tabela", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    const nova = validarConfigCobranca(req.body ?? {});
+    const vigenteEm = req.body?.vigenteEm ? String(req.body.vigenteEm) : null;
+    const agora = new Date();
+    const p = await getPlataforma();
+    const antes = tabelaVigente(p.cobranca, p.cobrancaProxima, agora);
+    const problema = problemaNaVigencia({ antes, depois: nova, vigenteEm, agora, comPromotoras: await haPromotorasComContrato() });
+    if (problema) return res.status(422).json({ message: problema });
+    const salva = await setPlataforma(
+      vigenteEm ? { cobranca: antes, cobrancaProxima: { vigenteEm, tabela: nova } } : { cobranca: nova, cobrancaProxima: null },
+    );
+    await audit(req, vigenteEm ? "cobranca.tabela.agendada" : "cobranca.tabela", "settings", "cobranca", {
+      tabela: nova,
+      vigenteEm,
+    });
+    res.json(tabelasDeCobranca(salva.cobranca, salva.cobrancaProxima, agora));
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** Cancela a tabela agendada que ainda não começou a valer. */
+adminRouter.delete("/cobranca/tabela/proxima", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    const agora = new Date();
+    const p = await getPlataforma();
+    if (!p.cobrancaProxima) return res.status(404).json({ message: "Não há tabela agendada." });
+    if (!tabelasDeCobranca(p.cobranca, p.cobrancaProxima, agora).proxima) {
+      return res.status(409).json({ message: "A tabela agendada já está valendo." });
+    }
+    await setPlataforma({ cobrancaProxima: null });
+    await audit(req, "cobranca.tabela.agendada.cancelar", "settings", "cobranca", p.cobrancaProxima);
+    res.status(204).end();
   } catch (err) {
     next(err);
   }
 });
 
 /**
- * Muda a tabela. Vale para as rifas publicadas daqui em diante: a rifa
- * publicada fotografou a dela (`campaigns.cobranca`) e o pedido, a dele.
+ * Dá baixa no que está em aberto. A notificação de falta de pagamento, se
+ * nada mais dela estiver em aberto, se encerra na mesma transação.
  */
-adminRouter.put("/cobranca/tabela", async (req, res, next) => {
+adminRouter.post("/cobranca/:id/baixa", async (req, res, next) => {
   try {
     requirePlatformAdmin(req);
-    const cobranca = validarConfigCobranca(req.body ?? {});
-    const salva = await setPlataforma({ cobranca });
-    await audit(req, "cobranca.tabela", "settings", "cobranca", salva.cobranca);
-    res.json(salva.cobranca);
+    if (!/^[0-9a-f-]{36}$/i.test(req.params.id)) return res.status(404).json({ message: "Organização não encontrada." });
+    const { quantas, regularizada } = await darBaixa(req.params.id, req.user!.id);
+    await audit(req, "cobranca.baixa", "organization", req.params.id, { quantas, regularizada });
+    res.json({ baixadas: quantas, regularizada });
   } catch (err) {
     next(err);
   }
 });
 
-/** Dá baixa no que está em aberto. */
-adminRouter.post("/cobranca/:id/baixa", async (req, res, next) => {
+/**
+ * Falta de pagamento (cláusula X.13 (a), `shared/inadimplencia.ts`). Só a
+ * plataforma notifica e cancela (403 para organizador, no `npm run
+ * isolation`); a auditoria vai na transação do serviço. A organização lê a
+ * dela pela sessão — nada de id na URL.
+ */
+adminRouter.get("/cobranca/notificacao", async (req, res, next) => {
   try {
-    requirePlatformAdmin(req);
-    const quantas = await darBaixa(req.params.id);
-    await audit(req, "cobranca.baixa", "organization", req.params.id, { quantas });
-    res.json({ baixadas: quantas });
+    res.setHeader("Cache-Control", "no-store");
+    const org = orgOf(req);
+    const n = org ? await notificacaoDa(db, org) : null;
+    // A notificação sem nada em aberto (estorno) não é aviso: some da tela.
+    res.json({ notificacao: n && n.abertoCents > 0 ? n : null });
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.post("/cobranca/:id/notificar", async (req, res, next) => {
+  try {
+    res.status(201).json(await notificarFaltaDePagamento(req, req.params.id));
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.post("/cobranca/notificacoes/:id/cancelar", async (req, res, next) => {
+  try {
+    res.json(await cancelarNotificacao(req, req.params.id, req.body?.motivo));
   } catch (err) {
     next(err);
   }
@@ -3613,7 +3702,9 @@ adminRouter.get("/cobranca/extrato", async (req, res, next) => {
       antes: lerCursor(req.query.antes),
     });
     if (proximo) res.setHeader("X-Proximo", proximo);
-    res.json({ tabela: (await getPlataforma()).cobranca, ...extrato });
+    const plataforma = await getPlataforma();
+    const { vigente, proxima } = tabelasDeCobranca(plataforma.cobranca, plataforma.cobrancaProxima, new Date());
+    res.json({ tabela: vigente, proxima, ...extrato });
   } catch (err) {
     next(err);
   }

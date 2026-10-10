@@ -586,3 +586,24 @@ de direito bancário (recomendado).
 - **B.** Encerrar com CNAE principal provisório **73.19-0/99** e risco aceito, sujeito a
   revisão quando a receita de rifas for conhecida. Só vale se o CNPJ ainda não foi
   protocolado com outro CNAE.
+
+---
+
+## Cláusula de remuneração (cobrança por rifa): aval do advogado (10/10/2026)
+
+A cláusula X.1 a X.13 do contrato da promotora (texto em
+`docs/RESPOSTA-ADVOGADO-COBRANCA.md`, seção 4) foi **aprovada** pelo
+advogado, com a publicação autorizada; o bloqueio por falta de pagamento
+(X.13 a), que ele tinha condicionado, existe no sistema. Ele assina aqui a
+parte jurídica, com a data, quando receber a confirmação de que:
+
+- [ ] a tabela de cobrança foi montada (Cobrança → Tabela de cobrança), antes
+      do primeiro aceite;
+- [ ] a versão nova do contrato da promotora, com a cláusula X, foi publicada
+      (Configurações → Contrato da promotora).
+
+Assinatura da parte jurídica: _pendente_.
+
+Isto não encerra a Parte 1: os itens da seção "Estado da Parte 1" acima seguem
+como estão.
+

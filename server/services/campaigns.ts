@@ -38,11 +38,12 @@ import {
 } from "@shared/campanhaLegal";
 import { problemaNoBonusMax } from "@shared/bonus";
 import { PROBLEMA_NO_TOTAL, loteriaDoMetodo, numeracaoZero, problemaNoMetodo, totalDaApuracao, type MetodoDeApuracao } from "@shared/apuracao";
-import { getPlataforma } from "./settings";
+import { getPlataforma, tabelaDeCobrancaAgora } from "./settings";
 import { cobrancaNaPublicacao, problemaNaCobranca, validarModo } from "@shared/cobranca";
 import { problemaNoPremio } from "@shared/premio";
 import { problemaDoValeBrinde } from "@shared/premiadas";
 import { problemaDosSocios } from "./socios";
+import { problemaDeInadimplencia } from "./inadimplencia";
 
 export class CampaignRuleError extends Error {
   constructor(message: string) {
@@ -163,6 +164,10 @@ export async function publishBlockers(campaignId: string): Promise<string[]> {
   // sem a trava, o contrato seria só intenção.
   const contrato = await problemaDoContrato(campaign.organizationId);
   if (contrato) blockers.push(contrato);
+  // Falta de pagamento notificada pela plataforma e o prazo de 10 dias
+  // passou (cláusula X.13 (a)): rifa nova não publica; as no ar seguem.
+  const inadimplencia = await problemaDeInadimplencia(campaign.organizationId);
+  if (inadimplencia) blockers.push(inadimplencia);
   // E cada anexo por modalidade que esta rifa usa (cláusula 7): lido dos dados dela.
   const anexos = await anexosDaPublicacao(campaign.id, campaign.organizationId);
   if (anexos.problema) blockers.push(anexos.problema);
@@ -238,7 +243,7 @@ export async function publishBlockers(campaignId: string): Promise<string[]> {
   // A cobrança escolhida tem de caber no preço da cota (por cota acima do
   // preço levaria a venda inteira e mais).
   const pacotes = await db.select().from(quotaPackages).where(eq(quotaPackages.campaignId, campaignId));
-  const cobranca = problemaNaCobranca(validarModo(campaign.cobrancaModo), (await getPlataforma()).cobranca, campaign.priceCents, pacotes);
+  const cobranca = problemaNaCobranca(validarModo(campaign.cobrancaModo), await tabelaDeCobrancaAgora(), campaign.priceCents, pacotes);
   if (cobranca) blockers.push(cobranca);
 
   return blockers;
@@ -289,6 +294,8 @@ export async function publishCampaign(campaignId: string): Promise<Campaign> {
   // Lidos antes da transação: dentro dela, só o `tx`.
   const plataforma = await getPlataforma();
   const liberados = plataforma.metodosDeApuracao;
+  // A tabela que vale hoje (a agendada, se o dia dela chegou) é a que a rifa grava.
+  const tabelaDoDia = await tabelaDeCobrancaAgora();
   return db.transaction(async (tx) => {
     // A ordem das travas é sempre sorteio oficial → rifa (a mesma de integrar
     // e de mudar o sorteio): primeiro o sorteio em que a rifa está, depois a
@@ -324,6 +331,11 @@ export async function publishCampaign(campaignId: string): Promise<Campaign> {
     if ((org.rows[0] as { archived_at: Date | null } | undefined)?.archived_at) {
       throw new CampaignRuleError("A organização desta rifa está arquivada.");
     }
+    // A falta de pagamento de novo, com a organização travada: o acerto
+    // (`darBaixa`) e a notificação pegam a mesma linha, então esperam esta
+    // publicação ou ela os enxerga.
+    const inadimplencia = await problemaDeInadimplencia(campaign.organizationId, tx);
+    if (inadimplencia) throw new CampaignRuleError(inadimplencia);
 
     // O contrato de novo, com a trava compartilhada: uma versão nova saindo
     // agora espera esta publicação, ou esta espera ela e confere a nova.
@@ -365,7 +377,7 @@ export async function publishCampaign(campaignId: string): Promise<Campaign> {
     // depois da conferência de fora). A tabela do dia fica fotografada na rifa.
     const modo = validarModo(campaign.cobrancaModo);
     const pacotes = await tx.select().from(quotaPackages).where(eq(quotaPackages.campaignId, campaignId));
-    const cobranca = problemaNaCobranca(modo, plataforma.cobranca, campaign.priceCents, pacotes);
+    const cobranca = problemaNaCobranca(modo, tabelaDoDia, campaign.priceCents, pacotes);
     if (cobranca) throw new CampaignRuleError(cobranca);
 
     const { seed, seedHash } = commitSeed();
@@ -400,7 +412,7 @@ export async function publishCampaign(campaignId: string): Promise<Campaign> {
         // "Quando completar": a data registrada é a máxima (8.7); encher antes
         // só antecipa `draw_at`, e esta fica de referência.
         drawAtMaximo: campaign.modoSorteio === "quando_completar" ? campaign.drawAt : null,
-        cobranca: cobrancaNaPublicacao(modo, plataforma.cobranca),
+        cobranca: cobrancaNaPublicacao(modo, tabelaDoDia),
         publicarEm: null,
         publicacaoAgendadaFalha: null,
       })
@@ -719,7 +731,7 @@ export async function marcarDemonstracao(campaignId: string, ligado: boolean) {
   // cobrança fotografada: desmarcada, ela passa a vender, então ganha a
   // tabela do dia aqui (`shared/cobranca.ts`) — senão venderia sem taxa. Por
   // cota igual ou maior que o preço da cota não desmarca.
-  const tabela = (await getPlataforma()).cobranca;
+  const tabela = await tabelaDeCobrancaAgora();
   const r = await db.execute(sql`
     UPDATE campaigns
        SET demonstracao = ${ligado}::boolean,

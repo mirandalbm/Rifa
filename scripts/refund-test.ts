@@ -140,11 +140,14 @@ async function casoSimples(campaignId: string) {
     depois.comissao?.status === "reversed",
     depois.comissao?.status,
   );
+  // Sem chamado, o estorno é a devolução avisada pelo provedor (cláusula
+  // X.10): a taxa da venda é cancelada e a taxa Pix fica com a plataforma.
   checa(
-    "a taxa da plataforma foi cancelada",
-    depois.taxa?.status === "cancelada",
-    depois.taxa?.status,
+    "a taxa da venda foi cancelada e só a taxa Pix ficou",
+    depois.taxa?.vendaCents === 0 && depois.taxa?.amountCents === pago.taxa?.pixCents && (pago.taxa?.pixCents ?? 0) > 0 && depois.taxa?.status !== "cancelada",
+    JSON.stringify({ antes: pago.taxa?.amountCents, pix: pago.taxa?.pixCents, depois: depois.taxa?.amountCents, status: depois.taxa?.status }),
   );
+  checa("o estorno sem chamado é do provedor", r?.motivo === "provedor", r?.motivo);
   checa(
     "o contador de vendidas voltou ao que era",
     depois.stats.soldCount === (antes[0]?.soldCount ?? 0),

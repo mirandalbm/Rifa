@@ -1,4 +1,5 @@
 /** Ajustes gerais, com valor padrão quando o administrador ainda não preencheu. */
+import { tabelaVigente, type ConfigCobranca } from "@shared/cobranca";
 import { eq } from "drizzle-orm";
 import { db } from "../db";
 import { appSettings, type OrganizerInfo } from "@shared/schema";
@@ -143,4 +144,13 @@ export async function setPlataforma(
       set: { value, updatedAt: new Date() },
     });
   return value;
+}
+
+/**
+ * A tabela de cobrança que vale agora: a agendada, se o dia dela já chegou
+ * (`tabelaVigente()` em `shared/cobranca.ts`). É a que a publicação grava na rifa.
+ */
+export async function tabelaDeCobrancaAgora(agora = new Date()): Promise<ConfigCobranca> {
+  const p = await getPlataforma();
+  return tabelaVigente(p.cobranca, p.cobrancaProxima, agora);
 }

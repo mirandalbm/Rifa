@@ -16,9 +16,20 @@ import {
   POR_COTA_MAX_CENTS,
   textoDaFaixa,
   textoPct,
+  dataDaVigencia,
   type ConfigCobranca,
   type FaixaPix,
+  type TabelaAgendada,
+  type TabelasDaCobranca,
 } from "@shared/cobranca";
+import {
+  MOTIVO_DO_CANCELAMENTO_MIN,
+  PRAZO_PARA_REGULARIZAR_DIAS,
+  diaEmBrasilia,
+  situacaoDaNotificacao,
+  ultimoDiaParaRegularizar,
+  type NotificacaoDeCobranca,
+} from "@shared/inadimplencia";
 
 interface LinhaCarteira {
   organizationId: string;
@@ -30,10 +41,14 @@ interface LinhaCarteira {
   lancamentos: number;
   /** O que a plataforma deve à organização: a parte dela nos presentes. */
   creditoCents: number;
+  /** A notificação de falta de pagamento aberta (cláusula X.13 (a)). */
+  notificacao: NotificacaoDeCobranca | null;
 }
 
 interface Extrato {
   tabela: ConfigCobranca;
+  /** A tabela agendada que ainda não vale (cláusula X.3). */
+  proxima: TabelaAgendada | null;
   totais: { abertoCents: number; pagoCents: number; retidaCents: number };
   creditos: { devidoCents: number; pagoCents: number };
   linhas: {
@@ -50,6 +65,7 @@ interface Extrato {
       createdAt: string;
     };
     orderCode: number | null;
+    pedidoStatus: string | null;
     campanha: string | null;
   }[];
 }
@@ -73,7 +89,9 @@ function DeOndeVeio({ l }: { l: LinhaDoExtrato }) {
       {c.modo === "percentual" && c.pct ? <span className="tnum text-muted"> · {textoPct(c.pct / 100)}</span> : null}
       {c.modo === "por_cota" ? <span className="text-muted"> · por cota</span> : null}
       {l.campanha ? <span className="block text-[11px] text-muted">{l.campanha}</span> : null}
-      {c.pixCents > 0 ? (
+      {l.pedidoStatus === "refunded" && c.status !== "cancelada" ? (
+        <span className="block text-[11px] text-muted">pedido estornado: fica só a taxa Pix</span>
+      ) : c.pixCents > 0 ? (
         <span className="block text-[11px] text-muted">
           venda <Money cents={c.vendaCents} /> + Pix <Money cents={c.pixCents} />
         </span>
@@ -137,6 +155,31 @@ function ResumoDaTabela({ tabela }: { tabela: ConfigCobranca }) {
   );
 }
 
+/**
+ * A notificação de falta de pagamento (cláusula X.13 (a)) em texto: no
+ * prazo, até quando; vencido o prazo, que a publicação de rifa nova está
+ * bloqueada. Nunca só pela cor.
+ */
+function SituacaoDaNotificacao({ n }: { n: NotificacaoDeCobranca }) {
+  const situacao = situacaoDaNotificacao(n, new Date());
+  if (situacao === "regularizada") return null;
+  return (
+    <span className="ml-2 inline-flex flex-wrap items-center gap-1">
+      {situacao === "bloqueando" ? (
+        <Pill status="expired">publicação bloqueada</Pill>
+      ) : (
+        <Pill status="reserved">
+          notificada · até <span className="tnum">{ultimoDiaParaRegularizar(n.bloqueiaEm)}</span>
+        </Pill>
+      )}
+      <span className="block w-full text-[11px] text-muted">
+        notificada em <span className="tnum">{diaEmBrasilia(n.notificadaEm)}</span>: <Money cents={n.valorCents} />; em aberto
+        disso agora: <Money cents={n.abertoCents} />
+      </span>
+    </span>
+  );
+}
+
 /* ---------------- o lado da plataforma ---------------- */
 
 function Carteira() {
@@ -153,6 +196,66 @@ function Carteira() {
     onSuccess: recarregar,
     onError: (err: Error) => setErro(err.message),
   });
+  // Falta de pagamento (cláusula X.13 (a)): notificar e cancelar.
+  const notificar = useMutation({
+    mutationFn: (id: string) => apiRequest("POST", `/api/admin/cobranca/${id}/notificar`),
+    onSuccess: () => {
+      setErro(null);
+      recarregar();
+    },
+    onError: (err: Error) => setErro(err.message),
+  });
+  const [cancelando, setCancelando] = useState<{ id: string; motivo: string } | null>(null);
+  const cancelar = useMutation({
+    mutationFn: (c: { id: string; motivo: string }) => apiRequest("POST", `/api/admin/cobranca/notificacoes/${c.id}/cancelar`, { motivo: c.motivo }),
+    onSuccess: () => {
+      setErro(null);
+      setCancelando(null);
+      recarregar();
+    },
+    onError: (err: Error) => setErro(err.message),
+  });
+  const pedirNotificacao = (o: LinhaCarteira) => {
+    if (
+      window.confirm(
+        `Notificar ${o.name} da falta de pagamento de ${formatBRL(o.abertoCents)}? Sem o pagamento em ${PRAZO_PARA_REGULARIZAR_DIAS} dias, ela não publica rifa nova (as rifas no ar seguem vendendo).`,
+      )
+    ) {
+      notificar.mutate(o.organizationId);
+    }
+  };
+  const acoesDaNotificacao = (o: LinhaCarteira) =>
+    o.notificacao ? (
+      cancelando?.id === o.notificacao.id ? (
+        <form
+          className="mt-2 space-y-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            cancelar.mutate(cancelando);
+          }}
+        >
+          <Campo rotulo="Motivo do cancelamento" dica={`Fica na auditoria. Pelo menos ${MOTIVO_DO_CANCELAMENTO_MIN} letras.`}>
+            <input value={cancelando.motivo} onChange={(e) => setCancelando({ ...cancelando, motivo: e.target.value })} />
+          </Campo>
+          <div className="flex flex-wrap gap-2">
+            <Button type="submit" variant="ghost" disabled={cancelar.isPending}>
+              confirmar cancelamento
+            </Button>
+            <Button type="button" variant="ghost" onClick={() => setCancelando(null)}>
+              voltar
+            </Button>
+          </div>
+        </form>
+      ) : (
+        <Button variant="ghost" onClick={() => setCancelando({ id: o.notificacao!.id, motivo: "" })}>
+          cancelar notificação
+        </Button>
+      )
+    ) : o.abertoCents > o.creditoCents ? (
+      <Button variant="ghost" onClick={() => pedirNotificacao(o)} disabled={notificar.isPending}>
+        notificar falta de pagamento
+      </Button>
+    ) : null;
 
   const total = data?.carteira.reduce((s, o) => s + o.abertoCents, 0) ?? 0;
   const retida = data?.carteira.reduce((s, o) => s + o.retidaCents, 0) ?? 0;
@@ -191,6 +294,7 @@ function Carteira() {
                         <Pill status="blocked">suspensa</Pill>
                       </span>
                     ) : null}
+                    {o.notificacao ? <SituacaoDaNotificacao n={o.notificacao} /> : null}
                   </>
                 ),
               },
@@ -224,28 +328,40 @@ function Carteira() {
               },
               {
                 titulo: "",
-                celula: (o) =>
-                  o.abertoCents > 0 || o.creditoCents > 0 ? (
-                    <Button variant="ghost" onClick={() => baixar.mutate(o.organizationId)}>
-                      dar baixa
-                    </Button>
-                  ) : null,
+                celula: (o) => (
+                  <div className="flex flex-col items-start gap-1">
+                    {o.abertoCents > 0 || o.creditoCents > 0 ? (
+                      <Button variant="ghost" onClick={() => baixar.mutate(o.organizationId)}>
+                        dar baixa
+                      </Button>
+                    ) : null}
+                    {acoesDaNotificacao(o)}
+                  </div>
+                ),
               },
             ]}
             cartao={(o) => (
               <div className="space-y-1 text-sm">
                 <p className="font-medium">{o.name}</p>
+                {o.notificacao ? (
+                  <p>
+                    <SituacaoDaNotificacao n={o.notificacao} />
+                  </p>
+                ) : null}
                 <p>
                   Em aberto: <Money cents={o.abertoCents} />
                 </p>
                 <p className="text-muted">
                   Já pago: <Money cents={o.pagoCents} />
                 </p>
-                {o.abertoCents > 0 || o.creditoCents > 0 ? (
-                  <Button variant="ghost" onClick={() => baixar.mutate(o.organizationId)}>
-                    dar baixa
-                  </Button>
-                ) : null}
+                <div className="flex flex-wrap gap-2">
+                  {o.abertoCents > 0 || o.creditoCents > 0 ? (
+                    <Button variant="ghost" onClick={() => baixar.mutate(o.organizationId)}>
+                      dar baixa
+                    </Button>
+                  ) : null}
+                  {acoesDaNotificacao(o)}
+                </div>
               </div>
             )}
           />
@@ -262,23 +378,29 @@ const emReais = (c: number) => (c / 100).toFixed(2);
 const deReais = (v: string) => Math.round(Number(v.replace(",", ".")) * 100);
 
 /**
- * A tabela de cobrança da plataforma. Vale para as rifas publicadas daqui em
- * diante: a rifa publicada guardou a dela, e o pedido, a dele.
+ * A tabela de cobrança da plataforma. Vale para as rifas publicadas a partir
+ * da vigência: a rifa publicada guardou a dela, e o pedido, a dele. Reduzir
+ * vale na hora; aumentar exige agendar com 30 dias de aviso (cláusula X.3),
+ * salvo antes de qualquer promotora ter aceitado o contrato.
  */
 function TabelaDeCobranca() {
   const qc = useQueryClient();
-  const { data } = useQuery<ConfigCobranca>({ queryKey: ["/api/admin/cobranca/tabela"] });
+  const { data } = useQuery<TabelasDaCobranca>({ queryKey: ["/api/admin/cobranca/tabela"] });
   const [pct, setPct] = useState("0");
   const [porCota, setPorCota] = useState("0.00");
   const [faixas, setFaixas] = useState<{ ate: string; pct: string }[]>([{ ate: "", pct: "0" }]);
+  const [vigenteEm, setVigenteEm] = useState("");
   const [msg, setMsg] = useState<{ ok: boolean; texto: string } | null>(null);
 
   useEffect(() => {
     if (!data) return;
-    setPct(String(data.percentualPct));
-    setPorCota(emReais(data.porCotaCents));
-    setFaixas(data.faixasPix.map((f) => ({ ate: f.ate === null ? "" : String(f.ate), pct: String(f.pct) })));
+    const t = data.vigente;
+    setPct(String(t.percentualPct));
+    setPorCota(emReais(t.porCotaCents));
+    setFaixas(t.faixasPix.map((f) => ({ ate: f.ate === null ? "" : String(f.ate), pct: String(f.pct) })));
   }, [data]);
+
+  const recarregar = () => qc.invalidateQueries({ queryKey: ["/api/admin/cobranca/tabela"] });
 
   const salvar = useMutation({
     mutationFn: () => {
@@ -290,11 +412,27 @@ function TabelaDeCobranca() {
         percentualPct: Number(pct.replace(",", ".")),
         porCotaCents: deReais(porCota),
         faixasPix,
+        ...(vigenteEm ? { vigenteEm } : {}),
       });
     },
     onSuccess: () => {
-      setMsg({ ok: true, texto: "Tabela salva. Vale para as rifas publicadas daqui em diante." });
-      qc.invalidateQueries({ queryKey: ["/api/admin/cobranca/tabela"] });
+      setMsg({
+        ok: true,
+        texto: vigenteEm
+          ? `Tabela agendada para ${dataDaVigencia(vigenteEm)}. As organizações são avisadas no painel.`
+          : "Tabela salva. Vale para as rifas publicadas daqui em diante.",
+      });
+      setVigenteEm("");
+      recarregar();
+    },
+    onError: (err: Error) => setMsg({ ok: false, texto: err.message }),
+  });
+
+  const cancelar = useMutation({
+    mutationFn: () => apiRequest("DELETE", "/api/admin/cobranca/tabela/proxima"),
+    onSuccess: () => {
+      setMsg({ ok: true, texto: "Agendamento cancelado. Segue valendo a tabela atual." });
+      recarregar();
     },
     onError: (err: Error) => setMsg({ ok: false, texto: err.message }),
   });
@@ -372,10 +510,26 @@ function TabelaDeCobranca() {
           </Button>
         </fieldset>
 
+        <Campo
+          rotulo="Vale a partir de (opcional)"
+          dica={
+            data
+              ? `Vazio: vale agora. Reduzir pode valer na hora; aumentar qualquer taxa exige ${data.avisoDias} dias de aviso às organizações — a partir de ${dataDaVigencia(data.primeiroDiaComAviso)}.`
+              : undefined
+          }
+        >
+          <input type="date" value={vigenteEm} onChange={(e) => setVigenteEm(e.target.value)} className="campo tnum" />
+        </Campo>
+
         <div className="flex flex-wrap items-center gap-3">
           <Button type="submit" disabled={salvar.isPending}>
-            Salvar tabela
+            {vigenteEm ? "Agendar tabela" : "Salvar tabela"}
           </Button>
+          {data?.proxima ? (
+            <span className="text-xs text-muted">
+              {vigenteEm ? "Agendar de novo troca a agendada." : "Salvar sem data descarta a tabela agendada."}
+            </span>
+          ) : null}
           {msg ? (
             <span role="status" className={`text-sm ${msg.ok ? "text-green-deep" : "text-red"}`}>
               {msg.texto}
@@ -383,7 +537,28 @@ function TabelaDeCobranca() {
           ) : null}
         </div>
       </form>
-      {data ? <ResumoDaTabela tabela={data} /> : null}
+      {data ? (
+        <>
+          <p className="px-4 pt-2 text-sm font-medium">Em vigor</p>
+          <ResumoDaTabela tabela={data.vigente} />
+        </>
+      ) : null}
+      {data?.proxima ? (
+        <div className="border-t border-line">
+          <div className="flex flex-wrap items-center justify-between gap-2 px-4 pt-3">
+            <p className="text-sm font-medium">
+              <Pill status="reserved">agendada</Pill>{" "}
+              <span className="ml-1">
+                A partir de <span className="tnum">{dataDaVigencia(data.proxima.vigenteEm)}</span>
+              </span>
+            </p>
+            <Button variant="ghost" onClick={() => cancelar.mutate()} disabled={cancelar.isPending}>
+              Cancelar agendamento
+            </Button>
+          </div>
+          <ResumoDaTabela tabela={data.proxima.tabela} />
+        </div>
+      ) : null}
     </Card>
   );
 }
@@ -396,9 +571,14 @@ function MinhaConta() {
   const { paginas, hasNextPage, fetchNextPage, isFetchingNextPage } = useListaPaginada<Extrato>("/api/admin/cobranca/extrato");
   const data = paginas[0];
   const lancamentos = paginas.flatMap((p) => p.linhas);
+  const { data: daNotificacao } = useQuery<{ notificacao: NotificacaoDeCobranca | null }>({
+    queryKey: ["/api/admin/cobranca/notificacao"],
+  });
 
   return (
     <PanelShell title="Cobrança">
+      {daNotificacao?.notificacao ? <FaltaDePagamento n={daNotificacao.notificacao} /> : null}
+
       <div className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
         <Kpi label="Em aberto" value={formatBRL(data?.totais.abertoCents ?? 0)} />
         <Kpi
@@ -414,6 +594,16 @@ function MinhaConta() {
           />
         ) : null}
       </div>
+
+      {data?.proxima ? (
+        <Card title={`Tabela nova a partir de ${dataDaVigencia(data.proxima.vigenteEm)}`} right={<Pill status="reserved">aviso</Pill>}>
+          <p className="px-4 pt-3 text-sm">
+            Vale para as rifas publicadas a partir de <span className="tnum">{dataDaVigencia(data.proxima.vigenteEm)}</span>. As
+            rifas já publicadas seguem com a tabela que gravaram na publicação.
+          </p>
+          <ResumoDaTabela tabela={data.proxima.tabela} />
+        </Card>
+      ) : null}
 
       {data ? (
         <Card title="Como a plataforma cobra">
@@ -456,5 +646,46 @@ function MinhaConta() {
         )}
       </Card>
     </PanelShell>
+  );
+}
+
+/**
+ * A notificação de falta de pagamento, para a organização (cláusula X.13
+ * (a)): quanto, desde quando, até quando e o que acontece depois. Some
+ * quando a plataforma registra o pagamento.
+ */
+function FaltaDePagamento({ n }: { n: NotificacaoDeCobranca }) {
+  const situacao = situacaoDaNotificacao(n, new Date());
+  if (situacao === "regularizada") return null;
+  const bloqueando = situacao === "bloqueando";
+  return (
+    <div className="mb-3">
+      <Card
+        title="Falta de pagamento"
+        right={bloqueando ? <Pill status="expired">publicação bloqueada</Pill> : <Pill status="reserved">no prazo</Pill>}
+      >
+        <div className="space-y-2 px-4 py-3 text-sm" role={bloqueando ? "alert" : undefined}>
+          <p>
+            A plataforma notificou em <span className="tnum">{diaEmBrasilia(n.notificadaEm)}</span> a falta de pagamento de{" "}
+            <Money cents={n.valorCents} /> em taxas. Ainda em aberto: <Money cents={n.abertoCents} />.
+          </p>
+          {bloqueando ? (
+            <p className="font-medium text-red">
+              O prazo terminou em <span className="tnum">{ultimoDiaParaRegularizar(n.bloqueiaEm)}</span>: nenhuma rifa nova pode ser
+              publicada até a plataforma registrar o pagamento.
+            </p>
+          ) : (
+            <p>
+              Regularize até <span className="tnum font-medium">{ultimoDiaParaRegularizar(n.bloqueiaEm)}</span>. Depois disso, enquanto
+              o valor seguir em aberto, nenhuma rifa nova pode ser publicada.
+            </p>
+          )}
+          <p className="text-xs text-muted">
+            As rifas no ar seguem vendendo. A venda feita depois da notificação não entra nela. A publicação volta assim que a
+            plataforma registrar o pagamento (contrato da promotora, cláusula de remuneração, X.13).
+          </p>
+        </div>
+      </Card>
+    </div>
   );
 }

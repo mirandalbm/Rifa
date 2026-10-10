@@ -1457,6 +1457,7 @@ publicRouter.get("/campaigns/:slug/regulamento", async (req, res, next) => {
         taxaReembolsoPct: plataforma.taxaReembolsoPct,
         aceitaReembolso: plataforma.estornoManual,
         presente: plataforma.presente,
+        meios: await getPaymentMethods(),
       }),
     });
   } catch (err) {

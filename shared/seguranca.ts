@@ -75,6 +75,13 @@ export function pedePagamentoPorFora(texto: string): string | null {
   return null;
 }
 
+/**
+ * Só Pix, dito antes da compra (resposta 6 do advogado, 10/10/2026): na
+ * página da rifa e no carrinho, perto do botão; o cartão do feed diz "Pix"
+ * junto ao preço e os Termos repetem.
+ */
+export const PAGAMENTO_SO_PIX = "Pagamento só por Pix: não aceitamos cartão de crédito nem de débito.";
+
 /** O aviso que a tela mostra perto do botão de comprar. */
 export const SO_VALE_PELA_PLATAFORMA =
   "Só vale bilhete pago aqui na plataforma. Nunca pague por Pix direto à organização — se pedirem, denuncie.";

@@ -14,6 +14,7 @@ import {
   NOME_STATUS_DENUNCIA,
   PILL_DENUNCIA,
   SO_VALE_PELA_PLATAFORMA,
+  PAGAMENTO_SO_PIX,
   type MotivoDeDenuncia,
   type StatusDenuncia,
 } from "@shared/seguranca";
@@ -189,7 +190,7 @@ export function SoValePelaPlataforma({ rifa }: { rifa: string }) {
     <p className="flex items-start gap-2 rounded-md border border-line bg-mist px-3 py-2 text-xs text-ink-2">
       <ShieldAlert size={16} aria-hidden className="mt-0.5 shrink-0" />
       <span>
-        {SO_VALE_PELA_PLATAFORMA} <BotaoDenunciar rifa={rifa} comoLink />
+        {PAGAMENTO_SO_PIX} {SO_VALE_PELA_PLATAFORMA} <BotaoDenunciar rifa={rifa} comoLink />
       </span>
     </p>
   );

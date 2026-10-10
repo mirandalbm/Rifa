@@ -1020,11 +1020,13 @@ Na ordem de entrega do plano:
   da promotora: a versão final está em `docs/RESPOSTA-ADVOGADO-COBRANCA.md`
   (seção 4), já com as duas decisões de 10/10/2026 (taxa Pix no estorno
   conforme o motivo, X.10; aviso de 30 dias para aumentar a tabela, X.3) e
-  as correções da X.5, X.9 e X.13. O advogado concordou com os critérios
-  (10/10/2026) e pediu o texto final para dar o aval formal; o bloqueio da
-  X.13 (a), que ele condicionou à publicação, já existe no sistema (item
-  abaixo). Publicar só depois do aval dele, junto com a versão final do
-  contrato. **Monte a tabela de
+  as correções da X.5, X.9 e X.13. **Aval formal do advogado em
+  10/10/2026** (seção 5 do mesmo documento): cláusula aprovada e publicação
+  autorizada; o bloqueio da X.13 (a), que ele tinha condicionado, já existe
+  no sistema (item abaixo). Falta só fazer: montar a tabela (abaixo),
+  publicar a versão nova do contrato com a cláusula X junto com a versão
+  final do item acima, e avisá-lo — ele assina a parte jurídica em
+  `docs/FECHAMENTO-JURIDICO-CONTABIL.md`. **Monte a tabela de
   cobrança antes do primeiro aceite**: depois dele, aumento exige 30 dias.
 - [x] **[código]** Taxa Pix no estorno conforme o motivo (cláusula X.10) e
   tabela de cobrança agendada com o aviso de 30 dias (cláusula X.3,

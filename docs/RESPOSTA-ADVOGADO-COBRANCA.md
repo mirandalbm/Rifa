@@ -156,21 +156,25 @@ Aceitas e aplicadas (tabela 1).
 
 ## 3. O que falta
 
-1. **Ao advogado**, para o aval formal: o texto final abaixo. Na segunda
-   resposta (10/10/2026) ele concordou com os critérios da X.10 e da X.3
-   (parágrafo único) e com as correções da X.5, da X.9 e da X.13, e
-   condicionou a publicação ao bloqueio da X.13 (a), que agora existe no
-   sistema. O texto da cláusula não mudou desde a conferência dele. Seguem
-   em aberto com ele a redação dos Termos (2.2) e o texto da Portaria 7.638
-   (pergunta 1).
-2. **Publicar a versão nova do contrato da promotora** com a cláusula final
-   (Configurações → Contrato), depois da confirmação dele. Toda versão nova
-   exige novo aceite das organizações para publicar rifa.
-3. **Montar a tabela de cobrança antes do primeiro aceite** do contrato
-   (Cobrança): depois dele, aumentar qualquer taxa exige 30 dias de aviso.
-4. Ele se ofereceu para assinar a parte jurídica em
-   `docs/FECHAMENTO-JURIDICO-CONTABIL.md`. A Parte 1 continua aberta pelos
-   itens que estão lá (CNAE, endereço, contador).
+**Aval formal do advogado: dado em 10/10/2026** (seção 5). A cláusula X.1 a
+X.13 está aprovada para publicação, sem mudança de redação.
+
+1. **Montar a tabela de cobrança antes do primeiro aceite** do contrato
+   (Cobrança → Tabela de cobrança): depois dele, aumentar qualquer taxa exige
+   30 dias de aviso.
+2. **Publicar a versão nova do contrato da promotora** com a cláusula X
+   (Configurações → Contrato da promotora). Os dados da empresa são
+   preenchidos pelo sistema, e toda versão nova exige novo aceite das
+   organizações para publicar rifa; a rifa já publicada segue na versão com
+   que foi ao ar. A versão final do contrato também precisa dos quatro pontos
+   que ele pediu antes (cláusula 1.1, Anexo C, Anexo E e a plataforma como
+   mandatária — `docs/PENDENCIAS.md`).
+3. **Avisar o advogado** quando os dois acima estiverem feitos: ele assina a
+   parte jurídica em `docs/FECHAMENTO-JURIDICO-CONTABIL.md`, com a data. A
+   Parte 1 continua aberta pelos itens que estão lá (CNAE, endereço,
+   contador).
+4. Seguem em aberto com ele a redação dos Termos (2.2) e o texto da Portaria
+   7.638 (pergunta 1).
 
 ## 4. Cláusula final (para publicar como versão nova do contrato)
 
@@ -284,3 +288,33 @@ sem prejuízo da rescisão.
 | X.11 | `creditoDoPresente({ taxa })` |
 | X.12 | `shared/payments.ts` (sem cartão); `PAGAMENTO_SO_PIX` na compra |
 | X.13 | (a) `shared/inadimplencia.ts`: a plataforma notifica na Carteira (`POST /admin/cobranca/:id/notificar`), a promotora vê no sino e na Cobrança, e passados 10 dias com a taxa notificada em aberto `publishBlockers`/`publishCampaign()` barram rifa nova; o acerto regulariza; (b) o acerto (`darBaixa()`) já compensa o crédito do presente com as taxas devidas, e não se notifica o que o crédito cobre; (c) à mão, no acerto |
+
+## 5. Aval formal do advogado (10/10/2026)
+
+Terceira resposta dele, ao texto final da seção 4:
+
+- **Cláusula X.1 a X.13: aprovada para publicação.** O texto confere com o
+  que ele examinou; nenhuma mudança de redação exige nova análise.
+- **As três correções estão no texto**: X.5 (a base é o valor pago; o rateio
+  define quem suporta), X.9 (o limite só no modo por cota) e X.13 (a)
+  (notificação pelo painel e 10 dias, contados na forma do CC, art. 132).
+- **O bloqueio da X.13 (a) resolve a pendência que ele tinha apontado**: a
+  cláusula deixa de ser promessa sem lastro.
+- **Registros dele para o dossiê** (nenhum muda o texto nem o sistema):
+  - X.10 (b): "reembolso feito depois do prazo de arrependimento" cobre o
+    reembolso com taxa e não se confunde com o arrependimento legal da
+    alínea (a); a ressalva de que o valor devolvido ao comprador segue os
+    Termos está bem colocada.
+  - X.10, parágrafo único: coerente com os Termos (fila de devolução do Pix
+    que chegou tarde, em até 5 dias úteis).
+  - X.13 (b): "quando líquidos e vencidos" está correto (CC, art. 368).
+  - X.13 (c): 1% ao mês e multa de 2% valem para a relação entre empresas
+    (CC) e, se a promotora for consumidora (MEI ou associação), pelo CDC,
+    art. 52, § 1º — os mesmos números.
+- **Publicação autorizada**, observando: a tabela montada antes do primeiro
+  aceite; os dados da empresa preenchidos pelo sistema; versão nova exige
+  novo aceite e a rifa publicada segue na versão dela.
+- **PR #245: liberado para mesclar** — não há mais bloqueio jurídico.
+- Ele assina a parte jurídica em `docs/FECHAMENTO-JURIDICO-CONTABIL.md`
+  quando receber a confirmação de que a tabela foi montada e o contrato
+  publicado.

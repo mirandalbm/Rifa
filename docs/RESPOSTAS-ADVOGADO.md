@@ -67,7 +67,11 @@ guia que "pede a autorização para a conta da plataforma e depois segregar"
 **Anexos prometidos e não entregues:** política do TikTok (Q6), trecho do
 guia do CONAR (Q9), o resto da resposta que pedia "cláusula e texto oficial".
 
-## 2. Segunda rodada ao advogado (só o que ficou aberto)
+## 2. Segunda rodada ao advogado (SUBSTITUÍDA pela rodada final)
+
+> **Substituída por `docs/RODADA-FINAL-ADVOGADO.md`** (5 decisões, 8 propostas e
+> uma tabela de fontes, com Padrão e regra de encerramento). Fica abaixo só como
+> histórico do que cada F1 a F14 perguntava.
 
 Curta e objetiva. Mesmo formato: sim, não ou sim com ressalva, fundamento e
 **texto oficial anexado**.

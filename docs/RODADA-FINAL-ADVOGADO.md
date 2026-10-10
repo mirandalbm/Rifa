@@ -252,3 +252,54 @@ ambiente; vale o que as buscas trouxeram e o texto que dá para conferir):
    é tarefa do dono (as páginas não abrem daqui).
 4. **O que falta é só responder D1 a D5 e P1 a P8.** O prazo de 5 dias úteis
    conta da entrega da rodada; vencido, valem os Padrões (regra 4).
+
+---
+
+## Respostas da rodada final (10/10/2026) e encerramento da parte do advogado
+
+O advogado respondeu D1 a D5 e P1 a P8 na tabela pedida. **A parte dele fecha**,
+com **uma única pendência dele** e três coisas que resolvemos do nosso lado.
+
+### Decisões registradas
+
+| Item | Decisão | Observação |
+|---|---|---|
+| D1(a) | **De acordo.** A Portaria 1.231/2024 é de apostas e não rege a rifa | Os artigos que cita (Lei 14.790, "Cap. III") não conferi: regra de trabalho |
+| D1(b) | A exigência do número da autorização em toda divulgação vem da **Portaria SEAE/ME nº 7.638/2022**; menores e riqueza: CDC arts. 37 e 38 e política da plataforma | **Pendência dele:** artigo exato e se foi substituída por ato da SPA/MF (ele "traz"). Não bloqueia |
+| D1(c) | **De acordo.** Número, 18+ e vedação a riqueza em toda peça, como política da plataforma | |
+| D2 | **Descartar.** A autorização coletiva faria a plataforma responder solidariamente por todas as promotoras e agravaria o "agregador" no Google | **Fechado:** cada promotora é titular da própria autorização |
+| D3(a) | Parecer de direito bancário **necessário para todos** os saldos | Pela leitura do conjunto, patrocínio, banner e assistente seguem **sob as medidas provisórias de (f)** até o parecer (ele não disse se param) |
+| D3(b) | Não indica escritório; **o dono escolhe** | Tarefa sua |
+| D3(c), (d), (f) | **De acordo.** Saldo não volta em dinheiro (só estorno ao mesmo pagador, a pedido); retenção no banimento é suspensão; conjunto provisório | **Fechado** |
+| D3(e) | Aviso de 30 dias como **cláusula contratual** | O CC art. 473 que cita não sustenta o prazo; fica como cláusula |
+| D4(a) | **Empregado não é operador** (corrigido) | **Fechado** |
+| D4(b) | Railway, Cloudflare, Chatbase, AWS, Meta/WhatsApp e contador externo: operadores; Asaas e Mercado Pago: controlador independente | Meta tem dois papéis: WhatsApp (operador) e pixel/API de conversões (controlador conjunto, Q28). A redação do contrato de operador distingue |
+| D4(c) | **Adiou:** "verificar se o consentimento está específico e em destaque" | **Resolvido por nós, no código:** o aviso de cookies (versão 2) **não menciona transferência internacional** nem pede consentimento específico para ela; a Privacidade só cita a transferência da AWS. Vai para o PR de adequação, com o texto redigido por ele (seção 3) |
+| D4(d) | **De acordo:** 6 meses (Marco Civil art. 15), 12 meses (log interno, política da casa) e 5 anos (fiscal) | **Fechado** |
+| D5 | **De acordo** nos três: acordo registrado só com MEI ou empresa; PF fora da plataforma, por conta da organização; a plataforma medeia e não decide o mérito | **Fechado** |
+| P1 a P8 | **De acordo** em todas | **Fechado.** Na prática, o produto de tráfego passa a ser só o modelo B (taxa sobre o gasto lido), que ainda **não existe no código** |
+
+### Do nosso lado (não voltam ao advogado)
+1. **Pendência única dele:** artigo e vigência da Portaria SEAE/ME 7.638/2022.
+   Prazo: 5 dias úteis. Se não vier, a exigência fica como regra de trabalho
+   (o Padrão de D1 já manda mantê-la).
+2. **D4(c) vira trabalho de código:** versão 3 do aviso de cookies com a
+   transferência internacional e o consentimento específico e em destaque
+   (texto redigido por ele), e a base legal da transferência para hospedagem e
+   cópia de segurança no exterior na Privacidade.
+3. **V2, correção da orientação dele:** o item **10.08** da lista de serviços
+   é **agenciamento de publicidade e propaganda**, não "corretagem ou
+   intermediação de negócios" (isso é 10.05 e 10.09). Há também o **17.25**
+   (veiculação, LC 157/2016). Para a taxa de gestão do modelo B a escolha é do
+   contador entre 10.08, 17.06 e 17.25.
+4. **V5, sugestão de e-mail:** `contato@rifa.br` e `dpo@rifa.br` não existem;
+   não usar. O domínio é o da empresa (a razão social nos documentos é
+   "International Lottery Ltda"); o dono informa o domínio real.
+5. O advogado se oferece a redigir: anexo do modelo B (10 dias úteis),
+   consultas à Meta e ao Google (5 dias úteis, precisam de razão social, CNPJ e
+   lista de rifas autorizadas) e o termo de confidencialidade (5 dias úteis).
+
+**Termo de encerramento (advogado):** a assinar quando a Portaria 7.638 chegar
+ou vencer o prazo. Lista: D1 a D5, P1 a P8, riscos residuais (fontes sem
+link, aviso de 30 dias, classificação de Meta) e itens reservados à revisão
+trimestral (globo, TikTok e Kwai, autorização coletiva, fontes sem link).

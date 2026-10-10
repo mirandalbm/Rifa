@@ -90,6 +90,7 @@ import { encerrarSessoesDoUsuario, hashPassword, verifyPassword } from "../auth"
 import { notify } from "../notifications";
 import { baseDoSite, publicUrl } from "../services/urls";
 import { normalizePhone } from "@shared/format";
+import { ehUuid } from "@shared/uuid";
 import {
   getLimits,
   setLimits,
@@ -103,6 +104,7 @@ import {
 } from "../services/antifraude";
 import {
   openBalancesBySeller,
+  AcertoError,
   closeSettlement,
   markSettlementPaid,
   listSettlements,
@@ -2384,10 +2386,16 @@ adminRouter.get("/settlements", async (req, res, next) => {
 adminRouter.post("/settlements/:sellerId/close", async (req, res, next) => {
   try {
     await assertAffiliateInScope(req, req.params.sellerId);
-    const created = await closeSettlement(
-      req.params.sellerId,
-      req.body?.notes ? String(req.body.notes) : undefined,
-    );
+    let created;
+    try {
+      created = await closeSettlement(
+        req.params.sellerId,
+        req.body?.notes ? String(req.body.notes) : undefined,
+      );
+    } catch (err) {
+      if (err instanceof AcertoError) return res.status(err.status).json({ message: err.message });
+      throw err;
+    }
     if (!created) {
       return res.status(400).json({ message: "Este cambista não tem venda em aberto." });
     }
@@ -2403,6 +2411,7 @@ adminRouter.post("/settlements/:sellerId/close", async (req, res, next) => {
 
 adminRouter.post("/settlements/:id/paid", async (req, res, next) => {
   try {
+    if (!ehUuid(req.params.id)) return res.status(404).json({ message: "Acerto não encontrado." });
     const [acerto] = await db
       .select({ sellerId: settlements.sellerId })
       .from(settlements)
@@ -3786,7 +3795,7 @@ adminRouter.delete("/antifraude/bloqueios/:id", async (req, res, next) => {
   try {
     requirePlatformAdmin(req);
     // Fora do formato de id é "não existe", não erro do banco.
-    if (!/^[0-9a-f-]{36}$/i.test(req.params.id)) {
+    if (!ehUuid(req.params.id)) {
       return res.status(404).json({ message: "Bloqueio não encontrado." });
     }
     const removed = await unblock(req.params.id);
@@ -4186,7 +4195,7 @@ adminRouter.post("/2fa/disable", async (req, res, next) => {
     // pedem o segundo fator na hora: quem tomou a sessão e sabe a senha não
     // chuta o código de 6 dígitos sem limite.
     const { limite, minutos } = TENTATIVAS_DO_SEGUNDO_FATOR;
-    if ((await hit(`segundo-fator:${user.id}`, minutos, limite)).excedeu) {
+    if ((await hit(`2fa-off:${user.id}`, minutos, limite)).excedeu) {
       return res.status(429).json({ message: "Muitas tentativas. Espere alguns minutos e tente de novo." });
     }
     const password = String(req.body?.password ?? "");

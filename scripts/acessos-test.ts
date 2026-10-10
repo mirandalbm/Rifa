@@ -72,7 +72,7 @@ async function limpar() {
   await db.delete(fraudBlocks).where(eq(fraudBlocks.value, TELEFONE_BLOQUEADO));
   await db.execute(sql`delete from sessions where sess::text like '%acessos-%'`);
   await db.execute(sql`delete from buyers where phone = ${TELEFONE_BLOQUEADO}`);
-  await db.execute(sql`delete from rate_events where bucket like 'login:%' or bucket like 'order:%' or bucket like 'segundo-fator:%'`);
+  await db.execute(sql`delete from rate_events where bucket like 'login:%' or bucket like 'order:%' or bucket like 'segundo-fator:%' or bucket like '2fa-off:%'`);
 }
 
 async function main() {
@@ -188,6 +188,13 @@ async function main() {
     checa("o telefone bloqueado não compra (429)", r.status === 429, `HTTP ${r.status} ${r.json?.message ?? ""}`);
     r = await admin.req("DELETE", "/api/admin/antifraude/bloqueios/isso-nao-e-uuid");
     checa("id fora do formato: 404, nunca 500", r.status === 404, `HTTP ${r.status}`);
+    const quase = "-".repeat(36); // 36 caracteres, mas não é UUID: o Postgres recusaria
+    r = await admin.req("DELETE", `/api/admin/antifraude/bloqueios/${quase}`);
+    checa("36 caracteres que não são UUID: 404, nunca 500", r.status === 404, `HTTP ${r.status}`);
+    r = await admin.req("POST", `/api/admin/settlements/${quase}/paid`);
+    checa("dar baixa em id que não é UUID: 404, nunca 500", r.status === 404, `HTTP ${r.status}`);
+    r = await admin.req("POST", `/api/admin/settlements/${quase}/close`);
+    checa("fechar acerto de id que não é UUID: 404, nunca 500", r.status === 404, `HTTP ${r.status}`);
     r = await admin.req("DELETE", `/api/admin/antifraude/bloqueios/${idBloqueio}`);
     checa("tira o bloqueio (200)", r.status === 200, `HTTP ${r.status}`);
     r = await admin.req("DELETE", `/api/admin/antifraude/bloqueios/${idBloqueio}`);
@@ -232,7 +239,7 @@ async function main() {
     checa("tentativas demais para desligar: 429", barrou);
     r = await a.req("POST", "/api/admin/2fa/disable", { password: SENHA, code: totpCode(segredo) });
     checa("barrado, nem o código certo desliga (429)", r.status === 429, `HTTP ${r.status}`);
-    await db.execute(sql`delete from rate_events where bucket like 'segundo-fator:%'`);
+    await db.execute(sql`delete from rate_events where bucket like '2fa-off:%'`);
     r = await a.req("POST", "/api/admin/2fa/disable", { password: SENHA, code: totpCode(segredo) });
     checa("passada a janela, senha e código certos desligam (200)", r.status === 200 && r.json?.enabled === false, `HTTP ${r.status}`);
 

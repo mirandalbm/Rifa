@@ -1066,7 +1066,10 @@ plataforma analisa** (Atendimento → Rifas, com conversa dos dois lados).
   travada** (`FOR UPDATE`, `closeSettlement()`): cinco fechamentos ao mesmo
   tempo liam as mesmas vendas em aberto e geravam cinco acertos — o cambista
   devendo cinco vezes. O `UPDATE` do carimbo exige `settlement_id IS NULL` e
-  confere a contagem. **Dar baixa também é condicional** (`status <> 'pago'`):
+  confere a contagem — e o `UPDATE` exige `status = 'paid'` e o mesmo
+  cambista, porque o estorno não trava a linha dele: venda devolvida no meio
+  do fechamento desfaz o acerto (409, `AcertoError`), nunca entra no bruto.
+  **Dar baixa também é condicional** (`status <> 'pago'`):
   a segunda é 409 e não reescreve a data.
 - **Venda de outro cambista é 404**, ao confirmar e ao cancelar (era 403, que
   entregava que o código existe). `npm run cambista` prova.
@@ -1698,10 +1701,12 @@ permite cobrar dela depois, e o aceite é a prova.
 - **Cambista e afiliado passam pela mesma régua de senha** (`senhaInvalida`)
   do resto do painel.
 - **Desligar o segundo fator conta tentativa** (`POST /2fa/disable`: 30 em 10
-  min por pessoa, o balde `segundo-fator:` dos atos sensíveis, 429): senha e
+  min por pessoa, balde próprio `2fa-off:` — não gasta o dos atos sensíveis, 429): senha e
   código de 6 dígitos sem limite deixavam quem tomou a sessão chutar o código.
 - **Bloqueio do antifraude**: a data de validade inválida ou no passado é 400
-  (era 500, e nasceria vencido) e o id fora do formato é 404 ao desbloquear.
+  (era 500, e nasceria vencido) e o id fora do formato é 404 ao desbloquear (`ehUuid()` em `shared/uuid.ts`, o
+  UUID de verdade; o teste de "36 letras e hífens" deixava passar o que o
+  Postgres recusa).
   `npm run acessos` prova, junto com trocar a senha, sair, criar o acesso de
   organizador, os pedidos pendentes e o "visto" do sino.
 

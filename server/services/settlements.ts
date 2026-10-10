@@ -9,6 +9,14 @@ import { and, eq, isNull, ne, sql, desc } from "drizzle-orm";
 import { db } from "../db";
 import { orders, commissions, settlements, affiliates, users } from "@shared/schema";
 
+/** Erro de domínio do acerto: a rota o devolve com o status dele, nunca como 500. */
+export class AcertoError extends Error {
+  constructor(message: string, readonly status = 409) {
+    super(message);
+    this.name = "AcertoError";
+  }
+}
+
 export interface OpenBalance {
   orderCount: number;
   grossCents: number;
@@ -96,10 +104,14 @@ export async function closeSettlement(sellerId: string, notes?: string) {
       UPDATE orders SET settlement_id = ${created.id}::uuid
       WHERE id = ANY(${`{${pendentes.map((o) => o.id).join(",")}}`}::uuid[])
         AND settlement_id IS NULL
+        AND seller_id = ${sellerId}::uuid
+        AND status = 'paid'
     `);
-    // Defesa em profundidade: se alguma venda já tinha acerto, desfaz tudo.
+    // Defesa em profundidade: se alguma venda já tinha acerto ou foi estornada
+    // entre a leitura e o carimbo (o estorno não trava a linha do cambista),
+    // desfaz tudo — o acerto nunca nasce com o bruto de uma venda devolvida.
     if (carimbadas.rowCount !== pendentes.length) {
-      throw new Error("Acerto desfeito: uma das vendas já pertence a outro acerto.");
+      throw new AcertoError("Uma venda mudou durante o fechamento. Confira e feche de novo.");
     }
 
     return created;

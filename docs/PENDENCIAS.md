@@ -605,7 +605,8 @@ Na ordem de entrega do plano:
     sugere a descrição (`DESCRICAO_DA_NOTA_DO_AFILIADO` em
     `shared/fiscal.ts`). MEI e Simples: sem retenção na fonte, pagamento
     pelo valor cheio.
-  - **Receita da plataforma**: só a taxa por venda ou a mensalidade. NFS-e
+  - **Receita da plataforma**: a taxa de cada venda (percentual ou por cota,
+    escolhido por rifa) e a taxa de transação Pix; não há mensalidade. NFS-e
     mensal contra cada promotora ("taxa de uso de plataforma tecnológica" ou
     "intermediação de negócios"); o valor sai da exportação "Cobrança da
     plataforma" (Exportações), por organização e mês.

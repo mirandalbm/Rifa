@@ -92,7 +92,7 @@ async function main() {
     .insert(patrocinioReembolsos)
     .values({ organizationId: org.id, protocolo: `PR-RU${Date.now() % 10000}`, status: "aberto", valorCents: 1000, chavePix: "chave@teste.br", motivo: "outro pedido" })
     .returning();
-  await db.insert(platformCharges).values({ organizationId: org.id, kind: "mensalidade", competencia: "2026-09", amountCents: 3000, status: "aberta" } as never);
+  await db.insert(platformCharges).values({ organizationId: org.id, kind: "venda", amountCents: 3000, vendaCents: 3000, modo: "percentual", status: "aberta" });
 
   const organizador = new Cliente();
   let r = await organizador.req("POST", "/api/auth/login", { email: EMAIL, password: SENHA });

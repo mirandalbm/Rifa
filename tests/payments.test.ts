@@ -14,8 +14,8 @@ describe("meios de pagamento", () => {
   });
 
   it("aceita desligar parte deles", () => {
-    const s = validatePaymentMethods({ cartao_maquininha: false });
-    expect(s.cartao_maquininha).toBe(false);
+    const s = validatePaymentMethods({ pix_maquininha: false });
+    expect(s.pix_maquininha).toBe(false);
     expect(s.pix_online).toBe(true);
   });
 
@@ -24,7 +24,6 @@ describe("meios de pagamento", () => {
       validatePaymentMethods({
         pix_online: false,
         dinheiro: false,
-        cartao_maquininha: false,
         pix_maquininha: false,
       }),
     ).toThrow(/ao menos um/i);
@@ -35,13 +34,12 @@ describe("meios de pagamento", () => {
     const resumo = paymentSummary(s);
     expect(resumo.online).toBe(false);
     expect(resumo.somenteFisico).toBe(true);
-    expect(resumo.fisico).toEqual(["dinheiro", "cartao_maquininha", "pix_maquininha"]);
+    expect(resumo.fisico).toEqual(["dinheiro", "pix_maquininha"]);
   });
 
   it("permite rifa só online, sem venda física", () => {
     const s = validatePaymentMethods({
       dinheiro: false,
-      cartao_maquininha: false,
       pix_maquininha: false,
     });
     expect(enabledPhysical(s)).toEqual([]);
@@ -52,8 +50,13 @@ describe("meios de pagamento", () => {
   it("ignora chave desconhecida em vez de aceitar lixo", () => {
     const s = validatePaymentMethods({ inventado: true } as never);
     expect(Object.keys(s).sort()).toEqual(
-      ["cartao_maquininha", "dinheiro", "pix_maquininha", "pix_online"],
+      ["dinheiro", "pix_maquininha", "pix_online"],
     );
+  });
+
+  it("cartão não é meio de pagamento: a chave antiga é ignorada", () => {
+    const s = validatePaymentMethods({ cartao_maquininha: true } as never);
+    expect(s).not.toHaveProperty("cartao_maquininha");
   });
 
   it("responde se um meio está ligado e como se chama", () => {

@@ -38,17 +38,19 @@ const bytea = customType<{ data: Buffer; driverData: Buffer }>({
 import { createInsertSchema } from "drizzle-zod";
 import { ACENTOS_DE, ACENTOS_PARA, VERSAO_SEM_ACENTO } from "./semAcentoSql";
 import type { Figurinha } from "./figurinhasStory";
+import { MODOS_DE_COBRANCA } from "./cobranca";
 import { z } from "zod";
 
 /* ------------------------------------------------------------------ *
  * Enums
  * ------------------------------------------------------------------ */
 
-export const billingMode = pgEnum("billing_mode", [
-  "gratis",
-  "mensalidade",
-  "comissao",
-]);
+/**
+ * O que a plataforma lança contra a organização. Só `venda` é gravado hoje
+ * (a taxa da venda e a do Pix numa linha, `shared/cobranca.ts`);
+ * `mensalidade` ficou no tipo do banco porque o Postgres não tira valor de
+ * enum, mas a mensalidade não existe mais e nada a grava.
+ */
 export const chargeKind = pgEnum("charge_kind", ["venda", "mensalidade"]);
 export const chargeStatus = pgEnum("charge_status", [
   "aberta",
@@ -176,16 +178,6 @@ export const organizations = pgTable(
     bairro: text("bairro"),
     /** Texto curto do regulamento impresso no rodapé do bilhete. */
     observacao: text("observacao"),
-    /**
-     * O contrato com a plataforma: mensalidade OU comissão, nunca os dois.
-     * Nasce `gratis` — organização que existia antes desta decisão não pode
-     * acordar devendo. Ver `shared/billing.ts`.
-     */
-    billingMode: billingMode("billing_mode").notNull().default("gratis"),
-    /** Percentual sobre a venda. Só vale no modo `comissao`. */
-    platformFeePct: integer("platform_fee_pct").notNull().default(0),
-    /** Valor do mês em centavos. Só vale no modo `mensalidade`. */
-    monthlyCents: integer("monthly_cents").notNull().default(0),
     active: boolean("active").notNull().default(true),
     /**
      * Arquivada: saiu da carteira ativa, mas **não sai do banco**. Venda,
@@ -530,6 +522,19 @@ export const campaigns = pgTable(
      */
     metodoApuracao: text("metodo_apuracao"),
     /**
+     * Como a plataforma cobra por esta rifa (`MODOS_DE_COBRANCA` em
+     * `shared/cobranca.ts`): percentual sobre a venda ou valor fixo por cota
+     * comprada. A organização escolhe no rascunho; trava ao publicar.
+     */
+    cobrancaModo: text("cobranca_modo").notNull().default("percentual"),
+    /**
+     * A tabela de cobrança fotografada na publicação (`cobrancaNaPublicacao()`):
+     * o modo, o percentual, o valor por cota e as faixas da taxa Pix daquele
+     * dia. Mudar a tabela da plataforma depois não mexe em rifa publicada.
+     * Nulo: rascunho, ou rifa publicada antes da cobrança por rifa (não cobra).
+     */
+    cobranca: jsonb("cobranca").$type<import("./cobranca").CobrancaDaRifa>(),
+    /**
      * Rifa de demonstração (perfil de exemplo): aparece na vitrine com a
      * marca "Demonstração" e nunca vende — `createOrder` recusa.
      */
@@ -851,6 +856,17 @@ export const orders = pgTable(
      * muda o Pix que já saiu.
      */
     taxaRetidaNoSplit: boolean("taxa_retida_no_split").notNull().default(false),
+    /**
+     * A taxa da plataforma fotografada quando o pedido nasce (`taxaDoPedido()`
+     * em `shared/cobranca.ts`): o modo da rifa, o percentual da venda e o da
+     * taxa Pix em pontos-base (1% = 100), e o valor por cota. A faixa do Pix
+     * é a do volume do mês da organização naquele instante; o que o contador
+     * fizer depois não muda o pedido.
+     */
+    taxaModo: text("taxa_modo").notNull().default("percentual"),
+    taxaVendaBp: integer("taxa_venda_bp").notNull().default(0),
+    taxaPorCotaCents: integer("taxa_por_cota_cents").notNull().default(0),
+    taxaPixBp: integer("taxa_pix_bp").notNull().default(0),
     pixQr: text("pix_qr"),
     pixCopyPaste: text("pix_copy_paste"),
     expiresAt: timestamp("expires_at"),
@@ -1176,16 +1192,12 @@ export const webhookEvents = pgTable(
 );
 
 /**
- * O que cada organização deve à plataforma.
+ * O que cada organização deve à plataforma: uma linha por venda paga, com a
+ * taxa da venda (percentual ou por cota, o que a rifa escolheu) e a taxa do
+ * Pix juntas (`shared/cobranca.ts`). Não existe mensalidade.
  *
- * Um razão só para os dois contratos, porque a pergunta que o administrador
- * faz é a mesma nos dois casos: quanto este cliente me deve? Cada linha diz
- * de onde veio — `venda` traz o pedido, `mensalidade` traz a competência.
- *
- * Os dois índices únicos são o que impede cobrança dobrada, e cada um pega um
- * jeito diferente de dobrar: o do pedido impede que o webhook chamado duas
- * vezes lance a taxa de novo; o da competência impede que o relógio, rodando
- * a cada minuto em quantas réplicas for, lance o mesmo mês outra vez.
+ * O índice único do pedido é o que impede cobrança dobrada: o webhook chamado
+ * duas vezes não lança a taxa de novo.
  */
 export const platformCharges = pgTable(
   "platform_charges",
@@ -1195,12 +1207,16 @@ export const platformCharges = pgTable(
       .notNull()
       .references(() => organizations.id, { onDelete: "cascade" }),
     kind: chargeKind("kind").notNull(),
-    /** Preenchido em `venda`. */
+    /** O pedido da venda. */
     orderId: uuid("order_id"),
-    /** Preenchido em `mensalidade`, no formato `aaaa-mm`. */
-    competencia: text("competencia"),
+    /** A taxa inteira: a da venda mais a do Pix. */
     amountCents: integer("amount_cents").notNull(),
-    /** O percentual ou o valor combinado no dia — o contrato pode mudar. */
+    /** A parte da venda (percentual ou por cota) e a do Pix, para o extrato. */
+    vendaCents: integer("venda_cents").notNull().default(0),
+    pixCents: integer("pix_cents").notNull().default(0),
+    /** O modo da rifa no pedido (`percentual` ou `por_cota`). */
+    modo: text("modo"),
+    /** O percentual da venda em pontos-base (1% = 100), no modo percentual. */
     pct: integer("pct"),
     status: chargeStatus("status").notNull().default("aberta"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
@@ -1208,9 +1224,29 @@ export const platformCharges = pgTable(
   },
   (t) => [
     uniqueIndex("uq_charge_order").on(t.orderId),
-    uniqueIndex("uq_charge_competencia").on(t.organizationId, t.competencia),
     index("idx_charges_org").on(t.organizationId, t.status),
   ],
+);
+
+/**
+ * Quantas transações Pix pagas a organização teve no mês (de São Paulo,
+ * `mesEmSaoPaulo()`): é o volume que escolhe a faixa da taxa Pix
+ * (`faixaPixPara()`). Anda de 1 em 1, num `INSERT … ON CONFLICT DO UPDATE`
+ * na mesma transação que confirma o pagamento — nunca `COUNT(*)`. O pedido
+ * fotografa a faixa quando nasce; o estorno não desconta (a transação
+ * aconteceu).
+ */
+export const pixVolumeMensal = pgTable(
+  "pix_volume_mensal",
+  {
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    /** `aaaa-mm`, no fuso de São Paulo. */
+    mes: text("mes").notNull(),
+    transacoes: integer("transacoes").notNull().default(0),
+  },
+  (t) => [primaryKey({ columns: [t.organizationId, t.mes] })],
 );
 
 export const auditLog = pgTable(
@@ -2058,6 +2094,8 @@ export const insertCampaignSchema = createInsertSchema(campaigns, {
     .max(MAX_QUOTAS, "O máximo é 1.000.000 de cotas."),
   priceCents: z.number().int().min(1),
   commissionPctDefault: z.number().int().min(0).max(50),
+  // Como a plataforma cobra por esta rifa: só os modos conhecidos.
+  cobrancaModo: z.enum(MODOS_DE_COBRANCA).optional(),
 })
   // A organização não vem do formulário: o organizador cria na dele e o
   // administrador geral escolhe à parte (`organizationForNewCampaign`).
@@ -2112,6 +2150,8 @@ export const insertCampaignSchema = createInsertSchema(campaigns, {
     publicarEm: true,
     publicarAgendadoPor: true,
     publicacaoAgendadaFalha: true,
+    // A tabela de cobrança é fotografada pela publicação, nunca vem do formulário.
+    cobranca: true,
   });
 
 export const createOrderSchema = z.object({

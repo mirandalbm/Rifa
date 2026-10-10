@@ -136,6 +136,7 @@ jobs:
       - run: npm run publicacao
       - run: npm run poster
       - run: npm run carrinho
+      - run: npm run cobranca
       - run: npm run presente
       - run: npm run resultados
       - run: npm run afiliados

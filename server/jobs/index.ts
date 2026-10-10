@@ -24,7 +24,6 @@ import { posterDosVideosAntigos } from "../services/posterRetroativo";
 import { enviarEventosPendentes } from "../services/marketing";
 import { migrarAfiliadosAntigos } from "../services/afiliados";
 import { medirImagensDeExemplo } from "../services/demonstracao";
-import { lancarMensalidades } from "../services/billing";
 import { releaseExpired } from "../services/quotas";
 import { sortearRifasPendentesDosSorteiosOficiais } from "../services/sortear";
 import { paymentProviderByName } from "../payments";
@@ -66,7 +65,6 @@ const LOCK_LIMPEZA = 811_004;
 const LOCK_STORIES = 811_010;
 const LOCK_AFILIADOS = 811_011;
 const LOCK_NOTIFICACOES = 811_012;
-const LOCK_MENSALIDADE = 811_005;
 const LOCK_CODIGOS = 811_006;
 const LOCK_CIDADES = 811_007;
 const LOCK_PUSH_SORTEIO = 811_008;
@@ -533,21 +531,6 @@ export function startJobs() {
       });
     } catch (err) {
       console.error("[jobs] liberação de comissões:", err);
-    }
-  }, releaseMs).unref();
-
-  // Mensalidade: lança a competência do mês anterior para quem está nesse
-  // contrato. É idempotente pelo índice (organização, competência), então
-  // rodar junto com os outros relógios não cobra duas vezes — e não precisa
-  // de um agendador de mês, que seria mais uma peça para dar errado.
-  setInterval(async () => {
-    try {
-      await withLock(LOCK_MENSALIDADE, async () => {
-        const lancadas = await lancarMensalidades();
-        if (lancadas > 0) log(`${lancadas} mensalidade(s) lançadas`, "jobs");
-      });
-    } catch (err) {
-      console.error("[jobs] mensalidades:", err);
     }
   }, releaseMs).unref();
 

@@ -1,49 +1,46 @@
 # Decisões de cobrança e meios de pagamento (10/10/2026)
 
-Origem: decisões do dono em resposta às perguntas de 10/10/2026. Documento de
-trabalho para a PR de cobrança. Não é contrato: o texto legal sai depois, como
-versão nova (Termos, regulamento, contrato da promotora).
+Origem: decisões do dono em resposta às perguntas de 10/10/2026. Registro do
+que foi decidido e de como entrou no código. Não é contrato: o texto legal sai
+depois, como versão nova (Termos, regulamento, contrato da promotora).
 
 ## Decisões do dono
 
-| # | Decisão | Consequência no código |
+| # | Decisão | Como entrou no código |
 |---|---|---|
-| D1 | Taxa fixa por cota comprada (valor fixo por cota, cobrado do organizador) | Novo modo de cobrança, além de mensalidade e percentual |
-| D2 | Percentual por venda continua, e o valor é ajustado pelo admin master | `platformFeePct` já existe; o ajuste fica só no painel da plataforma |
-| D3 | Taxa de transação Pix em percentual, por faixas de volume (quanto mais transação, menor a taxa), definida pelo admin master | Tabela configurável de faixas; faixa fotografada no pedido |
-| D4 | Sem cartão de crédito nem de débito: só Pix | Remover `cartao_maquininha`; Pix online e Pix na maquininha ficam |
-| D5 | Organizações atuais são de teste; serão resetadas antes da publicação | Sem migração de contratos; usar o reset do lançamento |
+| D1 | Valor fixo por cota comprada, cobrado do organizador | Modo `por_cota` em `shared/cobranca.ts` |
+| D2 | Percentual por venda continua; o valor é ajustado pelo admin master | Modo `percentual`; a tabela é do master (`PUT /admin/cobranca/tabela`) |
+| D3 | Taxa de transação Pix em percentual, por faixas de volume (quanto mais transação, menor a taxa), definida pelo admin master | `faixasPix` na tabela; a faixa é fotografada no pedido |
+| D4 | Sem cartão de crédito nem de débito: só Pix | `cartao_maquininha` saiu das regras (`shared/payments.ts`), do cambista, do bilhete e da exportação |
+| D5 | Organizações atuais são de teste; serão resetadas antes da publicação | Sem migração: o `db:push` apaga as colunas da mensalidade |
 | D6 | A taxa Pix é descontada do organizador, não do comprador | Entra no rateio: a plataforma sai antes (invariante 12) |
+| P1 | O organizador escolhe como quer ser cobrado **em cada sorteio** | `campaigns.cobranca_modo` no rascunho, trava ao publicar; a publicação fotografa a tabela (`campaigns.cobranca`) |
+| P2 | Não há mensalidade: só percentual ou por cota | Mensalidade removida (contrato, relógio, rotas, tela); invariante 13 reescrita |
+| P3 | Volume = transações Pix pagas da organização no mês de São Paulo, contador atômico, faixa fixada na criação do pedido | `pix_volume_mensal` (`INSERT … ON CONFLICT DO UPDATE` na transação do pagamento) e `taxaDoPedido()` |
+| P4 | Taxa por cota nunca igual ou maior que o preço da cota | `problemaNaCobranca()` barra a publicação |
 
-## Perguntas que ainda travam o código
+## Como fica a conta de um pedido
 
-**P1. Os modos são exclusivos?** O invariante 13 diz que mensalidade e percentual
-nunca convivem. A taxa fixa por cota entra como terceiro modo, exclusivo.
-Recomendação: sim, um modo por organização: `mensalidade`, `comissao` (percentual)
-ou `cota` (valor fixo por cota).
+1. A taxa da venda: percentual sobre o pago (no presente, a soma do comprador
+   e da plataforma) **ou** valor por cota × cotas.
+2. A taxa Pix: a faixa do mês sobre o que entrou pelo Pix do site. Dinheiro e
+   Pix na maquininha do cambista não pagam taxa Pix.
+3. As duas arredondam para baixo, nunca passam do pago e saem antes da
+   comissão (`splitOrder()` com `taxas`). O centavo fica com a organização.
+4. O split do Asaas recebe o percentual equivalente, para cima em 4 casas
+   (`pctEquivalente()`).
+5. O lançamento em `platform_charges` é uma linha por pedido, com a venda e o
+   Pix separados (`vendaCents`, `pixCents`).
 
-**P2. A taxa Pix vale para todos os modos ou só para comissão?** Taxa Pix é um
-percentual. Se valer para mensalidade, a mensalidade passa a conviver com
-percentual, e isso quebra o invariante 13. Recomendação: ela é um **custo de
-transação repassado no rateio**, separado do contrato. Aplica-se a todos os
-modos e aparece como linha própria no extrato. Isso exige decidir se o invariante
-13 vale para o percentual do contrato (sim) e não para a taxa de transação (sim,
-com nota explícita no código).
+## O que ficou de fora
 
-**P3. Como o volume é medido para escolher a faixa?** Recomendação: transações
-Pix pagas da organização no mês civil (fuso de São Paulo), contadas por um
-contador atômico (invariante 4: nada de COUNT(*)), e a faixa vale para o pedido
-no momento da criação. Faixas iniciais de exemplo: até 100 transações, 2%;
-até 1.000, 1,5%; acima, 1%. Valores definitivos são do admin master.
-
-**P4. Teto e piso.** Taxa por cota não pode passar do preço da cota (senão a
-venda dá prejuízo). Taxa Pix e percentual têm teto de 30% (já existe).
-
-## Não entra nesta PR
-- Textos legais (Termos, regulamento, contrato): versão nova depois do advogado.
-- Simulação contábil: depende de P1 a P3.
-- App Android: a remoção do cartão afeta o shim da maquininha (`tests/posShim.test.ts`); entra na mesma PR só se for só remover o meio.
-
-## Efeito nos documentos existentes
-- `docs/PENDENCIAS.md`: atualizar quando a PR for mesclada.
-- `shared/payments.ts`: remover `cartao_maquininha` e a regra "pelo menos um meio".
+- **Textos legais** (Termos, regulamento, contrato da promotora): versão nova
+  depois do advogado, citando o modo da rifa, a tabela e a taxa Pix.
+- **Simulação contábil** das duas receitas (taxa da venda e taxa Pix): com o
+  contador.
+- **Dinheiro com o cambista** continua aceito: não é cartão. Se a decisão
+  "só Pix" valer também para a venda na mão, basta desligar "Dinheiro com o
+  cambista" em Configurações → Meios de pagamento (ou tirar o meio do código).
+- **A ponte com a maquininha** (`client/src/lib/pos.ts`, o shim do Android)
+  segue sabendo cobrar cartão — é o contrato da ponte, provado por
+  `tests/posShim.test.ts` —, mas nenhuma tela a chama para cartão.

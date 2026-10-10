@@ -47,7 +47,6 @@ export interface TicketData {
 export const METODO_LABEL: Record<string, string> = {
   pix_online: "Pix",
   dinheiro: "Dinheiro",
-  cartao_maquininha: "Cartão (maquininha)",
   pix_maquininha: "Pix (maquininha)",
 };
 

@@ -38,6 +38,7 @@ import {
 import { problemaNoBonusMax } from "@shared/bonus";
 import { PROBLEMA_NO_TOTAL, loteriaDoMetodo, numeracaoZero, problemaNoMetodo, totalDaApuracao, type MetodoDeApuracao } from "@shared/apuracao";
 import { getPlataforma } from "./settings";
+import { cobrancaNaPublicacao, problemaNaCobranca, validarModo } from "@shared/cobranca";
 import { problemaNoPremio } from "@shared/premio";
 import { problemaDoValeBrinde } from "@shared/premiadas";
 import { problemaDosSocios } from "./socios";
@@ -71,6 +72,8 @@ const LOCKED_AFTER_PUBLISH = [
   "metodoApuracao",
   // E a declaração de que a autorização inclui o vale-brinde (resposta 2.3).
   "declaraValeBrinde",
+  // E como a plataforma cobra por ela: a organização escolhe no rascunho.
+  "cobrancaModo",
 ] as const;
 
 export function assertEditable(
@@ -231,6 +234,10 @@ export async function publishBlockers(campaignId: string): Promise<string[]> {
     const p = await problemaDoSorteioOficial(db, campaign.sorteioOficialId, campaign.drawAt, campaign.metodoApuracao, false);
     if (p) blockers.push(p);
   }
+  // A cobrança escolhida tem de caber no preço da cota (por cota acima do
+  // preço levaria a venda inteira e mais).
+  const cobranca = problemaNaCobranca(validarModo(campaign.cobrancaModo), (await getPlataforma()).cobranca, campaign.priceCents);
+  if (cobranca) blockers.push(cobranca);
 
   return blockers;
 }
@@ -277,7 +284,9 @@ export async function publishCampaign(campaignId: string): Promise<Campaign> {
     throw new CampaignRuleError(blockers.join(" "));
   }
 
-  const liberados = (await getPlataforma()).metodosDeApuracao;
+  // Lidos antes da transação: dentro dela, só o `tx`.
+  const plataforma = await getPlataforma();
+  const liberados = plataforma.metodosDeApuracao;
   return db.transaction(async (tx) => {
     // A ordem das travas é sempre sorteio oficial → rifa (a mesma de integrar
     // e de mudar o sorteio): primeiro o sorteio em que a rifa está, depois a
@@ -350,6 +359,12 @@ export async function publishCampaign(campaignId: string): Promise<Campaign> {
       if (p) throw new CampaignRuleError(p);
     }
 
+    // A cobrança contra a rifa travada (o modo pode ter mudado no rascunho
+    // depois da conferência de fora). A tabela do dia fica fotografada na rifa.
+    const modo = validarModo(campaign.cobrancaModo);
+    const cobranca = problemaNaCobranca(modo, plataforma.cobranca, campaign.priceCents);
+    if (cobranca) throw new CampaignRuleError(cobranca);
+
     const { seed, seedHash } = commitSeed();
 
     // A semente fica guardada no draw; a campanha publica só o hash.
@@ -382,6 +397,7 @@ export async function publishCampaign(campaignId: string): Promise<Campaign> {
         // "Quando completar": a data registrada é a máxima (8.7); encher antes
         // só antecipa `draw_at`, e esta fica de referência.
         drawAtMaximo: campaign.modoSorteio === "quando_completar" ? campaign.drawAt : null,
+        cobranca: cobrancaNaPublicacao(modo, plataforma.cobranca),
         publicarEm: null,
         publicacaoAgendadaFalha: null,
       })
@@ -696,9 +712,16 @@ export async function tirarDoAr(campaignId: string) {
  * a vender por um clique. As duas condições moram no próprio UPDATE.
  */
 export async function marcarDemonstracao(campaignId: string, ligado: boolean) {
+  // A demonstração criada já no ar não passou pela publicação e não tem a
+  // cobrança fotografada: desmarcada, ela passa a vender, então ganha a
+  // tabela do dia aqui (`shared/cobranca.ts`) — senão venderia sem taxa. Por
+  // cota igual ou maior que o preço da cota não desmarca.
+  const tabela = (await getPlataforma()).cobranca;
   const r = await db.execute(sql`
     UPDATE campaigns
-       SET demonstracao = ${ligado}::boolean
+       SET demonstracao = ${ligado}::boolean,
+           cobranca = CASE WHEN ${ligado}::boolean THEN cobranca
+                           ELSE COALESCE(cobranca, ${JSON.stringify(tabela)}::jsonb || jsonb_build_object('modo', cobranca_modo)) END
      WHERE id = ${campaignId}::uuid
        AND demonstracao <> ${ligado}::boolean
        AND (
@@ -706,7 +729,8 @@ export async function marcarDemonstracao(campaignId: string, ligado: boolean) {
                                      WHERE campaign_id = ${campaignId}::uuid
                                        AND status IN ('paid', 'pending'))
                     AND NOT EXISTS (SELECT 1 FROM quota_alloc WHERE campaign_id = ${campaignId}::uuid))
-         OR (NOT ${ligado}::boolean AND authorization_code IS NOT NULL)
+         OR (NOT ${ligado}::boolean AND authorization_code IS NOT NULL
+             AND (cobranca IS NOT NULL OR cobranca_modo <> 'por_cota' OR price_cents > ${tabela.porCotaCents}))
        )
     RETURNING id
   `);
@@ -722,7 +746,7 @@ export async function marcarDemonstracao(campaignId: string, ligado: boolean) {
   throw new CampaignRuleError(
     ligado
       ? "Esta rifa já tem compra: não vira teste sem estornar quem comprou."
-      : "Rifa de teste sem autorização SPA/MF não passa a vender.",
+      : "Rifa de teste sem autorização SPA/MF (ou com a taxa por cota maior que o preço da cota) não passa a vender.",
   );
 }
 

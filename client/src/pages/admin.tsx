@@ -30,6 +30,7 @@ import { EnderecoForm, type EnderecoParcial } from "@/components/EnderecoForm";
 import { PerfilPublicoForm } from "@/components/PerfilPublicoForm";
 import { EnderecoCurto } from "@/components/LinksCurtos";
 import { AdiarSorteioCard, EditarRifaCard, type RifaEditavel } from "@/components/EditarRifa";
+import { CobrancaDaRifaCard } from "@/components/CobrancaDaRifa";
 import { TelefoneDoOrganizadorCard } from "@/components/Seguranca";
 import { ContratoPromotoraCard } from "@/components/ContratoPromotoraCard";
 import { VerificacaoCard } from "@/components/Verificacao";
@@ -369,6 +370,9 @@ interface CampaignRow {
     publicacaoAgendadaFalha?: string | null;
     /** O método de apuração (`shared/apuracao.ts`); nulo é a rifa de antes, apurada pela semente. */
     metodoApuracao?: string | null;
+    /** Como a plataforma cobra por ela, e a tabela fotografada na publicação (`shared/cobranca.ts`). */
+    cobrancaModo: string;
+    cobranca: import("@shared/cobranca").CobrancaDaRifa | null;
   };
   stats: { soldCount: number; reservedCount?: number; revenueCents: number } | null;
   /** Pedidos de mudança esperando a plataforma: "edicao", "adiamento". */
@@ -670,6 +674,7 @@ export function AdminCampanhas() {
                           daPlataforma={daPlataforma}
                           edicaoEmAnalise={Boolean(linha?.emAnalise?.includes("edicao"))}
                         />
+                        <CobrancaDaRifaCard rifa={c} />
                         <AgendarPublicacaoCard rifa={c} />
                         {c.status === "published" && !c.demonstracao && vendidas < c.totalQuotas ? (
                           <AdiarSorteioCard

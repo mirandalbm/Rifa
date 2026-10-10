@@ -183,7 +183,7 @@ export const EXPORTS: ExportInfo[] = [
   {
     key: "cobranca",
     label: "Cobrança da plataforma",
-    hint: "O que a organização deve à plataforma: taxa por venda e mensalidade, com a origem de cada lançamento.",
+    hint: "O que a organização deve à plataforma: a taxa de cada venda (percentual ou por cota) e a do Pix, com a origem de cada lançamento.",
     campanhaObrigatoria: false,
     dadoPessoal: false,
   },

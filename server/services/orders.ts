@@ -35,6 +35,7 @@ import {
   prizedQuotas,
   draws,
   platformCharges,
+  pixVolumeMensal,
   carrinhoPedidos,
   bonusLancamentos as bonusLancamentosTabela,
   type CarrinhoCheckoutInput,
@@ -46,8 +47,8 @@ import {
   commissionAvailableAt,
   splitOrder,
 } from "@shared/pricing";
-import { platformPctFor, FREE_PLAN } from "@shared/billing";
-import { lancarTaxaDaVenda, planOfOrganization } from "./billing";
+import { mesEmSaoPaulo, pctEquivalente, taxaDoPedido, taxasEmCentavos } from "@shared/cobranca";
+import { lancarTaxaDaVenda } from "./billing";
 import { normalizePhone } from "@shared/format";
 import { users, organizations } from "@shared/schema";
 import {
@@ -437,6 +438,15 @@ async function prepararPedido(
   const comissaoGuardada = Boolean(
     !ctx.sellerId && attribution.affiliateId && (await getPlataforma()).guardaComissao,
   );
+  // A taxa da plataforma fotografada agora (`shared/cobranca.ts`): o modo
+  // da rifa (fotografado na publicação) e a faixa do Pix pelo volume do mês
+  // da organização neste instante. Só o Pix online paga a taxa Pix.
+  const pixOnline = !ctx.sellerId;
+  const taxa = taxaDoPedido({
+    cobranca: campaign.cobranca ?? null,
+    pixOnline,
+    transacoesPixNoMes: pixOnline && campaign.cobranca ? await transacoesPixNoMes(campaign.organizationId) : 0,
+  });
   // Venda que veio de anúncio patrocinado (etapa 15): o mesmo aparelho
   // clicou num anúncio desta rifa há até 7 dias. Só estatística.
   const anuncioId = ctx.sellerId ? null : await anuncioDaVenda(identity.deviceHash, campaign.id);
@@ -471,7 +481,21 @@ async function prepararPedido(
     comissaoGuardada,
     anuncioId,
     presente,
+    taxa,
   };
+}
+
+/**
+ * Quantas transações Pix pagas a organização já teve no mês de São Paulo —
+ * a faixa da taxa Pix sai daqui. Leitura sem trava, de propósito: é a faixa
+ * de preço do pedido, não exclusividade; o pedido fotografa o que leu.
+ */
+async function transacoesPixNoMes(organizationId: string): Promise<number> {
+  const [linha] = await db
+    .select({ n: pixVolumeMensal.transacoes })
+    .from(pixVolumeMensal)
+    .where(and(eq(pixVolumeMensal.organizationId, organizationId), eq(pixVolumeMensal.mes, mesEmSaoPaulo(new Date()))));
+  return linha?.n ?? 0;
 }
 
 type Preparo = Awaited<ReturnType<typeof prepararPedido>>;
@@ -516,6 +540,10 @@ async function inserirPedido(
       couponId: attribution.couponId,
       comissaoGuardada: p.comissaoGuardada,
       anuncioId: p.anuncioId,
+      taxaModo: p.taxa.modo,
+      taxaVendaBp: p.taxa.vendaBp,
+      taxaPorCotaCents: p.taxa.porCotaCents,
+      taxaPixBp: p.taxa.pixBp,
       carrinhoId: extra.carrinhoId ?? null,
       expiresAt,
     })
@@ -605,7 +633,7 @@ export async function createOrder(
   // Se o provedor recusar (CPF rejeitado, fora do ar), as cotas voltam na
   // hora em vez de ficarem presas até a reserva vencer.
   let charge: Awaited<ReturnType<NonNullable<typeof provider>["createPixCharge"]>>;
-  const parte = await parteDaOrganizacao(campaign.organizationId, comissaoGuardada ? attribution.comissaoPct : 0);
+  const parte = await parteDaOrganizacao(campaign.organizationId, comissaoGuardada ? attribution.comissaoPct : 0, order);
   try {
     charge = await provider!.createPixCharge({
     orderCode: order.code,
@@ -661,20 +689,56 @@ export async function createOrder(
  * do promotor (tudo menos a taxa da plataforma, em percentual sobre o
  * líquido). Sem carteira, nada é dividido na origem.
  */
-async function parteDaOrganizacao(organizationId: string, comissaoGuardadaPct = 0) {
+async function parteDaOrganizacao(organizationId: string, comissaoGuardadaPct: number, pedido: PedidoComTaxa) {
   const [org] = await db
     .select({ walletId: organizations.asaasWalletId })
     .from(organizations)
     .where(eq(organizations.id, organizationId));
-  const plano = await planOfOrganization(organizationId);
-  // Com a guarda, a comissão fica na conta da plataforma: sai da parte do
-  // promotor, sobre o que sobrou da taxa (`percentualDoPromotor`).
+  // A taxa do pedido (venda + Pix) vira o percentual equivalente sobre o
+  // total, para cima: o split divide em percentual, e nunca manda à
+  // organização a parte da plataforma. Com a guarda, a comissão fica na conta
+  // da plataforma: sai da parte do promotor, sobre o que sobrou da taxa
+  // (`percentualDoPromotor`).
+  const taxaPct = taxaPctEquivalente(pedido);
   return {
     walletId: org?.walletId ?? null,
-    percentual: percentualDoPromotor(platformPctFor(plano), comissaoGuardadaPct),
+    percentual: percentualDoPromotor(taxaPct, comissaoGuardadaPct),
     /** A taxa da plataforma na emissão: sem taxa, o split não retém nada. */
-    taxaPct: platformPctFor(plano),
+    taxaPct,
   };
+}
+
+/** O que o pedido precisa para calcular a taxa fotografada. */
+type PedidoComTaxa = Pick<
+  typeof orders.$inferSelect,
+  "amountCents" | "presenteCents" | "quantity" | "method" | "taxaModo" | "taxaVendaBp" | "taxaPorCotaCents" | "taxaPixBp"
+>;
+
+/**
+ * As taxas do pedido em centavos (`taxasEmCentavos()`): a de venda sobre o
+ * total (o comprador mais o presente da plataforma) e a do Pix sobre o que
+ * entrou pelo Pix online.
+ */
+function taxasDoPedido(o: PedidoComTaxa) {
+  return taxasEmCentavos(
+    {
+      modo: o.taxaModo === "por_cota" ? "por_cota" : "percentual",
+      vendaBp: o.taxaVendaBp,
+      porCotaCents: o.taxaPorCotaCents,
+      pixBp: o.taxaPixBp,
+    },
+    {
+      totalCents: o.amountCents + o.presenteCents,
+      pixCents: o.method === "pix_online" ? o.amountCents : 0,
+      quantidade: o.quantity,
+    },
+  );
+}
+
+/** A taxa do pedido como percentual do total, para o split e o presente. */
+function taxaPctEquivalente(o: PedidoComTaxa): number {
+  const t = taxasDoPedido(o);
+  return pctEquivalente(t.vendaCents + t.pixCents, o.amountCents + o.presenteCents);
 }
 
 /**
@@ -813,9 +877,9 @@ export async function createCartOrder(input: CarrinhoCheckoutInput, ctx: CreateO
   let split: { walletId: string; percentual: number }[] = [];
   try {
     partes = await Promise.all(
-      preparos.map(async (p) => ({
+      preparos.map(async (p, i) => ({
         amountCents: p.price.totalCents,
-        ...(await parteDaOrganizacao(p.campaign.organizationId, p.comissaoGuardada ? p.attribution.comissaoPct : 0)),
+        ...(await parteDaOrganizacao(p.campaign.organizationId, p.comissaoGuardada ? p.attribution.comissaoPct : 0, pedidos[i].order)),
       })),
     );
     split = splitDoCarrinho(partes.map((x) => ({ walletId: x.walletId, amountCents: x.amountCents, percentualDoPromotor: x.percentual })));
@@ -902,11 +966,6 @@ async function settleOrderAsPaid(order: typeof orders.$inferSelect) {
     .from(campaigns)
     .where(eq(campaigns.id, order.campaignId));
 
-  // O contrato da organização é lido antes da transação: a consulta não
-  // muda nada e mantém o BEGIN curto.
-  const plano = campaign
-    ? await planOfOrganization(campaign.organizationId)
-    : FREE_PLAN;
   const [org] = campaign
     ? await db
         .select({ liberacao: organizations.liberacaoComissao })
@@ -1017,10 +1076,13 @@ async function settleOrderAsPaid(order: typeof orders.$inferSelect) {
     // plataforma. O rateio corre sobre a soma — a promotora e o afiliado
     // recebem como se fosse o preço cheio — e a parte da promotora no
     // desconto vira crédito dela (`creditoDoPresente`).
+    // A taxa é a fotografada no pedido (venda — percentual ou por cota — e
+    // Pix), nunca a tabela de agora.
     const rateio = splitOrder({
       paidCents: order.amountCents + order.presenteCents,
-      platformPct: platformPctFor(plano),
+      platformPct: 0,
       commissionPct: order.affiliateId ? (daRifa?.pct ?? 0) : 0,
+      taxas: taxasDoPedido(updated),
     });
 
     if (order.presenteCents > 0 && campaign) {
@@ -1028,7 +1090,8 @@ async function settleOrderAsPaid(order: typeof orders.$inferSelect) {
         organizationId: campaign.organizationId,
         orderId: order.id,
         presenteCents: order.presenteCents,
-        platformPct: rateio.platformPct,
+        // A taxa como percentual do total: a parte do presente paga a mesma proporção.
+        platformPct: pctEquivalente(rateio.platformFeeCents, rateio.paidCents),
         commissionPct: rateio.commissionPct,
         comissaoGuardada: order.comissaoGuardada,
       });
@@ -1038,12 +1101,26 @@ async function settleOrderAsPaid(order: typeof orders.$inferSelect) {
       await lancarTaxaDaVenda(tx, {
         organizationId: campaign.organizationId,
         orderId: order.id,
-        amountCents: rateio.platformFeeCents,
-        pct: rateio.platformPct,
+        vendaCents: rateio.saleFeeCents,
+        pixCents: rateio.pixFeeCents,
+        modo: updated.taxaModo,
+        vendaBp: updated.taxaVendaBp,
         // Pix dividido na origem: a taxa já está com a plataforma.
         retidaNoSplit: updated.taxaRetidaNoSplit,
         paidAt,
       });
+    }
+
+    // O volume do mês que escolhe a faixa do Pix: mais uma transação Pix
+    // paga da organização, na mesma transação que confirma o pagamento.
+    if (order.method === "pix_online" && campaign) {
+      await tx
+        .insert(pixVolumeMensal)
+        .values({ organizationId: campaign.organizationId, mes: mesEmSaoPaulo(paidAt), transacoes: 1 })
+        .onConflictDoUpdate({
+          target: [pixVolumeMensal.organizationId, pixVolumeMensal.mes],
+          set: { transacoes: sql`${pixVolumeMensal.transacoes} + 1` },
+        });
     }
 
     if (order.affiliateId && rateio.commissionCents > 0) {
@@ -1188,7 +1265,8 @@ async function marcarCarrinhoPago(pedidos: (typeof orders.$inferSelect)[]) {
  * Venda física do cambista
  * ------------------------------------------------------------------ */
 
-export type MetodoFisico = "dinheiro" | "cartao_maquininha" | "pix_maquininha";
+/** Na mão do cambista: dinheiro ou Pix. Cartão não é aceito. */
+export type MetodoFisico = "dinheiro" | "pix_maquininha";
 
 /**
  * Reserva as cotas ANTES de cobrar. Cobrar o cartão e só depois tentar
@@ -1254,7 +1332,7 @@ export async function confirmSellerSale(params: {
   };
 }
 
-/** Cartão recusado ou cliente desistiu: devolve as cotas na hora. */
+/** Pix não pago ou cliente desistiu: devolve as cotas na hora. */
 export async function cancelSellerSale(params: { code: number; sellerId: string }) {
   const [order] = await db.select().from(orders).where(eq(orders.code, params.code));
   if (!order) throw new OrderError("Venda não encontrada.", 404);

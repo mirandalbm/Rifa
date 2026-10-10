@@ -36,7 +36,7 @@ plataforma ganha, nem diz onde o dinheiro está.
 | Fluxo | Onde mora hoje |
 |---|---|
 | Venda online (Pix) | `orders` (`amount_cents`, `presente_cents`), split do Asaas direto para a carteira da promotora |
-| Taxa da plataforma sobre a venda / mensalidade | `platform_charges` (`aberta`, `retida`, `paga`, `cancelada`) |
+| Taxa da plataforma sobre a venda (percentual ou por cota) e taxa Pix | `platform_charges` (`aberta`, `retida`, `paga`, `cancelada`) |
 | Comissão do afiliado / cambista | `commissions` (`pending`, `available`, `paid`, `reversed`; `guardada` quando a plataforma guarda) |
 | Saque do afiliado (com IRRF) e acerto do cambista | `payouts`, `settlements`, recibos |
 | Presente (desconto pago pela plataforma) | `presente_creditos` |
@@ -53,7 +53,7 @@ margem do Tráfego pago e o relatório do assistente.
 ## 3. O que a Tesouraria precisa responder
 
 1. **De onde vem a receita da plataforma**, por origem e por mês: taxa por
-   venda, mensalidade, taxa de gestão do tráfego, patrocínio, banner pago,
+   venda (percentual ou por cota), taxa Pix, taxa de gestão do tráfego, patrocínio, banner pago,
    assistente de IA (assinatura e pacotes) e o que mais entrar.
 2. **O que é receita e o que é dinheiro de terceiros.** No Lucro Real a taxa de
    gestão é diferida na campanha; a mídia, o saldo pré-pago, a comissão guardada,
@@ -75,7 +75,7 @@ Duas tabelas novas (nomes provisórios):
 
 - `fin_contas` — o plano de contas **fechado em código** (`shared/financeiro.ts`),
   a plataforma só escolhe o **destino** de cada conta. Grupos: **receita**
-  (taxa por venda, mensalidade, taxa de gestão, patrocínio, banner, IA),
+  (taxa por venda, taxa Pix, taxa de gestão, patrocínio, banner, IA),
   **passivo de terceiros** (saldo pré-pago por organização, mídia a repassar,
   comissão guardada, crédito do presente, Pix a devolver, valores retidos,
   IRRF a recolher), **custos** (provedor, Chatbase, excedente, doações) e
@@ -179,7 +179,7 @@ Regras que não se negociam (herdam do `CLAUDE.md`):
 ### 4.4 O que entra no saldo bruto (precisa de decisão — seção 8)
 
 O saldo bruto tem de ser **dinheiro da plataforma**: taxa por venda,
-mensalidade, taxa de gestão do tráfego, patrocínio, banner pago, assistente de
+taxa Pix, taxa de gestão do tráfego, patrocínio, banner pago, assistente de
 IA. Valor de terceiros — a **mídia** que a organização pagou, o saldo
 pré-pago, a comissão guardada — **não é receita** (o contador: é repasse).
 Misturar os dois faria o painel dizer que há dinheiro para salários onde há
@@ -239,7 +239,7 @@ o centro: sem movimento de dinheiro, ele é uma escolha da F4, não pré-requisi
 ## 8. Decisões do dono (09/10/2026)
 
 1. **Nome**: "Tesouraria", grupo novo do menu do master. **Sim.**
-2. **Saldo bruto**: a receita própria do mês (taxas, mensalidade, patrocínio,
+2. **Saldo bruto**: a receita própria do mês (taxa da venda, taxa Pix, patrocínio,
    banner, IA) — **sim, com os detalhes financeiros bem definidos e
    detalhados, com destino inicial e final** (cada receita mostra de onde veio
    e para onde vai: a origem, o bloco de terceiros que ficou de fora e a área

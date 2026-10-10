@@ -1,31 +1,22 @@
 /**
  * Cobrança da plataforma sobre as organizações.
  *
- * Duas portas de entrada, um razão só (`platform_charges`):
- *
- * - `lancarTaxaDaVenda()` roda dentro da transação que confirma o pagamento,
- *   junto com a comissão. Tem que ser na mesma transação: taxa lançada fora
- *   dela sobreviveria a um rollback e cobraria por uma venda que não existiu.
- * - `lancarMensalidades()` roda no relógio quando o mês vira.
+ * Uma porta de entrada, um razão só (`platform_charges`): `lancarTaxaDaVenda()`
+ * roda dentro da transação que confirma o pagamento, junto com a comissão.
+ * Tem que ser na mesma transação: taxa lançada fora dela sobreviveria a um
+ * rollback e cobraria por uma venda que não existiu. Não há mensalidade.
  *
  * A ordem do rateio é a regra que não se negocia: **a plataforma sai antes**,
  * e a comissão do afiliado ou do cambista incide sobre o que sobrou. Quem faz
- * essa conta é `splitOrder()`, em `shared/pricing.ts`.
+ * essa conta é `splitOrder()`, em `shared/pricing.ts`, com as taxas
+ * fotografadas no pedido (`shared/cobranca.ts`).
  */
-import { and, eq, sql, desc, isNull } from "drizzle-orm";
+import { and, eq, sql, desc } from "drizzle-orm";
 import { db } from "../db";
 import { organizations, platformCharges, orders, campaigns, presenteCreditos } from "@shared/schema";
 import { temRetencaoAtiva } from "./retencao";
 import { PAGINA_PADRAO, cortarPagina, type CursorDaLista } from "@shared/paginacao";
-import {
-  validateBillingPlan,
-  platformPctFor,
-  monthlyCentsFor,
-  competenciaAnterior,
-  type BillingPlan,
-  type BillingMode,
-  lancamentoDaTaxa,
-} from "@shared/billing";
+import { lancamentoDaTaxa } from "@shared/billing";
 
 export class BillingError extends Error {
   constructor(message: string, readonly status = 400) {
@@ -34,59 +25,13 @@ export class BillingError extends Error {
   }
 }
 
-/** O contrato de uma organização, já normalizado. */
-export function planOf(org: {
-  billingMode: BillingMode;
-  platformFeePct: number;
-  monthlyCents: number;
-}): BillingPlan {
-  return {
-    mode: org.billingMode,
-    platformFeePct: org.platformFeePct,
-    monthlyCents: org.monthlyCents,
-  };
-}
-
-export async function planOfOrganization(organizationId: string): Promise<BillingPlan> {
-  const [org] = await db
-    .select({
-      billingMode: organizations.billingMode,
-      platformFeePct: organizations.platformFeePct,
-      monthlyCents: organizations.monthlyCents,
-    })
-    .from(organizations)
-    .where(eq(organizations.id, organizationId));
-
-  if (!org) throw new BillingError("Organização não encontrada.", 404);
-  return planOf(org);
-}
-
-export async function setBillingPlan(
-  organizationId: string,
-  candidate: Partial<BillingPlan>,
-) {
-  const plano = validateBillingPlan(candidate);
-
-  const [org] = await db
-    .update(organizations)
-    .set({
-      billingMode: plano.mode,
-      platformFeePct: plano.platformFeePct,
-      monthlyCents: plano.monthlyCents,
-    })
-    .where(eq(organizations.id, organizationId))
-    .returning();
-
-  if (!org) throw new BillingError("Organização não encontrada.", 404);
-  return plano;
-}
-
 /* ------------------------------------------------------------------ *
  * Taxa por venda
  * ------------------------------------------------------------------ */
 
 /**
- * Lança a taxa da plataforma sobre uma venda paga.
+ * Lança a taxa da plataforma sobre uma venda paga: a parte da venda
+ * (percentual ou por cota) e a do Pix, numa linha.
  *
  * Recebe a transação de propósito: isto acontece dentro do mesmo `BEGIN` que
  * marca o pedido como pago. `onConflictDoNothing` sobre o índice do pedido
@@ -97,8 +42,10 @@ export async function lancarTaxaDaVenda(
   params: {
     organizationId: string;
     orderId: string;
-    amountCents: number;
-    pct: number;
+    vendaCents: number;
+    pixCents: number;
+    modo: string;
+    vendaBp: number;
     /**
      * O Pix foi dividido na origem (split do Asaas): a plataforma já ficou
      * com a taxa. O lançamento existe para o extrato fechar, mas nasce
@@ -113,53 +60,6 @@ export async function lancarTaxaDaVenda(
   if (!valores) return;
 
   await tx.insert(platformCharges).values(valores).onConflictDoNothing();
-}
-
-/* ------------------------------------------------------------------ *
- * Mensalidade
- * ------------------------------------------------------------------ */
-
-/**
- * Lança a mensalidade de quem está no modo `mensalidade` e ainda não foi
- * cobrado naquela competência.
- *
- * Cobra o mês **anterior**, não o corrente: mensalidade lançada no dia 1º
- * para o mês que começa é cobrança antecipada, e quem cancelar no dia 3 já
- * está devendo por 28 dias que não usou.
- *
- * Idempotente pelo índice `(organização, competência)` — pode rodar a cada
- * minuto, em quantas réplicas for.
- */
-export async function lancarMensalidades(agora = new Date()): Promise<number> {
-  const competencia = competenciaAnterior(agora);
-
-  const ativas = await db
-    .select()
-    .from(organizations)
-    .where(
-      and(eq(organizations.billingMode, "mensalidade"), eq(organizations.active, true)),
-    );
-
-  let lancadas = 0;
-  for (const org of ativas) {
-    const valor = monthlyCentsFor(planOf(org));
-    if (valor <= 0) continue;
-
-    const [criada] = await db
-      .insert(platformCharges)
-      .values({
-        organizationId: org.id,
-        kind: "mensalidade",
-        competencia,
-        amountCents: valor,
-      })
-      .onConflictDoNothing()
-      .returning({ id: platformCharges.id });
-
-    if (criada) lancadas++;
-  }
-
-  return lancadas;
 }
 
 /* ------------------------------------------------------------------ *
@@ -228,9 +128,6 @@ export async function carteiraDaPlataforma() {
     .select({
       organizationId: organizations.id,
       name: organizations.name,
-      mode: organizations.billingMode,
-      platformFeePct: organizations.platformFeePct,
-      monthlyCents: organizations.monthlyCents,
       active: organizations.active,
       abertoCents: sql<number>`coalesce(sum(${platformCharges.amountCents}) FILTER (WHERE ${platformCharges.status} = 'aberta'), 0)::int`,
       pagoCents: sql<number>`coalesce(sum(${platformCharges.amountCents}) FILTER (WHERE ${platformCharges.status} = 'paga'), 0)::int`,
@@ -247,7 +144,7 @@ export async function carteiraDaPlataforma() {
 
 /**
  * Acerta a conta de uma organização nos dois sentidos, numa transação: o
- * que ela devia (taxas e mensalidades em aberto) e o que a plataforma devia
+ * que ela devia (taxas em aberto) e o que a plataforma devia
  * a ela (créditos de presente).
  */
 export async function darBaixa(organizationId: string): Promise<number> {

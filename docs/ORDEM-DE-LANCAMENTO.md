@@ -43,7 +43,7 @@ cadastro (o roteiro do dia está na etapa 5, "Dia da troca da razão social").
   pelo resultado (sem PIS, COFINS, IRPJ, CSLL e ISS). A nota do afiliado
   descreve "promoção de vendas" (CNAE 7319-0/02) e, na guarda, sai contra a
   International Lottery Ltda; MEI e Simples não sofrem retenção. A receita
-  da plataforma é só a taxa ou a mensalidade, com NFS-e mensal contra cada
+  da plataforma é a taxa da venda (percentual ou por cota) e a do Pix, com NFS-e mensal contra cada
   promotora. Pendências que sobraram: seção 5 de `docs/PENDENCIAS.md`.
 - [ ] **Pagamento**: pedir por escrito ao Mercado Pago e ao Asaas se aceitam
   promoção comercial com autorização SPA/MF. A resposta decide o provedor

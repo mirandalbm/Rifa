@@ -26,7 +26,11 @@ Procure, nesta ordem, o que é **grave**:
 3. **Dinheiro**: valor que não é inteiro em centavos; preço vindo do
    navegador (o total é recalculado em `services/orders.ts`); rateio fora
    de `splitOrder()`; comissão sobre o bruto em vez do que sobrou da taxa;
-   arredondamento para cima; taxa lançada fora da transação do pagamento.
+   arredondamento para cima; taxa lançada fora da transação do pagamento;
+   taxa calculada pela tabela de agora em vez da fotografada na rifa
+   (`campaigns.cobranca`) e no pedido (`orders.taxa_*`) — invariante 13;
+   taxa Pix cobrada do comprador ou fora do Pix online; volume do mês por
+   `COUNT(*)` em vez de `pix_volume_mensal`; mensalidade ou cartão de volta.
 4. **Webhook**: sem idempotência por `(provider, external_id)`; status
    aceito do corpo em vez de consultado ao provedor; redirect do navegador
    tratado como prova de pagamento.

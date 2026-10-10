@@ -32,7 +32,8 @@ Pelo caminho que mudou (a mesma tabela "Onde mexer" do `CLAUDE.md`):
 | Mexeu em | Roda |
 |---|---|
 | reserva, alocação, cartelas (`services/quotas.ts`) | `load` |
-| pedido, preço, webhook (`services/orders.ts`) | `load`, `refund`, `pix-tardio` |
+| pedido, preço, webhook (`services/orders.ts`) | `load`, `refund`, `pix-tardio`, `cobranca` |
+| cobrança da plataforma (`shared/cobranca.ts`, `shared/billing.ts`, `services/billing.ts`, a fotografia em `publishCampaign()`, `/cobranca/tabela`, `adminCobranca.tsx`, `CobrancaDaRifa.tsx`) | `cobranca`, `carrinho`, `presente`, `refund`, `retencao`, `isolation`, `tests/cobranca.test.ts`, `tests/billing.test.ts`, `tests/split.test.ts`; mexeu na tela, `telas` |
 | estorno | `refund`, `presente`, `bonus` |
 | chamado de reembolso, disputa | `chamados`, `disputa` |
 | **rota nova ou nova consulta do painel** (qualquer `routes/admin.ts`) | `isolation` — rota que não aparece lá é rota que ninguém provou |

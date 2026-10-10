@@ -7,10 +7,15 @@
  * regras diferentes na primeira mudança.
  */
 
+/**
+ * Cartão (crédito ou débito) não é aceito: a plataforma vende só por Pix e,
+ * na mão do cambista, por dinheiro ou Pix. O valor `cartao_maquininha`
+ * ficou no tipo do banco (o Postgres não tira valor de enum), mas nada mais
+ * o aceita.
+ */
 export type PaymentMethodKey =
   | "pix_online"
   | "dinheiro"
-  | "cartao_maquininha"
   | "pix_maquininha";
 
 export interface PaymentMethodSettings {
@@ -18,8 +23,6 @@ export interface PaymentMethodSettings {
   pix_online: boolean;
   /** Dinheiro recolhido pelo cambista. */
   dinheiro: boolean;
-  /** Cartão na maquininha do cambista. */
-  cartao_maquininha: boolean;
   /** Pix cobrado pela maquininha do cambista. */
   pix_maquininha: boolean;
 }
@@ -27,7 +30,6 @@ export interface PaymentMethodSettings {
 export const DEFAULT_PAYMENT_METHODS: PaymentMethodSettings = {
   pix_online: true,
   dinheiro: true,
-  cartao_maquininha: true,
   pix_maquininha: true,
 };
 
@@ -53,12 +55,6 @@ export const PAYMENT_METHODS: PaymentMethodInfo[] = [
     hint: "O cambista recolhe em espécie e presta contas no acerto.",
   },
   {
-    key: "cartao_maquininha",
-    label: "Cartão na maquininha",
-    scope: "fisico",
-    hint: "Exige maquininha com o app instalado, ou cobrança no aparelho da adquirente.",
-  },
-  {
     key: "pix_maquininha",
     label: "Pix na maquininha",
     scope: "fisico",
@@ -68,7 +64,6 @@ export const PAYMENT_METHODS: PaymentMethodInfo[] = [
 
 export const PHYSICAL_METHODS: PaymentMethodKey[] = [
   "dinheiro",
-  "cartao_maquininha",
   "pix_maquininha",
 ];
 

@@ -467,3 +467,26 @@ Decisões do dono:
 
 ### Efeito na Parte 1
 A Parte 1 continua aberta no item 1 (responsável pelo IRRF), que muda a cláusula e o lançamento contábil. Os itens 2, 5 e 6 podem ser redigidos. O item 4 depende de prova. O item 3 depende de resposta. Sem a correção do item 1, a parte contábil não pode ser reemitida.
+
+---
+
+## Correção do advogado (10/10/2026) — veredito
+
+**Item 1 (quem recolhe o IRRF): aceito em tese, com duas consequências.**
+- A tese é uma só: a plataforma recolhe; a promotora paga R$ 100,00 e não retém. A citação da SC 234/2025 bate com o resumo que pesquisei (beneficiária recolhe). O texto integral não foi lido por mim.
+- **Contradição de qualificação:** ele diz que "a plataforma é a agência de propaganda beneficiária". Nas rodadas anteriores disse o contrário e o anexo deve evitar a palavra "agência". Se a plataforma é agência para o IRRF, a qualificação precisa estar explícita, com a consequência para o CNAE 73.11-4/00. Uma só qualificação, por escrito.
+- **Muda o encerramento da fase do IRRF:** as decisões I1 e I2 (retenção pela promotora, forma bruta) estavam baseadas na tese antiga. Com a tese nova, a promotora não retém e a plataforma recolhe o DARF do próprio caixa. Lançamentos resultantes (simples e fechados):
+  - Abastecimento: Caixa R$ 100,00 (D) / Adiantamento de cliente R$ 100,00 (C).
+  - Consumo: Adiantamento de cliente R$ 100,00 (D) / Receita de taxa R$ 100,00 (C).
+  - Recolhimento do DARF: IRRF a compensar R$ 1,50 (D) / Caixa R$ 1,50 (C).
+  Somam zero em cada etapa. O crédito de R$ 1,50 fica no ativo até a compensação com o IRPJ.
+- **Decisão do dono necessária:** confirmar a mudança de I1 e I2 (recolhimento pela plataforma). Sem isso, a cláusula e os lançamentos anteriores continuam valendo.
+
+**Item 3 (IN 1.234/2012): aceito a retirada.** Substitui por IN SRF 123/1992 e PN CST 7/1986. Os dois últimos não foram lidos por mim.
+
+**Item 4 (Portaria 7.638/2022): não aceito como prova ainda.**
+- A "captura do DOU" é uma tabela digitada, não uma imagem ou PDF da página. Para o parecer, é preciso a captura real (PDF ou imagem da edição de 20/10/2022, seção 1, página 25).
+- A afirmação de que não há ato de revogação é uma ausência, e a página do Governo Federal que pesquisei listava a portaria como "despublicada". Essa divergência continua sem explicação.
+- Até chegar a captura, a Portaria fica como política da plataforma (P6), não como base legal.
+
+**Efeito na Parte 1:** o item 1 fecha a cláusula do IRRF e os lançamentos, mas depende de (a) uma qualificação única de agência, (b) a sua confirmação de I1 e I2. O item 3 fecha com as normas que o advogado citou, depois de conferidas. O item 4 fecha com a captura.

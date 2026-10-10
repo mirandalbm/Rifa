@@ -303,3 +303,42 @@ oficiais não abriram nesta sessão); o que segue é a conferência possível po
 | Anexos 5 a 9, acórdão 012/25, assinatura | Contador |
 | Efeito do nome do CNAE sobre o anexo | Advogado |
 | Cláusula de revisão de 90 dias, anexo ao advogado (data), domínio, parecer bancário | Dono |
+
+## 9. Pesquisa externa própria (10/10/2026, sem o contador)
+
+**Limite:** o Planalto e o legjur não resolvem nesta sessão (erro de DNS). Tudo
+abaixo vem de busca e de fontes secundárias. Nada aqui é "texto oficial lido".
+Cada item tem um grau: **confirmado por mais de uma fonte**, **único**, ou
+**contradito**.
+
+| Ponto | O que a pesquisa encontrou | Grau | Efeito no parecer |
+|---|---|---|---|
+| **Taxa de 4,65% (CSRF)** | A alíquota de 4,65% (0,65% PIS + 3% COFINS + 1% CSLL) está no **art. 31** da Lei 10.833/2003, não no art. 30. O art. 30 define **quais** serviços entram: limpeza, conservação, manutenção, vigilância, transporte de valores, locação de mão de obra, assessoria creditícia e mercadológica, e serviços profissionais | Confirmado por mais de uma fonte | Corrigir a citação do parecer: "art. 31 (alíquota) e art. 30 (escopo)" |
+| **Publicidade no CSRF** | Fontes de contabilidade dizem que publicidade e propaganda **não** estão no art. 30. Uma solução da Cosit de 2022 (nº 13) é citada como concluindo a mesma coisa; **não li o texto**. Uma solução de 2019 (nº 77) tem um trecho que **parece** dizer que publicidade do art. 718 sofre retenção de CSLL, mas trata de processamento de dados e não é conclusão | **Contraditório** | A não retenção de CSRF continua **risco**, não conclusão. Precisa do texto da SC 13/2022 |
+| **IRRF de 1,5% em publicidade** | O art. 714 do RIR/2018 fixa 1,5% para serviços profissionais entre pessoas jurídicas. O art. 718 traz hipóteses: inciso I (representação comercial e mediação de negócios), **inciso II (publicidade e propaganda, com exclusão de valores repassados a veículos)** | Confirmado por mais de uma fonte (secundária) | **O 1,5% no modelo B tem base sólida.** Cabe citar o art. 718, II, com ressalva de que o texto não foi lido |
+| **Art. 685 do RIR/2018** | Trata de rendimentos pagos a **residentes no exterior** | Confirmado | A citação que o contador usou para o momento do IRRF **não serve**; sai do parecer |
+| **IN RFB 1.700/2017, art. 223, § 2º** | O artigo está na seção do **lucro presumido**, regime de caixa, e o § 2º (adiantamento vira receita no mês do faturamento ou da conclusão do serviço) aparece citado por fonte da Receita Federal dentro desse regime | Confirmado, **mas no regime errado para a empresa** | A empresa é **Lucro Real**. O fundamento do adiamento de receita tem de ser a regra de competência (CPC 47 / NBC TG 47 e o RIR de Lucro Real). O parecer deve trocar a citação |
+| **Momento do IRRF** | Sem fonte que decida. A regra geral é pagamento ou crédito, e o Pix de abastecimento é pagamento | Aberto | Continua **risco** |
+| **ISS 5% em São Paulo (10.08)** | Alíquota de 5% e código 06394 confirmados por solução de consulta de 2014 | Confirmado | Mantém |
+| **Retenção de ISS pelo tomador de São Paulo** | O regulamento antigo previa retenção quando o prestador era **de outro município** e não estava no cadastro; o cadastro CPOM foi tornado facultativo ou revogado para serviços tomados a partir de 27/11/2021. Uma fonte diz que a retenção depende de o serviço ser prestado em São Paulo. **As fontes conflitam** | Contraditório | Para a plataforma sediada em São Paulo, a retenção **não tem como se aplicar** pelo regime antigo (exige prestador de fora). Para a promotora **de fora**, vale a regra do município dela, que não está pesquisada |
+| **CNAE 73.11-4/00** | A descrição inclui "colocação, em nome de clientes, de material publicitário ... na internet". Mas a operação de **páginas de publicidade na internet** é excluída (vai para 63.19-4/00). A "gestão de tráfego pago" **não consta** da descrição oficial. Uma lista de terceiros cita "gestão de publicidade em diversos canais" | Parcial | A 73.11-4/00 é a melhor candidata, mas **não há descrição oficial de tráfego pago**. Confirmar no CONCLA antes de fixar |
+| **MEI** | Atividade de 73.11-4/00 não é permitida ao MEI | Único | A empresa precisa ser ME ou maior, o que já é o caso |
+
+### O que muda no parecer por causa da pesquisa
+1. **Art. 223 da IN 1.700 deve sair**, ou ser trocado pela regra de competência do Lucro Real. Não é "confirmado" para a empresa.
+2. **Art. 685 sai** da explicação do IRRF.
+3. **O IRRF de 1,5% (art. 718, II) passa a ter base**, com ressalva de texto não lido.
+4. **O CSRF continua em risco.** A SC 13/2022 é a leitura que decide. Pedir o texto ao contador é o único caminho sem Planalto.
+5. **A retenção de ISS de São Paulo** não se aplica à plataforma paulistana pelo regime antigo, e a regra de promotoras de outros municípios precisa de pesquisa à parte (não é da plataforma).
+6. **CNAE:** fixar 73.11-4/00 como principal **só depois** de confirmar no CONCLA que tráfego pago cabe ali, ou o dono aceita o risco da classificação.
+
+### O que não precisa mais de ida e volta com o contador
+- IN 1.234/2012, art. 720, IRRF "no consumo": já resolvidos (saem ou viram risco).
+- Alíquota de 5% do ISS: confirmada.
+- Pergunta sobre o fluxo do IRRF (taxa bruta ou líquida): é do dono, depois de refeita a conta.
+
+### O que ainda depende de terceiros (com a pesquisa esgotada)
+- Texto da SC Cosit 13/2022 (CSRF e publicidade).
+- Descrição oficial do CNAE para tráfego pago (CONCLA).
+- Regra de ISS para promotora de outro município.
+- Texto oficial do art. 718 e do art. 714 do RIR/2018 (Planalto fora do ar).

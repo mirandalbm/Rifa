@@ -22,6 +22,14 @@ import {
   type TabelaAgendada,
   type TabelasDaCobranca,
 } from "@shared/cobranca";
+import {
+  MOTIVO_DO_CANCELAMENTO_MIN,
+  PRAZO_PARA_REGULARIZAR_DIAS,
+  diaEmBrasilia,
+  situacaoDaNotificacao,
+  ultimoDiaParaRegularizar,
+  type NotificacaoDeCobranca,
+} from "@shared/inadimplencia";
 
 interface LinhaCarteira {
   organizationId: string;
@@ -33,6 +41,8 @@ interface LinhaCarteira {
   lancamentos: number;
   /** O que a plataforma deve à organização: a parte dela nos presentes. */
   creditoCents: number;
+  /** A notificação de falta de pagamento aberta (cláusula X.13 (a)). */
+  notificacao: NotificacaoDeCobranca | null;
 }
 
 interface Extrato {
@@ -145,6 +155,31 @@ function ResumoDaTabela({ tabela }: { tabela: ConfigCobranca }) {
   );
 }
 
+/**
+ * A notificação de falta de pagamento (cláusula X.13 (a)) em texto: no
+ * prazo, até quando; vencido o prazo, que a publicação de rifa nova está
+ * bloqueada. Nunca só pela cor.
+ */
+function SituacaoDaNotificacao({ n }: { n: NotificacaoDeCobranca }) {
+  const situacao = situacaoDaNotificacao(n, new Date());
+  if (situacao === "regularizada") return null;
+  return (
+    <span className="ml-2 inline-flex flex-wrap items-center gap-1">
+      {situacao === "bloqueando" ? (
+        <Pill status="expired">publicação bloqueada</Pill>
+      ) : (
+        <Pill status="reserved">
+          notificada · até <span className="tnum">{ultimoDiaParaRegularizar(n.bloqueiaEm)}</span>
+        </Pill>
+      )}
+      <span className="block w-full text-[11px] text-muted">
+        notificada em <span className="tnum">{diaEmBrasilia(n.notificadaEm)}</span>: <Money cents={n.valorCents} />; em aberto
+        disso agora: <Money cents={n.abertoCents} />
+      </span>
+    </span>
+  );
+}
+
 /* ---------------- o lado da plataforma ---------------- */
 
 function Carteira() {
@@ -161,6 +196,66 @@ function Carteira() {
     onSuccess: recarregar,
     onError: (err: Error) => setErro(err.message),
   });
+  // Falta de pagamento (cláusula X.13 (a)): notificar e cancelar.
+  const notificar = useMutation({
+    mutationFn: (id: string) => apiRequest("POST", `/api/admin/cobranca/${id}/notificar`),
+    onSuccess: () => {
+      setErro(null);
+      recarregar();
+    },
+    onError: (err: Error) => setErro(err.message),
+  });
+  const [cancelando, setCancelando] = useState<{ id: string; motivo: string } | null>(null);
+  const cancelar = useMutation({
+    mutationFn: (c: { id: string; motivo: string }) => apiRequest("POST", `/api/admin/cobranca/notificacoes/${c.id}/cancelar`, { motivo: c.motivo }),
+    onSuccess: () => {
+      setErro(null);
+      setCancelando(null);
+      recarregar();
+    },
+    onError: (err: Error) => setErro(err.message),
+  });
+  const pedirNotificacao = (o: LinhaCarteira) => {
+    if (
+      window.confirm(
+        `Notificar ${o.name} da falta de pagamento de ${formatBRL(o.abertoCents)}? Sem o pagamento em ${PRAZO_PARA_REGULARIZAR_DIAS} dias, ela não publica rifa nova (as rifas no ar seguem vendendo).`,
+      )
+    ) {
+      notificar.mutate(o.organizationId);
+    }
+  };
+  const acoesDaNotificacao = (o: LinhaCarteira) =>
+    o.notificacao ? (
+      cancelando?.id === o.notificacao.id ? (
+        <form
+          className="mt-2 space-y-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            cancelar.mutate(cancelando);
+          }}
+        >
+          <Campo rotulo="Motivo do cancelamento" dica={`Fica na auditoria. Pelo menos ${MOTIVO_DO_CANCELAMENTO_MIN} letras.`}>
+            <input value={cancelando.motivo} onChange={(e) => setCancelando({ ...cancelando, motivo: e.target.value })} />
+          </Campo>
+          <div className="flex flex-wrap gap-2">
+            <Button type="submit" variant="ghost" disabled={cancelar.isPending}>
+              confirmar cancelamento
+            </Button>
+            <Button type="button" variant="ghost" onClick={() => setCancelando(null)}>
+              voltar
+            </Button>
+          </div>
+        </form>
+      ) : (
+        <Button variant="ghost" onClick={() => setCancelando({ id: o.notificacao!.id, motivo: "" })}>
+          cancelar notificação
+        </Button>
+      )
+    ) : o.abertoCents > o.creditoCents ? (
+      <Button variant="ghost" onClick={() => pedirNotificacao(o)} disabled={notificar.isPending}>
+        notificar falta de pagamento
+      </Button>
+    ) : null;
 
   const total = data?.carteira.reduce((s, o) => s + o.abertoCents, 0) ?? 0;
   const retida = data?.carteira.reduce((s, o) => s + o.retidaCents, 0) ?? 0;
@@ -199,6 +294,7 @@ function Carteira() {
                         <Pill status="blocked">suspensa</Pill>
                       </span>
                     ) : null}
+                    {o.notificacao ? <SituacaoDaNotificacao n={o.notificacao} /> : null}
                   </>
                 ),
               },
@@ -232,28 +328,40 @@ function Carteira() {
               },
               {
                 titulo: "",
-                celula: (o) =>
-                  o.abertoCents > 0 || o.creditoCents > 0 ? (
-                    <Button variant="ghost" onClick={() => baixar.mutate(o.organizationId)}>
-                      dar baixa
-                    </Button>
-                  ) : null,
+                celula: (o) => (
+                  <div className="flex flex-col items-start gap-1">
+                    {o.abertoCents > 0 || o.creditoCents > 0 ? (
+                      <Button variant="ghost" onClick={() => baixar.mutate(o.organizationId)}>
+                        dar baixa
+                      </Button>
+                    ) : null}
+                    {acoesDaNotificacao(o)}
+                  </div>
+                ),
               },
             ]}
             cartao={(o) => (
               <div className="space-y-1 text-sm">
                 <p className="font-medium">{o.name}</p>
+                {o.notificacao ? (
+                  <p>
+                    <SituacaoDaNotificacao n={o.notificacao} />
+                  </p>
+                ) : null}
                 <p>
                   Em aberto: <Money cents={o.abertoCents} />
                 </p>
                 <p className="text-muted">
                   Já pago: <Money cents={o.pagoCents} />
                 </p>
-                {o.abertoCents > 0 || o.creditoCents > 0 ? (
-                  <Button variant="ghost" onClick={() => baixar.mutate(o.organizationId)}>
-                    dar baixa
-                  </Button>
-                ) : null}
+                <div className="flex flex-wrap gap-2">
+                  {o.abertoCents > 0 || o.creditoCents > 0 ? (
+                    <Button variant="ghost" onClick={() => baixar.mutate(o.organizationId)}>
+                      dar baixa
+                    </Button>
+                  ) : null}
+                  {acoesDaNotificacao(o)}
+                </div>
               </div>
             )}
           />
@@ -463,9 +571,14 @@ function MinhaConta() {
   const { paginas, hasNextPage, fetchNextPage, isFetchingNextPage } = useListaPaginada<Extrato>("/api/admin/cobranca/extrato");
   const data = paginas[0];
   const lancamentos = paginas.flatMap((p) => p.linhas);
+  const { data: daNotificacao } = useQuery<{ notificacao: NotificacaoDeCobranca | null }>({
+    queryKey: ["/api/admin/cobranca/notificacao"],
+  });
 
   return (
     <PanelShell title="Cobrança">
+      {daNotificacao?.notificacao ? <FaltaDePagamento n={daNotificacao.notificacao} /> : null}
+
       <div className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
         <Kpi label="Em aberto" value={formatBRL(data?.totais.abertoCents ?? 0)} />
         <Kpi
@@ -533,5 +646,46 @@ function MinhaConta() {
         )}
       </Card>
     </PanelShell>
+  );
+}
+
+/**
+ * A notificação de falta de pagamento, para a organização (cláusula X.13
+ * (a)): quanto, desde quando, até quando e o que acontece depois. Some
+ * quando a plataforma registra o pagamento.
+ */
+function FaltaDePagamento({ n }: { n: NotificacaoDeCobranca }) {
+  const situacao = situacaoDaNotificacao(n, new Date());
+  if (situacao === "regularizada") return null;
+  const bloqueando = situacao === "bloqueando";
+  return (
+    <div className="mb-3">
+      <Card
+        title="Falta de pagamento"
+        right={bloqueando ? <Pill status="expired">publicação bloqueada</Pill> : <Pill status="reserved">no prazo</Pill>}
+      >
+        <div className="space-y-2 px-4 py-3 text-sm" role={bloqueando ? "alert" : undefined}>
+          <p>
+            A plataforma notificou em <span className="tnum">{diaEmBrasilia(n.notificadaEm)}</span> a falta de pagamento de{" "}
+            <Money cents={n.valorCents} /> em taxas. Ainda em aberto: <Money cents={n.abertoCents} />.
+          </p>
+          {bloqueando ? (
+            <p className="font-medium text-red">
+              O prazo terminou em <span className="tnum">{ultimoDiaParaRegularizar(n.bloqueiaEm)}</span>: nenhuma rifa nova pode ser
+              publicada até a plataforma registrar o pagamento.
+            </p>
+          ) : (
+            <p>
+              Regularize até <span className="tnum font-medium">{ultimoDiaParaRegularizar(n.bloqueiaEm)}</span>. Depois disso, enquanto
+              o valor seguir em aberto, nenhuma rifa nova pode ser publicada.
+            </p>
+          )}
+          <p className="text-xs text-muted">
+            As rifas no ar seguem vendendo. A venda feita depois da notificação não entra nela. A publicação volta assim que a
+            plataforma registrar o pagamento (contrato da promotora, cláusula de remuneração, X.13).
+          </p>
+        </div>
+      </Card>
+    </div>
   );
 }

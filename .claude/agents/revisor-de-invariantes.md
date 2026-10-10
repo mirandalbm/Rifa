@@ -33,7 +33,9 @@ Procure, nesta ordem, o que é **grave**:
    `COUNT(*)` em vez de `pix_volume_mensal`; mensalidade ou cartão de volta;
    leitura da tabela pela `cobranca` crua em vez da vigente
    (`tabelaDeCobrancaAgora()`), ou aumento que vale sem os 30 dias de aviso
-   (`problemaNaVigencia()`).
+   (`problemaNaVigencia()`); bloqueio por falta de pagamento sem a
+   notificação da plataforma e os 10 dias, que alcança rifa já no ar, ou que
+   conta a venda feita depois da notificação (`shared/inadimplencia.ts`).
 4. **Webhook**: sem idempotência por `(provider, external_id)`; status
    aceito do corpo em vez de consultado ao provedor; redirect do navegador
    tratado como prova de pagamento.

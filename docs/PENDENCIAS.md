@@ -1020,18 +1020,28 @@ Na ordem de entrega do plano:
   da promotora: a versão final está em `docs/RESPOSTA-ADVOGADO-COBRANCA.md`
   (seção 4), já com as duas decisões de 10/10/2026 (taxa Pix no estorno
   conforme o motivo, X.10; aviso de 30 dias para aumentar a tabela, X.3) e
-  as correções da X.5, X.9 e X.13. Mandar ao advogado para confirmar e
-  publicar junto com a versão final do contrato. **Monte a tabela de
+  as correções da X.5, X.9 e X.13. O advogado concordou com os critérios
+  (10/10/2026) e pediu o texto final para dar o aval formal; o bloqueio da
+  X.13 (a), que ele condicionou à publicação, já existe no sistema (item
+  abaixo). Publicar só depois do aval dele, junto com a versão final do
+  contrato. **Monte a tabela de
   cobrança antes do primeiro aceite**: depois dele, aumento exige 30 dias.
 - [x] **[código]** Taxa Pix no estorno conforme o motivo (cláusula X.10) e
   tabela de cobrança agendada com o aviso de 30 dias (cláusula X.3,
   parágrafo único), 10/10/2026: `taxaPixFicaNoEstorno()`, a caixa "Falha da
   plataforma" no Atendimento, `cobrancaProxima` com o aviso no sino, na
   Cobrança e no cartão da rifa. `npm run cobranca` prova.
-- [ ] **[código, quando houver cobrança em aberto de verdade]** Bloqueio por
-  inadimplência (cláusula X.13, a): notificar a promotora pelo painel e, 10
-  dias depois sem regularizar, barrar a publicação de rifa nova
-  (`publishBlockers`). Hoje a cláusula só autoriza; o acerto é à mão.
+- [x] **[código]** Bloqueio por falta de pagamento (cláusula X.13, a),
+  10/10/2026, pedido pelo advogado antes de publicar a cláusula: a
+  plataforma notifica pelo painel (Cobrança → Carteira, "notificar falta de
+  pagamento"), com as taxas em aberto daquele instante; a organização vê no
+  sino e na Cobrança até quando regularizar; passados 10 dias (contados do
+  dia seguinte, em Brasília) com taxa notificada em aberto, rifa nova não
+  publica (`publishBlockers` e de novo na transação de `publishCampaign()`)
+  e as no ar seguem vendendo; o acerto ("dar baixa") regulariza na mesma
+  transação. `shared/inadimplencia.ts`, `server/services/inadimplencia.ts`,
+  `npm run cobranca` prova. Os juros e a multa (X.13, c) seguem à mão, no
+  acerto.
 - [ ] **[você]** Antes de abrir ao público, o **encarregado** precisa estar
   publicado nos Dados da empresa (Aparência → Rodapé e empresa): o texto do
   consentimento biométrico o cita (exigência legal, art. 41, § 1º).

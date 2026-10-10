@@ -23,7 +23,8 @@ depois, como versão nova (Termos, regulamento, contrato da promotora).
 | P7 | Textos legais: pedido detalhado ao advogado | `docs/PEDIDO-ADVOGADO-COBRANCA.md` |
 | P8 | Estorno (cláusula X.10): a taxa da venda sempre cai; a taxa Pix fica no reembolso com taxa, no adiamento e na devolução do provedor (MED, contestação), e volta no arrependimento e na falha da plataforma | `motivoDoEstorno()`/`taxaPixFicaNoEstorno()` em `shared/cobranca.ts`, lido do chamado dentro de `refundOrder()`; caixa "Falha da plataforma" (só a plataforma) no Atendimento |
 | P9 | Tabela (cláusula X.3, parágrafo único): reduzir vale na hora; aumentar exige 30 dias de aviso pelo painel; antes do primeiro aceite do contrato, a montagem vale na hora | `cobrancaProxima` agendada, `problemaNaVigencia()`, aviso no sino, na Cobrança e no cartão da rifa; `DELETE /admin/cobranca/tabela/proxima` |
-| P10 | Inadimplência (cláusula X.13): bloquear publicação só depois de notificar pelo painel com 10 dias para regularizar, para todas as promotoras | Só no contrato por ora: o bloqueio por inadimplência ainda não existe no sistema (`docs/PENDENCIAS.md`) |
+| P10 | Inadimplência (cláusula X.13): bloquear publicação só depois de notificar pelo painel com 10 dias para regularizar, para todas as promotoras | Feito (o advogado pediu antes de publicar a cláusula): a plataforma notifica na Carteira, com as taxas abertas daquele instante; passados 10 dias (do dia seguinte, Brasília) com alguma em aberto, rifa nova não publica; o acerto regulariza (`shared/inadimplencia.ts`) |
+| P11 | A notificação é um ato da plataforma, não um relógio: não existe data de vencimento da taxa em aberto, e o acerto é combinado; notificar exige taxa em aberto que o crédito da organização (presentes) não cubra — se cobre, o caminho é o acerto, que compensa (X.13, b) | `problemaParaNotificar()`; só a plataforma notifica e cancela (com motivo), tudo na auditoria |
 
 ## Como fica a conta de um pedido
 

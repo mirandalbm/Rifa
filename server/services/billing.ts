@@ -15,6 +15,7 @@ import { and, eq, sql, desc } from "drizzle-orm";
 import { db } from "../db";
 import { organizations, platformCharges, orders, campaigns, presenteCreditos } from "@shared/schema";
 import { temRetencaoAtiva } from "./retencao";
+import { notificacoesAbertas, regularizarNaTransacao } from "./inadimplencia";
 import { PAGINA_PADRAO, cortarPagina, type CursorDaLista } from "@shared/paginacao";
 import { lancamentoDaTaxa } from "@shared/billing";
 
@@ -123,9 +124,12 @@ export async function extratoDa(
   };
 }
 
-/** A carteira da plataforma: quanto cada organização deve. */
+/**
+ * A carteira da plataforma: quanto cada organização deve e, se houver, a
+ * notificação de falta de pagamento aberta (cláusula X.13 (a)).
+ */
 export async function carteiraDaPlataforma() {
-  return db
+  const linhas = await db
     .select({
       organizationId: organizations.id,
       name: organizations.name,
@@ -141,6 +145,13 @@ export async function carteiraDaPlataforma() {
     .leftJoin(platformCharges, eq(platformCharges.organizationId, organizations.id))
     .groupBy(organizations.id)
     .orderBy(organizations.name);
+  const notificacoes = await notificacoesAbertas(db);
+  // A notificação sem nada em aberto (a taxa saiu por estorno) não é mais
+  // aviso: a próxima notificação ou baixa a encerra.
+  return linhas.map((l) => {
+    const n = notificacoes.get(l.organizationId);
+    return { ...l, notificacao: n && n.abertoCents > 0 ? n : null };
+  });
 }
 
 /**
@@ -148,9 +159,12 @@ export async function carteiraDaPlataforma() {
  * que ela devia (taxas em aberto) e o que a plataforma devia
  * a ela (créditos de presente).
  */
-export async function darBaixa(organizationId: string): Promise<number> {
+export async function darBaixa(organizationId: string, ator: string | null = null): Promise<{ quantas: number; regularizada: boolean }> {
   return db.transaction(async (tx) => {
     const agora = new Date();
+    // A organização primeiro, como em todo pagamento e na notificação de
+    // falta de pagamento (`inadimplencia.ts`): a mesma ordem, sem deadlock.
+    await tx.execute(sql`select 1 from organizations where id = ${organizationId}::uuid for update`);
     const linhas = await tx
       .update(platformCharges)
       .set({ status: "paga", paidAt: agora })
@@ -161,14 +175,17 @@ export async function darBaixa(organizationId: string): Promise<number> {
         ),
       )
       .returning({ id: platformCharges.id });
+    // Pago o que estava em aberto, a notificação de falta de pagamento
+    // (cláusula X.13 (a)) se encerra na mesma transação: a publicação volta.
+    const regularizada = await regularizarNaTransacao(tx, organizationId, ator);
     // Saldo retido cautelarmente: a organização paga o que deve, mas o
     // crédito do presente fica (`shared/retencao.ts`).
-    if (await temRetencaoAtiva(tx, organizationId)) return linhas.length;
+    if (await temRetencaoAtiva(tx, organizationId)) return { quantas: linhas.length, regularizada };
     const creditos = await tx
       .update(presenteCreditos)
       .set({ status: "pago", pagoEm: agora })
       .where(and(eq(presenteCreditos.organizationId, organizationId), eq(presenteCreditos.status, "devido")))
       .returning({ id: presenteCreditos.id });
-    return linhas.length + creditos.length;
+    return { quantas: linhas.length + creditos.length, regularizada };
   });
 }

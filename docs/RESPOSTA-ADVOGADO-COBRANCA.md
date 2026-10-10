@@ -15,6 +15,7 @@ a conferência de cada item e o que já entrou no sistema.
 | P6 | Avisar "só Pix" antes da compra | Na página da rifa e no carrinho (`PAGAMENTO_SO_PIX`, perto do botão de pagar), no cartão do feed ("cota R$ x · Pix") e nos Termos |
 | P2 / X.10 | Taxa Pix no estorno conforme o motivo | Decidido e no sistema (abaixo, "Pergunta 2"): `taxaPixFicaNoEstorno()`, lido do chamado dentro de `refundOrder()`; a plataforma marca "Falha da plataforma" no Atendimento |
 | P3 / X.3 | Aviso de 30 dias para mudar a tabela | Decidido e no sistema (abaixo, "Pergunta 3"): a tabela agendada, o aviso no sino, na Cobrança e no cartão da rifa |
+| P4 / X.13 (a) | Bloquear publicação só depois de notificar pelo painel e de 10 dias sem regularizar; implementar antes de publicar a cláusula (segunda resposta dele) | No sistema (abaixo, "Pergunta 4"): a plataforma notifica na Carteira; passados 10 dias com a taxa notificada em aberto, rifa nova não publica; o acerto regulariza |
 
 ## 2. Conferência, item por item
 
@@ -126,22 +127,42 @@ consumidores: a promotora autorizada pela SPA/MF contrata a plataforma para a
 atividade dela, e não é consumidora por ser MEI ou associação. Ainda assim, a
 cautela dele custa pouco. **Decisão**: notificação prévia pelo painel, com
 10 dias para regularizar, antes de bloquear publicações, para todas as
-promotoras. O bloqueio por inadimplência ainda não existe no sistema: a
-cláusula autoriza, e o código entra quando houver cobrança em aberto de
-verdade (`docs/PENDENCIAS.md`).
+promotoras.
+
+**No sistema (10/10/2026)**, depois de o advogado apontar que publicar a
+cláusula sem o bloqueio seria prometer um direito que a plataforma não
+consegue exercer:
+- **Notificar é ato da plataforma**, na Carteira da Cobrança ("notificar
+  falta de pagamento"). A taxa em aberto não tem vencimento (o acerto é
+  combinado), então não há relógio que notifique sozinho.
+- A notificação guarda **as taxas em aberto daquele instante**: a venda
+  feita depois não entra nela.
+- Só se notifica o que o crédito da promotora (a parte dela nos presentes)
+  não cobre; se cobre, o caminho é o acerto, que compensa — a alínea (b).
+- A promotora vê a notificação no sino e no topo da Cobrança, com o valor,
+  a data e o último dia para regularizar.
+- **O prazo**: 10 dias, excluído o dia da notificação e incluído o último
+  (Código Civil, art. 132), no horário de Brasília. Notificada no dia 10,
+  regulariza até o fim do dia 20; o bloqueio começa no dia 21.
+- Passado o prazo com taxa notificada ainda em aberto, **rifa nova não
+  publica** (nem a agendada). As rifas no ar seguem vendendo.
+- O acerto ("dar baixa") encerra a notificação na mesma transação, e a
+  publicação volta na hora. A plataforma também pode cancelar a
+  notificação, com motivo. Tudo fica na auditoria.
+- Os juros e a multa (alínea (c)) seguem calculados à mão, no acerto.
 
 ### Perguntas 5 e 6
 Aceitas e aplicadas (tabela 1).
 
 ## 3. O que falta
 
-1. **Ao advogado**, para confirmar (só redação; o sistema já faz o que o
-   texto diz):
-   - a cláusula final abaixo, em especial X.3 (parágrafo único), X.5, X.9,
-     X.10 e X.13;
-   - os fundamentos da X.13;
-   - a redação dos Termos (2.2);
-   - o texto da Portaria 7.638 (pergunta 1).
+1. **Ao advogado**, para o aval formal: o texto final abaixo. Na segunda
+   resposta (10/10/2026) ele concordou com os critérios da X.10 e da X.3
+   (parágrafo único) e com as correções da X.5, da X.9 e da X.13, e
+   condicionou a publicação ao bloqueio da X.13 (a), que agora existe no
+   sistema. O texto da cláusula não mudou desde a conferência dele. Seguem
+   em aberto com ele a redação dos Termos (2.2) e o texto da Portaria 7.638
+   (pergunta 1).
 2. **Publicar a versão nova do contrato da promotora** com a cláusula final
    (Configurações → Contrato), depois da confirmação dele. Toda versão nova
    exige novo aceite das organizações para publicar rifa.
@@ -262,4 +283,4 @@ sem prejuízo da rescisão.
 | X.10, p.ú. | Fila "Pix a devolver" (`pix_tardios`): o pedido não chega a ser pago, nenhuma taxa é lançada |
 | X.11 | `creditoDoPresente({ taxa })` |
 | X.12 | `shared/payments.ts` (sem cartão); `PAGAMENTO_SO_PIX` na compra |
-| X.13 | (a) ainda não existe no sistema (`docs/PENDENCIAS.md`); (b) o acerto (`darBaixa()`) já compensa o crédito do presente com as taxas devidas; (c) à mão, no acerto |
+| X.13 | (a) `shared/inadimplencia.ts`: a plataforma notifica na Carteira (`POST /admin/cobranca/:id/notificar`), a promotora vê no sino e na Cobrança, e passados 10 dias com a taxa notificada em aberto `publishBlockers`/`publishCampaign()` barram rifa nova; o acerto regulariza; (b) o acerto (`darBaixa()`) já compensa o crédito do presente com as taxas devidas, e não se notifica o que o crédito cobre; (c) à mão, no acerto |

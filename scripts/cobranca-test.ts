@@ -15,7 +15,10 @@
  *   motivo (cláusula X.10);
  * - a tabela agendada: reduzir vale na hora, aumentar exige 30 dias de aviso
  *   com promotora que aceitou o contrato, a publicação grava a vigente e só a
- *   plataforma agenda e cancela (cláusula X.3, parágrafo único).
+ *   plataforma agenda e cancela (cláusula X.3, parágrafo único);
+ * - a falta de pagamento: só a plataforma notifica e cancela; passados 10
+ *   dias com a taxa notificada em aberto, rifa nova não publica e a no ar
+ *   segue vendendo; o acerto regulariza e a publicação volta (X.13 (a)).
  */
 import "dotenv/config";
 import { baseUrl } from "./base-url";
@@ -327,6 +330,97 @@ async function main() {
     r = await admin.req("DELETE", "/api/admin/cobranca/tabela/proxima");
     const depois = (await admin.req("GET", "/api/admin/cobranca/tabela")).json;
     checa("a plataforma cancela o agendamento", r.status === 204 && depois?.proxima === null && depois?.vigente?.porCotaCents === 15, `HTTP ${r.status}`);
+
+    console.log("\n  a falta de pagamento (cláusula X.13 (a)):");
+    const emAberto = async () =>
+      Number(
+        (
+          await db
+            .select({ c: sql<number>`coalesce(sum(${platformCharges.amountCents}), 0)::int` })
+            .from(platformCharges)
+            .where(and(eq(platformCharges.organizationId, org.id), eq(platformCharges.status, "aberta")))
+        )[0].c,
+      );
+    const devido = await emAberto();
+    checa("há taxa em aberto (a do Pix que ficou no estorno pelo provedor)", devido > 0, `${devido}`);
+    r = await organizador.req("POST", `/api/admin/cobranca/${org.id}/notificar`);
+    checa("a organização não notifica (403)", r.status === 403, `HTTP ${r.status}`);
+    r = await organizador.req("GET", "/api/admin/cobranca/notificacao");
+    checa("sem notificação, nada a avisar", r.status === 200 && r.json?.notificacao === null, `HTTP ${r.status} ${JSON.stringify(r.json)}`);
+    r = await admin.req("POST", "/api/admin/cobranca/nao-e-um-id/notificar");
+    checa("organização inexistente é 404", r.status === 404, `HTTP ${r.status}`);
+    r = await admin.req("POST", `/api/admin/cobranca/${org.id}/notificar`);
+    const notificada = r.json;
+    const dezDias = Date.now() + 10 * 86_400_000;
+    checa(
+      "a plataforma notifica com o valor em aberto e o bloqueio depois de 10 dias",
+      r.status === 201 && notificada?.valorCents === devido && new Date(notificada?.bloqueiaEm).getTime() > dezDias && new Date(notificada?.bloqueiaEm).getTime() <= dezDias + 86_400_000,
+      `HTTP ${r.status} ${JSON.stringify(notificada)}`,
+    );
+    r = await admin.req("POST", `/api/admin/cobranca/${org.id}/notificar`);
+    checa("notificar de novo é 409 (uma aberta por organização)", r.status === 409, `HTTP ${r.status} ${r.json?.message ?? ""}`);
+    r = await organizador.req("GET", "/api/admin/cobranca/notificacao");
+    checa(
+      "a organização vê a notificação dela, com o que segue em aberto",
+      r.status === 200 && r.json?.notificacao?.id === notificada?.id && r.json?.notificacao?.abertoCents === devido,
+      `HTTP ${r.status} ${JSON.stringify(r.json)}`,
+    );
+    r = await admin.req("GET", "/api/admin/cobranca");
+    const naCarteira = r.json?.carteira?.find((l: any) => l.organizationId === org.id);
+    checa("a carteira da plataforma mostra a notificação", naCarteira?.notificacao?.id === notificada?.id, JSON.stringify(naCarteira?.notificacao));
+
+    const c = await rascunho(org.id, "c", 1000);
+    r = await organizador.req("GET", `/api/admin/campaigns/${c.id}/blockers`);
+    checa("no prazo, nada bloqueia", r.status === 200 && !r.json?.blockers?.some((b: string) => /falta de pagamento/.test(b)), JSON.stringify(r.json));
+    r = await organizador.req("POST", `/api/admin/campaigns/${c.id}/publish`);
+    checa("no prazo, publica", r.status === 200, `HTTP ${r.status} ${r.json?.message ?? ""}`);
+
+    // O prazo passa (no banco: a prova não espera 10 dias).
+    await db.execute(sql`update cobranca_notificacoes set bloqueia_em = now() at time zone 'UTC' - interval '1 minute' where id = ${notificada.id}::uuid`);
+    const d = await rascunho(org.id, "d", 1000);
+    r = await organizador.req("GET", `/api/admin/campaigns/${d.id}/blockers`);
+    checa("vencido o prazo, o painel diz o que falta", r.json?.blockers?.some((b: string) => /bloqueada por falta de pagamento/.test(b)), JSON.stringify(r.json));
+    r = await organizador.req("POST", `/api/admin/campaigns/${d.id}/publish`);
+    checa("vencido o prazo, rifa nova não publica (422)", r.status === 422 && /falta de pagamento/.test(r.json?.message ?? ""), `HTTP ${r.status} ${r.json?.message ?? ""}`);
+    checa("e segue em rascunho", (await ler(d.id)).status === "draft");
+    const c4 = await comprar(4, 1);
+    const pagou = await new Cliente().req("POST", `/api/dev/pay/${c4}`);
+    checa("a rifa no ar segue vendendo", pagou.status < 300 && (await pedido(c4)).status === "paid", `HTTP ${pagou.status}`);
+    r = await organizador.req("GET", "/api/admin/cobranca/notificacao");
+    checa("a venda de depois não entra na notificação", r.json?.notificacao?.abertoCents === devido, JSON.stringify(r.json?.notificacao));
+
+    r = await organizador.req("POST", `/api/admin/cobranca/${org.id}/baixa`);
+    checa("a organização não dá baixa (403)", r.status === 403, `HTTP ${r.status}`);
+    r = await admin.req("POST", `/api/admin/cobranca/${org.id}/baixa`);
+    checa("o acerto regulariza a notificação na mesma transação", r.status === 200 && r.json?.regularizada === true, `HTTP ${r.status} ${JSON.stringify(r.json)}`);
+    const [encerrada] = await db.execute(sql`select status from cobranca_notificacoes where id = ${notificada.id}::uuid`).then((x) => x.rows as { status: string }[]);
+    checa("a notificação fica como regularizada", encerrada?.status === "regularizada", JSON.stringify(encerrada));
+    r = await organizador.req("POST", `/api/admin/campaigns/${d.id}/publish`);
+    checa("pago, a publicação volta", r.status === 200, `HTTP ${r.status} ${r.json?.message ?? ""}`);
+    r = await organizador.req("GET", "/api/admin/cobranca/notificacao");
+    checa("e o aviso some", r.json?.notificacao === null, JSON.stringify(r.json));
+    r = await admin.req("POST", `/api/admin/cobranca/${org.id}/notificar`);
+    checa("sem nada em aberto, não há o que notificar (409)", r.status === 409, `HTTP ${r.status} ${r.json?.message ?? ""}`);
+
+    // Cancelar: só a plataforma, com motivo, uma vez.
+    const c5 = await comprar(5, 1);
+    await new Cliente().req("POST", `/api/dev/pay/${c5}`);
+    const juntas = await Promise.all([admin.req("POST", `/api/admin/cobranca/${org.id}/notificar`), admin.req("POST", `/api/admin/cobranca/${org.id}/notificar`)]);
+    const status = juntas.map((x) => x.status).sort();
+    checa("duas notificações ao mesmo tempo: uma 201 e uma 409", status[0] === 201 && status[1] === 409, status.join(","));
+    const nova = juntas.find((x) => x.status === 201)?.json;
+    r = await organizador.req("POST", `/api/admin/cobranca/notificacoes/${nova?.id}/cancelar`, { motivo: "acordo de pagamento" });
+    checa("a organização não cancela (403)", r.status === 403, `HTTP ${r.status}`);
+    r = await admin.req("POST", `/api/admin/cobranca/notificacoes/${nova?.id}/cancelar`, { motivo: "" });
+    checa("cancelar sem motivo é recusado (400)", r.status === 400, `HTTP ${r.status}`);
+    r = await admin.req("POST", `/api/admin/cobranca/notificacoes/${nova?.id}/cancelar`, { motivo: "acordo de pagamento em duas vezes" });
+    checa("a plataforma cancela com motivo", r.status === 200 && r.json?.status === "cancelada", `HTTP ${r.status}`);
+    r = await admin.req("POST", `/api/admin/cobranca/notificacoes/${nova?.id}/cancelar`, { motivo: "de novo, por engano" });
+    checa("cancelar de novo é 409", r.status === 409, `HTTP ${r.status}`);
+    const [auditoria] = await db.execute(
+      sql`select count(*)::int as n from audit_log where entity = 'organization' and entity_id = ${org.id} and action in ('cobranca.notificar', 'cobranca.notificar.cancelar')`,
+    ).then((x) => x.rows as { n: number }[]);
+    checa("notificar e cancelar entram na auditoria", Number(auditoria?.n) === 3, JSON.stringify(auditoria));
   } finally {
     await setPlataforma({ cobranca: antes.cobranca, cobrancaProxima: antes.cobrancaProxima }).catch(() => {});
     await limpar();

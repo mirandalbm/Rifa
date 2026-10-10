@@ -43,6 +43,7 @@ import { cobrancaNaPublicacao, problemaNaCobranca, validarModo } from "@shared/c
 import { problemaNoPremio } from "@shared/premio";
 import { problemaDoValeBrinde } from "@shared/premiadas";
 import { problemaDosSocios } from "./socios";
+import { problemaDeInadimplencia } from "./inadimplencia";
 
 export class CampaignRuleError extends Error {
   constructor(message: string) {
@@ -163,6 +164,10 @@ export async function publishBlockers(campaignId: string): Promise<string[]> {
   // sem a trava, o contrato seria só intenção.
   const contrato = await problemaDoContrato(campaign.organizationId);
   if (contrato) blockers.push(contrato);
+  // Falta de pagamento notificada pela plataforma e o prazo de 10 dias
+  // passou (cláusula X.13 (a)): rifa nova não publica; as no ar seguem.
+  const inadimplencia = await problemaDeInadimplencia(campaign.organizationId);
+  if (inadimplencia) blockers.push(inadimplencia);
   // E cada anexo por modalidade que esta rifa usa (cláusula 7): lido dos dados dela.
   const anexos = await anexosDaPublicacao(campaign.id, campaign.organizationId);
   if (anexos.problema) blockers.push(anexos.problema);
@@ -326,6 +331,11 @@ export async function publishCampaign(campaignId: string): Promise<Campaign> {
     if ((org.rows[0] as { archived_at: Date | null } | undefined)?.archived_at) {
       throw new CampaignRuleError("A organização desta rifa está arquivada.");
     }
+    // A falta de pagamento de novo, com a organização travada: o acerto
+    // (`darBaixa`) e a notificação pegam a mesma linha, então esperam esta
+    // publicação ou ela os enxerga.
+    const inadimplencia = await problemaDeInadimplencia(campaign.organizationId, tx);
+    if (inadimplencia) throw new CampaignRuleError(inadimplencia);
 
     // O contrato de novo, com a trava compartilhada: uma versão nova saindo
     // agora espera esta publicação, ou esta espera ela e confere a nova.

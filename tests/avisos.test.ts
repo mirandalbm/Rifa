@@ -23,6 +23,13 @@ describe("avisos do painel", () => {
     expect(rotuloDoSino(0, 0, 0, { decididas: 1 })).toBe("Avisos: 1 divulgação decidida");
     expect(rotuloDoSino(0, 0, 0, {}, "10/11/2026")).toBe("Avisos: tabela de cobrança nova a partir de 10/11/2026");
     expect(rotuloDoSino(1, 0, 0, {}, "10/11/2026")).toBe("Avisos: tabela de cobrança nova a partir de 10/11/2026, 1 comentário novo");
+    // A falta de pagamento (cláusula X.13 (a)) vem antes de tudo: é prazo.
+    expect(rotuloDoSino(0, 0, 0, {}, null, { ate: "20/10/2026", bloqueada: false })).toBe(
+      "Avisos: falta de pagamento: regularize até 20/10/2026",
+    );
+    expect(rotuloDoSino(1, 0, 0, {}, "10/11/2026", { ate: "20/10/2026", bloqueada: true })).toBe(
+      "Avisos: publicação de rifa nova bloqueada por falta de pagamento, tabela de cobrança nova a partir de 10/11/2026, 1 comentário novo",
+    );
   });
 
   it("o aviso abre a publicação já nos comentários", () => {

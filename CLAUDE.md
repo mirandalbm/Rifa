@@ -121,7 +121,7 @@ arquitetura.
 | Pix que chegou tarde (reserva vencida ou depois do sorteio): fila de devolução | `shared/pixTardio.ts`, `server/services/pixTardio.ts`, `/pix-tardios*` em `server/routes/admin.ts`, `client/src/components/PixTardios.tsx` (em Pedidos), tipo `pix_tardio` em `shared/caixa.ts`, `scripts/pix-tardio-test.ts` |
 | pedido de reembolso (chamado) | `shared/chamados.ts`, `server/services/chamados.ts`, `client/src/pages/adminAtendimento.tsx`, `scripts/chamados-test.ts` |
 | disputa de reembolso (palavra final da plataforma) | `bloqueioDaDisputa()` em `shared/chamados.ts`, `abrirDisputa()`/`decidirDisputa()` em `server/services/chamados.ts`, `scripts/disputa-test.ts` |
-| cobrança da plataforma (percentual ou por cota escolhido por rifa, taxa Pix em faixas pelo volume do mês, tabela do master, a tabela agendada com o aviso de 30 dias, a taxa Pix no estorno) | `shared/cobranca.ts` (regras; `tabelaVigente`/`problemaNaVigencia`, `motivoDoEstorno`/`taxaPixFicaNoEstorno`), `tabelaDeCobrancaAgora()` em `server/services/settings.ts`, `refundOrder()` em `server/services/orders.ts` e a caixa "Falha da plataforma" em `client/src/pages/adminAtendimento.tsx` (o estorno), o aviso no sino (`rotuloDoSino()`, `PanelShell`), `campaigns.cobranca_modo`/`cobranca` e `orders.taxa_*` em `shared/schema.ts`, `pix_volume_mensal`, `publishCampaign()` em `server/services/campaigns.ts` (a fotografia), `prepararPedido`/`settleOrderAsPaid` em `server/services/orders.ts`, `shared/billing.ts` e `server/services/billing.ts` (o lançamento), `/cobranca/tabela` em `server/routes/admin.ts`, `client/src/pages/adminCobranca.tsx`, `client/src/components/CobrancaDaRifa.tsx` (na aba "A rifa"), `scripts/cobranca-test.ts`, `tests/cobranca.test.ts` |
+| cobrança da plataforma (percentual ou por cota escolhido por rifa, taxa Pix em faixas pelo volume do mês, tabela do master, a tabela agendada com o aviso de 30 dias, a taxa Pix no estorno, a notificação de falta de pagamento que bloqueia rifa nova) | `shared/cobranca.ts` (regras; `tabelaVigente`/`problemaNaVigencia`, `motivoDoEstorno`/`taxaPixFicaNoEstorno`), `shared/inadimplencia.ts` e `server/services/inadimplencia.ts` (a falta de pagamento, X.13 (a)), `tabelaDeCobrancaAgora()` em `server/services/settings.ts`, `refundOrder()` em `server/services/orders.ts` e a caixa "Falha da plataforma" em `client/src/pages/adminAtendimento.tsx` (o estorno), o aviso no sino (`rotuloDoSino()`, `PanelShell`), `campaigns.cobranca_modo`/`cobranca` e `orders.taxa_*` em `shared/schema.ts`, `pix_volume_mensal`, `publishCampaign()` em `server/services/campaigns.ts` (a fotografia), `prepararPedido`/`settleOrderAsPaid` em `server/services/orders.ts`, `shared/billing.ts` e `server/services/billing.ts` (o lançamento), `/cobranca/tabela` em `server/routes/admin.ts`, `client/src/pages/adminCobranca.tsx`, `client/src/components/CobrancaDaRifa.tsx` (na aba "A rifa"), `scripts/cobranca-test.ts`, `tests/cobranca.test.ts` |
 | exportações | `shared/exports.ts` (formato) e `server/services/exports.ts` (consultas) |
 | usuários, senha e arquivamento | `server/routes/admin.ts` (`/usuarios`, `/organizacoes/:id/arquivar`), `shared/senha.ts` |
 | o que falta para vender em produção | `docs/PENDENCIAS.md` — **atualize no mesmo PR** que fechar um item |
@@ -1795,6 +1795,33 @@ promotor. **A ordem é sempre esta, e a plataforma sai primeiro.**
   são avisadas no sino ("tabela de cobrança nova a partir de…", até o dia),
   na Cobrança e no cartão da rifa em rascunho. Toda mudança vai à auditoria
   (`cobranca.tabela`, `.agendada`, `.agendada.cancelar`).
+- **Falta de pagamento bloqueia só rifa nova, e só depois de notificar e
+  de 10 dias** (cláusula X.13 (a), `shared/inadimplencia.ts`,
+  `server/services/inadimplencia.ts`). **Notificar é ato da plataforma**
+  (Cobrança → Carteira; `POST /admin/cobranca/:id/notificar`, 403 para
+  organizador, no `npm run isolation`), nunca um relógio — a taxa em aberto
+  não tem vencimento. A notificação guarda **as taxas abertas daquele
+  instante** (`cobranca_notificacoes.cobranca_ids`): a venda de depois não
+  entra nela. Só notifica com taxa em aberto que o crédito da organização
+  (presentes) não cubra — se cobre, o caminho é o acerto, que compensa
+  (`problemaParaNotificar()`, 409). **Uma aberta por organização** pelo
+  índice parcial `uq_notificacao_cobranca_aberta`, com a linha da
+  organização travada (`FOR UPDATE`, a mesma ordem do acerto): duas ao mesmo
+  tempo, um 201 e um 409. O prazo exclui o dia da notificação e inclui o
+  último (CC, art. 132): o bloqueio começa na meia-noite de Brasília depois
+  do 10º dia (`bloqueioDaNotificacao()`). Passado o prazo **com alguma taxa
+  notificada ainda em aberto**, `problemaDeInadimplencia()` barra a
+  publicação — em `publishBlockers` e de novo dentro da transação de
+  `publishCampaign()`, com a organização travada (vale também para a
+  agendada); **a rifa no ar segue vendendo**. Regulariza o acerto (`darBaixa()`
+  encerra a notificação na mesma transação) ou a taxa que sai por estorno (a
+  notificação sem nada em aberto não bloqueia nem aparece). A plataforma
+  cancela com motivo (`POST /admin/cobranca/notificacoes/:id/cancelar`).
+  A organização vê no sino e no topo da Cobrança (`GET
+  /admin/cobranca/notificacao`, pela sessão). Notificar e cancelar entram na
+  auditoria na mesma transação (`cobranca.notificar`, `.cancelar`). A tabela
+  sobe com o `db:push` **antes** do código. Os juros e a multa (X.13 (c))
+  seguem à mão, no acerto.
 - **O pedido fotografa a taxa quando nasce** (`orders.taxa_modo`,
   `taxa_venda_bp`, `taxa_por_cota_cents`, `taxa_pix_bp`; `taxaDoPedido()`),
   com a faixa do volume naquele instante — a leitura do contador é a faixa

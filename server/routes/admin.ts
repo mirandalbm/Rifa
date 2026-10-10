@@ -126,6 +126,7 @@ import { codigoConfere, guardarSegredo } from "../services/segundoFator";
 import { buildExport, ExportError, toCsvLine } from "../services/exports";
 import { refundOrder } from "../services/orders";
 import { carteiraDaPlataforma, extratoDa, darBaixa } from "../services/billing";
+import { cancelarNotificacao, notificacaoDa, notificarFaltaDePagamento } from "../services/inadimplencia";
 import { AVISO_DA_TABELA_DIAS, primeiroDiaComAviso, problemaNaCobranca, problemaNaVigencia, tabelasDeCobranca, tabelaVigente, validarConfigCobranca, validarModo, type TabelasDaCobranca } from "@shared/cobranca";
 import {
   orgOf,
@@ -3622,13 +3623,51 @@ adminRouter.delete("/cobranca/tabela/proxima", async (req, res, next) => {
   }
 });
 
-/** Dá baixa no que está em aberto. */
+/**
+ * Dá baixa no que está em aberto. A notificação de falta de pagamento, se
+ * nada mais dela estiver em aberto, se encerra na mesma transação.
+ */
 adminRouter.post("/cobranca/:id/baixa", async (req, res, next) => {
   try {
     requirePlatformAdmin(req);
-    const quantas = await darBaixa(req.params.id);
-    await audit(req, "cobranca.baixa", "organization", req.params.id, { quantas });
-    res.json({ baixadas: quantas });
+    if (!/^[0-9a-f-]{36}$/i.test(req.params.id)) return res.status(404).json({ message: "Organização não encontrada." });
+    const { quantas, regularizada } = await darBaixa(req.params.id, req.user!.id);
+    await audit(req, "cobranca.baixa", "organization", req.params.id, { quantas, regularizada });
+    res.json({ baixadas: quantas, regularizada });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * Falta de pagamento (cláusula X.13 (a), `shared/inadimplencia.ts`). Só a
+ * plataforma notifica e cancela (403 para organizador, no `npm run
+ * isolation`); a auditoria vai na transação do serviço. A organização lê a
+ * dela pela sessão — nada de id na URL.
+ */
+adminRouter.get("/cobranca/notificacao", async (req, res, next) => {
+  try {
+    res.setHeader("Cache-Control", "no-store");
+    const org = orgOf(req);
+    const n = org ? await notificacaoDa(db, org) : null;
+    // A notificação sem nada em aberto (estorno) não é aviso: some da tela.
+    res.json({ notificacao: n && n.abertoCents > 0 ? n : null });
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.post("/cobranca/:id/notificar", async (req, res, next) => {
+  try {
+    res.status(201).json(await notificarFaltaDePagamento(req, req.params.id));
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.post("/cobranca/notificacoes/:id/cancelar", async (req, res, next) => {
+  try {
+    res.json(await cancelarNotificacao(req, req.params.id, req.body?.motivo));
   } catch (err) {
     next(err);
   }

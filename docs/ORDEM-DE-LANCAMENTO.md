@@ -80,7 +80,8 @@ cadastro (o roteiro do dia está na etapa 5, "Dia da troca da razão social").
   aceite do contrato da promotora**: até lá ela vale na hora; depois do
   primeiro aceite, aumentar qualquer taxa exige agendar com 30 dias de aviso
   (cláusula X.3, parágrafo único). A coluna `chamados.falha_plataforma` (a
-  taxa Pix no estorno) sobe no mesmo `db:push`.
+  taxa Pix no estorno) e a tabela `cobranca_notificacoes` (a notificação de
+  falta de pagamento, cláusula X.13 (a)) sobem no mesmo `db:push`.
 - [ ] **`npm run db:push`** (cria a extensão `pg_trgm` antes; o usuário do
   banco precisa poder criar extensão) e, **logo depois, uma vez**:
   `UPDATE stories SET publica_em = created_at WHERE publica_em > created_at`.

@@ -122,7 +122,7 @@ import { CORTES_POR_JANELA } from "@shared/corte";
 import { type Figurinha, textosDasFigurinhas, validarFigurinhas } from "@shared/figurinhasStory";
 import { enviarArte, enviarPacote, listaDeArtes } from "./artesRotas";
 import { generateSecret, otpauthUrl } from "../services/totp";
-import { codigoConfere, conferirSegundoFatorAgora, guardarSegredo } from "../services/segundoFator";
+import { TENTATIVAS_DO_SEGUNDO_FATOR, codigoConfere, conferirSegundoFatorAgora, guardarSegredo } from "../services/segundoFator";
 import { buildExport, ExportError, toCsvLine } from "../services/exports";
 import { refundOrder } from "../services/orders";
 import { carteiraDaPlataforma, extratoDa, darBaixa } from "../services/billing";
@@ -3757,12 +3757,22 @@ adminRouter.post("/antifraude/bloqueios", async (req, res, next) => {
       return res.status(400).json({ message: "Informe o valor a bloquear." });
     }
 
+    // Data que não é data: `new Date("x")` é "Invalid Date" e o banco devolvia
+    // 500. Prazo no passado também é recusado — o bloqueio nasceria vencido.
+    let expiresAt: Date | null = null;
+    if (req.body?.expiresAt) {
+      expiresAt = new Date(req.body.expiresAt);
+      if (Number.isNaN(expiresAt.getTime()) || expiresAt.getTime() <= Date.now()) {
+        return res.status(400).json({ message: "Informe uma data de validade futura, ou deixe em branco." });
+      }
+    }
+
     const value = kind === "phone" ? normalizePhone(bruto) : bruto;
     const created = await block({
       kind,
       value,
       reason: req.body?.reason ? String(req.body.reason) : undefined,
-      expiresAt: req.body?.expiresAt ? new Date(req.body.expiresAt) : null,
+      expiresAt,
     });
 
     await audit(req, "antifraude.bloqueio", "fraud_block", created.id, { kind });
@@ -3775,6 +3785,10 @@ adminRouter.post("/antifraude/bloqueios", async (req, res, next) => {
 adminRouter.delete("/antifraude/bloqueios/:id", async (req, res, next) => {
   try {
     requirePlatformAdmin(req);
+    // Fora do formato de id é "não existe", não erro do banco.
+    if (!/^[0-9a-f-]{36}$/i.test(req.params.id)) {
+      return res.status(404).json({ message: "Bloqueio não encontrado." });
+    }
     const removed = await unblock(req.params.id);
     if (!removed) return res.status(404).json({ message: "Bloqueio não encontrado." });
     await audit(req, "antifraude.desbloqueio", "fraud_block", removed.id);
@@ -4168,6 +4182,13 @@ adminRouter.post("/2fa/disable", async (req, res, next) => {
     const [user] = await db.select().from(users).where(eq(users.id, req.user!.id));
     if (!user.totpSecret) return res.json({ enabled: false });
 
+    // Cada tentativa conta, certa ou errada, na mesma janela dos atos que
+    // pedem o segundo fator na hora: quem tomou a sessão e sabe a senha não
+    // chuta o código de 6 dígitos sem limite.
+    const { limite, minutos } = TENTATIVAS_DO_SEGUNDO_FATOR;
+    if ((await hit(`segundo-fator:${user.id}`, minutos, limite)).excedeu) {
+      return res.status(429).json({ message: "Muitas tentativas. Espere alguns minutos e tente de novo." });
+    }
     const password = String(req.body?.password ?? "");
     if (!(await verifyPassword(password, user.passwordHash))) {
       return res.status(401).json({ message: "Senha incorreta." });

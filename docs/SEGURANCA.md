@@ -17,7 +17,7 @@ descrita aqui; o detalhe de como explorar não entra no repositório.
 | Robô anônimo | prender estoque (reservar sem pagar), varrer códigos de pedido, criar contas em massa | antifraude (limites por IP, aparelho e telefone; reserva em aberto conferida de novo dentro da transação), código do pedido sorteado com guarda de varredura, limite de cadastro por endereço |
 | Comprador | pagar menos, pedir reembolso do que não é dele, ganhar e ser reembolsado | preço calculado no servidor, chamado com três identidades, reembolso e disputa fechados perto do sorteio |
 | Organizador | ver ou mexer no que é de outra organização | recorte `orgOf` + `assert*InScope` (404 para o vizinho), provado no `npm run isolation` |
-| Quem toma uma sessão | desviar dinheiro (carteira, chave Pix), trancar o dono do lado de fora | senha nas ações que mudam para onde o dinheiro vai, segundo fator para arquivar, sessões derrubadas na troca de senha |
+| Quem toma uma sessão | desviar dinheiro (carteira, chave Pix), trancar o dono do lado de fora | senha nas ações que mudam para onde o dinheiro vai, segundo fator para arquivar, sessões derrubadas na troca de senha, desligar o segundo fator conta tentativa |
 | Quem forja pagamento | marcar pedido como pago | webhook assinado, status consultado na API do provedor, idempotência por `(provider, external_id)` |
 | Quem lê o banco vazado | documentos, CPF, dados fiscais | cofre AES-256-GCM com a chave fora do banco, CPF só como HMAC, senha em scrypt |
 

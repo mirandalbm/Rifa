@@ -1697,6 +1697,13 @@ permite cobrar dela depois, e o aceite é a prova.
   suba `UV_THREADPOOL_SIZE`.
 - **Cambista e afiliado passam pela mesma régua de senha** (`senhaInvalida`)
   do resto do painel.
+- **Desligar o segundo fator conta tentativa** (`POST /2fa/disable`: 30 em 10
+  min por pessoa, o balde `segundo-fator:` dos atos sensíveis, 429): senha e
+  código de 6 dígitos sem limite deixavam quem tomou a sessão chutar o código.
+- **Bloqueio do antifraude**: a data de validade inválida ou no passado é 400
+  (era 500, e nasceria vencido) e o id fora do formato é 404 ao desbloquear.
+  `npm run acessos` prova, junto com trocar a senha, sair, criar o acesso de
+  organizador, os pedidos pendentes e o "visto" do sino.
 
 ## App instalável — o que não pode afrouxar
 

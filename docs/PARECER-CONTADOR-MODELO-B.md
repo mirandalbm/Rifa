@@ -573,3 +573,45 @@ pontos ainda não fecham.
 - **Advogado:** o momento (abastecimento ou consumo), que agora decide os
   lançamentos.
 - **Dono:** escolher entre bruta e líquida.
+
+## 15. Décima resposta do contador e revisão (10/10/2026): modelos A e B
+
+### O que fecha
+- **Modelo A** (retenção no abastecimento): os lançamentos batem (Caixa 98,50 +
+  IRRF 1,50 = Adiantamento 100,00; consumo 100,00 = Receita 100,00).
+- **Líquida, com NFS de R$ 101,50:** bate (abastecimento 100,00 + 1,50 =
+  adiantamento 101,50; consumo 101,50 = receita 101,50), sem devolução.
+
+### O que não fecha
+1. **A líquida é o modelo A.** Os lançamentos da líquida também põem o IRRF no
+   abastecimento. Logo a líquida **só** se combina com o modelo A. A escolha
+   entre bruta e líquida e a escolha do momento do advogado não são independentes.
+2. **O modelo B não fecha como escrito.** No consumo, o crédito é em "IRRF a
+   Compensar", que é um ativo ainda não criado: a conta está invertida. Além
+   disso, "IRRF a Receber (Promotora)" é uma dívida da promotora de R$ 1,50 que
+   **não tem liquidação**: nenhum lançamento diz quando e por que a promotora
+   paga esse valor à plataforma, nem quem paga o DARF. Sem isso o modelo B
+   deixa a plataforma com um ativo que não se realiza.
+3. **"Não há diferença de resultado contábil" é falso.** Na líquida a receita é
+   de R$ 101,50, e não de R$ 100,00. Isso gera:
+   - ISS sobre R$ 1,50 a mais (5%: R$ 0,075);
+   - PIS/COFINS sobre R$ 1,50 a mais (9,25%: R$ 0,139);
+   - IRPJ/CSLL sobre a diferença, já que o crédito de IRRF é o mesmo nas duas formas.
+   Essa diferença precisa estar na simulação, e o contrato precisa dizer que a
+   taxa é líquida de IRRF e que o ISS incide sobre o bruto.
+
+### Consequência para as escolhas
+- **Bruta + modelo A:** promotora paga R$ 100,00; plataforma recebe R$ 98,50;
+  receita R$ 100,00; crédito de R$ 1,50.
+- **Líquida + modelo A:** promotora paga R$ 101,50; plataforma recebe R$ 100,00;
+  receita R$ 101,50 (ISS e PIS/COFINS sobre o bruto); crédito de R$ 1,50.
+- **Bruta + modelo B:** só fecha se a liquidação do receivable de R$ 1,50 estiver
+  escrita. Sem isso, não fecha.
+
+### Pendências
+- **Contador:** corrigir o modelo B (conta e liquidação); refazer a simulação da
+  líquida com ISS e PIS/COFINS sobre o bruto; validar as escolhas de A e B.
+- **Advogado:** escolher o momento (A ou B), que condiciona a forma; e definir no
+  contrato o que é "taxa líquida de IRRF".
+- **Dono:** escolher a forma (bruta ou líquida) depois de ver a simulação com
+  ISS e PIS/COFINS.

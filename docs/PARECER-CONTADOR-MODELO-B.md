@@ -220,3 +220,41 @@ Ele respondeu às duas observações da seção 5 sem mandar nada ao advogado.
 | Texto do art. 720 do RIR/2018 e a regra sobre adiantamento | Contador |
 | Os textos oficiais das seções anteriores, a regra do ISS em São Paulo e uma só recomendação de CNAE | Contador |
 | Escolha de fluxo de caixa e do preço (taxa bruta ou líquida) | Dono, depois da conta refeita |
+
+## 7. Quarta versão do contador (10/10/2026): o momento do IRRF vira risco
+
+Ele aceitou as observações 2 e 4 da seção 6 e a nota da cláusula 10.
+
+| Ponto | Posição |
+|---|---|
+| Momento do IRRF | **Deixa de ser afirmado.** Passa a risco: pode ser o abastecimento (pagamento) ou o consumo (crédito). Cita agora o art. 685 do RIR/2018 como regra geral de "pagamento ou crédito", **também não lido**. Retira a citação do art. 720 até ler |
+| Responsável e recuperação | Não mudam: promotora retém; a plataforma usa o IRRF como crédito contra o IRPJ |
+| Fluxo de caixa | Decisão contratual, **depois** de resolvido o momento |
+| Cláusula 10 | De acordo: não fixa taxa bruta ou líquida; só diz que as retenções são do tomador e que a plataforma informa o que entende aplicável |
+| Parte 2 | Reconhece que o parecer conjunto assinado depende dele |
+
+### Entregas dele e prazo
+| Entrega | Prazo |
+|---|---|
+| Leitura dos textos oficiais (IN 1.700/2017 art. 223; IN 1.234/2012; arts. 685 e 720 do RIR/2018; SCs 6.006/2019, 8/2024 e 32/2021; PN 5/2018; acórdão 012/25) | 5 dias úteis |
+| Regra de retenção do ISS em São Paulo | 5 dias úteis |
+| Uma recomendação única de CNAE, com fundamento (hoje há três hipóteses: 63.11-9/00, 73.11-4/00 e 73.19-0/99) | 5 dias úteis |
+| Assinatura do parecer | Depois das três entregas |
+
+Ele pede a confirmação do dono do prazo de 5 dias úteis.
+
+### Observações minhas
+1. **Ele não respondeu à observação 1 da seção 6** (a aritmética das duas
+   alternativas, que faz a promotora pagar R$ 101,50 por uma taxa de R$ 100). Diz
+   só que o fluxo é "decisão contratual depois do momento". A conta refeita
+   **não está na lista de entregas** e precisa entrar: sem ela o dono não tem o
+   que escolher, e o preço (taxa bruta ou líquida) é decisão do dono.
+2. **Dois itens da tabela dele estão trocados.** Diz que o parecer bancário "é do
+   advogado": é um parecer de **direito bancário**, de um escritório especializado
+   que o dono contrata (D3). E diz que o "registro de decisões" tem as decisões
+   C1 a C6 e P1 a P5 "do dono": são as perguntas dele; as decisões do dono são V1 a V6.
+3. **O art. 685 do RIR/2018** entra como nova citação sem leitura. Fica na lista
+   de textos oficiais a conferir.
+4. **Contagem do prazo:** 12/10/2026 (segunda-feira) é feriado nacional
+   (Nossa Senhora Aparecida). Confirmado hoje, os 5 dias úteis começam em
+   13/10 e terminam em **19/10/2026**.

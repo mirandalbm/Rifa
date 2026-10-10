@@ -18,6 +18,17 @@ termo do afiliado, apuração, IRRF. Aberto: o saldo pré-pago, o modelo de
 tráfego, os influenciadores (R16 a R23), a Tesouraria e os perfis de equipe, o
 parecer conjunto e o município da sede.
 
+### Decisões de 10/10/2026 (noite) que entram no desenho
+
+- **Menu e papéis**: os 6 perfis de equipe (`docs/PLANO-FINANCEIRO.md`,
+  seção 9) e o grupo **Tesouraria reservado** (entra depois do lançamento).
+- **Área "Dinheiro"**: **sem saldo pré-pago** (cada compra com o próprio
+  Pix e a sobra devolvida), **conta de recebimento obrigatória** da
+  promotora no gateway (provável Pagar.me) — uma tela nova de cadastro — e
+  o tráfego pago no **modelo da promotora** (a conta de anúncio é dela).
+- Detalhe em `docs/FECHAMENTO-JURIDICO-CONTABIL.md`, "Decisões do dono por
+  blocos".
+
 ## 1. Diagnóstico: por que o painel parece "escrito"
 
 Medido no repositório (51 páginas, 89 componentes, cerca de 60 telas no

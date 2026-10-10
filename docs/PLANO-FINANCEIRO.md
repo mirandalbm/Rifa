@@ -309,6 +309,18 @@ Regras que valem para todos (herdam do `CLAUDE.md`):
 - A conta da equipe é da plataforma (organização nula), mas **não vê a tela do
   organizador por herança**: alcança só a lista do perfil.
 
+### Decisões do dono sobre os acessos (10/10/2026, noite)
+
+- **Os 6 perfis** da tabela acima (Atendimento, Financeiro, Verificação,
+  Gestão da plataforma, Marketing e Contador só leitura); o mecanismo é feito
+  uma vez e o master liga os que usar. Ficam de fora Auditor, Sorteios e
+  Antifraude (dentro de Gestão).
+- **A Tesouraria entra depois do lançamento**, com o lugar reservado no menu.
+- **O contador externo não entra no painel** no lançamento: o master baixa o
+  extrato; o perfil Contador vem com a Tesouraria.
+- **Segundo fator obrigatório para toda a equipe e o master.**
+- **O resultado do sorteio oficial é só do master**, com senha e código.
+
 ## 10. Dúvidas antes do planejamento
 
 As perguntas ao contador e ao advogado sobre a Tesouraria e os acessos estão

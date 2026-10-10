@@ -622,3 +622,31 @@ O que segue aberto da Parte 1 não muda: a assinatura do advogado (tabela e
 contrato), as respostas do contador (agora K1 a K12 e a reemissão), o
 domínio e o endereço, os contratos com o Anexo II da ANPD, o parecer
 bancário, a Tesouraria e os perfis de equipe, e o saldo pré-pago.
+
+---
+
+## Decisões do dono por blocos (10/10/2026, noite): equipe, saldo e tráfego
+
+| # | Pergunta | Decisão | O que muda |
+|---|---|---|---|
+| A1 | Perfis de equipe | **Os 6 perfis**: Atendimento, Financeiro, Verificação, Gestão da plataforma, Marketing e Contador (só leitura, desligado no início). O mecanismo é feito uma vez; o master liga os que usar | Papel `equipe` com perfis fechados em `shared/access.ts`; o servidor barra por seção; `npm run isolation` prova cada perfil (`docs/PLANO-FINANCEIRO.md`, seção 9). Entra no menu da reformulação |
+| A2 | Tesouraria | **Depois do lançamento**, com o lugar reservado no menu | Até lá, Cobrança e Exportações cobrem o mês. Depende das respostas do contador |
+| A3 | Resultado do sorteio oficial | **Só o master, com senha e código do autenticador** (também na nova extração do globo) | Hoje esses dois atos não pedem o segundo fator: entra no código |
+| A4 | Contador externo | **Sem login**: o master baixa o extrato do mês, sem dado pessoal | O perfil Contador entra com a Tesouraria e o contrato de operador (E6) |
+| A5 | Segundo fator | **Obrigatório para toda a equipe e o master**; para o organizador, recomendado | Entra no código junto com os perfis |
+| B1 | Saldo pré-pago | **Acaba: cada compra tem o próprio Pix** (anúncio patrocinado, banner, taxa do tráfego); a sobra volta em dinheiro pela devolução parcial do próprio Pix (depois de 90 dias, por transferência — a confirmar no gateway). O reembolso do saldo deixa de existir. Os créditos do assistente ficam como estão ("créditos de uso") | Refaz o livro do patrocínio, a recarga, o banner, a reserva do tráfego e a retenção cautelar (que passa a segurar o crédito do presente e as devoluções pendentes) |
+| B2 | Créditos avulsos do assistente | **Vencem em 12 meses, com aviso 30 dias antes**; a franquia segue vencendo no ciclo | Vencimento, aviso e baixa no livro; texto no contrato; tratamento contábil na K10 |
+| B3 | Conta de recebimento da promotora | **Obrigatória em qualquer gateway** para vender online (sem ela, só pelo cambista). O gateway provável é o Pagar.me, ainda a confirmar | A plataforma nunca segura dinheiro de rifa; a parte da promotora vai direto para ela |
+| B4 | Tráfego pago no lançamento | **Entra no lançamento**; nunca sai do dinheiro da rifa; é sempre pago à parte, e a verba de cada campanha é só dela, do que foi pago para ela | Sem saldo guardado, não depende do parecer bancário |
+| B5 | De quem é a conta de anúncio | **Da promotora**: ela paga o Meta e o Google direto; a plataforma gere com acesso de parceiro e cobra a taxa por Pix próprio | É o modelo B, que **não existe no código**: código novo. O modelo A (a plataforma compra a mídia) fica no código, desligado. Depende do anexo do modelo B (advogado), da K11 (contador) e da autorização do Meta para cada promotora |
+| — | Parecer bancário | **Espera**, com uma linha do advogado confirmando; contratar antes de ligar a guarda da comissão | Sai da lista do lançamento se o advogado confirmar |
+
+**Ponto a fechar no plano do tráfego (B5):** a taxa da plataforma no modelo
+da promotora é cobrada **sobre a verba, inteira na aprovação** (a regra que
+já vale para a taxa), ou **sobre o gasto lido**, cobrada depois como valor
+devido? Sem saldo, não há "saldo de taxa" para debitar.
+
+**Ao advogado (duas linhas):** (1) "a plataforma não é subcredenciadora"
+vale com o gateway novo, com a conta de recebimento obrigatória da
+promotora; (2) sem saldo guardado e com a guarda da comissão desligada, o
+parecer bancário pode esperar.

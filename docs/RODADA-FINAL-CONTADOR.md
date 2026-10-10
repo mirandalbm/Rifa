@@ -248,3 +248,30 @@ taxa mínima só sai com o **custo** que o dono informar.
 
 **Dependências do dono para o parecer conjunto:** município da sede (V1), custo
 e margem desejada, razão social e CNPJ. Sem elas o parecer não sai.
+
+---
+
+## Segundo retorno do contador (10/10/2026): fim da parte dele
+
+Ele aceitou as correções e entregou a posição final.
+
+| Item | Posição final | Situação |
+|---|---|---|
+| C3 e C5b | **IRRF de 1,5%** (RIR/2018, art. 718, II) quando o tomador for pessoa jurídica; **CSRF (4,65%) não se aplica** à taxa de gestão, porque propaganda e publicidade não constam do art. 30 da Lei 10.833/2003 e a gestão de tráfego é atividade-fim de publicidade, não "assessoria mercadológica"; **ISS retido** só se o município do tomador exigir. A IN RFB 1.234/2012 era das compras públicas e saiu | **Fechado.** É posição profissional dele, não texto de norma; a fronteira com "assessoria mercadológica" fica como **risco residual**. Uma fonte divergente das buscas diz que a IN 1.234/2012 teria substituído os arts. 714 e 718 do RIR/2018; não resolvido |
+| C4 | Aceita a correção: o ISS incide só sobre a taxa (5% de R$ 200 = R$ 10). A tabela de referência fica. Simulação completa depois de município, custo e margem | **Fechado** no que depende dele; a simulação espera o dono |
+| Padrão | O sistema não calcula nem destaca retenção; só avisa. O contador lança as retenções à mão na NFS-e | **Vale.** O sistema não emite NFS-e |
+
+**Observação:** ele explicou o erro da C4 como "ISS sobre R$ 1.200"; o que dava
+25% era o ISS sobre o gasto de R$ 1.000. É detalhe: a correção, que o ISS é só
+sobre a taxa, é a que vale.
+
+### Encerramento da parte do contador
+- **Fechado:** C1, C2, C3, C4 (no que é dele), C5, C6 e P1 a P5.
+- **Entregas dele, sem nova pergunta:** a simulação completa no parecer
+  (depende de V1, custo e margem), o plano de contas e as linhas do fechamento
+  (C6c) e a tabela de municípios (P3).
+- **Riscos residuais:** os da seção anterior, mais o enquadramento da gestão de
+  tráfego fora de "assessoria mercadológica" e a vigência dos arts. 714 e 718 do
+  RIR/2018.
+- **O que trava o parecer conjunto:** município da sede (V1), custo, margem
+  desejada, razão social e CNPJ. **Tudo isso é do dono.**

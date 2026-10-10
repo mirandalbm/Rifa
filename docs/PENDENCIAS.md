@@ -1515,3 +1515,16 @@ Na ordem de entrega do plano:
 - [x] Menu lateral recolhível (ícones / ícones + nomes).
 - [x] Login com "Lembrar de mim", salvar senha no aparelho e ver a senha.
 - [x] Testes automáticos do GitHub funcionando (cobrança da conta resolvida).
+
+## Achados das provas da fase 0 que ficaram para depois (10/10/2026)
+
+Vieram do `revisor-de-invariantes` sobre as provas novas (`npm run cambista | acessos | publico | webhook`). Nenhum é regressão; todos já existiam.
+
+- **Estorno × acerto do cambista**: `refundOrder` não trava a linha do cambista nem trata `settlement_id`. Venda estornada **depois** do acerto fechado segue no acerto (o cambista fica devendo o bruto de uma venda devolvida). O fechamento já recusa a venda estornada no meio (409); falta decidir o que fazer com a já carimbada (abater no acerto seguinte?).
+- **Auditoria fora da transação** em `settlement.close` e `settlement.paid` (a convenção do dinheiro é `UPDATE` e `audit_log` na mesma transação).
+- **Efeitos depois do COMMIT não se repetem na retomada do webhook**: se o processo cai entre o commit do pagamento e o aviso do bilhete, as metas de bônus ou o aviso de "sorteio marcado", o reenvio vê o pedido pago e pula. Dinheiro e cota estão salvos; perde-se só o aviso.
+- **Webhook com erro persistente** devolve 400 a cada reenvio, sem contador nem alerta (o Asaas pode pausar a fila depois de várias falhas — número a confirmar).
+- **Pix pago de cobrança que nenhum pedido conhece** (a gravação do `psp_charge_id` falhou depois de criar o Pix) conclui o evento só com `warn`; falta uma fila de órfãos, ou casar pelo código do pedido se o provedor mandar.
+- **Reconciliação**: nada compara pedidos `pending` com a API do provedor; um relógio que recolha `webhook_events` sem `processed_at` há mais de 60 s fecharia o resto do buraco do webhook.
+- **`track-click`**: o `SELECT` do código de afiliado não tem limite (dá para enumerar códigos por `tracked:true/false`; o código já aparece em links públicos).
+- **Regexes de UUID frouxos que ficaram**: `shared/divulgacao.ts` (ids de mídia), `shared/reels.ts` (cursor do Reels), `storage.ts` e `Mensagens.tsx`.

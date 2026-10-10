@@ -615,3 +615,39 @@ pontos ainda não fecham.
   contrato o que é "taxa líquida de IRRF".
 - **Dono:** escolher a forma (bruta ou líquida) depois de ver a simulação com
   ISS e PIS/COFINS.
+
+## 16. Décima primeira resposta do contador e revisão (10/10/2026)
+
+### O que fecha
+- **Líquida + modelo A:** lançamentos batem, NFS de R$ 101,50, sem devolução.
+- **Simulação ISS e PIS/COFINS:** conferida. ISS 5,08 e PIS/COFINS 9,39 sobre
+  R$ 101,50; diferença total de R$ 0,22 (R$ 0,075 + R$ 0,139, arredondados).
+  IRPJ/CSLL sobre R$ 1,50: R$ 0,51 (34%), se houver lucro.
+
+### O que não fecha
+1. **B1 não baixa o ativo.** No consumo, o crédito vai em "IRRF a Compensar", o
+   que reduz um ativo ainda inexistente. Além disso, no próximo abastecimento o
+   lançamento credita R$ 100,00 de saldo, mas o caixa é de R$ 98,50, e o
+   "IRRF a Receber" de R$ 1,50 **não é creditado**. O texto diz que ele é
+   liquidado, a linha não o liquida. Forma correta, se o modelo for B1: no
+   próximo abastecimento, Caixa R$ 98,50 e IRRF a Compensar R$ 1,50 (débitos),
+   contra Adiantamento de cliente R$ 98,50 e IRRF a Receber R$ 1,50 (créditos).
+   Ainda depende de o advogado aceitar a retenção no pagamento do abastecimento
+   seguinte, o que seria o modelo A com outro nome.
+2. **B2 contradiz o próprio texto.** O texto diz que a promotora paga o DARF do
+   próprio caixa, mas o lançamento "Pagamento do DARF" tira o dinheiro do caixa
+   **da plataforma** (Caixa a Crédito), e o passivo "IRRF a Recolher" só existe se
+   a plataforma deve o DARF. Além disso, o crédito de IRRF de R$ 1,50 não tem
+   contrapartida: se a promotora paga o fisco por conta da plataforma, esse valor
+   é um aporte da promotora, que é a líquida disfarçada. Não fecha como bruta.
+3. **Consequência para a escolha:** de todos os desenhos, só o **modelo A**
+   (com bruta ou líquida) tem lançamentos que fecham sem ativo ou passivo
+   pendente. O modelo B depende de uma liquidação que ainda não está escrita.
+
+### Pendências
+- **Contador:** escrever B1 ou B2 com a liquidação completa, ou admitir que o
+  modelo B não fecha sem um acordo de liquidação; manter o modelo A como o que fecha.
+- **Advogado:** decidir se a retenção ocorre no pagamento (modelo A) ou se a
+  liquidação diferida é aceitável (modelo B), e registrar a cláusula correspondente.
+- **Dono:** bruta ou líquida, depois de ver a tabela com ISS e PIS/COFINS, e com
+  o modelo A como base de cálculo.

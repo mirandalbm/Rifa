@@ -181,3 +181,70 @@ social e CNPJ** (para a NFS-e).
 6 decisões (C1 a C6), 5 propostas (P1 a P5). Tudo o que era do modelo A fica
 **suspenso e registrado**; o histórico de `docs/CONSULTA-CONTADOR-E-ADVOGADO.md`
 continua valendo se ele voltar.
+
+---
+
+## Respostas do contador (10/10/2026) e conferência
+
+Ele respondeu C1 a C6 e P1 a P5 na tabela pedida. A conferência usou buscas
+(fontes secundárias; os sites oficiais não abrem do nosso ambiente).
+
+| Item | Posição | Situação |
+|---|---|---|
+| C1a, C1b, C1c | De acordo: receita da taxa na competência do gasto lido; abastecimento é adiantamento de cliente; crédito vencido baixado vira receita; uma NFS-e por organização e mês | **Fechado.** O art. 223, § 2º da IN RFB 1.700/2017 que ele cita **não conferi** (a IN existe; o conteúdo do artigo não apareceu) e a "aplicação analógica" da C1b é frágil: regra de trabalho |
+| C2a | **10.08** (agenciamento de publicidade e propaganda) | **Fechado** (é o Padrão). A SF/DEJUG nº 2/2024 existe e trata da **base de cálculo** do ISS nos itens 10.08 e 17.06 **em São Paulo**; não escolhe entre 10.08 e 17.25 e só serve se a sede for São Paulo |
+| C2b | ISS no município do estabelecimento prestador (LC 116, art. 3º, caput) | **Fechado** (Padrão). Regra municipal de retenção fica por conta do V1 |
+| C2c | Incluir o CNAE 73.11-4/00 | **Fechado** |
+| C3 | Destacar ISS, **IRRF 1,5% "art. 647, I, do RIR/2018"** e **CSRF 4,65%** "(IN RFB 1.234/2012; Lei 9.430/1996)" | **Reabrir (um ponto só).** O art. 647 é a numeração do **RIR/99**; as buscas indicam o **RIR/2018, art. 718, II** para o 1,5% em propaganda e publicidade. A **IN RFB 1.234/2012 regula pagamentos de órgãos públicos**, não de organizações privadas. E as buscas indicam que a **CSRF (PIS/COFINS/CSLL) não se aplica a "propaganda e publicidade"** (não consta do art. 30 da Lei 10.833/2003), podendo se aplicar a "assessoria mercadológica". Falta ele dizer qual norma vale e **em qual categoria a gestão de tráfego se enquadra** |
+| C4 | Mantém 20%; simulação "no parecer"; ISS de 5% "consome 25% da taxa" | **Reabrir (conta errada).** O ISS incide sobre a **taxa** (a mídia não passa pela plataforma): 5% de R$ 200 são **R$ 10, isto é, 5% da taxa**, não 25%. Os 25% saem de aplicar 5% ao gasto. IRPJ/CSLL de 34% é sobre o **lucro** (o adicional de 10% só acima do limite), não sobre a receita. A simulação depende de V1 e do custo e margem do dono |
+| C5a | Não há tributo sobre o registro do acordo | **Fechado** |
+| C5b | A organização retém ISS se o município exigir; MEI dispensado; empresa no Lucro Presumido ou Real sofre IRRF 1,5% e CSRF 4,65% (IN RFB 1.234/2012, art. 4º, I) | **Reabrir junto com a C3.** Mesma norma citada fora do alcance (órgãos públicos) e mesma dúvida sobre a CSRF. O MEI sem retenção é plausível, mas o fundamento está errado |
+| C5c | Demonstrativo mensal de repasse à promotora, sem valor fiscal | **Fechado** (é o Padrão) |
+| C6a | Adiantamento de cliente; NFS-e no consumo, mensal | **Fechado** |
+| C6b | Contas 2.1.5.01 (Adiantamento de Clientes), 2.1.5.02 (Valores a Repassar a Promotora) e 2.1.9.01 (Valores de Terceiros – Comissões Guardadas) | **Fechado** como proposta dele; o plano de contas é dele (NBC TG 26) |
+| C6c | Entrega o plano de contas e as linhas do fechamento | **Fechado** (entrega dele) |
+| P1 a P5 | De acordo em todas | **Fechado** |
+
+**Ele aponta como risco sem fonte oficial:** o local do ISS (C2b), as retenções
+do MEI (C5b) e as contas contábeis (C6b). Registrado.
+
+### Conta de referência da C4 (aritmética, não é parecer)
+
+Gasto lido de **R$ 1.000**; só a **taxa** é receita da plataforma. ISS entre 2%
+e 5% (faixa da lei, a alíquota real depende do município da sede) e PIS/COFINS
+de 9,25% **sem descontar créditos** (o teto). Sobra antes de custos,
+IRPJ e CSLL:
+
+| Taxa | Receita da taxa | ISS a 2% | ISS a 5% | PIS/COFINS 9,25% | Sobra (ISS 2%) | Sobra (ISS 5%) |
+|---|---|---|---|---|---|---|
+| 10% | R$ 100,00 | R$ 2,00 | R$ 5,00 | R$ 9,25 | R$ 88,75 | R$ 85,75 |
+| 15% | R$ 150,00 | R$ 3,00 | R$ 7,50 | R$ 13,88 | R$ 133,12 | R$ 128,62 |
+| 20% | R$ 200,00 | R$ 4,00 | R$ 10,00 | R$ 18,50 | R$ 177,50 | R$ 171,50 |
+| 25% | R$ 250,00 | R$ 5,00 | R$ 12,50 | R$ 23,13 | R$ 221,87 | R$ 214,37 |
+
+O que sobra ainda paga o custo da plataforma e o IRPJ/CSLL sobre o lucro. A
+taxa mínima só sai com o **custo** que o dono informar.
+
+### O que fica com ele (fim do ciclo)
+1. **Retenções (C3 e C5b), uma entrega só:** a norma certa (RIR/2018, art. 718,
+   II, para o IRRF; Lei 10.833/2003, art. 30, para a CSRF) e **em qual categoria
+   a gestão de tráfego se enquadra** (propaganda e publicidade, ou assessoria
+   mercadológica). Prazo: 5 dias úteis. **Padrão se não vier:** o sistema **não
+   calcula nem destaca retenção**; só avisa a organização que pode haver, e o
+   contador lança as retenções à mão na NFS-e.
+2. **Simulação da C4 no parecer**, depois do município da sede e do custo e
+   margem do dono. **Padrão:** taxa de 20%.
+3. **Plano de contas e linhas do fechamento (C6c)** e a **tabela de municípios
+   (P3)**, como entregas dele.
+
+### Termo de encerramento (contador): riscos residuais
+| Item | Risco | Como a plataforma se comporta |
+|---|---|---|
+| IN RFB 1.700/2017, art. 223, § 2º | Fundamento não conferido | Competência do gasto lido; adiantamento no passivo |
+| Retenções na fonte | Norma e categoria a confirmar | O sistema não calcula retenção |
+| Local do ISS | Pode haver regra municipal | Sede; marcação por organização |
+| Contas contábeis | Proposta dele | Plano de contas dele |
+| Modelo A | Suspenso | Histórico; reabre se voltar |
+
+**Dependências do dono para o parecer conjunto:** município da sede (V1), custo
+e margem desejada, razão social e CNPJ. Sem elas o parecer não sai.

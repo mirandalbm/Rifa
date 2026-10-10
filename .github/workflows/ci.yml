@@ -154,6 +154,7 @@ jobs:
       - run: npm run guarda
       - run: npm run cambista
       - run: npm run acessos
+      - run: npm run publico
       - run: npm run bonus
       - run: npm run patrocinio
       - run: npm run banner

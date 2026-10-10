@@ -1078,6 +1078,15 @@ plataforma analisa** (Atendimento → Rifas, com conversa dos dois lados).
 
 ## Bilhete — o que não pode afrouxar
 
+- **Marcar como impresso é de quem tem a ver com a venda** (`POST
+  /tickets/:code/printed`): o cambista que vendeu, a organização dona da rifa
+  ou a plataforma. Qualquer outra sessão — outra organização, outro cambista,
+  afiliado — recebe 404 e nada é gravado; antes, qualquer pessoa logada
+  mexia na trilha do pedido dos outros. Código que não é número inteiro
+  positivo é 404 nas três rotas do bilhete (era 500). `npm run publico` prova,
+  junto com o rascunho 404 em premiados, últimas compras, ranking, número e
+  certificado, e o `track-click` com limite por aparelho (120 em 10 min).
+
 - A formatação vive em `ticketFormat.ts`, sem banco, porque é o que os testes
   exercitam: 32 colunas, total alinhado à direita, sem acento e sem espaço
   não-quebrável.

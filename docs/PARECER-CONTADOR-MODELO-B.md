@@ -529,3 +529,47 @@ consequência.
   imposto a pagar no período.
 - Líquida: a promotora paga R$ 1,50 a mais por cada R$ 100,00 de taxa, e a
   plataforma não tem o risco de caixa.
+
+## 14. Nona resposta do contador e revisão (10/10/2026): lançamentos
+
+Os lançamentos batem linha a linha, e a NFS e o momento estão escritos. Três
+pontos ainda não fecham.
+
+1. **O momento do IRRF não é o que os lançamentos mostram.** Na forma bruta, o
+   abastecimento já lança "IRRF a compensar" de R$ 1,50, ou seja, a retenção é
+   feita **no abastecimento** (o pagamento da promotora), e não no consumo. O
+   texto diz consumo; o lançamento diz abastecimento. Ou o momento é o
+   abastecimento, e a retenção ocorre na transferência de R$ 98,50, ou o
+   lançamento precisa mudar, e não há pagamento no consumo para reter.
+   Mesma coisa na forma líquida: o DARF sai da promotora no abastecimento.
+
+2. **Forma líquida: o crédito sem contrapartida some com a NFS pelo bruto.** Se
+   o IRRF é da plataforma, ela é tributada pelo bruto e tem crédito. Então a
+   NFS é de R$ 101,50, a receita é de R$ 101,50, e o crédito de R$ 1,50 existe
+   com contrapartida. Lançamentos corretos:
+   - Abastecimento: Caixa D R$ 100,00; IRRF a compensar D R$ 1,50; Adiantamento
+     de cliente C R$ 101,50.
+   - Consumo: Adiantamento de cliente D R$ 101,50; Receita de taxa C R$ 101,50.
+   Somam zero. A devolução de R$ 1,50 **não existe** nesta forma e sai do texto.
+   A promotora paga R$ 100,00 à plataforma e R$ 1,50 ao fisco.
+
+3. **O crédito de R$ 1,50 existe nas duas formas.** A diferença entre elas é só
+   o que a plataforma recebe em caixa (R$ 98,50 na bruta, R$ 100,00 na líquida)
+   e o que a promotora paga no total (R$ 100,00 na bruta, R$ 101,50 na líquida).
+   O contador disse que na líquida "o crédito é da plataforma, mas não há como
+   registrar sem contrapartida". Com a NFS de R$ 101,50, há.
+
+### Consequência para a escolha do dono
+- **Bruta:** a promotora paga R$ 100,00; a plataforma recebe R$ 98,50 em caixa e
+  tem crédito de R$ 1,50 contra o IRPJ.
+- **Líquida:** a promotora paga R$ 101,50; a plataforma recebe R$ 100,00 em caixa
+  e tem o mesmo crédito de R$ 1,50 contra o IRPJ.
+
+### Pendências
+- **Contador:** alinhar o momento aos lançamentos (abastecimento, ou corrigir o
+  texto para o consumo com o pagamento de onde sai a retenção); mudar a forma
+  líquida para NFS de R$ 101,50 e retirar a devolução; validar os dois conjuntos
+  de lançamentos.
+- **Advogado:** o momento (abastecimento ou consumo), que agora decide os
+  lançamentos.
+- **Dono:** escolher entre bruta e líquida.

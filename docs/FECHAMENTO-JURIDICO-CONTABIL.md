@@ -275,3 +275,43 @@ fica com a cláusula de revisão de preço aos 90 dias.
 | A13 (parecer bancário) e T2/T3 | A13 ainda **não foi contratado** (sua lista) |
 
 A Parte 2 **ainda não começa** por este critério.
+
+---
+
+## Encerramento da fase do IRRF (10/10/2026)
+
+Decisões do dono, com base na sugestão de encerramento:
+
+| # | Decisão | Fundamento |
+|---|---|---|
+| I1 | **Modelo A**: retenção no pagamento do abastecimento; NFS-e no consumo, com IRRF destacado | É o único modelo cujos lançamentos fecham sem ativo ou passivo pendente (`docs/PARECER-CONTADOR-MODELO-B.md`, seções 14 a 16) |
+| I2 | **Forma bruta**: a promotora abastece R$ 100,00 por R$ 100,00 de taxa, retém R$ 1,50 do pagamento e recolhe o DARF; a plataforma recebe R$ 98,50 e registra crédito de IRRF de R$ 1,50 | Mais simples no contrato, sem gross-up; a taxa que a promotora vê é a taxa que ela paga. O custo de caixa de R$ 1,50 fica com a plataforma |
+| I3 | **Modelo B suspenso** até haver acordo de liquidação escrito (liquidação do IRRF a receber, quem paga o DARF) | Os dois desenhos de B não fecharam (seção 16). Isto **revê o V3** ("modelo B é o produto principal"): é decisão do dono e precisa ser lembrada na Parte 2 |
+
+Condições registradas:
+- O crédito de R$ 1,50 só se recupera se a plataforma tiver IRPJ a pagar no período; sem imposto a pagar, fica para compensação futura.
+- No modelo A, a retenção é feita no pagamento, o que reduz o risco de multa por falta de retenção se a Receita entender que o momento é o pagamento. Se a Receita entender que o momento é o consumo, o recolhimento terá sido antecipado: é questão de prazo, a ser confirmada pelo advogado.
+
+Riscos aceitos e responsáveis:
+
+| Risco | Responsável | Situação |
+|---|---|---|
+| Momento do IRRF (pagamento ou consumo) | Advogado | Modelo A adotado; texto oficial dos arts. 209 e 718, II, ainda a ler |
+| CSRF (4,65%) não retido sobre publicidade | Contador | Sem texto oficial que confirme a não retenção; SC Cosit 13/2022 não trata de CSRF |
+| CNAE principal (73.11-4/00 para tráfego pago) | Dono e contador | Sem descrição oficial de tráfego; atividade principal (tráfego ou rifa) ainda não informada |
+| ISS de promotora de outro município | Contador | Regra da lei de cada município não pesquisada; a plataforma informa, a promotora retém |
+| Simulação de ISS e PIS/COFINS | Contador | Tabela corrigida; valores a usar: ISS 5% e PIS/COFINS 9,25% sobre a taxa |
+
+Entregas que faltam para a parte contábil (prazo 19/10/2026):
+- Lançamentos finais do modelo A, forma bruta, somando zero, com NFS-e de R$ 100,00 e o momento de cada lançamento.
+- Quem paga o DARF e de qual valor (a promotora, R$ 1,50).
+- Leitura dos arts. 209 e 718, II, do RIR/2018, anexada.
+- Validação das decisões C1 a C6 e P1 a P5 quanto aos efeitos fiscais.
+- Assinatura da parte contábil.
+
+Cláusulas que o advogado precisa redigir no anexo do modelo B:
+- Retenção de IRRF no pagamento do abastecimento, forma bruta, com a taxa de R$ 100,00 líquida de IRRF para a plataforma e o IRRF destacado na NFS-e.
+- Responsabilidade da promotora pelo recolhimento do DARF, como fonte pagadora.
+- Decisão sobre a responsabilidade solidária, que não foi verificada.
+
+Esta fase **não encerra a Parte 1**. O critério da seção 8 continua valendo: parecer conjunto assinado, registro de decisões, PR de adequação e parecer de direito bancário.

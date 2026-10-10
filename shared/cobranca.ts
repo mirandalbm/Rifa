@@ -24,6 +24,8 @@
  * Tudo em centavos inteiros; percentuais com até duas casas.
  */
 
+import { priceOrder, type PricingPackage } from "./pricing";
+
 export const MODOS_DE_COBRANCA = ["percentual", "por_cota"] as const;
 export type ModoDeCobranca = (typeof MODOS_DE_COBRANCA)[number];
 
@@ -178,9 +180,36 @@ export function cobrancaNaPublicacao(modo: ModoDeCobranca, cfg: ConfigCobranca):
  * O que barra a publicação: no modo por cota, a taxa precisa ficar abaixo
  * do preço da cota — senão cada venda daria prejuízo à organização.
  */
-export function problemaNaCobranca(modo: ModoDeCobranca, cfg: ConfigCobranca, precoDaCotaCents: number): string | null {
-  if (modo === "por_cota" && cfg.porCotaCents >= precoDaCotaCents) {
+export function problemaNaCobranca(
+  modo: ModoDeCobranca,
+  cfg: Pick<ConfigCobranca, "porCotaCents">,
+  precoDaCotaCents: number,
+  pacotes: PricingPackage[] = [],
+): string | null {
+  if (modo !== "por_cota") return null;
+  if (cfg.porCotaCents >= precoDaCotaCents) {
     return "A taxa por cota da plataforma não pode ser igual ou maior que o preço da cota. Escolha a cobrança em percentual ou aumente o preço.";
+  }
+  // O pacote com desconto baixa o preço de cada cota: a taxa por cota tem de
+  // continuar abaixo dele, senão a organização venderia o pacote de graça.
+  for (const p of pacotes) {
+    if (!Number.isInteger(p.quantity) || p.quantity < 1) continue;
+    const total = priceOrder({ quantity: p.quantity, unitCents: precoDaCotaCents, packages: [p] }).totalCents;
+    if (cfg.porCotaCents * p.quantity >= total) {
+      return `O pacote de ${p.quantity} cotas com ${p.discountPct}% de desconto deixa cada cota abaixo da taxa por cota da plataforma. Diminua o desconto ou escolha a cobrança em percentual.`;
+    }
+  }
+  return null;
+}
+
+/**
+ * A última guarda, no pedido: no modo por cota, a taxa da venda (cotas ×
+ * valor) não pode chegar ao total pago depois de pacote e cupom. Pacote é
+ * conferido ao salvar, mas o cupom do afiliado desconta por cima.
+ */
+export function problemaNoTotalDoPedido(t: TaxaDoPedido, totalCents: number, quantidade: number): string | null {
+  if (t.modo === "por_cota" && t.porCotaCents * quantidade >= totalCents) {
+    return "Com este desconto, o valor ficou abaixo da taxa da plataforma por cota. Compre sem o cupom ou outra quantidade.";
   }
   return null;
 }

@@ -140,6 +140,9 @@ async function main() {
     r = await organizador.req("POST", `/api/admin/campaigns/${barata.id}/publish`);
     checa("por cota igual ao preço da cota não publica (422)", r.status === 422 && /preço da cota/.test(r.json?.message ?? ""), `HTTP ${r.status} ${r.json?.message ?? ""}`);
 
+    r = await organizador.req("PUT", `/api/admin/campaigns/${a.id}/packages`, { packages: [{ quantity: 10, discountPct: 98 }] });
+    checa("pacote que deixa a cota abaixo da taxa por cota é recusado (422)", r.status === 422 && /pacote de 10/.test(r.json?.message ?? ""), `HTTP ${r.status} ${r.json?.message ?? ""}`);
+
     console.log("\n  a publicação fotografa e trava:");
     r = await organizador.req("POST", `/api/admin/campaigns/${a.id}/publish`);
     checa("publica", r.status === 200, `HTTP ${r.status} ${r.json?.message ?? ""}`);

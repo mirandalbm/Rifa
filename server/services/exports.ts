@@ -835,8 +835,9 @@ function cobranca(escopo: ExportScope): ExportStream {
             l.code,
             l.campanha,
             // Pontos-base (1% = 100), com a vírgula decimal da planilha.
-            l.pct !== null ? `${(l.pct / 100).toFixed(2).replace(".", ",")}%` : null,
-            csvMoney(l.venda_cents),
+            l.modo === "percentual" && l.pct !== null ? `${(l.pct / 100).toFixed(2).replace(".", ",")}%` : null,
+            // Lançamento sem as partes (de antes da taxa Pix): o valor inteiro é da venda.
+            csvMoney(l.modo ? l.venda_cents : l.amount_cents),
             csvMoney(l.pix_cents),
             csvMoney(l.amount_cents),
             l.status,

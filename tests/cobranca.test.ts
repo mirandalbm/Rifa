@@ -8,6 +8,7 @@ import {
   taxasEmCentavos,
   pctEquivalente,
   problemaNaCobranca,
+  problemaNoTotalDoPedido,
   cobrancaNaPublicacao,
   mesEmSaoPaulo,
   configCobrancaGuardada,
@@ -17,6 +18,7 @@ import {
 } from "../shared/cobranca";
 import { splitOrder } from "../shared/pricing";
 import { percentualDoPromotor } from "../shared/plataforma";
+import { creditoDoPresente } from "../shared/presente";
 
 const FAIXAS = [
   { ate: 100, pct: 2 },
@@ -208,5 +210,29 @@ describe("mês do volume", () => {
     // 1º de novembro às 02:00 UTC ainda é 31 de outubro às 23:00 em Brasília.
     expect(mesEmSaoPaulo(new Date("2026-11-01T02:00:00Z"))).toBe("2026-10");
     expect(mesEmSaoPaulo(new Date("2026-11-01T04:00:00Z"))).toBe("2026-11");
+  });
+});
+
+describe("pacote e cupom no modo por cota", () => {
+  it("pacote que deixa a cota abaixo da taxa por cota barra", () => {
+    // Cota de R$ 1,00, taxa R$ 0,80: o pacote de 10 com 30% sai R$ 0,70 a cota.
+    expect(problemaNaCobranca("por_cota", { porCotaCents: 80 }, 100, [{ quantity: 10, discountPct: 30 }])).toMatch(/pacote de 10/);
+    expect(problemaNaCobranca("por_cota", { porCotaCents: 80 }, 100, [{ quantity: 10, discountPct: 10 }])).toBeNull();
+    expect(problemaNaCobranca("percentual", { porCotaCents: 80 }, 100, [{ quantity: 10, discountPct: 90 }])).toBeNull();
+  });
+
+  it("o pedido em que o cupom leva o total abaixo da taxa é recusado", () => {
+    const t = { modo: "por_cota" as const, vendaBp: 0, porCotaCents: 80, pixBp: 0 };
+    expect(problemaNoTotalDoPedido(t, 700, 10)).toMatch(/abaixo da taxa/);
+    expect(problemaNoTotalDoPedido(t, 801, 10)).toBeNull();
+    expect(problemaNoTotalDoPedido({ ...t, modo: "percentual" }, 1, 10)).toBeNull();
+  });
+});
+
+describe("crédito do presente", () => {
+  it("a parte da taxa no desconto é a proporção exata, para baixo", () => {
+    // Taxa de 333 sobre 10.000; presente de 1.000: a taxa nele é 33 (33,3 para baixo).
+    const c = creditoDoPresente({ presenteCents: 1_000, platformPct: 0, commissionPct: 0, comissaoGuardada: false, taxa: { cents: 333, totalCents: 10_000 } });
+    expect(c).toBe(967);
   });
 });

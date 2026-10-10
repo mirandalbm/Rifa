@@ -22,7 +22,7 @@ import { CORES_DO_SELO_PADRAO, validarCoresDoSelo, type CoresDoSelo } from "./ve
 import { idDoCanal } from "./aoVivo";
 import { LOTERIAS, type Loteria } from "./sorteiosOficiais";
 import { METODOS_LIBERADOS_PADRAO, metodosLiberadosGuardados, type MetodoDeApuracao } from "./apuracao";
-import { CONFIG_COBRANCA_PADRAO, validarConfigCobranca, type ConfigCobranca } from "./cobranca";
+import { CONFIG_COBRANCA_PADRAO, configCobrancaGuardada, type ConfigCobranca } from "./cobranca";
 
 export const PROVEDORES_PIX = ["mercadopago", "asaas"] as const;
 export type ProvedorPix = (typeof PROVEDORES_PIX)[number];
@@ -282,7 +282,9 @@ export function validarConfigPlataforma(entrada: Partial<ConfigPlataforma>): Con
     bannerPago: validarConfigBannerPago(entrada.bannerPago),
     trafegoPago: validarConfigTrafego(entrada.trafegoPago),
     assistenteIA: configIAGuardada(entrada.assistenteIA),
-    cobranca: validarConfigCobranca(entrada.cobranca),
+    // Guardada que não passe mais na régua volta à tabela padrão, sem
+    // derrubar o resto da configuração (a rota da tabela valida antes).
+    cobranca: configCobrancaGuardada(entrada.cobranca),
   };
 }
 

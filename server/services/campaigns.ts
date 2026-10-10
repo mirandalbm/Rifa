@@ -10,6 +10,7 @@ import {
   campaignCertificados,
   campaignMedia,
   campaignStats,
+  quotaPackages,
   organizacaoFotos,
   organizations,
   prizedQuotas,
@@ -236,7 +237,8 @@ export async function publishBlockers(campaignId: string): Promise<string[]> {
   }
   // A cobrança escolhida tem de caber no preço da cota (por cota acima do
   // preço levaria a venda inteira e mais).
-  const cobranca = problemaNaCobranca(validarModo(campaign.cobrancaModo), (await getPlataforma()).cobranca, campaign.priceCents);
+  const pacotes = await db.select().from(quotaPackages).where(eq(quotaPackages.campaignId, campaignId));
+  const cobranca = problemaNaCobranca(validarModo(campaign.cobrancaModo), (await getPlataforma()).cobranca, campaign.priceCents, pacotes);
   if (cobranca) blockers.push(cobranca);
 
   return blockers;
@@ -362,7 +364,8 @@ export async function publishCampaign(campaignId: string): Promise<Campaign> {
     // A cobrança contra a rifa travada (o modo pode ter mudado no rascunho
     // depois da conferência de fora). A tabela do dia fica fotografada na rifa.
     const modo = validarModo(campaign.cobrancaModo);
-    const cobranca = problemaNaCobranca(modo, plataforma.cobranca, campaign.priceCents);
+    const pacotes = await tx.select().from(quotaPackages).where(eq(quotaPackages.campaignId, campaignId));
+    const cobranca = problemaNaCobranca(modo, plataforma.cobranca, campaign.priceCents, pacotes);
     if (cobranca) throw new CampaignRuleError(cobranca);
 
     const { seed, seedHash } = commitSeed();

@@ -124,7 +124,7 @@ import { codigoConfere, guardarSegredo } from "../services/segundoFator";
 import { buildExport, ExportError, toCsvLine } from "../services/exports";
 import { refundOrder } from "../services/orders";
 import { carteiraDaPlataforma, extratoDa, darBaixa } from "../services/billing";
-import { validarConfigCobranca } from "@shared/cobranca";
+import { problemaNaCobranca, validarConfigCobranca, validarModo } from "@shared/cobranca";
 import {
   orgOf,
   isPlatform,
@@ -1512,12 +1512,17 @@ adminRouter.put("/campaigns/:id/agendar-publicacao", async (req, res, next) => {
 
 adminRouter.put("/campaigns/:id/packages", async (req, res, next) => {
   try {
-    await assertCampaignInScope(req, req.params.id);
+    const campanha = await assertCampaignInScope(req, req.params.id);
     const list = (req.body?.packages ?? []) as {
       quantity: number;
       discountPct: number;
       highlight?: boolean;
     }[];
+    // Por cota: o desconto do pacote não pode levar a cota abaixo da taxa da
+    // plataforma (a fotografada na publicação, ou a de hoje no rascunho).
+    const tabela = campanha.cobranca ?? (await getPlataforma()).cobranca;
+    const abaixo = problemaNaCobranca(validarModo(campanha.cobrancaModo), tabela, campanha.priceCents, list);
+    if (abaixo) return res.status(422).json({ message: abaixo });
 
     await db.transaction(async (tx) => {
       await tx.delete(quotaPackages).where(eq(quotaPackages.campaignId, req.params.id));

@@ -18,7 +18,6 @@ import { eq, inArray, sql } from "drizzle-orm";
 import { db, pool } from "../server/db";
 import { buyers, campaignStats, campaigns, orders, organizations, platformCharges, presenteCreditos, users } from "../shared/schema";
 import { creditoDoPresente, descontoDoPresente } from "../shared/presente";
-import { pctEquivalente } from "../shared/cobranca";
 import { refundOrder } from "../server/services/orders";
 
 const URL = baseUrl();
@@ -188,7 +187,8 @@ async function main() {
     // A parte do presente paga a mesma proporção da taxa sobre o total.
     const esperado = creditoDoPresente({
       presenteCents: desconto,
-      platformPct: pctEquivalente(taxa?.amountCents ?? 0, 5 * PRECO),
+      platformPct: 0,
+      taxa: { cents: taxa?.amountCents ?? 0, totalCents: 5 * PRECO },
       commissionPct: 0,
       comissaoGuardada: false,
     });

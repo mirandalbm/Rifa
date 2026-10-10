@@ -1760,8 +1760,12 @@ promotor. **A ordem é sempre esta, e a plataforma sai primeiro.**
     vendida. A escolha (`campaigns.cobranca_modo`) trava ao publicar, e
     `publishCampaign()` fotografa a tabela do dia em `campaigns.cobranca`
     (dentro da transação, com a rifa travada). Por cota maior ou igual ao
-    preço da cota não publica (`problemaNaCobranca()`). Rifa sem fotografia
-    (publicada antes, demonstração) não cobra;
+    preço da cota não publica (`problemaNaCobranca()`), nem pacote cujo
+    desconto deixe a cota abaixo da taxa (na publicação e ao salvar os
+    pacotes, 422); o cupom do afiliado, que desconta por cima, é conferido
+    no pedido (`problemaNoTotalDoPedido()`, 409 antes de gravar). Rifa sem
+    fotografia (publicada antes) não cobra; a demonstração desmarcada ganha
+    a tabela do dia no mesmo `UPDATE` (`marcarDemonstracao()`);
   - **a do Pix**, só no Pix online (dinheiro e Pix na maquininha não pagam),
     em **faixas pelo volume do mês** da organização: quanto mais transações
     Pix pagas no mês de São Paulo, menor a taxa (`faixaPixPara()`; os tetos
@@ -1788,8 +1792,10 @@ promotor. **A ordem é sempre esta, e a plataforma sai primeiro.**
 - **O split do provedor divide em percentual**: a taxa do pedido vira o
   percentual equivalente sobre o total, **para cima** em 4 casas
   (`pctEquivalente()`), e `percentualDoPromotor()` faz o resto — o split
-  nunca manda à organização a parte da plataforma. O presente usa o mesmo
-  percentual equivalente para a parte do desconto.
+  nunca manda à organização a parte da plataforma; split de 0% não vai ao
+  provedor. O crédito do presente leva a parte da taxa na proporção exata,
+  **para baixo** (`creditoDoPresente({ taxa })`): nunca um centavo a mais
+  contra a promotora.
 - **Pix dividido na origem não é cobrado de novo.** Quando o provedor honra
   o split (Asaas, `splitAplicado` em `PixCharge`), a plataforma já ficou
   com a taxa no próprio Pix: o pedido nasce marcado

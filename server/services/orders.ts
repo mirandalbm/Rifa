@@ -47,7 +47,7 @@ import {
   commissionAvailableAt,
   splitOrder,
 } from "@shared/pricing";
-import { mesEmSaoPaulo, pctEquivalente, taxaDoPedido, taxasEmCentavos } from "@shared/cobranca";
+import { mesEmSaoPaulo, pctEquivalente, problemaNoTotalDoPedido, taxaDoPedido, taxasEmCentavos } from "@shared/cobranca";
 import { lancarTaxaDaVenda } from "./billing";
 import { normalizePhone } from "@shared/format";
 import { users, organizations } from "@shared/schema";
@@ -447,6 +447,11 @@ async function prepararPedido(
     pixOnline,
     transacoesPixNoMes: pixOnline && campaign.cobranca ? await transacoesPixNoMes(campaign.organizationId) : 0,
   });
+  // Por cota: pacote e cupom não podem levar o total abaixo da taxa da venda
+  // (a organização venderia de graça). O pacote é conferido ao salvar; o
+  // cupom do afiliado só aqui.
+  const abaixoDaTaxa = problemaNoTotalDoPedido(taxa, price.totalCents, quantity);
+  if (abaixoDaTaxa) throw new OrderError(abaixoDaTaxa, 409);
   // Venda que veio de anúncio patrocinado (etapa 15): o mesmo aparelho
   // clicou num anúncio desta rifa há até 7 dias. Só estatística.
   const anuncioId = ctx.sellerId ? null : await anuncioDaVenda(identity.deviceHash, campaign.id);
@@ -753,7 +758,8 @@ function taxaFicouRetida(charge: { splitAplicado?: boolean }, parte: { walletId:
 
 /** O split do pedido avulso: a parte do promotor cai direto na carteira da organização. */
 function splitDaParte(parte: { walletId: string | null; percentual: number }) {
-  return parte.walletId ? [{ walletId: parte.walletId, percentual: parte.percentual }] : undefined;
+  // Split de 0% não divide nada: o Pix fica inteiro na conta da plataforma.
+  return parte.walletId && parte.percentual > 0 ? [{ walletId: parte.walletId, percentual: parte.percentual }] : undefined;
 }
 
 /* ------------------------------------------------------------------ *
@@ -1090,8 +1096,9 @@ async function settleOrderAsPaid(order: typeof orders.$inferSelect) {
         organizationId: campaign.organizationId,
         orderId: order.id,
         presenteCents: order.presenteCents,
-        // A taxa como percentual do total: a parte do presente paga a mesma proporção.
-        platformPct: pctEquivalente(rateio.platformFeeCents, rateio.paidCents),
+        // A parte do presente paga a mesma proporção da taxa, exata e para baixo.
+        platformPct: 0,
+        taxa: { cents: rateio.platformFeeCents, totalCents: rateio.paidCents },
         commissionPct: rateio.commissionPct,
         comissaoGuardada: order.comissaoGuardada,
       });

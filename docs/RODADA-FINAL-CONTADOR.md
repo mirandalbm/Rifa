@@ -19,6 +19,26 @@ A parte do advogado está fechada (`docs/RODADA-FINAL-ADVOGADO.md`). Esta é a
    5/2018 e os acórdãos do CARF **não precisam mais de anexo agora**.
 4. O regime é **Lucro Real** (já informado).
 
+## O que o advogado já decidiu e vale para você (10/10/2026)
+
+(`docs/TERMO-DE-ENCERRAMENTO-ADVOGADO.md`; você não precisa reabrir nada disto.)
+
+1. **Modelo B é o produto de tráfego**; o modelo A fica suspenso.
+2. **Saldo pré-pago:** o parecer de direito bancário é necessário. Até lá:
+   reembolso em dinheiro desligado, sem saque nem transferência, tráfego pago
+   desligado e saldo em conta segregada. A **segregação é mitigação, não
+   solução**: o enquadramento como conta de pagamento é pergunta do parecer
+   bancário, **não sua**.
+3. **O saldo não volta em dinheiro** (só estorno ao mesmo pagador, a pedido); a
+   sobra volta como **crédito**, com validade de 12 meses e aviso de 30 dias.
+4. **Comissão guardada:** o documento fiscal espelho **não é NFS-e pelo valor
+   bruto** (viraria receita com ISS); é **documento interno de controle**. A
+   **forma** é sua (C5, item c).
+5. **Acordo com cachê** só com **MEI ou empresa**, pago pela organização; PF
+   fica fora da plataforma. A plataforma não cobra nada pelo registro.
+6. **Guarda:** 6 meses (registros de acesso), 12 meses (log interno) e **5 anos**
+   (contábil e fiscal).
+
 ## Regras de encerramento
 
 1. **Uma resposta única**, em 5 dias úteis, em tabela:
@@ -109,10 +129,12 @@ registra o acordo e **não cobra nada por ele**.
   nada, não move o dinheiro)? **Padrão: não.**
 - b) Quando a organização paga o cachê a MEI ou PJ, **quais retenções ela faz**?
   O sistema só avisa, não calcula.
-- c) **Comissão guardada pela plataforma:** que **documento fiscal espelho**
-  (cláusula 10 do termo do afiliado) é preciso, se for? **Padrão:** a plataforma
-  emite um **demonstrativo mensal de repasse** à promotora (sem valor fiscal);
-  a nota do afiliado é contra quem paga.
+- c) **Comissão guardada pela plataforma:** o advogado decidiu que o espelho é
+  **documento interno de controle, sem natureza de NFS-e** (valor recebido da
+  promotora, valor repassado ao afiliado, IRRF retido e segregação contábil). Qual
+  é a **forma** (recibo, extrato ou nota de débito/crédito) e ela precisa de
+  algum requisito fiscal? **Padrão:** o **demonstrativo mensal de repasse** à
+  promotora, sem valor fiscal; a nota do afiliado é contra quem paga.
 
 ### C6. Saldos e créditos (patrocínio, banner, assistente de IA)
 

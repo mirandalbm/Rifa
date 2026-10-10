@@ -490,3 +490,42 @@ deixa R$ 1,50 solto.
 - **Advogado:** a cláusula do IRRF no anexo, com a forma escolhida; e a consulta
   sobre o momento (abastecimento ou consumo), que o contador não consegue responder
   com o texto que tem.
+
+## 13. Oitava resposta do contador e revisão (10/10/2026)
+
+A tabela bruta/líquida agora está correta. O texto que a acompanha ainda tem
+três problemas, que precisam estar em lançamento contábil, não em frase.
+
+1. **Forma bruta: "a plataforma não perde, porque o crédito compensa o IRPJ"**
+   só vale se a plataforma tiver IRPJ a pagar no período em que a retenção
+   ocorre. Com prejuízo fiscal ou lucro baixo, o crédito de R$ 1,50 fica para
+   depois. Registrar como condição, não como regra.
+2. **Forma bruta: o saldo.** Com abastecimento de R$ 100,00 e débito de taxa de
+   R$ 100,00, a retenção de R$ 1,50 sai de onde? Se a promotora paga R$ 98,50 por
+   Pix e retém R$ 1,50 para o DARF, o abastecimento credita R$ 98,50 e o débito é
+   de R$ 100,00: a diferença de R$ 1,50 precisa de lançamento (crédito de IRRF a
+   compensar, ou dívida da promotora, que vira a opção (b)). Ele não mostra isso.
+3. **Forma líquida: a base da NFS.** Se o IRRF é creditado à plataforma, a NFS
+   tem de sair pelo bruto (R$ 101,50), não pelos R$ 100,00 de taxa. Com NFS de
+   R$ 100,00 e R$ 1,50 de crédito, a plataforma reconhece receita menor do que o
+   documento. Além disso, "a plataforma devolve R$ 1,50" é um repasse que a
+   forma líquida não precisa: a promotora paga R$ 100,00 à plataforma e R$ 1,50 ao
+   fisco, e a conta fecha sem devolução.
+
+### O que o parecer exige antes de fechar
+- **Lançamentos de cada forma**, com débito e crédito nas contas do plano (caixa,
+  adiantamento de clientes 2.1.5.01, receita 3.1.1.01, IRRF a compensar, DARF,
+  obrigação com a promotora, se houver), somando zero nas duas formas.
+- **Valor da NFS** em cada forma (R$ 100,00 na bruta; R$ 101,50 na líquida).
+- **Momento de cada lançamento** (abastecimento e consumo separados).
+
+### Risco solidário
+A frase "a plataforma pode ser chamada a responder solidariamente" não tem
+dispositivo citado nem texto lido. Entra como risco não verificado, não como
+consequência.
+
+### Decisão do dono (sem mudança)
+- Bruta: a plataforma absorve os R$ 1,50 no caixa e recupera pelo IRPJ, se houver
+  imposto a pagar no período.
+- Líquida: a promotora paga R$ 1,50 a mais por cada R$ 100,00 de taxa, e a
+  plataforma não tem o risco de caixa.

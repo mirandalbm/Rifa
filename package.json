@@ -69,6 +69,7 @@
     "base-ia": "tsx scripts/base-ia.ts",
     "google": "tsx scripts/google-test.ts",
     "marketing": "tsx scripts/marketing-test.ts",
+    "matriz": "tsx scripts/matriz.ts",
     "telas": "tsx scripts/telas.ts",
     "fila": "tsx scripts/fila-test.ts",
     "stone": "bash android/teste-sem-sdk/rodar.sh"

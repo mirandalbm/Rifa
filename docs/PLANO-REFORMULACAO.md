@@ -29,6 +29,18 @@ parecer conjunto e o município da sede.
 - Detalhe em `docs/FECHAMENTO-JURIDICO-CONTABIL.md`, "Decisões do dono por
   blocos".
 
+### Fase 0 — situação (10/10/2026)
+
+Feita: `docs/REFORMULACAO-MATRIZ.md`, **gerada do código** (`npm run matriz`):
+66 telas, 41 seções de acesso, os cartões de cada tela, as 477 rotas da API
+com a prova que cada uma tem e a lista das que nenhuma prova cita; e o teste
+`tests/matrizReformulacao.test.ts`, que falha se a matriz ficar velha ou se
+tela, seção ou cartão novo não tiver linha em
+`docs/reformulacao-destinos.json`. Todos os destinos estão como "a decidir":
+é a fase 2 que os preenche. Falta: ler a matriz (você), a tag
+`marco-antes-da-reformulacao` (depois que o PR for mesclado) e as capturas do
+"antes" (`npm run telas`, em `capturas/`, fora do git).
+
 ## 1. Diagnóstico: por que o painel parece "escrito"
 
 Medido no repositório (51 páginas, 89 componentes, cerca de 60 telas no

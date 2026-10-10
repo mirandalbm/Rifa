@@ -342,3 +342,52 @@ Cada item tem um grau: **confirmado por mais de uma fonte**, **único**, ou
 - Descrição oficial do CNAE para tráfego pago (CONCLA).
 - Regra de ISS para promotora de outro município.
 - Texto oficial do art. 718 e do art. 714 do RIR/2018 (Planalto fora do ar).
+
+## 10. Recomendação do contador (10/10/2026) e revisão
+
+O contador recomendou: IRRF na forma **bruta**; CSRF não retido, com risco
+registrado; CNAE 73.11-4/00 como principal, com risco aceito; ISS de São Paulo
+sem retenção, e ISS de promotora de outro município conforme a lei local dela.
+
+### Onde a recomendação fecha
+- **CSRF não retido, com risco:** de acordo com a seção 9. Continua risco até a
+  SC Cosit 13/2022 ser lida.
+- **ISS de promotora de outro município:** a plataforma destaca o ISS de São Paulo
+  e informa; a retenção fica com a promotora, conforme a lei dela. Fecha a
+  pergunta 3 da seção 9, mas a regra da lei de cada município continua não
+  pesquisada.
+
+### Onde não fecha
+1. **A forma bruta não tem fluxo de caixa consistente com o abastecimento.** A
+   promotora paga o saldo **antes** do consumo, então o R$ 1,50 de IRRF não tem
+   de onde sair na hora da retenção. A tabela dele mostra a plataforma recebendo
+   R$ 98,50 **depois** de ter recebido R$ 100 no abastecimento. Para fechar, há
+   três caminhos, e cada um tem um custo econômico diferente:
+   - **(a)** a promotora abastece R$ 101,52 para cada R$ 100 de taxa esperada:
+     é a taxa líquida, na prática, paga antecipada;
+   - **(b)** a promotora fica devendo R$ 1,50 à plataforma e paga no próximo
+     abastecimento: a plataforma carrega o crédito e a promotora paga depois;
+   - **(c)** a promotora paga o DARF do próprio caixa e a plataforma não recebe
+     esse valor: a promotora paga 1,5% a mais que a taxa combinada, sem
+     contrapartida no saldo.
+   Nenhum dos três é "forma bruta" no sentido de a retenção sair do que foi
+   pago. O contador deve dizer qual deles considera correto.
+2. **"Adiantamento do imposto da plataforma"** é a tese de que o IRRF é crédito
+   dela. Está em linha com o que ele já tinha dito; não há texto lido.
+3. **A recomendação de CNAE troca a pergunta do dono.** Ele ainda não respondeu
+   qual atividade gera mais receita. Se a taxa de rifas for a maior, o 73.11-4/00
+   como principal está errado; é decisão sua, não do contador.
+
+### Pendências do contador que sobram
+- Texto da SC Cosit 13/2022.
+- Base de Lucro Real para o adiamento de receita (o art. 223 é do lucro presumido).
+- Descrição do CNAE para tráfego pago no CONCLA.
+- Dispositivo do art. 718, II, do RIR/2018.
+- Validação dos efeitos fiscais das decisões C1 a C6 e P1 a P5.
+- Anexos 5 a 9 e acórdão 012/25.
+- Assinatura, data e CRC.
+
+### Decisão do dono
+- Escolher entre (a), (b) e (c) do item 1 acima, depois de o contador confirmar
+  qual é correto. Isso é comercial e contratual.
+- Responder qual atividade é a principal (item 3).

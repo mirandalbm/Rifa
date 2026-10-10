@@ -86,9 +86,22 @@ export function creditoDoPresente(p: {
   platformPct: number;
   commissionPct: number;
   comissaoGuardada: boolean;
+  /**
+   * A taxa do pedido inteiro e o total dele (`shared/cobranca.ts`): com os
+   * dois, a parte da taxa no desconto é a proporção exata, para baixo —
+   * nunca um centavo a mais contra a promotora. Sem eles, vale `platformPct`.
+   */
+  taxa?: { cents: number; totalCents: number };
 }): number {
   if (p.presenteCents <= 0) return 0;
-  const r = splitOrder({ paidCents: p.presenteCents, platformPct: p.platformPct, commissionPct: p.commissionPct });
+  const taxaNoPresente =
+    p.taxa && p.taxa.totalCents > 0 ? Math.floor((p.presenteCents * p.taxa.cents) / p.taxa.totalCents) : null;
+  const r = splitOrder({
+    paidCents: p.presenteCents,
+    platformPct: taxaNoPresente === null ? p.platformPct : 0,
+    commissionPct: p.commissionPct,
+    taxas: taxaNoPresente === null ? undefined : { vendaCents: taxaNoPresente, pixCents: 0 },
+  });
   return p.comissaoGuardada ? r.organizerCents : r.netAfterPlatformCents;
 }
 

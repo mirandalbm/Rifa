@@ -10,7 +10,7 @@ import { pos, inPos, printTicket } from "@/lib/pos";
 interface Overview {
   seller: { code: string; commissionPct: number | null };
   /** Só os meios que a administração deixou ligados. */
-  meios: ("dinheiro" | "cartao_maquininha" | "pix_maquininha")[];
+  meios: ("dinheiro" | "pix_maquininha")[];
   campanhas: {
     id: string;
     slug: string;
@@ -82,34 +82,17 @@ export function CambistaVenda() {
     onError: (err: Error) => setErro(err.message),
   });
 
-  /** Dinheiro e Pix são confirmados na hora; cartão passa pela maquininha. */
-  async function confirmar(method: "dinheiro" | "cartao_maquininha" | "pix_maquininha") {
+  /** Dinheiro e Pix são confirmados na hora. Cartão não é aceito. */
+  async function confirmar(method: "dinheiro" | "pix_maquininha") {
     if (!venda) return;
     setErro(null);
     setCobrando(true);
 
     try {
-      let posAuthCode: string | undefined;
-      let posTerminal: string | undefined;
-
-      const ponte = pos();
-      if (method === "cartao_maquininha" && ponte) {
-        const resultado = await ponte.pay({
-          amountCents: venda.amountCents,
-          orderCode: venda.code,
-          method: "credito",
-        });
-        if (!resultado.ok) {
-          throw new Error(resultado.message ?? "A maquininha recusou o pagamento.");
-        }
-        posAuthCode = resultado.authCode;
-        posTerminal = resultado.terminal;
-      }
-
       const res = await apiRequest(
         "POST",
         `/api/seller/sales/${venda.code}/confirm`,
-        { method, posAuthCode, posTerminal },
+        { method, posTerminal: pos()?.terminal },
       );
       const confirmada = (await res.json()) as { prizes: string[] };
 
@@ -307,13 +290,7 @@ export function CambistaVenda() {
                   disabled={cobrando}
                   onClick={() => confirmar(meio)}
                 >
-                  {meio === "dinheiro"
-                    ? "Dinheiro"
-                    : meio === "pix_maquininha"
-                      ? "Pix"
-                      : inPos()
-                        ? "Cobrar no cartão (maquininha)"
-                        : "Cartão — cobrado à parte"}
+                  {meio === "dinheiro" ? "Dinheiro" : "Pix"}
                 </Button>
               ))}
               {(data?.meios ?? []).length === 0 ? (
@@ -324,16 +301,11 @@ export function CambistaVenda() {
               ) : null}
             </div>
 
-            {!inPos() && (data?.meios ?? []).includes("cartao_maquininha") ? (
-              <p className="rounded-md bg-yellow-soft px-3 py-2 text-[11px] text-yellow-deep">
-                Este aparelho não tem maquininha integrada. Cobre no aparelho da
-                adquirente e confirme aqui — a venda fica registrada igual.
-              </p>
-            ) : (
+            {inPos() ? (
               <p className="label-xs">
                 maquininha detectada: {pos()?.terminal}
               </p>
-            )}
+            ) : null}
 
             <Button
               variant="ghost"
@@ -403,7 +375,6 @@ export function CambistaVendas() {
 
   const METODO: Record<string, string> = {
     dinheiro: "dinheiro",
-    cartao_maquininha: "cartão",
     pix_maquininha: "pix",
     pix_online: "pix online",
   };

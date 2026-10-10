@@ -38,6 +38,7 @@ function checa(nome: string, ok: boolean, detalhe = "") {
 }
 
 const SLUG = "estorno-teste";
+const COBRANCA_DA_PROVA = { modo: "percentual" as const, percentualPct: 5, porCotaCents: 0, faixasPix: [{ ate: null, pct: 1 }] };
 
 async function montar() {
   // A organização do seed, pelo slug: é nela que o afiliado JOAO7 tem vínculo.
@@ -45,12 +46,6 @@ async function montar() {
   // depois de um UPDATE qualquer, podia ser a de outra prova (sem comissão).
   const [org] = await db.select().from(organizations).where(eq(organizations.slug, "rifas-sao-jose"));
   if (!org) throw new Error("Nenhuma organização no banco. Rode `npm run db:seed`.");
-
-  // Contrato de comissão, para a taxa existir e poder ser cancelada.
-  await db
-    .update(organizations)
-    .set({ billingMode: "comissao", platformFeePct: 5 })
-    .where(eq(organizations.id, org.id));
 
   const [campanha] = await db
     .insert(campaigns)
@@ -63,8 +58,12 @@ async function montar() {
       priceCents: 1000,
       status: "published",
       commissionPctDefault: 10,
+      // A tabela fotografada na publicação, para a taxa existir e poder ser
+      // cancelada: 5% da venda mais 1% de Pix.
+      cobrancaModo: "percentual",
+      cobranca: COBRANCA_DA_PROVA,
     })
-    .onConflictDoUpdate({ target: campaigns.slug, set: { status: "published" } })
+    .onConflictDoUpdate({ target: campaigns.slug, set: { status: "published", cobranca: COBRANCA_DA_PROVA } })
     .returning();
 
   await db

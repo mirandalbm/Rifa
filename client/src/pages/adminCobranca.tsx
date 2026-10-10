@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { PanelShell } from "@/components/AppShell";
-import { Card, Button, Pill, Empty, Money, Kpi } from "@/components/bits";
+import { Card, Button, Pill, Empty, Money, Kpi, Campo } from "@/components/bits";
 import { TabelaOuCartoes, VerMais } from "@/components/painel";
 import { RetencoesCautelares } from "@/components/RetencoesCautelares";
 import { useListaPaginada } from "@/lib/paginada";
@@ -9,18 +9,20 @@ import { apiRequest } from "@/lib/queryClient";
 import { useSession } from "@/lib/session";
 import { formatBRL } from "@shared/format";
 import {
-  BILLING_LABEL,
-  MAX_PLATFORM_PCT,
-  type BillingMode,
-  type BillingPlan,
-} from "@shared/billing";
+  FAIXAS_PIX_MAX,
+  NOME_DO_MODO,
+  PERCENTUAL_MAX,
+  PIX_PCT_MAX,
+  POR_COTA_MAX_CENTS,
+  textoDaFaixa,
+  textoPct,
+  type ConfigCobranca,
+  type FaixaPix,
+} from "@shared/cobranca";
 
 interface LinhaCarteira {
   organizationId: string;
   name: string;
-  mode: BillingMode;
-  platformFeePct: number;
-  monthlyCents: number;
   active: boolean;
   abertoCents: number;
   pagoCents: number;
@@ -31,15 +33,18 @@ interface LinhaCarteira {
 }
 
 interface Extrato {
-  plano: BillingPlan;
+  tabela: ConfigCobranca;
   totais: { abertoCents: number; pagoCents: number; retidaCents: number };
   creditos: { devidoCents: number; pagoCents: number };
   linhas: {
     charge: {
       id: string;
       kind: "venda" | "mensalidade";
-      competencia: string | null;
       amountCents: number;
+      vendaCents: number;
+      pixCents: number;
+      modo: string | null;
+      /** Percentual da venda em pontos-base (1% = 100), no modo percentual. */
       pct: number | null;
       status: string;
       createdAt: string;
@@ -52,23 +57,27 @@ interface Extrato {
 /**
  * Cobrança da plataforma.
  *
- * Mesma tela, dois lados. O administrador geral vê a carteira: em que
- * contrato cada organização está e quanto deve. O organizador vê a conta
- * dele — cobrar sem mostrar de onde veio cada lançamento seria indefensável,
- * e é a primeira coisa que um cliente pede quando desconfia da fatura.
+ * Mesma tela, dois lados. O administrador geral vê a tabela de cobrança (o
+ * percentual sobre a venda, o valor por cota e as faixas da taxa Pix) e a
+ * carteira: quanto cada organização deve. O organizador vê a tabela e a conta
+ * dele — cobrar sem mostrar de onde veio cada lançamento seria indefensável.
+ * Quem escolhe percentual ou por cota é a organização, rifa a rifa.
  */
 type LinhaDoExtrato = Extrato["linhas"][number];
 
 function DeOndeVeio({ l }: { l: LinhaDoExtrato }) {
-  return l.charge.kind === "mensalidade" ? (
-    <>
-      Mensalidade <span className="tnum text-muted">{l.charge.competencia}</span>
-    </>
-  ) : (
+  const c = l.charge;
+  return (
     <>
       Venda do pedido <span className="tnum">{l.orderCode}</span>
-      {l.charge.pct ? <span className="tnum text-muted"> · {l.charge.pct}%</span> : null}
+      {c.modo === "percentual" && c.pct ? <span className="tnum text-muted"> · {textoPct(c.pct / 100)}</span> : null}
+      {c.modo === "por_cota" ? <span className="text-muted"> · por cota</span> : null}
       {l.campanha ? <span className="block text-[11px] text-muted">{l.campanha}</span> : null}
+      {c.pixCents > 0 ? (
+        <span className="block text-[11px] text-muted">
+          venda <Money cents={c.vendaCents} /> + Pix <Money cents={c.pixCents} />
+        </span>
+      ) : null}
     </>
   );
 }
@@ -96,6 +105,38 @@ export function AdminCobranca() {
   return daPlataforma ? <Carteira /> : <MinhaConta />;
 }
 
+/** A tabela em texto, para quem lê (organizador) e para conferir (plataforma). */
+function ResumoDaTabela({ tabela }: { tabela: ConfigCobranca }) {
+  return (
+    <div className="space-y-3 px-4 py-3 text-sm">
+      <p>
+        Cada rifa escolhe, antes de publicar, como a plataforma cobra por ela:{" "}
+        <b>{NOME_DO_MODO.percentual.toLowerCase()}</b> (<span className="tnum">{textoPct(tabela.percentualPct)}</span> de
+        cada venda) ou <b>{NOME_DO_MODO.por_cota.toLowerCase()}</b> (<span className="tnum">{formatBRL(tabela.porCotaCents)}</span>{" "}
+        por cota vendida). A escolha trava ao publicar.
+      </p>
+      <div>
+        <p className="font-medium">Taxa de transação Pix</p>
+        <p className="text-xs text-muted">
+          Sobre o valor de cada Pix pago pelo site, descontada da organização (nunca de quem compra). Quanto mais
+          transações no mês, menor a taxa. A faixa é a do volume do mês no momento do pedido.
+        </p>
+        <ul className="mt-1 list-disc pl-5">
+          {tabela.faixasPix.map((_, i) => (
+            <li key={i} className="tnum">
+              {textoDaFaixa(tabela.faixasPix, i)}
+            </li>
+          ))}
+        </ul>
+      </div>
+      <p className="text-xs text-muted">
+        A plataforma sai antes da comissão: o afiliado recebe o percentual dele sobre o que sobrou da venda depois
+        das duas taxas. Só Pix: não aceitamos cartão.
+      </p>
+    </div>
+  );
+}
+
 /* ---------------- o lado da plataforma ---------------- */
 
 function Carteira() {
@@ -103,7 +144,6 @@ function Carteira() {
   const { data } = useQuery<{ carteira: LinhaCarteira[] }>({
     queryKey: ["/api/admin/cobranca"],
   });
-  const [editando, setEditando] = useState<string | null>(null);
   const [erro, setErro] = useState<string | null>(null);
 
   const recarregar = () => qc.invalidateQueries({ queryKey: ["/api/admin/cobranca"] });
@@ -114,245 +154,244 @@ function Carteira() {
     onError: (err: Error) => setErro(err.message),
   });
 
-  const lancar = useMutation({
-    mutationFn: () => apiRequest("POST", "/api/admin/cobranca/mensalidades"),
-    onSuccess: recarregar,
-    onError: (err: Error) => setErro(err.message),
-  });
-
   const total = data?.carteira.reduce((s, o) => s + o.abertoCents, 0) ?? 0;
-  const cobrando = data?.carteira.filter((o) => o.mode !== "gratis").length ?? 0;
+  const retida = data?.carteira.reduce((s, o) => s + o.retidaCents, 0) ?? 0;
 
   return (
     <PanelShell title="Cobrança">
       {erro ? (
-        <p className="mb-3 rounded-md bg-red-soft px-3 py-2 text-sm text-red">{erro}</p>
+        <p role="alert" className="mb-3 rounded-md bg-red-soft px-3 py-2 text-sm text-red">
+          {erro}
+        </p>
       ) : null}
 
-      <div className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <div className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
         <Kpi label="A receber" value={formatBRL(total)} hint="somando todas" highlight={total > 0} />
-        <Kpi label="Organizações cobrando" value={String(cobrando)} />
-        <Kpi
-          label="Sem cobrança"
-          value={String((data?.carteira.length ?? 0) - cobrando)}
-          hint="o padrão de quem ainda não tem contrato"
-        />
+        <Kpi label="Retida no split" value={formatBRL(retida)} hint="o Pix já dividiu: nada a cobrar" />
       </div>
+
+      <TabelaDeCobranca />
 
       <RetencoesCautelares organizacoes={data?.carteira.map((o) => ({ id: o.organizationId, nome: o.name })) ?? []} />
 
-      <Card
-        title="Carteira"
-        right={
-          <Button variant="ghost" onClick={() => lancar.mutate()} disabled={lancar.isPending}>
-            lançar mensalidades
-          </Button>
-        }
-      >
+      <Card title="Carteira">
         {data?.carteira.length ? (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-line text-left">
-                <th className="px-4 py-2 font-medium text-muted">Organização</th>
-                <th className="px-4 py-2 font-medium text-muted">Contrato</th>
-                <th className="px-4 py-2 text-right font-medium text-muted">Em aberto</th>
-                <th className="px-4 py-2 text-right font-medium text-muted">Já pago</th>
-                <th className="px-4 py-2" />
-              </tr>
-            </thead>
-            <tbody>
-              {data.carteira.map((o) => (
-                <Linha
-                  key={o.organizationId}
-                  org={o}
-                  editando={editando === o.organizationId}
-                  abrir={() => setEditando(o.organizationId)}
-                  fechar={() => setEditando(null)}
-                  salvo={() => {
-                    setEditando(null);
-                    setErro(null);
-                    recarregar();
-                  }}
-                  falhou={setErro}
-                  baixar={() => baixar.mutate(o.organizationId)}
-                />
-              ))}
-            </tbody>
-          </table>
+          <TabelaOuCartoes
+            aria="Carteira de cobrança"
+            itens={data.carteira}
+            chave={(o) => o.organizationId}
+            colunas={[
+              {
+                titulo: "Organização",
+                celula: (o) => (
+                  <>
+                    <span className="font-medium">{o.name}</span>
+                    {!o.active ? (
+                      <span className="ml-2">
+                        <Pill status="blocked">suspensa</Pill>
+                      </span>
+                    ) : null}
+                  </>
+                ),
+              },
+              {
+                titulo: "Em aberto",
+                direita: true,
+                celula: (o) => (
+                  <>
+                    <Money cents={o.abertoCents} />
+                    {o.creditoCents > 0 ? (
+                      <span className="block text-[11px] text-muted">
+                        a repassar (presentes): <Money cents={o.creditoCents} />
+                      </span>
+                    ) : null}
+                  </>
+                ),
+              },
+              {
+                titulo: "Já pago",
+                direita: true,
+                celula: (o) => (
+                  <span className="text-muted">
+                    <Money cents={o.pagoCents} />
+                    {o.retidaCents > 0 ? (
+                      <span className="block text-[11px]">
+                        retida no split: <Money cents={o.retidaCents} />
+                      </span>
+                    ) : null}
+                  </span>
+                ),
+              },
+              {
+                titulo: "",
+                celula: (o) =>
+                  o.abertoCents > 0 || o.creditoCents > 0 ? (
+                    <Button variant="ghost" onClick={() => baixar.mutate(o.organizationId)}>
+                      dar baixa
+                    </Button>
+                  ) : null,
+              },
+            ]}
+            cartao={(o) => (
+              <div className="space-y-1 text-sm">
+                <p className="font-medium">{o.name}</p>
+                <p>
+                  Em aberto: <Money cents={o.abertoCents} />
+                </p>
+                <p className="text-muted">
+                  Já pago: <Money cents={o.pagoCents} />
+                </p>
+                {o.abertoCents > 0 || o.creditoCents > 0 ? (
+                  <Button variant="ghost" onClick={() => baixar.mutate(o.organizationId)}>
+                    dar baixa
+                  </Button>
+                ) : null}
+              </div>
+            )}
+          />
         ) : (
           <Empty>Nenhuma organização ainda.</Empty>
         )}
-
-        <p className="border-t border-line px-4 py-3 text-xs text-muted">
-          A taxa por venda sai <b>antes</b> da comissão: o afiliado recebe sobre
-          o que sobrou, não sobre o bruto. Quem paga mensalidade não paga nada
-          por venda — os dois juntos seriam um terceiro contrato.
-        </p>
       </Card>
     </PanelShell>
   );
 }
 
-function Linha({
-  org,
-  editando,
-  abrir,
-  fechar,
-  salvo,
-  falhou,
-  baixar,
-}: {
-  org: LinhaCarteira;
-  editando: boolean;
-  abrir: () => void;
-  fechar: () => void;
-  salvo: () => void;
-  falhou: (m: string) => void;
-  baixar: () => void;
-}) {
-  const [plano, setPlano] = useState<Partial<BillingPlan>>({
-    mode: org.mode,
-    platformFeePct: org.platformFeePct || 5,
-    monthlyCents: org.monthlyCents || 29900,
-  });
+/** Centavos para o campo em reais, e de volta. */
+const emReais = (c: number) => (c / 100).toFixed(2);
+const deReais = (v: string) => Math.round(Number(v.replace(",", ".")) * 100);
+
+/**
+ * A tabela de cobrança da plataforma. Vale para as rifas publicadas daqui em
+ * diante: a rifa publicada guardou a dela, e o pedido, a dele.
+ */
+function TabelaDeCobranca() {
+  const qc = useQueryClient();
+  const { data } = useQuery<ConfigCobranca>({ queryKey: ["/api/admin/cobranca/tabela"] });
+  const [pct, setPct] = useState("0");
+  const [porCota, setPorCota] = useState("0.00");
+  const [faixas, setFaixas] = useState<{ ate: string; pct: string }[]>([{ ate: "", pct: "0" }]);
+  const [msg, setMsg] = useState<{ ok: boolean; texto: string } | null>(null);
+
+  useEffect(() => {
+    if (!data) return;
+    setPct(String(data.percentualPct));
+    setPorCota(emReais(data.porCotaCents));
+    setFaixas(data.faixasPix.map((f) => ({ ate: f.ate === null ? "" : String(f.ate), pct: String(f.pct) })));
+  }, [data]);
 
   const salvar = useMutation({
-    mutationFn: () =>
-      apiRequest("PUT", `/api/admin/cobranca/${org.organizationId}/plano`, plano),
-    onSuccess: salvo,
-    onError: (err: Error) => falhou(err.message),
+    mutationFn: () => {
+      const faixasPix: FaixaPix[] = faixas.map((f, i) => ({
+        ate: i === faixas.length - 1 ? null : Number(f.ate),
+        pct: Number(f.pct.replace(",", ".")),
+      }));
+      return apiRequest("PUT", "/api/admin/cobranca/tabela", {
+        percentualPct: Number(pct.replace(",", ".")),
+        porCotaCents: deReais(porCota),
+        faixasPix,
+      });
+    },
+    onSuccess: () => {
+      setMsg({ ok: true, texto: "Tabela salva. Vale para as rifas publicadas daqui em diante." });
+      qc.invalidateQueries({ queryKey: ["/api/admin/cobranca/tabela"] });
+    },
+    onError: (err: Error) => setMsg({ ok: false, texto: err.message }),
   });
 
   return (
-    <>
-      <tr className="border-b border-line last:border-0">
-        <td className="px-4 py-3">
-          <span className="font-medium">{org.name}</span>
-          {!org.active ? (
-            <span className="ml-2">
-              <Pill status="blocked">suspensa</Pill>
-            </span>
-          ) : null}
-        </td>
-        <td className="px-4 py-3">
-          <Pill status={org.mode === "gratis" ? "draft" : "active"}>
-            {BILLING_LABEL[org.mode]}
-          </Pill>
-          <span className="tnum ml-2 text-xs text-muted">
-            {org.mode === "comissao" ? `${org.platformFeePct}%` : null}
-            {org.mode === "mensalidade" ? `${formatBRL(org.monthlyCents)}/mês` : null}
-          </span>
-        </td>
-        <td className="px-4 py-3 text-right">
-          <Money cents={org.abertoCents} />
-          {org.creditoCents > 0 ? (
-            <span className="block text-[11px] text-muted">
-              a repassar (presentes): <Money cents={org.creditoCents} />
-            </span>
-          ) : null}
-        </td>
-        <td className="px-4 py-3 text-right text-muted">
-          <Money cents={org.pagoCents} />
-          {org.retidaCents > 0 ? (
-            <span className="block text-[11px]">
-              retida no split: <Money cents={org.retidaCents} />
-            </span>
-          ) : null}
-        </td>
-        <td className="px-4 py-3 text-right">
-          <div className="flex justify-end gap-2 whitespace-nowrap">
-            <Button variant="ghost" onClick={editando ? fechar : abrir}>
-              {editando ? "fechar" : "contrato"}
-            </Button>
-            {org.abertoCents > 0 || org.creditoCents > 0 ? (
-              <Button variant="ghost" onClick={baixar}>
-                dar baixa
-              </Button>
-            ) : null}
-          </div>
-        </td>
-      </tr>
+    <Card title="Tabela de cobrança">
+      <form
+        className="space-y-4 px-4 py-3"
+        onSubmit={(e) => {
+          e.preventDefault();
+          setMsg(null);
+          salvar.mutate();
+        }}
+      >
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <Campo rotulo="Percentual sobre a venda (%)" dica={`De 0 a ${PERCENTUAL_MAX}%, até duas casas.`}>
+            <input inputMode="decimal" value={pct} onChange={(e) => setPct(e.target.value)} className="campo tnum" />
+          </Campo>
+          <Campo rotulo="Valor por cota vendida (R$)" dica={`Até ${formatBRL(POR_COTA_MAX_CENTS)}. Nunca maior que o preço da cota.`}>
+            <input inputMode="decimal" value={porCota} onChange={(e) => setPorCota(e.target.value)} className="campo tnum" />
+          </Campo>
+        </div>
 
-      {editando ? (
-        <tr className="border-b border-line bg-mist">
-          <td colSpan={5} className="px-4 py-3">
-            <div className="flex flex-wrap items-end gap-3">
-              <div>
-                <label htmlFor={`modo-${org.organizationId}`} className="label-xs">
-                  Como cobrar
-                </label>
-                <select
-                  id={`modo-${org.organizationId}`}
-                  value={plano.mode}
-                  onChange={(e) =>
-                    setPlano({ ...plano, mode: e.target.value as BillingMode })
-                  }
-                  className="mt-1 rounded-md border border-line-2 px-3 py-2 text-sm"
+        <fieldset className="space-y-2">
+          <legend className="text-sm font-medium">Taxa Pix por volume do mês</legend>
+          <p className="text-xs text-muted">
+            De {1} a {FAIXAS_PIX_MAX} faixas, até {PIX_PCT_MAX}%. Os tetos sobem e a taxa nunca sobe; a última não tem
+            teto.
+          </p>
+          {faixas.map((f, i) => {
+            const ultima = i === faixas.length - 1;
+            return (
+              <div key={i} className="grid grid-cols-1 items-end gap-2 sm:grid-cols-[1fr_1fr_auto]">
+                <Campo rotulo={`Faixa ${i + 1}: até quantas transações`}>
+                  <input
+                    inputMode="numeric"
+                    value={ultima ? "" : f.ate}
+                    placeholder={ultima ? "sem teto" : undefined}
+                    disabled={ultima}
+                    onChange={(e) => setFaixas(faixas.map((x, j) => (j === i ? { ...x, ate: e.target.value } : x)))}
+                    className="campo tnum"
+                  />
+                </Campo>
+                <Campo rotulo={`Faixa ${i + 1}: taxa (%)`}>
+                  <input
+                    inputMode="decimal"
+                    value={f.pct}
+                    onChange={(e) => setFaixas(faixas.map((x, j) => (j === i ? { ...x, pct: e.target.value } : x)))}
+                    className="campo tnum"
+                  />
+                </Campo>
+                <Button
+                  variant="ghost"
+                  type="button"
+                  disabled={faixas.length === 1}
+                  onClick={() => setFaixas(faixas.filter((_, j) => j !== i))}
+                  aria-label={`Tirar a faixa ${i + 1}`}
                 >
-                  {(Object.keys(BILLING_LABEL) as BillingMode[]).map((m) => (
-                    <option key={m} value={m}>
-                      {BILLING_LABEL[m]}
-                    </option>
-                  ))}
-                </select>
+                  tirar
+                </Button>
               </div>
+            );
+          })}
+          <Button
+            variant="ghost"
+            type="button"
+            disabled={faixas.length >= FAIXAS_PIX_MAX}
+            onClick={() => {
+              // A nova entra antes da última (a sem teto).
+              const ultima = faixas[faixas.length - 1];
+              setFaixas([...faixas.slice(0, -1), { ate: "", pct: ultima.pct }, ultima]);
+            }}
+          >
+            + faixa
+          </Button>
+        </fieldset>
 
-              {plano.mode === "comissao" ? (
-                <div>
-                  <label htmlFor={`pct-${org.organizationId}`} className="label-xs">
-                    Percentual por venda (máx. {MAX_PLATFORM_PCT}%)
-                  </label>
-                  <input
-                    id={`pct-${org.organizationId}`}
-                    type="number"
-                    min={1}
-                    max={MAX_PLATFORM_PCT}
-                    value={plano.platformFeePct}
-                    onChange={(e) =>
-                      setPlano({ ...plano, platformFeePct: Number(e.target.value) })
-                    }
-                    className="tnum mt-1 w-28 rounded-md border border-line-2 px-3 py-2 text-sm"
-                  />
-                </div>
-              ) : null}
-
-              {plano.mode === "mensalidade" ? (
-                <div>
-                  <label htmlFor={`mes-${org.organizationId}`} className="label-xs">
-                    Valor do mês (R$)
-                  </label>
-                  <input
-                    id={`mes-${org.organizationId}`}
-                    type="number"
-                    min={1}
-                    step="0.01"
-                    value={(plano.monthlyCents ?? 0) / 100}
-                    onChange={(e) =>
-                      setPlano({
-                        ...plano,
-                        monthlyCents: Math.round(Number(e.target.value) * 100),
-                      })
-                    }
-                    className="tnum mt-1 w-32 rounded-md border border-line-2 px-3 py-2 text-sm"
-                  />
-                </div>
-              ) : null}
-
-              <Button onClick={() => salvar.mutate()} disabled={salvar.isPending}>
-                Salvar contrato
-              </Button>
-            </div>
-          </td>
-        </tr>
-      ) : null}
-    </>
+        <div className="flex flex-wrap items-center gap-3">
+          <Button type="submit" disabled={salvar.isPending}>
+            Salvar tabela
+          </Button>
+          {msg ? (
+            <span role="status" className={`text-sm ${msg.ok ? "text-green-deep" : "text-red"}`}>
+              {msg.texto}
+            </span>
+          ) : null}
+        </div>
+      </form>
+      {data ? <ResumoDaTabela tabela={data} /> : null}
+    </Card>
   );
 }
 
 /* ---------------- o lado do organizador ---------------- */
 
 function MinhaConta() {
-  // O extrato anda por chave: a primeira página traz o contrato e os totais
+  // O extrato anda por chave: a primeira página traz a tabela e os totais
   // (que valem para a conta toda), "Ver mais" traz os lançamentos seguintes.
   const { paginas, hasNextPage, fetchNextPage, isFetchingNextPage } = useListaPaginada<Extrato>("/api/admin/cobranca/extrato");
   const data = paginas[0];
@@ -360,18 +399,7 @@ function MinhaConta() {
 
   return (
     <PanelShell title="Cobrança">
-      <div className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-3 xl:grid-cols-4">
-        <Kpi
-          label="Seu contrato"
-          value={data ? BILLING_LABEL[data.plano.mode] : "—"}
-          hint={
-            data?.plano.mode === "comissao"
-              ? `${data.plano.platformFeePct}% por venda, descontado antes da comissão`
-              : data?.plano.mode === "mensalidade"
-                ? `${formatBRL(data.plano.monthlyCents)} por mês, e nada por venda`
-                : "nenhuma cobrança da plataforma"
-          }
-        />
+      <div className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
         <Kpi label="Em aberto" value={formatBRL(data?.totais.abertoCents ?? 0)} />
         <Kpi
           label="Já pago"
@@ -386,6 +414,12 @@ function MinhaConta() {
           />
         ) : null}
       </div>
+
+      {data ? (
+        <Card title="Como a plataforma cobra">
+          <ResumoDaTabela tabela={data.tabela} />
+        </Card>
+      ) : null}
 
       <Card title="Lançamentos">
         {lancamentos.length ? (
@@ -420,13 +454,6 @@ function MinhaConta() {
         ) : (
           <Empty>Nenhuma cobrança até agora.</Empty>
         )}
-
-        {data?.plano.mode === "comissao" ? (
-          <p className="border-t border-line px-4 py-3 text-xs text-muted">
-            A taxa da plataforma sai antes da comissão do afiliado: ele recebe o
-            percentual dele sobre o que sobrou da venda, não sobre o bruto.
-          </p>
-        ) : null}
       </Card>
     </PanelShell>
   );

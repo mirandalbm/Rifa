@@ -63,6 +63,7 @@ export async function lancarCreditoDoPresente(
     platformPct: number;
     commissionPct: number;
     comissaoGuardada: boolean;
+    taxa?: { cents: number; totalCents: number };
   },
 ) {
   const valor = creditoDoPresente(p);

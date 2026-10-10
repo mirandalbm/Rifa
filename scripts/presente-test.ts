@@ -91,11 +91,10 @@ async function main() {
   await marina.req("POST", "/api/auth/login", { email: "marina@rifassaojose.br", password: "organizador123" });
   const [eu] = await db.select({ org: users.organizationId }).from(users).where(eq(users.email, "marina@rifassaojose.br"));
   const orgId = eu.org!;
-  const [org] = await db.select().from(organizations).where(eq(organizations.id, orgId));
   const antes = (await admin.req("GET", "/api/admin/bonus")).json?.config;
 
-  // Taxa de 5% na organização, para conferir o rateio sobre o preço cheio.
-  await db.update(organizations).set({ billingMode: "comissao", platformFeePct: 5 }).where(eq(organizations.id, orgId));
+  // Taxa de 5% na rifa (a tabela fotografada na publicação), para conferir
+  // o rateio sobre o preço cheio.
   const [rifa] = await db
     .insert(campaigns)
     .values({
@@ -109,6 +108,8 @@ async function main() {
       publishedAt: new Date(),
       drawAt: new Date(Date.now() + 10 * 86_400_000),
       authorizationCode: "SPA-PRESENTE",
+      cobrancaModo: "percentual",
+      cobranca: { modo: "percentual", percentualPct: 5, porCotaCents: 0, faixasPix: [{ ate: null, pct: 0 }] },
     })
     .returning();
   await db.insert(campaignStats).values({ campaignId: rifa.id });
@@ -183,7 +184,14 @@ async function main() {
     const [taxa] = await db.select().from(platformCharges).where(eq(platformCharges.orderId, pago.id));
     const [credito] = await db.select().from(presenteCreditos).where(eq(presenteCreditos.orderId, pago.id));
     checa("a taxa corre sobre o preço cheio", taxa?.amountCents === Math.floor((5 * PRECO * 5) / 100), `${taxa?.amountCents}`);
-    const esperado = creditoDoPresente({ presenteCents: desconto, platformPct: 5, commissionPct: 0, comissaoGuardada: false });
+    // A parte do presente paga a mesma proporção da taxa sobre o total.
+    const esperado = creditoDoPresente({
+      presenteCents: desconto,
+      platformPct: 0,
+      taxa: { cents: taxa?.amountCents ?? 0, totalCents: 5 * PRECO },
+      commissionPct: 0,
+      comissaoGuardada: false,
+    });
     checa("a parte da promotora no desconto vira crédito dela", credito?.amountCents === esperado && credito.status === "devido", `${credito?.amountCents} ≟ ${esperado}`);
     r = await marina.req("GET", "/api/admin/cobranca/extrato");
     checa("a organização vê o que tem a receber", r.json?.creditos?.devidoCents >= esperado, JSON.stringify(r.json?.creditos));
@@ -205,10 +213,6 @@ async function main() {
     checa("desligado de novo: a oferta some", r.json?.ligado === false);
   } finally {
     if (antes?.presente) await config(antes.presente).catch(() => {});
-    await db
-      .update(organizations)
-      .set({ billingMode: org.billingMode, platformFeePct: org.platformFeePct })
-      .where(eq(organizations.id, orgId));
     await limpar();
   }
 

@@ -19,7 +19,7 @@ import { enabledPhysical } from "@shared/payments";
 
 export const sellerRouter = Router();
 
-const METODOS: MetodoFisico[] = ["dinheiro", "cartao_maquininha", "pix_maquininha"];
+const METODOS: MetodoFisico[] = ["dinheiro", "pix_maquininha"];
 
 /** Tela de abrir o dia: o que dá para vender e quanto eu devo. */
 sellerRouter.get("/overview", async (req, res, next) => {
@@ -155,7 +155,7 @@ sellerRouter.post("/sales/:code/confirm", async (req, res, next) => {
   }
 });
 
-/** Cartão recusado ou desistência: devolve as cotas na hora. */
+/** Pix não pago ou desistência: devolve as cotas na hora. */
 sellerRouter.post("/sales/:code/cancel", async (req, res, next) => {
   try {
     const id = affiliateId(req);

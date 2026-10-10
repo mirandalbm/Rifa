@@ -611,9 +611,8 @@ async function rotasDaPlataforma(eu: Lado) {
     ["PUT meios de pagamento", "/api/admin/payment-methods", { method: "PUT", body: "{}" }],
     ["GET auditoria", "/api/admin/audit", {}],
     ["GET carteira de cobrança", "/api/admin/cobranca", {}],
-    ["PUT contrato de cobrança", `/api/admin/cobranca/${eu.orgId}/plano`, { method: "PUT", body: '{"mode":"gratis"}' }],
+    ["PUT tabela de cobrança", "/api/admin/cobranca/tabela", { method: "PUT", body: '{"percentualPct":0}' }],
     ["POST dar baixa", `/api/admin/cobranca/${eu.orgId}/baixa`, { method: "POST" }],
-    ["POST lançar mensalidades", "/api/admin/cobranca/mensalidades", { method: "POST" }],
     ["POST arquivar organização", `/api/admin/organizacoes/${eu.orgId}/arquivar`, { method: "POST", body: "{}" }],
     ["POST restaurar organização", `/api/admin/organizacoes/${eu.orgId}/restaurar`, { method: "POST" }],
     ["GET pagamentos da plataforma", "/api/admin/plataforma", {}],
@@ -924,11 +923,14 @@ async function conteudoDasListas(eu: Lado, vizinho: Lado) {
     `${csv.split("\n").length - 2} linha(s)`,
   );
 
-  const extrato = await (await pedir(eu.cookie, "/api/admin/cobranca/extrato")).json();
+  const extrato = (await (await pedir(eu.cookie, "/api/admin/cobranca/extrato")).json()) as {
+    tabela?: unknown;
+    linhas?: { orderCode: number | null }[];
+  };
   checa(
-    "o extrato de cobrança é o da própria organização",
-    (extrato as { plano?: { mode: string } }).plano !== undefined,
-    (extrato as { plano?: { mode: string } }).plano?.mode ?? "sem plano",
+    "o extrato de cobrança é o da própria organização (sem o pedido do vizinho)",
+    extrato.tabela !== undefined && !(extrato.linhas ?? []).some((l) => l.orderCode === vizinho.orderCode),
+    `${extrato.linhas?.length ?? 0} lançamento(s)`,
   );
 
   const pessoas = (await (await pedir(eu.cookie, "/api/admin/usuarios")).json()) as {

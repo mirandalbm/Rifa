@@ -107,8 +107,12 @@ export interface SplitBreakdown {
   /** O que o comprador efetivamente pagou — já com pacote e cupom. */
   paidCents: number;
   platformPct: number;
-  /** Taxa da plataforma. **Sai primeiro**, do topo. */
+  /** Taxa da plataforma (venda + Pix). **Sai primeiro**, do topo. */
   platformFeeCents: number;
+  /** A parte da taxa que é de venda (percentual ou por cota). */
+  saleFeeCents: number;
+  /** A parte da taxa que é de transação Pix. */
+  pixFeeCents: number;
   /** O que sobra depois da plataforma. É a base da comissão. */
   netAfterPlatformCents: number;
   commissionPct: number;
@@ -133,13 +137,20 @@ export interface SplitBreakdown {
  *
  * Por isso a garantia deste arquivo é de igualdade, não de aproximação:
  * `plataforma + comissão + promotor === pago`, em centavos inteiros, sempre.
+ *
+ * A taxa da plataforma vem de um de dois jeitos: o percentual (`platformPct`)
+ * ou as taxas já calculadas do pedido (`taxas`, de `taxasEmCentavos()` em
+ * `shared/cobranca.ts`: venda — percentual ou por cota — e Pix). Com
+ * `taxas`, o percentual é ignorado. Em qualquer dos dois, a soma das taxas
+ * nunca passa do que foi pago.
  */
 export function splitOrder(params: {
   paidCents: number;
   platformPct: number;
   commissionPct: number;
+  taxas?: { vendaCents: number; pixCents: number };
 }): SplitBreakdown {
-  const { paidCents, platformPct, commissionPct } = params;
+  const { paidCents, platformPct, commissionPct, taxas } = params;
 
   if (!Number.isInteger(paidCents) || paidCents < 0) {
     throw new Error("Valor pago inválido.");
@@ -151,7 +162,18 @@ export function splitOrder(params: {
     throw new Error("Percentual de comissão inválido.");
   }
 
-  const platformFeeCents = Math.floor((paidCents * platformPct) / 100);
+  if (taxas) {
+    for (const v of [taxas.vendaCents, taxas.pixCents]) {
+      if (!Number.isInteger(v) || v < 0) throw new Error("Taxa da plataforma inválida.");
+    }
+  }
+
+  const saleFeeCents = Math.min(
+    paidCents,
+    taxas ? taxas.vendaCents : Math.floor((paidCents * platformPct) / 100),
+  );
+  const pixFeeCents = taxas ? Math.min(paidCents - saleFeeCents, taxas.pixCents) : 0;
+  const platformFeeCents = saleFeeCents + pixFeeCents;
   const netAfterPlatformCents = paidCents - platformFeeCents;
   const commission = commissionCents(netAfterPlatformCents, commissionPct);
 
@@ -159,6 +181,8 @@ export function splitOrder(params: {
     paidCents,
     platformPct,
     platformFeeCents,
+    saleFeeCents,
+    pixFeeCents,
     netAfterPlatformCents,
     commissionPct,
     commissionCents: commission,

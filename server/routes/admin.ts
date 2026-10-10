@@ -123,15 +123,8 @@ import { generateSecret, otpauthUrl } from "../services/totp";
 import { codigoConfere, guardarSegredo } from "../services/segundoFator";
 import { buildExport, ExportError, toCsvLine } from "../services/exports";
 import { refundOrder } from "../services/orders";
-import {
-  planOfOrganization,
-  setBillingPlan,
-  carteiraDaPlataforma,
-  extratoDa,
-  darBaixa,
-  lancarMensalidades,
-} from "../services/billing";
-import { BILLING_LABEL } from "@shared/billing";
+import { carteiraDaPlataforma, extratoDa, darBaixa } from "../services/billing";
+import { problemaNaCobranca, validarConfigCobranca, validarModo } from "@shared/cobranca";
 import {
   orgOf,
   isPlatform,
@@ -1519,12 +1512,17 @@ adminRouter.put("/campaigns/:id/agendar-publicacao", async (req, res, next) => {
 
 adminRouter.put("/campaigns/:id/packages", async (req, res, next) => {
   try {
-    await assertCampaignInScope(req, req.params.id);
+    const campanha = await assertCampaignInScope(req, req.params.id);
     const list = (req.body?.packages ?? []) as {
       quantity: number;
       discountPct: number;
       highlight?: boolean;
     }[];
+    // Por cota: o desconto do pacote não pode levar a cota abaixo da taxa da
+    // plataforma (a fotografada na publicação, ou a de hoje no rascunho).
+    const tabela = campanha.cobranca ?? (await getPlataforma()).cobranca;
+    const abaixo = problemaNaCobranca(validarModo(campanha.cobrancaModo), tabela, campanha.priceCents, list);
+    if (abaixo) return res.status(422).json({ message: abaixo });
 
     await db.transaction(async (tx) => {
       await tx.delete(quotaPackages).where(eq(quotaPackages.campaignId, req.params.id));
@@ -3534,28 +3532,41 @@ adminRouter.patch("/usuarios/:id", async (req, res, next) => {
 
 /* ---------------- cobrança da plataforma ---------------- */
 
-/**
- * A carteira: quanto cada organização deve, e em que contrato está.
- */
+/** A carteira: quanto cada organização deve. */
 adminRouter.get("/cobranca", async (req, res, next) => {
   try {
     requirePlatformAdmin(req);
-    res.json({
-      rotulos: BILLING_LABEL,
-      carteira: await carteiraDaPlataforma(),
-    });
+    res.json({ carteira: await carteiraDaPlataforma() });
   } catch (err) {
     next(err);
   }
 });
 
-/** Troca o contrato de uma organização: mensalidade OU comissão. */
-adminRouter.put("/cobranca/:id/plano", async (req, res, next) => {
+/**
+ * A tabela de cobrança (`shared/cobranca.ts`): o percentual sobre a venda, o
+ * valor por cota e as faixas da taxa Pix. A organização lê — é o que ela
+ * escolhe no rascunho e o que paga —; só a plataforma muda.
+ */
+adminRouter.get("/cobranca/tabela", async (_req, res, next) => {
+  try {
+    res.setHeader("Cache-Control", "no-store");
+    res.json((await getPlataforma()).cobranca);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * Muda a tabela. Vale para as rifas publicadas daqui em diante: a rifa
+ * publicada fotografou a dela (`campaigns.cobranca`) e o pedido, a dele.
+ */
+adminRouter.put("/cobranca/tabela", async (req, res, next) => {
   try {
     requirePlatformAdmin(req);
-    const plano = await setBillingPlan(req.params.id, req.body ?? {});
-    await audit(req, "cobranca.plano", "organization", req.params.id, plano);
-    res.json(plano);
+    const cobranca = validarConfigCobranca(req.body ?? {});
+    const salva = await setPlataforma({ cobranca });
+    await audit(req, "cobranca.tabela", "settings", "cobranca", salva.cobranca);
+    res.json(salva.cobranca);
   } catch (err) {
     next(err);
   }
@@ -3568,18 +3579,6 @@ adminRouter.post("/cobranca/:id/baixa", async (req, res, next) => {
     const quantas = await darBaixa(req.params.id);
     await audit(req, "cobranca.baixa", "organization", req.params.id, { quantas });
     res.json({ baixadas: quantas });
-  } catch (err) {
-    next(err);
-  }
-});
-
-/** Força o lançamento da mensalidade sem esperar o relógio. */
-adminRouter.post("/cobranca/mensalidades", async (req, res, next) => {
-  try {
-    requirePlatformAdmin(req);
-    const lancadas = await lancarMensalidades();
-    await audit(req, "cobranca.mensalidades", "settings", "cobranca", { lancadas });
-    res.json({ lancadas });
   } catch (err) {
     next(err);
   }
@@ -3614,11 +3613,7 @@ adminRouter.get("/cobranca/extrato", async (req, res, next) => {
       antes: lerCursor(req.query.antes),
     });
     if (proximo) res.setHeader("X-Proximo", proximo);
-    res.json({
-      plano: await planOfOrganization(alvo),
-      rotulos: BILLING_LABEL,
-      ...extrato,
-    });
+    res.json({ tabela: (await getPlataforma()).cobranca, ...extrato });
   } catch (err) {
     next(err);
   }

@@ -605,7 +605,8 @@ Na ordem de entrega do plano:
     sugere a descrição (`DESCRICAO_DA_NOTA_DO_AFILIADO` em
     `shared/fiscal.ts`). MEI e Simples: sem retenção na fonte, pagamento
     pelo valor cheio.
-  - **Receita da plataforma**: só a taxa por venda ou a mensalidade. NFS-e
+  - **Receita da plataforma**: a taxa de cada venda (percentual ou por cota,
+    escolhido por rifa) e a taxa de transação Pix; não há mensalidade. NFS-e
     mensal contra cada promotora ("taxa de uso de plataforma tecnológica" ou
     "intermediação de negócios"); o valor sai da exportação "Cobrança da
     plataforma" (Exportações), por organização e mês.
@@ -649,6 +650,24 @@ Na ordem de entrega do plano:
   afiliado) e G (pacote pronto para postar) estão feitas** (08/10/2026), e
   da D já saíram a escolha da capa (e a capa automática: o melhor de 4 quadros, nem preto nem borrado), o corte do início e do fim do vídeo (sem recomprimir) e as figurinhas no reels (**falta no ambiente** o `db:push` da coluna `campaign_media.figurinhas` **antes** do código); da C, o editor de imagem (fundo, formato, figurinhas, texto conferido antes de virar imagem, pôr no carrossel) no painel e no kit do afiliado, e as frases e a legenda sugeridas pelo assistente (pagas como mensagem do assistente). **A F também está feita** (o reels gerado com as fotos da rifa, pela fila no Postgres e o trabalhador à parte, e a escolha das fotos e da ordem pela organização) — **falta no ambiente**: o `db:push` das tabelas `trabalhos`, `trabalho_arquivos` e `trabalhadores` **antes** do código, e **[você] criar o serviço do trabalhador no Railway** (abaixo). O resto da D (legendas por transcrição, que precisa de provedor), o resto da C (remover fundo, que precisa de provedor) e as fases B e E seguem para depois.
 
+- [ ] **[produto]** Tráfego pago, **modelo B** (decisão de 10/10/2026, com o
+  advogado e o contador; `docs/RODADA-FINAL-ADVOGADO.md`): a promotora é a
+  anunciante, titular da conta e da autorização, e paga a mídia direto à rede;
+  a plataforma só gere e cobra uma **taxa sobre o gasto lido**, debitada de um
+  **saldo de taxa**. **Isto não existe no código** (hoje só o modelo A, atrás
+  de interruptor desligado, que está suspenso). É condição de implantação, não
+  de contrato: o contrato pode prever a estrutura, e a cobrança só entra quando
+  o código estiver pronto. Antes de codar: respostas do contador (C1 a C6) e a
+  consulta formal à Meta e ao Google.
+- [ ] **[código]** PR de adequação jurídica, depois do encerramento das duas
+  rodadas: IP e aparelho (hash) no aceite da taxa; número da autorização em
+  toda peça (story e reels incluídos); redação da apuração sem "sem
+  manipulação", "homologado" ou "auditável" antes da homologação do globo;
+  rótulo "conferida pela plataforma, sujeita à aprovação da rede"; aviso de
+  cookies **versão 3** com a transferência internacional; Privacidade com a
+  base de cada transferência (texto redigido pelo advogado); repasse da
+  comissão guardada em até 30 dias e relatório trimestral à promotora.
+  Lista completa em `docs/RESPOSTAS-ADVOGADO.md`, seção 3.
 - [ ] **[produto]** Gestão de tráfego pago como serviço da plataforma
   (anunciar as rifas no Google, Meta e TikTok com margem para a plataforma,
   ferramenta do menu Marketing): o plano está em `docs/PLANO-TRAFEGO-PAGO.md`.

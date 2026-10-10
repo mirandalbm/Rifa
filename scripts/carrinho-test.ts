@@ -15,9 +15,10 @@
  */
 import "dotenv/config";
 import { baseUrl } from "./base-url";
-import { eq, inArray, like, sql } from "drizzle-orm";
+import { and, eq, inArray, like, sql } from "drizzle-orm";
 import { db, pool } from "../server/db";
-import { buyers, campaignStats, campaigns, carrinhoPedidos, orders, organizations, platformCharges, quotaAlloc, rateEvents } from "../shared/schema";
+import { buyers, campaignStats, campaigns, carrinhoPedidos, orders, organizations, pixVolumeMensal, platformCharges, quotaAlloc, rateEvents } from "../shared/schema";
+import { mesEmSaoPaulo } from "../shared/cobranca";
 import { priceOrder } from "../shared/pricing";
 import { refundByChargeId, refundOrder } from "../server/services/orders";
 import { releaseExpired } from "../server/services/quotas";
@@ -69,18 +70,26 @@ async function main() {
   // Duas promotoras: a do seed e uma desta prova (o banco do CI tem só uma).
   const [daSeed] = await db.select().from(organizations).where(eq(organizations.slug, "rifas-sao-jose"));
   if (!daSeed) throw new Error("Nenhuma organização no banco. Rode `npm run db:seed`.");
-  // A segunda tem carteira no Asaas e cobra comissão: o Pix dela é dividido
-  // na origem, e a taxa da plataforma nasce retida. A do seed fica sem
-  // carteira (e cobrando também) para a taxa dela seguir devida no livro.
+  // A segunda tem carteira no Asaas: o Pix dela é dividido na origem, e a
+  // taxa da plataforma nasce retida. A do seed fica sem carteira para a taxa
+  // dela seguir devida no livro. Quem cobra é a rifa (`campaigns.cobranca`).
   const [segunda] = await db
     .insert(organizations)
-    .values({ name: "Promotora do carrinho", slug: ORG_SLUG, billingMode: "comissao", platformFeePct: 10, asaasWalletId: "7bafd95a-e783-4a62-9be1-23999af742c6" })
+    .values({ name: "Promotora do carrinho", slug: ORG_SLUG, asaasWalletId: "7bafd95a-e783-4a62-9be1-23999af742c6" })
     .returning();
-  const cobrancaDaSeed = { billingMode: daSeed.billingMode, platformFeePct: daSeed.platformFeePct, asaasWalletId: daSeed.asaasWalletId };
-  await db.update(organizations).set({ billingMode: "comissao", platformFeePct: 10, asaasWalletId: null }).where(eq(organizations.id, daSeed.id));
+  const cobrancaDaSeed = { asaasWalletId: daSeed.asaasWalletId };
+  await db.update(organizations).set({ asaasWalletId: null }).where(eq(organizations.id, daSeed.id));
   const orgs = [daSeed, segunda];
 
-  const nova = async (i: number, org: string, total: number, preco: number) => {
+  // A tabela fotografada na publicação: a rifa 1 cobra 10% da venda, as da
+  // segunda promotora R$ 0,10 por cota; todas com a taxa Pix de 1%.
+  const tabela = (modo: "percentual" | "por_cota") => ({
+    modo,
+    percentualPct: 10,
+    porCotaCents: 10,
+    faixasPix: [{ ate: null, pct: 1 }],
+  });
+  const nova = async (i: number, org: string, total: number, preco: number, modo: "percentual" | "por_cota") => {
     const [c] = await db
       .insert(campaigns)
       .values({
@@ -95,14 +104,18 @@ async function main() {
         drawAt: new Date(Date.now() + 10 * 86_400_000),
         authorizationCode: `SPA-CARRINHO-${i}`,
         reservationTtlMin: 10 + i,
+        cobrancaModo: modo,
+        cobranca: tabela(modo),
       })
       .returning();
     await db.insert(campaignStats).values({ campaignId: c.id });
     return c;
   };
-  const a = await nova(1, orgs[0].id, 1000, 250);
-  const b = await nova(2, orgs[1].id, 1000, 199);
-  const pequena = await nova(3, orgs[1].id, 5, 100);
+  const a = await nova(1, orgs[0].id, 1000, 250, "percentual");
+  const b = await nova(2, orgs[1].id, 1000, 199, "por_cota");
+  const pequena = await nova(3, orgs[1].id, 5, 100, "por_cota");
+  const volumeDe = async (org: string) =>
+    (await db.select().from(pixVolumeMensal).where(and(eq(pixVolumeMensal.organizationId, org), eq(pixVolumeMensal.mes, mesEmSaoPaulo(new Date())))))[0]?.transacoes ?? 0;
 
   const comprador = (i: number) => ({ name: `Comprador Carrinho ${i}`, phone: TELEFONES[i] });
 
@@ -222,6 +235,7 @@ async function main() {
     checa("o terceiro passa do limite: 429", r.status === 429, `HTTP ${r.status}`);
 
     console.log("\n  Pix pago:");
+    const volumeAntes = [await volumeDe(daSeed.id), await volumeDe(segunda.id)];
     r = await req("POST", `/api/dev/pay/${doCarrinho[1].code}`);
     const pagos = await db.select().from(orders).where(eq(orders.carrinhoId, carrinho.id));
     checa("o Pix do carrinho paga todos os pedidos", r.status === 200 && pagos.every((o) => o.status === "paid"), `HTTP ${r.status}`);
@@ -236,6 +250,25 @@ async function main() {
     const taxaDe = (campanha: string) => taxas.find((t) => t.orderId === pagos.find((o) => o.campaignId === campanha)?.id);
     checa("sem carteira, a taxa fica em aberto no livro", taxaDe(a.id)?.status === "aberta", taxaDe(a.id)?.status ?? "sem lançamento");
     checa("com carteira, o Pix já dividiu: a taxa nasce retida, não devida", taxaDe(b.id)?.status === "retida" && Boolean(taxaDe(b.id)?.paidAt), taxaDe(b.id)?.status ?? "sem lançamento");
+    // As taxas fotografadas no pedido: 10% de R$ 10,00 + 1% de Pix na rifa 1;
+    // 3 × R$ 0,10 + 1% de R$ 5,97 na rifa 2 (para baixo).
+    checa(
+      "percentual: a venda e o Pix na mesma linha",
+      taxaDe(a.id)?.vendaCents === 100 && taxaDe(a.id)?.pixCents === 10 && taxaDe(a.id)?.amountCents === 110 && taxaDe(a.id)?.modo === "percentual" && taxaDe(a.id)?.pct === 1000,
+      JSON.stringify(taxaDe(a.id)),
+    );
+    checa(
+      "por cota: valor fixo × cotas, mais o Pix, sem percentual",
+      taxaDe(b.id)?.vendaCents === 30 && taxaDe(b.id)?.pixCents === 5 && taxaDe(b.id)?.modo === "por_cota" && taxaDe(b.id)?.pct === null,
+      JSON.stringify(taxaDe(b.id)),
+    );
+    checa(
+      "cada pedido pago conta uma transação Pix no mês da organização",
+      (await volumeDe(daSeed.id)) === volumeAntes[0] + 1 && (await volumeDe(segunda.id)) === volumeAntes[1] + 1,
+      `${volumeAntes} → ${await volumeDe(daSeed.id)},${await volumeDe(segunda.id)}`,
+    );
+    await req("POST", `/api/dev/pay/${doCarrinho[1].code}`);
+    checa("o aviso repetido não conta a transação de novo", (await volumeDe(segunda.id)) === volumeAntes[1] + 1);
     const extrato = await extratoDa(segunda.id);
     checa("o extrato da promotora com carteira não tem nada em aberto", extrato.totais.abertoCents === 0 && extrato.totais.retidaCents === (taxaDe(b.id)?.amountCents ?? -1), JSON.stringify(extrato.totais));
 

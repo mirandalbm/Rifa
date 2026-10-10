@@ -100,7 +100,6 @@ const SITUACAO_COMISSAO: Record<string, string> = {
 const METODO: Record<string, string> = {
   pix_online: "Pix",
   dinheiro: "dinheiro",
-  cartao_maquininha: "cartão (maquininha)",
   pix_maquininha: "Pix (maquininha)",
 };
 
@@ -772,26 +771,31 @@ interface LinhaCobranca {
   created_at: string;
   id: string;
   organizacao: string;
-  kind: string;
-  competencia: string | null;
+  modo: string | null;
   code: number | null;
   campanha: string | null;
   amount_cents: number;
+  venda_cents: number;
+  pix_cents: number;
   pct: number | null;
   status: string;
   paid_at: string | null;
 }
+
+/** O modo da rifa no pedido, em texto (`shared/cobranca.ts`). */
+const MODO_NA_PLANILHA: Record<string, string> = { percentual: "percentual sobre a venda", por_cota: "valor por cota" };
 
 function cobranca(escopo: ExportScope): ExportStream {
   return {
     header: [
       "Data",
       "Organização",
-      "Tipo",
-      "Competência",
+      "Modo",
       "Pedido",
       "Rifa",
       "Percentual",
+      "Taxa da venda",
+      "Taxa Pix",
       "Valor",
       "Situação",
       "Pago em",
@@ -805,8 +809,8 @@ function cobranca(escopo: ExportScope): ExportStream {
           : sql``;
 
         const page = await rows<LinhaCobranca>(sql`
-          SELECT pc.created_at, pc.id, pc.kind::text, pc.competencia,
-                 pc.amount_cents, pc.pct, pc.status::text, pc.paid_at,
+          SELECT pc.created_at, pc.id, pc.modo,
+                 pc.amount_cents, pc.venda_cents, pc.pix_cents, pc.pct, pc.status::text, pc.paid_at,
                  g.name AS organizacao,
                  o.code, c.title AS campanha
             FROM platform_charges pc
@@ -827,11 +831,14 @@ function cobranca(escopo: ExportScope): ExportStream {
           yield [
             csvDate(l.created_at),
             l.organizacao,
-            l.kind === "mensalidade" ? "mensalidade" : "taxa sobre venda",
-            l.competencia,
+            l.modo ? (MODO_NA_PLANILHA[l.modo] ?? l.modo) : null,
             l.code,
             l.campanha,
-            l.pct !== null ? `${l.pct}%` : null,
+            // Pontos-base (1% = 100), com a vírgula decimal da planilha.
+            l.modo === "percentual" && l.pct !== null ? `${(l.pct / 100).toFixed(2).replace(".", ",")}%` : null,
+            // Lançamento sem as partes (de antes da taxa Pix): o valor inteiro é da venda.
+            csvMoney(l.modo ? l.venda_cents : l.amount_cents),
+            csvMoney(l.pix_cents),
             csvMoney(l.amount_cents),
             l.status,
             csvDate(l.paid_at),

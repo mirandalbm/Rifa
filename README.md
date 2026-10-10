@@ -311,8 +311,8 @@ de que as cotas premiadas são reais.
 ### Os meios de pagamento
 
 Quem decide o que o app aceita é o administrador, em Configurações: Pix na
-loja online, dinheiro com o cambista, cartão na maquininha e Pix na
-maquininha, cada um com liga-desliga próprio.
+loja online, dinheiro com o cambista e Pix na maquininha, cada um com
+liga-desliga próprio. Cartão (crédito ou débito) não é aceito.
 
 A escolha vale para o app inteiro e é checada **no servidor**, não só na
 tela: com o Pix online desligado a página da rifa para de vender sozinha e
@@ -521,24 +521,20 @@ promotor: é a única direção em que a soma nunca passa do que o comprador pag
 A garantia é de igualdade, não de aproximação, e tem teste varrendo de 0 a
 R$ 20,00 em seis combinações de percentual.
 
-#### Mensalidade ou comissão
+#### Percentual ou valor por cota, rifa a rifa
 
-O contrato é por organização, e são dois, nunca os dois juntos:
+Não há contrato por organização nem mensalidade: **cada rifa** escolhe, no
+rascunho, como a plataforma cobra por ela — **percentual sobre a venda** ou
+**valor fixo por cota vendida** —, e a escolha trava ao publicar. Os valores
+são uma tabela só, do administrador geral; a publicação fotografa a tabela
+daquele dia na rifa, então mudar a tabela depois não mexe em quem já está no
+ar.
 
-| | Como cobra | Por venda |
-|---|---|---|
-| **mensalidade** | valor fixo por mês | nada |
-| **comissão** | nada fixo | percentual sobre cada venda paga |
-| **sem cobrança** | — | — |
-
-Quem paga mensalidade tem taxa **zero** no rateio, então o afiliado volta a
-receber sobre o valor cheio. Trocar de modo zera o campo do outro — percentual
-esquecido num plano de mensalidade é bomba de relógio.
-
-O padrão de toda organização é **sem cobrança**: ninguém acorda devendo por
-causa de uma decisão tomada depois. A mensalidade é lançada pelo relógio,
-sempre referente ao **mês anterior**, e é idempotente pela chave
-`(organização, competência)`.
+Por cima vai a **taxa de transação Pix**, só no Pix pago pelo site, em faixas
+pelo volume do mês da organização: quanto mais transações, menor a taxa. Ela
+é descontada da organização, nunca de quem compra. O pedido fotografa a faixa
+quando nasce. A plataforma só aceita Pix: cartão (crédito ou débito) não é
+meio de pagamento.
 
 Tudo isso vira um razão único em `/admin/cobranca` — a plataforma vê a carteira
 de clientes, e o organizador vê a conta dele, com a origem de cada lançamento.

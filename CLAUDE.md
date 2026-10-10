@@ -51,15 +51,19 @@ arquitetura.
     `uq_buyers_phone`), o cupom, a organização e o código do afiliado — o
     primeiro pedido de um telefone novo, tocado duas vezes, dava erro 500.
 12. **No rateio, a plataforma sai antes.** `splitOrder()` em
-    `shared/pricing.ts`: a taxa incide sobre o pago, e a comissão do afiliado
-    ou do cambista incide sobre o que **sobrou** dela. As duas fatias
+    `shared/pricing.ts`: a taxa (a da venda e a do Pix, as duas do pedido)
+    incide sobre o pago, e a comissão do afiliado ou do cambista incide sobre
+    o que **sobrou** dela. As duas fatias
     arredondam para baixo e o centavo fica com o promotor, para que
     `plataforma + comissão + promotor === pago` seja igualdade exata, nunca
     aproximação.
-13. **Mensalidade e comissão nunca convivem.** São dois contratos, e
-    `validateBillingPlan()` zera o campo do outro ao trocar: percentual
-    guardado num plano de mensalidade é bomba de relógio. Cobrar os dois
-    juntos seria um terceiro modo, não um campo ligado junto.
+13. **A cobrança é da rifa e é fotografada.** A organização escolhe no
+    rascunho percentual sobre a venda ou valor fixo por cota
+    (`campaigns.cobranca_modo`, trava ao publicar); `publishCampaign()`
+    grava a tabela da plataforma daquele dia na rifa (`campaigns.cobranca`)
+    e o pedido grava a taxa dele (`taxaDoPedido()`), com a faixa do Pix pelo
+    volume do mês. Mudar a tabela não mexe em rifa publicada nem em pedido.
+    Não existe mensalidade nem cartão — só Pix (`shared/cobranca.ts`).
 14. **Estorno desfaz tudo, ou não desfaz nada.** `refundOrder()` devolve cota,
     contador, comissão, taxa da plataforma, cota premiada e o crédito do
     presente na mesma transação. Desfazer cinco das seis não dá erro — vira
@@ -114,7 +118,7 @@ arquitetura.
 | Pix que chegou tarde (reserva vencida ou depois do sorteio): fila de devolução | `shared/pixTardio.ts`, `server/services/pixTardio.ts`, `/pix-tardios*` em `server/routes/admin.ts`, `client/src/components/PixTardios.tsx` (em Pedidos), tipo `pix_tardio` em `shared/caixa.ts`, `scripts/pix-tardio-test.ts` |
 | pedido de reembolso (chamado) | `shared/chamados.ts`, `server/services/chamados.ts`, `client/src/pages/adminAtendimento.tsx`, `scripts/chamados-test.ts` |
 | disputa de reembolso (palavra final da plataforma) | `bloqueioDaDisputa()` em `shared/chamados.ts`, `abrirDisputa()`/`decidirDisputa()` em `server/services/chamados.ts`, `scripts/disputa-test.ts` |
-| contrato de cobrança da plataforma | `shared/billing.ts` e `server/services/billing.ts` |
+| cobrança da plataforma (percentual ou por cota escolhido por rifa, taxa Pix em faixas pelo volume do mês, tabela do master) | `shared/cobranca.ts` (regras), `campaigns.cobranca_modo`/`cobranca` e `orders.taxa_*` em `shared/schema.ts`, `pix_volume_mensal`, `publishCampaign()` em `server/services/campaigns.ts` (a fotografia), `prepararPedido`/`settleOrderAsPaid` em `server/services/orders.ts`, `shared/billing.ts` e `server/services/billing.ts` (o lançamento), `/cobranca/tabela` em `server/routes/admin.ts`, `client/src/pages/adminCobranca.tsx`, `client/src/components/CobrancaDaRifa.tsx` (na aba "A rifa"), `scripts/cobranca-test.ts`, `tests/cobranca.test.ts` |
 | exportações | `shared/exports.ts` (formato) e `server/services/exports.ts` (consultas) |
 | usuários, senha e arquivamento | `server/routes/admin.ts` (`/usuarios`, `/organizacoes/:id/arquivar`), `shared/senha.ts` |
 | o que falta para vender em produção | `docs/PENDENCIAS.md` — **atualize no mesmo PR** que fechar um item |
@@ -309,6 +313,10 @@ arquitetura.
   vende — e a tela não denunciaria isso.
 - `validatePaymentMethods` só aceita as chaves conhecidas: isto vem do corpo
   da requisição e espalhar o objeto cru guardaria qualquer coisa.
+- **Cartão não é aceito** (nem crédito, nem débito): online só o Pix; na mão
+  do cambista, dinheiro ou Pix. O valor `cartao_maquininha` ficou no enum do
+  banco (o Postgres não tira valor de enum), mas nenhuma regra o aceita —
+  chave antiga guardada é ignorada.
 
 ## Cartelas e mapa de números — o que não pode afrouxar
 
@@ -1044,9 +1052,9 @@ plataforma analisa** (Atendimento → Rifas, com conversa dos dois lados).
 
 ## Venda física — o que não pode afrouxar
 
-- **Reservar antes de cobrar.** Nunca inverter: cartão aprovado com a cota já
-  vendida é dinheiro debitado sem nada para entregar. Cobrança recusada chama
-  `/cancel`, que devolve as cotas na hora.
+- **Reservar antes de cobrar.** Nunca inverter: Pix pago com a cota já
+  vendida é dinheiro recebido sem nada para entregar. Cobrança que não
+  acontece chama `/cancel`, que devolve as cotas na hora.
 - A venda do cambista usa o **mesmo** caminho de reserva das vendas online
   (`INSERT … ON CONFLICT`). Não existe atalho para venda física.
 - Fechar acerto **carimba** os pedidos (`orders.settlement_id`). Sem o carimbo,
@@ -1739,21 +1747,55 @@ promotor. **A ordem é sempre esta, e a plataforma sai primeiro.**
   faria a plataforma cobrar sobre dinheiro que já era de outro, e as duas
   contas cresceriam uma em cima da outra. Numa venda de R$ 100 com taxa de 5%
   e comissão de 10%, a diferença são 50 centavos — que viram muito em volume.
-- **A soma é igualdade, não aproximação.** As duas fatias arredondam para
-  baixo e o centavo que sobra fica com o promotor. Arredondar para cima em
-  qualquer uma faria o sistema distribuir dinheiro que não existe. Há teste
-  varrendo de 0 a R$ 20,00 em seis combinações de percentual.
+- **A soma é igualdade, não aproximação.** As fatias arredondam para baixo e
+  o centavo que sobra fica com o promotor. Arredondar para cima em qualquer
+  uma faria o sistema distribuir dinheiro que não existe. Há teste varrendo
+  de 0 a R$ 30,00 nos dois modos, com e sem comissão.
 - **A base é o que foi pago**, já com pacote e cupom descontados — nunca o
   preço de tabela. No presente, pagaram dois: o comprador e a plataforma
   (`amount_cents + presente_cents`), e o rateio corre sobre a soma.
-- **Mensalidade zera a taxa por venda.** É assim que o contrato de mensalidade
-  não cobra duas vezes: `platformPctFor()` devolve 0 e o afiliado volta a
-  receber sobre o valor cheio.
-- **O padrão é `gratis`.** Organização que existia antes desta decisão não
-  acorda devendo. Quem cobra é quem escolheu cobrar.
+- **A taxa tem duas partes, as duas do pedido** (`shared/cobranca.ts`):
+  - **a da venda**, do modo que a organização escolheu **para aquela rifa**
+    no rascunho: **percentual** sobre o pago ou **valor fixo por cota**
+    vendida. A escolha (`campaigns.cobranca_modo`) trava ao publicar, e
+    `publishCampaign()` fotografa a tabela do dia em `campaigns.cobranca`
+    (dentro da transação, com a rifa travada). Por cota maior ou igual ao
+    preço da cota não publica (`problemaNaCobranca()`), nem pacote cujo
+    desconto deixe a cota abaixo da taxa (na publicação e ao salvar os
+    pacotes, 422); o cupom do afiliado, que desconta por cima, é conferido
+    no pedido (`problemaNoTotalDoPedido()`, 409 antes de gravar). Rifa sem
+    fotografia (publicada antes) não cobra; a demonstração desmarcada ganha
+    a tabela do dia no mesmo `UPDATE` (`marcarDemonstracao()`);
+  - **a do Pix**, só no Pix online (dinheiro e Pix na maquininha não pagam),
+    em **faixas pelo volume do mês** da organização: quanto mais transações
+    Pix pagas no mês de São Paulo, menor a taxa (`faixaPixPara()`; os tetos
+    sobem e a taxa nunca sobe — `validarFaixasPix()`). Descontada da
+    organização, **nunca de quem compra**: o comprador paga o preço da rifa.
+- **A tabela é do master** (`GET`/`PUT /admin/cobranca/tabela`, só as chaves
+  conhecidas; a organização lê, 403 para mudar, no `npm run isolation`).
+  Mudar a tabela vale para as rifas publicadas dali em diante.
+- **O pedido fotografa a taxa quando nasce** (`orders.taxa_modo`,
+  `taxa_venda_bp`, `taxa_por_cota_cents`, `taxa_pix_bp`; `taxaDoPedido()`),
+  com a faixa do volume naquele instante — a leitura do contador é a faixa
+  de preço, não exclusividade, e o pedido fica com o que leu. O volume
+  (`pix_volume_mensal`, chave organização + mês) anda de 1 em 1 num `INSERT …
+  ON CONFLICT DO UPDATE` **na transação que confirma o pagamento** — nunca
+  `COUNT(*)`; o aviso repetido não conta de novo (o `UPDATE` do pedido já
+  barrou); o estorno não desconta.
+- **Não existe mensalidade** (saiu em 10/10/2026: nem contrato por
+  organização, nem relógio, nem rota). O valor `mensalidade` ficou no enum do
+  banco porque o Postgres não tira valor de enum; nada o grava.
 - **A taxa é lançada dentro da transação que confirma o pagamento**, junto com
-  a comissão. Fora dela, sobreviveria a um rollback e cobraria por uma venda
-  que não aconteceu.
+  a comissão, numa linha com as duas partes (`vendaCents`, `pixCents`,
+  `modo`, `pct` em pontos-base no percentual). Fora dela, sobreviveria a um
+  rollback e cobraria por uma venda que não aconteceu.
+- **O split do provedor divide em percentual**: a taxa do pedido vira o
+  percentual equivalente sobre o total, **para cima** em 4 casas
+  (`pctEquivalente()`), e `percentualDoPromotor()` faz o resto — o split
+  nunca manda à organização a parte da plataforma; split de 0% não vai ao
+  provedor. O crédito do presente leva a parte da taxa na proporção exata,
+  **para baixo** (`creditoDoPresente({ taxa })`): nunca um centavo a mais
+  contra a promotora.
 - **Pix dividido na origem não é cobrado de novo.** Quando o provedor honra
   o split (Asaas, `splitAplicado` em `PixCharge`), a plataforma já ficou
   com a taxa no próprio Pix: o pedido nasce marcado
@@ -1762,26 +1804,27 @@ promotor. **A ordem é sempre esta, e a plataforma sai primeiro.**
   `platform_charges` nasce `retida` (`lancarTaxaDaVenda(..., retidaNoSplit)`),
   nunca `aberta`. O lançamento existe para o extrato fechar; "em aberto" e
   "dar baixa" só olham `aberta`; o estorno cancela a retida como as outras
-  (o Asaas desfaz o split junto). A marca só vale com **taxa no contrato na
-  emissão** (`taxaFicouRetida()`): com plano grátis o split manda tudo para
-  a promotora, e marcar retida esconderia a taxa que o contrato passasse a
-  cobrar. No carrinho a marca é por pedido e pelas carteiras que
+  (o Asaas desfaz o split junto). A marca só vale com **taxa no pedido na
+  emissão** (`taxaFicouRetida()`): sem taxa o split manda tudo para a
+  promotora. No carrinho a marca é por pedido e pelas carteiras que
   `splitDoCarrinho()` de fato manteve — a parte pequena demais arredonda a
   zero e fica fora. Provedor sem split (dev imita o Asaas; Mercado Pago
-  ignora) deixa a taxa devida no livro. O valor novo do enum sobe com o
-  `db:push` **antes** do código: sem ele o `INSERT` falha dentro da
-  transação que confirma o Pix. `npm run carrinho` prova os dois lados na
-  mesma cobrança.
-- **Os dois índices únicos de `platform_charges` são a defesa contra cobrar
-  duas vezes**, e cada um pega um jeito diferente de dobrar: `uq_charge_order`
-  contra o webhook chamado de novo, `uq_charge_competencia` contra o relógio
-  rodando em várias réplicas.
-- **A mensalidade cobra o mês anterior**, nunca o corrente: lançar no dia 1º
-  para o mês que começa é cobrança antecipada, e quem cancelar no dia 3 estaria
-  devendo por 28 dias que não usou.
-- **O organizador vê a própria conta.** Cobrar sem mostrar de onde veio cada
-  lançamento é indefensável — e é a primeira coisa que o cliente pede quando
-  desconfia da fatura.
+  ignora) deixa a taxa devida no livro. `npm run carrinho` prova os dois
+  lados na mesma cobrança.
+- **O índice único `uq_charge_order` é a defesa contra cobrar duas vezes**:
+  o webhook chamado de novo não lança a taxa de novo.
+- **O organizador vê a própria conta e a tabela.** Cobrar sem mostrar de onde
+  veio cada lançamento é indefensável — e é a primeira coisa que o cliente
+  pede quando desconfia da fatura. A Cobrança mostra a tabela em texto e cada
+  lançamento com a venda e o Pix separados.
+- As colunas `campaigns.cobranca_modo` e `cobranca`, `orders.taxa_*`,
+  `platform_charges.venda_cents`, `pix_cents` e `modo` e a tabela
+  `pix_volume_mensal` sobem com o `db:push` **antes** do código; o mesmo
+  `db:push` apaga as colunas da mensalidade (`organizations.billing_mode`,
+  `platform_fee_pct`, `monthly_cents`, `platform_charges.competencia` e o
+  índice `uq_charge_competencia`) — o banco é zerado antes do lançamento, e o
+  `drizzle-kit` pede confirmação da perda. `npm run cobranca` prova tudo isto
+  contra a API de verdade e `tests/cobranca.test.ts` as regras.
 
 ## Estorno — o que não pode afrouxar
 

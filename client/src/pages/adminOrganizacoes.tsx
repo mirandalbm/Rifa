@@ -38,7 +38,6 @@ interface Organizacao {
   destaque: CorDeDestaque | null;
   links: LinkDoPerfil[];
   observacao: string | null;
-  billingMode: string;
   active: boolean;
   archivedAt: string | null;
   createdAt: string;
@@ -73,12 +72,6 @@ function enderecoDe(o: Organizacao): Endereco | null {
   };
 }
 const ACESSO_VAZIO = { name: "", email: "", password: "" };
-
-const COBRANCA: Record<string, string> = {
-  gratis: "grátis",
-  comissao: "comissão por venda",
-  mensalidade: "mensalidade",
-};
 
 /**
  * Organizações — a carteira de clientes da plataforma.
@@ -582,7 +575,6 @@ function LinhaOrganizacao({
               <Dado rotulo="CNPJ" valor={o.cnpj} tnum />
               <Dado rotulo="Contato" valor={o.contato} />
               <Dado rotulo="Cidade/UF" valor={cidadeUf(o.cidade, o.uf)} />
-              <Dado rotulo="Cobrança" valor={COBRANCA[o.billingMode] ?? o.billingMode} />
               <Dado rotulo="Criada em" valor={new Date(o.createdAt).toLocaleDateString("pt-BR")} tnum />
               {o.archivedAt ? (
                 <Dado

@@ -43,7 +43,7 @@ cadastro (o roteiro do dia está na etapa 5, "Dia da troca da razão social").
   pelo resultado (sem PIS, COFINS, IRPJ, CSLL e ISS). A nota do afiliado
   descreve "promoção de vendas" (CNAE 7319-0/02) e, na guarda, sai contra a
   International Lottery Ltda; MEI e Simples não sofrem retenção. A receita
-  da plataforma é só a taxa ou a mensalidade, com NFS-e mensal contra cada
+  da plataforma é a taxa da venda (percentual ou por cota) e a do Pix, com NFS-e mensal contra cada
   promotora. Pendências que sobraram: seção 5 de `docs/PENDENCIAS.md`.
 - [ ] **Pagamento**: pedir por escrito ao Mercado Pago e ao Asaas se aceitam
   promoção comercial com autorização SPA/MF. A resposta decide o provedor
@@ -69,6 +69,14 @@ cadastro (o roteiro do dia está na etapa 5, "Dia da troca da razão social").
 ## Etapa 3 — o deploy da versão inicial
 
 - [x] Instalar o `ffmpeg` na imagem de produção (`railpack.json`, `deploy.aptPackages`).
+- [ ] **Cobrança por rifa (10/10/2026)**: o `db:push` apaga as colunas da
+  mensalidade (`organizations.billing_mode`, `platform_fee_pct`,
+  `monthly_cents`, `platform_charges.competencia`) e pede confirmação da
+  perda — faça com o **banco zerado** (as organizações de hoje são de
+  teste). Pedido pendente de antes do deploy e rifa publicada antes não têm
+  a taxa fotografada e não cobram nada. Antes de liberar a primeira rifa,
+  preencha a **Tabela de cobrança** (Cobrança: percentual, valor por cota e
+  faixas do Pix): ela nasce zerada.
 - [ ] **`npm run db:push`** (cria a extensão `pg_trgm` antes; o usuário do
   banco precisa poder criar extensão) e, **logo depois, uma vez**:
   `UPDATE stories SET publica_em = created_at WHERE publica_em > created_at`.

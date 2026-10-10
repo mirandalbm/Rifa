@@ -96,9 +96,11 @@ senha); **[código]** é trabalho no repositório.
   entre os recebedores; (d) o prazo em que o Pix fica disponível para o
   recebedor; (e) as tarifas.
 - [ ] **[código]** Integrar o Pagar.me (`server/payments/`, `PaymentProvider`)
-  com o recebedor de cada organização no lugar da carteira do Asaas; o
-  pesquisador de integração lê a documentação antes. O Asaas e o Mercado
-  Pago (abaixo) ficam no código até a troca.
+  com o recebedor de cada organização no lugar da carteira do Asaas: plano
+  em `docs/PLANO-GATEWAY-PAGARME.md` (documentação lida em 10/10/2026). O
+  Asaas e o Mercado Pago (abaixo) ficam no código até a troca. Pela busca,
+  o Asaas põe loterias como "uso restrito" (empresa, com documentos), e não
+  como proibidas: vale perguntar a ele também.
   - Mercado Pago: `MP_ACCESS_TOKEN` e `MP_WEBHOOK_SECRET` no Railway.
   - Asaas: `ASAAS_API_KEY` e `ASAAS_WEBHOOK_TOKEN` no Railway; cadastrar o
     webhook `/api/webhooks/asaas` no painel do Asaas; cadastrar a carteira

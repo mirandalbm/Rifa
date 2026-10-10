@@ -372,3 +372,30 @@ Fechado: D1 a D5 (D1b e D4c com a pendência acima), P1 a P8. Não há nova
 rodada: só as duas entregas dele (itens 1 e 2) e, depois, a **redação** dos
 documentos do Q7 (anexo do modelo B, consultas, termo de confidencialidade),
 que dependem de razão social, CNPJ e lista de rifas autorizadas.
+
+---
+
+## Terceiro retorno (10/10/2026): fim da parte do advogado
+
+Ele aceitou os dois reparos: (1) o documento fiscal espelho **não é** NFS-e
+pelo bruto (é controle interno, sem natureza de NFS-e, e a forma é do
+contador, C5c); (2) a segregação de contas é fator mitigador, não
+determinante, e o parecer de direito bancário continua necessário.
+
+**Ajustes nossos**
+- **Texto da transferência internacional.** O texto neutro que ele propôs ainda
+  diz que a transferência "ocorre com base nas garantias de segurança e nas
+  cláusulas contratuais de cada operador (LGPD, art. 33)". Isso afirma uma base
+  que pode não existir (Res. CD/ANPD 19/2024). Usamos a redação da seção 3 de
+  `docs/TERMO-DE-ENCERRAMENTO-ADVOGADO.md`, que não afirma a base.
+- **"Qual o grau de segregação necessário" não é pergunta ao contador:** é do
+  parecer de direito bancário. Ao contador vai só C5c (forma do documento de
+  controle).
+- **Pedido dele de "confirmar os contratos" (D4c) cai:** a seção 3 do termo já
+  é o Padrão; o dono pede o aditivo brasileiro aos fornecedores em paralelo.
+
+**Fechamento.** A parte do advogado fica registrada na minuta
+`docs/TERMO-DE-ENCERRAMENTO-ADVOGADO.md` (decisões, riscos residuais, entregas
+com prazo, regra de mudança). Nada mais é perguntado a ele: só as entregas
+dele (Portaria 7.638, base do art. 33, anexo do modelo B, consultas, termo de
+confidencialidade) e a assinatura.

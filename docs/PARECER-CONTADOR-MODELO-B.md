@@ -391,3 +391,50 @@ sem retenção, e ISS de promotora de outro município conforme a lei local dela
 - Escolher entre (a), (b) e (c) do item 1 acima, depois de o contador confirmar
   qual é correto. Isso é comercial e contratual.
 - Responder qual atividade é a principal (item 3).
+
+## 11. Sexta resposta do contador e revisão (10/10/2026)
+
+### IRRF: opção (a) escolhida, mas o mecanismo se contradiz
+- Ele escolhe (a): abastecimento de R$ 101,52 para cada R$ 100 de taxa, com a
+  retenção coberta pelo próprio abastecimento. A aritmética confere: 1,5% sobre
+  R$ 101,52 = R$ 1,52.
+- **Contradição:** a mesma resposta diz que a promotora "retém do saldo". Retenção
+  na fonte acontece **no pagamento** à plataforma. Se a promotora retém R$ 1,52
+  do abastecimento, a retenção ocorre no **abastecimento**, que na seção 5 e na
+  revisão anterior ele tinha dito ser adiantamento **sem retenção**. Ele não
+  pode ter as duas coisas. Ou o momento é o abastecimento (opção a, com a retenção
+  ali), ou é o consumo (sem retenção no abastecimento, e então (a) não se sustenta).
+- **Base:** a retenção de R$ 1,52 pressupõe NFS-e de R$ 101,52. Se a NFS-e
+  sai pelos R$ 100 da taxa, a retenção é de R$ 1,50. O documento precisa dizer
+  qual base usa.
+- **Efeito econômico:** em qualquer das alternativas, a promotora paga R$ 1,52 a
+  mais por cada R$ 100 de taxa, e a plataforma recebe os R$ 100 líquidos. É o
+  custo do IRRF repassado à promotora; é decisão comercial.
+
+### CNAE: a sugestão 92.00-3/00 não deve ser adotada pelo contador sozinho
+- Ele sugere 92.00-3/00 (jogos de azar e apostas) como principal se a receita for
+  da rifa. Isso classifica a atividade como **jogo de azar** perante a Receita,
+  o CONCLA e, por consequência, a Meta e o Google. Contradiz a decisão D1 do
+  advogado (a rifa não é aposta de quota fixa) e a própria tese do produto.
+  **Não adotar sem o advogado**; a escolha do CNAE que classifica o negócio é
+  jurídica além de fiscal.
+
+### Correções nas referências
+- **SC Cosit 13/2022**: ele agora diz que trata de Simples Nacional, marketing
+  direto e promoção de vendas, **não de CSRF**. A fonte que eu citei na seção 9
+  dizia o contrário, e estava errada. Consequência: **não há documento que sustente
+  a não retenção de CSRF para publicidade**. O risco fica como risco, sem
+  "fundamento" além da lista do art. 30 segundo fontes secundárias.
+- **Art. 209 do RIR/2018** (regime de competência): citado sem texto. Não verificado.
+- **Art. 718, II** (citação literal dele): não li o texto oficial; a busca confirma
+  que o inciso II trata de publicidade e propaganda, mas não a redação. "Confirmado"
+  na resposta dele vale como declaração, não como leitura.
+
+### Pendências depois da sexta resposta
+- Contador: escolher entre o momento abastecimento e consumo, e definir a base
+  da retenção (R$ 100 ou R$ 101,52); validar C1 a C6 e P1 a P5; anexar textos
+  (5 dias úteis); assinar.
+- Advogado: a classificação (não aceitar 92.00-3 sem parecer); a cláusula de
+  IRRF no anexo do modelo B (quem arca com o gross-up e como aparece na nota).
+- Dono: a atividade principal (tráfego ou rifa), a aceitação do custo de 1,52% na
+  taxa e a escolha do momento depois do contador.

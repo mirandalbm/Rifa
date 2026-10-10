@@ -490,3 +490,45 @@ A Parte 1 continua aberta no item 1 (responsável pelo IRRF), que muda a cláusu
 - Até chegar a captura, a Portaria fica como política da plataforma (P6), não como base legal.
 
 **Efeito na Parte 1:** o item 1 fecha a cláusula do IRRF e os lançamentos, mas depende de (a) uma qualificação única de agência, (b) a sua confirmação de I1 e I2. O item 3 fecha com as normas que o advogado citou, depois de conferidas. O item 4 fecha com a captura.
+
+---
+
+## Resposta do advogado sobre I1/I2 e qualificação (10/10/2026) — veredito
+
+**Confirmação de I1 e I2 pelo advogado: não vale.** A decisão de mudar o recolhimento
+é do dono. Ela só fica registrada quando o dono confirmar por escrito. Até lá, I1 e I2
+seguem como estavam, com a nota de que dependem dessa confirmação.
+
+**Cláusula do IRRF (plataforma recolhe, promotora paga a taxa integral): aceita como
+rascunho.** Sem a palavra "agência" na descrição comercial.
+
+**Qualificação "agência de propaganda beneficiária" para fins de IRRF: não aceita.**
+- Não é "tese única": a qualificação comercial ("prestadora de serviço") e a tributária
+  ("agência") divergem no mesmo contrato. A Receita verifica a substância, e uma
+  declaração que contradiz o contrato é um risco.
+- A SC 234/2025 fala de "agência de propaganda beneficiária", e o advogado afirma que
+  basta ser beneficiária. Essa é uma interpretação dele, não o texto da SC.
+- Uma solução de consulta, pela regra geral, vincula a Receita em relação ao consulente.
+  Não é norma para a plataforma. O advogado não diz por que a SC vale para nós. A
+  verificar.
+- A definição de agência de propaganda vem da Lei 4.680/1965 e do regime de
+  agências. Não foi citada nem aplicada. Antes de qualificar a plataforma como agência,
+  é preciso dizer se ela atende a essa definição.
+- Pedido: qualificar pelo que a plataforma faz (serviço de propaganda e publicidade
+  prestado à promotora), sem o rótulo "agência", e demonstrar que essa qualificação
+  basta para o recolhimento sob a SC 234/2025.
+
+**Endereço "Rua Torre da Alfândega, 163, Vila Amália, CEP 02618-200": não usar.**
+Nenhuma fonte deste processo informou esse endereço. O dono disse que o endereço oficial
+está pendente. Um endereço inventado nos dados da empresa iria ao Termo de uso, à
+Privacidade e ao contrato.
+
+**Pendências do dono (sem mudança):**
+- Confirmar I1 e I2 (recolhimento pela plataforma), por escrito.
+- Domínio (até 12/10) e endereço oficial, informado pelo dono e comprovado (ex.: contrato
+  social ou cartão CNPJ). Não usar o endereço da correção do advogado.
+- Verificar os contratos de Railway, Cloudflare e Chatbase com o Anexo II da ANPD.
+- Contratar o parecer bancário (recomendado).
+
+**Pendências do advogado:** a qualificação pela substância, a regra sobre vinculação da
+SC 234/2025 e a comparação com a Lei 4.680/1965; e a origem do endereço apresentado.

@@ -119,3 +119,9 @@ advogado:
   sem impacto fiscal; a devolução judicial de taxa reduz a base do mês.
 - Cláusula 7: a **pausa aos 90%** é o que evita o gasto excedente; o texto deve
   conter a regra e a obrigação de meio.
+
+**Nota (10/10/2026):** a cláusula 10 depende de uma decisão que o contador ainda
+vai refazer: se a taxa é **bruta** (a retenção sai do que a plataforma recebe) ou
+**líquida de IRRF** (a promotora paga a retenção por cima). O texto do anexo não
+deve fixar isto até a conta chegar; ver `docs/PARECER-CONTADOR-MODELO-B.md`,
+seção 6.

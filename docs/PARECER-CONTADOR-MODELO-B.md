@@ -154,3 +154,69 @@ todo o resto da seção 1.
 | Anexo do modelo B, com a cláusula das retenções (cláusula 10) | Advogado |
 | Cláusula de revisão de 90 dias; domínio até 12/10/2026; data do pedido ao advogado | Dono |
 | Parecer bancário (A13) | Dono |
+
+## 6. Terceira versão do contador (10/10/2026): CSRF e IRRF
+
+Ele respondeu às duas observações da seção 5 sem mandar nada ao advogado.
+
+### CSRF: resolvido
+- O risco é do **tomador** (a promotora): a obrigação de reter é dela, e multa e
+  juros também.
+- A plataforma **não provisiona** o CSRF. Paga os próprios PIS, COFINS e CSLL
+  sobre a taxa de qualquer jeito, e uma retenção seria só antecipação.
+- A defesa da plataforma é **documentar que informou** à promotora o que entende
+  aplicável (IRRF de 1,5% e eventual ISS), e que reter é decisão dela. Isso é a
+  cláusula 10 do pedido ao advogado.
+- A linha "provisionar o risco do CSRF" **sai** do parecer.
+
+### IRRF: o que ele respondeu
+| Ponto | Resposta dele |
+|---|---|
+| Momento | No **consumo** (taxa debitada e NFS-e). O abastecimento é adiantamento e não sofre retenção (cita o "art. 720 do RIR/2018") |
+| Quem retém e recolhe | A promotora, como fonte pagadora. A plataforma é a beneficiária e destaca na NFS-e |
+| Recuperação | A plataforma usa o IRRF retido como **crédito contra o próprio IRPJ**. A promotora não "recupera": retém imposto da plataforma |
+| Fluxo de caixa | Duas alternativas: (1) a plataforma debita **taxa + IRRF** (R$ 101,50 para uma taxa de R$ 100) e devolve R$ 1,50 à promotora para o DARF; (2) a plataforma debita só a taxa e a promotora paga o DARF do próprio caixa. Diz que é decisão contratual e **pede ao dono que escolha** |
+
+### Observações minhas (o que não fecha)
+1. **A aritmética das duas alternativas não é uma retenção.** Retenção é
+   descontada de quem **recebe**. Para uma taxa de R$ 100 e IRRF de R$ 1,50, o
+   desenho da lei é: a promotora paga R$ 98,50 à plataforma e R$ 1,50 ao fisco
+   (R$ 100 no total). Na alternativa 1 a plataforma fica com os R$ 100 inteiros e
+   a promotora desembolsa R$ 101,50. Na alternativa 2 acontece o mesmo: a
+   plataforma recebe os R$ 100 e a promotora paga mais R$ 1,50 do bolso. Nos dois
+   casos a promotora paga **1,5% a mais que a taxa combinada**, e a plataforma
+   ainda leva o crédito de R$ 1,50 no IRPJ. Isso é um *gross-up* (a taxa
+   passa a ser líquida de imposto) e não uma retenção. Pode ser uma escolha de
+   preço do dono, mas então tem de ser dita assim no contrato, com o valor
+   da nota recalculado (para líquido de R$ 100, a nota seria de cerca de R$ 101,52).
+2. **O momento está afirmado, não provado.** O art. 720 do RIR/2018 não
+   foi conferido. A regra geral de IRRF sobre serviços é na data do pagamento
+   ou crédito, e o Pix de abastecimento é pagamento. Se o fisco o tratar como
+   pagamento antecipado do serviço, a retenção cairia no abastecimento, onde o
+   sistema não tem nota nem como destacar. Fica como **risco residual**, junto
+   com os da IN 1.234/2012.
+3. **O sistema fica sem calcular nem mover a retenção**, como no Padrão do
+   segundo retorno. A alternativa 1 exigiria que o sistema devolvesse R$ 1,50 à
+   promotora: dinheiro saindo da plataforma, que o contrato do saldo e o
+   parecer de direito bancário não previram. **Não decido isto**: a escolha de
+   fluxo é do dono, mas só depois de o contador refazer a conta (observação 1).
+4. Ele diz que os quatro bloqueios da Parte 2 "não dependem do contador neste
+   momento". O parecer conjunto assinado depende: faltam a assinatura dele, os
+   textos oficiais e as pendências da seção 5.
+
+### O que muda no parecer
+| Item | Antes | Agora |
+|---|---|---|
+| CSRF | Provisionar | Risco do tomador; a plataforma não provisiona |
+| IRRF, momento | Remete ao advogado | Consumo (não provado) |
+| IRRF, responsável | Não dito | Promotora |
+| IRRF, recuperação | Não dito | Crédito da plataforma contra o IRPJ |
+| IRRF, fluxo de caixa | Não dito | Duas alternativas com a conta errada (observação 1); pendente |
+
+### Pendências depois da terceira versão
+| Pendência | De quem |
+|---|---|
+| Refazer a conta da retenção (o que a promotora paga e o que a plataforma recebe) e dizer se a taxa é bruta ou líquida | Contador |
+| Texto do art. 720 do RIR/2018 e a regra sobre adiantamento | Contador |
+| Os textos oficiais das seções anteriores, a regra do ISS em São Paulo e uma só recomendação de CNAE | Contador |
+| Escolha de fluxo de caixa e do preço (taxa bruta ou líquida) | Dono, depois da conta refeita |

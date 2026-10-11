@@ -2777,13 +2777,81 @@ function VerificacaoDaOrganizacaoCard() {
   return <VerificacaoCard base={`/api/admin/organizacoes/${data.organizacaoId}/verificacao`} sujeito="organizacao" />;
 }
 
+interface RegistroDaTrilha {
+  id: string;
+  action: string;
+  entity: string;
+  entityId: string | null;
+  createdAt: string;
+  actorRole: string | null;
+  diff: unknown;
+}
+
+/** Quem fez: o papel da pessoa, o sistema (relógio) ou a pessoa pelo assistente de IA. */
+function atorDaTrilha(r: RegistroDaTrilha) {
+  const viaIA = Boolean(r.diff && typeof r.diff === "object" && (r.diff as { viaIA?: unknown }).viaIA === true);
+  return (
+    <span className="flex flex-wrap items-center gap-1">
+      <span className="font-mono text-[11px]">{r.actorRole ?? "sistema"}</span>
+      {viaIA ? <Pill status="draft">via assistente</Pill> : null}
+    </span>
+  );
+}
+
+/**
+ * A trilha de auditoria (só da plataforma): as últimas 200 ações, em cartão
+ * por linha até o tablet e em tabela a partir de `xl`. O alvo vai pelo tipo e
+ * o id — nunca nome nem telefone de comprador.
+ */
+function TrilhaDeAuditoria({ registros }: { registros: RegistroDaTrilha[] | undefined }) {
+  const quando = (r: RegistroDaTrilha) => (
+    <span className="tnum whitespace-nowrap text-xs text-muted">{new Date(r.createdAt).toLocaleString("pt-BR")}</span>
+  );
+  const acao = (r: RegistroDaTrilha) => <span className="tnum break-all font-mono text-[12px]">{r.action}</span>;
+  const alvo = (r: RegistroDaTrilha) => (
+    <span className="block min-w-0 break-all text-xs">
+      {r.entity}
+      {r.entityId ? <span className="tnum block font-mono text-[11px] text-muted">{r.entityId}</span> : null}
+    </span>
+  );
+  return (
+    <CartaoDoPainel titulo="Trilha de auditoria" subtitulo="As últimas 200 ações, da mais nova para a mais antiga.">
+      {registros === undefined ? (
+        <Empty>Carregando…</Empty>
+      ) : registros.length === 0 ? (
+        <Empty>Nenhuma ação registrada.</Empty>
+      ) : (
+        <div className="border-t border-line">
+          <TabelaOuCartoes
+            aria="Trilha de auditoria"
+            itens={registros}
+            chave={(r) => r.id}
+            colunas={[
+              { titulo: "Quando", celula: quando },
+              { titulo: "Ação", celula: acao },
+              { titulo: "Alvo", celula: alvo },
+              { titulo: "Quem", celula: atorDaTrilha },
+            ]}
+            cartao={(r) => (
+              <div className="grid min-w-0 grid-cols-1 gap-1 text-sm">
+                {acao(r)}
+                {quando(r)}
+                {alvo(r)}
+                {atorDaTrilha(r)}
+              </div>
+            )}
+          />
+        </div>
+      )}
+    </CartaoDoPainel>
+  );
+}
+
 export function AdminConfiguracoes() {
   const { data: session } = useSession();
   const plataforma = session?.role === "admin";
   // A trilha é só da plataforma (o servidor recusa o organizador): sem pedir, sem cartão vazio.
-  const { data } = useQuery<
-    { id: string; action: string; entity: string; createdAt: string; actorRole: string }[]
-  >({ queryKey: ["/api/admin/audit"], enabled: plataforma });
+  const { data } = useQuery<RegistroDaTrilha[]>({ queryKey: ["/api/admin/audit"], enabled: plataforma });
 
   return (
     <PanelShell title="Configurações">
@@ -2861,18 +2929,7 @@ export function AdminConfiguracoes() {
                   id: "auditoria",
                   titulo: "Trilha de auditoria",
                   conteudo: (
-                    <Card title="Trilha de auditoria" right={<span className="label-xs">últimas 200 ações</span>}>
-                      <ul className="divide-y divide-line">
-                        {data?.map((a) => (
-                          <li key={a.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2 text-sm">
-                            <span className="tnum text-[11px] text-muted">{new Date(a.createdAt).toLocaleString("pt-BR")}</span>
-                            <span className="tnum min-w-0 flex-1 break-words">{a.action}</span>
-                            <span className="label-xs">{a.actorRole}</span>
-                          </li>
-                        ))}
-                      </ul>
-                      {data?.length === 0 ? <Empty>Nenhuma ação registrada.</Empty> : null}
-                    </Card>
+                    <TrilhaDeAuditoria registros={data} />
                   ),
                 },
               ]

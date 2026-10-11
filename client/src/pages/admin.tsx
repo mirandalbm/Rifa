@@ -46,7 +46,20 @@ import {
   type PaymentMethodSettings,
 } from "@shared/payments";
 
+// O link com a forma do botão do kit e o nome da loteria do próximo sorteio (Painel).
+import { TONS_DO_BOTAO } from "@/components/bits";
+import { BarChart3, ExternalLink } from "lucide-react";
+import { loteriaDoMetodo } from "@shared/apuracao";
+import { LOTERIAS } from "@shared/sorteiosOficiais";
+
 /* ------------------------------- painel ------------------------------- */
+
+/**
+ * Link que se parece com o botão do kit (mesma forma e os mesmos tons): ir a
+ * outra tela é link, não botão. O kit ainda não tem a peça; a forma é a do
+ * `Button` de `bits.tsx` e o tom vem de `TONS_DO_BOTAO`.
+ */
+const FORMA_DO_BOTAO = "inline-flex h-10 items-center justify-center gap-2 rounded-lg px-4 text-[13px] font-semibold transition";
 
 interface AdminOverview {
   revenueCents: number;
@@ -106,6 +119,9 @@ export function AdminPainel() {
       ].filter((x): x is { texto: string; apoio: string; href: string; tom: "yellow" | "red" } => Boolean(x))
     : [];
   const prox = data?.proximoSorteio;
+  // Quem apura o próximo sorteio, pelo método da rifa (a rifa de antes, sem método, não diz).
+  const metodoDoProximo = prox ? rifas?.find((r) => r.campaign.slug === prox.slug)?.campaign.metodoApuracao : null;
+  const loteriaDoProximo = metodoDoProximo ? LOTERIAS[loteriaDoMetodo(metodoDoProximo)].nome : null;
   const faltam = prox ? Math.max(0, Math.ceil((new Date(prox.drawAt).getTime() - Date.now()) / 86_400_000)) : 0;
   const TOM_DA_PENDENCIA = { yellow: "bg-yellow-soft text-yellow-deep", red: "bg-red-soft text-red" };
 
@@ -145,7 +161,8 @@ export function AdminPainel() {
                 Hoje entraram <span className="tnum font-medium text-green-deep">{formatBRL(data.hoje?.cents ?? 0)}</span> em{" "}
                 <span className="tnum">{groupNumber(data.hoje?.cotas ?? 0)}</span> cotas pagas.
               </p>
-              <Link href="/admin/resultados" className="mt-4 inline-flex rounded-md bg-green px-4 py-2 text-xs font-semibold uppercase tracking-wide text-on-green shadow-aceso hover:brightness-95">
+              <Link href="/admin/resultados" className={`mt-4 whitespace-nowrap ${FORMA_DO_BOTAO} ${TONS_DO_BOTAO.primario}`}>
+                <BarChart3 size={16} aria-hidden />
                 Ver resultados
               </Link>
             </div>
@@ -155,7 +172,8 @@ export function AdminPainel() {
           <Estatistica icone={Percent} tom="yellow" valor={formatBRL(data.commissionToPayCents)} rotulo="Comissão a pagar" dica={<><span className="tnum">{data.commissionAffiliates}</span> afiliado(s)</>} href="/admin/financeiro" />
 
           {/* O próximo sorteio em destaque (o cartão colorido do kit), com a capa. */}
-          <section aria-label="Próximo sorteio" className="cartao relative flex min-h-[200px] overflow-hidden rounded-xl border border-line bg-green text-branco md:col-span-2">
+          {/* Azul: é espera (o sorteio que vem), não dinheiro. O texto é branco sobre o azul cheio nos dois temas (`--yellow`/`--on-yellow` são o azul de hoje). */}
+          <section aria-label="Próximo sorteio" className="cartao relative flex min-h-[200px] overflow-hidden rounded-xl border border-line bg-yellow text-on-yellow md:col-span-2">
             {prox?.capa ? (
               <img src={prox.capa} alt="" className="absolute inset-y-0 right-0 w-1/2 object-cover opacity-60 [mask-image:linear-gradient(to_right,transparent,black_40%)]" />
             ) : null}
@@ -165,7 +183,10 @@ export function AdminPainel() {
                   <div>
                     <p className="text-xs font-medium uppercase tracking-wide opacity-80">Próximo sorteio · {faltam <= 1 ? "amanhã ou hoje" : `em ${faltam} dias`}</p>
                     <h2 className="mt-1 truncate text-lg font-semibold">{prox.prizeTitle}</h2>
-                    <p className="tnum text-sm opacity-90">{new Date(prox.drawAt).toLocaleDateString("pt-BR")}</p>
+                    <p className="tnum text-sm opacity-90">
+                      {new Date(prox.drawAt).toLocaleDateString("pt-BR")}
+                      {loteriaDoProximo ? ` · ${loteriaDoProximo}` : ""}
+                    </p>
                   </div>
                   <div className="mt-4 flex flex-wrap gap-2 text-xs">
                     {[
@@ -178,7 +199,8 @@ export function AdminPainel() {
                       </span>
                     ))}
                   </div>
-                  <Link href={`/r/${prox.slug}`} className="mt-3 inline-flex w-fit rounded-md bg-branco px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-green-deep hover:brightness-95">
+                  {/* O tom "branco" do kit, com o texto no azul do próprio cartão: o verde-texto clareia no escuro e sumiria no branco. */}
+                  <Link href={`/r/${prox.slug}`} className={`mt-4 w-fit ${FORMA_DO_BOTAO} bg-branco text-yellow hover:brightness-95`}>
                     Ver a rifa
                   </Link>
                 </>
@@ -190,7 +212,7 @@ export function AdminPainel() {
           {/* Canais: site ou cambista (o "Mobile vs Desktop" do kit). */}
           <CartaoDoPainel titulo="Canais" subtitulo="Vendas pagas, 30 dias">
             <div className="px-5 pb-5">
-              <div className="flex items-end justify-between text-sm">
+              <div className="flex items-end justify-between gap-4 text-sm">
                 <span>
                   <span className="block text-xs text-muted">Site</span>
                   <span className="tnum text-lg font-medium">{pctSite}%</span>
@@ -204,7 +226,6 @@ export function AdminPainel() {
               </div>
               <div className="mt-3 flex h-2 overflow-hidden rounded-full bg-mist-2" role="img" aria-label={`Site ${pctSite}%, cambista ${totalCanais ? 100 - pctSite : 0}%`}>
                 <span className="bg-green" style={{ width: `${pctSite}%` }} />
-                <span className="bg-yellow" style={{ width: `${totalCanais ? 100 - pctSite : 0}%` }} />
               </div>
             </div>
           </CartaoDoPainel>
@@ -225,18 +246,18 @@ export function AdminPainel() {
             {!data.ultimasVendas?.length ? (
               <Empty>Nenhuma venda paga ainda.</Empty>
             ) : (
-              <ol className="relative mx-5 mb-5 border-l border-line pl-5">
+              <ol className="mx-5 mb-3 divide-y divide-line">
                 {data.ultimasVendas.map((v) => (
-                  <li key={v.code} className="relative pb-4 text-sm last:pb-0">
-                    <span aria-hidden className={`absolute -left-[26px] top-1.5 h-3 w-3 rounded-full border-2 border-white ${v.cambista ? "bg-yellow" : "bg-green"}`} />
+                  <li key={v.code} className="relative py-3 pl-5 text-sm">
+                    <span aria-hidden className="absolute left-0 top-[18px] h-2 w-2 rounded-full bg-green" />
                     <p className="flex items-baseline justify-between gap-3">
                       <span className="truncate font-medium">
                         <span className="tnum text-green-deep">#{v.code}</span> · {v.prizeTitle}
                       </span>
-                      <span className="shrink-0 text-xs text-muted">{quandoFoi(v.paidAt)}</span>
+                      <span className="tnum shrink-0 text-xs text-muted">{quandoFoi(v.paidAt)}</span>
                     </p>
-                    <p className="text-xs text-muted">
-                      <span className="tnum">{v.quantity}</span> cota(s) · <Money cents={v.amountCents} /> · {v.cambista ? "cambista" : "site"}
+                    <p className="tnum text-xs text-muted">
+                      {v.quantity} cota(s) · <Money cents={v.amountCents} /> · {v.cambista ? "cambista" : "site"}
                     </p>
                   </li>
                 ))}
@@ -248,20 +269,20 @@ export function AdminPainel() {
             {noAr.length === 0 ? (
               <Empty>Nenhuma rifa no ar.</Empty>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[420px] text-sm">
-                  <CabecalhoDaTabela colunas={["Rifa", "Vendidas", "Receita", "Sorteio"]} />
+              <div className="px-5 pb-3">
+                {/* No celular a linha é a rifa e o progresso (o Figma, nó 32:180): o cabeçalho e a receita
+                    aparecem do `sm` em diante. A data do sorteio está no cartão do próximo sorteio e na Rifas. */}
+                <table className="w-full text-sm [&_thead]:hidden sm:[&_thead]:table-header-group">
+                  <CabecalhoDaTabela colunas={["Rifa", "Vendidas", "Receita"]} />
                   <tbody>
                     {noAr.map(({ campaign, stats, capa }) => {
                       const pct = Math.round(((stats?.soldCount ?? 0) / campaign.totalQuotas) * 100);
                       return (
                         <tr key={campaign.id} className="border-t border-line">
                           {/* `w-full max-w-0`: a célula fica com o que sobra e o prêmio corta com
-                              reticências; sem isso a tabela crescia até o título inteiro e a
-                              coluna do sorteio saía do cartão em 1440 px. O `min-w` segura a capa
-                              e o preço quando a tabela rola no cartão (celular e tablet); em
-                              `xl` o cartão tem ~550 px e a tabela cabe inteira com 150. */}
-                          <td className="w-full min-w-[200px] max-w-0 px-4 py-2.5 xl:min-w-[150px]">
+                              reticências; sem isso a tabela crescia até o título inteiro e saía do
+                              cartão. Sem a coluna do sorteio, a tabela cabe no cartão em toda largura. */}
+                          <td className="w-full max-w-0 py-2.5 pr-3 sm:px-4">
                             <span className="flex items-center gap-3">
                               <span className="h-9 w-9 shrink-0 overflow-hidden rounded-md bg-mist-2">
                                 {capa ? <img src={capa} alt="" className="h-full w-full object-cover" loading="lazy" /> : null}
@@ -272,12 +293,11 @@ export function AdminPainel() {
                               </span>
                             </span>
                           </td>
-                          <td className="min-w-[120px] px-4 py-2.5">
+                          <td className="w-28 py-2.5 sm:px-4">
                             <Progress value={stats?.soldCount ?? 0} total={campaign.totalQuotas} />
-                            <span className="tnum text-xs text-muted">{pct}% · {groupNumber(stats?.soldCount ?? 0)}</span>
+                            <span className="tnum whitespace-nowrap text-xs text-muted">{pct}% · {groupNumber(stats?.soldCount ?? 0)}</span>
                           </td>
-                          <td className="whitespace-nowrap px-4 py-2.5"><Money cents={stats?.revenueCents ?? 0} className="font-medium" /></td>
-                          <td className="tnum whitespace-nowrap px-4 py-2.5 text-muted">{campaign.drawAt ? new Date(campaign.drawAt).toLocaleDateString("pt-BR") : "—"}</td>
+                          <td className="hidden whitespace-nowrap px-4 py-2.5 sm:table-cell"><Money cents={stats?.revenueCents ?? 0} className="font-medium" /></td>
                         </tr>
                       );
                     })}
@@ -326,7 +346,7 @@ export function AdminPainel() {
                         <ChevronRight size={18} />
                       </span>
                       <span className="min-w-0">
-                        <span className="block truncate font-medium">{a.texto}</span>
+                        <span className="block font-medium">{a.texto}</span>
                         <span className="block text-xs text-muted">{a.apoio}</span>
                       </span>
                     </Link>
@@ -972,13 +992,24 @@ function Comprador({ r }: { r: LinhaDePedido }) {
   );
 }
 
+/**
+ * A situação do pedido em pílula: pendente azul (espera), pago verde (dinheiro
+ * que entrou), vencido e estornado neutros — não são erro, só o fim do pedido.
+ * O kit pinta `expired`/`refunded` de vermelho para outros usos; aqui o tom é
+ * o neutro e o texto continua dizendo qual é.
+ */
+const PEDIDO_NEUTRO: Record<string, string> = { expired: "expirado", refunded: "estornado" };
+function SituacaoDoPedido({ status }: { status: string }) {
+  return PEDIDO_NEUTRO[status] ? <Pill status="closed">{PEDIDO_NEUTRO[status]}</Pill> : <Pill status={status} />;
+}
+
 function BilheteDoPedido({ codigo }: { codigo: number }) {
   return (
     <a
       href={`/bilhete/${codigo}`}
       target="_blank"
       rel="noreferrer"
-      className="inline-flex min-h-6 items-center text-xs text-green-deep underline"
+      className="inline-flex min-h-6 items-center text-xs font-medium text-green-deep hover:underline"
     >
       bilhete
     </a>
@@ -1025,17 +1056,17 @@ export function AdminPedidos() {
             { titulo: "Comprador", celula: (r) => <Comprador r={r} /> },
             { titulo: "Cotas", celula: (r) => <span className="tnum">{r.order.quantity}</span> },
             { titulo: "Valor", celula: (r) => <Money cents={r.order.amountCents} /> },
-            { titulo: "Status", celula: (r) => <Pill status={r.order.status} /> },
+            { titulo: "Status", celula: (r) => <SituacaoDoPedido status={r.order.status} /> },
             { titulo: "", celula: (r) => <BilheteDoPedido codigo={r.order.code} /> },
           ]}
           cartao={(r) => (
             <div className="space-y-1">
               <div className="flex items-start justify-between gap-3">
                 <span className="tnum font-medium">#{r.order.code}</span>
-                <Pill status={r.order.status} />
+                <SituacaoDoPedido status={r.order.status} />
               </div>
               <p className="min-w-0 truncate">{r.campaign.title}</p>
-              <p className="text-sm">
+              <p className="text-sm text-muted">
                 <Comprador r={r} />
               </p>
               <div className="flex items-center justify-between gap-3 text-sm">

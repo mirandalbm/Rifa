@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button, Card, Campo, Pill } from "@/components/bits";
-import { MestreDetalhe } from "@/components/painel";
+import { Button, Campo, Empty, Pill } from "@/components/bits";
+import { CartaoDoPainel, MestreDetalhe } from "@/components/painel";
 import { apiRequest } from "@/lib/queryClient";
 import { formatarCnpj } from "@shared/format";
 import { DOCUMENTOS_DA_ENTIDADE, documentosQueFaltam, type DocumentoDaEntidade } from "@shared/bannerDivulgacao";
@@ -51,14 +51,14 @@ export function EntidadesDaPlataforma() {
       aoFechar={() => setAberto(null)}
       vazio="Escolha uma entidade para conferir os documentos."
       lista={
-        <Card title="Entidades beneficiadas">
+        <CartaoDoPainel titulo="Entidades beneficiadas">
           {msg && !item ? (
-            <p role="status" className={`px-4 pt-3 text-sm ${msg.ok ? "text-green-deep" : "text-red"}`}>
+            <p role="status" className={`px-5 pb-3 text-sm ${msg.ok ? "text-green-deep" : "text-red"}`}>
               {msg.texto}
             </p>
           ) : null}
           {data?.length ? (
-            <ul className="divide-y divide-line">
+            <ul className="divide-y divide-line border-t border-line">
               {data.map((l) => (
                 <li key={l.campaignId}>
                   <button
@@ -68,7 +68,8 @@ export function EntidadesDaPlataforma() {
                       setMotivo("");
                       setAberto(l.campaignId);
                     }}
-                    className={`w-full px-4 py-3 text-left hover:bg-mist ${aberto === l.campaignId ? "bg-mist" : ""}`}
+                    aria-current={aberto === l.campaignId ? "true" : undefined}
+                    className={`w-full px-5 py-3 text-left hover:bg-mist ${aberto === l.campaignId ? "bg-mist" : ""}`}
                   >
                     <span className="flex flex-wrap items-center justify-between gap-2">
                       <span className="text-sm font-semibold">{l.nome}</span>
@@ -82,14 +83,14 @@ export function EntidadesDaPlataforma() {
               ))}
             </ul>
           ) : (
-            <p className="p-4 text-sm text-muted">Nenhuma entidade esperando conferência.</p>
+            <Empty>Nenhuma entidade esperando conferência.</Empty>
           )}
-        </Card>
+        </CartaoDoPainel>
       }
       detalhe={
         item ? (
-          <Card title={item.nome}>
-            <div className="space-y-3 p-4 text-sm">
+          <CartaoDoPainel titulo={item.nome} acao={<Pill status="pending">em análise</Pill>}>
+            <div className="space-y-3 border-t border-line px-5 py-4 text-sm">
               <dl className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 <div>
                   <dt className="label-xs">CNPJ</dt>
@@ -152,12 +153,12 @@ export function EntidadesDaPlataforma() {
                 >
                   Aprovar a entidade
                 </Button>
-                <Button variant="ghost" disabled={decidir.isPending || motivo.trim().length < 5} onClick={() => decidir.mutate("recusado")}>
+                <Button variant="cinza" disabled={decidir.isPending || motivo.trim().length < 5} onClick={() => decidir.mutate("recusado")}>
                   Recusar
                 </Button>
               </div>
             </div>
-          </Card>
+          </CartaoDoPainel>
         ) : null
       }
     />

@@ -175,7 +175,28 @@ export function AdminAtendimento() {
             : []),
         ]}
       />
+      {daPlataforma ? <OQueAPlataformaDecide /> : null}
     </PanelShell>
+  );
+}
+
+/** O que só a plataforma decide no Atendimento (Figma, P23): a régua de cada fila, em uma linha. */
+function OQueAPlataformaDecide() {
+  return (
+    <CartaoDoPainel titulo="O que a plataforma decide aqui" className="mt-4 md:mt-6">
+      <ul className="space-y-2 px-5 pb-5 text-[13px] leading-[18px] text-ink-2">
+        <li>
+          • Disputa de reembolso: procedente vira aprovado com o prazo da organização; improcedente mantém a recusa.
+          &quot;Plataforma&quot; aparece para os dois lados; a pessoa fica na auditoria.
+        </li>
+        <li>
+          • Denúncias: improcedente, travar a rifa ou banir a organização (motivo obrigatório; retenção cautelar nasce no
+          banimento).
+        </li>
+        <li>• Verificações: documentos e foto, com a autorização biométrica conferida; a semelhança decide e é descartada.</li>
+        <li>• Entidades beneficiadas: CNPJ e documentos abertos com auditoria antes; decide a versão que abriu.</li>
+      </ul>
+    </CartaoDoPainel>
   );
 }
 
@@ -218,8 +239,17 @@ function ListaDeChamados({
                       <span className="tnum text-sm font-semibold">{c.protocolo}</span>
                       <StatusPill s={c.status} disputa={c.disputa} />
                     </div>
+                    {/* A plataforma vê todas as organizações: na lista, quem pediu vai só pelo ID do cliente (o nome, ao abrir). */}
                     <p className="mt-1 text-sm">
-                      {c.nome} <span className="tnum text-xs text-muted">· {c.cliente ?? "sem ID"}</span>
+                      {daPlataforma ? (
+                        <>
+                          {c.organizacao} <span className="tnum text-xs text-muted">· Cliente {c.cliente ?? "sem ID"}</span>
+                        </>
+                      ) : (
+                        <>
+                          {c.nome} <span className="tnum text-xs text-muted">· {c.cliente ?? "sem ID"}</span>
+                        </>
+                      )}
                     </p>
                     <p className="text-xs text-muted">
                       {c.rifa} · pedido <span className="tnum">#{c.pedido}</span> · <span className="tnum">{formatBRL(c.valorCents)}</span>

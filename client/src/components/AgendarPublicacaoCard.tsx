@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Button, Card, Pill } from "@/components/bits";
+import { Button, Pill } from "@/components/bits";
+import { CartaoDoPainel } from "@/components/painel";
 import { apiRequest } from "@/lib/queryClient";
 import { CampoDeAgenda, paraCampoLocal, paraInstante, quandoCurto } from "@/components/CampoDeAgenda";
 import { RIFA_AGENDA_MAX_DIAS } from "@shared/agenda";
@@ -10,6 +11,7 @@ interface Rifa {
   status: string;
   publicarEm?: string | null;
   publicacaoAgendadaFalha?: string | null;
+  publishedAt?: string | null;
 }
 
 /**
@@ -43,13 +45,25 @@ export function AgendarPublicacaoCard({ rifa }: { rifa: Rifa }) {
     onError: (e: Error) => setMsg({ ok: false, texto: e.message }),
   });
 
-  if (rifa.status !== "draft") return null;
+  // Já publicada, o cartão fica como registro (o Figma, nó 54:4503): agendar é só no rascunho.
+  if (rifa.status !== "draft") {
+    return (
+      <CartaoDoPainel titulo="Publicação agendada" subtitulo="Só no rascunho. Já publicada, o cartão fica como registro.">
+        <p className="px-5 pb-5">
+          <Pill status="closed">
+            {rifa.publishedAt ? `publicada em ${new Date(rifa.publishedAt).toLocaleDateString("pt-BR")}` : "publicada"}
+          </Pill>
+        </p>
+      </CartaoDoPainel>
+    );
+  }
   return (
-    <Card
-      title="Publicação agendada"
-      right={rifa.publicarEm ? <Pill status="pending">{`Agendada · ${quandoCurto(rifa.publicarEm)}`}</Pill> : null}
+    <CartaoDoPainel
+      titulo="Publicação agendada"
+      subtitulo="Na hora, a rifa vai ao ar sozinha — se nada faltar."
+      acao={rifa.publicarEm ? <Pill status="pending">{`Agendada · ${quandoCurto(rifa.publicarEm)}`}</Pill> : null}
     >
-      <div className="space-y-3 p-4 text-sm">
+      <div className="space-y-3 px-5 pb-5 text-sm">
         {rifa.publicacaoAgendadaFalha ? (
           <p role="status" className="rounded-md bg-red-soft px-3 py-2 text-red">
             A publicação agendada não aconteceu: {rifa.publicacaoAgendadaFalha}
@@ -80,6 +94,6 @@ export function AgendarPublicacaoCard({ rifa }: { rifa: Rifa }) {
           ) : null}
         </div>
       </div>
-    </Card>
+    </CartaoDoPainel>
   );
 }

@@ -51,6 +51,7 @@ import { TONS_DO_BOTAO } from "@/components/bits";
 import { BarChart3, ExternalLink } from "lucide-react";
 import { loteriaDoMetodo } from "@shared/apuracao";
 import { LOTERIAS } from "@shared/sorteiosOficiais";
+import { useLocation } from "wouter";
 
 /* ------------------------------- painel ------------------------------- */
 
@@ -393,6 +394,7 @@ interface CampaignRow {
     travadaMotivo?: string | null;
     publicarEm?: string | null;
     publicacaoAgendadaFalha?: string | null;
+    publishedAt?: string | null;
     /** O método de apuração (`shared/apuracao.ts`); nulo é a rifa de antes, apurada pela semente. */
     metodoApuracao?: string | null;
     /** Como a plataforma cobra por ela, e a tabela fotografada na publicação (`shared/cobranca.ts`). */
@@ -428,6 +430,142 @@ function situacaoDaRifa(c: CampaignRow["campaign"], emAnalise?: string[] | null)
   return selos;
 }
 
+/**
+ * Para onde levar cada bloqueio de publicação (`publishBlockers`): a aba da
+ * edição que tem o cartão, ou a tela do painel. Só apresentação — o texto é o
+ * do servidor; o que não reconhece fica sem link.
+ */
+function ondeResolver(bloqueio: string): { aba: string; ancora?: string } | { href: string; rotulo: string } | null {
+  const t = bloqueio.toLowerCase();
+  if (t.includes("telefone")) return { href: "/admin/configuracoes", rotulo: "Configurações" };
+  if (/contrato|anexo|sócio|socio|diretor/.test(t)) return { href: "/admin/configuracoes?aba=organizacao", rotulo: "Configurações" };
+  if (/notifica|falta de pagamento|em aberto/.test(t)) return { href: "/admin/cobranca", rotulo: "Cobrança" };
+  if (/cota premiada/.test(t)) return { aba: "vendas", ancora: "cotas-premiadas" };
+  if (/banner|foto|carrossel|vídeo|video/.test(t)) return { aba: "publicacao", ancora: "midia" };
+  if (/cobran|pacote|taxa/.test(t)) return { aba: "rifa" };
+  if (/autoriza|certificado|sorteio|apura|bônus|bonus|vale-brinde|data/.test(t)) return { aba: "autorizacao", ancora: "dados-legais" };
+  if (/prêmio|premio/.test(t)) return { aba: "rifa" };
+  return null;
+}
+
+const NOME_DA_ABA: Record<string, string> = {
+  rifa: "A rifa",
+  autorizacao: "Autorização e sorteio",
+  publicacao: "Publicação",
+  vendas: "Pacotes e cotas premiadas",
+};
+
+/**
+ * A situação da rifa ao lado dos dados (o Figma, nó 54:4503): no ar, o que
+ * vendeu, a data e quem apura, a autorização e os links públicos; no
+ * rascunho, o que falta para publicar, cada item com o link do cartão.
+ */
+function SituacaoDaRifaCard({
+  linha,
+  aoIrPara,
+  aoPublicar,
+  publicando,
+}: {
+  linha: CampaignRow;
+  aoIrPara: (aba: string, ancora?: string) => void;
+  aoPublicar: () => void;
+  publicando: boolean;
+}) {
+  const { campaign: c, stats, emAnalise } = linha;
+  const rascunho = c.status === "draft";
+  const { data: pendencias } = useQuery<{ blockers: string[] }>({
+    queryKey: [`/api/admin/campaigns/${c.id}/blockers`],
+    enabled: rascunho,
+  });
+  const loteria = c.metodoApuracao ? LOTERIAS[loteriaDoMetodo(c.metodoApuracao)].curto : null;
+  const linhas: [string, React.ReactNode][] = [
+    ["Vendidas", `${groupNumber(stats?.soldCount ?? 0)} de ${groupNumber(c.totalQuotas)}`],
+    ["Receita paga", formatBRL(stats?.revenueCents ?? 0)],
+    ["Sorteio", c.drawAt ? `${new Date(c.drawAt).toLocaleDateString("pt-BR")}${loteria ? ` · ${loteria}` : ""}` : "sem data"],
+    ["Autorização", c.authorizationCode ?? "falta"],
+  ];
+  return (
+    <CartaoDoPainel titulo="Situação">
+      <div className="space-y-3 px-5 pb-5 text-sm">
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-ink-2">{rascunho ? "Rascunho" : "Publicada"}</span>
+          <span className="flex flex-wrap justify-end gap-1">
+            {situacaoDaRifa(c, emAnalise).map((sel) => (
+              <Pill key={sel.texto} status={sel.status}>
+                {sel.texto}
+              </Pill>
+            ))}
+          </span>
+        </div>
+        <dl className="space-y-2">
+          {linhas.map(([rotulo, valor]) => (
+            <div key={rotulo} className="flex items-baseline justify-between gap-3">
+              <dt className="shrink-0 text-ink-2">{rotulo}</dt>
+              <dd className="tnum min-w-0 truncate text-right font-medium" title={typeof valor === "string" ? valor : undefined}>
+                {valor}
+              </dd>
+            </div>
+          ))}
+        </dl>
+
+        {rascunho ? (
+          pendencias ? (
+            pendencias.blockers.length ? (
+              <div>
+                <p className="label-xs">O que falta para publicar</p>
+                <ul className="mt-1 space-y-1.5 text-xs text-ink-2">
+                  {pendencias.blockers.map((b) => {
+                    const onde = ondeResolver(b);
+                    return (
+                      <li key={b} className="flex flex-col">
+                        <span>{b}</span>
+                        {onde && "href" in onde ? (
+                          <Link href={onde.href} className="inline-flex min-h-6 w-fit items-center font-medium text-green-deep hover:underline">
+                            Resolver em {onde.rotulo}
+                          </Link>
+                        ) : onde ? (
+                          <button
+                            type="button"
+                            onClick={() => aoIrPara(onde.aba, onde.ancora)}
+                            className="inline-flex min-h-6 w-fit items-center font-medium text-green-deep hover:underline"
+                          >
+                            Resolver na aba {NOME_DA_ABA[onde.aba]}
+                          </button>
+                        ) : null}
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            ) : (
+              <p className="text-xs text-green-deep">Nada falta: a rifa pode ser publicada.</p>
+            )
+          ) : null
+        ) : null}
+
+        <div className="flex flex-wrap gap-2">
+          {rascunho ? (
+            <Button onClick={aoPublicar} disabled={publicando || !pendencias || pendencias.blockers.length > 0}>
+              Publicar
+            </Button>
+          ) : (
+            <>
+              <a href={`/r/${c.slug}`} target="_blank" rel="noreferrer" className={`relative h-9 ${FORMA_DO_BOTAO} ${TONS_DO_BOTAO.contorno}`}>
+                <ExternalLink size={16} aria-hidden />
+                Ver a rifa
+                <span className="sr-only">(abre em outra aba)</span>
+              </a>
+              <a href={`/r/${c.slug}/regulamento`} target="_blank" rel="noreferrer" className={`relative h-9 ${FORMA_DO_BOTAO} ${TONS_DO_BOTAO.contorno}`}>
+                Regulamento
+                <span className="sr-only">(abre em outra aba)</span>
+              </a>
+            </>
+          )}
+        </div>
+      </div>
+    </CartaoDoPainel>
+  );
+}
 
 export function AdminCampanhas() {
   const qc = useQueryClient();
@@ -443,7 +581,20 @@ export function AdminCampanhas() {
     enabled: daPlataforma,
   });
   const [open, setOpen] = useState(false);
-  const [mediaFor, setMediaFor] = useState<string | null>(null);
+  // A rifa aberta vem do endereço (`?rifa=`, com a aba em `?aba=`): recarregar ou mandar o link abre a
+  // mesma edição. Id que não está na lista do recorte (o do vizinho, a apagada) cai na grade.
+  const mediaFor = new URLSearchParams(useSearch()).get("rifa");
+  const [, navegar] = useLocation();
+  const setMediaFor = (id: string | null) => navegar(id ? `/admin/campanhas?rifa=${encodeURIComponent(id)}` : "/admin/campanhas");
+  // "Pedir adiamento" e os links dos bloqueios trocam de aba: a URL leva a aba (e a âncora do cartão) e as abas remontam.
+  const [remontar, setRemontar] = useState(0);
+  const irParaAba = (aba: string, ancora?: string) => {
+    const url = new URL(window.location.href);
+    url.searchParams.set("aba", aba);
+    url.hash = ancora ?? "";
+    window.history.replaceState(null, "", url);
+    setRemontar((n) => n + 1);
+  };
   // Grade de capas ou lista, lembrado no aparelho.
   const [visao, setVisao] = useState<VisaoDasRifas>(visaoInicial);
   const [form, setForm] = useState({
@@ -509,20 +660,41 @@ export function AdminCampanhas() {
 
   const digits = quotaDigits(form.totalQuotas, true);
 
+  const aberta = mediaFor ? data?.find((r) => r.campaign.id === mediaFor) : undefined;
+
   return (
     <PanelShell title="Rifas">
-      <div className="mb-4 flex items-center justify-between">
-        <p className="text-sm text-muted">
+      {error ? (
+        <p role="alert" className="mb-3 rounded-md bg-red-soft px-3 py-2 text-sm text-red">{error}</p>
+      ) : null}
+
+      {!aberta ? (
+      <>
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <p className="min-w-0 text-sm text-muted">
           <span className="tnum">{data?.length ?? 0}</span> rifa(s)
         </p>
-        <Button onClick={() => setOpen((v) => !v)}>
-          {open ? "Fechar" : "Nova rifa"}
-        </Button>
+        <div className="flex shrink-0 items-center gap-3">
+          <AlternarVisao
+            visao={visao}
+            aoMudar={(v) => {
+              setVisao(v as VisaoDasRifas);
+              try {
+                localStorage.setItem(CHAVE_VISAO, v);
+              } catch {
+                // armazenamento bloqueado: vale só nesta visita
+              }
+            }}
+            opcoes={[
+              { valor: "grade", rotulo: "Grade de capas", icone: LayoutGrid },
+              { valor: "lista", rotulo: "Lista", icone: List },
+            ]}
+          />
+          <Button onClick={() => setOpen((v) => !v)}>
+            {open ? "Fechar" : "Nova rifa"}
+          </Button>
+        </div>
       </div>
-
-      {error ? (
-        <p className="mb-3 rounded-md bg-red-soft px-3 py-2 text-sm text-red">{error}</p>
-      ) : null}
 
       {open ? (
         <Card title="Nova campanha" right={<Pill status="draft" />}>
@@ -674,46 +846,74 @@ export function AdminCampanhas() {
         </Card>
       ) : null}
 
-      {mediaFor ? (
-        <div className="mt-3">
-          {(() => {
-            const linha = data?.find((r) => r.campaign.id === mediaFor);
-            const c = linha?.campaign;
-            const vendidas = linha?.stats?.soldCount ?? 0;
-            if (!c) return null;
-            // Uma aba por assunto da rifa; trocar de rifa volta à primeira
-            // (a `key` remonta). A aba vai na URL (`?aba=`).
-            return (
+      </>
+      ) : null}
+
+      {aberta ? (
+        (() => {
+          const linha = aberta;
+          const c = linha.campaign;
+          const vendidas = linha.stats?.soldCount ?? 0;
+          const podeAdiar = c.status === "published" && !c.demonstracao && vendidas < c.totalQuotas;
+          // O cabeçalho e as quatro abas da rifa (o Figma, nó 54:4503); a grade volta pelo "Todas as rifas".
+          return (
+            <div className="space-y-4">
+              <header className="flex flex-wrap items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <h2 className="truncate text-lg font-semibold">{c.title}</h2>
+                  <p className="tnum text-xs text-muted">
+                    <Link href="/admin/campanhas" className="inline-flex min-h-6 items-center font-medium text-green-deep hover:underline">
+                      Todas as rifas
+                    </Link>
+                    {" · "}
+                    {c.status === "draft"
+                      ? "rascunho"
+                      : c.publishedAt
+                        ? `publicada em ${new Date(c.publishedAt).toLocaleDateString("pt-BR")}`
+                        : "publicada"}
+                  </p>
+                </div>
+                <span className="flex flex-wrap gap-1">
+                  {situacaoDaRifa(c, linha.emAnalise).map((sel) => (
+                    <Pill key={sel.texto} status={sel.status}>
+                      {sel.texto}
+                    </Pill>
+                  ))}
+                </span>
+              </header>
               <Abas
-                key={c.id}
-                naUrl={false}
+                key={`${c.id}-${remontar}`}
                 rotulo={`Edição de ${c.title}`}
+                ancoras={{ adiar: "autorizacao", "dados-legais": "autorizacao", midia: "publicacao", "cotas-premiadas": "vendas" }}
                 abas={[
                   {
                     id: "rifa",
                     titulo: "A rifa",
                     conteudo: (
-                      <div className="space-y-3">
-                        <EditarRifaCard
-                          rifa={c}
-                          daPlataforma={daPlataforma}
-                          edicaoEmAnalise={Boolean(linha?.emAnalise?.includes("edicao"))}
+                      // Computador: os dados da rifa em duas colunas e a situação na terceira; o resto embaixo.
+                      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-3">
+                        <div className="min-w-0 lg:col-span-2">
+                          <EditarRifaCard
+                            rifa={c}
+                            daPlataforma={daPlataforma}
+                            edicaoEmAnalise={Boolean(linha.emAnalise?.includes("edicao"))}
+                            aoPedirAdiamento={podeAdiar ? () => irParaAba("autorizacao", "adiar") : undefined}
+                          />
+                        </div>
+                        <SituacaoDaRifaCard
+                          linha={linha}
+                          aoIrPara={irParaAba}
+                          aoPublicar={() => publish.mutate(c.id)}
+                          publicando={publish.isPending}
                         />
                         <CobrancaDaRifaCard rifa={c} />
                         <AgendarPublicacaoCard rifa={c} />
-                        {c.status === "published" && !c.demonstracao && vendidas < c.totalQuotas ? (
-                          <AdiarSorteioCard
-                            rifa={c}
-                            vendidas={vendidas}
-                            adiamentoEmAnalise={Boolean(linha?.emAnalise?.includes("adiamento"))}
-                          />
-                        ) : null}
                         {c.status !== "draft" ? (
-                          <Card title="Divulgação">
-                            <div className="p-4">
+                          <CartaoDoPainel titulo="Endereço curto" subtitulo="Para divulgar a rifa com um link pequeno.">
+                            <div className="px-5 pb-5">
                               <EnderecoCurto alvo={{ tipo: "rifa", id: c.id }} rotulo="Endereço curto da rifa" />
                             </div>
-                          </Card>
+                          </CartaoDoPainel>
                         ) : null}
                       </div>
                     ),
@@ -722,9 +922,22 @@ export function AdminCampanhas() {
                     id: "autorizacao",
                     titulo: "Autorização e sorteio",
                     conteudo: (
-                      <div className="space-y-3">
-                        <DadosLegaisCard campanha={c} />
-                        <TransmissaoCard campanha={c} />
+                      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
+                        <div id="dados-legais" className="min-w-0">
+                          <DadosLegaisCard campanha={c} />
+                        </div>
+                        <div className="grid min-w-0 grid-cols-1 gap-4">
+                          <TransmissaoCard campanha={c} />
+                          {podeAdiar ? (
+                            <div id="adiar" className="min-w-0 scroll-mt-20">
+                              <AdiarSorteioCard
+                                rifa={c}
+                                vendidas={vendidas}
+                                adiamentoEmAnalise={Boolean(linha.emAnalise?.includes("adiamento"))}
+                              />
+                            </div>
+                          ) : null}
+                        </div>
                       </div>
                     ),
                   },
@@ -732,13 +945,14 @@ export function AdminCampanhas() {
                     id: "publicacao",
                     titulo: "Publicação",
                     conteudo: (
-                      <div className="space-y-3">
-                        <BannerDivulgacaoCard campaignId={c.id} />
-                        <MediaManager campaignId={c.id} />
+                      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
+                        <div id="midia" className="min-w-0 lg:col-span-2">
+                          <MediaManager campaignId={c.id} />
+                        </div>
                         <LegendaCard campanha={c} />
                         <ReelsDaRifa campaignId={c.id} />
-                        <Card title="Artes para divulgar">
-                          <div className="space-y-4 p-4">
+                        <CartaoDoPainel titulo="Artes para divulgar" subtitulo="Prontas nos três formatos, ou monte a sua no editor.">
+                          <div className="space-y-4 px-5 pb-5">
                             <AbrirEditorDeImagem
                               portas={{
                                 dados: `/api/admin/campaigns/${c.id}/editor`,
@@ -750,7 +964,8 @@ export function AdminCampanhas() {
                             />
                             <ArtesParaDivulgar base={`/api/admin/campaigns/${c.id}/artes`} />
                           </div>
-                        </Card>
+                        </CartaoDoPainel>
+                        <BannerDivulgacaoCard campaignId={c.id} />
                       </div>
                     ),
                   },
@@ -761,16 +976,16 @@ export function AdminCampanhas() {
                   },
                 ]}
               />
-            );
-          })()}
-        </div>
+            </div>
+          );
+        })()
       ) : null}
 
       {/* As ações de cada rifa, as mesmas na grade e na lista. */}
-      {(() => {
+      {!aberta ? (() => {
         const acoesDa = ({ campaign, stats }: CampaignRow) => {
           const lista: { rotulo: string; aoClicar: () => void; primario?: boolean; perigo?: boolean; ocupado?: boolean }[] = [
-            { rotulo: mediaFor === campaign.id ? "Fechar edição" : "Editar", aoClicar: () => setMediaFor(mediaFor === campaign.id ? null : campaign.id) },
+            { rotulo: "Editar", aoClicar: () => setMediaFor(campaign.id) },
           ];
           if (campaign.status === "draft") lista.push({ rotulo: "Publicar", primario: true, aoClicar: () => publish.mutate(campaign.id) });
           if (daPlataforma && campaign.travadaEm)
@@ -816,7 +1031,7 @@ export function AdminCampanhas() {
           <Button
             key={a.rotulo}
             variant={a.primario ? "primary" : "ghost"}
-            className={`whitespace-nowrap px-2 py-1 text-xs ${a.perigo ? "text-red" : ""}`}
+            className={`h-9 whitespace-nowrap ${a.perigo ? "border-red text-red hover:bg-red-soft" : ""}`}
             disabled={a.ocupado}
             onClick={a.aoClicar}
           >
@@ -825,42 +1040,24 @@ export function AdminCampanhas() {
         );
         return (
           <div className="mt-3 space-y-3">
-            <div className="flex items-center justify-end">
-              <AlternarVisao
-                visao={visao}
-                aoMudar={(v) => {
-                  setVisao(v as VisaoDasRifas);
-                  try {
-                    localStorage.setItem(CHAVE_VISAO, v);
-                  } catch {
-                    // armazenamento bloqueado: vale só nesta visita
-                  }
-                }}
-                opcoes={[
-                  { valor: "grade", rotulo: "Grade de capas", icone: LayoutGrid },
-                  { valor: "lista", rotulo: "Lista", icone: List },
-                ]}
-              />
-            </div>
-
             {data?.length === 0 ? (
               <Card>
                 <Empty>Nenhuma campanha criada.</Empty>
               </Card>
             ) : visao === "grade" ? (
-              <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="Rifas em grade">
+              <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-label="Rifas em grade">
                 {data?.map((linha) => {
                   const { campaign, stats, emAnalise, capa } = linha;
                   const acoes = acoesDa(linha);
                   const [principal, segunda, ...resto] = acoes;
                   const vendidas = stats?.soldCount ?? 0;
                   return (
-                    <li key={campaign.id} className={`cartao min-w-0 overflow-hidden rounded-xl border border-line bg-white ${mediaFor === campaign.id ? "ring-2 ring-green" : ""}`}>
+                    <li key={campaign.id} className="cartao min-w-0 overflow-hidden rounded-xl border border-line bg-white">
                       <div className="relative aspect-[16/9] bg-mist-2">
                         {capa ? (
                           <img src={capa} alt="" className="h-full w-full object-cover" loading="lazy" />
                         ) : (
-                          <span className="flex h-full w-full items-center justify-center text-muted" aria-hidden>
+                          <span className="flex h-full w-full items-center justify-center bg-mist text-muted" aria-hidden>
                             <ImagemIcone size={28} />
                           </span>
                         )}
@@ -873,9 +1070,9 @@ export function AdminCampanhas() {
                         </span>
                       </div>
                       <div className="space-y-2 p-4">
-                        <p className="truncate font-medium" title={campaign.prizeTitle}>{campaign.prizeTitle}</p>
-                        <p className="text-xs text-muted">
-                          <Money cents={campaign.priceCents} /> a cota · <span className="tnum">{groupNumber(campaign.totalQuotas)}</span> cotas
+                        <p className="truncate text-base font-semibold" title={campaign.prizeTitle}>{campaign.prizeTitle}</p>
+                        <p className="tnum text-xs text-muted">
+                          <Money cents={campaign.priceCents} /> a cota · {groupNumber(campaign.totalQuotas)} cotas
                         </p>
                         <Progress value={vendidas} total={campaign.totalQuotas} />
                         <p className="tnum text-xs text-muted">
@@ -891,7 +1088,7 @@ export function AdminCampanhas() {
                             <span className="text-muted">Sem data de sorteio</span>
                           )}
                         </p>
-                        <div className="flex flex-wrap items-center gap-1 pt-1">
+                        <div className="flex flex-wrap items-center gap-2 pt-1">
                           {botao(principal)}
                           {segunda ? botao(segunda) : null}
                           {resto.length ? (
@@ -967,7 +1164,7 @@ export function AdminCampanhas() {
             )}
           </div>
         );
-      })()}
+      })() : null}
     </PanelShell>
   );
 }

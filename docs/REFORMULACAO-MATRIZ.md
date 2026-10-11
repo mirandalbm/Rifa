@@ -693,7 +693,7 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 | `Button` | manter · peça do kit (onda 1) · na tela P08 Sorteios oficiais (calendário) |
 | `Campo` | manter · peça do kit (onda 1) · na tela P08 Sorteios oficiais (calendário) |
 | `CamposDoSegundoFator` | manter · peça do kit (onda 1) · na tela P08 Sorteios oficiais (calendário) |
-| `Card` | manter · peça do kit (onda 1) · na tela P08 Sorteios oficiais (calendário) |
+| `CartaoDoPainel` | manter · 11 · Painel · P08 Sorteios oficiais (node 39-1742) · onda 2 |
 | `Comentarios` | manter · na tela P08 Sorteios oficiais (calendário) · onda 2 |
 | `Empty` | manter · peça do kit (onda 1) · na tela P08 Sorteios oficiais (calendário) |
 | `Janela` | manter · peça do kit (onda 1) · na tela P08 Sorteios oficiais (calendário) |

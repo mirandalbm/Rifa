@@ -256,14 +256,19 @@ export function AdminPainel() {
                       const pct = Math.round(((stats?.soldCount ?? 0) / campaign.totalQuotas) * 100);
                       return (
                         <tr key={campaign.id} className="border-t border-line">
-                          <td className="px-4 py-2.5">
+                          {/* `w-full max-w-0`: a célula fica com o que sobra e o prêmio corta com
+                              reticências; sem isso a tabela crescia até o título inteiro e a
+                              coluna do sorteio saía do cartão em 1440 px. O `min-w` segura a capa
+                              e o preço quando a tabela rola no cartão (celular e tablet); em
+                              `xl` o cartão tem ~550 px e a tabela cabe inteira com 150. */}
+                          <td className="w-full min-w-[200px] max-w-0 px-4 py-2.5 xl:min-w-[150px]">
                             <span className="flex items-center gap-3">
                               <span className="h-9 w-9 shrink-0 overflow-hidden rounded-md bg-mist-2">
                                 {capa ? <img src={capa} alt="" className="h-full w-full object-cover" loading="lazy" /> : null}
                               </span>
                               <span className="min-w-0">
                                 <span className="block truncate font-medium">{campaign.prizeTitle}</span>
-                                <span className="tnum block text-xs text-muted">{formatBRL(campaign.priceCents)} a cota</span>
+                                <span className="tnum block truncate text-xs text-muted">{formatBRL(campaign.priceCents)} a cota</span>
                               </span>
                             </span>
                           </td>
@@ -271,8 +276,8 @@ export function AdminPainel() {
                             <Progress value={stats?.soldCount ?? 0} total={campaign.totalQuotas} />
                             <span className="tnum text-xs text-muted">{pct}% · {groupNumber(stats?.soldCount ?? 0)}</span>
                           </td>
-                          <td className="px-4 py-2.5"><Money cents={stats?.revenueCents ?? 0} className="font-medium" /></td>
-                          <td className="tnum px-4 py-2.5 text-muted">{campaign.drawAt ? new Date(campaign.drawAt).toLocaleDateString("pt-BR") : "—"}</td>
+                          <td className="whitespace-nowrap px-4 py-2.5"><Money cents={stats?.revenueCents ?? 0} className="font-medium" /></td>
+                          <td className="tnum whitespace-nowrap px-4 py-2.5 text-muted">{campaign.drawAt ? new Date(campaign.drawAt).toLocaleDateString("pt-BR") : "—"}</td>
                         </tr>
                       );
                     })}

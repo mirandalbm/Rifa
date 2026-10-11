@@ -248,7 +248,7 @@ export function AdminOrganizacoes() {
         onClick={() => setAberta(aberta === o.id ? null : o.id)}
         aria-expanded={aberta === o.id}
         aria-controls="organizacao-aberta"
-        className="min-w-0 break-words text-left font-medium text-green-deep underline decoration-line-2 underline-offset-2"
+        className="min-h-6 min-w-0 break-words text-left font-medium text-green-deep underline decoration-line-2 underline-offset-2"
       >
         {o.name}
       </button>

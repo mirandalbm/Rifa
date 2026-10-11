@@ -1087,6 +1087,14 @@ plataforma analisa** (Atendimento → Rifas, com conversa dos dois lados).
   a segunda é 409 e não reescreve a data.
 - **Venda de outro cambista é 404**, ao confirmar e ao cancelar (era 403, que
   entregava que o código existe). `npm run cambista` prova.
+- **Confirmar e cancelar ao mesmo tempo: um vence, o outro é 409.** As duas
+  mudanças são condicionais a `pending`, e cada uma confere depois quem
+  ganhou: confirmar responde 409 se a venda não ficou paga (devolvida no
+  meio — sem isso a tela imprimia bilhete de venda sem cota) e cancelar
+  responde 409 se ela ficou paga (sem isso o cambista devolvia o dinheiro de
+  uma venda que entra no acerto dele). A tela trava os dois botões enquanto
+  um corre, e o aviso de demora (20 s) **nunca solta o botão**. `npm run
+  cambista` corre os dois juntos.
 - O cambista deve à casa; o afiliado recebe dela. Direções opostas, mesma
   máquina de comissão.
 

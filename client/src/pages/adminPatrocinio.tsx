@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button, Card, Empty, Money, Pill } from "@/components/bits";
+import { Button, Campo, Empty, Filtros, Kpi, Money, Pill } from "@/components/bits";
+import { CabecalhoDaTabela, CartaoDoPainel } from "@/components/painel";
 import { apiRequest } from "@/lib/queryClient";
 import { formatBRL, groupNumber } from "@shared/format";
 import { UFS } from "@shared/endereco";
@@ -183,8 +184,8 @@ function previsao(a: {
   entraEmHoras: number | null;
 }): string {
   if (a.entraEmCliques === null) return "sem previsão";
-  if (a.entraEmCliques === 0) return "entra no próximo clique";
-  return `entra em ~${groupNumber(a.entraEmCliques)} cliques${a.entraEmHoras !== null ? ` (~${a.entraEmHoras.toLocaleString("pt-BR")} h)` : ""}`;
+  if (a.entraEmCliques === 0) return "estimativa: entra no próximo clique";
+  return `estimativa: entra em ~${groupNumber(a.entraEmCliques)} cliques${a.entraEmHoras !== null ? ` (~${a.entraEmHoras.toLocaleString("pt-BR")} h)` : ""}`;
 }
 
 function Aviso({ msg }: { msg: { ok: boolean; texto: string } | null }) {
@@ -232,28 +233,21 @@ export function RifasPatrocinadas() {
   });
   return (
     <div>
-      <div
-        className="mb-3 flex flex-wrap items-center gap-1"
-        role="tablist"
-        aria-label="Período"
-      >
-        {[7, 30, 90].map((d) => (
-          <button
-            key={d}
-            type="button"
-            role="tab"
-            aria-selected={dias === d}
-            onClick={() => setDias(d)}
-            className={
-              dias === d
-                ? "rounded-md bg-green px-3 py-1.5 text-sm font-semibold text-on-green"
-                : "rounded-md px-3 py-1.5 text-sm text-ink-2 hover:bg-mist-2"
-            }
-          >
-            <span className="tnum">{d}</span> dias
-          </button>
-        ))}
-      </div>
+      <Filtros<"7" | "30" | "90">
+        rotulo="Período"
+        exclusivo
+        className="mb-3"
+        opcoes={(["7", "30", "90"] as const).map((d) => ({
+          valor: d,
+          rotulo: (
+            <>
+              <span className="tnum">{d}</span> dias
+            </>
+          ),
+        }))}
+        ativa={String(dias) as "7" | "30" | "90"}
+        aoMudar={(v) => setDias(Number(v))}
+      />
       {!data ? (
         <Empty>Carregando…</Empty>
       ) : data.plataforma ? (
@@ -270,9 +264,9 @@ export function RifasPatrocinadas() {
  * ------------------------------------------------------------------ */
 
 function Numeros({ t, extra }: { t: Totais; extra?: [string, string][] }) {
-  const itens: [string, string, string?][] = [
+  const itens: [string, string][] = [
     ["Gasto", formatBRL(t.gastoCents)],
-    ["Receita das vendas", formatBRL(t.receitaCents), "text-green-deep"],
+    ["Receita das vendas", formatBRL(t.receitaCents)],
     [
       "Retorno",
       t.retorno === null ? "—" : `${t.retorno.toLocaleString("pt-BR")}×`,
@@ -291,19 +285,11 @@ function Numeros({ t, extra }: { t: Totais; extra?: [string, string][] }) {
     ...(extra ?? []).map(([a, b]) => [a, b] as [string, string]),
   ];
   return (
-    <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-      {itens.map(([rotulo, valor, cor]) => (
-        <div
-          key={rotulo}
-          className="rounded-xl border border-line bg-white p-3"
-        >
-          <dt className="label-xs">{rotulo}</dt>
-          <dd className={`tnum mt-1 text-lg font-semibold ${cor ?? ""}`}>
-            {valor}
-          </dd>
-        </div>
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      {itens.map(([rotulo, valor]) => (
+        <Kpi key={rotulo} label={rotulo} value={valor} />
       ))}
-    </dl>
+    </div>
   );
 }
 
@@ -316,8 +302,8 @@ function Funil({ t }: { t: Totais }) {
   ];
   const topo = Math.max(1, t.exibicoes);
   return (
-    <Card title="Funil">
-      <ol className="space-y-2 p-4 text-sm">
+    <CartaoDoPainel titulo="Funil">
+      <ol className="space-y-2 px-5 pb-5 text-sm">
         {etapas.map(([rotulo, n], i) => {
           const antes = i > 0 ? etapas[i - 1][1] : null;
           return (
@@ -350,12 +336,12 @@ function Funil({ t }: { t: Totais }) {
           );
         })}
       </ol>
-      <p className="border-t border-line px-4 py-2 text-[11px] text-muted">
+      <p className="border-t border-line px-5 py-2 text-[11px] text-muted">
         Barrados no período:{" "}
         <span className="tnum">{groupNumber(t.barrados)}</span> clique(s) de
         robô, repetidos em 24 h ou com o pacote esgotado — não foram cobrados.
       </p>
-    </Card>
+    </CartaoDoPainel>
   );
 }
 
@@ -369,8 +355,8 @@ function GastoReceita({ serie }: { serie: DiaSerie[] }) {
   );
   const d = ativo !== null ? serie[ativo] : null;
   return (
-    <Card title="Gasto × receita por dia">
-      <div className="p-4">
+    <CartaoDoPainel titulo="Gasto × receita por dia">
+      <div className="px-5 pb-5">
         <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2 text-xs text-muted">
           <span className="flex items-center gap-3">
             <span className="flex items-center gap-1">
@@ -431,65 +417,39 @@ function GastoReceita({ serie }: { serie: DiaSerie[] }) {
           {tabela ? "Esconder tabela" : "Ver em tabela"}
         </button>
         {tabela ? (
-          <table className="mt-2 w-full text-sm">
-            <thead>
-              <tr className="label-xs border-b border-line text-left">
-                <th className="py-1 font-normal">Dia</th>
-                <th className="py-1 text-right font-normal">Exibições</th>
-                <th className="py-1 text-right font-normal">Cliques</th>
-                <th className="py-1 text-right font-normal">Gasto</th>
-                <th className="py-1 text-right font-normal">Receita</th>
-              </tr>
-            </thead>
-            <tbody>
-              {[...serie].reverse().map((x) => (
-                <tr key={x.dia} className="border-b border-line last:border-0">
-                  <td className="tnum py-1">{diaCurto(x.dia)}</td>
-                  <td className="tnum py-1 text-right">
-                    {groupNumber(x.exibicoes)}
-                  </td>
-                  <td className="tnum py-1 text-right">
-                    {groupNumber(x.cliques)}
-                  </td>
-                  <td className="tnum py-1 text-right">
-                    {formatBRL(x.gastoCents)}
-                  </td>
-                  <td className="tnum py-1 text-right">
-                    {formatBRL(x.receitaCents)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div className="mt-2 overflow-x-auto">
+            <table className="w-full text-sm">
+              <CabecalhoDaTabela colunas={["Dia", "Exibições", "Cliques", "Gasto", "Receita"]} />
+              <tbody>
+                {[...serie].reverse().map((x) => (
+                  <tr key={x.dia} className="border-t border-line">
+                    <td className="tnum px-4 py-2">{diaCurto(x.dia)}</td>
+                    <td className="tnum px-4 py-2">{groupNumber(x.exibicoes)}</td>
+                    <td className="tnum px-4 py-2">{groupNumber(x.cliques)}</td>
+                    <td className="tnum whitespace-nowrap px-4 py-2">{formatBRL(x.gastoCents)}</td>
+                    <td className="tnum whitespace-nowrap px-4 py-2">{formatBRL(x.receitaCents)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         ) : null}
       </div>
-    </Card>
+    </CartaoDoPainel>
   );
 }
 
 function PorEstado({ estados }: { estados: Estado[] }) {
   return (
-    <Card title="De onde vieram">
+    <CartaoDoPainel titulo="De onde vieram">
       {estados.length ? (
         <div className="overflow-x-auto">
           <table className="w-full text-xs sm:text-sm">
-            <thead>
-              <tr className="label-xs border-b border-line text-left">
-                <th className="px-2 py-2 font-normal sm:px-4">Estado</th>
-                <th className="px-2 py-2 text-right font-normal">Exibições</th>
-                <th className="px-2 py-2 text-right font-normal">Cliques</th>
-                <th className="px-2 py-2 text-right font-normal sm:px-4">
-                  Gasto
-                </th>
-              </tr>
-            </thead>
+            <CabecalhoDaTabela colunas={["Estado", "Exibições", "Cliques", "Gasto"]} />
             <tbody>
               {estados.map((e) => (
-                <tr
-                  key={e.uf ?? "?"}
-                  className="border-b border-line last:border-0"
-                >
-                  <td className="px-2 py-2 sm:px-4">
+                <tr key={e.uf ?? "?"} className="border-t border-line">
+                  <td className="px-4 py-2">
                     <span className="sm:hidden">{e.uf ?? "—"}</span>
                     <span className="hidden sm:inline">
                       {e.uf
@@ -497,15 +457,9 @@ function PorEstado({ estados }: { estados: Estado[] }) {
                         : "Sem região escolhida"}
                     </span>
                   </td>
-                  <td className="tnum px-2 py-2 text-right">
-                    {groupNumber(e.exibicoes)}
-                  </td>
-                  <td className="tnum px-2 py-2 text-right">
-                    {groupNumber(e.cliques)}
-                  </td>
-                  <td className="tnum whitespace-nowrap px-2 py-2 text-right sm:px-4">
-                    {formatBRL(e.gastoCents)}
-                  </td>
+                  <td className="tnum px-4 py-2">{groupNumber(e.exibicoes)}</td>
+                  <td className="tnum px-4 py-2">{groupNumber(e.cliques)}</td>
+                  <td className="tnum whitespace-nowrap px-4 py-2">{formatBRL(e.gastoCents)}</td>
                 </tr>
               ))}
             </tbody>
@@ -514,7 +468,7 @@ function PorEstado({ estados }: { estados: Estado[] }) {
       ) : (
         <Empty>Nada no período.</Empty>
       )}
-    </Card>
+    </CartaoDoPainel>
   );
 }
 
@@ -549,14 +503,14 @@ function DaOrganizacaoView({ dados }: { dados: DaOrg }) {
           ["Conversão do clique", pct(dados.totais.conversaoPct)],
         ]}
       />
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+      <div className="grid grid-cols-1 items-start gap-3 lg:grid-cols-2">
         <GastoReceita serie={dados.serie} />
         <Funil t={dados.totais} />
       </div>
 
-      <Card
-        title="Seus anúncios"
-        right={
+      <CartaoDoPainel
+        titulo="Seus anúncios"
+        acao={
           <span className="tnum text-xs text-muted">
             {ativos.length} ativo(s)
           </span>
@@ -565,7 +519,7 @@ function DaOrganizacaoView({ dados }: { dados: DaOrg }) {
         {ativos.length ? (
           <ul className="divide-y divide-line">
             {ativos.map((a) => (
-              <li key={a.id} className="space-y-2 px-4 py-3 text-sm">
+              <li key={a.id} className="space-y-2 px-5 py-3 text-sm">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="min-w-0 flex-1 font-semibold">{a.rifa}</span>
                   <span className="text-xs text-muted">{ondeAparece(a)}</span>
@@ -597,16 +551,16 @@ function DaOrganizacaoView({ dados }: { dados: DaOrg }) {
         ) : (
           <Empty>Nenhum anúncio ativo. Compre um abaixo.</Empty>
         )}
-        <p className="border-t border-line px-4 py-2 text-[11px] text-muted">
+        <p className="border-t border-line px-5 py-2 text-[11px] text-muted">
           A fila é por ordem de chegada. O anúncio que entra na vitrine fica até
           gastar todos os cliques comprados; aí o próximo da fila entra sozinho.
           Não há cancelamento: enquanto a rifa está no ar, o crédito do anúncio
           fica com ele. Se a rifa sair do ar antes de gastar tudo, o que sobrou
           volta ao saldo como crédito, para usar em qualquer rifa.
         </p>
-      </Card>
+      </CartaoDoPainel>
 
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+      <div className="grid grid-cols-1 items-start gap-3 lg:grid-cols-2">
         <NovoAnuncio
           dados={dados}
           aoComprar={() => {
@@ -626,9 +580,9 @@ function DaOrganizacaoView({ dados }: { dados: DaOrg }) {
         />
       </div>
 
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+      <div className="grid grid-cols-1 items-start gap-3 lg:grid-cols-2">
         <PorEstado estados={dados.porEstado} />
-        <Card title="Extrato do saldo">
+        <CartaoDoPainel titulo="Extrato do saldo">
           {dados.extrato.length ? (
             <ul className="divide-y divide-line">
               {dados.extrato.map((e, i) => (
@@ -652,11 +606,11 @@ function DaOrganizacaoView({ dados }: { dados: DaOrg }) {
           ) : (
             <Empty>Nenhum lançamento ainda.</Empty>
           )}
-        </Card>
+        </CartaoDoPainel>
       </div>
 
       {antigos.length ? (
-        <Card title="Anúncios encerrados">
+        <CartaoDoPainel titulo="Anúncios encerrados">
           <ul className="divide-y divide-line">
             {antigos.map((a) => (
               <li
@@ -680,7 +634,7 @@ function DaOrganizacaoView({ dados }: { dados: DaOrg }) {
               </li>
             ))}
           </ul>
-        </Card>
+        </CartaoDoPainel>
       ) : null}
 
       {/* Desligado, o reembolso não existe na tela: nem botão, nem menção. Só o
@@ -723,11 +677,11 @@ function ReembolsosCard({
   const emAnalise = reembolsos.filter((r) => r.status === "aberto").length;
   const aPagar = reembolsos.filter((r) => r.status === "aprovado").length;
   return (
-    <Card
-      title={
+    <CartaoDoPainel
+      titulo={
         plataforma ? "Pedidos de reembolso do saldo" : "Reembolso do saldo"
       }
-      right={
+      acao={
         emAnalise || aPagar ? (
           <Pill status="pending">
             {[
@@ -752,7 +706,7 @@ function ReembolsosCard({
       ) : plataforma ? (
         <Empty>Nenhum pedido.</Empty>
       ) : null}
-    </Card>
+    </CartaoDoPainel>
   );
 }
 
@@ -783,7 +737,7 @@ function PedirReembolso({ saldoCents }: { saldoCents: number }) {
   });
   if (!aberto)
     return (
-      <div className="space-y-2 p-4 text-sm">
+      <div className="space-y-2 px-5 pb-5 text-sm">
         <Aviso msg={msg} />
         <Button
           variant="ghost"
@@ -797,7 +751,7 @@ function PedirReembolso({ saldoCents }: { saldoCents: number }) {
   const valorCents = centavos(valor);
   return (
     <form
-      className="space-y-3 p-4 text-sm"
+      className="space-y-3 px-5 pb-5 text-sm"
       onSubmit={(e) => {
         e.preventDefault();
         setMsg(null);
@@ -806,35 +760,16 @@ function PedirReembolso({ saldoCents }: { saldoCents: number }) {
     >
       <Aviso msg={msg} />
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-[10rem_1fr]">
-        <label className="block">
-          <span className="label-xs">Valor (R$)</span>
-          <input
-            value={valor}
-            onChange={(e) => setValor(e.target.value)}
-            inputMode="decimal"
-            className="campo tnum"
-          />
-        </label>
-        <label className="block">
-          <span className="label-xs">Chave Pix para a devolução</span>
-          <input
-            value={chavePix}
-            onChange={(e) => setChavePix(e.target.value)}
-            maxLength={140}
-            className="campo"
-          />
-        </label>
+        <Campo rotulo="Valor (R$)">
+          <input value={valor} onChange={(e) => setValor(e.target.value)} inputMode="decimal" className="campo tnum" />
+        </Campo>
+        <Campo rotulo="Chave Pix para a devolução">
+          <input value={chavePix} onChange={(e) => setChavePix(e.target.value)} maxLength={140} className="campo" />
+        </Campo>
       </div>
-      <label className="block">
-        <span className="label-xs">Motivo</span>
-        <textarea
-          value={motivo}
-          onChange={(e) => setMotivo(e.target.value)}
-          rows={3}
-          maxLength={1000}
-          className="campo"
-        />
-      </label>
+      <Campo rotulo="Motivo">
+        <textarea value={motivo} onChange={(e) => setMotivo(e.target.value)} rows={3} maxLength={1000} className="campo" />
+      </Campo>
       <p className="text-xs text-muted">
         Vale para o saldo livre (
         <span className="tnum">{formatBRL(saldoCents)}</span>); o crédito de
@@ -1079,35 +1014,30 @@ function NovoAnuncio({
   const semSaldo = total !== null && total > dados.saldoCents;
 
   return (
-    <Card title="Novo anúncio">
+    <CartaoDoPainel titulo="Novo anúncio">
       <form
-        className="space-y-3 p-4 text-sm"
+        className="space-y-3 px-5 pb-5 text-sm"
         onSubmit={(e) => {
           e.preventDefault();
           comprar.mutate();
         }}
       >
-        <label className="block">
-          <span className="label-xs">Rifa</span>
-          <select
-            value={rifa}
-            onChange={(e) => setRifa(e.target.value)}
-            className="mt-1 w-full rounded-md border border-line-2 px-2 py-2"
-          >
+        <Campo rotulo="Rifa">
+          <select value={rifa} onChange={(e) => setRifa(e.target.value)} className="campo">
             {dados.rifas.map((r) => (
               <option key={r.id} value={r.id}>
                 {r.titulo}
               </option>
             ))}
           </select>
-        </label>
+        </Campo>
         <fieldset>
           <legend className="label-xs">Onde aparece</legend>
           <div className="mt-1 grid grid-cols-3 gap-2">
             {(Object.keys(ALCANCES) as Alcance[]).map((a) => (
               <label
                 key={a}
-                className={`min-w-0 cursor-pointer rounded-md border px-1 py-2 text-center ${alcance === a ? "border-green bg-green-soft" : "border-line-2"}`}
+                className={`min-w-0 cursor-pointer rounded-lg border px-1 py-2 text-center has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-green ${alcance === a ? "border-green bg-green-soft" : "border-line-2"}`}
               >
                 <input
                   type="radio"
@@ -1128,14 +1058,9 @@ function NovoAnuncio({
           </div>
         </fieldset>
         {alcance !== "nacional" ? (
-          <div className="grid grid-cols-[6rem_1fr] gap-2">
-            <label className="block">
-              <span className="label-xs">Estado</span>
-              <select
-                value={uf}
-                onChange={(e) => setUf(e.target.value)}
-                className="mt-1 w-full rounded-md border border-line-2 px-2 py-2"
-              >
+          <div className="grid grid-cols-[6rem_minmax(0,1fr)] gap-2">
+            <Campo rotulo="Estado">
+              <select value={uf} onChange={(e) => setUf(e.target.value)} className="campo">
                 <option value="">—</option>
                 {Object.keys(UFS).map((u) => (
                   <option key={u} value={u}>
@@ -1143,31 +1068,30 @@ function NovoAnuncio({
                   </option>
                 ))}
               </select>
-            </label>
+            </Campo>
             {alcance === "cidade" ? (
-              <label className="block">
-                <span className="label-xs">Cidade</span>
-                <input
-                  value={cidade}
-                  onChange={(e) => setCidade(e.target.value)}
-                  className="campo"
-                />
-              </label>
+              <Campo rotulo="Cidade">
+                <input value={cidade} onChange={(e) => setCidade(e.target.value)} className="campo" />
+              </Campo>
             ) : null}
           </div>
         ) : null}
-        <label className="block">
-          <span className="label-xs">
-            Cliques (mínimo {groupNumber(cfg.minimoCliques)})
-          </span>
+        <Campo
+          rotulo={
+            <>
+              Cliques (mínimo <span className="tnum">{groupNumber(cfg.minimoCliques)}</span>)
+            </>
+          }
+          className="max-w-[12rem]"
+        >
           <input
             type="number"
             min={cfg.minimoCliques}
             value={cliques}
             onChange={(e) => setCliques(e.target.value)}
-            className="tnum mt-1 w-40 rounded-md border border-line-2 px-3 py-2"
+            className="campo tnum"
           />
-        </label>
+        </Campo>
         {cfg.faixas.length ? (
           <p className="text-xs text-muted">
             Desconto por volume:{" "}
@@ -1182,7 +1106,7 @@ function NovoAnuncio({
             ))}
           </p>
         ) : null}
-        <div className="rounded-md bg-mist px-3 py-2">
+        <div className="rounded-lg bg-green-soft px-3 py-2">
           {"erro" in preco ? (
             <p className="text-xs text-red">{preco.erro}</p>
           ) : (
@@ -1215,7 +1139,7 @@ function NovoAnuncio({
           Comprar anúncio
         </Button>
       </form>
-    </Card>
+    </CartaoDoPainel>
   );
 }
 
@@ -1246,23 +1170,23 @@ function SaldoERecarga({
     onError: aoFalhar,
   });
   return (
-    <Card
-      title="Saldo"
-      right={
+    <CartaoDoPainel
+      titulo="Saldo"
+      acao={
         <Money
           cents={dados.saldoCents}
           className="text-lg font-bold text-green-deep"
         />
       }
     >
-      <div className="space-y-3 p-4 text-sm">
+      <div className="space-y-3 px-5 pb-5 text-sm">
         <p className="text-muted">
           O saldo paga os anúncios. Cada clique conta uma vez por aparelho a
           cada 24 horas, e robô não conta — o que for barrado aparece no funil e
           não é cobrado.
         </p>
         {dados.recargaPendente ? (
-          <div className="space-y-2 rounded-md border border-yellow bg-yellow-soft p-3">
+          <div className="space-y-2 rounded-lg border border-yellow bg-yellow-soft p-3">
             <p className="font-semibold text-yellow-deep">
               Recarga de{" "}
               <span className="tnum">
@@ -1298,15 +1222,9 @@ function SaldoERecarga({
               recarga.mutate();
             }}
           >
-            <label className="block">
-              <span className="label-xs">Recarregar (R$)</span>
-              <input
-                value={valor}
-                onChange={(e) => setValor(e.target.value)}
-                inputMode="decimal"
-                className="tnum mt-1 w-32 rounded-md border border-line-2 px-3 py-2"
-              />
-            </label>
+            <Campo rotulo="Recarregar (R$)" className="w-36">
+              <input value={valor} onChange={(e) => setValor(e.target.value)} inputMode="decimal" className="campo tnum" />
+            </Campo>
             <Button
               type="submit"
               disabled={
@@ -1323,7 +1241,7 @@ function SaldoERecarga({
           </form>
         )}
       </div>
-    </Card>
+    </CartaoDoPainel>
   );
 }
 
@@ -1350,11 +1268,11 @@ function DaPlataformaView({ dados }: { dados: DaPlataforma }) {
         podePedir={false}
         saldoCents={0}
       />
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+      <div className="grid grid-cols-1 items-start gap-3 lg:grid-cols-2">
         <ConfigCard config={dados.config} />
         <SaldosCard organizacoes={dados.organizacoes} />
       </div>
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+      <div className="grid grid-cols-1 items-start gap-3 lg:grid-cols-2">
         <GastoReceita serie={dados.serie} />
         <PorEstado estados={dados.porEstado} />
       </div>
@@ -1364,7 +1282,7 @@ function DaPlataformaView({ dados }: { dados: DaPlataforma }) {
 
 function FilaCard({ fila }: { fila: DaPlataforma["fila"] }) {
   return (
-    <Card title="Fila das vitrines">
+    <CartaoDoPainel titulo="Fila das vitrines">
       {fila.length ? (
         <div className="divide-y divide-line">
           {fila.map((s) => (
@@ -1419,12 +1337,12 @@ function FilaCard({ fila }: { fila: DaPlataforma["fila"] }) {
       ) : (
         <Empty>Nenhum anúncio ativo em nenhuma região.</Empty>
       )}
-      <p className="border-t border-line px-4 py-2 text-[11px] text-muted">
+      <p className="border-t border-line px-5 py-2 text-[11px] text-muted">
         A previsão supõe as vagas do segmento recebendo cliques no mesmo ritmo
         das últimas 24 h. Quando o anúncio da vitrine gasta o último clique, o
         1º da fila entra sozinho.
       </p>
-    </Card>
+    </CartaoDoPainel>
   );
 }
 
@@ -1489,8 +1407,8 @@ function ConfigCard({ config }: { config: Config }) {
   const campo = "tnum mt-1 w-full rounded-md border border-line-2 px-2 py-2";
 
   return (
-    <Card title="Configuração">
-      <div className="space-y-3 p-4 text-sm">
+    <CartaoDoPainel titulo="Configuração">
+      <div className="space-y-3 px-5 pb-5 text-sm">
         <Aviso msg={msg} />
         <label className="flex items-start gap-2">
           <input
@@ -1624,7 +1542,7 @@ function ConfigCard({ config }: { config: Config }) {
           guarda o preço do dia da compra.
         </p>
       </div>
-    </Card>
+    </CartaoDoPainel>
   );
 }
 
@@ -1655,7 +1573,7 @@ function SaldosCard({
     onError: (e: Error) => setMsg({ ok: false, texto: e.message }),
   });
   return (
-    <Card title="Saldo das organizações">
+    <CartaoDoPainel titulo="Saldo das organizações">
       <ul className="max-h-64 divide-y divide-line overflow-y-auto">
         {organizacoes.map((o) => (
           <li key={o.id} className="flex items-center gap-3 px-4 py-2 text-sm">
@@ -1724,6 +1642,6 @@ function SaldosCard({
           Lançar ajuste
         </Button>
       </form>
-    </Card>
+    </CartaoDoPainel>
   );
 }

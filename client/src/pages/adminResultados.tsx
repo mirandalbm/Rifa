@@ -2,7 +2,8 @@ import { useState } from "react";
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { PanelShell } from "@/components/AppShell";
-import { Card, Empty, Filtros, Kpi } from "@/components/bits";
+import { Empty, Filtros, Kpi } from "@/components/bits";
+import { CartaoDoPainel } from "@/components/painel";
 import { useSession } from "@/lib/session";
 import { formatBRL, groupNumber } from "@shared/format";
 import { PERIODOS, type Periodo } from "@shared/resultados";
@@ -66,7 +67,7 @@ export function AdminResultados() {
             value={organizacao}
             onChange={(e) => setOrganizacao(e.target.value)}
             aria-label="Organização"
-            className="rounded-md border border-line-2 px-2 py-1.5 text-sm"
+            className="campo w-auto text-sm"
           >
             <option value="">Todas as organizações</option>
             {orgs.map((o) => (
@@ -103,16 +104,16 @@ export function AdminResultados() {
             />
           </div>
 
-          <Card title="Receita por dia">
+          <CartaoDoPainel titulo="Receita por dia">
             <GraficoPorDia dias={data.porDia} />
-          </Card>
+          </CartaoDoPainel>
 
           <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-            <Card title="Por canal">
+            <CartaoDoPainel titulo="Por canal">
               {data.canais.length === 0 ? (
                 <Empty>Nenhuma venda paga no período.</Empty>
               ) : (
-                <ul className="space-y-3 p-4">
+                <ul className="space-y-3 px-5">
                   {data.canais.map((c) => {
                     const maior = data.canais[0].receitaCents || 1;
                     return (
@@ -123,54 +124,54 @@ export function AdminResultados() {
                             {formatBRL(c.receitaCents)} <span className="text-muted">· {c.participacao.toLocaleString("pt-BR")}%</span>
                           </span>
                         </div>
-                        <div className="mt-1 h-2 rounded-full bg-mist-2">
+                        <div className="mt-1.5 h-1.5 rounded-full bg-mist-2">
                           <div
-                            className="h-2 rounded-full bg-green"
+                            className="h-1.5 rounded-full bg-green"
                             style={{ width: `${Math.max(2, (c.receitaCents / maior) * 100)}%` }}
                           />
                         </div>
-                        <p className="tnum mt-0.5 text-[11px] text-muted">{groupNumber(c.pedidos)} pedido(s)</p>
+                        <p className="tnum mt-1 text-[11px] text-muted">{groupNumber(c.pedidos)} pedido(s)</p>
                       </li>
                     );
                   })}
                 </ul>
               )}
-              <p className="border-t border-line px-4 py-2 text-[11px] text-muted">
+              <p className="px-5 pb-5 pt-3 text-[11px] text-muted">
                 Cambista e afiliado contam pela venda. No site, pelo último lugar de onde a pessoa chegou à rifa
                 (vitrine, perfil, story, banner, página do estado ou anúncio).
               </p>
-            </Card>
+            </CartaoDoPainel>
 
-            <Card title="Rifas que mais vendem">
+            <CartaoDoPainel titulo="Rifas que mais vendem">
               {data.rifas.length === 0 ? (
                 <Empty>Nenhuma venda paga no período.</Empty>
               ) : (
-                <table className="w-full table-fixed text-sm">
-                  <thead>
-                    <tr className="border-b border-line text-left">
-                      <th className="label-xs px-4 py-2 font-normal">Rifa</th>
-                      <th className="label-xs w-20 px-2 py-2 text-right font-normal">Pedidos</th>
-                      <th className="label-xs hidden w-20 px-2 py-2 text-right font-normal sm:table-cell">Cotas</th>
-                      <th className="label-xs w-32 px-4 py-2 text-right font-normal">Receita</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {data.rifas.map((r) => (
-                      <tr key={r.id} className="border-b border-line last:border-0">
-                        <td className="truncate px-4 py-2" title={r.premio}>
-                          <Link href={`/r/${r.slug}`} className="hover:underline">
-                            {r.premio}
-                          </Link>
-                        </td>
-                        <td className="tnum px-2 py-2 text-right">{groupNumber(r.pedidos)}</td>
-                        <td className="tnum hidden px-2 py-2 text-right sm:table-cell">{groupNumber(r.cotas)}</td>
-                        <td className="tnum px-4 py-2 text-right text-green-deep">{formatBRL(r.receitaCents)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                // Uma rifa por linha, contada de cima para baixo (pedidos, cotas, receita): cabe no celular e no cartão estreito.
+                <ul className="divide-y divide-line px-5 pb-2" aria-label="Rifas que mais vendem">
+                  {data.rifas.map((r) => (
+                    <li key={r.id} className="py-3 text-sm">
+                      <Link href={`/r/${r.slug}`} className="block truncate font-semibold hover:underline" title={r.premio}>
+                        {r.premio}
+                      </Link>
+                      <dl className="mt-1 space-y-0.5 text-xs">
+                        <div className="flex items-baseline gap-1.5">
+                          <dt className="label-xs">pedidos:</dt>
+                          <dd className="tnum">{groupNumber(r.pedidos)}</dd>
+                        </div>
+                        <div className="flex items-baseline gap-1.5">
+                          <dt className="label-xs">cotas:</dt>
+                          <dd className="tnum">{groupNumber(r.cotas)}</dd>
+                        </div>
+                        <div className="flex items-baseline gap-1.5">
+                          <dt className="label-xs">receita:</dt>
+                          <dd className="tnum text-sm font-medium text-green-deep">{formatBRL(r.receitaCents)}</dd>
+                        </div>
+                      </dl>
+                    </li>
+                  ))}
+                </ul>
               )}
-            </Card>
+            </CartaoDoPainel>
           </div>
         </div>
       )}
@@ -190,8 +191,8 @@ function GraficoPorDia({ dias }: { dias: Dia[] }) {
   const escolhido = ativo !== null ? dias[ativo] : null;
 
   return (
-    <div className="p-4">
-      <div className="mb-2 flex items-baseline justify-between gap-2 text-xs text-muted">
+    <div className="px-5 pb-5">
+      <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2 text-xs text-muted">
         <span className="tnum">máx. {formatBRL(maior)}</span>
         <span className="tnum min-h-[1rem] text-ink-2" aria-live="polite">
           {escolhido
@@ -213,11 +214,12 @@ function GraficoPorDia({ dias }: { dias: Dia[] }) {
             aria-label={`${diaCurto(d.dia)}: ${formatBRL(d.receitaCents)}, ${d.pedidos} pedido(s)`}
             className="group flex h-full flex-1 items-end justify-center focus:outline-none"
           >
+            {/* Dia sem venda aparece com zero: o traço de 3 px na base, como no Figma (e "R$ 0,00" no foco). */}
             <span
-              className={`block w-full max-w-6 rounded-t ${d.receitaCents > 0 ? "bg-green" : "bg-transparent"} ${
+              className={`block w-full max-w-6 rounded-t ${d.receitaCents > 0 ? "bg-green" : "bg-line-2"} ${
                 ativo === i ? "opacity-100" : ativo === null ? "opacity-100" : "opacity-60"
               } group-focus-visible:ring-2 group-focus-visible:ring-ink`}
-              style={{ height: maior > 0 ? `${(d.receitaCents / maior) * 100}%` : "0%", minHeight: d.receitaCents > 0 ? 3 : 0 }}
+              style={{ height: maior > 0 && d.receitaCents > 0 ? `${(d.receitaCents / maior) * 100}%` : 3, minHeight: 3 }}
             />
           </button>
         ))}
@@ -227,7 +229,12 @@ function GraficoPorDia({ dias }: { dias: Dia[] }) {
         <span>{diaCurto(dias[Math.floor(dias.length / 2)].dia)}</span>
         <span>{diaCurto(dias[dias.length - 1].dia)}</span>
       </div>
-      <button type="button" onClick={() => setTabela(!tabela)} className="mt-2 text-xs text-ink-2 underline">
+      <button
+        type="button"
+        onClick={() => setTabela(!tabela)}
+        aria-expanded={tabela}
+        className="mt-3 inline-flex min-h-6 items-center text-xs font-semibold text-green-deep hover:underline"
+      >
         {tabela ? "Esconder tabela" : "Ver em tabela"}
       </button>
       {tabela ? (

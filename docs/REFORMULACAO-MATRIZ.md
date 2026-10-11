@@ -6,11 +6,11 @@ Gerada do código por `npm run matriz` — **não edite à mão** (o teste `test
 |---|---|
 | Telas (rotas do `App.tsx`) | 66 (+ 2 redirecionamentos) |
 | Seções de acesso (`shared/access.ts`) | 41 |
-| Cartões (componentes usados pelas telas) | 717 |
+| Cartões (componentes usados pelas telas) | 718 |
 | Rotas da API | 477, das quais 473 citadas por alguma prova |
 | Provas contra a API (`npm run …`) | 61 |
 | Testes de regra (`tests/`) | 128 arquivos |
-| Destinos decididos | 824 de 824 |
+| Destinos decididos | 825 de 825 |
 
 ## 1. Telas
 
@@ -452,7 +452,8 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 | Cartão | Destino |
 |---|---|
 | `Button` | manter · peça do kit (onda 1) · na tela P11 Exportações |
-| `Card` | manter · peça do kit (onda 1) · na tela P11 Exportações |
+| `Campo` | manter · 11 · Painel · P11 Exportações (node 54-5610) · onda 2 |
+| `CartaoDoPainel` | manter · 11 · Painel · P11 Exportações (node 54-5610) · onda 2 |
 | `PanelShell` | manter · peça do kit (onda 1) · na tela P11 Exportações |
 | `Pill` | manter · peça do kit (onda 1) · na tela P11 Exportações |
 
@@ -625,7 +626,7 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 
 | Cartão | Destino |
 |---|---|
-| `Card` | manter · peça do kit (onda 1) · na tela P05 Resultados |
+| `CartaoDoPainel` | manter · 11 · Painel · P05 Resultados (node 36-1198) · onda 2 |
 | `Empty` | manter · peça do kit (onda 1) · na tela P05 Resultados |
 | `Filtros` | manter · peça do kit (onda 1) · na tela P05 Resultados |
 | `Kpi` | manter · peça do kit (onda 1) · na tela P05 Resultados |

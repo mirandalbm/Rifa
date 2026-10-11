@@ -299,7 +299,7 @@ function Carteira() {
                 ),
               },
               {
-                titulo: "Em aberto",
+                titulo: "Em\u00a0aberto",
                 direita: true,
                 celula: (o) => (
                   <>
@@ -313,7 +313,7 @@ function Carteira() {
                 ),
               },
               {
-                titulo: "Já pago",
+                titulo: "Já\u00a0pago",
                 direita: true,
                 celula: (o) => (
                   <span className="text-muted">
@@ -328,8 +328,9 @@ function Carteira() {
               },
               {
                 titulo: "",
+                // Sem quebrar o botão ("cancelar / notificação" em 1440): a coluna das ações não cede largura à da organização.
                 celula: (o) => (
-                  <div className="flex flex-col items-start gap-1">
+                  <div className="flex flex-col items-start gap-1 whitespace-nowrap">
                     {o.abertoCents > 0 || o.creditoCents > 0 ? (
                       <Button variant="ghost" onClick={() => baixar.mutate(o.organizationId)}>
                         dar baixa
@@ -439,126 +440,131 @@ function TabelaDeCobranca() {
 
   return (
     <Card title="Tabela de cobrança">
-      <form
-        className="space-y-4 px-4 py-3"
-        onSubmit={(e) => {
-          e.preventDefault();
-          setMsg(null);
-          salvar.mutate();
-        }}
-      >
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Campo rotulo="Percentual sobre a venda (%)" dica={`De 0 a ${PERCENTUAL_MAX}%, até duas casas.`}>
-            <input inputMode="decimal" value={pct} onChange={(e) => setPct(e.target.value)} className="campo tnum" />
-          </Campo>
-          <Campo rotulo="Valor por cota vendida (R$)" dica={`Até ${formatBRL(POR_COTA_MAX_CENTS)}. Nunca maior que o preço da cota.`}>
-            <input inputMode="decimal" value={porCota} onChange={(e) => setPorCota(e.target.value)} className="campo tnum" />
-          </Campo>
-        </div>
-
-        <fieldset className="space-y-2">
-          <legend className="text-sm font-medium">Taxa Pix por volume do mês</legend>
-          <p className="text-xs text-muted">
-            De {1} a {FAIXAS_PIX_MAX} faixas, até {PIX_PCT_MAX}%. Os tetos sobem e a taxa nunca sobe; a última não tem
-            teto.
-          </p>
-          {faixas.map((f, i) => {
-            const ultima = i === faixas.length - 1;
-            return (
-              <div key={i} className="grid grid-cols-1 items-end gap-2 sm:grid-cols-[1fr_1fr_auto]">
-                <Campo rotulo={`Faixa ${i + 1}: até quantas transações`}>
-                  <input
-                    inputMode="numeric"
-                    value={ultima ? "" : f.ate}
-                    placeholder={ultima ? "sem teto" : undefined}
-                    disabled={ultima}
-                    onChange={(e) => setFaixas(faixas.map((x, j) => (j === i ? { ...x, ate: e.target.value } : x)))}
-                    className="campo tnum"
-                  />
-                </Campo>
-                <Campo rotulo={`Faixa ${i + 1}: taxa (%)`}>
-                  <input
-                    inputMode="decimal"
-                    value={f.pct}
-                    onChange={(e) => setFaixas(faixas.map((x, j) => (j === i ? { ...x, pct: e.target.value } : x)))}
-                    className="campo tnum"
-                  />
-                </Campo>
-                <Button
-                  variant="ghost"
-                  type="button"
-                  disabled={faixas.length === 1}
-                  onClick={() => setFaixas(faixas.filter((_, j) => j !== i))}
-                  aria-label={`Tirar a faixa ${i + 1}`}
-                >
-                  tirar
-                </Button>
-              </div>
-            );
-          })}
-          <Button
-            variant="ghost"
-            type="button"
-            disabled={faixas.length >= FAIXAS_PIX_MAX}
-            onClick={() => {
-              // A nova entra antes da última (a sem teto).
-              const ultima = faixas[faixas.length - 1];
-              setFaixas([...faixas.slice(0, -1), { ate: "", pct: ultima.pct }, ultima]);
-            }}
-          >
-            + faixa
-          </Button>
-        </fieldset>
-
-        <Campo
-          rotulo="Vale a partir de (opcional)"
-          dica={
-            data
-              ? `Vazio: vale agora. Reduzir pode valer na hora; aumentar qualquer taxa exige ${data.avisoDias} dias de aviso às organizações — a partir de ${dataDaVigencia(data.primeiroDiaComAviso)}.`
-              : undefined
-          }
+      {/* No computador o formulário fica à esquerda e o que está em vigor (e a agendada) à direita: os campos, sozinhos na largura toda, ficavam com 1.100 px para três algarismos. */}
+      <div className="lg:grid lg:grid-cols-2 lg:divide-x lg:divide-line">
+        <form
+          className="min-w-0 space-y-4 px-4 py-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            setMsg(null);
+            salvar.mutate();
+          }}
         >
-          <input type="date" value={vigenteEm} onChange={(e) => setVigenteEm(e.target.value)} className="campo tnum" />
-        </Campo>
-
-        <div className="flex flex-wrap items-center gap-3">
-          <Button type="submit" disabled={salvar.isPending}>
-            {vigenteEm ? "Agendar tabela" : "Salvar tabela"}
-          </Button>
-          {data?.proxima ? (
-            <span className="text-xs text-muted">
-              {vigenteEm ? "Agendar de novo troca a agendada." : "Salvar sem data descarta a tabela agendada."}
-            </span>
-          ) : null}
-          {msg ? (
-            <span role="status" className={`text-sm ${msg.ok ? "text-green-deep" : "text-red"}`}>
-              {msg.texto}
-            </span>
-          ) : null}
-        </div>
-      </form>
-      {data ? (
-        <>
-          <p className="px-4 pt-2 text-sm font-medium">Em vigor</p>
-          <ResumoDaTabela tabela={data.vigente} />
-        </>
-      ) : null}
-      {data?.proxima ? (
-        <div className="border-t border-line">
-          <div className="flex flex-wrap items-center justify-between gap-2 px-4 pt-3">
-            <p className="text-sm font-medium">
-              <Pill status="reserved">agendada</Pill>{" "}
-              <span className="ml-1">
-                A partir de <span className="tnum">{dataDaVigencia(data.proxima.vigenteEm)}</span>
-              </span>
-            </p>
-            <Button variant="ghost" onClick={() => cancelar.mutate()} disabled={cancelar.isPending}>
-              Cancelar agendamento
-            </Button>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Campo rotulo="Percentual sobre a venda (%)" dica={`De 0 a ${PERCENTUAL_MAX}%, até duas casas.`}>
+              <input inputMode="decimal" value={pct} onChange={(e) => setPct(e.target.value)} className="campo tnum" />
+            </Campo>
+            <Campo rotulo="Valor por cota vendida (R$)" dica={`Até ${formatBRL(POR_COTA_MAX_CENTS)}. Nunca maior que o preço da cota.`}>
+              <input inputMode="decimal" value={porCota} onChange={(e) => setPorCota(e.target.value)} className="campo tnum" />
+            </Campo>
           </div>
-          <ResumoDaTabela tabela={data.proxima.tabela} />
+
+          <fieldset className="space-y-2">
+            <legend className="text-sm font-medium">Taxa Pix por volume do mês</legend>
+            <p className="text-xs text-muted">
+              De {1} a {FAIXAS_PIX_MAX} faixas, até {PIX_PCT_MAX}%. Os tetos sobem e a taxa nunca sobe; a última não tem
+              teto.
+            </p>
+            {faixas.map((f, i) => {
+              const ultima = i === faixas.length - 1;
+              return (
+                <div key={i} className="grid grid-cols-1 items-end gap-2 sm:grid-cols-[1fr_1fr_auto]">
+                  <Campo rotulo={`Faixa ${i + 1}: até quantas transações`}>
+                    <input
+                      inputMode="numeric"
+                      value={ultima ? "" : f.ate}
+                      placeholder={ultima ? "sem teto" : undefined}
+                      disabled={ultima}
+                      onChange={(e) => setFaixas(faixas.map((x, j) => (j === i ? { ...x, ate: e.target.value } : x)))}
+                      className="campo tnum"
+                    />
+                  </Campo>
+                  <Campo rotulo={`Faixa ${i + 1}: taxa (%)`}>
+                    <input
+                      inputMode="decimal"
+                      value={f.pct}
+                      onChange={(e) => setFaixas(faixas.map((x, j) => (j === i ? { ...x, pct: e.target.value } : x)))}
+                      className="campo tnum"
+                    />
+                  </Campo>
+                  <Button
+                    variant="ghost"
+                    type="button"
+                    disabled={faixas.length === 1}
+                    onClick={() => setFaixas(faixas.filter((_, j) => j !== i))}
+                    aria-label={`Tirar a faixa ${i + 1}`}
+                  >
+                    tirar
+                  </Button>
+                </div>
+              );
+            })}
+            <Button
+              variant="ghost"
+              type="button"
+              disabled={faixas.length >= FAIXAS_PIX_MAX}
+              onClick={() => {
+                // A nova entra antes da última (a sem teto).
+                const ultima = faixas[faixas.length - 1];
+                setFaixas([...faixas.slice(0, -1), { ate: "", pct: ultima.pct }, ultima]);
+              }}
+            >
+              + faixa
+            </Button>
+          </fieldset>
+
+          <Campo
+            rotulo="Vale a partir de (opcional)"
+            dica={
+              data
+                ? `Vazio: vale agora. Reduzir pode valer na hora; aumentar qualquer taxa exige ${data.avisoDias} dias de aviso às organizações — a partir de ${dataDaVigencia(data.primeiroDiaComAviso)}.`
+                : undefined
+            }
+          >
+            <input type="date" value={vigenteEm} onChange={(e) => setVigenteEm(e.target.value)} className="campo tnum" />
+          </Campo>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <Button type="submit" disabled={salvar.isPending}>
+              {vigenteEm ? "Agendar tabela" : "Salvar tabela"}
+            </Button>
+            {data?.proxima ? (
+              <span className="text-xs text-muted">
+                {vigenteEm ? "Agendar de novo troca a agendada." : "Salvar sem data descarta a tabela agendada."}
+              </span>
+            ) : null}
+            {msg ? (
+              <span role="status" className={`text-sm ${msg.ok ? "text-green-deep" : "text-red"}`}>
+                {msg.texto}
+              </span>
+            ) : null}
+          </div>
+        </form>
+        <div className="min-w-0">
+        {data ? (
+          <>
+            <p className="px-4 pt-2 text-sm font-medium lg:pt-3">Em vigor</p>
+            <ResumoDaTabela tabela={data.vigente} />
+          </>
+        ) : null}
+        {data?.proxima ? (
+          <div className="border-t border-line">
+            <div className="flex flex-wrap items-center justify-between gap-2 px-4 pt-3">
+              <p className="text-sm font-medium">
+                <Pill status="reserved">agendada</Pill>{" "}
+                <span className="ml-1">
+                  A partir de <span className="tnum">{dataDaVigencia(data.proxima.vigenteEm)}</span>
+                </span>
+              </p>
+              <Button variant="ghost" onClick={() => cancelar.mutate()} disabled={cancelar.isPending}>
+                Cancelar agendamento
+              </Button>
+            </div>
+            <ResumoDaTabela tabela={data.proxima.tabela} />
+          </div>
+        ) : null}
         </div>
-      ) : null}
+      </div>
     </Card>
   );
 }

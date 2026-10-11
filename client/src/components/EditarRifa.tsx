@@ -172,7 +172,8 @@ export function EditarRifaCard({
           />
         </Campo>
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        {/* Os seis números numa grade só: 2 por linha no tablet (com o menu aberto, três colunas quebravam "Preço da cota (centavos)" e desalinhavam os campos) e 3 no computador. */}
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <Campo
             id={`ed-total-${rifa.id}`}
             rotulo="Total de cotas"
@@ -212,9 +213,6 @@ export function EditarRifaCard({
               className={`tnum ${CAMPO}`}
             />
           </Campo>
-        </div>
-
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <Campo id={`ed-min-${rifa.id}`} rotulo="Mínimo por pedido">
             <input
               id={`ed-min-${rifa.id}`}

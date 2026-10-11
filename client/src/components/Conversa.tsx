@@ -107,24 +107,29 @@ export function Conversa({
           />
           <div className="flex flex-wrap items-center gap-2">
             {comAnexo ? (
-              <input
-                ref={arquivo}
-                type="file"
-                accept="image/*"
-                aria-label="Anexar imagem"
-                onChange={async (e) => {
-                  const f = e.target.files?.[0];
-                  if (!f) return setAnexo(undefined);
-                  try {
-                    setAnexo(await lerImagem(f));
-                  } catch (err) {
-                    setErro((err as Error).message);
-                    e.target.value = "";
-                  }
-                }}
-                className="text-xs"
-              />
+              // O botão é o rótulo: o campo nativo mostraria "Choose File" na língua do navegador (o mesmo dos outros campos de arquivo).
+              <label className="relative inline-flex cursor-pointer items-center rounded-md border border-line-2 px-3 py-1.5 text-xs font-semibold hover:bg-mist focus-within:ring-2 focus-within:ring-green">
+                {anexo ? "Trocar a imagem" : "Anexar imagem"}
+                <input
+                  ref={arquivo}
+                  type="file"
+                  accept="image/*"
+                  aria-label="Anexar imagem"
+                  className="sr-only"
+                  onChange={async (e) => {
+                    const f = e.target.files?.[0];
+                    if (!f) return setAnexo(undefined);
+                    try {
+                      setAnexo(await lerImagem(f));
+                    } catch (err) {
+                      setErro((err as Error).message);
+                      e.target.value = "";
+                    }
+                  }}
+                />
+              </label>
             ) : null}
+            {comAnexo && anexo ? <span className="text-xs text-muted">imagem anexada</span> : null}
             <Button type="submit" disabled={enviando || (!texto.trim() && !anexo)}>
               {enviando ? "Enviando…" : "Enviar"}
             </Button>

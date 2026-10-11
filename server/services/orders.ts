@@ -1299,6 +1299,10 @@ export async function createSellerSale(
   return createOrder(input, { sellerId, identity });
 }
 
+/** A venda que não está mais aberta (cancelada, vencida ou estornada). */
+const VENDA_FECHADA =
+  "Esta venda não está mais aberta (foi cancelada ou a reserva venceu): nada foi cobrado. Faça uma venda nova.";
+
 /** O cambista recolheu: o pedido vira pago sem passar por provedor. */
 export async function confirmSellerSale(params: {
   code: number;
@@ -1317,7 +1321,7 @@ export async function confirmSellerSale(params: {
     return { order, alreadyPaid: true, prizes: [] as string[] };
   }
   if (order.status !== "pending") {
-    throw new OrderError(`Esta venda está ${order.status}.`, 409);
+    throw new OrderError(VENDA_FECHADA, 409);
   }
 
   const meios = await getPaymentMethods();
@@ -1341,7 +1345,12 @@ export async function confirmSellerSale(params: {
   const result = await settleOrderAsPaid(atualizado);
 
   if (!result) {
+    // Ninguém pagou por aqui: ou outra confirmação chegou antes (paga), ou o
+    // cancelamento (ou o relógio) devolveu as cotas no meio. Só a paga é
+    // "já confirmada"; a devolvida não tem cota nenhuma, e dizer "ok" faria a
+    // tela imprimir bilhete de uma venda que não existe.
     const [fresh] = await db.select().from(orders).where(eq(orders.id, order.id));
+    if (fresh?.status !== "paid") throw new OrderError(VENDA_FECHADA, 409);
     return { order: fresh, alreadyPaid: true, prizes: [] as string[] };
   }
 
@@ -1365,6 +1374,19 @@ export async function cancelSellerSale(params: { code: number; sellerId: string 
   }
 
   await devolverReserva(order.id);
+  // A devolução é condicional a `pending`: se a confirmação gravou "pago" no
+  // meio, nada voltou — e responder "cancelada" faria o cambista devolver o
+  // dinheiro de uma venda que ficou paga (e entra no acerto dele).
+  const [fresh] = await db
+    .select({ status: orders.status })
+    .from(orders)
+    .where(eq(orders.id, order.id));
+  if (fresh?.status === "paid") {
+    throw new OrderError(
+      "Esta venda foi paga enquanto o cancelamento corria: as cotas são do apostador e o valor entra no seu acerto. Não devolva o dinheiro.",
+      409,
+    );
+  }
   return { canceled: order.code };
 }
 

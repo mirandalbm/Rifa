@@ -886,6 +886,19 @@ async function conteudoDasListas(eu: Lado, vizinho: Lado) {
       body: JSON.stringify({ acao: "aprovar", versao: 0 }),
     });
     checa("aprovar a peça do vizinho, com a versão certa: 404", decidirDoVizinho.status === 404, `HTTP ${decidirDoVizinho.status}`);
+    // A fila de uma rifa (aba Publicação): a rifa do vizinho é 404, o id fora
+    // do formato também, e a fila da minha rifa não traz a peça do vizinho.
+    const filaDoVizinho = await pedir(eu.cookie, `/api/admin/divulgacoes?rifa=${vizinho.campaignId}`);
+    checa("a fila de divulgações da rifa do vizinho: 404", filaDoVizinho.status === 404, `HTTP ${filaDoVizinho.status}`);
+    const filaTorta = await pedir(eu.cookie, "/api/admin/divulgacoes?rifa=nao-e-id");
+    checa("a fila de divulgações com id fora do formato: 404", filaTorta.status === 404, `HTTP ${filaTorta.status}`);
+    const filaDaMinha = await pedir(eu.cookie, `/api/admin/divulgacoes?rifa=${eu.campaignId}`);
+    const pecasDaMinha = filaDaMinha.status === 200 ? ((await filaDaMinha.json()) as { id: string; slug: string }[]) : null;
+    checa(
+      "a fila de divulgações da minha rifa não traz a peça do vizinho",
+      Array.isArray(pecasDaMinha) && !pecasDaMinha.some((p) => p.id === pecaDoVizinho.id) && pecasDaMinha.every((p) => p.slug === `${eu.slug}-rifa`),
+      `HTTP ${filaDaMinha.status}, ${pecasDaMinha?.length ?? 0} peça(s)`,
+    );
     // A foto da peça do vizinho, pela porta do painel: 404 (nem existe para mim).
     const [fotoDoVizinho] = await db
       .insert(divulgacaoFotos)

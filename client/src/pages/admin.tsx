@@ -977,6 +977,7 @@ export function AdminCampanhas() {
                             </div>
                           </CartaoDoPainel>
                           <BannerDivulgacaoCard campaignId={c.id} />
+                          <DivulgacoesDaOrganizacao daOrganizacao={!daPlataforma} rifaId={c.id} />
                         </div>
                       </div>
                     ),

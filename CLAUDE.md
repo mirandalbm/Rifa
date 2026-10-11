@@ -2809,6 +2809,11 @@ publicou, com o link dele (`/r/<rifa>?ref=<código>`).
   (`instanteAgendado()` em `shared/agenda.ts`, a mesma régua do story).
 - **A plataforma vê e decide a fila de todas** (organização nula no recorte),
   com o nome da organização em cada peça; o modo continua sendo da organização.
+- **A fila também mora na aba Publicação da rifa**, só com as peças dela
+  (`GET /divulgacoes?rifa=<id>`): o dono é conferido antes
+  (`assertCampaignInScope`; a rifa do vizinho e o id fora do formato são
+  404, no `npm run isolation`) e o recorte de `orgOf` segue valendo na
+  consulta. O modo do influenciador fica em Afiliados.
 - A tabela nova sobe com o `db:push` **antes** do código, e a coluna
   `organizations.divulgacao_afiliado` também, e `divulgacoes.versao` e
   `editada_em`, e a tabela `divulgacao_fotos`, e a coluna

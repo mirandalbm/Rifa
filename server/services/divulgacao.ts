@@ -828,7 +828,13 @@ export async function salvarModo(orgId: string, entrada: unknown) {
  * traz telefone, CPF nem e-mail: afiliado pelo nome curto e código,
  * apostador pelo apelido.
  */
-export async function listarDaOrganizacao(req: Request, status?: unknown) {
+/**
+ * A fila no recorte de `orgOf`. Com `campaignId` (a aba Publicação da rifa),
+ * só as peças daquela rifa — quem chama já conferiu o dono da rifa
+ * (`assertCampaignInScope`), e o recorte da organização continua valendo
+ * aqui do mesmo jeito.
+ */
+export async function listarDaOrganizacao(req: Request, status?: unknown, campaignId?: string | null) {
   const org = orgOf(req);
   const filtro = typeof status === "string" && status in STATUS_DA_DIVULGACAO ? status : null;
   const linhas = await db
@@ -856,7 +862,13 @@ export async function listarDaOrganizacao(req: Request, status?: unknown) {
     .leftJoin(affiliates, eq(affiliates.id, divulgacoes.affiliateId))
     .leftJoin(users, eq(users.id, affiliates.userId))
     .leftJoin(buyers, eq(buyers.id, divulgacoes.buyerId))
-    .where(and(org ? eq(divulgacoes.organizationId, org) : undefined, filtro ? eq(divulgacoes.status, filtro) : undefined))
+    .where(
+      and(
+        org ? eq(divulgacoes.organizationId, org) : undefined,
+        filtro ? eq(divulgacoes.status, filtro) : undefined,
+        campaignId ? eq(divulgacoes.campaignId, campaignId) : undefined,
+      ),
+    )
     // A que espera a organização vem primeiro.
     .orderBy(sql`(${divulgacoes.status} = 'em_analise') desc`, desc(divulgacoes.createdAt))
     .limit(100);

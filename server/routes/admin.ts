@@ -4774,10 +4774,21 @@ adminRouter.put("/divulgacoes/config", async (req, res, next) => {
   }
 });
 
-/** A fila, no recorte de `orgOf`: a organização vê só a dela. */
+/**
+ * A fila, no recorte de `orgOf`: a organização vê só a dela. Com `?rifa=<id>`
+ * (a aba Publicação da rifa), só as peças daquela rifa — o dono é conferido
+ * antes: a rifa do vizinho (ou um id fora do formato) é 404.
+ */
 adminRouter.get("/divulgacoes", async (req, res, next) => {
   try {
-    res.json(await listarDivulgacoesDaOrganizacao(req, req.query.status));
+    let rifa: string | null = null;
+    if (req.query.rifa !== undefined) {
+      if (typeof req.query.rifa !== "string" || !ehUuid(req.query.rifa)) {
+        return res.status(404).json({ message: "Campanha não encontrada." });
+      }
+      rifa = (await assertCampaignInScope(req, req.query.rifa)).id;
+    }
+    res.json(await listarDivulgacoesDaOrganizacao(req, req.query.status, rifa));
   } catch (err) {
     next(err);
   }

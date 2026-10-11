@@ -6,11 +6,11 @@ Gerada do código por `npm run matriz` — **não edite à mão** (o teste `test
 |---|---|
 | Telas (rotas do `App.tsx`) | 66 (+ 2 redirecionamentos) |
 | Seções de acesso (`shared/access.ts`) | 41 |
-| Cartões (componentes usados pelas telas) | 760 |
+| Cartões (componentes usados pelas telas) | 766 |
 | Rotas da API | 477, das quais 473 citadas por alguma prova |
 | Provas contra a API (`npm run …`) | 61 |
 | Testes de regra (`tests/`) | 128 arquivos |
-| Destinos decididos | 867 de 867 |
+| Destinos decididos | 873 de 873 |
 
 ## 1. Telas
 
@@ -266,11 +266,14 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 |---|---|
 | `Abas` | manter · peça do kit (onda 1) · na tela P24 Antifraude (abas) |
 | `Button` | manter · peça do kit (onda 1) · na tela P24 Antifraude (abas) |
-| `Card` | manter · peça do kit (onda 1) · na tela P24 Antifraude (abas) |
+| `Caixa` | manter · 11 · Painel · P24 Antifraude (abas) (node 55-4327) · onda 3 |
+| `Campo` | manter · 11 · Painel · P24 Antifraude (abas) (node 55-4327) · onda 3 |
+| `CartaoDoPainel` | manter · 11 · Painel · P24 Antifraude (abas) (node 55-4327) · onda 3 |
 | `Empty` | manter · peça do kit (onda 1) · na tela P24 Antifraude (abas) |
 | `Kpi` | manter · peça do kit (onda 1) · na tela P24 Antifraude (abas) |
 | `PanelShell` | manter · peça do kit (onda 1) · na tela P24 Antifraude (abas) |
 | `Pill` | manter · peça do kit (onda 1) · na tela P24 Antifraude (abas) |
+| `TabelaOuCartoes` | manter · 11 · Painel · P24 Antifraude (abas) (node 55-4327) · onda 3 |
 
 ### `/admin/aparencia` — Aparência
 
@@ -328,11 +331,12 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 
 | Cartão | Destino |
 |---|---|
-| `CabecalhoDaTabela` | manter · peça do kit (onda 1) · na tela P22 Caixa de entrada |
 | `CartaoDoPainel` | manter · peça do kit (onda 1) · na tela P22 Caixa de entrada |
 | `Empty` | manter · peça do kit (onda 1) · na tela P22 Caixa de entrada |
 | `Filtros` | manter · peça do kit (onda 1) · na tela P22 Caixa de entrada |
 | `PanelShell` | manter · peça do kit (onda 1) · na tela P22 Caixa de entrada |
+| `Pill` | manter · 11 · Painel · P22 Caixa de entrada (node 51-4173) · onda 3 |
+| `TabelaOuCartoes` | manter · 11 · Painel · P22 Caixa de entrada (node 51-4173) · onda 3 |
 
 ### `/admin/cambistas` — Cambistas
 
@@ -534,8 +538,10 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 | Cartão | Destino |
 |---|---|
 | `Button` | manter · peça do kit (onda 1) · na tela P26 Cadastros fiscais |
-| `Card` | manter · peça do kit (onda 1) · na tela P26 Cadastros fiscais |
+| `Campo` | manter · 11 · Painel · P26 Cadastros fiscais (node 51-4877) · onda 3 |
+| `CartaoDoPainel` | manter · 11 · Painel · P26 Cadastros fiscais (node 51-4877) · onda 3 |
 | `Empty` | manter · peça do kit (onda 1) · na tela P26 Cadastros fiscais |
+| `MestreDetalhe` | manter · 11 · Painel · P26 Cadastros fiscais (node 51-4877) · onda 3 |
 | `PanelShell` | manter · peça do kit (onda 1) · na tela P26 Cadastros fiscais |
 | `Pill` | manter · peça do kit (onda 1) · na tela P26 Cadastros fiscais |
 
@@ -1231,7 +1237,7 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 
 | Método | Caminho | Provas |
 |---|---|---|
-| GET | `/overview` | `isolation-test.ts` |
+| GET | `/overview` | `guarda-test.ts`, `isolation-test.ts` |
 | GET | `/campaigns` | `acessos-test.ts`, `agenda-rifa-test.ts`, `apuracao-test.ts` +3 |
 | POST | `/campaigns` | `acessos-test.ts`, `agenda-rifa-test.ts`, `apuracao-test.ts` +3 |
 | PATCH | `/campaigns/:id` | `agenda-rifa-test.ts`, `apuracao-test.ts`, `banner-pago-test.ts` +9 |
@@ -1325,7 +1331,7 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 | GET | `/organizer` | `banner-pago-test.ts`, `isolation-test.ts`, `sorteios-oficiais-test.ts` +3 |
 | PUT | `/organizer` | `banner-pago-test.ts`, `isolation-test.ts`, `sorteios-oficiais-test.ts` +3 |
 | GET | `/exportacoes` | `acessos-test.ts` |
-| GET | `/exportacoes/:key` | `apuracao-test.ts`, `isolation-test.ts`, `transparencia-test.ts` |
+| GET | `/exportacoes/:key` | `apuracao-test.ts`, `guarda-test.ts`, `isolation-test.ts` +1 |
 | GET | `/organizacoes` | `isolation-test.ts` |
 | GET | `/demonstracao` | `isolation-test.ts`, `vitrine-test.ts` |
 | POST | `/demonstracao` | `isolation-test.ts`, `vitrine-test.ts` |

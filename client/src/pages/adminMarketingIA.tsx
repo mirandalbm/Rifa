@@ -2,7 +2,8 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Check, Copy, Download, Sparkles } from "lucide-react";
 import { PanelShell } from "@/components/AppShell";
-import { Card, Empty, Pill } from "@/components/bits";
+import { Button, Campo, Empty, Pill, TONS_DO_BOTAO } from "@/components/bits";
+import { CartaoDoPainel } from "@/components/painel";
 import { AbrirEditorDeImagem, ArtesParaDivulgar } from "@/components/ArtesParaDivulgar";
 import { ReelsDaRifa } from "@/components/ReelsDaRifa";
 import { apiRequest } from "@/lib/queryClient";
@@ -46,35 +47,34 @@ export function AdminMarketingIA() {
   return (
     <PanelShell title="Marketing AI">
       <div className="space-y-3">
-        <Card title="Criativos da rifa">
-          <div className="space-y-3 px-4 py-3">
-            <p className="text-sm text-ink-2">
-              Artes prontas com os dados da rifa, o editor de imagem com frases sugeridas pelo assistente e o vídeo em pé gerado com as fotos.
-            </p>
+        <CartaoDoPainel
+          titulo="Criativos da rifa"
+          subtitulo="Artes prontas com os dados da rifa, o editor de imagem com frases sugeridas pelo assistente e o vídeo em pé gerado com as fotos."
+        >
+          <div className="px-5 pb-5">
             {!campanhas ? (
               <p className="text-sm text-muted">Carregando…</p>
             ) : !rifas.length ? (
               <Empty>Nenhuma rifa no ar. Os criativos aparecem quando a rifa é publicada.</Empty>
             ) : (
-              <label className="block max-w-md">
-                <span className="label-xs">Rifa</span>
-                <select className="campo mt-1" value={rifa?.campaign.id ?? ""} onChange={(e) => setEscolhida(e.target.value)}>
+              <Campo rotulo="Rifa" className="max-w-sm">
+                <select className="campo" value={rifa?.campaign.id ?? ""} onChange={(e) => setEscolhida(e.target.value)}>
                   {rifas.map((r) => (
                     <option key={r.campaign.id} value={r.campaign.id}>
                       {r.campaign.title || r.campaign.prizeTitle}
                     </option>
                   ))}
                 </select>
-              </label>
+              </Campo>
             )}
           </div>
-        </Card>
+        </CartaoDoPainel>
         {rifa ? (
-          <div key={rifa.campaign.id} className="grid grid-cols-1 gap-3 xl:grid-cols-2">
+          <div key={rifa.campaign.id} className="grid grid-cols-1 items-start gap-3 xl:grid-cols-2">
             <div className="min-w-0">
               {/* O mesmo cartão da aba Publicação: o editor e as artes prontas. */}
-              <Card title="Artes para divulgar">
-                <div className="space-y-4 p-4">
+              <CartaoDoPainel titulo="Artes para divulgar">
+                <div className="space-y-4 px-5 pb-5">
                   <AbrirEditorDeImagem
                     portas={{
                       dados: `/api/admin/campaigns/${rifa.campaign.id}/editor`,
@@ -86,7 +86,7 @@ export function AdminMarketingIA() {
                   />
                   <ArtesParaDivulgar base={`/api/admin/campaigns/${rifa.campaign.id}/artes`} />
                 </div>
-              </Card>
+              </CartaoDoPainel>
             </div>
             <div className="min-w-0">
               <ReelsDaRifa campaignId={rifa.campaign.id} />
@@ -109,10 +109,10 @@ interface MarketingDaRifa {
 
 function FerramentasDaRifa({ campaignId }: { campaignId: string }) {
   const { data, error } = useQuery<MarketingDaRifa>({ queryKey: [`/api/admin/campaigns/${campaignId}/marketing`] });
-  if (error) return <p className="text-sm text-red">{(error as Error).message}</p>;
+  if (error) return <p role="alert" className="text-sm text-red">{(error as Error).message}</p>;
   if (!data) return <p className="text-sm text-muted">Carregando…</p>;
   return (
-    <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
+    <div className="grid grid-cols-1 items-start gap-3 xl:grid-cols-2">
       <div className="min-w-0 space-y-3">
         <PlanoDeDivulgacao campaignId={campaignId} plano={data.plano} artes={data.artes} />
       </div>
@@ -134,11 +134,8 @@ function diaNaTela(dia: string): string {
 
 function PlanoDeDivulgacao({ campaignId, plano, artes }: { campaignId: string; plano: PassoDoPlano[]; artes: TipoDeArte[] }) {
   return (
-    <Card title="Plano de divulgação">
-      <div className="space-y-2 px-4 py-3">
-        <p className="text-sm text-ink-2">
-          O roteiro de posts até o sorteio, montado com a data e as artes da rifa. Cada dia traz a arte pronta no formato do lugar.
-        </p>
+    <CartaoDoPainel titulo="Plano de divulgação" subtitulo="O roteiro de posts até o sorteio, montado com a data e as artes da rifa.">
+      <div className="px-5 pb-4">
         {!plano.length ? (
           <Empty>Sem passos agora: o plano aparece com a rifa no ar.</Empty>
         ) : (
@@ -147,19 +144,19 @@ function PlanoDeDivulgacao({ campaignId, plano, artes }: { campaignId: string; p
               const formato = FORMATO_DE[p.onde];
               const pronta = artes.includes(p.arte);
               return (
-                <li key={p.dia} className="flex flex-wrap items-start gap-x-3 gap-y-1 py-2">
-                  <span className="tnum w-full shrink-0 text-xs font-semibold text-ink sm:w-24">{diaNaTela(p.dia)}</span>
+                <li key={p.dia} className="flex flex-wrap items-center gap-x-3 gap-y-1.5 py-2.5">
+                  <span className="tnum w-full shrink-0 text-xs text-muted sm:w-24">{diaNaTela(p.dia)}</span>
                   <div className="min-w-0 flex-1 basis-48">
                     <p className="text-sm font-semibold text-ink">
-                      {p.titulo} <span className="font-normal text-muted">· {ONDE_POSTAR[p.onde]}</span>
+                      {p.titulo} <span className="text-xs font-normal text-muted">· {ONDE_POSTAR[p.onde]}</span>
                     </p>
-                    <p className="text-xs text-ink-2">{p.porque}</p>
+                    <p className="text-xs text-muted">{p.porque}</p>
                   </div>
                   {pronta ? (
                     <a
                       href={`/api/admin/campaigns/${campaignId}/artes/${p.arte}?formato=${formato}`}
                       download
-                      className="inline-flex min-h-8 items-center gap-1.5 rounded-md border border-line px-2.5 text-xs font-semibold text-ink-2"
+                      className={`inline-flex min-h-[30px] items-center gap-1.5 rounded-lg px-3 text-xs font-semibold ${TONS_DO_BOTAO.contorno}`}
                       aria-label={`Baixar a arte "${ROTULO_DA_ARTE[p.arte]}" para ${ONDE_POSTAR[p.onde]} do dia ${diaNaTela(p.dia)}`}
                     >
                       <Download size={14} aria-hidden /> {ROTULO_DA_ARTE[p.arte]}
@@ -173,7 +170,7 @@ function PlanoDeDivulgacao({ campaignId, plano, artes }: { campaignId: string; p
           </ol>
         )}
       </div>
-    </Card>
+    </CartaoDoPainel>
   );
 }
 
@@ -185,15 +182,14 @@ const TOM: Record<TomDaLeitura, { pill: string; rotulo: string }> = {
 
 function LeituraDosResultados({ leitura }: { leitura: PontoDaLeitura[] }) {
   return (
-    <Card title="Leitura dos resultados">
-      <div className="space-y-2 px-4 py-3">
-        <p className="text-sm text-ink-2">O que as vendas pagas, os canais e as campanhas de tráfego dizem agora. Só os números da rifa — nada estimado além da projeção, que diz que é projeção.</p>
+    <CartaoDoPainel titulo="Leitura dos resultados" subtitulo="Só os números da rifa — nada estimado além da projeção, que diz que é projeção.">
+      <div className="px-5 pb-5">
         {!leitura.length ? (
           <Empty>Sem leitura enquanto a rifa não está no ar.</Empty>
         ) : (
           <ul className="space-y-2" aria-label="Leitura dos resultados">
             {leitura.map((p) => (
-              <li key={p.titulo} className="rounded-md border border-line p-2.5">
+              <li key={p.titulo} className="rounded-lg border border-line p-3">
                 <p className="flex flex-wrap items-center gap-2 text-sm font-semibold text-ink">
                   <Pill status={TOM[p.tom].pill}>{TOM[p.tom].rotulo}</Pill>
                   {p.titulo}
@@ -206,7 +202,7 @@ function LeituraDosResultados({ leitura }: { leitura: PontoDaLeitura[] }) {
           </ul>
         )}
       </div>
-    </Card>
+    </CartaoDoPainel>
   );
 }
 
@@ -250,29 +246,27 @@ function TextosDeAnuncio({ campaignId }: { campaignId: string }) {
   const vazio = textos && LISTA_DE_CAMPOS.every((c) => !textos[c].length);
   const redes = [...new Set(LISTA_DE_CAMPOS.map((c) => CAMPOS_DE_ANUNCIO[c].rede))];
   return (
-    <Card title="Textos de anúncio">
-      <div className="space-y-2 px-4 py-3">
-        <p className="text-sm text-ink-2">
-          Títulos e descrições para o Google e para o Instagram e Facebook, no limite de cada rede. Passam pela régua (sem link, sem telefone, sem Pix por fora, sem
-          promessa de ganho); leia antes de usar.
-        </p>
+    <CartaoDoPainel
+      titulo="Textos de anúncio"
+      subtitulo="Títulos e descrições para o Google e para o Instagram e Facebook, no limite de cada rede. Passam pela régua (sem link, sem telefone, sem Pix por fora, sem promessa de ganho); leia antes de usar."
+    >
+      <div className="space-y-2 px-5 pb-5">
         {!sessao ? null : !sessao.ligado ? (
           <p className="text-xs text-muted">O assistente de IA não está ligado para esta conta.</p>
         ) : (
           <>
-            <button
-              type="button"
-              onClick={() => void pedir()}
-              disabled={pedindo}
-              className="inline-flex min-h-8 items-center gap-1.5 rounded-md border border-line px-2.5 text-xs font-semibold text-ink-2 disabled:opacity-50"
-            >
-              <Sparkles size={14} aria-hidden /> {pedindo ? "Pedindo ao assistente…" : textos ? "Gerar outros textos" : "Gerar com o assistente"}
-            </button>
+            <Button type="button" variant="claro" icone={<Sparkles />} onClick={() => void pedir()} disabled={pedindo}>
+              {pedindo ? "Pedindo ao assistente…" : textos ? "Gerar outros textos" : "Gerar com o assistente"}
+            </Button>
             {sessao.cobrado ? <p className="text-[11px] text-muted">Cada pedido usa créditos do assistente.</p> : null}
           </>
         )}
         <div aria-live="polite" className="space-y-3">
-          {erro ? <p className="text-xs text-red">{erro}</p> : null}
+          {erro ? (
+            <p role="alert" className="rounded-md bg-red-soft px-3 py-2 text-xs text-red">
+              {erro}
+            </p>
+          ) : null}
           {vazio ? <p className="text-xs text-muted">O assistente não trouxe nada que passe na régua. Peça de novo.</p> : null}
           {textos && !vazio
             ? redes.map((rede) => (
@@ -295,7 +289,7 @@ function TextosDeAnuncio({ campaignId }: { campaignId: string }) {
             : null}
         </div>
       </div>
-    </Card>
+    </CartaoDoPainel>
   );
 }
 
@@ -311,7 +305,7 @@ function TextoParaCopiar({ texto, max }: { texto: string; max: number }) {
     }
   }
   return (
-    <li className="flex items-start gap-2 rounded-md border border-line bg-white px-2.5 py-1.5">
+    <li className="flex items-start gap-2 rounded-lg border border-line bg-white px-3 py-2">
       <span className="min-w-0 flex-1 break-words text-xs text-ink">{texto}</span>
       <span className="tnum shrink-0 text-[11px] text-muted" aria-label={`${texto.length} de ${max} caracteres`}>
         {texto.length}/{max}

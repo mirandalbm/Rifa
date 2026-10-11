@@ -42,17 +42,17 @@ export function Estatistica({
   // a fonte do valor acompanha o cartão, para o dinheiro não sair cortado.
   const miolo = (
     <span className="estatistica-miolo">
-      <span aria-hidden className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${TOM[tom]}`}>
-        <Icone size={22} />
+      <span aria-hidden className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px] ${TOM[tom]}`}>
+        <Icone size={20} />
       </span>
       <span className="min-w-0 max-w-full">
         <span
-          className="tnum block truncate font-medium leading-8 text-ink [font-size:clamp(1rem,13cqi,1.25rem)]"
+          className="tnum block truncate font-medium leading-8 text-ink [font-size:clamp(1rem,13cqi,1.375rem)]"
           title={typeof valor === "string" ? valor : undefined}
         >
           {valor}
         </span>
-        <span className="block text-xs leading-4 text-muted">{rotulo}</span>
+        <span className="block text-[13px] leading-4 text-ink-2">{rotulo}</span>
         {dica ? <span className="block text-[11px] leading-4 text-muted">{dica}</span> : null}
       </span>
     </span>
@@ -85,8 +85,8 @@ export function CartaoDoPainel({
     <section aria-label={titulo} className={`cartao min-w-0 overflow-hidden rounded-xl border border-line bg-white ${className}`}>
       <header className="flex items-start justify-between gap-3 px-5 pb-3 pt-5">
         <div className="min-w-0">
-          <h2 className="text-lg font-medium leading-7">{titulo}</h2>
-          {subtitulo ? <p className="text-xs text-muted">{subtitulo}</p> : null}
+          <h2 className="text-base font-semibold leading-6">{titulo}</h2>
+          {subtitulo ? <p className="text-[13px] leading-[18px] text-muted">{subtitulo}</p> : null}
         </div>
         {acao ? <div className="shrink-0">{acao}</div> : null}
       </header>
@@ -101,7 +101,7 @@ export function CabecalhoDaTabela({ colunas }: { colunas: string[] }) {
     <thead>
       <tr className="bg-mist">
         {colunas.map((c, i) => (
-          <th key={`${c}-${i}`} scope="col" className="px-4 py-3 text-left text-[11px] font-medium uppercase tracking-[0.1em] text-ink-2">
+          <th key={`${c}-${i}`} scope="col" className="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.1em] text-muted">
             {c}
           </th>
         ))}
@@ -393,8 +393,8 @@ export function Abas({
                 tabIndex={aceso ? 0 : -1}
                 onClick={() => abrir(a.id)}
                 onKeyDown={(e) => noTeclado(e, i)}
-                className={`-mb-px inline-flex min-h-10 items-center whitespace-nowrap border-b-2 px-4 text-sm font-medium ${
-                  aceso ? "border-green text-green-deep" : "border-transparent text-ink-2 hover:text-ink"
+                className={`-mb-px inline-flex min-h-10 items-center whitespace-nowrap border-b-2 px-3.5 text-sm ${
+                  aceso ? "border-green font-semibold text-green-deep" : "border-transparent font-medium text-ink-2 hover:text-ink"
                 }`}
               >
                 {a.titulo}

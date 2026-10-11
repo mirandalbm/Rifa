@@ -36,10 +36,37 @@ Feita: `docs/REFORMULACAO-MATRIZ.md`, **gerada do código** (`npm run matriz`):
 com a prova que cada uma tem e a lista das que nenhuma prova cita; e o teste
 `tests/matrizReformulacao.test.ts`, que falha se a matriz ficar velha ou se
 tela, seção ou cartão novo não tiver linha em
-`docs/reformulacao-destinos.json`. Todos os destinos estão como "a decidir":
-é a fase 2 que os preenche. Falta: ler a matriz (você), a tag
+`docs/reformulacao-destinos.json`. Falta: ler a matriz (você), a tag
 `marco-antes-da-reformulacao` (depois que o PR for mesclado) e as capturas do
 "antes" (`npm run telas`, em `capturas/`, fora do git).
+
+### Fases 1 a 4 — feitas e assinadas (11/10/2026)
+
+Direção visual (opção A, "Continuidade": marca, paleta e Materialize ficam;
+muda o desenho da informação), documentação no Notion, workflow (12 fluxos)
+e as **65 telas nas três larguras** no Figma (`Rifa — Design`, páginas
+10 · Loja, 11 · Painel e 12 · Afiliado e cambista). O desenho congelado é a
+base **"14 · Especificação por tela"** no Notion: uma linha por tela com a
+rota, a onda, o arranjo nas três larguras, as regras do `CLAUDE.md`, a prova
+e os critérios de aceite — as 65 assinadas em 11/10/2026. Com o desenho
+congelado, **todos os 822 destinos estão preenchidos** (`manter`, com a tela
+do Figma e a onda de cada um; as peças do kit marcadas "onda 1") e
+`DESTINOS_CONGELADOS = true` no teste: nada volta a "a decidir". Mudança de
+desenho a partir daqui passa pela linha da tela no Notion ("revisar") antes
+do código.
+
+### Fase 5 — onda 1 (base e componentes)
+
+O kit dos painéis (`client/src/components/bits.tsx`, `painel.tsx` e `.campo`
+no `index.css`) passou a ser o kit congelado da página "00 · Fundamentos":
+botão com os tons `primario`, `branco`, `claro`, `contorno`, `cinza` e `azul`
+(40 px, cantos de 8, ícone opcional; `primary`, `ghost` e `yellow` seguem
+como apelidos), pílula (ponto de 6 px, 9 × 3), **`Filtros`** (as fichas de
+filtro, acesa em verde cheio, estado no ARIA) e **`Caixa`** (a caixa de marcar
+com a explicação embaixo) novos, estatística com o quadrado de 44 px, cartão
+com o título de 16, cabeçalho de tabela de 10 em maiúsculas, campo de 40 px
+com cantos de 8. `tests/kit.test.ts` segura as medidas e proíbe a ficha
+feita à mão. As telas em si são as ondas 2 a 5.
 
 ## 1. Diagnóstico: por que o painel parece "escrito"
 
@@ -157,8 +184,8 @@ Proposta de partida, a ser desenhada e testada na simulação:
 | 1 Direção visual | pesquisa, 3 moodboards, escolha de 1 direção, tokens | Fable | **você escolhe** |
 | 2 Arquitetura da informação | árvore de navegação, "onde mora cada ferramenta", fluxos | Opus | **você aprova** |
 | 3 Simulação | (a) fluxos em baixa fidelidade, (b) telas em alta fidelidade com os tokens reais, (c) protótipo clicável com dados de exemplo; 2 rodadas de ajuste; tarefas de teste ("publique uma rifa", "ache o pedido X") com tempo e cliques | Fable (visual), Sonnet (volume), Opus (fluxos) | **você aprova cada painel** |
-| 4 Congelar o desenho | especificação por tela + critérios de aceite | Opus | você assina |
-| 5 Produção (ondas) | 1 base e componentes → 2 organizador → 3 plataforma → 4 afiliado/cambista → 5 loja | Sonnet, Opus nos fluxos críticos | PR por onda, rascunho, revisor de invariantes, capturas |
+| 4 Congelar o desenho | especificação por tela + critérios de aceite (base 14 do Notion) | Opus | **assinada** em 11/10/2026 |
+| 5 Produção (ondas) | 1 base e componentes → 2 organizador → 3 plataforma → 4 afiliado/cambista → 5 loja | Sonnet, Opus nos fluxos críticos | PR por onda, rascunho, revisor de invariantes, capturas — **onda 1 em andamento** (11/10/2026) |
 | 6 Recriação final | passada de coerência, a11y, desempenho, `npm run telas` sem reprova, docs | Fable (visual), Sonnet, Haiku | você confere |
 
 Cada PR de produção: `/provar`, `revisor-de-invariantes` (quando toca recorte,

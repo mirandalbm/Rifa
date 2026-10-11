@@ -374,7 +374,7 @@
   }
 
   .campo {
-    @apply mt-1 w-full rounded-md border border-line-2 px-3 py-2;
+    @apply mt-1 min-h-10 w-full rounded-lg border border-line-2 px-3 py-2;
   }
   .campo[aria-invalid="true"] {
     @apply border-red;

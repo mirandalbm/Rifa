@@ -50,10 +50,10 @@ describe("matriz de cobertura da reformulação", () => {
   });
 
   /**
-   * Quando a fase 2 congelar o desenho (`DESTINOS_CONGELADOS = true`), nada
+   * Com o desenho congelado (fase 4, 11/10/2026; `DESTINOS_CONGELADOS = true`), nada
    * pode ficar como "a decidir". Até lá, só se conta quanto falta.
    */
-  const DESTINOS_CONGELADOS = false;
+  const DESTINOS_CONGELADOS = true;
   it.skipIf(!DESTINOS_CONGELADOS)("com o desenho congelado, nenhum destino fica 'a decidir'", () => {
     expect(Object.entries(destinos).filter(([, v]) => v === A_DECIDIR).map(([k]) => k)).toEqual([]);
   });

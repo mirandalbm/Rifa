@@ -6,82 +6,82 @@ Gerada do código por `npm run matriz` — **não edite à mão** (o teste `test
 |---|---|
 | Telas (rotas do `App.tsx`) | 66 (+ 2 redirecionamentos) |
 | Seções de acesso (`shared/access.ts`) | 41 |
-| Cartões (componentes usados pelas telas) | 715 |
+| Cartões (componentes usados pelas telas) | 717 |
 | Rotas da API | 477, das quais 473 citadas por alguma prova |
 | Provas contra a API (`npm run …`) | 61 |
-| Testes de regra (`tests/`) | 127 arquivos |
-| Destinos decididos | 0 de 822 |
+| Testes de regra (`tests/`) | 128 arquivos |
+| Destinos decididos | 824 de 824 |
 
 ## 1. Telas
 
 | Rota | Papel | Seção | Rótulo no menu | Grupo (organizador) | Grupo (plataforma) | Arquivo | Componente | Destino |
 |---|---|---|---|---|---|---|---|---|
-| `/` | guest | vitrine | Rifas | — | — | `pages/Vitrine.tsx` | Vitrine | a decidir |
-| `/admin` | organizer | adminPainel | Painel | (sem título) | Painel | `pages/admin.tsx` | AdminPainel | a decidir |
-| `/admin/afiliados` | organizer | adminAfiliados | Afiliados | Equipe e marketing | Painel | `pages/admin.tsx` | AdminAfiliados | a decidir |
-| `/admin/antifraude` | admin | adminAntifraude | Antifraude | — | (sem título) | `pages/adminAntifraude.tsx` | AdminAntifraude | a decidir |
-| `/admin/aparencia` | admin | adminAparencia | Aparência | — | Painel | `pages/adminAparencia.tsx` | AdminAparencia | a decidir |
-| `/admin/atendimento` | organizer | adminAtendimento | Atendimento | (sem título) | (sem título) | `pages/adminAtendimento.tsx` | AdminAtendimento | a decidir |
-| `/admin/bonus` | admin | adminBonus | Bônus | — | Painel | `pages/adminBonus.tsx` | AdminBonus | a decidir |
-| `/admin/caixa` | admin | adminCaixa | Tudo | — | (sem título) | `pages/adminCaixa.tsx` | AdminCaixa | a decidir |
-| `/admin/cambistas` | organizer | adminCambistas | Cambistas | Equipe e marketing | Painel | `pages/adminCambistas.tsx` | AdminCambistas | a decidir |
-| `/admin/campanhas` | organizer | adminCampanhas | Campanhas | Rifas | Painel | `pages/admin.tsx` | AdminCampanhas | a decidir |
-| `/admin/cobranca` | organizer | adminCobranca | Cobrança | Vendas | Painel | `pages/adminCobranca.tsx` | AdminCobranca | a decidir |
-| `/admin/configuracoes` | organizer | adminConfiguracoes | Configurações | Equipe e marketing | Painel | `pages/admin.tsx` | AdminConfiguracoes | a decidir |
-| `/admin/exportacoes` | organizer | adminExportacoes | Exportações | Vendas | Painel | `pages/adminExportacoes.tsx` | AdminExportacoes | a decidir |
-| `/admin/financeiro` | organizer | adminFinanceiro | Financeiro | Vendas | Painel | `pages/admin.tsx` | AdminFinanceiro | a decidir |
-| `/admin/fiscal` | admin | adminFiscal | Cadastros fiscais | — | Painel | `pages/adminFiscal.tsx` | AdminFiscal | a decidir |
-| `/admin/marketing` | organizer | adminMarketing | Medição e campanhas | Equipe e marketing | Painel | `pages/adminMarketing.tsx` | AdminMarketing | a decidir |
-| `/admin/marketing/ia` | organizer | adminMarketingIA | Marketing AI | Equipe e marketing | Painel | `pages/adminMarketingIA.tsx` | AdminMarketingIA | a decidir |
-| `/admin/marketing/publicidade` | organizer | adminPublicidade | Publicidade | Equipe e marketing | Painel | `pages/adminPublicidade.tsx` | AdminPublicidade | a decidir |
-| `/admin/marketing/trafego` | organizer | adminTrafego | Tráfego pago | Equipe e marketing | Painel | `pages/adminTrafego.tsx` | AdminTrafego | a decidir |
-| `/admin/organizacoes` | admin | adminOrganizacoes | Organizações | — | Painel | `pages/adminOrganizacoes.tsx` | AdminOrganizacoes | a decidir |
-| `/admin/pedidos` | organizer | adminPedidos | Pedidos | Vendas | Painel | `pages/admin.tsx` | AdminPedidos | a decidir |
-| `/admin/resultados` | organizer | adminResultados | Resultados | Rifas | Painel | `pages/adminResultados.tsx` | AdminResultados | a decidir |
-| `/admin/sorteios` | organizer | adminSorteios | Sorteios | Rifas | Painel | `pages/admin.tsx` | AdminSorteios | a decidir |
-| `/admin/sorteios-oficiais` | organizer | adminSorteiosOficiais | Sorteios oficiais | Rifas | Painel | `pages/adminSorteiosOficiais.tsx` | AdminSorteiosOficiais | a decidir |
-| `/admin/stories` | organizer | adminStories | Stories | Rifas | Painel | `pages/adminStories.tsx` | AdminStories | a decidir |
-| `/admin/usuarios` | organizer | adminUsuarios | Usuários | Equipe e marketing | Painel | `pages/adminUsuarios.tsx` | AdminUsuarios | a decidir |
-| `/afiliado` | affiliate | afiliadoPainel | Visão geral | — | — | `pages/afiliado.tsx` | AfiliadoPainel | a decidir |
-| `/afiliado/comissoes` | affiliate | afiliadoComissoes | Comissões | — | — | `pages/afiliado.tsx` | AfiliadoComissoes | a decidir |
-| `/afiliado/dados` | affiliate | afiliadoDados | Meus dados | — | — | `pages/afiliadoDados.tsx` | AfiliadoDados | a decidir |
-| `/afiliado/divulgar` | affiliate | afiliadoDivulgar | Divulgar | — | — | `pages/afiliadoDivulgar.tsx` | AfiliadoDivulgar | a decidir |
-| `/afiliado/links` | affiliate | afiliadoLinks | Meus links | — | — | `pages/afiliado.tsx` | AfiliadoLinks | a decidir |
-| `/afiliado/organizacoes` | affiliate | afiliadoOrganizacoes | Organizações | — | — | `pages/afiliado.tsx` | AfiliadoOrganizacoes | a decidir |
-| `/afiliado/saques` | affiliate | afiliadoSaques | Saques | — | — | `pages/afiliado.tsx` | AfiliadoSaques | a decidir |
-| `/ajuda` | público | — | — | — | — | `pages/Ajuda.tsx` | Ajuda | a decidir |
-| `/bilhete/:code` | público | — | — | — | — | `pages/Bilhete.tsx` | Bilhete | a decidir |
-| `/buscar` | público | — | — | — | — | `pages/Buscar.tsx` | Buscar | a decidir |
-| `/cambista` | cambista | cambistaVenda | Nova venda | — | — | `pages/cambista.tsx` | CambistaVenda | a decidir |
-| `/cambista/acerto` | cambista | cambistaAcerto | Meu acerto | — | — | `pages/cambista.tsx` | CambistaAcerto | a decidir |
-| `/cambista/vendas` | cambista | cambistaVendas | Minhas vendas | — | — | `pages/cambista.tsx` | CambistaVendas | a decidir |
-| `/carrinho` | público | — | — | — | — | `pages/Carrinho.tsx` | Carrinho | a decidir |
-| `/carrinho/pix/:codigo` | público | — | — | — | — | `pages/CarrinhoPix.tsx` | CarrinhoPix | a decidir |
-| `/conta/senha` | conta | — | — | — | — | `components/TrocarSenha.tsx` | TrocarSenha | a decidir |
-| `/criar-conta` | público | — | — | — | — | `pages/CriarConta.tsx` | CriarConta | a decidir |
-| `/entrar` | público | — | — | — | — | `pages/Login.tsx` | Login | a decidir |
-| `/estado/:uf` | público | — | — | — | — | `pages/Estado.tsx` | EstadoPage | a decidir |
-| `/mensagens` | público | — | — | — | — | `pages/Mensagens.tsx` | Mensagens | a decidir |
-| `/mensagens/:id` | público | — | — | — | — | `pages/Mensagens.tsx` | Mensagens | a decidir |
-| `/minhas-compras` | público | — | — | — | — | `pages/MinhasCotas.tsx` | MinhasCotas | a decidir |
-| `/minhas-cotas` | guest | minhasCotas | Minhas cotas | — | — | `pages/MinhasCotas.tsx` | MinhasCotas | a decidir |
-| `/notificacoes` | público | — | — | — | — | `pages/Notificacoes.tsx` | Notificacoes | a decidir |
-| `/o/:org` | público | — | — | — | — | `pages/Perfil.tsx` | Perfil | a decidir |
-| `/o/:org/r/:slug` | público | — | — | — | — | `pages/Rifa.tsx` | Rifa | a decidir |
-| `/o/:org/r/:slug/regulamento` | público | — | — | — | — | `pages/Regulamento.tsx` | Regulamento | a decidir |
-| `/pedido/:code` | guest | checkout | Pedido | — | — | `pages/Pedido.tsx` | Pedido | a decidir |
-| `/perfil` | público | — | — | — | — | `pages/PerfilDoUsuario.tsx` | PerfilDoUsuario | a decidir |
-| `/perfil/bilhetes` | público | — | — | — | — | `pages/MeusBilhetes.tsx` | MeusBilhetes | a decidir |
-| `/perfil/configuracoes` | público | — | — | — | — | `pages/Configuracoes.tsx` | Configuracoes | a decidir |
-| `/privacidade` | público | — | — | — | — | `pages/Legal.tsx` | Privacidade | a decidir |
-| `/publicar` | público | — | — | — | — | `pages/Publicar.tsx` | Publicar | a decidir |
-| `/r/:slug` | guest | campanha | Rifa | — | — | `pages/Rifa.tsx` | Rifa | a decidir |
-| `/r/:slug/regulamento` | público | — | — | — | — | `pages/Regulamento.tsx` | Regulamento | a decidir |
-| `/recibo/:codigo` | público | — | — | — | — | `pages/Recibo.tsx` | ReciboPage | a decidir |
-| `/reels` | público | — | — | — | — | `pages/Reels.tsx` | Reels | a decidir |
-| `/seja-afiliado` | público | — | — | — | — | `pages/CadastroAfiliado.tsx` | CadastroAfiliado | a decidir |
-| `/termos` | público | — | — | — | — | `pages/Legal.tsx` | TermosDeUso | a decidir |
-| `/u/:apelido` | público | — | — | — | — | `pages/Usuario.tsx` | Usuario | a decidir |
+| `/` | guest | vitrine | Rifas | — | — | `pages/Vitrine.tsx` | Vitrine | manter · 10 · Loja · 01 Vitrine (node 19-1144) · onda 5 |
+| `/admin` | organizer | adminPainel | Painel | (sem título) | Painel | `pages/admin.tsx` | AdminPainel | manter · 11 · Painel · P01 Painel (visão geral) (node 32-1288) · onda 2 |
+| `/admin/afiliados` | organizer | adminAfiliados | Afiliados | Equipe e marketing | Painel | `pages/admin.tsx` | AdminAfiliados | manter · 11 · Painel · P12 Afiliados (node 43-2125) · onda 2 |
+| `/admin/antifraude` | admin | adminAntifraude | Antifraude | — | (sem título) | `pages/adminAntifraude.tsx` | AdminAntifraude | manter · 11 · Painel · P24 Antifraude (abas) (node 55-4327) · onda 3 |
+| `/admin/aparencia` | admin | adminAparencia | Aparência | — | Painel | `pages/adminAparencia.tsx` | AdminAparencia | manter · 11 · Painel · P28 Aparência (abas) (node 55-6415) · onda 3 |
+| `/admin/atendimento` | organizer | adminAtendimento | Atendimento | (sem título) | (sem título) | `pages/adminAtendimento.tsx` | AdminAtendimento | manter · 11 · Painel · P20 Atendimento do organizador + P23 da plataforma (abas, 51-4545) (node 51-3427) · onda 2 |
+| `/admin/bonus` | admin | adminBonus | Bônus | — | Painel | `pages/adminBonus.tsx` | AdminBonus | manter · 11 · Painel · P27 Bônus (node 55-5350) · onda 3 |
+| `/admin/caixa` | admin | adminCaixa | Tudo | — | (sem título) | `pages/adminCaixa.tsx` | AdminCaixa | manter · 11 · Painel · P22 Caixa de entrada (node 51-4173) · onda 3 |
+| `/admin/cambistas` | organizer | adminCambistas | Cambistas | Equipe e marketing | Painel | `pages/adminCambistas.tsx` | AdminCambistas | manter · 11 · Painel · P13 Cambistas (node 44-2097) · onda 2 |
+| `/admin/campanhas` | organizer | adminCampanhas | Campanhas | Rifas | Painel | `pages/admin.tsx` | AdminCampanhas | manter · 11 · Painel · P02 Rifas (grade de capas) + P03 Editar rifa (abas, 54-4503) (node 33-727) · onda 2 |
+| `/admin/cobranca` | organizer | adminCobranca | Cobrança | Vendas | Painel | `pages/adminCobranca.tsx` | AdminCobranca | manter · 11 · Painel · P10 Cobrança (node 41-1633) · onda 2 |
+| `/admin/configuracoes` | organizer | adminConfiguracoes | Configurações | Equipe e marketing | Painel | `pages/admin.tsx` | AdminConfiguracoes | manter · 11 · Painel · P15 Configurações do organizador (abas) + P29 da plataforma (51-5240) (node 46-2361) · onda 2 |
+| `/admin/exportacoes` | organizer | adminExportacoes | Exportações | Vendas | Painel | `pages/adminExportacoes.tsx` | AdminExportacoes | manter · 11 · Painel · P11 Exportações (node 54-5610) · onda 2 |
+| `/admin/financeiro` | organizer | adminFinanceiro | Financeiro | Vendas | Painel | `pages/admin.tsx` | AdminFinanceiro | manter · 11 · Painel · P09 Financeiro (node 40-1503) · onda 2 |
+| `/admin/fiscal` | admin | adminFiscal | Cadastros fiscais | — | Painel | `pages/adminFiscal.tsx` | AdminFiscal | manter · 11 · Painel · P26 Cadastros fiscais (node 51-4877) · onda 3 |
+| `/admin/marketing` | organizer | adminMarketing | Medição e campanhas | Equipe e marketing | Painel | `pages/adminMarketing.tsx` | AdminMarketing | manter · 11 · Painel · P19 Medição e campanhas (node 51-3059) · onda 2 |
+| `/admin/marketing/ia` | organizer | adminMarketingIA | Marketing AI | Equipe e marketing | Painel | `pages/adminMarketingIA.tsx` | AdminMarketingIA | manter · 11 · Painel · P17 Marketing AI (node 54-6576) · onda 2 |
+| `/admin/marketing/publicidade` | organizer | adminPublicidade | Publicidade | Equipe e marketing | Painel | `pages/adminPublicidade.tsx` | AdminPublicidade | manter · 11 · Painel · P18 Publicidade (abas) (node 54-7386) · onda 2 |
+| `/admin/marketing/trafego` | organizer | adminTrafego | Tráfego pago | Equipe e marketing | Painel | `pages/adminTrafego.tsx` | AdminTrafego | manter · 11 · Painel · P16 Tráfego pago (node 47-2485) · onda 2 |
+| `/admin/organizacoes` | admin | adminOrganizacoes | Organizações | — | Painel | `pages/adminOrganizacoes.tsx` | AdminOrganizacoes | manter · 11 · Painel · P25 Organizações (node 55-4792) · onda 3 |
+| `/admin/pedidos` | organizer | adminPedidos | Pedidos | Vendas | Painel | `pages/admin.tsx` | AdminPedidos | manter · 11 · Painel · P04 Pedidos (node 35-1137) · onda 2 |
+| `/admin/resultados` | organizer | adminResultados | Resultados | Rifas | Painel | `pages/adminResultados.tsx` | AdminResultados | manter · 11 · Painel · P05 Resultados (node 36-1198) · onda 2 |
+| `/admin/sorteios` | organizer | adminSorteios | Sorteios | Rifas | Painel | `pages/admin.tsx` | AdminSorteios | manter · 11 · Painel · P07 Sorteios (node 38-1355) · onda 2 |
+| `/admin/sorteios-oficiais` | organizer | adminSorteiosOficiais | Sorteios oficiais | Rifas | Painel | `pages/adminSorteiosOficiais.tsx` | AdminSorteiosOficiais | manter · 11 · Painel · P08 Sorteios oficiais (calendário) (node 39-1742) · onda 2 |
+| `/admin/stories` | organizer | adminStories | Stories | Rifas | Painel | `pages/adminStories.tsx` | AdminStories | manter · 11 · Painel · P06 Stories (node 54-4984) · onda 2 |
+| `/admin/usuarios` | organizer | adminUsuarios | Usuários | Equipe e marketing | Painel | `pages/adminUsuarios.tsx` | AdminUsuarios | manter · 11 · Painel · P14 Usuários (node 45-2338) · onda 2 |
+| `/afiliado` | affiliate | afiliadoPainel | Visão geral | — | — | `pages/afiliado.tsx` | AfiliadoPainel | manter · 12 · Afiliado e cambista · A01 Visão geral do afiliado (node 58-409) · onda 4 |
+| `/afiliado/comissoes` | affiliate | afiliadoComissoes | Comissões | — | — | `pages/afiliado.tsx` | AfiliadoComissoes | manter · 12 · Afiliado e cambista · A05 Comissões (node 58-1715) · onda 4 |
+| `/afiliado/dados` | affiliate | afiliadoDados | Meus dados | — | — | `pages/afiliadoDados.tsx` | AfiliadoDados | manter · 12 · Afiliado e cambista · A07 Meus dados (node 59-1644) · onda 4 |
+| `/afiliado/divulgar` | affiliate | afiliadoDivulgar | Divulgar | — | — | `pages/afiliadoDivulgar.tsx` | AfiliadoDivulgar | manter · 12 · Afiliado e cambista · A03 Divulgar (node 58-1203) · onda 4 |
+| `/afiliado/links` | affiliate | afiliadoLinks | Meus links | — | — | `pages/afiliado.tsx` | AfiliadoLinks | manter · 12 · Afiliado e cambista · A02 Meus links (node 58-928) · onda 4 |
+| `/afiliado/organizacoes` | affiliate | afiliadoOrganizacoes | Organizações | — | — | `pages/afiliado.tsx` | AfiliadoOrganizacoes | manter · 12 · Afiliado e cambista · A04 Organizações do afiliado (node 58-1458) · onda 4 |
+| `/afiliado/saques` | affiliate | afiliadoSaques | Saques | — | — | `pages/afiliado.tsx` | AfiliadoSaques | manter · 12 · Afiliado e cambista · A06 Saques (node 58-2028) · onda 4 |
+| `/ajuda` | público | — | — | — | — | `pages/Ajuda.tsx` | Ajuda | manter · 10 · Loja · 18 Central de ajuda (node 28-3120) · onda 5 |
+| `/bilhete/:code` | público | — | — | — | — | `pages/Bilhete.tsx` | Bilhete | manter · 10 · Loja · 22 Bilhete (node 29-3414) · onda 5 |
+| `/buscar` | público | — | — | — | — | `pages/Buscar.tsx` | Buscar | manter · 10 · Loja · 17 Buscar (node 27-3422) · onda 5 |
+| `/cambista` | cambista | cambistaVenda | Nova venda | — | — | `pages/cambista.tsx` | CambistaVenda | manter · 12 · Afiliado e cambista · C08 Nova venda do cambista (node 59-1974) · onda 4 |
+| `/cambista/acerto` | cambista | cambistaAcerto | Meu acerto | — | — | `pages/cambista.tsx` | CambistaAcerto | manter · 12 · Afiliado e cambista · C10 Meu acerto (node 59-2411) · onda 4 |
+| `/cambista/vendas` | cambista | cambistaVendas | Minhas vendas | — | — | `pages/cambista.tsx` | CambistaVendas | manter · 12 · Afiliado e cambista · C09 Minhas vendas (node 59-2180) · onda 4 |
+| `/carrinho` | público | — | — | — | — | `pages/Carrinho.tsx` | Carrinho | manter · 10 · Loja · 06 Carrinho (node 23-1850) · onda 5 |
+| `/carrinho/pix/:codigo` | público | — | — | — | — | `pages/CarrinhoPix.tsx` | CarrinhoPix | manter · 10 · Loja · 08 Pix do carrinho (node 24-2131) · onda 5 |
+| `/conta/senha` | conta | — | — | — | — | `components/TrocarSenha.tsx` | TrocarSenha | manter · 11 · Painel · P21 Minha senha (node 51-3771) · onda 2 |
+| `/criar-conta` | público | — | — | — | — | `pages/CriarConta.tsx` | CriarConta | manter · 10 · Loja · 24 Criar conta (node 30-3352) · onda 5 |
+| `/entrar` | público | — | — | — | — | `pages/Login.tsx` | Login | manter · 10 · Loja · 23 Entrar (node 30-3205) · onda 5 |
+| `/estado/:uf` | público | — | — | — | — | `pages/Estado.tsx` | EstadoPage | manter · 10 · Loja · 04 Página do estado (node 22-1904) · onda 5 |
+| `/mensagens` | público | — | — | — | — | `pages/Mensagens.tsx` | Mensagens | manter · 10 · Loja · 16 Mensagens (node 27-3109) · onda 5 |
+| `/mensagens/:id` | público | — | — | — | — | `pages/Mensagens.tsx` | Mensagens | manter · 10 · Loja · 16 Mensagens (node 27-3109) · onda 5 |
+| `/minhas-compras` | público | — | — | — | — | `pages/MinhasCotas.tsx` | MinhasCotas | manter · 10 · Loja · 09 Minhas compras (node 25-1969) · onda 5 |
+| `/minhas-cotas` | guest | minhasCotas | Minhas cotas | — | — | `pages/MinhasCotas.tsx` | MinhasCotas | manter · 10 · Loja · 09 Minhas compras (node 25-1969) · onda 5 |
+| `/notificacoes` | público | — | — | — | — | `pages/Notificacoes.tsx` | Notificacoes | manter · 10 · Loja · 10 Notificações (node 25-2159) · onda 5 |
+| `/o/:org` | público | — | — | — | — | `pages/Perfil.tsx` | Perfil | manter · 10 · Loja · 03 Perfil da organização (node 21-1489) · onda 5 |
+| `/o/:org/r/:slug` | público | — | — | — | — | `pages/Rifa.tsx` | Rifa | manter · 10 · Loja · 02 Página da rifa (node 20-1175) · onda 5 |
+| `/o/:org/r/:slug/regulamento` | público | — | — | — | — | `pages/Regulamento.tsx` | Regulamento | manter · 10 · Loja · 20 Regulamento da rifa (node 28-3547) · onda 5 |
+| `/pedido/:code` | guest | checkout | Pedido | — | — | `pages/Pedido.tsx` | Pedido | manter · 10 · Loja · 07 Pedido (node 24-1856) · onda 5 |
+| `/perfil` | público | — | — | — | — | `pages/PerfilDoUsuario.tsx` | PerfilDoUsuario | manter · 10 · Loja · 11 Perfil (node 25-2481) · onda 5 |
+| `/perfil/bilhetes` | público | — | — | — | — | `pages/MeusBilhetes.tsx` | MeusBilhetes | manter · 10 · Loja · 13 Meus bilhetes privados (node 26-2747) · onda 5 |
+| `/perfil/configuracoes` | público | — | — | — | — | `pages/Configuracoes.tsx` | Configuracoes | manter · 10 · Loja · 12 Configurações do apostador (node 26-2569) · onda 5 |
+| `/privacidade` | público | — | — | — | — | `pages/Legal.tsx` | Privacidade | manter · 10 · Loja · 19 Termos de uso e Privacidade (node 28-3320) · onda 5 |
+| `/publicar` | público | — | — | — | — | `pages/Publicar.tsx` | Publicar | manter · 10 · Loja · 14 Publicar (node 26-2914) · onda 5 |
+| `/r/:slug` | guest | campanha | Rifa | — | — | `pages/Rifa.tsx` | Rifa | manter · 10 · Loja · 02 Página da rifa (node 20-1175) · onda 5 |
+| `/r/:slug/regulamento` | público | — | — | — | — | `pages/Regulamento.tsx` | Regulamento | manter · 10 · Loja · 20 Regulamento da rifa (node 28-3547) · onda 5 |
+| `/recibo/:codigo` | público | — | — | — | — | `pages/Recibo.tsx` | ReciboPage | manter · 10 · Loja · 21 Recibo (node 29-3264) · onda 5 |
+| `/reels` | público | — | — | — | — | `pages/Reels.tsx` | Reels | manter · 10 · Loja · 15 Reels (node 27-2744) · onda 5 |
+| `/seja-afiliado` | público | — | — | — | — | `pages/CadastroAfiliado.tsx` | CadastroAfiliado | manter · 10 · Loja · 25 Seja afiliado (node 30-3436) · onda 5 |
+| `/termos` | público | — | — | — | — | `pages/Legal.tsx` | TermosDeUso | manter · 10 · Loja · 19 Termos de uso e Privacidade (node 28-3320) · onda 5 |
+| `/u/:apelido` | público | — | — | — | — | `pages/Usuario.tsx` | Usuario | manter · 10 · Loja · 05 Perfil do apostador (node 22-2628) · onda 5 |
 
 Redirecionamentos (o endereço de antes segue valendo):
 
@@ -92,47 +92,47 @@ Redirecionamentos (o endereço de antes segue valendo):
 
 | Seção | Rota | Rótulo | Papel mínimo | No menu | Grupo (do papel) | Grupo (plataforma) | Tem tela | Destino |
 |---|---|---|---|---|---|---|---|---|
-| `vitrine` | `/` | Rifas | guest | não | — | — | sim | a decidir |
-| `campanha` | `/r/:slug` | Rifa | guest | não | — | — | sim | a decidir |
-| `checkout` | `/pedido/:code` | Pedido | guest | não | — | — | sim | a decidir |
-| `minhasCotas` | `/minhas-cotas` | Minhas cotas | guest | não | — | — | sim | a decidir |
-| `afiliadoPainel` | `/afiliado` | Visão geral | affiliate | sim | (sem título) | — | sim | a decidir |
-| `afiliadoLinks` | `/afiliado/links` | Meus links | affiliate | sim | (sem título) | — | sim | a decidir |
-| `afiliadoOrganizacoes` | `/afiliado/organizacoes` | Organizações | affiliate | sim | (sem título) | — | sim | a decidir |
-| `afiliadoDivulgar` | `/afiliado/divulgar` | Divulgar | affiliate | sim | (sem título) | — | sim | a decidir |
-| `afiliadoComissoes` | `/afiliado/comissoes` | Comissões | affiliate | sim | Dinheiro | — | sim | a decidir |
-| `afiliadoSaques` | `/afiliado/saques` | Saques | affiliate | sim | Dinheiro | — | sim | a decidir |
-| `afiliadoDados` | `/afiliado/dados` | Meus dados | affiliate | sim | Dinheiro | — | sim | a decidir |
-| `cambistaVenda` | `/cambista` | Nova venda | cambista | sim | (sem título) | — | sim | a decidir |
-| `cambistaVendas` | `/cambista/vendas` | Minhas vendas | cambista | sim | (sem título) | — | sim | a decidir |
-| `cambistaAcerto` | `/cambista/acerto` | Meu acerto | cambista | sim | (sem título) | — | sim | a decidir |
-| `adminPainel` | `/admin` | Painel | organizer | sim | (sem título) | Painel | sim | a decidir |
-| `adminCampanhas` | `/admin/campanhas` | Campanhas | organizer | sim | Rifas | Painel | sim | a decidir |
-| `adminPedidos` | `/admin/pedidos` | Pedidos | organizer | sim | Vendas | Painel | sim | a decidir |
-| `adminResultados` | `/admin/resultados` | Resultados | organizer | sim | Rifas | Painel | sim | a decidir |
-| `adminAtendimento` | `/admin/atendimento` | Atendimento | organizer | sim | (sem título) | (sem título) | sim | a decidir |
-| `adminStories` | `/admin/stories` | Stories | organizer | sim | Rifas | Painel | sim | a decidir |
-| `adminTrafego` | `/admin/marketing/trafego` | Tráfego pago | organizer | sim | Equipe e marketing | Painel | sim | a decidir |
-| `adminMarketingIA` | `/admin/marketing/ia` | Marketing AI | organizer | sim | Equipe e marketing | Painel | sim | a decidir |
-| `adminPublicidade` | `/admin/marketing/publicidade` | Publicidade | organizer | sim | Equipe e marketing | Painel | sim | a decidir |
-| `adminPatrocinio` | `/admin/patrocinio` | Rifas patrocinadas | organizer | não | — | — | **não** | a decidir |
-| `adminBannerPago` | `/admin/banner-pago` | Banner na vitrine | organizer | não | — | — | **não** | a decidir |
-| `adminMarketing` | `/admin/marketing` | Medição e campanhas | organizer | sim | Equipe e marketing | Painel | sim | a decidir |
-| `adminAfiliados` | `/admin/afiliados` | Afiliados | organizer | sim | Equipe e marketing | Painel | sim | a decidir |
-| `adminCambistas` | `/admin/cambistas` | Cambistas | organizer | sim | Equipe e marketing | Painel | sim | a decidir |
-| `adminUsuarios` | `/admin/usuarios` | Usuários | organizer | sim | Equipe e marketing | Painel | sim | a decidir |
-| `adminFinanceiro` | `/admin/financeiro` | Financeiro | organizer | sim | Vendas | Painel | sim | a decidir |
-| `adminSorteios` | `/admin/sorteios` | Sorteios | organizer | sim | Rifas | Painel | sim | a decidir |
-| `adminSorteiosOficiais` | `/admin/sorteios-oficiais` | Sorteios oficiais | organizer | sim | Rifas | Painel | sim | a decidir |
-| `adminExportacoes` | `/admin/exportacoes` | Exportações | organizer | sim | Vendas | Painel | sim | a decidir |
-| `adminCobranca` | `/admin/cobranca` | Cobrança | organizer | sim | Vendas | Painel | sim | a decidir |
-| `adminConfiguracoes` | `/admin/configuracoes` | Configurações | organizer | sim | Equipe e marketing | Painel | sim | a decidir |
-| `adminOrganizacoes` | `/admin/organizacoes` | Organizações | admin | sim | Painel | Painel | sim | a decidir |
-| `adminAntifraude` | `/admin/antifraude` | Antifraude | admin | sim | (sem título) | (sem título) | sim | a decidir |
-| `adminAparencia` | `/admin/aparencia` | Aparência | admin | sim | Painel | Painel | sim | a decidir |
-| `adminCaixa` | `/admin/caixa` | Tudo | admin | sim | (sem título) | (sem título) | sim | a decidir |
-| `adminFiscal` | `/admin/fiscal` | Cadastros fiscais | admin | sim | Painel | Painel | sim | a decidir |
-| `adminBonus` | `/admin/bonus` | Bônus | admin | sim | Painel | Painel | sim | a decidir |
+| `vitrine` | `/` | Rifas | guest | não | — | — | sim | manter · 10 · Loja · 01 Vitrine (node 19-1144) · onda 5 |
+| `campanha` | `/r/:slug` | Rifa | guest | não | — | — | sim | manter · 10 · Loja · 02 Página da rifa (node 20-1175) · onda 5 |
+| `checkout` | `/pedido/:code` | Pedido | guest | não | — | — | sim | manter · 10 · Loja · 07 Pedido (node 24-1856) · onda 5 |
+| `minhasCotas` | `/minhas-cotas` | Minhas cotas | guest | não | — | — | sim | manter · 10 · Loja · 09 Minhas compras (node 25-1969) · onda 5 |
+| `afiliadoPainel` | `/afiliado` | Visão geral | affiliate | sim | (sem título) | — | sim | manter · 12 · Afiliado e cambista · A01 Visão geral do afiliado (node 58-409) · onda 4 |
+| `afiliadoLinks` | `/afiliado/links` | Meus links | affiliate | sim | (sem título) | — | sim | manter · 12 · Afiliado e cambista · A02 Meus links (node 58-928) · onda 4 |
+| `afiliadoOrganizacoes` | `/afiliado/organizacoes` | Organizações | affiliate | sim | (sem título) | — | sim | manter · 12 · Afiliado e cambista · A04 Organizações do afiliado (node 58-1458) · onda 4 |
+| `afiliadoDivulgar` | `/afiliado/divulgar` | Divulgar | affiliate | sim | (sem título) | — | sim | manter · 12 · Afiliado e cambista · A03 Divulgar (node 58-1203) · onda 4 |
+| `afiliadoComissoes` | `/afiliado/comissoes` | Comissões | affiliate | sim | Dinheiro | — | sim | manter · 12 · Afiliado e cambista · A05 Comissões (node 58-1715) · onda 4 |
+| `afiliadoSaques` | `/afiliado/saques` | Saques | affiliate | sim | Dinheiro | — | sim | manter · 12 · Afiliado e cambista · A06 Saques (node 58-2028) · onda 4 |
+| `afiliadoDados` | `/afiliado/dados` | Meus dados | affiliate | sim | Dinheiro | — | sim | manter · 12 · Afiliado e cambista · A07 Meus dados (node 59-1644) · onda 4 |
+| `cambistaVenda` | `/cambista` | Nova venda | cambista | sim | (sem título) | — | sim | manter · 12 · Afiliado e cambista · C08 Nova venda do cambista (node 59-1974) · onda 4 |
+| `cambistaVendas` | `/cambista/vendas` | Minhas vendas | cambista | sim | (sem título) | — | sim | manter · 12 · Afiliado e cambista · C09 Minhas vendas (node 59-2180) · onda 4 |
+| `cambistaAcerto` | `/cambista/acerto` | Meu acerto | cambista | sim | (sem título) | — | sim | manter · 12 · Afiliado e cambista · C10 Meu acerto (node 59-2411) · onda 4 |
+| `adminPainel` | `/admin` | Painel | organizer | sim | (sem título) | Painel | sim | manter · 11 · Painel · P01 Painel (visão geral) (node 32-1288) · onda 2 |
+| `adminCampanhas` | `/admin/campanhas` | Campanhas | organizer | sim | Rifas | Painel | sim | manter · 11 · Painel · P02 Rifas (grade de capas) + P03 Editar rifa (abas, 54-4503) (node 33-727) · onda 2 |
+| `adminPedidos` | `/admin/pedidos` | Pedidos | organizer | sim | Vendas | Painel | sim | manter · 11 · Painel · P04 Pedidos (node 35-1137) · onda 2 |
+| `adminResultados` | `/admin/resultados` | Resultados | organizer | sim | Rifas | Painel | sim | manter · 11 · Painel · P05 Resultados (node 36-1198) · onda 2 |
+| `adminAtendimento` | `/admin/atendimento` | Atendimento | organizer | sim | (sem título) | (sem título) | sim | manter · 11 · Painel · P20 Atendimento do organizador + P23 da plataforma (abas, 51-4545) (node 51-3427) · onda 2 |
+| `adminStories` | `/admin/stories` | Stories | organizer | sim | Rifas | Painel | sim | manter · 11 · Painel · P06 Stories (node 54-4984) · onda 2 |
+| `adminTrafego` | `/admin/marketing/trafego` | Tráfego pago | organizer | sim | Equipe e marketing | Painel | sim | manter · 11 · Painel · P16 Tráfego pago (node 47-2485) · onda 2 |
+| `adminMarketingIA` | `/admin/marketing/ia` | Marketing AI | organizer | sim | Equipe e marketing | Painel | sim | manter · 11 · Painel · P17 Marketing AI (node 54-6576) · onda 2 |
+| `adminPublicidade` | `/admin/marketing/publicidade` | Publicidade | organizer | sim | Equipe e marketing | Painel | sim | manter · 11 · Painel · P18 Publicidade (abas) (node 54-7386) · onda 2 |
+| `adminPatrocinio` | `/admin/patrocinio` | Rifas patrocinadas | organizer | não | — | — | **não** | manter · aba de 11 · Painel · P18 Publicidade (abas) (node 54-7386) · onda 2 (o endereço antigo redireciona; fora do menu) |
+| `adminBannerPago` | `/admin/banner-pago` | Banner na vitrine | organizer | não | — | — | **não** | manter · aba de 11 · Painel · P18 Publicidade (abas) (node 54-7386) · onda 2 (o endereço antigo redireciona; fora do menu) |
+| `adminMarketing` | `/admin/marketing` | Medição e campanhas | organizer | sim | Equipe e marketing | Painel | sim | manter · 11 · Painel · P19 Medição e campanhas (node 51-3059) · onda 2 |
+| `adminAfiliados` | `/admin/afiliados` | Afiliados | organizer | sim | Equipe e marketing | Painel | sim | manter · 11 · Painel · P12 Afiliados (node 43-2125) · onda 2 |
+| `adminCambistas` | `/admin/cambistas` | Cambistas | organizer | sim | Equipe e marketing | Painel | sim | manter · 11 · Painel · P13 Cambistas (node 44-2097) · onda 2 |
+| `adminUsuarios` | `/admin/usuarios` | Usuários | organizer | sim | Equipe e marketing | Painel | sim | manter · 11 · Painel · P14 Usuários (node 45-2338) · onda 2 |
+| `adminFinanceiro` | `/admin/financeiro` | Financeiro | organizer | sim | Vendas | Painel | sim | manter · 11 · Painel · P09 Financeiro (node 40-1503) · onda 2 |
+| `adminSorteios` | `/admin/sorteios` | Sorteios | organizer | sim | Rifas | Painel | sim | manter · 11 · Painel · P07 Sorteios (node 38-1355) · onda 2 |
+| `adminSorteiosOficiais` | `/admin/sorteios-oficiais` | Sorteios oficiais | organizer | sim | Rifas | Painel | sim | manter · 11 · Painel · P08 Sorteios oficiais (calendário) (node 39-1742) · onda 2 |
+| `adminExportacoes` | `/admin/exportacoes` | Exportações | organizer | sim | Vendas | Painel | sim | manter · 11 · Painel · P11 Exportações (node 54-5610) · onda 2 |
+| `adminCobranca` | `/admin/cobranca` | Cobrança | organizer | sim | Vendas | Painel | sim | manter · 11 · Painel · P10 Cobrança (node 41-1633) · onda 2 |
+| `adminConfiguracoes` | `/admin/configuracoes` | Configurações | organizer | sim | Equipe e marketing | Painel | sim | manter · 11 · Painel · P15 Configurações do organizador (abas) + P29 da plataforma (51-5240) (node 46-2361) · onda 2 |
+| `adminOrganizacoes` | `/admin/organizacoes` | Organizações | admin | sim | Painel | Painel | sim | manter · 11 · Painel · P25 Organizações (node 55-4792) · onda 3 |
+| `adminAntifraude` | `/admin/antifraude` | Antifraude | admin | sim | (sem título) | (sem título) | sim | manter · 11 · Painel · P24 Antifraude (abas) (node 55-4327) · onda 3 |
+| `adminAparencia` | `/admin/aparencia` | Aparência | admin | sim | Painel | Painel | sim | manter · 11 · Painel · P28 Aparência (abas) (node 55-6415) · onda 3 |
+| `adminCaixa` | `/admin/caixa` | Tudo | admin | sim | (sem título) | (sem título) | sim | manter · 11 · Painel · P22 Caixa de entrada (node 51-4173) · onda 3 |
+| `adminFiscal` | `/admin/fiscal` | Cadastros fiscais | admin | sim | Painel | Painel | sim | manter · 11 · Painel · P26 Cadastros fiscais (node 51-4877) · onda 3 |
+| `adminBonus` | `/admin/bonus` | Bônus | admin | sim | Painel | Painel | sim | manter · 11 · Painel · P27 Bônus (node 55-5350) · onda 3 |
 
 ## 3. Cartões por tela
 
@@ -142,1041 +142,1043 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 
 | Cartão | Destino |
 |---|---|
-| `BannersVitrine` | a decidir |
-| `CartaoDeDivulgacao` | a decidir |
-| `CartaoDoFeed` | a decidir |
-| `ColunaAoVivo` | a decidir |
-| `ContagemDoSorteio` | a decidir |
-| `Empty` | a decidir |
-| `FotoComStory` | a decidir |
-| `FotoDoPerfil` | a decidir |
-| `InstalarApp` | a decidir |
-| `Patrocinadas` | a decidir |
-| `PublicShell` | a decidir |
-| `SorteioDoInicio` | a decidir |
-| `VisualizadorDeStories` | a decidir |
+| `BannersVitrine` | manter · na tela 01 Vitrine · onda 5 |
+| `CartaoDeDivulgacao` | manter · na tela 01 Vitrine · onda 5 |
+| `CartaoDoFeed` | manter · na tela 01 Vitrine · onda 5 |
+| `ColunaAoVivo` | manter · na tela 01 Vitrine · onda 5 |
+| `ContagemDoSorteio` | manter · na tela 01 Vitrine · onda 5 |
+| `Empty` | manter · peça do kit (onda 1) · na tela 01 Vitrine |
+| `FotoComStory` | manter · na tela 01 Vitrine · onda 5 |
+| `FotoDoPerfil` | manter · peça do kit (onda 1) · na tela 01 Vitrine |
+| `InstalarApp` | manter · na tela 01 Vitrine · onda 5 |
+| `Patrocinadas` | manter · na tela 01 Vitrine · onda 5 |
+| `PublicShell` | manter · peça do kit (onda 1) · na tela 01 Vitrine |
+| `SorteioDoInicio` | manter · na tela 01 Vitrine · onda 5 |
+| `VisualizadorDeStories` | manter · na tela 01 Vitrine · onda 5 |
 
 ### `/admin` — Painel
 
 | Cartão | Destino |
 |---|---|
-| `Abas` | a decidir |
-| `AbrirEditorDeImagem` | a decidir |
-| `AdiarSorteioCard` | a decidir |
-| `AgendarPublicacaoCard` | a decidir |
-| `AlternarVisao` | a decidir |
-| `ArtesParaDivulgar` | a decidir |
-| `BannerDivulgacaoCard` | a decidir |
-| `BarrasHorizontais` | a decidir |
-| `Button` | a decidir |
-| `CabecalhoDaTabela` | a decidir |
-| `CampaignExtras` | a decidir |
-| `Card` | a decidir |
-| `CartaoDoPainel` | a decidir |
-| `CobrancaDaRifaCard` | a decidir |
-| `ComissaoCard` | a decidir |
-| `ContratoPromotoraCard` | a decidir |
-| `CoresDoSeloCard` | a decidir |
-| `DadosLegaisCard` | a decidir |
-| `DivulgacoesDaOrganizacao` | a decidir |
-| `EditarRifaCard` | a decidir |
-| `Empty` | a decidir |
-| `EnderecoCurto` | a decidir |
-| `EnderecoForm` | a decidir |
-| `Estatistica` | a decidir |
-| `LegendaCard` | a decidir |
-| `MediaManager` | a decidir |
-| `Money` | a decidir |
-| `PagamentosCard` | a decidir |
-| `PanelShell` | a decidir |
-| `PerfilPublicoForm` | a decidir |
-| `Pill` | a decidir |
-| `PixTardios` | a decidir |
-| `Progress` | a decidir |
-| `ReelsDaRifa` | a decidir |
-| `ReembolsoCard` | a decidir |
-| `SeloVerificado` | a decidir |
-| `SociosDaOrganizacaoCard` | a decidir |
-| `Sparkline` | a decidir |
-| `TabelaOuCartoes` | a decidir |
-| `TelefoneDoOrganizadorCard` | a decidir |
-| `TransmissaoCard` | a decidir |
-| `TrocarSenha` | a decidir |
-| `VerMais` | a decidir |
-| `VerificacaoCard` | a decidir |
-| `WhatsAppCard` | a decidir |
+| `Abas` | manter · peça do kit (onda 1) · na tela P01 Painel (visão geral) |
+| `AbrirEditorDeImagem` | manter · na tela P01 Painel (visão geral) · onda 2 |
+| `AdiarSorteioCard` | manter · na tela P01 Painel (visão geral) · onda 2 |
+| `AgendarPublicacaoCard` | manter · na tela P01 Painel (visão geral) · onda 2 |
+| `AlternarVisao` | manter · peça do kit (onda 1) · na tela P01 Painel (visão geral) |
+| `ArtesParaDivulgar` | manter · na tela P01 Painel (visão geral) · onda 2 |
+| `BannerDivulgacaoCard` | manter · na tela P01 Painel (visão geral) · onda 2 |
+| `BarrasHorizontais` | manter · peça do kit (onda 1) · na tela P01 Painel (visão geral) |
+| `Button` | manter · peça do kit (onda 1) · na tela P01 Painel (visão geral) |
+| `CabecalhoDaTabela` | manter · peça do kit (onda 1) · na tela P01 Painel (visão geral) |
+| `CampaignExtras` | manter · na tela P01 Painel (visão geral) · onda 2 |
+| `Card` | manter · peça do kit (onda 1) · na tela P01 Painel (visão geral) |
+| `CartaoDoPainel` | manter · peça do kit (onda 1) · na tela P01 Painel (visão geral) |
+| `CobrancaDaRifaCard` | manter · na tela P01 Painel (visão geral) · onda 2 |
+| `ComissaoCard` | manter · na tela P01 Painel (visão geral) · onda 2 |
+| `ContratoPromotoraCard` | manter · na tela P01 Painel (visão geral) · onda 2 |
+| `CoresDoSeloCard` | manter · na tela P01 Painel (visão geral) · onda 2 |
+| `DadosLegaisCard` | manter · na tela P01 Painel (visão geral) · onda 2 |
+| `DivulgacoesDaOrganizacao` | manter · na tela P01 Painel (visão geral) · onda 2 |
+| `EditarRifaCard` | manter · na tela P01 Painel (visão geral) · onda 2 |
+| `Empty` | manter · peça do kit (onda 1) · na tela P01 Painel (visão geral) |
+| `EnderecoCurto` | manter · na tela P01 Painel (visão geral) · onda 2 |
+| `EnderecoForm` | manter · na tela P01 Painel (visão geral) · onda 2 |
+| `Estatistica` | manter · peça do kit (onda 1) · na tela P01 Painel (visão geral) |
+| `LegendaCard` | manter · na tela P01 Painel (visão geral) · onda 2 |
+| `MediaManager` | manter · na tela P01 Painel (visão geral) · onda 2 |
+| `Money` | manter · peça do kit (onda 1) · na tela P01 Painel (visão geral) |
+| `PagamentosCard` | manter · na tela P01 Painel (visão geral) · onda 2 |
+| `PanelShell` | manter · peça do kit (onda 1) · na tela P01 Painel (visão geral) |
+| `PerfilPublicoForm` | manter · na tela P01 Painel (visão geral) · onda 2 |
+| `Pill` | manter · peça do kit (onda 1) · na tela P01 Painel (visão geral) |
+| `PixTardios` | manter · na tela P01 Painel (visão geral) · onda 2 |
+| `Progress` | manter · peça do kit (onda 1) · na tela P01 Painel (visão geral) |
+| `ReelsDaRifa` | manter · na tela P01 Painel (visão geral) · onda 2 |
+| `ReembolsoCard` | manter · na tela P01 Painel (visão geral) · onda 2 |
+| `SeloVerificado` | manter · peça do kit (onda 1) · na tela P01 Painel (visão geral) |
+| `SociosDaOrganizacaoCard` | manter · na tela P01 Painel (visão geral) · onda 2 |
+| `Sparkline` | manter · peça do kit (onda 1) · na tela P01 Painel (visão geral) |
+| `TabelaOuCartoes` | manter · peça do kit (onda 1) · na tela P01 Painel (visão geral) |
+| `TelefoneDoOrganizadorCard` | manter · na tela P01 Painel (visão geral) · onda 2 |
+| `TransmissaoCard` | manter · na tela P01 Painel (visão geral) · onda 2 |
+| `TrocarSenha` | manter · na tela P01 Painel (visão geral) · onda 2 |
+| `VerMais` | manter · peça do kit (onda 1) · na tela P01 Painel (visão geral) |
+| `VerificacaoCard` | manter · na tela P01 Painel (visão geral) · onda 2 |
+| `WhatsAppCard` | manter · na tela P01 Painel (visão geral) · onda 2 |
 
 ### `/admin/afiliados` — Afiliados
 
 | Cartão | Destino |
 |---|---|
-| `Abas` | a decidir |
-| `AbrirEditorDeImagem` | a decidir |
-| `AdiarSorteioCard` | a decidir |
-| `AgendarPublicacaoCard` | a decidir |
-| `AlternarVisao` | a decidir |
-| `ArtesParaDivulgar` | a decidir |
-| `BannerDivulgacaoCard` | a decidir |
-| `BarrasHorizontais` | a decidir |
-| `Button` | a decidir |
-| `CabecalhoDaTabela` | a decidir |
-| `CampaignExtras` | a decidir |
-| `Card` | a decidir |
-| `CartaoDoPainel` | a decidir |
-| `CobrancaDaRifaCard` | a decidir |
-| `ComissaoCard` | a decidir |
-| `ContratoPromotoraCard` | a decidir |
-| `CoresDoSeloCard` | a decidir |
-| `DadosLegaisCard` | a decidir |
-| `DivulgacoesDaOrganizacao` | a decidir |
-| `EditarRifaCard` | a decidir |
-| `Empty` | a decidir |
-| `EnderecoCurto` | a decidir |
-| `EnderecoForm` | a decidir |
-| `Estatistica` | a decidir |
-| `LegendaCard` | a decidir |
-| `MediaManager` | a decidir |
-| `Money` | a decidir |
-| `PagamentosCard` | a decidir |
-| `PanelShell` | a decidir |
-| `PerfilPublicoForm` | a decidir |
-| `Pill` | a decidir |
-| `PixTardios` | a decidir |
-| `Progress` | a decidir |
-| `ReelsDaRifa` | a decidir |
-| `ReembolsoCard` | a decidir |
-| `SeloVerificado` | a decidir |
-| `SociosDaOrganizacaoCard` | a decidir |
-| `Sparkline` | a decidir |
-| `TabelaOuCartoes` | a decidir |
-| `TelefoneDoOrganizadorCard` | a decidir |
-| `TransmissaoCard` | a decidir |
-| `TrocarSenha` | a decidir |
-| `VerMais` | a decidir |
-| `VerificacaoCard` | a decidir |
-| `WhatsAppCard` | a decidir |
+| `Abas` | manter · peça do kit (onda 1) · na tela P12 Afiliados |
+| `AbrirEditorDeImagem` | manter · na tela P12 Afiliados · onda 2 |
+| `AdiarSorteioCard` | manter · na tela P12 Afiliados · onda 2 |
+| `AgendarPublicacaoCard` | manter · na tela P12 Afiliados · onda 2 |
+| `AlternarVisao` | manter · peça do kit (onda 1) · na tela P12 Afiliados |
+| `ArtesParaDivulgar` | manter · na tela P12 Afiliados · onda 2 |
+| `BannerDivulgacaoCard` | manter · na tela P12 Afiliados · onda 2 |
+| `BarrasHorizontais` | manter · peça do kit (onda 1) · na tela P12 Afiliados |
+| `Button` | manter · peça do kit (onda 1) · na tela P12 Afiliados |
+| `CabecalhoDaTabela` | manter · peça do kit (onda 1) · na tela P12 Afiliados |
+| `CampaignExtras` | manter · na tela P12 Afiliados · onda 2 |
+| `Card` | manter · peça do kit (onda 1) · na tela P12 Afiliados |
+| `CartaoDoPainel` | manter · peça do kit (onda 1) · na tela P12 Afiliados |
+| `CobrancaDaRifaCard` | manter · na tela P12 Afiliados · onda 2 |
+| `ComissaoCard` | manter · na tela P12 Afiliados · onda 2 |
+| `ContratoPromotoraCard` | manter · na tela P12 Afiliados · onda 2 |
+| `CoresDoSeloCard` | manter · na tela P12 Afiliados · onda 2 |
+| `DadosLegaisCard` | manter · na tela P12 Afiliados · onda 2 |
+| `DivulgacoesDaOrganizacao` | manter · na tela P12 Afiliados · onda 2 |
+| `EditarRifaCard` | manter · na tela P12 Afiliados · onda 2 |
+| `Empty` | manter · peça do kit (onda 1) · na tela P12 Afiliados |
+| `EnderecoCurto` | manter · na tela P12 Afiliados · onda 2 |
+| `EnderecoForm` | manter · na tela P12 Afiliados · onda 2 |
+| `Estatistica` | manter · peça do kit (onda 1) · na tela P12 Afiliados |
+| `LegendaCard` | manter · na tela P12 Afiliados · onda 2 |
+| `MediaManager` | manter · na tela P12 Afiliados · onda 2 |
+| `Money` | manter · peça do kit (onda 1) · na tela P12 Afiliados |
+| `PagamentosCard` | manter · na tela P12 Afiliados · onda 2 |
+| `PanelShell` | manter · peça do kit (onda 1) · na tela P12 Afiliados |
+| `PerfilPublicoForm` | manter · na tela P12 Afiliados · onda 2 |
+| `Pill` | manter · peça do kit (onda 1) · na tela P12 Afiliados |
+| `PixTardios` | manter · na tela P12 Afiliados · onda 2 |
+| `Progress` | manter · peça do kit (onda 1) · na tela P12 Afiliados |
+| `ReelsDaRifa` | manter · na tela P12 Afiliados · onda 2 |
+| `ReembolsoCard` | manter · na tela P12 Afiliados · onda 2 |
+| `SeloVerificado` | manter · peça do kit (onda 1) · na tela P12 Afiliados |
+| `SociosDaOrganizacaoCard` | manter · na tela P12 Afiliados · onda 2 |
+| `Sparkline` | manter · peça do kit (onda 1) · na tela P12 Afiliados |
+| `TabelaOuCartoes` | manter · peça do kit (onda 1) · na tela P12 Afiliados |
+| `TelefoneDoOrganizadorCard` | manter · na tela P12 Afiliados · onda 2 |
+| `TransmissaoCard` | manter · na tela P12 Afiliados · onda 2 |
+| `TrocarSenha` | manter · na tela P12 Afiliados · onda 2 |
+| `VerMais` | manter · peça do kit (onda 1) · na tela P12 Afiliados |
+| `VerificacaoCard` | manter · na tela P12 Afiliados · onda 2 |
+| `WhatsAppCard` | manter · na tela P12 Afiliados · onda 2 |
 
 ### `/admin/antifraude` — Antifraude
 
 | Cartão | Destino |
 |---|---|
-| `Abas` | a decidir |
-| `Button` | a decidir |
-| `Card` | a decidir |
-| `Empty` | a decidir |
-| `Kpi` | a decidir |
-| `PanelShell` | a decidir |
-| `Pill` | a decidir |
+| `Abas` | manter · peça do kit (onda 1) · na tela P24 Antifraude (abas) |
+| `Button` | manter · peça do kit (onda 1) · na tela P24 Antifraude (abas) |
+| `Card` | manter · peça do kit (onda 1) · na tela P24 Antifraude (abas) |
+| `Empty` | manter · peça do kit (onda 1) · na tela P24 Antifraude (abas) |
+| `Kpi` | manter · peça do kit (onda 1) · na tela P24 Antifraude (abas) |
+| `PanelShell` | manter · peça do kit (onda 1) · na tela P24 Antifraude (abas) |
+| `Pill` | manter · peça do kit (onda 1) · na tela P24 Antifraude (abas) |
 
 ### `/admin/aparencia` — Aparência
 
 | Cartão | Destino |
 |---|---|
-| `Abas` | a decidir |
-| `AssistenteIACard` | a decidir |
-| `BannersCard` | a decidir |
-| `Button` | a decidir |
-| `Card` | a decidir |
-| `DadosDaEmpresaCard` | a decidir |
-| `PanelShell` | a decidir |
-| `Pill` | a decidir |
-| `TopoDoAppCard` | a decidir |
-| `UsoDoAssistenteCard` | a decidir |
+| `Abas` | manter · peça do kit (onda 1) · na tela P28 Aparência (abas) |
+| `AssistenteIACard` | manter · na tela P28 Aparência (abas) · onda 3 |
+| `BannersCard` | manter · na tela P28 Aparência (abas) · onda 3 |
+| `Button` | manter · peça do kit (onda 1) · na tela P28 Aparência (abas) |
+| `Card` | manter · peça do kit (onda 1) · na tela P28 Aparência (abas) |
+| `DadosDaEmpresaCard` | manter · na tela P28 Aparência (abas) · onda 3 |
+| `PanelShell` | manter · peça do kit (onda 1) · na tela P28 Aparência (abas) |
+| `Pill` | manter · peça do kit (onda 1) · na tela P28 Aparência (abas) |
+| `TopoDoAppCard` | manter · na tela P28 Aparência (abas) · onda 3 |
+| `UsoDoAssistenteCard` | manter · na tela P28 Aparência (abas) · onda 3 |
 
 ### `/admin/atendimento` — Atendimento
 
 | Cartão | Destino |
 |---|---|
-| `Button` | a decidir |
-| `Card` | a decidir |
-| `Conversa` | a decidir |
-| `DenunciasDaPlataforma` | a decidir |
-| `Empty` | a decidir |
-| `EntidadesDaPlataforma` | a decidir |
-| `MestreDetalhe` | a decidir |
-| `Money` | a decidir |
-| `PanelShell` | a decidir |
-| `Pill` | a decidir |
-| `SolicitacoesDeRifa` | a decidir |
-| `VerificacoesDaPlataforma` | a decidir |
+| `Button` | manter · peça do kit (onda 1) · na tela P20 Atendimento do organizador + P23 da plataforma (abas, 51-4545) |
+| `Card` | manter · peça do kit (onda 1) · na tela P20 Atendimento do organizador + P23 da plataforma (abas, 51-4545) |
+| `Conversa` | manter · na tela P20 Atendimento do organizador + P23 da plataforma (abas, 51-4545) · onda 2 |
+| `DenunciasDaPlataforma` | manter · na tela P20 Atendimento do organizador + P23 da plataforma (abas, 51-4545) · onda 2 |
+| `Empty` | manter · peça do kit (onda 1) · na tela P20 Atendimento do organizador + P23 da plataforma (abas, 51-4545) |
+| `EntidadesDaPlataforma` | manter · na tela P20 Atendimento do organizador + P23 da plataforma (abas, 51-4545) · onda 2 |
+| `MestreDetalhe` | manter · peça do kit (onda 1) · na tela P20 Atendimento do organizador + P23 da plataforma (abas, 51-4545) |
+| `Money` | manter · peça do kit (onda 1) · na tela P20 Atendimento do organizador + P23 da plataforma (abas, 51-4545) |
+| `PanelShell` | manter · peça do kit (onda 1) · na tela P20 Atendimento do organizador + P23 da plataforma (abas, 51-4545) |
+| `Pill` | manter · peça do kit (onda 1) · na tela P20 Atendimento do organizador + P23 da plataforma (abas, 51-4545) |
+| `SolicitacoesDeRifa` | manter · na tela P20 Atendimento do organizador + P23 da plataforma (abas, 51-4545) · onda 2 |
+| `VerificacoesDaPlataforma` | manter · na tela P20 Atendimento do organizador + P23 da plataforma (abas, 51-4545) · onda 2 |
 
 ### `/admin/bonus` — Bônus
 
 | Cartão | Destino |
 |---|---|
-| `Button` | a decidir |
-| `Card` | a decidir |
-| `Empty` | a decidir |
-| `PanelShell` | a decidir |
-| `Pill` | a decidir |
+| `Button` | manter · peça do kit (onda 1) · na tela P27 Bônus |
+| `Card` | manter · peça do kit (onda 1) · na tela P27 Bônus |
+| `Empty` | manter · peça do kit (onda 1) · na tela P27 Bônus |
+| `PanelShell` | manter · peça do kit (onda 1) · na tela P27 Bônus |
+| `Pill` | manter · peça do kit (onda 1) · na tela P27 Bônus |
 
 ### `/admin/caixa` — Tudo
 
 | Cartão | Destino |
 |---|---|
-| `CabecalhoDaTabela` | a decidir |
-| `CartaoDoPainel` | a decidir |
-| `Empty` | a decidir |
-| `PanelShell` | a decidir |
+| `CabecalhoDaTabela` | manter · peça do kit (onda 1) · na tela P22 Caixa de entrada |
+| `CartaoDoPainel` | manter · peça do kit (onda 1) · na tela P22 Caixa de entrada |
+| `Empty` | manter · peça do kit (onda 1) · na tela P22 Caixa de entrada |
+| `Filtros` | manter · peça do kit (onda 1) · na tela P22 Caixa de entrada |
+| `PanelShell` | manter · peça do kit (onda 1) · na tela P22 Caixa de entrada |
 
 ### `/admin/cambistas` — Cambistas
 
 | Cartão | Destino |
 |---|---|
-| `Button` | a decidir |
-| `Card` | a decidir |
-| `Empty` | a decidir |
-| `Money` | a decidir |
-| `PanelShell` | a decidir |
-| `Pill` | a decidir |
+| `Button` | manter · peça do kit (onda 1) · na tela P13 Cambistas |
+| `Card` | manter · peça do kit (onda 1) · na tela P13 Cambistas |
+| `Empty` | manter · peça do kit (onda 1) · na tela P13 Cambistas |
+| `Money` | manter · peça do kit (onda 1) · na tela P13 Cambistas |
+| `PanelShell` | manter · peça do kit (onda 1) · na tela P13 Cambistas |
+| `Pill` | manter · peça do kit (onda 1) · na tela P13 Cambistas |
 
 ### `/admin/campanhas` — Campanhas
 
 | Cartão | Destino |
 |---|---|
-| `Abas` | a decidir |
-| `AbrirEditorDeImagem` | a decidir |
-| `AdiarSorteioCard` | a decidir |
-| `AgendarPublicacaoCard` | a decidir |
-| `AlternarVisao` | a decidir |
-| `ArtesParaDivulgar` | a decidir |
-| `BannerDivulgacaoCard` | a decidir |
-| `BarrasHorizontais` | a decidir |
-| `Button` | a decidir |
-| `CabecalhoDaTabela` | a decidir |
-| `CampaignExtras` | a decidir |
-| `Card` | a decidir |
-| `CartaoDoPainel` | a decidir |
-| `CobrancaDaRifaCard` | a decidir |
-| `ComissaoCard` | a decidir |
-| `ContratoPromotoraCard` | a decidir |
-| `CoresDoSeloCard` | a decidir |
-| `DadosLegaisCard` | a decidir |
-| `DivulgacoesDaOrganizacao` | a decidir |
-| `EditarRifaCard` | a decidir |
-| `Empty` | a decidir |
-| `EnderecoCurto` | a decidir |
-| `EnderecoForm` | a decidir |
-| `Estatistica` | a decidir |
-| `LegendaCard` | a decidir |
-| `MediaManager` | a decidir |
-| `Money` | a decidir |
-| `PagamentosCard` | a decidir |
-| `PanelShell` | a decidir |
-| `PerfilPublicoForm` | a decidir |
-| `Pill` | a decidir |
-| `PixTardios` | a decidir |
-| `Progress` | a decidir |
-| `ReelsDaRifa` | a decidir |
-| `ReembolsoCard` | a decidir |
-| `SeloVerificado` | a decidir |
-| `SociosDaOrganizacaoCard` | a decidir |
-| `Sparkline` | a decidir |
-| `TabelaOuCartoes` | a decidir |
-| `TelefoneDoOrganizadorCard` | a decidir |
-| `TransmissaoCard` | a decidir |
-| `TrocarSenha` | a decidir |
-| `VerMais` | a decidir |
-| `VerificacaoCard` | a decidir |
-| `WhatsAppCard` | a decidir |
+| `Abas` | manter · peça do kit (onda 1) · na tela P02 Rifas (grade de capas) + P03 Editar rifa (abas, 54-4503) |
+| `AbrirEditorDeImagem` | manter · na tela P02 Rifas (grade de capas) + P03 Editar rifa (abas, 54-4503) · onda 2 |
+| `AdiarSorteioCard` | manter · na tela P02 Rifas (grade de capas) + P03 Editar rifa (abas, 54-4503) · onda 2 |
+| `AgendarPublicacaoCard` | manter · na tela P02 Rifas (grade de capas) + P03 Editar rifa (abas, 54-4503) · onda 2 |
+| `AlternarVisao` | manter · peça do kit (onda 1) · na tela P02 Rifas (grade de capas) + P03 Editar rifa (abas, 54-4503) |
+| `ArtesParaDivulgar` | manter · na tela P02 Rifas (grade de capas) + P03 Editar rifa (abas, 54-4503) · onda 2 |
+| `BannerDivulgacaoCard` | manter · na tela P02 Rifas (grade de capas) + P03 Editar rifa (abas, 54-4503) · onda 2 |
+| `BarrasHorizontais` | manter · peça do kit (onda 1) · na tela P02 Rifas (grade de capas) + P03 Editar rifa (abas, 54-4503) |
+| `Button` | manter · peça do kit (onda 1) · na tela P02 Rifas (grade de capas) + P03 Editar rifa (abas, 54-4503) |
+| `CabecalhoDaTabela` | manter · peça do kit (onda 1) · na tela P02 Rifas (grade de capas) + P03 Editar rifa (abas, 54-4503) |
+| `CampaignExtras` | manter · na tela P02 Rifas (grade de capas) + P03 Editar rifa (abas, 54-4503) · onda 2 |
+| `Card` | manter · peça do kit (onda 1) · na tela P02 Rifas (grade de capas) + P03 Editar rifa (abas, 54-4503) |
+| `CartaoDoPainel` | manter · peça do kit (onda 1) · na tela P02 Rifas (grade de capas) + P03 Editar rifa (abas, 54-4503) |
+| `CobrancaDaRifaCard` | manter · na tela P02 Rifas (grade de capas) + P03 Editar rifa (abas, 54-4503) · onda 2 |
+| `ComissaoCard` | manter · na tela P02 Rifas (grade de capas) + P03 Editar rifa (abas, 54-4503) · onda 2 |
+| `ContratoPromotoraCard` | manter · na tela P02 Rifas (grade de capas) + P03 Editar rifa (abas, 54-4503) · onda 2 |
+| `CoresDoSeloCard` | manter · na tela P02 Rifas (grade de capas) + P03 Editar rifa (abas, 54-4503) · onda 2 |
+| `DadosLegaisCard` | manter · na tela P02 Rifas (grade de capas) + P03 Editar rifa (abas, 54-4503) · onda 2 |
+| `DivulgacoesDaOrganizacao` | manter · na tela P02 Rifas (grade de capas) + P03 Editar rifa (abas, 54-4503) · onda 2 |
+| `EditarRifaCard` | manter · na tela P02 Rifas (grade de capas) + P03 Editar rifa (abas, 54-4503) · onda 2 |
+| `Empty` | manter · peça do kit (onda 1) · na tela P02 Rifas (grade de capas) + P03 Editar rifa (abas, 54-4503) |
+| `EnderecoCurto` | manter · na tela P02 Rifas (grade de capas) + P03 Editar rifa (abas, 54-4503) · onda 2 |
+| `EnderecoForm` | manter · na tela P02 Rifas (grade de capas) + P03 Editar rifa (abas, 54-4503) · onda 2 |
+| `Estatistica` | manter · peça do kit (onda 1) · na tela P02 Rifas (grade de capas) + P03 Editar rifa (abas, 54-4503) |
+| `LegendaCard` | manter · na tela P02 Rifas (grade de capas) + P03 Editar rifa (abas, 54-4503) · onda 2 |
+| `MediaManager` | manter · na tela P02 Rifas (grade de capas) + P03 Editar rifa (abas, 54-4503) · onda 2 |
+| `Money` | manter · peça do kit (onda 1) · na tela P02 Rifas (grade de capas) + P03 Editar rifa (abas, 54-4503) |
+| `PagamentosCard` | manter · na tela P02 Rifas (grade de capas) + P03 Editar rifa (abas, 54-4503) · onda 2 |
+| `PanelShell` | manter · peça do kit (onda 1) · na tela P02 Rifas (grade de capas) + P03 Editar rifa (abas, 54-4503) |
+| `PerfilPublicoForm` | manter · na tela P02 Rifas (grade de capas) + P03 Editar rifa (abas, 54-4503) · onda 2 |
+| `Pill` | manter · peça do kit (onda 1) · na tela P02 Rifas (grade de capas) + P03 Editar rifa (abas, 54-4503) |
+| `PixTardios` | manter · na tela P02 Rifas (grade de capas) + P03 Editar rifa (abas, 54-4503) · onda 2 |
+| `Progress` | manter · peça do kit (onda 1) · na tela P02 Rifas (grade de capas) + P03 Editar rifa (abas, 54-4503) |
+| `ReelsDaRifa` | manter · na tela P02 Rifas (grade de capas) + P03 Editar rifa (abas, 54-4503) · onda 2 |
+| `ReembolsoCard` | manter · na tela P02 Rifas (grade de capas) + P03 Editar rifa (abas, 54-4503) · onda 2 |
+| `SeloVerificado` | manter · peça do kit (onda 1) · na tela P02 Rifas (grade de capas) + P03 Editar rifa (abas, 54-4503) |
+| `SociosDaOrganizacaoCard` | manter · na tela P02 Rifas (grade de capas) + P03 Editar rifa (abas, 54-4503) · onda 2 |
+| `Sparkline` | manter · peça do kit (onda 1) · na tela P02 Rifas (grade de capas) + P03 Editar rifa (abas, 54-4503) |
+| `TabelaOuCartoes` | manter · peça do kit (onda 1) · na tela P02 Rifas (grade de capas) + P03 Editar rifa (abas, 54-4503) |
+| `TelefoneDoOrganizadorCard` | manter · na tela P02 Rifas (grade de capas) + P03 Editar rifa (abas, 54-4503) · onda 2 |
+| `TransmissaoCard` | manter · na tela P02 Rifas (grade de capas) + P03 Editar rifa (abas, 54-4503) · onda 2 |
+| `TrocarSenha` | manter · na tela P02 Rifas (grade de capas) + P03 Editar rifa (abas, 54-4503) · onda 2 |
+| `VerMais` | manter · peça do kit (onda 1) · na tela P02 Rifas (grade de capas) + P03 Editar rifa (abas, 54-4503) |
+| `VerificacaoCard` | manter · na tela P02 Rifas (grade de capas) + P03 Editar rifa (abas, 54-4503) · onda 2 |
+| `WhatsAppCard` | manter · na tela P02 Rifas (grade de capas) + P03 Editar rifa (abas, 54-4503) · onda 2 |
 
 ### `/admin/cobranca` — Cobrança
 
 | Cartão | Destino |
 |---|---|
-| `Button` | a decidir |
-| `Campo` | a decidir |
-| `Card` | a decidir |
-| `Empty` | a decidir |
-| `Kpi` | a decidir |
-| `Money` | a decidir |
-| `PanelShell` | a decidir |
-| `Pill` | a decidir |
-| `RetencoesCautelares` | a decidir |
-| `TabelaOuCartoes` | a decidir |
-| `VerMais` | a decidir |
+| `Button` | manter · peça do kit (onda 1) · na tela P10 Cobrança |
+| `Campo` | manter · peça do kit (onda 1) · na tela P10 Cobrança |
+| `Card` | manter · peça do kit (onda 1) · na tela P10 Cobrança |
+| `Empty` | manter · peça do kit (onda 1) · na tela P10 Cobrança |
+| `Kpi` | manter · peça do kit (onda 1) · na tela P10 Cobrança |
+| `Money` | manter · peça do kit (onda 1) · na tela P10 Cobrança |
+| `PanelShell` | manter · peça do kit (onda 1) · na tela P10 Cobrança |
+| `Pill` | manter · peça do kit (onda 1) · na tela P10 Cobrança |
+| `RetencoesCautelares` | manter · na tela P10 Cobrança · onda 2 |
+| `TabelaOuCartoes` | manter · peça do kit (onda 1) · na tela P10 Cobrança |
+| `VerMais` | manter · peça do kit (onda 1) · na tela P10 Cobrança |
 
 ### `/admin/configuracoes` — Configurações
 
 | Cartão | Destino |
 |---|---|
-| `Abas` | a decidir |
-| `AbrirEditorDeImagem` | a decidir |
-| `AdiarSorteioCard` | a decidir |
-| `AgendarPublicacaoCard` | a decidir |
-| `AlternarVisao` | a decidir |
-| `ArtesParaDivulgar` | a decidir |
-| `BannerDivulgacaoCard` | a decidir |
-| `BarrasHorizontais` | a decidir |
-| `Button` | a decidir |
-| `CabecalhoDaTabela` | a decidir |
-| `CampaignExtras` | a decidir |
-| `Card` | a decidir |
-| `CartaoDoPainel` | a decidir |
-| `CobrancaDaRifaCard` | a decidir |
-| `ComissaoCard` | a decidir |
-| `ContratoPromotoraCard` | a decidir |
-| `CoresDoSeloCard` | a decidir |
-| `DadosLegaisCard` | a decidir |
-| `DivulgacoesDaOrganizacao` | a decidir |
-| `EditarRifaCard` | a decidir |
-| `Empty` | a decidir |
-| `EnderecoCurto` | a decidir |
-| `EnderecoForm` | a decidir |
-| `Estatistica` | a decidir |
-| `LegendaCard` | a decidir |
-| `MediaManager` | a decidir |
-| `Money` | a decidir |
-| `PagamentosCard` | a decidir |
-| `PanelShell` | a decidir |
-| `PerfilPublicoForm` | a decidir |
-| `Pill` | a decidir |
-| `PixTardios` | a decidir |
-| `Progress` | a decidir |
-| `ReelsDaRifa` | a decidir |
-| `ReembolsoCard` | a decidir |
-| `SeloVerificado` | a decidir |
-| `SociosDaOrganizacaoCard` | a decidir |
-| `Sparkline` | a decidir |
-| `TabelaOuCartoes` | a decidir |
-| `TelefoneDoOrganizadorCard` | a decidir |
-| `TransmissaoCard` | a decidir |
-| `TrocarSenha` | a decidir |
-| `VerMais` | a decidir |
-| `VerificacaoCard` | a decidir |
-| `WhatsAppCard` | a decidir |
+| `Abas` | manter · peça do kit (onda 1) · na tela P15 Configurações do organizador (abas) + P29 da plataforma (51-5240) |
+| `AbrirEditorDeImagem` | manter · na tela P15 Configurações do organizador (abas) + P29 da plataforma (51-5240) · onda 2 |
+| `AdiarSorteioCard` | manter · na tela P15 Configurações do organizador (abas) + P29 da plataforma (51-5240) · onda 2 |
+| `AgendarPublicacaoCard` | manter · na tela P15 Configurações do organizador (abas) + P29 da plataforma (51-5240) · onda 2 |
+| `AlternarVisao` | manter · peça do kit (onda 1) · na tela P15 Configurações do organizador (abas) + P29 da plataforma (51-5240) |
+| `ArtesParaDivulgar` | manter · na tela P15 Configurações do organizador (abas) + P29 da plataforma (51-5240) · onda 2 |
+| `BannerDivulgacaoCard` | manter · na tela P15 Configurações do organizador (abas) + P29 da plataforma (51-5240) · onda 2 |
+| `BarrasHorizontais` | manter · peça do kit (onda 1) · na tela P15 Configurações do organizador (abas) + P29 da plataforma (51-5240) |
+| `Button` | manter · peça do kit (onda 1) · na tela P15 Configurações do organizador (abas) + P29 da plataforma (51-5240) |
+| `CabecalhoDaTabela` | manter · peça do kit (onda 1) · na tela P15 Configurações do organizador (abas) + P29 da plataforma (51-5240) |
+| `CampaignExtras` | manter · na tela P15 Configurações do organizador (abas) + P29 da plataforma (51-5240) · onda 2 |
+| `Card` | manter · peça do kit (onda 1) · na tela P15 Configurações do organizador (abas) + P29 da plataforma (51-5240) |
+| `CartaoDoPainel` | manter · peça do kit (onda 1) · na tela P15 Configurações do organizador (abas) + P29 da plataforma (51-5240) |
+| `CobrancaDaRifaCard` | manter · na tela P15 Configurações do organizador (abas) + P29 da plataforma (51-5240) · onda 2 |
+| `ComissaoCard` | manter · na tela P15 Configurações do organizador (abas) + P29 da plataforma (51-5240) · onda 2 |
+| `ContratoPromotoraCard` | manter · na tela P15 Configurações do organizador (abas) + P29 da plataforma (51-5240) · onda 2 |
+| `CoresDoSeloCard` | manter · na tela P15 Configurações do organizador (abas) + P29 da plataforma (51-5240) · onda 2 |
+| `DadosLegaisCard` | manter · na tela P15 Configurações do organizador (abas) + P29 da plataforma (51-5240) · onda 2 |
+| `DivulgacoesDaOrganizacao` | manter · na tela P15 Configurações do organizador (abas) + P29 da plataforma (51-5240) · onda 2 |
+| `EditarRifaCard` | manter · na tela P15 Configurações do organizador (abas) + P29 da plataforma (51-5240) · onda 2 |
+| `Empty` | manter · peça do kit (onda 1) · na tela P15 Configurações do organizador (abas) + P29 da plataforma (51-5240) |
+| `EnderecoCurto` | manter · na tela P15 Configurações do organizador (abas) + P29 da plataforma (51-5240) · onda 2 |
+| `EnderecoForm` | manter · na tela P15 Configurações do organizador (abas) + P29 da plataforma (51-5240) · onda 2 |
+| `Estatistica` | manter · peça do kit (onda 1) · na tela P15 Configurações do organizador (abas) + P29 da plataforma (51-5240) |
+| `LegendaCard` | manter · na tela P15 Configurações do organizador (abas) + P29 da plataforma (51-5240) · onda 2 |
+| `MediaManager` | manter · na tela P15 Configurações do organizador (abas) + P29 da plataforma (51-5240) · onda 2 |
+| `Money` | manter · peça do kit (onda 1) · na tela P15 Configurações do organizador (abas) + P29 da plataforma (51-5240) |
+| `PagamentosCard` | manter · na tela P15 Configurações do organizador (abas) + P29 da plataforma (51-5240) · onda 2 |
+| `PanelShell` | manter · peça do kit (onda 1) · na tela P15 Configurações do organizador (abas) + P29 da plataforma (51-5240) |
+| `PerfilPublicoForm` | manter · na tela P15 Configurações do organizador (abas) + P29 da plataforma (51-5240) · onda 2 |
+| `Pill` | manter · peça do kit (onda 1) · na tela P15 Configurações do organizador (abas) + P29 da plataforma (51-5240) |
+| `PixTardios` | manter · na tela P15 Configurações do organizador (abas) + P29 da plataforma (51-5240) · onda 2 |
+| `Progress` | manter · peça do kit (onda 1) · na tela P15 Configurações do organizador (abas) + P29 da plataforma (51-5240) |
+| `ReelsDaRifa` | manter · na tela P15 Configurações do organizador (abas) + P29 da plataforma (51-5240) · onda 2 |
+| `ReembolsoCard` | manter · na tela P15 Configurações do organizador (abas) + P29 da plataforma (51-5240) · onda 2 |
+| `SeloVerificado` | manter · peça do kit (onda 1) · na tela P15 Configurações do organizador (abas) + P29 da plataforma (51-5240) |
+| `SociosDaOrganizacaoCard` | manter · na tela P15 Configurações do organizador (abas) + P29 da plataforma (51-5240) · onda 2 |
+| `Sparkline` | manter · peça do kit (onda 1) · na tela P15 Configurações do organizador (abas) + P29 da plataforma (51-5240) |
+| `TabelaOuCartoes` | manter · peça do kit (onda 1) · na tela P15 Configurações do organizador (abas) + P29 da plataforma (51-5240) |
+| `TelefoneDoOrganizadorCard` | manter · na tela P15 Configurações do organizador (abas) + P29 da plataforma (51-5240) · onda 2 |
+| `TransmissaoCard` | manter · na tela P15 Configurações do organizador (abas) + P29 da plataforma (51-5240) · onda 2 |
+| `TrocarSenha` | manter · na tela P15 Configurações do organizador (abas) + P29 da plataforma (51-5240) · onda 2 |
+| `VerMais` | manter · peça do kit (onda 1) · na tela P15 Configurações do organizador (abas) + P29 da plataforma (51-5240) |
+| `VerificacaoCard` | manter · na tela P15 Configurações do organizador (abas) + P29 da plataforma (51-5240) · onda 2 |
+| `WhatsAppCard` | manter · na tela P15 Configurações do organizador (abas) + P29 da plataforma (51-5240) · onda 2 |
 
 ### `/admin/exportacoes` — Exportações
 
 | Cartão | Destino |
 |---|---|
-| `Button` | a decidir |
-| `Card` | a decidir |
-| `PanelShell` | a decidir |
-| `Pill` | a decidir |
+| `Button` | manter · peça do kit (onda 1) · na tela P11 Exportações |
+| `Card` | manter · peça do kit (onda 1) · na tela P11 Exportações |
+| `PanelShell` | manter · peça do kit (onda 1) · na tela P11 Exportações |
+| `Pill` | manter · peça do kit (onda 1) · na tela P11 Exportações |
 
 ### `/admin/financeiro` — Financeiro
 
 | Cartão | Destino |
 |---|---|
-| `Abas` | a decidir |
-| `AbrirEditorDeImagem` | a decidir |
-| `AdiarSorteioCard` | a decidir |
-| `AgendarPublicacaoCard` | a decidir |
-| `AlternarVisao` | a decidir |
-| `ArtesParaDivulgar` | a decidir |
-| `BannerDivulgacaoCard` | a decidir |
-| `BarrasHorizontais` | a decidir |
-| `Button` | a decidir |
-| `CabecalhoDaTabela` | a decidir |
-| `CampaignExtras` | a decidir |
-| `Card` | a decidir |
-| `CartaoDoPainel` | a decidir |
-| `CobrancaDaRifaCard` | a decidir |
-| `ComissaoCard` | a decidir |
-| `ContratoPromotoraCard` | a decidir |
-| `CoresDoSeloCard` | a decidir |
-| `DadosLegaisCard` | a decidir |
-| `DivulgacoesDaOrganizacao` | a decidir |
-| `EditarRifaCard` | a decidir |
-| `Empty` | a decidir |
-| `EnderecoCurto` | a decidir |
-| `EnderecoForm` | a decidir |
-| `Estatistica` | a decidir |
-| `LegendaCard` | a decidir |
-| `MediaManager` | a decidir |
-| `Money` | a decidir |
-| `PagamentosCard` | a decidir |
-| `PanelShell` | a decidir |
-| `PerfilPublicoForm` | a decidir |
-| `Pill` | a decidir |
-| `PixTardios` | a decidir |
-| `Progress` | a decidir |
-| `ReelsDaRifa` | a decidir |
-| `ReembolsoCard` | a decidir |
-| `SeloVerificado` | a decidir |
-| `SociosDaOrganizacaoCard` | a decidir |
-| `Sparkline` | a decidir |
-| `TabelaOuCartoes` | a decidir |
-| `TelefoneDoOrganizadorCard` | a decidir |
-| `TransmissaoCard` | a decidir |
-| `TrocarSenha` | a decidir |
-| `VerMais` | a decidir |
-| `VerificacaoCard` | a decidir |
-| `WhatsAppCard` | a decidir |
+| `Abas` | manter · peça do kit (onda 1) · na tela P09 Financeiro |
+| `AbrirEditorDeImagem` | manter · na tela P09 Financeiro · onda 2 |
+| `AdiarSorteioCard` | manter · na tela P09 Financeiro · onda 2 |
+| `AgendarPublicacaoCard` | manter · na tela P09 Financeiro · onda 2 |
+| `AlternarVisao` | manter · peça do kit (onda 1) · na tela P09 Financeiro |
+| `ArtesParaDivulgar` | manter · na tela P09 Financeiro · onda 2 |
+| `BannerDivulgacaoCard` | manter · na tela P09 Financeiro · onda 2 |
+| `BarrasHorizontais` | manter · peça do kit (onda 1) · na tela P09 Financeiro |
+| `Button` | manter · peça do kit (onda 1) · na tela P09 Financeiro |
+| `CabecalhoDaTabela` | manter · peça do kit (onda 1) · na tela P09 Financeiro |
+| `CampaignExtras` | manter · na tela P09 Financeiro · onda 2 |
+| `Card` | manter · peça do kit (onda 1) · na tela P09 Financeiro |
+| `CartaoDoPainel` | manter · peça do kit (onda 1) · na tela P09 Financeiro |
+| `CobrancaDaRifaCard` | manter · na tela P09 Financeiro · onda 2 |
+| `ComissaoCard` | manter · na tela P09 Financeiro · onda 2 |
+| `ContratoPromotoraCard` | manter · na tela P09 Financeiro · onda 2 |
+| `CoresDoSeloCard` | manter · na tela P09 Financeiro · onda 2 |
+| `DadosLegaisCard` | manter · na tela P09 Financeiro · onda 2 |
+| `DivulgacoesDaOrganizacao` | manter · na tela P09 Financeiro · onda 2 |
+| `EditarRifaCard` | manter · na tela P09 Financeiro · onda 2 |
+| `Empty` | manter · peça do kit (onda 1) · na tela P09 Financeiro |
+| `EnderecoCurto` | manter · na tela P09 Financeiro · onda 2 |
+| `EnderecoForm` | manter · na tela P09 Financeiro · onda 2 |
+| `Estatistica` | manter · peça do kit (onda 1) · na tela P09 Financeiro |
+| `LegendaCard` | manter · na tela P09 Financeiro · onda 2 |
+| `MediaManager` | manter · na tela P09 Financeiro · onda 2 |
+| `Money` | manter · peça do kit (onda 1) · na tela P09 Financeiro |
+| `PagamentosCard` | manter · na tela P09 Financeiro · onda 2 |
+| `PanelShell` | manter · peça do kit (onda 1) · na tela P09 Financeiro |
+| `PerfilPublicoForm` | manter · na tela P09 Financeiro · onda 2 |
+| `Pill` | manter · peça do kit (onda 1) · na tela P09 Financeiro |
+| `PixTardios` | manter · na tela P09 Financeiro · onda 2 |
+| `Progress` | manter · peça do kit (onda 1) · na tela P09 Financeiro |
+| `ReelsDaRifa` | manter · na tela P09 Financeiro · onda 2 |
+| `ReembolsoCard` | manter · na tela P09 Financeiro · onda 2 |
+| `SeloVerificado` | manter · peça do kit (onda 1) · na tela P09 Financeiro |
+| `SociosDaOrganizacaoCard` | manter · na tela P09 Financeiro · onda 2 |
+| `Sparkline` | manter · peça do kit (onda 1) · na tela P09 Financeiro |
+| `TabelaOuCartoes` | manter · peça do kit (onda 1) · na tela P09 Financeiro |
+| `TelefoneDoOrganizadorCard` | manter · na tela P09 Financeiro · onda 2 |
+| `TransmissaoCard` | manter · na tela P09 Financeiro · onda 2 |
+| `TrocarSenha` | manter · na tela P09 Financeiro · onda 2 |
+| `VerMais` | manter · peça do kit (onda 1) · na tela P09 Financeiro |
+| `VerificacaoCard` | manter · na tela P09 Financeiro · onda 2 |
+| `WhatsAppCard` | manter · na tela P09 Financeiro · onda 2 |
 
 ### `/admin/fiscal` — Cadastros fiscais
 
 | Cartão | Destino |
 |---|---|
-| `Button` | a decidir |
-| `Card` | a decidir |
-| `Empty` | a decidir |
-| `PanelShell` | a decidir |
-| `Pill` | a decidir |
+| `Button` | manter · peça do kit (onda 1) · na tela P26 Cadastros fiscais |
+| `Card` | manter · peça do kit (onda 1) · na tela P26 Cadastros fiscais |
+| `Empty` | manter · peça do kit (onda 1) · na tela P26 Cadastros fiscais |
+| `PanelShell` | manter · peça do kit (onda 1) · na tela P26 Cadastros fiscais |
+| `Pill` | manter · peça do kit (onda 1) · na tela P26 Cadastros fiscais |
 
 ### `/admin/marketing` — Medição e campanhas
 
 | Cartão | Destino |
 |---|---|
-| `Button` | a decidir |
-| `Card` | a decidir |
-| `Empty` | a decidir |
-| `PanelShell` | a decidir |
-| `Pill` | a decidir |
+| `Button` | manter · peça do kit (onda 1) · na tela P19 Medição e campanhas |
+| `Card` | manter · peça do kit (onda 1) · na tela P19 Medição e campanhas |
+| `Empty` | manter · peça do kit (onda 1) · na tela P19 Medição e campanhas |
+| `PanelShell` | manter · peça do kit (onda 1) · na tela P19 Medição e campanhas |
+| `Pill` | manter · peça do kit (onda 1) · na tela P19 Medição e campanhas |
 
 ### `/admin/marketing/ia` — Marketing AI
 
 | Cartão | Destino |
 |---|---|
-| `AbrirEditorDeImagem` | a decidir |
-| `ArtesParaDivulgar` | a decidir |
-| `Card` | a decidir |
-| `Empty` | a decidir |
-| `PanelShell` | a decidir |
-| `Pill` | a decidir |
-| `ReelsDaRifa` | a decidir |
+| `AbrirEditorDeImagem` | manter · na tela P17 Marketing AI · onda 2 |
+| `ArtesParaDivulgar` | manter · na tela P17 Marketing AI · onda 2 |
+| `Card` | manter · peça do kit (onda 1) · na tela P17 Marketing AI |
+| `Empty` | manter · peça do kit (onda 1) · na tela P17 Marketing AI |
+| `PanelShell` | manter · peça do kit (onda 1) · na tela P17 Marketing AI |
+| `Pill` | manter · peça do kit (onda 1) · na tela P17 Marketing AI |
+| `ReelsDaRifa` | manter · na tela P17 Marketing AI · onda 2 |
 
 ### `/admin/marketing/publicidade` — Publicidade
 
 | Cartão | Destino |
 |---|---|
-| `Abas` | a decidir |
-| `PanelShell` | a decidir |
+| `Abas` | manter · peça do kit (onda 1) · na tela P18 Publicidade (abas) |
+| `PanelShell` | manter · peça do kit (onda 1) · na tela P18 Publicidade (abas) |
 
 ### `/admin/marketing/trafego` — Tráfego pago
 
 | Cartão | Destino |
 |---|---|
-| `Button` | a decidir |
-| `Campo` | a decidir |
-| `Card` | a decidir |
-| `Empty` | a decidir |
-| `Money` | a decidir |
-| `PanelShell` | a decidir |
-| `Pill` | a decidir |
-| `Progress` | a decidir |
+| `Button` | manter · peça do kit (onda 1) · na tela P16 Tráfego pago |
+| `Campo` | manter · peça do kit (onda 1) · na tela P16 Tráfego pago |
+| `Card` | manter · peça do kit (onda 1) · na tela P16 Tráfego pago |
+| `Empty` | manter · peça do kit (onda 1) · na tela P16 Tráfego pago |
+| `Money` | manter · peça do kit (onda 1) · na tela P16 Tráfego pago |
+| `PanelShell` | manter · peça do kit (onda 1) · na tela P16 Tráfego pago |
+| `Pill` | manter · peça do kit (onda 1) · na tela P16 Tráfego pago |
+| `Progress` | manter · peça do kit (onda 1) · na tela P16 Tráfego pago |
 
 ### `/admin/organizacoes` — Organizações
 
 | Cartão | Destino |
 |---|---|
-| `AprovarTelefone` | a decidir |
-| `Button` | a decidir |
-| `Card` | a decidir |
-| `Empty` | a decidir |
-| `EnderecoForm` | a decidir |
-| `PanelShell` | a decidir |
-| `PerfilPublicoForm` | a decidir |
-| `Pill` | a decidir |
+| `AprovarTelefone` | manter · na tela P25 Organizações · onda 3 |
+| `Button` | manter · peça do kit (onda 1) · na tela P25 Organizações |
+| `Card` | manter · peça do kit (onda 1) · na tela P25 Organizações |
+| `Empty` | manter · peça do kit (onda 1) · na tela P25 Organizações |
+| `EnderecoForm` | manter · na tela P25 Organizações · onda 3 |
+| `PanelShell` | manter · peça do kit (onda 1) · na tela P25 Organizações |
+| `PerfilPublicoForm` | manter · na tela P25 Organizações · onda 3 |
+| `Pill` | manter · peça do kit (onda 1) · na tela P25 Organizações |
 
 ### `/admin/pedidos` — Pedidos
 
 | Cartão | Destino |
 |---|---|
-| `Abas` | a decidir |
-| `AbrirEditorDeImagem` | a decidir |
-| `AdiarSorteioCard` | a decidir |
-| `AgendarPublicacaoCard` | a decidir |
-| `AlternarVisao` | a decidir |
-| `ArtesParaDivulgar` | a decidir |
-| `BannerDivulgacaoCard` | a decidir |
-| `BarrasHorizontais` | a decidir |
-| `Button` | a decidir |
-| `CabecalhoDaTabela` | a decidir |
-| `CampaignExtras` | a decidir |
-| `Card` | a decidir |
-| `CartaoDoPainel` | a decidir |
-| `CobrancaDaRifaCard` | a decidir |
-| `ComissaoCard` | a decidir |
-| `ContratoPromotoraCard` | a decidir |
-| `CoresDoSeloCard` | a decidir |
-| `DadosLegaisCard` | a decidir |
-| `DivulgacoesDaOrganizacao` | a decidir |
-| `EditarRifaCard` | a decidir |
-| `Empty` | a decidir |
-| `EnderecoCurto` | a decidir |
-| `EnderecoForm` | a decidir |
-| `Estatistica` | a decidir |
-| `LegendaCard` | a decidir |
-| `MediaManager` | a decidir |
-| `Money` | a decidir |
-| `PagamentosCard` | a decidir |
-| `PanelShell` | a decidir |
-| `PerfilPublicoForm` | a decidir |
-| `Pill` | a decidir |
-| `PixTardios` | a decidir |
-| `Progress` | a decidir |
-| `ReelsDaRifa` | a decidir |
-| `ReembolsoCard` | a decidir |
-| `SeloVerificado` | a decidir |
-| `SociosDaOrganizacaoCard` | a decidir |
-| `Sparkline` | a decidir |
-| `TabelaOuCartoes` | a decidir |
-| `TelefoneDoOrganizadorCard` | a decidir |
-| `TransmissaoCard` | a decidir |
-| `TrocarSenha` | a decidir |
-| `VerMais` | a decidir |
-| `VerificacaoCard` | a decidir |
-| `WhatsAppCard` | a decidir |
+| `Abas` | manter · peça do kit (onda 1) · na tela P04 Pedidos |
+| `AbrirEditorDeImagem` | manter · na tela P04 Pedidos · onda 2 |
+| `AdiarSorteioCard` | manter · na tela P04 Pedidos · onda 2 |
+| `AgendarPublicacaoCard` | manter · na tela P04 Pedidos · onda 2 |
+| `AlternarVisao` | manter · peça do kit (onda 1) · na tela P04 Pedidos |
+| `ArtesParaDivulgar` | manter · na tela P04 Pedidos · onda 2 |
+| `BannerDivulgacaoCard` | manter · na tela P04 Pedidos · onda 2 |
+| `BarrasHorizontais` | manter · peça do kit (onda 1) · na tela P04 Pedidos |
+| `Button` | manter · peça do kit (onda 1) · na tela P04 Pedidos |
+| `CabecalhoDaTabela` | manter · peça do kit (onda 1) · na tela P04 Pedidos |
+| `CampaignExtras` | manter · na tela P04 Pedidos · onda 2 |
+| `Card` | manter · peça do kit (onda 1) · na tela P04 Pedidos |
+| `CartaoDoPainel` | manter · peça do kit (onda 1) · na tela P04 Pedidos |
+| `CobrancaDaRifaCard` | manter · na tela P04 Pedidos · onda 2 |
+| `ComissaoCard` | manter · na tela P04 Pedidos · onda 2 |
+| `ContratoPromotoraCard` | manter · na tela P04 Pedidos · onda 2 |
+| `CoresDoSeloCard` | manter · na tela P04 Pedidos · onda 2 |
+| `DadosLegaisCard` | manter · na tela P04 Pedidos · onda 2 |
+| `DivulgacoesDaOrganizacao` | manter · na tela P04 Pedidos · onda 2 |
+| `EditarRifaCard` | manter · na tela P04 Pedidos · onda 2 |
+| `Empty` | manter · peça do kit (onda 1) · na tela P04 Pedidos |
+| `EnderecoCurto` | manter · na tela P04 Pedidos · onda 2 |
+| `EnderecoForm` | manter · na tela P04 Pedidos · onda 2 |
+| `Estatistica` | manter · peça do kit (onda 1) · na tela P04 Pedidos |
+| `LegendaCard` | manter · na tela P04 Pedidos · onda 2 |
+| `MediaManager` | manter · na tela P04 Pedidos · onda 2 |
+| `Money` | manter · peça do kit (onda 1) · na tela P04 Pedidos |
+| `PagamentosCard` | manter · na tela P04 Pedidos · onda 2 |
+| `PanelShell` | manter · peça do kit (onda 1) · na tela P04 Pedidos |
+| `PerfilPublicoForm` | manter · na tela P04 Pedidos · onda 2 |
+| `Pill` | manter · peça do kit (onda 1) · na tela P04 Pedidos |
+| `PixTardios` | manter · na tela P04 Pedidos · onda 2 |
+| `Progress` | manter · peça do kit (onda 1) · na tela P04 Pedidos |
+| `ReelsDaRifa` | manter · na tela P04 Pedidos · onda 2 |
+| `ReembolsoCard` | manter · na tela P04 Pedidos · onda 2 |
+| `SeloVerificado` | manter · peça do kit (onda 1) · na tela P04 Pedidos |
+| `SociosDaOrganizacaoCard` | manter · na tela P04 Pedidos · onda 2 |
+| `Sparkline` | manter · peça do kit (onda 1) · na tela P04 Pedidos |
+| `TabelaOuCartoes` | manter · peça do kit (onda 1) · na tela P04 Pedidos |
+| `TelefoneDoOrganizadorCard` | manter · na tela P04 Pedidos · onda 2 |
+| `TransmissaoCard` | manter · na tela P04 Pedidos · onda 2 |
+| `TrocarSenha` | manter · na tela P04 Pedidos · onda 2 |
+| `VerMais` | manter · peça do kit (onda 1) · na tela P04 Pedidos |
+| `VerificacaoCard` | manter · na tela P04 Pedidos · onda 2 |
+| `WhatsAppCard` | manter · na tela P04 Pedidos · onda 2 |
 
 ### `/admin/resultados` — Resultados
 
 | Cartão | Destino |
 |---|---|
-| `Card` | a decidir |
-| `Empty` | a decidir |
-| `Kpi` | a decidir |
-| `PanelShell` | a decidir |
+| `Card` | manter · peça do kit (onda 1) · na tela P05 Resultados |
+| `Empty` | manter · peça do kit (onda 1) · na tela P05 Resultados |
+| `Filtros` | manter · peça do kit (onda 1) · na tela P05 Resultados |
+| `Kpi` | manter · peça do kit (onda 1) · na tela P05 Resultados |
+| `PanelShell` | manter · peça do kit (onda 1) · na tela P05 Resultados |
 
 ### `/admin/sorteios` — Sorteios
 
 | Cartão | Destino |
 |---|---|
-| `Abas` | a decidir |
-| `AbrirEditorDeImagem` | a decidir |
-| `AdiarSorteioCard` | a decidir |
-| `AgendarPublicacaoCard` | a decidir |
-| `AlternarVisao` | a decidir |
-| `ArtesParaDivulgar` | a decidir |
-| `BannerDivulgacaoCard` | a decidir |
-| `BarrasHorizontais` | a decidir |
-| `Button` | a decidir |
-| `CabecalhoDaTabela` | a decidir |
-| `CampaignExtras` | a decidir |
-| `Card` | a decidir |
-| `CartaoDoPainel` | a decidir |
-| `CobrancaDaRifaCard` | a decidir |
-| `ComissaoCard` | a decidir |
-| `ContratoPromotoraCard` | a decidir |
-| `CoresDoSeloCard` | a decidir |
-| `DadosLegaisCard` | a decidir |
-| `DivulgacoesDaOrganizacao` | a decidir |
-| `EditarRifaCard` | a decidir |
-| `Empty` | a decidir |
-| `EnderecoCurto` | a decidir |
-| `EnderecoForm` | a decidir |
-| `Estatistica` | a decidir |
-| `LegendaCard` | a decidir |
-| `MediaManager` | a decidir |
-| `Money` | a decidir |
-| `PagamentosCard` | a decidir |
-| `PanelShell` | a decidir |
-| `PerfilPublicoForm` | a decidir |
-| `Pill` | a decidir |
-| `PixTardios` | a decidir |
-| `Progress` | a decidir |
-| `ReelsDaRifa` | a decidir |
-| `ReembolsoCard` | a decidir |
-| `SeloVerificado` | a decidir |
-| `SociosDaOrganizacaoCard` | a decidir |
-| `Sparkline` | a decidir |
-| `TabelaOuCartoes` | a decidir |
-| `TelefoneDoOrganizadorCard` | a decidir |
-| `TransmissaoCard` | a decidir |
-| `TrocarSenha` | a decidir |
-| `VerMais` | a decidir |
-| `VerificacaoCard` | a decidir |
-| `WhatsAppCard` | a decidir |
+| `Abas` | manter · peça do kit (onda 1) · na tela P07 Sorteios |
+| `AbrirEditorDeImagem` | manter · na tela P07 Sorteios · onda 2 |
+| `AdiarSorteioCard` | manter · na tela P07 Sorteios · onda 2 |
+| `AgendarPublicacaoCard` | manter · na tela P07 Sorteios · onda 2 |
+| `AlternarVisao` | manter · peça do kit (onda 1) · na tela P07 Sorteios |
+| `ArtesParaDivulgar` | manter · na tela P07 Sorteios · onda 2 |
+| `BannerDivulgacaoCard` | manter · na tela P07 Sorteios · onda 2 |
+| `BarrasHorizontais` | manter · peça do kit (onda 1) · na tela P07 Sorteios |
+| `Button` | manter · peça do kit (onda 1) · na tela P07 Sorteios |
+| `CabecalhoDaTabela` | manter · peça do kit (onda 1) · na tela P07 Sorteios |
+| `CampaignExtras` | manter · na tela P07 Sorteios · onda 2 |
+| `Card` | manter · peça do kit (onda 1) · na tela P07 Sorteios |
+| `CartaoDoPainel` | manter · peça do kit (onda 1) · na tela P07 Sorteios |
+| `CobrancaDaRifaCard` | manter · na tela P07 Sorteios · onda 2 |
+| `ComissaoCard` | manter · na tela P07 Sorteios · onda 2 |
+| `ContratoPromotoraCard` | manter · na tela P07 Sorteios · onda 2 |
+| `CoresDoSeloCard` | manter · na tela P07 Sorteios · onda 2 |
+| `DadosLegaisCard` | manter · na tela P07 Sorteios · onda 2 |
+| `DivulgacoesDaOrganizacao` | manter · na tela P07 Sorteios · onda 2 |
+| `EditarRifaCard` | manter · na tela P07 Sorteios · onda 2 |
+| `Empty` | manter · peça do kit (onda 1) · na tela P07 Sorteios |
+| `EnderecoCurto` | manter · na tela P07 Sorteios · onda 2 |
+| `EnderecoForm` | manter · na tela P07 Sorteios · onda 2 |
+| `Estatistica` | manter · peça do kit (onda 1) · na tela P07 Sorteios |
+| `LegendaCard` | manter · na tela P07 Sorteios · onda 2 |
+| `MediaManager` | manter · na tela P07 Sorteios · onda 2 |
+| `Money` | manter · peça do kit (onda 1) · na tela P07 Sorteios |
+| `PagamentosCard` | manter · na tela P07 Sorteios · onda 2 |
+| `PanelShell` | manter · peça do kit (onda 1) · na tela P07 Sorteios |
+| `PerfilPublicoForm` | manter · na tela P07 Sorteios · onda 2 |
+| `Pill` | manter · peça do kit (onda 1) · na tela P07 Sorteios |
+| `PixTardios` | manter · na tela P07 Sorteios · onda 2 |
+| `Progress` | manter · peça do kit (onda 1) · na tela P07 Sorteios |
+| `ReelsDaRifa` | manter · na tela P07 Sorteios · onda 2 |
+| `ReembolsoCard` | manter · na tela P07 Sorteios · onda 2 |
+| `SeloVerificado` | manter · peça do kit (onda 1) · na tela P07 Sorteios |
+| `SociosDaOrganizacaoCard` | manter · na tela P07 Sorteios · onda 2 |
+| `Sparkline` | manter · peça do kit (onda 1) · na tela P07 Sorteios |
+| `TabelaOuCartoes` | manter · peça do kit (onda 1) · na tela P07 Sorteios |
+| `TelefoneDoOrganizadorCard` | manter · na tela P07 Sorteios · onda 2 |
+| `TransmissaoCard` | manter · na tela P07 Sorteios · onda 2 |
+| `TrocarSenha` | manter · na tela P07 Sorteios · onda 2 |
+| `VerMais` | manter · peça do kit (onda 1) · na tela P07 Sorteios |
+| `VerificacaoCard` | manter · na tela P07 Sorteios · onda 2 |
+| `WhatsAppCard` | manter · na tela P07 Sorteios · onda 2 |
 
 ### `/admin/sorteios-oficiais` — Sorteios oficiais
 
 | Cartão | Destino |
 |---|---|
-| `Button` | a decidir |
-| `Campo` | a decidir |
-| `CamposDoSegundoFator` | a decidir |
-| `Card` | a decidir |
-| `Comentarios` | a decidir |
-| `Empty` | a decidir |
-| `Janela` | a decidir |
-| `PanelShell` | a decidir |
-| `Pill` | a decidir |
-| `SEGUNDO_FATOR_VAZIO` | a decidir |
+| `Button` | manter · peça do kit (onda 1) · na tela P08 Sorteios oficiais (calendário) |
+| `Campo` | manter · peça do kit (onda 1) · na tela P08 Sorteios oficiais (calendário) |
+| `CamposDoSegundoFator` | manter · peça do kit (onda 1) · na tela P08 Sorteios oficiais (calendário) |
+| `Card` | manter · peça do kit (onda 1) · na tela P08 Sorteios oficiais (calendário) |
+| `Comentarios` | manter · na tela P08 Sorteios oficiais (calendário) · onda 2 |
+| `Empty` | manter · peça do kit (onda 1) · na tela P08 Sorteios oficiais (calendário) |
+| `Janela` | manter · peça do kit (onda 1) · na tela P08 Sorteios oficiais (calendário) |
+| `PanelShell` | manter · peça do kit (onda 1) · na tela P08 Sorteios oficiais (calendário) |
+| `Pill` | manter · peça do kit (onda 1) · na tela P08 Sorteios oficiais (calendário) |
+| `SEGUNDO_FATOR_VAZIO` | manter · peça do kit (onda 1) · na tela P08 Sorteios oficiais (calendário) |
 
 ### `/admin/stories` — Stories
 
 | Cartão | Destino |
 |---|---|
-| `Button` | a decidir |
-| `Card` | a decidir |
-| `EditorDeFigurinhas` | a decidir |
-| `Empty` | a decidir |
-| `NOME_DA_FIGURINHA` | a decidir |
-| `PanelShell` | a decidir |
-| `Pill` | a decidir |
+| `Button` | manter · peça do kit (onda 1) · na tela P06 Stories |
+| `Card` | manter · peça do kit (onda 1) · na tela P06 Stories |
+| `EditorDeFigurinhas` | manter · na tela P06 Stories · onda 2 |
+| `Empty` | manter · peça do kit (onda 1) · na tela P06 Stories |
+| `NOME_DA_FIGURINHA` | manter · peça do kit (onda 1) · na tela P06 Stories |
+| `PanelShell` | manter · peça do kit (onda 1) · na tela P06 Stories |
+| `Pill` | manter · peça do kit (onda 1) · na tela P06 Stories |
 
 ### `/admin/usuarios` — Usuários
 
 | Cartão | Destino |
 |---|---|
-| `Button` | a decidir |
-| `Card` | a decidir |
-| `Empty` | a decidir |
-| `PanelShell` | a decidir |
-| `Pill` | a decidir |
+| `Button` | manter · peça do kit (onda 1) · na tela P14 Usuários |
+| `Card` | manter · peça do kit (onda 1) · na tela P14 Usuários |
+| `Empty` | manter · peça do kit (onda 1) · na tela P14 Usuários |
+| `PanelShell` | manter · peça do kit (onda 1) · na tela P14 Usuários |
+| `Pill` | manter · peça do kit (onda 1) · na tela P14 Usuários |
 
 ### `/afiliado` — Visão geral
 
 | Cartão | Destino |
 |---|---|
-| `AbrirEditorDeImagem` | a decidir |
-| `ArtesParaDivulgar` | a decidir |
-| `Button` | a decidir |
-| `Card` | a decidir |
-| `Empty` | a decidir |
-| `Estatistica` | a decidir |
-| `Money` | a decidir |
-| `PanelShell` | a decidir |
-| `Pill` | a decidir |
+| `AbrirEditorDeImagem` | manter · na tela A01 Visão geral do afiliado · onda 4 |
+| `ArtesParaDivulgar` | manter · na tela A01 Visão geral do afiliado · onda 4 |
+| `Button` | manter · peça do kit (onda 1) · na tela A01 Visão geral do afiliado |
+| `Card` | manter · peça do kit (onda 1) · na tela A01 Visão geral do afiliado |
+| `Empty` | manter · peça do kit (onda 1) · na tela A01 Visão geral do afiliado |
+| `Estatistica` | manter · peça do kit (onda 1) · na tela A01 Visão geral do afiliado |
+| `Money` | manter · peça do kit (onda 1) · na tela A01 Visão geral do afiliado |
+| `PanelShell` | manter · peça do kit (onda 1) · na tela A01 Visão geral do afiliado |
+| `Pill` | manter · peça do kit (onda 1) · na tela A01 Visão geral do afiliado |
 
 ### `/afiliado/comissoes` — Comissões
 
 | Cartão | Destino |
 |---|---|
-| `AbrirEditorDeImagem` | a decidir |
-| `ArtesParaDivulgar` | a decidir |
-| `Button` | a decidir |
-| `Card` | a decidir |
-| `Empty` | a decidir |
-| `Estatistica` | a decidir |
-| `Money` | a decidir |
-| `PanelShell` | a decidir |
-| `Pill` | a decidir |
+| `AbrirEditorDeImagem` | manter · na tela A05 Comissões · onda 4 |
+| `ArtesParaDivulgar` | manter · na tela A05 Comissões · onda 4 |
+| `Button` | manter · peça do kit (onda 1) · na tela A05 Comissões |
+| `Card` | manter · peça do kit (onda 1) · na tela A05 Comissões |
+| `Empty` | manter · peça do kit (onda 1) · na tela A05 Comissões |
+| `Estatistica` | manter · peça do kit (onda 1) · na tela A05 Comissões |
+| `Money` | manter · peça do kit (onda 1) · na tela A05 Comissões |
+| `PanelShell` | manter · peça do kit (onda 1) · na tela A05 Comissões |
+| `Pill` | manter · peça do kit (onda 1) · na tela A05 Comissões |
 
 ### `/afiliado/dados` — Meus dados
 
 | Cartão | Destino |
 |---|---|
-| `Button` | a decidir |
-| `Card` | a decidir |
-| `PanelShell` | a decidir |
-| `Pill` | a decidir |
-| `VerificacaoCard` | a decidir |
+| `Button` | manter · peça do kit (onda 1) · na tela A07 Meus dados |
+| `Card` | manter · peça do kit (onda 1) · na tela A07 Meus dados |
+| `PanelShell` | manter · peça do kit (onda 1) · na tela A07 Meus dados |
+| `Pill` | manter · peça do kit (onda 1) · na tela A07 Meus dados |
+| `VerificacaoCard` | manter · na tela A07 Meus dados · onda 4 |
 
 ### `/afiliado/divulgar` — Divulgar
 
 | Cartão | Destino |
 |---|---|
-| `Button` | a decidir |
-| `Campo` | a decidir |
-| `CampoDeAgenda` | a decidir |
-| `Card` | a decidir |
-| `Empty` | a decidir |
-| `FotosProprias` | a decidir |
-| `PanelShell` | a decidir |
-| `Pill` | a decidir |
-| `VideoDaDivulgacao` | a decidir |
-| `VideoProprio` | a decidir |
+| `Button` | manter · peça do kit (onda 1) · na tela A03 Divulgar |
+| `Campo` | manter · peça do kit (onda 1) · na tela A03 Divulgar |
+| `CampoDeAgenda` | manter · na tela A03 Divulgar · onda 4 |
+| `Card` | manter · peça do kit (onda 1) · na tela A03 Divulgar |
+| `Empty` | manter · peça do kit (onda 1) · na tela A03 Divulgar |
+| `FotosProprias` | manter · na tela A03 Divulgar · onda 4 |
+| `PanelShell` | manter · peça do kit (onda 1) · na tela A03 Divulgar |
+| `Pill` | manter · peça do kit (onda 1) · na tela A03 Divulgar |
+| `VideoDaDivulgacao` | manter · na tela A03 Divulgar · onda 4 |
+| `VideoProprio` | manter · na tela A03 Divulgar · onda 4 |
 
 ### `/afiliado/links` — Meus links
 
 | Cartão | Destino |
 |---|---|
-| `AbrirEditorDeImagem` | a decidir |
-| `ArtesParaDivulgar` | a decidir |
-| `Button` | a decidir |
-| `Card` | a decidir |
-| `Empty` | a decidir |
-| `Estatistica` | a decidir |
-| `Money` | a decidir |
-| `PanelShell` | a decidir |
-| `Pill` | a decidir |
+| `AbrirEditorDeImagem` | manter · na tela A02 Meus links · onda 4 |
+| `ArtesParaDivulgar` | manter · na tela A02 Meus links · onda 4 |
+| `Button` | manter · peça do kit (onda 1) · na tela A02 Meus links |
+| `Card` | manter · peça do kit (onda 1) · na tela A02 Meus links |
+| `Empty` | manter · peça do kit (onda 1) · na tela A02 Meus links |
+| `Estatistica` | manter · peça do kit (onda 1) · na tela A02 Meus links |
+| `Money` | manter · peça do kit (onda 1) · na tela A02 Meus links |
+| `PanelShell` | manter · peça do kit (onda 1) · na tela A02 Meus links |
+| `Pill` | manter · peça do kit (onda 1) · na tela A02 Meus links |
 
 ### `/afiliado/organizacoes` — Organizações
 
 | Cartão | Destino |
 |---|---|
-| `AbrirEditorDeImagem` | a decidir |
-| `ArtesParaDivulgar` | a decidir |
-| `Button` | a decidir |
-| `Card` | a decidir |
-| `Empty` | a decidir |
-| `Estatistica` | a decidir |
-| `Money` | a decidir |
-| `PanelShell` | a decidir |
-| `Pill` | a decidir |
+| `AbrirEditorDeImagem` | manter · na tela A04 Organizações do afiliado · onda 4 |
+| `ArtesParaDivulgar` | manter · na tela A04 Organizações do afiliado · onda 4 |
+| `Button` | manter · peça do kit (onda 1) · na tela A04 Organizações do afiliado |
+| `Card` | manter · peça do kit (onda 1) · na tela A04 Organizações do afiliado |
+| `Empty` | manter · peça do kit (onda 1) · na tela A04 Organizações do afiliado |
+| `Estatistica` | manter · peça do kit (onda 1) · na tela A04 Organizações do afiliado |
+| `Money` | manter · peça do kit (onda 1) · na tela A04 Organizações do afiliado |
+| `PanelShell` | manter · peça do kit (onda 1) · na tela A04 Organizações do afiliado |
+| `Pill` | manter · peça do kit (onda 1) · na tela A04 Organizações do afiliado |
 
 ### `/afiliado/saques` — Saques
 
 | Cartão | Destino |
 |---|---|
-| `AbrirEditorDeImagem` | a decidir |
-| `ArtesParaDivulgar` | a decidir |
-| `Button` | a decidir |
-| `Card` | a decidir |
-| `Empty` | a decidir |
-| `Estatistica` | a decidir |
-| `Money` | a decidir |
-| `PanelShell` | a decidir |
-| `Pill` | a decidir |
+| `AbrirEditorDeImagem` | manter · na tela A06 Saques · onda 4 |
+| `ArtesParaDivulgar` | manter · na tela A06 Saques · onda 4 |
+| `Button` | manter · peça do kit (onda 1) · na tela A06 Saques |
+| `Card` | manter · peça do kit (onda 1) · na tela A06 Saques |
+| `Empty` | manter · peça do kit (onda 1) · na tela A06 Saques |
+| `Estatistica` | manter · peça do kit (onda 1) · na tela A06 Saques |
+| `Money` | manter · peça do kit (onda 1) · na tela A06 Saques |
+| `PanelShell` | manter · peça do kit (onda 1) · na tela A06 Saques |
+| `Pill` | manter · peça do kit (onda 1) · na tela A06 Saques |
 
 ### `/ajuda` — Ajuda
 
 | Cartão | Destino |
 |---|---|
-| `Empty` | a decidir |
-| `PublicShell` | a decidir |
+| `Empty` | manter · peça do kit (onda 1) · na tela 18 Central de ajuda |
+| `PublicShell` | manter · peça do kit (onda 1) · na tela 18 Central de ajuda |
 
 ### `/buscar` — Buscar
 
 | Cartão | Destino |
 |---|---|
-| `Empty` | a decidir |
-| `FotoDoPerfil` | a decidir |
-| `PublicShell` | a decidir |
-| `SeloVerificado` | a decidir |
+| `Empty` | manter · peça do kit (onda 1) · na tela 17 Buscar |
+| `FotoDoPerfil` | manter · peça do kit (onda 1) · na tela 17 Buscar |
+| `PublicShell` | manter · peça do kit (onda 1) · na tela 17 Buscar |
+| `SeloVerificado` | manter · peça do kit (onda 1) · na tela 17 Buscar |
 
 ### `/cambista` — Nova venda
 
 | Cartão | Destino |
 |---|---|
-| `Button` | a decidir |
-| `Card` | a decidir |
-| `Empty` | a decidir |
-| `Kpi` | a decidir |
-| `Money` | a decidir |
-| `PanelShell` | a decidir |
-| `Pill` | a decidir |
+| `Button` | manter · peça do kit (onda 1) · na tela C08 Nova venda do cambista |
+| `Card` | manter · peça do kit (onda 1) · na tela C08 Nova venda do cambista |
+| `Empty` | manter · peça do kit (onda 1) · na tela C08 Nova venda do cambista |
+| `Kpi` | manter · peça do kit (onda 1) · na tela C08 Nova venda do cambista |
+| `Money` | manter · peça do kit (onda 1) · na tela C08 Nova venda do cambista |
+| `PanelShell` | manter · peça do kit (onda 1) · na tela C08 Nova venda do cambista |
+| `Pill` | manter · peça do kit (onda 1) · na tela C08 Nova venda do cambista |
 
 ### `/cambista/acerto` — Meu acerto
 
 | Cartão | Destino |
 |---|---|
-| `Button` | a decidir |
-| `Card` | a decidir |
-| `Empty` | a decidir |
-| `Kpi` | a decidir |
-| `Money` | a decidir |
-| `PanelShell` | a decidir |
-| `Pill` | a decidir |
+| `Button` | manter · peça do kit (onda 1) · na tela C10 Meu acerto |
+| `Card` | manter · peça do kit (onda 1) · na tela C10 Meu acerto |
+| `Empty` | manter · peça do kit (onda 1) · na tela C10 Meu acerto |
+| `Kpi` | manter · peça do kit (onda 1) · na tela C10 Meu acerto |
+| `Money` | manter · peça do kit (onda 1) · na tela C10 Meu acerto |
+| `PanelShell` | manter · peça do kit (onda 1) · na tela C10 Meu acerto |
+| `Pill` | manter · peça do kit (onda 1) · na tela C10 Meu acerto |
 
 ### `/cambista/vendas` — Minhas vendas
 
 | Cartão | Destino |
 |---|---|
-| `Button` | a decidir |
-| `Card` | a decidir |
-| `Empty` | a decidir |
-| `Kpi` | a decidir |
-| `Money` | a decidir |
-| `PanelShell` | a decidir |
-| `Pill` | a decidir |
+| `Button` | manter · peça do kit (onda 1) · na tela C09 Minhas vendas |
+| `Card` | manter · peça do kit (onda 1) · na tela C09 Minhas vendas |
+| `Empty` | manter · peça do kit (onda 1) · na tela C09 Minhas vendas |
+| `Kpi` | manter · peça do kit (onda 1) · na tela C09 Minhas vendas |
+| `Money` | manter · peça do kit (onda 1) · na tela C09 Minhas vendas |
+| `PanelShell` | manter · peça do kit (onda 1) · na tela C09 Minhas vendas |
+| `Pill` | manter · peça do kit (onda 1) · na tela C09 Minhas vendas |
 
 ### `/carrinho` — Carrinho
 
 | Cartão | Destino |
 |---|---|
-| `AvisoDePrazo` | a decidir |
-| `Button` | a decidir |
-| `FotoDoPerfil` | a decidir |
-| `Money` | a decidir |
-| `Pill` | a decidir |
-| `PublicShell` | a decidir |
-| `SeloVerificado` | a decidir |
+| `AvisoDePrazo` | manter · na tela 06 Carrinho · onda 5 |
+| `Button` | manter · peça do kit (onda 1) · na tela 06 Carrinho |
+| `FotoDoPerfil` | manter · peça do kit (onda 1) · na tela 06 Carrinho |
+| `Money` | manter · peça do kit (onda 1) · na tela 06 Carrinho |
+| `Pill` | manter · peça do kit (onda 1) · na tela 06 Carrinho |
+| `PublicShell` | manter · peça do kit (onda 1) · na tela 06 Carrinho |
+| `SeloVerificado` | manter · peça do kit (onda 1) · na tela 06 Carrinho |
 
 ### `/carrinho/pix/:codigo` — CarrinhoPix
 
 | Cartão | Destino |
 |---|---|
-| `Card` | a decidir |
-| `Money` | a decidir |
-| `Pill` | a decidir |
-| `PixParaPagar` | a decidir |
-| `PublicShell` | a decidir |
+| `Card` | manter · peça do kit (onda 1) · na tela 08 Pix do carrinho |
+| `Money` | manter · peça do kit (onda 1) · na tela 08 Pix do carrinho |
+| `Pill` | manter · peça do kit (onda 1) · na tela 08 Pix do carrinho |
+| `PixParaPagar` | manter · na tela 08 Pix do carrinho · onda 5 |
+| `PublicShell` | manter · peça do kit (onda 1) · na tela 08 Pix do carrinho |
 
 ### `/conta/senha` — TrocarSenha
 
 | Cartão | Destino |
 |---|---|
-| `Button` | a decidir |
-| `Card` | a decidir |
+| `Button` | manter · peça do kit (onda 1) · na tela P21 Minha senha |
+| `Card` | manter · peça do kit (onda 1) · na tela P21 Minha senha |
 
 ### `/criar-conta` — CriarConta
 
 | Cartão | Destino |
 |---|---|
-| `BotaoGoogle` | a decidir |
-| `Button` | a decidir |
-| `Marca` | a decidir |
+| `BotaoGoogle` | manter · na tela 24 Criar conta · onda 5 |
+| `Button` | manter · peça do kit (onda 1) · na tela 24 Criar conta |
+| `Marca` | manter · peça do kit (onda 1) · na tela 24 Criar conta |
 
 ### `/entrar` — Login
 
 | Cartão | Destino |
 |---|---|
-| `BotaoGoogle` | a decidir |
-| `Button` | a decidir |
-| `Marca` | a decidir |
+| `BotaoGoogle` | manter · na tela 23 Entrar · onda 5 |
+| `Button` | manter · peça do kit (onda 1) · na tela 23 Entrar |
+| `Marca` | manter · peça do kit (onda 1) · na tela 23 Entrar |
 
 ### `/estado/:uf` — EstadoPage
 
 | Cartão | Destino |
 |---|---|
-| `CartaoDoFeed` | a decidir |
-| `Empty` | a decidir |
-| `PublicShell` | a decidir |
+| `CartaoDoFeed` | manter · na tela 04 Página do estado · onda 5 |
+| `Empty` | manter · peça do kit (onda 1) · na tela 04 Página do estado |
+| `PublicShell` | manter · peça do kit (onda 1) · na tela 04 Página do estado |
 
 ### `/mensagens` — Mensagens
 
 | Cartão | Destino |
 |---|---|
-| `Empty` | a decidir |
-| `FotoDoPerfil` | a decidir |
-| `GrupoAberto` | a decidir |
-| `Janela` | a decidir |
-| `ListaDeGrupos` | a decidir |
-| `Pill` | a decidir |
-| `PublicShell` | a decidir |
-| `SeloVerificado` | a decidir |
+| `Empty` | manter · peça do kit (onda 1) · na tela 16 Mensagens |
+| `FotoDoPerfil` | manter · peça do kit (onda 1) · na tela 16 Mensagens |
+| `GrupoAberto` | manter · na tela 16 Mensagens · onda 5 |
+| `Janela` | manter · peça do kit (onda 1) · na tela 16 Mensagens |
+| `ListaDeGrupos` | manter · na tela 16 Mensagens · onda 5 |
+| `Pill` | manter · peça do kit (onda 1) · na tela 16 Mensagens |
+| `PublicShell` | manter · peça do kit (onda 1) · na tela 16 Mensagens |
+| `SeloVerificado` | manter · peça do kit (onda 1) · na tela 16 Mensagens |
 
 ### `/mensagens/:id` — Mensagens
 
 | Cartão | Destino |
 |---|---|
-| `Empty` | a decidir |
-| `FotoDoPerfil` | a decidir |
-| `GrupoAberto` | a decidir |
-| `Janela` | a decidir |
-| `ListaDeGrupos` | a decidir |
-| `Pill` | a decidir |
-| `PublicShell` | a decidir |
-| `SeloVerificado` | a decidir |
+| `Empty` | manter · peça do kit (onda 1) · na tela 16 Mensagens |
+| `FotoDoPerfil` | manter · peça do kit (onda 1) · na tela 16 Mensagens |
+| `GrupoAberto` | manter · na tela 16 Mensagens · onda 5 |
+| `Janela` | manter · peça do kit (onda 1) · na tela 16 Mensagens |
+| `ListaDeGrupos` | manter · na tela 16 Mensagens · onda 5 |
+| `Pill` | manter · peça do kit (onda 1) · na tela 16 Mensagens |
+| `PublicShell` | manter · peça do kit (onda 1) · na tela 16 Mensagens |
+| `SeloVerificado` | manter · peça do kit (onda 1) · na tela 16 Mensagens |
 
 ### `/minhas-compras` — MinhasCotas
 
 | Cartão | Destino |
 |---|---|
-| `BonusDoComprador` | a decidir |
-| `Button` | a decidir |
-| `Campo` | a decidir |
-| `Card` | a decidir |
-| `CartaoDoFeed` | a decidir |
-| `Conversa` | a decidir |
-| `Empty` | a decidir |
-| `Janela` | a decidir |
-| `Money` | a decidir |
-| `PerfilPublicoCard` | a decidir |
-| `Pill` | a decidir |
-| `PublicShell` | a decidir |
-| `VerificacaoCard` | a decidir |
+| `BonusDoComprador` | manter · na tela 09 Minhas compras · onda 5 |
+| `Button` | manter · peça do kit (onda 1) · na tela 09 Minhas compras |
+| `Campo` | manter · peça do kit (onda 1) · na tela 09 Minhas compras |
+| `Card` | manter · peça do kit (onda 1) · na tela 09 Minhas compras |
+| `CartaoDoFeed` | manter · na tela 09 Minhas compras · onda 5 |
+| `Conversa` | manter · na tela 09 Minhas compras · onda 5 |
+| `Empty` | manter · peça do kit (onda 1) · na tela 09 Minhas compras |
+| `Janela` | manter · peça do kit (onda 1) · na tela 09 Minhas compras |
+| `Money` | manter · peça do kit (onda 1) · na tela 09 Minhas compras |
+| `PerfilPublicoCard` | manter · na tela 09 Minhas compras · onda 5 |
+| `Pill` | manter · peça do kit (onda 1) · na tela 09 Minhas compras |
+| `PublicShell` | manter · peça do kit (onda 1) · na tela 09 Minhas compras |
+| `VerificacaoCard` | manter · na tela 09 Minhas compras · onda 5 |
 
 ### `/minhas-cotas` — Minhas cotas
 
 | Cartão | Destino |
 |---|---|
-| `BonusDoComprador` | a decidir |
-| `Button` | a decidir |
-| `Campo` | a decidir |
-| `Card` | a decidir |
-| `CartaoDoFeed` | a decidir |
-| `Conversa` | a decidir |
-| `Empty` | a decidir |
-| `Janela` | a decidir |
-| `Money` | a decidir |
-| `PerfilPublicoCard` | a decidir |
-| `Pill` | a decidir |
-| `PublicShell` | a decidir |
-| `VerificacaoCard` | a decidir |
+| `BonusDoComprador` | manter · na tela 09 Minhas compras · onda 5 |
+| `Button` | manter · peça do kit (onda 1) · na tela 09 Minhas compras |
+| `Campo` | manter · peça do kit (onda 1) · na tela 09 Minhas compras |
+| `Card` | manter · peça do kit (onda 1) · na tela 09 Minhas compras |
+| `CartaoDoFeed` | manter · na tela 09 Minhas compras · onda 5 |
+| `Conversa` | manter · na tela 09 Minhas compras · onda 5 |
+| `Empty` | manter · peça do kit (onda 1) · na tela 09 Minhas compras |
+| `Janela` | manter · peça do kit (onda 1) · na tela 09 Minhas compras |
+| `Money` | manter · peça do kit (onda 1) · na tela 09 Minhas compras |
+| `PerfilPublicoCard` | manter · na tela 09 Minhas compras · onda 5 |
+| `Pill` | manter · peça do kit (onda 1) · na tela 09 Minhas compras |
+| `PublicShell` | manter · peça do kit (onda 1) · na tela 09 Minhas compras |
+| `VerificacaoCard` | manter · na tela 09 Minhas compras · onda 5 |
 
 ### `/notificacoes` — Notificacoes
 
 | Cartão | Destino |
 |---|---|
-| `Empty` | a decidir |
-| `PublicShell` | a decidir |
+| `Empty` | manter · peça do kit (onda 1) · na tela 10 Notificações |
+| `PublicShell` | manter · peça do kit (onda 1) · na tela 10 Notificações |
 
 ### `/o/:org` — Perfil
 
 | Cartão | Destino |
 |---|---|
-| `BarraDeAcoes` | a decidir |
-| `Button` | a decidir |
-| `Carrossel` | a decidir |
-| `Denunciar` | a decidir |
-| `DestaqueOrg` | a decidir |
-| `Empty` | a decidir |
-| `FOTO_COMO_NO_INSTAGRAM` | a decidir |
-| `FotoComStory` | a decidir |
-| `FotoDoPerfil` | a decidir |
-| `Janela` | a decidir |
-| `Legenda` | a decidir |
-| `LinksDoPerfil` | a decidir |
-| `Money` | a decidir |
-| `PainelDeComentarios` | a decidir |
-| `Progress` | a decidir |
-| `PublicShell` | a decidir |
-| `SeguirBotoes` | a decidir |
-| `SeloVerificado` | a decidir |
-| `VisualizadorDeStories` | a decidir |
+| `BarraDeAcoes` | manter · na tela 03 Perfil da organização · onda 5 |
+| `Button` | manter · peça do kit (onda 1) · na tela 03 Perfil da organização |
+| `Carrossel` | manter · na tela 03 Perfil da organização · onda 5 |
+| `Denunciar` | manter · na tela 03 Perfil da organização · onda 5 |
+| `DestaqueOrg` | manter · na tela 03 Perfil da organização · onda 5 |
+| `Empty` | manter · peça do kit (onda 1) · na tela 03 Perfil da organização |
+| `FOTO_COMO_NO_INSTAGRAM` | manter · peça do kit (onda 1) · na tela 03 Perfil da organização |
+| `FotoComStory` | manter · na tela 03 Perfil da organização · onda 5 |
+| `FotoDoPerfil` | manter · peça do kit (onda 1) · na tela 03 Perfil da organização |
+| `Janela` | manter · peça do kit (onda 1) · na tela 03 Perfil da organização |
+| `Legenda` | manter · na tela 03 Perfil da organização · onda 5 |
+| `LinksDoPerfil` | manter · na tela 03 Perfil da organização · onda 5 |
+| `Money` | manter · peça do kit (onda 1) · na tela 03 Perfil da organização |
+| `PainelDeComentarios` | manter · na tela 03 Perfil da organização · onda 5 |
+| `Progress` | manter · peça do kit (onda 1) · na tela 03 Perfil da organização |
+| `PublicShell` | manter · peça do kit (onda 1) · na tela 03 Perfil da organização |
+| `SeguirBotoes` | manter · na tela 03 Perfil da organização · onda 5 |
+| `SeloVerificado` | manter · peça do kit (onda 1) · na tela 03 Perfil da organização |
+| `VisualizadorDeStories` | manter · na tela 03 Perfil da organização · onda 5 |
 
 ### `/o/:org/r/:slug` — Rifa
 
 | Cartão | Destino |
 |---|---|
-| `AvisoDePrazo` | a decidir |
-| `BannerDaEntidade` | a decidir |
-| `BarraDeAcoes` | a decidir |
-| `BotaoDenunciar` | a decidir |
-| `Button` | a decidir |
-| `Card` | a decidir |
-| `Carrossel` | a decidir |
-| `Cartelas` | a decidir |
-| `Comentarios` | a decidir |
-| `CotaSurpresa` | a decidir |
-| `DestaqueOrg` | a decidir |
-| `DivulgacoesDaRifa` | a decidir |
-| `FotoDoPerfil` | a decidir |
-| `GruposDaRifa` | a decidir |
-| `Legenda` | a decidir |
-| `Money` | a decidir |
-| `PainelDeComentarios` | a decidir |
-| `Progress` | a decidir |
-| `PublicShell` | a decidir |
-| `QuemTambemJoga` | a decidir |
-| `SeguirBotoes` | a decidir |
-| `SeloVerificado` | a decidir |
-| `SoValePelaPlataforma` | a decidir |
-| `SorteioCard` | a decidir |
+| `AvisoDePrazo` | manter · na tela 02 Página da rifa · onda 5 |
+| `BannerDaEntidade` | manter · na tela 02 Página da rifa · onda 5 |
+| `BarraDeAcoes` | manter · na tela 02 Página da rifa · onda 5 |
+| `BotaoDenunciar` | manter · na tela 02 Página da rifa · onda 5 |
+| `Button` | manter · peça do kit (onda 1) · na tela 02 Página da rifa |
+| `Card` | manter · peça do kit (onda 1) · na tela 02 Página da rifa |
+| `Carrossel` | manter · na tela 02 Página da rifa · onda 5 |
+| `Cartelas` | manter · na tela 02 Página da rifa · onda 5 |
+| `Comentarios` | manter · na tela 02 Página da rifa · onda 5 |
+| `CotaSurpresa` | manter · na tela 02 Página da rifa · onda 5 |
+| `DestaqueOrg` | manter · na tela 02 Página da rifa · onda 5 |
+| `DivulgacoesDaRifa` | manter · na tela 02 Página da rifa · onda 5 |
+| `FotoDoPerfil` | manter · peça do kit (onda 1) · na tela 02 Página da rifa |
+| `GruposDaRifa` | manter · na tela 02 Página da rifa · onda 5 |
+| `Legenda` | manter · na tela 02 Página da rifa · onda 5 |
+| `Money` | manter · peça do kit (onda 1) · na tela 02 Página da rifa |
+| `PainelDeComentarios` | manter · na tela 02 Página da rifa · onda 5 |
+| `Progress` | manter · peça do kit (onda 1) · na tela 02 Página da rifa |
+| `PublicShell` | manter · peça do kit (onda 1) · na tela 02 Página da rifa |
+| `QuemTambemJoga` | manter · na tela 02 Página da rifa · onda 5 |
+| `SeguirBotoes` | manter · na tela 02 Página da rifa · onda 5 |
+| `SeloVerificado` | manter · peça do kit (onda 1) · na tela 02 Página da rifa |
+| `SoValePelaPlataforma` | manter · na tela 02 Página da rifa · onda 5 |
+| `SorteioCard` | manter · na tela 02 Página da rifa · onda 5 |
 
 ### `/o/:org/r/:slug/regulamento` — Regulamento
 
 | Cartão | Destino |
 |---|---|
-| `Empty` | a decidir |
-| `PublicShell` | a decidir |
+| `Empty` | manter · peça do kit (onda 1) · na tela 20 Regulamento da rifa |
+| `PublicShell` | manter · peça do kit (onda 1) · na tela 20 Regulamento da rifa |
 
 ### `/pedido/:code` — Pedido
 
 | Cartão | Destino |
 |---|---|
-| `Button` | a decidir |
-| `Card` | a decidir |
-| `Money` | a decidir |
-| `Pill` | a decidir |
-| `PixParaPagar` | a decidir |
-| `PublicShell` | a decidir |
+| `Button` | manter · peça do kit (onda 1) · na tela 07 Pedido |
+| `Card` | manter · peça do kit (onda 1) · na tela 07 Pedido |
+| `Money` | manter · peça do kit (onda 1) · na tela 07 Pedido |
+| `Pill` | manter · peça do kit (onda 1) · na tela 07 Pedido |
+| `PixParaPagar` | manter · na tela 07 Pedido · onda 5 |
+| `PublicShell` | manter · peça do kit (onda 1) · na tela 07 Pedido |
 
 ### `/perfil` — PerfilDoUsuario
 
 | Cartão | Destino |
 |---|---|
-| `FOTO_COMO_NO_INSTAGRAM` | a decidir |
-| `FotoDoApostador` | a decidir |
-| `PublicShell` | a decidir |
-| `SeloVerificado` | a decidir |
+| `FOTO_COMO_NO_INSTAGRAM` | manter · peça do kit (onda 1) · na tela 11 Perfil |
+| `FotoDoApostador` | manter · na tela 11 Perfil · onda 5 |
+| `PublicShell` | manter · peça do kit (onda 1) · na tela 11 Perfil |
+| `SeloVerificado` | manter · peça do kit (onda 1) · na tela 11 Perfil |
 
 ### `/perfil/bilhetes` — MeusBilhetes
 
 | Cartão | Destino |
 |---|---|
-| `BilheteComoPublicacao` | a decidir |
-| `Empty` | a decidir |
-| `PublicShell` | a decidir |
+| `BilheteComoPublicacao` | manter · na tela 13 Meus bilhetes privados · onda 5 |
+| `Empty` | manter · peça do kit (onda 1) · na tela 13 Meus bilhetes privados |
+| `PublicShell` | manter · peça do kit (onda 1) · na tela 13 Meus bilhetes privados |
 
 ### `/perfil/configuracoes` — Configuracoes
 
 | Cartão | Destino |
 |---|---|
-| `PreferenciaDeCookies` | a decidir |
-| `PublicShell` | a decidir |
-| `TemaEscolha` | a decidir |
+| `PreferenciaDeCookies` | manter · na tela 12 Configurações do apostador · onda 5 |
+| `PublicShell` | manter · peça do kit (onda 1) · na tela 12 Configurações do apostador |
+| `TemaEscolha` | manter · na tela 12 Configurações do apostador · onda 5 |
 
 ### `/privacidade` — Privacidade
 
 | Cartão | Destino |
 |---|---|
-| `PublicShell` | a decidir |
+| `PublicShell` | manter · peça do kit (onda 1) · na tela 19 Termos de uso e Privacidade |
 
 ### `/publicar` — Publicar
 
 | Cartão | Destino |
 |---|---|
-| `Button` | a decidir |
-| `Campo` | a decidir |
-| `CampoDeAgenda` | a decidir |
-| `FotosProprias` | a decidir |
-| `Pill` | a decidir |
-| `PublicShell` | a decidir |
+| `Button` | manter · peça do kit (onda 1) · na tela 14 Publicar |
+| `Campo` | manter · peça do kit (onda 1) · na tela 14 Publicar |
+| `CampoDeAgenda` | manter · na tela 14 Publicar · onda 5 |
+| `FotosProprias` | manter · na tela 14 Publicar · onda 5 |
+| `Pill` | manter · peça do kit (onda 1) · na tela 14 Publicar |
+| `PublicShell` | manter · peça do kit (onda 1) · na tela 14 Publicar |
 
 ### `/r/:slug` — Rifa
 
 | Cartão | Destino |
 |---|---|
-| `AvisoDePrazo` | a decidir |
-| `BannerDaEntidade` | a decidir |
-| `BarraDeAcoes` | a decidir |
-| `BotaoDenunciar` | a decidir |
-| `Button` | a decidir |
-| `Card` | a decidir |
-| `Carrossel` | a decidir |
-| `Cartelas` | a decidir |
-| `Comentarios` | a decidir |
-| `CotaSurpresa` | a decidir |
-| `DestaqueOrg` | a decidir |
-| `DivulgacoesDaRifa` | a decidir |
-| `FotoDoPerfil` | a decidir |
-| `GruposDaRifa` | a decidir |
-| `Legenda` | a decidir |
-| `Money` | a decidir |
-| `PainelDeComentarios` | a decidir |
-| `Progress` | a decidir |
-| `PublicShell` | a decidir |
-| `QuemTambemJoga` | a decidir |
-| `SeguirBotoes` | a decidir |
-| `SeloVerificado` | a decidir |
-| `SoValePelaPlataforma` | a decidir |
-| `SorteioCard` | a decidir |
+| `AvisoDePrazo` | manter · na tela 02 Página da rifa · onda 5 |
+| `BannerDaEntidade` | manter · na tela 02 Página da rifa · onda 5 |
+| `BarraDeAcoes` | manter · na tela 02 Página da rifa · onda 5 |
+| `BotaoDenunciar` | manter · na tela 02 Página da rifa · onda 5 |
+| `Button` | manter · peça do kit (onda 1) · na tela 02 Página da rifa |
+| `Card` | manter · peça do kit (onda 1) · na tela 02 Página da rifa |
+| `Carrossel` | manter · na tela 02 Página da rifa · onda 5 |
+| `Cartelas` | manter · na tela 02 Página da rifa · onda 5 |
+| `Comentarios` | manter · na tela 02 Página da rifa · onda 5 |
+| `CotaSurpresa` | manter · na tela 02 Página da rifa · onda 5 |
+| `DestaqueOrg` | manter · na tela 02 Página da rifa · onda 5 |
+| `DivulgacoesDaRifa` | manter · na tela 02 Página da rifa · onda 5 |
+| `FotoDoPerfil` | manter · peça do kit (onda 1) · na tela 02 Página da rifa |
+| `GruposDaRifa` | manter · na tela 02 Página da rifa · onda 5 |
+| `Legenda` | manter · na tela 02 Página da rifa · onda 5 |
+| `Money` | manter · peça do kit (onda 1) · na tela 02 Página da rifa |
+| `PainelDeComentarios` | manter · na tela 02 Página da rifa · onda 5 |
+| `Progress` | manter · peça do kit (onda 1) · na tela 02 Página da rifa |
+| `PublicShell` | manter · peça do kit (onda 1) · na tela 02 Página da rifa |
+| `QuemTambemJoga` | manter · na tela 02 Página da rifa · onda 5 |
+| `SeguirBotoes` | manter · na tela 02 Página da rifa · onda 5 |
+| `SeloVerificado` | manter · peça do kit (onda 1) · na tela 02 Página da rifa |
+| `SoValePelaPlataforma` | manter · na tela 02 Página da rifa · onda 5 |
+| `SorteioCard` | manter · na tela 02 Página da rifa · onda 5 |
 
 ### `/r/:slug/regulamento` — Regulamento
 
 | Cartão | Destino |
 |---|---|
-| `Empty` | a decidir |
-| `PublicShell` | a decidir |
+| `Empty` | manter · peça do kit (onda 1) · na tela 20 Regulamento da rifa |
+| `PublicShell` | manter · peça do kit (onda 1) · na tela 20 Regulamento da rifa |
 
 ### `/recibo/:codigo` — ReciboPage
 
 | Cartão | Destino |
 |---|---|
-| `Card` | a decidir |
-| `Empty` | a decidir |
-| `PublicShell` | a decidir |
+| `Card` | manter · peça do kit (onda 1) · na tela 21 Recibo |
+| `Empty` | manter · peça do kit (onda 1) · na tela 21 Recibo |
+| `PublicShell` | manter · peça do kit (onda 1) · na tela 21 Recibo |
 
 ### `/reels` — Reels
 
 | Cartão | Destino |
 |---|---|
-| `BarraDeAcoes` | a decidir |
-| `BotaoDenunciar` | a decidir |
-| `CabecalhoDaPublicacao` | a decidir |
-| `FigurinhasNaTela` | a decidir |
-| `Money` | a decidir |
-| `PainelDeComentarios` | a decidir |
+| `BarraDeAcoes` | manter · na tela 15 Reels · onda 5 |
+| `BotaoDenunciar` | manter · na tela 15 Reels · onda 5 |
+| `CabecalhoDaPublicacao` | manter · na tela 15 Reels · onda 5 |
+| `FigurinhasNaTela` | manter · na tela 15 Reels · onda 5 |
+| `Money` | manter · peça do kit (onda 1) · na tela 15 Reels |
+| `PainelDeComentarios` | manter · na tela 15 Reels · onda 5 |
 
 ### `/seja-afiliado` — CadastroAfiliado
 
 | Cartão | Destino |
 |---|---|
-| `Button` | a decidir |
-| `Card` | a decidir |
+| `Button` | manter · peça do kit (onda 1) · na tela 25 Seja afiliado |
+| `Card` | manter · peça do kit (onda 1) · na tela 25 Seja afiliado |
 
 ### `/termos` — TermosDeUso
 
 | Cartão | Destino |
 |---|---|
-| `PublicShell` | a decidir |
+| `PublicShell` | manter · peça do kit (onda 1) · na tela 19 Termos de uso e Privacidade |
 
 ### `/u/:apelido` — Usuario
 
 | Cartão | Destino |
 |---|---|
-| `BotaoMensagem` | a decidir |
-| `CartaoDoFeed` | a decidir |
-| `Empty` | a decidir |
-| `FOTO_COMO_NO_INSTAGRAM` | a decidir |
-| `FotoDoApostador` | a decidir |
-| `PublicShell` | a decidir |
-| `SeloVerificado` | a decidir |
+| `BotaoMensagem` | manter · na tela 05 Perfil do apostador · onda 5 |
+| `CartaoDoFeed` | manter · na tela 05 Perfil do apostador · onda 5 |
+| `Empty` | manter · peça do kit (onda 1) · na tela 05 Perfil do apostador |
+| `FOTO_COMO_NO_INSTAGRAM` | manter · peça do kit (onda 1) · na tela 05 Perfil do apostador |
+| `FotoDoApostador` | manter · na tela 05 Perfil do apostador · onda 5 |
+| `PublicShell` | manter · peça do kit (onda 1) · na tela 05 Perfil do apostador |
+| `SeloVerificado` | manter · peça do kit (onda 1) · na tela 05 Perfil do apostador |
 
 ## 4. Rotas da API e a prova que cada uma tem
 

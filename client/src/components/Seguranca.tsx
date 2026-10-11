@@ -5,7 +5,7 @@ import { Link } from "wouter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Flag, ShieldAlert, X } from "lucide-react";
 import { Button, Card, Empty, Pill } from "@/components/bits";
-import { MestreDetalhe } from "@/components/painel";
+import { CartaoDoPainel, MestreDetalhe } from "@/components/painel";
 import { apiRequest } from "@/lib/queryClient";
 import { useSession } from "@/lib/session";
 import { maskPhone } from "@shared/format";
@@ -77,8 +77,8 @@ export function TelefoneDoOrganizadorCard() {
 
   if (!id || !e) return null;
   return (
-    <Card title="Telefone do organizador" right={<PillDoTelefone e={e} />}>
-      <div className="space-y-3 p-4 text-sm">
+    <CartaoDoPainel titulo="Telefone do organizador" acao={<PillDoTelefone e={e} />}>
+      <div className="space-y-3 px-5 pb-5 text-sm">
         <p className="text-xs text-muted">
           É o contato que responde pelas rifas. Precisa ser confirmado com um código no WhatsApp e aprovado pela
           plataforma <b>antes da primeira rifa</b>. Pedir Pix fora da plataforma leva ao banimento.
@@ -89,7 +89,7 @@ export function TelefoneDoOrganizadorCard() {
           </p>
         ) : null}
         <form
-          className="flex flex-wrap items-end gap-2"
+          className="flex flex-col gap-2 sm:flex-row sm:items-end"
           onSubmit={(ev) => {
             ev.preventDefault();
             setAviso(null);
@@ -97,7 +97,7 @@ export function TelefoneDoOrganizadorCard() {
           }}
         >
           <div className="min-w-0 flex-1">
-            <label htmlFor="tel-org" className="label-xs">
+            <label htmlFor="tel-org" className="label-xs text-ink-2">
               {e.telefone ? "Trocar ou reenviar para o WhatsApp" : "WhatsApp com DDD"}
             </label>
             <input
@@ -109,7 +109,7 @@ export function TelefoneDoOrganizadorCard() {
               className="campo tnum"
             />
           </div>
-          <Button type="submit" disabled={pedir.isPending || telefone.replace(/\D/g, "").length < 10}>
+          <Button type="submit" className="self-start sm:self-auto" disabled={pedir.isPending || telefone.replace(/\D/g, "").length < 10}>
             Enviar código
           </Button>
         </form>
@@ -122,7 +122,7 @@ export function TelefoneDoOrganizadorCard() {
             }}
           >
             <div>
-              <label htmlFor="cod-org" className="label-xs">
+              <label htmlFor="cod-org" className="label-xs text-ink-2">
                 Código recebido
               </label>
               <input
@@ -131,7 +131,7 @@ export function TelefoneDoOrganizadorCard() {
                 maxLength={6}
                 value={codigo}
                 onChange={(ev) => setCodigo(ev.target.value.replace(/\D/g, ""))}
-                className="tnum mt-1 w-32 rounded-md border border-line-2 px-3 py-2"
+                className="campo tnum w-32"
               />
             </div>
             <Button type="submit" disabled={confirmar.isPending || codigo.length !== 6}>
@@ -141,7 +141,7 @@ export function TelefoneDoOrganizadorCard() {
         ) : null}
         {aviso ? <p className={`text-xs ${aviso.ok ? "text-green-deep" : "text-red"}`}>{aviso.texto}</p> : null}
       </div>
-    </Card>
+    </CartaoDoPainel>
   );
 }
 

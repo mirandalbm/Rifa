@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Card, Button } from "@/components/bits";
+import { Button } from "@/components/bits";
+import { CartaoDoPainel } from "@/components/painel";
 import { apiRequest } from "@/lib/queryClient";
 import { PRAZO_ESTORNO_MIN, PRAZO_ESTORNO_MAX, DIAS_UTEIS_DEVOLUCAO_INTEGRAL, telefoneDeAvisoValido } from "@shared/chamados";
 import { maskPhone } from "@shared/format";
@@ -42,8 +43,8 @@ export function ReembolsoCard() {
   const avisoOk = aviso.trim() === "" || telefoneDeAvisoValido(aviso);
 
   return (
-    <Card title="Reembolso: prazo e aviso">
-      <div className="space-y-3 p-4 text-sm">
+    <CartaoDoPainel titulo="Reembolso: prazo e aviso">
+      <div className="space-y-3 px-5 pb-5 text-sm">
         {erro ? <p className="rounded-md bg-red-soft px-3 py-2 text-red">{erro}</p> : null}
         {ok ? (
           <p className="rounded-md bg-green-soft px-3 py-2 text-green-deep">
@@ -96,6 +97,6 @@ export function ReembolsoCard() {
           Salvar
         </Button>
       </div>
-    </Card>
+    </CartaoDoPainel>
   );
 }

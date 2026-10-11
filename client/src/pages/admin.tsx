@@ -35,7 +35,7 @@ import { TelefoneDoOrganizadorCard } from "@/components/Seguranca";
 import { ContratoPromotoraCard } from "@/components/ContratoPromotoraCard";
 import { VerificacaoCard } from "@/components/Verificacao";
 import { CoresDoSeloCard } from "@/components/CoresDoSelo";
-import { Campo } from "@/components/bits";
+import { Caixa, Campo } from "@/components/bits";
 import { CheckCircle2 } from "lucide-react";
 import { regraDoNumeroSemDono } from "@shared/sorteio";
 import { senhaInvalida } from "@shared/senha";
@@ -2317,7 +2317,11 @@ function FotoDoGanhadorCard({ sorteadas }: { sorteadas: CampaignRow[] }) {
 
 /* --------------------------- configurações --------------------------- */
 
-/** Segundo fator: gera o segredo, confirma com um código e só então grava. */
+/**
+ * Segundo fator: gera o segredo, confirma com um código e só então grava.
+ * Desligar pede a senha e o código, e cada tentativa conta no servidor
+ * (`2fa-off:`, 30 em 10 min): estourou, 429 com a mensagem, que aparece aqui.
+ */
 function TwoFactorCard() {
   const qc = useQueryClient();
   const { data } = useQuery<{ enabled: boolean }>({ queryKey: ["/api/admin/2fa"] });
@@ -2354,19 +2358,23 @@ function TwoFactorCard() {
       setError(null);
       qc.invalidateQueries({ queryKey: ["/api/admin/2fa"] });
     },
-    onError: (err: Error) => setError(err.message),
+    onError: (err: Error) => {
+      // A senha ou o código errado (ou o limite de tentativas): o código usado não serve de novo.
+      setCode("");
+      setError(err.message);
+    },
   });
 
   return (
-    <Card
-      title="Segundo fator"
-      right={<Pill status={data?.enabled ? "paid" : "pending"}>
-        {data?.enabled ? "ativo" : "desligado"}
-      </Pill>}
+    <CartaoDoPainel
+      titulo="Segundo fator"
+      acao={<Pill status={data?.enabled ? "paid" : "pending"}>{data?.enabled ? "ativo" : "desligado"}</Pill>}
     >
-      <div className="space-y-3 p-4">
+      <div className="space-y-3 px-5 pb-5">
         {error ? (
-          <p className="rounded-md bg-red-soft px-3 py-2 text-sm text-red">{error}</p>
+          <p role="alert" className="rounded-md bg-red-soft px-3 py-2 text-sm text-red">
+            {error}
+          </p>
         ) : null}
 
         {!data?.enabled && !setup ? (
@@ -2375,12 +2383,20 @@ function TwoFactorCard() {
               A conta do administrador move dinheiro e publica campanha. Com o segundo fator,
               a senha sozinha deixa de ser suficiente para entrar.
             </p>
-            <Button onClick={() => start.mutate()}>Ativar segundo fator</Button>
+            <Button disabled={start.isPending} onClick={() => start.mutate()}>
+              Ativar segundo fator
+            </Button>
           </>
         ) : null}
 
         {setup ? (
-          <>
+          <form
+            className="space-y-3"
+            onSubmit={(e) => {
+              e.preventDefault();
+              enable.mutate();
+            }}
+          >
             <p className="text-sm text-ink-2">
               Cadastre no aplicativo autenticador e confirme com o código que aparecer.
             </p>
@@ -2397,60 +2413,71 @@ function TwoFactorCard() {
                 </p>
               </div>
             </div>
-            <div className="flex gap-2">
-              <input
-                id="totp-confirm"
-                aria-label="Código do autenticador"
-                value={code}
-                inputMode="numeric"
-                maxLength={6}
-                onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
-                className="tnum w-32 rounded-md border border-line-2 px-3 py-2 tracking-[0.2em]"
-              />
-              <Button onClick={() => enable.mutate()} disabled={code.length !== 6}>
+            <div className="flex flex-wrap items-end gap-2">
+              <Campo rotulo="Código do autenticador">
+                <input
+                  id="totp-confirm"
+                  value={code}
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  maxLength={6}
+                  onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
+                  className="tnum w-36 tracking-[0.2em]"
+                />
+              </Campo>
+              <Button type="submit" disabled={code.length !== 6 || enable.isPending}>
                 Confirmar
               </Button>
             </div>
-          </>
+          </form>
         ) : null}
 
         {data?.enabled ? (
-          <>
+          <form
+            className="space-y-3"
+            onSubmit={(e) => {
+              e.preventDefault();
+              setError(null);
+              disable.mutate();
+            }}
+          >
             <p className="text-sm text-ink-2">
               Para desligar, confirme com a senha e um código — sessão roubada não desarma
-              o segundo fator sozinha.
+              o segundo fator sozinha. Cada tentativa conta: errar muitas vezes bloqueia por alguns minutos.
             </p>
-            <div className="flex flex-wrap gap-2">
-              <input
-                id="totp-password"
-                type="password"
-                aria-label="Senha"
-                placeholder="senha"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-40 rounded-md border border-line-2 px-3 py-2 text-sm"
-              />
-              <input
-                id="totp-disable"
-                aria-label="Código do autenticador"
-                value={code}
-                inputMode="numeric"
-                maxLength={6}
-                onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
-                className="tnum w-32 rounded-md border border-line-2 px-3 py-2 tracking-[0.2em]"
-              />
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_9rem_auto] sm:items-end">
+              <Campo rotulo="Senha">
+                <input
+                  id="totp-password"
+                  type="password"
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+              </Campo>
+              <Campo rotulo="Código do autenticador">
+                <input
+                  id="totp-disable"
+                  value={code}
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  maxLength={6}
+                  onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
+                  className="tnum tracking-[0.2em]"
+                />
+              </Campo>
               <Button
-                variant="ghost"
-                onClick={() => disable.mutate()}
-                disabled={code.length !== 6 || password.length < 4}
+                type="submit"
+                variant="contorno"
+                disabled={code.length !== 6 || password.length < 4 || disable.isPending}
               >
                 Desligar
               </Button>
             </div>
-          </>
+          </form>
         ) : null}
       </div>
-    </Card>
+    </CartaoDoPainel>
   );
 }
 
@@ -2481,64 +2508,57 @@ function PaymentMethodsCard() {
   const ligados = data ? PAYMENT_METHODS.filter((m) => data[m.key]).length : 0;
 
   return (
-    <Card
-      title="Meios de pagamento"
-      right={<Pill status={ligados > 0 ? "paid" : "expired"}>{`${ligados} ligado(s)`}</Pill>}
+    <CartaoDoPainel
+      titulo="Meios de pagamento"
+      subtitulo="Vale para o app inteiro: a loja online e a tela do cambista só oferecem o que estiver ligado aqui."
+      acao={<Pill status={ligados > 0 ? "paid" : "expired"}>{`${ligados} ligado(s)`}</Pill>}
     >
-      <div className="space-y-3 p-4">
-        <p className="text-xs text-muted">
-          Vale para o app inteiro: a loja online e a tela do cambista só oferecem o que
-          estiver ligado aqui.
-        </p>
-
+      <div className="space-y-3 px-5 pb-5">
         {(["online", "fisico"] as const).map((scope) => (
-          <div key={scope} className="space-y-2">
-            <span className="label-xs">
+          <fieldset key={scope} className="space-y-2">
+            <legend className="label-xs text-ink-2">
               {scope === "online" ? "Loja online" : "Venda na mão (cambista)"}
-            </span>
+            </legend>
             {PAYMENT_METHODS.filter((m) => m.scope === scope).map((m) => {
               const ligado = data?.[m.key] ?? false;
               return (
-                <label
+                <div
                   key={m.key}
-                  htmlFor={`meio-${m.key}`}
-                  className={`flex cursor-pointer items-start gap-3 rounded-md border px-3 py-2 ${
+                  className={`flex items-start gap-3 rounded-lg border px-3 py-2 ${
                     ligado ? "border-green bg-green-soft" : "border-line-2 bg-white"
                   }`}
                 >
-                  <input
+                  <Caixa
                     id={`meio-${m.key}`}
-                    type="checkbox"
-                    checked={ligado}
+                    marcada={ligado}
                     disabled={!data || salvar.isPending}
-                    onChange={() => alternar(m.key)}
-                    className="mt-1"
-                  />
-                  <span className="flex-1">
-                    <span className="block text-sm font-medium">{m.label}</span>
-                    <span className="block text-[11px] text-muted">{m.hint}</span>
-                  </span>
-                  <Pill status={ligado ? "paid" : "draft"}>
-                    {ligado ? "aceito" : "desligado"}
-                  </Pill>
-                </label>
+                    aoMudar={() => alternar(m.key)}
+                    sub={m.hint}
+                    className="min-w-0 flex-1"
+                  >
+                    <span className="font-medium">{m.label}</span>
+                  </Caixa>
+                  <Pill status={ligado ? "paid" : "draft"}>{ligado ? "aceito" : "desligado"}</Pill>
+                </div>
               );
             })}
-          </div>
+          </fieldset>
         ))}
 
         {data && !data.pix_online ? (
-          <p className="rounded-md bg-yellow-soft px-3 py-2 text-[11px] text-yellow-deep">
+          <p role="note" className="rounded-md bg-yellow-soft px-3 py-2 text-xs text-yellow-deep">
             Com o Pix online desligado, a página da rifa deixa de vender sozinha e passa
             a orientar o comprador a procurar um cambista.
           </p>
         ) : null}
 
         {erro ? (
-          <p className="rounded-md bg-red-soft px-3 py-2 text-sm text-red">{erro}</p>
+          <p role="alert" className="rounded-md bg-red-soft px-3 py-2 text-sm text-red">
+            {erro}
+          </p>
         ) : null}
       </div>
-    </Card>
+    </CartaoDoPainel>
   );
 }
 
@@ -2559,6 +2579,7 @@ function OrganizerCard() {
 
   const [form, setForm] = useState<Record<string, string>>({});
   const [erro, setErro] = useState<string | null>(null);
+  const [salvo, setSalvo] = useState(false);
   const valor = (campo: string) => form[campo] ?? (data as never)?.[campo] ?? "";
 
   const salvar = useMutation({
@@ -2573,17 +2594,27 @@ function OrganizerCard() {
       }),
     onSuccess: () => {
       setErro(null);
+      setSalvo(true);
       qc.invalidateQueries({ queryKey: ["/api/admin/organizer"] });
     },
-    onError: (err: Error) => setErro(err.message),
+    onError: (err: Error) => {
+      setSalvo(false);
+      setErro(err.message);
+    },
   });
 
   return (
-    <Card title="Administradora da rifa">
-      <div className="space-y-3 p-4">
-        <p className="text-xs text-muted">
-          Estes dados saem impressos em todo bilhete, junto da autorização da campanha.
-        </p>
+    <CartaoDoPainel
+      titulo="Administradora da rifa"
+      subtitulo="Estes dados saem impressos em todo bilhete, junto da autorização da campanha."
+    >
+      <form
+        className="space-y-3 px-5 pb-5"
+        onSubmit={(e) => {
+          e.preventDefault();
+          salvar.mutate();
+        }}
+      >
         {(
           [
             ["nome", "Nome"],
@@ -2595,22 +2626,33 @@ function OrganizerCard() {
         )
           .filter(([campo]) => !(daOrganizacao && campo === "cidade"))
           .map(([campo, rotulo]) => (
-          <div key={campo}>
-            <label htmlFor={`org-${campo}`} className="label-xs">{rotulo}</label>
-            <input
-              id={`org-${campo}`}
-              value={valor(campo)}
-              onChange={(e) => setForm({ ...form, [campo]: e.target.value })}
-              className="campo text-sm"
-            />
-          </div>
-        ))}
+            <Campo key={campo} rotulo={rotulo}>
+              <input
+                id={`org-${campo}`}
+                value={valor(campo)}
+                onChange={(e) => {
+                  setSalvo(false);
+                  setForm({ ...form, [campo]: e.target.value });
+                }}
+                className={campo === "cnpj" || campo === "contato" ? "tnum" : ""}
+              />
+            </Campo>
+          ))}
         {erro ? (
-          <p className="rounded-md bg-red-soft px-3 py-2 text-sm text-red">{erro}</p>
+          <p role="alert" className="rounded-md bg-red-soft px-3 py-2 text-sm text-red">
+            {erro}
+          </p>
         ) : null}
-        <Button onClick={() => salvar.mutate()}>Salvar</Button>
-      </div>
-    </Card>
+        {salvo ? (
+          <p role="status" className="rounded-md bg-green-soft px-3 py-2 text-sm text-green-deep">
+            Dados salvos. Saem nos próximos bilhetes.
+          </p>
+        ) : null}
+        <Button type="submit" disabled={salvar.isPending}>
+          Salvar
+        </Button>
+      </form>
+    </CartaoDoPainel>
   );
 }
 
@@ -2629,22 +2671,19 @@ function EnderecoDaOrganizacaoCard() {
   });
   if (!data?.organizacaoId) return null;
   return (
-    <Card
-      title="Endereço da organização"
-      right={data.endereco ? null : <Pill status="pending">falta cadastrar</Pill>}
+    <CartaoDoPainel
+      titulo="Endereço da organização"
+      subtitulo="A cidade sai no bilhete. Na vitrine, suas rifas aparecem primeiro para quem está na sua cidade, depois no seu estado — e continuam aparecendo para o Brasil inteiro."
+      acao={data.endereco ? null : <Pill status="pending">falta cadastrar</Pill>}
     >
-      <div className="space-y-3 p-4">
-        <p className="text-xs text-muted">
-          A cidade sai no bilhete. Na vitrine, suas rifas aparecem primeiro para quem está na sua
-          cidade, depois no seu estado — e continuam aparecendo para o Brasil inteiro.
-        </p>
+      <div className="space-y-3 px-5 pb-5">
         <EnderecoForm
           organizacaoId={data.organizacaoId}
           atual={data.endereco ?? data.enderecoParcial}
           onSalvo={() => qc.invalidateQueries({ queryKey: ["/api/admin/organizer"] })}
         />
       </div>
-    </Card>
+    </CartaoDoPainel>
   );
 }
 
@@ -2663,8 +2702,8 @@ function PerfilPublicoCard() {
   }>({ queryKey: ["/api/admin/organizer"] });
   if (!data?.organizacaoId || !data.slug) return null;
   return (
-    <Card title="Perfil público">
-      <div className="p-4">
+    <CartaoDoPainel titulo="Perfil público" subtitulo="O que o apostador vê no perfil da organização.">
+      <div className="px-5 pb-5">
         <PerfilPublicoForm
           organizacaoId={data.organizacaoId}
           slug={data.slug}
@@ -2677,7 +2716,7 @@ function PerfilPublicoCard() {
           onSalvo={() => qc.invalidateQueries({ queryKey: ["/api/admin/organizer"] })}
         />
       </div>
-    </Card>
+    </CartaoDoPainel>
   );
 }
 
@@ -2685,11 +2724,7 @@ function PerfilPublicoCard() {
 function VerificacaoDaOrganizacaoCard() {
   const { data } = useQuery<{ organizacaoId?: string }>({ queryKey: ["/api/admin/organizer"] });
   if (!data?.organizacaoId) return null;
-  return (
-    <div className="mb-3">
-      <VerificacaoCard base={`/api/admin/organizacoes/${data.organizacaoId}/verificacao`} sujeito="organizacao" />
-    </div>
-  );
+  return <VerificacaoCard base={`/api/admin/organizacoes/${data.organizacaoId}/verificacao`} sujeito="organizacao" />;
 }
 
 export function AdminConfiguracoes() {
@@ -2702,21 +2737,31 @@ export function AdminConfiguracoes() {
 
   return (
     <PanelShell title="Configurações">
-      {/* Uma aba por assunto, em vez de uma pilha de doze cartões. */}
+      {/*
+        Uma aba por assunto, em vez de uma pilha de doze cartões. Em cada aba,
+        cartões em coluna até o tablet e em duas colunas no computador (`lg`),
+        alinhados no topo; o cartão de leitura longa (contrato, perfil) ocupa
+        as duas.
+      */}
       <Abas
         rotulo="Assuntos das configurações"
-        ancoras={{ verificacao: "organizacao", contrato: "organizacao" }}
+        ancoras={{ verificacao: "conta", contrato: "organizacao" }}
         abas={[
           {
             id: "conta",
             titulo: "Conta e segurança",
             conteudo: (
-              <div className="space-y-3">
-                <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-                  <TwoFactorCard />
-                  <TrocarSenha />
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:items-start">
+                <TwoFactorCard />
+                <TrocarSenha />
+                <div className="min-w-0 lg:col-span-2">
+                  <TelefoneDoOrganizadorCard />
                 </div>
-                <TelefoneDoOrganizadorCard />
+                {plataforma ? null : (
+                  <div className="min-w-0 lg:col-span-2">
+                    <VerificacaoDaOrganizacaoCard />
+                  </div>
+                )}
               </div>
             ),
           },
@@ -2724,15 +2769,18 @@ export function AdminConfiguracoes() {
             id: "organizacao",
             titulo: "Organização e perfil",
             conteudo: (
-              <div className="space-y-3">
-                <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-                  <OrganizerCard />
-                  <EnderecoDaOrganizacaoCard />
-                </div>
-                <ContratoPromotoraCard plataforma={plataforma} />
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:items-start">
+                <OrganizerCard />
+                <EnderecoDaOrganizacaoCard />
                 {plataforma ? null : <SociosDaOrganizacaoCard />}
-                <PerfilPublicoCard />
-                {plataforma ? <CoresDoSeloCard /> : <VerificacaoDaOrganizacaoCard />}
+                {/* O contrato logo depois dos dados: o link antigo (#contrato) rola até ele sem esperar o perfil carregar. */}
+                <div className="min-w-0">
+                  <ContratoPromotoraCard plataforma={plataforma} />
+                </div>
+                {plataforma ? <CoresDoSeloCard /> : null}
+                <div className="min-w-0 lg:col-span-2">
+                  <PerfilPublicoCard />
+                </div>
               </div>
             ),
           },
@@ -2740,7 +2788,7 @@ export function AdminConfiguracoes() {
             id: "vendas",
             titulo: "Vendas e pagamentos",
             conteudo: (
-              <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:items-start">
                 <PaymentMethodsCard />
                 {plataforma ? (
                   <>

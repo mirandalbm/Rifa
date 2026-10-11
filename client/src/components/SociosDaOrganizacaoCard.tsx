@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button, Campo, Card, Pill } from "@/components/bits";
+import { Button, Campo, Pill } from "@/components/bits";
+import { CartaoDoPainel } from "@/components/painel";
 import { apiRequest } from "@/lib/queryClient";
 import { cpfValido, maskCpf } from "@shared/format";
 import { CARGOS_DO_SOCIO, DECLARACAO_DOS_SOCIOS, type CargoDoSocio } from "@shared/socios";
@@ -65,11 +66,11 @@ export function SociosDaOrganizacaoCard() {
   const cheia = socios.length >= (data?.maximo ?? 30);
 
   return (
-    <Card
-      title="Sócios e diretores"
-      right={data?.declaradaEm ? <Pill status="published">declarada</Pill> : <Pill status="pending">falta declarar</Pill>}
+    <CartaoDoPainel
+      titulo="Sócios e diretores"
+      acao={data?.declaradaEm ? <Pill status="published">declarada</Pill> : <Pill status="pending">falta declarar</Pill>}
     >
-      <div className="space-y-3 p-4">
+      <div className="space-y-3 px-5 pb-5">
         <p className="text-xs text-muted">
           Pelo regulamento, a promotora, seus sócios e diretores não podem participar das rifas autorizadas. Cadastre
           todos e declare a lista completa: sem a declaração, a rifa autorizada não publica, e a compra com o CPF de
@@ -169,6 +170,6 @@ export function SociosDaOrganizacaoCard() {
           </p>
         ) : null}
       </div>
-    </Card>
+    </CartaoDoPainel>
   );
 }

@@ -6,11 +6,11 @@ Gerada do código por `npm run matriz` — **não edite à mão** (o teste `test
 |---|---|
 | Telas (rotas do `App.tsx`) | 66 (+ 2 redirecionamentos) |
 | Seções de acesso (`shared/access.ts`) | 41 |
-| Cartões (componentes usados pelas telas) | 775 |
+| Cartões (componentes usados pelas telas) | 779 |
 | Rotas da API | 477, das quais 473 citadas por alguma prova |
 | Provas contra a API (`npm run …`) | 61 |
 | Testes de regra (`tests/`) | 128 arquivos |
-| Destinos decididos | 882 de 882 |
+| Destinos decididos | 886 de 886 |
 
 ## 1. Telas
 
@@ -799,9 +799,13 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 | Cartão | Destino |
 |---|---|
 | `Button` | manter · peça do kit (onda 1) · na tela A07 Meus dados |
-| `Card` | manter · peça do kit (onda 1) · na tela A07 Meus dados |
+| `Campo` | manter · peça do kit (onda 1) · na tela A07 Meus dados |
+| `CartaoDoPainel` | manter · peça do kit (onda 1) · na tela A07 Meus dados |
+| `Filtros` | manter · peça do kit (onda 1) · na tela A07 Meus dados |
+| `IconePerfil` | manter · na tela A07 Meus dados · onda 4 |
 | `PanelShell` | manter · peça do kit (onda 1) · na tela A07 Meus dados |
 | `Pill` | manter · peça do kit (onda 1) · na tela A07 Meus dados |
+| `TONS_DO_BOTAO` | manter · peça do kit (onda 1) · na tela A07 Meus dados |
 | `VerificacaoCard` | manter · na tela A07 Meus dados · onda 4 |
 
 ### `/afiliado/divulgar` — Divulgar
@@ -811,7 +815,7 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 | `Button` | manter · peça do kit (onda 1) · na tela A03 Divulgar |
 | `Campo` | manter · peça do kit (onda 1) · na tela A03 Divulgar |
 | `CampoDeAgenda` | manter · na tela A03 Divulgar · onda 4 |
-| `Card` | manter · peça do kit (onda 1) · na tela A03 Divulgar |
+| `CartaoDoPainel` | manter · peça do kit (onda 1) · na tela A03 Divulgar |
 | `Empty` | manter · peça do kit (onda 1) · na tela A03 Divulgar |
 | `FotosProprias` | manter · na tela A03 Divulgar · onda 4 |
 | `PanelShell` | manter · peça do kit (onda 1) · na tela A03 Divulgar |

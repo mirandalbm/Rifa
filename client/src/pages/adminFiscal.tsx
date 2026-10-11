@@ -45,7 +45,7 @@ export function AdminFiscal() {
   const lista = (linhas: Linha[]) => (
     <ul className="divide-y divide-line border-t border-line">
       {linhas.map((l) => (
-        <li key={l.affiliateId} className={`px-5 py-3 text-sm ${aberto === l.affiliateId ? "bg-green-soft/40" : ""}`}>
+        <li key={l.affiliateId} className={`px-5 py-3 text-sm ${aberto === l.affiliateId ? "bg-mist" : ""}`}>
           <div className="flex flex-wrap items-center gap-3">
             <span className="min-w-0 flex-1">
               <span className="font-semibold">{l.nome}</span> · <span className="tnum text-muted">{l.codigo}</span>

@@ -45,9 +45,15 @@ cadastro (o roteiro do dia está na etapa 5, "Dia da troca da razão social").
   International Lottery Ltda; MEI e Simples não sofrem retenção. A receita
   da plataforma é a taxa da venda (percentual ou por cota) e a do Pix, com NFS-e mensal contra cada
   promotora. Pendências que sobraram: seção 5 de `docs/PENDENCIAS.md`.
-- [ ] **Pagamento**: pedir por escrito ao Mercado Pago e ao Asaas se aceitam
-  promoção comercial com autorização SPA/MF. A resposta decide o provedor
-  (etapa 4).
+- [ ] **Pagamento**: **decidido o Pagar.me (Stone)** em 10/10/2026 (pela
+  pesquisa do dono, Asaas e Mercado Pago não aceitam rifa;
+  `docs/FECHAMENTO-JURIDICO-CONTABIL.md`). Antes do contrato, obter **por
+  escrito** do Pagar.me: (a) que aceita promoção comercial com autorização
+  SPA/MF; (b) conta com split (um recebedor por promotora) para Pix; (c)
+  como o estorno e a devolução por MED se dividem entre os recebedores; (d)
+  o prazo em que o Pix fica disponível ao recebedor; (e) as tarifas. A
+  integração no código (`docs/PLANO-GATEWAY-PAGARME.md`) é comigo e vem
+  antes da etapa 4.
 - [ ] **Meta e Google Ads**: perguntar se a conta de anúncios pode rodar
   anúncio de sorteio (só importa para o Marketing, etapa 7).
 
@@ -116,11 +122,12 @@ cadastro (o roteiro do dia está na etapa 5, "Dia da troca da razão social").
 
 ## Etapa 4 — dinheiro
 
-- [ ] Escolher o provedor (pela resposta do dia 1) em Configurações →
-  Pagamentos e estorno; chaves e webhook no Railway (`MP_*` ou `ASAAS_*`).
-- [ ] Asaas: no sandbox, um Pix de carrinho com duas carteiras (split com
-  dois destinos) e a devolução parcial de um pedido; confirmar com o Asaas
-  como estornar o split.
+- [ ] Pagar.me em Configurações → Pagamentos e estorno, com as chaves e o
+  webhook no Railway (os nomes saem com a integração), e o recebedor de
+  cada organização cadastrado.
+- [ ] No sandbox do Pagar.me: um Pix de carrinho com dois recebedores
+  (split com dois destinos) e a devolução parcial de um pedido; confirmar
+  com eles como o estorno do split se divide.
 - [ ] Se houve venda com split antes da taxa retida: dar baixa à mão nas
   linhas antigas na Cobrança.
 - [ ] Reembolso: ligar "Aceitar pedidos de reembolso" quando decidir; cada

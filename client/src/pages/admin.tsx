@@ -156,7 +156,7 @@ export function AdminPainel() {
       ) : (
         // Os widgets dos painéis prontos do kit (eCommerce e Analytics),
         // cada um ligado a um dado nosso. Grade de 4 colunas no computador.
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6 lg:grid-cols-4">
           {/* Boas-vindas: o resumo do dia. */}
           <section aria-label="Resumo de hoje" className="cartao flex items-center justify-between gap-4 rounded-xl border border-line bg-white p-5 md:col-span-2">
             <div className="min-w-0">
@@ -896,7 +896,7 @@ export function AdminCampanhas() {
                     titulo: "A rifa",
                     conteudo: (
                       // Computador: os dados da rifa em duas colunas e a situação na terceira; o resto embaixo.
-                      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-3">
+                      <div className="grid grid-cols-1 items-start gap-4 md:gap-6 lg:grid-cols-3">
                         <div className="min-w-0 lg:col-span-2">
                           <EditarRifaCard
                             rifa={c}
@@ -927,11 +927,11 @@ export function AdminCampanhas() {
                     id: "autorizacao",
                     titulo: "Autorização e sorteio",
                     conteudo: (
-                      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
+                      <div className="grid grid-cols-1 items-start gap-4 md:gap-6 lg:grid-cols-2">
                         <div id="dados-legais" className="min-w-0">
                           <DadosLegaisCard campanha={c} />
                         </div>
-                        <div className="grid min-w-0 grid-cols-1 gap-4">
+                        <div className="grid min-w-0 grid-cols-1 gap-4 md:gap-6">
                           <TransmissaoCard campanha={c} />
                           {podeAdiar ? (
                             <div id="adiar" className="min-w-0 scroll-mt-20">
@@ -950,27 +950,34 @@ export function AdminCampanhas() {
                     id: "publicacao",
                     titulo: "Publicação",
                     conteudo: (
-                      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
-                        <div id="midia" className="min-w-0 lg:col-span-2">
+                      <div className="space-y-4 md:space-y-6">
+                        <div id="midia" className="min-w-0">
                           <MediaManager campaignId={c.id} />
                         </div>
-                        <LegendaCard campanha={c} />
-                        <ReelsDaRifa campaignId={c.id} />
-                        <CartaoDoPainel titulo="Artes para divulgar" subtitulo="Prontas nos três formatos, ou monte a sua no editor.">
-                          <div className="space-y-4 px-5 pb-5">
-                            <AbrirEditorDeImagem
-                              portas={{
-                                dados: `/api/admin/campaigns/${c.id}/editor`,
-                                conferir: `/api/admin/campaigns/${c.id}/editor/conferir`,
-                                sugerir: `/api/admin/campaigns/${c.id}/sugerir`,
-                                artes: `/api/admin/campaigns/${c.id}/artes`,
-                                carrossel: `/api/admin/campaigns/${c.id}/media`,
-                              }}
-                            />
-                            <ArtesParaDivulgar base={`/api/admin/campaigns/${c.id}/artes`} />
-                          </div>
-                        </CartaoDoPainel>
-                        <BannerDivulgacaoCard campaignId={c.id} />
+                        {/*
+                          No computador, duas colunas que fluem (`columns`), como as rifas do perfil:
+                          na grade, a legenda (curta) ficava ao lado do Reels (alto) e deixava um
+                          buraco embaixo dela. O DOM segue a ordem do celular.
+                        */}
+                        <div className="lg:columns-2 lg:gap-6 [&>*]:mb-4 [&>*]:break-inside-avoid md:[&>*]:mb-6 [&>*:last-child]:mb-0">
+                          <LegendaCard campanha={c} />
+                          <ReelsDaRifa campaignId={c.id} />
+                          <CartaoDoPainel titulo="Artes para divulgar" subtitulo="Prontas nos três formatos, ou monte a sua no editor.">
+                            <div className="space-y-4 px-5 pb-5">
+                              <AbrirEditorDeImagem
+                                portas={{
+                                  dados: `/api/admin/campaigns/${c.id}/editor`,
+                                  conferir: `/api/admin/campaigns/${c.id}/editor/conferir`,
+                                  sugerir: `/api/admin/campaigns/${c.id}/sugerir`,
+                                  artes: `/api/admin/campaigns/${c.id}/artes`,
+                                  carrossel: `/api/admin/campaigns/${c.id}/media`,
+                                }}
+                              />
+                              <ArtesParaDivulgar base={`/api/admin/campaigns/${c.id}/artes`} />
+                            </div>
+                          </CartaoDoPainel>
+                          <BannerDivulgacaoCard campaignId={c.id} />
+                        </div>
                       </div>
                     ),
                   },
@@ -1050,7 +1057,7 @@ export function AdminCampanhas() {
                 <Empty>Nenhuma campanha criada.</Empty>
               </Card>
             ) : visao === "grade" ? (
-              <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-label="Rifas em grade">
+              <ul className="grid grid-cols-1 gap-4 md:gap-6 sm:grid-cols-2 xl:grid-cols-3" aria-label="Rifas em grade">
                 {data?.map((linha) => {
                   const { campaign, stats, emAnalise, capa } = linha;
                   const acoes = acoesDa(linha);
@@ -1348,13 +1355,13 @@ export function AdminAfiliados() {
         esquerda; a fila de adesão, os cupons e os vínculos à direita. O DOM
         segue a ordem do celular (esquerda, depois direita).
       */}
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:items-start">
-        <div className="min-w-0 space-y-4">
+      <div className="grid grid-cols-1 gap-4 md:gap-6 xl:grid-cols-2 xl:items-start">
+        <div className="min-w-0 space-y-4 md:space-y-6">
           {daOrganizacao ? <TermoAfiliadoCard /> : null}
           <DivulgacoesDaOrganizacao daOrganizacao={daOrganizacao} />
         </div>
 
-        <div className="min-w-0 space-y-4">
+        <div className="min-w-0 space-y-4 md:space-y-6">
           {pending.length > 0 ? (
             <CartaoDoPainel titulo="Pedidos de adesão" acao={<Pill status="pending">{`${pending.length} na fila`}</Pill>}>
               <ul aria-label="Pedidos de adesão" className="divide-y divide-line">
@@ -1835,7 +1842,7 @@ export function AdminFinanceiro() {
         afiliado numa coluna estreita à esquerda e os saques, em tabela, na
         larga à direita. O DOM segue a ordem do celular.
       */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:items-start xl:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
+      <div className="grid grid-cols-1 gap-4 md:gap-6 md:grid-cols-2 md:items-start xl:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
         <CartaoDoPainel
           className="xl:row-span-2"
           titulo="Comissão por afiliado"
@@ -2005,7 +2012,7 @@ export function AdminSorteios() {
   return (
     <PanelShell title="Sorteios">
       {/* O DOM segue a ordem do celular (executar, como o número sai, feitos); o computador põe as regras à direita. */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[2fr_1fr] lg:items-start">
+      <div className="grid grid-cols-1 gap-4 md:gap-6 lg:grid-cols-[2fr_1fr] lg:items-start">
         <CartaoDoPainel titulo="Executar sorteio">
           <div className="space-y-3 px-5 pb-5">
             <p className="text-sm text-muted">
@@ -2135,7 +2142,7 @@ export function AdminSorteios() {
         </CartaoDoPainel>
       </div>
 
-      <div className="mt-4">
+      <div className="mt-4 md:mt-6">
         <CartaoDoPainel
           titulo="Sorteios feitos"
           subtitulo="Resultado, número contemplado e a conferência pública de cada rifa."
@@ -2244,7 +2251,7 @@ function FotoDoGanhadorCard({ sorteadas }: { sorteadas: CampaignRow[] }) {
   const mostrada = foto ?? sorteio?.fotoGanhador ?? null;
 
   return (
-    <div className="mt-4">
+    <div className="mt-4 md:mt-6">
       <CartaoDoPainel
         titulo="Foto do ganhador"
         subtitulo="Vira a capa da rifa nos destaques do perfil e aparece no resultado. Publique só com a autorização do ganhador para usar a imagem dele."
@@ -2751,7 +2758,7 @@ export function AdminConfiguracoes() {
             id: "conta",
             titulo: "Conta e segurança",
             conteudo: (
-              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:items-start">
+              <div className="grid grid-cols-1 gap-4 md:gap-6 lg:grid-cols-2 lg:items-start">
                 <TwoFactorCard />
                 <TrocarSenha />
                 <div className="min-w-0 lg:col-span-2">
@@ -2769,7 +2776,7 @@ export function AdminConfiguracoes() {
             id: "organizacao",
             titulo: "Organização e perfil",
             conteudo: (
-              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:items-start">
+              <div className="grid grid-cols-1 gap-4 md:gap-6 lg:grid-cols-2 lg:items-start">
                 <OrganizerCard />
                 <EnderecoDaOrganizacaoCard />
                 {plataforma ? null : <SociosDaOrganizacaoCard />}
@@ -2788,7 +2795,7 @@ export function AdminConfiguracoes() {
             id: "vendas",
             titulo: "Vendas e pagamentos",
             conteudo: (
-              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:items-start">
+              <div className="grid grid-cols-1 gap-4 md:gap-6 lg:grid-cols-2 lg:items-start">
                 <PaymentMethodsCard />
                 {plataforma ? (
                   <>

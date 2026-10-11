@@ -155,7 +155,7 @@ export function AdminStories() {
   return (
     <PanelShell title="Stories">
       {/* No computador, o formulário e a lista meio a meio, como no Figma; a lista não estica até o fim do formulário. */}
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2 lg:items-start">
+      <div className="grid grid-cols-1 gap-4 md:gap-6 lg:grid-cols-2 lg:items-start">
         <CartaoDoPainel titulo="Novo story">
           <form
             className="space-y-3 px-5 pb-5 text-sm"

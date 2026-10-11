@@ -225,7 +225,7 @@ export function AdminUsuarios() {
         </Campo>
       </div>
 
-      <div className={senhaDe ? "grid grid-cols-1 gap-3 xl:grid-cols-[1fr_320px]" : ""}>
+      <div className={senhaDe ? "grid grid-cols-1 gap-4 md:gap-6 xl:grid-cols-[1fr_320px]" : ""}>
         <CartaoDoPainel
           titulo="Pessoas com acesso"
           subtitulo="Clique no nome para ver todos os dados da pessoa."

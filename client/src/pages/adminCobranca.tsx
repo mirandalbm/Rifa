@@ -269,7 +269,7 @@ function Carteira() {
         </p>
       ) : null}
 
-      <div className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2 md:mb-6 md:gap-6">
         <Kpi label="A receber" value={formatBRL(total)} hint="somando todas" highlight={total > 0} />
         <Kpi label="Retida no split" value={formatBRL(retida)} hint="o Pix já dividiu: nada a cobrar" />
       </div>
@@ -278,7 +278,7 @@ function Carteira() {
 
       <RetencoesCautelares organizacoes={data?.carteira.map((o) => ({ id: o.organizationId, nome: o.name })) ?? []} />
 
-      <CartaoDoPainel titulo="Carteira" className="mt-3">
+      <CartaoDoPainel titulo="Carteira" className="mt-4 md:mt-6">
         {data?.carteira.length ? (
           <TabelaOuCartoes
             aria="Carteira de cobrança"
@@ -440,7 +440,7 @@ function TabelaDeCobranca() {
   });
 
   return (
-    <CartaoDoPainel titulo="Tabela de cobrança" className="mb-3">
+    <CartaoDoPainel titulo="Tabela de cobrança" className="mb-4 md:mb-6">
       {/* No computador o formulário fica à esquerda e o que está em vigor (e a agendada) à direita: os campos, sozinhos na largura toda, ficavam com 1.100 px para três algarismos. */}
       <div className="lg:grid lg:grid-cols-2 lg:divide-x lg:divide-line">
         <form
@@ -586,7 +586,8 @@ function MinhaConta() {
     <PanelShell title="Cobrança">
       {daNotificacao?.notificacao ? <FaltaDePagamento n={daNotificacao.notificacao} /> : null}
 
-      <div className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
+      {/* Duas ou três estatísticas numa linha: a terceira ("A receber da plataforma") só existe com crédito. */}
+      <div className={`mb-4 grid grid-cols-1 gap-4 md:mb-6 md:gap-6 ${data?.creditos.devidoCents ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
         <Kpi label="Em aberto" value={formatBRL(data?.totais.abertoCents ?? 0)} />
         <Kpi
           label="Já pago"
@@ -603,7 +604,7 @@ function MinhaConta() {
       </div>
 
       {data?.proxima ? (
-        <CartaoDoPainel titulo={`Tabela nova a partir de ${dataDaVigencia(data.proxima.vigenteEm)}`} acao={<Pill status="reserved">aviso</Pill>} className="mb-3">
+        <CartaoDoPainel titulo={`Tabela nova a partir de ${dataDaVigencia(data.proxima.vigenteEm)}`} acao={<Pill status="reserved">aviso</Pill>} className="mb-4 md:mb-6">
           <p className="px-5 pb-3 text-sm">
             Vale para as rifas publicadas a partir de <span className="tnum">{dataDaVigencia(data.proxima.vigenteEm)}</span>. As
             rifas já publicadas seguem com a tabela que gravaram na publicação.
@@ -613,7 +614,7 @@ function MinhaConta() {
       ) : null}
 
       {data ? (
-        <CartaoDoPainel titulo="Como a plataforma cobra" className="mb-3">
+        <CartaoDoPainel titulo="Como a plataforma cobra" className="mb-4 md:mb-6">
           <ResumoDaTabela tabela={data.tabela} />
         </CartaoDoPainel>
       ) : null}
@@ -669,7 +670,7 @@ function FaltaDePagamento({ n }: { n: NotificacaoDeCobranca }) {
   if (situacao === "regularizada") return null;
   const bloqueando = situacao === "bloqueando";
   return (
-    <div className="mb-3">
+    <div className="mb-4 md:mb-6">
       <CartaoDoPainel
         titulo="Falta de pagamento"
         acao={bloqueando ? <Pill status="expired">publicação bloqueada</Pill> : <Pill status="reserved">no prazo</Pill>}

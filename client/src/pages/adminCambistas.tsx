@@ -96,7 +96,7 @@ export function AdminCambistas() {
       <PedidosDeColaborador onCriar={(p) => setForm({ ...form, name: p.nome, phone: p.telefone })} />
 
       {/* O DOM segue a ordem do celular (a receber, novo cambista, acertos); o computador põe o cadastro à direita. */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[2fr_1fr] lg:items-start">
+      <div className="grid grid-cols-1 gap-4 md:gap-6 lg:grid-cols-[2fr_1fr] lg:items-start">
         <CartaoDoPainel
           titulo="A receber dos cambistas"
           acao={<span className="tnum text-sm font-medium text-green-deep">{formatBRL(totalAberto)}</span>}
@@ -165,7 +165,7 @@ export function AdminCambistas() {
         </CartaoDoPainel>
       </div>
 
-      <div className="mt-4">
+      <div className="mt-4 md:mt-6">
         <CartaoDoPainel
           titulo="Acertos fechados"
           subtitulo="Fechar carimba os pedidos (settlement_id) com a linha do cambista travada; dar baixa é condicional."
@@ -272,7 +272,7 @@ function PedidosDeColaborador({ onCriar }: { onCriar: (p: PedidoDeColaborador) =
   const abertos = data.filter((p) => p.status === "pendente");
   if (abertos.length === 0) return null;
   return (
-    <div className="mb-4">
+    <div className="mb-4 md:mb-6">
       <CartaoDoPainel titulo="Querem ser colaboradores" acao={<Pill status="pending">{`${abertos.length} pedido(s)`}</Pill>}>
         <ul className="divide-y divide-line">
           {abertos.map((p) => (

@@ -41,8 +41,8 @@ export function AdminMarketing() {
       ) : !data ? (
         <Empty>Carregando…</Empty>
       ) : (
-        <div className="space-y-3">
-          <div className="grid grid-cols-1 items-start gap-3 lg:grid-cols-2">
+        <div className="space-y-4 md:space-y-6">
+          <div className="grid grid-cols-1 items-start gap-4 md:gap-6 lg:grid-cols-2">
             <ConfigCard dados={data} />
             <EnviosCard dados={data} />
           </div>
@@ -100,9 +100,10 @@ function ConfigCard({ dados }: { dados: Painel }) {
           Informe só o número de cada pixel — o sistema monta o código. Sem nenhum pixel, nada carrega e o aviso de
           cookies não aparece.
         </p>
+        {/* O rótulo longo ("Rótulo da conversão do Google Ads") quebra para cima: cada campo encosta no pé da linha, alinhado ao vizinho. */}
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           {CAMPOS_DE_PIXEL.map((c) => (
-            <Campo key={c} rotulo={nomeDoPixel(c)}>
+            <Campo key={c} rotulo={nomeDoPixel(c)} className="flex flex-col justify-end">
               <input
                 value={pixels[c] ?? ""}
                 onChange={(e) => setPixels({ ...pixels, [c]: e.target.value })}

@@ -109,7 +109,7 @@ export function CampaignExtras({
   const claimed = prized?.filter((p) => p.claimedByOrderId).length ?? 0;
 
   return (
-    <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+    <div className="grid grid-cols-1 gap-4 md:gap-6 lg:grid-cols-2">
       <CartaoDoPainel titulo="Pacotes com desconto" subtitulo="Desconto por quantidade de cotas no mesmo pedido.">
         <div className="space-y-3 px-5 pb-5">
           <p className="text-xs text-muted">

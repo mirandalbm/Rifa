@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, Card, Pill } from "@/components/bits";
+import { CartaoDoPainel } from "@/components/painel";
 import { SeloVerificado } from "@/components/SeloVerificado";
 import { apiRequest } from "@/lib/queryClient";
 import { maskCpf } from "@shared/format";
@@ -137,6 +138,24 @@ const EXPLICA: Partial<Record<StatusVerificacao, string>> = {
  * comprando, divulgando e fazendo rifa. Tudo vai cifrado; só a plataforma
  * confere, e cada consulta fica registrada.
  */
+/**
+ * A moldura dos três cartões: no painel da organização é o cartão do kit, como
+ * os vizinhos da aba "Conta e segurança"; na conta do apostador e no painel do
+ * afiliado segue o cartão de antes (as telas deles ainda não passaram pela
+ * reformulação).
+ */
+function Moldura({ kit, titulo, direita, children }: { kit: boolean; titulo: string; direita?: ReactNode; children: ReactNode }) {
+  return kit ? (
+    <CartaoDoPainel titulo={titulo} acao={direita}>
+      {children}
+    </CartaoDoPainel>
+  ) : (
+    <Card title={titulo} right={direita}>
+      {children}
+    </Card>
+  );
+}
+
 export function VerificacaoCard({
   base,
   sujeito,
@@ -154,6 +173,8 @@ export function VerificacaoCard({
   const qc = useQueryClient();
   const { data } = useQuery<Estado>({ queryKey: [base] });
   const pessoa = sujeito !== "organizacao";
+  // A organização está no painel já no kit: o cartão do kit e o respiro dele (px-5, sem a linha sob o título).
+  const kit = sujeito === "organizacao";
   const [id, setId] = useState(identificacaoVazia);
   const [org, setOrg] = useState({ razaoSocial: "", cnpj: "" });
   const [conta, setConta] = useState(contaVazia);
@@ -223,12 +244,13 @@ export function VerificacaoCard({
   );
 
   return (
-    <div id="verificacao" className="scroll-mt-20 space-y-3">
-      <Card
-        title={pessoa ? "Perfil verificado" : "Organização verificada"}
-        right={<Pill status={PILL_VERIFICACAO[status]}>{STATUS_VERIFICACAO[status]}</Pill>}
+    <div id="verificacao" className={`scroll-mt-20 ${kit ? "space-y-4 md:space-y-6" : "space-y-3"}`}>
+      <Moldura
+        kit={kit}
+        titulo={pessoa ? "Perfil verificado" : "Organização verificada"}
+        direita={<Pill status={PILL_VERIFICACAO[status]}>{STATUS_VERIFICACAO[status]}</Pill>}
       >
-        <div className="space-y-3 p-4 text-sm">
+        <div className={`space-y-3 text-sm ${kit ? "px-5 pb-5" : "p-4"}`}>
           <p className="flex items-center gap-2 font-semibold">
             <SeloVerificado sujeito={sujeito} tamanho={22} />
             {verificado ? `${ROTULO_DO_SELO[sujeito]} — o selo já aparece ao lado do nome.` : `O selo de trevo de ${NOME_SUJEITO[sujeito].toLowerCase()} verificado`}
@@ -260,15 +282,15 @@ export function VerificacaoCard({
             </button>
           ) : null}
         </div>
-      </Card>
+      </Moldura>
 
       {mostrarFormulario ? (
         // Minha conta do apostador é coluna estreita de propósito (texto de leitura):
         // lá dados e documentos vão um embaixo do outro. No painel, lado a lado no computador.
-        <div className={`grid grid-cols-1 gap-3 ${sujeito === "apostador" ? "" : "lg:grid-cols-2"}`}>
-          <Card title={pessoa ? "Seus dados" : "Dados da organização"}>
+        <div className={`grid grid-cols-1 ${kit ? "gap-4 md:gap-6 lg:items-start" : "gap-3"} ${sujeito === "apostador" ? "" : "lg:grid-cols-2"}`}>
+          <Moldura kit={kit} titulo={pessoa ? "Seus dados" : "Dados da organização"}>
             <form
-              className="space-y-3 p-4"
+              className={`space-y-3 ${kit ? "px-5 pb-5" : "p-4"}`}
               onSubmit={(e) => {
                 e.preventDefault();
                 salvar.mutate();
@@ -336,16 +358,16 @@ export function VerificacaoCard({
                 {salvar.isPending ? "Salvando…" : "Salvar dados"}
               </Button>
             </form>
-          </Card>
+          </Moldura>
 
-          <Card title="Documentos">
+          <Moldura kit={kit} titulo="Documentos">
             {extra ? <div className="border-b border-line px-4 py-3 text-sm">{extra}</div> : null}
             <ul className="divide-y divide-line">
               {DOCUMENTOS_DO_SUJEITO[sujeito].map((tipo) => {
                 const enviado = data?.documentos.find((d) => d.tipo === tipo);
                 const opcional = DOCUMENTOS_OPCIONAIS.includes(tipo);
                 return (
-                  <li key={tipo} className="flex flex-wrap items-center gap-3 px-4 py-3 text-sm">
+                  <li key={tipo} className={`flex flex-wrap items-center gap-3 py-3 text-sm ${kit ? "px-5" : "px-4"}`}>
                     <span className="min-w-0 flex-1 basis-full sm:basis-auto">
                       <span className="block font-semibold">{DOCUMENTOS_VERIFICACAO[tipo]}</span>
                       <span className="text-xs text-muted">
@@ -378,7 +400,7 @@ export function VerificacaoCard({
                 );
               })}
             </ul>
-          </Card>
+          </Moldura>
         </div>
       ) : null}
     </div>

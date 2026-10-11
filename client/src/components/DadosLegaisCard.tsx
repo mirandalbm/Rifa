@@ -169,9 +169,10 @@ export function DadosLegaisCard({ campanha }: { campanha: Campanha }) {
           página da rifa, e o certificado fica disponível para o apostador conferir.
         </p>
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <div>
-            <label htmlFor={`aut-${campanha.id}`} className="label-xs">
+        {/* Rótulo, campo e dica em linhas comuns às duas colunas (subgrid): o rótulo do certificado quebra em duas linhas no computador, e o campo dele descia em relação ao da data. */}
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:grid-rows-[auto_auto_auto] sm:gap-y-0">
+          <div className="sm:row-span-3 sm:grid sm:grid-rows-subgrid">
+            <label htmlFor={`aut-${campanha.id}`} className="label-xs sm:self-end">
               Nº do certificado de autorização SPA/MF
             </label>
             <input
@@ -187,8 +188,8 @@ export function DadosLegaisCard({ campanha }: { campanha: Campanha }) {
               className="campo tnum disabled:bg-mist"
             />
           </div>
-          <div>
-            <label htmlFor={`sorteio-${campanha.id}`} className="label-xs">
+          <div className="sm:row-span-3 sm:grid sm:grid-rows-subgrid">
+            <label htmlFor={`sorteio-${campanha.id}`} className="label-xs sm:self-end">
               {dataMaxima ? "Data máxima do sorteio" : "Data e hora do sorteio"}
             </label>
             {antecipado ? (

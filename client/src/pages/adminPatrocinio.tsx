@@ -285,7 +285,7 @@ function Numeros({ t, extra }: { t: Totais; extra?: [string, string][] }) {
     ...(extra ?? []).map(([a, b]) => [a, b] as [string, string]),
   ];
   return (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="grid grid-cols-1 gap-4 md:gap-6 sm:grid-cols-2 lg:grid-cols-4">
       {itens.map(([rotulo, valor]) => (
         <Kpi key={rotulo} label={rotulo} value={valor} />
       ))}
@@ -494,7 +494,7 @@ function DaOrganizacaoView({ dados }: { dados: DaOrg }) {
   const antigos = dados.anuncios.filter((a) => a.status !== "ativo");
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4 md:space-y-6">
       <Aviso msg={msg} />
       <Numeros
         t={dados.totais}
@@ -503,7 +503,7 @@ function DaOrganizacaoView({ dados }: { dados: DaOrg }) {
           ["Conversão do clique", pct(dados.totais.conversaoPct)],
         ]}
       />
-      <div className="grid grid-cols-1 items-start gap-3 lg:grid-cols-2">
+      <div className="grid grid-cols-1 items-start gap-4 md:gap-6 lg:grid-cols-2">
         <GastoReceita serie={dados.serie} />
         <Funil t={dados.totais} />
       </div>
@@ -560,7 +560,7 @@ function DaOrganizacaoView({ dados }: { dados: DaOrg }) {
         </p>
       </CartaoDoPainel>
 
-      <div className="grid grid-cols-1 items-start gap-3 lg:grid-cols-2">
+      <div className="grid grid-cols-1 items-start gap-4 md:gap-6 lg:grid-cols-2">
         <NovoAnuncio
           dados={dados}
           aoComprar={() => {
@@ -580,7 +580,7 @@ function DaOrganizacaoView({ dados }: { dados: DaOrg }) {
         />
       </div>
 
-      <div className="grid grid-cols-1 items-start gap-3 lg:grid-cols-2">
+      <div className="grid grid-cols-1 items-start gap-4 md:gap-6 lg:grid-cols-2">
         <PorEstado estados={dados.porEstado} />
         <CartaoDoPainel titulo="Extrato do saldo">
           {dados.extrato.length ? (
@@ -1251,7 +1251,7 @@ function SaldoERecarga({
 
 function DaPlataformaView({ dados }: { dados: DaPlataforma }) {
   return (
-    <div className="space-y-3">
+    <div className="space-y-4 md:space-y-6">
       <Numeros
         t={dados.totais}
         extra={[
@@ -1268,11 +1268,11 @@ function DaPlataformaView({ dados }: { dados: DaPlataforma }) {
         podePedir={false}
         saldoCents={0}
       />
-      <div className="grid grid-cols-1 items-start gap-3 lg:grid-cols-2">
+      <div className="grid grid-cols-1 items-start gap-4 md:gap-6 lg:grid-cols-2">
         <ConfigCard config={dados.config} />
         <SaldosCard organizacoes={dados.organizacoes} />
       </div>
-      <div className="grid grid-cols-1 items-start gap-3 lg:grid-cols-2">
+      <div className="grid grid-cols-1 items-start gap-4 md:gap-6 lg:grid-cols-2">
         <GastoReceita serie={dados.serie} />
         <PorEstado estados={dados.porEstado} />
       </div>

@@ -195,9 +195,9 @@ export function AdminTrafego() {
       ) : !painel ? (
         <p className="text-sm text-muted">Carregando…</p>
       ) : plataforma ? (
-        <div className="space-y-3">
-          <div className="grid grid-cols-1 items-start gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
-            <div className="min-w-0 space-y-3">
+        <div className="space-y-4 md:space-y-6">
+          <div className="grid grid-cols-1 items-start gap-4 md:gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
+            <div className="min-w-0 space-y-4 md:space-y-6">
               <ConfigDoTrafego config={painel.config} faltamNoMeta={painel.criacaoPelaApi?.meta.faltam ?? []} />
               <ImportacaoDoGasto />
               <Margem meses={painel.margem ?? []} />
@@ -209,8 +209,8 @@ export function AdminTrafego() {
         </div>
       ) : (
         // O pedido à esquerda, com largura para os pacotes numa linha só; as campanhas à direita.
-        <div className="grid grid-cols-1 items-start gap-3 xl:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
-          <div className="min-w-0 space-y-3">
+        <div className="grid grid-cols-1 items-start gap-4 md:gap-6 xl:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
+          <div className="min-w-0 space-y-4 md:space-y-6">
             {painel.config.ligado ? (
               <NovaCampanha painel={painel} />
             ) : (
@@ -234,7 +234,7 @@ export function AdminTrafego() {
 /** O que a organização vê enquanto a plataforma não liga o produto. */
 function ComoFunciona() {
   return (
-    <div className="space-y-3">
+    <div className="space-y-4 md:space-y-6">
       <CartaoDoPainel
         titulo="Anúncios da sua rifa no Google, no Instagram e no TikTok"
         acao={
@@ -250,7 +250,7 @@ function ComoFunciona() {
           plataforma liberar, o pedido aparece aqui.
         </p>
       </CartaoDoPainel>
-      <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <ul className="grid grid-cols-1 gap-4 md:gap-6 sm:grid-cols-2 xl:grid-cols-4">
         <Passo icone={<ClipboardList size={18} />} titulo="Pedido">
           Rifa publicada, valor total e por dia, onde anunciar e para que região. O valor fica reservado no saldo.
         </Passo>
@@ -812,7 +812,7 @@ function Campanhas({ painel, plataforma }: { painel: Painel; plataforma: boolean
     : [{ titulo: "Minhas campanhas", lista: campanhas }];
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4 md:space-y-6">
       {grupos.map((g) => (
         <CartaoDoPainel key={g.titulo} titulo={g.titulo} acao={<span className="tnum text-xs text-muted">{g.lista.length}</span>}>
           {g.lista.length === 0 ? <Empty>Nenhuma campanha aqui.</Empty> : null}

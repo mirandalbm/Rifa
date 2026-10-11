@@ -87,8 +87,8 @@ export function AdminResultados() {
       {isLoading || !data ? (
         <p className="text-sm text-muted">Carregando…</p>
       ) : (
-        <div className="space-y-3">
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+        <div className="space-y-4 md:space-y-6">
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-3 md:gap-6 xl:grid-cols-6">
             {/* No celular a receita ocupa a linha: é o número que importa, e não cabe em meia. */}
             <div className="col-span-2 md:col-span-1">
               <Kpi label="Receita" value={formatBRL(data.totais.receitaCents)} highlight />
@@ -108,7 +108,7 @@ export function AdminResultados() {
             <GraficoPorDia dias={data.porDia} />
           </CartaoDoPainel>
 
-          <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 md:gap-6 lg:grid-cols-2">
             <CartaoDoPainel titulo="Por canal">
               {data.canais.length === 0 ? (
                 <Empty>Nenhuma venda paga no período.</Empty>

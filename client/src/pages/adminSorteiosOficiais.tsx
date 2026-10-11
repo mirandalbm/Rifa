@@ -134,8 +134,8 @@ export function AdminSorteiosOficiais() {
       <CartaoDoPainel titulo="Calendário dos sorteios oficiais">
         <Calendario mes={mes} setMes={setMes} porDia={porDia} escolhido={diaEscolhido} escolher={setDiaEscolhido} />
       </CartaoDoPainel>
-      <div className="mt-3 grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,380px)_minmax(0,1fr)] xl:items-start">
-        <div className="min-w-0 space-y-3">
+      <div className="mt-4 grid grid-cols-1 gap-4 md:mt-6 md:gap-6 xl:grid-cols-[minmax(0,380px)_minmax(0,1fr)] xl:items-start">
+        <div className="min-w-0 space-y-4 md:space-y-6">
           {plataforma ? (
             <>
               <NovoSorteio />

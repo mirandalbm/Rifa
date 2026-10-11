@@ -141,7 +141,7 @@ export function AdminExportacoes() {
       </CartaoDoPainel>
 
       {/* Um cartão por relatório: coluna única até o tablet, duas colunas no computador. */}
-      <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-2">
+      <div className="mt-4 grid grid-cols-1 gap-4 md:mt-6 md:gap-6 lg:grid-cols-2">
         {EXPORTS.map((info) => {
           const faltaCampanha = info.campanhaObrigatoria && !campanha;
 
@@ -174,7 +174,7 @@ export function AdminExportacoes() {
         })}
       </div>
 
-      <CartaoDoPainel titulo="Antes de baixar" className="mt-3">
+      <CartaoDoPainel titulo="Antes de baixar" className="mt-4 md:mt-6">
         <ul className="space-y-2 px-5 pb-5 text-sm text-muted">
           <li>
             Os relatórios marcados com <b>leva dado pessoal</b> carregam nome, telefone e CPF de quem comprou. Todo download fica

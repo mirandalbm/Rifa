@@ -85,8 +85,8 @@ export function BannerNaVitrine() {
       ) : !painel ? (
         <p className="text-sm text-muted">Carregando…</p>
       ) : (
-        <div className="grid grid-cols-1 items-start gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)]">
-          <div className="min-w-0 space-y-3">
+        <div className="grid grid-cols-1 items-start gap-4 md:gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)]">
+          <div className="min-w-0 space-y-4 md:space-y-6">
             {plataforma ? <ConfigDoBanner painel={painel} /> : <NovoPedido painel={painel} />}
           </div>
           <div className="min-w-0">

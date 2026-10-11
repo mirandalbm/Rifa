@@ -46,7 +46,7 @@ export function AdminMarketingIA() {
 
   return (
     <PanelShell title="Marketing AI">
-      <div className="space-y-3">
+      <div className="space-y-4 md:space-y-6">
         <CartaoDoPainel
           titulo="Criativos da rifa"
           subtitulo="Artes prontas com os dados da rifa, o editor de imagem com frases sugeridas pelo assistente e o vídeo em pé gerado com as fotos."
@@ -70,10 +70,10 @@ export function AdminMarketingIA() {
           </div>
         </CartaoDoPainel>
         {rifa ? (
-          <div key={rifa.campaign.id} className="grid grid-cols-1 items-start gap-3 xl:grid-cols-2">
+          <div key={rifa.campaign.id} className="grid grid-cols-1 items-start gap-4 md:gap-6 xl:grid-cols-2">
             <div className="min-w-0">
               {/* O mesmo cartão da aba Publicação: o editor e as artes prontas. */}
-              <CartaoDoPainel titulo="Artes para divulgar">
+              <CartaoDoPainel titulo="Artes para divulgar" subtitulo="Prontas nos três formatos, ou monte a sua no editor.">
                 <div className="space-y-4 px-5 pb-5">
                   <AbrirEditorDeImagem
                     portas={{
@@ -112,11 +112,11 @@ function FerramentasDaRifa({ campaignId }: { campaignId: string }) {
   if (error) return <p role="alert" className="text-sm text-red">{(error as Error).message}</p>;
   if (!data) return <p className="text-sm text-muted">Carregando…</p>;
   return (
-    <div className="grid grid-cols-1 items-start gap-3 xl:grid-cols-2">
-      <div className="min-w-0 space-y-3">
+    <div className="grid grid-cols-1 items-start gap-4 md:gap-6 xl:grid-cols-2">
+      <div className="min-w-0 space-y-4 md:space-y-6">
         <PlanoDeDivulgacao campaignId={campaignId} plano={data.plano} artes={data.artes} />
       </div>
-      <div className="min-w-0 space-y-3">
+      <div className="min-w-0 space-y-4 md:space-y-6">
         <LeituraDosResultados leitura={data.leitura} />
         <TextosDeAnuncio campaignId={campaignId} />
       </div>

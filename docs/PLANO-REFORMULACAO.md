@@ -86,6 +86,31 @@ próximo sorteio no Painel sai do método da rifa lido na tela
 perigo, botão de escolher arquivo e o alinhamento à direita no
 `CabecalhoDaTabela`.
 
+### Fase 5 — onda 3 (plataforma)
+
+As oito telas da plataforma (P22 a P29: Caixa de entrada, Atendimento em
+abas, Antifraude, Organizações, Cadastros fiscais, Bônus, Aparência e a aba
+Trilha de auditoria de Configurações) alinhadas ao Figma congelado, só com
+as peças do kit, no PR #250. Entraram também os três restos da onda 2: o
+Financeiro da plataforma separa a comissão guardada ("Plataforma"), o
+cartão das divulgações de terceiros está na aba Publicação da rifa
+(filtrado por ela, `?rifa=` com o recorte de sempre) e o Painel lê o método
+de apuração do próximo sorteio do servidor. A revisão de invariantes achou
+dois vazamentos antigos da comissão guardada para a organização — "Comissão
+a pagar" do Painel e a planilha de comissões (que, além disso, não gerava:
+lia `pay.paid_at`, coluna que não existe) — e duas provas do isolamento que
+passavam por vacuidade; os quatro foram corrigidos, com prova.
+Ficou para quem mexe em regra: três listas do servidor ainda levam dado
+pessoal que a tela já não mostra (o nome do comprador nos reembolsos da
+plataforma, o nome real na fila de verificações, o e-mail do afiliado na
+lista fiscal); `GET /admin/audit` não pagina por chave nem filtra por ação
+(e devolve `diff` e IP crus); a situação "retida" das organizações é lida
+no cliente, de `/retencoes`; o bloqueio manual do antifraude não tem na
+tela o motivo e o prazo que a rota aceita. Falta no kit: tom de perigo no
+botão, botão de escolher arquivo, a aba ativa rolar para a vista no
+celular, a caixa de marcar com 24 px de alvo e a fileira de amostras de
+cor.
+
 ## 1. Diagnóstico: por que o painel parece "escrito"
 
 Medido no repositório (51 páginas, 89 componentes, cerca de 60 telas no
@@ -203,7 +228,7 @@ Proposta de partida, a ser desenhada e testada na simulação:
 | 2 Arquitetura da informação | árvore de navegação, "onde mora cada ferramenta", fluxos | Opus | **você aprova** |
 | 3 Simulação | (a) fluxos em baixa fidelidade, (b) telas em alta fidelidade com os tokens reais, (c) protótipo clicável com dados de exemplo; 2 rodadas de ajuste; tarefas de teste ("publique uma rifa", "ache o pedido X") com tempo e cliques | Fable (visual), Sonnet (volume), Opus (fluxos) | **você aprova cada painel** |
 | 4 Congelar o desenho | especificação por tela + critérios de aceite (base 14 do Notion) | Opus | **assinada** em 11/10/2026 |
-| 5 Produção (ondas) | 1 base e componentes → 2 organizador → 3 plataforma → 4 afiliado/cambista → 5 loja | Sonnet, Opus nos fluxos críticos | PR por onda, rascunho, revisor de invariantes, capturas — onda 1 feita (#248); **onda 2 feita** (#249, 11/10/2026) |
+| 5 Produção (ondas) | 1 base e componentes → 2 organizador → 3 plataforma → 4 afiliado/cambista → 5 loja | Sonnet, Opus nos fluxos críticos | PR por onda, rascunho, revisor de invariantes, capturas — onda 1 feita (#248); onda 2 feita (#249, 11/10/2026); **onda 3 feita** (#250, 11/10/2026) |
 | 6 Recriação final | passada de coerência, a11y, desempenho, `npm run telas` sem reprova, docs | Fable (visual), Sonnet, Haiku | você confere |
 
 Cada PR de produção: `/provar`, `revisor-de-invariantes` (quando toca recorte,

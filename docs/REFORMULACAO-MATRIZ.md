@@ -6,11 +6,11 @@ Gerada do código por `npm run matriz` — **não edite à mão** (o teste `test
 |---|---|
 | Telas (rotas do `App.tsx`) | 66 (+ 2 redirecionamentos) |
 | Seções de acesso (`shared/access.ts`) | 41 |
-| Cartões (componentes usados pelas telas) | 725 |
+| Cartões (componentes usados pelas telas) | 732 |
 | Rotas da API | 477, das quais 473 citadas por alguma prova |
 | Provas contra a API (`npm run …`) | 61 |
 | Testes de regra (`tests/`) | 128 arquivos |
-| Destinos decididos | 832 de 832 |
+| Destinos decididos | 839 de 839 |
 
 ## 1. Telas
 
@@ -526,10 +526,13 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 | Cartão | Destino |
 |---|---|
 | `Button` | manter · peça do kit (onda 1) · na tela P19 Medição e campanhas |
-| `Card` | manter · peça do kit (onda 1) · na tela P19 Medição e campanhas |
+| `Campo` | manter · peça do kit (onda 1) · na tela P19 Medição e campanhas |
+| `CartaoDoPainel` | manter · peça do kit (onda 1) · na tela P19 Medição e campanhas |
 | `Empty` | manter · peça do kit (onda 1) · na tela P19 Medição e campanhas |
+| `Filtros` | manter · peça do kit (onda 1) · na tela P19 Medição e campanhas |
 | `PanelShell` | manter · peça do kit (onda 1) · na tela P19 Medição e campanhas |
 | `Pill` | manter · peça do kit (onda 1) · na tela P19 Medição e campanhas |
+| `TabelaOuCartoes` | manter · peça do kit (onda 1) · na tela P19 Medição e campanhas |
 
 ### `/admin/marketing/ia` — Marketing AI
 
@@ -537,11 +540,14 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 |---|---|
 | `AbrirEditorDeImagem` | manter · na tela P17 Marketing AI · onda 2 |
 | `ArtesParaDivulgar` | manter · na tela P17 Marketing AI · onda 2 |
-| `Card` | manter · peça do kit (onda 1) · na tela P17 Marketing AI |
+| `Button` | manter · peça do kit (onda 1) · na tela P17 Marketing AI |
+| `Campo` | manter · peça do kit (onda 1) · na tela P17 Marketing AI |
+| `CartaoDoPainel` | manter · peça do kit (onda 1) · na tela P17 Marketing AI |
 | `Empty` | manter · peça do kit (onda 1) · na tela P17 Marketing AI |
 | `PanelShell` | manter · peça do kit (onda 1) · na tela P17 Marketing AI |
 | `Pill` | manter · peça do kit (onda 1) · na tela P17 Marketing AI |
 | `ReelsDaRifa` | manter · na tela P17 Marketing AI · onda 2 |
+| `TONS_DO_BOTAO` | manter · peça do kit (onda 1) · na tela P17 Marketing AI |
 
 ### `/admin/marketing/publicidade` — Publicidade
 
@@ -555,8 +561,9 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 | Cartão | Destino |
 |---|---|
 | `Button` | manter · peça do kit (onda 1) · na tela P16 Tráfego pago |
+| `Caixa` | manter · peça do kit (onda 1) · na tela P16 Tráfego pago |
 | `Campo` | manter · peça do kit (onda 1) · na tela P16 Tráfego pago |
-| `Card` | manter · peça do kit (onda 1) · na tela P16 Tráfego pago |
+| `CartaoDoPainel` | manter · peça do kit (onda 1) · na tela P16 Tráfego pago |
 | `Empty` | manter · peça do kit (onda 1) · na tela P16 Tráfego pago |
 | `Money` | manter · peça do kit (onda 1) · na tela P16 Tráfego pago |
 | `PanelShell` | manter · peça do kit (onda 1) · na tela P16 Tráfego pago |

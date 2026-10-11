@@ -6,11 +6,11 @@ Gerada do código por `npm run matriz` — **não edite à mão** (o teste `test
 |---|---|
 | Telas (rotas do `App.tsx`) | 66 (+ 2 redirecionamentos) |
 | Seções de acesso (`shared/access.ts`) | 41 |
-| Cartões (componentes usados pelas telas) | 757 |
+| Cartões (componentes usados pelas telas) | 760 |
 | Rotas da API | 477, das quais 473 citadas por alguma prova |
 | Provas contra a API (`npm run …`) | 61 |
 | Testes de regra (`tests/`) | 128 arquivos |
-| Destinos decididos | 864 de 864 |
+| Destinos decididos | 867 de 867 |
 
 ## 1. Telas
 
@@ -266,25 +266,26 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 |---|---|
 | `Abas` | manter · peça do kit (onda 1) · na tela P24 Antifraude (abas) |
 | `Button` | manter · peça do kit (onda 1) · na tela P24 Antifraude (abas) |
-| `Caixa` | manter · 11 · Painel · P24 Antifraude (abas) (node 55-4327) · onda 3 |
-| `Campo` | manter · 11 · Painel · P24 Antifraude (abas) (node 55-4327) · onda 3 |
-| `CartaoDoPainel` | manter · 11 · Painel · P24 Antifraude (abas) (node 55-4327) · onda 3 |
+| `Card` | manter · peça do kit (onda 1) · na tela P24 Antifraude (abas) |
 | `Empty` | manter · peça do kit (onda 1) · na tela P24 Antifraude (abas) |
 | `Kpi` | manter · peça do kit (onda 1) · na tela P24 Antifraude (abas) |
 | `PanelShell` | manter · peça do kit (onda 1) · na tela P24 Antifraude (abas) |
 | `Pill` | manter · peça do kit (onda 1) · na tela P24 Antifraude (abas) |
-| `TabelaOuCartoes` | manter · 11 · Painel · P24 Antifraude (abas) (node 55-4327) · onda 3 |
 
 ### `/admin/aparencia` — Aparência
 
 | Cartão | Destino |
 |---|---|
 | `Abas` | manter · peça do kit (onda 1) · na tela P28 Aparência (abas) |
+| `AlternarVisao` | manter · peça do kit (onda 1) · na tela P28 Aparência (abas) |
 | `AssistenteIACard` | manter · na tela P28 Aparência (abas) · onda 3 |
 | `BannersCard` | manter · na tela P28 Aparência (abas) · onda 3 |
 | `Button` | manter · peça do kit (onda 1) · na tela P28 Aparência (abas) |
-| `Card` | manter · peça do kit (onda 1) · na tela P28 Aparência (abas) |
+| `Caixa` | manter · peça do kit (onda 1) · na tela P28 Aparência (abas) |
+| `Campo` | manter · peça do kit (onda 1) · na tela P28 Aparência (abas) |
+| `CartaoDoPainel` | manter · peça do kit (onda 1) · na tela P28 Aparência (abas) |
 | `DadosDaEmpresaCard` | manter · na tela P28 Aparência (abas) · onda 3 |
+| `Filtros` | manter · peça do kit (onda 1) · na tela P28 Aparência (abas) |
 | `PanelShell` | manter · peça do kit (onda 1) · na tela P28 Aparência (abas) |
 | `Pill` | manter · peça do kit (onda 1) · na tela P28 Aparência (abas) |
 | `TopoDoAppCard` | manter · na tela P28 Aparência (abas) · onda 3 |
@@ -316,7 +317,9 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 | Cartão | Destino |
 |---|---|
 | `Button` | manter · peça do kit (onda 1) · na tela P27 Bônus |
-| `Card` | manter · peça do kit (onda 1) · na tela P27 Bônus |
+| `Caixa` | manter · peça do kit (onda 1) · na tela P27 Bônus |
+| `Campo` | manter · peça do kit (onda 1) · na tela P27 Bônus |
+| `CartaoDoPainel` | manter · peça do kit (onda 1) · na tela P27 Bônus |
 | `Empty` | manter · peça do kit (onda 1) · na tela P27 Bônus |
 | `PanelShell` | manter · peça do kit (onda 1) · na tela P27 Bônus |
 | `Pill` | manter · peça do kit (onda 1) · na tela P27 Bônus |
@@ -325,12 +328,11 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 
 | Cartão | Destino |
 |---|---|
+| `CabecalhoDaTabela` | manter · peça do kit (onda 1) · na tela P22 Caixa de entrada |
 | `CartaoDoPainel` | manter · peça do kit (onda 1) · na tela P22 Caixa de entrada |
 | `Empty` | manter · peça do kit (onda 1) · na tela P22 Caixa de entrada |
 | `Filtros` | manter · peça do kit (onda 1) · na tela P22 Caixa de entrada |
 | `PanelShell` | manter · peça do kit (onda 1) · na tela P22 Caixa de entrada |
-| `Pill` | manter · 11 · Painel · P22 Caixa de entrada (node 51-4173) · onda 3 |
-| `TabelaOuCartoes` | manter · 11 · Painel · P22 Caixa de entrada (node 51-4173) · onda 3 |
 
 ### `/admin/cambistas` — Cambistas
 
@@ -532,10 +534,8 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 | Cartão | Destino |
 |---|---|
 | `Button` | manter · peça do kit (onda 1) · na tela P26 Cadastros fiscais |
-| `Campo` | manter · 11 · Painel · P26 Cadastros fiscais (node 51-4877) · onda 3 |
-| `CartaoDoPainel` | manter · 11 · Painel · P26 Cadastros fiscais (node 51-4877) · onda 3 |
+| `Card` | manter · peça do kit (onda 1) · na tela P26 Cadastros fiscais |
 | `Empty` | manter · peça do kit (onda 1) · na tela P26 Cadastros fiscais |
-| `MestreDetalhe` | manter · 11 · Painel · P26 Cadastros fiscais (node 51-4877) · onda 3 |
 | `PanelShell` | manter · peça do kit (onda 1) · na tela P26 Cadastros fiscais |
 | `Pill` | manter · peça do kit (onda 1) · na tela P26 Cadastros fiscais |
 
@@ -594,12 +594,15 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 |---|---|
 | `AprovarTelefone` | manter · na tela P25 Organizações · onda 3 |
 | `Button` | manter · peça do kit (onda 1) · na tela P25 Organizações |
-| `Card` | manter · peça do kit (onda 1) · na tela P25 Organizações |
+| `Campo` | manter · peça do kit (onda 1) · na tela P25 Organizações |
+| `CartaoDoPainel` | manter · peça do kit (onda 1) · na tela P25 Organizações |
 | `Empty` | manter · peça do kit (onda 1) · na tela P25 Organizações |
 | `EnderecoForm` | manter · na tela P25 Organizações · onda 3 |
+| `Filtros` | manter · peça do kit (onda 1) · na tela P25 Organizações |
 | `PanelShell` | manter · peça do kit (onda 1) · na tela P25 Organizações |
 | `PerfilPublicoForm` | manter · na tela P25 Organizações · onda 3 |
 | `Pill` | manter · peça do kit (onda 1) · na tela P25 Organizações |
+| `TabelaOuCartoes` | manter · peça do kit (onda 1) · na tela P25 Organizações |
 
 ### `/admin/pedidos` — Pedidos
 
@@ -1228,7 +1231,7 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 
 | Método | Caminho | Provas |
 |---|---|---|
-| GET | `/overview` | `guarda-test.ts`, `isolation-test.ts` |
+| GET | `/overview` | `isolation-test.ts` |
 | GET | `/campaigns` | `acessos-test.ts`, `agenda-rifa-test.ts`, `apuracao-test.ts` +3 |
 | POST | `/campaigns` | `acessos-test.ts`, `agenda-rifa-test.ts`, `apuracao-test.ts` +3 |
 | PATCH | `/campaigns/:id` | `agenda-rifa-test.ts`, `apuracao-test.ts`, `banner-pago-test.ts` +9 |

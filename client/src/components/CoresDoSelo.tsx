@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Button, Card } from "@/components/bits";
+import { Button } from "@/components/bits";
+import { CartaoDoPainel } from "@/components/painel";
 import { Trevo, useCoresDoSelo } from "@/components/SeloVerificado";
 import { apiRequest } from "@/lib/queryClient";
 import {
@@ -41,15 +42,14 @@ export function CoresDoSeloCard() {
   });
 
   return (
-    <div className="mb-3">
-      <Card title="Selo de verificado">
-        <div className="space-y-4 p-4 text-sm">
+    <CartaoDoPainel titulo="Selo de verificado">
+        <div className="grid grid-cols-1 gap-4 px-5 pb-5 text-sm">
           <p className="text-muted">
             O trevo com o sinal de confirmação aparece ao lado do nome de quem teve documentos (e, para pessoa, a foto)
             conferidos. Escolha a cor de cada um entre as 12 da paleta.
           </p>
           {SUJEITOS.map((s) => (
-            <fieldset key={s}>
+            <fieldset key={s} className="min-w-0">
               <legend className="mb-2 flex items-center gap-2 font-semibold">
                 <Trevo cor={PALETA_DO_SELO[cores[s]].hex} tamanho={20} rotulo={ROTULO_DO_SELO[s]} />
                 {NOME_SUJEITO[s]} — <span className="font-normal text-muted">{PALETA_DO_SELO[cores[s]].nome}</span>
@@ -77,15 +77,22 @@ export function CoresDoSeloCard() {
               </div>
             </fieldset>
           ))}
-          {problema ? <p className="text-xs text-red">{problema}</p> : null}
-          {msg ? (
-            <p className={`rounded-md px-3 py-2 ${msg.ok ? "bg-green-soft text-green-deep" : "bg-red-soft text-red"}`}>{msg.texto}</p>
+          {problema ? (
+            <p role="alert" className="text-xs text-red">
+              {problema}
+            </p>
           ) : null}
-          <Button disabled={Boolean(problema) || salvar.isPending} onClick={() => salvar.mutate()}>
-            Salvar cores
-          </Button>
+          {msg ? (
+            <p role={msg.ok ? "status" : "alert"} className={`rounded-md px-3 py-2 ${msg.ok ? "bg-green-soft text-green-deep" : "bg-red-soft text-red"}`}>
+              {msg.texto}
+            </p>
+          ) : null}
+          <div>
+            <Button disabled={Boolean(problema) || salvar.isPending} onClick={() => salvar.mutate()}>
+              Salvar cores
+            </Button>
+          </div>
         </div>
-      </Card>
-    </div>
+    </CartaoDoPainel>
   );
 }

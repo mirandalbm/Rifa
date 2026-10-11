@@ -10,8 +10,8 @@ import {
   type LinhaDoRelatorioIA,
   type RelatorioIA,
 } from "@shared/iaCobranca";
-import { Button, Card } from "@/components/bits";
-import { TabelaOuCartoes } from "@/components/painel";
+import { Button, Campo, Filtros } from "@/components/bits";
+import { CartaoDoPainel, TabelaOuCartoes } from "@/components/painel";
 import { apiRequest } from "@/lib/queryClient";
 
 const dia = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString("pt-BR") : "—");
@@ -54,22 +54,22 @@ export function UsoDoAssistenteCard() {
   const t = data?.totais;
 
   return (
-    <div className="mb-3">
-      <Card title="Uso e receita do assistente">
-        <div className="space-y-4 p-4 text-sm">
-          <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Período">
-            {PERIODOS_DO_RELATORIO_IA.map((d) => (
-              <button
-                key={d}
-                type="button"
-                aria-pressed={dias === d}
-                onClick={() => setDias(d)}
-                className={`rounded-full border px-3 py-1 text-xs font-semibold ${dias === d ? "border-green bg-green text-on-green" : "border-line text-ink-2 hover:bg-mist"}`}
-              >
-                <span className="tnum">{d}</span> dias
-              </button>
-            ))}
-          </div>
+    <CartaoDoPainel titulo="Uso e receita do assistente">
+        <div className="grid grid-cols-1 gap-4 px-5 pb-5 text-sm">
+          <Filtros
+            rotulo="Período"
+            exclusivo
+            opcoes={PERIODOS_DO_RELATORIO_IA.map((d) => ({
+              valor: String(d),
+              rotulo: (
+                <>
+                  <span className="tnum">{d}</span> dias
+                </>
+              ),
+            }))}
+            ativa={String(dias)}
+            aoMudar={(v) => setDias(Number(v))}
+          />
           {isLoading ? <p className="text-muted">Carregando…</p> : null}
           {error ? <p className="text-red">{(error as Error).message}</p> : null}
           {t ? (
@@ -83,7 +83,7 @@ export function UsoDoAssistenteCard() {
 
           {data && data.linhas.length === 0 ? <p className="text-muted">Nenhuma conta usou ou pagou o assistente ainda.</p> : null}
           {data && data.linhas.length > 0 ? (
-            <div className="-mx-4 border-t border-line">
+            <div className="-mx-5 border-t border-line">
               <TabelaOuCartoes<LinhaDoRelatorioIA>
                 aria="Uso e receita por conta"
                 itens={data.linhas}
@@ -119,8 +119,7 @@ export function UsoDoAssistenteCard() {
           {extrato ? <Extrato alvo={extrato} onFechar={() => setExtrato(null)} /> : null}
           <AjusteDeCredito key={alvo ? `${alvo.titularTipo}:${alvo.titular}` : "livre"} alvo={alvo} onLimpar={() => setAlvo(null)} />
         </div>
-      </Card>
-    </div>
+    </CartaoDoPainel>
   );
 }
 
@@ -270,35 +269,35 @@ function AjusteDeCredito({ alvo, onLimpar }: { alvo: Alvo | null; onLimpar: () =
         ativa; a correção não tira mais do que a conta tem. O motivo fica no extrato e na auditoria.
       </p>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <div>
-          <label htmlFor="ajuste-tipo" className="label-xs">Conta de</label>
-          <select id="ajuste-tipo" className="campo" value={titularTipo} disabled={!!alvo} onChange={(e) => mudou(() => setTitularTipo(e.target.value as "organizacao" | "afiliado"))}>
+        <Campo rotulo="Conta de" className="min-w-0">
+          <select id="ajuste-tipo" value={titularTipo} disabled={!!alvo} onChange={(e) => mudou(() => setTitularTipo(e.target.value as "organizacao" | "afiliado"))}>
             <option value="organizacao">Organização</option>
             <option value="afiliado">Afiliado</option>
           </select>
-        </div>
-        <div>
-          <label htmlFor="ajuste-titular" className="label-xs">{titularTipo === "organizacao" ? "Endereço da organização" : "Código do afiliado"}</label>
-          <input id="ajuste-titular" className="campo" autoComplete="off" spellCheck={false} value={titular} disabled={!!alvo} onChange={(e) => mudou(() => setTitular(e.target.value))} />
-        </div>
-        <div>
-          <label htmlFor="ajuste-creditos" className="label-xs">Créditos (use − para tirar)</label>
+        </Campo>
+        <Campo rotulo={titularTipo === "organizacao" ? "Endereço da organização" : "Código do afiliado"} className="min-w-0">
+          <input id="ajuste-titular" autoComplete="off" spellCheck={false} value={titular} disabled={!!alvo} onChange={(e) => mudou(() => setTitular(e.target.value))} />
+        </Campo>
+        <Campo
+          rotulo="Créditos (use − para tirar)"
+          dica={
+            <>
+              Até <span className="tnum">{AJUSTE_IA_MAX_CREDITOS.toLocaleString("pt-BR")}</span> por vez.
+            </>
+          }
+          className="min-w-0"
+        >
           <input
             id="ajuste-creditos"
-            className="campo tnum"
+            className="campo tnum text-sm"
             inputMode="numeric"
             value={creditos}
             onChange={(e) => mudou(() => setCreditos(e.target.value.replace(/[^\d-]/g, "")))}
-            aria-describedby="ajuste-creditos-dica"
           />
-          <p id="ajuste-creditos-dica" className="mt-1 text-xs text-muted">
-            Até <span className="tnum">{AJUSTE_IA_MAX_CREDITOS.toLocaleString("pt-BR")}</span> por vez.
-          </p>
-        </div>
-        <div>
-          <label htmlFor="ajuste-motivo" className="label-xs">Motivo</label>
-          <input id="ajuste-motivo" className="campo" maxLength={MOTIVO_AJUSTE_MAX} value={motivo} onChange={(e) => mudou(() => setMotivo(e.target.value))} />
-        </div>
+        </Campo>
+        <Campo rotulo="Motivo" className="min-w-0">
+          <input id="ajuste-motivo" maxLength={MOTIVO_AJUSTE_MAX} value={motivo} onChange={(e) => mudou(() => setMotivo(e.target.value))} />
+        </Campo>
       </div>
       <div className="flex flex-wrap items-center gap-3">
         <Button type="submit" disabled={enviar.isPending || !titular.trim() || !creditos || !motivo.trim()}>

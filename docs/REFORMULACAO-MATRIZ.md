@@ -6,11 +6,11 @@ Gerada do código por `npm run matriz` — **não edite à mão** (o teste `test
 |---|---|
 | Telas (rotas do `App.tsx`) | 66 (+ 2 redirecionamentos) |
 | Seções de acesso (`shared/access.ts`) | 41 |
-| Cartões (componentes usados pelas telas) | 718 |
+| Cartões (componentes usados pelas telas) | 721 |
 | Rotas da API | 477, das quais 473 citadas por alguma prova |
 | Provas contra a API (`npm run …`) | 61 |
 | Testes de regra (`tests/`) | 128 arquivos |
-| Destinos decididos | 825 de 825 |
+| Destinos decididos | 828 de 828 |
 
 ## 1. Telas
 
@@ -702,12 +702,15 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 | Cartão | Destino |
 |---|---|
 | `Button` | manter · peça do kit (onda 1) · na tela P06 Stories |
-| `Card` | manter · peça do kit (onda 1) · na tela P06 Stories |
+| `Caixa` | manter · 11 · Painel · P06 Stories (node 54-4984) · onda 2 |
+| `Campo` | manter · 11 · Painel · P06 Stories (node 54-4984) · onda 2 |
+| `CartaoDoPainel` | manter · 11 · Painel · P06 Stories (node 54-4984) · onda 2 |
 | `EditorDeFigurinhas` | manter · na tela P06 Stories · onda 2 |
 | `Empty` | manter · peça do kit (onda 1) · na tela P06 Stories |
 | `NOME_DA_FIGURINHA` | manter · peça do kit (onda 1) · na tela P06 Stories |
 | `PanelShell` | manter · peça do kit (onda 1) · na tela P06 Stories |
 | `Pill` | manter · peça do kit (onda 1) · na tela P06 Stories |
+| `TONS_DO_BOTAO` | manter · 11 · Painel · P06 Stories (node 54-4984) · onda 2 |
 
 ### `/admin/usuarios` — Usuários
 

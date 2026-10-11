@@ -2,7 +2,8 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Trash2 } from "lucide-react";
 import { PanelShell } from "@/components/AppShell";
-import { Button, Card, Empty, Pill } from "@/components/bits";
+import { Button, Caixa, Campo, Empty, Pill, TONS_DO_BOTAO } from "@/components/bits";
+import { CartaoDoPainel } from "@/components/painel";
 import { apiRequest } from "@/lib/queryClient";
 import { useSession } from "@/lib/session";
 import {
@@ -153,10 +154,11 @@ export function AdminStories() {
 
   return (
     <PanelShell title="Stories">
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)]">
-        <Card title="Novo story">
+      {/* No computador, o formulário e a lista meio a meio, como no Figma; a lista não estica até o fim do formulário. */}
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2 lg:items-start">
+        <CartaoDoPainel titulo="Novo story">
           <form
-            className="space-y-3 p-4 text-sm"
+            className="space-y-3 px-5 pb-5 text-sm"
             onSubmit={(e) => {
               e.preventDefault();
               postar.mutate();
@@ -171,7 +173,8 @@ export function AdminStories() {
                 ) : null}
               </div>
               <div className="space-y-2">
-                <label className="inline-block cursor-pointer rounded-md border border-line-2 px-3 py-1.5 text-xs font-semibold hover:bg-mist">
+                {/* O botão é o rótulo (tom cinza do kit): o campo nativo mostraria "Choose File" na língua do navegador. */}
+                <label className={`relative inline-flex min-h-10 cursor-pointer items-center rounded-lg px-4 py-2 text-[13px] font-semibold focus-within:ring-2 focus-within:ring-green ${TONS_DO_BOTAO.cinza}`}>
                   {peca ? "Trocar" : "Escolher imagem ou vídeo"}
                   <input
                     type="file"
@@ -202,8 +205,7 @@ export function AdminStories() {
             </div>
 
             {plataforma ? (
-              <div>
-                <label htmlFor="story-org" className="label-xs">Organização</label>
+              <Campo rotulo="Organização">
                 <select
                   id="story-org"
                   value={organizacaoId}
@@ -211,7 +213,6 @@ export function AdminStories() {
                     setOrganizacaoId(e.target.value);
                     setCampaignId("");
                   }}
-                  className="mt-1 w-full rounded-md border border-line-2 px-2 py-1.5"
                 >
                   <option value="">Escolha…</option>
                   {orgs
@@ -222,31 +223,22 @@ export function AdminStories() {
                       </option>
                     ))}
                 </select>
-              </div>
+              </Campo>
             ) : null}
 
-            <div>
-              <label htmlFor="story-legenda" className="label-xs">Legenda (opcional)</label>
-              <input
-                id="story-legenda"
-                value={legenda}
-                maxLength={LEGENDA_MAX + 20}
-                onChange={(e) => setLegenda(e.target.value)}
-                className="mt-1 w-full rounded-md border border-line-2 px-3 py-1.5"
-              />
-              <p className={`tnum text-right text-[11px] ${problema ? "text-red" : "text-muted"}`}>
-                {legenda.trim().length}/{LEGENDA_MAX}
-              </p>
-            </div>
+            <Campo
+              rotulo="Legenda (opcional)"
+              dica={
+                <span className={`tnum ${problema ? "text-red" : ""}`}>
+                  {legenda.trim().length}/{LEGENDA_MAX}
+                </span>
+              }
+            >
+              <input id="story-legenda" value={legenda} maxLength={LEGENDA_MAX + 20} onChange={(e) => setLegenda(e.target.value)} />
+            </Campo>
 
-            <div>
-              <label htmlFor="story-rifa" className="label-xs">Leva para a rifa (opcional)</label>
-              <select
-                id="story-rifa"
-                value={campaignId}
-                onChange={(e) => setCampaignId(e.target.value)}
-                className="mt-1 w-full rounded-md border border-line-2 px-2 py-1.5"
-              >
+            <Campo rotulo="Leva para a rifa (opcional)">
+              <select id="story-rifa" value={campaignId} onChange={(e) => setCampaignId(e.target.value)}>
                 <option value="">Nenhuma</option>
                 {rifas.map((c) => (
                   <option key={c.campaign.id} value={c.campaign.id}>
@@ -254,65 +246,56 @@ export function AdminStories() {
                   </option>
                 ))}
               </select>
-            </div>
+            </Campo>
 
-            <div>
-              <label htmlFor="story-quando" className="label-xs">Publicar em (opcional)</label>
-              <input
-                id="story-quando"
-                type="datetime-local"
-                value={publicaEm}
-                onChange={(e) => setPublicaEm(e.target.value)}
-                className="campo tnum mt-1"
-                aria-describedby="story-quando-dica"
-              />
-              <p id="story-quando-dica" className="mt-1 text-[11px] text-muted">
-                Vazio, vai ao ar agora. Agendado (até <span className="tnum">{STORY_AGENDA_MAX_DIAS}</span> dias à frente), entra
-                no ar sozinho na hora e as <span className="tnum">{STORY_HORAS}</span> h contam dali.
-              </p>
-            </div>
+            <Campo
+              rotulo="Publicar em (opcional)"
+              dica={
+                <>
+                  Vazio, vai ao ar agora. Agendado (até <span className="tnum">{STORY_AGENDA_MAX_DIAS}</span> dias à frente), entra no
+                  ar sozinho na hora e as <span className="tnum">{STORY_HORAS}</span> h contam dali.
+                </>
+              }
+            >
+              <input id="story-quando" type="datetime-local" value={publicaEm} onChange={(e) => setPublicaEm(e.target.value)} className="campo tnum" />
+            </Campo>
 
             <fieldset className="space-y-2 rounded-md border border-line p-3">
               <legend className="px-1 label-xs">Enquete (opcional)</legend>
-              <label className="flex items-center gap-2">
-                <input type="checkbox" checked={comEnquete} onChange={(e) => setComEnquete(e.target.checked)} />
+              <Caixa marcada={comEnquete} aoMudar={setComEnquete}>
                 Pôr uma enquete no story
-              </label>
+              </Caixa>
               {comEnquete ? (
                 <>
-                  <div>
-                    <label htmlFor="story-pergunta" className="label-xs">Pergunta</label>
-                    <input
-                      id="story-pergunta"
-                      value={pergunta}
-                      maxLength={ENQUETE_PERGUNTA_MAX + 10}
-                      onChange={(e) => setPergunta(e.target.value)}
-                      className="campo mt-1"
-                    />
-                  </div>
+                  <Campo rotulo="Pergunta">
+                    <input id="story-pergunta" value={pergunta} maxLength={ENQUETE_PERGUNTA_MAX + 10} onChange={(e) => setPergunta(e.target.value)} />
+                  </Campo>
                   {opcoes.map((o, k) => (
                     <div key={k} className="flex items-end gap-2">
-                      <div className="min-w-0 flex-1">
-                        <label htmlFor={`story-opcao-${k}`} className="label-xs">
-                          Opção <span className="tnum">{k + 1}</span>
-                        </label>
+                      <Campo
+                        className="min-w-0 flex-1"
+                        rotulo={
+                          <>
+                            Opção <span className="tnum">{k + 1}</span>
+                          </>
+                        }
+                      >
                         <input
                           id={`story-opcao-${k}`}
                           value={o}
                           maxLength={ENQUETE_OPCAO_MAX + 5}
                           onChange={(e) => setOpcoes(opcoes.map((x, j) => (j === k ? e.target.value : x)))}
-                          className="campo mt-1"
                         />
-                      </div>
+                      </Campo>
                       {opcoes.length > ENQUETE_OPCOES_MIN ? (
-                        <Button type="button" variant="ghost" className="px-2 py-1 text-xs" onClick={() => setOpcoes(opcoes.filter((_, j) => j !== k))} aria-label={`Tirar a opção ${k + 1}`}>
+                        <Button type="button" variant="cinza" onClick={() => setOpcoes(opcoes.filter((_, j) => j !== k))} aria-label={`Tirar a opção ${k + 1}`}>
                           Tirar
                         </Button>
                       ) : null}
                     </div>
                   ))}
                   {opcoes.length < ENQUETE_OPCOES_MAX ? (
-                    <Button type="button" variant="ghost" className="px-2 py-1 text-xs" onClick={() => setOpcoes([...opcoes, ""])}>
+                    <Button type="button" variant="contorno" onClick={() => setOpcoes([...opcoes, ""])}>
                       Mais uma opção
                     </Button>
                   ) : null}
@@ -343,14 +326,11 @@ export function AdminStories() {
               {postar.isPending ? "Enviando…" : publicaEm ? "Agendar story" : "Publicar story"}
             </Button>
           </form>
-        </Card>
+        </CartaoDoPainel>
 
-        <Card
-          title="No ar e agendados"
-          right={<span className="tnum text-xs text-muted">{lista.length}</span>}
-        >
+        <CartaoDoPainel titulo="No ar e agendados" acao={<span className="tnum text-xs text-muted">{lista.length}</span>}>
           {lista.length === 0 ? <Empty>Nenhum story no ar nem agendado.</Empty> : null}
-          <ul className="grid grid-cols-2 gap-3 p-4 sm:grid-cols-3">
+          <ul className={`grid grid-cols-2 gap-3 px-5 sm:grid-cols-3 ${lista.length ? "pb-5" : ""}`}>
             {lista.map((s) => (
               <li key={s.id} className="space-y-1 text-xs">
                 <div className="relative aspect-[9/16] overflow-hidden rounded-md border border-line bg-mist-2">
@@ -400,8 +380,11 @@ export function AdminStories() {
                   </p>
                 ) : null}
                 {s.agendadoPara ? (
-                  <p>
-                    <Pill status="pending">Agendado</Pill> <span className="tnum text-muted">{quando(s.agendadoPara)}</span>
+                  <p className="flex flex-wrap items-center gap-1">
+                    <Pill status="pending">agendado</Pill>
+                    <span className="text-muted">
+                      para <span className="tnum">{quando(s.agendadoPara)}</span>
+                    </span>
                   </p>
                 ) : (
                   <p className="tnum text-muted">
@@ -412,7 +395,7 @@ export function AdminStories() {
               </li>
             ))}
           </ul>
-        </Card>
+        </CartaoDoPainel>
       </div>
     </PanelShell>
   );

@@ -1,11 +1,12 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AprovarTelefone } from "@/components/Seguranca";
 import { Link, useSearch } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { PRAZO_ESTORNO_MIN, PRAZO_ESTORNO_MAX, telefoneDeAvisoValido } from "@shared/chamados";
 import { maskPhone } from "@shared/format";
 import { PanelShell } from "@/components/AppShell";
-import { Card, Button, Pill, Empty } from "@/components/bits";
+import { Button, Pill, Empty, Filtros, Campo } from "@/components/bits";
+import { CartaoDoPainel, TabelaOuCartoes } from "@/components/painel";
 import { apiRequest } from "@/lib/queryClient";
 import { MIN_SENHA, senhaInvalida } from "@shared/senha";
 import { EnderecoForm } from "@/components/EnderecoForm";
@@ -109,6 +110,20 @@ export function AdminOrganizacoes() {
   const [confirma, setConfirma] = useState({ password: "", code: "" });
   const [erro, setErro] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
+  // Quem tem saldo retido (a retenção cautelar ativa): a pílula "retida" na situação.
+  const { data: retencoes } = useQuery<{ organizationId: string; status: string }[]>({
+    queryKey: ["/api/admin/retencoes"],
+  });
+  const retidas = new Set((retencoes ?? []).filter((r) => r.status === "ativa").map((r) => r.organizationId));
+  // O formulário de arquivar ou de acesso abre na coluna ao lado (no celular,
+  // embaixo da lista): a página vai até ele e o primeiro campo recebe o foco.
+  const formulario = useRef<HTMLDivElement>(null);
+  const formularioAberto = arquivar ? `arquivar:${arquivar.id}` : acessoPara ? `acesso:${acessoPara.id}` : null;
+  useEffect(() => {
+    if (!formularioAberto || !formulario.current) return;
+    formulario.current.scrollIntoView({ block: "nearest" });
+    formulario.current.querySelector<HTMLInputElement>("input")?.focus({ preventScroll: true });
+  }, [formularioAberto]);
 
   const recarregar = () => {
     qc.invalidateQueries({ queryKey: ["/api/admin/organizacoes"] });
@@ -181,238 +196,266 @@ export function AdminOrganizacoes() {
 
   const problemaAcesso = acesso.password ? senhaInvalida(acesso.password, "organizer") : null;
 
+  // As ações de cada organização: as mesmas no cartão (celular e tablet) e na
+  // coluna de 120 px da tabela (computador), uma embaixo da outra.
+  const acoesDe = (o: Organizacao) =>
+    o.archivedAt ? (
+      <Button variant="contorno" className="w-full" onClick={() => restaurar.mutate(o)} aria-label={`Restaurar ${o.name}`}>
+        restaurar
+      </Button>
+    ) : (
+      <>
+        <Button
+          variant="contorno"
+          className="w-full"
+          aria-label={`Acesso de organizador de ${o.name}`}
+          onClick={() => {
+            setAcessoPara(o);
+            setArquivar(null);
+            setAviso(null);
+          }}
+        >
+          acesso
+        </Button>
+        <Button
+          variant="contorno"
+          className="w-full"
+          aria-label={`${o.active ? "Suspender" : "Reativar"} ${o.name}`}
+          onClick={() => alternar.mutate(o)}
+        >
+          {o.active ? "suspender" : "reativar"}
+        </Button>
+        <Button
+          variant="contorno"
+          className="w-full"
+          aria-label={`Arquivar ${o.name}`}
+          onClick={() => {
+            setArquivar(o);
+            setAcessoPara(null);
+            setConfirma({ password: "", code: "" });
+            setAviso(null);
+          }}
+        >
+          arquivar
+        </Button>
+      </>
+    );
+
+  const nome = (o: Organizacao) => (
+    <>
+      <button
+        type="button"
+        onClick={() => setAberta(aberta === o.id ? null : o.id)}
+        aria-expanded={aberta === o.id}
+        aria-controls="organizacao-aberta"
+        className="min-w-0 break-words text-left font-medium text-green-deep underline decoration-line-2 underline-offset-2"
+      >
+        {o.name}
+      </button>
+      <span className="block break-words font-mono text-[11px] text-muted">
+        {o.slug}
+        {o.cidade ? ` · ${cidadeUf(o.cidade, o.uf)}` : ""}
+      </span>
+    </>
+  );
+  const pessoas = (o: Organizacao) => (
+    <Link
+      href={`/admin/usuarios?organizacao=${o.id}`}
+      className="tnum text-green-deep underline"
+      aria-label={`${o.pessoas} pessoa(s) de ${o.name}`}
+    >
+      {o.pessoas}
+    </Link>
+  );
+  const situacaoDe = (o: Organizacao) => <SituacaoDaOrganizacao o={o} retida={retidas.has(o.id)} />;
+  const abertaAgora = orgs?.find((o) => o.id === aberta) ?? null;
+
   return (
     <PanelShell title="Organizações">
       {erro ? (
-        <p className="mb-3 rounded-md bg-red-soft px-3 py-2 text-sm text-red">{erro}</p>
+        <p role="alert" className="mb-3 rounded-md bg-red-soft px-3 py-2 text-sm text-red">
+          {erro}
+        </p>
       ) : null}
       {aviso ? (
-        <p className="mb-3 rounded-md bg-green-soft px-3 py-2 text-sm text-green-deep">
+        <p role="status" className="mb-3 rounded-md bg-green-soft px-3 py-2 text-sm text-green-deep">
           {aviso}
         </p>
       ) : null}
 
-      <div className="mb-3 flex gap-1" role="tablist" aria-label="Situação das organizações">
-        {(["ativas", "arquivadas"] as const).map((s) => (
-          <button
-            key={s}
-            type="button"
-            role="tab"
-            aria-selected={situacao === s}
-            onClick={() => {
-              setSituacao(s);
-              setAberta(null);
-            }}
-            className={
-              situacao === s
-                ? "rounded-md bg-green px-3 py-1.5 text-sm font-semibold text-on-green"
-                : "rounded-md px-3 py-1.5 text-sm text-ink-2 hover:bg-mist-2"
-            }
-          >
-            {s}
-          </button>
-        ))}
-      </div>
+      <Filtros
+        rotulo="Situação das organizações"
+        exclusivo
+        className="mb-4 md:mb-6"
+        opcoes={[
+          { valor: "ativas", rotulo: "ativas" },
+          { valor: "arquivadas", rotulo: "arquivadas" },
+        ]}
+        ativa={situacao}
+        aoMudar={(s) => {
+          setSituacao(s);
+          setAberta(null);
+        }}
+      />
 
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1fr_340px]">
-        <Card title={situacao === "ativas" ? "Promotores" : "Arquivadas"}>
+      {/* Celular e tablet: uma coluna, na ordem do DOM. Computador: a lista à
+          esquerda; a nova organização e a demonstração na coluna de 328 px. */}
+      <div className="grid grid-cols-1 gap-4 md:gap-6 lg:grid-cols-[minmax(0,1fr)_328px] lg:items-start">
+        <CartaoDoPainel titulo={situacao === "ativas" ? "Promotores" : "Arquivadas"}>
           {isLoading ? (
             <Empty>Carregando…</Empty>
           ) : orgs?.length ? (
-            <div className="overflow-x-auto">
-              {/* 480 px: no tablet, com o menu de 260 px ao lado, sobram ~510 px
-                  para o cartão — com 560 a tabela rolava e cortava os botões. */}
-              <table className="w-full min-w-[480px] text-sm">
-                <thead>
-                  <tr className="border-b border-line text-left">
-                    <th className="px-3 py-2 font-medium text-muted lg:px-4">Organização</th>
-                    <th className="px-3 py-2 font-medium text-muted lg:px-4">Rifas</th>
-                    <th className="px-3 py-2 font-medium text-muted lg:px-4">Pessoas</th>
-                    <th className="px-3 py-2 font-medium text-muted lg:px-4">Situação</th>
-                    <th className="px-3 py-2 lg:px-4" />
-                  </tr>
-                </thead>
-                <tbody>
-                  {orgs.map((o) => (
-                    <LinhaOrganizacao
-                      key={o.id}
-                      o={o}
-                      aberta={aberta === o.id}
-                      alternarAberta={() => setAberta(aberta === o.id ? null : o.id)}
-                      acoes={
-                        o.archivedAt ? (
-                          <Button variant="ghost" onClick={() => restaurar.mutate(o)}>
-                            restaurar
-                          </Button>
-                        ) : (
-                          <>
-                            <Button
-                              variant="ghost"
-                              onClick={() => {
-                                setAcessoPara(o);
-                                setArquivar(null);
-                                setAviso(null);
-                              }}
-                            >
-                              acesso
-                            </Button>
-                            <Button variant="ghost" onClick={() => alternar.mutate(o)}>
-                              {o.active ? "suspender" : "reativar"}
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              onClick={() => {
-                                setArquivar(o);
-                                setAcessoPara(null);
-                                setConfirma({ password: "", code: "" });
-                                setAviso(null);
-                              }}
-                            >
-                              arquivar
-                            </Button>
-                          </>
-                        )
-                      }
-                    />
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <TabelaOuCartoes
+              aria={situacao === "ativas" ? "Organizações ativas" : "Organizações arquivadas"}
+              itens={orgs}
+              chave={(o) => o.id}
+              colunas={[
+                { titulo: "Organização", celula: nome },
+                { titulo: "Rifas", celula: (o) => <span className="tnum">{o.campanhas}</span> },
+                { titulo: "Pessoas", celula: pessoas },
+                { titulo: "Situação", celula: situacaoDe },
+                { titulo: "Ações", celula: (o) => <div className="flex w-[120px] flex-col gap-1.5">{acoesDe(o)}</div> },
+              ]}
+              cartao={(o) => (
+                <div className="grid grid-cols-1 gap-2 text-sm">
+                  <div className="min-w-0">{nome(o)}</div>
+                  <p>
+                    <span className="label-xs">rifas: </span>
+                    <span className="tnum">{o.campanhas}</span>
+                  </p>
+                  <p>
+                    <span className="label-xs">pessoas: </span>
+                    {pessoas(o)}
+                  </p>
+                  <div className="flex items-start gap-2">
+                    <span className="label-xs shrink-0 pt-1">situação:</span>
+                    <div className="min-w-0">{situacaoDe(o)}</div>
+                  </div>
+                  <div className="flex w-[120px] flex-col gap-1.5">{acoesDe(o)}</div>
+                </div>
+              )}
+            />
           ) : (
             <Empty>
               {situacao === "ativas"
-                ? "Nenhuma organização ainda."
+                ? "Nenhuma organização ainda. Crie a primeira em \"Nova organização\"."
                 : "Nenhuma organização arquivada."}
             </Empty>
           )}
 
-          <p className="border-t border-line px-4 py-3 text-xs text-muted">
+          {abertaAgora ? <DetalheDaOrganizacao o={abertaAgora} aoFechar={() => setAberta(null)} /> : null}
+
+          <p className="border-t border-line px-5 py-3 text-xs text-muted">
             Suspender fecha a porta do organizador; as rifas continuam no ar.
             Arquivar tira da lista e fecha a porta de todos da organização, mas
             não apaga nada: venda, cota, comissão e cobrança continuam nos
             relatórios.
           </p>
-        </Card>
+        </CartaoDoPainel>
 
-        <div className="space-y-3">
+        <div className="grid min-w-0 grid-cols-1 gap-4 md:gap-6">
           {arquivar ? (
-            <Card title={`Arquivar ${arquivar.name}`}>
-              <form
-                className="space-y-3 p-4"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  confirmarArquivo.mutate();
-                }}
+            <div ref={formulario} className="min-w-0">
+              <CartaoDoPainel
+                titulo={`Arquivar ${arquivar.name}`}
+                subtitulo="Confirme com a sua senha e o código do aplicativo autenticador. Rifa no ar ou esperando sorteio impede o arquivamento."
               >
-                <p className="text-xs text-muted">
-                  Confirme com a sua senha e o código do aplicativo autenticador.
-                  Rifa no ar ou esperando sorteio impede o arquivamento.
-                </p>
-                <div>
-                  <label htmlFor="arq-senha" className="label-xs">
-                    Sua senha
-                  </label>
-                  <input
-                    id="arq-senha"
-                    type="password"
-                    autoComplete="current-password"
-                    value={confirma.password}
-                    onChange={(e) => setConfirma({ ...confirma, password: e.target.value })}
-                    className="campo text-sm"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="arq-codigo" className="label-xs">
-                    Código do autenticador
-                  </label>
-                  <input
-                    id="arq-codigo"
-                    inputMode="numeric"
-                    autoComplete="one-time-code"
-                    maxLength={6}
-                    value={confirma.code}
-                    onChange={(e) =>
-                      setConfirma({ ...confirma, code: e.target.value.replace(/\D/g, "") })
-                    }
-                    className="campo tnum text-sm"
-                  />
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    type="submit"
-                    disabled={
-                      !confirma.password || confirma.code.length !== 6 ||
-                      confirmarArquivo.isPending
-                    }
-                  >
-                    Arquivar
-                  </Button>
-                  <Button type="button" variant="ghost" onClick={() => setArquivar(null)}>
-                    cancelar
-                  </Button>
-                </div>
-              </form>
-            </Card>
+                <form
+                  className="grid grid-cols-1 gap-3 px-5 pb-5"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    confirmarArquivo.mutate();
+                  }}
+                >
+                  <Campo rotulo="Sua senha">
+                    <input
+                      id="arq-senha"
+                      type="password"
+                      autoComplete="current-password"
+                      value={confirma.password}
+                      onChange={(e) => setConfirma({ ...confirma, password: e.target.value })}
+                    />
+                  </Campo>
+                  <Campo rotulo="Código do autenticador">
+                    <input
+                      id="arq-codigo"
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      maxLength={6}
+                      value={confirma.code}
+                      onChange={(e) => setConfirma({ ...confirma, code: e.target.value.replace(/\D/g, "") })}
+                      className="campo tnum text-sm"
+                    />
+                  </Campo>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="submit"
+                      disabled={!confirma.password || confirma.code.length !== 6 || confirmarArquivo.isPending}
+                    >
+                      Arquivar
+                    </Button>
+                    <Button type="button" variant="cinza" onClick={() => setArquivar(null)}>
+                      cancelar
+                    </Button>
+                  </div>
+                </form>
+              </CartaoDoPainel>
+            </div>
           ) : null}
 
           {acessoPara ? (
-            <Card title={`Acesso de organizador · ${acessoPara.name}`}>
-              <form
-                className="space-y-3 p-4"
-                autoComplete="off"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  criarAcesso.mutate();
-                }}
+            <div ref={formulario} className="min-w-0">
+              <CartaoDoPainel
+                titulo={`Acesso de organizador · ${acessoPara.name}`}
+                subtitulo="Quem entrar com este acesso vê as mesmas telas do painel, com as rifas, os pedidos e o caixa desta organização — e de mais nenhuma. A entrada é a mesma de todos: /entrar."
               >
-                <p className="text-xs text-muted">
-                  Quem entrar com este acesso vê as mesmas telas do painel, com
-                  as rifas, os pedidos e o caixa desta organização — e de mais
-                  nenhuma. A entrada é a mesma de todos: /entrar.
-                </p>
-                {(
-                  [
-                    ["name", "Nome", "text", "off"],
-                    ["email", "E-mail", "email", "off"],
-                    ["password", `Senha (mínimo ${MIN_SENHA} caracteres)`, "password", "new-password"],
-                  ] as const
-                ).map(([campo, rotulo, tipo, auto]) => (
-                  <div key={campo}>
-                    <label htmlFor={`ac-${campo}`} className="label-xs">
-                      {rotulo}
-                    </label>
-                    <input
-                      id={`ac-${campo}`}
-                      type={tipo}
-                      autoComplete={auto}
-                      value={acesso[campo]}
-                      onChange={(e) => setAcesso({ ...acesso, [campo]: e.target.value })}
-                      className="campo text-sm"
-                    />
+                <form
+                  className="grid grid-cols-1 gap-3 px-5 pb-5"
+                  autoComplete="off"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    criarAcesso.mutate();
+                  }}
+                >
+                  {(
+                    [
+                      ["name", "Nome", "text", "off"],
+                      ["email", "E-mail", "email", "off"],
+                      ["password", `Senha (mínimo ${MIN_SENHA} caracteres)`, "password", "new-password"],
+                    ] as const
+                  ).map(([campo, rotulo, tipo, auto]) => (
+                    <Campo key={campo} rotulo={rotulo} erro={campo === "password" ? problemaAcesso : null}>
+                      <input
+                        id={`ac-${campo}`}
+                        type={tipo}
+                        autoComplete={auto}
+                        value={acesso[campo]}
+                        onChange={(e) => setAcesso({ ...acesso, [campo]: e.target.value })}
+                      />
+                    </Campo>
+                  ))}
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="submit"
+                      disabled={
+                        !acesso.name || !acesso.email || !acesso.password ||
+                        Boolean(problemaAcesso) || criarAcesso.isPending
+                      }
+                    >
+                      Criar acesso
+                    </Button>
+                    <Button type="button" variant="cinza" onClick={() => setAcessoPara(null)}>
+                      cancelar
+                    </Button>
                   </div>
-                ))}
-                {problemaAcesso ? <p className="text-xs text-red">{problemaAcesso}</p> : null}
-                <div className="flex gap-2">
-                  <Button
-                    type="submit"
-                    disabled={
-                      !acesso.name || !acesso.email || !acesso.password ||
-                      Boolean(problemaAcesso) || criarAcesso.isPending
-                    }
-                  >
-                    Criar acesso
-                  </Button>
-                  <Button type="button" variant="ghost" onClick={() => setAcessoPara(null)}>
-                    cancelar
-                  </Button>
-                </div>
-              </form>
-            </Card>
+                </form>
+              </CartaoDoPainel>
+            </div>
           ) : null}
 
           {situacao === "ativas" ? (
-            <Card title="Nova organização">
-              <div className="space-y-3 p-4">
+            <CartaoDoPainel titulo="Nova organização">
+              <div className="grid grid-cols-1 gap-3 px-5 pb-5">
                 {(
                   [
                     ["name", "Nome (sai no bilhete)"],
@@ -420,27 +463,23 @@ export function AdminOrganizacoes() {
                     ["contato", "Contato"],
                   ] as const
                 ).map(([campo, rotulo]) => (
-                  <div key={campo}>
-                    <label htmlFor={`org-${campo}`} className="label-xs">
-                      {rotulo}
-                    </label>
+                  <Campo key={campo} rotulo={rotulo}>
                     <input
                       id={`org-${campo}`}
                       autoComplete="off"
                       value={nova[campo]}
                       onChange={(e) => setNova({ ...nova, [campo]: e.target.value })}
-                      className="campo text-sm"
+                      className={campo === "cnpj" ? "campo tnum text-sm" : "campo text-sm"}
                     />
-                  </div>
+                  </Campo>
                 ))}
-                <Button
-                  onClick={() => criar.mutate()}
-                  disabled={nova.name.trim().length < 2 || criar.isPending}
-                >
-                  Criar organização
-                </Button>
+                <div>
+                  <Button onClick={() => criar.mutate()} disabled={nova.name.trim().length < 2 || criar.isPending}>
+                    Criar organização
+                  </Button>
+                </div>
               </div>
-            </Card>
+            </CartaoDoPainel>
           ) : null}
           {situacao === "ativas" ? <DemonstracaoCard aoMudar={recarregar} /> : null}
         </div>
@@ -475,158 +514,136 @@ function DemonstracaoCard({ aoMudar }: { aoMudar: () => void }) {
     onError: (e: Error) => setErro(e.message),
   });
   return (
-    <Card title="Perfil de demonstração">
-      <div className="space-y-3 p-4 text-sm">
-        <p className="text-xs text-muted">
+    <CartaoDoPainel titulo="Perfil de demonstração">
+      <div className="grid grid-cols-1 gap-3 px-5 pb-5 text-sm">
+        <p className="text-[13px] leading-[18px] text-ink-2">
           Cria a organização "Demonstração" com capa, foto, bio, cor de destaque, links, três rifas na página inicial marcadas "Demonstração" (não vendem) e duas já sorteadas
           com foto do ganhador. Nada dela vende e não tem acesso de
           organizador. Remover arquiva e o perfil some.
         </p>
-        {erro ? <p className="rounded-md bg-red-soft px-3 py-2 text-red">{erro}</p> : null}
+        {erro ? <p role="alert" className="rounded-md bg-red-soft px-3 py-2 text-red">{erro}</p> : null}
         {data?.existe ? (
           <div className="flex flex-wrap items-center gap-2">
             <Pill status="active">no ar</Pill>
             <Link href={`/o/${data.slug}`} className="font-semibold text-green-deep underline">
               Ver o perfil
             </Link>
-            <Button variant="ghost" onClick={() => criar.mutate()} disabled={criar.isPending}>
+            <Button variant="contorno" onClick={() => criar.mutate()} disabled={criar.isPending}>
               Refazer
             </Button>
-            <Button variant="ghost" onClick={() => remover.mutate()} disabled={remover.isPending}>
+            <Button variant="contorno" onClick={() => remover.mutate()} disabled={remover.isPending}>
               Remover
             </Button>
           </div>
         ) : (
-          <Button onClick={() => criar.mutate()} disabled={criar.isPending}>
-            {criar.isPending ? "Criando…" : "Criar perfil de demonstração"}
-          </Button>
+          <div>
+            <Button onClick={() => criar.mutate()} disabled={criar.isPending}>
+              {criar.isPending ? "Criando…" : "Criar perfil de demonstração"}
+            </Button>
+          </div>
         )}
       </div>
-    </Card>
+    </CartaoDoPainel>
   );
 }
 
-function LinhaOrganizacao({
-  o,
-  aberta,
-  alternarAberta,
-  acoes,
-}: {
-  o: Organizacao;
-  aberta: boolean;
-  alternarAberta: () => void;
-  acoes: React.ReactNode;
-}) {
+/**
+ * A situação em pílula (ativa, suspensa, arquivada, banida e, por cima de
+ * qualquer uma, retida) e o telefone do organizador com a aprovação.
+ */
+function SituacaoDaOrganizacao({ o, retida }: { o: Organizacao; retida: boolean }) {
+  return (
+    <div className="flex min-w-0 flex-col items-start gap-1">
+      <span className="flex flex-wrap gap-1">
+        {o.banidaEm ? (
+          <Pill status="expired">banida</Pill>
+        ) : o.archivedAt ? (
+          <Pill status="blocked">arquivada</Pill>
+        ) : (
+          <Pill status={o.active ? "active" : "blocked"}>{o.active ? "ativa" : "suspensa"}</Pill>
+        )}
+        {retida ? <Pill status="pending">retida</Pill> : null}
+      </span>
+      <span className="text-xs">
+        <AprovarTelefone
+          id={o.id}
+          telefone={o.telefoneOrganizador}
+          confirmadoEm={o.telefoneConfirmadoEm}
+          aprovadoEm={o.telefoneAprovadoEm}
+        />
+      </span>
+    </div>
+  );
+}
+
+/**
+ * A organização aberta: os dados, o endereço, o perfil público, o pagamento e
+ * o exemplo. Um só embaixo da lista (no cartão e na tabela), para os campos
+ * não existirem duas vezes na página.
+ */
+function DetalheDaOrganizacao({ o, aoFechar }: { o: Organizacao; aoFechar: () => void }) {
   const qc = useQueryClient();
   const recarregarLista = () => qc.invalidateQueries({ queryKey: ["/api/admin/organizacoes"] });
+  const ref = useRef<HTMLElement>(null);
+  // Aberta pelo nome ou pela busca do painel (`?aberta=`): a página vai até ela.
+  useEffect(() => {
+    ref.current?.scrollIntoView({ block: "nearest" });
+  }, [o.id]);
   return (
-    <>
-      <tr className="border-b border-line align-top last:border-0">
-        <td className="px-3 py-3 lg:px-4">
-          <button
-            type="button"
-            onClick={alternarAberta}
-            aria-expanded={aberta}
-            className="text-left font-medium underline decoration-line-2 underline-offset-2"
-          >
-            {o.name}
-          </button>
-          <span className="block font-mono text-[11px] text-muted">
-            {o.slug}
-            {o.cidade ? ` · ${cidadeUf(o.cidade, o.uf)}` : ""}
-          </span>
-        </td>
-        <td className="tnum px-3 py-3 lg:px-4">{o.campanhas}</td>
-        <td className="tnum px-3 py-3 lg:px-4">
-          <Link
-            href={`/admin/usuarios?organizacao=${o.id}`}
-            className="text-green-deep underline"
-          >
-            {o.pessoas}
-          </Link>
-        </td>
-        <td className="px-3 py-3 lg:px-4">
-          {o.banidaEm ? (
-            <Pill status="expired">banida</Pill>
-          ) : o.archivedAt ? (
-            <Pill status="blocked">arquivada</Pill>
-          ) : (
-            <Pill status={o.active ? "active" : "blocked"}>{o.active ? "ativa" : "suspensa"}</Pill>
-          )}
-          <span className="mt-1 block text-xs">
-            <AprovarTelefone
-              id={o.id}
-              telefone={o.telefoneOrganizador}
-              confirmadoEm={o.telefoneConfirmadoEm}
-              aprovadoEm={o.telefoneAprovadoEm}
-            />
-          </span>
-        </td>
-        <td className="px-3 py-3 text-right lg:px-4">
-          {/* No tablet (menu de 260 px ao lado) os três botões não cabem lado a
-              lado: empilham; no computador voltam a uma linha. */}
-          <div className="flex flex-wrap justify-end gap-2 max-lg:flex-col max-lg:items-end max-lg:[&>button]:px-2.5">{acoes}</div>
-        </td>
-      </tr>
-      {aberta ? (
-        <tr className="border-b border-line bg-mist">
-          <td colSpan={5} className="px-4 py-3">
-            <dl className="grid grid-cols-1 gap-x-6 gap-y-2 text-sm sm:grid-cols-3">
-              <Dado rotulo="CNPJ" valor={o.cnpj} tnum />
-              <Dado rotulo="Contato" valor={o.contato} />
-              <Dado rotulo="Cidade/UF" valor={cidadeUf(o.cidade, o.uf)} />
-              <Dado rotulo="Criada em" valor={new Date(o.createdAt).toLocaleDateString("pt-BR")} tnum />
-              {o.archivedAt ? (
-                <Dado
-                  rotulo="Arquivada em"
-                  valor={new Date(o.archivedAt).toLocaleDateString("pt-BR")}
-                  tnum
-                />
-              ) : null}
-              <div className="sm:col-span-3">
-                <Dado rotulo="Texto do bilhete" valor={o.observacao} />
-              </div>
-            </dl>
-            <Link
-              href={`/admin/usuarios?organizacao=${o.id}`}
-              className="mt-3 inline-block text-sm text-green-deep underline"
-            >
-              ver as pessoas desta organização
-            </Link>
-            {o.archivedAt ? null : (
-              <div className="mt-4 border-t border-line pt-3">
-                <p className="label-xs mb-2">
-                  Endereço {enderecoDe(o) ? null : <Pill status="pending">falta cadastrar</Pill>}
-                </p>
-                <EnderecoForm
-                  organizacaoId={o.id}
-                  atual={o}
-                  onSalvo={recarregarLista}
-                />
-              </div>
-            )}
-            {o.archivedAt ? null : (
-              <div className="mt-4 border-t border-line pt-3">
-                <p className="label-xs mb-2">Perfil público</p>
-                <PerfilPublicoForm
-                  organizacaoId={o.id}
-                  slug={o.slug}
-                  nome={o.name}
-                  bio={o.bio}
-                  foto={o.foto}
-                  capa={o.capa}
-                  destaque={o.destaque}
-                  links={o.links}
-                  onSalvo={recarregarLista}
-                />
-              </div>
-            )}
-            {o.archivedAt ? null : <PagamentoDaOrganizacao o={o} />}
-            {o.archivedAt ? null : <ExemploDaOrganizacao id={o.id} aoFeito={recarregarLista} />}
-          </td>
-        </tr>
-      ) : null}
-    </>
+    <section
+      ref={ref}
+      id="organizacao-aberta"
+      aria-label={`Dados de ${o.name}`}
+      className="min-w-0 border-t border-line bg-mist px-5 py-4"
+    >
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <h3 className="min-w-0 break-words text-sm font-semibold">{o.name}</h3>
+        <Button variant="cinza" onClick={aoFechar}>
+          Fechar
+        </Button>
+      </div>
+      <dl className="grid grid-cols-1 gap-x-6 gap-y-2 text-sm sm:grid-cols-3">
+        <Dado rotulo="CNPJ" valor={o.cnpj} tnum />
+        <Dado rotulo="Contato" valor={o.contato} />
+        <Dado rotulo="Cidade/UF" valor={cidadeUf(o.cidade, o.uf)} />
+        <Dado rotulo="Criada em" valor={new Date(o.createdAt).toLocaleDateString("pt-BR")} tnum />
+        {o.archivedAt ? (
+          <Dado rotulo="Arquivada em" valor={new Date(o.archivedAt).toLocaleDateString("pt-BR")} tnum />
+        ) : null}
+        <div className="min-w-0 sm:col-span-3">
+          <Dado rotulo="Texto do bilhete" valor={o.observacao} />
+        </div>
+      </dl>
+      <Link href={`/admin/usuarios?organizacao=${o.id}`} className="mt-3 inline-block text-sm text-green-deep underline">
+        ver as pessoas desta organização
+      </Link>
+      {o.archivedAt ? null : (
+        <div className="mt-4 border-t border-line pt-3">
+          <p className="label-xs mb-2">
+            Endereço {enderecoDe(o) ? null : <Pill status="pending">falta cadastrar</Pill>}
+          </p>
+          <EnderecoForm organizacaoId={o.id} atual={o} onSalvo={recarregarLista} />
+        </div>
+      )}
+      {o.archivedAt ? null : (
+        <div className="mt-4 border-t border-line pt-3">
+          <p className="label-xs mb-2">Perfil público</p>
+          <PerfilPublicoForm
+            organizacaoId={o.id}
+            slug={o.slug}
+            nome={o.name}
+            bio={o.bio}
+            foto={o.foto}
+            capa={o.capa}
+            destaque={o.destaque}
+            links={o.links}
+            onSalvo={recarregarLista}
+          />
+        </div>
+      )}
+      {o.archivedAt ? null : <PagamentoDaOrganizacao o={o} />}
+      {o.archivedAt ? null : <ExemploDaOrganizacao id={o.id} aoFeito={recarregarLista} />}
+    </section>
   );
 }
 
@@ -671,10 +688,16 @@ function PagamentoDaOrganizacao({ o }: { o: Organizacao }) {
 
   return (
     <div className="mt-4 grid grid-cols-1 gap-3 border-t border-line pt-3 sm:grid-cols-2">
-      <div>
-        <label htmlFor={`carteira-${o.id}`} className="label-xs">
-          Carteira Asaas (walletId)
-        </label>
+      <Campo
+        rotulo="Carteira Asaas (walletId)"
+        dica={
+          carteiraOk
+            ? "Com a carteira, a parte do promotor cai direto na conta dele quando o Asaas estiver em uso. Vazio: tudo entra na conta da plataforma."
+            : undefined
+        }
+        erro={carteiraOk ? null : "Formato inválido: o walletId tem 36 caracteres, com hífens."}
+        className="min-w-0"
+      >
         <input
           id={`carteira-${o.id}`}
           value={carteira}
@@ -686,16 +709,8 @@ function PagamentoDaOrganizacao({ o }: { o: Organizacao }) {
           autoComplete="off"
           className="campo tnum text-sm"
         />
-        <p className={`mt-1 text-[11px] ${carteiraOk ? "text-muted" : "text-red"}`}>
-          {carteiraOk
-            ? "Com a carteira, a parte do promotor cai direto na conta dele quando o Asaas estiver em uso. Vazio: tudo entra na conta da plataforma."
-            : "Formato inválido: o walletId tem 36 caracteres, com hífens."}
-        </p>
-      </div>
-      <div>
-        <label htmlFor={`liberacao-${o.id}`} className="label-xs">
-          Comissão dos divulgadores
-        </label>
+      </Campo>
+      <Campo rotulo="Comissão dos divulgadores" className="min-w-0">
         <select
           id={`liberacao-${o.id}`}
           value={liberacao}
@@ -703,7 +718,6 @@ function PagamentoDaOrganizacao({ o }: { o: Organizacao }) {
             setMsg(null);
             setLiberacao(e.target.value as LiberacaoComissao);
           }}
-          className="mt-1 block w-full rounded-md border border-line-2 bg-white px-3 py-2 text-sm"
         >
           {LIBERACAO_COMISSAO.map((m) => (
             <option key={m} value={m}>
@@ -711,11 +725,8 @@ function PagamentoDaOrganizacao({ o }: { o: Organizacao }) {
             </option>
           ))}
         </select>
-      </div>
-      <div>
-        <label htmlFor={`prazo-${o.id}`} className="label-xs">
-          Prazo de reembolso (dias após aprovar)
-        </label>
+      </Campo>
+      <Campo rotulo="Prazo de reembolso (dias após aprovar)" className="min-w-0">
         <input
           id={`prazo-${o.id}`}
           type="number"
@@ -726,13 +737,14 @@ function PagamentoDaOrganizacao({ o }: { o: Organizacao }) {
             setMsg(null);
             setPrazo(e.target.value);
           }}
-          className="tnum mt-1 w-24 rounded-md border border-line-2 bg-white px-3 py-2 text-sm"
+          className="campo tnum w-24 text-sm"
         />
-      </div>
-      <div>
-        <label htmlFor={`aviso-${o.id}`} className="label-xs">
-          WhatsApp do aviso de chamado novo
-        </label>
+      </Campo>
+      <Campo
+        rotulo="WhatsApp do aviso de chamado novo"
+        erro={avisoOk ? null : "Informe DDD e número."}
+        className="min-w-0"
+      >
         <input
           id={`aviso-${o.id}`}
           inputMode="tel"
@@ -744,14 +756,15 @@ function PagamentoDaOrganizacao({ o }: { o: Organizacao }) {
           placeholder="vazio: os organizadores"
           className="campo tnum text-sm"
         />
-        {avisoOk ? null : <p className="mt-1 text-[11px] text-red">Informe DDD e número.</p>}
-      </div>
-      <div className="flex items-center gap-3 sm:col-span-2">
+      </Campo>
+      <div className="flex flex-wrap items-center gap-3 sm:col-span-2">
         <Button onClick={() => salvar.mutate()} disabled={!avisoOk || !carteiraOk || salvar.isPending}>
           Salvar pagamento
         </Button>
         {msg ? (
-          <span className={`text-xs ${msg.ok ? "text-green-deep" : "text-red"}`}>{msg.texto}</span>
+          <span role={msg.ok ? "status" : "alert"} className={`text-xs ${msg.ok ? "text-green-deep" : "text-red"}`}>
+            {msg.texto}
+          </span>
         ) : null}
       </div>
     </div>

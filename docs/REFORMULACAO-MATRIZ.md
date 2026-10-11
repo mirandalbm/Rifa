@@ -6,11 +6,11 @@ Gerada do código por `npm run matriz` — **não edite à mão** (o teste `test
 |---|---|
 | Telas (rotas do `App.tsx`) | 66 (+ 2 redirecionamentos) |
 | Seções de acesso (`shared/access.ts`) | 41 |
-| Cartões (componentes usados pelas telas) | 779 |
+| Cartões (componentes usados pelas telas) | 799 |
 | Rotas da API | 477, das quais 473 citadas por alguma prova |
 | Provas contra a API (`npm run …`) | 61 |
 | Testes de regra (`tests/`) | 128 arquivos |
-| Destinos decididos | 886 de 886 |
+| Destinos decididos | 906 de 906 |
 
 ## 1. Telas
 
@@ -773,12 +773,16 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 | `AbrirEditorDeImagem` | manter · na tela A01 Visão geral do afiliado · onda 4 |
 | `ArtesParaDivulgar` | manter · na tela A01 Visão geral do afiliado · onda 4 |
 | `Button` | manter · peça do kit (onda 1) · na tela A01 Visão geral do afiliado |
+| `Campo` | manter · peça do kit (onda 1) · na tela A01 Visão geral do afiliado |
 | `Card` | manter · peça do kit (onda 1) · na tela A01 Visão geral do afiliado |
+| `CartaoDoPainel` | manter · peça do kit (onda 1) · na tela A01 Visão geral do afiliado |
 | `Empty` | manter · peça do kit (onda 1) · na tela A01 Visão geral do afiliado |
 | `Estatistica` | manter · peça do kit (onda 1) · na tela A01 Visão geral do afiliado |
+| `Filtros` | manter · peça do kit (onda 1) · na tela A01 Visão geral do afiliado |
 | `Money` | manter · peça do kit (onda 1) · na tela A01 Visão geral do afiliado |
 | `PanelShell` | manter · peça do kit (onda 1) · na tela A01 Visão geral do afiliado |
 | `Pill` | manter · peça do kit (onda 1) · na tela A01 Visão geral do afiliado |
+| `TabelaOuCartoes` | manter · peça do kit (onda 1) · na tela A01 Visão geral do afiliado |
 
 ### `/afiliado/comissoes` — Comissões
 
@@ -787,12 +791,16 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 | `AbrirEditorDeImagem` | manter · na tela A05 Comissões · onda 4 |
 | `ArtesParaDivulgar` | manter · na tela A05 Comissões · onda 4 |
 | `Button` | manter · peça do kit (onda 1) · na tela A05 Comissões |
+| `Campo` | manter · peça do kit (onda 1) · na tela A05 Comissões |
 | `Card` | manter · peça do kit (onda 1) · na tela A05 Comissões |
+| `CartaoDoPainel` | manter · peça do kit (onda 1) · na tela A05 Comissões |
 | `Empty` | manter · peça do kit (onda 1) · na tela A05 Comissões |
 | `Estatistica` | manter · peça do kit (onda 1) · na tela A05 Comissões |
+| `Filtros` | manter · peça do kit (onda 1) · na tela A05 Comissões |
 | `Money` | manter · peça do kit (onda 1) · na tela A05 Comissões |
 | `PanelShell` | manter · peça do kit (onda 1) · na tela A05 Comissões |
 | `Pill` | manter · peça do kit (onda 1) · na tela A05 Comissões |
+| `TabelaOuCartoes` | manter · peça do kit (onda 1) · na tela A05 Comissões |
 
 ### `/afiliado/dados` — Meus dados
 
@@ -830,12 +838,16 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 | `AbrirEditorDeImagem` | manter · na tela A02 Meus links · onda 4 |
 | `ArtesParaDivulgar` | manter · na tela A02 Meus links · onda 4 |
 | `Button` | manter · peça do kit (onda 1) · na tela A02 Meus links |
+| `Campo` | manter · peça do kit (onda 1) · na tela A02 Meus links |
 | `Card` | manter · peça do kit (onda 1) · na tela A02 Meus links |
+| `CartaoDoPainel` | manter · peça do kit (onda 1) · na tela A02 Meus links |
 | `Empty` | manter · peça do kit (onda 1) · na tela A02 Meus links |
 | `Estatistica` | manter · peça do kit (onda 1) · na tela A02 Meus links |
+| `Filtros` | manter · peça do kit (onda 1) · na tela A02 Meus links |
 | `Money` | manter · peça do kit (onda 1) · na tela A02 Meus links |
 | `PanelShell` | manter · peça do kit (onda 1) · na tela A02 Meus links |
 | `Pill` | manter · peça do kit (onda 1) · na tela A02 Meus links |
+| `TabelaOuCartoes` | manter · peça do kit (onda 1) · na tela A02 Meus links |
 
 ### `/afiliado/organizacoes` — Organizações
 
@@ -844,12 +856,16 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 | `AbrirEditorDeImagem` | manter · na tela A04 Organizações do afiliado · onda 4 |
 | `ArtesParaDivulgar` | manter · na tela A04 Organizações do afiliado · onda 4 |
 | `Button` | manter · peça do kit (onda 1) · na tela A04 Organizações do afiliado |
+| `Campo` | manter · peça do kit (onda 1) · na tela A04 Organizações do afiliado |
 | `Card` | manter · peça do kit (onda 1) · na tela A04 Organizações do afiliado |
+| `CartaoDoPainel` | manter · peça do kit (onda 1) · na tela A04 Organizações do afiliado |
 | `Empty` | manter · peça do kit (onda 1) · na tela A04 Organizações do afiliado |
 | `Estatistica` | manter · peça do kit (onda 1) · na tela A04 Organizações do afiliado |
+| `Filtros` | manter · peça do kit (onda 1) · na tela A04 Organizações do afiliado |
 | `Money` | manter · peça do kit (onda 1) · na tela A04 Organizações do afiliado |
 | `PanelShell` | manter · peça do kit (onda 1) · na tela A04 Organizações do afiliado |
 | `Pill` | manter · peça do kit (onda 1) · na tela A04 Organizações do afiliado |
+| `TabelaOuCartoes` | manter · peça do kit (onda 1) · na tela A04 Organizações do afiliado |
 
 ### `/afiliado/saques` — Saques
 
@@ -858,12 +874,16 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 | `AbrirEditorDeImagem` | manter · na tela A06 Saques · onda 4 |
 | `ArtesParaDivulgar` | manter · na tela A06 Saques · onda 4 |
 | `Button` | manter · peça do kit (onda 1) · na tela A06 Saques |
+| `Campo` | manter · peça do kit (onda 1) · na tela A06 Saques |
 | `Card` | manter · peça do kit (onda 1) · na tela A06 Saques |
+| `CartaoDoPainel` | manter · peça do kit (onda 1) · na tela A06 Saques |
 | `Empty` | manter · peça do kit (onda 1) · na tela A06 Saques |
 | `Estatistica` | manter · peça do kit (onda 1) · na tela A06 Saques |
+| `Filtros` | manter · peça do kit (onda 1) · na tela A06 Saques |
 | `Money` | manter · peça do kit (onda 1) · na tela A06 Saques |
 | `PanelShell` | manter · peça do kit (onda 1) · na tela A06 Saques |
 | `Pill` | manter · peça do kit (onda 1) · na tela A06 Saques |
+| `TabelaOuCartoes` | manter · peça do kit (onda 1) · na tela A06 Saques |
 
 ### `/ajuda` — Ajuda
 

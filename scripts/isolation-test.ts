@@ -16,7 +16,7 @@
  */
 import "dotenv/config";
 import { baseUrl } from "./base-url";
-import { sql, eq } from "drizzle-orm";
+import { sql, eq, inArray } from "drizzle-orm";
 import { db, pool } from "../server/db";
 import { payouts, saqueNotas,
   organizations,
@@ -892,13 +892,34 @@ async function conteudoDasListas(eu: Lado, vizinho: Lado) {
     checa("a fila de divulgações da rifa do vizinho: 404", filaDoVizinho.status === 404, `HTTP ${filaDoVizinho.status}`);
     const filaTorta = await pedir(eu.cookie, "/api/admin/divulgacoes?rifa=nao-e-id");
     checa("a fila de divulgações com id fora do formato: 404", filaTorta.status === 404, `HTTP ${filaTorta.status}`);
-    const filaDaMinha = await pedir(eu.cookie, `/api/admin/divulgacoes?rifa=${eu.campaignId}`);
-    const pecasDaMinha = filaDaMinha.status === 200 ? ((await filaDaMinha.json()) as { id: string; slug: string }[]) : null;
-    checa(
-      "a fila de divulgações da minha rifa não traz a peça do vizinho",
-      Array.isArray(pecasDaMinha) && !pecasDaMinha.some((p) => p.id === pecaDoVizinho.id) && pecasDaMinha.every((p) => p.slug === `${eu.slug}-rifa`),
-      `HTTP ${filaDaMinha.status}, ${pecasDaMinha?.length ?? 0} peça(s)`,
-    );
+    // Controle positivo: uma peça na minha rifa e outra numa segunda rifa
+    // minha. A fila da rifa traz exatamente a primeira (sem a do vizinho e
+    // sem a da outra rifa minha) — lista vazia não passaria.
+    const [outraRifaMinha] = await db
+      .insert(campaigns)
+      .values({ organizationId: eu.orgId, slug: `${eu.slug}-rifa-2`, title: "Outra rifa", prizeTitle: "Outro prêmio", totalQuotas: 1000, priceCents: 500 })
+      .onConflictDoUpdate({ target: campaigns.slug, set: { organizationId: eu.orgId } })
+      .returning({ id: campaigns.id });
+    const [pecaMinha] = await db
+      .insert(divulgacoes)
+      .values({ campaignId: eu.campaignId, organizationId: eu.orgId, autor: "apostador", legenda: "peça minha", status: "em_analise" })
+      .returning({ id: divulgacoes.id });
+    const [pecaDaOutra] = await db
+      .insert(divulgacoes)
+      .values({ campaignId: outraRifaMinha.id, organizationId: eu.orgId, autor: "apostador", legenda: "peça da outra rifa", status: "em_analise" })
+      .returning({ id: divulgacoes.id });
+    try {
+      const filaDaMinha = await pedir(eu.cookie, `/api/admin/divulgacoes?rifa=${eu.campaignId}`);
+      const pecasDaMinha = filaDaMinha.status === 200 ? ((await filaDaMinha.json()) as { id: string }[]) : null;
+      checa(
+        "a fila de divulgações da minha rifa traz só a peça dela (nem a do vizinho, nem a da outra rifa minha)",
+        Array.isArray(pecasDaMinha) && pecasDaMinha.length === 1 && pecasDaMinha[0].id === pecaMinha.id,
+        `HTTP ${filaDaMinha.status}, ${pecasDaMinha?.map((p) => p.id === pecaMinha.id ? "minha" : p.id === pecaDaOutra.id ? "da outra rifa" : p.id === pecaDoVizinho.id ? "do vizinho" : "?").join(", ") || "nenhuma"}`,
+      );
+    } finally {
+      await db.delete(divulgacoes).where(inArray(divulgacoes.id, [pecaMinha.id, pecaDaOutra.id]));
+      await db.delete(campaigns).where(eq(campaigns.id, outraRifaMinha.id));
+    }
     // A foto da peça do vizinho, pela porta do painel: 404 (nem existe para mim).
     const [fotoDoVizinho] = await db
       .insert(divulgacaoFotos)
@@ -936,13 +957,28 @@ async function conteudoDasListas(eu: Lado, vizinho: Lado) {
     `${(painel as { revenueCents: number }).revenueCents} centavos`,
   );
 
-  // O próximo sorteio do painel (com o método de apuração que diz a loteria) é de rifa minha.
-  const proximoDoPainel = (painel as { proximoSorteio?: { slug: string; metodoApuracao?: string | null } | null }).proximoSorteio;
-  checa(
-    "o próximo sorteio do painel não é a rifa do vizinho (e traz o método de apuração)",
-    !proximoDoPainel || (proximoDoPainel.slug !== `${vizinho.slug}-rifa` && "metodoApuracao" in proximoDoPainel),
-    proximoDoPainel ? `${proximoDoPainel.slug} · ${proximoDoPainel.metodoApuracao ?? "sem método"}` : "nenhum",
-  );
+  // O próximo sorteio do painel (com o método de apuração que diz a loteria)
+  // é de rifa minha. As duas rifas vão ao ar só para esta checagem, a do
+  // vizinho mais cedo: sem o recorte, o painel mostraria a dele.
+  const antesDasRifas = await db
+    .select({ id: campaigns.id, status: campaigns.status, drawAt: campaigns.drawAt })
+    .from(campaigns)
+    .where(inArray(campaigns.id, [eu.campaignId, vizinho.campaignId]));
+  try {
+    await db.update(campaigns).set({ status: "published", drawAt: new Date(Date.now() + 2 * 86_400_000) }).where(eq(campaigns.id, vizinho.campaignId));
+    await db.update(campaigns).set({ status: "published", drawAt: new Date(Date.now() + 5 * 86_400_000) }).where(eq(campaigns.id, eu.campaignId));
+    const comRifas = (await (await pedir(eu.cookie, "/api/admin/overview")).json()) as { proximoSorteio?: { slug: string; metodoApuracao?: string | null } | null };
+    const proximoDoPainel = comRifas.proximoSorteio;
+    checa(
+      "o próximo sorteio do painel é a minha rifa, não a do vizinho (e traz o método de apuração)",
+      !!proximoDoPainel && proximoDoPainel.slug === `${eu.slug}-rifa` && "metodoApuracao" in proximoDoPainel,
+      proximoDoPainel ? `${proximoDoPainel.slug} · ${proximoDoPainel.metodoApuracao ?? "sem método"}` : "nenhum",
+    );
+  } finally {
+    for (const r of antesDasRifas) {
+      await db.update(campaigns).set({ status: r.status, drawAt: r.drawAt }).where(eq(campaigns.id, r.id));
+    }
+  }
 
   const ultimas = ((painel as { ultimasVendas?: { code: number }[] }).ultimasVendas ?? []).map((v) => v.code);
   checa(

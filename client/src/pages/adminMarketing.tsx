@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { PanelShell } from "@/components/AppShell";
-import { Button, Card, Empty, Pill } from "@/components/bits";
+import { Button, Campo, Empty, Filtros, Pill } from "@/components/bits";
+import { CartaoDoPainel, TabelaOuCartoes } from "@/components/painel";
 import { apiRequest } from "@/lib/queryClient";
 import { formatBRL, groupNumber } from "@shared/format";
 import {
@@ -41,7 +42,7 @@ export function AdminMarketing() {
         <Empty>Carregando…</Empty>
       ) : (
         <div className="space-y-3">
-          <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+          <div className="grid grid-cols-1 items-start gap-3 lg:grid-cols-2">
             <ConfigCard dados={data} />
             <EnviosCard dados={data} />
           </div>
@@ -80,11 +81,9 @@ function ConfigCard({ dados }: { dados: Painel }) {
   });
 
   return (
-    <Card
-      title={dados.plataforma ? "Pixels da plataforma" : "Pixels da sua organização"}
-    >
+    <CartaoDoPainel titulo={dados.plataforma ? "Pixels da plataforma" : "Pixels da sua organização"}>
       <form
-        className="space-y-3 p-4 text-sm"
+        className="space-y-3 px-5 pb-5 text-sm"
         onSubmit={(e) => {
           e.preventDefault();
           setMsg(null);
@@ -103,15 +102,14 @@ function ConfigCard({ dados }: { dados: Painel }) {
         </p>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           {CAMPOS_DE_PIXEL.map((c) => (
-            <label key={c} className="block">
-              <span className="label-xs">{nomeDoPixel(c)}</span>
+            <Campo key={c} rotulo={nomeDoPixel(c)}>
               <input
                 value={pixels[c] ?? ""}
                 onChange={(e) => setPixels({ ...pixels, [c]: e.target.value })}
                 placeholder={exemploDoPixel(c)}
                 className="campo tnum"
               />
-            </label>
+            </Campo>
           ))}
         </div>
         <div>
@@ -123,21 +121,28 @@ function ConfigCard({ dados }: { dados: Painel }) {
           <ul className="mt-2 space-y-2">
             {CAMPOS_DE_CREDENCIAL.map((c) => (
               <li key={c} className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto] sm:items-end">
-                <label className="block">
-                  <span className="text-xs">{NOME_DA_CREDENCIAL[c]}</span>
+                {/* A chave nunca volta para a tela: o que se sabe é se existe, e isso vai em texto (a pílula), nunca no valor. */}
+                <Campo
+                  rotulo={
+                    <span className="inline-flex flex-wrap items-center gap-2">
+                      {NOME_DA_CREDENCIAL[c]}
+                      {dados.credenciais[c] ? <Pill status="draft">chave cadastrada</Pill> : null}
+                    </span>
+                  }
+                >
                   <input
                     type="password"
                     autoComplete="off"
                     value={chaves[c] ?? ""}
                     onChange={(e) => setChaves({ ...chaves, [c]: e.target.value })}
-                    placeholder={dados.credenciais[c] ? "•••••••• (guardada — digite para trocar)" : "não configurada"}
+                    placeholder={dados.credenciais[c] ? "digite para trocar" : "não configurada"}
                     className="campo"
                   />
-                </label>
+                </Campo>
                 {dados.credenciais[c] ? (
-                  <button type="button" onClick={() => salvar.mutate(c)} className="text-xs text-red underline sm:pb-2">
-                    apagar
-                  </button>
+                  <Button type="button" variant="cinza" onClick={() => salvar.mutate(c)}>
+                    Apagar a chave
+                  </Button>
                 ) : null}
               </li>
             ))}
@@ -147,102 +152,122 @@ function ConfigCard({ dados }: { dados: Painel }) {
           Salvar
         </Button>
       </form>
-    </Card>
+    </CartaoDoPainel>
   );
 }
+
+const SITUACAO_DO_ENVIO: { chave: "enviado" | "pendente" | "falhou"; status: string; rotulo: string }[] = [
+  { chave: "enviado", status: "paid", rotulo: "enviadas" },
+  { chave: "pendente", status: "pending", rotulo: "na fila" },
+  { chave: "falhou", status: "expired", rotulo: "falharam" },
+];
 
 function EnviosCard({ dados }: { dados: Painel }) {
   const porProvedor = new Map<string, Record<string, number>>();
   for (const e of dados.envios) porProvedor.set(e.provedor, { ...(porProvedor.get(e.provedor) ?? {}), [e.status]: e.n });
   return (
-    <Card title="Compras enviadas pelo servidor">
+    <CartaoDoPainel titulo="Compras enviadas pelo servidor">
       {porProvedor.size ? (
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="label-xs border-b border-line text-left">
-              <th className="px-4 py-2 font-normal">Plataforma</th>
-              <th className="px-2 py-2 text-right font-normal">Enviadas</th>
-              <th className="px-2 py-2 text-right font-normal">Na fila</th>
-              <th className="px-4 py-2 text-right font-normal">Falharam</th>
-            </tr>
-          </thead>
-          <tbody>
-            {[...porProvedor.entries()].map(([p, n]) => (
-              <tr key={p} className="border-b border-line last:border-0">
-                <td className="px-4 py-2">{NOME_ENVIO[p] ?? p}</td>
-                <td className="tnum px-2 py-2 text-right">{groupNumber(n.enviado ?? 0)}</td>
-                <td className="tnum px-2 py-2 text-right">{groupNumber(n.pendente ?? 0)}</td>
-                <td className={`tnum px-4 py-2 text-right ${n.falhou ? "text-red" : ""}`}>{groupNumber(n.falhou ?? 0)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <ul aria-label="Compras enviadas por plataforma" className="divide-y divide-line text-sm">
+          {[...porProvedor.entries()].map(([p, n]) => (
+            <li key={p} className="flex flex-wrap items-center justify-between gap-2 px-5 py-3">
+              <span className="font-medium">{NOME_ENVIO[p] ?? p}</span>
+              {/* A situação de cada fila em pílula com texto: enviadas, na fila, falharam. A que está em zero fica neutra. */}
+              <span className="flex flex-wrap gap-1.5">
+                {SITUACAO_DO_ENVIO.map((sit) => {
+                  const total = n[sit.chave] ?? 0;
+                  return (
+                    <Pill key={sit.chave} status={total ? sit.status : "draft"}>
+                      {sit.rotulo} <span className="tnum">{groupNumber(total)}</span>
+                    </Pill>
+                  );
+                })}
+              </span>
+            </li>
+          ))}
+        </ul>
       ) : (
         <Empty>Nenhuma compra enviada no período. Precisa de pixel e chave da mesma plataforma.</Empty>
       )}
-      <p className="border-t border-line px-4 py-2 text-[11px] text-muted">
+      <p className="border-t border-line px-5 py-2 text-[11px] text-muted">
         Falha de envio nunca afeta o pagamento: a compra fica na fila e o sistema tenta de novo, com espera crescente, até
         cinco vezes.
       </p>
-    </Card>
+    </CartaoDoPainel>
   );
 }
 
+const PERIODOS = [7, 30, 90] as const;
+type Periodo = `${(typeof PERIODOS)[number]}`;
+
 function CampanhasCard({ dados, dias, setDias }: { dados: Painel; dias: number; setDias: (d: number) => void }) {
   return (
-    <Card
-      title="Vendas por campanha (UTM)"
-      right={
-        <span className="flex gap-1" role="tablist" aria-label="Período">
-          {[7, 30, 90].map((d) => (
-            <button
-              key={d}
-              type="button"
-              role="tab"
-              aria-selected={dias === d}
-              onClick={() => setDias(d)}
-              className={dias === d ? "rounded-md bg-green px-2 py-1 text-xs font-semibold text-on-green" : "rounded-md px-2 py-1 text-xs text-ink-2 hover:bg-mist-2"}
-            >
-              <span className="tnum">{d}</span> dias
-            </button>
-          ))}
-        </span>
-      }
-    >
+    <CartaoDoPainel titulo="Vendas por campanha (UTM)">
+      {/* O período fica na linha do título no computador (como no Figma); abaixo disso desce para a própria linha, senão o título quebraria ou encostaria nas fichas. */}
+      <div className="flex justify-end px-5 pb-3 lg:-mt-[42px] lg:pb-2">
+        <Filtros<Periodo>
+          rotulo="Período"
+          exclusivo
+          opcoes={PERIODOS.map((d) => ({
+            valor: `${d}` as Periodo,
+            rotulo: (
+              <>
+                <span className="tnum">{d}</span> dias
+              </>
+            ),
+          }))}
+          ativa={`${dias}` as Periodo}
+          aoMudar={(v) => setDias(Number(v))}
+        />
+      </div>
       {dados.campanhas.length ? (
-        <div className="overflow-x-auto">
-          <table className="w-full text-xs sm:text-sm">
-            <thead>
-              <tr className="label-xs border-b border-line text-left">
-                <th className="px-3 py-2 font-normal sm:px-4">Fonte / meio</th>
-                <th className="px-2 py-2 font-normal">Campanha</th>
-                <th className="px-2 py-2 text-right font-normal">Pedidos</th>
-                <th className="px-2 py-2 text-right font-normal">Vendas</th>
-                <th className="px-3 py-2 text-right font-normal sm:px-4">Receita</th>
-              </tr>
-            </thead>
-            <tbody>
-              {dados.campanhas.map((c) => (
-                <tr key={`${c.fonte}|${c.meio}|${c.campanha}`} className="border-b border-line last:border-0">
-                  <td className="px-3 py-2 sm:px-4">
-                    {c.fonte} <span className="text-muted">/ {c.meio}</span>
-                  </td>
-                  <td className="px-2 py-2">{c.campanha}</td>
-                  <td className="tnum px-2 py-2 text-right">{groupNumber(c.pedidos)}</td>
-                  <td className="tnum px-2 py-2 text-right">{groupNumber(c.vendas)}</td>
-                  <td className="tnum whitespace-nowrap px-3 py-2 text-right text-green-deep sm:px-4">{formatBRL(c.receitaCents)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <TabelaOuCartoes
+          aria="Vendas por campanha"
+          itens={dados.campanhas}
+          chave={(c) => `${c.fonte}|${c.meio}|${c.campanha}`}
+          colunas={[
+            {
+              titulo: "Fonte / meio",
+              celula: (c) => (
+                <>
+                  {c.fonte} <span className="text-muted">/ {c.meio}</span>
+                </>
+              ),
+            },
+            { titulo: "Campanha", celula: (c) => c.campanha },
+            { titulo: "Pedidos", celula: (c) => <span className="tnum">{groupNumber(c.pedidos)}</span>, direita: true },
+            { titulo: "Vendas", celula: (c) => <span className="tnum">{groupNumber(c.vendas)}</span>, direita: true },
+            {
+              titulo: "Receita",
+              celula: (c) => <span className="tnum whitespace-nowrap text-green-deep">{formatBRL(c.receitaCents)}</span>,
+              direita: true,
+            },
+          ]}
+          cartao={(c) => (
+            <div className="grid grid-cols-1 gap-1 text-sm">
+              <p className="min-w-0 break-words font-medium">{c.campanha}</p>
+              <p className="text-xs text-muted">
+                {c.fonte} / {c.meio}
+              </p>
+              <p className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
+                <span>
+                  Pedidos <span className="tnum">{groupNumber(c.pedidos)}</span>
+                </span>
+                <span>
+                  Vendas <span className="tnum">{groupNumber(c.vendas)}</span>
+                </span>
+                <span className="tnum font-medium text-green-deep">{formatBRL(c.receitaCents)}</span>
+              </p>
+            </div>
+          )}
+        />
       ) : (
         <Empty>Nenhuma venda com UTM no período. Use utm_source, utm_medium e utm_campaign nos links dos anúncios.</Empty>
       )}
-      <p className="border-t border-line px-4 py-2 text-[11px] text-muted">
+      <p className="border-t border-line px-5 py-2 text-[11px] text-muted">
         Receita é venda paga. Os números vêm do link do anúncio (UTM, gclid, fbclid, ttclid) e são estatística: não
         decidem comissão nem dinheiro.
       </p>
-    </Card>
+    </CartaoDoPainel>
   );
 }

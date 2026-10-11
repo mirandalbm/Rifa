@@ -68,6 +68,24 @@ com o título de 16, cabeçalho de tabela de 10 em maiúsculas, campo de 40 px
 com cantos de 8. `tests/kit.test.ts` segura as medidas e proíbe a ficha
 feita à mão. As telas em si são as ondas 2 a 5.
 
+### Fase 5 — onda 2 (organizador)
+
+As 21 telas do organizador (P01 a P21 da base "14 · Especificação por tela")
+alinhadas ao Figma congelado nas três larguras e nos dois temas, só com as
+peças do kit da onda 1, e os critérios de aceite que são de tela cumpridos
+(cada um conferido ou feito, tela a tela, no PR #249). Nada de servidor,
+`shared/` ou regra mudou. Onde o Figma e a especificação divergiam, valeu a
+especificação: o próximo sorteio em azul, o pedido vencido ou estornado em
+pílula neutra, Afiliados em duas colunas no computador e "Organização
+verificada" na aba "Conta e segurança". O respiro entre cartões é o do Figma
+(16 px no celular, 24 px do tablet em diante). Ficou para quem mexe em regra:
+o Financeiro do master soma a comissão guardada com a das organizações
+(`/finance`), não há rota para o organizador criar acesso, e a loteria do
+próximo sorteio no Painel sai do método da rifa lido na tela
+(`/api/admin/overview` não a traz). Falta no kit: botão que é link, tom de
+perigo, botão de escolher arquivo e o alinhamento à direita no
+`CabecalhoDaTabela`.
+
 ## 1. Diagnóstico: por que o painel parece "escrito"
 
 Medido no repositório (51 páginas, 89 componentes, cerca de 60 telas no
@@ -185,7 +203,7 @@ Proposta de partida, a ser desenhada e testada na simulação:
 | 2 Arquitetura da informação | árvore de navegação, "onde mora cada ferramenta", fluxos | Opus | **você aprova** |
 | 3 Simulação | (a) fluxos em baixa fidelidade, (b) telas em alta fidelidade com os tokens reais, (c) protótipo clicável com dados de exemplo; 2 rodadas de ajuste; tarefas de teste ("publique uma rifa", "ache o pedido X") com tempo e cliques | Fable (visual), Sonnet (volume), Opus (fluxos) | **você aprova cada painel** |
 | 4 Congelar o desenho | especificação por tela + critérios de aceite (base 14 do Notion) | Opus | **assinada** em 11/10/2026 |
-| 5 Produção (ondas) | 1 base e componentes → 2 organizador → 3 plataforma → 4 afiliado/cambista → 5 loja | Sonnet, Opus nos fluxos críticos | PR por onda, rascunho, revisor de invariantes, capturas — **onda 1 em andamento** (11/10/2026) |
+| 5 Produção (ondas) | 1 base e componentes → 2 organizador → 3 plataforma → 4 afiliado/cambista → 5 loja | Sonnet, Opus nos fluxos críticos | PR por onda, rascunho, revisor de invariantes, capturas — onda 1 feita (#248); **onda 2 feita** (#249, 11/10/2026) |
 | 6 Recriação final | passada de coerência, a11y, desempenho, `npm run telas` sem reprova, docs | Fable (visual), Sonnet, Haiku | você confere |
 
 Cada PR de produção: `/provar`, `revisor-de-invariantes` (quando toca recorte,

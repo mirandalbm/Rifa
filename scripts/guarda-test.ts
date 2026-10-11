@@ -39,6 +39,10 @@ class Cliente {
     const tipo = r.headers.get("content-type") ?? "";
     return { status: r.status, json: tipo.includes("json") ? await r.json() : null };
   }
+  async texto(caminho: string) {
+    const r = await fetch(URL + caminho, { headers: this.cookie ? { Cookie: this.cookie } : {} });
+    return { status: r.status, corpo: await r.text() };
+  }
   async entrar(email: string, password: string) {
     const r = await this.req("POST", "/api/auth/login", { email, password });
     if (r.status !== 200) throw new Error(`login ${email}: HTTP ${r.status}`);
@@ -162,6 +166,19 @@ async function main() {
       "o Painel da organização não soma a guardada em \"Comissão a pagar\"",
       r.json?.commissionToPayCents === v1.comissao.amountCents,
       String(r.json?.commissionToPayCents),
+    );
+    // A planilha de comissões segue a mesma régua: a da organização não traz a guardada.
+    const planilhaOrg = await orgC.texto("/api/admin/exportacoes/comissoes");
+    checa(
+      "a exportação de comissões da organização não traz a guardada",
+      planilhaOrg.status === 200 && planilhaOrg.corpo.includes(String(v1.pedido.code)) && !planilhaOrg.corpo.includes(String(v2.pedido.code)),
+      `HTTP ${planilhaOrg.status}`,
+    );
+    const planilhaPlat = await admin.texto("/api/admin/exportacoes/comissoes");
+    checa(
+      "e a da plataforma traz as duas",
+      planilhaPlat.status === 200 && planilhaPlat.corpo.includes(String(v1.pedido.code)) && planilhaPlat.corpo.includes(String(v2.pedido.code)),
+      `HTTP ${planilhaPlat.status}`,
     );
     r = await admin.req("GET", "/api/admin/finance");
     const doAfiliado = (r.json?.perAffiliate ?? []).filter((x: any) => x.affiliateId === aff.id);

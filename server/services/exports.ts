@@ -454,7 +454,7 @@ function comissoes(escopo: ExportScope): ExportStream {
                  o.code, c.title AS campanha,
                  a.code AS afiliado, a.kind::text AS tipo,
                  u.name AS nome,
-                 pay.paid_at AS pago_em
+                 pay.processed_at AS pago_em
             FROM commissions k
             JOIN orders o ON o.id = k.order_id
             JOIN campaigns c ON c.id = k.campaign_id
@@ -464,6 +464,7 @@ function comissoes(escopo: ExportScope): ExportStream {
            WHERE TRUE
              ${escopo.campaignId ? sql`AND k.campaign_id = ${escopo.campaignId}::uuid` : sql``}
              ${daOrganizacao(sql`c.organization_id`, escopo)}
+             ${escopo.organizationId ? sql`AND NOT k.guardada` : sql``}
              ${janela(sql`k.created_at`, escopo)}
              ${depois}
            ORDER BY k.created_at, k.id

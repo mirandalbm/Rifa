@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { Card, Button } from "@/components/bits";
+import { Button, Campo } from "@/components/bits";
+import { CartaoDoPainel } from "@/components/painel";
 import { apiRequest } from "@/lib/queryClient";
 import { useSession } from "@/lib/session";
 import { minimoSenha, senhaInvalida } from "@shared/senha";
@@ -14,6 +15,10 @@ const VAZIO = { atual: "", nova: "", confirma: "" };
  * Os campos são `new-password`/`current-password` de propósito: sem isso o
  * navegador preenche a senha salva onde não devia, e a pessoa grava uma
  * senha que nunca digitou.
+ *
+ * A régua da senha (`senhaInvalida`, a mesma do servidor) aparece embaixo
+ * do campo da nova senha enquanto a pessoa digita, antes de enviar; a
+ * confirmação que não bate aparece embaixo do campo dela.
  */
 export function TrocarSenha() {
   const { data: session } = useSession();
@@ -22,12 +27,10 @@ export function TrocarSenha() {
   const [ok, setOk] = useState(false);
 
   const role = session?.role ?? "affiliate";
-  const problema =
-    form.nova && senhaInvalida(form.nova, role)
-      ? senhaInvalida(form.nova, role)
-      : form.confirma && form.nova !== form.confirma
-        ? "A confirmação não bate com a nova senha."
-        : null;
+  const problemaNova = form.nova ? senhaInvalida(form.nova, role) : null;
+  const problemaConfirma =
+    !problemaNova && form.confirma && form.nova !== form.confirma ? "A confirmação não bate com a nova senha." : null;
+  const problema = problemaNova ?? problemaConfirma;
 
   const trocar = useMutation({
     mutationFn: () =>
@@ -44,33 +47,33 @@ export function TrocarSenha() {
   });
 
   const campos = [
-    ["atual", "Senha atual", "current-password"],
-    ["nova", `Nova senha (mínimo ${minimoSenha(role)} caracteres)`, "new-password"],
-    ["confirma", "Repita a nova senha", "new-password"],
+    ["atual", "Senha atual", "current-password", null],
+    ["nova", `Nova senha (mínimo ${minimoSenha(role)} caracteres)`, "new-password", problemaNova],
+    ["confirma", "Repita a nova senha", "new-password", problemaConfirma],
   ] as const;
 
   return (
-    <Card title="Trocar minha senha">
+    <CartaoDoPainel titulo="Trocar minha senha">
       <form
-        className="space-y-3 p-4"
+        className="space-y-3 px-5 pb-5"
         onSubmit={(e) => {
           e.preventDefault();
           trocar.mutate();
         }}
       >
         {erro ? (
-          <p className="rounded-md bg-red-soft px-3 py-2 text-sm text-red">{erro}</p>
-        ) : null}
-        {ok ? (
-          <p className="rounded-md bg-green-soft px-3 py-2 text-sm text-green-deep">
-            Senha trocada. Use a nova no próximo acesso.
+          <p role="alert" className="rounded-md bg-red-soft px-3 py-2 text-sm text-red">
+            {erro}
           </p>
         ) : null}
-        {campos.map(([campo, rotulo, auto]) => (
-          <div key={campo}>
-            <label htmlFor={`senha-${campo}`} className="label-xs">
-              {rotulo}
-            </label>
+        {ok ? (
+          <p role="status" className="rounded-md bg-green-soft px-3 py-2 text-sm text-green-deep">
+            Senha trocada. As suas outras sessões foram encerradas; esta continua aberta. Use a nova
+            senha no próximo acesso.
+          </p>
+        ) : null}
+        {campos.map(([campo, rotulo, auto, erroDoCampo]) => (
+          <Campo key={campo} rotulo={rotulo} erro={erroDoCampo}>
             <input
               id={`senha-${campo}`}
               type="password"
@@ -80,21 +83,22 @@ export function TrocarSenha() {
                 setOk(false);
                 setForm({ ...form, [campo]: e.target.value });
               }}
-              className="campo text-sm"
             />
-          </div>
+          </Campo>
         ))}
-        {problema ? <p className="text-xs text-red">{problema}</p> : null}
         <Button
           type="submit"
           disabled={
-            !form.atual || !form.nova || form.nova !== form.confirma || Boolean(problema) ||
+            !form.atual ||
+            !form.nova ||
+            form.nova !== form.confirma ||
+            Boolean(problema) ||
             trocar.isPending
           }
         >
           Trocar senha
         </Button>
       </form>
-    </Card>
+    </CartaoDoPainel>
   );
 }

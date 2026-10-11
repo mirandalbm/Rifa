@@ -126,7 +126,7 @@ export function AdminUsuarios() {
     <button
       type="button"
       onClick={() => setAberto(aberto === u.id ? null : u.id)}
-      className="text-left font-medium text-green-deep hover:underline"
+      className="min-h-6 text-left font-medium text-green-deep hover:underline"
       aria-expanded={aberto === u.id}
     >
       {u.name}

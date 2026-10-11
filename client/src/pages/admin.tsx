@@ -1791,7 +1791,7 @@ export function AdminFinanceiro() {
   const deQuem = (s: SaquePedido) =>
     plataforma && !s.organizationId ? <Pill status="pending">Plataforma</Pill> : null;
   const nota = (s: SaquePedido) => (
-    <a href={`/api/admin/payouts/${s.id}/nota`} className="whitespace-nowrap text-xs text-green-deep underline">
+    <a href={`/api/admin/payouts/${s.id}/nota`} className="inline-flex min-h-6 items-center whitespace-nowrap text-xs text-green-deep underline">
       nota fiscal
     </a>
   );
@@ -1806,7 +1806,7 @@ export function AdminFinanceiro() {
         href={`/api/admin/recibos/${p.recibo}/pdf`}
         target="_blank"
         rel="noopener noreferrer"
-        className="tnum whitespace-nowrap text-xs text-green-deep underline"
+        className="tnum inline-flex min-h-6 items-center whitespace-nowrap text-xs text-green-deep underline"
       >
         recibo {p.recibo}
       </a>

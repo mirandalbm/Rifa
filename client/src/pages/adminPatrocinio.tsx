@@ -588,7 +588,7 @@ function DaOrganizacaoView({ dados }: { dados: DaOrg }) {
               {dados.extrato.map((e, i) => (
                 <li
                   key={i}
-                  className="flex items-center gap-3 px-4 py-2 text-sm"
+                  className="flex items-center gap-3 px-5 py-2 text-sm"
                 >
                   <span className="min-w-0 flex-1">
                     {e.descricao ?? e.motivo}
@@ -615,7 +615,7 @@ function DaOrganizacaoView({ dados }: { dados: DaOrg }) {
             {antigos.map((a) => (
               <li
                 key={a.id}
-                className="flex flex-wrap items-center gap-2 px-4 py-2 text-sm"
+                className="flex flex-wrap items-center gap-2 px-5 py-2 text-sm"
               >
                 <span className="min-w-0 flex-1">
                   {a.rifa}{" "}
@@ -1576,7 +1576,7 @@ function SaldosCard({
     <CartaoDoPainel titulo="Saldo das organizações">
       <ul className="max-h-64 divide-y divide-line overflow-y-auto">
         {organizacoes.map((o) => (
-          <li key={o.id} className="flex items-center gap-3 px-4 py-2 text-sm">
+          <li key={o.id} className="flex items-center gap-3 px-5 py-2 text-sm">
             <span className="min-w-0 flex-1 truncate">{o.nome}</span>
             <Money cents={o.saldoCents} />
           </li>

@@ -331,7 +331,8 @@ export function AdminOrganizacoes() {
                     <span className="label-xs shrink-0 pt-1">situação:</span>
                     <div className="min-w-0">{situacaoDe(o)}</div>
                   </div>
-                  <div className="flex w-[120px] flex-col gap-1.5">{acoesDe(o)}</div>
+                  {/* Do tablet em diante as três ações ficam lado a lado (120 px cada). */}
+                  <div className="flex w-[120px] flex-col gap-1.5 sm:w-auto sm:flex-row sm:[&>*]:w-[120px]">{acoesDe(o)}</div>
                 </div>
               )}
             />

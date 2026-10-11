@@ -142,12 +142,13 @@ export function AdminAntifraude() {
                     </p>
 
                     {LIMIT_FIELDS.map((campo) => (
-                      // No celular o rótulo vai acima do campo; do tablet em diante, ao lado (Figma).
+                      // No celular o rótulo vai acima do campo; do tablet em diante, ao lado (Figma), numa coluna de
+                      // largura fixa: os campos ficam alinhados uns embaixo dos outros.
                       <Campo
                         key={campo.key}
                         rotulo={campo.label}
                         dica={campo.hint}
-                        className="sm:flex sm:flex-wrap sm:items-center sm:gap-x-[10px] [&>p]:basis-full"
+                        className="sm:grid sm:grid-cols-[240px_120px] sm:items-center sm:gap-x-[10px] sm:[&>p]:col-span-2"
                       >
                         <input
                           id={`limite-${campo.key}`}

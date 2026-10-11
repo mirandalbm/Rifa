@@ -111,7 +111,7 @@ export function AdminCaixa() {
       >
         <dl className="px-5">
           {O_QUE_ENTRA.map(([tipo, oQue]) => (
-            <div key={tipo} className="grid grid-cols-1 gap-x-[10px] gap-y-1 border-b border-line py-2 text-sm sm:grid-cols-[220px_minmax(0,1fr)]">
+            <div key={tipo} className="grid grid-cols-1 gap-x-[10px] gap-y-1 border-b border-line py-2 text-sm sm:grid-cols-[170px_minmax(0,1fr)] xl:grid-cols-[220px_minmax(0,1fr)]">
               <dt className="font-medium">{tipo}</dt>
               <dd className="min-w-0 text-[13px] text-muted">{oQue}</dd>
             </div>

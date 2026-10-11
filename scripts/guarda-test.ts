@@ -157,6 +157,12 @@ async function main() {
       daOrg?.guardada === false && !r.json?.perAffiliate?.some((x: any) => x.guardada),
       JSON.stringify(r.json?.perAffiliate?.filter((x: any) => x.affiliateId === aff.id)),
     );
+    r = await orgC.req("GET", "/api/admin/overview");
+    checa(
+      "o Painel da organização não soma a guardada em \"Comissão a pagar\"",
+      r.json?.commissionToPayCents === v1.comissao.amountCents,
+      String(r.json?.commissionToPayCents),
+    );
     r = await admin.req("GET", "/api/admin/finance");
     const doAfiliado = (r.json?.perAffiliate ?? []).filter((x: any) => x.affiliateId === aff.id);
     const plataformaPaga = doAfiliado.find((x: any) => x.guardada === true);

@@ -378,10 +378,13 @@ adminRouter.get("/overview", async (req, res, next) => {
       .from(commissions)
       .innerJoin(campaigns, eq(campaigns.id, commissions.campaignId))
       .where(
+        // A comissão guardada é paga pela plataforma: a organização não a
+        // vê nem a deve (a mesma régua do Financeiro).
         org
           ? and(
               sql`${commissions.status} in ('pending','available')`,
               eq(campaigns.organizationId, org),
+              eq(commissions.guardada, false),
             )
           : sql`${commissions.status} in ('pending','available')`,
       );

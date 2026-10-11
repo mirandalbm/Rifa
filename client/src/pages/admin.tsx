@@ -77,7 +77,17 @@ interface AdminOverview {
   commissionAffiliates: number;
   daily: { day: string; cents: number; cotas: number }[];
   topAffiliates: { code: string; name: string; cents: number }[];
-  proximoSorteio?: { slug: string; prizeTitle: string; drawAt: string; totalQuotas: number; soldCount: number; priceCents?: number; capa?: string | null } | null;
+  proximoSorteio?: {
+    slug: string;
+    prizeTitle: string;
+    drawAt: string;
+    totalQuotas: number;
+    soldCount: number;
+    priceCents?: number;
+    capa?: string | null;
+    /** O método de apuração da rifa (nulo na rifa de antes, sem método). */
+    metodoApuracao?: string | null;
+  } | null;
   hoje?: { cents: number; cotas: number };
   mesCents?: number;
   canais?: { site: { vendas: number; cents: number }; cambista: { vendas: number; cents: number } };
@@ -125,8 +135,9 @@ export function AdminPainel() {
       ].filter((x): x is { texto: string; apoio: string; href: string; tom: "yellow" | "red" } => Boolean(x))
     : [];
   const prox = data?.proximoSorteio;
-  // Quem apura o próximo sorteio, pelo método da rifa (a rifa de antes, sem método, não diz).
-  const metodoDoProximo = prox ? rifas?.find((r) => r.campaign.slug === prox.slug)?.campaign.metodoApuracao : null;
+  // Quem apura o próximo sorteio, pelo método que o servidor manda com ele
+  // (a rifa de antes, sem método, não diz a loteria).
+  const metodoDoProximo = prox?.metodoApuracao ?? null;
   const loteriaDoProximo = metodoDoProximo ? LOTERIAS[loteriaDoMetodo(metodoDoProximo)].nome : null;
   const faltam = prox ? Math.max(0, Math.ceil((new Date(prox.drawAt).getTime() - Date.now()) / 86_400_000)) : 0;
   const TOM_DA_PENDENCIA = { yellow: "bg-yellow-soft text-yellow-deep", red: "bg-red-soft text-red" };

@@ -447,7 +447,9 @@ adminRouter.get("/overview", async (req, res, next) => {
     // (quem é o cliente é regra da titularidade — aqui basta o pedido).
     const proximo = await db.execute(sql`
       SELECT c.id, c.slug, c.prize_title AS "prizeTitle", (c.draw_at AT TIME ZONE 'UTC') AS "drawAt", c.total_quotas AS "totalQuotas",
-             c.price_cents AS "priceCents", coalesce(s.sold_count, 0)::int AS "soldCount"
+             c.price_cents AS "priceCents", coalesce(s.sold_count, 0)::int AS "soldCount",
+             -- Quem apura (a loteria): o Painel o diz sem procurar a rifa na lista do cliente.
+             c.metodo_apuracao AS "metodoApuracao"
       FROM campaigns c
       LEFT JOIN campaign_stats s ON s.campaign_id = c.id
       WHERE c.status = 'published' AND c.draw_at > now() AND NOT c.demonstracao

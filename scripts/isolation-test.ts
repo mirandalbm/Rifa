@@ -936,6 +936,14 @@ async function conteudoDasListas(eu: Lado, vizinho: Lado) {
     `${(painel as { revenueCents: number }).revenueCents} centavos`,
   );
 
+  // O próximo sorteio do painel (com o método de apuração que diz a loteria) é de rifa minha.
+  const proximoDoPainel = (painel as { proximoSorteio?: { slug: string; metodoApuracao?: string | null } | null }).proximoSorteio;
+  checa(
+    "o próximo sorteio do painel não é a rifa do vizinho (e traz o método de apuração)",
+    !proximoDoPainel || (proximoDoPainel.slug !== `${vizinho.slug}-rifa` && "metodoApuracao" in proximoDoPainel),
+    proximoDoPainel ? `${proximoDoPainel.slug} · ${proximoDoPainel.metodoApuracao ?? "sem método"}` : "nenhum",
+  );
+
   const ultimas = ((painel as { ultimasVendas?: { code: number }[] }).ultimasVendas ?? []).map((v) => v.code);
   checa(
     "as últimas vendas do painel não trazem o pedido do vizinho",

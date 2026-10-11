@@ -602,7 +602,8 @@ arquitetura.
   rolagem, e as rifas em 2 colunas ao lado.
 - **Painel do organizador em grade bento** (`Bento` em
   `client/src/pages/admin.tsx`, etiqueta presa na borda): receita com o
-  gráfico em 2×2, cotas, comissão, próximo sorteio (azul), o que falta
+  gráfico em 2×2, cotas, comissão, próximo sorteio (azul, com a loteria pelo
+  `metodoApuracao` que vem com ele; sem método, não diz), o que falta
   (telefone, reembolsos, rascunho sem autorização, Pix esperando) e as
   últimas vendas. Tudo vem de `/api/admin/overview`, com o recorte de
   `orgOf` em cada consulta; a venda sai **sem** nome nem telefone (quem é

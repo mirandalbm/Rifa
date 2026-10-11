@@ -2,8 +2,8 @@ import { EntidadesDaPlataforma } from "@/components/EntidadesDaPlataforma";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { PanelShell } from "@/components/AppShell";
-import { Card, Button, Pill, Empty, Money } from "@/components/bits";
-import { MestreDetalhe } from "@/components/painel";
+import { Button, Campo, Caixa, Empty, Filtros, Money, Pill } from "@/components/bits";
+import { Abas, CartaoDoPainel, MestreDetalhe } from "@/components/painel";
 import { Conversa, type Mensagem } from "@/components/Conversa";
 import { SolicitacoesDeRifa } from "@/components/SolicitacoesDeRifa";
 import { DenunciasDaPlataforma } from "@/components/Seguranca";
@@ -120,12 +120,10 @@ export function AdminAtendimento() {
   const filtro = escolhido ?? (daPlataforma ? "disputa" : "aberto");
   const [aberto, setAberto] = useState<string | null>(null);
 
-  // Duas filas: reembolso (chamados dos compradores) e pedidos de mudança em
-  // rifa publicada (edição e adiamento, que a plataforma analisa).
-  const [area, setArea] = useState<"reembolsos" | "rifas" | "denuncias" | "verificacoes" | "entidades">(() => {
-    const aba = new URLSearchParams(window.location.search).get("aba");
-    return aba === "rifas" || aba === "denuncias" || aba === "verificacoes" || aba === "entidades" ? aba : "reembolsos";
-  });
+  // As filas do atendimento, uma aba cada (a aba vai na URL, `?aba=`): reembolso
+  // (chamados dos compradores) e pedidos de mudança em rifa publicada (edição e
+  // adiamento, que a plataforma analisa); denúncias, verificações e entidades
+  // são só da plataforma — a denunciada nunca vê.
   const { data: pendentes } = useQuery<{
     total: number;
     disputas?: number;
@@ -135,174 +133,109 @@ export function AdminAtendimento() {
   }>({
     queryKey: ["/api/admin/chamados/pendentes"],
   });
-  const { data: lista } = useQuery<Linha[]>({
-    queryKey: ["/api/admin/chamados", filtro ? { status: filtro } : {}],
-    refetchInterval: 30_000,
-    enabled: area === "reembolsos",
-  });
+  // O título da aba é texto (`Abas` do kit): o contador vai escrito, nunca só numa bolinha.
+  const comContador = (titulo: string, n?: number) => (n ? `${titulo} (${n} em análise)` : titulo);
 
-  const abas = (
-    // No celular as abas rolam para o lado (sem empurrar a página para fora da
-    // tela). Cada aba é `relative`: o `sr-only` do contador é absoluto e, sem
-    // ancestral posicionado dentro da faixa, escaparia dela e alargaria a página.
-    <div
-      className="-mx-4 mb-4 flex gap-1 overflow-x-auto border-b border-line px-4 sm:mx-0 sm:px-0"
-      style={{ scrollbarWidth: "none" }}
-      role="tablist"
-      aria-label="Filas do atendimento"
-    >
-      {(
-        [
-          ["reembolsos", "Reembolsos"],
-          ["rifas", "Rifas (edição e adiamento)"],
-          // Denúncias são só da plataforma: a denunciada nunca vê.
-          ...(daPlataforma
-            ? ([["denuncias", "Denúncias"], ["verificacoes", "Verificações"], ["entidades", "Entidades"]] as const)
-            : []),
-        ] as const
-      ).map(([valor, rotulo]) => (
-        <button
-          key={valor}
-          type="button"
-          role="tab"
-          aria-selected={area === valor}
-          onClick={() => setArea(valor)}
-          className={`relative -mb-px shrink-0 whitespace-nowrap border-b-2 px-3 py-2 text-sm ${
-            area === valor ? "border-green font-semibold text-ink" : "border-transparent text-ink-2 hover:text-ink"
-          }`}
-        >
-          {rotulo}
-          {valor === "denuncias" && pendentes?.denuncias ? (
-            <span className="tnum ml-1 rounded-full bg-yellow-soft px-1.5 text-[11px] text-yellow-deep">
-              {pendentes.denuncias}
-              <span className="sr-only"> em análise</span>
-            </span>
-          ) : null}
-          {valor === "verificacoes" && pendentes?.verificacoes ? (
-            <span className="tnum ml-1 rounded-full bg-yellow-soft px-1.5 text-[11px] text-yellow-deep">
-              {pendentes.verificacoes}
-              <span className="sr-only"> em análise</span>
-            </span>
-          ) : null}
-          {valor === "rifas" && pendentes?.solicitacoes ? (
-            <span className="tnum ml-1 rounded-full bg-yellow-soft px-1.5 text-[11px] text-yellow-deep">
-              {pendentes.solicitacoes}
-              <span className="sr-only"> em análise</span>
-            </span>
-          ) : null}
-        </button>
-      ))}
-    </div>
+  const reembolsos = (
+    <>
+      <Filtros
+        exclusivo
+        rotulo="Situação dos chamados"
+        className="mb-3"
+        ativa={filtro}
+        aoMudar={(v) => {
+          setFiltro(v);
+          setAberto(null);
+        }}
+        opcoes={FILTROS.map((f) => ({ valor: f.valor, rotulo: f.rotulo }))}
+      />
+      <ListaDeChamados filtro={filtro} aberto={aberto} setAberto={setAberto} daPlataforma={daPlataforma} aoMudar={() => qc.invalidateQueries({ queryKey: ["/api/admin/chamados"] })} />
+    </>
   );
-
-  if (area === "denuncias" && daPlataforma) {
-    return (
-      <PanelShell title="Atendimento">
-        {abas}
-        <DenunciasDaPlataforma />
-      </PanelShell>
-    );
-  }
-
-  if (area === "entidades" && daPlataforma) {
-    return (
-      <PanelShell title="Atendimento">
-        {abas}
-        <EntidadesDaPlataforma />
-      </PanelShell>
-    );
-  }
-
-  if (area === "verificacoes" && daPlataforma) {
-    return (
-      <PanelShell title="Atendimento">
-        {abas}
-        <VerificacoesDaPlataforma />
-      </PanelShell>
-    );
-  }
-
-  if (area === "rifas") {
-    return (
-      <PanelShell title="Atendimento">
-        {abas}
-        <SolicitacoesDeRifa daPlataforma={daPlataforma} />
-      </PanelShell>
-    );
-  }
 
   return (
     <PanelShell title="Atendimento">
-      {abas}
-      <div className="mb-3 flex flex-wrap gap-1" role="tablist" aria-label="Situação dos chamados">
-        {FILTROS.map((f) => (
-          <button
-            key={f.valor || "todos"}
-            type="button"
-            role="tab"
-            aria-selected={filtro === f.valor}
-            onClick={() => {
-              setFiltro(f.valor);
-              setAberto(null);
-            }}
-            className={
-              filtro === f.valor
-                ? "rounded-md bg-green px-3 py-1.5 text-sm font-semibold text-on-green"
-                : "rounded-md px-3 py-1.5 text-sm text-ink-2 hover:bg-mist-2"
-            }
-          >
-            {f.rotulo}
-          </button>
-        ))}
-      </div>
-
-      <MestreDetalhe
-        aberto={aberto}
-        aoFechar={() => setAberto(null)}
-        vazio="Escolha um chamado para ver a conversa e decidir."
-        lista={
-          <Card title="Chamados">
-            {lista?.length ? (
-              <ul className="divide-y divide-line">
-                {lista.map((c) => (
-                  <li key={c.id}>
-                    <button
-                      type="button"
-                      onClick={() => setAberto(c.id)}
-                      className={`w-full px-4 py-3 text-left hover:bg-mist ${aberto === c.id ? "bg-mist" : ""}`}
-                    >
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <span className="tnum text-sm font-semibold">{c.protocolo}</span>
-                        <StatusPill s={c.status} disputa={c.disputa} />
-                      </div>
-                      <p className="mt-1 text-sm">
-                        {c.nome} <span className="tnum text-xs text-muted">· {c.cliente ?? "sem ID"}</span>
-                      </p>
-                      <p className="text-xs text-muted">
-                        {c.rifa} · pedido <span className="tnum">#{c.pedido}</span> ·{" "}
-                        <span className="tnum">{formatBRL(c.valorCents)}</span>
-                      </p>
-                      {c.status === "aprovado" ? <Prazo ate={c.prazoEstornoAte} /> : null}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <Empty>Nenhum chamado aqui.</Empty>
-            )}
-          </Card>
-        }
-        detalhe={
-          aberto ? (
-            <DetalheChamado
-              id={aberto}
-              daPlataforma={daPlataforma}
-              aoMudar={() => qc.invalidateQueries({ queryKey: ["/api/admin/chamados"] })}
-            />
-          ) : null
-        }
+      {/* Remonta quando o papel chega: as abas só da plataforma não existem antes, e a aba da URL se perderia. */}
+      <Abas
+        key={daPlataforma ? "plataforma" : "organizacao"}
+        rotulo="Filas do atendimento"
+        abas={[
+          { id: "reembolsos", titulo: "Reembolsos", conteudo: reembolsos },
+          {
+            id: "rifas",
+            titulo: comContador("Rifas (edição e adiamento)", pendentes?.solicitacoes),
+            conteudo: <SolicitacoesDeRifa daPlataforma={daPlataforma} />,
+          },
+          ...(daPlataforma
+            ? [
+                { id: "denuncias", titulo: comContador("Denúncias", pendentes?.denuncias), conteudo: <DenunciasDaPlataforma /> },
+                { id: "verificacoes", titulo: comContador("Verificações", pendentes?.verificacoes), conteudo: <VerificacoesDaPlataforma /> },
+                { id: "entidades", titulo: "Entidades", conteudo: <EntidadesDaPlataforma /> },
+              ]
+            : []),
+        ]}
       />
     </PanelShell>
+  );
+}
+
+/** A lista dos chamados e o item aberto (`MestreDetalhe`): de `xl` lado a lado; abaixo, uma coisa por vez. */
+function ListaDeChamados({
+  filtro,
+  aberto,
+  setAberto,
+  daPlataforma,
+  aoMudar,
+}: {
+  filtro: string;
+  aberto: string | null;
+  setAberto: (id: string | null) => void;
+  daPlataforma: boolean;
+  aoMudar: () => void;
+}) {
+  const { data: lista } = useQuery<Linha[]>({
+    queryKey: ["/api/admin/chamados", filtro ? { status: filtro } : {}],
+    refetchInterval: 30_000,
+  });
+  return (
+    <MestreDetalhe
+      aberto={aberto}
+      aoFechar={() => setAberto(null)}
+      vazio="Escolha um chamado para ver a conversa e decidir."
+      lista={
+        <CartaoDoPainel titulo="Chamados">
+          {lista?.length ? (
+            <ul className="divide-y divide-line border-t border-line">
+              {lista.map((c) => (
+                <li key={c.id}>
+                  <button
+                    type="button"
+                    onClick={() => setAberto(c.id)}
+                    aria-current={aberto === c.id ? "true" : undefined}
+                    className={`w-full px-5 py-3 text-left hover:bg-mist ${aberto === c.id ? "bg-mist" : ""}`}
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="tnum text-sm font-semibold">{c.protocolo}</span>
+                      <StatusPill s={c.status} disputa={c.disputa} />
+                    </div>
+                    <p className="mt-1 text-sm">
+                      {c.nome} <span className="tnum text-xs text-muted">· {c.cliente ?? "sem ID"}</span>
+                    </p>
+                    <p className="text-xs text-muted">
+                      {c.rifa} · pedido <span className="tnum">#{c.pedido}</span> · <span className="tnum">{formatBRL(c.valorCents)}</span>
+                    </p>
+                    {c.status === "aprovado" ? <Prazo ate={c.prazoEstornoAte} /> : null}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <Empty>Nenhum chamado aqui.</Empty>
+          )}
+        </CartaoDoPainel>
+      }
+      detalhe={aberto ? <DetalheChamado id={aberto} daPlataforma={daPlataforma} aoMudar={aoMudar} /> : null}
+    />
   );
 }
 
@@ -368,17 +301,19 @@ function DetalheChamado({ id, aoMudar, daPlataforma }: { id: string; aoMudar: ()
     onError: falhou,
   });
 
-  if (!data) return <Card><Empty>Carregando…</Empty></Card>;
+  if (!data)
+    return (
+      <CartaoDoPainel titulo="Chamado">
+        <Empty>Carregando…</Empty>
+      </CartaoDoPainel>
+    );
   const { chamado, pedido, cliente } = data;
   const emDisputa = chamado.disputa === "aberta";
   const emAndamento = chamado.status === "aberto" || chamado.status === "aprovado" || emDisputa;
 
   return (
-    <Card
-      title={`Chamado ${chamado.protocolo}`}
-      right={<StatusPill s={chamado.status} disputa={chamado.disputa} />}
-    >
-      <div className="space-y-3 border-b border-line p-4 text-sm">
+    <CartaoDoPainel titulo={`Chamado ${chamado.protocolo}`} acao={<StatusPill s={chamado.status} disputa={chamado.disputa} />}>
+      <div className="space-y-3 border-b border-t border-line px-5 py-4 text-sm">
         {aviso ? (
           <p className={`rounded-md px-3 py-2 ${aviso.ok ? "bg-green-soft text-green-deep" : "bg-red-soft text-red"}`}>
             {aviso.texto}
@@ -481,17 +416,10 @@ function DetalheChamado({ id, aoMudar, daPlataforma }: { id: string; aoMudar: ()
       />
 
       {chamado.status === "aberto" && !emDisputa ? (
-        <div className="space-y-2 border-t border-line p-4">
-          <label htmlFor="resposta" className="label-xs">
-            Decisão (a resposta vai para o cliente)
-          </label>
-          <textarea
-            id="resposta"
-            rows={2}
-            value={resposta}
-            onChange={(e) => setResposta(e.target.value)}
-            className="w-full rounded-md border border-line-2 px-3 py-2 text-sm"
-          />
+        <div className="space-y-2 border-t border-line px-5 py-4">
+          <Campo rotulo="Decisão (a resposta vai para o cliente)">
+            <textarea id="resposta" rows={2} value={resposta} onChange={(e) => setResposta(e.target.value)} />
+          </Campo>
           <div className="flex flex-wrap gap-2">
             <Button
               onClick={() => concluir.mutate("aprovado")}
@@ -500,7 +428,7 @@ function DetalheChamado({ id, aoMudar, daPlataforma }: { id: string; aoMudar: ()
               Aprovar reembolso
             </Button>
             <Button
-              variant="ghost"
+              variant="cinza"
               onClick={() => concluir.mutate("recusado")}
               disabled={resposta.trim().length < 5 || concluir.isPending}
             >
@@ -514,7 +442,7 @@ function DetalheChamado({ id, aoMudar, daPlataforma }: { id: string; aoMudar: ()
       ) : null}
 
       {chamado.status === "aprovado" ? (
-        <div className="space-y-2 border-t border-line p-4">
+        <div className="space-y-2 border-t border-line px-5 py-4">
           <Button
             onClick={() => {
               if (
@@ -532,18 +460,13 @@ function DetalheChamado({ id, aoMudar, daPlataforma }: { id: string; aoMudar: ()
             {estornar.isPending ? "Devolvendo…" : "Fazer a devolução"}
           </Button>
           {daPlataforma ? (
-            <label className="flex items-start gap-2 text-xs">
-              <input
-                type="checkbox"
-                checked={falhaDaPlataforma}
-                onChange={(e) => setFalhaDaPlataforma(e.target.checked)}
-                className="mt-0.5"
-              />
-              <span>
-                Falha da plataforma: a taxa Pix volta à organização. Sem marcar, ela só volta no arrependimento (até 7
-                dias); no reembolso com taxa e no adiamento, fica com a plataforma.
-              </span>
-            </label>
+            <Caixa
+              marcada={falhaDaPlataforma}
+              aoMudar={setFalhaDaPlataforma}
+              sub="Sem marcar, ela só volta no arrependimento (até 7 dias); no reembolso com taxa e no adiamento, fica com a plataforma."
+            >
+              Falha da plataforma: a taxa Pix volta à organização.
+            </Caixa>
           ) : null}
           <p className="text-[11px] text-muted">
             {pedido.provedor
@@ -554,9 +477,9 @@ function DetalheChamado({ id, aoMudar, daPlataforma }: { id: string; aoMudar: ()
       ) : null}
 
       {chamado.decisao && !emAndamento ? (
-        <p className="border-t border-line px-4 py-3 text-xs text-muted">Decisão: {chamado.decisao}</p>
+        <p className="border-t border-line px-5 py-3 text-xs text-muted">Decisão: {chamado.decisao}</p>
       ) : null}
-    </Card>
+    </CartaoDoPainel>
   );
 }
 
@@ -592,7 +515,7 @@ function DisputaDoChamado({
   const aberta = chamado.disputa === "aberta";
 
   return (
-    <div className="space-y-2 border-b border-line p-4 text-sm">
+    <div className="space-y-2 border-b border-line px-5 py-4 text-sm">
       <div className="flex flex-wrap items-center gap-2">
         <span className="label-xs">Disputa</span>
         {chamado.disputa ? (
@@ -624,23 +547,16 @@ function DisputaDoChamado({
               chamado vira aprovado com o prazo de devolução da organização; a devolução segue pelo botão de sempre.
             </p>
           ) : null}
-          <label htmlFor="decisao-disputa" className="label-xs">
-            Decisão (vai para o comprador e para a organização)
-          </label>
-          <textarea
-            id="decisao-disputa"
-            rows={3}
-            value={decisao}
-            onChange={(e) => setDecisao(e.target.value)}
-            className="w-full rounded-md border border-line-2 px-3 py-2 text-sm"
-          />
+          <Campo rotulo="Decisão (vai para o comprador e para a organização)">
+            <textarea id="decisao-disputa" rows={3} value={decisao} onChange={(e) => setDecisao(e.target.value)} />
+          </Campo>
           {erro ? <p className="text-xs text-red">{erro}</p> : null}
           <div className="flex flex-wrap gap-2">
             <Button onClick={() => decidir.mutate("procedente")} disabled={decisao.trim().length < 10 || decidir.isPending}>
               Procedente: reembolsar
             </Button>
             <Button
-              variant="ghost"
+              variant="cinza"
               onClick={() => decidir.mutate("improcedente")}
               disabled={decisao.trim().length < 10 || decidir.isPending}
             >

@@ -6,11 +6,11 @@ Gerada do código por `npm run matriz` — **não edite à mão** (o teste `test
 |---|---|
 | Telas (rotas do `App.tsx`) | 66 (+ 2 redirecionamentos) |
 | Seções de acesso (`shared/access.ts`) | 41 |
-| Cartões (componentes usados pelas telas) | 721 |
+| Cartões (componentes usados pelas telas) | 725 |
 | Rotas da API | 477, das quais 473 citadas por alguma prova |
 | Provas contra a API (`npm run …`) | 61 |
 | Testes de regra (`tests/`) | 128 arquivos |
-| Destinos decididos | 828 de 828 |
+| Destinos decididos | 832 de 832 |
 
 ## 1. Telas
 
@@ -287,12 +287,16 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 
 | Cartão | Destino |
 |---|---|
+| `Abas` | manter · 11 · Painel · P20 Atendimento do organizador (node 51-3427) · onda 2 |
 | `Button` | manter · peça do kit (onda 1) · na tela P20 Atendimento do organizador + P23 da plataforma (abas, 51-4545) |
-| `Card` | manter · peça do kit (onda 1) · na tela P20 Atendimento do organizador + P23 da plataforma (abas, 51-4545) |
+| `Caixa` | manter · 11 · Painel · P20 Atendimento do organizador (node 51-3427) · onda 2 |
+| `Campo` | manter · 11 · Painel · P20 Atendimento do organizador (node 51-3427) · onda 2 |
+| `CartaoDoPainel` | manter · 11 · Painel · P20 Atendimento do organizador (node 51-3427) · onda 2 |
 | `Conversa` | manter · na tela P20 Atendimento do organizador + P23 da plataforma (abas, 51-4545) · onda 2 |
 | `DenunciasDaPlataforma` | manter · na tela P20 Atendimento do organizador + P23 da plataforma (abas, 51-4545) · onda 2 |
 | `Empty` | manter · peça do kit (onda 1) · na tela P20 Atendimento do organizador + P23 da plataforma (abas, 51-4545) |
 | `EntidadesDaPlataforma` | manter · na tela P20 Atendimento do organizador + P23 da plataforma (abas, 51-4545) · onda 2 |
+| `Filtros` | manter · 11 · Painel · P20 Atendimento do organizador (node 51-3427) · onda 2 |
 | `MestreDetalhe` | manter · peça do kit (onda 1) · na tela P20 Atendimento do organizador + P23 da plataforma (abas, 51-4545) |
 | `Money` | manter · peça do kit (onda 1) · na tela P20 Atendimento do organizador + P23 da plataforma (abas, 51-4545) |
 | `PanelShell` | manter · peça do kit (onda 1) · na tela P20 Atendimento do organizador + P23 da plataforma (abas, 51-4545) |

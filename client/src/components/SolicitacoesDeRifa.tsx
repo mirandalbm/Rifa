@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button, Card, Empty, Pill } from "@/components/bits";
-import { MestreDetalhe } from "@/components/painel";
+import { Button, Campo, Empty, Filtros, Pill } from "@/components/bits";
+import { CartaoDoPainel, MestreDetalhe } from "@/components/painel";
 import { Conversa, type Mensagem } from "@/components/Conversa";
 import { apiRequest } from "@/lib/queryClient";
 import { groupNumber } from "@shared/format";
@@ -91,27 +91,17 @@ export function SolicitacoesDeRifa({ daPlataforma }: { daPlataforma: boolean }) 
 
   return (
     <>
-      <div className="mb-3 flex flex-wrap gap-1" role="tablist" aria-label="Situação dos pedidos">
-        {FILTROS.map((f) => (
-          <button
-            key={f.valor || "todos"}
-            type="button"
-            role="tab"
-            aria-selected={filtro === f.valor}
-            onClick={() => {
-              setFiltro(f.valor);
-              setAberto(null);
-            }}
-            className={
-              filtro === f.valor
-                ? "rounded-md bg-green px-3 py-1.5 text-sm font-semibold text-on-green"
-                : "rounded-md px-3 py-1.5 text-sm text-ink-2 hover:bg-mist-2"
-            }
-          >
-            {f.rotulo}
-          </button>
-        ))}
-      </div>
+      <Filtros
+        exclusivo
+        rotulo="Situação dos pedidos"
+        className="mb-3"
+        ativa={filtro}
+        aoMudar={(v) => {
+          setFiltro(v);
+          setAberto(null);
+        }}
+        opcoes={FILTROS.map((f) => ({ valor: f.valor, rotulo: f.rotulo }))}
+      />
 
       <MestreDetalhe
         aberto={aberto}
@@ -122,15 +112,16 @@ export function SolicitacoesDeRifa({ daPlataforma }: { daPlataforma: boolean }) 
             : "Escolha um pedido para acompanhar a análise e conversar com a plataforma."
         }
         lista={
-          <Card title="Pedidos de mudança em rifa">
+          <CartaoDoPainel titulo="Pedidos de mudança em rifa">
             {lista?.length ? (
-              <ul className="divide-y divide-line">
+              <ul className="divide-y divide-line border-t border-line">
                 {lista.map((s) => (
                   <li key={s.id}>
                     <button
                       type="button"
                       onClick={() => setAberto(s.id)}
-                      className={`w-full px-4 py-3 text-left hover:bg-mist ${aberto === s.id ? "bg-mist" : ""}`}
+                      aria-current={aberto === s.id ? "true" : undefined}
+                      className={`w-full px-5 py-3 text-left hover:bg-mist ${aberto === s.id ? "bg-mist" : ""}`}
                     >
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <span className="tnum text-sm font-semibold">{s.protocolo}</span>
@@ -149,7 +140,7 @@ export function SolicitacoesDeRifa({ daPlataforma }: { daPlataforma: boolean }) 
             ) : (
               <Empty>Nenhum pedido aqui.</Empty>
             )}
-          </Card>
+          </CartaoDoPainel>
         }
         detalhe={
           aberto ? (
@@ -218,17 +209,17 @@ function DetalheDaSolicitacao({
 
   if (!data) {
     return (
-      <Card>
+      <CartaoDoPainel titulo="Pedido">
         <Empty>Carregando…</Empty>
-      </Card>
+      </CartaoDoPainel>
     );
   }
   const { solicitacao: s, rifa } = data;
   const emAnalise = s.status === "em_analise";
 
   return (
-    <Card title={`${NOME_TIPO_SOLICITACAO[s.tipo]} · ${s.protocolo}`} right={<StatusPill s={s.status} />}>
-      <div className="space-y-3 border-b border-line p-4 text-sm">
+    <CartaoDoPainel titulo={`${NOME_TIPO_SOLICITACAO[s.tipo]} · ${s.protocolo}`} acao={<StatusPill s={s.status} />}>
+      <div className="space-y-3 border-b border-t border-line px-5 py-4 text-sm">
         {aviso ? (
           <p className={`rounded-md px-3 py-2 ${aviso.ok ? "bg-green-soft text-green-deep" : "bg-red-soft text-red"}`}>
             {aviso.texto}
@@ -329,16 +320,9 @@ function DetalheDaSolicitacao({
 
         {emAnalise && daPlataforma ? (
           <div className="space-y-2 rounded-md bg-mist p-3">
-            <label htmlFor={`resp-${s.id}`} className="label-xs">
-              Resposta à organização (obrigatória para recusar)
-            </label>
-            <textarea
-              id={`resp-${s.id}`}
-              rows={2}
-              value={resposta}
-              onChange={(e) => setResposta(e.target.value)}
-              className="w-full rounded-md border border-line-2 px-3 py-2 text-sm"
-            />
+            <Campo rotulo="Resposta à organização (obrigatória para recusar)">
+              <textarea id={`resp-${s.id}`} rows={2} value={resposta} onChange={(e) => setResposta(e.target.value)} />
+            </Campo>
             {s.tipo === "remover_comentario" ? (
           <div className="rounded-md border border-line p-3">
             <p className="label-xs">Comentário que a organização quer remover</p>
@@ -382,8 +366,7 @@ function DetalheDaSolicitacao({
 
         {emAnalise && !daPlataforma ? (
           <Button
-            variant="ghost"
-            className="text-xs"
+            variant="cinza"
             disabled={cancelar.isPending}
             onClick={() => {
               if (window.confirm("Cancelar este pedido? A rifa continua como está.")) cancelar.mutate();
@@ -404,6 +387,6 @@ function DetalheDaSolicitacao({
         comAnexo={false}
         encerrado="Pedido encerrado."
       />
-    </Card>
+    </CartaoDoPainel>
   );
 }

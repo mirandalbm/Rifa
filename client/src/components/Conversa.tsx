@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { Button } from "@/components/bits";
+import { Button, Campo, TONS_DO_BOTAO } from "@/components/bits";
 import { lerImagem } from "@/lib/anexo";
 
 export interface Mensagem {
@@ -43,40 +43,43 @@ export function Conversa({
 
   return (
     <div className="flex flex-col">
-      <ol className="space-y-2 px-3 py-3" aria-label="Mensagens">
-        {mensagens.map((m) => {
-          const meu = m.autor === meuLado;
-          return (
-            <li key={m.id} className={`flex ${meu ? "justify-end" : "justify-start"}`}>
-              <div
-                className={`max-w-[85%] rounded-lg px-3 py-2 text-sm ${
-                  meu
-                    ? "bg-green-soft text-ink"
-                    : m.autor === "plataforma"
-                      ? "border border-dashed border-line-2 bg-mist text-ink"
-                      : "border border-line bg-white text-ink"
-                }`}
-              >
-                <p className="text-[11px] font-semibold text-muted">
-                  {m.nome ?? (m.autor === "comprador" ? "Cliente" : "Atendimento")} ·{" "}
-                  <span className="tnum">{new Date(m.createdAt).toLocaleString("pt-BR")}</span>
-                </p>
-                <p className="mt-1 whitespace-pre-wrap break-words">{m.texto}</p>
-                {m.anexoId ? (
-                  <a href={`${anexoBase}/${m.anexoId}`} target="_blank" rel="noreferrer">
-                    <img
-                      src={`${anexoBase}/${m.anexoId}`}
-                      alt="Anexo enviado na conversa"
-                      className="mt-2 max-h-64 rounded-md border border-line"
-                      loading="lazy"
-                    />
-                  </a>
+      {/* Sem mensagem ainda, nada de lista vazia entre duas linhas. */}
+      {mensagens.length ? (
+        <ol className="space-y-2 px-3 py-3" aria-label="Mensagens">
+          {mensagens.map((m) => {
+            const meu = m.autor === meuLado;
+            return (
+              <li key={m.id} className={`flex ${meu ? "justify-end" : "justify-start"}`}>
+                <div
+                  className={`max-w-[85%] rounded-lg px-3 py-2 text-sm ${
+                    meu
+                      ? "bg-green-soft text-ink"
+                      : m.autor === "plataforma"
+                        ? "border border-dashed border-line-2 bg-mist text-ink"
+                        : "border border-line bg-white text-ink"
+                  }`}
+                >
+                  <p className="text-[11px] font-semibold text-muted">
+                    {m.nome ?? (m.autor === "comprador" ? "Cliente" : "Atendimento")} ·{" "}
+                    <span className="tnum">{new Date(m.createdAt).toLocaleString("pt-BR")}</span>
+                  </p>
+                  <p className="mt-1 whitespace-pre-wrap break-words">{m.texto}</p>
+                  {m.anexoId ? (
+                    <a href={`${anexoBase}/${m.anexoId}`} target="_blank" rel="noreferrer">
+                      <img
+                        src={`${anexoBase}/${m.anexoId}`}
+                        alt="Anexo enviado na conversa"
+                        className="mt-2 max-h-64 rounded-md border border-line"
+                        loading="lazy"
+                      />
+                    </a>
                 ) : null}
               </div>
             </li>
           );
         })}
       </ol>
+      ) : null}
 
       {podeEscrever ? (
         <form
@@ -94,21 +97,13 @@ export function Conversa({
             }
           }}
         >
-          <label htmlFor="msg" className="label-xs">
-            Mensagem
-          </label>
-          <textarea
-            id="msg"
-            rows={3}
-            maxLength={2000}
-            value={texto}
-            onChange={(e) => setTexto(e.target.value)}
-            className="w-full rounded-md border border-line-2 px-3 py-2 text-sm"
-          />
+          <Campo rotulo="Mensagem">
+            <textarea id="msg" rows={3} maxLength={2000} value={texto} onChange={(e) => setTexto(e.target.value)} />
+          </Campo>
           <div className="flex flex-wrap items-center gap-2">
             {comAnexo ? (
               // O botão é o rótulo: o campo nativo mostraria "Choose File" na língua do navegador (o mesmo dos outros campos de arquivo).
-              <label className="relative inline-flex cursor-pointer items-center rounded-md border border-line-2 px-3 py-1.5 text-xs font-semibold hover:bg-mist focus-within:ring-2 focus-within:ring-green">
+              <label className={`relative inline-flex h-10 cursor-pointer items-center rounded-lg px-4 text-[13px] font-semibold focus-within:ring-2 focus-within:ring-green ${TONS_DO_BOTAO.cinza}`}>
                 {anexo ? "Trocar a imagem" : "Anexar imagem"}
                 <input
                   ref={arquivo}

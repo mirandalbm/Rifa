@@ -152,6 +152,20 @@ async function main() {
     r = await orgC.req("GET", "/api/admin/finance");
     const daOrg = r.json?.perAffiliate?.find((x: any) => x.affiliateId === aff.id);
     checa("o Financeiro da organização não conta a guardada", daOrg?.availableCents === v1.comissao.amountCents, String(daOrg?.availableCents));
+    checa(
+      "e não traz linha marcada como guardada",
+      daOrg?.guardada === false && !r.json?.perAffiliate?.some((x: any) => x.guardada),
+      JSON.stringify(r.json?.perAffiliate?.filter((x: any) => x.affiliateId === aff.id)),
+    );
+    r = await admin.req("GET", "/api/admin/finance");
+    const doAfiliado = (r.json?.perAffiliate ?? []).filter((x: any) => x.affiliateId === aff.id);
+    const plataformaPaga = doAfiliado.find((x: any) => x.guardada === true);
+    const organizacaoPaga = doAfiliado.find((x: any) => x.guardada === false);
+    checa(
+      "o Financeiro da plataforma separa a guardada (Plataforma) da que a organização paga",
+      doAfiliado.length === 2 && plataformaPaga?.availableCents === 100 && organizacaoPaga?.availableCents === v1.comissao.amountCents,
+      JSON.stringify(doAfiliado),
+    );
 
     r = await eu.req("GET", "/api/affiliate/saldo");
     const plat = r.json?.find((x: any) => x.organizacaoId === "plataforma");

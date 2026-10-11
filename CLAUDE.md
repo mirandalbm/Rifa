@@ -4197,7 +4197,10 @@ organização) ganha o selo **"AO VIVO"** quando há transmissão de sorteio no 
 - **A organização não vê, não libera e não paga comissão guardada.** O
   saldo do afiliado mostra "Plataforma" à parte; o saque dela nasce sem
   organização, só o administrador geral dá baixa (o organizador recebe
-  404), e o recibo sai em nome da plataforma.
+  404), e o recibo sai em nome da plataforma. No Financeiro da plataforma
+  (`GET /finance`, uma linha por afiliado **e** por `guardada`), a guardada
+  vem à parte, marcada "Plataforma" em texto — nunca somada à que a
+  organização paga; para o organizador o campo é sempre `false`.
 - `npm run guarda` prova tudo isso contra a API de verdade.
 
 ## Bônus, indicação e metas — o que não pode afrouxar

@@ -3848,6 +3848,11 @@ adminRouter.get("/finance", async (req, res, next) => {
         code: affiliates.code,
         name: users.name,
         pixKey: affiliates.pixKey,
+        // Quem paga: a guardada é da plataforma, o resto é da organização da
+        // rifa. Para a plataforma, uma linha por afiliado e por quem paga (a
+        // tela mostra a guardada à parte, como "Plataforma"); para o
+        // organizador é sempre `false` — a guardada nem entra no recorte dele.
+        guardada: commissions.guardada,
         pendingCents: sql<number>`coalesce(sum(${commissions.amountCents}) FILTER (WHERE ${commissions.status} = 'pending'), 0)::int`,
         availableCents: sql<number>`coalesce(sum(${commissions.amountCents}) FILTER (WHERE ${commissions.status} = 'available'), 0)::int`,
       })
@@ -3858,7 +3863,8 @@ adminRouter.get("/finance", async (req, res, next) => {
       // O afiliado é de várias organizações: cada uma vê (e paga) só a
       // comissão das rifas dela — e a guardada pela plataforma não é dela.
       .where(org ? and(eq(campaigns.organizationId, org), eq(commissions.guardada, false)) : sql`TRUE`)
-      .groupBy(commissions.affiliateId, affiliates.code, users.name, affiliates.pixKey);
+      .groupBy(commissions.affiliateId, affiliates.code, users.name, affiliates.pixKey, commissions.guardada)
+      .orderBy(commissions.guardada, users.name);
 
     // O saque é pedido a uma organização (`payouts.organization_id`): sem o
     // recorte, o organizador veria (e pagaria) saque que não é dele.

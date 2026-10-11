@@ -1769,6 +1769,8 @@ export function AdminFinanceiro() {
       code: string;
       name: string;
       pixKey: string | null;
+      /** Comissão guardada pela plataforma (só a plataforma recebe `true`). */
+      guardada?: boolean;
       pendingCents: number;
       availableCents: number;
     }[];
@@ -1795,6 +1797,31 @@ export function AdminFinanceiro() {
   const { data: pagos = [] } = useQuery<SaquePago[]>({ queryKey: ["/api/admin/saques-pagos"] });
 
   const pedidos = data?.payoutsRequested ?? [];
+  // A comissão guardada é paga pela plataforma: fica à parte, marcada
+  // "Plataforma" em texto, nunca somada à que cada organização paga.
+  type LinhaDeComissao = NonNullable<typeof data>["perAffiliate"][number];
+  const comissoes = data?.perAffiliate ?? [];
+  const daOrganizacao = comissoes.filter((a) => !a.guardada);
+  const guardadas = plataforma ? comissoes.filter((a) => a.guardada) : [];
+  const listaDeComissao = (itens: LinhaDeComissao[], aria: string) => (
+    <ul aria-label={aria} className="divide-y divide-line">
+      {itens.map((a) => (
+        <li key={`${a.affiliateId}:${a.guardada ? "plataforma" : "organizacao"}`} className="px-5 py-3 text-sm">
+          <div className="flex items-center justify-between gap-3">
+            <span className="min-w-0 truncate">
+              {a.name} · <span className="tnum text-muted">{a.code}</span>
+            </span>
+            <Money cents={a.availableCents} className="shrink-0 font-medium text-green-deep" />
+          </div>
+          <p className="mt-1 text-xs text-muted">
+            <span className="tnum">{formatBRL(a.pendingCents)}</span> pendentes · disponível{" "}
+            <span className="tnum">{formatBRL(a.availableCents)}</span> · Pix{" "}
+            <span className="tnum break-all">{a.pixKey ?? "não cadastrado"}</span>
+          </p>
+        </li>
+      ))}
+    </ul>
+  );
   const deQuem = (s: SaquePedido) =>
     plataforma && !s.organizationId ? <Pill status="pending">Plataforma</Pill> : null;
   const nota = (s: SaquePedido) => (
@@ -1848,30 +1875,34 @@ export function AdminFinanceiro() {
           titulo="Comissão por afiliado"
           subtitulo={
             plataforma
-              ? "Pendente vira disponível depois da carência; aqui entra também a comissão guardada pela plataforma."
+              ? "Pendente vira disponível depois da carência; a guardada pela plataforma aparece à parte."
               : "Pendente vira disponível depois da carência; a guardada pela plataforma não aparece aqui."
           }
         >
-          {data?.perAffiliate.length === 0 ? (
+          {!data ? null : daOrganizacao.length === 0 && guardadas.length === 0 ? (
             <Empty>Nada a pagar.</Empty>
           ) : (
-            <ul aria-label="Comissão por afiliado" className="divide-y divide-line">
-              {data?.perAffiliate.map((a) => (
-                <li key={a.affiliateId} className="px-5 py-3 text-sm">
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="min-w-0 truncate">
-                      {a.name} · <span className="tnum text-muted">{a.code}</span>
-                    </span>
-                    <Money cents={a.availableCents} className="shrink-0 font-medium text-green-deep" />
-                  </div>
-                  <p className="mt-1 text-xs text-muted">
-                    <span className="tnum">{formatBRL(a.pendingCents)}</span> pendentes · disponível{" "}
-                    <span className="tnum">{formatBRL(a.availableCents)}</span> · Pix{" "}
-                    <span className="tnum break-all">{a.pixKey ?? "não cadastrado"}</span>
+            <>
+              {plataforma ? (
+                <h3 className="px-5 pt-4 text-sm font-semibold text-ink">Paga pela organização da rifa</h3>
+              ) : null}
+              {daOrganizacao.length === 0 ? (
+                <p className="px-5 py-3 text-sm text-muted">Nenhuma comissão a pagar pelas organizações.</p>
+              ) : (
+                listaDeComissao(daOrganizacao, plataforma ? "Comissão paga pela organização da rifa" : "Comissão por afiliado")
+              )}
+              {guardadas.length > 0 ? (
+                <section aria-labelledby="comissao-guardada" className="border-t border-line">
+                  <h3 id="comissao-guardada" className="flex flex-wrap items-center gap-2 px-5 pt-4 text-sm font-semibold text-ink">
+                    Guardada pela plataforma <Pill status="pending">Plataforma</Pill>
+                  </h3>
+                  <p className="px-5 pt-1 text-xs text-muted">
+                    Quem paga é a plataforma, depois do sorteio; a organização não vê nem paga esta comissão.
                   </p>
-                </li>
-              ))}
-            </ul>
+                  {listaDeComissao(guardadas, "Comissão guardada pela plataforma")}
+                </section>
+              ) : null}
+            </>
           )}
         </CartaoDoPainel>
 

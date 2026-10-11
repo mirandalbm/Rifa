@@ -35,6 +35,10 @@ import { TelefoneDoOrganizadorCard } from "@/components/Seguranca";
 import { ContratoPromotoraCard } from "@/components/ContratoPromotoraCard";
 import { VerificacaoCard } from "@/components/Verificacao";
 import { CoresDoSeloCard } from "@/components/CoresDoSelo";
+import { Campo } from "@/components/bits";
+import { CheckCircle2 } from "lucide-react";
+import { regraDoNumeroSemDono } from "@shared/sorteio";
+import { senhaInvalida } from "@shared/senha";
 import { podeExcluir } from "@shared/solicitacoes";
 import type { CorDeDestaque, LinkDoPerfil } from "@shared/perfil";
 import type { Endereco } from "@shared/endereco";
@@ -1288,7 +1292,7 @@ export function AdminPedidos() {
 
 const PILL_DO_VINCULO: Record<string, string> = {
   pendente: "pending",
-  aprovado: "active",
+  aprovado: "published",
   recusado: "blocked",
   desfeito: "expired",
 };
@@ -1334,155 +1338,143 @@ export function AdminAfiliados() {
   });
 
   const pending = data?.filter((r) => statusDe(r) === "pendente") ?? [];
+  // A régua de senha do afiliado (a mesma do servidor), embaixo do campo antes de enviar.
+  const problemaSenha = form.password ? senhaInvalida(form.password, "affiliate") : null;
 
   return (
     <PanelShell title="Afiliados">
-      {daOrganizacao ? (
-        <div className="mb-3">
-          <TermoAfiliadoCard />
+      {/*
+        Duas colunas a partir de `xl`: o termo e o modo das divulgações à
+        esquerda; a fila de adesão, os cupons e os vínculos à direita. O DOM
+        segue a ordem do celular (esquerda, depois direita).
+      */}
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:items-start">
+        <div className="min-w-0 space-y-4">
+          {daOrganizacao ? <TermoAfiliadoCard /> : null}
+          <DivulgacoesDaOrganizacao daOrganizacao={daOrganizacao} />
         </div>
-      ) : null}
-      <div className="mb-3">
-        <DivulgacoesDaOrganizacao daOrganizacao={daOrganizacao} />
-      </div>
-      {pending.length > 0 ? (
-        <div className="mb-3">
-          <Card
-            title="Pedidos de adesão"
-            right={<Pill status="pending">{`${pending.length} na fila`}</Pill>}
-          >
-            <ul className="divide-y divide-line">
-              {pending.map((row) => (
-                <li
-                  key={row.affiliate.id}
-                  className="flex flex-wrap items-center gap-3 px-4 py-3 text-sm"
-                >
-                  <span className="flex-1">
-                    {row.user.name}
-                    {row.affiliate.verificadoEm ? (
-                      <span className="ml-1 inline-block">
-                        <SeloVerificado sujeito="afiliado" tamanho={14} />
-                      </span>
-                    ) : null}{" "}
-                    · <span className="tnum text-muted">{row.user.email}</span>
-                  </span>
-                  <span className="tnum text-xs text-muted">
-                    código {row.affiliate.code}
-                  </span>
-                  <Button
-                    className="px-3 py-1 text-xs"
-                    onClick={() => update.mutate({ id: row.affiliate.id, status: "active" })}
-                  >
-                    Aprovar
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    className="px-3 py-1 text-xs"
-                    onClick={() => update.mutate({ id: row.affiliate.id, status: "blocked" })}
-                  >
-                    Recusar
-                  </Button>
-                </li>
-              ))}
-            </ul>
-          </Card>
-        </div>
-      ) : null}
 
-      <div className="mb-3">
-        <CouponsCard affiliates={data ?? []} />
-      </div>
+        <div className="min-w-0 space-y-4">
+          {pending.length > 0 ? (
+            <CartaoDoPainel titulo="Pedidos de adesão" acao={<Pill status="pending">{`${pending.length} na fila`}</Pill>}>
+              <ul aria-label="Pedidos de adesão" className="divide-y divide-line">
+                {pending.map((row) => (
+                  <li key={row.affiliate.id} className="flex flex-wrap items-center gap-3 px-5 py-3 text-sm">
+                    <span className="min-w-0 flex-1 basis-full sm:basis-auto">
+                      {row.user.name}
+                      {row.affiliate.verificadoEm ? (
+                        <span className="ml-1 inline-block">
+                          <SeloVerificado sujeito="afiliado" tamanho={14} />
+                        </span>
+                      ) : null}{" "}
+                      · <span className="tnum break-all text-muted">{row.user.email}</span>
+                    </span>
+                    <span className="tnum text-xs text-muted">código {row.affiliate.code}</span>
+                    <Button onClick={() => update.mutate({ id: row.affiliate.id, status: "active" })}>Aprovar</Button>
+                    <Button variant="contorno" onClick={() => update.mutate({ id: row.affiliate.id, status: "blocked" })}>
+                      Recusar
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            </CartaoDoPainel>
+          ) : null}
 
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1fr_1.6fr]">
-        <Card title="Novo afiliado">
-          <div className="space-y-3 p-4">
-            {(["name", "email", "password", "code"] as const).map((field) => (
-              <div key={field}>
-                <label htmlFor={field} className="label-xs">
-                  {{ name: "Nome", email: "E-mail", password: "Senha", code: "Código" }[field]}
-                </label>
-                <input
-                  id={field}
-                  type={field === "password" ? "password" : "text"}
-                  value={form[field]}
-                  onChange={(e) =>
-                    setForm({
-                      ...form,
-                      [field]: field === "code" ? e.target.value.toUpperCase() : e.target.value,
-                    })
-                  }
-                  className="campo text-sm"
-                />
-              </div>
-            ))}
-            {error ? (
-              <p className="rounded-md bg-red-soft px-3 py-2 text-sm text-red">{error}</p>
+          <CouponsCard affiliates={data ?? []} />
+
+          <CartaoDoPainel titulo={daOrganizacao ? "Afiliados desta organização" : "Afiliados da plataforma"}>
+            {filtro ? (
+              <p className="flex flex-wrap items-center gap-2 border-b border-line px-5 pb-3 text-sm">
+                <span>
+                  Mostrando <span className="tnum font-medium">{filtro}</span>.
+                </span>
+                <Link href="/admin/afiliados" className="inline-flex min-h-6 items-center text-green-deep underline">
+                  Ver todos
+                </Link>
+              </p>
             ) : null}
-            <Button
-              className="w-full"
-              disabled={create.isPending}
-              onClick={() => {
+            <ul aria-label="Afiliados" className="divide-y divide-line">
+              {data?.filter(doFiltro).map((row) => {
+                const st = statusDe(row);
+                const semAceite =
+                  row.vinculo?.termoVersaoAtual && (row.vinculo.aceiteVersao ?? 0) < row.vinculo.termoVersaoAtual;
+                return (
+                  <li key={row.affiliate.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 px-5 py-3 text-sm">
+                    <span className="min-w-0 flex-1 basis-full sm:basis-auto">
+                      {row.user.name}
+                      {row.affiliate.verificadoEm ? (
+                        <span className="ml-1 inline-block">
+                          <SeloVerificado sujeito="afiliado" tamanho={14} />
+                        </span>
+                      ) : null}{" "}
+                      · <span className="tnum text-muted">{row.affiliate.code}</span>
+                      {semAceite ? (
+                        <span className="block text-[11px] text-yellow-deep">
+                          ainda não aceitou a versão <span className="tnum">{row.vinculo!.termoVersaoAtual}</span> do termo
+                        </span>
+                      ) : null}
+                    </span>
+                    <Money cents={row.salesCents} className="text-muted" />
+                    <Pill status={PILL_DO_VINCULO[st]}>{{ pendente: "pendente", aprovado: "aprovado", recusado: "recusado", desfeito: "saiu" }[st]}</Pill>
+                    {st !== "desfeito" ? (
+                      <Button
+                        variant="contorno"
+                        onClick={() =>
+                          update.mutate({ id: row.affiliate.id, status: st === "aprovado" ? "blocked" : "active" })
+                        }
+                      >
+                        {st === "aprovado" ? (daOrganizacao ? "desligar" : "bloquear") : daOrganizacao ? "aprovar" : "ativar"}
+                      </Button>
+                    ) : null}
+                  </li>
+                );
+              })}
+            </ul>
+            {data?.length === 0 ? <Empty>Nenhum afiliado cadastrado.</Empty> : null}
+            {data?.length && !data.filter(doFiltro).length ? <Empty>Nenhum afiliado com esse código, nome ou e-mail.</Empty> : null}
+          </CartaoDoPainel>
+
+          <CartaoDoPainel titulo="Novo afiliado">
+            <form
+              className="space-y-3 px-5 pb-5"
+              onSubmit={(e) => {
+                e.preventDefault();
                 setError(null);
                 create.mutate();
               }}
             >
-              Cadastrar e aprovar
-            </Button>
-          </div>
-        </Card>
-
-        <Card title={daOrganizacao ? "Afiliados desta organização" : "Afiliados da plataforma"}>
-          {filtro ? (
-            <p className="flex flex-wrap items-center gap-2 border-b border-line px-4 py-2 text-sm">
-              <span>
-                Mostrando <span className="tnum font-medium">{filtro}</span>.
-              </span>
-              <Link href="/admin/afiliados" className="inline-flex min-h-6 items-center text-green-deep underline">
-                Ver todos
-              </Link>
-            </p>
-          ) : null}
-          <ul className="divide-y divide-line">
-            {data?.filter(doFiltro).map((row) => {
-              const st = statusDe(row);
-              const semAceite =
-                row.vinculo?.termoVersaoAtual && (row.vinculo.aceiteVersao ?? 0) < row.vinculo.termoVersaoAtual;
-              return (
-                <li key={row.affiliate.id} className="flex flex-wrap items-center gap-3 px-4 py-3 text-sm">
-                  <span className="min-w-0 flex-1">
-                    {row.user.name}
-                    {row.affiliate.verificadoEm ? (
-                      <span className="ml-1 inline-block">
-                        <SeloVerificado sujeito="afiliado" tamanho={14} />
-                      </span>
-                    ) : null}{" "}
-                    · <span className="tnum text-muted">{row.affiliate.code}</span>
-                    {semAceite ? (
-                      <span className="block text-[11px] text-yellow-deep">
-                        ainda não aceitou a versão {row.vinculo!.termoVersaoAtual} do termo
-                      </span>
-                    ) : null}
-                  </span>
-                  <Money cents={row.salesCents} className="text-muted" />
-                  <Pill status={PILL_DO_VINCULO[st]}>{{ pendente: "pendente", aprovado: "aprovado", recusado: "recusado", desfeito: "saiu" }[st]}</Pill>
-                  {st !== "desfeito" ? (
-                    <Button
-                      variant="ghost"
-                      className="px-2 py-1 text-xs"
-                      onClick={() =>
-                        update.mutate({ id: row.affiliate.id, status: st === "aprovado" ? "blocked" : "active" })
-                      }
-                    >
-                      {st === "aprovado" ? (daOrganizacao ? "desligar" : "bloquear") : daOrganizacao ? "aprovar" : "ativar"}
-                    </Button>
-                  ) : null}
-                </li>
-              );
-            })}
-          </ul>
-          {data?.length === 0 ? <Empty>Nenhum afiliado cadastrado.</Empty> : null}
-          {data?.length && !data.filter(doFiltro).length ? <Empty>Nenhum afiliado com esse código, nome ou e-mail.</Empty> : null}
-        </Card>
+              {(["name", "email", "password", "code"] as const).map((field) => (
+                <Campo
+                  key={field}
+                  rotulo={{ name: "Nome", email: "E-mail", password: "Senha", code: "Código" }[field]}
+                  erro={field === "password" ? problemaSenha : null}
+                >
+                  <input
+                    id={field}
+                    type={field === "password" ? "password" : field === "email" ? "email" : "text"}
+                    autoComplete={field === "password" ? "new-password" : "off"}
+                    value={form[field]}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        [field]: field === "code" ? e.target.value.toUpperCase() : e.target.value,
+                      })
+                    }
+                    className={field === "code" ? "tnum" : ""}
+                  />
+                </Campo>
+              ))}
+              {error ? (
+                <p role="alert" className="rounded-md bg-red-soft px-3 py-2 text-sm text-red">
+                  {error}
+                </p>
+              ) : null}
+              <Button type="submit" className="w-full" disabled={create.isPending || Boolean(problemaSenha)}>
+                Cadastrar e aprovar
+              </Button>
+            </form>
+          </CartaoDoPainel>
+        </div>
       </div>
     </PanelShell>
   );
@@ -1506,7 +1498,6 @@ function TermoAfiliadoCard() {
   const [pct, setPct] = useState<number | null>(null);
   const [extra, setExtra] = useState<string | null>(null);
   const [msg, setMsg] = useState<{ ok: boolean; texto: string } | null>(null);
-  const [ver, setVer] = useState(false);
   const valorPct = pct ?? atual?.comissaoPct ?? 10;
   const valorExtra = extra ?? atual?.textoExtra ?? "";
   const publicar = useMutation({
@@ -1524,9 +1515,9 @@ function TermoAfiliadoCard() {
   const mudou = !atual || desatualizado || valorPct !== atual.comissaoPct || valorExtra.trim() !== atual.textoExtra;
 
   return (
-    <Card
-      title="Termo de adesão de afiliado"
-      right={
+    <CartaoDoPainel
+      titulo="Termo de adesão de afiliado"
+      acao={
         atual ? (
           <span className="tnum text-xs text-muted">
             versão {atual.versao} · {new Date(atual.createdAt).toLocaleDateString("pt-BR")}
@@ -1536,28 +1527,33 @@ function TermoAfiliadoCard() {
         )
       }
     >
-      <div className="space-y-3 p-4 text-sm">
+      <div className="space-y-3 px-5 pb-5 text-sm">
         <p className="text-muted">
           O afiliado lê e aceita antes de divulgar suas rifas. Quem paga, quando, estorno, autoindicação, regras de
           divulgação, dados pessoais e tributos o sistema escreve; aqui entram o percentual e as regras da organização.
         </p>
-        <label className="flex items-center gap-2">
-          <span className="label-xs">Comissão</span>
-          <input
-            type="number"
-            min={0}
-            max={50}
-            value={valorPct}
-            onChange={(e) => {
-              setMsg(null);
-              setPct(Number(e.target.value));
-            }}
-            className="tnum w-20 rounded-md border border-line-2 px-2 py-1.5"
-          />
-          <span className="tnum text-muted">% sobre o pago, depois das taxas da plataforma</span>
-        </label>
         <div>
-          <label htmlFor="termo-extra" className="label-xs">Regras da organização (opcional)</label>
+          <label htmlFor="termo-pct" className="label-xs text-ink-2">
+            Comissão
+          </label>
+          <div className="flex items-center gap-2">
+            <input
+              id="termo-pct"
+              type="number"
+              inputMode="numeric"
+              min={0}
+              max={50}
+              value={valorPct}
+              onChange={(e) => {
+                setMsg(null);
+                setPct(Number(e.target.value));
+              }}
+              className="campo tnum w-20 text-sm"
+            />
+            <span className="text-xs text-muted">% sobre o pago, depois das taxas da plataforma</span>
+          </div>
+        </div>
+        <Campo rotulo="Regras da organização (opcional)">
           <textarea
             id="termo-extra"
             rows={4}
@@ -1567,16 +1563,13 @@ function TermoAfiliadoCard() {
               setMsg(null);
               setExtra(e.target.value);
             }}
-            className="campo"
           />
-        </div>
+        </Campo>
         {atual ? (
-          <button type="button" onClick={() => setVer(!ver)} className="block text-xs text-ink-2 underline">
-            {ver ? "Esconder" : "Ver"} o termo em vigor
-          </button>
-        ) : null}
-        {ver && atual ? (
-          <pre className="max-h-64 overflow-y-auto whitespace-pre-wrap rounded bg-mist p-3 font-sans text-xs text-ink-2">{atual.texto}</pre>
+          <details className="text-xs">
+            <summary className="inline-flex min-h-6 cursor-pointer items-center text-ink-2 underline">Ver o termo em vigor</summary>
+            <pre className="mt-2 max-h-64 overflow-y-auto whitespace-pre-wrap rounded bg-mist p-3 font-sans text-xs text-ink-2">{atual.texto}</pre>
+          </details>
         ) : null}
         {desatualizado ? (
           <p role="note" className="rounded-md bg-yellow-soft px-3 py-2 text-xs text-yellow-deep">
@@ -1585,13 +1578,15 @@ function TermoAfiliadoCard() {
           </p>
         ) : null}
         {msg ? (
-          <p className={`rounded-md px-3 py-2 ${msg.ok ? "bg-green-soft text-green-deep" : "bg-red-soft text-red"}`}>{msg.texto}</p>
+          <p role={msg.ok ? "status" : "alert"} className={`rounded-md px-3 py-2 ${msg.ok ? "bg-green-soft text-green-deep" : "bg-red-soft text-red"}`}>
+            {msg.texto}
+          </p>
         ) : null}
         <Button disabled={!mudou || publicar.isPending} onClick={() => publicar.mutate()}>
           {atual ? `Publicar versão ${atual.versao + 1}` : "Publicar o termo"}
         </Button>
       </div>
-    </Card>
+    </CartaoDoPainel>
   );
 }
 
@@ -1638,38 +1633,38 @@ function CouponsCard({
   });
 
   return (
-    <Card title="Cupons">
-      <div className="space-y-3 p-4">
-        <div className="flex flex-wrap items-end gap-2">
-          <div>
-            <label htmlFor="coupon-code" className="label-xs">Código</label>
+    <CartaoDoPainel titulo="Cupons">
+      <div className="space-y-3 px-5 pb-5">
+        {/* No celular os campos ficam um embaixo do outro (antes o formulário saía do cartão em 390); do `sm` em diante, numa linha. */}
+        <form
+          className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_6rem_minmax(0,1.3fr)_auto] sm:items-end"
+          onSubmit={(e) => {
+            e.preventDefault();
+            create.mutate();
+          }}
+        >
+          <Campo rotulo="Código">
             <input
               id="coupon-code"
               value={form.code}
               onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })}
-              className="tnum mt-1 w-32 rounded-md border border-line-2 px-3 py-2 text-sm"
+              className="tnum"
             />
-          </div>
-          <div>
-            <label htmlFor="coupon-pct" className="label-xs">Desconto %</label>
+          </Campo>
+          <Campo rotulo="Desconto %">
             <input
               id="coupon-pct"
               type="number"
+              inputMode="numeric"
               min={1}
               max={50}
               value={form.discountPct}
               onChange={(e) => setForm({ ...form, discountPct: Number(e.target.value) })}
-              className="tnum mt-1 w-24 rounded-md border border-line-2 px-3 py-2 text-sm"
+              className="tnum"
             />
-          </div>
-          <div>
-            <label htmlFor="coupon-aff" className="label-xs">Afiliado</label>
-            <select
-              id="coupon-aff"
-              value={form.affiliateId}
-              onChange={(e) => setForm({ ...form, affiliateId: e.target.value })}
-              className="mt-1 rounded-md border border-line-2 px-3 py-2 text-sm"
-            >
+          </Campo>
+          <Campo rotulo="Afiliado">
+            <select id="coupon-aff" value={form.affiliateId} onChange={(e) => setForm({ ...form, affiliateId: e.target.value })}>
               <option value="">sem afiliado</option>
               {affiliates.map((a) => (
                 <option key={a.affiliate.id} value={a.affiliate.id}>
@@ -1677,36 +1672,41 @@ function CouponsCard({
                 </option>
               ))}
             </select>
-          </div>
-          <Button onClick={() => create.mutate()} disabled={form.code.length < 3}>
+          </Campo>
+          <Button type="submit" disabled={form.code.length < 3 || create.isPending}>
             Criar cupom
           </Button>
-        </div>
+        </form>
 
         {error ? (
-          <p className="rounded-md bg-red-soft px-3 py-2 text-sm text-red">{error}</p>
+          <p role="alert" className="rounded-md bg-red-soft px-3 py-2 text-sm text-red">
+            {error}
+          </p>
         ) : null}
 
         {data?.length === 0 ? (
           <Empty>Nenhum cupom criado.</Empty>
         ) : (
-          <ul className="divide-y divide-line">
+          <ul aria-label="Cupons" className="divide-y divide-line">
             {data?.map((row) => (
-              <li key={row.coupon.id} className="flex items-center gap-3 py-2 text-sm">
+              <li key={row.coupon.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2 text-sm">
                 <span className="tnum font-medium">{row.coupon.code}</span>
-                <span className="text-muted">−{row.coupon.discountPct}%</span>
-                <span className="flex-1 text-xs text-muted">
-                  {row.affiliateCode ? `afiliado ${row.affiliateCode}` : "sem afiliado"} ·{" "}
+                <span className="tnum text-muted">−{row.coupon.discountPct}%</span>
+                <span className="min-w-0 flex-1 text-xs text-muted">
+                  {row.affiliateCode ? (
+                    <>
+                      afiliado <span className="tnum">{row.affiliateCode}</span>
+                    </>
+                  ) : (
+                    "sem afiliado"
+                  )}{" "}
+                  ·{" "}
                   <span className="tnum">
                     {row.coupon.uses}
                     {row.coupon.maxUses ? `/${row.coupon.maxUses}` : ""} uso(s)
                   </span>
                 </span>
-                <Button
-                  variant="ghost"
-                  className="px-2 py-1 text-xs"
-                  onClick={() => remove.mutate(row.coupon.id)}
-                >
+                <Button variant="cinza" onClick={() => remove.mutate(row.coupon.id)}>
                   remover
                 </Button>
               </li>
@@ -1714,14 +1714,48 @@ function CouponsCard({
           </ul>
         )}
       </div>
-    </Card>
+    </CartaoDoPainel>
   );
 }
 
 /* ---------------------------- financeiro ---------------------------- */
 
+interface SaquePedido {
+  id: string;
+  amountCents: number;
+  irrfCents?: number;
+  pixKey: string;
+  requestedAt: string;
+  /** Nulo: a comissão guardada pela plataforma — quem paga é ela (só o master vê). */
+  organizationId?: string | null;
+}
+
+interface SaquePago {
+  id: string;
+  amountCents: number;
+  irrfCents?: number;
+  processedAt: string | null;
+  codigoAfiliado: string;
+  recibo: string | null;
+}
+
+/** O líquido que quem paga transfere: o bruto menos o IRRF (que vai no DARF). */
+const liquidoDo = (s: { amountCents: number; irrfCents?: number }) => s.amountCents - (s.irrfCents ?? 0);
+
+/**
+ * Financeiro: a comissão de cada afiliado e os saques.
+ *
+ * Cada saque mostra o bruto (o valor da nota), o IRRF retido (Lucro
+ * Presumido ou Real) e o líquido que quem paga transfere, sempre em `tnum`;
+ * a nota fiscal abre pela porta do painel (`/api/admin/payouts/:id/nota`,
+ * que confere o recorte e grava a auditoria). O saque da comissão guardada
+ * pela plataforma vai marcado "Plataforma" — só o master o vê e paga.
+ */
 export function AdminFinanceiro() {
   const qc = useQueryClient();
+  const { data: session } = useSession();
+  const plataforma = session?.role === "admin";
+  const [erro, setErro] = useState<string | null>(null);
   const { data } = useQuery<{
     perAffiliate: {
       affiliateId: string;
@@ -1731,121 +1765,208 @@ export function AdminFinanceiro() {
       pendingCents: number;
       availableCents: number;
     }[];
-    payoutsRequested: { id: string; amountCents: number; irrfCents?: number; pixKey: string; requestedAt: string }[];
+    payoutsRequested: SaquePedido[];
   }>({ queryKey: ["/api/admin/finance"] });
 
   const release = useMutation({
     mutationFn: () => apiRequest("POST", "/api/admin/finance/release"),
-    onSuccess: () => qc.invalidateQueries(),
+    onSuccess: () => {
+      setErro(null);
+      qc.invalidateQueries();
+    },
+    onError: (err: Error) => setErro(err.message),
   });
 
   const pay = useMutation({
     mutationFn: (id: string) => apiRequest("POST", `/api/admin/payouts/${id}/paid`),
-    onSuccess: () => qc.invalidateQueries(),
+    onSuccess: () => {
+      setErro(null);
+      qc.invalidateQueries();
+    },
+    onError: (err: Error) => setErro(err.message),
   });
-  const { data: pagos = [] } = useQuery<
-    { id: string; amountCents: number; irrfCents?: number; processedAt: string | null; codigoAfiliado: string; recibo: string | null }[]
-  >({ queryKey: ["/api/admin/saques-pagos"] });
+  const { data: pagos = [] } = useQuery<SaquePago[]>({ queryKey: ["/api/admin/saques-pagos"] });
+
+  const pedidos = data?.payoutsRequested ?? [];
+  const deQuem = (s: SaquePedido) =>
+    plataforma && !s.organizationId ? <Pill status="pending">Plataforma</Pill> : null;
+  const nota = (s: SaquePedido) => (
+    <a href={`/api/admin/payouts/${s.id}/nota`} className="whitespace-nowrap text-xs text-green-deep underline">
+      nota fiscal
+    </a>
+  );
+  const marcarPago = (s: SaquePedido) => (
+    <Button variant="contorno" className="whitespace-nowrap" disabled={pay.isPending} onClick={() => pay.mutate(s.id)}>
+      marcar pago
+    </Button>
+  );
+  const recibo = (p: SaquePago) =>
+    p.recibo ? (
+      <a
+        href={`/api/admin/recibos/${p.recibo}/pdf`}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="tnum whitespace-nowrap text-xs text-green-deep underline"
+      >
+        recibo {p.recibo}
+      </a>
+    ) : (
+      <span className="whitespace-nowrap text-xs text-muted">sem recibo</span>
+    );
+  const dataDo = (p: SaquePago) => (
+    <span className="tnum">{p.processedAt ? new Date(p.processedAt).toLocaleDateString("pt-BR") : "—"}</span>
+  );
 
   return (
     <PanelShell title="Financeiro">
-      <div className="mb-3 flex justify-end">
-        <Button variant="ghost" onClick={() => release.mutate()}>
+      {erro ? (
+        <p role="alert" className="mb-3 rounded-md bg-red-soft px-3 py-2 text-sm text-red">
+          {erro}
+        </p>
+      ) : null}
+      <div className="mb-4 flex justify-end">
+        <Button variant="contorno" disabled={release.isPending} onClick={() => release.mutate()}>
           Liberar comissões vencidas
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-        <Card title="Comissão por afiliado">
-          <ul className="divide-y divide-line">
-            {data?.perAffiliate.map((a) => (
-              <li key={a.affiliateId} className="px-4 py-3 text-sm">
-                <div className="flex items-center justify-between">
-                  <span>
-                    {a.name} · <span className="tnum text-muted">{a.code}</span>
-                  </span>
-                  <Money cents={a.availableCents} className="text-green-deep" />
-                </div>
-                <p className="label-xs mt-1">
-                  {formatBRL(a.pendingCents)} pendentes · Pix{" "}
-                  {a.pixKey ?? "não cadastrado"}
-                </p>
-              </li>
-            ))}
-          </ul>
-          {data?.perAffiliate.length === 0 ? <Empty>Nada a pagar.</Empty> : null}
-        </Card>
-
-        <Card title="Saques solicitados">
-          <ul className="divide-y divide-line">
-            {data?.payoutsRequested.map((p) => (
-              <li key={p.id} className="flex flex-wrap items-center gap-3 px-4 py-3 text-sm">
-                <span className="tnum min-w-0 flex-1 truncate text-muted">{p.pixKey}</span>
-                {/* Com retenção (Lucro Presumido ou Real), quem paga transfere o
-                    líquido e recolhe o IRRF no DARF; a nota é do bruto. */}
-                <span className="text-right">
-                  <Money cents={p.irrfCents ? p.amountCents - p.irrfCents : p.amountCents} />
-                  {p.irrfCents ? (
-                    <span className="tnum block text-xs text-muted">
-                      bruto {formatBRL(p.amountCents)} · IRRF a recolher {formatBRL(p.irrfCents)}
+      {/*
+        Tablet: duas colunas de cartões. Computador (`xl`): a comissão por
+        afiliado numa coluna estreita à esquerda e os saques, em tabela, na
+        larga à direita. O DOM segue a ordem do celular.
+      */}
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:items-start xl:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
+        <CartaoDoPainel
+          className="xl:row-span-2"
+          titulo="Comissão por afiliado"
+          subtitulo={
+            plataforma
+              ? "Pendente vira disponível depois da carência; aqui entra também a comissão guardada pela plataforma."
+              : "Pendente vira disponível depois da carência; a guardada pela plataforma não aparece aqui."
+          }
+        >
+          {data?.perAffiliate.length === 0 ? (
+            <Empty>Nada a pagar.</Empty>
+          ) : (
+            <ul aria-label="Comissão por afiliado" className="divide-y divide-line">
+              {data?.perAffiliate.map((a) => (
+                <li key={a.affiliateId} className="px-5 py-3 text-sm">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="min-w-0 truncate">
+                      {a.name} · <span className="tnum text-muted">{a.code}</span>
                     </span>
-                  ) : null}
-                </span>
-                <a href={`/api/admin/payouts/${p.id}/nota`} className="text-xs text-green-deep underline">
-                  nota fiscal
-                </a>
-                <Button
-                  variant="ghost"
-                  className="px-2 py-1 text-xs"
-                  onClick={() => pay.mutate(p.id)}
-                >
-                  marcar pago
-                </Button>
-              </li>
-            ))}
-          </ul>
-          {data?.payoutsRequested.length === 0 ? <Empty>Nenhum saque pendente.</Empty> : null}
-        </Card>
+                    <Money cents={a.availableCents} className="shrink-0 font-medium text-green-deep" />
+                  </div>
+                  <p className="mt-1 text-xs text-muted">
+                    <span className="tnum">{formatBRL(a.pendingCents)}</span> pendentes · disponível{" "}
+                    <span className="tnum">{formatBRL(a.availableCents)}</span> · Pix{" "}
+                    <span className="tnum break-all">{a.pixKey ?? "não cadastrado"}</span>
+                  </p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </CartaoDoPainel>
 
-        <Card title="Saques pagos">
-          <ul className="divide-y divide-line">
-            {pagos.map((p) => (
-              // Quebra em duas linhas no celular: o código não pode ser espremido
-              // até sumir por baixo do valor.
-              <li key={p.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 text-sm">
-                <span className="min-w-[8rem] flex-1">
-                  <span className="tnum block truncate">{p.codigoAfiliado}</span>
-                  <span className="tnum block text-xs text-muted">
-                    {p.processedAt ? new Date(p.processedAt).toLocaleDateString("pt-BR") : ""}
-                  </span>
-                </span>
-                <span className="shrink-0 text-right">
-                  <Money cents={p.amountCents} />
-                  {p.irrfCents ? <span className="tnum block text-xs text-muted">IRRF {formatBRL(p.irrfCents)}</span> : null}
-                </span>
-                {p.recibo ? (
-                  <a
-                    href={`/api/admin/recibos/${p.recibo}/pdf`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="tnum text-xs underline"
-                  >
-                    recibo {p.recibo}
-                  </a>
-                ) : (
-                  <span className="text-xs text-muted">sem recibo</span>
-                )}
-              </li>
-            ))}
-          </ul>
-          {pagos.length === 0 ? <Empty>Nenhum saque pago ainda.</Empty> : null}
-        </Card>
+        <CartaoDoPainel
+          titulo="Saques solicitados"
+          subtitulo="Só MEI ou empresa, com a nota fiscal do bruto; IRRF de 1,5% no Lucro Presumido ou Real."
+        >
+          {pedidos.length === 0 ? (
+            <Empty>Nenhum saque pendente.</Empty>
+          ) : (
+            <TabelaOuCartoes
+              itens={pedidos}
+              chave={(s) => s.id}
+              aria="Saques solicitados"
+              colunas={[
+                {
+                  titulo: "Chave Pix",
+                  celula: (s) => (
+                    <span className="flex flex-wrap items-center gap-1.5">
+                      <span className="tnum min-w-0 [overflow-wrap:anywhere] text-ink-2">{s.pixKey}</span>
+                      {deQuem(s)}
+                    </span>
+                  ),
+                },
+                { titulo: "Bruto", celula: (s) => <Money cents={s.amountCents} />, direita: true },
+                { titulo: "IRRF", celula: (s) => <Money cents={s.irrfCents ?? 0} />, direita: true },
+                { titulo: "Líquido", celula: (s) => <Money cents={liquidoDo(s)} className="font-medium" />, direita: true },
+                { titulo: "Nota", celula: nota },
+                { titulo: "", celula: marcarPago, direita: true },
+              ]}
+              cartao={(s) => (
+                <div className="space-y-1.5 text-sm">
+                  <p className="flex flex-wrap items-center gap-1.5">
+                    <span className="tnum min-w-0 break-all text-ink-2">{s.pixKey}</span>
+                    {deQuem(s)}
+                  </p>
+                  {/* Com retenção, quem paga transfere o líquido e recolhe o IRRF no DARF; a nota é do bruto. */}
+                  <dl className="tnum flex flex-wrap gap-x-5 gap-y-1 text-xs">
+                    <div>
+                      <dt className="text-muted">bruto</dt>
+                      <dd>{formatBRL(s.amountCents)}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-muted">IRRF (DARF)</dt>
+                      <dd>{formatBRL(s.irrfCents ?? 0)}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-muted">líquido</dt>
+                      <dd className="font-medium">{formatBRL(liquidoDo(s))}</dd>
+                    </div>
+                  </dl>
+                  <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                    {nota(s)}
+                    {marcarPago(s)}
+                  </div>
+                </div>
+              )}
+            />
+          )}
+        </CartaoDoPainel>
+
+        <CartaoDoPainel titulo="Saques pagos" subtitulo="Baixa e recibo na mesma transação.">
+          {pagos.length === 0 ? (
+            <Empty>Nenhum saque pago ainda.</Empty>
+          ) : (
+            <TabelaOuCartoes
+              itens={pagos}
+              chave={(p) => p.id}
+              aria="Saques pagos"
+              colunas={[
+                { titulo: "Pago em", celula: dataDo },
+                { titulo: "Afiliado", celula: (p) => <span className="tnum">{p.codigoAfiliado}</span> },
+                { titulo: "Bruto", celula: (p) => <Money cents={p.amountCents} />, direita: true },
+                { titulo: "IRRF", celula: (p) => <Money cents={p.irrfCents ?? 0} />, direita: true },
+                { titulo: "Líquido", celula: (p) => <Money cents={liquidoDo(p)} className="font-medium" />, direita: true },
+                { titulo: "Recibo", celula: recibo },
+              ]}
+              cartao={(p) => (
+                <div className="space-y-1.5 text-sm">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="tnum min-w-0 truncate">{p.codigoAfiliado}</span>
+                    <span className="text-xs text-muted">pago em {dataDo(p)}</span>
+                  </div>
+                  <p className="tnum text-xs text-muted">
+                    bruto {formatBRL(p.amountCents)} · IRRF {formatBRL(p.irrfCents ?? 0)} · líquido{" "}
+                    <span className="font-medium text-ink">{formatBRL(liquidoDo(p))}</span>
+                  </p>
+                  {recibo(p)}
+                </div>
+              )}
+            />
+          )}
+        </CartaoDoPainel>
       </div>
     </PanelShell>
   );
 }
 
 /* ------------------------------ sorteios ----------------------------- */
+
+/** Os 5 prêmios da Federal têm 5 algarismos cada: fora disso o servidor recusa (400), e a tela avisa antes. */
+const PREMIO_DA_FEDERAL = /^\d{5}$/;
 
 export function AdminSorteios() {
   const qc = useQueryClient();
@@ -1872,105 +1993,227 @@ export function AdminSorteios() {
   });
 
   const live = data?.filter((c) => c.campaign.status === "published") ?? [];
+  const sorteadas = data?.filter((c) => c.campaign.status === "drawn") ?? [];
   // A rifa escolhida: a com método mostra o número a partir de zero e não tem semente.
   const escolhida = data?.find((c) => c.campaign.id === selected)?.campaign;
   const zero = numeracaoZero(escolhida?.metodoApuracao);
   const naTela = (n: number) => (escolhida ? formatQuota(n, escolhida.totalQuotas, zero) : groupNumber(n));
+  // Prêmio fora dos 5 algarismos é recusado antes de sortear (o servidor recusa de novo).
+  const premioErrado = prizes.findIndex((p) => p !== "" && !PREMIO_DA_FEDERAL.test(p));
+  const prontos = prizes.every((p) => PREMIO_DA_FEDERAL.test(p));
 
   return (
     <PanelShell title="Sorteios">
-      <Card title="Executar sorteio">
-        <div className="space-y-3 p-4">
-          <p className="text-sm text-muted">
-            {escolhida?.metodoApuracao === "globo"
-              ? "Esta rifa é apurada pelo globo da plataforma: ela sorteia sozinha quando a plataforma lançar o resultado da sessão do globo (com a ata) no calendário de Sorteios oficiais. O formulário abaixo não vale para ela."
-              : escolhida?.metodoApuracao === "federal_direta"
-              ? "O número sai da leitura direta dos 5 prêmios (as unidades do 1º ao 5º, de cima para baixo), como diz o regulamento — qualquer pessoa confere com papel e caneta."
-              : "O hash da semente foi publicado antes da primeira venda. O número sai de HMAC(semente, os 5 prêmios do concurso) — qualquer pessoa refaz a conta."}
-          </p>
-
-          <div>
-            <label htmlFor="campanha" className="label-xs">Campanha</label>
-            <select
-              id="campanha"
-              value={selected ?? ""}
-              onChange={(e) => setSelected(e.target.value)}
-              className="campo text-sm"
-            >
-              <option value="">selecione</option>
-              {live.map((c) => (
-                <option key={c.campaign.id} value={c.campaign.id}>
-                  {c.campaign.prizeTitle} ({groupNumber(c.campaign.totalQuotas)} cotas)
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label htmlFor="concurso" className="label-xs">Concurso da Loteria Federal</label>
-            <input
-              id="concurso"
-              value={contest}
-              onChange={(e) => setContest(e.target.value.replace(/\D/g, ""))}
-              className="campo tnum text-sm"
-            />
-          </div>
-
-          <div>
-            <span className="label-xs">Os 5 prêmios, na ordem</span>
-            <div className="mt-1 grid grid-cols-5 gap-1">
-              {prizes.map((p, i) => (
-                <input
-                  key={i}
-                  id={`premio-${i + 1}`}
-                  aria-label={`Prêmio ${i + 1}`}
-                  value={p}
-                  maxLength={5}
-                  onChange={(e) => {
-                    const next = [...prizes];
-                    next[i] = e.target.value.replace(/\D/g, "");
-                    setPrizes(next);
-                  }}
-                  className="tnum rounded-md border border-line-2 px-2 py-2 text-center text-sm"
-                />
-              ))}
-            </div>
-          </div>
-
-          {error ? (
-            <p className="rounded-md bg-red-soft px-3 py-2 text-sm text-red">{error}</p>
-          ) : null}
-
-          <Button
-            disabled={!selected || prizes.some((p) => !p) || run.isPending}
-            onClick={() => {
-              setError(null);
-              run.mutate();
-            }}
-          >
-            Executar sorteio
-          </Button>
-
-          {result ? (
-            <div className="rounded-md bg-green-soft p-3 text-sm text-green-deep">
-              <p className="font-display text-lg font-bold">
-                Número sorteado: {naTela(result.resultNumber)}
+      {/* O DOM segue a ordem do celular (executar, como o número sai, feitos); o computador põe as regras à direita. */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[2fr_1fr] lg:items-start">
+        <CartaoDoPainel titulo="Executar sorteio">
+          <div className="space-y-3 px-5 pb-5">
+            <p className="text-sm text-muted">
+              A rifa integrada a um sorteio oficial usa o resultado lançado pela plataforma e ignora este
+              formulário. A rifa do globo nunca sorteia por aqui: sorteia sozinha quando a plataforma lança a
+              sessão.
+            </p>
+            {escolhida ? (
+              <p className="rounded-md bg-mist px-3 py-2 text-sm text-ink-2">
+                {escolhida.metodoApuracao === "globo"
+                  ? "Esta rifa é apurada pelo globo da plataforma: ela sorteia sozinha quando a plataforma lançar o resultado da sessão do globo (com a ata) no calendário de Sorteios oficiais. O formulário abaixo não vale para ela."
+                  : escolhida.metodoApuracao === "federal_direta"
+                  ? "O número sai da leitura direta dos 5 prêmios (as unidades do 1º ao 5º, de cima para baixo), como diz o regulamento — qualquer pessoa confere com papel e caneta."
+                  : "O hash da semente foi publicado antes da primeira venda. O número sai de HMAC(semente, os 5 prêmios do concurso) — qualquer pessoa refaz a conta."}
               </p>
-              {result.aproximacao && result.winnerNumber !== null ? (
-                <p className="tnum mt-1">
-                  Não foi vendido. Contemplado pela regra da aproximação: {naTela(result.winnerNumber)}
-                </p>
-              ) : result.winnerNumber === null ? (
-                <p className="mt-1">Nenhuma cota paga: o sorteio não tem contemplado.</p>
-              ) : null}
-              {result.seed ? <p className="tnum mt-1 break-all text-[11px]">semente: {result.seed}</p> : null}
-            </div>
-          ) : null}
-        </div>
-      </Card>
+            ) : null}
 
-      <FotoDoGanhadorCard sorteadas={data?.filter((c) => c.campaign.status === "drawn") ?? []} />
+            <Campo rotulo="Campanha">
+              <select id="campanha" value={selected ?? ""} onChange={(e) => setSelected(e.target.value)}>
+                <option value="">selecione</option>
+                {live.map((c) => (
+                  <option key={c.campaign.id} value={c.campaign.id}>
+                    {c.campaign.prizeTitle} ({groupNumber(c.campaign.totalQuotas)} cotas)
+                  </option>
+                ))}
+              </select>
+            </Campo>
+
+            <Campo rotulo="Concurso da Loteria Federal">
+              <input
+                id="concurso"
+                inputMode="numeric"
+                value={contest}
+                onChange={(e) => setContest(e.target.value.replace(/\D/g, ""))}
+                className="tnum"
+              />
+            </Campo>
+
+            <fieldset>
+              <legend className="label-xs text-ink-2">Os 5 prêmios, na ordem</legend>
+              <div className="mt-1 grid grid-cols-2 gap-2 sm:grid-cols-5">
+                {prizes.map((p, i) => (
+                  <input
+                    key={i}
+                    id={`premio-${i + 1}`}
+                    aria-label={`${i + 1}º prêmio`}
+                    placeholder={`${i + 1}º`}
+                    inputMode="numeric"
+                    value={p}
+                    maxLength={5}
+                    aria-invalid={premioErrado === i ? true : undefined}
+                    onChange={(e) => {
+                      const next = [...prizes];
+                      next[i] = e.target.value.replace(/\D/g, "");
+                      setPrizes(next);
+                    }}
+                    className="campo tnum mt-0 text-sm"
+                  />
+                ))}
+              </div>
+              {premioErrado >= 0 ? (
+                <p role="alert" className="mt-1 text-xs text-red">
+                  O {premioErrado + 1}º prêmio precisa ter 5 algarismos, como sai no resultado da Federal.
+                </p>
+              ) : null}
+            </fieldset>
+
+            {error ? (
+              <p role="alert" className="rounded-md bg-red-soft px-3 py-2 text-sm text-red">
+                {error}
+              </p>
+            ) : null}
+
+            <Button
+              disabled={!selected || !prontos || run.isPending}
+              onClick={() => {
+                setError(null);
+                run.mutate();
+              }}
+            >
+              Executar sorteio
+            </Button>
+
+            {result ? (
+              <div role="status" className="space-y-2 rounded-md bg-green-soft p-3 text-sm text-green-deep">
+                <dl className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  <div>
+                    <dt className="label-xs">Número sorteado</dt>
+                    <dd className="tnum text-lg font-semibold">{naTela(result.resultNumber)}</dd>
+                  </div>
+                  <div>
+                    <dt className="label-xs">Contemplado</dt>
+                    <dd className="tnum text-lg font-semibold">
+                      {result.winnerNumber !== null ? naTela(result.winnerNumber) : "nenhum"}
+                    </dd>
+                  </div>
+                </dl>
+                {result.aproximacao && result.winnerNumber !== null ? (
+                  <p>
+                    O número sorteado não foi distribuído; o contemplado sai pela regra:{" "}
+                    {regraDoNumeroSemDono(escolhida?.metodoApuracao)}
+                  </p>
+                ) : result.winnerNumber === null ? (
+                  <p>Nenhuma cota paga: o sorteio não tem contemplado.</p>
+                ) : (
+                  <p>O número sorteado foi distribuído: é ele o contemplado.</p>
+                )}
+                {result.seed ? <p className="tnum break-all text-[11px]">semente: {result.seed}</p> : null}
+              </div>
+            ) : null}
+          </div>
+        </CartaoDoPainel>
+
+        <CartaoDoPainel titulo="Como o número sai">
+          <ul className="space-y-2.5 px-5 pb-5 text-sm text-ink-2">
+            {[
+              "Loteria Federal: as unidades do 1º ao 5º prêmio formam o Número da Sorte; a rifa menor fica com os últimos algarismos; na de 1.000.000 a Série entra na frente.",
+              "Número sem dono: busca alternada e circular (+1, −1, +2, −2…) entre as cotas pagas.",
+              "Com cota reservada esperando Pix, o sorteio espera (409). Mínimo de vendidas abaixo do definido: adiamento.",
+            ].map((t) => (
+              <li key={t} className="flex gap-2">
+                <CheckCircle2 size={16} aria-hidden className="mt-0.5 shrink-0 text-green-deep" />
+                <span className="min-w-0">{t}</span>
+              </li>
+            ))}
+          </ul>
+        </CartaoDoPainel>
+      </div>
+
+      <div className="mt-4">
+        <CartaoDoPainel
+          titulo="Sorteios feitos"
+          subtitulo="Resultado, número contemplado e a conferência pública de cada rifa."
+        >
+          {sorteadas.length === 0 ? (
+            <Empty>Nenhum sorteio feito ainda.</Empty>
+          ) : (
+            <ul aria-label="Sorteios feitos" className="divide-y divide-line">
+              {sorteadas.map((c) => (
+                <SorteioFeito key={c.campaign.id} rifa={c.campaign} />
+              ))}
+            </ul>
+          )}
+        </CartaoDoPainel>
+      </div>
+
+      <FotoDoGanhadorCard sorteadas={sorteadas} />
     </PanelShell>
+  );
+}
+
+/**
+ * Uma linha de "Sorteios feitos": o sorteado e o contemplado separados, com a
+ * regra aplicada em texto quando o sorteado não tinha dono. Lê a mesma
+ * conferência pública da página da rifa (`/campaigns/:slug/sorteio`), que só
+ * fala de rifa publicada ou sorteada — nada que o público já não veja.
+ */
+function SorteioFeito({ rifa }: { rifa: CampaignRow["campaign"] }) {
+  const { data: s } = useQuery<{
+    realizado: boolean;
+    numero?: string;
+    contemplado?: string | null;
+    aproximacao?: boolean;
+    semContemplado?: boolean;
+    ficouComPromotora?: boolean;
+    executedAt?: string | null;
+  }>({ queryKey: [`/api/public/campaigns/${rifa.slug}/sorteio`] });
+  return (
+    <li className="space-y-1.5 px-5 py-3 text-sm">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="min-w-0 font-medium">{rifa.prizeTitle}</span>
+        <Pill status="drawn">sorteada</Pill>
+      </div>
+      {s?.realizado ? (
+        <>
+          <dl className="tnum flex flex-wrap gap-x-6 gap-y-1 text-xs text-muted">
+            <div>
+              <dt className="inline">sorteado </dt>
+              <dd className="inline font-medium text-ink">{s.numero}</dd>
+            </div>
+            <div>
+              <dt className="inline">contemplado </dt>
+              <dd className="inline font-medium text-ink">
+                {s.semContemplado || s.ficouComPromotora ? "nenhum" : (s.contemplado ?? s.numero)}
+              </dd>
+            </div>
+            {s.executedAt ? (
+              <div>
+                <dt className="inline">em </dt>
+                <dd className="inline">{new Date(s.executedAt).toLocaleDateString("pt-BR")}</dd>
+              </div>
+            ) : null}
+          </dl>
+          {s.aproximacao ? (
+            <p className="text-xs text-muted">
+              O sorteado não foi distribuído; valeu a regra: {regraDoNumeroSemDono(rifa.metodoApuracao)}
+            </p>
+          ) : s.ficouComPromotora ? (
+            <p className="text-xs text-muted">O número sorteado não foi vendido: o prêmio ficou com a promotora.</p>
+          ) : s.semContemplado ? (
+            <p className="text-xs text-muted">Nenhuma cota paga: o sorteio não teve contemplado.</p>
+          ) : null}
+        </>
+      ) : null}
+      <Link href={`/r/${rifa.slug}`} className="inline-flex min-h-6 items-center text-xs text-green-deep underline">
+        Ver a conferência pública
+      </Link>
+    </li>
   );
 }
 
@@ -2001,37 +2244,36 @@ function FotoDoGanhadorCard({ sorteadas }: { sorteadas: CampaignRow[] }) {
   const mostrada = foto ?? sorteio?.fotoGanhador ?? null;
 
   return (
-    <div className="mt-3">
-      <Card title="Foto do ganhador">
-        <div className="space-y-3 p-4 text-sm">
-          <p className="text-muted">
-            Vira a capa da rifa nos destaques do perfil e aparece no resultado. Publique só com a autorização
-            do ganhador para usar a imagem dele.
-          </p>
-          <select
-            value={campanha}
-            aria-label="Rifa sorteada"
-            onChange={(e) => {
-              setCampanha(e.target.value);
-              setFoto(null);
-              setMsg(null);
-            }}
-            className="w-full rounded-md border border-line-2 px-3 py-2"
-          >
-            <option value="">Escolha a rifa sorteada</option>
-            {sorteadas.map((c) => (
-              <option key={c.campaign.id} value={c.campaign.id}>
-                {c.campaign.prizeTitle}
-              </option>
-            ))}
-          </select>
+    <div className="mt-4">
+      <CartaoDoPainel
+        titulo="Foto do ganhador"
+        subtitulo="Vira a capa da rifa nos destaques do perfil e aparece no resultado. Publique só com a autorização do ganhador para usar a imagem dele."
+      >
+        <div className="space-y-3 px-5 pb-5 text-sm">
+          <Campo rotulo="Rifa sorteada">
+            <select
+              value={campanha}
+              onChange={(e) => {
+                setCampanha(e.target.value);
+                setFoto(null);
+                setMsg(null);
+              }}
+            >
+              <option value="">Escolha a rifa sorteada</option>
+              {sorteadas.map((c) => (
+                <option key={c.campaign.id} value={c.campaign.id}>
+                  {c.campaign.prizeTitle}
+                </option>
+              ))}
+            </select>
+          </Campo>
           {campanha ? (
             <div className="flex items-start gap-3">
               <div className="aspect-[4/5] w-28 shrink-0 overflow-hidden rounded-md border border-line bg-mist-2">
                 {mostrada ? <img src={mostrada} alt="" className="h-full w-full object-cover" /> : null}
               </div>
               <div className="space-y-2">
-                <label className="inline-block cursor-pointer rounded-md border border-line-2 px-3 py-1.5 text-xs font-semibold hover:bg-mist">
+                <label className="relative inline-flex h-10 cursor-pointer items-center rounded-lg border border-line-2 bg-white px-4 text-[13px] font-semibold text-ink hover:bg-mist">
                   {mostrada ? "Trocar foto" : "Escolher foto"}
                   <input
                     type="file"
@@ -2068,7 +2310,7 @@ function FotoDoGanhadorCard({ sorteadas }: { sorteadas: CampaignRow[] }) {
             <p className={`rounded-md px-3 py-2 ${msg.ok ? "bg-green-soft text-green-deep" : "bg-red-soft text-red"}`}>{msg.texto}</p>
           ) : null}
         </div>
-      </Card>
+      </CartaoDoPainel>
     </div>
   );
 }

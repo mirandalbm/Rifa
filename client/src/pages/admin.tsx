@@ -1820,7 +1820,7 @@ export function AdminFinanceiro() {
       {itens.map((a) => (
         <li key={`${a.affiliateId}:${a.guardada ? "plataforma" : "organizacao"}`} className="px-5 py-3 text-sm">
           <div className="flex items-center justify-between gap-3">
-            <span className="min-w-0 truncate">
+            <span className="min-w-0 break-words">
               {a.name} · <span className="tnum text-muted">{a.code}</span>
             </span>
             <Money cents={a.availableCents} className="shrink-0 font-medium text-green-deep" />
@@ -1828,7 +1828,7 @@ export function AdminFinanceiro() {
           <p className="mt-1 text-xs text-muted">
             <span className="tnum">{formatBRL(a.pendingCents)}</span> pendentes · disponível{" "}
             <span className="tnum">{formatBRL(a.availableCents)}</span> · Pix{" "}
-            <span className="tnum break-all">{a.pixKey ?? "não cadastrado"}</span>
+            <span className="tnum break-words">{a.pixKey ?? "não cadastrado"}</span>
           </p>
         </li>
       ))}
@@ -1877,13 +1877,14 @@ export function AdminFinanceiro() {
       </div>
 
       {/*
-        Tablet: duas colunas de cartões. Computador (`xl`): a comissão por
+        Tablet: duas colunas de cartões, a comissão à esquerda e os dois
+        cartões de saque um embaixo do outro à direita. Computador (`xl`): a comissão por
         afiliado numa coluna estreita à esquerda e os saques, em tabela, na
         larga à direita. O DOM segue a ordem do celular.
       */}
-      <div className="grid grid-cols-1 gap-4 md:gap-6 md:grid-cols-2 md:items-start xl:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
+      <div className="grid grid-cols-1 gap-4 md:gap-6 md:grid-cols-2 md:grid-rows-[auto_1fr] md:items-start xl:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
         <CartaoDoPainel
-          className="xl:row-span-2"
+          className="md:row-span-2"
           titulo="Comissão por afiliado"
           subtitulo={
             plataforma
@@ -2833,7 +2834,8 @@ function TrilhaDeAuditoria({ registros }: { registros: RegistroDaTrilha[] | unde
               { titulo: "Quem", celula: atorDaTrilha },
             ]}
             cartao={(r) => (
-              <div className="grid min-w-0 grid-cols-1 gap-1 text-sm">
+              // Do tablet em diante, duas colunas: a ação e quando na primeira linha, o alvo e quem na segunda.
+              <div className="grid min-w-0 grid-cols-1 gap-1 text-sm sm:grid-cols-2 sm:gap-x-4">
                 {acao(r)}
                 {quando(r)}
                 {alvo(r)}
@@ -2887,12 +2889,14 @@ export function AdminConfiguracoes() {
             id: "organizacao",
             titulo: "Organização e perfil",
             conteudo: (
-              <div className="grid grid-cols-1 gap-4 md:gap-6 lg:grid-cols-2 lg:items-start">
+              // Na plataforma o contrato (alto) fica à direita ocupando duas linhas, e o selo sobe para
+              // logo embaixo da administradora — sem isso, sobrava um vão do tamanho do contrato à esquerda.
+              <div className={`grid grid-cols-1 gap-4 md:gap-6 lg:grid-cols-2 lg:items-start ${plataforma ? "lg:grid-rows-[auto_1fr]" : ""}`}>
                 <OrganizerCard />
                 <EnderecoDaOrganizacaoCard />
                 {plataforma ? null : <SociosDaOrganizacaoCard />}
                 {/* O contrato logo depois dos dados: o link antigo (#contrato) rola até ele sem esperar o perfil carregar. */}
-                <div className="min-w-0">
+                <div className={`min-w-0 ${plataforma ? "lg:row-span-2" : ""}`}>
                   <ContratoPromotoraCard plataforma={plataforma} />
                 </div>
                 {plataforma ? <CoresDoSeloCard /> : null}

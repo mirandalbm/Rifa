@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { PanelShell } from "@/components/AppShell";
-import { Card, Button, Pill, Empty, Money, Kpi, Campo } from "@/components/bits";
-import { TabelaOuCartoes, VerMais } from "@/components/painel";
+import { Button, Pill, Empty, Money, Kpi, Campo } from "@/components/bits";
+import { CartaoDoPainel, TabelaOuCartoes, VerMais } from "@/components/painel";
 import { RetencoesCautelares } from "@/components/RetencoesCautelares";
 import { useListaPaginada } from "@/lib/paginada";
 import { apiRequest } from "@/lib/queryClient";
@@ -91,11 +91,12 @@ function DeOndeVeio({ l }: { l: LinhaDoExtrato }) {
       {l.campanha ? <span className="block text-[11px] text-muted">{l.campanha}</span> : null}
       {l.pedidoStatus === "refunded" && c.status !== "cancelada" ? (
         <span className="block text-[11px] text-muted">pedido estornado: fica só a taxa Pix</span>
-      ) : c.pixCents > 0 ? (
+      ) : (
+        // Venda e Pix sempre separados, mesmo com o Pix zerado (dinheiro, maquininha): é de onde veio cada centavo.
         <span className="block text-[11px] text-muted">
           venda <Money cents={c.vendaCents} /> + Pix <Money cents={c.pixCents} />
         </span>
-      ) : null}
+      )}
     </>
   );
 }
@@ -126,7 +127,7 @@ export function AdminCobranca() {
 /** A tabela em texto, para quem lê (organizador) e para conferir (plataforma). */
 function ResumoDaTabela({ tabela }: { tabela: ConfigCobranca }) {
   return (
-    <div className="space-y-3 px-4 py-3 text-sm">
+    <div className="space-y-3 px-5 pb-5 text-sm">
       <p>
         Cada rifa escolhe, antes de publicar, como a plataforma cobra por ela:{" "}
         <b>{NOME_DO_MODO.percentual.toLowerCase()}</b> (<span className="tnum">{textoPct(tabela.percentualPct)}</span> de
@@ -277,7 +278,7 @@ function Carteira() {
 
       <RetencoesCautelares organizacoes={data?.carteira.map((o) => ({ id: o.organizationId, nome: o.name })) ?? []} />
 
-      <Card title="Carteira">
+      <CartaoDoPainel titulo="Carteira" className="mt-3">
         {data?.carteira.length ? (
           <TabelaOuCartoes
             aria="Carteira de cobrança"
@@ -369,7 +370,7 @@ function Carteira() {
         ) : (
           <Empty>Nenhuma organização ainda.</Empty>
         )}
-      </Card>
+      </CartaoDoPainel>
     </PanelShell>
   );
 }
@@ -439,11 +440,11 @@ function TabelaDeCobranca() {
   });
 
   return (
-    <Card title="Tabela de cobrança">
+    <CartaoDoPainel titulo="Tabela de cobrança" className="mb-3">
       {/* No computador o formulário fica à esquerda e o que está em vigor (e a agendada) à direita: os campos, sozinhos na largura toda, ficavam com 1.100 px para três algarismos. */}
       <div className="lg:grid lg:grid-cols-2 lg:divide-x lg:divide-line">
         <form
-          className="min-w-0 space-y-4 px-4 py-3"
+          className="min-w-0 space-y-4 px-5 pb-5"
           onSubmit={(e) => {
             e.preventDefault();
             setMsg(null);
@@ -543,13 +544,13 @@ function TabelaDeCobranca() {
         <div className="min-w-0">
         {data ? (
           <>
-            <p className="px-4 pt-2 text-sm font-medium lg:pt-3">Em vigor</p>
+            <p className="px-5 pb-2 pt-3 text-sm font-medium lg:pt-0">Em vigor</p>
             <ResumoDaTabela tabela={data.vigente} />
           </>
         ) : null}
         {data?.proxima ? (
           <div className="border-t border-line">
-            <div className="flex flex-wrap items-center justify-between gap-2 px-4 pt-3">
+            <div className="flex flex-wrap items-center justify-between gap-2 px-5 pb-2 pt-3">
               <p className="text-sm font-medium">
                 <Pill status="reserved">agendada</Pill>{" "}
                 <span className="ml-1">
@@ -565,7 +566,7 @@ function TabelaDeCobranca() {
         ) : null}
         </div>
       </div>
-    </Card>
+    </CartaoDoPainel>
   );
 }
 
@@ -602,22 +603,25 @@ function MinhaConta() {
       </div>
 
       {data?.proxima ? (
-        <Card title={`Tabela nova a partir de ${dataDaVigencia(data.proxima.vigenteEm)}`} right={<Pill status="reserved">aviso</Pill>}>
-          <p className="px-4 pt-3 text-sm">
+        <CartaoDoPainel titulo={`Tabela nova a partir de ${dataDaVigencia(data.proxima.vigenteEm)}`} acao={<Pill status="reserved">aviso</Pill>} className="mb-3">
+          <p className="px-5 pb-3 text-sm">
             Vale para as rifas publicadas a partir de <span className="tnum">{dataDaVigencia(data.proxima.vigenteEm)}</span>. As
             rifas já publicadas seguem com a tabela que gravaram na publicação.
           </p>
           <ResumoDaTabela tabela={data.proxima.tabela} />
-        </Card>
+        </CartaoDoPainel>
       ) : null}
 
       {data ? (
-        <Card title="Como a plataforma cobra">
+        <CartaoDoPainel titulo="Como a plataforma cobra" className="mb-3">
           <ResumoDaTabela tabela={data.tabela} />
-        </Card>
+        </CartaoDoPainel>
       ) : null}
 
-      <Card title="Lançamentos">
+      <CartaoDoPainel
+        titulo="Lançamentos"
+        subtitulo="Cada venda com a parte da venda e a do Pix separadas; o estorno cancela a da venda e a do Pix pelo motivo."
+      >
         {lancamentos.length ? (
           <>
             <TabelaOuCartoes
@@ -650,7 +654,7 @@ function MinhaConta() {
         ) : (
           <Empty>Nenhuma cobrança até agora.</Empty>
         )}
-      </Card>
+      </CartaoDoPainel>
     </PanelShell>
   );
 }
@@ -666,11 +670,11 @@ function FaltaDePagamento({ n }: { n: NotificacaoDeCobranca }) {
   const bloqueando = situacao === "bloqueando";
   return (
     <div className="mb-3">
-      <Card
-        title="Falta de pagamento"
-        right={bloqueando ? <Pill status="expired">publicação bloqueada</Pill> : <Pill status="reserved">no prazo</Pill>}
+      <CartaoDoPainel
+        titulo="Falta de pagamento"
+        acao={bloqueando ? <Pill status="expired">publicação bloqueada</Pill> : <Pill status="reserved">no prazo</Pill>}
       >
-        <div className="space-y-2 px-4 py-3 text-sm" role={bloqueando ? "alert" : undefined}>
+        <div className="space-y-2 px-5 pb-5 text-sm" role={bloqueando ? "alert" : undefined}>
           <p>
             A plataforma notificou em <span className="tnum">{diaEmBrasilia(n.notificadaEm)}</span> a falta de pagamento de{" "}
             <Money cents={n.valorCents} /> em taxas. Ainda em aberto: <Money cents={n.abertoCents} />.
@@ -691,7 +695,7 @@ function FaltaDePagamento({ n }: { n: NotificacaoDeCobranca }) {
             plataforma registrar o pagamento (contrato da promotora, cláusula de remuneração, X.13).
           </p>
         </div>
-      </Card>
+      </CartaoDoPainel>
     </div>
   );
 }

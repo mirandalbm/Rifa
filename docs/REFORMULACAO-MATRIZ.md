@@ -387,7 +387,7 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 |---|---|
 | `Button` | manter · peça do kit (onda 1) · na tela P10 Cobrança |
 | `Campo` | manter · peça do kit (onda 1) · na tela P10 Cobrança |
-| `Card` | manter · peça do kit (onda 1) · na tela P10 Cobrança |
+| `CartaoDoPainel` | manter · 11 · Painel · P10 Cobrança (node 41-1633) · onda 2 |
 | `Empty` | manter · peça do kit (onda 1) · na tela P10 Cobrança |
 | `Kpi` | manter · peça do kit (onda 1) · na tela P10 Cobrança |
 | `Money` | manter · peça do kit (onda 1) · na tela P10 Cobrança |

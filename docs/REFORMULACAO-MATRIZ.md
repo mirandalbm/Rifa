@@ -6,11 +6,11 @@ Gerada do código por `npm run matriz` — **não edite à mão** (o teste `test
 |---|---|
 | Telas (rotas do `App.tsx`) | 66 (+ 2 redirecionamentos) |
 | Seções de acesso (`shared/access.ts`) | 41 |
-| Cartões (componentes usados pelas telas) | 751 |
+| Cartões (componentes usados pelas telas) | 757 |
 | Rotas da API | 477, das quais 473 citadas por alguma prova |
 | Provas contra a API (`npm run …`) | 61 |
 | Testes de regra (`tests/`) | 128 arquivos |
-| Destinos decididos | 858 de 858 |
+| Destinos decididos | 864 de 864 |
 
 ## 1. Telas
 
@@ -266,11 +266,14 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 |---|---|
 | `Abas` | manter · peça do kit (onda 1) · na tela P24 Antifraude (abas) |
 | `Button` | manter · peça do kit (onda 1) · na tela P24 Antifraude (abas) |
-| `Card` | manter · peça do kit (onda 1) · na tela P24 Antifraude (abas) |
+| `Caixa` | manter · 11 · Painel · P24 Antifraude (abas) (node 55-4327) · onda 3 |
+| `Campo` | manter · 11 · Painel · P24 Antifraude (abas) (node 55-4327) · onda 3 |
+| `CartaoDoPainel` | manter · 11 · Painel · P24 Antifraude (abas) (node 55-4327) · onda 3 |
 | `Empty` | manter · peça do kit (onda 1) · na tela P24 Antifraude (abas) |
 | `Kpi` | manter · peça do kit (onda 1) · na tela P24 Antifraude (abas) |
 | `PanelShell` | manter · peça do kit (onda 1) · na tela P24 Antifraude (abas) |
 | `Pill` | manter · peça do kit (onda 1) · na tela P24 Antifraude (abas) |
+| `TabelaOuCartoes` | manter · 11 · Painel · P24 Antifraude (abas) (node 55-4327) · onda 3 |
 
 ### `/admin/aparencia` — Aparência
 
@@ -322,11 +325,12 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 
 | Cartão | Destino |
 |---|---|
-| `CabecalhoDaTabela` | manter · peça do kit (onda 1) · na tela P22 Caixa de entrada |
 | `CartaoDoPainel` | manter · peça do kit (onda 1) · na tela P22 Caixa de entrada |
 | `Empty` | manter · peça do kit (onda 1) · na tela P22 Caixa de entrada |
 | `Filtros` | manter · peça do kit (onda 1) · na tela P22 Caixa de entrada |
 | `PanelShell` | manter · peça do kit (onda 1) · na tela P22 Caixa de entrada |
+| `Pill` | manter · 11 · Painel · P22 Caixa de entrada (node 51-4173) · onda 3 |
+| `TabelaOuCartoes` | manter · 11 · Painel · P22 Caixa de entrada (node 51-4173) · onda 3 |
 
 ### `/admin/cambistas` — Cambistas
 
@@ -528,8 +532,10 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 | Cartão | Destino |
 |---|---|
 | `Button` | manter · peça do kit (onda 1) · na tela P26 Cadastros fiscais |
-| `Card` | manter · peça do kit (onda 1) · na tela P26 Cadastros fiscais |
+| `Campo` | manter · 11 · Painel · P26 Cadastros fiscais (node 51-4877) · onda 3 |
+| `CartaoDoPainel` | manter · 11 · Painel · P26 Cadastros fiscais (node 51-4877) · onda 3 |
 | `Empty` | manter · peça do kit (onda 1) · na tela P26 Cadastros fiscais |
+| `MestreDetalhe` | manter · 11 · Painel · P26 Cadastros fiscais (node 51-4877) · onda 3 |
 | `PanelShell` | manter · peça do kit (onda 1) · na tela P26 Cadastros fiscais |
 | `Pill` | manter · peça do kit (onda 1) · na tela P26 Cadastros fiscais |
 

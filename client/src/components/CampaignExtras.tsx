@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Card, Button, Empty, Pill } from "@/components/bits";
+import { Button, Empty, Pill } from "@/components/bits";
+import { CartaoDoPainel } from "@/components/painel";
 import { apiRequest } from "@/lib/queryClient";
 import { useSession } from "@/lib/session";
 import { formatQuota, groupNumber } from "@shared/format";
@@ -109,49 +110,52 @@ export function CampaignExtras({
 
   return (
     <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-      <Card title="Pacotes com desconto">
-        <div className="space-y-3 p-4">
+      <CartaoDoPainel titulo="Pacotes com desconto" subtitulo="Desconto por quantidade de cotas no mesmo pedido.">
+        <div className="space-y-3 px-5 pb-5">
           <p className="text-xs text-muted">
             O maior pacote que a quantidade alcança é o que vale: quem leva 37 cotas
             paga o desconto do pacote de 25.
           </p>
 
           {packages.map((p, i) => (
-            // No celular a linha quebra (destaque e o "−" descem); do tablet em
-            // diante cabe inteira. Sem a quebra, o "−" saía do cartão em 390 px.
-            <div key={i} className="flex flex-wrap items-center gap-2">
-              <label htmlFor={`pkg-qty-${i}`} className="label-xs w-16 shrink-0">
-                cotas
-              </label>
-              <input
-                id={`pkg-qty-${i}`}
-                type="number"
-                min={1}
-                value={p.quantity}
-                onChange={(e) => {
-                  const next = [...packages];
-                  next[i] = { ...p, quantity: Number(e.target.value) };
-                  setPackages(next);
-                }}
-                className="tnum w-20 rounded-md border border-line-2 px-2 py-1.5 text-sm sm:w-24"
-              />
-              <label htmlFor={`pkg-pct-${i}`} className="label-xs whitespace-nowrap">
-                desconto %
-              </label>
-              <input
-                id={`pkg-pct-${i}`}
-                type="number"
-                min={0}
-                max={50}
-                value={p.discountPct}
-                onChange={(e) => {
-                  const next = [...packages];
-                  next[i] = { ...p, discountPct: Number(e.target.value) };
-                  setPackages(next);
-                }}
-                className="tnum w-16 rounded-md border border-line-2 px-2 py-1.5 text-sm sm:w-20"
-              />
-              <label className="flex items-center gap-1 whitespace-nowrap text-xs text-muted">
+            // Rótulo acima de cada campo (a regra do painel): a linha cabe nas três larguras, sem o "−" descer sozinho.
+            <div key={i} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto_auto] items-end gap-2">
+              <div className="min-w-0">
+                <label htmlFor={`pkg-qty-${i}`} className="label-xs block">
+                  Cotas
+                </label>
+                <input
+                  id={`pkg-qty-${i}`}
+                  type="number"
+                  min={1}
+                  value={p.quantity}
+                  onChange={(e) => {
+                    const next = [...packages];
+                    next[i] = { ...p, quantity: Number(e.target.value) };
+                    setPackages(next);
+                  }}
+                  className="campo tnum text-sm"
+                />
+              </div>
+              <div className="min-w-0">
+                <label htmlFor={`pkg-pct-${i}`} className="label-xs block whitespace-nowrap">
+                  Desconto %
+                </label>
+                <input
+                  id={`pkg-pct-${i}`}
+                  type="number"
+                  min={0}
+                  max={50}
+                  value={p.discountPct}
+                  onChange={(e) => {
+                    const next = [...packages];
+                    next[i] = { ...p, discountPct: Number(e.target.value) };
+                    setPackages(next);
+                  }}
+                  className="campo tnum text-sm"
+                />
+              </div>
+              <label className="flex min-h-10 items-center gap-1 whitespace-nowrap text-xs text-muted">
                 <input
                   type="checkbox"
                   checked={p.highlight}
@@ -167,7 +171,8 @@ export function CampaignExtras({
               </label>
               <Button
                 variant="ghost"
-                className="ml-auto px-2 py-1 text-xs"
+                className="w-10 px-0"
+                aria-label={`Tirar o pacote de ${p.quantity} cotas`}
                 onClick={() => setPackages(packages.filter((_, j) => j !== i))}
               >
                 −
@@ -190,11 +195,12 @@ export function CampaignExtras({
             </Button>
           </div>
         </div>
-      </Card>
+      </CartaoDoPainel>
 
-      <Card
-        title="Cotas premiadas"
-        right={
+      <CartaoDoPainel
+        titulo="Cotas premiadas"
+        subtitulo="Prêmios instantâneos em números sorteados pelo sistema."
+        acao={
           prized && prized.length > 0 ? (
             <Pill status={claimed > 0 ? "paid" : "pending"}>
               {`${prized.length - claimed} de ${prized.length} em jogo`}
@@ -202,7 +208,7 @@ export function CampaignExtras({
           ) : null
         }
       >
-        <div className="space-y-3 p-4">
+        <div className="space-y-3 px-5 pb-5">
           {/* Resposta 8.8 do advogado: cota premiada é vale-brinde; com o sorteio, promoção mista. */}
           <p role="note" className="rounded-md bg-yellow-soft px-3 py-2 text-xs text-yellow-deep">
             <strong className="font-semibold">Promoção mista. </strong>
@@ -214,19 +220,19 @@ export function CampaignExtras({
             deles ganha na hora, e o número aparece aqui e fixo no topo dos comentários.
           </p>
 
-          <div className="flex flex-wrap items-end gap-2">
-            <div>
-              <label htmlFor="prize-label" className="label-xs">Prêmio</label>
+          <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-[minmax(0,1fr)_8rem_auto]">
+            <div className="min-w-0">
+              <label htmlFor="prize-label" className="label-xs block">Prêmio</label>
               <input
                 id="prize-label"
                 value={prize.prizeLabel}
                 placeholder="Fone de ouvido bluetooth"
                 onChange={(e) => setPrize({ ...prize, prizeLabel: e.target.value })}
-                className="mt-1 w-44 rounded-md border border-line-2 px-3 py-2 text-sm"
+                className="campo text-sm"
               />
             </div>
             <div>
-              <label htmlFor="prize-qty" className="label-xs">Quantas cotas</label>
+              <label htmlFor="prize-qty" className="label-xs block">Quantas cotas</label>
               <input
                 id="prize-qty"
                 type="number"
@@ -234,7 +240,7 @@ export function CampaignExtras({
                 max={500}
                 value={prize.quantity}
                 onChange={(e) => setPrize({ ...prize, quantity: Number(e.target.value) })}
-                className="tnum mt-1 w-24 rounded-md border border-line-2 px-3 py-2 text-sm"
+                className="campo tnum text-sm"
               />
             </div>
             <Button
@@ -309,7 +315,7 @@ export function CampaignExtras({
             Faixa desta rifa: {formatQuota(1, totalQuotas, numeracaoZero)} a {formatQuota(totalQuotas, totalQuotas, numeracaoZero)}.
           </p>
         </div>
-      </Card>
+      </CartaoDoPainel>
     </div>
   );
 }

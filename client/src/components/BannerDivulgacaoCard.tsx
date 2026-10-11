@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button, Card, Campo, Pill } from "@/components/bits";
+import { Button, Campo, Pill } from "@/components/bits";
+import { CartaoDoPainel } from "@/components/painel";
 import { apiRequest } from "@/lib/queryClient";
 import { lerFoto } from "@/lib/anexo";
 import {
@@ -143,11 +144,12 @@ export function BannerDivulgacaoCard({ campaignId }: { campaignId: string }) {
   const faltam = documentosQueFaltam([...enviados]);
 
   return (
-    <Card
-      title="Entidade beneficiada"
-      right={data ? <Pill status={PILL_DA_SITUACAO[data.documentos]}>{SITUACOES_DOS_DOCUMENTOS[data.documentos]}</Pill> : null}
+    <CartaoDoPainel
+      titulo="Entidade beneficiada"
+      subtitulo="A ONG ou fundação que a rifa ajuda — opcional."
+      acao={data ? <Pill status={PILL_DA_SITUACAO[data.documentos]}>{SITUACOES_DOS_DOCUMENTOS[data.documentos]}</Pill> : null}
     >
-      <div className="space-y-3 p-4 text-sm">
+      <div className="space-y-3 px-5 pb-5 text-sm">
         <p className="text-muted">
           Esta rifa beneficia uma ONG, uma fundação ou outra organização? Cadastre aqui: o banner dela aparece em cima da
           rifa e, tocado, abre uma tela com a imagem, o que ela faz, o site e as redes. Sem entidade beneficiada, nada
@@ -298,6 +300,6 @@ export function BannerDivulgacaoCard({ campaignId }: { campaignId: string }) {
           </p>
         ) : null}
       </div>
-    </Card>
+    </CartaoDoPainel>
   );
 }

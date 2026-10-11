@@ -5,7 +5,8 @@ import { Link, useLocation } from "wouter";
 import { Check } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Janela } from "@/components/Janela";
-import { Button, Card } from "@/components/bits";
+import { Button } from "@/components/bits";
+import { CartaoDoPainel } from "@/components/painel";
 import { FOLHA, SeloVerificado } from "@/components/SeloVerificado";
 import { FotoDoPerfil } from "@/components/Seguir";
 import { useSession } from "@/lib/session";
@@ -596,8 +597,8 @@ export function LegendaCard({ campanha }: { campanha: { id: string; legenda?: st
     onError: (e: Error) => setMsg({ ok: false, texto: e.message }),
   });
   return (
-    <Card title="Legenda da publicação">
-      <div className="space-y-2 p-4 text-sm">
+    <CartaoDoPainel titulo="Legenda da publicação" subtitulo="O texto embaixo da publicação. Muda a qualquer hora.">
+      <div className="space-y-2 px-5 pb-5 text-sm">
         <label htmlFor={`legenda-${campanha.id}`} className="label-xs">
           O texto embaixo da publicação, como no Instagram
         </label>
@@ -632,7 +633,7 @@ export function LegendaCard({ campanha }: { campanha: { id: string; legenda?: st
           Salvar legenda
         </Button>
       </div>
-    </Card>
+    </CartaoDoPainel>
   );
 }
 

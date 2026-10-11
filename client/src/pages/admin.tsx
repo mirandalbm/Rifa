@@ -47,7 +47,8 @@ import {
 } from "@shared/payments";
 
 // O link com a forma do botão do kit e o nome da loteria do próximo sorteio (Painel).
-import { TONS_DO_BOTAO } from "@/components/bits";
+// Nome local em minúsculas: é um valor (as classes dos tons), não uma peça de tela — a matriz da reformulação conta como cartão todo nome maiúsculo importado de `@/components`.
+import { TONS_DO_BOTAO as tonsDoBotao } from "@/components/bits";
 import { BarChart3, ExternalLink } from "lucide-react";
 import { loteriaDoMetodo } from "@shared/apuracao";
 import { LOTERIAS } from "@shared/sorteiosOficiais";
@@ -162,7 +163,7 @@ export function AdminPainel() {
                 Hoje entraram <span className="tnum font-medium text-green-deep">{formatBRL(data.hoje?.cents ?? 0)}</span> em{" "}
                 <span className="tnum">{groupNumber(data.hoje?.cotas ?? 0)}</span> cotas pagas.
               </p>
-              <Link href="/admin/resultados" className={`mt-4 whitespace-nowrap ${FORMA_DO_BOTAO} ${TONS_DO_BOTAO.primario}`}>
+              <Link href="/admin/resultados" className={`mt-4 whitespace-nowrap ${FORMA_DO_BOTAO} ${tonsDoBotao.primario}`}>
                 <BarChart3 size={16} aria-hidden />
                 Ver resultados
               </Link>
@@ -550,12 +551,12 @@ function SituacaoDaRifaCard({
             </Button>
           ) : (
             <>
-              <a href={`/r/${c.slug}`} target="_blank" rel="noreferrer" className={`relative h-9 ${FORMA_DO_BOTAO} ${TONS_DO_BOTAO.contorno}`}>
+              <a href={`/r/${c.slug}`} target="_blank" rel="noreferrer" className={`relative h-9 ${FORMA_DO_BOTAO} ${tonsDoBotao.contorno}`}>
                 <ExternalLink size={16} aria-hidden />
                 Ver a rifa
                 <span className="sr-only">(abre em outra aba)</span>
               </a>
-              <a href={`/r/${c.slug}/regulamento`} target="_blank" rel="noreferrer" className={`relative h-9 ${FORMA_DO_BOTAO} ${TONS_DO_BOTAO.contorno}`}>
+              <a href={`/r/${c.slug}/regulamento`} target="_blank" rel="noreferrer" className={`relative h-9 ${FORMA_DO_BOTAO} ${tonsDoBotao.contorno}`}>
                 Regulamento
                 <span className="sr-only">(abre em outra aba)</span>
               </a>

@@ -1,7 +1,8 @@
 import { useRef, useState, type ReactNode } from "react";
 import { Clock, Film, Play, Plus, Smartphone, Type } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Card, Button } from "@/components/bits";
+import { Button } from "@/components/bits";
+import { CartaoDoPainel } from "@/components/painel";
 import { apiRequest } from "@/lib/queryClient";
 import { LEGENDA_MAX, duracao } from "@shared/publicacao";
 import { REELS_POR_RIFA } from "@shared/reels";
@@ -68,8 +69,8 @@ export function ReelsDaRifa({ campaignId }: { campaignId: string }) {
   }
 
   return (
-    <Card title="Reels da rifa">
-      <div className="space-y-4 p-4">
+    <CartaoDoPainel titulo="Reels da rifa" subtitulo="Vídeos em pé que aparecem só no Reels.">
+      <div className="space-y-4 px-5 pb-5">
         <p className="text-xs text-muted">
           Vídeo que aparece <strong>só no Reels</strong>, fora do carrossel da publicação, e leva quem assiste até a rifa. Duração e tamanho são medidos no
           servidor.
@@ -194,7 +195,7 @@ export function ReelsDaRifa({ campaignId }: { campaignId: string }) {
       </div>
       {criando ? <CriarReels campanhaInicial={campaignId} onFechar={() => setCriando(false)} onPublicado={() => void atualizar()} /> : null}
       {!noComputador && doAberto ? <VerReels reels={doAberto} onFechar={() => setAberto(null)} aoMudar={() => void atualizar()} /> : null}
-    </Card>
+    </CartaoDoPainel>
   );
 }
 

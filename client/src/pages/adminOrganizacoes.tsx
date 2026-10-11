@@ -737,7 +737,7 @@ function PagamentoDaOrganizacao({ o }: { o: Organizacao }) {
             setMsg(null);
             setPrazo(e.target.value);
           }}
-          className="campo tnum w-24 text-sm"
+          className="campo tnum block w-24 text-sm"
         />
       </Campo>
       <Campo

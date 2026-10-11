@@ -114,13 +114,15 @@ export function Kpi({
 }) {
   return (
     <div
-      className={`cartao min-w-0 rounded-[10px] border p-4 ${
+      className={`cartao min-w-0 rounded-[10px] border p-4 [container-type:inline-size] ${
         highlight ? "border-transparent bg-green-soft" : "border-line bg-white"
       }`}
     >
       <p className="label-xs">{label}</p>
+      {/* O número acompanha a largura do cartão (como na Estatistica): seis por linha no computador dão ~170 px, e "R$ 3.000,00" em 24 px quebrava no meio. */}
       <p
-        className={`tnum mt-1.5 break-words text-2xl font-medium leading-tight ${highlight ? "text-green-deep" : "text-ink"}`}
+        title={value}
+        className={`tnum mt-1.5 truncate font-medium leading-tight [font-size:clamp(1rem,12cqi,1.5rem)] ${highlight ? "text-green-deep" : "text-ink"}`}
       >
         {value}
       </p>

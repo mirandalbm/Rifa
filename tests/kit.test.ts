@@ -55,6 +55,11 @@ describe("kit congelado (onda 1 da reformulação)", () => {
     expect(painel).toContain('"border-green font-semibold text-green-deep"');
   });
 
+  it("o número do Kpi acompanha a largura do cartão e nunca quebra no meio", () => {
+    expect(bits).toContain("p-4 [container-type:inline-size]");
+    expect(bits).toContain("truncate font-medium leading-tight [font-size:clamp(1rem,12cqi,1.5rem)]");
+  });
+
   it("o campo de digitar tem 40 px e cantos de 8, e o rótulo é o label-xs em ink-2", () => {
     expect(readFileSync("client/src/index.css", "utf8")).toMatch(/\.campo \{\s*@apply mt-1 min-h-10 w-full rounded-lg border border-line-2 px-3 py-2;/);
     expect(bits).toContain('className="label-xs text-ink-2"');

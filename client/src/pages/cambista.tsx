@@ -52,27 +52,27 @@ interface Venda {
 type Etapa = "montando" | "cobrando" | "concluida";
 
 /**
- * Toda espera da venda tem prazo: com o apostador na frente, um botão que
- * fica "Reservando…" para sempre é o pior que a tela pode fazer. Passado o
- * prazo, a tela solta o botão e diz o que conferir — a resposta que chegar
- * depois é ignorada (a reserva que entrou vence sozinha; confirmar de novo
- * uma venda já paga não cobra duas vezes).
+ * Toda espera da venda tem prazo e mensagem: com o apostador na frente, um
+ * botão que fica "Reservando…" sem explicação é o pior que a tela pode fazer.
+ * Mas o prazo só **avisa** — nunca solta o botão: reservar, confirmar e
+ * cancelar seguem travados até o servidor responder de verdade. Soltar antes
+ * deixava confirmar e cancelar correrem juntos (venda paga "cancelada", ou
+ * bilhete de venda já devolvida).
  */
-const PRAZO_DA_ESPERA_MS = 20_000;
-function comPrazo<T>(promessa: Promise<T>, mensagem: string): Promise<T> {
-  return new Promise((ok, falha) => {
-    const relogio = setTimeout(() => falha(new Error(mensagem)), PRAZO_DA_ESPERA_MS);
-    promessa.then(
-      (v) => {
-        clearTimeout(relogio);
-        ok(v);
-      },
-      (e) => {
-        clearTimeout(relogio);
-        falha(e);
-      },
-    );
-  });
+const PRAZO_DO_AVISO_MS = 20_000;
+function useAvisoDeDemora() {
+  const [demorando, setDemorando] = useState(false);
+  async function vigiar<T>(promessa: Promise<T>): Promise<T> {
+    setDemorando(false);
+    const relogio = setTimeout(() => setDemorando(true), PRAZO_DO_AVISO_MS);
+    try {
+      return await promessa;
+    } finally {
+      clearTimeout(relogio);
+      setDemorando(false);
+    }
+  }
+  return { demorando, vigiar };
 }
 
 const FORMA: Record<string, string> = {
@@ -113,13 +113,14 @@ export function CambistaVenda() {
   const [premios, setPremios] = useState<string[]>([]);
   const [erro, setErro] = useState<string | null>(null);
   const [cobrando, setCobrando] = useState(false);
+  const { demorando, vigiar } = useAvisoDeDemora();
 
   const escolhida =
     data?.campanhas.find((c) => c.id === campanha) ?? data?.campanhas[0] ?? null;
 
   const reservar = useMutation({
     mutationFn: async () => {
-      const res = await comPrazo(
+      const res = await vigiar(
         apiRequest("POST", "/api/seller/sales", {
           campaignId: escolhida!.id,
           quantity: quantidade,
@@ -129,7 +130,6 @@ export function CambistaVenda() {
             cpf: comprador.cpf || undefined,
           },
         }),
-        "O servidor não respondeu a tempo. Confira em Minhas vendas antes de reservar de novo: a reserva que entrou vence sozinha se não for cobrada.",
       );
       return (await res.json()) as {
         code: number;
@@ -153,14 +153,19 @@ export function CambistaVenda() {
     setCobrando(true);
 
     try {
-      const res = await comPrazo(
+      const res = await vigiar(
         apiRequest("POST", `/api/seller/sales/${venda.code}/confirm`, {
           method,
           posTerminal: pos()?.terminal,
         }),
-        `A confirmação não voltou a tempo. Confira em Minhas vendas se a venda #${venda.code} ficou paga antes de cobrar de novo; confirmar outra vez não cobra duas vezes.`,
       );
-      const confirmada = (await res.json()) as { prizes: string[] };
+      const confirmada = (await res.json()) as { status?: string; prizes: string[] };
+      // Só a venda paga vira "concluída" e imprime bilhete.
+      if (confirmada.status !== "paid") {
+        throw new Error(
+          `A venda #${venda.code} não ficou paga. Confira em Minhas vendas antes de cobrar o apostador.`,
+        );
+      }
 
       setPremios(confirmada.prizes ?? []);
       setEtapa("concluida");
@@ -174,11 +179,7 @@ export function CambistaVenda() {
   }
 
   const cancelar = useMutation({
-    mutationFn: () =>
-      comPrazo(
-        apiRequest("POST", `/api/seller/sales/${venda!.code}/cancel`),
-        "O cancelamento não voltou a tempo. Tente de novo; se a reserva já tiver vencido, as cotas voltaram sozinhas.",
-      ),
+    mutationFn: () => vigiar(apiRequest("POST", `/api/seller/sales/${venda!.code}/cancel`)),
     onSuccess: () => {
       setVenda(null);
       setEtapa("montando");
@@ -231,6 +232,12 @@ export function CambistaVenda() {
           {erro ? (
             <p role="alert" className="rounded-md bg-red-soft px-3 py-2 text-sm text-red">
               {erro}
+            </p>
+          ) : null}
+          {demorando ? (
+            <p role="status" className="rounded-md bg-yellow-soft px-3 py-2 text-sm text-yellow-deep">
+              O servidor está demorando para responder. Espere: os botões voltam quando a resposta
+              chegar. Não refaça a venda nem devolva o dinheiro antes disso.
             </p>
           ) : null}
 
@@ -392,7 +399,7 @@ export function CambistaVenda() {
                       key={meio}
                       variant={i === 0 ? "primario" : "contorno"}
                       className="w-full"
-                      disabled={cobrando}
+                      disabled={cobrando || cancelar.isPending}
                       onClick={() => confirmar(meio)}
                     >
                       {cobrando ? "Confirmando…" : FORMA[meio]}
@@ -416,6 +423,13 @@ export function CambistaVenda() {
                 >
                   {cancelar.isPending ? "Devolvendo as cotas…" : "Cancelar e devolver as cotas"}
                 </Button>
+                {erro && !cobrando && !cancelar.isPending ? (
+                  // A venda pode ter sido paga ou devolvida por outro caminho
+                  // (a mensagem diz qual): a tela não pode ficar sem saída.
+                  <Button variant="contorno" className="w-full" onClick={novaVenda}>
+                    Começar outra venda
+                  </Button>
+                ) : null}
               </div>
             </CartaoDoPainel>
           ) : null}

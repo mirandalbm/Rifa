@@ -6,11 +6,11 @@ Gerada do código por `npm run matriz` — **não edite à mão** (o teste `test
 |---|---|
 | Telas (rotas do `App.tsx`) | 66 (+ 2 redirecionamentos) |
 | Seções de acesso (`shared/access.ts`) | 41 |
-| Cartões (componentes usados pelas telas) | 766 |
+| Cartões (componentes usados pelas telas) | 775 |
 | Rotas da API | 477, das quais 473 citadas por alguma prova |
 | Provas contra a API (`npm run …`) | 61 |
 | Testes de regra (`tests/`) | 128 arquivos |
-| Destinos decididos | 873 de 873 |
+| Destinos decididos | 882 de 882 |
 
 ## 1. Telas
 
@@ -882,36 +882,45 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 | Cartão | Destino |
 |---|---|
 | `Button` | manter · peça do kit (onda 1) · na tela C08 Nova venda do cambista |
+| `Campo` | manter · peça do kit (onda 1) · na tela C08 Nova venda do cambista |
 | `Card` | manter · peça do kit (onda 1) · na tela C08 Nova venda do cambista |
+| `CartaoDoPainel` | manter · peça do kit (onda 1) · na tela C08 Nova venda do cambista |
 | `Empty` | manter · peça do kit (onda 1) · na tela C08 Nova venda do cambista |
 | `Kpi` | manter · peça do kit (onda 1) · na tela C08 Nova venda do cambista |
 | `Money` | manter · peça do kit (onda 1) · na tela C08 Nova venda do cambista |
 | `PanelShell` | manter · peça do kit (onda 1) · na tela C08 Nova venda do cambista |
 | `Pill` | manter · peça do kit (onda 1) · na tela C08 Nova venda do cambista |
+| `TabelaOuCartoes` | manter · peça do kit (onda 1) · na tela C08 Nova venda do cambista |
 
 ### `/cambista/acerto` — Meu acerto
 
 | Cartão | Destino |
 |---|---|
 | `Button` | manter · peça do kit (onda 1) · na tela C10 Meu acerto |
+| `Campo` | manter · peça do kit (onda 1) · na tela C10 Meu acerto |
 | `Card` | manter · peça do kit (onda 1) · na tela C10 Meu acerto |
+| `CartaoDoPainel` | manter · peça do kit (onda 1) · na tela C10 Meu acerto |
 | `Empty` | manter · peça do kit (onda 1) · na tela C10 Meu acerto |
 | `Kpi` | manter · peça do kit (onda 1) · na tela C10 Meu acerto |
 | `Money` | manter · peça do kit (onda 1) · na tela C10 Meu acerto |
 | `PanelShell` | manter · peça do kit (onda 1) · na tela C10 Meu acerto |
 | `Pill` | manter · peça do kit (onda 1) · na tela C10 Meu acerto |
+| `TabelaOuCartoes` | manter · peça do kit (onda 1) · na tela C10 Meu acerto |
 
 ### `/cambista/vendas` — Minhas vendas
 
 | Cartão | Destino |
 |---|---|
 | `Button` | manter · peça do kit (onda 1) · na tela C09 Minhas vendas |
+| `Campo` | manter · peça do kit (onda 1) · na tela C09 Minhas vendas |
 | `Card` | manter · peça do kit (onda 1) · na tela C09 Minhas vendas |
+| `CartaoDoPainel` | manter · peça do kit (onda 1) · na tela C09 Minhas vendas |
 | `Empty` | manter · peça do kit (onda 1) · na tela C09 Minhas vendas |
 | `Kpi` | manter · peça do kit (onda 1) · na tela C09 Minhas vendas |
 | `Money` | manter · peça do kit (onda 1) · na tela C09 Minhas vendas |
 | `PanelShell` | manter · peça do kit (onda 1) · na tela C09 Minhas vendas |
 | `Pill` | manter · peça do kit (onda 1) · na tela C09 Minhas vendas |
+| `TabelaOuCartoes` | manter · peça do kit (onda 1) · na tela C09 Minhas vendas |
 
 ### `/carrinho` — Carrinho
 

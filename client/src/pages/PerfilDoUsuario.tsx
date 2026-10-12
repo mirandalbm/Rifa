@@ -1,11 +1,13 @@
 import { useState, type ReactNode } from "react";
 import { Link, Redirect } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { Bookmark, Check, Grid3x3, Lock, Megaphone, Repeat2, Settings, Share2, Store, type LucideIcon } from "lucide-react";
+import { Bookmark, Grid3x3, List, Lock, Megaphone, Settings, Store } from "lucide-react";
 import { PublicShell } from "@/components/AppShell";
 import { usePendencias } from "@/components/Console";
 import { type BilheteDaConta } from "@/components/BilheteComoPublicacao";
 import { type RifaDoFeed } from "@/components/CartaoDoFeed";
+import { TONS_DO_BOTAO } from "@/components/bits";
+import { IconeRepublicar } from "@/components/Icones";
 import { FotoDoApostador } from "@/components/PerfilDoApostador";
 import { FOTO_COMO_NO_INSTAGRAM } from "@/components/Seguir";
 import { SeloVerificado } from "@/components/SeloVerificado";
@@ -64,18 +66,25 @@ interface Numero {
   valor: string;
 }
 
-/** A foto e, ao lado, os contadores — o desenho do topo do Instagram. */
-function FotoEContadores({ foto, numeros }: { foto: ReactNode; numeros: Numero[] }) {
+/**
+ * A foto e, ao lado, os contadores — o desenho do topo do Instagram. Com
+ * `ponto`, o ponto verde da conta incompleta (o mesmo do botão Perfil do
+ * console); o que falta vai em texto no quadro "Complete sua conta", logo abaixo.
+ */
+function FotoEContadores({ foto, numeros, ponto = false }: { foto: ReactNode; numeros: Numero[]; ponto?: boolean }) {
   return (
-    <div className="mt-2 flex items-center gap-4">
-      <span className="shrink-0">{foto}</span>
+    <div className="mt-2 flex items-center gap-5">
+      <span className="relative shrink-0">
+        {foto}
+        {ponto ? <span aria-hidden className="absolute right-1 top-1 h-3.5 w-3.5 rounded-full border-2 border-white bg-green" /> : null}
+      </span>
       {numeros.length ? (
         <dl className="grid min-w-0 flex-1 text-center" style={{ gridTemplateColumns: `repeat(${numeros.length}, minmax(0, 1fr))` }}>
           {numeros.map((n) => (
             <div key={n.rotulo} className="min-w-0">
               <dt className="sr-only">{n.rotulo}</dt>
-              <dd className="tnum font-display text-lg font-bold leading-tight">{n.valor}</dd>
-              <dd className="truncate text-[11px] text-muted sm:text-xs">{n.rotulo}</dd>
+              <dd className="tnum text-xl font-medium leading-tight">{n.valor}</dd>
+              <dd className="truncate text-xs text-muted">{n.rotulo}</dd>
             </div>
           ))}
         </dl>
@@ -86,11 +95,11 @@ function FotoEContadores({ foto, numeros }: { foto: ReactNode; numeros: Numero[]
 
 /** Os dois botões embaixo da bio, lado a lado e do mesmo tamanho. */
 function Botoes({ children }: { children: ReactNode }) {
-  return <div className="mt-4 grid grid-cols-2 gap-2">{children}</div>;
+  return <div className="mt-4 grid grid-cols-2 gap-3">{children}</div>;
 }
 
-const BOTAO =
-  "flex min-h-9 min-w-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg bg-mist-2 px-2 py-2 text-[13px] font-semibold hover:bg-mist sm:text-sm";
+/** O botão do kit no tom `claro` (verde-claro), em forma de link quando leva a outra tela. */
+const BOTAO = `flex h-10 min-w-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-2 text-[13px] font-semibold ${TONS_DO_BOTAO.claro}`;
 
 function BotaoLink({ href, children }: { href: string; children: ReactNode }) {
   return (
@@ -123,7 +132,6 @@ function BotaoCompartilhar({ caminho, titulo }: { caminho: string; titulo: strin
   }
   return (
     <button type="button" onClick={() => void compartilhar()} className={BOTAO}>
-      {copiado ? <Check size={16} aria-hidden className="hidden sm:block" /> : <Share2 size={16} aria-hidden className="hidden sm:block" />}
       {copiado ? "Endereço copiado" : "Compartilhar perfil"}
     </button>
   );
@@ -132,7 +140,8 @@ function BotaoCompartilhar({ caminho, titulo }: { caminho: string; titulo: strin
 interface Aba {
   chave: string;
   rotulo: string;
-  icone: LucideIcon;
+  /** O ícone da aba (22 px); `ativa` engrossa o traço da aberta. */
+  icone: (ativa: boolean) => ReactNode;
   /** Só a própria pessoa vê: o cadeado diz isso no rótulo, não só no ícone. */
   privada?: boolean;
 }
@@ -140,7 +149,7 @@ interface Aba {
 /** As abas da grade, com ícone e nome — a aberta tem o traço embaixo e `aria-selected`. */
 function AbasDaGrade({ abas, aberta, abrir }: { abas: Aba[]; aberta: string; abrir: (chave: string) => void }) {
   return (
-    <div role="tablist" aria-label="Publicações do perfil" className="mt-5 grid border-t border-line" style={{ gridTemplateColumns: `repeat(${abas.length}, minmax(0, 1fr))` }}>
+    <div role="tablist" aria-label="Publicações do perfil" className="mt-5 grid border-b border-line" style={{ gridTemplateColumns: `repeat(${abas.length}, minmax(0, 1fr))` }}>
       {abas.map((a) => {
         const ativa = a.chave === aberta;
         return (
@@ -152,14 +161,21 @@ function AbasDaGrade({ abas, aberta, abrir }: { abas: Aba[]; aberta: string; abr
             aria-selected={ativa}
             aria-controls={`painel-${a.chave}`}
             onClick={() => abrir(a.chave)}
-            className={`-mt-px flex min-h-12 min-w-0 flex-col items-center justify-center gap-0.5 border-t-2 py-1.5 text-[11px] font-semibold sm:flex-row sm:gap-1.5 sm:text-xs ${
+            className={`-mb-px flex min-h-12 min-w-0 flex-col items-center justify-center gap-1 border-b-2 py-2.5 text-xs font-semibold ${
               ativa ? "border-ink text-ink" : "border-transparent text-muted hover:text-ink"
             }`}
           >
-            <a.icone size={20} strokeWidth={ativa ? 2.25 : 1.75} aria-hidden className="shrink-0" />
-            <span className="flex max-w-full items-center gap-0.5">
+            <span aria-hidden className="flex shrink-0">
+              {a.icone(ativa)}
+            </span>
+            <span className="flex max-w-full items-center gap-1">
               <span className="truncate">{a.rotulo}</span>
-              {a.privada ? <Lock size={10} aria-label="(só você vê)" className="shrink-0" /> : null}
+              {a.privada ? (
+                <>
+                  <Lock size={12} aria-hidden className="shrink-0" />
+                  <span className="sr-only">(só você vê)</span>
+                </>
+              ) : null}
             </span>
           </button>
         );
@@ -290,26 +306,27 @@ function PerfilDoApostadorDaConta() {
     { rotulo: "seguindo", valor: String(seguindo?.length ?? "…") },
   ];
   const abas: Aba[] = [
-    { chave: "bilhetes", rotulo: "Bilhetes", icone: Grid3x3, privada: true },
-    { chave: "republicacoes", rotulo: "Republicações", icone: Repeat2 },
-    { chave: "salvos", rotulo: "Salvos", icone: Bookmark, privada: true },
+    { chave: "bilhetes", rotulo: "Bilhetes", icone: (ativa) => <List size={22} strokeWidth={ativa ? 2.25 : 1.75} />, privada: true },
+    { chave: "republicacoes", rotulo: "Republicações", icone: () => <IconeRepublicar tamanho={22} /> },
+    // O Figma desenha a sacola; a sacola é o Carrinho do console, então Salvos segue com o marcador.
+    { chave: "salvos", rotulo: "Salvos", icone: (ativa) => <Bookmark size={22} strokeWidth={ativa ? 2.25 : 1.75} />, privada: true },
   ];
 
   return (
     <PublicShell>
       <TopoDoPerfil titulo={titulo} selo={perfil?.verificado ? <SeloVerificado sujeito="apostador" tamanho={18} /> : null} />
-      <FotoEContadores foto={foto} numeros={numeros} />
-      {nome ? <p className="mt-3 text-sm font-semibold">{nome}</p> : null}
+      <FotoEContadores foto={foto} numeros={numeros} ponto={pendencias.length > 0} />
+      {nome ? <p className="mt-3 text-[15px] font-bold">{nome}</p> : null}
 
       {pendencias.length ? (
-        <section aria-label="Complete sua conta" className="mt-3 rounded-lg border border-green bg-green-soft p-3 text-sm">
-          <p className="font-semibold text-green-deep">Complete sua conta</p>
+        <section aria-label="Complete sua conta" className="mt-3 rounded-xl border border-green bg-green-soft p-3.5 text-sm">
+          <p className="text-[15px] font-bold text-green-deep">Complete sua conta</p>
           <ul className="mt-1 list-disc pl-5 text-ink-2">
             {pendencias.map((p) => (
               <li key={p}>{p}</li>
             ))}
           </ul>
-          <Link href="/minhas-compras?aba=conta" className="mt-2 inline-flex min-h-6 items-center font-semibold text-green-deep underline">
+          <Link href="/minhas-compras?aba=conta" className="mt-1.5 inline-flex min-h-6 items-center font-bold text-green-deep hover:underline">
             Ir para Minha conta
           </Link>
         </section>
@@ -425,7 +442,11 @@ function PerfilDoAfiliado({ nome }: { nome: string }) {
           <Megaphone size={16} aria-hidden /> Divulgar
         </BotaoLink>
       </Botoes>
-      <AbasDaGrade abas={[{ chave: "divulgacoes", rotulo: "Divulgações", icone: Grid3x3 }]} aberta={aba} abrir={setAba} />
+      <AbasDaGrade
+        abas={[{ chave: "divulgacoes", rotulo: "Divulgações", icone: (ativa) => <Grid3x3 size={22} strokeWidth={ativa ? 2.25 : 1.75} /> }]}
+        aberta={aba}
+        abrir={setAba}
+      />
       <Grade
         aba="divulgacoes"
         carregando={isLoading}

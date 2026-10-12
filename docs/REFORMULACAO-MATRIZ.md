@@ -6,11 +6,11 @@ Gerada do código por `npm run matriz` — **não edite à mão** (o teste `test
 |---|---|
 | Telas (rotas do `App.tsx`) | 66 (+ 2 redirecionamentos) |
 | Seções de acesso (`shared/access.ts`) | 41 |
-| Cartões (componentes usados pelas telas) | 822 |
+| Cartões (componentes usados pelas telas) | 810 |
 | Rotas da API | 477, das quais 473 citadas por alguma prova |
 | Provas contra a API (`npm run …`) | 61 |
-| Testes de regra (`tests/`) | 129 arquivos |
-| Destinos decididos | 929 de 929 |
+| Testes de regra (`tests/`) | 128 arquivos |
+| Destinos decididos | 917 de 917 |
 
 ## 1. Telas
 
@@ -889,15 +889,8 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 
 | Cartão | Destino |
 |---|---|
-| `Button` | manter · peça do kit (onda 1) · na tela 18 Central de ajuda |
 | `Empty` | manter · peça do kit (onda 1) · na tela 18 Central de ajuda |
 | `PublicShell` | manter · peça do kit (onda 1) · na tela 18 Central de ajuda |
-
-### `/bilhete/:code` — Bilhete
-
-| Cartão | Destino |
-|---|---|
-| `Button` | manter · peça do kit (onda 1) · na tela 22 Bilhete |
 
 ### `/buscar` — Buscar
 
@@ -964,7 +957,6 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 | `Pill` | manter · peça do kit (onda 1) · na tela 06 Carrinho |
 | `PublicShell` | manter · peça do kit (onda 1) · na tela 06 Carrinho |
 | `SeloVerificado` | manter · peça do kit (onda 1) · na tela 06 Carrinho |
-| `SoValePelaPlataforma` | manter · na tela 06 Carrinho · onda 5 |
 | `TONS_DO_BOTAO` | manter · peça do kit (onda 1) · na tela 06 Carrinho |
 
 ### `/carrinho/pix/:codigo` — CarrinhoPix
@@ -992,8 +984,6 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 |---|---|
 | `BotaoGoogle` | manter · na tela 24 Criar conta · onda 5 |
 | `Button` | manter · peça do kit (onda 1) · na tela 24 Criar conta |
-| `Campo` | manter · peça do kit (onda 1) · na tela 24 Criar conta |
-| `CampoDeSenha` | manter · na tela 24 Criar conta · onda 5 |
 | `Marca` | manter · peça do kit (onda 1) · na tela 24 Criar conta |
 
 ### `/entrar` — Login
@@ -1002,11 +992,7 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 |---|---|
 | `BotaoGoogle` | manter · na tela 23 Entrar · onda 5 |
 | `Button` | manter · peça do kit (onda 1) · na tela 23 Entrar |
-| `Caixa` | manter · peça do kit (onda 1) · na tela 23 Entrar |
-| `Campo` | manter · peça do kit (onda 1) · na tela 23 Entrar |
-| `CampoDeSenha` | manter · na tela 23 Entrar · onda 5 |
 | `Marca` | manter · peça do kit (onda 1) · na tela 23 Entrar |
-| `TONS_DO_BOTAO` | manter · peça do kit (onda 1) · na tela 23 Entrar |
 
 ### `/estado/:uf` — EstadoPage
 
@@ -1048,6 +1034,7 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 |---|---|
 | `BonusDoComprador` | manter · na tela 09 Minhas compras · onda 5 |
 | `Button` | manter · peça do kit (onda 1) · na tela 09 Minhas compras |
+| `Caixa` | manter · peça do kit (onda 1) · na tela 09 Minhas compras |
 | `Campo` | manter · peça do kit (onda 1) · na tela 09 Minhas compras |
 | `Card` | manter · peça do kit (onda 1) · na tela 09 Minhas compras |
 | `CartaoDoFeed` | manter · na tela 09 Minhas compras · onda 5 |
@@ -1058,6 +1045,7 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 | `PerfilPublicoCard` | manter · na tela 09 Minhas compras · onda 5 |
 | `Pill` | manter · peça do kit (onda 1) · na tela 09 Minhas compras |
 | `PublicShell` | manter · peça do kit (onda 1) · na tela 09 Minhas compras |
+| `TONS_DO_BOTAO` | manter · peça do kit (onda 1) · na tela 09 Minhas compras |
 | `VerificacaoCard` | manter · na tela 09 Minhas compras · onda 5 |
 
 ### `/minhas-cotas` — Minhas cotas
@@ -1066,6 +1054,7 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 |---|---|
 | `BonusDoComprador` | manter · na tela 09 Minhas compras · onda 5 |
 | `Button` | manter · peça do kit (onda 1) · na tela 09 Minhas compras |
+| `Caixa` | manter · peça do kit (onda 1) · na tela 09 Minhas compras |
 | `Campo` | manter · peça do kit (onda 1) · na tela 09 Minhas compras |
 | `Card` | manter · peça do kit (onda 1) · na tela 09 Minhas compras |
 | `CartaoDoFeed` | manter · na tela 09 Minhas compras · onda 5 |
@@ -1076,14 +1065,15 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 | `PerfilPublicoCard` | manter · na tela 09 Minhas compras · onda 5 |
 | `Pill` | manter · peça do kit (onda 1) · na tela 09 Minhas compras |
 | `PublicShell` | manter · peça do kit (onda 1) · na tela 09 Minhas compras |
+| `TONS_DO_BOTAO` | manter · peça do kit (onda 1) · na tela 09 Minhas compras |
 | `VerificacaoCard` | manter · na tela 09 Minhas compras · onda 5 |
 
 ### `/notificacoes` — Notificacoes
 
 | Cartão | Destino |
 |---|---|
-| `Empty` | manter · peça do kit (onda 1) · na tela 10 Notificações |
 | `PublicShell` | manter · peça do kit (onda 1) · na tela 10 Notificações |
+| `TONS_DO_BOTAO` | manter · peça do kit (onda 1) · na tela 10 Notificações |
 
 ### `/o/:org` — Perfil
 
@@ -1129,7 +1119,6 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 | `GruposDaRifa` | manter · na tela 02 Página da rifa · onda 5 |
 | `Legenda` | manter · na tela 02 Página da rifa · onda 5 |
 | `Money` | manter · peça do kit (onda 1) · na tela 02 Página da rifa |
-| `PaginaNaoEncontrada` | manter · na tela 02 Página da rifa (rascunho ou endereço errado) · onda 5 |
 | `PainelDeComentarios` | manter · na tela 02 Página da rifa · onda 5 |
 | `Progress` | manter · peça do kit (onda 1) · na tela 02 Página da rifa |
 | `PublicShell` | manter · peça do kit (onda 1) · na tela 02 Página da rifa |
@@ -1145,7 +1134,6 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 |---|---|
 | `Empty` | manter · peça do kit (onda 1) · na tela 20 Regulamento da rifa |
 | `PublicShell` | manter · peça do kit (onda 1) · na tela 20 Regulamento da rifa |
-| `TextoDeLeitura` | manter · na tela 20 Regulamento da rifa · onda 5 |
 
 ### `/pedido/:code` — Pedido
 
@@ -1166,14 +1154,17 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 |---|---|
 | `FOTO_COMO_NO_INSTAGRAM` | manter · peça do kit (onda 1) · na tela 11 Perfil |
 | `FotoDoApostador` | manter · na tela 11 Perfil · onda 5 |
+| `IconeRepublicar` | manter · peça do kit (onda 1) · na tela 11 Perfil |
 | `PublicShell` | manter · peça do kit (onda 1) · na tela 11 Perfil |
 | `SeloVerificado` | manter · peça do kit (onda 1) · na tela 11 Perfil |
+| `TONS_DO_BOTAO` | manter · peça do kit (onda 1) · na tela 11 Perfil |
 
 ### `/perfil/bilhetes` — MeusBilhetes
 
 | Cartão | Destino |
 |---|---|
 | `BilheteComoPublicacao` | manter · na tela 13 Meus bilhetes privados · onda 5 |
+| `Button` | manter · peça do kit (onda 1) · na tela 13 Meus bilhetes privados |
 | `Empty` | manter · peça do kit (onda 1) · na tela 13 Meus bilhetes privados |
 | `PublicShell` | manter · peça do kit (onda 1) · na tela 13 Meus bilhetes privados |
 
@@ -1190,7 +1181,6 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 | Cartão | Destino |
 |---|---|
 | `PublicShell` | manter · peça do kit (onda 1) · na tela 19 Termos de uso e Privacidade |
-| `TextoDeLeitura` | manter · na tela 19 Termos de uso e Privacidade · onda 5 |
 
 ### `/publicar` — Publicar
 
@@ -1223,7 +1213,6 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 | `GruposDaRifa` | manter · na tela 02 Página da rifa · onda 5 |
 | `Legenda` | manter · na tela 02 Página da rifa · onda 5 |
 | `Money` | manter · peça do kit (onda 1) · na tela 02 Página da rifa |
-| `PaginaNaoEncontrada` | manter · na tela 02 Página da rifa (rascunho ou endereço errado) · onda 5 |
 | `PainelDeComentarios` | manter · na tela 02 Página da rifa · onda 5 |
 | `Progress` | manter · peça do kit (onda 1) · na tela 02 Página da rifa |
 | `PublicShell` | manter · peça do kit (onda 1) · na tela 02 Página da rifa |
@@ -1239,7 +1228,6 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 |---|---|
 | `Empty` | manter · peça do kit (onda 1) · na tela 20 Regulamento da rifa |
 | `PublicShell` | manter · peça do kit (onda 1) · na tela 20 Regulamento da rifa |
-| `TextoDeLeitura` | manter · na tela 20 Regulamento da rifa · onda 5 |
 
 ### `/recibo/:codigo` — ReciboPage
 
@@ -1247,7 +1235,6 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 |---|---|
 | `Card` | manter · peça do kit (onda 1) · na tela 21 Recibo |
 | `Empty` | manter · peça do kit (onda 1) · na tela 21 Recibo |
-| `Pill` | manter · peça do kit (onda 1) · na tela 21 Recibo |
 | `PublicShell` | manter · peça do kit (onda 1) · na tela 21 Recibo |
 
 ### `/reels` — Reels
@@ -1266,9 +1253,6 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 | Cartão | Destino |
 |---|---|
 | `Button` | manter · peça do kit (onda 1) · na tela 25 Seja afiliado |
-| `Caixa` | manter · peça do kit (onda 1) · na tela 25 Seja afiliado |
-| `Campo` | manter · peça do kit (onda 1) · na tela 25 Seja afiliado |
-| `CampoDeSenha` | manter · na tela 25 Seja afiliado · onda 5 |
 | `Card` | manter · peça do kit (onda 1) · na tela 25 Seja afiliado |
 
 ### `/termos` — TermosDeUso
@@ -1276,7 +1260,6 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 | Cartão | Destino |
 |---|---|
 | `PublicShell` | manter · peça do kit (onda 1) · na tela 19 Termos de uso e Privacidade |
-| `TextoDeLeitura` | manter · na tela 19 Termos de uso e Privacidade · onda 5 |
 
 ### `/u/:apelido` — Usuario
 

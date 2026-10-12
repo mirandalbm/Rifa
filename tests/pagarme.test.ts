@@ -1,0 +1,212 @@
+import { describe, expect, it } from "vitest";
+import {
+  PAGARME_PADRAO,
+  autorizacaoBasic,
+  baseDoPagarme,
+  chaveDoEstorno,
+  corpoDoPedidoPagarme,
+  documentoDoPagarme,
+  erroDoPagarme,
+  estornadaInteira,
+  eventoDoPagarme,
+  idDeCobrancaValido,
+  idDeEventoValido,
+  lerCobrancaPagarme,
+  lerPedidoPagarme,
+  segredoConfere,
+  telefoneDoPagarme,
+  venceEmDoPagarme,
+} from "../server/payments/pagarme";
+import { EXIGE_CPF, EXIGE_EMAIL, PROVEDORES_PIX, CREDENCIAIS_PROVEDOR, NOME_PROVEDOR } from "../shared/plataforma";
+import { emailValido } from "../shared/format";
+
+const PIX = "00020126580014BR.GOV.BCB.PIX0136abc5204000053039865802BR6009SAO PAULO62070503***6304ABCD";
+const dados = (mudar: Record<string, unknown> = {}) => ({
+  orderCode: 12345678,
+  amountCents: 1990,
+  description: "Rifa do carro — 2 cota(s)",
+  payer: { name: "Ana Souza", phone: "11987654321", cpf: "529.982.247-25", email: "ana@exemplo.com.br" },
+  expiresAt: new Date("2026-10-12T15:30:45.123Z"),
+  ...mudar,
+});
+
+describe("Pagar.me: registro do provedor", () => {
+  it("entra na lista, com as duas variáveis, o CPF e o e-mail obrigatórios", () => {
+    expect(PROVEDORES_PIX).toContain("pagarme");
+    expect(NOME_PROVEDOR.pagarme).toBe("Pagar.me");
+    expect(CREDENCIAIS_PROVEDOR.pagarme).toEqual(["PAGARME_SECRET_KEY", "PAGARME_WEBHOOK_TOKEN"]);
+    expect(EXIGE_CPF.pagarme).toBe(true);
+    expect(EXIGE_EMAIL.pagarme).toBe(true);
+    expect(EXIGE_EMAIL.asaas).toBe(false);
+    expect(EXIGE_EMAIL.mercadopago).toBe(false);
+  });
+});
+
+describe("Pagar.me: endereço e chave", () => {
+  it("troca o endereço só fora de produção", () => {
+    expect(baseDoPagarme({ NODE_ENV: "production", PAGARME_API_URL: "http://127.0.0.1:1/core/v5" })).toBe(PAGARME_PADRAO);
+    expect(baseDoPagarme({ NODE_ENV: "development", PAGARME_API_URL: "http://127.0.0.1:1/core/v5/" })).toBe("http://127.0.0.1:1/core/v5");
+    expect(baseDoPagarme({ NODE_ENV: "development" })).toBe(PAGARME_PADRAO);
+  });
+  it("Basic com a chave e senha vazia", () => {
+    expect(autorizacaoBasic("sk_test_x")).toBe(`Basic ${Buffer.from("sk_test_x:").toString("base64")}`);
+  });
+  it("o segredo do webhook confere só igual", () => {
+    expect(segredoConfere("abc123", "abc123")).toBe(true);
+    expect(segredoConfere("abc124", "abc123")).toBe(false);
+    expect(segredoConfere("abc", "abc123")).toBe(false);
+    expect(segredoConfere(undefined, "abc123")).toBe(false);
+    expect(segredoConfere(["abc123"], "abc123")).toBe(false);
+    expect(segredoConfere("", "")).toBe(false);
+  });
+});
+
+describe("Pagar.me: documento, telefone e e-mail", () => {
+  it("CPF é pessoa, CNPJ é empresa, dígito errado não passa", () => {
+    expect(documentoDoPagarme("529.982.247-25")).toEqual({ document: "52998224725", type: "individual" });
+    expect(documentoDoPagarme("11.222.333/0001-81")).toEqual({ document: "11222333000181", type: "company" });
+    expect(documentoDoPagarme("529.982.247-24")).toBeNull();
+    expect(documentoDoPagarme("111.111.111-11")).toBeNull();
+    expect(documentoDoPagarme(undefined)).toBeNull();
+  });
+  it("telefone com DDD, celular de 9 começando por 9, fixo de 8, com ou sem 55", () => {
+    expect(telefoneDoPagarme("(11) 98765-4321")).toEqual({ country_code: "55", area_code: "11", number: "987654321" });
+    expect(telefoneDoPagarme("5521 2218-0513")).toEqual({ country_code: "55", area_code: "21", number: "22180513" });
+    expect(telefoneDoPagarme("11 88765-4321")).toBeNull();
+    expect(telefoneDoPagarme("01 98765-4321")).toBeNull();
+    expect(telefoneDoPagarme("987654321")).toBeNull();
+    expect(telefoneDoPagarme("11 99999-9999")).toBeNull();
+    expect(telefoneDoPagarme("pendente:abc")).toBeNull();
+  });
+  it("e-mail no formato", () => {
+    expect(emailValido("ana@exemplo.com.br")).toBe(true);
+    expect(emailValido(" ana@exemplo.com ")).toBe(true);
+    expect(emailValido("ana@exemplo")).toBe(false);
+    expect(emailValido("ana exemplo@x.com")).toBe(false);
+    expect(emailValido("")).toBe(false);
+    expect(emailValido(`${"a".repeat(250)}@x.com`)).toBe(false);
+  });
+});
+
+describe("Pagar.me: corpo do pedido", () => {
+  it("um item em centavos, o cliente com os quatro dados, Pix com o vencimento, sem split", () => {
+    const c = corpoDoPedidoPagarme({ ...dados(), split: [{ walletId: "x", percentual: 90 }] } as never);
+    expect(c.items).toEqual([{ amount: 1990, description: "Rifa do carro — 2 cota(s)", quantity: 1, code: "12345678" }]);
+    expect(c.customer).toEqual({
+      name: "Ana Souza",
+      email: "ana@exemplo.com.br",
+      type: "individual",
+      document: "52998224725",
+      phones: { mobile_phone: { country_code: "55", area_code: "11", number: "987654321" } },
+    });
+    expect(c.payments).toEqual([{ payment_method: "pix", pix: { expires_at: "2026-10-12T15:30:45" } }]);
+    expect(c.code).toBe("12345678");
+    expect(c.metadata).toEqual({ pedido: "12345678" });
+    expect(JSON.stringify(c)).not.toContain("split");
+  });
+  it("vencimento em UTC sem os milissegundos", () => {
+    expect(venceEmDoPagarme(new Date("2026-01-02T03:04:05.999Z"))).toBe("2026-01-02T03:04:05");
+  });
+  it("recusa (400) sem e-mail, sem documento, sem telefone ou sem nome", () => {
+    const erro = (m: Record<string, unknown>) => {
+      try {
+        corpoDoPedidoPagarme(dados(m) as never);
+        return null;
+      } catch (e) {
+        return e as { status?: number; message: string };
+      }
+    };
+    const semEmail = erro({ payer: { name: "Ana", phone: "11987654321", cpf: "52998224725" } });
+    expect(semEmail?.status).toBe(400);
+    expect(semEmail?.message).toMatch(/e-mail/);
+    expect(erro({ payer: { name: "Ana", phone: "11987654321", email: "a@b.co" } })?.status).toBe(400);
+    expect(erro({ payer: { name: "Ana", phone: "", cpf: "52998224725", email: "a@b.co" } })?.status).toBe(400);
+    expect(erro({ payer: { name: " ", phone: "11987654321", cpf: "52998224725", email: "a@b.co" } })?.status).toBe(400);
+    expect(erro({ amountCents: 0 })).not.toBeNull();
+  });
+});
+
+describe("Pagar.me: leitura das respostas", () => {
+  const vence = new Date("2026-10-12T15:30:00Z");
+  it("o id é o da cobrança, não o do pedido, com o copia e cola", () => {
+    const r = lerPedidoPagarme(
+      { id: "or_abc", charges: [{ id: "ch_abc123", payment_method: "pix", status: "pending", last_transaction: { status: "waiting_payment", qr_code: PIX, expires_at: "2026-10-12T15:30:00Z" } }] },
+      vence,
+    );
+    expect(r).toEqual({ chargeId: "ch_abc123", copyPaste: PIX, expiresAt: vence });
+  });
+  it("vencimento de lá só vale se for antes do nosso", () => {
+    const depois = lerPedidoPagarme({ charges: [{ id: "ch_a", last_transaction: { qr_code: PIX, expires_at: "2026-10-13T00:00:00Z" } }] }, vence);
+    expect(depois.expiresAt).toEqual(vence);
+    const antes = lerPedidoPagarme({ charges: [{ id: "ch_a", last_transaction: { qr_code: PIX, expires_at: "2026-10-12T15:00:00Z" } }] }, vence);
+    expect(antes.expiresAt).toEqual(new Date("2026-10-12T15:00:00Z"));
+  });
+  it("transação em falha, sem cobrança, sem código ou id estranho é erro", () => {
+    expect(() => lerPedidoPagarme({ charges: [{ id: "ch_a", status: "failed", last_transaction: { status: "failed" } }] }, vence)).toThrow();
+    expect(() => lerPedidoPagarme({ charges: [] }, vence)).toThrow();
+    expect(() => lerPedidoPagarme({ charges: [{ id: "ch_a", last_transaction: {} }] }, vence)).toThrow();
+    expect(() => lerPedidoPagarme({ charges: [{ id: "ch_../x", last_transaction: { qr_code: PIX } }] }, vence)).toThrow();
+    expect(() => lerPedidoPagarme(null, vence)).toThrow();
+  });
+  it("a cobrança lida só com inteiros", () => {
+    expect(lerCobrancaPagarme({ id: "ch_a", status: "paid", amount: 1990, paid_amount: 1990 })).toEqual({
+      id: "ch_a",
+      status: "paid",
+      amountCents: 1990,
+      pagoCents: 1990,
+      canceladoCents: 0,
+    });
+    expect(lerCobrancaPagarme({ id: "ch_a", status: "paid", amount: "1990", paid_amount: 19.9 }).pagoCents).toBeNull();
+    expect(() => lerCobrancaPagarme({ status: "paid" })).toThrow();
+  });
+  it("o id do evento e o da cobrança só no formato", () => {
+    expect(idDeEventoValido("hook_ABC123")).toBe(true);
+    expect(idDeEventoValido("hook_")).toBe(false);
+    expect(idDeEventoValido("ch_ABC")).toBe(false);
+    expect(idDeCobrancaValido("ch_ABC123")).toBe(true);
+    expect(idDeCobrancaValido("ch_A/B")).toBe(false);
+    expect(idDeCobrancaValido(123)).toBe(false);
+  });
+});
+
+describe("Pagar.me: o evento depois da consulta", () => {
+  const c = (status: string, mudar: Partial<{ amountCents: number; pagoCents: number | null; canceladoCents: number }> = {}) => ({
+    status,
+    amountCents: 1000,
+    pagoCents: 1000,
+    canceladoCents: 0,
+    ...mudar,
+  });
+  it("charge.paid só paga com a cobrança paga; pendente pede nova entrega", () => {
+    expect(eventoDoPagarme("charge.paid", c("paid"))).toBe("paid");
+    expect(eventoDoPagarme("charge.paid", c("pending"))).toBeNull();
+    expect(eventoDoPagarme("charge.paid", c("processing"))).toBeNull();
+    expect(eventoDoPagarme("charge.paid", c("canceled"))).toBe("ignored");
+    expect(eventoDoPagarme("charge.paid", c("failed"))).toBe("ignored");
+  });
+  it("charge.refunded só com o estorno inteiro", () => {
+    expect(eventoDoPagarme("charge.refunded", c("refunded"))).toBe("refunded");
+    expect(eventoDoPagarme("charge.refunded", c("canceled", { canceladoCents: 1000 }))).toBe("refunded");
+    expect(eventoDoPagarme("charge.refunded", c("paid", { canceladoCents: 300 }))).toBe("ignored");
+    expect(eventoDoPagarme("charge.refunded", c("refunded", { canceladoCents: 300 }))).toBe("ignored");
+    expect(eventoDoPagarme("charge.refunded", c("canceled", { canceladoCents: 0 }))).toBe("ignored");
+    expect(eventoDoPagarme("charge.refunded", c("paid"))).toBe("ignored");
+  });
+  it("o resto, inclusive a devolução parcial, é ignorado", () => {
+    expect(eventoDoPagarme("charge.partial_canceled", c("paid", { canceladoCents: 300 }))).toBe("ignored");
+    expect(eventoDoPagarme("order.paid", c("paid"))).toBe("ignored");
+    expect(estornadaInteira(c("pending"))).toBe(false);
+  });
+});
+
+describe("Pagar.me: estorno", () => {
+  it("a chave leva a cobrança, quem devolve e o valor", () => {
+    expect(chaveDoEstorno("ch_a", 300, "pedido-1")).toBe("estorno-ch_a-pedido-1-300");
+    expect(chaveDoEstorno("ch_a")).toBe("estorno-ch_a-cobranca-total");
+    expect(chaveDoEstorno("ch_a", 300, "pedido-1")).not.toBe(chaveDoEstorno("ch_a", 300, "pedido-2"));
+  });
+  it("o erro não leva o corpo inteiro", () => {
+    expect(erroDoPagarme(500, '{"message":"Erro interno"}')).toBe("Pagar.me recusou (500): Erro interno");
+    expect(erroDoPagarme(502, "<html>ana@exemplo.com</html>")).toBe("Pagar.me recusou (502).");
+  });
+});

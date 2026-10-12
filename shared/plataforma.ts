@@ -24,18 +24,20 @@ import { LOTERIAS, type Loteria } from "./sorteiosOficiais";
 import { METODOS_LIBERADOS_PADRAO, metodosLiberadosGuardados, type MetodoDeApuracao } from "./apuracao";
 import { CONFIG_COBRANCA_PADRAO, configCobrancaGuardada, tabelaAgendadaGuardada, type ConfigCobranca, type TabelaAgendada } from "./cobranca";
 
-export const PROVEDORES_PIX = ["mercadopago", "asaas"] as const;
+export const PROVEDORES_PIX = ["mercadopago", "asaas", "pagarme"] as const;
 export type ProvedorPix = (typeof PROVEDORES_PIX)[number];
 
 export const NOME_PROVEDOR: Record<ProvedorPix, string> = {
   mercadopago: "Mercado Pago",
   asaas: "Asaas",
+  pagarme: "Pagar.me",
 };
 
 /** Variáveis que cada provedor precisa no Railway para funcionar. */
 export const CREDENCIAIS_PROVEDOR: Record<ProvedorPix, string[]> = {
   mercadopago: ["MP_ACCESS_TOKEN", "MP_WEBHOOK_SECRET"],
   asaas: ["ASAAS_API_KEY", "ASAAS_WEBHOOK_TOKEN"],
+  pagarme: ["PAGARME_SECRET_KEY", "PAGARME_WEBHOOK_TOKEN"],
 };
 
 /**
@@ -46,6 +48,20 @@ export const CREDENCIAIS_PROVEDOR: Record<ProvedorPix, string[]> = {
 export const EXIGE_CPF: Record<ProvedorPix, boolean> = {
   mercadopago: false,
   asaas: true,
+  pagarme: true,
+};
+
+/**
+ * O Pix do Pagar.me só sai com o cliente completo: nome, e-mail, documento e
+ * telefone (documentação do Pix, "Integração de Pagamento via Pix"). O
+ * e-mail, que nos outros é opcional, passa a ser exigido **antes de
+ * reservar** — como o CPF —, senão a cota ficaria presa numa reserva sem
+ * Pix. A tela pede o e-mail só quando o provedor em uso exige.
+ */
+export const EXIGE_EMAIL: Record<ProvedorPix, boolean> = {
+  mercadopago: false,
+  asaas: false,
+  pagarme: true,
 };
 
 /* ------------------------------------------------------------------ *

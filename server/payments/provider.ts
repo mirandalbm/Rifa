@@ -34,7 +34,11 @@ export interface PaymentProvider {
     orderCode: number;
     amountCents: number;
     description: string;
-    payer: { name: string; phone: string; cpf?: string };
+    /**
+     * Quem paga. O e-mail só vai a quem o exige (`EXIGE_EMAIL`, o Pagar.me):
+     * os outros provedores o ignoram.
+     */
+    payer: { name: string; phone: string; cpf?: string; email?: string };
     expiresAt: Date;
     /**
      * Divisão na origem (Asaas): parte do líquido que vai direto para outra
@@ -43,8 +47,17 @@ export interface PaymentProvider {
      */
     split?: { walletId: string; percentual: number }[];
   }): Promise<PixCharge>;
-  /** Valida assinatura e traduz o corpo. Nunca confiar no redirect do browser. */
-  verifyWebhook(headers: Record<string, unknown>, rawBody: string): Promise<WebhookResult>;
+  /**
+   * Valida assinatura e traduz o corpo. Nunca confiar no redirect do browser.
+   * `contexto.query` é a consulta do endereço chamado — o Pagar.me não assina
+   * o webhook, e o segredo vai no endereço cadastrado no painel dele. Erro
+   * com `status: 401` vira 401 (segredo ausente ou errado); qualquer outro, 400.
+   */
+  verifyWebhook(
+    headers: Record<string, unknown>,
+    rawBody: string,
+    contexto?: { query?: Record<string, unknown> },
+  ): Promise<WebhookResult>;
   /**
    * Devolve pelo provedor. `amountCents` ausente = valor inteiro; presente =
    * devolução parcial (reembolso com taxa administrativa retida). `chave`

@@ -2,6 +2,7 @@ import type { PaymentProvider } from "./provider";
 import { DevPaymentProvider } from "./dev";
 import { MercadoPagoProvider } from "./mercadopago";
 import { AsaasProvider } from "./asaas";
+import { PagarmeProvider } from "./pagarme";
 import { getPlataforma } from "../services/settings";
 
 /**
@@ -17,7 +18,7 @@ import { getPlataforma } from "../services/settings";
  */
 const cache = new Map<string, PaymentProvider>();
 
-export const PROVEDORES_CONHECIDOS = ["dev", "mercadopago", "asaas"] as const;
+export const PROVEDORES_CONHECIDOS = ["dev", "mercadopago", "asaas", "pagarme"] as const;
 
 export function paymentProviderByName(nome: string): PaymentProvider {
   const existente = cache.get(nome);
@@ -33,6 +34,9 @@ export function paymentProviderByName(nome: string): PaymentProvider {
       break;
     case "asaas":
       provider = new AsaasProvider();
+      break;
+    case "pagarme":
+      provider = new PagarmeProvider();
       break;
     default:
       throw Object.assign(new Error(`Provedor de pagamento "${nome}" desconhecido.`), {

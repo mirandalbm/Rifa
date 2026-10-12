@@ -285,6 +285,7 @@ import {
   NOME_PROVEDOR,
   CREDENCIAIS_PROVEDOR,
   EXIGE_CPF,
+  EXIGE_EMAIL,
   validarFundoDaConversa,
   validarCanaisDasLoterias,
 } from "@shared/plataforma";
@@ -3086,7 +3087,10 @@ adminRouter.get("/plataforma", async (req, res, next) => {
         nome: NOME_PROVEDOR[p],
         faltando: CREDENCIAIS_PROVEDOR[p].filter((v) => !process.env[v]),
         exigeCpf: EXIGE_CPF[p],
-        webhook: `${base.replace(/\/$/, "")}/api/webhooks/${p}`,
+        exigeEmail: EXIGE_EMAIL[p],
+        // O Pagar.me não assina o webhook: o segredo vai no endereço. A tela
+        // mostra só o nome da variável, nunca o valor.
+        webhook: `${base.replace(/\/$/, "")}/api/webhooks/${p}${p === "pagarme" ? "?t=<valor de PAGARME_WEBHOOK_TOKEN>" : ""}`,
       })),
     });
   } catch (err) {

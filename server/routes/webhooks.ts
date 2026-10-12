@@ -29,7 +29,11 @@ webhookRouter.post("/:provider", async (req, res) => {
     }
     const provider = paymentProviderByName(providerName);
 
-    const event = await provider.verifyWebhook(req.headers as Record<string, unknown>, raw);
+    // A consulta do endereço vai junto: o Pagar.me não assina o webhook, e o
+    // segredo dele vem no endereço cadastrado (`?t=`). Os outros a ignoram.
+    const event = await provider.verifyWebhook(req.headers as Record<string, unknown>, raw, {
+      query: req.query as Record<string, unknown>,
+    });
 
     const inserted = await db
       .insert(webhookEvents)
@@ -107,7 +111,9 @@ webhookRouter.post("/:provider", async (req, res) => {
   } catch (err) {
     // 4xx faz o provedor reenviar; é o que queremos em falha de assinatura.
     console.error("[webhook]", err);
-    res.status(400).json({ message: "Webhook recusado." });
+    // Segredo do endereço ausente ou errado (Pagar.me): 401. O resto, 400.
+    const status = (err as { status?: number })?.status === 401 ? 401 : 400;
+    res.status(status).json({ message: "Webhook recusado." });
   }
 });
 

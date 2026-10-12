@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { PanelShell } from "@/components/AppShell";
-import { Card, Button, Pill, Empty, Kpi } from "@/components/bits";
-import { Abas } from "@/components/painel";
+import { Button, Caixa, Campo, Pill, Empty, Kpi } from "@/components/bits";
+import { Abas, CartaoDoPainel, TabelaOuCartoes } from "@/components/painel";
 import { apiRequest } from "@/lib/queryClient";
 import { LIMIT_FIELDS, type AntiFraudLimits } from "@shared/antifraude";
 
@@ -41,6 +41,15 @@ const TIPO_LABEL: Record<string, string> = {
   device: "aparelho",
   ip: "IP",
 };
+
+/** "Liberar" um bloqueio: o valor vai no nome do botão (são vários na lista). */
+function Liberar({ id, valor, aoLiberar }: { id: string; valor: string; aoLiberar: (id: string) => void }) {
+  return (
+    <Button variant="cinza" className="h-9 px-3 text-xs" aria-label={`Liberar ${valor}`} onClick={() => aoLiberar(id)}>
+      Liberar
+    </Button>
+  );
+}
 
 /**
  * Antifraude.
@@ -96,7 +105,7 @@ export function AdminAntifraude() {
         <p className="mb-3 rounded-md bg-red-soft px-3 py-2 text-sm text-red">{erro}</p>
       ) : null}
 
-      <div className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-3 md:mb-6 md:gap-6">
         {/* Sem destaque verde: na paleta, verde é dinheiro que entrou.
             Recusa não é receita — pintar de verde faria o número ser lido
             como venda. */}
@@ -124,19 +133,23 @@ export function AdminAntifraude() {
             titulo: "Limites",
             conteudo: (
               <div className="max-w-2xl">
-                <Card title="Limites">
-                  <div className="space-y-3 p-4">
-                    <p className="text-xs text-muted">
+                <CartaoDoPainel titulo="Limites">
+                  <div className="space-y-3.5 px-5 pb-5">
+                    <p className="text-[13px] leading-[18px] text-ink-2">
                       Reservar cota e não pagar é o jeito mais barato de travar uma rifa: a
                       campanha parece vendida e ninguém consegue comprar. Por isso os dois
                       primeiros limites são os que mais protegem.
                     </p>
 
                     {LIMIT_FIELDS.map((campo) => (
-                      <div key={campo.key}>
-                        <label htmlFor={`limite-${campo.key}`} className="label-xs">
-                          {campo.label}
-                        </label>
+                      // No celular o rótulo vai acima do campo; do tablet em diante, ao lado (Figma), numa coluna de
+                      // largura fixa: os campos ficam alinhados uns embaixo dos outros.
+                      <Campo
+                        key={campo.key}
+                        rotulo={campo.label}
+                        dica={campo.hint}
+                        className="sm:grid sm:grid-cols-[240px_120px] sm:items-center sm:gap-x-[10px] sm:[&>p]:col-span-2"
+                      >
                         <input
                           id={`limite-${campo.key}`}
                           type="number"
@@ -146,34 +159,20 @@ export function AdminAntifraude() {
                           onChange={(e) =>
                             setRascunho({ ...rascunho, [campo.key]: Number(e.target.value) })
                           }
-                          className="tnum mt-1 w-32 rounded-md border border-line-2 px-3 py-2 text-sm"
+                          className="campo tnum block w-[120px] text-sm sm:mt-0"
                         />
-                        <p className="mt-1 text-[11px] text-muted">{campo.hint}</p>
-                      </div>
+                      </Campo>
                     ))}
 
-                    <label
-                      htmlFor="limite-autoindicacao"
-                      className="flex cursor-pointer items-start gap-2 rounded-md border border-line-2 px-3 py-2"
+                    <Caixa
+                      id="limite-autoindicacao"
+                      className="rounded-lg border border-line-2 px-[13px] py-[13px]"
+                      marcada={(rascunho.blockSelfReferral ?? data?.limits.blockSelfReferral) ?? true}
+                      aoMudar={(marcada) => setRascunho({ ...rascunho, blockSelfReferral: marcada })}
+                      sub="Impede o afiliado de comprar pelo próprio link no mesmo aparelho."
                     >
-                      <input
-                        id="limite-autoindicacao"
-                        type="checkbox"
-                        checked={
-                          (rascunho.blockSelfReferral ?? data?.limits.blockSelfReferral) ?? true
-                        }
-                        onChange={(e) =>
-                          setRascunho({ ...rascunho, blockSelfReferral: e.target.checked })
-                        }
-                        className="mt-1"
-                      />
-                      <span className="flex-1 text-sm">
-                        Bloquear autoindicação de afiliado
-                        <span className="block text-[11px] text-muted">
-                          Impede o afiliado de comprar pelo próprio link no mesmo aparelho.
-                        </span>
-                      </span>
-                    </label>
+                      Bloquear autoindicação de afiliado
+                    </Caixa>
 
                     <Button
                       onClick={() => salvar.mutate()}
@@ -182,7 +181,7 @@ export function AdminAntifraude() {
                       Salvar limites
                     </Button>
                   </div>
-                </Card>
+                </CartaoDoPainel>
               </div>
             ),
           },
@@ -190,105 +189,118 @@ export function AdminAntifraude() {
             id: "bloqueios",
             titulo: "Bloqueios manuais",
             conteudo: (
-              <div className="max-w-2xl">
-                <Card title="Bloqueios manuais">
-                  <div className="space-y-3 p-4">
-                    <div className="flex flex-wrap items-end gap-2">
-                      <div>
-                        <label htmlFor="bloqueio-tipo" className="label-xs">Tipo</label>
-                        <select
-                          id="bloqueio-tipo"
-                          value={bloqueio.kind}
-                          onChange={(e) => setBloqueio({ ...bloqueio, kind: e.target.value })}
-                          className="mt-1 rounded-md border border-line-2 px-3 py-2 text-sm"
-                        >
-                          <option value="phone">telefone</option>
-                          <option value="device">aparelho (hash)</option>
-                          <option value="ip">IP (hash)</option>
-                        </select>
-                      </div>
-                      <div className="flex-1">
-                        <label htmlFor="bloqueio-valor" className="label-xs">Valor</label>
-                        <input
-                          id="bloqueio-valor"
-                          value={bloqueio.value}
-                          onChange={(e) => setBloqueio({ ...bloqueio, value: e.target.value })}
-                          className="campo tnum text-sm"
-                        />
-                      </div>
-                      <Button
-                        onClick={() => criarBloqueio.mutate()}
-                        disabled={bloqueio.value.trim().length < 4}
-                      >
-                        Bloquear
-                      </Button>
-                    </div>
+              <CartaoDoPainel titulo="Bloqueios manuais" subtitulo="Telefone, aparelho ou IP que não compra nem entra — nem na maquininha.">
+                <div className="flex flex-col gap-3 px-5 pb-4 sm:flex-row sm:flex-wrap sm:items-end">
+                  <Campo rotulo="Tipo">
+                    <select
+                      id="bloqueio-tipo"
+                      value={bloqueio.kind}
+                      onChange={(e) => setBloqueio({ ...bloqueio, kind: e.target.value })}
+                      className="campo block text-sm sm:w-48"
+                    >
+                      <option value="phone">telefone</option>
+                      <option value="device">aparelho (hash)</option>
+                      <option value="ip">IP (hash)</option>
+                    </select>
+                  </Campo>
+                  <Campo rotulo="Valor" className="min-w-0 flex-1">
+                    <input
+                      id="bloqueio-valor"
+                      value={bloqueio.value}
+                      onChange={(e) => setBloqueio({ ...bloqueio, value: e.target.value })}
+                      className="campo tnum text-sm"
+                    />
+                  </Campo>
+                  <Button
+                    onClick={() => criarBloqueio.mutate()}
+                    disabled={bloqueio.value.trim().length < 4}
+                  >
+                    Bloquear
+                  </Button>
+                </div>
 
-                    {data?.bloqueios.length === 0 ? (
-                      <Empty>Nenhum bloqueio manual.</Empty>
-                    ) : (
-                      <ul className="divide-y divide-line">
-                        {data?.bloqueios.map((b) => (
-                          <li key={b.id} className="flex items-center gap-2 py-2 text-sm">
-                            <Pill status="expired">{TIPO_LABEL[b.kind] ?? b.kind}</Pill>
-                            <span className="tnum flex-1 truncate text-xs">{b.value}</span>
-                            <Button
-                              variant="ghost"
-                              className="px-2 py-1 text-xs"
-                              onClick={() => remover.mutate(b.id)}
-                            >
-                              liberar
-                            </Button>
-                          </li>
-                        ))}
-                      </ul>
+                {data?.bloqueios.length === 0 ? (
+                  <Empty>Nenhum bloqueio manual. Para barrar alguém, escolha o tipo, informe o valor e toque em Bloquear.</Empty>
+                ) : (
+                  <div className="border-t border-line">
+                  <TabelaOuCartoes
+                    aria="Bloqueios manuais"
+                    itens={data?.bloqueios ?? []}
+                    chave={(b) => b.id}
+                    colunas={[
+                      { titulo: "Tipo", celula: (b) => <Pill status="expired">{TIPO_LABEL[b.kind] ?? b.kind}</Pill> },
+                      { titulo: "Valor", celula: (b) => <span className="tnum block max-w-[360px] truncate text-xs">{b.value}</span> },
+                      { titulo: "Motivo", celula: (b) => <span className="text-xs text-ink-2">{b.reason ?? "—"}</span> },
+                      { titulo: "Desde", celula: (b) => <span className="tnum whitespace-nowrap text-xs text-muted">{new Date(b.createdAt).toLocaleString("pt-BR")}</span> },
+                      { titulo: "", direita: true, celula: (b) => <Liberar id={b.id} valor={b.value} aoLiberar={(id) => remover.mutate(id)} /> },
+                    ]}
+                    cartao={(b) => (
+                      <div className="flex min-w-0 items-center gap-2 text-sm">
+                        <Pill status="expired">{TIPO_LABEL[b.kind] ?? b.kind}</Pill>
+                        <span className="min-w-0 flex-1">
+                          <span className="tnum block truncate text-xs">{b.value}</span>
+                          {b.reason ? <span className="block text-xs text-muted">{b.reason}</span> : null}
+                        </span>
+                        <Liberar id={b.id} valor={b.value} aoLiberar={(id) => remover.mutate(id)} />
+                      </div>
                     )}
+                  />
                   </div>
-                </Card>
-              </div>
+                )}
+              </CartaoDoPainel>
             ),
           },
           {
             id: "barrado",
             titulo: "O que foi barrado",
             conteudo: (
-              <div className="grid grid-cols-1 items-start gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
-                <Card title="O que foi barrado" right={<span className="label-xs">7 dias</span>}>
+              <div className="grid grid-cols-1 items-start gap-4 md:gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
+                <CartaoDoPainel titulo="O que foi barrado" acao={<span className="label-xs">7 dias</span>}>
                   {data?.resumo.length === 0 ? (
                     <Empty>Nada barrado na semana.</Empty>
                   ) : (
-                    <ul className="divide-y divide-line">
+                    <ul className="divide-y divide-line border-t border-line">
                       {data?.resumo
                         .sort((a, b) => b.total - a.total)
                         .map((r) => (
-                          <li key={r.rule} className="flex items-center gap-3 px-4 py-2 text-sm">
+                          <li key={r.rule} className="flex items-center gap-3 px-5 py-2.5 text-sm">
                             <span className="flex-1">{REGRA_LABEL[r.rule] ?? r.rule}</span>
                             <span className="tnum">{r.total}</span>
                           </li>
                         ))}
                     </ul>
                   )}
-                </Card>
-                <div className="min-w-0">
-                  <Card title="Últimas recusas" right={<span className="label-xs">telefone mascarado</span>}>
-                    {data?.eventos.length === 0 ? (
-                      <Empty>Nenhuma recusa registrada.</Empty>
-                    ) : (
-                      <ul className="divide-y divide-line">
-                        {data?.eventos.map((e) => (
-                          <li key={e.id} className="flex flex-wrap items-center gap-3 px-4 py-2 text-sm">
-                            <span className="tnum text-[11px] text-muted">
-                              {new Date(e.createdAt).toLocaleString("pt-BR")}
-                            </span>
+                </CartaoDoPainel>
+                <CartaoDoPainel
+                  titulo="Últimas recusas"
+                  subtitulo="O motivo é o que o comprador leu na tela; o telefone vai mascarado, IP e aparelho em hash."
+                >
+                  {data?.eventos.length === 0 ? (
+                    <Empty>Nenhuma recusa registrada.</Empty>
+                  ) : (
+                    <TabelaOuCartoes
+                      aria="Últimas recusas"
+                      itens={data?.eventos ?? []}
+                      chave={(e) => e.id}
+                      colunas={[
+                        { titulo: "Quando", celula: (e) => <span className="tnum whitespace-nowrap text-xs text-muted">{new Date(e.createdAt).toLocaleString("pt-BR")}</span> },
+                        { titulo: "Regra", celula: (e) => <span className="whitespace-nowrap"><Pill status="expired">{REGRA_LABEL[e.rule] ?? e.rule}</Pill></span> },
+                        { titulo: "Quem", celula: (e) => <span className="tnum text-xs text-muted">{e.subject ?? "—"}</span> },
+                        { titulo: "Motivo", celula: (e) => <span className="text-xs text-ink-2">{e.reason}</span> },
+                      ]}
+                      cartao={(e) => (
+                        <div className="min-w-0 space-y-1 text-sm">
+                          <div className="flex flex-wrap items-center gap-2">
                             <Pill status="expired">{REGRA_LABEL[e.rule] ?? e.rule}</Pill>
-                            <span className="tnum text-xs text-muted">{e.subject}</span>
-                            <span className="flex-1 text-xs text-ink-2">{e.reason}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </Card>
-                </div>
+                            <span className="tnum text-[11px] text-muted">{new Date(e.createdAt).toLocaleString("pt-BR")}</span>
+                          </div>
+                          <p className="text-xs text-ink-2">{e.reason}</p>
+                          {e.subject ? <p className="tnum text-xs text-muted">{e.subject}</p> : null}
+                        </div>
+                      )}
+                    />
+                  )}
+                </CartaoDoPainel>
               </div>
             ),
           },

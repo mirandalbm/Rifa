@@ -77,7 +77,17 @@ interface AdminOverview {
   commissionAffiliates: number;
   daily: { day: string; cents: number; cotas: number }[];
   topAffiliates: { code: string; name: string; cents: number }[];
-  proximoSorteio?: { slug: string; prizeTitle: string; drawAt: string; totalQuotas: number; soldCount: number; priceCents?: number; capa?: string | null } | null;
+  proximoSorteio?: {
+    slug: string;
+    prizeTitle: string;
+    drawAt: string;
+    totalQuotas: number;
+    soldCount: number;
+    priceCents?: number;
+    capa?: string | null;
+    /** O método de apuração da rifa (nulo na rifa de antes, sem método). */
+    metodoApuracao?: string | null;
+  } | null;
   hoje?: { cents: number; cotas: number };
   mesCents?: number;
   canais?: { site: { vendas: number; cents: number }; cambista: { vendas: number; cents: number } };
@@ -125,8 +135,9 @@ export function AdminPainel() {
       ].filter((x): x is { texto: string; apoio: string; href: string; tom: "yellow" | "red" } => Boolean(x))
     : [];
   const prox = data?.proximoSorteio;
-  // Quem apura o próximo sorteio, pelo método da rifa (a rifa de antes, sem método, não diz).
-  const metodoDoProximo = prox ? rifas?.find((r) => r.campaign.slug === prox.slug)?.campaign.metodoApuracao : null;
+  // Quem apura o próximo sorteio, pelo método que o servidor manda com ele
+  // (a rifa de antes, sem método, não diz a loteria).
+  const metodoDoProximo = prox?.metodoApuracao ?? null;
   const loteriaDoProximo = metodoDoProximo ? LOTERIAS[loteriaDoMetodo(metodoDoProximo)].nome : null;
   const faltam = prox ? Math.max(0, Math.ceil((new Date(prox.drawAt).getTime() - Date.now()) / 86_400_000)) : 0;
   const TOM_DA_PENDENCIA = { yellow: "bg-yellow-soft text-yellow-deep", red: "bg-red-soft text-red" };
@@ -977,6 +988,7 @@ export function AdminCampanhas() {
                             </div>
                           </CartaoDoPainel>
                           <BannerDivulgacaoCard campaignId={c.id} />
+                          <DivulgacoesDaOrganizacao daOrganizacao={!daPlataforma} rifaId={c.id} />
                         </div>
                       </div>
                     ),
@@ -1769,6 +1781,8 @@ export function AdminFinanceiro() {
       code: string;
       name: string;
       pixKey: string | null;
+      /** Comissão guardada pela plataforma (só a plataforma recebe `true`). */
+      guardada?: boolean;
       pendingCents: number;
       availableCents: number;
     }[];
@@ -1795,6 +1809,31 @@ export function AdminFinanceiro() {
   const { data: pagos = [] } = useQuery<SaquePago[]>({ queryKey: ["/api/admin/saques-pagos"] });
 
   const pedidos = data?.payoutsRequested ?? [];
+  // A comissão guardada é paga pela plataforma: fica à parte, marcada
+  // "Plataforma" em texto, nunca somada à que cada organização paga.
+  type LinhaDeComissao = NonNullable<typeof data>["perAffiliate"][number];
+  const comissoes = data?.perAffiliate ?? [];
+  const daOrganizacao = comissoes.filter((a) => !a.guardada);
+  const guardadas = plataforma ? comissoes.filter((a) => a.guardada) : [];
+  const listaDeComissao = (itens: LinhaDeComissao[], aria: string) => (
+    <ul aria-label={aria} className="divide-y divide-line">
+      {itens.map((a) => (
+        <li key={`${a.affiliateId}:${a.guardada ? "plataforma" : "organizacao"}`} className="px-5 py-3 text-sm">
+          <div className="flex items-center justify-between gap-3">
+            <span className="min-w-0 break-words">
+              {a.name} · <span className="tnum text-muted">{a.code}</span>
+            </span>
+            <Money cents={a.availableCents} className="shrink-0 font-medium text-green-deep" />
+          </div>
+          <p className="mt-1 text-xs text-muted">
+            <span className="tnum">{formatBRL(a.pendingCents)}</span> pendentes · disponível{" "}
+            <span className="tnum">{formatBRL(a.availableCents)}</span> · Pix{" "}
+            <span className="tnum break-words">{a.pixKey ?? "não cadastrado"}</span>
+          </p>
+        </li>
+      ))}
+    </ul>
+  );
   const deQuem = (s: SaquePedido) =>
     plataforma && !s.organizationId ? <Pill status="pending">Plataforma</Pill> : null;
   const nota = (s: SaquePedido) => (
@@ -1838,40 +1877,45 @@ export function AdminFinanceiro() {
       </div>
 
       {/*
-        Tablet: duas colunas de cartões. Computador (`xl`): a comissão por
+        Tablet: duas colunas de cartões, a comissão à esquerda e os dois
+        cartões de saque um embaixo do outro à direita. Computador (`xl`): a comissão por
         afiliado numa coluna estreita à esquerda e os saques, em tabela, na
         larga à direita. O DOM segue a ordem do celular.
       */}
-      <div className="grid grid-cols-1 gap-4 md:gap-6 md:grid-cols-2 md:items-start xl:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
+      <div className="grid grid-cols-1 gap-4 md:gap-6 md:grid-cols-2 md:grid-rows-[auto_1fr] md:items-start xl:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
         <CartaoDoPainel
-          className="xl:row-span-2"
+          className="md:row-span-2"
           titulo="Comissão por afiliado"
           subtitulo={
             plataforma
-              ? "Pendente vira disponível depois da carência; aqui entra também a comissão guardada pela plataforma."
+              ? "Pendente vira disponível depois da carência; a guardada pela plataforma aparece à parte."
               : "Pendente vira disponível depois da carência; a guardada pela plataforma não aparece aqui."
           }
         >
-          {data?.perAffiliate.length === 0 ? (
+          {!data ? null : daOrganizacao.length === 0 && guardadas.length === 0 ? (
             <Empty>Nada a pagar.</Empty>
           ) : (
-            <ul aria-label="Comissão por afiliado" className="divide-y divide-line">
-              {data?.perAffiliate.map((a) => (
-                <li key={a.affiliateId} className="px-5 py-3 text-sm">
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="min-w-0 truncate">
-                      {a.name} · <span className="tnum text-muted">{a.code}</span>
-                    </span>
-                    <Money cents={a.availableCents} className="shrink-0 font-medium text-green-deep" />
-                  </div>
-                  <p className="mt-1 text-xs text-muted">
-                    <span className="tnum">{formatBRL(a.pendingCents)}</span> pendentes · disponível{" "}
-                    <span className="tnum">{formatBRL(a.availableCents)}</span> · Pix{" "}
-                    <span className="tnum break-all">{a.pixKey ?? "não cadastrado"}</span>
+            <>
+              {plataforma ? (
+                <h3 className="px-5 pt-4 text-sm font-semibold text-ink">Paga pela organização da rifa</h3>
+              ) : null}
+              {daOrganizacao.length === 0 ? (
+                <p className="px-5 py-3 text-sm text-muted">Nenhuma comissão a pagar pelas organizações.</p>
+              ) : (
+                listaDeComissao(daOrganizacao, plataforma ? "Comissão paga pela organização da rifa" : "Comissão por afiliado")
+              )}
+              {guardadas.length > 0 ? (
+                <section aria-labelledby="comissao-guardada" className="border-t border-line">
+                  <h3 id="comissao-guardada" className="flex flex-wrap items-center gap-2 px-5 pt-4 text-sm font-semibold text-ink">
+                    Guardada pela plataforma <Pill status="pending">Plataforma</Pill>
+                  </h3>
+                  <p className="px-5 pt-1 text-xs text-muted">
+                    Quem paga é a plataforma, depois do sorteio; a organização não vê nem paga esta comissão.
                   </p>
-                </li>
-              ))}
-            </ul>
+                  {listaDeComissao(guardadas, "Comissão guardada pela plataforma")}
+                </section>
+              ) : null}
+            </>
           )}
         </CartaoDoPainel>
 
@@ -2734,13 +2778,82 @@ function VerificacaoDaOrganizacaoCard() {
   return <VerificacaoCard base={`/api/admin/organizacoes/${data.organizacaoId}/verificacao`} sujeito="organizacao" />;
 }
 
+interface RegistroDaTrilha {
+  id: string;
+  action: string;
+  entity: string;
+  entityId: string | null;
+  createdAt: string;
+  actorRole: string | null;
+  diff: unknown;
+}
+
+/** Quem fez: o papel da pessoa, o sistema (relógio) ou a pessoa pelo assistente de IA. */
+function atorDaTrilha(r: RegistroDaTrilha) {
+  const viaIA = Boolean(r.diff && typeof r.diff === "object" && (r.diff as { viaIA?: unknown }).viaIA === true);
+  return (
+    <span className="flex flex-wrap items-center gap-1">
+      <span className="font-mono text-[11px]">{r.actorRole ?? "sistema"}</span>
+      {viaIA ? <Pill status="draft">via assistente</Pill> : null}
+    </span>
+  );
+}
+
+/**
+ * A trilha de auditoria (só da plataforma): as últimas 200 ações, em cartão
+ * por linha até o tablet e em tabela a partir de `xl`. O alvo vai pelo tipo e
+ * o id — nunca nome nem telefone de comprador.
+ */
+function TrilhaDeAuditoria({ registros }: { registros: RegistroDaTrilha[] | undefined }) {
+  const quando = (r: RegistroDaTrilha) => (
+    <span className="tnum whitespace-nowrap text-xs text-muted">{new Date(r.createdAt).toLocaleString("pt-BR")}</span>
+  );
+  const acao = (r: RegistroDaTrilha) => <span className="tnum break-all font-mono text-[12px]">{r.action}</span>;
+  const alvo = (r: RegistroDaTrilha) => (
+    <span className="block min-w-0 break-all text-xs">
+      {r.entity}
+      {r.entityId ? <span className="tnum block font-mono text-[11px] text-muted">{r.entityId}</span> : null}
+    </span>
+  );
+  return (
+    <CartaoDoPainel titulo="Trilha de auditoria" subtitulo="As últimas 200 ações, da mais nova para a mais antiga.">
+      {registros === undefined ? (
+        <Empty>Carregando…</Empty>
+      ) : registros.length === 0 ? (
+        <Empty>Nenhuma ação registrada.</Empty>
+      ) : (
+        <div className="border-t border-line">
+          <TabelaOuCartoes
+            aria="Trilha de auditoria"
+            itens={registros}
+            chave={(r) => r.id}
+            colunas={[
+              { titulo: "Quando", celula: quando },
+              { titulo: "Ação", celula: acao },
+              { titulo: "Alvo", celula: alvo },
+              { titulo: "Quem", celula: atorDaTrilha },
+            ]}
+            cartao={(r) => (
+              // Do tablet em diante, duas colunas: a ação e quando na primeira linha, o alvo e quem na segunda.
+              <div className="grid min-w-0 grid-cols-1 gap-1 text-sm sm:grid-cols-2 sm:gap-x-4">
+                {acao(r)}
+                {quando(r)}
+                {alvo(r)}
+                {atorDaTrilha(r)}
+              </div>
+            )}
+          />
+        </div>
+      )}
+    </CartaoDoPainel>
+  );
+}
+
 export function AdminConfiguracoes() {
   const { data: session } = useSession();
   const plataforma = session?.role === "admin";
   // A trilha é só da plataforma (o servidor recusa o organizador): sem pedir, sem cartão vazio.
-  const { data } = useQuery<
-    { id: string; action: string; entity: string; createdAt: string; actorRole: string }[]
-  >({ queryKey: ["/api/admin/audit"], enabled: plataforma });
+  const { data } = useQuery<RegistroDaTrilha[]>({ queryKey: ["/api/admin/audit"], enabled: plataforma });
 
   return (
     <PanelShell title="Configurações">
@@ -2776,12 +2889,14 @@ export function AdminConfiguracoes() {
             id: "organizacao",
             titulo: "Organização e perfil",
             conteudo: (
-              <div className="grid grid-cols-1 gap-4 md:gap-6 lg:grid-cols-2 lg:items-start">
+              // Na plataforma o contrato (alto) fica à direita ocupando duas linhas, e o selo sobe para
+              // logo embaixo da administradora — sem isso, sobrava um vão do tamanho do contrato à esquerda.
+              <div className={`grid grid-cols-1 gap-4 md:gap-6 lg:grid-cols-2 lg:items-start ${plataforma ? "lg:grid-rows-[auto_1fr]" : ""}`}>
                 <OrganizerCard />
                 <EnderecoDaOrganizacaoCard />
                 {plataforma ? null : <SociosDaOrganizacaoCard />}
                 {/* O contrato logo depois dos dados: o link antigo (#contrato) rola até ele sem esperar o perfil carregar. */}
-                <div className="min-w-0">
+                <div className={`min-w-0 ${plataforma ? "lg:row-span-2" : ""}`}>
                   <ContratoPromotoraCard plataforma={plataforma} />
                 </div>
                 {plataforma ? <CoresDoSeloCard /> : null}
@@ -2818,18 +2933,7 @@ export function AdminConfiguracoes() {
                   id: "auditoria",
                   titulo: "Trilha de auditoria",
                   conteudo: (
-                    <Card title="Trilha de auditoria" right={<span className="label-xs">últimas 200 ações</span>}>
-                      <ul className="divide-y divide-line">
-                        {data?.map((a) => (
-                          <li key={a.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2 text-sm">
-                            <span className="tnum text-[11px] text-muted">{new Date(a.createdAt).toLocaleString("pt-BR")}</span>
-                            <span className="tnum min-w-0 flex-1 break-words">{a.action}</span>
-                            <span className="label-xs">{a.actorRole}</span>
-                          </li>
-                        ))}
-                      </ul>
-                      {data?.length === 0 ? <Empty>Nenhuma ação registrada.</Empty> : null}
-                    </Card>
+                    <TrilhaDeAuditoria registros={data} />
                   ),
                 },
               ]

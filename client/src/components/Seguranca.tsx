@@ -4,7 +4,7 @@ import { Janela } from "@/components/Janela";
 import { Link } from "wouter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Flag, ShieldAlert, X } from "lucide-react";
-import { Button, Card, Empty, Pill } from "@/components/bits";
+import { Button, Campo, Empty, Filtros, Pill } from "@/components/bits";
 import { CartaoDoPainel, MestreDetalhe } from "@/components/painel";
 import { apiRequest } from "@/lib/queryClient";
 import { useSession } from "@/lib/session";
@@ -364,41 +364,32 @@ export function DenunciasDaPlataforma() {
   });
   return (
     <>
-      <div className="mb-3 flex flex-wrap gap-1" role="tablist" aria-label="Situação das denúncias">
-        {FILTROS.map((f) => (
-          <button
-            key={f.valor || "todas"}
-            type="button"
-            role="tab"
-            aria-selected={filtro === f.valor}
-            onClick={() => {
-              setFiltro(f.valor);
-              setAberto(null);
-            }}
-            className={
-              filtro === f.valor
-                ? "rounded-md bg-green px-3 py-1.5 text-sm font-semibold text-on-green"
-                : "rounded-md px-3 py-1.5 text-sm text-ink-2 hover:bg-mist-2"
-            }
-          >
-            {f.rotulo}
-          </button>
-        ))}
-      </div>
+      <Filtros
+        exclusivo
+        rotulo="Situação das denúncias"
+        className="mb-3"
+        ativa={filtro}
+        aoMudar={(v) => {
+          setFiltro(v);
+          setAberto(null);
+        }}
+        opcoes={FILTROS.map((f) => ({ valor: f.valor, rotulo: f.rotulo }))}
+      />
       <MestreDetalhe
         aberto={aberto}
         aoFechar={() => setAberto(null)}
         vazio="Escolha uma denúncia para ver a evidência e decidir."
         lista={
-          <Card title="Denúncias">
+          <CartaoDoPainel titulo="Denúncias">
             {data?.length ? (
-              <ul className="divide-y divide-line">
+              <ul className="divide-y divide-line border-t border-line">
                 {data.map((d) => (
                   <li key={d.id}>
                     <button
                       type="button"
                       onClick={() => setAberto(d.id)}
-                      className={`w-full px-4 py-3 text-left hover:bg-mist ${aberto === d.id ? "bg-mist" : ""}`}
+                      aria-current={aberto === d.id ? "true" : undefined}
+                      className={`w-full px-5 py-3 text-left hover:bg-mist ${aberto === d.id ? "bg-mist" : ""}`}
                     >
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <span className="tnum text-sm font-semibold">{d.protocolo}</span>
@@ -416,7 +407,7 @@ export function DenunciasDaPlataforma() {
             ) : (
               <Empty>Nenhuma denúncia aqui.</Empty>
             )}
-          </Card>
+          </CartaoDoPainel>
         }
         detalhe={aberto ? <DetalheDaDenuncia id={aberto} /> : null}
       />
@@ -453,14 +444,14 @@ function DetalheDaDenuncia({ id }: { id: string }) {
   });
   if (!d) {
     return (
-      <Card>
+      <CartaoDoPainel titulo="Denúncia">
         <Empty>Carregando…</Empty>
-      </Card>
+      </CartaoDoPainel>
     );
   }
   return (
-    <Card title={`Denúncia ${d.protocolo}`} right={<Pill status={PILL_DENUNCIA[d.status]}>{NOME_STATUS_DENUNCIA[d.status]}</Pill>}>
-      <div className="space-y-3 p-4 text-sm">
+    <CartaoDoPainel titulo={`Denúncia ${d.protocolo}`} acao={<Pill status={PILL_DENUNCIA[d.status]}>{NOME_STATUS_DENUNCIA[d.status]}</Pill>}>
+      <div className="space-y-3 border-t border-line px-5 py-4 text-sm">
         {aviso ? (
           <p className={`rounded-md px-3 py-2 ${aviso.ok ? "bg-green-soft text-green-deep" : "bg-red-soft text-red"}`}>
             {aviso.texto}
@@ -531,24 +522,17 @@ function DetalheDaDenuncia({ id }: { id: string }) {
         {d.decisao ? <p className="text-xs text-muted">Decisão: {d.decisao}</p> : null}
 
         {d.status === "aberta" ? (
-          <div className="space-y-2 rounded-md bg-mist p-3">
-            <label htmlFor={`den-resp-${d.id}`} className="label-xs">
-              Motivo da decisão (obrigatório para travar ou banir)
-            </label>
-            <textarea
-              id={`den-resp-${d.id}`}
-              rows={2}
-              value={resposta}
-              onChange={(e) => setResposta(e.target.value)}
-              className="w-full rounded-md border border-line-2 px-3 py-2"
-            />
+          <div className="space-y-3 border-t border-line pt-3">
+            <Campo rotulo="Motivo da decisão (obrigatório para travar ou banir)">
+              <textarea id={`den-resp-${d.id}`} rows={2} value={resposta} onChange={(e) => setResposta(e.target.value)} />
+            </Campo>
             <div className="flex flex-wrap gap-2">
-              <Button variant="ghost" onClick={() => decidir.mutate("improcedente")} disabled={decidir.isPending}>
+              <Button variant="cinza" onClick={() => decidir.mutate("improcedente")} disabled={decidir.isPending}>
                 Improcedente
               </Button>
               {d.rifa ? (
                 <Button
-                  className="bg-yellow text-on-yellow"
+                  variant="azul"
                   disabled={decidir.isPending || resposta.trim().length < 10}
                   onClick={() => window.confirm("Travar a rifa? As vendas param na hora.") && decidir.mutate("travar")}
                 >
@@ -556,8 +540,8 @@ function DetalheDaDenuncia({ id }: { id: string }) {
                 </Button>
               ) : null}
               <Button
-                variant="ghost"
-                className="text-red"
+                variant="cinza"
+                className="!text-red"
                 disabled={decidir.isPending || resposta.trim().length < 10}
                 onClick={() =>
                   window.confirm(
@@ -571,6 +555,6 @@ function DetalheDaDenuncia({ id }: { id: string }) {
           </div>
         ) : null}
       </div>
-    </Card>
+    </CartaoDoPainel>
   );
 }

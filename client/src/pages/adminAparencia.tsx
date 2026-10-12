@@ -1,12 +1,12 @@
 import { TopoDoAppCard } from "@/components/TopoDoAppCard";
 import { AssistenteIACard } from "@/components/AssistenteIACard";
 import { UsoDoAssistenteCard } from "@/components/UsoDoAssistenteCard";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowDown, ArrowUp, Monitor, Smartphone, Trash2 } from "lucide-react";
 import { PanelShell } from "@/components/AppShell";
-import { Button, Card, Pill } from "@/components/bits";
-import { Abas } from "@/components/painel";
+import { Button, Caixa, Campo, Filtros, Pill } from "@/components/bits";
+import { Abas, AlternarVisao, CartaoDoPainel } from "@/components/painel";
 import { BannersCard } from "@/components/BannersCard";
 import { apiRequest } from "@/lib/queryClient";
 import { DadosDaEmpresaCard } from "@/components/DadosDaEmpresaCard";
@@ -51,6 +51,8 @@ export function AdminAparencia() {
   const [msg, setMsg] = useState<{ ok: boolean; texto: string } | null>(null);
   const [tela, setTela] = useState<"celular" | "computador">("celular");
   const [sujo, setSujo] = useState(false);
+  const arquivoDaLogo = useRef<HTMLInputElement>(null);
+  const arquivoDoApoio = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (data && !t) setT(data.rascunho);
@@ -158,13 +160,13 @@ export function AdminAparencia() {
 
   const barra = (
     <div className="sticky bottom-0 z-10 flex flex-wrap items-center gap-3 rounded-xl border border-line bg-white p-3 shadow-card">
-      <Button variant="ghost" disabled={Boolean(problema) || salvar.isPending || !sujo} onClick={() => salvar.mutate(t)}>
+      <Button variant="contorno" disabled={Boolean(problema) || salvar.isPending || !sujo} onClick={() => salvar.mutate(t)}>
         {salvar.isPending ? "Salvando…" : "Salvar rascunho"}
       </Button>
       <Button disabled={sujo || !rascunhoDiferente || publicar.isPending} onClick={() => publicar.mutate()}>
         {publicar.isPending ? "Publicando…" : "Publicar"}
       </Button>
-      <span className="text-xs">
+      <span role="status" className="min-w-0 text-xs">
         {problema ? (
           <span className="text-red">{problema}</span>
         ) : msg ? (
@@ -184,7 +186,7 @@ export function AdminAparencia() {
     <PanelShell title="Aparência">
       {/* grid-cols-1 (minmax 0): sem ele a coluna cresce até a pré-visualização
           de 400 px e a página passa da tela do celular. */}
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_440px]">
+      <div className="grid grid-cols-1 gap-4 md:gap-6 xl:grid-cols-[minmax(0,1fr)_440px] xl:items-start">
         <div className="min-w-0">
           {/* Uma aba por assunto, em vez de uma pilha de dez cartões. A barra de
               salvar e publicar fica nas abas que mexem no template. */}
@@ -195,39 +197,37 @@ export function AdminAparencia() {
                 id: "inicio",
                 titulo: "Identidade e tela inicial",
                 conteudo: (
-                  <div className="space-y-3">
-                    <Card title="Identidade">
-                      <div className="grid grid-cols-1 gap-4 p-4 text-sm sm:grid-cols-2">
-                        <div>
-                          <label htmlFor="tpl-nome" className="label-xs">Nome da plataforma</label>
-                          <input
-                            id="tpl-nome"
-                            value={id.nome}
-                            maxLength={40}
-                            onChange={(e) => mudarId({ nome: e.target.value })}
-                            className="campo"
-                          />
-                        </div>
-                        <div>
+                  <div className="grid grid-cols-1 gap-4 md:gap-6">
+                    <CartaoDoPainel titulo="Identidade">
+                      <div className="grid grid-cols-1 gap-4 px-5 pb-5 text-sm sm:grid-cols-2">
+                        <Campo rotulo="Nome da plataforma" className="min-w-0">
+                          <input id="tpl-nome" value={id.nome} maxLength={40} onChange={(e) => mudarId({ nome: e.target.value })} />
+                        </Campo>
+                        <div className="min-w-0">
                           <span className="label-xs">Logo (troca o nome no topo)</span>
-                          <div className="mt-1 flex items-center gap-3">
+                          <div className="mt-1 flex flex-wrap items-center gap-3">
                             {id.logo ? <img src={id.logo} alt="" className="h-8 rounded border border-line bg-branco p-1" /> : null}
-                            <label className="cursor-pointer rounded-md border border-line-2 px-3 py-1.5 text-xs font-semibold hover:bg-mist">
+                            {/* O botão abre o campo de arquivo escondido: o nativo mostraria "Choose File" na língua do navegador. */}
+                            <Button type="button" variant="contorno" onClick={() => arquivoDaLogo.current?.click()}>
                               {id.logo ? "Trocar" : "Enviar logo"}
-                              <input
-                                type="file"
-                                accept="image/png,image/jpeg,image/webp"
-                                className="sr-only"
-                                onChange={(e) => {
-                                  const f = e.target.files?.[0];
-                                  if (!f) return;
-                                  if (f.size > 2 * 1024 * 1024) return window.alert("A logo passa de 2 MB.");
-                                  const r = new FileReader();
-                                  r.onload = () => enviarLogo.mutate(String(r.result));
-                                  r.readAsDataURL(f);
-                                }}
-                              />
-                            </label>
+                            </Button>
+                            <input
+                              ref={arquivoDaLogo}
+                              type="file"
+                              accept="image/png,image/jpeg,image/webp"
+                              aria-label="Arquivo da logo"
+                              tabIndex={-1}
+                              className="sr-only"
+                              onChange={(e) => {
+                                const f = e.target.files?.[0];
+                                e.target.value = "";
+                                if (!f) return;
+                                if (f.size > 2 * 1024 * 1024) return window.alert("A logo passa de 2 MB.");
+                                const r = new FileReader();
+                                r.onload = () => enviarLogo.mutate(String(r.result));
+                                r.readAsDataURL(f);
+                              }}
+                            />
                             {id.logo ? (
                               <button type="button" className="text-xs text-red underline" onClick={() => mudarId({ logo: null })}>
                                 usar o nome
@@ -243,91 +243,82 @@ export function AdminAparencia() {
                           const c = id.cor[tema];
                           const ok = corValida(c);
                           const razao = ok ? contraste(c, FUNDO[tema]) : 0;
+                          const baixo = ok && razao < CONTRASTE_MIN;
                           return (
-                            <div key={tema}>
+                            <div key={tema} className="min-w-0">
                               <label htmlFor={`tpl-cor-${tema}`} className="label-xs">Cor de marca — tema {tema}</label>
-                              <div className="mt-1 flex items-center gap-2">
+                              <div className="mt-1 flex flex-wrap items-center gap-2">
                                 <input
                                   type="color"
                                   aria-label={`Escolher cor do tema ${tema}`}
                                   value={ok ? c : "#000000"}
                                   onChange={(e) => mudarId({ cor: { ...id.cor, [tema]: e.target.value } })}
-                                  className="h-9 w-12 cursor-pointer rounded border border-line-2 bg-white"
+                                  className="h-10 w-10 shrink-0 cursor-pointer rounded-lg border border-line-2 bg-white p-0.5"
                                 />
                                 <input
                                   id={`tpl-cor-${tema}`}
                                   value={c}
+                                  aria-describedby={`tpl-cor-${tema}-contraste`}
                                   onChange={(e) => mudarId({ cor: { ...id.cor, [tema]: e.target.value.trim() } })}
-                                  className="tnum w-28 rounded-md border border-line-2 px-2 py-2"
+                                  className="campo tnum mt-0 w-28 text-sm"
                                 />
-                                <span
-                                  className="tnum rounded px-2 py-1 text-xs"
-                                  style={{ background: FUNDO[tema], color: ok ? c : undefined, border: "1px solid var(--line)" }}
-                                >
-                                  {ok ? `${razao.toFixed(1)}:1` : "—"}
+                                <span id={`tpl-cor-${tema}-contraste`}>
+                                  <Pill status={!ok ? "draft" : baixo ? "expired" : "paid"}>
+                                    {ok ? `${razao.toFixed(1)}:1` : "—"}
+                                    <span className="sr-only"> de contraste com o fundo {tema}</span>
+                                  </Pill>
                                 </span>
                               </div>
-                              {ok && razao < CONTRASTE_MIN ? (
+                              {baixo ? (
                                 <p className="mt-1 text-xs text-red">Quase não aparece no fundo {tema} (mínimo {CONTRASTE_MIN}:1).</p>
                               ) : null}
                             </div>
                           );
                         })}
-                        <div>
-                          <label htmlFor="tpl-fonte" className="label-xs">Fonte do texto</label>
-                          <select
-                            id="tpl-fonte"
-                            value={id.fonte}
-                            onChange={(e) => mudarId({ fonte: e.target.value as Fonte })}
-                            className="mt-1 w-full rounded-md border border-line-2 bg-white px-2 py-2"
-                          >
+                        <Campo rotulo="Fonte do texto" className="min-w-0">
+                          <select id="tpl-fonte" value={id.fonte} onChange={(e) => mudarId({ fonte: e.target.value as Fonte })}>
                             {Object.entries(FONTES).map(([k, f]) => (
                               <option key={k} value={k}>{f.nome}</option>
                             ))}
                           </select>
+                        </Campo>
+                        <div className="min-w-0">
+                          <span className="label-xs" aria-hidden>Cantos</span>
+                          <Filtros
+                            rotulo="Cantos"
+                            exclusivo
+                            className="mt-1"
+                            opcoes={(Object.keys(RAIOS) as Raio[]).map((r) => ({ valor: r, rotulo: NOME_RAIO[r] }))}
+                            ativa={id.raio}
+                            aoMudar={(r) => mudarId({ raio: r })}
+                          />
                         </div>
-                        <fieldset>
-                          <legend className="label-xs">Cantos</legend>
-                          <div className="mt-1 flex gap-2">
-                            {(Object.keys(RAIOS) as Raio[]).map((r) => (
-                              <label
-                                key={r}
-                                className={`flex cursor-pointer items-center gap-1 border px-3 py-1.5 text-xs ${id.raio === r ? "border-marca font-semibold" : "border-line-2"}`}
-                                style={{ borderRadius: RAIOS[r] }}
-                              >
-                                <input type="radio" name="tpl-raio" className="sr-only" checked={id.raio === r} onChange={() => mudarId({ raio: r })} />
-                                {NOME_RAIO[r]}
-                              </label>
-                            ))}
-                          </div>
-                        </fieldset>
                         <p className="text-xs text-muted sm:col-span-2">
                           A cor de marca vale para logo, links e destaques. Verde de dinheiro, azul de espera e
                           vermelho de erro não mudam — são significado, não enfeite.
                         </p>
                       </div>
-                    </Card>
+                    </CartaoDoPainel>
 
                     <BannersCard />
 
-                    <Card title="Tela inicial (blocos)">
-                      <ul className="divide-y divide-line">
+                    <CartaoDoPainel titulo="Tela inicial (blocos)">
+                      <ul className="divide-y divide-line border-t border-line">
                         {t.blocos.map((b, i) => (
-                          <li key={b.id} className="space-y-2 px-4 py-3 text-sm">
+                          <li key={b.id} className="grid grid-cols-1 gap-2 px-5 py-3 text-sm">
                             <div className="flex items-center gap-2">
-                              <input
-                                type="checkbox"
-                                className="h-6 w-6 shrink-0 sm:h-auto sm:w-auto"
-                                checked={b.ligado}
-                                aria-label={`Mostrar ${TIPOS_DE_BLOCO[b.tipo]}`}
-                                onChange={(e) => mudarBloco(i, { ligado: e.target.checked })}
-                              />
-                              <span className="flex-1 font-semibold">{TIPOS_DE_BLOCO[b.tipo]}</span>
-                              <Pill status={b.ligado ? "active" : "pending"}>{b.ligado ? "ligado" : "desligado"}</Pill>
-                              <button type="button" aria-label="Subir" disabled={i === 0} onClick={() => mover(i, -1)} className="rounded p-1.5 hover:bg-mist disabled:opacity-30">
+                              <Caixa
+                                className="min-w-0 flex-1"
+                                marcada={b.ligado}
+                                aoMudar={(v) => mudarBloco(i, { ligado: v })}
+                              >
+                                {TIPOS_DE_BLOCO[b.tipo]}
+                              </Caixa>
+                              <Pill status={b.ligado ? "paid" : "pending"}>{b.ligado ? "ligado" : "desligado"}</Pill>
+                              <button type="button" aria-label={`Subir ${TIPOS_DE_BLOCO[b.tipo]}`} disabled={i === 0} onClick={() => mover(i, -1)} className="rounded p-1.5 hover:bg-mist disabled:opacity-30">
                                 <ArrowUp size={15} aria-hidden />
                               </button>
-                              <button type="button" aria-label="Descer" disabled={i === t.blocos.length - 1} onClick={() => mover(i, 1)} className="rounded p-1.5 hover:bg-mist disabled:opacity-30">
+                              <button type="button" aria-label={`Descer ${TIPOS_DE_BLOCO[b.tipo]}`} disabled={i === t.blocos.length - 1} onClick={() => mover(i, 1)} className="rounded p-1.5 hover:bg-mist disabled:opacity-30">
                                 <ArrowDown size={15} aria-hidden />
                               </button>
                               {b.tipo === "texto" ? (
@@ -335,54 +326,42 @@ export function AdminAparencia() {
                                   type="button"
                                   aria-label="Remover bloco"
                                   onClick={() => mudar({ ...t, blocos: t.blocos.filter((_, j) => j !== i) })}
-                                  className="rounded p-1 text-red hover:bg-mist"
+                                  className="rounded p-1.5 text-red hover:bg-mist"
                                 >
                                   <Trash2 size={15} aria-hidden />
                                 </button>
                               ) : null}
                             </div>
                             {b.tipo === "rifas" || b.tipo === "texto" || b.tipo === "ajuda" ? (
-                              <div className="grid grid-cols-1 gap-2 pl-6 sm:grid-cols-[1fr_auto]">
-                                <input
-                                  value={b.titulo ?? ""}
-                                  placeholder="Título (opcional)"
-                                  maxLength={80}
-                                  aria-label="Título do bloco"
-                                  onChange={(e) => mudarBloco(i, { titulo: e.target.value })}
-                                  className="rounded-md border border-line-2 px-3 py-1.5"
-                                />
+                              <div className="grid grid-cols-1 items-end gap-3 pl-6 sm:grid-cols-[minmax(0,1fr)_auto]">
+                                <Campo rotulo="Título do bloco (opcional)" className="min-w-0">
+                                  <input value={b.titulo ?? ""} maxLength={80} onChange={(e) => mudarBloco(i, { titulo: e.target.value })} />
+                                </Campo>
                                 {b.tipo === "rifas" ? (
-                                  <label className="flex items-center gap-2 text-xs text-muted">
-                                    mostrar
+                                  <Campo rotulo="Mostrar (0 = todas)" className="min-w-0">
                                     <input
                                       type="number"
                                       min={0}
                                       max={60}
                                       value={b.quantidade ?? 0}
                                       onChange={(e) => mudarBloco(i, { quantidade: Number(e.target.value) })}
-                                      className="tnum w-16 rounded-md border border-line-2 px-2 py-1.5"
+                                      className="campo tnum block w-24 text-sm"
                                     />
-                                    (0 = todas)
-                                  </label>
+                                  </Campo>
                                 ) : null}
                                 {b.tipo === "texto" ? (
-                                  <textarea
-                                    value={b.corpo ?? ""}
-                                    rows={3}
-                                    maxLength={600}
-                                    aria-label="Texto do bloco"
-                                    onChange={(e) => mudarBloco(i, { corpo: e.target.value })}
-                                    className="rounded-md border border-line-2 px-3 py-2 sm:col-span-2"
-                                  />
+                                  <Campo rotulo="Texto do bloco" className="min-w-0 sm:col-span-2">
+                                    <textarea value={b.corpo ?? ""} rows={3} maxLength={600} onChange={(e) => mudarBloco(i, { corpo: e.target.value })} />
+                                  </Campo>
                                 ) : null}
                               </div>
                             ) : null}
                           </li>
                         ))}
                       </ul>
-                      <div className="flex flex-wrap gap-2 border-t border-line px-4 py-3">
+                      <div className="flex flex-wrap gap-2 border-t border-line px-5 py-3">
                         <Button
-                          variant="ghost"
+                          variant="contorno"
                           disabled={t.blocos.length >= 12}
                           onClick={() =>
                             mudar({
@@ -400,7 +379,7 @@ export function AdminAparencia() {
                           .map((tipo) => (
                             <Button
                               key={tipo}
-                              variant="ghost"
+                              variant="contorno"
                               disabled={t.blocos.length >= 12}
                               onClick={() => mudar({ ...t, blocos: [...t.blocos, { id: tipo, tipo, ligado: true }] })}
                             >
@@ -408,7 +387,7 @@ export function AdminAparencia() {
                             </Button>
                           ))}
                       </div>
-                    </Card>
+                    </CartaoDoPainel>
                     {barra}
                   </div>
                 ),
@@ -417,7 +396,7 @@ export function AdminAparencia() {
                 id: "topo",
                 titulo: "Topo do app",
                 conteudo: (
-                  <div className="space-y-3">
+                  <div className="grid grid-cols-1 gap-4 md:gap-6">
                     <TopoDoAppCard />
                   </div>
                 ),
@@ -426,32 +405,28 @@ export function AdminAparencia() {
                 id: "rodape",
                 titulo: "Rodapé e empresa",
                 conteudo: (
-                  <div className="space-y-3">
-                    <Card title="Textos do rodapé">
-                      <div className="space-y-3 p-4 text-sm">
-                        <div>
-                          <label htmlFor="tpl-rodape" className="label-xs">Rodapé (CNPJ, contato, avisos)</label>
+                  <div className="grid grid-cols-1 gap-4 md:gap-6">
+                    <CartaoDoPainel titulo="Textos do rodapé">
+                      <div className="grid grid-cols-1 gap-3 px-5 pb-5 text-sm">
+                        <Campo rotulo="Rodapé (CNPJ, contato, avisos)">
                           <textarea
                             id="tpl-rodape"
                             rows={2}
                             maxLength={300}
                             value={t.textos.rodape}
                             onChange={(e) => mudar({ ...t, textos: { ...t.textos, rodape: e.target.value } })}
-                            className="campo"
                           />
-                        </div>
-                        <div>
-                          <label htmlFor="tpl-jogo" className="label-xs">Aviso de jogo responsável</label>
+                        </Campo>
+                        <Campo rotulo="Aviso de jogo responsável">
                           <input
                             id="tpl-jogo"
                             maxLength={200}
                             value={t.textos.jogoResponsavel}
                             onChange={(e) => mudar({ ...t, textos: { ...t.textos, jogoResponsavel: e.target.value } })}
-                            className="campo"
                           />
-                        </div>
+                        </Campo>
                       </div>
-                    </Card>
+                    </CartaoDoPainel>
 
                     <DadosDaEmpresaCard
                       salvo={data.rascunho.legal}
@@ -462,8 +437,8 @@ export function AdminAparencia() {
                       }}
                     />
 
-                    <Card title="Rodapé de exemplo">
-                      <div className="space-y-3 p-4 text-sm">
+                    <CartaoDoPainel titulo="Rodapé de exemplo">
+                      <div className="grid grid-cols-1 gap-3 px-5 pb-5 text-sm">
                         <p className="text-xs text-muted">
                           Ainda sem as redes e os logos de verdade? Preenche o <strong>rascunho</strong> com exemplo — quatro
                           ícones neutros, redes sociais e um texto de apresentação — para você ver o rodapé pronto na
@@ -471,22 +446,23 @@ export function AdminAparencia() {
                           material real antes de publicar: "Projetos que apoiamos" com apoiador inventado seria falso para quem
                           olha.
                         </p>
-                        <Button variant="ghost" disabled={preencherExemplo.isPending} onClick={() => preencherExemplo.mutate()}>
-                          {preencherExemplo.isPending ? "Preenchendo…" : "Preencher o rascunho com exemplo"}
-                        </Button>
+                        <div>
+                          <Button variant="contorno" disabled={preencherExemplo.isPending} onClick={() => preencherExemplo.mutate()}>
+                            {preencherExemplo.isPending ? "Preenchendo…" : "Preencher o rascunho com exemplo"}
+                          </Button>
+                        </div>
                       </div>
-                    </Card>
+                    </CartaoDoPainel>
 
-                    <Card title="Redes sociais do rodapé">
-                      <div className="space-y-3 p-4 text-sm">
+                    <CartaoDoPainel titulo="Redes sociais do rodapé">
+                      <div className="grid grid-cols-1 gap-3 px-5 pb-5 text-sm">
                         <p className="text-xs text-muted">
                           Cada rede vira um botão redondo embaixo do texto de apresentação, no rodapé do tablet e do
                           computador. Deixe em branco a que não usar. O endereço precisa ser da própria rede (https).
                         </p>
                         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                           {(Object.keys(REDES_DO_RODAPE) as Rede[]).map((rede) => (
-                            <div key={rede} className="min-w-0">
-                              <label htmlFor={`rede-${rede}`} className="label-xs">{REDES_DO_RODAPE[rede].nome}</label>
+                            <Campo key={rede} rotulo={REDES_DO_RODAPE[rede].nome} className="min-w-0">
                               <input
                                 id={`rede-${rede}`}
                                 maxLength={300}
@@ -500,16 +476,15 @@ export function AdminAparencia() {
                                   const ordem = Object.keys(REDES_DO_RODAPE);
                                   mudar({ ...t, redes: todas.sort((a, b) => ordem.indexOf(a.rede) - ordem.indexOf(b.rede)) });
                                 }}
-                                className="campo"
                               />
-                            </div>
+                            </Campo>
                           ))}
                         </div>
                       </div>
-                    </Card>
+                    </CartaoDoPainel>
 
-                    <Card title="Logos do rodapé">
-                      <div className="space-y-3 p-4 text-sm">
+                    <CartaoDoPainel titulo="Logos do rodapé">
+                      <div className="grid grid-cols-1 gap-3 px-5 pb-5 text-sm">
                         <p className="text-xs text-muted">
                           Aparecem no rodapé do tablet e do computador — casas de apoio, ONGs, órgãos públicos. Cada logo é um
                           botão: o link é um caminho do site (/ajuda) ou um endereço https. O nome é o texto alternativo da
@@ -518,18 +493,15 @@ export function AdminAparencia() {
                         {(t.apoios ?? []).map((a, i) => (
                           <div key={a.id} className="grid grid-cols-1 items-end gap-2 rounded-lg border border-line p-2 sm:grid-cols-[auto_minmax(0,1fr)_minmax(0,1fr)_auto]">
                             <img src={a.imagem} alt="" className="h-10 w-auto max-w-[120px] object-contain" />
-                            <div className="min-w-0">
-                              <label htmlFor={`apoio-nome-${a.id}`} className="label-xs">Nome</label>
+                            <Campo rotulo="Nome" className="min-w-0">
                               <input
                                 id={`apoio-nome-${a.id}`}
                                 maxLength={60}
                                 value={a.nome}
                                 onChange={(e) => mudar({ ...t, apoios: (t.apoios ?? []).map((x, j) => (j === i ? { ...x, nome: e.target.value } : x)) })}
-                                className="campo"
                               />
-                            </div>
-                            <div className="min-w-0">
-                              <label htmlFor={`apoio-link-${a.id}`} className="label-xs">Link (opcional)</label>
+                            </Campo>
+                            <Campo rotulo="Link (opcional)" className="min-w-0">
                               <input
                                 id={`apoio-link-${a.id}`}
                                 maxLength={300}
@@ -538,11 +510,10 @@ export function AdminAparencia() {
                                 onChange={(e) =>
                                   mudar({ ...t, apoios: (t.apoios ?? []).map((x, j) => (j === i ? { ...x, link: e.target.value || null } : x)) })
                                 }
-                                className="campo"
                               />
-                            </div>
+                            </Campo>
                             <Button
-                              variant="ghost"
+                              variant="cinza"
                               aria-label={`Tirar o logo ${a.nome || i + 1}`}
                               onClick={() => mudar({ ...t, apoios: (t.apoios ?? []).filter((_, j) => j !== i) })}
                             >
@@ -551,31 +522,38 @@ export function AdminAparencia() {
                           </div>
                         ))}
                         <div>
-                          <span className="label-xs">Adicionar logo (PNG, JPG ou WebP, até 2 MB)</span>
-                          {/* O botão é o rótulo: o campo nativo mostraria "Choose File" na língua do navegador. */}
-                          <label
-                            className={`relative mt-1 flex w-fit items-center rounded-md border border-line-2 px-3 py-1.5 text-xs font-semibold focus-within:ring-2 focus-within:ring-green ${(t.apoios?.length ?? 0) >= APOIOS_MAX || enviarApoio.isPending ? "opacity-50" : "cursor-pointer hover:bg-mist"}`}
+                          <span className="label-xs block">Adicionar logo (PNG, JPG ou WebP, até 2 MB)</span>
+                          {/* O botão abre o campo de arquivo escondido: o nativo mostraria "Choose File" na língua do navegador. */}
+                          <Button
+                            type="button"
+                            variant="contorno"
+                            className="mt-1"
+                            disabled={(t.apoios?.length ?? 0) >= APOIOS_MAX || enviarApoio.isPending}
+                            onClick={() => arquivoDoApoio.current?.click()}
                           >
                             {enviarApoio.isPending ? "Enviando…" : "Enviar logo do rodapé"}
-                            <input
-                              id="apoio-arquivo"
-                              type="file"
-                              accept="image/png,image/jpeg,image/webp"
-                              disabled={(t.apoios?.length ?? 0) >= APOIOS_MAX || enviarApoio.isPending}
-                              onChange={(e) => {
-                                const f = e.target.files?.[0];
-                                e.target.value = "";
-                                if (!f) return;
-                                const r = new FileReader();
-                                r.onload = () => enviarApoio.mutate(String(r.result));
-                                r.readAsDataURL(f);
-                              }}
-                              className="sr-only"
-                            />
-                          </label>
+                          </Button>
+                          <input
+                            ref={arquivoDoApoio}
+                            id="apoio-arquivo"
+                            type="file"
+                            accept="image/png,image/jpeg,image/webp"
+                            aria-label="Arquivo do logo do rodapé"
+                            tabIndex={-1}
+                            disabled={(t.apoios?.length ?? 0) >= APOIOS_MAX || enviarApoio.isPending}
+                            onChange={(e) => {
+                              const f = e.target.files?.[0];
+                              e.target.value = "";
+                              if (!f) return;
+                              const r = new FileReader();
+                              r.onload = () => enviarApoio.mutate(String(r.result));
+                              r.readAsDataURL(f);
+                            }}
+                            className="sr-only"
+                          />
                         </div>
                       </div>
-                    </Card>
+                    </CartaoDoPainel>
                     {barra}
                   </div>
                 ),
@@ -584,7 +562,7 @@ export function AdminAparencia() {
                 id: "assistente",
                 titulo: "Assistente de IA",
                 conteudo: (
-                  <div className="space-y-3">
+                  <div className="grid grid-cols-1 gap-4 md:gap-6">
                     <AssistenteIACard />
                     <UsoDoAssistenteCard />
                   </div>
@@ -594,18 +572,18 @@ export function AdminAparencia() {
           />
         </div>
 
-        <div className="space-y-3">
-          <Card
-            title="Pré-visualização do rascunho"
-            right={
-              <div className="flex gap-1">
-                <button type="button" aria-pressed={tela === "celular"} onClick={() => setTela("celular")} className={`rounded p-1 ${tela === "celular" ? "bg-mist-2" : ""}`} aria-label="Celular">
-                  <Smartphone size={16} aria-hidden />
-                </button>
-                <button type="button" aria-pressed={tela === "computador"} onClick={() => setTela("computador")} className={`rounded p-1 ${tela === "computador" ? "bg-mist-2" : ""}`} aria-label="Computador">
-                  <Monitor size={16} aria-hidden />
-                </button>
-              </div>
+        <div className="grid grid-cols-1 gap-4 md:gap-6">
+          <CartaoDoPainel
+            titulo="Pré-visualização do rascunho"
+            acao={
+              <AlternarVisao
+                visao={tela}
+                aoMudar={(v) => setTela(v as "celular" | "computador")}
+                opcoes={[
+                  { valor: "celular", rotulo: "Celular", icone: Smartphone },
+                  { valor: "computador", rotulo: "Computador", icone: Monitor },
+                ]}
+              />
             }
           >
             {/* mx-auto no filho centraliza quando cabe e deixa rolar quando não cabe. */}
@@ -623,14 +601,14 @@ export function AdminAparencia() {
                 </div>
               )}
             </div>
-            <p className="px-4 pb-3 text-[11px] text-muted">Mostra o último rascunho salvo; atualiza sozinha.</p>
-          </Card>
+            <p className="px-5 py-3 text-[11px] text-muted">Mostra o último rascunho salvo; atualiza sozinha.</p>
+          </CartaoDoPainel>
 
-          <Card title="Versões publicadas">
-            <ul className="divide-y divide-line text-sm">
-              {data.versoes.length === 0 ? <li className="px-4 py-3 text-muted">Ainda no template padrão.</li> : null}
+          <CartaoDoPainel titulo="Versões publicadas">
+            <ul className="divide-y divide-line border-t border-line text-sm">
+              {data.versoes.length === 0 ? <li className="px-5 py-3 text-muted">Ainda no template padrão.</li> : null}
               {data.versoes.map((v) => (
-                <li key={v.id} className="flex items-center gap-2 px-4 py-2">
+                <li key={v.id} className="flex flex-wrap items-center gap-2 px-5 py-2">
                   <span className="tnum flex-1">
                     {new Date(v.publicadoEm).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}
                     <span className="block text-[11px] text-muted">
@@ -639,16 +617,16 @@ export function AdminAparencia() {
                     </span>
                   </span>
                   {v.id === data.versaoAtual ? (
-                    <Pill status="active">no ar</Pill>
+                    <Pill status="paid">no ar</Pill>
                   ) : (
-                    <Button variant="ghost" disabled={restaurar.isPending} onClick={() => restaurar.mutate(v.id)}>
+                    <Button variant="contorno" disabled={restaurar.isPending} onClick={() => restaurar.mutate(v.id)}>
                       Voltar para esta
                     </Button>
                   )}
                 </li>
               ))}
             </ul>
-          </Card>
+          </CartaoDoPainel>
         </div>
       </div>
     </PanelShell>

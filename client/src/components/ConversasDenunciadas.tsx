@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Card, Empty, Pill } from "@/components/bits";
+import { Button, Campo, Empty, Pill } from "@/components/bits";
+import { CartaoDoPainel } from "@/components/painel";
 import { apiRequest } from "@/lib/queryClient";
 
 interface Linha {
@@ -42,13 +43,13 @@ export function ConversasDenunciadasDaPlataforma() {
   const [aberta, setAberta] = useState<string | null>(null);
   const { data } = useQuery<Linha[]>({ queryKey: ["/api/admin/mensagens/denuncias", { status: "aberta" }], refetchInterval: 30_000 });
   return (
-    <div className="mt-4">
-      <Card title="Conversas denunciadas">
+    <div className="mt-4 md:mt-6">
+      <CartaoDoPainel titulo="Conversas denunciadas">
         {data?.length ? (
-          <ul className="divide-y divide-line">
+          <ul className="divide-y divide-line border-t border-line">
             {data.map((d) => (
               <li key={d.id}>
-                <button type="button" onClick={() => setAberta(aberta === d.id ? null : d.id)} aria-expanded={aberta === d.id} className="w-full px-4 py-3 text-left hover:bg-mist">
+                <button type="button" onClick={() => setAberta(aberta === d.id ? null : d.id)} aria-expanded={aberta === d.id} className="w-full px-5 py-3 text-left hover:bg-mist">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <span className="tnum text-sm font-semibold">{d.protocolo}</span>
                     <Pill status={SITUACAO[d.status]?.pill ?? "draft"}>{SITUACAO[d.status]?.rotulo ?? d.status}</Pill>
@@ -65,7 +66,7 @@ export function ConversasDenunciadasDaPlataforma() {
         ) : (
           <Empty>Nenhuma conversa denunciada em análise.</Empty>
         )}
-      </Card>
+      </CartaoDoPainel>
     </div>
   );
 }
@@ -114,17 +115,16 @@ function DetalheDaConversa({ id }: { id: string }) {
       </ul>
       {d.status === "aberta" ? (
         <div className="space-y-2">
-          <label htmlFor={`decisao-${id}`} className="label-xs">
-            Explicação (obrigatória para encerrar a conversa)
-          </label>
-          <textarea id={`decisao-${id}`} className="campo w-full" rows={2} maxLength={1000} value={resposta} onChange={(e) => setResposta(e.target.value)} />
+          <Campo rotulo="Explicação (obrigatória para encerrar a conversa)">
+            <textarea id={`decisao-${id}`} rows={2} maxLength={1000} value={resposta} onChange={(e) => setResposta(e.target.value)} />
+          </Campo>
           <div className="flex flex-wrap gap-2">
-            <button type="button" disabled={decidir.isPending} onClick={() => decidir.mutate("procedente")} className="rounded-md bg-green px-3 py-1.5 text-sm font-semibold text-on-green disabled:opacity-50">
+            <Button disabled={decidir.isPending} onClick={() => decidir.mutate("procedente")}>
               Procedente: encerrar a conversa
-            </button>
-            <button type="button" disabled={decidir.isPending} onClick={() => decidir.mutate("improcedente")} className="rounded-md border border-line bg-white px-3 py-1.5 text-sm font-semibold">
+            </Button>
+            <Button variant="cinza" disabled={decidir.isPending} onClick={() => decidir.mutate("improcedente")}>
               Improcedente
-            </button>
+            </Button>
           </div>
         </div>
       ) : (
@@ -158,13 +158,13 @@ export function GruposDenunciadosDaPlataforma() {
   const [aberta, setAberta] = useState<string | null>(null);
   const { data } = useQuery<LinhaGrupo[]>({ queryKey: ["/api/admin/mensagens/grupos/denuncias", { status: "aberta" }], refetchInterval: 30_000 });
   return (
-    <div className="mt-4">
-      <Card title="Grupos denunciados">
+    <div className="mt-4 md:mt-6">
+      <CartaoDoPainel titulo="Grupos denunciados">
         {data?.length ? (
-          <ul className="divide-y divide-line">
+          <ul className="divide-y divide-line border-t border-line">
             {data.map((d) => (
               <li key={d.id}>
-                <button type="button" onClick={() => setAberta(aberta === d.id ? null : d.id)} aria-expanded={aberta === d.id} className="w-full px-4 py-3 text-left hover:bg-mist">
+                <button type="button" onClick={() => setAberta(aberta === d.id ? null : d.id)} aria-expanded={aberta === d.id} className="w-full px-5 py-3 text-left hover:bg-mist">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <span className="tnum text-sm font-semibold">{d.protocolo}</span>
                     <Pill status={SITUACAO[d.status]?.pill ?? "draft"}>{SITUACAO[d.status]?.rotulo ?? d.status}</Pill>
@@ -179,7 +179,7 @@ export function GruposDenunciadosDaPlataforma() {
         ) : (
           <Empty>Nenhum grupo denunciado em análise.</Empty>
         )}
-      </Card>
+      </CartaoDoPainel>
     </div>
   );
 }
@@ -214,17 +214,16 @@ function DetalheDoGrupo({ id }: { id: string }) {
       </ul>
       {d.status === "aberta" ? (
         <div className="space-y-2">
-          <label htmlFor={`decisao-grupo-${id}`} className="label-xs">
-            Explicação (obrigatória para encerrar o grupo)
-          </label>
-          <textarea id={`decisao-grupo-${id}`} className="campo w-full" rows={2} maxLength={1000} value={resposta} onChange={(e) => setResposta(e.target.value)} />
+          <Campo rotulo="Explicação (obrigatória para encerrar o grupo)">
+            <textarea id={`decisao-grupo-${id}`} rows={2} maxLength={1000} value={resposta} onChange={(e) => setResposta(e.target.value)} />
+          </Campo>
           <div className="flex flex-wrap gap-2">
-            <button type="button" disabled={decidir.isPending} onClick={() => decidir.mutate("procedente")} className="rounded-md bg-green px-3 py-1.5 text-sm font-semibold text-on-green disabled:opacity-50">
+            <Button disabled={decidir.isPending} onClick={() => decidir.mutate("procedente")}>
               Procedente: encerrar o grupo
-            </button>
-            <button type="button" disabled={decidir.isPending} onClick={() => decidir.mutate("improcedente")} className="rounded-md border border-line bg-white px-3 py-1.5 text-sm font-semibold">
+            </Button>
+            <Button variant="cinza" disabled={decidir.isPending} onClick={() => decidir.mutate("improcedente")}>
               Improcedente
-            </button>
+            </Button>
           </div>
         </div>
       ) : (
@@ -271,13 +270,13 @@ export function ComentariosDoSorteioDenunciados() {
   const [aberta, setAberta] = useState<string | null>(null);
   const { data } = useQuery<LinhaSorteio[]>({ queryKey: ["/api/admin/sorteios-oficiais/denuncias", { status: "aberta" }], refetchInterval: 30_000 });
   return (
-    <div className="mt-4">
-      <Card title="Comentários do sorteio oficial denunciados">
+    <div className="mt-4 md:mt-6">
+      <CartaoDoPainel titulo="Comentários do sorteio oficial denunciados">
         {data?.length ? (
-          <ul className="divide-y divide-line">
+          <ul className="divide-y divide-line border-t border-line">
             {data.map((d) => (
               <li key={d.id}>
-                <button type="button" onClick={() => setAberta(aberta === d.id ? null : d.id)} aria-expanded={aberta === d.id} className="w-full px-4 py-3 text-left hover:bg-mist">
+                <button type="button" onClick={() => setAberta(aberta === d.id ? null : d.id)} aria-expanded={aberta === d.id} className="w-full px-5 py-3 text-left hover:bg-mist">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <span className="tnum text-sm font-semibold">{d.protocolo}</span>
                     <Pill status={SITUACAO_DO_SORTEIO[d.status]?.pill ?? "draft"}>{SITUACAO_DO_SORTEIO[d.status]?.rotulo ?? d.status}</Pill>
@@ -292,7 +291,7 @@ export function ComentariosDoSorteioDenunciados() {
         ) : (
           <Empty>Nenhum comentário do sorteio em análise.</Empty>
         )}
-      </Card>
+      </CartaoDoPainel>
     </div>
   );
 }
@@ -331,17 +330,16 @@ function DetalheDoComentarioDoSorteio({ id }: { id: string }) {
       </ul>
       {d.status === "aberta" ? (
         <div className="space-y-2">
-          <label htmlFor={`decisao-sorteio-${id}`} className="label-xs">
-            Explicação (obrigatória para apagar o comentário)
-          </label>
-          <textarea id={`decisao-sorteio-${id}`} className="campo w-full" rows={2} maxLength={1000} value={resposta} onChange={(e) => setResposta(e.target.value)} />
+          <Campo rotulo="Explicação (obrigatória para apagar o comentário)">
+            <textarea id={`decisao-sorteio-${id}`} rows={2} maxLength={1000} value={resposta} onChange={(e) => setResposta(e.target.value)} />
+          </Campo>
           <div className="flex flex-wrap gap-2">
-            <button type="button" disabled={decidir.isPending} onClick={() => decidir.mutate("procedente")} className="rounded-md bg-green px-3 py-1.5 text-sm font-semibold text-on-green disabled:opacity-50">
+            <Button disabled={decidir.isPending} onClick={() => decidir.mutate("procedente")}>
               Procedente: apagar o comentário
-            </button>
-            <button type="button" disabled={decidir.isPending} onClick={() => decidir.mutate("improcedente")} className="rounded-md border border-line bg-white px-3 py-1.5 text-sm font-semibold">
+            </Button>
+            <Button variant="cinza" disabled={decidir.isPending} onClick={() => decidir.mutate("improcedente")}>
               Improcedente
-            </button>
+            </Button>
           </div>
         </div>
       ) : (

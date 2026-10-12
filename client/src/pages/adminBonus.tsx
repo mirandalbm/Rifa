@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { PanelShell } from "@/components/AppShell";
-import { Button, Card, Empty, Pill } from "@/components/bits";
+import { Button, Caixa, Campo, Empty, Pill } from "@/components/bits";
+import { CartaoDoPainel } from "@/components/painel";
 import { apiRequest } from "@/lib/queryClient";
 import { BONUS_POR_INDICACAO_MAX, RESGATE_MAX, TIPOS_DE_META, type Meta, type TipoDeMeta } from "@shared/bonus";
 import { PRESENTE_PCT_MAX, textoDoPresente, type ConfigPresente } from "@shared/presente";
@@ -72,203 +73,202 @@ export function AdminBonus() {
     onError: falhou,
   });
 
+  const situacao = (ligadoAgora: boolean | undefined) => (
+    <Pill status={ligadoAgora ? "paid" : "pending"}>{ligadoAgora ? "ligado" : "desligado"}</Pill>
+  );
+
   return (
     <PanelShell title="Bônus">
       {msg ? (
-        <p className={`mb-3 rounded-md px-3 py-2 text-sm ${msg.ok ? "bg-green-soft text-green-deep" : "bg-red-soft text-red"}`}>{msg.texto}</p>
-      ) : null}
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-        <Card title="Programa" right={<Pill status={data?.config.bonusLigado ? "active" : "draft"}>{data?.config.bonusLigado ? "ligado" : "desligado"}</Pill>}>
-          <div className="space-y-3 p-4 text-sm">
-            <label className="flex items-start gap-2">
-              <input type="checkbox" checked={ligado} onChange={(e) => setLigado(e.target.checked)} className="mt-1 h-4 w-4 accent-[var(--green)]" />
-              <span>
-                Programa de indicação, metas e cotas de bônus
-                <span className="block text-xs text-muted">
-                  Ligado, cada apostador ganha um link de indicação e vê as metas em Minhas compras → Bônus. As cotas
-                  de bônus só são resgatadas em rifas cujo regulamento as prevê (a organização marca nos dados legais,
-                  antes de publicar). Ligue depois de o advogado confirmar. Desligado, nada acumula e nada se resgata;
-                  o saldo de cada um fica guardado.
-                </span>
-              </span>
-            </label>
-            <label className="block">
-              <span className="label-xs">Cotas de bônus por indicação confirmada (1 a {BONUS_POR_INDICACAO_MAX})</span>
-              <input
-                type="number"
-                min={1}
-                max={BONUS_POR_INDICACAO_MAX}
-                value={porIndicacao}
-                onChange={(e) => setPorIndicacao(e.target.value)}
-                className="tnum mt-1 w-24 rounded-md border border-line-2 px-3 py-2"
-              />
-              <span className="mt-1 block text-xs text-muted">
-                Conta quando o indicado paga a primeira compra. Se essa compra for estornada, o bônus sai.
-              </span>
-            </label>
-            <Button onClick={() => salvar.mutate()} disabled={salvar.isPending}>
-              Salvar
-            </Button>
-          </div>
-        </Card>
-
-        <Card
-          title="Presente"
-          right={<Pill status={data?.config.presente.ligado ? "active" : "draft"}>{data?.config.presente.ligado ? "ligado" : "desligado"}</Pill>}
+        <p
+          role={msg.ok ? "status" : "alert"}
+          className={`mb-3 rounded-md px-3 py-2 text-sm ${msg.ok ? "bg-green-soft text-green-deep" : "bg-red-soft text-red"}`}
         >
-          <div className="space-y-3 p-4 text-sm">
-            <label className="flex items-start gap-2">
-              <input
-                type="checkbox"
-                checked={presente.ligado}
-                onChange={(e) => setPresente({ ...presente, ligado: e.target.checked })}
-                className="mt-1 h-4 w-4 accent-[var(--green)]"
-              />
-              <span>
-                Presente pelos comentários
-                <span className="block text-xs text-muted">
-                  Quem tem conta manda um convite (o ícone de presente ao lado do campo de comentário). O convidado,
-                  com conta, ganha desconto na primeira compra paga — <b>pago pela plataforma</b>: a promotora e o
-                  afiliado recebem como se fosse o preço cheio, e a parte da promotora no desconto entra como crédito
-                  dela em Cobrança. Quem convida ganha o bônus de indicação, se o programa acima estiver ligado.
-                </span>
-              </span>
-            </label>
-            <div className="flex flex-wrap gap-3">
-              <label className="block">
-                <span className="label-xs">Desconto (1 a {PRESENTE_PCT_MAX}%)</span>
-                <input
-                  type="number"
-                  min={1}
-                  max={PRESENTE_PCT_MAX}
-                  value={presente.pct}
-                  onChange={(e) => setPresente({ ...presente, pct: e.target.value })}
-                  className="tnum mt-1 block w-24 rounded-md border border-line-2 px-3 py-2"
-                />
-              </label>
-              <label className="block">
-                <span className="label-xs">Teto em reais (1,00 a 100,00)</span>
-                <input
-                  inputMode="decimal"
-                  value={presente.teto}
-                  onChange={(e) => setPresente({ ...presente, teto: e.target.value.replace(/[^\d,.]/g, "") })}
-                  className="tnum mt-1 block w-28 rounded-md border border-line-2 px-3 py-2"
-                />
-              </label>
-            </div>
-            {presenteConfig.pct >= 1 && presenteConfig.tetoCents > 0 ? (
-              <p className="text-xs text-muted">Aparece assim: “{textoDoPresente(presenteConfig)}”.</p>
-            ) : null}
-            <Button onClick={() => salvar.mutate()} disabled={salvar.isPending}>
-              Salvar
-            </Button>
-          </div>
-        </Card>
-
-        <Card title="Até agora">
-          <dl className="grid grid-cols-2 gap-3 p-4 text-sm">
-            {(
-              [
-                ["Indicações confirmadas", data?.resumo.indicacoes],
-                ["Cotas de bônus creditadas", data?.resumo.creditadas],
-                ["Cotas resgatadas", data?.resumo.resgatadas],
-                ["Rifas no ar que aceitam bônus", data?.resumo.rifas],
-              ] as [string, number | undefined][]
-            ).map(([rotulo, n]) => (
-              <div key={rotulo}>
-                <dt className="label-xs">{rotulo}</dt>
-                <dd className="tnum text-lg font-semibold">{n ?? "—"}</dd>
-              </div>
-            ))}
-          </dl>
-        </Card>
-
-        <Card title="Metas">
-          {data?.metas.length ? (
-            <ul className="divide-y divide-line">
-              {data.metas.map((m) => (
-                <li key={m.id} className="flex flex-wrap items-center gap-3 px-4 py-3 text-sm">
-                  <span className="min-w-0 flex-1">
-                    <span className="block font-semibold">{m.titulo}</span>
-                    <span className="text-xs text-muted">
-                      {TIPOS_DE_META[m.tipo].descreve(m.alvo)} → <span className="tnum">{m.recompensa}</span> cota(s)
-                    </span>
-                  </span>
-                  <Pill status={m.ativa ? "active" : "draft"}>{m.ativa ? "ativa" : "pausada"}</Pill>
-                  <Button variant="ghost" className="px-3 py-1 text-xs" onClick={() => alternar.mutate(m)}>
-                    {m.ativa ? "Pausar" : "Ativar"}
-                  </Button>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <Empty>Nenhuma meta ainda.</Empty>
-          )}
-        </Card>
-
-        <Card title="Nova meta">
-          <form
-            className="space-y-3 p-4 text-sm"
-            onSubmit={(e) => {
-              e.preventDefault();
-              setMsg(null);
-              criar.mutate();
-            }}
-          >
-            <label className="block">
-              <span className="label-xs">Título</span>
-              <input
-                value={nova.titulo}
-                onChange={(e) => setNova({ ...nova, titulo: e.target.value })}
-                placeholder="Ex.: Fã de rifas"
-                className="campo"
-              />
-            </label>
-            <label className="block">
-              <span className="label-xs">O que conta</span>
-              <select
-                value={nova.tipo}
-                onChange={(e) => setNova({ ...nova, tipo: e.target.value as TipoDeMeta })}
-                className="campo"
+          {msg.texto}
+        </p>
+      ) : null}
+      {/* O DOM na ordem do celular (programa, presente, até agora, metas, nova
+          meta); no computador, programa e presente à esquerda, os números, as
+          metas e a nova meta à direita. */}
+      <div className="grid grid-cols-1 gap-4 md:gap-6 lg:grid-cols-2 lg:items-start">
+        <div className="grid min-w-0 grid-cols-1 gap-4 md:gap-6">
+          <CartaoDoPainel titulo="Programa" acao={situacao(data?.config.bonusLigado)}>
+            <div className="grid grid-cols-1 gap-3 px-5 pb-5 text-sm">
+              <Caixa
+                marcada={ligado}
+                aoMudar={setLigado}
+                sub="Ligado, cada apostador ganha um link de indicação e vê as metas em Minhas compras → Bônus. As cotas de bônus só são resgatadas em rifas cujo regulamento as prevê (a organização marca nos dados legais, antes de publicar). Ligue depois de o advogado confirmar. Desligado, nada acumula e nada se resgata; o saldo de cada um fica guardado."
               >
-                {(Object.keys(TIPOS_DE_META) as TipoDeMeta[]).map((t) => (
-                  <option key={t} value={t}>
-                    {TIPOS_DE_META[t].nome}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <div className="grid grid-cols-2 gap-2">
-              <label className="block">
-                <span className="label-xs">Alvo</span>
+                Programa de indicação, metas e cotas de bônus
+              </Caixa>
+              <Campo
+                rotulo={`Cotas de bônus por indicação confirmada (1 a ${BONUS_POR_INDICACAO_MAX})`}
+                dica="Conta quando o indicado paga a primeira compra. Se essa compra for estornada, o bônus sai."
+              >
                 <input
                   type="number"
                   min={1}
-                  value={nova.alvo}
-                  onChange={(e) => setNova({ ...nova, alvo: e.target.value })}
-                  className="campo tnum"
+                  max={BONUS_POR_INDICACAO_MAX}
+                  value={porIndicacao}
+                  onChange={(e) => setPorIndicacao(e.target.value)}
+                  className="campo tnum block w-28 text-sm"
                 />
-              </label>
-              <label className="block">
-                <span className="label-xs">Cotas de bônus (1 a {RESGATE_MAX})</span>
-                <input
-                  type="number"
-                  min={1}
-                  max={RESGATE_MAX}
-                  value={nova.recompensa}
-                  onChange={(e) => setNova({ ...nova, recompensa: e.target.value })}
-                  className="campo tnum"
-                />
-              </label>
+              </Campo>
+              <div>
+                <Button onClick={() => salvar.mutate()} disabled={salvar.isPending}>
+                  Salvar
+                </Button>
+              </div>
             </div>
-            <p className="text-xs text-muted">
-              {TIPOS_DE_META[nova.tipo].descreve(Number(nova.alvo) || 1)}. Cada pessoa ganha a recompensa uma vez.
-            </p>
-            <Button type="submit" disabled={criar.isPending || nova.titulo.trim().length < 3}>
-              Criar meta
-            </Button>
-          </form>
-        </Card>
+          </CartaoDoPainel>
+
+          <CartaoDoPainel titulo="Presente" acao={situacao(data?.config.presente.ligado)}>
+            <div className="grid grid-cols-1 gap-3 px-5 pb-5 text-sm">
+              <Caixa
+                marcada={presente.ligado}
+                aoMudar={(v) => setPresente({ ...presente, ligado: v })}
+                sub={
+                  <>
+                    Quem tem conta manda um convite (o ícone de presente ao lado do campo de comentário). O convidado,
+                    com conta, ganha desconto na primeira compra paga — <b>pago pela plataforma</b>: a promotora e o
+                    afiliado recebem como se fosse o preço cheio, e a parte da promotora no desconto entra como crédito
+                    dela em Cobrança. Quem convida ganha o bônus de indicação, se o programa acima estiver ligado.
+                  </>
+                }
+              >
+                Presente pelos comentários
+              </Caixa>
+              <div className="grid grid-cols-2 items-end gap-3">
+                <Campo rotulo={`Desconto (1 a ${PRESENTE_PCT_MAX}%)`} className="min-w-0">
+                  <input
+                    type="number"
+                    min={1}
+                    max={PRESENTE_PCT_MAX}
+                    value={presente.pct}
+                    onChange={(e) => setPresente({ ...presente, pct: e.target.value })}
+                    className="campo tnum text-sm"
+                  />
+                </Campo>
+                <Campo rotulo="Teto em reais (1,00 a 100,00)" className="min-w-0">
+                  <input
+                    inputMode="decimal"
+                    value={presente.teto}
+                    onChange={(e) => setPresente({ ...presente, teto: e.target.value.replace(/[^\d,.]/g, "") })}
+                    className="campo tnum text-sm"
+                  />
+                </Campo>
+              </div>
+              {presenteConfig.pct >= 1 && presenteConfig.tetoCents > 0 ? (
+                <p className="text-xs text-muted">Aparece assim: “{textoDoPresente(presenteConfig)}”.</p>
+              ) : null}
+              <div>
+                <Button onClick={() => salvar.mutate()} disabled={salvar.isPending}>
+                  Salvar
+                </Button>
+              </div>
+            </div>
+          </CartaoDoPainel>
+        </div>
+
+        <div className="grid min-w-0 grid-cols-1 gap-4 md:gap-6">
+          <CartaoDoPainel titulo="Até agora">
+            <dl className="grid grid-cols-2 gap-3 px-5 pb-5 text-sm">
+              {(
+                [
+                  ["Indicações confirmadas", data?.resumo.indicacoes],
+                  ["Cotas de bônus creditadas", data?.resumo.creditadas],
+                  ["Cotas resgatadas", data?.resumo.resgatadas],
+                  ["Rifas no ar que aceitam bônus", data?.resumo.rifas],
+                ] as [string, number | undefined][]
+              ).map(([rotulo, n]) => (
+                <div key={rotulo} className="min-w-0">
+                  <dt className="label-xs">{rotulo}</dt>
+                  <dd className="tnum text-lg font-semibold">{n ?? "—"}</dd>
+                </div>
+              ))}
+            </dl>
+          </CartaoDoPainel>
+
+          <CartaoDoPainel titulo="Metas">
+            {data?.metas.length ? (
+              <ul className="divide-y divide-line border-t border-line">
+                {data.metas.map((m) => (
+                  <li key={m.id} className="flex flex-wrap items-center gap-3 px-5 py-3 text-sm">
+                    <span className="min-w-0 flex-1">
+                      <span className="block break-words font-semibold">{m.titulo}</span>
+                      <span className="text-xs text-muted">
+                        {TIPOS_DE_META[m.tipo].descreve(m.alvo)} → <span className="tnum">{m.recompensa}</span> cota(s)
+                      </span>
+                    </span>
+                    <Pill status={m.ativa ? "paid" : "draft"}>{m.ativa ? "ativa" : "pausada"}</Pill>
+                    <Button variant="contorno" onClick={() => alternar.mutate(m)} aria-label={`${m.ativa ? "Pausar" : "Ativar"} a meta ${m.titulo}`}>
+                      {m.ativa ? "Pausar" : "Ativar"}
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <Empty>Nenhuma meta ainda. Crie a primeira em "Nova meta".</Empty>
+            )}
+          </CartaoDoPainel>
+
+          <CartaoDoPainel titulo="Nova meta">
+            <form
+              className="grid grid-cols-1 gap-3 px-5 pb-5 text-sm"
+              onSubmit={(e) => {
+                e.preventDefault();
+                setMsg(null);
+                criar.mutate();
+              }}
+            >
+              <Campo rotulo="Título">
+                <input
+                  value={nova.titulo}
+                  onChange={(e) => setNova({ ...nova, titulo: e.target.value })}
+                  placeholder="Ex.: Fã de rifas"
+                />
+              </Campo>
+              <Campo rotulo="O que conta">
+                <select value={nova.tipo} onChange={(e) => setNova({ ...nova, tipo: e.target.value as TipoDeMeta })}>
+                  {(Object.keys(TIPOS_DE_META) as TipoDeMeta[]).map((t) => (
+                    <option key={t} value={t}>
+                      {TIPOS_DE_META[t].nome}
+                    </option>
+                  ))}
+                </select>
+              </Campo>
+              <div className="grid grid-cols-2 items-end gap-3">
+                <Campo rotulo="Alvo" className="min-w-0">
+                  <input
+                    type="number"
+                    min={1}
+                    value={nova.alvo}
+                    onChange={(e) => setNova({ ...nova, alvo: e.target.value })}
+                    className="campo tnum text-sm"
+                  />
+                </Campo>
+                <Campo rotulo={`Cotas de bônus (1 a ${RESGATE_MAX})`} className="min-w-0">
+                  <input
+                    type="number"
+                    min={1}
+                    max={RESGATE_MAX}
+                    value={nova.recompensa}
+                    onChange={(e) => setNova({ ...nova, recompensa: e.target.value })}
+                    className="campo tnum text-sm"
+                  />
+                </Campo>
+              </div>
+              <p className="text-xs text-muted">
+                {TIPOS_DE_META[nova.tipo].descreve(Number(nova.alvo) || 1)}. Cada pessoa ganha a recompensa uma vez.
+              </p>
+              <div>
+                <Button type="submit" disabled={criar.isPending || nova.titulo.trim().length < 3}>
+                  Criar meta
+                </Button>
+              </div>
+            </form>
+          </CartaoDoPainel>
+        </div>
       </div>
     </PanelShell>
   );

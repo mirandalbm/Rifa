@@ -602,7 +602,8 @@ arquitetura.
   rolagem, e as rifas em 2 colunas ao lado.
 - **Painel do organizador em grade bento** (`Bento` em
   `client/src/pages/admin.tsx`, etiqueta presa na borda): receita com o
-  gráfico em 2×2, cotas, comissão, próximo sorteio (azul), o que falta
+  gráfico em 2×2, cotas, comissão, próximo sorteio (azul, com a loteria pelo
+  `metodoApuracao` que vem com ele; sem método, não diz), o que falta
   (telefone, reembolsos, rascunho sem autorização, Pix esperando) e as
   últimas vendas. Tudo vem de `/api/admin/overview`, com o recorte de
   `orgOf` em cada consulta; a venda sai **sem** nome nem telefone (quem é
@@ -2809,6 +2810,11 @@ publicou, com o link dele (`/r/<rifa>?ref=<código>`).
   (`instanteAgendado()` em `shared/agenda.ts`, a mesma régua do story).
 - **A plataforma vê e decide a fila de todas** (organização nula no recorte),
   com o nome da organização em cada peça; o modo continua sendo da organização.
+- **A fila também mora na aba Publicação da rifa**, só com as peças dela
+  (`GET /divulgacoes?rifa=<id>`): o dono é conferido antes
+  (`assertCampaignInScope`; a rifa do vizinho e o id fora do formato são
+  404, no `npm run isolation`) e o recorte de `orgOf` segue valendo na
+  consulta. O modo do influenciador fica em Afiliados.
 - A tabela nova sobe com o `db:push` **antes** do código, e a coluna
   `organizations.divulgacao_afiliado` também, e `divulgacoes.versao` e
   `editada_em`, e a tabela `divulgacao_fotos`, e a coluna
@@ -4197,7 +4203,10 @@ organização) ganha o selo **"AO VIVO"** quando há transmissão de sorteio no 
 - **A organização não vê, não libera e não paga comissão guardada.** O
   saldo do afiliado mostra "Plataforma" à parte; o saque dela nasce sem
   organização, só o administrador geral dá baixa (o organizador recebe
-  404), e o recibo sai em nome da plataforma.
+  404), e o recibo sai em nome da plataforma. No Financeiro da plataforma
+  (`GET /finance`, uma linha por afiliado **e** por `guardada`), a guardada
+  vem à parte, marcada "Plataforma" em texto — nunca somada à que a
+  organização paga; para o organizador o campo é sempre `false`.
 - `npm run guarda` prova tudo isso contra a API de verdade.
 
 ## Bônus, indicação e metas — o que não pode afrouxar

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button, Card, Empty, Pill } from "@/components/bits";
-import { MestreDetalhe } from "@/components/painel";
+import { Button, Caixa, Campo, Empty, Filtros, Pill } from "@/components/bits";
+import { CartaoDoPainel, MestreDetalhe } from "@/components/painel";
 import { SeloVerificado } from "@/components/SeloVerificado";
 import { apiRequest } from "@/lib/queryClient";
 import { maskCpf } from "@shared/format";
@@ -61,46 +61,37 @@ export function VerificacoesDaPlataforma() {
   const { data } = useQuery<Linha[]>({ queryKey: ["/api/admin/verificacoes", { filtro }], refetchInterval: 30_000 });
   return (
     <>
-      <div className="mb-3 flex flex-wrap gap-1" role="tablist" aria-label="Situação das verificações">
-        {FILTROS.map((f) => (
-          <button
-            key={f.valor}
-            type="button"
-            role="tab"
-            aria-selected={filtro === f.valor}
-            onClick={() => {
-              setFiltro(f.valor);
-              setAberto(null);
-            }}
-            className={
-              filtro === f.valor
-                ? "rounded-md bg-green px-3 py-1.5 text-sm font-semibold text-on-green"
-                : "rounded-md px-3 py-1.5 text-sm text-ink-2 hover:bg-mist-2"
-            }
-          >
-            {f.rotulo}
-          </button>
-        ))}
-      </div>
+      <Filtros
+        exclusivo
+        rotulo="Situação das verificações"
+        className="mb-3"
+        ativa={filtro}
+        aoMudar={(v) => {
+          setFiltro(v);
+          setAberto(null);
+        }}
+        opcoes={FILTROS.map((f) => ({ valor: f.valor, rotulo: f.rotulo }))}
+      />
       <MestreDetalhe
         aberto={aberto}
         aoFechar={() => setAberto(null)}
         vazio="Escolha uma verificação para conferir os documentos e a foto."
         lista={
-          <Card title="Verificações">
+          <CartaoDoPainel titulo="Verificações">
             {data?.length ? (
-              <ul className="divide-y divide-line">
+              <ul className="divide-y divide-line border-t border-line">
                 {data.map((v) => (
                   <li key={v.id}>
                     <button
                       type="button"
                       onClick={() => setAberto(v.id)}
-                      className={`w-full px-4 py-3 text-left hover:bg-mist ${aberto === v.id ? "bg-mist" : ""}`}
+                      aria-current={aberto === v.id ? "true" : undefined}
+                      className={`w-full px-5 py-3 text-left hover:bg-mist ${aberto === v.id ? "bg-mist" : ""}`}
                     >
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <span className="flex items-center gap-1.5 text-sm font-semibold">
                           <SeloVerificado sujeito={v.sujeito} tamanho={14} />
-                          {v.nome}
+                          {v.sujeito === "organizacao" ? v.nome : v.identificador || NOME_SUJEITO[v.sujeito]}
                         </span>
                         <span className="flex flex-wrap items-center gap-1">
                           {v.semAutorizacao ? <Pill status="neutral">Sem autorização da foto</Pill> : null}
@@ -108,7 +99,8 @@ export function VerificacoesDaPlataforma() {
                         </span>
                       </div>
                       <p className="text-xs text-muted">
-                        {NOME_SUJEITO[v.sujeito]} · {v.identificador}
+                        {NOME_SUJEITO[v.sujeito]}
+                        {v.sujeito === "organizacao" ? ` · ${v.identificador}` : ""}
                         {v.enviadoEm ? ` · enviado em ${new Date(v.enviadoEm).toLocaleString("pt-BR")}` : ""}
                       </p>
                     </button>
@@ -118,7 +110,7 @@ export function VerificacoesDaPlataforma() {
             ) : (
               <Empty>Nenhuma verificação aqui.</Empty>
             )}
-          </Card>
+          </CartaoDoPainel>
         }
         detalhe={aberto ? <DetalheDaVerificacao key={aberto} id={aberto} /> : null}
       />
@@ -126,7 +118,7 @@ export function VerificacoesDaPlataforma() {
   );
 }
 
-function Campo({ rotulo, valor }: { rotulo: string; valor: string }) {
+function Dado({ rotulo, valor }: { rotulo: string; valor: string }) {
   return (
     <div>
       <dt className="label-xs">{rotulo}</dt>
@@ -155,7 +147,12 @@ function DetalheDaVerificacao({ id }: { id: string }) {
       qc.invalidateQueries({ queryKey: [`/api/admin/verificacoes/${id}`] });
     },
   });
-  if (!data) return <Card><Empty>Carregando…</Empty></Card>;
+  if (!data)
+    return (
+      <CartaoDoPainel titulo="Verificação">
+        <Empty>Carregando…</Empty>
+      </CartaoDoPainel>
+    );
 
   const d = data.dados;
   const ident = d ? ("responsavel" in d ? d.responsavel : d) : null;
@@ -164,8 +161,11 @@ function DetalheDaVerificacao({ id }: { id: string }) {
   const docUrl = (tipo: string) => `/api/admin/verificacoes/${id}/documentos/${tipo}`;
 
   return (
-    <Card title={`${NOME_SUJEITO[data.sujeito]} · ${data.nome}`} right={<Pill status={PILL_VERIFICACAO[data.status]}>{STATUS_VERIFICACAO[data.status]}</Pill>}>
-      <div className="space-y-4 p-4 text-sm">
+    <CartaoDoPainel
+      titulo={`${NOME_SUJEITO[data.sujeito]} · ${data.nome}`}
+      acao={<Pill status={PILL_VERIFICACAO[data.status]}>{STATUS_VERIFICACAO[data.status]}</Pill>}
+    >
+      <div className="space-y-4 border-t border-line px-5 py-4 text-sm">
         {data.comparaFoto ? (
           <section aria-label="Foto do perfil e documento, lado a lado">
             <p className="label-xs mb-2">A foto do perfil é da pessoa do documento?</p>
@@ -203,16 +203,16 @@ function DetalheDaVerificacao({ id }: { id: string }) {
           <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {"razaoSocial" in d ? (
               <>
-                <Campo rotulo="Razão social" valor={d.razaoSocial} />
-                <Campo rotulo="CNPJ" valor={d.cnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5")} />
+                <Dado rotulo="Razão social" valor={d.razaoSocial} />
+                <Dado rotulo="CNPJ" valor={d.cnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5")} />
               </>
             ) : null}
-            <Campo rotulo={"razaoSocial" in d ? "Responsável" : "Nome completo"} valor={ident.nomeCompleto} />
-            <Campo rotulo="CPF" valor={maskCpf(ident.cpf)} />
-            <Campo rotulo="RG" valor={ident.rg} />
-            <Campo rotulo="Nascimento" valor={ident.nascimento.split("-").reverse().join("/")} />
-            <Campo rotulo="Conta" valor={`${d.conta.banco} · ag. ${d.conta.agencia} · ${d.conta.conta} (${d.conta.tipo})`} />
-            <Campo rotulo={`Pix (${TIPOS_DE_PIX[d.pix.tipo]})`} valor={d.pix.chave} />
+            <Dado rotulo={"razaoSocial" in d ? "Responsável" : "Nome completo"} valor={ident.nomeCompleto} />
+            <Dado rotulo="CPF" valor={maskCpf(ident.cpf)} />
+            <Dado rotulo="RG" valor={ident.rg} />
+            <Dado rotulo="Nascimento" valor={ident.nascimento.split("-").reverse().join("/")} />
+            <Dado rotulo="Conta" valor={`${d.conta.banco} · ag. ${d.conta.agencia} · ${d.conta.conta} (${d.conta.tipo})`} />
+            <Dado rotulo={`Pix (${TIPOS_DE_PIX[d.pix.tipo]})`} valor={d.pix.chave} />
           </dl>
         ) : (
           <p className="text-muted">Sem dados enviados.</p>
@@ -237,36 +237,28 @@ function DetalheDaVerificacao({ id }: { id: string }) {
         {esperando ? (
           <div className="space-y-3 border-t border-line pt-3">
             {data.comparaFoto ? (
-              <label className="flex items-start gap-2">
-                <input type="checkbox" checked={fotoConfere} onChange={(e) => setFotoConfere(e.target.checked)} className="mt-0.5" />
-                <span>Conferi lado a lado: a foto do perfil é da pessoa do documento.</span>
-              </label>
+              <Caixa marcada={fotoConfere} aoMudar={setFotoConfere}>
+                Conferi lado a lado: a foto do perfil é da pessoa do documento.
+              </Caixa>
             ) : null}
-            <label className="block">
-              <span className="label-xs">Motivo (obrigatório para recusar ou pedir outra foto)</span>
-              <textarea
-                value={motivo}
-                onChange={(e) => setMotivo(e.target.value)}
-                rows={2}
-                maxLength={500}
-                className="campo"
-              />
-            </label>
+            <Campo rotulo="Motivo (obrigatório para recusar ou pedir outra foto)">
+              <textarea value={motivo} onChange={(e) => setMotivo(e.target.value)} rows={2} maxLength={500} />
+            </Campo>
             <div className="flex flex-wrap gap-2">
               <Button disabled={decidir.isPending || (data.comparaFoto && !fotoConfere)} onClick={() => decidir.mutate("aprovar")}>
                 {data.comparaFoto ? "Verificar (documentos e foto)" : "Verificar organização"}
               </Button>
               {data.comparaFoto && data.status === "em_analise" ? (
-                <Button variant="ghost" disabled={decidir.isPending} onClick={() => decidir.mutate("aprovar_documentos")}>
+                <Button variant="cinza" disabled={decidir.isPending} onClick={() => decidir.mutate("aprovar_documentos")}>
                   Aprovar só os documentos
                 </Button>
               ) : null}
               {data.comparaFoto ? (
-                <Button variant="ghost" disabled={decidir.isPending} onClick={() => decidir.mutate("foto_divergente")}>
+                <Button variant="cinza" disabled={decidir.isPending} onClick={() => decidir.mutate("foto_divergente")}>
                   Foto não confere
                 </Button>
               ) : null}
-              <Button variant="ghost" disabled={decidir.isPending} onClick={() => decidir.mutate("recusar")}>
+              <Button variant="cinza" disabled={decidir.isPending} onClick={() => decidir.mutate("recusar")}>
                 Recusar documentos
               </Button>
             </div>
@@ -277,6 +269,6 @@ function DetalheDaVerificacao({ id }: { id: string }) {
         ) : null}
         <p className="text-xs text-muted">Abrir esta verificação e cada documento fica registrado na auditoria.</p>
       </div>
-    </Card>
+    </CartaoDoPainel>
   );
 }

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { Button, Campo, Card } from "@/components/bits";
+import { Button, Campo } from "@/components/bits";
+import { CartaoDoPainel } from "@/components/painel";
 import { apiRequest } from "@/lib/queryClient";
 import {
   CAMPOS_DA_EMPRESA,
@@ -104,8 +105,8 @@ export function DadosDaEmpresaCard({
   const falta = faltaNaEmpresa(base);
 
   return (
-    <Card title="Dados da empresa (Termos e Privacidade)">
-      <div className="space-y-3 p-4 text-sm">
+    <CartaoDoPainel titulo="Dados da empresa (Termos e Privacidade)">
+      <div className="grid grid-cols-1 gap-3 px-5 pb-5 text-sm">
         <p className="text-xs text-muted">
           Saem nos <a href="/termos" className="underline">Termos de uso</a> e na{" "}
           <a href="/privacidade" className="underline">Política de privacidade</a>: quem vende pela internet precisa se
@@ -113,7 +114,7 @@ export function DadosDaEmpresaCard({
           Dá para salvar aos poucos — o que estiver certo fica guardado. Entram no ar ao publicar o template.
         </p>
         {falta.length ? (
-          <p className="rounded-md bg-yellow-soft px-3 py-2 text-xs text-yellow-deep">
+          <p role="status" className="rounded-md bg-yellow-soft px-3 py-2 text-xs text-yellow-deep">
             Falta preencher antes de lançar: {falta.join(", ")}.
           </p>
         ) : null}
@@ -156,6 +157,6 @@ export function DadosDaEmpresaCard({
           ) : null}
         </div>
       </div>
-    </Card>
+    </CartaoDoPainel>
   );
 }

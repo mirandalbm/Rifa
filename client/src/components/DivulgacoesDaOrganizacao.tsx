@@ -41,11 +41,18 @@ const PILL_DA_DIVULGACAO: Record<StatusDaDivulgacao, string> = {
  * direta ou só depois da autorização) e a fila de peças de afiliados e
  * apostadores. É a mesma tela para a organização e para a plataforma — o
  * recorte vem do servidor (`orgOf`). O apostador sempre passa pela fila.
+ *
+ * Com `rifaId` (a aba Publicação da rifa), só as peças daquela rifa
+ * (`?rifa=`, o servidor confere o dono: a do vizinho é 404); o modo do
+ * influenciador é da organização e segue em Afiliados.
  */
-export function DivulgacoesDaOrganizacao({ daOrganizacao }: { daOrganizacao: boolean }) {
+export function DivulgacoesDaOrganizacao({ daOrganizacao, rifaId }: { daOrganizacao: boolean; rifaId?: string }) {
   const qc = useQueryClient();
-  const config = useQuery<{ modo: ModoDeDivulgacao | null; pendentes: number }>({ queryKey: ["/api/admin/divulgacoes/config"] });
-  const fila = useQuery<Linha[]>({ queryKey: ["/api/admin/divulgacoes"] });
+  const config = useQuery<{ modo: ModoDeDivulgacao | null; pendentes: number }>({
+    queryKey: ["/api/admin/divulgacoes/config"],
+    enabled: !rifaId,
+  });
+  const fila = useQuery<Linha[]>({ queryKey: rifaId ? ["/api/admin/divulgacoes", { rifa: rifaId }] : ["/api/admin/divulgacoes"] });
   const [msg, setMsg] = useState<{ ok: boolean; texto: string } | null>(null);
   const [abrindo, setAbrindo] = useState<{ id: string; versao: number; acao: Exclude<AcaoDaDecisao, "aprovar"> } | null>(null);
   const [motivo, setMotivo] = useState("");
@@ -79,7 +86,8 @@ export function DivulgacoesDaOrganizacao({ daOrganizacao }: { daOrganizacao: boo
   });
 
   const lista = fila.data ?? [];
-  const pendentes = config.data?.pendentes ?? 0;
+  // Na rifa, o número é o da rifa (a fila dela já veio); fora dela, o da organização.
+  const pendentes = rifaId ? lista.filter((l) => l.status === "em_analise").length : (config.data?.pendentes ?? 0);
   return (
     <CartaoDoPainel
       titulo="Divulgações de influenciadores e apostadores"
@@ -92,7 +100,15 @@ export function DivulgacoesDaOrganizacao({ daOrganizacao }: { daOrganizacao: boo
           publicou sempre espera a sua autorização, mesmo no modo direto. Nada altera a rifa, e texto com link, telefone ou pedido de Pix
           por fora é barrado.
         </p>
-        {daOrganizacao ? (
+        {rifaId ? (
+          <p className="text-xs text-muted">
+            Só as peças desta rifa. O modo de publicação do influenciador vale para todas as rifas e fica em{" "}
+            <a href="/admin/afiliados" className="text-green-deep underline">
+              Afiliados
+            </a>
+            .
+          </p>
+        ) : daOrganizacao ? (
           <fieldset>
             <legend className="label-xs">Publicação do influenciador</legend>
             <div className="mt-1 flex flex-wrap gap-4">
@@ -118,7 +134,9 @@ export function DivulgacoesDaOrganizacao({ daOrganizacao }: { daOrganizacao: boo
         {msg ? <p className={`rounded-md px-3 py-2 ${msg.ok ? "bg-green-soft text-green-deep" : "bg-red-soft text-red"}`}>{msg.texto}</p> : null}
       </div>
       {lista.length === 0 ? (
-        <p className="border-t border-line px-5 py-6 text-center text-sm text-muted">Nenhuma divulgação ainda.</p>
+        <p className="border-t border-line px-5 py-6 text-center text-sm text-muted">
+          {rifaId ? "Nenhuma divulgação desta rifa ainda." : "Nenhuma divulgação ainda."}
+        </p>
       ) : (
         <ul className="divide-y divide-line border-t border-line">
           {lista.map((l) => (
@@ -128,8 +146,9 @@ export function DivulgacoesDaOrganizacao({ daOrganizacao }: { daOrganizacao: boo
                 <span className="font-semibold">{l.quem}</span>
                 {l.editadaEm ? <Pill status="draft">editada</Pill> : null}
                 <span className="text-xs text-muted">
-                  {l.autor === "afiliado" ? "influenciador" : "apostador"} · {l.rifa}
-                  {daOrganizacao ? "" : ` · ${l.organizacao}`}
+                  {l.autor === "afiliado" ? "influenciador" : "apostador"}
+                  {rifaId ? "" : ` · ${l.rifa}`}
+                  {daOrganizacao || rifaId ? "" : ` · ${l.organizacao}`}
                   {aindaAgendado(l.publicaEm) ? (
                     <>
                       {" · agendada para "}

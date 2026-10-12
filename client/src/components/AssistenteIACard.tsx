@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AGENTE_ID_RE, type ConfigIA } from "@shared/ia";
 import { DIAS_DO_CICLO, MAX_PACOTES } from "@shared/iaCobranca";
-import { Button, Campo, Card } from "@/components/bits";
+import { Button, Caixa, Campo } from "@/components/bits";
+import { CartaoDoPainel } from "@/components/painel";
 import { ACOES_DA_IA } from "@shared/iaAcoes";
 import { apiRequest } from "@/lib/queryClient";
 
@@ -93,9 +94,8 @@ export function AssistenteIACard() {
   const idInvalido =
     agenteId.trim() !== "" && !AGENTE_ID_RE.test(agenteId.trim());
   return (
-    <div className="mb-3">
-      <Card title="Assistente de IA (Chatbase)">
-        <div className="space-y-4 p-4 text-sm">
+    <CartaoDoPainel titulo="Assistente de IA (Chatbase)">
+        <div className="grid grid-cols-1 gap-4 px-5 pb-5 text-sm">
           <p className="text-xs text-muted">
             Um assistente numa coluna à direita do painel do administrador
             master e, se você liberar, do organizador e do afiliado. A conversa
@@ -110,13 +110,12 @@ export function AssistenteIACard() {
               ? "A chave da API do Chatbase (CHATBASE_API_KEY) está configurada no servidor."
               : "Falta a chave da API do Chatbase (CHATBASE_API_KEY) no servidor: sem ela o assistente não liga."}
           </p>
-          <div>
-            <label htmlFor="ia-agente" className="label-xs">
-              Id do agente no Chatbase
-            </label>
+          <Campo
+            rotulo="Id do agente no Chatbase"
+            erro={idInvalido ? "De 8 a 64 caracteres: letras, números, _ e -." : null}
+          >
             <input
               id="ia-agente"
-              className="campo"
               value={agenteId}
               onChange={(e) => {
                 setMsg(null);
@@ -125,70 +124,41 @@ export function AssistenteIACard() {
               autoComplete="off"
               spellCheck={false}
               disabled={!data}
-              aria-invalid={idInvalido}
             />
-            {idInvalido ? (
-              <p className="mt-1 text-xs text-red">
-                De 8 a 64 caracteres: letras, números, _ e -.
-              </p>
-            ) : null}
-          </div>
-          <label className="flex items-start gap-2">
-            <input
-              type="checkbox"
-              disabled={!data}
-              checked={ligado}
-              onChange={(e) => {
-                setMsg(null);
-                setLigado(e.target.checked);
-              }}
-              className="mt-1 h-5 w-5"
-            />
-            <span>
-              <span className="font-semibold">Assistente ligado</span>
-              <span className="block text-xs text-muted">
-                Desligado, o botão não aparece em painel nenhum.
-              </span>
-            </span>
-          </label>
-          <label className="flex items-start gap-2">
-            <input
-              type="checkbox"
-              disabled={!data}
-              checked={paraOrganizador}
-              onChange={(e) => {
-                setMsg(null);
-                setParaOrganizador(e.target.checked);
-              }}
-              className="mt-1 h-5 w-5"
-            />
-            <span>
-              <span className="font-semibold">Liberar para o organizador</span>
-              <span className="block text-xs text-muted">
-                A organização paga a assinatura abaixo (qualquer organizador
-                dela), por Pix da plataforma.
-              </span>
-            </span>
-          </label>
-          <label className="flex items-start gap-2">
-            <input
-              type="checkbox"
-              disabled={!data}
-              checked={paraAfiliado}
-              onChange={(e) => {
-                setMsg(null);
-                setParaAfiliado(e.target.checked);
-              }}
-              className="mt-1 h-5 w-5"
-            />
-            <span>
-              <span className="font-semibold">Liberar para o afiliado</span>
-              <span className="block text-xs text-muted">
-                O afiliado paga a própria assinatura, no login dele, com os
-                mesmos direitos do organizador.
-              </span>
-            </span>
-          </label>
+          </Campo>
+          <Caixa
+            disabled={!data}
+            marcada={ligado}
+            aoMudar={(v) => {
+              setMsg(null);
+              setLigado(v);
+            }}
+            sub="Desligado, o botão não aparece em painel nenhum."
+          >
+            <span className="font-semibold">Assistente ligado</span>
+          </Caixa>
+          <Caixa
+            disabled={!data}
+            marcada={paraOrganizador}
+            aoMudar={(v) => {
+              setMsg(null);
+              setParaOrganizador(v);
+            }}
+            sub="A organização paga a assinatura abaixo (qualquer organizador dela), por Pix da plataforma."
+          >
+            <span className="font-semibold">Liberar para o organizador</span>
+          </Caixa>
+          <Caixa
+            disabled={!data}
+            marcada={paraAfiliado}
+            aoMudar={(v) => {
+              setMsg(null);
+              setParaAfiliado(v);
+            }}
+            sub="O afiliado paga a própria assinatura, no login dele, com os mesmos direitos do organizador."
+          >
+            <span className="font-semibold">Liberar para o afiliado</span>
+          </Caixa>
           <fieldset className="space-y-3 rounded-lg border border-line p-3">
             <legend className="px-1 text-sm font-semibold">
               Cobrança do organizador e do afiliado
@@ -253,7 +223,7 @@ export function AssistenteIACard() {
                     />
                   </Campo>
                   <Button
-                    variant="ghost"
+                    variant="cinza"
                     onClick={() => {
                       mudou();
                       setPacotes((lista) => lista.filter((_, j) => j !== i));
@@ -265,7 +235,7 @@ export function AssistenteIACard() {
               ))}
               {pacotes.length < MAX_PACOTES ? (
                 <Button
-                  variant="ghost"
+                  variant="contorno"
                   disabled={!data}
                   onClick={() => {
                     mudou();
@@ -281,7 +251,7 @@ export function AssistenteIACard() {
             </div>
           </fieldset>
           <AcoesParaOChatbase />
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <Button
               disabled={!data || salvar.isPending || idInvalido}
               onClick={() => salvar.mutate()}
@@ -298,8 +268,7 @@ export function AssistenteIACard() {
             ) : null}
           </div>
         </div>
-      </Card>
-    </div>
+    </CartaoDoPainel>
   );
 }
 

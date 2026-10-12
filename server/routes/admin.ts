@@ -378,10 +378,13 @@ adminRouter.get("/overview", async (req, res, next) => {
       .from(commissions)
       .innerJoin(campaigns, eq(campaigns.id, commissions.campaignId))
       .where(
+        // A comissão guardada é paga pela plataforma: a organização não a
+        // vê nem a deve (a mesma régua do Financeiro).
         org
           ? and(
               sql`${commissions.status} in ('pending','available')`,
               eq(campaigns.organizationId, org),
+              eq(commissions.guardada, false),
             )
           : sql`${commissions.status} in ('pending','available')`,
       );
@@ -447,7 +450,9 @@ adminRouter.get("/overview", async (req, res, next) => {
     // (quem é o cliente é regra da titularidade — aqui basta o pedido).
     const proximo = await db.execute(sql`
       SELECT c.id, c.slug, c.prize_title AS "prizeTitle", (c.draw_at AT TIME ZONE 'UTC') AS "drawAt", c.total_quotas AS "totalQuotas",
-             c.price_cents AS "priceCents", coalesce(s.sold_count, 0)::int AS "soldCount"
+             c.price_cents AS "priceCents", coalesce(s.sold_count, 0)::int AS "soldCount",
+             -- Quem apura (a loteria): o Painel o diz sem procurar a rifa na lista do cliente.
+             c.metodo_apuracao AS "metodoApuracao"
       FROM campaigns c
       LEFT JOIN campaign_stats s ON s.campaign_id = c.id
       WHERE c.status = 'published' AND c.draw_at > now() AND NOT c.demonstracao
@@ -3848,6 +3853,11 @@ adminRouter.get("/finance", async (req, res, next) => {
         code: affiliates.code,
         name: users.name,
         pixKey: affiliates.pixKey,
+        // Quem paga: a guardada é da plataforma, o resto é da organização da
+        // rifa. Para a plataforma, uma linha por afiliado e por quem paga (a
+        // tela mostra a guardada à parte, como "Plataforma"); para o
+        // organizador é sempre `false` — a guardada nem entra no recorte dele.
+        guardada: commissions.guardada,
         pendingCents: sql<number>`coalesce(sum(${commissions.amountCents}) FILTER (WHERE ${commissions.status} = 'pending'), 0)::int`,
         availableCents: sql<number>`coalesce(sum(${commissions.amountCents}) FILTER (WHERE ${commissions.status} = 'available'), 0)::int`,
       })
@@ -3858,7 +3868,8 @@ adminRouter.get("/finance", async (req, res, next) => {
       // O afiliado é de várias organizações: cada uma vê (e paga) só a
       // comissão das rifas dela — e a guardada pela plataforma não é dela.
       .where(org ? and(eq(campaigns.organizationId, org), eq(commissions.guardada, false)) : sql`TRUE`)
-      .groupBy(commissions.affiliateId, affiliates.code, users.name, affiliates.pixKey);
+      .groupBy(commissions.affiliateId, affiliates.code, users.name, affiliates.pixKey, commissions.guardada)
+      .orderBy(commissions.guardada, users.name);
 
     // O saque é pedido a uma organização (`payouts.organization_id`): sem o
     // recorte, o organizador veria (e pagaria) saque que não é dele.
@@ -4768,10 +4779,21 @@ adminRouter.put("/divulgacoes/config", async (req, res, next) => {
   }
 });
 
-/** A fila, no recorte de `orgOf`: a organização vê só a dela. */
+/**
+ * A fila, no recorte de `orgOf`: a organização vê só a dela. Com `?rifa=<id>`
+ * (a aba Publicação da rifa), só as peças daquela rifa — o dono é conferido
+ * antes: a rifa do vizinho (ou um id fora do formato) é 404.
+ */
 adminRouter.get("/divulgacoes", async (req, res, next) => {
   try {
-    res.json(await listarDivulgacoesDaOrganizacao(req, req.query.status));
+    let rifa: string | null = null;
+    if (req.query.rifa !== undefined) {
+      if (typeof req.query.rifa !== "string" || !ehUuid(req.query.rifa)) {
+        return res.status(404).json({ message: "Campanha não encontrada." });
+      }
+      rifa = (await assertCampaignInScope(req, req.query.rifa)).id;
+    }
+    res.json(await listarDivulgacoesDaOrganizacao(req, req.query.status, rifa));
   } catch (err) {
     next(err);
   }

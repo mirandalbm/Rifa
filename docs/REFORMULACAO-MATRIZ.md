@@ -6,11 +6,11 @@ Gerada do código por `npm run matriz` — **não edite à mão** (o teste `test
 |---|---|
 | Telas (rotas do `App.tsx`) | 66 (+ 2 redirecionamentos) |
 | Seções de acesso (`shared/access.ts`) | 41 |
-| Cartões (componentes usados pelas telas) | 803 |
+| Cartões (componentes usados pelas telas) | 804 |
 | Rotas da API | 477, das quais 473 citadas por alguma prova |
 | Provas contra a API (`npm run …`) | 61 |
 | Testes de regra (`tests/`) | 128 arquivos |
-| Destinos decididos | 910 de 910 |
+| Destinos decididos | 911 de 911 |
 
 ## 1. Telas
 
@@ -957,6 +957,7 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 | `Pill` | manter · peça do kit (onda 1) · na tela 06 Carrinho |
 | `PublicShell` | manter · peça do kit (onda 1) · na tela 06 Carrinho |
 | `SeloVerificado` | manter · peça do kit (onda 1) · na tela 06 Carrinho |
+| `SoValePelaPlataforma` | manter · na tela 06 Carrinho · onda 5 |
 | `TONS_DO_BOTAO` | manter · peça do kit (onda 1) · na tela 06 Carrinho |
 
 ### `/carrinho/pix/:codigo` — CarrinhoPix

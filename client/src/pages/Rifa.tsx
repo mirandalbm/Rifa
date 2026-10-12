@@ -495,7 +495,7 @@ export default function Rifa() {
           </span>
           <span className="label-xs text-green-deep">{pct}%</span>
         </div>
-        <Progress value={sold} total={campaign.totalQuotas} tone={pct >= 85 ? "yellow" : "green"} />
+        <Progress value={sold} total={campaign.totalQuotas} tone="yellow" />
       </div>
 
       {campaign.demonstracao ? (

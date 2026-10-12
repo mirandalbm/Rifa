@@ -264,14 +264,21 @@ async function reservaAbertaNaTransacao(tx: Tx, buyerId: string, quantidade: num
 }
 
 /**
- * O provedor do Pix em uso exige o e-mail de quem paga (`EXIGE_EMAIL`, o
- * Pagar.me): conferido no formato **antes de reservar**, como o CPF —
- * descobrir na hora do Pix deixaria a cota presa numa reserva sem cobrança.
+ * O provedor do Pix em uso exige mais de quem paga: o e-mail
+ * (`EXIGE_EMAIL`) e, no Pagar.me, o e-mail até 64 letras e o telefone com
+ * DDD no formato dele (`problemaNoPagador`). Conferido **antes de reservar**
+ * e do antifraude, como o CPF — descobrir na hora do Pix deixaria a cota
+ * presa numa reserva sem cobrança.
  */
-function conferirEmailDoPix(provedor: string, email: string | undefined | null) {
-  if (EXIGE_EMAIL[provedor as ProvedorPix] && !emailValido(email ?? "")) {
+function conferirPagadorDoPix(
+  provider: { name: string; problemaNoPagador?: (p: { email?: string | null; phone?: string | null }) => string | null },
+  pagador: { email?: string | null; phone?: string | null },
+) {
+  if (EXIGE_EMAIL[provider.name as ProvedorPix] && !emailValido(pagador.email ?? "")) {
     throw new OrderError("Informe um e-mail válido de quem está comprando: ele é exigido para gerar o Pix.", 400);
   }
+  const problema = provider.problemaNoPagador?.(pagador);
+  if (problema) throw new OrderError(problema, 400);
 }
 
 /**
@@ -380,8 +387,8 @@ async function prepararPedido(
       throw new OrderError("Informe um CPF válido de quem está comprando: ele é exigido para gerar o Pix.", 400);
     }
   }
-  // O e-mail, pela mesma régua: o Pix do Pagar.me não sai sem ele.
-  if (provider) conferirEmailDoPix(provider.name, input.buyer.email);
+  // O e-mail e o telefone, pela mesma régua: o Pix do Pagar.me não sai sem eles.
+  if (provider) conferirPagadorDoPix(provider, { email: input.buyer.email, phone: input.buyer.phone });
 
   // 9.4: na rifa autorizada a promotora e a plataforma não concorrem — nem
   // pela maquininha. Antes de qualquer gravação, como o antifraude.
@@ -827,9 +834,10 @@ export async function createCartOrder(input: CarrinhoCheckoutInput, ctx: CreateO
     telefone = conta.phone;
     email = conta.email ?? email;
   }
-  // O e-mail que o provedor exige, antes do antifraude e de qualquer linha:
-  // erro de preenchimento não gasta a tentativa (cada rifa confere de novo).
-  conferirEmailDoPix((await activePaymentProvider()).name, email);
+  // O e-mail e o telefone que o provedor exige, antes do antifraude e de
+  // qualquer linha: erro de preenchimento não gasta a tentativa (cada rifa
+  // confere de novo).
+  conferirPagadorDoPix(await activePaymentProvider(), { email, phone: telefone });
 
   // Antes de qualquer linha: o carrinho inteiro é uma tentativa de compra.
   const identity = ctx.identity ?? { ipHash: null, deviceHash: null };

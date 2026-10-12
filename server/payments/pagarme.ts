@@ -111,6 +111,28 @@ export function venceEmDoPagarme(expiresAt: Date): string {
   return expiresAt.toISOString().slice(0, 19);
 }
 
+/**
+ * O maior e-mail que o Pagar.me aceita no cliente. **A confirmar** na
+ * documentação do cliente (o limite de 64 é o que lemos como teto dos campos
+ * de texto do v5). E-mail maior é recusado antes de reservar — nunca cortado,
+ * que mandaria ao banco um endereço que não é o de quem paga.
+ */
+export const EMAIL_MAX_DO_PAGARME = 64;
+
+/**
+ * O que falta em quem paga para o Pagar.me emitir o Pix, conferido **antes
+ * de reservar** (pedido e carrinho) e antes de gravar (recarga e assistente):
+ * o e-mail no formato e no tamanho, e o telefone com DDD no formato dele.
+ * O documento segue pela régua do CPF de sempre (`EXIGE_CPF`). `null` = ok.
+ */
+export function problemaNoPagadorDoPagarme(p: { email?: string | null; phone?: string | null }): string | null {
+  const email = String(p.email ?? "").trim();
+  if (!emailValido(email)) return "Informe um e-mail válido de quem paga: ele é exigido para gerar o Pix.";
+  if (email.length > EMAIL_MAX_DO_PAGARME) return `O e-mail de quem paga pode ter até ${EMAIL_MAX_DO_PAGARME} letras para gerar o Pix. Use outro e-mail.`;
+  if (!telefoneDoPagarme(String(p.phone ?? ""))) return "Informe um WhatsApp com DDD válido de quem paga: ele é exigido para gerar o Pix.";
+  return null;
+}
+
 export class ErroDoPagarme extends Error {
   constructor(
     message: string,
@@ -142,6 +164,9 @@ export function corpoDoPedidoPagarme(p: DadosDoPix) {
   if (nome.length < 2) throw new ErroDoPagarme("Informe o nome de quem paga para gerar o Pix.", 400);
   const email = String(p.payer.email ?? "").trim();
   if (!emailValido(email)) throw new ErroDoPagarme("Informe um e-mail válido de quem paga: ele é exigido para gerar o Pix.", 400);
+  if (email.length > EMAIL_MAX_DO_PAGARME) {
+    throw new ErroDoPagarme(`O e-mail de quem paga pode ter até ${EMAIL_MAX_DO_PAGARME} letras para gerar o Pix.`, 400);
+  }
   const documento = documentoDoPagarme(p.payer.cpf);
   if (!documento) throw new ErroDoPagarme("Informe um CPF (ou CNPJ) válido de quem paga: ele é exigido para gerar o Pix.", 400);
   const telefone = telefoneDoPagarme(p.payer.phone);
@@ -162,7 +187,7 @@ export function corpoDoPedidoPagarme(p: DadosDoPix) {
     ],
     customer: {
       name: nome.slice(0, 64),
-      email: email.slice(0, 64),
+      email,
       type: documento.type,
       document: documento.document,
       // **A confirmar**: `mobile_phone` (a documentação do Pix mostra
@@ -235,40 +260,104 @@ export function lerCobrancaPagarme(json: unknown): { id: string; status: string;
 }
 
 /**
- * Estornada inteira? `refunded`, ou `canceled` com o cancelado cobrindo o
- * valor. **A confirmar** com o Pagar.me: qual dos dois a cobrança Pix paga
- * mostra depois do estorno total, e se `canceled_amount` vem preenchido. A
- * devolução parcial (o cancelado menor que o valor) nunca vale como estorno
- * inteiro: ela é sempre nossa, pelo chamado.
+ * Estornada inteira? `refunded` ou `canceled` **com** o cancelado
+ * (`canceled_amount`) cobrindo o pago. Sem o valor cancelado, na dúvida,
+ * não: desfazer um carrinho inteiro por um campo que faltou devolveria cota
+ * de quem não recebeu dinheiro de volta. **A confirmar** com o Pagar.me: qual
+ * dos dois status a cobrança Pix paga mostra depois do estorno total, e se
+ * `canceled_amount` vem preenchido. A devolução parcial nunca vale como
+ * estorno inteiro: ela é sempre nossa, pelo chamado.
  */
 export function estornadaInteira(c: { status: string; amountCents: number; pagoCents: number | null; canceladoCents: number }): boolean {
-  if (c.status === "refunded") return c.canceladoCents === 0 || c.canceladoCents >= (c.pagoCents ?? c.amountCents);
-  if (c.status === "canceled") return c.canceladoCents > 0 && c.canceladoCents >= (c.pagoCents ?? c.amountCents);
-  return false;
+  if (c.status !== "refunded" && c.status !== "canceled") return false;
+  return c.canceladoCents > 0 && c.canceladoCents >= (c.pagoCents ?? c.amountCents);
 }
 
 /** Status da cobrança que ainda pode virar pago: o evento "pago" chegou antes da API. */
 export const STATUS_AINDA_PENDENTE = ["pending", "processing"] as const;
 
 /**
- * O evento do webhook, depois da consulta à API: `charge.paid` só é pago se
- * a cobrança está `paid`; `charge.refunded` só é estorno se ela está
- * estornada inteira; todo o resto (inclusive `charge.partial_canceled`) é
- * ignorado. `null` = o evento disse pago e a API ainda diz pendente: a
- * entrega é recusada para o Pagar.me tentar de novo (nada é pago agora, e o
- * pagamento de verdade não se perde atrás de um "já visto").
+ * Status em que o dinheiro entrou: `paid` e `overpaid` (pagou pelo menos o
+ * valor). `underpaid` (pagou a menos) **não** paga: vai ao log e é ignorado.
+ * **A confirmar**: no Pix o valor é fixo no QR, e não sabemos se o Pagar.me
+ * chega a marcar `overpaid`/`underpaid` numa cobrança Pix.
+ */
+export const STATUS_PAGO = ["paid", "overpaid"] as const;
+
+/** Os eventos que dizem "entrou dinheiro". `charge.underpaid` fica de fora: só log. */
+export const EVENTOS_DE_PAGAMENTO = ["charge.paid", "charge.overpaid"] as const;
+
+/**
+ * Os eventos que dizem "o dinheiro voltou": o estorno e a contestação (MED,
+ * chargeback). **A confirmar**: o nome `charge.chargedback` (a documentação
+ * diz que ele dá lugar a `chargeback.received`, cujo corpo traz a
+ * contestação, não a cobrança) e o status `chargedback` da cobrança.
+ */
+export const EVENTOS_DE_DEVOLUCAO = ["charge.refunded", "charge.chargedback"] as const;
+
+/**
+ * O evento do webhook, depois da consulta à API:
+ * - pagamento (`charge.paid`, `charge.overpaid`) só paga com a cobrança
+ *   `paid` ou `overpaid`; `null` = a API ainda diz pendente, e a entrega é
+ *   recusada (503) para o Pagar.me tentar de novo — nada é pago agora, e o
+ *   pagamento de verdade não se perde atrás de um "já visto";
+ * - devolução (`charge.refunded`, `charge.chargedback`) só desfaz com a
+ *   cobrança `chargedback` (contestação: o dinheiro já saiu) ou estornada
+ *   inteira;
+ * - todo o resto (inclusive `charge.partial_canceled` e `charge.underpaid`)
+ *   é ignorado.
  */
 export function eventoDoPagarme(
   tipo: string,
   c: { status: string; amountCents: number; pagoCents: number | null; canceladoCents: number },
 ): WebhookResult["event"] | null {
-  if (tipo === "charge.paid") {
-    if (c.status === "paid") return "paid";
+  if ((EVENTOS_DE_PAGAMENTO as readonly string[]).includes(tipo)) {
+    if ((STATUS_PAGO as readonly string[]).includes(c.status)) return "paid";
     if ((STATUS_AINDA_PENDENTE as readonly string[]).includes(c.status)) return null;
     return "ignored";
   }
-  if (tipo === "charge.refunded") return estornadaInteira(c) ? "refunded" : "ignored";
+  if ((EVENTOS_DE_DEVOLUCAO as readonly string[]).includes(tipo)) {
+    if (c.status === "chargedback") return "refunded";
+    return estornadaInteira(c) ? "refunded" : "ignored";
+  }
   return "ignored";
+}
+
+/**
+ * O estorno parcial devolveu exatamente o pedido? `antes` é o cancelado
+ * lido antes do `DELETE`; `depois`, o da resposta. Vale também a repetição
+ * de uma devolução já feita (a chave de idempotência devolve a mesma
+ * resposta: nada novo cancelado, e a transação de estorno com o valor
+ * pedido). Qualquer outra coisa — o Pagar.me ignorou o `amount` e devolveu
+ * tudo, ou devolveu outro valor — é erro: o chamado volta a aprovado e
+ * nada é desfeito aqui. **A confirmar**: `canceled_amount` e
+ * `last_transaction.amount` na resposta do `DELETE`.
+ */
+export function problemaNoEstornoParcial(pedido: number, antes: number, resposta: unknown): string | null {
+  const r = (resposta ?? {}) as { canceled_amount?: unknown; last_transaction?: { amount?: unknown } | null };
+  const depois = typeof r.canceled_amount === "number" && Number.isInteger(r.canceled_amount) ? r.canceled_amount : null;
+  if (depois === null) return "O Pagar.me não confirmou o valor devolvido: confira a cobrança no painel dele.";
+  const devolvido = depois - antes;
+  if (devolvido === pedido) return null;
+  if (devolvido === 0 && r.last_transaction?.amount === pedido) return null;
+  return `O Pagar.me devolveu ${devolvido} centavo(s) no lugar de ${pedido}: confira a cobrança no painel dele antes de qualquer coisa.`;
+}
+
+/**
+ * O que fica guardado do corpo do webhook em `webhook_events`: só o id do
+ * evento, o tipo e o id da cobrança. No Pagar.me o `data` traz a cobrança
+ * inteira, com o cliente (nome, e-mail, documento, telefone) — dado pessoal
+ * que a idempotência não precisa.
+ */
+export function payloadDoPagarme(raw: string): { id: string | null; type: string | null; data: { id: string | null } } {
+  let corpo: { id?: unknown; type?: unknown; data?: { id?: unknown } | null } = {};
+  try {
+    corpo = JSON.parse(raw || "{}") ?? {};
+  } catch {
+    corpo = {};
+  }
+  const texto = (v: unknown) => (typeof v === "string" ? v.slice(0, 80) : null);
+  return { id: texto(corpo.id), type: texto(corpo.type), data: { id: texto(corpo.data?.id) } };
 }
 
 /**
@@ -385,9 +474,11 @@ export class PagarmeProvider implements PaymentProvider {
     // cobrança em `data`), lido da lista de eventos e não de um exemplo.
     if (!idDeEventoValido(corpo.id)) throw new ErroDoPagarme("Webhook do Pagar.me sem id de evento.");
     const tipo = typeof corpo.type === "string" ? corpo.type : "";
-    if (tipo !== "charge.paid" && tipo !== "charge.refunded") {
+    const conhecido = ([...EVENTOS_DE_PAGAMENTO, ...EVENTOS_DE_DEVOLUCAO, "charge.underpaid"] as string[]).includes(tipo);
+    if (!conhecido) {
       // `charge.partial_canceled` (a devolução parcial é sempre nossa, pelo
-      // chamado), `order.*`, recebedor, chargeback: nada a fazer aqui.
+      // chamado), `order.*`, recebedor, `chargeback.received` (o corpo traz a
+      // contestação, não a cobrança — a confirmar): nada a fazer aqui.
       return { externalId: corpo.id, chargeId: "", event: "ignored" };
     }
     const id = corpo.data?.id;
@@ -395,9 +486,17 @@ export class PagarmeProvider implements PaymentProvider {
 
     // O corpo não diz se foi pago — quem diz é a API, consultada por nós.
     const c = await this.cobranca(id);
+    if (c.status === "underpaid") {
+      // Pagou a menos: não vira cota (o rateio e o bilhete são do valor
+      // cheio). Fica no log para a plataforma devolver à mão. A confirmar se
+      // acontece no Pix, onde o valor é fixo no QR.
+      console.warn(`[pagarme] cobrança ${c.id} paga a menos (${c.pagoCents ?? "?"} de ${c.amountCents}): ignorada, devolver à mão.`);
+    }
     const evento = eventoDoPagarme(tipo, c);
     if (evento === null) {
-      throw new ErroDoPagarme("O Pagar.me avisou o pagamento, mas a cobrança ainda está pendente.");
+      // 503, como o "em andamento" do roteador: o Pagar.me reenvia, e o
+      // pagamento que a API ainda não mostra não se perde atrás de um 200.
+      throw new ErroDoPagarme("O Pagar.me avisou o pagamento, mas a cobrança ainda está pendente.", 503);
     }
     return {
       externalId: corpo.id,
@@ -415,23 +514,48 @@ export class PagarmeProvider implements PaymentProvider {
     // Total sem corpo; parcial com o valor em centavos. **A confirmar**: o
     // campo `amount` no corpo do `DELETE /charges/{id}` (a documentação diz
     // que o estorno pode ser parcial, mas o exemplo do corpo não veio).
-    await this.api(`/charges/${chargeId}`, {
+    // O parcial lê o cancelado antes, para conferir depois que saiu
+    // exatamente o pedido: um Pagar.me que ignorasse o `amount` devolveria a
+    // cobrança inteira calado (no carrinho, o dinheiro das outras rifas).
+    const antes = amountCents !== undefined ? (await this.cobranca(chargeId)).canceladoCents : 0;
+    const resposta = await this.api<unknown>(`/charges/${chargeId}`, {
       method: "DELETE",
       ...(amountCents !== undefined ? { body: JSON.stringify({ amount: amountCents }) } : {}),
       idempotencia: chaveDoEstorno(chargeId, amountCents, chave),
     });
+    if (amountCents !== undefined) {
+      const problema = problemaNoEstornoParcial(amountCents, antes, resposta);
+      if (problema) {
+        console.error(`[pagarme] estorno parcial da cobrança ${chargeId}: ${problema}`);
+        throw new ErroDoPagarme(problema);
+      }
+    }
   }
 
   /**
    * Reserva vencida: só cancela a cobrança **pendente**, lida agora. A paga
-   * (o Pix chegou no limite) fica como está — cancelar seria estornar, e o
-   * dinheiro segue para a fila do Pix tardio. O QR já vence com a reserva
+   * (o Pix chegou no limite) fica como está — cancelar seria estornar — e
+   * volta `"paga"`: o relógio a manda para a fila do Pix tardio, mesmo que o
+   * webhook nunca chegue. O QR já vence com a reserva
    * (`expires_at`); isto só fecha a cobrança no painel de lá.
    */
-  async cancelCharge(chargeId: string): Promise<void> {
+  async cancelCharge(chargeId: string): Promise<void | "paga"> {
     const c = await this.cobranca(chargeId);
+    // Paga (o Pix chegou no limite e o aviso ainda não veio, ou se perdeu):
+    // quem chamou leva o Pix para a fila de devolução (`markOrderPaid`).
+    if ((STATUS_PAGO as readonly string[]).includes(c.status)) return "paga";
     if (c.status !== "pending") return;
     await this.api(`/charges/${chargeId}`, { method: "DELETE", idempotencia: `cancela-${chargeId}` });
+  }
+
+  /** Só o id do evento, o tipo e a cobrança — nunca o cliente que vem em `data`. */
+  payloadParaGuardar(raw: string) {
+    return payloadDoPagarme(raw);
+  }
+
+  /** A régua de quem paga, antes de reservar: e-mail (até 64) e telefone no formato do Pagar.me. */
+  problemaNoPagador(p: { email?: string | null; phone?: string | null }): string | null {
+    return problemaNoPagadorDoPagarme(p);
   }
 }
 

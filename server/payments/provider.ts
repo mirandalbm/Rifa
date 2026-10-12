@@ -66,6 +66,23 @@ export interface PaymentProvider {
    * devoluções, não a repetição de uma.
    */
   refund?(chargeId: string, amountCents?: number, chave?: string): Promise<void>;
-  /** Cancela a cobrança de uma reserva que expirou (QR que vale o dia todo). */
-  cancelCharge?(chargeId: string): Promise<void>;
+  /**
+   * Cancela a cobrança de uma reserva que expirou (QR que vale o dia todo).
+   * `"paga"` = a cobrança já estava paga e não foi cancelada: quem chamou
+   * leva o Pix para a fila de devolução (o Pagar.me consulta antes, porque
+   * lá cancelar é a mesma rota do estorno). Os outros devolvem nada.
+   */
+  cancelCharge?(chargeId: string): Promise<void | "paga">;
+  /**
+   * O que guardar do corpo do webhook em `webhook_events` (a idempotência).
+   * Sem o método, o corpo inteiro, como sempre. O Pagar.me guarda só o id,
+   * o tipo e a cobrança: o corpo dele traz o cliente.
+   */
+  payloadParaGuardar?(rawBody: string): unknown;
+  /**
+   * O que falta em quem paga para este provedor emitir o Pix (e-mail,
+   * telefone no formato dele), conferido antes de reservar. `null` = ok.
+   * Sem o método, nada além do `EXIGE_CPF`/`EXIGE_EMAIL`.
+   */
+  problemaNoPagador?(p: { email?: string | null; phone?: string | null }): string | null;
 }

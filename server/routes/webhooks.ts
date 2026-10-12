@@ -40,7 +40,9 @@ webhookRouter.post("/:provider", async (req, res) => {
       .values({
         provider: providerName,
         externalId: event.externalId,
-        payload: JSON.parse(raw || "{}"),
+        // O provedor pode guardar menos que o corpo inteiro (o Pagar.me traz o
+        // cliente na cobrança: nome, e-mail, documento, telefone).
+        payload: provider.payloadParaGuardar ? provider.payloadParaGuardar(raw) : JSON.parse(raw || "{}"),
       })
       .onConflictDoNothing()
       .returning({ id: webhookEvents.id });
@@ -111,9 +113,15 @@ webhookRouter.post("/:provider", async (req, res) => {
   } catch (err) {
     // 4xx faz o provedor reenviar; é o que queremos em falha de assinatura.
     console.error("[webhook]", err);
-    // Segredo do endereço ausente ou errado (Pagar.me): 401. O resto, 400.
-    const status = (err as { status?: number })?.status === 401 ? 401 : 400;
-    res.status(status).json({ message: "Webhook recusado." });
+    // Segredo do endereço ausente ou errado (Pagar.me): 401. O provedor que
+    // avisa um pagamento que a API ainda não mostra (Pagar.me): 503 com
+    // `Retry-After`, como o "em andamento" — o reenvio não pode parar. O resto, 400.
+    const codigo = (err as { status?: number })?.status;
+    if (codigo === 503) {
+      res.setHeader("Retry-After", String(PRAZO_DO_PROCESSAMENTO_S));
+      return res.status(503).json({ message: "Pagamento ainda não confirmado pelo provedor. Tente de novo." });
+    }
+    res.status(codigo === 401 ? 401 : 400).json({ message: "Webhook recusado." });
   }
 });
 

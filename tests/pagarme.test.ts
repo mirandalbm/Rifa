@@ -13,6 +13,9 @@ import {
   idDeEventoValido,
   lerCobrancaPagarme,
   lerPedidoPagarme,
+  payloadDoPagarme,
+  problemaNoEstornoParcial,
+  problemaNoPagadorDoPagarme,
   segredoConfere,
   telefoneDoPagarme,
   venceEmDoPagarme,
@@ -185,8 +188,10 @@ describe("Pagar.me: o evento depois da consulta", () => {
     expect(eventoDoPagarme("charge.paid", c("failed"))).toBe("ignored");
   });
   it("charge.refunded só com o estorno inteiro", () => {
-    expect(eventoDoPagarme("charge.refunded", c("refunded"))).toBe("refunded");
+    expect(eventoDoPagarme("charge.refunded", c("refunded", { canceladoCents: 1000 }))).toBe("refunded");
     expect(eventoDoPagarme("charge.refunded", c("canceled", { canceladoCents: 1000 }))).toBe("refunded");
+    // Sem o valor cancelado, na dúvida, não desfaz nada.
+    expect(eventoDoPagarme("charge.refunded", c("refunded"))).toBe("ignored");
     expect(eventoDoPagarme("charge.refunded", c("paid", { canceladoCents: 300 }))).toBe("ignored");
     expect(eventoDoPagarme("charge.refunded", c("refunded", { canceladoCents: 300 }))).toBe("ignored");
     expect(eventoDoPagarme("charge.refunded", c("canceled", { canceladoCents: 0 }))).toBe("ignored");
@@ -196,6 +201,67 @@ describe("Pagar.me: o evento depois da consulta", () => {
     expect(eventoDoPagarme("charge.partial_canceled", c("paid", { canceladoCents: 300 }))).toBe("ignored");
     expect(eventoDoPagarme("order.paid", c("paid"))).toBe("ignored");
     expect(estornadaInteira(c("pending"))).toBe(false);
+  });
+});
+
+describe("Pagar.me: pago a mais, a menos e contestação", () => {
+  const c = (status: string) => ({ status, amountCents: 1000, pagoCents: 1000, canceladoCents: 0 });
+  it("overpaid paga; underpaid é ignorado", () => {
+    expect(eventoDoPagarme("charge.paid", c("overpaid"))).toBe("paid");
+    expect(eventoDoPagarme("charge.overpaid", c("overpaid"))).toBe("paid");
+    expect(eventoDoPagarme("charge.paid", c("underpaid"))).toBe("ignored");
+    expect(eventoDoPagarme("charge.underpaid", c("underpaid"))).toBe("ignored");
+  });
+  it("contestação confirmada pela API desfaz; sem a API confirmar, não", () => {
+    expect(eventoDoPagarme("charge.chargedback", c("chargedback"))).toBe("refunded");
+    expect(eventoDoPagarme("charge.refunded", c("chargedback"))).toBe("refunded");
+    expect(eventoDoPagarme("charge.chargedback", c("paid"))).toBe("ignored");
+    // O status sozinho não vale: o evento precisa ser de devolução.
+    expect(eventoDoPagarme("charge.paid", c("chargedback"))).toBe("ignored");
+  });
+});
+
+describe("Pagar.me: quem paga, antes de reservar", () => {
+  it("e-mail no formato e até 64, telefone no formato do Pagar.me", () => {
+    expect(problemaNoPagadorDoPagarme({ email: "ana@exemplo.com", phone: "11987654321" })).toBeNull();
+    expect(problemaNoPagadorDoPagarme({ email: "", phone: "11987654321" })).toMatch(/e-mail/);
+    expect(problemaNoPagadorDoPagarme({ email: `${"a".repeat(60)}@x.com`, phone: "11987654321" })).toMatch(/até 64/);
+    expect(problemaNoPagadorDoPagarme({ email: "ana@exemplo.com", phone: "11 88765-4321" })).toMatch(/WhatsApp/);
+    expect(problemaNoPagadorDoPagarme({ email: "ana@exemplo.com", phone: null })).toMatch(/WhatsApp/);
+  });
+  it("o corpo recusa o e-mail longo, nunca corta", () => {
+    const longo = `${"a".repeat(60)}@x.com`;
+    expect(() =>
+      corpoDoPedidoPagarme({ ...dados(), payer: { name: "Ana", phone: "11987654321", cpf: "52998224725", email: longo } } as never),
+    ).toThrow(/até 64/);
+  });
+});
+
+describe("Pagar.me: o que fica do webhook", () => {
+  it("só o id, o tipo e a cobrança — nunca o cliente", () => {
+    const raw = JSON.stringify({
+      id: "hook_ABC",
+      type: "charge.paid",
+      data: { id: "ch_X", customer: { name: "Ana", email: "ana@x.com", document: "52998224725", phones: {} } },
+    });
+    const g = payloadDoPagarme(raw);
+    expect(g).toEqual({ id: "hook_ABC", type: "charge.paid", data: { id: "ch_X" } });
+    expect(JSON.stringify(g)).not.toMatch(/Ana|ana@|52998224725/);
+    expect(payloadDoPagarme("não é json")).toEqual({ id: null, type: null, data: { id: null } });
+  });
+});
+
+describe("Pagar.me: estorno parcial conferido", () => {
+  it("saiu exatamente o pedido: ok; repetição com a transação do valor: ok", () => {
+    expect(problemaNoEstornoParcial(300, 0, { canceled_amount: 300 })).toBeNull();
+    expect(problemaNoEstornoParcial(300, 500, { canceled_amount: 800 })).toBeNull();
+    expect(problemaNoEstornoParcial(300, 300, { canceled_amount: 300, last_transaction: { amount: 300 } })).toBeNull();
+  });
+  it("o Pagar.me ignorou o amount, devolveu outro valor ou não disse: erro", () => {
+    expect(problemaNoEstornoParcial(300, 0, { canceled_amount: 1000 })).toMatch(/1000/);
+    expect(problemaNoEstornoParcial(300, 0, { canceled_amount: 200 })).not.toBeNull();
+    expect(problemaNoEstornoParcial(300, 0, {})).toMatch(/não confirmou/);
+    expect(problemaNoEstornoParcial(300, 300, { canceled_amount: 300 })).not.toBeNull();
   });
 });
 

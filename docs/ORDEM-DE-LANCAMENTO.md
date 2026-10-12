@@ -91,7 +91,21 @@ cadastro (o roteiro do dia está na etapa 5, "Dia da troca da razão social").
   índice único dos chamados em andamento troca de nome
   (`uq_chamados_pedido_em_andamento` → `uq_chamados_pedido_aberto`, com a
   devolução a conferir no filtro): o mesmo `db:push` apaga o antigo e cria o
-  novo, **antes** do código.
+  novo, **antes** do código. **Antes do `db:push`, confira** que nenhum pedido
+  tem um chamado marcado na devolução e outro aberto ou aprovado ao mesmo
+  tempo — com dois, o índice novo não sobe:
+
+  ```sql
+  SELECT ch.order_id, count(*) AS chamados
+    FROM chamados ch
+   WHERE ch.status IN ('aberto', 'aprovado') OR ch.disputa = 'aberta'
+      OR ch.forma_devolucao IN ('devolvendo_no_provedor', 'conferir_no_provedor')
+   GROUP BY ch.order_id
+  HAVING count(*) > 1;
+  ```
+
+  Com alguma linha, resolva o caso antes (a plataforma confere o que está a
+  conferir, ou o outro chamado é decidido) e rode a consulta de novo.
 - [ ] **`npm run db:push`** (cria a extensão `pg_trgm` antes; o usuário do
   banco precisa poder criar extensão) e, **logo depois, uma vez**:
   `UPDATE stories SET publica_em = created_at WHERE publica_em > created_at`.

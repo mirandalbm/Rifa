@@ -137,10 +137,10 @@ senha); **[código]** é trabalho no repositório.
   (`POST /chamados/:id/conferencia`; devolveu → desfaz o pedido, não
   devolveu → volta a aprovado), com a Caixa de entrada, o contador, o
   índice que barra outro chamado do mesmo pedido e a comissão segura.
-- [ ] **[código]** A **contestação parcial** do Pix (MED, chargeback que não
-  cobre o pago) só aparece na Caixa de entrada (30 dias, tipo
-  `contestacao`): não há botão de resolver nem de dispensar. Decidir o que
-  fazer com ela (estornar o pedido, registrar a perda) é trabalho à parte.
+- [x] **[código]** A **contestação parcial** do Pix (MED, chargeback que não
+  cobre o pago) fica na Caixa de entrada até a plataforma registrar a
+  decisão (Pedidos → "Contestações do Pix a conferir"). O que fazer com o
+  pedido segue pelos caminhos de sempre; não há estorno automático.
 - [ ] **[código]** Repasse à promotora (a fase que substitui o split): espera
   a resposta do advogado (item acima). Asaas e Mercado Pago (abaixo) ficam no
   código até o Pagar.me estar em produção. Pela busca, o Asaas põe loterias

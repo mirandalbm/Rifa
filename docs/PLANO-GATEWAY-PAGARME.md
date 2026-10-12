@@ -130,7 +130,8 @@ No código: `server/payments/pagarme.ts` (`PagarmeProvider`, registrado em
   nada); `charge.chargedback` com a API dizendo `chargedback` e o
   contestado cobrindo o pago vira estorno (MED e contestação são
   registrados sempre; a parcial, ou sem o valor, não desfaz nada e vai para
-  a Caixa de entrada, tipo `contestacao`, pelo `audit_log`); a consulta fora
+  a Caixa de entrada, tipo `contestacao`, pelo `audit_log`, até a plataforma
+  registrar a decisão em Pedidos → "Contestações do Pix a conferir"); a consulta fora
   do ar (rede, prazo, 5xx, 429) também é 503 com `Retry-After`; o resto (inclusive
   `charge.partial_canceled`) é ignorado. A chave da idempotência é o id do
   evento (`hook_…`), e `webhook_events` guarda só `{ id, type, data: { id } }`
@@ -144,7 +145,8 @@ No código: `server/payments/pagarme.ts` (`PagarmeProvider`, registrado em
   devolução, sem outro chamado do mesmo pedido e com a comissão segura, até
   a plataforma conferir no painel do Pagar.me e decidir no Atendimento
   (`POST /chamados/:id/conferencia`: devolveu → desfaz o pedido; não
-  devolveu → volta a aprovado). O par consulta → `DELETE` corre com a
+  devolveu → volta a aprovado, com a regra do adiamento de hoje, e a nova
+  tentativa vai com outra chave de idempotência, `-t<n>`). O par consulta → `DELETE` corre com a
   cobrança travada (trava de sessão de duas chaves no `poolDasTravas`, com
   `lock_timeout` de 15 s).
 - **Cancelamento da reserva vencida**: consulta a cobrança e só cancela a

@@ -93,7 +93,7 @@ arquitetura.
 | mexer em reserva/alocação | `server/services/quotas.ts` |
 | cartelas da compra rápida e mapa de números | `sugerirCartelas()` em `server/services/quotas.ts`, `client/src/components/Cartelas.tsx`, `client/src/pages/Rifa.tsx`, o quadriculado em `client/src/lib/quadro.ts` e `.quadro` em `client/src/index.css` |
 | mexer no fluxo do pedido | `server/services/orders.ts` |
-| trocar o provedor de pagamento | `server/payments/` — implemente `PaymentProvider`; a escolha é do painel (`shared/plataforma.ts`: `PROVEDORES_PIX`, `CREDENCIAIS_PROVEDOR`, `EXIGE_CPF`, `EXIGE_EMAIL`); o Pagar.me (fase 1, sem split) em `server/payments/pagarme.ts`, o relógio da reserva vencida que cancela a cobrança e leva a já paga à fila do Pix tardio em `server/services/reservasVencidas.ts`, `scripts/pagarme-test.ts` (`npm run pagarme`), `tests/pagarme.test.ts`, `docs/PLANO-GATEWAY-PAGARME.md` |
+| trocar o provedor de pagamento | `server/payments/` — implemente `PaymentProvider`; a escolha é do painel (`shared/plataforma.ts`: `PROVEDORES_PIX`, `CREDENCIAIS_PROVEDOR`, `EXIGE_CPF`, `EXIGE_EMAIL`); o Pagar.me (fase 1, sem split) em `server/payments/pagarme.ts`, a contestação do Pix a conferir em `server/services/contestacoes.ts` e `client/src/components/ContestacoesAConferir.tsx` (em Pedidos), o relógio da reserva vencida que cancela a cobrança e leva a já paga à fila do Pix tardio em `server/services/reservasVencidas.ts`, `scripts/pagarme-test.ts` (`npm run pagarme`), `tests/pagarme.test.ts`, `docs/PLANO-GATEWAY-PAGARME.md` |
 | regras de publicação e mídia | `server/services/campaigns.ts`, `server/routes/admin.ts` |
 | sorteio | `server/services/draw.ts` (a conta), `server/services/sortear.ts` (`executarSorteio`: travas, recusas, avisos — o botão do painel e o sorteio automático), `entropiaDoSorteio()` em `shared/sorteio.ts` |
 | segundo fator (e o segredo selado no cofre) | `server/services/totp.ts`, `server/services/segundoFator.ts`, `scripts/senha-test.ts` |
@@ -1804,8 +1804,15 @@ permite cobrar dela depois, e o aceite é a prova.
     como no Asaas. A parcial (ou sem o valor) não desfaz nada e **vai para a
     Caixa de entrada** (tipo `contestacao`): o provedor devolve um `aviso`
     no `WebhookResult` e o roteador grava `pagamento.contestacao.a_conferir`
-    no `audit_log`, que a Caixa lista (uma por cobrança, 30 dias; não há
-    botão de resolver — some sozinha). **A consulta fora do ar** (rede,
+    no `audit_log`, que a Caixa lista (uma por cobrança) **até a plataforma
+    registrar a decisão** — nunca some sozinha: o cartão "Contestações do
+    Pix a conferir" em Pedidos (`ContestacoesAConferir`, `GET
+    /contestacoes` e `POST /contestacoes/:cobranca/conferida`, só a
+    plataforma — 403 para organizador no `npm run isolation`, 404 para
+    cobrança fora do formato ou sem aviso —, observação obrigatória,
+    `server/services/contestacoes.ts`) grava `pagamento.contestacao.conferida`
+    com trava por cobrança (dois cliques, um 200 e um 409). O que fazer com
+    o pedido segue pelos caminhos de sempre; aqui não há estorno automático. **A consulta fora do ar** (rede,
     prazo, 5xx ou 429 de lá) também responde 503 com `Retry-After`, nunca 400. `charge.partial_canceled`
     e o resto são ignorados (a devolução parcial é sempre nossa, pelo
     chamado). A chave é o id do evento (`hook_…`). **Do corpo, só o id, o
@@ -1839,9 +1846,10 @@ permite cobrar dela depois, e o aceite é a prova.
     `pg_advisory_lock(<classe>, hashtext(<cobrança>))` — **duas chaves**, a
     classe `TRAVA_DA_COBRANCA_CLASSE` (811901), para nunca colidir com as
     travas de uma chave dos relógios — numa conexão do `poolDasTravas`, com
-    `lock_timeout` de 15 s, solta no `finally` (o `unlock` que falha devolve
-    a conexão com `release(err)`): dois estornos da mesma cobrança do
-    carrinho não leem o mesmo "antes".
+    `lock_timeout` de 15 s (desfeito no `finally` de fora, também quando a
+    espera estourou), solta no `finally` (o `unlock` que falha devolve a
+    conexão com `release(err)`): dois estornos da mesma cobrança do carrinho
+    não leem o mesmo "antes".
   - **E-mail obrigatório quando o provedor exige** (`EXIGE_EMAIL`, como o
     `EXIGE_CPF`), e no Pagar.me **o e-mail até 64 letras e o telefone com
     DDD no formato dele** (`problemaNoPagador()` do provedor — e-mail maior é
@@ -2200,7 +2208,15 @@ botão, é **chamado** — com dono, prova, conversa e protocolo.
   saindo **na mesma transação** (`refundOrder(…, { naTransacao })`, o
   chamado travado, `UPDATE` condicional à marca: dois cliques, um 200 e um
   409), a forma passa ao provedor do pedido; **não devolveu** → volta a
-  aprovado e se devolve de novo pelo caminho de sempre. Auditoria
+  aprovado e se devolve de novo pelo caminho de sempre — **com a regra de
+  hoje** (o sorteio adiado depois da compra no meio da conferência converte
+  o chamado com taxa em integral, como a aprovação do adiamento faz,
+  `adiadoEmSql`) e **com outra chave de idempotência**: a primeira tentativa
+  segue `pedido-<id>`, e depois de cada "não devolveu" vai
+  `pedido-<id>-t<n>` (`n` contado pela auditoria
+  `chamado.estorno.conferido.nao_devolveu`, sem coluna nova) — senão o
+  provedor repetiria a resposta da tentativa que falhou. Id fora do formato
+  na rota é 404 (`ehUuid`). Auditoria
   (`chamado.estorno.conferido.devolveu`/`.nao_devolveu`) na mesma transação.
   A ação do assistente não resolve: diz que só a plataforma confere.
   `npm run pagarme` prova.

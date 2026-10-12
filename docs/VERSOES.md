@@ -150,7 +150,7 @@ celular, na largura da casca.
 
 | Rota | Arquivo | Casca | Celular | Tablet | Computador |
 |---|---|---|---|---|---|
-| `/` | `pages/Vitrine.tsx` | larga | stories, banners, estados, patrocinadas e feed em 1 coluna | feed em 2 colunas | banner com "Sorteios chegando" ao lado; feed em 3 colunas |
+| `/` | `pages/Vitrine.tsx` | vitrine | pino do estado no topo; banners, stories, contagem do sorteio (banner, botão), patrocinadas e o feed de uma rifa por vez | o feed (uma rifa por vez, perfil por cima da imagem) e a coluna ao vivo de 296 px, colados (1 px de linha); rodapé da plataforma | lateral de ícones (72 px); o feed de até 768 px no meio da faixa dele e a coluna ao vivo de 336 px, fixa na rolagem; rodapé |
 | `/r/:rifa`, `/o/:org/r/:rifa` | `pages/Rifa.tsx` | larga | publicação, compra (num cartão com borda), resto | imagem na coluna, com os cantos arredondados (alinhada ao banner da entidade, leva 7) e altura de no máximo 85% da tela; a compra embaixo, na largura toda, com as cartelas 2 × 2 | 2 colunas: publicação à esquerda; compra à direita, fixa a 16 px do alto (alinhada com a publicação) e com rolagem própria, total e Pix no pé, colados na borda de baixo do cartão |
 | `/o/:org` | `pages/Perfil.tsx` | larga | capa 3:1 de ponta a ponta, cartão do perfil, rifas em 1 coluna | capa com cantos; rifas em 2 colunas em fluxo (`columns`, sem buraco entre formatos) | capa 4:1; cartão de 320 px fixo à esquerda; rifas em 2 colunas em fluxo |
 | `/estado/:uf` | `pages/Estado.tsx` | larga | feed em 1 coluna | 2 colunas, cada cartão da altura dele (alinhados no topo) | 3 colunas, 24 px entre elas |

@@ -6,11 +6,11 @@ Gerada do código por `npm run matriz` — **não edite à mão** (o teste `test
 |---|---|
 | Telas (rotas do `App.tsx`) | 66 (+ 2 redirecionamentos) |
 | Seções de acesso (`shared/access.ts`) | 41 |
-| Cartões (componentes usados pelas telas) | 845 |
-| Rotas da API | 478, das quais 474 citadas por alguma prova |
+| Cartões (componentes usados pelas telas) | 852 |
+| Rotas da API | 480, das quais 476 citadas por alguma prova |
 | Provas contra a API (`npm run …`) | 62 |
 | Testes de regra (`tests/`) | 130 arquivos |
-| Destinos decididos | 952 de 952 |
+| Destinos decididos | 959 de 959 |
 
 ## 1. Telas
 
@@ -177,6 +177,7 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 | `CartaoDoPainel` | manter · peça do kit (onda 1) · na tela P01 Painel (visão geral) |
 | `CobrancaDaRifaCard` | manter · na tela P01 Painel (visão geral) · onda 2 |
 | `ComissaoCard` | manter · na tela P01 Painel (visão geral) · onda 2 |
+| `ContestacoesAConferir` | manter · na tela P01 Painel (visão geral) · onda 2 |
 | `ContratoPromotoraCard` | manter · na tela P01 Painel (visão geral) · onda 2 |
 | `CoresDoSeloCard` | manter · na tela P01 Painel (visão geral) · onda 2 |
 | `DadosLegaisCard` | manter · na tela P01 Painel (visão geral) · onda 2 |
@@ -229,6 +230,7 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 | `CartaoDoPainel` | manter · peça do kit (onda 1) · na tela P12 Afiliados |
 | `CobrancaDaRifaCard` | manter · na tela P12 Afiliados · onda 2 |
 | `ComissaoCard` | manter · na tela P12 Afiliados · onda 2 |
+| `ContestacoesAConferir` | manter · na tela P12 Afiliados · onda 2 |
 | `ContratoPromotoraCard` | manter · na tela P12 Afiliados · onda 2 |
 | `CoresDoSeloCard` | manter · na tela P12 Afiliados · onda 2 |
 | `DadosLegaisCard` | manter · na tela P12 Afiliados · onda 2 |
@@ -372,6 +374,7 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 | `CartaoDoPainel` | manter · peça do kit (onda 1) · na tela P02 Rifas (grade de capas) + P03 Editar rifa (abas, 54-4503) |
 | `CobrancaDaRifaCard` | manter · na tela P02 Rifas (grade de capas) + P03 Editar rifa (abas, 54-4503) · onda 2 |
 | `ComissaoCard` | manter · na tela P02 Rifas (grade de capas) + P03 Editar rifa (abas, 54-4503) · onda 2 |
+| `ContestacoesAConferir` | manter · na tela P02 Rifas (grade de capas) + P03 Editar rifa (abas, 54-4503) · onda 2 |
 | `ContratoPromotoraCard` | manter · na tela P02 Rifas (grade de capas) + P03 Editar rifa (abas, 54-4503) · onda 2 |
 | `CoresDoSeloCard` | manter · na tela P02 Rifas (grade de capas) + P03 Editar rifa (abas, 54-4503) · onda 2 |
 | `DadosLegaisCard` | manter · na tela P02 Rifas (grade de capas) + P03 Editar rifa (abas, 54-4503) · onda 2 |
@@ -440,6 +443,7 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 | `CartaoDoPainel` | manter · peça do kit (onda 1) · na tela P15 Configurações do organizador (abas) + P29 da plataforma (51-5240) |
 | `CobrancaDaRifaCard` | manter · na tela P15 Configurações do organizador (abas) + P29 da plataforma (51-5240) · onda 2 |
 | `ComissaoCard` | manter · na tela P15 Configurações do organizador (abas) + P29 da plataforma (51-5240) · onda 2 |
+| `ContestacoesAConferir` | manter · na tela P15 Configurações do organizador (abas) + P29 da plataforma (51-5240) · onda 2 |
 | `ContratoPromotoraCard` | manter · na tela P15 Configurações do organizador (abas) + P29 da plataforma (51-5240) · onda 2 |
 | `CoresDoSeloCard` | manter · na tela P15 Configurações do organizador (abas) + P29 da plataforma (51-5240) · onda 2 |
 | `DadosLegaisCard` | manter · na tela P15 Configurações do organizador (abas) + P29 da plataforma (51-5240) · onda 2 |
@@ -502,6 +506,7 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 | `CartaoDoPainel` | manter · peça do kit (onda 1) · na tela P09 Financeiro |
 | `CobrancaDaRifaCard` | manter · na tela P09 Financeiro · onda 2 |
 | `ComissaoCard` | manter · na tela P09 Financeiro · onda 2 |
+| `ContestacoesAConferir` | manter · na tela P09 Financeiro · onda 2 |
 | `ContratoPromotoraCard` | manter · na tela P09 Financeiro · onda 2 |
 | `CoresDoSeloCard` | manter · na tela P09 Financeiro · onda 2 |
 | `DadosLegaisCard` | manter · na tela P09 Financeiro · onda 2 |
@@ -631,6 +636,7 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 | `CartaoDoPainel` | manter · peça do kit (onda 1) · na tela P04 Pedidos |
 | `CobrancaDaRifaCard` | manter · na tela P04 Pedidos · onda 2 |
 | `ComissaoCard` | manter · na tela P04 Pedidos · onda 2 |
+| `ContestacoesAConferir` | manter · na tela P04 Pedidos · onda 2 |
 | `ContratoPromotoraCard` | manter · na tela P04 Pedidos · onda 2 |
 | `CoresDoSeloCard` | manter · na tela P04 Pedidos · onda 2 |
 | `DadosLegaisCard` | manter · na tela P04 Pedidos · onda 2 |
@@ -693,6 +699,7 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 | `CartaoDoPainel` | manter · peça do kit (onda 1) · na tela P07 Sorteios |
 | `CobrancaDaRifaCard` | manter · na tela P07 Sorteios · onda 2 |
 | `ComissaoCard` | manter · na tela P07 Sorteios · onda 2 |
+| `ContestacoesAConferir` | manter · na tela P07 Sorteios · onda 2 |
 | `ContratoPromotoraCard` | manter · na tela P07 Sorteios · onda 2 |
 | `CoresDoSeloCard` | manter · na tela P07 Sorteios · onda 2 |
 | `DadosLegaisCard` | manter · na tela P07 Sorteios · onda 2 |
@@ -1317,7 +1324,7 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 
 A API não muda de lugar na reformulação. Aqui está para que a tela nova não deixe rota sem prova: "—" quer dizer que nenhum arquivo de `scripts/` ou `tests/` cita o caminho.
 
-### `server/routes/admin.ts` — /api/admin (265 rotas, 264 com prova)
+### `server/routes/admin.ts` — /api/admin (267 rotas, 266 com prova)
 
 | Método | Caminho | Provas |
 |---|---|---|
@@ -1450,6 +1457,8 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 | POST | `/chamados/:id/mensagens` | `chamados-test.ts`, `disputa-test.ts`, `isolation-test.ts` |
 | POST | `/chamados/:id/concluir` | `chamados-test.ts`, `disputa-test.ts`, `isolation-test.ts` |
 | POST | `/chamados/:id/disputa/decidir` | `disputa-test.ts`, `isolation-test.ts` |
+| GET | `/contestacoes` | `isolation-test.ts`, `pagarme-test.ts` |
+| POST | `/contestacoes/:cobranca/conferida` | `isolation-test.ts`, `pagarme-test.ts` |
 | POST | `/chamados/:id/conferencia` | `isolation-test.ts`, `pagarme-test.ts` |
 | POST | `/chamados/:id/estornar` | `chamados-test.ts`, `disputa-test.ts`, `isolation-test.ts` +1 |
 | GET | `/reembolso` | `chamados-test.ts` |
@@ -1844,7 +1853,7 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 
 Busca literal do caminho em `scripts/` e `tests/` (a interpolação vale como parâmetro): é a lista do que a reformulação mexe sem rede de proteção. Pode haver prova que chega à rota por outro caminho; o contrário (prova que cita e não confere) a busca não vê.
 
-- `server/routes/admin.ts` (1 de 265): PUT `/media/raw`
+- `server/routes/admin.ts` (1 de 267): PUT `/media/raw`
 - `server/routes/affiliate.ts` (1 de 36): GET `/divulgacoes/:id/video`
 - `server/routes/public.ts` (2 de 149): GET `/mensagens/conversas/:id/fotos/:fotoId`, GET `/divulgacoes/minhas/:id/fotos/:fotoId`
 

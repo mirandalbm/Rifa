@@ -34,6 +34,7 @@ import {
   orders,
   organizations,
   platformCharges,
+  campanhaSolicitacoes,
   chamados,
   affiliates,
   commissions,
@@ -100,6 +101,10 @@ let deleteSemCancelado = false;
 let atrasoDoDelete = 0;
 /** A consulta da cobrança fecha a conexão sem responder (a API de lá fora do ar). */
 let derrubaConsulta = false;
+/** O DELETE responde 500 sem devolver nada (e a resposta fica guardada pela chave). */
+let falhaDelete = false;
+/** A idempotência do Pagar.me de mentira: a mesma chave devolve a mesma resposta. */
+const respostasPorChave = new Map<string, { status: number; corpo: unknown }>();
 const cobrancas = new Map<string, Cobranca>();
 let seq = 0;
 const novoId = (p: string) => `${p}_${Date.now().toString(36)}${(++seq).toString(36)}TESTE`;
@@ -169,6 +174,13 @@ function servidorDeMentira(porta: number, prefixo: string) {
       }
       if (req.method === "GET" && c) return responde(200, { ...comoA(c), payment_method: "pix" });
       if (req.method === "DELETE" && c) {
+        const chaveDoDelete = String(req.headers["idempotency-key"] ?? "");
+        const repetida = chaveDoDelete ? respostasPorChave.get(chaveDoDelete) : undefined;
+        if (repetida) return responde(repetida.status, repetida.corpo);
+        if (falhaDelete) {
+          if (chaveDoDelete) respostasPorChave.set(chaveDoDelete, { status: 500, corpo: { message: "Internal error." } });
+          return responde(500, { message: "Internal error." });
+        }
         if (atrasoDoDelete) {
           const espera = atrasoDoDelete;
           setTimeout(() => apagar(c), espera);
@@ -186,7 +198,10 @@ function servidorDeMentira(porta: number, prefixo: string) {
         const valor = typeof corpo?.amount === "number" && !ignoraAmount ? corpo.amount : resto;
         c.canceled_amount += valor;
         if (c.canceled_amount >= (c.paid_amount ?? c.amount)) c.status = "refunded";
-        return responde(200, deleteSemCancelado ? { ...c, canceled_amount: undefined } : c);
+        const corpoDaResposta = deleteSemCancelado ? { ...c, canceled_amount: undefined } : { ...c };
+        const chaveDoDelete = String(req.headers["idempotency-key"] ?? "");
+        if (chaveDoDelete) respostasPorChave.set(chaveDoDelete, { status: 200, corpo: corpoDaResposta });
+        return responde(200, corpoDaResposta);
       }
     });
   });
@@ -238,7 +253,7 @@ async function limpar() {
   await db.execute(sql`delete from patrocinio_lancamentos where organization_id in (select id from organizations where slug = ${ORG_SLUG})`).catch(() => {});
   await db.delete(users).where(eq(users.email, EMAIL_ORG));
   await db.execute(sql`delete from rate_events where bucket like 'order:%' or bucket like 'login:%'`);
-  await db.execute(sql`delete from audit_log where action = 'pagamento.contestacao.a_conferir' and entity_id like 'ch_%TESTE'`);
+  await db.execute(sql`delete from audit_log where action like 'pagamento.contestacao.%' and entity_id like 'ch_%TESTE'`);
   await db.execute(sql`delete from audit_log where entity = 'chamado' and diff->>'protocolo' like 'PAGTESTE-%'`);
   await db.execute(sql`delete from pix_volume_mensal where organization_id in (select id from organizations where slug = ${ORG_SLUG})`).catch(() => {});
   await db.delete(organizations).where(eq(organizations.slug, ORG_SLUG));
@@ -708,6 +723,8 @@ async function main() {
     checa("a organização não resolve (403)", r.status === 403, `HTTP ${r.status}`);
     r = await admin.req("POST", `/api/admin/chamados/${chamado.id}/conferencia`, { devolveu: true, observacao: "" });
     checa("sem a observação: 400", r.status === 400, `HTTP ${r.status}`);
+    r = await admin.req("POST", "/api/admin/chamados/nao-e-um-id/conferencia", { devolveu: true, observacao: "id fora do formato" });
+    checa("id fora do formato: 404 (não chega ao banco)", r.status === 404, `HTTP ${r.status}`);
     const vendidasAntes = (await statsDe(a.id)).soldCount;
     const [dois1, dois2] = await Promise.all([
       admin.req("POST", `/api/admin/chamados/${chamado.id}/conferencia`, { devolveu: true, observacao: "Conferi no painel do Pagar.me: voltou." }),
@@ -744,9 +761,12 @@ async function main() {
       .insert(chamados)
       .values({ protocolo: `PAGTESTE-${pNao!.code}`, organizationId: org.id, orderId: pNao!.id, buyerId: compradorNao.id, status: "aprovado", motivo: "Prova do Pagar.me: não devolveu", devolverCents: pNao!.amountCents - 100, taxaCents: 100, taxaPct: 10, tipoReembolso: "com_taxa" })
       .returning();
-    deleteSemCancelado = true;
+    // O Pagar.me responde 500 sem devolver nada, e guarda a falha pela chave.
+    falhaDelete = true;
     r = await admin.req("POST", `/api/admin/chamados/${chamadoNao.id}/estornar`, {});
-    deleteSemCancelado = false;
+    falhaDelete = false;
+    const primeiraChave = pedidos.filter((p) => p.metodo === "DELETE" && p.url.endsWith(`/charges/${cNao.id}`)).at(-1)?.idem ?? "";
+    checa("o 500 deixa o chamado a conferir", r.status === 409, `HTTP ${r.status}`);
     r = await admin.req("POST", `/api/admin/chamados/${chamadoNao.id}/conferencia`, { devolveu: false, observacao: "Conferi no painel: a devolução não saiu." });
     let [naoDepois] = await db.select().from(chamados).where(eq(chamados.id, chamadoNao.id));
     checa(
@@ -755,11 +775,68 @@ async function main() {
       `HTTP ${r.status} ${naoDepois.status} ${naoDepois.formaDevolucao}`,
     );
     r = await admin.req("POST", `/api/admin/chamados/${chamadoNao.id}/estornar`, {});
+    const segundaChave = pedidos.filter((p) => p.metodo === "DELETE" && p.url.endsWith(`/charges/${cNao.id}`)).at(-1)?.idem ?? "";
+    checa(
+      "a nova tentativa vai com outra chave (-t1); a primeira guardou a falha no provedor",
+      primeiraChave === `estorno-${cNao.id}-pedido-${pNao!.id}-${pNao!.amountCents - 100}` &&
+        segundaChave === `estorno-${cNao.id}-pedido-${pNao!.id}-t1-${pNao!.amountCents - 100}` &&
+        respostasPorChave.get(primeiraChave)?.status === 500,
+      `${primeiraChave} → ${segundaChave}`,
+    );
     [naoDepois] = await db.select().from(chamados).where(eq(chamados.id, chamadoNao.id));
     checa(
       "…e se devolve de novo pelo caminho de sempre",
       r.status === 200 && naoDepois.status === "estornado" && naoDepois.formaDevolucao === "pagarme" && (await pedidoPorCodigo(pNao!.code)).status === "refunded",
       `HTTP ${r.status} ${naoDepois.status} ${naoDepois.formaDevolucao} ${r.json?.message ?? ""}`,
+    );
+
+    console.log("\n  sorteio adiado enquanto a devolução estava a conferir:");
+    r = await new Cliente().req("POST", "/api/public/orders", { campaignId: a.id, quantity: 2, buyer: comprador(13, { cpf: CPF, email: EMAIL }) });
+    const pAdi = await pedidoPorCodigo(r.json?.code ?? 0);
+    const cAdi = cobrancas.get(pAdi!.pspChargeId!)!;
+    cAdi.status = "paid";
+    cAdi.paid_amount = cAdi.amount;
+    await webhook(evPago(hookId(), cAdi.id), SEGREDO);
+    const pAdiPago = await pedidoPorCodigo(pAdi!.code);
+    const [compradorAdi] = await db.select().from(buyers).where(eq(buyers.phone, TELEFONES[13]));
+    const [chamadoAdi] = await db
+      .insert(chamados)
+      .values({ protocolo: `PAGTESTE-${pAdi!.code}`, organizationId: org.id, orderId: pAdi!.id, buyerId: compradorAdi.id, status: "aprovado", motivo: "Prova do Pagar.me: adiado no meio", devolverCents: pAdi!.amountCents - 100, taxaCents: 100, taxaPct: 10, tipoReembolso: "com_taxa", prazoEstornoAte: new Date(Date.now() + 20 * 86_400_000) })
+      .returning();
+    falhaDelete = true;
+    r = await admin.req("POST", `/api/admin/chamados/${chamadoAdi.id}/estornar`, {});
+    falhaDelete = false;
+    // A plataforma aprova o adiamento do sorteio enquanto a devolução está a conferir.
+    await db.insert(campanhaSolicitacoes).values({
+      protocolo: `RS-PAGTESTE-${pAdi!.code}`,
+      campaignId: a.id,
+      organizationId: org.id,
+      tipo: "adiamento",
+      status: "aprovada",
+      motivo: "Prova do Pagar.me: adiado",
+      drawAtAtual: a.drawAt,
+      drawAtNovo: new Date(Date.now() + 20 * 86_400_000),
+      decididoEm: new Date(Math.max(Date.now(), (pAdiPago.paidAt ?? new Date()).getTime() + 1000)),
+    });
+    r = await admin.req("POST", `/api/admin/chamados/${chamadoAdi.id}/conferencia`, { devolveu: false, observacao: "Conferi no painel: não saiu." });
+    let [adiDepois] = await db.select().from(chamados).where(eq(chamados.id, chamadoAdi.id));
+    checa(
+      "não devolveu depois do adiamento: volta a aprovado devolvendo tudo (tipo adiamento, sem taxa, prazo bancário)",
+      r.status === 200 &&
+        adiDepois.status === "aprovado" &&
+        adiDepois.tipoReembolso === "adiamento" &&
+        adiDepois.devolverCents === pAdi!.amountCents &&
+        adiDepois.taxaCents === 0 &&
+        (adiDepois.prazoEstornoAte?.getTime() ?? Infinity) < Date.now() + 10 * 86_400_000,
+      `HTTP ${r.status} ${adiDepois.status} ${adiDepois.tipoReembolso} ${adiDepois.devolverCents}/${pAdi!.amountCents}`,
+    );
+    r = await admin.req("POST", `/api/admin/chamados/${chamadoAdi.id}/estornar`, {});
+    [adiDepois] = await db.select().from(chamados).where(eq(chamados.id, chamadoAdi.id));
+    const totalAdi = pedidos.filter((p) => p.metodo === "DELETE" && p.url.endsWith(`/charges/${cAdi.id}`)).at(-1);
+    checa(
+      "…e a devolução de novo é a integral",
+      r.status === 200 && adiDepois.formaDevolucao === "pagarme" && (await pedidoPorCodigo(pAdi!.code)).status === "refunded" && totalAdi?.corpo === null,
+      `HTTP ${r.status} ${adiDepois.formaDevolucao} ${JSON.stringify(totalAdi?.corpo)}`,
     );
 
     console.log("\n  dois estornos parciais da mesma cobrança ao mesmo tempo:");
@@ -807,6 +884,29 @@ async function main() {
       if (!filaDepois) await new Promise((ok) => setTimeout(ok, 250));
     }
     checa("a volta seguinte põe o Pix na fila do Pix tardio e tira a anotação", filaDepois === 1 && !(await anotada()), `fila ${filaDepois}`);
+
+    console.log("\n  a contestação parcial: a plataforma registra a decisão");
+    r = await admin.req("GET", "/api/admin/contestacoes");
+    checa(
+      "a contestação a conferir aparece na lista da plataforma, sem dado do comprador",
+      (r.json as any[] | null)?.some((x) => x.cobranca === chC) === true && !JSON.stringify(r.json).includes(CPF) && !JSON.stringify(r.json).includes("Comprador"),
+      `HTTP ${r.status}`,
+    );
+    r = await dono.req("POST", `/api/admin/contestacoes/${chC}/conferida`, { observacao: "decisão da organização" });
+    checa("a organização não registra (403)", r.status === 403, `HTTP ${r.status}`);
+    r = await admin.req("POST", `/api/admin/contestacoes/ch_%24%24/conferida`, { observacao: "id estranho no caminho" });
+    checa("cobrança fora do formato: 404", r.status === 404, `HTTP ${r.status}`);
+    r = await admin.req("POST", `/api/admin/contestacoes/ch_naoexisteTESTE/conferida`, { observacao: "nunca houve aviso desta" });
+    checa("cobrança sem aviso: 404", r.status === 404, `HTTP ${r.status}`);
+    r = await admin.req("POST", `/api/admin/contestacoes/${chC}/conferida`, { observacao: "" });
+    checa("sem a observação: 400", r.status === 400, `HTTP ${r.status}`);
+    const [k1, k2] = await Promise.all([
+      admin.req("POST", `/api/admin/contestacoes/${chC}/conferida`, { observacao: "Conferi no provedor: MED parcial, pedido segue." }),
+      admin.req("POST", `/api/admin/contestacoes/${chC}/conferida`, { observacao: "Conferi no provedor: MED parcial, pedido segue." }),
+    ]);
+    checa("dois cliques: um 200 e um 409", [k1.status, k2.status].sort().join(",") === "200,409", `${k1.status},${k2.status}`);
+    r = await admin.req("GET", "/api/admin/caixa-de-entrada");
+    checa("conferida, a contestação sai da Caixa", !(r.json as any[] | null)?.some((x) => x.chave === `contestacao:${chC}`), `HTTP ${r.status}`);
 
     checa("a chave nunca foi para uma URL", pedidos.every((p) => !p.url.includes(CHAVE)));
   } finally {

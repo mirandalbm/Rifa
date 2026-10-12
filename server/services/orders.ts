@@ -54,6 +54,7 @@ import { normalizePhone } from "@shared/format";
 import { users, organizations } from "@shared/schema";
 import {
   EXIGE_CPF,
+  EXIGE_EMAIL,
   comissaoInicial,
   percentualDoPromotor,
   type ProvedorPix,
@@ -74,7 +75,7 @@ import { conferirReservaAberta, guardOrder, type RequestIdentity } from "./antif
 import { enabledPhysical, labelFor } from "@shared/payments";
 import { notify } from "../notifications";
 import { publicUrl } from "./urls";
-import { formatBRL, formatQuota, cpfValido } from "@shared/format";
+import { formatBRL, formatQuota, cpfValido, emailValido } from "@shared/format";
 import { isUniqueViolation } from "../pgError";
 import { avaliarMetas, confirmarIndicacao, desfazerMetasNoEstorno, estornarIndicacao, registrarIndicacao, travarPessoasDoEstorno } from "./bonus";
 import { registrarPixTardio } from "./pixTardio";
@@ -263,6 +264,17 @@ async function reservaAbertaNaTransacao(tx: Tx, buyerId: string, quantidade: num
 }
 
 /**
+ * O provedor do Pix em uso exige o e-mail de quem paga (`EXIGE_EMAIL`, o
+ * Pagar.me): conferido no formato **antes de reservar**, como o CPF —
+ * descobrir na hora do Pix deixaria a cota presa numa reserva sem cobrança.
+ */
+function conferirEmailDoPix(provedor: string, email: string | undefined | null) {
+  if (EXIGE_EMAIL[provedor as ProvedorPix] && !emailValido(email ?? "")) {
+    throw new OrderError("Informe um e-mail válido de quem está comprando: ele é exigido para gerar o Pix.", 400);
+  }
+}
+
+/**
  * Tudo que o pedido precisa antes de gravar: confere a rifa, os limites, o
  * CPF e o antifraude, resolve comprador e afiliado e calcula o preço. É a
  * mesma régua para a compra avulsa (`createOrder`) e para cada rifa do
@@ -294,6 +306,8 @@ async function prepararPedido(
         name: conta.name,
         phone: conta.phone,
         cpf: conta.cpf ?? input.buyer.cpf,
+        // O e-mail da conta vale primeiro; sem ele, o que a tela pediu.
+        email: conta.email ?? input.buyer.email,
       },
     };
   }
@@ -366,6 +380,8 @@ async function prepararPedido(
       throw new OrderError("Informe um CPF válido de quem está comprando: ele é exigido para gerar o Pix.", 400);
     }
   }
+  // O e-mail, pela mesma régua: o Pix do Pagar.me não sai sem ele.
+  if (provider) conferirEmailDoPix(provider.name, input.buyer.email);
 
   // 9.4: na rifa autorizada a promotora e a plataforma não concorrem — nem
   // pela maquininha. Antes de qualquer gravação, como o antifraude.
@@ -649,6 +665,8 @@ export async function createOrder(
       name: buyer.name,
       phone: buyer.phone,
       cpf: buyer.cpf ?? input.buyer.cpf ?? undefined,
+      // O que veio no pedido (a conta já pôs o dela), senão o do cadastro.
+      email: input.buyer.email ?? buyer.email ?? undefined,
     },
     expiresAt,
     split: splitDaParte(parte),
@@ -801,12 +819,17 @@ export async function createCartOrder(input: CarrinhoCheckoutInput, ctx: CreateO
 
   // Dentro da conta, quem compra é a conta — o telefone do antifraude também.
   let telefone = input.buyer.phone;
+  let email = input.buyer.email;
   if (ctx.contaId) {
-    const [conta] = await db.select({ phone: buyers.phone, cpf: buyers.cpf, excluidoEm: buyers.excluidoEm }).from(buyers).where(eq(buyers.id, ctx.contaId));
+    const [conta] = await db.select({ phone: buyers.phone, cpf: buyers.cpf, email: buyers.email, excluidoEm: buyers.excluidoEm }).from(buyers).where(eq(buyers.id, ctx.contaId));
     if (!conta || conta.excluidoEm) throw new OrderError("Entre de novo na sua conta.", 401);
     if (faltaNaContaGoogle(conta).length) throw new OrderError(MSG_COMPLETE, 409);
     telefone = conta.phone;
+    email = conta.email ?? email;
   }
+  // O e-mail que o provedor exige, antes do antifraude e de qualquer linha:
+  // erro de preenchimento não gasta a tentativa (cada rifa confere de novo).
+  conferirEmailDoPix((await activePaymentProvider()).name, email);
 
   // Antes de qualquer linha: o carrinho inteiro é uma tentativa de compra.
   const identity = ctx.identity ?? { ipHash: null, deviceHash: null };
@@ -894,7 +917,12 @@ export async function createCartOrder(input: CarrinhoCheckoutInput, ctx: CreateO
       orderCode: carrinho.codigo,
       amountCents: total,
       description: `Carrinho — ${pedidos.length} rifa(s)`,
-      payer: { name: buyer.name, phone: buyer.phone, cpf: buyer.cpf ?? preparos[0].input.buyer.cpf ?? undefined },
+      payer: {
+        name: buyer.name,
+        phone: buyer.phone,
+        cpf: buyer.cpf ?? preparos[0].input.buyer.cpf ?? undefined,
+        email: preparos[0].input.buyer.email ?? buyer.email ?? undefined,
+      },
       expiresAt,
       split: split.length ? split : undefined,
     });

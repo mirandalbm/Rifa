@@ -22,7 +22,7 @@ import { PIX_TARDIO_PRAZO_DIAS_UTEIS } from "./pixTardio";
 import type { Secao } from "./regulamento";
 
 /** Data em que esta redação passou a valer. Sobe junto com qualquer mudança de texto. */
-export const VIGENCIA_DOS_TERMOS = "2026-10-10";
+export const VIGENCIA_DOS_TERMOS = "2026-10-12";
 
 /**
  * Em quantos dias a plataforma responde a reclamação de consumidor: o teto do
@@ -370,7 +370,7 @@ export function montarPrivacidade(d: DadosDosTermos): Secao[] {
     {
       titulo: "3. Com quem compartilhamos",
       itens: [
-        "Provedor do Pix (para gerar e conferir a cobrança e fazer devoluções); Meta/WhatsApp (código de acesso e mensagens das suas compras); Google (só se você entrar com o Google); serviço de consulta de CEP (só o CEP); serviços de notificação do celular (Google, Apple, Mozilla, Microsoft — só se você ligar os avisos); Amazon Web Services (Amazon Rekognition), só quando a plataforma liga o comparador automático (sem ele, a comparação é feita por uma pessoa da plataforma e a foto não sai), como operadora, nos termos do contrato dela com a plataforma, em servidores no exterior — transferência internacional que só acontece com o seu consentimento expresso no texto que a cita (LGPD, art. 33, VIII); os provedores de hospedagem, banco de dados e cópia de segurança, que guardam os dados por nós; e a promotora e o afiliado (o que está no item 1).",
+        "Provedor do Pix (nome e telefone de quem paga e, quando o provedor exige para emitir o Pix, o CPF e o e-mail — para gerar e conferir a cobrança e fazer devoluções); Meta/WhatsApp (código de acesso e mensagens das suas compras); Google (só se você entrar com o Google); serviço de consulta de CEP (só o CEP); serviços de notificação do celular (Google, Apple, Mozilla, Microsoft — só se você ligar os avisos); Amazon Web Services (Amazon Rekognition), só quando a plataforma liga o comparador automático (sem ele, a comparação é feita por uma pessoa da plataforma e a foto não sai), como operadora, nos termos do contrato dela com a plataforma, em servidores no exterior — transferência internacional que só acontece com o seu consentimento expresso no texto que a cita (LGPD, art. 33, VIII); os provedores de hospedagem, banco de dados e cópia de segurança, que guardam os dados por nós; e a promotora e o afiliado (o que está no item 1).",
         "Pixels de anúncio (Meta, Google, TikTok) só carregam depois do seu \"Aceitar\" no aviso de cookies; a compra enviada a eles leva o telefone só em hash, nunca nome, CPF ou e-mail. Meta, Google e TikTok atuam como controladores conjuntos dos dados coletados por esses cookies, nos termos das respectivas políticas de privacidade. Base legal: o seu consentimento, que você retira em Perfil → Preferência de cookies; ao recusar, os cookies não essenciais já instalados são removidos.",
         "Autoridades, quando a lei ou ordem judicial exigir. Nunca vendemos dados pessoais.",
       ],

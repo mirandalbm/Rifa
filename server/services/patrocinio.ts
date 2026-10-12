@@ -52,7 +52,8 @@ import {
   type Alcance,
   type ConfigPatrocinio,
 } from "@shared/patrocinio";
-import { EXIGE_CPF, type ProvedorPix } from "@shared/plataforma";
+import { EXIGE_CPF, EXIGE_EMAIL, type ProvedorPix } from "@shared/plataforma";
+import { emailValido } from "@shared/format";
 import { UFS } from "@shared/endereco";
 import { diaNoFuso, serieDiaria } from "@shared/resultados";
 import { activePaymentProvider } from "../payments";
@@ -496,7 +497,11 @@ export async function pedirRecarga(req: Request, valorCents: number) {
   if (EXIGE_CPF[provider.name as ProvedorPix] && documento.length !== 14 && documento.length !== 11) {
     throw new PatrocinioError("Cadastre o CNPJ da organização para gerar o Pix da recarga.", 400);
   }
-  const [u] = await db.select({ phone: users.phone }).from(users).where(eq(users.id, req.user!.id));
+  const [u] = await db.select({ phone: users.phone, email: users.email }).from(users).where(eq(users.id, req.user!.id));
+  // O Pagar.me exige o e-mail de quem paga: o de quem pede a recarga, conferido antes de gravar.
+  if (EXIGE_EMAIL[provider.name as ProvedorPix] && !emailValido(u?.email ?? "")) {
+    throw new PatrocinioError("Cadastre um e-mail válido no seu acesso para gerar o Pix da recarga.", 400);
+  }
   const expiresAt = new Date(Date.now() + 30 * 60_000);
 
   // Faixa própria (9 dígitos): não colide com os códigos de pedido (8 dígitos).
@@ -514,7 +519,7 @@ export async function pedirRecarga(req: Request, valorCents: number) {
       orderCode: codigo,
       amountCents: valorCents,
       description: `Recarga de rifas patrocinadas — ${org?.nome ?? "organização"}`,
-      payer: { name: org?.nome ?? "Organização", phone: u?.phone ?? "", cpf: documento || undefined },
+      payer: { name: org?.nome ?? "Organização", phone: u?.phone ?? "", cpf: documento || undefined, email: u?.email ?? undefined },
       expiresAt,
     });
     const [comPix] = await db

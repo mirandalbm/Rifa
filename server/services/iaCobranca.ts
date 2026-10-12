@@ -46,7 +46,8 @@ import {
   type ResumoCobrancaIA,
 } from "@shared/iaCobranca";
 import type { TitularDaIA } from "@shared/ia";
-import { EXIGE_CPF, type ProvedorPix } from "@shared/plataforma";
+import { EXIGE_CPF, EXIGE_EMAIL, type ProvedorPix } from "@shared/plataforma";
+import { emailValido } from "@shared/format";
 import { activePaymentProvider } from "../payments";
 import { isUniqueViolation } from "../pgError";
 import { hit } from "./antifraude";
@@ -334,7 +335,7 @@ export async function pedirPagamento(
     );
 
   const [u] = await db
-    .select({ nome: users.name, phone: users.phone })
+    .select({ nome: users.name, phone: users.phone, email: users.email })
     .from(users)
     .where(eq(users.id, userId));
   let nome = u?.nome ?? "Assinante";
@@ -352,6 +353,10 @@ export async function pedirPagamento(
     throw new CobrancaIAError(
       "Informe o CPF ou o CNPJ de quem paga para gerar o Pix.",
     );
+  }
+  // O Pagar.me exige o e-mail de quem paga: o do acesso de quem pede, antes de gravar.
+  if (EXIGE_EMAIL[provider.name as ProvedorPix] && !emailValido(u?.email ?? "")) {
+    throw new CobrancaIAError("Cadastre um e-mail válido no seu acesso para gerar o Pix.");
   }
 
   const agora = new Date();
@@ -403,7 +408,7 @@ export async function pedirPagamento(
       orderCode: linha.codigo,
       amountCents: valorCents,
       description: descricao,
-      payer: { name: nome, phone: u?.phone ?? "", cpf: documento ?? undefined },
+      payer: { name: nome, phone: u?.phone ?? "", cpf: documento ?? undefined, email: u?.email ?? undefined },
       expiresAt,
     });
   } catch (err) {

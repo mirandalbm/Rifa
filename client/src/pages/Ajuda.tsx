@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Search } from "lucide-react";
+import { ChevronRight, Search } from "lucide-react";
 import { PublicShell } from "@/components/AppShell";
-import { Empty } from "@/components/bits";
+import { Button, Empty } from "@/components/bits";
 import { NOME_TEMA_AJUDA, buscarNaAjuda, perguntasDaAjuda, type Pergunta } from "@shared/ajuda";
 
 /**
@@ -24,46 +24,76 @@ export default function Ajuda() {
   );
   const achadas = buscarNaAjuda(perguntas, termo);
 
-  // Atalho do rodapé (`/ajuda#reembolso`): abre a resposta e leva até ela.
+  // Atalho do rodapé (`/ajuda#reembolso`): abre a resposta, leva até ela e
+  // põe o foco na pergunta. Vale ao chegar e também com a página já aberta
+  // (o link do rodapé troca só a âncora: `hashchange`, ou o `pushState` do
+  // roteador).
   useEffect(() => {
-    const id = decodeURIComponent(window.location.hash.slice(1));
-    if (!id) return;
-    const el = document.getElementById(id);
-    if (el instanceof HTMLDetailsElement) {
-      el.open = true;
-      el.scrollIntoView({ block: "center" });
-    }
+    const abrir = () => {
+      const id = decodeURIComponent(window.location.hash.slice(1));
+      if (!id) return;
+      const el = document.getElementById(id);
+      if (el instanceof HTMLDetailsElement) {
+        el.open = true;
+        el.scrollIntoView({ block: "center" });
+        el.querySelector("summary")?.focus({ preventScroll: true });
+      }
+    };
+    abrir();
+    window.addEventListener("hashchange", abrir);
+    window.addEventListener("pushState", abrir);
+    return () => {
+      window.removeEventListener("hashchange", abrir);
+      window.removeEventListener("pushState", abrir);
+    };
   }, []);
   const temas = [...new Set(achadas.map((p) => p.tema))];
 
   return (
     <PublicShell>
-      <h1 className="font-display text-xl font-extrabold">Central de ajuda</h1>
-      <label className="relative mt-3 block">
+      <h1 className="font-display text-2xl font-extrabold">Central de ajuda</h1>
+      <label className="relative mt-4 block">
         <span className="sr-only">Buscar na ajuda</span>
-        <Search size={16} aria-hidden className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+        <Search size={18} aria-hidden className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
         <input
+          type="search"
           value={termo}
           onChange={(e) => setTermo(e.target.value)}
           placeholder="Buscar: pagamento, sorteio, reembolso…"
-          className="w-full rounded-md border border-line-2 py-2 pl-9 pr-3 text-sm"
+          className="campo mt-0 pl-10 text-sm"
         />
       </label>
 
-      {achadas.length === 0 ? <Empty>Nada encontrado para "{termo}".</Empty> : null}
+      {achadas.length === 0 ? (
+        <div className="mt-4 rounded-xl border border-line bg-white text-center">
+          <Empty>Nada encontrado para "{termo}".</Empty>
+          <div className="-mt-4 pb-6">
+            <Button type="button" variant="cinza" onClick={() => setTermo("")}>
+              Ver todas as perguntas
+            </Button>
+          </div>
+        </div>
+      ) : null}
 
       {temas.map((tema) => (
-        <section key={tema} className="mt-5">
-          <h2 className="label-xs">{NOME_TEMA_AJUDA[tema]}</h2>
+        <section key={tema} aria-labelledby={`tema-${tema}`} className="mt-4">
+          <h2 id={`tema-${tema}`} className="label-xs text-ink-2">
+            {NOME_TEMA_AJUDA[tema]}
+          </h2>
           <div className="mt-2 divide-y divide-line overflow-hidden rounded-xl border border-line bg-white">
             {achadas
               .filter((p) => p.tema === tema)
               .map((p: Pergunta) => (
-                <details key={p.id} id={p.id} className="group px-4 py-3" open={Boolean(termo.trim())}>
-                  <summary className="cursor-pointer list-none text-sm font-semibold marker:hidden">
-                    {p.pergunta}
+                <details key={p.id} id={p.id} className="group" open={Boolean(termo.trim())}>
+                  <summary className="flex cursor-pointer list-none items-center gap-2.5 px-4 py-3 text-[15px] font-bold leading-5 marker:hidden [&::-webkit-details-marker]:hidden">
+                    <span className="min-w-0 flex-1">{p.pergunta}</span>
+                    <ChevronRight
+                      size={16}
+                      aria-hidden
+                      className="shrink-0 text-muted transition-transform group-open:rotate-90"
+                    />
                   </summary>
-                  <div className="mt-2 space-y-2 text-sm text-ink-2">
+                  <div className="space-y-2 px-4 pb-4 text-sm leading-[21px] text-ink-2">
                     {p.resposta.map((r) => (
                       <p key={r}>{r}</p>
                     ))}

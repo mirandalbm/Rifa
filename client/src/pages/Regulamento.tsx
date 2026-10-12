@@ -1,7 +1,9 @@
 import { Link, useParams } from "wouter";
+import { ArrowLeft } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { PublicShell } from "@/components/AppShell";
 import { Empty } from "@/components/bits";
+import { TextoDeLeitura } from "@/components/TextoDeLeitura";
 import type { Secao } from "@shared/regulamento";
 
 interface Resposta {
@@ -31,6 +33,11 @@ export default function Regulamento() {
     return (
       <PublicShell>
         <Empty>Regulamento não encontrado.</Empty>
+        <p className="-mt-4 text-center text-sm">
+          <Link href="/" className="text-green-deep underline">
+            Ver as rifas no ar
+          </Link>
+        </p>
       </PublicShell>
     );
   }
@@ -38,23 +45,13 @@ export default function Regulamento() {
   const voltar = data.organizacao ? `/o/${data.organizacao.slug}/r/${data.rifa.slug}` : `/r/${data.rifa.slug}`;
   return (
     <PublicShell>
-      <Link href={voltar} className="text-sm text-green-deep underline">
-        ← voltar para a rifa
+      <Link href={voltar} className="inline-flex items-center gap-1.5 text-sm text-green-deep hover:underline">
+        <ArrowLeft size={14} aria-hidden />
+        voltar para a rifa
       </Link>
-      <h1 className="mt-2 font-display text-xl font-extrabold">Regulamento</h1>
-      <p className="text-sm text-muted">{data.rifa.prizeTitle}</p>
-      <article className="mt-4 space-y-5 text-sm leading-relaxed [overflow-wrap:anywhere]">
-        {data.secoes.map((s) => (
-          <section key={s.titulo}>
-            <h2 className="font-display text-base font-bold">{s.titulo}</h2>
-            {s.itens.map((i) => (
-              <p key={i} className="mt-1 text-ink-2">
-                {i}
-              </p>
-            ))}
-          </section>
-        ))}
-      </article>
+      <h1 className="mt-[18px] font-display text-2xl font-extrabold">Regulamento</h1>
+      <p className="mt-0.5 text-[13px] text-muted [overflow-wrap:anywhere]">{data.rifa.prizeTitle}</p>
+      <TextoDeLeitura secoes={data.secoes} />
     </PublicShell>
   );
 }

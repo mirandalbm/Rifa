@@ -796,7 +796,7 @@ export default function Rifa() {
                   <p className="mt-1 text-[11px] text-red">CPF inválido. Confira os números.</p>
                 ) : (
                   <p className="mt-1 text-[11px] text-muted">
-                    Exigido pelo banco para gerar o Pix. Não aparece para ninguém.
+                    Exigido pelo banco para gerar o Pix. Só a plataforma, o banco e, se você ganhar, a promotora veem.
                   </p>
                 )}
               </div>
@@ -819,7 +819,7 @@ export default function Rifa() {
                   <p className="mt-1 text-[11px] text-red">E-mail inválido. Confira o endereço.</p>
                 ) : (
                   <p className="mt-1 text-[11px] text-muted">
-                    Exigido pelo banco para gerar o Pix. Não aparece para ninguém.
+                    Exigido pelo banco para gerar o Pix. Só a plataforma, o banco e, se você ganhar, a promotora veem.
                   </p>
                 )}
               </div>

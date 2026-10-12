@@ -393,7 +393,7 @@ function PagarCarrinho({ itens, total }: { itens: Item[]; total: number }) {
           {dados.cpf.replace(/\D/g, "").length === 11 && !cpfOk ? (
             <p className="mt-1 text-[11px] text-red">CPF inválido. Confira os números.</p>
           ) : (
-            <p className="mt-1 text-[11px] text-muted">Exigido pelo banco para gerar o Pix. Não aparece para ninguém.</p>
+            <p className="mt-1 text-[11px] text-muted">Exigido pelo banco para gerar o Pix. Só a plataforma, o banco e, se você ganhar, a promotora veem.</p>
           )}
         </div>
       ) : null}
@@ -414,7 +414,7 @@ function PagarCarrinho({ itens, total }: { itens: Item[]; total: number }) {
           {dados.email.includes("@") && dados.email.includes(".") && !emailOk ? (
             <p className="mt-1 text-[11px] text-red">E-mail inválido. Confira o endereço.</p>
           ) : (
-            <p className="mt-1 text-[11px] text-muted">Exigido pelo banco para gerar o Pix. Não aparece para ninguém.</p>
+            <p className="mt-1 text-[11px] text-muted">Exigido pelo banco para gerar o Pix. Só a plataforma, o banco e, se você ganhar, a promotora veem.</p>
           )}
         </div>
       ) : null}

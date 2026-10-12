@@ -118,13 +118,9 @@ senha); **[código]** é trabalho no repositório.
   pagarme` prova contra um Pagar.me de mentira; `tests/pagarme.test.ts` as
   regras. O que ficou **a confirmar** com o Pagar.me está em
   `docs/PLANO-GATEWAY-PAGARME.md`, seção 6.
-- [ ] **[código]** **O campo de e-mail na tela de compra** (página da rifa e
-  carrinho, só quando o provedor em uso exige) ficou fora do PR do Pagar.me:
-  o registro de `docs/VERSOES.md` já tinha 10 mudanças `aguardando leva`, e a
-  próxima mudança de tela é a leva. Entra logo depois dela. **Até lá, não
-  escolha o Pagar.me em Configurações → Pagamentos**: sem o campo, o
-  comprador sem conta (e a conta sem e-mail) recebe "Informe um e-mail
-  válido" e não compra.
+- [x] **[código]** **O campo de e-mail na tela de compra** (página da rifa e
+  carrinho, só quando o provedor em uso exige; a conta que já tem e-mail não
+  digita) e a explicação do Pagar.me em Configurações → Pagamentos (#253).
 - [ ] **[você]** Pagar.me no Railway: `PAGARME_SECRET_KEY` (a chave secreta
   `sk_…` da conta) e `PAGARME_WEBHOOK_TOKEN` (um segredo longo, gerado por
   você); no painel do Pagar.me, cadastrar o webhook

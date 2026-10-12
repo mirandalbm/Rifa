@@ -1806,9 +1806,8 @@ permite cobrar dela depois, e o aceite é a prova.
     gravar a recarga do patrocínio e o Pix do assistente (o e-mail do acesso).
     Dentro da conta, vale o e-mail dela. `GET /api/public/checkout` diz
     `exigeEmail` e só se a conta já tem e-mail (`contaTemEmail`), nunca o
-    e-mail. **O campo na tela de compra espera a leva** (`docs/VERSOES.md`
-    estava com 10 aguardando): até ele entrar, o Pagar.me não deve ser
-    escolhido no painel (`docs/PENDENCIAS.md`).
+    e-mail. A tela de compra (página da rifa e carrinho) pede o e-mail só
+    quando o provedor exige, e a conta que já tem e-mail não digita.
   - O que não teve fonte oficial está marcado **a confirmar** no código e na
     seção 6 do plano. `npm run pagarme` prova tudo isso contra um Pagar.me de
     mentira (porta 5095) e `tests/pagarme.test.ts` as regras.

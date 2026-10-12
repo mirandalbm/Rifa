@@ -134,8 +134,9 @@ No código: `server/payments/pagarme.ts` (`PagarmeProvider`, registrado em
   devolução).
 - **E-mail obrigatório** com o Pagar.me: conferido no servidor antes de
   reservar (pedido e carrinho) e antes de gravar (recarga do patrocínio e Pix
-  do assistente, com o e-mail do acesso). O campo na tela de compra espera a
-  leva de `docs/VERSOES.md` (`docs/PENDENCIAS.md`).
+  do assistente, com o e-mail do acesso). A tela de compra (página da rifa e
+  carrinho) pede o e-mail só quando o provedor exige; a conta com e-mail não
+  digita.
 - **Prova**: `npm run pagarme` (Pagar.me de mentira na porta 5095) e
   `tests/pagarme.test.ts`.
 
